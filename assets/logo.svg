@@ -1,0 +1,972 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="900" height="900" viewBox="0 0 900 900">
+  <title>Флогистон — анимированная эмблема одиночной ролевой фэнтези-игры</title>
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="38%" r="75%">
+      <stop offset="0%" stop-color="#34306a"/>
+      <stop offset="55%" stop-color="#232048"/>
+      <stop offset="100%" stop-color="#131030"/>
+    </radialGradient>
+    <linearGradient id="flameG" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#ff5a1f"/>
+      <stop offset="45%" stop-color="#ff9d2e"/>
+      <stop offset="80%" stop-color="#ffd35e"/>
+      <stop offset="100%" stop-color="#fff3b8"/>
+    </linearGradient>
+    <radialGradient id="glowG">
+      <stop offset="0%" stop-color="#ffdf8a" stop-opacity="0.9"/>
+      <stop offset="45%" stop-color="#ffb347" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#ff8a2a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="goldG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fbe69a"/>
+      <stop offset="55%" stop-color="#e6b954"/>
+      <stop offset="100%" stop-color="#c08a2b"/>
+    </linearGradient>
+    <linearGradient id="ringG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0d284"/>
+      <stop offset="100%" stop-color="#8a5f1d"/>
+    </linearGradient>
+
+    <path id="flame" d="M0,0 C-13,-16 -11,-36 0,-52 C11,-36 13,-16 0,0 Z"/>
+    <path id="star4" d="M0,-9 L2.2,-2.2 L9,0 L2.2,2.2 L0,9 L-2.2,2.2 L-9,0 L-2.2,-2.2 Z"/>
+    <path id="dmd" d="M0,-7 L7,0 L0,7 L-7,0 Z"/>
+    <path id="bat" d="M0,0 Q3,-5 6,-1 Q9,-5 12,0 Q9,-2 6,1 Q3,-2 0,0 Z" fill="#2c2850"/>
+    <path id="win" d="M0,22 L0,9 A8,8 0 0 1 16,9 L16,22 Z"/>
+
+    <g id="wyvern">
+      <path d="M4,-6 Q18,-22 46,-24 Q24,-12 26,-6 Z" fill="#2e2957"/>
+      <path d="M-2,-5 Q-14,-26 32,-30 Q6,-18 10,-9 Z" fill="#3a3468"/>
+      <ellipse cx="0" cy="0" rx="16" ry="5.5" fill="#3a3468"/>
+      <line x1="-6" y1="-4.5" x2="-6" y2="4.5" stroke="#23204a" stroke-width="1.2"/>
+      <line x1="0" y1="-5" x2="0" y2="5" stroke="#23204a" stroke-width="1.2"/>
+      <line x1="6" y1="-4.5" x2="6" y2="4.5" stroke="#23204a" stroke-width="1.2"/>
+      <path d="M-14,-2 Q-22,-5 -27,-8" stroke="#3a3468" stroke-width="3" fill="none"/>
+      <circle cx="-29" cy="-9" r="3.8" fill="#3a3468"/>
+      <path d="M-32,-7 L-27,-4" stroke="#3a3468" stroke-width="1.6"/>
+      <circle cx="-30" cy="-10" r="1.1" fill="#8df2ff"/>
+      <path d="M15,-1 Q30,3 38,-6 Q30,7 17,4 Z" fill="#3a3468"/>
+      <path d="M-8,4 L-13,11 M6,4 L2,11" stroke="#3a3468" stroke-width="2.2" fill="none"/>
+      <path d="M-13,11 L-16,13 M2,11 L-1,13" stroke="#3a3468" stroke-width="1.6" fill="none"/>
+    </g>
+
+    <g id="orc">
+      <path d="M-13,0 L-11,-30 Q0,-38 11,-30 L13,0 Z" fill="currentColor"/>
+      <path d="M10,-26 L26,-44" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+      <line x1="26" y1="-44" x2="38" y2="-58" stroke="#6b4f33" stroke-width="3.5"/>
+      <path d="M33,-60 L47,-54 L41,-43 L30,-48 Z" fill="#8f97a3"/>
+      <circle cx="0" cy="-45" r="11" fill="currentColor"/>
+      <path d="M-8,-53 L-16,-64 L-3,-56 Z" fill="currentColor"/>
+      <path d="M8,-53 L16,-64 L3,-56 Z" fill="currentColor"/>
+      <path d="M-6,-37 L-8,-30 L-2,-36 Z" fill="#d9d3bf"/>
+      <path d="M6,-37 L8,-30 L2,-36 Z" fill="#d9d3bf"/>
+      <circle cx="-4" cy="-46" r="1.8" fill="#a5e86b"/>
+      <circle cx="4" cy="-46" r="1.8" fill="#a5e86b"/>
+    </g>
+
+    <g id="orcSpear">
+      <line x1="-28" y1="-62" x2="14" y2="6" stroke="#6b4f33" stroke-width="3"/>
+      <polygon points="-34,-68 -24,-64 -30,-56" fill="#9aa0a8"/>
+      <path d="M-13,0 L-11,-30 Q0,-38 11,-30 L13,0 Z" fill="currentColor"/>
+      <path d="M-2,-34 L-14,-46" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+      <path d="M8,-32 L-4,-44" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="0" cy="-45" r="11" fill="currentColor"/>
+      <path d="M-8,-53 L-16,-64 L-3,-56 Z" fill="currentColor"/>
+      <path d="M8,-53 L16,-64 L3,-56 Z" fill="currentColor"/>
+      <path d="M-6,-37 L-8,-30 L-2,-36 Z" fill="#d9d3bf"/>
+      <path d="M6,-37 L8,-30 L2,-36 Z" fill="#d9d3bf"/>
+      <circle cx="-4" cy="-46" r="1.8" fill="#a5e86b"/>
+      <circle cx="4" cy="-46" r="1.8" fill="#a5e86b"/>
+    </g>
+
+    <g id="skel">
+      <line x1="15" y1="-24" x2="26" y2="-40" stroke="currentColor" stroke-width="2.4"/>
+      <line x1="13" y1="-20" x2="18" y2="-28" stroke="currentColor" stroke-width="3"/>
+      <line x1="5" y1="-29" x2="15" y2="-24" stroke="currentColor" stroke-width="3.4"/>
+      <line x1="-5" y1="-29" x2="-13" y2="-20" stroke="currentColor" stroke-width="3.4"/>
+      <path d="M-7,-32 L7,-32 L5.5,-13 L-5.5,-13 Z" fill="currentColor"/>
+      <line x1="-5.2" y1="-27.5" x2="5.2" y2="-27.5" stroke="#5a626e" stroke-width="1.2"/>
+      <line x1="-4.8" y1="-23" x2="4.8" y2="-23" stroke="#5a626e" stroke-width="1.2"/>
+      <line x1="-4.4" y1="-18.5" x2="4.4" y2="-18.5" stroke="#5a626e" stroke-width="1.2"/>
+      <rect x="-4" y="-13" width="8" height="3" fill="currentColor"/>
+      <line x1="-3" y1="-10" x2="-8" y2="1" stroke="currentColor" stroke-width="3.4"/>
+      <line x1="-8" y1="1" x2="-13" y2="8" stroke="currentColor" stroke-width="3.4"/>
+      <line x1="3" y1="-10" x2="7" y2="-1" stroke="currentColor" stroke-width="3.4"/>
+      <line x1="7" y1="-1" x2="12" y2="5" stroke="currentColor" stroke-width="3.4"/>
+      <line x1="-15" y1="8.5" x2="-10" y2="9" stroke="currentColor" stroke-width="2.4"/>
+      <line x1="10" y1="5.5" x2="15" y2="6.5" stroke="currentColor" stroke-width="2.4"/>
+      <rect x="-3" y="-37" width="6" height="4.5" fill="currentColor"/>
+      <circle cx="0" cy="-41" r="5.6" fill="currentColor"/>
+      <circle cx="-2.1" cy="-42" r="1.4" fill="#8df2ff"/>
+      <circle cx="2.3" cy="-42" r="1.4" fill="#8df2ff"/>
+    </g>
+
+    <g id="skelWar">
+      <line x1="-4" y1="-12" x2="-9" y2="-2" stroke="#cfd6dd" stroke-width="3.4"/>
+      <line x1="-9" y1="-2" x2="-13" y2="6" stroke="#cfd6dd" stroke-width="3.4"/>
+      <line x1="-13" y1="6" x2="-18" y2="7" stroke="#cfd6dd" stroke-width="2.4"/>
+      <line x1="3" y1="-12" x2="6" y2="-2" stroke="#cfd6dd" stroke-width="3.4"/>
+      <line x1="6" y1="-2" x2="11" y2="6" stroke="#cfd6dd" stroke-width="3.4"/>
+      <line x1="11" y1="6" x2="16" y2="7" stroke="#cfd6dd" stroke-width="2.4"/>
+      <rect x="-4" y="-16" width="8" height="4" fill="#cfd6dd"/>
+      <line x1="0" y1="-16" x2="0" y2="-30" stroke="#cfd6dd" stroke-width="3"/>
+      <circle cx="0" cy="-14" r="1" fill="#8b95a0"/>
+      <circle cx="0" cy="-20" r="1" fill="#8b95a0"/>
+      <circle cx="0" cy="-26" r="1" fill="#8b95a0"/>
+      <path d="M-6,-30 Q0,-33 6,-30 L5,-17 L-5,-17 Z" fill="#cfd6dd"/>
+      <line x1="-4.8" y1="-26" x2="4.8" y2="-26" stroke="#79828c" stroke-width="1.2"/>
+      <line x1="-4.4" y1="-22" x2="4.4" y2="-22" stroke="#79828c" stroke-width="1.2"/>
+      <line x1="-4" y1="-18.5" x2="4" y2="-18.5" stroke="#79828c" stroke-width="1.2"/>
+      <circle cx="-7" cy="-29" r="1.8" fill="#8b95a0"/>
+      <circle cx="7" cy="-29" r="1.8" fill="#8b95a0"/>
+      <line x1="7" y1="-29" x2="15" y2="-33" stroke="#cfd6dd" stroke-width="3.4"/>
+      <circle cx="16" cy="-34" r="2" fill="#cfd6dd"/>
+      <line x1="16" y1="-34" x2="34" y2="-52" stroke="#b8c4cc" stroke-width="3"/>
+      <line x1="12.5" y1="-37.5" x2="19.5" y2="-30.5" stroke="#d9a63a" stroke-width="2.5"/>
+      <line x1="-7" y1="-29" x2="-13" y2="-22" stroke="#cfd6dd" stroke-width="3.4"/>
+      <ellipse cx="-16" cy="-22" rx="5" ry="8" fill="#3a3560" stroke="#d9a63a" stroke-width="1.5"/>
+      <circle cx="-16" cy="-22" r="1.8" fill="#d9a63a"/>
+      <rect x="-2" y="-34" width="4" height="4" fill="#cfd6dd"/>
+      <circle cx="0" cy="-40" r="6" fill="#dfe4e8"/>
+      <path d="M-4,-36 L4,-36 L3,-33 L-3,-33 Z" fill="#dfe4e8"/>
+      <line x1="-2.5" y1="-34.5" x2="2.5" y2="-34.5" stroke="#23204a" stroke-width="1"/>
+      <circle cx="-2.3" cy="-41" r="1.5" fill="#23204a"/>
+      <circle cx="2.3" cy="-41" r="1.5" fill="#23204a"/>
+      <circle cx="-2.3" cy="-41" r="0.8" fill="#8df2ff"/>
+      <circle cx="2.3" cy="-41" r="0.8" fill="#8df2ff"/>
+    </g>
+
+    <g id="skelArcher">
+      <line x1="-4" y1="-12" x2="-9" y2="-2" stroke="#cfd6dd" stroke-width="3.4"/>
+      <line x1="-9" y1="-2" x2="-13" y2="6" stroke="#cfd6dd" stroke-width="3.4"/>
+      <line x1="-13" y1="6" x2="-18" y2="7" stroke="#cfd6dd" stroke-width="2.4"/>
+      <line x1="3" y1="-12" x2="6" y2="-2" stroke="#cfd6dd" stroke-width="3.4"/>
+      <line x1="6" y1="-2" x2="11" y2="6" stroke="#cfd6dd" stroke-width="3.4"/>
+      <line x1="11" y1="6" x2="16" y2="7" stroke="#cfd6dd" stroke-width="2.4"/>
+      <rect x="-4" y="-16" width="8" height="4" fill="#cfd6dd"/>
+      <line x1="0" y1="-16" x2="0" y2="-30" stroke="#cfd6dd" stroke-width="3"/>
+      <path d="M-6,-30 Q0,-33 6,-30 L5,-17 L-5,-17 Z" fill="#cfd6dd"/>
+      <line x1="-4.8" y1="-26" x2="4.8" y2="-26" stroke="#79828c" stroke-width="1.2"/>
+      <line x1="-4.4" y1="-22" x2="4.4" y2="-22" stroke="#79828c" stroke-width="1.2"/>
+      <line x1="-4" y1="-18.5" x2="4" y2="-18.5" stroke="#79828c" stroke-width="1.2"/>
+      <circle cx="-7" cy="-29" r="1.8" fill="#8b95a0"/>
+      <circle cx="7" cy="-29" r="1.8" fill="#8b95a0"/>
+      <line x1="7" y1="-29" x2="14" y2="-26" stroke="#cfd6dd" stroke-width="3.4"/>
+      <line x1="-7" y1="-29" x2="-12" y2="-24" stroke="#cfd6dd" stroke-width="3.4"/>
+      <path d="M14,-38 Q24,-26 14,-14" stroke="#8a5c33" stroke-width="2.5" fill="none"/>
+      <line x1="14" y1="-38" x2="14" y2="-14" stroke="#d8d3c5" stroke-width="1"/>
+      <line x1="14" y1="-26" x2="32" y2="-26" stroke="#c9a06a" stroke-width="1.8"/>
+      <polygon points="32,-27.5 37,-26 32,-24.5" fill="#9aa0a8"/>
+      <rect x="-2" y="-34" width="4" height="4" fill="#cfd6dd"/>
+      <circle cx="0" cy="-40" r="6" fill="#dfe4e8"/>
+      <path d="M-4,-36 L4,-36 L3,-33 L-3,-33 Z" fill="#dfe4e8"/>
+      <circle cx="-2.3" cy="-41" r="1.5" fill="#23204a"/>
+      <circle cx="2.3" cy="-41" r="1.5" fill="#23204a"/>
+      <circle cx="-2.3" cy="-41" r="0.8" fill="#8df2ff"/>
+      <circle cx="2.3" cy="-41" r="0.8" fill="#8df2ff"/>
+    </g>
+
+    <g id="skelHorse">
+      <path d="M24,-30 Q34,-26 36,-16" stroke="#98a2ab" stroke-width="2" fill="none"/>
+      <line x1="-18" y1="-18" x2="-20" y2="-4" stroke="#98a2ab" stroke-width="3"/>
+      <line x1="-20" y1="-4" x2="-24" y2="4" stroke="#98a2ab" stroke-width="3"/>
+      <line x1="14" y1="-17" x2="12" y2="-3" stroke="#98a2ab" stroke-width="3"/>
+      <line x1="12" y1="-3" x2="8" y2="4" stroke="#98a2ab" stroke-width="3"/>
+      <ellipse cx="0" cy="-26" rx="26" ry="9" fill="#98a2ab"/>
+      <line x1="-12" y1="-33" x2="-12" y2="-19" stroke="#6a7280" stroke-width="1.5"/>
+      <line x1="-4" y1="-34" x2="-4" y2="-18" stroke="#6a7280" stroke-width="1.5"/>
+      <line x1="4" y1="-34" x2="4" y2="-18" stroke="#6a7280" stroke-width="1.5"/>
+      <line x1="12" y1="-33" x2="12" y2="-19" stroke="#6a7280" stroke-width="1.5"/>
+      <line x1="-24" y1="-34" x2="20" y2="-34" stroke="#98a2ab" stroke-width="2.5"/>
+      <line x1="-20" y1="-30" x2="-32" y2="-47" stroke="#98a2ab" stroke-width="4"/>
+      <line x1="-26" y1="-28" x2="-36" y2="-44" stroke="#98a2ab" stroke-width="3.5"/>
+      <path d="M-40,-52 L-28,-50 L-29,-44 L-40,-46 Z" fill="#98a2ab"/>
+      <circle cx="-34" cy="-49" r="1.3" fill="#8df2ff"/>
+      <rect x="-8" y="-38" width="12" height="5" fill="#4a2438"/>
+      <line x1="-2" y1="-34" x2="-6" y2="-20" stroke="#cfd6dd" stroke-width="2.6"/>
+      <line x1="2" y1="-34" x2="0" y2="-48" stroke="#cfd6dd" stroke-width="2.6"/>
+      <path d="M-4,-48 Q0,-50 4,-48 L3,-38 L-3,-38 Z" fill="#cfd6dd"/>
+      <line x1="1" y1="-46" x2="-8" y2="-42" stroke="#cfd6dd" stroke-width="2.2"/>
+      <line x1="-8" y1="-42" x2="-30" y2="-47" stroke="#6a5a44" stroke-width="1"/>
+      <circle cx="0" cy="-53" r="4.5" fill="#cfd6dd"/>
+      <circle cx="-1.8" cy="-54" r="1" fill="#8df2ff"/>
+    </g>
+
+    <g id="arrow">
+      <line x1="0" y1="0" x2="28" y2="28" stroke="#b8a888" stroke-width="2"/>
+      <polygon points="32,32 24,30 30,24" fill="#9aa0a8"/>
+      <line x1="3" y1="9" x2="9" y2="3" stroke="#8a5c33" stroke-width="2.5"/>
+      <line x1="6" y1="12" x2="12" y2="6" stroke="#8a5c33" stroke-width="2"/>
+      <line x1="0" y1="6" x2="6" y2="0" stroke="#8a5c33" stroke-width="2"/>
+    </g>
+
+    <g id="torch">
+      <line x1="0" y1="0" x2="0" y2="-10" stroke="#4a3f2a" stroke-width="2.5"/>
+      <path d="M-4,-10 L4,-10 L2,-14 L-2,-14 Z" fill="#4a3f2a"/>
+      <circle cx="0" cy="-17" r="16" fill="url(#glowG)" opacity="0.7">
+        <animate attributeName="opacity" values="0.7;0.95;0.6;0.9;0.7" dur="0.9s" repeatCount="indefinite"/>
+      </circle>
+      <use xlink:href="#flame" href="#flame" transform="translate(0,-13) scale(0.5)" fill="url(#flameG)">
+        <animateTransform attributeName="transform" additive="sum" type="scale" values="1;1.18;0.9;1.1;0.95;1" dur="0.9s" repeatCount="indefinite"/>
+      </use>
+    </g>
+
+    <g id="bannerT">
+      <line x1="-14" y1="0" x2="14" y2="0" stroke="#6b4f33" stroke-width="2.5"/>
+      <path d="M-12,0 L2,0 L2,30 L-5,38 L-12,30 Z" fill="#8a2444"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(-5,12) scale(0.4)" fill="#e8c56a"/>
+      <line x1="-12" y1="0" x2="2" y2="0" stroke="#d9a63a" stroke-width="1.5"/>
+    </g>
+
+    <clipPath id="badgeClip"><circle cx="450" cy="450" r="365"/></clipPath>
+    <mask id="moonCut">
+      <circle cx="250" cy="245" r="30" fill="#fff"/>
+      <circle cx="263" cy="233" r="27" fill="#000"/>
+    </mask>
+    <path id="arcTop" d="M199,260 A315,315 0 0 1 701,260" fill="none"/>
+  </defs>
+
+  <rect x="10" y="10" width="880" height="880" rx="28" fill="#0b0a1a" stroke="#241f4a" stroke-width="2"/>
+
+  <circle cx="450" cy="450" r="392" fill="none" stroke="url(#ringG)" stroke-width="14"/>
+  <circle cx="450" cy="450" r="379" fill="none" stroke="#caa24a" stroke-width="2" opacity="0.8"/>
+  <circle cx="450" cy="450" r="365" fill="none" stroke="#241f4a" stroke-width="2"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(450,58) scale(1.2)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(646,113)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(788,250)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(842,450) scale(1.2)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(788,650)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(646,787)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(450,842) scale(1.2)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(254,787)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(112,650)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(58,450) scale(1.2)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(112,250)" fill="#d9a63a"/>
+  <use xlink:href="#dmd" href="#dmd" transform="translate(254,113)" fill="#d9a63a"/>
+
+  <g clip-path="url(#badgeClip)">
+    <circle cx="450" cy="450" r="365" fill="url(#sky)"/>
+
+    <!-- Сумеречные облака -->
+    <g fill="#7a68b8">
+      <ellipse cx="300" cy="330" rx="90" ry="28" transform="rotate(-8 300 330)" opacity="0.07"/>
+      <ellipse cx="345" cy="348" rx="58" ry="19" opacity="0.06"/>
+      <ellipse cx="560" cy="320" rx="80" ry="24" transform="rotate(6 560 320)" opacity="0.07"/>
+      <ellipse cx="450" cy="252" rx="110" ry="26" opacity="0.05"/>
+    </g>
+
+    <!-- Звёзды (часть мерцает) -->
+    <g fill="#ffffff">
+      <circle cx="450" cy="110" r="2" opacity="0.85">
+        <animate attributeName="opacity" values="0.85;0.25;0.85" dur="2.1s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="420" cy="100" r="1.5" opacity="0.7"/>
+      <circle cx="490" cy="105" r="1.7" opacity="0.75"/>
+      <circle cx="380" cy="120" r="1.4" opacity="0.65"/>
+      <circle cx="520" cy="118" r="1.4" opacity="0.65"/>
+      <circle cx="200" cy="190" r="1.8" opacity="0.8"/>
+      <circle cx="688" cy="175" r="1.6" opacity="0.75"/>
+      <circle cx="215" cy="180" r="1.4" opacity="0.7"/>
+      <circle cx="160" cy="250" r="2" opacity="0.85"/>
+      <circle cx="185" cy="215" r="1.5" opacity="0.7"/>
+      <circle cx="210" cy="275" r="1.8" opacity="0.8"/>
+      <circle cx="150" cy="320" r="2.2" opacity="0.9">
+        <animate attributeName="opacity" values="0.9;0.3;0.9" dur="2.8s" begin="0.4s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="175" cy="360" r="1.5" opacity="0.7"/>
+      <circle cx="205" cy="400" r="1.8" opacity="0.75">
+        <animate attributeName="opacity" values="0.75;0.2;0.75" dur="3.2s" begin="1.1s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="240" cy="330" r="1.4" opacity="0.65"/>
+      <circle cx="265" cy="390" r="1.6" opacity="0.7"/>
+      <circle cx="225" cy="440" r="1.8" opacity="0.75"/>
+      <circle cx="155" cy="430" r="1.5" opacity="0.7"/>
+      <circle cx="140" cy="480" r="1.7" opacity="0.75"/>
+      <circle cx="640" cy="300" r="2" opacity="0.85">
+        <animate attributeName="opacity" values="0.85;0.3;0.85" dur="2.4s" begin="0.8s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="665" cy="340" r="1.6" opacity="0.75"/>
+      <circle cx="690" cy="300" r="1.8" opacity="0.8">
+        <animate attributeName="opacity" values="0.8;0.25;0.8" dur="2.6s" begin="1.6s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="620" cy="380" r="1.5" opacity="0.7"/>
+      <circle cx="650" cy="420" r="1.8" opacity="0.75"/>
+      <circle cx="700" cy="380" r="1.6" opacity="0.7"/>
+      <circle cx="680" cy="450" r="1.5" opacity="0.7"/>
+      <circle cx="720" cy="430" r="1.8" opacity="0.75"/>
+      <circle cx="740" cy="480" r="1.5" opacity="0.7"/>
+      <circle cx="600" cy="430" r="1.4" opacity="0.65"/>
+      <circle cx="760" cy="520" r="1.7" opacity="0.75">
+        <animate attributeName="opacity" values="0.75;0.3;0.75" dur="3s" begin="0.2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="110" cy="520" r="1.7" opacity="0.75">
+        <animate attributeName="opacity" values="0.75;0.3;0.75" dur="2.3s" begin="1.9s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="130" cy="560" r="1.5" opacity="0.7"/>
+      <circle cx="770" cy="560" r="1.5" opacity="0.7"/>
+      <circle cx="130" cy="590" r="1.4" opacity="0.65"/>
+      <circle cx="755" cy="590" r="1.4" opacity="0.65"/>
+    </g>
+    <use xlink:href="#star4" href="#star4" transform="translate(300,300) scale(0.5)" fill="#cfd8ff" opacity="0.8"/>
+    <use xlink:href="#star4" href="#star4" transform="translate(560,270) scale(0.5)" fill="#cfd8ff" opacity="0.8"/>
+    <use xlink:href="#star4" href="#star4" transform="translate(180,470) scale(0.45)" fill="#cfd8ff" opacity="0.7"/>
+    <use xlink:href="#star4" href="#star4" transform="translate(660,480) scale(0.45)" fill="#cfd8ff" opacity="0.7"/>
+
+    <!-- Падающая звезда (периодическая) -->
+    <g opacity="0">
+      <line x1="158" y1="282" x2="196" y2="308" stroke="#cfd8ff" stroke-width="2" opacity="0.5"/>
+      <line x1="170" y1="273" x2="190" y2="287" stroke="#cfd8ff" stroke-width="1.2" opacity="0.3"/>
+      <circle cx="198" cy="310" r="2.5" fill="#ffffff"/>
+      <animateTransform attributeName="transform" type="translate" values="0 0; 46 34; 46 34" keyTimes="0;0.35;1" dur="7s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;1;0;0" keyTimes="0;0.15;0.35;1" dur="7s" repeatCount="indefinite"/>
+    </g>
+
+    <!-- Полумесяц с кратерами -->
+    <circle cx="250" cy="245" r="44" fill="#e9e3cd" opacity="0.08">
+      <animate attributeName="opacity" values="0.08;0.14;0.08" dur="6s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="250" cy="245" r="30" fill="#e9e3cd" mask="url(#moonCut)"/>
+    <g mask="url(#moonCut)" fill="#b9b39d" opacity="0.5">
+      <circle cx="240" cy="252" r="4"/>
+      <circle cx="248" cy="238" r="2.6"/>
+      <circle cx="234" cy="240" r="2"/>
+    </g>
+
+    <!-- Небесные твари -->
+    <use xlink:href="#wyvern" href="#wyvern" transform="translate(560,210) scale(1.05)">
+      <animateTransform attributeName="transform" additive="sum" type="translate" values="0 0; 16 -8; 0 0" dur="10s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#bat" href="#bat" transform="translate(330,175) scale(0.8)">
+      <animateTransform attributeName="transform" additive="sum" type="translate" values="0 0; 0 -6; 0 0" dur="2.6s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#bat" href="#bat" transform="translate(300,205) scale(0.6)"/>
+    <use xlink:href="#bat" href="#bat" transform="translate(490,150) scale(0.7)"/>
+    <use xlink:href="#bat" href="#bat" transform="translate(620,165) scale(0.55)">
+      <animateTransform attributeName="transform" additive="sum" type="translate" values="0 0; 0 -5; 0 0" dur="2.2s" begin="0.7s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#bat" href="#bat" transform="translate(360,240) scale(0.5)"/>
+
+    <!-- Подзаголовок по дуге -->
+    <text font-family="Georgia, 'Times New Roman', serif" font-size="19" letter-spacing="3" fill="#b6a9e8" opacity="0.95" text-anchor="middle">
+      <textPath xlink:href="#arcTop" href="#arcTop" startOffset="50%">ОДИНОЧНАЯ РОЛЕВАЯ ФЭНТЭЗИ-ИГРА</textPath>
+    </text>
+    <use xlink:href="#dmd" href="#dmd" transform="translate(185,268) scale(0.7) rotate(45)" fill="#b6a9e8" opacity="0.8"/>
+    <use xlink:href="#dmd" href="#dmd" transform="translate(715,268) scale(0.7) rotate(45)" fill="#b6a9e8" opacity="0.8"/>
+
+    <!-- Дальние горы -->
+    <path d="M100,575 L150,520 L200,555 L260,505 L320,560 L400,515 L470,565 L540,510 L610,558 L680,518 L740,565 L800,540 L800,600 L100,600 Z" fill="#1c1840" opacity="0.9"/>
+
+    <!-- Дальний город (силуэт за стеной) -->
+    <g fill="#171438" opacity="0.95">
+      <rect x="118" y="512" width="18" height="73"/>
+      <polygon points="114,514 140,514 127,494"/>
+      <rect x="356" y="520" width="14" height="65"/>
+      <polygon points="352,522 374,522 363,505"/>
+      <rect x="538" y="516" width="15" height="69"/>
+      <polygon points="534,518 557,518 545,500"/>
+      <rect x="726" y="522" width="16" height="63"/>
+      <polygon points="722,524 746,524 734,506"/>
+    </g>
+    <g fill="#ffb257" opacity="0.8">
+      <circle cx="125" cy="540" r="1.3"/>
+      <circle cx="131" cy="562" r="1.3"/>
+      <circle cx="544" cy="545" r="1.3"/>
+      <circle cx="550" cy="568" r="1.3"/>
+      <circle cx="733" cy="548" r="1.3"/>
+      <circle cx="737" cy="570" r="1.3"/>
+      <circle cx="362" cy="548" r="1.3"/>
+    </g>
+
+    <!-- Центральный донжон -->
+    <path d="M375,430 L381,430 L381,416 L393,416 L393,430 L403,430 L403,416 L415,416 L415,430 L425,430 L425,416 L437,416 L437,430 L447,430 L447,416 L459,416 L459,430 L469,430 L469,416 L481,416 L481,430 L491,430 L491,416 L503,416 L503,430 L513,430 L525,430 L525,600 L375,600 Z" fill="#181540"/>
+    <g>
+      <use xlink:href="#win" href="#win" transform="translate(398,455)" fill="#ffb257" opacity="0.9"/>
+      <use xlink:href="#win" href="#win" transform="translate(482,455)" fill="#0d0b24"/>
+      <use xlink:href="#win" href="#win" transform="translate(405,505)" fill="#0d0b24"/>
+      <use xlink:href="#win" href="#win" transform="translate(470,505)" fill="#ffb257" opacity="0.9"/>
+    </g>
+    <rect x="432" y="368" width="36" height="62" fill="#1a1745"/>
+    <rect x="432" y="358" width="9" height="10" fill="#1a1745"/>
+    <rect x="444" y="358" width="9" height="10" fill="#1a1745"/>
+    <rect x="456" y="358" width="9" height="10" fill="#1a1745"/>
+    <use xlink:href="#win" href="#win" transform="translate(442,392)" fill="#ffb257" opacity="0.95"/>
+    <line x1="450" y1="358" x2="450" y2="336" stroke="#6b4f33" stroke-width="2"/>
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="0 450 336; 5 450 336; 0 450 336; -4 450 336; 0 450 336" dur="3.6s" repeatCount="indefinite"/>
+      <polygon points="450,336 468,342 450,348" fill="#8a2444"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(456,342) scale(0.28)" fill="#e8c56a"/>
+    </g>
+    <use xlink:href="#bannerT" href="#bannerT" transform="translate(382,470) scale(0.9)"/>
+
+    <!-- Башня 1 (левая) -->
+    <rect x="148" y="448" width="64" height="262" fill="#151233"/>
+    <rect x="142" y="446" width="76" height="12" fill="#1a1745"/>
+    <g fill="#151233">
+      <rect x="146" y="430" width="13" height="16"/>
+      <rect x="166" y="430" width="13" height="16"/>
+      <rect x="186" y="430" width="13" height="16"/>
+      <rect x="206" y="430" width="13" height="16"/>
+    </g>
+    <use xlink:href="#win" href="#win" transform="translate(166,486)" fill="#ffb257" opacity="0.9"/>
+    <use xlink:href="#win" href="#win" transform="translate(186,540)" fill="#0d0b24"/>
+    <use xlink:href="#win" href="#win" transform="translate(166,598)" fill="#0d0b24"/>
+    <line x1="180" y1="430" x2="180" y2="406" stroke="#6b4f33" stroke-width="2"/>
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="0 180 406; 5 180 406; 0 180 406; -4 180 406; 0 180 406" dur="4.5s" repeatCount="indefinite"/>
+      <polygon points="180,406 198,412 180,418" fill="#8a2444"/>
+    </g>
+    <use xlink:href="#bannerT" href="#bannerT" transform="translate(150,472) scale(0.85)"/>
+
+    <!-- Башня ворот -->
+    <rect x="252" y="468" width="96" height="242" fill="#181540"/>
+    <rect x="246" y="466" width="108" height="14" fill="#1a1745"/>
+    <polygon points="240,468 364,468 300,405" fill="#221d4f"/>
+    <line x1="240" y1="468" x2="364" y2="468" stroke="#c8963a" stroke-width="2"/>
+    <circle cx="300" cy="405" r="4.5" fill="#d9a63a"/>
+    <line x1="300" y1="405" x2="300" y2="376" stroke="#6b4f33" stroke-width="2"/>
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="0 300 376; -5 300 376; 0 300 376; 4 300 376; 0 300 376" dur="4s" repeatCount="indefinite"/>
+      <polygon points="300,376 322,383 300,390" fill="#8a2444"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(307,383) scale(0.3)" fill="#e8c56a"/>
+    </g>
+    <use xlink:href="#win" href="#win" transform="translate(270,508)" fill="#ffb257" opacity="0.9"/>
+    <use xlink:href="#win" href="#win" transform="translate(312,508)" fill="#ffb257" opacity="0.9"/>
+    <use xlink:href="#win" href="#win" transform="translate(270,566)" fill="#0d0b24"/>
+    <use xlink:href="#win" href="#win" transform="translate(312,566)" fill="#0d0b24"/>
+    <use xlink:href="#bannerT" href="#bannerT" transform="translate(258,498) scale(0.9)"/>
+
+    <!-- Башня 4 (правая) -->
+    <rect x="560" y="458" width="66" height="252" fill="#151233"/>
+    <rect x="554" y="456" width="78" height="13" fill="#1a1745"/>
+    <polygon points="548,458 638,458 593,398" fill="#221d4f"/>
+    <line x1="548" y1="458" x2="638" y2="458" stroke="#c8963a" stroke-width="2"/>
+    <circle cx="593" cy="398" r="4" fill="#d9a63a"/>
+    <line x1="593" y1="398" x2="593" y2="372" stroke="#6b4f33" stroke-width="2"/>
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="0 593 372; -5 593 372; 0 593 372; 4 593 372; 0 593 372" dur="5s" repeatCount="indefinite"/>
+      <polygon points="593,372 571,379 593,386" fill="#8a2444"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(586,379) scale(0.3)" fill="#e8c56a"/>
+    </g>
+    <use xlink:href="#win" href="#win" transform="translate(580,502)" fill="#ffb257" opacity="0.9"/>
+    <use xlink:href="#win" href="#win" transform="translate(580,562)" fill="#0d0b24"/>
+    <use xlink:href="#win" href="#win" transform="translate(580,622)" fill="#ffb257" opacity="0.85"/>
+    <use xlink:href="#bannerT" href="#bannerT" transform="translate(628,482) scale(-0.9,0.9)"/>
+
+    <!-- Разрушенная башня -->
+    <path d="M662,500 L674,488 L684,502 L696,486 L706,500 L714,494 L714,710 L662,710 Z" fill="#181540"/>
+    <polygon points="674,488 684,502 678,502" fill="#241f4d"/>
+    <polygon points="696,486 706,500 700,500" fill="#241f4d"/>
+    <use xlink:href="#win" href="#win" transform="translate(680,540)" fill="#ffb257" opacity="0.85"/>
+    <use xlink:href="#win" href="#win" transform="translate(680,600)" fill="#0d0b24"/>
+
+    <!-- Городская стена с зубцами -->
+    <path d="M95,585 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 v-16 h16 v16 h12 L805,585 L805,710 L95,710 Z" fill="#16133a"/>
+    <line x1="95" y1="585" x2="805" y2="585" stroke="#1e1a48" stroke-width="2"/>
+    <g stroke="#1e1a48" stroke-width="1.5" opacity="0.6">
+      <line x1="95" y1="618" x2="805" y2="618"/>
+      <line x1="95" y1="648" x2="805" y2="648"/>
+      <line x1="95" y1="678" x2="805" y2="678"/>
+    </g>
+    <g stroke="#1e1a48" stroke-width="1.5">
+      <line x1="132" y1="600" x2="132" y2="614"/>
+      <line x1="178" y1="630" x2="178" y2="644"/>
+      <line x1="224" y1="660" x2="224" y2="674"/>
+      <line x1="258" y1="600" x2="258" y2="614"/>
+      <line x1="352" y1="630" x2="352" y2="644"/>
+      <line x1="398" y1="660" x2="398" y2="674"/>
+      <line x1="444" y1="600" x2="444" y2="614"/>
+      <line x1="488" y1="630" x2="488" y2="644"/>
+      <line x1="534" y1="660" x2="534" y2="674"/>
+      <line x1="578" y1="600" x2="578" y2="614"/>
+      <line x1="624" y1="630" x2="624" y2="644"/>
+      <line x1="668" y1="660" x2="668" y2="674"/>
+      <line x1="714" y1="600" x2="714" y2="614"/>
+      <line x1="758" y1="630" x2="758" y2="644"/>
+    </g>
+    <g fill="#0d0b24">
+      <rect x="150" y="620" width="4" height="16"/>
+      <rect x="390" y="610" width="4" height="16"/>
+      <rect x="610" y="620" width="4" height="16"/>
+      <rect x="740" y="610" width="4" height="16"/>
+    </g>
+    <g stroke="#0c0a22" stroke-width="1.5" fill="none">
+      <path d="M300,620 L306,634 L302,650"/>
+      <path d="M545,615 L552,628 L548,644"/>
+      <path d="M690,640 L696,652"/>
+    </g>
+
+    <!-- Ворота с решёткой -->
+    <path d="M262,710 L262,636 Q300,588 338,636 L338,710" fill="none" stroke="#2a2458" stroke-width="6"/>
+    <path d="M270,710 L270,640 Q300,598 330,640 L330,710 Z" fill="#0a081c"/>
+    <g stroke="#3a3560" stroke-width="3">
+      <line x1="278" y1="642" x2="278" y2="708"/>
+      <line x1="287" y1="640" x2="287" y2="708"/>
+      <line x1="296" y1="639" x2="296" y2="708"/>
+      <line x1="305" y1="639" x2="305" y2="708"/>
+      <line x1="314" y1="640" x2="314" y2="708"/>
+      <line x1="323" y1="642" x2="323" y2="708"/>
+    </g>
+    <g stroke="#3a3560" stroke-width="2.5">
+      <line x1="272" y1="655" x2="328" y2="655"/>
+      <line x1="272" y1="675" x2="328" y2="675"/>
+      <line x1="272" y1="695" x2="328" y2="695"/>
+    </g>
+    <circle cx="300" cy="622" r="9" fill="#3a3560" stroke="#d9a63a" stroke-width="1.5"/>
+    <use xlink:href="#star4" href="#star4" transform="translate(300,622) scale(0.45)" fill="#e8c56a"/>
+    <polygon points="276,708 324,708 340,740 260,740" fill="#241a10"/>
+    <g stroke="#14102e" stroke-width="1.5">
+      <line x1="284" y1="716" x2="268" y2="734"/>
+      <line x1="300" y1="716" x2="300" y2="736"/>
+      <line x1="316" y1="716" x2="332" y2="734"/>
+    </g>
+
+    <!-- Факелы на стене (пламя мерцает) -->
+    <use xlink:href="#torch" href="#torch" transform="translate(115,602)"/>
+    <use xlink:href="#torch" href="#torch" transform="translate(252,608)"/>
+    <use xlink:href="#torch" href="#torch" transform="translate(348,608)"/>
+    <use xlink:href="#torch" href="#torch" transform="translate(520,602)"/>
+    <use xlink:href="#torch" href="#torch" transform="translate(730,602)"/>
+
+    <!-- Пожары и дым -->
+    <circle cx="250" cy="520" r="20" fill="url(#glowG)">
+      <animate attributeName="opacity" values="1;0.6;1" dur="1s" repeatCount="indefinite"/>
+    </circle>
+    <use xlink:href="#flame" href="#flame" transform="translate(250,540) scale(0.7)" fill="url(#flameG)">
+      <animateTransform attributeName="transform" additive="sum" type="scale" values="1;1.12;0.92;1.06;1" dur="1s" repeatCount="indefinite"/>
+    </use>
+    <g fill="#6a6690">
+      <circle cx="248" cy="494" r="6" opacity="0.3"/>
+      <circle cx="258" cy="462" r="7" opacity="0">
+        <animate attributeName="cy" values="468;436" dur="5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0.28;0" keyTimes="0;0.4;1" dur="5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="266" cy="440" r="8" opacity="0">
+        <animate attributeName="cy" values="448;414" dur="5s" begin="2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0.25;0" keyTimes="0;0.4;1" dur="5s" begin="2s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    <circle cx="405" cy="415" r="18" fill="url(#glowG)">
+      <animate attributeName="opacity" values="1;0.6;1" dur="0.95s" begin="0.3s" repeatCount="indefinite"/>
+    </circle>
+    <use xlink:href="#flame" href="#flame" transform="translate(405,433) scale(0.6)" fill="url(#flameG)">
+      <animateTransform attributeName="transform" additive="sum" type="scale" values="1;1.1;0.9;1.05;1" dur="0.95s" begin="0.3s" repeatCount="indefinite"/>
+    </use>
+    <g fill="#6a6690">
+      <circle cx="403" cy="390" r="5.5" opacity="0.28"/>
+      <circle cx="412" cy="360" r="7" opacity="0">
+        <animate attributeName="cy" values="366;334" dur="5.5s" begin="1s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0.25;0" keyTimes="0;0.4;1" dur="5.5s" begin="1s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+    <circle cx="690" cy="478" r="20" fill="url(#glowG)">
+      <animate attributeName="opacity" values="1;0.65;1" dur="1.15s" begin="0.6s" repeatCount="indefinite"/>
+    </circle>
+    <use xlink:href="#flame" href="#flame" transform="translate(690,498) scale(0.72)" fill="url(#flameG)">
+      <animateTransform attributeName="transform" additive="sum" type="scale" values="1;1.14;0.9;1.08;1" dur="1.15s" begin="0.6s" repeatCount="indefinite"/>
+    </use>
+    <g fill="#6a6690">
+      <circle cx="688" cy="452" r="6" opacity="0.3"/>
+      <circle cx="698" cy="420" r="8" opacity="0">
+        <animate attributeName="cy" values="428;394" dur="5s" begin="3s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0.28;0" keyTimes="0;0.4;1" dur="5s" begin="3s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="708" cy="392" r="9" opacity="0">
+        <animate attributeName="cy" values="400;364" dur="5s" begin="4.2s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0;0.24;0" keyTimes="0;0.4;1" dur="5s" begin="4.2s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+
+    <!-- Мусор на стенах -->
+    <g fill="#241f4d">
+      <polygon points="230,585 238,577 246,585"/>
+      <polygon points="560,585 566,579 572,585"/>
+      <polygon points="620,585 627,576 634,585"/>
+      <rect x="350" y="579" width="8" height="6" rx="1"/>
+      <rect x="700" y="580" width="7" height="5" rx="1"/>
+    </g>
+
+    <!-- Лестница и орки на штурме -->
+    <line x1="126" y1="734" x2="196" y2="472" stroke="#6b4f33" stroke-width="3.5"/>
+    <line x1="152" y1="736" x2="222" y2="474" stroke="#6b4f33" stroke-width="3.5"/>
+    <g stroke="#6b4f33" stroke-width="3">
+      <line x1="136.5" y1="694.7" x2="162.5" y2="696.7"/>
+      <line x1="148.4" y1="650.2" x2="174.4" y2="652.2"/>
+      <line x1="160.3" y1="605.6" x2="186.3" y2="607.6"/>
+      <line x1="172.2" y1="561.1" x2="198.2" y2="563.1"/>
+      <line x1="184.1" y1="516.5" x2="210.1" y2="518.5"/>
+    </g>
+    <use xlink:href="#orcSpear" href="#orcSpear" transform="translate(150,690) scale(0.85)" color="#24352a"/>
+    <use xlink:href="#orc" href="#orc" transform="translate(172,610) scale(0.9)" color="#1f2d20"/>
+    <use xlink:href="#orc" href="#orc" transform="translate(196,520) scale(0.8)" color="#24352a"/>
+
+    <!-- Верёвка на башне -->
+    <path d="M600,452 Q620,560 640,700" stroke="#6b5a44" stroke-width="3" fill="none"/>
+    <path d="M600,452 Q620,560 640,700" stroke="#8a7a5a" stroke-width="1" fill="none" stroke-dasharray="6 10"/>
+    <use xlink:href="#orc" href="#orc" transform="translate(622,560) scale(-0.85,0.85)" color="#1f2d20"/>
+
+    <!-- Враги на стене -->
+    <use xlink:href="#orcSpear" href="#orcSpear" transform="translate(250,585) scale(0.95)" color="#18251b"/>
+    <use xlink:href="#orc" href="#orc" transform="translate(335,585) scale(0.9)" color="#1f2d20"/>
+    <use xlink:href="#skelArcher" href="#skelArcher" transform="translate(505,585) scale(0.85)"/>
+    <use xlink:href="#orc" href="#orc" transform="translate(600,585) scale(-0.9,0.9)" color="#1f2d20"/>
+    <use xlink:href="#orcSpear" href="#orcSpear" transform="translate(700,585) scale(-0.95,0.95)" color="#18251b"/>
+    <use xlink:href="#skel" href="#skel" transform="translate(300,466) scale(0.7)" color="#9aa4ad"/>
+
+    <!-- Взрыв у разрушенной башни (пульсирует) -->
+    <circle cx="640" cy="528" r="45" fill="url(#glowG)" opacity="0.8">
+      <animate attributeName="r" values="45;53;45" dur="1.4s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0.95;0.8" dur="1.4s" repeatCount="indefinite"/>
+    </circle>
+    <polygon points="640,498 650,520 672,512 658,530 678,542 654,540 648,562 640,544 632,562 626,540 602,542 622,530 608,512 630,520" fill="#ff9d2e" opacity="0.95"/>
+    <polygon points="640,514 647,527 660,524 651,534 662,542 646,540 642,552 638,540 622,542 633,534 624,524 637,527" fill="#ffd35e"/>
+    <circle cx="640" cy="532" r="7" fill="#fff3b8">
+      <animate attributeName="r" values="7;10;7" dur="1.4s" repeatCount="indefinite"/>
+    </circle>
+    <g stroke="#ffb347" stroke-width="2.5" opacity="0.8">
+      <line x1="612" y1="510" x2="598" y2="498"/>
+      <line x1="668" y1="508" x2="684" y2="498"/>
+      <line x1="600" y1="545" x2="585" y2="548"/>
+      <line x1="680" y1="545" x2="695" y2="550"/>
+      <animate attributeName="opacity" values="0.8;0.35;0.8" dur="1.4s" repeatCount="indefinite"/>
+    </g>
+    <g fill="#3a3560">
+      <circle cx="592" cy="492" r="3"/>
+      <circle cx="692" cy="500" r="2.5"/>
+      <circle cx="700" cy="556" r="3"/>
+    </g>
+
+    <!-- Летящие стрелы (встряхиваются) -->
+    <use xlink:href="#arrow" href="#arrow" transform="translate(585,295) rotate(35)">
+      <animateTransform attributeName="transform" additive="sum" type="translate" values="0 0; 8 8; 0 0" dur="2.2s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#arrow" href="#arrow" transform="translate(255,325) rotate(-25)">
+      <animateTransform attributeName="transform" additive="sum" type="translate" values="0 0; 8 8; 0 0" dur="2.6s" begin="0.4s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#arrow" href="#arrow" transform="translate(668,392) rotate(60)">
+      <animateTransform attributeName="transform" additive="sum" type="translate" values="0 0; 7 7; 0 0" dur="2s" begin="0.9s" repeatCount="indefinite"/>
+    </use>
+
+    <!-- Земля -->
+    <path d="M95,706 L805,706 L805,815 L95,815 Z" fill="#0d0b24"/>
+    <line x1="95" y1="706" x2="805" y2="706" stroke="#241f4d" stroke-width="2"/>
+    <polygon points="262,740 338,740 430,812 190,812" fill="#14112e"/>
+    <g fill="#1c1938">
+      <ellipse cx="300" cy="755" rx="8" ry="3"/>
+      <ellipse cx="330" cy="775" rx="9" ry="3.5"/>
+      <ellipse cx="280" cy="780" rx="7" ry="3"/>
+      <ellipse cx="360" cy="795" rx="9" ry="3.5"/>
+      <ellipse cx="300" cy="800" rx="8" ry="3"/>
+    </g>
+    <g fill="#1c1938">
+      <ellipse cx="150" cy="730" rx="7" ry="3.5"/>
+      <ellipse cx="190" cy="748" rx="5" ry="2.5"/>
+      <ellipse cx="370" cy="742" rx="4" ry="2"/>
+      <ellipse cx="560" cy="748" rx="7" ry="3.5"/>
+      <ellipse cx="600" cy="732" rx="5" ry="2.5"/>
+      <ellipse cx="655" cy="760" rx="6" ry="3"/>
+      <ellipse cx="720" cy="742" rx="5" ry="2.5"/>
+      <ellipse cx="760" cy="768" rx="7" ry="3"/>
+      <ellipse cx="110" cy="758" rx="6" ry="3"/>
+    </g>
+    <g fill="#241f4d">
+      <polygon points="680,706 688,694 696,706"/>
+      <polygon points="700,706 706,697 712,706"/>
+      <polygon points="666,706 671,700 676,706"/>
+    </g>
+    <g stroke="#3a4a3f" stroke-width="1.5" fill="none">
+      <path d="M140,720 L137,713 M140,720 L140,712 M140,720 L143,713"/>
+      <path d="M350,770 L347,763 M350,770 L350,762 M350,770 L353,763"/>
+      <path d="M520,742 L517,735 M520,742 L520,734 M520,742 L523,735"/>
+      <path d="M585,762 L582,755 M585,762 L585,754 M585,762 L588,755"/>
+      <path d="M640,772 L637,765 M640,772 L640,764 M640,772 L643,765"/>
+      <path d="M735,752 L732,745 M735,752 L735,744 M735,752 L738,745"/>
+    </g>
+    <circle cx="545" cy="770" r="11" fill="#3a3560" stroke="#6a5f9a" stroke-width="2"/>
+    <circle cx="545" cy="770" r="6" fill="none" stroke="#6a5f9a" stroke-width="1.5"/>
+    <circle cx="545" cy="770" r="1.5" fill="#6a5f9a"/>
+    <g stroke="#8b95a0" stroke-width="1.5" opacity="0.55">
+      <line x1="748" y1="766" x2="760" y2="760"/>
+      <line x1="750" y1="758" x2="758" y2="768"/>
+    </g>
+    <circle cx="763" cy="756" r="2.6" fill="#8b95a0" opacity="0.55"/>
+
+    <!-- Нежить на подходе -->
+    <ellipse cx="150" cy="762" rx="17" ry="3.2" fill="#000000" opacity="0.3"/>
+    <use xlink:href="#skelWar" href="#skelWar" transform="translate(150,760) scale(1.15)"/>
+    <ellipse cx="205" cy="752" rx="16" ry="3" fill="#000000" opacity="0.3"/>
+    <use xlink:href="#skelWar" href="#skelWar" transform="translate(205,750) scale(1.05)"/>
+    <ellipse cx="105" cy="750" rx="15" ry="3" fill="#000000" opacity="0.3"/>
+    <use xlink:href="#skelArcher" href="#skelArcher" transform="translate(105,748) scale(0.95)"/>
+    <ellipse cx="255" cy="740" rx="14" ry="2.8" fill="#000000" opacity="0.3"/>
+    <use xlink:href="#skelWar" href="#skelWar" transform="translate(255,738) scale(0.9)"/>
+    <ellipse cx="90" cy="772" rx="15" ry="3" fill="#000000" opacity="0.3"/>
+    <use xlink:href="#skelWar" href="#skelWar" transform="translate(90,770) scale(1.0)"/>
+    <ellipse cx="610" cy="770" rx="15" ry="3" fill="#000000" opacity="0.3"/>
+    <use xlink:href="#skelArcher" href="#skelArcher" transform="translate(610,768) scale(-1,1)"/>
+    <ellipse cx="690" cy="746" rx="34" ry="4.5" fill="#000000" opacity="0.3"/>
+    <use xlink:href="#skelHorse" href="#skelHorse" transform="translate(690,742) scale(0.95)"/>
+
+    <!-- МАГ ФЛОГИСТОН -->
+    <ellipse cx="440" cy="772" rx="78" ry="10" fill="#000000" opacity="0.4"/>
+    <g fill="none" stroke="#ffd77a">
+      <ellipse cx="440" cy="778" rx="92" ry="13" stroke-width="2" stroke-dasharray="10 8" opacity="0.5">
+        <animate attributeName="stroke-dashoffset" from="0" to="-36" dur="2.5s" repeatCount="indefinite"/>
+      </ellipse>
+      <ellipse cx="440" cy="778" rx="70" ry="9.5" stroke-width="1.5" stroke-dasharray="6 10" opacity="0.35">
+        <animate attributeName="stroke-dashoffset" from="0" to="32" dur="3.5s" repeatCount="indefinite"/>
+      </ellipse>
+    </g>
+    <use xlink:href="#dmd" href="#dmd" transform="translate(350,778) scale(0.5)" fill="#ffe9a8" opacity="0.7"/>
+    <use xlink:href="#dmd" href="#dmd" transform="translate(530,778) scale(0.5)" fill="#ffe9a8" opacity="0.7"/>
+    <use xlink:href="#dmd" href="#dmd" transform="translate(400,768.5) scale(0.4)" fill="#ffe9a8" opacity="0.5"/>
+    <use xlink:href="#dmd" href="#dmd" transform="translate(480,768.5) scale(0.4)" fill="#ffe9a8" opacity="0.5"/>
+
+    <!-- Плащ -->
+    <path d="M440,455 C412,460 398,482 394,512 L366,760 Q402,784 440,784 Q478,784 514,760 L486,512 C482,482 468,460 440,455 Z" fill="#322c66"/>
+    <g stroke="#241f4d" fill="none">
+      <path d="M412,470 C400,560 392,660 384,756" stroke-width="2.5" opacity="0.9"/>
+      <path d="M424,480 C418,570 414,670 410,762" stroke-width="2" opacity="0.8"/>
+      <path d="M468,470 C478,560 486,660 494,756" stroke-width="2.5" opacity="0.9"/>
+      <path d="M456,480 C462,570 466,670 470,762" stroke-width="2" opacity="0.8"/>
+      <path d="M398,520 Q392,560 388,600" stroke-width="1.5" opacity="0.5"/>
+      <path d="M482,520 Q488,560 492,600" stroke-width="1.5" opacity="0.5"/>
+    </g>
+    <path d="M440,455 C412,460 398,482 394,512 L366,760" stroke="#c8963a" stroke-width="2" fill="none" opacity="0.8"/>
+    <path d="M440,455 C468,460 482,482 486,512 L514,760" stroke="#ff8a2a" stroke-width="2.5" fill="none" opacity="0.35"/>
+    <path d="M366,760 Q402,784 440,784 Q478,784 514,760" stroke="#c8963a" stroke-width="3" fill="none"/>
+    <g fill="#d9a63a">
+      <use xlink:href="#star4" href="#star4" transform="translate(404,540) scale(0.5)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(482,530) scale(0.45)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(396,600) scale(0.5)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(490,610) scale(0.45)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(402,668) scale(0.5)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(486,676) scale(0.45)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(416,724) scale(0.45)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(470,730) scale(0.45)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(388,772) scale(0.4)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(414,779) scale(0.45)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(440,782) scale(0.5)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(466,779) scale(0.45)"/>
+      <use xlink:href="#star4" href="#star4" transform="translate(492,772) scale(0.4)"/>
+    </g>
+    <g fill="#d9a63a" opacity="0.7">
+      <circle cx="420" cy="560" r="1.5"/>
+      <circle cx="462" cy="556" r="1.5"/>
+      <circle cx="388" cy="640" r="1.5"/>
+      <circle cx="496" cy="640" r="1.5"/>
+      <circle cx="430" cy="700" r="1.5"/>
+      <circle cx="452" cy="706" r="1.5"/>
+    </g>
+    <!-- Туника -->
+    <path d="M440,462 C431,540 428,650 430,780 L450,780 C452,650 449,540 440,462 Z" fill="#453e8c"/>
+    <line x1="440" y1="468" x2="440" y2="778" stroke="#322c66" stroke-width="2"/>
+    <circle cx="440" cy="520" r="2.2" fill="#d9a63a"/>
+    <circle cx="440" cy="558" r="2.2" fill="#d9a63a"/>
+    <!-- Пояс с сумками -->
+    <path d="M396,592 C424,610 456,612 484,598 L484,614 C456,628 424,626 396,610 Z" fill="#7a2440"/>
+    <path d="M396,592 C424,610 456,612 484,598" stroke="#d9a63a" stroke-width="1.5" fill="none"/>
+    <path d="M478,612 L492,610 L488,650 L476,652 Z" fill="#7a2440"/>
+    <g stroke="#5c1a30" stroke-width="1.2">
+      <line x1="479" y1="652" x2="480" y2="660"/>
+      <line x1="483" y1="651" x2="484" y2="659"/>
+      <line x1="487" y1="650" x2="488" y2="658"/>
+    </g>
+    <line x1="410" y1="600" x2="404" y2="620" stroke="#5d3d22" stroke-width="2"/>
+    <rect x="398" y="618" width="14" height="12" rx="3" fill="#6e4a26" stroke="#4a2f16" stroke-width="1"/>
+    <line x1="398" y1="622" x2="412" y2="622" stroke="#4a2f16" stroke-width="1.2"/>
+    <circle cx="405" cy="624" r="1.3" fill="#d9a63a"/>
+    <!-- Сапоги -->
+    <rect x="412" y="762" width="20" height="26" rx="4" fill="#2a1c14"/>
+    <rect x="448" y="762" width="20" height="26" rx="4" fill="#2a1c14"/>
+    <line x1="412" y1="770" x2="432" y2="770" stroke="#c8963a" stroke-width="2"/>
+    <line x1="448" y1="770" x2="468" y2="770" stroke="#c8963a" stroke-width="2"/>
+
+    <!-- Шейный ворот и шея -->
+    <rect x="432" y="430" width="16" height="14" fill="#e8b892"/>
+    <path d="M418,442 Q440,458 462,442 L458,454 Q440,464 422,454 Z" fill="#241f4d"/>
+    <path d="M422,453 Q440,463 458,453" stroke="#c8963a" stroke-width="1.5" fill="none"/>
+
+    <!-- Голова и лицо -->
+    <circle cx="417" cy="410" r="4" fill="#e8b892"/>
+    <circle cx="463" cy="410" r="4" fill="#e8b892"/>
+    <circle cx="440" cy="408" r="23" fill="#f0c49e"/>
+    <path d="M458,392 A23,23 0 0 1 458,424" stroke="#ff9d5a" stroke-width="2.5" fill="none" opacity="0.55"/>
+    <path d="M421,392 Q414,404 419,420 Q423,408 423,396 Z" fill="#4a3020"/>
+    <path d="M459,392 Q466,404 461,420 Q457,408 457,396 Z" fill="#4a3020"/>
+    <path d="M426,396 Q432,401 438,396 Q444,401 450,396 Q454,399 456,394 L456,390 L426,390 Z" fill="#4a3020"/>
+    <path d="M426,402 Q432,398 438,401.5" stroke="#4a3020" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M442,401.5 Q448,398 454,402" stroke="#4a3020" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <ellipse cx="432" cy="407" rx="3.4" ry="3.8" fill="#ffffff"/>
+    <ellipse cx="448" cy="407" rx="3.4" ry="3.8" fill="#ffffff"/>
+    <circle cx="432.4" cy="407.4" r="2.2" fill="#3f6d5a"/>
+    <circle cx="447.6" cy="407.4" r="2.2" fill="#3f6d5a"/>
+    <circle cx="432.4" cy="407.4" r="1.1" fill="#141021"/>
+    <circle cx="447.6" cy="407.4" r="1.1" fill="#141021"/>
+    <circle cx="431.6" cy="406.2" r="0.6" fill="#ffffff"/>
+    <circle cx="446.8" cy="406.2" r="0.6" fill="#ffffff"/>
+    <path d="M440,410 L439.2,415 Q440.5,417 443,415.5" stroke="#d99b72" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M433,423 Q440,428 447,423" stroke="#b06a4a" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <g fill="#d99b72" opacity="0.8">
+      <circle cx="426" cy="414" r="0.9"/>
+      <circle cx="429" cy="416" r="0.9"/>
+      <circle cx="454" cy="414" r="0.9"/>
+      <circle cx="451" cy="416" r="0.9"/>
+    </g>
+    <ellipse cx="425" cy="418" rx="3" ry="1.8" fill="#e8a585" opacity="0.35"/>
+    <ellipse cx="455" cy="418" rx="3" ry="1.8" fill="#e8a585" opacity="0.35"/>
+    <path d="M414,394 Q440,404 466,394 L466,398 Q440,408 414,398 Z" fill="#1a1540" opacity="0.25"/>
+
+    <!-- Шляпа -->
+    <ellipse cx="440" cy="392" rx="56" ry="12" fill="#221d4f"/>
+    <path d="M388,395 Q440,407 492,395" stroke="#3a3478" stroke-width="1.5" fill="none" opacity="0.7"/>
+    <path d="M474,262 C466,318 452,362 406,390 L476,390 C470,356 472,318 474,262 Z" fill="#2a2463"/>
+    <path d="M474,262 C472,318 470,356 476,390 L462,390 C456,352 466,315 474,262 Z" fill="#221d55"/>
+    <path d="M404,382 L478,382 L481,394 L401,394 Z" fill="url(#goldG)"/>
+    <circle cx="420" cy="388" r="1.6" fill="#8a5f1d"/>
+    <circle cx="440" cy="388" r="1.6" fill="#8a5f1d"/>
+    <circle cx="460" cy="388" r="1.6" fill="#8a5f1d"/>
+    <use xlink:href="#star4" href="#star4" transform="translate(436,330) scale(0.55)" fill="#f2d27a"/>
+    <use xlink:href="#star4" href="#star4" transform="translate(452,300) scale(0.45)" fill="#f2d27a"/>
+    <use xlink:href="#star4" href="#star4" transform="translate(444,362) scale(0.4)" fill="#f2d27a"/>
+    <use xlink:href="#star4" href="#star4" transform="translate(428,352) scale(0.32)" fill="#f2d27a"/>
+    <path d="M408,384 Q392,346 378,326 Q396,344 398,380 Z" fill="#3fae8c"/>
+    <line x1="398" y1="380" x2="382" y2="332" stroke="#2b7d66" stroke-width="1.2"/>
+    <circle cx="474" cy="262" r="4" fill="#d9a63a"/>
+
+    <!-- Левая рука -->
+    <path d="M404,470 C388,502 382,545 386,580 L404,584 C402,548 408,508 418,484 Z" fill="#322c66"/>
+    <path d="M398,505 Q394,540 395,572" stroke="#241f4d" stroke-width="1.8" fill="none" opacity="0.8"/>
+    <path d="M384,576 L406,581 L404,590 L382,585 Z" fill="#c8963a"/>
+    <circle cx="394" cy="592" r="8" fill="#f0c49e"/>
+    <path d="M389,598 L388,602 M394,599.5 L394,603.5 M399,598 L400,602" stroke="#d99b72" stroke-width="1.3" fill="none"/>
+
+    <!-- Посох -->
+    <line x1="528" y1="782" x2="517" y2="402" stroke="#6b4527" stroke-width="8" stroke-linecap="round"/>
+    <line x1="526" y1="780" x2="515.5" y2="404" stroke="#8a5c33" stroke-width="2" opacity="0.8"/>
+    <g fill="#3a2414">
+      <ellipse cx="523" cy="640" rx="2" ry="4" transform="rotate(-8 523 640)"/>
+      <ellipse cx="521" cy="560" rx="2" ry="4" transform="rotate(-8 521 560)"/>
+      <ellipse cx="519" cy="480" rx="2" ry="4" transform="rotate(-8 519 480)"/>
+    </g>
+    <g stroke="#d9a63a" stroke-width="4" stroke-linecap="round">
+      <line x1="515" y1="472" x2="524" y2="470"/>
+      <line x1="516.6" y1="561.5" x2="525.6" y2="559.5"/>
+      <line x1="519.2" y1="651.5" x2="528.2" y2="649.5"/>
+    </g>
+    <g stroke="#f2d27a" stroke-width="1.6" fill="none" stroke-linecap="round" opacity="0.95">
+      <path d="M519,512 L519,524 M519,515 L523,519 M519,521 L523,525"/>
+      <path d="M518,535 L518,547 M518,538 L522,535 M518,544 L522,547"/>
+    </g>
+    <ellipse cx="517" cy="398" rx="10" ry="4.5" fill="url(#goldG)"/>
+    <path d="M509,396 Q517,386 525,396 L525,402 Q517,394 509,402 Z" fill="#f2d27a"/>
+    <path d="M509,394 Q503,380 508,372 Q512,380 512,392 Z" fill="url(#goldG)"/>
+    <path d="M525,394 Q531,380 526,372 Q522,380 522,392 Z" fill="url(#goldG)"/>
+    <circle cx="508" cy="372" r="2" fill="#f2d27a"/>
+    <circle cx="526" cy="372" r="2" fill="#f2d27a"/>
+    <circle cx="506" cy="408" r="1.5" fill="none" stroke="#d9a63a" stroke-width="1"/>
+    <circle cx="504" cy="415" r="1.5" fill="none" stroke="#d9a63a" stroke-width="1"/>
+
+    <!-- Правая рука на посохе -->
+    <path d="M466,472 C482,496 496,520 508,540 L494,552 C482,532 470,508 458,490 Z" fill="#322c66"/>
+    <path d="M470,492 Q482,514 492,534" stroke="#241f4d" stroke-width="1.8" fill="none" opacity="0.8"/>
+    <path d="M500,534 L512,542 L506,552 L494,544 Z" fill="#c8963a"/>
+    <circle cx="505" cy="545" r="8.5" fill="#f0c49e"/>
+    <path d="M499,540 Q505,537 511,540 M499,545 Q505,542 511,545 M500,550 Q505,548 510,550" stroke="#d99b72" stroke-width="1.5" fill="none"/>
+
+    <!-- ФЛОГИСТОН: пламя (мерцает) -->
+    <polygon points="515,340 470,150 540,150" fill="#ffcf7a" opacity="0.05"/>
+    <polygon points="515,340 360,778 430,778" fill="#ffcf7a" opacity="0.07">
+      <animate attributeName="opacity" values="0.05;0.11;0.05" dur="3s" repeatCount="indefinite"/>
+    </polygon>
+    <polygon points="515,340 490,778 560,778" fill="#ffcf7a" opacity="0.05"/>
+    <circle cx="515" cy="335" r="130" fill="url(#glowG)" opacity="0.4">
+      <animate attributeName="opacity" values="0.4;0.55;0.4" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="515" cy="338" r="72" fill="url(#glowG)" opacity="0.55">
+      <animate attributeName="r" values="72;79;72" dur="1.4s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.55;0.75;0.5" dur="1.4s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="515" cy="342" r="40" fill="url(#glowG)" opacity="0.5">
+      <animate attributeName="r" values="40;46;40" dur="1s" repeatCount="indefinite"/>
+    </circle>
+    <use xlink:href="#flame" href="#flame" transform="translate(500,392) scale(1.3) rotate(-18)" fill="#ffb347" opacity="0.9">
+      <animateTransform attributeName="transform" additive="sum" type="scale" values="1;1.1;0.92;1.06;1" dur="1.3s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#flame" href="#flame" transform="translate(530,392) scale(1.2) rotate(16)" fill="#ff9d2e" opacity="0.9">
+      <animateTransform attributeName="transform" additive="sum" type="scale" values="1;1.08;0.9;1.05;1" dur="1s" begin="0.3s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#flame" href="#flame" transform="translate(515,398) scale(2.7)" fill="url(#flameG)">
+      <animateTransform attributeName="transform" additive="sum" type="scale" values="1;1.05;0.97;1.04;1" dur="1.1s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#flame" href="#flame" transform="translate(515,394) scale(1.7)" fill="#ffb347" opacity="0.9">
+      <animateTransform attributeName="transform" additive="sum" type="scale" values="1;1.12;0.94;1.07;1" dur="0.9s" begin="0.15s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#flame" href="#flame" transform="translate(515,388) scale(0.95)" fill="#fff7cf">
+      <animateTransform attributeName="transform" additive="sum" type="scale" values="1;1.15;0.88;1.1;1" dur="0.7s" begin="0.3s" repeatCount="indefinite"/>
+    </use>
+    <!-- Искры, взлетающие от пламени -->
+    <circle cx="497" cy="360" r="2" fill="#ffe9a8" opacity="0">
+      <animate attributeName="cy" values="360;240" dur="2.4s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.9;0" keyTimes="0;0.25;1" dur="2.4s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="533" cy="350" r="1.8" fill="#ffd77a" opacity="0">
+      <animate attributeName="cy" values="350;230" dur="2.8s" begin="0.6s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.9;0" keyTimes="0;0.25;1" dur="2.8s" begin="0.6s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="515" cy="340" r="2.2" fill="#fff2c9" opacity="0">
+      <animate attributeName="cy" values="340;200" dur="3.2s" begin="1.2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.95;0" keyTimes="0;0.2;1" dur="3.2s" begin="1.2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="548" cy="370" r="1.5" fill="#ffe9a8" opacity="0">
+      <animate attributeName="cy" values="370;260" dur="2.2s" begin="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.85;0" keyTimes="0;0.3;1" dur="2.2s" begin="1.8s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="482" cy="375" r="1.6" fill="#ffd77a" opacity="0">
+      <animate attributeName="cy" values="375;270" dur="2.6s" begin="0.3s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;0.85;0" keyTimes="0;0.3;1" dur="2.6s" begin="0.3s" repeatCount="indefinite"/>
+    </circle>
+    <g fill="#ffe9a8">
+      <circle cx="492" cy="268" r="2"/>
+      <circle cx="548" cy="255" r="1.8"/>
+      <circle cx="478" cy="300" r="1.5"/>
+      <circle cx="560" cy="300" r="1.6"/>
+      <circle cx="520" cy="240" r="2.2"/>
+      <circle cx="505" cy="285" r="1.3"/>
+      <circle cx="536" cy="222" r="1.5"/>
+    </g>
+    <use xlink:href="#star4" href="#star4" transform="translate(555,270) scale(0.5)" fill="#ffe9a8">
+      <animate attributeName="opacity" values="1;0.35;1" dur="1.7s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#star4" href="#star4" transform="translate(470,255) scale(0.45)" fill="#fff2c9">
+      <animate attributeName="opacity" values="1;0.35;1" dur="2.1s" begin="0.5s" repeatCount="indefinite"/>
+    </use>
+    <use xlink:href="#star4" href="#star4" transform="translate(532,210) scale(0.4)" fill="#ffd77a"/>
+    <!-- Вращающиеся магические кольца -->
+    <circle cx="515" cy="335" r="62" fill="none" stroke="#ffd77a" stroke-width="1.5" stroke-dasharray="5 9" opacity="0.6">
+      <animateTransform attributeName="transform" type="rotate" from="0 515 335" to="360 515 335" dur="9s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="515" cy="335" r="84" fill="none" stroke="#ffd77a" stroke-width="1" stroke-dasharray="3 12" opacity="0.3">
+      <animateTransform attributeName="transform" type="rotate" from="0 515 335" to="-360 515 335" dur="15s" repeatCount="indefinite"/>
+    </circle>
+    <!-- Орбита кристаллов вокруг пламени -->
+    <g opacity="0.8">
+      <animateTransform attributeName="transform" type="rotate" from="0 515 335" to="360 515 335" dur="16s" repeatCount="indefinite"/>
+      <use xlink:href="#dmd" href="#dmd" transform="translate(515,273) scale(0.8)" fill="#ffe9a8"/>
+      <use xlink:href="#dmd" href="#dmd" transform="translate(577,335) scale(0.8)" fill="#ffe9a8"/>
+      <use xlink:href="#dmd" href="#dmd" transform="translate(515,397) scale(0.8)" fill="#ffe9a8"/>
+      <use xlink:href="#dmd" href="#dmd" transform="translate(453,335) scale(0.8)" fill="#ffe9a8"/>
+    </g>
+
+    <!-- Виньетка -->
+    <circle cx="450" cy="450" r="365" fill="none" stroke="#0a0820" stroke-width="40" opacity="0.35"/>
+  </g>
+
+  <!-- Лента с названием -->
+  <polygon points="140,800 84,826 140,852" fill="#571a2c"/>
+  <polygon points="760,800 816,826 760,852" fill="#571a2c"/>
+  <rect x="140" y="792" width="620" height="72" rx="8" fill="#6e1f33" stroke="#d9a63a" stroke-width="3"/>
+  <rect x="148" y="799" width="604" height="5" rx="2.5" fill="#93304a" opacity="0.7"/>
+  <use xlink:href="#star4" href="#star4" transform="translate(172,828) scale(0.6)" fill="#e8c56a"/>
+  <use xlink:href="#star4" href="#star4" transform="translate(728,828) scale(0.6)" fill="#e8c56a"/>
+  <text x="450" y="834" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="48" font-weight="bold" letter-spacing="7" fill="url(#goldG)" stroke="#4a2a08" stroke-width="1.5" paint-order="stroke">ФЛОГИСТОН</text>
+  <text x="450" y="855" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="15" letter-spacing="1" fill="#e9d6a4">приключение начинающего мага • город осаждён орками и нежитью</text>
+</svg>
