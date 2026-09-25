@@ -28,6 +28,36 @@
       pointer-events: none;
       white-space: pre-line;
     }
+    .char-panel {
+      position: fixed;
+      right: 12px;
+      top: 12px;
+      width: 380px;
+      max-height: calc(100vh - 24px);
+      overflow-y: auto;
+      color: #e8dcc0;
+      font: 13px/1.45 ui-monospace, monospace;
+      background: rgba(16, 18, 24, 0.92);
+      border: 1px solid #4a4433;
+      border-radius: 12px;
+      padding: 12px 14px;
+      z-index: 10;
+    }
+    .cp-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .cp-stats { white-space: pre-line; margin-bottom: 8px; color: #bfe3c0; }
+    .cp-close { float: right; }
+    .cp-section { margin-top: 10px; font-weight: 700; color: #d8c27a; }
+    .cp-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    .cp-table td { padding: 1px 4px; }
+    .cp-name { max-width: 190px; }
+    .cp-req { color: #9a8f76; font-size: 11px; }
+    .cp-level { text-align: right; width: 34px; color: #9fd3ff; }
+    .cp-btn {
+      width: 24px; height: 20px;
+      border: 1px solid #6b6248; border-radius: 5px;
+      background: #2c3040; color: #e8dcc0; cursor: pointer;
+    }
+    .cp-btn:disabled { opacity: 0.3; cursor: default; }
   </style>
 </head>
 <body>
@@ -38,6 +68,8 @@
   <script src="src/perlin.js"></script>
   <script src="src/mapseed.js"></script>
   <script src="src/map.js"></script>
+  <script src="src/player.js"></script>
+  <script src="src/ui.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>

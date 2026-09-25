@@ -127,6 +127,8 @@
 
   // --- Игровое состояние ---
   let map = null;
+  const hero = G.createCharacter('Флогистон'); // персонаж (src/player.js)
+  G.playerUI && G.playerUI.setCharacter(hero);
   const player = { x: 0, y: 0 };
   let zoom = 14; // пикселей на тайл
   const cam = { x: 0.5, y: 0.5 };
@@ -157,6 +159,10 @@
     ArrowRight: [1, 0], KeyD: [1, 0], KeyВ: [1, 0],
   };
   window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyI' && G.playerUI) { // I (Ш) — панель персонажа
+      G.playerUI.toggle();
+      return;
+    }
     if (KEY_DIRS[e.code]) {
       keys.add(e.code);
       e.preventDefault();
@@ -250,10 +256,13 @@
 
   function hudUpdate() {
     const t = map.tileAt(player.x, player.y);
-    let line = 'Флогистон  (' + player.x + ', ' + player.y + ')\n' +
+    const d = G.derived(hero);
+    let line = 'Флогистон, ур. ' + hero.level + '  (' + player.x + ', ' + player.y + ')\n' +
+      'HP ' + hero.hp + '/' + d.maxHP + '  |  Золото: ' + hero.gold + '  |  Очки: ' + hero.points + '\n' +
       'Местность: ' + G.TERRAIN_NAMES[t.terrain] + '\n' +
       'Масштаб: ' + zoom + 'px  |  карта: ' + map.width + 'x' + map.height +
-      (map.fromPng ? ' (map.png)' : ' (пересчёт)');
+      (map.fromPng ? ' (map.png)' : ' (пересчёт)') + '\n' +
+      '[I] персонаж';
     if (t.hasBuilding) line += '\nЗдесь: ' + G.BUILDING_NAMES[t.building];
     else if (t.hasMobGroup) line += '\nОсторожно: ' + G.MOB_GROUP_NAMES[t.mobGroup] + '!';
     hud.textContent = line;
@@ -291,9 +300,30 @@
         player: { x: player.x, y: player.y },
         cam: { x: cam.x, y: cam.y },
         zoom,
+        hero: {
+          level: hero.level, xp: hero.xp, hp: hero.hp,
+          gold: hero.gold, points: hero.points,
+        },
         map: map ? { width: map.width, height: map.height, fromPng: map.fromPng } : null,
         keys: Array.from(keys),
       };
+    },
+    // Отладочные действия (смоук-тесты, ручная проверка баланса).
+    actions: {
+      givePoints: (n) => {
+        hero.points += n;
+        G.playerUI && G.playerUI.render();
+      },
+      train: (skill) => {
+        const r = G.raiseSkill(hero, skill);
+        G.playerUI && G.playerUI.render();
+        return r;
+      },
+      addXp: (n) => {
+        const r = G.addXp(hero, n);
+        G.playerUI && G.playerUI.render();
+        return r;
+      },
     },
   };
 
