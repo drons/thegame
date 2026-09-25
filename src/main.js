@@ -130,16 +130,24 @@
   const hero = G.createCharacter('Флогистон'); // персонаж (src/player.js)
   G.playerUI && G.playerUI.setCharacter(hero);
   const player = { x: 0, y: 0 };
+  const prevPos = { x: 0, y: 0 }; // позиция до последнего шага (побег/смерть)
   let zoom = 14; // пикселей на тайл
   const cam = { x: 0.5, y: 0.5 };
 
+  // Побеждённые группы мобов (респаун по дням — задача 000008).
+  const defeatedTiles = new Set();
+  let hudFlash = '';
+  let hudFlashUntil = 0;
+
   function findSpawn() {
-    // Ищем проходимый тайл в окрестностях (0,0) по спирали.
+    // Ищем проходимый тайл в окрестностях (0,0) по спирали,
+    // вдали от групп мобов — чтобы старт не начинался боем.
     for (let r = 0; r < 200; r++) {
       for (let dx = -r; dx <= r; dx++) {
         for (let dy = -r; dy <= r; dy++) {
           if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-          if (map.tileAt(dx, dy).passable) {
+          const t = map.tileAt(dx, dy);
+          if (t.passable && !t.hasMobGroup) {
             player.x = dx;
             player.y = dy;
             return;
@@ -163,6 +171,8 @@
       G.playerUI.toggle();
       return;
     }
+    // В бою клавиши обрабатывает combat-ui (своим слушателем).
+    if (G.combatUI && G.combatUI.isActive()) return;
     if (KEY_DIRS[e.code]) {
       keys.add(e.code);
       e.preventDefault();
@@ -180,11 +190,50 @@
       const [dx, dy] = KEY_DIRS[code];
       const t = map.tileAt(player.x + dx, player.y + dy);
       if (t.passable) {
+        prevPos.x = player.x;
+        prevPos.y = player.y;
         player.x += dx;
         player.y += dy;
-        return;
+        return true;
       }
     }
+    return false;
+  }
+
+  // Шаг на тайл с группой мобов (ещё не побеждённой) → мини-карта боя.
+  function maybeStartCombat() {
+    if (G.combatUI && G.combatUI.isActive()) return;
+    const t = map.tileAt(player.x, player.y);
+    if (!t.hasMobGroup) return;
+    const key = player.x + ',' + player.y;
+    if (defeatedTiles.has(key)) return;
+    G.combatUI.startCombat({
+      hero,
+      tile: t,
+      prev: { x: prevPos.x, y: prevPos.y },
+      seed: G.hash2(player.x, player.y, 0x5eedc0de),
+      onEnd: (res) => {
+        if (res.outcome === 'victory') {
+          defeatedTiles.add(key);
+          hudFlash = `Победа! +${res.xp} опыта, +${res.gold} золота.`;
+        } else if (res.outcome === 'dead') {
+          // Подъём: половину HP, −20% золота (полная система смерти — 000008).
+          hero.alive = true;
+          hero.hp = Math.max(1, Math.round(G.derived(hero).maxHP / 2));
+          hero.gold = Math.floor(hero.gold * 0.8);
+          hudFlash = 'Вы очнулись. −20% золота.';
+        } else {
+          hudFlash = 'Вы ушли от боя.';
+        }
+        // Побег и смерть: назад на тайл, с которого зашёл в бой.
+        if (res.outcome !== 'victory') {
+          player.x = prevPos.x;
+          player.y = prevPos.y;
+        }
+        G.playerUI && G.playerUI.render();
+        hudFlashUntil = performance.now() + 5000;
+      },
+    });
   }
 
   // --- Камера ---
@@ -257,6 +306,7 @@
   function hudUpdate() {
     const t = map.tileAt(player.x, player.y);
     const d = G.derived(hero);
+    const key = player.x + ',' + player.y;
     let line = 'Флогистон, ур. ' + hero.level + '  (' + player.x + ', ' + player.y + ')\n' +
       'HP ' + hero.hp + '/' + d.maxHP + '  |  Золото: ' + hero.gold + '  |  Очки: ' + hero.points + '\n' +
       'Местность: ' + G.TERRAIN_NAMES[t.terrain] + '\n' +
@@ -264,17 +314,23 @@
       (map.fromPng ? ' (map.png)' : ' (пересчёт)') + '\n' +
       '[I] персонаж';
     if (t.hasBuilding) line += '\nЗдесь: ' + G.BUILDING_NAMES[t.building];
-    else if (t.hasMobGroup) line += '\nОсторожно: ' + G.MOB_GROUP_NAMES[t.mobGroup] + '!';
+    else if (t.hasMobGroup) {
+      line += defeatedTiles.has(key)
+        ? '\nГруппа ' + G.MOB_GROUP_NAMES[t.mobGroup] + ' повержена.'
+        : '\nОсторожно: ' + G.MOB_GROUP_NAMES[t.mobGroup] + '!';
+    }
+    if (performance.now() < hudFlashUntil) line += '\n' + hudFlash;
     hud.textContent = line;
   }
 
   // --- Цикл ---
   let lastMove = 0;
   function frame(now) {
-    if (now - lastMove >= MOVE_INTERVAL_MS) {
-      if (keys.size) {
-        tryMove();
+    const inCombat = G.combatUI && G.combatUI.isActive();
+    if (!inCombat && now - lastMove >= MOVE_INTERVAL_MS) {
+      if (keys.size && tryMove()) {
         lastMove = now;
+        maybeStartCombat();
       }
     }
     updateCamera();
@@ -309,10 +365,28 @@
       };
     },
     // Отладочные действия (смоук-тесты, ручная проверка баланса).
+    // Текущий бой (для смоук-тестов и отладки).
+    get combat() {
+      return G.combatUI ? G.combatUI.current() : null;
+    },
     actions: {
       givePoints: (n) => {
         hero.points += n;
         G.playerUI && G.playerUI.render();
+      },
+      // Отладочный бой на текущем тайле (не требует шага на группу).
+      startCombat: (groupType = 0) => {
+        if (G.combatUI && G.combatUI.isActive()) return null;
+        return G.combatUI.startCombat({
+          hero,
+          tile: { mobGroup: groupType },
+          prev: { x: player.x, y: player.y },
+          seed: 42,
+          onEnd: () => {
+            // Лут/опыт уже начислены в ядре (checkVictory).
+            G.playerUI && G.playerUI.render();
+          },
+        });
       },
       train: (skill) => {
         const r = G.raiseSkill(hero, skill);
@@ -334,6 +408,7 @@
     findSpawn();
     cam.x = player.x + 0.5;
     cam.y = player.y + 0.5;
+    maybeStartCombat(); // если спавн оказался на тайле с группой
     requestAnimationFrame(frame);
   });
 })();

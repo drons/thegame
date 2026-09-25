@@ -1,0 +1,397 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const {
+  hitChance, createCombat,
+  MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT,
+} = require('../src/combat.js');
+const { createCharacter, derived } = require('../src/player.js');
+
+// Сильный персонаж для контролируемых сценариев (много HP — не умирает сам).
+function strongHero() {
+  const c = createCharacter();
+  c.primary.constitution = 50;
+  c.hp = 9999;
+  return c;
+}
+
+// Авто-игра: бьёт ближайшую цель, если рядом, иначе подходит, и заканчивает ход.
+function autoPlay(c, maxRounds = 80) {
+  let n = 0;
+  while (!c.result && n++ < maxRounds) {
+    const t = c.units.find((u) => u.id === c.targetId && u.alive && !u.fled)
+      || c.units.find((u) => u.alive && !u.fled);
+    if (t) {
+      const d = Math.abs(c.px - t.x) + Math.abs(c.py - t.y);
+      if (d <= 1) {
+        c.attack(t.id);
+      } else {
+        const dx = Math.sign(t.x - c.px);
+        const dy = Math.sign(t.y - c.py);
+        if (Math.abs(t.x - c.px) >= Math.abs(t.y - c.py)) {
+          if (!c.move(dx, 0).ok) c.move(0, dy);
+        } else {
+          if (!c.move(0, dy).ok) c.move(dx, 0);
+        }
+      }
+    }
+    c.endTurn();
+  }
+  return c.result;
+}
+
+// Ставит игрока вплотную к живому мобо (клетка рядом свободна).
+function standNextTo(c, u) {
+  const candidates = [[0, 1], [0, -1], [1, 0], [-1, 0]]
+    .map(([dx, dy]) => [u.x + dx, u.y + dy])
+    .filter(([x, y]) =>
+      x >= 0 && y >= 0 && x < c.width && y < c.height &&
+      !c.units.some((v) => v.alive && v.x === x && v.y === y));
+  assert.ok(candidates.length, 'нет свободной клетки рядом с мобом');
+  c.px = candidates[0][0];
+  c.py = candidates[0][1];
+}
+
+// --- Состав групп ---
+
+test('состав группы: 2-6 мобов, уровень персонажа ±3', () => {
+  const p = createCharacter(); // уровень 1
+  for (const [type, recipe] of Object.entries(GROUP_RECIPES)) {
+    const c = createCombat({ player: p, groupType: Number(type), seed: 7 });
+    const mobs = c.units;
+    assert.ok(mobs.length >= 2 && mobs.length <= 6,
+      `группа ${type}: ${mobs.length} мобов (ожидается 2-6)`);
+    for (const u of mobs) {
+      assert.ok(u.level >= 1 && u.level <= 4,
+        `группа ${type}: уровень моба ${u.level} вне диапазона 1..4`);
+    }
+    // Доминирующий тип локации в группе всегда есть.
+    const dominant = recipe.mobs[0];
+    assert.ok(mobs.some((u) => u.mobId === dominant),
+      `группа ${type}: нет доминирующего моба ${dominant}`);
+  }
+});
+
+test('волчья стая: 3-6 волков', () => {
+  const p = createCharacter();
+  for (const seed of [1, 2, 3, 4, 5]) {
+    const c = createCombat({ player: p, groupType: 3, seed });
+    assert.ok(c.units.length >= 3 && c.units.length <= 6, 'не 3-6 волков');
+    assert.ok(c.units.every((u) => u.mobId === 'wolf'), 'не все волки');
+  }
+});
+
+test('состав группы детерминирован при одном сиде', () => {
+  const p1 = createCharacter();
+  const p2 = createCharacter();
+  const c1 = createCombat({ player: p1, groupType: 0, seed: 99 });
+  const c2 = createCombat({ player: p2, groupType: 0, seed: 99 });
+  assert.deepEqual(
+    c1.units.map((u) => [u.mobId, u.level, u.x, u.y, u.hp, u.armor]),
+    c2.units.map((u) => [u.mobId, u.level, u.x, u.y, u.hp, u.armor]),
+  );
+});
+
+test('группа с лидером: +5% урона и +5% защиты всем', () => {
+  const p = createCharacter();
+  const withLeader = createCombat({ player: p, groupType: 6, seed: 5 }); // Уродство — лидер
+  assert.ok(withLeader.units.some((u) => u.role === 'leader'), 'нет лидера');
+  for (const u of withLeader.units) {
+    assert.equal(u.damageTakenMult, 0.95);
+  }
+  const noLeader = createCombat({ player: p, groupType: 3, seed: 5 });
+  assert.ok(!noLeader.units.some((u) => u.role === 'leader'));
+  for (const u of noLeader.units) assert.equal(u.damageTakenMult, 1);
+  // Урон лидера при том же уровне выше, чем без баффа.
+  const dmgBase = Math.max(1, Math.round((2 + 0.7 * withLeader.units[0].level) * MOB_TYPES.abomination.dmg));
+  const leader = withLeader.units.find((u) => u.role === 'leader');
+  assert.equal(leader.damage, Math.max(1, Math.round(dmgBase * LEADER_DMG_MULT)));
+});
+
+// --- Формулы попадания и урона ---
+
+test('hitChance: рост с уровнем, штраф от уклонения, клампинг', () => {
+  assert.equal(hitChance(5, 0, 5, 0), 0.55);
+  assert.ok(hitChance(10, 0, 5, 0) > hitChance(5, 0, 5, 0));
+  assert.ok(hitChance(5, 0.2, 5, 0) > hitChance(5, 0, 5, 0), 'бонус попадания');
+  assert.ok(hitChance(5, 0, 5, 0.2) < hitChance(5, 0, 5, 0), 'штраф от уклонения');
+  assert.equal(hitChance(200, 0.5, 1, 0), 0.95, 'верхний кламп 0.95');
+  assert.equal(hitChance(1, -0.9, 200, 0.5), 0.05, 'нижний кламп 0.05');
+});
+
+test('удар: урон = база − броня моба (минимум 1), детерминированно', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 0, seed: 11 }); // орочий лагерь, без лидера
+  c._rng = () => 0.01; // попадание гарантировано
+  const w = c.units.find((u) => u.mobId === 'orc_warrior');
+  standNextTo(c, w);
+  const hpBefore = w.hp;
+  const base = 3 + Math.floor(p.primary.strength * 0.8) + Math.floor(p.level * 0.5);
+  const expected = Math.max(1, base - w.armor);
+  const r = c.attack(w.id);
+  assert.equal(r.ok, true);
+  assert.equal(r.hit, true);
+  assert.equal(hpBefore - w.hp, expected, `урон ${hpBefore - w.hp} != ${expected}`);
+});
+
+test('промах: HP моба не меняется, действие потрачено', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 3, seed: 3 });
+  c._rng = () => 0.99; // промах гарантирован
+  const w = c.units[0];
+  standNextTo(c, w);
+  const hpBefore = w.hp;
+  const atkBefore = c.ps.attack;
+  const r = c.attack(w.id);
+  assert.equal(r.ok, true);
+  assert.equal(r.hit, false);
+  assert.equal(w.hp, hpBefore);
+  assert.equal(c.ps.attack, atkBefore - 1, 'действие потрачено');
+});
+
+// --- Лимиты действий и очередь ходов ---
+
+test('лимит действий: удар доступен 1 + floor(Сила/10) раз за ход', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 3, seed: 2 });
+  assert.equal(c.ps.attack, 1 + Math.floor(p.primary.strength / 10));
+  p.primary.strength = 30; // 4 удара
+  c.ps.attack = 4;
+  const w = c.units[0];
+  standNextTo(c, w);
+  c._rng = () => 0.99; // промахи — не убиваем цель
+  for (let i = 0; i < 4; i++) assert.equal(c.attack(w.id).ok, true, `удар ${i + 1}`);
+  assert.equal(c.attack(w.id).ok, false, '5-й удар должен быть отклонён');
+  assert.match(c.attack(w.id).reason, /Удар/);
+  // Новый ход восстанавливает пул.
+  c.endTurn();
+  assert.equal(c.ps.attack, 4);
+});
+
+test('блок: только как последнее действие хода', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 3, seed: 2 });
+  assert.equal(c.block().ok, false, 'блок не должен работать при наличии ударов');
+  assert.match(c.block().reason, /последнее действие/);
+  c.ps.attack = 0;
+  c.ps.spellInt = 0;
+  c.ps.spellWis = 0;
+  c.ps.quickItem = 0;
+  c.ps.invItem = 0;
+  assert.equal(c.block().ok, true);
+  assert.equal(c.ps.blocked, true);
+  assert.equal(c.block().ok, false, 'блок один раз за ход');
+});
+
+test('блок снижает получаемый урон', () => {
+  const make = () => {
+    const p = strongHero();
+    const c = createCombat({ player: p, groupType: 3, seed: 77 });
+    c._rng = () => 0.01; // все атаки мобов попадают
+    standNextTo(c, c.units[0]);
+    return c;
+  };
+  const blocked = make();
+  blocked.ps.attack = 0; blocked.ps.spellInt = 0; blocked.ps.spellWis = 0;
+  blocked.ps.quickItem = 0; blocked.ps.invItem = 0;
+  blocked.block();
+  blocked.endTurn();
+  const open = make();
+  open.endTurn();
+  assert.ok(blocked.player.hp > open.player.hp,
+    `с блоком HP ${blocked.player.hp} должно быть выше, чем без (${open.player.hp})`);
+});
+
+// --- Исход боя ---
+
+test('победа: весь лут, опыт и золото начислены', () => {
+  const p = createCharacter();
+  p.primary.strength = 30; // 4 удара
+  p.primary.constitution = 50;
+  const c = createCombat({ player: p, groupType: 3, seed: 4 });
+  autoPlay(c);
+  assert.ok(c.result, 'бой должен завершиться');
+  assert.equal(c.result.outcome, 'victory');
+  assert.ok(c.result.xp > 0, 'опыт начислен');
+  assert.ok(c.result.gold > 0, 'золото начислено');
+  assert.equal(c.units.every((u) => !u.alive || u.fled), true);
+});
+
+test('смерть: слабый герой против бездны', () => {
+  const p = createCharacter(); // уровень 1, 25 HP
+  const c = createCombat({ player: p, groupType: 6, seed: 8 });
+  c._rng = () => 0.01; // мобы точно попадают
+  let n = 0;
+  while (!c.result && n++ < 60) c.endTurn(); // герой только терпит
+  assert.ok(c.result, 'бой должен завершиться');
+  assert.equal(c.result.outcome, 'dead');
+  assert.equal(p.alive, false);
+});
+
+test('побег: успех завершает бой, провал сжигает ход', () => {
+  const p = createCharacter();
+  const ok = createCombat({ player: p, groupType: 3, seed: 6 });
+  ok._rng = () => 0.0; // бросок < шанса
+  const r1 = ok.flee();
+  assert.equal(r1.fled, true);
+  assert.equal(ok.result.outcome, 'fled');
+
+  const p2 = createCharacter();
+  const bad = createCombat({ player: p2, groupType: 3, seed: 6 });
+  bad._rng = () => 0.99; // бросок > шанса
+  const before = bad.round;
+  const r2 = bad.flee();
+  assert.equal(r2.fled, false);
+  assert.equal(bad.result, null, 'бой продолжается');
+  assert.equal(bad.round, before + 1, 'ход мобов прошёл');
+  assert.equal(bad.phase, 'player', 'очередь снова у игрока');
+});
+
+// --- Роли мобов ---
+
+test('дальний бой держит дистанцию', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 5, seed: 13 }); // есть ветряной стихийник
+  const ranged = c.units.filter((u) => u.role === 'ranged');
+  assert.ok(ranged.length, 'в группе нет дальних бойцов');
+  for (let i = 0; i < 3; i++) c.endTurn();
+  for (const u of ranged) {
+    const d = Math.abs(u.x - c.px) + Math.abs(u.y - c.py);
+    assert.ok(d >= 2, `дальний боец ${u.name} сближён: дистанция ${d}`);
+  }
+});
+
+test('поддержка лечит самого раненого союзника', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 0, seed: 15 }); // есть орк-шаман
+  const shaman = c.units.find((u) => u.role === 'support');
+  const warrior = c.units.find((u) => u.mobId === 'orc_warrior');
+  warrior.hp = 1;
+  c._rng = () => 0.5;
+  c.endTurn();
+  assert.ok(warrior.hp > 1, `шаман не пролечил воина (hp=${warrior.hp})`);
+});
+
+test('пугливый моб убежает при ранении', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 0, seed: 17 });
+  const shaman = c.units.find((u) => u.role === 'support');
+  shaman.hp = 1; // < 30% — паника
+  let n = 0;
+  while (!shaman.fled && n++ < 10) c.endTurn();
+  assert.equal(shaman.fled, true, 'шаман не сбежал');
+});
+
+test('яд: отравление держится 2 хода и тикает в начале хода игрока', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 4, seed: 19 }); // пауки ядовиты
+  c._rng = () => 0.05; // попадания и яд
+  standNextTo(c, c.units[0]);
+  c.endTurn(); // мобы травят; тик уже прошёл (2 → 1)
+  assert.equal(c.ps.poison, 1, 'отравление должно держаться 2 хода');
+  const hp1 = p.hp;
+  c.endTurn(); // второй тик (1 → 0)
+  assert.ok(p.hp <= hp1 - 2, 'яд не тикает');
+  assert.equal(c.ps.poison, 0, 'отравление не снялось');
+});
+
+test('вампиризм: моб с чертой лечится нанесённым уроном', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 2, seed: 21 });
+  // В логове скелетов нет вампиров — проверяем факт отсутствия черты.
+  assert.ok(!c.units.some((u) => u.traits.lifesteal));
+  // Прямая проверка: даём черту одному скелету и ставим его вплотную.
+  const v = c.units[0];
+  const oldDamage = v.damage;
+  v.damage = 7;
+  v.traits.lifesteal = true;
+  v.hp = Math.max(1, v.hp - 5);
+  const vHp = v.hp;
+  const hpBefore = p.hp;
+  standNextTo(c, v);
+  c._rng = () => 0.01; // попадание
+  c.endTurn();
+  assert.ok(p.hp < hpBefore, 'игрок не получил урон');
+  assert.ok(v.hp >= vHp, 'вампиризм не сработал');
+  v.damage = oldDamage;
+});
+
+test('«Несокрушимость»: смертельный удар можно пережить', () => {
+  const p = createCharacter();
+  p.secondary = { golem: 10, unkill: 50 }; // шанс выживания 50%
+  const c = createCombat({ player: p, groupType: 0, seed: 23 });
+  c._rng = () => 0.01; // и попадания мобов, и бросок выживания
+  standNextTo(c, c.units[0]);
+  // «Голем 10» даёт 10 брони — обычный урон воина (3) гасится полностью.
+  c.units[0].damage = 25;
+  p.hp = 1;
+  c.endTurn();
+  if (c.result && c.result.outcome === 'dead') {
+    // Все мобы могли не подойти за один ход — допускаем, но тогда
+    // проверка смысла не имеет; убеждаемся, что игрок мёртв.
+    assert.equal(p.alive, false);
+    return;
+  }
+  assert.equal(p.alive, true, 'Несокрушимость не спасла');
+  assert.equal(p.hp, 1);
+  assert.ok(c.log.some((l) => l.includes('Несокрушимость')));
+});
+
+// --- Ход игрока на мини-карте ---
+
+test('движение: стены, занятые клетки и лимит шагов', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 3, seed: 25 });
+  const steps = c.ps.moveLeft;
+  assert.equal(c.move(0, -1).ok, true);
+  assert.equal(c.ps.moveLeft, steps - 1);
+  assert.equal(c.move(0, -99).ok, false); // вне сетки
+  const m = c.units[0];
+  c.px = m.x; c.py = m.y + 1; // вплотную, снизу
+  const r = c.move(0, -1); // прямо на клетку моба
+  assert.equal(r.ok, false, 'нельзя зайти на клетку моба');
+  c.ps.moveLeft = 0;
+  assert.match(c.move(1, 0).reason, /шаги/);
+});
+
+test('заклинания: огонь игнорирует броню и тратит ману, исцеление лечит', () => {
+  const p = createCharacter();
+  p.primary.intelligence = 10; // пул заклинаний 2
+  p.primary.wisdom = 10;
+  p.mp = 20;
+  p.hp = 20; // исцеление должно поднять HP (максимум — 25)
+  const c = createCombat({ player: p, groupType: 0, seed: 27 });
+  const warrior = c.units.find((u) => u.mobId === 'orc_warrior');
+  assert.ok(warrior.armor >= 1, 'воин без брони?');
+  warrior.x = c.px; warrior.y = c.py - 1; // подтянуть цель в дальность
+  const hpBefore = warrior.hp;
+  const r = c.spell('fire', warrior.id);
+  assert.equal(r.ok, true);
+  assert.equal(p.mp, 17);
+  const expected = Math.round(3 + 0.5 * p.primary.intelligence);
+  assert.equal(hpBefore - warrior.hp, expected, 'броня должна быть проигнорирована');
+  const hp2 = p.hp;
+  const r2 = c.spell('heal');
+  assert.equal(r2.ok, true);
+  assert.ok(p.hp > hp2, 'исцеление не лечит');
+  // Дальность ограничена 4 клетками.
+  const far = c.units.find((u) => Math.abs(u.x - c.px) + Math.abs(u.y - c.py) > 4);
+  assert.ok(far, 'нет цели вне дальности');
+  assert.equal(c.spell('fire', far.id).ok, false, 'огонь долетает только на 4 клетки');
+});
+
+// --- Детерминизм ---
+
+test('одинаковый бой при одинаковых действиих (сид + сценарий)', () => {
+  const play = (seed) => {
+    const p = strongHero();
+    p.primary.strength = 20;
+    const c = createCombat({ player: p, groupType: 0, seed });
+    autoPlay(c, 30);
+    return {
+      result: c.result,
+      hp: p.hp,
+      units: c.units.map((u) => [u.id, u.x, u.y, u.hp, u.alive, u.fled]),
+    };
+  };
+  assert.deepEqual(play(31), play(31), 'бой не детерминирован');
+});

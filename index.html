@@ -58,6 +58,74 @@
       background: #2c3040; color: #e8dcc0; cursor: pointer;
     }
     .cp-btn:disabled { opacity: 0.3; cursor: default; }
+    .combat-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 8, 12, 0.88);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 20;
+      color: #e8dcc0;
+      font: 13px/1.5 ui-monospace, monospace;
+    }
+    .combat-box { position: relative; }
+    .combat-box canvas {
+      display: block;
+      border: 2px solid #4a4433;
+      border-radius: 8px;
+      cursor: crosshair;
+    }
+    .combat-side {
+      width: 320px;
+      background: rgba(16, 18, 24, 0.95);
+      border: 1px solid #4a4433;
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .combat-state {
+      white-space: pre-line;
+      color: #bfe3c0;
+      margin-bottom: 10px;
+    }
+    .combat-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .combat-actions button {
+      border: 1px solid #6b6248;
+      border-radius: 6px;
+      background: #2c3040;
+      color: #e8dcc0;
+      cursor: pointer;
+      padding: 4px 6px;
+    }
+    .combat-actions button:disabled { opacity: 0.3; cursor: default; }
+    .combat-log {
+      height: 170px;
+      overflow-y: auto;
+      white-space: pre-line;
+      color: #cfc6ad;
+      border-top: 1px solid #3a3527;
+      padding-top: 8px;
+    }
+    .combat-banner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      white-space: pre-line;
+      font-size: 22px;
+      font-weight: 700;
+      background: rgba(10, 12, 16, 0.85);
+      border-radius: 8px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -69,7 +137,9 @@
   <script src="src/mapseed.js"></script>
   <script src="src/map.js"></script>
   <script src="src/player.js"></script>
+  <script src="src/combat.js"></script>
   <script src="src/ui.js"></script>
+  <script src="src/combat-ui.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>
