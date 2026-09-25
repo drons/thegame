@@ -1,0 +1,232 @@
+// Генерация тайлов карты мира (SPEC.md, раздел «Карта мира»).
+//
+// Состояние тайла полностью определяется:
+//   1) несколькими октавами шума Перлина (высота, влажность, фичи) с
+//      фиксированным глобальным сидом;
+//   2) одним пикселем из assets/map.png (1 пиксель = 1 тайл, выборка с
+//      повтором — карта бесконечна).
+//
+// Все функции чистые: одинаковые координаты всегда дают одинаковый тайл.
+//
+// Униформный модуль: в браузере — globalThis.Game, в node — require().
+
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory(require('./perlin.js'));
+  } else {
+    root.Game = Object.assign({}, root.Game,
+      factory(typeof root.Game === 'object' ? root.Game : {}));
+  }
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin) {
+
+  const createPerlin2D = perlin.createPerlin2D;
+  const hash2 = perlin.hash2;
+
+  // Фиксированный глобальный сид (SPEC.md). Смена сида или assets/map.png
+  // генерирует полностью другую карту.
+  const GLOBAL_SEED = 0xf10c7a26;
+
+  const TERRAIN = {
+    DEEP_WATER: 0,
+    WATER: 1,
+    SAND: 2,
+    GRASS: 3,
+    FOREST: 4,
+    HILL: 5,
+    MOUNTAIN: 6,
+    SWAMP: 7,
+  };
+
+  const TERRAIN_NAMES = {
+    [TERRAIN.DEEP_WATER]: 'глубокая вода',
+    [TERRAIN.WATER]: 'вода',
+    [TERRAIN.SAND]: 'песок',
+    [TERRAIN.GRASS]: 'трава',
+    [TERRAIN.FOREST]: 'лес',
+    [TERRAIN.HILL]: 'холмы',
+    [TERRAIN.MOUNTAIN]: 'горы',
+    [TERRAIN.SWAMP]: 'болото',
+  };
+
+  // Проходимые тайлы (пока что): вода и горы непроходимы.
+  const PASSABLE = new Set([
+    TERRAIN.SAND, TERRAIN.GRASS, TERRAIN.FOREST, TERRAIN.HILL, TERRAIN.SWAMP,
+  ]);
+
+  // Типы построек (подмножество из SPEC.md, раздел «Постройки»).
+  const BUILDING_TYPES = {
+    NONE: -1,
+    WEAPONS_SHOP: 0,
+    ARMOR_SHOP: 1,
+    APOTHECARY: 2,
+    MAGIC_SHOP: 3,
+    ARENA: 4,
+    BLACKSMITH: 5,
+    ARCHERY_RANGE: 6,
+    ACADEMY: 7,
+    TEMPLE: 8,
+    CAVE_ENTRANCE: 9,
+    RUNE_STONE: 10,
+    TAVERN: 11,
+    NPC_HOUSE: 12,
+  };
+  const BUILDING_COUNT = 13;
+  const BUILDING_NAMES = {
+    [BUILDING_TYPES.WEAPONS_SHOP]: 'оружейная',
+    [BUILDING_TYPES.ARMOR_SHOP]: 'бронник',
+    [BUILDING_TYPES.APOTHECARY]: 'аптекарь',
+    [BUILDING_TYPES.MAGIC_SHOP]: 'магазин магии',
+    [BUILDING_TYPES.ARENA]: 'арена',
+    [BUILDING_TYPES.BLACKSMITH]: 'кузница',
+    [BUILDING_TYPES.ARCHERY_RANGE]: 'стрельбище',
+    [BUILDING_TYPES.ACADEMY]: 'школа акробатов',
+    [BUILDING_TYPES.TEMPLE]: 'храм',
+    [BUILDING_TYPES.CAVE_ENTRANCE]: 'вход в пещеру',
+    [BUILDING_TYPES.RUNE_STONE]: 'рунический камень',
+    [BUILDING_TYPES.TAVERN]: 'таверна',
+    [BUILDING_TYPES.NPC_HOUSE]: 'дом NPC',
+  };
+
+  // Типы стационарных групп мобов (SPEC.md, раздел «Мобы»).
+  const MOB_GROUP_TYPES = {
+    NONE: -1,
+    ORC_CAMP: 0,
+    ORC_RAIDERS: 1,
+    SKELETON_DEN: 2,
+    WOLF_PACK: 3,
+    SPIDER_NEST: 4,
+    ELEMENTAL_CIRCLE: 5,
+    ABYSS_SPIRIT: 6,
+  };
+  const MOB_GROUP_COUNT = 7;
+  const MOB_GROUP_NAMES = {
+    [MOB_GROUP_TYPES.ORC_CAMP]: 'орочий лагерь',
+    [MOB_GROUP_TYPES.ORC_RAIDERS]: 'орочий набеги',
+    [MOB_GROUP_TYPES.SKELETON_DEN]: 'логово скелетов',
+    [MOB_GROUP_TYPES.WOLF_PACK]: 'волчья стая',
+    [MOB_GROUP_TYPES.SPIDER_NEST]: 'паучье гнездо',
+    [MOB_GROUP_TYPES.ELEMENTAL_CIRCLE]: 'круг стихийников',
+    [MOB_GROUP_TYPES.ABYSS_SPIRIT]: 'дух бездны',
+  };
+
+  // Масштаб «крупных» фич шума (в тайлах) и фич построек/мобов.
+  const NOISE_SCALE = 1 / 48;
+  // Фичи построек/мобов меняются на масштабе десятков тайлов —
+  // получается кластеризация «деревнями» вместо континентальных пятен.
+  // Масштаб нецелочисленный: целочисленный масштаб заставлял бы сетку тайлов
+  // бить шум в одну фиксированную фазу в каждой клетке решётки, где
+  // амплитуда Перлина гасит себя (см. тест «сэмпл мира»).
+  const FEATURE_SCALE = 0.618;
+
+  /**
+   * Создаёт генератор карты.
+   * @param {{width:number, height:number, data:ArrayBuffer|Uint8Array|Buffer}|null} [pixels]
+   *   Пиксели assets/map.png. Если null — синтетические 8x8 (для тестов/
+   *   предпросмотра без ресурса).
+   */
+  function createMap(pixels = null) {
+    const px = pixels || syntheticPixels(8, 8, 128, 128, 128, 255);
+    const data = px.data;
+    const W = px.width;
+    const H = px.height;
+
+    // Три независимых канала шума (сдвиги сидов декоррелируют их).
+    const elevation = createPerlin2D(GLOBAL_SEED);
+    const moisture = createPerlin2D(GLOBAL_SEED ^ 0x9e3779b9);
+    const features = createPerlin2D(GLOBAL_SEED ^ 0x85ebca6b);
+
+    // Один пиксель = один тайл; карта бесконечна — выборка с повтором.
+    function pixelAt(x, y) {
+      const ix = ((x % W) + W) % W;
+      const iy = ((y % H) + H) % H;
+      const o = (iy * W + ix) * 4;
+      return [data[o], data[o + 1], data[o + 2], data[o + 3]];
+    }
+
+    /**
+     * Состояние тайла в целочисленных координатах (x, y).
+     * @returns {{
+     *   x:number, y:number, terrain:number, passable:boolean,
+     *   hasBuilding:boolean, building:number,
+     *   hasMobGroup:boolean, mobGroup:number,
+     * }}
+     */
+    function tileAt(x, y) {
+      const [r, g, b, a] = pixelAt(x, y);
+
+      const e = elevation.fbm(x * NOISE_SCALE, y * NOISE_SCALE, 4);
+      const m = moisture.fbm(x * NOISE_SCALE + 137.5, y * NOISE_SCALE + 137.5, 4);
+
+      // Глобальная затравка (пиксель map.png) смещает пороги
+      // (конвенция: тёмный канал усиливает свой эффект):
+      //   R — уровень моря (тёмный R = море поднимается),
+      //   G — горная линия (тёмный G = горы чаще),
+      //   B — лесная линия (тёмный B = леса чаще).
+      const seaLevel = -0.20 + 0.12 * (1 - 2 * r / 255);
+      const mountainLine = 0.30 - 0.18 * (1 - 2 * g / 255);
+      const forestLine = 0.05 - 0.20 * (1 - 2 * b / 255);
+
+      let terrain;
+      if (e < seaLevel - 0.18) terrain = TERRAIN.DEEP_WATER;
+      else if (e < seaLevel) terrain = TERRAIN.WATER;
+      else if (e < seaLevel + 0.06) terrain = TERRAIN.SAND;
+      else if (e >= mountainLine) terrain = TERRAIN.MOUNTAIN;
+      else if (e >= mountainLine - 0.10) terrain = TERRAIN.HILL;
+      else if (m >= forestLine + 0.25) terrain = TERRAIN.FOREST;
+      else if (m >= forestLine + 0.10 && e < seaLevel + 0.15) terrain = TERRAIN.SWAMP;
+      else terrain = TERRAIN.GRASS;
+
+      const passable = PASSABLE.has(terrain);
+
+      // Постройки и группы мобов — только на проходимых тайлах.
+      // Канал A пикселя задаёт «плотность» фич (тёмный A = реже).
+      // Пороги подобраны под распределение 3-октавного fbm
+      // (p98 ≈ 0.36, p99 ≈ 0.40): при A=255 постройки ~3%, группы ~4%;
+      // при A=0 — доли процента.
+      const fb = features.fbm(x * FEATURE_SCALE + 511.1, y * FEATURE_SCALE + 511.1, 3);
+      const fm = features.fbm(x * FEATURE_SCALE + 903.7, y * FEATURE_SCALE + 903.7, 3);
+      const rarity = 1 - a / 255; // 0..1, тёмный A → реже
+
+      const hasBuilding = passable && fb > 0.33 + 0.14 * rarity;
+      const building = hasBuilding ? hash2(x, y, GLOBAL_SEED) % BUILDING_COUNT : BUILDING_TYPES.NONE;
+
+      const hasMobGroup = passable && !hasBuilding && fm > 0.31 + 0.14 * rarity;
+      const mobGroup = hasMobGroup ? hash2(x, y, GLOBAL_SEED ^ 0xabcdef) % MOB_GROUP_COUNT : MOB_GROUP_TYPES.NONE;
+
+      return { x, y, terrain, passable, hasBuilding, building, hasMobGroup, mobGroup };
+    }
+
+    // Небольшой шум для визуального разнообразия оттенков тайлов.
+    function brightness(x, y) {
+      return elevation.noise2(x * 0.7 + 0.31, y * 0.7 + 0.17);
+    }
+
+    return {
+      width: W,
+      height: H,
+      pixelAt,
+      tileAt,
+      brightness,
+    };
+  }
+
+  /** Синтетические пиксели фиксированного цвета (для тестов и fallback). */
+  function syntheticPixels(width, height, r, g, b, a) {
+    const data = new Uint8Array(width * height * 4);
+    for (let i = 0; i < width * height; i++) {
+      data[i * 4 + 0] = r;
+      data[i * 4 + 1] = g;
+      data[i * 4 + 2] = b;
+      data[i * 4 + 3] = a;
+    }
+    return { width, height, data };
+  }
+
+  return {
+    GLOBAL_SEED,
+    TERRAIN, TERRAIN_NAMES,
+    BUILDING_TYPES, BUILDING_COUNT, BUILDING_NAMES,
+    MOB_GROUP_TYPES, MOB_GROUP_COUNT, MOB_GROUP_NAMES,
+    createMap, syntheticPixels,
+  };
+});

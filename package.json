@@ -1,0 +1,10 @@
+{
+  "name": "thegame",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Приключения Флогистона — пошаговая фэнтези-RPG с процедурным миром",
+  "scripts": {
+    "test": "node --test",
+    "gen:map": "node scripts/generate-map-png.js"
+  }
+}
