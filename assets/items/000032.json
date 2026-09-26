@@ -1,0 +1,13 @@
+{
+  "id": "nature_scroll",
+  "name": "Свиток сердца природы",
+  "kind": "skill_book",
+  "weight": 0.2,
+  "value": 40,
+  "desc": "Свиток сердца природы: травы, их вкусы и тайны.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "nature",
+    "amount": 15
+  }
+}

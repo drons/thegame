@@ -1,0 +1,13 @@
+{
+  "id": "heavy_tome",
+  "name": "Том великого топора",
+  "kind": "skill_book",
+  "weight": 0.6,
+  "value": 70,
+  "desc": "Тяжёлое оружие: вес, инерция и терпение.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "heavy",
+    "amount": 30
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "iron_hide_tome",
+  "name": "Учение о железной коже",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 55,
+  "desc": "Учение о железной коже: как принимать удар и не вспоминать о нём.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "hide",
+    "amount": 25
+  }
+}

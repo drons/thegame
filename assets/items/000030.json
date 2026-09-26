@@ -1,0 +1,13 @@
+{
+  "id": "archer_scroll",
+  "name": "Свиток лучника",
+  "kind": "skill_book",
+  "weight": 0.2,
+  "value": 45,
+  "desc": "Свиток лучника: дыхание, прицел, отпускание.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "archer",
+    "amount": 15
+  }
+}

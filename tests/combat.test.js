@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
   hitChance, createCombat, resolveDifficulty,
-  MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT,
+  MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT, PRACTICE_XP,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
@@ -723,4 +723,93 @@ test('баланс: безопасная зона (мобы -3 к герою) н
     assert.ok(r, `группа ${recipe.name}: бой не завершился`);
     assert.equal(r.outcome, 'victory', `группа ${recipe.name} (мобы -3): исход ${r.outcome}`);
   }
+});
+
+// --- Практика навыков: опыт за применение эффектов (задача 000013) ---
+
+test('практика: попадание оружием даёт опыт навыка оружия', () => {
+  // Меч → «Мечник», лук → «Стрелок», топор → «Тяжёлое оружие».
+  const cases = [
+    ['iron_sword', 'swordsman'],
+    ['hunting_bow', 'archer'],
+    ['battle_axe', 'heavy'],
+  ];
+  for (const [weapon, skill] of cases) {
+    const p = strongHero();
+    I.addItem(p, weapon);
+    I.equip(p, weapon);
+    const c = createCombat({ player: p, groupType: 3, seed: 5 });
+    c._rng = () => 0.01; // попадание гарантировано
+    standNextTo(c, c.units[0]);
+    const r = c.attack(c.units[0].id);
+    assert.equal(r.hit, true, weapon + ': должно попасть');
+    assert.equal(r.practice.skill, skill, weapon + ' → навык ' + skill);
+    assert.equal(r.practice.xp, PRACTICE_XP.hit);
+    assert.equal(p.skillXp[skill], PRACTICE_XP.hit, 'опыт записан в копилку');
+  }
+});
+
+test('практика: голыми руками — «Каменные кулаки», промах — опыта нет', () => {
+  const p = strongHero(); // без оружия
+  const c = createCombat({ player: p, groupType: 3, seed: 5 });
+  standNextTo(c, c.units[0]);
+  // Промашка: опыта нет.
+  c._rng = () => 0.99;
+  const miss = c.attack(c.units[0].id);
+  assert.equal(miss.hit, false, 'промах');
+  assert.equal(miss.practice, undefined, 'промах не даёт практики');
+  assert.equal(p.skillXp.fists, undefined, 'кулаки: опыта нет после промаха');
+  // Попадание кулаком: опыт «Каменным кулакам».
+  c.ps.attack = 1;
+  c._rng = () => 0.01;
+  const hit = c.attack(c.units[0].id);
+  assert.equal(hit.hit, true);
+  assert.equal(hit.practice.skill, 'fists');
+  assert.equal(p.skillXp.fists, PRACTICE_XP.hit);
+});
+
+test('практика: блок даёт опыт «Железной коже»', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 3, seed: 5 });
+  c.ps.attack = 0; c.ps.spellInt = 0; c.ps.spellWis = 0;
+  c.ps.quickItem = 0; c.ps.invItem = 0;
+  const r = c.block();
+  assert.equal(r.ok, true);
+  assert.equal(r.practice.skill, 'hide');
+  assert.equal(r.practice.xp, PRACTICE_XP.block);
+  assert.equal(p.skillXp.hide, PRACTICE_XP.block);
+});
+
+test('практика: каст огня — «Повелитель огня», исцеление — «Медитация»', () => {
+  const p = createCharacter();
+  p.primary.intelligence = 10; // пул заклинаний Интеллекта = 2
+  p.primary.wisdom = 10;       // пул заклинаний Мудрости = 2
+  p.mp = 30;
+  const c = createCombat({ player: p, groupType: 0, seed: 5 });
+  const t = c.units[0];
+  t.x = c.px; t.y = c.py - 1; // вплотную, в дальности
+  const fire = c.spell('fire', t.id);
+  assert.equal(fire.ok, true);
+  assert.equal(fire.practice.skill, 'firelord');
+  assert.equal(p.skillXp.firelord, PRACTICE_XP.spell);
+  const heal = c.spell('heal');
+  assert.equal(heal.ok, true);
+  assert.equal(heal.practice.skill, 'meditation');
+  assert.equal(p.skillXp.meditation, PRACTICE_XP.spell);
+});
+
+test('практика: на потолке (основной * 2) попадание опыт не даёт', () => {
+  const p = strongHero(); // сила 1 → потолок «Мечника» 2
+  I.addItem(p, 'iron_sword');
+  I.equip(p, 'iron_sword');
+  p.secondary.swordsman = 2; // уже на потолке практикой
+  const c = createCombat({ player: p, groupType: 3, seed: 5 });
+  c._rng = () => 0.01;
+  standNextTo(c, c.units[0]);
+  const r = c.attack(c.units[0].id);
+  assert.equal(r.hit, true);
+  assert.equal(r.practice.applied, 0, 'на потолке опыт не начисляется');
+  assert.equal(r.practice.level, 2);
+  assert.equal(p.secondary.swordsman, 2, 'уровень не вырос');
+  assert.equal(p.skillXp.swordsman, 0, 'в копилку ничего не попало');
 });

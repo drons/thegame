@@ -111,6 +111,23 @@
   const RANGED_MAX_DIST = 4;
   const BOW_ATTACK_DIST = 4; // дальность атаки из лука (задача 000009)
   const SPELL_MAX_DIST = 4;
+
+  // Опыт практики вторичных навыков за успешное применение эффекта
+  // (задача 000013, SPEC.md «Повышение вторичных навыков», п. 2).
+  // hit — попадание (меч/лук/тяжёлое/кулаки), block — постановка блока,
+  // spell — применение заклинания.
+  const PRACTICE_XP = { hit: 3, block: 2, spell: 3 };
+
+  // Навык, который «качает» удар: по подтипу оружия, без оружия — кулаки.
+  function attackSkillId(eq) {
+    if (eq.damage > 0) {
+      if (eq.subtype === 'bow') return 'archer';
+      if (eq.subtype === 'heavy') return 'heavy';
+      return 'swordsman';
+    }
+    return 'fists';
+  }
+
   const POISON_CHANCE = 0.3;
   const POISON_TICK = 2;      // урона за ход
   const POISON_TURNS = 2;     // сколько ходов держится
@@ -317,7 +334,13 @@
     }
     const r = dealDamageToMob(c, t, dmg);
     log(c, `Вы бьёте ${t.name}: ${r.dmg}.`);
-    return { ok: true, hit: true, ...r };
+    // Практика: попадание даёт опыт навыка оружия (задача 000013).
+    const skillId = attackSkillId(eq);
+    const pr = P.skillPractice(p, skillId, PRACTICE_XP.hit);
+    return {
+      ok: true, hit: true, ...r,
+      practice: { skill: skillId, xp: PRACTICE_XP.hit, applied: pr.applied, level: pr.level },
+    };
   }
 
   function playerSpell(c, school, targetId) {
@@ -339,7 +362,12 @@
       const dmg = Math.round((3 + 0.5 * p.primary.intelligence) * (1 + d.fireDamageBonus));
       const r = dealDamageToMob(c, t, dmg, true);
       log(c, `Огненная стрела по ${t.name}: ${r.dmg}.`);
-      return { ok: true, dmg: r.dmg, killed: r.killed };
+      // Практика: каст даёт опыт «Повелителю огня» (задача 000013).
+      const pr = P.skillPractice(p, 'firelord', PRACTICE_XP.spell);
+      return {
+        ok: true, dmg: r.dmg, killed: r.killed,
+        practice: { skill: 'firelord', xp: PRACTICE_XP.spell, applied: pr.applied, level: pr.level },
+      };
     }
     if (school === 'heal') {
       if (c.ps.spellWis <= 0) return { ok: false, reason: 'действий «Заклинание» (Мудрость) больше нет' };
@@ -349,7 +377,12 @@
       const amount = Math.round(3 + 0.5 * p.primary.wisdom + p.level);
       const hp = P.heal(p, amount);
       log(c, `Исцеление: ${hp}.`);
-      return { ok: true, hp };
+      // Практика: каст даёт опыт «Медитации» (задача 000013).
+      const pr = P.skillPractice(p, 'meditation', PRACTICE_XP.spell);
+      return {
+        ok: true, hp,
+        practice: { skill: 'meditation', xp: PRACTICE_XP.spell, applied: pr.applied, level: pr.level },
+      };
     }
     return { ok: false, reason: 'неизвестная школа' };
   }
@@ -370,7 +403,13 @@
     c.ps.block -= 1;
     c.ps.blocked = true;
     log(c, 'Вы ставите блок.');
-    return { ok: true };
+    // Практика: блок даёт опыт «Железной коже» (задача 000013).
+    const p = c.player;
+    const pr = P.skillPractice(p, 'hide', PRACTICE_XP.block);
+    return {
+      ok: true,
+      practice: { skill: 'hide', xp: PRACTICE_XP.block, applied: pr.applied, level: pr.level },
+    };
   }
 
   function playerMove(c, dx, dy) {
@@ -706,6 +745,7 @@
   return {
     MOB_ROLES, ROLE_NAMES, AGGRO, MOB_TYPES, GROUP_RECIPES,
     LEADER_DMG_MULT, LEADER_DEF_MULT,
+    PRACTICE_XP,
     hitChance, createCombat, resolveDifficulty,
   };
 });

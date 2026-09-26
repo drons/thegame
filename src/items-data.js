@@ -291,6 +291,110 @@
       "weight": 0.05,
       "value": 150,
       "desc": "Перо феникса: тёплое на ощупь, редкая находка."
+    },
+    {
+      "id": "stone_fist_grimoire",
+      "name": "Гримуар каменных кулаков",
+      "kind": "skill_book",
+      "weight": 0.4,
+      "value": 55,
+      "desc": "Гримуар каменных кулаков: техника удара, когда металл не при чём.",
+      "effect": {
+        "kind": "skill_xp",
+        "skill": "fists",
+        "amount": 25
+      }
+    },
+    {
+      "id": "iron_hide_tome",
+      "name": "Учение о железной коже",
+      "kind": "skill_book",
+      "weight": 0.4,
+      "value": 55,
+      "desc": "Учение о железной коже: как принимать удар и не вспоминать о нём.",
+      "effect": {
+        "kind": "skill_xp",
+        "skill": "hide",
+        "amount": 25
+      }
+    },
+    {
+      "id": "fire_spellbook",
+      "name": "Книга огненных заклинаний",
+      "kind": "skill_book",
+      "weight": 0.5,
+      "value": 60,
+      "desc": "Огненные заклинания: от искры до пламени, что ест камень.",
+      "effect": {
+        "kind": "skill_xp",
+        "skill": "firelord",
+        "amount": 25
+      }
+    },
+    {
+      "id": "ice_spellbook",
+      "name": "Книга ледяных заклинаний",
+      "kind": "skill_book",
+      "weight": 0.5,
+      "value": 60,
+      "desc": "Ледяные заклинания: стужа, что останавливает кровь в жилах.",
+      "effect": {
+        "kind": "skill_xp",
+        "skill": "icelord",
+        "amount": 25
+      }
+    },
+    {
+      "id": "heavy_tome",
+      "name": "Том великого топора",
+      "kind": "skill_book",
+      "weight": 0.6,
+      "value": 70,
+      "desc": "Тяжёлое оружие: вес, инерция и терпение.",
+      "effect": {
+        "kind": "skill_xp",
+        "skill": "heavy",
+        "amount": 30
+      }
+    },
+    {
+      "id": "archer_scroll",
+      "name": "Свиток лучника",
+      "kind": "skill_book",
+      "weight": 0.2,
+      "value": 45,
+      "desc": "Свиток лучника: дыхание, прицел, отпускание.",
+      "effect": {
+        "kind": "skill_xp",
+        "skill": "archer",
+        "amount": 15
+      }
+    },
+    {
+      "id": "meditation_scroll",
+      "name": "Свиток медитации",
+      "kind": "skill_book",
+      "weight": 0.2,
+      "value": 40,
+      "desc": "Свиток медитации: тишина, в которой ману слышно ушами.",
+      "effect": {
+        "kind": "skill_xp",
+        "skill": "meditation",
+        "amount": 15
+      }
+    },
+    {
+      "id": "nature_scroll",
+      "name": "Свиток сердца природы",
+      "kind": "skill_book",
+      "weight": 0.2,
+      "value": 40,
+      "desc": "Свиток сердца природы: травы, их вкусы и тайны.",
+      "effect": {
+        "kind": "skill_xp",
+        "skill": "nature",
+        "amount": 15
+      }
     }
   ];
 
