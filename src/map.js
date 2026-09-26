@@ -12,15 +12,25 @@
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./perlin.js'));
+    module.exports = factory(require('./perlin.js'), require('./buildings.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
-      factory(typeof root.Game === 'object' ? root.Game : {}));
+      factory(typeof root.Game === 'object' ? root.Game : {}, null, root));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin) {
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, catalog, root) {
 
   const createPerlin2D = perlin.createPerlin2D;
   const hash2 = perlin.hash2;
+
+  // Каталог построек (src/buildings.js) для footprint'а (задача 000026).
+  // В node приходит через require; в браузере buildings.js грузится ПОСЛЕ
+  // map.js (index.html), поэтому доступ ЛЕНИВЫЙ — из Game в момент
+  // вызова tileAt (все скрипты загружены до старта main.js).
+  function catalogRef() {
+    if (catalog) return catalog;
+    const g = root && root.Game;
+    return g && typeof g.placeBuilding === 'function' ? g : null;
+  }
 
   // Фиксированный глобальный сид (SPEC.md). Смена сида или assets/map.png
   // генерирует полностью другую карту.
@@ -71,6 +81,12 @@
     NPC_HOUSE: 12,
   };
   const BUILDING_COUNT = 13;
+  // Максимальный footprint постройки в тайлах (задача 000026):
+  // каталог (assets/buildings, «размер») не крупнее этих значений —
+  // тест tests/map.test.js сверяет их с каталогом. Определяют окно
+  // поиска покрывающей постройки вокруг тайла.
+  const BUILD_MAX_W = 3;
+  const BUILD_MAX_H = 3;
   const BUILDING_NAMES = {
     [BUILDING_TYPES.WEAPONS_SHOP]: 'оружейная',
     [BUILDING_TYPES.ARMOR_SHOP]: 'бронник',
@@ -144,15 +160,13 @@
     }
 
     /**
-     * Состояние тайла в целочисленных координатах (x, y).
-     * @returns {{
-     *   x:number, y:number, terrain:number, passable:boolean,
-     *   hasBuilding:boolean, building:number, buildingWealth:number,
-     *   hasMobGroup:boolean, mobGroup:number,
-     * }}
+     * Террейн тайла (без построек/мобов) — чистая функция координат.
+     * Вынесена из tileAt: разрешение footprint'ов построек (задача
+     * 000026) проверяет проходимости соседних тайлов.
+     * @returns {{terrain:number, passable:boolean}}
      */
-    function tileAt(x, y) {
-      const [r, g, b, a] = pixelAt(x, y);
+    function terrainAt(x, y) {
+      const [r, g, b] = pixelAt(x, y);
 
       const e = elevation.fbm(x * NOISE_SCALE, y * NOISE_SCALE, 4);
       const m = moisture.fbm(x * NOISE_SCALE + 137.5, y * NOISE_SCALE + 137.5, 4);
@@ -176,30 +190,160 @@
       else if (m >= forestLine + 0.10 && e < seaLevel + 0.15) terrain = TERRAIN.SWAMP;
       else terrain = TERRAIN.GRASS;
 
-      const passable = PASSABLE.has(terrain);
+      return { terrain, passable: PASSABLE.has(terrain) };
+    }
 
-      // Постройки и группы мобов — только на проходимых тайлах.
-      // Канал A пикселя задаёт «плотность» фич (тёмный A = реже).
-      // Пороги подобраны под распределение 3-октавного fbm
-      // (p98 ≈ 0.36, p99 ≈ 0.40): при A=255 постройки ~3%, группы ~4%;
-      // при A=0 — доли процента.
+    // --- Постройки с footprint (задача 000026) ---
+    //
+    // Постройка «живёт» на якорном тайле (то же правило, что до
+    // задачи: проходимый + fbm-порог + hash для типа) и занимает
+    // прямоугольник w×h от якоря (размер из каталога, assets/buildings,
+    // поле «размер»). Если весь прямоугольник не поместился (тайл
+    // непроходим или занят постройкой с лексикографически РАНЬШИМ
+    // якорем) — размер уменьшается по цепочке sizeChain (5x4 → 3x3 →
+    // 1x1); даже 1x1 не влезло — постройки нет. Порядок «раньше/позже»
+    // делает размещение детерминированным и без пересечений: поздняя
+    // постройка уступает ранней, сжимаясь (или исчезая), а не
+    // пересекаясь.
+    // Тайлы footprint'а (кроме входа) — стены: непроходимы, без групп
+    // мобов. Вход — единственный тайл, где работает взаимодействие
+    // (старое поле hasBuilding, его читает src/main.js).
+
+    // Кэш развёртывания якорей: якорь → запись постройки или null.
+    // Чистая мемоизация (результат детерминирован), иначе каждый
+    // tileAt просчитывал бы окно 3x3 якорей заново.
+    const fpCache = new Map();
+
+    // Якорь в (x, y): true, если здесь рождается постройка.
+    // Правило порога — как было до 000026 (канал A = плотность).
+    function anchorAt(x, y) {
+      if (!terrainAt(x, y).passable) return null;
+      const a = pixelAt(x, y)[3];
       const fb = features.fbm(x * FEATURE_SCALE + 511.1, y * FEATURE_SCALE + 511.1, 3);
-      const fm = features.fbm(x * FEATURE_SCALE + 903.7, y * FEATURE_SCALE + 903.7, 3);
       const rarity = 1 - a / 255; // 0..1, тёмный A → реже
+      if (fb <= 0.33 + 0.14 * rarity) return null;
+      return { x, y, type: hash2(x, y, GLOBAL_SEED) % BUILDING_COUNT };
+    }
 
-      const hasBuilding = passable && fb > 0.33 + 0.14 * rarity;
-      const building = hasBuilding ? hash2(x, y, GLOBAL_SEED) % BUILDING_COUNT : BUILDING_TYPES.NONE;
-      // «Богатство» постройки 0-3 — из шума (SPEC «Постройки»): влияет на
-      // ассортимент и цены торговли (src/items.js).
-      const wf = features.fbm(x * FEATURE_SCALE + 222.9, y * FEATURE_SCALE + 444.1, 3);
-      const buildingWealth = hasBuilding
-        ? Math.max(0, Math.min(3, Math.round((wf + 0.5) * 4)))
-        : 0;
+    // Свободен ли тайл (tx, ty) для постройки с якорем (ax, ay):
+    // проходимый И не занят постройкой с РАНЬШИМ якорем.
+    // Ссылка только на «раньше» — пористый порядок, циклов нет.
+    function isFreeForBuilding(ax, ay, tx, ty) {
+      if (!terrainAt(tx, ty).passable) return false;
+      for (let oay = ty - BUILD_MAX_H + 1; oay <= ty; oay++) {
+        for (let oax = tx - BUILD_MAX_W + 1; oax <= tx; oax++) {
+          if (oax > ax || (oax === ax && oay >= ay)) continue; // только «раньше»
+          const rec = buildingAtAnchor(oax, oay);
+          if (rec && tx >= rec.x && tx < rec.x + rec.w &&
+                  ty >= rec.y && ty < rec.y + rec.h) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
 
-      const hasMobGroup = passable && !hasBuilding && fm > 0.31 + 0.14 * rarity;
+    // Постройка, якорь которой в (ax, ay): запись или null (якоря нет
+    // или не поместилось даже 1x1). Кэшируется.
+    function buildingAtAnchor(ax, ay) {
+      const key = ax + ',' + ay;
+      if (fpCache.has(key)) return fpCache.get(key);
+      let rec = null;
+      const anchor = anchorAt(ax, ay);
+      if (anchor) {
+        const c = catalogRef();
+        const b = c ? c.buildingForMapIndex(anchor.type) : null;
+        const placed = c
+          ? c.placeBuilding(b || {}, ax, ay, (tx, ty) => isFreeForBuilding(ax, ay, tx, ty))
+          : { x: ax, y: ay, w: 1, h: 1, entrance: [ax, ay] };
+        if (placed) {
+          // «Богатство» 0-3 — из шума в якорном тайле (SPEC «Постройки»):
+          // влияет на ассортимент и цены торговли (src/items.js).
+          // Принадлежит постройки как целого: все её тайлы отдают одно
+          // и то же значение.
+          const wf = features.fbm(ax * FEATURE_SCALE + 222.9, ay * FEATURE_SCALE + 444.1, 3);
+          rec = {
+            anchor: [ax, ay],
+            type: anchor.type,
+            x: placed.x,
+            y: placed.y,
+            w: placed.w,
+            h: placed.h,
+            entrance: placed.entrance,
+            wealth: Math.max(0, Math.min(3, Math.round((wf + 0.5) * 4))),
+          };
+        }
+      }
+      if (fpCache.size > 65536) fpCache.clear();
+      fpCache.set(key, rec);
+      return rec;
+    }
+
+    // Покрывающая (x, y) постройка: якорь в окне
+    // [x-(W-1)..x] × [y-(H-1)..y]. Постройки не пересекаются,
+    // поэтому найденная в лексикографическом порядке — единственная.
+    function coveringFootprint(x, y) {
+      for (let ax = x - BUILD_MAX_W + 1; ax <= x; ax++) {
+        for (let ay = y - BUILD_MAX_H + 1; ay <= y; ay++) {
+          const rec = buildingAtAnchor(ax, ay);
+          if (!rec) continue;
+          if (x >= rec.x && x < rec.x + rec.w &&
+              y >= rec.y && y < rec.y + rec.h) {
+            return rec;
+          }
+        }
+      }
+      return null;
+    }
+
+    /**
+     * Состояние тайла в целочисленных координатах (x, y).
+     * @returns {{
+     *   x:number, y:number, terrain:number, passable:boolean,
+     *   hasBuilding:boolean, building:number, buildingWealth:number,
+     *   hasMobGroup:boolean, mobGroup:number,
+     *   inBuilding:boolean, isEntrance:boolean,
+     *   buildingAnchor:[number,number]|null,
+     * }}
+     */
+    function tileAt(x, y) {
+      const { terrain, passable } = terrainAt(x, y);
+      const cover = coveringFootprint(x, y);
+      const isEntrance = !!(cover &&
+        cover.entrance[0] === x && cover.entrance[1] === y);
+      // Стены постройки (тайлы footprint'а, кроме входа) непроходимы.
+      const walkable = passable && !(cover && !isEntrance);
+
+      // Группы мобов — только на проходимых тайлах, не занятых
+      // постройкой (до 000026 «занято» = якорный тайл; теперь весь
+      // footprint). Канал A пикселя — «плотность» (тёмный A = реже).
+      const fm = features.fbm(x * FEATURE_SCALE + 903.7, y * FEATURE_SCALE + 903.7, 3);
+      const a = pixelAt(x, y)[3];
+      const rarity = 1 - a / 255;
+
+      // hasBuilding (старое поле, его читает src/main.js) — только на
+      // тайле ВХОДА: магазин/пещера/диалог NPC работают именно там.
+      const hasBuilding = !!(cover && isEntrance);
+      const building = cover ? cover.type : BUILDING_TYPES.NONE;
+      const buildingWealth = cover ? cover.wealth : 0;
+
+      const hasMobGroup = passable && !cover && fm > 0.31 + 0.14 * rarity;
       const mobGroup = hasMobGroup ? hash2(x, y, GLOBAL_SEED ^ 0xabcdef) % MOB_GROUP_COUNT : MOB_GROUP_TYPES.NONE;
 
-      return { x, y, terrain, passable, hasBuilding, building, buildingWealth, hasMobGroup, mobGroup };
+      return {
+        x, y, terrain,
+        passable: walkable,
+        hasBuilding,
+        building,
+        buildingWealth,
+        hasMobGroup,
+        mobGroup,
+        // Задача 000026: тайл принадлежит footprint'у постройки;
+        // isEntrance — где взаимодействие; buildingAnchor — якорь.
+        inBuilding: !!cover,
+        isEntrance,
+        buildingAnchor: cover ? cover.anchor : null,
+      };
     }
 
     // Небольшой шум для визуального разнообразия оттенков тайлов.
@@ -297,6 +441,7 @@
     GLOBAL_SEED,
     TERRAIN, TERRAIN_NAMES,
     BUILDING_TYPES, BUILDING_COUNT, BUILDING_NAMES,
+    BUILD_MAX_W, BUILD_MAX_H,
     MOB_GROUP_TYPES, MOB_GROUP_COUNT, MOB_GROUP_NAMES,
     ZOOM_MIN, ZOOM_MAX, ZOOM_START,
     createMap, syntheticPixels,
