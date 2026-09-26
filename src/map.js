@@ -228,11 +228,78 @@
     return { width, height, data };
   }
 
+  // --- Зум камеры (задача 000019): пикселей на тайл ---
+  const ZOOM_MIN = 4;
+  const ZOOM_MAX = 128;
+  // Стартовый зум — крупный, чтобы Флогистон был хорошо виден
+  // (по решению игрока вдвое крупнее среднего детального, 80 = 2×40).
+  // Обзорный зум (14px) держит во вьюпорте десятки тысяч тайлов,
+  // от которых браузер тормозит.
+  const ZOOM_START = 80;
+
+  /**
+   * Диапазон тайлов, который нужно отрисовать (задача 000019):
+   * видимая область окна плюс небольшой запас. Чистая функция —
+   * зависит только от камеры, размера окна и зума, не от карты.
+   * @param {number} camX центр камеры X (в тайлах)
+   * @param {number} camY центр камеры Y (в тайлах)
+   * @param {number} viewW ширина окна (пиксели)
+   * @param {number} viewH высота окна (пиксели)
+   * @param {number} zoom пикселей на тайл
+   * @param {number} [margin=2] дополнительные тайлы за окном (на ось)
+   * @returns {{x0:number, y0:number, x1:number, y1:number}} целочисленные границы, обе включительно
+   */
+  function visibleTileRange(camX, camY, viewW, viewH, zoom, margin = 2) {
+    const countX = Math.ceil(viewW / zoom) + margin;
+    const countY = Math.ceil(viewH / zoom) + margin;
+    const x0 = Math.floor(camX - countX / 2);
+    const y0 = Math.floor(camY - countY / 2);
+    return { x0, y0, x1: x0 + countX - 1, y1: y0 + countY - 1 };
+  }
+
+  /**
+   * Кэш сгенерированных тайлов (задача 000019): мир статичен —
+   * tileAt чистая функция координат, поэтому уже сгенерированные
+   * тайлы не пересчитываются: при перемещении/зуме генерируются
+   * только новые тайлы по краям видимой области.
+   * Ограниченный FIFO: при переполнении вытесняется самый старый
+   * тайл (худший случай — пересчёт, результат рендера не меняется).
+   * @param {{tileAt:function}} map генератор из createMap
+   * @param {number} [maxSize=65536] максимум тайлов в кэше
+   * @returns {{tile:Function, size:Function}}
+   */
+  function createTileCache(map, maxSize = 65536) {
+    const cache = new Map();
+
+    /** Тайл в (x, y): из кэша, либо сгенерированный и положенный в кэш. */
+    function tile(x, y) {
+      const key = x + ',' + y;
+      let t = cache.get(key);
+      if (!t) {
+        t = map.tileAt(x, y);
+        cache.set(key, t);
+        if (cache.size > maxSize) {
+          cache.delete(cache.keys().next().value); // самый старый
+        }
+      }
+      return t;
+    }
+
+    /** Сколько тайлов сейчас в кэше. */
+    function size() {
+      return cache.size;
+    }
+
+    return { tile, size };
+  }
+
   return {
     GLOBAL_SEED,
     TERRAIN, TERRAIN_NAMES,
     BUILDING_TYPES, BUILDING_COUNT, BUILDING_NAMES,
     MOB_GROUP_TYPES, MOB_GROUP_COUNT, MOB_GROUP_NAMES,
+    ZOOM_MIN, ZOOM_MAX, ZOOM_START,
     createMap, syntheticPixels,
+    visibleTileRange, createTileCache,
   };
 });

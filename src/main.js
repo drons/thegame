@@ -150,12 +150,13 @@
 
   // --- Игровое состояние ---
   let map = null;
+  let tileCache = null; // кэш тайлов (000019): шум пересчитывается только для новых тайлов
   let mapPixels = null; // пиксели map.png — нужны для сида подземелий
   const hero = G.createCharacter('Флогистон'); // персонаж (src/player.js)
   G.playerUI && G.playerUI.setCharacter(hero);
   const player = { x: 0, y: 0 };
   const prevPos = { x: 0, y: 0 }; // позиция до последнего шага (побег/смерть)
-  let zoom = 14; // пикселей на тайл
+  let zoom = G.ZOOM_START; // пикселей на тайл (детальный старт, 000019)
   const cam = { x: 0.5, y: 0.5 };
 
   // Игровое время (SPEC.md «Игровое время», src/day.js).
@@ -223,7 +224,7 @@
   window.addEventListener('keyup', (e) => keys.delete(e.code));
   window.addEventListener('blur', () => keys.clear());
   canvas.addEventListener('wheel', (e) => {
-    zoom = Math.max(4, Math.min(64, zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2)));
+    zoom = Math.max(G.ZOOM_MIN, Math.min(G.ZOOM_MAX, zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2)));
     e.preventDefault();
   }, { passive: false });
 
@@ -422,14 +423,12 @@
     verts.length = 0;
     frameTiles.length = 0;
 
-    const tilesX = Math.ceil(canvas.width / zoom) + 2;
-    const tilesY = Math.ceil(canvas.height / zoom) + 2;
-    const x0 = Math.floor(cam.x - tilesX / 2);
-    const y0 = Math.floor(cam.y - tilesY / 2);
-
-    for (let ty = y0; ty < y0 + tilesY; ty++) {
-      for (let tx = x0; tx < x0 + tilesX; tx++) {
-        const t = map.tileAt(tx, ty);
+    // Отрисовываем только видимую область + запас (000019); тайлы
+    // берём из кэша — шум пересчитывается лишь для новых тайлов.
+    const range = G.visibleTileRange(cam.x, cam.y, canvas.width, canvas.height, zoom);
+    for (let ty = range.y0; ty <= range.y1; ty++) {
+      for (let tx = range.x0; tx <= range.x1; tx++) {
+        const t = tileCache.tile(tx, ty);
         frameTiles.push(t); // {x, y, terrain, passable, hasBuilding, building, hasMobGroup, mobGroup}
         const base = TILE_COLORS[t.terrain];
         // Небольшое вариативное освещение, чтобы тайлы не были «кляксами».
@@ -714,6 +713,7 @@
     mapPixels = pixels; // сохранены: сид формы подземельей зависит от пикселя
     map = G.createMap(pixels);
     map.fromPng = pixels.fromPng;
+    tileCache = G.createTileCache(map);
     findSpawn();
     cam.x = player.x + 0.5;
     cam.y = player.y + 0.5;

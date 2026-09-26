@@ -2,6 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
   createMap, syntheticPixels,
+  visibleTileRange, createTileCache,
+  ZOOM_MIN, ZOOM_MAX, ZOOM_START,
   TERRAIN, TERRAIN_NAMES,
   BUILDING_COUNT, BUILDING_TYPES,
   MOB_GROUP_COUNT, MOB_GROUP_TYPES,
@@ -160,4 +162,85 @@ test('brightness детерминирован и ограничен', () => {
 test('BUILDING_TYPES.NONE / MOB_GROUP_TYPES.NONE равны -1', () => {
   assert.equal(BUILDING_TYPES.NONE, -1);
   assert.equal(MOB_GROUP_TYPES.NONE, -1);
+});
+
+// --- Задача 000019: крупный стартовый зум и диапазон видимых тайлов ---
+
+test('стартовый зум крупный (64–96 px) и в пределах шкалы зума', () => {
+  assert.ok(ZOOM_START >= 64 && ZOOM_START <= 96,
+    `стартовый зум ${ZOOM_START} вне диапазона 64–96 px`);
+  assert.ok(ZOOM_MIN <= ZOOM_START && ZOOM_START <= ZOOM_MAX,
+    'стартовый зум вне [ZOOM_MIN; ZOOM_MAX]');
+});
+
+test('visibleTileRange: покрывает всё видимое окно плюс запас', () => {
+  // Окно 1920x1080, зум 40: видно 48x27 тайлов, +2 по осям.
+  const r = visibleTileRange(10.5, -20.5, 1920, 1080, 40);
+  assert.equal(r.x1 - r.x0 + 1, Math.ceil(1920 / 40) + 2);
+  assert.equal(r.y1 - r.y0 + 1, Math.ceil(1080 / 40) + 2);
+  // Центр камеры (в непрерывных координатах) внутри диапазона тайлов.
+  assert.ok(r.x0 <= 10.5 && 10.5 < r.x1 + 1);
+  assert.ok(r.y0 <= -20.5 && -20.5 < r.y1 + 1);
+  assert.ok(r.x0 <= Math.floor(10.5) && Math.floor(10.5) <= r.x1);
+  assert.ok(r.y0 <= Math.floor(-20.5) && Math.floor(-20.5) <= r.y1);
+});
+
+test('visibleTileRange: целочисленные границы, корректны для отрицательных координат', () => {
+  const r = visibleTileRange(-100.5, 3.2, 800, 600, 14);
+  for (const k of ['x0', 'y0', 'x1', 'y1']) {
+    assert.ok(Number.isInteger(r[k]), `${k} не целое: ${r[k]}`);
+  }
+  assert.ok(r.x0 < -100 && r.x1 > -100, 'диапазон не содержит центр камеры по X');
+  assert.ok(r.y0 < 3 && r.y1 > 3, 'диапазон не содержит центр камеры по Y');
+  assert.ok(r.x0 <= r.x1 && r.y0 <= r.y1);
+  // Размер диапазона не зависит от позиции камеры.
+  const r2 = visibleTileRange(500.5, 500.2, 800, 600, 14);
+  assert.equal(r2.x1 - r2.x0, r.x1 - r.x0);
+  assert.equal(r2.y1 - r2.y0, r.y1 - r.y0);
+});
+
+test('visibleTileRange: зум out и больший запас увеличивают диапазон', () => {
+  const base = visibleTileRange(0, 0, 1000, 800, 20);
+  const wide = visibleTileRange(0, 0, 1000, 800, 20, 8);
+  assert.ok(wide.x1 - wide.x0 > base.x1 - base.x0, 'запас не увеличил диапазон');
+  const zoomedOut = visibleTileRange(0, 0, 1000, 800, 5);
+  assert.ok(zoomedOut.x1 - zoomedOut.x0 > base.x1 - base.x0, 'зум out не увеличил диапазон');
+  assert.ok(zoomedOut.y1 - zoomedOut.y0 > base.y1 - base.y0);
+});
+
+test('createTileCache: тайл совпадает с tileAt и не пересчитывается', () => {
+  const map = createMap();
+  const calls = new Map(); // 'x,y' → число вызовов tileAt
+  const proxy = {
+    tileAt: (x, y) => {
+      const k = x + ',' + y;
+      calls.set(k, (calls.get(k) || 0) + 1);
+      return map.tileAt(x, y);
+    },
+  };
+  const cache = createTileCache(proxy, 1000);
+  for (let i = 0; i < 50; i++) {
+    const x = Math.floor(Math.random() * 200) - 100;
+    const y = Math.floor(Math.random() * 200) - 100;
+    const t1 = cache.tile(x, y);
+    assert.deepEqual(t1, map.tileAt(x, y));
+    assert.equal(cache.tile(x, y), t1, 'повторный запрос должен идти из кэша');
+  }
+  // Каждая координата сгенерирована ровно один раз.
+  for (const [k, n] of calls) assert.equal(n, 1, `тайл ${k} пересчитан`);
+});
+
+test('createTileCache: ограничен — при переполнении вытесняются старые тайлы', () => {
+  let generated = 0;
+  const map = { tileAt: (x, y) => { generated++; return { x, y }; } };
+  const cache = createTileCache(map, 4);
+  for (let x = 0; x < 10; x++) cache.tile(x, 0);
+  assert.equal(generated, 10, 'все тайлы должны сгенерироваться');
+  assert.ok(cache.size() <= 4, `кэш не ограничен: ${cache.size()}`);
+  // Самые ранние тайлы вытеснены — запрос их пересчитывает.
+  cache.tile(0, 0);
+  assert.equal(generated, 11, 'вытесненный тайл должен пересчитаться');
+  // Последние тайлы в кэше — пересчёта нет.
+  cache.tile(9, 0);
+  assert.equal(generated, 11);
 });
