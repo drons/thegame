@@ -187,6 +187,104 @@
   const clock = G.createClock();
   // Побеждённые группы: 'x,y' → день поражения (респаун через respawn_days).
   const defeatedAt = new Map();
+
+  // --- Сохранение (задача 000031; механизм — src/save.js) ---
+  // Состояние мира и игрока — в localStorage. Версия структур данных
+  // (save.version) записывается вместе с данными; старые версии
+  // доводятся до версии кода последовательными миграциями N→N+1.
+  //   * migration_failed — данные восстановить невозможно: сообщение
+  //     пользователю, обнуление ТОЛЬКО после его согласия;
+  //   * corrupt (битый JSON/оболочка) — восстанавливать нечего:
+  //     тихий сброс с console.warn (принцип задачи 000029).
+  let saveStorage = null;
+  try { saveStorage = window.localStorage; } catch (err) { saveStorage = null; }
+  let loadedSave = null; // { version, savedAt, data } — после load()
+  if (saveStorage && G.load) {
+    const res = G.load(saveStorage);
+    if (res.status === 'ok') {
+      loadedSave = res.save;
+    } else if (res.status === 'migration_failed') {
+      console.warn('Не удалось мигрировать сейв (версия ' + res.version + '):',
+        res.error);
+      if (window.confirm('Сейв игры не удалось перенести в новый формат ' +
+        'данных: восстановить его невозможно.\nОбнулить сохранение?')) {
+        G.clear(saveStorage);
+      }
+    } else if (res.status === 'corrupt') {
+      console.warn('Некорректный сейв — сбрасываю:', res.error);
+      G.clear(saveStorage);
+    }
+  }
+  let restoring = false; // при восстановлении дня не перезаписываем сейв
+
+  // Текущее состояние (структура v1): день мира, позиция, персонаж.
+  // Остальное (квесты, сток NPC — задача 000029) — дополнительные
+  // поля БЕЗ повышения версии (неломкое расширение).
+  function collectSaveData() {
+    return {
+      day: clock.day,
+      steps: clock.steps,
+      position: { x: player.x, y: player.y },
+      hero,
+    };
+  }
+
+  function saveNow() {
+    if (restoring) return;
+    if (saveStorage && G.save) G.save(saveStorage, collectSaveData());
+  }
+  window.addEventListener('beforeunload', saveNow);
+
+  // Валидный сохранённый персонаж (иначе — игнорируем поле, см. ниже).
+  function isSavedHero(h) {
+    return !!h && typeof h === 'object' && !Array.isArray(h) &&
+      Number.isInteger(h.level) && h.level >= 1 &&
+      Number.isFinite(h.xp) && h.xp >= 0 &&
+      Number.isFinite(h.gold) && h.gold >= 0 &&
+      Number.isFinite(h.hp) && h.hp >= 0 &&
+      h.primary && typeof h.primary === 'object' && !Array.isArray(h.primary);
+  }
+
+  // Восстановление состояния из сейва после загрузки карты:
+  // день мира (часами), персонаж, позиция. Некорректное поле —
+  // пропуск с console.warn (игра не роняется).
+  function restoreFromSave() {
+    if (!loadedSave) return;
+    const d = loadedSave.data || {};
+    // День доводим часами (rest()); ограничиваем сверху, чтобы подделанный
+    // сейв не заморозил игру циклом.
+    if (Number.isInteger(d.day) && d.day > clock.day && d.day <= 100000) {
+      restoring = true;
+      try {
+        while (clock.day < d.day) clock.rest();
+        if (Number.isInteger(d.steps) && d.steps >= 0 &&
+            d.steps < clock.stepsPerDay) {
+          clock.addStep(d.steps);
+        }
+      } finally {
+        restoring = false;
+      }
+    }
+    if (isSavedHero(d.hero)) {
+      Object.assign(hero, d.hero);
+      const dd = G.derived(hero);
+      hero.hp = Math.min(Math.max(1, Math.round(hero.hp)), dd.maxHP);
+      hero.mp = Math.min(Math.max(0, Math.round(hero.mp) || 0), dd.maxMP);
+      hero.alive = true;
+    } else if (d.hero != null) {
+      console.warn('Сейв: персонаж некорректен — не восстанавливаю.');
+    }
+    const p = d.position;
+    if (p && Number.isInteger(p.x) && Number.isInteger(p.y)) {
+      if (map.tileAt(p.x, p.y).passable) {
+        player.x = p.x; player.y = p.y;
+      } else {
+        console.warn('Сейв: позиция непроходима — остаюсь на спавне.');
+      }
+    }
+    prevPos.x = player.x; prevPos.y = player.y;
+    G.playerUI && G.playerUI.render();
+  }
   let hudFlash = '';
   let hudFlashUntil = 0;
 
@@ -203,6 +301,7 @@
     G.playerUI && G.playerUI.render();
     hudFlash = (due.length ? 'Мобилизуются новые группы мобов.\n' : '') + 'День ' + day + '.';
     hudFlashUntil = performance.now() + 5000;
+    saveNow();
   });
 
   function findSpawn() {
@@ -345,6 +444,7 @@
         }
         G.playerUI && G.playerUI.render();
         hudFlashUntil = performance.now() + 5000;
+        saveNow();
       },
     });
   }
@@ -405,6 +505,7 @@
         }
         G.playerUI && G.playerUI.render();
         G.dungeonUI.render();
+        saveNow();
       },
     });
   }
@@ -415,6 +516,7 @@
     clock.event('dungeon'); // вылазка забирает день (SPEC «Игровое время»)
     dungeonState = null;
     G.dungeonUI.close();
+    saveNow();
   }
 
   // Шаг внутри лабиринта (вызывается dungeon-ui по клавише).
@@ -639,6 +741,7 @@
         clock.addStep(1); // шаги мира тикают игровой день
         maybeStartCombat();
         maybeEnterDungeon();
+        saveNow();
       }
     }
     updateCamera();
@@ -673,6 +776,9 @@
         zoom,
         day: clock.day,
         stepsToday: clock.steps,
+        save: loadedSave
+          ? { version: loadedSave.version, savedAt: loadedSave.savedAt }
+          : null,
         hero: {
           level: hero.level, xp: hero.xp, hp: hero.hp,
           gold: hero.gold, points: hero.points,
@@ -818,6 +924,7 @@
     map.fromPng = pixels.fromPng;
     tileCache = G.createTileCache(map);
     findSpawn();
+    restoreFromSave(); // день мира, персонаж, позиция (задача 000031)
     cam.x = player.x + 0.5;
     cam.y = player.y + 0.5;
     maybeStartCombat(); // если спавн оказался на тайле с группой
