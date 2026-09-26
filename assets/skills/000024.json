@@ -1,0 +1,24 @@
+{
+  "id": "icelord",
+  "type": "secondary",
+  "name": "Повелитель льда",
+  "primary": "intelligence",
+  "requires": {
+    "skill": "firelord",
+    "level": 5
+  },
+  "effect": {
+    "stat": "iceDamageBonus",
+    "perLevel": 0.05
+  },
+  "effectType": "Бой",
+  "desc": "+5% урон заклинаниями льда за уровень",
+  "names": [
+    "Ледяной осколок",
+    "Ученик криоманта",
+    "Знаток стужи",
+    "Повелитель льда",
+    "Гроссмейстер стужи",
+    "Легенда полярного сияния"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "precog",
+  "type": "secondary",
+  "name": "Ясновидение",
+  "primary": "wisdom",
+  "requires": {
+    "skill": "perception",
+    "level": 5
+  },
+  "effect": {
+    "stat": "dodgeBonus",
+    "perLevel": 0.05
+  },
+  "effectType": "Бой",
+  "desc": "+5% шанс уклонения за уровень",
+  "names": [
+    "Предчувствие",
+    "Ученик ясновидца",
+    "Знаток видения",
+    "Мастер ясновидец",
+    "Гроссмейстер ясновидца",
+    "Легенда будущего"
+  ]
+}

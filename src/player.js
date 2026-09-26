@@ -2,24 +2,31 @@
 //
 // Чистое ядро без DOM — тестируется в node (tests/player.test.js).
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
+// Данные каталога навыков (основные и вторичные) — из униформного
+// модуля skills-data.js: зеркала каталога assets/skills (source of truth).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    module.exports = factory(require('./skills-data.js'));
   } else {
-    root.Game = Object.assign({}, root.Game, factory());
+    root.Game = Object.assign({}, root.Game,
+      factory(root.Game && root.Game.SkillsData));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (skills) {
 
-  // --- Основные навыки ---
-  const PRIMARY_SKILLS = [
-    { id: 'strength', name: 'Сила', desc: 'Физическая мощь' },
-    { id: 'dexterity', name: 'Ловкость', desc: 'Проворство, рефлексы и равновесие' },
-    { id: 'constitution', name: 'Телосложение', desc: 'Здоровье и выносливость' },
-    { id: 'intelligence', name: 'Интеллект', desc: 'Логика и память' },
-    { id: 'wisdom', name: 'Мудрость', desc: 'Восприимчивость и ментальная устойчивость' },
-    { id: 'charisma', name: 'Харизма', desc: 'Уверенность, самообладание и обаяние' },
-  ];
+  if (!skills || !Array.isArray(skills.PRIMARY_SKILLS) ||
+      !skills.SECONDARY_SKILLS || typeof skills.SECONDARY_SKILLS !== 'object') {
+    throw new Error(
+      'player.js: не найден каталог навыков — загрузите skills-data.js до player.js');
+  }
+
+  // --- Основные навыки (assets/skills, source of truth) ---
+  const PRIMARY_SKILLS = skills.PRIMARY_SKILLS;
+
+  // --- Вторичные навыки (assets/skills, source of truth) ---
+  // requires: null | { skill: 'basic'|'secondary', level: N }
+  // effect: { stat, perLevel } — доля эффекта за уровень (0.05 = 5%)
+  const SECONDARY_SKILLS = skills.SECONDARY_SKILLS;
 
   // --- Ранги навыков (SPEC.md, раздел «Навыки») ---
   const RANKS = [
@@ -30,209 +37,6 @@
     { min: 76, max: 99, name: 'Гроссмейстер' },
     { min: 100, max: 100, name: 'Легенда' },
   ];
-
-  // --- Вторичные навыки ---
-  // requires: null | { skill: 'basic'|'secondary', level: N }
-  // effect: { stat, perLevel } — доля эффекта за уровень (0.05 = 5%)
-  const SECONDARY_SKILLS = {
-    // Сила
-    swordsman: {
-      name: 'Мечник', primary: 'strength', requires: null,
-      effect: { stat: 'swordHitBonus', perLevel: 0.05 },
-      desc: '+5% вероятность попадания мечом за уровень',
-      names: ['Начинающий мечник', 'Ученик фехтовальщика', 'Знаток клинка', 'Мастер меча', 'Гроссмейстер меча', 'Легенда клинка'],
-    },
-    heavy: {
-      name: 'Тяжёлое оружие', primary: 'strength', requires: { skill: 'swordsman', level: 5 },
-      effect: { stat: 'heavyDamageBonus', perLevel: 0.05 },
-      desc: '+5% урон тяжёлым оружием за уровень',
-      names: ['Сильная рука', 'Ученик бойца с топором', 'Знаток тяжёлого оружия', 'Мастер топора', 'Гроссмейстер топора', 'Легенда великого топора'],
-    },
-    fists: {
-      name: 'Каменные кулаки', primary: 'strength', requires: null,
-      effect: { stat: 'fistDamageBonus', perLevel: 0.05 },
-      desc: '+5% урон голыми руками за уровень',
-      names: ['Новичок кулака', 'Ученик кулака', 'Знаток босого боя', 'Мастер кулака', 'Гроссмейстер кулака', 'Легенда несокрушимого кулака'],
-    },
-    forge: {
-      name: 'Кузнечная рука', primary: 'strength', requires: { skill: 'strength', level: 5 },
-      effect: { stat: 'equipmentDurabilityMult', perLevel: 0.05 },
-      desc: '+5% прочность собственного снаряжения за уровень',
-      names: ['Подмастерье-кузнец', 'Ученик наковальни', 'Знаток кузницы', 'Мастер-кузнец', 'Гроссмейстер кузницы', 'Легенда молота'],
-    },
-    back: {
-      name: 'Крепкая спина', primary: 'strength', requires: null,
-      effect: { stat: 'carryWeightMult', perLevel: 0.10 },
-      desc: '+10% к максимальному весу за уровень',
-      names: ['Носильщик', 'Ученик грузчика', 'Знаток ноши', 'Мастер ноши', 'Гроссмейстер ноши', 'Легенда крепкой спины'],
-    },
-
-    // Ловкость
-    accuracy: {
-      name: 'Меткость', primary: 'dexterity', requires: null,
-      effect: { stat: 'rangedDamageBonus', perLevel: 0.05 },
-      desc: '+5% урон от оружия дальнего боя за уровень',
-      names: ['Твёрдый глаз', 'Ученик стрелка', 'Знаток мишени', 'Мастер меткости', 'Гроссмейстер меткости', 'Легенда стрелы'],
-    },
-    catseye: {
-      name: 'Кошачий глаз', primary: 'dexterity', requires: null,
-      effect: { stat: 'caveVisionMult', perLevel: 0.10 },
-      desc: '+10% дистанция зрения в пещерах за уровень',
-      names: ['Зоркий взгляд', 'Ученик кошачьего глаза', 'Знаток ночи', 'Мастер ночи', 'Гроссмейстер ночи', 'Легенда взора'],
-    },
-    step: {
-      name: 'Ловкий шаг', primary: 'dexterity', requires: null,
-      effect: { stat: 'moveSpeedMult', perLevel: 0.05 },
-      desc: '+5% скорость перемещения по карте за уровень',
-      names: ['Лёгкая нога', 'Ученик бегуна', 'Знаток шага', 'Мастер бегуна', 'Гроссмейстер шага', 'Легенда ветра'],
-    },
-    archer: {
-      name: 'Стрелок', primary: 'dexterity', requires: { skill: 'accuracy', level: 5 },
-      effect: { stat: 'archerHitBonus', perLevel: 0.05 },
-      desc: '+5% вероятность попадания из лука за уровень',
-      names: ['Юный лучник', 'Ученик стрелка', 'Знаток лука', 'Мастер лучник', 'Гроссмейстер лучник', 'Легенда тетивы'],
-    },
-    acro: {
-      name: 'Акробатика', primary: 'dexterity', requires: { skill: 'step', level: 5 },
-      effect: { stat: 'acroBonus', perLevel: 0.05 },
-      desc: '+5% шанс избежать падения, лазание за уровень',
-      names: ['Прыгун', 'Ученик акробата', 'Знаток прыжка', 'Мастер акробата', 'Гроссмейстер акробата', 'Легенда прыжка'],
-    },
-    thief: {
-      name: 'Тать', primary: 'dexterity', requires: { skill: 'dexterity', level: 5 },
-      effect: { stat: 'thiefBonus', perLevel: 0.05 },
-      desc: 'Открывание замков, снятие ловушек, кража: +5% за уровень',
-      names: ['Шалун', 'Ученик вора', 'Знаток замков', 'Мастер воровства', 'Гроссмейстер теней', 'Легенда теней'],
-    },
-
-    // Телосложение
-    hide: {
-      name: 'Железная кожа', primary: 'constitution', requires: null,
-      effect: { stat: 'damageTakenMult', perLevel: -0.05 },
-      desc: '-5% получаемый урон за уровень',
-      names: ['Толстая шкура', 'Ученик шкуры', 'Знаток железа', 'Мастер железа', 'Гроссмейстер железа', 'Легенда несокрушимого'],
-    },
-    endurance: {
-      name: 'Выносливость', primary: 'constitution', requires: null,
-      effect: { stat: 'maxHPMult', perLevel: 0.03 },
-      desc: '+3% к максимальному здоровью за уровень',
-      names: ['Устойчивое дыхание', 'Ученик выносливого', 'Знаток выносливости', 'Мастер выносливости', 'Гроссмейстер выносливости', 'Легенда горы'],
-    },
-    golem: {
-      name: 'Голем', primary: 'constitution', requires: { skill: 'hide', level: 5 },
-      effect: { stat: 'maxHPMult', perLevel: 0.02 },
-      desc: '+2% макс. здоровье и +1 броня за уровень',
-      names: ['Каменное сердце', 'Ученик голема', 'Знаток гранита', 'Мастер голема', 'Гроссмейстер голема', 'Легенда истукана'],
-    },
-    breath: {
-      name: 'Глубокий вдох', primary: 'constitution', requires: { skill: 'constitution', level: 5 },
-      effect: { stat: 'hpRegenMult', perLevel: 0.05 },
-      desc: '+5% к восстановлению здоровья между днями за уровень',
-      names: ['Глубокий вдох', 'Ученик лёгких', 'Знаток дыхания', 'Мастер дыхания', 'Гроссмейстер дыхания', 'Легенда кита'],
-    },
-    unkill: {
-      name: 'Несокрушимость', primary: 'constitution', requires: { skill: 'golem', level: 10 },
-      effect: { stat: 'survivalChance', perLevel: 0.01 },
-      desc: '1% за уровень шанс выжить смертельный удар (1 раз в день)',
-      names: ['Упрямство', 'Ученик выживальщика', 'Знаток второго шанса', 'Мастер выживший', 'Гроссмейстер выживший', 'Легенда презрения к смерти'],
-    },
-
-    // Интеллект
-    firelord: {
-      name: 'Повелитель огня', primary: 'intelligence', requires: null,
-      effect: { stat: 'fireDamageBonus', perLevel: 0.05 },
-      desc: '+5% урон огненными заклинаниями за уровень',
-      names: ['Искра огня', 'Ученик пироманта', 'Знаток пламени', 'Повелитель огня', 'Гроссмейстер пламени', 'Легенда солнца'],
-    },
-    icelord: {
-      name: 'Повелитель льда', primary: 'intelligence', requires: { skill: 'firelord', level: 5 },
-      effect: { stat: 'iceDamageBonus', perLevel: 0.05 },
-      desc: '+5% урон заклинаниями льда за уровень',
-      names: ['Ледяной осколок', 'Ученик криоманта', 'Знаток стужи', 'Повелитель льда', 'Гроссмейстер стужи', 'Легенда полярного сияния'],
-    },
-    alchemy: {
-      name: 'Алхимик', primary: 'intelligence', requires: null,
-      effect: { stat: 'potionPowerMult', perLevel: 0.05 },
-      desc: '+5% сила зелий и снадобий за уровень',
-      names: ['Любопытный нос', 'Ученик алхимика', 'Знаток зелий', 'Мастер-алхимик', 'Гроссмейстер алхимии', 'Легенда философа'],
-    },
-    scholar: {
-      name: 'Учёный', primary: 'intelligence', requires: null,
-      effect: { stat: 'xpMult', perLevel: 0.02 },
-      desc: '+2% к получаемому опыту за уровень',
-      names: ['Книголюб', 'Ученик писца', 'Знаток знаний', 'Мастер учёный', 'Гроссмейстер учёный', 'Легенда архивов'],
-    },
-    runes: {
-      name: 'Рунопись', primary: 'intelligence', requires: { skill: 'intelligence', level: 5 },
-      effect: { stat: 'runePowerMult', perLevel: 0.05 },
-      desc: '+5% сила рунических эффектов за уровень',
-      names: ['Чтец рун', 'Ученик рунописца', 'Знаток начертания', 'Мастер рунописец', 'Гроссмейстер рунописца', 'Легенда руны'],
-    },
-
-    // Мудрость
-    perception: {
-      name: 'Зоркость', primary: 'wisdom', requires: null,
-      effect: { stat: 'magicResistMult', perLevel: 0.05 },
-      desc: '+5% сопротивление всем школам магии за уровень',
-      names: ['Чутьё', 'Ученик завесы', 'Знаток защиты', 'Мастер защиты', 'Гроссмейстер защиты', 'Легенда непоколебимого'],
-    },
-    meditation: {
-      name: 'Медитация', primary: 'wisdom', requires: null,
-      effect: { stat: 'mpRegenMult', perLevel: 0.02 },
-      desc: '+2% к восстановлению здоровья и маны между днями за уровень',
-      names: ['Тихая мысль', 'Ученик медитатора', 'Знаток тишины', 'Мастер тишины', 'Гроссмейстер тишины', 'Легенда безмолвного ума'],
-    },
-    precog: {
-      name: 'Ясновидение', primary: 'wisdom', requires: { skill: 'perception', level: 5 },
-      effect: { stat: 'dodgeBonus', perLevel: 0.05 },
-      desc: '+5% шанс уклонения за уровень',
-      names: ['Предчувствие', 'Ученик ясновидца', 'Знаток видения', 'Мастер ясновидец', 'Гроссмейстер ясновидца', 'Легенда будущего'],
-    },
-    nature: {
-      name: 'Сердце природы', primary: 'wisdom', requires: { skill: 'wisdom', level: 5 },
-      effect: { stat: 'foodPowerMult', perLevel: 0.05 },
-      desc: '+5% сила зелий и еды за уровень',
-      names: ['Сборник трав', 'Ученик луга', 'Знаток рощи', 'Мастер рощи', 'Гроссмейстер рощи', 'Легенда мира-дерева'],
-    },
-    elder: {
-      name: 'Старейшина', primary: 'wisdom', requires: null,
-      effect: { stat: 'dialogueBonus', perLevel: 1 },
-      desc: '+1 к проверкам в диалогах за уровень',
-      names: ['Задавака', 'Ученик слушателя', 'Знаток слова', 'Мастер слова', 'Гроссмейстер слова', 'Легенда мудрости'],
-    },
-
-    // Харизма
-    merchant: {
-      name: 'Торговец', primary: 'charisma', requires: null,
-      effect: { stat: 'buyPriceMult', perLevel: -0.05 },
-      desc: '-5% цены покупки, +5% цены продажи за уровень',
-      names: ['Торгошина', 'Ученик купца', 'Знаток сделки', 'Мастер-торговец', 'Гроссмейстер торговли', 'Легенда весов'],
-    },
-    orator: {
-      name: 'Оратор', primary: 'charisma', requires: null,
-      effect: { stat: 'dialogueBonus', perLevel: 1 },
-      desc: 'Открывает дополнительные опции в диалогах',
-      names: ['Болтун', 'Ученик оратора', 'Знаток речи', 'Мастер оратор', 'Гроссмейстер оратор', 'Легенда форума'],
-    },
-    leader: {
-      name: 'Предводитель', primary: 'charisma', requires: { skill: 'orator', level: 5 },
-      effect: { stat: 'companionMoraleBonus', perLevel: 0.05 },
-      desc: '+5% мораль спутников за уровень',
-      names: ['Бунтарь', 'Ученик вожатого', 'Знаток знамени', 'Мастер вожак', 'Гроссмейстер вожак', 'Легенда стяга'],
-    },
-    artist: {
-      name: 'Артист', primary: 'charisma', requires: null,
-      effect: { stat: 'performanceIncomeMult', perLevel: 0.10 },
-      desc: '+10% заработок на выступлениях за уровень',
-      names: ['Сказитель', 'Ученик исполнителя', 'Знаток сцены', 'Мастер-артист', 'Гроссмейстер артист', 'Легенда песни'],
-    },
-    fright: {
-      name: 'Застращивание', primary: 'charisma', requires: { skill: 'charisma', level: 5 },
-      effect: { stat: 'fearChance', perLevel: 0.05 },
-      desc: '5% за уровень шанс напугать моба уровнем ниже',
-      names: ['Взгляд', 'Ученик запугателя', 'Знаток тени', 'Мастер страха', 'Гроссмейстер страха', 'Легенда устрашения'],
-    },
-  };
 
   const MAX_SKILL_LEVEL = 100;
   const POINTS_PER_LEVEL = 2; // параметр points_per_level (SPEC.md)
