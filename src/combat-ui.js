@@ -265,8 +265,12 @@
       ended = false;
       const combat = G.createCombat({
         player: opts.hero,
-        groupType: opts.tile.mobGroup,
-        groupName: G.MOB_GROUP_NAMES && G.MOB_GROUP_NAMES[opts.tile.mobGroup],
+        // opts.mobs — произвольный состав (подземелья); иначе группа тайла.
+        groupType: opts.mobs ? -1 : (opts.tile ? opts.tile.mobGroup : 0),
+        mobs: opts.mobs,
+        mobLevel: opts.mobLevel,
+        groupName: opts.groupName || (opts.tile && G.MOB_GROUP_NAMES
+          ? G.MOB_GROUP_NAMES[opts.tile.mobGroup] : undefined),
         seed: opts.seed,
       });
       ctx = { combat, hero: opts.hero, onEnd: opts.onEnd, open: true };

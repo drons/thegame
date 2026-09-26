@@ -395,3 +395,21 @@ test('одинаковый бой при одинаковых действиих
   };
   assert.deepEqual(play(31), play(31), 'бой не детерминирован');
 });
+
+// --- Произвольный состав (подземелья, задача 000007) ---
+
+test('кастомный состав: массив мобов + mobLevel + groupName', () => {
+  const c = createCombat({
+    player: strongHero(),
+    mobs: ['skeleton', 'skeleton_archer', 'troll'],
+    mobLevel: 7,
+    seed: 123,
+  });
+  assert.equal(c.units.length, 3);
+  for (const u of c.units) assert.equal(u.level, 7);
+  assert.ok(c.units.some((u) => u.role === 'ranged'), 'остряк-скелет — стрелок');
+  assert.equal(c.groupName, 'блуждающая группа');
+  const a = createCombat({ player: strongHero(), mobs: ['spider', 'scorpion'], mobLevel: 3, seed: 7 });
+  assert.equal(a.units.length, 2);
+  assert.equal(a.units[0].level, 3);
+});

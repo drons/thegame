@@ -127,6 +127,7 @@
 
   // --- Игровое состояние ---
   let map = null;
+  let mapPixels = null; // пиксели map.png — нужны для сида подземелий
   const hero = G.createCharacter('Флогистон'); // персонаж (src/player.js)
   G.playerUI && G.playerUI.setCharacter(hero);
   const player = { x: 0, y: 0 };
@@ -138,6 +139,14 @@
   const defeatedTiles = new Set();
   let hudFlash = '';
   let hudFlashUntil = 0;
+
+  // Игровое время: день мира (таймеры подземелий; прохождение времени — 000008).
+  let worldDay = 1;
+
+  // Подземелье: текущая вылазка и память содержимого по входам.
+  // dungeonMemory: 'x,y' входа → { contents, lastVisitDay }.
+  let dungeonState = null; // { dg, contents, x, y, prevX, prevY, worldKey, log }
+  const dungeonMemory = new Map();
 
   function findSpawn() {
     // Ищем проходимый тайл в окрестностях (0,0) по спирали,
@@ -171,8 +180,9 @@
       G.playerUI.toggle();
       return;
     }
-    // В бою клавиши обрабатывает combat-ui (своим слушателем).
+    // В бою клавиши обрабатывает combat-ui, в подземелье — dungeon-ui.
     if (G.combatUI && G.combatUI.isActive()) return;
+    if (G.dungeonUI && G.dungeonUI.isActive()) return;
     if (KEY_DIRS[e.code]) {
       keys.add(e.code);
       e.preventDefault();
@@ -234,6 +244,110 @@
         hudFlashUntil = performance.now() + 5000;
       },
     });
+  }
+
+  // --- Подземелье ---
+
+  // Шаг на тайл с входом в пещеру → лабиринт (ядро: src/dungeon.js).
+  function maybeEnterDungeon() {
+    if (dungeonState) return;
+    const t = map.tileAt(player.x, player.y);
+    if (!t.hasBuilding || t.building !== G.BUILDING_TYPES.CAVE_ENTRANCE) return;
+    const worldKey = player.x + ',' + player.y;
+    const d = G.createDungeon(player.x, player.y, mapPixels, t.terrain);
+    const saved = dungeonMemory.get(worldKey);
+    // Содержимое живёт, пока внутри + dungeon_memory_days (SPEC).
+    let contents = saved && G.contentValid(saved.lastVisitDay, worldDay)
+      ? saved.contents
+      : null;
+    if (!contents) contents = G.generateDungeonContents(d, hero);
+    dungeonState = {
+      dg: d, contents,
+      x: d.entrance.x, y: d.entrance.y,
+      prevX: d.entrance.x, prevY: d.entrance.y,
+      worldKey,
+      log: [G.DUNGEON_NAMES[d.type] + ': вход.'],
+    };
+    if (saved) saved.lastVisitDay = worldDay; // продлить память
+    G.dungeonUI.start({
+      get state() { return dungeonState; },
+      onMove: (dx, dy) => dungeonMove(dx, dy),
+    });
+  }
+
+  // Бой с блуждающей группой подземелья.
+  function startDungeonCombat(g) {
+    const ds = dungeonState;
+    G.combatUI.startCombat({
+      hero,
+      mobs: g.mobIds,
+      mobLevel: g.level,
+      groupName: g.boss ? 'Хозяин бездны' : 'блуждающая группа',
+      prev: { x: ds.prevX, y: ds.prevY },
+      seed: G.hash2(g.boss ? 999 : (parseInt(g.id.slice(1), 36) || 17), g.level, 0xb055),
+      onEnd: (res) => {
+        if (res.outcome === 'victory') {
+          g.defeated = true;
+          ds.log.push((g.boss ? 'Босс' : 'Группа') + ' повержена. +' + res.xp + ' опыта.');
+        } else {
+          // Побег и смерть: назад на клетку, с которой зашёл в бой.
+          ds.x = ds.prevX; ds.y = ds.prevY;
+          if (res.outcome === 'dead') {
+            hero.alive = true;
+            hero.hp = Math.max(1, Math.round(G.derived(hero).maxHP / 2));
+            hero.gold = Math.floor(hero.gold * 0.8);
+            ds.log.push('Вы очнулись. −20% золота.');
+          }
+        }
+        G.playerUI && G.playerUI.render();
+        G.dungeonUI.render();
+      },
+    });
+  }
+
+  function exitDungeon() {
+    const ds = dungeonState;
+    dungeonMemory.set(ds.worldKey, { contents: ds.contents, lastVisitDay: worldDay });
+    dungeonState = null;
+    G.dungeonUI.close();
+  }
+
+  // Шаг внутри лабиринта (вызывается dungeon-ui по клавише).
+  function dungeonMove(dx, dy) {
+    const ds = dungeonState;
+    if (!ds || (G.combatUI && G.combatUI.isActive())) return;
+    const d = ds.dg, c = ds.contents;
+    const nx = ds.x + dx, ny = ds.y + dy;
+    if (nx < 0 || ny < 0 || nx >= d.width || ny >= d.height) return;
+    if (d.cells[ny * d.width + nx] !== G.CELL_FLOOR) return; // стена
+    if (nx === d.exit.x && ny === d.exit.y) {
+      exitDungeon();
+      hudFlash = 'Вы вышли из ' + G.DUNGEON_NAMES[d.type] + '.';
+      hudFlashUntil = performance.now() + 5000;
+      return;
+    }
+    ds.prevX = ds.x; ds.prevY = ds.y;
+    ds.x = nx; ds.y = ny;
+    // Блуждающая группа на клетке → бой.
+    const g = c.mobs.find((m) => !m.defeated && m.x === nx && m.y === ny);
+    if (g) {
+      startDungeonCombat(g);
+      return;
+    }
+    // Сундук на клетке → открыть.
+    const ch = c.chests.find((x) => !x.opened && x.x === nx && x.y === ny);
+    if (ch) {
+      const r = G.openChest(c, ch.id);
+      if (r.ok) {
+        hero.gold += r.gold;
+        ds.log.push('Сундук: +' + r.gold + ' золота' + (r.item ? ', ' + r.item : ''));
+        hudFlash = 'Сундук: +' + r.gold + ' золота' + (r.item ? ', ' + r.item : '');
+        hudFlashUntil = performance.now() + 5000;
+        G.playerUI && G.playerUI.render();
+      }
+    }
+    // Каждый шаг игрока — шаг блуждания мобов.
+    G.wanderStep(c, d);
   }
 
   // --- Камера ---
@@ -310,11 +424,19 @@
     let line = 'Флогистон, ур. ' + hero.level + '  (' + player.x + ', ' + player.y + ')\n' +
       'HP ' + hero.hp + '/' + d.maxHP + '  |  Золото: ' + hero.gold + '  |  Очки: ' + hero.points + '\n' +
       'Местность: ' + G.TERRAIN_NAMES[t.terrain] + '\n' +
-      'Масштаб: ' + zoom + 'px  |  карта: ' + map.width + 'x' + map.height +
+      'День: ' + worldDay + '  |  Масштаб: ' + zoom + 'px  |  карта: ' + map.width + 'x' + map.height +
       (map.fromPng ? ' (map.png)' : ' (пересчёт)') + '\n' +
       '[I] персонаж';
-    if (t.hasBuilding) line += '\nЗдесь: ' + G.BUILDING_NAMES[t.building];
-    else if (t.hasMobGroup) {
+    if (dungeonState) {
+      const ds = dungeonState;
+      const dist = Math.abs(ds.x - ds.dg.exit.x) + Math.abs(ds.y - ds.dg.exit.y);
+      line += '\n--- ' + G.DUNGEON_NAMES[ds.dg.type] + ' (' + ds.x + ', ' + ds.y + ') ---' +
+        '\nДо выхода: ~' + dist + ' клеток  |  ' +
+        (ds.contents.mobs.filter((m) => !m.defeated).length) + ' групп(ы)';
+    } else if (t.hasBuilding) {
+      line += '\nЗдесь: ' + G.BUILDING_NAMES[t.building] +
+        (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE ? ' (вход — шагните)' : '');
+    } else if (t.hasMobGroup) {
       line += defeatedTiles.has(key)
         ? '\nГруппа ' + G.MOB_GROUP_NAMES[t.mobGroup] + ' повержена.'
         : '\nОсторожно: ' + G.MOB_GROUP_NAMES[t.mobGroup] + '!';
@@ -327,10 +449,12 @@
   let lastMove = 0;
   function frame(now) {
     const inCombat = G.combatUI && G.combatUI.isActive();
-    if (!inCombat && now - lastMove >= MOVE_INTERVAL_MS) {
+    const inDungeon = dungeonState !== null;
+    if (!inCombat && !inDungeon && now - lastMove >= MOVE_INTERVAL_MS) {
       if (keys.size && tryMove()) {
         lastMove = now;
         maybeStartCombat();
+        maybeEnterDungeon();
       }
     }
     updateCamera();
@@ -369,6 +493,23 @@
     get combat() {
       return G.combatUI ? G.combatUI.current() : null;
     },
+    // Текущее подземелье (или null).
+    get dungeon() {
+      if (!dungeonState) return null;
+      const ds = dungeonState;
+      return {
+        type: ds.dg.type, name: G.DUNGEON_NAMES[ds.dg.type],
+        width: ds.dg.width, height: ds.dg.height,
+        cells: ds.dg.cells,
+        entrance: { x: ds.dg.entrance.x, y: ds.dg.entrance.y },
+        x: ds.x, y: ds.y,
+        exit: { x: ds.dg.exit.x, y: ds.dg.exit.y },
+        mobs: ds.contents.mobs.filter((m) => !m.defeated)
+          .map((m) => ({ x: m.x, y: m.y })),
+        chests: ds.contents.chests.filter((c) => !c.opened).length,
+        day: worldDay,
+      };
+    },
     actions: {
       givePoints: (n) => {
         hero.points += n;
@@ -388,6 +529,26 @@
           },
         });
       },
+      // Подземелье из текущего тайла (не требует входа в пещеру).
+      enterDungeon: (terrain) => {
+        if (dungeonState) return null;
+        const t = map.tileAt(player.x, player.y);
+        const d = G.createDungeon(player.x, player.y, mapPixels,
+          terrain != null ? terrain : t.terrain);
+        dungeonState = {
+          dg: d, contents: G.generateDungeonContents(d, hero),
+          x: d.entrance.x, y: d.entrance.y,
+          prevX: d.entrance.x, prevY: d.entrance.y,
+          worldKey: player.x + ',' + player.y,
+          log: [G.DUNGEON_NAMES[d.type] + ': вход.'],
+        };
+        G.dungeonUI.start({
+          get state() { return dungeonState; },
+          onMove: (dx, dy) => dungeonMove(dx, dy),
+        });
+        return dungeonState;
+      },
+      setDay: (n) => { worldDay = Math.max(1, Math.floor(n)); },
       train: (skill) => {
         const r = G.raiseSkill(hero, skill);
         G.playerUI && G.playerUI.render();
@@ -403,6 +564,7 @@
 
   // --- Старт ---
   loadMapPixels().then((pixels) => {
+    mapPixels = pixels; // сохранены: сид формы подземельей зависит от пикселя
     map = G.createMap(pixels);
     map.fromPng = pixels.fromPng;
     findSpawn();

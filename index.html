@@ -126,6 +126,9 @@
       border-radius: 8px;
       cursor: pointer;
     }
+    /* Подземелье: карта крупнее, на узком экране — прокрутка. */
+    .dungeon-overlay { overflow: auto; }
+    .dungeon-overlay .combat-side { width: 270px; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -138,8 +141,10 @@
   <script src="src/map.js"></script>
   <script src="src/player.js"></script>
   <script src="src/combat.js"></script>
+  <script src="src/dungeon.js"></script>
   <script src="src/ui.js"></script>
   <script src="src/combat-ui.js"></script>
+  <script src="src/dungeon-ui.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>

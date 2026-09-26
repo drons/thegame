@@ -546,17 +546,24 @@
     const width = opts.width || 7;
     const height = opts.height || 7;
 
-    // Уровень группы = уровень персонажа + дельта [-N; +N] — «в среднем
-    // можно победить» (SPEC.md).
-    const delta = Math.floor(rng() * (2 * N + 1)) - N;
-    const level = Math.max(1, p.level + delta);
-    const recipe = GROUP_RECIPES[opts.groupType];
-    if (!recipe) throw new Error('неизвестный тип группы: ' + opts.groupType);
-
-    let ids = recipe.mobs.slice();
-    if (recipe.count) {
-      const n = recipe.count[0] + Math.floor(rng() * (recipe.count[1] - recipe.count[0] + 1));
-      ids = new Array(n).fill(recipe.mobs[0]);
+    let ids, level, recipe;
+    if (Array.isArray(opts.mobs)) {
+      // Произвольный состав (блуждающие группы подземелий, кастомные бои).
+      ids = opts.mobs;
+      level = Math.max(1, opts.mobLevel != null ? opts.mobLevel : p.level);
+      recipe = null;
+    } else {
+      // Уровень группы = уровень персонажа + дельта [-N; +N] — «в среднем
+      // можно победить» (SPEC.md).
+      const delta = Math.floor(rng() * (2 * N + 1)) - N;
+      level = Math.max(1, p.level + delta);
+      recipe = GROUP_RECIPES[opts.groupType];
+      if (!recipe) throw new Error('неизвестный тип группы: ' + opts.groupType);
+      ids = recipe.mobs.slice();
+      if (recipe.count) {
+        const n = recipe.count[0] + Math.floor(rng() * (recipe.count[1] - recipe.count[0] + 1));
+        ids = new Array(n).fill(recipe.mobs[0]);
+      }
     }
     const hasLeader = ids.some((id) => MOB_TYPES[id].role === MOB_ROLES.LEADER);
     const units = ids.map((mobId, i) => makeMob(mobId, level, i, hasLeader));
@@ -570,7 +577,7 @@
       width,
       height,
       groupType: opts.groupType,
-      groupName: opts.groupName || recipe.name,
+      groupName: opts.groupName || (recipe ? recipe.name : 'блуждающая группа'),
       units,
       px: Math.floor(width / 2),
       py: height - 1,
@@ -588,7 +595,7 @@
       _unkillUsed: false,
     };
     refillPools(c);
-    log(c, `Бой: ${opts.groupName || recipe.name} (уровень ${level}, мобы ${units.length}).`);
+    log(c, `Бой: ${c.groupName} (уровень ${level}, мобы ${units.length}).`);
     if (hasLeader) log(c, 'Лидер вдохновляет группу: +5% урона, +5% защиты.');
     c.targetId = (nearestMob(c) || {}).id || null;
 
