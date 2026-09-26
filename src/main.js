@@ -225,13 +225,14 @@
   }
 
   // --- Ввод ---
+  // Маппинг клавиш→направление — в src/controls.js (чистые функции):
+  // сначала e.code (физические стрелки/WASD — в русской раскладке это и
+  // есть ЦФЫВ), затем e.key по символу (ц/ф/ы/в) — фолбэк для
+  // виртуальных клавиатур. keys хранит id клавиш перемещения в порядке
+  // нажатий (Set): две клавиши одного направления — два id, движение
+  // продолжается, пока удержана хотя бы одна.
   const keys = new Set();
-  const KEY_DIRS = {
-    ArrowUp: [0, -1], KeyW: [0, -1], KeyЦ: [0, -1],
-    ArrowDown: [0, 1], KeyS: [0, 1], KeyЫ: [0, 1],
-    ArrowLeft: [-1, 0], KeyA: [-1, 0], KeyФ: [-1, 0],
-    ArrowRight: [1, 0], KeyD: [1, 0], KeyВ: [1, 0],
-  };
+  const moveKey = (e) => G.moveKeyForEvent(e);
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyI' && G.playerUI) { // I (Ш) — панель персонажа
       G.playerUI.toggle();
@@ -268,12 +269,16 @@
     if (G.combatUI && G.combatUI.isActive()) return;
     if (G.dungeonUI && G.dungeonUI.isActive()) return;
     if (G.npcUI && G.npcUI.isActive()) return;
-    if (KEY_DIRS[e.code]) {
-      keys.add(e.code);
+    const k = moveKey(e);
+    if (k) {
+      keys.add(k);
       e.preventDefault();
     }
   });
-  window.addEventListener('keyup', (e) => keys.delete(e.code));
+  window.addEventListener('keyup', (e) => {
+    const k = moveKey(e);
+    if (k) keys.delete(k);
+  });
   window.addEventListener('blur', () => keys.clear());
   canvas.addEventListener('wheel', (e) => {
     zoom = Math.max(G.ZOOM_MIN, Math.min(G.ZOOM_MAX, zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2)));
@@ -281,8 +286,8 @@
   }, { passive: false });
 
   function tryMove() {
-    for (const code of keys) { // порядок в Set = порядок нажатий
-      const [dx, dy] = KEY_DIRS[code];
+    for (const k of keys) { // порядок в Set = порядок нажатий
+      const [dx, dy] = G.deltaForMoveKey(k);
       const t = map.tileAt(player.x + dx, player.y + dy);
       if (t.passable) {
         prevPos.x = player.x;
