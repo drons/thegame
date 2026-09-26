@@ -20,6 +20,26 @@
   const spriteCanvas = document.getElementById('sprites');
   const s2 = spriteCanvas ? spriteCanvas.getContext('2d') : null;
 
+  // Кнопка полноэкранного режима (задача 000017): ядро — src/fullscreen.js
+  // (тестируется в node), здесь только DOM-привязка. API недоступен —
+  // кнопки нет, игра продолжает работать.
+  if (G.createFullscreenController) {
+    const fullscreen = G.createFullscreenController(document);
+    if (fullscreen.supported) {
+      const fsBtn = document.createElement('button');
+      fsBtn.className = 'fs-btn';
+      const fsLabel = () => {
+        fsBtn.textContent = fullscreen.isFullscreen
+          ? '⛶ выйти из полного экрана'
+          : '⛶ полный экран';
+      };
+      fsLabel();
+      fullscreen.onChange(fsLabel); // подписка/выход по Esc — иконка следит
+      fsBtn.addEventListener('click', () => fullscreen.toggle());
+      document.body.appendChild(fsBtn);
+    }
+  }
+
   // --- Настройки рендера ---
   const TILE_COLORS = {
     [G.TERRAIN.DEEP_WATER]: [0.09, 0.18, 0.42],

@@ -77,6 +77,22 @@
       background: #2c3040; color: #e8dcc0; cursor: pointer;
     }
     .cp-btn:disabled { opacity: 0.3; cursor: default; }
+    /* Кнопка полноэкранного режима (задача 000017): правый нижний угол,
+       под оверлеями боя/подземелья (z-index 20). */
+    .fs-btn {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      z-index: 15;
+      color: #e8dcc0;
+      font: 13px/1.4 ui-monospace, monospace;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid #6b6248;
+      border-radius: 10px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .fs-btn:hover { background: rgba(0, 0, 0, 0.65); }
     .combat-overlay {
       position: fixed;
       inset: 0;
@@ -171,6 +187,7 @@
   <script src="src/combat-ui.js"></script>
   <script src="src/dungeon-ui.js"></script>
   <script src="src/sprites.js"></script>
+  <script src="src/fullscreen.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>
