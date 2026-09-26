@@ -1,10 +1,11 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  hitChance, createCombat,
+  hitChance, createCombat, resolveDifficulty,
   MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
+const { SETTINGS } = require('../src/global-settings.js');
 const I = require('../src/items.js');
 
 // Сильный персонаж для контролируемых сценариев (много HP — не умирает сам).
@@ -15,26 +16,68 @@ function strongHero() {
   return c;
 }
 
-// Авто-игра: бьёт ближайшую цель, если рядом, иначе подходит, и заканчивает ход.
+// «Разумно сильный» герой середины игры (задача 000027): 15 уровней =
+// 28 очков навыков, достижимая тратой (14 уровней × 2): первичные 18
+// (Сила 10, Тело 7, Ловкость 4) + вторичные 10 (Укрытие 5 — требование
+// Голема, Голем 3, Выносливость 2).
+function midGameHero() {
+  const c = createCharacter();
+  c.level = 15;
+  c.primary = {
+    strength: 10, dexterity: 4, constitution: 7,
+    intelligence: 1, wisdom: 1, charisma: 1,
+  };
+  c.secondary = { hide: 5, golem: 3, endurance: 2 };
+  const d = derived(c);
+  c.hp = d.maxHP;
+  c.mp = d.maxMP;
+  return c;
+}
+
+// Цель «разумной» авто-игры: поддержка (лечилка) — приоритет, иначе
+// ближайшая живая.
+function autoTarget(c) {
+  const alive = c.units.filter((u) => u.alive && !u.fled);
+  if (!alive.length) return null;
+  const supports = alive.filter((u) => u.role === 'support');
+  if (supports.length) {
+    return supports.reduce((a, b) => (b.hp / b.maxHP < a.hp / a.maxHP ? b : a));
+  }
+  return alive.reduce((a, b) =>
+    (Math.abs(c.px - a.x) + Math.abs(c.py - a.y))
+      <= (Math.abs(c.px - b.x) + Math.abs(c.py - b.y)) ? a : b);
+}
+
+// Авто-игра «разумного» игрока (задача 000027): ход — чередование
+// «бьёт, если в дальности, иначе подходит» до исчерпания действий,
+// все действия ударов используются, ход завершается блоком.
 function autoPlay(c, maxRounds = 80) {
   let n = 0;
   while (!c.result && n++ < maxRounds) {
-    const t = c.units.find((u) => u.id === c.targetId && u.alive && !u.fled)
-      || c.units.find((u) => u.alive && !u.fled);
-    if (t) {
+    let t = autoTarget(c);
+    while (c.result === null && (c.ps.attack > 0 || c.ps.moveLeft > 0) && t) {
       const d = Math.abs(c.px - t.x) + Math.abs(c.py - t.y);
-      if (d <= 1) {
-        c.attack(t.id);
-      } else {
+      if (d <= 1 && c.ps.attack > 0) {
+        const r = c.attack(t.id);
+        if (!r.ok) break;
+        if (!t.alive || t.fled) t = autoTarget(c);
+      } else if (d > 1 && c.ps.moveLeft > 0) {
         const dx = Math.sign(t.x - c.px);
         const dy = Math.sign(t.y - c.py);
-        if (Math.abs(t.x - c.px) >= Math.abs(t.y - c.py)) {
-          if (!c.move(dx, 0).ok) c.move(0, dy);
-        } else {
-          if (!c.move(0, dy).ok) c.move(dx, 0);
+        const tries = Math.abs(t.x - c.px) >= Math.abs(t.y - c.py)
+          ? [[dx, 0], [0, dy]] : [[0, dy], [dx, 0]];
+        let moved = false;
+        for (const [sx, sy] of tries) {
+          if (!sx && !sy) continue;
+          if (c.move(sx, sy).ok) { moved = true; break; }
         }
+        if (!moved) break;
+      } else {
+        break;
       }
     }
+    // Блок — последнее действие хода, снижает получаемый урон.
+    if (c.result === null && c.ps.block > 0) c.block();
     c.endTurn();
   }
   return c.result;
@@ -102,10 +145,13 @@ test('группа с лидером: +5% урона и +5% защиты все�
   const noLeader = createCombat({ player: p, groupType: 3, seed: 5 });
   assert.ok(!noLeader.units.some((u) => u.role === 'leader'));
   for (const u of noLeader.units) assert.equal(u.damageTakenMult, 1);
-  // Урон лидера при том же уровне выше, чем без баффа.
-  const dmgBase = Math.max(1, Math.round((2 + 0.7 * withLeader.units[0].level) * MOB_TYPES.abomination.dmg));
+  // Урон лидера: база уровня × бафф лидера × множитель сложности (задача 000027).
+  const L = withLeader.units[0].level;
+  const diff = SETTINGS.combat_difficulties[SETTINGS.combat_difficulty];
   const leader = withLeader.units.find((u) => u.role === 'leader');
-  assert.equal(leader.damage, Math.max(1, Math.round(dmgBase * LEADER_DMG_MULT)));
+  const expected = Math.max(1, Math.round(
+    (2 + 0.7 * L) * MOB_TYPES.abomination.dmg * LEADER_DMG_MULT * diff.damage));
+  assert.equal(leader.damage, expected);
 });
 
 // --- Формулы попадания и урона ---
@@ -168,19 +214,32 @@ test('лимит действий: удар доступен 1 + floor(Сила/
   assert.equal(c.ps.attack, 4);
 });
 
-test('блок: только как последнее действие хода', () => {
+test('блок: ставится даже при оставшихся действиях; ПОСЛЕ него другие действия хода запрещены', () => {
   const p = strongHero();
   const c = createCombat({ player: p, groupType: 3, seed: 2 });
-  assert.equal(c.block().ok, false, 'блок не должен работать при наличии ударов');
-  assert.match(c.block().reason, /последнее действие/);
-  c.ps.attack = 0;
-  c.ps.spellInt = 0;
-  c.ps.spellWis = 0;
-  c.ps.quickItem = 0;
-  c.ps.invItem = 0;
-  assert.equal(c.block().ok, true);
+  // Блок доступен в любой момент хода (раньше пулы заклинаний ≥1 делали
+  // его невыполнимым в бою — задача 000027).
+  assert.equal(c.block().ok, true, 'блок можно поставить при наличии других действий');
   assert.equal(c.ps.blocked, true);
-  assert.equal(c.block().ok, false, 'блок один раз за ход');
+  // После блока прочие действия хода отклоняются.
+  const w = c.units[0];
+  standNextTo(c, w);
+  const atk = c.attack(w.id);
+  assert.equal(atk.ok, false);
+  assert.match(atk.reason, /последнее действие/);
+  assert.match(c.spell('fire', w.id).reason, /последнее действие/);
+  const mv = c.move(1, 0);
+  assert.equal(mv.ok, false);
+  assert.match(mv.reason, /последнее действие/);
+  I.addItem(p, 'bread');
+  assert.match(c.invItem('bread').reason, /последнее действие/);
+  // Один раз за ход.
+  const bl2 = c.block();
+  assert.equal(bl2.ok, false, 'блок один раз за ход');
+  assert.match(bl2.reason, /больше нет/);
+  // На новый ход блок сброшен.
+  c.endTurn();
+  assert.equal(c.ps.blocked, false);
 });
 
 test('блок снижает получаемый урон', () => {
@@ -559,4 +618,109 @@ test('броня снижает получаемый урон (то же зер�
   const withArmor = make(true);
   assert.ok(without > 0, 'без брони урон получен');
   assert.ok(withArmor < without, `с броней урон меньше: ${withArmor} < ${without}`);
+});
+
+// --- Сложность боя (задача 000027) ---
+
+test('сложность: в настройках есть три уровня с множителями hp/damage', () => {
+  assert.ok(SETTINGS.combat_difficulty, 'задана текущая сложность');
+  const table = SETTINGS.combat_difficulties;
+  for (const name of ['easy', 'medium', 'hard']) {
+    assert.ok(table[name], `нет сложности ${name}`);
+    assert.ok(table[name].hp > 0 && table[name].damage > 0,
+      `сложность ${name}: множители положительны`);
+  }
+  assert.equal(typeof SETTINGS.combat_difficulty, 'string');
+  assert.ok(table[SETTINGS.combat_difficulty], 'текущая сложность есть в таблице');
+});
+
+test('сложность: easy < medium < hard (HP и урон каждого моба)', () => {
+  // Мобы уровня 30: у уровня 10 урон medium и hard округляется
+  // в одно значение (у шамана), поэтому берём уровень повыше.
+  const mk = (difficulty) => createCombat({
+    player: createCharacter(),
+    mobs: ['orc_warrior', 'orc_archer', 'orc_shaman'],
+    mobLevel: 30,
+    seed: 77,
+    difficulty,
+  });
+  const e = mk('easy'), m = mk('medium'), h = mk('hard');
+  assert.equal(e.difficulty, 'easy');
+  assert.equal(m.difficulty, 'medium');
+  assert.equal(h.difficulty, 'hard');
+  for (let i = 0; i < e.units.length; i++) {
+    assert.ok(e.units[i].maxHP < m.units[i].maxHP, `моб ${i}: easy hp < medium hp`);
+    assert.ok(m.units[i].maxHP < h.units[i].maxHP, `моб ${i}: medium hp < hard hp`);
+    assert.ok(e.units[i].damage < m.units[i].damage, `моб ${i}: easy урон < medium`);
+    assert.ok(m.units[i].damage < h.units[i].damage, `моб ${i}: medium урон < hard`);
+  }
+});
+
+test('сложность: неизвестное имя деградирует до настроенной, opts переопределяет', () => {
+  const cur = SETTINGS.combat_difficulties[SETTINGS.combat_difficulty];
+  assert.deepEqual(resolveDifficulty('нет-такой-сложности'), cur,
+    'неизвестная сложность → настроенная');
+  assert.deepEqual(resolveDifficulty('easy'), SETTINGS.combat_difficulties.easy);
+
+  const p = createCharacter();
+  const a = createCombat({ player: p, groupType: 0, seed: 3, difficulty: 'hard' });
+  const b = createCombat({ player: p, groupType: 0, seed: 3, difficulty: 'нет-такой' });
+  assert.equal(a.difficulty, 'hard', 'opts.difficulty записан в бой');
+  // «нет-такой» = настроенная сложность — множители совпадают.
+  for (let i = 0; i < a.units.length; i++) {
+    assert.ok(a.units[i].maxHP >= b.units[i].maxHP, 'hard не слабее настроенной');
+  }
+});
+
+test('единый источник: SETTINGS.combat_difficulty задаёт сложность по умолчанию', (t) => {
+  // Герой повыше: у мобов уровня 1 урон обоих уровней сложности
+  // округляется в 1 и различия не видны.
+  const hero = () => { const p = createCharacter(); p.level = 10; return p; };
+  const before = createCombat({ player: hero(), groupType: 0, seed: 9 });
+  assert.equal(before.difficulty, 'medium', 'дефолт = medium');
+
+  SETTINGS.combat_difficulty = 'easy';
+  t.after(() => { SETTINGS.combat_difficulty = 'medium'; });
+  const after = createCombat({ player: hero(), groupType: 0, seed: 9 });
+  assert.equal(after.difficulty, 'easy', 'дефолт следует за настройкой');
+  for (let i = 0; i < before.units.length; i++) {
+    assert.ok(after.units[i].maxHP < before.units[i].maxHP, 'easy слабее medium');
+    assert.ok(after.units[i].damage < before.units[i].damage, 'easy бьёт слабее');
+  }
+});
+
+test('баланс: разумно сильный герой побеждает ВСЕ стандартные группы на medium', () => {
+  // Герой уровня группы (levelDeltaMax: 0), разумная игра (autoPlay):
+  // поддержка первой, все удары, блок в конце хода.
+  for (const [type, recipe] of Object.entries(GROUP_RECIPES)) {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const p = midGameHero();
+      const c = createCombat({
+        player: p, groupType: Number(type), seed,
+        levelDeltaMax: 0, difficulty: 'medium',
+      });
+      const r = autoPlay(c);
+      assert.ok(r, `группа ${recipe.name} (seed ${seed}): бой не завершился`);
+      assert.equal(r.outcome, 'victory',
+        `группа ${recipe.name} (seed ${seed}): исход ${r.outcome}`);
+      assert.ok(r.xp > 0 && r.gold > 0, 'лут за победу');
+    }
+  }
+});
+
+test('баланс: безопасная зона (мобы -3 к герою) на medium — тоже победа', () => {
+  for (const [type, recipe] of Object.entries(GROUP_RECIPES)) {
+    // Кастомный состав рецепта с фиксированным уровнем мобов = герой - 3
+    // (безопасные локации по SPEC: дельта ближе к -N).
+    let mobs = recipe.mobs.slice();
+    if (recipe.count) mobs = new Array(recipe.count[0]).fill(recipe.mobs[0]);
+    const p = midGameHero();
+    const c = createCombat({
+      player: p, mobs, mobLevel: Math.max(1, p.level - 3),
+      seed: 11, difficulty: 'medium', groupName: recipe.name,
+    });
+    const r = autoPlay(c);
+    assert.ok(r, `группа ${recipe.name}: бой не завершился`);
+    assert.equal(r.outcome, 'victory', `группа ${recipe.name} (мобы -3): исход ${r.outcome}`);
+  }
 });

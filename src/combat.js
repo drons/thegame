@@ -7,7 +7,7 @@
 //
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js (mulberry32), player.js (derived/takeDamage/heal/addXp),
-// global-settings.js (level_delta_max).
+// global-settings.js (level_delta_max, combat_difficulty/combat_difficulties).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -123,11 +123,14 @@
     return clamp(0.55 + 0.03 * (atkLevel - defLevel) + (atkBonus || 0) - (defDodge || 0), 0.05, 0.95);
   }
 
-  function makeMob(mobId, level, idx, hasLeader) {
+  // Множитель сложности (задача 000027): { hp, damage } из
+  // settings.SETTINGS.combat_difficulties[difficulty].
+  function makeMob(mobId, level, idx, hasLeader, diff) {
     const t = MOB_TYPES[mobId];
     const hpRoleMult = { swarm: 0.6, support: 0.7, shield: 1.8, leader: 1.8 }[t.role] || 1.0;
-    const maxHP = Math.max(1, Math.round((8 + 4 * level) * t.hp * hpRoleMult));
-    const damage = Math.max(1, Math.round((2 + 0.7 * level) * t.dmg * (hasLeader ? LEADER_DMG_MULT : 1)));
+    const maxHP = Math.max(1, Math.round((8 + 4 * level) * t.hp * hpRoleMult * diff.hp));
+    const damage = Math.max(1, Math.round(
+      (2 + 0.7 * level) * t.dmg * (hasLeader ? LEADER_DMG_MULT : 1) * diff.damage));
     return {
       id: 'm' + idx,
       mobId,
@@ -285,6 +288,8 @@
   function playerAttack(c, targetId) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
+    const blocked = checkBlocked(c);
+    if (blocked) return blocked;
     if (c.ps.attack <= 0) return { ok: false, reason: 'действий «Удар» больше нет' };
     const t = targetId ? c.units.find((u) => u.id === targetId) : nearestMob(c);
     if (!t || !t.alive || t.fled) return { ok: false, reason: 'нет цели' };
@@ -318,6 +323,8 @@
   function playerSpell(c, school, targetId) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
+    const blocked = checkBlocked(c);
+    if (blocked) return blocked;
     const p = c.player;
     const d = P.derived(p);
     if (school === 'fire') {
@@ -347,13 +354,19 @@
     return { ok: false, reason: 'неизвестная школа' };
   }
 
+  // Блок — только как ПОСЛЕДНЕЕ действие хода (SPEC.md): пока блок стоит,
+  // прочие действия хода запрещены (атака/заклинания/предметы/движение).
+  // Раньше проверка «пулы других действий пусты» делала блок невыполнимым
+  // в бою: пулы заклинаний refillPools() восстанавливает каждый ход в ≥1
+  // (задача 000027).
+  function checkBlocked(c) {
+    return c.ps.blocked ? { ok: false, reason: 'блок — только последнее действие' } : null;
+  }
+
   function playerBlock(c) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
     if (c.ps.block <= 0) return { ok: false, reason: 'действий «Блок» больше нет' };
-    // Только как последнее действие хода.
-    const others = c.ps.attack + c.ps.spellInt + c.ps.spellWis + c.ps.quickItem + c.ps.invItem;
-    if (others > 0) return { ok: false, reason: 'блок — только последнее действие' };
     c.ps.block -= 1;
     c.ps.blocked = true;
     log(c, 'Вы ставите блок.');
@@ -363,6 +376,8 @@
   function playerMove(c, dx, dy) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
+    const blocked = checkBlocked(c);
+    if (blocked) return blocked;
     if (c.ps.moveLeft <= 0) return { ok: false, reason: 'шаги на ход исчерпаны' };
     const nx = c.px + dx, ny = c.py + dy;
     if (!inBounds(c, nx, ny)) return { ok: false, reason: 'стена' };
@@ -394,6 +409,8 @@
   function playerQuickItem(c, slot) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
+    const blocked = checkBlocked(c);
+    if (blocked) return blocked;
     if (c.ps.quickItem <= 0) return { ok: false, reason: 'действий «Быстрый предмет» больше нет' };
     const p = c.player;
     const s = Number.isInteger(slot) ? slot : I.firstQuickSlot(p);
@@ -414,6 +431,8 @@
   function playerInvItem(c, itemId) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
+    const blocked = checkBlocked(c);
+    if (blocked) return blocked;
     if (c.ps.invItem <= 0) return { ok: false, reason: 'действий «Предмет из инвентаря» больше нет' };
     if (!itemId) return { ok: false, reason: 'выберите предмет из инвентаря' };
     const p = c.player;
@@ -575,6 +594,20 @@
 
   // --- Создание боя ---
 
+  // Сложность боя (задача 000027): имя из opts.difficulty, иначе настройка
+  // combat_difficulty. Таблица множителей — settings.SETTINGS.combat_difficulties;
+  // неизвестное имя деградирует до настроенной сложности, затем 'medium',
+  // затем к 1/1 (бой «как в старой версии»).
+  function resolveDifficulty(name) {
+    const table = (settings.SETTINGS.combat_difficulties || {});
+    const cur = settings.SETTINGS.combat_difficulty;
+    const d = (name != null && table[name])
+      ? table[name]
+      : (table[cur] || table.medium || { hp: 1, damage: 1 });
+    return (d && typeof d.hp === 'number' && typeof d.damage === 'number')
+      ? d : (table.medium || { hp: 1, damage: 1 });
+  }
+
   /**
    * Создаёт бой.
    * @param {object} opts
@@ -587,12 +620,17 @@
    * @param {function} [opts.rng]    готовый RNG () => [0..1)
    * @param {number} [opts.levelDeltaMax] разброс уровня мобов (SPEC: N;
    *   по умолчанию level_delta_max из src/global-settings.js)
+   * @param {string} [opts.difficulty] сложность ('easy'/'medium'/'hard';
+   *   по умолчанию combat_difficulty из src/global-settings.js)
    */
   function createCombat(opts) {
     const p = opts.player;
     const rng = opts.rng || mulberry32(opts.seed != null ? opts.seed : 12345);
     const N = opts.levelDeltaMax != null ? opts.levelDeltaMax
       : settings.SETTINGS.level_delta_max;
+    const difficulty = opts.difficulty != null
+      ? opts.difficulty : settings.SETTINGS.combat_difficulty;
+    const diff = resolveDifficulty(opts.difficulty);
     const width = opts.width || 7;
     const height = opts.height || 7;
     // Игровой день (для «раз в день» эффектов, напр. Несокрушимость).
@@ -618,7 +656,7 @@
       }
     }
     const hasLeader = ids.some((id) => MOB_TYPES[id].role === MOB_ROLES.LEADER);
-    const units = ids.map((mobId, i) => makeMob(mobId, level, i, hasLeader));
+    const units = ids.map((mobId, i) => makeMob(mobId, level, i, hasLeader, diff));
 
     // Мобы — в верхней части, игрок — в центре нижнего края.
     const xs = [1, 3, 5, 0, 2, 4];
@@ -630,6 +668,7 @@
       height,
       groupType: opts.groupType,
       groupName: opts.groupName || (recipe ? recipe.name : 'блуждающая группа'),
+      difficulty,
       units,
       px: Math.floor(width / 2),
       py: height - 1,
@@ -667,6 +706,6 @@
   return {
     MOB_ROLES, ROLE_NAMES, AGGRO, MOB_TYPES, GROUP_RECIPES,
     LEADER_DMG_MULT, LEADER_DEF_MULT,
-    hitChance, createCombat,
+    hitChance, createCombat, resolveDifficulty,
   };
 });
