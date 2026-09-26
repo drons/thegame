@@ -8,6 +8,9 @@ const assert = require('node:assert/strict');
 const {
   DIRS, DIR_DELTA, CODE_DIRS, KEY_DIRS,
   moveKeyForEvent, deltaForMoveKey, deltaForEvent,
+  TOUCH_ACTIONS, TOUCH_DEADZONE,
+  touchMoveKeyForAction, isTouchDevice, chooseControlsScheme,
+  layoutTouchControls, touchActionAt,
 } = require('../src/controls.js');
 
 test('DELTA: y растёт вниз (мировые координаты)', () => {
@@ -102,4 +105,143 @@ test('keydown/keyup дают одинаковый id при смене реги�
   // Shift+«Ц»: keydown — 'Ц', после отпускания Shift keyup — 'ц'.
   assert.equal(moveKeyForEvent({ code: 'Unidentified', key: 'Ц' }),
     moveKeyForEvent({ code: 'Unidentified', key: 'ц' }));
+});
+
+// ---------------------------------------------------------------------------
+// Тач-вариант контролов (задача 000018)
+// ---------------------------------------------------------------------------
+
+test('touch: набор действий и мёртвая зона', () => {
+  assert.deepEqual(TOUCH_ACTIONS,
+    ['up', 'down', 'left', 'right', 'interact']);
+  assert.ok(TOUCH_DEADZONE > 0 && TOUCH_DEADZONE < 0.5);
+});
+
+test('touch: isTouchDevice — по снимку окружения, мусор → false', () => {
+  // Каждый сигнал по отдельности.
+  assert.equal(isTouchDevice({ maxTouchPoints: 5 }), true);
+  assert.equal(isTouchDevice({ touchEvents: true }), true);
+  assert.equal(isTouchDevice({ coarsePointer: true }), true);
+  // Нет сигнала — нет тача.
+  assert.equal(isTouchDevice({ maxTouchPoints: 0 }), false);
+  assert.equal(isTouchDevice({}), false);
+  assert.equal(isTouchDevice(null), false);
+  assert.equal(isTouchDevice(undefined), false);
+  assert.equal(isTouchDevice(42), false);
+  // Мусорные значения не считаем тачем.
+  assert.equal(isTouchDevice({ maxTouchPoints: '5' }), false);
+  assert.equal(isTouchDevice({ maxTouchPoints: -1 }), false);
+  assert.equal(isTouchDevice({ maxTouchPoints: NaN }), false);
+  assert.equal(isTouchDevice({ touchEvents: 'true' }), false);
+});
+
+test('touch: chooseControlsScheme — детект + явное переопределение', () => {
+  const touchEnv = { maxTouchPoints: 5 };
+  const deskEnv = { maxTouchPoints: 0, touchEvents: false };
+  assert.equal(chooseControlsScheme(touchEnv, null), 'touch');
+  assert.equal(chooseControlsScheme(deskEnv, null), 'keyboard');
+  assert.equal(chooseControlsScheme(touchEnv, undefined), 'touch');
+  // Явный выбор переопределяет детект.
+  assert.equal(chooseControlsScheme(deskEnv, 'touch'), 'touch');
+  assert.equal(chooseControlsScheme(touchEnv, 'keyboard'), 'keyboard');
+  // Невалидное переопределение игнорируется.
+  assert.equal(chooseControlsScheme(touchEnv, 'joy'), 'touch');
+  assert.equal(chooseControlsScheme(deskEnv, 'TOUCH'), 'keyboard');
+  assert.equal(chooseControlsScheme(deskEnv, ''), 'keyboard');
+});
+
+test('touch: layoutTouchControls — D-pad слева-внизу, кнопка справа-внизу', () => {
+  const L = layoutTouchControls(800, 600);
+  // S = min(220, max(96, 0.4*600)=240, 768, 568) = 220.
+  assert.deepEqual(L.dpad, { x: 16, y: 364, w: 220, h: 220 });
+  // B = min(96, max(56, 110), 768, 568) = 96.
+  assert.deepEqual(L.action, { x: 688, y: 488, w: 96, h: 96 });
+  // Держимся в вьюпорте.
+  assert.ok(L.dpad.x >= 0 && L.dpad.x + L.dpad.w <= 800);
+  assert.ok(L.dpad.y >= 0 && L.dpad.y + L.dpad.h <= 600);
+  assert.ok(L.action.x >= 0 && L.action.x + L.action.w <= 800);
+  assert.ok(L.action.y >= 0 && L.action.y + L.action.h <= 600);
+  // Не пересекаются на типичном экране.
+  const overlapX = Math.max(L.dpad.x, L.action.x) <
+    Math.min(L.dpad.x + L.dpad.w, L.action.x + L.action.w);
+  const overlapY = Math.max(L.dpad.y, L.action.y) <
+    Math.min(L.dpad.y + L.dpad.h, L.action.y + L.action.h);
+  assert.equal(overlapX && overlapY, false);
+});
+
+test('touch: layoutTouchControls — bottomInset поднимает только кнопку', () => {
+  const base = layoutTouchControls(800, 600);
+  const lifted = layoutTouchControls(800, 600, { bottomInset: 48 });
+  // D-pad не сдвинулся.
+  assert.deepEqual(lifted.dpad, base.dpad);
+  // Кнопка выше на 48 px, размер тот же.
+  assert.equal(lifted.action.y, base.action.y - 48);
+  assert.equal(lifted.action.w, base.action.w);
+  // Отрицательный/мусорный inset → как без него.
+  assert.deepEqual(
+    layoutTouchControls(800, 600, { bottomInset: -10 }).action, base.action);
+  assert.deepEqual(
+    layoutTouchControls(800, 600, { bottomInset: NaN }).action, base.action);
+});
+
+test('touch: layoutTouchControls — узкий экран и невалидные размеры', () => {
+  // Узкий экран: влезает, не переполняется.
+  const L = layoutTouchControls(100, 120);
+  assert.ok(L.dpad.x >= 0 && L.dpad.x + L.dpad.w <= 100);
+  assert.ok(L.dpad.y >= 0 && L.dpad.y + L.dpad.h <= 120);
+  assert.ok(L.action.x >= 0 && L.action.x + L.action.w <= 100);
+  assert.ok(L.action.y >= 0 && L.action.y + L.action.h <= 120);
+  // Невалидные размеры → нулевые прямоугольники.
+  for (const [w, h] of [[0, 600], [-5, 600], [NaN, 600], [800, 0]]) {
+    const bad = layoutTouchControls(w, h);
+    assert.equal(bad.dpad.w, 0);
+    assert.equal(bad.action.w, 0);
+  }
+});
+
+test('touch: touchActionAt — направления D-pad, мёртвая зона, кнопка', () => {
+  const L = layoutTouchControls(800, 600);
+  const cx = L.dpad.x + L.dpad.w / 2; // 126
+  const cy = L.dpad.y + L.dpad.h / 2; // 474
+  // Лучи.
+  assert.equal(touchActionAt(cx, cy - 70, L), 'up');
+  assert.equal(touchActionAt(cx, cy + 70, L), 'down');
+  assert.equal(touchActionAt(cx - 70, cy, L), 'left');
+  assert.equal(touchActionAt(cx + 70, cy, L), 'right');
+  // Мёртвая зона в центре — null.
+  assert.equal(touchActionAt(cx, cy, L), null);
+  assert.equal(touchActionAt(cx + 10, cy + 10, L), null);
+  // Диагонали 45° — выигрывает горизонталь.
+  assert.equal(touchActionAt(cx + 50, cy - 50, L), 'right');
+  assert.equal(touchActionAt(cx + 50, cy + 50, L), 'right');
+  assert.equal(touchActionAt(cx - 50, cy - 50, L), 'left');
+  assert.equal(touchActionAt(cx - 50, cy + 50, L), 'left');
+  // Снаружи D-pad — null.
+  assert.equal(touchActionAt(cx, cy - 200, L), null);
+  assert.equal(touchActionAt(-10, cy, L), null);
+  // Кнопка действия.
+  const ax = L.action.x + L.action.w / 2;
+  const ay = L.action.y + L.action.h / 2;
+  assert.equal(touchActionAt(ax, ay, L), 'interact');
+  assert.equal(touchActionAt(L.action.x + 2, L.action.y + 2, L), 'interact');
+  // Между контролами — null.
+  assert.equal(touchActionAt(400, 550, L), null);
+  // Мусорные координаты — null.
+  assert.equal(touchActionAt(NaN, 0, L), null);
+  assert.equal(touchActionAt(0, null, L), null);
+});
+
+test('touch: touchMoveKeyForAction и deltaForMoveKey понимают touch:<dir>', () => {
+  for (const dir of DIRS) {
+    const key = touchMoveKeyForAction(dir);
+    assert.equal(key, 'touch:' + dir);
+    assert.deepEqual(deltaForMoveKey(key), DIR_DELTA[dir]);
+  }
+  // 'interact' и неизвестные — не направление.
+  assert.equal(touchMoveKeyForAction('interact'), null);
+  assert.equal(touchMoveKeyForAction('jump'), null);
+  assert.equal(touchMoveKeyForAction(null), null);
+  assert.equal(touchMoveKeyForAction(''), null);
+  assert.equal(deltaForMoveKey('touch:interact'), null);
+  assert.equal(deltaForMoveKey('touch:jump'), null);
 });

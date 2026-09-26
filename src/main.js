@@ -378,39 +378,48 @@
   // продолжается, пока удержана хотя бы одна.
   const keys = new Set();
   const moveKey = (e) => G.moveKeyForEvent(e);
+
+  // Действие [E] (задача 000010): диалог NPC / повторное нажатие —
+  // закрыть. Вызывается и с клавиатуры, и с on-screen-кнопки «E»
+  // тач-варианта контролов (задача 000018).
+  function toggleNpcDialog() {
+    if (!G.npcUI) return;
+    if (G.combatUI && G.combatUI.isActive()) return;
+    if (G.dungeonUI && G.dungeonUI.isActive()) return;
+    if (G.npcUI.isActive()) { // повторно — закрыть диалог
+      G.npcUI.close();
+      return;
+    }
+    // На тайле постройки с NPC — открываем диалог.
+    if (map) {
+      const t = map.tileAt(player.x, player.y);
+      if (t.hasBuilding) {
+        const b = G.buildingForMapIndex(t.building);
+        const npc = b && G.npcForBuilding(NPCS, b.id);
+        if (npc) {
+          G.npcUI.open({
+            npc,
+            character: hero,
+            book: questBook,
+            tile: { x: player.x, y: player.y,
+              building: t.building, buildingWealth: t.buildingWealth },
+            // Сток общий на сессию + сейв при изменениях (000029).
+            shop: npcShopFor(npc.id),
+            onChange: saveNow,
+            day: clock.day,
+          });
+        }
+      }
+    }
+  }
+
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyI' && G.playerUI) { // I (Ш) — панель персонажа
       G.playerUI.toggle();
       return;
     }
-    if (e.code === 'KeyE' && G.npcUI) { // E (У) — диалог NPC (задача 000010)
-      if (G.combatUI && G.combatUI.isActive()) return;
-      if (G.dungeonUI && G.dungeonUI.isActive()) return;
-      if (G.npcUI.isActive()) { // E повторно — закрыть диалог
-        G.npcUI.close();
-        return;
-      }
-      // На тайле постройки с NPC — открываем диалог.
-      if (map) {
-        const t = map.tileAt(player.x, player.y);
-        if (t.hasBuilding) {
-          const b = G.buildingForMapIndex(t.building);
-          const npc = b && G.npcForBuilding(NPCS, b.id);
-          if (npc) {
-            G.npcUI.open({
-              npc,
-              character: hero,
-              book: questBook,
-              tile: { x: player.x, y: player.y,
-                building: t.building, buildingWealth: t.buildingWealth },
-              // Сток общий на сессию + сейв при изменениях (000029).
-              shop: npcShopFor(npc.id),
-              onChange: saveNow,
-              day: clock.day,
-            });
-          }
-        }
-      }
+    if (e.code === 'KeyE' && G.npcUI) { // E (У) — диалог NPC
+      toggleNpcDialog();
       return;
     }
     // В бою клавиши обрабатывает combat-ui, в подземелье — dungeon-ui,
@@ -428,7 +437,46 @@
     const k = moveKey(e);
     if (k) keys.delete(k);
   });
-  window.addEventListener('blur', () => keys.clear());
+  window.addEventListener('blur', () => {
+    keys.clear();
+    if (G.touchControls) G.touchControls.releaseAll();
+  });
+
+  // --- Тач-вариант контролов (задача 000018) ---
+  // Чистая часть — в src/controls.js (тестируется в node): детект
+  // устройства по СНИМКУ окружения, выбор схемы, раскладка и хит-тест.
+  // On-screen-контролы (D-pad + кнопка «E») — в src/ui.js.
+  // Схема: 'touch' на тач-устройстве, иначе 'keyboard'; вариант можно
+  // переопределить параметром URL ?controls=touch|keyboard (для теста
+  // на десктопе и наоборот).
+  function touchEnvSnapshot() {
+    const nav = globalThis.navigator || {};
+    let coarse = false;
+    try {
+      coarse = typeof globalThis.matchMedia === 'function'
+        && globalThis.matchMedia('(pointer: coarse)').matches;
+    } catch (err) { /* нет matchMedia — false */ }
+    return {
+      maxTouchPoints: Number.isFinite(nav.maxTouchPoints) ? nav.maxTouchPoints : 0,
+      touchEvents: 'ontouchstart' in window,
+      coarsePointer: coarse,
+    };
+  }
+  const mControls = /[?&]controls=(touch|keyboard)(?:&|$)/
+    .exec(window.location.search || '');
+  const controlsScheme = G.chooseControlsScheme(
+    touchEnvSnapshot(), mControls ? mControls[1] : null);
+  if (controlsScheme === 'touch' && G.touchControls) {
+    G.touchControls.init({
+      // Виртуальные «клавиши» 'touch:<dir>' ложатся в тот же Set,
+      // что и настоящие: кадр вызывает tryMove → G.deltaForMoveKey.
+      onHold: (dir) => keys.add('touch:' + dir),
+      onRelease: (dir) => keys.delete('touch:' + dir),
+      onInteract: toggleNpcDialog,
+    });
+    G.touchControls.show();
+  }
+
   canvas.addEventListener('wheel', (e) => {
     zoom = Math.max(G.ZOOM_MIN, Math.min(G.ZOOM_MAX, zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2)));
     e.preventDefault();
@@ -842,6 +890,7 @@
           ? { ready: spriteLoader.readyCount(), total: spriteLoader.totalCount() }
           : null,
         keys: Array.from(keys),
+        controls: controlsScheme, // 'touch' | 'keyboard' (задача 000018)
       };
     },
     // Журнал квестов (задача 000010): active — инстансы, done — ids.

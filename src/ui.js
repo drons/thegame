@@ -729,4 +729,164 @@
       render: () => { if (npc) renderTab(); },
     };
   }
+
+  // --- On-screen-контролы для тачскрина (задача 000018) ---
+  // Чистая логика (выбор схемы, раскладка, хит-тест, детект устройства) —
+  // в src/controls.js (тестируется в node); здесь только DOM-привязка.
+  // D-pad (внизу слева): удержание — движение, скольжение пальца —
+  // переключение направления; кнопка «E» (внизу справа) — действие
+  // (диалог NPC / вход в подземелье), то же, что клавиша [E].
+  (function () {
+    if (!G.layoutTouchControls || !G.touchActionAt) return;
+    let root = null, dpadEl = null, actionEl = null;
+    const arrows = {}; // dir -> span
+    let shown = false;
+    let layout = null;
+    let heldPointer = null; // pointerId, удерживающий D-pad (один)
+    let heldDir = null;
+    let onHold = null, onRelease = null, onInteract = null;
+
+    // Под кнопку полноэкранного режима (внизу справа, если она есть)
+    // оставляем место: action-кнопку раскладка поднимет вверх.
+    function bottomInset() {
+      const fsBtn = document.querySelector('.fs-btn');
+      return fsBtn ? fsBtn.offsetHeight + 12 : 0;
+    }
+
+    function applyLayout() {
+      if (!root || !dpadEl || !actionEl) return;
+      layout = G.layoutTouchControls(
+        window.innerWidth, window.innerHeight, { bottomInset: bottomInset() });
+      const place = (node, r) => {
+        node.style.left = r.x + 'px';
+        node.style.top = r.y + 'px';
+        node.style.width = r.w + 'px';
+        node.style.height = r.h + 'px';
+      };
+      place(dpadEl, layout.dpad);
+      place(actionEl, layout.action);
+      // Стрелки — в центре «лучей» D-pad (координаты внутри dpadEl).
+      const d = layout.dpad;
+      const off = d.w * 0.30;
+      const pos = {
+        up: [d.w / 2, d.w / 2 - off],
+        down: [d.w / 2, d.w / 2 + off],
+        left: [d.w / 2 - off, d.h / 2],
+        right: [d.w / 2 + off, d.h / 2],
+      };
+      for (const dir of G.DIRS) {
+        arrows[dir].style.left = pos[dir][0] + 'px';
+        arrows[dir].style.top = pos[dir][1] + 'px';
+      }
+    }
+
+    // Направление по точке, если это направление (не 'interact'/null).
+    function dirAt(x, y) {
+      const act = G.touchActionAt(x, y, layout);
+      return act && G.DIRS.indexOf(act) >= 0 ? act : null;
+    }
+
+    function releasePointer(id) {
+      if (id !== null && id !== heldPointer) return;
+      heldPointer = null;
+      if (heldDir && onRelease) onRelease(heldDir);
+      heldDir = null;
+    }
+
+    function build() {
+      root = el('div');
+      root.id = 'touch-controls';
+      dpadEl = el('div', 'tc-dpad');
+      for (const dir of G.DIRS) {
+        const a = el('span', 'tc-arrow',
+          dir === 'up' ? '▲' : dir === 'down' ? '▼'
+            : dir === 'left' ? '◀' : '▶');
+        a.style.transform = 'translate(-50%, -50%)';
+        arrows[dir] = a;
+        dpadEl.appendChild(a);
+      }
+      actionEl = el('button', 'tc-action', 'E');
+      actionEl.setAttribute('aria-label', 'Действие (диалог NPC)');
+
+      // D-pad: down → держать направление; move → скольжение (смена
+      // направления, мёртвая зона — текущее); up/cancel → отпустить.
+      // setPointerCapture — pointerup доедет до D-pad даже поверх
+      // оверлеев (бой/диалог), поэтому «залипший» палец не останется.
+      dpadEl.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (heldPointer !== null) return; // второй палец на D-pad — нет
+        const dir = dirAt(e.clientX, e.clientY);
+        if (!dir) return; // мёртвая зона/снаружи лучей — не берём
+        heldPointer = e.pointerId;
+        heldDir = dir;
+        if (onHold) onHold(dir);
+        try { dpadEl.setPointerCapture(e.pointerId); } catch (err) { /* ie */ }
+      });
+      dpadEl.addEventListener('pointermove', (e) => {
+        if (e.pointerId !== heldPointer || !heldDir) return;
+        const dir = dirAt(e.clientX, e.clientY);
+        if (!dir || dir === heldDir) return; // мёртвая зона — держим текущее
+        const old = heldDir;
+        heldDir = dir;
+        if (onRelease) onRelease(old);
+        if (onHold) onHold(dir);
+      });
+      const end = (e) => {
+        if (e.pointerId !== heldPointer) return;
+        releasePointer(e.pointerId);
+      };
+      dpadEl.addEventListener('pointerup', end);
+      dpadEl.addEventListener('pointercancel', end);
+
+      // Кнопка «E» — действие (аналог клавиши [E] в main.js).
+      // blur() — чтобы Enter/Space на гибридных устройствах не
+      // «перепечатывали» сфокусированную кнопку.
+      actionEl.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (onInteract) onInteract();
+        actionEl.blur();
+      });
+
+      root.appendChild(dpadEl);
+      root.appendChild(actionEl);
+      document.body.appendChild(root);
+      window.addEventListener('resize', applyLayout);
+      // Вкладка в фоне / системный жест — палец «срезан»: отпускаем.
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) releasePointer(null);
+      });
+    }
+
+    G.touchControls = {
+      /**
+       * Инициализировать on-screen-контролы (один раз).
+       * @param {{onHold: (dir: string) => void,
+       *          onRelease: (dir: string) => void,
+       *          onInteract: () => void}} h
+       *   onHold/onRelease — 'up'|'down'|'left'|'right' (направление
+       *   удерживается / отпущено), onInteract — действие (диалог).
+       */
+      init(h) {
+        if (root) return;
+        onHold = h.onHold;
+        onRelease = h.onRelease;
+        onInteract = h.onInteract;
+        build();
+      },
+      show() {
+        if (!root) return;
+        root.classList.add('visible');
+        shown = true;
+        applyLayout();
+      },
+      hide() {
+        if (!root) return;
+        root.classList.remove('visible');
+        shown = false;
+        releasePointer(null);
+      },
+      isActive() { return shown; },
+      releaseAll() { releasePointer(null); },
+    };
+  })();
 })();
