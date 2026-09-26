@@ -1,0 +1,12 @@
+{
+  "id": "steel_sword",
+  "name": "Стальной меч",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 2,
+  "value": 120,
+  "desc": "Стальной меч, отполированный в рыцарской кузнице.",
+  "stats": {
+    "damage": 7
+  }
+}

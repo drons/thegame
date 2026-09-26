@@ -1,0 +1,13 @@
+{
+  "id": "sword_treatise",
+  "name": "Учение о мечах",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 60,
+  "desc": "Учение о мечах: от основ до цветка удара.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "swordsman",
+    "amount": 10
+  }
+}

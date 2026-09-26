@@ -1,0 +1,13 @@
+{
+  "id": "alchemy_manual",
+  "name": "Трактат алхимика",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 50,
+  "desc": "Практический трактат алхимика: рецепты и предостережения.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "alchemy",
+    "amount": 10
+  }
+}

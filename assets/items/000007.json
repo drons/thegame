@@ -1,0 +1,12 @@
+{
+  "id": "war_hammer",
+  "name": "Боевой молот",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 4,
+  "value": 250,
+  "desc": "Боевой молот: вес и верный удар.",
+  "stats": {
+    "damage": 10
+  }
+}

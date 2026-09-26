@@ -147,7 +147,7 @@
      * Состояние тайла в целочисленных координатах (x, y).
      * @returns {{
      *   x:number, y:number, terrain:number, passable:boolean,
-     *   hasBuilding:boolean, building:number,
+     *   hasBuilding:boolean, building:number, buildingWealth:number,
      *   hasMobGroup:boolean, mobGroup:number,
      * }}
      */
@@ -189,11 +189,17 @@
 
       const hasBuilding = passable && fb > 0.33 + 0.14 * rarity;
       const building = hasBuilding ? hash2(x, y, GLOBAL_SEED) % BUILDING_COUNT : BUILDING_TYPES.NONE;
+      // «Богатство» постройки 0-3 — из шума (SPEC «Постройки»): влияет на
+      // ассортимент и цены торговли (src/items.js).
+      const wf = features.fbm(x * FEATURE_SCALE + 222.9, y * FEATURE_SCALE + 444.1, 3);
+      const buildingWealth = hasBuilding
+        ? Math.max(0, Math.min(3, Math.round((wf + 0.5) * 4)))
+        : 0;
 
       const hasMobGroup = passable && !hasBuilding && fm > 0.31 + 0.14 * rarity;
       const mobGroup = hasMobGroup ? hash2(x, y, GLOBAL_SEED ^ 0xabcdef) % MOB_GROUP_COUNT : MOB_GROUP_TYPES.NONE;
 
-      return { x, y, terrain, passable, hasBuilding, building, hasMobGroup, mobGroup };
+      return { x, y, terrain, passable, hasBuilding, building, buildingWealth, hasMobGroup, mobGroup };
     }
 
     // Небольшой шум для визуального разнообразия оттенков тайлов.

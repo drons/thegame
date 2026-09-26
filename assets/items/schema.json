@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "required": ["id", "name", "kind", "weight", "value", "desc"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "name": { "type": "string" },
+    "kind": { "enum": ["weapon", "armor", "potion", "food", "skill_book", "reagent"] },
+    "subtype": { "type": "string", "enum": ["sword", "bow", "heavy"] },
+    "weight": { "type": "number", "minimum": 0.05, "maximum": 200 },
+    "value": { "type": "number", "minimum": 1, "maximum": 100000 },
+    "desc": { "type": "string" },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "damage": { "type": "number", "minimum": 1, "maximum": 100 },
+        "armor": { "type": "number", "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": false
+    },
+    "effect": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["heal", "mp", "eat", "skill_xp"] },
+        "amount": { "type": "number", "minimum": 1, "maximum": 500 },
+        "skill": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,12 @@
+{
+  "id": "battle_axe",
+  "name": "Боевой топор",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 3,
+  "value": 150,
+  "desc": "Боевой топор: один удар — и щит трескается.",
+  "stats": {
+    "damage": 8
+  }
+}
