@@ -10,6 +10,9 @@ const {
 } = require('../src/map.js');
 const S = require('../src/sprites.js');
 
+const VDIR = path.join(__dirname, '..', 'assets', 'visuals');
+const VSPR = path.join(__dirname, '..', 'assets', 'sprites', 'visuals');
+
 const ROOT = path.join(__dirname, '..');
 const TERRAIN_LIST = Object.values(TERRAIN);
 
@@ -305,4 +308,133 @@ test('критерий: ассеты не влияют на генерацию �
     assert.deepEqual(live, t);
   }
   assert.ok(loader.readyCount() === 0, 'проверка не должна оставлять «загруженные» ассеты в мире');
+});
+
+// --- Декорации тайлов (задача 000021) ---
+
+test('visuals: 13 элементов, id = номер файла, нет дублей id и спрайтов', () => {
+  assert.equal(S.VISUALS.length, 13);
+  const ids = new Set(), sprites = new Set();
+  for (let i = 0; i < S.VISUALS.length; i++) {
+    const v = S.VISUALS[i];
+    assert.equal(v.id, i + 1, 'id = позиция в каталоге + 1');
+    assert.ok(ids.add(v.id), `дубль id=${v.id}`);
+    assert.ok(sprites.add(v.спрайт), `дубль спрайта ${v.спрайт}`);
+  }
+});
+
+test('visuals: каждый террейн (кроме глубокой воды) имеет хотя бы один элемент', () => {
+  const covered = new Set();
+  for (const v of S.VISUALS) for (const t of v.террейны) covered.add(t);
+  for (const t of Object.values(TERRAIN)) {
+    if (t === TERRAIN.DEEP_WATER) continue; // глубокая вода — без декораций (по дизайну)
+    assert.ok(covered.has(TERRAIN_NAMES[t]), `нет элементов для «${TERRAIN_NAMES[t]}»`);
+  }
+});
+
+test('visuals: файлы JSON совпадают с JS-каталогом и проходят схему', () => {
+  const files = fs.readdirSync(VDIR).filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  assert.equal(files.length, S.VISUALS.length, 'число файлов = каталог');
+  const schema = JSON.parse(fs.readFileSync(path.join(VDIR, 'schema.json'), 'utf8'));
+  for (let i = 0; i < files.length; i++) {
+    const num = String(i + 1).padStart(6, '0');
+    assert.equal(files[i], num + '.json', `файл ${files[i]} вместо ${num}.json`);
+    const fromFile = JSON.parse(fs.readFileSync(path.join(VDIR, files[i]), 'utf8'));
+    assert.equal(fromFile.id, i + 1, 'id = номер файла');
+    assert.deepEqual(fromFile, S.VISUALS[i], `${num}.json совпадает с JS-каталогом`);
+    // Мини-валидация по schema.json (без внешних зависимостей).
+    assertVisualAgainstSchema(fromFile, schema, num);
+  }
+});
+
+// Проверка объекта против JSON-схемы (подмножество, нужное visuals).
+function assertVisualAgainstSchema(v, schema, label) {
+  assert.equal(schema.type, 'object', label + ': schema.type');
+  for (const req of schema.required) assert.ok(req in v, `${label}: нет «${req}»`);
+  if (schema.additionalProperties === false) {
+    for (const k of Object.keys(v)) {
+      assert.ok(schema.properties[k], `${label}: лишнее поле «${k}»`);
+    }
+  }
+  const p = schema.properties;
+  assert.ok(Number.isInteger(v.id) && v.id >= p.id.minimum && v.id <= p.id.maximum, label + ': id');
+  assert.ok(typeof v.название === 'string' && new RegExp(p.название.pattern).test(v.название), label + ': название');
+  assert.ok(Array.isArray(v.террейны) && v.террейны.length >= p.террейны.minItems, label + ': террейны');
+  for (const t of v.террейны) assert.ok(p.террейны.items.enum.includes(t), `${label}: террейн «${t}»`);
+  assert.ok(new RegExp(p.спрайт.pattern).test(v.спрайт), label + ': спрайт-путь');
+  assert.ok(typeof v.частота === 'number' && v.частота >= p.частота.minimum && v.частота <= p.частота.maximum, label + ': частота');
+  assert.ok(typeof v.размер === 'number' && v.размер >= p.размер.minimum && v.размер <= p.размер.maximum, label + ': размер');
+}
+
+test('visuals: спрайт-файлы существуют и лежат в assets/sprites/visuals', () => {
+  for (const v of S.VISUALS) {
+    const rel = path.basename(v.спрайт);
+    assert.ok(exists(v.спрайт), `нет файла: ${v.спрайт}`);
+    assert.ok(fs.existsSync(path.join(VSPR, rel)), `${rel} не в assets/sprites/visuals`);
+  }
+});
+
+test('tileVisuals: чистая функция, элементы валидны и с потолком', () => {
+  const byId = new Map(S.VISUALS.map((v) => [v.id, v]));
+  for (let i = 0; i < 300; i++) {
+    const tx = Math.floor(Math.random() * 400) - 200;
+    const ty = Math.floor(Math.random() * 400) - 200;
+    const terrain = TERRAIN_LIST[Math.floor(Math.random() * TERRAIN_LIST.length)];
+    const a = S.tileVisuals(tx, ty, terrain);
+    assert.deepEqual(a, S.tileVisuals(tx, ty, terrain), 'повторный вызов даёт другой набор');
+    assert.ok(a.length <= S.MAX_VISUALS_PER_TILE, `больше потолка: ${a.length}`);
+    const seen = new Set();
+    for (const e of a) {
+      const v = byId.get(e.id);
+      assert.ok(v, `неизвестный элемент id=${e.id}`);
+      assert.equal(e.sprite, v.спрайт, 'спрайт не из каталога');
+      assert.ok(v.террейны.includes(TERRAIN_NAMES[terrain]), 'элемент не для этого террейна');
+      assert.ok(e.x >= 0.08 && e.x <= 0.92, `x=${e.x} вне тайла`);
+      assert.ok(e.y >= 0.08 && e.y <= 0.92, `y=${e.y} вне тайла`);
+      assert.equal(e.size, v.размер, 'размер не из каталога');
+      assert.ok(seen.add(e.id), `дубль элемента id=${e.id} на тайле`);
+    }
+  }
+});
+
+test('tileVisuals: частота элемента id=1 близка к заявленной', () => {
+  const byId = new Map(S.VISUALS.map((v) => [v.id, v]));
+  const N = 4000;
+  let hits = 0;
+  for (let i = 0; i < N; i++) {
+    // Трава: элемент id=1 первый в каталоге — потолок его не режет.
+    const set = S.tileVisuals(Math.floor(Math.random() * 100000) - 50000,
+      Math.floor(Math.random() * 100000) - 50000, TERRAIN.GRASS);
+    if (set.some((e) => e.id === 1)) hits++;
+  }
+  const f1 = hits / N;
+  assert.ok(Math.abs(f1 - byId.get(1).частота) < 0.05,
+    `частота id=1 ≈ ${f1.toFixed(3)}, ждали ~${byId.get(1).частота}`);
+});
+
+test('tileVisuals: разные тайлы дают разные наборы (не «штамп»)', () => {
+  const sigs = new Set();
+  for (let i = 0; i < 200; i++) {
+    const tx = Math.floor(Math.random() * 2000) - 1000;
+    const ty = Math.floor(Math.random() * 2000) - 1000;
+    sigs.add(JSON.stringify(S.tileVisuals(tx, ty, TERRAIN.GRASS)));
+  }
+  assert.ok(sigs.size >= 50, `слишком мало вариантов декораций: ${sigs.size}`);
+});
+
+test('критерий: декорации не влияют на генерацию мира', () => {
+  const m1 = createMap();
+  const sample = [];
+  for (let i = 0; i < 200; i++) {
+    const x = Math.floor(Math.random() * 400) - 200;
+    const y = Math.floor(Math.random() * 400) - 200;
+    sample.push(m1.tileAt(x, y));
+  }
+  // «Загружаем» (с провалом) все ассеты, включая декорации.
+  const loader = S.createSpriteLoader(() => Promise.resolve(null));
+  for (const p of S.allAssetPaths()) loader.queue(p);
+  const m2 = createMap();
+  for (const t of sample) {
+    assert.deepEqual(m2.tileAt(t.x, t.y), t, 'мир изменился после запроса декораций');
+  }
 });

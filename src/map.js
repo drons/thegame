@@ -301,5 +301,6 @@
     ZOOM_MIN, ZOOM_MAX, ZOOM_START,
     createMap, syntheticPixels,
     visibleTileRange, createTileCache,
+    hash2, // детерминированный хэш (perlin.js) — нужен src/sprites.js
   };
 });
