@@ -135,12 +135,117 @@ test('frameIndex: фаза зависит от координат, соседи 
   assert.equal(S.frameIndex(0, 5, 5, 1), 0, 'один кадр → всегда 0');
 });
 
-test('waterFrame — синоним frameIndex', () => {
+test('waterFrame — синоним waterTileFrame; frameIndex для кадров воды — та же фаза', () => {
+  const n = S.tileFrames(TERRAIN.WATER).length;
   for (let i = 0; i < 20; i++) {
     const tx = Math.floor(Math.random() * 100) - 50;
     const ty = Math.floor(Math.random() * 100) - 50;
     const now = Math.floor(Math.random() * 1e6);
-    assert.equal(S.waterFrame(now, tx, ty, 4), S.frameIndex(now, tx, ty, 4));
+    assert.equal(S.waterFrame(now, tx, ty, n), S.waterTileFrame(now, tx, ty, n));
+    assert.equal(S.frameIndex(now, tx, ty, n), S.waterTileFrame(now, tx, ty, n),
+      'frameIndex для текстуры воды должен идти через фазу волны');
+  }
+  assert.equal(S.waterTileFrame(0, 3, 3, 1), 0, 'один кадр → всегда 0');
+  assert.equal(S.waterTileFrame(0, 3, 3, 0), 0, 'ноль кадров → 0');
+});
+
+// --- Волна на воде: синхронизация на стыках тайлов (задача 000025) ---
+
+test('wavePhase: чистая функция (время, мировые координаты), фаза ∈ [0;1)', () => {
+  for (let i = 0; i < 200; i++) {
+    const now = Math.floor(Math.random() * 1e7);
+    const wx = Math.floor(Math.random() * 800) - 400 + Math.random();
+    const wy = Math.floor(Math.random() * 800) - 400 + Math.random();
+    const a = S.wavePhase(now, wx, wy);
+    assert.equal(a, S.wavePhase(now, wx, wy), 'повторный вызов даёт другую фазу');
+    assert.ok(a >= 0 && a < 1, `фаза ${a} вне [0;1)`);
+  }
+});
+
+test('wavePhase: периодична по времени с периодом WAVE_PERIOD_MS', () => {
+  for (let i = 0; i < 20; i++) {
+    const now = Math.floor(Math.random() * 1e6);
+    const wx = Math.floor(Math.random() * 200) - 100 + Math.random();
+    const wy = Math.floor(Math.random() * 200) - 100 + Math.random();
+    assert.equal(S.wavePhase(now, wx, wy), S.wavePhase(now + S.WAVE_PERIOD_MS, wx, wy));
+    assert.equal(S.wavePhase(now, wx, wy), S.wavePhase(now + 5 * S.WAVE_PERIOD_MS, wx, wy));
+  }
+});
+
+test('вода: фаза одинакова на границе соседних тайлов (стык)', () => {
+  // Граница тайлов (tx, ty) и (tx+1, ty) — мировая линия x = tx + 1.
+  // Фаза — чистая функция мировых координат, поэтому у любой точки
+  // стыка одна фаза: одинаковая, как бы точку ни приписать —
+  // левому тайлу (его правый край) или правому (его левый край).
+  for (let i = 0; i < 100; i++) {
+    const tx = Math.floor(Math.random() * 400) - 200;
+    const ty = Math.floor(Math.random() * 400) - 200;
+    const now = Math.floor(Math.random() * 1e7);
+    const wy = ty + Math.random(); // произвольная точка стыка
+    assert.equal(
+      S.wavePhase(now, tx + 1, wy),    // правый край левого тайла
+      S.wavePhase(now, (tx + 1), wy),  // левый край правого тайла
+    );
+  }
+});
+
+test('вода: фаза непрерывна на стыке — переход через границу не даёт скачка', () => {
+  // Старая схема (фаза от целочисленного номера тайла) прыгала на
+  // каждом стыке; фаза от мировой точки меняется плавно,
+  // в том числе при пересечении границы тайлов.
+  for (let i = 0; i < 100; i++) {
+    const tx = Math.floor(Math.random() * 400) - 200;
+    const ty = Math.floor(Math.random() * 400) - 200;
+    const now = Math.floor(Math.random() * 1e7);
+    const wy = ty + Math.random();
+    const wx = tx + 1;
+    const eps = 1e-6;
+    const pL = S.wavePhase(now, wx - eps, wy);
+    const pR = S.wavePhase(now, wx + eps, wy);
+    const d = Math.abs(pL - pR);
+    assert.ok(Math.min(d, 1 - d) < 1e-3,
+      `скачок фазы на стыке ${d} (тайлы ${tx},${ty} / ${tx + 1},${ty})`);
+  }
+});
+
+test('вода: на стыке соседних тайлов волна не рвётся', () => {
+  // Период волны в текстуре — 16px, сдвиг кадра — 8px.
+  // Горизонтальный стык: сдвиг волны на правом крае левого тайла и
+  // левом крае правого должен совпадать по модулю периода.
+  const STEP = 8, PERIOD = 16;
+  const n = S.tileFrames(TERRAIN.WATER).length;
+  for (let i = 0; i < 100; i++) {
+    const tx = Math.floor(Math.random() * 400) - 200;
+    const ty = Math.floor(Math.random() * 400) - 200;
+    const now = Math.floor(Math.random() * 1e7);
+    const fA = S.waterTileFrame(now, tx, ty, n);
+    const fR = S.waterTileFrame(now, tx + 1, ty, n); // сосед по X
+    const fD = S.waterTileFrame(now, tx, ty + 1, n); // сосед по Y
+    const dShift = (((fR - fA) * STEP) % PERIOD + PERIOD) % PERIOD;
+    assert.equal(dShift, 0,
+      `разрыв волны на стыке: разность сдвигов ${(fR - fA) * STEP}px (кадры ${fA} → ${fR})`);
+    // Свойство фазы: разность кадров соседей (в обе стороны) чётная —
+    // соседи «в фазе» или со сдвигом ровно на целый период волны.
+    assert.equal(((fR - fA) % 2 + 2) % 2, 0, 'нечётная разность кадров у соседей по X');
+    assert.equal(((fD - fA) % 2 + 2) % 2, 0, 'нечётная разность кадров у соседей по Y');
+  }
+});
+
+test('вода: в каждый момент эффективный сдвиг волны одинаков на всей карте', () => {
+  // Следствие чётной разности кадров: по модулю периода волны все
+  // водяные тайлы показывают один и тот же сдвиг — море без швов.
+  const STEP = 8, PERIOD = 16;
+  const n = S.tileFrames(TERRAIN.WATER).length;
+  for (let i = 0; i < 20; i++) {
+    const now = Math.floor(Math.random() * 1e7);
+    let shift = null;
+    for (let tx = -10; tx < 10; tx++) {
+      for (let ty = -10; ty < 10; ty++) {
+        const s = (S.waterTileFrame(now, tx, ty, n) * STEP) % PERIOD;
+        if (shift === null) shift = s;
+        assert.equal(s, shift, `сдвиг ${s} != ${shift} на тайле (${tx},${ty})`);
+      }
+    }
   }
 });
 

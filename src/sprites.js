@@ -122,11 +122,69 @@
   // Период кадра анимации (мс).
   const FRAME_MS = 480;
 
+  // --- Волна на воде (задача 000025) ---
+  //
+  // Волна в текстуре имеет период 16px (четверть тайла 64px), каждый
+  // кадр смещает её на 8px (полпериода). Чтобы волна «соединялась» на
+  // стыке тайлов, разность кадров соседних тайлов должна быть чётной —
+  // сдвиг на целое число периодов волны, и рисунок в стыке совпадает.
+  //
+  // Фаза волны в точке мирового пространства — чистая функция мировых
+  // координат точки (в единицах тайлов) и времени. Пространственный
+  // шаг фазы на тайл — полцикла по каждой оси, поэтому на границе
+  // соседних тайлов фаза сдвигается ровно на полцикла: при 4-кадровой
+  // квантизации это чётное число кадров — волны на стыке не
+  // разрывается, а фаза любой точки стыка — одно значение для обоих
+  // тайлов (старая схема (tx*5 + ty*9) % N давала скачок фазы между
+  // соседями — отсюда и был разрыв).
+
+  const WAVE_PERIOD_MS = 3200; // период «дрейфа» волны (мс)
+
+  /**
+   * Фаза волны в точке мирового пространства.
+   * @param {number} nowMs время (мс)
+   * @param {number} wx мировая X точки (в тайлах, допустимо дробное)
+   * @param {number} wy мировая Y точки (в тайлах)
+   * @returns {number} фаза в [0; 1)
+   */
+  function wavePhase(nowMs, wx, wy) {
+    const t = (((nowMs % WAVE_PERIOD_MS) + WAVE_PERIOD_MS) % WAVE_PERIOD_MS) / WAVE_PERIOD_MS;
+    const p = 0.5 * wx + 0.5 * wy - t;
+    return ((p % 1) + 1) % 1;
+  }
+
+  /**
+   * Кадр анимации водяного тайла (tx, ty): фаза берётся в центре
+   * тайла в мировых координатах. Чистая функция.
+   * @param {number} nowMs текущее время (мс)
+   * @param {number} tx координата тайла по X
+   * @param {number} ty координата тайла по Y
+   * @param {number} frameCount число кадров анимации
+   * @returns {number} индекс кадра в [0; frameCount)
+   */
+  function waterTileFrame(nowMs, tx, ty, frameCount) {
+    if (!frameCount || frameCount <= 1) return 0;
+    const phase = wavePhase(nowMs, tx + 0.5, ty + 0.5);
+    return Math.floor(phase * frameCount) % frameCount;
+  }
+
+  // Для воды читабельное имя-синоним (та же чистая функция).
+  function waterFrame(nowMs, tx, ty, frameCount) {
+    return waterTileFrame(nowMs, tx, ty, frameCount);
+  }
+
+  // Число кадров текстуры воды — единственное многокадровое значение
+  // за пределами 2 (мобы/Флогистон — 2 кадра, прочие тайлы — 1).
+  const WATER_FRAME_COUNT = TILE_FRAMES[TERRAIN.WATER].length;
+
   /**
    * Номер кадра анимации тайла/моба.
    * Чистая функция: один и тот же (момент, координаты, число кадров)
-   * всегда даёт один и тот же кадр. Фаза зависит только от координат,
-   * поэтому соседи «не синхронизированы», но поведение детерминировано.
+   * всегда даёт один и тот же кадр.
+   * Текстуры воды (4 кадра) — через фазу волны в мировых координатах
+   * (задача 000025): соседи обязаны «договариваться» о фазе, иначе
+   * волна рвётся на стыках тайлов. Мобы (2 кадра) сохраняют старую
+   * фазу на тайл: соседи «не синхронизированы», но детерминированы.
    * @param {number} nowMs текущее время (performance.now / Date.now)
    * @param {number} tx координата тайла по X
    * @param {number} ty координата тайла по Y
@@ -135,14 +193,12 @@
    */
   function frameIndex(nowMs, tx, ty, frameCount) {
     if (!frameCount || frameCount <= 1) return 0;
+    if (frameCount === WATER_FRAME_COUNT) {
+      return waterTileFrame(nowMs, tx, ty, frameCount);
+    }
     const t = Math.max(0, Math.floor(nowMs / FRAME_MS));
     const phase = (((tx * 5 + ty * 9) % frameCount) + frameCount) % frameCount;
     return (t + phase) % frameCount;
-  }
-
-  // Для воды читабельное имя-синоним (та же чистая функция).
-  function waterFrame(nowMs, tx, ty, frameCount) {
-    return frameIndex(nowMs, tx, ty, frameCount);
   }
 
   /** Кадры текстуры для террейна (массив путей, >= 1). */
@@ -243,6 +299,8 @@
     MOB_KINDS, MOB_FRAMES,
     BUILDING_SPRITES,
     FRAME_MS,
+    WAVE_PERIOD_MS, WATER_FRAME_COUNT,
+    wavePhase, waterTileFrame,
     frameIndex, waterFrame,
     tileFrames, mobKind, mobFrames, buildingSprite, phlogistonFrames,
     allAssetPaths,
