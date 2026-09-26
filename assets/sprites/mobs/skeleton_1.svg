@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="58" rx="15" ry="3" fill="rgba(0,0,0,0.28)"/>
+  <!-- ноги -->
+  <path d="M28 44 L27 56" stroke="#d8d4c8" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M36 44 L37 56" stroke="#d8d4c8" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- таз -->
+  <ellipse cx="32" cy="44" rx="6" ry="4.5" fill="#e8e4d8" stroke="#b8b2a2" stroke-width="1"/>
+  <!-- позвоночник -->
+  <rect x="30.5" y="26" width="3" height="18" rx="1.5" fill="#e8e4d8"/>
+  <!-- рёбра -->
+  <g stroke="#d8d4c8" stroke-width="2.2" stroke-linecap="round">
+    <path d="M26 30 H38"/>
+    <path d="M25.5 34 H38.5"/>
+    <path d="M26 38 H38"/>
+  </g>
+  <!-- левая рука -->
+  <path d="M27 28 C22 30 20 34 20.5 38" stroke="#d8d4c8" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- правая рука поднята с мечом -->
+  <path d="M37 28 C41 26.5 44 24 45.5 20.5" stroke="#d8d4c8" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <g transform="rotate(-35 46 19)">
+    <polygon points="44.6,16 47.4,16 46,1" fill="#aeb8c4" stroke="#7e8894" stroke-width="0.8"/>
+    <rect x="41" y="16.6" width="10" height="2.6" rx="1.3" fill="#7a5a34"/>
+    <circle cx="46" cy="21.5" r="1.7" fill="#7a5a34"/>
+  </g>
+  <!-- череп -->
+  <circle cx="32" cy="14" r="8" fill="#efe9da" stroke="#b8b2a2" stroke-width="1"/>
+  <rect x="27.5" y="18" width="9" height="4" rx="1.5" fill="#efe9da" stroke="#b8b2a2" stroke-width="0.8"/>
+  <!-- глазницы -->
+  <circle cx="29" cy="13.5" r="2" fill="#1a1a1a"/>
+  <circle cx="35" cy="13.5" r="2" fill="#1a1a1a"/>
+  <!-- нос -->
+  <path d="M32 16 L30.8 18.4 H33.2 Z" fill="#1a1a1a"/>
+  <!-- зубы -->
+  <g stroke="#8a8474" stroke-width="0.9">
+    <path d="M28.8 19.6 v1.7"/>
+    <path d="M30.9 19.9 v1.7"/>
+    <path d="M33.1 19.9 v1.7"/>
+    <path d="M35.2 19.6 v1.7"/>
+  </g>
+</svg>

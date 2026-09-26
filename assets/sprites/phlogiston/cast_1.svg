@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#e4fcff" stop-opacity="0.75"/>
+      <stop offset="0.55" stop-color="#8ce9ff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#8ce9ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4fffe"/>
+      <stop offset="0.55" stop-color="#b7f0fb"/>
+      <stop offset="1" stop-color="#52c4e8"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="34" r="26" fill="url(#glow)"/>
+  <!-- искра над головой -->
+  <path d="M32 1 L33.8 5.2 L38 7 L33.8 8.8 L32 13 L30.2 8.8 L26 7 L30.2 5.2 Z" fill="#ffffff" opacity="0.95"/>
+  <g transform="translate(32,38) scale(1.03,0.95) translate(-32,-38)">
+    <!-- языки пламени выше обычного -->
+    <path d="M32 2 C29.6 7 28.4 10.5 29.2 14.8 C30.9 12 31.6 10.2 31.9 8 C32.6 10.8 33.8 13 36 14.4 C36.4 10 34.8 5.6 32 2 Z" fill="#a5ecff" opacity="0.95"/>
+    <!-- тело -->
+    <path d="M32 12 C25 18 19 27 19 37 C19 47.5 24.5 53.5 32 54.5 C39.5 53.5 45 47.5 45 37 C45 27 39 18 32 12 Z" fill="url(#bodyG)" stroke="#1c7fa3" stroke-width="1.2"/>
+    <ellipse cx="28.5" cy="29" rx="6.5" ry="9.5" fill="#ffffff" opacity="0.4"/>
+    <!-- руки подняты -->
+    <circle cx="23.5" cy="20.5" r="3.4" fill="#8fe8fa" stroke="#1c7fa3" stroke-width="1"/>
+    <circle cx="40.5" cy="20.5" r="3.4" fill="#8fe8fa" stroke="#1c7fa3" stroke-width="1"/>
+    <!-- лицо, взгляд вверх -->
+    <circle cx="27.3" cy="32.5" r="2.7" fill="#0d3a4a"/>
+    <circle cx="36.7" cy="32.5" r="2.7" fill="#0d3a4a"/>
+    <circle cx="28.2" cy="31.4" r="0.9" fill="#ffffff"/>
+    <circle cx="37.6" cy="31.4" r="0.9" fill="#ffffff"/>
+    <path d="M30.4 39.5 Q32 41 33.6 39.5" stroke="#0d3a4a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <!-- стопы -->
+  <ellipse cx="27" cy="54.5" rx="3.6" ry="2.6" fill="#7fdcf4"/>
+  <ellipse cx="37" cy="54.5" rx="3.6" ry="2.6" fill="#7fdcf4"/>
+  <!-- искры у рук -->
+  <circle cx="20" cy="15" r="1" fill="#ffffff" opacity="0.8"/>
+  <circle cx="44" cy="14" r="1" fill="#ffffff" opacity="0.8"/>
+</svg>

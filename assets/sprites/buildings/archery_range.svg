@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="22" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- колышки -->
+  <line x1="26" y1="30" x2="22" y2="56" stroke="#6f4a2a" stroke-width="2"/>
+  <line x1="38" y1="30" x2="42" y2="56" stroke="#6f4a2a" stroke-width="2"/>
+  <line x1="20" y1="36" x2="44" y2="36" stroke="#7a5a34" stroke-width="2.4"/>
+  <!-- мишень -->
+  <circle cx="32" cy="22" r="12" fill="#efe9da" stroke="#8a6f4d" stroke-width="1.2"/>
+  <circle cx="32" cy="22" r="8.5" fill="#d9483b"/>
+  <circle cx="32" cy="22" r="5" fill="#efe9da"/>
+  <circle cx="32" cy="22" r="1.8" fill="#d9483b"/>
+  <!-- стрелы в мишени -->
+  <g stroke="#6f4a2a" stroke-width="1.6" stroke-linecap="round">
+    <line x1="31.2" y1="21.2" x2="24" y2="12"/>
+    <line x1="33" y1="23" x2="40" y2="15"/>
+  </g>
+  <g fill="#3a3e46">
+    <polygon points="31.2,21.2 29.5,22.4 32.2,22.8"/>
+    <polygon points="33,23 34.6,22 31.9,21.4"/>
+  </g>
+  <g stroke="#d9483b" stroke-width="1.4" stroke-linecap="round">
+    <path d="M24 12 l-2 -1 M24 12 l1 -2"/>
+    <path d="M40 15 l2 -1 M40 15 l-1 -2"/>
+  </g>
+  <!-- трава -->
+  <g stroke="#6fae57" stroke-width="1.2" stroke-linecap="round">
+    <path d="M12 54 q1 -3 0 -5"/>
+    <path d="M52 54 q1 -3 0 -5"/>
+  </g>
+</svg>

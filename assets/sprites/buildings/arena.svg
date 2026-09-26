@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="56" rx="25" ry="6" fill="rgba(0,0,0,0.3)"/>
+  <!-- амфитеатр: каменный круг -->
+  <path d="M6 40 C6 26 17 16 32 16 C47 16 58 26 58 40 L58 44 C58 48 55 50 50 50 L14 50 C9 50 6 48 6 44 Z" fill="#8a8494" stroke="#6a6472" stroke-width="1.2"/>
+  <path d="M11 40 C11 28.5 20 20.5 32 20.5 C44 20.5 53 28.5 53 40 L53 43 C53 45.5 51 46.5 47.5 46.5 L16.5 46.5 C13 46.5 11 45.5 11 43 Z" fill="#a09aa8"/>
+  <!-- песок арены -->
+  <ellipse cx="32" cy="42" rx="14" ry="5" fill="#c2b380"/>
+  <ellipse cx="32" cy="41.5" rx="14" ry="5" fill="none" stroke="#a89a6e" stroke-width="1"/>
+  <!-- ворота/башни по кругу -->
+  <g fill="#cfc9bb" stroke="#a8a294" stroke-width="0.8">
+    <rect x="14" y="24" width="5" height="8" rx="1"/>
+    <rect x="24" y="19" width="5" height="8" rx="1"/>
+    <rect x="35" y="19" width="5" height="8" rx="1"/>
+    <rect x="45" y="24" width="5" height="8" rx="1"/>
+  </g>
+  <!-- флаг -->
+  <line x1="32" y1="8" x2="32" y2="17" stroke="#6f4a2a" stroke-width="1.4"/>
+  <polygon points="32,8 41,10.5 32,13" fill="#a34a3a"/>
+</svg>

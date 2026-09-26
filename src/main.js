@@ -14,6 +14,11 @@
 
   const canvas = document.getElementById('game');
   const hud = document.getElementById('hud');
+  // Слой спрайтов (2D-canvas поверх WebGL): текстуры тайлов, постройки,
+  // мобы, Флогистон. Не загрузилось — рисуем ничего и остаётся
+  // прежний цветной рендер (фолбэк, игра не ломается).
+  const spriteCanvas = document.getElementById('sprites');
+  const s2 = spriteCanvas ? spriteCanvas.getContext('2d') : null;
 
   // --- Настройки рендера ---
   const TILE_COLORS = {
@@ -30,6 +35,24 @@
   const MOB_COLOR = [0.85, 0.30, 0.25];      // красный маркер
   const PLAYER_COLOR = [0.55, 0.95, 1.0];    // светящийся Флогистон
   const MOVE_INTERVAL_MS = 140;
+
+  // --- Спрайты (src/sprites.js) ---
+  // Загружаем Image() — работает под file://. Выбор файла всегда один и тот
+  // же для типа/координат (чистые функции), от загрузки зависит только то,
+  // рисуется ли слой или фолбэк.
+  let spriteLoader = null;
+  if (s2 && G.createSpriteLoader) {
+    spriteLoader = G.createSpriteLoader((path) => new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null); // фолбэк: цветные тайлы/маркеры
+      img.src = path;
+    }));
+    for (const p of G.allAssetPaths()) spriteLoader.queue(p);
+  }
+  let lastStepAt = -1e9;      // время последнего шага (анимация walk/idle)
+  let animAction = 'idle';    // отладочное действие (__game.actions.playAnimation)
+  let animUntil = 0;
 
   // --- WebGL ---
   const gl = canvas.getContext('webgl', { antialias: true });
@@ -392,9 +415,12 @@
     }
   }
 
+  const frameTiles = []; // видимые тайлы кадра (общие для WebGL и слоя спрайтов)
+
   function buildFrame() {
     const verts = quadVerts;
     verts.length = 0;
+    frameTiles.length = 0;
 
     const tilesX = Math.ceil(canvas.width / zoom) + 2;
     const tilesY = Math.ceil(canvas.height / zoom) + 2;
@@ -404,6 +430,7 @@
     for (let ty = y0; ty < y0 + tilesY; ty++) {
       for (let tx = x0; tx < x0 + tilesX; tx++) {
         const t = map.tileAt(tx, ty);
+        frameTiles.push(t); // {x, y, terrain, passable, hasBuilding, building, hasMobGroup, mobGroup}
         const base = TILE_COLORS[t.terrain];
         // Небольшое вариативное освещение, чтобы тайлы не были «кляксами».
         const b = map.brightness(tx, ty);
@@ -438,6 +465,58 @@
     return verts;
   }
 
+  // --- Слой спрайтов (2D-canvas поверх WebGL) ---
+  // Мировые координаты → экран те же, что в orthoMatrix:
+  //   x_экрана = W/2 + (tx - cam.x) * zoom,  y_экрана = H/2 + (cam.y - ty) * zoom.
+  // Если ни один ассет не загрузился — выходим без рисования,
+  // под слоем остаются цветные тайлы/маркеры WebGL (фолбэк).
+  function drawSprites(now) {
+    if (!s2 || !spriteLoader) return;
+    const w = spriteCanvas.width, h = spriteCanvas.height;
+    s2.clearRect(0, 0, w, h);
+    if (spriteLoader.readyCount() === 0) return;
+    const cx = w / 2, cy = h / 2;
+    const toX = (tx) => cx + (tx - cam.x) * zoom;
+    const toY = (ty) => cy + (cam.y - ty) * zoom;
+
+    // Тайлы: текстура (вода/глубокая вода — кадр анимации по чистому
+    // селектору frameIndex(время, координаты, число кадров)).
+    for (const t of frameTiles) {
+      const sx = toX(t.x), sy = toY(t.y);
+      const frames = G.tileFrames(t.terrain);
+      if (frames.length) {
+        const idx = frames.length > 1 ? G.frameIndex(now, t.x, t.y, frames.length) : 0;
+        const img = spriteLoader.image(frames[idx]);
+        if (img) s2.drawImage(img, sx, sy, zoom, zoom);
+      }
+      // Иконка постройки / спрайт группы мобов — поверх тайла.
+      if (t.hasBuilding) {
+        const p = G.buildingSprite(t.building);
+        const b = p ? spriteLoader.image(p) : null;
+        if (b) s2.drawImage(b, sx + zoom * 0.04, sy + zoom * 0.04, zoom * 0.92, zoom * 0.92);
+      } else if (t.hasMobGroup) {
+        const mf = G.mobFrames(t.mobGroup);
+        const idx = mf.length > 1 ? G.frameIndex(now, t.x, t.y, mf.length) : 0;
+        const m = mf.length ? spriteLoader.image(mf[idx]) : null;
+        if (m) s2.drawImage(m, sx - zoom * 0.1, sy - zoom * 0.15, zoom * 1.2, zoom * 1.2);
+      }
+    }
+
+    // Флогистон: idle/walk по движению, attack/cast — отладочная animAction.
+    const action = now < animUntil ? animAction
+      : (now - lastStepAt < 260 ? 'walk' : 'idle');
+    const pf = G.phlogistonFrames(action);
+    if (pf.length) {
+      const idx = pf.length > 1 ? (Math.floor(now / 240) % pf.length) : 0;
+      const pi = spriteLoader.image(pf[idx]);
+      if (pi) {
+        const size = zoom * 1.15;
+        const px = toX(player.x + 0.5), py = toY(player.y + 0.5);
+        s2.drawImage(pi, px - size / 2, py - size / 2, size, size);
+      }
+    }
+  }
+
   function hudUpdate() {
     const t = map.tileAt(player.x, player.y);
     const d = G.derived(hero);
@@ -446,7 +525,8 @@
       'HP ' + hero.hp + '/' + d.maxHP + '  |  Золото: ' + hero.gold + '  |  Очки: ' + hero.points + '\n' +
       'Местность: ' + G.TERRAIN_NAMES[t.terrain] + '\n' +
       'День: ' + clock.day + '  |  Масштаб: ' + zoom + 'px  |  карта: ' + map.width + 'x' + map.height +
-      (map.fromPng ? ' (map.png)' : ' (пересчёт)') + '\n' +
+      (map.fromPng ? ' (map.png)' : ' (пересчёт)') +
+      (spriteLoader ? '  |  графика: ' + spriteLoader.readyCount() + '/' + spriteLoader.totalCount() : '') + '\n' +
       '[I] персонаж';
     if (dungeonState) {
       const ds = dungeonState;
@@ -482,6 +562,7 @@
     if (!inCombat && !inDungeon && now - lastMove >= MOVE_INTERVAL_MS) {
       if (keys.size && tryMove()) {
         lastMove = now;
+        lastStepAt = now; // Флогистон переключается на анимацию ходьбы
         clock.addStep(1); // шаги мира тикают игровой день
         maybeStartCombat();
         maybeEnterDungeon();
@@ -498,6 +579,13 @@
     gl.uniformMatrix4fv(uProj, false, orthoMatrix(zoom, cam.x, cam.y));
     const verts = buildFrame();
     gl.drawArrays(gl.TRIANGLES, 0, verts.length / 6);
+
+    // Слой спрайтов поверх тайлов (пустой, пока ассеты не загрузились).
+    if (spriteCanvas) {
+      spriteCanvas.width = window.innerWidth;
+      spriteCanvas.height = window.innerHeight;
+    }
+    drawSprites(now);
 
     hudUpdate();
     requestAnimationFrame(frame);
@@ -520,6 +608,9 @@
           inventory: (hero.inventory || { slots: [] }).slots,
         },
         map: map ? { width: map.width, height: map.height, fromPng: map.fromPng } : null,
+        sprites: spriteLoader
+          ? { ready: spriteLoader.readyCount(), total: spriteLoader.totalCount() }
+          : null,
         keys: Array.from(keys),
       };
     },
@@ -549,6 +640,13 @@
       givePoints: (n) => {
         hero.points += n;
         G.playerUI && G.playerUI.render();
+      },
+      // Показать анимацию Флогистона (idle|walk|attack|cast) на ms миллисекунд.
+      playAnimation: (action, ms = 1000) => {
+        if (!G.phlogistonFrames(action)) return false;
+        animAction = action;
+        animUntil = performance.now() + Math.max(0, ms | 0);
+        return true;
       },
       // Отладочный бой на текущем тайле (не требует шага на группу).
       startCombat: (groupType = 0) => {

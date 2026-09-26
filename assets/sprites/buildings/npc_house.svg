@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="24" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- труба и дым -->
+  <rect x="38" y="15" width="5" height="9" fill="#8a7a5e" stroke="#6a5c44" stroke-width="0.8"/>
+  <circle cx="43" cy="11" r="1.8" fill="#c9ccd2" opacity="0.4"/>
+  <circle cx="45" cy="8" r="2.2" fill="#c9ccd2" opacity="0.3"/>
+  <!-- дом -->
+  <rect x="17" y="34" width="30" height="20" fill="#d6c49c" stroke="#8a6f4d" stroke-width="1"/>
+  <!-- соломенная крыша-дуга -->
+  <path d="M11 36 C15 24 23 15.5 32 13.5 C41 15.5 49 24 53 36 L47.5 37.5 C44 28.5 38 22 32 21 C26 22 20 28.5 16.5 37.5 Z" fill="#96793f" stroke="#6a542a" stroke-width="1"/>
+  <g stroke="#c9a34c" stroke-width="1" fill="none" opacity="0.7">
+    <path d="M17 34 C21 25 26.5 19 32 17.5"/>
+    <path d="M47 34 C43 25 37.5 19 32 17.5"/>
+  </g>
+  <!-- дверь -->
+  <rect x="29" y="42" width="8" height="12" rx="3.5" fill="#7a5a34" stroke="#5d4426" stroke-width="1"/>
+  <circle cx="35" cy="48" r="0.9" fill="#e8c25a"/>
+  <!-- круглое окно -->
+  <circle cx="23.5" cy="42" r="3.6" fill="#ffe9a3" stroke="#8a6f4d" stroke-width="1"/>
+  <line x1="23.5" y1="38.4" x2="23.5" y2="45.6" stroke="#8a6f4d" stroke-width="0.7"/>
+  <line x1="19.9" y1="42" x2="27.1" y2="42" stroke="#8a6f4d" stroke-width="0.7"/>
+  <!-- кашпо с цветами -->
+  <rect x="40" y="47" width="6" height="4.5" fill="#a3552f" stroke="#7c3f20" stroke-width="0.8"/>
+  <g stroke="#4f7a3a" stroke-width="0.9">
+    <path d="M41.5 47 V44.5"/>
+    <path d="M43 47 V43.8"/>
+    <path d="M44.5 47 V44.8"/>
+  </g>
+  <circle cx="41.5" cy="44" r="1.3" fill="#d9483b"/>
+  <circle cx="43" cy="43.2" r="1.3" fill="#e8c25a"/>
+  <circle cx="44.5" cy="44.3" r="1.3" fill="#d9483b"/>
+</svg>

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="aura" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#6a3f9a" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#4a2a72" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#4a2a72" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="33" r="27" fill="url(#aura)"/>
+  <g transform="translate(0,2)">
+    <!-- вихрь тьмы (подол другой фазы) -->
+    <path d="M32 8 C23 10.5 18 19 18 29 C18.2 36 17 42 18.5 49 C19.5 52.5 20.5 54.5 22 56.5 C23.5 53.5 25.5 54.5 26.5 57.5 C28 54 30.5 54.5 31.5 58 C33 54.5 35 54.5 36.5 57 C38.5 54 41 54 43 50.5 C45 46.5 45.5 41 45.8 35 C46.3 25 42 12.5 32 8 Z" fill="#241a33" stroke="#3a2b52" stroke-width="1.2"/>
+    <!-- провал лица -->
+    <ellipse cx="32" cy="24" rx="7.5" ry="8.5" fill="#0d0815"/>
+    <!-- глаза (ярче) -->
+    <circle cx="29" cy="23.5" r="3.8" fill="#7de8ff" opacity="0.35"/>
+    <circle cx="35" cy="23.5" r="3.8" fill="#7de8ff" opacity="0.35"/>
+    <circle cx="29" cy="23.5" r="2.1" fill="#9df2ff"/>
+    <circle cx="35" cy="23.5" r="2.1" fill="#9df2ff"/>
+    <!-- нити -->
+    <g stroke="#3a2b52" stroke-width="1.5" fill="none" opacity="0.8" stroke-linecap="round">
+      <path d="M21.5 42 C19.5 45 19.5 48.5 21 51"/>
+      <path d="M42 40 C44 43 44.5 46 43 48.5"/>
+    </g>
+  </g>
+</svg>

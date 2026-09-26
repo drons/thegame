@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="24" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- дом -->
+  <rect x="16" y="30" width="32" height="24" fill="#c2b08c" stroke="#84693f" stroke-width="1"/>
+  <polygon points="12,32 32,13 52,32" fill="#5a7d9e" stroke="#415d7a" stroke-width="1"/>
+  <polygon points="12,32 32,13 32,32" fill="#688bb0"/>
+  <!-- дверь и окно -->
+  <rect x="28" y="40" width="9" height="14" rx="4" fill="#6f4a2a" stroke="#54381f" stroke-width="1"/>
+  <circle cx="31" cy="47" r="1" fill="#e8c25a"/>
+  <rect x="40" y="35" width="6" height="6" fill="#ffe9a3" stroke="#84693f" stroke-width="0.9"/>
+  <!-- щит на стене -->
+  <path d="M20 33 L25.5 34.6 V38.2 C25.5 40.9 23.2 42.6 20 43.8 C16.8 42.6 14.5 40.9 14.5 38.2 V34.6 Z" fill="#3f6fae" stroke="#2c4f7c" stroke-width="1"/>
+  <g stroke="#e8c25a" stroke-width="1.3" stroke-linecap="round">
+    <line x1="20" y1="35.5" x2="20" y2="41.5"/>
+    <line x1="17" y1="38" x2="23" y2="38"/>
+  </g>
+</svg>

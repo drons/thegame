@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="24" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- вывеска: зелёный крест -->
+  <line x1="56" y1="52" x2="56" y2="30" stroke="#6f4a2a" stroke-width="2"/>
+  <rect x="49" y="24" width="15" height="13" rx="1.5" fill="#6f4a2a" stroke="#54381f" stroke-width="1"/>
+  <g fill="#5d9a54">
+    <rect x="55.4" y="26" width="2.6" height="9" rx="1"/>
+    <rect x="52" y="28.4" width="9" height="2.6" rx="1"/>
+  </g>
+  <!-- дом -->
+  <rect x="16" y="30" width="32" height="24" fill="#d6c9a8" stroke="#8a7a52" stroke-width="1"/>
+  <polygon points="12,32 32,13 52,32" fill="#5d8a54" stroke="#44683d" stroke-width="1"/>
+  <polygon points="12,32 32,13 32,32" fill="#6b9c60"/>
+  <!-- дверь -->
+  <rect x="30" y="40" width="9" height="14" rx="4" fill="#6f4a2a" stroke="#54381f" stroke-width="1"/>
+  <circle cx="33" cy="47" r="1" fill="#e8c25a"/>
+  <!-- окно -->
+  <rect x="38.5" y="35" width="6" height="6" fill="#ffe9a3" stroke="#8a7a52" stroke-width="0.9"/>
+  <!-- ступка с пестиком -->
+  <path d="M17 47 C17 51 19.5 52.5 21.5 52.5 C23.5 52.5 26 51 26 47 Z" fill="#9aa4b0" stroke="#7e8894" stroke-width="0.9"/>
+  <line x1="24.5" y1="47" x2="27.5" y2="41.5" stroke="#8a8494" stroke-width="2" stroke-linecap="round"/>
+  <ellipse cx="28" cy="40.5" rx="2" ry="1.4" fill="#5d9a54" transform="rotate(-30 28 40.5)"/>
+</svg>

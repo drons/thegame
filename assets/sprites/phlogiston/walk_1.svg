@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#d8fbff" stop-opacity="0.65"/>
+      <stop offset="0.55" stop-color="#7fe3ff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#7fe3ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4fffe"/>
+      <stop offset="0.55" stop-color="#b7f0fb"/>
+      <stop offset="1" stop-color="#52c4e8"/>
+    </linearGradient>
+  </defs>
+  <!-- штрихи движения -->
+  <g stroke="#bfeefb" stroke-width="1.5" stroke-linecap="round" opacity="0.6">
+    <path d="M9 28 h6"/>
+    <path d="M7 36 h5"/>
+  </g>
+  <circle cx="32" cy="35" r="25" fill="url(#glow)"/>
+  <g transform="translate(-1.2,0.6) rotate(-4 32 42)">
+    <!-- языки пламени -->
+    <path d="M32 4 C29.5 8.5 28 11.5 28.8 15.5 C30.6 12.6 31.4 10.8 31.7 8.6 C32.4 11.4 33.6 13.8 36 15.2 C36.2 11 34.6 7.4 32 4 Z" fill="#a5ecff" opacity="0.95"/>
+    <!-- тело -->
+    <path d="M32 12 C25 18 19 27 19 37 C19 47.5 24.5 53.5 32 54.5 C39.5 53.5 45 47.5 45 37 C45 27 39 18 32 12 Z" fill="url(#bodyG)" stroke="#1c7fa3" stroke-width="1.2"/>
+    <ellipse cx="28.5" cy="29" rx="6.5" ry="9.5" fill="#ffffff" opacity="0.4"/>
+    <!-- руки -->
+    <circle cx="15.8" cy="37" r="3.2" fill="#8fe8fa" stroke="#1c7fa3" stroke-width="1"/>
+    <circle cx="48.2" cy="39.5" r="3.2" fill="#8fe8fa" stroke="#1c7fa3" stroke-width="1"/>
+    <!-- лицо -->
+    <circle cx="27.3" cy="33.5" r="2.7" fill="#0d3a4a"/>
+    <circle cx="36.7" cy="33.5" r="2.7" fill="#0d3a4a"/>
+    <circle cx="28.2" cy="32.6" r="0.9" fill="#ffffff"/>
+    <circle cx="37.6" cy="32.6" r="0.9" fill="#ffffff"/>
+    <path d="M29.2 40 Q32 42.6 34.8 40" stroke="#0d3a4a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <!-- стопы: левая вперёд, правая оторвана -->
+  <ellipse cx="24.5" cy="55.5" rx="3.6" ry="2.6" fill="#7fdcf4"/>
+  <ellipse cx="38.5" cy="52.5" rx="3.2" ry="2.3" fill="#9ae6f7"/>
+</svg>
