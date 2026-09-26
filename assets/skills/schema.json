@@ -1,0 +1,129 @@
+{
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "name",
+        "desc",
+        "combat",
+        "world"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "type": {
+          "const": "primary"
+        },
+        "name": {
+          "type": "string"
+        },
+        "desc": {
+          "type": "string"
+        },
+        "combat": {
+          "type": "string"
+        },
+        "world": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "name",
+        "primary",
+        "effect",
+        "effectType",
+        "desc",
+        "names"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "type": {
+          "const": "secondary"
+        },
+        "name": {
+          "type": "string"
+        },
+        "primary": {
+          "type": "string",
+          "enum": [
+            "strength",
+            "dexterity",
+            "constitution",
+            "intelligence",
+            "wisdom",
+            "charisma"
+          ]
+        },
+        "requires": {
+          "type": "object",
+          "required": [
+            "skill",
+            "level"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "skill": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "level": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "effect": {
+          "type": "object",
+          "required": [
+            "stat",
+            "perLevel"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "stat": {
+              "type": "string"
+            },
+            "perLevel": {
+              "type": "number",
+              "minimum": -1,
+              "maximum": 1
+            }
+          }
+        },
+        "effectType": {
+          "enum": [
+            "Бой",
+            "Карта",
+            "Бой/Карта"
+          ]
+        },
+        "desc": {
+          "type": "string"
+        },
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 6,
+          "maxItems": 6
+        }
+      }
+    }
+  ]
+}

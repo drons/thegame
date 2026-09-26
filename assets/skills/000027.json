@@ -1,0 +1,24 @@
+{
+  "id": "runes",
+  "type": "secondary",
+  "name": "Рунопись",
+  "primary": "intelligence",
+  "requires": {
+    "skill": "intelligence",
+    "level": 5
+  },
+  "effect": {
+    "stat": "runePowerMult",
+    "perLevel": 0.05
+  },
+  "effectType": "Бой/Карта",
+  "desc": "+5% сила рунических эффектов за уровень",
+  "names": [
+    "Чтец рун",
+    "Ученик рунописца",
+    "Знаток начертания",
+    "Мастер рунописец",
+    "Гроссмейстер рунописца",
+    "Легенда руны"
+  ]
+}

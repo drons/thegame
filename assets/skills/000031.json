@@ -1,0 +1,24 @@
+{
+  "id": "nature",
+  "type": "secondary",
+  "name": "Сердце природы",
+  "primary": "wisdom",
+  "requires": {
+    "skill": "wisdom",
+    "level": 5
+  },
+  "effect": {
+    "stat": "foodPowerMult",
+    "perLevel": 0.05
+  },
+  "effectType": "Карта",
+  "desc": "+5% сила зелий и еды за уровень",
+  "names": [
+    "Сборник трав",
+    "Ученик луга",
+    "Знаток рощи",
+    "Мастер рощи",
+    "Гроссмейстер рощи",
+    "Легенда мира-дерева"
+  ]
+}

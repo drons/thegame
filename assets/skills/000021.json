@@ -1,0 +1,24 @@
+{
+  "id": "breath",
+  "type": "secondary",
+  "name": "Глубокий вдох",
+  "primary": "constitution",
+  "requires": {
+    "skill": "constitution",
+    "level": 5
+  },
+  "effect": {
+    "stat": "hpRegenMult",
+    "perLevel": 0.05
+  },
+  "effectType": "Карта",
+  "desc": "+5% к восстановлению здоровья между днями за уровень",
+  "names": [
+    "Глубокий вдох",
+    "Ученик лёгких",
+    "Знаток дыхания",
+    "Мастер дыхания",
+    "Гроссмейстер дыхания",
+    "Легенда кита"
+  ]
+}
