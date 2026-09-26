@@ -164,6 +164,10 @@
     /* Подземелье: карта крупнее, на узком экране — прокрутка. */
     .dungeon-overlay { overflow: auto; }
     .dungeon-overlay .combat-side { width: 270px; flex-shrink: 0; }
+    /* Диалог NPC (задача 000010): оверлей .combat-overlay с панелью
+       .combat-side; длинные списки — прокрутка внутри панели и лога. */
+    .npc-overlay .combat-side { max-height: 84vh; overflow-y: auto; }
+    .npc-log { max-height: 140px; overflow-y: auto; }
   </style>
 </head>
 <body>
@@ -176,11 +180,13 @@
   <script src="src/mapseed.js"></script>
   <script src="src/skills-data.js"></script>
   <script src="src/items-data.js"></script>
+  <script src="src/npc-data.js"></script>
   <script src="src/map.js"></script>
   <script src="src/player.js"></script>
   <script src="src/day.js"></script>
   <script src="src/items.js"></script>
   <script src="src/buildings.js"></script>
+  <script src="src/npc.js"></script>
   <script src="src/combat.js"></script>
   <script src="src/dungeon.js"></script>
   <script src="src/ui.js"></script>

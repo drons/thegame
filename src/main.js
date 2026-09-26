@@ -174,6 +174,10 @@
   let mapPixels = null; // пиксели map.png — нужны для сида подземелий
   const hero = G.createCharacter('Флогистон'); // персонаж (src/player.js)
   G.playerUI && G.playerUI.setCharacter(hero);
+  // NPC (задача 000010): каталог — зеркало src/npc-data.js
+  // (source of truth — assets/npc), журнал квестов — один на сессию.
+  const NPCS = (G.NpcData && G.NpcData.NPCS) || [];
+  const questBook = G.createQuestBook ? G.createQuestBook() : null;
   const player = { x: 0, y: 0 };
   const prevPos = { x: 0, y: 0 }; // позиция до последнего шага (побег/смерть)
   let zoom = G.ZOOM_START; // пикселей на тайл (детальный старт, 000019)
@@ -233,9 +237,37 @@
       G.playerUI.toggle();
       return;
     }
-    // В бою клавиши обрабатывает combat-ui, в подземелье — dungeon-ui.
+    if (e.code === 'KeyE' && G.npcUI) { // E (У) — диалог NPC (задача 000010)
+      if (G.combatUI && G.combatUI.isActive()) return;
+      if (G.dungeonUI && G.dungeonUI.isActive()) return;
+      if (G.npcUI.isActive()) { // E повторно — закрыть диалог
+        G.npcUI.close();
+        return;
+      }
+      // На тайле постройки с NPC — открываем диалог.
+      if (map) {
+        const t = map.tileAt(player.x, player.y);
+        if (t.hasBuilding) {
+          const b = G.buildingForMapIndex(t.building);
+          const npc = b && G.npcForBuilding(NPCS, b.id);
+          if (npc) {
+            G.npcUI.open({
+              npc,
+              character: hero,
+              book: questBook,
+              tile: { x: player.x, y: player.y,
+                building: t.building, buildingWealth: t.buildingWealth },
+            });
+          }
+        }
+      }
+      return;
+    }
+    // В бою клавиши обрабатывает combat-ui, в подземелье — dungeon-ui,
+    // в диалоге NPC — npcUI.
     if (G.combatUI && G.combatUI.isActive()) return;
     if (G.dungeonUI && G.dungeonUI.isActive()) return;
+    if (G.npcUI && G.npcUI.isActive()) return;
     if (KEY_DIRS[e.code]) {
       keys.add(e.code);
       e.preventDefault();
@@ -279,7 +311,19 @@
       onEnd: (res) => {
         if (res.outcome === 'victory') {
           defeatedAt.set(key, clock.day);
-          hudFlash = `Победа! +${res.xp} опыта, +${res.gold} золота.`;
+          let flash = `Победа! +${res.xp} опыта, +${res.gold} золота.`;
+          // Квесты: kill_group отслеживается по ТИПУ группы (задача 000010).
+          if (questBook && G.notifyGroupDefeated) {
+            const ready = G.notifyGroupDefeated(NPCS, questBook, t.mobGroup);
+            if (ready.length) {
+              flash += ' Квест готов к сдаче: ' + ready.map((qid) => {
+                const inst = questBook.active[qid];
+                const def = inst ? G.questDef(NPCS, inst.npcId, qid) : null;
+                return (def && def.название) || qid;
+              }).join(', ');
+            }
+          }
+          hudFlash = flash;
         } else if (res.outcome === 'dead') {
           // Подъём: половину HP, −20% золота (полная система смерти — 000008).
           hero.alive = true;
@@ -540,13 +584,16 @@
     const t = map.tileAt(player.x, player.y);
     const d = G.derived(hero);
     const key = player.x + ',' + player.y;
+    // NPC постройки текущего тайла (задача 000010) — подсказка [E].
+    const bHere = t.hasBuilding ? G.buildingForMapIndex(t.building) : null;
+    const npcHere = bHere && G.npcForBuilding ? G.npcForBuilding(NPCS, bHere.id) : null;
     let line = 'Флогистон, ур. ' + hero.level + '  (' + player.x + ', ' + player.y + ')\n' +
       'HP ' + hero.hp + '/' + d.maxHP + '  |  Золото: ' + hero.gold + '  |  Очки: ' + hero.points + '\n' +
       'Местность: ' + G.TERRAIN_NAMES[t.terrain] + '\n' +
       'День: ' + clock.day + '  |  Масштаб: ' + zoom + 'px  |  карта: ' + map.width + 'x' + map.height +
       (map.fromPng ? ' (map.png)' : ' (пересчёт)') +
       (spriteLoader ? '  |  графика: ' + spriteLoader.readyCount() + '/' + spriteLoader.totalCount() : '') + '\n' +
-      '[I] персонаж';
+      '[I] персонаж' + (npcHere ? '  |  [E] диалог' : '');
     if (dungeonState) {
       const ds = dungeonState;
       const dist = Math.abs(ds.x - ds.dg.exit.x) + Math.abs(ds.y - ds.dg.exit.y);
@@ -555,7 +602,8 @@
         (ds.contents.mobs.filter((m) => !m.defeated).length) + ' групп(ы)';
     } else if (t.hasBuilding) {
       const shopHint = G.shopKindsFor(t.building) ? '  (торговля — панель [I])' : '';
-      line += '\nЗдесь: ' + G.BUILDING_NAMES[t.building] + shopHint +
+      const npcHint = npcHere ? '  ([E] ' + npcHere.имя + ')' : '';
+      line += '\nЗдесь: ' + G.BUILDING_NAMES[t.building] + shopHint + npcHint +
         (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE ? ' (вход — шагните)' : '');
     } else if (t.hasMobGroup) {
       line += defeatedAt.has(key)
@@ -578,7 +626,8 @@
   function frame(now) {
     const inCombat = G.combatUI && G.combatUI.isActive();
     const inDungeon = dungeonState !== null;
-    if (!inCombat && !inDungeon && now - lastMove >= MOVE_INTERVAL_MS) {
+    const inNpc = G.npcUI && G.npcUI.isActive();
+    if (!inCombat && !inDungeon && !inNpc && now - lastMove >= MOVE_INTERVAL_MS) {
       if (keys.size && tryMove()) {
         lastMove = now;
         lastStepAt = now; // Флогистон переключается на анимацию ходьбы
@@ -627,11 +676,18 @@
           inventory: (hero.inventory || { slots: [] }).slots,
         },
         map: map ? { width: map.width, height: map.height, fromPng: map.fromPng } : null,
+        npcs: NPCS.map((n) => n.id),
         sprites: spriteLoader
           ? { ready: spriteLoader.readyCount(), total: spriteLoader.totalCount() }
           : null,
         keys: Array.from(keys),
       };
+    },
+    // Журнал квестов (задача 000010): active — инстансы, done — ids.
+    get quests() {
+      return questBook
+        ? { active: Object.values(questBook.active), done: questBook.done }
+        : null;
     },
     // Отладочные действия (смоук-тесты, ручная проверка баланса).
     // Текущий бой (для смоук-тестов и отладки).
@@ -676,11 +732,33 @@
           prev: { x: player.x, y: player.y },
           seed: 42,
           day: clock.day,
-          onEnd: () => {
+          onEnd: (res) => {
             // Лут/опыт уже начислены в ядре (checkVictory).
+            // Квесты: kill_group (задача 000010).
+            if (res && res.outcome === 'victory' && questBook && G.notifyGroupDefeated) {
+              G.notifyGroupDefeated(NPCS, questBook, groupType);
+            }
             G.playerUI && G.playerUI.render();
           },
         });
+      },
+      // Открыть диалог NPC текущего тайла (задача 000010, смоук-тесты).
+      openNpc: () => {
+        if (!G.npcUI || !map) return false;
+        if (G.npcUI.isActive()) return true;
+        const t = map.tileAt(player.x, player.y);
+        if (!t.hasBuilding) return false;
+        const b = G.buildingForMapIndex(t.building);
+        const npc = b && G.npcForBuilding(NPCS, b.id);
+        if (!npc) return false;
+        G.npcUI.open({
+          npc,
+          character: hero,
+          book: questBook,
+          tile: { x: player.x, y: player.y,
+            building: t.building, buildingWealth: t.buildingWealth },
+        });
+        return G.npcUI.isActive();
       },
       // Подземелье из текущего тайла (не требует входа в пещеру).
       enterDungeon: (terrain) => {

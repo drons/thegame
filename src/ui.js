@@ -336,4 +336,385 @@
       return !!panel && panel.style.display === 'block';
     },
   };
+
+  // --- Диалог NPC (задача 000010) ---
+  // Оверлей с вкладками: диалог / торговля / школа / квесты.
+  // Ядро — src/npc.js (тестируется в node): доступность опций диалога,
+  // торговля, обучение и журнал квестов; здесь — тонкий DOM-слой.
+  // Каталог NPC — Game.NpcData.NPCS (зеркало src/npc-data.js); журнал
+  // квестов передаётся из main.js (один на всю сессию игры).
+  if (typeof G.dialogOptions === 'function' &&
+      typeof G.createNpcShop === 'function') {
+    let npc = null;          // текущий NPC (запись каталога)
+    let c = null;            // персонаж (в игре — hero)
+    let book = null;         // журнал квестов
+    let tab = 'dialog';      // 'dialog' | 'trade' | 'train' | 'quests'
+    let npcShop = null;      // сток NPC, создаётся лениво на вкладке «торговля»
+    let log = [];            // строки лога (область .combat-state)
+    let overlay = null, body = null, titleText = null, logEl = null;
+    let escHandler = null;   // window keydown (Esc): вешается на open, снимается на close
+
+    const npcs = () => (G.NpcData && G.NpcData.NPCS) || [];
+
+    function npcLog(text) {
+      if (!text) return;
+      log.push(text);
+      if (log.length > 30) log = log.slice(-30);
+    }
+
+    // Квест по id по всему каталогу (для секции «Выполнено»: book.done
+    // хранит только id).
+    function questById(qid) {
+      for (const n of npcs()) {
+        const q = (n.квесты || []).find((x) => x.id === qid);
+        if (q) return q;
+      }
+      return null;
+    }
+
+    // --- Вкладки ---
+
+    function renderDialogTab() {
+      for (const entry of G.dialogOptions(npc, c)) {
+        const row = el('div', 'cp-itemrow');
+        const btn = el('button', 'cp-btn', entry.option.текст);
+        btn.dataset.npcact = 'opt';
+        btn.dataset.optid = entry.option.id;
+        row.appendChild(btn);
+        if (!entry.доступен) {
+          btn.disabled = true;
+          btn.title = entry.причина;
+          row.appendChild(el('span', 'cp-itemmeta', entry.причина));
+        }
+        body.appendChild(row);
+      }
+    }
+
+    function renderTradeTab() {
+      // Сток создаётся лениво и переиспользуется внутри сессии диалога.
+      if (!npcShop) npcShop = G.createNpcShop(npc);
+      if (!npcShop) {
+        body.appendChild(el('div', 'cp-itemmeta', 'Этот NPC не торгует.'));
+        return;
+      }
+      body.appendChild(el('div', 'cp-itemmeta', 'Золото: ' + c.gold));
+      for (const p of npc.торговля.предметы) {
+        const it = G.getItem(p.предмет);
+        if (!it) continue;
+        const row = el('div', 'cp-itemrow');
+        row.appendChild(el('span', 'cp-itemname',
+          it.name + ' (ост. ' + (npcShop.stock[p.предмет] || 0) + ')'));
+        row.appendChild(el('span', 'cp-itemmeta',
+          'покупка ' + G.npcBuyPrice(npcShop, p.предмет, c) + ' з / ' +
+          'продажа ' + G.npcSellPrice(npcShop, p.предмет, c) + ' з'));
+        const bBuy = el('button', 'cp-btn', 'купить');
+        bBuy.dataset.npcact = 'buy';
+        bBuy.dataset.item = p.предмет;
+        row.appendChild(bBuy);
+        const bSell = el('button', 'cp-btn', 'продать');
+        bSell.dataset.npcact = 'sell';
+        bSell.dataset.item = p.предмет;
+        if (!G.hasItem(c, p.предмет, 1)) {
+          bSell.disabled = true;
+          bSell.title = 'предмета нет в инвентаре';
+        }
+        row.appendChild(bSell);
+        body.appendChild(row);
+      }
+    }
+
+    function renderTrainTab() {
+      const skills = G.schoolSkills(npc);
+      if (!skills.length) {
+        body.appendChild(el('div', 'cp-itemmeta', 'Этот NPC не обучает.'));
+        return;
+      }
+      const price = G.schoolTrainPrice(npc);
+      const refund = G.schoolRefundPrice(npc, 1);
+      body.appendChild(el('div', 'cp-itemmeta', 'Свободные очки: ' + c.points));
+      for (const id of skills) {
+        const s = G.SECONDARY_SKILLS[id] || { name: id };
+        const lvl = c.secondary[id] || 0;
+        const row = el('div', 'cp-itemrow');
+        row.appendChild(el('span', 'cp-itemname',
+          (lvl > 0 ? G.secondaryName(id, lvl) : s.name) + ' (' + lvl + ')'));
+        row.appendChild(el('span', 'cp-itemmeta',
+          '+1 за ' + price + ' з / вернуть 1 за ' + refund + ' з'));
+        const bTrain = el('button', 'cp-btn', '+ (' + price + ' з)');
+        bTrain.dataset.npcact = 'train';
+        bTrain.dataset.skill = id;
+        const can = G.canSchoolTrain(npc, c, id);
+        if (!can.ok) { bTrain.disabled = true; bTrain.title = can.reason; }
+        row.appendChild(bTrain);
+        const bRefund = el('button', 'cp-btn', 'вернуть (' + refund + ' з)');
+        bRefund.dataset.npcact = 'refund';
+        bRefund.dataset.skill = id;
+        const canRefund = G.canSchoolRefund(npc, c, id, 1);
+        if (!canRefund.ok) {
+          bRefund.disabled = true;
+          bRefund.title = canRefund.reason;
+        }
+        row.appendChild(bRefund);
+        body.appendChild(row);
+      }
+    }
+
+    function renderQuestsTab() {
+      if (!book) {
+        body.appendChild(el('div', 'cp-itemmeta', 'Журнал квестов недоступен.'));
+        return;
+      }
+      const NPCS = npcs();
+      // bring_item-квесты сверяем с инвентарем перед отрисовкой.
+      if (G.refreshBringItems) G.refreshBringItems(NPCS, book, c);
+
+      const avail = el('div', 'cp-section', 'Доступны');
+      const list = G.availableQuests(NPCS, book, npc);
+      if (!list.length) avail.appendChild(el('div', 'cp-itemmeta', 'квестов нет'));
+      for (const q of list) {
+        const row = el('div', 'cp-itemrow');
+        row.appendChild(el('span', 'cp-itemname', q.название));
+        row.appendChild(el('span', 'cp-itemmeta', q.описание));
+        const b = el('button', 'cp-btn', 'взять');
+        b.dataset.npcact = 'accept';
+        b.dataset.quest = q.id;
+        row.appendChild(b);
+        avail.appendChild(row);
+      }
+      body.appendChild(avail);
+
+      const active = el('div', 'cp-section', 'В работе');
+      const actives = G.activeQuests(NPCS, book);
+      if (!actives.length) active.appendChild(el('div', 'cp-itemmeta', 'нет активных квестов'));
+      for (const { quest, instance } of actives) {
+        if (!quest) continue;
+        const row = el('div', 'cp-itemrow');
+        row.appendChild(el('span', 'cp-itemname', quest.название));
+        const goal = quest.цель;
+        let meta;
+        if (goal.тип === 'kill_group') {
+          meta = 'повержено ' + instance.progress + ' из ' + goal.количество +
+            ' — ' + (G.MOB_GROUP_NAMES[goal.группа] || 'группа ' + goal.группа);
+        } else {
+          const it = G.getItem(goal.предмет);
+          meta = 'предмет: ' + (it ? it.name : goal.предмет) + ' ×' +
+            goal.количество + ' (есть: ' + G.totalQty(c, goal.предмет) + ')';
+        }
+        if (instance.status === 'ready') {
+          meta += ' — готов к сдаче';
+          const b = el('button', 'cp-btn', 'сдать');
+          b.dataset.npcact = 'turnin';
+          b.dataset.quest = instance.questId;
+          row.appendChild(b);
+        } else {
+          meta += ' — в работе';
+        }
+        row.appendChild(el('span', 'cp-itemmeta', meta));
+        active.appendChild(row);
+      }
+      body.appendChild(active);
+
+      const done = el('div', 'cp-section', 'Выполнено');
+      if (!book.done.length) done.appendChild(el('div', 'cp-itemmeta', 'пока ничего'));
+      for (const qid of book.done) {
+        const q = questById(qid);
+        done.appendChild(el('div', 'cp-itemrow', q ? q.название : qid));
+      }
+      body.appendChild(done);
+    }
+
+    // --- Кнопки (один обработчик на весь оверлей) ---
+
+    function onOverlayClick(e) {
+      const btn = e.target.closest('button[data-npcact]');
+      if (!btn || btn.disabled || !npc) return;
+      const act = btn.dataset.npcact;
+      if (act === 'close') { npcClose(); return; }
+      if (act === 'tab') { tab = btn.dataset.tab; renderTab(); return; }
+      if (act === 'opt') {
+        const entry = G.dialogOptions(npc, c)
+          .find((x) => x.option.id === btn.dataset.optid);
+        if (!entry || !entry.доступен) return;
+        const o = entry.option;
+        if (o.действие === 'подсказка') {
+          npcLog(o.текст);
+          renderTab();
+        } else if (o.действие === 'торговля') {
+          tab = 'trade';
+          renderTab();
+        } else if (o.действие === 'обучение') {
+          tab = 'train';
+          renderTab();
+        } else if (o.действие === 'квесты') {
+          tab = 'quests';
+          renderTab();
+        }
+        return;
+      }
+      if (act === 'buy' || act === 'sell') {
+        const r = act === 'buy'
+          ? G.npcBuy(npcShop, c, btn.dataset.item, 1)
+          : G.npcSell(npcShop, c, btn.dataset.item, 1);
+        if (r.ok) {
+          npcLog((act === 'buy' ? 'Куплено: ' : 'Продано: ') +
+            G.getItem(r.item).name + ' за ' + r.price + ' з');
+        } else {
+          npcLog(r.reason);
+        }
+        renderTab();
+        G.playerUI && G.playerUI.render();
+        return;
+      }
+      if (act === 'train') {
+        const r = G.schoolTrain(npc, c, btn.dataset.skill);
+        npcLog(r.ok ? 'Уровень: ' + r.level + ' (−' + r.price + ' з)' : r.reason);
+        renderTab();
+        G.playerUI && G.playerUI.render();
+        return;
+      }
+      if (act === 'refund') {
+        const r = G.schoolRefund(npc, c, btn.dataset.skill, 1);
+        npcLog(r.ok ? 'Очко возвращено: +1 (−' + r.price + ' з)' : r.reason);
+        renderTab();
+        G.playerUI && G.playerUI.render();
+        return;
+      }
+      if (act === 'accept') {
+        const r = G.acceptQuest(book, npcs(), npc, btn.dataset.quest);
+        npcLog(r.ok ? 'Квест взят: ' + r.quest.название : r.reason);
+        renderTab();
+        return;
+      }
+      if (act === 'turnin') {
+        const r = G.turnInQuest(npcs(), book, c, btn.dataset.quest);
+        if (r.ok) {
+          let msg = 'Квест сдан: ' + r.quest.название + '. +' +
+            r.reward.xp + ' опыта, +' + r.reward.gold + ' з';
+          if (r.reward.items.length) {
+            msg += '; ' + r.reward.items.map((g) => {
+              const it = G.getItem(g.предмет);
+              return (it ? it.name : g.предмет) +
+                (g.количество > 1 ? ' ×' + g.количество : '');
+            }).join(', ');
+          }
+          npcLog(msg);
+        } else {
+          npcLog(r.reason);
+        }
+        renderTab();
+        G.playerUI && G.playerUI.render();
+      }
+    }
+
+    // --- Оверлей: сборка/разборка ---
+
+    function npcCloseDom() {
+      if (escHandler) {
+        window.removeEventListener('keydown', escHandler);
+        escHandler = null;
+      }
+      if (overlay) {
+        overlay.remove();
+        overlay = null;
+      }
+      body = null;
+      titleText = null;
+      logEl = null;
+    }
+
+    function npcClose() {
+      npcCloseDom();
+      npc = null;
+      c = null;
+      book = null;
+      npcShop = null;
+    }
+
+    function npcBuild() {
+      npcCloseDom(); // повторное открытие — разбирать прежний оверлей
+      overlay = el('div', 'combat-overlay npc-overlay');
+      const side = el('div', 'combat-side');
+
+      const title = el('div', 'cp-title', '');
+      titleText = el('span', '');
+      const closeBtn = el('button', 'cp-close', 'закрыть [Esc]');
+      closeBtn.dataset.npcact = 'close';
+      title.appendChild(titleText);
+      title.appendChild(closeBtn);
+      side.appendChild(title);
+
+      // Переключение вкладок.
+      const tabsRow = el('div', 'cp-itemrow');
+      for (const [t, label] of [
+        ['dialog', 'диалог'], ['trade', 'торговля'],
+        ['train', 'школа'], ['quests', 'квесты'],
+      ]) {
+        const b = el('button', 'cp-btn', label);
+        b.dataset.npcact = 'tab';
+        b.dataset.tab = t;
+        tabsRow.appendChild(b);
+      }
+      side.appendChild(tabsRow);
+
+      body = el('div', 'cp-items');
+      side.appendChild(body);
+
+      // Лог: подсказки, результаты сделок, наград.
+      logEl = el('div', 'combat-state npc-log');
+      side.appendChild(logEl);
+
+      overlay.appendChild(side);
+      overlay.addEventListener('click', onOverlayClick);
+      document.body.appendChild(overlay);
+
+      // Esc закрывает диалог (слушатель живёт только пока экран открыт).
+      escHandler = (e) => {
+        if (e.code === 'Escape') {
+          e.preventDefault();
+          e.stopPropagation();
+          npcClose();
+        }
+      };
+      window.addEventListener('keydown', escHandler);
+
+      renderTab();
+    }
+
+    function renderTab() {
+      if (!overlay || !npc) return;
+      titleText.textContent = npc.имя + ' — ' + npc.роль;
+      logEl.textContent = log.join('\n');
+      logEl.scrollTop = logEl.scrollHeight;
+      body.textContent = '';
+      if (tab === 'dialog') renderDialogTab();
+      else if (tab === 'trade') renderTradeTab();
+      else if (tab === 'train') renderTrainTab();
+      else renderQuestsTab();
+    }
+
+    G.npcUI = {
+      /**
+       * Открыть диалог NPC.
+       * @param {object} o
+       * @param {object} o.npc       запись каталога (Game.NpcData.NPCS)
+       * @param {object} o.character персонаж
+       * @param {object} o.book      журнал квестов (G.createQuestBook())
+       * @param {object} o.tile      тайл постройки (x, y, building, buildingWealth)
+       */
+      open(o) {
+        npc = o.npc;
+        c = o.character;
+        book = o.book;
+        tab = 'dialog';
+        npcShop = null;
+        log = [npc.описание || (npc.имя + ', ' + npc.роль)];
+        npcBuild();
+      },
+      close: npcClose,
+      isActive() {
+        return !!overlay;
+      },
+      render: () => { if (npc) renderTab(); },
+    };
+  }
 })();

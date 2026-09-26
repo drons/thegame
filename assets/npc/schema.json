@@ -1,0 +1,163 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "имя", "роль", "постройки", "диалог"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "имя": {
+      "type": "string",
+      "pattern": "^\\S(.*\\S)?$"
+    },
+    "роль": {
+      "type": "string",
+      "pattern": "^\\S(.*\\S)?$"
+    },
+    "описание": {
+      "type": "string"
+    },
+    "постройки": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 50
+      }
+    },
+    "диалог": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "текст", "действие"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "текст": { "type": "string", "pattern": "^\\S(.*\\S)?$" },
+          "действие": { "enum": ["торговля", "обучение", "квесты", "подсказка"] },
+          "требования": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "харизма": { "type": "integer", "minimum": 1, "maximum": 100 },
+              "навык": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "уровень"],
+                "properties": {
+                  "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+                  "уровень": { "type": "integer", "minimum": 1, "maximum": 100 }
+                }
+              },
+              "проверка": { "type": "integer", "minimum": 0, "maximum": 100 }
+            }
+          }
+        }
+      }
+    },
+    "торговля": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["предметы"],
+      "properties": {
+        "предметы": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["предмет", "цена_покупки", "цена_продажи"],
+            "properties": {
+              "предмет": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+              "цена_покупки": { "type": "integer", "minimum": 1, "maximum": 100000 },
+              "цена_продажи": { "type": "integer", "minimum": 1, "maximum": 100000 },
+              "количество": { "type": "integer", "minimum": 1, "maximum": 99 }
+            }
+          }
+        }
+      }
+    },
+    "обучение": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["навыки", "цена_за_уровень", "цена_переноса_за_уровень"],
+      "properties": {
+        "навыки": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+        },
+        "цена_за_уровень": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "цена_переноса_за_уровень": { "type": "integer", "minimum": 1, "maximum": 10000 }
+      }
+    },
+    "квесты": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "название", "описание", "цель", "награда"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "название": { "type": "string", "pattern": "^\\S(.*\\S)?$" },
+          "описание": { "type": "string" },
+          "цель": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["тип", "группа", "количество"],
+                "properties": {
+                  "тип": { "const": "kill_group" },
+                  "группа": { "type": "integer", "minimum": 0, "maximum": 6 },
+                  "количество": { "type": "integer", "minimum": 1, "maximum": 99 }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["тип", "предмет", "количество"],
+                "properties": {
+                  "тип": { "const": "bring_item" },
+                  "предмет": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+                  "количество": { "type": "integer", "minimum": 1, "maximum": 99 }
+                }
+              }
+            ]
+          },
+          "награда": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["опыт", "золото"],
+            "properties": {
+              "опыт": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+              "золото": { "type": "integer", "minimum": 0, "maximum": 100000 },
+              "предметы": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["предмет", "количество"],
+                  "properties": {
+                    "предмет": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+                    "количество": { "type": "integer", "minimum": 1, "maximum": 99 }
+                  }
+                }
+              }
+            }
+          },
+          "предыдущий": {
+            "anyOf": [
+              { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+              { "type": "null" }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
