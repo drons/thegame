@@ -227,11 +227,12 @@
     dmg = Math.max(0, Math.round(dmg) - d.armor);
     if (dmg > 0) P.takeDamage(p, dmg);
     if (!p.alive) {
-      // «Несокрушимость»: шанс выжить смертельный удар (раз в день ≈ в бою).
-      if (d.survivalChance > 0 && !c._unkillUsed && c._rng() < d.survivalChance) {
+      // «Несокрушимость»: шанс выжить смертельный удар — 1 раз в игровой день
+      // (SPEC.md). Счётчик живёт на персонаже — действует на все бои дня.
+      if (d.survivalChance > 0 && p._lastUnkillDay !== c.day && c._rng() < d.survivalChance) {
         p.alive = true;
         p.hp = 1;
-        c._unkillUsed = true;
+        p._lastUnkillDay = c.day;
         log(c, 'Несокрушимость! Смерть отказалась.');
       } else {
         c.phase = 'over';
@@ -545,6 +546,8 @@
     const N = opts.levelDeltaMax != null ? opts.levelDeltaMax : 3;
     const width = opts.width || 7;
     const height = opts.height || 7;
+    // Игровой день (для «раз в день» эффектов, напр. Несокрушимость).
+    const day = opts.day != null ? opts.day : 0;
 
     let ids, level, recipe;
     if (Array.isArray(opts.mobs)) {
@@ -592,7 +595,7 @@
         blocked: false, poison: 0,
       },
       _rng: rng,
-      _unkillUsed: false,
+      day,
     };
     refillPools(c);
     log(c, `Бой: ${c.groupName} (уровень ${level}, мобы ${units.length}).`);

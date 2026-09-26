@@ -336,6 +336,42 @@ test('«Несокрушимость»: смертельный удар можн
   assert.ok(c.log.some((l) => l.includes('Несокрушимость')));
 });
 
+test('«Несокрушимость»: 1 раз в игровой день (между боями), сброс на новый день', () => {
+  // Шанс 100% (unkill 50 * 2% — перекрываем), бросок и попадания детерминированы.
+  const newHero = () => {
+    const p = createCharacter();
+    p.secondary = { golem: 10, unkill: 50 };
+    return p;
+  };
+  // Бой, в котором моб гарантированно бьёт на смерть за endTurn.
+  const deadly = (p, day) => {
+    const c = createCombat({ player: p, groupType: 0, seed: 23, day });
+    c._rng = () => 0.01;
+    standNextTo(c, c.units[0]);
+    c.units[0].damage = 25; // пробивает броню голема
+    p.hp = 1;
+    return c;
+  };
+
+  const p = newHero();
+  const c1 = deadly(p, 1);
+  c1.endTurn();
+  assert.equal(p.alive, true, '1-й бой дня: выжить можно');
+  assert.equal(p._lastUnkillDay, 1, 'помечен день применения');
+
+  // Второй бой того же дня: шанс уже потрачен → смерть.
+  const c2 = deadly(p, 1);
+  c2.endTurn();
+  assert.equal(p.alive, false, '2-й бой того же дня: Несокрушимость не сработала повторно');
+
+  // Новый день: шанс возвращается.
+  p.alive = true;
+  const c3 = deadly(p, 2);
+  c3.endTurn();
+  assert.equal(p.alive, true, 'на новый день шанс выживания вернулся');
+  assert.equal(p._lastUnkillDay, 2);
+});
+
 // --- Ход игрока на мини-карте ---
 
 test('движение: стены, занятые клетки и лимит шагов', () => {

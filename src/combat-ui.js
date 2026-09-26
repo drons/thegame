@@ -272,6 +272,7 @@
         groupName: opts.groupName || (opts.tile && G.MOB_GROUP_NAMES
           ? G.MOB_GROUP_NAMES[opts.tile.mobGroup] : undefined),
         seed: opts.seed,
+        day: opts.day,
       });
       ctx = { combat, hero: opts.hero, onEnd: opts.onEnd, open: true };
       build();

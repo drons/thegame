@@ -135,18 +135,27 @@
   let zoom = 14; // пикселей на тайл
   const cam = { x: 0.5, y: 0.5 };
 
-  // Побеждённые группы мобов (респаун по дням — задача 000008).
-  const defeatedTiles = new Set();
+  // Игровое время (SPEC.md «Игровое время», src/day.js).
+  const clock = G.createClock();
+  // Побеждённые группы: 'x,y' → день поражения (респаун через respawn_days).
+  const defeatedAt = new Map();
   let hudFlash = '';
   let hudFlashUntil = 0;
-
-  // Игровое время: день мира (таймеры подземелий; прохождение времени — 000008).
-  let worldDay = 1;
 
   // Подземелье: текущая вылазка и память содержимого по входам.
   // dungeonMemory: 'x,y' входа → { contents, lastVisitDay }.
   let dungeonState = null; // { dg, contents, x, y, prevX, prevY, worldKey, log }
   const dungeonMemory = new Map();
+
+  // Смена дня: восстановление, респауны групп (SPEC.md «Игровое время»).
+  clock.onDay(({ day }) => {
+    G.restoreDay(hero); // часть HP/MP по формулам навыков
+    const due = G.dueForRespawn(defeatedAt, day);
+    for (const k of due) defeatedAt.delete(k);
+    G.playerUI && G.playerUI.render();
+    hudFlash = (due.length ? 'Мобилизуются новые группы мобов.\n' : '') + 'День ' + day + '.';
+    hudFlashUntil = performance.now() + 5000;
+  });
 
   function findSpawn() {
     // Ищем проходимый тайл в окрестностях (0,0) по спирали,
@@ -216,15 +225,16 @@
     const t = map.tileAt(player.x, player.y);
     if (!t.hasMobGroup) return;
     const key = player.x + ',' + player.y;
-    if (defeatedTiles.has(key)) return;
+    if (defeatedAt.has(key)) return;
     G.combatUI.startCombat({
       hero,
       tile: t,
       prev: { x: prevPos.x, y: prevPos.y },
       seed: G.hash2(player.x, player.y, 0x5eedc0de),
+      day: clock.day,
       onEnd: (res) => {
         if (res.outcome === 'victory') {
-          defeatedTiles.add(key);
+          defeatedAt.set(key, clock.day);
           hudFlash = `Победа! +${res.xp} опыта, +${res.gold} золота.`;
         } else if (res.outcome === 'dead') {
           // Подъём: половину HP, −20% золота (полная система смерти — 000008).
@@ -257,7 +267,7 @@
     const d = G.createDungeon(player.x, player.y, mapPixels, t.terrain);
     const saved = dungeonMemory.get(worldKey);
     // Содержимое живёт, пока внутри + dungeon_memory_days (SPEC).
-    let contents = saved && G.contentValid(saved.lastVisitDay, worldDay)
+    let contents = saved && G.contentValid(saved.lastVisitDay, clock.day)
       ? saved.contents
       : null;
     if (!contents) contents = G.generateDungeonContents(d, hero);
@@ -268,7 +278,7 @@
       worldKey,
       log: [G.DUNGEON_NAMES[d.type] + ': вход.'],
     };
-    if (saved) saved.lastVisitDay = worldDay; // продлить память
+    if (saved) saved.lastVisitDay = clock.day; // продлить память
     G.dungeonUI.start({
       get state() { return dungeonState; },
       onMove: (dx, dy) => dungeonMove(dx, dy),
@@ -285,6 +295,7 @@
       groupName: g.boss ? 'Хозяин бездны' : 'блуждающая группа',
       prev: { x: ds.prevX, y: ds.prevY },
       seed: G.hash2(g.boss ? 999 : (parseInt(g.id.slice(1), 36) || 17), g.level, 0xb055),
+      day: clock.day,
       onEnd: (res) => {
         if (res.outcome === 'victory') {
           g.defeated = true;
@@ -307,7 +318,8 @@
 
   function exitDungeon() {
     const ds = dungeonState;
-    dungeonMemory.set(ds.worldKey, { contents: ds.contents, lastVisitDay: worldDay });
+    dungeonMemory.set(ds.worldKey, { contents: ds.contents, lastVisitDay: clock.day });
+    clock.event('dungeon'); // вылазка забирает день (SPEC «Игровое время»)
     dungeonState = null;
     G.dungeonUI.close();
   }
@@ -424,7 +436,7 @@
     let line = 'Флогистон, ур. ' + hero.level + '  (' + player.x + ', ' + player.y + ')\n' +
       'HP ' + hero.hp + '/' + d.maxHP + '  |  Золото: ' + hero.gold + '  |  Очки: ' + hero.points + '\n' +
       'Местность: ' + G.TERRAIN_NAMES[t.terrain] + '\n' +
-      'День: ' + worldDay + '  |  Масштаб: ' + zoom + 'px  |  карта: ' + map.width + 'x' + map.height +
+      'День: ' + clock.day + '  |  Масштаб: ' + zoom + 'px  |  карта: ' + map.width + 'x' + map.height +
       (map.fromPng ? ' (map.png)' : ' (пересчёт)') + '\n' +
       '[I] персонаж';
     if (dungeonState) {
@@ -437,7 +449,7 @@
       line += '\nЗдесь: ' + G.BUILDING_NAMES[t.building] +
         (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE ? ' (вход — шагните)' : '');
     } else if (t.hasMobGroup) {
-      line += defeatedTiles.has(key)
+      line += defeatedAt.has(key)
         ? '\nГруппа ' + G.MOB_GROUP_NAMES[t.mobGroup] + ' повержена.'
         : '\nОсторожно: ' + G.MOB_GROUP_NAMES[t.mobGroup] + '!';
     }
@@ -453,6 +465,7 @@
     if (!inCombat && !inDungeon && now - lastMove >= MOVE_INTERVAL_MS) {
       if (keys.size && tryMove()) {
         lastMove = now;
+        clock.addStep(1); // шаги мира тикают игровой день
         maybeStartCombat();
         maybeEnterDungeon();
       }
@@ -480,6 +493,8 @@
         player: { x: player.x, y: player.y },
         cam: { x: cam.x, y: cam.y },
         zoom,
+        day: clock.day,
+        stepsToday: clock.steps,
         hero: {
           level: hero.level, xp: hero.xp, hp: hero.hp,
           gold: hero.gold, points: hero.points,
@@ -507,7 +522,7 @@
         mobs: ds.contents.mobs.filter((m) => !m.defeated)
           .map((m) => ({ x: m.x, y: m.y })),
         chests: ds.contents.chests.filter((c) => !c.opened).length,
-        day: worldDay,
+        day: clock.day,
       };
     },
     actions: {
@@ -523,6 +538,7 @@
           tile: { mobGroup: groupType },
           prev: { x: player.x, y: player.y },
           seed: 42,
+          day: clock.day,
           onEnd: () => {
             // Лут/опыт уже начислены в ядре (checkVictory).
             G.playerUI && G.playerUI.render();
@@ -548,7 +564,14 @@
         });
         return dungeonState;
       },
-      setDay: (n) => { worldDay = Math.max(1, Math.floor(n)); },
+      // Отладка времени: довести часы до дня n (день = отдых).
+      setDay: (n) => {
+        const target = Math.max(1, Math.floor(n));
+        while (clock.day < target) clock.rest();
+        return clock.day;
+      },
+      // Отдых: день проходит (восстановление, респауны).
+      rest: () => clock.rest(),
       train: (skill) => {
         const r = G.raiseSkill(hero, skill);
         G.playerUI && G.playerUI.render();

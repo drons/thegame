@@ -343,8 +343,8 @@
       sellPriceMult: 1 - pct('merchant'), // pct('merchant') отрицателен
       // Прочность снаряжения.
       equipmentDurabilityMult: 1 + pct('forge'),
-      // Восстановление между днями (доля от максимума за день).
-      hpRegenMult: 0.10 + pct('breath') + pct('meditation') * 0.5,
+      // Восстановление между днями (доля от максимума за день, SPEC «Игровое время»).
+      hpRegenMult: 0.10 + pct('breath') + pct('meditation'),
       mpRegenMult: 0.10 + pct('meditation'),
     };
   }

@@ -203,3 +203,22 @@ test('restoreDay: восстановление между днями', () => {
   restoreDay(c2);
   assert.ok(c2.hp > c.hp, 'навыки восстановления не ускоряют реген');
 });
+
+test('restoreDay: формулы (база 10%, Медитация +2% к HP и MP, Глубокий вдох +5% к HP)', () => {
+  const c = createCharacter();
+  c.secondary.meditation = 10;
+  c.secondary.breath = 10;
+  const d = derived(c);
+  assert.ok(Math.abs(d.hpRegenMult - (0.10 + 0.05 * 10 + 0.02 * 10)) < 1e-9);
+  assert.ok(Math.abs(d.mpRegenMult - (0.10 + 0.02 * 10)) < 1e-9);
+  c.hp = 0;
+  c.mp = 0;
+  restoreDay(c);
+  assert.equal(c.hp, Math.round(d.maxHP * d.hpRegenMult));
+  assert.equal(c.mp, Math.round(d.maxMP * d.mpRegenMult));
+  // Без навыков — база 10%.
+  const c0 = createCharacter();
+  const d0 = derived(c0);
+  assert.ok(Math.abs(d0.hpRegenMult - 0.10) < 1e-9);
+  assert.ok(Math.abs(d0.mpRegenMult - 0.10) < 1e-9);
+});
