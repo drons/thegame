@@ -184,15 +184,25 @@
   // --- Торговля NPC (фиксированные цены из данных, «Торговец» действует) ---
 
   /**
-   * Сток NPC-магазина (mutable-копия) | null, если NPC не торгует.
+   * Начальный сток NPC: { itemId: qty } | null, если NPC не торгует.
    */
-  function createNpcShop(npc) {
-    if (!npc.торговля || !Array.isArray(npc.торговля.предметы)) return null;
+  function defaultStock(npc) {
+    if (!npc || !npc.торговля || !Array.isArray(npc.торговля.предметы)) {
+      return null;
+    }
     const stock = {};
     for (const p of npc.торговля.предметы) {
       stock[p.предмет] = p.количество || 1;
     }
-    return { npc, stock };
+    return stock;
+  }
+
+  /**
+   * Сток NPC-магазина (mutable-копия) | null, если NPC не торгует.
+   */
+  function createNpcShop(npc) {
+    const stock = defaultStock(npc);
+    return stock ? { npc, stock } : null;
   }
 
   // Позиция предмета в списке торговли NPC.
@@ -278,15 +288,21 @@
   }
 
   /**
-   * Принимает квест. @returns {{ok:true, quest}|{ok:false, reason}}
+   * Принимает квест.
+   * @param {number} [day] день мира при выдаче — пишется в инстанс
+   *   (задача 000029): при восстановлении сейва состояние не должно
+   *   противоречить датам (выдан в день N ⇒ текущий день ≥ N).
+   * @returns {{ok:true, quest}|{ok:false, reason}}
    */
-  function acceptQuest(book, npcs, npc, questId) {
+  function acceptQuest(book, npcs, npc, questId, day) {
     const quest = availableQuests(npcs, book, npc).find((q) => q.id === questId);
     if (!quest) return { ok: false, reason: 'квест недоступен' };
     if (Object.keys(book.active).length >= MAX_ACTIVE_QUESTS) {
       return { ok: false, reason: 'слишком много активных квестов (' + MAX_ACTIVE_QUESTS + ')' };
     }
-    book.active[questId] = { npcId: npc.id, questId, status: 'active', progress: 0 };
+    const inst = { npcId: npc.id, questId, status: 'active', progress: 0 };
+    if (Number.isInteger(day) && day >= 1) inst.day = day; // день выдачи
+    book.active[questId] = inst;
     return { ok: true, quest };
   }
 
@@ -384,14 +400,140 @@
     }));
   }
 
+  // --- Персистентность (задача 000029): журнал квестов и сток NPC ---
+  // Чистые сериализация/валидация для общего сейва (механизм —
+  // src/save.js). Невалидная структура → null: вызывающий делает тихий
+  // сброс с console.warn (игра не роняется).
+
+  /**
+   * Журнал квестов → JSON-безопасная структура
+   * `{ active: { questId: {npcId, questId, status, progress, day?} },
+   *    done: [questId] }`. Копия: мутации исходного не влияют на результат.
+   * @returns {object|null} null, если book не объект.
+   */
+  function serializeQuestBook(book) {
+    if (!book || typeof book !== 'object' || Array.isArray(book)) return null;
+    const active = {};
+    for (const [qid, inst] of Object.entries(book.active || {})) {
+      if (!inst || typeof inst !== 'object' || Array.isArray(inst)) continue;
+      const out = { npcId: inst.npcId, questId: inst.questId,
+        status: inst.status, progress: inst.progress };
+      if (inst.day != null) out.day = inst.day;
+      active[qid] = out;
+    }
+    const done = Array.isArray(book.done)
+      ? book.done.filter((id) => typeof id === 'string') : [];
+    return { active, done };
+  }
+
+  /**
+   * Структура из сейва → журнал квестов.
+   * @returns {object|null} null, если структура некорректна.
+   */
+  function deserializeQuestBook(data) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    if (!data.active || typeof data.active !== 'object' ||
+        Array.isArray(data.active)) return null;
+    if (!Array.isArray(data.done)) return null;
+    const active = {};
+    for (const [qid, inst] of Object.entries(data.active)) {
+      if (!inst || typeof inst !== 'object' || Array.isArray(inst)) return null;
+      if (typeof inst.questId !== 'string' || inst.questId !== qid) return null;
+      if (typeof inst.npcId !== 'string') return null;
+      if (inst.status !== 'active' && inst.status !== 'ready') return null;
+      if (!Number.isInteger(inst.progress) || inst.progress < 0) return null;
+      if (inst.day != null &&
+          (!Number.isInteger(inst.day) || inst.day < 1)) return null;
+      const out = { npcId: inst.npcId, questId: inst.questId,
+        status: inst.status, progress: inst.progress };
+      if (inst.day != null) out.day = inst.day;
+      active[qid] = out;
+    }
+    const done = data.done.filter((id) => typeof id === 'string');
+    return { active, done };
+  }
+
+  /**
+   * Гигиена дат (задача 000029): из активных квестов исключаются те,
+   * что выданы ПОЗЖЕ дня мира (состояние противоречило бы датам).
+   * Квесты без метки дня и `done` не трогаем.
+   * @param {object} book — результат deserializeQuestBook
+   * @param {number} worldDay — текущий день мира
+   * @returns {{book: object, dropped: string[]}}
+   */
+  function pruneQuestBookByDay(book, worldDay) {
+    if (!book || !book.active || !Number.isInteger(worldDay)) {
+      return { book: book || createQuestBook(), dropped: [] };
+    }
+    const active = {};
+    const dropped = [];
+    for (const [qid, inst] of Object.entries(book.active)) {
+      if (inst.day != null && inst.day > worldDay) {
+        dropped.push(qid);
+        continue;
+      }
+      active[qid] = inst;
+    }
+    return { book: { active, done: book.done || [] }, dropped };
+  }
+
+  /**
+   * Сток NPC → JSON-безопасное `{ npcId: { itemId: qty } }` (копия).
+   * @returns {object|null} null, если stocks не объект.
+   */
+  function serializeNpcStocks(stocks) {
+    if (!stocks || typeof stocks !== 'object' || Array.isArray(stocks)) {
+      return null;
+    }
+    const out = {};
+    for (const [npcId, stock] of Object.entries(stocks)) {
+      if (!stock || typeof stock !== 'object' || Array.isArray(stock)) continue;
+      out[npcId] = {};
+      for (const [itemId, qty] of Object.entries(stock)) {
+        if (Number.isInteger(qty) && qty >= 0) out[npcId][itemId] = qty;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Восстановление стока торговцев из сейва с проверкой по каталогу:
+   *   * неизвестный NPC / NPC без торговли — пропускается;
+   *   * предмет, которого нет в каталоге NPC, — отбрасывается;
+   *   * qty > начального — сжимается до начального, qty < 0 — 0;
+   *   * отсутствующий предмет — начальный сток.
+   * @returns {object} `{ npcId: { itemId: qty } }` (может быть пустым)
+   */
+  function restoreNpcStocks(npcs, saved) {
+    const out = {};
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return out;
+    for (const [npcId, stock] of Object.entries(saved)) {
+      if (!stock || typeof stock !== 'object' || Array.isArray(stock)) continue;
+      const npc = npcById(npcs, npcId);
+      const initial = npc && defaultStock(npc);
+      if (!initial) continue;
+      const restored = {};
+      for (const [itemId, init] of Object.entries(initial)) {
+        const q = stock[itemId];
+        restored[itemId] = (Number.isInteger(q) && q >= 0)
+          ? Math.min(q, init)
+          : init;
+      }
+      out[npcId] = restored;
+    }
+    return out;
+  }
+
   return {
     MAX_ACTIVE_QUESTS,
     npcById, npcsForBuilding, npcForBuilding, skillLevel,
     dialogOptions,
     schoolSkills, schoolTrainPrice, schoolRefundPrice,
     canSchoolTrain, schoolTrain, canSchoolRefund, schoolRefund,
-    createNpcShop, npcBuyPrice, npcSellPrice, npcBuy, npcSell,
+    defaultStock, createNpcShop, npcBuyPrice, npcSellPrice, npcBuy, npcSell,
     createQuestBook, questDef, availableQuests, acceptQuest,
     notifyGroupDefeated, refreshBringItems, turnInQuest, activeQuests,
+    serializeQuestBook, deserializeQuestBook, pruneQuestBookByDay,
+    serializeNpcStocks, restoreNpcStocks,
   };
 });

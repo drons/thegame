@@ -349,7 +349,9 @@
     let c = null;            // персонаж (в игре — hero)
     let book = null;         // журнал квестов
     let tab = 'dialog';      // 'dialog' | 'trade' | 'train' | 'quests'
-    let npcShop = null;      // сток NPC, создаётся лениво на вкладке «торговля»
+    let npcShop = null;      // сток NPC (общий на сессию; создаётся лениво)
+    let onChange = null;     // хук main.js: изменение состояния → сейв
+    let day = null;          // день мира на момент открытия (день выдачи квестов)
     let log = [];            // строки лога (область .combat-state)
     let overlay = null, body = null, titleText = null, logEl = null;
     let escHandler = null;   // window keydown (Esc): вешается на open, снимается на close
@@ -558,6 +560,7 @@
         if (r.ok) {
           npcLog((act === 'buy' ? 'Куплено: ' : 'Продано: ') +
             G.getItem(r.item).name + ' за ' + r.price + ' з');
+          if (onChange) onChange();
         } else {
           npcLog(r.reason);
         }
@@ -568,6 +571,7 @@
       if (act === 'train') {
         const r = G.schoolTrain(npc, c, btn.dataset.skill);
         npcLog(r.ok ? 'Уровень: ' + r.level + ' (−' + r.price + ' з)' : r.reason);
+        if (r.ok && onChange) onChange();
         renderTab();
         G.playerUI && G.playerUI.render();
         return;
@@ -575,13 +579,15 @@
       if (act === 'refund') {
         const r = G.schoolRefund(npc, c, btn.dataset.skill, 1);
         npcLog(r.ok ? 'Очко возвращено: +1 (−' + r.price + ' з)' : r.reason);
+        if (r.ok && onChange) onChange();
         renderTab();
         G.playerUI && G.playerUI.render();
         return;
       }
       if (act === 'accept') {
-        const r = G.acceptQuest(book, npcs(), npc, btn.dataset.quest);
+        const r = G.acceptQuest(book, npcs(), npc, btn.dataset.quest, day);
         npcLog(r.ok ? 'Квест взят: ' + r.quest.название : r.reason);
+        if (r.ok && onChange) onChange();
         renderTab();
         return;
       }
@@ -601,6 +607,7 @@
         } else {
           npcLog(r.reason);
         }
+        if (r.ok && onChange) onChange();
         renderTab();
         G.playerUI && G.playerUI.render();
       }
@@ -628,6 +635,7 @@
       c = null;
       book = null;
       npcShop = null;
+      onChange = null;
     }
 
     function npcBuild() {
@@ -706,7 +714,11 @@
         c = o.character;
         book = o.book;
         tab = 'dialog';
-        npcShop = null;
+        // Сток — общий на сессию (main.js, задача 000029): переиспользуем,
+        // не создавая новый; onChange — хук на изменение состояния (сейв).
+        npcShop = o.shop || null;
+        onChange = typeof o.onChange === 'function' ? o.onChange : null;
+        day = Number.isInteger(o.day) && o.day >= 1 ? o.day : null;
         log = [npc.описание || (npc.имя + ', ' + npc.роль)];
         npcBuild();
       },

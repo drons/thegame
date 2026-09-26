@@ -504,3 +504,189 @@ test('инварианты: золото ≥ 0, сток ≥ 0, журнал б�
   for (const id of book.done) assert.ok(!book.active[id], id + ': в active нет выполненного');
   assert.ok(c.points >= 0, 'очки не в минусе');
 });
+
+// --- Персистентность: журнал квестов и сток (задача 000029) ---
+
+test('acceptQuest: день выдачи пишется в инстанс (000029)', () => {
+  const book = N.createQuestBook();
+  const npcs = [questNpc];
+  assert.equal(N.acceptQuest(book, npcs, questNpc, 'q1', 5).ok, true);
+  assert.equal(book.active.q1.day, 5, 'метка дня выдачи');
+  assert.equal(N.acceptQuest(book, npcs, questNpc, 'q3', 7).ok, true);
+  assert.equal(book.active.q3.day, 7);
+  // Без дня — поле не появляется (назад-совместимо со старым кодом).
+  const book2 = N.createQuestBook();
+  assert.equal(N.acceptQuest(book2, npcs, questNpc, 'q1').ok, true);
+  assert.equal('day' in book2.active.q1, false, 'день не передан — поля нет');
+  // Некорректный день игнорируется.
+  const book3 = N.createQuestBook();
+  N.acceptQuest(book3, npcs, questNpc, 'q1', 0);
+  N.acceptQuest(book3, npcs, questNpc, 'q3', -1);
+  assert.equal('day' in book3.active.q1, false);
+  assert.equal('day' in book3.active.q3, false);
+});
+
+test('serializeQuestBook: копия, JSON-безопасно', () => {
+  const book = N.createQuestBook();
+  const npcs = [questNpc];
+  N.acceptQuest(book, npcs, questNpc, 'q1', 3);
+  book.active.q1.status = 'ready';
+  book.active.q1.progress = 1;
+  book.done.push('q9');
+  const ser = N.serializeQuestBook(book);
+  assert.deepEqual(ser, {
+    active: { q1: { npcId: 'q', questId: 'q1', status: 'ready',
+      progress: 1, day: 3 } },
+    done: ['q9'],
+  });
+  // JSON-безопасность и независимость копий.
+  const rt = JSON.parse(JSON.stringify(ser));
+  assert.deepEqual(rt, ser);
+  book.active.q1.status = 'active';
+  assert.equal(ser.active.q1.status, 'ready', 'мутация не влияет на копию');
+  assert.equal(N.serializeQuestBook(null), null);
+  assert.equal(N.serializeQuestBook([]), null);
+});
+
+test('deserializeQuestBook: валидная структура — журнал', () => {
+  const data = {
+    active: {
+      q1: { npcId: 'q', questId: 'q1', status: 'active', progress: 0, day: 2 },
+      q3: { npcId: 'q', questId: 'q3', status: 'ready', progress: 1 },
+    },
+    done: ['q9'],
+  };
+  const book = N.deserializeQuestBook(data);
+  assert.deepEqual(book, data);
+  // Независимость копий.
+  book.active.q1.status = 'ready';
+  assert.equal(data.active.q1.status, 'active');
+});
+
+test('deserializeQuestBook: некорректные структуры → null', () => {
+  const good = { active: { q1: { npcId: 'q', questId: 'q1',
+    status: 'active', progress: 0 } }, done: [] };
+  const bad = [
+    null, undefined, 'стр', 42, [],
+    {},                                              // нет active/done
+    { active: good.active, done: 'нет' },            // done не массив
+    { active: 'нет', done: [] },                     // active не объект
+    { active: [good.active.q1], done: [] },          // active массив
+    { active: { q1: null }, done: [] },              // инстанс null
+    { active: { q1: 'x' }, done: [] },               // инстанс строка
+    { active: { q1: { npcId: 'q', questId: 'ДРУГОЙ',
+      status: 'active', progress: 0 } }, done: [] }, // ключ ≠ questId
+    { active: { q1: { npcId: 5, questId: 'q1',
+      status: 'active', progress: 0 } }, done: [] }, // npcId не строка
+    { active: { q1: { npcId: 'q', questId: 'q1',
+      status: 'flying', progress: 0 } }, done: [] }, // статус не из набора
+    { active: { q1: { npcId: 'q', questId: 'q1',
+      status: 'active', progress: -1 } }, done: [] },// progress < 0
+    { active: { q1: { npcId: 'q', questId: 'q1',
+      status: 'active', progress: 1.5 } }, done: [] },// progress не int
+    { active: { q1: { npcId: 'q', questId: 'q1',
+      status: 'active', progress: 0, day: 0 } }, done: [] }, // day < 1
+    { active: { q1: { npcId: 'q', questId: 'q1',
+      status: 'active', progress: 0, day: '3' } }, done: [] },// day не int
+  ];
+  for (const b of bad) assert.equal(N.deserializeQuestBook(b), null,
+    JSON.stringify(b));
+  // done с мусором — мусор отфильтровывается, остальное живо.
+  const mixed = { active: good.active, done: ['q9', 7, null] };
+  assert.deepEqual(N.deserializeQuestBook(mixed).done, ['q9']);
+});
+
+test('pruneQuestBookByDay: квесты, выданные позже дня мира, исключаются', () => {
+  const book = {
+    active: {
+      a: { npcId: 'q', questId: 'a', status: 'active', progress: 0, day: 3 },
+      b: { npcId: 'q', questId: 'b', status: 'active', progress: 0, day: 5 },
+      c: { npcId: 'q', questId: 'c', status: 'ready', progress: 1, day: 5 },
+      d: { npcId: 'q', questId: 'd', status: 'active', progress: 0 }, // без дня
+    },
+    done: ['x'],
+  };
+  const { book: out, dropped } = N.pruneQuestBookByDay(book, 4);
+  assert.deepEqual(dropped, ['b', 'c'], 'день выдачи 5 > 4');
+  assert.deepEqual(Object.keys(out.active).sort(), ['a', 'd']);
+  assert.deepEqual(out.done, ['x'], 'done не трогаем');
+  // Исходный журнал не мутируем.
+  assert.equal(Object.keys(book.active).length, 4);
+  // Граница: день выдачи == день мира — допустимо.
+  const eq = N.pruneQuestBookByDay({ active: { a: { day: 4 } }, done: [] }, 4);
+  assert.deepEqual(eq.dropped, []);
+  // Не-числовой день мира — ничего не трогаем.
+  const na = N.pruneQuestBookByDay(book, 'x');
+  assert.deepEqual(na.dropped, []);
+  assert.equal(Object.keys(na.book.active).length, 4);
+});
+
+test('defaultStock: начальный сток из данных NPC', () => {
+  assert.deepEqual(N.defaultStock(tradeNpc),
+    { wood_sword: 2, moonstone: 1 });
+  assert.equal(N.defaultStock(trainNpc), null, 'без торговли — null');
+  assert.equal(N.defaultStock(null), null);
+  const shop = N.createNpcShop(tradeNpc);
+  assert.deepEqual(shop.stock, N.defaultStock(tradeNpc));
+});
+
+test('serializeNpcStocks: копия, только целые >= 0', () => {
+  const stocks = { s: { wood_sword: 1, moonstone: 0 }, t: { a: -1, b: 1.5 } };
+  assert.deepEqual(N.serializeNpcStocks(stocks),
+    { s: { wood_sword: 1, moonstone: 0 }, t: {} });
+  assert.equal(N.serializeNpcStocks(null), null);
+  assert.equal(N.serializeNpcStocks([]), null);
+});
+
+test('restoreNpcStocks: восстановление по каталогу с защитами', () => {
+  const npcs = [tradeNpc, trainNpc];
+  // Остаток после покупок.
+  let r = N.restoreNpcStocks(npcs, { s: { wood_sword: 1, moonstone: 0 } });
+  assert.deepEqual(r, { s: { wood_sword: 1, moonstone: 0 } },
+    'купленное не возвращается — остаток как был');
+  // qty больше начального — сжимается до начального, минус — начальный.
+  r = N.restoreNpcStocks(npcs, { s: { wood_sword: 99, moonstone: -5 } });
+  assert.deepEqual(r, { s: { wood_sword: 2, moonstone: 1 } });
+  // Предмет вне каталога — отбрасывается; недостающий — начальный.
+  r = N.restoreNpcStocks(npcs, { s: { wood_sword: 1, ghost_item: 7 } });
+  assert.deepEqual(r, { s: { wood_sword: 1, moonstone: 1 } });
+  // Неизвестный NPC / NPC без торговли — пропускаются.
+  r = N.restoreNpcStocks(npcs, { nope: { a: 1 }, t: { a: 1 } });
+  assert.deepEqual(r, {});
+  // Грязные данные — пусто, не падаем.
+  for (const bad of [null, undefined, 'x', 5, [],
+    { s: 'не сток' }, { s: [1, 2] }, { s: null }]) {
+    assert.deepEqual(N.restoreNpcStocks(npcs, bad), {}, JSON.stringify(bad));
+  }
+});
+
+test('roundtrip: журнал и стоки через JSON — данные не теряются', () => {
+  const book = N.createQuestBook();
+  const npcs = [questNpc, tradeNpc];
+  N.acceptQuest(book, npcs, questNpc, 'q1', 2);
+  N.acceptQuest(book, npcs, questNpc, 'q3', 2);
+  book.done.push('q9');
+  const stocks = { s: { wood_sword: 0, moonstone: 1 } };
+
+  // Симуляция «через хранилище»: JSON-строка туда-обратно.
+  const wire = JSON.stringify({
+    quests: N.serializeQuestBook(book),
+    npcStocks: N.serializeNpcStocks(stocks),
+  });
+  const fromWire = JSON.parse(wire);
+  const book2 = N.deserializeQuestBook(fromWire.quests);
+  assert.deepEqual(book2, N.serializeQuestBook(book));
+  const stocks2 = N.restoreNpcStocks(npcs, fromWire.npcStocks);
+  assert.deepEqual(stocks2, stocks);
+});
+
+test('битый сейв не роняет: мусор → null/пусто, игра продолжает', () => {
+  // Всё, что может прийти из «битого» сейва, гасится без исключений.
+  assert.equal(N.deserializeQuestBook(JSON.parse('"{}"')), null);
+  assert.deepEqual(N.deserializeQuestBook(JSON.parse('{"active":{},"done":[]}')),
+    { active: {}, done: [] }, 'пустой, но валидный журнал — ок');
+  assert.deepEqual(N.restoreNpcStocks([], JSON.parse('[{"a":1}]')), {});
+  // serializeQuestBook на мусоре в полях не падает.
+  const book = { active: { q: null }, done: 'x' };
+  assert.deepEqual(N.serializeQuestBook(book), { active: {}, done: [] });
+});

@@ -178,6 +178,20 @@
   // (source of truth — assets/npc), журнал квестов — один на сессию.
   const NPCS = (G.NpcData && G.NpcData.NPCS) || [];
   const questBook = G.createQuestBook ? G.createQuestBook() : null;
+  // Стоки торговцев NPC (задача 000029): npcId → { itemId: qty }.
+  // Создаются лениво при первом диалоге, переживают перезагрузку
+  // страницы через общий сейв (раньше сток сбрасывался сессией).
+  const npcStocks = {};
+  function npcShopFor(npcId) {
+    const npc = G.npcById(NPCS, npcId);
+    if (!npc) return null;
+    if (!npcStocks[npcId]) {
+      const shop = G.createNpcShop(npc);
+      if (!shop) return null; // NPC не торгует
+      npcStocks[npcId] = shop.stock;
+    }
+    return { npc, stock: npcStocks[npcId] };
+  }
   const player = { x: 0, y: 0 };
   const prevPos = { x: 0, y: 0 }; // позиция до последнего шага (побег/смерть)
   let zoom = G.ZOOM_START; // пикселей на тайл (детальный старт, 000019)
@@ -217,15 +231,19 @@
   }
   let restoring = false; // при восстановлении дня не перезаписываем сейв
 
-  // Текущее состояние (структура v1): день мира, позиция, персонаж.
-  // Остальное (квесты, сток NPC — задача 000029) — дополнительные
-  // поля БЕЗ повышения версии (неломкое расширение).
+  // Текущее состояние (структура v1): день мира, позиция, персонаж,
+  // журнал квестов, стоки торговцев NPC (задача 000029) — доп. поля
+  // БЕЗ повышения версии (неломкое расширение).
   function collectSaveData() {
     return {
       day: clock.day,
       steps: clock.steps,
       position: { x: player.x, y: player.y },
       hero,
+      quests: questBook && G.serializeQuestBook
+        ? G.serializeQuestBook(questBook) : null,
+      npcStocks: G.serializeNpcStocks
+        ? G.serializeNpcStocks(npcStocks) : null,
     };
   }
 
@@ -283,6 +301,34 @@
       }
     }
     prevPos.x = player.x; prevPos.y = player.y;
+    // Журнал квестов и стоки торговцев (задача 000029). Невалидная
+    // секция — тихий сброс с console.warn; игра не роняется.
+    try {
+      if (questBook && G.deserializeQuestBook && d.quests != null) {
+        const qb = G.deserializeQuestBook(d.quests);
+        if (!qb) {
+          console.warn('Сейв: журнал квестов некорректен — сбрасываю.');
+        } else {
+          // День мира уже восстановлен выше — сверяем метки выдачи.
+          const pruned = G.pruneQuestBookByDay
+            ? G.pruneQuestBookByDay(qb, clock.day)
+            : { book: qb, dropped: [] };
+          if (pruned.dropped.length) {
+            console.warn('Сейв: квесты, выданные позже дня мира (' +
+              clock.day + '), исключены: ' + pruned.dropped.join(', '));
+          }
+          questBook.active = pruned.book.active;
+          questBook.done = pruned.book.done;
+        }
+      }
+      if (G.restoreNpcStocks && d.npcStocks != null) {
+        const restored = G.restoreNpcStocks(NPCS, d.npcStocks);
+        for (const k of Object.keys(npcStocks)) delete npcStocks[k];
+        Object.assign(npcStocks, restored);
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить квесты/стоки:', err);
+    }
     G.playerUI && G.playerUI.render();
   }
   let hudFlash = '';
@@ -357,6 +403,10 @@
               book: questBook,
               tile: { x: player.x, y: player.y,
                 building: t.building, buildingWealth: t.buildingWealth },
+              // Сток общий на сессию + сейв при изменениях (000029).
+              shop: npcShopFor(npc.id),
+              onChange: saveNow,
+              day: clock.day,
             });
           }
         }
@@ -800,6 +850,10 @@
         ? { active: Object.values(questBook.active), done: questBook.done }
         : null;
     },
+    // Стоки торговцев NPC (задача 000029): npcId → { itemId: qty }.
+    get npcStocks() {
+      return Object.assign({}, npcStocks);
+    },
     // Отладочные действия (смоук-тесты, ручная проверка баланса).
     // Текущий бой (для смоук-тестов и отладки).
     get combat() {
@@ -868,6 +922,9 @@
           book: questBook,
           tile: { x: player.x, y: player.y,
             building: t.building, buildingWealth: t.buildingWealth },
+          shop: npcShopFor(npc.id),
+          onChange: saveNow,
+          day: clock.day,
         });
         return G.npcUI.isActive();
       },
