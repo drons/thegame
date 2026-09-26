@@ -1,0 +1,12 @@
+{
+  "id": "wood_sword",
+  "name": "Деревянный меч",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1,
+  "value": 10,
+  "desc": "Простой деревянный меч: лёгкий, крепкий, не подводит.",
+  "stats": {
+    "damage": 3
+  }
+}

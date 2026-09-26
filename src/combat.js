@@ -10,12 +10,13 @@
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./perlin.js'), require('./player.js'));
+    module.exports = factory(
+      require('./perlin.js'), require('./player.js'), require('./items.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
-      factory(typeof root.Game === 'object' ? root.Game : {}, root.Game));
+      factory(typeof root.Game === 'object' ? root.Game : {}, root.Game, root.Game));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, P) {
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, P, I) {
 
   const mulberry32 = perlin.mulberry32;
 
@@ -99,6 +100,7 @@
   const LEADER_DEF_MULT = 0.95;
 
   const RANGED_MAX_DIST = 4;
+  const BOW_ATTACK_DIST = 4; // дальность атаки из лука (задача 000009)
   const SPELL_MAX_DIST = 4;
   const POISON_CHANCE = 0.3;
   const POISON_TICK = 2;      // урона за ход
@@ -224,7 +226,7 @@
     if (c.ps.blocked) {
       dmg *= 1 - Math.min(0.6, 0.2 + 0.02 * p.primary.constitution);
     }
-    dmg = Math.max(0, Math.round(dmg) - d.armor);
+    dmg = Math.max(0, Math.round(dmg) - d.armor - I.equipmentStats(p).armor);
     if (dmg > 0) P.takeDamage(p, dmg);
     if (!p.alive) {
       // «Несокрушимость»: шанс выжить смертельный удар — 1 раз в игровой день
@@ -277,13 +279,25 @@
     if (c.ps.attack <= 0) return { ok: false, reason: 'действий «Удар» больше нет' };
     const t = targetId ? c.units.find((u) => u.id === targetId) : nearestMob(c);
     if (!t || !t.alive || t.fled) return { ok: false, reason: 'нет цели' };
-    if (dist(c.px, c.py, t.x, t.y) > 1) return { ok: false, reason: 'цель слишком далеко (ближний бой)' };
-    c.ps.attack -= 1;
     const p = c.player;
     const d = P.derived(p);
-    const base = 3 + Math.floor(p.primary.strength * 0.8) + Math.floor(p.level * 0.5);
-    const dmg = base * (1 + d.fistDamageBonus + d.heavyDamageBonus);
-    if (c._rng() >= hitChance(p.level, d.swordHitBonus, t.level, 0)) {
+    const eq = I.equipmentStats(p);
+    // Лук бьёт в даль (BOW_ATTACK_DIST); остальное оружие — вплотную.
+    const isBow = eq.subtype === 'bow';
+    const maxDist = isBow ? BOW_ATTACK_DIST : 1;
+    if (dist(c.px, c.py, t.x, t.y) > maxDist) {
+      return { ok: false, reason: isBow ? 'цель слишком далеко (дальность лука 4)' : 'цель слишком далеко (ближний бой)' };
+    }
+    c.ps.attack -= 1;
+    let dmg;
+    if (eq.damage > 0) {
+      dmg = eq.damage * (1 + eq.dmgBonus);
+    } else {
+      const base = 3 + Math.floor(p.primary.strength * 0.8) + Math.floor(p.level * 0.5);
+      dmg = base * (1 + d.fistDamageBonus + d.heavyDamageBonus);
+    }
+    const hitBonus = eq.damage > 0 ? eq.hitBonus : d.swordHitBonus;
+    if (c._rng() >= hitChance(p.level, hitBonus, t.level, 0)) {
       log(c, `Вы промахнулись (${t.name}).`);
       return { ok: true, hit: false, dmg: 0 };
     }
@@ -366,19 +380,43 @@
     return { ok: true, fled: false };
   }
 
-  // Запасные действия под инвентарь (задача 000009): пулы есть, предметов пока нет.
-  function playerQuickItem(c) {
+  // «Быстрый предмет» (SPEC: Ловкость/Харизма): закреплённый слот,
+  // пул quickItem восстанавливается от Ловкости (refillPools).
+  function playerQuickItem(c, slot) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
     if (c.ps.quickItem <= 0) return { ok: false, reason: 'действий «Быстрый предмет» больше нет' };
-    return { ok: false, reason: 'быстрых предметов пока нет (инвентарь — задача 000009)' };
+    const p = c.player;
+    const s = Number.isInteger(slot) ? slot : I.firstQuickSlot(p);
+    if (s == null) return { ok: false, reason: 'быстрые слоты пусты' };
+    const itemId = I.quickItem(p, s);
+    if (!itemId) return { ok: false, reason: 'быстрый слот ' + (s + 1) + ' пуст' };
+    c.ps.quickItem -= 1;
+    const r = I.useItem(p, itemId);
+    if (!r.ok) {
+      c.ps.quickItem += 1; // неприменимый предмет — действие не сгорает
+      return { ok: false, reason: r.reason };
+    }
+    log(c, r.message);
+    return { ok: true, slot: s, item: r.name };
   }
 
-  function playerInvItem(c) {
+  // «Вытащить предмет» (SPEC: Удача) из инвентаря: 1 действие за ход.
+  function playerInvItem(c, itemId) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
     if (c.ps.invItem <= 0) return { ok: false, reason: 'действий «Предмет из инвентаря» больше нет' };
-    return { ok: false, reason: 'инвентарь пока пуст (задача 000009)' };
+    if (!itemId) return { ok: false, reason: 'выберите предмет из инвентаря' };
+    const p = c.player;
+    if (!I.hasItem(p, itemId)) return { ok: false, reason: 'предмета нет в инвентаре' };
+    c.ps.invItem -= 1;
+    const r = I.useItem(p, itemId);
+    if (!r.ok) {
+      c.ps.invItem += 1;
+      return { ok: false, reason: r.reason };
+    }
+    log(c, r.message);
+    return { ok: true, item: r.name };
   }
 
   function playerSelectTarget(c, targetId) {
@@ -608,8 +646,8 @@
     c.block = () => playerBlock(c);
     c.move = (dx, dy) => playerMove(c, dx, dy);
     c.flee = () => playerFlee(c);
-    c.quickItem = () => playerQuickItem(c);
-    c.invItem = () => playerInvItem(c);
+    c.quickItem = (slot) => playerQuickItem(c, slot);
+    c.invItem = (itemId) => playerInvItem(c, itemId);
     c.selectTarget = (targetId) => playerSelectTarget(c, targetId);
     c.endTurn = () => endPlayerTurn(c);
     return c;

@@ -1,0 +1,12 @@
+{
+  "id": "short_bow",
+  "name": "Короткий лук",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 1,
+  "value": 30,
+  "desc": "Короткий охотничий лук: надёжен на близкой дистанции.",
+  "stats": {
+    "damage": 4
+  }
+}

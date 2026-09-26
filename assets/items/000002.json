@@ -1,0 +1,12 @@
+{
+  "id": "iron_sword",
+  "name": "Железный меч",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.5,
+  "value": 40,
+  "desc": "Честный железный меч из пограничной кузницы.",
+  "stats": {
+    "damage": 5
+  }
+}

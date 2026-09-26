@@ -1,0 +1,11 @@
+{
+  "id": "leather_armor",
+  "name": "Кожаный доспех",
+  "kind": "armor",
+  "weight": 2,
+  "value": 35,
+  "desc": "Мягкий кожаный доспех: защита без скрипа.",
+  "stats": {
+    "armor": 2
+  }
+}

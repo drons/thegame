@@ -1,0 +1,12 @@
+{
+  "id": "mana_elixir",
+  "name": "Эликсир маны",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 40,
+  "desc": "Эликсир маны: ум проясняется, руны горят ярче.",
+  "effect": {
+    "kind": "mp",
+    "amount": 20
+  }
+}

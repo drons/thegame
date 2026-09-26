@@ -1,0 +1,13 @@
+{
+  "id": "archery_manual",
+  "name": "Азбука стрельбы",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 60,
+  "desc": "Азбука стрельбы: ветер, дыхание и отпускание.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "accuracy",
+    "amount": 10
+  }
+}

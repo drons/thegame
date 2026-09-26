@@ -49,13 +49,14 @@
     [DUNGEON_TYPES.ABYSS]: ['lower_demon', 'succubus', 'abomination'],
   };
 
-  // Предметы в сундуках по типу подземелья (полная система предметов — 000009).
+  // Предметы в сундуках по типу подземелья: id предметов из каталога
+  // assets/items (фолбэк — src/items-data.js, ядро — src/items.js).
   const DUNGEON_ITEMS = {
-    [DUNGEON_TYPES.CAVE]: ['костяной ключ', 'сушёная ящерица', 'ржавый меч'],
-    [DUNGEON_TYPES.CRYPT]: ['старинная книга', 'плита саркофага', 'амулет нежити'],
-    [DUNGEON_TYPES.RUINS]: ['закатанное знамя', 'геральдический щит', 'золотой пояс'],
-    [DUNGEON_TYPES.DROWNED]: ['ракушка-реликвия', 'жемчужина глубин', 'водный кристалл'],
-    [DUNGEON_TYPES.ABYSS]: ['рог бездны', 'тёмный камень', 'печать Уродства'],
+    [DUNGEON_TYPES.CAVE]: ['iron_sword', 'healing_potion', 'sulfur'],
+    [DUNGEON_TYPES.CRYPT]: ['alchemy_manual', 'chainmail', 'mana_potion'],
+    [DUNGEON_TYPES.RUINS]: ['steel_sword', 'knight_plate', 'war_hammer'],
+    [DUNGEON_TYPES.DROWNED]: ['mana_elixir', 'hunting_bow', 'moonstone'],
+    [DUNGEON_TYPES.ABYSS]: ['war_hammer', 'phoenix_feather', 'greater_healing'],
   };
 
   // Размер лабиринта (клеток) по типу.
@@ -194,6 +195,7 @@
    *   chests:{id:string, x:number, y:number, opened:boolean, gold:number, item:string|null}[],
    *   createdAtXp:number,
    * }}
+   * `chests[].item` — id предмета из каталога assets/items (или null).
    */
   function generateDungeonContents(d, player) {
     const seed = (hash2(player.totalXp, d.seed, 0x5e11) ^ (player.totalXp * 2654435761)) >>> 0;

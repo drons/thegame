@@ -52,6 +52,15 @@
     .cp-name { max-width: 190px; }
     .cp-req { color: #9a8f76; font-size: 11px; }
     .cp-level { text-align: right; width: 34px; color: #9fd3ff; }
+  .cp-items { margin-top: 4px; }
+  .cp-itemrow { display: flex; align-items: center; gap: 4px; padding: 1px 0; }
+  .cp-itemrow .cp-itemname { flex: 1; }
+  .cp-itemmeta { color: #9a8f76; font-size: 11px; }
+  .cp-notice {
+    margin-top: 8px; color: #ffd97a; min-height: 16px;
+    transition: opacity 0.4s; opacity: 0;
+  }
+  .cp-itemrow .cp-btn { width: auto; min-width: 24px; padding: 0 5px; }
     .cp-btn {
       width: 24px; height: 20px;
       border: 1px solid #6b6248; border-radius: 5px;
@@ -141,6 +150,8 @@
   <script src="src/map.js"></script>
   <script src="src/player.js"></script>
   <script src="src/day.js"></script>
+  <script src="src/items-data.js"></script>
+  <script src="src/items.js"></script>
   <script src="src/combat.js"></script>
   <script src="src/dungeon.js"></script>
   <script src="src/ui.js"></script>

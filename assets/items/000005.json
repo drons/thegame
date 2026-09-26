@@ -1,0 +1,12 @@
+{
+  "id": "hunting_bow",
+  "name": "Охотничий лук",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 1.5,
+  "value": 90,
+  "desc": "Лук охотника — стрела летит далеко и точно.",
+  "stats": {
+    "damage": 6
+  }
+}

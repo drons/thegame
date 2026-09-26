@@ -1,0 +1,12 @@
+{
+  "id": "healing_potion",
+  "name": "Зелье лечения",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 10,
+  "desc": "Зелье лечения: красное, тёплое, пахнет клевером.",
+  "effect": {
+    "kind": "heal",
+    "amount": 15
+  }
+}

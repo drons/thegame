@@ -5,6 +5,7 @@ const {
   MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
+const I = require('../src/items.js');
 
 // Сильный персонаж для контролируемых сценариев (много HP — не умирает сам).
 function strongHero() {
@@ -448,4 +449,114 @@ test('кастомный состав: массив мобов + mobLevel + grou
   const a = createCombat({ player: strongHero(), mobs: ['spider', 'scorpion'], mobLevel: 3, seed: 7 });
   assert.equal(a.units.length, 2);
   assert.equal(a.units[0].level, 3);
+});
+
+// --- Предметы в бою (задача 000009) ---
+
+test('быстрый предмет: закреплённый слот лечит и тратит пул quickItem', () => {
+  const p = strongHero();
+  I.addItem(p, 'healing_potion');
+  assert.equal(I.setQuick(p, 0, 'healing_potion').ok, true);
+  const c = createCombat({ player: p, groupType: 3, seed: 5 });
+  p.hp = 10;
+  const pool = c.ps.quickItem;
+  const r = c.quickItem(0);
+  assert.equal(r.ok, true);
+  assert.equal(r.slot, 0);
+  assert.equal(p.hp, 25, '+15 HP от зелья');
+  assert.equal(c.ps.quickItem, pool - 1, 'действие потрачено');
+  assert.equal(I.totalQty(p, 'healing_potion'), 0, 'зелье в слоте потрачено');
+  // Слот пуст — действие не сгорает (возвращаем пул, чтобы проверить именно слот).
+  c.ps.quickItem = pool;
+  const r2 = c.quickItem(0);
+  assert.equal(r2.ok, false);
+  assert.match(r2.reason, /пуст/);
+  assert.equal(c.ps.quickItem, pool, 'пустой слот не тратит действие');
+  // Без аргумента — первый занятый слот.
+  I.addItem(p, 'bread');
+  I.setQuick(p, 2, 'bread');
+  const r3 = c.quickItem();
+  assert.equal(r3.ok, true);
+  assert.equal(r3.slot, 2);
+});
+
+test('предмет из инвентаря: 1 действие за ход, выбор предмета', () => {
+  const p = strongHero();
+  I.addItem(p, 'meat');
+  const c = createCombat({ player: p, groupType: 3, seed: 5 });
+  p.hp = 10;
+  assert.equal(c.invItem('bread').ok, false, 'нет в инвентаре');
+  assert.equal(c.invItem('bread').ok, false);
+  assert.equal(c.ps.invItem, 1, 'несуществующий предмет не тратит действие');
+  const r = c.invItem('meat');
+  assert.equal(r.ok, true);
+  assert.equal(p.hp, 18, '+8 HP от мяса');
+  assert.equal(c.ps.invItem, 0, 'действие потрачено');
+  assert.equal(c.invItem('meat').ok, false, 'действие больше нет');
+});
+
+test('оружие в бою: меч бьёт сильнее кулаков, подтип даёт бонусы', () => {
+  const p = strongHero(); // сила 1 → кулаки: 3 урона
+  I.addItem(p, 'iron_sword'); // урон 5
+  I.equip(p, 'iron_sword');
+  const c = createCombat({ player: p, groupType: 3, seed: 5 });
+  c._rng = () => 0.01; // все атаки попадают
+  standNextTo(c, c.units[0]);
+  const r = c.attack(c.units[0].id);
+  assert.equal(r.ok, true);
+  assert.equal(r.hit, true);
+  assert.equal(r.dmg, 5, 'урон меча = stats.damage');
+  // «Тяжёлое оружие» +5%/ур: топор 8 → 8.4 на 1 ур.
+  const p2 = strongHero();
+  p2.secondary.heavy = 1;
+  I.addItem(p2, 'battle_axe');
+  I.equip(p2, 'battle_axe');
+  const c2 = createCombat({ player: p2, groupType: 3, seed: 5 });
+  c2._rng = () => 0.01;
+  standNextTo(c2, c2.units[0]);
+  assert.equal(c2.attack(c2.units[0].id).dmg, Math.round(8 * 1.05) - 0, 'бонус тяжёлого оружия');
+});
+
+test('лук: атака в даль до 4 клеток, без лука — только вплотную', () => {
+  // Мини-карта 7x4: игрок в (3,3), моб в (3,0) — дистанция 3.
+  const p = strongHero();
+  I.addItem(p, 'hunting_bow');
+  I.equip(p, 'hunting_bow');
+  const c = createCombat({ player: p, groupType: 3, seed: 5, width: 7, height: 4 });
+  c._rng = () => 0.01;
+  const far = c.units.find((u) => Math.abs(u.x - c.px) + Math.abs(u.y - c.py) === 3);
+  assert.ok(far, 'найдём моб на дистанции 3');
+  const r = c.attack(far.id);
+  assert.equal(r.ok, true, 'лук бьёт в даль');
+  assert.equal(r.hit, true);
+  assert.equal(r.dmg, 6, 'урон лука = stats.damage');
+
+  // Без лука та же дистанция недосягаема.
+  const p2 = strongHero();
+  const c2 = createCombat({ player: p2, groupType: 3, seed: 5, width: 7, height: 4 });
+  const far2 = c2.units.find((u) => Math.abs(u.x - c2.px) + Math.abs(u.y - c2.py) === 3);
+  assert.ok(far2);
+  const r2 = c2.attack(far2.id);
+  assert.equal(r2.ok, false);
+  assert.match(r2.reason, /далеко/);
+});
+
+test('броня снижает получаемый урон (то же зерно боя, с/без брони)', () => {
+  const make = (withArmor) => {
+    const p = strongHero();
+    if (withArmor) {
+      I.addItem(p, 'leather_armor');
+      I.equip(p, 'leather_armor');
+    }
+    const c = createCombat({ player: p, groupType: 3, seed: 99 });
+    c._rng = () => 0.01; // все атаки мобов попадают
+    standNextTo(c, c.units[0]);
+    const hp0 = p.hp;
+    c.endTurn();
+    return p.hp === 9999 ? 0 : 9999 - p.hp; // strongHero hp=9999
+  };
+  const without = make(false);
+  const withArmor = make(true);
+  assert.ok(without > 0, 'без брони урон получен');
+  assert.ok(withArmor < without, `с броней урон меньше: ${withArmor} < ${without}`);
 });

@@ -352,8 +352,17 @@
       const r = G.openChest(c, ch.id);
       if (r.ok) {
         hero.gold += r.gold;
-        ds.log.push('Сундук: +' + r.gold + ' золота' + (r.item ? ', ' + r.item : ''));
-        hudFlash = 'Сундук: +' + r.gold + ' золота' + (r.item ? ', ' + r.item : '');
+        // Предмет в сундуке — id из каталога (assets/items) → в инвентарь.
+        let itemMsg = '';
+        if (r.item) {
+          const it = G.getItem(r.item);
+          const add = G.addItem(hero, r.item);
+          itemMsg = add.ok
+            ? ', ' + it.name
+            : ' (инвентарь полон: ' + it.name + ' потерян)';
+        }
+        ds.log.push('Сундук: +' + r.gold + ' золота' + itemMsg);
+        hudFlash = 'Сундук: +' + r.gold + ' золота' + itemMsg;
         hudFlashUntil = performance.now() + 5000;
         G.playerUI && G.playerUI.render();
       }
@@ -446,12 +455,20 @@
         '\nДо выхода: ~' + dist + ' клеток  |  ' +
         (ds.contents.mobs.filter((m) => !m.defeated).length) + ' групп(ы)';
     } else if (t.hasBuilding) {
-      line += '\nЗдесь: ' + G.BUILDING_NAMES[t.building] +
+      const shopHint = G.shopKindsFor(t.building) ? '  (торговля — панель [I])' : '';
+      line += '\nЗдесь: ' + G.BUILDING_NAMES[t.building] + shopHint +
         (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE ? ' (вход — шагните)' : '');
     } else if (t.hasMobGroup) {
       line += defeatedAt.has(key)
         ? '\nГруппа ' + G.MOB_GROUP_NAMES[t.mobGroup] + ' повержена.'
         : '\nОсторожно: ' + G.MOB_GROUP_NAMES[t.mobGroup] + '!';
+    }
+    // Магазин текущего тайла → секция «Торговля» в панели персонажа.
+    if (G.playerUI) {
+      const isShop = !dungeonState && t.hasBuilding && G.shopKindsFor(t.building);
+      G.playerUI.setShop(isShop
+        ? G.makeShop(player.x, player.y, t.building, t.buildingWealth)
+        : null);
     }
     if (performance.now() < hudFlashUntil) line += '\n' + hudFlash;
     hud.textContent = line;
@@ -498,6 +515,9 @@
         hero: {
           level: hero.level, xp: hero.xp, hp: hero.hp,
           gold: hero.gold, points: hero.points,
+          weight: G.inventoryWeight(hero),
+          maxWeight: G.maxCarryWeight(hero),
+          inventory: (hero.inventory || { slots: [] }).slots,
         },
         map: map ? { width: map.width, height: map.height, fromPng: map.fromPng } : null,
         keys: Array.from(keys),
@@ -579,6 +599,12 @@
       },
       addXp: (n) => {
         const r = G.addXp(hero, n);
+        G.playerUI && G.playerUI.render();
+        return r;
+      },
+      // Выдать предмет из каталога (debug/смоук, задача 000009).
+      giveItem: (id, qty) => {
+        const r = G.addItem(hero, id, qty || 1);
         G.playerUI && G.playerUI.render();
         return r;
       },

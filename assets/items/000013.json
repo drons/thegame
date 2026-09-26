@@ -1,0 +1,12 @@
+{
+  "id": "greater_healing",
+  "name": "Большое зелье лечения",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 35,
+  "desc": "Большое зелье лечения: как будто целитель положил ладони.",
+  "effect": {
+    "kind": "heal",
+    "amount": 40
+  }
+}
