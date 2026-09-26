@@ -1,0 +1,20 @@
+{
+  "id": "ant",
+  "name": "Пещерный муравей",
+  "role": "swarm",
+  "aggro": "territorial",
+  "dmg": 0.5,
+  "hp": 0.5,
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [],
+  "spells": [],
+  "loot": [
+    {
+      "item": "honey_cake",
+      "chance": 0.15
+    }
+  ]
+}

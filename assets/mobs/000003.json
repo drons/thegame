@@ -1,0 +1,22 @@
+{
+  "id": "orc_archer",
+  "name": "Орк-лучник",
+  "role": "ranged",
+  "aggro": "aggressive",
+  "dmg": 0.9,
+  "hp": 0.9,
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "archer"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "short_bow",
+      "chance": 0.1
+    }
+  ]
+}

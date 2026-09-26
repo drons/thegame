@@ -1,0 +1,23 @@
+{
+  "id": "earth_elemental",
+  "name": "Земляной стихийник",
+  "role": "shield",
+  "aggro": "neutral",
+  "dmg": 1,
+  "hp": 3,
+  "armor": 2,
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "golem"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "moonstone",
+      "chance": 0.15
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "succubus",
+  "name": "Суккуб",
+  "role": "support",
+  "aggro": "aggressive",
+  "dmg": 0.6,
+  "hp": 0.8,
+  "traits": {
+    "debuff": true
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "orator"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "mana_elixir",
+      "chance": 0.15
+    }
+  ]
+}

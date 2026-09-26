@@ -1,0 +1,20 @@
+{
+  "id": "giant_larva",
+  "name": "Личинка падальщика",
+  "role": "melee",
+  "aggro": "territorial",
+  "dmg": 1,
+  "hp": 1,
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [],
+  "spells": [],
+  "loot": [
+    {
+      "item": "meat",
+      "chance": 0.2
+    }
+  ]
+}

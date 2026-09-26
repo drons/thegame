@@ -1,0 +1,22 @@
+{
+  "id": "imp",
+  "name": "Имп",
+  "role": "ranged",
+  "aggro": "aggressive",
+  "dmg": 0.7,
+  "hp": 0.7,
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "runes"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "sulfur",
+      "chance": 0.25
+    }
+  ]
+}

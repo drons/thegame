@@ -1,0 +1,20 @@
+{
+  "id": "boar",
+  "name": "Казённый вепрь",
+  "role": "melee",
+  "aggro": "neutral",
+  "dmg": 1,
+  "hp": 1.5,
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [],
+  "spells": [],
+  "loot": [
+    {
+      "item": "meat",
+      "chance": 0.3
+    }
+  ]
+}

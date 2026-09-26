@@ -1,5 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   hitChance, createCombat, resolveDifficulty,
   MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT, PRACTICE_XP,
@@ -7,6 +9,12 @@ const {
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
 const I = require('../src/items.js');
+
+const MOBS_DIR = path.join(__dirname, '..', 'assets', 'mobs');
+const SKILLS_DIR = path.join(__dirname, '..', 'assets', 'skills');
+const SPELLS_DIR = path.join(__dirname, '..', 'assets', 'spells');
+const mobFiles = () => fs.readdirSync(MOBS_DIR)
+  .filter((f) => /^\d{6}\.json$/.test(f)).sort();
 
 // Сильный персонаж для контролируемых сценариев (много HP — не умирает сам).
 function strongHero() {
@@ -133,6 +141,93 @@ test('состав группы детерминирован при одном �
     c1.units.map((u) => [u.mobId, u.level, u.x, u.y, u.hp, u.armor]),
     c2.units.map((u) => [u.mobId, u.level, u.x, u.y, u.hp, u.armor]),
   );
+});
+
+// --- Каталог описаний мобов assets/mobs (задача 000022) ---
+
+test('assets/mobs: JSON-файлы — структура по схеме, id уникальны', () => {
+  const files = mobFiles();
+  assert.ok(files.length >= 30, 'мало JSON-файлов мобов: ' + files.length);
+  const ROLES = new Set(['melee', 'ranged', 'support', 'leader', 'shield', 'swarm']);
+  const AGGRO = new Set(['aggressive', 'neutral', 'territorial', 'timid']);
+  const ids = new Set();
+  for (const f of files) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    assert.match(j.id, /^[a-z][a-z0-9_]*$/, f + ': id');
+    assert.ok(!ids.has(j.id), f + ': дублируется id ' + j.id);
+    ids.add(j.id);
+    assert.ok(j.name, f + ': нет имени');
+    assert.ok(ROLES.has(j.role), f + ': роль ' + j.role);
+    assert.ok(AGGRO.has(j.aggro), f + ': агрессия ' + j.aggro);
+    assert.ok(j.dmg > 0 && j.hp > 0, f + ': dmg/hp');
+    assert.ok(j.xp && j.xp.base >= 0 && j.xp.perLevel >= 0, f + ': xp = base + perLevel*уровень');
+    assert.ok(Array.isArray(j.skills), f + ': skills — массив ссылок');
+    assert.ok(Array.isArray(j.spells), f + ': spells — массив ссылок');
+    assert.ok(Array.isArray(j.loot), f + ': loot — массив');
+    for (const l of j.loot) {
+      assert.match(l.item, /^[a-z][a-z0-9_]*$/, f + ': loot.item');
+      if (l.chance != null) assert.ok(l.chance >= 0 && l.chance <= 1, f + ': chance 0..1');
+    }
+  }
+});
+
+test('assets/mobs: зеркало в combat.js идентично JSON-каталогу (source of truth)', () => {
+  const files = mobFiles();
+  const byId = new Map(Object.entries(MOB_TYPES).map(([id, t]) => [id, t]));
+  for (const f of files) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    assert.ok(byId.has(j.id), f + ': моб ' + j.id + ' нет в combat.js');
+    assert.deepEqual(j, byId.get(j.id), f + ' расходится с combat.js');
+    byId.delete(j.id);
+  }
+  assert.equal(byId.size, 0, 'в combat.js есть мобы без JSON-файла: '
+    + Array.from(byId.keys()).join(', '));
+});
+
+test('assets/mobs: ссылки — skills в assets/skills, loot в assets/items', () => {
+  const skillIds = new Set(
+    fs.readdirSync(SKILLS_DIR).filter((f) => /^\d{6}\.json$/).map((f) =>
+      JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id));
+  const itemIds = new Set(I.allItems().map((it) => it.id));
+  // assets/spells появится с задачей 000023: проверяем, только если есть.
+  const spellsExist = fs.existsSync(SPELLS_DIR);
+  const spellIds = spellsExist ? new Set(
+    fs.readdirSync(SPELLS_DIR).filter((f) => f.endsWith('.json')).map((f) =>
+      JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8')).id)) : null;
+  for (const f of mobFiles()) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    for (const s of j.skills) {
+      assert.ok(skillIds.has(s), j.id + ': навык «' + s + '» нет в assets/skills');
+    }
+    for (const l of j.loot) {
+      assert.ok(itemIds.has(l.item), j.id + ': лут «' + l.item + '» нет в assets/items');
+    }
+    for (const sp of j.spells) {
+      assert.ok(spellIds && spellIds.has(sp),
+        j.id + ': заклинание «' + sp + '» нет в assets/spells');
+    }
+  }
+});
+
+test('единицы: xp/skills/loot из описания, опыт победы = base + perLevel*уровень', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 5, seed: 3 });
+  const u = c.units[0];
+  assert.deepEqual(u.xp, { base: 8, perLevel: 4 });
+  assert.deepEqual(u.loot, [{ item: 'leather_armor', chance: 0.1 }]);
+  assert.deepEqual(u.skills, []);
+  // Убиваем волка: опыт = 8 + 4*5 = 28.
+  c._rng = () => 0.01;
+  standNextTo(c, u);
+  let n = 0;
+  while (!c.result && n++ < 60) {
+    c.ps.attack = 99;
+    c.attack(u.id);
+    c.endTurn();
+  }
+  assert.ok(c.result, 'бой не завершился');
+  assert.equal(c.result.outcome, 'victory');
+  assert.equal(c.result.xp, 8 + 4 * 5, 'опыт победы по данным описания');
 });
 
 test('группа с лидером: +5% урона и +5% защиты всем', () => {

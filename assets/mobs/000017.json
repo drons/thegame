@@ -1,0 +1,20 @@
+{
+  "id": "wolf_pack",
+  "name": "Волчья стая",
+  "role": "swarm",
+  "aggro": "territorial",
+  "dmg": 0.7,
+  "hp": 0.8,
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [],
+  "spells": [],
+  "loot": [
+    {
+      "item": "leather_armor",
+      "chance": 0.15
+    }
+  ]
+}

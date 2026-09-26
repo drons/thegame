@@ -1,0 +1,23 @@
+{
+  "id": "orc_rider",
+  "name": "Орк-наездник на волке",
+  "role": "melee",
+  "aggro": "aggressive",
+  "dmg": 1.1,
+  "hp": 1,
+  "fast": true,
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "step"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "sulfur",
+      "chance": 0.1
+    }
+  ]
+}

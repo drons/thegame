@@ -1,0 +1,20 @@
+{
+  "id": "crawling_bones",
+  "name": "Ползучие кости",
+  "role": "swarm",
+  "aggro": "aggressive",
+  "dmg": 0.5,
+  "hp": 0.5,
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [],
+  "spells": [],
+  "loot": [
+    {
+      "item": "sulfur",
+      "chance": 0.1
+    }
+  ]
+}

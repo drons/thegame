@@ -1,0 +1,25 @@
+{
+  "id": "water_elemental",
+  "name": "Водный стихийник",
+  "role": "melee",
+  "aggro": "neutral",
+  "dmg": 1,
+  "hp": 1.4,
+  "traits": {
+    "regen": true
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "breath"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "mana_elixir",
+      "chance": 0.1
+    }
+  ]
+}
