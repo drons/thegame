@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="24" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- дом -->
+  <rect x="16" y="30" width="32" height="24" fill="#7a6a9e" stroke="#57497a" stroke-width="1"/>
+  <polygon points="12,32 32,13 52,32" fill="#4a3a7a" stroke="#372a5c" stroke-width="1"/>
+  <polygon points="12,32 32,13 32,32" fill="#584689"/>
+  <!-- дверь -->
+  <rect x="27" y="40" width="9" height="14" rx="4" fill="#3a2f5c" stroke="#2a2246" stroke-width="1"/>
+  <!-- окна светятся -->
+  <rect x="19.5" y="35" width="6" height="6" fill="#d8b3ff" stroke="#57497a" stroke-width="0.9"/>
+  <rect x="39" y="35" width="6" height="6" fill="#d8b3ff" stroke="#57497a" stroke-width="0.9"/>
+  <!-- парящий кристалл над дверью -->
+  <circle cx="31.5" cy="30" r="5.5" fill="#b07ae8" opacity="0.35"/>
+  <polygon points="31.5,25 34.2,29.6 31.5,34 28.8,29.6" fill="#b07ae8" stroke="#7a4ab8" stroke-width="1"/>
+  <line x1="31.5" y1="26.5" x2="31.5" y2="32.5" stroke="#e3ccff" stroke-width="0.8" opacity="0.8"/>
+  <!-- искры -->
+  <g stroke="#ffffff" stroke-width="1" stroke-linecap="round" opacity="0.85">
+    <path d="M24 22 v3 M22.5 23.5 h3"/>
+    <path d="M39.5 19 v2.4 M38.3 20.2 h2.4"/>
+  </g>
+</svg>

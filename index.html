@@ -16,6 +16,16 @@
       width: 100%;
       height: 100%;
     }
+    /* Слой спрайтов поверх WebGL-канваса (текстуры тайлов, постройки, мобы,
+       Флогистон). Клик/колесо должны проходить к #game, поэтому
+       pointer-events: none. */
+    #sprites {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
     #hud {
       position: fixed;
       left: 12px;
@@ -133,6 +143,7 @@
 </head>
 <body>
   <canvas id="game"></canvas>
+  <canvas id="sprites"></canvas>
   <div id="hud">Загрузка мира…</div>
   <!-- Обычные <script> (не модули): игра открывается двойным кликом
        по index.html без локального сервера. API собирается в globalThis.Game. -->
@@ -146,6 +157,7 @@
   <script src="src/ui.js"></script>
   <script src="src/combat-ui.js"></script>
   <script src="src/dungeon-ui.js"></script>
+  <script src="src/sprites.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>

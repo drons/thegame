@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="aura" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffb03c" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#ff7a2a" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ff7a2a" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="32" cy="58" rx="14" ry="2.8" fill="rgba(0,0,0,0.25)"/>
+  <circle cx="32" cy="34" r="26" fill="url(#aura)"/>
+  <!-- внешнее пламя -->
+  <path d="M32 6 C26 14 22 20 20 28 C18.5 35 19 42 22 48 C24 52 27 55 32 56 C37 55 40 52 42 48 C45 42 45.5 35 44 28 C42 20 38 14 32 6 Z" fill="#e8542f" opacity="0.95"/>
+  <!-- боковые языки -->
+  <path d="M24 20 C22 24 22 28 24 31 C24.5 27 25 24 26.5 21.5 Z" fill="#e8542f" opacity="0.9"/>
+  <path d="M40 20 C42 24 42 28 40 31 C39.5 27 39 24 37.5 21.5 Z" fill="#e8542f" opacity="0.9"/>
+  <!-- среднее пламя -->
+  <path d="M32 14 C28 20 25.5 25 24.5 31 C23.8 37 25 43 28 47 C30 49.5 31 50.5 32 51 C33 50.5 34 49.5 36 47 C39 43 40.2 37 39.5 31 C38.5 25 36 20 32 14 Z" fill="#f5872f"/>
+  <!-- ядро -->
+  <path d="M32 24 C30 28 28.5 32 28.5 36 C28.5 41 30 45 32 47 C34 45 35.5 41 35.5 36 C35.5 32 34 28 32 24 Z" fill="#ffd23c"/>
+  <!-- глаза -->
+  <ellipse cx="28.5" cy="33" rx="1.8" ry="2.6" fill="#fff3c4"/>
+  <ellipse cx="35.5" cy="33" rx="1.8" ry="2.6" fill="#fff3c4"/>
+  <circle cx="32" cy="41" r="1.6" fill="#fff3c4" opacity="0.9"/>
+</svg>

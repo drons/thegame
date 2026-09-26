@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="stoneG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a8494"/>
+      <stop offset="1" stop-color="#5f5a68"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="32" cy="57" rx="20" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- камни у подножия -->
+  <ellipse cx="22" cy="56" rx="4.5" ry="2.6" fill="#6a6472"/>
+  <ellipse cx="43" cy="56.5" rx="5" ry="3" fill="#7a7484"/>
+  <!-- менгир -->
+  <path d="M24 56 C22 40 24 22 28 12 C30 7 34 7 36 12 C40 22 42 40 40 56 Z" fill="url(#stoneG)" stroke="#4f4a58" stroke-width="1.2"/>
+  <path d="M26 50 C25 38 26 26 29 16" stroke="#9a94a4" stroke-width="1" fill="none" opacity="0.6"/>
+  <!-- рунное свечение -->
+  <circle cx="32" cy="30" r="10" fill="#7de8ff" opacity="0.12"/>
+  <!-- руны -->
+  <g stroke="#7de8ff" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.95">
+    <path d="M32 16 V34"/>
+    <path d="M32 18 L38 24"/>
+    <path d="M32 26 L27 31"/>
+    <path d="M29.5 40 L33.5 44 L29.5 48"/>
+    <path d="M34.5 40 L30.5 44 L34.5 48"/>
+  </g>
+  <!-- мох -->
+  <path d="M24 56 C25 53 28 52.5 29 54.5 C27 55 25.8 55.5 25.2 56 Z" fill="#4f7a3a"/>
+  <path d="M38 56 C38.5 54 40.5 53.5 41.5 55 C40 55.5 39 55.8 38.6 56 Z" fill="#4f7a3a"/>
+</svg>

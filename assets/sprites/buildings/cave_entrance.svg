@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="25" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- скала -->
+  <path d="M6 56 C6 40 14 22 32 20 C50 22 58 40 58 56 Z" fill="#7a7264" stroke="#5d564a" stroke-width="1.2"/>
+  <path d="M14 56 C15 44 20 32 30 28 L26 34 C20 40 17 48 16 56 Z" fill="#8a8274" opacity="0.7"/>
+  <path d="M36 28 C44 32 49 44 50 56 L44 56 C44 46 41 36 34 31 Z" fill="#6a6254" opacity="0.7"/>
+  <!-- вход -->
+  <path d="M22 56 C22 44 26 36 32 36 C38 36 42 44 42 56 Z" fill="#171310"/>
+  <path d="M22 56 C22 44 26 36 32 36 C38 36 42 44 42 56" stroke="#8a8274" stroke-width="2" fill="none" opacity="0.55"/>
+  <!-- светящиеся кристаллы -->
+  <circle cx="27" cy="47" r="4.5" fill="#7de8ff" opacity="0.16"/>
+  <polygon points="25,50 27,43.5 29,50" fill="#7de8ff" opacity="0.9"/>
+  <polygon points="35,52 37,46 39,52" fill="#7de8ff" opacity="0.75"/>
+  <!-- камни у подножия -->
+  <circle cx="14" cy="55" r="2" fill="#6a6254"/>
+  <circle cx="50" cy="55.5" r="2.4" fill="#6a6254"/>
+  <circle cx="55" cy="56.5" r="1.6" fill="#5d564a"/>
+</svg>

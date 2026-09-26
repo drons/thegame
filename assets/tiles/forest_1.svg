@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="fo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#31683a"/>
+      <stop offset="1" stop-color="#285630"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" fill="url(#fo)"/>
+  <g fill="#1f4d2a" opacity="0.5">
+    <ellipse cx="10" cy="56" rx="10" ry="5"/>
+    <ellipse cx="52" cy="8" rx="9" ry="4.5"/>
+    <ellipse cx="56" cy="58" rx="8" ry="4"/>
+  </g>
+  <g stroke="#3f7a3a" stroke-width="1.2" stroke-linecap="round">
+    <path d="M6 30 q1 -3 0 -5"/>
+    <path d="M30 58 q1 -3 0 -5"/>
+    <path d="M58 34 q1 -3 0 -5"/>
+  </g>
+  <!-- дерево 1 -->
+  <rect x="16" y="30" width="4" height="12" rx="1.5" fill="#5d4a2f"/>
+  <circle cx="18" cy="24" r="9.5" fill="#1f4d26"/>
+  <circle cx="12.5" cy="28" r="6" fill="#25572c"/>
+  <circle cx="23.5" cy="28" r="6" fill="#2a5f30"/>
+  <circle cx="15.5" cy="21.5" r="3.2" fill="#35703a"/>
+  <!-- дерево 2 (крупнее) -->
+  <rect x="44" y="36" width="5" height="14" rx="2" fill="#54422a"/>
+  <circle cx="46.5" cy="27" r="11" fill="#1b4522"/>
+  <circle cx="39" cy="32" r="7.5" fill="#214f28"/>
+  <circle cx="54" cy="32" r="7.5" fill="#26572d"/>
+  <circle cx="43" cy="24.5" r="4" fill="#2f6634"/>
+</svg>

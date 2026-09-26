@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="mo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5d5864"/>
+      <stop offset="1" stop-color="#4f4a58"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" fill="url(#mo)"/>
+  <!-- пик левый -->
+  <polygon points="-2,56 18,16 36,56" fill="#6a6472"/>
+  <polygon points="-2,56 18,16 18,56" fill="#5f5968" opacity="0.7"/>
+  <polygon points="18,16 25,29 21.5,26.5 18,30 14.5,26.5 11,29" fill="#e8e8f0"/>
+  <!-- пик правый (ближе, светлее) -->
+  <polygon points="26,58 46,22 66,58" fill="#767080"/>
+  <polygon points="26,58 46,22 46,58" fill="#6a6474" opacity="0.65"/>
+  <polygon points="46,22 52,33 48.5,30.5 45,34 41.5,30.5 39,33" fill="#f0f0f6"/>
+  <!-- подножие -->
+  <rect y="54" width="64" height="10" fill="#46414f" opacity="0.75"/>
+  <g fill="#5d5866">
+    <ellipse cx="10" cy="58" rx="3" ry="1.6"/>
+    <ellipse cx="34" cy="59" rx="3.4" ry="1.8"/>
+    <ellipse cx="56" cy="58.5" rx="2.8" ry="1.5"/>
+  </g>
+</svg>

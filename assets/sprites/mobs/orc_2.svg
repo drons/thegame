@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="18" ry="3.5" fill="rgba(0,0,0,0.28)"/>
+  <!-- ноги (шаг: правая вперёд) -->
+  <rect x="25" y="46" width="5.5" height="10" rx="2" fill="#4a5f2e"/>
+  <rect x="33.5" y="45" width="5.5" height="11" rx="2" fill="#4a5f2e"/>
+  <g transform="translate(0,1.5)">
+    <!-- туловище -->
+    <path d="M22 28 C22 24 26 21 32 21 C38 21 42 24 42 28 L43 47 L21 47 Z" fill="#5d7a3c" stroke="#3f5427" stroke-width="1"/>
+    <path d="M24 25 L40 44" stroke="#4a3820" stroke-width="4" opacity="0.85"/>
+    <!-- левая рука -->
+    <path d="M21 30 C18 33 17.5 38 19 42" stroke="#5d7a3c" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <!-- правая рука опустила палицу -->
+    <path d="M43 29 C46.5 32 48 36 47.5 40" stroke="#5d7a3c" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <g transform="rotate(28 47.5 44)">
+      <rect x="45" y="42" width="5" height="15" rx="2.5" fill="#7a5a34"/>
+      <circle cx="47.5" cy="59" r="4" fill="#8a683c" stroke="#5d4426" stroke-width="1"/>
+    </g>
+    <!-- голова -->
+    <circle cx="32" cy="13" r="8.5" fill="#6b8a4a" stroke="#3f5427" stroke-width="1"/>
+    <path d="M24 11 L18.5 7.5 L24.5 6.5 Z" fill="#5d7a3c"/>
+    <path d="M40 11 L45.5 7.5 L39.5 6.5 Z" fill="#5d7a3c"/>
+    <circle cx="29" cy="12" r="1.6" fill="#e04a3a"/>
+    <circle cx="35" cy="12" r="1.6" fill="#e04a3a"/>
+    <path d="M27 18 L32 21 L37 18" stroke="#3f5427" stroke-width="1" fill="none"/>
+    <path d="M27.5 18.5 L26 14.5 L29.5 17 Z" fill="#efe8d2"/>
+    <path d="M36.5 18.5 L38 14.5 L34.5 17 Z" fill="#efe8d2"/>
+  </g>
+</svg>
