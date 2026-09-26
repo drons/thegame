@@ -3,18 +3,25 @@
 //
 // Чистое ядро без DOM — тестируется в node (tests/day.test.js).
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
+// Зависимости: global-settings.js (steps_per_day, respawn_days).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
+    module.exports = factory(require('./global-settings.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
-      factory(typeof root.Game === 'object' ? root.Game : {}, root.Game));
+      factory(root.Game && root.Game.GlobalSettings));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (settings) {
 
-  const STEPS_PER_DAY = 40; // параметр steps_per_day (SPEC.md)
-  const RESPAWN_DAYS = 3; // параметр respawn_days (SPEC.md)
+  if (!settings || typeof settings.SETTINGS !== 'object') {
+    throw new Error(
+      'day.js: не найдены глобальные настройки — загрузите global-settings.js до day.js');
+  }
+
+  // Глобальные настройки (src/global-settings.js, SPEC.md).
+  const STEPS_PER_DAY = settings.SETTINGS.steps_per_day;
+  const RESPAWN_DAYS = settings.SETTINGS.respawn_days;
 
   /**
    * Часы игрового дня.

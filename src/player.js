@@ -4,20 +4,28 @@
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Данные каталога навыков (основные и вторичные) — из униформного
 // модуля skills-data.js: зеркала каталога assets/skills (source of truth).
+// Зависимости: skills-data.js, global-settings.js (points_per_level).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./skills-data.js'));
+    module.exports = factory(require('./skills-data.js'),
+      require('./global-settings.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
-      factory(root.Game && root.Game.SkillsData));
+      factory(root.Game && root.Game.SkillsData,
+        root.Game && root.Game.GlobalSettings));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (skills) {
+})(typeof globalThis !== 'undefined' ? globalThis : self,
+  function (skills, settings) {
 
   if (!skills || !Array.isArray(skills.PRIMARY_SKILLS) ||
       !skills.SECONDARY_SKILLS || typeof skills.SECONDARY_SKILLS !== 'object') {
     throw new Error(
       'player.js: не найден каталог навыков — загрузите skills-data.js до player.js');
+  }
+  if (!settings || typeof settings.SETTINGS !== 'object') {
+    throw new Error(
+      'player.js: не найдены глобальные настройки — загрузите global-settings.js до player.js');
   }
 
   // --- Основные навыки (assets/skills, source of truth) ---
@@ -39,7 +47,8 @@
   ];
 
   const MAX_SKILL_LEVEL = 100;
-  const POINTS_PER_LEVEL = 2; // параметр points_per_level (SPEC.md)
+  // Глобальная настройка (src/global-settings.js, SPEC.md «Навыки»).
+  const POINTS_PER_LEVEL = settings.SETTINGS.points_per_level;
 
   function rankOf(level) {
     for (const r of RANKS) {

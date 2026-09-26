@@ -6,17 +6,26 @@
 // детерминирован при фиксированном сиде.
 //
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
-// Зависимости: perlin.js (mulberry32), player.js (derived/takeDamage/heal/addXp).
+// Зависимости: perlin.js (mulberry32), player.js (derived/takeDamage/heal/addXp),
+// global-settings.js (level_delta_max).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(
-      require('./perlin.js'), require('./player.js'), require('./items.js'));
+      require('./perlin.js'), require('./player.js'), require('./items.js'),
+      require('./global-settings.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
-      factory(typeof root.Game === 'object' ? root.Game : {}, root.Game, root.Game));
+      factory(typeof root.Game === 'object' ? root.Game : {}, root.Game,
+        root.Game, root.Game && root.Game.GlobalSettings));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, P, I) {
+})(typeof globalThis !== 'undefined' ? globalThis : self,
+  function (perlin, P, I, settings) {
+
+  if (!settings || typeof settings.SETTINGS !== 'object') {
+    throw new Error(
+      'combat.js: не найдены глобальные настройки — загрузите global-settings.js до combat.js');
+  }
 
   const mulberry32 = perlin.mulberry32;
 
@@ -576,12 +585,14 @@
    * @param {number} [opts.height=7] высота мини-карты
    * @param {number} [opts.seed]     сид RNG (детерминированный бой)
    * @param {function} [opts.rng]    готовый RNG () => [0..1)
-   * @param {number} [opts.levelDeltaMax=3] разброс уровня мобов (SPEC: N)
+   * @param {number} [opts.levelDeltaMax] разброс уровня мобов (SPEC: N;
+   *   по умолчанию level_delta_max из src/global-settings.js)
    */
   function createCombat(opts) {
     const p = opts.player;
     const rng = opts.rng || mulberry32(opts.seed != null ? opts.seed : 12345);
-    const N = opts.levelDeltaMax != null ? opts.levelDeltaMax : 3;
+    const N = opts.levelDeltaMax != null ? opts.levelDeltaMax
+      : settings.SETTINGS.level_delta_max;
     const width = opts.width || 7;
     const height = opts.height || 7;
     // Игровой день (для «раз в день» эффектов, напр. Несокрушимость).

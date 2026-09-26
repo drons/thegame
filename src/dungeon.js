@@ -9,15 +9,20 @@
 //
 // Чистое ядро без DOM — тестируется в node (tests/dungeon.test.js).
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
+// Зависимости: perlin.js, map.js, global-settings.js
+// (dungeon_memory_days, level_delta_max).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./perlin.js'), require('./map.js'));
+    module.exports = factory(require('./perlin.js'), require('./map.js'),
+      require('./global-settings.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
-      factory(typeof root.Game === 'object' ? root.Game : {}, root.Game));
+      factory(typeof root.Game === 'object' ? root.Game : {}, root.Game,
+        root.Game && root.Game.GlobalSettings));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, mapmod) {
+})(typeof globalThis !== 'undefined' ? globalThis : self,
+  function (perlin, mapmod, settings) {
 
   const mulberry32 = perlin.mulberry32;
   const hash2 = perlin.hash2;
@@ -68,8 +73,14 @@
     [DUNGEON_TYPES.ABYSS]: 35,
   };
 
-  const DUNGEON_MEMORY_DAYS = 3; // параметр dungeon_memory_days (SPEC.md)
-  const LEVEL_DELTA_MAX = 3; // уровень мобов = персонаж ± N
+  if (!settings || typeof settings.SETTINGS !== 'object') {
+    throw new Error(
+      'dungeon.js: не найдены глобальные настройки — загрузите global-settings.js до dungeon.js');
+  }
+
+  // Глобальные настройки (src/global-settings.js, SPEC.md).
+  const DUNGEON_MEMORY_DAYS = settings.SETTINGS.dungeon_memory_days;
+  const LEVEL_DELTA_MAX = settings.SETTINGS.level_delta_max; // моб = персонаж ± N
   const CHEST_ITEM_CHANCE = 0.4;
 
   // Тип подземелья из тайла входа (SPEC.md: «тип — из типа тайла входа»).
