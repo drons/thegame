@@ -23,12 +23,9 @@ const { getBuilding } = require('../src/buildings.js');
 
 const DIR = path.join(__dirname, '..', 'assets', 'spells');
 
-// Допустимые ключи JSON-схем (задача 000015: минимальный валидатор).
-const ALLOWED_SCHEMA_KEYS = new Set([
-  'type', 'required', 'properties', 'additionalProperties', 'items',
-  'enum', 'const', 'minimum', 'maximum', 'minItems', 'maxItems',
-  'pattern', 'anyOf', 'oneOf',
-]);
+// Минимальный валидатор JSON-схем — общий модуль (задача 000015):
+// tests/json-schema.js (допустимые ключи — ALLOWED_SCHEMA_KEYS).
+const { validate, ALLOWED_SCHEMA_KEYS } = require('./json-schema.js');
 
 // Школа → атрибут (SPEC.md «Заклинания» → «Школы магии»).
 const SCHOOL_ATTR = {
@@ -67,98 +64,6 @@ function loadCatalog() {
     byId.set(data.id, { file: f, data });
   }
   return { all, byId };
-}
-
-// --- Минимальный валидатор JSON-схем (ключи ALLOWED_SCHEMA_KEYS) ---
-
-// Фактический тип значения: целое — 'integer', дробное — 'number'.
-function actualType(v) {
-  if (v === null) return 'null';
-  if (Array.isArray(v)) return 'array';
-  if (typeof v === 'number') {
-    return Number.isInteger(v) ? 'integer' : 'number';
-  }
-  return typeof v;
-}
-
-// Рекурсивная проверка значения по под-схеме; ошибки — в массив errors.
-function validate(schema, value, where, errors) {
-  if (schema.type) {
-    let t = actualType(value);
-    if (schema.type === 'number' && t === 'integer') t = 'number';
-    if (t !== schema.type) {
-      errors.push(`${where}: тип «${t}» вместо «${schema.type}»`);
-      return;
-    }
-  }
-  if (schema.const !== undefined && value !== schema.const) {
-    errors.push(`${where}: значение вместо константы ${JSON.stringify(schema.const)}`);
-  }
-  if (schema.enum !== undefined && !schema.enum.includes(value)) {
-    errors.push(`${where}: значение ${JSON.stringify(value)} вне enum`);
-  }
-  if (schema.pattern !== undefined && typeof value === 'string' &&
-      !new RegExp(schema.pattern).test(value)) {
-    errors.push(`${where}: строка не совпадает с ${schema.pattern}`);
-  }
-  if (typeof value === 'number') {
-    if (schema.minimum !== undefined && value < schema.minimum) {
-      errors.push(`${where}: ${value} < minimum ${schema.minimum}`);
-    }
-    if (schema.maximum !== undefined && value > schema.maximum) {
-      errors.push(`${where}: ${value} > maximum ${schema.maximum}`);
-    }
-  }
-  if (Array.isArray(value)) {
-    if (schema.minItems !== undefined && value.length < schema.minItems) {
-      errors.push(`${where}: элементов меньше minItems ${schema.minItems}`);
-    }
-    if (schema.maxItems !== undefined && value.length > schema.maxItems) {
-      errors.push(`${where}: элементов больше maxItems ${schema.maxItems}`);
-    }
-    if (schema.items !== undefined) {
-      value.forEach((v, i) => validate(schema.items, v, `${where}[${i}]`, errors));
-    }
-  } else if (value !== null && typeof value === 'object') {
-    if (schema.required !== undefined) {
-      for (const r of schema.required) {
-        if (!(r in value)) {
-          errors.push(`${where}: нет обязательного поля «${r}»`);
-        }
-      }
-    }
-    if (schema.properties !== undefined) {
-      for (const [k, v] of Object.entries(value)) {
-        if (k in schema.properties) {
-          validate(schema.properties[k], v, `${where}.${k}`, errors);
-        } else if (schema.additionalProperties === false) {
-          errors.push(`${where}: лишнее поле «${k}»`);
-        }
-      }
-    } else if (schema.additionalProperties === false) {
-      for (const k of Object.keys(value)) {
-        errors.push(`${where}: лишнее поле «${k}»`);
-      }
-    }
-  }
-  if (schema.anyOf !== undefined) {
-    const ok = schema.anyOf.some((sub) => {
-      const e = [];
-      validate(sub, value, where, e);
-      return e.length === 0;
-    });
-    if (!ok) errors.push(`${where}: не подходит ни один вариант anyOf`);
-  }
-  if (schema.oneOf !== undefined) {
-    const matched = schema.oneOf.filter((sub) => {
-      const e = [];
-      validate(sub, value, where, e);
-      return e.length === 0;
-    });
-    if (matched.length !== 1) {
-      errors.push(`${where}: подошло вариантов oneOf: ${matched.length}, нужно 1`);
-    }
-  }
 }
 
 function loadSchema() {
