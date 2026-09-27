@@ -10,6 +10,9 @@ const {
 } = require('../src/map.js');
 const S = require('../src/sprites.js');
 
+const VDIR = path.join(__dirname, '..', 'assets', 'visuals');
+const VSPR = path.join(__dirname, '..', 'assets', 'sprites', 'visuals');
+
 const ROOT = path.join(__dirname, '..');
 const TERRAIN_LIST = Object.values(TERRAIN);
 
@@ -135,12 +138,125 @@ test('frameIndex: фаза зависит от координат, соседи 
   assert.equal(S.frameIndex(0, 5, 5, 1), 0, 'один кадр → всегда 0');
 });
 
-test('waterFrame — синоним frameIndex', () => {
+test('waterFrame — синоним waterTileFrame; frameIndex для кадров воды — та же фаза', () => {
+  const n = S.tileFrames(TERRAIN.WATER).length;
   for (let i = 0; i < 20; i++) {
     const tx = Math.floor(Math.random() * 100) - 50;
     const ty = Math.floor(Math.random() * 100) - 50;
     const now = Math.floor(Math.random() * 1e6);
-    assert.equal(S.waterFrame(now, tx, ty, 4), S.frameIndex(now, tx, ty, 4));
+    assert.equal(S.waterFrame(now, tx, ty, n), S.waterTileFrame(now, tx, ty, n));
+    assert.equal(S.frameIndex(now, tx, ty, n), S.waterTileFrame(now, tx, ty, n),
+      'frameIndex для текстуры воды должен идти через фазу волны');
+  }
+  assert.equal(S.waterTileFrame(0, 3, 3, 1), 0, 'один кадр → всегда 0');
+  assert.equal(S.waterTileFrame(0, 3, 3, 0), 0, 'ноль кадров → 0');
+});
+
+// --- Волна на воде: синхронизация на стыках тайлов (задача 000025) ---
+
+test('wavePhase: чистая функция (время, мировые координаты), фаза ∈ [0;1)', () => {
+  for (let i = 0; i < 200; i++) {
+    const now = Math.floor(Math.random() * 1e7);
+    const wx = Math.floor(Math.random() * 800) - 400 + Math.random();
+    const wy = Math.floor(Math.random() * 800) - 400 + Math.random();
+    const a = S.wavePhase(now, wx, wy);
+    assert.equal(a, S.wavePhase(now, wx, wy), 'повторный вызов даёт другую фазу');
+    assert.ok(a >= 0 && a < 1, `фаза ${a} вне [0;1)`);
+  }
+});
+
+test('wavePhase: периодична по времени с периодом WAVE_PERIOD_MS', () => {
+  for (let i = 0; i < 20; i++) {
+    const now = Math.floor(Math.random() * 1e6);
+    const wx = Math.floor(Math.random() * 200) - 100 + Math.random();
+    const wy = Math.floor(Math.random() * 200) - 100 + Math.random();
+    assert.equal(S.wavePhase(now, wx, wy), S.wavePhase(now + S.WAVE_PERIOD_MS, wx, wy));
+    assert.equal(S.wavePhase(now, wx, wy), S.wavePhase(now + 5 * S.WAVE_PERIOD_MS, wx, wy));
+  }
+});
+
+test('вода: фаза точки стыка — одна для обоих соседних тайлов', () => {
+  // Точка (tx + 1, wy) — граница тайлов (tx, ty) и (tx + 1, ty):
+  // правый край левого тайла и левый край правого. У неё одна фаза —
+  // общая для обоих тайлов. Фаза линейна по мировым координатам
+  // (p = 0.5·wx + 0.5·wy − t), поэтому фаза точки стыка — середина
+  // (mod 1) фаз симметричных точек, взятых изнутри каждого из двух
+  // тайлов: волна на стыке принадлежит обоим тайлам сразу.
+  for (let i = 0; i < 100; i++) {
+    const tx = Math.floor(Math.random() * 400) - 200;
+    const ty = Math.floor(Math.random() * 400) - 200;
+    const now = Math.floor(Math.random() * 1e7);
+    const wy = ty + Math.random();
+    const wx = tx + 1;                 // мировая точка стыка
+    const d = 0.25;                    // смещение внутрь каждого тайла
+    const pSeam = S.wavePhase(now, wx, wy);
+    const pLeft = S.wavePhase(now, wx - d, wy);   // точка из левого тайла
+    const pRight = S.wavePhase(now, wx + d, wy);  // точка из правого тайла
+    const step = (((pRight - pLeft) % 1) + 1) % 1;
+    const mid = (pLeft + step / 2) % 1;
+    const diff = (((pSeam - mid) % 1) + 1) % 1;
+    assert.ok(Math.min(diff, 1 - diff) < 1e-9,
+      `фаза точки стыка ${pSeam} не совпадает с общей фазой тайлов (${mid})`);
+  }
+});
+
+test('вода: фаза непрерывна на стыке — переход через границу не даёт скачка', () => {
+  // Старая схема (фаза от целочисленного номера тайла) прыгала на
+  // каждом стыке; фаза от мировой точки меняется плавно,
+  // в том числе при пересечении границы тайлов.
+  for (let i = 0; i < 100; i++) {
+    const tx = Math.floor(Math.random() * 400) - 200;
+    const ty = Math.floor(Math.random() * 400) - 200;
+    const now = Math.floor(Math.random() * 1e7);
+    const wy = ty + Math.random();
+    const wx = tx + 1;
+    const eps = 1e-6;
+    const pL = S.wavePhase(now, wx - eps, wy);
+    const pR = S.wavePhase(now, wx + eps, wy);
+    const d = Math.abs(pL - pR);
+    assert.ok(Math.min(d, 1 - d) < 1e-3,
+      `скачок фазы на стыке ${d} (тайлы ${tx},${ty} / ${tx + 1},${ty})`);
+  }
+});
+
+test('вода: на стыке соседних тайлов волна не рвётся', () => {
+  // Период волны в текстуре — 16px, сдвиг кадра — 8px.
+  // Горизонтальный стык: сдвиг волны на правом крае левого тайла и
+  // левом крае правого должен совпадать по модулю периода.
+  const STEP = 8, PERIOD = 16;
+  const n = S.tileFrames(TERRAIN.WATER).length;
+  for (let i = 0; i < 100; i++) {
+    const tx = Math.floor(Math.random() * 400) - 200;
+    const ty = Math.floor(Math.random() * 400) - 200;
+    const now = Math.floor(Math.random() * 1e7);
+    const fA = S.waterTileFrame(now, tx, ty, n);
+    const fR = S.waterTileFrame(now, tx + 1, ty, n); // сосед по X
+    const fD = S.waterTileFrame(now, tx, ty + 1, n); // сосед по Y
+    const dShift = (((fR - fA) * STEP) % PERIOD + PERIOD) % PERIOD;
+    assert.equal(dShift, 0,
+      `разрыв волны на стыке: разность сдвигов ${(fR - fA) * STEP}px (кадры ${fA} → ${fR})`);
+    // Свойство фазы: разность кадров соседей (в обе стороны) чётная —
+    // соседи «в фазе» или со сдвигом ровно на целый период волны.
+    assert.equal(((fR - fA) % 2 + 2) % 2, 0, 'нечётная разность кадров у соседей по X');
+    assert.equal(((fD - fA) % 2 + 2) % 2, 0, 'нечётная разность кадров у соседей по Y');
+  }
+});
+
+test('вода: в каждый момент эффективный сдвиг волны одинаков на всей карте', () => {
+  // Следствие чётной разности кадров: по модулю периода волны все
+  // водяные тайлы показывают один и тот же сдвиг — море без швов.
+  const STEP = 8, PERIOD = 16;
+  const n = S.tileFrames(TERRAIN.WATER).length;
+  for (let i = 0; i < 20; i++) {
+    const now = Math.floor(Math.random() * 1e7);
+    let shift = null;
+    for (let tx = -10; tx < 10; tx++) {
+      for (let ty = -10; ty < 10; ty++) {
+        const s = (S.waterTileFrame(now, tx, ty, n) * STEP) % PERIOD;
+        if (shift === null) shift = s;
+        assert.equal(s, shift, `сдвиг ${s} != ${shift} на тайле (${tx},${ty})`);
+      }
+    }
   }
 });
 
@@ -200,4 +316,133 @@ test('критерий: ассеты не влияют на генерацию �
     assert.deepEqual(live, t);
   }
   assert.ok(loader.readyCount() === 0, 'проверка не должна оставлять «загруженные» ассеты в мире');
+});
+
+// --- Декорации тайлов (задача 000021) ---
+
+test('visuals: 13 элементов, id = номер файла, нет дублей id и спрайтов', () => {
+  assert.equal(S.VISUALS.length, 13);
+  const ids = new Set(), sprites = new Set();
+  for (let i = 0; i < S.VISUALS.length; i++) {
+    const v = S.VISUALS[i];
+    assert.equal(v.id, i + 1, 'id = позиция в каталоге + 1');
+    assert.ok(ids.add(v.id), `дубль id=${v.id}`);
+    assert.ok(sprites.add(v.спрайт), `дубль спрайта ${v.спрайт}`);
+  }
+});
+
+test('visuals: каждый террейн (кроме глубокой воды) имеет хотя бы один элемент', () => {
+  const covered = new Set();
+  for (const v of S.VISUALS) for (const t of v.террейны) covered.add(t);
+  for (const t of Object.values(TERRAIN)) {
+    if (t === TERRAIN.DEEP_WATER) continue; // глубокая вода — без декораций (по дизайну)
+    assert.ok(covered.has(TERRAIN_NAMES[t]), `нет элементов для «${TERRAIN_NAMES[t]}»`);
+  }
+});
+
+test('visuals: файлы JSON совпадают с JS-каталогом и проходят схему', () => {
+  const files = fs.readdirSync(VDIR).filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  assert.equal(files.length, S.VISUALS.length, 'число файлов = каталог');
+  const schema = JSON.parse(fs.readFileSync(path.join(VDIR, 'schema.json'), 'utf8'));
+  for (let i = 0; i < files.length; i++) {
+    const num = String(i + 1).padStart(6, '0');
+    assert.equal(files[i], num + '.json', `файл ${files[i]} вместо ${num}.json`);
+    const fromFile = JSON.parse(fs.readFileSync(path.join(VDIR, files[i]), 'utf8'));
+    assert.equal(fromFile.id, i + 1, 'id = номер файла');
+    assert.deepEqual(fromFile, S.VISUALS[i], `${num}.json совпадает с JS-каталогом`);
+    // Мини-валидация по schema.json (без внешних зависимостей).
+    assertVisualAgainstSchema(fromFile, schema, num);
+  }
+});
+
+// Проверка объекта против JSON-схемы (подмножество, нужное visuals).
+function assertVisualAgainstSchema(v, schema, label) {
+  assert.equal(schema.type, 'object', label + ': schema.type');
+  for (const req of schema.required) assert.ok(req in v, `${label}: нет «${req}»`);
+  if (schema.additionalProperties === false) {
+    for (const k of Object.keys(v)) {
+      assert.ok(schema.properties[k], `${label}: лишнее поле «${k}»`);
+    }
+  }
+  const p = schema.properties;
+  assert.ok(Number.isInteger(v.id) && v.id >= p.id.minimum && v.id <= p.id.maximum, label + ': id');
+  assert.ok(typeof v.название === 'string' && new RegExp(p.название.pattern).test(v.название), label + ': название');
+  assert.ok(Array.isArray(v.террейны) && v.террейны.length >= p.террейны.minItems, label + ': террейны');
+  for (const t of v.террейны) assert.ok(p.террейны.items.enum.includes(t), `${label}: террейн «${t}»`);
+  assert.ok(new RegExp(p.спрайт.pattern).test(v.спрайт), label + ': спрайт-путь');
+  assert.ok(typeof v.частота === 'number' && v.частота >= p.частота.minimum && v.частота <= p.частота.maximum, label + ': частота');
+  assert.ok(typeof v.размер === 'number' && v.размер >= p.размер.minimum && v.размер <= p.размер.maximum, label + ': размер');
+}
+
+test('visuals: спрайт-файлы существуют и лежат в assets/sprites/visuals', () => {
+  for (const v of S.VISUALS) {
+    const rel = path.basename(v.спрайт);
+    assert.ok(exists(v.спрайт), `нет файла: ${v.спрайт}`);
+    assert.ok(fs.existsSync(path.join(VSPR, rel)), `${rel} не в assets/sprites/visuals`);
+  }
+});
+
+test('tileVisuals: чистая функция, элементы валидны и с потолком', () => {
+  const byId = new Map(S.VISUALS.map((v) => [v.id, v]));
+  for (let i = 0; i < 300; i++) {
+    const tx = Math.floor(Math.random() * 400) - 200;
+    const ty = Math.floor(Math.random() * 400) - 200;
+    const terrain = TERRAIN_LIST[Math.floor(Math.random() * TERRAIN_LIST.length)];
+    const a = S.tileVisuals(tx, ty, terrain);
+    assert.deepEqual(a, S.tileVisuals(tx, ty, terrain), 'повторный вызов даёт другой набор');
+    assert.ok(a.length <= S.MAX_VISUALS_PER_TILE, `больше потолка: ${a.length}`);
+    const seen = new Set();
+    for (const e of a) {
+      const v = byId.get(e.id);
+      assert.ok(v, `неизвестный элемент id=${e.id}`);
+      assert.equal(e.sprite, v.спрайт, 'спрайт не из каталога');
+      assert.ok(v.террейны.includes(TERRAIN_NAMES[terrain]), 'элемент не для этого террейна');
+      assert.ok(e.x >= 0.08 && e.x <= 0.92, `x=${e.x} вне тайла`);
+      assert.ok(e.y >= 0.08 && e.y <= 0.92, `y=${e.y} вне тайла`);
+      assert.equal(e.size, v.размер, 'размер не из каталога');
+      assert.ok(seen.add(e.id), `дубль элемента id=${e.id} на тайле`);
+    }
+  }
+});
+
+test('tileVisuals: частота элемента id=1 близка к заявленной', () => {
+  const byId = new Map(S.VISUALS.map((v) => [v.id, v]));
+  const N = 4000;
+  let hits = 0;
+  for (let i = 0; i < N; i++) {
+    // Трава: элемент id=1 первый в каталоге — потолок его не режет.
+    const set = S.tileVisuals(Math.floor(Math.random() * 100000) - 50000,
+      Math.floor(Math.random() * 100000) - 50000, TERRAIN.GRASS);
+    if (set.some((e) => e.id === 1)) hits++;
+  }
+  const f1 = hits / N;
+  assert.ok(Math.abs(f1 - byId.get(1).частота) < 0.05,
+    `частота id=1 ≈ ${f1.toFixed(3)}, ждали ~${byId.get(1).частота}`);
+});
+
+test('tileVisuals: разные тайлы дают разные наборы (не «штамп»)', () => {
+  const sigs = new Set();
+  for (let i = 0; i < 200; i++) {
+    const tx = Math.floor(Math.random() * 2000) - 1000;
+    const ty = Math.floor(Math.random() * 2000) - 1000;
+    sigs.add(JSON.stringify(S.tileVisuals(tx, ty, TERRAIN.GRASS)));
+  }
+  assert.ok(sigs.size >= 50, `слишком мало вариантов декораций: ${sigs.size}`);
+});
+
+test('критерий: декорации не влияют на генерацию мира', () => {
+  const m1 = createMap();
+  const sample = [];
+  for (let i = 0; i < 200; i++) {
+    const x = Math.floor(Math.random() * 400) - 200;
+    const y = Math.floor(Math.random() * 400) - 200;
+    sample.push(m1.tileAt(x, y));
+  }
+  // «Загружаем» (с провалом) все ассеты, включая декорации.
+  const loader = S.createSpriteLoader(() => Promise.resolve(null));
+  for (const p of S.allAssetPaths()) loader.queue(p);
+  const m2 = createMap();
+  for (const t of sample) {
+    assert.deepEqual(m2.tileAt(t.x, t.y), t, 'мир изменился после запроса декораций');
+  }
 });

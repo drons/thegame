@@ -6,10 +6,21 @@ const {
   ZOOM_MIN, ZOOM_MAX, ZOOM_START,
   TERRAIN, TERRAIN_NAMES,
   BUILDING_COUNT, BUILDING_TYPES,
+  BUILD_MAX_W, BUILD_MAX_H,
   MOB_GROUP_COUNT, MOB_GROUP_TYPES,
 } = require('../src/map.js');
+const { BUILDINGS, buildingSize } = require('../src/buildings.js');
 const { generateSeedPixels, MAP_PNG_SIZE, MAP_PNG_SEED } = require('../src/mapseed.js');
 const { decodePng } = require('./png.js');
+const fs = require('node:fs');
+const vm = require('node:vm');
+
+// «Браузерный» путь UMD: исполняем файл в чистом контексте без module/exports
+// (паттерн tests/global-settings.test.js).
+function loadInSandbox(file, sandbox) {
+  const code = fs.readFileSync(__dirname + '/../src/' + file, 'utf8');
+  vm.runInNewContext(code, sandbox);
+}
 
 const VALID_TERRAINS = new Set(Object.values(TERRAIN));
 
@@ -64,7 +75,9 @@ test('сэмпл мира: валидные значения и согласов
   assert.ok(groups > 10, `слишком мало групп мобов: ${groups}`);
 });
 
-test('непроходимые тайлы: вода и горы, проходимые: остальное', () => {
+test('непроходимые тайлы: вода, горы и стены построек', () => {
+  // Стена — тайл footprint'а постройки, НЕ вход (задача 000026):
+  // постройка стоит на земле, но внутри её нельзя ходить.
   const map = createMap();
   for (let x = -50; x < 50; x++) {
     for (let y = -50; y < 50; y++) {
@@ -72,7 +85,12 @@ test('непроходимые тайлы: вода и горы, проходи�
       const blocked = t.terrain === TERRAIN.WATER ||
         t.terrain === TERRAIN.DEEP_WATER ||
         t.terrain === TERRAIN.MOUNTAIN;
-      assert.equal(t.passable, !blocked);
+      const wall = t.inBuilding && !t.isEntrance;
+      assert.equal(t.passable, !blocked && !wall,
+        `(${x},${y}): terrain=${t.terrain} inBuilding=${t.inBuilding} entrance=${t.isEntrance}`);
+      if (t.inBuilding) {
+        assert.equal(t.hasMobGroup, false, `(${x},${y}): в footprint'е постройки нет группы мобов`);
+      }
     }
   }
 });
@@ -243,4 +261,247 @@ test('createTileCache: ограничен — при переполнении в
   // Последние тайлы в кэше — пересчёта нет.
   cache.tile(9, 0);
   assert.equal(generated, 11);
+});
+
+// --- Задача 000026: footprint'ы построек на карте ---
+
+test('BUILD_MAX_W/H покрывают максимальный размер в каталоге', () => {
+  let maxW = 1, maxH = 1;
+  for (const b of BUILDINGS) {
+    const { width, height } = buildingSize(b);
+    maxW = Math.max(maxW, width);
+    maxH = Math.max(maxH, height);
+  }
+  assert.ok(maxW <= BUILD_MAX_W, `каталог шире окна поиска: ${maxW} > ${BUILD_MAX_W}`);
+  assert.ok(maxH <= BUILD_MAX_H, `каталог выше окна поиска: ${maxH} > ${BUILD_MAX_H}`);
+});
+
+test("мировые постройки: прямоугольные footprint'ы без пересечений, один вход", () => {
+  const map = createMap();
+  const R = 100;
+  // Группируем тайлы по якорю постройки.
+  const groups = new Map();
+  let multiTile = 0, oneTile = 0;
+  for (let x = -R; x < R; x++) {
+    for (let y = -R; y < R; y++) {
+      const t = map.tileAt(x, y);
+      if (!t.inBuilding) continue;
+      const key = t.buildingAnchor.join(',');
+      if (!groups.has(key)) {
+        groups.set(key, {
+          ax: t.buildingAnchor[0],
+          ay: t.buildingAnchor[1],
+          type: t.building,
+          wealth: t.buildingWealth,
+          tiles: new Set(),
+          entrances: [],
+        });
+      }
+      const g = groups.get(key);
+      g.tiles.add(x + ',' + y);
+      assert.equal(t.building, g.type, `(${x},${y}): тип постройки в footprint'е не один`);
+      assert.equal(t.buildingWealth, g.wealth, `(${x},${y}): богатство в footprint'е не одно`);
+      if (t.isEntrance) {
+        g.entrances.push([x, y]);
+        assert.equal(t.hasBuilding, true, `(${x},${y}): вход = hasBuilding`);
+        assert.equal(t.passable, true, `(${x},${y}): вход проходим`);
+        assert.equal(t.hasMobGroup, false, `(${x},${y}): на входе нет группы мобов`);
+      } else if (t.inBuilding) {
+        assert.equal(t.hasBuilding, false, `(${x},${y}): hasBuilding только на входе`);
+        assert.equal(t.passable, false, `(${x},${y}): стена непроходима`);
+      }
+    }
+  }
+  assert.ok(groups.size > 50, `слишком мало построек в сэмпле: ${groups.size}`);
+  for (const g of groups.values()) {
+    if (g.tiles.size > 1) multiTile++; else oneTile++;
+  }
+
+  // Каждая группа — ровно прямоугольник w×h от якоря; один вход;
+  // footprint'ы не пересекаются.
+  const rects = [];
+  for (const g of groups.values()) {
+    let maxX = -Infinity, maxY = -Infinity;
+    for (const s of g.tiles) {
+      const [tx, ty] = s.split(',').map(Number);
+      assert.ok(tx >= g.ax && ty >= g.ay, 'тайл за левым верхним углом якоря');
+      maxX = Math.max(maxX, tx);
+      maxY = Math.max(maxY, ty);
+    }
+    const w = maxX - g.ax + 1;
+    const h = maxY - g.ay + 1;
+    assert.ok(w <= BUILD_MAX_W && h <= BUILD_MAX_H, 'footprint крупнее максимума');
+    // Группы, чей полный прямоугольник (до BUILD_MAX) выходит за сэмпл,
+    // пропускаем: снаружи могли остаться невычитанные тайлы постройки.
+    if (g.ax < -R || g.ay < -R ||
+        g.ax + BUILD_MAX_W - 1 >= R || g.ay + BUILD_MAX_H - 1 >= R) continue;
+    assert.equal(g.tiles.size, w * h, `footprint не полный прямоугольник ${w}x${h}`);
+    for (let dy = 0; dy < h; dy++) {
+      for (let dx = 0; dx < w; dx++) {
+        assert.ok(g.tiles.has((g.ax + dx) + ',' + (g.ay + dy)),
+          `(${g.ax + dx},${g.ay + dy}) должен принадлежать постройке`);
+      }
+    }
+    assert.equal(g.entrances.length, 1, 'ровно один вход');
+    const [ex, ey] = g.entrances[0];
+    assert.ok(ex >= g.ax && ex < g.ax + w && ey >= g.ay && ey < g.ay + h, "вход внутри footprint'а");
+    rects.push([g.ax, g.ay, g.ax + w, g.ay + h]);
+  }
+  // Ничьи тайлы не входят в два прямоугольника.
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      const [x1a, y1a, x1b, y1b] = rects[i];
+      const [x2a, y2a, x2b, y2b] = rects[j];
+      const overlap = !(x1b <= x2a || x2b <= x1a || y1b <= y2a || y2b <= y1a);
+      assert.ok(!overlap, `постройки пересекаются: ${rects[i]} и ${rects[j]}`);
+    }
+  }
+  assert.ok(multiTile >= 1, 'в сэмпле не нашлось ни одной постройки крупнее 1x1');
+  assert.ok(oneTile > 0, 'построек 1x1 не осталось');
+});
+
+test('1x1-совместимость: hasBuilding ⇒ isEntrance, passable, валидный building', () => {
+  const map = createMap();
+  let n = 0;
+  for (let x = -100; x < 100; x++) {
+    for (let y = -100; y < 100; y++) {
+      const t = map.tileAt(x, y);
+      if (!t.hasBuilding) {
+        assert.equal(t.isEntrance, false, `(${x},${y}): isEntrance без hasBuilding`);
+        continue;
+      }
+      n++;
+      assert.equal(t.isEntrance, true);
+      assert.equal(t.inBuilding, true);
+      assert.equal(t.passable, true, 'тайл с hasBuilding проходим (старые контракты main.js)');
+      assert.ok(t.building >= 0 && t.building < BUILDING_COUNT);
+      assert.ok(t.buildingWealth >= 0 && t.buildingWealth <= 3);
+      // 1x1-постройка: в footprint'е только вход.
+      if (t.building !== BUILDING_TYPES.ARENA && t.building !== BUILDING_TYPES.TEMPLE) {
+        const corner = map.tileAt(x + 1, y);
+        assert.ok(!corner.inBuilding || corner.buildingAnchor.join(',') !== t.buildingAnchor.join(','),
+          '1x1-постройка не должна занимать соседние тайлы');
+      }
+    }
+  }
+  assert.ok(n > 10, `слишком мало hasBuilding: ${n}`);
+});
+
+test('браузер: map.js лениво подхватывает каталог из Game (vm-песочница)', () => {
+  // Порядок как в index.html: perlin → map.js → … → buildings.js.
+  // buildings.js грузится ПОСЛЕ map.js, значит каталог должен
+  // подхватываться лениво (из Game в момент tileAt), а не при загрузке.
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  assert.equal(typeof sandbox.Game.createMap, 'function', 'map.js в browser-режиме');
+  assert.equal(sandbox.Game.placeBuilding, undefined, 'buildings.js ещё не загружен');
+  loadInSandbox('buildings.js', sandbox);
+
+  const bMap = sandbox.Game.createMap();
+  const nMap = createMap();
+  let multi = 0;
+  for (let i = 0; i < 300; i++) {
+    const x = Math.floor(Math.random() * 400) - 200;
+    const y = Math.floor(Math.random() * 400) - 200;
+    const a = bMap.tileAt(x, y);
+    const b = nMap.tileAt(x, y);
+    // Разные realm'ы: сравниваем JSON-нормализованные копии.
+    assert.deepEqual(JSON.parse(JSON.stringify(a)), JSON.parse(JSON.stringify(b)), `(${x},${y})`);
+    if (a.inBuilding) {
+      const g = new Set();
+      for (let dx = -3; dx <= 3; dx++) {
+        for (let dy = -3; dy <= 3; dy++) {
+          const t = bMap.tileAt(x + dx, y + dy);
+          if (t.inBuilding && JSON.stringify(t.buildingAnchor) === JSON.stringify(a.buildingAnchor)) {
+            g.add((x + dx) + ',' + (y + dy));
+          }
+        }
+      }
+      if (g.size > 1) multi++;
+    }
+  }
+  assert.ok(multi > 0, 'крупные постройки (3x3) в browser-режиме не появились');
+});
+
+test('уменьшение размера: блокированный 3x3 не пересечётся с соседом, а влезет 1x1', () => {
+  // Искусственный мир: сплошные проходимые тайлы (A=255 → много якорей,
+  // деревни толпятся рядом) — при этом проверяем глобальное правило:
+  // ни один тайл не принадлежит двум footprint'ам, и ни одна постройка
+  // не вылезает за проходимый тайл.
+  const map = createMap(syntheticPixels(8, 8, 128, 128, 128, 255));
+  const owner = new Map();
+  for (let x = -60; x < 60; x++) {
+    for (let y = -60; y < 60; y++) {
+      const t = map.tileAt(x, y);
+      if (!t.inBuilding) continue;
+      const key = x + ',' + y;
+      const who = t.buildingAnchor.join(',');
+      const prev = owner.get(key);
+      assert.equal(prev, undefined, `тайл ${key} в двух footprint'ах (${prev} и ${who})`);
+      owner.set(key, who);
+      assert.equal(t.terrain === TERRAIN.MOUNTAIN || t.terrain === TERRAIN.WATER ||
+        t.terrain === TERRAIN.DEEP_WATER, false, 'footprint на непроходимом рельефе');
+    }
+  }
+  assert.ok(owner.size > 50, `мало тайлов построек: ${owner.size}`);
+});
+
+// --- Правки по итогам ревью 000026: вход не замурован ---
+
+// У входа постройки (тайла, где игрок заходит внутрь) должен быть
+// проходимый сосед по одному из 4 направлений — иначе постройка
+// генерируется, но в неё нельзя войти никогда (стены + вода/стены
+// соседа вокруг входа). Игрок ходит только в 4 направлениях
+// (src/main.js, KEY_DIRS).
+function assertEntrancesReachable(map, R, label) {
+  let entrances = 0, multi = 0;
+  for (let x = -R; x < R; x++) {
+    for (let y = -R; y < R; y++) {
+      const t = map.tileAt(x, y);
+      if (!t.isEntrance) continue;
+      entrances++;
+      if (t.buildingAnchor) {
+        const [ax, ay] = t.buildingAnchor;
+        const side = map.tileAt(ax + 1, ay);
+        if (side.inBuilding &&
+            side.buildingAnchor &&
+            side.buildingAnchor[0] === ax && side.buildingAnchor[1] === ay) {
+          multi++; // footprint шире 1 тайла
+        }
+      }
+      const free =
+        map.tileAt(x + 1, y).passable ||
+        map.tileAt(x - 1, y).passable ||
+        map.tileAt(x, y + 1).passable ||
+        map.tileAt(x, y - 1).passable;
+      assert.ok(free,
+        `${label} (${x},${y}): вход постройки ${t.building} (якорь ${JSON.stringify(t.buildingAnchor)}) замурован`);
+    }
+  }
+  return { entrances, multi };
+}
+
+test('вход не замурован: у входа каждой постройки есть проходимый сосед (синтетические миры)', () => {
+  const worlds = [
+    [createMap(), 'мир по умолчанию'],
+    // Поднятое море (R=0): постройки у кромки воды — случай
+    // «нижний ряд на песке, под ним вода» из ревью.
+    [createMap(syntheticPixels(8, 8, 0, 128, 128, 255)), 'мир с приливом'],
+    // Плотные деревни (A=255): footprint'ы толпятся — случай
+    // «стена поздней постройки замуровала вход ранней».
+    [createMap(syntheticPixels(8, 8, 128, 128, 128, 255)), 'плотный мир'],
+  ];
+  for (const [map, label] of worlds) {
+    const { entrances } = assertEntrancesReachable(map, 100, label);
+    assert.ok(entrances > 20, `${label}: мало входов ${entrances}`);
+  }
+});
+
+test('вход не замурован: реальный assets/map.png (±150)', () => {
+  const { width, height, data } = decodePng('assets/map.png');
+  const map = createMap({ width, height, data });
+  const { entrances, multi } = assertEntrancesReachable(map, 150, 'реальная карта');
+  assert.ok(entrances > 100, `мало входов: ${entrances}`);
+  assert.ok(multi > 0, 'в сэмпле не осталось много-тайловых построек — тест не проверяет 3x3');
 });

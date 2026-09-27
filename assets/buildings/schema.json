@@ -40,6 +40,33 @@
         "enum": ["песок", "трава", "лес", "холмы", "болото"]
       }
     },
+    "размер": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ширина", "высота"],
+      "properties": {
+        "ширина": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "высота": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        }
+      }
+    },
+    "вход": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 4
+      }
+    },
     "особые_параметры": {
       "type": "object"
     }

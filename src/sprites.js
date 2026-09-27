@@ -4,7 +4,9 @@
 //   assets/tiles/<террейн>[_n].svg            — текстуры тайлов (вода — анимация);
 //   assets/sprites/phlogiston/<действие>_n.svg — Флогистон (idle/walk/attack/cast);
 //   assets/sprites/mobs/<моб>_n.svg           — базовые типы мобов;
-//   assets/sprites/buildings/<постройка>.svg  — иконки построек.
+//   assets/sprites/buildings/<постройка>.svg  — иконки построек;
+//   assets/sprites/visuals/<элемент>.svg      — декорации тайлов (000021),
+//     описания — assets/visuals/*.json + schema.json.
 //
 // Ядро — чистые функции: выбор файла всегда определяется только типом
 // (террейн/моб/постройка) и координатами тайла, а НЕ фактом загрузки.
@@ -25,8 +27,10 @@
 })(typeof globalThis !== 'undefined' ? globalThis : self, function (deps) {
 
   const TERRAIN = deps.TERRAIN;
+  const TERRAIN_NAMES = deps.TERRAIN_NAMES;
   const BUILDING_TYPES = deps.BUILDING_TYPES;
   const MOB_GROUP_TYPES = deps.MOB_GROUP_TYPES;
+  const hash2 = deps.hash2;
 
   // Базовые цвета тайлов — согласованы с цветными квадратами рендера
   // (TILE_COLORS в src/main.js): фолбэк и текстуры выглядят родственно.
@@ -119,14 +123,102 @@
     [BUILDING_TYPES.NPC_HOUSE]: 'assets/sprites/buildings/npc_house.svg',
   };
 
+  // --- Декорации тайлов (задача 000021) ---
+  //
+  // Небольшие графические объекты поверх текстуры тайла: травинки,
+  // цветы, кусты на траве/лесу, камни и снег на холмах/горах и т.д.
+  // Источник правды — assets/visuals/NNNNNN.json (схема —
+  // assets/visuals/schema.json), спрайты — assets/sprites/visuals/.
+  // Ниже — дублирующая JS-копия каталога (фолбэк, как в buildings.js):
+  // игра открывается по file://, где fetch() JSON не работает.
+  // Тест требует, чтобы файлы JSON совпадали с каталогом.
+  const VISUALS = [
+    { id: 1, название: 'Светлые травинки', террейны: ['трава'], спрайт: 'assets/sprites/visuals/grass_blades_light.svg', частота: 0.35, размер: 0.14 },
+    { id: 2, название: 'Тёмные травинки', террейны: ['трава', 'лес'], спрайт: 'assets/sprites/visuals/grass_blades_dark.svg', частота: 0.30, размер: 0.14 },
+    { id: 3, название: 'Красный цветок', террейны: ['трава'], спрайт: 'assets/sprites/visuals/flower_red.svg', частота: 0.12, размер: 0.12 },
+    { id: 4, название: 'Жёлтый цветок', террейны: ['трава', 'лес'], спрайт: 'assets/sprites/visuals/flower_yellow.svg', частота: 0.12, размер: 0.12 },
+    { id: 5, название: 'Белый цветок', террейны: ['трава'], спрайт: 'assets/sprites/visuals/flower_white.svg', частота: 0.08, размер: 0.12 },
+    { id: 6, название: 'Небольшой куст', террейны: ['трава', 'лес'], спрайт: 'assets/sprites/visuals/bush.svg', частота: 0.10, размер: 0.24 },
+    { id: 7, название: 'Гриб', террейны: ['лес'], спрайт: 'assets/sprites/visuals/mushroom.svg', частота: 0.12, размер: 0.14 },
+    { id: 8, название: 'Камень', террейны: ['холмы', 'горы'], спрайт: 'assets/sprites/visuals/rock.svg', частота: 0.30, размер: 0.22 },
+    { id: 9, название: 'Камешек', террейны: ['холмы', 'горы', 'песок'], спрайт: 'assets/sprites/visuals/pebble.svg', частота: 0.25, размер: 0.10 },
+    { id: 10, название: 'Снежный сугроб', террейны: ['горы'], спрайт: 'assets/sprites/visuals/snow_patch.svg', частота: 0.30, размер: 0.26 },
+    { id: 11, название: 'Сухая травка', террейны: ['песок', 'холмы'], спрайт: 'assets/sprites/visuals/dry_tuft.svg', частота: 0.30, размер: 0.14 },
+    { id: 12, название: 'Тростинка', террейны: ['болото'], спрайт: 'assets/sprites/visuals/reed.svg', частота: 0.30, размер: 0.22 },
+    { id: 13, название: 'Кувшинка', террейны: ['вода'], спрайт: 'assets/sprites/visuals/lily_pad.svg', частота: 0.15, размер: 0.20 },
+  ];
+
+  // Сид выбора/размещения декораций (отдельный от сида построек/мобов).
+  const VISUALS_SEED = 0x51a11ce5;
+  // Потолок декораций на тайл: разнообразие — да, но без «клякс».
+  const MAX_VISUALS_PER_TILE = 3;
+
   // Период кадра анимации (мс).
   const FRAME_MS = 480;
+
+  // --- Волна на воде (задача 000025) ---
+  //
+  // Волна в текстуре имеет период 16px (четверть тайла 64px), каждый
+  // кадр смещает её на 8px (полпериода). Чтобы волна «соединялась» на
+  // стыке тайлов, разность кадров соседних тайлов должна быть чётной —
+  // сдвиг на целое число периодов волны, и рисунок в стыке совпадает.
+  //
+  // Фаза волны в точке мирового пространства — чистая функция мировых
+  // координат точки (в единицах тайлов) и времени. Пространственный
+  // шаг фазы на тайл — полцикла по каждой оси, поэтому на границе
+  // соседних тайлов фаза сдвигается ровно на полцикла: при 4-кадровой
+  // квантизации это чётное число кадров — волны на стыке не
+  // разрывается, а фаза любой точки стыка — одно значение для обоих
+  // тайлов (старая схема (tx*5 + ty*9) % N давала скачок фазы между
+  // соседями — отсюда и был разрыв).
+
+  const WAVE_PERIOD_MS = 3200; // период «дрейфа» волны (мс)
+
+  /**
+   * Фаза волны в точке мирового пространства.
+   * @param {number} nowMs время (мс)
+   * @param {number} wx мировая X точки (в тайлах, допустимо дробное)
+   * @param {number} wy мировая Y точки (в тайлах)
+   * @returns {number} фаза в [0; 1)
+   */
+  function wavePhase(nowMs, wx, wy) {
+    const t = (((nowMs % WAVE_PERIOD_MS) + WAVE_PERIOD_MS) % WAVE_PERIOD_MS) / WAVE_PERIOD_MS;
+    const p = 0.5 * wx + 0.5 * wy - t;
+    return ((p % 1) + 1) % 1;
+  }
+
+  /**
+   * Кадр анимации водяного тайла (tx, ty): фаза берётся в центре
+   * тайла в мировых координатах. Чистая функция.
+   * @param {number} nowMs текущее время (мс)
+   * @param {number} tx координата тайла по X
+   * @param {number} ty координата тайла по Y
+   * @param {number} frameCount число кадров анимации
+   * @returns {number} индекс кадра в [0; frameCount)
+   */
+  function waterTileFrame(nowMs, tx, ty, frameCount) {
+    if (!frameCount || frameCount <= 1) return 0;
+    const phase = wavePhase(nowMs, tx + 0.5, ty + 0.5);
+    return Math.floor(phase * frameCount) % frameCount;
+  }
+
+  // Для воды читабельное имя-синоним (та же чистая функция).
+  function waterFrame(nowMs, tx, ty, frameCount) {
+    return waterTileFrame(nowMs, tx, ty, frameCount);
+  }
+
+  // Число кадров текстуры воды — единственное многокадровое значение
+  // за пределами 2 (мобы/Флогистон — 2 кадра, прочие тайлы — 1).
+  const WATER_FRAME_COUNT = TILE_FRAMES[TERRAIN.WATER].length;
 
   /**
    * Номер кадра анимации тайла/моба.
    * Чистая функция: один и тот же (момент, координаты, число кадров)
-   * всегда даёт один и тот же кадр. Фаза зависит только от координат,
-   * поэтому соседи «не синхронизированы», но поведение детерминировано.
+   * всегда даёт один и тот же кадр.
+   * Текстуры воды (4 кадра) — через фазу волны в мировых координатах
+   * (задача 000025): соседи обязаны «договариваться» о фазе, иначе
+   * волна рвётся на стыках тайлов. Мобы (2 кадра) сохраняют старую
+   * фазу на тайл: соседи «не синхронизированы», но детерминированы.
    * @param {number} nowMs текущее время (performance.now / Date.now)
    * @param {number} tx координата тайла по X
    * @param {number} ty координата тайла по Y
@@ -135,14 +227,12 @@
    */
   function frameIndex(nowMs, tx, ty, frameCount) {
     if (!frameCount || frameCount <= 1) return 0;
+    if (frameCount === WATER_FRAME_COUNT) {
+      return waterTileFrame(nowMs, tx, ty, frameCount);
+    }
     const t = Math.max(0, Math.floor(nowMs / FRAME_MS));
     const phase = (((tx * 5 + ty * 9) % frameCount) + frameCount) % frameCount;
     return (t + phase) % frameCount;
-  }
-
-  // Для воды читабельное имя-синоним (та же чистая функция).
-  function waterFrame(nowMs, tx, ty, frameCount) {
-    return frameIndex(nowMs, tx, ty, frameCount);
   }
 
   /** Кадры текстуры для террейна (массив путей, >= 1). */
@@ -171,6 +261,45 @@
     return PHLOGISTON_ACTIONS[action] || [];
   }
 
+  /**
+   * Декорации тайла (задача 000021): какие небольшие графические
+   * объекты рисовать поверх текстуры тайла (tx, ty) террейна terrain.
+   * Чистая функция: выбор и позиция — только от координат тайла и
+   * террейна (seed — hash2 координат), НЕ от факта загрузки.
+   * Элемент попадает на тайл, если его частота побил детерминированный
+   * «бросок» из хэша; позиция — детерминированная точка внутри тайла
+   * (доли [0.08; 0.92], чтобы не вылезать за границы).
+   * @param {number} tx координата тайла по X
+   * @param {number} ty координата тайла по Y
+   * @param {number} terrain числовой тип террейна (TERRAIN.*)
+   * @returns {{id:number, sprite:string, x:number, y:number, size:number}[]}
+   *   элементы в порядке каталога, не более MAX_VISUALS_PER_TILE
+   */
+  function tileVisuals(tx, ty, terrain) {
+    const name = TERRAIN_NAMES[terrain];
+    if (!name) return [];
+    const out = [];
+    for (const v of VISUALS) {
+      if (!v.террейны.includes(name)) continue;
+      const seed = VISUALS_SEED + v.id * 0x9e3779b9;
+      // «Бросок» появления: старшие 24 бита хэша как число [0; 1) —
+      // детерминированная псевдослучайность по координатам тайла.
+      const roll = (hash2(tx, ty, seed) >>> 8) / 16777216; // [0; 1)
+      if (roll >= v.частота) continue;
+      const hx = hash2(tx, ty, seed + 1);
+      const hy = hash2(tx, ty, seed + 2);
+      out.push({
+        id: v.id,
+        sprite: v.спрайт,
+        x: 0.08 + (hx / 4294967296) * 0.84,
+        y: 0.08 + (hy / 4294967296) * 0.84,
+        size: v.размер,
+      });
+      if (out.length >= MAX_VISUALS_PER_TILE) break;
+    }
+    return out;
+  }
+
   /** Все пути ассетов модуля (без дублей) — для загрузки и тестов. */
   function allAssetPaths() {
     const paths = [];
@@ -178,6 +307,7 @@
     for (const frames of Object.values(PHLOGISTON_ACTIONS)) paths.push(...frames);
     for (const frames of Object.values(MOB_FRAMES)) paths.push(...frames);
     paths.push(...Object.values(BUILDING_SPRITES));
+    for (const v of VISUALS) paths.push(v.спрайт);
     return Array.from(new Set(paths));
   }
 
@@ -242,9 +372,13 @@
     PHLOGISTON_ACTIONS,
     MOB_KINDS, MOB_FRAMES,
     BUILDING_SPRITES,
+    VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE,
     FRAME_MS,
+    WAVE_PERIOD_MS, WATER_FRAME_COUNT,
+    wavePhase, waterTileFrame,
     frameIndex, waterFrame,
     tileFrames, mobKind, mobFrames, buildingSprite, phlogistonFrames,
+    tileVisuals,
     allAssetPaths,
     createSpriteLoader,
   };
