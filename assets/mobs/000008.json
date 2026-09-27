@@ -1,0 +1,34 @@
+{
+  "id": "orc_chief",
+  "name": "Орк-вождь",
+  "role": "leader",
+  "aggro": "aggressive",
+  "dmg": 1.6,
+  "hp": 2,
+  "size": {
+    "w": 1,
+    "h": 1
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "leader"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "war_hammer",
+      "chance": 0.15
+    },
+    {
+      "item": "chainmail",
+      "chance": 0.15
+    },
+    {
+      "item": "greater_healing",
+      "chance": 0.1
+    }
+  ]
+}

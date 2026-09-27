@@ -57,11 +57,11 @@
   // Предметы в сундуках по типу подземелья: id предметов из каталога
   // assets/items (фолбэк — src/items-data.js, ядро — src/items.js).
   const DUNGEON_ITEMS = {
-    [DUNGEON_TYPES.CAVE]: ['iron_sword', 'healing_potion', 'sulfur'],
-    [DUNGEON_TYPES.CRYPT]: ['alchemy_manual', 'chainmail', 'mana_potion'],
-    [DUNGEON_TYPES.RUINS]: ['steel_sword', 'knight_plate', 'war_hammer'],
-    [DUNGEON_TYPES.DROWNED]: ['mana_elixir', 'hunting_bow', 'moonstone'],
-    [DUNGEON_TYPES.ABYSS]: ['war_hammer', 'phoenix_feather', 'greater_healing'],
+    [DUNGEON_TYPES.CAVE]: ['iron_sword', 'healing_potion', 'sulfur', 'stone_fist_grimoire'],
+    [DUNGEON_TYPES.CRYPT]: ['alchemy_manual', 'chainmail', 'mana_potion', 'meditation_scroll'],
+    [DUNGEON_TYPES.RUINS]: ['steel_sword', 'knight_plate', 'war_hammer', 'iron_hide_tome'],
+    [DUNGEON_TYPES.DROWNED]: ['mana_elixir', 'hunting_bow', 'moonstone', 'nature_scroll'],
+    [DUNGEON_TYPES.ABYSS]: ['war_hammer', 'phoenix_feather', 'greater_healing', 'heavy_tome', 'fire_spellbook'],
   };
 
   // Размер лабиринта (клеток) по типу.

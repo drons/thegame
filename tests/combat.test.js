@@ -1,11 +1,20 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
-  hitChance, createCombat,
-  MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT,
+  hitChance, createCombat, resolveDifficulty,
+  MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT, PRACTICE_XP,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
+const { SETTINGS } = require('../src/global-settings.js');
 const I = require('../src/items.js');
+
+const MOBS_DIR = path.join(__dirname, '..', 'assets', 'mobs');
+const SKILLS_DIR = path.join(__dirname, '..', 'assets', 'skills');
+const SPELLS_DIR = path.join(__dirname, '..', 'assets', 'spells');
+const mobFiles = () => fs.readdirSync(MOBS_DIR)
+  .filter((f) => /^\d{6}\.json$/.test(f)).sort();
 
 // Сильный персонаж для контролируемых сценариев (много HP — не умирает сам).
 function strongHero() {
@@ -15,41 +24,124 @@ function strongHero() {
   return c;
 }
 
-// Авто-игра: бьёт ближайшую цель, если рядом, иначе подходит, и заканчивает ход.
+// «Разумно сильный» герой середины игры (задача 000027): 15 уровней =
+// 28 очков навыков, достижимая тратой (14 уровней × 2): первичные 18
+// (Сила 10, Тело 7, Ловкость 4) + вторичные 10 (Укрытие 5 — требование
+// Голема, Голем 3, Выносливость 2).
+function midGameHero() {
+  const c = createCharacter();
+  c.level = 15;
+  c.primary = {
+    strength: 10, dexterity: 4, constitution: 7,
+    intelligence: 1, wisdom: 1, charisma: 1,
+  };
+  c.secondary = { hide: 5, golem: 3, endurance: 2 };
+  const d = derived(c);
+  c.hp = d.maxHP;
+  c.mp = d.maxMP;
+  return c;
+}
+
+// Манхэттен-дистанция от игрока (1x1) до прямоугольника юнита (000040);
+// совпадает с unitDist из combat.js — «разумный» игрок видит моба
+// целиком, а не только по якорной клетке.
+function uDist(c, u) {
+  const x1 = u.x + ((u.size && u.size.w) || 1) - 1;
+  const y1 = u.y + ((u.size && u.size.h) || 1) - 1;
+  const dx = c.px < u.x ? u.x - c.px : (c.px > x1 ? c.px - x1 : 0);
+  const dy = c.py < u.y ? u.y - c.py : (c.py > y1 ? c.py - y1 : 0);
+  return dx + dy;
+}
+
+// Цель «разумной» авто-игры: поддержка (лечилка) — приоритет, иначе
+// ближайшая живая.
+function autoTarget(c) {
+  const alive = c.units.filter((u) => u.alive && !u.fled);
+  if (!alive.length) return null;
+  const supports = alive.filter((u) => u.role === 'support');
+  if (supports.length) {
+    return supports.reduce((a, b) => (b.hp / b.maxHP < a.hp / a.maxHP ? b : a));
+  }
+  return alive.reduce((a, b) => (uDist(c, a) <= uDist(c, b) ? a : b));
+}
+
+// Авто-игра «разумного» игрока (задача 000027): ход — чередование
+// «бьёт, если в дальности, иначе подходит» до исчерпания действий,
+// все действия ударов используются, ход завершается блоком.
 function autoPlay(c, maxRounds = 80) {
   let n = 0;
   while (!c.result && n++ < maxRounds) {
-    const t = c.units.find((u) => u.id === c.targetId && u.alive && !u.fled)
-      || c.units.find((u) => u.alive && !u.fled);
-    if (t) {
-      const d = Math.abs(c.px - t.x) + Math.abs(c.py - t.y);
-      if (d <= 1) {
-        c.attack(t.id);
-      } else {
-        const dx = Math.sign(t.x - c.px);
-        const dy = Math.sign(t.y - c.py);
-        if (Math.abs(t.x - c.px) >= Math.abs(t.y - c.py)) {
-          if (!c.move(dx, 0).ok) c.move(0, dy);
-        } else {
-          if (!c.move(0, dy).ok) c.move(dx, 0);
+    let t = autoTarget(c);
+    while (c.result === null && (c.ps.attack > 0 || c.ps.moveLeft > 0) && t) {
+      const d = uDist(c, t);
+      if (d <= 1 && c.ps.attack > 0) {
+        // Цель рядом — бьём ЕЁ (договор 000027: поддержка — приоритет).
+        const r = c.attack(t.id);
+        if (!r.ok) break;
+        if (!t.alive || t.fled) t = autoTarget(c);
+      } else if (c.ps.moveLeft > 0) {
+        // Шаг ИГРОКА к ближайшему краю прямоугольника цели (000040).
+        const x1 = t.x + ((t.size && t.size.w) || 1) - 1;
+        const y1 = t.y + ((t.size && t.size.h) || 1) - 1;
+        const dx = c.px < t.x ? 1 : (c.px > x1 ? -1 : 0);
+        const dy = c.py < t.y ? 1 : (c.py > y1 ? -1 : 0);
+        const tries = Math.abs(dx) >= Math.abs(dy)
+          ? [[dx, 0], [0, dy]] : [[0, dy], [dx, 0]];
+        let moved = false;
+        for (const [sx, sy] of tries) {
+          if (!sx && !sy) continue;
+          if (c.move(sx, sy).ok) { moved = true; break; }
         }
+        if (moved) continue;
+        // Прижаты (многоклеточный моб закрыл путь, 000040) — отвечаем
+        // ближайшему, самому раненому.
+        const adjacent = c.units
+          .filter((u) => u.alive && !u.fled && uDist(c, u) <= 1)
+          .sort((a, b) => a.hp / a.maxHP - b.hp / b.maxHP)[0];
+        if (adjacent && c.ps.attack > 0) {
+          const r = c.attack(adjacent.id);
+          if (!r.ok) break;
+          if (!t.alive || t.fled) t = autoTarget(c);
+          continue;
+        }
+        break;
+      } else {
+        break;
       }
     }
+    // Блок — последнее действие хода, снижает получаемый урон.
+    if (c.result === null && c.ps.block > 0) c.block();
     c.endTurn();
   }
   return c.result;
 }
 
 // Ставит игрока вплотную к живому мобо (клетка рядом свободна).
+// Для многоклеточного моба — клетка у края его прямоугольника (000040).
 function standNextTo(c, u) {
-  const candidates = [[0, 1], [0, -1], [1, 0], [-1, 0]]
-    .map(([dx, dy]) => [u.x + dx, u.y + dy])
-    .filter(([x, y]) =>
-      x >= 0 && y >= 0 && x < c.width && y < c.height &&
-      !c.units.some((v) => v.alive && v.x === x && v.y === y));
-  assert.ok(candidates.length, 'нет свободной клетки рядом с мобом');
-  c.px = candidates[0][0];
-  c.py = candidates[0][1];
+  const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
+  const taken = (x, y) => c.units.some((v) => v.alive && !v.fled
+    && x >= v.x && x < v.x + ((v.size && v.size.w) || 1)
+    && y >= v.y && y < v.y + ((v.size && v.size.h) || 1));
+  const candidates = [];
+  for (let x = u.x - 1; x <= u.x + w; x++) {
+    candidates.push([x, u.y - 1], [x, u.y + h]);
+  }
+  for (let y = u.y; y < u.y + h; y++) {
+    candidates.push([u.x - 1, y], [u.x + w, y]);
+  }
+  // «Вплотную» = дистанция до прямоугольника ≤ 1 (углы диагональю не
+  // считаются — как и для одиночной клетки).
+  const near = (x, y) => {
+    const dx = x < u.x ? u.x - x : (x > u.x + w - 1 ? x - (u.x + w - 1) : 0);
+    const dy = y < u.y ? u.y - y : (y > u.y + h - 1 ? y - (u.y + h - 1) : 0);
+    return dx + dy <= 1;
+  };
+  const spot = candidates.find(([x, y]) =>
+    x >= 0 && y >= 0 && x < c.width && y < c.height && !taken(x, y) && near(x, y));
+  assert.ok(spot, 'нет свободной клетки рядом с мобом');
+  c.px = spot[0];
+  c.py = spot[1];
 }
 
 // --- Состав групп ---
@@ -92,6 +184,93 @@ test('состав группы детерминирован при одном �
   );
 });
 
+// --- Каталог описаний мобов assets/mobs (задача 000022) ---
+
+test('assets/mobs: JSON-файлы — структура по схеме, id уникальны', () => {
+  const files = mobFiles();
+  assert.ok(files.length >= 30, 'мало JSON-файлов мобов: ' + files.length);
+  const ROLES = new Set(['melee', 'ranged', 'support', 'leader', 'shield', 'swarm']);
+  const AGGRO = new Set(['aggressive', 'neutral', 'territorial', 'timid']);
+  const ids = new Set();
+  for (const f of files) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    assert.match(j.id, /^[a-z][a-z0-9_]*$/, f + ': id');
+    assert.ok(!ids.has(j.id), f + ': дублируется id ' + j.id);
+    ids.add(j.id);
+    assert.ok(j.name, f + ': нет имени');
+    assert.ok(ROLES.has(j.role), f + ': роль ' + j.role);
+    assert.ok(AGGRO.has(j.aggro), f + ': агрессия ' + j.aggro);
+    assert.ok(j.dmg > 0 && j.hp > 0, f + ': dmg/hp');
+    assert.ok(j.xp && j.xp.base >= 0 && j.xp.perLevel >= 0, f + ': xp = base + perLevel*уровень');
+    assert.ok(Array.isArray(j.skills), f + ': skills — массив ссылок');
+    assert.ok(Array.isArray(j.spells), f + ': spells — массив ссылок');
+    assert.ok(Array.isArray(j.loot), f + ': loot — массив');
+    for (const l of j.loot) {
+      assert.match(l.item, /^[a-z][a-z0-9_]*$/, f + ': loot.item');
+      if (l.chance != null) assert.ok(l.chance >= 0 && l.chance <= 1, f + ': chance 0..1');
+    }
+  }
+});
+
+test('assets/mobs: зеркало в combat.js идентично JSON-каталогу (source of truth)', () => {
+  const files = mobFiles();
+  const byId = new Map(Object.entries(MOB_TYPES).map(([id, t]) => [id, t]));
+  for (const f of files) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    assert.ok(byId.has(j.id), f + ': моб ' + j.id + ' нет в combat.js');
+    assert.deepEqual(j, byId.get(j.id), f + ' расходится с combat.js');
+    byId.delete(j.id);
+  }
+  assert.equal(byId.size, 0, 'в combat.js есть мобы без JSON-файла: '
+    + Array.from(byId.keys()).join(', '));
+});
+
+test('assets/mobs: ссылки — skills в assets/skills, loot в assets/items', () => {
+  const skillIds = new Set(
+    fs.readdirSync(SKILLS_DIR).filter((f) => /^\d{6}\.json$/).map((f) =>
+      JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id));
+  const itemIds = new Set(I.allItems().map((it) => it.id));
+  // assets/spells появится с задачей 000023: проверяем, только если есть.
+  const spellsExist = fs.existsSync(SPELLS_DIR);
+  const spellIds = spellsExist ? new Set(
+    fs.readdirSync(SPELLS_DIR).filter((f) => f.endsWith('.json')).map((f) =>
+      JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8')).id)) : null;
+  for (const f of mobFiles()) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    for (const s of j.skills) {
+      assert.ok(skillIds.has(s), j.id + ': навык «' + s + '» нет в assets/skills');
+    }
+    for (const l of j.loot) {
+      assert.ok(itemIds.has(l.item), j.id + ': лут «' + l.item + '» нет в assets/items');
+    }
+    for (const sp of j.spells) {
+      assert.ok(spellIds && spellIds.has(sp),
+        j.id + ': заклинание «' + sp + '» нет в assets/spells');
+    }
+  }
+});
+
+test('единицы: xp/skills/loot из описания, опыт победы = base + perLevel*уровень', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 5, seed: 3 });
+  const u = c.units[0];
+  assert.deepEqual(u.xp, { base: 8, perLevel: 4 });
+  assert.deepEqual(u.loot, [{ item: 'leather_armor', chance: 0.1 }]);
+  assert.deepEqual(u.skills, []);
+  // Убиваем волка: опыт = 8 + 4*5 = 28.
+  c._rng = () => 0.01;
+  standNextTo(c, u);
+  let n = 0;
+  while (!c.result && n++ < 60) {
+    c.ps.attack = 99;
+    c.attack(u.id);
+    c.endTurn();
+  }
+  assert.ok(c.result, 'бой не завершился');
+  assert.equal(c.result.outcome, 'victory');
+  assert.equal(c.result.xp, 8 + 4 * 5, 'опыт победы по данным описания');
+});
+
 test('группа с лидером: +5% урона и +5% защиты всем', () => {
   const p = createCharacter();
   const withLeader = createCombat({ player: p, groupType: 6, seed: 5 }); // Уродство — лидер
@@ -102,10 +281,13 @@ test('группа с лидером: +5% урона и +5% защиты все�
   const noLeader = createCombat({ player: p, groupType: 3, seed: 5 });
   assert.ok(!noLeader.units.some((u) => u.role === 'leader'));
   for (const u of noLeader.units) assert.equal(u.damageTakenMult, 1);
-  // Урон лидера при том же уровне выше, чем без баффа.
-  const dmgBase = Math.max(1, Math.round((2 + 0.7 * withLeader.units[0].level) * MOB_TYPES.abomination.dmg));
+  // Урон лидера: база уровня × бафф лидера × множитель сложности (задача 000027).
+  const L = withLeader.units[0].level;
+  const diff = SETTINGS.combat_difficulties[SETTINGS.combat_difficulty];
   const leader = withLeader.units.find((u) => u.role === 'leader');
-  assert.equal(leader.damage, Math.max(1, Math.round(dmgBase * LEADER_DMG_MULT)));
+  const expected = Math.max(1, Math.round(
+    (2 + 0.7 * L) * MOB_TYPES.abomination.dmg * LEADER_DMG_MULT * diff.damage));
+  assert.equal(leader.damage, expected);
 });
 
 // --- Формулы попадания и урона ---
@@ -168,19 +350,32 @@ test('лимит действий: удар доступен 1 + floor(Сила/
   assert.equal(c.ps.attack, 4);
 });
 
-test('блок: только как последнее действие хода', () => {
+test('блок: ставится даже при оставшихся действиях; ПОСЛЕ него другие действия хода запрещены', () => {
   const p = strongHero();
   const c = createCombat({ player: p, groupType: 3, seed: 2 });
-  assert.equal(c.block().ok, false, 'блок не должен работать при наличии ударов');
-  assert.match(c.block().reason, /последнее действие/);
-  c.ps.attack = 0;
-  c.ps.spellInt = 0;
-  c.ps.spellWis = 0;
-  c.ps.quickItem = 0;
-  c.ps.invItem = 0;
-  assert.equal(c.block().ok, true);
+  // Блок доступен в любой момент хода (раньше пулы заклинаний ≥1 делали
+  // его невыполнимым в бою — задача 000027).
+  assert.equal(c.block().ok, true, 'блок можно поставить при наличии других действий');
   assert.equal(c.ps.blocked, true);
-  assert.equal(c.block().ok, false, 'блок один раз за ход');
+  // После блока прочие действия хода отклоняются.
+  const w = c.units[0];
+  standNextTo(c, w);
+  const atk = c.attack(w.id);
+  assert.equal(atk.ok, false);
+  assert.match(atk.reason, /последнее действие/);
+  assert.match(c.spell('fire', w.id).reason, /последнее действие/);
+  const mv = c.move(1, 0);
+  assert.equal(mv.ok, false);
+  assert.match(mv.reason, /последнее действие/);
+  I.addItem(p, 'bread');
+  assert.match(c.invItem('bread').reason, /последнее действие/);
+  // Один раз за ход.
+  const bl2 = c.block();
+  assert.equal(bl2.ok, false, 'блок один раз за ход');
+  assert.match(bl2.reason, /больше нет/);
+  // На новый ход блок сброшен.
+  c.endTurn();
+  assert.equal(c.ps.blocked, false);
 });
 
 test('блок снижает получаемый урон', () => {
@@ -559,4 +754,381 @@ test('броня снижает получаемый урон (то же зер�
   const withArmor = make(true);
   assert.ok(without > 0, 'без брони урон получен');
   assert.ok(withArmor < without, `с броней урон меньше: ${withArmor} < ${without}`);
+});
+
+// --- Сложность боя (задача 000027) ---
+
+test('сложность: в настройках есть три уровня с множителями hp/damage', () => {
+  assert.ok(SETTINGS.combat_difficulty, 'задана текущая сложность');
+  const table = SETTINGS.combat_difficulties;
+  for (const name of ['easy', 'medium', 'hard']) {
+    assert.ok(table[name], `нет сложности ${name}`);
+    assert.ok(table[name].hp > 0 && table[name].damage > 0,
+      `сложность ${name}: множители положительны`);
+  }
+  assert.equal(typeof SETTINGS.combat_difficulty, 'string');
+  assert.ok(table[SETTINGS.combat_difficulty], 'текущая сложность есть в таблице');
+});
+
+test('сложность: easy < medium < hard (HP и урон каждого моба)', () => {
+  // Мобы уровня 30: у уровня 10 урон medium и hard округляется
+  // в одно значение (у шамана), поэтому берём уровень повыше.
+  const mk = (difficulty) => createCombat({
+    player: createCharacter(),
+    mobs: ['orc_warrior', 'orc_archer', 'orc_shaman'],
+    mobLevel: 30,
+    seed: 77,
+    difficulty,
+  });
+  const e = mk('easy'), m = mk('medium'), h = mk('hard');
+  assert.equal(e.difficulty, 'easy');
+  assert.equal(m.difficulty, 'medium');
+  assert.equal(h.difficulty, 'hard');
+  for (let i = 0; i < e.units.length; i++) {
+    assert.ok(e.units[i].maxHP < m.units[i].maxHP, `моб ${i}: easy hp < medium hp`);
+    assert.ok(m.units[i].maxHP < h.units[i].maxHP, `моб ${i}: medium hp < hard hp`);
+    assert.ok(e.units[i].damage < m.units[i].damage, `моб ${i}: easy урон < medium`);
+    assert.ok(m.units[i].damage < h.units[i].damage, `моб ${i}: medium урон < hard`);
+  }
+});
+
+test('сложность: неизвестное имя деградирует до настроенной, opts переопределяет', () => {
+  const cur = SETTINGS.combat_difficulties[SETTINGS.combat_difficulty];
+  assert.deepEqual(resolveDifficulty('нет-такой-сложности'), cur,
+    'неизвестная сложность → настроенная');
+  assert.deepEqual(resolveDifficulty('easy'), SETTINGS.combat_difficulties.easy);
+
+  const p = createCharacter();
+  const a = createCombat({ player: p, groupType: 0, seed: 3, difficulty: 'hard' });
+  const b = createCombat({ player: p, groupType: 0, seed: 3, difficulty: 'нет-такой' });
+  assert.equal(a.difficulty, 'hard', 'opts.difficulty записан в бой');
+  // «нет-такой» = настроенная сложность — множители совпадают.
+  for (let i = 0; i < a.units.length; i++) {
+    assert.ok(a.units[i].maxHP >= b.units[i].maxHP, 'hard не слабее настроенной');
+  }
+});
+
+test('единый источник: SETTINGS.combat_difficulty задаёт сложность по умолчанию', (t) => {
+  // Герой повыше: у мобов уровня 1 урон обоих уровней сложности
+  // округляется в 1 и различия не видны.
+  const hero = () => { const p = createCharacter(); p.level = 10; return p; };
+  const before = createCombat({ player: hero(), groupType: 0, seed: 9 });
+  assert.equal(before.difficulty, 'medium', 'дефолт = medium');
+
+  SETTINGS.combat_difficulty = 'easy';
+  t.after(() => { SETTINGS.combat_difficulty = 'medium'; });
+  const after = createCombat({ player: hero(), groupType: 0, seed: 9 });
+  assert.equal(after.difficulty, 'easy', 'дефолт следует за настройкой');
+  for (let i = 0; i < before.units.length; i++) {
+    assert.ok(after.units[i].maxHP < before.units[i].maxHP, 'easy слабее medium');
+    assert.ok(after.units[i].damage < before.units[i].damage, 'easy бьёт слабее');
+  }
+});
+
+test('баланс: разумно сильный герой побеждает ВСЕ стандартные группы на medium', () => {
+  // Герой уровня группы (levelDeltaMax: 0), разумная игра (autoPlay):
+  // поддержка первой, все удары, блок в конце хода.
+  for (const [type, recipe] of Object.entries(GROUP_RECIPES)) {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const p = midGameHero();
+      const c = createCombat({
+        player: p, groupType: Number(type), seed,
+        levelDeltaMax: 0, difficulty: 'medium',
+      });
+      const r = autoPlay(c);
+      assert.ok(r, `группа ${recipe.name} (seed ${seed}): бой не завершился`);
+      assert.equal(r.outcome, 'victory',
+        `группа ${recipe.name} (seed ${seed}): исход ${r.outcome}`);
+      assert.ok(r.xp > 0 && r.gold > 0, 'лут за победу');
+    }
+  }
+});
+
+test('баланс: безопасная зона (мобы -3 к герою) на medium — тоже победа', () => {
+  for (const [type, recipe] of Object.entries(GROUP_RECIPES)) {
+    // Кастомный состав рецепта с фиксированным уровнем мобов = герой - 3
+    // (безопасные локации по SPEC: дельта ближе к -N).
+    let mobs = recipe.mobs.slice();
+    if (recipe.count) mobs = new Array(recipe.count[0]).fill(recipe.mobs[0]);
+    const p = midGameHero();
+    const c = createCombat({
+      player: p, mobs, mobLevel: Math.max(1, p.level - 3),
+      seed: 11, difficulty: 'medium', groupName: recipe.name,
+    });
+    const r = autoPlay(c);
+    assert.ok(r, `группа ${recipe.name}: бой не завершился`);
+    assert.equal(r.outcome, 'victory', `группа ${recipe.name} (мобы -3): исход ${r.outcome}`);
+  }
+});
+
+// --- Практика навыков: опыт за применение эффектов (задача 000013) ---
+
+test('практика: попадание оружием даёт опыт навыка оружия', () => {
+  // Меч → «Мечник», лук → «Стрелок», топор → «Тяжёлое оружие».
+  const cases = [
+    ['iron_sword', 'swordsman'],
+    ['hunting_bow', 'archer'],
+    ['battle_axe', 'heavy'],
+  ];
+  for (const [weapon, skill] of cases) {
+    const p = strongHero();
+    I.addItem(p, weapon);
+    I.equip(p, weapon);
+    const c = createCombat({ player: p, groupType: 3, seed: 5 });
+    c._rng = () => 0.01; // попадание гарантировано
+    standNextTo(c, c.units[0]);
+    const r = c.attack(c.units[0].id);
+    assert.equal(r.hit, true, weapon + ': должно попасть');
+    assert.equal(r.practice.skill, skill, weapon + ' → навык ' + skill);
+    assert.equal(r.practice.xp, PRACTICE_XP.hit);
+    assert.equal(p.skillXp[skill], PRACTICE_XP.hit, 'опыт записан в копилку');
+  }
+});
+
+test('практика: голыми руками — «Каменные кулаки», промах — опыта нет', () => {
+  const p = strongHero(); // без оружия
+  const c = createCombat({ player: p, groupType: 3, seed: 5 });
+  standNextTo(c, c.units[0]);
+  // Промашка: опыта нет.
+  c._rng = () => 0.99;
+  const miss = c.attack(c.units[0].id);
+  assert.equal(miss.hit, false, 'промах');
+  assert.equal(miss.practice, undefined, 'промах не даёт практики');
+  assert.equal(p.skillXp.fists, undefined, 'кулаки: опыта нет после промаха');
+  // Попадание кулаком: опыт «Каменным кулакам».
+  c.ps.attack = 1;
+  c._rng = () => 0.01;
+  const hit = c.attack(c.units[0].id);
+  assert.equal(hit.hit, true);
+  assert.equal(hit.practice.skill, 'fists');
+  assert.equal(p.skillXp.fists, PRACTICE_XP.hit);
+});
+
+test('практика: блок даёт опыт «Железной коже»', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 3, seed: 5 });
+  c.ps.attack = 0; c.ps.spellInt = 0; c.ps.spellWis = 0;
+  c.ps.quickItem = 0; c.ps.invItem = 0;
+  const r = c.block();
+  assert.equal(r.ok, true);
+  assert.equal(r.practice.skill, 'hide');
+  assert.equal(r.practice.xp, PRACTICE_XP.block);
+  assert.equal(p.skillXp.hide, PRACTICE_XP.block);
+});
+
+test('практика: каст огня — «Повелитель огня», исцеление — «Медитация»', () => {
+  const p = createCharacter();
+  p.primary.intelligence = 10; // пул заклинаний Интеллекта = 2
+  p.primary.wisdom = 10;       // пул заклинаний Мудрости = 2
+  p.mp = 30;
+  const c = createCombat({ player: p, groupType: 0, seed: 5 });
+  const t = c.units[0];
+  t.x = c.px; t.y = c.py - 1; // вплотную, в дальности
+  const fire = c.spell('fire', t.id);
+  assert.equal(fire.ok, true);
+  assert.equal(fire.practice.skill, 'firelord');
+  assert.equal(p.skillXp.firelord, PRACTICE_XP.spell);
+  const heal = c.spell('heal');
+  assert.equal(heal.ok, true);
+  assert.equal(heal.practice.skill, 'meditation');
+  assert.equal(p.skillXp.meditation, PRACTICE_XP.spell);
+});
+
+test('практика: на потолке (основной * 2) попадание опыт не даёт', () => {
+  const p = strongHero(); // сила 1 → потолок «Мечника» 2
+  I.addItem(p, 'iron_sword');
+  I.equip(p, 'iron_sword');
+  p.secondary.swordsman = 2; // уже на потолке практикой
+  const c = createCombat({ player: p, groupType: 3, seed: 5 });
+  c._rng = () => 0.01;
+  standNextTo(c, c.units[0]);
+  const r = c.attack(c.units[0].id);
+  assert.equal(r.hit, true);
+  assert.equal(r.practice.applied, 0, 'на потолке опыт не начисляется');
+  assert.equal(r.practice.level, 2);
+  assert.equal(p.secondary.swordsman, 2, 'уровень не вырос');
+  assert.equal(p.skillXp.swordsman, 0, 'в копилку ничего не попало');
+});
+
+// --- Размер мобов на боевом поле (задача 000040) ---
+
+// Клетки прямоугольника юнита (якорь — верхний левый угол).
+function unitRect(u) {
+  const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
+  const cells = [];
+  for (let dy = 0; dy < h; dy++) {
+    for (let dx = 0; dx < w; dx++) cells.push([u.x + dx, u.y + dy]);
+  }
+  return cells;
+}
+
+test('размер: у всех мобов в assets/mobs есть size {w,h} (1..7)', () => {
+  for (const f of mobFiles()) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    assert.ok(j.size, `${f}: нет size`);
+    assert.ok(Number.isInteger(j.size.w) && j.size.w >= 1 && j.size.w <= 7,
+      `${f}: width ${j.size.w}`);
+    assert.ok(Number.isInteger(j.size.h) && j.size.h >= 1 && j.size.h <= 7,
+      `${f}: height ${j.size.h}`);
+  }
+});
+
+test('размер: мелкие мобы 1x1, крупные больше (волк/орк 1x1, голем/колосс 3x3)', () => {
+  const byId = {};
+  for (const f of mobFiles()) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    byId[j.id] = j.size;
+  }
+  // Слабые/мелкие — 1x1.
+  assert.deepEqual(byId.wolf, { w: 1, h: 1 });
+  assert.deepEqual(byId.orc_warrior, { w: 1, h: 1 });
+  assert.deepEqual(byId.skeleton, { w: 1, h: 1 });
+  // Крупные — больше 1x1.
+  assert.ok(byId.stone_golem.w * byId.stone_golem.h > 1, 'голем должен быть крупнее');
+  assert.ok(byId.bone_coloss.w * byId.bone_coloss.h > 1, 'колосс должен быть крупнее');
+});
+
+test('размер: зеркало MOB_TYPES несёт size, совпадающий с JSON', () => {
+  const byId = {};
+  for (const f of mobFiles()) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    byId[j.id] = j.size;
+  }
+  for (const [id, t] of Object.entries(MOB_TYPES)) {
+    assert.deepEqual(t.size, byId[id], `mirror size ${id}`);
+  }
+});
+
+test('размер: боевой юнит получает size из описания', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 0, seed: 3, levelDeltaMax: 0 });
+  for (const u of c.units) {
+    assert.ok(u.size && u.size.w >= 1 && u.size.h >= 1, `${u.mobId}: нет size`);
+    assert.deepEqual(u.size, MOB_TYPES[u.mobId].size, `${u.mobId}: size ≠ описанию`);
+  }
+});
+
+test('размер: на клетку многоклеточного моба зайти нельзя (unitAt-семантика)', () => {
+  const p = strongHero();
+  // Группы из крупных мобов (2x2/3x3).
+  const bigIds = Object.entries(MOB_TYPES)
+    .filter(([, t]) => t.size.w * t.size.h > 1)
+    .map(([id]) => id);
+  const c = createCombat({
+    player: p, mobs: [bigIds[0], bigIds[1]], mobLevel: 3, seed: 3,
+  });
+  for (const big of c.units) {
+    if (big.size.w * big.size.h <= 1) continue;
+    const rect = new Set(unitRect(big).map(([x, y]) => x + ',' + y));
+    const freeNeighbor = (x, y) =>
+      [[0, 1], [0, -1], [1, 0], [-1, 0]].map(([dx, dy]) => [x + dx, y + dy])
+        .find(([nx, ny]) =>
+          nx >= 0 && ny >= 0 && nx < c.width && ny < c.height
+          && !rect.has(nx + ',' + ny) && !(nx === c.px && ny === c.py));
+    let checks = 0;
+    for (const [x, y] of unitRect(big)) {
+      const n = freeNeighbor(x, y);
+      if (!n) continue; // угловая клетка без свободного соседа — не достижима
+      c.px = n[0]; c.py = n[1];
+      c.ps.moveLeft = 5;
+      const r = c.move(x - c.px, y - c.py);
+      assert.equal(r.ok, false,
+        `(${x},${y}) внутри ${big.mobId} — заход должен быть запрещён`);
+      assert.match(r.reason, /моб/);
+      checks++;
+    }
+    assert.ok(checks >= 3, `${big.mobId}: мало проверенных клеток (${checks})`);
+  }
+});
+
+test('размер: ближний бой меряется по краю прямоугольника, а не по якорю', () => {
+  const p = strongHero();
+  const bigIds = Object.entries(MOB_TYPES)
+    .filter(([, t]) => t.size.w * t.size.h > 1)
+    .map(([id]) => id);
+  const c = createCombat({
+    player: p, mobs: [bigIds[0]], mobLevel: 3, seed: 3,
+  });
+  const big = c.units.find((u) => u.size.w * u.size.h > 1);
+  standNextTo(c, big);
+  // Якорь может быть дальше 1 клетки, но удар по краю — в дальности.
+  const anchorDist = Math.abs(c.px - big.x) + Math.abs(c.py - big.y);
+  assert.ok(anchorDist >= 2, `ожидается якорь ≥2 клеток, а он ${anchorDist}`);
+  c._rng = () => 0.01;
+  const r = c.attack(big.id);
+  assert.equal(r.ok, true, 'удар по краю прямоугольника должен быть в дальности');
+  // Две клетки от края — уже далеко.
+  c.px = big.x; c.py = big.y + big.size.h + 2;
+  c.ps.attack = 5;
+  const far = c.attack(big.id);
+  assert.equal(far.ok, false, 'две клетки от края — вне дальности ближнего боя');
+  assert.match(far.reason, /далеко/);
+});
+
+test('размер: крупные мобы двигаются целым прямоугольником, без перекрытий', () => {
+  const p = strongHero();
+  const bigIds = Object.entries(MOB_TYPES)
+    .filter(([, t]) => t.size.w * t.size.h > 1)
+    .map(([id]) => id);
+  const c = createCombat({
+    player: p, mobs: [bigIds[0], bigIds[1], 'wolf'], mobLevel: 3, seed: 4,
+  });
+  for (let i = 0; i < 20; i++) {
+    c.endTurn();
+    if (c.result) break;
+    const seen = new Set();
+    for (const u of c.units) {
+      if (!u.alive || u.fled) continue;
+      assert.ok(u.x >= 0 && u.y >= 0
+        && u.x + u.size.w <= c.width && u.y + u.size.h <= c.height,
+        `ход ${i + 1}: ${u.mobId} за пределами поля`);
+      for (const [x, y] of unitRect(u)) {
+        const key = x + ',' + y;
+        assert.ok(!seen.has(key), `ход ${i + 1}: (${x},${y}) занято дважды`);
+        seen.add(key);
+        assert.ok(!(x === c.px && y === c.py),
+          `ход ${i + 1}: ${u.mobId} на клетке игрока`);
+      }
+    }
+  }
+});
+
+test('размер: расстановка без перекрытий и в пределах поля', () => {
+  const p = strongHero();
+  for (const type of Object.keys(GROUP_RECIPES)) {
+    for (const seed of [1, 2, 3, 7]) {
+      const c = createCombat({ player: p, groupType: Number(type), seed, levelDeltaMax: 0 });
+      const seen = new Set();
+      for (const u of c.units) {
+        assert.ok(u.x >= 0 && u.y >= 0, `${u.mobId}: за левой/верхней стенкой (seed ${seed})`);
+        assert.ok(u.x + u.size.w <= c.width, `${u.mobId}: за правой стенкой (seed ${seed})`);
+        assert.ok(u.y + u.size.h <= c.height, `${u.mobId}: за нижней стенкой (seed ${seed})`);
+        for (const [x, y] of unitRect(u)) {
+          const key = x + ',' + y;
+          assert.ok(!seen.has(key), `(${x},${y}) занято дважды (seed ${seed})`);
+          seen.add(key);
+          assert.ok(!(x === c.px && y === c.py), `(${x},${y}) = клетка игрока (seed ${seed})`);
+        }
+      }
+    }
+  }
+});
+
+test('размер: бой с крупной группой завершается победой (не клинит)', () => {
+  const p = midGameHero();
+  // Собираем группу только из крупных мобов (2x2/3x3) вручную.
+  const bigIds = Object.entries(MOB_TYPES)
+    .filter(([, t]) => t.size.w * t.size.h > 1)
+    .map(([id]) => id);
+  assert.ok(bigIds.length >= 2, 'должны быть крупные мобы');
+  const mobs = [bigIds[0], bigIds[1], 'wolf'];
+  for (const seed of [1, 2, 3]) {
+    const c = createCombat({
+      player: p, mobs, mobLevel: Math.max(1, p.level - 3),
+      seed, difficulty: 'medium', groupName: 'крупная группа',
+    });
+    const r = autoPlay(c);
+    assert.ok(r, `seed ${seed}: бой не завершился`);
+    assert.equal(r.outcome, 'victory', `seed ${seed}: исход ${r.outcome}`);
+  }
 });

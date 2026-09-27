@@ -95,6 +95,7 @@
         intelligence: 1, wisdom: 1, charisma: 1,
       },
       secondary: {}, // id -> уровень
+      skillXp: {}, // id вторичного навыка -> опыт внутри текущего уровня (практика, задача 000013)
       alive: true,
     };
     const d = derived(c);
@@ -204,7 +205,9 @@
     c.points -= 1;
     if (PRIMARY_SKILLS.some((p) => p.id === target)) {
       c.primary[target] += 1;
-      return { ok: true, level: c.primary[target] };
+      // Потолок практикой вырос — пересчитываем застрявшие копилки опыта.
+      const skillLevels = reprocessSkillXp(c, target);
+      return { ok: true, level: c.primary[target], skillLevels };
     }
     c.secondary[target] = (c.secondary[target] || 0) + 1;
     return { ok: true, level: c.secondary[target] };
@@ -231,6 +234,137 @@
     c.hp = Math.min(d.maxHP, c.hp);
     c.mp = Math.min(d.maxMP, c.mp);
     return { levelsGained, pointsGained: levelsGained * POINTS_PER_LEVEL };
+  }
+
+  // --- Практика навыков (задача 000013, SPEC.md «Повышение вторичных навыков», п. 2) ---
+  // Опыт вторичного навыка хранится в c.skillXp[id] — прогресс внутри
+  // текущего уровня; накопленный опыт конвертируется в уровни навыка.
+  // skillXpForNext(level) — сколько опыта нужно, чтобы перейти
+  // с уровня level на level+1.
+  function skillXpForNext(level) {
+    return 15 * (level + 1);
+  }
+
+  /**
+   * «Потолок практикой»: уровень основного навыка данного вторичного * 2
+   * (SPEC.md). На уровне, равном или выше потолка, навык растёт только
+   * очками навыков и книгами.
+   * @returns {number} 0, если навык неизвестен
+   */
+  function practiceCap(c, skillId) {
+    const s = SECONDARY_SKILLS[skillId];
+    if (!s) return 0;
+    return (c.primary[s.primary] || 0) * 2;
+  }
+
+  /** Текущий уровень вторичного навыка (0, если не начат). */
+  function skillLevel(c, skillId) {
+    return c.secondary[skillId] || 0;
+  }
+
+  /**
+   * Начисляет опыт вторичного навыка и конвертирует его в уровни.
+   * @param {object} c персонаж
+   * @param {string} skillId id вторичного навыка
+   * @param {number} amount опыт
+   * @param {boolean} ignorePracticeCap книги/свитки: потолок практикой
+   *   не учитывается (рост до максимума 100)
+   * @returns {{ ok:boolean, applied:number, level:number, leveledUp:boolean,
+   *             total:number, reason?:string }}
+   *   applied — опыт, принятый в копилку (0 при потолке/максимуме),
+   *   total — содержимое копилки c.skillXp[skillId] после операции.
+   */
+  function _gainSkillXp(c, skillId, amount, ignorePracticeCap) {
+    const fail = (reason) =>
+      ({ ok: false, reason, applied: 0, level: 0, leveledUp: false, total: 0 });
+    const s = SECONDARY_SKILLS[skillId];
+    if (!s) return fail('неизвестный навык: ' + skillId);
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
+      return fail('неверный опыт');
+    }
+    if (!c.alive) return fail('персонаж погиб');
+    const level0 = c.secondary[skillId] || 0;
+    const limit = ignorePracticeCap
+      ? MAX_SKILL_LEVEL
+      : Math.min(MAX_SKILL_LEVEL, practiceCap(c, skillId));
+    const bank0 = (c.skillXp && c.skillXp[skillId]) || 0;
+    if (level0 >= limit) {
+      c.skillXp = c.skillXp || {};
+      c.skillXp[skillId] = bank0; // держим копилку числом (инвариант хранилища)
+      return {
+        ok: true, applied: 0, level: level0, leveledUp: false, total: bank0,
+        reason: level0 >= MAX_SKILL_LEVEL ? 'максимальный уровень' : 'потолок практикой',
+      };
+    }
+    const gain = Math.round(amount);
+    let bank = bank0 + gain;
+    let level = level0;
+    let leveledUp = false;
+    while (level < limit) {
+      const need = skillXpForNext(level);
+      if (bank < need) break;
+      bank -= need;
+      level += 1;
+      leveledUp = true;
+    }
+    c.skillXp = c.skillXp || {};
+    c.skillXp[skillId] = bank;
+    c.secondary[skillId] = level;
+    // Примечание: HP/MP не прижимаем к максимуму — макс. HP/MP только
+    // растут от вторичных навыков (Выносливость/Голем), maxMP зависит
+    // только от основных, так что текущие значения не могут оказаться
+    // выше новых границ.
+    return { ok: true, applied: gain, level, leveledUp, total: bank };
+  }
+
+  /**
+   * Практика: успешное применение эффекта навыка (попадание мечом —
+   * «Мечник», блок — «Железная кожа», зелье — «Алхимик» и т.д.).
+   * Опыт копится в c.skillXp[skillId] и поднимает уровень навыка до
+   * «потолка практикой» (основной навык * 2); остаток хранится и
+   * применяется, когда потолок поднимется (основной навык вырос).
+   */
+  function skillPractice(c, skillId, amount) {
+    return _gainSkillXp(c, skillId, amount, false);
+  }
+
+  /**
+   * Книги и свитки: дают опыт навыка, игнорируя потолок практикой
+   * (растёт до максимума 100).
+   */
+  function skillReadBook(c, skillId, amount) {
+    return _gainSkillXp(c, skillId, amount, true);
+  }
+
+  /**
+   * Пересчёт копилки опыта после повышения основного навыка: «потолок
+   * практикой» вырос, и опыт, застрявший в skillXp у уровня потолка,
+   * конвертируется в уровни (до нового потолка). Вызывается из raiseSkill.
+   * @returns {string[]} id навыков, чей уровень вырос
+   */
+  function reprocessSkillXp(c, primaryId) {
+    const leveled = [];
+    for (const [id, s] of Object.entries(SECONDARY_SKILLS)) {
+      if (s.primary !== primaryId) continue;
+      const bank0 = (c.skillXp && c.skillXp[id]) || 0;
+      if (bank0 <= 0) continue;
+      const level0 = c.secondary[id] || 0;
+      const limit = Math.min(MAX_SKILL_LEVEL, practiceCap(c, id));
+      let level = level0;
+      let bank = bank0;
+      while (level < limit) {
+        const need = skillXpForNext(level);
+        if (bank < need) break;
+        bank -= need;
+        level += 1;
+      }
+      if (level !== level0) {
+        c.secondary[id] = level;
+        c.skillXp[id] = bank;
+        leveled.push(id);
+      }
+    }
+    return leveled;
   }
 
   function takeDamage(c, amount) {
@@ -265,5 +399,7 @@
     rankOf, secondaryName, xpForNext,
     createCharacter, derived, canRaise, raiseSkill,
     addXp, takeDamage, heal, restoreDay,
+    skillXpForNext, practiceCap, skillLevel,
+    skillPractice, skillReadBook, reprocessSkillXp,
   };
 });

@@ -1,0 +1,13 @@
+{
+  "id": "meditation_scroll",
+  "name": "Свиток медитации",
+  "kind": "skill_book",
+  "weight": 0.2,
+  "value": 40,
+  "desc": "Свиток медитации: тишина, в которой ману слышно ушами.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "meditation",
+    "amount": 15
+  }
+}

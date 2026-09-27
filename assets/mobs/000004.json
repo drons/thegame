@@ -1,0 +1,26 @@
+{
+  "id": "orc_shaman",
+  "name": "Орк-шаман",
+  "role": "support",
+  "aggro": "timid",
+  "dmg": 0.5,
+  "hp": 0.7,
+  "size": {
+    "w": 1,
+    "h": 1
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "meditation"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "mana_potion",
+      "chance": 0.15
+    }
+  ]
+}

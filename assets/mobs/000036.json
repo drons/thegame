@@ -1,0 +1,30 @@
+{
+  "id": "abomination",
+  "name": "Уродство",
+  "role": "leader",
+  "aggro": "aggressive",
+  "dmg": 1.7,
+  "hp": 2.5,
+  "size": {
+    "w": 3,
+    "h": 3
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "leader"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "phoenix_feather",
+      "chance": 0.2
+    },
+    {
+      "item": "greater_healing",
+      "chance": 0.15
+    }
+  ]
+}

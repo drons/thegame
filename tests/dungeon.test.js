@@ -143,6 +143,28 @@ test('содержимое живёт dungeon_memory_days дней', () => {
   assert.ok(D.contentValid(10, 10));
 });
 
+test('DUNGEON_MOBS: все id мобов описаны в каталоге (assets/mobs)', () => {
+  const C = require('../src/combat.js');
+  for (const [name, type] of Object.entries(D.DUNGEON_TYPES)) {
+    for (const id of D.DUNGEON_MOBS[type]) {
+      assert.ok(C.MOB_TYPES[id], `подземелье ${name}: нет описания моба ${id}`);
+    }
+  }
+});
+
+test('сундуки: в каждом типе подземелья есть книга/свиток с опытом навыка', () => {
+  const I = require('../src/items.js');
+  for (const [name, type] of Object.entries(D.DUNGEON_TYPES)) {
+    const books = D.DUNGEON_ITEMS[type].filter(
+      (id) => I.getItem(id) && I.getItem(id).kind === 'skill_book');
+    assert.ok(books.length >= 1,
+      `в «${D.DUNGEON_NAMES[type]}» (${name}) нет книг с опытом навыка`);
+    for (const id of books) {
+      assert.equal(I.getItem(id).effect.kind, 'skill_xp', id);
+    }
+  }
+});
+
 test('сундук открывается один раз', () => {
   const d = D.createDungeon(9, 9, PX, M.TERRAIN.GRASS);
   const c = D.generateDungeonContents(d, heroAt(700));

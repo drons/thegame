@@ -194,6 +194,63 @@ test('useItem: книга навыков даёт опыт навыка, реа�
   assert.match(I.useItem(c, 'wood_sword').reason, /экипируется/);
 });
 
+// --- Практика: источники опыта (задача 000013) ---
+
+test('useItem: зелье — практика «Алхимик», еда — «Сердце природы»', () => {
+  const c = createCharacter();
+  I.addItem(c, 'healing_potion', 2);
+  I.addItem(c, 'bread');
+  const r1 = I.useItem(c, 'healing_potion');
+  assert.equal(r1.practice.skill, 'alchemy');
+  assert.equal(c.skillXp.alchemy, 2, 'опыт за применение зелья');
+  const r2 = I.useItem(c, 'healing_potion');
+  assert.equal(r2.practice.skill, 'alchemy');
+  assert.equal(c.skillXp.alchemy, 4, 'опыт копится за каждое применение');
+  const r3 = I.useItem(c, 'bread');
+  assert.equal(r3.practice.skill, 'nature');
+  assert.equal(c.skillXp.nature, 2);
+});
+
+test('каталог: новые книги и свитки — skill_book с эффектом skill_xp', () => {
+  const expected = {
+    stone_fist_grimoire: 'fists',
+    iron_hide_tome: 'hide',
+    fire_spellbook: 'firelord',
+    ice_spellbook: 'icelord',
+    heavy_tome: 'heavy',
+    archer_scroll: 'archer',
+    meditation_scroll: 'meditation',
+    nature_scroll: 'nature',
+  };
+  for (const [id, skill] of Object.entries(expected)) {
+    const it = I.getItem(id);
+    assert.ok(it, 'нет предмета ' + id);
+    assert.equal(it.kind, 'skill_book');
+    assert.equal(it.effect.kind, 'skill_xp');
+    assert.equal(it.effect.skill, skill);
+    assert.ok(it.effect.amount >= 1, id + ': amount');
+  }
+});
+
+test('useItem: книга обходит потолок практикой, на максимуме — без опыта', () => {
+  const c = createCharacter(); // сила 1 → потолок «Тяжёлого оружия» 2
+  for (let i = 0; i < 3; i++) {
+    assert.equal(I.addItem(c, 'heavy_tome').ok, true);
+    const r = I.useItem(c, 'heavy_tome');
+    assert.equal(r.ok, true);
+    assert.equal(r.skill.ok, true);
+  }
+  // 3 тома × 30 = 90 опыта: 15 + 30 + 45 → уровень 3, выше потолка (2).
+  assert.equal(c.secondary.heavy, 3, 'книги поднимают навык выше потолка');
+  // На максимальном уровне — опыт не начисляется, сообщение об этом.
+  c.secondary.heavy = 100;
+  I.addItem(c, 'heavy_tome');
+  const rMax = I.useItem(c, 'heavy_tome');
+  assert.equal(rMax.ok, true, 'предмет всё равно применяется');
+  assert.equal(rMax.skill.applied, 0);
+  assert.match(rMax.message, /максимален/);
+});
+
 // --- Быстрые слоты ---
 
 test('быстрые слоты: назначение, проверка наличия, очистка', () => {

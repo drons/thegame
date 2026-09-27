@@ -5,6 +5,7 @@ const {
   addXp, takeDamage, heal, restoreDay,
   xpForNext, secondaryName, rankOf,
   PRIMARY_SKILLS, SECONDARY_SKILLS, POINTS_PER_LEVEL, MAX_SKILL_LEVEL,
+  skillXpForNext, practiceCap, skillLevel, skillPractice, skillReadBook,
 } = require('../src/player.js');
 
 test('начальный персонаж: статы и здоровье', () => {
@@ -221,4 +222,119 @@ test('restoreDay: формулы (база 10%, Медитация +2% к HP и 
   const d0 = derived(c0);
   assert.ok(Math.abs(d0.hpRegenMult - 0.10) < 1e-9);
   assert.ok(Math.abs(d0.mpRegenMult - 0.10) < 1e-9);
+});
+
+// --- Практика навыков (задача 000013) ---
+
+test('skillXpForNext: 15*(N+1), монотонно растёт', () => {
+  assert.equal(skillXpForNext(0), 15);
+  assert.equal(skillXpForNext(1), 30);
+  assert.equal(skillXpForNext(99), 1500);
+  for (let l = 0; l < 50; l++) {
+    assert.ok(skillXpForNext(l + 1) > skillXpForNext(l));
+  }
+});
+
+test('practiceCap: основной * 2, неизвестный навык — 0', () => {
+  const c = createCharacter();
+  assert.equal(practiceCap(c, 'swordsman'), 2); // сила 1
+  c.primary.strength = 10;
+  assert.equal(practiceCap(c, 'swordsman'), 20);
+  assert.equal(practiceCap(c, 'hide'), 2); // телосложение 1
+  assert.equal(practiceCap(c, 'nonexistent'), 0);
+});
+
+test('skillPractice: опыт копится, уровень растёт, остаток — в копилке', () => {
+  const c = createCharacter(); // сила 1 → потолок «Мечника» 2
+  let r = skillPractice(c, 'swordsman', 14);
+  assert.equal(r.ok, true);
+  assert.equal(r.applied, 14);
+  assert.equal(r.level, 0);
+  assert.equal(r.leveledUp, false);
+  assert.equal(c.skillXp.swordsman, 14, 'недо порога (15) — в копилке');
+  assert.equal(skillLevel(c, 'swordsman'), 0);
+  r = skillPractice(c, 'swordsman', 1);
+  assert.equal(r.level, 1);
+  assert.equal(r.leveledUp, true);
+  assert.equal(c.skillXp.swordsman, 0, 'порог 15 пройден');
+  r = skillPractice(c, 'swordsman', 30);
+  assert.equal(r.level, 2);
+  assert.equal(c.secondary.swordsman, 2);
+});
+
+test('skillPractice: на потолке практикой опыт не начисляется', () => {
+  const c = createCharacter();
+  c.secondary.swordsman = 2; // потолок = сила 1 * 2
+  const r = skillPractice(c, 'swordsman', 10);
+  assert.equal(r.ok, true);
+  assert.equal(r.applied, 0, 'опыт не принят');
+  assert.match(r.reason, /потолок/);
+  assert.equal(c.secondary.swordsman, 2, 'уровень не вырос');
+  assert.equal(c.skillXp.swordsman, 0, 'в копилку ничего не попало');
+});
+
+test('skillPractice: опыт выше порога потолка застревает в копилке', () => {
+  const c = createCharacter(); // сила 1 → потолок 2
+  skillPractice(c, 'swordsman', 100);
+  // 15 (0→1) + 30 (1→2) = 45 → потолок, остаток 55 в копилке.
+  assert.equal(c.secondary.swordsman, 2);
+  assert.equal(c.skillXp.swordsman, 55);
+});
+
+test('raiseSkill(основной): копилка применяется при росте потолка', () => {
+  const c = createCharacter();
+  skillPractice(c, 'swordsman', 100); // уровень 2 (потолок), копилка 55
+  c.points = 1;
+  const r = raiseSkill(c, 'strength'); // сила 2 → потолок 4
+  assert.equal(r.ok, true);
+  assert.ok(r.skillLevels.includes('swordsman'), 'копилка пересчитана');
+  // 55: 45 (2→3) → 10; 60 (3→4) не достигается.
+  assert.equal(c.secondary.swordsman, 3);
+  assert.equal(c.skillXp.swordsman, 10);
+});
+
+test('skillReadBook: книги игнорируют потолок практикой', () => {
+  const c = createCharacter(); // сила 1 → потолок «Тяжёлого оружия» 2
+  for (let i = 0; i < 3; i++) {
+    const r = skillReadBook(c, 'heavy', 30);
+    assert.equal(r.ok, true);
+  }
+  // 90 опыта: 15 + 30 + 45 → уровень 3 — выше потолка практикой (2).
+  assert.equal(c.secondary.heavy, 3);
+  assert.ok(c.secondary.heavy > practiceCap(c, 'heavy'), 'книги выше потолка');
+  assert.equal(c.skillXp.heavy, 0);
+});
+
+test('опыт навыка: максимум 100, выше — не начисляется', () => {
+  const c = createCharacter();
+  c.secondary.swordsman = 99;
+  const r = skillReadBook(c, 'swordsman', 1500); // ровно порог 99→100
+  assert.equal(r.level, 100);
+  assert.equal(r.leveledUp, true);
+  const r2 = skillReadBook(c, 'swordsman', 100);
+  assert.equal(r2.ok, true);
+  assert.equal(r2.applied, 0);
+  assert.match(r2.reason, /макс/);
+  const r3 = skillPractice(c, 'swordsman', 10);
+  assert.equal(r3.applied, 0, 'практика на максимуме не работает');
+});
+
+test('очки навыков работают выше потолка практикой', () => {
+  const c = createCharacter();
+  c.points = 2;
+  skillPractice(c, 'swordsman', 45); // уровень 2 = потолок
+  assert.equal(c.secondary.swordsman, 2);
+  assert.equal(canRaise(c, 'swordsman').ok, true, 'очки выше потолка доступны');
+  const r = raiseSkill(c, 'swordsman');
+  assert.equal(r.ok, true);
+  assert.equal(r.level, 3);
+});
+
+test('опыт навыка: неверный навык/опыт, погибший персонаж — отказ', () => {
+  const c = createCharacter();
+  assert.equal(skillPractice(c, 'nonexistent', 5).ok, false);
+  assert.equal(skillPractice(c, 'swordsman', -1).ok, false);
+  assert.equal(skillPractice(c, 'swordsman', NaN).ok, false);
+  c.alive = false;
+  assert.match(skillPractice(c, 'swordsman', 5).reason, /погиб/);
 });

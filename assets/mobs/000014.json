@@ -1,0 +1,29 @@
+{
+  "id": "rot",
+  "name": "Гниль",
+  "role": "melee",
+  "aggro": "aggressive",
+  "dmg": 0.9,
+  "hp": 0.9,
+  "traits": {
+    "poison": true
+  },
+  "size": {
+    "w": 1,
+    "h": 1
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "alchemy"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "sulfur",
+      "chance": 0.2
+    }
+  ]
+}

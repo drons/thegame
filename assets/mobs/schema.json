@@ -1,0 +1,54 @@
+{
+  "type": "object",
+  "required": ["id", "name", "role", "aggro", "dmg", "hp", "size", "xp", "skills", "spells", "loot"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "name": { "type": "string" },
+    "role": { "enum": ["melee", "ranged", "support", "leader", "shield", "swarm"] },
+    "aggro": { "enum": ["aggressive", "neutral", "territorial", "timid"] },
+    "dmg": { "type": "number", "minimum": 0.1, "maximum": 10 },
+    "hp": { "type": "number", "minimum": 0.1, "maximum": 10 },
+    "armor": { "type": "number", "minimum": 0, "maximum": 10 },
+    "fast": { "type": "boolean" },
+    "traits": {
+      "type": "object",
+      "properties": {
+        "poison": { "type": "boolean" },
+        "lifesteal": { "type": "boolean" },
+        "regen": { "type": "boolean" },
+        "debuff": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "xp": {
+      "type": "object",
+      "required": ["base", "perLevel"],
+      "properties": {
+        "base": { "type": "number", "minimum": 0 },
+        "perLevel": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "skills": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+    },
+    "spells": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+    },
+    "loot": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["item"],
+        "properties": {
+          "item": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "chance": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

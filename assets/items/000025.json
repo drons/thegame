@@ -1,0 +1,13 @@
+{
+  "id": "stone_fist_grimoire",
+  "name": "Гримуар каменных кулаков",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 55,
+  "desc": "Гримуар каменных кулаков: техника удара, когда металл не при чём.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "fists",
+    "amount": 25
+  }
+}

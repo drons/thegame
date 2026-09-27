@@ -1,0 +1,27 @@
+{
+  "id": "stone_golem",
+  "name": "Каменный голем",
+  "role": "shield",
+  "aggro": "territorial",
+  "dmg": 1.2,
+  "hp": 2.5,
+  "armor": 2,
+  "size": {
+    "w": 3,
+    "h": 3
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "golem"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "knight_plate",
+      "chance": 0.1
+    }
+  ]
+}

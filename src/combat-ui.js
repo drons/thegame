@@ -91,7 +91,10 @@
       const r = canvas.getBoundingClientRect();
       const cx = Math.floor((e.clientX - r.left) / CELL);
       const cy = Math.floor((e.clientY - r.top) / CELL);
-      const u = c.units.find((x) => x.alive && !x.fled && x.x === cx && x.y === cy);
+      // Клик в любую клетку прямоугольника моба (задача 000040).
+      const u = c.units.find((x) => x.alive && !x.fled
+        && cx >= x.x && cx < x.x + (x.size.w || 1)
+        && cy >= x.y && cy < x.y + (x.size.h || 1));
       if (u) {
         c.selectTarget(u.id);
         render();
@@ -168,28 +171,30 @@
       g2.stroke();
     }
 
-    // Мобы.
+    // Мобы: прямоугольник size.w × size.h (задача 000040).
     for (const u of c.units) {
       if (!u.alive || u.fled) continue;
+      const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
       const px = u.x * CELL, py = u.y * CELL;
+      const pw = w * CELL, ph = h * CELL;
       g2.fillStyle = ROLE_COLORS[u.role] || '#888';
-      g2.fillRect(px + 8, py + 8, CELL - 16, CELL - 16);
-      // Полоса HP.
+      g2.fillRect(px + 8, py + 8, pw - 16, ph - 16);
+      // Полоса HP (по ширине прямоугольника).
       const frac = u.hp / u.maxHP;
       g2.fillStyle = '#3a0d0d';
-      g2.fillRect(px + 8, py + 2, CELL - 16, 4);
+      g2.fillRect(px + 8, py + 2, pw - 16, 4);
       g2.fillStyle = '#6fdc6f';
-      g2.fillRect(px + 8, py + 2, Math.round((CELL - 16) * frac), 4);
-      // Уровень.
+      g2.fillRect(px + 8, py + 2, Math.round((pw - 16) * frac), 4);
+      // Уровень (центр прямоугольника).
       g2.fillStyle = '#fff';
       g2.font = '12px ui-monospace, monospace';
       g2.textAlign = 'center';
-      g2.fillText(String(u.level), px + CELL / 2, py + CELL / 2 + 4);
-      // Подсветка цели.
+      g2.fillText(String(u.level), px + pw / 2, py + ph / 2 + 4);
+      // Подсветка цели (весь прямоугольник).
       if (u.id === c.targetId) {
         g2.strokeStyle = '#ffe27a';
         g2.lineWidth = 2;
-        g2.strokeRect(px + 4.5, py + 4.5, CELL - 9, CELL - 9);
+        g2.strokeRect(px + 4.5, py + 4.5, pw - 9, ph - 9);
       }
     }
 

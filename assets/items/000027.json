@@ -1,0 +1,13 @@
+{
+  "id": "fire_spellbook",
+  "name": "Книга огненных заклинаний",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 60,
+  "desc": "Огненные заклинания: от искры до пламени, что ест камень.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "firelord",
+    "amount": 25
+  }
+}

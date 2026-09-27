@@ -1,0 +1,33 @@
+{
+  "id": "vampire",
+  "name": "Вампир",
+  "role": "melee",
+  "aggro": "aggressive",
+  "dmg": 1.2,
+  "hp": 1.1,
+  "traits": {
+    "lifesteal": true
+  },
+  "size": {
+    "w": 1,
+    "h": 1
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "endurance"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "greater_healing",
+      "chance": 0.1
+    },
+    {
+      "item": "mana_elixir",
+      "chance": 0.1
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "ice_spellbook",
+  "name": "Книга ледяных заклинаний",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 60,
+  "desc": "Ледяные заклинания: стужа, что останавливает кровь в жилах.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "icelord",
+    "amount": 25
+  }
+}

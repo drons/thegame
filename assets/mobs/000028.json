@@ -1,0 +1,27 @@
+{
+  "id": "wind_elemental",
+  "name": "Ветряной стихийник",
+  "role": "ranged",
+  "aggro": "neutral",
+  "dmg": 0.9,
+  "hp": 0.9,
+  "fast": true,
+  "size": {
+    "w": 1,
+    "h": 1
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "step"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "moonstone",
+      "chance": 0.1
+    }
+  ]
+}

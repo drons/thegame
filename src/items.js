@@ -254,16 +254,21 @@
 
   // --- Применение предметов ---
 
+  // Опыт практики за успешное применение зелья (Алхимик) / еды (Сердце
+  // природы) — задача 000013, SPEC.md «Повышение вторичных навыков».
+  const USE_PRACTICE_XP = 2;
+
   /**
-   * Опыт навыка от книг (практика; потолок практикой и превращение
-   * опыта в уровни — задача 000013).
+   * Опыт навыка от книг и свитков (задача 000013): опыт конвертируется
+   * в уровни навыка и игнорирует «потолок практикой» (до максимума 100).
    */
   function addSkillXp(c, skillId, amount) {
-    if (!P.SECONDARY_SKILLS[skillId]) return { ok: false, reason: 'неизвестный навык' };
-    if (typeof amount !== 'number' || amount < 1) return { ok: false, reason: 'неверный опыт' };
-    c.skillXp = c.skillXp || {};
-    c.skillXp[skillId] = (c.skillXp[skillId] || 0) + amount;
-    return { ok: true, skill: skillId, amount, total: c.skillXp[skillId] };
+    const r = P.skillReadBook(c, skillId, amount);
+    if (!r.ok) return { ok: false, reason: r.reason };
+    return {
+      ok: true, skill: skillId, amount,
+      applied: r.applied, level: r.level, leveledUp: r.leveledUp, total: r.total,
+    };
   }
 
   /**
@@ -281,7 +286,7 @@
     if (it.kind === 'reagent') return { ok: false, reason: 'реагент нельзя применить (торговый товар)' };
 
     const d = P.derived(c);
-    let hp = 0, mp = 0, skill = null;
+    let hp = 0, mp = 0, skill = null, practice = null, practiceApplied = 0;
     for (let n = 0; n < qty; n++) {
       const e = it.effect;
       if (it.kind === 'potion' && e.kind === 'heal') {
@@ -300,19 +305,37 @@
       } else if (it.kind === 'skill_book') {
         skill = addSkillXp(c, e.skill, e.amount);
       }
+      // Практика: успешное применение зелья/еды (задача 000013).
+      if (it.kind === 'potion' || it.kind === 'food') {
+        const pid = it.kind === 'potion' ? 'alchemy' : 'nature';
+        const pr = P.skillPractice(c, pid, USE_PRACTICE_XP);
+        practice = { skill: pid, xp: USE_PRACTICE_XP, level: pr.level };
+        practiceApplied += pr.applied;
+      }
     }
     removeItem(c, itemId, qty);
 
     const parts = [];
     if (hp) parts.push('+' + hp + ' HP');
     if (mp) parts.push('+' + mp + ' MP');
-    if (skill && skill.ok) {
-      const name = P.SECONDARY_SKILLS[skill.skill].name;
-      parts.push(name + ': +' + skill.amount + ' опыта навыка');
+    if (skill) {
+      if (skill.ok && skill.applied) {
+        const name = P.SECONDARY_SKILLS[skill.skill].name;
+        parts.push(name + ': +' + skill.applied + ' опыта навыка');
+      } else if (skill.ok) {
+        parts.push('навык уже максимален');
+      }
+    }
+    if (practice && practiceApplied > 0) {
+      const name = P.SECONDARY_SKILLS[practice.skill].name;
+      parts.push(name + ': +' + practiceApplied + ' опыта за практику');
     }
     return {
       ok: true, name: it.name, hp: hp || undefined, mp: mp || undefined,
       skill: skill || undefined,
+      practice: practice && practiceApplied > 0
+        ? { skill: practice.skill, applied: practiceApplied, level: practice.level }
+        : undefined,
       message: it.name + ': ' + parts.join(', '),
     };
   }

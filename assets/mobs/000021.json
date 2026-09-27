@@ -1,0 +1,26 @@
+{
+  "id": "troll",
+  "name": "Тролль",
+  "role": "leader",
+  "aggro": "neutral",
+  "dmg": 1.5,
+  "hp": 2.5,
+  "size": {
+    "w": 2,
+    "h": 2
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "leader"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "war_hammer",
+      "chance": 0.15
+    }
+  ]
+}

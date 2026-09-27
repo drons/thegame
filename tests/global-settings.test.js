@@ -20,13 +20,24 @@ function loadInSandbox(file, sandbox) {
   vm.runInNewContext(code, sandbox || {});
 }
 
-test('модуль: CommonJS-экспорт { SETTINGS } с пятью параметрами SPEC.md', () => {
+test('модуль: CommonJS-экспорт { SETTINGS } — все настраиваемые параметры', () => {
   assert.equal(typeof SETTINGS, 'object');
   assert.deepEqual(Object.keys(SETTINGS).sort(), [
-    'dungeon_memory_days', 'level_delta_max', 'points_per_level',
-    'respawn_days', 'steps_per_day',
+    'combat_difficulties', 'combat_difficulty', 'dungeon_memory_days',
+    'level_delta_max', 'points_per_level', 'respawn_days', 'steps_per_day',
   ]);
-  for (const v of Object.values(SETTINGS)) assert.equal(typeof v, 'number');
+  for (const k of ['steps_per_day', 'respawn_days', 'dungeon_memory_days',
+      'level_delta_max', 'points_per_level']) {
+    assert.equal(typeof SETTINGS[k], 'number');
+  }
+  // Сложность боя (задача 000027): текущая сложность + таблица множителей.
+  assert.equal(typeof SETTINGS.combat_difficulty, 'string');
+  assert.equal(SETTINGS.combat_difficulty, 'medium');
+  for (const [name, d] of Object.entries(SETTINGS.combat_difficulties)) {
+    assert.equal(typeof d.hp, 'number', `${name}.hp`);
+    assert.equal(typeof d.damage, 'number', `${name}.damage`);
+    assert.ok(d.hp > 0 && d.damage > 0, `${name}: множители положительны`);
+  }
 });
 
 test('значения по умолчанию совпадают со SPEC.md', () => {

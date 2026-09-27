@@ -1,0 +1,26 @@
+{
+  "id": "fairy",
+  "name": "Фея",
+  "role": "support",
+  "aggro": "timid",
+  "dmg": 0.4,
+  "hp": 0.6,
+  "size": {
+    "w": 1,
+    "h": 1
+  },
+  "xp": {
+    "base": 8,
+    "perLevel": 4
+  },
+  "skills": [
+    "nature"
+  ],
+  "spells": [],
+  "loot": [
+    {
+      "item": "moonstone",
+      "chance": 0.2
+    }
+  ]
+}
