@@ -2,7 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- user-scalable=no — игра: браузерный pinch-zoom ломает on-screen-
+       контролы (задача 000018); зум в игре — свой (колесо мыши). -->
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Приключения Флогистона</title>
   <style>
     html, body {
@@ -93,6 +96,45 @@
       cursor: pointer;
     }
     .fs-btn:hover { background: rgba(0, 0, 0, 0.65); }
+    /* On-screen-контролы для тачскрина (задача 000018): D-pad внизу
+       слева, кнопка «E» — внизу справа. Контейнер на весь экран, но
+       прозрачный для событий (pointer-events: none) — к канвасу идут
+       колесо/жесты; события ловят сами контролы. z-index 5 — под
+       панелями (10) и оверлеями боя/диалога (20). */
+    #touch-controls {
+      position: fixed;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+      display: none;
+    }
+    #touch-controls.visible { display: block; }
+    .tc-dpad {
+      position: absolute;
+      pointer-events: auto;
+      touch-action: none;
+      background: rgba(232, 220, 192, 0.08);
+      border: 1px solid rgba(232, 220, 192, 0.28);
+      border-radius: 14px;
+    }
+    .tc-arrow {
+      position: absolute;
+      color: rgba(232, 220, 192, 0.6);
+      font-size: 16px;
+      pointer-events: none;
+    }
+    .tc-action {
+      position: absolute;
+      pointer-events: auto;
+      touch-action: none;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid #6b6248;
+      color: #e8dcc0;
+      font: 700 18px/1 ui-monospace, monospace;
+      cursor: pointer;
+    }
+    .tc-action:active { background: rgba(0, 0, 0, 0.75); }
     .combat-overlay {
       position: fixed;
       inset: 0;
@@ -190,11 +232,18 @@
   <script src="src/npc.js"></script>
   <script src="src/combat.js"></script>
   <script src="src/dungeon.js"></script>
+  <!-- Порядок здесь ВАЖЕН (задача 000018, регрессия проверена в
+       tests/index-order.test.js): controls.js ДО ui.js — Game.touchControls
+       в ui.js собирается при ЗАГРУЗКЕ из Game.layoutTouchControls/touchActionAt,
+       и если controls.js загружен позже, тач-контролы никогда не создаются.
+       ui.js до main.js — main.js использует Game.playerUI/touchControls. -->
+  <script src="src/controls.js"></script>
   <script src="src/ui.js"></script>
   <script src="src/combat-ui.js"></script>
   <script src="src/dungeon-ui.js"></script>
   <script src="src/sprites.js"></script>
   <script src="src/fullscreen.js"></script>
+  <script src="src/save.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>

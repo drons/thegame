@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  createCharacter, derived, canRaise, raiseSkill,
+  createCharacter, sanitizeSavedHero, derived, canRaise, raiseSkill,
   addXp, takeDamage, heal, restoreDay,
   xpForNext, secondaryName, rankOf,
   PRIMARY_SKILLS, SECONDARY_SKILLS, POINTS_PER_LEVEL, MAX_SKILL_LEVEL,
@@ -337,4 +337,115 @@ test('опыт навыка: неверный навык/опыт, погибш�
   assert.equal(skillPractice(c, 'swordsman', NaN).ok, false);
   c.alive = false;
   assert.match(skillPractice(c, 'swordsman', 5).reason, /погиб/);
+});
+
+// --- sanitizeSavedHero (восстановление сейва, задачи 000029/000031) ---
+// Ключевой сценарий: сейв живёт в localStorage между версиями игры;
+// битый/подделанный персонаж НЕ должен ронять игру (раньше
+// Object.assign без валидации давал NaN-характеристики и TypeError
+// в рендере панели).
+
+function validSavedHero() {
+  return {
+    name: 'Флогистон',
+    level: 5, xp: 120, totalXp: 900, gold: 340, hp: 37, mp: 8, points: 2,
+    primary: {
+      strength: 3, dexterity: 2, constitution: 2,
+      intelligence: 2, wisdom: 1, charisma: 1,
+    },
+    secondary: { endurance: 3, meditation: 1 },
+    skillXp: { endurance: 40 },
+    alive: false, // даже «мёртвый» сейв восстанавливаем живым
+  };
+}
+
+test('sanitizeSavedHero: валидный сейв — поля переносятся, alive принудительно true', () => {
+  const clean = sanitizeSavedHero(validSavedHero());
+  assert.ok(clean);
+  assert.equal(clean.level, 5);
+  assert.equal(clean.xp, 120);
+  assert.equal(clean.totalXp, 900);
+  assert.equal(clean.gold, 340);
+  assert.equal(clean.hp, 37);
+  assert.equal(clean.mp, 8);
+  assert.equal(clean.points, 2);
+  assert.deepEqual(clean.primary, validSavedHero().primary);
+  assert.deepEqual(clean.secondary, { endurance: 3, meditation: 1 });
+  assert.deepEqual(clean.skillXp, { endurance: 40 });
+  assert.equal(clean.alive, true);
+  assert.equal(clean.name, 'Флогистон');
+  //derived на чистом персонаже — без NaN (регрессия: нечисловой уровень
+  // вторичного навыка давал maxHP = NaN).
+  const d = derived(Object.assign(createCharacter(), clean));
+  assert.ok(Number.isFinite(d.maxHP));
+  assert.ok(Number.isFinite(d.maxMP));
+});
+
+test('sanitizeSavedHero: битое ядро → null (персонаж не восстанавливается)', () => {
+  for (const [field, bad] of [
+    ['level', '5'], ['level', 0], ['level', 1.5], ['level', NaN],
+    ['xp', -1], ['xp', '100'], ['xp', Infinity],
+    ['gold', -5], ['gold', null],
+    ['hp', '30'], ['hp', NaN],
+  ]) {
+    const s = validSavedHero();
+    s[field] = bad;
+    assert.equal(sanitizeSavedHero(s), null, field + ' = ' + JSON.stringify(bad));
+  }
+  // primary бит — все шесть обязательны.
+  for (const [skill, bad] of [
+    ['strength', 0], ['dexterity', -1], ['constitution', '2'],
+    ['intelligence', NaN], ['wisdom', null], ['charisma', undefined],
+  ]) {
+    const s = validSavedHero();
+    s.primary[skill] = bad;
+    assert.equal(sanitizeSavedHero(s), null, 'primary.' + skill);
+  }
+  // primary не объект / массив / отсутствует.
+  for (const bad of [null, 5, 'obj', [1, 1, 1, 1, 1, 1]]) {
+    const s = validSavedHero();
+    s.primary = bad;
+    assert.equal(sanitizeSavedHero(s), null, 'primary = ' + JSON.stringify(bad));
+  }
+  // Сами данные не объект.
+  assert.equal(sanitizeSavedHero(null), null);
+  assert.equal(sanitizeSavedHero('hero'), null);
+  assert.equal(sanitizeSavedHero([1, 2]), null);
+  assert.equal(sanitizeSavedHero(42), null);
+});
+
+test('sanitizeSavedHero: вторичные навыки — посчётный отброс мусора', () => {
+  const s = validSavedHero();
+  s.secondary = {
+    endurance: 3,        // валидный — остаётся
+    'unknown_skill': 5,  // нет в каталоге — отбросить
+    meditation: '1',     // нецелый уровень — отбросить (было: maxHP NaN)
+    golem: -2,           // отрицательный — отбросить
+    swordsman: 2.5,      // дробный — отбросить
+    firelord: 0,         // ноль — допустим (не трогать)
+  };
+  const clean = sanitizeSavedHero(s);
+  assert.ok(clean);
+  assert.deepEqual(clean.secondary, { endurance: 3, firelord: 0 });
+  // secondary не объект → пустой набор, но персонаж восстанавливается.
+  const s2 = validSavedHero();
+  s2.secondary = 'junk';
+  assert.deepEqual(sanitizeSavedHero(s2).secondary, {});
+});
+
+test('sanitizeSavedHero: skillXp — посчётный отброс, mp/points/name нормализация', () => {
+  const s = validSavedHero();
+  s.skillXp = { endurance: 40, 'nope': 5, meditation: 'x', nature: -3 };
+  const clean = sanitizeSavedHero(s);
+  assert.ok(clean);
+  assert.deepEqual(clean.skillXp, { endurance: 40 });
+
+  const s2 = validSavedHero();
+  s2.mp = '8'; s2.points = -1; s2.name = 42; s2.totalXp = NaN;
+  const c2 = sanitizeSavedHero(s2);
+  assert.ok(c2);
+  assert.equal(c2.mp, 0);
+  assert.equal(c2.points, 0);
+  assert.equal(c2.name, 'Флогистон');
+  assert.equal(c2.totalXp, c2.xp, 'totalXp невалиден → берём xp');
 });

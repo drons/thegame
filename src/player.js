@@ -104,6 +104,87 @@
     return c;
   }
 
+  /**
+   * Чистка сохранённого персонажа (восстановление сейва, задачи
+   * 000029/000031): «битый сейв не роняет игру». Сейв живёт в
+   * localStorage МЕЖДУ версиями игры, поэтому поля могут быть
+   * подделаны/не соответствовать коду (переименованные навыки и т.п.).
+   * Правила:
+   *   * обязательное ядро (level/xp/gold/hp + все шесть основных
+   *     навыков — конечные числа, навыки >= 1) — невалидно → null
+   *     (персонаж сейва не восстанавливается, игра стартует заново);
+   *   * вторичные навыки / skillXp — ПОСЧТОВЫЙ отброс невалидных
+   *     записей (неизвестный id, нецелый/отрицательный уровень,
+   *     нечисловой опыт) — легитимный прогресс сохраняется;
+   *   * всё, что не проверяется (mp/points/name/totalXp), нормализуется
+   *     к безопасному значению.
+   * Инвентарь/снаряжение здесь НЕ чистятся (нужен каталог предметов —
+   * см. items.js: sanitizeInventory/sanitizeEquipment).
+   * @param {object} s данные персонажа из сейва
+   * @returns {object|null} чистые поля персонажа (форма createCharacter)
+   *          или null — персонаж сейва невосстановим
+   */
+  function sanitizeSavedHero(s) {
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
+    if (!Number.isInteger(s.level) || s.level < 1) return null;
+    if (typeof s.xp !== 'number' || !Number.isFinite(s.xp) || s.xp < 0) return null;
+    if (typeof s.gold !== 'number' || !Number.isFinite(s.gold) || s.gold < 0) return null;
+    // hp — любое конечное (отрицательное/большое) — main.js заклампит.
+    if (typeof s.hp !== 'number' || !Number.isFinite(s.hp)) return null;
+
+    // Основные навыки — все шесть, конечные числа >= 1 (иначе — null:
+    // без полного набора производные характеристики не считаются).
+    const primary = {};
+    let ok = !!(s.primary && typeof s.primary === 'object' &&
+      !Array.isArray(s.primary));
+    if (ok) {
+      for (const p of PRIMARY_SKILLS) {
+        const v = s.primary[p.id];
+        if (typeof v !== 'number' || !Number.isFinite(v) || v < 1) {
+          ok = false; break;
+        }
+        primary[p.id] = v;
+      }
+    }
+    if (!ok) return null;
+
+    // Вторичные навыки: известное id + целое >= 0.
+    const secondary = {};
+    if (s.secondary && typeof s.secondary === 'object') {
+      for (const [id, v] of Object.entries(s.secondary)) {
+        if (SECONDARY_SKILLS[id] && Number.isInteger(v) && v >= 0) {
+          secondary[id] = v;
+        }
+      }
+    }
+
+    // Опыт навыков (книги): известное id + конечное >= 0.
+    const skillXp = {};
+    if (s.skillXp && typeof s.skillXp === 'object') {
+      for (const [id, v] of Object.entries(s.skillXp)) {
+        if (SECONDARY_SKILLS[id] && typeof v === 'number' &&
+            Number.isFinite(v) && v >= 0) {
+          skillXp[id] = v;
+        }
+      }
+    }
+
+    return {
+      name: (typeof s.name === 'string' && s.name) ? s.name : 'Флогистон',
+      level: s.level,
+      xp: s.xp,
+      totalXp: (typeof s.totalXp === 'number' && Number.isFinite(s.totalXp)
+        && s.totalXp >= 0) ? s.totalXp : s.xp,
+      gold: s.gold,
+      hp: s.hp,
+      mp: (typeof s.mp === 'number' && Number.isFinite(s.mp) && s.mp >= 0)
+        ? s.mp : 0,
+      points: (Number.isInteger(s.points) && s.points >= 0) ? s.points : 0,
+      primary, secondary, skillXp,
+      alive: true,
+    };
+  }
+
   // Производные характеристики из навыков (все формулы из SPEC.md).
   function derived(c) {
     const P = c.primary;
@@ -397,7 +478,7 @@
     PRIMARY_SKILLS, SECONDARY_SKILLS, RANKS,
     MAX_SKILL_LEVEL, POINTS_PER_LEVEL,
     rankOf, secondaryName, xpForNext,
-    createCharacter, derived, canRaise, raiseSkill,
+    createCharacter, sanitizeSavedHero, derived, canRaise, raiseSkill,
     addXp, takeDamage, heal, restoreDay,
     skillXpForNext, practiceCap, skillLevel,
     skillPractice, skillReadBook, reprocessSkillXp,

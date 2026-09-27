@@ -411,3 +411,148 @@ test('сундуки: DUNGEON_ITEMS — id из каталога', () => {
     }
   }
 });
+
+// --- sanitizeInventory / sanitizeEquipment (задачи 000029/000031) ---
+// Ключевой сценарий: сейв в localStorage переживает апдейты каталога —
+// слот с id, удалённым между сборками («призрак»), раньше давал
+// `null.weight` в inventoryWeight и ронял старт игры; теперь отбрасывается.
+
+test('sanitizeInventory: валидный инвентарь проходит без потерь', () => {
+  const [a, b] = I.allItems();
+  const inv = I.sanitizeInventory({
+    slots: [{ id: a.id, qty: 3 }, { id: b.id, qty: 1 }],
+    quick: [a.id, null, null],
+  });
+  assert.deepEqual(inv.slots, [{ id: a.id, qty: 3 }, { id: b.id, qty: 1 }]);
+  assert.deepEqual(inv.quick, [a.id, null, null]);
+  assert.equal(inv.slots.length, 2);
+});
+
+test('sanitizeInventory: «призрак»-предмет (id удалён из каталога) отбрасывается', () => {
+  const [a] = I.allItems();
+  const inv = I.sanitizeInventory({
+    slots: [
+      { id: 'removed_item_id', qty: 2 }, // такого предмета нет в каталоге
+      { id: a.id, qty: 1 },
+    ],
+    quick: ['removed_item_id', null, null],
+  });
+  assert.deepEqual(inv.slots, [{ id: a.id, qty: 1 }]);
+  assert.deepEqual(inv.quick, [null, null, null]);
+  // И главное: инвентарь не роняет расчёт веса (регрессия critical-
+  // сценария ревью: getItem(e.id) → null → null.weight).
+  const c = createCharacter();
+  c.inventory = inv;
+  assert.doesNotThrow(() => I.inventoryWeight(c));
+  assert.equal(I.totalQty(c, a.id), 1);
+});
+
+test('sanitizeInventory: мусорные записи отбрасываются, qty клэмпится', () => {
+  const [a, b, c2] = I.allItems();
+  const inv = I.sanitizeInventory({
+    slots: [
+      null,                    // null-запись (было: null.id → TypeError)
+      42,                      // примитив
+      'str',                   // строка
+      { id: a.id },            // без qty → 1
+      { id: a.id, qty: 0 },    // qty 0 → 1
+      { id: a.id, qty: -3 },   // qty < 1 → 1
+      { id: a.id, qty: '2' },  // нецелое → 1
+      { id: a.id, qty: 9999 }, // qty > MAX_STACK → MAX_STACK
+      { id: b.id, qty: 5 },
+      { id: c2.id, qty: 2 },
+    ],
+    quick: [null, 42, 'junk'],
+  });
+  // a: 4 маленькие записи + крупная qty → стопка капится в MAX_STACK;
+  // b и c2 — свои слоты.
+  const slotA = inv.slots.find((x) => x.id === a.id);
+  assert.ok(slotA);
+  assert.equal(slotA.qty, I.MAX_STACK);
+  assert.equal(inv.slots.length, 3);
+  assert.ok(inv.slots.some((x) => x.id === b.id && x.qty === 5));
+  assert.ok(inv.slots.some((x) => x.id === c2.id && x.qty === 2));
+  assert.deepEqual(inv.quick, [null, null, null]);
+});
+
+test('sanitizeInventory: не больше INVENTORY_SLOTS слотов', () => {
+  const many = I.allItems().slice(0, I.INVENTORY_SLOTS + 5)
+    .map((it) => ({ id: it.id, qty: 1 }));
+  const inv = I.sanitizeInventory({ slots: many, quick: null });
+  assert.equal(inv.slots.length, I.INVENTORY_SLOTS);
+  assert.ok(Array.isArray(inv.quick), 'quick восстанавливается как массив');
+  assert.equal(inv.quick.length, I.QUICK_SLOTS);
+});
+
+test('sanitizeInventory: не-объект на входе → пустой инвентарь', () => {
+  for (const junk of [null, undefined, 'str', 42, [{ id: 'x', qty: 1 }]]) {
+    const inv = I.sanitizeInventory(junk);
+    assert.deepEqual(inv.slots, []);
+    assert.deepEqual(inv.quick, new Array(I.QUICK_SLOTS).fill(null));
+  }
+  // slots — не массив (было: inv.slots.reduce is not a function).
+  const inv = I.sanitizeInventory({ slots: 'не массив', quick: 'нет' });
+  assert.deepEqual(inv.slots, []);
+  // inventory — truthy примитив (было: TypeError в ensureInventory).
+  const c = createCharacter();
+  c.inventory = 'примитив';
+  c.inventory = I.sanitizeInventory(c.inventory);
+  assert.doesNotThrow(() => I.inventoryWeight(c));
+});
+
+test('sanitizeEquipment: только id из каталога, прочее → null', () => {
+  const [w, a] = I.allItems();
+  assert.deepEqual(
+    I.sanitizeEquipment({ weapon: w.id, armor: a.id }),
+    { weapon: w.id, armor: a.id });
+  assert.deepEqual(
+    I.sanitizeEquipment({ weapon: 'nope', armor: 42, extra: w.id }),
+    { weapon: null, armor: null });
+  assert.deepEqual(
+    I.sanitizeEquipment(null), { weapon: null, armor: null });
+  assert.deepEqual(
+    I.sanitizeEquipment('junk'), { weapon: null, armor: null });
+  assert.deepEqual(
+    I.sanitizeEquipment([w.id]), { weapon: null, armor: null });
+});
+
+test('сценарий ревью: битый персонаж из сейва не роняет старт (интеграция)', () => {
+  // Воспроизведение critical-сценария: оболочка сейва валидна (status
+  // 'ok'), но вложенные поля биты. Чистка через реальные модули должна
+  // дать персонажа, с которым рендерные вызовы не бросают исключений.
+  const P = require('../src/player.js');
+  const [a] = I.allItems();
+  const savedHero = {
+    level: 3, xp: 0, gold: 10, hp: 20,
+    primary: {
+      strength: 2, dexterity: 1, constitution: 1,
+      intelligence: 1, wisdom: 1, charisma: 1,
+    },
+    secondary: { endurance: '5' }, // нечисловой уровень (было: maxHP NaN)
+    inventory: {
+      slots: [
+        { id: 'removed_between_builds', qty: 1 }, // призрак
+        null,                                     // null-запись
+        { id: a.id, qty: 2 },
+      ],
+      quick: 'битый',
+    },
+    equipment: { weapon: 'ghost_item', armor: 7 },
+  };
+  const clean = P.sanitizeSavedHero(savedHero);
+  assert.ok(clean);
+  const hero = P.createCharacter();
+  Object.assign(hero, clean);
+  hero.inventory = I.sanitizeInventory(savedHero.inventory);
+  hero.equipment = I.sanitizeEquipment(savedHero.equipment);
+  const dd = P.derived(hero);
+  hero.hp = Math.min(Math.max(1, Math.round(hero.hp)), dd.maxHP);
+  assert.ok(Number.isFinite(dd.maxHP), 'maxHP не NaN');
+  assert.ok(Number.isFinite(hero.hp), 'hp не NaN');
+  // Все вызовы, которые раньше бросали TypeError:
+  assert.doesNotThrow(() => I.inventoryWeight(hero));
+  assert.doesNotThrow(() => I.slotCount(hero));
+  assert.doesNotThrow(() => I.equipmentStats(hero));
+  assert.equal(I.totalQty(hero, a.id), 2);
+  assert.deepEqual(hero.equipment, { weapon: null, armor: null });
+});

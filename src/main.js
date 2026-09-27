@@ -178,6 +178,20 @@
   // (source of truth — assets/npc), журнал квестов — один на сессию.
   const NPCS = (G.NpcData && G.NpcData.NPCS) || [];
   const questBook = G.createQuestBook ? G.createQuestBook() : null;
+  // Стоки торговцев NPC (задача 000029): npcId → { itemId: qty }.
+  // Создаются лениво при первом диалоге, переживают перезагрузку
+  // страницы через общий сейв (раньше сток сбрасывался сессией).
+  const npcStocks = {};
+  function npcShopFor(npcId) {
+    const npc = G.npcById(NPCS, npcId);
+    if (!npc) return null;
+    if (!npcStocks[npcId]) {
+      const shop = G.createNpcShop(npc);
+      if (!shop) return null; // NPC не торгует
+      npcStocks[npcId] = shop.stock;
+    }
+    return { npc, stock: npcStocks[npcId] };
+  }
   const player = { x: 0, y: 0 };
   const prevPos = { x: 0, y: 0 }; // позиция до последнего шага (побег/смерть)
   let zoom = G.ZOOM_START; // пикселей на тайл (детальный старт, 000019)
@@ -187,6 +201,194 @@
   const clock = G.createClock();
   // Побеждённые группы: 'x,y' → день поражения (респаун через respawn_days).
   const defeatedAt = new Map();
+
+  // --- Сохранение (задача 000031; механизм — src/save.js) ---
+  // Состояние мира и игрока — в localStorage. Версия структур данных
+  // (save.version) записывается вместе с данными; старые версии
+  // доводятся до версии кода последовательными миграциями N→N+1.
+  //   * migration_failed — данные восстановить невозможно: сообщение
+  //     пользователю, обнуление ТОЛЬКО после его согласия;
+  //   * corrupt (битый JSON/оболочка) — восстанавливать нечего:
+  //     тихий сброс с console.warn (принцип задачи 000029).
+  let saveStorage = null;
+  try { saveStorage = window.localStorage; } catch (err) { saveStorage = null; }
+  let loadedSave = null; // { version, savedAt, data } — после load()
+  // Примечание (000031): во время restoreFromSave saveNow вызываться не
+  // может — fastForward не оповещает слушателей, addStep ограничен до
+  // порога дня (день не сменится), остальное восстановление чисто;
+  // отдельный флаг подавления записи (был `restoring`) поэтому не нужен.
+  if (saveStorage && G.load) {
+    const res = G.load(saveStorage);
+    if (res.status === 'ok') {
+      loadedSave = res.save;
+    } else if (res.status === 'migration_failed') {
+      console.warn('Не удалось мигрировать сейв (версия ' + res.version + '):',
+        res.error);
+      if (window.confirm('Сейв игры не удалось перенести в новый формат ' +
+        'данных: восстановить его невозможно.\nОбнулить сохранение?')) {
+        G.clear(saveStorage);
+      }
+    } else if (res.status === 'corrupt') {
+      console.warn('Некорректный сейв — сбрасываю:', res.error);
+      G.clear(saveStorage);
+    }
+  }
+
+  // Текущее состояние (структура v1): день мира, позиция, персонаж,
+  // журнал квестов, стоки торговцев NPC (задача 000029), побеждённые
+  // группы мобов (000031) — доп. поля БЕЗ повышения версии
+  // (неломкое расширение).
+  function collectSaveData() {
+    return {
+      day: clock.day,
+      steps: clock.steps,
+      position: { x: player.x, y: player.y },
+      hero,
+      quests: questBook && G.serializeQuestBook
+        ? G.serializeQuestBook(questBook) : null,
+      npcStocks: G.serializeNpcStocks
+        ? G.serializeNpcStocks(npcStocks) : null,
+      // 'x,y' → день поражения: после перезагрузки побеждённые группы
+      // НЕ оживают мгновенно, а респаунятся через respawn_days (SPEC
+      // «Игровое время») — иначе награду той же группы можно забрать
+      // повторно в тот же день.
+      defeatedAt: G.serializeDefeatedAt
+        ? G.serializeDefeatedAt(defeatedAt) : {},
+    };
+  }
+
+  function saveNow() {
+    if (saveStorage && G.save) G.save(saveStorage, collectSaveData());
+  }
+  window.addEventListener('beforeunload', saveNow);
+
+  // Верхняя граница дня в сейве (защита от подделанного сейва).
+  // Восстановление дня — O(1) (clock.fastForward, без слушателей),
+  // так что граница — не от заморозки, а от абсурда; день > границы
+  // клампится (раньше день > 100000 молча сбрасывался на 1, и
+  // pruneQuestBookByDay(qb, 1) отбрасывал ВСЕ активные квесты —
+  // потеря прогресса легитимного сейва).
+  const MAX_SAVED_DAY = 1e9;
+
+  // Восстановление состояния из сейва после загрузки карты:
+  // день мира (fastForward — сейв СНИМОК, эффекты прошедших дней уже
+  // в данных), персонаж, побеждённые группы, позиция, журнал квестов,
+  // стоки торговцев. Некорректное поле — отброс с console.warn
+  // (игра не роняется: каждый раздел — свой try/catch, и финальный
+  // render панели тоже в try/catch).
+  function restoreFromSave() {
+    if (!loadedSave) return;
+    const d = loadedSave.data || {};
+
+    // --- День мира и шаги ---
+    try {
+      if (Number.isInteger(d.day) && d.day >= 1) {
+        const target = Math.min(d.day, MAX_SAVED_DAY);
+        if (target > clock.day) clock.fastForward(target - clock.day);
+        // Шаги сохранённого дня — восстанавливаем ВСЕГДА, включая
+        // день 1 (раньше блок был вложен в условие d.day > clock.day,
+        // и сейв {day:1, steps:35} восставал со steps=0).
+        if (Number.isInteger(d.steps) && d.steps >= 0 &&
+            d.steps < clock.stepsPerDay) {
+          clock.addStep(d.steps);
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить день:', err);
+    }
+
+    // --- Персонаж ---
+    try {
+      if (d.hero != null) {
+        // Чистка — G.sanitizeSavedHero (player.js): ядро (level/xp/gold/
+        // hp/основные навыки) невалидно → null; вторичные навыки/skillXp —
+        // посчётный отброс мусора. Инвентарь и снаряжение чистим отдельно
+        // (нужен каталог): «призрак»-предметы (id удалён из каталога
+        // между сборками) отбрасываются, а не бросают TypeError в
+        // inventoryWeight при рендере панели.
+        const clean = G.sanitizeSavedHero ? G.sanitizeSavedHero(d.hero) : null;
+        if (clean) {
+          Object.assign(hero, clean);
+          hero.inventory = G.sanitizeInventory
+            ? G.sanitizeInventory(d.hero.inventory) : G.createInventory();
+          hero.equipment = G.sanitizeEquipment
+            ? G.sanitizeEquipment(d.hero.equipment) : { weapon: null, armor: null };
+          const dd = G.derived(hero);
+          hero.hp = Math.min(Math.max(1, Math.round(hero.hp)), dd.maxHP);
+          hero.mp = Math.min(Math.max(0, Math.round(hero.mp) || 0), dd.maxMP);
+          hero.alive = true;
+        } else {
+          console.warn('Сейв: персонаж некорректен — не восстанавливаю.');
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить персонажа:', err);
+    }
+
+    // --- Побеждённые группы (defeatedAt) ---
+    try {
+      if (G.restoreDefeatedAt && d.defeatedAt != null) {
+        const m = G.restoreDefeatedAt(d.defeatedAt);
+        for (const [k, dd] of m) {
+          // Подделанный сейв: «поражение в будущем» дня не допустим.
+          if (dd > clock.day) m.delete(k);
+        }
+        defeatedAt.clear();
+        for (const [k, v] of m) defeatedAt.set(k, v);
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить побеждённые группы:', err);
+    }
+
+    // --- Позиция ---
+    try {
+      const p = d.position;
+      if (p && Number.isInteger(p.x) && Number.isInteger(p.y)) {
+        if (map.tileAt(p.x, p.y).passable) {
+          player.x = p.x; player.y = p.y;
+        } else {
+          console.warn('Сейв: позиция непроходима — остаюсь на спавне.');
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить позицию:', err);
+    }
+    prevPos.x = player.x; prevPos.y = player.y;
+
+    // --- Журнал квестов и стоки торговцев (задача 000029) ---
+    // Невалидная секция — тихий сброс с console.warn; игра не роняется.
+    try {
+      if (questBook && G.deserializeQuestBook && d.quests != null) {
+        const qb = G.deserializeQuestBook(d.quests);
+        if (!qb) {
+          console.warn('Сейв: журнал квестов некорректен — сбрасываю.');
+        } else {
+          // День мира уже восстановлен выше — сверяем метки выдачи.
+          const pruned = G.pruneQuestBookByDay
+            ? G.pruneQuestBookByDay(qb, clock.day)
+            : { book: qb, dropped: [] };
+          if (pruned.dropped.length) {
+            console.warn('Сейв: квесты, выданные позже дня мира (' +
+              clock.day + '), исключены: ' + pruned.dropped.join(', '));
+          }
+          questBook.active = pruned.book.active;
+          questBook.done = pruned.book.done;
+        }
+      }
+      if (G.restoreNpcStocks && d.npcStocks != null) {
+        const restored = G.restoreNpcStocks(NPCS, d.npcStocks);
+        for (const k of Object.keys(npcStocks)) delete npcStocks[k];
+        Object.assign(npcStocks, restored);
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить квесты/стоки:', err);
+    }
+
+    if (G.playerUI) {
+      try { G.playerUI.render(); }
+      catch (err) { console.warn('Сейв: не удалось отрисовать панель:', err); }
+    }
+  }
   let hudFlash = '';
   let hudFlashUntil = 0;
 
@@ -203,6 +405,7 @@
     G.playerUI && G.playerUI.render();
     hudFlash = (due.length ? 'Мобилизуются новые группы мобов.\n' : '') + 'День ' + day + '.';
     hudFlashUntil = performance.now() + 5000;
+    saveNow();
   });
 
   function findSpawn() {
@@ -225,42 +428,56 @@
   }
 
   // --- Ввод ---
+  // Маппинг клавиш→направление — в src/controls.js (чистые функции):
+  // сначала e.code (физические стрелки/WASD — в русской раскладке это и
+  // есть ЦФЫВ), затем e.key по символу (ц/ф/ы/в) — фолбэк для
+  // виртуальных клавиатур. keys хранит id клавиш перемещения в порядке
+  // нажатий (Set): две клавиши одного направления — два id, движение
+  // продолжается, пока удержана хотя бы одна.
   const keys = new Set();
-  const KEY_DIRS = {
-    ArrowUp: [0, -1], KeyW: [0, -1], KeyЦ: [0, -1],
-    ArrowDown: [0, 1], KeyS: [0, 1], KeyЫ: [0, 1],
-    ArrowLeft: [-1, 0], KeyA: [-1, 0], KeyФ: [-1, 0],
-    ArrowRight: [1, 0], KeyD: [1, 0], KeyВ: [1, 0],
-  };
+  const moveKey = (e) => G.moveKeyForEvent(e);
+
+  // Действие [E] (задача 000010): диалог NPC / повторное нажатие —
+  // закрыть. Вызывается и с клавиатуры, и с on-screen-кнопки «E»
+  // тач-варианта контролов (задача 000018).
+  function toggleNpcDialog() {
+    if (!G.npcUI) return;
+    if (G.combatUI && G.combatUI.isActive()) return;
+    if (G.dungeonUI && G.dungeonUI.isActive()) return;
+    if (G.npcUI.isActive()) { // повторно — закрыть диалог
+      G.npcUI.close();
+      return;
+    }
+    // На тайле постройки с NPC — открываем диалог.
+    if (map) {
+      const t = map.tileAt(player.x, player.y);
+      if (t.hasBuilding) {
+        const b = G.buildingForMapIndex(t.building);
+        const npc = b && G.npcForBuilding(NPCS, b.id);
+        if (npc) {
+          G.npcUI.open({
+            npc,
+            character: hero,
+            book: questBook,
+            tile: { x: player.x, y: player.y,
+              building: t.building, buildingWealth: t.buildingWealth },
+            // Сток общий на сессию + сейв при изменениях (000029).
+            shop: npcShopFor(npc.id),
+            onChange: saveNow,
+            day: clock.day,
+          });
+        }
+      }
+    }
+  }
+
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyI' && G.playerUI) { // I (Ш) — панель персонажа
       G.playerUI.toggle();
       return;
     }
-    if (e.code === 'KeyE' && G.npcUI) { // E (У) — диалог NPC (задача 000010)
-      if (G.combatUI && G.combatUI.isActive()) return;
-      if (G.dungeonUI && G.dungeonUI.isActive()) return;
-      if (G.npcUI.isActive()) { // E повторно — закрыть диалог
-        G.npcUI.close();
-        return;
-      }
-      // На тайле постройки с NPC — открываем диалог.
-      if (map) {
-        const t = map.tileAt(player.x, player.y);
-        if (t.hasBuilding) {
-          const b = G.buildingForMapIndex(t.building);
-          const npc = b && G.npcForBuilding(NPCS, b.id);
-          if (npc) {
-            G.npcUI.open({
-              npc,
-              character: hero,
-              book: questBook,
-              tile: { x: player.x, y: player.y,
-                building: t.building, buildingWealth: t.buildingWealth },
-            });
-          }
-        }
-      }
+    if (e.code === 'KeyE' && G.npcUI) { // E (У) — диалог NPC
+      toggleNpcDialog();
       return;
     }
     // В бою клавиши обрабатывает combat-ui, в подземелье — dungeon-ui,
@@ -268,21 +485,73 @@
     if (G.combatUI && G.combatUI.isActive()) return;
     if (G.dungeonUI && G.dungeonUI.isActive()) return;
     if (G.npcUI && G.npcUI.isActive()) return;
-    if (KEY_DIRS[e.code]) {
-      keys.add(e.code);
+    const k = moveKey(e);
+    if (k) {
+      keys.add(k);
       e.preventDefault();
     }
   });
-  window.addEventListener('keyup', (e) => keys.delete(e.code));
-  window.addEventListener('blur', () => keys.clear());
+  window.addEventListener('keyup', (e) => {
+    const k = moveKey(e);
+    if (k) keys.delete(k);
+  });
+  window.addEventListener('blur', () => {
+    keys.clear();
+    if (G.touchControls) G.touchControls.releaseAll();
+  });
+
+  // --- Тач-вариант контролов (задача 000018) ---
+  // Чистая часть — в src/controls.js (тестируется в node): детект
+  // устройства по СНИМКУ окружения, выбор схемы, раскладка и хит-тест.
+  // On-screen-контролы (D-pad + кнопка «E») — в src/ui.js.
+  // Схема: 'touch' на тач-устройстве, иначе 'keyboard'; вариант можно
+  // переопределить параметром URL ?controls=touch|keyboard (для теста
+  // на десктопе и наоборот).
+  function touchEnvSnapshot() {
+    const nav = globalThis.navigator || {};
+    let coarse = false;
+    try {
+      coarse = typeof globalThis.matchMedia === 'function'
+        && globalThis.matchMedia('(pointer: coarse)').matches;
+    } catch (err) { /* нет matchMedia — false */ }
+    return {
+      maxTouchPoints: Number.isFinite(nav.maxTouchPoints) ? nav.maxTouchPoints : 0,
+      touchEvents: 'ontouchstart' in window,
+      coarsePointer: coarse,
+    };
+  }
+  const mControls = /[?&]controls=(touch|keyboard)(?:&|$)/
+    .exec(window.location.search || '');
+  const controlsScheme = G.chooseControlsScheme(
+    touchEnvSnapshot(), mControls ? mControls[1] : null);
+  if (controlsScheme === 'touch') {
+    if (G.touchControls) {
+      G.touchControls.init({
+        // Виртуальные «клавиши» 'touch:<dir>' ложатся в тот же Set,
+        // что и настоящие: кадр вызывает tryMove → G.deltaForMoveKey.
+        onHold: (dir) => keys.add('touch:' + dir),
+        onRelease: (dir) => keys.delete('touch:' + dir),
+        onInteract: toggleNpcDialog,
+      });
+      G.touchControls.show();
+    } else {
+      // Game.touchControls собирается в ui.js при ЗАГРУЗКЕ — если его
+      // нет, controls.js загрузился позже (регрессия порядка — tests/
+      // index-order.test.js). На чистом тачскрине без этого у игрока
+      // не будет НИКАКОГО управления, поэтому — console.error.
+      console.error('main.js: схема контролов touch, но Game.touchControls ' +
+        'отсутствует — проверьте порядок загрузки: src/controls.js ДО src/ui.js');
+    }
+  }
+
   canvas.addEventListener('wheel', (e) => {
     zoom = Math.max(G.ZOOM_MIN, Math.min(G.ZOOM_MAX, zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2)));
     e.preventDefault();
   }, { passive: false });
 
   function tryMove() {
-    for (const code of keys) { // порядок в Set = порядок нажатий
-      const [dx, dy] = KEY_DIRS[code];
+    for (const k of keys) { // порядок в Set = порядок нажатий
+      const [dx, dy] = G.deltaForMoveKey(k);
       const t = map.tileAt(player.x + dx, player.y + dy);
       if (t.passable) {
         prevPos.x = player.x;
@@ -340,6 +609,7 @@
         }
         G.playerUI && G.playerUI.render();
         hudFlashUntil = performance.now() + 5000;
+        saveNow();
       },
     });
   }
@@ -400,6 +670,7 @@
         }
         G.playerUI && G.playerUI.render();
         G.dungeonUI.render();
+        saveNow();
       },
     });
   }
@@ -410,6 +681,7 @@
     clock.event('dungeon'); // вылазка забирает день (SPEC «Игровое время»)
     dungeonState = null;
     G.dungeonUI.close();
+    saveNow();
   }
 
   // Шаг внутри лабиринта (вызывается dungeon-ui по клавише).
@@ -634,6 +906,7 @@
         clock.addStep(1); // шаги мира тикают игровой день
         maybeStartCombat();
         maybeEnterDungeon();
+        saveNow();
       }
     }
     updateCamera();
@@ -668,6 +941,9 @@
         zoom,
         day: clock.day,
         stepsToday: clock.steps,
+        save: loadedSave
+          ? { version: loadedSave.version, savedAt: loadedSave.savedAt }
+          : null,
         hero: {
           level: hero.level, xp: hero.xp, hp: hero.hp,
           gold: hero.gold, points: hero.points,
@@ -681,6 +957,7 @@
           ? { ready: spriteLoader.readyCount(), total: spriteLoader.totalCount() }
           : null,
         keys: Array.from(keys),
+        controls: controlsScheme, // 'touch' | 'keyboard' (задача 000018)
       };
     },
     // Журнал квестов (задача 000010): active — инстансы, done — ids.
@@ -688,6 +965,10 @@
       return questBook
         ? { active: Object.values(questBook.active), done: questBook.done }
         : null;
+    },
+    // Стоки торговцев NPC (задача 000029): npcId → { itemId: qty }.
+    get npcStocks() {
+      return Object.assign({}, npcStocks);
     },
     // Отладочные действия (смоук-тесты, ручная проверка баланса).
     // Текущий бой (для смоук-тестов и отладки).
@@ -757,6 +1038,9 @@
           book: questBook,
           tile: { x: player.x, y: player.y,
             building: t.building, buildingWealth: t.buildingWealth },
+          shop: npcShopFor(npc.id),
+          onChange: saveNow,
+          day: clock.day,
         });
         return G.npcUI.isActive();
       },
@@ -813,6 +1097,7 @@
     map.fromPng = pixels.fromPng;
     tileCache = G.createTileCache(map);
     findSpawn();
+    restoreFromSave(); // день мира, персонаж, позиция (задача 000031)
     cam.x = player.x + 0.5;
     cam.y = player.y + 0.5;
     maybeStartCombat(); // если спавн оказался на тайле с группой
