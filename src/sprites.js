@@ -367,11 +367,58 @@
     return { queue, isReady, image, readyCount, totalCount };
   }
 
+  // --- Цвета полос HP (задача 000038) ---
+  //
+  // Цвет полоски здоровья героя в бою: DOM-полоса в .combat-side и
+  // 4px-миниполоса над ромбом на canvas (src/combat-ui.js). Чистая
+  // функция от доли оставшегося HP — тестируется в node; UI берёт
+  // цвета через Game.hpBarColor. Единственный литерал-фолбэк
+  // '#6fdc6f' (зелёный полосы мобов) — в combat-ui.js: он срабатывает,
+  // только если sprites.js не загружен вовсе (порядок загрузки —
+  // закреплён в tests/index-order.test.js, см. комментарий там).
+  //
+  // Зафиксированные пороги (тесты — tests/sprites.test.js):
+  //   frac >= 0.5 → зелёный;
+  //   frac >= 0.2 → жёлтый;
+  //   иначе       → красный.
+  // Границы «включены сверху»: ровно 0.5 — зелёный, ровно 0.2 —
+  // жёлтый (ТЗ «>50%» и «20–50%» читаем как включительные диапазоны
+  // 50–100 и 20–50).
+  // Цвета — из существующей палитры игры, новых не вводим:
+  //   #6fdc6f — полоса HP мобов на canvas (src/combat-ui.js);
+  //   #e0b13c — ROLE_COLORS.swarm (src/combat-ui.js) и отмётки
+  //             подземелья (src/dungeon-ui.js);
+  //   #d9483b — ROLE_COLORS.melee (src/combat-ui.js) и отмётки
+  //             подземелья (src/dungeon-ui.js).
+  const HP_BAR_COLORS = {
+    high: '#6fdc6f',
+    mid: '#e0b13c',
+    low: '#d9483b',
+  };
+
+  /**
+   * Цвет полосы HP при заданной доле оставшегося здоровья.
+   * Чистая функция: frac вне [0,1] клампится в [0,1] (±Infinity —
+   * как 1/0), NaN и нечисла — красный (frac = 0). maxHP у героя
+   * всегда > 0 (player.js: 20 + конст.·5, множители ≥ 1), так что
+   * вызов с нулевым maxHP невозможен — ветка защитная.
+   * @param {number} frac доля оставшегося HP (hp / maxHP)
+   * @returns {string} CSS-цвет (одно из HP_BAR_COLORS)
+   */
+  function hpBarColor(frac) {
+    const f = (typeof frac === 'number' && !Number.isNaN(frac))
+      ? Math.min(1, Math.max(0, frac)) : 0;
+    if (f >= 0.5) return HP_BAR_COLORS.high;
+    if (f >= 0.2) return HP_BAR_COLORS.mid;
+    return HP_BAR_COLORS.low;
+  }
+
   return {
     TILE_BASE, TILE_FRAMES,
     PHLOGISTON_ACTIONS,
     MOB_KINDS, MOB_FRAMES,
     BUILDING_SPRITES,
+    HP_BAR_COLORS, hpBarColor,
     VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE,
     FRAME_MS,
     WAVE_PERIOD_MS, WATER_FRAME_COUNT,

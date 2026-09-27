@@ -61,10 +61,16 @@ function makeEl(tag, buttons) {
 }
 
 // Загрузка цепочки src-скриптов (порядок из index.html) + combat-ui.js
-// в vm-песочнице. Возвращает { G, keydown, buttons }: G — Game из
+// в vm-песочнице. Возвращает { G, keydown, buttons, body }: G — Game из
 // песочницы, keydown — зарегистрированные keydown-обработчики, buttons
-// — кнопки .combat-actions, созданные build().
-function loadCombatUi() {
+// — кнопки .combat-actions, созданные build(), body — document.body
+// песочницы (к нему подвешен боевой оверлей).
+// withSprites (по умолчанию true) — sprites.js ДО combat-ui.js (та же
+// пара, что в index.html; регрессия — tests/index-order.test.js,
+// задача 000038); map.js нужен для sprites.js при загрузке (TERRAIN).
+// false — цепочка без sprites.js: покрывает фолбэк '#6fdc6f' в
+// combat-ui.js (sprites.js отсутствует вовсе — деградация, не падение).
+function loadCombatUi(withSprites = true) {
   const keydown = [];
   const buttons = [];
   const document = {
@@ -81,13 +87,27 @@ function loadCombatUi() {
   const sandbox = { console, document, window };
   vm.createContext(sandbox);
   for (const f of [
-    'global-settings.js', 'perlin.js', 'skills-data.js', 'items-data.js',
+    'global-settings.js', 'perlin.js', 'map.js',
+    'skills-data.js', 'items-data.js',
     'player.js', 'items.js', 'controls.js', 'combat.js', 'combat-keys.js',
   ]) {
     vm.runInContext(src(f), sandbox, { filename: f });
   }
+  if (withSprites) {
+    vm.runInContext(src('sprites.js'), sandbox, { filename: 'sprites.js' });
+  }
   vm.runInContext(src('combat-ui.js'), sandbox, { filename: 'combat-ui.js' });
-  return { G: sandbox.Game, keydown, buttons };
+  return { G: sandbox.Game, keydown, buttons, body: document.body };
+}
+
+// Элемент оверлея по className (оверлей подвешен к body песочницы).
+function findByClass(el, cls) {
+  if (el.className === cls) return el;
+  for (const ch of el.children || []) {
+    const found = findByClass(ch, cls);
+    if (found) return found;
+  }
+  return null;
 }
 
 // Нажать клавишу через зарегистрированный keydown-обработчик.
@@ -156,4 +176,54 @@ test('боевой UI: одно нажатие Space (endTurn) — одна во
   assert.equal(c.result, null, 'побег/смерть от одного нажатия невозможны');
   assert.ok(!added.some((s) => s.startsWith('Вы')),
     'действий игрока в лог-строках фазы мобов нет: ' + JSON.stringify(added));
+});
+
+test('боевой UI: цвет полосы HP при frac < 0.2 — красный из hpBarColor (регрессия 000038)', () => {
+  // Цепочка в порядке index.html: sprites.js ДО combat-ui.js.
+  // Старый порядок (sprites.js ПОСЛЕ combat-ui.js) был мёртвым путём:
+  // каждый UMD-модуль ЗАМЕНЯЕТ объект Game (Object.assign({}, Game, …)),
+  // а combat-ui.js снимает его один раз при загрузке
+  // (const G = globalThis.Game) — G.hpBarColor оставался undefined
+  // НАВСЕГДА, и полоса героя (DOM и canvas-миниполоса) всегда рисовалась
+  // фолбэком '#6fdc6f': пороговые цвета (жёлтый 20–50%, красный <20%)
+  // не срабатывали никогда.
+  const { G, keydown, body } = loadCombatUi();
+  assert.equal(typeof G.hpBarColor, 'function',
+    'в порядке index.html Game.hpBarColor есть до загрузки combat-ui.js');
+  const hero = G.createCharacter();
+  G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const maxHP = G.derived(hero).maxHP;
+  assert.ok(maxHP >= 25, 'maxHP >= 25 (player.js: 20 + конст.·5)');
+  hero.hp = 1; // frac = 1/25 = 0.04 < 0.2 → красный
+  press(keydown, 'KeyQ'); // любое действие — чтобы render() отрисовал полосу
+  const fill = findByClass(body, 'combat-hpbar-fill');
+  assert.ok(fill, 'DOM-полоса .combat-hpbar-fill создана');
+  const frac = 1 / maxHP;
+  assert.ok(frac < 0.2, 'сценарий: доля HP ниже порога красного');
+  assert.equal(fill.style.background, G.hpBarColor(frac),
+    'цвет — из Game.hpBarColor, а не фолбэк: ' + fill.style.background);
+  assert.equal(fill.style.background, '#d9483b', 'frac < 0.2 → красный');
+  assert.equal(fill.style.width, (frac * 100).toFixed(1) + '%',
+    'ширина заполнения = доля HP');
+});
+
+test('боевой UI: без sprites.js — фолбэк #6fdc6f, рендер не падает', () => {
+  // Деградация, а не поломка: если sprites.js отсутствует вовсе
+  // (не тот случай, что он загружен позже — порядок закреплён
+  // tests/index-order.test.js), полоса героя остаётся зелёной
+  // (цвет полосы мобов), остальные части рендера не затрагиваются.
+  const { G, keydown, body } = loadCombatUi(false);
+  assert.equal(G.hpBarColor, undefined, 'в цепочке нет sprites.js');
+  const hero = G.createCharacter();
+  G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  hero.hp = 1;
+  press(keydown, 'KeyQ');
+  const fill = findByClass(body, 'combat-hpbar-fill');
+  assert.ok(fill, 'DOM-полоса создана');
+  assert.equal(fill.style.background, '#6fdc6f', 'фолбэк — зелёный полосы мобов');
+  assert.ok(body, 'оверлей на месте, render() не упал');
 });

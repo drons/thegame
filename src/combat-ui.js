@@ -34,6 +34,7 @@
   let ctx = null; // { combat, hero, onEnd, open }
   let overlay = null, canvas = null, g2 = null;
   let stateEl = null, logEl = null, bannerEl = null, turnorderEl = null;
+  let hpbarEl = null, hpbarFillEl = null, hpbarTextEl = null;
   let ended = false;
 
   function isActive() {
@@ -68,6 +69,20 @@
     turnorderEl = document.createElement('div');
     turnorderEl.className = 'combat-turnorder';
     side.appendChild(turnorderEl);
+
+    // Полоса HP героя (задача 000038): ВТОРОЙ элемент .combat-side —
+    // после строки очереди (000036), ПЕРЕД .combat-state. Ширина
+    // заполнения и цвет — из render(); текст «HP x/y» всегда виден
+    // (числа не прячем — доступность/читабельность).
+    hpbarEl = document.createElement('div');
+    hpbarEl.className = 'combat-hpbar';
+    hpbarFillEl = document.createElement('div');
+    hpbarFillEl.className = 'combat-hpbar-fill';
+    hpbarTextEl = document.createElement('span');
+    hpbarTextEl.className = 'combat-hpbar-text';
+    hpbarEl.appendChild(hpbarFillEl);
+    hpbarEl.appendChild(hpbarTextEl);
+    side.appendChild(hpbarEl);
 
     stateEl = document.createElement('div');
     stateEl.className = 'combat-state';
@@ -307,6 +322,29 @@
       }
     }
 
+    // Герой (задача 000038): ОДИН расчёт p/d/hpFrac/hpColor на render
+    // на троих потребителей — canvas-миниполоса, текст stateEl и
+    // DOM-полоса (один вызов G.derived, как раньше; один вызов
+    // hpBarColor — и миниполоса, и DOM-бар берут тот же цвет).
+    // hpBarColor (src/sprites.js) в index.html грузится ДО combat-ui.js —
+    // порядок закреплён в tests/index-order.test.js (задача 000038):
+    // каждый UMD-модуль ЗАМЕНЯЕТ объект Game (Object.assign({}, Game, …)),
+    // а G снимается один раз при загрузке (строка 18), поэтому функция
+    // из скрипта, загружающегося ПОЗЖЕ, через этот G недоступна НИКОГДА —
+    // ленивый вызов «после загрузки всех скриптов» этого не решает
+    // (регрессия: цвет полосы всегда был фолбэчным). В браузере
+    // G.hpBarColor есть уже в момент загрузки модуля; фолбэк
+    // '#6fdc6f' (зелёный полосы мобов) нужен только если sprites.js
+    // отсутствует вовсе (напр. vm-песочница node) — рендер не падает
+    // (стиль деградации).
+    const p = c.player;
+    const d = G.derived(p);
+    // maxHP всегда ≥ 25 (player.js: 20 + конст.·5, множители ≥ 1) —
+    // ветка защитная. hp может быть 0 (смерть) или, теоретически,
+    // больше maxHP — кламп ниже.
+    const hpFrac = d.maxHP > 0 ? p.hp / d.maxHP : 0;
+    const hpColor = (G.hpBarColor ? G.hpBarColor(hpFrac) : '#6fdc6f');
+
     // Игрок — ромб (как в мире).
     const px = (c.px + 0.5) * CELL, py = (c.py + 0.5) * CELL, s = CELL * 0.3;
     g2.fillStyle = '#8cf2fc';
@@ -318,9 +356,20 @@
     g2.closePath();
     g2.fill();
 
+    // Миниполоса 4px над ромбом (задача 000038) — паттерн мобов
+    // (дорожка #3a0d0d + заполнение). Ширина = ширина ромба, позиция
+    // — 8px над верхней вершиной («над головой»); рисуется ПОСЛЕ
+    // отрисовки героя → «поверх любого вида героя» (задача 000047 —
+    // спрайт).
+    const bw = Math.round(2 * s);
+    const bx = Math.round(px - bw / 2);
+    const by = Math.round(py - s - 8);
+    g2.fillStyle = '#3a0d0d';
+    g2.fillRect(bx, by, bw, 4);
+    g2.fillStyle = hpColor;
+    g2.fillRect(bx, by, Math.round(bw * Math.min(1, Math.max(0, hpFrac))), 4);
+
     // Панель состояния.
-    const p = c.player;
-    const d = G.derived(p);
     const t = c.units.find((u) => u.id === c.targetId && u.alive && !u.fled);
     stateEl.textContent =
       `${c.groupName}, раунд ${c.round}\n` +
@@ -331,6 +380,17 @@
 
     // Строка очерёдности хода (задача 000036).
     renderTurnOrder(c);
+
+    // DOM-полоса HP героя (задача 000038): единственный путь
+    // обновления — render() (как строка очереди и stateEl), отдельных
+    // слушателей/timers нет; rAF-цикл (000047) обновит её тем же
+    // render() — без дублей логики.
+    if (hpbarFillEl) {
+      hpbarFillEl.style.width =
+        (Math.min(1, Math.max(0, hpFrac)) * 100).toFixed(1) + '%';
+      hpbarFillEl.style.background = hpColor;
+      hpbarTextEl.textContent = `HP ${p.hp}/${d.maxHP}`;
+    }
 
     // Журнал: последние строки.
     logEl.textContent = c.log.slice(-9).join('\n');
@@ -366,6 +426,7 @@
     const result = ctx.combat.result;
     if (overlay) overlay.remove();
     overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl = null;
+    hpbarEl = hpbarFillEl = hpbarTextEl = null;
     ctx = null;
     ended = false;
     onEnd && onEnd(result);
