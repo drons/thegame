@@ -30,7 +30,7 @@ test('index.html: нужные модули подключены', () => {
   for (const f of [
     'src/global-settings.js', 'src/day.js', 'src/player.js',
     'src/items.js', 'src/controls.js', 'src/combat-keys.js',
-    'src/ui.js', 'src/combat-ui.js', 'src/save.js',
+    'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
     'src/main.js',
   ]) {
     assert.notEqual(pos(f), -1, f + ' не подключён в index.html');
@@ -57,6 +57,20 @@ test('index.html: controls.js ДО combat-keys.js, combat-keys.js ДО combat-ui
   assert.ok(
     pos('src/combat-keys.js') < pos('src/combat-ui.js'),
     'src/combat-keys.js должен быть раньше src/combat-ui.js (задача 000048)');
+});
+
+test('index.html: sprites.js ДО combat-ui.js (иначе Game.hpBarColor не виден)', () => {
+  // Буг (ревью 000038): каждый UMD-модуль ЗАМЕНЯЕТ объект Game —
+  // root.Game = Object.assign({}, root.Game, factory(...)), — а
+  // combat-ui.js снимает его один раз при загрузке
+  // (const G = globalThis.Game). Функция из скрипта, загружающегося
+  // ПОЗЖЕ (sprites.js давал Game.hpBarColor), через захваченный G
+  // недоступна НИКОГДА — ленивый вызов в render() не спасает.
+  // Результат: полоса HP героя всегда рисовалась фолбэком
+  // '#6fdc6f', пороговые цвета (жёлтый/красный) не срабатывали.
+  assert.ok(
+    pos('src/sprites.js') < pos('src/combat-ui.js'),
+    'src/sprites.js должен быть раньше src/combat-ui.js (задача 000038)');
 });
 
 test('index.html: ui.js и controls.js ДО main.js', () => {

@@ -203,6 +203,36 @@
       filter: grayscale(1);
       text-decoration: line-through;
     }
+    /* Полоса HP героя (задача 000038): второй элемент .combat-side —
+       после строки очереди хода, перед .combat-state. Дорожка
+       #3a0d0d — та же, что подполоса мобов на canvas: при frac 0
+       «пустая» полоса видна. Ширина/цвет заполнения и текст
+       «HP x/y» — из render() (src/combat-ui.js). Только НОВЫЕ классы
+       — .combat-side/.combat-state и верстка NPC-диалога/подземелья
+       не меняются (они .combat-hpbar не создают). */
+    .combat-hpbar {
+      position: relative;
+      height: 16px;
+      margin-bottom: 10px;
+      background: #3a0d0d;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .combat-hpbar-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 100%;
+      background: #6fdc6f;
+    }
+    .combat-hpbar-text {
+      position: relative;
+      display: block;
+      text-align: center;
+      line-height: 16px;
+      font: 700 11px ui-monospace, monospace;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+    }
     .combat-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -276,14 +306,18 @@
        controls.js ДО combat-keys.js — таблица боя строит строки движения
        из Game.CODE_DIRS/Game.DIR_DELTA (задача 000048); combat-keys.js
        ДО combat-ui.js — keydown и подписи кнопок боя берутся из
-       Game.CombatKeys. ui.js до main.js — main.js использует
-       Game.playerUI/touchControls. -->
+       Game.CombatKeys. sprites.js ДО combat-ui.js — каждый UMD-модуль
+       ЗАМЕНЯЕТ объект Game (Object.assign({}, Game, ...)), а combat-ui.js
+       снимает его один раз при загрузке (const G = globalThis.Game):
+       функция из скрипта, загруженного ПОЗЖЕ, через этот G недоступна
+       никогда (задача 000038 — цвет полосы HP героя). ui.js до main.js —
+       main.js использует Game.playerUI/touchControls. -->
   <script src="src/controls.js"></script>
   <script src="src/combat-keys.js"></script>
   <script src="src/ui.js"></script>
+  <script src="src/sprites.js"></script>
   <script src="src/combat-ui.js"></script>
   <script src="src/dungeon-ui.js"></script>
-  <script src="src/sprites.js"></script>
   <script src="src/fullscreen.js"></script>
   <script src="src/save.js"></script>
   <script src="src/main.js"></script>

@@ -446,3 +446,32 @@ test('критерий: декорации не влияют на генерац
     assert.deepEqual(m2.tileAt(t.x, t.y), t, 'мир изменился после запроса декораций');
   }
 });
+
+// --- Цвет полосы HP (задача 000038) ---
+//
+// Зафиксированное решение по границам: frac >= 0.5 → зелёный,
+// frac >= 0.2 → жёлтый, иначе красный — границы «включены сверху»
+// (ровно 0.5 — зелёный, ровно 0.2 — жёлтый). Литералы 0.5/0.2 в
+// тесте и в пороге функции — те же двойки IEEE-754, сравнение
+// стабильно (напр. 8/40 даёт ровно двойку литерала 0.2).
+// Цвета — из палитры игры: #6fdc6f (мобы), #e0b13c (swarm),
+// #d9483b (melee).
+
+test('hpBarColor: пороги и зафиксированные границы (000038)', () => {
+  assert.equal(S.hpBarColor(1), '#6fdc6f');
+  assert.equal(S.hpBarColor(0.6), '#6fdc6f');
+  assert.equal(S.hpBarColor(0.5), '#6fdc6f', 'ровно 0.5 — зелёный (граница включена)');
+  assert.equal(S.hpBarColor(0.4), '#e0b13c');
+  assert.equal(S.hpBarColor(0.21), '#e0b13c');
+  assert.equal(S.hpBarColor(0.2), '#e0b13c', 'ровно 0.2 — жёлтый (граница включена)');
+  assert.equal(S.hpBarColor(0.19), '#d9483b');
+  assert.equal(S.hpBarColor(0), '#d9483b');
+});
+
+test('hpBarColor: frac вне [0,1] — clamp, NaN/Infinity не ломают', () => {
+  assert.equal(S.hpBarColor(1.5), '#6fdc6f', '> 1 — clamp к 1');
+  assert.equal(S.hpBarColor(-0.3), '#d9483b', '< 0 — clamp к 0');
+  assert.equal(S.hpBarColor(NaN), '#d9483b', 'NaN — красный (frac 0), без исключений');
+  assert.equal(S.hpBarColor(Infinity), '#6fdc6f', '+Infinity — clamp к 1');
+  assert.equal(S.hpBarColor(-Infinity), '#d9483b', '-Infinity — clamp к 0');
+});
