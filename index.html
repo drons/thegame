@@ -232,12 +232,17 @@
   <script src="src/npc.js"></script>
   <script src="src/combat.js"></script>
   <script src="src/dungeon.js"></script>
+  <!-- Порядок здесь ВАЖЕН (задача 000018, регрессия проверена в
+       tests/index-order.test.js): controls.js ДО ui.js — Game.touchControls
+       в ui.js собирается при ЗАГРУЗКЕ из Game.layoutTouchControls/touchActionAt,
+       и если controls.js загружен позже, тач-контролы никогда не создаются.
+       ui.js до main.js — main.js использует Game.playerUI/touchControls. -->
+  <script src="src/controls.js"></script>
   <script src="src/ui.js"></script>
   <script src="src/combat-ui.js"></script>
   <script src="src/dungeon-ui.js"></script>
   <script src="src/sprites.js"></script>
   <script src="src/fullscreen.js"></script>
-  <script src="src/controls.js"></script>
   <script src="src/save.js"></script>
   <script src="src/main.js"></script>
 </body>

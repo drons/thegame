@@ -1,0 +1,86 @@
+// Регрессия порядка загрузки скриптов в index.html (задача 000018).
+//
+// Буг, который ловит этот файл: scripts в index.html стояли в порядке
+// ui.js → controls.js, а IIFE в ui.js, собирающая Game.touchControls,
+// начиналась с guard `if (!G.layoutTouchControls || !G.touchActionAt)
+// return;` — в момент выполнения ui.js этих функций ещё не было (они
+// живут в controls.js). Result: Game.touchControls === undefined всегда,
+// D-pad и кнопка «E» не создавались НИКОГДА, на чистом тачскрине у
+// игрока не было управления, а node-тесты ядра controls.js были зелёные
+// (DOM-клей не покрывался).
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+const ROOT = path.join(__dirname, '..');
+const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const uiCode = fs.readFileSync(path.join(ROOT, 'src', 'ui.js'), 'utf8');
+const controlsCode = fs.readFileSync(path.join(ROOT, 'src', 'controls.js'), 'utf8');
+
+// Порядок <script src="…"> в index.html.
+const scripts = Array.from(
+  html.matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1]);
+const pos = (f) => scripts.indexOf(f);
+
+test('index.html: нужные модули подключены', () => {
+  for (const f of [
+    'src/global-settings.js', 'src/day.js', 'src/player.js',
+    'src/items.js', 'src/controls.js', 'src/ui.js', 'src/save.js',
+    'src/main.js',
+  ]) {
+    assert.notEqual(pos(f), -1, f + ' не подключён в index.html');
+  }
+});
+
+test('index.html: controls.js ДО ui.js (иначе Game.touchControls не создаётся)', () => {
+  assert.ok(
+    pos('src/controls.js') < pos('src/ui.js'),
+    'src/controls.js должен быть ПОСЛЕДОВАТЕЛЬНО раньше src/ui.js: ' +
+      'ui.js при загрузке собирает Game.touchControls из ' +
+      'Game.layoutTouchControls/Game.touchActionAt (задача 000018)');
+});
+
+test('index.html: ui.js и controls.js ДО main.js', () => {
+  // main.js использует Game.playerUI/npcUI/touchControls (ui.js) и
+  // Game.chooseControlsScheme/moveKeyForEvent/deltaForMoveKey (controls.js).
+  assert.ok(pos('src/ui.js') < pos('src/main.js'));
+  assert.ok(pos('src/controls.js') < pos('src/main.js'));
+  // save.js — тоже до main.js (механизм сохранения).
+  assert.ok(pos('src/save.js') < pos('src/main.js'));
+});
+
+// Симуляция загрузки в node: скрипты игры — обычные <script> (не модули),
+// каждый собирает globalThis/Game. ui.js при ЗАГРУЗКЕ DOM не трогает
+// (контролы собираются в init()), поэтому его безопасно выполнить в node.
+
+test('порядок controls.js → ui.js: Game.touchControls существует', () => {
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  vm.runInContext(controlsCode, sandbox, { filename: 'controls.js' });
+  assert.ok(sandbox.Game.layoutTouchControls,
+    'controls.js должен дать Game.layoutTouchControls');
+  vm.runInContext(uiCode, sandbox, { filename: 'ui.js' });
+  const tc = sandbox.Game.touchControls;
+  assert.ok(tc, 'Game.touchControls должен существовать после ' +
+    'controls.js + ui.js (в правильном порядке)');
+  for (const m of ['init', 'show', 'hide', 'isActive', 'releaseAll']) {
+    assert.equal(typeof tc[m], 'function', 'touchControls.' + m);
+  }
+});
+
+test('порядок ui.js → controls.js (старый битый): touchControls нет, но ошибка видна', () => {
+  // Воспроизведение исходного бага: ui.js раньше controls.js → guard
+  // срабатывает. Теперь он не молча возвращает, а пишет console.error
+  // (регрессия: «мёртвые контролы» должны быть заметны).
+  const errors = [];
+  const sandbox = { console: { error: (m) => errors.push(m) } };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  vm.runInContext(uiCode, sandbox, { filename: 'ui.js' });
+  assert.equal(sandbox.Game.touchControls, undefined,
+    'без controls.js контролы не собираются');
+  assert.ok(errors.length > 0, 'guard обязан оставить след в консоли');
+});

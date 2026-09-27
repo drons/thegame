@@ -213,6 +213,10 @@
   let saveStorage = null;
   try { saveStorage = window.localStorage; } catch (err) { saveStorage = null; }
   let loadedSave = null; // { version, savedAt, data } — после load()
+  // Примечание (000031): во время restoreFromSave saveNow вызываться не
+  // может — fastForward не оповещает слушателей, addStep ограничен до
+  // порога дня (день не сменится), остальное восстановление чисто;
+  // отдельный флаг подавления записи (был `restoring`) поэтому не нужен.
   if (saveStorage && G.load) {
     const res = G.load(saveStorage);
     if (res.status === 'ok') {
@@ -229,11 +233,11 @@
       G.clear(saveStorage);
     }
   }
-  let restoring = false; // при восстановлении дня не перезаписываем сейв
 
   // Текущее состояние (структура v1): день мира, позиция, персонаж,
-  // журнал квестов, стоки торговцев NPC (задача 000029) — доп. поля
-  // БЕЗ повышения версии (неломкое расширение).
+  // журнал квестов, стоки торговцев NPC (задача 000029), побеждённые
+  // группы мобов (000031) — доп. поля БЕЗ повышения версии
+  // (неломкое расширение).
   function collectSaveData() {
     return {
       day: clock.day,
@@ -244,65 +248,115 @@
         ? G.serializeQuestBook(questBook) : null,
       npcStocks: G.serializeNpcStocks
         ? G.serializeNpcStocks(npcStocks) : null,
+      // 'x,y' → день поражения: после перезагрузки побеждённые группы
+      // НЕ оживают мгновенно, а респаунятся через respawn_days (SPEC
+      // «Игровое время») — иначе награду той же группы можно забрать
+      // повторно в тот же день.
+      defeatedAt: G.serializeDefeatedAt
+        ? G.serializeDefeatedAt(defeatedAt) : {},
     };
   }
 
   function saveNow() {
-    if (restoring) return;
     if (saveStorage && G.save) G.save(saveStorage, collectSaveData());
   }
   window.addEventListener('beforeunload', saveNow);
 
-  // Валидный сохранённый персонаж (иначе — игнорируем поле, см. ниже).
-  function isSavedHero(h) {
-    return !!h && typeof h === 'object' && !Array.isArray(h) &&
-      Number.isInteger(h.level) && h.level >= 1 &&
-      Number.isFinite(h.xp) && h.xp >= 0 &&
-      Number.isFinite(h.gold) && h.gold >= 0 &&
-      Number.isFinite(h.hp) && h.hp >= 0 &&
-      h.primary && typeof h.primary === 'object' && !Array.isArray(h.primary);
-  }
+  // Верхняя граница дня в сейве (защита от подделанного сейва).
+  // Восстановление дня — O(1) (clock.fastForward, без слушателей),
+  // так что граница — не от заморозки, а от абсурда; день > границы
+  // клампится (раньше день > 100000 молча сбрасывался на 1, и
+  // pruneQuestBookByDay(qb, 1) отбрасывал ВСЕ активные квесты —
+  // потеря прогресса легитимного сейва).
+  const MAX_SAVED_DAY = 1e9;
 
   // Восстановление состояния из сейва после загрузки карты:
-  // день мира (часами), персонаж, позиция. Некорректное поле —
-  // пропуск с console.warn (игра не роняется).
+  // день мира (fastForward — сейв СНИМОК, эффекты прошедших дней уже
+  // в данных), персонаж, побеждённые группы, позиция, журнал квестов,
+  // стоки торговцев. Некорректное поле — отброс с console.warn
+  // (игра не роняется: каждый раздел — свой try/catch, и финальный
+  // render панели тоже в try/catch).
   function restoreFromSave() {
     if (!loadedSave) return;
     const d = loadedSave.data || {};
-    // День доводим часами (rest()); ограничиваем сверху, чтобы подделанный
-    // сейв не заморозил игру циклом.
-    if (Number.isInteger(d.day) && d.day > clock.day && d.day <= 100000) {
-      restoring = true;
-      try {
-        while (clock.day < d.day) clock.rest();
+
+    // --- День мира и шаги ---
+    try {
+      if (Number.isInteger(d.day) && d.day >= 1) {
+        const target = Math.min(d.day, MAX_SAVED_DAY);
+        if (target > clock.day) clock.fastForward(target - clock.day);
+        // Шаги сохранённого дня — восстанавливаем ВСЕГДА, включая
+        // день 1 (раньше блок был вложен в условие d.day > clock.day,
+        // и сейв {day:1, steps:35} восставал со steps=0).
         if (Number.isInteger(d.steps) && d.steps >= 0 &&
             d.steps < clock.stepsPerDay) {
           clock.addStep(d.steps);
         }
-      } finally {
-        restoring = false;
       }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить день:', err);
     }
-    if (isSavedHero(d.hero)) {
-      Object.assign(hero, d.hero);
-      const dd = G.derived(hero);
-      hero.hp = Math.min(Math.max(1, Math.round(hero.hp)), dd.maxHP);
-      hero.mp = Math.min(Math.max(0, Math.round(hero.mp) || 0), dd.maxMP);
-      hero.alive = true;
-    } else if (d.hero != null) {
-      console.warn('Сейв: персонаж некорректен — не восстанавливаю.');
-    }
-    const p = d.position;
-    if (p && Number.isInteger(p.x) && Number.isInteger(p.y)) {
-      if (map.tileAt(p.x, p.y).passable) {
-        player.x = p.x; player.y = p.y;
-      } else {
-        console.warn('Сейв: позиция непроходима — остаюсь на спавне.');
+
+    // --- Персонаж ---
+    try {
+      if (d.hero != null) {
+        // Чистка — G.sanitizeSavedHero (player.js): ядро (level/xp/gold/
+        // hp/основные навыки) невалидно → null; вторичные навыки/skillXp —
+        // посчётный отброс мусора. Инвентарь и снаряжение чистим отдельно
+        // (нужен каталог): «призрак»-предметы (id удалён из каталога
+        // между сборками) отбрасываются, а не бросают TypeError в
+        // inventoryWeight при рендере панели.
+        const clean = G.sanitizeSavedHero ? G.sanitizeSavedHero(d.hero) : null;
+        if (clean) {
+          Object.assign(hero, clean);
+          hero.inventory = G.sanitizeInventory
+            ? G.sanitizeInventory(d.hero.inventory) : G.createInventory();
+          hero.equipment = G.sanitizeEquipment
+            ? G.sanitizeEquipment(d.hero.equipment) : { weapon: null, armor: null };
+          const dd = G.derived(hero);
+          hero.hp = Math.min(Math.max(1, Math.round(hero.hp)), dd.maxHP);
+          hero.mp = Math.min(Math.max(0, Math.round(hero.mp) || 0), dd.maxMP);
+          hero.alive = true;
+        } else {
+          console.warn('Сейв: персонаж некорректен — не восстанавливаю.');
+        }
       }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить персонажа:', err);
+    }
+
+    // --- Побеждённые группы (defeatedAt) ---
+    try {
+      if (G.restoreDefeatedAt && d.defeatedAt != null) {
+        const m = G.restoreDefeatedAt(d.defeatedAt);
+        for (const [k, dd] of m) {
+          // Подделанный сейв: «поражение в будущем» дня не допустим.
+          if (dd > clock.day) m.delete(k);
+        }
+        defeatedAt.clear();
+        for (const [k, v] of m) defeatedAt.set(k, v);
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить побеждённые группы:', err);
+    }
+
+    // --- Позиция ---
+    try {
+      const p = d.position;
+      if (p && Number.isInteger(p.x) && Number.isInteger(p.y)) {
+        if (map.tileAt(p.x, p.y).passable) {
+          player.x = p.x; player.y = p.y;
+        } else {
+          console.warn('Сейв: позиция непроходима — остаюсь на спавне.');
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить позицию:', err);
     }
     prevPos.x = player.x; prevPos.y = player.y;
-    // Журнал квестов и стоки торговцев (задача 000029). Невалидная
-    // секция — тихий сброс с console.warn; игра не роняется.
+
+    // --- Журнал квестов и стоки торговцев (задача 000029) ---
+    // Невалидная секция — тихий сброс с console.warn; игра не роняется.
     try {
       if (questBook && G.deserializeQuestBook && d.quests != null) {
         const qb = G.deserializeQuestBook(d.quests);
@@ -329,7 +383,11 @@
     } catch (err) {
       console.warn('Сейв: не удалось восстановить квесты/стоки:', err);
     }
-    G.playerUI && G.playerUI.render();
+
+    if (G.playerUI) {
+      try { G.playerUI.render(); }
+      catch (err) { console.warn('Сейв: не удалось отрисовать панель:', err); }
+    }
   }
   let hudFlash = '';
   let hudFlashUntil = 0;
@@ -466,15 +524,24 @@
     .exec(window.location.search || '');
   const controlsScheme = G.chooseControlsScheme(
     touchEnvSnapshot(), mControls ? mControls[1] : null);
-  if (controlsScheme === 'touch' && G.touchControls) {
-    G.touchControls.init({
-      // Виртуальные «клавиши» 'touch:<dir>' ложатся в тот же Set,
-      // что и настоящие: кадр вызывает tryMove → G.deltaForMoveKey.
-      onHold: (dir) => keys.add('touch:' + dir),
-      onRelease: (dir) => keys.delete('touch:' + dir),
-      onInteract: toggleNpcDialog,
-    });
-    G.touchControls.show();
+  if (controlsScheme === 'touch') {
+    if (G.touchControls) {
+      G.touchControls.init({
+        // Виртуальные «клавиши» 'touch:<dir>' ложатся в тот же Set,
+        // что и настоящие: кадр вызывает tryMove → G.deltaForMoveKey.
+        onHold: (dir) => keys.add('touch:' + dir),
+        onRelease: (dir) => keys.delete('touch:' + dir),
+        onInteract: toggleNpcDialog,
+      });
+      G.touchControls.show();
+    } else {
+      // Game.touchControls собирается в ui.js при ЗАГРУЗКЕ — если его
+      // нет, controls.js загрузился позже (регрессия порядка — tests/
+      // index-order.test.js). На чистом тачскрине без этого у игрока
+      // не будет НИКАКОГО управления, поэтому — console.error.
+      console.error('main.js: схема контролов touch, но Game.touchControls ' +
+        'отсутствует — проверьте порядок загрузки: src/controls.js ДО src/ui.js');
+    }
   }
 
   canvas.addEventListener('wheel', (e) => {

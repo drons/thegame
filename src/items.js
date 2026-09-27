@@ -109,6 +109,63 @@
     return c.equipment;
   }
 
+  /**
+   * Чистка сохранённого инвентаря (восстановление сейва, задачи
+   * 000029/000031): «битый сейв не роняет игру». Сейв живёт в
+   * localStorage между сборками игры, поэтому:
+   *   * слоты с id, УДАЛЁННЫМ из каталога («призраки» после апдейта
+   *     данных — тот же сценарий, что «призрак»-предметы в
+   *     restoreNpcStocks), отбрасываются;
+   *   * записи не того формата (null, не-объект, нецелое/отрицательное
+   *     qty) отбрасываются; qty клэмпится в [1, MAX_STACK], дубликаты
+   *     одного id сливаются (лишнее — не больше MAX_STACK);
+   *   * слотов не больше INVENTORY_SLOTS, quick — только id, которые
+   *     есть в каталоге (иначе — null).
+   * Возвращает НОВЫЙ инвентарь (вход не мутируется).
+   * @param {object} inv инвентарь из сейва
+   * @returns {{slots: {id: string, qty: number}[], quick: (string|null)[]}}
+   */
+  function sanitizeInventory(inv) {
+    const out = createInventory();
+    if (!inv || typeof inv !== 'object' || Array.isArray(inv)) return out;
+    if (Array.isArray(inv.slots)) {
+      for (const e of inv.slots) {
+        if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
+        const it = getItem(e.id);
+        if (!it) continue; // «призрак» — предмета нет в каталоге
+        const qty = (Number.isInteger(e.qty) && e.qty >= 1) ? e.qty : 1;
+        const ex = out.slots.find((x) => x.id === it.id);
+        if (ex) {
+          ex.qty = Math.min(MAX_STACK, ex.qty + qty);
+        } else if (out.slots.length < INVENTORY_SLOTS) {
+          out.slots.push({ id: it.id, qty: Math.min(qty, MAX_STACK) });
+        }
+      }
+    }
+    if (Array.isArray(inv.quick)) {
+      for (let i = 0; i < QUICK_SLOTS; i++) {
+        const q = inv.quick[i];
+        if (typeof q === 'string' && getItem(q)) out.quick[i] = q;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Чистка сохранённого снаряжения (задачи 000029/000031): только
+   * строковые id, существующие в каталоге; прочее — null.
+   * @returns {{weapon: string|null, armor: string|null}}
+   */
+  function sanitizeEquipment(eq) {
+    const out = { weapon: null, armor: null };
+    if (!eq || typeof eq !== 'object' || Array.isArray(eq)) return out;
+    for (const slot of ['weapon', 'armor']) {
+      const id = eq[slot];
+      if (typeof id === 'string' && getItem(id)) out[slot] = id;
+    }
+    return out;
+  }
+
   // Вес содержимого инвентаря (кг).
   function inventoryWeight(c) {
     const inv = ensureInventory(c);
@@ -478,6 +535,7 @@
     BUY_WEALTH_MULT, SELL_WEALTH_MULT,
     getItem, allItems, itemsOfKind,
     createInventory, ensureInventory, ensureEquipment,
+    sanitizeInventory, sanitizeEquipment,
     inventoryWeight, maxCarryWeight, slotCount, totalQty, hasItem,
     addItem, removeItem,
     setQuick, clearQuick, quickItem, firstQuickSlot, freeQuickSlot,

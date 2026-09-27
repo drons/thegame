@@ -49,6 +49,16 @@
   — браузерный pinch-zoom ломает on-screen-контролы (зум в игре — свой).
   z-index контролов — 5 (под панелями 10 и оверлеями 20). Контейнер на
   весь экран, но `pointer-events: none` — колесо/жесты идут к канвасу.
+* **Порядок загрузки ВАЖЕН (найдено ревью, fixed):** `<script
+  src="src/controls.js">` должен быть ДО `<script src="src/ui.js">`.
+  IIFE в ui.js, собирающая `Game.touchControls`, при ЗАГРУЗКЕ требует
+  `G.layoutTouchControls`/`G.touchActionAt` (они живут в controls.js) —
+  при обратном порядке guard молча возвращался, `Game.touchControls`
+  оставался undefined, и на чистом тачскрине у игрока НЕ БЫЛО
+  управления (node-тесты ядра при этом были зелёные — DOM-клей не
+  покрывался). Теперь: guard пишет `console.error`, main.js при схеме
+  'touch' без `Game.touchControls` тоже пишет `console.error`, а
+  порядок закреплён регрессионным тестом.
 
 ## Тесты
 
@@ -60,10 +70,18 @@ isTouchDevice (каждый сигнал, мусор → false); chooseControlsS
 диагонали, кнопки, мусор); touchMoveKeyForAction + deltaForMoveKey
 (`touch:<dir>`, 'touch:interact' → null).
 
+Правки по итогам ревью: tests/index-order.test.js (+4) — порядок
+скриптов в index.html (controls.js ДО ui.js, ui.js/controls.js/save.js
+ДО main.js) + vm-симуляция: в правильном порядке `Game.touchControls`
+существует, в старом (битом) — нет, но guard оставляет console.error.
+
 ## Ограничения
 
-* On-screen-контролы (ui.js) и привязка в main.js — браузерный клей,
-  не покрыт node-тестами (паттерн проекта: чистое ядро тестируется,
+* On-screen-контролы (ui.js) и привязка в main.js — браузерный клей:
+  ПОРЯДОК загрузки и наличие `Game.touchControls` после controls.js +
+  ui.js покрыты tests/index-order.test.js (статический разбор
+  index.html + vm-симуляция обоих порядков загрузки). Покликать
+  D-пад в node — нет (паттерн проекта: чистое ядро тестируется,
   DOM-клей — нет).
 * Управление в БОЮ и ПОДЗЕМЕЛЬЕ — у combat-ui.js / dungeon-ui.js
   свои локальные таблицы клавиш — под тач НЕ вынесено (это задача

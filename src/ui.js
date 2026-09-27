@@ -737,7 +737,14 @@
   // переключение направления; кнопка «E» (внизу справа) — действие
   // (диалог NPC / вход в подземелье), то же, что клавиша [E].
   (function () {
-    if (!G.layoutTouchControls || !G.touchActionAt) return;
+    // controls.js ОБЯЗАН быть загружен раньше ui.js (см. index.html):
+    // при отсутствии функций контролы не собираются — это ошибка порядка
+    // загрузки, видимая в консоли (не «тихий» fallback).
+    if (!G.layoutTouchControls || !G.touchActionAt) {
+      console.error('ui.js: on-screen-контролы не собраны — ' +
+        'src/controls.js должен загружаться ДО src/ui.js');
+      return;
+    }
     let root = null, dpadEl = null, actionEl = null;
     const arrows = {}; // dir -> span
     let shown = false;
