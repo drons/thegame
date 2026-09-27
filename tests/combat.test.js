@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  hitChance, createCombat, resolveDifficulty, canDoAction,
+  hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
   MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT, PRACTICE_XP,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
@@ -1402,4 +1402,193 @@ test('размер: бой с крупной группой завершаетс
     assert.ok(r, `seed ${seed}: бой не завершился`);
     assert.equal(r.outcome, 'victory', `seed ${seed}: исход ${r.outcome}`);
   }
+});
+
+// --- Очередь хода (задача 000036) ---
+// Игровая семантика НЕ меняется: игрок первым, затем ВСЕ живые мобы
+// в порядке c.units. Задача делает порядок наблюдаемым:
+// c.turnOrder (пересчёт в начале раунда) + c.turnIndex (действующий).
+
+test('buildTurnOrder: игрок первым, затем мобы в порядке units', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['wolf', 'spider', 'troll'], mobLevel: 3, seed: 3,
+  });
+  assert.deepEqual(buildTurnOrder(c), ['player', 'm0', 'm1', 'm2']);
+  assert.equal(buildTurnOrder(c)[0], 'player', 'игрок — первым');
+});
+
+test('buildTurnOrder: мёртвые и fled исключены; все мертвы → ["player"]', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['wolf', 'spider', 'troll'], mobLevel: 3, seed: 3,
+  });
+  c.units[0].alive = false;
+  c.units[1].fled = true;
+  assert.deepEqual(buildTurnOrder(c), ['player', 'm2']);
+  c.units[2].alive = false;
+  assert.deepEqual(buildTurnOrder(c), ['player'], 'мобов не осталось');
+});
+
+test('turnOrder/turnIndex: начало боя — ["player", ...], turnIndex 0, phase "player"', () => {
+  const c = createCombat({ player: strongHero(), groupType: 0, seed: 5, levelDeltaMax: 0 });
+  assert.equal(c.phase, 'player');
+  assert.equal(c.round, 1);
+  assert.equal(c.turnIndex, 0);
+  assert.deepEqual(c.turnOrder, ['player', ...c.units.map((u) => u.id)]);
+});
+
+test('turnOrder/turnIndex: после endTurn очередь пересчитана, turnIndex 0', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['wolf', 'spider'], mobLevel: 2, seed: 3 });
+  assert.deepEqual(c.turnOrder, ['player', 'm0', 'm1']);
+  c._rng = () => 0.01; // попадания гарантированы
+  const w = c.units[0];
+  w.hp = 1;
+  standNextTo(c, w);
+  const r = c.attack(w.id);
+  assert.equal(r.ok, true, 'удар по ослабленному волку');
+  assert.equal(w.alive, false, 'волк повержен');
+  // В фазе игрока действует очередь начала раунда (пересчёт — в endTurn).
+  assert.deepEqual(c.turnOrder, ['player', 'm0', 'm1'],
+    'старая очередь живёт до конца раунда');
+  c.endTurn();
+  assert.equal(c.phase, 'player');
+  assert.equal(c.round, 2);
+  assert.equal(c.turnIndex, 0, 'очередь снова у игрока');
+  assert.deepEqual(c.turnOrder, ['player', 'm1'], 'убитый моб исчез из очереди');
+});
+
+test('turnIndex: в phase "mob" ходит по очереди — снимок лога с записью turnIndex', () => {
+  // Детерминированный сценарий (сид 33): воин промахивается, лучник
+  // промахивается, шаман лечит раненого воина — по одной строке лога
+  // на каждого моба, в порядке c.units. Перехват c.log.push фиксирует
+  // turnIndex в момент записи строки.
+  const p = strongHero();
+  const c = createCombat({
+    player: p,
+    mobs: ['orc_warrior', 'orc_archer', 'orc_shaman'],
+    mobLevel: 3, seed: 33,
+  });
+  const [w, a, s] = c.units; // m0 shield, m1 ranged, m2 support
+  // Позиции: воин вплотную (атака → промах), лучник в дальности 4
+  // (атака → промах), шаман стоит — лечение не зависит от дистанции.
+  w.x = c.px; w.y = c.py - 1;
+  a.x = c.px; a.y = c.py - 3;
+  w.hp = 1; // < 70% maxHP — шаман лечит самого раненого союзника
+  c._rng = () => 0.99; // все попадания мобов промахиваются (hitChance ≤ 0.95)
+  assert.deepEqual(c.turnOrder, ['player', 'm0', 'm1', 'm2']);
+  assert.equal(c.turnIndex, 0);
+  assert.equal(c.round, 1);
+  assert.equal(c.phase, 'player');
+
+  const events = []; // [строка лога, c.turnIndex в момент записи]
+  const origPush = c.log.push.bind(c.log);
+  c.log.push = (msg) => { events.push([msg, c.turnIndex]); return origPush(msg); };
+
+  c.endTurn();
+
+  // Регрессия порядка: порядок строк лога = порядок c.units.
+  const iW = c.log.indexOf('Орк-воин промахивается.');
+  const iA = c.log.indexOf('Орк-лучник промахивается.');
+  const iS = c.log.indexOf('Орк-шаман лечит Орк-воин (+7).');
+  assert.ok(iW !== -1 && iA !== -1 && iS !== -1,
+    `нет всех трёх строк: ${c.log.join(' | ')}`);
+  assert.ok(iW < iA && iA < iS,
+    'порядок действий мобов = порядок units (воин → лучник → шаман)');
+
+  // turnIndex в момент действия: воин — 1-й, лучник — 2-й, шаман — 3-й.
+  const at = (msg) => events.find(([m]) => m === msg);
+  assert.ok(at('Орк-воин промахивается.'), 'нет строки воина в events');
+  assert.equal(at('Орк-воин промахивается.')[1], 1, 'воин — 1-й в очереди');
+  assert.equal(at('Орк-лучник промахивается.')[1], 2, 'лучник — 2-й в очереди');
+  assert.equal(at('Орк-шаман лечит Орк-воин (+7).')[1], 3, 'шаман — 3-й в очереди');
+
+  // Новый раунд: очередь пересчитана (все живы — та же), turnIndex 0.
+  assert.equal(c.round, 2);
+  assert.equal(c.phase, 'player');
+  assert.equal(c.turnIndex, 0);
+  assert.deepEqual(c.turnOrder, ['player', 'm0', 'm1', 'm2']);
+});
+
+test('turnIndex: конец боя в цикле мобов — замирает на последнем действовавшем', () => {
+  const p = createCharacter(); // 25 HP, без «Несокрушимости»
+  const c = createCombat({ player: p, mobs: ['skeleton', 'skeleton'], mobLevel: 2, seed: 9 });
+  const [m0, m1] = c.units;
+  // Оба скелета вплотную: первый бьёт на 10 (25→15), второй добивает.
+  m0.damage = 10;
+  m1.damage = 25;
+  m0.x = c.px - 1; m0.y = c.py;
+  m1.x = c.px + 1; m1.y = c.py;
+  c._rng = () => 0.01; // попадания гарантированы
+  assert.deepEqual(c.turnOrder, ['player', 'm0', 'm1']);
+  c.endTurn();
+  assert.ok(c.result, 'бой должен завершиться');
+  assert.equal(c.result.outcome, 'dead');
+  assert.equal(c.phase, 'over');
+  assert.equal(c.turnIndex, 2, 'turnIndex застыл на последнем действовавшем (добившем)');
+  assert.deepEqual(c.turnOrder, ['player', 'm0', 'm1'],
+    'в phase "over" очередь не пересчитывается');
+});
+
+test('turnIndex: смерть от яда в начале хода игрока — очередь пересчитана, turnIndex 0', () => {
+  // Ядовитый паук бьёт на 1: урон не добивает, добивает ТИК яда
+  // (−2 HP в начале хода игрока) — ПОСЛЕ пересчёта очереди,
+  // поэтому при смерти turnIndex = 0, а не индекс паучка.
+  const p = createCharacter(); // 25 HP
+  p.hp = 3; // 3 − 1 (удар) = 1, затем яд −2 → смерть
+  const c = createCombat({ player: p, mobs: ['spider'], mobLevel: 3, seed: 41 });
+  const s = c.units[0];
+  s.damage = 1;
+  c._rng = () => 0.05; // попадания (0.05 < hitChance) и шанс яда (0.05 < 0.3)
+  standNextTo(c, s);
+  let n = 0;
+  while (!c.result && n++ < 60) c.endTurn();
+  assert.ok(c.result, 'бой должен завершиться');
+  assert.equal(c.result.outcome, 'dead');
+  assert.equal(c.phase, 'over');
+  assert.equal(c.turnIndex, 0, 'тик убил после пересчёта — очередь у игрока');
+  assert.deepEqual(c.turnOrder, ['player', 'm0'],
+    'очередь — пересчитанная к началу фатального раунда');
+  assert.ok(c.log.includes('Яд: −2 HP.'), 'смерть от тика яда');
+});
+
+test('turnIndex: игрок убил моба в фазе игрока — слот сохраняется, turnOrder[turnIndex] — действующий (регрессия ревью)', () => {
+  // Пересчёт очереди — в начале раунда, т.е. ДО фазы игрока: моб,
+  // убитый игроком, числится в УСТАРЕВШЕЙ очереди до конца раунда.
+  // Фаза мобов идёт по ней, сохраняя позиции: в момент mobAct
+  // c.turnOrder[c.turnIndex] = id действующего моба (не убитого).
+  // Прежний «счётчик по живым units» давал turnIndex=1 для лучника
+  // при turnOrder ['player','m0','m1'] → UI подсвечивал мёртвого m0.
+  const p = strongHero();
+  const c = createCombat({
+    player: p, mobs: ['orc_grunt', 'orc_archer'], mobLevel: 1,
+    seed: 42, width: 7, height: 3,
+  });
+  assert.deepEqual(c.turnOrder, ['player', 'm0', 'm1']);
+  const m0 = c.units[0];
+  m0.hp = 1;
+  const r = c.spell('fire', m0.id);
+  assert.equal(r.killed, true, 'моб повержен в фазе игрока');
+  assert.deepEqual(c.turnOrder, ['player', 'm0', 'm1'],
+    'старая очередь живёт до конца раунда');
+
+  c._rng = () => 0.99; // все попадания мобов промахиваются
+  const events = []; // [строка лога, c.turnIndex, c.turnOrder]
+  const origPush = c.log.push.bind(c.log);
+  c.log.push = (msg) => {
+    events.push([msg, c.turnIndex, c.turnOrder.slice()]);
+    return origPush(msg);
+  };
+  c.endTurn();
+
+  const at = events.find(([m]) => m === 'Орк-лучник промахивается.');
+  assert.ok(at, `нет строки хода лучника: ${c.log.join(' | ')}`);
+  assert.equal(at[1], 2, 'лучник действует на СВОЕЙ позиции в устаревшей очереди');
+  assert.equal(at[2][at[1]], 'm1', 'turnOrder[turnIndex] — id действующего моба');
+  assert.equal(at[2][1], 'm0', 'слот убитого моба в очереди сохранён');
+
+  // Новый раунд: из очереди убитый моб исключён, очередь у игрока.
+  assert.equal(c.phase, 'player');
+  assert.equal(c.round, 2);
+  assert.equal(c.turnIndex, 0);
+  assert.deepEqual(c.turnOrder, ['player', 'm1']);
 });

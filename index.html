@@ -166,6 +166,43 @@
       color: #bfe3c0;
       margin-bottom: 10px;
     }
+    /* Строка очерёдности хода (задача 000036): токены — герой (ромб)
+       и мобы (цвет роли + уровень), первая строка .combat-side.
+       Только НОВЫЕ классы — .combat-side/.combat-state и верстка
+       NPC-диалога/подземелья не меняются. */
+    .combat-turnorder {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+    .turn-token {
+      width: 24px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #6b6248;
+      border-radius: 4px;
+      background: #2c3040;
+      color: #e8dcc0;
+      font: 700 11px ui-monospace, monospace;
+    }
+    .turn-token--hero { color: #8cf2fc; background: #12262e; }
+    .turn-token--current {
+      border-color: #ffe27a;
+      box-shadow: 0 0 8px rgba(255, 226, 122, 0.55);
+      cursor: pointer;
+    }
+    .turn-token--acted { opacity: 0.45; }
+    .turn-token--dead,
+    .turn-token--fled {
+      /* После --acted в правиле — визуальный приоритет: мёртвый/сбежавший
+         серый и перечёркнутый даже если «уже ходил». */
+      opacity: 0.3;
+      filter: grayscale(1);
+      text-decoration: line-through;
+    }
     .combat-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;

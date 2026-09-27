@@ -33,7 +33,7 @@
 
   let ctx = null; // { combat, hero, onEnd, open }
   let overlay = null, canvas = null, g2 = null;
-  let stateEl = null, logEl = null, bannerEl = null;
+  let stateEl = null, logEl = null, bannerEl = null, turnorderEl = null;
   let ended = false;
 
   function isActive() {
@@ -62,6 +62,12 @@
 
     const side = document.createElement('div');
     side.className = 'combat-side';
+
+    // Строка очерёдности хода (задача 000036): токены — герой и живые
+    // мобы. ПЕРВЫЙ элемент .combat-side (над .combat-state).
+    turnorderEl = document.createElement('div');
+    turnorderEl.className = 'combat-turnorder';
+    side.appendChild(turnorderEl);
 
     stateEl = document.createElement('div');
     stateEl.className = 'combat-state';
@@ -133,16 +139,22 @@
   // раньше предпроверка была здесь, в keyAction). Клик по disabled-кнопке
   // в браузере невозможен, поэтому лог причины — только по клавише.
   function runAction(c, action) {
-    const r = {
-      attack: c.attack(c.targetId),
-      fire: c.spell('fire', c.targetId),
-      heal: c.spell('heal'),
-      block: c.block(),
-      quickItem: c.quickItem(),
-      invItem: c.invItem(),
-      flee: c.flee(),
-      endTurn: c.endTurn(),
+    // Только ВЫБРАННОЕ действие (ревью 000036): прежний объект-литерал
+    // жадно ВЫПОЛНЯЛ все 8 действий ядра за одно нажатие (атака +
+    // заклинания + блок + предмет + побег + endTurn), пользуясь лишь
+    // результатом нужного — бой мог завершиться побегом от одного
+    // нажатия. Фикс: thunk'и — вызываются только нужные.
+    const run = {
+      attack: () => c.attack(c.targetId),
+      fire: () => c.spell('fire', c.targetId),
+      heal: () => c.spell('heal'),
+      block: () => c.block(),
+      quickItem: () => c.quickItem(),
+      invItem: () => c.invItem(),
+      flee: () => c.flee(),
+      endTurn: () => c.endTurn(),
     }[action];
+    const r = run ? run() : undefined;
     logRejection(c, r);
   }
 
@@ -192,6 +204,60 @@
   });
 
   // --- Отрисовка ---
+
+  // Строка очерёдности (задача 000036): полная пересборка токенов
+  // (их ≤7 — дёшево), единый вызов из render() — после каждого
+  // действия/клавиши/endTurn; rAF-цикл (000047) обновит её тем же
+  // render(). Состояние токена — из состояния юнита (u.alive/u.fled/
+  // c.player.alive), а НЕ из «наличия id в turnOrder»: моб, убитый в
+  // фазе игрока, числится в очереди до конца раунда, но токен серый.
+  function renderTurnOrder(c) {
+    if (!turnorderEl) return;
+    turnorderEl.textContent = '';
+    const order = c.turnOrder || [];
+    for (let i = 0; i < order.length; i++) {
+      const id = order[i];
+      let isHero = false, dead = false, fled = false,
+          name, level, role;
+      if (id === 'player') {
+        isHero = true;
+        name = c.player.name || 'Герой';
+        level = c.player.level;
+        dead = !c.player.alive;
+      } else {
+        const u = c.units.find((x) => x.id === id);
+        if (!u) continue; // очередь строится из units — защитная ветка
+        name = u.name;
+        level = u.level;
+        role = u.role;
+        dead = !u.alive;
+        fled = u.fled;
+      }
+      // Мёртвый/сбежавший токен не «ходит» (ревью 000036): побег
+      // пугливого моба происходит в его собственном mobAct — turnIndex
+      // уже указывает на него, и без этого условия серый перечёркнутый
+      // токен получал бы жёлтую подсветку/свечение (latent: фаза мобов
+      // синхронная, станет видно с rAF-рендером 000047).
+      const isCurrent = !c.result && i === c.turnIndex && !dead && !fled;
+      const cls = ['turn-token']
+        .concat(isHero ? 'turn-token--hero' : '')
+        .concat(dead ? 'turn-token--dead' : (fled ? 'turn-token--fled' : ''))
+        .concat(isCurrent ? 'turn-token--current' : (i < c.turnIndex ? 'turn-token--acted' : ''))
+        .filter(Boolean).join(' ');
+      const tok = document.createElement('span');
+      tok.className = cls;
+      if (!isHero) tok.style.background = ROLE_COLORS[role] || '#2c3040';
+      tok.textContent = isHero ? '◆' : String(level);
+      // Подпись: кто ходит / уже ходил / мёртв / сбежал.
+      let state;
+      if (dead) state = 'мёртв';
+      else if (fled) state = 'сбежал';
+      else if (isCurrent) state = 'ходит';
+      else if (i < c.turnIndex) state = 'уже ходил';
+      tok.title = state ? `${name} (ур. ${level}) — ${state}` : `${name} (ур. ${level})`;
+      turnorderEl.appendChild(tok);
+    }
+  }
 
   function render() {
     if (!ctx || !ctx.open) return;
@@ -263,6 +329,9 @@
       (c.ps.blocked ? 'БЛОК  ' : '') + (c.ps.poison > 0 ? `ЯД ${c.ps.poison}  ` : '') +
       (t ? `Цель: ${t.name} (ур. ${t.level}, HP ${t.hp}/${t.maxHP})` : 'Цели нет');
 
+    // Строка очерёдности хода (задача 000036).
+    renderTurnOrder(c);
+
     // Журнал: последние строки.
     logEl.textContent = c.log.slice(-9).join('\n');
 
@@ -296,7 +365,7 @@
     const onEnd = ctx.onEnd;
     const result = ctx.combat.result;
     if (overlay) overlay.remove();
-    overlay = canvas = g2 = stateEl = logEl = bannerEl = null;
+    overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl = null;
     ctx = null;
     ended = false;
     onEnd && onEnd(result);

@@ -234,6 +234,13 @@
     return c.units.filter((u) => u.alive && !u.fled);
   }
 
+  // Очередь хода (задача 000036): игрок первым, затем живые мобы
+  // в порядке c.units. Мёртвые (alive=false) и сбежавшие (fled)
+  // исключены. Чистая функция — тестируется в tests/combat.test.js.
+  function buildTurnOrder(c) {
+    return ['player', ...livingMobs(c).map((u) => u.id)];
+  }
+
   function log(c, msg) {
     c.log.push(msg);
   }
@@ -782,17 +789,36 @@
     const why = checkTurn(c);
     if (why) return;
     c.phase = 'mob';
-    for (const u of c.units) {
+    // c.turnIndex = позиция действующего в c.turnOrder (задача 000036):
+    // 0 = игрок (уже ходил), 1..n = мобы. Фаза мобов идёт по УСТАРЕВШЕЙ
+    // очереди: пересчёт turnOrder происходит в начале раунда (конец
+    // прошлого endPlayerTurn), ТО ЕСТЬ ДО фазы игрока — поэтому моб,
+    // убитый игроком, числится в очереди до конца раунда. Позиции
+    // сохраняются: убитые/сбежавшие пропускаются, их слоты остаются
+    // (UI-токен серый). Инвариант (регрессионным тестом): в момент
+    // mobAct c.turnOrder[c.turnIndex] === id действующего моба. Мобы
+    // не убивают друг друга — «разваливание» очереди только до фазы
+    // мобов; побег пугливого моба — внутри собственного mobAct
+    // (после присвоения turnIndex).
+    for (let i = 1; i < (c.turnOrder || []).length; i++) {
+      const u = c.units.find((x) => x.id === c.turnOrder[i]);
+      if (!u || !u.alive || u.fled) continue; // слот пуст — токен серый
+      c.turnIndex = i;
       mobAct(c, u);
-      if (c.result) break;
+      // Бой закончился (игрок погиб) — turnIndex замирает на последнем
+      // действовавшем мобе; очередь в phase 'over' не пересчитывается.
+      if (c.result) return;
     }
-    if (c.result) return;
 
     // Новый ход игрока: пулы восстанавливаются от навыков.
     c.round += 1;
     c.phase = 'player';
     c.ps.blocked = false;
     refillPools(c);
+    // Новый раунд — новая очередь (задача 000036): из очереди вышли
+    // мёртвые и сбежавшие мобы, turnIndex возвращается к игроку.
+    c.turnOrder = buildTurnOrder(c);
+    c.turnIndex = 0;
     // Отравление тикает в начале хода игрока.
     if (c.ps.poison > 0) {
       c.ps.poison -= 1;
@@ -953,6 +979,12 @@
       round: 1,
       phase: 'player',
       result: null,
+      // Очередь хода (задача 000036): ['player', ...id живых мобов];
+      // пересчитывается в начале каждого раунда (createCombat/endPlayerTurn).
+      turnOrder: null,
+      // Индекс действующего в turnOrder: 0 в phase 'player',
+      // 1..n в phase 'mob'; при c.result — замирает на последнем действовавшем.
+      turnIndex: 0,
       log: [],
       targetId: null,
       ps: {
@@ -969,6 +1001,10 @@
     log(c, `Бой: ${c.groupName} (уровень ${level}, мобы ${units.length}).`);
     if (hasLeader) log(c, 'Лидер вдохновляет группу: +5% урона, +5% защиты.');
     c.targetId = (nearestMob(c) || {}).id || null;
+    // Начало боя: все мобы живы — очередь собрана, turnIndex указывает
+    // на игрока (игрок ходит первым).
+    c.turnOrder = buildTurnOrder(c);
+    c.turnIndex = 0;
 
     // Публичные действия.
     c.attack = (targetId) => playerAttack(c, targetId);
@@ -987,6 +1023,6 @@
     MOB_ROLES, ROLE_NAMES, AGGRO, MOB_TYPES, GROUP_RECIPES,
     LEADER_DMG_MULT, LEADER_DEF_MULT,
     PRACTICE_XP,
-    hitChance, createCombat, resolveDifficulty, canDoAction,
+    hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
   };
 });
