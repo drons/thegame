@@ -6,6 +6,10 @@
   "dmg": 1.1,
   "hp": 1.4,
   "armor": 1,
+  "size": {
+    "w": 1,
+    "h": 1
+  },
   "xp": {
     "base": 8,
     "perLevel": 4

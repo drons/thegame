@@ -8,6 +8,10 @@
   "traits": {
     "lifesteal": true
   },
+  "size": {
+    "w": 1,
+    "h": 1
+  },
   "xp": {
     "base": 8,
     "perLevel": 4

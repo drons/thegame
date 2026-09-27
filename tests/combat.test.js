@@ -42,6 +42,17 @@ function midGameHero() {
   return c;
 }
 
+// Манхэттен-дистанция от игрока (1x1) до прямоугольника юнита (000040);
+// совпадает с unitDist из combat.js — «разумный» игрок видит моба
+// целиком, а не только по якорной клетке.
+function uDist(c, u) {
+  const x1 = u.x + ((u.size && u.size.w) || 1) - 1;
+  const y1 = u.y + ((u.size && u.size.h) || 1) - 1;
+  const dx = c.px < u.x ? u.x - c.px : (c.px > x1 ? c.px - x1 : 0);
+  const dy = c.py < u.y ? u.y - c.py : (c.py > y1 ? c.py - y1 : 0);
+  return dx + dy;
+}
+
 // Цель «разумной» авто-игры: поддержка (лечилка) — приоритет, иначе
 // ближайшая живая.
 function autoTarget(c) {
@@ -51,9 +62,7 @@ function autoTarget(c) {
   if (supports.length) {
     return supports.reduce((a, b) => (b.hp / b.maxHP < a.hp / a.maxHP ? b : a));
   }
-  return alive.reduce((a, b) =>
-    (Math.abs(c.px - a.x) + Math.abs(c.py - a.y))
-      <= (Math.abs(c.px - b.x) + Math.abs(c.py - b.y)) ? a : b);
+  return alive.reduce((a, b) => (uDist(c, a) <= uDist(c, b) ? a : b));
 }
 
 // Авто-игра «разумного» игрока (задача 000027): ход — чередование
@@ -64,22 +73,38 @@ function autoPlay(c, maxRounds = 80) {
   while (!c.result && n++ < maxRounds) {
     let t = autoTarget(c);
     while (c.result === null && (c.ps.attack > 0 || c.ps.moveLeft > 0) && t) {
-      const d = Math.abs(c.px - t.x) + Math.abs(c.py - t.y);
+      const d = uDist(c, t);
       if (d <= 1 && c.ps.attack > 0) {
+        // Цель рядом — бьём ЕЁ (договор 000027: поддержка — приоритет).
         const r = c.attack(t.id);
         if (!r.ok) break;
         if (!t.alive || t.fled) t = autoTarget(c);
-      } else if (d > 1 && c.ps.moveLeft > 0) {
-        const dx = Math.sign(t.x - c.px);
-        const dy = Math.sign(t.y - c.py);
-        const tries = Math.abs(t.x - c.px) >= Math.abs(t.y - c.py)
+      } else if (c.ps.moveLeft > 0) {
+        // Шаг ИГРОКА к ближайшему краю прямоугольника цели (000040).
+        const x1 = t.x + ((t.size && t.size.w) || 1) - 1;
+        const y1 = t.y + ((t.size && t.size.h) || 1) - 1;
+        const dx = c.px < t.x ? 1 : (c.px > x1 ? -1 : 0);
+        const dy = c.py < t.y ? 1 : (c.py > y1 ? -1 : 0);
+        const tries = Math.abs(dx) >= Math.abs(dy)
           ? [[dx, 0], [0, dy]] : [[0, dy], [dx, 0]];
         let moved = false;
         for (const [sx, sy] of tries) {
           if (!sx && !sy) continue;
           if (c.move(sx, sy).ok) { moved = true; break; }
         }
-        if (!moved) break;
+        if (moved) continue;
+        // Прижаты (многоклеточный моб закрыл путь, 000040) — отвечаем
+        // ближайшему, самому раненому.
+        const adjacent = c.units
+          .filter((u) => u.alive && !u.fled && uDist(c, u) <= 1)
+          .sort((a, b) => a.hp / a.maxHP - b.hp / b.maxHP)[0];
+        if (adjacent && c.ps.attack > 0) {
+          const r = c.attack(adjacent.id);
+          if (!r.ok) break;
+          if (!t.alive || t.fled) t = autoTarget(c);
+          continue;
+        }
+        break;
       } else {
         break;
       }
@@ -92,15 +117,31 @@ function autoPlay(c, maxRounds = 80) {
 }
 
 // Ставит игрока вплотную к живому мобо (клетка рядом свободна).
+// Для многоклеточного моба — клетка у края его прямоугольника (000040).
 function standNextTo(c, u) {
-  const candidates = [[0, 1], [0, -1], [1, 0], [-1, 0]]
-    .map(([dx, dy]) => [u.x + dx, u.y + dy])
-    .filter(([x, y]) =>
-      x >= 0 && y >= 0 && x < c.width && y < c.height &&
-      !c.units.some((v) => v.alive && v.x === x && v.y === y));
-  assert.ok(candidates.length, 'нет свободной клетки рядом с мобом');
-  c.px = candidates[0][0];
-  c.py = candidates[0][1];
+  const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
+  const taken = (x, y) => c.units.some((v) => v.alive && !v.fled
+    && x >= v.x && x < v.x + ((v.size && v.size.w) || 1)
+    && y >= v.y && y < v.y + ((v.size && v.size.h) || 1));
+  const candidates = [];
+  for (let x = u.x - 1; x <= u.x + w; x++) {
+    candidates.push([x, u.y - 1], [x, u.y + h]);
+  }
+  for (let y = u.y; y < u.y + h; y++) {
+    candidates.push([u.x - 1, y], [u.x + w, y]);
+  }
+  // «Вплотную» = дистанция до прямоугольника ≤ 1 (углы диагональю не
+  // считаются — как и для одиночной клетки).
+  const near = (x, y) => {
+    const dx = x < u.x ? u.x - x : (x > u.x + w - 1 ? x - (u.x + w - 1) : 0);
+    const dy = y < u.y ? u.y - y : (y > u.y + h - 1 ? y - (u.y + h - 1) : 0);
+    return dx + dy <= 1;
+  };
+  const spot = candidates.find(([x, y]) =>
+    x >= 0 && y >= 0 && x < c.width && y < c.height && !taken(x, y) && near(x, y));
+  assert.ok(spot, 'нет свободной клетки рядом с мобом');
+  c.px = spot[0];
+  c.py = spot[1];
 }
 
 // --- Состав групп ---
@@ -907,4 +948,187 @@ test('практика: на потолке (основной * 2) попада�
   assert.equal(r.practice.level, 2);
   assert.equal(p.secondary.swordsman, 2, 'уровень не вырос');
   assert.equal(p.skillXp.swordsman, 0, 'в копилку ничего не попало');
+});
+
+// --- Размер мобов на боевом поле (задача 000040) ---
+
+// Клетки прямоугольника юнита (якорь — верхний левый угол).
+function unitRect(u) {
+  const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
+  const cells = [];
+  for (let dy = 0; dy < h; dy++) {
+    for (let dx = 0; dx < w; dx++) cells.push([u.x + dx, u.y + dy]);
+  }
+  return cells;
+}
+
+test('размер: у всех мобов в assets/mobs есть size {w,h} (1..7)', () => {
+  for (const f of mobFiles()) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    assert.ok(j.size, `${f}: нет size`);
+    assert.ok(Number.isInteger(j.size.w) && j.size.w >= 1 && j.size.w <= 7,
+      `${f}: width ${j.size.w}`);
+    assert.ok(Number.isInteger(j.size.h) && j.size.h >= 1 && j.size.h <= 7,
+      `${f}: height ${j.size.h}`);
+  }
+});
+
+test('размер: мелкие мобы 1x1, крупные больше (волк/орк 1x1, голем/колосс 3x3)', () => {
+  const byId = {};
+  for (const f of mobFiles()) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    byId[j.id] = j.size;
+  }
+  // Слабые/мелкие — 1x1.
+  assert.deepEqual(byId.wolf, { w: 1, h: 1 });
+  assert.deepEqual(byId.orc_warrior, { w: 1, h: 1 });
+  assert.deepEqual(byId.skeleton, { w: 1, h: 1 });
+  // Крупные — больше 1x1.
+  assert.ok(byId.stone_golem.w * byId.stone_golem.h > 1, 'голем должен быть крупнее');
+  assert.ok(byId.bone_coloss.w * byId.bone_coloss.h > 1, 'колосс должен быть крупнее');
+});
+
+test('размер: зеркало MOB_TYPES несёт size, совпадающий с JSON', () => {
+  const byId = {};
+  for (const f of mobFiles()) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    byId[j.id] = j.size;
+  }
+  for (const [id, t] of Object.entries(MOB_TYPES)) {
+    assert.deepEqual(t.size, byId[id], `mirror size ${id}`);
+  }
+});
+
+test('размер: боевой юнит получает size из описания', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, groupType: 0, seed: 3, levelDeltaMax: 0 });
+  for (const u of c.units) {
+    assert.ok(u.size && u.size.w >= 1 && u.size.h >= 1, `${u.mobId}: нет size`);
+    assert.deepEqual(u.size, MOB_TYPES[u.mobId].size, `${u.mobId}: size ≠ описанию`);
+  }
+});
+
+test('размер: на клетку многоклеточного моба зайти нельзя (unitAt-семантика)', () => {
+  const p = strongHero();
+  // Группы из крупных мобов (2x2/3x3).
+  const bigIds = Object.entries(MOB_TYPES)
+    .filter(([, t]) => t.size.w * t.size.h > 1)
+    .map(([id]) => id);
+  const c = createCombat({
+    player: p, mobs: [bigIds[0], bigIds[1]], mobLevel: 3, seed: 3,
+  });
+  for (const big of c.units) {
+    if (big.size.w * big.size.h <= 1) continue;
+    const rect = new Set(unitRect(big).map(([x, y]) => x + ',' + y));
+    const freeNeighbor = (x, y) =>
+      [[0, 1], [0, -1], [1, 0], [-1, 0]].map(([dx, dy]) => [x + dx, y + dy])
+        .find(([nx, ny]) =>
+          nx >= 0 && ny >= 0 && nx < c.width && ny < c.height
+          && !rect.has(nx + ',' + ny) && !(nx === c.px && ny === c.py));
+    let checks = 0;
+    for (const [x, y] of unitRect(big)) {
+      const n = freeNeighbor(x, y);
+      if (!n) continue; // угловая клетка без свободного соседа — не достижима
+      c.px = n[0]; c.py = n[1];
+      c.ps.moveLeft = 5;
+      const r = c.move(x - c.px, y - c.py);
+      assert.equal(r.ok, false,
+        `(${x},${y}) внутри ${big.mobId} — заход должен быть запрещён`);
+      assert.match(r.reason, /моб/);
+      checks++;
+    }
+    assert.ok(checks >= 3, `${big.mobId}: мало проверенных клеток (${checks})`);
+  }
+});
+
+test('размер: ближний бой меряется по краю прямоугольника, а не по якорю', () => {
+  const p = strongHero();
+  const bigIds = Object.entries(MOB_TYPES)
+    .filter(([, t]) => t.size.w * t.size.h > 1)
+    .map(([id]) => id);
+  const c = createCombat({
+    player: p, mobs: [bigIds[0]], mobLevel: 3, seed: 3,
+  });
+  const big = c.units.find((u) => u.size.w * u.size.h > 1);
+  standNextTo(c, big);
+  // Якорь может быть дальше 1 клетки, но удар по краю — в дальности.
+  const anchorDist = Math.abs(c.px - big.x) + Math.abs(c.py - big.y);
+  assert.ok(anchorDist >= 2, `ожидается якорь ≥2 клеток, а он ${anchorDist}`);
+  c._rng = () => 0.01;
+  const r = c.attack(big.id);
+  assert.equal(r.ok, true, 'удар по краю прямоугольника должен быть в дальности');
+  // Две клетки от края — уже далеко.
+  c.px = big.x; c.py = big.y + big.size.h + 2;
+  c.ps.attack = 5;
+  const far = c.attack(big.id);
+  assert.equal(far.ok, false, 'две клетки от края — вне дальности ближнего боя');
+  assert.match(far.reason, /далеко/);
+});
+
+test('размер: крупные мобы двигаются целым прямоугольником, без перекрытий', () => {
+  const p = strongHero();
+  const bigIds = Object.entries(MOB_TYPES)
+    .filter(([, t]) => t.size.w * t.size.h > 1)
+    .map(([id]) => id);
+  const c = createCombat({
+    player: p, mobs: [bigIds[0], bigIds[1], 'wolf'], mobLevel: 3, seed: 4,
+  });
+  for (let i = 0; i < 20; i++) {
+    c.endTurn();
+    if (c.result) break;
+    const seen = new Set();
+    for (const u of c.units) {
+      if (!u.alive || u.fled) continue;
+      assert.ok(u.x >= 0 && u.y >= 0
+        && u.x + u.size.w <= c.width && u.y + u.size.h <= c.height,
+        `ход ${i + 1}: ${u.mobId} за пределами поля`);
+      for (const [x, y] of unitRect(u)) {
+        const key = x + ',' + y;
+        assert.ok(!seen.has(key), `ход ${i + 1}: (${x},${y}) занято дважды`);
+        seen.add(key);
+        assert.ok(!(x === c.px && y === c.py),
+          `ход ${i + 1}: ${u.mobId} на клетке игрока`);
+      }
+    }
+  }
+});
+
+test('размер: расстановка без перекрытий и в пределах поля', () => {
+  const p = strongHero();
+  for (const type of Object.keys(GROUP_RECIPES)) {
+    for (const seed of [1, 2, 3, 7]) {
+      const c = createCombat({ player: p, groupType: Number(type), seed, levelDeltaMax: 0 });
+      const seen = new Set();
+      for (const u of c.units) {
+        assert.ok(u.x >= 0 && u.y >= 0, `${u.mobId}: за левой/верхней стенкой (seed ${seed})`);
+        assert.ok(u.x + u.size.w <= c.width, `${u.mobId}: за правой стенкой (seed ${seed})`);
+        assert.ok(u.y + u.size.h <= c.height, `${u.mobId}: за нижней стенкой (seed ${seed})`);
+        for (const [x, y] of unitRect(u)) {
+          const key = x + ',' + y;
+          assert.ok(!seen.has(key), `(${x},${y}) занято дважды (seed ${seed})`);
+          seen.add(key);
+          assert.ok(!(x === c.px && y === c.py), `(${x},${y}) = клетка игрока (seed ${seed})`);
+        }
+      }
+    }
+  }
+});
+
+test('размер: бой с крупной группой завершается победой (не клинит)', () => {
+  const p = midGameHero();
+  // Собираем группу только из крупных мобов (2x2/3x3) вручную.
+  const bigIds = Object.entries(MOB_TYPES)
+    .filter(([, t]) => t.size.w * t.size.h > 1)
+    .map(([id]) => id);
+  assert.ok(bigIds.length >= 2, 'должны быть крупные мобы');
+  const mobs = [bigIds[0], bigIds[1], 'wolf'];
+  for (const seed of [1, 2, 3]) {
+    const c = createCombat({
+      player: p, mobs, mobLevel: Math.max(1, p.level - 3),
+      seed, difficulty: 'medium', groupName: 'крупная группа',
+    });
+    const r = autoPlay(c);
+    assert.ok(r, `seed ${seed}: бой не завершился`);
+    assert.equal(r.outcome, 'victory', `seed ${seed}: исход ${r.outcome}`);
+  }
 });

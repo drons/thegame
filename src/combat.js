@@ -54,47 +54,47 @@
   // loot — возможный лут: ссылки на assets/items.
   const MOB_TYPES = {
     // Орки
-    orc_grunt:      { id: 'orc_grunt', name: 'Орк-шестёрка', role: 'melee', aggro: 'aggressive', dmg: 1.0, hp: 1.0, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
-    orc_warrior:    { id: 'orc_warrior', name: 'Орк-воин', role: 'shield', aggro: 'aggressive', dmg: 1.1, hp: 1.4, armor: 1, xp: { base: 8, perLevel: 4 }, skills: ['heavy'], spells: [], loot: [{ item: 'battle_axe', chance: 0.1 }, { item: 'sulfur', chance: 0.15 }] },
-    orc_archer:     { id: 'orc_archer', name: 'Орк-лучник', role: 'ranged', aggro: 'aggressive', dmg: 0.9, hp: 0.9, xp: { base: 8, perLevel: 4 }, skills: ['archer'], spells: [], loot: [{ item: 'short_bow', chance: 0.1 }] },
-    orc_shaman:     { id: 'orc_shaman', name: 'Орк-шаман', role: 'support', aggro: 'timid', dmg: 0.5, hp: 0.7, xp: { base: 8, perLevel: 4 }, skills: ['meditation'], spells: [], loot: [{ item: 'mana_potion', chance: 0.15 }] },
-    orc_rider:      { id: 'orc_rider', name: 'Орк-наездник на волке', role: 'melee', aggro: 'aggressive', dmg: 1.1, hp: 1.0, fast: true, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [{ item: 'sulfur', chance: 0.1 }] },
-    orc_mad:        { id: 'orc_mad', name: 'Орк-бешеный', role: 'melee', aggro: 'aggressive', dmg: 1.4, hp: 0.7, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [] },
-    orc_captain:    { id: 'orc_captain', name: 'Орк-капитан', role: 'leader', aggro: 'aggressive', dmg: 1.3, hp: 1.5, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.1 }, { item: 'chainmail', chance: 0.1 }] },
-    orc_chief:      { id: 'orc_chief', name: 'Орк-вождь', role: 'leader', aggro: 'aggressive', dmg: 1.6, hp: 2.0, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }, { item: 'chainmail', chance: 0.15 }, { item: 'greater_healing', chance: 0.1 }] },
+    orc_grunt:      { id: 'orc_grunt', name: 'Орк-шестёрка', role: 'melee', aggro: 'aggressive', dmg: 1.0, hp: 1.0, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
+    orc_warrior:    { id: 'orc_warrior', name: 'Орк-воин', role: 'shield', aggro: 'aggressive', dmg: 1.1, hp: 1.4, armor: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['heavy'], spells: [], loot: [{ item: 'battle_axe', chance: 0.1 }, { item: 'sulfur', chance: 0.15 }] },
+    orc_archer:     { id: 'orc_archer', name: 'Орк-лучник', role: 'ranged', aggro: 'aggressive', dmg: 0.9, hp: 0.9, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['archer'], spells: [], loot: [{ item: 'short_bow', chance: 0.1 }] },
+    orc_shaman:     { id: 'orc_shaman', name: 'Орк-шаман', role: 'support', aggro: 'timid', dmg: 0.5, hp: 0.7, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['meditation'], spells: [], loot: [{ item: 'mana_potion', chance: 0.15 }] },
+    orc_rider:      { id: 'orc_rider', name: 'Орк-наездник на волке', role: 'melee', aggro: 'aggressive', dmg: 1.1, hp: 1.0, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [{ item: 'sulfur', chance: 0.1 }] },
+    orc_mad:        { id: 'orc_mad', name: 'Орк-бешеный', role: 'melee', aggro: 'aggressive', dmg: 1.4, hp: 0.7, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [] },
+    orc_captain:    { id: 'orc_captain', name: 'Орк-капитан', role: 'leader', aggro: 'aggressive', dmg: 1.3, hp: 1.5, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.1 }, { item: 'chainmail', chance: 0.1 }] },
+    orc_chief:      { id: 'orc_chief', name: 'Орк-вождь', role: 'leader', aggro: 'aggressive', dmg: 1.6, hp: 2.0, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }, { item: 'chainmail', chance: 0.15 }, { item: 'greater_healing', chance: 0.1 }] },
     // Нежить
-    skeleton:       { id: 'skeleton', name: 'Скелет', role: 'melee', aggro: 'neutral', dmg: 0.8, hp: 0.8, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.15 }] },
-    skeleton_archer:{ id: 'skeleton_archer', name: 'Скелет-лучник', role: 'ranged', aggro: 'aggressive', dmg: 0.8, hp: 0.8, xp: { base: 8, perLevel: 4 }, skills: ['archer'], spells: [], loot: [{ item: 'short_bow', chance: 0.1 }] },
-    crawling_bones: { id: 'crawling_bones', name: 'Ползучие кости', role: 'swarm', aggro: 'aggressive', dmg: 0.5, hp: 0.5, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.1 }] },
-    giant_larva:    { id: 'giant_larva', name: 'Личинка падальщика', role: 'melee', aggro: 'territorial', dmg: 1.0, hp: 1.0, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'meat', chance: 0.2 }] },
-    vampire:        { id: 'vampire', name: 'Вампир', role: 'melee', aggro: 'aggressive', dmg: 1.2, hp: 1.1, traits: { lifesteal: true }, xp: { base: 8, perLevel: 4 }, skills: ['endurance'], spells: [], loot: [{ item: 'greater_healing', chance: 0.1 }, { item: 'mana_elixir', chance: 0.1 }] },
-    rot:            { id: 'rot', name: 'Гниль', role: 'melee', aggro: 'aggressive', dmg: 0.9, hp: 0.9, traits: { poison: true }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
-    bone_coloss:    { id: 'bone_coloss', name: 'Костяной колосс', role: 'shield', aggro: 'territorial', dmg: 1.3, hp: 2.5, armor: 2, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'knight_plate', chance: 0.1 }, { item: 'chainmail', chance: 0.1 }] },
+    skeleton:       { id: 'skeleton', name: 'Скелет', role: 'melee', aggro: 'neutral', dmg: 0.8, hp: 0.8, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.15 }] },
+    skeleton_archer:{ id: 'skeleton_archer', name: 'Скелет-лучник', role: 'ranged', aggro: 'aggressive', dmg: 0.8, hp: 0.8, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['archer'], spells: [], loot: [{ item: 'short_bow', chance: 0.1 }] },
+    crawling_bones: { id: 'crawling_bones', name: 'Ползучие кости', role: 'swarm', aggro: 'aggressive', dmg: 0.5, hp: 0.5, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.1 }] },
+    giant_larva:    { id: 'giant_larva', name: 'Личинка падальщика', role: 'melee', aggro: 'territorial', dmg: 1.0, hp: 1.0, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'meat', chance: 0.2 }] },
+    vampire:        { id: 'vampire', name: 'Вампир', role: 'melee', aggro: 'aggressive', dmg: 1.2, hp: 1.1, traits: { lifesteal: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['endurance'], spells: [], loot: [{ item: 'greater_healing', chance: 0.1 }, { item: 'mana_elixir', chance: 0.1 }] },
+    rot:            { id: 'rot', name: 'Гниль', role: 'melee', aggro: 'aggressive', dmg: 0.9, hp: 0.9, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
+    bone_coloss:    { id: 'bone_coloss', name: 'Костяной колосс', role: 'shield', aggro: 'territorial', dmg: 1.3, hp: 2.5, armor: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'knight_plate', chance: 0.1 }, { item: 'chainmail', chance: 0.1 }] },
     // Дикие звери
-    wolf:           { id: 'wolf', name: 'Волк', role: 'melee', aggro: 'neutral', dmg: 0.7, hp: 0.8, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'leather_armor', chance: 0.1 }] },
-    wolf_pack:      { id: 'wolf_pack', name: 'Волчья стая', role: 'swarm', aggro: 'territorial', dmg: 0.7, hp: 0.8, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'leather_armor', chance: 0.15 }] },
-    boar:           { id: 'boar', name: 'Казённый вепрь', role: 'melee', aggro: 'neutral', dmg: 1.0, hp: 1.5, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'meat', chance: 0.3 }] },
-    cave_bear:      { id: 'cave_bear', name: 'Пещерный медведь', role: 'shield', aggro: 'territorial', dmg: 1.3, hp: 2.0, armor: 1, xp: { base: 8, perLevel: 4 }, skills: ['endurance'], spells: [], loot: [{ item: 'meat', chance: 0.3 }, { item: 'honey_cake', chance: 0.1 }] },
-    spider:         { id: 'spider', name: 'Гигантский паук', role: 'swarm', aggro: 'territorial', dmg: 0.8, hp: 0.8, traits: { poison: true }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
-    troll:          { id: 'troll', name: 'Тролль', role: 'leader', aggro: 'neutral', dmg: 1.5, hp: 2.5, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }] },
+    wolf:           { id: 'wolf', name: 'Волк', role: 'melee', aggro: 'neutral', dmg: 0.7, hp: 0.8, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'leather_armor', chance: 0.1 }] },
+    wolf_pack:      { id: 'wolf_pack', name: 'Волчья стая', role: 'swarm', aggro: 'territorial', dmg: 0.7, hp: 0.8, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'leather_armor', chance: 0.15 }] },
+    boar:           { id: 'boar', name: 'Казённый вепрь', role: 'melee', aggro: 'neutral', dmg: 1.0, hp: 1.5, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'meat', chance: 0.3 }] },
+    cave_bear:      { id: 'cave_bear', name: 'Пещерный медведь', role: 'shield', aggro: 'territorial', dmg: 1.3, hp: 2.0, armor: 1, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['endurance'], spells: [], loot: [{ item: 'meat', chance: 0.3 }, { item: 'honey_cake', chance: 0.1 }] },
+    spider:         { id: 'spider', name: 'Гигантский паук', role: 'swarm', aggro: 'territorial', dmg: 0.8, hp: 0.8, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
+    troll:          { id: 'troll', name: 'Тролль', role: 'leader', aggro: 'neutral', dmg: 1.5, hp: 2.5, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }] },
     // Насекомые
-    ant:            { id: 'ant', name: 'Пещерный муравей', role: 'swarm', aggro: 'territorial', dmg: 0.5, hp: 0.5, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'honey_cake', chance: 0.15 }] },
-    ant_queen:      { id: 'ant_queen', name: 'Матка', role: 'leader', aggro: 'territorial', dmg: 1.0, hp: 2.0, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'honey_cake', chance: 0.3 }] },
-    scorpion:       { id: 'scorpion', name: 'Скорпион', role: 'melee', aggro: 'neutral', dmg: 0.9, hp: 0.9, traits: { poison: true }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
-    centipede:      { id: 'centipede', name: 'Многоножка', role: 'melee', aggro: 'aggressive', dmg: 1.0, hp: 0.9, fast: true, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [] },
+    ant:            { id: 'ant', name: 'Пещерный муравей', role: 'swarm', aggro: 'territorial', dmg: 0.5, hp: 0.5, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'honey_cake', chance: 0.15 }] },
+    ant_queen:      { id: 'ant_queen', name: 'Матка', role: 'leader', aggro: 'territorial', dmg: 1.0, hp: 2.0, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'honey_cake', chance: 0.3 }] },
+    scorpion:       { id: 'scorpion', name: 'Скорпион', role: 'melee', aggro: 'neutral', dmg: 0.9, hp: 0.9, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
+    centipede:      { id: 'centipede', name: 'Многоножка', role: 'melee', aggro: 'aggressive', dmg: 1.0, hp: 0.9, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [] },
     // Стихийники и магия
-    fire_elemental: { id: 'fire_elemental', name: 'Огненный стихийник', role: 'melee', aggro: 'aggressive', dmg: 1.3, hp: 1.1, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.1 }] },
-    water_elemental:{ id: 'water_elemental', name: 'Водный стихийник', role: 'melee', aggro: 'neutral', dmg: 1.0, hp: 1.4, traits: { regen: true }, xp: { base: 8, perLevel: 4 }, skills: ['breath'], spells: [], loot: [{ item: 'mana_elixir', chance: 0.1 }] },
-    wind_elemental: { id: 'wind_elemental', name: 'Ветряной стихийник', role: 'ranged', aggro: 'neutral', dmg: 0.9, hp: 0.9, fast: true, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [{ item: 'moonstone', chance: 0.1 }] },
-    earth_elemental:{ id: 'earth_elemental', name: 'Земляной стихийник', role: 'shield', aggro: 'neutral', dmg: 1.0, hp: 3.0, armor: 2, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'moonstone', chance: 0.15 }] },
-    imp:            { id: 'imp', name: 'Имп', role: 'ranged', aggro: 'aggressive', dmg: 0.7, hp: 0.7, xp: { base: 8, perLevel: 4 }, skills: ['runes'], spells: [], loot: [{ item: 'sulfur', chance: 0.25 }] },
-    salamander:     { id: 'salamander', name: 'Саламандра', role: 'melee', aggro: 'territorial', dmg: 1.1, hp: 1.2, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.15 }] },
-    fairy:          { id: 'fairy', name: 'Фея', role: 'support', aggro: 'timid', dmg: 0.4, hp: 0.6, xp: { base: 8, perLevel: 4 }, skills: ['nature'], spells: [], loot: [{ item: 'moonstone', chance: 0.2 }] },
-    stone_golem:    { id: 'stone_golem', name: 'Каменный голем', role: 'shield', aggro: 'territorial', dmg: 1.2, hp: 2.5, armor: 2, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'knight_plate', chance: 0.1 }] },
+    fire_elemental: { id: 'fire_elemental', name: 'Огненный стихийник', role: 'melee', aggro: 'aggressive', dmg: 1.3, hp: 1.1, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.1 }] },
+    water_elemental:{ id: 'water_elemental', name: 'Водный стихийник', role: 'melee', aggro: 'neutral', dmg: 1.0, hp: 1.4, traits: { regen: true }, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['breath'], spells: [], loot: [{ item: 'mana_elixir', chance: 0.1 }] },
+    wind_elemental: { id: 'wind_elemental', name: 'Ветряной стихийник', role: 'ranged', aggro: 'neutral', dmg: 0.9, hp: 0.9, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [{ item: 'moonstone', chance: 0.1 }] },
+    earth_elemental:{ id: 'earth_elemental', name: 'Земляной стихийник', role: 'shield', aggro: 'neutral', dmg: 1.0, hp: 3.0, armor: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'moonstone', chance: 0.15 }] },
+    imp:            { id: 'imp', name: 'Имп', role: 'ranged', aggro: 'aggressive', dmg: 0.7, hp: 0.7, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['runes'], spells: [], loot: [{ item: 'sulfur', chance: 0.25 }] },
+    salamander:     { id: 'salamander', name: 'Саламандра', role: 'melee', aggro: 'territorial', dmg: 1.1, hp: 1.2, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.15 }] },
+    fairy:          { id: 'fairy', name: 'Фея', role: 'support', aggro: 'timid', dmg: 0.4, hp: 0.6, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['nature'], spells: [], loot: [{ item: 'moonstone', chance: 0.2 }] },
+    stone_golem:    { id: 'stone_golem', name: 'Каменный голем', role: 'shield', aggro: 'territorial', dmg: 1.2, hp: 2.5, armor: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'knight_plate', chance: 0.1 }] },
     // Бездна
-    lower_demon:    { id: 'lower_demon', name: 'Низший демон', role: 'melee', aggro: 'aggressive', dmg: 1.4, hp: 1.3, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'greater_healing', chance: 0.1 }, { item: 'sulfur', chance: 0.2 }] },
-    succubus:       { id: 'succubus', name: 'Суккуб', role: 'support', aggro: 'aggressive', dmg: 0.6, hp: 0.8, traits: { debuff: true }, xp: { base: 8, perLevel: 4 }, skills: ['orator'], spells: [], loot: [{ item: 'mana_elixir', chance: 0.15 }] },
-    abomination:    { id: 'abomination', name: 'Уродство', role: 'leader', aggro: 'aggressive', dmg: 1.7, hp: 2.5, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.2 }, { item: 'greater_healing', chance: 0.15 }] },
+    lower_demon:    { id: 'lower_demon', name: 'Низший демон', role: 'melee', aggro: 'aggressive', dmg: 1.4, hp: 1.3, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'greater_healing', chance: 0.1 }, { item: 'sulfur', chance: 0.2 }] },
+    succubus:       { id: 'succubus', name: 'Суккуб', role: 'support', aggro: 'aggressive', dmg: 0.6, hp: 0.8, traits: { debuff: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['orator'], spells: [], loot: [{ item: 'mana_elixir', chance: 0.15 }] },
+    abomination:    { id: 'abomination', name: 'Уродство', role: 'leader', aggro: 'aggressive', dmg: 1.7, hp: 2.5, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.2 }, { item: 'greater_healing', chance: 0.15 }] },
   };
 
   // Составы групп по типам из map.js (MOB_GROUP_TYPES: 0..6).
@@ -167,6 +167,8 @@
       damage,
       damageTakenMult: hasLeader ? LEADER_DEF_MULT : 1,
       movePerTurn: t.fast ? 2 : 1,
+      // Размер на поле w×h (задача 000040); якорь — верхний левый угол (x, y).
+      size: t.size || { w: 1, h: 1 },
       x: 0,
       y: 0,
       alive: true,
@@ -183,22 +185,47 @@
   }
 
   function unitAt(c, x, y) {
-    return c.units.find((u) => u.alive && !u.fled && u.x === x && u.y === y);
+    return c.units.find((u) => u.alive && !u.fled
+      && x >= u.x && x < u.x + (u.size.w || 1)
+      && y >= u.y && y < u.y + (u.size.h || 1));
   }
 
   function inBounds(c, x, y) {
     return x >= 0 && y >= 0 && x < c.width && y < c.height;
   }
 
-  function dist(ax, ay, bx, by) {
-    return Math.abs(ax - bx) + Math.abs(ay - by);
+  // Прямоугольник w×h с якорем (x, y) свободно: в пределах поля,
+  // не на игроке и не пересекает других живых юнитов (ignore — сам
+  // перемещающийся юнит).
+  function rectFree(c, x, y, w, h, ignore) {
+    if (x < 0 || y < 0 || x + w > c.width || y + h > c.height) return false;
+    if (x <= c.px && c.px < x + w && y <= c.py && c.py < y + h) return false;
+    for (let yy = y; yy < y + h; yy++) {
+      for (let xx = x; xx < x + w; xx++) {
+        const v = c.units.find((m) => m !== ignore && m.alive && !m.fled
+          && xx >= m.x && xx < m.x + (m.size.w || 1)
+          && yy >= m.y && yy < m.y + (m.size.h || 1));
+        if (v) return false;
+      }
+    }
+    return true;
+  }
+
+  // Манхэттен-расстояние от игрока (1x1) до прямоугольника юнита;
+  // 0 — соседствуют/касание.
+  function unitDist(c, u) {
+    const x1 = u.x + (u.size.w || 1) - 1;
+    const y1 = u.y + (u.size.h || 1) - 1;
+    const dx = c.px < u.x ? u.x - c.px : (c.px > x1 ? c.px - x1 : 0);
+    const dy = c.py < u.y ? u.y - c.py : (c.py > y1 ? c.py - y1 : 0);
+    return dx + dy;
   }
 
   function nearestMob(c) {
     let best = null;
     for (const u of c.units) {
       if (!u.alive || u.fled) continue;
-      if (!best || dist(c.px, c.py, u.x, u.y) < dist(c.px, c.py, best.x, best.y)) best = u;
+      if (!best || unitDist(c, u) < unitDist(c, best)) best = u;
     }
     return best;
   }
@@ -212,28 +239,35 @@
   }
 
   // Один шаг к игроку (сначала большая ось; если занято — другая).
+  // Для многоклеточных мобов — шаг всего прямоугольника;
+  // направление — по расстоянию от соответствующего края до игрока.
   function stepToward(c, u) {
-    const dx = c.px - u.x;
-    const dy = c.py - u.y;
-    const tries = (Math.abs(dx) >= Math.abs(dy)
-      ? [[Math.sign(dx), 0], [0, Math.sign(dy)]]
-      : [[0, Math.sign(dy)], [Math.sign(dx), 0]]).filter(([a, b]) => a !== 0 || b !== 0);
-    for (const [sx, sy] of tries) {
-      const nx = u.x + sx, ny = u.y + sy;
-      if (!inBounds(c, nx, ny) || unitAt(c, nx, ny)) continue;
-      u.x = nx; u.y = ny;
-      return true;
+    const w = u.size.w || 1, h = u.size.h || 1;
+    const x1 = u.x + w - 1, y1 = u.y + h - 1;
+    const sx = c.px < u.x ? -1 : (c.px > x1 ? 1 : 0);
+    const sy = c.py < u.y ? -1 : (c.py > y1 ? 1 : 0);
+    const adx = Math.abs(sx), ady = Math.abs(sy);
+    const tries = (adx >= ady ? [[sx, 0], [0, sy]] : [[0, sy], [sx, 0]])
+      .filter(([a, b]) => a !== 0 || b !== 0);
+    for (const [dx, dy] of tries) {
+      const nx = u.x + dx, ny = u.y + dy;
+      if (rectFree(c, nx, ny, w, h, u)) {
+        u.x = nx; u.y = ny;
+        return true;
+      }
     }
     return false;
   }
 
   // Один шаг от игрока (паника, отступление).
   function stepAway(c, u) {
-    const tries = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-    for (const [sx, sy] of tries) {
+    const d0 = unitDist(c, u);
+    const w = u.size.w || 1, h = u.size.h || 1;
+    for (const [sx, sy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
       const nx = u.x + sx, ny = u.y + sy;
-      if (!inBounds(c, nx, ny) || unitAt(c, nx, ny)) continue;
-      if (dist(nx, ny, c.px, c.py) > dist(u.x, u.y, c.px, c.py)) {
+      if (!rectFree(c, nx, ny, w, h, u)) continue;
+      const u2 = { x: nx, y: ny, size: u.size };
+      if (unitDist({ px: c.px, py: c.py, units: [] }, u2) > d0) {
         u.x = nx; u.y = ny;
         return true;
       }
@@ -330,7 +364,7 @@
     // Лук бьёт в даль (BOW_ATTACK_DIST); остальное оружие — вплотную.
     const isBow = eq.subtype === 'bow';
     const maxDist = isBow ? BOW_ATTACK_DIST : 1;
-    if (dist(c.px, c.py, t.x, t.y) > maxDist) {
+    if (unitDist(c, t) > maxDist) {
       return { ok: false, reason: isBow ? 'цель слишком далеко (дальность лука 4)' : 'цель слишком далеко (ближний бой)' };
     }
     c.ps.attack -= 1;
@@ -369,7 +403,7 @@
       if (p.mp < 3) return { ok: false, reason: 'не хватает маны (3)' };
       const t = targetId ? c.units.find((u) => u.id === targetId) : nearestMob(c);
       if (!t || !t.alive || t.fled) return { ok: false, reason: 'нет цели' };
-      if (dist(c.px, c.py, t.x, t.y) > SPELL_MAX_DIST) return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
+      if (unitDist(c, t) > SPELL_MAX_DIST) return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
       c.ps.spellInt -= 1;
       p.mp -= 3;
       // Заклинание: всегда попадает, игнорирует броню.
@@ -539,7 +573,7 @@
 
   function mobAct(c, u) {
     if (!u.alive || u.fled || c.result) return;
-    const dToP = dist(u.x, u.y, c.px, c.py);
+    const dToP = unitDist(c, u);
 
     // Регенерация (водные стихийники).
     if (u.traits.regen) {
@@ -595,7 +629,7 @@
           mobAttack(c, u);
         } else {
           for (let i = 0; i < u.movePerTurn && !c.result; i++) {
-            if (dist(u.x, u.y, c.px, c.py) <= 1) break;
+            if (unitDist(c, u) <= 1) break;
             stepToward(c, u);
           }
         }
@@ -661,6 +695,60 @@
       ? d : (table.medium || { hp: 1, damage: 1 });
   }
 
+  // Расстановка мобов на поле (задача 000040): детерминированно,
+  // без RNG. Большие мобы (w*h > 1) ставятся первыми (больше площадь —
+  // раньше), поиск места — построчно сверху. Остальные (1x1) занимают
+  // прежние якоря (xs, верхние две строки); если якорь занят большим —
+  // построчный обход со сдвигом. Занятость — локальная сетка: не
+  // зависит от координат ещё не поставленных юнитов.
+  function placeUnits(c, units) {
+    const occ = new Set();
+    const free = (x, y, w, h) => {
+      if (x < 0 || y < 0 || x + w > c.width || y + h > c.height) return false;
+      for (let yy = y; yy < y + h; yy++) {
+        for (let xx = x; xx < x + w; xx++) {
+          if ((xx === c.px && yy === c.py) || occ.has(xx + ',' + yy)) return false;
+        }
+      }
+      return true;
+    };
+    const occupy = (u) => {
+      for (let yy = u.y; yy < u.y + u.size.h; yy++) {
+        for (let xx = u.x; xx < u.x + u.size.w; xx++) occ.add(xx + ',' + yy);
+      }
+    };
+    const big = [], small = [];
+    units.forEach((u, i) => (u.size.w * u.size.h > 1 ? big : small).push({ u, i }));
+    big.sort((a, b) => b.u.size.w * b.u.size.h - a.u.size.w * a.u.size.h
+      || a.i - b.i);
+    const scan = (w, h) => {
+      for (let y = 0; y + h <= c.height; y++) {
+        for (let x = 0; x + w <= c.width; x++) {
+          if (free(x, y, w, h)) return [x, y];
+        }
+      }
+      return null;
+    };
+    for (const { u } of big) {
+      const spot = scan(u.size.w, u.size.h);
+      if (!spot) throw new Error('нет места для моба ' + u.mobId);
+      u.x = spot[0]; u.y = spot[1];
+      occupy(u);
+    }
+    const xs = [1, 3, 5, 0, 2, 4];
+    for (const { u, i } of small) {
+      const ax = xs[i % xs.length], ay = i < 3 ? 0 : 1;
+      if (free(ax, ay, 1, 1)) {
+        u.x = ax; u.y = ay;
+      } else {
+        const spot = scan(1, 1);
+        if (!spot) throw new Error('нет места для моба ' + u.mobId);
+        u.x = spot[0]; u.y = spot[1];
+      }
+      occupy(u);
+    }
+  }
+
   /**
    * Создаёт бой.
    * @param {object} opts
@@ -711,10 +799,6 @@
     const hasLeader = ids.some((id) => MOB_TYPES[id].role === MOB_ROLES.LEADER);
     const units = ids.map((mobId, i) => makeMob(mobId, level, i, hasLeader, diff));
 
-    // Мобы — в верхней части, игрок — в центре нижнего края.
-    const xs = [1, 3, 5, 0, 2, 4];
-    units.forEach((u, i) => { u.x = xs[i % xs.length]; u.y = i < 3 ? 0 : 1; });
-
     const c = {
       player: p,
       width,
@@ -738,6 +822,8 @@
       _rng: rng,
       day,
     };
+    // Мобы — в верхней части, игрок — в центре нижнего края.
+    placeUnits(c, units);
     refillPools(c);
     log(c, `Бой: ${c.groupName} (уровень ${level}, мобы ${units.length}).`);
     if (hasLeader) log(c, 'Лидер вдохновляет группу: +5% урона, +5% защиты.');

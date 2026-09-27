@@ -5,6 +5,10 @@
   "aggro": "neutral",
   "dmg": 1,
   "hp": 1.5,
+  "size": {
+    "w": 1,
+    "h": 1
+  },
   "xp": {
     "base": 8,
     "perLevel": 4

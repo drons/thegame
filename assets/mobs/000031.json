@@ -5,6 +5,10 @@
   "aggro": "territorial",
   "dmg": 1.1,
   "hp": 1.2,
+  "size": {
+    "w": 2,
+    "h": 2
+  },
   "xp": {
     "base": 8,
     "perLevel": 4

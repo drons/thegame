@@ -1,6 +1,6 @@
 {
   "type": "object",
-  "required": ["id", "name", "role", "aggro", "dmg", "hp", "xp", "skills", "spells", "loot"],
+  "required": ["id", "name", "role", "aggro", "dmg", "hp", "size", "xp", "skills", "spells", "loot"],
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "name": { "type": "string" },
