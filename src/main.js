@@ -480,8 +480,14 @@
       toggleNpcDialog();
       return;
     }
-    // В бою клавиши обрабатывает combat-ui, в подземелье — dungeon-ui,
-    // в диалоге NPC — npcUI.
+    // В бою клавиши обрабатывает combat-ui (единая таблица
+    // src/combat-keys.js, задача 000048), в подземелье — dungeon-ui,
+    // в диалоге NPC — npcUI. Конфликтов с боевой таблицей нет: этот
+    // return стоит ДО движения мира и прочих действий; KeyA в бою —
+    // движение (как в мире), KeyE — «быстрый предмет» (toggleNpcDialog
+    // выше сам гасится активным боем).
+    // Наблюдение (вне 000048): KeyI выше этого return — в бою Ш
+    // переключает панель персонажа поверх оверлея.
     if (G.combatUI && G.combatUI.isActive()) return;
     if (G.dungeonUI && G.dungeonUI.isActive()) return;
     if (G.npcUI && G.npcUI.isActive()) return;

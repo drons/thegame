@@ -24,12 +24,17 @@
     return typeof s === 'function' ? s() : s;
   }
 
+  // Мёртвые кириллические e.code (буквы Ц/Ы/Ф/В) удалены (задача
+  // 000048): кириллических e.code не существует (задача 000028) —
+  // такие записи никогда не срабатывали. Полный перевод этой локальной
+  // таблицы на Game.moveKeyForEvent/Game.deltaForMoveKey
+  // (src/controls.js) — задача 000043, здесь НЕ делался.
   function keyDir(code) {
     return {
-      ArrowUp: [0, -1], KeyW: [0, -1], KeyЦ: [0, -1],
-      ArrowDown: [0, 1], KeyS: [0, 1], KeyЫ: [0, 1],
-      ArrowLeft: [-1, 0], KeyA: [-1, 0], KeyФ: [-1, 0],
-      ArrowRight: [1, 0], KeyD: [1, 0], KeyВ: [1, 0],
+      ArrowUp: [0, -1], KeyW: [0, -1],
+      ArrowDown: [0, 1], KeyS: [0, 1],
+      ArrowLeft: [-1, 0], KeyA: [-1, 0],
+      ArrowRight: [1, 0], KeyD: [1, 0],
     }[code];
   }
 

@@ -1,15 +1,29 @@
 // Мини-карта боя (HTML-оверлей): сетка, юниты, действия, журнал.
 // Браузерный модуль (ядро — src/combat.js, тестируется в node).
 //
-// Управление в бою:
-//   стрелки / WASD / ЦФЫВ — шаг,  A — удар,  Q — огненная стрела,
-//   R — исцеление,  B — блок,  F — побег,  Space — конец хода,
-//   клик по мобо — выбор цели,  Esc — (закрыть можно только после боя).
+// Управление в бою — единая таблица src/combat-keys.js (задача 000048;
+// подписи кнопок и keydown строятся из неё же, хардкода нет):
+//   стрелки / WASD / ЦФЫВ — шаг (те же e.code, что в мире — controls.js),
+//   J — удар (K — дубль),  Q — огненная стрела,  R — исцеление,
+//   B — блок,  E — быстрый предмет,  T — предмет (U — дубль),
+//   F — побег,  Space — конец хода,
+//   клик по мобо — выбор цели,
+//   Esc / Space / Enter — закрыть оверлей (только после боя).
+// На русской раскладке: J=О, K=Л, U=Г (e.code — физическая клавиша,
+// задача 000028). Невозможное действие/шаг — причина в журнал
+// (canDoAction, задача 000037; раньше — тишина).
 
 (function () {
   'use strict';
   const G = globalThis.Game;
-  if (!G || !G.createCombat) return;
+  if (!G || !G.createCombat || !G.CombatKeys) {
+    // Видимая ошибка, а не молчание (паттерн ui.js): битый порядок
+    // загрузки — tests/index-order.test.js.
+    console.error('combat-ui.js: не найдены Game.createCombat или ' +
+      'Game.CombatKeys — проверьте порядок загрузки: src/combat.js и ' +
+      'src/combat-keys.js ДО src/combat-ui.js (задача 000048)');
+    return;
+  }
 
   const CELL = 48;
   const ROLE_COLORS = {
@@ -55,26 +69,18 @@
 
     const actions = document.createElement('div');
     actions.className = 'combat-actions';
-    // [label, key, action, fn]: action — имя действия ядра для
-    // canDoAction (задача 000037), хранится в b.dataset.act.
-    for (const [label, key, action, fn] of [
-      ['Удар [A]', 'KeyA', 'attack', () => c.attack(c.targetId)],
-      ['Огонь [Q]', 'KeyQ', 'fire', () => c.spell('fire', c.targetId)],
-      ['Исцел. [R]', 'KeyR', 'heal', () => c.spell('heal')],
-      ['Блок [B]', 'KeyB', 'block', () => c.block()],
-      ['Быстрый предмет [E]', 'KeyE', 'quickItem', () => c.quickItem()],
-      ['Предмет [T]', 'KeyT', 'invItem', () => c.invItem()],
-      ['Побег [F]', 'KeyF', 'flee', () => c.flee()],
-      ['Конец хода [Space]', 'Space', 'endTurn', () => c.endTurn()],
-    ]) {
+    // Кнопки — из единой таблицы src/combat-keys.js (задача 000048):
+    // подпись «Имя [первичная клавиша]», порядок = порядок в таблице.
+    // b.dataset.act — имя действия ядра для canDoAction (задача 000037).
+    for (const item of G.CombatKeys.describeCombatKeys()) {
       const b = document.createElement('button');
-      b.textContent = label;
-      b.dataset.act = action;
+      b.textContent = item.label + ' [' +
+        G.CombatKeys.keyLabel(item.primaryKey) + ']';
+      b.dataset.act = item.action;
       b.addEventListener('click', () => {
-        const r = fn();
         // Как по клавише: зеркало ok, но ядро отклонило (сейчас 'invItem'
         // без itemId) — причину в журнал, а не тишина (задача 000037).
-        logRejection(c, r);
+        runAction(c, item.action);
         render();
       });
       actions.appendChild(b);
@@ -110,34 +116,24 @@
     });
   }
 
-  function keyDir(code) {
-    return {
-      ArrowUp: [0, -1], KeyW: [0, -1], KeyЦ: [0, -1],
-      ArrowDown: [0, 1], KeyS: [0, 1], KeyЫ: [0, 1],
-      ArrowLeft: [-1, 0], KeyA: [-1, 0], KeyФ: [-1, 0],
-      ArrowRight: [1, 0], KeyD: [1, 0], KeyВ: [1, 0],
-    }[code];
-  }
-
   // Расхождение «зеркало ok, ядро отклонило» (задача 000037, п. 4):
   // причину тоже в журнал, а не тишина. Сейчас единственный такой случай —
   // 'invItem': зеркало ок, когда в инвентаре есть применимый предмет, но
   // UI ещё не передаёт itemId (мини-меню выбора — отдельная задача), и
   // ядро отвечает «выберите предмет из инвентаря» (пул не сгорает).
+  // С 000048 через него же проходят отклонения шагов (c.move) — раньше
+  // неудачный шаг был тихим.
   function logRejection(c, r) {
     if (r && !r.ok && r.reason) c.log.push(r.reason);
   }
 
-  // Клавиша действия (задача 000037): если действие невозможно — причину
-  // в журнал c.log (раньше — тишина), иначе — само действие. Клик по
-  // disabled-кнопке в браузере невозможен, поэтому лог только по клавише.
-  function keyAction(c, action) {
-    const r = G.canDoAction(c, action, { targetId: c.targetId });
-    if (!r.ok) {
-      c.log.push(r.reason);
-      return;
-    }
-    const r2 = {
+  // Диспетчер действия (клавиша и клик по кнопке): вызов ядра + причина
+  // в журнал при отклонении (задача 000037). Предпроверку canDoAction
+  // делает keydown — снимком state для resolveCombatKey (задача 000048;
+  // раньше предпроверка была здесь, в keyAction). Клик по disabled-кнопке
+  // в браузере невозможен, поэтому лог причины — только по клавише.
+  function runAction(c, action) {
+    const r = {
       attack: c.attack(c.targetId),
       fire: c.spell('fire', c.targetId),
       heal: c.spell('heal'),
@@ -147,7 +143,7 @@
       flee: c.flee(),
       endTurn: c.endTurn(),
     }[action];
-    logRejection(c, r2);
+    logRejection(c, r);
   }
 
   window.addEventListener('keydown', (e) => {
@@ -158,27 +154,35 @@
       // Закрыть оверлей можно только когда бой закончен.
       if (c.result) finish();
     } else if (c.result) {
+      // Закрытие — Space/Enter (ветка ДО таблицы: Space=«конец хода»
+      // конфликтовать с Space=«закрыть» не может). Прочие клавиши после
+      // боя не «проглатываем» (handled=false) — на геймплей не влияет,
+      // main.js всё равно ранним return'ит, пока оверлей открыт.
       if (e.code === 'Space' || e.code === 'Enter') finish();
-    } else if (e.code === 'Space') {
-      keyAction(c, 'endTurn');
-    } else if (e.code === 'KeyA') {
-      keyAction(c, 'attack');
-    } else if (e.code === 'KeyQ') {
-      keyAction(c, 'fire');
-    } else if (e.code === 'KeyR') {
-      keyAction(c, 'heal');
-    } else if (e.code === 'KeyB') {
-      keyAction(c, 'block');
-    } else if (e.code === 'KeyE') {
-      keyAction(c, 'quickItem');
-    } else if (e.code === 'KeyT') {
-      keyAction(c, 'invItem');
-    } else if (e.code === 'KeyF') {
-      keyAction(c, 'flee');
-    } else {
-      const d = keyDir(e.code);
-      if (d) c.move(d[0], d[1]);
       else handled = false;
+    } else {
+      // Единая таблица (src/combat-keys.js, задача 000048): движение и
+      // действия. Снимок для resolveCombatKey: canDo — результат
+      // canDoAction именно для действия этой клавиши (000037).
+      const entry = G.CombatKeys.COMBAT_KEYS[e.code];
+      const st = { phase: c.phase, result: c.result };
+      if (entry && entry.type === 'action') {
+        st.canDo = G.canDoAction(c, entry.action, { targetId: c.targetId });
+      }
+      const r = G.CombatKeys.resolveCombatKey(e.code, st);
+      if (r.kind === 'move') {
+        // playerMove само проверяет ход/блок/шаги/стену/моба и
+        // возвращает reason — в журнал, а не тишина (задача 000048).
+        logRejection(c, c.move(r.dx, r.dy));
+      } else if (r.kind === 'action') {
+        if (r.reason) {
+          c.log.push(r.reason); // действие невозможно — причина в журнал
+        } else {
+          runAction(c, r.action);
+        }
+      } else {
+        handled = false;
+      }
     }
     if (handled) {
       e.preventDefault();
