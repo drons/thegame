@@ -55,20 +55,28 @@
 
     const actions = document.createElement('div');
     actions.className = 'combat-actions';
-    for (const [label, key, fn] of [
-      ['Удар [A]', 'KeyA', () => c.attack(c.targetId)],
-      ['Огонь [Q]', 'KeyQ', () => c.spell('fire', c.targetId)],
-      ['Исцел. [R]', 'KeyR', () => c.spell('heal')],
-      ['Блок [B]', 'KeyB', () => c.block()],
-      ['Быстрый предмет [E]', 'KeyE', () => c.quickItem()],
-      ['Предмет [T]', 'KeyT', () => c.invItem()],
-      ['Побег [F]', 'KeyF', () => c.flee()],
-      ['Конец хода [Space]', 'Space', () => c.endTurn()],
+    // [label, key, action, fn]: action — имя действия ядра для
+    // canDoAction (задача 000037), хранится в b.dataset.act.
+    for (const [label, key, action, fn] of [
+      ['Удар [A]', 'KeyA', 'attack', () => c.attack(c.targetId)],
+      ['Огонь [Q]', 'KeyQ', 'fire', () => c.spell('fire', c.targetId)],
+      ['Исцел. [R]', 'KeyR', 'heal', () => c.spell('heal')],
+      ['Блок [B]', 'KeyB', 'block', () => c.block()],
+      ['Быстрый предмет [E]', 'KeyE', 'quickItem', () => c.quickItem()],
+      ['Предмет [T]', 'KeyT', 'invItem', () => c.invItem()],
+      ['Побег [F]', 'KeyF', 'flee', () => c.flee()],
+      ['Конец хода [Space]', 'Space', 'endTurn', () => c.endTurn()],
     ]) {
       const b = document.createElement('button');
       b.textContent = label;
-      b.dataset.act = key;
-      b.addEventListener('click', () => { fn(); render(); });
+      b.dataset.act = action;
+      b.addEventListener('click', () => {
+        const r = fn();
+        // Как по клавише: зеркало ok, но ядро отклонило (сейчас 'invItem'
+        // без itemId) — причину в журнал, а не тишина (задача 000037).
+        logRejection(c, r);
+        render();
+      });
       actions.appendChild(b);
     }
     side.appendChild(actions);
@@ -111,6 +119,37 @@
     }[code];
   }
 
+  // Расхождение «зеркало ok, ядро отклонило» (задача 000037, п. 4):
+  // причину тоже в журнал, а не тишина. Сейчас единственный такой случай —
+  // 'invItem': зеркало ок, когда в инвентаре есть применимый предмет, но
+  // UI ещё не передаёт itemId (мини-меню выбора — отдельная задача), и
+  // ядро отвечает «выберите предмет из инвентаря» (пул не сгорает).
+  function logRejection(c, r) {
+    if (r && !r.ok && r.reason) c.log.push(r.reason);
+  }
+
+  // Клавиша действия (задача 000037): если действие невозможно — причину
+  // в журнал c.log (раньше — тишина), иначе — само действие. Клик по
+  // disabled-кнопке в браузере невозможен, поэтому лог только по клавише.
+  function keyAction(c, action) {
+    const r = G.canDoAction(c, action, { targetId: c.targetId });
+    if (!r.ok) {
+      c.log.push(r.reason);
+      return;
+    }
+    const r2 = {
+      attack: c.attack(c.targetId),
+      fire: c.spell('fire', c.targetId),
+      heal: c.spell('heal'),
+      block: c.block(),
+      quickItem: c.quickItem(),
+      invItem: c.invItem(),
+      flee: c.flee(),
+      endTurn: c.endTurn(),
+    }[action];
+    logRejection(c, r2);
+  }
+
   window.addEventListener('keydown', (e) => {
     if (!isActive()) return;
     const c = ctx.combat;
@@ -121,21 +160,21 @@
     } else if (c.result) {
       if (e.code === 'Space' || e.code === 'Enter') finish();
     } else if (e.code === 'Space') {
-      c.endTurn();
+      keyAction(c, 'endTurn');
     } else if (e.code === 'KeyA') {
-      c.attack(c.targetId);
+      keyAction(c, 'attack');
     } else if (e.code === 'KeyQ') {
-      c.spell('fire', c.targetId);
+      keyAction(c, 'fire');
     } else if (e.code === 'KeyR') {
-      c.spell('heal');
+      keyAction(c, 'heal');
     } else if (e.code === 'KeyB') {
-      c.block();
+      keyAction(c, 'block');
     } else if (e.code === 'KeyE') {
-      c.quickItem();
+      keyAction(c, 'quickItem');
     } else if (e.code === 'KeyT') {
-      c.invItem();
+      keyAction(c, 'invItem');
     } else if (e.code === 'KeyF') {
-      c.flee();
+      keyAction(c, 'flee');
     } else {
       const d = keyDir(e.code);
       if (d) c.move(d[0], d[1]);
@@ -223,10 +262,13 @@
     // Журнал: последние строки.
     logEl.textContent = c.log.slice(-9).join('\n');
 
-    // Кнопки: неактивны вне очереди игрока.
+    // Кнопки: неактивны вне очереди игрока или когда действие невозможно
+    // (canDoAction, задача 000037); причина — в title (tooltip).
     if (overlay) {
       overlay.querySelectorAll('.combat-actions button').forEach((b) => {
-        b.disabled = c.phase !== 'player' || !!c.result;
+        const r = G.canDoAction(c, b.dataset.act, { targetId: c.targetId });
+        b.disabled = c.phase !== 'player' || !!c.result || !r.ok;
+        b.title = r.ok ? '' : r.reason;
       });
     }
 

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  hitChance, createCombat, resolveDifficulty,
+  hitChance, createCombat, resolveDifficulty, canDoAction,
   MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT, PRACTICE_XP,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
@@ -1112,6 +1112,277 @@ test('размер: расстановка без перекрытий и в п�
       }
     }
   }
+});
+
+// --- canDoAction: предпросмотр доступности действия (задача 000037) ---
+
+// Бой с одиночным волком; позиция волка управляется из теста
+// (игрок — в центре нижнего края 7x7).
+function wolfCombat(p, seed = 5) {
+  const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2, seed });
+  const w = c.units[0];
+  w.x = c.px; w.y = c.py - 1; // вплотную
+  return c;
+}
+
+const CAN_ACTIONS = ['attack', 'fire', 'heal', 'block',
+  'quickItem', 'invItem', 'flee', 'endTurn'];
+
+test('canDoAction: очередь — phase "mob" → «не ваш ход», phase "over"/result → «бой закончен»', () => {
+  const c = wolfCombat(strongHero());
+  c.phase = 'mob';
+  for (const a of CAN_ACTIONS) {
+    const r = canDoAction(c, a, { targetId: c.units[0].id });
+    assert.equal(r.ok, false, a);
+    assert.equal(r.reason, 'не ваш ход', a);
+  }
+  c.phase = 'over';
+  c.result = { outcome: 'victory', xp: 0, gold: 0, defeated: 1 };
+  for (const a of CAN_ACTIONS) {
+    const r = canDoAction(c, a, { targetId: c.units[0].id });
+    assert.equal(r.ok, false, a);
+    assert.equal(r.reason, 'бой закончен', a);
+  }
+});
+
+test('canDoAction: неизвестное действие', () => {
+  const c = wolfCombat(strongHero());
+  const r = canDoAction(c, 'dance');
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'неизвестное действие: dance');
+});
+
+test('canDoAction: attack — пул, цель, дальность ближнего боя', () => {
+  const c = wolfCombat(strongHero());
+  const w = c.units[0];
+  assert.deepEqual(canDoAction(c, 'attack', { targetId: w.id }),
+    { ok: true }, 'вплотную — ok');
+  c.ps.attack = 0;
+  assert.equal(canDoAction(c, 'attack', { targetId: w.id }).reason,
+    'действий «Удар» больше нет');
+  c.ps.attack = 1;
+  w.y = c.py - 3; // дистанция 3 — ближний бой не достаёт
+  assert.equal(canDoAction(c, 'attack', { targetId: w.id }).reason,
+    'цель слишком далеко (ближний бой)');
+  w.alive = false;
+  assert.equal(canDoAction(c, 'attack', { targetId: w.id }).reason,
+    'нет цели', 'мёртвая цель по targetId');
+  // Ни живой цели в бою.
+  const c2 = wolfCombat(strongHero());
+  c2.units[0].fled = true;
+  assert.equal(canDoAction(c2, 'attack').reason, 'нет цели');
+});
+
+test('canDoAction: attack — лук достаёт до 4, без лука — только вплотную', () => {
+  const p = strongHero();
+  I.addItem(p, 'hunting_bow');
+  I.equip(p, 'hunting_bow');
+  const c = wolfCombat(p);
+  const w = c.units[0];
+  w.y = c.py - 3;
+  assert.equal(canDoAction(c, 'attack', { targetId: w.id }).ok, true,
+    'лук: дистанция 3 в дальности');
+  w.y = c.py - 5;
+  assert.equal(canDoAction(c, 'attack', { targetId: w.id }).reason,
+    'цель слишком далеко (дальность лука 4)');
+  // Без лука та же дистанция недосягаема.
+  const c2 = wolfCombat(strongHero());
+  const w2 = c2.units[0];
+  w2.y = c2.py - 3;
+  assert.equal(canDoAction(c2, 'attack', { targetId: w2.id }).reason,
+    'цель слишком далеко (ближний бой)');
+});
+
+test('canDoAction: fire — пул, мана, цель, дальность 4', () => {
+  const c = wolfCombat(strongHero());
+  const w = c.units[0];
+  assert.deepEqual(canDoAction(c, 'fire', { targetId: w.id }), { ok: true });
+  c.ps.spellInt = 0;
+  assert.equal(canDoAction(c, 'fire', { targetId: w.id }).reason,
+    'действий «Заклинание» (Интеллект) больше нет');
+  c.ps.spellInt = 1;
+  c.player.mp = 2;
+  assert.equal(canDoAction(c, 'fire', { targetId: w.id }).reason,
+    'не хватает маны (3)');
+  c.player.mp = 10;
+  w.y = c.py - 5;
+  assert.equal(canDoAction(c, 'fire', { targetId: w.id }).reason,
+    'цель слишком далеко (дальность 4)');
+});
+
+test('canDoAction: heal — пул, мана, полное HP', () => {
+  const c = wolfCombat(strongHero());
+  c.player.hp = 20; // ниже maxHP (275 у strongHero)
+  assert.deepEqual(canDoAction(c, 'heal'), { ok: true });
+  c.ps.spellWis = 0;
+  assert.equal(canDoAction(c, 'heal').reason,
+    'действий «Заклинание» (Мудрость) больше нет');
+  c.ps.spellWis = 1;
+  c.player.mp = 1;
+  assert.equal(canDoAction(c, 'heal').reason, 'не хватает маны (3)');
+  c.player.mp = 10;
+  c.player.hp = derived(c.player).maxHP;
+  assert.equal(canDoAction(c, 'heal').reason, 'здоровье полное');
+});
+
+test('canDoAction: block — пул; флаг blocked блок САМ не запрещает (зеркало playerBlock)', () => {
+  const c = wolfCombat(strongHero());
+  assert.deepEqual(canDoAction(c, 'block'), { ok: true });
+  c.ps.block = 0;
+  assert.equal(canDoAction(c, 'block').reason, 'действий «Блок» больше нет');
+  // playerBlock в ядре checkBlocked не вызывает — блок и есть
+  // последнее действие (задача 000027).
+  c.ps.block = 1;
+  c.ps.blocked = true;
+  assert.equal(canDoAction(c, 'block').ok, true,
+    'blocked && block>0 — ok, как в ядре');
+});
+
+test('canDoAction: quickItem — пул, пустые слоты, применимость предмета', () => {
+  const p = strongHero();
+  const c = wolfCombat(p);
+  c.ps.quickItem = 0;
+  assert.equal(canDoAction(c, 'quickItem').reason,
+    'действий «Быстрый предмет» больше нет');
+  c.ps.quickItem = 1;
+  assert.equal(canDoAction(c, 'quickItem').reason, 'быстрые слоты пусты');
+  I.addItem(p, 'healing_potion');
+  I.setQuick(p, 0, 'healing_potion');
+  assert.deepEqual(canDoAction(c, 'quickItem'), { ok: true },
+    'применимое зелье — ok');
+  I.addItem(p, 'iron_sword');
+  I.setQuick(p, 0, 'iron_sword');
+  assert.equal(canDoAction(c, 'quickItem').reason, 'оружие — экипируется');
+  I.addItem(p, 'leather_armor');
+  I.setQuick(p, 0, 'leather_armor');
+  assert.equal(canDoAction(c, 'quickItem').reason, 'броня — экипируется');
+  I.addItem(p, 'sulfur');
+  I.setQuick(p, 0, 'sulfur');
+  assert.equal(canDoAction(c, 'quickItem').reason,
+    'реагент нельзя применить (торговый товар)');
+  // Слот ссылается на предмет, которого нет в инвентаре.
+  p.inventory.quick[0] = 'healing_potion';
+  p.inventory.slots = p.inventory.slots.filter((e) => e.id !== 'healing_potion');
+  assert.equal(canDoAction(c, 'quickItem').reason, 'предмета нет в инвентаре');
+  // Слот с неизвестным id.
+  p.inventory.quick[0] = 'no_such_item';
+  assert.equal(canDoAction(c, 'quickItem').reason,
+    'неизвестный предмет: no_such_item');
+});
+
+test('canDoAction: invItem — пул, применимый предмет в инвентаре', () => {
+  const p = strongHero();
+  const c = wolfCombat(p);
+  c.ps.invItem = 0;
+  assert.equal(canDoAction(c, 'invItem').reason,
+    'действий «Предмет из инвентаря» больше нет');
+  c.ps.invItem = 1;
+  assert.equal(canDoAction(c, 'invItem').reason,
+    'нет применимых предметов в инвентаре', 'пустой инвентарь');
+  I.addItem(p, 'sulfur');
+  I.addItem(p, 'iron_sword');
+  I.addItem(p, 'leather_armor');
+  assert.equal(canDoAction(c, 'invItem').reason,
+    'нет применимых предметов в инвентаре',
+    'реагент/оружие/броня — неприменимы');
+  I.addItem(p, 'bread');
+  assert.deepEqual(canDoAction(c, 'invItem'), { ok: true }, 'еда — применима');
+  I.addItem(p, 'healing_potion');
+  I.addItem(p, 'alchemy_manual');
+  assert.deepEqual(canDoAction(c, 'invItem'), { ok: true },
+    'зелье и книга — применимы');
+});
+
+test('canDoAction: blocked — «блок — только последнее действие» для действий, но не для block/flee/endTurn', () => {
+  const c = wolfCombat(strongHero());
+  const w = c.units[0];
+  c.ps.blocked = true;
+  c.player.hp = 20;
+  for (const a of ['attack', 'fire', 'heal', 'quickItem', 'invItem']) {
+    const r = canDoAction(c, a, { targetId: w.id });
+    assert.equal(r.ok, false, a);
+    assert.equal(r.reason, 'блок — только последнее действие', a);
+  }
+  assert.equal(canDoAction(c, 'block').ok, true, 'блок — ok (ядро)');
+  assert.equal(canDoAction(c, 'flee').ok, true, 'побег блок не гоняет');
+  assert.equal(canDoAction(c, 'endTurn').ok, true, 'конец хода блок не гоняет');
+});
+
+test('canDoAction: без побочных эффектов (ps/hp/mp/инвентарь/снаряжение/rng/log/targetId)', () => {
+  const p = strongHero();
+  I.addItem(p, 'healing_potion');
+  I.setQuick(p, 0, 'healing_potion');
+  I.addItem(p, 'bread');
+  const c = wolfCombat(p);
+  const w = c.units[0];
+  w.y = c.py - 3; // цель вне ближней дальности — покрыть ветки проверок
+  let rngCalls = 0;
+  const origRng = c._rng;
+  c._rng = () => { rngCalls += 1; return origRng(); };
+  const snap = () => JSON.stringify({
+    ps: c.ps, hp: p.hp, mp: p.mp, inv: p.inventory, eq: p.equipment,
+    log: c.log, targetId: c.targetId,
+  });
+  const before = snap();
+  for (const a of CAN_ACTIONS) {
+    canDoAction(c, a);
+    canDoAction(c, a, { targetId: w.id });
+  }
+  canDoAction(c, 'nope');
+  assert.equal(rngCalls, 0, 'c._rng() не вызывается');
+  assert.equal(snap(), before, 'состояние боя и героя не изменилось');
+});
+
+test('canDoAction: «голый» персонаж без inventory/equipment — полей не появляется', () => {
+  // createCharacter() не создаёт p.inventory/p.equipment (лениво — в
+  // items.js). canDoAction обязан их НЕ создавать (ветка 'attack' читала
+  // I.equipmentStats → ensureEquipment, ветка 'quickItem' — I.firstQuickSlot
+  // → ensureInventory).
+  const p = createCharacter();
+  assert.equal(p.inventory, undefined);
+  assert.equal(p.equipment, undefined);
+  const c = wolfCombat(p);
+  assert.equal(p.inventory, undefined, 'createCombat инвентарь не создаёт');
+  assert.equal(p.equipment, undefined, 'createCombat снаряжение не создаёт');
+  const w = c.units[0];
+  w.y = c.py - 3; // цель вдали — покрыть ветку дальности (чтение оружия)
+  for (const a of CAN_ACTIONS) {
+    canDoAction(c, a);
+    canDoAction(c, a, { targetId: w.id });
+  }
+  assert.equal(p.inventory, undefined,
+    'p.inventory не создаётся как побочный эффект');
+  assert.equal(p.equipment, undefined,
+    'p.equipment не создаётся как побочный эффект');
+});
+
+test('лог исцеления: восстановленная величина, а не общее HP (задача 000037)', () => {
+  // Мудрость 10 → величина исцеления round(3 + 0.5*10 + 1) = 9; maxHP = 25.
+  const hero = () => {
+    const p = createCharacter();
+    p.primary.wisdom = 10;
+    return p;
+  };
+  // Частичное лечение: 10 + 9 = 19 — лог «Исцеление: 9.».
+  const p1 = hero();
+  const c1 = createCombat({ player: p1, groupType: 3, seed: 41 });
+  p1.hp = 10;
+  const r1 = c1.spell('heal');
+  assert.equal(r1.ok, true);
+  assert.equal(r1.healed, 9, 'восстановленная величина');
+  assert.equal(r1.hp, 19, 'общее HP после исцеления');
+  assert.ok(c1.log.includes('Исцеление: 9.'),
+    `лог: ${c1.log.join(' | ')}`);
+  // Кламп по maxHP: 22 + 9 → 25, восстановлено 3, а не 25
+  // (старый баг печатал общее HP — «Исцеление: 25.»).
+  const p2 = hero();
+  const c2 = createCombat({ player: p2, groupType: 3, seed: 41 });
+  p2.hp = 22;
+  const r2 = c2.spell('heal');
+  assert.equal(r2.healed, 3, 'восстановлено с клампом по maxHP');
+  assert.equal(r2.hp, 25);
+  assert.ok(c2.log.includes('Исцеление: 3.'),
+    `лог показывает восстановленное, а не общее HP: ${c2.log.join(' | ')}`);
 });
 
 test('размер: бой с крупной группой завершается победой (не клинит)', () => {
