@@ -423,12 +423,17 @@
       c.ps.spellWis -= 1;
       p.mp -= 3;
       const amount = Math.round(3 + 0.5 * p.primary.wisdom + p.level);
+      const hpBefore = p.hp;
       const hp = P.heal(p, amount);
-      log(c, `Исцеление: ${hp}.`);
+      // Задача 000037: логируем фактически восстановленную величину
+      // (HP после − HP до), а не новое ОБЩЕЕ HP.
+      log(c, `Исцеление: ${hp - hpBefore}.`);
       // Практика: каст даёт опыт «Медитации» (задача 000013).
       const pr = P.skillPractice(p, 'meditation', PRACTICE_XP.spell);
       return {
-        ok: true, hp,
+        // hp — общее HP после исцеления (совместимость),
+        // healed — восстановленная величина (задача 000037).
+        ok: true, hp, healed: hp - hpBefore,
         practice: { skill: 'meditation', xp: PRACTICE_XP.spell, applied: pr.applied, level: pr.level },
       };
     }
@@ -539,6 +544,142 @@
     if (!t || !t.alive || t.fled) return { ok: false, reason: 'недоступная цель' };
     c.targetId = targetId;
     return { ok: true };
+  }
+
+  // canDoAction (задача 000037): предпросмотр доступности действия БЕЗ
+  // побочных эффектов — «зеркало» проверок ядра (playerAttack/
+  // playerSpell/playerBlock/playerQuickItem/playerInvItem/playerFlee/
+  // endPlayerTurn). Одна причина — одно поведение: reason — теми же
+  // формулировками, что в ядре, поэтому UI (title/лог) и ядро согласованы.
+  // Не тратит пулы/ману, не вызывает c._rng(), не мутирует c.ps, p.hp,
+  // p.mp, c.log, c.targetId — дёшево, можно на каждом render.
+  // args.targetId — для 'attack'/'fire' (UI передаёт c.targetId; без
+  // args — ближайший живой моб, как в ядре).
+  function canDoAction(c, action, args) {
+    const a = args || {};
+    const p = c.player;
+    if (action === 'attack') {
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      const blocked = checkBlocked(c);
+      if (blocked) return blocked;
+      if (c.ps.attack <= 0) return { ok: false, reason: 'действий «Удар» больше нет' };
+      const t = a.targetId ? c.units.find((u) => u.id === a.targetId) : nearestMob(c);
+      if (!t || !t.alive || t.fled) return { ok: false, reason: 'нет цели' };
+      // Снаряжение читаем прямым доступом, БЕЗ I.equipmentStats (тот через
+      // ensureEquipment лениво СОЗДАЁТ p.equipment — canDoAction обязан
+      // быть без побочных эффектов). Для дальности нужен только subtype.
+      const eq = p.equipment;
+      const w = (eq && eq.weapon) ? I.getItem(eq.weapon) : null;
+      // Лук бьёт в даль (BOW_ATTACK_DIST); остальное оружие — вплотную.
+      const isBow = !!(w && w.subtype === 'bow');
+      const maxDist = isBow ? BOW_ATTACK_DIST : 1;
+      if (unitDist(c, t) > maxDist) {
+        return { ok: false, reason: isBow
+          ? 'цель слишком далеко (дальность лука 4)'
+          : 'цель слишком далеко (ближний бой)' };
+      }
+      return { ok: true };
+    }
+    if (action === 'fire') {
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      const blocked = checkBlocked(c);
+      if (blocked) return blocked;
+      if (c.ps.spellInt <= 0) return { ok: false, reason: 'действий «Заклинание» (Интеллект) больше нет' };
+      if (p.mp < 3) return { ok: false, reason: 'не хватает маны (3)' };
+      const t = a.targetId ? c.units.find((u) => u.id === a.targetId) : nearestMob(c);
+      if (!t || !t.alive || t.fled) return { ok: false, reason: 'нет цели' };
+      if (unitDist(c, t) > SPELL_MAX_DIST) return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
+      return { ok: true };
+    }
+    if (action === 'heal') {
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      const blocked = checkBlocked(c);
+      if (blocked) return blocked;
+      if (c.ps.spellWis <= 0) return { ok: false, reason: 'действий «Заклинание» (Мудрость) больше нет' };
+      if (p.mp < 3) return { ok: false, reason: 'не хватает маны (3)' };
+      // Задача 000037: при полном HP заклинание бесполезно (P.heal
+      // восстановил бы 0) — дизейбл с фиксированной причиной.
+      if (p.hp >= P.derived(p).maxHP) return { ok: false, reason: 'здоровье полное' };
+      return { ok: true };
+    }
+    if (action === 'block') {
+      // checkBlocked НЕ проверяется: playerBlock в ядре его не вызывает —
+      // блок и есть последнее действие (задача 000027).
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      if (c.ps.block <= 0) return { ok: false, reason: 'действий «Блок» больше нет' };
+      return { ok: true };
+    }
+    if (action === 'quickItem') {
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      const blocked = checkBlocked(c);
+      if (blocked) return blocked;
+      if (c.ps.quickItem <= 0) return { ok: false, reason: 'действий «Быстрый предмет» больше нет' };
+      // Быстрые слоты и наличие предмета читаем прямым доступом, БЕЗ
+      // I.firstQuickSlot/I.quickItem/I.hasItem (те через ensureInventory
+      // лениво СОЗДАЮТ p.inventory — canDoAction обязан быть без
+      // побочных эффектов). Поведение совпадает с ядром: при отсутствии
+      // инвентаря «быстрые слоты пусты».
+      const inv = p.inventory;
+      const quick = (inv && Array.isArray(inv.quick)) ? inv.quick : null;
+      let s = null;
+      let itemId = null;
+      if (quick) {
+        for (let i = 0; i < quick.length; i++) {
+          if (quick[i]) { s = i; itemId = quick[i]; break; }
+        }
+      }
+      if (s == null) return { ok: false, reason: 'быстрые слоты пусты' };
+      if (!itemId) return { ok: false, reason: 'быстрый слот ' + (s + 1) + ' пуст' };
+      // Применимость — проверки useItem ДО потребления, без самого useItem
+      // (он мутирует: инвентарь, HP, навыки).
+      const it = I.getItem(itemId);
+      if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
+      const has = !!(inv && Array.isArray(inv.slots)
+        && inv.slots.some((e) => e && e.id === itemId));
+      if (!has) return { ok: false, reason: 'предмета нет в инвентаре' };
+      if (it.kind === 'weapon') return { ok: false, reason: 'оружие — экипируется' };
+      if (it.kind === 'armor') return { ok: false, reason: 'броня — экипируется' };
+      if (it.kind === 'reagent') return { ok: false, reason: 'реагент нельзя применить (торговый товар)' };
+      return { ok: true };
+    }
+    if (action === 'invItem') {
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      const blocked = checkBlocked(c);
+      if (blocked) return blocked;
+      if (c.ps.invItem <= 0) return { ok: false, reason: 'действий «Предмет из инвентаря» больше нет' };
+      // Задача 000037: кнопка «Предмет [T]» активна, когда в инвентаре есть
+      // хотя бы ОДИН применимый предмет (зелья/еда/книги — те же kind,
+      // что принимает useItem). Мини-меню выбора предмета из боя —
+      // отдельная задача.
+      const inv = p.inventory;
+      const has = !!(inv && Array.isArray(inv.slots) && inv.slots.some((e) => {
+        const it = I.getItem(e.id);
+        return !!it && (it.kind === 'potion' || it.kind === 'food'
+          || it.kind === 'skill_book');
+      }));
+      if (!has) return { ok: false, reason: 'нет применимых предметов в инвентаре' };
+      return { ok: true };
+    }
+    if (action === 'flee') {
+      // playerFlee в ядре checkBlocked не гоняет — блок побегу не
+      // препятствие. Бросок шанса побега остаётся только в playerFlee —
+      // здесь c._rng() не вызываем.
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      return { ok: true };
+    }
+    if (action === 'endTurn') {
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      return { ok: true };
+    }
+    return { ok: false, reason: 'неизвестное действие: ' + action };
   }
 
   // --- Ход мобов ---
@@ -846,6 +987,6 @@
     MOB_ROLES, ROLE_NAMES, AGGRO, MOB_TYPES, GROUP_RECIPES,
     LEADER_DMG_MULT, LEADER_DEF_MULT,
     PRACTICE_XP,
-    hitChance, createCombat, resolveDifficulty,
+    hitChance, createCombat, resolveDifficulty, canDoAction,
   };
 });
