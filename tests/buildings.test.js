@@ -277,3 +277,31 @@ test('placeBuilding: якорь занят — null; 1x1 влезает всег
     placeBuilding({ размер: { ширина: 3, высота: 2 } }, 1, 1, isFree),
     placeBuilding({ размер: { ширина: 3, высота: 2 } }, 1, 1, isFree));
 });
+
+test('placeBuilding: validateSize — отклоняет размер, берёт следующий в цепочке', () => {
+  // Все тайлы свободны, но 3x3 «недопустим» (в src/map.js — вход
+  // замурован) → цепочка 3x3 → 1x1; вход 1x1 — сам якорь.
+  const b = { размер: { ширина: 3, высота: 3 }, вход: [1, 2] };
+  const p = placeBuilding(b, 0, 0, () => true,
+    (x, y, w, h) => !(w === 3 && h === 3));
+  assert.equal(p.w, 1);
+  assert.equal(p.h, 1);
+  assert.deepEqual(p.entrance, [0, 0]);
+  // Без validateSize — старое поведение: полный размер.
+  const q = placeBuilding(b, 0, 0, () => true);
+  assert.equal(q.w, 3);
+  assert.equal(q.h, 3);
+  // validateSize отклоняет все размеры — постройки нет.
+  assert.equal(placeBuilding(b, 0, 0, () => true, () => false), null);
+  // validateSize видит прямоугольник и вход кандидата (для уменьшенного
+  // размера — зажатый вход).
+  const seen = [];
+  placeBuilding(b, 10, 20, () => true,
+    (x, y, w, h, entrance) => { seen.push({ x, y, w, h, entrance }); return true; });
+  assert.deepEqual(seen, [{ x: 10, y: 20, w: 3, h: 3, entrance: [11, 22] }]);
+  // Чистота с validateSize: один и тот же вызов — тот же результат.
+  const vs = (x, y, w, h) => w <= 2;
+  assert.deepEqual(
+    placeBuilding({ размер: { ширина: 3, высота: 3 }, вход: [1, 2] }, 3, 4, () => true, vs),
+    placeBuilding({ размер: { ширина: 3, высота: 3 }, вход: [1, 2] }, 3, 4, () => true, vs));
+});

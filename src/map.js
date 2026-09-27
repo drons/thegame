@@ -243,6 +243,89 @@
       return true;
     }
 
+    // --- Вход не замурован (правки по итогам ревью задачи 000026) ---
+    //
+    // Игрок ходит в 4 направлениях (src/main.js) и заходит в
+    // постройку СВОИМ тайлом входа. Если у входного тайла нет ни
+    // одного проходимого соседа (собственные стены + вода/горы/стены
+    // соседа), постройка генерируется, но в неё нельзя войти никогда.
+    // Поэтому при размещении размер принимается, только если:
+    //   1) у собственного входа есть свободный сосед вне footprint'а;
+    //   2) footprint не замуровывает вход РАНЬШЕЙ постройки: каждый
+    //      более ранний вход, соседний с footprint'ом, сохраняет
+    //      свободный сосед помимо тайлов нового footprint'а.
+    // Иначе placeBuilding берёт следующий (меньший) размер, а если
+    // не влезает и 1x1 — постройки нет. Из этих двух условий следует
+    // индукция по порядку якорей: в готовом мире у входа КАЖДОЙ
+    // постройки есть проходимый сосед.
+    //
+    // «Свободный сосед» входного тайла — проходимый тайл, не занятый
+    // постройкой с РАНЬШИМ якорем и не являющийся стеной
+    // кандидатного footprint'а (сам вход кандидата проходим).
+
+    function isFreeEntranceNeighbor(ax, ay, rx, ry, rw, rh, rex, rey, tx, ty) {
+      if (!terrainAt(tx, ty).passable) return false;
+      if (tx >= rx && tx < rx + rw && ty >= ry && ty < ry + rh) {
+        return tx === rex && ty === rey; // вход кандидата — проходим
+      }
+      return isFreeForBuilding(ax, ay, tx, ty);
+    }
+
+    // Есть ли у входа (ex, ey) хотя бы один свободный сосед (4
+    // направления) при размещении кандидата (rx, ry, rw, rh).
+    function entranceHasFreeNeighbor(ax, ay, ex, ey, rx, ry, rw, rh, rex, rey) {
+      return (
+        isFreeEntranceNeighbor(ax, ay, rx, ry, rw, rh, rex, rey, ex + 1, ey) ||
+        isFreeEntranceNeighbor(ax, ay, rx, ry, rw, rh, rex, rey, ex - 1, ey) ||
+        isFreeEntranceNeighbor(ax, ay, rx, ry, rw, rh, rex, rey, ex, ey + 1) ||
+        isFreeEntranceNeighbor(ax, ay, rx, ry, rw, rh, rex, rey, ex, ey - 1)
+      );
+    }
+
+    // Постройка с РАНЬШИМ якорем, вход которой в (x, y), или null.
+    // Якорь в 2 тайлах от входа (footprint ≤ BUILD_MAX_W × BUILD_MAX_H).
+    function buildingWithEntranceAt(ax, ay, x, y) {
+      for (let oay = y - BUILD_MAX_H + 1; oay <= y; oay++) {
+        for (let oax = x - BUILD_MAX_W + 1; oax <= x; oax++) {
+          if (oax > ax || (oax === ax && oay >= ay)) continue; // только «раньше»
+          const rec = buildingAtAnchor(oax, oay);
+          if (rec && rec.entrance[0] === x && rec.entrance[1] === y) return rec;
+        }
+      }
+      return null;
+    }
+
+    // Допустим ли кандидатный footprint (rx, ry, rw, rh) с входом
+    // (rex, rey) для постройки (ax, ay): см. условия (1) и (2) выше.
+    function entranceReachable(ax, ay, rx, ry, rw, rh, rex, rey) {
+      if (!entranceHasFreeNeighbor(ax, ay, rex, rey, rx, ry, rw, rh, rex, rey)) {
+        return false;
+      }
+      // Соседние с footprint'ом тайлы, которые могут быть чужими
+      // входами (без повторов: угловые тайлы дают общих соседей).
+      const neighborPts = new Set();
+      for (let dy = 0; dy < rh; dy++) {
+        for (let dx = 0; dx < rw; dx++) {
+          const tx = rx + dx, ty = ry + dy;
+          neighborPts.add((tx + 1) + ',' + ty);
+          neighborPts.add((tx - 1) + ',' + ty);
+          neighborPts.add(tx + ',' + (ty + 1));
+          neighborPts.add(tx + ',' + (ty - 1));
+        }
+      }
+      for (const s of neighborPts) {
+        const sep = s.indexOf(',');
+        const nx = Number(s.slice(0, sep));
+        const ny = Number(s.slice(sep + 1));
+        const rec = buildingWithEntranceAt(ax, ay, nx, ny);
+        if (rec &&
+            !entranceHasFreeNeighbor(ax, ay, nx, ny, rx, ry, rw, rh, rex, rey)) {
+          return false; // новый wall замуровал бы соседний вход
+        }
+      }
+      return true;
+    }
+
     // Постройка, якорь которой в (ax, ay): запись или null (якоря нет
     // или не поместилось даже 1x1). Кэшируется.
     function buildingAtAnchor(ax, ay) {
@@ -254,7 +337,14 @@
         const c = catalogRef();
         const b = c ? c.buildingForMapIndex(anchor.type) : null;
         const placed = c
-          ? c.placeBuilding(b || {}, ax, ay, (tx, ty) => isFreeForBuilding(ax, ay, tx, ty))
+          ? c.placeBuilding(
+              b || {}, ax, ay,
+              (tx, ty) => isFreeForBuilding(ax, ay, tx, ty),
+              // Вход не должен оказаться замурован, и footprint не
+              // должен замуровывать вход ранней постройки.
+              (rx, ry, rw, rh, entrance) =>
+                entranceReachable(ax, ay, rx, ry, rw, rh, entrance[0], entrance[1]),
+            )
           : { x: ax, y: ay, w: 1, h: 1, entrance: [ax, ay] };
         if (placed) {
           // «Богатство» 0-3 — из шума в якорном тайле (SPEC «Постройки»):

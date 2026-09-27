@@ -764,17 +764,24 @@
   /**
    * Размещение постройки с якорем в (x, y): пробует размеры по цепочке
    * sizeChain, footprint — прямоугольник w×h от якоря (вправо/вниз).
-   * Размер принимается, если ВСЕ его тайлы свободны по isFree;
-   * иначе — следующий размер в цепочке.
+   * Размер принимается, если ВСЕ его тайлы свободны по isFree и
+   * (опционально) ВЕСЬ размер проходит validateSize — например,
+   * проверку, что у входа есть свободный сосед и его не замуровывают
+   * собственные стены (src/map.js, правки по итогам ревью 000026).
+   * Иначе — следующий размер в цепочке.
    * @param {object} b элемент каталога (размер/вход)
    * @param {number} x якорь X (левый верхний тайл)
    * @param {number} y якорь Y
    * @param {(tx:number, ty:number) => boolean} isFree свободен ли тайл
+   * @param {(x:number, y:number, w:number, h:number,
+   *         entrance:[number, number]) => boolean} [validateSize]
+   *        допустим ли размер целиком (прямоугольник + вход);
+   *        по умолчанию — всегда
    * @returns {{x:number, y:number, w:number, h:number,
    *            tiles:[number, number][], entrance:[number, number]}|null}
    *   null — не поместилось даже 1x1.
    */
-  function placeBuilding(b, x, y, isFree) {
+  function placeBuilding(b, x, y, isFree, validateSize) {
     const { width, height } = buildingSize(b);
     const entranceRel = buildingEntranceRel(b);
     for (const [w, h] of sizeChain(width, height)) {
@@ -785,15 +792,18 @@
         }
       }
       if (!ok) continue;
-      const tiles = [];
-      for (let dy = 0; dy < h; dy++) {
-        for (let dx = 0; dx < w; dx++) tiles.push([x + dx, y + dy]);
-      }
       // Вход: для 1x1 — сам тайл; для крупных — конкретный тайл из
       // описания (для уменьшенного размера координату зажимаем).
       const ex = Math.min(entranceRel[0], w - 1);
       const ey = Math.min(entranceRel[1], h - 1);
-      return { x, y, w, h, tiles, entrance: [x + ex, y + ey] };
+      const entrance = [x + ex, y + ey];
+      if (typeof validateSize === 'function' &&
+          !validateSize(x, y, w, h, entrance)) continue;
+      const tiles = [];
+      for (let dy = 0; dy < h; dy++) {
+        for (let dx = 0; dx < w; dx++) tiles.push([x + dx, y + dy]);
+      }
+      return { x, y, w, h, tiles, entrance };
     }
     return null;
   }

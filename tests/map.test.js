@@ -446,3 +446,62 @@ test('уменьшение размера: блокированный 3x3 не �
   }
   assert.ok(owner.size > 50, `мало тайлов построек: ${owner.size}`);
 });
+
+// --- Правки по итогам ревью 000026: вход не замурован ---
+
+// У входа постройки (тайла, где игрок заходит внутрь) должен быть
+// проходимый сосед по одному из 4 направлений — иначе постройка
+// генерируется, но в неё нельзя войти никогда (стены + вода/стены
+// соседа вокруг входа). Игрок ходит только в 4 направлениях
+// (src/main.js, KEY_DIRS).
+function assertEntrancesReachable(map, R, label) {
+  let entrances = 0, multi = 0;
+  for (let x = -R; x < R; x++) {
+    for (let y = -R; y < R; y++) {
+      const t = map.tileAt(x, y);
+      if (!t.isEntrance) continue;
+      entrances++;
+      if (t.buildingAnchor) {
+        const [ax, ay] = t.buildingAnchor;
+        const side = map.tileAt(ax + 1, ay);
+        if (side.inBuilding &&
+            side.buildingAnchor &&
+            side.buildingAnchor[0] === ax && side.buildingAnchor[1] === ay) {
+          multi++; // footprint шире 1 тайла
+        }
+      }
+      const free =
+        map.tileAt(x + 1, y).passable ||
+        map.tileAt(x - 1, y).passable ||
+        map.tileAt(x, y + 1).passable ||
+        map.tileAt(x, y - 1).passable;
+      assert.ok(free,
+        `${label} (${x},${y}): вход постройки ${t.building} (якорь ${JSON.stringify(t.buildingAnchor)}) замурован`);
+    }
+  }
+  return { entrances, multi };
+}
+
+test('вход не замурован: у входа каждой постройки есть проходимый сосед (синтетические миры)', () => {
+  const worlds = [
+    [createMap(), 'мир по умолчанию'],
+    // Поднятое море (R=0): постройки у кромки воды — случай
+    // «нижний ряд на песке, под ним вода» из ревью.
+    [createMap(syntheticPixels(8, 8, 0, 128, 128, 255)), 'мир с приливом'],
+    // Плотные деревни (A=255): footprint'ы толпятся — случай
+    // «стена поздней постройки замуровала вход ранней».
+    [createMap(syntheticPixels(8, 8, 128, 128, 128, 255)), 'плотный мир'],
+  ];
+  for (const [map, label] of worlds) {
+    const { entrances } = assertEntrancesReachable(map, 100, label);
+    assert.ok(entrances > 20, `${label}: мало входов ${entrances}`);
+  }
+});
+
+test('вход не замурован: реальный assets/map.png (±150)', () => {
+  const { width, height, data } = decodePng('assets/map.png');
+  const map = createMap({ width, height, data });
+  const { entrances, multi } = assertEntrancesReachable(map, 150, 'реальная карта');
+  assert.ok(entrances > 100, `мало входов: ${entrances}`);
+  assert.ok(multi > 0, 'в сэмпле не осталось много-тайловых построек — тест не проверяет 3x3');
+});
