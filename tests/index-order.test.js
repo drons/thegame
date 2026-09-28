@@ -31,10 +31,23 @@ test('index.html: нужные модули подключены', () => {
     'src/global-settings.js', 'src/day.js', 'src/player.js',
     'src/items.js', 'src/controls.js', 'src/combat-keys.js',
     'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
-    'src/main.js',
+    'src/dungeon.js', 'src/dungeon-ui.js', 'src/main.js',
   ]) {
     assert.notEqual(pos(f), -1, f + ' не подключён в index.html');
   }
+});
+
+test('index.html: controls.js ДО dungeon-ui.js (иначе Game.deltaForEvent не виден)', () => {
+  // dungeon-ui.js снимает Game один раз при загрузке
+  // (const G = globalThis.Game) и передаёт нажатия в
+  // Game.deltaForEvent (controls.js, задача 000043). Битый порядок не
+  // падаёт при загрузке, а ломает управление подземельем тихо —
+  // поэтому порядок закреплён здесь, а guard с console.error ловит
+  // остаток (tests/dungeon-ui.test.js). Паттерн пары
+  // controls.js → combat-keys.js (задача 000048).
+  assert.ok(
+    pos('src/controls.js') < pos('src/dungeon-ui.js'),
+    'src/controls.js должен быть раньше src/dungeon-ui.js (задача 000043)');
 });
 
 test('index.html: controls.js ДО ui.js (иначе Game.touchControls не создаётся)', () => {
