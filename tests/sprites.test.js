@@ -567,3 +567,68 @@ test('gen-combat-bg: генератор детерминирован, соста
       `${bg.key}: viewBox 336×336 (7×7×48 px)`);
   }
 });
+
+// --- Боевые мобы: базовый спрайт-вид (задача 000047) ---
+//
+// mobSpriteKind — чистая функция: mobId из MOB_TYPES (combat.js) →
+// базовый вид MOB_FRAMES ('orc'|'skeleton'|'wolf'|'spider'|
+// 'elemental'|'abyss') или null. Таблица — литерал в sprites.js
+// (зависимости на combat.js нет — нет цикла), равноценность с
+// фактическими id MOB_TYPES закрепляется здесь (тест импортирует
+// combat.js напрямую в node).
+
+const C = require('../src/combat.js');
+
+test('mobSpriteKind: все id MOB_TYPES (36) → только валидные виды MOB_FRAMES', () => {
+  const ids = Object.keys(C.MOB_TYPES);
+  assert.equal(ids.length, 36, 'MOB_TYPES — ровно 36 мобов');
+  const kinds = Object.keys(S.MOB_FRAMES);
+  assert.equal(kinds.length, 6, 'базовых видов — 6');
+  for (const id of ids) {
+    const k = S.mobSpriteKind(id);
+    assert.ok(kinds.includes(k), `${id} → невалидный вид: ${k}`);
+    for (const p of S.MOB_FRAMES[k]) {
+      assert.ok(exists(p), `${id}: нет файла кадра ${p}`);
+    }
+  }
+  // В таблице нет «лишних» видов (все значения ∈ ключей MOB_FRAMES).
+  for (const k of Object.values(S.MOB_SPRITE_KINDS)) {
+    assert.ok(kinds.includes(k), `в таблице неизвестный вид: ${k}`);
+  }
+});
+
+test('mobSpriteKind: точечные проверки по семействам (8+7+5+5+8+3 = 36)', () => {
+  const expect = {
+    orc: ['orc_grunt', 'orc_warrior', 'orc_archer', 'orc_shaman',
+          'orc_rider', 'orc_mad', 'orc_captain', 'orc_chief'],
+    skeleton: ['skeleton', 'skeleton_archer', 'crawling_bones', 'giant_larva',
+               'vampire', 'rot', 'bone_coloss'],
+    wolf: ['wolf', 'wolf_pack', 'boar', 'cave_bear', 'troll'],
+    spider: ['spider', 'ant', 'ant_queen', 'scorpion', 'centipede'],
+    elemental: ['fire_elemental', 'water_elemental', 'wind_elemental',
+                'earth_elemental', 'imp', 'salamander', 'fairy', 'stone_golem'],
+    abyss: ['lower_demon', 'succubus', 'abomination'],
+  };
+  const total = [];
+  for (const [kind, ids] of Object.entries(expect)) {
+    for (const id of ids) {
+      assert.equal(S.mobSpriteKind(id), kind, `${id} → ${kind}`);
+      total.push(id);
+    }
+  }
+  assert.equal(total.length, 36, 'таблица покрывает все 36 id');
+  // Покрытие совпадает с MOB_TYPES 1:1 (ни пропусков, ни лишнего).
+  assert.deepEqual(total.slice().sort(), Object.keys(C.MOB_TYPES).sort(),
+    'таблица ≠ составу MOB_TYPES');
+});
+
+test('mobSpriteKind: неизвестный id → null, чистота', () => {
+  for (const id of ['no_such_mob', '', null, undefined, 999, 'WOLF', 'orc_chief ']) {
+    assert.equal(S.mobSpriteKind(id), null, `unknown: ${String(id)}`);
+  }
+  // Чистая функция: повторный вызов — тот же результат.
+  for (const id of ['wolf', 'bone_coloss', 'abomination']) {
+    assert.equal(S.mobSpriteKind(id), S.mobSpriteKind(id),
+      `чистота: ${id}`);
+  }
+});

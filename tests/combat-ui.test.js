@@ -74,7 +74,7 @@ function makeEl(tag, buttons) {
 // задача 000038); map.js нужен для sprites.js при загрузке (TERRAIN).
 // false — цепочка без sprites.js: покрывает фолбэк '#6fdc6f' в
 // combat-ui.js (sprites.js отсутствует вовсе — деградация, не падение).
-function loadCombatUi(withSprites = true) {
+function loadCombatUi(withSprites = true, opts = {}) {
   const keydown = [];
   const buttons = [];
   const document = {
@@ -89,6 +89,16 @@ function loadCombatUi(withSprites = true) {
     addEventListener: (type, fn) => { if (type === 'keydown') keydown.push(fn); },
   };
   const sandbox = { console, document, window };
+  // Задача 000047: опциональное внедрение в песочницу (по умолчанию
+  // ОТСУТСТВУЕТ — поведение существующих тестов не меняется):
+  //  * performance = { now: () => T } — фиксированное время (nowMs()
+  //    берёт performance.now() в браузере; детерминизм выбора кадров:
+  //    now — аргумент чистого G.frameIndex);
+  //  * requestAnimationFrame/cancelAnimationFrame — стабы с записью
+  //    scheduled/cancelled (тесты rAF-цикла).
+  if (opts.performance) sandbox.performance = opts.performance;
+  if (opts.requestAnimationFrame) sandbox.requestAnimationFrame = opts.requestAnimationFrame;
+  if (opts.cancelAnimationFrame) sandbox.cancelAnimationFrame = opts.cancelAnimationFrame;
   vm.createContext(sandbox);
   for (const f of [
     'global-settings.js', 'perlin.js', 'map.js',
@@ -355,4 +365,322 @@ test('боевой UI: spriteLoader = null (main.js без s2) — фон не �
   const calls = findCanvas(body).drawCalls;
   assert.ok(!calls.some((c2) => c2[0] === 'drawImage'),
     'null-лоадер — null-guard, drawImage не вызывается');
+});
+
+// --- Анимированные спрайты (задача 000047) ---
+//
+// Спрайты — на боевом canvas поверх фона (000049) и сетки; выбор
+// кадра — чистая G.frameIndex(now, x, y, n) (now — аргументом;
+// фиксированный performance.now в песочнице → детерминизм).
+// loadCombatUi(withSprites, opts) — opts внедряет performance и
+// стабы rAF/cAF в песочницу (см. loadCombatUi).
+
+function makeRafStubs() {
+  const scheduled = [];
+  const cancelled = [];
+  let id = 0;
+  return {
+    scheduled, cancelled,
+    requestAnimationFrame(fn) { scheduled.push(fn); return ++id; },
+    cancelAnimationFrame(x) { cancelled.push(x); },
+  };
+}
+
+test('боевой UI: в песочнице без rAF/performance — startCombat не падает (typeof-гарды)', () => {
+  const { G, body } = loadCombatUi();
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c, 'бой создан');
+  assert.ok(findCanvas(body), 'оверлей на месте, render() не упал');
+});
+
+test('боевой UI: спрайт героя — drawImage по центру клетки, размер CELL*1.15, кадр детерминирован', () => {
+  const NOW = 1000;
+  const { G, keydown, body } = loadCombatUi(true, { performance: { now: () => NOW } });
+  const fake = { __fake: 'hero' };
+  const requested = [];
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => {
+        requested.push(p);
+        return p.startsWith('assets/sprites/phlogiston/idle_') ? fake : null;
+      },
+    },
+  });
+  const di = findCanvas(body).drawCalls
+    .find((x) => x[0] === 'drawImage' && x[1][0] === fake);
+  assert.ok(di, 'спрайт героя нарисован (drawImage)');
+  const size = 48 * 1.15;
+  const cx = (c.px + 0.5) * 48, cy = (c.py + 0.5) * 48;
+  assert.equal(di[1][1], cx - size / 2, 'x — по центру клетки (px,py)');
+  assert.equal(di[1][2], cy - size / 2, 'y — по центру клетки');
+  assert.equal(di[1][3], size, 'ширина ≈ CELL×1.15');
+  assert.equal(di[1][4], size, 'высота ≈ CELL×1.15');
+  // Кадр детерминирован: тот же now → тот же кадр
+  // idle_<idx+1>.svg, idx = frameIndex(NOW, px, py, 2).
+  const idx = G.frameIndex(NOW, c.px, c.py, 2);
+  const frame = G.phlogistonFrames('idle')[idx];
+  assert.ok(requested.includes(frame), 'запрошен кадр: ' + frame
+    + ' | ' + JSON.stringify(requested));
+  // Второй render при том же (фиксированном) now — тот же кадр.
+  press(keydown, 'KeyB'); // любое допустимое действие → render
+  assert.equal(requested[requested.length - 1], frame,
+    'тот же now → тот же кадр (детерминизм); герой рисуется последним');
+});
+
+test('боевой UI: без лоадера — фолбэк (ромб/прямоугольник), drawImage юнитов нет', () => {
+  const { G, body } = loadCombatUi();
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c, 'бой создан');
+  const calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((x) => x[0] === 'drawImage'),
+    'drawImage юнитов нет (нет лоадера)');
+  assert.ok(calls.some((x) => x[0] === 'beginPath'),
+    'ромб героя нарисован (beginPath/fill)');
+  assert.ok(calls.some((x) => x[0] === 'fillRect'),
+    'прямоугольник моба нарисован (fillRect)');
+});
+
+test('боевой UI: спрайт моба — весь прямоугольник с запасом 8px (1×1 и 3×3)', () => {
+  const { G, body } = loadCombatUi(true, { performance: { now: () => 1000 } });
+  const fakeWolf = { __fake: 'wolf' }, fakeSkel = { __fake: 'skeleton' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf', 'bone_coloss'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => {
+        if (p.startsWith('assets/sprites/mobs/wolf_')) return fakeWolf;
+        if (p.startsWith('assets/sprites/mobs/skeleton_')) return fakeSkel;
+        return null;
+      },
+    },
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  const coloss = c.units.find((u) => u.mobId === 'bone_coloss');
+  assert.ok(wolf && coloss, 'оба моба в бою');
+  const calls = findCanvas(body).drawCalls;
+  const dw = calls.find((x) => x[0] === 'drawImage' && x[1][0] === fakeWolf);
+  assert.ok(dw, 'спрайт волка нарисован');
+  assert.equal(dw[1][1], wolf.x * 48 + 8, 'x = якорь + запас 8px');
+  assert.equal(dw[1][2], wolf.y * 48 + 8, 'y = якорь + запас 8px');
+  assert.equal(dw[1][3], 48 - 16, '1×1: ширина 32px');
+  assert.equal(dw[1][4], 48 - 16, '1×1: высота 32px');
+  const db = calls.find((x) => x[0] === 'drawImage' && x[1][0] === fakeSkel);
+  assert.ok(db, 'спрайт костяного колосса (3×3) нарисован');
+  assert.equal(db[1][1], coloss.x * 48 + 8);
+  assert.equal(db[1][2], coloss.y * 48 + 8);
+  assert.equal(db[1][3], 3 * 48 - 16, '3×3: ширина 128px');
+  assert.equal(db[1][4], 3 * 48 - 16, '3×3: высота 128px');
+});
+
+test('боевой UI: спрайт не загружен (image() → null) — фолбэк по юниту, drawImage нет', () => {
+  const { G, body } = loadCombatUi();
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    spriteLoader: { image: () => null }, // лоадер есть, ассеты не готовы
+  });
+  assert.ok(c, 'бой создан');
+  const calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((x) => x[0] === 'drawImage'), 'drawImage не вызывается');
+  assert.ok(calls.some((x) => x[0] === 'fillRect'), 'фолбэк-прямоугольник на месте');
+});
+
+test('боевой UI: c._fx — attack после успешной атаки; после until — idle (детерминированный now)', () => {
+  const NOW = 1000;
+  const { G, keydown, body } = loadCombatUi(true, { performance: { now: () => NOW } });
+  const fakeAtk = { __fake: 'atk' }, fakeIdle = { __fake: 'idle' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => {
+        if (p.startsWith('assets/sprites/phlogiston/attack_')) return fakeAtk;
+        if (p.startsWith('assets/sprites/phlogiston/idle_')) return fakeIdle;
+        return null;
+      },
+    },
+  });
+  const m0 = c.units[0];
+  m0.x = c.px; m0.y = c.py - 1; // в упор
+  c._rng = () => 0.99; // все попадания — промахи: { ok:true, hit:false }
+  c.selectTarget(m0.id);
+  assert.equal(c._fx, undefined, 'c._fx не записано до действия');
+  press(keydown, 'KeyJ');
+  assert.equal(c._fx && c._fx.action, 'attack', 'c._fx.action = attack');
+  assert.ok(c._fx.until > NOW, 'until > now (≈300 мс)');
+  const canvas = findCanvas(body);
+  const calls = canvas.drawCalls;
+  assert.ok(calls.some((x) => x[0] === 'drawImage' && x[1][0] === fakeAtk),
+    'кадр атаки нарисован');
+  // Экспирация без sleep: вручную until в прошлое → следующий
+  // render рисует idle.
+  c._fx.until = NOW - 1;
+  const n1 = calls.length;
+  press(keydown, 'KeyB'); // блок (допустим) → render
+  const after = calls.slice(n1);
+  assert.ok(after.some((x) => x[0] === 'drawImage' && x[1][0] === fakeIdle),
+    'после истечения — кадр idle');
+  assert.ok(!after.some((x) => x[0] === 'drawImage' && x[1][0] === fakeAtk),
+    'кадр атаки не рисуется после истечения');
+});
+
+test('боевой UI: c._fx — cast после успешного заклинания (fire)', () => {
+  const NOW = 1000;
+  const { G, keydown } = loadCombatUi(true, { performance: { now: () => NOW } });
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const m0 = c.units[0];
+  m0.x = c.px; m0.y = c.py - 1;
+  c._rng = () => 0.99;
+  c.selectTarget(m0.id);
+  assert.equal(c._fx, undefined, 'c._fx не записано до заклинания');
+  press(keydown, 'KeyQ'); // огненная стрела — всегда попадает
+  assert.equal(c._fx && c._fx.action, 'cast', 'c._fx.action = cast');
+  assert.ok(c._fx.until > NOW, 'until > now');
+});
+
+test('боевой UI: c._fx не пишется при отклонённом действии', () => {
+  const NOW = 1000;
+  const { G, keydown } = loadCombatUi(true, { performance: { now: () => NOW } });
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  press(keydown, 'KeyB'); // блок
+  assert.equal(c.ps.blocked, true, 'блок поставлен');
+  const n0 = c.log.length;
+  press(keydown, 'KeyJ'); // атака под блоком — отклонена
+  const added = Array.from(c.log).slice(n0);
+  assert.ok(added.some((s) => s.includes('блок')),
+    'причина отклонения в журнале: ' + JSON.stringify(added));
+  assert.equal(c._fx, undefined, 'отклонённое действие — без анимации');
+});
+
+test('боевой UI: y-сортировка — меньший bottomY рисуется раньше (глубина)', () => {
+  const NOW = 1000;
+  const { G, keydown, body } = loadCombatUi(true, { performance: { now: () => NOW } });
+  const fakeWolf = { __fake: 'wolf' }, fakeSkel = { __fake: 'skeleton' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf', 'bone_coloss'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => {
+        if (p.startsWith('assets/sprites/mobs/wolf_')) return fakeWolf;
+        if (p.startsWith('assets/sprites/mobs/skeleton_')) return fakeSkel;
+        return null;
+      },
+    },
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  const coloss = c.units.find((u) => u.mobId === 'bone_coloss');
+  // Явная геометрия: колосс 3×3 у (0,0) → bottomY = 0+3 = 3;
+  // волк 1×1 у (1,3) → bottomY = 3+1 = 4; герой (3,6) → bottomY = 7.
+  coloss.x = 0; coloss.y = 0;
+  wolf.x = 1; wolf.y = 3;
+  const canvas = findCanvas(body);
+  const n0 = canvas.drawCalls.length; // первый render (спавн) не учитываем
+  press(keydown, 'KeyB'); // любое допустимое действие → render
+  const calls = canvas.drawCalls.slice(n0);
+  const iColoss = calls.findIndex((x) => x[0] === 'drawImage' && x[1][0] === fakeSkel);
+  const iWolf = calls.findIndex((x) => x[0] === 'drawImage' && x[1][0] === fakeWolf);
+  assert.ok(iColoss >= 0, 'колосс нарисован');
+  assert.ok(iWolf >= 0, 'волк нарисован');
+  assert.ok(iColoss < iWolf,
+    `bottomY 3 (колосс) рисуется раньше bottomY 4 (волк): ${iColoss} vs ${iWolf}`);
+});
+
+test('боевой UI: rAF-цикл — старт в startCombat, tick рендерит, стоп в finish()', () => {
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body } = loadCombatUi(true, {
+    performance: { now: () => 1000 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c, 'бой создан');
+  assert.equal(rafStubs.scheduled.length, 1,
+    'после startCombat отложен ровно один tick');
+  const canvas = findCanvas(body);
+  // Цикл жив: tick → render → следующий tick.
+  const n0 = canvas.drawCalls.length;
+  rafStubs.scheduled[0]();
+  assert.ok(canvas.drawCalls.length > n0, 'tick вызвал render()');
+  assert.equal(rafStubs.scheduled.length, 2, 'отложен следующий tick');
+  assert.equal(G.combatUI.isActive(), true, 'оверлей открыт');
+  // Конец боя: cancel с активным id, новых schedule нет.
+  c.result = { outcome: 'victory' };
+  press(keydown, 'Escape');
+  assert.equal(G.combatUI.isActive(), false, 'оверлей закрыт');
+  assert.equal(rafStubs.cancelled.length, 1, 'cancelAnimationFrame вызван один раз');
+  assert.equal(rafStubs.cancelled[0], 2, 'отменён активный id (вторая очередь)');
+  assert.equal(rafStubs.scheduled.length, 2, 'после finish новых ticks нет');
+  // «Потерянный» tick после finish: isActive false → рендера нет,
+  // rafId сбрасывается сам, повторного schedule нет.
+  const n1 = canvas.drawCalls.length;
+  rafStubs.scheduled[1]();
+  assert.equal(canvas.drawCalls.length, n1, 'tick после finish не рендерит');
+  assert.equal(rafStubs.scheduled.length, 2, 'нет повторного schedule');
+});
+
+test('боевой UI: миниполоса HP героя у краёв поля — внутри canvas (регрессия: верхний ряд)', () => {
+  // Ревью 000047: в спрайтовой ветке якорь полосы — «8px над верхом
+  // спрайта» (by = hy - size/2 - 8, size = CELL*1.15 = 55.2). У краёв
+  // поля якорь уходит за край canvas: c.py = 0 → by = -12, fillRect
+  // (…, -12, 55, 4) ЦЕЛИКОМ выше canvas — 4px-полоса HP героя
+  // невидима (регрессия 000038: в фолбэке-ромбе там же by = 2 —
+  // видима); боковые края (px = 0/6) срезали левый/правый край
+  // полосы на 3–4px. Фикс — кламп полосы в canvas (запас 2px); на
+  // внутренних клетках кламп не срабатывает (позиция зафиксирована
+  // в конце теста).
+  const rafStubs = makeRafStubs();
+  const { G, body } = loadCombatUi(true, {
+    performance: { now: () => 1000 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const fake = { __fake: 'hero' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => (p.startsWith('assets/sprites/phlogiston/idle_') ? fake : null),
+    },
+  });
+  const canvas = findCanvas(body);
+  const W = canvas.width, H = canvas.height; // 7×48 = 336×336
+  const BW = Math.round(48 * 1.15); // 55 — ширина полосы = ширина спрайта
+  // Миниполоса героя — ЕДИНСТВЕННЫЕ fillRect BW×4 в render (у мобов
+  // полоса pw-16 = 32/96/128 × 4, база — 336×336, моб-прямоугольник
+  // 32×32): по сигнатуре её ищем. Рендер на каждый tick rAF-цикла.
+  const heroBars = (calls) => calls.filter(
+    (x) => x[0] === 'fillRect' && x[1][2] === BW && x[1][3] === 4);
+  const tickRender = () => {
+    const n0 = canvas.drawCalls.length;
+    rafStubs.scheduled[rafStubs.scheduled.length - 1](); // tick → render
+    return canvas.drawCalls.slice(n0);
+  };
+  // Все углы + центр верхнего ряда (регрессия) + центр нижнего ряда
+  // (стандартный спавн).
+  for (const [px, py] of [[0, 0], [3, 0], [6, 0], [0, 6], [3, 6], [6, 6]]) {
+    c.px = px; c.py = py;
+    const bars = heroBars(tickRender());
+    assert.equal(bars.length, 2,
+      `(${px},${py}): миниполоса нарисована (база + заполнение)`);
+    for (const [, args] of bars) {
+      assert.ok(args[0] >= 0 && args[1] >= 0
+        && args[0] + BW <= W && args[1] + 4 <= H,
+        `(${px},${py}): миниполоса внутри canvas: `
+        + `(${args[0]}, ${args[1]}, ${BW}, 4), canvas ${W}×${H}`);
+    }
+  }
+  // Внутренняя клетка — кламп НЕ срабатывает: позиция как была
+  // (x = round(hx - bw/2) = 141, y = round(hy - size/2 - 8) = 132).
+  c.px = 3; c.py = 3;
+  const bars = heroBars(tickRender());
+  assert.deepEqual(
+    bars.map(([, a]) => [a[0], a[1]]),
+    [[141, 132], [141, 132]],
+    'внутренняя клетка: позиция полосы без изменений');
 });
