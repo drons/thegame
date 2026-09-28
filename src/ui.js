@@ -108,14 +108,19 @@
         return;
       }
       const r = G.raiseSkill(character, btn.dataset.skill);
+      render();
       if (!r.ok) {
-        // Показываем причину в названии строки (краткая обратная связь).
+        // Краткая обратная связь: причина неудачи в .cp-req на 1.5 с.
+        // Пишется ПОСЛЕ render(), чтобы вспышка была видна; а через 1.5 с
+        // снова render() — вернёт постоянный текст ячейки (пометка потолка
+        // практикой / требование), а не зальёт её пустой строкой.
         const tr = btn.closest('tr');
         const req = tr.querySelector('.cp-req');
-        if (req) req.textContent = r.reason;
-        setTimeout(() => { if (req) req.textContent = ''; }, 1500);
+        if (req) {
+          req.textContent = r.reason;
+          setTimeout(render, 1500);
+        }
       }
-      render();
     });
 
     document.body.appendChild(panel);

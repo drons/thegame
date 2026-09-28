@@ -435,10 +435,17 @@ test('sanitizeSavedHero: вторичные навыки — посчётный 
 
 test('sanitizeSavedHero: skillXp — посчётный отброс, mp/points/name нормализация', () => {
   const s = validSavedHero();
-  s.skillXp = { endurance: 40, 'nope': 5, meditation: 'x', nature: -3 };
+  s.skillXp = {
+    endurance: 40,        // валидный — остаётся
+    'nope': 5,            // неизвестный id — отбросить
+    meditation: 'x',      // нечисловой — отбросить
+    nature: -3,           // отрицательный — отбросить
+    swordsman: 2.5,       // дробный — отбросить (в игре опыт всегда цел:
+  };                       // _gainSkillXp Math.round, пороги 15·(lvl+1))
   const clean = sanitizeSavedHero(s);
   assert.ok(clean);
-  assert.deepEqual(clean.skillXp, { endurance: 40 });
+  assert.deepEqual(clean.skillXp, { endurance: 40 },
+    'дробный skillXp (только подделанный сейв) не проходит — .cp-level не покажет «3 (2.5/60)»');
 
   const s2 = validSavedHero();
   s2.mp = '8'; s2.points = -1; s2.name = 42; s2.totalXp = NaN;

@@ -29,10 +29,10 @@
 //   * основные навыки — просто число уровня, ячейки .cp-req нет;
 //   * кнопка «+» — disabled строго по G.canRaise.
 //
-// Клик по «+» (временная «вспышка» причины неудачи raiseSkill в .cp-req с
-// затиранием через 1.5 с) намеренно НЕ смешивается с проверками пометки
-// потолка в одном кейсе: конфликт клетки известен, пометка восстанавливается
-// следующим render() — клик покрывается отдельно, если понадобится.
+// Клик по «+» (вспышка причины неудачи raiseSkill в .cp-req на 1.5 с)
+// покрыт отдельным кейсом: reason виден 1.5 с, а затем render() ВОЗВРАЩАЕТ
+// постоянный текст ячейки (пометка потолка / требование) — ревью раунд 1
+// (до исправления таймаут затыкал .cp-req пустой строкой).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -316,4 +316,44 @@ test('панель: кнопка «+» — disabled строго по G.canRaise
   env.G.playerUI.render();
   ({ btn } = skillRow(env.body, 'swordsman'));
   assert.equal(btn.disabled, false, 'очко есть — кнопка активна');
+});
+
+test('панель: неудачный клик — reason 1.5 с, потом постоянный текст .cp-req', async () => {
+  // Ревью раунд 1: setTimeout от «вспышки» затыкал .cp-req пустой строкой
+  // и до следующего render() стирал постоянную пометку «потолок практикой»
+  // (раньше — requiresText). Теперь через 1.5 с работает render(): и
+  // вспышка реально видна (reason пишется ПОСЛЕ render()), и постоянный
+  // текст возвращается.
+  const env = loadPlayerUi();
+  const c = env.G.createCharacter(); // points = 0 — raiseSkill не пройдёт
+  c.primary.strength = 5;
+  c.secondary.swordsman = 10; // потолок практикой: 5×2 = 10
+  openPanel(env, c);
+  const sw = skillRow(env.body, 'swordsman');
+  const heavy = skillRow(env.body, 'heavy'); // lvl = 0 — требует «Мечник 5»
+  const marker = sw.reqTd.textContent;
+  assert.ok(marker.startsWith('потолок практикой:'),
+    'постоянная пометка до клика: ' + marker);
+  assert.equal(heavy.reqTd.textContent, 'Мечник 5', 'требование до клика');
+
+  // Делегированный кликер на панели: handler({ target: btn }).
+  // Кнопка в реальности disabled (нет очков) — симулируем гонку состояния:
+  // панель не перерисована после траты очков, клик дошёл до raiseSkill.
+  const panel = findAll(env.body, '.char-panel')[0];
+  assert.ok(panel && panel.listeners.click && panel.listeners.click.length,
+    'делегированный click-обработчик на панели');
+  const click = (btn) => panel.listeners.click[0]({ target: btn });
+
+  click(sw.btn);
+  assert.equal(sw.reqTd.textContent, 'нет свободных очков навыков',
+    'reason виден сразу (вспышка, 1.5 с)');
+  click(heavy.btn);
+  assert.equal(heavy.reqTd.textContent, 'нет свободных очков навыков',
+    'reason виден сразу (строка lvl = 0)');
+
+  await new Promise((r) => setTimeout(r, 1700));
+  assert.equal(sw.reqTd.textContent, marker,
+    'через 1.5 с пометка потолка НЕ затирается — восстановлена');
+  assert.equal(heavy.reqTd.textContent, 'Мечник 5',
+    'через 1.5 с текст требования восстановлен');
 });
