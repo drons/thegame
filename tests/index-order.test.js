@@ -20,6 +20,11 @@ const uiCode = fs.readFileSync(path.join(ROOT, 'src', 'ui.js'), 'utf8');
 const controlsCode = fs.readFileSync(path.join(ROOT, 'src', 'controls.js'), 'utf8');
 const combatKeysCode = fs.readFileSync(
   path.join(ROOT, 'src', 'combat-keys.js'), 'utf8');
+// motion.js (задача 000033) в стадии красных тестов ещё не создан —
+// читаем лениво, чтобы остальные тесты этого файла продолжали работать.
+const motionPath = path.join(ROOT, 'src', 'motion.js');
+const motionCode = fs.existsSync(motionPath)
+  ? fs.readFileSync(motionPath, 'utf8') : null;
 
 // Порядок <script src="…"> в index.html.
 const scripts = Array.from(
@@ -31,7 +36,9 @@ test('index.html: нужные модули подключены', () => {
     'src/global-settings.js', 'src/day.js', 'src/player.js',
     'src/items.js', 'src/controls.js', 'src/combat-keys.js',
     'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
-    'src/dungeon.js', 'src/dungeon-ui.js', 'src/main.js',
+    'src/dungeon.js', 'src/dungeon-ui.js',
+    'src/motion.js',
+    'src/main.js',
   ]) {
     assert.notEqual(pos(f), -1, f + ' не подключён в index.html');
   }
@@ -93,6 +100,17 @@ test('index.html: ui.js и controls.js ДО main.js', () => {
   assert.ok(pos('src/controls.js') < pos('src/main.js'));
   // save.js — тоже до main.js (механизм сохранения).
   assert.ok(pos('src/save.js') < pos('src/main.js'));
+});
+
+test('index.html: motion.js ДО main.js (main.js снимает Game один раз)', () => {
+  // main.js — IIFE: const G = globalThis.Game при ЗАГРУЗКЕ. motion.js
+  // обязан дать Game.createMover/CAM_TAU_MS/MIN_MOVE_INTERVAL_MS ДО
+  // main.js, иначе ловушка UMD (задачи 000018/000038): захваченный G
+  // не увидит функции скриптов, загруженных позже.
+  assert.notEqual(pos('src/motion.js'), -1,
+    'src/motion.js не подключён в index.html (задача 000033)');
+  assert.ok(pos('src/motion.js') < pos('src/main.js'),
+    'src/motion.js должен быть раньше src/main.js (задача 000033)');
 });
 
 // Симуляция загрузки в node: скрипты игры — обычные <script> (не модули),
@@ -162,4 +180,24 @@ test('порядок combat-keys.js → controls.js (битый): CombatKeys н�
   assert.equal(sandbox.Game.CombatKeys, undefined,
     'без controls.js таблица боя не строится');
   assert.ok(errors.length > 0, 'guard обязан оставить след в консоли');
+});
+
+test('motion.js (браузерная ветка UMD): даёт Game.createMover и константы', () => {
+  // motion.js — чистый модуль без зависимостей (задача 000033): в
+  // браузере обязан заменить root.Game, добавив ядро плавного движения,
+  // — иначе main.js (IIFE, снимает Game при загрузке) не найдёт его.
+  assert.ok(motionCode !== null,
+    'src/motion.js должен существовать (задача 000033)');
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  vm.runInContext(motionCode, sandbox, { filename: 'motion.js' });
+  for (const name of ['clamp01', 'lerp', 'lerpPos', 'easeInOut',
+    'stepProgress', 'cameraStep', 'moveIntervalMs', 'createMover']) {
+    assert.equal(typeof sandbox.Game[name], 'function', 'Game.' + name);
+  }
+  assert.ok(Number.isFinite(sandbox.Game.CAM_TAU_MS) &&
+    sandbox.Game.CAM_TAU_MS > 0, 'Game.CAM_TAU_MS — положительное число');
+  assert.ok(Number.isFinite(sandbox.Game.MIN_MOVE_INTERVAL_MS) &&
+    sandbox.Game.MIN_MOVE_INTERVAL_MS > 0, 'Game.MIN_MOVE_INTERVAL_MS > 0');
 });
