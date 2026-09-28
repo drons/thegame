@@ -31,7 +31,7 @@
     leader: '#b06ad4', shield: '#a98545', swarm: '#e0b13c',
   };
 
-  let ctx = null; // { combat, hero, onEnd, open }
+  let ctx = null; // { combat, hero, onEnd, open, bgPath, spriteLoader }
   let overlay = null, canvas = null, g2 = null;
   let stateEl = null, logEl = null, bannerEl = null, turnorderEl = null;
   let hpbarEl = null, hpbarFillEl = null, hpbarTextEl = null;
@@ -280,7 +280,26 @@
 
     g2.fillStyle = '#0d1117';
     g2.fillRect(0, 0, canvas.width, canvas.height);
-    g2.strokeStyle = '#2a3140';
+    // Фон поля боя (задача 000049): ПЕРВЫЙ слой поверх сплошной базы.
+    // Картинку ищем в лоадере КАЖДЫЙ render (Map.get дёшев): фон,
+    // загрузившийся ПОСЛЕ начала боя (async Image), подхватится без
+    // рестарта. bgPath/spriteLoader — из ctx (один расчёт в
+    // startCombat). spriteLoader может быть null (нет s2/лоадера в
+    // main.js) → null-guard; bgPath === null (sprites.js отсутствует
+    // вовсе, см. guard в startCombat) → сплошной фолбэк, рендер не
+    // падает (деградация, не поломка — паттерн hpBarColor).
+    const bgImg = ctx.bgPath && ctx.spriteLoader
+      ? ctx.spriteLoader.image(ctx.bgPath) : null;
+    if (bgImg) g2.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+    // Сетка — ПОВЕРХ фона. Цвет приглушён и полупрозрачный (задача
+    // 000049): старый #2a3140 на светлом sand читался слишком резко,
+    // а тёмная полупрозрачная линия (напр. rgba(18,22,30,0.55))
+    // пропала бы на тёмных фонах (plain/abyss) — светлая линия
+    // rgba(255,255,255,0.18) читается и на самом светлом (sand),
+    // и на самом тёмном (abyss/plain), и на фолбэке #0d1117 даёт
+    // ≈ старый вид (57,60,65 против #2a3140 = 42,49,64). Решение
+    // «на глаз», см. tasks/result/000049.md.
+    g2.strokeStyle = 'rgba(255, 255, 255, 0.18)';
     g2.lineWidth = 1;
     for (let x = 0; x <= c.width; x++) {
       g2.beginPath();
@@ -440,6 +459,10 @@
      * @param {{mobGroup:number}} opts.tile тайл с группой
      * @param {number} opts.seed   сид (детерминированная группа)
      * @param {(result:{outcome:string})=>void} opts.onEnd callback конца боя
+     * @param {number} [opts.terrain]   террейн тайла (бой мира, 000049)
+     * @param {number} [opts.dungeonType] тип подземелья (000049)
+     * @param {object} [opts.spriteLoader] загрузчик спрайтов (main.js;
+     *   может быть null — тогда фон не рисуется, сплошная база)
      */
     startCombat(opts) {
       if (isActive()) return null;
@@ -455,7 +478,25 @@
         seed: opts.seed,
         day: opts.day,
       });
-      ctx = { combat, hero: opts.hero, onEnd: opts.onEnd, open: true };
+      // Путь фона (задача 000049) — ОДИН раз при старте. Guard
+      // G.combatBackground — УМД-ловушка «G снимается один раз»
+      // (как hpBarColor, задача 000038): sprites.js отсутствует
+      // вовсе (vm-песочница с withSprites=false) → bgPath = null →
+      // сплошной фон, рендер не падает (деградация, не поломка).
+      // terrain и dungeonType оба опциональны; terrain приоритетнее.
+      const bgPath = G.combatBackground
+        ? G.combatBackground(
+            opts.terrain !== undefined ? { terrain: opts.terrain }
+            : opts.dungeonType !== undefined ? { dungeon: opts.dungeonType }
+            : {})
+        : null;
+      ctx = {
+        combat, hero: opts.hero, onEnd: opts.onEnd, open: true,
+        bgPath,
+        // opts.spriteLoader — из main.js, может быть null (нет s2 /
+        // нет G.createSpriteLoader) — null-guard в render().
+        spriteLoader: opts.spriteLoader || null,
+      };
       build();
       render();
       return combat;

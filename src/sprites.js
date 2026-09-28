@@ -156,6 +156,32 @@
   // Период кадра анимации (мс).
   const FRAME_MS = 480;
 
+  // --- Фон поля боя (задача 000049) ---
+  //
+  // Статичные SVG-фоны в assets/combat/bg/ (11 файлов, генератор —
+  // scripts/gen-combat-bg.js): 5 проходимых террейнов, 5 подземелий,
+  // 1 фолбэк. combat-ui.js рисует их первым слоем боевого canvas;
+  // загрузчик передаётся в startCombat опцией spriteLoader (main.js).
+  //
+  // COMBAT_BG_DUNGEON — ЛИТЕРАЛЬНОЕ зеркало DUNGEON_TYPES из
+  // src/dungeon.js (число → имя). Зависимость от dungeon.js не
+  // создаётся: vm-песочница tests/combat-ui.test.js не грузит
+  // dungeon.js, а require в node-ветке UMD дал бы рассинхрон
+  // node/браузер веток. Равенство зеркала с оригиналом закрывает
+  // тест (tests/sprites.test.js).
+  const COMBAT_BG_DIR = 'assets/combat/bg/';
+  const COMBAT_BG_TERRAIN = {
+    [TERRAIN.SAND]: 'sand',
+    [TERRAIN.GRASS]: 'grass',
+    [TERRAIN.FOREST]: 'forest',
+    [TERRAIN.HILL]: 'hill',
+    [TERRAIN.SWAMP]: 'swamp',
+  };
+  const COMBAT_BG_DUNGEON = {
+    0: 'cave', 1: 'crypt', 2: 'ruins', 3: 'drowned', 4: 'abyss',
+  };
+  const COMBAT_BG_FALLBACK = COMBAT_BG_DIR + 'plain.svg';
+
   // --- Волна на воде (задача 000025) ---
   //
   // Волна в текстуре имеет период 16px (четверть тайла 64px), каждый
@@ -300,6 +326,28 @@
     return out;
   }
 
+  /**
+   * Путь SVG-фона боевого поля (задача 000049).
+   * Чистая функция: bg → 'assets/combat/bg/<name>.svg'.
+   * bg — { terrain: <TERRAIN из map.js> } | { dungeon: <DUNGEON_TYPES> }
+   * | {} / null / неизвестный ключ → фолбэк plain.svg.
+   * Вода/глубокая вода/горы (непроходимы — боя там по дизайну нет)
+   * тоже → plain.svg. Приоритет: terrain, если задан.
+   * @param {object|null|undefined} bg
+   * @returns {string} путь SVG (всегда один из 11 файлов)
+   */
+  function combatBackground(bg) {
+    if (bg && bg.terrain !== undefined) {
+      const k = COMBAT_BG_TERRAIN[bg.terrain];
+      return k ? COMBAT_BG_DIR + k + '.svg' : COMBAT_BG_FALLBACK;
+    }
+    if (bg && bg.dungeon !== undefined) {
+      const k = COMBAT_BG_DUNGEON[bg.dungeon];
+      if (k) return COMBAT_BG_DIR + k + '.svg';
+    }
+    return COMBAT_BG_FALLBACK;
+  }
+
   /** Все пути ассетов модуля (без дублей) — для загрузки и тестов. */
   function allAssetPaths() {
     const paths = [];
@@ -308,6 +356,14 @@
     for (const frames of Object.values(MOB_FRAMES)) paths.push(...frames);
     paths.push(...Object.values(BUILDING_SPRITES));
     for (const v of VISUALS) paths.push(v.спрайт);
+    // Фоны боя (задача 000049): 11 файлов из двух карт + фолбэк.
+    for (const k of Object.values(COMBAT_BG_TERRAIN)) {
+      paths.push(COMBAT_BG_DIR + k + '.svg');
+    }
+    for (const k of Object.values(COMBAT_BG_DUNGEON)) {
+      paths.push(COMBAT_BG_DIR + k + '.svg');
+    }
+    paths.push(COMBAT_BG_FALLBACK);
     return Array.from(new Set(paths));
   }
 
@@ -418,6 +474,8 @@
     PHLOGISTON_ACTIONS,
     MOB_KINDS, MOB_FRAMES,
     BUILDING_SPRITES,
+    COMBAT_BG_DIR, COMBAT_BG_TERRAIN, COMBAT_BG_DUNGEON, COMBAT_BG_FALLBACK,
+    combatBackground,
     HP_BAR_COLORS, hpBarColor,
     VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE,
     FRAME_MS,

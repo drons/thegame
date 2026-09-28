@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 336 336">
+  <defs>
+    <linearGradient id="gb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6e655a"/>
+      <stop offset="1" stop-color="#4b443b"/>
+    </linearGradient>
+    <radialGradient id="gl">
+      <stop offset="0" stop-color="#837969" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#837969" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gd">
+      <stop offset="0" stop-color="#362f29" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#362f29" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gv" cx="0.5" cy="0.5" r="0.75">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.3"/>
+    </radialGradient>
+  </defs>
+  <rect width="336" height="336" fill="url(#gb)"/>
+  <g>
+    <ellipse cx="152.8" cy="4.1" rx="53.8" ry="41.1" fill="url(#gl)"/>
+    <ellipse cx="332.8" cy="55" rx="88.4" ry="68.7" fill="url(#gl)"/>
+    <ellipse cx="173.3" cy="293" rx="63.4" ry="37.5" fill="url(#gl)"/>
+    <ellipse cx="96.5" cy="194.5" rx="80.1" ry="45.5" fill="url(#gl)"/>
+    <ellipse cx="202.6" cy="316.3" rx="79.9" ry="49.3" fill="url(#gl)"/>
+    <ellipse cx="325.7" cy="204.4" rx="84.2" ry="66.6" fill="url(#gl)"/>
+    <ellipse cx="50.5" cy="170.1" rx="75.7" ry="42.4" fill="url(#gl)"/>
+    <ellipse cx="57.9" cy="94" rx="76.2" ry="39" fill="url(#gl)"/>
+    <ellipse cx="127" cy="1" rx="46" ry="36.3" fill="url(#gd)"/>
+    <ellipse cx="81" cy="316.1" rx="68.6" ry="48.3" fill="url(#gd)"/>
+    <ellipse cx="56" cy="16.5" rx="56.7" ry="40.7" fill="url(#gd)"/>
+    <ellipse cx="321.8" cy="306.6" rx="87.6" ry="64.8" fill="url(#gd)"/>
+    <ellipse cx="0.8" cy="117.2" rx="74.2" ry="47" fill="url(#gd)"/>
+    <ellipse cx="237.8" cy="293.7" rx="89.3" ry="56.2" fill="url(#gd)"/>
+    <ellipse cx="27.4" cy="246.9" rx="87.9" ry="49.5" fill="url(#gd)"/>
+    <ellipse cx="194.2" cy="311.8" rx="46.5" ry="27.5" fill="url(#gd)"/>
+  </g>
+  <g>
+    <path d="M90.7 0 L102.1 0 L96.4 15.6 z" fill="#574e44" opacity="0.85" />
+    <path d="M257.6 0 L273.3 0 L265.4 21.1 z" fill="#574e44" opacity="0.85" />
+    <path d="M238.3 0 L248.7 0 L243.5 23.1 z" fill="#574e44" opacity="0.85" />
+    <path d="M19.3 0 L30.9 0 L25.1 25.7 z" fill="#574e44" opacity="0.85" />
+    <path d="M63.1 0 L77.5 0 L70.3 26.4 z" fill="#574e44" opacity="0.85" />
+    <path d="M200.1 0 L213.2 0 L206.7 17.3 z" fill="#574e44" opacity="0.85" />
+    <path d="M19.5 0 L31 0 L25.3 15.4 z" fill="#574e44" opacity="0.85" />
+    <path d="M160.1 0 L175.2 0 L167.7 35.9 z" fill="#574e44" opacity="0.85" />
+    <path d="M138.9 0 L147.3 0 L143.1 14.4 z" fill="#574e44" opacity="0.85" />
+    <path d="M160 0 L177.7 0 L168.9 30.5 z" fill="#574e44" opacity="0.85" />
+    <path d="M201 336 L219.8 336 L210.4 308.9 z" fill="#514840" opacity="0.85" />
+    <path d="M87.3 336 L100.1 336 L93.7 311.1 z" fill="#514840" opacity="0.85" />
+    <path d="M165.6 336 L182.9 336 L174.2 320.9 z" fill="#514840" opacity="0.85" />
+    <path d="M294.2 336 L305.7 336 L299.9 305.6 z" fill="#514840" opacity="0.85" />
+    <path d="M301.8 336 L311.7 336 L306.8 321.5 z" fill="#514840" opacity="0.85" />
+    <path d="M19.8 336 L38.5 336 L29.1 321.1 z" fill="#514840" opacity="0.85" />
+    <path d="M297.5 336 L310.5 336 L304 304.9 z" fill="#514840" opacity="0.85" />
+    <path d="M325.4 336 L338.4 336 L331.9 314.9 z" fill="#514840" opacity="0.85" />
+    <polygon points="310.6,12.2 313.8,8.4 319.3,7.7 323.8,11.2 321.7,16.7 313.8,17.1" fill="#4b423a" opacity="0.8" />
+    <polygon points="48.3,25.7 53.9,18.8 64,17.5 72.1,23.8 68.4,33.9 53.9,34.5" fill="#4b423a" opacity="0.6" />
+    <polygon points="9.4,62 13.2,57.3 20,56.4 25.6,60.7 23,67.5 13.2,67.9" fill="#4b423a" opacity="0.7" />
+    <polygon points="18.9,316.7 21.4,313.6 25.9,313.1 29.5,315.9 27.8,320.3 21.4,320.6" fill="#4b423a" opacity="0.6" />
+    <polygon points="0.3,21.4 5.9,14.6 15.9,13.3 24,19.6 20.2,29.5 5.9,30.2" fill="#4b423a" opacity="0.6" />
+    <polygon points="10.3,222.7 13.2,219.2 18.3,218.6 22.4,221.8 20.5,226.8 13.2,227.2" fill="#4b423a" opacity="0.7" />
+    <polygon points="285.7,296.9 290.3,291.2 298.6,290.1 305.3,295.3 302.2,303.6 290.3,304.1" fill="#4b423a" opacity="0.8" />
+    <polygon points="26,23.1 28.7,19.8 33.5,19.2 37.4,22.2 35.6,27 28.7,27.3" fill="#4b423a" opacity="0.8" />
+    <ellipse cx="29" cy="258.8" rx="1.8" ry="1.2" fill="#837969" opacity="0.5" />
+    <ellipse cx="313.1" cy="306.4" rx="2.4" ry="1.7" fill="#837969" opacity="0.4" />
+    <ellipse cx="225.6" cy="27.7" rx="3.2" ry="2.2" fill="#837969" opacity="0.5" />
+    <ellipse cx="275.9" cy="331" rx="2.6" ry="1.8" fill="#837969" opacity="0.6" />
+    <ellipse cx="25.9" cy="201.5" rx="1.8" ry="1.3" fill="#837969" opacity="0.7" />
+    <ellipse cx="78.9" cy="39.5" rx="2" ry="1.4" fill="#837969" opacity="0.4" />
+  </g>
+  <rect width="336" height="336" fill="url(#gv)"/>
+</svg>

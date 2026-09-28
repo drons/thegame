@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 336 336">
+  <defs>
+    <linearGradient id="gb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7d7852"/>
+      <stop offset="1" stop-color="#615c3d"/>
+    </linearGradient>
+    <radialGradient id="gl">
+      <stop offset="0" stop-color="#918b62" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#918b62" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gd">
+      <stop offset="0" stop-color="#514c34" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#514c34" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gv" cx="0.5" cy="0.5" r="0.75">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.3"/>
+    </radialGradient>
+  </defs>
+  <rect width="336" height="336" fill="url(#gb)"/>
+  <g>
+    <ellipse cx="262.4" cy="189.5" rx="46.2" ry="33.9" fill="url(#gl)"/>
+    <ellipse cx="43.6" cy="112.7" rx="62.3" ry="48.7" fill="url(#gl)"/>
+    <ellipse cx="325.9" cy="223.9" rx="61.4" ry="46.8" fill="url(#gl)"/>
+    <ellipse cx="17.6" cy="150.2" rx="61.6" ry="41.5" fill="url(#gl)"/>
+    <ellipse cx="317" cy="232.2" rx="40.9" ry="27.6" fill="url(#gl)"/>
+    <ellipse cx="295.4" cy="96.4" rx="68.6" ry="48.4" fill="url(#gl)"/>
+    <ellipse cx="90.2" cy="97.3" rx="44.7" ry="35.2" fill="url(#gl)"/>
+    <ellipse cx="71.6" cy="25.8" rx="76.9" ry="45.6" fill="url(#gl)"/>
+    <ellipse cx="327.5" cy="214.2" rx="45.4" ry="29" fill="url(#gd)"/>
+    <ellipse cx="105.5" cy="38.8" rx="69.8" ry="42" fill="url(#gd)"/>
+    <ellipse cx="231.3" cy="108.8" rx="62.5" ry="40.4" fill="url(#gd)"/>
+    <ellipse cx="26.2" cy="79.3" rx="68.8" ry="39.5" fill="url(#gd)"/>
+    <ellipse cx="289.6" cy="205.1" rx="40.2" ry="30.6" fill="url(#gd)"/>
+    <ellipse cx="38" cy="256.9" rx="53" ry="41.5" fill="url(#gd)"/>
+    <ellipse cx="107" cy="327.8" rx="46.1" ry="32.4" fill="url(#gd)"/>
+    <ellipse cx="321.1" cy="178.6" rx="46.9" ry="24" fill="url(#gd)"/>
+  </g>
+  <g>
+    <polygon points="187.8,304.7 193,298.4 202.2,297.2 209.7,303 206.2,312.2 193,312.8" fill="#5f5a3e" opacity="0.9" />
+    <polygon points="5.3,250.6 10.7,244 20.3,242.8 28.1,248.8 24.5,258.4 10.7,259" fill="#5f5a3e" opacity="0.7" />
+    <polygon points="29.3,44.9 32.6,40.7 38.7,40 43.5,43.7 41.3,49.7 32.6,50.1" fill="#5f5a3e" opacity="0.7" />
+    <polygon points="295.3,316 300.1,310 308.8,309 315.9,314.4 312.6,323 300.1,323.6" fill="#5f5a3e" opacity="0.6" />
+    <polygon points="310.1,36.4 314.2,31.3 321.6,30.4 327.6,35 324.8,42.4 314.2,42.8" fill="#5f5a3e" opacity="0.7" />
+    <polygon points="35.5,87.9 38.4,84.4 43.6,83.8 47.7,87 45.8,92.1 38.4,92.4" fill="#5f5a3e" opacity="0.9" />
+    <polygon points="7.4,88.4 11.9,83 19.8,82 26.3,87 23.3,94.9 11.9,95.4" fill="#5f5a3e" opacity="0.7" />
+    <polygon points="-3.2,299.2 2.5,292.3 12.6,291.1 20.8,297.4 17,307.4 2.5,308.1" fill="#5f5a3e" opacity="0.9" />
+    <polygon points="46.7,321.6 52.6,314.4 63.2,313.1 71.8,319.7 67.8,330.2 52.6,330.9" fill="#5f5a3e" opacity="0.8" />
+    <polygon points="300,34.5 303.6,30.2 309.9,29.4 315,33.3 312.6,39.6 303.6,40" fill="#5f5a3e" opacity="0.6" />
+    <polygon points="222.2,328.6 228.4,321 239.4,319.7 248.4,326.6 244.2,337.6 228.4,338.3" fill="#5f5a3e" opacity="0.7" />
+    <polygon points="-2.8,34.4 3.1,27.3 13.4,26 21.9,32.5 18,42.8 3.1,43.5" fill="#5f5a3e" opacity="0.6" />
+    <g stroke="#6b6547" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.7"><path d="M297.9 33.3 q1.5 -6 0 -9" /><path d="M301.9 33.3 q0.5 -6 2.5 -8" /><path d="M294.9 33.3 q-2 -4 0 -8" /></g>
+    <g stroke="#6b6547" stroke-width="1.7" stroke-linecap="round" fill="none" opacity="0.5"><path d="M100 304.5 q1.9 -7.4 0 -11.2" /><path d="M105 304.5 q0.6 -7.4 3.1 -9.9" /><path d="M96.3 304.5 q-2.5 -5 0 -9.9" /></g>
+    <g stroke="#6b6547" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.6"><path d="M8.5 70.6 q1.7 -6.7 0 -10" /><path d="M12.9 70.6 q0.6 -6.7 2.8 -8.9" /><path d="M5.1 70.6 q-2.2 -4.5 0 -8.9" /></g>
+    <g stroke="#6b6547" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.7"><path d="M8.8 11.1 q1.7 -6.8 0 -10.2" /><path d="M13.4 11.1 q0.6 -6.8 2.8 -9.1" /><path d="M5.4 11.1 q-2.3 -4.6 0 -9.1" /></g>
+    <g stroke="#6b6547" stroke-width="1.7" stroke-linecap="round" fill="none" opacity="0.5"><path d="M330.9 161.2 q1.8 -7.2 0 -10.8" /><path d="M335.7 161.2 q0.6 -7.2 3 -9.6" /><path d="M327.3 161.2 q-2.4 -4.8 0 -9.6" /></g>
+    <g stroke="#6b6547" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.6"><path d="M301.7 61.2 q1.6 -6.4 0 -9.6" /><path d="M305.9 61.2 q0.5 -6.4 2.7 -8.5" /><path d="M298.5 61.2 q-2.1 -4.3 0 -8.5" /></g>
+    <g stroke="#6b6547" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.5"><path d="M108.8 314.8 q1.9 -7.8 0 -11.7" /><path d="M114 314.8 q0.6 -7.8 3.2 -10.4" /><path d="M104.9 314.8 q-2.6 -5.2 0 -10.4" /></g>
+    <g stroke="#6b6547" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"><path d="M301.5 268.5 q1.6 -6.5 0 -9.7" /><path d="M305.8 268.5 q0.5 -6.5 2.7 -8.7" /><path d="M298.2 268.5 q-2.2 -4.3 0 -8.7" /></g>
+    <g stroke="#6b6547" stroke-width="1.7" stroke-linecap="round" fill="none" opacity="0.6"><path d="M19.2 14.6 q1.8 -7.3 0 -11" /><path d="M24.1 14.6 q0.6 -7.3 3.1 -9.8" /><path d="M15.5 14.6 q-2.4 -4.9 0 -9.8" /></g>
+    <g stroke="#6b6547" stroke-width="1.6" stroke-linecap="round" fill="none" opacity="0.7"><path d="M34.5 282.3 q1.8 -7 0 -10.6" /><path d="M39.2 282.3 q0.6 -7 2.9 -9.4" /><path d="M31 282.3 q-2.3 -4.7 0 -9.4" /></g>
+    <ellipse cx="167.6" cy="17.8" rx="2.7" ry="1.9" fill="#8f8a63" opacity="0.7" />
+    <ellipse cx="111.9" cy="310.7" rx="3.2" ry="2.3" fill="#8f8a63" opacity="0.6" />
+    <ellipse cx="41.7" cy="169" rx="3.3" ry="2.3" fill="#8f8a63" opacity="0.7" />
+    <ellipse cx="16.2" cy="308" rx="3.4" ry="2.3" fill="#8f8a63" opacity="0.7" />
+    <ellipse cx="322" cy="5.7" rx="3" ry="2.1" fill="#8f8a63" opacity="0.7" />
+    <ellipse cx="35.3" cy="88.8" rx="3.3" ry="2.3" fill="#8f8a63" opacity="0.5" />
+    <ellipse cx="30.1" cy="42.5" rx="1.9" ry="1.3" fill="#8f8a63" opacity="0.5" />
+    <ellipse cx="31.8" cy="317.6" rx="2.4" ry="1.7" fill="#8f8a63" opacity="0.7" />
+  </g>
+  <rect width="336" height="336" fill="url(#gv)"/>
+</svg>

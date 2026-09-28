@@ -475,3 +475,95 @@ test('hpBarColor: frac вне [0,1] — clamp, NaN/Infinity не ломают', 
   assert.equal(S.hpBarColor(Infinity), '#6fdc6f', '+Infinity — clamp к 1');
   assert.equal(S.hpBarColor(-Infinity), '#d9483b', '-Infinity — clamp к 0');
 });
+
+// --- Фоны поля боя (задача 000049) ---
+//
+// Состав 11 файлов: assets/combat/bg/{sand,grass,forest,hill,swamp,
+// cave,crypt,ruins,drowned,abyss,plain}.svg. Пропускаемые террейны
+// перечислены ЯВНО: map.js НЕ экспортирует PASSABLE (в exports:
+// TERRAIN, TERRAIN_NAMES, BUILDING_*, MOB_GROUP_*, ZOOM_*, createMap,
+// syntheticPixels, visibleTileRange, createTileCache, hash2) —
+// сверить с PASSABLE в src/map.js при изменении.
+const BG_DIR = 'assets/combat/bg/';
+const PASSABLE_TERRAINS = [
+  TERRAIN.SAND, TERRAIN.GRASS, TERRAIN.FOREST, TERRAIN.HILL, TERRAIN.SWAMP,
+];
+const BG_TERRAIN_FILES = ['sand', 'grass', 'forest', 'hill', 'swamp'];
+const BG_DUNGEON_FILES = ['cave', 'crypt', 'ruins', 'drowned', 'abyss'];
+const ALL_BG_FILES = [...BG_TERRAIN_FILES, ...BG_DUNGEON_FILES, 'plain'];
+
+test('combatBackground: каждый проходимый террейн — свой файл', () => {
+  for (const [t, name] of PASSABLE_TERRAINS.map((t, i) => [t, BG_TERRAIN_FILES[i]])) {
+    assert.equal(S.combatBackground({ terrain: t }),
+      BG_DIR + name + '.svg', `террейн ${t} (${TERRAIN_NAMES[t]})`);
+  }
+});
+
+test('combatBackground: каждый DUNGEON_TYPES — свой файл, зеркало в синхроне', () => {
+  const D = require('../src/dungeon.js');
+  assert.ok(D.DUNGEON_TYPES, 'dungeon.js экспортирует DUNGEON_TYPES');
+  assert.equal(Object.keys(D.DUNGEON_TYPES).length, 5, '5 типов подземелий');
+  for (const [name, val] of Object.entries(D.DUNGEON_TYPES)) {
+    assert.ok(val >= 0 && val < 5, `${name} = ${val} вне [0;5)`);
+    assert.equal(S.combatBackground({ dungeon: val }),
+      BG_DIR + BG_DUNGEON_FILES[val] + '.svg', `подземелье ${name} (${val})`);
+  }
+  // COMBAT_BG_DUNGEON — ЛИТЕРАЛЬНОЕ зеркало DUNGEON_TYPES (sprites.js
+  // не зависит от dungeon.js — см. комментарий в sprites.js): ключи —
+  // те же 5 чисел, значения — ожидаемые имена файлов.
+  assert.deepEqual(
+    Object.keys(S.COMBAT_BG_DUNGEON).map(Number).sort((a, b) => a - b),
+    Object.values(D.DUNGEON_TYPES).slice().sort((a, b) => a - b),
+    'ключи зеркала ≠ значения DUNGEON_TYPES');
+  for (const [name, val] of Object.entries(D.DUNGEON_TYPES)) {
+    assert.equal(S.COMBAT_BG_DUNGEON[val], BG_DUNGEON_FILES[val],
+      `зеркало рассинхронизировано: ${name}`);
+  }
+});
+
+test('combatBackground: неизвестный/пустой/непроходимый — plain.svg, чистота', () => {
+  const plain = BG_DIR + 'plain.svg';
+  for (const bg of [
+    {}, null, undefined,
+    { terrain: 99 }, { dungeon: 99 }, { terrain: -1 },
+    // Вода/глубокая вода/горы — непроходимы, боя там нет (дизайн) →
+    // осознанный фолбэк plain.svg.
+    { terrain: TERRAIN.WATER },
+    { terrain: TERRAIN.DEEP_WATER },
+    { terrain: TERRAIN.MOUNTAIN },
+    { foo: 1 },
+  ]) {
+    assert.equal(S.combatBackground(bg), plain,
+      `фолбэк для ${JSON.stringify(bg)}`);
+  }
+  // Чистая функция: повторный вызов — тот же результат.
+  assert.equal(S.combatBackground({ terrain: TERRAIN.GRASS }),
+    S.combatBackground({ terrain: TERRAIN.GRASS }));
+  // terrain приоритетнее dungeon, если заданы оба (зафиксированное
+  // поведение — main.js передаёт либо то, либо другое).
+  assert.equal(S.combatBackground({ terrain: TERRAIN.SAND, dungeon: 4 }),
+    BG_DIR + 'sand.svg');
+});
+
+test('combatBackground: allAssetPaths содержит все 11 путей, файлы существуют', () => {
+  const paths = S.allAssetPaths();
+  for (const name of ALL_BG_FILES) {
+    const p = BG_DIR + name + '.svg';
+    assert.ok(paths.includes(p), `нет пути в allAssetPaths: ${p}`);
+    assert.ok(exists(p), `нет файла: ${p}`);
+  }
+});
+
+test('gen-combat-bg: генератор детерминирован, состав = 11 ожидаемых ключей', () => {
+  const { BACKGROUNDS, buildCombatBackground } =
+    require('../scripts/gen-combat-bg.js');
+  assert.deepEqual(BACKGROUNDS.map((b) => b.key).sort(),
+    [...ALL_BG_FILES].sort(), 'состав генератора ≠ 11 фонов');
+  for (const bg of BACKGROUNDS) {
+    // Повторный build — byte-identical (сид фиксирован, порядок стабилен).
+    assert.equal(buildCombatBackground(bg), buildCombatBackground(bg),
+      `генерация ${bg.key} недетерминирована`);
+    assert.ok(buildCombatBackground(bg).includes('viewBox="0 0 336 336"'),
+      `${bg.key}: viewBox 336×336 (7×7×48 px)`);
+  }
+});

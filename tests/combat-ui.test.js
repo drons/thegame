@@ -21,10 +21,14 @@ const src = (f) => fs.readFileSync(path.join(ROOT, 'src', f), 'utf8');
 
 // --- Минимальный DOM-стаб ---
 
-// Canvas 2D: методы — no-op, свойства (fillStyle и т.п.) — записываются.
-function makeContext2d() {
+// Canvas 2D: методы — no-op, свойства (fillStyle и т.п.) —
+// записываются. Каждый ВЫЗОВ метода записывается в el.drawCalls как
+// [имя, args] — тесты фона (задача 000049) проверяют порядок слоёв
+// (фон — первым, после базового fillRect, до сетки).
+function makeContext2d(el) {
+  const calls = el.drawCalls = [];
   return new Proxy({}, {
-    get: (t, k) => (k in t ? t[k] : () => {}),
+    get: (t, k) => (k in t ? t[k] : (...args) => { calls.push([k, args]); }),
     set: (t, k, v) => { t[k] = v; return true; },
   });
 }
@@ -55,7 +59,7 @@ function makeEl(tag, buttons) {
   if (tag === 'canvas') {
     el.width = 0;
     el.height = 0;
-    el.getContext = () => makeContext2d();
+    el.getContext = () => makeContext2d(el);
   }
   return el;
 }
@@ -105,6 +109,16 @@ function findByClass(el, cls) {
   if (el.className === cls) return el;
   for (const ch of el.children || []) {
     const found = findByClass(ch, cls);
+    if (found) return found;
+  }
+  return null;
+}
+
+// Canvas боевой мини-карты (создаётся build() при старте боя).
+function findCanvas(el) {
+  if (el.tagName === 'canvas') return el;
+  for (const ch of el.children || []) {
+    const found = findCanvas(ch);
     if (found) return found;
   }
   return null;
@@ -226,4 +240,119 @@ test('боевой UI: без sprites.js — фолбэк #6fdc6f, рендер 
   assert.ok(fill, 'DOM-полоса создана');
   assert.equal(fill.style.background, '#6fdc6f', 'фолбэк — зелёный полосы мобов');
   assert.ok(body, 'оверлей на месте, render() не упал');
+});
+
+// --- Фон поля боя (задача 000049) ---
+//
+// ctx.bgPath — из Game.combatBackground (sprites.js ДО combat-ui.js,
+// порядок закреплён tests/index-order.test.js); картинка — из
+// spriteLoader, переданного в startCombat, — КАЖДЫЙ render (фон,
+// загрузившийся после старта, подхватывается без рестарта). Стаб
+// canvas-2d записывает вызовы методов в canvas.drawCalls — по
+// порядковому номеру проверяем слои: фон — ПЕРВЫМ, сразу после
+// базового fillRect, до сетки (stroke).
+
+test('боевой UI: фон (terrain: grass) — первый слой, до сетки', () => {
+  const { G, body } = loadCombatUi();
+  assert.equal(typeof G.combatBackground, 'function',
+    'в порядке index.html Game.combatBackground есть до combat-ui.js');
+  const fakeImg = { __fake: 'grass' };
+  const hero = G.createCharacter();
+  G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+    terrain: G.TERRAIN.GRASS,
+    spriteLoader: {
+      image: (p) => (p === 'assets/combat/bg/grass.svg' ? fakeImg : null),
+    },
+  });
+  const canvas = findCanvas(body);
+  assert.ok(canvas, 'canvas боевой мини-карты создан');
+  const calls = canvas.drawCalls;
+  // Первый вызов — базовый fillRect (#0d1117), второй — drawImage
+  // фона; дальше сетка (stroke) и юниты.
+  assert.equal(calls[0][0], 'fillRect', 'базовая заливка — первый вызов');
+  assert.equal(calls[1][0], 'drawImage', 'фон — первым слоем, сразу после базы');
+  const [diName, diArgs] = calls[1];
+  assert.equal(diName, 'drawImage');
+  assert.equal(diArgs[0], fakeImg, 'рисуется картинка из spriteLoader');
+  assert.equal(diArgs[1], 0);
+  assert.equal(diArgs[2], 0);
+  assert.equal(diArgs[3], canvas.width, 'фон на весь canvas');
+  assert.equal(diArgs[4], canvas.height, 'фон на весь canvas');
+  // drawImage есть ровно один (один фон на render).
+  assert.equal(calls.filter((c) => c[0] === 'drawImage').length, 1);
+  // Сетка нарисована ПОСЛЕ фона.
+  const firstStroke = calls.findIndex((c) => c[0] === 'stroke');
+  assert.ok(firstStroke > 1, 'сетка (stroke) — после фона');
+});
+
+test('боевой UI: фон (dungeonType: 4 — abyss) → abyss.svg', () => {
+  const { G, body } = loadCombatUi();
+  const fakeImg = { __fake: 'abyss' };
+  const hero = G.createCharacter();
+  G.combatUI.startCombat({
+    hero, mobs: ['lower_demon'], mobLevel: 8, seed: 42,
+    dungeonType: 4, // DUNGEON_TYPES.ABYSS
+    spriteLoader: {
+      image: (p) => (p === 'assets/combat/bg/abyss.svg' ? fakeImg : null),
+    },
+  });
+  const calls = findCanvas(body).drawCalls;
+  const di = calls.find((c) => c[0] === 'drawImage');
+  assert.ok(di, 'фон подземелья отрисован');
+  assert.equal(di[1][0], fakeImg);
+});
+
+test('боевой UI: фон, загрузившийся ПОСЛЕ старта, — подхвачен без рестарта', () => {
+  const { G, keydown, body } = loadCombatUi();
+  const fakeImg = { __fake: 'sand' };
+  let ready = false;
+  const hero = G.createCharacter();
+  G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+    terrain: G.TERRAIN.SAND,
+    spriteLoader: {
+      image: (p) => (ready && p === 'assets/combat/bg/sand.svg' ? fakeImg : null),
+    },
+  });
+  const canvas = findCanvas(body);
+  assert.ok(!canvas.drawCalls.some((c) => c[0] === 'drawImage'),
+    'фон ещё не загружен — render без drawImage (сплошной фолбэк)');
+  ready = true; // «загрузилось» во время боя
+  press(keydown, 'KeyB'); // любое действие → render()
+  const di = canvas.drawCalls.find((c) => c[0] === 'drawImage');
+  assert.ok(di, 'загруженный во время боя фон подхвачен без рестарта');
+  assert.equal(di[1][0], fakeImg);
+});
+
+test('боевой UI: без sprites.js — terrain не ломает бой, drawImage не вызывается', () => {
+  // sprites.js отсутствует вовсе → G.combatBackground undefined →
+  // bgPath = null → drawImage невозможен (сплошной фон). terrain
+  // в opts при этом просто игнорируется (деградация, не падение).
+  const { G, body } = loadCombatUi(false);
+  assert.equal(G.combatBackground, undefined, 'в цепочке нет sprites.js');
+  const hero = G.createCharacter();
+  const c = G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+    terrain: G.TERRAIN.GRASS,
+  });
+  assert.ok(c, 'бой создан, рендер не упал');
+  const calls = findCanvas(body).drawCalls;
+  assert.ok(calls.length > 0, 'render() отрисовал слои');
+  assert.ok(!calls.some((c2) => c2[0] === 'drawImage'),
+    'drawImage не вызывается — сплошной фон');
+});
+
+test('боевой UI: spriteLoader = null (main.js без s2) — фон не рисуется, бой жив', () => {
+  const { G, body } = loadCombatUi();
+  const hero = G.createCharacter();
+  const c = G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+    terrain: G.TERRAIN.SAND,
+    spriteLoader: null,
+  });
+  assert.ok(c, 'бой создан');
+  const calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((c2) => c2[0] === 'drawImage'),
+    'null-лоадер — null-guard, drawImage не вызывается');
 });

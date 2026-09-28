@@ -580,6 +580,11 @@
     G.combatUI.startCombat({
       hero,
       tile: t,
+      // Фон поля боя по типу местности (задача 000049): terrain тайла,
+      // где начался бой. spriteLoader может быть null (нет s2/лоадера) —
+      // combat-ui терпит: сплошной фолбэк-фон.
+      terrain: t.terrain,
+      spriteLoader,
       prev: { x: prevPos.x, y: prevPos.y },
       seed: G.hash2(player.x, player.y, 0x5eedc0de),
       day: clock.day,
@@ -654,6 +659,10 @@
     const ds = dungeonState;
     G.combatUI.startCombat({
       hero,
+      // Фон поля боя по типу подземелья (задача 000049): тайла мира в
+      // подземелье нет, тип — DUNGEON_TYPES (ds.dg.type).
+      dungeonType: ds.dg.type,
+      spriteLoader,
       mobs: g.mobIds,
       mobLevel: g.level,
       groupName: g.boss ? 'Хозяин бездны' : 'блуждающая группа',
@@ -1016,6 +1025,11 @@
         return G.combatUI.startCombat({
           hero,
           tile: { mobGroup: groupType },
+          // Бой «на текущем тайле»: передаём terrain реального тайла
+          // (задача 000049) — согласованно с боем мира; без карты
+          // фолбэк plain.svg.
+          terrain: map ? map.tileAt(player.x, player.y).terrain : undefined,
+          spriteLoader,
           prev: { x: player.x, y: player.y },
           seed: 42,
           day: clock.day,
