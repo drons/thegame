@@ -25,6 +25,9 @@
 //     не переписывать их молча; скрипты не запускаются) или ПОСЛЕ
 //     (закоммиченный дрейф — сценарий CI: правили JS-зеркало или
 //     JSON без регенерации) → exit 1 с именами файлов и подсказкой.
+//     Git недоступен (до старта или умер в процессе) → предупреждение
+//     «дрейф не проверен» и утверждение «синхронно» НЕ выдаётся
+//     (локальный режим, exit 0 — в CI git всегда доступен).
 //
 // root — корень «репозитория» (по умолчанию parent of __dirname,
 // т.е. каталог, содержащий scripts/; опционально в argv — чтобы
@@ -32,14 +35,18 @@
 //
 // Дрейф-чек ограничен `git status --porcelain -- src/`: по конвенции
 // все sync-скрипты пишут только в src/. Если git недоступен —
-// предупреждение: в --check дрейф-чек пропускается, в обычном режиме
+// предупреждение: в --check дрейф-чек пропускается и «синхронно» НЕ
+// утверждается (не проверено — не утверждаем), в обычном режиме
 // вместо «синхронно (ничего не изменилось)» — предупреждение, что
 // список изменений не собран (локальный режим, exit 0).
 //
 // Exports (CommonJS, для тестов):
 //   listSyncScripts(root) → отсортированные имена sync-*.js;
-//   runAll(root, { check }) → { code: 0|1, output: string, changed: string[] }
-//     (changed — пути из git-status src/ после регенерации, repo-relative);
+//   runAll(root, { check, gitStatus }) →
+//     { code: 0|1, output: string, changed: string[] }
+//     (changed — пути из git-status src/ после регенерации,
+//     repo-relative; gitStatus — опциональная замена gitStatusSrc,
+//     чтобы тесты могли смоделировать недоступность git);
 //   gitStatusSrc(root) → string[] | null (null — git недоступен).
 
 const fs = require('fs');
@@ -86,10 +93,14 @@ function parsePorcelain(out) {
 }
 
 // Прогоняет все sync-скрипты по очереди (node, без зависимостей).
-// { check } — дрейф-гейт, см. заголовок. Возвращает
-// { code: 0|1, output: string, changed: string[] }.
+// { check } — дрейф-гейт, см. заголовок; { gitStatus } — опциональная
+// замена gitStatusSrc (тесты: моделирование недоступности git).
+// Возвращает { code: 0|1, output: string, changed: string[] }.
 function runAll(root, opts = {}) {
   const check = Boolean(opts.check);
+  const gitStatus = typeof opts.gitStatus === 'function'
+    ? opts.gitStatus
+    : gitStatusSrc;
   const out = [];
   const scripts = listSyncScripts(root);
   out.push(scripts.length
@@ -99,7 +110,7 @@ function runAll(root, opts = {}) {
   // До регенерации: незакоммиченные правки src/ не переписываем молча.
   let gitOk = true;
   if (check) {
-    const pre = gitStatusSrc(root);
+    const pre = gitStatus(root);
     if (pre === null) {
       gitOk = false;
       out.push('sync-all: предупреждение: git недоступен — дрейф-чек ' +
@@ -131,7 +142,7 @@ function runAll(root, opts = {}) {
   let changed = [];
   let gitDown = false;
   if (gitOk) {
-    const post = gitStatusSrc(root);
+    const post = gitStatus(root);
     if (post === null) {
       gitDown = true; // git недоступен: список изменений собрать нельзя
     } else {
@@ -140,6 +151,17 @@ function runAll(root, opts = {}) {
   }
 
   if (check) {
+    if (!gitOk || gitDown) {
+      // git-статус после регенерации собрать нельзя (git недоступен
+      // до старта или умер в процессе): «синхронно» утверждать
+      // нельзя — дрейф-чек не выполнен, и такое утверждение
+      // противоречило бы предупреждению «дрейф-чек пропущен»
+      // (правки по итогам ревью, задача 000054). Локальный режим,
+      // exit 0 — в CI git всегда доступен.
+      out.push('sync-all: предупреждение: git недоступен — дрейф-чек ' +
+        'не выполнен, синхронность НЕ подтверждена (локальный режим).');
+      return { code: 0, output: out.join('\n'), changed };
+    }
     if (changed.length > 0) {
       out.push('sync-all: --check: после регенерации в src/ есть ' +
         'изменения — JS-зеркала отстали от JSON (дрейф):');

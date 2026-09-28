@@ -13,9 +13,11 @@
 //    - output: строка (stdout/stderr скриптов + отчёт sync-all);
 //    - changed: пути из `git status --porcelain -- src/` (repo-relative);
 //  * обычный режим: регенерация + отчёт «изменилось N / синхронно», exit 0
-//    (git недоступен → предупреждение: в --check дрейф-чек пропущен,
-//    в обычном режиме «синхронно (ничего не изменилось)» не
-//    утверждается — список изменений собрать нельзя);
+//    (git недоступен → предупреждение: в --check дрейф-чек пропущен и
+//    «синхронно» не утверждается — не проверено, в обычном режиме
+//    «синхронно (ничего не изменилось)» не утверждается — список
+//    изменений собрать нельзя; exit 0 в обоих случаях — локальный
+//    режим, в CI git всегда доступен);
 //  * синк-скрипты пишут JS-зеркала атомарно (scripts/lib/write-atomic.js:
 //    tmp-файл + rename) — параллельные файлы node --test (top-level
 //    require('../src/npc-data.js') и т.п.) не видят частичный файл.
@@ -224,11 +226,22 @@ test('package.json: npm-скрипты sync:all и sync:check (CI использ
   assert.match(s['sync:check'], /--check/);
 });
 
-test('CLI: дрейф src/npc-data.js — --check exit 1 с именем файла, обычный режим чистит дерево', () => {
+test('CLI: дрейф src/npc-data.js — --check exit 1 с именем файла, обычный режим восстанавливает зеркало', () => {
   // Интеграция на настоящем дереве: ручная (незачем править JSON)
   // правка JS-зеркала → гейт красный; npm run sync:all → регенерация
-  // из JSON, дерево src/ снова чистое.
+  // из JSON, дрейф ушёл.
+  // ВАЖНО (правки по итогам ревью): тест НЕ требует чистого дерева
+  // src/ — при локальной разработке в src/ могут быть незакоммиченные
+  // правки ИНЫХ файлов (например, src/main.js в работе); требовать
+  // пустой git-статус всего src/ — ложный красный. Тест сравнивает
+  // множество изменённых файлов до и после себя: регенерация
+  // byte-идентична, а чужие локальные правки он не трогает.
+  const syncAll = loadSyncAll();
   const npcFile = path.join(ROOT, 'src', 'npc-data.js');
+  const statusBefore = syncAll.gitStatusSrc(ROOT);
+  assert.ok(Array.isArray(statusBefore),
+    'тест требует доступный git (настоящее дерево), git-статус: ' +
+    String(statusBefore));
   const orig = fs.readFileSync(npcFile, 'utf8');
   const marker = '\n// drift marker (тест 000054)\n';
   const drifted = orig + marker;
@@ -255,20 +268,24 @@ test('CLI: дрейф src/npc-data.js — --check exit 1 с именем фай�
     assert.equal(norm.status, 0,
       'обычный режим: регенерация, exit 0: ' +
       (norm.stdout || '') + (norm.stderr || ''));
-    const st = spawnSync('git',
-      ['-C', ROOT, 'status', '--porcelain', '--', 'src/'],
-      { encoding: 'utf8' }).stdout.trim();
-    assert.equal(st, '',
-      'после sync:all дерево src/ чистое (регенерация byte-идентична), ' +
-      'реально: ' + st);
     const leftovers = fs.readdirSync(path.join(ROOT, 'src'))
       .filter((f) => f.endsWith('.tmp'));
     assert.deepEqual(leftovers, [],
       'в src/ не должно остаться tmp-файлов синк-скриптов: ' + leftovers);
   } finally {
-    // Тест не оставляет dirty-дерево (последующие стадии workflow).
+    // Тест не оставляет дрейф: зеркало возвращено в то состояние, в
+    // каком его застал тест (последующие стадии workflow).
     writeFileAtomic(npcFile, orig);
   }
+  const statusAfter = syncAll.gitStatusSrc(ROOT);
+  assert.ok(Array.isArray(statusAfter),
+    'git обязан остаться доступным, git-статус: ' + String(statusAfter));
+  assert.deepEqual(statusAfter, statusBefore,
+    'тест не обязан менять множество изменённых файлов src/: ' +
+    'регенерация byte-идентична (дрейф зеркала ушёл), а чужие ' +
+    'локальные правки (например, src/main.js в работе) — не ' +
+    'повод для красного. До: ' + JSON.stringify(statusBefore) +
+    ', после: ' + JSON.stringify(statusAfter));
 });
 
 // --- Атомарная запись (правки по итогам ревью) ---
@@ -322,6 +339,72 @@ test('runAll: git недоступен — обычный режим: exit 0, п
       /синхронно \(ничего не изменилось\)/,
       'без git нельзя утверждать «ничего не изменилось» — отчёт ' +
       'вводит в заблуждение: ' + r.output);
+  } finally {
+    rmTmp(dir);
+  }
+});
+
+test('runAll(check): git недоступен — exit 0, «синхронно» не утверждается', () => {
+  // Каталог вне git-репозитория: gitStatusSrc → null — тот же путь
+  // кода, что и «git недоступен». Регресс (правки по итогам ревью):
+  // в --check без собранного git-статуса после регенерации вывод
+  // оканчивался «синхронно (JSON-каталоги и JS-зеркала совпадают)» —
+  // утверждение, не подтверждённое никакой проверкой и противоречащее
+  // предшествующему предупреждению «дрейф-чек пропущен».
+  const syncAll = loadSyncAll();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-all-nogit-'));
+  try {
+    assert.equal(syncAll.gitStatusSrc(dir), null,
+      'прединд: каталог обязан быть вне git-репозитория');
+    fs.mkdirSync(path.join(dir, 'scripts'));
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'assets', 'future'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'assets', 'future', '000001.json'),
+      '{"id": "future"}\n');
+    fs.writeFileSync(path.join(dir, 'scripts', 'sync-future-data.js'),
+      FAKE_SYNC);
+    const r = syncAll.runAll(dir, { check: true });
+    assert.equal(r.code, 0,
+      'git недоступен — --check обязан завершиться 0 (локальный ' +
+      'режим): ' + r.output);
+    assert.deepEqual(r.changed, [], 'без git список изменений пуст');
+    assert.ok(fs.existsSync(path.join(dir, 'src', 'future-data.js')),
+      'регенерация при этом выполнена (скрипты отработали)');
+    assert.match(String(r.output), /git недоступен/,
+      'обязано быть предупреждением о недоступности git: ' + r.output);
+    assert.doesNotMatch(String(r.output),
+      /синхронно \(JSON-каталоги и JS-зеркала совпадают\)/,
+      'без git «синхронно» утверждать нельзя — дрейф не проверен: ' +
+      r.output);
+  } finally {
+    rmTmp(dir);
+  }
+});
+
+test('runAll(check): git «умер» после регенерации — exit 0, без ложного «синхронно»', () => {
+  // Точный сценарий из ревью: git доступен ДО регенерации (pre-статус
+  // собран), но недоступен ПОСЛЕ — changed=[] без проверки. Та же
+  // ветка отчёта, что и при недоступности с самого начала, но без
+  // предшествующего предупреждения — регресс требует отдельного теста.
+  // gitStatus-хук заменяет только вызовы внутри runAll (реальный git
+  // в tmp-репозитории при этом не трогаем).
+  const syncAll = loadSyncAll();
+  const dir = makeTmpRepo();
+  try {
+    let calls = 0;
+    const flaky = () => { calls += 1; return calls === 1 ? [] : null; };
+    const r = syncAll.runAll(dir, { check: true, gitStatus: flaky });
+    assert.equal(r.code, 0,
+      'локальный режим: --check обязан завершиться 0: ' + r.output);
+    assert.deepEqual(r.changed, [], 'статус не собран — список пуст');
+    assert.equal(calls, 2,
+      'git-статус обязан собираться и до, и после регенерации');
+    assert.match(String(r.output), /git недоступен/,
+      'обязано быть предупреждением о недоступности git: ' + r.output);
+    assert.doesNotMatch(String(r.output),
+      /синхронно \(JSON-каталоги и JS-зеркала совпадают\)/,
+      'без git-статуса после регенерации «синхронно» утверждать ' +
+      'нельзя — дрейф не проверен: ' + r.output);
   } finally {
     rmTmp(dir);
   }
