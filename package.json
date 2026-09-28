@@ -5,6 +5,8 @@
   "description": "Приключения Флогистона — пошаговая фэнтези-RPG с процедурным миром",
   "scripts": {
     "test": "node --test",
+    "sync:all": "node scripts/sync-all.js",
+    "sync:check": "node scripts/sync-all.js --check",
     "gen:map": "node scripts/generate-map-png.js",
     "gen:combatbg": "node scripts/gen-combat-bg.js",
     "gen:spells": "node scripts/sync-spells-data.js",

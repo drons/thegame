@@ -79,7 +79,7 @@ function makeTmpRepo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-all-'));
   fs.mkdirSync(path.join(dir, 'scripts'));
   fs.mkdirSync(path.join(dir, 'src'));
-  fs.mkdirSync(path.join(dir, 'assets', 'future'));
+  fs.mkdirSync(path.join(dir, 'assets', 'future'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'assets', 'future', '000001.json'),
     '{"id": "future"}\n');
   fs.writeFileSync(path.join(dir, 'scripts', 'sync-future-data.js'), FAKE_SYNC);
