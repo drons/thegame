@@ -197,6 +197,24 @@
   let zoom = G.ZOOM_START; // пикселей на тайл (детальный старт, 000019)
   const cam = { x: 0.5, y: 0.5 };
 
+  // Плавное передвижение (задача 000033): чистое ядро — src/motion.js.
+  // «Мувёр» интерполирует ЦЕЛЫЕ player.x/y в ДРОБНУЮ позицию на время
+  // глейда prev→next; оба слоя рендера (WebGL-ромб и спрайт) рисуют
+  // ОДНУ и ту же точку renderPos, а не центр целого тайла (иначе при
+  // WebGL-фолбэке персонаж снова «прыгал»). Телепорт-снапы — в 4 местах:
+  // старт (спавн/сейв), восстановление сейва, побег/смерть из боя.
+  const mover = G.createMover
+    ? G.createMover({ x: player.x, y: player.y,
+        intervalMs: MOVE_INTERVAL_MS })
+    : null;
+  function renderPos(now) {
+    if (mover) {
+      const p = mover.position(now);
+      return { x: p.x, y: p.y };
+    }
+    return { x: player.x, y: player.y };
+  }
+
   // Игровое время (SPEC.md «Игровое время», src/day.js).
   const clock = G.createClock();
   // Побеждённые группы: 'x,y' → день поражения (респаун через respawn_days).
@@ -354,6 +372,9 @@
       console.warn('Сейв: не удалось восстановить позицию:', err);
     }
     prevPos.x = player.x; prevPos.y = player.y;
+    if (mover) mover.teleport(player.x, player.y); // снап (000033):
+    // после восстановления сейва персонаж НЕ «скользит» от точки
+    // создания мувера до позиции сейва.
 
     // --- Журнал квестов и стоки торговцев (задача 000029) ---
     // Невалидная секция — тихий сброс с console.warn; игра не роняется.
@@ -617,6 +638,9 @@
         if (res.outcome !== 'victory') {
           player.x = prevPos.x;
           player.y = prevPos.y;
+          // Снап (000033): иначе спрайт будет скользить обратно через
+          // поле боя.
+          if (mover) mover.teleport(player.x, player.y);
         }
         G.playerUI && G.playerUI.render();
         hudFlashUntil = performance.now() + 5000;
@@ -747,10 +771,24 @@
   }
 
   // --- Камера ---
-  function updateCamera() {
-    // Плавное следование за игроком.
-    cam.x += (player.x + 0.5 - cam.x) * 0.2;
-    cam.y += (player.y + 0.5 - cam.y) * 0.2;
+  let lastCamNow = 0; // timestamp предыдущего кадра (dt; 0 — ещё не было)
+  function updateCamera(now) {
+    // Плавное следование за игроком. Задача 000033: раньше коэффициент
+    // 0.2 применялся НА КАДР — при 144 Гц камера ловила цель в ~2.4 раза
+    // быстрее, чем при 60. Теперь — экспоненциальное сглаживание с dt
+    // (G.cameraStep, CAM_TAU_MS ≈ 74.7 мс): при 60 fps тот же ≈ 0.2/кадр
+    // (ощущение не меняется), при любом другом fps — то же движение за
+    // то же РЕАЛЬНОЕ время. Первый кадр — dt = 0 (без движения).
+    const dt = lastCamNow ? now - lastCamNow : 0;
+    lastCamNow = now;
+    const tx = player.x + 0.5, ty = player.y + 0.5;
+    if (G.cameraStep) {
+      cam.x = G.cameraStep(cam.x, tx, dt, G.CAM_TAU_MS);
+      cam.y = G.cameraStep(cam.y, ty, dt, G.CAM_TAU_MS);
+    } else {
+      cam.x += (tx - cam.x) * 0.2; // fallback, если motion.js не загрузился
+      cam.y += (ty - cam.y) * 0.2;
+    }
   }
 
   // --- Отрисовка ---
@@ -769,7 +807,7 @@
 
   const frameTiles = []; // видимые тайлы кадра (общие для WebGL и слоя спрайтов)
 
-  function buildFrame() {
+  function buildFrame(rp) {
     const verts = quadVerts;
     verts.length = 0;
     frameTiles.length = 0;
@@ -796,8 +834,10 @@
       }
     }
 
-    // Флогистон: светящийся ромб по центру тайла.
-    const px = player.x + 0.5, py = player.y + 0.5, s = 0.28;
+    // Флогистон: светящийся ромб в ТЕКУЩЕЙ позиции (задача 000033).
+    // rp — ДРОБНАЯ точка рендера (глейд prev→next), одна для обоих
+    // слоёв; +0.5 — центр тайла.
+    const px = rp.x + 0.5, py = rp.y + 0.5, s = 0.28;
     verts.push(
       px, py - s, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
       px + s, py, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
@@ -820,7 +860,7 @@
   //   x_экрана = W/2 + (tx - cam.x) * zoom,  y_экрана = H/2 + (cam.y - ty) * zoom.
   // Если ни один ассет не загрузился — выходим без рисования,
   // под слоем остаются цветные тайлы/маркеры WebGL (фолбэк).
-  function drawSprites(now) {
+  function drawSprites(now, rp) {
     if (!s2 || !spriteLoader) return;
     const w = spriteCanvas.width, h = spriteCanvas.height;
     s2.clearRect(0, 0, w, h);
@@ -861,7 +901,9 @@
       const pi = spriteLoader.image(pf[idx]);
       if (pi) {
         const size = zoom * 1.15;
-        const px = toX(player.x + 0.5), py = toY(player.y + 0.5);
+        // Та же ДРОБНАЯ точка, что и WebGL-ромб (задача 000033):
+        // фолбэк-слой и спрайт не должны расходиться.
+        const px = toX(rp.x + 0.5), py = toY(rp.y + 0.5);
         s2.drawImage(pi, px - size / 2, py - size / 2, size, size);
       }
     }
@@ -914,9 +956,22 @@
     const inCombat = G.combatUI && G.combatUI.isActive();
     const inDungeon = dungeonState !== null;
     const inNpc = G.npcUI && G.npcUI.isActive();
-    if (!inCombat && !inDungeon && !inNpc && now - lastMove >= MOVE_INTERVAL_MS) {
+    // Интервал шага с учётом «Ловкого шага» (задача 000033; SPEC:
+    // Ловкость → «Скорость перемещения по карте»): чем выше навык, тем
+    // короче шаг; нижний кламп — G.MIN_MOVE_INTERVAL_MS. Без навыка
+    // (moveSpeedMult = 1) — базовые 140 мс, как раньше.
+    const stepMs = G.moveIntervalMs
+      ? G.moveIntervalMs(MOVE_INTERVAL_MS,
+        (G.derived(hero) || {}).moveSpeedMult)
+      : MOVE_INTERVAL_MS;
+    if (!inCombat && !inDungeon && !inNpc && now - lastMove >= stepMs) {
       if (keys.size && tryMove()) {
         lastMove = now;
+        // Глейд prev→next (задача 000033): рендер скользит между тайлами
+        // за время шага, а не прыгает. interval — на шаг (динамическая
+        // скорость).
+        if (mover) mover.step({ x: prevPos.x, y: prevPos.y },
+          { x: player.x, y: player.y }, now, stepMs);
         lastStepAt = now; // Флогистон переключается на анимацию ходьбы
         clock.addStep(1); // шаги мира тикают игровой день
         maybeStartCombat();
@@ -924,7 +979,9 @@
         saveNow();
       }
     }
-    updateCamera();
+    updateCamera(now);
+    // Одна точка рендера на кадр для обоих слоёв (задача 000033).
+    const rp = renderPos(now);
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -933,7 +990,7 @@
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     gl.uniformMatrix4fv(uProj, false, orthoMatrix(zoom, cam.x, cam.y));
-    const verts = buildFrame();
+    const verts = buildFrame(rp);
     gl.drawArrays(gl.TRIANGLES, 0, verts.length / 6);
 
     // Слой спрайтов поверх тайлов (пустой, пока ассеты не загрузились).
@@ -941,7 +998,7 @@
       spriteCanvas.width = window.innerWidth;
       spriteCanvas.height = window.innerHeight;
     }
-    drawSprites(now);
+    drawSprites(now, rp);
 
     hudUpdate();
     requestAnimationFrame(frame);
@@ -952,6 +1009,9 @@
     get state() {
       return {
         player: { x: player.x, y: player.y },
+        // ДРОБНАЯ позиция рендера (задача 000033): между шагами может
+        // не совпадать с player — для ручной/смоук-проверки плавности.
+        playerRender: renderPos(performance.now()),
         cam: { x: cam.x, y: cam.y },
         zoom,
         day: clock.day,
@@ -1118,6 +1178,10 @@
     tileCache = G.createTileCache(map);
     findSpawn();
     restoreFromSave(); // день мира, персонаж, позиция (задача 000031)
+    // Снап мувера (задача 000033): старт — спавн или позиция сейва.
+    // Иначе персонаж «проскользит» от точки создания мувера (0,0) до
+    // спавна.
+    if (mover) mover.teleport(player.x, player.y);
     cam.x = player.x + 0.5;
     cam.y = player.y + 0.5;
     maybeStartCombat(); // если спавн оказался на тайле с группой
