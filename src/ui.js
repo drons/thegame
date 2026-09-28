@@ -300,8 +300,20 @@
         const s = G.SECONDARY_SKILLS[skill];
         const lvl = c.secondary[skill] || 0;
         nameTd.textContent = lvl > 0 ? `${G.secondaryName(skill, lvl)} (${lvl})` : s.name;
-        lvTd.textContent = String(lvl);
-        if (reqTd) reqTd.textContent = lvl > 0 ? '' : requiresText(s);
+        // Опыт практики: копилка и сколько нужно до следующего уровня (000013).
+        const bank = (c.skillXp && c.skillXp[skill]) || 0;
+        lvTd.textContent = bank > 0 && lvl < G.MAX_SKILL_LEVEL
+          ? `${lvl} (${bank}/${G.skillXpForNext(lvl)})`
+          : String(lvl);
+        const cap = G.practiceCap(c, skill);
+        if (reqTd) {
+          if (lvl > 0 && lvl < G.MAX_SKILL_LEVEL && lvl >= cap) {
+            const pName = ((G.PRIMARY_SKILLS.find((p) => p.id === s.primary) || {}).name) || s.primary;
+            reqTd.textContent = 'потолок практикой: ' + pName + ' ' + (cap / 2) + '×2 — дальше растёт только очками и книгами';
+          } else {
+            reqTd.textContent = lvl > 0 ? '' : requiresText(s);
+          }
+        }
         btn.disabled = !G.canRaise(c, skill).ok;
       }
     });
