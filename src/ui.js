@@ -242,7 +242,7 @@
     panel._shopSec.style.display = '';
     panel._shopBody.textContent = '';
     panel._shopBody.appendChild(el('div', 'cp-itemmeta',
-      (G.BUILDING_NAMES[shop.buildingType] || 'магазин') + ', богатство ' + shop.wealth + '/3'));
+      (G.buildingNameUi(shop.buildingType) || 'магазин') + ', богатство ' + shop.wealth + '/3'));
     for (const [id, qty] of Object.entries(shop.stock)) {
       const it = G.getItem(id);
       if (!it || qty < 1) continue;

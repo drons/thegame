@@ -5,8 +5,9 @@ const {
   visibleTileRange, createTileCache,
   ZOOM_MIN, ZOOM_MAX, ZOOM_START,
   TERRAIN, TERRAIN_NAMES,
-  BUILDING_COUNT, BUILDING_TYPES,
-  BUILD_MAX_W, BUILD_MAX_H,
+  BUILDING_TYPES,
+  buildingCount, buildingNames, buildingNameUi,
+  buildMaxW, buildMaxH,
   MOB_GROUP_COUNT, MOB_GROUP_TYPES,
   // Задача 000061 (стадия красных тестов): функция ещё не реализована —
   // тесты ниже падают, пока в map.js её нет.
@@ -63,7 +64,7 @@ test('сэмпл мира: валидные значения и согласов
       if (t.hasBuilding) {
         buildings++;
         assert.ok(t.passable, 'постройка на непроходимом тайле');
-        assert.ok(t.building >= 0 && t.building < BUILDING_COUNT);
+        assert.ok(t.building >= 0 && t.building < buildingCount());
         assert.ok(!t.hasMobGroup, 'постройка и группа мобов в одном тайле');
       }
       if (t.hasMobGroup) {
@@ -272,15 +273,15 @@ test('createTileCache: ограничен — при переполнении в
 
 // --- Задача 000026: footprint'ы построек на карте ---
 
-test('BUILD_MAX_W/H покрывают максимальный размер в каталоге', () => {
+test('buildMaxW/H() покрывают максимальный размер в каталоге', () => {
   let maxW = 1, maxH = 1;
   for (const b of BUILDINGS) {
     const { width, height } = buildingSize(b);
     maxW = Math.max(maxW, width);
     maxH = Math.max(maxH, height);
   }
-  assert.ok(maxW <= BUILD_MAX_W, `каталог шире окна поиска: ${maxW} > ${BUILD_MAX_W}`);
-  assert.ok(maxH <= BUILD_MAX_H, `каталог выше окна поиска: ${maxH} > ${BUILD_MAX_H}`);
+  assert.ok(maxW <= buildMaxW(), `каталог шире окна поиска: ${maxW} > ${buildMaxW()}`);
+  assert.ok(maxH <= buildMaxH(), `каталог выше окна поиска: ${maxH} > ${buildMaxH()}`);
 });
 
 test("мировые постройки: прямоугольные footprint'ы без пересечений, один вход", () => {
@@ -337,11 +338,11 @@ test("мировые постройки: прямоугольные footprint'ы
     }
     const w = maxX - g.ax + 1;
     const h = maxY - g.ay + 1;
-    assert.ok(w <= BUILD_MAX_W && h <= BUILD_MAX_H, 'footprint крупнее максимума');
+    assert.ok(w <= buildMaxW() && h <= buildMaxH(), 'footprint крупнее максимума');
     // Группы, чей полный прямоугольник (до BUILD_MAX) выходит за сэмпл,
     // пропускаем: снаружи могли остаться невычитанные тайлы постройки.
     if (g.ax < -R || g.ay < -R ||
-        g.ax + BUILD_MAX_W - 1 >= R || g.ay + BUILD_MAX_H - 1 >= R) continue;
+        g.ax + buildMaxW() - 1 >= R || g.ay + buildMaxH() - 1 >= R) continue;
     assert.equal(g.tiles.size, w * h, `footprint не полный прямоугольник ${w}x${h}`);
     for (let dy = 0; dy < h; dy++) {
       for (let dx = 0; dx < w; dx++) {
@@ -381,7 +382,7 @@ test('1x1-совместимость: hasBuilding ⇒ isEntrance, passable, ва
       assert.equal(t.isEntrance, true);
       assert.equal(t.inBuilding, true);
       assert.equal(t.passable, true, 'тайл с hasBuilding проходим (старые контракты main.js)');
-      assert.ok(t.building >= 0 && t.building < BUILDING_COUNT);
+      assert.ok(t.building >= 0 && t.building < buildingCount());
       assert.ok(t.buildingWealth >= 0 && t.buildingWealth <= 3);
       // 1x1-постройка: в footprint'е только вход.
       if (t.building !== BUILDING_TYPES.ARENA && t.building !== BUILDING_TYPES.TEMPLE) {
@@ -820,10 +821,6 @@ test('браузер: map.js отдаёт worldToScreen и orthoMatrix (vm-пе�
 });
 
 // --- Задача 000055: производные данные построек — из каталога лениво ---
-
-const {
-  buildingCount, buildingNames, buildMaxW, buildMaxH, buildingNameUi,
-} = require('../src/map.js');
 
 // Реальный порядок загрузки index.html (строки 288–298): между map.js
 // и buildings.js грузятся player/day/items, каждый делает

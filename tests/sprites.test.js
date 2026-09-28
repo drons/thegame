@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   TERRAIN, TERRAIN_NAMES,
-  BUILDING_COUNT, BUILDING_TYPES,
+  buildingCount, BUILDING_TYPES,
   MOB_GROUP_COUNT, MOB_GROUP_TYPES,
   createMap, syntheticPixels,
 } = require('../src/map.js');
@@ -86,7 +86,7 @@ test('мобы: каждая группа — базовый тип, кадры 
 // --- Постройки ---
 
 test('постройки: у каждого типа есть иконка, файлы существуют', () => {
-  for (let b = 0; b < BUILDING_COUNT; b++) {
+  for (let b = 0; b < buildingCount(); b++) {
     const p = S.buildingSprite(b);
     assert.ok(p, `нет иконки для постройки ${b}`);
     assert.ok(exists(p), `нет файла: ${p}`);
@@ -102,7 +102,7 @@ test('выбор спрайтов детерминирован и не зави�
     tiles: TERRAIN_LIST.map((t) => S.tileFrames(t)),
     phlog: Object.keys(S.PHLOGISTON_ACTIONS).map((a) => S.phlogistonFrames(a)),
     mobs: Object.values(MOB_GROUP_TYPES).map((g) => S.mobFrames(g)),
-    buildings: Array.from({ length: BUILDING_COUNT }, (_, b) => S.buildingSprite(b)),
+    buildings: Array.from({ length: buildingCount() }, (_, b) => S.buildingSprite(b)),
   };
   // «Загружаем» всё — все ассеты падают (file:// без сети).
   const loader = S.createSpriteLoader(() => Promise.resolve(null));
@@ -113,7 +113,7 @@ test('выбор спрайтов детерминирован и не зави�
     tiles: TERRAIN_LIST.map((t) => S.tileFrames(t)),
     phlog: Object.keys(S.PHLOGISTON_ACTIONS).map((a) => S.phlogistonFrames(a)),
     mobs: Object.values(MOB_GROUP_TYPES).map((g) => S.mobFrames(g)),
-    buildings: Array.from({ length: BUILDING_COUNT }, (_, b) => S.buildingSprite(b)),
+    buildings: Array.from({ length: buildingCount() }, (_, b) => S.buildingSprite(b)),
   };
   assert.deepEqual(again, snapshot);
 });

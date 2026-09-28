@@ -32,6 +32,105 @@
     return g && typeof g.placeBuilding === 'function' ? g : null;
   }
 
+  // --- Производные данные «картовых» построек (задача 000055) ---
+  //
+  // Число «картовых» индексов, их имена и максимальный footprint
+  // выводятся из каталога (assets/buildings: записи с числовым
+  // особых_параметры.map_index) ЛЕНИВО — в браузере buildings.js
+  // грузится ПОСЛЕ map.js (index.html), а vm-песочницы (combat-ui)
+  // грузят map.js БЕЗ buildings.js: на момент загрузки каталога ещё
+  // может не быть. Фолбэк без каталога — ровно значения генерации
+  // до 000055 (13 типов, окно 3×3), иначе карта в песочнице уедет.
+  //
+  // ВАЖНО: функции, а НЕ константы на момент загрузки и не getter'ы —
+  // между map.js и buildings.js в index.html грузятся player/day/items,
+  // каждый делает Object.assign({}, Game, …): значение getter'а застыло
+  // бы на момент копирования (до каталога), а функция переживает
+  // копирование по ссылке и разрешает каталог в момент вызова.
+  //
+  // Кэш ПУСТОГО вывода запрещён: если каталог ещё не подхвачен,
+  // результат НЕ кэшируется (иначе первый вызов «до загрузки»
+  // закэшировал бы фолбэк/пустоту навсегда).
+  const FALLBACK_BUILDING_COUNT = 13;
+  const FALLBACK_BUILD_MAX_W = 3;
+  const FALLBACK_BUILD_MAX_H = 3;
+
+  let _buildingDerived = null;
+
+  // Вывод из каталога или null (каталог ещё не загружен — не кэшируем).
+  function buildingDerived() {
+    if (_buildingDerived) return _buildingDerived;
+    const c = catalogRef();
+    if (!c || !Array.isArray(c.BUILDINGS)) return null;
+    const entries = [];
+    let maxW = 1;
+    let maxH = 1;
+    for (const b of c.BUILDINGS) {
+      const p = b && b.особые_параметры;
+      const mi = p && p.map_index;
+      if (typeof mi !== 'number') continue;
+      entries[mi] = b;
+      const s = typeof c.buildingSize === 'function'
+        ? c.buildingSize(b) : { width: 1, height: 1 };
+      maxW = Math.max(maxW, s.width);
+      maxH = Math.max(maxH, s.height);
+    }
+    _buildingDerived = {
+      count: entries.length,
+      // Имена — данные каталога, каталожный регистр (название_карты;
+      // фолбэк — название). Обобщённые имена (idx 9/11/12) заведены в
+      // JSON, не в коде.
+      names: entries.map(
+        (b) => (b.особые_параметры.название_карты || b.название)),
+      maxW,
+      maxH,
+    };
+    return _buildingDerived;
+  }
+
+  /** Число «картовых» индексов (13, пока каталог не подхвачен — фолбэк). */
+  function buildingCount() {
+    const d = buildingDerived();
+    return d ? d.count : FALLBACK_BUILDING_COUNT;
+  }
+
+  /**
+   * Имена «картовых» индексов (каталожный регистр, порядок по
+   * map_index). Без каталога — пустой массив (не кэшируется).
+   * @returns {string[]}
+   */
+  function buildingNames() {
+    const d = buildingDerived();
+    return d ? d.names : [];
+  }
+
+  /** Максимальная ширина «картового» footprint'а (сейчас 3). */
+  function buildMaxW() {
+    const d = buildingDerived();
+    return d ? d.maxW : FALLBACK_BUILD_MAX_W;
+  }
+
+  /** Максимальная высота «картового» footprint'a (сейчас 3). */
+  function buildMaxH() {
+    const d = buildingDerived();
+    return d ? d.maxH : FALLBACK_BUILD_MAX_H;
+  }
+
+  /**
+   * UI-вывод имени «картового» индекса: данные каталога + конвенция
+   * UI «первая буква в нижнем регистре» (тесты/buildings.test.js).
+   * Не whole-string lowercase («Дом NPC» → «дом NPC»). Неизвестный
+   * индекс — пустая строка.
+   * @param {number} index 0..buildingCount()-1
+   * @returns {string}
+   */
+  function buildingNameUi(index) {
+    const names = buildingNames();
+    const name = Number.isInteger(index) ? names[index] : undefined;
+    if (typeof name !== 'string' || name === '') return '';
+    return name.charAt(0).toLowerCase() + name.slice(1);
+  }
+
   // Фиксированный глобальный сид (SPEC.md). Смена сида или assets/map.png
   // генерирует полностью другую карту.
   const GLOBAL_SEED = 0xf10c7a26;
@@ -80,28 +179,12 @@
     TAVERN: 11,
     NPC_HOUSE: 12,
   };
-  const BUILDING_COUNT = 13;
-  // Максимальный footprint постройки в тайлах (задача 000026):
-  // каталог (assets/buildings, «размер») не крупнее этих значений —
-  // тест tests/map.test.js сверяет их с каталогом. Определяют окно
-  // поиска покрывающей постройки вокруг тайла.
-  const BUILD_MAX_W = 3;
-  const BUILD_MAX_H = 3;
-  const BUILDING_NAMES = {
-    [BUILDING_TYPES.WEAPONS_SHOP]: 'оружейная',
-    [BUILDING_TYPES.ARMOR_SHOP]: 'бронник',
-    [BUILDING_TYPES.APOTHECARY]: 'аптекарь',
-    [BUILDING_TYPES.MAGIC_SHOP]: 'магазин магии',
-    [BUILDING_TYPES.ARENA]: 'арена',
-    [BUILDING_TYPES.BLACKSMITH]: 'кузница',
-    [BUILDING_TYPES.ARCHERY_RANGE]: 'стрельбище',
-    [BUILDING_TYPES.ACADEMY]: 'школа акробатов',
-    [BUILDING_TYPES.TEMPLE]: 'храм',
-    [BUILDING_TYPES.CAVE_ENTRANCE]: 'вход в пещеру',
-    [BUILDING_TYPES.RUNE_STONE]: 'рунический камень',
-    [BUILDING_TYPES.TAVERN]: 'таверна',
-    [BUILDING_TYPES.NPC_HOUSE]: 'дом NPC',
-  };
+  // Число «картовых» типов, их имена и максимальный footprint —
+  // производные из каталога ЛЕНИВО: buildingCount()/buildingNames()/
+  // buildMaxW()/buildMaxH()/buildingNameUi() (см. блок после
+  // catalogRef, задача 000055). Константы на момент загрузки были
+  // удалены: buildings.js грузится ПОСЛЕ map.js (index.html), а
+  // vm-песочницы — вообще без него.
 
   // Типы стационарных групп мобов (SPEC.md, раздел «Мобы»).
   const MOB_GROUP_TYPES = {
@@ -222,7 +305,7 @@
       const fb = features.fbm(x * FEATURE_SCALE + 511.1, y * FEATURE_SCALE + 511.1, 3);
       const rarity = 1 - a / 255; // 0..1, тёмный A → реже
       if (fb <= 0.33 + 0.14 * rarity) return null;
-      return { x, y, type: hash2(x, y, GLOBAL_SEED) % BUILDING_COUNT };
+      return { x, y, type: hash2(x, y, GLOBAL_SEED) % buildingCount() };
     }
 
     // Свободен ли тайл (tx, ty) для постройки с якорем (ax, ay):
@@ -230,8 +313,8 @@
     // Ссылка только на «раньше» — пористый порядок, циклов нет.
     function isFreeForBuilding(ax, ay, tx, ty) {
       if (!terrainAt(tx, ty).passable) return false;
-      for (let oay = ty - BUILD_MAX_H + 1; oay <= ty; oay++) {
-        for (let oax = tx - BUILD_MAX_W + 1; oax <= tx; oax++) {
+      for (let oay = ty - buildMaxH() + 1; oay <= ty; oay++) {
+        for (let oax = tx - buildMaxW() + 1; oax <= tx; oax++) {
           if (oax > ax || (oax === ax && oay >= ay)) continue; // только «раньше»
           const rec = buildingAtAnchor(oax, oay);
           if (rec && tx >= rec.x && tx < rec.x + rec.w &&
@@ -283,10 +366,10 @@
     }
 
     // Постройка с РАНЬШИМ якорем, вход которой в (x, y), или null.
-    // Якорь в 2 тайлах от входа (footprint ≤ BUILD_MAX_W × BUILD_MAX_H).
+    // Якорь в 2 тайлах от входа (footprint ≤ buildMaxW() × buildMaxH()).
     function buildingWithEntranceAt(ax, ay, x, y) {
-      for (let oay = y - BUILD_MAX_H + 1; oay <= y; oay++) {
-        for (let oax = x - BUILD_MAX_W + 1; oax <= x; oax++) {
+      for (let oay = y - buildMaxH() + 1; oay <= y; oay++) {
+        for (let oax = x - buildMaxW() + 1; oax <= x; oax++) {
           if (oax > ax || (oax === ax && oay >= ay)) continue; // только «раньше»
           const rec = buildingAtAnchor(oax, oay);
           if (rec && rec.entrance[0] === x && rec.entrance[1] === y) return rec;
@@ -373,8 +456,8 @@
     // [x-(W-1)..x] × [y-(H-1)..y]. Постройки не пересекаются,
     // поэтому найденная в лексикографическом порядке — единственная.
     function coveringFootprint(x, y) {
-      for (let ax = x - BUILD_MAX_W + 1; ax <= x; ax++) {
-        for (let ay = y - BUILD_MAX_H + 1; ay <= y; ay++) {
+      for (let ax = x - buildMaxW() + 1; ax <= x; ax++) {
+        for (let ay = y - buildMaxH() + 1; ay <= y; ay++) {
           const rec = buildingAtAnchor(ax, ay);
           if (!rec) continue;
           if (x >= rec.x && x < rec.x + rec.w &&
@@ -599,8 +682,9 @@
   return {
     GLOBAL_SEED,
     TERRAIN, TERRAIN_NAMES,
-    BUILDING_TYPES, BUILDING_COUNT, BUILDING_NAMES,
-    BUILD_MAX_W, BUILD_MAX_H,
+    BUILDING_TYPES,
+    buildingCount, buildingNames, buildingNameUi,
+    buildMaxW, buildMaxH,
     MOB_GROUP_TYPES, MOB_GROUP_COUNT, MOB_GROUP_NAMES,
     ZOOM_MIN, ZOOM_MAX, ZOOM_START,
     createMap, syntheticPixels,

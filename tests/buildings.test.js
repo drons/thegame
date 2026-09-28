@@ -8,7 +8,7 @@ const {
   buildingSize, buildingEntranceRel, sizeChain, placeBuilding,
 } = require('../src/buildings.js');
 const {
-  BUILDING_TYPES, BUILDING_COUNT, BUILDING_NAMES,
+  BUILDING_TYPES, buildingCount, buildingNames,
 } = require('../src/map.js');
 
 const DIR = path.join(__dirname, '..', 'assets', 'buildings');
@@ -93,9 +93,9 @@ test('getBuilding: id → объект из каталога, вне диапа�
 });
 
 test('buildingForMapIndex: 13 индексов генерации → 13 различных зданий каталога', () => {
-  assert.equal(BUILDING_COUNT, 13);
+  assert.equal(buildingCount(), 13);
   const seen = new Set();
-  for (let i = 0; i < BUILDING_COUNT; i++) {
+  for (let i = 0; i < buildingCount(); i++) {
     const b = buildingForMapIndex(i);
     assert.ok(b !== null, `индекс ${i} не отображается`);
     assert.ok(seen.add(b.id), `дубль здания id=${b.id} на индексах`);
@@ -105,13 +105,16 @@ test('buildingForMapIndex: 13 индексов генерации → 13 раз�
   assert.equal(buildingForMapIndex(13), null);
 });
 
-test('buildingForMapIndex: картовые индексы соответствуют BUILDING_NAMES', () => {
-  // Индексы, где картовое имя (src/map.js) — имя типа из SPEC.md.
-  for (const i of [0, 1, 2, 3, 4, 5, 6, 7, 8, 10]) {
+test('buildingForMapIndex: картовые индексы соответствуют buildingNames()', () => {
+  // Имя картового индекса = каталожное поле название_карты (source of
+  // truth, задача 000055). Старая версия проверяла ТОЛЬКО [0..8,10]
+  // через lowercase/includes и пропускала дрейф 9/11/12.
+  const names = buildingNames();
+  for (let i = 0; i < 13; i++) {
     const b = buildingForMapIndex(i);
-    assert.ok(
-      b.название.toLowerCase().includes(BUILDING_NAMES[i].toLowerCase()),
-      `${i}: «${b.название}» не совпадает с «${BUILDING_NAMES[i]}»`,
+    assert.equal(
+      names[i], b.особые_параметры.название_карты,
+      `${i}: «${names[i]}» ≠ «${b.особые_параметры.название_карты}»`,
     );
   }
   assert.equal(buildingForMapIndex(BUILDING_TYPES.TEMPLE).категория, 'храм');
@@ -311,7 +314,7 @@ test('placeBuilding: validateSize — отклоняет размер, берё�
 
 const { spawnSync } = require('node:child_process');
 const {
-  buildingNames, buildingNameUi,
+  buildingNameUi,
 } = require('../src/map.js');
 
 test('название_карты: все 13 «картовых» записей каталога имеют поле (непустая строка)', () => {
