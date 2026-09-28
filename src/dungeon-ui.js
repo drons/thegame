@@ -2,13 +2,26 @@
 // Браузерный модуль (ядро — src/dungeon.js, тестируется в node).
 //
 // Управление: стрелки / WASD / ЦФЫВ — шаг. Выход — клетка «X».
-// Логика (мобы, сундуки, выход) живёт в main.js; оверлей — только
-// отрисовка и передача клавиш в onMove.
+// Маппинг клавиш — единый, из src/controls.js (задачи 000028/000043):
+// e.code (физическая клавиша: стрелки, WASD — на русской раскладке это
+// и есть ЦФЫВ) с фолбэком по e.key (ц/ф/ы/в, без учёта регистра) для
+// виртуальных клавиатур (code «Unidentified») — те же связки, что мир
+// (tryMove в main.js). Логика (мобы, сундуки, выход) живёт в main.js;
+// оверлей — только отрисовка и передача клавиш в onMove.
 
 (function () {
   'use strict';
   const G = globalThis.Game;
-  if (!G || !G.createDungeon) return;
+  if (!G || !G.createDungeon || !G.deltaForEvent) {
+    // Видимая ошибка, а не молчание (паттерн ui.js/combat-ui.js):
+    // без controls.js (должен грузиться РАНЬШЕ,
+    // tests/index-order.test.js) захваченный G не получит
+    // Game.deltaForEvent никогда — управление сломается тихо.
+    console.error('dungeon-ui.js: не найдены Game.createDungeon или ' +
+      'Game.deltaForEvent — проверьте порядок загрузки: src/controls.js ' +
+      'и src/dungeon.js ДО src/dungeon-ui.js (задача 000043)');
+    return;
+  }
 
   let ctx = null; // { get state, onMove, open }
   let overlay = null, canvas = null, g2 = null, stateEl = null, logEl = null;
@@ -24,24 +37,10 @@
     return typeof s === 'function' ? s() : s;
   }
 
-  // Мёртвые кириллические e.code (буквы Ц/Ы/Ф/В) удалены (задача
-  // 000048): кириллических e.code не существует (задача 000028) —
-  // такие записи никогда не срабатывали. Полный перевод этой локальной
-  // таблицы на Game.moveKeyForEvent/Game.deltaForMoveKey
-  // (src/controls.js) — задача 000043, здесь НЕ делался.
-  function keyDir(code) {
-    return {
-      ArrowUp: [0, -1], KeyW: [0, -1],
-      ArrowDown: [0, 1], KeyS: [0, 1],
-      ArrowLeft: [-1, 0], KeyA: [-1, 0],
-      ArrowRight: [1, 0], KeyD: [1, 0],
-    }[code];
-  }
-
   window.addEventListener('keydown', (e) => {
     if (!isActive()) return;
     if (G.combatUI && G.combatUI.isActive()) return; // бой выше по стеку
-    const d = keyDir(e.code);
+    const d = G.deltaForEvent(e);
     if (!d) return;
     e.preventDefault();
     e.stopPropagation();
