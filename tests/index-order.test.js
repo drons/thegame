@@ -201,3 +201,89 @@ test('motion.js (браузерная ветка UMD): даёт Game.createMover
   assert.ok(Number.isFinite(sandbox.Game.MIN_MOVE_INTERVAL_MS) &&
     sandbox.Game.MIN_MOVE_INTERVAL_MS > 0, 'Game.MIN_MOVE_INTERVAL_MS > 0');
 });
+
+// --- Задача 000045: модули заклинаний ---
+//
+// spells.js при ЗАГРУЗКЕ снимает боевые internals (combat.js) и каталог
+// (spells-data.js) с объекта Game; combat-ui.js/dungeon-ui.js/main.js
+// снимают const G = globalThis.Game один раз при загрузке (UMD-ловушка,
+// задача 000038) — поэтому: combat.js < spells-data.js < spells.js <
+// combat-ui.js < main.js, и spells.js — после player.js (skillPractice).
+
+const CORE_SCRIPTS = [
+  'src/global-settings.js', 'src/perlin.js', 'src/mapseed.js',
+  'src/skills-data.js', 'src/items-data.js', 'src/npc-data.js',
+  'src/map.js', 'src/player.js', 'src/day.js', 'src/items.js',
+  'src/buildings.js', 'src/npc.js',
+];
+
+test('index.html: spells-data.js и spells.js подключены в правильном порядке', () => {
+  assert.notEqual(pos('src/spells-data.js'), -1, 'spells-data.js не подключён');
+  assert.notEqual(pos('src/spells.js'), -1, 'spells.js не подключён');
+  // Ядро: player.js (P) и combat.js (internals) — раньше spells.js.
+  assert.ok(pos('src/player.js') < pos('src/spells.js'),
+    'src/player.js должен быть раньше src/spells.js (задача 000045)');
+  assert.ok(pos('src/combat.js') < pos('src/spells-data.js'),
+    'src/combat.js должен быть раньше src/spells-data.js (задача 000045)');
+  // Модули идут парой, данные раньше ядра.
+  assert.ok(pos('src/spells-data.js') < pos('src/spells.js'),
+    'src/spells-data.js должен быть раньше src/spells.js (задача 000045)');
+  // UMD-ловушка: combat-ui.js и main.js снимают Game при загрузке —
+  // spells.js должен быть РАНЕЕ них (иначе Game.Spells через их G
+  // недоступна никогда).
+  assert.ok(pos('src/spells.js') < pos('src/combat-ui.js'),
+    'src/spells.js должен быть раньше src/combat-ui.js (задача 000045)');
+  assert.ok(pos('src/spells.js') < pos('src/main.js'),
+    'src/spells.js должен быть раньше src/main.js (задача 000045)');
+});
+
+test('порядок core → spells-data.js → spells.js: Game.Spells существует и кастует', () => {
+  // Полный «браузерный» путь: ядро из index.html (до combat.js включительно)
+  // + spells-data.js + spells.js. castSpell обязан работать в чужом realm —
+  // иначе UMD-проводка (internals из Game) собрана неверно.
+  const files = CORE_SCRIPTS.concat(
+    'src/combat.js', 'src/spells-data.js', 'src/spells.js');
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of files) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  const Sp = sandbox.Game.Spells;
+  assert.ok(Sp, 'Game.Spells должен существовать после правильного порядка');
+  for (const k of ['SPELLS', 'SPELLS_BY_ID', 'getSpell', 'schoolRank',
+    'bookOf', 'canLearn', 'learn', 'highestKnown', 'activeSpells',
+    'castSpell', 'canCastSpell', 'sanitizeSpellBook']) {
+    assert.ok(Sp[k] !== undefined, 'Game.Spells.' + k);
+  }
+  // Работоспособность в браузерном realm.
+  const p = sandbox.Game.createCharacter();
+  p.spells = ['spark'];
+  p.primary.intelligence = 10;
+  const c = sandbox.Game.createCombat(
+    { player: p, mobs: ['wolf'], mobLevel: 1, seed: 5 });
+  const w = c.units[0];
+  w.x = c.px; w.y = c.py - 1;
+  const r = Sp.castSpell(c, 'spark', w.id);
+  assert.equal(r.ok, true,
+    'castSpell работает в браузерном realm: ' + (r.reason || 'ok'));
+});
+
+test('порядок битый: spells.js без combat.js → Game.Spells нет, guard в консоли', () => {
+  // spells.js раньше combat.js (или без него): боевые internals в Game
+  // отсутствуют → guard пишет console.error (паттерн 000038), модуль не
+  // создаётся — «мёртвая магия» должна быть заметна.
+  const errors = [];
+  const sandbox = { console: { error: (m) => errors.push(m) } };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  const files = CORE_SCRIPTS.concat('src/spells-data.js', 'src/spells.js');
+  for (const f of files) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  assert.equal(sandbox.Game.Spells, undefined,
+    'без combat.js Spells не создаётся');
+  assert.ok(errors.length > 0, 'guard обязан оставить след в консоли');
+});

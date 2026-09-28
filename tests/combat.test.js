@@ -1592,3 +1592,161 @@ test('turnIndex: игрок убил моба в фазе игрока — сл�
   assert.equal(c.turnIndex, 0);
   assert.deepEqual(c.turnOrder, ['player', 'm1']);
 });
+
+// --- Задача 000045: эффекты заклинаний в состоянии боя ---
+// Формулы и причины каста закреплены в tests/spells.test.js; здесь —
+// боевое состояние: c.ps.shield (щит), u.weaken (ослабление), u.bind
+// (контроль) и их тики. Семантика тиков (задача 000045):
+//  * bind — моб пропускает ровно одно действие (тик вместе с пропуском,
+//    лог «скован»); пока скован, прочие эффекты НЕ тикают;
+//  * weaken — урон моба ×0.75 ровно 3 хода (тик вместе с применением);
+//  * shield — защищает ровно 3 раунда, включая раунд каста (тик в
+//    начале хода игрока, после refillPools).
+
+function spells() { return require('../src/spells.js'); }
+
+test('combat.js: экспорт combatInternals для spells.js (задача 000045)', () => {
+  const C = require('../src/combat.js');
+  const ci = C.combatInternals;
+  assert.ok(ci && typeof ci === 'object', 'combatInternals экспортирован');
+  for (const k of ['log', 'nearestMob', 'unitDist', 'checkTurn',
+    'checkBlocked', 'dealDamageToMob']) {
+    assert.equal(typeof ci[k], 'function', 'combatInternals.' + k);
+  }
+});
+
+test('c.ps.shield: инициализация { armor: 0, turns: 0 }; новый бой — без эффектов', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+  assert.deepEqual(c.ps.shield, { armor: 0, turns: 0 });
+  // Эффекты не переносятся в новый бой (новые юниты/пулы).
+  c.ps.shield = { armor: 2, turns: 3 };
+  c.units[0].weaken = { mult: 0.75, turns: 3 };
+  c.units[0].bind = { turns: 1 };
+  const c2 = createCombat({
+    player: strongHero(), mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+  assert.deepEqual(c2.ps.shield, { armor: 0, turns: 0 }, 'щит не переносится');
+  assert.equal(c2.units[0].weaken, undefined, 'weaken не переносится');
+  assert.equal(c2.units[0].bind, undefined, 'bind не переносится');
+});
+
+test('щит: урон по игроку снижается на shield.armor (turns > 0)', () => {
+  const hit = (shield) => {
+    const p = strongHero();
+    const c = createCombat({
+      player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+    const w = c.units[0];
+    standNextTo(c, w);
+    w.damage = 10;
+    c._rng = () => 0.01; // гарантированное попадание
+    if (shield) Object.assign(c.ps.shield, shield);
+    const hpBefore = p.hp;
+    c.endTurn();
+    return hpBefore - p.hp;
+  };
+  assert.equal(hit(null), 10, 'без щита — полный урон');
+  assert.equal(hit({ armor: 3, turns: 1 }), 7, 'щит гасит 3');
+  assert.equal(hit({ armor: 3, turns: 0 }), 10, 'turns = 0 — щит не действует');
+});
+
+test('щит: ровно 3 раунда защиты (включая раунд каста), тик в начале хода игрока', () => {
+  const { castSpell } = spells();
+  const p = strongHero();
+  p.primary.wisdom = 10;
+  p.spells = ['magic_shield'];
+  const c = createCombat({
+    player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+  const w = c.units[0];
+  standNextTo(c, w);
+  w.damage = 2; // броня щита 2 — гасит полностью
+  c._rng = () => 0.01;
+  const r = castSpell(c, 'magic_shield');
+  assert.equal(r.ok, true, r.reason);
+  assert.deepEqual(c.ps.shield, { armor: 2, turns: 3 });
+  const round = () => {
+    const hp = p.hp;
+    c.endTurn();
+    return p.hp - hp; // полученный урон (0 или отрицательный)
+  };
+  assert.equal(round(), 0, 'раунд 1 (раунд каста): щит действует');
+  assert.equal(c.ps.shield.turns, 2, 'тик в начале нового хода игрока');
+  assert.equal(round(), 0, 'раунд 2: щит действует');
+  assert.equal(c.ps.shield.turns, 1);
+  assert.equal(round(), 0, 'раунд 3: щит действует');
+  assert.equal(c.ps.shield.turns, 0, 'эффект исчерпан');
+  assert.equal(round(), -2, 'раунд 4: щита больше нет');
+});
+
+test('u.bind: моб пропускает ровно одно действие (тик + лог «скован»)', () => {
+  const { castSpell } = spells();
+  const p = strongHero();
+  p.primary.wisdom = 10;
+  p.spells = ['vine'];
+  const c = createCombat({
+    player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+  const w = c.units[0];
+  standNextTo(c, w);
+  w.damage = 10;
+  c._rng = () => 0.01;
+  const r = castSpell(c, 'vine', w.id);
+  assert.equal(r.ok, true, r.reason);
+  assert.deepEqual(w.bind, { turns: 1 });
+  const pos = `${w.x},${w.y}`;
+  let hp = p.hp;
+  c.endTurn(); // раунд 1: моб скован — пропускает действие
+  assert.equal(p.hp, hp, 'скованный моб не бьёт');
+  assert.equal(`${w.x},${w.y}`, pos, 'скованный моб не двигается');
+  assert.ok(c.log.some((l) => l.includes('скован')),
+    `лог «скован»: ${c.log.join(' | ')}`);
+  assert.equal(w.bind.turns, 0, 'тик: bind исчерпан');
+  hp = p.hp;
+  c.endTurn(); // раунд 2: моб действует снова
+  assert.equal(p.hp, hp - 10, 'в следующем раунде моб бьёт');
+});
+
+test('u.weaken: урон моба ×0.75 ровно 3 раунда, затем полный', () => {
+  const { castSpell } = spells();
+  const p = strongHero();
+  p.primary.intelligence = 10;
+  p.spells = ['chill'];
+  const c = createCombat({
+    player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+  const w = c.units[0];
+  standNextTo(c, w);
+  w.damage = 10; // ×0.75 = 7.5 → round 8
+  c._rng = () => 0.01;
+  const r = castSpell(c, 'chill', w.id);
+  assert.equal(r.ok, true, r.reason);
+  assert.deepEqual(w.weaken, { mult: 0.75, turns: 3 });
+  const hits = [];
+  for (let i = 0; i < 4; i++) {
+    const hp = p.hp;
+    c.endTurn();
+    hits.push(hp - p.hp);
+  }
+  assert.deepEqual(hits, [8, 8, 8, 10], '×0.75 ровно 3 раунда, затем полный урон');
+});
+
+test('u.bind + u.weaken: пока моб скован, weaken не тикает', () => {
+  const { castSpell } = spells();
+  const p = strongHero();
+  p.primary.intelligence = 10;
+  p.primary.wisdom = 10;
+  p.spells = ['chill', 'vine'];
+  const c = createCombat({
+    player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+  const w = c.units[0];
+  standNextTo(c, w);
+  w.damage = 10;
+  c._rng = () => 0.01;
+  assert.equal(castSpell(c, 'chill', w.id).ok, true);
+  w.bind = { turns: 1 }; // «сковываем» ослабленного моба вручную
+  let hp = p.hp;
+  c.endTurn(); // скован: пропускает
+  assert.equal(p.hp, hp, 'скован — без урона');
+  assert.equal(w.weaken.turns, 3, 'weaken не тикает, пока моб скован');
+  hp = p.hp;
+  c.endTurn(); // действует ослабленным
+  assert.equal(p.hp, hp - 8, 'удар ×0.75');
+  assert.equal(w.weaken.turns, 2, 'тик weaken после действия');
+});

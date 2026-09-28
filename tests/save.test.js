@@ -216,3 +216,24 @@ test('браузер: UMD вешает API на Game, не ломая сущес
   assert.equal(res.status, 'ok');
   assert.equal(res.save.data.a, 1);
 });
+
+// --- Задача 000045: книга заклинаний в сейве ---
+//
+// hero.spells — новое ОПЦИОНАЛЬНОЕ поле сейва (без повышения версии,
+// 000031): сейв без поля восстанавливается с книгой []; подделанное поле
+// (чужие id, дубли, мусор) чистится по каталогу — sanitizeSpellBook.
+
+test('sanitizeSpellBook: только известные id без дублей; не-массив — []', () => {
+  const fn = require('../src/spells.js').sanitizeSpellBook;
+  assert.deepEqual(fn(['spark', 'nope', 'fireball']),
+    ['spark', 'fireball'], 'неизвестные id отброшены, порядок сохранён');
+  assert.deepEqual(fn(['spark', 'spark', 'mend']),
+    ['spark', 'mend'], 'дубли — один раз');
+  assert.deepEqual(fn(['spark', 42, null, 'nope', 'mend']),
+    ['spark', 'mend'], 'не-строки отброшены');
+  assert.deepEqual(fn(['spark']), ['spark']);
+  // Сейв без hero.spells (старая версия данных) → [].
+  for (const bad of [null, undefined, 'spark', 42, { spark: 1 }]) {
+    assert.deepEqual(fn(bad), [], 'не-массив → []: ' + String(bad));
+  }
+});
