@@ -54,7 +54,29 @@
   const BUILDING_COLOR = [0.98, 0.83, 0.30]; // золотой маркер
   const MOB_COLOR = [0.85, 0.30, 0.25];      // красный маркер
   const PLAYER_COLOR = [0.55, 0.95, 1.0];    // светящийся Флогистон
-  const MOVE_INTERVAL_MS = 140;
+  // Базовый интервал шага по глобальной карте (задача 000063) — из
+  // глобальных настроек (единый источник, паттерн 000020): 140 * 3 =
+  // 420 мс, базовая скорость передвижения уменьшена в три раза.
+  // Настроек нет (файл не загрузился) — старое поведение, 140 мс
+  // (деградация, паттерн 000033 с G.createMover).
+  const gs = G.GlobalSettings && G.GlobalSettings.SETTINGS;
+  const MOVE_INTERVAL_MS = (gs && Number.isFinite(gs.move_interval_ms)
+    && gs.move_interval_ms > 0)
+    ? gs.move_interval_ms
+    : 140;
+
+  // Текущий интервал шага с учётом «Ловкого шага» (задача 000033;
+  // SPEC: Ловкость → «Скорость перемещения по карте»): база — из
+  // глобальных настроек (задача 000063), чем выше навык, тем короче
+  // шаг; нижний кламп — G.MIN_MOVE_INTERVAL_MS. Без навыка
+  // (moveSpeedMult = 1) — базовый интервал. Один источник для цикла
+  // шагов и окна анимации walk/idle (drawSprites).
+  function stepIntervalMs() {
+    return G.moveIntervalMs
+      ? G.moveIntervalMs(MOVE_INTERVAL_MS,
+        (G.derived(hero) || {}).moveSpeedMult)
+      : MOVE_INTERVAL_MS;
+  }
 
   // --- Спрайты (src/sprites.js) ---
   // Загружаем Image() — работает под file://. Выбор файла всегда один и тот
@@ -929,8 +951,14 @@
     }
 
     // Флогистон: idle/walk по движению, attack/cast — отладочная animAction.
+    // Окно walk/idle (задача 000063) — через G.walkWindowMs от интервала
+    // шага (motion.js), а не фикс 260 мс: фикс подобран под старый
+    // интервал 140 мс и при базовых 420 мс давал замирание 160 мс в
+    // idle за цикл — рваную ходьбу. Без walkWindowMs — старое окно 260.
     const action = now < animUntil ? animAction
-      : (now - lastStepAt < 260 ? 'walk' : 'idle');
+      : (now - lastStepAt < (G.walkWindowMs
+        ? G.walkWindowMs(stepIntervalMs())
+        : 260) ? 'walk' : 'idle');
     const pf = G.phlogistonFrames(action);
     if (pf.length) {
       const idx = pf.length > 1 ? (Math.floor(now / 240) % pf.length) : 0;
@@ -993,14 +1021,10 @@
     const inCombat = G.combatUI && G.combatUI.isActive();
     const inDungeon = dungeonState !== null;
     const inNpc = G.npcUI && G.npcUI.isActive();
-    // Интервал шага с учётом «Ловкого шага» (задача 000033; SPEC:
-    // Ловкость → «Скорость перемещения по карте»): чем выше навык, тем
-    // короче шаг; нижний кламп — G.MIN_MOVE_INTERVAL_MS. Без навыка
-    // (moveSpeedMult = 1) — базовые 140 мс, как раньше.
-    const stepMs = G.moveIntervalMs
-      ? G.moveIntervalMs(MOVE_INTERVAL_MS,
-        (G.derived(hero) || {}).moveSpeedMult)
-      : MOVE_INTERVAL_MS;
+    // Интервал шага (задача 000033 + 000063): база — из глобальных
+    // настроек (420 мс), навык «Ловкий шаг» укорачивает, нижний кламп —
+    // G.MIN_MOVE_INTERVAL_MS. Одно значение для шага и окна walk/idle.
+    const stepMs = stepIntervalMs();
     if (!inCombat && !inDungeon && !inNpc && now - lastMove >= stepMs) {
       if (keys.size && tryMove()) {
         lastMove = now;
