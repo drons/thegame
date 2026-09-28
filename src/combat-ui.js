@@ -31,11 +31,31 @@
     leader: '#b06ad4', shield: '#a98545', swarm: '#e0b13c',
   };
 
+  // --- Время и кадры анимации (задача 000047) ---
+  //
+  // nowMs — источник времени ТОЛЬКО UI-слоя: в браузере
+  // performance.now(), в vm-песочнице тестов — Date.now() (Date
+  // встроен в vm-контекс). Чистые селекторы кадров (G.frameIndex)
+  // время получают АРГУМЕНТОМ (детерминизм, как в мире —
+  // drawSprites в main.js); внутри них времени нет.
+  // typeof-гарды обязательны: в vm-песочнице requestAnimationFrame
+  // и performance НЕ существуют (хостовые глобалы не попадают в
+  // контекс) — прямой доступ дал бы ReferenceError.
+  const nowMs = () => (typeof performance !== 'undefined' && performance.now)
+    ? performance.now() : Date.now();
+  const raf = (typeof requestAnimationFrame === 'function')
+    ? requestAnimationFrame : null;
+  const caf = (typeof cancelAnimationFrame === 'function')
+    ? cancelAnimationFrame : null;
+  // Длительность анимации действия героя (attack/cast), мс.
+  const FX_MS = 300;
+
   let ctx = null; // { combat, hero, onEnd, open, bgPath, spriteLoader }
   let overlay = null, canvas = null, g2 = null;
   let stateEl = null, logEl = null, bannerEl = null, turnorderEl = null;
   let hpbarEl = null, hpbarFillEl = null, hpbarTextEl = null;
   let ended = false;
+  let rafId = null; // id rAF-цикла анимации (задача 000047); null — нет rAF
 
   function isActive() {
     return !!ctx && ctx.open;
@@ -171,6 +191,20 @@
     }[action];
     const r = run ? run() : undefined;
     logRejection(c, r);
+    // Анимация героя (задача 000047): UI-состояние ТОЛЬКО в UI-слое —
+    // поле c._fx (ядро combat.js его не читает; там есть только c._rng).
+    // Пишется после УСПЕШНОГО действия (r.ok): атака — 'attack',
+    // заклинание (fire/heal) — 'cast', на ~300 мс. Невыполненное
+    // действие (ok:false — отклонено ядром) анимации не даёт.
+    // Промасх (ok:true, hit:false) — действие потрачено, анимация
+    // уместна (удар есть, цель не задета).
+    if (r && r.ok) {
+      if (action === 'attack') {
+        c._fx = { action: 'attack', until: nowMs() + FX_MS };
+      } else if (action === 'fire' || action === 'heal') {
+        c._fx = { action: 'cast', until: nowMs() + FX_MS };
+      }
+    }
   }
 
   window.addEventListener('keydown', (e) => {
@@ -274,9 +308,158 @@
     }
   }
 
+  // --- Юниты (задача 000047): спрайты поверх фона и сетки ---
+  //
+  // Список: живые не-sfled-мобы + герой. СОРТИРОВКА по bottomY
+  // («низ» юнита = якорь y + высота; герой — py+1) для «глубины»:
+  // дальние (меньше y) рисуются раньше, ближние — поверх.
+  // Тай-брейк детерминированный: затем x, затем id (Array.sort
+  // стабилен, но явный ключ надёжнее).
+  // Выбор кадра — ТОЛЬКО чистые функции: G.frameIndex(now, x, y, n)
+  // (now — аргументом; время внутри селектора нет — детерминизм
+  // мира). Фолбэк — ПО ЮНИТУ: image() → null / нет лоадера / нет
+  // sprites.js — только этот юнит остаётся прежним прямоугольником
+  // (моб) / ромбом (герой), остальные — спрайты; спрайт, загрузившийся
+  // ПОСЛЕ старта боя, подхватится на следующем render/tick
+  // (паттерн фона, задача 000049).
+  // Слои юнита: спрайт/фолбэк → полоса HP → уровень → подсветка
+  // цели (по всему прямоугольнику, как до спрайтов); у героя —
+  // миниполоса HP ПОСЛЕ спрайта («поверх любого вида героя»).
+  function drawUnits(c, now, hpFrac, hpColor) {
+    const list = [];
+    for (const u of c.units) {
+      if (!u.alive || u.fled) continue;
+      list.push({
+        kind: 'mob', u, id: u.id, x: u.x,
+        bottomY: u.y + ((u.size && u.size.h) || 1),
+      });
+    }
+    list.push({ kind: 'hero', id: 'player', x: c.px, bottomY: c.py + 1 });
+    list.sort((a, b) => (a.bottomY - b.bottomY)
+      || (a.x - b.x)
+      || (a.id < b.id ? -1 : (a.id > b.id ? 1 : 0)));
+
+    for (const item of list) {
+      if (item.kind === 'mob') {
+        const u = item.u;
+        const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
+        const px = u.x * CELL, py = u.y * CELL;
+        const pw = w * CELL, ph = h * CELL;
+        // Спрайт: mobId → базовый вид G.mobSpriteKind (sprites.js
+        // грузится ДО combat-ui.js в index.html — закреплено
+        // tests/index-order.test.js); кадры — G.MOB_FRAMES[kind]
+        // (idle, 2 кадра). Guards — УМД-ловушка «G снимается один
+        // раз»: цепочка без sprites.js (vm-песочница withSprites=
+        // false) → фолбэк (деградация, не падение, паттерн
+        // hpBarColor). Анимация атаки мобов — за рамками (000047:
+        // базовые спрайты мобов содержат только idle).
+        const kind = G.mobSpriteKind ? G.mobSpriteKind(u.mobId) : null;
+        const frames = kind && G.MOB_FRAMES ? G.MOB_FRAMES[kind] : null;
+        const idx = (frames && frames.length > 1 && G.frameIndex)
+          ? G.frameIndex(now, u.x, u.y, frames.length) : 0;
+        const img = (frames && ctx.spriteLoader)
+          ? ctx.spriteLoader.image(frames[idx]) : null;
+        if (img) {
+          // Тот же запас 8px, что у прежнего прямоугольника (полоса
+          // HP px+8/py+2/pw-16 остаётся согласованной). Мультиклеточные
+          // мобы (до 3×3, задача 000040) — на весь прямоугольник.
+          g2.drawImage(img, px + 8, py + 8, pw - 16, ph - 16);
+        } else {
+          // Фолбэк (задача 000040): цветной прямоугольник по роли.
+          g2.fillStyle = ROLE_COLORS[u.role] || '#888';
+          g2.fillRect(px + 8, py + 8, pw - 16, ph - 16);
+        }
+        // Полоса HP (по ширине прямоугольника).
+        const frac = u.hp / u.maxHP;
+        g2.fillStyle = '#3a0d0d';
+        g2.fillRect(px + 8, py + 2, pw - 16, 4);
+        g2.fillStyle = '#6fdc6f';
+        g2.fillRect(px + 8, py + 2, Math.round((pw - 16) * frac), 4);
+        // Уровень (центр прямоугольника).
+        g2.fillStyle = '#fff';
+        g2.font = '12px ui-monospace, monospace';
+        g2.textAlign = 'center';
+        g2.fillText(String(u.level), px + pw / 2, py + ph / 2 + 4);
+        // Подсветка цели (весь прямоугольник).
+        if (u.id === c.targetId) {
+          g2.strokeStyle = '#ffe27a';
+          g2.lineWidth = 2;
+          g2.strokeRect(px + 4.5, py + 4.5, pw - 9, ph - 9);
+        }
+      } else {
+        // Герой (задача 000047): кадры Флогистона PHLOGISTON_ACTIONS —
+        // 'idle' обычно; 'attack'/'cast' — пока c._fx не истёк
+        // (~300 мс после успешного действия, пишет runAction).
+        // render c._fx ТОЛЬКО читает, не мутирует. Без
+        // sprites.js/лоадера — прежний ромб (фолбэк, бой играбелен).
+        const action = (c._fx && c._fx.action && now < c._fx.until)
+          ? c._fx.action : 'idle';
+        const pf = G.phlogistonFrames ? G.phlogistonFrames(action) : [];
+        const idx = (pf.length > 1 && G.frameIndex)
+          ? G.frameIndex(now, c.px, c.py, pf.length) : 0;
+        const img = (pf.length && ctx.spriteLoader)
+          ? ctx.spriteLoader.image(pf[idx]) : null;
+        const hx = (c.px + 0.5) * CELL, hy = (c.py + 0.5) * CELL;
+        if (img) {
+          // ≈CELL×1.15 (аналог zoom*1.15 мира, drawSprites main.js),
+          // центр клетки; по краям поля спрайт вылезает за клетку —
+          // задумано, clipping не нужен (герой по дизайну в пределах
+          // 7×7).
+          const size = CELL * 1.15;
+          g2.drawImage(img, hx - size / 2, hy - size / 2, size, size);
+          // Миниполоса 4px — над верхом спрайта, рисуется ПОСЛЕ
+          // (поверх любого вида героя); ширина = ширина спрайта.
+          // Кламп в canvas (ревью 000047): якорь «8px над верхом
+          // спрайта» у краёв поля уходит за край canvas (size/2+8 =
+          // 35.6 > 24 — половина клетки): верхний ряд (py=0) давал
+          // by = -12 — полоса ЦЕЛИКОМ выше canvas и невидима
+          // (регрессия 000038: в фолбэке-ромбе там же by = 2);
+          // боковые края (px=0/6) срезали левый/правый край на
+          // 3–4px. Запас 2px — как у полосы мобов (py+2) и как
+          // фолбэк-позиция полосы на верхнем ряду. На внутренних
+          // клетках кламп не срабатывает — вид не меняется.
+          const bw = Math.round(size);
+          const bx = Math.max(2,
+            Math.min(canvas.width - bw - 2, Math.round(hx - bw / 2)));
+          const by = Math.max(2, Math.round(hy - size / 2 - 8));
+          g2.fillStyle = '#3a0d0d';
+          g2.fillRect(bx, by, bw, 4);
+          g2.fillStyle = hpColor;
+          g2.fillRect(bx, by,
+            Math.round(bw * Math.min(1, Math.max(0, hpFrac))), 4);
+        } else {
+          // Фолбэк: ромб (как в мире).
+          const s = CELL * 0.3;
+          g2.fillStyle = '#8cf2fc';
+          g2.beginPath();
+          g2.moveTo(hx, hy - s);
+          g2.lineTo(hx + s, hy);
+          g2.lineTo(hx, hy + s);
+          g2.lineTo(hx - s, hy);
+          g2.closePath();
+          g2.fill();
+          // Миниполоса 4px над ромбом (задача 000038): ширина =
+          // ширина ромба, 8px над верхней вершиной.
+          const bw = Math.round(2 * s);
+          const bx = Math.round(hx - bw / 2);
+          const by = Math.round(hy - s - 8);
+          g2.fillStyle = '#3a0d0d';
+          g2.fillRect(bx, by, bw, 4);
+          g2.fillStyle = hpColor;
+          g2.fillRect(bx, by,
+            Math.round(bw * Math.min(1, Math.max(0, hpFrac))), 4);
+        }
+      }
+    }
+  }
+
   function render() {
     if (!ctx || !ctx.open) return;
     const c = ctx.combat;
+    // ОДНО время на весь render (задача 000047): чистые селекторы
+    // кадров (G.frameIndex) получают его аргументом — весь кадр
+    // выбирается детерминированно (тот же now → те же кадры).
+    const now = nowMs();
 
     g2.fillStyle = '#0d1117';
     g2.fillRect(0, 0, canvas.width, canvas.height);
@@ -314,48 +497,21 @@
       g2.stroke();
     }
 
-    // Мобы: прямоугольник size.w × size.h (задача 000040).
-    for (const u of c.units) {
-      if (!u.alive || u.fled) continue;
-      const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
-      const px = u.x * CELL, py = u.y * CELL;
-      const pw = w * CELL, ph = h * CELL;
-      g2.fillStyle = ROLE_COLORS[u.role] || '#888';
-      g2.fillRect(px + 8, py + 8, pw - 16, ph - 16);
-      // Полоса HP (по ширине прямоугольника).
-      const frac = u.hp / u.maxHP;
-      g2.fillStyle = '#3a0d0d';
-      g2.fillRect(px + 8, py + 2, pw - 16, 4);
-      g2.fillStyle = '#6fdc6f';
-      g2.fillRect(px + 8, py + 2, Math.round((pw - 16) * frac), 4);
-      // Уровень (центр прямоугольника).
-      g2.fillStyle = '#fff';
-      g2.font = '12px ui-monospace, monospace';
-      g2.textAlign = 'center';
-      g2.fillText(String(u.level), px + pw / 2, py + ph / 2 + 4);
-      // Подсветка цели (весь прямоугольник).
-      if (u.id === c.targetId) {
-        g2.strokeStyle = '#ffe27a';
-        g2.lineWidth = 2;
-        g2.strokeRect(px + 4.5, py + 4.5, pw - 9, ph - 9);
-      }
-    }
-
-    // Герой (задача 000038): ОДИН расчёт p/d/hpFrac/hpColor на render
-    // на троих потребителей — canvas-миниполоса, текст stateEl и
-    // DOM-полоса (один вызов G.derived, как раньше; один вызов
-    // hpBarColor — и миниполоса, и DOM-бар берут тот же цвет).
+    // Состояние героя (задачи 000038/000047): ОДИН расчёт
+    // p/d/hpFrac/hpColor на render на троих потребителей —
+    // canvas-миниполоса (drawUnits), текст stateEl и DOM-полоса
+    // (один вызов G.derived, как раньше; один вызов hpBarColor —
+    // и миниполоса, и DOM-бар берут тот же цвет).
     // hpBarColor (src/sprites.js) в index.html грузится ДО combat-ui.js —
     // порядок закреплён в tests/index-order.test.js (задача 000038):
     // каждый UMD-модуль ЗАМЕНЯЕТ объект Game (Object.assign({}, Game, …)),
-    // а G снимается один раз при загрузке (строка 18), поэтому функция
-    // из скрипта, загружающегося ПОЗЖЕ, через этот G недоступна НИКОГДА —
-    // ленивый вызов «после загрузки всех скриптов» этого не решает
-    // (регрессия: цвет полосы всегда был фолбэчным). В браузере
-    // G.hpBarColor есть уже в момент загрузки модуля; фолбэк
-    // '#6fdc6f' (зелёный полосы мобов) нужен только если sprites.js
-    // отсутствует вовсе (напр. vm-песочница node) — рендер не падает
-    // (стиль деградации).
+    // а G снимается один раз при загрузке, поэтому функция из скрипта,
+    // загружающегося ПОЗЖЕ, через этот G недоступна НИКОГДА — ленивый
+    // вызов «после загрузки всех скриптов» этого не решает (регрессия:
+    // цвет полосы всегда был фолбэчным). В браузере G.hpBarColor есть
+    // уже в момент загрузки модуля; фолбэк '#6fdc6f' (зелёный полосы
+    // мобов) нужен только если sprites.js отсутствует вовсе (напр.
+    // vm-песочница node) — рендер не падает (стиль деградации).
     const p = c.player;
     const d = G.derived(p);
     // maxHP всегда ≥ 25 (player.js: 20 + конст.·5, множители ≥ 1) —
@@ -364,29 +520,10 @@
     const hpFrac = d.maxHP > 0 ? p.hp / d.maxHP : 0;
     const hpColor = (G.hpBarColor ? G.hpBarColor(hpFrac) : '#6fdc6f');
 
-    // Игрок — ромб (как в мире).
-    const px = (c.px + 0.5) * CELL, py = (c.py + 0.5) * CELL, s = CELL * 0.3;
-    g2.fillStyle = '#8cf2fc';
-    g2.beginPath();
-    g2.moveTo(px, py - s);
-    g2.lineTo(px + s, py);
-    g2.lineTo(px, py + s);
-    g2.lineTo(px - s, py);
-    g2.closePath();
-    g2.fill();
-
-    // Миниполоса 4px над ромбом (задача 000038) — паттерн мобов
-    // (дорожка #3a0d0d + заполнение). Ширина = ширина ромба, позиция
-    // — 8px над верхней вершиной («над головой»); рисуется ПОСЛЕ
-    // отрисовки героя → «поверх любого вида героя» (задача 000047 —
-    // спрайт).
-    const bw = Math.round(2 * s);
-    const bx = Math.round(px - bw / 2);
-    const by = Math.round(py - s - 8);
-    g2.fillStyle = '#3a0d0d';
-    g2.fillRect(bx, by, bw, 4);
-    g2.fillStyle = hpColor;
-    g2.fillRect(bx, by, Math.round(bw * Math.min(1, Math.max(0, hpFrac))), 4);
+    // Юниты (мобы + герой) — ПОВЕРХ фона и сетки, до DOM-части render
+    // (задача 000047). Отдельная функция: слой препятствий (задача
+    // 000050) вставится между сеткой и этим вызовом без переделки.
+    drawUnits(c, now, hpFrac, hpColor);
 
     // Панель состояния.
     const t = c.units.find((u) => u.id === c.targetId && u.alive && !u.fled);
@@ -437,8 +574,24 @@
     }
   }
 
+  // Цикл анимации (задача 000047): пока оверлей открыт — rAF-тики
+  // (старт в startCombat, стоп в finish, включая время показа
+  // баннера результата). render() — идемпотентен и дешёв; двойной
+  // рендер (событие + ближайший tick) допустим. Событные render() по
+  // keydown/клику ОСТАЮТСЯ синхронными: в vm-песочнице тестов rAF
+  // нет (typeof-гард выше), бой и тесты работают на синхронном
+  // рендере. tick, сработавший ПОСЛЕ finish (isActive false), сам
+  // сбрасывает rafId и не рендерит.
+  function tick() {
+    if (!isActive()) { rafId = null; return; }
+    render();
+    rafId = raf(tick);
+  }
+
   function finish() {
     if (!ctx || !ctx.open || !ctx.combat.result || ended) return;
+    // Остановить rAF-цикл ДО снятия оверлея (задача 000047).
+    if (rafId != null && caf) { caf(rafId); rafId = null; }
     ended = true;
     ctx.open = false;
     const onEnd = ctx.onEnd;
@@ -499,6 +652,9 @@
       };
       build();
       render();
+      // Цикл анимации (задача 000047): rAF-тики пока оверлей открыт.
+      // Без rAF (vm-песочница) — null, событийный синхронный рендер.
+      if (raf) rafId = raf(tick);
       return combat;
     },
     isActive,

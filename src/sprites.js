@@ -106,6 +106,37 @@
     abyss: ['assets/sprites/mobs/abyss_1.svg', 'assets/sprites/mobs/abyss_2.svg'],
   };
 
+  // Бой (задача 000047): типы мобов MOB_TYPES из src/combat.js →
+  // базовые спрайт-виды MOB_FRAMES. Таблица — ЛИТЕРАЛ: sprites.js не
+  // зависит от combat.js (нет цикла), а vm-песочница
+  // tests/combat-ui.test.js грузит combat.js БЕЗ require-цепочки
+  // sprites.js — равноценность таблицы с фактическими id MOB_TYPES
+  // закрывает тест (tests/sprites.test.js импортирует combat.js).
+  // Расхождение в заголовке задачи («6 диких зверей, 4 насекомых» —
+  // срез по коммент-блокам combat.js, где 'spider' стоит в блоке
+  // «Дикие звери») — косметическое: строки таблицы авторитетны,
+  // маппинг 5→wolf + 5→spider; все 36 id маппятся 1:1 (проверено).
+  const MOB_SPRITE_KINDS = {
+    // Орки (8)
+    orc_grunt: 'orc', orc_warrior: 'orc', orc_archer: 'orc', orc_shaman: 'orc',
+    orc_rider: 'orc', orc_mad: 'orc', orc_captain: 'orc', orc_chief: 'orc',
+    // Нежить (7)
+    skeleton: 'skeleton', skeleton_archer: 'skeleton', crawling_bones: 'skeleton',
+    giant_larva: 'skeleton', vampire: 'skeleton', rot: 'skeleton', bone_coloss: 'skeleton',
+    // Дикие звери (5)
+    wolf: 'wolf', wolf_pack: 'wolf', boar: 'wolf', cave_bear: 'wolf', troll: 'wolf',
+    // Насекомые (5)
+    spider: 'spider', ant: 'spider', ant_queen: 'spider',
+    scorpion: 'spider', centipede: 'spider',
+    // Стихийники и магия (8)
+    fire_elemental: 'elemental', water_elemental: 'elemental',
+    wind_elemental: 'elemental', earth_elemental: 'elemental',
+    imp: 'elemental', salamander: 'elemental',
+    fairy: 'elemental', stone_golem: 'elemental',
+    // Бездна (3)
+    lower_demon: 'abyss', succubus: 'abyss', abomination: 'abyss',
+  };
+
   // Иконки построек (map.js) — один кадр на тип.
   const BUILDING_SPRITES = {
     [BUILDING_TYPES.WEAPONS_SHOP]: 'assets/sprites/buildings/weapons_shop.svg',
@@ -275,6 +306,18 @@
   function mobFrames(groupType) {
     const kind = MOB_KINDS[groupType];
     return kind ? MOB_FRAMES[kind] : [];
+  }
+
+  /**
+   * Базовый спрайт-вид БОЕВОГО моба (задача 000047):
+   * mobId из MOB_TYPES (combat.js) → 'orc'|'skeleton'|'wolf'|'spider'
+   * |'elemental'|'abyss'. Чистая функция; неизвестный id → null
+   * (рендерер рисует фолбэк-прямоугольник).
+   * @param {string} mobId id моба (MOB_TYPES из src/combat.js)
+   * @returns {string|null} ключ MOB_FRAMES или null
+   */
+  function mobSpriteKind(mobId) {
+    return MOB_SPRITE_KINDS[mobId] || null;
   }
 
   /** Иконка постройки (путь) или null для NONE. */
@@ -473,6 +516,7 @@
     TILE_BASE, TILE_FRAMES,
     PHLOGISTON_ACTIONS,
     MOB_KINDS, MOB_FRAMES,
+    MOB_SPRITE_KINDS, mobSpriteKind,
     BUILDING_SPRITES,
     COMBAT_BG_DIR, COMBAT_BG_TERRAIN, COMBAT_BG_DUNGEON, COMBAT_BG_FALLBACK,
     combatBackground,
