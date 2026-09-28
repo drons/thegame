@@ -232,6 +232,26 @@ test('каталог: новые книги и свитки — skill_book с э
   }
 });
 
+test('каталог: сырьевые предметы присутствуют (задача 000044)', () => {
+  // Сырьё для «с нуля»-рецептов крафта: руда, древесина, камень, кожа,
+  // уголь, травы и резец. Вид — reagent (kind «tool»/«material» не
+  // существует), effect у реагентов не бывает.
+  const raw = [
+    'iron_ore', 'copper_ore', 'wood_log', 'stone_chunk', 'hide',
+    'coal', 'herb_healing', 'herb_mana', 'herb_bitter', 'stone_chisel',
+  ];
+  for (const id of raw) {
+    const it = I.getItem(id);
+    assert.ok(it, 'в каталоге нет сырьевого предмета: ' + id);
+    assert.equal(it.kind, 'reagent', id + ': kind должен быть reagent');
+    assert.equal(it.effect, undefined, id + ': у реагента не бывает effect');
+    assert.ok(it.name && it.name.trim(), id + ': название не пустое');
+    assert.ok(it.desc && it.desc.trim(), id + ': описание не пустое');
+    assert.ok(it.weight >= 0.05 && it.weight <= 200, id + ': вес вне схемы');
+    assert.ok(it.value >= 1 && it.value <= 100000, id + ': цена вне схемы');
+  }
+});
+
 test('useItem: книга обходит потолок практикой, на максимуме — без опыта', () => {
   const c = createCharacter(); // сила 1 → потолок «Тяжёлого оружия» 2
   for (let i = 0; i < 3; i++) {
