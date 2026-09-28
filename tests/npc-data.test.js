@@ -321,6 +321,44 @@ test('покрытие: старейшина с цепочкой из ≥ 2 кв
   }
 });
 
+test('торговля: сырьё продаётся (задача 000044)', () => {
+  // Аптекарь Мила продаёт травы (herb_*) — сырьё для зелий.
+  const apothecary = NPCS.find((n) => n.id === 'apothecary');
+  assert.ok(apothecary, 'аптекарь не найден в каталоге NPC');
+  assert.ok(apothecary.торговля, 'у аптекаря нет торговли');
+  const herbs = apothecary.торговля.предметы
+    .filter((p) => p.предмет.startsWith('herb_'));
+  assert.ok(herbs.length >= 3,
+    'аптекарь продаёт не меньше 3 трав, а продаёт: ' + herbs.length);
+  for (const p of herbs) {
+    assert.ok(getItem(p.предмет) !== null,
+      `аптекарь: траву "${p.предмет}" нет в items`);
+    assert.equal(getItem(p.предмет).kind, 'reagent',
+      p.предмет + ': трава — реагент из каталога');
+  }
+
+  // Лавка странника (постройка 5): странствующий торговец продаёт
+  // руду, дерево, камень, кожу и уголь; весь его ассортимент —
+  // reagent-предметы каталога.
+  const wanderer = NPCS.find(
+    (n) => n.постройки.includes(5) && n.торговля);
+  assert.ok(wanderer, 'нет NPC у Лавки странника (постройка 5)');
+  const RAW = new Set(['wood_log', 'stone_chunk', 'hide', 'coal',
+    'iron_ore', 'copper_ore']);
+  const rawStock = wanderer.торговля.предметы
+    .filter((p) => RAW.has(p.предмет));
+  assert.ok(new Set(rawStock.map((p) => p.предмет)).size >= 3,
+    'странствующий торговец продаёт не меньше 3 видов сырья, '
+    + 'а продаёт: ' + new Set(rawStock.map((p) => p.предмет)).size);
+  for (const p of wanderer.торговля.предметы) {
+    const it = getItem(p.предмет);
+    assert.ok(it !== null,
+      `${wanderer.id}: предмет "${p.предмет}" нет в items`);
+    assert.equal(it.kind, 'reagent',
+      `${wanderer.id}: "${p.предмет}" в лавке странника — reagent`);
+  }
+});
+
 test('покрытие: все «картовые» постройки с NPC заняты хотя бы одним NPC', () => {
   const covered = new Set();
   for (const n of NPCS) {
