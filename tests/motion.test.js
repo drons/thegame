@@ -22,10 +22,13 @@
 //   createMover({x, y, intervalMs}) → { step, position, teleport }.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const {
   clamp01, lerp, lerpPos, easeInOut,
   stepProgress, cameraStep, CAM_TAU_MS,
   moveIntervalMs, MIN_MOVE_INTERVAL_MS,
+  walkWindowMs,
   createMover,
 } = require('../src/motion.js');
 
@@ -212,6 +215,74 @@ test('moveIntervalMs: кламп в минимальный интервал', ()
   assert.equal(moveIntervalMs(140, 1e6), MIN_MOVE_INTERVAL_MS);
   // Короткая база: кламп не удлиняет шаг сверх базы.
   assert.ok(moveIntervalMs(30, 1e6) <= 30);
+});
+
+test('moveIntervalMs: навык работает с новой базой 420 мс (задача 000063)', () => {
+  // База = 140 * 3 = 420 мс (задача 000063: скорость ×1/3). «Ловкий
+  // шаг» должен укорачивать шаг от НОВОЙ базы, а нижний кламп —
+  // оставаться НИЖЕ неё: иначе min(max(MIN, raw), base) при любом
+  // mult >= 1 вернул бы base и навык бы замолчал. (Эти проверки
+  // зелёные и до реализации: moveIntervalMs универсален к базе — тесты
+  // фиксируют контракт, что будущие правки MIN не сломают навык.)
+  const base = 140 * 3;
+  assert.equal(moveIntervalMs(base, 1), base, 'без навыка — база');
+  assert.ok(moveIntervalMs(base, 1.05) < base, 'навык укорачивает шаг');
+  assert.ok(MIN_MOVE_INTERVAL_MS < base,
+    'нижний кламп ниже новой базы (иначе навык мёртв)');
+  assert.equal(moveIntervalMs(base, 1e6), MIN_MOVE_INTERVAL_MS,
+    'кламп срабатывает с новой базы');
+  assert.ok(moveIntervalMs(base, 1.2) > moveIntervalMs(base, 2),
+    'монотонно: чем выше навык — тем короче шаг');
+});
+
+// ---------------------------------------------------------------------------
+// Окно анимации walk/idle — от интервала шага (задача 000063)
+// ---------------------------------------------------------------------------
+// Фикс-окно 260 мс подобрано под старый интервал 140 мс
+// (memory/000033-smooth-movement.md): «при фикс. 140 мс — бег всегда в
+// walk». При новом базовом интервале 420 мс фикс-окно 260 дало бы
+// 260 мс walk + 160 мс ЗАМИРАНИЯ в idle за цикл при удержании клавиш —
+// рваная ходьба, откат ровно того ощущения, что дала 000033. Окно
+// масштабируется от интервала шага: window = max(260, stepMs) — не
+// короче старого окна и не короче самого шага (при удержании клавиш
+// герой всегда в walk).
+
+test('walkWindowMs: окно не короче 260 мс — старое ощущение сохранено', () => {
+  assert.equal(walkWindowMs(140), 260, 'при интервале 140 мс — как раньше');
+  assert.equal(walkWindowMs(60), 260,
+    'короткий шаг (высокий «Ловкий шаг») — окно не сжимается');
+  assert.equal(walkWindowMs(0), 260, 'нулевой интервал — окно не сжимается');
+});
+
+test('walkWindowMs: окно покрывает шаг — нет замирания в idle', () => {
+  assert.equal(walkWindowMs(420), 420,
+    'новая база 420 мс: окно = шаг, герой не замирает');
+  for (const s of [140, 260, 261, 420, 840, 1e4]) {
+    assert.ok(walkWindowMs(s) >= s, `window >= step при step=${s}`);
+  }
+});
+
+test('walkWindowMs: граница 260, монотонность, мусорное время', () => {
+  assert.equal(walkWindowMs(260), 260, 'граница 260');
+  assert.ok(walkWindowMs(200) <= walkWindowMs(300) &&
+    walkWindowMs(300) <= walkWindowMs(500), 'монотонно');
+  assert.equal(walkWindowMs(NaN), 260, 'мусор — старое окно (без выброса)');
+  assert.equal(walkWindowMs(-5), 260, 'отрицательный интервал — старое окно');
+});
+
+// --- main.js (клей) — структурный фиксатор (не тестируется в node) ---
+
+test('main.js: окно walk/idle — через walkWindowMs, фикс 260 мс удалён (структурный)', () => {
+  // При базовом интервале 420 мс (задача 000063) фикс-окно
+  // «now - lastStepAt < 260» замиряет героя в idle 160 мс за цикл —
+  // рваная ходьба (откат ощущения 000033). Окно должно браться из
+  // walkWindowMs(stepMs) (src/motion.js) и масштабироваться от
+  // интервала шага, а не от зашитой константы.
+  const text = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  assert.ok(text.includes('walkWindowMs'),
+    'окно walk/idle — через walkWindowMs (motion.js)');
+  assert.ok(!text.includes('now - lastStepAt < 260'),
+    'фикс-окно «now - lastStepAt < 260» в main.js удалено');
 });
 
 // ---------------------------------------------------------------------------
