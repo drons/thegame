@@ -8,7 +8,14 @@ const {
   BUILDING_COUNT, BUILDING_TYPES,
   BUILD_MAX_W, BUILD_MAX_H,
   MOB_GROUP_COUNT, MOB_GROUP_TYPES,
+  // Задача 000061 (стадия красных тестов): функция ещё не реализована —
+  // тесты ниже падают, пока в map.js её нет.
+  worldToScreen, orthoMatrix,
 } = require('../src/map.js');
+const {
+  deltaForEvent, deltaForMoveKey,
+  layoutTouchControls, touchActionAt,
+} = require('../src/controls.js');
 const { BUILDINGS, buildingSize } = require('../src/buildings.js');
 const { generateSeedPixels, MAP_PNG_SIZE, MAP_PNG_SEED } = require('../src/mapseed.js');
 const { decodePng } = require('./png.js');
@@ -504,4 +511,310 @@ test('вход не замурован: реальный assets/map.png (±150)'
   const { entrances, multi } = assertEntrancesReachable(map, 150, 'реальная карта');
   assert.ok(entrances > 100, `мало входов: ${entrances}`);
   assert.ok(multi > 0, 'в сэмпле не осталось много-тайловых построек — тест не проверяет 3x3');
+});
+
+// --- Задача 000061: проекция «мир → экран» глобальной карты ---
+//
+// Жалоба: на глобальной карте «вниз» двигало вверх и «вверх» — вниз
+// (и на клавиатуре, и на touch D-pad); право/лево, подземелье и бой —
+// корректны. Корень — не в инпутах (DIR_DELTA/CODE_DIRS/touchActionAt
+// корректны и зафиксированы тестами controls.test.js/dungeon-ui.test.js/
+// combat-keys.test.js), а в преобразовании мир→экран: слой спрайтов
+// (drawSprites в src/main.js) зеркалил ось y относительно WebGL-слоя:
+//   toY = (ty) => cy + (cam.y − ty) * zoom      (ЗЕРКАЛЬНО)
+// тогда как WebGL-матрица (orthoMatrix в main.js) рисовала точку южнее
+// камеры (ty > cam.y) НИЖЕ центра экрана — корректно. Зеркало проходило
+// через центр камеры, а игрок сидит ровно в этом центре — поэтому
+// «совпадение слоёв» в точке игрока (кросс-чек 000033) не ловило баг.
+//
+// ВАЖНО (ловушка, зафиксирована численно): в WebGL NDC +y — ВЕРХ
+// экрана. Правильная матрица ИМЕЕТ отрицательный склон в NDC по y
+// (y-строка «0, −1/halfH, …, +cy/halfH») — именно так южный тайл
+// попадает НИЗ: ndc.y = (camY − ty)/halfH < 0 → пиксель
+// (1 − ndc.y)·H/2 = H/2 + (ty − camY)·zoom. «Пофиксить» матрицу
+// «положительным склоном» — значит перевернуть корректный WebGL-слой
+// под зеркальный спрайт-слой (игра останется инвертированной).
+//
+// Фикс (зелёная стадия): обе проекции вынести в этот чистый модуль с
+// единой конвенцией «y растёт вниз — и в мире, и на экране» (та же,
+// что в подземелье/бою), main.js — потребитель:
+//   * worldToScreen(tx, ty, camX, camY, zoom, viewW, viewH) →
+//     {x: viewW/2 + (tx−camX)·zoom, y: viewH/2 + (ty−camY)·zoom};
+//   * orthoMatrix(zoom, camX, camY, viewW, viewH) → Float32Array(16),
+//     column-major, ТОТАЖЕ знаки, что в рабочем WebGL-слое до фикса
+//     (y-строка «0, −1/halfH, 0, 0», трансляция «−camX/halfW,
+//     +camY/halfH, 0, 1», z-строка «0, 0, −1, 0»);
+//   * ОБА слоя main.js — в одном коммите (тест «оба слоя согласованы»
+//     + структурный тест main.js).
+//
+// Регрессия прогоняется на уровне ядра (DOM/WebGL в node не
+// покрываются — устоявшийся паттерн проекта): клавиша/тач → дельта
+// (src/controls.js) → проекция (этот модуль).
+
+// Пайплайн WebGL для проверки матрицы: мир → NDC (column-major 4x4,
+// вершина z=0) → пиксели. NDC: x∈[−1,1] лево→право, y∈[−1,1] низ→верх
+// (NDC +y = ВЕРХ экрана); пиксельная y — от верхнего края:
+// y_px = (1 − ndc.y)·H/2.
+function screenPointOf(m, tx, ty, viewW, viewH) {
+  const w = m[15] || 1;
+  const ndcX = (m[0] * tx + m[12]) / w;
+  const ndcY = (m[5] * ty + m[13]) / w;
+  return { x: (ndcX + 1) * viewW / 2, y: (1 - ndcY) * viewH / 2 };
+}
+
+// Допуск: матрица Float32Array — погрешность ~1e-7 отн. на компонент.
+const F32_EPS = 1e-3;
+
+test('worldToScreen: камера — в центре экрана', () => {
+  const p = worldToScreen(3.2, -7.75, 3.2, -7.75, 40, 1920, 1080);
+  assert.ok(Math.abs(p.x - 960) < 1e-9, `x: ${p.x}`);
+  assert.ok(Math.abs(p.y - 540) < 1e-9, `y: ${p.y}`);
+  const q = worldToScreen(0, 0, 0, 0, 80, 1000, 640);
+  assert.deepEqual(q, { x: 500, y: 320 });
+});
+
+test('worldToScreen: точная формула — x вправо, y ВНИЗ', () => {
+  const camX = 3.2, camY = -7.75, z = 40, W = 1920, H = 1080;
+  const pts = [
+    [4.2, -7.75, W / 2 + z, H / 2],               // тайл на восток
+    [2.2, -7.75, W / 2 - z, H / 2],               // тайл на запад
+    [3.2, -6.75, W / 2, H / 2 + z],               // тайл на юг — НИЖЕ
+    [3.2, -8.75, W / 2, H / 2 - z],               // тайл на север — ВЫШЕ
+    [3.7, -8.5, W / 2 + 0.5 * z, H / 2 - 0.75 * z], // дробная точка
+  ];
+  for (const [tx, ty, ex, ey] of pts) {
+    const p = worldToScreen(tx, ty, camX, camY, z, W, H);
+    assert.ok(Math.abs(p.x - ex) < 1e-9, `x(${tx},${ty}): ${p.x} != ${ex}`);
+    assert.ok(Math.abs(p.y - ey) < 1e-9, `y(${tx},${ty}): ${p.y} != ${ey}`);
+  }
+});
+
+test('worldToScreen: точка южнее камеры НИЖЕ центра экрана (y растёт с ty)', () => {
+  const z = 40, W = 1920, H = 1080;
+  const center = worldToScreen(0, 0, 0, 0, z, W, H);
+  const south = worldToScreen(0, 1, 0, 0, z, W, H);
+  const north = worldToScreen(0, -1, 0, 0, z, W, H);
+  assert.ok(south.y > center.y,
+    'юг должен рисоваться НИЖЕ центра (старая формула давала H/2−zoom)');
+  assert.ok(north.y < center.y, 'север должен рисоваться ВЫШЕ центра');
+  assert.equal(south.x, center.x, 'вертикальное смещение не сдвигает x');
+  assert.ok(Math.abs(south.y - center.y - z) < 1e-9, 'тайл = zoom пикселей');
+});
+
+test('worldToScreen: зум масштабирует расстояние, сдвиг камеры двигает точку', () => {
+  const W = 1920, H = 1080;
+  const d40 = worldToScreen(5, 2, 0, 0, 40, W, H);
+  const d80 = worldToScreen(5, 2, 0, 0, 80, W, H);
+  assert.ok(Math.abs((d80.x - 960) - 2 * (d40.x - 960)) < 1e-9, 'x: зум x2 → дистанция x2');
+  assert.ok(Math.abs((d80.y - 540) - 2 * (d40.y - 540)) < 1e-9, 'y: зум x2 → дистанция x2');
+  // Камера сдвинулась на (1.5, −2.5) — точка на экране сдвинулась на
+  // (−1.5·z, +2.5·z).
+  const a = worldToScreen(5, 2, 0, 0, 40, W, H);
+  const b = worldToScreen(5, 2, 1.5, -2.5, 40, W, H);
+  assert.ok(Math.abs((a.x - b.x) - 1.5 * 40) < 1e-9);
+  assert.ok(Math.abs((a.y - b.y) + 2.5 * 40) < 1e-9);
+});
+
+test('worldToScreen: невалидные аргументы (NaN, размер<=0, зум<=0) → NaN, без исключения', () => {
+  const bad = [
+    worldToScreen(NaN, 0, 0, 0, 40, 100, 100),
+    worldToScreen(0, NaN, 0, 0, 40, 100, 100),
+    worldToScreen(0, 0, NaN, 0, 40, 100, 100),
+    worldToScreen(0, 0, 0, NaN, 40, 100, 100),
+    worldToScreen(Infinity, 0, 0, 0, 40, 100, 100),
+    worldToScreen(0, 0, 0, 0, NaN, 100, 100),
+    worldToScreen(0, 0, 0, 0, 40, NaN, 100),
+    worldToScreen(0, 0, 0, 0, 40, 100, NaN),
+    worldToScreen(0, 0, 0, 0, 40, 0, 100),
+    worldToScreen(0, 0, 0, 0, 40, -5, 100),
+    worldToScreen(0, 0, 0, 0, 0, 100, 100),
+    worldToScreen(0, 0, 0, 0, -40, 100, 100),
+    worldToScreen(0, 0, 0, 0, 40, 100, 0),
+  ];
+  for (const p of bad) {
+    assert.ok(Number.isNaN(p.x) && Number.isNaN(p.y),
+      `ожидался NaN/NaN: ${JSON.stringify(p)}`);
+  }
+});
+
+// --- Регрессия КЛАВИАТУРЫ (жалоба пользователя, cam = позиция игрока) ---
+// Цепочка как в игре: клавиша → дельта мира (y вниз) → проекция на экран.
+
+test('клавиатура: «вниз» — ниже на экране (игрок в центре камеры)', () => {
+  const d = deltaForEvent({ code: 'ArrowDown' });
+  assert.deepEqual(d, [0, 1], '«вниз» в мире = +y (конвенция y-вниз)');
+  const W = 1920, H = 1080, z = 40;
+  const p0 = worldToScreen(0, 0, 0, 0, z, W, H);
+  const p1 = worldToScreen(d[0], d[1], 0, 0, z, W, H);
+  assert.ok(p1.y > p0.y, 'после «вниз» персонаж НИЖЕ на экране');
+  assert.equal(p1.x, p0.x, '«вниз» не двигает по x');
+});
+
+test('клавиатура: «вверх» — выше на экране; лево/право — только x', () => {
+  const W = 1920, H = 1080, z = 40;
+  const p0 = worldToScreen(0, 0, 0, 0, z, W, H);
+  const up = deltaForEvent({ code: 'ArrowUp' });
+  assert.deepEqual(up, [0, -1]);
+  const pu = worldToScreen(up[0], up[1], 0, 0, z, W, H);
+  assert.ok(pu.y < p0.y, 'после «вверх» персонаж ВЫШЕ на экране');
+  const left = deltaForEvent({ code: 'ArrowLeft' });
+  const right = deltaForEvent({ code: 'ArrowRight' });
+  assert.deepEqual(left, [-1, 0]);
+  assert.deepEqual(right, [1, 0]);
+  const pl = worldToScreen(left[0], left[1], 0, 0, z, W, H);
+  const pr = worldToScreen(right[0], right[1], 0, 0, z, W, H);
+  assert.ok(pl.x < p0.x, '«лево» — левее');
+  assert.ok(pr.x > p0.x, '«право» — правее');
+  assert.equal(pl.y, p0.y, '«лево» не двигает по y');
+  assert.equal(pr.y, p0.y, '«право» не двигает по y');
+});
+
+// --- Регрессия TOUCH (мобильная часть жалобы, на уровне ядра) ---
+// DOM в node не покрывается (паттерн проекта): раскладка и хит-тест
+// D-pad — чистые функции controls.js.
+
+test('touch: нижний/верхний луч D-pad → вниз/вверх на экране', () => {
+  const layout = layoutTouchControls(360, 640);
+  const cx = layout.dpad.x + layout.dpad.w / 2;
+  const cy = layout.dpad.y + layout.dpad.h / 2;
+  const W = 1920, H = 1080, z = 40;
+  const p0 = worldToScreen(0, 0, 0, 0, z, W, H);
+  for (const [dy, action, lower] of [[50, 'down', true], [-50, 'up', false]]) {
+    const a = touchActionAt(cx, cy + dy, layout);
+    assert.equal(a, action, `луч dy=${dy} даёт «${action}»`);
+    const d = deltaForMoveKey('touch:' + action);
+    assert.deepEqual(d, lower ? [0, 1] : [0, -1],
+      `touch:${action} → дельта мира`);
+    const p1 = worldToScreen(d[0], d[1], 0, 0, z, W, H);
+    if (lower) {
+      assert.ok(p1.y > p0.y, 'нижний луч D-pad → НИЖЕ на экране');
+    } else {
+      assert.ok(p1.y < p0.y, 'верхний луч D-pad → ВЫШЕ на экране');
+    }
+    assert.equal(p1.x, p0.x);
+  }
+});
+
+// --- orthoMatrix (WebGL-слой) ---
+
+test('orthoMatrix: 16 чисел column-major, камера → NDC (0,0) → центр экрана', () => {
+  const m = orthoMatrix(40, 3.2, -7.75, 1920, 1080);
+  assert.ok(m instanceof Float32Array, 'ожидается Float32Array');
+  assert.equal(m.length, 16);
+  for (let i = 0; i < 16; i++) assert.ok(Number.isFinite(m[i]), `m[${i}] не число`);
+  // Tочка камеры: NDC (0, 0) → центр экрана.
+  assert.ok(Math.abs(m[0] * 3.2 + m[12]) < 1e-6, 'NDC x камеры = 0');
+  assert.ok(Math.abs(m[5] * -7.75 + m[13]) < 1e-6, 'NDC y камеры = 0');
+  const p = screenPointOf(m, 3.2, -7.75, 1920, 1080);
+  assert.ok(Math.abs(p.x - 960) < F32_EPS);
+  assert.ok(Math.abs(p.y - 540) < F32_EPS);
+});
+
+test('orthoMatrix: точка южнее камеры НИЖЕ центра экрана (не зеркало)', () => {
+  const W = 1920, H = 1080, z = 40, cx = 3.2, cy = -7.75;
+  const m = orthoMatrix(z, cx, cy, W, H);
+  // Зафиксируемое свойство (NDC +y = верх экрана, юг → низ):
+  //   юг  (ty = cy+1) → y_px = H/2 + zoom (НИЖЕ центра);
+  //   север (ty = cy−1) → y_px = H/2 − zoom (ВЫШЕ центра).
+  // Зеркальная спрайт-формула toY = cy + (cam.y − ty)·zoom давала югу
+  // H/2 − zoom — баг 000061. «Положительный NDC-склон по y» — тоже
+  // зеркало (см. комментарий в шапке секции): его НЕ проверяем,
+  // проверяем пиксели.
+  const south = screenPointOf(m, cx, cy + 1, W, H);
+  assert.ok(south.y > H / 2, `юг ниже центра: ${south.y} > ${H / 2}`);
+  assert.ok(Math.abs(south.y - (H / 2 + z)) < F32_EPS, 'тайл юга = +zoom px');
+  assert.ok(Math.abs(south.x - W / 2) < F32_EPS, 'юг не сдвигает x');
+  const north = screenPointOf(m, cx, cy - 1, W, H);
+  assert.ok(Math.abs(north.y - (H / 2 - z)) < F32_EPS, 'тайл севера = −zoom px');
+  const east = screenPointOf(m, cx + 1, cy, W, H);
+  assert.ok(Math.abs(east.x - (W / 2 + z)) < F32_EPS, 'тайл востока = +zoom px');
+  assert.ok(Math.abs(east.y - H / 2) < F32_EPS, 'восток не сдвигает y');
+});
+
+test('orthoMatrix: несцентральные дробные точки — точные пиксели', () => {
+  // Ось зеркала проходит через центр камеры — проверка «в точке
+  // игрока» проходила даже с багом. Здесь точки ОТ ЦЕНТРА, с дробями.
+  const W = 1920, H = 1080, z = 40, cx = 3.2, cy = -7.75;
+  const m = orthoMatrix(z, cx, cy, W, H);
+  const p1 = screenPointOf(m, cx + 0.5, cy + 1.25, W, H);
+  assert.ok(Math.abs(p1.x - (W / 2 + 0.5 * z)) < F32_EPS);
+  assert.ok(Math.abs(p1.y - (H / 2 + 1.25 * z)) < F32_EPS);
+  const p2 = screenPointOf(m, cx - 2.25, cy - 3.5, W, H);
+  assert.ok(Math.abs(p2.x - (W / 2 - 2.25 * z)) < F32_EPS);
+  assert.ok(Math.abs(p2.y - (H / 2 - 3.5 * z)) < F32_EPS);
+});
+
+test('orthoMatrix: невалидные аргументы → 16 NaN, без исключения', () => {
+  const bad = [
+    orthoMatrix(NaN, 0, 0, 100, 100),
+    orthoMatrix(40, NaN, 0, 100, 100),
+    orthoMatrix(40, 0, NaN, 100, 100),
+    orthoMatrix(40, 0, 0, NaN, 100),
+    orthoMatrix(40, 0, 0, 100, NaN),
+    orthoMatrix(0, 0, 0, 100, 100),
+    orthoMatrix(-1, 0, 0, 100, 100),
+    orthoMatrix(40, 0, 0, 0, 100),
+    orthoMatrix(40, 0, 0, 100, -10),
+  ];
+  for (const m of bad) {
+    assert.ok(m instanceof Float32Array);
+    assert.equal(m.length, 16);
+    for (let i = 0; i < 16; i++) {
+      assert.ok(Number.isNaN(m[i]), `m[${i}] должен быть NaN`);
+    }
+  }
+});
+
+test('оба слоя согласованы: WebGL-матрица и worldToScreen в ЛЮБОЙ точке мира', () => {
+  // Инвариант, защищающий от повторного расслоения (слои обязаны
+  // меняться в одном коммите): для несцентральных точек мира пиксель
+  // через матрицу (NDC → экран) === пиксель worldToScreen.
+  const W = 1920, H = 1080, z = 40, cx = 10.5, cy = -20.5;
+  const m = orthoMatrix(z, cx, cy, W, H);
+  const offs = [-4, -2.5, -1, -0.5, 0, 0.5, 1, 2.5, 4];
+  for (const dx of offs) {
+    for (const dy of offs) {
+      const a = screenPointOf(m, cx + dx, cy + dy, W, H);
+      const b = worldToScreen(cx + dx, cy + dy, cx, cy, z, W, H);
+      assert.ok(Math.abs(a.x - b.x) < F32_EPS,
+        `x в (${cx + dx},${cy + dy}): матрица ${a.x} != спрайт ${b.x}`);
+      assert.ok(Math.abs(a.y - b.y) < F32_EPS,
+        `y в (${cx + dx},${cy + dy}): матрица ${a.y} != спрайт ${b.y}`);
+    }
+  }
+});
+
+// --- main.js (клей) — структурный фиксатор (не тестируется в node) ---
+
+test('main.js: обе проекции — из map.js, зеркальная формула удалена (структурный)', () => {
+  // WebGL-слой — через G.orthoMatrix, спрайт-слой — через G.worldToScreen
+  // (guard-фолбэки с ИСПРАВЛЕННЫМ знаком по паттерну проекта); локальная
+  // матрица и зеркальная формула (cam.y − ty)·zoom должны исчезнуть —
+  // иначе будущий читатель «починит» по ней снова.
+  const text = fs.readFileSync(__dirname + '/../src/main.js', 'utf8');
+  assert.ok(text.includes('G.orthoMatrix'),
+    'WebGL-слой — через G.orthoMatrix (map.js)');
+  assert.ok(text.includes('G.worldToScreen'),
+    'спрайт-слой — через G.worldToScreen (map.js)');
+  assert.ok(!text.includes('(cam.y - ty)'),
+    'зеркальная формула (cam.y - ty) * zoom в main.js удалена');
+  assert.ok(!text.includes('(cam.y − ty)'),
+    'зеркальная формула (кириллический −) в main.js удалена');
+});
+
+test('браузер: map.js отдаёт worldToScreen и orthoMatrix (vm-песочница)', () => {
+  // Порядок как в index.html: perlin → map.js (→ … → main.js).
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  assert.equal(typeof sandbox.Game.worldToScreen, 'function',
+    'worldToScreen в browser-режиме');
+  assert.equal(typeof sandbox.Game.orthoMatrix, 'function',
+    'orthoMatrix в browser-режиме');
+  // То же свойство в browser-режиме: юг — ниже центра.
+  const p = sandbox.Game.worldToScreen(0, 1, 0, 0, 40, 800, 600);
+  assert.ok(p.y > 300, 'y-вниз в browser-режиме');
+  const m = sandbox.Game.orthoMatrix(40, 0, 0, 800, 600);
+  const q = screenPointOf(m, 0, 1, 800, 600);
+  assert.ok(Math.abs(q.y - (300 + 40)) < F32_EPS, 'юг = +zoom px в browser-режиме');
 });

@@ -527,6 +527,75 @@
     return { tile, size };
   }
 
+  // --- Проекция «мир → экран» глобальной карты (задача 000061) ---
+  //
+  // Единая конвенция для ВСЕХ слоёв и сцен: y растёт ВНИЗ — и в мире
+  // (строки карты), и на экране (та же, что в подземелье/бою; закреплена
+  // тестом controls.js «DELTA: y растёт вниз»). До задачи 000061
+  // спрайт-слой src/main.js зеркалил ось y («cam.y − ty»), из-за чего
+  // «вниз» двигало вверх. Оба преобразования живут здесь, в чистом
+  // модуле, чтобы main.js был только потребителем — и слои не могли
+  // снова разъехаться (тест «оба слоя согласованы»).
+
+  /**
+   * Мир → экран: слой спрайтов (2D-canvas).
+   * Конвенция: x вправо, y ВНИЗ; камера — в центре окна.
+   * @param {number} tx X мира (тайлах)
+   * @param {number} ty Y мира (тайлах, растёт вниз)
+   * @param {number} camX центр камеры X
+   * @param {number} camY центр камеры Y
+   * @param {number} zoom пикселей на тайл (>0)
+   * @param {number} viewW ширина окна, пиксели (>0)
+   * @param {number} viewH высота окна, пиксели (>0)
+   * @returns {{x:number, y:number}} пиксели; невалидные аргументы
+   *   (NaN/Infinity/размер<=0/зум<=0) → {x: NaN, y: NaN}, без исключения.
+   */
+  function worldToScreen(tx, ty, camX, camY, zoom, viewW, viewH) {
+    const args = [tx, ty, camX, camY, zoom, viewW, viewH];
+    for (let i = 0; i < args.length; i++) {
+      if (typeof args[i] !== 'number' || !Number.isFinite(args[i])) {
+        return { x: NaN, y: NaN };
+      }
+    }
+    if (zoom <= 0 || viewW <= 0 || viewH <= 0) return { x: NaN, y: NaN };
+    return {
+      x: viewW / 2 + (tx - camX) * zoom,
+      y: viewH / 2 + (ty - camY) * zoom, // y-вниз: юг НИЖЕ центра
+    };
+  }
+
+  /**
+   * Орто-матрица 4x4 (column-major, Float32Array) для WebGL-слоя:
+   * ТО ЖЕ мир→экран, что и worldToScreen — тайл южнее камеры рисуется
+   * НИЖЕ центра экрана.
+   * Ловушка (зафиксирована тестом): в WebGL NDC +y = ВЕРХ экрана,
+   * поэтому y-строка матрицы НАМЕРЕННО имеет отрицательный склон
+   * («0, −1/halfH, 0, 0» + трансляция «+camY/halfH») — южный тайл
+   * получает ndc.y < 0 → пиксель (1 − ndc.y)·H/2 = H/2 + (ty−camY)·zoom.
+   * «Исправлять» склон на положительный нельзя: это зеркало.
+   * @returns {Float32Array} 16 чисел; невалидные аргументы —
+   *   Float32Array(16) из NaN, без исключения.
+   */
+  function orthoMatrix(zoom, camX, camY, viewW, viewH) {
+    const args = [zoom, camX, camY, viewW, viewH];
+    for (let i = 0; i < args.length; i++) {
+      if (typeof args[i] !== 'number' || !Number.isFinite(args[i])) {
+        return new Float32Array(16).fill(NaN);
+      }
+    }
+    if (zoom <= 0 || viewW <= 0 || viewH <= 0) {
+      return new Float32Array(16).fill(NaN);
+    }
+    const halfW = viewW / (2 * zoom);
+    const halfH = viewH / (2 * zoom);
+    return new Float32Array([
+      1 / halfW, 0, 0, 0,
+      0, -1 / halfH, 0, 0,
+      0, 0, -1, 0,
+      -camX / halfW, camY / halfH, 0, 1,
+    ]);
+  }
+
   return {
     GLOBAL_SEED,
     TERRAIN, TERRAIN_NAMES,
@@ -536,6 +605,7 @@
     ZOOM_MIN, ZOOM_MAX, ZOOM_START,
     createMap, syntheticPixels,
     visibleTileRange, createTileCache,
+    worldToScreen, orthoMatrix, // проекция мир→экран (задача 000061)
     hash2, // детерминированный хэш (perlin.js) — нужен src/sprites.js
   };
 });
