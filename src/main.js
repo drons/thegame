@@ -878,6 +878,12 @@
           x: w / 2 + (tx - cam.x) * zoom,
           y: h / 2 + (ty - cam.y) * zoom,
         });
+    // Декорации тайлов (задача 000039): порог зума вычисляется один раз
+    // на кадр — при малом зуме видимых тайлов explode и по-тайловый
+    // проход дорог. typeof-гард: старый sprites.js без tileVisuals —
+    // слой просто выключен (игра деградирует до вида 000021-минус-рендер).
+    const showVisuals = typeof G.tileVisuals === 'function'
+      && zoom >= (G.VISUALS_MIN_ZOOM || 0);
 
     // Тайлы: текстура (вода/глубокая вода — кадр анимации по чистому
     // селектору frameIndex(время, координаты, число кадров)).
@@ -889,6 +895,19 @@
         const idx = frames.length > 1 ? G.frameIndex(now, t.x, t.y, frames.length) : 0;
         const img = spriteLoader.image(frames[idx]);
         if (img) s2.drawImage(img, sx, sy, zoom, zoom);
+      }
+      // Декорации тайла (задача 000039) — поверх текстуры тайла, ДО
+      // иконки постройки/моба: проход ВНУТРИ цикла по frameTiles
+      // (отдельный проход после цикла рисовал бы декорации поверх
+      // построек, мобов и Флогистона). Не загрузившийся спрайт —
+      // элемент пропускается (isReady false), слой не падает.
+      if (showVisuals) {
+        for (const e of G.tileVisuals(t.x, t.y, t.terrain)) {
+          if (!spriteLoader.isReady(e.sprite)) continue;
+          const r = G.visualDrawRect(e, sx, sy, zoom);
+          s2.drawImage(spriteLoader.image(e.sprite),
+            r.x, r.y, r.size, r.size);
+        }
       }
       // Иконка постройки / спрайт группы мобов — поверх тайла.
       if (t.hasBuilding) {

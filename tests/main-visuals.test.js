@@ -287,13 +287,14 @@ function tileDraws(calls) {
 // загрузились (тест фолбэка).
 function expectedDecos(G, myMap, cam, zoom, skip) {
   const range = G.visibleTileRange(cam.x, cam.y, VIEW_W, VIEW_H, zoom);
-  const cx = VIEW_W / 2, cy = VIEW_H / 2;
   const out = [];
   for (let ty = range.y0; ty <= range.y1; ty++) {
     for (let tx = range.x0; tx <= range.x1; tx++) {
       const t = myMap.tileAt(tx, ty);
-      const sx = cx + (tx - cam.x) * zoom;
-      const sy = cy + (cam.y - ty) * zoom;
+      // Та же проекция мир→экран, что и в drawSprites (G.worldToScreen,
+      // задача 000061 — единый источник для обоих слоёв): y-вниз.
+      const p = G.worldToScreen(tx, ty, cam.x, cam.y, zoom, VIEW_W, VIEW_H);
+      const sx = p.x, sy = p.y;
       for (const e of G.tileVisuals(tx, ty, t.terrain)) {
         if (skip && skip.has(e.sprite)) continue;
         const s = e.size * zoom;
@@ -376,7 +377,6 @@ test('декорации: порядок слоёв — после тексту�
   const G = h.sandbox.Game;
   const myMap = G.createMap(G.generateSeedPixels());
   const zoom = st.zoom;
-  const cx = VIEW_W / 2, cy = VIEW_H / 2;
   const range = G.visibleTileRange(st.cam.x, st.cam.y, VIEW_W, VIEW_H, zoom);
   let checked = 0;
   for (let ty = range.y0; ty <= range.y1; ty++) {
@@ -385,8 +385,10 @@ test('декорации: порядок слоёв — после тексту�
       const decos = G.tileVisuals(tx, ty, t.terrain);
       if (!decos.length || (!t.hasBuilding && !t.hasMobGroup)) continue;
       checked++;
-      const sx = cx + (tx - st.cam.x) * zoom;
-      const sy = cy + (st.cam.y - ty) * zoom;
+      // Та же проекция мир→экран, что и в drawSprites (G.worldToScreen,
+      // задача 000061): y-вниз.
+      const p = G.worldToScreen(tx, ty, st.cam.x, st.cam.y, zoom, VIEW_W, VIEW_H);
+      const sx = p.x, sy = p.y;
       // Текстура тайла: drawImage(img, sx, sy, zoom, zoom).
       const iTile = calls.findIndex((c) => c[0] === 'drawImage'
         && c[1][0] && c[1][0].__asset.startsWith('assets/tiles/')
