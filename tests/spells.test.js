@@ -366,7 +366,9 @@ test('canLearn: ранг школы — по атрибуту заклинани
   const p = createCharacter();
   p.primary.intelligence = 10;
   assert.equal(canLearn(p, 'fireball').reason, 'нужен ранг школы «Знаток»');
-  assert.equal(canLearn(p, 'spark').ok, true, 'уровень 1 — Ученик подходит');
+  // Уровень 1 — Ученик подходит: заклинание уровня 1 НЕ из стартовой
+  // книги (spark/mend уже изучены — canLearn дал бы «уже изучено»).
+  assert.equal(canLearn(p, 'frost_bolt').ok, true, 'уровень 1 — Ученик подходит');
   p.primary.intelligence = 11;
   assert.equal(canLearn(p, 'fireball').ok, true, 'Знаток открывает уровень 2');
   // Школа Мудрости — по Мудрости, а не Интеллекту.
