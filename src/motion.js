@@ -10,7 +10,10 @@
 //     быстрее, чем при 60 Гц;
 //   * интервал шага с учётом «Ловкого шага» (moveIntervalMs, SPEC:
 //     Ловкость → «Скорость перемещения по карте»): навык только
-//     ускоряет — множитель всегда >= 1, нижний кламп — MIN_MOVE_INTERVAL_MS.
+//     ускоряет — множитель всегда >= 1, нижний кламп — MIN_MOVE_INTERVAL_MS;
+//   * окно анимации walk/idle от интервала шага (walkWindowMs,
+//     задача 000063): фикс-окно 260 мс подобрано под старый интервал
+//     140 мс и замиряло героя при новом базовом 420 мс.
 //
 // Чистый модуль без зависимостей — тестируется в node
 // (tests/motion.test.js). Правки main.js (DOM/WebGL-клей) — в той же
@@ -150,6 +153,30 @@
     return Math.min(Math.max(MIN_MOVE_INTERVAL_MS, raw), base);
   }
 
+  // Минимум окна анимации walk/idle (задача 000063): старое фикс-окно
+  // 260 мс подобрано под старый интервал шага 140 мс (см.
+  // memory/000033-smooth-movement.md). Окно не сжимается ниже —
+  // ощущение анимации сохранено.
+  const WALK_WINDOW_MIN_MS = 260;
+
+  /**
+   * Окно анимации walk/idle от интервала шага (задача 000063):
+   *   window = max(WALK_WINDOW_MIN_MS, stepMs).
+   * Окно не короче старого 260 мс (старое ощущение сохранено) и не
+   * короче самого шага: при базовом интервале 420 мс (скорость ×1/3,
+   * задача 000063) фикс-окно 260 дало бы 260 мс walk + 160 мс ЗАМИРАНИЯ
+   * в idle за цикл при удержании клавиш — рваная ходьба, откат
+   * ощущения, которое дала 000033. Мусорный интервал (NaN/нечисло),
+   * <= 0 — старое окно 260 мс, без выброса.
+   * @param {number} stepMs текущий интервал шага
+   * @returns {number} >= WALK_WINDOW_MIN_MS
+   */
+  function walkWindowMs(stepMs) {
+    const s = Number(stepMs);
+    if (!Number.isFinite(s) || s <= 0) return WALK_WINDOW_MIN_MS;
+    return Math.max(WALK_WINDOW_MIN_MS, s);
+  }
+
   /**
    * «Мувёр» — маленькая машина состояния для плавного передвижения:
    * глейд prev→next за интервал шага (с easing'ом) либо снап (телепорт).
@@ -235,6 +262,7 @@
     clamp01, lerp, lerpPos, easeInOut,
     stepProgress, cameraStep, CAM_TAU_MS,
     moveIntervalMs, MIN_MOVE_INTERVAL_MS,
+    walkWindowMs,
     createMover,
   };
 });

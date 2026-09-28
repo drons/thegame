@@ -24,10 +24,11 @@ test('модуль: CommonJS-экспорт { SETTINGS } — все настра
   assert.equal(typeof SETTINGS, 'object');
   assert.deepEqual(Object.keys(SETTINGS).sort(), [
     'combat_difficulties', 'combat_difficulty', 'dungeon_memory_days',
-    'level_delta_max', 'points_per_level', 'respawn_days', 'steps_per_day',
+    'level_delta_max', 'move_interval_ms', 'points_per_level',
+    'respawn_days', 'steps_per_day',
   ]);
   for (const k of ['steps_per_day', 'respawn_days', 'dungeon_memory_days',
-      'level_delta_max', 'points_per_level']) {
+      'level_delta_max', 'points_per_level', 'move_interval_ms']) {
     assert.equal(typeof SETTINGS[k], 'number');
   }
   // Сложность боя (задача 000027): текущая сложность + таблица множителей.
@@ -46,6 +47,21 @@ test('значения по умолчанию совпадают со SPEC.md',
   assert.equal(SETTINGS.dungeon_memory_days, 3); // «Мобы»
   assert.equal(SETTINGS.level_delta_max, 3);     // «Мобы»
   assert.equal(SETTINGS.points_per_level, 2);    // «Навыки»
+});
+
+test('значения по умолчанию: move_interval_ms (задача 000063)', () => {
+  // Задача 000063: базовая СКОРОСТЬ передвижения по глобальной карте —
+  // в глобальные настройки и уменьшена в три раза (движение стало
+  // «очень быстрым» после 000033). Скорость = 1/интервал шага, значит
+  // интервал умножается на 3: 140 мс → 140 * 3 = 420 мс. НЕ 140 / 3 —
+  // это УСКОРИЛО бы в 3 раза (и уперлось бы в MIN_MOVE_INTERVAL_MS=60,
+  // убивая «Ловкий шаг»).
+  // В SPEC.md базовая скорость не закреплена числом (только Ловкость →
+  // «Скорость перемещения по карте», строки 325/367) — дефолт задаёт
+  // задача 000063 (прецедент: combat_difficulty, задача 000027).
+  assert.ok(SETTINGS.move_interval_ms > 0, 'положительный интервал шага');
+  assert.equal(SETTINGS.move_interval_ms, 140 * 3,
+    'ровно в 3 раза МЕДЛЕННЕЕ старого 140 мс (интервал ×3 = 420 мс)');
 });
 
 test('браузер: вешает Game.GlobalSettings на root, не ломая Game', () => {
@@ -141,4 +157,23 @@ test('единый источник: разброс уровня мобов в c
   const C2 = reload('../src/combat.js');
   c = C2.createCombat({ player: makeHero(15), groupType: 3, seed: 42 });
   for (const u of c.units) assert.equal(u.level, 15);
+});
+
+test('единый источник: main.js читает move_interval_ms (структурный)', () => {
+  // main.js — DOM/WebGL-клей, в node не грузится (устоявшийся паттерн
+  // проекта, см. tests/map.test.js «структурный»): фиксируем текст.
+  // Константа MOVE_INTERVAL_MS должна читаться из Game.GlobalSettings
+  // (единый источник, паттерн 000020); старый хардкод
+  // «const MOVE_INTERVAL_MS = 140;» исчезает. Число 140 в main.js при
+  // этом ДОПУСТИМО как fallback в guard'е (деградация без
+  // global-settings.js — старое поведение, паттерн 000033 с
+  // G.createMover), поэтому ищем именно старое объявление константы.
+  const text = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  assert.ok(text.includes('GlobalSettings'),
+    'main.js читает Game.GlobalSettings');
+  assert.ok(text.includes('move_interval_ms'),
+    'ключ move_interval_ms присутствует в main.js');
+  assert.ok(!text.includes('const MOVE_INTERVAL_MS = 140'),
+    'старый хардкод «const MOVE_INTERVAL_MS = 140» удалён');
 });
