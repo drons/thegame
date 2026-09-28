@@ -969,7 +969,7 @@
     } else if (t.hasBuilding) {
       const shopHint = G.shopKindsFor(t.building) ? '  (торговля — панель [I])' : '';
       const npcHint = npcHere ? '  ([E] ' + npcHere.имя + ')' : '';
-      line += '\nЗдесь: ' + G.BUILDING_NAMES[t.building] + shopHint + npcHint +
+      line += '\nЗдесь: ' + G.buildingNameUi(t.building) + shopHint + npcHint +
         (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE ? ' (вход — шагните)' : '');
     } else if (t.hasMobGroup) {
       line += defeatedAt.has(key)

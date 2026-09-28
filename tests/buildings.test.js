@@ -8,7 +8,7 @@ const {
   buildingSize, buildingEntranceRel, sizeChain, placeBuilding,
 } = require('../src/buildings.js');
 const {
-  BUILDING_TYPES, BUILDING_COUNT, BUILDING_NAMES,
+  BUILDING_TYPES, buildingCount, buildingNames,
 } = require('../src/map.js');
 
 const DIR = path.join(__dirname, '..', 'assets', 'buildings');
@@ -93,9 +93,9 @@ test('getBuilding: id → объект из каталога, вне диапа�
 });
 
 test('buildingForMapIndex: 13 индексов генерации → 13 различных зданий каталога', () => {
-  assert.equal(BUILDING_COUNT, 13);
+  assert.equal(buildingCount(), 13);
   const seen = new Set();
-  for (let i = 0; i < BUILDING_COUNT; i++) {
+  for (let i = 0; i < buildingCount(); i++) {
     const b = buildingForMapIndex(i);
     assert.ok(b !== null, `индекс ${i} не отображается`);
     assert.ok(seen.add(b.id), `дубль здания id=${b.id} на индексах`);
@@ -105,13 +105,16 @@ test('buildingForMapIndex: 13 индексов генерации → 13 раз�
   assert.equal(buildingForMapIndex(13), null);
 });
 
-test('buildingForMapIndex: картовые индексы соответствуют BUILDING_NAMES', () => {
-  // Индексы, где картовое имя (src/map.js) — имя типа из SPEC.md.
-  for (const i of [0, 1, 2, 3, 4, 5, 6, 7, 8, 10]) {
+test('buildingForMapIndex: картовые индексы соответствуют buildingNames()', () => {
+  // Имя картового индекса = каталожное поле название_карты (source of
+  // truth, задача 000055). Старая версия проверяла ТОЛЬКО [0..8,10]
+  // через lowercase/includes и пропускала дрейф 9/11/12.
+  const names = buildingNames();
+  for (let i = 0; i < 13; i++) {
     const b = buildingForMapIndex(i);
-    assert.ok(
-      b.название.toLowerCase().includes(BUILDING_NAMES[i].toLowerCase()),
-      `${i}: «${b.название}» не совпадает с «${BUILDING_NAMES[i]}»`,
+    assert.equal(
+      names[i], b.особые_параметры.название_карты,
+      `${i}: «${names[i]}» ≠ «${b.особые_параметры.название_карты}»`,
     );
   }
   assert.equal(buildingForMapIndex(BUILDING_TYPES.TEMPLE).категория, 'храм');
@@ -304,4 +307,90 @@ test('placeBuilding: validateSize — отклоняет размер, берё�
   assert.deepEqual(
     placeBuilding({ размер: { ширина: 3, высота: 3 }, вход: [1, 2] }, 3, 4, () => true, vs),
     placeBuilding({ размер: { ширина: 3, высота: 3 }, вход: [1, 2] }, 3, 4, () => true, vs));
+});
+
+// --- Задача 000055: buildings.js генерируется из assets/buildings,
+// имена «картовых» индексов — из каталога (поле название_карты) ---
+
+const { spawnSync } = require('node:child_process');
+const {
+  buildingNameUi,
+} = require('../src/map.js');
+
+test('название_карты: все 13 «картовых» записей каталога имеют поле (непустая строка)', () => {
+  for (let i = 0; i < 13; i++) {
+    const b = buildingForMapIndex(i);
+    const name = b && b.особые_параметры && b.особые_параметры.название_карты;
+    assert.equal(typeof name, 'string', `map_index ${i}: нет поля название_карты`);
+    assert.notEqual(name.trim(), '', `map_index ${i}: название_карты — пустая строка`);
+  }
+});
+
+test('имена «картовых» индексов: buildingNames() == название_карты для ВСЕХ 13 индексов (0..12)', () => {
+  // Расширение старого теста [0..8,10], который пропускал 9/11/12 и
+  // маскировал дрейф: теперь сверка ТОЧНАЯ (данные = данные, без
+  // lowercase/includes) и по всем 13 индексам.
+  assert.equal(typeof buildingNames, 'function', 'map.js: нет функции buildingNames()');
+  const names = buildingNames();
+  assert.equal(names.length, 13, '13 имён — по одному на map_index');
+  for (let i = 0; i < 13; i++) {
+    const b = buildingForMapIndex(i);
+    assert.equal(
+      names[i], b.особые_параметры.название_карты,
+      `индекс ${i}: «${names[i]}» ≠ «${b.особые_параметры.название_карты}» (каталог — source of truth)`);
+  }
+});
+
+test('общие (обобщённые) картовые имена зафиксированы: idx 9 «вход в пещеру», 11 «таверна», 12 «дом NPC»', () => {
+  // Тайл входа (idx 9) → dungeon.js выбирает ЛЮБОЙ из 5 типов
+  // подземелья; idx 11/12 — общие для нескольких записей каталога
+  // (таверна, 6 домов). Эти имена НЕ каталожные — решение задачи.
+  assert.equal(typeof buildingNameUi, 'function', 'map.js: нет функции buildingNameUi()');
+  assert.equal(buildingNameUi(9), 'вход в пещеру');
+  assert.equal(buildingNameUi(11), 'таверна');
+  assert.equal(buildingNameUi(12), 'дом NPC');
+});
+
+test('конвенция регистра UI: buildingNameUi — только первая буква в нижнем регистре', () => {
+  // Данные каталога — в каталожном регистре («Оружейная»); UI-вывод —
+  // первая буква нижняя, остальное как в данных.
+  assert.equal(buildingNameUi(0), 'оружейная');
+  assert.equal(buildingNameUi(3), 'магазин магии');
+  // idx 8: каталог «Храм солнца» (находка 000055: в map.js было «храм»).
+  assert.equal(buildingNameUi(8), 'храм солнца');
+  assert.equal(buildingNameUi(10), 'рунический камень');
+  // «Дом NPC» → «дом NPC»: не whole-string lowercase.
+  assert.equal(buildingNameUi(12), 'дом NPC');
+  // Неизвестный индекс — пустая строка.
+  assert.equal(buildingNameUi(13), '');
+  assert.equal(buildingNameUi(-1), '');
+});
+
+test('src/buildings.js: шапка GENERATED и маркеры блока данных', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'buildings.js'), 'utf8');
+  assert.ok(
+    src.includes('GENERATED — не править руками, синхронизируется из assets/buildings (scripts/sync-buildings-data.js)'),
+    'в шапке нет пометки «GENERATED — не править руками»');
+  assert.ok(
+    src.includes('// BEGIN GENERATED (scripts/sync-buildings-data.js)'),
+    'нет BEGIN-маркера генерируемого блока данных');
+  assert.ok(src.includes('// END GENERATED'), 'нет END-маркера генерируемого блока данных');
+});
+
+test('sync-buildings-data.js: существует, exit 0, идемпотентен (повторный запуск — byte-identical)', () => {
+  const ROOT = path.join(__dirname, '..');
+  const script = path.join(ROOT, 'scripts', 'sync-buildings-data.js');
+  assert.ok(fs.existsSync(script), 'scripts/sync-buildings-data.js не существует');
+  const outFile = path.join(ROOT, 'src', 'buildings.js');
+  const before = fs.readFileSync(outFile);
+  const res = spawnSync(process.execPath, [script], { cwd: ROOT, encoding: 'utf8' });
+  assert.equal(res.status, 0,
+    'скрипт завершился с ошибкой: ' + (res.stderr || res.stdout));
+  assert.deepEqual(fs.readFileSync(outFile), before,
+    'повторный запуск скрипта изменил src/buildings.js (не идемпотентно)');
+});
+
+test('package.json: npm-скрипт sync:buildings (интерфейс единый с sync-npc/skills)', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.equal(pkg.scripts['sync:buildings'], 'node scripts/sync-buildings-data.js');
 });
