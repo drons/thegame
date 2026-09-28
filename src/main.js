@@ -124,12 +124,15 @@
   gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
   const vertexSize = 6 * 4; // 6 floats * 4 байта
 
-  // Минимальная орто-матрица 4x4 (столбцами).
-  // zoom = пикселей на тайл; видимое окно = canvas/zoom тайлов.
-  // y-ось отражена: в мире y растёт вниз (строки карты), на экране — тоже вниз.
-  function orthoMatrix(zoom, cx, cy) {
-    const halfW = canvas.width / (2 * zoom);
-    const halfH = canvas.height / (2 * zoom);
+  // Орто-матрица WebGL-слоя (задача 000061) — из src/map.js
+  // (G.orthoMatrix): ТО ЖЕ мир→экран, что и спрайт-слой
+  // (G.worldToScreen) — y растёт вниз, юг НИЖЕ центра экрана.
+  // Fallback на случай устаревшего map.js — Т Е Ж Е знаки
+  // (NDC +y = верх экрана, поэтому y-строка отрицательная):
+  // «чинить» знак здесь нельзя — слои разъедутся зеркально.
+  function legacyOrtho(z, cx, cy, viewW, viewH) {
+    const halfW = viewW / (2 * z);
+    const halfH = viewH / (2 * z);
     return new Float32Array([
       1 / halfW, 0, 0, 0,
       0, -1 / halfH, 0, 0,
@@ -856,8 +859,11 @@
   }
 
   // --- Слой спрайтов (2D-canvas поверх WebGL) ---
-  // Мировые координаты → экран те же, что в orthoMatrix:
-  //   x_экрана = W/2 + (tx - cam.x) * zoom,  y_экрана = H/2 + (cam.y - ty) * zoom.
+  // Мировые координаты → экран — через G.worldToScreen (src/map.js,
+  // задача 000061): единый источник проекции для ОБОИХ слоёв
+  // (WebGL-матрица G.orthoMatrix рисует то же) — y растёт ВНИЗ,
+  // южный тайл НИЖЕ центра экрана (до фикса спрайт-слой зеркалил ось
+  // y, и «вниз» двигало вверх).
   // Если ни один ассет не загрузился — выходим без рисования,
   // под слоем остаются цветные тайлы/маркеры WebGL (фолбэк).
   function drawSprites(now, rp) {
@@ -865,14 +871,19 @@
     const w = spriteCanvas.width, h = spriteCanvas.height;
     s2.clearRect(0, 0, w, h);
     if (spriteLoader.readyCount() === 0) return;
-    const cx = w / 2, cy = h / 2;
-    const toX = (tx) => cx + (tx - cam.x) * zoom;
-    const toY = (ty) => cy + (cam.y - ty) * zoom;
+    const toPt = G.worldToScreen
+      ? (tx, ty) => G.worldToScreen(tx, ty, cam.x, cam.y, zoom, w, h)
+      // fallback (устаревший map.js): та же формула, y-вниз.
+      : (tx, ty) => ({
+          x: w / 2 + (tx - cam.x) * zoom,
+          y: h / 2 + (ty - cam.y) * zoom,
+        });
 
     // Тайлы: текстура (вода/глубокая вода — кадр анимации по чистому
     // селектору frameIndex(время, координаты, число кадров)).
     for (const t of frameTiles) {
-      const sx = toX(t.x), sy = toY(t.y);
+      const p = toPt(t.x, t.y);
+      const sx = p.x, sy = p.y;
       const frames = G.tileFrames(t.terrain);
       if (frames.length) {
         const idx = frames.length > 1 ? G.frameIndex(now, t.x, t.y, frames.length) : 0;
@@ -903,7 +914,8 @@
         const size = zoom * 1.15;
         // Та же ДРОБНАЯ точка, что и WebGL-ромб (задача 000033):
         // фолбэк-слой и спрайт не должны расходиться.
-        const px = toX(rp.x + 0.5), py = toY(rp.y + 0.5);
+        const pp = toPt(rp.x + 0.5, rp.y + 0.5);
+        const px = pp.x, py = pp.y;
         s2.drawImage(pi, px - size / 2, py - size / 2, size, size);
       }
     }
@@ -989,7 +1001,12 @@
     gl.clearColor(0.06, 0.08, 0.10, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    gl.uniformMatrix4fv(uProj, false, orthoMatrix(zoom, cam.x, cam.y));
+    // WebGL-слой — через G.orthoMatrix (map.js, задача 000061);
+    // fallback — legacyOrtho с теми же знаками (см. выше).
+    gl.uniformMatrix4fv(uProj, false,
+      G.orthoMatrix
+        ? G.orthoMatrix(zoom, cam.x, cam.y, canvas.width, canvas.height)
+        : legacyOrtho(zoom, cam.x, cam.y, canvas.width, canvas.height));
     const verts = buildFrame(rp);
     gl.drawArrays(gl.TRIANGLES, 0, verts.length / 6);
 
