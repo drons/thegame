@@ -298,12 +298,18 @@
     return { dmg, killed: !u.alive };
   }
 
-  // Урон по игроку (блок → броня → «Железная кожа» через P.takeDamage).
+  // Урон по игроку (щит → блок → броня → «Железная кожа» через P.takeDamage).
   // Возвращает фактический урон (для вампиризма).
   function dealDamageToPlayer(c, raw) {
     const p = c.player;
     const d = P.derived(p);
     let dmg = raw;
+    // Магический щит (задача 000045): пока turns > 0, гасит shield.armor
+    // (поставляется/тикается src/spells.js и endPlayerTurn).
+    const shield = c.ps.shield;
+    if (shield && shield.turns > 0) {
+      dmg = Math.max(0, dmg - shield.armor);
+    }
     if (c.ps.blocked) {
       dmg *= 1 - Math.min(0.6, 0.2 + 0.02 * p.primary.constitution);
     }
@@ -698,7 +704,14 @@
       log(c, `${u.name} промахивается.`);
       return;
     }
-    const dealt = dealDamageToPlayer(c, u.damage);
+    // Ослабление (задача 000045, ставится src/spells.js): урон моба ×mult;
+    // эффект тикает ВМЕСТЕ С ПРИМЕНЕНИЕМ — ×0.75 ровно `turns` ударов.
+    let dmg = u.damage;
+    if (u.weaken && u.weaken.turns > 0) {
+      dmg *= u.weaken.mult;
+      u.weaken.turns -= 1;
+    }
+    const dealt = dealDamageToPlayer(c, dmg);
     if (dealt <= 0 || c.result) return;
     if (u.traits.lifesteal) {
       u.hp = Math.min(u.maxHP, u.hp + dealt);
@@ -721,6 +734,14 @@
 
   function mobAct(c, u) {
     if (!u.alive || u.fled || c.result) return;
+    // Контроль (задача 000045, ставится src/spells.js): скованный моб
+    // пропускает ровно ОДНО действие (тик вместе с пропуском); пока
+    // скован, прочие эффекты НЕ тикают (weaken тикает в mobAttack).
+    if (u.bind && u.bind.turns > 0) {
+      u.bind.turns -= 1;
+      log(c, `${u.name} скован — пропускает действие.`);
+      return;
+    }
     const dToP = unitDist(c, u);
 
     // Регенерация (водные стихийники).
@@ -815,6 +836,10 @@
     c.phase = 'player';
     c.ps.blocked = false;
     refillPools(c);
+    // Магический щит (задача 000045): тик в начале хода игрока (после
+    // refillPools) — эффект держится ровно `turns` раундов, включая
+    // раунд каста (защита в раунде каста — до этого тика).
+    if (c.ps.shield && c.ps.shield.turns > 0) c.ps.shield.turns -= 1;
     // Новый раунд — новая очередь (задача 000036): из очереди вышли
     // мёртвые и сбежавшие мобы, turnIndex возвращается к игроку.
     c.turnOrder = buildTurnOrder(c);
@@ -991,6 +1016,9 @@
         moveLeft: 0, attack: 0, spellInt: 0, spellWis: 0,
         quickItem: 0, invItem: 0, block: 0,
         blocked: false, poison: 0,
+        // Магический щит (задача 000045, src/spells.js): временная броня.
+        // Новый бой — всегда чистое состояние (эффекты не переносятся).
+        shield: { armor: 0, turns: 0 },
       },
       _rng: rng,
       day,
@@ -1024,5 +1052,10 @@
     LEADER_DMG_MULT, LEADER_DEF_MULT,
     PRACTICE_XP,
     hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
+    // Боевые internals для src/spells.js (задача 000045): применение
+    // заклинания в бою переиспользует проверки и урон ядра.
+    combatInternals: {
+      log, nearestMob, unitDist, checkTurn, checkBlocked, dealDamageToMob,
+    },
   };
 });

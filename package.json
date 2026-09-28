@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node --test",
     "gen:map": "node scripts/generate-map-png.js",
-    "gen:combatbg": "node scripts/gen-combat-bg.js"
+    "gen:combatbg": "node scripts/gen-combat-bg.js",
+    "gen:spells": "node scripts/sync-spells-data.js"
   }
 }

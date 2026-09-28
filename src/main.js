@@ -334,6 +334,12 @@
             ? G.sanitizeInventory(d.hero.inventory) : G.createInventory();
           hero.equipment = G.sanitizeEquipment
             ? G.sanitizeEquipment(d.hero.equipment) : { weapon: null, armor: null };
+          // Книга заклинаний (задача 000045): новое ОПЦИОНАЛЬНОЕ поле
+          // сейва (без повышения версии, 000031) — старым сейвам поля
+          // нет → []; подделанные id/дубли чистятся по каталогу.
+          // Иначе книга молча теряется при перезагрузке (data loss).
+          hero.spells = G.sanitizeSpellBook
+            ? G.sanitizeSpellBook(d.hero.spells) : [];
           const dd = G.derived(hero);
           hero.hp = Math.min(Math.max(1, Math.round(hero.hp)), dd.maxHP);
           hero.mp = Math.min(Math.max(0, Math.round(hero.mp) || 0), dd.maxMP);
