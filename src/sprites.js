@@ -183,6 +183,10 @@
   const VISUALS_SEED = 0x51a11ce5;
   // Потолок декораций на тайл: разнообразие — да, но без «клякс».
   const MAX_VISUALS_PER_TILE = 3;
+  // Порог зума, ниже которого main.js НЕ рисует слой декораций (000039):
+  // при малом зуме число видимых тайлов explode, по-тайловый проход
+  // дорог, а мелкие элементы и так не различимы.
+  const VISUALS_MIN_ZOOM = 24;
 
   // Период кадра анимации (мс).
   const FRAME_MS = 480;
@@ -370,6 +374,27 @@
   }
 
   /**
+   * Прямоугольник drawImage элемента декорации (задача 000039).
+   * Чистая геометрия: e.x/e.y — ЦЕНТР элемента (доли тайла), поэтому
+   * прямоугольник начинается в (центр − s/2, центр − s/2). sx/sy —
+   * левый верхний угол тайла на экране, s = e.size * zoom.
+   * @param {{x:number, y:number, size:number}} e элемент tileVisuals
+   * @param {number} sx левый верхний x тайла на экране
+   * @param {number} sy левый верхний y тайла на экране
+   * @param {number} zoom пикселей на тайл
+   * @returns {{x:number, y:number, size:number}} аргументы drawImage
+   *   (x, y, size, size)
+   */
+  function visualDrawRect(e, sx, sy, zoom) {
+    const s = e.size * zoom;
+    return {
+      x: sx + e.x * zoom - s / 2,
+      y: sy + e.y * zoom - s / 2,
+      size: s,
+    };
+  }
+
+  /**
    * Путь SVG-фона боевого поля (задача 000049).
    * Чистая функция: bg → 'assets/combat/bg/<name>.svg'.
    * bg — { terrain: <TERRAIN из map.js> } | { dungeon: <DUNGEON_TYPES> }
@@ -521,13 +546,13 @@
     COMBAT_BG_DIR, COMBAT_BG_TERRAIN, COMBAT_BG_DUNGEON, COMBAT_BG_FALLBACK,
     combatBackground,
     HP_BAR_COLORS, hpBarColor,
-    VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE,
+    VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE, VISUALS_MIN_ZOOM,
     FRAME_MS,
     WAVE_PERIOD_MS, WATER_FRAME_COUNT,
     wavePhase, waterTileFrame,
     frameIndex, waterFrame,
     tileFrames, mobKind, mobFrames, buildingSprite, phlogistonFrames,
-    tileVisuals,
+    tileVisuals, visualDrawRect,
     allAssetPaths,
     createSpriteLoader,
   };
