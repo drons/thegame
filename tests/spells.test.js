@@ -476,7 +476,8 @@ test('цепочки: getSpell, chainRoot, chainSpells, highestKnown, activeSpel
 //              * (1 + schoolBonus)), schoolBonus: огонь → fireDamageBonus,
 //              лёд → iceDamageBonus, иначе 0; всегда попадает, броня
 //              моба игнорируется;
-//  * лечение:  round((4 + 0.5*wisdom + level) * (1 + 0.15*(степень−1)));
+//  * лечение:  round((4 + 0.5*атрибут + level) * (1 + 0.15*(степень−1)))
+//              (в каталоге все исцеления — Мудрость);
 //  * защита:   c.ps.shield = { armor: 1 + степень, turns: 3 };
 //  * ослабление: u.weaken = { mult: 0.75, turns: 3 };
 //  * контроль: u.bind = { turns: 1 }.
@@ -806,4 +807,114 @@ test('canCastSpell: без побочных эффектов (зеркало 000
   assert.equal(r.reason, 'заклинание не изучено');
   assert.equal(bare.spells, undefined,
     'p.spells не создаётся как побочный эффект');
+});
+
+// --- Задача 000045: правки по итогам ревью (раунд 1) ---
+//
+// Три потенциальных дефекта, невоспроизводимых на актуальном каталоге
+// (схема/тесты данных их закрывают): каталог мутируется В ПАМЯТИ,
+// восстановление — в finally.
+
+test('castSpell: неизвестное действие — зеркало и без расхода (ревью, раунд 1)', () => {
+  const { castSpell, canCastSpell } = loadSpells();
+  const { SPELLS_BY_ID } = loadSpellsData();
+  const spark = SPELLS_BY_ID.spark;
+  const saved = spark.действие;
+  try {
+    // Мутация в памяти: в файле enum фиксирован схемой, но код обязан
+    // НЕ тратить пул/ману при отказе, и canCastSpell обязан дать ту же
+    // причину (зеркало 000037).
+    spark.действие = 'телепорт';
+    const p = spellHero({ spells: ['spark'], intelligence: 10, mp: 30 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const poolBefore = c.ps.spellInt;
+    const mirror = canCastSpell(c, 'spark', { targetId: w.id });
+    const core = castSpell(c, 'spark', w.id);
+    assert.equal(core.ok, false, 'неизвестное действие — отказ');
+    assert.equal(mirror.ok, false, 'зеркало: тот же отказ');
+    assert.equal(mirror.reason, core.reason, 'зеркало: одна причина');
+    assert.equal(core.reason, 'неизвестное действие: телепорт');
+    assert.equal(c.ps.spellInt, poolBefore, 'пул при отказе не тратится');
+    assert.equal(p.mp, 30, 'мана при отказе не тратится');
+  } finally {
+    spark.действие = saved;
+  }
+});
+
+test('castSpell: лечение масшталируется от spell.атрибут (ревью, раунд 1)', () => {
+  const { castSpell } = loadSpells();
+  const { SPELLS_BY_ID } = loadSpellsData();
+  const mend = SPELLS_BY_ID.mend;
+  const saved = mend.атрибут;
+  try {
+    // Мутация в памяти: исцеление с атрибутом Интеллект. Формула лечения
+    // обязана брать spell.атрибут (как урон), а не зашитую wisdom.
+    mend.атрибут = 'intelligence';
+    const p = spellHero({
+      spells: ['mend'], wisdom: 1, intelligence: 10, level: 1, mp: 30,
+    });
+    const c = soloCombat(p, 'wolf');
+    p.hp = 5; // maxHP = 25 — кламп не сработает
+    const r = castSpell(c, 'mend');
+    assert.equal(r.ok, true, r.reason);
+    assert.equal(r.healed, Math.round((4 + 0.5 * 10 + 1) * 1),
+      'лечение от Интеллекта (атрибут заклинания), а не от Wisdom');
+  } finally {
+    mend.атрибут = saved;
+  }
+});
+
+test('цепочки: несколько улучшений одной базы — одна цепочка, без undefined-ключа (ревью, раунд 1)', () => {
+  const dataMod = loadSpellsData();
+  // Каталог в памяти: второе улучшение fireball (схема это разрешает,
+  // тест 000023 единственность улучшения на базу не фиксирует).
+  const extra = {
+    id: 'fireball_alt', название: 'Искра шара', школа: 'огонь',
+    база: 'fireball', степень: 2, атрибут: 'intelligence',
+    уровень: 2, мани: 6, действие: 'урон',
+    здания: [18], описание: 'тестовый вариант (ревью)',
+  };
+  try {
+    dataMod.SPELLS.push(extra);
+    dataMod.SPELLS_BY_ID[extra.id] = extra;
+    // Цепочки предвычислены при загрузке модуля — пере-require spells.js
+    // (spells-data тот же модуль, уже мутирован).
+    delete require.cache[require.resolve('../src/spells.js')];
+    const Sp = require('../src/spells.js');
+    // Второе улучшение — часть цепочки fireball, а не «свой корень».
+    assert.equal(Sp.chainRoot(Sp.getSpell('fireball_alt')).id, 'fireball');
+    const p = spellHero({
+      spells: ['fireball', 'flame_burst', 'fireball_alt'],
+      intelligence: 10, mp: 40,
+    });
+    const active = Sp.activeSpells(p);
+    assert.ok(!active.has(undefined), 'undefined-ключа в activeSpells нет');
+    assert.deepEqual([...active.keys()].sort(), ['fireball'],
+      'один ключ — корень цепочки');
+    assert.ok(
+      ['flame_burst', 'fireball_alt'].includes(active.get('fireball').id),
+      'высшая известная степень');
+    // В бою кастуется ровно одна степень 2: высшая известная (однозначный
+    // выбор при равных степенях), вторая — отказ, база — отказ.
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const top = active.get('fireball').id;
+    const other = top === 'flame_burst' ? 'fireball_alt' : 'flame_burst';
+    assert.equal(Sp.canCastSpell(c, top, { targetId: w.id }).ok, true,
+      'высшая степень — кастуется');
+    const rOther = Sp.canCastSpell(c, other, { targetId: w.id });
+    assert.equal(rOther.ok, false, 'вторая степень той же цепочки — нет');
+    assert.match(rOther.reason, /высшая степень/);
+    assert.equal(
+      Sp.canCastSpell(c, 'fireball', { targetId: w.id }).ok, false,
+      'база при известном улучшении — нет');
+  } finally {
+    const i = dataMod.SPELLS.lastIndexOf(extra);
+    if (i >= 0) dataMod.SPELLS.splice(i, 1);
+    delete dataMod.SPELLS_BY_ID[extra.id];
+    // Модуль spells.js с исходным каталогом для последующих тестов.
+    delete require.cache[require.resolve('../src/spells.js')];
+    loadSpells();
+  }
 });

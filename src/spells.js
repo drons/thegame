@@ -14,7 +14,8 @@
 //               * (1 + schoolBonus)); schoolBonus: огонь →
 //               fireDamageBonus, лёд → iceDamageBonus, иначе 0.
 //               Всегда попадает, броню моба игнорирует.
-//   * лечение:  round((4 + 0.5*мудрость + уровень) * (1 + 0.15*(степень−1))).
+//   * лечение:  round((4 + 0.5*атрибут + уровень) * (1 + 0.15*(степень−1)))
+//               (атрибут — как у урона; в каталоге все исцеления — Мудрость).
 //   * защита:   c.ps.shield = { armor: 1 + степень, turns: 3 } (тик — в
 //               начале хода игрока, combat.js).
 //   * ослабление: u.weaken = { mult: 0.75, turns: 3 } (тик — вместе с
@@ -176,8 +177,10 @@
 
   // --- Цепочки «база» (предвычисление из каталога) ---
 
-  // childrenOf: baseId → [улучшение] (в каталоге у базы одно улучшение:
-  // степень = степень базового + 1, задача 000023).
+  // childrenOf: baseId → [улучшения] (каталог обычно линейный: степень =
+  // степень базового + 1, задача 000023; схема не запрещает НЕСКОЛЬКО
+  // улучшений одной базы — тогда цепочка разветвляется, и «высшая
+  // степень» определяется по всей цепочке от корня).
   const childrenOf = new Map();
   for (const s of SPELLS) {
     if (s.база === null) continue;
@@ -185,20 +188,27 @@
     childrenOf.get(s.база).push(s);
   }
 
-  // CHAIN_OF: id любого звена → цепочка [база, …, высшая] по возрастанию
-  // степени; ROOT_OF: id любого звена → id корня цепочки.
+  // CHAIN_OF: id любого звена → цепочка от корня [корень, …, высшая
+  // степень] (ВСЕ улучшения, по возрастанию степени, при равных —
+  // порядок каталога); ROOT_OF: id любого звена → id корня.
   const CHAIN_OF = new Map();
   const ROOT_OF = new Map();
   for (const s of SPELLS) {
     if (s.база !== null) continue;
     const chain = [s];
-    let cur = s;
-    for (;;) {
-      const kids = childrenOf.get(cur.id) || [];
-      if (!kids.length) break;
-      cur = kids[0];
-      chain.push(cur);
+    const seen = new Set([s.id]); // защита от циклов в данных
+    const stack = [s];
+    while (stack.length) {
+      const cur = stack.pop();
+      for (const kid of childrenOf.get(cur.id) || []) {
+        if (seen.has(kid.id)) continue;
+        seen.add(kid.id);
+        chain.push(kid);
+        stack.push(kid);
+      }
     }
+    // Стабильная сортировка: при равных степенях — порядок каталога.
+    chain.sort((a, b) => a.степень - b.степень);
     for (const m of chain) {
       CHAIN_OF.set(m.id, chain);
       ROOT_OF.set(m.id, s.id);
@@ -220,6 +230,7 @@
   }
 
   // Высшая ИЗВЕСТНАЯ степень цепочки заклинания (null, если ни одна).
+  // При равных степенях (разветвлённая цепочка) — первое в каталоге.
   function highestKnown(p, spell) {
     if (!spell) return null;
     const chain = CHAIN_OF.get(spell.id) || [spell];
@@ -227,7 +238,10 @@
     if (!book) return null;
     let best = null;
     for (const s of chain) {
-      if (book.includes(s.id)) best = s; // цепочка по возрастанию степени
+      // Строгое > : среди равных степеней остаётся раннее в каталоге.
+      if (book.includes(s.id) && (!best || s.степень > best.степень)) {
+        best = s;
+      }
     }
     return best;
   }
@@ -245,7 +259,10 @@
       const chain = CHAIN_OF.get(rootId) || [spell];
       let best = null;
       for (const s of chain) {
-        if (book.includes(s.id)) best = s;
+        // Строгое > : среди равных степеней — раннее в каталоге.
+        if (book.includes(s.id) && (!best || s.степень > best.степень)) {
+          best = s;
+        }
       }
       if (!best) continue;
       const prev = map.get(rootId);
@@ -271,6 +288,12 @@
   };
   // Действия, требующие цель на поле (прочие — по себе).
   const TARGETED = new Set(['урон', 'ослабление', 'контроль']);
+  // Все действия, поддерживаемые эффектом (ветки switch в castSpell).
+  // В файле enum закреплён схемой; проверка — защита от каталога,
+  // мутированного в памяти (ревью 000045, раунд 1): отказ обязан идти
+  // ДО расхода пула/маны, и canCastSpell даёт ту же причину (000037).
+  const KNOWN_ACTIONS = new Set(
+    ['урон', 'лечение', 'защита', 'ослабление', 'контроль']);
 
   // Общие проверки каста (зеркало 000037: castSpell и canCastSpell
   // обязаны дать ОДНУ и ту же причину). Чисто: не тратит пулы/ману,
@@ -287,6 +310,13 @@
     const book = Array.isArray(p.spells) ? p.spells : null;
     if (!book || !book.includes(spellId)) {
       return { fail: { ok: false, reason: 'заклинание не изучено' } };
+    }
+    // Неизвестное действие (битые данные) — отказ ДО расхода пула/маны;
+    // castSpell и canCastSpell дают одну причину (зеркало 000037).
+    if (!KNOWN_ACTIONS.has(spell.действие)) {
+      return {
+        fail: { ok: false, reason: 'неизвестное действие: ' + spell.действие },
+      };
     }
     // В бою действует только высшая известная степень цепочки «база».
     const highest = highestKnown(p, spell);
@@ -358,8 +388,10 @@
         break;
       }
       case 'лечение': {
+        // Как урон — от spell.атрибут (в каталоге все исцеления —
+        // Мудрость; при другом атрибуте формула следовала бы за ним).
         const amount = Math.round(
-          (4 + 0.5 * p.primary.wisdom + p.level) *
+          (4 + 0.5 * p.primary[spell.атрибут] + p.level) *
           (1 + 0.15 * (spell.степень - 1)));
         const hpBefore = p.hp;
         const hp = P.heal(p, amount);
@@ -392,6 +424,8 @@
         break;
       }
       default:
+        // Недостижимо: evalSpell уже отказывает в неизвестном действии
+        // ДО расхода пула/маны (зеркало 000037). Страховка.
         return {
           ok: false,
           reason: 'неизвестное действие: ' + spell.действие,
