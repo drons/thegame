@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 336 336">
+  <defs>
+    <linearGradient id="gb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#171221"/>
+      <stop offset="1" stop-color="#0a0713"/>
+    </linearGradient>
+    <radialGradient id="gl">
+      <stop offset="0" stop-color="#241a33" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#241a33" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gd">
+      <stop offset="0" stop-color="#04020a" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#04020a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gv" cx="0.5" cy="0.5" r="0.75">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.3"/>
+    </radialGradient>
+  </defs>
+  <rect width="336" height="336" fill="url(#gb)"/>
+  <g>
+    <ellipse cx="230.8" cy="217.2" rx="64.5" ry="50.2" fill="url(#gl)"/>
+    <ellipse cx="113.4" cy="331.9" rx="83.4" ry="58.2" fill="url(#gl)"/>
+    <ellipse cx="145.4" cy="329.2" rx="73.1" ry="47.3" fill="url(#gl)"/>
+    <ellipse cx="198.8" cy="101.8" rx="68.1" ry="34.8" fill="url(#gl)"/>
+    <ellipse cx="281.4" cy="101.6" rx="88.1" ry="66.3" fill="url(#gl)"/>
+    <ellipse cx="255.4" cy="126.3" rx="45" ry="27.9" fill="url(#gl)"/>
+    <ellipse cx="161" cy="17.4" rx="80.2" ry="61.2" fill="url(#gl)"/>
+    <ellipse cx="91.1" cy="205.3" rx="53.4" ry="30.7" fill="url(#gl)"/>
+    <ellipse cx="119.1" cy="303.6" rx="71.1" ry="46.5" fill="url(#gd)"/>
+    <ellipse cx="135.3" cy="239.2" rx="49.8" ry="35.7" fill="url(#gd)"/>
+    <ellipse cx="326.9" cy="279" rx="78" ry="45.7" fill="url(#gd)"/>
+    <ellipse cx="179.1" cy="21.3" rx="46.9" ry="29.2" fill="url(#gd)"/>
+    <ellipse cx="268.9" cy="152.7" rx="42.8" ry="33.1" fill="url(#gd)"/>
+    <ellipse cx="315.4" cy="133.1" rx="74.1" ry="42.7" fill="url(#gd)"/>
+    <ellipse cx="38" cy="79.8" rx="81.9" ry="52.8" fill="url(#gd)"/>
+    <ellipse cx="34.7" cy="183.4" rx="41" ry="29.1" fill="url(#gd)"/>
+  </g>
+  <g>
+    <circle cx="23.5" cy="276" r="1.9" fill="#8a6fc0" opacity="0.6" />
+    <circle cx="5.7" cy="106.9" r="2.5" fill="#8a6fc0" opacity="0.4" />
+    <circle cx="309.6" cy="31.5" r="1.9" fill="#8a6fc0" opacity="0.6" />
+    <circle cx="13.2" cy="207.1" r="1.2" fill="#8a6fc0" opacity="0.5" />
+    <circle cx="6.8" cy="95.9" r="1" fill="#8a6fc0" opacity="0.5" />
+    <circle cx="36.5" cy="61" r="1.4" fill="#8a6fc0" opacity="0.5" />
+    <circle cx="35.6" cy="313.4" r="1.2" fill="#8a6fc0" opacity="0.4" />
+    <circle cx="249.7" cy="326.4" r="1.1" fill="#8a6fc0" opacity="0.4" />
+    <circle cx="320.9" cy="245.3" r="1.5" fill="#8a6fc0" opacity="0.4" />
+    <circle cx="323" cy="320.6" r="2.1" fill="#8a6fc0" opacity="0.6" />
+    <ellipse cx="3.4" cy="246.7" rx="79.1" ry="27.7" fill="#241a33" opacity="0.4" />
+    <ellipse cx="239.6" cy="169.1" rx="43.8" ry="27.6" fill="#241a33" opacity="0.4" />
+    <ellipse cx="238" cy="43.7" rx="61.4" ry="22.5" fill="#241a33" opacity="0.4" />
+    <ellipse cx="279" cy="217.5" rx="50.8" ry="22.2" fill="#241a33" opacity="0.4" />
+    <ellipse cx="195.2" cy="75.5" rx="66.4" ry="30.1" fill="#241a33" opacity="0.4" />
+    <ellipse cx="335.2" cy="179.2" rx="54.4" ry="22.4" fill="#241a33" opacity="0.4" />
+    <circle cx="328.9" cy="236.1" r="1.2" fill="#4a2f6b" opacity="0.6" />
+    <circle cx="21.4" cy="29.2" r="1.3" fill="#4a2f6b" opacity="0.4" />
+    <circle cx="37.4" cy="281.7" r="0.9" fill="#4a2f6b" opacity="0.6" />
+    <circle cx="301" cy="92.9" r="1.2" fill="#4a2f6b" opacity="0.5" />
+    <circle cx="325.4" cy="61.3" r="1.6" fill="#4a2f6b" opacity="0.6" />
+    <circle cx="327.8" cy="95.4" r="1.2" fill="#4a2f6b" opacity="0.7" />
+  </g>
+  <rect width="336" height="336" fill="url(#gv)"/>
+</svg>

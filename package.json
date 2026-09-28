@@ -5,6 +5,7 @@
   "description": "Приключения Флогистона — пошаговая фэнтези-RPG с процедурным миром",
   "scripts": {
     "test": "node --test",
-    "gen:map": "node scripts/generate-map-png.js"
+    "gen:map": "node scripts/generate-map-png.js",
+    "gen:combatbg": "node scripts/gen-combat-bg.js"
   }
 }
