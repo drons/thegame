@@ -14,6 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { writeFileAtomic } = require('./lib/write-atomic.js');
 
 const ROOT = path.join(__dirname, '..');
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
@@ -130,5 +131,7 @@ L.push('  return { PRIMARY_SKILLS, SECONDARY_SKILLS };');
 L.push('});');
 L.push('');
 
-fs.writeFileSync(OUT_FILE, L.join('\n'), 'utf8');
+// Атомарная замена (tmp + rename): параллельные require под node --test
+// не видят частичный файл (задача 000054, правки по итогам ревью).
+writeFileAtomic(OUT_FILE, L.join('\n'));
 console.log(`src/skills-data.js перегенерирован: ${primary.length} основных, ${secondary.length} вторичных навыков.`);

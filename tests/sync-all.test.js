@@ -13,7 +13,12 @@
 //    - output: строка (stdout/stderr скриптов + отчёт sync-all);
 //    - changed: пути из `git status --porcelain -- src/` (repo-relative);
 //  * обычный режим: регенерация + отчёт «изменилось N / синхронно», exit 0
-//    (git недоступен → предупреждение, дрейф-чек пропущен);
+//    (git недоступен → предупреждение: в --check дрейф-чек пропущен,
+//    в обычном режиме «синхронно (ничего не изменилось)» не
+//    утверждается — список изменений собрать нельзя);
+//  * синк-скрипты пишут JS-зеркала атомарно (scripts/lib/write-atomic.js:
+//    tmp-файл + rename) — параллельные файлы node --test (top-level
+//    require('../src/npc-data.js') и т.п.) не видят частичный файл.
 //  * --check: дрейф-гейт. Непустой git-статус src/ ДО регенерации (локальные
 //    правки — не переписывать их молча) или ПОСЛЕ (закоммиченный дрейф —
 //    сценарий CI) → exit 1 с именем файла и подсказкой «npm run sync:all
@@ -31,6 +36,8 @@ const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const SYNC_ALL = path.join(ROOT, 'scripts', 'sync-all.js');
+const { writeFileAtomic } = require(path.join(
+  ROOT, 'scripts', 'lib', 'write-atomic.js'));
 
 function loadSyncAll() {
   assert.ok(fs.existsSync(SYNC_ALL),
@@ -226,7 +233,10 @@ test('CLI: дрейф src/npc-data.js — --check exit 1 с именем фай�
   const marker = '\n// drift marker (тест 000054)\n';
   const drifted = orig + marker;
   try {
-    fs.writeFileSync(npcFile, drifted, 'utf8');
+    // Атомарные записи (tmp + rename): параллельные файлы node --test
+    // (top-level require('../src/npc-data.js') в npc-data.test.js) не
+    // должны видеть частичный файл в окне записи (правки по ревью).
+    writeFileAtomic(npcFile, drifted);
 
     const check = spawnSync(process.execPath, [SYNC_ALL, '--check'],
       { encoding: 'utf8' });
@@ -251,8 +261,68 @@ test('CLI: дрейф src/npc-data.js — --check exit 1 с именем фай�
     assert.equal(st, '',
       'после sync:all дерево src/ чистое (регенерация byte-идентична), ' +
       'реально: ' + st);
+    const leftovers = fs.readdirSync(path.join(ROOT, 'src'))
+      .filter((f) => f.endsWith('.tmp'));
+    assert.deepEqual(leftovers, [],
+      'в src/ не должно остаться tmp-файлов синк-скриптов: ' + leftovers);
   } finally {
     // Тест не оставляет dirty-дерево (последующие стадии workflow).
-    fs.writeFileSync(npcFile, orig, 'utf8');
+    writeFileAtomic(npcFile, orig);
+  }
+});
+
+// --- Атомарная запись (правки по итогам ревью) ---
+
+test('writeFileAtomic: запись и перезапись точны, tmp-остатков нет', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'write-atomic-'));
+  try {
+    const f = path.join(dir, 'data.js');
+    writeFileAtomic(f, 'v1\n');
+    assert.equal(fs.readFileSync(f, 'utf8'), 'v1\n',
+      'первая запись: содержимое точное');
+    const v2 = 'v2-строка подлиннее для правдоподобности\n';
+    writeFileAtomic(f, v2.repeat(100));
+    assert.equal(fs.readFileSync(f, 'utf8'), v2.repeat(100),
+      'перезапись существующего файла: содержимое точное');
+    assert.deepEqual(fs.readdirSync(dir), ['data.js'],
+      'после записей не должно остаться tmp-файлов');
+  } finally {
+    rmTmp(dir);
+  }
+});
+
+// --- git недоступен (локальный edge-кейс) ---
+
+test('runAll: git недоступен — обычный режим: exit 0, предупреждение, без ложного «синхронно»', () => {
+  // Каталог вне git-репозитория: gitStatusSrc → null — тот же путь
+  // кода, что и «git недоступен» (spawnSync git → status 128).
+  // Реграц на вводящий в заблуждение отчёт «синхронно (ничего не
+  // изменилось)» при отсутствии git (правки по итогам ревью).
+  const syncAll = loadSyncAll();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-all-nogit-'));
+  try {
+    assert.equal(syncAll.gitStatusSrc(dir), null,
+      'прединд: каталог обязан быть вне git-репозитория');
+    fs.mkdirSync(path.join(dir, 'scripts'));
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'assets', 'future'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'assets', 'future', '000001.json'),
+      '{"id": "future"}\n');
+    fs.writeFileSync(path.join(dir, 'scripts', 'sync-future-data.js'),
+      FAKE_SYNC);
+    const r = syncAll.runAll(dir);
+    assert.equal(r.code, 0,
+      'git недоступен — обычный режим обязан завершиться 0: ' + r.output);
+    assert.deepEqual(r.changed, [], 'без git список изменений пуст');
+    assert.ok(fs.existsSync(path.join(dir, 'src', 'future-data.js')),
+      'регенерация при этом выполнена (скрипты отработали)');
+    assert.match(String(r.output), /git недоступен/,
+      'обязано быть предупреждением о недоступности git: ' + r.output);
+    assert.doesNotMatch(String(r.output),
+      /синхронно \(ничего не изменилось\)/,
+      'без git нельзя утверждать «ничего не изменилось» — отчёт ' +
+      'вводит в заблуждение: ' + r.output);
+  } finally {
+    rmTmp(dir);
   }
 });
