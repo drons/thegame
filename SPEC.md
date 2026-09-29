@@ -1392,11 +1392,47 @@ warn + отброс — 000029). Дни — АБСОЛЮТНЫЕ (fastForward б
  * Структура файла закреплена JSON-схемой assets/items/schema.json.
  * Игра открывается двойным кликом (file://), где fetch() локальных JSON
    не работает, поэтому каталог дублируется в униформном JS-модуле
-   src/items-data.js (фолбэк). Node-тест проверяет, что JS-модуль
-   идентичен JSON-файлам (JSON — source of truth).
+   src/items-data.js (фолбэк; в браузере — Game.ITEMS, в node —
+   require()). JS-модуль ГЕНЕРИРУЕТСЯ скриптом `node
+   scripts/sync-items-data.js` (npm `sync:items`) из JSON-каталога
+   (source of truth — JSON, как в `src/buildings.js` /
+   `src/dungeons-data.js`): шапка файла помечена «GENERATED — не править
+   руками», генерация идемпотентна (повторный запуск — byte-identical),
+   вывод пишется атомарно (scripts/lib/write-atomic.js, конвенция
+   раздела «CI и публикация на GitHub Pages», задача 000054); из CI
+   вызывается тем же образом (sync-all.js подхватывает скрипт по
+   конвенции имён). id предметов НЕ перенумеруются: сейв v1 ссылается на
+   id (npcStocks/quests, задача 000031) — данные переносятся 1:1.
+   Node-тест проверяет, что JS-модуль идентичен JSON-файлам.
  * Ядро (src/items.js, без DOM) при загрузке семантически валидирует
    каталог: типы, подтипы оружия, эффекты, навыки книг.
  * Сундуки подземелий (src/dungeon.js) хранят id предметов каталога.
+
+## Архитектура хранения (каталог assets/visuals)
+ * Декорации тайлов (задача 000021) хранятся в каталоге assets/visuals:
+   каждый элемент — отдельный JSON-файл (000001.json, 000002.json, …),
+   поле `id` равно номеру файла. Структура файла закреплена JSON-схемой
+   assets/visuals/schema.json.
+ * Игра открывается двойным кликом (file://), где fetch() локальных JSON
+   не работает, поэтому каталог дублируется в униформном JS-фолбэке
+   src/visuals-data.js (в браузере — Game.VisualsData, в node —
+   require()). Модуль ГЕНЕРИРУЕТСЯ скриптом `node
+   scripts/sync-visuals-data.js` (npm `sync:visuals`) из JSON-каталога
+   (source of truth — JSON, та же конвенция, что и items/buildings/
+   dungeons): шапка «GENERATED — не править руками», генерация
+   идемпотентна (повторный запуск — byte-identical), вывод пишется
+   атомарно (scripts/lib/write-atomic.js, раздел «CI и публикация на
+   GitHub Pages», задача 000054); из CI вызывается тем же образом
+   (sync-all.js подхватывает скрипт по конвенции имён).
+ * src/sprites.js — потребитель БЕЗ собственной копии каталога:
+   браузерная ветка снимает Game.VisualsData при загрузке (visuals-data.js
+   в index.html подключён ДО sprites.js — УМД-ловушка 000038), node-ветка —
+   require('./visuals-data.js'). Без data-модуля (vm-песочницы) гард
+   деградирует до пустого каталога — рендер не падает.
+   VISUALS_SEED/MAX_VISUALS_PER_TILE/VISUALS_MIN_ZOOM — параметры рендера
+   (логика, не данные) — остаются в sprites.js.
+ * Визуалы в сейв НЕ пишутся: разброс на тайлах детерминирован
+   (seed VISUALS_SEED + id элемента), закреплён golden-тестами.
 
 ## Инвентарь
  * Инвентарь — INVENTORY_SLOTS (20) слотов. Складываемые предметы
