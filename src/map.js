@@ -12,13 +12,18 @@
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
+    // SETTINGS (5-й аргумент) — параметры городского канала (задача
+    // 000103); global-settings.js не имеет зависимостей — цикла
+    // require нет.
     module.exports = factory(require('./perlin.js'), require('./buildings.js'),
-      require('./mob-groups-data.js'));
+      require('./mob-groups-data.js'), undefined,
+      require('./global-settings.js').SETTINGS);
   } else {
     root.Game = Object.assign({}, root.Game,
-      factory(typeof root.Game === 'object' ? root.Game : {}, null, null, root));
+      factory(typeof root.Game === 'object' ? root.Game : {}, null, null, root,
+        null));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, catalog, mobGroups, root) {
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, catalog, mobGroups, root, settings) {
 
   const createPerlin2D = perlin.createPerlin2D;
   const hash2 = perlin.hash2;
@@ -33,6 +38,22 @@
     return g && typeof g.placeBuilding === 'function' ? g : null;
   }
 
+  // Глобальные настройки (src/global-settings.js) — параметры
+  // городского канала (задача 000103, SETTINGS.city_channel). Тоже
+  // ленивое разрешение (в момент вызова, паттерн 000055): в браузере
+  // global-settings.js грузится ПЕРВЫМ в index.html (ДО map.js), но
+  // vm-песочницы (combat-ui/sprites) грузят map.js БЕЗ него —
+  // деградация «настройки нет → канал отключён → генерация идентична
+  // до-задачной». Функция (не захваченное значение): переживает
+  // Object.assign-ловушку (000055).
+  function settingsRef() {
+    if (settings) return settings;
+    const g = root && root.Game;
+    const gs = g && g.GlobalSettings;
+    return gs && gs.SETTINGS && typeof gs.SETTINGS === 'object'
+      ? gs.SETTINGS : null;
+  }
+
   // --- Производные данные «картовых» построек (задача 000055) ---
   //
   // Число «картовых» индексов, их имена и максимальный footprint
@@ -42,6 +63,13 @@
   // грузят map.js БЕЗ buildings.js: на момент загрузки каталога ещё
   // может не быть. Фолбэк без каталога — ровно значения генерации
   // до 000055 (13 типов, окно 3×3), иначе карта в песочнице уедет.
+  //
+  // Окно поиска (buildMaxW/H) — по ЗАПИСЯМ С MAP_INDEX И ГОРОДАМ
+  // (категория «город», до 7x7, задача 000103): иначе
+  // isFreeForBuilding/coveringFootprint/buildingWithEntranceAt
+  // сканируют якоря в окне 3×3 и упускают якоря городов до 6 тайлов
+  // от края footprint'а. Число и имена «картовых» индексов при этом
+  // НЕ меняются — только map_index (13).
   //
   // ВАЖНО: функции, а НЕ константы на момент загрузки и не getter'ы —
   // между map.js и buildings.js в index.html грузятся player/day/items,
@@ -69,8 +97,12 @@
     for (const b of c.BUILDINGS) {
       const p = b && b.особые_параметры;
       const mi = p && p.map_index;
-      if (typeof mi !== 'number') continue;
-      entries[mi] = b;
+      const isCard = typeof mi === 'number';
+      // Окно поиска (задача 000103): максимум footprint'а — по
+      // «картовым» записям И городам (категория «город», до 7x7).
+      // Число и имена — только map_index.
+      if (!isCard && b.категория !== 'город') continue;
+      if (isCard) entries[mi] = b;
       const s = typeof c.buildingSize === 'function'
         ? c.buildingSize(b) : { width: 1, height: 1 };
       maxW = Math.max(maxW, s.width);
@@ -105,13 +137,20 @@
     return d ? d.names : [];
   }
 
-  /** Максимальная ширина «картового» footprint'а (сейчас 3). */
+  /**
+   * Максимальная ширина footprint'а для окна поиска якорей: максимум
+   * по «картовым» записям (map_index) И городам (категория «город»,
+   * задача 000103 — сейчас 7, столица 7x7); без каталога — фолбэк 3.
+   */
   function buildMaxW() {
     const d = buildingDerived();
     return d ? d.maxW : FALLBACK_BUILD_MAX_W;
   }
 
-  /** Максимальная высота «картового» footprint'a (сейчас 3). */
+  /**
+   * Максимальная высота footprint'а для окна поиска якорей (см.
+   * buildMaxW; сейчас 7, фолбэк 3).
+   */
   function buildMaxH() {
     const d = buildingDerived();
     return d ? d.maxH : FALLBACK_BUILD_MAX_H;
@@ -135,6 +174,15 @@
   // Фиксированный глобальный сид (SPEC.md). Смена сида или assets/map.png
   // генерирует полностью другую карту.
   const GLOBAL_SEED = 0xf10c7a26;
+
+  // Сид городского канала (задача 000103): ЗАФИКСИРОВАН —
+  // GLOBAL_SEED ^ 0x43495459 (ASCII «CITY»; прецедент:
+  // GLOBAL_SEED ^ 0xabcdef у стационарных групп мобов). Свой сид —
+  // НЕ GLOBAL_SEED (слотовой hash) и не сид моб-групп: тип города
+  // детерминированно зависит только от позиции якоря. Смена константы
+  // = смена карты городов — недопустима без перепина
+  // (tests/map.test.js: hash2-пины).
+  const CITY_SEED_CONST = GLOBAL_SEED ^ 0x43495459;
 
   const TERRAIN = {
     DEEP_WATER: 0,
@@ -320,6 +368,75 @@
     return typeof n === 'string' ? n : '';
   }
 
+  // --- Городской канал (задача 000103) ---
+  //
+  // Города (каталог 000102: id 51 Хутор 1x1, 52 Деревня 2x2,
+  // 53 Город 5x5, 54 Столица 7x7; категория «город», не_сжимать)
+  // размещаются на глобальной карте как постройки-входы через
+  // ОТДЕЛЬНЫЙ детерминированный канал в anchorAt — НЕ как 14-й слот
+  // (000064/000073: слотовой hash `hash2 % 13` и распределение слотов
+  // НЕ меняются):
+  //   * редкость — ТОТ ЖЕ features-шум (офсет 511.1) и та же rarity
+  //     (A-канал), что у слотового якоря, но порог ВЫШЕ — из
+  //     SETTINGS.city_channel (global-settings, 000020): город РЕЖЕ;
+  //     обязательность порога «city ⊂ slot anchor» (город забирает
+  //     существующие якоря, а не рождается «из ничего») закреплена
+  //     тестом по сетке rarity;
+  //   * тип — hash2(x, y, CITY_SEED_CONST) по кумулятивным долям
+  //     SETTINGS.city_channel.type_shares (позиция → тип ВСЕГДА один
+  //     и тот же — детерминизм закреплён тестом);
+  //   * размещение — существующий пайплайн placeBuilding/
+  //     isFreeForBuilding/entranceReachable (000026): город влезает
+  //     по ПОЛНОМУ каталожному размеру (не_сжимать) или отсутствует —
+  //     якорь пустой (без сжатия до 3x3/1x1 и без слотового фолбэка);
+  //   * запись якоря города получает buildingId (id каталожной
+  //     записи), а building остаётся чистой семантикой слота —
+  //     BUILDING_TYPES.NONE (-1); buildingId слотовых записей — null
+  //     (подтипы слотов заполнит 000073).
+  //
+  // Ленивый вывод (паттерн 000055/000057): нет ИЛИ настроек, ИЛИ
+  // каталога, ИЛИ городской записи из type_shares → null (НЕ
+  // кэшируется) → канал отключён, генерация идентична до-задачной
+  // (vm-песочницы combat-ui/sprites/main-visuals БЕЗ
+  // global-settings.js — деградация, мир не уезжает).
+
+  let _cityDerived = null;
+
+  // Параметры канала из каталога+настроек или null (не кэшируем).
+  function cityDerived() {
+    if (_cityDerived) return _cityDerived;
+    const s = settingsRef();
+    const c = catalogRef();
+    const cc = s && s.city_channel;
+    if (!cc || typeof cc !== 'object' ||
+        typeof cc.fbm !== 'number' || typeof cc.rarity !== 'number' ||
+        !Array.isArray(cc.type_shares) || cc.type_shares.length === 0) {
+      return null;
+    }
+    if (!c || typeof c.getBuilding !== 'function') return null;
+    const entries = [];
+    for (const pair of cc.type_shares) {
+      const b = pair && c.getBuilding(pair[0]);
+      if (!b || b.категория !== 'город' || typeof pair[1] !== 'number') {
+        return null; // неверная конфигурация — канал отключён
+      }
+      entries.push({ id: pair[0], share: pair[1] });
+    }
+    _cityDerived = { fbm: cc.fbm, rarity: cc.rarity, entries };
+    return _cityDerived;
+  }
+
+  // Тип города на якоре (x, y): hash2 по кумулятивным долям.
+  function cityTypeId(x, y, cd) {
+    const u = hash2(x, y, CITY_SEED_CONST) / 4294967296;
+    let acc = 0;
+    for (const e of cd.entries) {
+      acc += e.share;
+      if (u < acc) return e.id;
+    }
+    return cd.entries[cd.entries.length - 1].id;
+  }
+
   // Масштаб «крупных» фич шума (в тайлах) и фич построек/мобов.
   const NOISE_SCALE = 1 / 48;
   // Фичи построек/мобов меняются на масштабе десятков тайлов —
@@ -409,13 +526,23 @@
     // tileAt просчитывал бы окно 3x3 якорей заново.
     const fpCache = new Map();
 
-    // Якорь в (x, y): true, если здесь рождается постройка.
-    // Правило порога — как было до 000026 (канал A = плотность).
+    // Якорь в (x, y): запись якоря или null (якоря нет).
+    // Правило порога слотового якоря — как было до 000026
+    // (канал A = плотность); перед ним — городской канал (000103).
     function anchorAt(x, y) {
       if (!terrainAt(x, y).passable) return null;
       const a = pixelAt(x, y)[3];
       const fb = features.fbm(x * FEATURE_SCALE + 511.1, y * FEATURE_SCALE + 511.1, 3);
       const rarity = 1 - a / 255; // 0..1, тёмный A → реже
+      // Городской канал (задача 000103): тот же fbm/rarity, но порог
+      // ВЫШЕ, чем у слотового якоря (SETTINGS.city_channel) — город
+      // РЕЖЕ, и порогами гарантируется city ⊂ slot anchor: если здесь
+      // сработало городское условие, слотовое сработало бы тоже.
+      // Тип — детерминированно от позиции (CITY_SEED_CONST).
+      const cd = cityDerived();
+      if (cd && fb > cd.fbm + cd.rarity * rarity) {
+        return { x, y, buildingId: cityTypeId(x, y, cd) };
+      }
       if (fb <= 0.33 + 0.14 * rarity) return null;
       return { x, y, type: hash2(x, y, GLOBAL_SEED) % buildingCount() };
     }
@@ -530,7 +657,13 @@
       const anchor = anchorAt(ax, ay);
       if (anchor) {
         const c = catalogRef();
-        const b = c ? c.buildingForMapIndex(anchor.type) : null;
+        // Город (задача 000103): каталожная запись ПО ID (getBuilding),
+        // а не по map_index; слотового фолбэка НЕТ — запись не
+        // подхвачена (защитный случай: cityDerived её уже
+        // валидировал) → якорь пустой, не «хутор» 1x1.
+        const b = anchor.buildingId != null
+          ? (c ? c.getBuilding(anchor.buildingId) : null)
+          : (c ? c.buildingForMapIndex(anchor.type) : null);
         const placed = c
           ? c.placeBuilding(
               b || {}, ax, ay,
@@ -541,21 +674,27 @@
                 entranceReachable(ax, ay, rx, ry, rw, rh, entrance[0], entrance[1]),
             )
           : { x: ax, y: ay, w: 1, h: 1, entrance: [ax, ay] };
-        if (placed) {
+        if (placed && (anchor.buildingId == null || b)) {
           // «Богатство» 0-3 — из шума в якорном тайле (SPEC «Постройки»):
           // влияет на ассортимент и цены торговли (src/items.js).
           // Принадлежит постройки как целого: все её тайлы отдают одно
-          // и то же значение.
+          // и то же значение (у города сохраняется — 000108 ключирует
+          // по нему).
           const wf = features.fbm(ax * FEATURE_SCALE + 222.9, ay * FEATURE_SCALE + 444.1, 3);
           rec = {
             anchor: [ax, ay],
-            type: anchor.type,
+            // Город: building — чистая семантика слота (NONE), запись
+            // опознаётся по buildingId; слотовые — по type как раньше.
+            type: anchor.buildingId != null ? BUILDING_TYPES.NONE : anchor.type,
             x: placed.x,
             y: placed.y,
             w: placed.w,
             h: placed.h,
             entrance: placed.entrance,
             wealth: Math.max(0, Math.min(3, Math.round((wf + 0.5) * 4))),
+            // Только у городов — id каталожной записи; слотовые — null
+            // (подтипы слотов заполнит 000073).
+            buildingId: anchor.buildingId != null && b ? b.id : null,
           };
         }
       }
@@ -567,17 +706,22 @@
     /**
      * Запись постройки с якорем (ax, ay) — read-only доступ к той же
      * мемоизированной записи, что раскладывала её в мире (задача
-     * 000042): { anchor, type, x, y, w, h, entrance, wealth } или
-     * null (якоря нет, либо не поместилось даже 1x1). O(1) —
+     * 000042): { anchor, type, x, y, w, h, entrance, wealth,
+     * buildingId } или null (якоря нет, либо не поместилось даже
+     * 1x1; город, не влезший по полному размеру, — тоже null). O(1) —
      * обёртка над buildingAtAnchor. Единственный источник геометрии
      * footprint'а: слой спрайтов (src/main.js) рисует постройку
      * прямоугольником w×h ОТ ЯКОРЯ, а не сканом по tileAt — скан
      * «вправо/вниз» без проверки якоря зальётся чужой соседней
      * постройкой.
+     * buildingId (задача 000103): id каталожной записи города
+     * (51..54) у городских якорей, null у слотовых (подтипы слотов —
+     * 000073); у города type = BUILDING_TYPES.NONE.
      * @param {number} ax
      * @param {number} ay
      * @returns {{anchor:[number,number], type:number, x:number, y:number,
-     *   w:number, h:number, entrance:[number,number], wealth:number}|null}
+     *   w:number, h:number, entrance:[number,number], wealth:number,
+     *   buildingId:number|null}|null}
      */
     function buildingAt(ax, ay) {
       return buildingAtAnchor(ax, ay);
@@ -602,12 +746,18 @@
 
     /**
      * Состояние тайла в целочисленных координатах (x, y).
+     * buildingId (задача 000103): id каталожной записи, которую
+     * разместила, — 51..54 на городских тайлах (у них building =
+     * BUILDING_TYPES.NONE, building остаётся чистой семантикой
+     * слота), null на всех остальных (слотовые постройки — подтипы
+     * слотов в buildingId заполнит 000073).
      * @returns {{
      *   x:number, y:number, terrain:number, passable:boolean,
      *   hasBuilding:boolean, building:number, buildingWealth:number,
      *   hasMobGroup:boolean, mobGroup:number,
      *   inBuilding:boolean, isEntrance:boolean,
      *   buildingAnchor:[number,number]|null,
+     *   buildingId:number|null,
      * }}
      */
     function tileAt(x, y) {
@@ -649,6 +799,9 @@
         inBuilding: !!cover,
         isEntrance,
         buildingAnchor: cover ? cover.anchor : null,
+        // Задача 000103: id каталожной записи размещения (51..54 у
+        // городов, null иначе — см. JSDoc tileAt).
+        buildingId: cover ? cover.buildingId : null,
       };
     }
 
@@ -815,6 +968,7 @@
 
   return {
     GLOBAL_SEED,
+    CITY_SEED_CONST, // сид городского канала (задача 000103) — golden-пины
     TERRAIN, TERRAIN_NAMES, TERRAIN_DATA,
     BUILDING_TYPES,
     buildingCount, buildingNames, buildingNameUi,
