@@ -684,3 +684,140 @@ test('боевой UI: миниполоса HP героя у краёв поля
     [[141, 132], [141, 132]],
     'внутренняя клетка: позиция полосы без изменений');
 });
+
+// --- Персональный арт мобов (задача 000062) ---
+//
+// drawUnits: живой моб — move/attack-кадры (attack — пока FX атаки не
+// истёк, пишет unitFxAfterMobPhase после endTurn), мёртвый — одиночный
+// dead-кадр без HP-полосы/уровня/цели. Фолбэк-цепочка: персональный
+// арт → базовые 6 видов → прямоугольник; у мёртвого без арта — ничего.
+
+test('боевой UI: мёртвый моб — dead-кадр, без HP-полосы/уровня/цели', () => {
+  const NOW = 1000;
+  const { G, keydown, body } = loadCombatUi(true, { performance: { now: () => NOW } });
+  const fakeDead = { __fake: 'dead' }, fakeMove = { __fake: 'move' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf', 'spider'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => {
+        if (p.endsWith('_dead_1.svg')) return fakeDead;
+        if (/(wolf|spider)_(move|attack)_[12]\.svg$/.test(p)) return fakeMove;
+        return null;
+      },
+    },
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  const spider = c.units.find((u) => u.mobId === 'spider');
+  wolf.x = 1; wolf.y = 1;
+  spider.x = 4; spider.y = 2;
+  // «Убит» в фазе игрока — UI реагирует только на u.alive.
+  wolf.alive = false; wolf.hp = 0;
+  c.targetId = wolf.id; // цель — труп: подсветки быть НЕ должно
+  const canvas = findCanvas(body);
+  const n0 = canvas.drawCalls.length;
+  press(keydown, 'KeyB'); // любое допустимое действие → render
+  const calls = canvas.drawCalls.slice(n0);
+  // Труп — dead-кадр; живой паук — move-кадр.
+  assert.ok(calls.some((x) => x[0] === 'drawImage' && x[1][0] === fakeDead),
+    'труп нарисован dead-кадром');
+  assert.equal(calls.filter((x) => x[0] === 'drawImage' && x[1][0] === fakeMove).length,
+    1, 'живой паук — один move-кадр (у трупа move-цикл не крутится)');
+  const [dx, dy] = [wolf.x * 48 + 8, wolf.y * 48 + 8];
+  const diDead = calls.find((x) => x[0] === 'drawImage' && x[1][0] === fakeDead);
+  assert.equal(diDead[1][1], dx, 'dead-кадр на месте трупа (x)');
+  assert.equal(diDead[1][2], dy, 'dead-кадр на месте трупа (y)');
+  // У трупа нет: HP-полосы (fillRect …, py+2, 32, 4), уровня
+  // (fillText в центре), подсветки цели (strokeRect).
+  assert.ok(!calls.some((x) => x[0] === 'fillRect'
+    && x[1][0] === wolf.x * 48 + 8 && x[1][1] === wolf.y * 48 + 2 && x[1][3] === 4),
+    'у трупа нет HP-полосы');
+  assert.ok(!calls.some((x) => x[0] === 'fillText'
+    && x[1][1] === wolf.x * 48 + 24 && x[1][2] === wolf.y * 48 + 28),
+    'у трупа нет уровня');
+  assert.ok(!calls.some((x) => x[0] === 'strokeRect'
+    && x[1][0] === wolf.x * 48 + 4.5 && x[1][1] === wolf.y * 48 + 4.5),
+    'труп не подсвечивается как цель');
+});
+
+test('боевой UI: без sprites.js — труп не рисуется, живой — прямоугольник', () => {
+  const NOW = 1000;
+  const { G, keydown, body } = loadCombatUi(false, { performance: { now: () => NOW } });
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf', 'spider'], mobLevel: 1, seed: 42,
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  const spider = c.units.find((u) => u.mobId === 'spider');
+  wolf.x = 1; wolf.y = 1;
+  spider.x = 4; spider.y = 2;
+  wolf.alive = false; wolf.hp = 0;
+  const canvas = findCanvas(body);
+  const n0 = canvas.drawCalls.length;
+  press(keydown, 'KeyB');
+  const calls = canvas.drawCalls.slice(n0);
+  assert.ok(!calls.some((x) => x[0] === 'drawImage'),
+    'без sprites.js drawImage нет (труп — «ничего»)');
+  assert.ok(calls.some((x) => x[0] === 'fillRect'
+    && x[1][0] === spider.x * 48 + 8 && x[1][1] === spider.y * 48 + 8
+    && x[1][2] === 32 && x[1][3] === 32),
+    'живой паук — фолбэк-прямоугольник');
+  assert.ok(!calls.some((x) => x[0] === 'fillRect'
+    && x[1][0] === wolf.x * 48 + 8 && x[1][1] === wolf.y * 48 + 8
+    && x[1][2] === 32 && x[1][3] === 32),
+    'труп без арта — ни прямоугольника, ни чего-либо ещё');
+});
+
+test('боевой UI: endTurn — _unitFx: сдвинулся = move, атаковал (игрок ранен) = attack', () => {
+  const NOW = 1000;
+  const { G, keydown, body } = loadCombatUi(true, { performance: { now: () => NOW } });
+  const fakeAtk = { __fake: 'atk' }, fakeMove = { __fake: 'move' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf', 'orc_archer'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => {
+        if (p.includes('_attack_')) return fakeAtk;
+        if (p.includes('_move_')) return fakeMove;
+        return null;
+      },
+    },
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  const archer = c.units.find((u) => u.mobId === 'orc_archer');
+  // Волк в двух клетках → доходит до d=1 (moved → 'move').
+  // Лучник в трёх → дальний бой (2..4) — бьёт, не двигаясь.
+  wolf.x = c.px + 2; wolf.y = c.py;
+  archer.x = c.px + 3; archer.y = c.py;
+  c._rng = () => 0.01; // все атаки мобов попадают: HP игрока падает
+  const hpBefore = c.player.hp;
+  press(keydown, 'Space');
+  assert.ok(c.player.hp < hpBefore, 'игрок получил урон (эвристика attack-FX)');
+  assert.equal(c._unitFx[wolf.id] && c._unitFx[wolf.id].action, 'move',
+    'сдвинувшийся волк — move-FX');
+  assert.equal(c._unitFx[archer.id] && c._unitFx[archer.id].action, 'attack',
+    'атаковавший лучник — attack-FX');
+  assert.ok(c._unitFx[wolf.id].until > NOW, 'until > now (~300 мс)');
+  // Рендер в окне FX: лучник — attack-кадр, волк — move-кадр.
+  const canvas = findCanvas(body);
+  const n0 = canvas.drawCalls.length;
+  press(keydown, 'KeyB'); // → render
+  const calls = canvas.drawCalls.slice(n0);
+  assert.ok(calls.some((x) => x[0] === 'drawImage' && x[1][0] === fakeAtk),
+    'лучник нарисован attack-кадром');
+  assert.ok(calls.some((x) => x[0] === 'drawImage' && x[1][0] === fakeMove),
+    'волк нарисован move-кадром');
+  // Истечение (вручную, как в тесте c._fx): следующий render — move.
+  c._unitFx[archer.id].until = NOW - 1;
+  const n1 = canvas.drawCalls.length;
+  press(keydown, 'KeyB');
+  const after = canvas.drawCalls.slice(n1);
+  assert.ok(!after.some((x) => x[0] === 'drawImage' && x[1][0] === fakeAtk),
+    'после истечения attack-кадр не рисуется');
+  // Атаки, не задевшие игрока (промах), — без attack-FX: моб в упор
+  // стоит (не двигался), игрок не ранен → ни move, ни attack.
+  c._unitFx = {};
+  const hp2 = c.player.hp;
+  c._rng = () => 0.99; // все атаки — промахи
+  press(keydown, 'Space');
+  assert.equal(c.player.hp, hp2, 'промахи: HP не упало');
+  assert.ok(!c._unitFx[archer.id],
+    'промах в упор — без attack-FX (удар не нанесён)');
+});

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Орк-капитан — кадр attack_1: orc_captain -->
+<g transform="scale(1)">
+<defs>
+<linearGradient id="orc_captain_g1" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#8ba55e"/><stop offset="1" stop-color="#6b8a4a"/></linearGradient>
+</defs>
+<ellipse cx="50" cy="94" rx="26" ry="4" fill="rgba(0,0,0,0.28)"/>
+<g transform="translate(0 2.1) rotate(-5.6 50 90)">
+<path d="M44 60 Q42 77 42 92" fill="none" stroke="#5d7a3c" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="42" cy="93" rx="6" ry="3.2" fill="#5d7a3c" stroke="#3f5427" stroke-width="1.5"/>
+<path d="M56 60 Q57 77 58 92" fill="none" stroke="#6b8a4a" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="58" cy="93" rx="6" ry="3.2" fill="#6b8a4a" stroke="#3f5427" stroke-width="1.5"/>
+<path d="M36 38 C33 50 36 58 40 62 C44 65 56 65 60 62 C64 58 67 50 64 38 C58 31 42 31 36 38 Z" fill="url(#orc_captain_g1)" stroke="#3f5427" stroke-width="2" stroke-linejoin="round"/>
+<path d="M36 38 C33 50 36 58 40 62 C40 50 38 46 40 41 Z" fill="#8ba55e"/>
+<path d="M64 38 C67 50 64 58 60 62 C62 50 64 46 62 41 Z" fill="#5d7a3c"/>
+<rect x="39" y="57" width="22" height="4.5" fill="#4a3820" rx="1.5"/>
+<circle cx="50" cy="59.2" r="1.8" fill="#9aa0a9"/>
+<path d="M36 42 Q43.4 52.9 47.6 57.8" fill="none" stroke="#6b8a4a" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="47.6" cy="57.8" r="4.2" fill="#8ba55e" stroke="#3f5427" stroke-width="1.5"/>
+<path d="M64 42 Q52.8 49 49.6 50" fill="none" stroke="#6b8a4a" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="49.6" cy="50" r="4.2" fill="#8ba55e" stroke="#3f5427" stroke-width="1.5"/>
+<line x1="49.6" y1="50" x2="41.2" y2="25.4" stroke="#4a3820" stroke-width="3.4"/>
+<line x1="47.7" y1="41.3" x2="47.7" y2="47.3" stroke="#4a3820" stroke-width="2.4"/>
+<line x1="49.6" y1="50" x2="50.9" y2="53.8" stroke="#4a3820" stroke-width="3"/>
+<ellipse cx="63" cy="40" rx="8.5" ry="6" fill="#9aa0a9" stroke="#3f5427" stroke-width="1.5"/>
+<circle cx="60" cy="38" r="1.1" fill="#4a3820"/>
+<circle cx="66" cy="38" r="1.1" fill="#4a3820"/>
+<path d="M38 24 C38 14 44 9 50 9 C56 9 62 14 62 24 C56 20 44 20 38 24 Z" fill="#9aa0a9" stroke="#3f5427" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M40 14 Q34 8 36 2" fill="none" stroke="#8ba55e" stroke-width="3" stroke-linecap="round"/>
+<path d="M60 14 Q66 8 64 2" fill="none" stroke="#8ba55e" stroke-width="3" stroke-linecap="round"/>
+<ellipse cx="50" cy="23.4" rx="12.5" ry="11.8" fill="url(#orc_captain_g1)" stroke="#3f5427" stroke-width="2"/>
+<ellipse cx="55.6" cy="24.7" rx="6.3" ry="5.3" fill="#5d7a3c" opacity="0.45"/>
+<polygon points="36.5,21.4 27.5,15.4 39.5,16.4" fill="#5d7a3c" stroke="#3f5427" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="63.5,21.4 72.5,15.4 60.5,16.4" fill="#5d7a3c" stroke="#3f5427" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="43.1" y1="19.9" x2="48.5" y2="21.9" stroke="#3f5427" stroke-width="2.4"/>
+<line x1="56.9" y1="19.9" x2="51.5" y2="21.9" stroke="#3f5427" stroke-width="2.4"/>
+<circle cx="45.8" cy="23.2" r="4.8" fill="#e04a3a" opacity="0.3"/>
+<circle cx="54.3" cy="23.2" r="4.8" fill="#e04a3a" opacity="0.3"/>
+<ellipse cx="45.8" cy="23.2" rx="1.8" ry="1.4" fill="#e04a3a"/>
+<ellipse cx="54.3" cy="23.2" rx="1.8" ry="1.4" fill="#e04a3a"/>
+<polygon points="47.5,26.5 52.5,26.5 50,29.7" fill="#5d7a3c"/>
+<ellipse cx="50" cy="31.7" rx="7.1" ry="5.4" fill="#3f5427"/>
+<polygon points="46.9,30.9 48.1,35.3 49.4,31.2" fill="#8ba55e"/>
+<polygon points="50.6,31.2 51.9,35.3 53.1,30.9" fill="#8ba55e"/>
+</g>
+</g>
+</svg>

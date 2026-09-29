@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Пещерный муравей — кадр move_1: ant -->
+<g transform="scale(1)">
+<g>
+<ellipse cx="50" cy="94" rx="30" ry="4" fill="rgba(0,0,0,0.28)"/>
+<ellipse cx="28" cy="62" rx="11" ry="9.5" fill="#3d3348" stroke="#221a33" stroke-width="1.8"/>
+<ellipse cx="24" cy="57" rx="5.5" ry="3.9" fill="#7d6892" opacity="0.5"/>
+<circle cx="24" cy="64" r="2.2" fill="#ffb09a"/>
+<circle cx="32" cy="67" r="2.2" fill="#ffb09a"/>
+<ellipse cx="50" cy="58" rx="9" ry="8" fill="#4d3c60" stroke="#221a33" stroke-width="1.6"/>
+<ellipse cx="47" cy="54" rx="4" ry="3" fill="#7d6892" opacity="0.5"/>
+<ellipse cx="70" cy="60" rx="8" ry="7.4" fill="#3d3348" stroke="#221a33" stroke-width="1.8"/>
+<path d="M76 58 q6 -3 8 1" fill="none" stroke="#7d6892" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M76 63 q6 3 8 -1" fill="none" stroke="#7d6892" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M74 54 q3 -7 9 -9" fill="none" stroke="#5d4a70" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M71 53 q1 -7 6 -11" fill="none" stroke="#5d4a70" stroke-width="1.4" stroke-linecap="round"/>
+<circle cx="72" cy="58" r="1.6" fill="#ff5a4a"/>
+<circle cx="67" cy="60" r="1.2" fill="#ff5a4a"/>
+<path d="M46 62 Q36 50 33 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M33 70 L30 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="30" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="36" cy="50" r="1.4" fill="#4d3c60"/>
+<path d="M52 64 Q64 49 67.5 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M67.5 70 L71 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="71" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="64" cy="49" r="1.4" fill="#4d3c60"/>
+<path d="M42 62 Q30 47 26.5 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M26.5 70 L23 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="23" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="30" cy="47" r="1.4" fill="#4d3c60"/>
+<path d="M55 64 Q69 52 73 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M73 70 L77 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="77" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="69" cy="52" r="1.4" fill="#4d3c60"/>
+<path d="M38 62 Q24 50 20 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M20 70 L16 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="16" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="24" cy="50" r="1.4" fill="#4d3c60"/>
+<path d="M58 64 Q68 49 71 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M71 70 L74 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="74" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="68" cy="49" r="1.4" fill="#4d3c60"/>
+</g>
+</g>
+</svg>

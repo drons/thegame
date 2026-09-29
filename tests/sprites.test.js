@@ -759,3 +759,90 @@ test('COMBAT_BG_DUNGEON ≡ каталог assets/dungeons: порядок фа�
   });
   assert.deepEqual(ids, [0, 1, 2, 3, 4], 'множество id каталога ≠ {0..4}');
 });
+
+// --- Персональный арт мобов (задача 000062) ---
+//
+// Таблица в sprites.js — литерал (зеркало combat.js арта не содержит,
+// см. комментарий в src/sprites.js). Расхождение таблицы с JSON-
+// каталогом ловят два теста: здесь (пути из «art» == пути из
+// mobArtFrames, файлы существуют) и в mob-art.test.js (структура
+// самих SVG).
+
+const MOBS_JSON_DIR = path.join(ROOT, 'assets', 'mobs');
+
+function mobJsons() {
+  return fs.readdirSync(MOBS_JSON_DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .map((f) => JSON.parse(
+      fs.readFileSync(path.join(MOBS_JSON_DIR, f), 'utf8')))
+    .sort((a, b) => a.id < b.id ? -1 : 1);
+}
+
+test('mobArtFrames: все 36 id → move 2 / attack 2 / dead 1, файлы существуют', () => {
+  const ids = Object.keys(C.MOB_TYPES);
+  assert.equal(ids.length, 36, 'MOB_TYPES — 36 мобов');
+  assert.deepEqual(Object.keys(S.MOB_ART_FRAME_COUNTS),
+    ['move', 'attack', 'dead'], 'действия арта: move/attack/dead');
+  assert.equal(S.MOB_ART_FRAME_COUNTS.move, 2, 'move — 2 кадра');
+  assert.equal(S.MOB_ART_FRAME_COUNTS.attack, 2, 'attack — 2 кадра');
+  assert.equal(S.MOB_ART_FRAME_COUNTS.dead, 1, 'dead — 1 кадр');
+  for (const id of ids) {
+    const mv = S.mobArtFrames(id, 'move');
+    const at = S.mobArtFrames(id, 'attack');
+    const dd = S.mobArtFrames(id, 'dead');
+    assert.deepEqual(mv, [
+      `assets/sprites/mobs/${id}_move_1.svg`,
+      `assets/sprites/mobs/${id}_move_2.svg`,
+    ], `${id}: move`);
+    assert.deepEqual(at, [
+      `assets/sprites/mobs/${id}_attack_1.svg`,
+      `assets/sprites/mobs/${id}_attack_2.svg`,
+    ], `${id}: attack`);
+    assert.deepEqual(dd, [
+      `assets/sprites/mobs/${id}_dead_1.svg`,
+    ], `${id}: dead`);
+    for (const p of mv.concat(at, dd)) {
+      assert.ok(exists(p), `${id}: нет файла ${p}`);
+    }
+  }
+});
+
+test('mobArtFrames: неизвестный id/действие → [] (фолбэк на базовые 6 видов)', () => {
+  for (const id of ['no_such_mob', '', null, undefined, 'WOLF', 'orc_chief ']) {
+    for (const a of ['move', 'attack', 'dead']) {
+      assert.deepEqual(S.mobArtFrames(id, a), [], `unknown id ${String(id)}`);
+    }
+  }
+  for (const a of ['idle', 'walk', '', null, 5]) {
+    assert.deepEqual(S.mobArtFrames('wolf', a), [], `unknown action ${String(a)}`);
+  }
+});
+
+test('mobArtFrames: «art» из JSON-каталога == таблице (source of truth)', () => {
+  const jsons = mobJsons();
+  assert.equal(jsons.length, 36, 'JSON-каталог — 36 мобов');
+  for (const j of jsons) {
+    for (const a of ['move', 'attack', 'dead']) {
+      assert.deepEqual(j.art[a], S.mobArtFrames(j.id, a),
+        `${j.id}: JSON-art.${a} ≠ mobArtFrames`);
+    }
+  }
+});
+
+test('allAssetPaths: содержит все 180 путей персонального арта', () => {
+  const paths = S.allAssetPaths();
+  let n = 0;
+  for (const id of Object.keys(C.MOB_TYPES)) {
+    for (const a of ['move', 'attack', 'dead']) {
+      for (const p of S.mobArtFrames(id, a)) {
+        assert.ok(paths.includes(p), `нет в allAssetPaths: ${p}`);
+        n++;
+      }
+    }
+  }
+  assert.equal(n, 36 * 5, '180 путей (36 × (2+2+1))');
+  // Старые базовые 6 видов (12 файлов) — на месте, фолбэк жив.
+  for (const frames of Object.values(S.MOB_FRAMES)) {
+    for (const p of frames) assert.ok(paths.includes(p), 'базовый вид потерялся: ' + p);
+  }
+});

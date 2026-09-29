@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Фея — кадр dead_1: fairy -->
+<g transform="scale(1)">
+<defs>
+<linearGradient id="fairy_g1" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#fff3c4"/><stop offset="1" stop-color="#7a7484"/></linearGradient>
+</defs>
+<ellipse cx="50" cy="94" rx="26" ry="4" fill="rgba(0,0,0,0.28)"/>
+<g transform="translate(50 84) rotate(82) scale(0.72) translate(-50 -58)">
+<path d="M34 40 C26 28 20 36 18 30 C8 32 6 42 14 46 C26 36 28 44 34 48 Z" fill="#b7f0fb" stroke="#0d0815" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="30" y1="42" x2="16" y2="38" stroke="#0d0815" stroke-width="1.2"/>
+<line x1="28" y1="44" x2="12" y2="42" stroke="#0d0815" stroke-width="1.2"/>
+<path d="M66 40 C74 28 80 36 82 30 C92 32 94 42 86 46 C74 36 72 44 66 48 Z" fill="#b7f0fb" stroke="#0d0815" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="70" y1="42" x2="84" y2="38" stroke="#0d0815" stroke-width="1.2"/>
+<line x1="72" y1="44" x2="88" y2="42" stroke="#0d0815" stroke-width="1.2"/>
+<path d="M44 60 Q42 77 42 92" fill="none" stroke="#5d5766" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="42" cy="93" rx="6" ry="3.2" fill="#5d5766" stroke="#0d0815" stroke-width="1.5"/>
+<path d="M56 60 Q57 77 58 92" fill="none" stroke="#7a7484" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="58" cy="93" rx="6" ry="3.2" fill="#7a7484" stroke="#0d0815" stroke-width="1.5"/>
+<path d="M36 38 C33 50 36 58 40 62 C44 65 56 65 60 62 C64 58 67 50 64 38 C58 31 42 31 36 38 Z" fill="url(#fairy_g1)" stroke="#0d0815" stroke-width="2" stroke-linejoin="round"/>
+<path d="M36 38 C33 50 36 58 40 62 C40 50 38 46 40 41 Z" fill="#fff3c4"/>
+<path d="M64 38 C67 50 64 58 60 62 C62 50 64 46 62 41 Z" fill="#5d5766"/>
+<rect x="39" y="57" width="22" height="4.5" fill="#52c4e8" rx="1.5"/>
+<circle cx="50" cy="59.2" r="1.8" fill="#b7f0fb"/>
+<path d="M36 42 Q39 56 42 64" fill="none" stroke="#7a7484" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="42" cy="64" r="4.2" fill="#fff3c4" stroke="#0d0815" stroke-width="1.5"/>
+<path d="M64 42 Q67 56 70 64" fill="none" stroke="#7a7484" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="70" cy="64" r="4.2" fill="#fff3c4" stroke="#0d0815" stroke-width="1.5"/>
+<ellipse cx="50" cy="24" rx="12.5" ry="11.8" fill="url(#fairy_g1)" stroke="#0d0815" stroke-width="2"/>
+<ellipse cx="55.6" cy="25.3" rx="6.3" ry="5.3" fill="#5d5766" opacity="0.45"/>
+<line x1="43.1" y1="20.5" x2="48.5" y2="22.5" stroke="#0d0815" stroke-width="2.4"/>
+<line x1="56.9" y1="20.5" x2="51.5" y2="22.5" stroke="#0d0815" stroke-width="2.4"/>
+<circle cx="45.8" cy="23.8" r="1.8" fill="#0d0815"/>
+<circle cx="54.3" cy="23.8" r="1.8" fill="#0d0815"/>
+<polygon points="47.5,27.1 52.5,27.1 50,30.3" fill="#5d5766"/>
+<line x1="46.3" y1="31.8" x2="53.8" y2="31.8" stroke="#0d0815" stroke-width="1.8"/>
+</g>
+<path d="M59.8 57 q2 1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="56.2" cy="40.6" rx="2" ry="0.9" fill="#5d5766" opacity="0.55"/>
+<path d="M47.6 57.4 q2 1.2 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M44.3 41.3 q2 1.3 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M55.8 53.8 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="58.1" cy="51.6" rx="2.3" ry="0.9" fill="#5d5766" opacity="0.55"/>
+<ellipse cx="52" cy="41.5" rx="2.3" ry="0.9" fill="#5d5766" opacity="0.55"/>
+<path d="M54 55.8 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+</g>
+</svg>

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Ветряной стихийник — кадр attack_2: wind_elemental -->
+<g transform="scale(1)">
+<defs>
+<linearGradient id="wind_elemental_g1" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#b7f0fb"/><stop offset="1" stop-color="#b7f0fb"/></linearGradient>
+</defs>
+<ellipse cx="50" cy="94" rx="26" ry="4" fill="rgba(0,0,0,0.28)"/>
+<ellipse cx="50" cy="90" rx="24" ry="5" fill="#7a7484" opacity="0.5"/>
+<polygon points="30,86 34,80 38,88" fill="#7a7484" opacity="0.6"/>
+<polygon points="40,86 44,80 48,88" fill="#7a7484" opacity="0.6"/>
+<polygon points="50,86 54,80 58,88" fill="#7a7484" opacity="0.6"/>
+<polygon points="60,86 64,80 68,88" fill="#7a7484" opacity="0.6"/>
+<polygon points="70,86 74,80 78,88" fill="#7a7484" opacity="0.6"/>
+<path d="M25.6 84 C18 64 30 45.6 50 50 C70 52 78 40 66 25.2" fill="none" stroke="#b7f0fb" stroke-width="5" stroke-linecap="round"/>
+<path d="M32 77.6 C26 62 40 54 54 58.4 C68 58 70 46 60 38" fill="none" stroke="#fff3c4" stroke-width="3" stroke-linecap="round"/>
+<path d="M66.4 84 C78 66 66 54 50 49.6 C36 50 30 62 38 70" fill="none" stroke="#52c4e8" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="50" cy="54" r="5" fill="#52c4e8" opacity="0.8"/>
+<circle cx="50" cy="54" r="2.6" fill="#fff3c4"/>
+<circle cx="47" cy="53" r="1.4" fill="#5d5766"/>
+<circle cx="53" cy="53" r="1.4" fill="#5d5766"/>
+<circle cx="26" cy="30" r="1.2" fill="#fff3c4"/>
+<circle cx="37" cy="38" r="1.2" fill="#fff3c4"/>
+<circle cx="48" cy="46" r="1.2" fill="#fff3c4"/>
+<circle cx="59" cy="30" r="1.2" fill="#fff3c4"/>
+<circle cx="70" cy="38" r="1.2" fill="#fff3c4"/>
+<circle cx="61.9" cy="51" r="1.3" fill="#fff3c4" opacity="0.7"/>
+<circle cx="69.9" cy="51.4" r="1.3" fill="#fff3c4" opacity="0.7"/>
+<circle cx="38.2" cy="39.4" r="0.6" fill="#fff3c4" opacity="0.7"/>
+<circle cx="28.8" cy="62.3" r="1.2" fill="#fff3c4" opacity="0.7"/>
+<circle cx="63.8" cy="63.9" r="0.7" fill="#fff3c4" opacity="0.7"/>
+<circle cx="53.9" cy="64.4" r="0.9" fill="#fff3c4" opacity="0.7"/>
+<circle cx="48.9" cy="78.1" r="0.6" fill="#fff3c4" opacity="0.7"/>
+<circle cx="65.2" cy="53.5" r="0.9" fill="#fff3c4" opacity="0.7"/>
+<circle cx="43.7" cy="67.9" r="0.8" fill="#fff3c4" opacity="0.7"/>
+<circle cx="45.4" cy="52.5" r="0.9" fill="#fff3c4" opacity="0.7"/>
+<circle cx="52.1" cy="71" r="0.8" fill="#fff3c4" opacity="0.7"/>
+<circle cx="37.1" cy="56.4" r="0.8" fill="#fff3c4" opacity="0.7"/>
+<circle cx="47.9" cy="36.8" r="0.7" fill="#fff3c4" opacity="0.7"/>
+<circle cx="34.5" cy="66.9" r="1" fill="#fff3c4" opacity="0.7"/>
+<circle cx="38.9" cy="47.1" r="1.2" fill="#fff3c4" opacity="0.7"/>
+<circle cx="42.7" cy="71.4" r="0.8" fill="#fff3c4" opacity="0.7"/>
+<circle cx="52.2" cy="60.3" r="1.2" fill="#fff3c4" opacity="0.7"/>
+</g>
+</svg>

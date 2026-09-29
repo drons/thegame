@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Многоножка — кадр attack_1: centipede -->
+<g transform="scale(1)">
+<g>
+<ellipse cx="50" cy="94" rx="30" ry="4" fill="rgba(0,0,0,0.28)"/>
+<ellipse cx="20" cy="64" rx="6" ry="5.4" fill="#3d3348" stroke="#221a33" stroke-width="1.4"/>
+<circle cx="20" cy="62" r="1.2" fill="#ffb09a"/>
+<ellipse cx="27.4" cy="62.2" rx="5.7" ry="5.1" fill="#3d3348" stroke="#221a33" stroke-width="1.4"/>
+<path d="M27.4 65 Q15.4 50 11.9 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M11.9 70 L8.4 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="8.4" cy="92" r="1.6" fill="#2a2135"/>
+<path d="M27.4 65 Q41.4 53 45.4 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M45.4 70 L49.4 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="49.4" cy="92" r="1.6" fill="#2a2135"/>
+<ellipse cx="34.8" cy="61.5" rx="5.3" ry="4.8" fill="#3d3348" stroke="#221a33" stroke-width="1.4"/>
+<path d="M34.8 64.2 Q20.8 52.2 16.8 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M16.8 70 L12.8 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="12.8" cy="92" r="1.6" fill="#2a2135"/>
+<path d="M34.8 64.2 Q44.8 49.2 47.8 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M47.8 70 L50.8 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="50.8" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="34.8" cy="59.5" r="1.2" fill="#ffb09a"/>
+<ellipse cx="42.2" cy="62.3" rx="5" ry="4.5" fill="#3d3348" stroke="#221a33" stroke-width="1.4"/>
+<path d="M42.2 64.8 Q32.2 49.8 29.2 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M29.2 70 L26.2 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="26.2" cy="92" r="1.6" fill="#2a2135"/>
+<path d="M42.2 64.8 Q54.2 52.8 57.7 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M57.7 70 L61.2 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="61.2" cy="92" r="1.6" fill="#2a2135"/>
+<ellipse cx="49.6" cy="64.1" rx="4.6" ry="4.1" fill="#3d3348" stroke="#221a33" stroke-width="1.4"/>
+<path d="M49.6 66.4 Q37.6 54.4 34.1 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M34.1 70 L30.6 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="30.6" cy="92" r="1.6" fill="#2a2135"/>
+<path d="M49.6 66.4 Q63.6 51.4 67.6 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M67.6 70 L71.6 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="71.6" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="49.6" cy="62.1" r="1.2" fill="#ffb09a"/>
+<ellipse cx="57" cy="65.9" rx="4.3" ry="3.8" fill="#3d3348" stroke="#221a33" stroke-width="1.4"/>
+<path d="M57 68 Q43 53 39 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M39 70 L35 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="35" cy="92" r="1.6" fill="#2a2135"/>
+<path d="M57 68 Q67 56 70 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M70 70 L73 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="73" cy="92" r="1.6" fill="#2a2135"/>
+<ellipse cx="64.4" cy="66.5" rx="3.9" ry="3.5" fill="#3d3348" stroke="#221a33" stroke-width="1.4"/>
+<path d="M64.4 68.4 Q54.4 56.4 51.4 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M51.4 70 L48.4 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="48.4" cy="92" r="1.6" fill="#2a2135"/>
+<path d="M64.4 68.4 Q76.4 53.4 79.9 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M79.9 70 L83.4 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="83.4" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="64.4" cy="64.5" r="1.2" fill="#ffb09a"/>
+<ellipse cx="71.8" cy="65.6" rx="3.6" ry="3.2" fill="#3d3348" stroke="#221a33" stroke-width="1.4"/>
+<path d="M71.8 67.4 Q59.8 52.4 56.3 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M56.3 70 L52.8 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="52.8" cy="92" r="1.6" fill="#2a2135"/>
+<path d="M71.8 67.4 Q85.8 55.4 89.8 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M89.8 70 L93.8 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="93.8" cy="92" r="1.6" fill="#2a2135"/>
+<ellipse cx="79.2" cy="63.7" rx="3.2" ry="2.9" fill="#3d3348" stroke="#221a33" stroke-width="1.4"/>
+<circle cx="79.2" cy="61.7" r="1.2" fill="#ffb09a"/>
+<polygon points="86,58 94,60 92,68 84,66" fill="#5d4a70" stroke="#221a33" stroke-width="1.4" stroke-linejoin="round"/>
+<circle cx="90" cy="61" r="1.4" fill="#ff5a4a"/>
+<circle cx="87" cy="63" r="1.1" fill="#ff5a4a"/>
+<path d="M94 62 q4 -2 6 1" fill="none" stroke="#4d3c60" stroke-width="2" stroke-linecap="round"/>
+<path d="M94 66 q4 2 6 -1" fill="none" stroke="#4d3c60" stroke-width="2" stroke-linecap="round"/>
+<path d="M92 58 q2 -6 6 -8" fill="none" stroke="#4d3c60" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M89 57 q0 -6 4 -9" fill="none" stroke="#4d3c60" stroke-width="1.4" stroke-linecap="round"/>
+</g>
+</g>
+</svg>

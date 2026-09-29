@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Суккуб — кадр attack_2: succubus -->
+<g transform="scale(1)">
+<defs>
+<linearGradient id="succubus_g1" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#b9a3c2"/><stop offset="1" stop-color="#b9a3c2"/></linearGradient>
+</defs>
+<ellipse cx="50" cy="94" rx="26" ry="4" fill="rgba(0,0,0,0.28)"/>
+<g transform="translate(0 0.9) rotate(6.4 50 90)">
+<path d="M34 40 C19 8.8 6 20 4 14 C-6 16 -8 26 0 30 C19 29.6 28 44 34 48 Z" fill="#6a3f9a" stroke="#0d0815" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="30" y1="42" x2="2" y2="22" stroke="#0d0815" stroke-width="1.2"/>
+<line x1="28" y1="44" x2="-2" y2="26" stroke="#0d0815" stroke-width="1.2"/>
+<path d="M66 40 C81 8.8 94 20 96 14 C106 16 108 26 100 30 C81 29.6 72 44 66 48 Z" fill="#6a3f9a" stroke="#0d0815" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="70" y1="42" x2="98" y2="22" stroke="#0d0815" stroke-width="1.2"/>
+<line x1="72" y1="44" x2="102" y2="26" stroke="#0d0815" stroke-width="1.2"/>
+<path d="M48 62 C66 66 78 48 88 30" fill="none" stroke="#6a3f9a" stroke-width="4" stroke-linecap="round"/>
+<path d="M88 30 q6 -8 0 -14 q-6 8 0 14 Z" fill="#e8542f"/>
+<path d="M44 60 Q42 77 36 92" fill="none" stroke="#8a5a52" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="36" cy="93" rx="6" ry="3.2" fill="#8a5a52" stroke="#0d0815" stroke-width="1.5"/>
+<path d="M56 60 Q58 72 62 86" fill="none" stroke="#b9a3c2" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="62" cy="87" rx="6" ry="3.2" fill="#b9a3c2" stroke="#0d0815" stroke-width="1.5"/>
+<path d="M36 38 C33 50 36 58 40 62 C44 65 56 65 60 62 C64 58 67 50 64 38 C58 31 42 31 36 38 Z" fill="url(#succubus_g1)" stroke="#0d0815" stroke-width="2" stroke-linejoin="round"/>
+<path d="M36 38 C33 50 36 58 40 62 C40 50 38 46 40 41 Z" fill="#b9a3c2"/>
+<path d="M64 38 C67 50 64 58 60 62 C62 50 64 46 62 41 Z" fill="#8a5a52"/>
+<rect x="39" y="57" width="22" height="4.5" fill="#241a33" rx="1.5"/>
+<circle cx="50" cy="59.2" r="1.8" fill="#6a3f9a"/>
+<path d="M36 42 Q28.1 51.8 25 55.6" fill="none" stroke="#b9a3c2" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="25" cy="55.6" r="4.2" fill="#b9a3c2" stroke="#0d0815" stroke-width="1.5"/>
+<path d="M64 42 Q80.1 50.4 88.2 52.7" fill="none" stroke="#b9a3c2" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="88.2" cy="52.7" r="4.2" fill="#b9a3c2" stroke="#0d0815" stroke-width="1.5"/>
+<ellipse cx="50" cy="25.2" rx="12.5" ry="11.8" fill="url(#succubus_g1)" stroke="#0d0815" stroke-width="2"/>
+<ellipse cx="55.6" cy="26.5" rx="6.3" ry="5.3" fill="#8a5a52" opacity="0.45"/>
+<path d="M37.5 25.2 C31.5 33.2 34.5 43.2 39.5 45.2 C45 39.2 46.3 31.2 43.8 17.7 Z" fill="#6a3f9a"/>
+<path d="M62.5 25.2 C68.5 33.2 65.5 43.2 60.5 45.2 C55 39.2 53.8 31.2 56.3 17.7 Z" fill="#6a3f9a"/>
+<line x1="43.1" y1="21.7" x2="48.5" y2="23.7" stroke="#0d0815" stroke-width="2.4"/>
+<line x1="56.9" y1="21.7" x2="51.5" y2="23.7" stroke="#0d0815" stroke-width="2.4"/>
+<circle cx="45.8" cy="25" r="4.8" fill="#7de8ff" opacity="0.3"/>
+<circle cx="54.3" cy="25" r="4.8" fill="#7de8ff" opacity="0.3"/>
+<ellipse cx="45.8" cy="25" rx="1.8" ry="1.4" fill="#7de8ff"/>
+<ellipse cx="54.3" cy="25" rx="1.8" ry="1.4" fill="#7de8ff"/>
+<polygon points="47.5,28.3 52.5,28.3 50,31.5" fill="#8a5a52"/>
+<ellipse cx="50" cy="33.5" rx="7.5" ry="5.8" fill="#0d0815"/>
+<polygon points="46.9,32.7 48.1,37.1 49.4,33" fill="#b9a3c2"/>
+<polygon points="50.6,33 51.9,37.1 53.1,32.7" fill="#b9a3c2"/>
+</g>
+</g>
+</svg>

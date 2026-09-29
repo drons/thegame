@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Скорпион — кадр move_1: scorpion -->
+<g transform="scale(1)">
+<g>
+<ellipse cx="50" cy="94" rx="30" ry="4" fill="rgba(0,0,0,0.28)"/>
+<line x1="30" y1="62" x2="26" y2="52" stroke="#5d4a70" stroke-width="3.5"/>
+<circle cx="26" cy="52" r="2.1" fill="#3d3348"/>
+<line x1="26" y1="52" x2="30" y2="42" stroke="#5d4a70" stroke-width="3"/>
+<circle cx="30" cy="42" r="1.8" fill="#3d3348"/>
+<line x1="30" y1="42" x2="38" y2="34" stroke="#5d4a70" stroke-width="2.5"/>
+<circle cx="38" cy="34" r="1.5" fill="#3d3348"/>
+<line x1="38" y1="34" x2="46" y2="30" stroke="#5d4a70" stroke-width="2"/>
+<circle cx="46" cy="30" r="1.2" fill="#3d3348"/>
+<circle cx="48" cy="27" r="3.2" fill="#ff5a4a"/>
+<circle cx="48" cy="27" r="6" fill="#ff5a4a" opacity="0.25"/>
+<ellipse cx="50" cy="60" rx="13" ry="11" fill="#3d3348" stroke="#221a33" stroke-width="1.8"/>
+<ellipse cx="46" cy="56" rx="6" ry="4" fill="#7d6892" opacity="0.5"/>
+<path d="M62 56 Q74 50 78 58 Q72 64 62 60 Z" fill="none" stroke="#ffb09a" stroke-width="NaN" stroke-linecap="round"1.4/>
+<path d="M62 64 Q76 66 78 60 Q74 70 62 70 Z" fill="none" stroke="#ffb09a" stroke-width="NaN" stroke-linecap="round"1.4/>
+<circle cx="78" cy="58" r="2" fill="#2a2135"/>
+<circle cx="78" cy="61" r="2" fill="#2a2135"/>
+<circle cx="54" cy="54" r="1.8" fill="#ff5a4a"/>
+<circle cx="58" cy="54" r="1.8" fill="#ff5a4a"/>
+<circle cx="54" cy="58" r="1" fill="#ff5a4a"/>
+<circle cx="58" cy="58" r="1" fill="#ff5a4a"/>
+<path d="M44 62 Q34 50 31 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M31 70 L28 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="28" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="34" cy="50" r="1.4" fill="#5d4a70"/>
+<path d="M54 64 Q66 49 69.5 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M69.5 70 L73 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="73" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="66" cy="49" r="1.4" fill="#5d4a70"/>
+<path d="M40 62 Q28 47 24.5 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M24.5 70 L21 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="21" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="28" cy="47" r="1.4" fill="#5d4a70"/>
+<path d="M57 64 Q71 52 75 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M75 70 L79 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="79" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="71" cy="52" r="1.4" fill="#5d4a70"/>
+<path d="M36 62 Q22 50 18 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M18 70 L14 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="14" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="22" cy="50" r="1.4" fill="#5d4a70"/>
+<path d="M60 64 Q70 49 73 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M73 70 L76 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="76" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="70" cy="49" r="1.4" fill="#5d4a70"/>
+<path d="M32 62 Q22 47 19 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M19 70 L16 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="16" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="22" cy="47" r="1.4" fill="#5d4a70"/>
+<path d="M63 64 Q75 52 78.5 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M78.5 70 L82 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="82" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="75" cy="52" r="1.4" fill="#5d4a70"/>
+</g>
+</g>
+</svg>

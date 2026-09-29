@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<!-- Низший демон — кадр move_1: lower_demon -->
+<g transform="scale(2)">
+<defs>
+<linearGradient id="lower_demon_g1" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#b9a3c2"/><stop offset="1" stop-color="#b9a3c2"/></linearGradient>
+</defs>
+<ellipse cx="50" cy="94" rx="26" ry="4" fill="rgba(0,0,0,0.28)"/>
+<g>
+<path d="M34 40 C24.6 24.2 17.2 32.8 15.2 26.8 C5.2 28.8 3.2 38.8 11.2 42.8 C24.6 34.7 28 44 34 48 Z" fill="#6a3f9a" stroke="#0d0815" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="30" y1="42" x2="13.2" y2="34.8" stroke="#0d0815" stroke-width="1.2"/>
+<line x1="28" y1="44" x2="9.2" y2="38.8" stroke="#0d0815" stroke-width="1.2"/>
+<path d="M66 40 C75.4 24.2 82.8 32.8 84.8 26.8 C94.8 28.8 96.8 38.8 88.8 42.8 C75.4 34.7 72 44 66 48 Z" fill="#6a3f9a" stroke="#0d0815" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="70" y1="42" x2="86.8" y2="34.8" stroke="#0d0815" stroke-width="1.2"/>
+<line x1="72" y1="44" x2="90.8" y2="38.8" stroke="#0d0815" stroke-width="1.2"/>
+<path d="M48 62 C66 66 72 58 82 40" fill="none" stroke="#6a3f9a" stroke-width="4" stroke-linecap="round"/>
+<path d="M82 40 q6 -8 0 -14 q-6 8 0 14 Z" fill="#e8542f"/>
+<path d="M44 60 Q42 77 42 92" fill="none" stroke="#8a5a52" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="42" cy="93" rx="6" ry="3.2" fill="#8a5a52" stroke="#0d0815" stroke-width="1.5"/>
+<path d="M56 60 Q57 77 58 92" fill="none" stroke="#b9a3c2" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="58" cy="93" rx="6" ry="3.2" fill="#b9a3c2" stroke="#0d0815" stroke-width="1.5"/>
+<path d="M36 38 C33 50 36 58 40 62 C44 65 56 65 60 62 C64 58 67 50 64 38 C58 31 42 31 36 38 Z" fill="url(#lower_demon_g1)" stroke="#0d0815" stroke-width="2" stroke-linejoin="round"/>
+<path d="M36 38 C33 50 36 58 40 62 C40 50 38 46 40 41 Z" fill="#b9a3c2"/>
+<path d="M64 38 C67 50 64 58 60 62 C62 50 64 46 62 41 Z" fill="#8a5a52"/>
+<rect x="39" y="57" width="22" height="4.5" fill="#241a33" rx="1.5"/>
+<circle cx="50" cy="59.2" r="1.8" fill="#6a3f9a"/>
+<path d="M36 42 Q39 56 42 64" fill="none" stroke="#b9a3c2" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="42" cy="64" r="4.2" fill="#b9a3c2" stroke="#0d0815" stroke-width="1.5"/>
+<path d="M64 42 Q67 56 70 64" fill="none" stroke="#b9a3c2" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="70" cy="64" r="4.2" fill="#b9a3c2" stroke="#0d0815" stroke-width="1.5"/>
+<ellipse cx="50" cy="24" rx="12.5" ry="11.8" fill="url(#lower_demon_g1)" stroke="#0d0815" stroke-width="2"/>
+<ellipse cx="55.6" cy="25.3" rx="6.3" ry="5.3" fill="#8a5a52" opacity="0.45"/>
+<path d="M42.5 14 Q36.3 5.3 43.1 0.3" fill="none" stroke="#6a3f9a" stroke-width="3.4" stroke-linecap="round"/>
+<path d="M57.5 14 Q63.8 5.3 56.9 0.3" fill="none" stroke="#6a3f9a" stroke-width="3.4" stroke-linecap="round"/>
+<line x1="43.1" y1="20.5" x2="48.5" y2="22.5" stroke="#0d0815" stroke-width="2.4"/>
+<line x1="56.9" y1="20.5" x2="51.5" y2="22.5" stroke="#0d0815" stroke-width="2.4"/>
+<circle cx="45.8" cy="23.8" r="4.8" fill="#7de8ff" opacity="0.3"/>
+<circle cx="54.3" cy="23.8" r="4.8" fill="#7de8ff" opacity="0.3"/>
+<ellipse cx="45.8" cy="23.8" rx="1.8" ry="1.4" fill="#7de8ff"/>
+<ellipse cx="54.3" cy="23.8" rx="1.8" ry="1.4" fill="#7de8ff"/>
+<polygon points="47.5,27.1 52.5,27.1 50,30.3" fill="#8a5a52"/>
+<line x1="46.3" y1="31.8" x2="53.8" y2="31.8" stroke="#0d0815" stroke-width="1.8"/>
+<polygon points="47.5,31.5 48.4,34.3 49.3,31.5" fill="#b9a3c2"/>
+<polygon points="50.8,31.5 51.6,34.3 52.5,31.5" fill="#b9a3c2"/>
+</g>
+<ellipse cx="47.7" cy="41.1" rx="2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M38.4 41.5 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="58.9" cy="57.3" rx="2.4" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<ellipse cx="36.3" cy="53.6" rx="2.2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M54.5 60.2 q2 1.5 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="44.3" cy="52.3" rx="2.4" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M45.9 47.7 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M57 45.8 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M43.2 51.9 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="52.3" cy="50" rx="2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M42.8 36.8 q2 1.2 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M53 59.5 q2 1.2 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M56.4 50 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="40.3" cy="38.4" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M50.8 60.3 q2 1.6 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="63.6" cy="51.9" rx="2.2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M59.6 57 q2 1.2 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M50.5 60.4 q2 1.5 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M64 47.6 q2 1.5 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="41.9" cy="45.9" rx="2.2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M55.4 42.7 q2 1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M42.1 43.3 q2 1.3 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="46.2" cy="36.4" rx="2.2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M53.9 58.4 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M62.3 41.4 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="51.6" cy="54.2" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M43.5 47.4 q2 1.3 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M43.1 56.3 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M55.7 49 q2 1.6 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="55.6" cy="50.6" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M50.8 42.5 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M41.3 48.1 q2 1.5 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M59.6 49.9 q2 1.2 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M48.6 55.4 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M51.6 34.1 q2 1.6 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M55.8 57.3 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M61.5 42.3 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M61.5 43.9 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="54.1" cy="40.1" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<ellipse cx="50.6" cy="39.8" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<ellipse cx="60.1" cy="52.1" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<ellipse cx="63.6" cy="51.4" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M46.9 53.5 q2 1.2 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M64.3 45.1 q2 1.5 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M57.2 42.2 q2 1.3 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M49.6 42.3 q2 1.5 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="45.6" cy="51.4" rx="2.1" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<ellipse cx="47.1" cy="60.2" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M58.8 42.5 q2 1.3 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M57 48.1 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="54" cy="48.2" rx="2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<ellipse cx="50.7" cy="34" rx="2.1" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<ellipse cx="58.5" cy="57" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M59.9 53.9 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="45.1" cy="60.6" rx="2.2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M44.1 57 q2 1.3 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M52.1 48.7 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M50.4 34.6 q2 1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M63.8 47.8 q2 1.6 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M48.4 58.7 q2 1.5 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="58.1" cy="56.4" rx="2.4" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M36.3 50.9 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M41.1 46.8 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M53.4 34.7 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="58.7" cy="57.5" rx="2.2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<ellipse cx="51.1" cy="61.7" rx="2.1" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M54.9 57.8 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M49.9 45.4 q2 1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M47.1 61.2 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M42.6 37.1 q2 1.6 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="43.5" cy="49.6" rx="2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M45.7 39.8 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="52" cy="41.8" rx="2.2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M45.7 47.3 q2 1.6 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M47 47.1 q2 1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M38 48.9 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="42.4" cy="52.6" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M53.2 46.9 q2 1.3 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="58.8" cy="53" rx="2.3" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+<path d="M57.5 56.1 q2 1.2 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M38.4 41.1 q2 1.5 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M40.4 55 q2 1.3 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M42.7 41.4 q2 1.1 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M45.2 35 q2 1.3 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M50 38.1 q2 1.6 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M41.8 46.5 q2 1.5 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M63.5 46.7 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M61.5 47.7 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M44.1 47.1 q2 1.4 4 0" fill="none" stroke="#0d0815" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="44.6" cy="50.2" rx="2" ry="0.9" fill="#8a5a52" opacity="0.55"/>
+</g>
+</svg>

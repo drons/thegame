@@ -168,6 +168,50 @@
     if (r && !r.ok && r.reason) c.log.push(r.reason);
   }
 
+  // FX персонального арта ПОСЛЕ фазы мобов (задача 000062).
+  //
+  // Ядро (combat.js) событий «кто мобо что сделал» не выдаёт — фаза
+  // идёт синхронно внутри c.endTurn(), поэтому UI восстанавливает
+  // анимации из СНИМКА ДО / СОСТОЯНИЯ ПОСЛЕ (эвристика, детерминирована):
+  //   * моб сменил позицию → 'move';
+  //   * моб НЕ двигался и стоял в ударной позиции (ближние/shield/
+  //     swarm/leader/support — dist ≤ 1 до прямоугольника; дальние —
+  //     2..4, при dist ≤ 1 они отступают и получают 'move') И в этот
+  //     ход игрок потерял HP → 'attack' (приоритет над 'move').
+  // Промах (HP игрока не упало) — без 'attack'-FX (удар не нанесён);
+  // точная атрибуция «какой моб нанес урон» — будущая задача (крючок
+  // событий в ядре, c._uiEvents).
+  // c._unitFx — состояние ТОЛЬКО UI-слоя (как c._fx): ядро его не
+  // читает. Читается drawUnits: 'attack' пока until не истёк.
+  function unitFxAfterMobPhase(c, beforePos, hpBefore) {
+    const dist = (u) => {
+      // Манхэттен-расстояние до прямоугольника юнита — та же формула,
+      // что unitDist в combat.js (туда не экспортируется, не тянем).
+      const x1 = u.x + ((u.size && u.size.w) || 1) - 1;
+      const y1 = u.y + ((u.size && u.size.h) || 1) - 1;
+      const dx = c.px < u.x ? u.x - c.px : (c.px > x1 ? c.px - x1 : 0);
+      const dy = c.py < u.y ? u.y - c.py : (c.py > y1 ? c.py - y1 : 0);
+      return dx + dy;
+    };
+    const hurt = c.player ? c.player.hp < hpBefore : false;
+    const fx = {};
+    const until = nowMs() + FX_MS;
+    for (const u of c.units) {
+      if (!u.alive || u.fled) continue;
+      const b = beforePos.get(u.id);
+      const moved = !b || b.x !== u.x || b.y !== u.y;
+      const d = dist(u);
+      const inStance = !moved
+        && (d <= 1 || (u.role === 'ranged' && d >= 2 && d <= 4));
+      if (hurt && inStance) {
+        fx[u.id] = { action: 'attack', until };
+      } else if (moved) {
+        fx[u.id] = { action: 'move', until };
+      }
+    }
+    c._unitFx = fx;
+  }
+
   // Диспетчер действия (клавиша и клик по кнопке): вызов ядра + причина
   // в журнал при отклонении (задача 000037). Предпроверку canDoAction
   // делает keydown — снимком state для resolveCombatKey (задача 000048;
@@ -187,7 +231,18 @@
       quickItem: () => c.quickItem(),
       invItem: () => c.invItem(),
       flee: () => c.flee(),
-      endTurn: () => c.endTurn(),
+      endTurn: () => {
+        // Снимок ДО фазы мобов (задача 000062): позиции мобов и HP
+        // игрока — для FX-эвристики после фазы (см.
+        // unitFxAfterMobPhase). Фаза мобов синхронная (combat.js),
+        // промежуточных событий нет.
+        const beforePos = new Map(
+          c.units.map((u) => [u.id, { x: u.x, y: u.y }]));
+        const hpBefore = c.player ? c.player.hp : 0;
+        const r = c.endTurn();
+        unitFxAfterMobPhase(c, beforePos, hpBefore);
+        return r;
+      },
     }[action];
     const r = run ? run() : undefined;
     logRejection(c, r);
@@ -310,25 +365,32 @@
 
   // --- Юниты (задача 000047): спрайты поверх фона и сетки ---
   //
-  // Список: живые не-sfled-мобы + герой. СОРТИРОВКА по bottomY
-  // («низ» юнита = якорь y + высота; герой — py+1) для «глубины»:
-  // дальние (меньше y) рисуются раньше, ближние — поверх.
-  // Тай-брейк детерминированный: затем x, затем id (Array.sort
-  // стабилен, но явный ключ надёжнее).
+  // Список: не-fled-мобы (включая МЁРТВЫХ — труп, задача 000062) +
+  // герой. СОРТИРОВКА по bottomY («низ» юнита = якорь y + высота;
+  // герой — py+1) для «глубины»: дальние (меньше y) рисуются раньше,
+  // ближние — поверх. Тай-брейк детерминированный: затем x, затем id.
   // Выбор кадра — ТОЛЬКО чистые функции: G.frameIndex(now, x, y, n)
   // (now — аргументом; время внутри селектора нет — детерминизм
-  // мира). Фолбэк — ПО ЮНИТУ: image() → null / нет лоадера / нет
-  // sprites.js — только этот юнит остаётся прежним прямоугольником
-  // (моб) / ромбом (герой), остальные — спрайты; спрайт, загрузившийся
-  // ПОСЛЕ старта боя, подхватится на следующем render/tick
-  // (паттерн фона, задача 000049).
+  // мира). Фолбэк — ПО ЮНИТУ, ЦЕПОЧКОЙ (задача 000062):
+  //   персональный арт (G.mobArtFrames, move/attack — 2 кадра,
+  //   dead — 1) → базовые шесть видов (G.MOB_FRAMES, 000047) →
+  //   прямоугольник ROLE_COLORS; у мёртвого — только персональный
+  //   dead-кадр, без него ничего (труп — «деталь» сцены, цветной
+  //   прямоугольник-труп не рисуем).
+  // Guards — УМД-ловушка «G снимается один раз»: цепочка без
+  // sprites.js (vm-песочница withSprites=false) → фолбэк (деградация,
+  // не падение, паттерн hpBarColor).
+  // FX мобов (задача 000062): c._unitFx[id] = {action, until} —
+  // пишет runAction ПОСЛЕ фазы мобов (эвристика: см.
+  // unitFxAfterMobPhase); render ТОЛЬКО читает. Пока не истекло:
+  // 'attack' → кадры attack, иначе → move.
   // Слои юнита: спрайт/фолбэк → полоса HP → уровень → подсветка
-  // цели (по всему прямоугольнику, как до спрайтов); у героя —
-  // миниполоса HP ПОСЛЕ спрайта («поверх любого вида героя»).
+  // цели (по всему прямоугольнику, как до спрайтов); у мёртвого —
+  // только кадр; у героя — миниполоса HP ПОСЛЕ спрайта.
   function drawUnits(c, now, hpFrac, hpColor) {
     const list = [];
     for (const u of c.units) {
-      if (!u.alive || u.fled) continue;
+      if (u.fled) continue;
       list.push({
         kind: 'mob', u, id: u.id, x: u.x,
         bottomY: u.y + ((u.size && u.size.h) || 1),
@@ -339,26 +401,44 @@
       || (a.x - b.x)
       || (a.id < b.id ? -1 : (a.id > b.id ? 1 : 0)));
 
+    // Спрайт моба цепочкой фолбэков (см. выше): персональный арт →
+    // базовый вид → null (прямоугольник). Чистая по c/now/u.
+    function mobSprite(u, now, action) {
+      const candidates = [];
+      if (G.mobArtFrames) candidates.push(G.mobArtFrames(u.mobId, action));
+      const kind = G.mobSpriteKind ? G.mobSpriteKind(u.mobId) : null;
+      if (kind && G.MOB_FRAMES) candidates.push(G.MOB_FRAMES[kind]);
+      for (const frames of candidates) {
+        if (!frames || !frames.length || !ctx.spriteLoader) continue;
+        const idx = (frames.length > 1 && G.frameIndex)
+          ? G.frameIndex(now, u.x, u.y, frames.length) : 0;
+        const img = ctx.spriteLoader.image(frames[idx]);
+        if (img) return img;
+      }
+      return null;
+    }
+
     for (const item of list) {
       if (item.kind === 'mob') {
         const u = item.u;
         const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
         const px = u.x * CELL, py = u.y * CELL;
         const pw = w * CELL, ph = h * CELL;
-        // Спрайт: mobId → базовый вид G.mobSpriteKind (sprites.js
-        // грузится ДО combat-ui.js в index.html — закреплено
-        // tests/index-order.test.js); кадры — G.MOB_FRAMES[kind]
-        // (idle, 2 кадра). Guards — УМД-ловушка «G снимается один
-        // раз»: цепочка без sprites.js (vm-песочница withSprites=
-        // false) → фолбэк (деградация, не падение, паттерн
-        // hpBarColor). Анимация атаки мобов — за рамками (000047:
-        // базовые спрайты мобов содержат только idle).
-        const kind = G.mobSpriteKind ? G.mobSpriteKind(u.mobId) : null;
-        const frames = kind && G.MOB_FRAMES ? G.MOB_FRAMES[kind] : null;
-        const idx = (frames && frames.length > 1 && G.frameIndex)
-          ? G.frameIndex(now, u.x, u.y, frames.length) : 0;
-        const img = (frames && ctx.spriteLoader)
-          ? ctx.spriteLoader.image(frames[idx]) : null;
+        if (!u.alive) {
+          // Труп (задача 000062): одиночный dead-кадр; без HP-полосы,
+          // уровня и подсветки цели. Картинка не готова/нет лоадера
+          // (file://) → ничего не рисуем (см. заголовок).
+          const img = mobSprite(u, now, 'dead');
+          if (img) g2.drawImage(img, px + 8, py + 8, pw - 16, ph - 16);
+          continue;
+        }
+        // Живой моб: действие — 'attack', пока FX атаки не истёк,
+        // иначе 'move' (персональный арт, 000062). Без персонального
+        // арта (или пока он грузится) — базовые кадры (idle, 000047).
+        const fx = (c._unitFx && c._unitFx[u.id]) || null;
+        const mobAction = (fx && now < fx.until && fx.action === 'attack')
+          ? 'attack' : 'move';
+        const img = mobSprite(u, now, mobAction);
         if (img) {
           // Тот же запас 8px, что у прежнего прямоугольника (полоса
           // HP px+8/py+2/pw-16 остаётся согласованной). Мультиклеточные

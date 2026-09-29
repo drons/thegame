@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Скелет — кадр move_1: skeleton -->
+<g transform="scale(1)">
+<ellipse cx="50" cy="94" rx="24" ry="4" fill="rgba(0,0,0,0.28)"/>
+<g>
+<line x1="45" y1="60" x2="42" y2="78" stroke="#e8e4d8" stroke-width="4"/>
+<line x1="42" y1="78" x2="40" y2="92" stroke="#e8e4d8" stroke-width="3.4"/>
+<line x1="40" y1="92" x2="34" y2="93" stroke="#e8e4d8" stroke-width="3"/>
+<line x1="55" y1="60" x2="58" y2="78" stroke="#f4efe1" stroke-width="4"/>
+<line x1="58" y1="78" x2="62" y2="92" stroke="#f4efe1" stroke-width="3.4"/>
+<line x1="62" y1="92" x2="68" y2="93" stroke="#f4efe1" stroke-width="3"/>
+<ellipse cx="50" cy="60" rx="9" ry="4.5" fill="#e8e4d8" stroke="#1a1a1a" stroke-width="1.5"/>
+<path d="M40 38 Q50 42 60 38" fill="none" stroke="#e8e4d8" stroke-width="3" stroke-linecap="round"/>
+<path d="M42 40 Q50 44 58 40" fill="none" stroke="#f4efe1" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M40 42.6 Q50 46.6 60 42.6" fill="none" stroke="#e8e4d8" stroke-width="3" stroke-linecap="round"/>
+<path d="M42 44.6 Q50 48.6 58 44.6" fill="none" stroke="#f4efe1" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M40 47.2 Q50 51.2 60 47.2" fill="none" stroke="#e8e4d8" stroke-width="3" stroke-linecap="round"/>
+<path d="M42 49.2 Q50 53.2 58 49.2" fill="none" stroke="#f4efe1" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M40 51.8 Q50 55.8 60 51.8" fill="none" stroke="#e8e4d8" stroke-width="3" stroke-linecap="round"/>
+<path d="M42 53.8 Q50 57.8 58 53.8" fill="none" stroke="#f4efe1" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M40 56.4 Q50 60.4 60 56.4" fill="none" stroke="#e8e4d8" stroke-width="3" stroke-linecap="round"/>
+<path d="M42 58.4 Q50 62.4 58 58.4" fill="none" stroke="#f4efe1" stroke-width="1.6" stroke-linecap="round"/>
+<line x1="50" y1="34" x2="50" y2="58" stroke="#f4efe1" stroke-width="3"/>
+<circle cx="50" cy="38" r="1.6" fill="#e8e4d8"/>
+<circle cx="50" cy="44" r="1.6" fill="#e8e4d8"/>
+<circle cx="50" cy="50" r="1.6" fill="#e8e4d8"/>
+<circle cx="50" cy="56" r="1.6" fill="#e8e4d8"/>
+<path d="M44 64 q4 6 0 10 q-4 -4 0 -10 Z" fill="#7a5a34" stroke=" opacity="0.8"" stroke-width="NaN" stroke-linejoin="round"/>
+<line x1="62" y1="40" x2="66" y2="50" stroke="#e8e4d8" stroke-width="3.6"/>
+<line x1="66" y1="50" x2="70" y2="56" stroke="#e8e4d8" stroke-width="3.2"/>
+<circle cx="70" cy="56" r="3" fill="#f4efe1"/>
+<line x1="38" y1="40" x2="34" y2="50" stroke="#f4efe1" stroke-width="3.6"/>
+<line x1="34" y1="50" x2="30" y2="56" stroke="#f4efe1" stroke-width="3.2"/>
+<circle cx="30" cy="56" r="3" fill="#f4efe1"/>
+<line x1="70" y1="56" x2="81.8" y2="79.2" stroke="#96542e" stroke-width="3.4"/>
+<line x1="72.7" y1="58.3" x2="72.7" y2="64.3" stroke="#96542e" stroke-width="2.4"/>
+<line x1="70" y1="56" x2="68.2" y2="52.4" stroke="#96542e" stroke-width="3"/>
+<ellipse cx="50" cy="24" rx="11" ry="10" fill="#f4efe1" stroke="#1a1a1a" stroke-width="2"/>
+<ellipse cx="54" cy="26" rx="5" ry="4" fill="#e8e4d8" opacity="0.6"/>
+<ellipse cx="45.6" cy="22.5" rx="2.6" ry="2.2" fill="#1a1a1a"/>
+<ellipse cx="54.4" cy="22.5" rx="2.6" ry="2.2" fill="#1a1a1a"/>
+<circle cx="45.6" cy="22.5" r="1.1" fill="#e04a3a" opacity="0.9"/>
+<circle cx="54.4" cy="22.5" r="1.1" fill="#e04a3a" opacity="0.9"/>
+<line x1="44" y1="29" x2="56" y2="29" stroke="#1a1a1a" stroke-width="2"/>
+<line x1="45" y1="29" x2="45" y2="32" stroke="#f4efe1" stroke-width="1.6"/>
+<line x1="47.5" y1="29" x2="47.5" y2="32" stroke="#f4efe1" stroke-width="1.6"/>
+<line x1="50" y1="29" x2="50" y2="32" stroke="#f4efe1" stroke-width="1.6"/>
+<line x1="52.5" y1="29" x2="52.5" y2="32" stroke="#f4efe1" stroke-width="1.6"/>
+<line x1="55" y1="29" x2="55" y2="32" stroke="#f4efe1" stroke-width="1.6"/>
+</g>
+</g>
+</svg>
