@@ -19,10 +19,11 @@ tests/items.test.js, tests/save.test.js, tests/index-order.test.js.
   Game (`Game.sanitizeCraftLevels`, `Game.sanitizeCraftXp`) — main.js
   restoreFromSave читает их именно из корня (красный тест grep'ит
   литерал `G.sanitizeCraftLevels`). Guards с console.error
-  (паттерны 000038/000045): нет CraftData → player API (skillXpForNext,
-  reprocessSkillXp, derived) → items API (getItem, removeItem,
-  addItem, canAddItem, inventoryWeight) → B.getBuilding → Sp.getSpell
-  → console.error + Game.Craft НЕ создаётся (тест index-order).
+  (паттерны 000038/000045): нет CraftData → player API
+  (createCharacter, derived, skillXpForNext) → items API
+  (addItem, canAddItem, removeItem, hasItem, getItem) → B.getBuilding
+  → Sp.getSpell → console.error + Game.Craft НЕ создаётся
+  (тест index-order).
 * Экспорты (21): CRAFT, CRAFT_BY_ID, CRAFT_TYPES, CRAFT_TYPE_SKILL,
   SKILL_CRAFT_TYPE, typeBuildings, craftOf, craftLevel,
   craftXpForNext, craftCap, addCraftXp, reprocessCraftXp,
@@ -54,7 +55,8 @@ tests/items.test.js, tests/save.test.js, tests/index-order.test.js.
   items.js; в node без Game.Craft — no-op, тест задаёт явно).
 * Опыт за изготовление: `10 + recipe.уровень`, практика (с потолком).
 * canCraft/craft — ОДНА причина, общий evalCraft, порядок проверок:
-  неизвестный рецепт → «недостаточный уровень (нужно N)» →
+  неизвестный рецепт → «персонаж погиб» (pre-check по c.alive,
+  правки ревью раунд 2) → «недостаточный уровень (нужно N)» →
   «в этом здании такой способ не изготавливается» (только если
   building != null; тип рецепта ∈ typeBuildings(здание)) → «не
   хватает: <название>» (первый недостающий исходник ПО ПОРЯДКУ
@@ -103,8 +105,10 @@ tests/items.test.js, tests/save.test.js, tests/index-order.test.js.
   += степень, лечение→potion/food amount += 1+степень;
   ослабление/контроль — без предмета-бонуса (но мана тратится,
   xp даётся). Заклинание СКЛАДЫВАЕТСЯ с качеством в том же слоте.
-* Наставники: canMentorCraft порядок: неизвестный вид → «не обучает
-  крафт» → «не обучает этот вид крафта» → «нет постройки этого вида»
+* Наставники: canMentorCraft порядок: неизвестный вид →
+  «персонаж погиб» (pre-check по c.alive, правки ревью раунд 2) →
+  «не обучает крафт» → «не обучает этот вид крафта» →
+  «нет постройки этого вида»
   (npc.постройки ∩ typeBuildings(вид)) → «максимальный уровень» (ДО
   золота) → «мало золота (нужно N)». Успех: gold −= цена,
   `c.craft[вид] = min(100, уровень+1)` (ПОТОЛОК ПРАКТИКОЙ НЕ
@@ -219,3 +223,49 @@ Game (spells.js вешает санитайзер в `Game.Spells`) → при �
   «уровень связанного навыка (обычно вторичного; для столярного
   дела — основного) × 2» + таблица вид→навык (runes у трёх видов).
 * Числовых формул в SPEC НЕ добавлено.
+* UI крафта — отложен в задачу 000123 (правки ревью, раунд 2):
+  примечание в SPEC.md «Крафт» (см. «Отсрочка UI» ниже).
+
+## Отсрочка UI (правки ревью, раунд 2)
+
+Пункт 000046 «UI: экран крафта» ссылался на задачу 000030
+(модернизация экранов) — ОШИБКА: 000030 закрыта
+(tasks/done/000030.md) и покрывает ТОЛЬКО экран боя; крафтовый
+экран не покрыт ни одной pending-задачей (проверено). Создана
+tasks/pending/000123.md (follow-up 000046: экран крафта у
+постройки + обучение видам в диалоге NPC + зачарование). Отсрочка
+задокументирована: SPEC.md «Крафт» + этот файл + файл задачи.
+До 000123 крафт и mentorCraft недостижимы из UI (существует только
+логика; единственный путь в игру — bookCraftXp через useItem
+книги и хуки reprocessCraftXp).
+
+## Правки по итогам ревью (раунд 2)
+
+1. craft()/canCraft не отклоняли МЁРТВОГО персонажа: evalCraft не
+   имел pre-check по alive — craft() проходил все проверки и
+   выполнял ВСЕ мутации (исходники сняты, результат в инвентаре,
+   мана), и лишь addCraftXp давал reason «персонаж погиб»
+   (applied 0); canCraft при том же персонаже — ok:true
+   (нарушение зеркала). Исправлено: evalCraft — pre-check
+   «персонаж погиб» после «неизвестный рецепт» (и craft и canCraft
+   — одна причина, без мутаций); canMentorCraft — тот же pre-check
+   после «неизвестный вид» (иначе mentorCraft снимал золото и давал
+   +1 уровень погибшему — уровень ставится напрямую, addCraftXp не
+   в цепочке). Причина — та же, что в addCraftXp/player.js. Тест:
+   «craft: мёртвый персонаж — отказ (pre-check, без мутаций)»
+   (tests/craft-core.test.js).
+2. main.js restoreFromSave: фикс 000045 (hero.spells через
+   G.Spells.sanitizeSpellBook — не G.sanitizeSpellBook, undefined в
+   корне Game; data loss: книга сбрасывалась в [] при каждой
+   перезагрузке) НЕ имел регрессионного теста (vm-тест save.test.js
+   восставлял hero с spells: ['spark'], но не ассертит книгу).
+   Исправлено: tests/save.test.js — (a) vm-ассерты:
+   state.hero.spells === ['spark'] после restore И в
+   сериализованном герое (roundtrip); «старый сейв» (hero.spells
+   отсутствует — {spells: undefined} выбывает из JSON) → [];
+   (b) статический тест проводки расширен: hero.spells →
+   G.Spells.sanitizeSpellBook. Для (a) в ПРОЕКЦИЮ
+   __game.state.hero (main.js) добавлено поле spells
+   (паттерн craft/craftXp/equipmentBonus — иначе тесту не из чего
+   читать); hero.spells всегда массив (createCharacter и
+   restoreFromSave).

@@ -300,11 +300,16 @@ test('000072: roundtrip новых разделов через хранилищ�
 // (иначе Object.assign(hero, clean) молча сбрасывает прогресс —
 // прецедент hero.spells, задача 000045).
 
-test('000046: restoreFromSave чистит hero.craft/craftXp/equipmentBonus', () => {
+test('000045/000046: restoreFromSave чистит hero.spells/craft/craftXp/' +
+  'equipmentBonus', () => {
   // restoreFromSave живёт внутри IIFE main.js (не экспортируется),
   // поэтому проводку проверяем по коду: паттерн hero.spells (000045) —
   // поле героя присваивается из санитайзера (с дефолтом для старого
   // сейва), иначе Object.assign(hero, clean) молча сбрасывает прогресс.
+  // hero.spells — РЕГРЕССИЯ 000045: санитайзер живёт в Game.Spells
+  // (именованное пространство), а G — снимок корня Game;
+  // G.sanitizeSpellBook (без .Spells) — undefined, и книга сбрасывалась
+  // в [] при каждой перезагрузке (data loss).
   // Поведение (roundtrip + подделанный сейв + дефолты) закреплено
   // vm-тестом ниже.
   const src = fs.readFileSync(
@@ -312,6 +317,7 @@ test('000046: restoreFromSave чистит hero.craft/craftXp/equipmentBonus', (
   const restore = src.slice(src.indexOf('function restoreFromSave'));
   assert.ok(restore.length > 0, 'restoreFromSave найден в main.js');
   for (const [field, fn] of [
+    ['hero.spells', 'G.Spells.sanitizeSpellBook'],
     ['hero.craft', 'G.sanitizeCraftLevels'],
     ['hero.craftXp', 'G.sanitizeCraftXp'],
     ['hero.equipmentBonus', 'G.sanitizeEquipmentBonus'],
@@ -526,6 +532,11 @@ test('000046: hero.craft/craftXp/equipmentBonus — roundtrip и поддела�
   const state = g.state;
   assert.ok(state.save, 'сейв загружен');
   assert.equal(state.hero.level, 2, 'ядро героя восстановлено');
+  // РЕГРЕССИЯ 000045: книга заклинаний восстановлена, а не сброшена
+  // в [] (restoreFromSave обязан читать G.Spells.sanitizeSpellBook,
+  // а не G.sanitizeSpellBook — undefined в корне Game).
+  assert.deepEqual(host(state.hero.spells), ['spark'],
+    'книга заклинаний восстановлена (регрессия 000045)');
   assert.deepEqual(host(state.hero.craft),
     { 'кузнечное_дело': 7, 'алхимия': 100 },
     'craft восстановлен и очищен (чужой вид отброшен, >100 — кламп)');
@@ -546,10 +557,14 @@ test('000046: hero.craft/craftXp/equipmentBonus — roundtrip и поддела�
     'craftXp пережил roundtrip');
   assert.deepEqual(saved.data.hero.equipmentBonus,
     { weapon: { damage: 2 }, armor: null }, 'equipmentBonus пережил roundtrip');
+  assert.deepEqual(saved.data.hero.spells, ['spark'],
+    'spells пережили roundtrip (регрессия 000045)');
 
   // Старый сейв (полей 000046 нет) — дефолты, без падений.
+  // spells: undefined — ключ ВЫБЫВАЕТ из JSON (JSON.stringify), т.е.
+  // сейв «до 000045»: hero.spells в данных отсутствует → [].
   const st2 = makeStorage();
-  const h2 = bootWithSave(st2, {});
+  const h2 = bootWithSave(st2, { spells: undefined });
   for (let i = 0; i < 5; i++) await h2.drain();
   assert.equal(h2.errors.length, 0,
     'старый сейв: ошибок загрузки нет: ' + h2.errors.join('; '));
@@ -559,4 +574,5 @@ test('000046: hero.craft/craftXp/equipmentBonus — roundtrip и поддела�
   assert.deepEqual(host(state2.hero.craftXp), {}, 'старый сейв: craftXp → {}');
   assert.deepEqual(host(state2.hero.equipmentBonus),
     { weapon: null, armor: null }, 'старый сейв: equipmentBonus → дефолт');
+  assert.deepEqual(host(state2.hero.spells), [], 'старый сейв: spells → []');
 });

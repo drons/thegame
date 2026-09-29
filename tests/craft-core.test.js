@@ -417,6 +417,39 @@ test('craft: неизвестный рецепт / «недостаточный 
   assert.equal(I.totalQty(p, 'short_bow'), 1);
 });
 
+test('craft: мёртвый персонаж — отказ (pre-check, без мутаций)', () => {
+  // Ревью (раунд 2): без pre-check по alive craft() выполнял ВСЕ
+  // мутации (исходники сняты, результат в инвентаре), и лишь опыт
+  // давал «персонаж погиб» (applied 0) — результат оставался
+  // «в подарок». canCraft при этом — ok:true (нарушение зеркала).
+  const C = loadCraft();
+  const p = createCharacter();
+  give(p, 'wood_log', 1);
+  p.alive = false;
+  // canCraft — зеркало craft: одна причина.
+  const cc = C.canCraft(p, 'wood_sword', { building: 5 });
+  assert.equal(cc.ok, false);
+  assert.equal(cc.reason, 'персонаж погиб');
+  // craft — отказ ДО всех мутаций.
+  const r = C.craft(p, 'wood_sword', { building: 5, rng: NO_ROLLS });
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'персонаж погиб');
+  assert.equal(I.totalQty(p, 'wood_log'), 1, 'исходники не потрачены');
+  assert.equal(I.totalQty(p, 'wood_sword'), 0, 'результата в инвентаре нет');
+  assert.equal(p.craft, undefined, 'c.craft не создаётся');
+  assert.equal(p.craftXp, undefined, 'c.craftXp не создаётся');
+  // mentorCraft — тот же pre-check: золото не тратится, уровня нет.
+  const thor = NPCS.find((n) => n.id === 'blacksmith');
+  const cm = C.canMentorCraft(thor, p, 'кузнечное_дело');
+  assert.equal(cm.ok, false);
+  assert.equal(cm.reason, 'персонаж погиб');
+  const rm = C.mentorCraft(thor, p, 'кузнечное_дело');
+  assert.equal(rm.ok, false);
+  assert.equal(rm.reason, 'персонаж погиб');
+  assert.equal(p.gold, 100, 'золото не тратится при отказе');
+  assert.equal(C.craftLevel(p, 'кузнечное_дело'), 1, 'уровень не растёт');
+});
+
 test('craft: нехватка исходников — «не хватает: <название>», атомарность', () => {
   const C = loadCraft();
   const p = createCharacter();

@@ -1254,6 +1254,11 @@
           weight: G.inventoryWeight(hero),
           maxWeight: G.maxCarryWeight(hero),
           inventory: (hero.inventory || { slots: [] }).slots,
+          // Книга заклинаний (регрессия 000045, правки ревью 000046):
+          // restoreFromSave всегда задаёт hero.spells (массив), поэтому
+          // здесь просто значение героя — иначе тесту не из чего читать
+          // (паттерн craft/craftXp/equipmentBonus, 000046).
+          spells: hero.spells,
           // Крафт (задача 000046): опциональные поля — restoreFromSave
           // всегда задаёт дефолты ({} / {} / {weapon:null,armor:null}),
           // поэтому здесь просто значения героя.

@@ -355,6 +355,11 @@
     if (!CRAFT_TYPE_SKILL[type]) {
       return { ok: false, reason: 'неизвестный вид крафта: ' + type };
     }
+    // Мёртвый персонаж (правки ревью, раунд 2): тот же pre-check, что
+    // в evalCraft — иначе mentorCraft снимал золото и давал +1 уровень
+    // погибшему (уровень здесь ставится напрямую, addCraftXp не в
+    // цепочке).
+    if (!c.alive) return { ok: false, reason: 'персонаж погиб' };
     const train = npc && npc.обучение;
     if (!train || !Array.isArray(train.навыки)) {
       return { ok: false, reason: 'не обучает крафт' };
@@ -500,6 +505,13 @@
     const o = opts || {};
     const recipe = CRAFT_BY_ID[recipeId];
     if (!recipe) return { fail: { ok: false, reason: 'неизвестный рецепт' } };
+    // Мёртвый персонаж (правки ревью, раунд 2): pre-check ДО всех
+    // остальных проверок и тем более до мутаций — иначе craft()
+    // проходил все проверки, мутировал инвентарь (результат «в
+    // подарок»), и лишь addCraftXp давал «персонаж погиб» (applied 0);
+    // canCraft при том же персонаже — ok:true (нарушение зеркала).
+    // Причина — та же, что в addCraftXp/player.js.
+    if (!c.alive) return { fail: { ok: false, reason: 'персонаж погиб' } };
     // Уровень вида.
     const need = recipe.уровень;
     if (craftLevel(c, recipe.тип) < need) {
