@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="gb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6e655a"/>
+      <stop offset="1" stop-color="#4b443b"/>
+    </linearGradient>
+    <radialGradient id="gl">
+      <stop offset="0" stop-color="#837969" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#837969" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gd">
+      <stop offset="0" stop-color="#362f29" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#362f29" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" fill="url(#gb)"/>
+  <g>
+    <ellipse cx="29.4" cy="18.5" rx="14.4" ry="11.4" fill="url(#gl)"/>
+    <ellipse cx="23" cy="47.8" rx="8.9" ry="6.3" fill="url(#gl)"/>
+    <ellipse cx="49.6" cy="37.4" rx="10.3" ry="7.1" fill="url(#gl)"/>
+    <ellipse cx="28.6" cy="22.1" rx="14.7" ry="10" fill="url(#gl)"/>
+    <ellipse cx="40" cy="37.1" rx="13.7" ry="7.9" fill="url(#gd)"/>
+    <ellipse cx="31.8" cy="34.1" rx="11.2" ry="7.5" fill="url(#gd)"/>
+    <ellipse cx="36.8" cy="47.3" rx="10.1" ry="8.5" fill="url(#gd)"/>
+    <ellipse cx="38.3" cy="37.9" rx="8.8" ry="5.1" fill="url(#gd)"/>
+  </g>
+  <g>
+    <polygon points="18.6,21.9 21.1,19.7 24.7,20.8 25.8,24 19.7,24.8" fill="#4b423a" opacity="0.8" />
+    <polygon points="32.7,36.4 36.2,33.4 41.1,34.9 42.6,39.4 34.2,40.3" fill="#4b423a" opacity="0.7" />
+    <polygon points="7.4,20.5 10.9,17.5 15.9,19 17.3,23.5 8.9,24.4" fill="#4b423a" opacity="0.6" />
+    <polygon points="47,39.5 49.5,37.4 53.1,38.4 54.1,41.7 48.1,42.4" fill="#4b423a" opacity="0.5" />
+    <polygon points="41,22.2 43.1,20.4 46,21.3 46.9,23.9 41.9,24.5" fill="#4b423a" opacity="0.7" />
+    <polygon points="7.4,23.8 9.7,21.8 13,22.8 14,25.8 8.4,26.4" fill="#4b423a" opacity="0.6" />
+    <ellipse cx="23.6" cy="27.4" rx="2.4" ry="1.7" fill="#574e44" opacity="0.7" />
+    <ellipse cx="53.7" cy="19.1" rx="1.4" ry="0.9" fill="#574e44" opacity="0.8" />
+    <ellipse cx="34" cy="32.7" rx="2" ry="1.4" fill="#574e44" opacity="0.7" />
+    <ellipse cx="28.3" cy="21.5" rx="1.5" ry="1" fill="#574e44" opacity="0.6" />
+    <ellipse cx="28.3" cy="14.5" rx="1.4" ry="1" fill="#574e44" opacity="0.6" />
+    <path d="M43.8 34 l3.4 2 l2.5 -1.5 l2.9 2.5" stroke="#362f29" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.3" />
+    <path d="M17.2 11.2 l2.1 1.2 l1.5 -0.9 l1.8 1.5" stroke="#362f29" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.3" />
+    <path d="M48.8 27.7 l3.8 2.2 l2.7 -1.6 l3.2 2.7" stroke="#362f29" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.5" />
+    <path d="M17.2 36 l3.9 2.2 l2.8 -1.7 l3.3 2.8" stroke="#362f29" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.5" />
+    <circle cx="45.3" cy="53.7" r="0.7" fill="#837969" opacity="0.6" />
+    <circle cx="19.4" cy="21.8" r="1.2" fill="#837969" opacity="0.5" />
+    <circle cx="13" cy="24.2" r="1.3" fill="#837969" opacity="0.6" />
+    <circle cx="14.4" cy="12.8" r="1.1" fill="#837969" opacity="0.5" />
+    <circle cx="49.8" cy="23.2" r="0.7" fill="#837969" opacity="0.4" />
+  </g>
+</svg>
