@@ -132,6 +132,18 @@ test('index.html: ui.js и controls.js ДО main.js', () => {
   assert.ok(pos('src/save.js') < pos('src/main.js'));
 });
 
+test('index.html: src/mob-groups-data.js подключён и ДО src/map.js (задача 000057)', () => {
+  // Каталог стационарных групп мобов (assets/mob_groups) дублируется
+  // в JS-модуле для file://. Потребители — map.js (ленивые
+  // mobGroupCount()/mobGroupName()), combat.js и sprites.js (чтение
+  // при загрузке) — обязаны видеть Game.MobGroupsData: модуль ставим
+  // в слот npc-data.js, ДО map.js.
+  assert.notEqual(pos('src/mob-groups-data.js'), -1,
+    'src/mob-groups-data.js не подключён в index.html (задача 000057)');
+  assert.ok(pos('src/mob-groups-data.js') < pos('src/map.js'),
+    'src/mob-groups-data.js должен быть раньше src/map.js (задача 000057)');
+});
+
 test('index.html: motion.js ДО main.js (main.js снимает Game один раз)', () => {
   // main.js — IIFE: const G = globalThis.Game при ЗАГРУЗКЕ. motion.js
   // обязан дать Game.createMover/CAM_TAU_MS/MIN_MOVE_INTERVAL_MS ДО

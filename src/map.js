@@ -12,12 +12,13 @@
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./perlin.js'), require('./buildings.js'));
+    module.exports = factory(require('./perlin.js'), require('./buildings.js'),
+      require('./mob-groups-data.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
-      factory(typeof root.Game === 'object' ? root.Game : {}, null, root));
+      factory(typeof root.Game === 'object' ? root.Game : {}, null, null, root));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, catalog, root) {
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, catalog, mobGroups, root) {
 
   const createPerlin2D = perlin.createPerlin2D;
   const hash2 = perlin.hash2;
@@ -234,7 +235,10 @@
   // удалены: buildings.js грузится ПОСЛЕ map.js (index.html), а
   // vm-песочницы — вообще без него.
 
-  // Типы стационарных групп мобов (SPEC.md, раздел «Мобы»).
+  // Типы стационарных групп мобов (SPEC.md, раздел «Мобы») —
+  // идентификаторы (0..6, hash2 % числа групп), как BUILDING_TYPES:
+  // данные (число групп, имена) — из каталога assets/mob_groups
+  // ЛЕНИВО (задача 000057, паттерн 000055).
   const MOB_GROUP_TYPES = {
     NONE: -1,
     ORC_CAMP: 0,
@@ -245,16 +249,76 @@
     ELEMENTAL_CIRCLE: 5,
     ABYSS_SPIRIT: 6,
   };
-  const MOB_GROUP_COUNT = 7;
-  const MOB_GROUP_NAMES = {
-    [MOB_GROUP_TYPES.ORC_CAMP]: 'орочий лагерь',
-    [MOB_GROUP_TYPES.ORC_RAIDERS]: 'орочий набеги',
-    [MOB_GROUP_TYPES.SKELETON_DEN]: 'логово скелетов',
-    [MOB_GROUP_TYPES.WOLF_PACK]: 'волчья стая',
-    [MOB_GROUP_TYPES.SPIDER_NEST]: 'паучье гнездо',
-    [MOB_GROUP_TYPES.ELEMENTAL_CIRCLE]: 'круг стихийников',
-    [MOB_GROUP_TYPES.ABYSS_SPIRIT]: 'дух бездны',
-  };
+
+  // --- Производные данные «групп мобов» (задача 000057) ---
+  //
+  // Число стационарных групп и их имена выводятся из каталога
+  // (assets/mob_groups, JS-фолбэк — src/mob-groups-data.js) ЛЕНИВО:
+  // в node каталог приходит третьим аргументом UMD, в браузере
+  // модуль данных грузится ДО map.js (index.html), но vm-песочницы
+  // (combat-ui) грузят map.js БЕЗ него — каталог разрешается из
+  // Game в момент ВЫЗОВА. Фолбэк без каталога — ровно значения
+  // генерации до 000057 (7, 7 имён), иначе мир в песочнице уедет
+  // (прецедент 000055: фолбэк 13/3/3).
+  //
+  // Функции, а НЕ константы на момент загрузки (см. комментарий у
+  // buildingCount: UMD-ловушка Object.assign). Кэш ПУСТОГО вывода
+  // запрещён: если каталог ещё не подхвачен, результат НЕ
+  // кэшируется (иначе первый вызов «до загрузки» закэшировал бы
+  // фолбэк навсегда).
+  const FALLBACK_MOB_GROUP_COUNT = 7;
+  const FALLBACK_MOB_GROUP_NAMES = [
+    'орочий лагерь', 'орочий набеги', 'логово скелетов', 'волчья стая',
+    'паучье гнездо', 'круг стихийников', 'дух бездны',
+  ];
+
+  let _mobGroupDerived = null;
+
+  // Каталог (инъекция node / Game в момент вызова) или null.
+  function mobGroupsRef() {
+    if (mobGroups && Array.isArray(mobGroups.MOB_GROUPS)) return mobGroups;
+    const g = root && root.Game;
+    if (g && g.MobGroupsData && Array.isArray(g.MobGroupsData.MOB_GROUPS)) {
+      return g.MobGroupsData;
+    }
+    return null;
+  }
+
+  // Вывод из каталога или null (каталог ещё не загружен — не кэшируем).
+  function mobGroupsDerived() {
+    if (_mobGroupDerived) return _mobGroupDerived;
+    const c = mobGroupsRef();
+    if (!c) return null;
+    const names = [];
+    for (const g of c.MOB_GROUPS) {
+      const idx = g && (typeof g.id === 'number' ? g.id : NaN) - 1;
+      if (Number.isInteger(idx) && idx >= 0) names[idx] = g.название;
+    }
+    _mobGroupDerived = {
+      count: c.MOB_GROUPS.length,
+      names,
+    };
+    return _mobGroupDerived;
+  }
+
+  /** Число стационарных групп (7, пока каталог не подхвачен — фолбэк). */
+  function mobGroupCount() {
+    const d = mobGroupsDerived();
+    return d ? d.count : FALLBACK_MOB_GROUP_COUNT;
+  }
+
+  /**
+   * Имя группы по индексу 0..mobGroupCount()-1 (каталог, иначе
+   * фолбэк). Неизвестный индекс — пустая строка.
+   * @returns {string}
+   */
+  function mobGroupName(index) {
+    if (typeof index !== 'number' || !Number.isInteger(index)) return '';
+    const d = mobGroupsDerived();
+    const names = d ? d.names : FALLBACK_MOB_GROUP_NAMES;
+    const n = names[index];
+    return typeof n === 'string' ? n : '';
+  }
 
   // Масштаб «крупных» фич шума (в тайлах) и фич построек/мобов.
   const NOISE_SCALE = 1 / 48;
@@ -568,7 +632,9 @@
       const buildingWealth = cover ? cover.wealth : 0;
 
       const hasMobGroup = passable && !cover && fm > 0.31 + 0.14 * rarity;
-      const mobGroup = hasMobGroup ? hash2(x, y, GLOBAL_SEED ^ 0xabcdef) % MOB_GROUP_COUNT : MOB_GROUP_TYPES.NONE;
+      // Число групп — ленивое (каталог assets/mob_groups, задача
+      // 000057): без каталога — фолбэк 7, генерация не меняется.
+      const mobGroup = hasMobGroup ? hash2(x, y, GLOBAL_SEED ^ 0xabcdef) % mobGroupCount() : MOB_GROUP_TYPES.NONE;
 
       return {
         x, y, terrain,
@@ -753,7 +819,7 @@
     BUILDING_TYPES,
     buildingCount, buildingNames, buildingNameUi,
     buildMaxW, buildMaxH,
-    MOB_GROUP_TYPES, MOB_GROUP_COUNT, MOB_GROUP_NAMES,
+    MOB_GROUP_TYPES, mobGroupCount, mobGroupName,
     ZOOM_MIN, ZOOM_MAX, ZOOM_START,
     createMap, syntheticPixels,
     visibleTileRange, createTileCache,

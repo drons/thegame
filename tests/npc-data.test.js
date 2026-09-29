@@ -23,7 +23,7 @@ const { NPCS } = require('../src/npc-data.js');
 const { getBuilding } = require('../src/buildings.js');
 const { getItem } = require('../src/items.js');
 const { PRIMARY_SKILLS, SECONDARY_SKILLS } = require('../src/player.js');
-const { MOB_GROUP_COUNT } = require('../src/map.js');
+const { mobGroupCount } = require('../src/map.js');
 
 const DIR = path.join(__dirname, '..', 'assets', 'npc');
 
@@ -232,8 +232,8 @@ test('целостность: предметы, навыки, типы груп�
         const goal = q.цель;
         if (goal.тип === 'kill_group') {
           assert.ok(Number.isInteger(goal.группа) &&
-            goal.группа >= 0 && goal.группа < MOB_GROUP_COUNT,
-            `${n.id}: квест ${q.id}: группа ${goal.группа} вне 0..${MOB_GROUP_COUNT - 1}`);
+            goal.группа >= 0 && goal.группа < mobGroupCount(),
+            `${n.id}: квест ${q.id}: группа ${goal.группа} вне 0..${mobGroupCount() - 1}`);
         } else if (goal.тип === 'bring_item') {
           assert.ok(getItem(goal.предмет) !== null,
             `${n.id}: квест ${q.id}: предмет "${goal.предмет}" нет в items`);
@@ -368,4 +368,26 @@ test('покрытие: все «картовые» постройки с NPC з
     assert.ok(covered.has(bId),
       `постройка ${bId} (${getBuilding(bId).название}) без NPC`);
   }
+});
+
+test('квесты kill_group: группа — из каталога assets/mob_groups (задача 000057, source of truth)', () => {
+  // Типы стационарных групп — записи каталога: допустимо 0..(N−1),
+  // где N — число файлов assets/mob_groups. Старая проверка
+  // (0..MOB_GROUP_COUNT−1) теперь увязана с каталогом: при изменении
+  // числа групп квесты обязаны остаться валидными.
+  const MG_DIR = path.join(__dirname, '..', 'assets', 'mob_groups');
+  const groups = fs.readdirSync(MG_DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  assert.equal(groups.length, 7, 'в каталоге ровно 7 групп мобов');
+  let n = 0;
+  for (const npc of NPCS) {
+    for (const q of (npc.квесты || [])) {
+      if (q.цель.тип !== 'kill_group') continue;
+      n++;
+      assert.ok(Number.isInteger(q.цель.группа) &&
+        q.цель.группа >= 0 && q.цель.группа < groups.length,
+        `${npc.id}: квест ${q.id}: группа ${q.цель.группа} вне диапазона каталога (0..${groups.length - 1})`);
+    }
+  }
+  assert.ok(n > 0, 'хотя бы один kill_group-квест есть');
 });

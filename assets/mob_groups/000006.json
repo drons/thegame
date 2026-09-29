@@ -1,0 +1,10 @@
+{
+  "id": 6,
+  "название": "круг стихийников",
+  "состав": {
+    "название": "elemental_circle",
+    "мобы": ["fire_elemental", "wind_elemental", "water_elemental", "fairy"]
+  },
+  "спрайт": "elemental",
+  "особые_параметры": {}
+}

@@ -19,12 +19,16 @@
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./map.js'));
+    module.exports = factory(require('./map.js'),
+      require('./mob-groups-data.js'));
   } else {
+    // Браузер: модуль данных грузится ДО sprites.js (index.html) —
+    // каталог уже в Game (deps.MobGroupsData), отдельный аргумент
+    // не нужен.
     root.Game = Object.assign({}, root.Game,
       factory(typeof root.Game === 'object' ? root.Game : {}));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (deps) {
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (deps, mobGroups) {
 
   const TERRAIN = deps.TERRAIN;
   const TERRAIN_NAMES = deps.TERRAIN_NAMES;
@@ -85,7 +89,15 @@
 
   // Группы мобов (map.js) → базовые типы мобов.
   // (дух бездны — отдельный силуэт, не стихийник).
-  const MOB_KINDS = {
+  //
+  // Source of truth — каталог assets/mob_groups (задача 000057,
+  // поле «спрайт», id − 1 = тип). sprites.js НЕ требует combat.js/
+  // dungeon.js (паттерн 000049): в node каталог приходит вторым
+  // аргументом UMD, в браузере — из Game (модуль данных грузится
+  // ДО sprites.js). vm-песочницы (combat-ui) грузят sprites.js
+  // БЕЗ модуля данных — гард обязан дать фолбэк ровно текущих 7
+  // видов (прецедент 000055).
+  const FALLBACK_MOB_KINDS = {
     [MOB_GROUP_TYPES.ORC_CAMP]: 'orc',
     [MOB_GROUP_TYPES.ORC_RAIDERS]: 'orc',
     [MOB_GROUP_TYPES.SKELETON_DEN]: 'skeleton',
@@ -94,6 +106,22 @@
     [MOB_GROUP_TYPES.ELEMENTAL_CIRCLE]: 'elemental',
     [MOB_GROUP_TYPES.ABYSS_SPIRIT]: 'abyss',
   };
+  const MOB_GROUPS_DATA = (mobGroups && Array.isArray(mobGroups.MOB_GROUPS))
+    ? mobGroups
+    : (deps.MobGroupsData && Array.isArray(deps.MobGroupsData.MOB_GROUPS)
+      ? deps.MobGroupsData : null);
+  const MOB_KINDS = MOB_GROUPS_DATA
+    ? (function () {
+        const k = {};
+        for (const g of MOB_GROUPS_DATA.MOB_GROUPS) {
+          const t = g && (typeof g.id === 'number' ? g.id : NaN) - 1;
+          if (Number.isInteger(t) && t >= 0 && typeof g.спрайт === 'string') {
+            k[t] = g.спрайт;
+          }
+        }
+        return k;
+      })()
+    : FALLBACK_MOB_KINDS;
   const MOB_FRAMES = {
     orc: ['assets/sprites/mobs/orc_1.svg', 'assets/sprites/mobs/orc_2.svg'],
     skeleton: ['assets/sprites/mobs/skeleton_1.svg', 'assets/sprites/mobs/skeleton_2.svg'],

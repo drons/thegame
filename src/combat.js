@@ -13,14 +13,15 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(
       require('./perlin.js'), require('./player.js'), require('./items.js'),
-      require('./global-settings.js'));
+      require('./global-settings.js'), require('./mob-groups-data.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
       factory(typeof root.Game === 'object' ? root.Game : {}, root.Game,
-        root.Game, root.Game && root.Game.GlobalSettings));
+        root.Game, root.Game && root.Game.GlobalSettings,
+        (root.Game && root.Game.MobGroupsData) || null));
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self,
-  function (perlin, P, I, settings) {
+  function (perlin, P, I, settings, mobGroups) {
 
   if (!settings || typeof settings.SETTINGS !== 'object') {
     throw new Error(
@@ -100,7 +101,13 @@
   // Составы групп по типам из map.js (MOB_GROUP_TYPES: 0..6).
   // «Стационарная группа всегда содержит минимум один моб доминирующего
   // типа локации» (SPEC.md) — в каждом рецепте доминирующий тип есть.
-  const GROUP_RECIPES = {
+  //
+  // Source of truth — каталог assets/mob_groups (задача 000057):
+  // `состав.название` = имя рецепта (живёт в логе боя), `состав.мобы`
+  // = порядок мобов (индекс юнита → расстановка, детерминизм),
+  // `состав.число` = [min,max] (волчья стая). В index.html модуль
+  // данных загружается ДО combat.js, в node — аргумент UMD.
+  const FALLBACK_GROUP_RECIPES = {
     0: { name: 'orc_camp', mobs: ['orc_warrior', 'orc_warrior', 'orc_archer', 'orc_shaman'] },
     1: { name: 'orc_raid', mobs: ['orc_rider', 'orc_rider', 'orc_mad'] },
     2: { name: 'skeleton_den', mobs: ['skeleton', 'skeleton', 'skeleton', 'crawling_bones', 'crawling_bones'] },
@@ -109,6 +116,22 @@
     5: { name: 'elemental_circle', mobs: ['fire_elemental', 'wind_elemental', 'water_elemental', 'fairy'] },
     6: { name: 'abyss_spirit', mobs: ['abomination', 'lower_demon', 'succubus'] },
   };
+  // Гард: vm-песочницы (combat-ui) грузят combat.js БЕЗ модуля данных —
+  // фолбэк обязан дать ровно текущие значения (прецедент 000055).
+  const GROUP_RECIPES = (mobGroups && Array.isArray(mobGroups.MOB_GROUPS))
+    ? (function () {
+        const r = {};
+        for (const g of mobGroups.MOB_GROUPS) {
+          const t = g && (typeof g.id === 'number' ? g.id : NaN) - 1;
+          const s = g && g.состав;
+          if (!Number.isInteger(t) || t < 0 || !s) continue;
+          const recipe = { name: s.название, mobs: s.мобы.slice() };
+          if (Array.isArray(s.число)) recipe.count = s.число.slice();
+          r[t] = recipe;
+        }
+        return r;
+      })()
+    : FALLBACK_GROUP_RECIPES;
 
   // Группа с лидером: +5% урон и +5% защита всем (SPEC.md).
   const LEADER_DMG_MULT = 1.05;
