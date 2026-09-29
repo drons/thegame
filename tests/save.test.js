@@ -237,3 +237,52 @@ test('sanitizeSpellBook: только известные id без дублей;
     assert.deepEqual(fn(bad), [], 'не-массив → []: ' + String(bad));
   }
 });
+
+// --- Задача 000072: разделы сейва «раз в день» и благословения ---
+// Новые разделы data.buildingOncePerDay ('x,y:effectId' → день) и
+// data.buffs ({source, day, kind}) — неломкое расширение v1: версия
+// НЕ поднимается, миграций нет (правило 000031; прецедент 000029 —
+// quests/npcStocks добавлены полями). Чтение/запись разделов —
+// main.js (collectSaveData/restoreFromSave), здесь — уровень оболочки
+// сейва: версии, миграции, roundtrip через мок-хранилище.
+
+const D = require('../src/day.js');
+
+test('000072: версию сейва не поднимают — CURRENT_VERSION = 1, миграций нет', () => {
+  assert.equal(S.CURRENT_VERSION, 1,
+    'новые разделы — неломкое расширение v1 (000031)');
+  assert.deepEqual(Object.keys(S.MIGRATIONS), [], 'миграций быть не должно');
+});
+
+test('000072: v1-сейв без новых разделов восстанавливается как есть (нет миграции)', () => {
+  const st = makeStorage();
+  const data = { day: 4, position: { x: 1, y: 2 }, hero: { gold: 5 } };
+  assert.equal(S.save(st, data, 111), true);
+  const res = S.load(st);
+  assert.equal(res.status, 'ok');
+  assert.equal(res.save.migrated, undefined, 'старым разделам миграция не нужна');
+  assert.equal(res.save.version, 1);
+  assert.deepEqual(res.save.data, data, 'данные — как есть');
+});
+
+test('000072: roundtrip новых разделов через хранилище + восстановление состояния', () => {
+  const st = makeStorage();
+  const data = {
+    day: 7,
+    buildingOncePerDay: { '-3,7:heal': 5, '0,0': 2 },
+    buffs: [
+      { source: '1,1', day: 7, kind: 'damage' },
+      { source: '2,2', day: 7, kind: 'armor' },
+    ],
+  };
+  assert.equal(S.save(st, data, 222), true);
+  const res = S.load(st);
+  assert.equal(res.status, 'ok');
+  assert.deepEqual(res.save.data, data, 'разделы проходят save/load без потерь');
+  // Восстановление в состояние (чистые функции day.js).
+  const m = D.restoreDayMap(res.save.data.buildingOncePerDay);
+  assert.equal(m.get('-3,7:heal'), 5);
+  assert.equal(m.get('0,0'), 2);
+  const buffs = D.restoreBuffs(res.save.data.buffs, res.save.data.day);
+  assert.deepEqual(buffs, data.buffs, 'активные благословения восстановлены');
+});
