@@ -28,8 +28,8 @@
 <line x1="37" y1="67.1" x2="39" y2="92" stroke="#d8d4c8" stroke-width="3"/>
 <line x1="20" y1="67.7" x2="18" y2="92" stroke="#d8d4c8" stroke-width="3"/>
 <line x1="28" y1="67.7" x2="30" y2="92" stroke="#d8d4c8" stroke-width="3"/>
-<path d="M84 58 q8 -4 10 2 q-6 4 -10 -2 Z" fill="none" stroke="#96542e" stroke-width="NaN" stroke-linecap="round"/>
-<path d="M84 66 q8 4 10 -2 q-6 -4 -10 2 Z" fill="none" stroke="#96542e" stroke-width="NaN" stroke-linecap="round"/>
+<path d="M84 58 q8 -4 10 2 q-6 4 -10 -2 Z" fill="none" stroke="#96542e" stroke-width="1.1" stroke-linecap="round"/>
+<path d="M84 66 q8 4 10 -2 q-6 -4 -10 2 Z" fill="none" stroke="#96542e" stroke-width="1.1" stroke-linecap="round"/>
 <circle cx="80" cy="57" r="1.6" fill="#1a1a1a"/>
 <circle cx="83" cy="64" r="1.6" fill="#1a1a1a"/>
 <path d="M38.6 67.4 q2.9 1.4 4.9 0" fill="none" stroke="#d8d4c8" stroke-width="1.1" stroke-linecap="round"/>
