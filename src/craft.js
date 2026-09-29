@@ -9,8 +9,8 @@
 // require(). Зависимости (ПОРЯДОК ВАЖЕН, UMD-ловушка 000038):
 //   * craft-data.js (Game.CraftData — зеркало каталога, фолбэк file://);
 //   * player.js (Game.createCharacter/derived/skillXpForNext);
-//   * items.js (Game.addItem/canAddItem/removeItem/hasItem/getItem/
-//     totalQty — инвентарь, бонусные слоты);
+//   * items.js (Game.addItem/removeItem/hasItem/getItem/QUICK_SLOTS —
+//     инвентарь, бонусные слоты; canAddItem — в guard загрузки);
 //   * buildings.js (Game.getBuilding — здания рецептов);
 //   * spells.js (Game.Spells — зачарование: каталог и изученность).
 //
@@ -48,6 +48,19 @@
 // Атомарность: ВСЕ мутации — ПОСЛЕ всех проверок (при отказе
 // исходники/мана/золото не тратятся); canCraft — зеркало craft
 // (одна причина, без побочных эффектов — зеркало 000037).
+// Ёмкость (зеркало): проверка — ХУДШИЙ СЛУЧАЙ последовательности
+// мутаций на ТЕКУЩЕМ инвентаре (исходники ещё не сняты — консервативно:
+// после расхода их место только прибавится, так что если влезает сейчас,
+// мутации craft никогда не уткнутся в слоты/вес):
+//   * результат — в обоих состояниях слота: с бонусом качества
+//     (отдельный слот; состояние бонуса меняет слияние с существующими
+//     стопками, расход слотов отличается) и без (только заклинание/
+//     обычный) — проверяются оба, если качество МОЖЕТ выпасть;
+//   * +1 выходной предмет поверх каждого (выход тоже ролл — худший
+//     случай: оба ролла разом).
+// Если худший случай влезает — craft не может ни «раздать бесплатно»
+// (основной результат без выхода), ни отказать на слотах/весе, а
+// canCraft и craft дают ОДНУ и ту же причину.
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -265,7 +278,12 @@
    * Пересчёт копилки после повышения связанного навыка: «потолок
    * практикой» вырос, и опыт, застрявший в c.craftXp у уровня потолка,
    * конвертируется в уровни (до нового потолка). Зеркало
-   * reprocessSkillXp (player.js); вызывается при росте навыка.
+   * reprocessSkillXp (player.js). ВЫЗЫВАЕТСЯ при росте навыка из
+   * player.js — очками (raiseSkill, основной и вторичный) и
+   * практикой/книгами (_gainSkillXp) — и из npc.js schoolTrain
+   * (школа), через ленивый хук globalThis.Game.Craft (player.js
+   * загружается ДО craft.js — UMD-ловушка 000038; паттерн хука
+   * bookCraftXp в items.js). Чисто: только c.craft/c.craftXp мутирует.
    * @returns {string[]} виды, чей уровень вырос
    */
   function reprocessCraftXp(c, skillId) {
@@ -386,6 +404,94 @@
     return null;
   }
 
+  // Бонус результата: качество (множитель навыка вида) + заклинание
+  // (степень по spell.действие) складываются в ОДИН слот.
+  // quality: выпало ли качество — в craft() результат ролла; в зеркале
+  // ёмкости — «может ли выпасть» (худший случай). САМО значение
+  // детерминировано (множитель — из навыка персонажа, степень — из
+  // каталога), поэтому зеркало считает тот же бонус, что и craft.
+  // null — бонуса нет (реагенты/книги; качество не выпало и без spell).
+  function craftBonus(c, recipe, spell, quality) {
+    const it = I.getItem(recipe.результат.предмет);
+    const key = resultStatKey(it);
+    if (!key) return null;
+    let bonus = null;
+    if (quality) {
+      bonus = { [key]: Math.max(1, Math.round(1 * qualityMult(c, recipe.тип))) };
+    }
+    if (spell) {
+      let add = 0;
+      if (spell.действие === 'урон' && it.kind === 'weapon') {
+        add = spell.степень;
+      } else if (spell.действие === 'защита' && it.kind === 'armor') {
+        add = spell.степень;
+      } else if (spell.действие === 'лечение' &&
+          (it.kind === 'potion' || it.kind === 'food')) {
+        add = 1 + spell.степень;
+      }
+      if (add > 0) {
+        bonus = bonus || {};
+        bonus[key] = (bonus[key] || 0) + add;
+      }
+    }
+    return bonus;
+  }
+
+  // Dry-run ОДНОГО сценария ёмкости на КЛОНЕ инвентаря: результат
+  // (с бонусом b), затем +1 выходной (без бонуса). Использует реальный
+  // addItem (те же проверки слотов/веса, то же заполнение стопок) —
+  // на клоне: c не мутирует.
+  function dryRunAdd(c, res, b, extra) {
+    const inv0 = (c.inventory && Array.isArray(c.inventory.slots))
+      ? c.inventory : null;
+    const slots = inv0
+      ? inv0.slots.map((e) => (e.bonus
+          ? { id: e.id, qty: e.qty, bonus: e.bonus }
+          : { id: e.id, qty: e.qty }))
+      : [];
+    const quick = (inv0 && Array.isArray(inv0.quick))
+      ? inv0.quick.slice()
+      : new Array(I.QUICK_SLOTS).fill(null);
+    const tmp = Object.assign({}, c, { inventory: { slots, quick } });
+    const r1 = I.addItem(tmp, res.предмет, res.количество,
+      b === null ? undefined : b);
+    if (!r1.ok) return r1;
+    if (extra) {
+      const r2 = I.addItem(tmp, res.предмет, 1);
+      if (!r2.ok) return r2;
+    }
+    return { ok: true };
+  }
+
+  // Ёмкость инвентаря — зеркало (см. шапку модуля, «Ёмкость»): худший
+  // случай последовательности мутаций на ТЕКУЩЕМ инвентаре.
+  // Причины — те же, что у addItem/checkAdd: если какой-то сценарий не
+  // влезает по СЛОТАМ — «нет свободных слотов инвентаря» (приоритет:
+  // checkAdd проверяет слоты ДО веса), иначе по весу —
+  // «слишком тяжело (лимит веса)». Чисто: c не мутирует.
+  function capacityCheck(c, recipe, spell, building) {
+    const res = recipe.результат;
+    const qPossible = qualityChance(c, recipe.id, building) > 0;
+    const yPossible = yieldChance(c, recipe.id, building) > 0;
+    const bonuses = qPossible
+      ? [craftBonus(c, recipe, spell, true),
+         craftBonus(c, recipe, spell, false)]
+      : [craftBonus(c, recipe, spell, false)];
+    let slotFail = false;
+    let weightFail = false;
+    for (const b of bonuses) {
+      const r = dryRunAdd(c, res, b, yPossible);
+      if (!r.ok) {
+        if (r.reason === 'нет свободных слотов инвентаря') slotFail = true;
+        else if (r.reason === 'слишком тяжело (лимит веса)') weightFail = true;
+        else return r; // непредвиденная причина — вернуть как есть
+      }
+    }
+    if (slotFail) return { ok: false, reason: 'нет свободных слотов инвентаря' };
+    if (weightFail) return { ok: false, reason: 'слишком тяжело (лимит веса)' };
+    return { ok: true };
+  }
+
   // Общие проверки крафта (зеркало 000037: craft и canCraft обязаны дать
   // ОДНУ и ту же причину). Чисто: инвентарь/мана/rng не трогаются,
   // c.craft/c.craftXp/p.spells не создаются.
@@ -457,8 +563,11 @@
     }
     // Ёмкость инвентаря (dry-run ТЕКУЩЕГО инвентаря, ДО расхода
     // исходников — атомарность: отказ = исходники не потрачены).
-    const res = recipe.результат;
-    const cap = I.canAddItem(c, res.предмет, res.количество);
+    // ХУДШИЙ СЛУЧАЙ: результат в обоих состояниях слота (с бонусом
+    // качества — отдельный слот — и без) + 1 выходной (см. шапку
+    // модуля): если он влез, craft не может ни отказать на слотах/весе,
+    // ни «раздать» основной результат без выхода.
+    const cap = capacityCheck(c, recipe, spell, o.building);
     if (!cap.ok) return { fail: cap };
     return { ok: true, recipe, spell };
   }
@@ -502,31 +611,30 @@
     // Бонус результата: качество (множитель навыка вида) + заклинание
     // (степень по spell.действие) складываются в один слот.
     const res = recipe.результат;
-    const it = I.getItem(res.предмет);
-    const key = resultStatKey(it);
-    let bonus = null;
-    if (key) {
-      if (quality) {
-        bonus = { [key]: Math.max(1, Math.round(1 * qualityMult(c, recipe.тип))) };
-      }
-      if (spell) {
-        let add = 0;
-        if (spell.действие === 'урон' && it.kind === 'weapon') {
-          add = spell.степень;
-        } else if (spell.действие === 'защита' && it.kind === 'armor') {
-          add = spell.степень;
-        } else if (spell.действие === 'лечение' &&
-            (it.kind === 'potion' || it.kind === 'food')) {
-          add = 1 + spell.степень;
-        }
-        if (add > 0) {
-          bonus = bonus || {};
-          bonus[key] = (bonus[key] || 0) + add;
-        }
-      }
-    }
+    const bonus = craftBonus(c, recipe, spell, quality);
 
     // --- Мутации (все проверки прошли) ---
+    // Отказ на этом этапе НЕДОСТИЖИМ: evalCraft/capacityCheck прошла
+    // ХУДШИЙ случай (оба состояния бонуса + выход) на БОЛЕЕ тяжёлом
+    // инвентаре (исходники ещё внутри), а бонус здесь — один из
+    // проверенных. Атомарность на случай будущего рассогласования
+    // сохраняем ПОЛНОЙ: при отказе инвентарь возвращается ТОЧНО к
+    // состоянию до craft — исходники не потрачены И результат не
+    // остался «в подарок» (отказ = ничего не изготовлено).
+    // (Снимок слотов/quick, а не «вернуть исходники» точечно: бонусные
+    // слоты изолированы, и точечный removeItem мог снять ЧУЖИЕ копии.)
+    I.ensureInventory(c);
+    const slotsBefore = c.inventory.slots
+      .map((e) => (e.bonus
+          ? { id: e.id, qty: e.qty, bonus: e.bonus }
+          : { id: e.id, qty: e.qty }));
+    const quickBefore = c.inventory.quick.slice();
+    const restoreInventory = () => {
+      c.inventory.slots = slotsBefore.map((e) => (e.bonus
+        ? { id: e.id, qty: e.qty, bonus: e.bonus }
+        : { id: e.id, qty: e.qty }));
+      c.inventory.quick = quickBefore;
+    };
     // Исходники.
     for (const inp of recipe.исходники) {
       I.removeItem(c, inp.предмет, inp.количество);
@@ -535,20 +643,14 @@
     const addR = I.addItem(c, res.предмет, res.количество,
       bonus === null ? undefined : bonus);
     if (!addR.ok) {
-      // Теоретически недостижимо (canAddItem прошла на БОЛЕЕ тяжёлом
-      // инвентаре), но атомарность сохраняем: вернём исходники.
-      for (const inp of recipe.исходники) {
-        I.addItem(c, inp.предмет, inp.количество);
-      }
+      restoreInventory();
       return { ok: false, reason: addR.reason };
     }
     // Выход: +1 предмет-результат (без бонуса).
     if (extra) {
       const ex = I.addItem(c, res.предмет, 1);
       if (!ex.ok) {
-        for (const inp of recipe.исходники) {
-          I.addItem(c, inp.предмет, inp.количество);
-        }
+        restoreInventory();
         return { ok: false, reason: ex.reason };
       }
     }

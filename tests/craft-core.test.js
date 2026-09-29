@@ -208,6 +208,94 @@ test('addCraftXp: рост, потолок — applied 0, reprocessCraftXp пр�
   assert.equal(C.addCraftXp(p, T, 5).reason, 'персонаж погиб');
 });
 
+test('reprocessCraftXp: вызывается из player.js при росте навыка (очки/практика/школа)', () => {
+  const C = loadCraft();
+  // Ленивый хук читает globalThis.Game.Craft при ВЫЗОВЕ (player.js
+  // загружается ДО craft.js — UMD-ловушка 000038; паттерн хука
+  // bookCraftXp в items.js). В node Game.Craft нет — задаём явно.
+  const G0 = globalThis.Game;
+  globalThis.Game = { Craft: C };
+  try {
+    // Очки, вторичный навык: forge 5→6 — кузнечное_дело: потолок 10→12.
+    const p = createCharacter();
+    p.primary.strength = 5; // требование дерева forge: Сила 5
+    p.secondary.forge = 5; // потолок кузнечного дела 10
+    p.craft = { 'кузнечное_дело': 10 }; // на потолке
+    p.craftXp = { 'кузнечное_дело': 165 };
+    p.points = 1;
+    const r = P.raiseSkill(p, 'forge');
+    assert.equal(r.ok, true, r.reason);
+    assert.equal(p.secondary.forge, 6, 'forge 5→6');
+    assert.equal(C.craftLevel(p, 'кузнечное_дело'), 11, 'потолок 10→12: +1');
+    assert.equal(p.craftXp['кузнечное_дело'], 0, '165 − 165 (порог 15×11)');
+    // Очки, ОСНОВНОЙ навык: dexterity 1→2 — столярное_дело: потолок 2→4.
+    const p2 = createCharacter();
+    p2.craft = { 'столярное_дело': 2 }; // на потолке (dexterity 1 → 2)
+    p2.craftXp = { 'столярное_дело': 45 };
+    p2.points = 1;
+    const r2 = P.raiseSkill(p2, 'dexterity');
+    assert.equal(r2.ok, true, r2.reason);
+    assert.equal(C.craftLevel(p2, 'столярное_дело'), 3, 'потолок 2→4: +1');
+    assert.equal(p2.craftXp['столярное_дело'], 0, '45 − 45 (порог 15×3)');
+    // Практика: alchemy 4→5 — алхимия: потолок 8→10.
+    const p3 = createCharacter();
+    p3.primary.intelligence = 4; // потолок ПРАКТИКИ alchemy 8
+    p3.secondary.alchemy = 4; // потолок алхимии 8
+    p3.craft = { 'алхимия': 8 }; // на потолке
+    p3.craftXp = { 'алхимия': 135 };
+    const pr = P.skillPractice(p3, 'alchemy', 75); // 75 = порог 15×5
+    assert.equal(pr.leveledUp, true, 'практика подняла alchemy');
+    assert.equal(p3.secondary.alchemy, 5, 'alchemy 4→5');
+    assert.equal(C.craftLevel(p3, 'алхимия'), 9, 'потолок 8→10: +1');
+    assert.equal(p3.craftXp['алхимия'], 0, '135 − 135 (порог 15×9)');
+    // Навык не вырос (не до уровня) — копилка крафта не тронута.
+    const p4 = createCharacter();
+    p4.primary.strength = 5;
+    p4.secondary.forge = 5;
+    p4.craft = { 'кузнечное_дело': 10 };
+    p4.craftXp = { 'кузнечное_дело': 100 };
+    P.skillPractice(p4, 'forge', 10); // 10 < 15×6 — уровня нет
+    assert.equal(p4.secondary.forge, 5, 'уровня нет');
+    assert.equal(C.craftLevel(p4, 'кузнечное_дело'), 10, 'без репроцессинга');
+    assert.equal(p4.craftXp['кузнечное_дело'], 100);
+    // КАСКАД: рост ОСНОВНОГО навыка поднимает вторичный (репроцессинг
+    // практикой), и от него растёт потолок крафта.
+    // Сила 5→6 → потолок практики Кузнечной руки 10→12: рука 10→11
+    // (копилка 165 = порог 15×11) → кузнечное_дело: потолок 20→22.
+    const p6 = createCharacter();
+    p6.primary.strength = 5;
+    p6.secondary.forge = 10; // на потолке практики (5×2)
+    p6.skillXp = { forge: 165 }; // застряла у потолка
+    p6.craft = { 'кузнечное_дело': 20 }; // на потолке крафта (10×2)
+    p6.craftXp = { 'кузнечное_дело': 315 }; // порог 20→21: 15×21
+    p6.points = 1;
+    const r6 = P.raiseSkill(p6, 'strength');
+    assert.equal(r6.ok, true, r6.reason);
+    assert.deepEqual(r6.skillLevels, ['forge'], 'каскад поднял forge');
+    assert.equal(p6.secondary.forge, 11, 'forge 10→11 (каскад)');
+    assert.equal(C.craftLevel(p6, 'кузнечное_дело'), 21,
+      'потолок 20→22: +1 от каскадного роста forge');
+    assert.equal(p6.craftXp['кузнечное_дело'], 0, '315 − 315');
+    // Школа (npc.js schoolTrain) — тоже рост навыка.
+    const N = require('../src/npc.js');
+    const thor = NPCS.find((n) => n.id === 'blacksmith');
+    const p5 = createCharacter();
+    p5.primary.strength = 5;
+    p5.secondary.forge = 5;
+    p5.craft = { 'кузнечное_дело': 10 };
+    p5.craftXp = { 'кузнечное_дело': 165 };
+    const r5 = N.schoolTrain(thor, p5, 'forge');
+    assert.equal(r5.ok, true, r5.reason);
+    assert.equal(p5.secondary.forge, 6, 'forge 5→6 (школа)');
+    assert.equal(p5.gold, 80, 'золото −20');
+    assert.equal(C.craftLevel(p5, 'кузнечное_дело'), 11, 'потолок 10→12: +1');
+    assert.equal(p5.craftXp['кузнечное_дело'], 0);
+  } finally {
+    if (G0 === undefined) delete globalThis.Game;
+    else globalThis.Game = G0;
+  }
+});
+
 test('книги: bookCraftXp — опыт виду (effect.amount), ведёт в потолок', () => {
   const C = loadCraft();
   const book = I.getItem('alchemy_manual'); // skill_book, alchemy, 10 XP
@@ -459,6 +547,97 @@ test('canCraft: зеркало craft — одна причина, без поб�
   assert.equal(rBare2.reason, 'заклинание не изучено');
   assert.equal(p2.spells, undefined, 'craft не создаёт p.spells при отказе');
   assert.equal(I.totalQty(p2, 'short_bow'), 1, 'исходники не потрачены');
+});
+
+test('ёмкость: выход (+1) считается зеркалом — отказ, если не влезает; ' +
+     'результат НЕ остаётся (нет бесплатного предмета)', () => {
+  const C = loadCraft();
+  // 19 слотов: honey_cake ×2, moonstone ×2 (исходники — стопки с
+  // излишком, слот НЕ освобождается), sulfur ×17. Стопки зелья НЕТ:
+  // результат (качество — бонусный слот) — 20/20, +1 выходной — 21.
+  const p = createCharacter();
+  p.inventory = {
+    slots: [
+      { id: 'honey_cake', qty: 2 },
+      { id: 'moonstone', qty: 2 },
+      ...Array.from({ length: 17 }, () => ({ id: 'sulfur', qty: 1 })),
+    ],
+    quick: [null, null, null],
+  };
+  const before = JSON.stringify(p.inventory);
+  // Качество (0.01 < 0.05) и выход (0.01 < 0.02) — оба выпали.
+  const r = C.craft(p, 'healing_potion', { building: 17, rng: rolls(0.01, 0.01) });
+  assert.equal(r.ok, false, r.reason);
+  assert.equal(r.reason, 'нет свободных слотов инвентаря');
+  assert.equal(
+    C.canCraft(p, 'healing_potion', { building: 17 }).reason,
+    'нет свободных слотов инвентаря', 'зеркало: canCraft даёт ту же причину');
+  assert.equal(JSON.stringify(p.inventory), before,
+    'атомарность: исходники не потрачены, результат не остался');
+  assert.equal(I.totalQty(p, 'healing_potion'), 0, 'бесплатного предмета нет');
+  // «База» (улучшенный способ): результат ×2 с бонусом + гарантированный
+  // выход — те же 19 слотов.
+  const p2 = createCharacter();
+  p2.craft = { 'алхимия': 4 }; // healing_potion_fine — уровень 4
+  p2.inventory = {
+    slots: [
+      { id: 'honey_cake', qty: 3 },
+      { id: 'moonstone', qty: 3 },
+      ...Array.from({ length: 17 }, () => ({ id: 'sulfur', qty: 1 })),
+    ],
+    quick: [null, null, null],
+  };
+  const r2 = C.craft(p2, 'healing_potion_fine', { building: 17, rng: () => 0.9999 });
+  assert.equal(r2.ok, false, r2.reason);
+  assert.equal(r2.reason, 'нет свободных слотов инвентаря');
+  assert.equal(
+    C.canCraft(p2, 'healing_potion_fine', { building: 17 }).reason,
+    'нет свободных слотов инвентаря', 'зеркало: canCraft даёт ту же причину');
+  assert.equal(I.totalQty(p2, 'healing_potion'), 0,
+    'бесплатного предмета нет (×2 + бонус не остались)');
+});
+
+test('ёмкость: бонусный слот (отдельный, не сливается со стопкой) — ' +
+     'зеркало считает (000037)', () => {
+  const C = loadCraft();
+  // 20/20 слотов: honey_cake ×2, moonstone ×2, sulfur ×17,
+  // healing_potion ×5. В обычную стопку влезает, но БОНУСНЫЙ экземпляр
+  // — отдельный слот, а слотов нет.
+  const p = createCharacter();
+  p.inventory = {
+    slots: [
+      { id: 'honey_cake', qty: 2 },
+      { id: 'moonstone', qty: 2 },
+      ...Array.from({ length: 17 }, () => ({ id: 'sulfur', qty: 1 })),
+      { id: 'healing_potion', qty: 5 },
+    ],
+    quick: [null, null, null],
+  };
+  const before = JSON.stringify(p.inventory);
+  // Качество выпало (0.01 < 0.05), выход нет (0.99 > 0.02).
+  const r = C.craft(p, 'healing_potion', { building: 17, rng: rolls(0.01, 0.99) });
+  assert.equal(r.ok, false, r.reason);
+  assert.equal(r.reason, 'нет свободных слотов инвентаря');
+  assert.equal(
+    C.canCraft(p, 'healing_potion', { building: 17 }).reason,
+    'нет свободных слотов инвентаря',
+    'зеркало: canCraft НЕ даёт ok, когда craft уткнёт в бонусный слот');
+  assert.equal(JSON.stringify(p.inventory), before, 'исходники не потрачены');
+  assert.equal(I.totalQty(p, 'healing_potion'), 5, 'результат не остался');
+  // Пускать один слот серы (19 слотов) — худший случай влезает:
+  // canCraft ok и craft ok, бонус — отдельным слотом.
+  p.inventory.slots.splice(2, 1);
+  const r2 = C.craft(p, 'healing_potion', { building: 17, rng: rolls(0.01, 0.99) });
+  assert.equal(r2.ok, true, r2.reason);
+  assert.equal(C.canCraft(p, 'healing_potion', { building: 17 }).ok, true);
+  assert.equal(r2.quality, true);
+  assert.equal(I.totalQty(p, 'healing_potion'), 6, '5 + 1 (бонусный)');
+  const bonusSlot = p.inventory.slots
+    .find((s) => s.id === 'healing_potion' && s.bonus);
+  assert.ok(bonusSlot, 'бонус — отдельный слот');
+  assert.equal(bonusSlot.qty, 1);
+  assert.equal(I.totalQty(p, 'honey_cake'), 1, 'исходники потрачены');
+  assert.equal(I.totalQty(p, 'moonstone'), 1, 'исходники потрачены');
 });
 
 // --- Качество ---

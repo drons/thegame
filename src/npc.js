@@ -141,6 +141,19 @@
     return { ok: true };
   }
 
+  // Хук крафта (задача 000046): рост навыка в школе поднимает «потолок
+  // практикой» привязанных к нему видов крафта — пересчёт копилки
+  // c.craftXp. ЛЕНИВО (см. craftReprocessHook в player.js и хук
+  // bookCraftXp в items.js): Game.Craft снимается при ВЫЗОВЕ; в node
+  // без Game.Craft — no-op.
+  function craftReprocessHook(c, skillId) {
+    const G = (typeof globalThis !== 'undefined' &&
+      typeof globalThis.Game === 'object') ? globalThis.Game : null;
+    if (G && G.Craft && typeof G.Craft.reprocessCraftXp === 'function') {
+      G.Craft.reprocessCraftXp(c, skillId);
+    }
+  }
+
   /**
    * Прокачка за золото: +1 уровень, очки НЕ тратит (в отличие от P.raiseSkill).
    * @returns {{ok:boolean, level?:number, price?:number, reason?:string}}
@@ -151,6 +164,8 @@
     const price = schoolTrainPrice(npc);
     character.gold -= price;
     character.secondary[skillId] = (character.secondary[skillId] || 0) + 1;
+    // Крафт (000046): навык вырос — потолок видов крафта на нём вырос.
+    craftReprocessHook(character, skillId);
     return { ok: true, level: character.secondary[skillId], price };
   }
 
