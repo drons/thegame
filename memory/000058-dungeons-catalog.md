@@ -1,7 +1,7 @@
 # 000058: подземелья — каталог assets/dungeons (JSON + схема)
 
-Статус: реализация (задача в tasks/pending; отчёт и перенос в done —
-стадия Finalize). Дочерняя к 000053 (аудит дублирования данных).
+Статус: выполнено (перенесена в tasks/done, отчёт —
+tasks/result/000058.md). Дочерняя к 000053 (аудит дублирования данных).
 
 ## Что сделано
 
@@ -15,7 +15,8 @@
 * `scripts/sync-dungeons-data.js` (новый) + npm `sync:dungeons`:
   идемпотентно (byte-identical), CI-готовый (000054), паттерн
   `sync-spells-data.js`; проверка `id = номер файла − 1` и множества
-  id = {0..4}, ключи вне схемы — exit 1.
+  id = {0..4}, ключи вне схемы — exit 1; атомарная запись
+  `writeFileAtomic` (конвенция SPEC, по итогам ревью).
 * `src/dungeon.js`: `DUNGEON_NAMES/MOBS/ITEMS/SIZE` выведены из
   каталога — node-ветка `require('./dungeons-data.js')`, браузерная —
   `Game.DungeonsData` + `validDungeonCatalog`-гард: без data-модуля
