@@ -478,8 +478,11 @@ test('vm: buildings.js БЕЗ map.js грузится, passableTiles() === [] г
   loadInSandbox('buildings.js', sandbox);
   assert.equal(typeof sandbox.Game.passableTiles, 'function',
     'passableTiles в browser-режиме');
-  assert.deepEqual(sandbox.Game.passableTiles(), [],
-    'без map.js — грациозно []');
+  // Разные realm'ы: массив из vm-песочницы ≠ [] внешнего realm в
+  // deepStrictEqual (разные Array.prototype) — JSON-нормализация
+  // (паттерн tests/map.test.js, следующая проверка ниже та же).
+  assert.deepEqual(JSON.parse(JSON.stringify(sandbox.Game.passableTiles())),
+    [], 'без map.js — грациозно []');
   loadInSandbox('perlin.js', sandbox);
   loadInSandbox('map.js', sandbox);
   // Разные realm'ы: JSON-нормализация.
