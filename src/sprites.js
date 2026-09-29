@@ -280,6 +280,36 @@
   };
   const COMBAT_BG_FALLBACK = COMBAT_BG_DIR + 'plain.svg';
 
+  // --- Тайлы пола подземелья (задача 000069) ---
+  //
+  // Статичные SVG-тайлы 64×64 в assets/dungeon/floor/ (15 файлов:
+  // 5 типов × 3 варианта, генератор — scripts/gen-dungeon-tiles.js,
+  // палитры — в духе фонов боя 000049 того же типа; базовый градиент
+  // один на тип, 3 варианта — раскладки деталей). Пол подземелья
+  // рисуют ими в задаче 000066; до неё фолбэк — цветной пол #182029.
+  //
+  // DUNGEON_FLOOR_FRAMES — ЛИТЕРАЛЬНОЕ зеркало DUNGEON_TYPES
+  // (0..4 → три пути <slug>_<n>.svg, n = 1..3; слоги — те же, что
+  // COMBAT_BG_DUNGEON). Зависимость от dungeon.js и data-модулей не
+  // создаётся: тот же аргумент, что и COMBAT_BG_DUNGEON (vm-песочница
+  // tests/combat-ui.test.js не грузит dungeon.js, а require в
+  // node-ветке UMD дал бы рассинхрон node/браузер). Равенство
+  // зеркала с DUNGEON_TYPES и каталогом assets/dungeons закрывает
+  // тест (tests/sprites.test.js).
+  const DUNGEON_FLOOR_DIR = 'assets/dungeon/floor/';
+  const DUNGEON_FLOOR_FRAMES = {
+    0: ['assets/dungeon/floor/cave_1.svg', 'assets/dungeon/floor/cave_2.svg', 'assets/dungeon/floor/cave_3.svg'],
+    1: ['assets/dungeon/floor/crypt_1.svg', 'assets/dungeon/floor/crypt_2.svg', 'assets/dungeon/floor/crypt_3.svg'],
+    2: ['assets/dungeon/floor/ruins_1.svg', 'assets/dungeon/floor/ruins_2.svg', 'assets/dungeon/floor/ruins_3.svg'],
+    3: ['assets/dungeon/floor/drowned_1.svg', 'assets/dungeon/floor/drowned_2.svg', 'assets/dungeon/floor/drowned_3.svg'],
+    4: ['assets/dungeon/floor/abyss_1.svg', 'assets/dungeon/floor/abyss_2.svg', 'assets/dungeon/floor/abyss_3.svg'],
+  };
+  // Сид раскладки вариантов пола. Раскладка ГЛОБАЛЬНАЯ — только
+  // (type, x, y), как у мирских тайлов (без per-dungeon сида):
+  // одна и та же клетка (type, x, y) во всех подземельях — тот же
+  // вариант. Отдельный от VISUALS_SEED.
+  const DUNGEON_FLOOR_SEED = 0x669f0101;
+
   // --- Волна на воде (задача 000025) ---
   //
   // Волна в текстуре имеет период 16px (четверть тайла 64px), каждый
@@ -479,6 +509,27 @@
     return COMBAT_BG_FALLBACK;
   }
 
+  /**
+   * Путь SVG-тайла пола подземелья (задача 000069).
+   * Чистая функция: (type, x, y) → 'assets/dungeon/floor/<slug>_<n>.svg'
+   * (паттерн tileVisuals: вариант — hash2 от координат, детерминизм,
+   * без RNG-состояния и факта загрузки; повторный вызов — тот же путь).
+   * type — целое DUNGEON_TYPES (0..4); вариант 1..3 — по
+   * hash2(x, y, DUNGEON_FLOOR_SEED + type). Неизвестный или нецелый
+   * type (5, −1, 0.5, 'cave', null, NaN, …) → null — рендерер (000066)
+   * рисует фолбэк #182029.
+   * @param {number} type DUNGEON_TYPES (0..4)
+   * @param {number} x координата клетки по X (целая)
+   * @param {number} y координата клетки по Y (целая)
+   * @returns {string|null} путь тайла или null
+   */
+  function dungeonFloorFrame(type, x, y) {
+    if (!Number.isInteger(type)) return null;
+    const frames = DUNGEON_FLOOR_FRAMES[type];
+    if (!frames) return null;
+    return frames[hash2(x, y, DUNGEON_FLOOR_SEED + type) % 3];
+  }
+
   /** Все пути ассетов модуля (без дублей) — для загрузки и тестов. */
   function allAssetPaths() {
     const paths = [];
@@ -500,6 +551,10 @@
       paths.push(COMBAT_BG_DIR + k + '.svg');
     }
     paths.push(COMBAT_BG_FALLBACK);
+    // Тайлы пола подземелья (задача 000069): 15 файлов (5 типов × 3).
+    for (const frames of Object.values(DUNGEON_FLOOR_FRAMES)) {
+      paths.push(...frames);
+    }
     return Array.from(new Set(paths));
   }
 
@@ -614,6 +669,8 @@
     BUILDING_SPRITES,
     COMBAT_BG_DIR, COMBAT_BG_TERRAIN, COMBAT_BG_DUNGEON, COMBAT_BG_FALLBACK,
     combatBackground,
+    DUNGEON_FLOOR_DIR, DUNGEON_FLOOR_FRAMES, DUNGEON_FLOOR_SEED,
+    dungeonFloorFrame,
     HP_BAR_COLORS, hpBarColor,
     VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE, VISUALS_MIN_ZOOM,
     FRAME_MS,

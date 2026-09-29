@@ -904,3 +904,187 @@ test('vm: MobGroupsData ДО загрузки sprites.js — виды из ка�
   assert.equal(sandbox.Game.mobKind(0), 'spider', 'вид из каталога');
   assert.equal(sandbox.Game.mobKind(1), null, 'вне каталога — null');
 });
+
+// --- Тайлы пола подземелья (задача 000069) ---
+//
+// DUNGEON_FLOOR_FRAMES — ЛИТЕРАЛЬНОЕ зеркало DUNGEON_TYPES (0..4 → три
+// пути assets/dungeon/floor/<slug>_<n>.svg), тот же паттерн, что
+// COMBAT_BG_DUNGEON (000049): sprites.js НЕ зависит от dungeon.js
+// (vm-песочница tests/combat-ui.test.js dungeon.js не грузит; require
+// в node-ветке UMD рассинхронил бы node/браузер — см. комментарий в
+// sprites.js). Равенство зеркала с DUNGEON_TYPES и каталогом
+// assets/dungeons закрывают тесты ниже (тест импортирует dungeon.js
+// напрямую в node).
+//
+// dungeonFloorFrame(type, x, y) — чистая функция выбора варианта 1..3
+// (паттерн tileVisuals: hash2 от координат, детерминизм, без
+// RNG-состояния и факта загрузки). Раскладка ГЛОБАЛЬНАЯ (только
+// (type, x, y), как мирские тайлы — без per-dungeon сида).
+// Неизвестный type → null (рендерер 000066 рисует фолбэк #182029).
+//
+// Стадия красных тестов: DUNGEON_FLOOR_FRAMES / dungeonFloorFrame в
+// sprites.js, scripts/gen-dungeon-tiles.js и 15 файлов
+// assets/dungeon/floor ещё не существуют — тесты ниже падают, пока
+// нет реализации.
+
+const FLOOR_DIR = 'assets/dungeon/floor/';
+const FLOOR_KEYS = [
+  'cave_1', 'cave_2', 'cave_3',
+  'crypt_1', 'crypt_2', 'crypt_3',
+  'ruins_1', 'ruins_2', 'ruins_3',
+  'drowned_1', 'drowned_2', 'drowned_3',
+  'abyss_1', 'abyss_2', 'abyss_3',
+];
+
+test('DUNGEON_FLOOR_FRAMES: 5 типов × 3 варианта, ключи ≡ DUNGEON_TYPES, файлы существуют', () => {
+  const D = require('../src/dungeon.js');
+  assert.ok(S.DUNGEON_FLOOR_FRAMES, 'sprites.js экспортирует DUNGEON_FLOOR_FRAMES');
+  const frames = S.DUNGEON_FLOOR_FRAMES;
+  // Зеркало равно DUNGEON_TYPES: ключи — те же 5 чисел (0..4), ни одного
+  // лишнего (паттерн теста COMBAT_BG_DUNGEON выше).
+  assert.deepEqual(
+    Object.keys(frames).map(Number).sort((a, b) => a - b),
+    Object.values(D.DUNGEON_TYPES).slice().sort((a, b) => a - b),
+    'ключи зеркала ≠ значения DUNGEON_TYPES');
+  for (const [name, val] of Object.entries(D.DUNGEON_TYPES)) {
+    const slug = BG_DUNGEON_FILES[val];
+    assert.deepEqual(frames[val],
+      [1, 2, 3].map((n) => FLOOR_DIR + slug + '_' + n + '.svg'),
+      `тип ${name} (${val}): ровно 3 пути <slug>_<n>.svg, n = 1..3`);
+    for (const p of frames[val]) assert.ok(exists(p), `нет файла: ${p}`);
+  }
+});
+
+test('DUNGEON_FLOOR_FRAMES ≡ каталог assets/dungeons: порядок файлов ↔ id ↔ slug', () => {
+  // Перенумерация каталога (000058) сдвигает пол так же, как фоны боя:
+  // пол подземелья с id N обязан носить slug N-го файла каталога.
+  const DDIR = path.join(ROOT, 'assets', 'dungeons');
+  const files = fs.readdirSync(DDIR)
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .sort();
+  files.forEach((f, i) => {
+    const data = JSON.parse(fs.readFileSync(path.join(DDIR, f), 'utf8'));
+    assert.equal(data.id, i, `${f}: id ≠ порядковому номеру файла (0..4)`);
+    const frames = S.DUNGEON_FLOOR_FRAMES[data.id];
+    assert.ok(Array.isArray(frames) && frames.length === 3,
+      `${f}: нет 3 путей пола для подземелья id=${data.id}`);
+    const slugs = [...new Set(frames
+      .map((p) => path.basename(p).replace(/_\d+\.svg$/, '')))];
+    // Явная связь с фоном боя того же подземелья (тихая рассинхронизация
+    // «пол склепа под фоном боя пещеры» должна ловиться здесь).
+    assert.deepEqual(slugs, [S.COMBAT_BG_DUNGEON[data.id]],
+      `${f}: slug пола ≠ slug фона боя (COMBAT_BG_DUNGEON[${data.id}])`);
+  });
+});
+
+test('dungeonFloorFrame: результат — один из трёх путей своего типа, чистая функция', () => {
+  assert.equal(typeof S.dungeonFloorFrame, 'function',
+    'sprites.js экспортирует dungeonFloorFrame');
+  // Сетка 35×35 — размер крупнейшего подземелья (бездна, DUNGEON_SIZE).
+  for (let type = 0; type < 5; type++) {
+    const allowed = new Set(S.DUNGEON_FLOOR_FRAMES[type]);
+    for (let x = 0; x < 35; x++) {
+      for (let y = 0; y < 35; y++) {
+        const r = S.dungeonFloorFrame(type, x, y);
+        assert.equal(typeof r, 'string',
+          `тип ${type} (${x},${y}): путь-строка, а не индекс`);
+        assert.ok(allowed.has(r), `тип ${type} (${x},${y}): чужой путь ${r}`);
+        assert.equal(S.dungeonFloorFrame(type, x, y), r,
+          `тип ${type} (${x},${y}): повторный вызов даёт другой результат`);
+      }
+    }
+  }
+});
+
+test('dungeonFloorFrame: в сетке 35×35 встречаются ВСЕ три варианта', () => {
+  // Механически закрывает «один вариант на весь тип» (шахматка
+  // вырождается в плиту) и «один вид для пяти типов» (пути каждого
+  // типа различны по slug).
+  for (let type = 0; type < 5; type++) {
+    const seen = new Set();
+    for (let x = 0; x < 35; x++)
+      for (let y = 0; y < 35; y++)
+        seen.add(S.dungeonFloorFrame(type, x, y));
+    assert.equal(seen.size, 3,
+      `тип ${type}: в сетке только ${seen.size} из 3 вариантов`);
+    for (const p of seen) {
+      assert.ok(S.DUNGEON_FLOOR_FRAMES[type].includes(p),
+        `тип ${type}: чужой вариант ${p}`);
+    }
+  }
+});
+
+test('dungeonFloorFrame: неизвестный type → null, без исключений', () => {
+  // Паттерн теста mobSpriteKind: мусорные type не роняют, дают null
+  // (рендерер рисует фолбэк).
+  for (const type of [5, 99, -1, 0.5, 'cave', null, undefined, NaN]) {
+    assert.equal(S.dungeonFloorFrame(type, 3, 5), null,
+      `неизвестный type: ${String(type)}`);
+  }
+});
+
+test('allAssetPaths: содержит все 15 путей пола, файлы существуют', () => {
+  // Явность для лоадера 000066/main.js: main.js в очередь лоадера
+  // ставит ТОЛЬКО allAssetPaths() — пропущенный путь = файл не
+  // загрузится в браузере.
+  const paths = S.allAssetPaths();
+  for (const key of FLOOR_KEYS) {
+    const p = FLOOR_DIR + key + '.svg';
+    assert.ok(paths.includes(p), `нет пути в allAssetPaths: ${p}`);
+    assert.ok(exists(p), `нет файла: ${p}`);
+  }
+});
+
+test('gen-dungeon-tiles: детерминирован, состав = 15 ключей, viewBox 64×64, 5 разных базовых тонов, одинаковая база вариантов типа', () => {
+  // Скрипт — dev-инструмент (как gen-combat-bg): isMain-guard +
+  // module.exports { TILES, buildDungeonFloorTile } для тестов.
+  const { TILES, buildDungeonFloorTile } =
+    require('../scripts/gen-dungeon-tiles.js');
+  assert.equal(TILES.length, 15, 'в генераторе 15 тайлов (5 типов × 3 варианта)');
+  assert.deepEqual(TILES.map((t) => t.key).slice().sort(),
+    FLOOR_KEYS.slice().sort(), 'состав генератора ≠ 15 ожидаемых ключей');
+  const byType = new Map(); // slug → Map(key → пара базовых тонов)
+  for (const t of TILES) {
+    // Повторный build — byte-identical (сид фиксирован, порядок стабилен).
+    assert.equal(buildDungeonFloorTile(t), buildDungeonFloorTile(t),
+      `генерация ${t.key} недетерминирована`);
+    const svg = buildDungeonFloorTile(t);
+    assert.ok(svg.includes('viewBox="0 0 64 64"'),
+      `${t.key}: viewBox 64×64 (тот же масштаб, что у мировых тайлов)`);
+    const slug = t.key.replace(/_\d$/, '');
+    if (!byType.has(slug)) byType.set(slug, new Map());
+    byType.get(slug).set(t.key, baseGradientPair(svg, t.key));
+  }
+  assert.equal(byType.size, 5, 'в генераторе 5 типов');
+  const pairs = new Set();
+  for (const [slug, variants] of byType) {
+    // Мягкие стыки: базовый linearGradient ОДИНАКОВ для всех 3 вариантов
+    // одного типа (сид меняет только раскладку деталей) — иначе при
+    // по-клеточной отрисовке «шахматные» контрастные прыжки на стыках.
+    assert.equal(new Set(variants.values()).size, 1,
+      `${slug}: базовый градиент различается между 3 вариантами`);
+    pairs.add(variants.values().next().value);
+  }
+  // «Пять типов — пять разных видов»: базовые пары тонов различны
+  // (бурая / холодная серая / тёплая кладка / сине-зелёная /
+  // чёрно-фиолетовая — палитры фонов боя 000049).
+  assert.equal(pairs.size, 5, '5 типов — 5 разных пар базовых тонов');
+});
+
+test('package.json: npm-скрипт gen:dungeon запускает генератор пола', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.ok(pkg.scripts['gen:dungeon'], 'нет npm-скрипта gen:dungeon');
+  assert.match(pkg.scripts['gen:dungeon'], /gen-dungeon-tiles\.js/);
+});
+
+// Стоп-цвета ПЕРВОГО linearGradient тайла (базовый вертикальный градиент
+// из двух близких тонов — приём мировых тайлов assets/tiles и
+// gen-combat-bg.js). Возвращает пару «top|bottom» (lowercase).
+function baseGradientPair(svg, label) {
+  const m = svg.match(/<linearGradient[^>]*>([\s\S]*?)<\/linearGradient>/);
+  assert.ok(m, `${label}: нет базового linearGradient`);
+  const colors = [...m[1].matchAll(/stop-color="([^"]+)"/g)]
+    .map((s) => s[1].toLowerCase());
+  assert.equal(colors.length, 2, `${label}: базовый градиент = 2 стопа`);
+  return colors.join('|');
+}

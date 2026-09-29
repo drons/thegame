@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="gb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a6170"/>
+      <stop offset="1" stop-color="#3a404e"/>
+    </linearGradient>
+    <radialGradient id="gl">
+      <stop offset="0" stop-color="#6d7586" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#6d7586" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gd">
+      <stop offset="0" stop-color="#2a2f3c" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#2a2f3c" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" fill="url(#gb)"/>
+  <g>
+    <ellipse cx="26.1" cy="42.6" rx="11.8" ry="8.9" fill="url(#gl)"/>
+    <ellipse cx="20.8" cy="33.5" rx="10.2" ry="6.2" fill="url(#gl)"/>
+    <ellipse cx="23.2" cy="35.7" rx="10.6" ry="8.5" fill="url(#gl)"/>
+    <ellipse cx="19" cy="23.7" rx="12.7" ry="9.8" fill="url(#gl)"/>
+    <ellipse cx="49.4" cy="26.9" rx="15.9" ry="13.3" fill="url(#gd)"/>
+    <ellipse cx="26.1" cy="34.8" rx="12.1" ry="9.5" fill="url(#gd)"/>
+    <ellipse cx="17" cy="31" rx="13.7" ry="10.7" fill="url(#gd)"/>
+    <ellipse cx="29" cy="18.3" rx="8.7" ry="5.5" fill="url(#gd)"/>
+  </g>
+  <g>
+    <path d="M46 25.2 l0 12.4" stroke="#2a2f3c" stroke-width="1" stroke-linecap="round" opacity="0.35" />
+    <path d="M28.4 40.3 l0 10.1" stroke="#2a2f3c" stroke-width="1" stroke-linecap="round" opacity="0.35" />
+    <path d="M19.9 34.4 l10.1 0" stroke="#2a2f3c" stroke-width="1" stroke-linecap="round" opacity="0.35" />
+    <path d="M18.4 15.9 l0 14.9" stroke="#2a2f3c" stroke-width="1" stroke-linecap="round" opacity="0.35" />
+    <path d="M20.1 16.6 l0 11.4" stroke="#2a2f3c" stroke-width="1" stroke-linecap="round" opacity="0.35" />
+    <path d="M15.4 17.2 l4.7 1.9" stroke="#cfd3da" stroke-width="1.9" stroke-linecap="round" opacity="0.6" /><circle cx="16.3" cy="16.1" r="1" fill="#cfd3da" opacity="0.6" />
+    <path d="M34 24 l4.2 1.7" stroke="#cfd3da" stroke-width="1.7" stroke-linecap="round" opacity="0.5" /><circle cx="34.8" cy="23" r="0.9" fill="#cfd3da" opacity="0.5" />
+    <path d="M43.5 25.8 l4.2 1.7" stroke="#cfd3da" stroke-width="1.7" stroke-linecap="round" opacity="0.6" /><circle cx="44.3" cy="24.7" r="0.9" fill="#cfd3da" opacity="0.6" />
+    <path d="M18 27.5 l3.6 1.4" stroke="#cfd3da" stroke-width="1.4" stroke-linecap="round" opacity="0.6" /><circle cx="18.7" cy="26.6" r="0.8" fill="#cfd3da" opacity="0.6" />
+    <path d="M42.4 41.2 l4.8 0 l-2.4 3.4" stroke="#8fa3c4" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.4" />
+    <path d="M45.1 16.6 l4.1 0 l-2.1 2.9" stroke="#8fa3c4" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.5" />
+    <path d="M31.9 14 l4.4 0 l-2.2 3.1" stroke="#8fa3c4" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.3" />
+    <circle cx="38.1" cy="46.9" r="1.3" fill="#6d7586" opacity="0.5" />
+    <circle cx="16.2" cy="47.2" r="1.3" fill="#6d7586" opacity="0.5" />
+    <circle cx="18.2" cy="53.4" r="1.6" fill="#6d7586" opacity="0.4" />
+    <circle cx="50.8" cy="24.7" r="0.7" fill="#6d7586" opacity="0.5" />
+    <circle cx="20.6" cy="29.3" r="1.5" fill="#6d7586" opacity="0.4" />
+  </g>
+</svg>

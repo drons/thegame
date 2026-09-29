@@ -9,6 +9,7 @@
     "sync:check": "node scripts/sync-all.js --check",
     "gen:map": "node scripts/generate-map-png.js",
     "gen:combatbg": "node scripts/gen-combat-bg.js",
+    "gen:dungeon": "node scripts/gen-dungeon-tiles.js",
     "gen:spells": "node scripts/sync-spells-data.js",
     "sync:buildings": "node scripts/sync-buildings-data.js",
     "sync:dungeons": "node scripts/sync-dungeons-data.js",

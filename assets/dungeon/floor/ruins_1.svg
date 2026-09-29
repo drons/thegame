@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="gb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7a6f60"/>
+      <stop offset="1" stop-color="#544c41"/>
+    </linearGradient>
+    <radialGradient id="gl">
+      <stop offset="0" stop-color="#8f8574" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#8f8574" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gd">
+      <stop offset="0" stop-color="#403a31" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#403a31" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" fill="url(#gb)"/>
+  <g>
+    <ellipse cx="22.8" cy="30.5" rx="14" ry="9" fill="url(#gl)"/>
+    <ellipse cx="22.9" cy="46" rx="14.6" ry="10.9" fill="url(#gl)"/>
+    <ellipse cx="33.3" cy="47.4" rx="11.2" ry="8.6" fill="url(#gl)"/>
+    <ellipse cx="48.6" cy="21.4" rx="12.1" ry="8.9" fill="url(#gl)"/>
+    <ellipse cx="48.5" cy="41.5" rx="13.6" ry="8.5" fill="url(#gd)"/>
+    <ellipse cx="35.9" cy="17.7" rx="12.7" ry="9.8" fill="url(#gd)"/>
+    <ellipse cx="15.8" cy="43.4" rx="9.2" ry="7" fill="url(#gd)"/>
+    <ellipse cx="15.6" cy="31.9" rx="9.4" ry="7.7" fill="url(#gd)"/>
+  </g>
+  <g>
+    <polygon points="46.5,26.3 53.8,27.4 52.4,30.1 47.3,29.4" fill="#5b5344" opacity="0.5" />
+    <polygon points="28.3,43 35.5,44 34,46.5 29,45.8" fill="#5b5344" opacity="0.6" />
+    <polygon points="38,24.4 42.2,25.5 41.4,28 38.4,27.3" fill="#5b5344" opacity="0.8" />
+    <polygon points="14.8,11.3 22.4,12.2 20.9,14.3 15.6,13.7" fill="#5b5344" opacity="0.7" />
+    <polygon points="47.6,34.1 54.7,35.5 53.3,38.7 48.3,37.8" fill="#5b5344" opacity="0.6" />
+    <polygon points="41.5,32.5 45.3,29.2 50.8,30.8 52.4,35.7 43.2,36.8" fill="#453e35" opacity="0.5" />
+    <polygon points="10.2,9.7 13.4,7 18,8.4 19.4,12.5 11.6,13.4" fill="#453e35" opacity="0.5" />
+    <polygon points="6.8,39.8 9,37.9 12.3,38.9 13.3,41.8 7.7,42.4" fill="#453e35" opacity="0.7" />
+    <polygon points="40.3,21.9 42.6,19.9 46,20.9 47,23.9 41.3,24.6" fill="#453e35" opacity="0.6" />
+    <path d="M19.7 16.8 l5.6 3.2 l4 -2.4 l4.8 4" stroke="#403a31" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.4" />
+    <path d="M19.3 29.5 l3.2 1.8 l2.3 -1.4 l2.8 2.3" stroke="#403a31" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.5" />
+    <path d="M53 17.2 l5.6 3.2 l4 -2.4 l4.8 4" stroke="#403a31" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.4" />
+    <path d="M36 51.3 l3.3 1.9 l2.3 -1.4 l2.8 2.3" stroke="#403a31" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.5" />
+    <ellipse cx="32.5" cy="16.2" rx="2.1" ry="1.5" fill="#8f8574" opacity="0.5" />
+    <ellipse cx="22.6" cy="23.7" rx="2" ry="1.4" fill="#8f8574" opacity="0.6" />
+    <ellipse cx="47.6" cy="41.3" rx="2.5" ry="1.7" fill="#8f8574" opacity="0.5" />
+    <ellipse cx="17.6" cy="28.6" rx="2.2" ry="1.5" fill="#8f8574" opacity="0.5" />
+    <ellipse cx="47.6" cy="10.5" rx="2.6" ry="1.8" fill="#8f8574" opacity="0.4" />
+  </g>
+</svg>
