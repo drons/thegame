@@ -17,8 +17,10 @@
 # зависимостей и нет package-lock.json (если появятся зависимости —
 # добавить сюда установку).
 #
-# ВАЖНО: формат файла зафиксирован тестами tests/ci.test.js (ноль
-# зависимостей — YAML-парсера нет, только строковые ассерты).
+# ВАЖНО: файл проверен тестами tests/ci.test.js — структурной
+# проверкой YAML-подмножества (plain-скаляр НЕ может содержать
+# «колонка+пробел» — поэтому value c «:» в кавычках) и строковыми
+# ассертами (ноль npm-зависимостей — полного YAML-парсера нет).
 # Flow-список (branches: [ master ]), строка path: dist у
 # upload-pages-artifact (ОДИН каталог, список в path сломает tar) и
 # environment в строковой форме не переформатировать.
@@ -62,7 +64,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Сборка сайта (явная выборка: index.html + src + assets → dist/)
+      - name: "Сборка сайта (явная выборка: index.html + src + assets → dist/)"
         run: |
           mkdir -p dist
           cp index.html dist/

@@ -9,11 +9,16 @@
 //    (actions/upload-pages-artifact + actions/deploy-pages) — только после
 //    зелёных тестов (needs: test).
 //
-// Ограничение (memory): в проекте ноль npm-зависимостей, YAML-парсера
-// нет — проверяем workflow статически, строковыми/regex-ассертами
-// (прецедент — tests/index-order.test.js). Формат ci.yml поэтому
-// фиксируем: flow-список branches: [ master ] и path: dist у
-// upload-pages-artifact (input принимает ОДИН каталог — не список).
+// Ограничение (memory): в проекте ноль npm-зависимостей — полного
+// YAML-парсера нет. Проверяем workflow статически в двух слоях:
+//  (1) СТРУКТУРНАЯ проверка YAML-подмножества (yamlSubsetErrors) —
+//     ловит синтаксические ошибки, делающие файл непарсируемым
+//     (прецедент, ревью раунда 3: неэкранированная «колонка+пробел» в
+//     plain-скаляре name: → GitHub отклоняет workflow целиком);
+//  (2) строковые/regex-ассерты по семантике (прецедент —
+//     tests/index-order.test.js). Формат ci.yml поэтому фиксируем:
+//     flow-список branches: [ master ] и path: dist у
+//     upload-pages-artifact (input принимает ОДИН каталог — не список).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -30,6 +35,159 @@ function readWorkflow() {
   assert.ok(yml.trim().length > 0, 'ci.yml пустой');
   return yml;
 }
+
+// Структурная проверка YAML-подмножества, которым обязан пользоваться
+// ci.yml: блок-маппинги, блок-/flow-последовательности, plain- и
+// кавычные скаляры, блок-скаляры (|), полные строки-комментарии.
+// Запрещено в подмножестве (и проверяется): «колонка+пробел» внутри
+// plain-скаляра (значения с «:» — в кавычках), inline-комментарии,
+// multiline flow-коллекции, дублирующиеся ключи в одном маппинге.
+// Поймано ревью: - name: Сборка (выборка: ...) — неэкранированная
+// «: » внутри plain-скаляра ломает парсинг ВЕГО файла, GitHub пишет
+// «Workflow is not valid», ни один job не стартует.
+function yamlSubsetErrors(yml) {
+  const errors = [];
+  const lines = yml.split('\n');
+  let blockIndent = -1;          // граница вложенности блок-скаляра
+  const mapping = [];            // стеки маппингов { indent, keys:Set }
+  const indentOf = (s) => s.length - s.replace(/^[ \t]+/, '').length;
+  const popTo = (ind) => {
+    while (mapping.length && mapping[mapping.length - 1].indent > ind) mapping.pop();
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/\r$/, '');
+    const n = i + 1;
+    const ind = indentOf(line);
+    const trimmed = line.trim();
+    if (trimmed === '' || trimmed.startsWith('#')) continue;
+
+    if (blockIndent >= 0) {
+      if (ind > blockIndent) continue; // тело блок-скаляра
+      blockIndent = -1;                // блок закончился
+    }
+
+    let body = line.slice(ind);
+    let isItem = false;
+    if (body === '-' || body.startsWith('- ')) {
+      isItem = true;
+      body = body.slice(1).trimStart();
+      if (body === '') { errors.push(n + ': элемент «-» без содержимого'); continue; }
+    }
+    const keyIndent = isItem ? ind + 2 : ind;
+    // Новый элемент последовательности — новое маппинг-пространство:
+    // закрываем маппинг предыдущего элемента со ВСЕМ вложенным
+    // (маппинг элемента — в indent+2, глубже — только его вложенность)
+    if (isItem) {
+      while (mapping.length && mapping[mapping.length - 1].indent >= keyIndent) mapping.pop();
+    }
+
+    const m = body.match(/^([A-Za-z0-9_-]+):(?:[ \t]+(.*))?[ \t]*$/);
+    if (!m) {
+      errors.push(n + ': строка не «ключ: значение» (голый скаляр в блочном контексте — ошибка): ' + trimmed);
+      continue;
+    }
+    const key = m[1];
+    const value = m[2]; // undefined или строка
+
+    // Дублирующиеся ключи в одном маппинге
+    popTo(keyIndent);
+    const top = mapping.length ? mapping[mapping.length - 1] : null;
+    if (top && top.indent === keyIndent) {
+      if (top.keys.has(key)) errors.push(n + ': дублирующийся ключ «' + key + '» в одном маппинге');
+      top.keys.add(key);
+    } else if (!top || top.indent < keyIndent) {
+      mapping.push({ indent: keyIndent, keys: new Set([key]) });
+    }
+
+    if (value === undefined || value === '') continue; // вложенный блок / пусто
+
+    const first = value[0];
+    if (first === '"' || first === "'") {
+      // Кавычный скаляр: закрывающая кавышка — на той же строке
+      let j = 1, ok = false;
+      if (first === '"') {
+        while (j < value.length) {
+          if (value[j] === '\\') { j += 2; continue; }
+          if (value[j] === '"') { ok = true; break; }
+          j++;
+        }
+      } else {
+        while (j < value.length) {
+          if (value[j] === "'") {
+            if (value[j + 1] === "'") { j += 2; continue; }
+            ok = true; break;
+          }
+          j++;
+        }
+      }
+      if (!ok) errors.push(n + ': кавычное значение «' + key + '» не закрыто');
+      else if (value.slice(j + 1).trim() !== '') errors.push(n + ': мусор после закрывающей кавычки: ' + value);
+      continue;
+    }
+    if (/^[|>][+-]?\d*$/.test(value)) {
+      blockIndent = keyIndent; // тело обязано вложиться глубже ключа
+      continue;
+    }
+    if (first === '[' || first === '{') {
+      // Flow-коллекция — в подмножестве только однострочная
+      const close = first === '[' ? ']' : '}';
+      let depth = 0, q = null;
+      for (let j = 0; j < value.length; j++) {
+        const c = value[j];
+        if (q === '"') { if (c === '\\') j++; else if (c === '"') q = null; }
+        else if (q === "'") { if (c === "'") { if (value[j + 1] === "'") j++; else q = null; } }
+        else if (c === '"' || c === "'") q = c;
+        else if (c === first) depth++;
+        else if (c === close) depth--;
+      }
+      if (q !== null || depth !== 0) errors.push(n + ': flow-коллекция «' + key + '» не закрыта (multiline запрещён)');
+      continue;
+    }
+    // Plain-скаляр
+    if (/:[ \t]/.test(value)) {
+      errors.push(n + ': «колонка+пробел» внутри plain-скаляра — значение в кавычках: ' + value);
+    } else if (/:$/.test(value)) {
+      errors.push(n + ': plain-скаляр «' + key + '» оканчивается двоеточием (читается как ключ)');
+    } else if (/[ \t]#/.test(value)) {
+      errors.push(n + ': « # » внутри plain-скаляра стартует комментарий (inline-комментарии запрещены)');
+    } else if (first === '#' || value === '-' || value.startsWith('- ')) {
+      errors.push(n + ': plain-скаляр «' + key + '» начинается с индикатора (-/#) — вложенные списки в подмножестве запрещены');
+    } else if ('?&*!|>%@`'.indexOf(first) !== -1) {
+      errors.push(n + ': plain-скаляр не может начинаться с «' + first + '» (индикатор YAML)');
+    }
+  }
+  if (mapping.length === 0 || mapping[0].indent !== 0) {
+    errors.push('файл обязан быть верхнеуровневым маппингом (ключ: значение)');
+  }
+  return errors;
+}
+
+test('workflow: YAML — структурная валидация подмножества (без зависимостей)', () => {
+  // Ревью раунда 3: - name: Сборка сайта (явная выборка: ...) —
+  // неэкранированная «колонка+пробел» в plain-скаляре: PyYAML —
+  // ScannerError 65:42, js-yaml — bad indentation 65:42. Файл
+  // НЕПАРСИРУЕМ → GitHub: «Workflow is not valid», ни один job (и
+  // тесты, и deploy) не запускается при каждом push. Строковые
+  // ассерты синтаксис не видят — здесь структурная проверка.
+  const yml = readWorkflow();
+  const errs = yamlSubsetErrors(yml);
+  assert.deepEqual(errs, [],
+    'ci.yml не парсится как YAML: ' + errs.join(' | '));
+});
+
+test('yamlSubsetErrors: ловит «колонка+пробел» в plain-скаляре (прецедент ревью)', () => {
+  // Регрессия-фиксатор самого проверщика: исходный баг (без кавычек)
+  // обязан падать, исправленный вариант (значение в кавычках) — нет.
+  const bad = 'jobs:\n  test:\n    steps:\n'
+    + '      - name: Сборка (выборка: index + src)\n        run: npm test\n';
+  const errs = yamlSubsetErrors(bad);
+  assert.ok(errs.some((e) => e.includes('колонка+пробел')),
+    'проверщик обязан поймать «: » в plain-скаляре: ' + errs.join(' | '));
+  const good = 'jobs:\n  test:\n    steps:\n'
+    + '      - name: "Сборка (выборка: index + src)"\n        run: npm test\n';
+  assert.deepEqual(yamlSubsetErrors(good), [], 'исправленный вариант обязан быть чистым');
+});
 
 test('workflow: триггеры — push в master и ручной workflow_dispatch', () => {
   const yml = readWorkflow();
