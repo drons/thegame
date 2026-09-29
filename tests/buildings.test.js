@@ -3,15 +3,35 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  BUILDINGS, CATEGORIES, ALL_PASSABLE,
+  BUILDINGS, CATEGORIES,
   getBuilding, buildingForMapIndex, getBuildingsByCategory,
   buildingSize, buildingEntranceRel, sizeChain, placeBuilding,
+  // Задача 000056 (стадия красных тестов): вместо константы ALL_PASSABLE —
+  // функции passableTiles()/denseTiles() (имена из единой таблицы
+  // map.js, ленивое разрешение). Тесты ниже падают, пока их нет.
+  passableTiles, denseTiles,
 } = require('../src/buildings.js');
 const {
   BUILDING_TYPES, buildingCount, buildingNames,
+  // Задача 000056: единая таблица террейнов (ещё не реализована — красные).
+  TERRAIN_DATA,
 } = require('../src/map.js');
 
 const DIR = path.join(__dirname, '..', 'assets', 'buildings');
+const vm = require('node:vm');
+
+// «Браузерный» путь UMD: исполняем файл в чистом контексте без module/exports
+// (паттерн tests/map.test.js / tests/global-settings.test.js).
+function loadInSandbox(file, sandbox) {
+  const code = fs.readFileSync(__dirname + '/../src/' + file, 'utf8');
+  vm.runInNewContext(code, sandbox);
+}
+
+// Имена террейнов (единая таблица map.js, задача 000056) — для
+// grep-теста «нет литералов вне GENERATED».
+const TERRAIN_TABLE_NAMES = [
+  'глубокая вода', 'вода', 'песок', 'трава', 'лес', 'холмы', 'горы', 'болото',
+];
 
 // SPEC.md «Постройки»: 6 магазинов, 18 школ навыков, 6 домов NPC,
 // 5 входов в пещеры, 4 храма, 4 магических знака, 7 прочих = 50 типов.
@@ -47,7 +67,9 @@ test('каталог: категории — 6/18/6/5/4/4/7, все катего
 });
 
 test('каталог: обязательные поля, допустимые_тайлы ⊆ проходимых тайлов', () => {
-  const tiles = new Set(ALL_PASSABLE);
+  // Задача 000056: проходимость — из единой таблицы map.js (passableTiles()),
+  // а не из собственной копии ALL_PASSABLE в buildings.js.
+  const tiles = new Set(passableTiles());
   const REQUIRED = ['id', 'название', 'категория', 'функция', 'типичный_npc', 'допустимые_тайлы', 'особые_параметры'];
   for (const b of BUILDINGS) {
     for (const key of REQUIRED) {
@@ -128,7 +150,7 @@ test('«малые» постройки (таверна, колодец, баш�
   for (const id of smallIds) {
     const b = getBuilding(id);
     assert.ok(b.особые_параметры.малая === true, b.название + ': малая=true');
-    assert.deepEqual([...b.допустимые_тайлы].sort(), [...ALL_PASSABLE].sort(), b.название);
+    assert.deepEqual([...b.допустимые_тайлы].sort(), [...passableTiles()].sort(), b.название);
   }
 });
 
@@ -375,6 +397,99 @@ test('src/buildings.js: шапка GENERATED и маркеры блока дан
     src.includes('// BEGIN GENERATED (scripts/sync-buildings-data.js)'),
     'нет BEGIN-маркера генерируемого блока данных');
   assert.ok(src.includes('// END GENERATED'), 'нет END-маркера генерируемого блока данных');
+});
+
+// --- Задача 000056: единая таблица террейнов — потребители без копий ---
+//
+// T (литералы имён), ALL_PASSABLE, DENSE в buildings.js — СОБСТВЕННЫЕ
+// копии данных map.js. Решение: имена/проходимость/плотность — из единой
+// таблицы TERRAIN_DATA (src/map.js) ЛЕНИВО (buildings.js может грузиться
+// и без map.js — vm-тесты; в node — циклический require map↔buildings,
+// разрешение — в момент вызова, паттерн 000055: пустой вывод не кэшируется).
+// Стадия красных тестов: функции/таблица ещё отсутствуют — тесты падают.
+
+test('src/buildings.js: вне блока GENERATED НЕТ литералов имён террейнов', () => {
+  // В GENERATED-блоке имена («песок», «трава», …) лежат НАДОБНО — это
+  // данные каталога (допустимые_тайлы из JSON, source of truth).
+  // Поэтому grep только вне маркеров BEGIN/END GENERATED: собственная
+  // копия имён (литеральный объект T) обязана исчезнуть.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'buildings.js'), 'utf8');
+  const m = src.match(/\/\/ BEGIN GENERATED[\s\S]*\/\/ END GENERATED/);
+  assert.ok(m, 'нет блока BEGIN/END GENERATED');
+  const outside = src.replace(m[0], '');
+  for (const name of TERRAIN_TABLE_NAMES) {
+    assert.ok(!outside.includes("'" + name + "'"),
+      `литерал '${name}' вне GENERATED (своя копия имён в buildings.js)`);
+    assert.ok(!outside.includes('"' + name + '"'),
+      `литерал "${name}" вне GENERATED (своя копия имён в buildings.js)`);
+  }
+});
+
+test('passableTiles()/denseTiles(): имена passable/dense-записей таблицы, порядок по id', () => {
+  assert.equal(typeof passableTiles, 'function', 'buildings.js: нет passableTiles()');
+  assert.equal(typeof denseTiles, 'function', 'buildings.js: нет denseTiles()');
+  assert.ok(TERRAIN_DATA && typeof TERRAIN_DATA === 'object',
+    'map.js: нет TERRAIN_DATA');
+  const ids = Object.keys(TERRAIN_DATA).map(Number).sort((a, b) => a - b);
+  assert.deepEqual(passableTiles(),
+    ids.filter((id) => TERRAIN_DATA[id].passable)
+       .map((id) => TERRAIN_DATA[id].name), 'passableTiles() — из таблицы, по id');
+  assert.deepEqual(denseTiles(),
+    ids.filter((id) => TERRAIN_DATA[id].dense)
+       .map((id) => TERRAIN_DATA[id].name), 'denseTiles() — из таблицы, по id');
+});
+
+test('сквозная связь: допустимые_тайлы ВСЕХ 50 записей ⊆ passableTiles() (против таблицы map.js)', () => {
+  // Замещает проверку по локальной копии: связь «каталог ↔ проходымость»
+  // теперь против ЕДИНОЙ таблицы (map.js), а не против литералов
+  // buildings.js — дрейф любой из сторон ловится здесь.
+  assert.equal(typeof passableTiles, 'function', 'buildings.js: нет passableTiles()');
+  const allowed = new Set(passableTiles());
+  for (const b of BUILDINGS) {
+    for (const t of b.допустимые_тайлы) {
+      assert.ok(allowed.has(t),
+        `${b.id} ${b.название}: тайл «${t}» не в passableTiles() таблицы map.js`);
+    }
+  }
+});
+
+test('schema.json: enum «допустимые_тайлы» ≡ множеству passable-имён единой таблицы', () => {
+  // Четвёртая копия имён (enum схемы) закрывается связью с таблицей:
+  // enum не расползается в свою третью/четвёртую правду.
+  assert.ok(TERRAIN_DATA && typeof TERRAIN_DATA === 'object',
+    'map.js: нет TERRAIN_DATA');
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
+  const enumNames = schema.properties['допустимые_тайлы'].items.enum;
+  const passableNames = Object.keys(TERRAIN_DATA).map(Number)
+    .sort((a, b) => a - b)
+    .filter((id) => TERRAIN_DATA[id].passable)
+    .map((id) => TERRAIN_DATA[id].name);
+  assert.deepEqual(enumNames.slice().sort(), passableNames.slice().sort(),
+    'enum «допустимые_тайлы» ≠ passable-именам таблицы');
+});
+
+test('vm: buildings.js БЕЗ map.js грузится, passableTiles() === [] грациозно; после perlin+map — значения таблицы', () => {
+  // buildings.js обязан оставаться автономным для vm-тестов: без
+  // таблицы — ПУСТОЙ вывод (без собственных фолбэк-литералов — их
+  // отсутствие закрепляет grep-тест выше), после загрузки perlin+map
+  // — имена из единой таблицы.
+  const sandbox = {};
+  loadInSandbox('buildings.js', sandbox);
+  assert.equal(typeof sandbox.Game.passableTiles, 'function',
+    'passableTiles в browser-режиме');
+  // Разные realm'ы: массив из vm-песочницы ≠ [] внешнего realm в
+  // deepStrictEqual (разные Array.prototype) — JSON-нормализация
+  // (паттерн tests/map.test.js, следующая проверка ниже та же).
+  assert.deepEqual(JSON.parse(JSON.stringify(sandbox.Game.passableTiles())),
+    [], 'без map.js — грациозно []');
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  // Разные realm'ы: JSON-нормализация.
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(sandbox.Game.passableTiles())),
+    JSON.parse(JSON.stringify(passableTiles())),
+    'после perlin+map — значения единой таблицы');
 });
 
 test('sync-buildings-data.js: существует, exit 0, идемпотентен (повторный запуск — byte-identical)', () => {

@@ -32,18 +32,15 @@
   const MOB_GROUP_TYPES = deps.MOB_GROUP_TYPES;
   const hash2 = deps.hash2;
 
-  // Базовые цвета тайлов — согласованы с цветными квадратами рендера
-  // (TILE_COLORS в src/main.js): фолбэк и текстуры выглядят родственно.
-  const TILE_BASE = {
-    [TERRAIN.DEEP_WATER]: '#172e6b',
-    [TERRAIN.WATER]: '#29579e',
-    [TERRAIN.SAND]: '#c2b380',
-    [TERRAIN.GRASS]: '#578c40',
-    [TERRAIN.FOREST]: '#2e6633',
-    [TERRAIN.HILL]: '#736e4a',
-    [TERRAIN.MOUNTAIN]: '#57525c',
-    [TERRAIN.SWAMP]: '#4d613d',
-  };
+  // Базовые цвета тайлов — из единой таблицы террейнов TERRAIN_DATA
+  // (src/map.js, поле base; задача 000056): согласованы с цветными
+  // квадратами рендера (TILE_COLORS в src/main.js — поле rgb) — единый
+  // источник, собственных копий нет.
+  const TERRAIN_DATA = deps.TERRAIN_DATA;
+  const TILE_BASE = {};
+  for (const k of Object.keys(TERRAIN_DATA)) {
+    TILE_BASE[Number(k)] = TERRAIN_DATA[Number(k)].base;
+  }
 
   // Кадры тайлов по типу террейна. Вода/глубокая вода анимированы (2–4 кадра),
   // остальные — одна текстура.

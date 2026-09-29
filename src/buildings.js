@@ -24,10 +24,9 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = factory();
   } else {
-    root.Game = Object.assign({}, root.Game,
-      factory(typeof root.Game === 'object' ? root.Game : {}, root.Game));
+    root.Game = Object.assign({}, root.Game, factory(root));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (root) {
 
   // Категории (SPEC.md, раздел «Постройки», подразделы «Типы построек»).
   const CATEGORIES = [
@@ -40,18 +39,65 @@
     'прочее',
   ];
 
-  // Проходимые типы тайлов (src/map.js, PASSABLE).
-  const T = {
-    SAND: 'песок',
-    GRASS: 'трава',
-    FOREST: 'лес',
-    HILL: 'холмы',
-    SWAMP: 'болото',
-  };
-  const ALL_PASSABLE = [T.SAND, T.GRASS, T.FOREST, T.HILL, T.SWAMP];
-  // Плотные тайлы: на них «крупные» постройки (SPEC.md: «на плотных тайлах
-  // (луга, поля) постройки встречаются чаще, чем на скалах и болотах»).
-  const DENSE = [T.SAND, T.GRASS, T.FOREST, T.HILL];
+  // --- Единая таблица террейнов (задача 000056) ---
+  //
+  // Имена, проходимость, плотность — из единой таблицы TERRAIN_DATA
+  // (src/map.js). В этом модуле НЕТ собственных копий данных (grep-тест
+  // «вне GENERATED нет литералов имён» в tests/buildings.test.js).
+  //
+  // Разрешение ЛЕНИВОЕ, в момент вызова:
+  //   * node — require('./map.js'). map.js сам требует buildings.js
+  //     (циклический require map↔buildings): пока buildings.js грузится
+  //     в моменте require из map.js, exports map.js ещё не готовы —
+  //     топ-уровневый require дал бы пустой модуль. Повторное
+  //     разрешение при вызове даёт полный модуль из кэша (паттерн
+  //     000055: пустой вывод не кэшируется).
+  //   * browser/vm — из Game (map.js грузится ДО buildings.js,
+  //     index.html: 294 < 298). Без map.js — грациозно:
+  //     passableTiles() === [] (собственных фолбэк-литералов нет).
+  function terrainTable() {
+    if (typeof require === 'function') {
+      try {
+        const m = require('./map.js');
+        if (m && m.TERRAIN_DATA && typeof m.TERRAIN_DATA === 'object') {
+          return m.TERRAIN_DATA;
+        }
+      } catch (e) {
+        // map.js недоступен — пробуем Game (browser/vm).
+      }
+    }
+    const g = root && root.Game;
+    return g && g.TERRAIN_DATA && typeof g.TERRAIN_DATA === 'object'
+      ? g.TERRAIN_DATA : null;
+  }
+
+  /**
+   * Имена террейнов выбранного типа из единой таблицы (src/map.js,
+   * TERRAIN_DATA), в порядке возрастания id. Без таблицы (buildings.js
+   * без map.js) — пустой массив (не кэшируется).
+   * @param {(d:{name:string,passable:boolean,dense:boolean})=>boolean} pred
+   * @returns {string[]}
+   */
+  function tilesWhere(pred) {
+    const table = terrainTable();
+    if (!table) return [];
+    return Object.keys(table).map(Number).sort((a, b) => a - b)
+      .filter((id) => table[id] && pred(table[id]))
+      .map((id) => table[id].name);
+  }
+
+  /** Имена проходимых тайлов (из единой таблицы: пока — песок/трава/лес/
+   * холмы/болото). */
+  function passableTiles() {
+    return tilesWhere((d) => d.passable);
+  }
+
+  /** Имена плотных тайлов: на них «крупные» постройки (SPEC.md: «на
+   * плотных тайлах (луга, поля) постройки встречаются чаще, чем на
+   * скалах и болотах»; из единой таблицы: пока — песок/трава/лес/холмы). */
+  function denseTiles() {
+    return tilesWhere((d) => d.dense);
+  }
 
   // Каталог: 50 типов, id = номер файла assets/buildings/0000NN.json.
   // Порядок: магазины (6), школы навыков (18), дома NPC (6), пещеры (5),
@@ -731,7 +777,7 @@
 
   return {
     CATEGORIES,
-    ALL_PASSABLE,
+    passableTiles, denseTiles, // имена тайлов из единой таблицы (000056)
     BUILDINGS,
     getBuilding,
     buildingForMapIndex,

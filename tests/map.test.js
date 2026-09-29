@@ -5,6 +5,9 @@ const {
   visibleTileRange, createTileCache,
   ZOOM_MIN, ZOOM_MAX, ZOOM_START,
   TERRAIN, TERRAIN_NAMES,
+  // Задача 000056 (стадия красных тестов): единая таблица террейнов ещё
+  // не реализована — тесты в конце файла падают, пока её нет в map.js.
+  TERRAIN_DATA,
   BUILDING_TYPES,
   buildingCount, buildingNames, buildingNameUi,
   buildMaxW, buildMaxH,
@@ -1102,4 +1105,191 @@ test('buildingAt: геометрия footprint\'а — якорь → запис
     assert.ok(multi >= 1,
       `${label}: не нашлось ни одной постройки крупнее 1x1 (сценарий)`);
   }
+});
+
+// --- Задача 000056: единая таблица террейнов (имена, проходимость, цвета) ---
+//
+// Сейчас на 8 террейнов ТРИ таблицы разнесены по четырём модулям:
+//   TERRAIN_NAMES/PASSABLE (map.js) + T/ALL_PASSABLE/DENSE (buildings.js)
+//   + TILE_BASE (sprites.js, hex) + TILE_COLORS (main.js, rgb).
+// Решение (memory/000056-terrain-table.md): ЕДИНАЯ таблица TERRAIN_DATA
+// в src/map.js — { [id]: { name, passable, dense, base:<hex>, rgb:[r,g,b] } },
+// все остальные модули — потребители без собственных копий. Цвета — ДВА
+// представления: base (hex, текстуры/фолбэк) и rgb (0..1, WebGL-рендер),
+// согласованные соотношением rgb[i] = round(hex[i]/255·100)/100 (закреплено
+// тестом — молчаливая смена вывода недопустима).
+//
+// СТАДИЯ КРАСНЫХ ТЕСТОВ: TERRAIN_DATA ещё не экспортируется — все тесты
+// секции падают, пока реализация не готова. Значения (имена, hex, rgb,
+// проходимость, плотность) — ТЕ ЖЕ, что сейчас: «визуально мир не
+// меняется» закреплено пин-константами OLD_* (литералы из текущих
+// TERRAIN_NAMES/TILE_BASE/TILE_COLORS/DENSE).
+
+// Литералы ДО рефакторинга (пин «мир не меняется»).
+const OLD_TERRAIN_NAMES = {
+  0: 'глубокая вода',
+  1: 'вода',
+  2: 'песок',
+  3: 'трава',
+  4: 'лес',
+  5: 'холмы',
+  6: 'горы',
+  7: 'болото',
+};
+// hex — из TILE_BASE в src/sprites.js (фолбэк/текстуры).
+const OLD_TILE_BASE = {
+  0: '#172e6b', 1: '#29579e', 2: '#c2b380', 3: '#578c40',
+  4: '#2e6633', 5: '#736e4a', 6: '#57525c', 7: '#4d613d',
+};
+// rgb — из TILE_COLORS в src/main.js (WebGL). Не пересчёт из hex, а
+// ТОЧНЫЕ литералы: hex/255, скруглённые до 2 знаков (SAND 0.70 ≠ 194/255).
+const OLD_TILE_COLORS = {
+  0: [0.09, 0.18, 0.42], 1: [0.16, 0.34, 0.62],
+  2: [0.76, 0.70, 0.50], 3: [0.34, 0.55, 0.25],
+  4: [0.18, 0.40, 0.20], 5: [0.45, 0.43, 0.29],
+  6: [0.34, 0.32, 0.36], 7: [0.30, 0.38, 0.24],
+};
+// passable — из PASSABLE (map.js): песок/трава/лес/холмы/болото.
+const OLD_PASSABLE_IDS = [2, 3, 4, 5, 7];
+// dense — из DENSE (buildings.js): песок/трава/лес/холмы.
+const OLD_DENSE_IDS = [2, 3, 4, 5];
+
+const terrainIds = () =>
+  Object.keys(TERRAIN_DATA).map(Number).sort((a, b) => a - b);
+const hexChannel = (hex, i) =>
+  parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+
+test('TERRAIN_DATA: ровно 8 записей, ключи = значения enum TERRAIN, поля name/passable/dense/base/rgb', () => {
+  assert.ok(TERRAIN_DATA && typeof TERRAIN_DATA === 'object',
+    'map.js: нет экспорта TERRAIN_DATA');
+  assert.deepEqual(terrainIds(),
+    Object.values(TERRAIN).slice().sort((a, b) => a - b),
+    'ключи таблицы = 0..7 (значения enum TERRAIN)');
+  for (const id of terrainIds()) {
+    const d = TERRAIN_DATA[id];
+    assert.equal(typeof d.name, 'string', `id ${id}: name — строка`);
+    assert.notEqual(d.name.trim(), '', `id ${id}: name не пуст`);
+    assert.equal(typeof d.passable, 'boolean', `id ${id}: passable — boolean`);
+    assert.equal(typeof d.dense, 'boolean', `id ${id}: dense — boolean`);
+    assert.equal(typeof d.base, 'string', `id ${id}: base — строка`);
+    assert.match(d.base, /^#[0-9a-f]{6}$/i, `id ${id}: base — hex #rrggbb`);
+    assert.ok(Array.isArray(d.rgb) && d.rgb.length === 3,
+      `id ${id}: rgb — массив из 3 чисел`);
+    for (const c of d.rgb) {
+      assert.equal(typeof c, 'number', `id ${id}: rgb — числа`);
+      assert.ok(c >= 0 && c <= 1, `id ${id}: rgb-компонента в [0,1]`);
+    }
+  }
+});
+
+test('TERRAIN_NAMES ≡ поле name единой таблицы (производные, не копия)', () => {
+  assert.ok(TERRAIN_DATA, 'map.js: нет TERRAIN_DATA');
+  const fromTable = {};
+  for (const id of terrainIds()) fromTable[id] = TERRAIN_DATA[id].name;
+  assert.deepEqual(TERRAIN_NAMES, fromTable, 'TERRAIN_NAMES — из таблицы');
+  assert.deepEqual(
+    Object.keys(TERRAIN_NAMES).map(Number).sort((a, b) => a - b),
+    terrainIds(), 'набор ключей TERRAIN_NAMES = id таблицы');
+});
+
+test('два представления цвета согласованы: rgb[i] = round(hex[i]/255·100)/100', () => {
+  // Решение «одна таблица, два представления»: base — hex (текстуры/
+  // фолбэк), rgb — 0..1 (WebGL), без расхождения в знаке/округлении.
+  assert.ok(TERRAIN_DATA, 'map.js: нет TERRAIN_DATA');
+  for (const id of terrainIds()) {
+    const d = TERRAIN_DATA[id];
+    for (let i = 0; i < 3; i++) {
+      const expected = Math.round(hexChannel(d.base, i) / 255 * 100) / 100;
+      assert.equal(d.rgb[i], expected,
+        `id ${id} (${d.name}): rgb[${i}] = ${d.rgb[i]} ≠ hex ${d.base}`);
+    }
+  }
+});
+
+test('TERRAIN_DATA: значения зафиксированы — мир НЕ меняется (имена, hex, rgb, passable, dense)', () => {
+  assert.ok(TERRAIN_DATA, 'map.js: нет TERRAIN_DATA');
+  for (const id of Object.keys(OLD_TERRAIN_NAMES)) {
+    const i = Number(id);
+    const d = TERRAIN_DATA[i];
+    assert.ok(d, `нет записи id ${i}`);
+    assert.equal(d.name, OLD_TERRAIN_NAMES[i], `id ${i}: имя`);
+    assert.equal(d.base, OLD_TILE_BASE[i], `id ${i}: hex`);
+    assert.deepEqual(d.rgb, OLD_TILE_COLORS[i], `id ${i}: rgb`);
+    assert.equal(d.passable, OLD_PASSABLE_IDS.includes(i), `id ${i}: passable`);
+    assert.equal(d.dense, OLD_DENSE_IDS.includes(i), `id ${i}: dense`);
+  }
+  assert.deepEqual(TERRAIN_NAMES, OLD_TERRAIN_NAMES, 'TERRAIN_NAMES не сдвинулся');
+});
+
+test('vm, browser-режим: Game.TERRAIN_DATA есть и совпадает с node-таблицей', () => {
+  // perlin + map в чистом контексте (как существующие vm-тесты): таблица
+  // — ЧИСТЫЕ данные на момент загрузки, без зданий/спрайтов (vm-
+  // песочницы combat-ui грузят map.js без buildings.js).
+  assert.ok(TERRAIN_DATA, 'map.js: нет TERRAIN_DATA (node)');
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  assert.ok(sandbox.Game.TERRAIN_DATA, 'Game.TERRAIN_DATA в browser-режиме');
+  // Разные realm'ы: JSON-нормализация.
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(sandbox.Game.TERRAIN_DATA)),
+    JSON.parse(JSON.stringify(TERRAIN_DATA)),
+    'browser-таблица ≠ node-таблице');
+});
+
+test('vm, цепочка index.html: Game.TILE_BASE[t] = base из таблицы для всех 8 (потребитель ≡ таблица)', () => {
+  // loadBrowserChain (perlin → … → map.js → … → buildings.js) + sprites.js —
+  // реальный порядок index.html (map.js 294 < sprites.js 320): hex-цвета
+  // спрайт-слоя обязаны браться из единой таблицы, а не из собственной
+  // копии в sprites.js.
+  assert.ok(TERRAIN_DATA, 'map.js: нет TERRAIN_DATA (node)');
+  const sandbox = {};
+  loadBrowserChain(sandbox);
+  loadInSandbox('sprites.js', sandbox);
+  const table = JSON.parse(JSON.stringify(sandbox.Game.TERRAIN_DATA));
+  assert.ok(table, 'Game.TERRAIN_DATA после цепочки index.html');
+  for (const id of Object.keys(table).map(Number)) {
+    assert.equal(sandbox.Game.TILE_BASE[id], table[id].base,
+      `TILE_BASE[${id}] ≠ base таблицы`);
+  }
+});
+
+test('main.js: TILE_COLORS выводится из G.TERRAIN_DATA, rgb-литералы удалены (структурный)', () => {
+  // main.js — браузерный IIFE, в node не грузится: «потребитель ≡
+  // таблица» покрывается структурным тестом + vm-прогоном всей цепочки
+  // index.html (tests/main-visuals.test.js обязан остаться зелёным).
+  const text = fs.readFileSync(__dirname + '/../src/main.js', 'utf8');
+  assert.ok(text.includes('G.TERRAIN_DATA'),
+    'main.js: нет ссылки на G.TERRAIN_DATA (вывод TILE_COLORS из таблицы)');
+  // Литеральный блок TILE_COLORS (ровно как в main.js до рефакторинга,
+  // включая «0.70»/«0.50» — формат источника, а не числа).
+  const OLD_LITERALS = [
+    '[0.09, 0.18, 0.42]', '[0.16, 0.34, 0.62]', '[0.76, 0.70, 0.50]',
+    '[0.34, 0.55, 0.25]', '[0.18, 0.40, 0.20]', '[0.45, 0.43, 0.29]',
+    '[0.34, 0.32, 0.36]', '[0.30, 0.38, 0.24]',
+  ];
+  for (const lit of OLD_LITERALS) {
+    assert.ok(!text.includes(lit),
+      'rgb-литерал ' + lit + ' в main.js не удалён (своя копия цвета)');
+  }
+});
+
+test('require-порядок map.js ПЕРВЫМ: passableTiles()/denseTiles() согласованы с таблицей', () => {
+  // В этом файле map.js требуется РАНЬШЕ buildings.js (map.js сам тянет
+  // buildings.js): циклический require map↔buildings обязан разрешаться
+  // лениво в момент ВЫЗОВА (паттерн 000055: пустой вывод не кэшируется) —
+  // топ-уровневый require('./map.js') в buildings.js дал бы buildings-first
+  // цикл с мёртвой таблицей.
+  assert.ok(TERRAIN_DATA, 'map.js: нет TERRAIN_DATA');
+  const b = require('../src/buildings.js');
+  assert.equal(typeof b.passableTiles, 'function',
+    'buildings.js: нет passableTiles()');
+  assert.equal(typeof b.denseTiles, 'function',
+    'buildings.js: нет denseTiles()');
+  assert.deepEqual(b.passableTiles(),
+    terrainIds().filter((id) => TERRAIN_DATA[id].passable)
+      .map((id) => TERRAIN_DATA[id].name), 'passableTiles() в порядке id');
+  assert.deepEqual(b.denseTiles(),
+    terrainIds().filter((id) => TERRAIN_DATA[id].dense)
+      .map((id) => TERRAIN_DATA[id].name), 'denseTiles() в порядке id');
 });

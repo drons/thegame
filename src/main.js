@@ -41,16 +41,12 @@
   }
 
   // --- Настройки рендера ---
-  const TILE_COLORS = {
-    [G.TERRAIN.DEEP_WATER]: [0.09, 0.18, 0.42],
-    [G.TERRAIN.WATER]: [0.16, 0.34, 0.62],
-    [G.TERRAIN.SAND]: [0.76, 0.70, 0.50],
-    [G.TERRAIN.GRASS]: [0.34, 0.55, 0.25],
-    [G.TERRAIN.FOREST]: [0.18, 0.40, 0.20],
-    [G.TERRAIN.HILL]: [0.45, 0.43, 0.29],
-    [G.TERRAIN.MOUNTAIN]: [0.34, 0.32, 0.36],
-    [G.TERRAIN.SWAMP]: [0.30, 0.38, 0.24],
-  };
+  // Цвета тайлов — из единой таблицы террейнов (map.js, TERRAIN_DATA,
+  // поле rgb; задача 000056): единый источник, собственных копий нет.
+  const TILE_COLORS = {};
+  for (const k of Object.keys(G.TERRAIN_DATA)) {
+    TILE_COLORS[Number(k)] = G.TERRAIN_DATA[Number(k)].rgb;
+  }
   const BUILDING_COLOR = [0.98, 0.83, 0.30]; // золотой маркер
   const MOB_COLOR = [0.85, 0.30, 0.25];      // красный маркер
   const PLAYER_COLOR = [0.55, 0.95, 1.0];    // светящийся Флогистон

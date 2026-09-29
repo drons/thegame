@@ -146,21 +146,69 @@
     SWAMP: 7,
   };
 
-  const TERRAIN_NAMES = {
-    [TERRAIN.DEEP_WATER]: 'глубокая вода',
-    [TERRAIN.WATER]: 'вода',
-    [TERRAIN.SAND]: 'песок',
-    [TERRAIN.GRASS]: 'трава',
-    [TERRAIN.FOREST]: 'лес',
-    [TERRAIN.HILL]: 'холмы',
-    [TERRAIN.MOUNTAIN]: 'горы',
-    [TERRAIN.SWAMP]: 'болото',
+  // --- Единая таблица террейнов (задача 000056) ---
+  //
+  // ЕДИНЫЙ источник: имя, проходимость, плотность, цвет. Все остальные
+  // модули — потребители без собственных копий:
+  //   src/buildings.js — passableTiles()/denseTiles() (ленивое разрешение),
+  //   src/sprites.js   — TILE_BASE (поле base),
+  //   src/main.js      — TILE_COLORS (поле rgb).
+  // Копии имён на стороне ДАННЫХ (enum «допустимые_тайлы» в
+  // assets/buildings/schema.json, enum «террейны» в assets/visuals/
+  // schema.json, имена файлов assets/tiles/*.svg) связаны с этой
+  // таблицей тестами (tests/buildings.test.js, tests/sprites.test.js).
+  //
+  // Цвет — ДВА представления, согласованные соотношением
+  // rgb[i] = round(hex[i]/255·100)/100 (закреплено тестом):
+  //   base — hex #rrggbb для текстур и фолбэка (2D-canvas слой);
+  //   rgb  — 0..1 для WebGL-рендера.
+  // Значения — точные до рефакторинга: визуально мир не меняется
+  // (пины OLD_* в tests/map.test.js).
+  const TERRAIN_DATA = {
+    [TERRAIN.DEEP_WATER]: {
+      name: 'глубокая вода', passable: false, dense: false,
+      base: '#172e6b', rgb: [0.09, 0.18, 0.42],
+    },
+    [TERRAIN.WATER]: {
+      name: 'вода', passable: false, dense: false,
+      base: '#29579e', rgb: [0.16, 0.34, 0.62],
+    },
+    [TERRAIN.SAND]: {
+      name: 'песок', passable: true, dense: true,
+      base: '#c2b380', rgb: [0.76, 0.70, 0.50],
+    },
+    [TERRAIN.GRASS]: {
+      name: 'трава', passable: true, dense: true,
+      base: '#578c40', rgb: [0.34, 0.55, 0.25],
+    },
+    [TERRAIN.FOREST]: {
+      name: 'лес', passable: true, dense: true,
+      base: '#2e6633', rgb: [0.18, 0.40, 0.20],
+    },
+    [TERRAIN.HILL]: {
+      name: 'холмы', passable: true, dense: true,
+      base: '#736e4a', rgb: [0.45, 0.43, 0.29],
+    },
+    [TERRAIN.MOUNTAIN]: {
+      name: 'горы', passable: false, dense: false,
+      base: '#57525c', rgb: [0.34, 0.32, 0.36],
+    },
+    [TERRAIN.SWAMP]: {
+      name: 'болото', passable: true, dense: false,
+      base: '#4d613d', rgb: [0.30, 0.38, 0.24],
+    },
   };
 
+  // Производная от таблицы (НЕ копия): набор ключей = id террейнов.
+  const TERRAIN_NAMES = Object.fromEntries(
+    Object.entries(TERRAIN_DATA).map(([id, d]) => [Number(id), d.name]));
+
   // Проходимые тайлы (пока что): вода и горы непроходимы.
-  const PASSABLE = new Set([
-    TERRAIN.SAND, TERRAIN.GRASS, TERRAIN.FOREST, TERRAIN.HILL, TERRAIN.SWAMP,
-  ]);
+  // Производная от таблицы (задача 000056).
+  const PASSABLE = new Set(
+    Object.keys(TERRAIN_DATA)
+      .filter((k) => TERRAIN_DATA[Number(k)].passable)
+      .map(Number));
 
   // Типы построек (подмножество из SPEC.md, раздел «Постройки»).
   const BUILDING_TYPES = {
@@ -701,7 +749,7 @@
 
   return {
     GLOBAL_SEED,
-    TERRAIN, TERRAIN_NAMES,
+    TERRAIN, TERRAIN_NAMES, TERRAIN_DATA,
     BUILDING_TYPES,
     buildingCount, buildingNames, buildingNameUi,
     buildMaxW, buildMaxH,
