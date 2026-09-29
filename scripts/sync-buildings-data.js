@@ -22,6 +22,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { writeFileAtomic } = require('./lib/write-atomic.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'buildings');
@@ -127,5 +128,7 @@ if (bIdx === -1 || eIdx === -1 || eIdx < bIdx) {
 }
 const out = src.slice(0, bIdx + BEGIN.length) + '\n' + block + '\n' +
   src.slice(eIdx);
-fs.writeFileSync(OUT_FILE, out, 'utf8');
+// Атомарная запись (конвенция, SPEC): параллельные читатели под
+// node --test не видят частичный файл.
+writeFileAtomic(OUT_FILE, out);
 console.log(`src/buildings.js перегенерирован: ${buildings.length} типов.`);

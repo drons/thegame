@@ -1,1 +1,3 @@
 .worktrees/
+# Каталог артефакта GitHub Pages (собирается workflow, см. ci.yml)
+dist/

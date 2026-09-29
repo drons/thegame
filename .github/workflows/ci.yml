@@ -1,0 +1,81 @@
+# CI и публикация на GitHub Pages (задача 000054).
+#
+# Триггеры: push в master + ручной workflow_dispatch (перепубликация).
+# Job test: npm test + дрейф-гейт JS-зеркал (node scripts/sync-all.js
+# --check) — рассинхрон JSON <-> src/*-data.js = красный CI.
+# Job deploy-pages (needs: test): сборка сайта в dist/ — явная копия
+# index.html + src + assets (НЕ корня репозитория: в сайт не попадают
+# tasks/, memory/, tests/, scripts/, .github/) — и публикация ОДНОГО
+# каталога dist/: input path у actions/upload-pages-artifact@v5 = «Path
+# of the directory containing the static assets» (реализация —
+# tar --directory "$INPUT_PATH"); YAML-список в path сериализуется в
+# строку «index.html, src, assets», такого каталога нет → tar падает →
+# деплой никогда не выполняется. Публикация — на GitHub Pages через
+# actions/deploy-pages, OIDC (permissions в workflow, без токена).
+#
+# Шага установки зависимостей нет намеренно: в проекте ноль
+# зависимостей и нет package-lock.json (если появятся зависимости —
+# добавить сюда установку).
+#
+# ВАЖНО: файл проверен тестами tests/ci.test.js — структурной
+# проверкой YAML-подмножества (plain-скаляр НЕ может содержать
+# «колонка+пробел» — поэтому value c «:» в кавычках) и строковыми
+# ассертами (ноль npm-зависимостей — полного YAML-парсера нет).
+# Flow-список (branches: [ master ]), строка path: dist у
+# upload-pages-artifact (ОДИН каталог, список в path сломает tar) и
+# environment в строковой форме не переформатировать.
+
+name: CI и Pages
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Тесты и синхронность JS-бандлов
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Тесты
+        run: npm test
+      - name: «Сборка» JSON-каталогов в JS-бандлы (дрейф = ошибка)
+        run: node scripts/sync-all.js --check
+
+  deploy-pages:
+    name: Публикация на GitHub Pages
+    needs: test
+    runs-on: ubuntu-latest
+    environment: github-pages
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: "Сборка сайта (явная выборка: index.html + src + assets → dist/)"
+        run: |
+          mkdir -p dist
+          cp index.html dist/
+          cp -r src dist/
+          cp -r assets dist/
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      - name: Загрузить артефакт (dist/ = index.html + src + assets)
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+      - name: Деплой
+        id: deployment
+        uses: actions/deploy-pages@v5
