@@ -14,6 +14,7 @@ const {
   createMap, syntheticPixels,
 } = require('../src/map.js');
 const S = require('../src/sprites.js');
+const { countDetails } = require('../scripts/count-svg-details.js');
 
 const VDIR = path.join(__dirname, '..', 'assets', 'visuals');
 const VSPR = path.join(__dirname, '..', 'assets', 'sprites', 'visuals');
@@ -1349,4 +1350,319 @@ test('000070 d.wallObjs: каждый obj — ключ DUNGEON_WALL_FRAMES, фа
         `тип ${type}: нет файла для «${o.obj}»`);
     }
   }
+});
+
+// --- Задача 000034: редизайн героя (человек по assets/logo.svg) + дух Эфир ---
+//
+// ТЗ: переделать дизайн главного персонажа как на assets/logo.svg —
+// человек в широкополой синей шляпе с золотым ободком, в синем кафтане,
+// с высоким деревянным посохом с огненным свечением на верхушке. Текущие
+// ассеты оставляем — это будет друг Флогистона, добрый дух Эфир
+// (SPEC.md, раздел «Дух Эфира → Данные и ассеты»: «Спрайт —
+// assets/sprites/efir/ создаёт задача 000034 (текущие ассеты Флогистона
+// становятся ассетами Эфира; герой перерисовывается по assets/logo.svg)»).
+//
+// Решение (реализация — после стадии красных тестов):
+// 1. Текущие духовные кадры переносятся БЕЗ ИЗМЕНЕНИЙ (git mv,
+//    byte-идентично) в assets/sprites/efir/{idle,walk,attack,cast}_{1,2}.svg
+//    — ровно 8 файлов, имена те же (контракт именования для 000114).
+// 2. Флогистон перерисовывается человеком под ТЕМИ ЖЕ именами
+//    assets/sprites/phlogiston/ — пути PHLOGISTON_ACTIONS инвариантны
+//    (src/main.js, src/combat-ui.js и тесты ссылаются на пути, не
+//    на содержимое).
+// 3. sprites.js: таблица-литерал EFIR_FRAMES + чистая функция
+//    efirFrames(action) → EFIR_FRAMES[action] || [] (имена — контракт
+//    задачи 000114; паттерн PHLOGISTON_ACTIONS/phlogistonFrames),
+//    СВОЙ push-блок в allAssetPaths() (конвенция: main.js в очередь
+//    лоадера ставит ровно allAssetPaths() — пропущенный путь = кадр
+//    никогда не загрузится в браузере).
+//
+// Палитры (фиксированный набор — эстетика проверяется QA-чек-листом,
+// а принадлежность к палитре — тестом):
+//   дух (старые кадры, bodyG): #b7f0fb, #52c4e8 — обязаны ПРОПАСТЬ из
+//   кадров героя и ОСТАТЬСЯ в кадрах Эфира (идентичность переноса);
+//   человек (фигура «Мага Флогистона» в assets/logo.svg, строки
+//   ~708–957): шляпа #221d4f/#2a2463, кафтан #322c66/#453e8c,
+//   золото #d9a63a/#c8963a, дерево посоха #6b4527/#8a5c33 — каждая
+//   группа обязана встретиться в каждом кадре героя.
+//
+// Кадры — СТАТИЧНЫЕ (без SMIL — движок сам переключает 2 кадра;
+// прецедент МОБ-арта 000062), viewBox 0 0 64 64 как у текущих кадров,
+// прозрачный фон (без полноэкранного rect). Порог «высокодетальности»
+// (SPEC «Графика») — >= 30 контурных деталей на кадр (бюджет 1×1-юнита
+// по MOBS.md; текущие духовные кадры — 13–20, улучшать их НЕЛЬЗЯ:
+// Эфиру передаются как есть).
+//
+// Стадия красных тестов: таблицы/функции/каталога efir/ нет, кадры
+// героя — прежний дух — все тесты ниже падают, пока нет реализации.
+
+const EFIR_ACTIONS = ['idle', 'walk', 'attack', 'cast'];
+const EFIR_NAMES = EFIR_ACTIONS
+  .flatMap((a) => [a + '_1.svg', a + '_2.svg']).sort();
+
+function svgText(rel) {
+  assert.ok(exists(rel), `нет файла: ${rel}`);
+  return fs.readFileSync(path.join(ROOT, rel), 'utf8');
+}
+
+const SPIRIT_COLORS = ['#b7f0fb', '#52c4e8'];
+const HERO_PALETTE = [
+  ['шляпа', ['#221d4f', '#2a2463']],
+  ['кафтан', ['#322c66', '#453e8c']],
+  ['золото', ['#d9a63a', '#c8963a']],
+  ['посох (дерево)', ['#6b4527', '#8a5c33']],
+];
+
+test('Эфир: EFIR_FRAMES + efirFrames — 8 кадров (idle/walk/attack/cast × 2), файлы существуют', () => {
+  assert.ok(S.EFIR_FRAMES && typeof S.EFIR_FRAMES === 'object',
+    'sprites.js: нет экспорта EFIR_FRAMES');
+  assert.equal(typeof S.efirFrames, 'function',
+    'sprites.js: нет экспорта efirFrames(action)');
+  assert.deepEqual(Object.keys(S.EFIR_FRAMES).sort(),
+    ['attack', 'cast', 'idle', 'walk'],
+    'ключи EFIR_FRAMES ≠ {idle, walk, attack, cast}');
+  for (const a of EFIR_ACTIONS) {
+    assert.deepEqual(S.efirFrames(a), [
+      `assets/sprites/efir/${a}_1.svg`,
+      `assets/sprites/efir/${a}_2.svg`,
+    ], `эфир: кадры ${a}`);
+    for (const p of S.efirFrames(a)) {
+      assert.ok(exists(p), `нет файла: ${p}`);
+    }
+  }
+  assert.deepEqual(S.efirFrames('нет-такого-действия'), [],
+    'неизвестное действие → [] (паттерн phlogistonFrames)');
+});
+
+test('Эфир: каталог assets/sprites/efir — ровно 8 файлов, имена = именам phlogiston', () => {
+  const dir = path.join(ROOT, 'assets', 'sprites', 'efir');
+  assert.ok(fs.existsSync(dir), 'нет каталога assets/sprites/efir');
+  const onDisk = fs.readdirSync(dir)
+    .filter((f) => f.endsWith('.svg')).sort();
+  assert.deepEqual(onDisk, EFIR_NAMES,
+    'сиротские/отсутствующие файлы assets/sprites/efir (ожидается ровно 8)');
+  const phlog = fs.readdirSync(path.join(ROOT, 'assets', 'sprites', 'phlogiston'))
+    .filter((f) => f.endsWith('.svg')).sort();
+  assert.deepEqual(onDisk, phlog,
+    'имена кадров Эфира ≠ именам кадров героя (контракт 000114: те же 8)');
+});
+
+test('allAssetPaths: содержит все 8 путей Эфира, файлы существуют; пути героя на месте', () => {
+  assert.ok(S.EFIR_FRAMES && typeof S.EFIR_FRAMES === 'object',
+    'нет EFIR_FRAMES');
+  const paths = S.allAssetPaths();
+  let n = 0;
+  for (const frames of Object.values(S.EFIR_FRAMES)) {
+    for (const p of frames) {
+      assert.ok(paths.includes(p), `нет пути в allAssetPaths: ${p}`);
+      assert.ok(exists(p), `нет файла: ${p}`);
+      n += 1;
+    }
+  }
+  assert.equal(n, 8, '8 путей Эфира');
+  for (const frames of Object.values(S.PHLOGISTON_ACTIONS)) {
+    for (const p of frames) {
+      assert.ok(paths.includes(p), `потерян путь героя: ${p}`);
+    }
+  }
+});
+
+test('Флогистон-человек: все 8 кадров высокодетальные (>= 30 деталей, бюджет 1×1 по MOBS.md)', () => {
+  for (const a of EFIR_ACTIONS) {
+    for (const n of [1, 2]) {
+      const rel = `assets/sprites/phlogiston/${a}_${n}.svg`;
+      const d = countDetails(svgText(rel));
+      assert.ok(d >= 30,
+        `${rel}: ${d} деталей < 30 (SPEC «Графика»: высокодетальные кадры)`);
+    }
+  }
+});
+
+test('Герой перерисован: кадры — человек по logo.svg (дух-палитры нет, человек-палитра есть)', () => {
+  for (const a of EFIR_ACTIONS) {
+    for (const n of [1, 2]) {
+      const rel = `assets/sprites/phlogiston/${a}_${n}.svg`;
+      const t = svgText(rel).toLowerCase();
+      for (const c of SPIRIT_COLORS) {
+        assert.ok(!t.includes(c),
+          `${rel}: дух-цвет ${c} в кадре героя (перерисовка не выполнена)`);
+      }
+      for (const [group, colors] of HERO_PALETTE) {
+        assert.ok(colors.some((c) => t.includes(c)),
+          `${rel}: нет цвета группы «${group}» (палитра из assets/logo.svg)`);
+      }
+    }
+  }
+});
+
+test('Эфир = прежний дух: кадры несут дух-палитру и отличаются от кадров героя', () => {
+  for (const a of EFIR_ACTIONS) {
+    for (const n of [1, 2]) {
+      const eRel = `assets/sprites/efir/${a}_${n}.svg`;
+      const e = svgText(eRel);
+      assert.ok(e.toLowerCase().includes('#b7f0fb'),
+        `${eRel}: нет дух-палитры (#b7f0fb) — перенос не byte-идентичен?`);
+      const p = svgText(`assets/sprites/phlogiston/${a}_${n}.svg`);
+      assert.notEqual(p, e,
+        `${a}_${n}: кадр героя = кадр Эфира (скопировано вместо переноса + перерисовки)`);
+    }
+  }
+});
+
+// --- Формат 16 персонажных SVG (8 героя + 8 Эфира) ---
+//
+// Тот же формат, что у текущих кадров phlogiston (и схема 000120,
+// tests/svg.test.js, если смержится на ребейзе): корень <svg> с xmlns
+// и viewBox="0 0 64 64", закрывающий </svg>, НЕТ NaN/Infinity (урок
+// 000062), НЕТ запрещённых тегов (script/text/foreignObject/image/SMIL),
+// НЕТ внешних ссылок (http(s):, xlink:href — xmlns-пространство не в
+// счёт), НЕТ полноэкранного <rect> 64×64 (прозрачный фон).
+
+const FORBIDDEN_FRAME_TAGS = ['script', 'text', 'foreignObject', 'image',
+  'animate', 'animatetransform', 'set'];
+
+function checkCharacterFrameErrors(rel, text) {
+  const errors = [];
+  const t = text.toLowerCase();
+  if (!/^<svg[^>]*\bxmlns="http:\/\/www\.w3\.org\/2000\/svg"/.test(t)) {
+    errors.push('нет корневого <svg> с xmlns');
+  }
+  if (!t.includes('viewbox="0 0 64 64"')) errors.push('нет viewBox="0 0 64 64"');
+  if (!/\s*<\/svg>\s*$/.test(text)) errors.push('нет закрывающего </svg>');
+  if (/NaN|Infinity/.test(text)) errors.push('подстроки NaN/Infinity (000062)');
+  for (const tag of FORBIDDEN_FRAME_TAGS) {
+    if (new RegExp(`<${tag}(?:\\s|/|>)`, 'i').test(text)) {
+      errors.push(`запрещённый тег <${tag}> (кадр статичен)`);
+    }
+  }
+  const noXmlns = text.replace(/xmlns="[^"]*"/g, '');
+  if (/https?:\/\//i.test(noXmlns)) errors.push('внешняя http(s)-ссылка');
+  if (/xlink:href/i.test(noXmlns)) errors.push('внешняя ссылка xlink:href');
+  for (const m of text.matchAll(/<rect\b[^>]*>/gi)) {
+    const el = m[0];
+    const num = (name) => {
+      const mm = el.match(new RegExp(`\\b${name}="([^"]*)"`));
+      return mm ? Number(mm[1]) : 0;
+    };
+    if (num('x') === 0 && num('y') === 0 && num('width') === 64 && num('height') === 64) {
+      errors.push('полноэкранный <rect> 64×64 (фон обязан быть прозрачным)');
+      break;
+    }
+  }
+  return errors;
+}
+
+test('16 персонажных SVG (8 героя + 8 Эфира): формат 64×64, прозрачный фон, статичны, без ссылок', () => {
+  const files = [];
+  for (const a of EFIR_ACTIONS) {
+    for (const n of [1, 2]) {
+      files.push(`assets/sprites/phlogiston/${a}_${n}.svg`);
+      files.push(`assets/sprites/efir/${a}_${n}.svg`);
+    }
+  }
+  for (const rel of files) {
+    const errors = checkCharacterFrameErrors(rel, svgText(rel));
+    assert.deepEqual(errors, [], rel + ': ' + errors.join('; '));
+  }
+});
+
+// --- Различие кадров действия (защита от «дубля-кадра») ---
+//
+// Два кадра действия различаются позами/энергией (MOBS.md), а не общим
+// сдвигом и не копией файла. Измеримо: симметричная разность
+// мультимножеств контурных элементов (path/circle/ellipse/polygon/rect/
+// line вне defs/clipPath/mask, атрибуты нормализованы) >= 2.
+
+function outlineSigs(text) {
+  // Извлечение тегов с учётом кавычек, без комментариев —
+  // паттерн scripts/count-svg-details.js (extractTags).
+  const tags = [];
+  let i = 0;
+  while (i < text.length) {
+    const lt = text.indexOf('<', i);
+    if (lt === -1) break;
+    if (text.startsWith('<!--', lt)) {
+      const end = text.indexOf('-->', lt + 4);
+      i = end === -1 ? text.length : end + 3;
+      continue;
+    }
+    let j = lt + 1;
+    let quote = null;
+    while (j < text.length) {
+      const ch = text[j];
+      if (quote) {
+        if (ch === quote) quote = null;
+      } else if (ch === '"' || ch === "'") {
+        quote = ch;
+      } else if (ch === '>') {
+        break;
+      }
+      j += 1;
+    }
+    if (j >= text.length) break;
+    tags.push(text.slice(lt + 1, j));
+    i = j + 1;
+  }
+  const OUTLINE = new Set(['path', 'circle', 'ellipse', 'polygon', 'rect', 'line']);
+  const EXCL = new Set(['defs', 'clippath', 'mask']);
+  const sigs = [];
+  let excluded = 0;
+  for (const raw of tags) {
+    if (raw[0] === '?' || raw[0] === '!') continue;
+    const closing = raw[0] === '/';
+    const m = raw.match(
+      closing ? /^\/\s*([a-zA-Z][a-zA-Z0-9._:-]*)/
+              : /^([a-zA-Z][a-zA-Z0-9._:-]*)/);
+    if (!m) continue;
+    const name = m[1].toLowerCase();
+    if (closing) {
+      if (EXCL.has(name)) excluded = Math.max(0, excluded - 1);
+      continue;
+    }
+    if (excluded === 0 && OUTLINE.has(name)) {
+      const attrs = [...raw.matchAll(/([a-zA-Z_][a-zA-Z0-9._:-]*)="([^"]*)"/g)]
+        .map((p) => `${p[1]}="${p[2]}"`).sort().join(' ');
+      sigs.push(name + ' ' + attrs);
+    }
+    if (EXCL.has(name) && !/\/\s*$/.test(raw)) excluded += 1;
+  }
+  return sigs;
+}
+
+function outlineDiff(t1, t2) {
+  const counts = new Map();
+  for (const s of outlineSigs(t1)) counts.set(s, (counts.get(s) || 0) + 1);
+  for (const s of outlineSigs(t2)) counts.set(s, (counts.get(s) || 0) - 1);
+  let d = 0;
+  for (const v of counts.values()) d += Math.abs(v);
+  return d;
+}
+
+test('кадры действия различаются: герой и Эфир — >= 2 контурных элемента, не дубль-файл', () => {
+  for (const a of EFIR_ACTIONS) {
+    for (const dir of ['assets/sprites/phlogiston', 'assets/sprites/efir']) {
+      const t1 = svgText(`${dir}/${a}_1.svg`);
+      const t2 = svgText(`${dir}/${a}_2.svg`);
+      assert.notEqual(t1, t2, `${dir}/${a}: дубль-кадр (файлы идентичны)`);
+      assert.ok(outlineDiff(t1, t2) >= 2,
+        `${dir}/${a}: кадры различаются < 2 контурными элементами («мёртвая» анимация)`);
+    }
+  }
+});
+
+test('Эфир: выбор кадров детерминирован и не зависит от факта загрузки', () => {
+  assert.ok(S.EFIR_FRAMES && typeof S.efirFrames === 'function',
+    'нет EFIR_FRAMES/efirFrames');
+  const snap = EFIR_ACTIONS.map((a) => S.efirFrames(a));
+  for (const frames of snap) {
+    assert.ok(Array.isArray(frames) && frames.length === 2,
+      'каждое действие Эфира — ровно 2 кадра');
+  }
+  // «Загружаем» всё — все ассеты падают (file:// без сети).
+  const loader = S.createSpriteLoader(() => Promise.resolve(null));
+  for (const p of S.allAssetPaths()) loader.queue(p);
+  assert.equal(loader.readyCount(), 0);
+  const again = EFIR_ACTIONS.map((a) => S.efirFrames(a));
+  assert.deepEqual(again, snap,
+    'повторный выбор другой после провала загрузки (кадр зависит от загрузки)');
 });
