@@ -455,8 +455,10 @@
   // [Esc] закрывает панель (единообразие с npcUI: тот вешается на
   // window, панель — на document). Слушатель живёт только пока панель
   // открыта: вешается на open, снимается на close, guard isOpen().
-  // Открыт диалог NPC (верхний слой, z-20) — Esc его закрывает,
-  // панель не трогаем (guard npcUI.isActive()). Терпимо к стабам
+  // Открыт верхний слой, закрываемый по Esc (диалог NPC —
+  // npcUI.isActive(), оверлей РЕЗУЛЬТАТА боя —
+  // combatUI.isActive() && current().result; оба — .combat-overlay,
+  // z-20) — Esc его закрывает, панель не трогаем. Терпимо к стабам
   // без add/removeEventListener (typeof-guard, как bottomInset() —
   // минимальный DOM).
   let escHandler = null;
@@ -472,6 +474,18 @@
       // срабатывает ПОСЛЕ document (bubble: document → window).
       if (G.npcUI && typeof G.npcUI.isActive === 'function' &&
           G.npcUI.isActive()) return;
+      // Оверлей РЕЗУЛЬТАТА боя (combat-ui.js, тот же .combat-overlay,
+      // z-20) ВЫШЕ панели: Esc закрывает оверлей (c.result) — без
+      // гарда одно нажатие закрывало и панель, и результат (ревью
+      // 000096, раунд 3). Во время самого боя (result не установлен)
+      // Esc оверлей НЕ закрывает — и панель тогда закрывается:
+      // KeyI/Esc в бою — штатное управление панелью (000096).
+      if (G.combatUI && typeof G.combatUI.isActive === 'function' &&
+          G.combatUI.isActive()) {
+        const cc = (typeof G.combatUI.current === 'function')
+          ? G.combatUI.current() : null;
+        if (cc && cc.result) return;
+      }
       toggle(false);
     };
     if (typeof document.addEventListener === 'function') {

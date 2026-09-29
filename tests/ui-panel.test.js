@@ -34,6 +34,9 @@
 //   * [Esc] при открытом диалоге NPC: панель НЕ закрывается (верхний
 //     слой — диалог, z-20 — ревью раунда 2); после закрытия диалога
 //     — панель закрывается;
+//   * [Esc] при открытом оверлее РЕЗУЛЬТАТА боя: панель НЕ
+//     закрывается (оверлей — верхний слой, z-20 — ревью раунда 3);
+//     во время боя (result нет) Esc панель закрывает;
 //   * main.js (структурный): закрытие панели (playerUI.toggle(false),
 //     под guard'ом isOpen()) во ВСЕХ входах боя — мир, подземелье и
 //     отладочный actions.startCombat (ревью раунда 1);
@@ -465,6 +468,71 @@ test('панель: [Esc] при открытом диалоге NPC — пан�
   dispatch('Escape');
   assert.equal(env.G.playerUI.isOpen(), false,
     'после закрытия диалога Esc закрывает панель');
+});
+
+// --- КРАСНЫЕ: [Esc] при открытом оверлее РЕЗУЛЬТАТА боя (ревью 000096, раунд 3) ---
+
+test('панель: [Esc] при открытом результате боя — панель НЕ закрывается (оверлей — верхний слой)', () => {
+  // Открыты И оверлей результата боя (combat-ui.js, .combat-overlay,
+  // z-20 — бой завершён, c.result установлен), И панель (KeyI,
+  // .char-panel, z-10). В реальном браузере одно нажатие [Esc]
+  // доходит до ОБОИХ слушателей (bubble: document → window) — без
+  // гарда закрываются и панель, и оверлей результата. Гард в
+  // document-слушателе панели: combatUI.isActive() &&
+  // current().result (accessors combat-ui.js: current() → ctx.combat,
+  // .result — результат завершённого боя). combat-ui.js НЕ входит в
+  // CHAIN этого файла (canvas 2d в DOM-стабе нет) — G.combatUI
+  // эмулируется стабом той же формы API (паттерн дублирования
+  // стабов, принятый в проекте).
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  openPanel(env, c);
+  env.G.combatUI = {
+    isActive: () => true,
+    current: () => ({ result: { outcome: 'victory' } }),
+  };
+
+  const dispatch = (code) => {
+    for (const fn of env.doc.listeners.keydown || []) fn({ code });
+  };
+
+  // [Esc] №1: пока оверлей результата открыт — панель НЕ закрывается
+  // (в реальном браузере window-слушатель combat-ui.js закрывает
+  // оверлей — finish(); в стабе window-слушатели не сохраняются).
+  dispatch('Escape');
+  assert.equal(env.G.playerUI.isOpen(), true,
+    'пока открыт результат боя — Esc не закрывает панель (оба не закрываются сразу)');
+
+  // Оверлей закрыт — finish() обнулил ctx: isActive() → false.
+  env.G.combatUI = { isActive: () => false, current: () => null };
+
+  // [Esc] №2: панель теперь верхний слой — закрывается.
+  dispatch('Escape');
+  assert.equal(env.G.playerUI.isOpen(), false,
+    'после закрытия оверлея Esc закрывает панель');
+});
+
+test('панель: [Esc] во ВРЕМЯ боя (result нет) — панель закрывается как обычно', () => {
+  // Оверлей активен, но бой НЕ завершён (c.result не установлен):
+  // Esc оверлей по замыканию 000049/000096 НЕ закрывает — и тогда
+  // Esc остаётся штатным управлением панели в бою (000096: «KeyI в
+  // бою по-прежнему переключает»). Гард на результат, а не на сам
+  // факт открытого боя.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  openPanel(env, c);
+  env.G.combatUI = {
+    isActive: () => true,
+    current: () => ({ result: undefined }),
+  };
+
+  const dispatch = (code) => {
+    for (const fn of env.doc.listeners.keydown || []) fn({ code });
+  };
+
+  dispatch('Escape');
+  assert.equal(env.G.playerUI.isOpen(), false,
+    'бой в ходу (результата нет) — Esc закрывает панель');
 });
 
 // --- КРАСНЫЕ: display:flex (регрессия — ревью 000096, раунд 1) ---
