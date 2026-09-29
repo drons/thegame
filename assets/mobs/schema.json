@@ -1,13 +1,23 @@
 {
   "type": "object",
-  "required": ["id", "name", "role", "aggro", "dmg", "hp", "size", "xp", "skills", "spells", "loot"],
+  "required": ["id", "name", "описание", "role", "aggro", "dmg", "hp", "size", "xp", "skills", "spells", "loot", "art"],
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "name": { "type": "string" },
+    "описание": { "type": "string", "pattern": "^\\s*\\S[\\s\\S]*$" },
     "role": { "enum": ["melee", "ranged", "support", "leader", "shield", "swarm"] },
     "aggro": { "enum": ["aggressive", "neutral", "territorial", "timid"] },
     "dmg": { "type": "number", "minimum": 0.1, "maximum": 10 },
     "hp": { "type": "number", "minimum": 0.1, "maximum": 10 },
+    "size": {
+      "type": "object",
+      "required": ["w", "h"],
+      "properties": {
+        "w": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "h": { "type": "integer", "minimum": 1, "maximum": 5 }
+      },
+      "additionalProperties": false
+    },
     "armor": { "type": "number", "minimum": 0, "maximum": 10 },
     "fast": { "type": "boolean" },
     "traits": {
@@ -48,6 +58,31 @@
         },
         "additionalProperties": false
       }
+    },
+    "art": {
+      "type": "object",
+      "required": ["move", "attack", "dead"],
+      "properties": {
+        "move": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": { "type": "string", "pattern": "^assets/sprites/mobs/[a-z][a-z0-9_]*_move_[123]\\.svg$" }
+        },
+        "attack": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": { "type": "string", "pattern": "^assets/sprites/mobs/[a-z][a-z0-9_]*_attack_[123]\\.svg$" }
+        },
+        "dead": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "pattern": "^assets/sprites/mobs/[a-z][a-z0-9_]*_dead_1\\.svg$" }
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

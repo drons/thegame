@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Орк-наездник на волке — кадр attack_2: orc_rider -->
+<g transform="scale(1)">
+<defs>
+<linearGradient id="orc_rider_g1" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#6b8a4a"/><stop offset="1" stop-color="#6b8a4a"/></linearGradient>
+</defs>
+<ellipse cx="50" cy="94" rx="26" ry="4" fill="rgba(0,0,0,0.28)"/>
+<g transform="translate(0 0.9) rotate(6.4 50 90)">
+<path d="M44 60 Q42 77 36 92" fill="none" stroke="#5d7a3c" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="36" cy="93" rx="6" ry="3.2" fill="#5d7a3c" stroke="#3f5427" stroke-width="1.5"/>
+<path d="M56 60 Q58 72 62 86" fill="none" stroke="#6b8a4a" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="62" cy="87" rx="6" ry="3.2" fill="#6b8a4a" stroke="#3f5427" stroke-width="1.5"/>
+<path d="M36 38 C33 50 36 58 40 62 C44 65 56 65 60 62 C64 58 67 50 64 38 C58 31 42 31 36 38 Z" fill="url(#orc_rider_g1)" stroke="#3f5427" stroke-width="2" stroke-linejoin="round"/>
+<path d="M36 38 C33 50 36 58 40 62 C40 50 38 46 40 41 Z" fill="#6b8a4a"/>
+<path d="M64 38 C67 50 64 58 60 62 C62 50 64 46 62 41 Z" fill="#5d7a3c"/>
+<rect x="39" y="57" width="22" height="4.5" fill="#6a6f78" rx="1.5"/>
+<circle cx="50" cy="59.2" r="1.8" fill="#9aa0a9"/>
+<path d="M36 42 Q28.1 51.8 25 55.6" fill="none" stroke="#6b8a4a" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="25" cy="55.6" r="4.2" fill="#6b8a4a" stroke="#3f5427" stroke-width="1.5"/>
+<path d="M64 42 Q80.1 50.4 88.2 52.7" fill="none" stroke="#6b8a4a" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="88.2" cy="52.7" r="4.2" fill="#6b8a4a" stroke="#3f5427" stroke-width="1.5"/>
+<line x1="88.2" y1="52.7" x2="107.5" y2="63.3" stroke="#9aa0a9" stroke-width="5.5"/>
+<circle cx="111" cy="65.2" r="7" fill="#6a6f78" stroke="#3f5427" stroke-width="1.5"/>
+<circle cx="109.3" cy="64.2" r="1.6" fill="#e8b23c"/>
+<circle cx="112.8" cy="65.7" r="1.6" fill="#e8b23c"/>
+<ellipse cx="50" cy="25.2" rx="12.5" ry="11.8" fill="url(#orc_rider_g1)" stroke="#3f5427" stroke-width="2"/>
+<ellipse cx="55.6" cy="26.5" rx="6.3" ry="5.3" fill="#5d7a3c" opacity="0.45"/>
+<polygon points="36.5,23.2 27.5,17.2 39.5,18.2" fill="#5d7a3c" stroke="#3f5427" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="63.5,23.2 72.5,17.2 60.5,18.2" fill="#5d7a3c" stroke="#3f5427" stroke-width="1.5" stroke-linejoin="round"/>
+<line x1="43.1" y1="21.7" x2="48.5" y2="23.7" stroke="#3f5427" stroke-width="2.4"/>
+<line x1="56.9" y1="21.7" x2="51.5" y2="23.7" stroke="#3f5427" stroke-width="2.4"/>
+<circle cx="45.8" cy="25" r="4.8" fill="#e04a3a" opacity="0.3"/>
+<circle cx="54.3" cy="25" r="4.8" fill="#e04a3a" opacity="0.3"/>
+<ellipse cx="45.8" cy="25" rx="1.8" ry="1.4" fill="#e04a3a"/>
+<ellipse cx="54.3" cy="25" rx="1.8" ry="1.4" fill="#e04a3a"/>
+<polygon points="47.5,28.3 52.5,28.3 50,31.5" fill="#5d7a3c"/>
+<ellipse cx="50" cy="33.5" rx="7.5" ry="5.8" fill="#3f5427"/>
+<polygon points="46.9,32.7 48.1,37.1 49.4,33" fill="#e8b23c"/>
+<polygon points="50.6,33 51.9,37.1 53.1,32.7" fill="#e8b23c"/>
+</g>
+<path d="M35.1 46.8 q2 1.1 4 0" fill="none" stroke="#3f5427" stroke-width="1.2" stroke-linecap="round"/>
+<ellipse cx="51.6" cy="61.4" rx="2.2" ry="0.9" fill="#5d7a3c" opacity="0.55"/>
+<path d="M54.5 54.9 q2 1.2 4 0" fill="none" stroke="#3f5427" stroke-width="1.2" stroke-linecap="round"/>
+<path d="M58.7 54.6 q2 1.4 4 0" fill="none" stroke="#3f5427" stroke-width="1.2" stroke-linecap="round"/>
+</g>
+</svg>

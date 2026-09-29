@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Гигантский паук — кадр move_1: spider -->
+<g transform="scale(1)">
+<g>
+<ellipse cx="50" cy="94" rx="30" ry="4" fill="rgba(0,0,0,0.28)"/>
+<ellipse cx="38" cy="52" rx="16" ry="14" fill="#3d3348" stroke="#221a33" stroke-width="2"/>
+<ellipse cx="34" cy="46" rx="8" ry="6" fill="#7d6892" opacity="0.5"/>
+<circle cx="32" cy="56" r="2.6" fill="#ffb09a"/>
+<circle cx="38" cy="60" r="2.6" fill="#ffb09a"/>
+<circle cx="44" cy="56" r="2.6" fill="#ffb09a"/>
+<ellipse cx="62" cy="58" rx="10" ry="9" fill="#4d3c60" stroke="#221a33" stroke-width="1.8"/>
+<polygon points="56,52 62,49 68,52 64,56 58,56" fill="#7d6892" stroke="#221a33" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M70 62 q6 -2 8 2" fill="none" stroke="#5d4a70" stroke-width="2.6" stroke-linecap="round"/>
+<path d="M70 66 q6 2 8 -2" fill="none" stroke="#5d4a70" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="66" cy="55" r="2" fill="#ff5a4a"/>
+<circle cx="70" cy="57" r="1.6" fill="#ff5a4a"/>
+<circle cx="60" cy="61" r="0.9" fill="#ff5a4a"/>
+<circle cx="63.4" cy="61" r="0.9" fill="#ff5a4a"/>
+<circle cx="66.8" cy="61" r="0.9" fill="#ff5a4a"/>
+<circle cx="60" cy="64" r="0.9" fill="#ff5a4a"/>
+<circle cx="63.4" cy="64" r="0.9" fill="#ff5a4a"/>
+<circle cx="66.8" cy="64" r="0.9" fill="#ff5a4a"/>
+<path d="M56 56 Q46 44 43 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M43 70 L40 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="40" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="46" cy="44" r="1.4" fill="#4d3c60"/>
+<path d="M62 64 Q74 49 77.5 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M77.5 70 L81 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="81" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="74" cy="49" r="1.4" fill="#4d3c60"/>
+<path d="M53 57 Q41 42 37.5 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M37.5 70 L34 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="34" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="41" cy="42" r="1.4" fill="#4d3c60"/>
+<path d="M64 63 Q78 51 82 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M82 70 L86 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="86" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="78" cy="51" r="1.4" fill="#4d3c60"/>
+<path d="M50 58 Q36 46 32 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M32 70 L28 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="28" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="36" cy="46" r="1.4" fill="#4d3c60"/>
+<path d="M66 62 Q76 47 79 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M79 70 L82 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="82" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="76" cy="47" r="1.4" fill="#4d3c60"/>
+<path d="M47 59 Q37 44 34 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M34 70 L31 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="31" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="37" cy="44" r="1.4" fill="#4d3c60"/>
+<path d="M68 61 Q80 49 83.5 70" fill="none" stroke="#3d3348" stroke-width="3.2" stroke-linecap="round"/>
+<path d="M83.5 70 L87 92" fill="none" stroke="#2a2135" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="87" cy="92" r="1.6" fill="#2a2135"/>
+<circle cx="80" cy="49" r="1.4" fill="#4d3c60"/>
+<path d="M24 48 q-8 -4 -12 -10" fill="none" stroke="#7d6892" stroke-width="0.8" stroke-linecap="round" opacity="0.6"/>
+<path d="M24 54 q-10 -2 -14 -6" fill="none" stroke="#7d6892" stroke-width="0.8" stroke-linecap="round" opacity="0.6"/>
+</g>
+</g>
+</svg>

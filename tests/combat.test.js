@@ -213,11 +213,22 @@ test('assets/mobs: JSON-файлы — структура по схеме, id у
 });
 
 test('assets/mobs: зеркало в combat.js идентично JSON-каталогу (source of truth)', () => {
+  // Поля арта (задача 000062) существуют ТОЛЬКО в JSON-каталоге: в
+  // зеркале combat.js их нет — иначе файл бы разбух на ~40 КБ
+  // «описаний», а под file:// арта не грузится и зеркало — единственный
+  // источник данных. Зеркалируем JSON без них и проверяем, что в
+  // зеркале арта-полей тоже нет (защита от случайного попадания).
+  const ART_ONLY_MOB_FIELDS = ['описание', 'art'];
   const files = mobFiles();
   const byId = new Map(Object.entries(MOB_TYPES).map(([id, t]) => [id, t]));
   for (const f of files) {
     const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
     assert.ok(byId.has(j.id), f + ': моб ' + j.id + ' нет в combat.js');
+    for (const k of ART_ONLY_MOB_FIELDS) {
+      assert.equal(byId.get(j.id)[k], undefined,
+        f + ': арта-поле «' + k + '» не должно попадать в зеркало combat.js');
+      delete j[k];
+    }
     assert.deepEqual(j, byId.get(j.id), f + ' расходится с combat.js');
     byId.delete(j.id);
   }

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+<!-- Гниль — кадр dead_1: rot -->
+<g transform="scale(1)">
+<defs>
+<linearGradient id="rot_g1" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#e8e4d8"/><stop offset="1" stop-color="#8f9a6a"/></linearGradient>
+</defs>
+<ellipse cx="50" cy="94" rx="26" ry="4" fill="rgba(0,0,0,0.28)"/>
+<g transform="translate(50 84) rotate(82) scale(0.72) translate(-50 -58)">
+<path d="M44 60 Q42 77 42 92" fill="none" stroke="#1a1a1a" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="42" cy="93" rx="6" ry="3.2" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="1.5"/>
+<path d="M56 60 Q57 77 58 92" fill="none" stroke="#8f9a6a" stroke-width="9" stroke-linecap="round"/>
+<ellipse cx="58" cy="93" rx="6" ry="3.2" fill="#8f9a6a" stroke="#1a1a1a" stroke-width="1.5"/>
+<path d="M36 46 C33 58 36 66 40 62 C44 65 56 65 60 62 C64 66 67 58 64 46 C58 31 42 31 36 46 Z" fill="url(#rot_g1)" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round"/>
+<path d="M36 46 C33 58 36 66 40 62 C40 50 38 54 40 49 Z" fill="#e8e4d8"/>
+<path d="M64 46 C67 58 64 66 60 62 C62 50 64 54 62 49 Z" fill="#1a1a1a"/>
+<rect x="39" y="57" width="22" height="4.5" fill="#7a5a34" rx="1.5"/>
+<circle cx="50" cy="59.2" r="1.8" fill="#96542e"/>
+<path d="M36 50 Q39 64 42 72" fill="none" stroke="#8f9a6a" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="42" cy="72" r="4.2" fill="#e8e4d8" stroke="#1a1a1a" stroke-width="1.5"/>
+<path d="M64 50 Q67 64 70 72" fill="none" stroke="#8f9a6a" stroke-width="7.5" stroke-linecap="round"/>
+<circle cx="70" cy="72" r="4.2" fill="#e8e4d8" stroke="#1a1a1a" stroke-width="1.5"/>
+<ellipse cx="42" cy="66" rx="4" ry="5" fill="#96542e" opacity="0.7"/>
+<ellipse cx="58" cy="70" rx="3" ry="4" fill="#96542e" opacity="0.7"/>
+<ellipse cx="47" cy="74" rx="2.5" ry="3" fill="#96542e" opacity="0.6"/>
+<ellipse cx="53" cy="24" rx="12.5" ry="11.8" fill="url(#rot_g1)" stroke="#1a1a1a" stroke-width="2"/>
+<ellipse cx="58.6" cy="25.3" rx="6.3" ry="5.3" fill="#1a1a1a" opacity="0.45"/>
+<line x1="46.1" y1="20.5" x2="51.5" y2="22.5" stroke="#1a1a1a" stroke-width="2.4"/>
+<line x1="59.9" y1="20.5" x2="54.5" y2="22.5" stroke="#1a1a1a" stroke-width="2.4"/>
+<circle cx="48.8" cy="23.8" r="1.8" fill="#1a1a1a"/>
+<circle cx="57.3" cy="23.8" r="1.8" fill="#1a1a1a"/>
+<polygon points="50.5,27.1 55.5,27.1 53,30.3" fill="#1a1a1a"/>
+<line x1="49.3" y1="31.8" x2="56.8" y2="31.8" stroke="#1a1a1a" stroke-width="1.8"/>
+</g>
+<circle cx="52.8" cy="53.1" r="1.1" fill="#7a5a34"/>
+<circle cx="64.4" cy="48.3" r="1.1" fill="#7a5a34"/>
+<circle cx="58.2" cy="46.6" r="1" fill="#7a5a34"/>
+<circle cx="54.2" cy="43" r="1.2" fill="#7a5a34"/>
+<circle cx="52.2" cy="59.5" r="1.2" fill="#96542e"/>
+<circle cx="47.2" cy="53.9" r="1.1" fill="#7a5a34"/>
+<circle cx="50" cy="56.2" r="0.9" fill="#7a5a34"/>
+<circle cx="43.9" cy="51" r="1.5" fill="#96542e"/>
+<circle cx="48.6" cy="53.9" r="1" fill="#7a5a34"/>
+<circle cx="51.1" cy="38.4" r="1.4" fill="#96542e"/>
+<circle cx="44.4" cy="58.4" r="1.4" fill="#96542e"/>
+</g>
+</svg>
