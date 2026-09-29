@@ -31,6 +31,9 @@
 //     z-index .char-panel (10) < z-index .fs-btn (15);
 //   * [Esc]: document keydown закрывает панель, слушатель СНЯТ,
 //     reopen — снова вешается; чужие клавиши не закрывают;
+//   * [Esc] при открытом диалоге NPC: панель НЕ закрывается (верхний
+//     слой — диалог, z-20 — ревью раунда 2); после закрытия диалога
+//     — панель закрывается;
 //   * main.js (структурный): закрытие панели (playerUI.toggle(false),
 //     под guard'ом isOpen()) во ВСЕХ входах боя — мир, подземелье и
 //     отладочный actions.startCombat (ревью раунда 1);
@@ -422,6 +425,46 @@ test('панель: [Esc] закрывает; слушатель снят; reope
     'после reopen слушатель [Esc] вешается снова (один)');
   dispatch('Escape');
   assert.equal(env.G.playerUI.isOpen(), false, 'после reopen [Esc] снова закрывает');
+});
+
+// --- КРАСНЫЕ: [Esc] при открытом диалоге NPC (ревью 000096, раунд 2) ---
+
+test('панель: [Esc] при открытом диалоге NPC — панель НЕ закрывается (диалог — верхний слой)', () => {
+  // Открыты И диалог NPC (KeyE, .combat-overlay, z-20), И панель
+  // (KeyI, .char-panel, z-10). Одно нажатие [Esc] в реальном браузере
+  // доходит до ОБОИХ слушателей (bubble: document → window) — без
+  // гарда закрываются оба сразу. До 000096 панель по Esc не
+  // закрывалась; верхний слой приоритетнее: Esc сначала закрывает
+  // диалог, панель остаётся (второй [Esc]/[I] — закроет). Слушатель
+  // панели (document) обязан сам проверять npcUI.isActive():
+  // слушатель npcUI вешается на window и срабатывает ПОСЛЕ.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  openPanel(env, c);
+  const npc = env.G.NpcData.NPCS[0];
+  env.G.npcUI.open({ npc, character: c, book: env.G.createQuestBook() });
+  assert.equal(env.G.npcUI.isActive(), true, 'диалог NPC открыт');
+  assert.equal(env.G.playerUI.isOpen(), true, 'панель открыта');
+
+  const dispatch = (code) => {
+    for (const fn of env.doc.listeners.keydown || []) fn({ code });
+  };
+
+  // [Esc] №1: document-слушатель панели не обязан закрывать панель,
+  // пока открыт диалог (в реальном браузере именно window-слушатель
+  // npcUI закрывает его; в стабе window-слушатели не сохраняются).
+  dispatch('Escape');
+  assert.equal(env.G.playerUI.isOpen(), true,
+    'пока открыт диалог — Esc не закрывает панель (оба не закрываются сразу)');
+
+  // Диалог закрыт — эмуляция window-слушателя npcUI.
+  env.G.npcUI.close();
+  assert.equal(env.G.npcUI.isActive(), false, 'диалог закрыт');
+
+  // [Esc] №2: панель теперь верхний слой — закрывается.
+  dispatch('Escape');
+  assert.equal(env.G.playerUI.isOpen(), false,
+    'после закрытия диалога Esc закрывает панель');
 });
 
 // --- КРАСНЫЕ: display:flex (регрессия — ревью 000096, раунд 1) ---

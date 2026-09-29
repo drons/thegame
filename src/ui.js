@@ -455,13 +455,24 @@
   // [Esc] закрывает панель (единообразие с npcUI: тот вешается на
   // window, панель — на document). Слушатель живёт только пока панель
   // открыта: вешается на open, снимается на close, guard isOpen().
-  // Терпимо к стабам без add/removeEventListener (typeof-guard, как
-  // bottomInset() — минимальный DOM).
+  // Открыт диалог NPC (верхний слой, z-20) — Esc его закрывает,
+  // панель не трогаем (guard npcUI.isActive()). Терпимо к стабам
+  // без add/removeEventListener (typeof-guard, как bottomInset() —
+  // минимальный DOM).
   let escHandler = null;
   function attachEsc() {
     if (escHandler) return;
     escHandler = (e) => {
-      if (e.code === 'Escape' && isOpen()) toggle(false);
+      if (e.code !== 'Escape' || !isOpen()) return;
+      // Диалог NPC (KeyE, .combat-overlay, z-20) ВЫШЕ панели
+      // (KeyI, .char-panel, z-10): Esc закрывает верхний слой,
+      // панель остаётся открытой — без гарда одно нажатие закрывало
+      // оба сразу (ревью 000096, раунд 2). Гард здесь, а не
+      // stopPropagation: слушатель npcUI вешается на window и
+      // срабатывает ПОСЛЕ document (bubble: document → window).
+      if (G.npcUI && typeof G.npcUI.isActive === 'function' &&
+          G.npcUI.isActive()) return;
+      toggle(false);
     };
     if (typeof document.addEventListener === 'function') {
       document.addEventListener('keydown', escHandler);
