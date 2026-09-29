@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const {
   TERRAIN, TERRAIN_NAMES,
   // Задача 000056 (стадия красных тестов): единая таблица террейнов ещё
@@ -503,6 +504,168 @@ test('критерий: декорации не влияют на генерац
   for (const t of sample) {
     assert.deepEqual(m2.tileAt(t.x, t.y), t, 'мир изменился после запроса декораций');
   }
+});
+
+// --- Задача 000059: данные декораций — из генерируемого модуля ---
+//
+// Ручная JS-копия каталога assets/visuals (литерал VISUALS) убрана из
+// sprites.js: данные — в src/visuals-data.js (генерируется
+// scripts/sync-visuals-data.js, npm sync:visuals; шапка GENERATED,
+// идемпотентность, атомарная запись — единый интерфейс sync-скриптов,
+// 000054). sprites.js — потребитель без собственной копии: браузерная
+// ветка снимает Game.VisualsData при загрузке (index.html:
+// visuals-data.js ДО sprites.js), node-ветка — require
+// ('./visuals-data.js'). Конвенция id: id = номер файла (000001.json →
+// id 1, закреплено тестом «id = номер файла» выше).
+// vm-песочницы БЕЗ data-модуля (tests/combat-ui.test.js,
+// tests/map.test.js грузят sprites.js без него): гард — тихая
+// деградация до пустого каталога (рендер не падает и не шумит;
+// паттерн 000058). В реальном браузере гард не срабатывает: порядок
+// закреплён tests/index-order.test.js, а «вакуумность» цепочки —
+// тестом «vm, цепочка index.html» ниже.
+// VISUALS_SEED/MAX_VISUALS_PER_TILE/VISUALS_MIN_ZOOM — параметры
+// рендера (логика, не данные) — остаются в sprites.js; формулы
+// tileVisuals не меняются (детерминизм: существующие golden-тесты).
+// Число записей — ДИНАМИЧЕСКОЕ от каталога, не хардкод.
+
+const fromVm = (v) => JSON.parse(JSON.stringify(v));
+
+function visualCatalog() {
+  return fs.readdirSync(VDIR)
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .sort()
+    .map((f) => JSON.parse(fs.readFileSync(path.join(VDIR, f), 'utf8')));
+}
+
+test('src/visuals-data.js: существует, шапка GENERATED (sync-visuals-data.js)', () => {
+  const file = path.join(ROOT, 'src', 'visuals-data.js');
+  assert.ok(fs.existsSync(file), 'src/visuals-data.js не существует');
+  const src = fs.readFileSync(file, 'utf8');
+  assert.ok(
+    src.includes('GENERATED — не править руками, синхронизируется из assets/visuals (scripts/sync-visuals-data.js)'),
+    'в шапке нет пометки «GENERATED — не править руками»');
+});
+
+test('visuals-data (node): { VISUALS } 1:1 с каталогом assets/visuals (source of truth)', () => {
+  const VD = require('../src/visuals-data.js');
+  assert.ok(VD && Array.isArray(VD.VISUALS), 'module.exports = { VISUALS }');
+  const files = fs.readdirSync(VDIR)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  assert.ok(files.length > 0, 'каталог assets/visuals не пуст');
+  assert.equal(VD.VISUALS.length, files.length,
+    'число записей модуля = числу файлов каталога');
+  for (const f of files) {
+    const n = parseInt(f, 10);
+    const j = JSON.parse(fs.readFileSync(path.join(VDIR, f), 'utf8'));
+    assert.equal(j.id, n, f + ': id = номер файла (конвенция каталога)');
+    assert.deepEqual(VD.VISUALS[n - 1], j,
+      f + ': запись модуля 1:1 с JSON (source of truth)');
+  }
+});
+
+test('S.VISUALS ≡ VisualsData.VISUALS: sprites.js читает данные из модуля, собственной копии нет', () => {
+  const VD = require('../src/visuals-data.js');
+  assert.deepEqual(S.VISUALS, VD.VISUALS,
+    'S.VISUALS ≠ каталогу из visuals-data.js');
+  // Структурно: литеральные записи каталога из sprites.js УБРАНЫ —
+  // спрайт-пути декораций не должны встречаться в источнике потребителя
+  // (иначе «своя копия» вернётся и будет дрейфовать).
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'sprites.js'), 'utf8');
+  for (const v of visualCatalog()) {
+    assert.ok(!src.includes(v.спрайт),
+      `литерал ${v.спрайт} в sprites.js (собственная копия данных)`);
+  }
+});
+
+test('sync-visuals-data.js: существует, exit 0, идемпотентен (повторный запуск — byte-identical)', () => {
+  const script = path.join(ROOT, 'scripts', 'sync-visuals-data.js');
+  assert.ok(fs.existsSync(script), 'scripts/sync-visuals-data.js не существует');
+  const outFile = path.join(ROOT, 'src', 'visuals-data.js');
+  const before = fs.readFileSync(outFile);
+  const res = spawnSync(process.execPath, [script], { cwd: ROOT, encoding: 'utf8' });
+  assert.equal(res.status, 0,
+    'скрипт завершился с ошибкой: ' + (res.stderr || res.stdout));
+  assert.deepEqual(fs.readFileSync(outFile), before,
+    'повторный запуск скрипта изменил src/visuals-data.js (не идемпотентно)');
+});
+
+test('package.json: npm-скрипт sync:visuals (интерфейс единый с sync:npc/skills)', () => {
+  const pkg = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.equal(pkg.scripts['sync:visuals'], 'node scripts/sync-visuals-data.js');
+});
+
+test('vm: sprites.js БЕЗ visuals-data.js — гард: не падает, каталог пуст, молча', () => {
+  // Реальный сценарий vm-песочниц (tests/combat-ui.test.js,
+  // tests/map.test.js): sprites.js грузится без data-модулей. Жёсткая
+  // зависимость от Game.VisualsData уронила бы их — гард обязан
+  // деградировать до пустого каталога ТИХО (не console.error —
+  // иначе шум в выводе npm test каждый запуск; паттерн 000058).
+  const warns = [];
+  const errors = [];
+  const sandbox = {
+    console: {
+      warn: (m) => warns.push(String(m)),
+      error: (m) => errors.push(String(m)),
+      log() {},
+    },
+  };
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  const w0 = warns.length, e0 = errors.length;
+  assert.doesNotThrow(() => loadInSandbox('sprites.js', sandbox),
+    'загрузка sprites.js без visuals-data.js не должна падать');
+  assert.equal(warns.length, w0, 'гард без data-модуля молчалив (warn)');
+  assert.equal(errors.length, e0, 'гард без data-модуля молчалив (error)');
+  const G = sandbox.Game;
+  assert.deepEqual(fromVm(G.VISUALS), [],
+    'без data-модуля — пустой каталог (гард), рендер не падает');
+  assert.deepEqual(fromVm(G.tileVisuals(1, 2, G.TERRAIN.GRASS)), [],
+    'tileVisuals() = [] без данных');
+  const paths = fromVm(G.allAssetPaths());
+  assert.ok(Array.isArray(paths) && paths.length > 0,
+    'allAssetPaths() работает без data-модуля');
+  assert.ok(paths.every((p) => typeof p === 'string'), 'пути — строки');
+});
+
+test('vm, цепочка index.html: Game.VisualsData существует, S.VISUALS = каталогу, tileVisuals не пуст', () => {
+  // Регрессия «вакуумного» main-visuals: цепочка берётся из
+  // index.html (реальный порядок браузерной загрузки; регрессия
+  // порядка — tests/index-order.test.js). visuals-data.js обязан
+  // стоять ДО sprites.js, иначе гард даст пустой каталог и
+  // декорации пропадут молча (тест main-visuals пересчитывает
+  // ожидаемые декорации из той же песочницы — пустые данные
+  // проходили бы «как ожидается»).
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const chain = Array.from(
+    html.matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1])
+    .map((p) => p.replace(/^src\//, ''));
+  const iSprites = chain.indexOf('sprites.js');
+  assert.ok(iSprites > 0, 'sprites.js в index.html');
+  const prefix = chain.slice(0, iSprites + 1);
+  const sandbox = { console: { warn() {}, error() {}, log() {} } };
+  for (const f of prefix) {
+    vmS.runInNewContext(
+      fs.readFileSync(path.join(ROOT, 'src', f), 'utf8'),
+      sandbox, { filename: f });
+  }
+  const G = sandbox.Game;
+  assert.ok(G.VisualsData && Array.isArray(G.VisualsData.VISUALS),
+    'Game.VisualsData в браузерном realm после цепочки index.html');
+  // Не «вакуумно»: сравниваем с JSON-каталогом, а не с самим собой.
+  const catalog = visualCatalog();
+  assert.deepEqual(fromVm(G.VISUALS), catalog,
+    'S.VISUALS = каталогу assets/visuals (данные из модуля)');
+  // Детерминизм: фиксированная сетка травяных тайлов — часть
+  // гарантированно с декорациями (данные 1:1, сиды не меняются).
+  let nonEmpty = 0;
+  for (let ty = 0; ty < 40; ty++) {
+    for (let tx = 0; tx < 40; tx++) {
+      if (fromVm(G.tileVisuals(tx, ty, G.TERRAIN.GRASS)).length) nonEmpty++;
+    }
+  }
+  assert.ok(nonEmpty > 0,
+    'tileVisuals не пуст: каталог реально подхвачен (не «вакуумно»)');
 });
 
 // --- Цвет полосы HP (задача 000038) ---

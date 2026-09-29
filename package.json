@@ -14,6 +14,8 @@
     "gen:spells": "node scripts/sync-spells-data.js",
     "sync:buildings": "node scripts/sync-buildings-data.js",
     "sync:dungeons": "node scripts/sync-dungeons-data.js",
-    "sync:mobgroups": "node scripts/sync-mob-groups-data.js"
+    "sync:items": "node scripts/sync-items-data.js",
+    "sync:mobgroups": "node scripts/sync-mob-groups-data.js",
+    "sync:visuals": "node scripts/sync-visuals-data.js"
   }
 }

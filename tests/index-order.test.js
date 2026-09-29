@@ -38,6 +38,7 @@ test('index.html: нужные модули подключены', () => {
     'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
     'src/dungeon.js', 'src/dungeon-ui.js',
     'src/dungeons-data.js',
+    'src/visuals-data.js',
     'src/motion.js',
     'src/main.js',
   ]) {
@@ -55,6 +56,74 @@ test('index.html: dungeons-data.js подключён и ДО dungeon.js (UMD: �
     'src/dungeons-data.js не подключён в index.html (задача 000058)');
   assert.ok(pos('src/dungeons-data.js') < pos('src/dungeon.js'),
     'src/dungeons-data.js должен быть раньше src/dungeon.js (задача 000058)');
+});
+
+// --- Задача 000059: каталог декораций (assets/visuals) ---
+//
+// sprites.js (браузерная ветка) при ЗАГРУЗКЕ снимает каталог декораций
+// из Game.VisualsData (src/visuals-data.js, генерируется
+// scripts/sync-visuals-data.js, npm sync:visuals). В node-ветке —
+// require('./visuals-data.js'). Без data-модуля (vm-песочницы)
+// sprites.js обязан деградировать до пустого каталога (гард, покрыт
+// tests/sprites.test.js), а не падать.
+
+test('index.html: visuals-data.js подключён и ДО sprites.js (UMD: каталог снимается при загрузке sprites.js)', () => {
+  // sprites.js снимает Game один раз при загрузке (UMD-ловушка,
+  // 000038): данные должны быть в Game раньше, чем sprites.js его
+  // снимает. Битый порядок не падает при загрузке, а тихо даёт
+  // пустой каталог (гард) — декорации пропадают молча, поэтому
+  // порядок закреплён здесь (паттерн dungeons-data.js < dungeon.js,
+  // задача 000058).
+  assert.notEqual(pos('src/visuals-data.js'), -1,
+    'src/visuals-data.js не подключён в index.html (задача 000059)');
+  assert.ok(pos('src/visuals-data.js') < pos('src/sprites.js'),
+    'src/visuals-data.js должен быть раньше src/sprites.js (задача 000059)');
+});
+
+test('порядок core → visuals-data.js → sprites.js: Game.VisualsData в браузерном realm, каталог 1:1 с JSON', () => {
+  // Минимальная «браузерная» цепочка: data-модуль ДО потребителя.
+  // В node-ветке sprites.js требует visuals-data.js напрямую (покрыто
+  // tests/sprites.test.js); здесь — браузерная проводка через Game.
+  const dataModule = path.join(ROOT, 'src', 'visuals-data.js');
+  assert.ok(fs.existsSync(dataModule),
+    'src/visuals-data.js должен существовать (задача 000059)');
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of ['src/global-settings.js', 'src/perlin.js', 'src/map.js',
+    'src/visuals-data.js', 'src/sprites.js']) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  const G = sandbox.Game;
+  assert.ok(G.VisualsData && Array.isArray(G.VisualsData.VISUALS),
+    'Game.VisualsData существует после data-модуля');
+  const vdir = path.join(ROOT, 'assets', 'visuals');
+  const vfiles = fs.readdirSync(vdir)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  assert.equal(G.VISUALS.length, vfiles.length,
+    'S.VISUALS — число файлов каталога assets/visuals');
+  for (let i = 0; i < vfiles.length; i++) {
+    const j = JSON.parse(
+      fs.readFileSync(path.join(vdir, vfiles[i]), 'utf8'));
+    // Разные realm: объекты vm-контекста — чужой прототип, сравниваем
+    // по полям (паттерн теста dungeons-data выше).
+    assert.equal(G.VISUALS[i].id, j.id, vfiles[i] + ': id');
+    assert.equal(G.VISUALS[i].название, j.название, vfiles[i] + ': название');
+    assert.deepEqual([...G.VISUALS[i].террейны], j.террейны,
+      vfiles[i] + ': террейны');
+    assert.equal(G.VISUALS[i].спрайт, j.спрайт, vfiles[i] + ': спрайт');
+    assert.equal(G.VISUALS[i].частота, j.частота, vfiles[i] + ': частота');
+    assert.equal(G.VISUALS[i].размер, j.размер, vfiles[i] + ': размер');
+  }
+  // tileVisuals работает в браузерном realm (каталог подхвачен).
+  let nonEmpty = 0;
+  for (let ty = 0; ty < 40; ty++) {
+    for (let tx = 0; tx < 40; tx++) {
+      if (G.tileVisuals(tx, ty, G.TERRAIN.GRASS).length) nonEmpty++;
+    }
+  }
+  assert.ok(nonEmpty > 0, 'tileVisuals не пуст (каталог подхвачен)');
 });
 
 test('index.html: controls.js ДО dungeon-ui.js (иначе Game.deltaForEvent не виден)', () => {
