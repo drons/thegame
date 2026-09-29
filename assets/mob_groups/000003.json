@@ -1,0 +1,10 @@
+{
+  "id": 3,
+  "название": "логово скелетов",
+  "состав": {
+    "название": "skeleton_den",
+    "мобы": ["skeleton", "skeleton", "skeleton", "crawling_bones", "crawling_bones"]
+  },
+  "спрайт": "skeleton",
+  "особые_параметры": {}
+}

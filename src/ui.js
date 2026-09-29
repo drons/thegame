@@ -512,8 +512,11 @@
         const goal = quest.цель;
         let meta;
         if (goal.тип === 'kill_group') {
+          // Имя группы — из каталога (задача 000057); гард —
+          // UMD-ловушка «G снимается один раз».
           meta = 'повержено ' + instance.progress + ' из ' + goal.количество +
-            ' — ' + (G.MOB_GROUP_NAMES[goal.группа] || 'группа ' + goal.группа);
+            ' — ' + ((G.mobGroupName && G.mobGroupName(goal.группа))
+              || 'группа ' + goal.группа);
         } else {
           const it = G.getItem(goal.предмет);
           meta = 'предмет: ' + (it ? it.name : goal.предмет) + ' ×' +

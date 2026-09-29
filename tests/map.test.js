@@ -11,7 +11,7 @@ const {
   BUILDING_TYPES,
   buildingCount, buildingNames, buildingNameUi,
   buildMaxW, buildMaxH,
-  MOB_GROUP_COUNT, MOB_GROUP_TYPES,
+  MOB_GROUP_TYPES, mobGroupCount,
   // Задача 000061 (стадия красных тестов): функция ещё не реализована —
   // тесты ниже падают, пока в map.js её нет.
   worldToScreen, orthoMatrix,
@@ -73,7 +73,7 @@ test('сэмпл мира: валидные значения и согласов
       if (t.hasMobGroup) {
         groups++;
         assert.ok(t.passable, 'группа мобов на непроходимом тайле');
-        assert.ok(t.mobGroup >= 0 && t.mobGroup < MOB_GROUP_COUNT);
+        assert.ok(t.mobGroup >= 0 && t.mobGroup < mobGroupCount());
       }
       if (t.terrain === TERRAIN.WATER || t.terrain === TERRAIN.DEEP_WATER) water++;
       if (t.passable) land++;
@@ -828,12 +828,13 @@ test('браузер: map.js отдаёт worldToScreen и orthoMatrix (vm-пе�
 // Реальный порядок загрузки index.html (строки 288–298): между map.js
 // и buildings.js грузятся player/day/items, каждый делает
 // Object.assign({}, Game, …) — «ленивые» данные map.js обязаны
-// пережить копирование Game (тест ниже).
+// пережить копирование Game (тест ниже). mob-groups-data.js — ДО
+// map.js (задача 000057).
 function loadBrowserChain(sandbox) {
   for (const f of [
     'global-settings.js', 'perlin.js', 'mapseed.js', 'skills-data.js',
-    'items-data.js', 'npc-data.js', 'map.js', 'player.js', 'day.js',
-    'items.js', 'buildings.js',
+    'items-data.js', 'npc-data.js', 'mob-groups-data.js', 'map.js',
+    'player.js', 'day.js', 'items.js', 'buildings.js',
   ]) loadInSandbox(f, sandbox);
 }
 

@@ -706,8 +706,8 @@
         groupType: opts.mobs ? -1 : (opts.tile ? opts.tile.mobGroup : 0),
         mobs: opts.mobs,
         mobLevel: opts.mobLevel,
-        groupName: opts.groupName || (opts.tile && G.MOB_GROUP_NAMES
-          ? G.MOB_GROUP_NAMES[opts.tile.mobGroup] : undefined),
+        groupName: opts.groupName || (opts.tile && G.mobGroupName
+          ? G.mobGroupName(opts.tile.mobGroup) : undefined),
         seed: opts.seed,
         day: opts.day,
       });

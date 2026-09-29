@@ -23,7 +23,7 @@ const { NPCS } = require('../src/npc-data.js');
 const { getBuilding } = require('../src/buildings.js');
 const { getItem } = require('../src/items.js');
 const { PRIMARY_SKILLS, SECONDARY_SKILLS } = require('../src/player.js');
-const { MOB_GROUP_COUNT } = require('../src/map.js');
+const { mobGroupCount } = require('../src/map.js');
 
 const DIR = path.join(__dirname, '..', 'assets', 'npc');
 
@@ -232,8 +232,8 @@ test('целостность: предметы, навыки, типы груп�
         const goal = q.цель;
         if (goal.тип === 'kill_group') {
           assert.ok(Number.isInteger(goal.группа) &&
-            goal.группа >= 0 && goal.группа < MOB_GROUP_COUNT,
-            `${n.id}: квест ${q.id}: группа ${goal.группа} вне 0..${MOB_GROUP_COUNT - 1}`);
+            goal.группа >= 0 && goal.группа < mobGroupCount(),
+            `${n.id}: квест ${q.id}: группа ${goal.группа} вне 0..${mobGroupCount() - 1}`);
         } else if (goal.тип === 'bring_item') {
           assert.ok(getItem(goal.предмет) !== null,
             `${n.id}: квест ${q.id}: предмет "${goal.предмет}" нет в items`);

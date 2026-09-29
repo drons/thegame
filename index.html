@@ -291,6 +291,11 @@
   <script src="src/skills-data.js"></script>
   <script src="src/items-data.js"></script>
   <script src="src/npc-data.js"></script>
+  <!-- Каталог стационарных групп мобов (assets/mob_groups, задача
+       000057): ДО map.js — ленивые mobGroupCount()/mobGroupName()
+       видят Game.MobGroupsData при вызове; combat.js/sprites.js
+       читают каталог при своей загрузке. -->
+  <script src="src/mob-groups-data.js"></script>
   <script src="src/map.js"></script>
   <script src="src/player.js"></script>
   <script src="src/day.js"></script>

@@ -1125,9 +1125,11 @@
       line += '\nЗдесь: ' + G.buildingNameUi(t.building) + shopHint + npcHint +
         (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE ? ' (вход — шагните)' : '');
     } else if (t.hasMobGroup) {
+      // Имя группы — из каталога лениво (задача 000057): map.js
+      // грузится ДО main.js, G.mobGroupName всегда на месте.
       line += defeatedAt.has(key)
-        ? '\nГруппа ' + G.MOB_GROUP_NAMES[t.mobGroup] + ' повержена.'
-        : '\nОсторожно: ' + G.MOB_GROUP_NAMES[t.mobGroup] + '!';
+        ? '\nГруппа ' + G.mobGroupName(t.mobGroup) + ' повержена.'
+        : '\nОсторожно: ' + G.mobGroupName(t.mobGroup) + '!';
     }
     // Магазин текущего тайла → секция «Торговля» в панели персонажа.
     if (G.playerUI) {

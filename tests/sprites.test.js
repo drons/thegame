@@ -9,7 +9,7 @@ const {
   // падают, пока её нет в map.js.
   TERRAIN_DATA,
   buildingCount, BUILDING_TYPES,
-  MOB_GROUP_COUNT, MOB_GROUP_TYPES,
+  MOB_GROUP_TYPES, mobGroupCount,
   createMap, syntheticPixels,
 } = require('../src/map.js');
 const S = require('../src/sprites.js');
@@ -108,7 +108,7 @@ test('мобы: каждая группа — базовый тип, кадры 
   const BASIC = new Set(['orc', 'skeleton', 'wolf', 'spider', 'elemental', 'abyss']);
   for (const g of Object.values(MOB_GROUP_TYPES)) {
     if (g === MOB_GROUP_TYPES.NONE) continue;
-    assert.ok(g >= 0 && g < MOB_GROUP_COUNT);
+    assert.ok(g >= 0 && g < mobGroupCount());
     const kind = S.mobKind(g);
     assert.ok(BASIC.has(kind), `у группы ${g} нет базового типа: ${kind}`);
     const frames = S.mobFrames(g);
