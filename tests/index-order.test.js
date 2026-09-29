@@ -478,6 +478,8 @@ test('dungeon.js БЕЗ dungeons-data.js: гард деградирует до f
   const d = sandbox.Game.createDungeon(37, -12, px, sandbox.Game.TERRAIN.GRASS);
   assert.equal(d.type, 0, 'fallback: createDungeon → CAVE');
   assert.equal(d.width, 25, 'fallback: размер CAVE из DUNGEON_SIZE');
+});
+
 // --- Задача 000046: модули крафта ---
 //
 // craft.js при ЗАГРУЗКЕ снимает с Game: каталог (craft-data.js), API

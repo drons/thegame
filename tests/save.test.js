@@ -290,6 +290,8 @@ test('000072: roundtrip новых разделов через хранилищ�
   assert.equal(m.get('0,0'), 2);
   const buffs = D.restoreBuffs(res.save.data.buffs, res.save.data.day);
   assert.deepEqual(buffs, data.buffs, 'активные благословения восстановлены');
+});
+
 // --- Задача 000046: крафт в сейве ---
 //
 // hero.craft / hero.craftXp / hero.equipmentBonus — новые ОПЦИОНАЛЬНЫЕ

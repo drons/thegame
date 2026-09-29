@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { writeFileAtomic } = require('./lib/write-atomic.js');
 
 const ROOT = path.join(__dirname, '..');
 const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
@@ -117,6 +118,6 @@ L.push('  return { CRAFT, CRAFT_BY_ID };');
 L.push('});');
 L.push('');
 
-fs.writeFileSync(OUT_FILE, L.join('\n'), 'utf8');
+writeFileAtomic(OUT_FILE, L.join('\n'));
 console.log(
   `src/craft-data.js перегенерирован: ${recipes.length} рецептов.`);
