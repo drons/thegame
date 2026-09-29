@@ -112,6 +112,40 @@ const comboNpc = {
   }],
 };
 
+// Наёмники (задача 000078): найм-данные — родительский контракт 000065
+// ({цена, жалованье, роль, dmg, hp, armor?, skills, spells}); доступ к
+// найму — существующий механизм требований (паттерн Оратора).
+const mercNpc = {
+  id: 'merc_volk',
+  имя: 'Вольк',
+  роль: 'наёмник',
+  постройки: [44],
+  диалог: [
+    { id: 'prives', текст: 'Клинок наёмный — не святой.', действие: 'подсказка' },
+    { id: 'hire', текст: 'Найм', действие: 'найм' },
+    { id: 'hire_char', текст: 'Найм (для убеждённых)', действие: 'найм',
+      требования: { харизма: 2 } },
+    { id: 'hire_orator', текст: 'Найм (для красноречивых)', действие: 'найм',
+      требования: { навык: { id: 'orator', уровень: 1 } } },
+  ],
+  найм: {
+    цена: 50, жалованье: 1, роль: 'melee', dmg: 1.2, hp: 1.1,
+    skills: ['swordsman'], spells: [],
+  },
+};
+
+const mercNpc2 = {
+  id: 'merc_mira',
+  имя: 'Мира',
+  роль: 'наёмница',
+  постройки: [44],
+  диалог: [{ id: 'hire', текст: 'Найм', действие: 'найм' }],
+  найм: {
+    цена: 80, жалованье: 2, роль: 'support', dmg: 0.5, hp: 0.8,
+    skills: ['meditation'], spells: ['mend'],
+  },
+};
+
 // --- 1. Справочные ---
 
 test('справочные: npcById, npcsForBuilding, npcForBuilding, skillLevel', () => {
@@ -129,6 +163,32 @@ test('справочные: npcById, npcsForBuilding, npcForBuilding, skillLevel
   assert.equal(N.skillLevel(c, 'orator'), 0, 'нет вторичного — 0');
   c.secondary.orator = 4;
   assert.equal(N.skillLevel(c, 'orator'), 4, 'вторичный навык');
+});
+
+test('hireCandidates: только NPC с найм-данными, порядок каталога, детерминированно', () => {
+  // Справочная функция 000078: ЧИТАЕМЫЙ список кандидатов для вкладки
+  // «найм» (src/ui.js) и для 000079/000083. Контракт:
+  //   * кандидат = запись с найм-данными (объект), остальное отфильтровано;
+  //   * порядок = порядок переданного массива (порядок каталога);
+  //   * детерминированно: два вызова — те же NPC (ссылки);
+  //   * грязные данные (null, найм-не-объект) — не кандидаты, не падает.
+  assert.equal(typeof N.hireCandidates, 'function',
+    'hireCandidates — справочная функция ядра (000078)');
+  const npcs = [trainNpc, mercNpc, smithNpc, mercNpc2];
+  assert.deepEqual(N.hireCandidates(npcs), [mercNpc, mercNpc2],
+    'только NPC с найм-данными, порядок = порядок массива (каталога)');
+  assert.deepEqual(N.hireCandidates([]), [], 'пустой массив — пустой список');
+  assert.deepEqual(N.hireCandidates([trainNpc, smithNpc]), [],
+    'без найм-данных — пустой список');
+  const a = N.hireCandidates(npcs);
+  const b = N.hireCandidates(npcs);
+  assert.equal(a.length, b.length, 'детерминированно: одинаковая длина');
+  for (let i = 0; i < a.length; i++) {
+    assert.equal(a[i], b[i], 'детерминированно: те же NPC (ссылки)');
+  }
+  assert.deepEqual(
+    N.hireCandidates([null, { id: 'x' }, { id: 'y', найм: 'нет' }]), [],
+    'мусор (null / найм-не-объект) — не кандидат, без падения');
 });
 
 // --- 2. Диалоги: доступность опций ---
@@ -184,6 +244,36 @@ test('диалог: комбинация требований — первая �
   o = N.dialogOptions(comboNpc, c)[0];
   assert.equal(o.доступен, true);
   assert.equal(o.причина, null);
+});
+
+test('диалог: действие «найм» проходит через dialogOptions (000078)', () => {
+  // Фиксация (зелёная с первого запуска): dialogOptions НЕ читает
+  // `действие` — любая опция проходит через существующий механизм
+  // требований (харизма / навык / проверка), как «квесты». Это и есть
+  // механизм доступа к найму (паттерн Оратора, 000078): НОВОЙ системы
+  // проверок нет. Тест страхует от рефакторинга, который стал бы
+  // фильтровать опции по действию (такой рефакторинг ломал бы «найм»).
+  const c = P.createCharacter(); // Харизма 1, вторичных навыков нет
+  const o = N.dialogOptions(mercNpc, c);
+  assert.equal(o.length, 4, 'все опции на месте');
+  assert.equal(o[0].доступен, true, 'подсказка без требований — доступна');
+  assert.equal(o[1].доступен, true, 'найм без требований — доступен');
+  assert.equal(o[1].причина, null);
+  assert.equal(o[2].доступен, false, 'найм: Харизма 2 — не выполнено');
+  assert.equal(o[2].причина, 'нужна Харизма 2');
+  assert.equal(o[3].доступен, false, 'найм: Оратор 1 — не выполнено');
+  assert.match(o[3].причина, /Оратор/);
+  // Ровно на пороге Харизмы — опция найма открывается.
+  c.primary.charisma = 2;
+  assert.equal(N.dialogOptions(mercNpc, c)[2].доступен, true,
+    'Харизма 2 — найм-опция доступна');
+  assert.equal(N.dialogOptions(mercNpc, c)[2].причина, null);
+  // Прокачка «Оратор» до 1 — найм-опция навыка открывается.
+  c.points += 1;
+  assert.equal(P.raiseSkill(c, 'orator').ok, true);
+  assert.equal(N.dialogOptions(mercNpc, c)[3].доступен, true,
+    'Оратор 1 — найм-опция доступна');
+  assert.equal(N.dialogOptions(mercNpc, c)[3].причина, null);
 });
 
 // --- 3. Школы: прокачка за монеты ---
