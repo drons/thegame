@@ -1,0 +1,121 @@
+# 000120: XML-схема ВСЕХ SVG-ассетов + ремонт 29 дефектных файлов (defect-fix от 000062)
+
+Статус: реализация выполнена (красная фаза — отдельный коммит
+«Задача 000120: красные тесты», ремонт файлов + доки — текущая стадия).
+Вывод: все 265 SVG assets/** валидны, npm test зелёный (732).
+
+## Что проверяет tests/svg.test.js (ноль npm-зависимостей)
+
+Обход ВСЕХ `assets/**/*.svg` (265: tiles 12, combat/bg 11, dungeon/floor
+15, sprites 226 (buildings 13 + mobs 192 + phlogiston 8 + visuals 13),
+logo.svg 1). Три уровня:
+
+1. **XML well-formedness** — минимальный парсер SVG-подмножества,
+   реально встречающегося в ассетах: теги с атрибутами `name="value"`
+   (двойные ИЛИ одинарные кавычки; значение может содержать другую
+   кавычку — `font-family="Georgia, 'Times New Roman', serif"` в
+   logo.svg), самозакрытие `/>`, пары открытие/закрытие, текстовый
+   контент (`<title>/<text>/<textPath>` в logo.svg), комментарии
+   `<!-- -->`, `<?xml?>`. Парсер строгий: `&` в тексте (сущности в
+   ассетах отсутствуют), DOCTYPE/CDATA, незакрытая кавычка/тег,
+   лишний токен перед `/>`, дубликат атрибута, несоответствие
+   закрывающего тега, мусор после `</svg>` — ошибки. При ошибке —
+   путь + строка:колонка.
+2. **Структурная схема**: корень `<svg>`;
+   `xmlns="http://www.w3.org/2000/svg"`; есть `viewBox` (или
+   width/height); viewBox — ровно 4 конечных числа (Number(), не
+   regex).
+3. **Значения атрибутов** (все элементы): без NaN/Infinity
+   (case-insensitive, токеном значения) и без пустых значений.
+
+Самопроверки парсера (9 тестов) — на tmp-файлах в os.tmpdir по каждому
+паттерну дефекта 000062 + позитивные контроля (чистый SVG, «тяжёлый»
+логотипный с SMIL/<text>/xlink:href+href/xmlns:xlink/кавычками).
+
+## Таблица дефектов 000062 (29 файлов) и применённые фиксы
+
+Ремонт — ТОЛЬКО атрибуты, геометрия (path d) не тронута; число деталей
+не изменилось (сверено scripts/count-svg-details.js до/после):
+skeleton 43–45, skeleton_archer 47–49, bone_coloss 276–277,
+crawling_bones 36–37, scorpion 52–53, giant_larva 36 — все ≥ бюджета
+30·w·h (1x1→30, bone_coloss 3x3→270).
+
+| Файлы (каталог assets/sprites/mobs/) | Дефект | Фикс |
+|---|---|---|
+| skeleton_{move_1,move_2,attack_1,attack_2,dead_1}.svg, строка 28 | `fill="#7a5a34" stroke=" opacity="0.8"" stroke-width="NaN" stroke-linejoin="round"` (склеенные кавычки) | `stroke="#1a1a1a" opacity="0.8" stroke-width="1.5" stroke-linejoin="round"` |
+| skeleton_archer_* (5 кадров), строка 28 | то же, `fill="#96542e"` | `stroke="#1a1a1a" opacity="0.8" stroke-width="1.5" stroke-linejoin="round"` |
+| bone_coloss_* (5 кадров), строка 28 | то же, `fill="#aeb8c4"` | `stroke="#1a1a1a" opacity="0.8" stroke-width="1.5" stroke-linejoin="round"` |
+| crawling_bones_* (5 кадров), строки 23–24 (2 на кадр) | то же, `fill="#7a5a34"` | `stroke="#1a1a1a" opacity="0.8" stroke-width="1.1" stroke-linejoin="round"` |
+| scorpion_* (5 кадров), строки 17–19 (2 на кадр) | `stroke="#ffb09a" stroke-width="NaN" stroke-linecap="round"1.4/>` (лишний токен) | `stroke-width="1.4" stroke-linecap="round"/>` |
+| giant_larva_{move_1,move_2,attack_1,attack_2}.svg (4 файла), строки 31–32 (2 на кадр) | `stroke="#96542e" stroke-width="NaN"` | `stroke-width="1.1"` (dead_1 не дефектен: там мандибулы с width 2) |
+
+Откуда цвета/толщины (чистых копий дефектного элемента нет — все
+экземпляры сломаны одинаково; источник — соседние контуры ТОГО ЖЕ
+файла, MOBS.md «тонкий тёмный контур в тёмном тоне базового цвета,
+~1–2»):
+* skeleton/archer/bone_coloss — в том же файле таз
+  `stroke="#1a1a1a" stroke-width="1.5"` (строка 12) и у bone_coloss
+  стальные полигоны ровно `stroke="#1a1a1a" stroke-width="1.5"
+  stroke-linejoin="round"` (строки 38–40);
+* crawling_bones — трещины-линии в том же файле `#1a1a1a` 1.1 (1.5 в
+  файле нет);
+* giant_larva — соседние тонкие пути-трещины 1.1 (строки 35–39);
+* scorpion — лишний токен «1.4» и есть утерянная толщина
+  (генератор передавал её как extra-строку).
+
+## Корневая причина (ВАЖНО для будущих задач)
+
+Баг — в генераторе `scripts/gen-mob-art.js` (000062), в вызовах
+хелперов:
+* `C.el.pth(d, fill, c, w)` вызывается как
+  `C.el.pth(d, fill, ' opacity="0.8"')` (skeleton строка 520;
+  crawling_bones строки 596–597) — extra-строка попала в слот цвета →
+  `stroke=" opacity="0.8""` + `stroke-width="NaN"` (w=undefined);
+* `C.el.curve(d, c, w, extra)` вызывается как
+  `C.el.curve(d, color, P.line, 1.4)` у scorpion (строка 838) с
+  P.line=undefined → `stroke-width="NaN"` + extra «1.4» перед `/>`;
+* `C.el.curve(d, color)` без ширины у живой giant_larva (buildWorm) →
+  `stroke-width="NaN"`.
+
+Генератор детерминирован (повторный запуск — byte-identical):
+`node scripts/gen-mob-art.js` ПЕРЕГЕНЕРИРУЕТ 29 файлов снова сломанными.
+В задаче 000120 генератор НЕ чинился (ремонт — только атрибуты 29
+файлов + правила; перегенерация всех 36 мобов вышла бы за scope).
+Гейт: повторная перегенерация упадёт в npm test (tests/svg.test.js).
+Кто будет править gen-mob-art.js — обязан починить эти вызовы pth/curve
+(а заодно сверить остальные семейства по тому же паттерну).
+
+## Зафиксированные решения
+
+* **Исключение `transform=""`** — легальный identity-трансформ; 4
+  ЧИСТЫХ кадра salamander_move_1/2, attack_1/2 его содержат. Проверка
+  «без пустых значений» пропускает ровно `transform=""` (и только его);
+  любое иное пустое значение (`fill=""` и т.п.) — ошибка. Файлы
+  salamander не трогали.
+* **Таблицы viewBox по каталогам НЕ вводить**: мобы уже закреплены
+  tests/mob-art.test.js (regex-сканер, 100·w×100·h); единого источника
+  правды размеров для tiles/combat/dungeon нет — таблица риск ложных
+  срабатываний. svg.test.js проверяет только «viewBox = 4 конечных
+  числа ИЛИ width/height есть».
+* **Парсер — общий, НЕ запрещает «тяжёлые» теги**: logo.svg легально
+  содержит SMIL `<animate>`, `<text>`, `xlink:href`+`href`,
+  xmlns:xlink — общий гейт обязан его переварить. Запрещённые теги
+  мобов (SMIL/text/foreignObject и пр.) — территория
+  tests/mob-art.test.js, не дублировать.
+* Правила зафиксированы в MOBS.md («Технические требования к файлу» +
+  «Чек-лист QA» пункт 6) и в SPEC.md (только раздел «Графика»): каждый
+  сгенерированный SVG обязан пройти npm test (tests/svg.test.js) до
+  добавления в каталог.
+
+## Как править при новом дефекте
+
+1. `cd .worktrees/<task> && npm test` — тест-обход печатает
+   `путь:строка:колонка сообщение` по ВСЕМ дефектным файлам.
+2. Сверить со xmllint (`xmllint --noout файл.svg`) — независимая
+   проверка well-formedness (NaN-значения xmllint не ловит — только
+   svg.test.js).
+3. Ремонт атрибутов по соседним элементам того же файла (таблица
+   выше — прецедент); НЕ менять геометрию (бюджет деталей, сравнение
+   кадров).
+4. `node scripts/count-svg-details.js --min 30 <файлы>` (1x1; 3x3 —
+   270) и полный `npm test` — зелёные.

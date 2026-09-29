@@ -15,8 +15,8 @@
 <circle cx="48" cy="27" r="6" fill="#ff5a4a" opacity="0.25"/>
 <ellipse cx="50" cy="60" rx="13" ry="11" fill="#3d3348" stroke="#221a33" stroke-width="1.8"/>
 <ellipse cx="46" cy="56" rx="6" ry="4" fill="#7d6892" opacity="0.5"/>
-<path d="M62 56 Q74 50 78 58 Q72 64 62 60 Z" fill="none" stroke="#ffb09a" stroke-width="NaN" stroke-linecap="round"1.4/>
-<path d="M62 64 Q76 66 78 60 Q74 70 62 70 Z" fill="none" stroke="#ffb09a" stroke-width="NaN" stroke-linecap="round"1.4/>
+<path d="M62 56 Q74 50 78 58 Q72 64 62 60 Z" fill="none" stroke="#ffb09a" stroke-width="1.4" stroke-linecap="round"/>
+<path d="M62 64 Q76 66 78 60 Q74 70 62 70 Z" fill="none" stroke="#ffb09a" stroke-width="1.4" stroke-linecap="round"/>
 <circle cx="78" cy="58" r="2" fill="#2a2135"/>
 <circle cx="78" cy="61" r="2" fill="#2a2135"/>
 <circle cx="54" cy="54" r="1.8" fill="#ff5a4a"/>
