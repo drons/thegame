@@ -10,19 +10,22 @@
 // Чистое ядро без DOM — тестируется в node (tests/dungeon.test.js).
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js, map.js, global-settings.js
-// (dungeon_memory_days, level_delta_max).
+// (dungeon_memory_days, level_delta_max), dungeons-data.js (каталог
+// assets/dungeons — source of truth таблиц, задача 000058; без data-модуля
+// гард деградирует до fallback-литералов, см. ниже).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(require('./perlin.js'), require('./map.js'),
-      require('./global-settings.js'));
+      require('./global-settings.js'), require('./dungeons-data.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
       factory(typeof root.Game === 'object' ? root.Game : {}, root.Game,
-        root.Game && root.Game.GlobalSettings));
+        root.Game && root.Game.GlobalSettings,
+        root.Game && root.Game.DungeonsData));
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self,
-  function (perlin, mapmod, settings) {
+  function (perlin, mapmod, settings, dungeonsData) {
 
   const mulberry32 = perlin.mulberry32;
   const hash2 = perlin.hash2;
@@ -33,45 +36,108 @@
   const CELL_WALL = 0;
   const CELL_FLOOR = 1;
 
-  // Типы подземелий (SPEC.md, «Входы в пещеры»).
+  // Типы подземелий (SPEC.md, «Входы в пещеры»). Перенумерации НЕТ:
+  // фон боя assets/combat/bg выбирается по этим числам (задача 000049).
   const DUNGEON_TYPES = {
     CAVE: 0, CRYPT: 1, RUINS: 2, DROWNED: 3, ABYSS: 4,
   };
-  const DUNGEON_NAMES = {
-    [DUNGEON_TYPES.CAVE]: 'простая пещера',
-    [DUNGEON_TYPES.CRYPT]: 'склеп',
-    [DUNGEON_TYPES.RUINS]: 'руины замка',
-    [DUNGEON_TYPES.DROWNED]: 'затопленная пещера',
-    [DUNGEON_TYPES.ABYSS]: 'бездна',
-  };
 
-  // Таблицы мобов по типу подземелья (SPEC.md, «Типы подземелий»).
-  const DUNGEON_MOBS = {
-    [DUNGEON_TYPES.CAVE]: ['skeleton', 'ant', 'crawling_bones', 'giant_larva'],
-    [DUNGEON_TYPES.CRYPT]: ['skeleton', 'skeleton_archer', 'rot', 'vampire', 'bone_coloss'],
-    [DUNGEON_TYPES.RUINS]: ['orc_warrior', 'orc_archer', 'wolf', 'troll', 'skeleton'],
-    [DUNGEON_TYPES.DROWNED]: ['water_elemental', 'scorpion', 'spider', 'imp'],
-    [DUNGEON_TYPES.ABYSS]: ['lower_demon', 'succubus', 'abomination'],
-  };
+  // --- Таблицы по типу подземелья: каталог assets/dungeons ---
+  //
+  // Source of truth — JSON-файлы assets/dungeons/0000*.json (схема —
+  // assets/dungeons/schema.json, задача 000058). В node — require
+  // './dungeons-data.js', в браузере — Game.DungeonsData
+  // (src/dungeons-data.js подключён в index.html ДО dungeon.js).
+  // Без data-модуля (vm-песочница tests/dungeon-ui.test.js его НЕ
+  // грузит) гард деградирует до FALLBACK-литералов 1:1 с каталогом
+  // (прецедент FALLBACK_BUILDING_COUNT в map.js, задача 000055):
+  // генерация не «умирает», а равенство fallback ≡ каталогу закреплено
+  // тестом (tests/dungeon.test.js).
+  const FALLBACK_DUNGEONS = [
+    {
+      id: DUNGEON_TYPES.CAVE,
+      название: 'простая пещера',
+      мобы: ['skeleton', 'ant', 'crawling_bones', 'giant_larva'],
+      предметы: ['iron_sword', 'healing_potion', 'sulfur',
+        'stone_fist_grimoire'],
+      размер: 25,
+      постройка: 31,
+    },
+    {
+      id: DUNGEON_TYPES.CRYPT,
+      название: 'склеп',
+      мобы: ['skeleton', 'skeleton_archer', 'rot', 'vampire', 'bone_coloss'],
+      предметы: ['alchemy_manual', 'chainmail', 'mana_potion',
+        'meditation_scroll'],
+      размер: 27,
+      постройка: 32,
+    },
+    {
+      id: DUNGEON_TYPES.RUINS,
+      название: 'руины замка',
+      мобы: ['orc_warrior', 'orc_archer', 'wolf', 'troll', 'skeleton'],
+      предметы: ['steel_sword', 'knight_plate', 'war_hammer',
+        'iron_hide_tome'],
+      размер: 31,
+      постройка: 33,
+    },
+    {
+      id: DUNGEON_TYPES.DROWNED,
+      название: 'затопленная пещера',
+      мобы: ['water_elemental', 'scorpion', 'spider', 'imp'],
+      предметы: ['mana_elixir', 'hunting_bow', 'moonstone',
+        'nature_scroll'],
+      размер: 27,
+      постройка: 34,
+    },
+    {
+      id: DUNGEON_TYPES.ABYSS,
+      название: 'бездна',
+      мобы: ['lower_demon', 'succubus', 'abomination'],
+      предметы: ['war_hammer', 'phoenix_feather', 'greater_healing',
+        'heavy_tome', 'fire_spellbook'],
+      размер: 35,
+      постройка: 35,
+    },
+  ];
 
-  // Предметы в сундуках по типу подземелья: id предметов из каталога
-  // assets/items (фолбэк — src/items-data.js, ядро — src/items.js).
-  const DUNGEON_ITEMS = {
-    [DUNGEON_TYPES.CAVE]: ['iron_sword', 'healing_potion', 'sulfur', 'stone_fist_grimoire'],
-    [DUNGEON_TYPES.CRYPT]: ['alchemy_manual', 'chainmail', 'mana_potion', 'meditation_scroll'],
-    [DUNGEON_TYPES.RUINS]: ['steel_sword', 'knight_plate', 'war_hammer', 'iron_hide_tome'],
-    [DUNGEON_TYPES.DROWNED]: ['mana_elixir', 'hunting_bow', 'moonstone', 'nature_scroll'],
-    [DUNGEON_TYPES.ABYSS]: ['war_hammer', 'phoenix_feather', 'greater_healing', 'heavy_tome', 'fire_spellbook'],
-  };
+  /** Каталог валиден: 5 записей, id 0..4, строки/списки/целые на месте. */
+  function validDungeonCatalog(d) {
+    if (!d || !Array.isArray(d.DUNGEONS) || d.DUNGEONS.length !== 5) {
+      return false;
+    }
+    return d.DUNGEONS.every((r) =>
+      r && Number.isInteger(r.id) && r.id >= 0 && r.id <= 4 &&
+      typeof r.название === 'string' && r.название.length > 0 &&
+      Array.isArray(r.мобы) && r.мобы.length > 0 &&
+      Array.isArray(r.предметы) && r.предметы.length > 0 &&
+      Number.isInteger(r.размер) && r.размер > 0 &&
+      Number.isInteger(r.постройка));
+  }
 
-  // Размер лабиринта (клеток) по типу.
-  const DUNGEON_SIZE = {
-    [DUNGEON_TYPES.CAVE]: 25,
-    [DUNGEON_TYPES.CRYPT]: 27,
-    [DUNGEON_TYPES.RUINS]: 31,
-    [DUNGEON_TYPES.DROWNED]: 27,
-    [DUNGEON_TYPES.ABYSS]: 35,
-  };
+  const CATALOG = validDungeonCatalog(dungeonsData)
+    ? dungeonsData.DUNGEONS
+    : FALLBACK_DUNGEONS;
+  if (dungeonsData !== undefined && !validDungeonCatalog(dungeonsData)) {
+    console.warn(
+      'dungeon.js: Game.DungeonsData повреждена — использую fallback-' +
+      'таблицы (source of truth: assets/dungeons)');
+  }
+
+  // DUNGEON_NAMES — кодовый регистр (строчный): строки HUD/логов.
+  // Предметы — id из каталога assets/items (фолбэк — src/items-data.js,
+  // ядро — src/items.js); постройка — id пещеры 31..35 из
+  // assets/buildings (связь «подземелье ↔ вход в мире», однонаправленная).
+  const DUNGEON_NAMES = {};
+  const DUNGEON_MOBS = {};
+  const DUNGEON_ITEMS = {};
+  const DUNGEON_SIZE = {};
+  for (const rec of CATALOG) {
+    DUNGEON_NAMES[rec.id] = rec.название;
+    DUNGEON_MOBS[rec.id] = rec.мобы.slice();
+    DUNGEON_ITEMS[rec.id] = rec.предметы.slice();
+    DUNGEON_SIZE[rec.id] = rec.размер;
+  }
 
   if (!settings || typeof settings.SETTINGS !== 'object') {
     throw new Error(

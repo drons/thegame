@@ -195,12 +195,14 @@
   // 1 фолбэк. combat-ui.js рисует их первым слоем боевого canvas;
   // загрузчик передаётся в startCombat опцией spriteLoader (main.js).
   //
-  // COMBAT_BG_DUNGEON — ЛИТЕРАЛЬНОЕ зеркало DUNGEON_TYPES из
-  // src/dungeon.js (число → имя). Зависимость от dungeon.js не
-  // создаётся: vm-песочница tests/combat-ui.test.js не грузит
-  // dungeon.js, а require в node-ветке UMD дал бы рассинхрон
-  // node/браузер веток. Равенство зеркала с оригиналом закрывает
-  // тест (tests/sprites.test.js).
+  // COMBAT_BG_DUNGEON — ЛИТЕРАЛЬНОЕ зеркало каталога подземелий
+  // assets/dungeons (числа DUNGEON_TYPES 0..4 → имя фона, задача
+  // 000058; src/dungeon.js сам выводит таблицы из того же каталога).
+  // Зависимость от dungeon.js и data-модулей не создаётся: vm-песочница
+  // tests/combat-ui.test.js не грузит dungeon.js и dungeons-data.js, а
+  // require в node-ветке UMD дал бы рассинхрон node/браузер веток
+  // (задача 000049). Равенство зеркала с каталогом закрывает тест
+  // (tests/sprites.test.js).
   const COMBAT_BG_DIR = 'assets/combat/bg/';
   const COMBAT_BG_TERRAIN = {
     [TERRAIN.SAND]: 'sand',

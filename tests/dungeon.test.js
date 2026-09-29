@@ -208,3 +208,199 @@ test('побеждённая группа не двигается', () => {
   assert.equal(m.x, x);
   assert.equal(m.y, y);
 });
+
+// --- Задача 000058: каталог assets/dungeons (source of truth) ---
+//
+// Фиксированное решение (противоречие в тексте задачи «id 1..5 = номер
+// файла (и значения DUNGEON_TYPES)» разрезано в пользу собственного
+// ограничения «перенумерации НЕТ»): DUNGEON_TYPES = 0..4, фон боя
+// assets/combat/bg выбирается именно по этим числам (000049), а
+// нумерация файлов каталога в проекте — с 000001 (тест assets-schemas).
+// Поэтому файл 0000NN.json хранит id NN−1 (0..4), МНОЖЕСТВО id по
+// файлам = ровно {0..4} (уникальность схемой не выразима — проверяется
+// здесь и в sync-скрипте). `название` — ТОЧНО из DUNGEON_NAMES,
+// кодовый регистр (строчный): строки HUD/логов не меняются.
+// `постройка` — id пещеры 31..35 из assets/buildings (связь
+// однонаправленная: dungeons → buildings, buildings не меняется).
+const fs = require('node:fs');
+const path = require('node:path');
+const ROOT = path.join(__dirname, '..');
+const DDIR = path.join(ROOT, 'assets', 'dungeons');
+
+function loadDungeonCatalog() {
+  const files = fs.readdirSync(DDIR)
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .sort();
+  return files.map((f) => ({
+    file: f,
+    data: JSON.parse(fs.readFileSync(path.join(DDIR, f), 'utf8')),
+  }));
+}
+
+test('DUNGEON_NAMES — кодовый регистр (строки HUD/логов), 1:1', () => {
+  assert.deepEqual(D.DUNGEON_NAMES, {
+    0: 'простая пещера',
+    1: 'склеп',
+    2: 'руины замка',
+    3: 'затопленная пещера',
+    4: 'бездна',
+  });
+});
+
+test('golden: детерминизм — закреплённые значения ДО переноса данных в каталог', () => {
+  // Снято с рабочего кода ДО изменений (задача 000058): перенос таблиц
+  // в каталог обязан быть byte-for-byte 1:1 — генерация не меняется.
+  // CAVE, фикс. вход (37, −12), трава, светлый пиксель.
+  const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  assert.equal(d.type, 0, 'CAVE');
+  assert.equal(d.seed, 2658571374);
+  assert.equal(d.width, 25);
+  assert.equal(d.height, 25);
+  assert.deepEqual(d.rooms, [
+    { x: 15, y: 10, w: 7, h: 9, cx: 18, cy: 14 },
+    { x: 2, y: 10, w: 5, h: 8, cx: 4, cy: 14 },
+    { x: 6, y: 6, w: 7, h: 8, cx: 9, cy: 10 },
+    { x: 8, y: 10, w: 7, h: 5, cx: 11, cy: 12 },
+    { x: 15, y: 2, w: 6, h: 7, cx: 18, cy: 5 },
+  ]);
+  assert.deepEqual(d.entrance, { x: 18, y: 14 });
+  assert.deepEqual(d.exit, { x: 18, y: 5 });
+  assert.equal(
+    d.cells.join(''),
+    '00000000000000000000000000000000000000000000000000' +
+    '00000000000000011111100000000000000000001111110000' +
+    '00000000000000011111100000000000000011111111110000' +
+    '00000011111110011111100000000001111111001111110000' +
+    '00000011111110011111100000000001111111000000000000' +
+    '00111111111111111111110000011111111111111111111000' +
+    '00111111111111111111110000011111111111111111111000' +
+    '00111111111111111111110000011111000000001111111000' +
+    '00111110000000011111110000011111000000001111111000' +
+    '00000000000000011111110000000000000000000000000000' +
+    '00000000000000000000000000000000000000000000000000' +
+    '00000000000000000000000000000000000000000000000000' +
+    '0000000000000000000000000');
+  // ABYSS с боссом: горный тёмный вход (11, 3), totalXp = 2000, level 10.
+  const px = M.syntheticPixels(8, 8, 40, 40, 40, 10);
+  const d2 = D.createDungeon(11, 3, px, M.TERRAIN.MOUNTAIN);
+  assert.equal(d2.type, 4, 'ABYSS');
+  assert.equal(d2.seed, 2941640529);
+  assert.equal(d2.width, 35);
+  const c2 = D.generateDungeonContents(d2, heroAt(2000, 10));
+  assert.equal(c2.seed, 3935780563);
+  assert.deepEqual(c2.mobs, [
+    { id: 'g0', mobIds: ['lower_demon', 'lower_demon'], x: 7, y: 5, level: 12, defeated: false },
+    { id: 'g1', mobIds: ['lower_demon', 'succubus', 'lower_demon'], x: 8, y: 6, level: 7, defeated: false },
+    { id: 'g2', mobIds: ['abomination', 'succubus'], x: 16, y: 10, level: 7, defeated: false },
+    { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 14, y: 6, level: 13, defeated: false, boss: true },
+  ]);
+  assert.deepEqual(c2.chests, [
+    { id: 'c0', x: 15, y: 12, opened: false, gold: 63, item: null },
+    { id: 'c1', x: 14, y: 9, opened: false, gold: 58, item: 'phoenix_feather' },
+  ]);
+});
+
+test('assets/dungeons: ровно 000001..000005.json + schema.json, id = номер файла − 1, множество id = {0..4}', () => {
+  const dir = fs.readdirSync(DDIR).sort();
+  for (const f of dir) {
+    assert.ok(/^\d{6}\.json$/.test(f) || f === 'schema.json',
+      `чужой файл в каталоге dungeons: ${f}`);
+  }
+  assert.ok(fs.existsSync(path.join(DDIR, 'schema.json')),
+    'нет assets/dungeons/schema.json');
+  const files = dir.filter((f) => /^\d{6}\.json$/.test(f));
+  assert.deepEqual(files, [
+    '000001.json', '000002.json', '000003.json', '000004.json', '000005.json',
+  ], 'в каталоге ровно 5 файлов подряд 000001..000005');
+  // Файл 0000NN.json хранит id NN−1 (значения DUNGEON_TYPES, перенумерации
+  // НЕТ — фон боя по ним, 000049).
+  const ids = files.map((f) => {
+    const data = JSON.parse(fs.readFileSync(path.join(DDIR, f), 'utf8'));
+    const n = parseInt(f, 10);
+    assert.equal(data.id, n - 1, `${f}: id ≠ номер файла − 1 (ожидалось ${n - 1})`);
+    return data.id;
+  });
+  // Уникальность (схемой не выразима): множество id — ровно {0..4}.
+  assert.deepEqual(ids.slice().sort((a, b) => a - b), [0, 1, 2, 3, 4],
+    'множество id каталога ≠ {0..4}');
+});
+
+test('зеркало src/dungeons-data.js ≡ JSON-файлы каталога (deepEqual)', () => {
+  const DD = require('../src/dungeons-data.js');
+  const cat = loadDungeonCatalog();
+  assert.equal(DD.DUNGEONS.length, 5, 'DUNGEONS — 5 записей в порядке файлов');
+  cat.forEach(({ file, data }, i) => {
+    assert.deepEqual(DD.DUNGEONS[i], data, `DUNGEONS[${i}] ≠ ${file}`);
+  });
+  assert.deepEqual(
+    Object.keys(DD.DUNGEONS_BY_ID).sort(), ['0', '1', '2', '3', '4'],
+    'DUNGEONS_BY_ID — индекс по id 0..4');
+  for (const d of DD.DUNGEONS) {
+    assert.deepEqual(DD.DUNGEONS_BY_ID[d.id], d, `DUNGEONS_BY_ID[${d.id}]`);
+  }
+});
+
+test('таблицы dungeon.js (node-ветка) выведены из каталога: 1:1', () => {
+  const cat = loadDungeonCatalog();
+  for (const { file, data } of cat) {
+    const t = data.id;
+    assert.equal(D.DUNGEON_NAMES[t], data.название, `DUNGEON_NAMES[${t}] (${file})`);
+    assert.deepEqual(D.DUNGEON_MOBS[t], data.мобы, `DUNGEON_MOBS[${t}] (${file})`);
+    assert.deepEqual(D.DUNGEON_ITEMS[t], data.предметы, `DUNGEON_ITEMS[${t}] (${file})`);
+    assert.equal(D.DUNGEON_SIZE[t], data.размер, `DUNGEON_SIZE[${t}] (${file})`);
+  }
+  // DUNGEON_TYPES — без изменений (перенумерации нет, 000049).
+  assert.deepEqual(D.DUNGEON_TYPES, {
+    CAVE: 0, CRYPT: 1, RUINS: 2, DROWNED: 3, ABYSS: 4,
+  });
+});
+
+test('связь постройка: подземелье ↔ пещера 31..35 биективно, названия совпадают (без учёта регистра)', () => {
+  const cat = loadDungeonCatalog();
+  const bdir = path.join(ROOT, 'assets', 'buildings');
+  const byId = {};
+  for (const f of fs.readdirSync(bdir).filter((f) => /^\d{6}\.json$/.test(f))) {
+    const b = JSON.parse(fs.readFileSync(path.join(bdir, f), 'utf8'));
+    byId[b.id] = b;
+  }
+  const targets = [];
+  for (const { file, data } of cat) {
+    const b = byId[data.постройка];
+    assert.ok(b, `подземелье ${file}: постройки ${data.постройка} нет в assets/buildings`);
+    assert.ok(b.id >= 31 && b.id <= 35,
+      `подземелье ${file}: постройка ${b.id} не из пещер 31..35`);
+    assert.equal(b.категория, 'пещера',
+      `подземелье ${file}: постройка ${b.id} не категории «пещера»`);
+    // Каталог построек — заглавная, dungeons — строчная (кодовый регистр).
+    assert.equal(b.название.toLowerCase(), data.название,
+      `подземелье ${file} ↔ постройка ${b.id}: «${b.название}» ≠ «${data.название}»`);
+    targets.push(b.id);
+  }
+  // Биекция: каждая из пещер 31..35 указана ровно одним подземельем.
+  assert.deepEqual(targets.slice().sort((a, b) => a - b), [31, 32, 33, 34, 35],
+    'множество постройок ≠ 31..35 (связь не биективна)');
+});
+
+test('ссылки: ВСЕ предметы подземелий существуют в assets/items (требование задачи)', () => {
+  // Существующий тест «сундуки: в каждом типе ... есть книга/свиток»
+  // ловит только провисание книг (getItem → null → фильтр выкидывает);
+  // провисший id НЕ-книги он не ловит, а getItem(id) → null даёт краш
+  // в src/items.js (например, weight на сумму инвентаря).
+  const I = require('../src/items.js');
+  const idir = path.join(ROOT, 'assets', 'items');
+  const itemIds = new Set();
+  for (const f of fs.readdirSync(idir).filter((f) => /^\d{6}\.json$/.test(f))) {
+    itemIds.add(JSON.parse(fs.readFileSync(path.join(idir, f), 'utf8')).id);
+  }
+  assert.ok(itemIds.size >= 20, 'каталог assets/items пуст (прединд теста)');
+  for (const { file, data } of loadDungeonCatalog()) {
+    for (const id of data.предметы) {
+      assert.ok(itemIds.has(id),
+        `подземелье ${file} (${data.название}): предмета «${id}» нет в assets/items`);
+      // JS-фолбэк (file://-ветка): getItem обязан вернуть запись,
+      // иначе сундук выдаст null в инвентарь → краш в items.js.
+      assert.ok(I.getItem(id),
+        `подземелье ${file}: getItem('${id}') → null (зеркало items-data?)`);
+    }
+  }
+});

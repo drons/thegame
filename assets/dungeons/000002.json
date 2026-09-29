@@ -1,0 +1,19 @@
+{
+  "id": 1,
+  "название": "склеп",
+  "мобы": [
+    "skeleton",
+    "skeleton_archer",
+    "rot",
+    "vampire",
+    "bone_coloss"
+  ],
+  "предметы": [
+    "alchemy_manual",
+    "chainmail",
+    "mana_potion",
+    "meditation_scroll"
+  ],
+  "размер": 27,
+  "постройка": 32
+}

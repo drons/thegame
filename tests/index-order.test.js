@@ -37,11 +37,24 @@ test('index.html: нужные модули подключены', () => {
     'src/items.js', 'src/controls.js', 'src/combat-keys.js',
     'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
     'src/dungeon.js', 'src/dungeon-ui.js',
+    'src/dungeons-data.js',
     'src/motion.js',
     'src/main.js',
   ]) {
     assert.notEqual(pos(f), -1, f + ' не подключён в index.html');
   }
+});
+
+test('index.html: dungeons-data.js подключён и ДО dungeon.js (UMD: каталог читается при загрузке dungeon.js)', () => {
+  // dungeon.js (браузерная ветка) при ЗАГРУЗКЕ читает каталог подземелий
+  // из Game.DungeonsData (src/dungeons-data.js, задача 000058). УМД-ловушка
+  // (000038): данные должны быть в Game раньше, чем dungeon.js снимает его;
+  // битый порядок не падает при загрузке, а тихо даёт fallback-литералы —
+  // поэтому порядок закреплён здесь.
+  assert.notEqual(pos('src/dungeons-data.js'), -1,
+    'src/dungeons-data.js не подключён в index.html (задача 000058)');
+  assert.ok(pos('src/dungeons-data.js') < pos('src/dungeon.js'),
+    'src/dungeons-data.js должен быть раньше src/dungeon.js (задача 000058)');
 });
 
 test('index.html: controls.js ДО dungeon-ui.js (иначе Game.deltaForEvent не виден)', () => {
@@ -303,4 +316,85 @@ test('порядок битый: spells.js без combat.js → Game.Spells не
   assert.equal(sandbox.Game.Spells, undefined,
     'без combat.js Spells не создаётся');
   assert.ok(errors.length > 0, 'guard обязан оставить след в консоли');
+});
+
+// --- Задача 000058: каталог подземелий (assets/dungeons) ---
+//
+// dungeon.js (браузерная ветка) при загрузке читает каталог из
+// Game.DungeonsData (src/dungeons-data.js, генерируется
+// scripts/sync-dungeons-data.js, npm sync:dungeons). В node-ветке —
+// require('./dungeons-data.js'). Без data-модуля (vm-песочница
+// tests/dungeon-ui.test.js его НЕ грузит) dungeon.js обязан деградировать
+// до встроенных fallback-литералов, а не «умирать» (гард; в отличие от
+// жёсткой зависимости spells.js от combat.js).
+
+const DUNGEON_CORE = ['src/global-settings.js', 'src/perlin.js', 'src/map.js'];
+
+test('порядок core → dungeons-data.js → dungeon.js: таблицы из каталога в браузерном realm', () => {
+  const dataModule = path.join(ROOT, 'src', 'dungeons-data.js');
+  assert.ok(fs.existsSync(dataModule),
+    'src/dungeons-data.js должен существовать (задача 000058)');
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of DUNGEON_CORE.concat('src/dungeons-data.js', 'src/dungeon.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  const DD = sandbox.Game.DungeonsData;
+  assert.ok(DD, 'Game.DungeonsData должен существовать после data-модуля');
+  assert.equal(DD.DUNGEONS.length, 5, 'DUNGEONS — 5 записей');
+  // Таблицы dungeon.js (браузерная ветка) — 1:1 из каталога JSON.
+  const ddir = path.join(ROOT, 'assets', 'dungeons');
+  const dfiles = fs.readdirSync(ddir)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  for (const f of dfiles) {
+    const data = JSON.parse(fs.readFileSync(path.join(ddir, f), 'utf8'));
+    const t = data.id;
+    assert.equal(sandbox.Game.DUNGEON_NAMES[t], data.название,
+      `DUNGEON_NAMES[${t}] (${f}) — браузерная ветка`);
+    // Распространение в node-массив: объекты vm-контекста — чужой realm.
+    assert.deepEqual([...sandbox.Game.DUNGEON_MOBS[t]], data.мобы,
+      `DUNGEON_MOBS[${t}] (${f}) — браузерная ветка`);
+    assert.deepEqual([...sandbox.Game.DUNGEON_ITEMS[t]], data.предметы,
+      `DUNGEON_ITEMS[${t}] (${f}) — браузерная ветка`);
+    assert.equal(sandbox.Game.DUNGEON_SIZE[t], data.размер,
+      `DUNGEON_SIZE[${t}] (${f}) — браузерная ветка`);
+  }
+  // DUNGEON_TYPES без изменений (перенумерации нет, 000049).
+  for (const [name, val] of Object.entries({
+    CAVE: 0, CRYPT: 1, RUINS: 2, DROWNED: 3, ABYSS: 4,
+  })) {
+    assert.equal(sandbox.Game.DUNGEON_TYPES[name], val,
+      'DUNGEON_TYPES.' + name);
+  }
+});
+
+test('dungeon.js БЕЗ dungeons-data.js: гард деградирует до fallback, таблицы и генерация целы', () => {
+  // Рекурсия-гард: vm-песочница tests/dungeon-ui.test.js грузит dungeon.js
+  // БЕЗ data-модуля — существующие vm-тесты обязаны работать и после
+  // переноса таблиц в каталог (fallback-литералы 1:1 с каталогом).
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of DUNGEON_CORE.concat('src/dungeon.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  assert.equal(sandbox.Game.DUNGEON_NAMES[0], 'простая пещера',
+    'fallback: DUNGEON_NAMES[0]');
+  assert.equal(sandbox.Game.DUNGEON_NAMES[4], 'бездна',
+    'fallback: DUNGEON_NAMES[4]');
+  assert.deepEqual([...sandbox.Game.DUNGEON_MOBS[0]],
+    ['skeleton', 'ant', 'crawling_bones', 'giant_larva'],
+    'fallback: DUNGEON_MOBS[0]');
+  assert.deepEqual([...sandbox.Game.DUNGEON_ITEMS[4]],
+    ['war_hammer', 'phoenix_feather', 'greater_healing', 'heavy_tome', 'fire_spellbook'],
+    'fallback: DUNGEON_ITEMS[4]');
+  assert.equal(sandbox.Game.DUNGEON_SIZE[2], 31, 'fallback: DUNGEON_SIZE[2]');
+  // Генерация работает и во fallback-ветке.
+  const px = sandbox.Game.syntheticPixels(8, 8, 128, 128, 128, 255);
+  const d = sandbox.Game.createDungeon(37, -12, px, sandbox.Game.TERRAIN.GRASS);
+  assert.equal(d.type, 0, 'fallback: createDungeon → CAVE');
+  assert.equal(d.width, 25, 'fallback: размер CAVE из DUNGEON_SIZE');
 });

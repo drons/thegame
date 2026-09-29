@@ -1,0 +1,18 @@
+{
+  "id": 3,
+  "название": "затопленная пещера",
+  "мобы": [
+    "water_elemental",
+    "scorpion",
+    "spider",
+    "imp"
+  ],
+  "предметы": [
+    "mana_elixir",
+    "hunting_bow",
+    "moonstone",
+    "nature_scroll"
+  ],
+  "размер": 27,
+  "постройка": 34
+}

@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "название", "мобы", "предметы", "размер", "постройка"],
+  "properties": {
+    "id": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "название": {
+      "type": "string",
+      "pattern": "^\\S(.*\\S)?$"
+    },
+    "мобы": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      }
+    },
+    "предметы": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      }
+    },
+    "размер": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 63
+    },
+    "постройка": {
+      "type": "integer",
+      "minimum": 31,
+      "maximum": 35
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": 0,
+  "название": "простая пещера",
+  "мобы": [
+    "skeleton",
+    "ant",
+    "crawling_bones",
+    "giant_larva"
+  ],
+  "предметы": [
+    "iron_sword",
+    "healing_potion",
+    "sulfur",
+    "stone_fist_grimoire"
+  ],
+  "размер": 25,
+  "постройка": 31
+}

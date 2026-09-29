@@ -727,3 +727,35 @@ test('visualDrawRect: центр (sx + e.x*zoom, sy + e.y*zoom), сторона 
   assert.equal(c.x, 0 + 0.5 * 50 - 20 / 2, 'x — по центру тайла');
   assert.equal(c.y, 0 + 0.5 * 50 - 20 / 2, 'y — по центру тайла');
 });
+
+// --- Задача 000058: зеркало фонов боя заземлено на каталог assets/dungeons ---
+//
+// COMBAT_BG_DUNGEON остаётся литеральным зеркалом (sprites.js НЕ тянет
+// dungeon.js и не грузит data-модули — vm-песочница combat-ui, 000049),
+// но source of truth становится каталог: порядок файлов 000001..000005
+// (id 0..4) обязан совпадать с порядком bg-файлов — перенумерация
+// каталога сдвинет фоны боя.
+test('COMBAT_BG_DUNGEON ≡ каталог assets/dungeons: порядок файлов ↔ id ↔ bg-файлы', () => {
+  const DDIR = path.join(ROOT, 'assets', 'dungeons');
+  const files = fs.readdirSync(DDIR)
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .sort();
+  assert.deepEqual(files, [
+    '000001.json', '000002.json', '000003.json', '000004.json', '000005.json',
+  ], 'в каталоге ровно 5 файлов подряд');
+  // Порядок slug-файлов фонов боя — по id (000049).
+  const slugs = ['cave', 'crypt', 'ruins', 'drowned', 'abyss'];
+  const ids = [];
+  files.forEach((f, i) => {
+    const data = JSON.parse(fs.readFileSync(path.join(DDIR, f), 'utf8'));
+    assert.equal(data.id, i, `${f}: id ≠ порядковому номеру файла (0..4)`);
+    ids.push(data.id);
+    assert.equal(S.COMBAT_BG_DUNGEON[data.id], slugs[i],
+      `зеркало рассинхронизировано с каталогом: ${f} ↔ ${slugs[i]}.svg`);
+    assert.equal(S.combatBackground({ dungeon: data.id }),
+      BG_DIR + slugs[i] + '.svg', `combatBackground(dungeon: ${data.id})`);
+    assert.ok(exists(BG_DIR + slugs[i] + '.svg'),
+      `нет файла фона боя: ${slugs[i]}.svg`);
+  });
+  assert.deepEqual(ids, [0, 1, 2, 3, 4], 'множество id каталога ≠ {0..4}');
+});
