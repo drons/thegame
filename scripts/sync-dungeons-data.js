@@ -25,6 +25,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { writeFileAtomic } = require('./lib/write-atomic.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'dungeons');
@@ -129,6 +130,8 @@ L.push('  return { DUNGEONS, DUNGEONS_BY_ID };');
 L.push('});');
 L.push('');
 
-fs.writeFileSync(OUT_FILE, L.join('\n'), 'utf8');
+// Атомарная запись (конвенция, SPEC): параллельные читатели под
+// node --test не видят частичный файл.
+writeFileAtomic(OUT_FILE, L.join('\n'));
 console.log(
   `src/dungeons-data.js перегенерирован: ${dungeons.length} подземелий.`);

@@ -380,3 +380,27 @@ test('связь постройка: подземелье ↔ пещера 31..3
   assert.deepEqual(targets.slice().sort((a, b) => a - b), [31, 32, 33, 34, 35],
     'множество постройок ≠ 31..35 (связь не биективна)');
 });
+
+test('ссылки: ВСЕ предметы подземелий существуют в assets/items (требование задачи)', () => {
+  // Существующий тест «сундуки: в каждом типе ... есть книга/свиток»
+  // ловит только провисание книг (getItem → null → фильтр выкидывает);
+  // провисший id НЕ-книги он не ловит, а getItem(id) → null даёт краш
+  // в src/items.js (например, weight на сумму инвентаря).
+  const I = require('../src/items.js');
+  const idir = path.join(ROOT, 'assets', 'items');
+  const itemIds = new Set();
+  for (const f of fs.readdirSync(idir).filter((f) => /^\d{6}\.json$/.test(f))) {
+    itemIds.add(JSON.parse(fs.readFileSync(path.join(idir, f), 'utf8')).id);
+  }
+  assert.ok(itemIds.size >= 20, 'каталог assets/items пуст (прединд теста)');
+  for (const { file, data } of loadDungeonCatalog()) {
+    for (const id of data.предметы) {
+      assert.ok(itemIds.has(id),
+        `подземелье ${file} (${data.название}): предмета «${id}» нет в assets/items`);
+      // JS-фолбэк (file://-ветка): getItem обязан вернуть запись,
+      // иначе сундук выдаст null в инвентарь → краш в items.js.
+      assert.ok(I.getItem(id),
+        `подземелье ${file}: getItem('${id}') → null (зеркало items-data?)`);
+    }
+  }
+});
