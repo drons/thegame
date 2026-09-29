@@ -777,6 +777,12 @@
     G.dungeonUI.start({
       get state() { return dungeonState; },
       onMove: (dx, dy) => dungeonMove(dx, dy),
+      // ОДИН общий zoom (задача 000066): колесо поверх оверлея меняет
+      // тот же zoom, что мир (мировой слушатель на #game накрыт) —
+      // hudUpdate («Масштаб: Xpx») остаётся корректным без изменений.
+      zoom,
+      onZoom: (z) => { zoom = z; },
+      spriteLoader,
     });
   }
 
@@ -1344,6 +1350,11 @@
         G.dungeonUI.start({
           get state() { return dungeonState; },
           onMove: (dx, dy) => dungeonMove(dx, dy),
+          // Тот же общий zoom, что maybeEnterDungeon (задача 000066):
+          // отладочный вход не «расходится» с миром по масштабу.
+          zoom,
+          onZoom: (z) => { zoom = z; },
+          spriteLoader,
         });
         return dungeonState;
       },

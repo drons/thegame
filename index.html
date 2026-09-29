@@ -299,9 +299,32 @@
       border-radius: 8px;
       cursor: pointer;
     }
-    /* Подземелье: карта крупнее, на узком экране — прокрутка. */
-    .dungeon-overlay { overflow: auto; }
-    .dungeon-overlay .combat-side { width: 270px; flex-shrink: 0; }
+    /* Подземелье (задача 000066): вьюпорт на весь экран — тот же
+       движок, что мир: canvas fullscreen (absolute inset 0), камера
+       заменяет прокрутку (overflow: auto УБРАН), фон непрозрачный
+       (мир позади оверлея больше не проступает), панель .combat-side —
+       плавающая справа. CSS боя (.combat-overlay без dungeon-класса)
+       и NPC-оверлей не тронуты. */
+    .dungeon-overlay {
+      display: block;
+      background: #0a0d12;
+      overflow: hidden;
+    }
+    .dungeon-overlay canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 0;
+    }
+    .dungeon-overlay .combat-side {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 270px;
+      background: rgba(16, 18, 24, 0.85);
+    }
     /* Диалог NPC (задача 000010): оверлей .combat-overlay с панелью
        .combat-side; длинные списки — прокрутка внутри панели и лога. */
     .npc-overlay .combat-side { max-height: 84vh; overflow-y: auto; }
