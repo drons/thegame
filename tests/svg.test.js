@@ -6,8 +6,8 @@
 // в каталоге: 25 — невалидный XML, 4 — NaN в атрибутах.
 //
 // Что проверяет этот тест (ноль npm-зависимостей, как весь проект):
-//  * обход ВСЕХ assets/**/*.svg (265 файлов: tiles 12, combat/bg 11,
-//    dungeon/floor 15, sprites 226, logo.svg 1);
+//  * обход ВСЕХ assets/**/*.svg (271 файл: tiles 12, combat/bg 11,
+//    dungeon 21 (floor 15 + walls 6 — 000070), sprites 226, logo.svg 1);
 //  * XML well-formedness — минимальный парсер ограниченного
 //    SVG-подмножества, реально встречающегося в ассетах: теги с
 //    атрибутами name="value" (двойные ИЛИ одинарные кавычки; значение
@@ -422,12 +422,55 @@ function checkTmpSvg(name, content) {
 
 // --- Боевой обход (красный ДО ремонта 29 файлов из 000062) ---
 
-test('обход: в assets/ ровно 265 SVG-файлов (защита от «обход молча не видит файлы»)', () => {
+// Ожидаемое число SVG ПО КАТАЛОГАМ — единственная точка, которую
+// обновляет задача, ДОБАВЛЯЮЩАЯ SVG в assets/ (иначе этот тест падает:
+// защита от «обход молча не видит файлы»). Категория = каталог файла
+// относительно assets/ (для assets/logo.svg — имя без расширения).
+// При добавлении SVG правится ровно одна строка этой таблицы;
+// сообщение об ошибке показывает разницу по КАЖДОМУ каталогу, поэтому
+// протухший счётчик виден сразу и без догадок.
+const EXPECTED_SVG_BY_DIR = {
+  tiles: 12,                          // тайлы карты мира
+  'combat/bg': 11,                    // фоны боя
+  'dungeon/floor': 15,                // полы подземелья (задача 000069)
+  'dungeon/walls': 6,                 // «непроходимые» стены (задача 000070)
+  'sprites/buildings': 13,
+  'sprites/mobs': 192,
+  'sprites/phlogiston': 8,
+  'sprites/visuals': 13,
+  logo: 1,                            // assets/logo.svg
+};
+
+test('обход: в assets/ ровно ' +
+  Object.values(EXPECTED_SVG_BY_DIR).reduce((a, b) => a + b, 0) +
+  ' SVG-файлов (защита от «обход молча не видит файлы»)', () => {
   const files = findSvgFiles(path.join(ROOT, 'assets'));
-  // tiles 12 + combat/bg 11 + dungeon/floor 15 + sprites 226
-  // (buildings 13 + mobs 192 + phlogiston 8 + visuals 13) + logo 1
-  assert.equal(files.length, 265,
-    'ожидается 265 SVG (tiles 12, combat 11, dungeon 15, sprites 226, logo 1); найдено ' + files.length);
+  const byDir = {};
+  for (const f of files) {
+    const rel = path.relative(path.join(ROOT, 'assets'), f).split(path.sep);
+    // файл в корне assets (logo.svg) → категория по имени файла
+    const dir = rel.length === 1
+      ? rel[0].replace(/\.svg$/i, '')
+      : rel.slice(0, -1).join(path.sep);
+    byDir[dir] = (byDir[dir] || 0) + 1;
+  }
+  const expectedTotal = Object.values(EXPECTED_SVG_BY_DIR).reduce((a, b) => a + b, 0);
+  const diffs = [];
+  const dirs = new Set([...Object.keys(EXPECTED_SVG_BY_DIR), ...Object.keys(byDir)]);
+  for (const d of dirs) {
+    const e = EXPECTED_SVG_BY_DIR[d] || 0;
+    const a = byDir[d] || 0;
+    if (e !== a) diffs.push(`${d}: ожидается ${e}, найдено ${a}`);
+  }
+  if (diffs.length) {
+    assert.fail(
+      `ожидается ${expectedTotal} SVG, найдено ${files.length} (по каталогам):\n  ` +
+      diffs.join('\n  ') + '\n' +
+      'фактически: ' +
+      Object.keys(byDir).sort().map((d) => `${d}=${byDir[d]}`).join(', ') +
+      '\n(новая SVG в каталоге — обновите EXPECTED_SVG_BY_DIR в tests/svg.test.js)'
+    );
+  }
 });
 
 test('обход: все SVG-файлы assets/ валидны (well-formedness + схема + значения)', () => {
