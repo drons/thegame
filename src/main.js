@@ -240,6 +240,13 @@
   const clock = G.createClock();
   // Побеждённые группы: 'x,y' → день поражения (респаун через respawn_days).
   const defeatedAt = new Map();
+  // Состояние эффектов построек (задача 000072): «раз в день» по
+  // ЭФФЕКТУ — ключ 'x,y:effectId' → день применения (счёт на эффект,
+  // не на здание) — и временные благословения { source: 'x,y', day,
+  // kind: 'damage'|'armor' } с АБСОЛЮТНЫМИ днями (сейв — СНИМОК,
+  // fastForward без слушателей, 000031).
+  const buildingOncePerDay = new Map();
+  const buffs = [];
 
   // --- Сохранение (задача 000031; механизм — src/save.js) ---
   // Состояние мира и игрока — в localStorage. Версия структур данных
@@ -293,6 +300,13 @@
       // повторно в тот же день.
       defeatedAt: G.serializeDefeatedAt
         ? G.serializeDefeatedAt(defeatedAt) : {},
+      // Задача 000072: эффекты построек — «раз в день» по эффекту
+      // ('x,y:effectId' → день применения) и активные благословения
+      // (абсолютные дни). Неломкое расширение v1 (000031): версию НЕ
+      // поднимаем, миграций нет.
+      buildingOncePerDay: G.serializeDayMap
+        ? G.serializeDayMap(buildingOncePerDay) : {},
+      buffs: G.serializeBuffs ? G.serializeBuffs(buffs) : [],
     };
   }
 
@@ -385,6 +399,58 @@
       console.warn('Сейв: не удалось восстановить побеждённые группы:', err);
     }
 
+    // --- Постройки: «раз в день» по эффекту (задача 000072) ---
+    // 'x,y:effectId' → день применения. Битый раздел — отброс +
+    // предупреждение (000029); «использовано в будущем» день
+    // (dd > clock.day) — отброс (подделка, 000031 — дни абсолютные).
+    try {
+      const raw = d.buildingOncePerDay;
+      if (raw != null) {
+        if (typeof raw !== 'object' || Array.isArray(raw)) {
+          console.warn(
+            'Сейв: раздел buildingOncePerDay некорректен — сбрасываю.');
+          buildingOncePerDay.clear();
+        } else if (G.restoreDayMap) {
+          const m = G.restoreDayMap(raw);
+          for (const [k, dd] of m) {
+            if (dd > clock.day) m.delete(k);
+          }
+          buildingOncePerDay.clear();
+          for (const [k, v] of m) buildingOncePerDay.set(k, v);
+          if (m.size === 0 && Object.keys(raw).length > 0) {
+            console.warn(
+              'Сейв: buildingOncePerDay — валидных записей нет — сбрасываю.');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить buildingOncePerDay:', err);
+    }
+
+    // --- Благословения (buffs) (задача 000072) ---
+    // restoreBuffs сам отбрасывает и «будущие» (day > clock.day),
+    // и истёкшие (day < clock.day): очистка в onDay не пройдёт —
+    // fastForward не оповещает слушателей (000031).
+    try {
+      const raw = d.buffs;
+      if (raw != null) {
+        if (!Array.isArray(raw)) {
+          console.warn('Сейв: раздел buffs некорректен — сбрасываю.');
+          buffs.length = 0;
+        } else if (G.restoreBuffs) {
+          const restored = G.restoreBuffs(raw, clock.day);
+          buffs.length = 0;
+          for (const b of restored) buffs.push(b);
+          if (restored.length === 0 && raw.length > 0) {
+            console.warn(
+              'Сейв: buffs — валидных благословений нет — сбрасываю.');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить buffs:', err);
+    }
+
     // --- Позиция ---
     try {
       const p = d.position;
@@ -450,6 +516,11 @@
     G.restoreDay(hero); // часть HP/MP по формулам навыков
     const due = G.dueForRespawn(defeatedAt, day);
     for (const k of due) defeatedAt.delete(k);
+    // Задача 000072: истёкшие благословения — абсолютные дни
+    // (buff.day < day; легитимное благословение — 1 день).
+    for (let i = buffs.length - 1; i >= 0; i--) {
+      if (buffs[i].day < day) buffs.splice(i, 1);
+    }
     G.playerUI && G.playerUI.render();
     hudFlash = (due.length ? 'Мобилизуются новые группы мобов.\n' : '') + 'День ' + day + '.';
     hudFlashUntil = performance.now() + 5000;

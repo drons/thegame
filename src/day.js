@@ -136,9 +136,155 @@
     return out;
   }
 
+  // --- Состояние эффектов построек (задача 000072) ---
+  // Обобщение паттерна defeatedAt на ключи 'x,y[:effectId]' (счёт на
+  // ЭФФЕКТ, не на здание) + временные благословения { source, day, kind }
+  // с АБСОЛЮТНЫМИ днями (сейв — СНИМОК: fastForward без слушателей,
+  // 000031 — эффекты прошедших дней уже учтены в данных).
+
+  // Ключ раздела «раз в день»: целые координаты (могут быть
+  // отрицательными) + опциональный суффикс ':effectId' (без пробелов,
+  // запятых и двоеточий). Конвенция effectId — латиница без ':'/','
+  // (каталог 000073+); id с ':' или ',' — запись тихо отбрасывается
+  // (fail-open: эффект снова доступен, игра не ломается).
+  const DAY_MAP_KEY_RE = /^-?\d+,-?\d+(?::[^\s,:]+)?$/;
+  const COORD_RE = /^-?\d+,-?\d+$/;
+
+  // Виды благословений (зафиксировано в задаче 000072; потребление в
+  // формулах боя — 000076). Множители ФИКСИРОВАНЫ на вид: два храма
+  // солнца → 1.05, а НЕ 1.05×1.05; две горы → +1, а не +2.
+  const SUN_DAMAGE_MULT = 1.05;
+  const MOUNTAIN_ARMOR = 1;
+  const BUFF_KINDS = { damage: 1, armor: 1 };
+
+  /** Map 'x,y[:effectId]' → день → JSON-объект { 'x,y[:effectId]': день }. */
+  function serializeDayMap(dayMap) {
+    const out = {};
+    if (!dayMap || typeof dayMap.entries !== 'function' ||
+        Array.isArray(dayMap)) return out;
+    for (const [k, d] of dayMap.entries()) out[k] = d;
+    return out;
+  }
+
+  /**
+   * Обратное: объект сейва → Map. Берутся ТОЛЬКО валидные записи:
+   * ключ — целые координаты 'x,y' + опциональный суффикс ':effectId',
+   * значение — целое ≥ 1 (день). Прочее отбрасывается.
+   * @returns {Map<string, number>}
+   */
+  function restoreDayMap(saved) {
+    const out = new Map();
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return out;
+    for (const [k, d] of Object.entries(saved)) {
+      if (typeof k !== 'string' || !DAY_MAP_KEY_RE.test(k)) continue;
+      if (!Number.isInteger(d) || d < 1) continue;
+      out.set(k, d);
+    }
+    return out;
+  }
+
+  /**
+   * Выдать благословение (Чисто: новый массив, вход не мутируется).
+   * Повтор того же (source, kind) — обновление дня (дублей нет);
+   * разные (source, kind) сосуществуют. Не-валидные записи входа —
+   * отбрасываются (принцип 000029).
+   * @param {Array<{source: string, day: number, kind: string}>} buffs
+   * @param {string} source координаты постройки 'x,y'
+   * @param {number} day абсолютный день выдачи
+   * @param {string} kind 'damage' | 'armor'
+   * @returns {Array} новый массив благословений
+   */
+  function grantBuff(buffs, source, day, kind) {
+    const out = [];
+    for (const b of Array.isArray(buffs) ? buffs : []) {
+      if (!b || typeof b.source !== 'string' || !COORD_RE.test(b.source) ||
+          typeof b.kind !== 'string' || !BUFF_KINDS[b.kind] ||
+          !Number.isInteger(b.day) || b.day < 1) continue;
+      out.push({ source: b.source, day: b.day, kind: b.kind });
+    }
+    if (typeof source === 'string' && COORD_RE.test(source) &&
+        typeof kind === 'string' && BUFF_KINDS[kind] &&
+        Number.isInteger(day) && day >= 1) {
+      const i = out.findIndex((b) => b.source === source && b.kind === kind);
+      if (i >= 0) out[i] = { source, day, kind };
+      else out.push({ source, day, kind });
+    }
+    return out;
+  }
+
+  /**
+   * Активные благословения: активен, пока buff.day >= day (абсолютные
+   * дни). Чисто: новый массив копий.
+   * @returns {Array<{source: string, day: number, kind: string}>}
+   */
+  function activeBuffs(buffs, day) {
+    const out = [];
+    if (!Array.isArray(buffs)) return out;
+    for (const b of buffs) {
+      if (b && typeof b.source === 'string' && typeof b.kind === 'string' &&
+          typeof b.day === 'number' && b.day >= day) {
+        out.push({ source: b.source, day: b.day, kind: b.kind });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Модификаторы благословений для формул боя (потребление — 000076):
+   * активный 'damage' → damageMult 1.05 (солнце), активный 'armor' →
+   * armor 1 (гора, +1 к броне). Множители фиксированы на вид,
+   * неизвестные kind игнорируются.
+   * @returns {{damageMult: number, armor: number}}
+   */
+  function buffMods(buffs, day) {
+    const mods = { damageMult: 1, armor: 0 };
+    const active = activeBuffs(buffs, day);
+    if (active.some((b) => b.kind === 'damage')) mods.damageMult = SUN_DAMAGE_MULT;
+    if (active.some((b) => b.kind === 'armor')) mods.armor = MOUNTAIN_ARMOR;
+    return mods;
+  }
+
+  /**
+   * Обратное: массив сейва → массив валидных благословений. source —
+   * координаты 'x,y', day — ТОЛЬКО текущий день мира: «будущее»
+   * (b.day > day — подделка) и «прошлое» (b.day < day — уже истёкшее)
+   * отбрасываются, т.к. очистка в onDay не пройдёт (fastForward без
+   * слушателей, 000031); легитимное благословение — 1 день, поэтому
+   * в сейве day === день мира. kind — whitelist. Не-массив/мусор → [].
+   * @param {Array} saved раздел data.buffs из сейва
+   * @param {number} day текущий день мира
+   */
+  function restoreBuffs(saved, day) {
+    const out = [];
+    if (!Array.isArray(saved)) return out;
+    for (const b of saved) {
+      if (!b || typeof b.source !== 'string' || !COORD_RE.test(b.source)) continue;
+      if (typeof b.kind !== 'string' || !BUFF_KINDS[b.kind]) continue;
+      if (!Number.isInteger(b.day) || b.day !== day) continue;
+      out.push({ source: b.source, day: b.day, kind: b.kind });
+    }
+    return out;
+  }
+
+  /** Массив копий {source, day, kind} → JSON-массив; не-массив → []. */
+  function serializeBuffs(buffs) {
+    const out = [];
+    if (!Array.isArray(buffs)) return out;
+    for (const b of buffs) {
+      if (!b || typeof b.source !== 'string' || typeof b.kind !== 'string' ||
+          !Number.isInteger(b.day) || b.day < 1) continue;
+      out.push({ source: b.source, day: b.day, kind: b.kind });
+    }
+    return out;
+  }
+
   return {
     STEPS_PER_DAY, RESPAWN_DAYS,
     createClock, dueForRespawn, canUseToday,
     serializeDefeatedAt, restoreDefeatedAt,
+    // Задача 000072: состояние эффектов построек.
+    SUN_DAMAGE_MULT, MOUNTAIN_ARMOR,
+    serializeDayMap, restoreDayMap,
+    grantBuff, activeBuffs, buffMods, restoreBuffs, serializeBuffs,
   };
 });
