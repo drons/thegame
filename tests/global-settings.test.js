@@ -159,6 +159,47 @@ test('единый источник: разброс уровня мобов в c
   for (const u of c.units) assert.equal(u.level, 15);
 });
 
+// Задача 000103 (стадия красных тестов): параметры городского канала
+// размещения (src/map.js). SPEC.md («Города и деревни» → «Размещение»)
+// предписывает «параметры — global-settings»: порог редкости города
+// (fbm/rarity) и доли частоты типов (хутор част, столица редка).
+// Тест падает, пока SETTINGS.city_channel не добавлен.
+test('SETTINGS.city_channel (000103): порог редкости и доли частоты типов городов', () => {
+  const cc = SETTINGS.city_channel;
+  assert.ok(cc && typeof cc === 'object' && !Array.isArray(cc),
+    'SETTINGS.city_channel — объект (параметры городского канала)');
+  // Порог: город РЕЖЕ обычной постройки — свой порог по тому же
+  // fbm/rarity, что у слотового якоря (0.33 + 0.14·rarity).
+  assert.equal(typeof cc.fbm, 'number', 'fbm — число');
+  assert.ok(cc.fbm >= 0 && cc.fbm <= 1, 'fbm-порог в [0,1]');
+  assert.equal(typeof cc.rarity, 'number', 'rarity — число');
+  assert.ok(cc.rarity >= 0 && cc.rarity <= 1, 'rarity-порог в [0,1]');
+  // Доли частоты типов: пары [id, share] РОВНО для 4 типов «город»
+  // каталога (000102: 51 Хутор, 52 Деревня, 53 Город, 54 Столица),
+  // по возрастанию id (порядок кумулятивного выбора типа).
+  assert.ok(Array.isArray(cc.type_shares), 'type_shares — массив пар');
+  assert.deepEqual(cc.type_shares.map((p) => p[0]), [51, 52, 53, 54],
+    'доли — ровно для 4 типов «город», по возрастанию id');
+  let sum = 0;
+  for (const pair of cc.type_shares) {
+    assert.ok(Array.isArray(pair) && pair.length === 2, 'пара [id, share]');
+    assert.equal(typeof pair[1], 'number', 'share — число');
+    assert.ok(pair[1] >= 0 && pair[1] <= 1, 'share в [0,1]');
+    sum += pair[1];
+  }
+  assert.ok(Math.abs(sum - 1) < 1e-9, `Σshare = 1 (сумма ${sum})`);
+  // «Город реже»: городское условие срабатывает ТОЛЬКО где сработал бы
+  // слотовый — порог города НЕ НИЖЕ порога слота (0.33 + 0.14·r) при
+  // ВСЕХ rarity ∈ [0,1] (property-проверка по сетке r). Иначе города
+  // рождались бы «из ничего» на тайлах без якоря.
+  for (let i = 0; i <= 20; i++) {
+    const r = i / 20;
+    assert.ok(cc.fbm + cc.rarity * r >= 0.33 + 0.14 * r,
+      `при rarity=${r}: порог города (${(cc.fbm + cc.rarity * r).toFixed(3)}) ` +
+      `ниже порога слота (${(0.33 + 0.14 * r).toFixed(3)})`);
+  }
+});
+
 test('единый источник: main.js читает move_interval_ms (структурный)', () => {
   // main.js — DOM/WebGL-клей, в node не грузится (устоявшийся паттерн
   // проекта, см. tests/map.test.js «структурный»): фиксируем текст.

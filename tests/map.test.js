@@ -15,12 +15,17 @@ const {
   // Задача 000061 (стадия красных тестов): функция ещё не реализована —
   // тесты ниже падают, пока в map.js её нет.
   worldToScreen, orthoMatrix,
+  // Задача 000103 (стадия красных тестов): собственный сид городского
+  // канала ещё не экспортируется — тесты ниже падают, пока его нет.
+  GLOBAL_SEED, hash2, CITY_SEED_CONST,
 } = require('../src/map.js');
 const {
   deltaForEvent, deltaForMoveKey,
   layoutTouchControls, touchActionAt,
 } = require('../src/controls.js');
-const { BUILDINGS, buildingSize } = require('../src/buildings.js');
+const { BUILDINGS, buildingSize, getBuilding } = require('../src/buildings.js');
+const { SETTINGS } = require('../src/global-settings.js');
+const { createPerlin2D } = require('../src/perlin.js');
 const { generateSeedPixels, MAP_PNG_SIZE, MAP_PNG_SEED } = require('../src/mapseed.js');
 const { decodePng } = require('./png.js');
 const fs = require('node:fs');
@@ -1359,4 +1364,443 @@ test('vm: инъекция ИСКРЁВЛЕННОГО MobGroupsData — mobGroup
   assert.equal(sandbox.Game.mobGroupCount(), 1, 'каталожное число групп');
   assert.equal(sandbox.Game.mobGroupName(0), 'тестовая группа', 'имя из каталога');
   assert.equal(sandbox.Game.mobGroupName(1), '', 'вне каталога — пустая строка');
+});
+
+// --- Задача 000103: городской канал в src/map.js (отдельный детерминированный
+// канал, НЕ 14-й слот) ---
+//
+// Города (каталог 000102: id 51 Хутор 1x1, 52 Деревня 2x2, 53 Город 5x5,
+// 54 Столица 7x7; категория «город», не_сжимать) размещаются на глобальной
+// карте как постройки-входы через СОБСТВЕННЫЙ канал в anchorAt:
+//   * тот же fbm (features-канал, офсет 511.1) и та же rarity (A-канал)
+//     что у слотового якоря, НО более высокий порог из
+//     SETTINGS.city_channel (global-settings, 000020): город РЕЖЕ; пороги
+//     гарантируют city ⊂ slot anchor — город забирает СУЩЕСТВУЮЩИЕ якоря,
+//     а не рождается «из ничего»;
+//   * тип — детерминированно от позиции: hash2(x, y, CITY_SEED_CONST) по
+//     кумулятивным долям SETTINGS.city_channel.type_shares (хутор част,
+//     столица редка); CITY_SEED_CONST — своя константа (НЕ GLOBAL_SEED и
+//     не сид моб-групп) — зафиксирована значением ниже;
+//   * размещение — существующий пайплайн placeBuilding/isFreeForBuilding/
+//     entranceReachable (000026): город влезает по ПОЛНОМУ каталожному
+//     размеру или отсутствует (не_сжимать — без сжатия до 3x3/1x1 и без
+//     слотового фолбэка — пустой якорь, не постройка);
+//   * tileAt: новое поле buildingId — id каталожной записи, которую
+//     разместила: 51..54 на городских тайлах, null на всех остальных
+//     (слотовые постройки — null: подтипы слотов в buildingId заполнит
+//     000073); у городских тайлов building = BUILDING_TYPES.NONE (-1) —
+//     building остаётся чистой семантикой слота.
+//
+// СТАДИЯ КРАСНЫХ ТЕСТОВ: экспорта CITY_SEED_CONST, поля buildingId в
+// tileAt и SETTINGS.city_channel ещё нет — тесты секции падают.
+// Стражи (слотовой hash, фолбэки, перформанс) — зелёные и обязаны
+// остаться зелёными.
+
+// Сид городского канала ЗАФИКСИРОВАН: GLOBAL_SEED ^ 0x43495459
+// (ASCII «CITY» — прецедент GLOBAL_SEED ^ 0xabcdef у моб-групп). Смена
+// константы = смена карты городов — недопустима без перепина.
+const CITY_SEED_EXPECTED = GLOBAL_SEED ^ 0x43495459;
+// Тот же «features»-шум, что в слотовом канале (anchorAt, src/map.js).
+const CITY_FEATURES = createPerlin2D(GLOBAL_SEED ^ 0x85ebca6b);
+
+// Городское условие в тайле: чистая проходимость террейна + порог,
+// БОЛЕЕ ВЫСОКИЙ, чем у слотового якоря (тот же fbm/rarity).
+function isCityCondition(map, x, y) {
+  const cc = SETTINGS.city_channel;
+  if (!cc || typeof cc !== 'object') return false;
+  const t = map.tileAt(x, y);
+  if (!TERRAIN_DATA[t.terrain].passable) return false;
+  const a = map.pixelAt(x, y)[3];
+  const rarity = 1 - a / 255;
+  const fb = CITY_FEATURES.fbm(x * 0.618 + 511.1, y * 0.618 + 511.1, 3);
+  return fb > cc.fbm + cc.rarity * rarity;
+}
+
+// Тип города на якоре: hash2 по кумулятивным долям (позиция → тип,
+// ВСЕГДА один и тот же — детерминизм, закреплённый тестом).
+function cityTypeAt(x, y) {
+  const cc = SETTINGS.city_channel;
+  const u = hash2(x, y, CITY_SEED_CONST) / 4294967296;
+  let acc = 0;
+  for (const [id, share] of cc.type_shares) {
+    acc += share;
+    if (u < acc) return id;
+  }
+  return cc.type_shares[cc.type_shares.length - 1][0];
+}
+
+// Инфраструктура до реализации (красные): что именно отсутствует.
+function assertCityChannelInfra(map) {
+  assert.ok(SETTINGS.city_channel && typeof SETTINGS.city_channel === 'object',
+    'SETTINGS.city_channel (задача 000103: параметры канала — global-settings)');
+  assert.equal(typeof CITY_SEED_CONST, 'number',
+    'map.js: нет экспорта CITY_SEED_CONST (свой сид городского канала)');
+  assert.ok('buildingId' in map.tileAt(0, 0),
+    'tileAt: нет поля buildingId (id каталожной записи размещения)');
+}
+
+// Сканирование мира ±R: городские якоря и их тайлы (группы по якорю).
+function scanCityGroups(map, R) {
+  const groups = new Map();
+  for (let x = -R; x < R; x++) {
+    for (let y = -R; y < R; y++) {
+      const t = map.tileAt(x, y);
+      if (!t.inBuilding || t.buildingId == null) continue;
+      const key = t.buildingAnchor.join(',');
+      if (!groups.has(key)) {
+        groups.set(key, { anchor: t.buildingAnchor, tiles: new Set() });
+      }
+      groups.get(key).tiles.add(x + ',' + y);
+    }
+  }
+  return groups;
+}
+
+test('CITY_SEED_CONST: зафиксирован, отделён от слотового и моб-сидов; hash2-пины (golden)', () => {
+  assert.equal(typeof CITY_SEED_CONST, 'number',
+    'map.js: нет экспорта CITY_SEED_CONST');
+  assert.equal(CITY_SEED_CONST, CITY_SEED_EXPECTED,
+    'константа зафиксирована (смена = смена карты городов)');
+  assert.notEqual(CITY_SEED_CONST, GLOBAL_SEED, 'свой сид — НЕ GLOBAL_SEED (слоты)');
+  assert.notEqual(CITY_SEED_CONST, GLOBAL_SEED ^ 0xabcdef, 'не сид моб-групп');
+  // Золотые пины хэша городского канала (perlin.hash2 — тот же, что
+  // экспортирует map.js): детерминизм типа города от позиции.
+  assert.equal(hash2(12345, -6789, CITY_SEED_CONST), 1609021386);
+  assert.equal(hash2(0, 0, CITY_SEED_CONST), 1565755874);
+  assert.equal(hash2(-120, 33, CITY_SEED_CONST), 2476055910);
+  assert.equal(hash2(7, 41, CITY_SEED_CONST), 1877102798);
+});
+
+test('городской канал: города существуют — плотная синтетика и реальный assets/map.png', () => {
+  const { width, height, data } = decodePng('assets/map.png');
+  const worlds = [
+    // Плотный мир (A=255): хутор (1x1, самый частый тип) ОБЯЗАН быть.
+    [createMap(syntheticPixels(8, 8, 128, 128, 128, 255)), 150, 'плотная синтетика'],
+    // Реальная карта: города + минимум 2 типа + хотя бы один крупнее 1x1.
+    [createMap({ width, height, data }), 200, 'реальный map.png'],
+    // Реальная карта ±250: крупный город (5x5/7x7) — виден в сэмпле.
+    [createMap({ width, height, data }), 250, 'реальный map.png ±250'],
+  ];
+  for (const [map, R, label] of worlds) {
+    assertCityChannelInfra(map);
+    const groups = scanCityGroups(map, R);
+    const byType = {};
+    let multi = 0, large = 0;
+    for (const g of groups.values()) {
+      const rec = map.buildingAt(g.anchor[0], g.anchor[1]);
+      assert.ok(rec, `${label} (${g.anchor}): городской якорь без записи`);
+      byType[rec.buildingId] = (byType[rec.buildingId] || 0) + 1;
+      if (rec.w > 1 || rec.h > 1) multi++;
+      if (rec.w >= 5 || rec.h >= 5) large++;
+    }
+    if (label === 'плотная синтетика') {
+      assert.ok((byType[51] || 0) >= 1,
+        `${label}: нет ни одного хутора (id 51) в ±${R} — канал не работает`);
+    } else if (R === 200) {
+      assert.ok(groups.size >= 1, `${label}: ни одного города в ±${R}`);
+      assert.ok(Object.keys(byType).length >= 2,
+        `${label}: менее 2 типов городов (хутор/деревня) в ±${R}`);
+      assert.ok(multi >= 1,
+        `${label}: все города 1x1 — нет много-тайловых (деревня 2x2)`);
+    } else {
+      assert.ok(large >= 1,
+        `${label}: нет ни одного крупного города (5x5/7x7) в ±${R}`);
+    }
+  }
+});
+
+test('город: прямоугольник полного каталожного размера, один вход, вход не замурован, footprint на проходимом рельефе', () => {
+  const { width, height, data } = decodePng('assets/map.png');
+  const worlds = [
+    [createMap(syntheticPixels(8, 8, 128, 128, 128, 255)), 150, 'плотная синтетика'],
+    [createMap({ width, height, data }), 200, 'реальный map.png'],
+  ];
+  for (const [map, R, label] of worlds) {
+    assertCityChannelInfra(map);
+    const groups = scanCityGroups(map, R);
+    assert.ok(groups.size >= 1, `${label}: ни одного города в ±${R} (красный: нет городов)`);
+    for (const g of groups.values()) {
+      const [ax, ay] = g.anchor;
+      const rec = map.buildingAt(ax, ay);
+      assert.ok(rec, `${label} (${ax},${ay}): запись города`);
+      assert.ok(rec.buildingId >= 51 && rec.buildingId <= 54,
+        `${label} (${ax},${ay}): buildingId — id города`);
+      const b = getBuilding(rec.buildingId);
+      assert.ok(b, `${label} (${ax},${ay}): город — запись каталога`);
+      assert.equal(b.категория, 'город', 'категория каталожной записи — «город»');
+      // не_сжимать: город — ПОЛНЫЙ каталожный размер (7x7 не превращается
+      // в 3x3/1x1; если не влез — якорь пустой, а не сжатый город).
+      const { width: cw, height: ch } = buildingSize(b);
+      assert.equal(rec.w, cw, `${label} (${ax},${ay}): ширина — каталожная`);
+      assert.equal(rec.h, ch, `${label} (${ax},${ay}): высота — каталожная`);
+      // Богатство якоря сохраняется (000108 ключирует стоки лавок по нему).
+      assert.ok(rec.wealth >= 0 && rec.wealth <= 3,
+        `${label} (${ax},${ay}): wealth якоря в [0..3]`);
+      // Группы, чей прямоугольник выходит за сэмпл, пропускаем (снаружи
+      // могли остаться невычитанные тайлы) — как в тесте 000026.
+      if (ax < -R || ay < -R || ax + rec.w - 1 >= R || ay + rec.h - 1 >= R) continue;
+      assert.equal(g.tiles.size, rec.w * rec.h,
+        `${label} (${ax},${ay}): footprint не полный прямоугольник`);
+      let entrances = 0;
+      for (let dy = 0; dy < rec.h; dy++) {
+        for (let dx = 0; dx < rec.w; dx++) {
+          const tx = ax + dx, ty = ay + dy;
+          assert.ok(g.tiles.has(tx + ',' + ty),
+            `${label} (${tx},${ty}) должен принадлежать городу (${ax},${ay})`);
+          const t = map.tileAt(tx, ty);
+          assert.ok(TERRAIN_DATA[t.terrain].passable,
+            `${label} (${tx},${ty}): footprint на непроходимом рельефе`);
+          if (t.isEntrance) {
+            entrances++;
+            assert.equal(t.hasBuilding, true, 'вход = hasBuilding');
+            assert.equal(t.passable, true, 'вход проходим');
+            // Вход — КАТАЛОЖНЫЙ (якорь + смещение «вход»): 51 [0,0],
+            // 52 [1,1], 53 [2,4], 54 [3,6].
+            assert.deepEqual([tx, ty], [ax + b.вход[0], ay + b.вход[1]],
+              `${label} (${ax},${ay}): вход — каталожный`);
+            // У входа свободный проходимый сосед (4 направления) —
+            // игрок заходит в город (инвариант 000026, для 7x7 — тоже).
+            const free =
+              map.tileAt(tx + 1, ty).passable ||
+              map.tileAt(tx - 1, ty).passable ||
+              map.tileAt(tx, ty + 1).passable ||
+              map.tileAt(tx, ty - 1).passable;
+            assert.ok(free, `${label} (${tx},${ty}): вход города замурован`);
+          } else {
+            assert.equal(t.hasBuilding, false, 'hasBuilding только на входе');
+            assert.equal(t.passable, false, 'стена города непроходима');
+          }
+        }
+      }
+      assert.equal(entrances, 1, `${label} (${ax},${ay}): ровно один вход`);
+    }
+  }
+});
+
+test('городской канал: формула — город только на условных тайлах, якорь с условием = город своего типа (без слотового фолбэка), слотовой hash инвариант на негородах', () => {
+  const { width, height, data } = decodePng('assets/map.png');
+  const worlds = [
+    [createMap(syntheticPixels(8, 8, 128, 128, 128, 255)), 100, 'плотная синтетика'],
+    [createMap({ width, height, data }), 100, 'реальный map.png'],
+  ];
+  for (const [map, R, label] of worlds) {
+    assertCityChannelInfra(map);
+    let cities = 0;
+    for (let x = -R; x < R; x++) {
+      for (let y = -R; y < R; y++) {
+        const cond = isCityCondition(map, x, y);
+        const rec = map.buildingAt(x, y);
+        if (!rec) continue; // пустой якорь (город не влез — пусто, не сжат)
+        if (cond) {
+          cities++;
+          assert.ok(rec.buildingId != null,
+            `${label} (${x},${y}): якорь с городским условием → слотовый фолбэк (запрещено: город влез или якорь пуст)`);
+          assert.ok(rec.buildingId >= 51 && rec.buildingId <= 54,
+            `${label} (${x},${y}): buildingId — id города`);
+          assert.equal(rec.buildingId, cityTypeAt(x, y),
+            `${label} (${x},${y}): тип города — hash2(x,y,CITY_SEED) по долям`);
+        } else {
+          assert.equal(rec.buildingId, null,
+            `${label} (${x},${y}): buildingId слотовой постройки — null (подтипы — 000073)`);
+          assert.equal(rec.type, hash2(x, y, GLOBAL_SEED) % buildingCount(),
+            `${label} (${x},${y}): слотовой hash (hash2 % 13) ИЗМЕНИЛСЯ`);
+        }
+      }
+    }
+    assert.ok(cities >= 1, `${label}: ни одного города среди якорей (красный: нет канала)`);
+  }
+});
+
+test('golden: детерминизм городов — якорь → та же запись (два createMap, повторный tileAt)', () => {
+  const { width, height, data } = decodePng('assets/map.png');
+  const map = createMap({ width, height, data });
+  assertCityChannelInfra(map);
+  const groups = scanCityGroups(map, 200);
+  assert.ok(groups.size >= 1, 'ни одного города в ±200 (красный: нет каналов)');
+  const map2 = createMap({ width, height, data });
+  for (const g of groups.values()) {
+    const [ax, ay] = g.anchor;
+    const r1 = map.buildingAt(ax, ay);
+    const r2 = map2.buildingAt(ax, ay);
+    assert.deepEqual(r2, r1,
+      `якорь (${ax},${ay}) → та же запись (id/размер/вход/wealth)`);
+    for (let dy = 0; dy < r1.h; dy++) {
+      for (let dx = 0; dx < r1.w; dx++) {
+        const t1 = map.tileAt(ax + dx, ay + dy);
+        assert.deepEqual(map2.tileAt(ax + dx, ay + dy), t1,
+          `(${ax + dx},${ay + dy}): другой createMap — другой тайл`);
+        assert.deepEqual(map.tileAt(ax + dx, ay + dy), t1,
+          `(${ax + dx},${ay + dy}): повторный tileAt — не идентичен`);
+      }
+    }
+  }
+});
+
+test('город забирает якоря, не рождается из ничего (до-задачный мир — vm без global-settings)', () => {
+  const { width, height, data } = decodePng('assets/map.png');
+  const map = createMap({ width, height, data });
+  assertCityChannelInfra(map);
+  // До-задачный мир: тот же perlin+map+buildings БЕЗ global-settings.js
+  // (vm-песочница) — генерация ровно до-задачная (городов нет).
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('buildings.js', sandbox);
+  const preMap = sandbox.Game.createMap({ width, height, data });
+  const groups = scanCityGroups(map, 150);
+  assert.ok(groups.size >= 1, 'ни одного города (красный: нет каналов)');
+  for (const g of groups.values()) {
+    const [ax, ay] = g.anchor;
+    const t = preMap.tileAt(ax, ay);
+    assert.equal(t.inBuilding, true,
+      `городской якорь (${ax},${ay}): в до-задачном мире на этом тайле был якорь постройки (city ⊂ slot anchor)`);
+  }
+  // Город РЕЖЕ: городских якорей меньше слотовых на сэмпле.
+  const R = 200;
+  let cityAnchors = 0, slotAnchors = 0;
+  const seen = new Set();
+  for (let x = -R; x < R; x++) {
+    for (let y = -R; y < R; y++) {
+      const t = map.tileAt(x, y);
+      if (!t.inBuilding) continue;
+      const k = t.buildingAnchor.join(',');
+      if (seen.has(k)) continue;
+      seen.add(k);
+      if (t.buildingId != null) cityAnchors++; else slotAnchors++;
+    }
+  }
+  assert.ok(cityAnchors > 0, 'городские якоря есть');
+  assert.ok(cityAnchors < slotAnchors,
+    `город реже обычной постройки: ${cityAnchors} < ${slotAnchors}`);
+});
+
+test('tileAt: buildingId — 51..54 на городских тайлах (building = -1), иначе null (поле есть у всех тайлов)', () => {
+  const { width, height, data } = decodePng('assets/map.png');
+  const map = createMap({ width, height, data });
+  assertCityChannelInfra(map);
+  let cityTiles = 0;
+  for (let x = -100; x < 100; x++) {
+    for (let y = -100; y < 100; y++) {
+      const t = map.tileAt(x, y);
+      assert.ok('buildingId' in t, `(${x},${y}): нет поля buildingId`);
+      if (t.inBuilding) {
+        if (t.buildingId != null) {
+          cityTiles++;
+          assert.ok(t.buildingId >= 51 && t.buildingId <= 54,
+            `(${x},${y}): buildingId — id города`);
+          assert.equal(t.building, BUILDING_TYPES.NONE,
+            `(${x},${y}): город — building = NONE (-1), building остаётся семантикой слота`);
+          assert.equal(t.hasBuilding, t.isEntrance,
+            `(${x},${y}): hasBuilding = isEntrance`);
+        } else {
+          assert.ok(t.building >= 0 && t.building < buildingCount(),
+            `(${x},${y}): слотовая постройка — валидный слот`);
+        }
+      } else {
+        assert.equal(t.buildingId, null, `(${x},${y}): постройки нет — buildingId = null`);
+        assert.equal(t.building, BUILDING_TYPES.NONE);
+      }
+    }
+  }
+  assert.ok(cityTiles >= 1, 'городских тайлов нет (красный: нет каналов)');
+});
+
+test('окно buildMaxW/H() = 7/7 с каталогом (map_index ∪ города); vm без каталога — фолбэк 3/3', () => {
+  assertCityChannelInfra(createMap());
+  // Каталог (node): окно — максимум по map_index-записям И городам → 7/7
+  // (иначе isFreeForBuilding/coveringFootprint/buildingWithEntranceAt
+  // упускают якоря городов, до 6 тайлов от края footprint).
+  assert.equal(buildMaxW(), 7, 'окно с каталогом накрывает 7x7-столицу');
+  assert.equal(buildMaxH(), 7, 'окно с каталогом накрывает 7x7-столицу');
+  // vm без каталога (песочницы combat-ui/sprites): фолбэк НЕ тронут — 3/3,
+  // города не генерируются (4 новых записи каталога отсутствуют).
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  assert.equal(sandbox.Game.buildMaxW(), 3, 'vm без каталога — 3');
+  assert.equal(sandbox.Game.buildMaxH(), 3, 'vm без каталога — 3');
+  // vm С каталогом, но БЕЗ global-settings: окно 7/7 (вывод из каталога),
+  // а канал отключён — города не генерируются (деградация до-задачная).
+  loadInSandbox('buildings.js', sandbox);
+  assert.equal(sandbox.Game.buildMaxW(), 7, 'vm с каталогом — 7 (map_index ∪ города)');
+  assert.equal(sandbox.Game.buildMaxH(), 7, 'vm с каталогом — 7');
+  const bMap = sandbox.Game.createMap(syntheticPixels(8, 8, 128, 128, 128, 255));
+  let found = 0;
+  for (let x = -100; x < 100; x++) {
+    for (let y = -100; y < 100; y++) {
+      if (bMap.tileAt(x, y).buildingId != null) found++;
+    }
+  }
+  assert.equal(found, 0, 'vm без global-settings: города не генерируются');
+});
+
+test('перформанс: 160k tileAt (±200, реальный map.png, тёплый fpCache) в тайм-бюджете', () => {
+  // Бюджет зафиксирован с запасом >5x к замерам: до-задачный ~200 мс
+  // (окно 3x3); с окном 7x7 ожидается <1 с. 5000 мс покрывает медленный
+  // CI. Тест на ТЕПЛОМ кэше (fpCache учитывается): прогрев отдельным
+  // проходом.
+  const { width, height, data } = decodePng('assets/map.png');
+  const map = createMap({ width, height, data });
+  for (let x = -200; x < 200; x++) {
+    for (let y = -200; y < 200; y++) map.tileAt(x, y); // прогрев
+  }
+  const t0 = Date.now();
+  for (let x = -200; x < 200; x++) {
+    for (let y = -200; y < 200; y++) map.tileAt(x, y);
+  }
+  const ms = Date.now() - t0;
+  assert.ok(ms < 5000, `160k tileAt за ${ms} мс — превышен бюджет 5000 мс`);
+});
+
+test('фолбэк: vm без global-settings.js — города не генерируются, слотовой hash инвариант (перlin+map+buildings)', () => {
+  // Страж (зелёный до и после): деградация «настройки нет → канал
+  // отключён» — мир в песочнице не уезжает: ни одной city-записи,
+  // слотовой hash (hash2 % 13) на местах.
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('buildings.js', sandbox);
+  const bMap = sandbox.Game.createMap(syntheticPixels(8, 8, 128, 128, 128, 255));
+  let anchors = 0;
+  for (let x = -100; x < 100; x++) {
+    for (let y = -100; y < 100; y++) {
+      const t = bMap.tileAt(x, y);
+      assert.ok(t.buildingId == null,
+        `(${x},${y}): в песочнице без global-settings города не генерируются`);
+      if (!t.inBuilding) continue;
+      const [ax, ay] = t.buildingAnchor;
+      const rec = bMap.buildingAt(ax, ay);
+      assert.ok(rec.buildingId == null,
+        `(${ax},${ay}): городская запись без global-settings`);
+      assert.equal(rec.type,
+        sandbox.Game.hash2(ax, ay, sandbox.Game.GLOBAL_SEED) % sandbox.Game.buildingCount(),
+        `(${ax},${ay}): слотовой hash в фолбэке изменился`);
+      anchors++;
+    }
+  }
+  assert.ok(anchors > 0, 'мир песочницы не пуст');
+});
+
+test('браузер: полная цепочка index.html (global-settings ПЕРВЫМ) — городской канал активен в Game', () => {
+  // Реальный порядок index.html: global-settings.js (288) → perlin → … →
+  // map.js (299) → … → buildings.js (303). settingsRef() обязан разрешить
+  // Game.GlobalSettings ЛЕНИВО (в момент вызова), пережив
+  // Object.assign-ловушку (000055) — иначе мир в браузере не будет
+  // совпадать с node.
+  const sandbox = {};
+  loadBrowserChain(sandbox);
+  const bMap = sandbox.Game.createMap(sandbox.Game.generateSeedPixels());
+  let found = 0;
+  for (let x = -150; x < 150; x++) {
+    for (let y = -150; y < 150; y++) {
+      const t = bMap.tileAt(x, y);
+      if (t.buildingId == null) continue;
+      found++;
+      assert.ok(t.buildingId >= 51 && t.buildingId <= 54, 'город — id каталога');
+      assert.equal(t.building, sandbox.Game.BUILDING_TYPES.NONE,
+        'город — building = NONE');
+    }
+  }
+  assert.ok(found >= 1,
+    'на фолбэк-мире (generateSeedPixels) города отсутствуют — канал не активен в browser-режиме');
 });
