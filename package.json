@@ -10,6 +10,7 @@
     "gen:map": "node scripts/generate-map-png.js",
     "gen:combatbg": "node scripts/gen-combat-bg.js",
     "gen:spells": "node scripts/sync-spells-data.js",
-    "sync:buildings": "node scripts/sync-buildings-data.js"
+    "sync:buildings": "node scripts/sync-buildings-data.js",
+    "sync:dungeons": "node scripts/sync-dungeons-data.js"
   }
 }

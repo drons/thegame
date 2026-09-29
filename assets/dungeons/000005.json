@@ -1,0 +1,18 @@
+{
+  "id": 4,
+  "название": "бездна",
+  "мобы": [
+    "lower_demon",
+    "succubus",
+    "abomination"
+  ],
+  "предметы": [
+    "war_hammer",
+    "phoenix_feather",
+    "greater_healing",
+    "heavy_tome",
+    "fire_spellbook"
+  ],
+  "размер": 35,
+  "постройка": 35
+}
