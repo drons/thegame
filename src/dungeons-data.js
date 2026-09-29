@@ -30,6 +30,7 @@
       предметы: ["iron_sword", "healing_potion", "sulfur", "stone_fist_grimoire"],
       размер: 25,
       постройка: 31,
+      предметы_стен: ["rock", "stalactite"],
     },
     // 000002.json
     {
@@ -39,6 +40,7 @@
       предметы: ["alchemy_manual", "chainmail", "mana_potion", "meditation_scroll"],
       размер: 27,
       постройка: 32,
+      предметы_стен: ["column", "rock"],
     },
     // 000003.json
     {
@@ -48,6 +50,7 @@
       предметы: ["steel_sword", "knight_plate", "war_hammer", "iron_hide_tome"],
       размер: 31,
       постройка: 33,
+      предметы_стен: ["column"],
     },
     // 000004.json
     {
@@ -57,6 +60,7 @@
       предметы: ["mana_elixir", "hunting_bow", "moonstone", "nature_scroll"],
       размер: 27,
       постройка: 34,
+      предметы_стен: ["rock"],
     },
     // 000005.json
     {
@@ -66,6 +70,7 @@
       предметы: ["war_hammer", "phoenix_feather", "greater_healing", "heavy_tome", "fire_spellbook"],
       размер: 35,
       постройка: 35,
+      предметы_стен: ["stalactite", "rock"],
     },
   ];
 

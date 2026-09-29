@@ -310,6 +310,27 @@
   // вариант. Отдельный от VISUALS_SEED.
   const DUNGEON_FLOOR_SEED = 0x669f0101;
 
+  // --- Предметы стен подземелья (задача 000070) ---
+  //
+  // 6 SVG «непроходимых» предметов (assets/dungeon/walls/, генератор
+  // scripts/gen-dungeon-walls.js): камни, колонны, сталактиты по 2
+  // варианта. Стены на «фасаде» (wall-клетка с floor-соседом)
+  // рисуются d.wallObjs: {x, y, obj}, obj — ключ этой таблицы
+  // (контракт с рендером 000066; назначение на клетки — wallObjFor,
+  // src/dungeon.js). ЛИТЕРАЛ без require dungeon.js и data-модулей —
+  // паттерн COMBAT_BG_DUNGEON (vm-песочница, задача 000049); связь
+  // «объединение предметов_стен каталога × варианты 1..2 = эти 6
+  // ключей = ровно 6 файлов» закрывают тесты (tests/sprites.test.js,
+  // tests/dungeon.test.js).
+  const DUNGEON_WALL_FRAMES = {
+    rock_1: 'assets/dungeon/walls/rock_1.svg',
+    rock_2: 'assets/dungeon/walls/rock_2.svg',
+    column_1: 'assets/dungeon/walls/column_1.svg',
+    column_2: 'assets/dungeon/walls/column_2.svg',
+    stalactite_1: 'assets/dungeon/walls/stalactite_1.svg',
+    stalactite_2: 'assets/dungeon/walls/stalactite_2.svg',
+  };
+
   // --- Волна на воде (задача 000025) ---
   //
   // Волна в текстуре имеет период 16px (четверть тайла 64px), каждый
@@ -555,6 +576,10 @@
     for (const frames of Object.values(DUNGEON_FLOOR_FRAMES)) {
       paths.push(...frames);
     }
+    // Предметы стен подземелья (задача 000070): 6 SVG.
+    for (const p of Object.values(DUNGEON_WALL_FRAMES)) {
+      paths.push(p);
+    }
     return Array.from(new Set(paths));
   }
 
@@ -671,6 +696,7 @@
     combatBackground,
     DUNGEON_FLOOR_DIR, DUNGEON_FLOOR_FRAMES, DUNGEON_FLOOR_SEED,
     dungeonFloorFrame,
+    DUNGEON_WALL_FRAMES,
     HP_BAR_COLORS, hpBarColor,
     VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE, VISUALS_MIN_ZOOM,
     FRAME_MS,

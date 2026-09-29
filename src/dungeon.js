@@ -62,6 +62,7 @@
         'stone_fist_grimoire'],
       размер: 25,
       постройка: 31,
+      предметы_стен: ['rock', 'stalactite'],
     },
     {
       id: DUNGEON_TYPES.CRYPT,
@@ -71,6 +72,7 @@
         'meditation_scroll'],
       размер: 27,
       постройка: 32,
+      предметы_стен: ['column', 'rock'],
     },
     {
       id: DUNGEON_TYPES.RUINS,
@@ -80,6 +82,7 @@
         'iron_hide_tome'],
       размер: 31,
       постройка: 33,
+      предметы_стен: ['column'],
     },
     {
       id: DUNGEON_TYPES.DROWNED,
@@ -89,6 +92,7 @@
         'nature_scroll'],
       размер: 27,
       постройка: 34,
+      предметы_стен: ['rock'],
     },
     {
       id: DUNGEON_TYPES.ABYSS,
@@ -98,6 +102,7 @@
         'heavy_tome', 'fire_spellbook'],
       размер: 35,
       постройка: 35,
+      предметы_стен: ['stalactite', 'rock'],
     },
   ];
 
@@ -112,7 +117,9 @@
       Array.isArray(r.мобы) && r.мобы.length > 0 &&
       Array.isArray(r.предметы) && r.предметы.length > 0 &&
       Number.isInteger(r.размер) && r.размер > 0 &&
-      Number.isInteger(r.постройка));
+      Number.isInteger(r.постройка) &&
+      // Строки — по enum в схеме (tests/assets-schemas.test.js).
+      Array.isArray(r.предметы_стен) && r.предметы_стен.length > 0);
   }
 
   const CATALOG = validDungeonCatalog(dungeonsData)
@@ -132,11 +139,16 @@
   const DUNGEON_MOBS = {};
   const DUNGEON_ITEMS = {};
   const DUNGEON_SIZE = {};
+  // DUNGEON_WALL_KINDS — набор видов «непроходимых» предметов стен
+  // типа (задача 000070): rock/column/stalactite, назначение на
+  // клетки — wallObjFor (сид ФОРМЫ, не содержимое).
+  const DUNGEON_WALL_KINDS = {};
   for (const rec of CATALOG) {
     DUNGEON_NAMES[rec.id] = rec.название;
     DUNGEON_MOBS[rec.id] = rec.мобы.slice();
     DUNGEON_ITEMS[rec.id] = rec.предметы.slice();
     DUNGEON_SIZE[rec.id] = rec.размер;
+    DUNGEON_WALL_KINDS[rec.id] = rec.предметы_стен.slice();
   }
 
   if (!settings || typeof settings.SETTINGS !== 'object') {
@@ -184,6 +196,37 @@
   const idx = (d, x, y) => y * d.width + x;
   const inGrid = (d, x, y) => x >= 0 && y >= 0 && x < d.width && y < d.height;
 
+  // --- Предметы стен (задача 000070) ---
+  //
+  // «Непроходимые» предметы стен (камни/колонны/сталактиты) рисуются
+  // только на «фасаде» стен — wall-клетках с floor-соседом. Вид и
+  // вариант (_1/_2) — детерминированная функция ТОЛЬКО (x, y, d.seed,
+  // d.type) через hash2: без RNG-состояния, без обращения к
+  // cells/содержимому/player. Сид — ФОРМЫ подземелья (точка входа),
+  // НЕ содержимого (totalXp): «один вход — один вид», возврат с новым
+  // опытом не меняет облик стен. Соли зафиксированы golden-тестом
+  // (tests/dungeon.test.js, «000070 golden: CAVE (37, −12)»).
+  const WALL_KIND_SALT = 0x5e11c3a7;
+  const WALL_VARIANT_SALT = 0x0c9f4b2d;
+
+  /**
+   * Предмет стены в клетке (x, y) — чистая функция от (x, y, d.seed,
+   * d.type). d — объект с полями seed и type (достаточно
+   * `{type, seed}`; cells/содержимое не читаются).
+   * @param {number} x клетка X
+   * @param {number} y клетка Y
+   * @param {{seed:number, type:number}} d подземелье
+   * @returns {string|null} 'rock_1'|'rock_2'|'column_1'|'column_2'|
+   *   'stalactite_1'|'stalactite_2' (null, если у типа нет набора)
+   */
+  function wallObjFor(x, y, d) {
+    const kinds = DUNGEON_WALL_KINDS[d.type];
+    if (!kinds || kinds.length === 0) return null;
+    const kind = kinds[hash2(x, y, WALL_KIND_SALT ^ d.seed) % kinds.length];
+    const variant = (hash2(x, y, WALL_VARIANT_SALT ^ d.seed) & 1) + 1;
+    return kind + '_' + variant;
+  }
+
   /**
    * Генерирует лабиринт по точке входа.
    * @param {number} x координата входа на основной карте
@@ -195,7 +238,12 @@
    *   type:number, width:number, height:number,
    *   cells:number[], rooms:{x,y,w,h,cx,cy}[],
    *   entrance:{x,y}, exit:{x,y}, seed:number,
+   *   wallObjs:{x:number, y:number, obj:string}[],
    * }}
+   * `wallObjs` (задача 000070) — предметы стен ТОЛЬКО на wall-клетках
+   * «фасада» (у стены есть floor-сосед по 8-соседству Чебышёва 1):
+   * ровно один {x, y, obj} на клетку, obj — 'rock_1'|…|'stalactite_2'
+   * из набора типа (wallObjFor); floor/entrance/exit — без объектов.
    */
   function createDungeon(x, y, pixels, terrain) {
     const type = dungeonTypeFor(terrain, pixelAt(pixels, x, y)[3]);
@@ -245,6 +293,30 @@
       exit: { x: rooms[rooms.length - 1].cx, y: rooms[rooms.length - 1].cy },
       seed,
     };
+
+    // Предметы стен (задача 000070): ТОЛЬКО wall-клетки «фасада» —
+    // у стены есть хотя бы один floor-сосед по 8-соседству
+    // Чебышёва 1 (не на всех стенах: сплошная стена не превращается
+    // в густую стену камней). Стабильный обход: y, затем x.
+    const wallObjs = [];
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (cells[y * W + x] !== CELL_WALL) continue;
+        let hasFloor = false;
+        for (let dy = -1; dy <= 1 && !hasFloor; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            if (cells[ny * W + nx] === CELL_FLOOR) { hasFloor = true; break; }
+          }
+        }
+        if (!hasFloor) continue;
+        const obj = wallObjFor(x, y, d);
+        if (obj) wallObjs.push({ x, y, obj });
+      }
+    }
+    d.wallObjs = wallObjs;
     return d;
   }
 
@@ -419,9 +491,10 @@
 
   return {
     DUNGEON_TYPES, DUNGEON_NAMES, DUNGEON_MOBS, DUNGEON_ITEMS, DUNGEON_SIZE,
+    DUNGEON_WALL_KINDS,
     DUNGEON_MEMORY_DAYS, LEVEL_DELTA_MAX,
     CELL_WALL, CELL_FLOOR,
-    dungeonTypeFor, createDungeon, generateDungeonContents,
+    dungeonTypeFor, createDungeon, generateDungeonContents, wallObjFor,
     contentValid, openChest, wanderStep, reachableFrom,
   };
 });
