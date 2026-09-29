@@ -51,6 +51,20 @@
     return (character.secondary && character.secondary[skillId]) || 0;
   }
 
+  /**
+   * Кандидаты на найм (задача 000078, родитель 000065): NPC с
+   * найм-данными (объект `найм`) — ЧИТАЕМЫЙ список для вкладки
+   * «найм» (src/ui.js) и стабильный API для 000079/000083.
+   * Кандидатом считается НАЛИЧИЕ найм-данных (building-фильтра нет:
+   * целостность «все в таверне 44» держит тест каталога).
+   * Порядок = порядок переданного массива (каталога), детерминированно
+   * (возвращаются ссылки на те же записи); мусор (null, найм-не-объект)
+   * отфильтрован.
+   */
+  function hireCandidates(npcs) {
+    return npcs.filter((n) => n && n.найм && typeof n.найм === 'object');
+  }
+
   // Имя навыка для сообщений: из каталога, при неизвестном id — сам id.
   function skillName(skillId) {
     if (P.SECONDARY_SKILLS[skillId]) return P.SECONDARY_SKILLS[skillId].name;
@@ -64,6 +78,10 @@
    * Опции диалога NPC: { option, доступен, причина } в порядке данных.
    * `option` — ссылка на объект опции из данных NPC. Причина — первое
    * невыполненное требование (порядок: харизма → навык → проверка).
+   * Действие НЕ читается (задача 000078): любое действие — «торговля»,
+   * «обучение», «квесты», «подсказка», «найм» — проходит через
+   * существующий механизм требований, как «квесты»: доступ к найму —
+   * требования найм-опции (паттерн Оратора), новой системы проверок нет.
    */
   function dialogOptions(npc, character) {
     return (npc.диалог || []).map((option) => {
@@ -526,7 +544,7 @@
 
   return {
     MAX_ACTIVE_QUESTS,
-    npcById, npcsForBuilding, npcForBuilding, skillLevel,
+    npcById, npcsForBuilding, npcForBuilding, skillLevel, hireCandidates,
     dialogOptions,
     schoolSkills, schoolTrainPrice, schoolRefundPrice,
     canSchoolTrain, schoolTrain, canSchoolRefund, schoolRefund,
