@@ -479,3 +479,85 @@ test('dungeon.js БЕЗ dungeons-data.js: гард деградирует до f
   assert.equal(d.type, 0, 'fallback: createDungeon → CAVE');
   assert.equal(d.width, 25, 'fallback: размер CAVE из DUNGEON_SIZE');
 });
+
+// --- Задача 000046: модули крафта ---
+//
+// craft.js при ЗАГРУЗКЕ снимает с Game: каталог (craft-data.js), API
+// персонажа (player.js), API инвентаря (items.js), постройки
+// (buildings.js) и заклинания (spells.js — зачарование); combat-ui.js/
+// main.js снимают const G = globalThis.Game один раз при загрузке
+// (UMD-ловушка, 000038) — поэтому: player/items/buildings/spells <
+// craft-data.js < craft.js < combat-ui.js < main.js.
+
+test('index.html: craft-data.js и craft.js подключены в правильном порядке', () => {
+  assert.notEqual(pos('src/craft-data.js'), -1, 'craft-data.js не подключён');
+  assert.notEqual(pos('src/craft.js'), -1, 'craft.js не подключён');
+  // Данные раньше ядра.
+  assert.ok(pos('src/craft-data.js') < pos('src/craft.js'),
+    'src/craft-data.js должен быть раньше src/craft.js (задача 000046)');
+  // Ядро — раньше craft.js.
+  for (const f of ['src/player.js', 'src/items.js', 'src/buildings.js',
+    'src/spells.js']) {
+    assert.ok(pos(f) < pos('src/craft.js'),
+      f + ' должен быть раньше src/craft.js (задача 000046)');
+  }
+  // UMD-ловушка: combat-ui.js и main.js снимают Game при загрузке —
+  // craft.js должен быть РАНЕЕ них.
+  assert.ok(pos('src/craft.js') < pos('src/combat-ui.js'),
+    'src/craft.js должен быть раньше src/combat-ui.js (задача 000046)');
+  assert.ok(pos('src/craft.js') < pos('src/main.js'),
+    'src/craft.js должен быть раньше src/main.js (задача 000046)');
+});
+
+test('порядок core → craft-data.js → craft.js: Game.Craft существует и крафтит', () => {
+  // Полный «браузерный» путь: ядро из index.html + spells + craft.
+  // craft обязан работать в чужом realm (UMD-проводка API с Game).
+  const files = CORE_SCRIPTS.concat(
+    'src/combat.js', 'src/spells-data.js', 'src/spells.js',
+    'src/craft-data.js', 'src/craft.js');
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of files) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  const Cr = sandbox.Game.Craft;
+  assert.ok(Cr, 'Game.Craft должен существовать после правильного порядка');
+  for (const k of ['CRAFT', 'CRAFT_BY_ID', 'CRAFT_TYPES', 'CRAFT_TYPE_SKILL',
+    'SKILL_CRAFT_TYPE', 'typeBuildings', 'craftOf', 'craftLevel',
+    'craftXpForNext', 'craftCap', 'addCraftXp', 'reprocessCraftXp',
+    'canCraft', 'craft', 'qualityChance', 'yieldChance', 'bookCraftXp',
+    'canMentorCraft', 'mentorCraft', 'sanitizeCraftLevels',
+    'sanitizeCraftXp']) {
+    assert.ok(Cr[k] !== undefined, 'Game.Craft.' + k);
+  }
+  // CRAFT_BY_ID — те же объекты, что в CRAFT (идентичность).
+  const wood = Cr.CRAFT.find((r) => r.id === 'wood_sword');
+  assert.equal(Cr.CRAFT_BY_ID.wood_sword, wood);
+  // Работоспособность в браузерном realm: крафт в поле, без роллов.
+  const p = sandbox.Game.createCharacter();
+  sandbox.Game.addItem(p, 'wood_log', 1);
+  const r = Cr.craft(p, 'wood_sword', { building: 5, rng: () => 0.99 });
+  assert.equal(r.ok, true,
+    'craft работает в браузерном realm: ' + (r.reason || 'ok'));
+  assert.equal(sandbox.Game.totalQty(p, 'wood_sword'), 1);
+});
+
+test('порядок битый: craft.js без spells.js → Game.Craft нет, guard в консоли', () => {
+  // craft.js без spells.js (и combat.js): зачарование не может работать
+  // через Game.Spells → guard пишет console.error (паттерн 000038/000045),
+  // модуль не создаётся — «мёртвое ремесло» должно быть заметна.
+  const errors = [];
+  const sandbox = { console: { error: (m) => errors.push(m) } };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  const files = CORE_SCRIPTS.concat('src/craft-data.js', 'src/craft.js');
+  for (const f of files) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  assert.equal(sandbox.Game.Craft, undefined,
+    'без spells.js Craft не создаётся');
+  assert.ok(errors.length > 0, 'guard обязан оставить след в консоли');
+});

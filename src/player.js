@@ -294,9 +294,19 @@
       c.primary[target] += 1;
       // Потолок практикой вырос — пересчитываем застрявшие копилки опыта.
       const skillLevels = reprocessSkillXp(c, target);
+      // Крафт (000046): потолок вида, привязанный к основному навыку
+      // (у столярного дела — Ловкость), тоже вырос.
+      craftReprocessHook(c, target);
+      // ...а также ко всем вторичным, поднятым КАСКАДОМ reprocessSkillXp
+      // (рост Силы → «Кузнечная рука» выше потолка → кузнечное_дело).
+      // Для не-крафтовых навыков хук — no-op (CRAFT_TYPE_SKILL пусто).
+      for (const s of skillLevels) craftReprocessHook(c, s);
       return { ok: true, level: c.primary[target], skillLevels };
     }
     c.secondary[target] = (c.secondary[target] || 0) + 1;
+    // Крафт (000046): потолок видов на вторичном навыке (forge/alchemy/
+    // runes) вырос.
+    craftReprocessHook(c, target);
     return { ok: true, level: c.secondary[target] };
   }
 
@@ -401,6 +411,9 @@
     // растут от вторичных навыков (Выносливость/Голем), maxMP зависит
     // только от основных, так что текущие значения не могут оказаться
     // выше новых границ.
+    // Крафт (000046): навык вырос (практика/книги) — потолок видов
+    // крафта, привязанных к нему, вырос — пересчёт копилки c.craftXp.
+    if (leveledUp) craftReprocessHook(c, skillId);
     return { ok: true, applied: gain, level, leveledUp, total: bank };
   }
 
@@ -452,6 +465,20 @@
       }
     }
     return leveled;
+  }
+
+  // Хук крафта (задача 000046): рост навыка поднимает «потолок
+  // практикой» видов крафта, привязанных к нему (Craft.CRAFT_TYPE_SKILL),
+  // и опыт, застрявший в c.craftXp, обязан пересчитаться. ЛЕНИВО
+  // (player.js загружается ДО craft.js — UMD-ловушка 000038): Game.Craft
+  // снимается при ВЫЗОВЕ — паттерн хука bookCraftXp в items.js. В node
+  // без Game.Craft — no-op (тесты задают его явно).
+  function craftReprocessHook(c, skillId) {
+    const G = (typeof globalThis !== 'undefined' &&
+      typeof globalThis.Game === 'object') ? globalThis.Game : null;
+    if (G && G.Craft && typeof G.Craft.reprocessCraftXp === 'function') {
+      G.Craft.reprocessCraftXp(c, skillId);
+    }
   }
 
   function takeDamage(c, amount) {
