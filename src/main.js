@@ -913,8 +913,46 @@
     const showVisuals = typeof G.tileVisuals === 'function'
       && zoom >= (G.VISUALS_MIN_ZOOM || 0);
 
-    // Тайлы: текстура (вода/глубокая вода — кадр анимации по чистому
-    // селектору frameIndex(время, координаты, число кадров)).
+    // Задача 000042: три прохода по frameTiles, ГЛОБАЛЬНО согласованный
+    // порядок слоёв — текстура тайла + декорации < постройки < мобы <
+    // Флогистон. Старый по-тайловый цикл рисовал постройку одним 1x1-
+    // спрайтом на тайле ВХОДА (3x3-постройка видна как один спрайт,
+    // стены — голый террейн); теперь — ОДИН w×h-спрайт ОТ ЯКОРЯ. По
+    // тайлам это сделать нельзя: текстуры СОСЕДНИХ тайлов footprint'а
+    // перерисовали бы часть прямоугольника, поэтому текстуры — весь
+    // мир одним проходом, постройки — отдельным (один раз на якорь),
+    // мобы — третьим.
+    //
+    // Запись постройки по якорю (source of truth — та, что раскладывала
+    // её в мире, ОДИН источник геометрии). typeof-гард: устаревший
+    // map.js без buildingAt — фолбэк-скан прямоугольника вправо/вниз по
+    // tileCache, НО с ПРОВЕРКОЙ РАВЕНСТВА buildingAnchor (одного
+    // inBuilding мало: чужая соседняя постройка зальёт скан и даст
+    // ложные 2x1/1x2). Якоря нет — 1x1.
+    function buildingRec(ax, ay) {
+      if (map && typeof map.buildingAt === 'function') {
+        return map.buildingAt(ax, ay);
+      }
+      const t0 = tileCache.tile(ax, ay);
+      if (!t0.inBuilding) return null;
+      const same = (t) => t.inBuilding && t.buildingAnchor &&
+        t.buildingAnchor[0] === ax && t.buildingAnchor[1] === ay;
+      let w = 1, hgt = 1;
+      while (w < (G.BUILD_MAX_W || 3) && same(tileCache.tile(ax + w, ay))) w++;
+      while (hgt < (G.BUILD_MAX_H || 3) && same(tileCache.tile(ax, ay + hgt))) hgt++;
+      return { anchor: [ax, ay], type: t0.building,
+               x: ax, y: ay, w, h: hgt,
+               entrance: [ax, ay], wealth: 0 };
+    }
+
+    // Проход 1: текстура тайла (вода/глубокая вода — кадр анимации по
+    // чистому селектору frameIndex) + декорации (задача 000039).
+    // Декорации — поверх текстуры тайла, ДО построек/мобов/Флогистона
+    // (отдельный проход после рисовал бы их поверх). На тайлах-СТЕНАХ
+    // постройки (inBuilding && !isEntrance) декорации НЕ рисуются —
+    // иначе травинки вырастают «на стене» (задача 000042); вход
+    // декорации сохраняет (там игрок взаимодействует). Не загрузившийся
+    // спрайт — элемент пропускается (isReady false), слой не падает.
     for (const t of frameTiles) {
       const p = toPt(t.x, t.y);
       const sx = p.x, sy = p.y;
@@ -924,12 +962,7 @@
         const img = spriteLoader.image(frames[idx]);
         if (img) s2.drawImage(img, sx, sy, zoom, zoom);
       }
-      // Декорации тайла (задача 000039) — поверх текстуры тайла, ДО
-      // иконки постройки/моба: проход ВНУТРИ цикла по frameTiles
-      // (отдельный проход после цикла рисовал бы декорации поверх
-      // построек, мобов и Флогистона). Не загрузившийся спрайт —
-      // элемент пропускается (isReady false), слой не падает.
-      if (showVisuals) {
+      if (showVisuals && !(t.inBuilding && !t.isEntrance)) {
         for (const e of G.tileVisuals(t.x, t.y, t.terrain)) {
           if (!spriteLoader.isReady(e.sprite)) continue;
           const r = G.visualDrawRect(e, sx, sy, zoom);
@@ -937,17 +970,42 @@
             r.x, r.y, r.size, r.size);
         }
       }
-      // Иконка постройки / спрайт группы мобов — поверх тайла.
-      if (t.hasBuilding) {
-        const p = G.buildingSprite(t.building);
-        const b = p ? spriteLoader.image(p) : null;
-        if (b) s2.drawImage(b, sx + zoom * 0.04, sy + zoom * 0.04, zoom * 0.92, zoom * 0.92);
-      } else if (t.hasMobGroup) {
-        const mf = G.mobFrames(t.mobGroup);
-        const idx = mf.length > 1 ? G.frameIndex(now, t.x, t.y, mf.length) : 0;
-        const m = mf.length ? spriteLoader.image(mf[idx]) : null;
-        if (m) s2.drawImage(m, sx - zoom * 0.1, sy - zoom * 0.15, zoom * 1.2, zoom * 1.2);
+    }
+
+    // Проход 2: постройки — ОДИН раз на постройку (не 9 раз на входе).
+    // Словарь якорей за кадр: любой видимый тайл-член footprint'а
+    // даёт якорь; сам якорь может быть за краем окна (запас зума ~1 <
+    // 3), поэтому рисуем по якорям ВИДИМЫХ тайлов, а не только по
+    // якорным тайлам. Прямой вызов drawImage: w×h ОТ ЯКОРЯ
+    // (worldToScreen(ax, ay), размер w*zoom × h*zoom).
+    const anchors = new Set();
+    for (const t of frameTiles) {
+      if (t.inBuilding && t.buildingAnchor) {
+        anchors.add(t.buildingAnchor[0] + ',' + t.buildingAnchor[1]);
       }
+    }
+    for (const key of anchors) {
+      const sep = key.indexOf(',');
+      const ax = Number(key.slice(0, sep));
+      const ay = Number(key.slice(sep + 1));
+      const rec = buildingRec(ax, ay);
+      if (!rec) continue;
+      const img = spriteLoader.image(G.buildingSprite(rec.type));
+      if (!img) continue;
+      const p = toPt(rec.x, rec.y);
+      s2.drawImage(img, p.x, p.y, rec.w * zoom, rec.h * zoom);
+    }
+
+    // Проход 3: спрайты групп мобов — поверх построек (мобы в
+    // footprint'е не рождаются, перекрытий по области нет).
+    for (const t of frameTiles) {
+      if (!t.hasMobGroup) continue;
+      const p = toPt(t.x, t.y);
+      const sx = p.x, sy = p.y;
+      const mf = G.mobFrames(t.mobGroup);
+      const idx = mf.length > 1 ? G.frameIndex(now, t.x, t.y, mf.length) : 0;
+      const m = mf.length ? spriteLoader.image(mf[idx]) : null;
+      if (m) s2.drawImage(m, sx - zoom * 0.1, sy - zoom * 0.15, zoom * 1.2, zoom * 1.2);
     }
 
     // Флогистон: idle/walk по движению, attack/cast — отладочная animAction.

@@ -291,6 +291,9 @@ function expectedDecos(G, myMap, cam, zoom, skip) {
   for (let ty = range.y0; ty <= range.y1; ty++) {
     for (let tx = range.x0; tx <= range.x1; tx++) {
       const t = myMap.tileAt(tx, ty);
+      // Задача 000042: декорации на тайлах-стенах постройки
+      // (inBuilding && !isEntrance) НЕ рисуются — как в drawSprites.
+      if (t.inBuilding && !t.isEntrance) continue;
       // Та же проекция мир→экран, что и в drawSprites (G.worldToScreen,
       // задача 000061 — единый источник для обоих слоёв): y-вниз.
       const p = G.worldToScreen(tx, ty, cam.x, cam.y, zoom, VIEW_W, VIEW_H);
@@ -396,17 +399,30 @@ test('декорации: порядок слоёв — после тексту�
         && Math.abs(c[1][2] - sy) < EPS
         && Math.abs(c[1][3] - zoom) < EPS);
       assert.ok(iTile >= 0, `тайл (${tx},${ty}): текстура нарисована`);
-      // Маркер тайла: постройка (sx + zoom*0.04, sy + zoom*0.04) либо
-      // мобы (sx − zoom*0.1, sy − zoom*0.15) — формулы из drawSprites.
+      // Маркер тайла: постройка — ОДИН w×h-прямоугольник ОТ ЯКОРЯ
+      // (задача 000042: позиция worldToScreen(ax, ay), размер
+      // w·zoom × h·zoom — формулы из drawSprites; запись пересчитана
+      // из tileAt, recOf) либо мобы (sx − zoom*0.1, sy − zoom*0.15).
       const mark = t.hasBuilding
-        ? [sx + zoom * 0.04, sy + zoom * 0.04, 'assets/sprites/buildings/']
-        : [sx - zoom * 0.1, sy - zoom * 0.15, 'assets/sprites/mobs/'];
+        ? (() => {
+            const [ax, ay] = t.buildingAnchor;
+            const rec = recOf(myMap, ax, ay);
+            const pa = G.worldToScreen(ax, ay, st.cam.x, st.cam.y,
+              zoom, VIEW_W, VIEW_H);
+            return [pa.x, pa.y, 'assets/sprites/buildings/',
+              rec.w * zoom, rec.h * zoom];
+          })()
+        : [sx - zoom * 0.1, sy - zoom * 0.15, 'assets/sprites/mobs/',
+          undefined, undefined];
       const iMark = calls.findIndex((c) => c[0] === 'drawImage'
         && c[1][0] && c[1][0].__asset.startsWith(mark[2])
         && Math.abs(c[1][1] - mark[0]) < EPS
-        && Math.abs(c[1][2] - mark[1]) < EPS);
+        && Math.abs(c[1][2] - mark[1]) < EPS
+        && (mark[3] === undefined ||
+            (Math.abs(c[1][3] - mark[3]) < EPS
+              && Math.abs(c[1][4] - mark[4]) < EPS)));
       assert.ok(iMark >= 0, `тайл (${tx},${ty}): спрайт ${
-        t.hasBuilding ? 'постройки' : 'мобов'} нарисован`);
+        t.hasBuilding ? 'постройки (w×h от якоря)' : 'мобов'} нарисован`);
       // Каждая декорация тайла — СТРОГО между текстурой и маркером
       // (внутри цикла по frameTiles).
       for (const e of decos) {
