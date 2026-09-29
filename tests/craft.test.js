@@ -317,3 +317,47 @@ test('покрытие: есть улучшенный способ и рецеп
     assert.ok(data.здания.length >= 1, `${file}: нет зданий`);
   }
 });
+
+// --- Задача 000046: игровой код крафта (TDD: красные тесты) ---
+//
+// Модули ещё не существуют — эти тесты падают до реализации. Ленивый
+// require: отсутствие модуля не ломает старые тесты каталога (000024/
+// 000044) в этом файле.
+
+function loadCraftData() { return require('../src/craft-data.js'); }
+
+test('craft-data.js: точное зеркало каталога JSON (задача 000046)', () => {
+  const { CRAFT, CRAFT_BY_ID } = loadCraftData();
+  const files = listCraftFiles();
+  assert.ok(files.length >= 16, 'каталог подозрительно маленький');
+  assert.equal(CRAFT.length, files.length,
+    'CRAFT — по одному рецепту на файл каталога');
+  // Порядок CRAFT = порядок файлов каталога; данные — дословно.
+  files.forEach((f, i) => {
+    const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    assert.equal(CRAFT[i].id, data.id, `позиция ${i}: порядок файлов`);
+    assert.deepEqual(CRAFT[i], data, `${f}: зеркало CRAFT не совпадает`);
+    assert.equal(CRAFT_BY_ID[data.id], CRAFT[i],
+      `${f}: CRAFT_BY_ID — те же объекты (идентичность)`);
+  });
+  assert.equal(Object.keys(CRAFT_BY_ID).length, files.length,
+    'CRAFT_BY_ID — все id каталога');
+  // Обратное: все id модуля есть в каталоге.
+  const { byId } = loadCatalog();
+  for (const r of CRAFT) {
+    assert.ok(byId.has(r.id), `id "${r.id}" из модуля нет в каталоге`);
+  }
+});
+
+test('sync-craft-data.js: генератор существует, пересборка не меняет модуль', () => {
+  const { execFileSync } = require('node:child_process');
+  const script = path.join(__dirname, '..', 'scripts', 'sync-craft-data.js');
+  assert.ok(fs.existsSync(script),
+    'существует генератор scripts/sync-craft-data.js');
+  const out = path.join(__dirname, '..', 'src', 'craft-data.js');
+  assert.ok(fs.existsSync(out), 'существует сгенерированный src/craft-data.js');
+  const before = fs.readFileSync(out, 'utf8');
+  execFileSync(process.execPath, [script], { cwd: path.join(__dirname, '..') });
+  assert.equal(fs.readFileSync(out, 'utf8'), before,
+    'пересборка меняет закоммиченный src/craft-data.js — перегенерируйте');
+});
