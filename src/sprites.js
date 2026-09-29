@@ -134,6 +134,42 @@
     lower_demon: 'abyss', succubus: 'abyss', abomination: 'abyss',
   };
 
+  // --- Персональный арт мобов (задача 000062) ---
+  //
+  // В JSON-каталоге assets/mobs (source of truth) у каждого моба поле
+  // «art»: move (2–3 кадра), attack (2–3), dead (1) — пути
+  // assets/sprites/mobs/<mob_id>_<state>_<n>.svg (плоское именование,
+  // MOBS.md). Зеркало combat.js арта НЕ содержит (~40 КБ описаний,
+  // под file:// арта не грузится — тогда и зеркало источник данных),
+  // поэтому и здесь таблица-литерал, как MOB_SPRITE_KINDS: число
+  // кадров фиксировано, путь выводится из id — без дублей 180 путей.
+  // Равенство таблицы с «art» из JSON закрывает тест
+  // (tests/sprites.test.js: все пути ⊆ allAssetPaths + файлы есть).
+  const MOB_ART_DIR = 'assets/sprites/mobs/';
+  const MOB_ART_FRAME_COUNTS = { move: 2, attack: 2, dead: 1 };
+  const MOB_ART_ACTIONS = Object.keys(MOB_ART_FRAME_COUNTS);
+
+  /**
+   * Кадры персонального арта боевого моба (задача 000062):
+   * mobId из MOB_TYPES (combat.js) и действие move|attack|dead →
+   * массив путей SVG (dead — ровно один). Чистая функция;
+   * неизвестный id/действие → [] (рендерер отступает на базовые
+   * шесть видов MOB_FRAMES, затем на прямоугольник ROLE_COLORS).
+   * @param {string} mobId id моба (MOB_TYPES из src/combat.js)
+   * @param {string} action 'move' | 'attack' | 'dead'
+   * @returns {string[]} массив путей (может быть пустым)
+   */
+  function mobArtFrames(mobId, action) {
+    if (!MOB_SPRITE_KINDS[mobId]) return [];
+    const n = MOB_ART_FRAME_COUNTS[action];
+    if (!n) return [];
+    const out = [];
+    for (let i = 1; i <= n; i++) {
+      out.push(MOB_ART_DIR + mobId + '_' + action + '_' + i + '.svg');
+    }
+    return out;
+  }
+
   // Иконки построек (map.js) — один кадр на тип.
   const BUILDING_SPRITES = {
     [BUILDING_TYPES.WEAPONS_SHOP]: 'assets/sprites/buildings/weapons_shop.svg',
@@ -421,6 +457,11 @@
     for (const frames of Object.values(TILE_FRAMES)) paths.push(...frames);
     for (const frames of Object.values(PHLOGISTON_ACTIONS)) paths.push(...frames);
     for (const frames of Object.values(MOB_FRAMES)) paths.push(...frames);
+    // Персональный арт мобов (задача 000062): 36 × (move 2 + attack 2
+    // + dead 1) = 180 файлов.
+    for (const mobId of Object.keys(MOB_SPRITE_KINDS)) {
+      for (const a of MOB_ART_ACTIONS) paths.push(...mobArtFrames(mobId, a));
+    }
     paths.push(...Object.values(BUILDING_SPRITES));
     for (const v of VISUALS) paths.push(v.спрайт);
     // Фоны боя (задача 000049): 11 файлов из двух карт + фолбэк.
@@ -541,6 +582,7 @@
     PHLOGISTON_ACTIONS,
     MOB_KINDS, MOB_FRAMES,
     MOB_SPRITE_KINDS, mobSpriteKind,
+    MOB_ART_DIR, MOB_ART_FRAME_COUNTS, MOB_ART_ACTIONS, mobArtFrames,
     BUILDING_SPRITES,
     COMBAT_BG_DIR, COMBAT_BG_TERRAIN, COMBAT_BG_DUNGEON, COMBAT_BG_FALLBACK,
     combatBackground,
