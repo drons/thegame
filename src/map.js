@@ -452,6 +452,25 @@
       return rec;
     }
 
+    /**
+     * Запись постройки с якорем (ax, ay) — read-only доступ к той же
+     * мемоизированной записи, что раскладывала её в мире (задача
+     * 000042): { anchor, type, x, y, w, h, entrance, wealth } или
+     * null (якоря нет, либо не поместилось даже 1x1). O(1) —
+     * обёртка над buildingAtAnchor. Единственный источник геометрии
+     * footprint'а: слой спрайтов (src/main.js) рисует постройку
+     * прямоугольником w×h ОТ ЯКОРЯ, а не сканом по tileAt — скан
+     * «вправо/вниз» без проверки якоря зальётся чужой соседней
+     * постройкой.
+     * @param {number} ax
+     * @param {number} ay
+     * @returns {{anchor:[number,number], type:number, x:number, y:number,
+     *   w:number, h:number, entrance:[number,number], wealth:number}|null}
+     */
+    function buildingAt(ax, ay) {
+      return buildingAtAnchor(ax, ay);
+    }
+
     // Покрывающая (x, y) постройка: якорь в окне
     // [x-(W-1)..x] × [y-(H-1)..y]. Постройки не пересекаются,
     // поэтому найденная в лексикографическом порядке — единственная.
@@ -529,6 +548,7 @@
       height: H,
       pixelAt,
       tileAt,
+      buildingAt, // запись постройки по якорю (read-only, 000042)
       brightness,
     };
   }

@@ -979,3 +979,127 @@ test('golden: vm-путь (реальный порядок index.html) — те 
       key);
   }
 });
+
+// --- Задача 000042: buildingAt — read-only доступ к записи постройки ---
+//
+// Слой спрайтов (drawSprites, src/main.js) обязан рисовать постройку
+// прямоугольником w×h по всему footprint'у ОТ ЯКОРЯ, а не одним 1x1-
+// спрайтом на тайле входа. Для этого drawSprites нужен доступ к записи
+// постройки по якорю:
+//   map.buildingAt(ax, ay) →
+//     { anchor, type, x, y, w, h, entrance, wealth } или null
+// (O(1)-обёртка над внутренней мемоизированной buildingAtAnchor —
+// источник геометрии ОДИН, тот, что размещал постройку).
+//
+// Опасный альтернативный путь — «скан» краёв вправо/вниз по tileAt
+// БЕЗ проверки равенства buildingAnchor: соседняя ЧУЖАЯ постройка даст
+// inBuilding=true и зальёт скан (ложные 2x1/1x2). Поэтому тест ниже
+// сверяет прямоугольник с tileAt строго по buildingAnchor, а «правый/
+// нижний край не footprint» — по равенству якоря, а не по inBuilding.
+
+// Тестовый пересчёт геометрии footprint'а из tileAt (инвариант мира:
+// footprint = набор тайлов с данным якорем, прямоугольник от якоря —
+// закреплён тестами задачи 000026). Только для ПРОВЕРКИ buildingAt.
+function footprintByScan(map, ax, ay) {
+  let w = 1, h = 1;
+  while (w < buildMaxW()) {
+    const t = map.tileAt(ax + w, ay);
+    if (t.inBuilding && t.buildingAnchor &&
+        t.buildingAnchor[0] === ax && t.buildingAnchor[1] === ay) w++;
+    else break;
+  }
+  while (h < buildMaxH()) {
+    const t = map.tileAt(ax, ay + h);
+    if (t.inBuilding && t.buildingAnchor &&
+        t.buildingAnchor[0] === ax && t.buildingAnchor[1] === ay) h++;
+    else break;
+  }
+  return { x: ax, y: ay, w, h };
+}
+
+// Проверки для одного мира (скан ±R):
+//   * buildingAt(якорь) — запись, прямоугольник [x, x+w)×[y, y+h)
+//     РAVЕН footprint'у по tileAt (каждый тайл прямоугольника — тот же
+//     якорь; правый и нижний края — не тот якорь; запись = скан);
+//   * buildingAt(не-якорь) — null (и в чужом footprint'е, и на пустом
+//     тайле).
+function assertBuildingAtWorld(map, R, label) {
+  let anchors = 0, multi = 0;
+  for (let x = -R; x < R; x++) {
+    for (let y = -R; y < R; y++) {
+      const t = map.tileAt(x, y);
+      const isAnchor = !!(t.inBuilding && t.buildingAnchor &&
+        t.buildingAnchor[0] === x && t.buildingAnchor[1] === y);
+      if (!isAnchor) {
+        assert.equal(map.buildingAt(x, y), null,
+          `${label} (${x},${y}): buildingAt(не-якорь) обязан вернуть null`);
+        continue;
+      }
+      anchors++;
+      const rec = map.buildingAt(x, y);
+      assert.ok(rec,
+        `${label} (${x},${y}): buildingAt(якорь) — null, хотя постройка есть`);
+      assert.deepEqual(rec.anchor, [x, y],
+        `${label} (${x},${y}): anchor записи ≠ якорь`);
+      assert.equal(rec.type, t.building,
+        `${label} (${x},${y}): тип записи ≠ тип тайла`);
+      assert.ok(Number.isInteger(rec.wealth) &&
+        rec.wealth >= 0 && rec.wealth <= 3,
+        `${label} (${x},${y}): wealth вне [0..3]`);
+      // Каждый тайл прямоугольника — тот же якорь и тот же тип.
+      for (let dy = 0; dy < rec.h; dy++) {
+        for (let dx = 0; dx < rec.w; dx++) {
+          const ft = map.tileAt(x + dx, y + dy);
+          assert.ok(ft.inBuilding && ft.buildingAnchor &&
+            ft.buildingAnchor[0] === x && ft.buildingAnchor[1] === y,
+            `${label} (${x + dx},${y + dy}): должен принадлежать постройке с якорем (${x},${y})`);
+          assert.equal(ft.building, rec.type,
+            `${label} (${x + dx},${y + dy}): в footprint'е один тип постройки`);
+        }
+      }
+      // Вход внутри прямоугольника.
+      assert.ok(rec.entrance &&
+        rec.entrance[0] >= rec.x && rec.entrance[0] < rec.x + rec.w &&
+        rec.entrance[1] >= rec.y && rec.entrance[1] < rec.y + rec.h,
+        `${label} (${x},${y}): вход записи вне footprint'а`);
+      // Правый и нижний края — НЕ этот footprint (равенство якоря,
+      // а не просто inBuilding — ловит дефект «чужой сосед залил скан»).
+      const right = map.tileAt(x + rec.w, y);
+      assert.ok(!right.inBuilding ||
+        right.buildingAnchor[0] !== x || right.buildingAnchor[1] !== y,
+        `${label} (${x + rec.w},${y}): w завышен — край ушёл в этот же якорь`);
+      const below = map.tileAt(x, y + rec.h);
+      assert.ok(!below.inBuilding ||
+        below.buildingAnchor[0] !== x || below.buildingAnchor[1] !== y,
+        `${label} (${x},${y + rec.h}): h завышен — край ушёл в этот же якорь`);
+      // Запись совпадает с пересчётом по tileAt.
+      assert.deepEqual({ x: rec.x, y: rec.y, w: rec.w, h: rec.h },
+        footprintByScan(map, x, y),
+        `${label} (${x},${y}): запись ${JSON.stringify(rec)} ≠ скан tileAt`);
+      if (rec.w > 1 || rec.h > 1) multi++;
+    }
+  }
+  return { anchors, multi };
+}
+
+test('buildingAt: геометрия footprint\'а — якорь → запись, не-якорь → null', () => {
+  // Фолбэк-мир (generateSeedPixels — тот же, что в vm-песочнице
+  // main-visuals.test.js: map.png там всегда onerror) и плотный
+  // синтетический мир (A=255 — деревни толпятся, случай «чужой
+  // сосед» для скана краёв).
+  const worlds = [
+    [createMap(generateSeedPixels()), 'фолбэк-мир (generateSeedPixels)'],
+    [createMap(syntheticPixels(8, 8, 128, 128, 128, 255)), 'синтетика A=255'],
+  ];
+  for (const [map, label] of worlds) {
+    assert.equal(typeof map.buildingAt, 'function',
+      `${label}: createMap обязан экспортировать buildingAt`);
+    const { anchors, multi } = assertBuildingAtWorld(map, 40, label);
+    assert.ok(anchors > 20, `${label}: мало якорей (${anchors})`);
+    // Гарантия сценария: есть хотя бы одна много-тайловая постройка
+    // (в фолбэк-мире — храм 3x3, якорь (6,28)); без неё тесты
+    // main-visuals «пройдут вакуумно».
+    assert.ok(multi >= 1,
+      `${label}: не нашлось ни одной постройки крупнее 1x1 (сценарий)`);
+  }
+});
