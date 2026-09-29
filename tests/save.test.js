@@ -26,6 +26,11 @@ function rawSet(storage, objOrText) {
     typeof objOrText === 'string' ? objOrText : JSON.stringify(objOrText));
 }
 
+// Объекты из vm-сэндбокса — чужой realm (свой Object.prototype),
+// deepStrictEqual (assert/strict) на это падает. JSON-рондтрип даёт
+// объект host-realm — тот же паттерн, что global-settings.test.js.
+function host(o) { return JSON.parse(JSON.stringify(o)); }
+
 // Версии и миграции — состояние модуля; тесты, которые его меняют,
 // обязаны вернуть исходное (setCurrentVersion(1), чистые MIGRATIONS).
 function withVersions(fn) {
@@ -521,12 +526,12 @@ test('000046: hero.craft/craftXp/equipmentBonus — roundtrip и поддела�
   const state = g.state;
   assert.ok(state.save, 'сейв загружен');
   assert.equal(state.hero.level, 2, 'ядро героя восстановлено');
-  assert.deepEqual(state.hero.craft,
+  assert.deepEqual(host(state.hero.craft),
     { 'кузнечное_дело': 7, 'алхимия': 100 },
     'craft восстановлен и очищен (чужой вид отброшен, >100 — кламп)');
-  assert.deepEqual(state.hero.craftXp, { 'алхимия': 5 },
+  assert.deepEqual(host(state.hero.craftXp), { 'алхимия': 5 },
     'craftXp восстановлен и очищен');
-  assert.deepEqual(state.hero.equipmentBonus,
+  assert.deepEqual(host(state.hero.equipmentBonus),
     { weapon: { damage: 2 }, armor: null },
     'equipmentBonus восстановлен и очищен');
   // Roundtrip: beforeunload → поля в сериализованном герое (очищенные).
@@ -550,8 +555,8 @@ test('000046: hero.craft/craftXp/equipmentBonus — roundtrip и поддела�
     'старый сейв: ошибок загрузки нет: ' + h2.errors.join('; '));
   const state2 = h2.sandbox.__game.state;
   assert.ok(state2.save, 'старый сейв загружен');
-  assert.deepEqual(state2.hero.craft, {}, 'старый сейв: craft → {}');
-  assert.deepEqual(state2.hero.craftXp, {}, 'старый сейв: craftXp → {}');
-  assert.deepEqual(state2.hero.equipmentBonus,
+  assert.deepEqual(host(state2.hero.craft), {}, 'старый сейв: craft → {}');
+  assert.deepEqual(host(state2.hero.craftXp), {}, 'старый сейв: craftXp → {}');
+  assert.deepEqual(host(state2.hero.equipmentBonus),
     { weapon: null, armor: null }, 'старый сейв: equipmentBonus → дефолт');
 });

@@ -101,6 +101,41 @@
     return { slots: [], quick: new Array(QUICK_SLOTS).fill(null) };
   }
 
+  // --- Бонус качества (задача 000046, SPEC.md «Крафт») ---
+  // Слот с бонусом качества (поле bonus: {damage}|{armor}|{amount}) —
+  // отдельный экземпляр предмета: не сливается с обычной стопкой того
+  // же id и не заполняется обычной addItem (и наоборот).
+  // Допустимый ключ бонуса — только ГЛАВНЫЙ стат kind-а:
+  //   weapon → damage, armor → armor, potion/food → amount.
+  // У реагентов и книг бонуса нет.
+
+  function bonusKeyFor(it) {
+    if (it.kind === 'weapon') return 'damage';
+    if (it.kind === 'armor') return 'armor';
+    if (it.kind === 'potion' || it.kind === 'food') return 'amount';
+    return null;
+  }
+
+  // Валидный бонус для предмета: null/undefined — «без бонуса» (валидно),
+  // объект — ровно один допустимый для kind-а ключ, целое значение >= 1.
+  function validBonus(it, b) {
+    if (b === null || b === undefined) return true;
+    if (!b || typeof b !== 'object' || Array.isArray(b)) return false;
+    const key = bonusKeyFor(it);
+    if (!key) return false;
+    const keys = Object.keys(b);
+    return keys.length === 1 && keys[0] === key &&
+      Number.isInteger(b[key]) && b[key] >= 1;
+  }
+
+  // Каноническая «состояние» бонуса слота (для сравнения/слияния):
+  // бонус — одноключевой объект, так что «ключ:значение» однозначно.
+  function bonusState(b) {
+    if (!b) return null;
+    const k = Object.keys(b)[0];
+    return k + ':' + b[k];
+  }
+
   function ensureInventory(c) {
     if (!c.inventory) c.inventory = createInventory();
     if (!Array.isArray(c.inventory.quick) || c.inventory.quick.length !== QUICK_SLOTS) {
@@ -112,6 +147,18 @@
   function ensureEquipment(c) {
     if (!c.equipment) c.equipment = { weapon: null, armor: null };
     return c.equipment;
+  }
+
+  // Бонус качества надетого снаряжения (задача 000046):
+  // {weapon: {damage:N}|null, armor: {armor:N}|null}.
+  function ensureEquipmentBonus(c) {
+    if (!c.equipmentBonus || typeof c.equipmentBonus !== 'object' ||
+        Array.isArray(c.equipmentBonus)) {
+      c.equipmentBonus = { weapon: null, armor: null };
+    }
+    if (c.equipmentBonus.weapon === undefined) c.equipmentBonus.weapon = null;
+    if (c.equipmentBonus.armor === undefined) c.equipmentBonus.armor = null;
+    return c.equipmentBonus;
   }
 
   /**
@@ -139,11 +186,21 @@
         const it = getItem(e.id);
         if (!it) continue; // «призрак» — предмета нет в каталоге
         const qty = (Number.isInteger(e.qty) && e.qty >= 1) ? e.qty : 1;
-        const ex = out.slots.find((x) => x.id === it.id);
+        // Бонус качества (задача 000046): валидный для kind-а —
+        // сохраняется; невалидный (чужой ключ, нецелое/отрицательное) —
+        // отбрасывается, сам слот остаётся.
+        const bonus = validBonus(it, e.bonus) ? (e.bonus || null) : null;
+        // Слияние — только в стопку с тем же id И тем же состоянием
+        // бонуса: bonus-слот не сливается с обычной стопкой.
+        const st = bonusState(bonus);
+        const ex = out.slots.find(
+          (x) => x.id === it.id && bonusState(x.bonus) === st);
         if (ex) {
           ex.qty = Math.min(MAX_STACK, ex.qty + qty);
         } else if (out.slots.length < INVENTORY_SLOTS) {
-          out.slots.push({ id: it.id, qty: Math.min(qty, MAX_STACK) });
+          out.slots.push(bonus
+            ? { id: it.id, qty: Math.min(qty, MAX_STACK), bonus }
+            : { id: it.id, qty: Math.min(qty, MAX_STACK) });
         }
       }
     }
@@ -171,6 +228,27 @@
     return out;
   }
 
+  /**
+   * Чистка сохранённого бонуса качества снаряжения (задача 000046,
+   * задачи 000029/000031): {weapon, armor} — null либо одноключевой
+   * валидный бонус слота (weapon → {damage}, armor → {armor}, целое
+   * >= 1). Мусор в одном слоте не трогает другой.
+   * @returns {{weapon: object|null, armor: object|null}}
+   */
+  function sanitizeEquipmentBonus(eq) {
+    const out = { weapon: null, armor: null };
+    if (!eq || typeof eq !== 'object' || Array.isArray(eq)) return out;
+    for (const slot of ['weapon', 'armor']) {
+      const b = eq[slot];
+      if (b && typeof b === 'object' && !Array.isArray(b) &&
+          validBonus({ kind: slot === 'weapon' ? 'weapon' : 'armor' }, b)) {
+        const key = bonusKeyFor({ kind: slot });
+        out[slot] = { [key]: b[key] };
+      }
+    }
+    return out;
+  }
+
   // Вес содержимого инвентаря (кг).
   function inventoryWeight(c) {
     const inv = ensureInventory(c);
@@ -193,15 +271,16 @@
     return totalQty(c, itemId) >= qty;
   }
 
-  /**
-   * Добавляет предмет(ы) в инвентарь.
-   * Проверяет свободные слоты и лимит веса (Крепкая спина).
-   * @returns {{ok:boolean, reason?:string}}
-   */
-  function addItem(c, itemId, qty = 1) {
-    const it = getItem(itemId);
-    if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
-    if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'неверное количество' };
+  // Стопки, куда добавляемый предмет влезает: тот же id и то же
+  // состояние бонуса (обычный предмет не заполняет bonus-слот и
+  // наоборот — бонусные экземпляры изолированы, задача 000046).
+  function matchesSlot(e, itemId, st) {
+    return e.id === itemId && bonusState(e.bonus) === st;
+  }
+
+  // Проверки добавления (слоты + вес) — общий для addItem/canAddItem.
+  // Чисто: инвентарь не мутирует.
+  function checkAdd(c, it, qty, st) {
     const inv = ensureInventory(c);
     const stackable = STACKABLE.has(it.kind);
 
@@ -209,7 +288,7 @@
     let left = qty;
     if (stackable) {
       for (const e of inv.slots) {
-        if (e.id === itemId) left = Math.max(0, left - (MAX_STACK - e.qty));
+        if (matchesSlot(e, it.id, st)) left = Math.max(0, left - (MAX_STACK - e.qty));
       }
       const newSlots = Math.ceil(left / MAX_STACK);
       if (inv.slots.length + newSlots > INVENTORY_SLOTS) {
@@ -221,12 +300,36 @@
     if (inventoryWeight(c) + it.weight * qty > maxCarryWeight(c) + 1e-9) {
       return { ok: false, reason: 'слишком тяжело (лимит веса)' };
     }
+    return { ok: true };
+  }
 
-    // Заполняем существующие стопки, остаток — в новые слоты.
+  /**
+   * Добавляет предмет(ы) в инвентарь.
+   * Проверяет свободные слоты и лимит веса (Крепкая спина).
+   * bonus (задача 000046): бонус качества {damage}|{armor}|{amount} —
+   * предмет кладётся отдельным бонусным экземпляром (не сливается с
+   * обычной стопкой того же id; слияние — только в стопку с тем же
+   * бонусом). Неверный bonus — отказ, инвентарь не трогается.
+   * @returns {{ok:boolean, reason?:string}}
+   */
+  function addItem(c, itemId, qty = 1, bonus) {
+    const it = getItem(itemId);
+    if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
+    if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'неверное количество' };
+    const b = (bonus === undefined) ? null : bonus;
+    if (!validBonus(it, b)) {
+      return { ok: false, reason: 'неверный бонус качества' };
+    }
+    const st = bonusState(b);
+    const chk = checkAdd(c, it, qty, st);
+    if (!chk.ok) return chk;
+
+    // Заполняем подходящие стопки, остаток — в новые слоты.
     let rest = qty;
+    const stackable = STACKABLE.has(it.kind);
     if (stackable) {
-      for (const e of inv.slots) {
-        if (e.id !== itemId) continue;
+      for (const e of invSlots(c)) {
+        if (!matchesSlot(e, itemId, st)) continue;
         const take = Math.min(rest, MAX_STACK - e.qty);
         e.qty += take;
         rest -= take;
@@ -234,17 +337,41 @@
     }
     while (rest > 0) {
       const n = stackable ? Math.min(rest, MAX_STACK) : 1;
-      inv.slots.push({ id: itemId, qty: n });
+      invSlots(c).push(b
+        ? { id: itemId, qty: n, bonus: b }
+        : { id: itemId, qty: n });
       rest -= n;
     }
     return { ok: true };
   }
 
+  function invSlots(c) { return ensureInventory(c).slots; }
+
   /**
-   * Убирает предмет(ы) из инвентаря (снаряжение — через unequip).
+   * Dry-run добавления (задача 000046): те же проверки, что addItem
+   * (слоты + вес, с учётом бонуса), БЕЗ побочных эффектов. Используется
+   * крафтом для атомарности (отказ — до расхода исходников).
    * @returns {{ok:boolean, reason?:string}}
    */
-  function removeItem(c, itemId, qty = 1) {
+  function canAddItem(c, itemId, qty = 1, bonus) {
+    const it = getItem(itemId);
+    if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
+    if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'неверное количество' };
+    const b = (bonus === undefined) ? null : bonus;
+    if (!validBonus(it, b)) {
+      return { ok: false, reason: 'неверный бонус качества' };
+    }
+    return checkAdd(c, it, qty, bonusState(b));
+  }
+
+  /**
+   * Убирает предмет(ы) из инвентаря (снаряжение — через unequip).
+   * bonusFirst (задача 000046): бонусные экземпляры уходят ПЕРВЫМИ
+   * (качественная копия расходится/снимается в приоритете); порядок
+   * внутри группы — как раньше (с конца).
+   * @returns {{ok:boolean, reason?:string}}
+   */
+  function removeItem(c, itemId, qty = 1, bonusFirst = false) {
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'неверное количество' };
@@ -252,13 +379,28 @@
     if (totalQty(c, itemId) < qty) return { ok: false, reason: 'не хватает: ' + it.name };
     const inv = ensureInventory(c);
     let left = qty;
-    for (let i = inv.slots.length - 1; i >= 0 && left > 0; i--) {
-      const e = inv.slots[i];
-      if (e.id !== itemId) continue;
+    // Порядок обхода: С КОНЦА, как раньше (совместимость). При
+    // bonusFirst — сначала группа слотов с бонусом (с конца), затем
+    // остальные (с конца). Снимаем по ссылкам — индексы после splice
+    // не сдвигаются для оставшихся.
+    const picks = [];
+    const fromEnd = (pred) => {
+      for (let i = inv.slots.length - 1; i >= 0; i--) {
+        if (pred(inv.slots[i])) picks.push(inv.slots[i]);
+      }
+    };
+    if (bonusFirst) fromEnd((e) => !!e.bonus);
+    fromEnd((e) => !picks.includes(e));
+    for (const e of picks) {
+      if (left <= 0) break;
+      if (e.id !== itemId || e.qty <= 0) continue;
       const take = Math.min(e.qty, left);
       e.qty -= take;
       left -= take;
-      if (e.qty === 0) inv.slots.splice(i, 1);
+      if (e.qty === 0) {
+        const pos = inv.slots.indexOf(e);
+        if (pos >= 0) inv.slots.splice(pos, 1);
+      }
     }
     if (left > 0) return { ok: false, reason: 'не хватает: ' + it.name };
     // Пустые быстрые слоты на удалённый предмет очищаем.
@@ -348,24 +490,45 @@
     if (it.kind === 'reagent') return { ok: false, reason: 'реагент нельзя применить (торговый товар)' };
 
     const d = P.derived(c);
-    let hp = 0, mp = 0, skill = null, practice = null, practiceApplied = 0;
+    // Бонус качества (задача 000046): бонусный экземпляр тратится
+    // первым (removeItem bonusFirst ниже), и его бонус добавляется к
+    // эффекту за ЕДИНИЦУ, снятую с бонусного слота. Цена предмета
+    // (buyPrice/sellPrice) от бонуса НЕ зависит.
+    const bonusSlot = ensureInventory(c).slots
+      .find((e) => e.id === itemId && e.bonus);
+    const bonusUnits = bonusSlot ? Math.min(qty, bonusSlot.qty) : 0;
+    const bonusVal = bonusUnits > 0 ? (bonusSlot.bonus.amount || 0) : 0;
+    let hp = 0, mp = 0, skill = null, craft = null, practice = null,
+      practiceApplied = 0;
     for (let n = 0; n < qty; n++) {
       const e = it.effect;
+      const bonus = (n < bonusUnits) ? bonusVal : 0;
       if (it.kind === 'potion' && e.kind === 'heal') {
-        const amt = Math.round(e.amount * d.potionPowerMult);
+        const amt = Math.round(e.amount * d.potionPowerMult) + bonus;
         P.heal(c, amt);
         hp += amt;
       } else if (it.kind === 'potion' && e.kind === 'mp') {
-        const amt = Math.round(e.amount * d.potionPowerMult);
+        const amt = Math.round(e.amount * d.potionPowerMult) + bonus;
         const before = c.mp;
         c.mp = Math.min(d.maxMP, c.mp + amt);
         mp += c.mp - before;
       } else if (it.kind === 'food') {
-        const amt = Math.round(e.amount * d.foodPowerMult);
+        const amt = Math.round(e.amount * d.foodPowerMult) + bonus;
         P.heal(c, amt);
         hp += amt;
       } else if (it.kind === 'skill_book') {
         skill = addSkillXp(c, e.skill, e.amount);
+        // Хук крафта (задача 000046): книга даёт и опыт виду крафта
+        // (Game.Craft при ВЫЗОВЕ — лениво; в node-тестах Game.Craft
+        // нет — no-op). Вид определяется по навыку книги.
+        const G = (typeof globalThis !== 'undefined' && typeof globalThis.Game === 'object')
+          ? globalThis.Game : null;
+        if (G && G.Craft && typeof G.Craft.bookCraftXp === 'function') {
+          const cr = G.Craft.bookCraftXp(c, it);
+          if (cr && cr.ok) {
+            craft = { ok: true, applied: cr.applied, level: cr.level };
+          }
+        }
       }
       // Практика: успешное применение зелья/еды (задача 000013).
       if (it.kind === 'potion' || it.kind === 'food') {
@@ -375,7 +538,8 @@
         practiceApplied += pr.applied;
       }
     }
-    removeItem(c, itemId, qty);
+    // Бонусный экземпляр тратится первым (задача 000046).
+    removeItem(c, itemId, qty, true);
 
     const parts = [];
     if (hp) parts.push('+' + hp + ' HP');
@@ -388,11 +552,12 @@
         parts.push('навык уже максимален');
       }
     }
+    if (craft) parts.push('крафт: +' + craft.applied + ' опыта');
     if (practice && practiceApplied > 0) {
       const name = P.SECONDARY_SKILLS[practice.skill].name;
       parts.push(name + ': +' + practiceApplied + ' опыта за практику');
     }
-    return {
+    const out = {
       ok: true, name: it.name, hp: hp || undefined, mp: mp || undefined,
       skill: skill || undefined,
       practice: practice && practiceApplied > 0
@@ -400,43 +565,63 @@
         : undefined,
       message: it.name + ': ' + parts.join(', '),
     };
+    if (craft) out.craft = craft;
+    return out;
   }
 
   // --- Снаряжение (оружие и броня) ---
 
   /**
    * Экипирует оружие/броню из инвентаря (текущее возвращается обратно).
+   * Копия, которая надевается, — ПЕРВЫЙ слот инвентаря с этим id
+   * (задача 000046): бонус качества следует предмету в c.equipmentBonus
+   * (бонусный экземпляр, добавленный крафтом, лежит первым в слотах —
+   * он и надевается; после unequip бонусная копия возвращается КОНЦОМ
+   * списка, и следующим equip надевается обычная копия).
    */
   function equip(c, itemId) {
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     const eq = ensureEquipment(c);
+    const eb = ensureEquipmentBonus(c);
     const slot = it.kind === 'weapon' ? 'weapon' : it.kind === 'armor' ? 'armor' : null;
     if (!slot) return { ok: false, reason: 'такое не экипируется' };
     if (eq[slot] === itemId) return { ok: false, reason: 'уже экипировано' };
     if (!hasItem(c, itemId)) return { ok: false, reason: 'предмета нет в инвентаре' };
+    const inv = ensureInventory(c);
+    const taken = inv.slots.find((e) => e.id === itemId);
     const prev = eq[slot];
+    const prevBonus = prev ? (eb[slot] || null) : null;
     eq[slot] = itemId;
-    removeItem(c, itemId);
+    eb[slot] = taken.bonus || null;
+    // Снимаем именно эту копию (оружие/броня — 1 шт. на слот).
+    const pos = inv.slots.indexOf(taken);
+    if (pos >= 0) inv.slots.splice(pos, 1);
     if (prev) {
-      const back = addItem(c, prev);
+      const back = addItem(c, prev, 1, prevBonus || undefined);
       if (!back.ok) return { ok: true, note: 'вернуть ' + prev + ' не удалось: ' + back.reason };
     }
     return { ok: true, slot, item: itemId };
   }
 
   /**
-   * Снимает снаряжение обратно в инвентарь.
+   * Снимает снаряжение обратно в инвентарь (бонус качества — с ним,
+   * задача 000046).
    * @param {'weapon'|'armor'} slot
    */
   function unequip(c, slot) {
     const eq = ensureEquipment(c);
+    const eb = ensureEquipmentBonus(c);
     const id = eq[slot];
     if (!id) return { ok: false, reason: 'ничего не экипировано' };
+    const bonus = eb[slot] || null;
     eq[slot] = null;
-    const r = addItem(c, id);
+    eb[slot] = null;
+    const r = addItem(c, id, 1, bonus || undefined);
     if (!r.ok) {
-      eq[slot] = id; // некуда положить — остаётся надетым
+      // Некуда положить — остаётся надетым (бонус тоже на месте).
+      eq[slot] = id;
+      eb[slot] = bonus;
       return r;
     }
     return { ok: true, item: id };
@@ -445,15 +630,19 @@
   /**
    * Боевые характеристики снаряжения (для combat.js):
    * { damage, subtype, hitBonus, dmgBonus, armor }.
+   * damage/armor включают бонус качества надетого (задача 000046).
    */
   function equipmentStats(c) {
     const eq = ensureEquipment(c);
     const d = P.derived(c);
+    const eb = (c.equipmentBonus && typeof c.equipmentBonus === 'object'
+      && !Array.isArray(c.equipmentBonus)) ? c.equipmentBonus : null;
     const out = { damage: 0, subtype: null, hitBonus: 0, dmgBonus: 0, armor: 0 };
     if (eq.weapon) {
       const it = getItem(eq.weapon);
       if (it) {
-        out.damage = it.stats.damage;
+        out.damage = it.stats.damage +
+          ((eb && eb.weapon && eb.weapon.damage) || 0);
         out.subtype = it.subtype;
         if (it.subtype === 'sword') out.hitBonus = d.swordHitBonus;
         else if (it.subtype === 'bow') {
@@ -464,7 +653,10 @@
     }
     if (eq.armor) {
       const it = getItem(eq.armor);
-      if (it && it.stats && it.stats.armor) out.armor = it.stats.armor;
+      if (it && it.stats && it.stats.armor) {
+        out.armor = it.stats.armor +
+          ((eb && eb.armor && eb.armor.armor) || 0);
+      }
     }
     return out;
   }
@@ -603,9 +795,10 @@
     BUY_WEALTH_MULT, SELL_WEALTH_MULT,
     getItem, allItems, itemsOfKind,
     createInventory, ensureInventory, ensureEquipment,
-    sanitizeInventory, sanitizeEquipment,
+    ensureEquipmentBonus,
+    sanitizeInventory, sanitizeEquipment, sanitizeEquipmentBonus,
     inventoryWeight, maxCarryWeight, slotCount, totalQty, hasItem,
-    addItem, removeItem,
+    addItem, canAddItem, removeItem,
     setQuick, clearQuick, quickItem, firstQuickSlot, freeQuickSlot,
     addSkillXp, useItem,
     equip, unequip, equipmentStats,

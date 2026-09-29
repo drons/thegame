@@ -97,10 +97,11 @@ test('craftXpForNext: 15×(L+1) — формула навыков (player.js)', 
 
 test('таблицы: CRAFT_TYPES, CRAFT_TYPE_SKILL, SKILL_CRAFT_TYPE, typeBuildings', () => {
   const C = loadCraft();
-  // Шесть видов (SPEC «Виды крафта»).
+  // Шесть видов (SPEC «Виды крафта») — в порядке .sort()
+  // (UTF-16: «з» раньше «к»).
   assert.deepEqual([...C.CRAFT_TYPES].sort(), [
-    'алхимия', 'кузнечное_дело', 'резьба_по_камню', 'рунопись',
-    'зачарование', 'столярное_дело',
+    'алхимия', 'зачарование', 'кузнечное_дело', 'резьба_по_камню',
+    'рунопись', 'столярное_дело',
   ]);
   // Навык-потолок на вид (закрытый SPEC-разрыв: у столярного дела
   // связанный навык ОДИН и он ОСНОВНОЙ — Ловкость).
@@ -163,7 +164,7 @@ test('addCraftXp: рост, потолок — applied 0, reprocessCraftXp пр�
   const T = 'кузнечное_дело';
   // Рост ниже потолка: 75 XP = L1→2 (30) + L2→3 (45).
   const p = createCharacter();
-  p.secondary.forge = 10; // потолок 20
+  p.secondary.forge = 5; // потолок 10 (навык×2)
   const r = C.addCraftXp(p, T, 75);
   assert.equal(r.ok, true, r.reason);
   assert.equal(r.applied, 75);
@@ -188,7 +189,7 @@ test('addCraftXp: рост, потолок — applied 0, reprocessCraftXp пр�
   assert.equal(r3.level, 11, 'ignoreCap — рост в потолок');
   assert.equal(r3.total, 165, '330 − 165');
   assert.equal(p.craft[T], 11);
-  // Потолок вырос (forge 10→11: 20→22): reprocess конвертирует копилку.
+  // Потолок вырос (forge 5→11: 10→22): reprocess конвертирует копилку.
   p.craft = { [T]: 10 };
   p.craftXp = { [T]: 165 };
   p.secondary.forge = 11;
@@ -387,7 +388,7 @@ test('craft: инвентарь полон / слишком тяжело — о�
     'нет свободных слотов инвентаря');
   assert.equal(JSON.stringify(p.inventory), before, 'исходники не потрачены');
   // Слишком тяжело: 28 руды (28 кг) + бревно (2 кг) = лимит 30;
-  // + меч (1.5 кг) — не влезает.
+  // + деревянный меч (1 кг) — не влезает.
   const p2 = createCharacter();
   give(p2, 'iron_ore', 28);
   give(p2, 'wood_log', 1);
@@ -485,7 +486,9 @@ test('qualityChance: min(0.5, 0.05+0.005×(L−1)); в поле 0; «база» 
 test('качество: бонус на слоте, множитель навыка вида, equipmentStats', () => {
   const C = loadCraft();
   // Оружие, forge 0 → +1 (round(1 × 1.0)).
+  // iron_sword — уровень 2 каталога: уровень вида задаём.
   const p = createCharacter();
+  p.craft = { 'кузнечное_дело': 2 };
   give(p, 'wood_sword', 1);
   give(p, 'sulfur', 2);
   const r = C.craft(p, 'iron_sword', { building: 8, rng: rolls(0.01, 0.999) });
@@ -499,6 +502,7 @@ test('качество: бонус на слоте, множитель навы�
   // Оружие, forge 10 → +2 (round(1 × 1.5)).
   const p2 = createCharacter();
   p2.secondary.forge = 10; // equipmentDurabilityMult 1.5
+  p2.craft = { 'кузнечное_дело': 2 }; // iron_sword — уровень 2
   give(p2, 'wood_sword', 1);
   give(p2, 'sulfur', 2);
   const r2 = C.craft(p2, 'iron_sword', { building: 8, rng: rolls(0.01, 0.999) });
@@ -513,6 +517,7 @@ test('качество: бонус на слоте, множитель навы�
   // Броня, forge 10 → {armor: 2}.
   const p3 = createCharacter();
   p3.secondary.forge = 10;
+  p3.craft = { 'кузнечное_дело': 3 }; // leather_armor — уровень 3
   give(p3, 'hide', 2);
   give(p3, 'coal', 1);
   const r3 = C.craft(p3, 'leather_armor', { building: 8, rng: rolls(0.01, 0.999) });
@@ -533,6 +538,7 @@ test('качество: бонус на слоте, множитель навы�
     { amount: 2 }, 'potion → {amount}');
   // В поле — качества нет (даже при «везучем» rng).
   const p5 = createCharacter();
+  p5.craft = { 'кузнечное_дело': 2 }; // iron_sword — уровень 2
   give(p5, 'wood_sword', 1);
   give(p5, 'sulfur', 2);
   const r5 = C.craft(p5, 'iron_sword', { building: null, rng: () => 0 });
@@ -784,9 +790,11 @@ test('инвентарь: слот с bonus изолирован; addItem/canAdd
   assert.equal(I.addItem(p, 'iron_sword', 1, { damage: 2 }).ok, true);
   assert.equal(I.addItem(p, 'iron_sword', 1).ok, true, 'обычная — свой слот');
   assert.equal(p.inventory.slots.length, 2, 'bonus-слот не слан с стопкой');
+  // Нормализованный порядок (компаратор ставит бонусные ПЕРВЫМИ):
+  // ровно один слот с бонусом {damage: 2} и один — без.
   assert.deepEqual(
     p.inventory.slots.map((s) => s.bonus).sort((a, b) => (a ? 1 : -1)),
-    [undefined, { damage: 2 }]);
+    [{ damage: 2 }, undefined]);
   // Неверный bonus — отказ (к ключам по kind, целые ≥ 1).
   const bad = I.addItem(p, 'iron_sword', 1, { armor: 1 });
   assert.equal(bad.ok, false);
@@ -813,10 +821,11 @@ test('инвентарь: слот с bonus изолирован; addItem/canAdd
   assert.equal(noSlot.ok, false, 'свободного слота нет');
   assert.equal(noSlot.reason, 'нет свободных слотов инвентаря');
   assert.equal(p2.inventory.slots.length, 20, 'canAddItem без побочных эффектов');
-  // Вес: 29 руды (29 кг) + меч (1.5) > 30.
+  // Вес: 29 руды (29 кг) + железный меч (1.5 кг) > 30. (wood_sword —
+  // 1 кг: 29+1=30 влезает ровно в лимит, не переполняет.)
   const p3 = createCharacter();
   I.addItem(p3, 'iron_ore', 29);
-  const heavy = I.canAddItem(p3, 'wood_sword', 1);
+  const heavy = I.canAddItem(p3, 'iron_sword', 1);
   assert.equal(heavy.ok, false);
   assert.equal(heavy.reason, 'слишком тяжело (лимит веса)');
   // removeItem bonusFirst: bonus-копия уходит первой.

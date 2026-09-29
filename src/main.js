@@ -370,8 +370,25 @@
           // сейва (без повышения версии, 000031) — старым сейвам поля
           // нет → []; подделанные id/дубли чистятся по каталогу.
           // Иначе книга молча теряется при перезагрузке (data loss).
-          hero.spells = G.sanitizeSpellBook
-            ? G.sanitizeSpellBook(d.hero.spells) : [];
+          // 000046: правка 000045 — санитайзер живёт в Game.Spells
+          // (именованное пространство), а G — снимок корня Game:
+          // G.sanitizeSpellBook всегда был undefined, и книга
+          // заклинаний молча сбрасывалась в [] при КАЖДОЙ перезагрузке
+          // (data loss, которую 000045 как раз исключало).
+          hero.spells = (G.Spells && G.Spells.sanitizeSpellBook)
+            ? G.Spells.sanitizeSpellBook(d.hero.spells) : [];
+          // Крафт (задача 000046): новые ОПЦИОНАЛЬНЫЕ поля сейва
+          // (без повышения версии, 000031) — старым сейвам полей нет →
+          // дефолты; подделанные значения чистятся санитизерами
+          // (craft.js / items.js). Иначе прогресс крафта и бонусы
+          // качества молча теряются при перезагрузке (data loss).
+          hero.craft = G.sanitizeCraftLevels
+            ? G.sanitizeCraftLevels(d.hero.craft) : {};
+          hero.craftXp = G.sanitizeCraftXp
+            ? G.sanitizeCraftXp(d.hero.craftXp) : {};
+          hero.equipmentBonus = G.sanitizeEquipmentBonus
+            ? G.sanitizeEquipmentBonus(d.hero.equipmentBonus)
+            : { weapon: null, armor: null };
           const dd = G.derived(hero);
           hero.hp = Math.min(Math.max(1, Math.round(hero.hp)), dd.maxHP);
           hero.mp = Math.min(Math.max(0, Math.round(hero.mp) || 0), dd.maxMP);
@@ -1237,6 +1254,12 @@
           weight: G.inventoryWeight(hero),
           maxWeight: G.maxCarryWeight(hero),
           inventory: (hero.inventory || { slots: [] }).slots,
+          // Крафт (задача 000046): опциональные поля — restoreFromSave
+          // всегда задаёт дефолты ({} / {} / {weapon:null,armor:null}),
+          // поэтому здесь просто значения героя.
+          craft: hero.craft,
+          craftXp: hero.craftXp,
+          equipmentBonus: hero.equipmentBonus,
         },
         map: map ? { width: map.width, height: map.height, fromPng: map.fromPng } : null,
         npcs: NPCS.map((n) => n.id),
