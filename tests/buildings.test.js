@@ -509,3 +509,88 @@ test('package.json: npm-скрипт sync:buildings (интерфейс един
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   assert.equal(pkg.scripts['sync:buildings'], 'node scripts/sync-buildings-data.js');
 });
+
+// --- Задача 000060: единый источник ассортимента магазинов —
+// `особые_параметры.виды` каталога (assets/buildings). ---
+//
+// Дизайн: у 5 «картовых» записей-магазинов (map_index 0,1,2,3,11)
+// функциональное поле `виды` = массив id из ITEM_KINDS — источник
+// истины shopKindsFor (src/items.js). Проза `ассортимент` остаётся
+// описательной, кодом не читается. Торговля (сток/seed/цены makeShop)
+// не меняется — множества видов совпадают с текущей таблицей кода.
+// ВАЖНО: пятый магазин — ТАВЕРНА, запись 000044 (id 44, map_index 11,
+// категория «прочее», прозы `ассортимент` у неё нет); map_index 4 —
+// Арена (id 7, школа_навыков), НЕ магазин — `виды` у неё быть не должно.
+
+const { ITEM_KINDS } = require('../src/items.js');
+const KIND_IDS = Object.values(ITEM_KINDS); // weapon/armor/potion/food/reagent/skill_book
+
+// Дизайн-таблица: map_index → виды ассортимента (≡ текущей таблице
+// shopKindsFor в items.js — торговля byte-идентична).
+const SHOP_KINDS_BY_MAP_INDEX = {
+  0: ['weapon'],               // Оружейная (id 1)
+  1: ['armor'],                // Бронник (id 2)
+  2: ['potion', 'food'],       // Аптекарь (id 3)
+  3: ['reagent', 'skill_book'], // Магазин магии (id 4)
+  11: ['food', 'potion'],      // Таверна (id 44, map_index 11)
+};
+const SHOP_IDS = [1, 2, 3, 4, 44];
+
+test('каталог: 5 «картовых» магазинов имеют валидные особых_параметры.виды (000060)', () => {
+  for (const [mi, kinds] of Object.entries(SHOP_KINDS_BY_MAP_INDEX)) {
+    const idx = Number(mi);
+    const b = buildingForMapIndex(idx);
+    assert.ok(b, `нет записи с map_index ${idx}`);
+    const виды = b.особые_параметры && b.особые_параметры.виды;
+    assert.ok(Array.isArray(виды) && виды.length > 0,
+      `${b.id} ${b.название}: нет особых_параметры.виды (источник ассортимента)`);
+    for (const k of виды) {
+      assert.ok(KIND_IDS.includes(k),
+        `${b.id} ${b.название}: вид «${k}» не входит в ITEM_KINDS`);
+    }
+    assert.deepEqual(виды, kinds,
+      `${b.id} ${b.название}: виды ${JSON.stringify(виды)} ≠ дизайн ${JSON.stringify(kinds)}`);
+  }
+});
+
+test('каталог: поле «виды» есть ровно у 5 записей — у «картовых» магазинов (000060)', () => {
+  const withKinds = BUILDINGS.filter(
+    (b) => b.особые_параметры && Array.isArray(b.особые_параметры.виды));
+  assert.equal(withKinds.length, 5,
+    'виды у записей: ' + withKinds.map((b) => b.id).join(', '));
+  assert.deepEqual(withKinds.map((b) => b.id).sort((a, b) => a - b), SHOP_IDS,
+    '«виды» — только у 5 «картовых» магазинов (id 1,2,3,4,44)');
+  // Арена (map_index 4) — школа_навыков, НЕ магазин: с «видами»
+  // makeShop(ARENA) перестала бы быть null (торговля меняется).
+  const arena = buildingForMapIndex(4);
+  assert.equal(arena.особые_параметры.виды, undefined,
+    'Арена (map_index 4) не должна иметь «виды»');
+});
+
+test('каталог: не-магазины без «виды» (000060): Лавка странника, Универсам, дома NPC', () => {
+  // Лавка странника (id 5) — нет map_index, её товары — NPC-торговля;
+  // Универсам (id 6) — в коде = богатство 3 ЛЮБОГО магазина;
+  // Дом целителя (id 26), Дом торговца (id 28) — дома NPC.
+  // Их проза «ассортимент» несовместима с ITEM_KINDS — «виды» не вводятся.
+  for (const id of [5, 6, 26, 28]) {
+    const b = getBuilding(id);
+    assert.ok(b, 'нет записи ' + id);
+    assert.equal(
+      b.особые_параметры && b.особые_параметры.виды, undefined,
+      `${b.id} ${b.название}: нет «виды» (не «картовый» магазин)`);
+  }
+});
+
+test('каталог: проза «ассортимент» 4 магазинов сохранена (описательная, кодом не читается) (000060)', () => {
+  const prose = {
+    1: ['мечи', 'луки', 'посохи', 'щиты'],
+    2: ['доспехи', 'кольчуги', 'плащи'],
+    3: ['зелья', 'еда', 'травы'],
+    4: ['реагенты', 'свитки заклинаний', 'фокусы'],
+  };
+  for (const [id, words] of Object.entries(prose)) {
+    const b = getBuilding(Number(id));
+    assert.deepEqual(b.ассортимент, words,
+      `${b.id} ${b.название}: проза «ассортимент» сохранена`);
+  }
+});
