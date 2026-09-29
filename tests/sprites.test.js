@@ -846,3 +846,61 @@ test('allAssetPaths: содержит все 180 путей персональн
     for (const p of frames) assert.ok(paths.includes(p), 'базовый вид потерялся: ' + p);
   }
 });
+
+// --- Задача 000057: группы мобов — из каталога assets/mob_groups ---
+//
+// MOB_KINDS (groupType → базовый спрайт-вид) уходит в каталог
+// (поле «спрайт», id − 1 = тип). sprites.js НЕ требует combat.js/
+// dungeon.js (паттерн 000049); vm-песочницы (combat-ui) грузят
+// sprites.js БЕЗ mob-groups-data.js — гард обязан дать фолбэк
+// (ровно текущие 7 видов).
+
+const vmS = require('node:vm');
+function loadInSandbox(file, sandbox) {
+  const code = fs.readFileSync(path.join(ROOT, 'src', file), 'utf8');
+  vmS.runInNewContext(code, sandbox);
+}
+
+test('vm без каталога mob_groups: фолбэк MOB_KINDS — ровно текущие 7 видов (гард)', () => {
+  // vm-песочница combat-ui: sprites.js грузится без данных модуля —
+  // таблица не падает и не уезжает (прецедент 000055: фолбэк =
+  // значения master).
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('sprites.js', sandbox);
+  const G = sandbox.Game;
+  assert.equal(G.MOB_KINDS[0], 'orc', 'фолбэк вид 0');
+  assert.equal(G.MOB_KINDS[1], 'orc', 'фолбэк вид 1');
+  assert.equal(G.MOB_KINDS[2], 'skeleton', 'фолбэк вид 2');
+  assert.equal(G.MOB_KINDS[3], 'wolf', 'фолбэк вид 3');
+  assert.equal(G.MOB_KINDS[4], 'spider', 'фолбэк вид 4');
+  assert.equal(G.MOB_KINDS[5], 'elemental', 'фолбэк вид 5');
+  assert.equal(G.MOB_KINDS[6], 'abyss', 'фолбэк вид 6');
+  assert.equal(G.mobKind(0), 'orc', 'mobKind через фолбэк');
+  assert.equal(G.mobKind(999), null, 'вне диапазона — null');
+});
+
+test('vm: MobGroupsData ДО загрузки sprites.js — виды из каталога (не фолбэк)', () => {
+  // Каталог — source of truth: искажённый каталог (группа 0 —
+  // 'spider', фолбэк — 'orc') обязан отразиться в MOB_KINDS при
+  // загрузке (браузерная ветка читает Game.MobGroupsData из
+  // снапшота зависимостей).
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  sandbox.Game = {
+    MobGroupsData: {
+      MOB_GROUPS: [{
+        id: 1,
+        название: 'тестовая группа',
+        состав: { название: 't_group', мобы: ['spider'] },
+        спрайт: 'spider',
+        особые_параметры: {},
+      }],
+    },
+  };
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('sprites.js', sandbox);
+  assert.equal(sandbox.Game.mobKind(0), 'spider', 'вид из каталога');
+  assert.equal(sandbox.Game.mobKind(1), null, 'вне каталога — null');
+});

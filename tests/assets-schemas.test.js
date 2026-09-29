@@ -1,7 +1,8 @@
 // Каталог данных: соответствие JSON-файлов JSON-схемам (задача 000015).
 //
-// Пять каталогов: assets/items, assets/npc, assets/skills,
-// assets/buildings, assets/dungeons (задача 000058). Проверяем:
+// Шесть каталогов: assets/items, assets/npc, assets/skills,
+// assets/buildings, assets/dungeons (задача 000058),
+// assets/mob_groups (задача 000057). Проверяем:
 //  * минимальный валидатор (tests/json-schema.js) сам работает
 //    правильно — самопроверки по каждому поддерживаемому ключу,
 //    включая отрицательные (страховка от «немых» валидации);
@@ -27,7 +28,7 @@ const {
 } = require('./json-schema.js');
 
 const ROOT = path.join(__dirname, '..');
-const CATALOGS = ['items', 'npc', 'skills', 'buildings', 'dungeons'];
+const CATALOGS = ['items', 'npc', 'skills', 'buildings', 'dungeons', 'mob_groups'];
 
 function catalogDir(name) {
   return path.join(ROOT, 'assets', name);

@@ -369,3 +369,25 @@ test('покрытие: все «картовые» постройки с NPC з
       `постройка ${bId} (${getBuilding(bId).название}) без NPC`);
   }
 });
+
+test('квесты kill_group: группа — из каталога assets/mob_groups (задача 000057, source of truth)', () => {
+  // Типы стационарных групп — записи каталога: допустимо 0..(N−1),
+  // где N — число файлов assets/mob_groups. Старая проверка
+  // (0..MOB_GROUP_COUNT−1) теперь увязана с каталогом: при изменении
+  // числа групп квесты обязаны остаться валидными.
+  const MG_DIR = path.join(__dirname, '..', 'assets', 'mob_groups');
+  const groups = fs.readdirSync(MG_DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  assert.equal(groups.length, 7, 'в каталоге ровно 7 групп мобов');
+  let n = 0;
+  for (const npc of NPCS) {
+    for (const q of (npc.квесты || [])) {
+      if (q.цель.тип !== 'kill_group') continue;
+      n++;
+      assert.ok(Number.isInteger(q.цель.группа) &&
+        q.цель.группа >= 0 && q.цель.группа < groups.length,
+        `${npc.id}: квест ${q.id}: группа ${q.цель.группа} вне диапазона каталога (0..${groups.length - 1})`);
+    }
+  }
+  assert.ok(n > 0, 'хотя бы один kill_group-квест есть');
+});

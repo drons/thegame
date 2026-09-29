@@ -1293,3 +1293,63 @@ test('require-порядок map.js ПЕРВЫМ: passableTiles()/denseTiles() �
     terrainIds().filter((id) => TERRAIN_DATA[id].dense)
       .map((id) => TERRAIN_DATA[id].name), 'denseTiles() в порядке id');
 });
+
+// --- Задача 000057: стационарные группы мобов — из каталога лениво ---
+//
+// MOB_GROUP_COUNT/MOB_GROUP_NAMES уходят из map.js: значения —
+// ленивые функции mobGroupCount()/mobGroupName(index) (паттерн
+// buildingCount/buildingNames из 000055: кэш, пустой вывод НЕ
+// кэшируется, фолбэк = ровно текущие значения 7/имена для
+// vm-песочниц без каталога).
+
+const MOB_GROUP_NAMES_EXPECTED = [
+  'орочий лагерь', 'орочий набеги', 'логово скелетов', 'волчья стая',
+  'паучье гнездо', 'круг стихийников', 'дух бездны',
+];
+
+test('vm без каталога mob_groups: фолбэк ИМЕННО 7 и 7 текущих имён; каталог подхватывается лениво (пустой вывод не кэшируется)', () => {
+  // vm-песочницы (combat-ui) грузят map.js БЕЗ mob-groups-data.js:
+  // без каталога фолбэк обязан дать ровно текущие значения генерации
+  // (hash2 % 7, 7 имён) — иначе мир в песочнице уедет (прецедент
+  // 000055: фолбэк 13/3/3).
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  assert.equal(sandbox.Game.MobGroupsData, undefined, 'mob-groups-data.js ещё не загружен');
+  assert.equal(sandbox.Game.mobGroupCount(), 7, 'фолбэк mobGroupCount() без каталога = 7');
+  for (let i = 0; i < 7; i++) {
+    assert.equal(sandbox.Game.mobGroupName(i), MOB_GROUP_NAMES_EXPECTED[i],
+      `фолбэк имя ${i}`);
+  }
+  assert.equal(sandbox.Game.mobGroupName(7), '', 'неизвестный индекс — пустая строка');
+  assert.equal(sandbox.Game.mobGroupName(-1), '', 'отрицательный индекс — пустая строка');
+  // Каталог подхватывается лениво: пустой вывод ДО загрузки НЕ
+  // кэшируется — после mob-groups-data.js значения производные.
+  loadInSandbox('mob-groups-data.js', sandbox);
+  assert.ok(sandbox.Game.MobGroupsData, 'каталог загружен');
+  assert.equal(sandbox.Game.mobGroupCount(), 7, 'каталог подхвачен (пустой вывод не закэширован)');
+  for (let i = 0; i < 7; i++) {
+    assert.equal(sandbox.Game.mobGroupName(i), MOB_GROUP_NAMES_EXPECTED[i],
+      `имя ${i} — из каталога`);
+  }
+});
+
+test('vm: инъекция ИСКРЁВЛЕННОГО MobGroupsData — mobGroupCount/mobGroupName отдают каталожные значения', () => {
+  // Каталог — source of truth: подменённые значения (1 группа,
+  // другое имя) обязаны вернуться из функций, а не фолбэк.
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  sandbox.Game.MobGroupsData = {
+    MOB_GROUPS: [{
+      id: 1,
+      название: 'тестовая группа',
+      состав: { название: 't_group', мобы: ['wolf'] },
+      спрайт: 'wolf',
+      особые_параметры: {},
+    }],
+  };
+  assert.equal(sandbox.Game.mobGroupCount(), 1, 'каталожное число групп');
+  assert.equal(sandbox.Game.mobGroupName(0), 'тестовая группа', 'имя из каталога');
+  assert.equal(sandbox.Game.mobGroupName(1), '', 'вне каталога — пустая строка');
+});
