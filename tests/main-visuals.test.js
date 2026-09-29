@@ -575,12 +575,19 @@ function recOf(myMap, ax, ay) {
 }
 
 // BFS до ближайшего входа много-тайловой постройки (правила те же,
-// что у игрока: 4 направления, только на passable тайлы). Исключаем:
+// что у игрока: 4 направления, только на passable тайлы). Исключаем
+// КАК ЦЕЛИ:
 //   * тайлы групп мобов — шаг на группу = startCombat (мир
 //     останавливается в песочнице);
-//   * входы пещер — maybeEnterDungeon (лабиринт поверх кадра).
+//   * входы пещер — maybeEnterDungeon (лабиринт поверх кадра);
+//   * входы городов (задача 000103, buildingId != null) — городских
+//     спрайтов в каталоге пока нет (000104/000105),
+//     buildingSprite(NONE) = null (main.js их не рисует), а recOf
+//     зажат в 3x3, тогда как города до 7x7 — геометрия теста
+//     уедет. Сам тайл входа проходим — путь может через него идти.
 // Целевой вход multi-постройки безопасен: в footprint'е мобы не
-// рождаются, а в мире как multi рождается только Арена/Храм.
+// рождаются, а в мире как multi (не города) рождается только
+// Арена/Храм.
 function findNearestMulti(G, myMap, start) {
   const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const startKey = start.x + ',' + start.y;
@@ -600,7 +607,8 @@ function findNearestMulti(G, myMap, start) {
             && t.building === G.BUILDING_TYPES.CAVE_ENTRANCE) continue;
         visited.add(k);
         prev.set(k, cur.x + ',' + cur.y);
-        if (t.isEntrance) {
+        // Городской вход — НЕ цель (см. комментарий выше, 000103).
+        if (t.isEntrance && t.buildingId == null) {
           const [ax, ay] = t.buildingAnchor;
           const rec = recOf(myMap, ax, ay);
           if (rec.w > 1 || rec.h > 1) {
@@ -693,9 +701,15 @@ function expectedBuildings(G, myMap, cam, zoom) {
   }
   const out = [];
   for (const rec of anchors.values()) {
+    // Задача 000103: города (buildingId != null, type = NONE)
+    // спрайтов пока не имеют (000104/000105) — buildingSprite(-1)
+    // = null, и main.js их НЕ рисует (spriteLoader.image(null) →
+    // пропуск). Ожидаемый набор — только со спрайтом.
+    const asset = G.buildingSprite(rec.type);
+    if (!asset) continue;
     const p = G.worldToScreen(rec.ax, rec.ay, cam.x, cam.y, zoom, VIEW_W, VIEW_H);
     out.push({
-      asset: G.buildingSprite(rec.type),
+      asset,
       x: p.x, y: p.y,
       w: rec.w * zoom, h: rec.h * zoom,
     });

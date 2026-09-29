@@ -22,10 +22,12 @@ function loadInSandbox(file, sandbox) {
 
 test('модуль: CommonJS-экспорт { SETTINGS } — все настраиваемые параметры', () => {
   assert.equal(typeof SETTINGS, 'object');
+  // Ре-пин пометка 000103: добавился ключ city_channel (параметры
+  // городского канала src/map.js).
   assert.deepEqual(Object.keys(SETTINGS).sort(), [
-    'combat_difficulties', 'combat_difficulty', 'dungeon_memory_days',
-    'level_delta_max', 'move_interval_ms', 'points_per_level',
-    'respawn_days', 'steps_per_day',
+    'city_channel', 'combat_difficulties', 'combat_difficulty',
+    'dungeon_memory_days', 'level_delta_max', 'move_interval_ms',
+    'points_per_level', 'respawn_days', 'steps_per_day',
   ]);
   for (const k of ['steps_per_day', 'respawn_days', 'dungeon_memory_days',
       'level_delta_max', 'points_per_level', 'move_interval_ms']) {

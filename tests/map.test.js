@@ -72,7 +72,12 @@ test('сэмпл мира: валидные значения и согласов
       if (t.hasBuilding) {
         buildings++;
         assert.ok(t.passable, 'постройка на непроходимом тайле');
-        assert.ok(t.building >= 0 && t.building < buildingCount());
+        // Задача 000103: городской вход — building = NONE (-1),
+        // запись опознаётся по buildingId (51..54); слотовая —
+        // валидный слотовый индекс.
+        assert.ok((t.building >= 0 && t.building < buildingCount())
+          || t.buildingId != null,
+          `постройка — валидный слот или город (building=${t.building})`);
         assert.ok(!t.hasMobGroup, 'постройка и группа мобов в одном тайле');
       }
       if (t.hasMobGroup) {
@@ -282,10 +287,10 @@ test('createTileCache: ограничен — при переполнении в
 // --- Задача 000026: footprint'ы построек на карте ---
 
 test('buildMaxW/H() покрывают максимальный размер «картовых» записей каталога', () => {
-  // Задача 000102: окно поиска выводится ТОЛЬКО из записей с map_index
-  // (13 «картовых» слотов, buildingDerived в src/map.js) — города
-  // (до 7x7) map_index не имеют и окно не растят (размещение города —
-  // 000103). Семантика та же, что у теста производных данных ниже.
+  // Окно поиска (buildingDerived в src/map.js) — по записям с map_index
+  // И городам (задача 000103, до 7x7). Здесь проверяем нижнюю границу:
+  // окно накрывает хотя бы максимум по «картовым» (map_index) записям.
+  // Семантика та же, что у теста производных данных ниже.
   let maxW = 1, maxH = 1;
   for (const b of BUILDINGS) {
     const mi = b.особые_параметры && b.особые_параметры.map_index;
@@ -396,10 +401,17 @@ test('1x1-совместимость: hasBuilding ⇒ isEntrance, passable, ва
       assert.equal(t.isEntrance, true);
       assert.equal(t.inBuilding, true);
       assert.equal(t.passable, true, 'тайл с hasBuilding проходим (старые контракты main.js)');
-      assert.ok(t.building >= 0 && t.building < buildingCount());
+      // Задача 000103: городской вход — building = NONE (-1),
+      // buildingId = 51..54; слотовая — валидный слот.
+      assert.ok((t.building >= 0 && t.building < buildingCount())
+        || t.buildingId != null,
+        `постройка — валидный слот или город (building=${t.building})`);
       assert.ok(t.buildingWealth >= 0 && t.buildingWealth <= 3);
       // 1x1-постройка: в footprint'е только вход.
-      if (t.building !== BUILDING_TYPES.ARENA && t.building !== BUILDING_TYPES.TEMPLE) {
+      // Задача 000103: города (buildingId) — много-тайловые с
+      // каталожным входом, «правило угла» к ним не относится.
+      if (t.buildingId == null &&
+          t.building !== BUILDING_TYPES.ARENA && t.building !== BUILDING_TYPES.TEMPLE) {
         const corner = map.tileAt(x + 1, y);
         assert.ok(!corner.inBuilding || corner.buildingAnchor.join(',') !== t.buildingAnchor.join(','),
           '1x1-постройка не должна занимать соседние тайлы');
@@ -410,10 +422,14 @@ test('1x1-совместимость: hasBuilding ⇒ isEntrance, passable, ва
 });
 
 test('браузер: map.js лениво подхватывает каталог из Game (vm-песочница)', () => {
-  // Порядок как в index.html: perlin → map.js → … → buildings.js.
-  // buildings.js грузится ПОСЛЕ map.js, значит каталог должен
-  // подхватываться лениво (из Game в момент tileAt), а не при загрузке.
+  // Порядок как в index.html: global-settings → perlin → map.js → … →
+  // buildings.js. buildings.js грузится ПОСЛЕ map.js, значит каталог
+  // должен подхватываться лениво (из Game в момент tileAt), а не при
+  // загрузке. global-settings.js — ПЕРВЫМ (задача 000103): городской
+  // канал активен и в песочнице, и в node — миры обязаны совпасть
+  // побайтово (ленивое разрешение SETTINGS.city_channel).
   const sandbox = {};
+  loadInSandbox('global-settings.js', sandbox);
   loadInSandbox('perlin.js', sandbox);
   loadInSandbox('map.js', sandbox);
   assert.equal(typeof sandbox.Game.createMap, 'function', 'map.js в browser-режиме');
@@ -849,7 +865,7 @@ function loadBrowserChain(sandbox) {
   ]) loadInSandbox(f, sandbox);
 }
 
-test('производные данные из каталога: buildingCount() === 13, 13 имён, buildMaxW/H() — максимум по 13 «картовым» записям (сейчас 3/3)', () => {
+test('производные данные из каталога: buildingCount() === 13, 13 имён, buildMaxW/H() — максимум по map_index ∪ городам (сейчас 7/7, 000103)', () => {
   assert.equal(typeof buildingCount, 'function', 'map.js: нет функции buildingCount()');
   assert.equal(buildingCount(), 13, 'ровно 13 «картовых» индексов');
   assert.equal(typeof buildingNames, 'function', 'map.js: нет функции buildingNames()');
@@ -861,8 +877,11 @@ test('производные данные из каталога: buildingCount()
   }
   assert.equal(typeof buildMaxW, 'function', 'map.js: нет функции buildMaxW()');
   assert.equal(typeof buildMaxH, 'function', 'map.js: нет функции buildMaxH()');
-  // Окно поиска выводится из 13 «картовых» записей (не захардкожено):
-  // накрывает максимум по ним и равно ему.
+  // Окно поиска выводится из 13 «картовых» записей И городов
+  // (категория «город», до 7x7) — не захардкожено: накрывает максимум
+  // по ним и равно ему. (Задача 000103: окно выросло с 3/3 до 7/7 —
+  // иначе isFreeForBuilding/coveringFootprint/buildingWithEntranceAt
+  // упускали бы якоря городов до 6 тайлов от края footprint'а.)
   let mw = 1, mh = 1;
   for (let i = 0; i < 13; i++) {
     const b = BUILDINGS.find(
@@ -876,12 +895,23 @@ test('производные данные из каталога: buildingCount()
     mw = Math.max(mw, width);
     mh = Math.max(mh, height);
   }
-  assert.equal(buildMaxW(), mw, 'buildMaxW() = максимум ширины по 13 «картовым» записям');
-  assert.equal(buildMaxH(), mh, 'buildMaxH() = максимум высоты по 13 «картовым» записям');
-  // Сейчас в каталоге 3x3 (арена/храм солнца/монастырь/ратуша) —
-  // значения сохраняются, но источник уже каталог.
-  assert.equal(buildMaxW(), 3, 'сейчас 3');
-  assert.equal(buildMaxH(), 3, 'сейчас 3');
+  // Города (000102: id 51..54) — тоже в окне поиска (000103).
+  for (const b of BUILDINGS) {
+    if (b.категория !== 'город') continue;
+    const { width, height } = buildingSize(b);
+    assert.ok(width <= buildMaxW(),
+      `окно по X не накрывает город ${b.id}: ${width} > ${buildMaxW()}`);
+    assert.ok(height <= buildMaxH(),
+      `окно по Y не накрывает город ${b.id}: ${height} > ${buildMaxH()}`);
+    mw = Math.max(mw, width);
+    mh = Math.max(mh, height);
+  }
+  assert.equal(buildMaxW(), mw, 'buildMaxW() = максимум ширины по map_index ∪ городам');
+  assert.equal(buildMaxH(), mh, 'buildMaxH() = максимум высоты по map_index ∪ городам');
+  // Сейчас: 3x3 «картовые» + столица 7x7 (000103) — окно 7/7.
+  // Ре-пин пометка 000103: было 3/3.
+  assert.equal(buildMaxW(), 7, 'сейчас 7 (столица 7x7, 000103)');
+  assert.equal(buildMaxH(), 7, 'сейчас 7 (столица 7x7, 000103)');
 });
 
 test('vm без каталога: фолбэк ИМЕННО 13/3/3; после загрузки каталога — производные значения (пустой вывод не кэшируется)', () => {
@@ -925,50 +955,60 @@ test('vm, реальный порядок index.html: имена построе�
 // --- Golden-пин детерминизма (задача 000055) ---
 // tileAt на фиксированных координатах реального assets/map.png
 // (seed 0xf10c7a26): 12 входов (включая две 3x3 постройки — храм
-// солнца якорь [-119,9] и арена якорь [-118,-90]), 8 стен, 6 групп
-// мобов, вода/горы/суша. Генерация (hash2 % 13, окно 3×3, sizeChain)
-// НЕ меняется — тест обязан остаться зелёным после рефакторинга.
+// солнца якорь [-119,9] и арена якорь [-118,-90] и три городских
+// входа 000103), 8 стен (включая стену деревни 52 — 000103), 6 групп
+// мобов, вода/горы/суша.
+//
+// РЕ-ПИН 000103 (сознательное изменение мира): городской канал
+// ЗАБРАЛ часть якорей у 13-слотовых построек — пин «-119,-104»
+// (был вход building 2) и «-118,33» / «-117,111» (были входы
+// building 2/0) стали городскими входами хутора (buildingId 51,
+// building = NONE); «-114,-119» (был вход building 0) — стена
+// деревни 2x2 (buildingId 52, building = NONE, passable false).
+// У всех тайлов появилось поле buildingId (51..54 у городов, null
+// иначе). Генерация слотов (hash2 % 13) и остальных элементов мира
+// НЕ меняется — пины без пометки 000103 сохранены.
 const GOLDEN_TILES = {
-  '-119,-104': { x: -119, y: -104, terrain: 2, passable: true, hasBuilding: true, building: 2, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-119, -104] }, // вход
-  '-119,-19': { x: -119, y: -19, terrain: 3, passable: true, hasBuilding: true, building: 2, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-119, -19] }, // вход
-  '-118,-114': { x: -118, y: -114, terrain: 3, passable: true, hasBuilding: true, building: 1, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, -114] }, // вход
-  '-118,-25': { x: -118, y: -25, terrain: 3, passable: true, hasBuilding: true, building: 1, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, -25] }, // вход
-  '-118,11': { x: -118, y: 11, terrain: 5, passable: true, hasBuilding: true, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-119, 9] }, // вход (3x3)
-  '-118,33': { x: -118, y: 33, terrain: 3, passable: true, hasBuilding: true, building: 2, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, 33] }, // вход
-  '-117,-88': { x: -117, y: -88, terrain: 3, passable: true, hasBuilding: true, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, -90] }, // вход (3x3)
-  '-117,111': { x: -117, y: 111, terrain: 3, passable: true, hasBuilding: true, building: 0, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-117, 111] }, // вход
-  '-116,-100': { x: -116, y: -100, terrain: 2, passable: true, hasBuilding: true, building: 11, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-116, -100] }, // вход
-  '-114,-119': { x: -114, y: -119, terrain: 2, passable: true, hasBuilding: true, building: 0, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-114, -119] }, // вход
-  '-114,-35': { x: -114, y: -35, terrain: 3, passable: true, hasBuilding: true, building: 1, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-114, -35] }, // вход
-  '-114,18': { x: -114, y: 18, terrain: 5, passable: true, hasBuilding: true, building: 11, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-114, 18] }, // вход
-  '-119,9': { x: -119, y: 9, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9] }, // стена (3x3)
-  '-119,10': { x: -119, y: 10, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9] }, // стена (3x3)
-  '-119,11': { x: -119, y: 11, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9] }, // стена (3x3)
-  '-118,-90': { x: -118, y: -90, terrain: 3, passable: false, hasBuilding: false, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-118, -90] }, // стена (3x3)
-  '-118,-89': { x: -118, y: -89, terrain: 3, passable: false, hasBuilding: false, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-118, -90] }, // стена (3x3)
-  '-118,-88': { x: -118, y: -88, terrain: 3, passable: false, hasBuilding: false, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-118, -90] }, // стена (3x3)
-  '-118,9': { x: -118, y: 9, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9] }, // стена (3x3)
-  '-118,10': { x: -118, y: 10, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9] }, // стена (3x3)
-  '-120,-113': { x: -120, y: -113, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 0, inBuilding: false, isEntrance: false, buildingAnchor: null }, // группа мобов
-  '-120,-88': { x: -120, y: -88, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 0, inBuilding: false, isEntrance: false, buildingAnchor: null }, // группа мобов
-  '-120,-78': { x: -120, y: -78, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 2, inBuilding: false, isEntrance: false, buildingAnchor: null }, // группа мобов
-  '-120,108': { x: -120, y: 108, terrain: 2, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 0, inBuilding: false, isEntrance: false, buildingAnchor: null }, // группа мобов
-  '-119,-81': { x: -119, y: -81, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 6, inBuilding: false, isEntrance: false, buildingAnchor: null }, // группа мобов
-  '-119,-21': { x: -119, y: -21, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 2, inBuilding: false, isEntrance: false, buildingAnchor: null }, // группа мобов
-  '-120,-64': { x: -120, y: -64, terrain: 1, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // вода
-  '-120,-63': { x: -120, y: -63, terrain: 1, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // вода
-  '-120,-62': { x: -120, y: -62, terrain: 1, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // вода
-  '-120,-61': { x: -120, y: -61, terrain: 1, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // вода
-  '-119,26': { x: -119, y: 26, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // горы
-  '-119,27': { x: -119, y: 27, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // горы
-  '-118,26': { x: -118, y: 26, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // горы
-  '-118,27': { x: -118, y: 27, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // горы
-  '-59,0': { x: -59, y: 0, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // суша
-  '-58,-1': { x: -58, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // суша
-  '-58,0': { x: -58, y: 0, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // суша
-  '-58,1': { x: -58, y: 1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // суша
-  '-57,-2': { x: -57, y: -2, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // суша
-  '-57,-1': { x: -57, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null }, // суша
+  '-119,-104': { x: -119, y: -104, terrain: 2, passable: true, hasBuilding: true, building: -1, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-119, -104], buildingId: 51 }, // вход, город 51 (000103)
+  '-119,-19': { x: -119, y: -19, terrain: 3, passable: true, hasBuilding: true, building: 2, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-119, -19], buildingId: null }, // вход
+  '-118,-114': { x: -118, y: -114, terrain: 3, passable: true, hasBuilding: true, building: 1, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, -114], buildingId: null }, // вход
+  '-118,-25': { x: -118, y: -25, terrain: 3, passable: true, hasBuilding: true, building: 1, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, -25], buildingId: null }, // вход
+  '-118,11': { x: -118, y: 11, terrain: 5, passable: true, hasBuilding: true, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-119, 9], buildingId: null }, // вход (3x3)
+  '-118,33': { x: -118, y: 33, terrain: 3, passable: true, hasBuilding: true, building: -1, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, 33], buildingId: 51 }, // вход, город 51 (000103)
+  '-117,-88': { x: -117, y: -88, terrain: 3, passable: true, hasBuilding: true, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, -90], buildingId: null }, // вход (3x3)
+  '-117,111': { x: -117, y: 111, terrain: 3, passable: true, hasBuilding: true, building: -1, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-117, 111], buildingId: 51 }, // вход, город 51 (000103)
+  '-116,-100': { x: -116, y: -100, terrain: 2, passable: true, hasBuilding: true, building: 11, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-116, -100], buildingId: null }, // вход
+  '-114,-119': { x: -114, y: -119, terrain: 2, passable: false, hasBuilding: false, building: -1, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-114, -119], buildingId: 52 }, // стена, город 52 2x2 (000103)
+  '-114,-35': { x: -114, y: -35, terrain: 3, passable: true, hasBuilding: true, building: 1, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-114, -35], buildingId: null }, // вход
+  '-114,18': { x: -114, y: 18, terrain: 5, passable: true, hasBuilding: true, building: 11, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-114, 18], buildingId: null }, // вход
+  '-119,9': { x: -119, y: 9, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: null }, // стена (3x3)
+  '-119,10': { x: -119, y: 10, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: null }, // стена (3x3)
+  '-119,11': { x: -119, y: 11, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: null }, // стена (3x3)
+  '-118,-90': { x: -118, y: -90, terrain: 3, passable: false, hasBuilding: false, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-118, -90], buildingId: null }, // стена (3x3)
+  '-118,-89': { x: -118, y: -89, terrain: 3, passable: false, hasBuilding: false, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-118, -90], buildingId: null }, // стена (3x3)
+  '-118,-88': { x: -118, y: -88, terrain: 3, passable: false, hasBuilding: false, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-118, -90], buildingId: null }, // стена (3x3)
+  '-118,9': { x: -118, y: 9, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: null }, // стена (3x3)
+  '-118,10': { x: -118, y: 10, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: null }, // стена (3x3)
+  '-120,-113': { x: -120, y: -113, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 0, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // группа мобов
+  '-120,-88': { x: -120, y: -88, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 0, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // группа мобов
+  '-120,-78': { x: -120, y: -78, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 2, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // группа мобов
+  '-120,108': { x: -120, y: 108, terrain: 2, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 0, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // группа мобов
+  '-119,-81': { x: -119, y: -81, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 6, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // группа мобов
+  '-119,-21': { x: -119, y: -21, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 2, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // группа мобов
+  '-120,-64': { x: -120, y: -64, terrain: 1, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // вода
+  '-120,-63': { x: -120, y: -63, terrain: 1, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // вода
+  '-120,-62': { x: -120, y: -62, terrain: 1, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // вода
+  '-120,-61': { x: -120, y: -61, terrain: 1, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // вода
+  '-119,26': { x: -119, y: 26, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // горы
+  '-119,27': { x: -119, y: 27, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // горы
+  '-118,26': { x: -118, y: 26, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // горы
+  '-118,27': { x: -118, y: 27, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // горы
+  '-59,0': { x: -59, y: 0, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // суша
+  '-58,-1': { x: -58, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // суша
+  '-58,0': { x: -58, y: 0, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // суша
+  '-58,1': { x: -58, y: 1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // суша
+  '-57,-2': { x: -57, y: -2, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // суша
+  '-57,-1': { x: -57, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // суша
 };
 
 test('golden: tileAt на фиксированных координатах (реальный assets/map.png, node)', () => {
