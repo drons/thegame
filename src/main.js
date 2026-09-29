@@ -692,6 +692,10 @@
   // Шаг на тайл с группой мобов (ещё не побеждённой) → мини-карта боя.
   function maybeStartCombat() {
     if (G.combatUI && G.combatUI.isActive()) return;
+    // Полноэкранная панель накроет карту в бою — закрываем (000096).
+    // KeyI в бою по-прежнему переключает (коммент ниже), но это осознанный
+    // выбор игрока, а не случайное состояние.
+    if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
     const t = map.tileAt(player.x, player.y);
     if (!t.hasMobGroup) return;
     const key = player.x + ',' + player.y;
@@ -779,6 +783,9 @@
   // Бой с блуждающей группой подземелья.
   function startDungeonCombat(g) {
     const ds = dungeonState;
+    // То же, что и в мире (000096): панель не должна накрывать
+    // подземелье после боя.
+    if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
     G.combatUI.startCombat({
       hero,
       // Фон поля боя по типу подземелья (задача 000049): тайла мира в
@@ -1131,7 +1138,7 @@
         ? '\nГруппа ' + G.mobGroupName(t.mobGroup) + ' повержена.'
         : '\nОсторожно: ' + G.mobGroupName(t.mobGroup) + '!';
     }
-    // Магазин текущего тайла → секция «Торговля» в панели персонажа.
+    // Магазин текущего тайла → вкладка «Магазин» в панели персонажа.
     if (G.playerUI) {
       const isShop = !dungeonState && t.hasBuilding && G.shopKindsFor(t.building);
       G.playerUI.setShop(isShop
@@ -1275,6 +1282,10 @@
       // Отладочный бой на текущем тайле (не требует шага на группу).
       startCombat: (groupType = 0) => {
         if (G.combatUI && G.combatUI.isActive()) return null;
+        // Тот же паттерн, что и в боях мира/подземелья (000096):
+        // после отладочного боя полноэкранная панель не должна
+        // накрывать карту.
+        if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
         return G.combatUI.startCombat({
           hero,
           tile: { mobGroup: groupType },
