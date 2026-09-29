@@ -1101,6 +1101,44 @@ test('инвентарь: useItem зелья с bonus — amount+bonus; sellPric
     'sellPrice не зависит от bonus');
 });
 
+test('инвентарь: useItem с ДВУМЯ бонусными копиями (разные бонусы) — эффект с той, что тратится (ревью 000046, раунд 2)', () => {
+  // Крафт с качеством: алхимик 0–9 → {amount:1}, 10+ → {amount:2}.
+  // Две бонусные копии одного зелья — РАЗНЫЕ бонусные слоты
+  // (bonusState 'amount:1' ≠ 'amount:2', не сливаются). removeItem
+  // bonusFirst снимает С КОНЦА группы бонусных слотов — тратится
+  // Сильная (добавленная последней). useItem обязан считать эффект
+  // с той же копии (раньше брал ПЕРВЫЙ бонусный слот — слабый).
+  const p = createCharacter();
+  p.secondary.alchemy = 10; // ×1.5 → база round(6×1.5)=9
+  I.addItem(p, 'minor_healing', 1, { amount: 1 }); // слабый — первым
+  I.addItem(p, 'minor_healing', 1, { amount: 2 }); // сильный — вторым
+  // Два отдельных бонусных слота.
+  assert.equal(I.totalQty(p, 'minor_healing'), 2);
+  const bonusSlots = (c) => {
+    const inv = c.inventory || (c.inventory = {});
+    return (inv.slots || []).filter((e) => e.id === 'minor_healing' && e.bonus);
+  };
+  assert.equal(bonusSlots(p).length, 2, 'две бонусные копии — два слота');
+
+  // 1-е применение: тратится СИЛЬНАЯ (конец группы), эффект = 9+2=11.
+  p.hp = 1;
+  const r1 = I.useItem(p, 'minor_healing');
+  assert.equal(r1.ok, true, r1.reason);
+  assert.equal(r1.hp, 11, 'база 9 + бонус 2 (сильная копия тратится)');
+  assert.equal(p.hp, 12);
+  // Осталась СЛАБАЯ копия.
+  assert.equal(bonusSlots(p).length, 1, 'сильная копия снята, осталась слабая');
+  assert.equal(bonusSlots(p)[0].bonus.amount, 1, 'остался слабый бонус {amount:1}');
+
+  // 2-е применение: тратится СЛАБАЯ, эффект = 9+1=10.
+  p.hp = 1;
+  const r2 = I.useItem(p, 'minor_healing');
+  assert.equal(r2.ok, true, r2.reason);
+  assert.equal(r2.hp, 10, 'база 9 + бонус 1 (осталась слабая копия)');
+  assert.equal(p.hp, 11);
+  assert.equal(I.totalQty(p, 'minor_healing'), 0, 'обе копии потрачены');
+});
+
 // --- Сейв: санитизеры (опциональные поля, без повышения версии, 000031) ---
 
 test('sanitizeCraftLevels/sanitizeCraftXp: мусор → {}, валидные — сохранены', () => {
