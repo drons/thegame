@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const I = require('../src/items.js');
 const M = require('../src/map.js');
 const { createCharacter, SECONDARY_SKILLS } = require('../src/player.js');
@@ -72,6 +73,48 @@ test('JS-фолбэк идентичен JSON-каталогу assets/items (sou
   }
   assert.equal(byId.size, 0, 'в JS-модуле есть предметы без JSON-файла: '
     + Array.from(byId.keys()).join(', '));
+});
+
+// --- Задача 000059: src/items-data.js генерируется из JSON-каталога ---
+//
+// Каталог assets/items — source of truth; src/items-data.js —
+// сгенерированное зеркало (scripts/sync-items-data.js, npm sync:items),
+// как npc-data.js/skills-data.js/dungeons-data.js: шапка GENERATED,
+// повторный запуск byte-identical (идемпотентность — дрейф-гейт 000054),
+// запись атомарная (конвенцию write-atomic.js автоматически проверяет
+// tests/sync-all.test.js по имени sync-*.js).
+// ВАЖНО: обёртка модуля остаётся ПЛОСКОЙ — root.Game.ITEMS (не
+// Game.ItemsData): items.js и все vm-цепочки читают G.ITEMS. Контракт
+// без изменений — ноль правок в потребителях, regressия — vm-тесты
+// 000060 ниже и полная цепочка index.html (tests/main-visuals.test.js).
+// Число записей в каталоге ДИНАМИЧЕСКОЕ (42 на момент написания,
+// росло в 000044) — тесты считают его от каталога, не хардкодят.
+
+test('src/items-data.js: шапка GENERATED (синхронизируется из assets/items)', () => {
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'items-data.js'), 'utf8');
+  assert.ok(
+    src.includes('GENERATED — не править руками, синхронизируется из assets/items (scripts/sync-items-data.js)'),
+    'в шапке нет пометки «GENERATED — не править руками»');
+});
+
+test('sync-items-data.js: существует, exit 0, идемпотентен (повторный запуск — byte-identical)', () => {
+  const ROOT = path.join(__dirname, '..');
+  const script = path.join(ROOT, 'scripts', 'sync-items-data.js');
+  assert.ok(fs.existsSync(script), 'scripts/sync-items-data.js не существует');
+  const outFile = path.join(ROOT, 'src', 'items-data.js');
+  const before = fs.readFileSync(outFile);
+  const res = spawnSync(process.execPath, [script], { cwd: ROOT, encoding: 'utf8' });
+  assert.equal(res.status, 0,
+    'скрипт завершился с ошибкой: ' + (res.stderr || res.stdout));
+  assert.deepEqual(fs.readFileSync(outFile), before,
+    'повторный запуск скрипта изменил src/items-data.js (не идемпотентно)');
+});
+
+test('package.json: npm-скрипт sync:items (интерфейс единый с sync:npc/skills)', () => {
+  const pkg = JSON.parse(fs.readFileSync(
+    path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.equal(pkg.scripts['sync:items'], 'node scripts/sync-items-data.js');
 });
 
 // --- Инвентарь: добавление/удаление ---
