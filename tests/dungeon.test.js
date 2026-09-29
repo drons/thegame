@@ -404,3 +404,268 @@ test('ссылки: ВСЕ предметы подземелий существ�
     }
   }
 });
+
+// --- Задача 000070: «непроходимые» предметы стен (подзадача 000032, н.3) ---
+//
+// Зафиксированные решения (стадия красных тестов — всё ниже падает до кода):
+// * набор видов стен каждого типа — поле `предметы_стен` в каталоге
+//   assets/dungeons (source of truth — JSON, 000058; зеркало —
+//   src/dungeons-data.js, перегенерация через sync:dungeons). Литерал
+//   «рядом с DUNGEON_MOBS» отклонён: 000058 уже смержена, каталог —
+//   source of truth, дублировать типовые данные в коде — против
+//   прецедента 000053/000058.
+// * Матрица типа → виды (фиксирована в задаче; «один набор для всех
+//   пяти типов» — типичный косяк, запрещён точным тестом 1:1).
+// * wallObjFor(x, y, d) → 'rock_1'|…|'stalactite_2'|null — ЧИСТАЯ
+//   функция ТОЛЬКО от (x, y, d.seed, d.type) через hash2: без RNG,
+//   без обращения к cells/содержимому/player. «Один вход — один вид»:
+//   возврат в подземелье с новым опытом не меняет облик стен.
+// * d.wallObjs — массив {x, y, obj} ТОЛЬКО wall-клеток edge-маски:
+//   стена с хотя бы одним floor-соседом по 8-соседству Чебышёва 1
+//   («фасад» стен, не все стены); floor/entrance/exit — без объектов.
+//   Маска считается по ФИНАЛЬНОЙ сетке (после комнат и коридоров).
+// * Отрисовка — в 000066; тут — данные, таблицы и чистое ядро.
+
+const WALL_KINDS_ALLOWED = new Set(['rock', 'column', 'stalactite']);
+const WALL_MATRIX = {
+  [D.DUNGEON_TYPES.CAVE]: ['rock', 'stalactite'],
+  [D.DUNGEON_TYPES.CRYPT]: ['column', 'rock'],
+  [D.DUNGEON_TYPES.RUINS]: ['column'],
+  [D.DUNGEON_TYPES.DROWNED]: ['rock'],
+  [D.DUNGEON_TYPES.ABYSS]: ['stalactite', 'rock'],
+};
+
+// Фиксированные входы по типам (dungeonTypeFor по terrain/alpha пикселя):
+// те же точки, что в существующих golden-тестах этого файла.
+const PX_ABYSS_000070 = M.syntheticPixels(8, 8, 40, 40, 40, 10);
+const WALL_ENTRIES = [
+  { name: 'CAVE', args: [37, -12, PX, M.TERRAIN.GRASS] },
+  { name: 'CRYPT', args: [5, 5, PX, M.TERRAIN.FOREST] },
+  { name: 'RUINS', args: [5, 5, PX, M.TERRAIN.HILL] },
+  { name: 'DROWNED', args: [5, 5, PX, M.TERRAIN.SWAMP] },
+  { name: 'ABYSS', args: [11, 3, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN] },
+];
+
+/** Edge-маска: wall-клетка с floor-соседом по 8-соседству Чебышёва 1. */
+function edgeWallSet(d) {
+  const s = new Set();
+  for (let y = 0; y < d.height; y++) {
+    for (let x = 0; x < d.width; x++) {
+      if (d.cells[y * d.width + x] !== D.CELL_WALL) continue;
+      let hasFloor = false;
+      for (let dy = -1; dy <= 1 && !hasFloor; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= d.width || ny >= d.height) continue;
+          if (d.cells[ny * d.width + nx] === D.CELL_FLOOR) {
+            hasFloor = true;
+            break;
+          }
+        }
+      }
+      if (hasFloor) s.add(x + ',' + y);
+    }
+  }
+  return s;
+}
+
+test('000070 каталог: предметы_стен — у каждого типа, из допустимого множества, точная матрица 1:1', () => {
+  const cat = loadDungeonCatalog();
+  assert.equal(cat.length, 5, 'каталог — ровно 5 файлов');
+  for (const { file, data } of cat) {
+    assert.ok(Array.isArray(data.предметы_стен),
+      `${file}: нет поля «предметы_стен»`);
+    assert.ok(data.предметы_стен.length > 0, `${file}: «предметы_стен» пусто`);
+    for (const k of data.предметы_стен) {
+      assert.ok(WALL_KINDS_ALLOWED.has(k),
+        `${file}: вид «${k}» вне {rock, column, stalactite}`);
+    }
+    assert.deepEqual(
+      data.предметы_стен.slice().sort(),
+      WALL_MATRIX[data.id].slice().sort(),
+      `${file} (${data.название}): матрица ≠ зафиксированной`);
+  }
+});
+
+test('000070 DUNGEON_WALL_KINDS ≡ каталог (1:1, порядок — как в JSON)', () => {
+  assert.ok(D.DUNGEON_WALL_KINDS && typeof D.DUNGEON_WALL_KINDS === 'object',
+    'dungeon.js: нет экспорта DUNGEON_WALL_KINDS');
+  for (const { file, data } of loadDungeonCatalog()) {
+    assert.deepEqual(D.DUNGEON_WALL_KINDS[data.id], data.предметы_стен,
+      `DUNGEON_WALL_KINDS[${data.id}] (${file}) ≠ каталогу`);
+  }
+});
+
+for (const t of WALL_ENTRIES) {
+  const mkD = () => D.createDungeon(t.args[0], t.args[1], t.args[2], t.args[3]);
+
+  test(`000070 ${t.name}: wallObjs — биекция с edge-маской, ровно один объект на клетку`, () => {
+    const d = mkD();
+    assert.ok(Array.isArray(d.wallObjs), `${t.name}: нет d.wallObjs`);
+    const mask = edgeWallSet(d);
+    const seen = new Set();
+    for (const o of d.wallObjs) {
+      const k = o.x + ',' + o.y;
+      assert.ok(!seen.has(k), `${t.name}: дубль объекта на клетке ${k}`);
+      seen.add(k);
+      assert.ok(mask.has(k), `${t.name}: объект вне edge-маски: ${k}`);
+      assert.equal(d.cells[o.y * d.width + o.x], D.CELL_WALL,
+        `${t.name}: клетка ${k} не стена`);
+      assert.ok(typeof o.obj === 'string' && o.obj.length > 0,
+        `${t.name}: пустой obj на ${k}`);
+    }
+    for (const k of mask) {
+      assert.ok(seen.has(k), `${t.name}: edge-стена ${k} без объекта`);
+    }
+    assert.equal(d.wallObjs.length, mask.size,
+      `${t.name}: число объектов ≠ числу edge-клеток`);
+  });
+
+  test(`000070 ${t.name}: wallObjs — вид из набора типа, вариант 1..2`, () => {
+    const d = mkD();
+    const allowed = new Set();
+    for (const k of D.DUNGEON_WALL_KINDS[d.type]) {
+      allowed.add(k + '_1');
+      allowed.add(k + '_2');
+    }
+    assert.ok(allowed.size > 0, `${t.name}: пустой набор видов`);
+    for (const o of d.wallObjs) {
+      assert.ok(allowed.has(o.obj),
+        `${t.name}: obj «${o.obj}» не из набора типа (${[...allowed].sort().join(', ')})`);
+    }
+  });
+
+  test(`000070 ${t.name}: без объектов — floor, entrance, exit, стены вне edge-маски (внешнее кольцо)`, () => {
+    const d = mkD();
+    assert.ok(Array.isArray(d.wallObjs), `${t.name}: нет d.wallObjs`);
+    const inObjs = new Set(d.wallObjs.map((o) => o.x + ',' + o.y));
+    for (let y = 0; y < d.height; y++) {
+      for (let x = 0; x < d.width; x++) {
+        const k = x + ',' + y;
+        if (d.cells[y * d.width + x] === D.CELL_FLOOR) {
+          assert.ok(!inObjs.has(k), `${t.name}: объект на полу ${k}`);
+        }
+        // Внешнее кольцо решётки: комнаты не ближе 2 клеток к границе —
+        // у периметра нет floor-соседей (стена без «фасада») → объектов нет.
+        const border = x === 0 || y === 0 || x === d.width - 1 || y === d.height - 1;
+        if (border) {
+          assert.ok(!inObjs.has(k), `${t.name}: объект на внешнем кольце ${k}`);
+        }
+      }
+    }
+    assert.ok(!inObjs.has(d.entrance.x + ',' + d.entrance.y),
+      `${t.name}: объект на входе`);
+    assert.ok(!inObjs.has(d.exit.x + ',' + d.exit.y),
+      `${t.name}: объект на выходе`);
+  });
+
+  test(`000070 ${t.name}: стена с floor-соседом только по диагонали — объект (8-соседство, не 4)`, () => {
+    const d = mkD();
+    assert.ok(Array.isArray(d.wallObjs), `${t.name}: нет d.wallObjs`);
+    const inObjs = new Set(d.wallObjs.map((o) => o.x + ',' + o.y));
+    const diagOnly = [];
+    for (let y = 0; y < d.height; y++) {
+      for (let x = 0; x < d.width; x++) {
+        if (d.cells[y * d.width + x] !== D.CELL_WALL) continue;
+        let card = false, diag = false;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= d.width || ny >= d.height) continue;
+            if (d.cells[ny * d.width + nx] !== D.CELL_FLOOR) continue;
+            if (Math.abs(dx) + Math.abs(dy) === 1) card = true; else diag = true;
+          }
+        }
+        if (diag && !card) diagOnly.push(x + ',' + y);
+      }
+    }
+    assert.ok(diagOnly.length > 0,
+      `${t.name}: прединд не выполнен — нет wall-клеток с диагонально-единственным floor-соседом`);
+    for (const k of diagOnly) {
+      assert.ok(inObjs.has(k),
+        `${t.name}: диагональная edge-стена ${k} без объекта (маска по 4-соседству?)`);
+    }
+  });
+
+  test(`000070 ${t.name}: детерминизм — один вход → идентичные wallObjs (включая _1/_2)`, () => {
+    const a = mkD();
+    const b = mkD();
+    assert.ok(Array.isArray(a.wallObjs) && a.wallObjs.length > 0,
+      `${t.name}: нет d.wallObjs`);
+    assert.deepEqual(a.wallObjs, b.wallObjs,
+      `${t.name}: повторный createDungeon дал другие wallObjs`);
+  });
+
+  test(`000070 ${t.name}: «один вход — один вид» — totalXp/содержимое не меняют wallObjs`, () => {
+    const d = mkD();
+    assert.ok(Array.isArray(d.wallObjs) && d.wallObjs.length > 0,
+      `${t.name}: нет d.wallObjs`);
+    const snap = JSON.stringify(d.wallObjs);
+    D.generateDungeonContents(d, heroAt(1000));
+    D.generateDungeonContents(d, heroAt(999999));
+    assert.equal(JSON.stringify(d.wallObjs), snap,
+      `${t.name}: wallObjs изменились после generateDungeonContents`);
+    // «Возврат» с новым опытом: та же форма входа — тот же вид стен.
+    const again = mkD();
+    assert.deepEqual(again.wallObjs, d.wallObjs,
+      `${t.name}: повторный вход дал другой вид стен`);
+  });
+
+  test(`000070 ${t.name}: оба варианта _1/_2 каждого вида типа встречаются на решётке`, () => {
+    const d = mkD();
+    assert.ok(Array.isArray(d.wallObjs), `${t.name}: нет d.wallObjs`);
+    const seen = new Set(d.wallObjs.map((o) => o.obj));
+    for (const k of D.DUNGEON_WALL_KINDS[d.type]) {
+      assert.ok(seen.has(k + '_1'), `${t.name}: нет ни одного ${k}_1`);
+      assert.ok(seen.has(k + '_2'), `${t.name}: нет ни одного ${k}_2`);
+    }
+  });
+}
+
+test('000070 wallObjFor: чистая функция от (x, y, d.seed, d.type) — player/содержимое не видит', () => {
+  const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  // МИНИМАЛЬНЫЙ объект — без cells/rooms/entrance/exit: функция не
+  // должна обращаться к ним (иначе вид зависел бы от решётки/содержимого).
+  const min = { type: d.type, seed: d.seed };
+  const v1 = D.wallObjFor(3, 7, min);
+  assert.equal(v1, D.wallObjFor(3, 7, min), 'повторный вызов — другой результат');
+  const check = (v, where) => {
+    const m = /^([a-z][a-z0-9]*)_(1|2)$/.exec(String(v));
+    assert.ok(m, `wallObjFor ${where}: непредвиденный формат «${v}»`);
+    assert.ok(D.DUNGEON_WALL_KINDS[d.type].includes(m[1]),
+      `wallObjFor ${where}: вид «${m[1]}» не из набора типа`);
+  };
+  check(v1, '(3, 7)');
+  for (const [x, y] of [[0, 0], [12, 12], [24, 3]]) {
+    check(D.wallObjFor(x, y, min), `(${x}, ${y})`);
+  }
+});
+
+test('000070 wallObjFor ≡ d.wallObjs: каждый объект решётки воспроизводится функцией', () => {
+  for (const t of WALL_ENTRIES) {
+    const d = D.createDungeon(t.args[0], t.args[1], t.args[2], t.args[3]);
+    assert.ok(Array.isArray(d.wallObjs), `${t.name}: нет d.wallObjs`);
+    for (const o of d.wallObjs) {
+      assert.equal(D.wallObjFor(o.x, o.y, d), o.obj,
+        `${t.name}: wallObjFor(${o.x}, ${o.y}) ≠ obj в d.wallObjs`);
+    }
+  }
+});
+
+test('000070 golden: CAVE (37, −12) — закреплённые wallObjs', () => {
+  // Практика 000058: закреплённые значения снимаются с рабочего кода
+  // на СТАДИИ РЕАЛИЗАЦИИ — пін фиксирует соли hash2 wallObjFor.
+  // В красной стадии тест падает: d.wallObjs отсутствует.
+  const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  assert.equal(d.type, D.DUNGEON_TYPES.CAVE, 'CAVE');
+  assert.equal(d.seed, 2658571374, 'сид CAVE (37, −12) уже закреплён');
+  assert.ok(Array.isArray(d.wallObjs) && d.wallObjs.length > 0,
+    'нет d.wallObjs');
+  // TODO(реализация): заменить плейсхолдер на фактический снапшот
+  // (стабильный обход: y, затем x).
+  assert.deepEqual(d.wallObjs, [
+    /* Значения снимут на стадии реализации. */
+  ]);
+});

@@ -1088,3 +1088,102 @@ function baseGradientPair(svg, label) {
   assert.equal(colors.length, 2, `${label}: базовый градиент = 2 стопа`);
   return colors.join('|');
 }
+
+// --- Задача 000070: «непроходимые» предметы стен (подзадача 000032, н.3) ---
+//
+// 6 SVG: assets/dungeon/walls/{rock_1,rock_2,column_1,column_2,
+// stalactite_1,stalactite_2}.svg; детерминированный генератор
+// scripts/gen-dungeon-walls.js (byte-identical, образец gen-combat-bg.js —
+// чистый вид SVG тестом НЕ проверяется, прецедент 000049/000058).
+// DUNGEON_WALL_FRAMES — ЛИТЕРАЛ в sprites.js (без require dungeon.js
+// и data-модулей — vm-песочница, паттерн COMBAT_BG_DUNGEON); связь
+// «матрица каталога × варианты 1..2 = эти 6 ключей = ровно 6 файлов»
+// закрывается здесь и в tests/dungeon.test.js (DUNGEON_WALL_KINDS ≡
+// каталог, точная матрица по типам).
+// Контракт с рендером 000066: d.wallObjs — массив {x, y, obj},
+// DUNGEON_WALL_FRAMES[obj] → путь SVG; опечатка в obj ловится тестом
+// «каждый obj — ключ DUNGEON_WALL_FRAMES, файл существует».
+
+const WALL_KEYS_000070 = ['column_1', 'column_2', 'rock_1', 'rock_2',
+  'stalactite_1', 'stalactite_2'];
+const WALLS_DIR_000070 = 'assets/dungeon/walls/';
+
+test('000070 DUNGEON_WALL_FRAMES: 6 объектов, имена/пути, файлы существуют', () => {
+  assert.ok(S.DUNGEON_WALL_FRAMES && typeof S.DUNGEON_WALL_FRAMES === 'object',
+    'sprites.js: нет экспорта DUNGEON_WALL_FRAMES');
+  assert.deepEqual(Object.keys(S.DUNGEON_WALL_FRAMES).sort(), WALL_KEYS_000070,
+    'ключи ≠ 6 предметов стен');
+  for (const k of WALL_KEYS_000070) {
+    assert.equal(S.DUNGEON_WALL_FRAMES[k], WALLS_DIR_000070 + k + '.svg',
+      `путь «${k}» ≠ ${WALLS_DIR_000070}${k}.svg`);
+    assert.ok(exists(WALLS_DIR_000070 + k + '.svg'),
+      `нет файла: ${WALLS_DIR_000070}${k}.svg`);
+  }
+});
+
+test('000070 DUNGEON_WALL_FRAMES ≡ каталог: объединение предметов_стен × варианты 1..2, ровно 6 файлов', () => {
+  const ddir = path.join(ROOT, 'assets', 'dungeons');
+  const kinds = new Set();
+  for (const f of fs.readdirSync(ddir).filter((f) => /^\d{6}\.json$/.test(f)).sort()) {
+    const data = JSON.parse(fs.readFileSync(path.join(ddir, f), 'utf8'));
+    assert.ok(Array.isArray(data.предметы_стен),
+      `${f}: нет «предметы_стен» (связь с каталогом не проверима)`);
+    for (const k of data.предметы_стен) kinds.add(k);
+  }
+  const expected = [];
+  for (const k of [...kinds].sort()) expected.push(k + '_1', k + '_2');
+  assert.ok(S.DUNGEON_WALL_FRAMES && typeof S.DUNGEON_WALL_FRAMES === 'object',
+    'sprites.js: нет экспорта DUNGEON_WALL_FRAMES');
+  assert.deepEqual(Object.keys(S.DUNGEON_WALL_FRAMES).sort(), expected.sort(),
+    'ключи DUNGEON_WALL_FRAMES ≠ объединение(предметы_стен) × {1, 2}');
+  // На диске — ровно 6 файлов, сиротских/отсутствующих нет.
+  const onDisk = fs.readdirSync(path.join(ROOT, WALLS_DIR_000070)).sort();
+  assert.deepEqual(onDisk, WALL_KEYS_000070.map((k) => k + '.svg').sort(),
+    'файлы assets/dungeon/walls ≠ ровно 6 предметов стен');
+});
+
+test('000070 allAssetPaths: 6 wall-путей, файлы существуют', () => {
+  const paths = S.allAssetPaths();
+  for (const k of WALL_KEYS_000070) {
+    const p = WALLS_DIR_000070 + k + '.svg';
+    assert.ok(paths.includes(p), `нет пути в allAssetPaths: ${p}`);
+    assert.ok(exists(p), `нет файла: ${p}`);
+  }
+});
+
+test('000070 gen-dungeon-walls: детерминирован, состав = 6 ключей, viewBox 64×64', () => {
+  const { WALLS, buildWall } = require('../scripts/gen-dungeon-walls.js');
+  assert.deepEqual(WALLS.map((w) => w.key).sort(), WALL_KEYS_000070,
+    'состав генератора ≠ 6 предметов стен');
+  for (const w of WALLS) {
+    // Повторный build — byte-identical (сид фиксирован, порядок стабилен).
+    assert.equal(buildWall(w), buildWall(w), `генерация ${w.key} недетерминирована`);
+    assert.ok(buildWall(w).includes('viewBox="0 0 64 64"'),
+      `${w.key}: viewBox 64×64`);
+  }
+});
+
+test('000070 d.wallObjs: каждый obj — ключ DUNGEON_WALL_FRAMES, файл существует (контракт с 000066)', () => {
+  const D = require('../src/dungeon.js');
+  const pxAbyss = syntheticPixels(8, 8, 40, 40, 40, 10);
+  const px = syntheticPixels(8, 8, 128, 128, 128, 255);
+  const entries = [
+    [D.DUNGEON_TYPES.CAVE, 37, -12, px, TERRAIN.GRASS],
+    [D.DUNGEON_TYPES.CRYPT, 5, 5, px, TERRAIN.FOREST],
+    [D.DUNGEON_TYPES.RUINS, 5, 5, px, TERRAIN.HILL],
+    [D.DUNGEON_TYPES.DROWNED, 5, 5, px, TERRAIN.SWAMP],
+    [D.DUNGEON_TYPES.ABYSS, 11, 3, pxAbyss, TERRAIN.MOUNTAIN],
+  ];
+  for (const [type, x, y, p, terrain] of entries) {
+    const d = D.createDungeon(x, y, p, terrain);
+    assert.equal(d.type, type, `вход (${x}, ${y}) даёт тип ${type}`);
+    assert.ok(Array.isArray(d.wallObjs) && d.wallObjs.length > 0,
+      `тип ${type}: нет d.wallObjs (контракт с 000066) `);
+    for (const o of d.wallObjs) {
+      assert.ok(S.DUNGEON_WALL_FRAMES && S.DUNGEON_WALL_FRAMES[o.obj],
+        `тип ${type}: obj «${o.obj}» не ключ DUNGEON_WALL_FRAMES`);
+      assert.ok(exists(S.DUNGEON_WALL_FRAMES[o.obj]),
+        `тип ${type}: нет файла для «${o.obj}»`);
+    }
+  }
+});
