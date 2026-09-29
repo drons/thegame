@@ -538,7 +538,7 @@
   };
 
   // --- Диалог NPC (задача 000010) ---
-  // Оверлей с вкладками: диалог / торговля / школа / квесты.
+  // Оверлей с вкладками: диалог / торговля / школа / квесты / найм (000078).
   // Ядро — src/npc.js (тестируется в node): доступность опций диалога,
   // торговля, обучение и журнал квестов; здесь — тонкий DOM-слой.
   // Каталог NPC — Game.NpcData.NPCS (зеркало src/npc-data.js); журнал
@@ -548,7 +548,7 @@
     let npc = null;          // текущий NPC (запись каталога)
     let c = null;            // персонаж (в игре — hero)
     let book = null;         // журнал квестов
-    let tab = 'dialog';      // 'dialog' | 'trade' | 'train' | 'quests'
+    let tab = 'dialog';      // 'dialog' | 'trade' | 'train' | 'quests' | 'hire'
     let npcShop = null;      // сток NPC (общий на сессию; создаётся лениво)
     let onChange = null;     // хук main.js: изменение состояния → сейв
     let day = null;          // день мира на момент открытия (день выдачи квестов)
@@ -728,6 +728,38 @@
       body.appendChild(done);
     }
 
+    // Вкладка «найм» (задача 000078): ЧИТАЕМЫЙ список кандидатов —
+    // только данные (Game.NpcData через G.hireCandidates), детерминированно
+    // (порядок каталога), rng не вводится (отказ найма — 000079).
+    // Кнопки «нанять»/«уволить» и блок «Отряд» — задача 000083.
+    function renderHireTab() {
+      const list = G.hireCandidates(npcs());
+      if (!list.length) {
+        body.appendChild(el('div', 'cp-itemmeta', 'Наёмников не найдено.'));
+        return;
+      }
+      body.appendChild(el('div', 'cp-itemmeta',
+        'Наёмники в дорогу: контракт + жалованье за день.'));
+      for (const m of list) {
+        const h = m.найм;
+        const row = el('div', 'cp-itemrow');
+        row.appendChild(el('span', 'cp-itemname', m.имя));
+        const skills = (h.skills || []).map((id) => {
+          const s = G.SECONDARY_SKILLS && G.SECONDARY_SKILLS[id];
+          if (s) return s.name;
+          const p = G.PRIMARY_SKILLS &&
+            G.PRIMARY_SKILLS.find((x) => x.id === id);
+          return p ? p.name : id;
+        });
+        row.appendChild(el('span', 'cp-itemmeta',
+          'роль: ' + h.роль +
+          (skills.length ? ' · навыки: ' + skills.join(', ') : '') +
+          ' · контракт ' + h.цена + ' з' +
+          ' · жалованье ' + h.жалованье + ' з/день'));
+        body.appendChild(row);
+      }
+    }
+
     // --- Кнопки (один обработчик на весь оверлей) ---
 
     function onOverlayClick(e) {
@@ -752,6 +784,11 @@
           renderTab();
         } else if (o.действие === 'квесты') {
           tab = 'quests';
+          renderTab();
+        } else if (o.действие === 'найм') {
+          // 000078: доступ к найму — существующие «требования» опции
+          // (entry.доступен проверен выше), новой системы нет.
+          tab = 'hire';
           renderTab();
         }
         return;
@@ -859,6 +896,7 @@
       for (const [t, label] of [
         ['dialog', 'диалог'], ['trade', 'торговля'],
         ['train', 'школа'], ['quests', 'квесты'],
+        ['hire', 'найм'],
       ]) {
         const b = el('button', 'cp-btn', label);
         b.dataset.npcact = 'tab';
@@ -900,6 +938,8 @@
       if (tab === 'dialog') renderDialogTab();
       else if (tab === 'trade') renderTradeTab();
       else if (tab === 'train') renderTrainTab();
+      // Явная ветка (000078): без неё «найм» тихо рисовал бы квесты.
+      else if (tab === 'hire') renderHireTab();
       else renderQuestsTab();
     }
 

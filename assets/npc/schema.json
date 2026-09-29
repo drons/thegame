@@ -37,7 +37,7 @@
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
           "текст": { "type": "string", "pattern": "^\\S(.*\\S)?$" },
-          "действие": { "enum": ["торговля", "обучение", "квесты", "подсказка"] },
+          "действие": { "enum": ["торговля", "обучение", "квесты", "подсказка", "найм"] },
           "требования": {
             "type": "object",
             "additionalProperties": false,
@@ -156,6 +156,27 @@
               { "type": "null" }
             ]
           }
+        }
+      }
+    },
+    "найм": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["цена", "жалованье", "роль", "dmg", "hp", "skills", "spells"],
+      "properties": {
+        "цена": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "жалованье": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "роль": { "enum": ["melee", "ranged", "shield", "support"] },
+        "dmg": { "type": "number", "minimum": 0.1, "maximum": 10 },
+        "hp": { "type": "number", "minimum": 0.1, "maximum": 10 },
+        "armor": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "skills": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+        },
+        "spells": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
         }
       }
     }
