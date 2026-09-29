@@ -60,7 +60,7 @@ if (JSON.stringify(ids) !== JSON.stringify([0, 1, 2, 3, 4])) {
 }
 
 // Канонический порядок ключей (схема assets/dungeons/schema.json).
-const KEYS = ['id', 'название', 'мобы', 'предметы', 'размер', 'постройка'];
+const KEYS = ['id', 'название', 'мобы', 'предметы', 'размер', 'постройка', 'предметы_стен'];
 
 // --- Генерация JS ---
 const range = `${files[0]} … ${files[files.length - 1]}`;

@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "название", "мобы", "предметы", "размер", "постройка"],
+  "required": ["id", "название", "мобы", "предметы", "размер", "постройка", "предметы_стен"],
   "properties": {
     "id": {
       "type": "integer",
@@ -37,6 +37,14 @@
       "type": "integer",
       "minimum": 31,
       "maximum": 35
+    },
+    "предметы_стен": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["rock", "column", "stalactite"]
+      }
     }
   }
 }
