@@ -242,6 +242,24 @@ test('sync-mob-groups-data.js: существует, exit 0, идемпотен�
     'повторный запуск скрипта изменил src/mob-groups-data.js (не идемпотентно)');
 });
 
+test('sync-mob-groups-data.js: выход пишется атомарно через scripts/lib/write-atomic.js (конвенция 000054)', () => {
+  // Окно гонки: node --test гоняет тесты параллельными процессами;
+  // регенерация src/mob-groups-data.js (например, sync-all.js из 000054
+  // под CI) неатомарным fs.writeFileSync (truncate+write) позволила бы
+  // параллельному воркеру с top-level require зеркала (этот тест,
+  // транзитивно map/combat/sprites-тесты) прочитать частичный файл →
+  // редкий ложный красный. Конвенция: ВСЕ sync-скрипты пишут выход
+  // через write-atomic.js (tmp + rename).
+  const script = path.join(ROOT, 'scripts', 'sync-mob-groups-data.js');
+  const src = fs.readFileSync(script, 'utf8');
+  assert.ok(/require\(['"][^'"]*write-atomic\.js['"]\)/.test(src),
+    'sync-mob-groups-data.js обязан использовать scripts/lib/write-atomic.js (конвенция 000054)');
+  assert.ok(!/fs\.writeFileSync\s*\(/.test(src),
+    'прямой fs.writeFileSync — неатомарная запись; нужен writeFileAtomic');
+  assert.ok(fs.existsSync(path.join(ROOT, 'scripts', 'lib', 'write-atomic.js')),
+    'scripts/lib/write-atomic.js не существует');
+});
+
 test('package.json: npm-скрипт sync:mobgroups (интерфейс единый с sync:buildings)', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   assert.equal(pkg.scripts['sync:mobgroups'], 'node scripts/sync-mob-groups-data.js');

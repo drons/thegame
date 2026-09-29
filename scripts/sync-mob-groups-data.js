@@ -14,6 +14,10 @@
 // tests/mob-groups.test.js проверяют консистентность JSON <-> JS-модуля
 // и идемпотентность).
 //
+// Запись выхода — атомарная (tmp + rename, scripts/lib/write-atomic.js,
+// конвенция ВСЕХ sync-скриптов из 000054): параллельные require под
+// node --test не видят частичный файл.
+//
 // ВАЖНО: сгенерированный модуль НЕ содержит require внутри (паттерн
 // 000049/000053): vm-песочницы (combat-ui/sprites) исполняют его без
 // module-окружения и не должны тянуть зависимости. Форматирование
@@ -22,6 +26,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { writeFileAtomic } = require('./lib/write-atomic.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'mob_groups');
@@ -124,5 +129,7 @@ L.push('  return { MOB_GROUPS };');
 L.push('});');
 L.push('');
 
-fs.writeFileSync(OUT_FILE, L.join('\n'), 'utf8');
+// Атомарная замена (tmp + rename): параллельные require под node --test
+// не видят частичный файл (задача 000054, правки по итогам ревью).
+writeFileAtomic(OUT_FILE, L.join('\n'));
 console.log(`src/mob-groups-data.js перегенерирован: ${groups.length} групп.`);
