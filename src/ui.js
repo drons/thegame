@@ -196,7 +196,7 @@
     panel = el('div', 'char-panel');
     panel.style.display = 'none';
 
-    const closeBtn = el('button', 'cp-close', 'закрыть [I]');
+    const closeBtn = el('button', 'cp-close', 'закрыть [I]/[Esc]');
     closeBtn.addEventListener('click', () => toggle(false));
     panel.appendChild(closeBtn);
 
@@ -449,7 +449,7 @@
   }
 
   function isOpen() {
-    return !!panel && panel.style.display === 'block';
+    return !!panel && panel.style.display === 'flex';
   }
 
   // [Esc] закрывает панель (единообразие с npcUI: тот вешается на
@@ -479,7 +479,13 @@
     if (!panel) buildPanel();
     if (!character) return;
     const show = force != null ? force : panel.style.display === 'none';
-    panel.style.display = show ? 'block' : 'none';
+    // 'flex', а не 'block': CSS .char-panel { display:flex;
+    // flex-direction:column } обязан действовать — инлайн-блок ломал
+    // верстку (ревью 000096, раунд 1): .cp-columns/.cp-tabpane
+    // (flex:1, min-height:0, overflow-y:auto) не ограничивались
+    // высотой (контент не скроллился), .cp-close (align-self:flex-end)
+    // уходил на левый край.
+    panel.style.display = show ? 'flex' : 'none';
     if (show) {
       render();
       attachEsc();
@@ -493,7 +499,7 @@
       character = c;
       if (panel) render();
     },
-    // Магазин текущего тайла (или null) — секция «Торговля».
+    // Магазин текущего тайла (или null) — вкладка «Магазин».
     setShop(s) {
       shop = s;
       const key = s ? s.x + ',' + s.y + ',' + s.buildingType + ',' + s.wealth : '';

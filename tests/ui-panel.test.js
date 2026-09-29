@@ -32,7 +32,11 @@
 //   * [Esc]: document keydown закрывает панель, слушатель СНЯТ,
 //     reopen — снова вешается; чужие клавиши не закрывают;
 //   * main.js (структурный): закрытие панели (playerUI.toggle(false),
-//     под guard'ом isOpen()) в ОБЕИХ входах боя — мир и подземелье.
+//     под guard'ом isOpen()) во ВСЕХ входах боя — мир, подземелье и
+//     отладочный actions.startCombat (ревью раунда 1);
+//   * при открытии инлайновый display панели — "flex" (как в CSS
+//     .char-panel), не "block" — иначе flex-верстка (скролл .cp-tabpane,
+//     align-self .cp-close) не действует (регрессия ревью раунда 1).
 //
 // ЗЕЛЁНЫЕ с первого запуска (регрессия-фиксация, 000096 не ломает):
 //   * на панели ОДИН делегированный click-обработчик
@@ -420,21 +424,48 @@ test('панель: [Esc] закрывает; слушатель снят; reope
   assert.equal(env.G.playerUI.isOpen(), false, 'после reopen [Esc] снова закрывает');
 });
 
+// --- КРАСНЫЕ: display:flex (регрессия — ревью 000096, раунд 1) ---
+
+test('панель: при открытии display = "flex" (не "block") — flex-верстка действует', () => {
+  // Инлайновый display:'block' переопределял CSS
+  // .char-panel { display: flex; flex-direction: column } — корень
+  // панели становился block-контейнером: .cp-columns
+  // {flex:1;min-height:0} и .cp-tabpane {flex:1;overflow-y:auto;
+  // min-height:0} не ограничивались высотой (контент не скроллился и
+  // переливался за нижнюю кромку в полосу .fs-btn), .cp-close
+  // {align-self:flex-end} не работал. display:'flex' — верстка
+  // из CSS, «скроллящийся контент .cp-tabpane» (цель задачи) в силе.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  openPanel(env, c);
+  const panel = findAll(env.body, '.char-panel')[0];
+  assert.equal(panel.style.display, 'flex',
+    'открытая панель — display:"flex" (как в CSS .char-panel, не "block")');
+  env.G.playerUI.toggle(false);
+  assert.equal(panel.style.display, 'none', 'закрытая панель — display:"none"');
+  assert.equal(env.G.playerUI.isOpen(), false, 'isOpen() учитывает display');
+  env.G.playerUI.toggle(true);
+  assert.equal(panel.style.display, 'flex', 'reopen — снова "flex"');
+  assert.equal(env.G.playerUI.isOpen(), true, 'isOpen() — открыта');
+});
+
 // --- КРАСНЫЕ: main.js — закрытие панели при старте боя (структурный) ---
 
-test('main.js: панель закрывается (toggle(false) под guard' + 'ом isOpen()) в обоих входах боя', () => {
+test('main.js: панель закрывается (toggle(false) под guard' + 'ом isOpen()) во ВСЕХ входах боя', () => {
   // Поведенческого теста main.js в проекте нет (бой не запускается в
   // песочнице) — структурный, паттерн tests/global-settings.test.js.
-  // ДВА входа: мир (maybeStartCombat) и подземелье (startDungeonCombat) —
-  // пропуск dungeon-входа = полноэкранная панель накроет карту после
-  // подземельного боя. Вызов обязан быть УСЛОВНЫМ (isOpen()): голый
-  // toggle(false) построит панель при каждом спавне боя.
+  // ТРИ входа: мир (maybeStartCombat), подземелье (startDungeonCombat)
+  // и отладочный actions.startCombat — пропуск любого = полноэкранная
+  // панель накроет карту после боя (цель задачи). Вызов обязан быть
+  // УСЛОВНЫМ (isOpen()): голый toggle(false) построит панель при
+  // каждом спавне боя.
   const text = src('main.js');
   const closers = text.match(
     /isOpen\s*\(\s*\)[\s\S]{0,120}?playerUI\s*\.\s*toggle\s*\(\s*false\s*\)/g) || [];
-  assert.ok(closers.length >= 2,
+  assert.ok(closers.length >= 3,
     'закрытие панели playerUI.toggle(false) под guard' + 'ом isOpen() ' +
-    'найдено в ОБЕИХ входах боя (мир + подземелье), найдено: ' + closers.length);
+    'найдено во ВСЕХ входах боя (мир + подземелье + отладочный), ' +
+    'найдено: ' + closers.length);
 });
 
 // --- ЗЕЛЁНЫЕ с первого запуска (регрессия-фиксация) ---

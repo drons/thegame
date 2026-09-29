@@ -1138,7 +1138,7 @@
         ? '\nГруппа ' + G.mobGroupName(t.mobGroup) + ' повержена.'
         : '\nОсторожно: ' + G.mobGroupName(t.mobGroup) + '!';
     }
-    // Магазин текущего тайла → секция «Торговля» в панели персонажа.
+    // Магазин текущего тайла → вкладка «Магазин» в панели персонажа.
     if (G.playerUI) {
       const isShop = !dungeonState && t.hasBuilding && G.shopKindsFor(t.building);
       G.playerUI.setShop(isShop
@@ -1282,6 +1282,10 @@
       // Отладочный бой на текущем тайле (не требует шага на группу).
       startCombat: (groupType = 0) => {
         if (G.combatUI && G.combatUI.isActive()) return null;
+        // Тот же паттерн, что и в боях мира/подземелья (000096):
+        // после отладочного боя полноэкранная панель не должна
+        // накрывать карту.
+        if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
         return G.combatUI.startCombat({
           hero,
           tile: { mobGroup: groupType },
