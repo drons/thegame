@@ -19,87 +19,206 @@
     return n;
   }
 
+  // --- Data-driven ряды вкладок (000051, задача 000096) ---
+  // Новая вкладка = новая запись { id, label, build(pane) } в массиве
+  // столбца: 000098 (форма настроек), 000100 (журнал квестов),
+  // 000101 (строка «Магазина здесь нет») и 000086 («Отряд» — 7-я
+  // вкладка) достраивают механизм записями, без переделки.
+  // build(pane) вызывается ОДИН раз при сборке панели; render() pane
+  // НЕ пересобирает — только обновляет существующие тела in place
+  // (форма 000098 опирается на живость focus).
+  const LEFT_TABS = [
+    {
+      id: 'character',
+      label: 'Персонаж',
+      build(pane) {
+        // Заголовок — имя персонажа; render() обновляет его in place
+        // (переименование — restoreFromSave).
+        const title = el('div', 'cp-title', character ? character.name : '');
+        pane.appendChild(title);
+        panel._title = title;
+
+        const stats = el('div', 'cp-stats');
+        pane.appendChild(stats);
+        panel._stats = stats;
+
+        // Основные навыки (строки/классы БЕЗ ИЗМЕНЕНИЙ — DOM-контракт
+        // tests/ui-skills.test.js).
+        const primaries = el('div', 'cp-section', 'Основные навыки');
+        const primTable = el('table', 'cp-table');
+        for (const p of G.PRIMARY_SKILLS) {
+          const tr = el('tr');
+          tr.appendChild(el('td', 'cp-name', p.name));
+          const lv = el('td', 'cp-level', '—');
+          tr.appendChild(lv);
+          const btn = el('button', 'cp-btn', '+');
+          btn.dataset.skill = p.id;
+          tr.appendChild(btn);
+          primTable.appendChild(tr);
+        }
+        primaries.appendChild(primTable);
+        pane.appendChild(primaries);
+
+        // Вторичные навыки по группам основных.
+        for (const p of G.PRIMARY_SKILLS) {
+          const section = el('div', 'cp-section', p.name);
+          const table = el('table', 'cp-table');
+          for (const [id, s] of Object.entries(G.SECONDARY_SKILLS)) {
+            if (s.primary !== p.id) continue;
+            const tr = el('tr');
+            tr.appendChild(el('td', 'cp-name')); // имя подставится при render
+            tr.appendChild(el('td', 'cp-req', ''));
+            const lv = el('td', 'cp-level', '—');
+            tr.appendChild(lv);
+            const btn = el('button', 'cp-btn', '+');
+            btn.dataset.skill = id;
+            tr.appendChild(btn);
+            table.appendChild(tr);
+          }
+          section.appendChild(table);
+          pane.appendChild(section);
+        }
+      },
+    },
+    {
+      id: 'inventory',
+      label: 'Инвентарь',
+      build(pane) {
+        const sec = el('div', 'cp-section', 'Инвентарь');
+        const invBody = el('div', 'cp-items');
+        sec.appendChild(invBody);
+        pane.appendChild(sec);
+        panel._invBody = invBody;
+      },
+    },
+    {
+      id: 'settings',
+      label: 'Игровые настройки',
+      build(pane) {
+        // Placeholder: 000098 добавит сюда форму настроек.
+        pane.appendChild(el('div', 'cp-section', 'Игровые настройки'));
+        pane.appendChild(el('div', 'cp-itemmeta',
+          'настройки появятся позже (задача 000098)'));
+      },
+    },
+  ];
+
+  const RIGHT_TABS = [
+    {
+      id: 'equipment',
+      label: 'Снаряжение',
+      build(pane) {
+        const equipSec = el('div', 'cp-section', 'Снаряжение');
+        const equipBody = el('div', 'cp-items');
+        equipSec.appendChild(equipBody);
+        pane.appendChild(equipSec);
+        panel._equipBody = equipBody;
+
+        const quickSec = el('div', 'cp-section', 'Быстрые слоты (бой)');
+        const quickBody = el('div', 'cp-items');
+        quickSec.appendChild(quickBody);
+        pane.appendChild(quickSec);
+        panel._quickBody = quickBody;
+      },
+    },
+    {
+      id: 'shop',
+      label: 'Магазин',
+      build(pane) {
+        // Торговля (000009) переезжает в pane «Магазин» как есть:
+        // renderItems() обновляет _shopBody in place и прячет секцию,
+        // когда shop === null (000101 добавит строку «Магазина здесь
+        // нет» в этот же pane).
+        const shopSec = el('div', 'cp-section', 'Магазин');
+        const shopBody = el('div', 'cp-items');
+        shopSec.appendChild(shopBody);
+        pane.appendChild(shopSec);
+        panel._shopSec = shopSec;
+        panel._shopBody = shopBody;
+      },
+    },
+    {
+      id: 'quests',
+      label: 'Квесты',
+      build(pane) {
+        // Placeholder: 000100 добавит сюда журнал квестов.
+        pane.appendChild(el('div', 'cp-section', 'Квесты'));
+        pane.appendChild(el('div', 'cp-itemmeta',
+          'квесты появятся позже (задача 000100)'));
+      },
+    },
+  ];
+
+  // Состояние вкладок по столбцам (closure; ЖИВЁТ через render() —
+  // pane не пересобираются). rec: { active, buttons, panes, apply }.
+  const columnState = [];
+
+  function makeColumn(defs, colIndex) {
+    const col = el('div', 'cp-column');
+    const tabsRow = el('div', 'cp-tabs');
+    col.appendChild(tabsRow);
+    const rec = { active: defs[0].id, buttons: {}, panes: {} };
+    for (const t of defs) {
+      const btn = el('button', 'cp-tab', t.label);
+      btn.dataset.col = String(colIndex);
+      btn.dataset.tabid = t.id;
+      rec.buttons[t.id] = btn;
+      tabsRow.appendChild(btn);
+      const pane = el('div', 'cp-tabpane');
+      rec.panes[t.id] = pane;
+      t.build(pane);
+      col.appendChild(pane);
+    }
+    rec.apply = function () {
+      for (const t of defs) {
+        const on = t.id === rec.active;
+        rec.panes[t.id].style.display = on ? '' : 'none';
+        // Активная кнопка подсвечивается тоже через style (в DOM-стабе
+        // нет classList).
+        const st = rec.buttons[t.id].style;
+        st.background = on ? '#4a4433' : '#2c3040';
+        st.borderColor = on ? '#d8c27a' : '#6b6248';
+      }
+    };
+    rec.apply();
+    columnState[colIndex] = rec;
+    return col;
+  }
+
+  function activateTab(colIndex, id) {
+    const rec = columnState[colIndex];
+    if (!rec || !rec.panes[id]) return;
+    rec.active = id;
+    rec.apply();
+  }
+
   function buildPanel() {
     panel = el('div', 'char-panel');
     panel.style.display = 'none';
-
-    const title = el('div', 'cp-title', 'Флогистон');
-    panel.appendChild(title);
-
-    const stats = el('div', 'cp-stats');
-    panel.appendChild(stats);
-    panel._stats = stats;
 
     const closeBtn = el('button', 'cp-close', 'закрыть [I]');
     closeBtn.addEventListener('click', () => toggle(false));
     panel.appendChild(closeBtn);
 
-    const primaries = el('div', 'cp-section', 'Основные навыки');
-    const primTable = el('table', 'cp-table');
-    for (const p of G.PRIMARY_SKILLS) {
-      const tr = el('tr');
-      tr.appendChild(el('td', 'cp-name', p.name));
-      const lv = el('td', 'cp-level', '—');
-      tr.appendChild(lv);
-      const btn = el('button', 'cp-btn', '+');
-      btn.dataset.skill = p.id;
-      tr.appendChild(btn);
-      primTable.appendChild(tr);
-    }
-    primaries.appendChild(primTable);
-    panel.appendChild(primaries);
-
-    // Вторичные навыки по группам основных.
-    for (const p of G.PRIMARY_SKILLS) {
-      const section = el('div', 'cp-section', p.name);
-      const table = el('table', 'cp-table');
-      for (const [id, s] of Object.entries(G.SECONDARY_SKILLS)) {
-        if (s.primary !== p.id) continue;
-        const tr = el('tr');
-        tr.appendChild(el('td', 'cp-name')); // имя подставится при render
-        tr.appendChild(el('td', 'cp-req', ''));
-        const lv = el('td', 'cp-level', '—');
-        tr.appendChild(lv);
-        const btn = el('button', 'cp-btn', '+');
-        btn.dataset.skill = id;
-        tr.appendChild(btn);
-        table.appendChild(tr);
-      }
-      section.appendChild(table);
-      panel.appendChild(section);
-    }
-
-    // --- Снаряжение / быстрые слоты / инвентарь / торговля (000009) ---
-    const equipSec = el('div', 'cp-section', 'Снаряжение');
-    const equipBody = el('div', 'cp-items');
-    equipSec.appendChild(equipBody);
-    panel.appendChild(equipSec);
-    panel._equipBody = equipBody;
-
-    const quickSec = el('div', 'cp-section', 'Быстрые слоты (бой)');
-    const quickBody = el('div', 'cp-items');
-    quickSec.appendChild(quickBody);
-    panel.appendChild(quickSec);
-    panel._quickBody = quickBody;
-
-    const invSec = el('div', 'cp-section', 'Инвентарь');
-    const invBody = el('div', 'cp-items');
-    invSec.appendChild(invBody);
-    panel.appendChild(invSec);
-    panel._invBody = invBody;
-
-    const shopSec = el('div', 'cp-section', 'Торговля');
-    const shopBody = el('div', 'cp-items');
-    shopSec.appendChild(shopBody);
-    panel.appendChild(shopSec);
-    panel._shopSec = shopSec;
-    panel._shopBody = shopBody;
+    // Два столбца: лево — Персонаж/Инвентарь/настройки,
+    // право — Снаряжение/Магазин/Квесты.
+    const columns = el('div', 'cp-columns');
+    columns.appendChild(makeColumn(LEFT_TABS, 0));
+    columns.appendChild(makeColumn(RIGHT_TABS, 1));
+    panel.appendChild(columns);
 
     notice = el('div', 'cp-notice', '');
     panel.appendChild(notice);
 
-    // Один обработчик кликов на всю панель: прокачка + предметы/торговля.
+    // Один обработчик кликов на всю панель: вкладки + прокачка +
+    // предметы/торговля. Ветка вкладок ПЕРВАЯ: вкладка — .cp-tab
+    // (не .cp-btn), в item/skill-обработчик попасть не должна.
     panel.addEventListener('click', (e) => {
+      const tab = e.target.closest('.cp-tab');
+      if (tab) {
+        activateTab(Number(tab.dataset.col), tab.dataset.tabid);
+        return;
+      }
       const btn = e.target.closest('.cp-btn');
       if (!btn || !character) return;
       if (btn.dataset.act) {
@@ -278,6 +397,9 @@
   function render() {
     if (!panel || !character) return;
     const c = character;
+    // Заголовок — имя персонажа (узел собран один раз в buildPanel;
+    // переименование — restoreFromSave).
+    if (panel._title) panel._title.textContent = c.name;
     const d = G.derived(c);
     const eqA = G.equipmentStats ? G.equipmentStats(c).armor : 0;
     const w = G.inventoryWeight(c);
@@ -326,12 +448,44 @@
     renderItems();
   }
 
+  function isOpen() {
+    return !!panel && panel.style.display === 'block';
+  }
+
+  // [Esc] закрывает панель (единообразие с npcUI: тот вешается на
+  // window, панель — на document). Слушатель живёт только пока панель
+  // открыта: вешается на open, снимается на close, guard isOpen().
+  // Терпимо к стабам без add/removeEventListener (typeof-guard, как
+  // bottomInset() — минимальный DOM).
+  let escHandler = null;
+  function attachEsc() {
+    if (escHandler) return;
+    escHandler = (e) => {
+      if (e.code === 'Escape' && isOpen()) toggle(false);
+    };
+    if (typeof document.addEventListener === 'function') {
+      document.addEventListener('keydown', escHandler);
+    }
+  }
+  function detachEsc() {
+    if (!escHandler) return;
+    if (typeof document.removeEventListener === 'function') {
+      document.removeEventListener('keydown', escHandler);
+    }
+    escHandler = null;
+  }
+
   function toggle(force) {
     if (!panel) buildPanel();
     if (!character) return;
     const show = force != null ? force : panel.style.display === 'none';
     panel.style.display = show ? 'block' : 'none';
-    if (show) render();
+    if (show) {
+      render();
+      attachEsc();
+    } else {
+      detachEsc();
+    }
   }
 
   G.playerUI = {
@@ -349,9 +503,7 @@
     },
     toggle,
     render,
-    isOpen() {
-      return !!panel && panel.style.display === 'block';
-    },
+    isOpen,
   };
 
   // --- Диалог NPC (задача 000010) ---

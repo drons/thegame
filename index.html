@@ -41,13 +41,18 @@
       pointer-events: none;
       white-space: pre-line;
     }
+    /* Полноэкранная двухколоночная панель (задача 000096): накрывает
+       карту; bottom:56px — нижняя кромка ВЫШЕ верхней кромки .fs-btn
+       (bottom 12 + высота ≈33px = 45px) в обоих состояниях подписи;
+       геометрия не зависит от наличия кнопки (нет Fullscreen API). */
     .char-panel {
       position: fixed;
-      right: 12px;
       top: 12px;
-      width: 380px;
-      max-height: calc(100vh - 24px);
-      overflow-y: auto;
+      left: 12px;
+      right: 12px;
+      bottom: 56px;
+      display: flex;
+      flex-direction: column;
       color: #e8dcc0;
       font: 13px/1.45 ui-monospace, monospace;
       background: rgba(16, 18, 24, 0.92);
@@ -56,9 +61,33 @@
       padding: 12px 14px;
       z-index: 10;
     }
+    .cp-columns { display: flex; flex: 1; gap: 12px; min-height: 0; }
+    .cp-column {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+    }
+    .cp-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+    /* Широкие вкладки (flex:1, padding ≥ 8px) — крупные тач-таргеты;
+       стратегия тултипов без hover — 000097. */
+    .cp-tab {
+      flex: 1;
+      padding: 8px 6px;
+      font: inherit;
+      font-weight: 700;
+      border: 1px solid #6b6248;
+      border-radius: 6px;
+      background: #2c3040;
+      color: #e8dcc0;
+      cursor: pointer;
+    }
+    .cp-tabpane { flex: 1; overflow-y: auto; min-height: 0; }
     .cp-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
     .cp-stats { white-space: pre-line; margin-bottom: 8px; color: #bfe3c0; }
-    .cp-close { float: right; }
+    /* Панель — flex-контейнер: float в нём не работает. */
+    .cp-close { align-self: flex-end; }
     .cp-section { margin-top: 10px; font-weight: 700; color: #d8c27a; }
     .cp-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
     .cp-table td { padding: 1px 4px; }
