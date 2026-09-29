@@ -594,3 +594,250 @@ test('каталог: проза «ассортимент» 4 магазинов
       `${b.id} ${b.название}: проза «ассортимент» сохранена`);
   }
 });
+
+// --- Задача 000102: каталог городов — 4 типа (хутор 1x1 … столица 7x7) ---
+//
+// Слой данных: 4 постройки категории «город» (id 51..54), расширение
+// schema.json (ширина/высота до 7, координаты входа до 6, «город» в
+// enum «категория»), флаг особые_параметры.не_сжимать —
+// sizeChain/placeBuilding пробуют ТОЛЬКО полный размер, не влезла →
+// null (город не сжимается до 3x3/1x1).
+// Стадия красных тестов: тесты ниже падают до реализации.
+// Подпроверки регрессии (без флага) закрепляют старое поведение
+// остальных построек (цепочка 3x3 → 1x1 сохраняется).
+
+const CITY_EXPECTED = {
+  51: { name: 'Хутор', width: 1, height: 1 },
+  52: { name: 'Деревня', width: 2, height: 2 },
+  53: { name: 'Город', width: 5, height: 5 },
+  54: { name: 'Столица', width: 7, height: 7 },
+};
+const CITY_IDS = Object.keys(CITY_EXPECTED).map(Number);
+
+function cityRecord(id) {
+  const b = getBuilding(id);
+  assert.ok(b, `getBuilding(${id}) — запись отсутствует`);
+  return b;
+}
+
+test('schema.json (000102): enum «категория» содержит «город», максимумы 7x7, вход до 6', () => {
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
+  const enumCats = schema.properties['категория'].enum;
+  for (const cat of Object.keys(EXPECTED_COUNTS)) {
+    assert.ok(enumCats.includes(cat), `enum «категория»: нет «${cat}»`);
+  }
+  assert.ok(enumCats.includes('город'), 'enum «категория»: нет «город»');
+  const sz = schema.properties['размер'];
+  assert.equal(sz.properties['ширина'].maximum, 7,
+    'размер.ширина maximum = 7');
+  assert.equal(sz.properties['высота'].maximum, 7,
+    'размер.высота maximum = 7');
+  assert.equal(schema.properties['вход'].items.maximum, 6,
+    'вход items maximum = 6');
+});
+
+test('CATEGORIES (000102): содержит «город»', () => {
+  assert.ok(CATEGORIES.includes('город'), 'CATEGORIES: нет «город»');
+});
+
+test('каталог (000102): 54 типа, id = 1..54 без дублей, 4 из них — города', () => {
+  assert.equal(BUILDINGS.length, 54, 'в каталоге 54 типа');
+  assert.equal(new Set(BUILDINGS.map((b) => b.id)).size, 54,
+    'id уникальны');
+  for (let i = 0; i < BUILDINGS.length; i++) {
+    assert.equal(BUILDINGS[i].id, i + 1, 'id = позиция в каталоге + 1');
+  }
+  assert.equal(getBuildingsByCategory('город').length, 4, 'ровно 4 города');
+});
+
+test('города (000102): категория, размер, название_карты, проходимые тайлы', () => {
+  const passable = passableTiles();
+  for (const id of CITY_IDS) {
+    const b = cityRecord(id);
+    const exp = CITY_EXPECTED[id];
+    assert.equal(b.категория, 'город', `${id}: категория`);
+    const { width, height } = buildingSize(b);
+    assert.equal(width, exp.width, `${id} ${exp.name}: ширина`);
+    assert.equal(height, exp.height, `${id} ${exp.name}: высота`);
+    assert.ok(b.размер && typeof b.размер === 'object',
+      `${id} ${exp.name}: явное поле «размер»`);
+    assert.equal(b.особые_параметры.название_карты, exp.name,
+      `${id} ${exp.name}: название_карты`);
+    assert.deepEqual(
+      [...b.допустимые_тайлы].sort(), [...passable].sort(),
+      `${id} ${exp.name}: допустимые_тайлы — все проходимые (без воды)`);
+  }
+});
+
+test('города (000102): вход явный и на периметре footprint (000026: снаружи — свободный сосед)', () => {
+  for (const id of CITY_IDS) {
+    const b = cityRecord(id);
+    const exp = CITY_EXPECTED[id];
+    assert.ok(Array.isArray(b.вход) && b.вход.length === 2,
+      `${id} ${exp.name}: явное поле «вход»`);
+    const { width, height } = buildingSize(b);
+    const [dx, dy] = buildingEntranceRel(b);
+    assert.ok(dx >= 0 && dx < width && dy >= 0 && dy < height,
+      `${id}: вход (${dx},${dy}) внутри footprint ${width}x${height}`);
+    const onPerimeter =
+      dx === 0 || dx === width - 1 || dy === 0 || dy === height - 1;
+    assert.ok(onPerimeter,
+      `${id} ${exp.name}: вход (${dx},${dy}) не на периметре ` +
+      `${width}x${height} — нет свободного соседа снаружи (000026)`);
+  }
+});
+
+test('города (000102): без map_index — 13 «картовых» слотов не меняются', () => {
+  for (const id of CITY_IDS) {
+    const b = cityRecord(id);
+    assert.equal(typeof b.особые_параметры.map_index, 'undefined',
+      `${id}: город не слот — без map_index`);
+  }
+  assert.equal(buildingCount(), 13, 'buildingCount() = 13');
+  for (let i = 0; i < 13; i++) {
+    assert.ok(buildingForMapIndex(i) !== null,
+      `map_index ${i} по-прежнему отображается`);
+  }
+  assert.equal(buildingForMapIndex(13), null);
+});
+
+test('города (000102): особые_параметры.не_сжимать — строго true', () => {
+  for (const id of CITY_IDS) {
+    const b = cityRecord(id);
+    assert.equal(b.особые_параметры.не_сжимать, true,
+      `${id}: особые_параметры.не_сжимать === true`);
+  }
+});
+
+test('города (000102): мин_постройки и доли_типов (читает 000106)', () => {
+  for (const id of CITY_IDS) {
+    const b = cityRecord(id);
+    const p = b.особые_параметры;
+    assert.ok(Number.isInteger(p.мин_постройки) && p.мин_постройки >= 0,
+      `${id}: мин_постройки — целое ≥ 0 (получено ${p.мин_постройки})`);
+    if (id === 51) {
+      // Хутор 1x1: внутренности НЕТ (периметр = весь footprint) —
+      // минимум обязан быть 0, иначе 000106 получит невыполнимое
+      // требование.
+      assert.equal(p.мин_постройки, 0,
+        'хутор 1x1: нет внутренностей → мин_постройки = 0');
+    }
+    const shares = p.доли_типов;
+    assert.ok(shares && typeof shares === 'object' &&
+      !Array.isArray(shares), `${id}: доли_типов — объект`);
+    assert.ok(Object.keys(shares).length > 0, `${id}: доли_типов не пуст`);
+    assert.ok('44' in shares,
+      `${id}: доли_типов — таверна (id 44) присутствует во всех 4 типах`);
+    for (const [k, v] of Object.entries(shares)) {
+      assert.ok(typeof v === 'number' && v >= 0 && v <= 1,
+        `${id}: доля ${k} — число 0..1 (получено ${v})`);
+      const inner = getBuilding(Number(k));
+      assert.ok(inner !== null,
+        `${id}: ключ ${k} — в каталоге нет постройки с таким id`);
+      assert.notEqual(inner.категория, 'город',
+        `${id}: ключ ${k} — внутренний тип — НЕ город, а постройка каталога`);
+    }
+  }
+});
+
+test('sizeChain (000102): с флагом — один полный размер; без — старая цепочка (регрессия)', () => {
+  assert.deepEqual(sizeChain(7, 7, true), [[7, 7]]);
+  assert.deepEqual(sizeChain(5, 5, true), [[5, 5]]);
+  assert.deepEqual(sizeChain(5, 4, true), [[5, 4]]);
+  // Регрессия: без флага остальные постройки цепочку не теряют.
+  assert.deepEqual(sizeChain(7, 7), [[7, 7], [3, 3], [1, 1]]);
+  assert.deepEqual(sizeChain(3, 3), [[3, 3], [1, 1]]);
+});
+
+test('placeBuilding (000102): столица 7x7 — целиком или null, сжатия нет', () => {
+  const cap = cityRecord(54);
+  // Полностью свободное поле — размещается целиком.
+  const p = placeBuilding(cap, 10, 20, () => true);
+  assert.ok(p, 'столица на свободном поле — размещается');
+  assert.equal(p.w, 7, 'ширина 7 (не 3, не 1)');
+  assert.equal(p.h, 7, 'высота 7 (не 3, не 1)');
+  assert.equal(p.tiles.length, 49, '49 тайлов');
+  const [erx, ery] = buildingEntranceRel(cap);
+  assert.deepEqual(p.entrance, [10 + erx, 20 + ery],
+    'вход = якорь + вход из записи');
+  // Занят ЛЮБОЙ тайл 7x7-прямоугольника (включая крайний (6,6)) —
+  // null: не 3x3, не 1x1, сжатия нет.
+  for (let dy = 0; dy < 7; dy++) {
+    for (let dx = 0; dx < 7; dx++) {
+      const q = placeBuilding(cap, 10, 20,
+        (tx, ty) => !(tx === 10 + dx && ty === 20 + dy));
+      assert.equal(q, null, `занят тайл (${dx},${dy}) → null`);
+    }
+  }
+  // validateSize отклоняет полный размер — null (менее крупных
+  // размеров в цепочке нет).
+  assert.equal(placeBuilding(cap, 0, 0, () => true, () => false), null,
+    'validateSize false → null (сжатия нет)');
+});
+
+test('placeBuilding (000102): город 5x5 в полосе 5x4 — null (3x3 влезло бы, но сжатия нет)', () => {
+  const city = cityRecord(53);
+  // Свободны ряды 0..3, ряд 4 занят: 5x5 целиком не влезает,
+  // а 3x3 влезает — город не сжимается.
+  const p = placeBuilding(city, 0, 0, (tx, ty) => ty < 4);
+  assert.equal(p, null, '5x5 целиком не влезает → null');
+});
+
+test('placeBuilding (000102): флаг берётся строго === true — иначе старая цепочка (регрессия)', () => {
+  // Свободны ряды 0..2: 3x3 влезает, 7x7 — нет.
+  const tight = (tx, ty) => ty < 3;
+  const plain = { размер: { ширина: 7, высота: 7 }, вход: [3, 6] };
+  const p1 = placeBuilding(plain, 0, 0, tight);
+  assert.equal(p1.w, 3, 'без флага: 7x7 сжимается до 3x3');
+  assert.equal(p1.h, 3);
+  const off = {
+    размер: { ширина: 7, высота: 7 }, вход: [3, 6],
+    особые_параметры: { не_сжимать: false },
+  };
+  const p2 = placeBuilding(off, 0, 0, tight);
+  assert.equal(p2.w, 3, 'не_сжимать=false: 7x7 сжимается до 3x3');
+  assert.equal(p2.h, 3);
+  const on = {
+    размер: { ширина: 7, высота: 7 }, вход: [3, 6],
+    особые_параметры: { не_сжимать: true },
+  };
+  assert.equal(placeBuilding(on, 0, 0, tight), null,
+    'не_сжимать=true: не влез → null (3x3 не строится)');
+});
+
+test('зеркало (000102): файлы 000001..000054.json, содержимое = JS-каталог', () => {
+  const files = fs.readdirSync(DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  assert.equal(files.length, 54, 'ровно 54 файла типа');
+  for (let i = 0; i < 54; i++) {
+    const num = String(i + 1).padStart(6, '0');
+    assert.equal(files[i], num + '.json',
+      `файл ${files[i]} вместо ${num}.json`);
+    const fromFile = JSON.parse(
+      fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
+    assert.equal(fromFile.id, i + 1, 'id = номер файла');
+    assert.deepEqual(fromFile, BUILDINGS[i],
+      `${num}.json совпадает с JS-каталогом`);
+  }
+});
+
+test('sync-buildings-data.js (000102): CATEGORY_TITLES знает «город» → «Города»', () => {
+  const ROOT = path.join(__dirname, '..');
+  const script = fs.readFileSync(
+    path.join(ROOT, 'scripts', 'sync-buildings-data.js'), 'utf8');
+  assert.ok(/город:\s*'Города'/.test(script),
+    'CATEGORY_TITLES: нет «город: \'Города\'» — заголовок секции ' +
+    'в зеркале будет сырым ключом «город»');
+});
+
+test('buildings.js (000102): шапочный комментарий и JSDoc согласованы с размером каталога', () => {
+  // Согласованность (зелёный теперь: 50/50; после реализации
+  // краснеет, если «Каталог: 54 типа» и JSDoc «1..54» не обновить).
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'buildings.js'), 'utf8');
+  assert.ok(src.includes(`Каталог: ${BUILDINGS.length} типов`),
+    'шапка: «Каталог: N типов» — N = размер каталога');
+  assert.ok(src.includes(`1..${BUILDINGS.length}`),
+    'JSDoc getBuilding: «1..N» — N = размер каталога');
+});

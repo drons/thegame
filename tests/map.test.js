@@ -276,9 +276,15 @@ test('createTileCache: ограничен — при переполнении в
 
 // --- Задача 000026: footprint'ы построек на карте ---
 
-test('buildMaxW/H() покрывают максимальный размер в каталоге', () => {
+test('buildMaxW/H() покрывают максимальный размер «картовых» записей каталога', () => {
+  // Задача 000102: окно поиска выводится ТОЛЬКО из записей с map_index
+  // (13 «картовых» слотов, buildingDerived в src/map.js) — города
+  // (до 7x7) map_index не имеют и окно не растят (размещение города —
+  // 000103). Семантика та же, что у теста производных данных ниже.
   let maxW = 1, maxH = 1;
   for (const b of BUILDINGS) {
+    const mi = b.особые_параметры && b.особые_параметры.map_index;
+    if (typeof mi !== 'number') continue;
     const { width, height } = buildingSize(b);
     maxW = Math.max(maxW, width);
     maxH = Math.max(maxH, height);
