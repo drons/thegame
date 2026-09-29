@@ -34,7 +34,8 @@ const TERRAIN_TABLE_NAMES = [
 ];
 
 // SPEC.md «Постройки»: 6 магазинов, 18 школ навыков, 6 домов NPC,
-// 5 входов в пещеры, 4 храма, 4 магических знака, 7 прочих = 50 типов.
+// 5 входов в пещеры, 4 храма, 4 магических знака, 7 прочих = 50 типов
+// + 4 города (000102) = 54 типов.
 const EXPECTED_COUNTS = {
   магазин: 6,
   школа_навыков: 18,
@@ -42,19 +43,20 @@ const EXPECTED_COUNTS = {
   пещера: 5,
   храм: 4,
   магический_знак: 4,
+  город: 4,
   прочее: 7,
 };
 
-test('каталог: 50 типов, id = 1..50 без дублей, порядок = id', () => {
-  assert.equal(BUILDINGS.length, 50);
+test('каталог: 54 типа, id = 1..54 без дублей, порядок = id', () => {
+  assert.equal(BUILDINGS.length, 54);
   const ids = BUILDINGS.map((b) => b.id);
-  assert.equal(new Set(ids).size, 50, 'id уникальны');
+  assert.equal(new Set(ids).size, 54, 'id уникальны');
   for (let i = 0; i < BUILDINGS.length; i++) {
     assert.equal(BUILDINGS[i].id, i + 1, 'id = позиция в каталоге + 1');
   }
 });
 
-test('каталог: категории — 6/18/6/5/4/4/7, все категории из CATEGORIES', () => {
+test('каталог: категории — 6/18/6/5/4/4/4/7, все категории из CATEGORIES', () => {
   for (const cat of Object.keys(EXPECTED_COUNTS)) {
     assert.equal(getBuildingsByCategory(cat).length, EXPECTED_COUNTS[cat], cat);
   }
@@ -89,10 +91,10 @@ test('каталог: обязательные поля, допустимые_т
   }
 });
 
-test('файлы assets/buildings: ровно 000001..000050.json, содержимое = JS-фолбэк', () => {
+test('файлы assets/buildings: ровно 000001..000054.json, содержимое = JS-фолбэк', () => {
   const files = fs.readdirSync(DIR).filter((f) => /^\d{6}\.json$/.test(f)).sort();
-  assert.equal(files.length, 50, 'ровно 50 файлов типа');
-  for (let i = 0; i < 50; i++) {
+  assert.equal(files.length, 54, 'ровно 54 файла типа');
+  for (let i = 0; i < 54; i++) {
     const num = String(i + 1).padStart(6, '0');
     assert.equal(files[i], num + '.json', `файл ${files[i]} вместо ${num}.json`);
     const fromFile = JSON.parse(fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
@@ -110,7 +112,7 @@ test('getBuilding: id → объект из каталога, вне диапа�
   assert.equal(getBuilding(50), BUILDINGS[49]);
   assert.equal(getBuilding(25).название, 'Дом кузнеца');
   assert.equal(getBuilding(0), null);
-  assert.equal(getBuilding(51), null);
+  assert.equal(getBuilding(55), null, 'вне каталога (1..54) — null');
   assert.equal(getBuilding(12345), null);
 });
 
@@ -182,7 +184,8 @@ test('размер/вход в каталоге: крупные — 3x3, баш�
   assert.deepEqual(getBuilding(40).вход, [0, 0], 'Рунический камень');
   // Остальные 44 постройки — без поля (по умолчанию 1x1).
   const withSize = BUILDINGS.filter((b) => b.размер);
-  assert.equal(withSize.length, 6, 'именно 6 построек имеют поле «размер»');
+  assert.equal(withSize.length, 10,
+    'именно 10 построек имеют поле «размер» (6 + 4 города, 000102)');
   for (const b of BUILDINGS) {
     if (!b.размер) continue;
     const { width, height } = buildingSize(b);
@@ -201,28 +204,28 @@ test('schema.json: поля «размер» и «вход» описаны и �
   assert.equal(sz.additionalProperties, false);
   assert.deepEqual([...sz.required].sort(), ['высота', 'ширина']);
   assert.equal(sz.properties['ширина'].minimum, 1);
-  assert.equal(sz.properties['ширина'].maximum, 5);
+  assert.equal(sz.properties['ширина'].maximum, 7, '000102: до 7x7');
   assert.equal(sz.properties['высота'].minimum, 1);
-  assert.equal(sz.properties['высота'].maximum, 4);
+  assert.equal(sz.properties['высота'].maximum, 7, '000102: до 7x7');
   const en = schema.properties['вход'];
   assert.ok(en, 'schema: нет свойства «вход»');
   assert.equal(en.type, 'array');
   assert.equal(en.minItems, 2);
   assert.equal(en.maxItems, 2);
   assert.equal(en.items.minimum, 0);
-  assert.equal(en.items.maximum, 4);
+  assert.equal(en.items.maximum, 6, '000102: координаты на footprint до 7x7');
   // Каталог укладывается в ограничения схемы (проверка без ajv).
   for (const b of BUILDINGS) {
     if (b.размер) {
-      assert.ok(Number.isInteger(b.размер.ширина) && b.размер.ширина >= 1 && b.размер.ширина <= 5, b.название);
-      assert.ok(Number.isInteger(b.размер.высота) && b.размер.высота >= 1 && b.размер.высота <= 4, b.название);
+      assert.ok(Number.isInteger(b.размер.ширина) && b.размер.ширина >= 1 && b.размер.ширина <= 7, b.название);
+      assert.ok(Number.isInteger(b.размер.высота) && b.размер.высота >= 1 && b.размер.высота <= 7, b.название);
       assert.deepEqual(Object.keys(b.размер).sort(), ['высота', 'ширина'],
         `${b.название}: только ширина/высота (additionalProperties=false)`);
     }
     if (b.вход) {
       assert.equal(b.вход.length, 2, b.название);
       for (const v of b.вход) {
-        assert.ok(Number.isInteger(v) && v >= 0 && v <= 4, b.название);
+        assert.ok(Number.isInteger(v) && v >= 0 && v <= 6, b.название);
       }
     }
   }
@@ -439,7 +442,7 @@ test('passableTiles()/denseTiles(): имена passable/dense-записей т�
        .map((id) => TERRAIN_DATA[id].name), 'denseTiles() — из таблицы, по id');
 });
 
-test('сквозная связь: допустимые_тайлы ВСЕХ 50 записей ⊆ passableTiles() (против таблицы map.js)', () => {
+test('сквозная связь: допустимые_тайлы ВСЕХ записей ⊆ passableTiles() (против таблицы map.js)', () => {
   // Замещает проверку по локальной копии: связь «каталог ↔ проходымость»
   // теперь против ЕДИНОЙ таблицы (map.js), а не против литералов
   // buildings.js — дрейф любой из сторон ловится здесь.
