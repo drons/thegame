@@ -4,6 +4,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   TERRAIN, TERRAIN_NAMES,
+  // Задача 000056 (стадия красных тестов): единая таблица террейнов ещё
+  // не реализована — тесты TILE_BASE/TILE_FRAMES/visuals-схемы ниже
+  // падают, пока её нет в map.js.
+  TERRAIN_DATA,
   buildingCount, BUILDING_TYPES,
   MOB_GROUP_COUNT, MOB_GROUP_TYPES,
   createMap, syntheticPixels,
@@ -51,6 +55,39 @@ test('TILE_BASE: базовые цвета для всех террейнов, �
   for (const t of TERRAIN_LIST) {
     assert.match(S.TILE_BASE[t], /^#[0-9a-f]{6}$/i, `нет базового цвета для террейна ${t}`);
   }
+});
+
+// --- Задача 000056: единая таблица террейнов (src/map.js) ---
+//
+// TILE_BASE — собственная копия hex-цветов. Решение: цвета — из единой
+// таблицы TERRAIN_DATA (поле base), потребители без собственных литералов.
+// Стадия красных тестов: TERRAIN_DATA ещё не экспортируется — тесты падают.
+
+test('TILE_BASE ≡ base единой таблицы (потребитель ≡ таблица, все 8 террейнов)', () => {
+  assert.ok(TERRAIN_DATA && typeof TERRAIN_DATA === 'object',
+    'map.js: нет TERRAIN_DATA');
+  for (const t of TERRAIN_LIST) {
+    assert.equal(S.TILE_BASE[t], TERRAIN_DATA[t].base,
+      `TILE_BASE[${t}] (${TERRAIN_NAMES[t]}) ≠ base таблицы`);
+  }
+});
+
+test('TILE_FRAMES: ключи ≡ id таблицы (ровно 8, без лишних); файлы assets/tiles ≡ объединению путей', () => {
+  // Прямое направление (террейн → файлы существуют) закрывает тест выше
+  // («у каждого террейна есть текстура»); обратное — сиротских файлов
+  // assets/tiles нет: на диске ровно то, что перечислено в TILE_FRAMES.
+  assert.ok(TERRAIN_DATA && typeof TERRAIN_DATA === 'object',
+    'map.js: нет TERRAIN_DATA');
+  assert.deepEqual(
+    Object.keys(S.TILE_FRAMES).map(Number).sort((a, b) => a - b),
+    Object.keys(TERRAIN_DATA).map(Number).sort((a, b) => a - b),
+    'ключи TILE_FRAMES ≠ id единой таблицы');
+  const listed = Object.values(S.TILE_FRAMES).flat().sort();
+  const onDisk = fs.readdirSync(path.join(__dirname, '..', 'assets', 'tiles'))
+    .filter((f) => f.endsWith('.svg'))
+    .map((f) => 'assets/tiles/' + f)
+    .sort();
+  assert.deepEqual(onDisk, listed, 'сиротские/отсутствующие файлы assets/tiles');
 });
 
 // --- Флогистон ---
@@ -352,6 +389,27 @@ test('visuals: файлы JSON совпадают с JS-каталогом и п
     assert.deepEqual(fromFile, S.VISUALS[i], `${num}.json совпадает с JS-каталогом`);
     // Мини-валидация по schema.json (без внешних зависимостей).
     assertVisualAgainstSchema(fromFile, schema, num);
+  }
+});
+
+test('visuals (000056): enum «террейны» схемы ≡ ВСЕМ именам единой таблицы; террейны 13 файлов ⊆ имён таблицы', () => {
+  // Пятая копия имён террейнов (enum assets/visuals/schema.json — все 8,
+  // включая горы/воду/глубокая вода) связывается с ЕДИНОЙ таблицей.
+  // Только тесты: схема, данные и VISUALS (территория 000059) не меняются.
+  assert.ok(TERRAIN_DATA && typeof TERRAIN_DATA === 'object',
+    'map.js: нет TERRAIN_DATA');
+  const allNames = new Set(
+    Object.keys(TERRAIN_DATA).map(Number).map((id) => TERRAIN_DATA[id].name));
+  const schema = JSON.parse(fs.readFileSync(path.join(VDIR, 'schema.json'), 'utf8'));
+  const enumNames = schema.properties['террейны'].items.enum;
+  assert.deepEqual(enumNames.slice().sort(), [...allNames].sort(),
+    'enum «террейны» ≠ именам единой таблицы');
+  const files = fs.readdirSync(VDIR).filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  for (const f of files) {
+    const v = JSON.parse(fs.readFileSync(path.join(VDIR, f), 'utf8'));
+    for (const t of v.террейны) {
+      assert.ok(allNames.has(t), `${f}: террейн «${t}» отсутствует в единой таблице`);
+    }
   }
 });
 

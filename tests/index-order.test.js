@@ -79,6 +79,23 @@ test('index.html: controls.js ДО combat-keys.js, combat-keys.js ДО combat-ui
     'src/combat-keys.js должен быть раньше src/combat-ui.js (задача 000048)');
 });
 
+test('index.html: map.js ДО buildings.js и ДО sprites.js (единая таблица террейнов, задача 000056)', () => {
+  // Единая таблица TERRAIN_DATA живёт в map.js; потребители без
+  // собственных копий — buildings.js (passableTiles/denseTiles) и
+  // sprites.js (TILE_BASE). map.js обязан давать таблицу ДО загрузки
+  // потребителей (те берут данные из Game при вызове/загрузке) —
+  // ровно тот класс «битый порядок молча» бага, ради которого создан
+  // этот файл (000018). Порядок закреплён здесь, чтобы не мог сдвинуться
+  // «случайно» при правке index.html.
+  assert.notEqual(pos('src/map.js'), -1, 'src/map.js не подключён в index.html');
+  assert.ok(
+    pos('src/map.js') < pos('src/buildings.js'),
+    'src/map.js должен быть раньше src/buildings.js (задача 000056)');
+  assert.ok(
+    pos('src/map.js') < pos('src/sprites.js'),
+    'src/map.js должен быть раньше src/sprites.js (задача 000056)');
+});
+
 test('index.html: sprites.js ДО combat-ui.js (иначе Game.hpBarColor не виден)', () => {
   // Буг (ревью 000038): каждый UMD-модуль ЗАМЕНЯЕТ объект Game —
   // root.Game = Object.assign({}, root.Game, factory(...)), — а
