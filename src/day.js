@@ -101,6 +101,28 @@
     return out;
   }
 
+  /**
+   * Видима ли стационарная группа на глобальной карте (задача 000122).
+   * false — в defeatedAt есть запись её тайла (повержена, ждёт
+   * респауна); true — записи нет. Мусор вместо defeatedAt — fail-open
+   * (true, спрайт рисуется — старое поведение, игра не ломается;
+   * принцип 000029). Ключ — ТОЧНО формат main.js: `x + ',' + y`
+   * (целые, без пробелов, отрицательные возможны). Принимает и Map
+   * (рабочее состояние main.js), и обычный объект (сырой сейв до
+   * restoreDefeatedAt); для объекта — hasOwnProperty, а не `in`
+   * (прототип-безопасность: объект без прототипа / с чужими ключами в
+   * прототипе не лжёт о записи). Чистая: вход не мутируется.
+   * @param {object|Map} defeatedAt {'x,y' → день поражения}
+   * @param {number} x координата тайла
+   * @param {number} y координата тайла
+   */
+  function groupVisible(defeatedAt, x, y) {
+    if (!defeatedAt || typeof defeatedAt !== 'object') return true;
+    const key = x + ',' + y;
+    if (typeof defeatedAt.has === 'function') return !defeatedAt.has(key);
+    return !Object.prototype.hasOwnProperty.call(defeatedAt, key);
+  }
+
   /** «Раз в день»: можно ли применить эффект (фонтан, круг, …). */
   function canUseToday(lastUsedDay, day) {
     return lastUsedDay !== day;
@@ -281,7 +303,7 @@
   return {
     STEPS_PER_DAY, RESPAWN_DAYS,
     createClock, dueForRespawn, canUseToday,
-    serializeDefeatedAt, restoreDefeatedAt,
+    serializeDefeatedAt, restoreDefeatedAt, groupVisible,
     // Задача 000072: состояние эффектов построек.
     SUN_DAMAGE_MULT, MOUNTAIN_ARMOR,
     serializeDayMap, restoreDayMap,

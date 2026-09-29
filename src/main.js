@@ -1078,8 +1078,14 @@
 
     // Проход 3: спрайты групп мобов — поверх построек (мобы в
     // footprint'е не рождаются, перекрытий по области нет).
+    // Задача 000122: поверженная группа скрыта до дня респауна —
+    // запись 'x,y' → день в defeatedAt (main.js) удаляется при смене
+    // дня (dueForRespawn), спрайт возвращается ровно тогда же, без
+    // доп. состояния. Фильтр здесь, в слое отрисовки: hasMobGroup в
+    // map.js детерминирован (hash координат) и о defeatedAt не знает.
     for (const t of frameTiles) {
       if (!t.hasMobGroup) continue;
+      if (G.groupVisible && !G.groupVisible(defeatedAt, t.x, t.y)) continue;
       const p = toPt(t.x, t.y);
       const sx = p.x, sy = p.y;
       const mf = G.mobFrames(t.mobGroup);
