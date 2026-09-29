@@ -308,6 +308,32 @@ test('writeFileAtomic: запись и перезапись точны, tmp-ос
   }
 });
 
+test('конвенция: ВСЕ sync-скрипты пишут выход атомарно (write-atomic.js)', () => {
+  // Ревью раунда 2: sync-buildings-data.js (000055) и
+  // sync-spells-data.js (000045) писали выход неатомарным
+  // fs.writeFileSync (truncate+write) — нарушение конвенции из SPEC.
+  // Под npm test тест «CLI: дрейф src/npc-data.js» спавнит sync-all.js,
+  // который регенерирует ВСЕ зеркала, включая src/buildings.js /
+  // src/spells-data.js, а tests/buildings.test.js / tests/spells.test.js
+  // делают top-level require в параллельных процессах node --test →
+  // окно частичного файла → редкий ложный красный CI.
+  // Тест покрывает и БУДУЩИЕ sync-скрипты (items/visuals — 000059):
+  // подхватятся по конвенции имён автоматически.
+  const dir = path.join(ROOT, 'scripts');
+  const syncs = fs.readdirSync(dir)
+    .filter((f) => /^sync-.*\.js$/.test(f) && f !== 'sync-all.js')
+    .sort();
+  assert.ok(syncs.length >= 2,
+    'в scripts/ не найдено ни одного sync-скрипта (кроме sync-all.js)');
+  for (const f of syncs) {
+    const src = fs.readFileSync(path.join(dir, f), 'utf8');
+    assert.ok(/require\(['"][^'"]*write-atomic\.js['"]\)/.test(src),
+      f + ': обязан использовать scripts/lib/write-atomic.js (SPEC)');
+    assert.ok(!/fs\.writeFileSync\s*\(/.test(src),
+      f + ': прямой fs.writeFileSync — неатомарная запись; нужен writeFileAtomic');
+  }
+});
+
 // --- git недоступен (локальный edge-кейс) ---
 
 test('runAll: git недоступен — обычный режим: exit 0, предупреждение, без ложного «синхронно»', () => {

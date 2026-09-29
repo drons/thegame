@@ -3,9 +3,14 @@
 # Триггеры: push в master + ручной workflow_dispatch (перепубликация).
 # Job test: npm test + дрейф-гейт JS-зеркал (node scripts/sync-all.js
 # --check) — рассинхрон JSON <-> src/*-data.js = красный CI.
-# Job deploy-pages (needs: test): публикация артефакта — явного списка
+# Job deploy-pages (needs: test): сборка сайта в dist/ — явная копия
 # index.html + src + assets (НЕ корня репозитория: в сайт не попадают
-# tasks/, memory/, tests/, scripts/, .github/) — на GitHub Pages через
+# tasks/, memory/, tests/, scripts/, .github/) — и публикация ОДНОГО
+# каталога dist/: input path у actions/upload-pages-artifact@v5 = «Path
+# of the directory containing the static assets» (реализация —
+# tar --directory "$INPUT_PATH"); YAML-список в path сериализуется в
+# строку «index.html, src, assets», такого каталога нет → tar падает →
+# деплой никогда не выполняется. Публикация — на GitHub Pages через
 # actions/deploy-pages, OIDC (permissions в workflow, без токена).
 #
 # Шага установки зависимостей нет намеренно: в проекте ноль
@@ -14,8 +19,9 @@
 #
 # ВАЖНО: формат файла зафиксирован тестами tests/ci.test.js (ноль
 # зависимостей — YAML-парсера нет, только строковые ассерты).
-# Flow-списки (branches: [ master ], path: [ index.html, src, assets ])
-# и environment в строковой форме не переформатировать.
+# Flow-список (branches: [ master ]), строка path: dist у
+# upload-pages-artifact (ОДИН каталог, список в path сломает tar) и
+# environment в строковой форме не переформатировать.
 
 name: CI и Pages
 
@@ -56,12 +62,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+      - name: Сборка сайта (явная выборка: index.html + src + assets → dist/)
+        run: |
+          mkdir -p dist
+          cp index.html dist/
+          cp -r src dist/
+          cp -r assets dist/
       - name: Configure Pages
         uses: actions/configure-pages@v6
-      - name: Загрузить артефакт (index.html + src + assets)
+      - name: Загрузить артефакт (dist/ = index.html + src + assets)
         uses: actions/upload-pages-artifact@v5
         with:
-          path: [ index.html, src, assets ]
+          path: dist
       - name: Деплой
         id: deployment
         uses: actions/deploy-pages@v5

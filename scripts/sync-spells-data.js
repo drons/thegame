@@ -19,6 +19,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { writeFileAtomic } = require('./lib/write-atomic.js');
 
 const ROOT = path.join(__dirname, '..');
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
@@ -117,6 +118,8 @@ L.push('  return { SPELLS, SPELLS_BY_ID };');
 L.push('});');
 L.push('');
 
-fs.writeFileSync(OUT_FILE, L.join('\n'), 'utf8');
+// Атомарная запись (конвенция, SPEC): параллельные читатели под
+// node --test не видят частичный файл.
+writeFileAtomic(OUT_FILE, L.join('\n'));
 console.log(
   `src/spells-data.js перегенерирован: ${spells.length} заклинаний.`);

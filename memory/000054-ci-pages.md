@@ -25,10 +25,11 @@
   Job test: checkout@v7, setup-node@v7 (node-version 22), npm test,
   node scripts/sync-all.js --check. Job deploy-pages (needs: test):
   environment github-pages, permissions pages:write + id-token:write
-  (OIDC, без токена), configure-pages@v6, upload-pages-artifact@v5
-  (path: [ index.html, src, assets ] — явный список, не корень),
-  deploy-pages@v5. npm ci/install нет (ноль зависимостей, нет
-  lock-файла).
+  (OIDC, без токена): сборка сайта в dist/ (явная копия
+  index.html + src + assets — не корень репозитория),
+  configure-pages@v6, upload-pages-artifact@v5 (path: dist — ОДИН
+  каталог; input не принимает список), deploy-pages@v5. npm ci/install
+  нет (ноль зависимостей, нет lock-файла).
 * package.json: `sync:all`, `sync:check`.
 * SPEC.md: раздел «CI и публикация на GitHub Pages» (после
   «Запуск и тесты») — workflow, npm-скрипты, конвенция sync-*.js,
@@ -83,6 +84,47 @@
   finally) — регенерация byte-идентична, чужие локальные правки не
   повод для красного; прединд — git доступен.
 
+## Правки по итогам ревью (раунд 2)
+
+* Публикация на Pages никогда не работала: input `path` у
+  actions/upload-pages-artifact@v5 — «Path of the directory containing
+  the static assets», ОДИН каталог; реализация —
+  `tar --directory "$INPUT_PATH"`. YAML-список
+  `[ index.html, src, assets ]` сериализуется в строку
+  «index.html, src, assets» — такого каталога нет → tar падает → шаг
+  загрузки артефакта детерминированно красный → deploy-pages не
+  выполняется (сверено с исходником v5). Строковые тесты
+  tests/ci.test.js фиксировали именно сломанную форму. FIX: шаг
+  «Сборка сайта» в deploy-pages явно копирует index.html + src +
+  assets в dist/ (состав тот же: НЕ корень репозитория — tasks/,
+  memory/, tests/, scripts/, .github/ не попадают) и
+  upload-pages-artifact грузит ОДИН каталог `path: dist`. Тесты
+  фиксируют: path — одно имя каталога (не список) и копирование
+  index.html/src/assets в тот же каталог.
+* sync-buildings-data.js (master, 000055) и sync-spells-data.js
+  (master, 000045) писали выход неатомарным fs.writeFileSync —
+  нарушение конвенции «выход пишется атомарно» (SPEC + этот файл).
+  Последствие: тест «CLI: дрейф src/npc-data.js» под npm test спавнит
+  sync-all.js, который регенерирует ВСЕ зеркала (включая
+  src/buildings.js / src/spells-data.js), а tests/buildings.test.js /
+  tests/spells.test.js делают top-level require в параллельных
+  процессах node --test → окно частичного файла → редкий ложный
+  красный CI. FIX: оба скрипта переведены на writeFileAtomic
+  (scripts/lib/write-atomic.js). Тест «конвенция: ВСЕ sync-скрипты
+  пишут выход атомарно» (tests/sync-all.test.js) покрывает и
+  БУДУЩИЕ скрипты 000059 (items/visuals) — по конвенции имён
+  подхватятся автоматически.
+* SPEC.md не был актуализирован после мержа 000045: «mobs/spells/
+  craft — зеркал не имеют» — фактическая ошибка (spells с 000045 имеет
+  src/spells-data.js + scripts/sync-spells-data.js). FIX: список
+  каталогов с зеркалом — (npc, skills, затем buildings, spells,
+  items, visuals); mobs/craft — без зеркал. Зафиксировано тестом в
+  tests/ci.test.js.
+* assets/items и assets/visuals в сборку не участвуют — принятое
+  решение (отсрочка в pending 000059, «привести все sync-скрипты к
+  единому интерфейсу»). Атомарность новых sync-скриптов 000059
+  обеспечена тестом-конвенцией (пункт выше).
+
 ## Фиксированные решения / ограничения
 
 * «Сборка» assets/*/*.json в CI — НЕ бандлер, а sync-скрипты +
@@ -90,15 +132,18 @@
   (npc, skills, затем buildings, items, visuals); mobs/spells/craft —
   данные в коде, зеркал не имеют.
 * Формат ci.yml зафиксирован строковыми ассертами tests/ci.test.js
-  (YAML-парсера нет — ноль зависимостей): flow-списки
-  (`branches: [ master ]`, `path: [ index.html, src, assets ]`),
-  `environment: github-pages` в строковой форме — НЕ переформатировать.
+  (YAML-парсера нет — ноль зависимостей): flow-список
+  (`branches: [ master ]`), `path: dist` у upload-pages-artifact
+  (ОДИН каталог, НЕ список — input action'а принимает только
+  каталог, реализация tar --directory), `environment: github-pages`
+  в строковой форме — НЕ переформатировать.
 * Версии action-мажоров сверены с GitHub (2026-09): checkout@v7,
   setup-node@v7, configure-pages@v6, upload-pages-artifact@v5,
   deploy-pages@v5. Тесты проверяют presence шагов, не версии —
   при обновлении major-тегов workflow правится руками.
-* Состав артефакта — явный список: новый корневой файл (favicon и т.п.)
-  надо добавлять в `path` у upload-pages-artifact. logo.json не
+* Состав сайта — явная копия в dist/ (шаг «Сборка сайта»): новый
+  корневой файл (favicon и т.п.) надо добавлять в этот шаг.
+  `path` у upload-pages-artifact остаётся `dist`. logo.json не
   публикуется (ниоткуда не читается).
 * Если появятся npm-зависимости — в workflow добавить `npm ci`
   (сейчас её тест запрещает).
