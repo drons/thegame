@@ -576,3 +576,178 @@ test('сценарий ревью: битый персонаж из сейва �
   assert.equal(I.totalQty(hero, a.id), 2);
   assert.deepEqual(hero.equipment, { weapon: null, armor: null });
 });
+
+// --- Задача 000060: единый источник ассортимента магазинов ---
+//
+// `особые_параметры.виды` каталога assets/buildings (5 «картовых»
+// записей: Оружейная/Бронник/Аптекарь/Магазин магии/Таверна) — единый
+// источник shopKindsFor. Таблица кода в items.js остаётся ТОЛЬКО
+// фолбэком для vm-песочниц без каталога (combat-ui/dungeon-ui) —
+// значения идентичны. Торговля (сток/seed/цены makeShop) не меняется —
+// закреплена golden-пинами ниже.
+// ВАЖНО: пятый магазин — ТАВЕРНА = запись 000044 (id 44, map_index 11);
+// map_index 4 — Арена (id 7), НЕ магазин (→ null, без «виды»).
+
+const BDIR = path.join(__dirname, '..', 'assets', 'buildings');
+const bRec = (num) => JSON.parse(
+  fs.readFileSync(path.join(BDIR, num + '.json'), 'utf8'));
+// map_index → JSON-файл записи (независимый от src/buildings.js).
+const SHOP_MAP_INDEX_TO_FILE = {
+  0: '000001', 1: '000002', 2: '000003', 3: '000004', 11: '000044',
+};
+
+test('shopKindsFor: каталог (JSON assets/buildings) — источник истины (000060)', () => {
+  const kindIds = Object.values(I.ITEM_KINDS);
+  for (const [mi, file] of Object.entries(SHOP_MAP_INDEX_TO_FILE)) {
+    const idx = Number(mi);
+    const rec = bRec(file);
+    assert.equal(rec.особые_параметры.map_index, idx, file + ': map_index = ' + idx);
+    const виды = rec.особые_параметры.виды;
+    assert.ok(Array.isArray(виды) && виды.length > 0,
+      file + ': нет особых_параметры.виды (источник ассортимента)');
+    for (const k of виды) {
+      assert.ok(kindIds.includes(k), file + ': «' + k + '» не входит в ITEM_KINDS');
+    }
+    assert.deepEqual(I.shopKindsFor(idx), виды,
+      'shopKindsFor(' + idx + ') == виды записи каталога (' + file + ')');
+  }
+});
+
+test('shopKindsFor: не-магазины → null (без изменений, 000060)', () => {
+  const B = M.BUILDING_TYPES;
+  for (const idx of [
+    B.ARENA, B.BLACKSMITH, B.ARCHERY_RANGE, B.ACADEMY,
+    B.TEMPLE, B.CAVE_ENTRANCE, B.RUNE_STONE, B.NPC_HOUSE,
+    B.NONE, 13,
+  ]) {
+    assert.equal(I.shopKindsFor(idx), null, 'тип постройки ' + idx + ' — не магазин');
+  }
+});
+
+test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИЙ (000060)', () => {
+  const B = M.BUILDING_TYPES;
+  // Золотые снимки стоков, сделанные ДО правки: торговля не меняется
+  // (seed = hash2(x,y)^(type+1), пул — тот же набор видов, цены те же).
+  // Покрыты ВСЕ 5 «картовых» магазинов — включая ТАВЕРНУ (int 11) —
+  // и универсам (богатство 3).
+  const GOLDEN = [
+    { x: 10, y: 20, type: B.WEAPONS_SHOP, w: 1, seed: 3248047077,
+      stock: { wood_sword: 1, iron_sword: 2, steel_sword: 2, short_bow: 1, hunting_bow: 2, battle_axe: 2, war_hammer: 3 } },
+    { x: 10, y: 20, type: B.ARMOR_SHOP, w: 2, seed: 3248047078,
+      stock: { chainmail: 4, knight_plate: 3 } },
+    { x: 10, y: 20, type: B.APOTHECARY, w: 2, seed: 3248047079,
+      stock: { minor_healing: 3, greater_healing: 4, mana_potion: 3, mana_elixir: 3, bread: 1, meat: 2 } },
+    { x: 30, y: 40, type: B.MAGIC_SHOP, w: 0, seed: 3346526316,
+      stock: { sulfur: 2, moonstone: 2, phoenix_feather: 1, stone_fist_grimoire: 2, iron_hide_tome: 1, archer_scroll: 2, hide: 1, coal: 1, herb_healing: 2, stone_chisel: 2 } },
+    { x: 5, y: 7, type: B.TAVERN, w: 0, seed: 766909004,
+      stock: { healing_potion: 2, greater_healing: 2, mana_potion: 2, mana_elixir: 1, bread: 1, meat: 2 } },
+    { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
+      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5 } },
+  ];
+  for (const g of GOLDEN) {
+    const s = I.makeShop(g.x, g.y, g.type, g.w);
+    assert.ok(s, 'магазин существует (' + g.x + ',' + g.y + ',' + g.type + ',' + g.w + ')');
+    assert.equal(s.seed, g.seed, 'seed без изменений (' + g.type + ',' + g.w + ')');
+    assert.deepEqual(s.stock, g.stock,
+      'сток без изменений (x=' + g.x + ' y=' + g.y + ' type=' + g.type + ' wealth=' + g.w + ')');
+  }
+});
+
+// vm-песочница: «браузерный» путь UMD (без module/exports, паттерн
+// tests/map.test.js / tests/combat-ui.test.js). Цепочка — минимальная,
+// БЕЗ buildings.js, как в tests/combat-ui.test.js.
+const vm = require('node:vm');
+function loadInSandbox(file, sandbox) {
+  vm.runInNewContext(
+    fs.readFileSync(path.join(__dirname, '..', 'src', file), 'utf8'), sandbox);
+}
+// Меж-реальм: значения, созданные в vm-песочнице (массивы/объекты),
+// имеют ЧУЖИЕ прототипы — deepStrictEqual (assert/strict) их отвергает.
+// Нормализуем через JSON перед сравнением.
+const fromVm = (v) => JSON.parse(JSON.stringify(v));
+const ITEMS_CHAIN = [
+  'global-settings.js', 'perlin.js', 'map.js',
+  'skills-data.js', 'items-data.js', 'player.js', 'items.js',
+];
+
+test('vm-песочница: items.js без каталога — фолбэк-таблица, поведение идентично (000060)', () => {
+  const sandbox = {};
+  for (const f of ITEMS_CHAIN) loadInSandbox(f, sandbox);
+  assert.equal(sandbox.Game.BUILDINGS, undefined, 'buildings.js не загружен');
+  // Фолбэк — закреплённые значения (текущая таблица кода), без каталога.
+  assert.deepEqual(fromVm(sandbox.Game.shopKindsFor(0)), ['weapon']);
+  assert.deepEqual(fromVm(sandbox.Game.shopKindsFor(1)), ['armor']);
+  assert.deepEqual(fromVm(sandbox.Game.shopKindsFor(2)), ['potion', 'food']);
+  assert.deepEqual(fromVm(sandbox.Game.shopKindsFor(3)), ['reagent', 'skill_book']);
+  assert.deepEqual(fromVm(sandbox.Game.shopKindsFor(11)), ['food', 'potion']);
+  assert.equal(sandbox.Game.shopKindsFor(4), null, 'арена — не магазин');
+  assert.equal(sandbox.Game.shopKindsFor(8), null, 'храм — не магазин');
+  assert.equal(sandbox.Game.shopKindsFor(12), null, 'дом NPC — не магазин');
+  // Торговля в песочнице — тот же сток, что в node (golden таверны).
+  const s = sandbox.Game.makeShop(5, 7, 11, 0);
+  assert.ok(s, 'таверна в песочнице — магазин');
+  assert.equal(s.seed, 766909004, 'seed — как в node');
+  assert.deepEqual(fromVm(s.stock),
+    { healing_potion: 2, greater_healing: 2, mana_potion: 2, mana_elixir: 1, bread: 1, meat: 2 });
+});
+
+test('vm-песочница: каталог подхватывается лениво и является источником истины (000060)', () => {
+  const sandbox = {};
+  for (const f of ITEMS_CHAIN) loadInSandbox(f, sandbox);
+  // Вызов ДО каталога: фолбэк. Результат не должен закэшироваться —
+  // после подхвата каталога вывод обязан измениться.
+  assert.deepEqual(fromVm(sandbox.Game.shopKindsFor(0)), ['weapon'], 'до каталога — фолбэк');
+  loadInSandbox('buildings.js', sandbox);
+  const G = sandbox.Game;
+  // ДИВЕРГИРУЮЩАЯ фальшивая запись каталога: на каждом map_index
+  // значение, ОТЛИЧНОЕ от кодовой таблицы (2 — мусор вне ITEM_KINDS).
+  // Только реализация, читающая КАТАЛОГ (а не таблицу), даст эти
+  // результаты; таблица кода — ['weapon'],['armor'],['potion','food'],
+  // ['reagent','skill_book'],['food','potion'] для 0,1,2,3,11.
+  const override = { 0: ['armor'], 1: ['weapon'], 2: ['мечи'], 3: ['reagent'], 11: ['food'] };
+  G.BUILDINGS = G.BUILDINGS.map((b) => {
+    const p = b && b.особые_параметры;
+    const mi = p && p.map_index;
+    if (typeof mi !== 'number') return b;
+    const np = { ...p };
+    if (Object.prototype.hasOwnProperty.call(override, mi)) np.виды = override[mi];
+    else delete np.виды;
+    return { ...b, особые_параметры: np };
+  });
+  G.buildingForMapIndex = (i) =>
+    G.BUILDINGS.find((b) => b.особые_параметры
+      && b.особые_параметры.map_index === i) || null;
+  assert.deepEqual(fromVm(G.shopKindsFor(0)), ['armor'], 'map_index 0 — виды каталога (не таблица)');
+  assert.deepEqual(fromVm(G.shopKindsFor(1)), ['weapon'], 'map_index 1 — виды каталога (не таблица)');
+  assert.deepEqual(fromVm(G.shopKindsFor(3)), ['reagent'], 'map_index 3 — виды каталога (не таблица)');
+  assert.deepEqual(fromVm(G.shopKindsFor(11)), ['food'], 'map_index 11 (таверна) — виды каталога');
+  // Запись с невалидными «видами» — null (гард), НЕ таблица;
+  // без «виды» — null (арена/храм не магазины). Мусор не роняет торговлю.
+  assert.equal(G.shopKindsFor(2), null, 'мусорные «виды» — гард отклоняет (не таблица)');
+  assert.equal(G.shopKindsFor(4), null, 'арена — без «виды»');
+  assert.equal(G.shopKindsFor(8), null, 'храм — без «виды»');
+  // makeShop в песочнице — пул из видов каталога.
+  const s = G.makeShop(10, 20, 0, 1);
+  assert.ok(s, 'магазин в песочнице (фальшивый каталог)');
+  assert.ok(Object.keys(s.stock).length > 0, 'магазин не пуст');
+  for (const id of Object.keys(s.stock)) {
+    assert.equal(G.getItem(id).kind, 'armor', 'сток — только из видов каталога');
+  }
+});
+
+test('vm-песочница: реальный каталог подхвачен лениво — shopKindsFor == виды JSON-записей (000060)', () => {
+  const sandbox = {};
+  for (const f of ITEMS_CHAIN) loadInSandbox(f, sandbox);
+  // Вызов до загрузки каталога: фолбэк не должен закрепиться.
+  assert.deepEqual(fromVm(sandbox.Game.shopKindsFor(11)), ['food', 'potion'], 'до каталога — фолбэк');
+  loadInSandbox('buildings.js', sandbox);
+  for (const [mi, file] of Object.entries(SHOP_MAP_INDEX_TO_FILE)) {
+    const rec = bRec(file);
+    assert.deepEqual(
+      fromVm(sandbox.Game.shopKindsFor(Number(mi))),
+      rec.особые_параметры.виды,
+      'map_index ' + mi + ': shopKindsFor == виды записи каталога (JSON ' + file + ')');
+  }
+  assert.equal(sandbox.Game.shopKindsFor(4), null, 'арена — без «виды»');
+  assert.equal(sandbox.Game.shopKindsFor(8), null, 'храм — без «виды»');
+});
