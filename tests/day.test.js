@@ -1,11 +1,16 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
 const {
   STEPS_PER_DAY, RESPAWN_DAYS, createClock, dueForRespawn, canUseToday,
   serializeDefeatedAt, restoreDefeatedAt,
   // Задача 000072: состояние «раз в день» и благословения.
   serializeDayMap, restoreDayMap,
   grantBuff, activeBuffs, buffMods, restoreBuffs, serializeBuffs,
+  // Задача 000122 (стадия красных тестов): функция ещё не реализована —
+  // тесты ниже падают, пока её нет в day.js.
+  groupVisible,
 } = require('../src/day.js');
 
 test('часы: старт на 1-м дне, шаги копятся до порога', () => {
@@ -324,4 +329,108 @@ test('фонтан: счётчики эффектов независимы (ис
     'исцеление использовано сегодня — недоступно');
   assert.equal(canUseToday(m.get('5,5:coin'), 3), true,
     'монета в тот же день — доступна (счётчик не ведётся)');
+});
+
+// --- Задача 000122: видимость стационарной группы на глобальной карте ---
+// Поверженная группа (запись 'x,y' → день поражения в Map `defeatedAt`
+// main.js) скрыта до дня респауна: drawSprites, проход 3, спрашивает
+// G.groupVisible(defeatedAt, x, y) ДО drawImage спрайта группы. В день
+// респауна onDay удаляет запись (dueForRespawn) — спрайт возвращается
+// ровно тогда же, без доп. состояния. Формат ключа — ТОЧНО как в
+// main.js (maybeStartCombat/победа): `x + ',' + y` — целые, БЕЗ
+// пробелов, отрицательные возможны (мир бесконечный). Чистая функция
+// живёт рядом с dueForRespawn/serializeDefeatedAt (состояние — в
+// main.js; map.js детерминирован и о нём не знает — фильтрация только
+// в слое отрисовки).
+
+test('groupVisible: живая группа — true (записи нет)', () => {
+  assert.equal(groupVisible(new Map(), 1, 1), true, 'пустой Map — видима');
+  const m = new Map([['5,5', 3]]);
+  assert.equal(groupVisible(m, 1, 1), true, 'чужая запись не скрывает чужой тайл');
+});
+
+test('groupVisible: после поражения — false; другие записи не влияют', () => {
+  const m = new Map([['1,1', 3], ['9,9', 3]]);
+  assert.equal(groupVisible(m, 1, 1), false, 'запись есть — скрыта');
+  assert.equal(groupVisible(m, 9, 9), false, 'обе записи независимы');
+  assert.equal(groupVisible(m, 2, 2), true, 'соседний тайл — виден');
+});
+
+test('groupVisible: день респауна — true после удаления записи (dueForRespawn + delete в onDay)', () => {
+  // Поражение на 1-й день; respawn_days = 3 → запись гниёт на 4-й день.
+  const m = new Map([['1,1', 1]]);
+  assert.equal(groupVisible(m, 1, 1), false);
+  assert.deepEqual(dueForRespawn(m, 3), [], 'день 3: ещё рано');
+  assert.deepEqual(dueForRespawn(m, 4), ['1,1'], 'день 4: пора — onDay удалит');
+  for (const k of dueForRespawn(m, 4)) m.delete(k); // действие onDay (main.js)
+  assert.equal(groupVisible(m, 1, 1), true,
+    'спрайт возвращается ровно в день респауна, без доп. состояния');
+});
+
+test('groupVisible: принимает объект сейва (восстановленный/сырой), не только Map', () => {
+  // ТЗ: «принимает и Map, и восстановленный объект». restoreDefeatedAt
+  // отдаёт Map, но сырой объект data.defeatedAt из сейва (до/вместо
+  // restore) обязан работать так же.
+  assert.equal(groupVisible({ '1,1': 3 }, 1, 1), false);
+  assert.equal(groupVisible({ '1,1': 3 }, 5, 5), true);
+  // Без прототипа — не падает и не наследует ключи (hasOwnProperty, не `in`).
+  assert.equal(groupVisible(Object.create(null), 1, 1), true,
+    'объект без прототипа — нет crash, не лжет о записи');
+});
+
+test('groupVisible: отрицательные координаты — тот же формат ключа, что и в main.js', () => {
+  // `x + ',' + y` без пробелов: другой разделитель/пробел = тихий
+  // fail-open — спрайт виден вечно, а тесты «внутри функции» прошли бы.
+  const m = new Map([['-1,-2', 4]]);
+  assert.equal(groupVisible(m, -1, -2), false, 'ключ \'-1,-2\' найден');
+  assert.equal(groupVisible(m, -1, -1), true, 'сосед — не затронут');
+  assert.equal(groupVisible(m, 1, -2), true, 'перестановка знаков — другой тайл');
+  assert.equal(groupVisible({ '-1,-2': 4 }, -1, -2), false, 'тот же формат в объекте');
+});
+
+test('groupVisible: мусор — fail-open (true, без исключений); вход не мутирует', () => {
+  // Принцип 000029: битое состояние не роняет игру — спрайт рисуется
+  // (старое поведение), а не TypeError в rAF-цикле.
+  for (const bad of [null, undefined, 'junk', 42, [['1,1', 3]], ['1,1'], true]) {
+    assert.equal(groupVisible(bad, 1, 1), true, 'мусор: ' + JSON.stringify(bad));
+  }
+  const m = new Map([['1,1', 3]]);
+  const before = JSON.stringify([...m]);
+  assert.equal(groupVisible(m, 1, 1), false);
+  assert.equal(JSON.stringify([...m]), before, 'Map на входе не мутирован');
+  const obj = { '1,1': 3 };
+  groupVisible(obj, 1, 1);
+  assert.deepEqual(obj, { '1,1': 3 }, 'объект на входе не мутирован');
+});
+
+// --- main.js (клей) — структурный фиксатор (не тестируется в node) ---
+// Поведенческий тест — в tests/main-visuals.test.js (vm-песочница,
+// переопределение G.groupVisible); здесь — фиксатор МЕСТА вызова:
+// проверка должна жить в проходе 3 drawSprites (спрайты групп), а не
+// в buildFrame/проходе 1 — иначе «скрытие» приземлится не туда.
+
+test('main.js: проход 3 спрашивает видимости группы до drawImage (структурный)', () => {
+  // Окно: от комментария «Проход 3» до комментария «Флогистон:
+  // idle/walk» — ТОЛЬКО проход 3. Точную форму вызова (гард, пробелы)
+  // не пилим; несущее: имя G.groupVisible, вызов, первым аргументом —
+  // defeatedAt (модульное состояние main.js, удаляемое в onDay).
+  const text = fs.readFileSync(__dirname + '/../src/main.js', 'utf8');
+  const i3 = text.indexOf('// Проход 3');
+  assert.ok(i3 >= 0, 'комментарий прохода 3 на месте');
+  const iPh = text.indexOf('// Флогистон: idle/walk', i3);
+  assert.ok(iPh > i3, 'окно: проход 3 оканчивается до блока Флогистона');
+  const pass3 = text.slice(i3, iPh);
+  assert.ok(/G\.groupVisible\s*\(\s*defeatedAt\s*,/.test(pass3),
+    'проход 3 вызывает G.groupVisible(defeatedAt, …) перед спрайтом группы');
+});
+
+test('браузер: day.js отдаёт groupVisible (vm-песочница)', () => {
+  // Порядок как в index.html: global-settings.js ДО day.js.
+  const sandbox = {};
+  for (const f of ['global-settings.js', 'day.js']) {
+    vm.runInNewContext(
+      fs.readFileSync(__dirname + '/../src/' + f, 'utf8'), sandbox);
+  }
+  assert.equal(typeof sandbox.Game.groupVisible, 'function',
+    'groupVisible в browser-режиме (root.Game)');
 });

@@ -866,3 +866,116 @@ test('порядок слоёв: текстура < декорации < пос�
   const top = iMob >= 0 ? iMob : iBuilding;
   assert.ok(top < iPh, 'Флогистон — ПОСЛЕ построек/мобов');
 });
+
+// --- Задача 000122: спрайт поверженной группы скрыт до дня респауна ---
+//
+// drawSprites, проход 3 (main.js), рисует спрайт группы для каждого
+// видимого тайла с hasMobGroup — без того, чтобы спросить, не
+// повержена ли группа (запись 'x,y' → день поражения в Map
+// `defeatedAt` main.js; в день респауна onDay удаляет запись через
+// dueForRespawn). Требование: перед drawImage спрашивать
+// G.groupVisible(defeatedAt, x, y) — поверженная группа скрыта до
+// дня респауна, в день респауна спрайт возвращается, БЕЗ доп.
+// состояния.
+//
+// Протокол: в main.js `const G = globalThis.Game` — тот же объект,
+// что h.sandbox.Game, поэтому переопределение Game.groupVisible
+// достает до прохода 3. Шпион несёт ИСТИННУЮ семантику
+// (!defeatedAt.has(x + ',' + y), ключ — тот же формат, что в main.js)
+// и фиксирует вызовы; на первом вызове получает САМО defeatedAt
+// main.js (в state не выведено). «Победа» = запись на тайле видимой
+// группы (как при победе, main.js:716); «день респауна» — РЕАЛЬНЫЙ
+// onDay: actions.setDay(+respawn_days) → rest → dueForRespawn →
+// delete. До реализации (красный): проход 3 G.groupVisible не
+// вызывает — шпион не вызывается, поверженная группа рисуется.
+//
+// Сценарий детерминирован: фолбэчный мир (фикс. сид), в начальном
+// кадре группы есть (гарантия сценария падает с сообщением, если
+// мир сменят).
+
+function mobDraws(calls) {
+  return calls.filter((c) => c[0] === 'drawImage'
+    && c[1][0]
+    && typeof c[1][0].__asset === 'string'
+    && c[1][0].__asset.startsWith('assets/sprites/mobs/'));
+}
+
+test('группа: после «победы» спрайт скрыт, другие группы на месте; в день респауна возвращается', async () => {
+  const h = await boot(new Set());
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const st = g.state;
+  const zoom = st.zoom;
+  const range = G.visibleTileRange(st.cam.x, st.cam.y, VIEW_W, VIEW_H, zoom);
+  const groups = [];
+  for (let ty = range.y0; ty <= range.y1; ty++) {
+    for (let tx = range.x0; tx <= range.x1; tx++) {
+      if (myMap.tileAt(tx, ty).hasMobGroup) groups.push({ x: tx, y: ty });
+    }
+  }
+  assert.ok(groups.length >= 2,
+    'сценарий: >= 2 тайлов групп в кадре (найдено ' + groups.length + ')');
+  const target = groups[0];
+  const key = target.x + ',' + target.y;
+
+  // Базовый кадр (без переопределения): ВСЕ видимые группы нарисованы.
+  const c0 = frameOnce(h);
+  assert.equal(mobDraws(c0).length, groups.length,
+    'базово: все видимые группы нарисованы (слой живой)');
+
+  // Шпион: истинная семантика + запись вызовов.
+  const spyCalls = [];
+  let D = null; // defeatedAt main.js (первый аргумент первого вызова)
+  G.groupVisible = (defeatedAt, x, y) => {
+    spyCalls.push([defeatedAt, x, y]);
+    if (D === null && defeatedAt && typeof defeatedAt.has === 'function') D = defeatedAt;
+    return !defeatedAt.has(x + ',' + y);
+  };
+  const c1 = frameOnce(h);
+  // Утиный тип, а не instanceof: defeatedAt — Map из ВМ-области
+  // песочницы, node'овский Map на него не instanceof.
+  assert.ok(D && typeof D.has === 'function' && typeof D.set === 'function'
+      && typeof D.delete === 'function',
+    'проход 3 спрашивает G.groupVisible и передаёт собственное defeatedAt (Map)');
+  assert.ok(spyCalls.length >= groups.length,
+    'шпион вызван по тайлам групп кадра (вызовов: ' + spyCalls.length + ')');
+  assert.ok(spyCalls.every((a) => a[0] === D),
+    'ОДНО и то же defeatedAt в каждом вызове (не копия/сериализация)');
+  assert.equal(mobDraws(c1).length, groups.length,
+    'записей нет — все группы по-прежнему нарисованы (ложного скрытия нет)');
+
+  // «Победа»: запись на целевом тайле (defeatedAt.set(key, день), main.js:716).
+  D.set(key, g.state.day);
+  const c2 = frameOnce(h);
+  const tPos = G.worldToScreen(target.x, target.y,
+    st.cam.x, st.cam.y, zoom, VIEW_W, VIEW_H);
+  // Формула прохода 3: (sx − zoom*0.1, sy − zoom*0.15, zoom*1.2, zoom*1.2).
+  assert.ok(!mobDraws(c2).some(([, a]) =>
+      Math.abs(a[1] - (tPos.x - zoom * 0.1)) < EPS
+      && Math.abs(a[2] - (tPos.y - zoom * 0.15)) < EPS),
+    'спрайт поверженной группы НЕ рисуется');
+  const others = groups.filter((p) => p !== target);
+  assert.equal(mobDraws(c2).length, others.length,
+    'скрыта ТОЛЬКО поверженная группа');
+  for (const p of others) {
+    const q = G.worldToScreen(p.x, p.y, st.cam.x, st.cam.y, zoom, VIEW_W, VIEW_H);
+    assert.ok(mobDraws(c2).some(([, a]) =>
+        Math.abs(a[1] - (q.x - zoom * 0.1)) < EPS
+        && Math.abs(a[2] - (q.y - zoom * 0.15)) < EPS),
+      `группа (${p.x},${p.y}) по-прежнему нарисована`);
+  }
+
+  // День респауна: реальный onDay (setDay → rest → dueForRespawn → delete).
+  g.actions.setDay(g.state.day + G.RESPAWN_DAYS);
+  assert.equal(D.has(key), false,
+    'в день респауна onDay удалил запись (dueForRespawn)');
+  const c3 = frameOnce(h);
+  const back = mobDraws(c3).filter(([, a]) =>
+    Math.abs(a[1] - (tPos.x - zoom * 0.1)) < EPS
+    && Math.abs(a[2] - (tPos.y - zoom * 0.15)) < EPS);
+  assert.equal(back.length, 1,
+    'спрайт поверженной группы вернулся автоматически в день респауна');
+  assert.equal(mobDraws(c3).length, groups.length,
+    'все группы кадра снова на месте');
+});
