@@ -1,7 +1,10 @@
 # 000122: скрытие спрайта поверженной стационарной группы
 
-Статус: реализовано (стадия red — 9 новых тестов в tests/day.test.js
-и tests/main-visuals.test.js).
+Статус: выполнено (отчёт — tasks/result/000122.md, задача —
+tasks/done/). Коммиты: 8ab060c (красные тесты), 9d562bc
+(реализация + память); ветвление от master a0b9d5a. npm test —
+818/818 (база 809, +9 новых: tests/day.test.js +
+tests/main-visuals.test.js).
 
 ## Решения
 
