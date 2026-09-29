@@ -36,6 +36,37 @@
 //   * close() — cancelAnimationFrame, поздний tick не рендерит;
 //   * хук state.pos(now) (задел 000068): ромб игрока И цель камеры.
 //
+// КРАСНЫЕ 000067 (падают до реализации, зелёные после) — анимированные
+// спрайты Флогистона/мобов + спрайт сундука вместо ромба/квадратов:
+//   * игрок — drawImage по G.phlogistonFrames('idle')[Math.floor(
+//     G.frameIndex(now, pos.x, pos.y, n))], zoom*1.15, центр клетки
+//     (хук playerPos); ромба (moveTo/#8cf2fc) нет;
+//   * мобы — ПО КАЖДОМУ mobId группы: mobSpriteKind → MOB_FRAMES →
+//     кадр Math.floor(G.frameIndex(now, ux, uy, frames.length))
+//     (floor ОБЯЗАТЕЛЕН: frameIndex на дробных координатах юнита даёт
+//     дробный индекс), zoom*1.2, смещения юнита по индексу
+//     [0,0], [−0.35,0.15], [0.35,0.15]; красных квадратов нет;
+//   * босс — N спрайтов юнитов + ОДИН #b06ad4-прямоугольник
+//     (bounding box юнитов, рисован ПОДО спрайтами), покрывает центр
+//     группы; без босса — #b06ad4 нет;
+//   * сундук — drawImage assets/dungeon/chest.svg (zoom*0.8, центр
+//     клетки) при !opened; opened — НЕ рисуется; image не готов —
+//     фолбэк (золотой квадрат + полоса);
+//   * смена кадра во времени (разные now → разные кадры) + детерминизм
+//     (тот же now → тот же кадр);
+//   * фолбэки ПЕР-ЮНИТ: image null на одном виде — квадрат ИМЕННО для
+//     этого юнита, остальные — спрайты; legacy-группа БЕЗ mobIds —
+//     полный фолбэк без падения;
+//   * spriteLoader=null / sprites.js не в цепочке — drawImage нет,
+//     полные фолбэки (регрессия);
+//   * sprites.js: G.DUNGEON_CHEST, путь в allAssetPaths, файл есть;
+//   * tests/svg.test.js: EXPECTED_SVG_BY_DIR 'dungeon': 1 (chest.svg).
+// Песочница 000067: loadDungeonUi({ withSprites: true }) — sprites.js
+// в цепочке ДО dungeon-ui.js (opt-in; цепочка по умолчанию НЕ меняется
+// — тест пола предусловием требует G.dungeonFloorFrame === undefined).
+// Кадр — только явным G.dungeonUI.render(now) (событийный рендер,
+// performance-стаб задаёт now start()-рендера).
+//
 // ВАЖНО (UMD-ловушка порядка, 000038): в index.html src/motion.js
 // грузится ПОСЛЕ src/dungeon-ui.js — цепочка песочницы зеркалит это
 // (motion.js в конце): снапсот G при загрузке dungeon-ui.js НЕ видит
@@ -128,7 +159,11 @@ function findCanvas(el) {
 //     внедрение в песочницу для тестов rAF-цикла и камеры (000066);
 //     по умолчанию ОТСУТСТВУЮТ — существующие тесты 000043 не меняются
 //     (dungeon-ui обязан терпеть песочницу без rAF/performance,
-//     typeof-гарды, паттерн combat-ui.js).
+//     typeof-гарды, паттерн combat-ui.js);
+//   withSprites — sprites.js в цепочке ДО dungeon-ui.js (порядок
+//     index.html, 000067). OPT-IN: цепочка по умолчанию без sprites.js
+//     НЕ меняется (тест пола предусловием проверяет
+//     G.dungeonFloorFrame === undefined).
 // window-стаб — с innerWidth/innerHeight (числа, меняемы тестом =
 // симуляция ресайза; canvas обязан подгоняться в rAF-цикле).
 function loadDungeonUi(opts = {}) {
@@ -166,7 +201,12 @@ function loadDungeonUi(opts = {}) {
     chain.push('skills-data.js', 'items-data.js', 'player.js', 'items.js',
       'combat.js', 'combat-keys.js', 'combat-ui.js');
   }
-  chain.push('dungeon.js', 'dungeon-ui.js');
+  chain.push('dungeon.js');
+  // sprites.js — в index.html ДО dungeon-ui.js (379 vs 381); UMD-модуль
+  // ЗАМЕНЯЕТ Game, поэтому dungeon-ui.js грузится ПОСЛЕ него (снапшот G
+  // уже видит phlogistonFrames/MOB_FRAMES и т.д.).
+  if (opts.withSprites) chain.push('sprites.js');
+  chain.push('dungeon-ui.js');
   // motion.js — в index.html он ПОСЛЕ dungeon-ui.js (UMD-ловушка, 000038:
   // каждый модуль ЗАМЕНЯЕТ объект Game). Цепочка зеркалит браузер: снапсот
   // G в dungeon-ui.js при загрузке не видит cameraStep/CAM_TAU_MS — тесты
@@ -266,6 +306,7 @@ function lastFloorRectNear(drawCalls, x, y, size, tol) {
 // (тот же литерал, что в тестах 000043). opts 000066:
 //   width/height — размер сетки (стены по периметру, пол внутри);
 //   px/py — стартовая клетка игрока (floor);
+//   type — DUNGEON_TYPES (по умолчанию 0, CAVE);
 //   wallObjs — d.wallObjs (задача 000070): [{x, y, obj}];
 //   mobs/chests — содержимое;
 //   pos — функция pos(now) (хук 000068): позиция игрока в момент кадра.
@@ -280,7 +321,7 @@ function makeState(opts = {}) {
     }
   }
   const dg = {
-    type: 0, // DUNGEON_TYPES.CAVE → G.DUNGEON_NAMES[0]
+    type: opts.type != null ? opts.type : 0, // DUNGEON_TYPES
     width: w, height: h,
     cells,
     entrance: { x: 1, y: 1 },
@@ -1101,4 +1142,449 @@ test('подземелье UI: state.pos(now) — цель КАМЕРЫ тоже
   p = G.worldToScreen(13, 13, VW / 2 / 40, VH / 2 / 40, 40, VW, VH);
   assert.ok(floorRectAt(calls, p.x, p.y, 40),
     'без pos: камера у клампа (10, 7.5) — floor (13,13) в ' + p.x + ',' + p.y);
+});
+
+// --- Красные: требования задачи 000067 (падают до реализации) ---
+//
+// Анимированные спрайты Флогистона и мобов + спрайт сундука. 5×5 @ zoom
+// 48 → вьюпорт больше подземелья → cam (2.5, 2.5) (центрирование),
+// координаты — через G.worldToScreen (та же формула, что мир). Кадр —
+// явным G.dungeonUI.render(now) (событийный рендер; start() рендерит при
+// T.t = 1000). Все функции спрайтов в тесте читаются из G песочницы
+// (withSprites) — имена/числа кадров НЕ хардкодим (только
+// frames.length, паттерн задачи: 000062 расширит MOB_FRAMES).
+
+// Детерминированные смещения юнита группы ПО ИНДЕКСУ (спека 000067):
+// группа «встает» вокруг своей клетки.
+const MOB_UNIT_OFF = [[0, 0], [-0.35, 0.15], [0.35, 0.15]];
+
+// DI spriteLoader-стаб (контракт createSpriteLoader, 000047/000066):
+// «ready»-изображение — ТОЛЬКО для путей из paths; у каждого пути —
+// СОБСТВЕННЫЙ объект { __img: path } (drawCalls сверяем по изображению,
+// путь читаем из стаба). Остальные пути — не готовы (image → null).
+function makeSpriteLoader(paths) {
+  const ready = new Set(paths);
+  const imgs = new Map();
+  return {
+    isReady: (p) => ready.has(p),
+    image: (p) => {
+      if (!ready.has(p)) return null;
+      if (!imgs.has(p)) imgs.set(p, { __img: p });
+      return imgs.get(p);
+    },
+  };
+}
+
+// Все пути базовых видов мобов MOB_FRAMES («всё готово»-набор).
+function allMobFramePaths(G) {
+  const out = [];
+  for (const frames of Object.values(G.MOB_FRAMES)) out.push(...frames);
+  return out;
+}
+
+// Юниты группы (спека 000067): mobIds по индексу юнита со смещениями.
+function mobUnits(m) {
+  return m.mobIds.map((id, i) => ({
+    id,
+    x: m.x + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][0],
+    y: m.y + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][1],
+  }));
+}
+
+// Ожидаемый спрайт юнита группы i (спека 000067):
+// mobSpriteKind → MOB_FRAMES → кадр Math.floor(G.frameIndex(now, ux, uy,
+// frames.length)) (floor ОБЯЗАТЕЛЕН — frameIndex на дробных координатах
+// юнита возвращает ДРОБНЫЙ индекс, frames[1.6] = undefined), размер
+// zoom*1.2 (мобы мира), центр — (ux+0.5, uy+0.5).
+function expectedMobSprite(G, now, m, i, zoom, camX, camY) {
+  const u = mobUnits(m)[i];
+  const frames = G.MOB_FRAMES[G.mobSpriteKind(u.id)];
+  const fi = Math.floor(G.frameIndex(now, u.x, u.y, frames.length));
+  const p = G.worldToScreen(u.x + 0.5, u.y + 0.5, camX, camY, zoom, VW, VH);
+  const s = zoom * 1.2;
+  return { path: frames[fi], x: p.x - s / 2, y: p.y - s / 2, s };
+}
+
+// drawImage с точными координатами/размером (спрайт центрирован:
+// drawImage(img, cx−s/2, cy−s/2, s, s)); возвращает совпавшие вызовы.
+function drawImageAt(calls, x, y, s, tol = 1e-9) {
+  return calls.filter((c) => c[0] === 'drawImage'
+    && Math.abs(c[1][1] - x) <= tol
+    && Math.abs(c[1][2] - y) <= tol
+    && Math.abs(c[1][3] - s) <= tol
+    && Math.abs(c[1][4] - s) <= tol);
+}
+
+// fillRect цветом color в точных координатах/размерах.
+function fillRectAt(calls, color, x, y, w, h, tol = 1e-9) {
+  return calls.some((c) => c[0] === 'fillRect' && c[2] === color
+    && Math.abs(c[1][0] - x) <= tol
+    && Math.abs(c[1][1] - y) <= tol
+    && Math.abs(c[1][2] - w) <= tol
+    && Math.abs(c[1][3] - h) <= tol);
+}
+
+// fillText текстом text в fillStyle color в пределах tol px от точки.
+function fillTextNear(calls, text, color, x, y, tol) {
+  return calls.some((c) => c[0] === 'fillText' && c[1][0] === text
+    && c[2] === color
+    && Math.abs(c[1][1] - x) <= tol
+    && Math.abs(c[1][2] - y) <= tol);
+}
+
+// Песочница 000067: sprites.js в цепочке (withSprites) + performance-стаб
+// (now start()-рендера = T.t = 1000). Без rAF — кадр только явным
+// G.dungeonUI.render(now) (событийный рендер, паттерн 000043/000066).
+function loadSpriteDungeon(opts = {}) {
+  const T = { t: 1000 };
+  const loaded = loadDungeonUi(Object.assign({
+    withSprites: true,
+    performance: { now: () => T.t },
+  }, opts));
+  return { G: loaded.G, body: loaded.body, T };
+}
+
+test('подземелье UI 000067: игрок — спрайт Флогистона вместо ромба (ready-лоадер)', () => {
+  // Игрок — кадры G.phlogistonFrames('idle') (в этой задаче всегда
+  // 'idle'), размер zoom*1.15 (формула мира), центр — (pos.x+0.5,
+  // pos.y+0.5) (тот же хук playerPos, что и у ромба/камеры).
+  const { G, body } = loadSpriteDungeon();
+  const idle = G.phlogistonFrames('idle');
+  const loader = makeSpriteLoader(idle); // ready — только кадры idle
+  G.dungeonUI.start({
+    state: makeState(), onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  const calls = findCanvas(body).drawCalls; // start() — render при T.t=1000
+  const i = Math.floor(G.frameIndex(1000, 1, 1, idle.length));
+  const p = G.worldToScreen(1.5, 1.5, 2.5, 2.5, 48, VW, VH);
+  const s = 48 * 1.15;
+  const hit = drawImageAt(calls, p.x - s / 2, p.y - s / 2, s)
+    .find((c) => c[1][0] && c[1][0].__img === idle[i]);
+  assert.ok(hit,
+    'игрок — drawImage кадра ' + idle[i] + ' (G.phlogistonFrames + '
+    + 'G.frameIndex), zoom*1.15 = ' + s + ', центр клетки (1,1)');
+  assert.ok(!calls.some((c) => c[0] === 'moveTo'),
+    'ромба игрока нет (moveTo не вызывается)');
+  assert.ok(!calls.some((c) => c[2] === '#8cf2fc'),
+    'цвета ромба #8cf2fc нет');
+});
+
+test('подземелье UI 000067: мобы — по числу mobIds, zoom*1.2, смещения по индексу юнита', () => {
+  // Группа из 3 mobIds (мобы пещеры, type 0): каждый юнит — СВОЙ
+  // спрайт (не «одна группа = один спрайт», как мир):
+  // mobSpriteKind(mobIds[i]) → MOB_FRAMES[kind] → кадр по
+  // Math.floor(G.frameIndex(now, ux, uy, frames.length)), ux/uy =
+  // g.x+off[i].x / g.y+off[i].y.
+  const { G, body } = loadSpriteDungeon();
+  const group = {
+    x: 2, y: 2, level: 5, defeated: false,
+    mobIds: ['skeleton', 'ant', 'crawling_bones'],
+  };
+  const loader = makeSpriteLoader(allMobFramePaths(G));
+  G.dungeonUI.start({
+    state: makeState({ mobs: [group] }), onMove() {}, zoom: 48,
+    spriteLoader: loader,
+  });
+  const calls = findCanvas(body).drawCalls;
+  const s = 48 * 1.2;
+  const mobImgs = calls.filter((c) => c[0] === 'drawImage'
+    && Math.abs(c[1][3] - s) <= 1e-9 && Math.abs(c[1][4] - s) <= 1e-9);
+  assert.equal(mobImgs.length, 3,
+    'drawImage по числу mobIds (3 юнита), zoom*1.2 = ' + s
+    + ': найдено ' + mobImgs.length);
+  group.mobIds.forEach((id, i) => {
+    const e = expectedMobSprite(G, 1000, group, i, 48, 2.5, 2.5);
+    const hit = drawImageAt(calls, e.x, e.y, s)
+      .find((c) => c[1][0] && c[1][0].__img === e.path);
+    assert.ok(hit,
+      'юнит ' + i + ' (' + id + ') — drawImage ' + e.path
+      + ' (mobSpriteKind → MOB_FRAMES → Math.floor(frameIndex)), '
+      + 'центр (' + (group.x + MOB_UNIT_OFF[i][0] + 0.5) + ', '
+      + (group.y + MOB_UNIT_OFF[i][1] + 0.5) + ')');
+  });
+  assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#d9483b'),
+    'красных квадратов #d9483b нет: вся группа — спрайты');
+  const c = G.worldToScreen(2.5, 2.5, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillTextNear(calls, '5', '#fff', c.x, c.y, 4),
+    'белый номер уровня группы сохранён');
+  // Слои (memory/000070): мобы ПОД игроком. Игрок здесь — ромб (idle
+  // не в ready-наборе) — последний path-вызов (moveTo).
+  const playerIdx = calls.findIndex((c) => c[0] === 'moveTo');
+  assert.ok(playerIdx >= 0, 'игрок нарисован (ромб: idle-кадры не ready)');
+  for (const m of mobImgs) {
+    assert.ok(calls.indexOf(m) < playerIdx,
+      'спрайт моба ПОД игроком (порядок слоёв)');
+  }
+});
+
+test('подземелье UI 000067: босс — N спрайтов юнитов + ОДИН #b06ad4-прямоугольник группы + номер; без босса — подсветки нет', () => {
+  // Босс Бездны — 3 юнита (abomination + 2 lower_demon, все 'abyss'):
+  // 3 drawImage (число вызовов, а не distinct-путей — фаза кадра
+  // различается по юнитам) + ОДИН #b06ad4-прямоугольник (bounding box
+  // юнитов, рисован ДО спрайтов, покрывает центр группы). Обычная
+  // группа — без #b06ad4.
+  const boss = {
+    x: 2, y: 2, level: 7, defeated: false, boss: true,
+    mobIds: ['abomination', 'lower_demon', 'lower_demon'],
+  };
+  const regular = {
+    x: 3, y: 1, level: 5, defeated: false, mobIds: ['succubus'],
+  };
+  // (а) босс и не-босс группа в одном стейте.
+  let { G, body } = loadSpriteDungeon();
+  let loader = makeSpriteLoader(allMobFramePaths(G));
+  G.dungeonUI.start({
+    state: makeState({ type: 4, mobs: [boss, regular] }),
+    onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  let calls = findCanvas(body).drawCalls;
+  const s = 48 * 1.2;
+  const mobImgs = calls.filter((c) => c[0] === 'drawImage'
+    && Math.abs(c[1][3] - s) <= 1e-9 && Math.abs(c[1][4] - s) <= 1e-9);
+  assert.equal(mobImgs.length, 4,
+    '3 юнита босса + 1 юнит обычной группы — 4 спрайта');
+  for (const g of [boss, regular]) {
+    for (let i = 0; i < g.mobIds.length; i++) {
+      const e = expectedMobSprite(G, 1000, g, i, 48, 2.5, 2.5);
+      const hit = drawImageAt(calls, e.x, e.y, s)
+        .find((c) => c[1][0] && c[1][0].__img === e.path);
+      assert.ok(hit, (g.boss ? 'босс ' : 'обычная группа ') + 'юнит '
+        + i + ' (' + g.mobIds[i] + ') — спрайт ' + e.path);
+    }
+  }
+  const purple = calls.filter((c) => c[0] === 'fillRect' && c[2] === '#b06ad4');
+  assert.equal(purple.length, 1,
+    'boss-подсветка — ровно ОДИН прямоугольник #b06ad4: ' + purple.length);
+  const [bx, by, bw, bh] = purple[0][1];
+  const bc = G.worldToScreen(2.5, 2.5, 2.5, 2.5, 48, VW, VH); // центр босса
+  assert.ok(bx <= bc.x + 1e-9 && bc.x <= bx + bw + 1e-9
+    && by <= bc.y + 1e-9 && bc.y <= by + bh + 1e-9,
+    'подсветка покрывает центр группы босса (bounding box юнитов): '
+    + '[' + bx + ',' + by + ' ' + bw + 'x' + bh + ']');
+  const bossRectIdx = calls.indexOf(purple[0]);
+  for (let i = 0; i < 3; i++) {
+    const e = expectedMobSprite(G, 1000, boss, i, 48, 2.5, 2.5);
+    const hit = drawImageAt(calls, e.x, e.y, s)
+      .find((c) => c[1][0] && c[1][0].__img === e.path);
+    assert.ok(calls.indexOf(hit) > bossRectIdx,
+      'boss-подсветка рисуется ДО спрайтов юнитов (под ними)');
+  }
+  assert.ok(fillTextNear(calls, '7', '#fff', bc.x, bc.y, 4),
+    'белый номер уровня босса «7» сохранён');
+  const rc = G.worldToScreen(3.5, 1.5, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillTextNear(calls, '5', '#fff', rc.x, rc.y, 4),
+    'номер обычной группы «5» сохранён');
+  // (б) не-босс группа одна — подсветки нет совсем.
+  ({ G, body } = loadSpriteDungeon());
+  loader = makeSpriteLoader(allMobFramePaths(G));
+  G.dungeonUI.start({
+    state: makeState({ type: 4, mobs: [regular] }),
+    onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#b06ad4'),
+    'без босса — прямоугольника #b06ad4 нет');
+  assert.equal(calls.filter((c) => c[0] === 'drawImage').length, 1,
+    'не-босс группа — её спрайт (фолбэков нет)');
+});
+
+test('подземелье UI 000067: смена кадра во времени + детерминизм (тот же now — тот же кадр)', () => {
+  // Рендер (1000) → (1480) → (1000): кадр игрока в 1-м и 3-м рендерах
+  // РАВЕН, во 2-м ДРУГОЙ (frameIndex(1000,1,1,2)=0,
+  // frameIndex(1480,1,1,2)=1 — проверено). Индекс всегда целый в
+  // [0, n) — pinned Math.floor (защита от дробного frameIndex на
+  // дробных координатах).
+  const { G, body } = loadSpriteDungeon();
+  const idle = G.phlogistonFrames('idle');
+  assert.ok(idle.length >= 2, 'предусловие: у idle 2+ кадра');
+  const i1000 = Math.floor(G.frameIndex(1000, 1, 1, idle.length));
+  const i1480 = Math.floor(G.frameIndex(1480, 1, 1, idle.length));
+  assert.notEqual(i1480, i1000,
+    'предусловие: 1000 и 1480 дают РАЗНЫЕ кадры (FRAME_MS=480)');
+  const loader = makeSpriteLoader(idle);
+  G.dungeonUI.start({
+    state: makeState(), onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  const canvas = findCanvas(body);
+  const n0 = canvas.drawCalls.length; // start(): render при T.t = 1000
+  G.dungeonUI.render(1480);
+  const n1 = canvas.drawCalls.length;
+  G.dungeonUI.render(1000);
+  const segs = [
+    canvas.drawCalls.slice(0, n0),
+    canvas.drawCalls.slice(n0, n1),
+    canvas.drawCalls.slice(n1),
+  ];
+  const p = G.worldToScreen(1.5, 1.5, 2.5, 2.5, 48, VW, VH);
+  const s = 48 * 1.15;
+  const playerImg = (segCalls) => drawImageAt(segCalls, p.x - s / 2, p.y - s / 2, s)
+    .map((c) => c[1][0]).find(Boolean);
+  const img0 = playerImg(segs[0]);
+  const img1 = playerImg(segs[1]);
+  const img2 = playerImg(segs[2]);
+  assert.ok(img0 && img1 && img2, 'спрайт игрока в каждом из 3 рендеров');
+  assert.equal(img0.__img, idle[i1000], 'now=1000 → кадр G.frameIndex(1000,1,1,n)');
+  assert.equal(img1.__img, idle[i1480], 'now=1480 → другой кадр');
+  assert.equal(img2.__img, idle[i1000],
+    'now=1000 снова → тот же кадр, что в 1-м рендере (детерминизм)');
+});
+
+test('подземелье UI 000067: без лоадера (spriteLoader=null) — drawImage нет, полные фолбэки (регрессия)', () => {
+  // spriteLoader=null (и sprites.js в цепочке нет — цепочка по
+  // умолчанию): НИЧЕГО спрайт-ного — прежние ромб/квадраты/сундук,
+  // выход/вход. Зелёный с первого запуска.
+  const { G, body } = loadDungeonUi();
+  const s = makeState({
+    chests: [{ x: 1, y: 3, opened: false }],
+    mobs: [
+      { x: 2, y: 2, level: 5, defeated: false, mobIds: ['skeleton', 'ant'] },
+      {
+        x: 3, y: 1, level: 7, defeated: false, boss: true,
+        mobIds: ['abomination', 'lower_demon', 'lower_demon'],
+      },
+    ],
+  });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48 });
+  const calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((c) => c[0] === 'drawImage'),
+    'без spriteLoader — drawImage не вызывается вообще');
+  // Игрок — прежний ромб.
+  assert.ok(calls.some((c) => c[0] === 'moveTo' && c[2] === '#8cf2fc'),
+    'игрок — ромб (moveTo + #8cf2fc)');
+  // Мобы — прежние квадраты (прямоугольник на ГРУППУ).
+  const pMob = G.worldToScreen(2, 2, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, '#d9483b', pMob.x + 3, pMob.y + 3, 42, 42),
+    'не-босс группа — красный квадрат #d9483b');
+  const pBoss = G.worldToScreen(3, 1, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, '#b06ad4', pBoss.x + 3, pBoss.y + 3, 42, 42),
+    'босс — фиолетовый квадрат #b06ad4');
+  assert.ok(fillTextNear(calls, '5', '#fff', pMob.x + 24, pMob.y + 24, 4),
+    'номер группы «5» сохранён');
+  assert.ok(fillTextNear(calls, '7', '#fff', pBoss.x + 24, pBoss.y + 24, 4),
+    'номер босса «7» сохранён');
+  // Сундук — прежний золотой квадрат + полоса.
+  const pCh = G.worldToScreen(1, 3, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, '#e0b13c', pCh.x + 3, pCh.y + 3, 42, 42),
+    'сундук — золотой квадрат #e0b13c');
+  assert.ok(fillRectAt(calls, '#7a5c16', pCh.x + 3, pCh.y + 23, 42, 2),
+    'сундук — тёмная полоса #7a5c16');
+  // Выход/вход — текстовые/цветовые маркеры (решение задачи).
+  const pEx = G.worldToScreen(3, 3, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, '#d4b45a', pEx.x + 2, pEx.y + 2, 44, 44),
+    'выход — жёлтый квадрат #d4b45a');
+  assert.ok(calls.some((c) => c[0] === 'fillText' && c[1][0] === 'X'
+    && c[2] === '#101418'), 'выход — буква «X»');
+  const pEn = G.worldToScreen(1, 1, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, '#3f9d55', pEn.x + 4, pEn.y + 4, 40, 40),
+    'вход — зелёный квадрат #3f9d55');
+});
+
+test('подземелье UI 000067: фолбэк ПЕР-ЮНИТ (вид не готов — квадрат только для этого юнита)', () => {
+  // Группа ['skeleton', 'ant']: ready — только кадры 'skeleton'
+  // ('ant' → 'spider' не готов). Ожидаемо: 1 drawImage (юнит 0) +
+  // 1 fillRect #d9483b на месте юнита 1 (смещение [−0.35, +0.15]);
+  // drawImage(null) не вызывается (null-гард — в браузере TypeError).
+  const { G, body } = loadSpriteDungeon();
+  const group = { x: 2, y: 2, level: 5, defeated: false, mobIds: ['skeleton', 'ant'] };
+  const loader = makeSpriteLoader(G.MOB_FRAMES[G.mobSpriteKind('skeleton')]);
+  G.dungeonUI.start({
+    state: makeState({ mobs: [group] }), onMove() {}, zoom: 48,
+    spriteLoader: loader,
+  });
+  const calls = findCanvas(body).drawCalls;
+  const di = calls.filter((c) => c[0] === 'drawImage');
+  assert.ok(!di.some((c) => c[1][0] == null),
+    'drawImage не вызывается с null-изображением (гард)');
+  assert.equal(di.length, 1,
+    'спрайт — только у ready-юнита (skeleton): найдено ' + di.length);
+  const e0 = expectedMobSprite(G, 1000, group, 0, 48, 2.5, 2.5);
+  assert.ok(di[0][1][0] && di[0][1][0].__img === e0.path,
+    'спрайт — юнит 0 (skeleton, смещение [0,0])');
+  const pUnit1 = G.worldToScreen(2 - 0.35, 2 + 0.15, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, '#d9483b', pUnit1.x + 3, pUnit1.y + 3, 42, 42),
+    'юнит 1 (ant, смещение [−0.35, +0.15]) — прежний квадрат #d9483b');
+  const c = G.worldToScreen(2.5, 2.5, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillTextNear(calls, '5', '#fff', c.x, c.y, 4),
+    'номер уровня группы сохранён');
+});
+
+test('подземелье UI 000067: legacy-группа БЕЗ mobIds + ready-лоадер — фолбэк, не падение (регрессия)', () => {
+  // Группа {x, y, level, defeated} без mobIds (формат существующих
+  // тестов стен): полная группа-фолбэк — квадрат + номер, drawImage по
+  // этой группе нет, падения на for..of undefined нет. Зелёный с
+  // первого запуска.
+  const { G, body } = loadSpriteDungeon();
+  const loader = makeSpriteLoader(allMobFramePaths(G)); // всё готово
+  G.dungeonUI.start({
+    state: makeState({ mobs: [{ x: 2, y: 2, level: 5, defeated: false }] }),
+    onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  const calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((c) => c[0] === 'drawImage'),
+    'без mobIds — спрайтов нет (группа — полный фолбэк)');
+  const p = G.worldToScreen(2, 2, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, '#d9483b', p.x + 3, p.y + 3, 42, 42),
+    'группа — прежний квадрат #d9483b');
+  assert.ok(fillTextNear(calls, '5', '#fff', p.x + 24, p.y + 24, 4),
+    'номер «5» сохранён');
+});
+
+test('подземелье UI 000067: сундук — спрайт при !opened (zoom*0.8, центр клетки), НЕ рисуется при opened', () => {
+  const CHEST = 'assets/dungeon/chest.svg'; // путь спрайта (спека 000067)
+  // (а) !opened + ready-лоадер — спрайт сундука.
+  let { G, body } = loadSpriteDungeon();
+  let loader = makeSpriteLoader([CHEST]);
+  G.dungeonUI.start({
+    state: makeState({ chests: [{ x: 1, y: 3, opened: false }] }),
+    onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  let calls = findCanvas(body).drawCalls;
+  const c = G.worldToScreen(1.5, 3.5, 2.5, 2.5, 48, VW, VH); // центр клетки
+  const s = 48 * 0.8;
+  const hit = drawImageAt(calls, c.x - s / 2, c.y - s / 2, s)
+    .find((im) => im[1][0] && im[1][0].__img === CHEST);
+  assert.ok(hit, 'сундук — drawImage ' + CHEST + ' (zoom*0.8 = ' + s
+    + ', по центру клетки (1,3))');
+  assert.ok(!calls.some((im) => im[2] === '#e0b13c'),
+    'золотого квадрата #e0b13c нет (спрайт заменил цвет)');
+  assert.ok(!calls.some((im) => im[2] === '#7a5c16'),
+    'тёмной полосы #7a5c16 нет');
+  // (б) opened — НЕ рисуется вообще (клетка пуста).
+  ({ G, body } = loadSpriteDungeon());
+  loader = makeSpriteLoader([CHEST]);
+  G.dungeonUI.start({
+    state: makeState({ chests: [{ x: 1, y: 3, opened: true }] }),
+    onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((im) => im[0] === 'drawImage'),
+    'открытый сундук не рисуется (drawImage нет)');
+  assert.ok(!calls.some((im) => im[2] === '#e0b13c'),
+    'открытый сундук — и золотого квадрата тоже нет');
+  // (в) !opened + image не готов — прежний золотой квадрат + полоса.
+  ({ G, body } = loadSpriteDungeon());
+  G.dungeonUI.start({
+    state: makeState({ chests: [{ x: 1, y: 3, opened: false }] }),
+    onMove() {}, zoom: 48, spriteLoader: makeSpriteLoader([]),
+  });
+  calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((im) => im[0] === 'drawImage'),
+    'изображение не готово — drawImage не вызывается');
+  const pc = G.worldToScreen(1, 3, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, '#e0b13c', pc.x + 3, pc.y + 3, 42, 42),
+    'фолбэк — золотой квадрат #e0b13c');
+  assert.ok(fillRectAt(calls, '#7a5c16', pc.x + 3, pc.y + 23, 42, 2),
+    'фолбэк — тёмная полоса #7a5c16');
+});
+
+test('sprites.js 000067: DUNGEON_CHEST экспортирован, путь в allAssetPaths, файл существует', () => {
+  // Константа-путь (паттерн BUILDING_SPRITES — литерал) + allAssetPaths
+  // += путь (очередь загрузчика подхватит автоматически).
+  const { G } = loadSpriteDungeon();
+  assert.equal(G.DUNGEON_CHEST, 'assets/dungeon/chest.svg',
+    'G.DUNGEON_CHEST — путь спрайта сундука');
+  assert.ok(G.allAssetPaths().includes('assets/dungeon/chest.svg'),
+    'путь в allAssetPaths()');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets', 'dungeon', 'chest.svg')),
+    'файл assets/dungeon/chest.svg существует');
 });
