@@ -8,7 +8,10 @@
 // Чистое ядро без DOM — тестируется в node (tests/items.test.js).
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js (hash2/mulberry32), player.js (derived/heal),
-// items-data.js (каталог), map.js (типы построек).
+// items-data.js (каталог), map.js (типы построек), buildings.js
+// (каталог построек — источник видов ассортимента магазинов, 000060;
+// в браузере грузится ПОСЛЕ items.js — доступ ленивый, см.
+// buildingsCatalogRef).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -16,12 +19,14 @@
       require('./perlin.js'),
       require('./player.js'),
       require('./items-data.js'),
-      require('./map.js'));
+      require('./map.js'),
+      require('./buildings.js'));
   } else {
     const G0 = typeof root.Game === 'object' ? root.Game : {};
-    root.Game = Object.assign({}, G0, factory(G0, G0, { ITEMS: G0.ITEMS }, G0));
+    root.Game = Object.assign({}, G0,
+      factory(G0, G0, { ITEMS: G0.ITEMS }, G0, null, root));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, P, DATA, mapmod) {
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, P, DATA, mapmod, bld, rootRef) {
 
   const hash2 = perlin.hash2;
   const mulberry32 = perlin.mulberry32;
@@ -472,15 +477,55 @@
   const BUY_WEALTH_MULT = 0.10;
   const SELL_WEALTH_MULT = 0.15;
 
-  // Тип постройки → типы предметов в ассортименте (map.js BUILDING_TYPES).
+  // Виды ассортимента магазина — ЕДИНЫЙ ИСТОЧНИК: каталог
+  // assets/buildings (src/buildings.js), запись «картового» магазина
+  // (map_index) → особых_параметры.виды = массив id из ITEM_KINDS
+  // (задача 000060). Проза каталога `ассортимент` — описательная,
+  // кодом не читается.
+  //
+  // Доступ ЛЕНИВЫЙ (паттерн catalogRef, 000055): в node приходит через
+  // require; в браузере buildings.js грузится ПОСЛЕ items.js
+  // (index.html 297/298), поэтому каталог берётся из root.Game в
+  // МОМЕНТ ВЫЗОВА (функция переживает Object.assign({}, Game, …) —
+  // см. 000055). Кэш ПУСТОГО вывода запрещён: первый вызов «до
+  // загрузки» не должен зафиксировать фолбэк навсегда.
+  function buildingsCatalogRef() {
+    if (bld && Array.isArray(bld.BUILDINGS)) return bld;
+    const g = rootRef && rootRef.Game;
+    return g && Array.isArray(g.BUILDINGS) ? g : null;
+  }
+
+  // Фолбэк-таблица — ТОЛЬКО для vm-песочниц (combat-ui/dungeon-ui),
+  // где items.js грузится БЕЗ buildings.js. Значения идентичны
+  // каталогу (assets/buildings, «виды») — торговля не меняется.
+  const SHOP_KINDS_FALLBACK = {
+    0: ['weapon'],               // Оружейная
+    1: ['armor'],                // Бронник
+    2: ['potion', 'food'],       // Аптекарь
+    3: ['reagent', 'skill_book'], // Магазин магии
+    11: ['food', 'potion'],      // Таверна (map_index 11)
+  };
+  const KIND_IDS = Object.values(ITEM_KINDS);
+
+  // Тип постройки → виды ассортимента. Каталог — источник истины:
+  // у «картовой» записи без валидных `виды` — null (не магазин);
+  // без каталога или для не-«картового» индекса — таблица-фолбэк.
   function shopKindsFor(buildingType) {
-    const B = mapmod.BUILDING_TYPES;
-    if (buildingType === B.WEAPONS_SHOP) return ['weapon'];
-    if (buildingType === B.ARMOR_SHOP) return ['armor'];
-    if (buildingType === B.APOTHECARY) return ['potion', 'food'];
-    if (buildingType === B.MAGIC_SHOP) return ['reagent', 'skill_book'];
-    if (buildingType === B.TAVERN) return ['food', 'potion'];
-    return null; // не магазин
+    const c = buildingsCatalogRef();
+    if (c && typeof c.buildingForMapIndex === 'function') {
+      const b = c.buildingForMapIndex(buildingType);
+      if (b) {
+        const виды = b.особые_параметры && b.особые_параметры.виды;
+        if (Array.isArray(виды) && виды.length > 0 &&
+            виды.every((k) => KIND_IDS.includes(k))) {
+          return виды;
+        }
+        return null; // запись есть, «виды» нет/биты — не магазин
+      }
+    }
+    // Каталог не подхвачен (vm-песочница) или индекс не «картовый»
+    // (нет записи: NONE/13/… ) — таблица как есть.
+    return SHOP_KINDS_FALLBACK[buildingType] || null;
   }
 
   /**
@@ -542,7 +587,7 @@
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     const kinds = shopKindsFor(shop.buildingType);
-    if (!kinds.includes(it.kind)) {
+    if (!kinds || !kinds.includes(it.kind)) {
       return { ok: false, reason: 'магазин не скупает такие предметы' };
     }
     if (!hasItem(c, itemId, qty)) return { ok: false, reason: 'предмета нет в инвентаре' };
