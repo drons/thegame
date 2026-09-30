@@ -67,6 +67,34 @@
 // Кадр — только явным G.dungeonUI.render(now) (событийный рендер,
 // performance-стаб задаёт now start()-рендера).
 //
+// КРАСНЫЕ 000068 (падают до реализации, зелёные после) — плавное
+// движение в подземелье (мувер motion.js, паттерн мира 000033):
+//   * во время глейда (pos(now) ≠ (s.x, s.y)) — кадр игрока из
+//     G.phlogistonFrames('walk'), а не 'idle' (хук playerAction из
+//     000067: раньше ВСЕГДА 'idle');
+//   * спрайт — в дробной экранной точке МЕЖДУ клетками (drawCalls
+//     сверяются по координатам; позиция пересчитывается тестом через
+//     ТОТ ЖЕ ядро-модуль — реальный G.createMover: цепочка песочницы
+//     уже грузит motion.js в КОНЦЕ, порядок index.html).
+// Сам мувер живёт в dungeonState, создаётся в main.js (клеянка, в
+// node не покрывается): тест «клеит» — форма состояния
+// maybeEnterDungeon { dg, contents, x, y, pos } + симуляция
+// dungeonMove (s.x/s.y обновляются ДО mover.step, from = старая
+// клетка; интервал — move_interval_ms из global-settings, тот же
+// источник MOVE_INTERVAL_MS; «Ловкий шаг» в подземелье НЕ применяется
+// — ограничение задачи).
+// ЗЕЛЁНЫЕ с первого запуска (регрессия-фиксация задела 000066/000067):
+//   * ДО шага и НА/ПОСЛЕ конца глейда (p >= 1) — 'idle' и ТОЧНАЯ
+//     клетка (s.x, s.y) — без «перетриггера» walk;
+//   * дробная точка без лоадера — ромб МЕЖДУ клетками;
+//   * цель КАМЕРЫ тоже дробная (25×25, zoom 40 — внутри клампа,
+//     без округления к целой клетке);
+//   * без pos() — (s.x, s.y) и 'idle' (тесты 000066/000067,
+//     без изменений — весь файл остаётся зелёным);
+//   * структурный: dungeon-ui.js НЕ ссылается на createMover
+//     (UMD-ловушка: в index.html motion.js грузится ПОСЛЕ
+//     dungeon-ui.js — мувер создаётся только в main.js).
+//
 // ВАЖНО (UMD-ловушка порядка, 000038): в index.html src/motion.js
 // грузится ПОСЛЕ src/dungeon-ui.js — цепочка песочницы зеркалит это
 // (motion.js в конце): снапсот G при загрузке dungeon-ui.js НЕ видит
@@ -1587,4 +1615,252 @@ test('sprites.js 000067: DUNGEON_CHEST экспортирован, путь в a
     'путь в allAssetPaths()');
   assert.ok(fs.existsSync(path.join(ROOT, 'assets', 'dungeon', 'chest.svg')),
     'файл assets/dungeon/chest.svg существует');
+});
+
+// --- Красные: требования задачи 000068 (падают до реализации) ---
+//
+// Плавное движение в подземелье: мувер (motion.js) живёт в
+// dungeonState (клеянка в main.js — в node не покрывается);
+// dungeon-ui вызывает только s.pos(now) и обязан переключить
+// действие кадра на 'walk' ВО ВРЕМЯ глейда (хук 000067:
+// playerAction раньше всегда 'idle'). Песочница 000068 — withSprites
+// (phlogistonFrames) + реальный G.createMover (motion.js — в КОНЦЕ
+// цепочки, порядок index.html: на момент теста доступен): тест
+// симулирует dungeonMove из main.js — s.x/s.y обновляются ДО
+// mover.step, from = старая клетка; интервал — move_interval_ms из
+// global-settings (420 мс, тот же источник MOVE_INTERVAL_MS, что и
+// мувер подземелья в main.js); «Ловкий шаг» в подземелье НЕ
+// применяется (ограничение задачи).
+
+// Песочница 000068: реальный мувер + форма состояния
+// maybeEnterDungeon из main.js { dg, contents, x, y, pos }.
+function loadGlideDungeon() {
+  const loaded = loadSpriteDungeon();
+  const G = loaded.G;
+  assert.equal(typeof G.createMover, 'function',
+    'motion.js в конце цепочки (порядок index.html) — '
+    + 'G.createMover доступен на момент теста');
+  const settings = G.GlobalSettings && G.GlobalSettings.SETTINGS;
+  const interval = (settings && Number.isFinite(settings.move_interval_ms)
+    && settings.move_interval_ms > 0)
+    ? settings.move_interval_ms : 420;
+  const mover = G.createMover({ x: 1, y: 1, intervalMs: interval });
+  // Форма, которую 000068 даст main.js: pos — функция (мувер),
+  // остальное — литерал maybeEnterDungeon.
+  const s = makeState({ pos: (now) => mover.position(now) });
+  return { G, body: loaded.body, T: loaded.T, mover, s, interval };
+}
+
+// Спрайт игрока в ТОЧНЫХ координатах центра (cx, cy) размером zoom*1.15
+// (48*1.15, формула Флогистона): пути изображений совпавших drawImage.
+function playerSpriteAt(calls, cx, cy, tol = 1e-9) {
+  const sz = 48 * 1.15;
+  return calls.filter((c) => c[0] === 'drawImage'
+    && Math.abs(c[1][1] - (cx - sz / 2)) <= tol
+    && Math.abs(c[1][2] - (cy - sz / 2)) <= tol
+    && Math.abs(c[1][3] - sz) <= tol
+    && Math.abs(c[1][4] - sz) <= tol)
+    .map((c) => c[1][0] && c[1][0].__img);
+}
+
+test('подземелье UI 000068: во время глейда — кадр из phlogistonFrames(«walk») (не «idle»), спрайт в дробной точке между клетками', () => {
+  const { G, body, T, mover, s, interval } = loadGlideDungeon();
+  const idle = G.phlogistonFrames('idle');
+  const walk = G.phlogistonFrames('walk');
+  assert.ok(idle.length >= 1 && walk.length >= 1,
+    'предусловие: кадры idle и walk существуют');
+  // И idle, и walk ready — видно, ИМЕННО какое действие выбрано
+  // (кадр читаем из G — имена/числа не хардкодим, паттерн 000067).
+  const loader = makeSpriteLoader([...idle, ...walk]);
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48, spriteLoader: loader });
+  const canvas = findCanvas(body);
+  // 5×5 @ 48 → вьюпорт больше подземелья → cam (2.5, 2.5)
+  // (центрирование; rAF-цикла нет — камера в тесте не движется).
+  const snap = (now) => {
+    const n0 = canvas.drawCalls.length;
+    G.dungeonUI.render(now);
+    return canvas.drawCalls.slice(n0);
+  };
+  // Шаг (1,1) → (2,1) в t = 1000 — симуляция main.js dungeonMove:
+  // s.x/s.y обновляются ДО глейда, from = старая клетка.
+  T.t = 1000;
+  s.x = 2;
+  s.y = 1;
+  mover.step({ x: 1, y: 1 }, { x: 2, y: 1 }, 1000);
+  // (а) Момент шага (p = 0): спрайт ещё на СТАРОЙ клетке (1,1), но
+  //     логическая уже (2,1) — pos ≠ (s.x, s.y) → действие 'walk'.
+  let pos = mover.position(1000);
+  // Объекты мувера — из vm-песочницы (чужой realm): deepEqual на
+  // объекте упёрся бы в прототип, сверяем поля.
+  assert.equal(pos.x, 1, 'p = 0 — X позиции ещё старая клетка');
+  assert.equal(pos.y, 1, 'p = 0 — Y позиции ещё старая клетка');
+  assert.ok(Math.abs(pos.x - s.x) > 1e-9,
+    'предусловие: pos ≠ (s.x, s.y) в момент шага');
+  let seg = snap(1000);
+  let p = G.worldToScreen(pos.x + 0.5, pos.y + 0.5, 2.5, 2.5, 48, VW, VH);
+  let fi = Math.floor(G.frameIndex(1000, pos.x, pos.y, walk.length));
+  let imgs = playerSpriteAt(seg, p.x, p.y);
+  assert.equal(imgs.length, 1,
+    'в момент шага — спрайт игрока (единственный drawImage)');
+  assert.equal(imgs[0], walk[fi],
+    'в момент шага — кадр «walk» (сейчас код рисует «idle»): '
+    + (imgs[0] || 'спрайта в точке нет'));
+  // (б) Середина глейда (p = 0.5): ДРОБНАЯ точка строго МЕЖДУ
+  //     клетками (drawCalls сверяются по координатам).
+  const mid = 1000 + interval / 2;
+  T.t = mid;
+  pos = mover.position(mid);
+  assert.ok(pos.x > 1 && pos.x < 2 && pos.y === 1,
+    'предусловие: дробная позиция между (1,1) и (2,1): '
+    + JSON.stringify(pos));
+  seg = snap(mid);
+  p = G.worldToScreen(pos.x + 0.5, pos.y + 0.5, 2.5, 2.5, 48, VW, VH);
+  const cFrom = G.worldToScreen(1.5, 1.5, 2.5, 2.5, 48, VW, VH);
+  const cTo = G.worldToScreen(2.5, 1.5, 2.5, 2.5, 48, VW, VH);
+  assert.ok(p.x > cFrom.x && p.x < cTo.x,
+    'экранная точка строго между центрами клеток: ' + p.x
+    + ' ∈ (' + cFrom.x + ', ' + cTo.x + ')');
+  fi = Math.floor(G.frameIndex(mid, pos.x, pos.y, walk.length));
+  imgs = playerSpriteAt(seg, p.x, p.y);
+  assert.equal(imgs.length, 1,
+    'в середине глейда — спрайт игрока (единственный drawImage)');
+  assert.equal(imgs[0], walk[fi],
+    'во время глейда — кадр «walk», а не «idle» (сейчас код '
+    + 'ВСЕГДА рисует «idle»): ' + (imgs[0] || 'спрайта в точке нет'));
+});
+
+test('подземелье UI 000068: до шага и на/после конца глейда — «idle» и точная клетка (без «перетриггера» walk)', () => {
+  // Зелёный с первого запуска: защищает границу walk/idle от наивной
+  // реализации (например, по флагу «мувер глейдит», а не по
+  // сравнению pos с (s.x, s.y): в конце глейда pos = (s.x, s.y)
+  // ТОЧНО — позиция() возвращает литерал to при p >= 1).
+  const { G, body, T, mover, s, interval } = loadGlideDungeon();
+  const idle = G.phlogistonFrames('idle');
+  const walk = G.phlogistonFrames('walk');
+  const loader = makeSpriteLoader([...idle, ...walk]);
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48, spriteLoader: loader });
+  const canvas = findCanvas(body);
+  const snap = (now) => {
+    const n0 = canvas.drawCalls.length;
+    G.dungeonUI.render(now);
+    return canvas.drawCalls.slice(n0);
+  };
+  const noWalkFrame = (seg) => seg.every((c) => c[0] !== 'drawImage'
+    || !walk.includes(c[1][0] && c[1][0].__img));
+  // (а) ДО шага: pos = (s.x, s.y) = (1,1) → 'idle' в точной клетке.
+  let seg = snap(1000);
+  let p = G.worldToScreen(1.5, 1.5, 2.5, 2.5, 48, VW, VH);
+  let fi = Math.floor(G.frameIndex(1000, 1, 1, idle.length));
+  let imgs = playerSpriteAt(seg, p.x, p.y);
+  assert.equal(imgs.length, 1, 'до шага — спрайт игрока');
+  assert.equal(imgs[0], idle[fi],
+    'pos = (s.x, s.y) → «idle», а не «walk»');
+  assert.ok(noWalkFrame(seg), 'до шага — walk-кадров в кадре нет');
+  // (б) Шаг; ТОЧНО в конце (p = 1): pos = (2,1) = (s.x, s.y) — 'idle'
+  //     в ТОЧНОЙ клетке-цели.
+  T.t = 1000;
+  s.x = 2;
+  s.y = 1;
+  mover.step({ x: 1, y: 1 }, { x: 2, y: 1 }, 1000);
+  const end = 1000 + interval;
+  T.t = end;
+  // Поля, а не deepEqual (объект из vm-песочницы — чужой realm).
+  const posEnd = mover.position(end);
+  assert.equal(posEnd.x, 2, 'p = 1 — позиция ТОЧНО в клетке-цели (x)');
+  assert.equal(posEnd.y, 1, 'p = 1 — позиция ТОЧНО в клетке-цели (y)');
+  seg = snap(end);
+  p = G.worldToScreen(2.5, 1.5, 2.5, 2.5, 48, VW, VH);
+  fi = Math.floor(G.frameIndex(end, 2, 1, idle.length));
+  imgs = playerSpriteAt(seg, p.x, p.y);
+  assert.equal(imgs.length, 1,
+    'в конце глейда — спрайт в ТОЧНОЙ клетке (2,1)');
+  assert.equal(imgs[0], idle[fi], 'в конце глейда — «idle», а не «walk»');
+  assert.ok(noWalkFrame(seg), 'в конце глейда — walk-кадров в кадре нет');
+  // (в) Дальше конца — то же (без отката к стартовой клетке).
+  const after = end + 80;
+  T.t = after;
+  seg = snap(after);
+  fi = Math.floor(G.frameIndex(after, 2, 1, idle.length));
+  imgs = playerSpriteAt(seg, p.x, p.y);
+  assert.equal(imgs.length, 1);
+  assert.equal(imgs[0], idle[fi],
+    'дальше конца глейда — «idle» в точной клетке (2,1)');
+  assert.ok(noWalkFrame(seg), 'дальше конца глейда — walk-кадров нет');
+});
+
+test('подземелье UI 000068: дробная точка без лоадера — ромб МЕЖДУ клетками (форма состояния { dg, contents, x, y, pos })', () => {
+  // Цепочка БЕЗ sprites.js (ромб — фолбэк игрока), pos — функция:
+  // форма, которую 000068 даст main.js (фолбэк-ветка БЕЗ pos() —
+  // (s.x, s.y) — зафиксирована тестами 000066, без изменений).
+  const rafStubs = makeRafStubs();
+  const T = { t: 1000 };
+  const { G, body } = loadDungeonUi({
+    performance: { now: () => T.t },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const s = makeState({ pos: () => ({ x: 1.5, y: 1 }) });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48 });
+  T.t += 16;
+  tick(rafStubs);
+  const calls = findCanvas(body).drawCalls;
+  // 5×5 @ 48 → центрирование cam (2.5, 2.5); вершина ромба —
+  // (p.x, p.y − r), r = zoom*0.3.
+  const p = G.worldToScreen(2.0, 1.5, 2.5, 2.5, 48, VW, VH);
+  const r = 48 * 0.3;
+  const m = lastPlayerMoveTo(calls);
+  assert.ok(m, 'ромб игрока в кадре');
+  assert.ok(Math.abs(m[0] - p.x) <= 1e-9 && Math.abs(m[1] - (p.y - r)) <= 1e-9,
+    'ромб в дробной экранной точке (2.0, 1.5): ' + JSON.stringify(m));
+  const cFrom = G.worldToScreen(1.5, 1.5, 2.5, 2.5, 48, VW, VH);
+  const cTo = G.worldToScreen(2.5, 1.5, 2.5, 2.5, 48, VW, VH);
+  assert.ok(p.x > cFrom.x && p.x < cTo.x,
+    'точка строго МЕЖДУ клетками (не целочисленная клетка)');
+});
+
+test('подземелье UI 000068: цель КАМЕРЫ тоже дробная (25×25, zoom 40 — внутри клампа, без округления)', () => {
+  // Та же точка playerPos — и цель камеры (хук 000066): во время
+  // глейда камера смотрит на дробную точку (14.0, 13.5), а не на
+  // целочисленную клетку (13.5, 13.5).
+  const rafStubs = makeRafStubs();
+  const T = { t: 1000 };
+  const { G, body } = loadDungeonUi({
+    performance: { now: () => T.t },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  // Игрок логически (13,13), точка глейда (13.5, 13): цель (14.0,
+  // 13.5) ВНУТРИ кламп-диапазона [10, 15]×[7.5, 17.5] — дробная цель
+  // видна (снап в первом кадре, dt = 0).
+  const s = makeState({
+    width: 25, height: 25, px: 13, py: 13,
+    pos: () => ({ x: 13.5, y: 13 }),
+  });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
+  T.t += 16;
+  tick(rafStubs);
+  const calls = findCanvas(body).drawCalls;
+  const pFrac = G.worldToScreen(13, 13, 14.0, 13.5, 40, VW, VH);
+  assert.ok(floorRectAt(calls, pFrac.x, pFrac.y, 40),
+    'floor (13,13) в проекции cam (14.0, 13.5) — цель pos-точка: '
+    + pFrac.x + ',' + pFrac.y);
+  const pInt = G.worldToScreen(13, 13, 13.5, 13.5, 40, VW, VH);
+  assert.ok(Math.abs(pInt.x - pFrac.x) > 1e-9
+    || Math.abs(pInt.y - pFrac.y) > 1e-9,
+    'предусловие: целочисленная и дробная цели дают разные проекции');
+  assert.ok(!floorRectAt(calls, pInt.x, pInt.y, 40),
+    'floor НЕ в проекции целочисленного cam (13.5, 13.5) — '
+    + 'округления цели камеры нет');
+});
+
+test('подземелье UI 000068: структурный — dungeon-ui.js НЕ создаёт мувер (UMD-ловушка: createMover только в main.js)', () => {
+  // В index.html motion.js грузится ПОСЛЕ dungeon-ui.js (000038): при
+  // загрузке dungeon-ui.js G.createMover ещё НЕТ — load-time-ссылка
+  // была бы UMD-ловушкой (снапшот G). Мувер — ОТДЕЛЬНЫЙ инстанс в
+  // dungeonState, создаётся в main.js; dungeon-ui вызывает только
+  // s.pos(now) и фолбэк (s.x, s.y).
+  const text = src('dungeon-ui.js');
+  assert.ok(!text.includes('createMover'),
+    'dungeon-ui.js не ссылается на createMover '
+    + '(мувер создаётся в main.js, не в оверлее)');
 });
