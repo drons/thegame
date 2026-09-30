@@ -399,6 +399,32 @@ test('payWages: граница — золото ровно жалованье (g
   assert.equal(roster[0].loyalty, 42);
 });
 
+test('payWages: пустой отряд — total 0, событий НЕТ (не «выплачено 0»)', () => {
+  const npcs = [merc('merc_a', 40, 1)];
+  const c = hero(1, 10);
+  const res = C.payWages(C.createRoster(), npcs, c, 5);
+  assert.equal(res.paid, true);
+  assert.equal(res.total, 0);
+  assert.deepEqual(res.events, [],
+    'событий нет — 000087 не напишет «Жалованье выплачено» (раунд ревью 1)');
+  assert.equal(c.gold, 10, 'золото не тронуто');
+});
+
+test('payWages: отряд из одних «призраков» — total 0, событий НЕТ', () => {
+  const npcs = [merc('merc_a', 40, 1)];
+  const roster = [entry('ghost1'), entry('ghost2')];
+  const c = hero(1, 10);
+  const res = C.payWages(roster, npcs, c, 5);
+  assert.equal(res.paid, true);
+  assert.equal(res.total, 0);
+  assert.deepEqual(res.events, [],
+    '«призраки» жалованье не дают — событий нет (раунд ревью 1)');
+  assert.equal(c.gold, 10, 'золото не тронуто');
+  assert.equal(roster.length, 2,
+    'записи-призраки не отбрасываются (валидация — 000085)');
+  assert.equal(roster[0].loyalty, 50, 'лояльность «призраков» не тронута');
+});
+
 test('payWages: не оплачено — золото не списано, −20 лояльности (floor 0), wages_unpaid', () => {
   const roster = [entry('merc_a', 30), entry('merc_b', 5)];
   const npcs = [merc('merc_a', 40, 1), merc('merc_b', 50, 2)];

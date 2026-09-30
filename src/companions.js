@@ -195,6 +195,9 @@ function (settings, G) {
 
   /**
    * Жалованье при смене дня:
+   *   * пусто (total = 0: пустой отряд или отряд из одних «призраков»)
+   *     → {paid:true, total:0, events:[]} — БЕЗ события, чтобы 000087
+   *     не написал «Жалованье выплачено» при нулевом жалованье;
    *   * gold ≥ Σ жалованье → списать, каждому реальному члену отряда
    *     +loyalty.paid (cap 100);
    *   * иначе → золото НЕ списывается, каждому −loyalty.unpaid
@@ -214,6 +217,12 @@ function (settings, G) {
     const real = [];
     for (const e of roster) {
       if (npcForEntry(npcs, e)) real.push(e);
+    }
+    if (total === 0) {
+      // Пустой отряд / одни «призраки»: событий НЕТ (иначе 000087
+      // написал бы «выплачено жалованье 0»). При total = 0 и инварианте
+      // gold ≥ 0 unpaid-ветка недостижима — guard полный.
+      return { paid: true, total: 0, events };
     }
     if (character.gold >= total) {
       character.gold -= total;
