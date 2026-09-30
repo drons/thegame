@@ -97,6 +97,49 @@
 //
 // РЕГРЕССИЯ БЕЗ ИЗМЕНЕНИЙ: tests/ui-skills.test.js,
 // tests/main-visuals.test.js, полный npm test.
+//
+// 000100 — вкладка «Квесты»: read-only зеркало журнала квестов
+// (G.playerUI.setQuests({ npcs, book, day }) + рендер в pane).
+// КРАСНЫЕ (падают до реализации, зелёные после):
+//   * setQuests — функция; setQuests ДО и ПОСЛЕ открытия панели —
+//     pane «Квесты» заполняется (сеттер сам шлёт render(); панель
+//     строится лениво — оба порядка вызовов);
+//   * kill_group — «повержено 2 из 3 — <имя группы> — в работе»
+//     (текст ОДИН в слово с npcUI; «N из M» с M>1 — только
+//     синтетикой: в production-каталоге все kill_group ×1);
+//   * bring_item — «предмет: <name> ×2 (есть: 1)» по G.totalQty;
+//     после addItem(×2) + render() — «(есть: 2)» + «— готов к сдаче»
+//     (G.refreshBringItems работает ВНУТРИ render, в т.ч. в СКРЫТОМ
+//     pane; мутация book);
+//   * kill_group после G.notifyGroupDefeated — «— готов к сдаче»;
+//   * «Выполнено» — счётчик = book.done.length + названия из
+//     каталога; id вне каталога — голый id (фолбэк npcUI);
+//   * book = null — «Журнал квестов недоступен.» (текст npcUI);
+//   * ОДИН рендерер строк «В работе»: npcUI-оверлей и панель строят
+//     ПОСТРОЧНО ОДИНАКОВЫЕ name+meta (production-каталог: orc_raid
+//     ready + moon_stone); кнопка «сдать» data-npcact='turnin' —
+//     только у npcUI, у панели НЕТ.
+//   * main.js (структурный): проводка G.playerUI.setQuests под
+//     guard-сеткой с npcs: NPCS, book: questBook; чтение clock.day —
+//     НЕ ранее `const clock = G.createClock()` (TDZ-ловушка: clock
+//     объявлен ПОСЛЕ questBook); после восстановления журнала —
+//     playerUI.render() (журнал мутируется in place — re-wiring
+//     не нужен).
+// ЗЕЛЁНЫЕ с первого запуска (контракты, обязаны остаться):
+//   * read-only: в pane «Квесты» НЕТ кнопок вообще — ни data-npcact,
+//     ни .cp-btn (клик по .cp-btn без data.act улетит в ветку
+//     навыка — raiseSkill(c, undefined));
+//   * saveNow: (а) /saveNow/ НЕ встречается в src/ui.js (структурно);
+//     (б) в песочнице G.saveNow = spy — setQuests/render spy НЕ
+//     вызывают (refreshBringItems мутирует book, но сейв — только
+//     main.js/диалог NPC).
+//   * npcUI-регрессия (защита экстракции рендерера): «В работе»
+//     диалога NPC — те же строки, у ready — кнопка «сдать», клик по
+//     ней (onOverlayClick) сдаёт квест с наградой; «Выполнено» —
+//     название (questById не сломан).
+//
+// РЕГРЕССИЯ БЕЗ ИЗМЕНЕНИЙ: tests/npc.test.js, tests/ui-skills.test.js,
+// tests/main-visuals.test.js, полный npm test.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -110,11 +153,34 @@ const page = () => fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 
 // --- Минимальный DOM-стаб с деревом (дубль tests/ui-skills.test.js) ---
 //
-// Селекторы, которые использует ui.js: «.класс» и имя тега ('tr').
-// [data-...] и combinators стаб НЕ понимает — связка вкладка↔pane
-// в тестах — по ПОРЯДКУ записей data-driven-массива (таб i ↔ pane i).
+// Селекторы, которые использует ui.js: «.класс», имя тега ('tr') и
+// (000100) 'тег[атрибут]' / 'тег[атрибут=значение]' — onOverlayClick
+// npcUI делает closest('button[data-npcact]'), без этого переключить
+// оверлей на вкладку «квесты» в тесте нельзя (расширение regex-
+// паттерном — копия tests/npc-hire.test.js; дублирование стабов
+// принято в проекте). Связка вкладка↔pane — по ПОРЯДКУ записей
+// data-driven-массива (таб i ↔ pane i).
 
 function matchesSel(el, sel) {
+  // 'тег[атрибут]' / 'тег[атрибут=значение]' — расширение (000100).
+  const m = /^([a-zA-Z][\w-]*)\[([\w-]+)(?:=([^\]]+))?\]$/.exec(sel);
+  if (m) {
+    if (String(el.tagName || '').toLowerCase() !== m[1].toLowerCase()) {
+      return false;
+    }
+    // Стаб хранит атрибуты dataset БЕЗ префикса 'data-' (ui.js пишет
+    // btn.dataset.npcact напрямую); setAttribute — с именем как есть.
+    // Проверяем оба варианта ключа.
+    const keys = [m[2]];
+    if (m[2].startsWith('data-')) keys.push(m[2].slice(5));
+    const key = keys.find((k) => k in el.dataset);
+    if (key === undefined) return false;
+    if (m[3] !== undefined) {
+      const val = m[3].replace(/^['"]|['"]$/g, '');
+      return String(el.dataset[key]) === val;
+    }
+    return true;
+  }
   if (sel.startsWith('.')) {
     return String(el.className || '').split(/\s+/).includes(sel.slice(1));
   }
@@ -1027,4 +1093,515 @@ test('панель: item-кнопки data-act — «Магазин» (buy) и �
     .map((b) => b.dataset.act);
   assert.ok(shopActs.includes('buy'),
     'магазин: кнопка «купить» (buy) в pane «Магазин»');
+});
+
+// --- 000100: вкладка «Квесты» — read-only зеркало журнала квестов ---
+//
+// Слой: G.playerUI.setQuests({ npcs, book, day }) + рендер тела
+// «Квесты» в src/ui.js (панель) и общий рендерер строк «В работе»
+// (вынесен из renderQuestsTab npcUI: ОДИН рендерер на оба дерева,
+// кнопка «сдать» — параметр; npcUI — true, панель — false).
+// Ядро — src/npc.js (activeQuests/refreshBringItems/notifyGroup-
+// Defeated — tests/npc.test.js); проводка — src/main.js
+// (ОДИН hunk, ПОСЛЕ `const clock = G.createClock()` — TDZ).
+//
+// Каталог: production-каталог (assets/npc) даёт точные тексты для
+// теста «один рендерер» (orc_raid/moon_stone), но ВСЕ его
+// kill_group-квесты — количество 1, поэтому форма «N из M» с M>1
+// проверяется на ЛОКАЛЬНОМ каталоге-фикстуре (setQuests({ npcs })
+// принимает каталог параметром — вся цепочка G.activeQuests →
+// строка проходит с фикстурой).
+
+// pane «Квесты» — правый столбец, 3-й таб (порядок RIGHT_TABS).
+function questsPaneOf(panel) {
+  const cols = colsOf(panel);
+  const rp = panesOf(cols[1]);
+  assert.equal(rp.length, 3, 'правый столбец: 3 pane');
+  return rp[2];
+}
+
+// Секция pane/оверлея по точному заголовку (el('div','cp-section',
+// «В работе») — как в npcUI; textContent стаба — текст-нод узла).
+function sectionByTitle(root, title) {
+  return findAll(root, '.cp-section')
+    .find((s) => s.textContent === title) || null;
+}
+
+// Строки секции «В работе»: { name, meta, row }. name — span
+// .cp-itemname (у «Выполнено» — сам текст строки), meta — span
+// .cp-itemmeta (отсутствует — '').
+function activeRowsOf(root) {
+  const sec = sectionByTitle(root, 'В работе');
+  assert.ok(sec, 'секция «В работе» найдена');
+  return findAll(sec, '.cp-itemrow').map((r) => ({
+    name: (r.querySelector('.cp-itemname') || r).textContent,
+    meta: (r.querySelector('.cp-itemmeta') || { textContent: '' })
+      .textContent,
+    row: r,
+  }));
+}
+
+// Весь текст поддерева: textContent стаба НЕ агрегирует детей —
+// собираем текст-ноды листьев (для pane-ассертов).
+function textOf(root) {
+  const out = [];
+  const walk = (n) => {
+    if (n._text) out.push(n._text);
+    for (const ch of n.children || []) walk(ch);
+  };
+  walk(root);
+  return out.join('\n');
+}
+
+// Каталог-фикстура: kill_group с количеством 3 («повержено 2 из 3»
+// недостижимо в production-каталоге — все kill_group там ×1) и
+// bring_item ×2 (moonstone — в каталоге предметов).
+function fixtureCatalog() {
+  return [
+    {
+      id: 'fix_inn', имя: 'Фикса', роль: 'тавернщица',
+      квесты: [
+        { id: 'fix_kill3', название: 'Очистить перевал',
+          описание: 'Три группы мобов на перевале.',
+          цель: { тип: 'kill_group', группа: 1, количество: 3 },
+          награда: { опыт: 10, золото: 10, предметы: [] },
+          предыдущий: null },
+        { id: 'fix_bring2', название: 'Собрать лунные камни',
+          описание: 'Нужно два лунных камня.',
+          цель: { тип: 'bring_item', предмет: 'moonstone', количество: 2 },
+          награда: { опыт: 10, золото: 10, предметы: [] },
+          предыдущий: null },
+      ],
+    },
+    {
+      id: 'fix_hermit', имя: 'Отшельник', роль: 'знахарь',
+      квесты: [
+        { id: 'fix_done', название: 'Дымный след',
+          описание: 'Взять на след дымного вора.',
+          цель: { тип: 'kill_group', группа: 2, количество: 1 },
+          награда: { опыт: 5, золото: 5, предметы: [] },
+          предыдущий: null },
+      ],
+    },
+  ];
+}
+
+// --- КРАСНЫЕ: сеттер и порядок вызовов ---
+
+test('000100 RED: G.playerUI.setQuests — функция', () => {
+  const env = loadPanelUi();
+  assert.equal(typeof env.G.playerUI.setQuests, 'function',
+    'G.playerUI.setQuests({ npcs, book, day }) существует ' +
+    '(проводка журнала квестов в панель)');
+});
+
+test('000100 RED: setQuests ДО открытия панели — первый render заполняет вкладку', () => {
+  // Порядок setQuests → toggle: панель ещё не построена (buildPanel —
+  // лениво в toggle); сеттер хранит состояние, первый render()
+  // (из toggle(true)) обязан нарисовать журнал в pane.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const npcs = fixtureCatalog();
+  const book = env.G.createQuestBook();
+  book.active.fix_kill3 = { npcId: 'fix_inn', questId: 'fix_kill3',
+    status: 'active', progress: 1 };
+  env.G.playerUI.setQuests({ npcs, book, day: 1 });
+  const panel = openPanel(env, c);
+  const pane = questsPaneOf(panel);
+  assert.ok(textOf(pane).includes('Очистить перевал'),
+    'вкладка «Квесты» нарисована при первом render: ' + textOf(pane));
+  assert.ok(!textOf(pane).includes('квесты появятся позже'),
+    'placeholder «квесты появятся позже» заменён журналом');
+});
+
+test('000100 RED: setQuests ПОСЛЕ открытия панели — сеттер сам шлёт render()', () => {
+  // Порядок toggle → setQuests: панель уже открыта (активна вкладка
+  // «Снаряжение»); сеттер обязан триггернуть render() (паттерн
+  // setCharacter/setShop) — БЕЗ явного render() вызывающим.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const pane = questsPaneOf(panel);
+  const npcs = fixtureCatalog();
+  const book = env.G.createQuestBook();
+  book.active.fix_kill3 = { npcId: 'fix_inn', questId: 'fix_kill3',
+    status: 'active', progress: 2 };
+  env.G.playerUI.setQuests({ npcs, book, day: 1 });
+  assert.ok(textOf(pane).includes('Очистить перевал'),
+    'pane обновлён setQuests без явного render(): ' + textOf(pane));
+  assert.ok(!textOf(pane).includes('квесты появятся позже'),
+    'placeholder убран');
+});
+
+// --- КРАСНЫЕ: строки «В работе» (тексты — дословно из npcUI) ---
+
+test('000100 RED: kill_group — «повержено 2 из 3 — <группа> — в работе»', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const npcs = fixtureCatalog();
+  const book = env.G.createQuestBook();
+  book.active.fix_kill3 = { npcId: 'fix_inn', questId: 'fix_kill3',
+    status: 'active', progress: 2 };
+  const panel = openPanel(env, c);
+  env.G.playerUI.setQuests({ npcs, book, day: 1 });
+  const rows = activeRowsOf(questsPaneOf(panel));
+  assert.equal(rows.length, 1, '«В работе» — одна строка');
+  assert.equal(rows[0].name, 'Очистить перевал', 'название квеста');
+  assert.equal(rows[0].meta,
+    'повержено 2 из 3 — ' + env.G.mobGroupName(1) + ' — в работе',
+    'meta — точная форма npcUI (общий рендерер): ' + rows[0].meta);
+});
+
+test('000100 RED: bring_item — «(есть: 1)»; после addItem+render — «(есть: 2)» + «— готов к сдаче» (refreshBringItems внутри render)', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const npcs = fixtureCatalog();
+  const book = env.G.createQuestBook();
+  book.active.fix_bring2 = { npcId: 'fix_inn', questId: 'fix_bring2',
+    status: 'active', progress: 0 };
+  env.G.addItem(c, 'moonstone'); // 1 из 2
+  const panel = openPanel(env, c);
+  const pane = questsPaneOf(panel);
+  env.G.playerUI.setQuests({ npcs, book, day: 1 });
+  let rows = activeRowsOf(pane);
+  assert.equal(rows[0].meta,
+    'предмет: ' + env.G.getItem('moonstone').name +
+    ' ×2 (есть: 1) — в работе',
+    'meta — название предмета, цель и реальный count (G.totalQty): ' +
+    rows[0].meta);
+  assert.equal(book.active.fix_bring2.status, 'active',
+    '1 предмета — квест ещё в работе');
+  // Второй предмет + render(): refreshBringItems обязан отработать
+  // ВНУТРИ render ДО отрисовки строки (паттерн npcUI) — и в СКРЫТОМ
+  // pane (активна вкладка «Снаряжение»).
+  env.G.addItem(c, 'moonstone');
+  env.G.playerUI.render();
+  rows = activeRowsOf(pane);
+  assert.equal(rows[0].meta,
+    'предмет: ' + env.G.getItem('moonstone').name +
+    ' ×2 (есть: 2) — готов к сдаче',
+    'после refreshBringItems — «(есть: 2)» и маркер готовности: ' +
+    rows[0].meta);
+  assert.equal(book.active.fix_bring2.status, 'ready',
+    'refreshBringItems сработал внутри render (мутация журнала)');
+});
+
+test('000100 RED: kill_group после G.notifyGroupDefeated — «— готов к сдаче»', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const npcs = fixtureCatalog();
+  const book = env.G.createQuestBook();
+  book.active.fix_kill3 = { npcId: 'fix_inn', questId: 'fix_kill3',
+    status: 'active', progress: 2 };
+  const panel = openPanel(env, c);
+  env.G.playerUI.setQuests({ npcs, book, day: 1 });
+  // Третье поражение группы 1 (в игре — main.js после боя).
+  // (join(','), а не deepEqual: массив из vm-песочницы — чужой realm,
+  // deepStrictEqual сравнивает прототипы и падает.)
+  const ready = env.G.notifyGroupDefeated(npcs, book, 1);
+  assert.equal(ready.join(','), 'fix_kill3', 'квест стал готов к сдаче');
+  env.G.playerUI.render();
+  const rows = activeRowsOf(questsPaneOf(panel));
+  assert.equal(rows[0].meta,
+    'повержено 3 из 3 — ' + env.G.mobGroupName(1) + ' — готов к сдаче',
+    'ready-строка: ' + rows[0].meta);
+});
+
+// --- КРАСНЫЕ: «Выполнено», пустой журнал, book = null ---
+
+test('000100 RED: «Выполнено» — счётчик = book.done.length + названия; чужой id — голый', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const npcs = fixtureCatalog();
+  const book = env.G.createQuestBook();
+  book.done.push('fix_done');       // есть в каталоге — название
+  book.done.push('no_such_quest');  // вне каталога — голый id (npcUI)
+  const panel = openPanel(env, c);
+  env.G.playerUI.setQuests({ npcs, book, day: 1 });
+  const done = sectionByTitle(questsPaneOf(panel), 'Выполнено');
+  assert.ok(done, 'секция «Выполнено» найдена');
+  const metas = findAll(done, '.cp-itemmeta').map((m) => m.textContent);
+  assert.ok(
+    metas.some((t) => t.includes(String(book.done.length))),
+    'счётчик = book.done.length (' + book.done.length + '): ' +
+    metas.join(' | '));
+  const rows = findAll(done, '.cp-itemrow')
+    .map((r) => (r.querySelector('.cp-itemname') || r).textContent);
+  assert.ok(rows.includes('Дымный след'),
+    'название из каталога (общий questById): ' + rows.join(' | '));
+  assert.ok(rows.includes('no_such_quest'),
+    'id вне каталога — голый id (фолбэк npcUI)');
+});
+
+test('000100 RED: пустой журнал — «нет активных квестов» + «пока ничего» (тексты npcUI)', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  env.G.playerUI.setQuests({ npcs: fixtureCatalog(),
+    book: env.G.createQuestBook(), day: 1 });
+  const t = textOf(questsPaneOf(panel));
+  assert.ok(t.includes('нет активных квестов'),
+    'пустая «В работе» — как в npcUI: ' + t);
+  assert.ok(t.includes('пока ничего'),
+    'пустое «Выполнено» — как в npcUI: ' + t);
+});
+
+test('000100 RED: book = null — «Журнал квестов недоступен.» (текст npcUI)', () => {
+  // UMD-ловушка main.js (G.createQuestBook отсутствует — book null);
+  // в песочнице npc.js загружен, null — только явным setQuests.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  env.G.playerUI.setQuests({ npcs: fixtureCatalog(), book: null, day: 1 });
+  const t = textOf(questsPaneOf(panel));
+  assert.ok(t.includes('Журнал квестов недоступен.'),
+    'плейсхолдер без журнала — дословно как npcUI: ' + t);
+});
+
+// --- КРАСНЫЕ: ОДИН рендерер (npcUI-оверлей ≡ панель) ---
+
+test('000100 RED: npcUI и панель строят ОДИНАКОВЫЕ строки «В работе» (один рендерер); «сдать» — только у npcUI', () => {
+  // Production-каталог: npcUI рендерит из G.NpcData, панель получает
+  // те же npcs через setQuests — строки обязаны совпасть ПОСТРОЧНО
+  // (экстракция рендерера прозрачна). orc_raid — kill_group ready
+  // (кнопка «сдать» у npcUI есть, у панели — НЕТ), moon_stone —
+  // bring_item ×2 при 1 камне у героя.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const NPCS = env.G.NpcData.NPCS;
+  const npcElder = env.G.npcById(NPCS, 'elder');
+  assert.ok(npcElder, 'Элдира (elder) в каталоге');
+  const book = env.G.createQuestBook();
+  book.active.orc_raid = { npcId: 'tavern_keeper', questId: 'orc_raid',
+    status: 'ready', progress: 1 };
+  book.active.moon_stone = { npcId: 'elder', questId: 'moon_stone',
+    status: 'active', progress: 0 };
+  env.G.addItem(c, 'moonstone'); // 1 из 2
+
+  // 1) npcUI: открыть диалог, переключиться на вкладку «квесты» —
+  // делегированный клик оверлея (стаб теперь знает 'button[data-npcact]').
+  env.G.npcUI.open({ npc: npcElder, character: c, book });
+  const overlay = findAll(env.body, '.npc-overlay')[0];
+  assert.ok(overlay, 'оверлей npcUI открыт');
+  const tabBtn = findAll(overlay, 'button')
+    .find((b) => b.dataset.npcact === 'tab' && b.dataset.tab === 'quests');
+  assert.ok(tabBtn, 'кнопка вкладки «квесты» в оверлее');
+  const overlayClickers = overlay.listeners.click || [];
+  assert.ok(overlayClickers.length >= 1, 'делегированный click оверлея');
+  overlayClickers[0]({ target: tabBtn });
+
+  // 2) Панель: те же npcs + ТОТ ЖЕ журнал.
+  const panel = openPanel(env, c);
+  env.G.playerUI.setQuests({ npcs: NPCS, book, day: 1 });
+
+  // Деревья РАЗНЫЕ: оверлей и панель в одном стаб-body — извлечение
+  // строго по своим корням (findAll по body смешало бы оба дерева).
+  const npcRows = activeRowsOf(overlay);
+  const paneRows = activeRowsOf(questsPaneOf(panel));
+  assert.equal(npcRows.length, 2, 'npcUI: 2 активных квеста');
+  assert.equal(paneRows.length, 2, 'панель: 2 строки (те же)');
+  for (let i = 0; i < npcRows.length; i++) {
+    assert.equal(paneRows[i].name, npcRows[i].name,
+      'строка ' + i + ': название ОДНО (один рендерер)');
+    assert.equal(paneRows[i].meta, npcRows[i].meta,
+      'строка ' + i + ': meta ОДНО (один рендерер)');
+  }
+  // Точные формы (production-каталог):
+  const orc = npcRows.find((r) => r.name === 'Орочий набег');
+  assert.ok(orc, 'строка «Орочий набег» есть');
+  assert.equal(orc.meta,
+    'повержено 1 из 1 — ' + env.G.mobGroupName(1) + ' — готов к сдаче');
+  const stone = npcRows.find((r) => r.name === 'Лунный обряд');
+  assert.ok(stone, 'строка «Лунный обряд» есть');
+  assert.equal(stone.meta,
+    'предмет: ' + env.G.getItem('moonstone').name +
+    ' ×2 (есть: 1) — в работе');
+
+  // Кнопка «сдать» (data-npcact='turnin') — ТОЛЬКО у npcUI.
+  const orcNpcRow = findAll(overlay, '.cp-itemrow')
+    .find((r) => (r.querySelector('.cp-itemname') || r).textContent
+      === 'Орочий набег');
+  const turnin = (orcNpcRow.querySelectorAll('button') || [])
+    .find((b) => b.dataset.npcact === 'turnin');
+  assert.ok(turnin, 'npcUI: ready-квест — кнопка «сдать» data-npcact=turnin');
+  assert.equal(turnin.dataset.quest, 'orc_raid', 'кнопка указывает на квест');
+  const orcPaneRow = findAll(questsPaneOf(panel), '.cp-itemrow')
+    .find((r) => (r.querySelector('.cp-itemname') || r).textContent
+      === 'Орочий набег');
+  assert.ok(orcPaneRow, 'панель: строка «Орочий набег» есть');
+  assert.equal(orcPaneRow.querySelectorAll('button').length, 0,
+    'панель: ready-квест БЕЗ кнопок (read-only)');
+});
+
+test('000100 RED: скрытый pane обновляется render(); активная вкладка не сбрасывается', () => {
+  // render() — in-place (000096): pane не пересобирается, активная
+  // вкладка НЕ сбрасывается — и скрытое тело «Квесты» обновляется
+  // каждым render (иначе прогресс квестов просрочен после боя).
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const cols = colsOf(panel);
+  const right = cols[1];
+  const rp = panesOf(right);
+  clickTab(panel, right, 2); // «Квесты»
+  clickTab(panel, right, 0); // обратно на «Снаряжение» — «Квесты» скрыт
+  assert.equal(rp[2].style.display, 'none', '«Квесты» — скрытый pane');
+  const npcs = fixtureCatalog();
+  const book = env.G.createQuestBook();
+  book.active.fix_kill3 = { npcId: 'fix_inn', questId: 'fix_kill3',
+    status: 'active', progress: 2 };
+  env.G.playerUI.setQuests({ npcs, book, day: 1 });
+  assert.ok(textOf(rp[2]).includes('Очистить перевал'),
+    'скрытый pane «Квесты» обновлён render()');
+  assert.notEqual(rp[0].style.display, 'none',
+    'активная вкладка НЕ сбросилась («Снаряжение» активна)');
+  assert.equal(rp[2].style.display, 'none',
+    'обновление не переключает вкладку на «Квесты»');
+});
+
+// --- КРАСНЫЕ: проводка в main.js (структурный) ---
+
+test('main.js: проводка setQuests (npcs: NPCS, book: questBook) под guard' + 'ом; clock.day — после createClock (TDZ)', () => {
+  // Поведенческого теста main.js в проекте нет (игра не запускается
+  // в песочнице) — структурный (паттерн теста toggle(false) выше).
+  const text = src('main.js');
+  const clockIdx = text.indexOf('G.createClock()');
+  assert.ok(clockIdx > -1, 'main.js: const clock = G.createClock()');
+  const calls = Array.from(text.matchAll(/playerUI\s*\.\s*setQuests\s*\(\s*{/g));
+  assert.ok(calls.length >= 1,
+    'main.js: журнал квестов передан панели (G.playerUI.setQuests)');
+  let wired = false;
+  for (const m of calls) {
+    const args = text.slice(m.index, m.index + 300);
+    if (/npcs\s*:\s*NPCS/.test(args) && /book\s*:\s*questBook/.test(args)) {
+      wired = true;
+    }
+    // TDZ-ловушка: clock объявлен ПОСЛЕ questBook — чтение clock.day
+    // ДО `const clock` = ReferenceError при старте.
+    if (/clock\s*\.\s*day/.test(args)) {
+      assert.ok(m.index > clockIdx,
+        'setQuests с day: clock.day читается ПОСЛЕ const clock ' +
+        '(иначе TDZ-ReferenceError роняет игру при старте)');
+    }
+    // UMD-гард: ui.js может не создался (порядок/ошибка) — вызов
+    // обязан быть под guard-сеткой G.playerUI.
+    const before = text.slice(Math.max(0, m.index - 60), m.index);
+    assert.ok(/G\s*\.\s*playerUI/.test(before),
+      'вызов setQuests под guard' + 'ом G.playerUI (UMD-ловушка)');
+  }
+  assert.ok(wired, 'проводка передаёт npcs: NPCS и book: questBook');
+});
+
+test('main.js: после восстановления журнала квестов — playerUI.render() (in-place мутация, re-wiring не нужен)', () => {
+  // restoreFromSave мутирует questBook in place (та же ссылка) —
+  // повторный setQuests не нужен; панель обязана перерисоваться
+  // существующим playerUI.render() в зоне восстановления.
+  const text = src('main.js');
+  const deskIdx = text.indexOf('G.deserializeQuestBook');
+  assert.ok(deskIdx > -1, 'main.js: восстановление журнала (deserializeQuestBook)');
+  const after = text.slice(deskIdx, deskIdx + 1500);
+  assert.match(after, /playerUI[\s\S]{0,60}?render\s*\(\s*\)/,
+    'после восстановления журнала панель перерисовывается render()');
+});
+
+// --- ЗЕЛЁНЫЕ с первого запуска: read-only, saveNow, npcUI-регрессия ---
+
+test('000100 контракт: в вкладке «Квесты» НЕТ кнопок вообще (read-only: ни data-npcact, ни .cp-btn)', () => {
+  // Read-only (решение задачи): взять/сдать — только в диалоге NPC.
+  // Строго «ни одной .cp-btn» (не только «нет data-npcact»):
+  // делегированный клик панели ведёт .cp-btn без data.act в ветку
+  // навыка — raiseSkill(c, undefined), и у кнопки вне <tr>
+  // closest('tr') === null → TypeError в обработчике.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const npcs = fixtureCatalog();
+  const book = env.G.createQuestBook();
+  book.active.fix_kill3 = { npcId: 'fix_inn', questId: 'fix_kill3',
+    status: 'ready', progress: 3 };
+  book.active.fix_bring2 = { npcId: 'fix_inn', questId: 'fix_bring2',
+    status: 'ready', progress: 0 };
+  const panel = openPanel(env, c);
+  if (typeof env.G.playerUI.setQuests === 'function') {
+    env.G.playerUI.setQuests({ npcs, book, day: 1 });
+  }
+  const pane = questsPaneOf(panel);
+  assert.equal(findAll(pane, 'button').length, 0,
+    'в «Квесты» нет <button> ни одного (готовые квесты — тоже)');
+  assert.equal(findAll(pane, '.cp-btn').length, 0,
+    '.cp-btn нет — клик не уйдёт в ветку навыка панели');
+});
+
+test('000100 контракт: saveNow НЕТ в src/ui.js (структурно) и не вызывается панелью (spy)', () => {
+  // refreshBringItems мутирует book прямо из render() панели — но
+  // запись в сейв — только main.js/диалог NPC (сейв v1, миграций
+  // нет; 'ready' сериализуется ближайшим штатным saveNow — легитимно).
+  assert.doesNotMatch(src('ui.js'), /saveNow/,
+    'src/ui.js не содержит saveNow (панель сейв не трогает)');
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  let saves = 0;
+  env.G.saveNow = () => { saves += 1; };
+  const npcs = fixtureCatalog();
+  const book = env.G.createQuestBook();
+  book.active.fix_bring2 = { npcId: 'fix_inn', questId: 'fix_bring2',
+    status: 'active', progress: 0 };
+  env.G.addItem(c, 'moonstone', 2); // refreshBringItems отметит ready
+  const panel = openPanel(env, c);
+  if (typeof env.G.playerUI.setQuests === 'function') {
+    env.G.playerUI.setQuests({ npcs, book, day: 1 });
+  }
+  env.G.playerUI.render();
+  env.G.playerUI.render();
+  assert.equal(saves, 0,
+    'G.saveNow не вызван панелью (setQuests/render), хотя refreshBringItems мутирует журнал');
+});
+
+test('npcUI-регрессия (защита экстракции): «В работе» — те же строки, «сдать» (onOverlayClick) сдаёт квест с наградой', () => {
+  // До/после выноса общего рендерера: диалог NPC рендерит «В работе»
+  // в прежних строках, у ready — кнопка «сдать» data-npcact='turnin',
+  // её клик-ветка onOverlayClick не сломана; «Выполнено» — название
+  // через questById (общий findQuestInCatalog).
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const NPCS = env.G.NpcData.NPCS;
+  const npc = env.G.npcById(NPCS, 'tavern_keeper');
+  assert.ok(npc, 'Берта (tavern_keeper) в каталоге');
+  const book = env.G.createQuestBook();
+  const acc = env.G.acceptQuest(book, NPCS, npc, 'orc_raid', 1);
+  assert.ok(acc.ok, 'квест взят');
+  // (join(','): массив из vm-песочницы — чужой realm, deepStrictEqual
+  // сравнивает прототипы и падает.)
+  assert.equal(env.G.notifyGroupDefeated(NPCS, book, 1).join(','),
+    'orc_raid', 'группа повержена — квест ready');
+  env.G.npcUI.open({ npc, character: c, book });
+  const overlay = findAll(env.body, '.npc-overlay')[0];
+  const tabBtn = findAll(overlay, 'button')
+    .find((b) => b.dataset.npcact === 'tab' && b.dataset.tab === 'quests');
+  assert.ok(tabBtn, 'вкладка «квесты» в оверлее');
+  (overlay.listeners.click || [])[0]({ target: tabBtn });
+
+  const rows = activeRowsOf(overlay);
+  assert.equal(rows.length, 1, '«В работе» — одна строка');
+  assert.equal(rows[0].name, 'Орочий набег', 'название (npcUI-рендер)');
+  assert.equal(rows[0].meta,
+    'повержено 1 из 1 — ' + env.G.mobGroupName(1) + ' — готов к сдаче',
+    'meta-строка npcUI без изменений: ' + rows[0].meta);
+  const turnin = rows[0].row.querySelectorAll('button')
+    .find((b) => b.dataset.npcact === 'turnin');
+  assert.ok(turnin, 'у ready-квеста кнопка «сдать»');
+  assert.equal(turnin.dataset.quest, 'orc_raid', 'data-quest');
+
+  // Клик по «сдать» — ветка onOverlayClick: награда ровно один раз.
+  const goldBefore = c.gold;
+  const xpBefore = c.xp;
+  (overlay.listeners.click || [])[0]({ target: turnin });
+  assert.equal(book.active.orc_raid, undefined, 'квест сдан (active чист)');
+  assert.ok(book.done.includes('orc_raid'), 'квест в done');
+  assert.ok(c.gold > goldBefore, 'награда: золото');
+  assert.ok(c.xp > xpBefore, 'награда: опыт');
+  // «Выполнено» — название квеста (questById не сломан экстракцией).
+  const done = sectionByTitle(overlay, 'Выполнено');
+  assert.ok(done, 'секция «Выполнено»');
+  assert.ok(textOf(done).includes('Орочий набег'),
+    'название в «Выполнено»: ' + textOf(done));
 });
