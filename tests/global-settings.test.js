@@ -25,12 +25,15 @@ test('модуль: CommonJS-экспорт { SETTINGS } — все настра
   // Ре-пин пометка 000103: добавился ключ city_channel (параметры
   // городского канала src/map.js). Ре-пин 000079: добавились ключи
   // спутников (max_companions, companion_loyalty, companion_refusal).
+  // Ре-пин 000082: добавился companion_xp_share (доля боевого опыта
+  // выживших спутников, SPEC «Спутники» → «Опыт и уровни»).
   // Точка конфликта с параллельным 000050 (combat_obstacle_*): при
   // ребейзе — union обоих наборов.
   assert.deepEqual(Object.keys(SETTINGS).sort(), [
     'city_channel', 'combat_difficulties', 'combat_difficulty',
     'combat_obstacle_max_frac', 'combat_obstacle_min_frac',
-    'companion_loyalty', 'companion_refusal', 'dungeon_memory_days',
+    'companion_loyalty', 'companion_refusal', 'companion_xp_share',
+    'dungeon_memory_days',
     'level_delta_max', 'max_companions', 'move_interval_ms',
     'points_per_level', 'respawn_days', 'steps_per_day',
   ]);
@@ -258,6 +261,17 @@ test('SETTINGS: ключи спутников (000079) — лимит, лоял�
   assert.ok(ref.base >= 0 && ref.base <= 1, 'база-доля в [0, 1]');
   assert.ok(ref.charisma_per_level > 0 && ref.artist_per_level > 0,
     'доли за уровень положительны');
+});
+
+test('SETTINGS: companion_xp_share (000082) — доля боевого опыта выживших спутников', () => {
+  // SPEC.md «Спутники» → «Опыт и уровни»: «каждый выживший спутник —
+  // долю companion_xp_share (по умолчанию 50%)». Доля (не процент) —
+  // как combat_difficulties.
+  assert.equal(typeof SETTINGS.companion_xp_share, 'number',
+    'companion_xp_share — число');
+  assert.ok(SETTINGS.companion_xp_share >= 0
+    && SETTINGS.companion_xp_share <= 1, 'доля в диапазоне [0, 1]');
+  assert.equal(SETTINGS.companion_xp_share, 0.5, 'по умолчанию — 50%');
 });
 
 test('единый источник: main.js читает move_interval_ms (структурный)', () => {
