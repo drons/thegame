@@ -44,7 +44,10 @@ const vm = require('node:vm');
 const P = require('../src/perlin.js');
 const { NPCS } = require('../src/npc-data.js');
 const { SETTINGS } = require('../src/global-settings.js');
-const { createCharacter } = require('../src/player.js');
+const { createCharacter, xpForNext } = require('../src/player.js');
+// Бой (задача 000082): полный цикл «найм → бой → applyCombatXp» и
+// рост статов makeAlly с новым уровнем.
+const { createCombat, makeAlly } = require('../src/combat.js');
 // КРАСНОЕ: модуль ещё не существует — require падает на загрузке файла.
 const C = require('../src/companions.js');
 
@@ -115,9 +118,14 @@ const BROWSER_CHAIN = [
   'src/buildings.js', 'src/npc.js', 'src/companions.js',
 ];
 
+// Ре-пин 000082: API вырос — applyCombatXp (применение доли боевого
+// опыта к roster) и allyDataForEntry (мост roster → данные makeAlly
+// для боя; 000087). Не «лишние» экспорты: контракт зафиксирован в
+// memory/000082-companion-xp.md.
 const API_KEYS = [
-  'canDismiss', 'canHire', 'candidatesForTavern', 'createRoster',
-  'dismiss', 'eventSeed', 'hire', 'loyaltyTick', 'payWages', 'wagesTotal',
+  'allyDataForEntry', 'applyCombatXp', 'canDismiss', 'canHire',
+  'candidatesForTavern', 'createRoster', 'dismiss', 'eventSeed', 'hire',
+  'loyaltyTick', 'payWages', 'wagesTotal',
 ];
 
 // --- Модуль и API ---
@@ -670,4 +678,288 @@ test('браузер: без зависимостей — понятная ош�
   assert.throws(
     () => vm.runInContext(code, sandbox, { filename: 'companions.js' }),
     /companions\.js/, 'guard: понятная ошибка с именем файла');
+});
+
+// --- Опыт и уровни спутников (задача 000082) ---
+//
+// КРАСНЫЕ тесты (TDD): падают, пока src/companions.js не экспортирует
+// applyCombatXp / allyDataForEntry.
+//
+// Контракт (SPEC.md «Спутники» → «Опыт и уровни»,
+// memory/000082-companion-xp.md):
+//   * applyCombatXp(roster, gains) — ЧИСТАЯ функция (без rng/DOM):
+//     gains = c.result.allyXp = [{id, xp}]; xp += доля, повышение
+//     уровня ПОРОГОМ xpForNext (src/player.js): while-цикл — один бой
+//     может дать НЕСКОЛЬКО уровней; остаток xp копится между боями.
+//     «Призрак»/неизвестный id / xp ≤ 0 / нечисло / gains не массив —
+//     ТИХИЙ skip (без исключений, applied не считает).
+//     Возврат {applied, levelUps, events}, events — [{type:'level_up',
+//     npcId, level}] (паттерн payWages.events: 000087 → hudFlash +
+//     saveNow в критической точке «уровень спутника»).
+//   * Форма записи roster НЕМЕНЯЕТСЯ: ровно {npcId, level, xp, loyalty,
+//     hiredDay} (зафиксировано под сейв 000085) — новых полей НЕТ,
+//     очков навыков НЕТ (v1).
+//   * allyDataForEntry(entry, npc) — мост в бой (000087): данные
+//     makeAlly {id: npc.id (— npcId), name, role, level: entry.level,
+//     dmg, hp, armor?, skills, spells, kind:'merc'}; «призрак»
+//     (npc нет / найм нет / npcId ≠ npc.id) → null. Рост статов
+//     ИМПЛИЦИТНЫЙ: makeAlly пересчитывает maxHP/damage/armor из нового
+//     уровня при следующем createCombat (формулы makeMob).
+//   * Новая зависимость player.js (xpForNext): node — require, браузер —
+//     G.xpForNext (ТОПОВЫЙ ключ: player.js разворачивает экспорты прямо
+//     в Game, не в Game.Player); load-time guard (паттерн 000079).
+
+test('000082: applyCombatXp — xp += доля; форма записи НЕ меняется (нет полей/очков)', () => {
+  const roster = [Object.assign(entry('merc_volk'), { xp: 30 })];
+  const res = C.applyCombatXp(roster, [{ id: 'merc_volk', xp: 10 }]);
+  assert.equal(res.applied, 1, 'одна доля применена');
+  assert.equal(res.levelUps, 0, '30 + 10 = 40 < 50 — повышения нет');
+  assert.equal(roster[0].xp, 40);
+  assert.equal(roster[0].level, 1);
+  assert.deepEqual(Object.keys(roster[0]).sort(),
+    ['hiredDay', 'level', 'loyalty', 'npcId', 'xp'],
+    'форма зафиксирована под сейв 000085: points/skillXp/новых полей НЕТ');
+});
+
+test('000082: applyCombatXp — повышение по порогу xpForNext (50/141/260)', () => {
+  // Пороги — из src/player.js (пин: 50·ур^1.5).
+  assert.equal(xpForNext(1), 50);
+  assert.equal(xpForNext(2), 141);
+  assert.equal(xpForNext(3), 260);
+  const roster = [Object.assign(entry('merc_volk'), { xp: 30 })];
+  const res = C.applyCombatXp(roster, [{ id: 'merc_volk', xp: 25 }]);
+  assert.equal(res.applied, 1);
+  assert.equal(res.levelUps, 1);
+  assert.equal(roster[0].level, 2, '30 + 25 = 55 ≥ 50 → уровень 2');
+  assert.equal(roster[0].xp, 5, '55 − 50 = 5 — остаток копится между боями');
+});
+
+test('000082: applyCombatXp — МНОЖЕСТВЕННОЕ повышение за бой (while, не if)', () => {
+  // Сильный бой (мобы уровня 10+: xp ≈ 192, доля 0.5 → 96) даёт 1-2
+  // апгрейда сразу — цикл обязателен.
+  const roster = [Object.assign(entry('merc_volk'), { xp: 0 })];
+  const res = C.applyCombatXp(roster, [{ id: 'merc_volk', xp: 191 }]);
+  assert.equal(res.levelUps, 2, '191 = 50 + 141 → ровно два повышения');
+  assert.equal(roster[0].level, 3);
+  assert.equal(roster[0].xp, 0, '191 − 50 − 141 = 0');
+  assert.deepEqual(res.events, [
+    { type: 'level_up', npcId: 'merc_volk', level: 2 },
+    { type: 'level_up', npcId: 'merc_volk', level: 3 },
+  ], 'событие на каждое повышение (000087 → hudFlash)');
+});
+
+test('000082: applyCombatXp — несколько спутников: независимые доли', () => {
+  const roster = [
+    Object.assign(entry('merc_volk'), { xp: 10 }),
+    Object.assign(entry('merc_ashka'), { xp: 0, loyalty: 33 }),
+  ];
+  const res = C.applyCombatXp(roster, [
+    { id: 'merc_volk', xp: 45 },  // 10 + 45 = 55 → уровень 2, xp 5
+    { id: 'merc_ashka', xp: 20 }, // 0 + 20 < 50 — без уровня
+  ]);
+  assert.equal(res.applied, 2, 'каждому — своя доля');
+  assert.equal(res.levelUps, 1);
+  assert.equal(roster[0].level, 2);
+  assert.equal(roster[0].xp, 5);
+  assert.equal(roster[1].level, 1);
+  assert.equal(roster[1].xp, 20);
+  assert.equal(roster[1].loyalty, 33, 'лояльность опытом не трогается');
+});
+
+test('000082: applyCombatXp — «призрак»/неизвестный id — тихий skip (нет исключения, applied не считает)', () => {
+  const roster = [entry('merc_volk')];
+  const res = C.applyCombatXp(roster, [
+    { id: 'ghost', xp: 10 },       // нет такой записи в roster
+    { id: 'merc_volk', xp: 10 },   // своя
+    { id: 'merc_ashka', xp: 5 },   // нет в roster (в отряде не было)
+  ]);
+  assert.equal(res.applied, 1);
+  assert.equal(res.levelUps, 0);
+  assert.equal(roster.length, 1, 'roster не тронут (ничего не добавлено/убрано)');
+  assert.equal(roster[0].xp, 10);
+});
+
+test('000082: applyCombatXp — gains []/null/мусор → {applied:0, levelUps:0}, roster без изменений', () => {
+  for (const gains of [[], null, 'мусор', { id: 'x', xp: 1 }]) {
+    const roster = [entry('merc_volk')];
+    const res = C.applyCombatXp(roster, gains);
+    assert.equal(res.applied, 0, 'gains=' + JSON.stringify(gains));
+    assert.equal(res.levelUps, 0);
+    assert.deepEqual(res.events, [], 'без применений — событий нет');
+    assert.equal(roster[0].xp, 0, 'roster без изменений');
+  }
+  // xp ≤ 0 — тоже тихий skip (доля 0: share = 0 → xp 0).
+  const roster = [entry('merc_volk')];
+  const res = C.applyCombatXp(roster,
+    [{ id: 'merc_volk', xp: 0 }, { id: 'merc_volk', xp: -5 }]);
+  assert.equal(res.applied, 0);
+  assert.equal(roster[0].xp, 0);
+  // xp нечисло (мусор после сейва/UI) — тихий skip, без исключений.
+  const roster2 = [entry('merc_volk')];
+  const res2 = C.applyCombatXp(roster2,
+    [{ id: 'merc_volk', xp: 'мусор' }, { id: 'merc_volk', xp: NaN }]);
+  assert.equal(res2.applied, 0);
+  assert.equal(roster2[0].xp, 0);
+});
+
+test('000082: applyCombatXp — возврат {applied, levelUps, events} (паттерн payWages)', () => {
+  const roster = [Object.assign(entry('merc_volk'), { xp: 30 })];
+  const res = C.applyCombatXp(roster, [{ id: 'merc_volk', xp: 25 }]);
+  assert.equal(res.applied, 1);
+  assert.equal(res.levelUps, 1);
+  assert.ok(Array.isArray(res.events), 'events — массив (000087 превращает в hudFlash)');
+  assert.deepEqual(res.events, [
+    { type: 'level_up', npcId: 'merc_volk', level: 2 },
+  ], 'ровно {type, npcId, level} — новое значение уровня');
+});
+
+test('000082: детерминизм — два прогона «найм → бой → applyCombatXp» → идентичные roster', () => {
+  function run() {
+    const roster = C.createRoster();
+    const hero = createCharacter();
+    hero.primary.charisma = 15; // 0% отказов (30% − 2%×15)
+    hero.gold = 1000;
+    hero.hp = 9999;             // не умирает в бою
+    const npcs = NPCS.filter(
+      (n) => n.id === 'merc_volk' || n.id === 'merc_ashka');
+    assert.equal(C.hire(roster, npcs[0], hero, 2).ok, true);
+    assert.equal(C.hire(roster, npcs[1], hero, 3).ok, true);
+    // Мост в бой: данные makeAlly из записей отряда (id — npcId).
+    const allies = roster.map((e) => C.allyDataForEntry(
+      e, npcs.find((n) => n.id === e.npcId))).filter(Boolean);
+    const c = createCombat({
+      player: hero, allies, mobs: ['wolf'], mobLevel: 2, seed: 5,
+    });
+    c.obstacles.clear();
+    const w = c.units.find((u) => u.id === 'm0');
+    w.x = 3; w.y = 2;
+    c.units.filter((u) => u.side === 'ally')
+      .forEach((u, i) => { u.x = i; u.y = 6; });
+    c.px = 3; c.py = 3; // игрок вплотную к волку
+    let n = 0;
+    while (!c.result && n++ < 60) {
+      c.ps.attack = 99;
+      c.attack(w.id);
+      c.endTurn();
+    }
+    assert.equal(c.result.outcome, 'victory');
+    const res = C.applyCombatXp(roster, c.result.allyXp);
+    return {
+      roster: roster.map((e) => Object.assign({}, e)),
+      events: res.events,
+      allyXp: c.result.allyXp,
+    };
+  }
+  const a = run();
+  const b = run();
+  assert.deepEqual(b, a, 'воспроизводимость: в цикле нет «мирового» rng');
+  // Полный цикл: каждому по round(16×0.5) = 8, id — npcId (маппинг).
+  assert.deepEqual(a.allyXp, [
+    { id: 'merc_volk', xp: 8 },
+    { id: 'merc_ashka', xp: 8 },
+  ]);
+  assert.equal(a.roster[0].xp, 8, 'Вольк: xp в записи');
+  assert.equal(a.roster[1].xp, 8, 'Ашка: xp в записи');
+  assert.equal(a.roster[0].npcId, 'merc_volk');
+  assert.equal(a.events.length, 0, '8 < 50 — повышений уровня пока нет');
+});
+
+test('000082: allyDataForEntry — данные makeAlly из записи + каталога найма (id — npcId)', () => {
+  const volk = NPCS.find((n) => n.id === 'merc_volk');
+  const e = Object.assign(entry('merc_volk'), { level: 5 });
+  const d = C.allyDataForEntry(e, volk);
+  assert.ok(d, 'данные есть');
+  assert.equal(d.id, 'merc_volk',
+    'id — npcId (000087 маппит c.result.allyXp → roster по нему)');
+  assert.equal(d.name, 'Вольк');
+  assert.equal(d.role, 'melee', 'роль — из каталога найма');
+  assert.equal(d.level, 5, 'уровень — из ЗАПИСИ roster (в каталоге его нет)');
+  assert.equal(d.dmg, 1.2);
+  assert.equal(d.hp, 1.1);
+  assert.equal(d.armor, undefined,
+    'у Волька найм.armor нет (только у Бальдора — 3)');
+  assert.deepEqual(d.skills, ['swordsman']);
+  assert.deepEqual(d.spells, []);
+  assert.equal(d.kind, 'merc', 'маркер наёмника (фильтр доли, 000082)');
+  // Бальдор — armor 3 в каталоге:
+  const baldor = NPCS.find((n) => n.id === 'merc_baldor');
+  const db = C.allyDataForEntry(entry('merc_baldor'), baldor);
+  assert.equal(db.armor, 3, 'найм.armor передаётся (щит)');
+  assert.equal(db.role, 'shield');
+});
+
+test('000082: allyDataForEntry — «призрак» (нет каталога/найм-данных/npcId ≠ id) → null', () => {
+  const volk = NPCS.find((n) => n.id === 'merc_volk');
+  assert.equal(C.allyDataForEntry(entry('ghost'), volk), null,
+    'entry.npcId ≠ npc.id — null (несогласованное состояние)');
+  assert.equal(C.allyDataForEntry(entry('merc_volk'), null), null,
+    'записи каталога нет — null');
+  assert.equal(
+    C.allyDataForEntry(entry('merc_volk'),
+      { id: 'merc_volk', постройки: [44] }),
+    null, 'найм-данных нет — null (тихий skip)');
+});
+
+test('000082: рост статов — makeAlly с новым уровнем (формулы makeMob, мораль 1)', () => {
+  const volk = NPCS.find((n) => n.id === 'merc_volk');
+  // dmg 1.2, hp 1.1, role melee (×1.0), armor 0;
+  // maxHP = max(1, round((8+4·ур)·hp·роль));
+  // damage = max(1, round((2+0.7·ур)·dmg·мораль));
+  // armor = найм.armor + floor(ур/10).
+  const at = (level) => makeAlly(
+    C.allyDataForEntry(Object.assign(entry('merc_volk'), { level }), volk), 0);
+  const u1 = at(1), u5 = at(5), u10 = at(10);
+  assert.deepEqual([u1.maxHP, u1.damage, u1.armor], [13, 3, 0], 'уровень 1');
+  assert.deepEqual([u5.maxHP, u5.damage, u5.armor], [31, 7, 0], 'уровень 5');
+  assert.deepEqual([u10.maxHP, u10.damage, u10.armor], [53, 11, 1],
+    'уровень 10: armor 0 + floor(10/10) = 1');
+});
+
+test('000082 браузер: без player.js — понятная ошибка (новый guard, паттерн 000079)', () => {
+  const sandbox = { console, Game: {} };
+  vm.createContext(sandbox);
+  // Реальные global-settings/perlin (guards 000079 пройдены);
+  // npc.js без player.js не загрузится (его собственный guard) —
+  // стабильный API 000078 заштембруем: под тестом guard companions.js.
+  vm.runInContext(
+    fs.readFileSync(path.join(__dirname, '..', 'src', 'global-settings.js'), 'utf8'),
+    sandbox, { filename: 'global-settings.js' });
+  vm.runInContext(
+    fs.readFileSync(path.join(__dirname, '..', 'src', 'perlin.js'), 'utf8'),
+    sandbox, { filename: 'perlin.js' });
+  sandbox.Game.hireCandidates = () => [];
+  sandbox.Game.skillLevel = () => 0;
+  assert.throws(
+    () => vm.runInContext(
+      fs.readFileSync(path.join(__dirname, '..', 'src', 'companions.js'), 'utf8'),
+      sandbox, { filename: 'companions.js' }),
+    (e) => e instanceof Error
+      && /companions\.js/.test(e.message)
+      && /player\.js/.test(e.message),
+    'guard: «companions.js: … player.js …» (имена обоих файлов)');
+});
+
+test('000082 браузер: applyCombatXp работает в браузерном realm (G.xpForNext — топовый ключ)', () => {
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of BROWSER_CHAIN) {
+    // player.js — ДО companions.js (BROWSER_CHAIN 000079 уже так).
+    vm.runInContext(
+      fs.readFileSync(path.join(__dirname, '..', f), 'utf8'),
+      sandbox, { filename: f });
+  }
+  const G = sandbox.Game;
+  const Co = G.companions;
+  // player.js разворачивает экспорты прямо в Game (НЕ Game.Player):
+  assert.equal(typeof G.xpForNext, 'function', 'G.xpForNext — топовый ключ');
+  const roster = [
+    { npcId: 'merc_volk', level: 1, xp: 30, loyalty: 50, hiredDay: 1 },
+  ];
+  const res = Co.applyCombatXp(roster, [{ id: 'merc_volk', xp: 25 }]);
+  assert.equal(res.applied, 1);
+  assert.equal(res.levelUps, 1);
+  assert.equal(roster[0].level, 2, 'level-up в браузерном realm');
+  assert.equal(roster[0].xp, 5);
+  assert.deepEqual(res.events, [{ type: 'level_up', npcId: 'merc_volk', level: 2 }]);
 });

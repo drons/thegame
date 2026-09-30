@@ -2598,3 +2598,247 @@ test('движение: зайти на клетку союзника нельз
   assert.equal(r.ok, false, 'клетка союзника не проходима');
   assert.equal(r.reason, 'тут стоит союзник', 'точная строка reason');
 });
+
+// --- Опыт и уровни спутников (задача 000082) ---
+//
+// КРАСНЫЕ тесты (TDD): падают, пока checkVictory не отдаёт c.result.allyXp.
+//
+// Контракт (SPEC.md «Спутники» → «Опыт и уровни»,
+// memory/000082-companion-xp.md):
+//   * c.result.allyXp — ТОЛЬКО в outcome 'victory' с победами: массив
+//     {id, xp} по одному на каждого ВЫЖИВШЕГО союзника с kind 'merc'
+//     (ПОЛОЖИТЕЛЬНЫЙ фильтр — устойчив к spelling kind Эфира 'efir'
+//     (SPEC/memory 000035) vs 'ether' (memory/000080)); порядок — c.units.
+//     В 'fled'/'dead' поля НЕТ — 000087 гвардит outcome === 'victory'.
+//   * xp = Math.round(базовый боевой xp × companion_xp_share) (Math.round,
+//     не floor: 16×0.3 = 4.8 → 5; паттерн gold-формулы). Базовый xp —
+//     сумма опыта поверженных мобов — ТОЧНО то число, что уходит игроку
+//     ДО бонуса «Учёный» (xpMult в P.addXp спутникам НЕ идёт).
+//   * Доля — КАЖДОМУ выжившему независимо (НЕ делится на их число):
+//     2 спутника × 0.5 = суммарно 100% сверх 100% игрока.
+//   * id — id юнита (data.id; для наёмника — npcId; 000087 маппит
+//     allyXp → roster по нему). Погибший союзник (alive=false) — вне
+//     списка (fallen 000087 выведет как «посланные − ids allyXp»).
+//   * Настройка читается ЖИВО при вызове: Number(SETTINGS.
+//     companion_xp_share) || 0 (мусор в настройках → 0, бой не падает).
+//   * НОЛЬ новых вызовов c._rng в checkVictory (gold-роллы — до
+//     allyXp); лог-строка «Победа! +… опыта…» — без изменений.
+//   * Регрессия: игрок — 100% боевого опыта БЕЗ изменений (P.addXp).
+
+// Сценарий: союзники у левого низа (i, 6), волк — (3, 2), игрок —
+// вплотную к волку (strongHero 9999 HP — не умирает). Игрок добивает
+// волка; союзники выживают (волк целился в игрока — ближайшего).
+// Возврат { c, p, w }.
+function winWithAllies(allies, { mobLevel = 2, seed = 5, mutate } = {}) {
+  const p = strongHero();
+  if (mutate) mutate(p);
+  const c = createCombat({
+    player: p, allies, mobs: ['wolf'], mobLevel, seed,
+  });
+  c.obstacles.clear();
+  const w = c.units.find((u) => u.id === 'm0');
+  w.x = 3; w.y = 2;
+  c.units.filter((u) => u.side === 'ally').forEach((u, i) => {
+    u.x = i; u.y = 6;
+  });
+  standNextTo(c, w);
+  let n = 0;
+  while (!c.result && n++ < 60) {
+    c.ps.attack = 99;
+    c.attack(w.id);
+    c.endTurn();
+  }
+  assert.ok(c.result, 'бой завершился');
+  assert.equal(c.result.outcome, 'victory', 'игрок побеждает');
+  return { c, p, w };
+}
+
+test('000082: победа — allyXp: доля companion_xp_share КАЖДОМУ выжившему (НЕ делится между ними)', () => {
+  const { c } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
+  // xp волка L2 = 8 + 4×2 = 16; доля 0.5 → каждому round(16×0.5) = 8.
+  assert.equal(c.result.xp, 16, 'базовый xp — 100% игроку (без изменений)');
+  assert.deepEqual(c.result.allyXp, [
+    { id: 'a0', xp: 8 },
+    { id: 'a1', xp: 8 },
+  ], 'порядок — c.units; каждому по доле: 2×8 = 16 = 100% базового, ' +
+    'а НЕ (16×0.5)/2 = 4');
+});
+
+test('000082: регрессия — игрок получает 100% боевого опыта БЕЗ изменений', () => {
+  const { c, p } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
+  assert.equal(c.result.xp, 16);
+  assert.equal(p.totalXp, 16, 'scholar 0: totalXp = 100% базового xp');
+  assert.equal(p.xp, 16, '16 < 50 (xpForNext(1)) — уровень не меняется');
+  assert.equal(p.level, 1);
+});
+
+test('000082: бонус «Учёный» (xpMult) — только игроку; доля спутников — от базового xp', () => {
+  // scholar 5 → xpMult = 1 + 0.02×5 = 1.1.
+  const { c, p } = winWithAllies([ALLY_VOLK, ALLY_ASHKA],
+    { mutate: (h) => { h.secondary.scholar = 5; } });
+  assert.equal(p.totalXp, 18, 'игрок: round(16×1.1) = 18 (бонус действует)');
+  assert.deepEqual(c.result.allyXp, [
+    { id: 'a0', xp: 8 },
+    { id: 'a1', xp: 8 },
+  ], 'доля — от базового xp = 16 (round(16×0.5) = 8), а НЕ от 18: ' +
+    '«Учёный» спутникам НЕ идёт (навыков у них нет — v1)');
+});
+
+test('000082: companion_xp_share читается ЖИВО при вызове; Math.round (4.8 → 5)', (t) => {
+  SETTINGS.companion_xp_share = 0.3;
+  t.after(() => { SETTINGS.companion_xp_share = 0.5; });
+  const { c } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
+  assert.deepEqual(c.result.allyXp, [
+    { id: 'a0', xp: 5 },
+    { id: 'a1', xp: 5 },
+  ], 'round(16×0.3) = round(4.8) = 5 — Math.round, НЕ floor (4)');
+});
+
+test('000082: companion_xp_share нечисло (мусор в настройках, 000098-UI) — фолбэк 0, бой не падает', (t) => {
+  SETTINGS.companion_xp_share = 'мусор';
+  t.after(() => { SETTINGS.companion_xp_share = 0.5; });
+  const { c, p } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
+  assert.deepEqual(c.result.allyXp, [
+    { id: 'a0', xp: 0 },
+    { id: 'a1', xp: 0 },
+  ], 'Number(мусор) → NaN → || 0 → xp 0 (записи остаются — список живой)');
+  assert.equal(c.result.xp, 16, 'игрок не задет мусором в настройках');
+  assert.equal(p.totalXp, 16);
+});
+
+test('000082: погибший в бою спутник — не в allyXp (доля — только выжившим)', () => {
+  const p = strongHero();
+  const c = createCombat({
+    player: p,
+    allies: [ALLY_VOLK, ALLY_ASHKA],
+    mobs: ['wolf'], mobLevel: 10, seed: 5,
+  });
+  c.obstacles.clear();
+  const a0 = c.units.find((u) => u.id === 'a0'); // Вольк
+  const a1 = c.units.find((u) => u.id === 'a1'); // Ашка
+  const w = c.units.find((u) => u.id === 'm0');
+  // Волк ближе к Вольку (d=2), чем к игроку (d=3) — цель: Вольк
+  // (расширенная модель целей, паттерн 000080).
+  a0.x = 3; a0.y = 5;
+  a1.x = 0; a1.y = 6;
+  w.x = 3; w.y = 3;
+  w.damage = 20; // добивает слабого союзника (13 HP) одним ударом
+  c._rng = () => 0.01; // все попадания
+  c.endTurn();
+  assert.equal(a0.alive, false, 'Вольк погиб в бою');
+  assert.equal(c.result, null, 'гибель союзника — НЕ поражение');
+  standNextTo(c, w);
+  let n = 0;
+  while (!c.result && n++ < 60) {
+    c.ps.attack = 99;
+    c.attack(w.id);
+    c.endTurn();
+  }
+  assert.equal(c.result.outcome, 'victory');
+  assert.ok(p.alive, 'игрок жив');
+  assert.equal(c.result.xp, 48, 'xp волка L10 = 8 + 4×10');
+  assert.deepEqual(c.result.allyXp, [{ id: 'a1', xp: 24 }],
+    'round(48×0.5) = 24 — Ашка (выжила); погибший a0 — вне списка');
+});
+
+test('000082: доля — только kind === "merc": "efir" (Эфир, 000081) и неизвестный kind ("ether") — вне доли', () => {
+  // Позитивный фильтр (memory/000082-companion-xp.md): устойчив к
+  // spelling kind Эфира — SPEC/memory/000035 «efir», memory/000080
+  // «ether». Эфир — собственный пул, 100% c.result.xp (000081 читает
+  // сам) — НЕ 0.5+100% двойного подсчёта.
+  const EFIR = { name: 'Эфир', role: 'support', level: 1, dmg: 0.5, hp: 1,
+    skills: [], spells: [], id: 'efir', kind: 'efir' };
+  const ETHER = { name: 'Эфир (вариант kind)', role: 'melee', level: 1,
+    dmg: 0.5, hp: 1, skills: [], spells: [], id: 'ether', kind: 'ether' };
+  const { c } = winWithAllies([EFIR, ETHER, ALLY_VOLK]);
+  assert.deepEqual(c.result.allyXp, [{ id: 'a2', xp: 8 }],
+    'наёмник a2 (kind "merc") — в списке; "efir"/"ether" — вне');
+  assert.equal(c.result.xp, 16, 'игрок — 100% (Эфир 100% — своим механизмом)');
+});
+
+test('000082: id союзника — data.id (для наёмника — npcId): allyXp маппится на roster', () => {
+  const { c } = winWithAllies([
+    Object.assign({}, ALLY_VOLK, { id: 'merc_volk' }),
+    Object.assign({}, ALLY_ASHKA, { id: 'merc_ashka' }),
+  ]);
+  assert.deepEqual(c.result.allyXp, [
+    { id: 'merc_volk', xp: 8 },
+    { id: 'merc_ashka', xp: 8 },
+  ], '000087: roster → allyDataForEntry (id = npcId) → createCombat ' +
+    '→ c.result.allyXp → applyCombatXp');
+});
+
+test('000082: без союзников — allyXp = [] (shape стабилен); «все сбежали» и «dead» — поля нет', () => {
+  // (а) victory без союзников: бит-в-бит-регрессия 000080 — result
+  // получает allyXp = [] (пустой массив, НЕ undefined).
+  const c1 = createCombat({ player: strongHero(), mobs: ['wolf'], mobLevel: 2, seed: 5 });
+  c1.obstacles.clear();
+  const w1 = c1.units.find((u) => u.id === 'm0');
+  w1.x = 3; w1.y = 2;
+  standNextTo(c1, w1);
+  let n = 0;
+  while (!c1.result && n++ < 60) {
+    c1.ps.attack = 99;
+    c1.attack(w1.id);
+    c1.endTurn();
+  }
+  assert.equal(c1.result.outcome, 'victory');
+  assert.deepEqual(c1.result.allyXp, [], '0 союзников — пустой массив');
+
+  // (б) все сбежали (пугливая фея у верхней стены — mobAct → 'fled'):
+  // лута нет, поля allyXp НЕТ (000087 гвардит outcome === 'victory').
+  const c2 = createCombat({ player: strongHero(), mobs: ['fairy'], mobLevel: 10, seed: 5 });
+  c2.obstacles.clear();
+  const w2 = c2.units.find((u) => u.id === 'm0');
+  w2.y = 0; // верхняя стена — «уходят из боя»
+  w2.hp = Math.max(1, Math.floor(w2.maxHP * 0.1)); // < 30% — бегство
+  c2.endTurn();
+  assert.equal(c2.result.outcome, 'fled', c2.log.join(' | '));
+  assert.equal(c2.result.xp, 0);
+  assert.ok(!('allyXp' in c2.result), '«fled» — поля allyXp нет');
+
+  // (в) игрок погиб — outcome 'dead' — поля allyXp нет:
+  const c3 = createCombat({ player: createCharacter(), groupType: 6, seed: 8 });
+  if (c3.obstacles) c3.obstacles.clear();
+  c3._rng = () => 0.01; // мобы точно попадают
+  n = 0;
+  while (!c3.result && n++ < 60) c3.endTurn();
+  assert.equal(c3.result.outcome, 'dead');
+  assert.ok(!('allyXp' in c3.result), '«dead» — поля allyXp нет');
+});
+
+test('000082: детерминизм — два прогона сценария с союзниками → идентичные allyXp (доля без RNG)', () => {
+  const run = () => {
+    const { c } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
+    assert.ok(Array.isArray(c.result.allyXp), 'victory — allyXp есть (массив)');
+    assert.equal(c.result.allyXp.length, 2, 'оба выживших в списке');
+    return JSON.stringify(
+      { allyXp: c.result.allyXp, xp: c.result.xp, gold: c.result.gold });
+  };
+  assert.equal(run(), run(), 'тот же сценарий — тот же результат');
+});
+
+test('000082: формат makeAlly — у союзника НЕТ очков навыков/практики (v1: только игроку)', () => {
+  const v = makeAlly(ALLY_VOLK, 0);
+  assert.ok(!('skillXp' in v), 'skillXp — только у игрока (c.skillXp, PRACTICE_XP)');
+  assert.ok(!('points' in v), 'points — только у игрока (points_per_level)');
+});
+
+test('000082: практика НЕ начисляется спутникам — p.skillXp не меняется, когда врага добивает союзник', () => {
+  const p = strongHero();
+  const c = createCombat({
+    player: p, allies: [ALLY_VOLK], mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  c.obstacles.clear();
+  const w = c.units.find((u) => u.id === 'm0');
+  const a0 = c.units.find((u) => u.id === 'a0');
+  w.x = 3; w.y = 2;
+  a0.x = 3; a0.y = 3; // Вольк вплотную к волку — добивает его САМ
+  c._rng = () => 0.01; // все попадания
+  let n = 0;
+  while (!c.result && n++ < 30) c.endTurn();
+  assert.equal(c.result.outcome, 'victory', 'Вольк добивает волка без игрока');
+  assert.deepEqual(p.skillXp, {},
+    'игрок не действовал; атака союзника НЕ вызывает P.skillPractice (v1)');
+  assert.equal(c.result.xp, 16, 'опыт боя — всё равно игроку (100%)');
+});
