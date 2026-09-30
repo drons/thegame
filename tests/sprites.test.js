@@ -776,6 +776,46 @@ test('combatBackground: allAssetPaths содержит все 11 путей, ф�
   }
 });
 
+// --- Препятствия поля боя (задача 000050) ---
+//
+// 3 универсальных SVG (камень/валун/куст) в assets/combat/obstacles/ —
+// рисуются ПОВЕРХ общего фона в слое «фон/сетка/препятствия/юниты».
+// Выбор типа по клетке — чистая функция obstacleSprite(x, y)
+// (литерал в sprites.js, без зависимости от combat.js — паттерн
+// MOB_SPRITE_KINDS). Пути — в allAssetPaths (main.js сам кьюит их
+// в spriteLoader).
+
+const OBST_DIR = 'assets/combat/obstacles/';
+const OBST_FILES = ['rock', 'boulder', 'bush'];
+
+test('obstacleSprite: чистая функция, (x*3+y*5)%3, пути из OBSTACLE_SPRITES (000050)', () => {
+  assert.equal(S.OBSTACLE_SPRITES.length, 3, 'три вида препятствий');
+  for (const name of OBST_FILES) {
+    assert.ok(S.OBSTACLE_SPRITES.includes(OBST_DIR + name + '.svg'),
+      `нет пути ${name}.svg в OBSTACLE_SPRITES`);
+    assert.ok(S.allAssetPaths().includes(OBST_DIR + name + '.svg'),
+      `путь ${name}.svg не в allAssetPaths`);
+    assert.ok(exists(OBST_DIR + name + '.svg'), `нет файла: ${name}.svg`);
+  }
+  for (let x = 0; x < 7; x++) {
+    for (let y = 0; y < 7; y++) {
+      const p = S.obstacleSprite(x, y);
+      assert.equal(p, S.OBSTACLE_SPRITES[(x * 3 + y * 5) % 3],
+        `(${x},${y}): формула (x*3+y*5)%3`);
+      assert.ok(S.OBSTACLE_SPRITES.includes(p), 'путь только из таблицы');
+      assert.equal(p, S.obstacleSprite(x, y), 'чистота: повтор — тот же путь');
+    }
+  }
+  // Цикл 3: на 3×3 встречается все три вида (не «штамп» одного камня).
+  const seen = new Set();
+  for (let x = 0; x < 3; x++) for (let y = 0; y < 3; y++) seen.add(S.obstacleSprite(x, y));
+  assert.equal(seen.size, 3, 'все 3 вида на 3×3');
+  // Клеток вне поля не существует: нецелое/отрицательное → null (фолбэк).
+  for (const [x, y] of [[-1, 0], [0, -1], [0.5, 0], [0, 0.5], [NaN, 0]]) {
+    assert.equal(S.obstacleSprite(x, y), null, `невалидная клетка (${x},${y})`);
+  }
+});
+
 test('gen-combat-bg: генератор детерминирован, состав = 11 ожидаемых ключей', () => {
   const { BACKGROUNDS, buildCombatBackground } =
     require('../scripts/gen-combat-bg.js');

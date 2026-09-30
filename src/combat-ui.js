@@ -600,9 +600,36 @@
     const hpFrac = d.maxHP > 0 ? p.hp / d.maxHP : 0;
     const hpColor = (G.hpBarColor ? G.hpBarColor(hpFrac) : '#6fdc6f');
 
-    // Юниты (мобы + герой) — ПОВЕРХ фона и сетки, до DOM-части render
-    // (задача 000047). Отдельная функция: слой препятствий (задача
-    // 000050) вставится между сеткой и этим вызовом без переделки.
+    // Препятствия (задача 000050): слой строго ПОСЛЕ сетки и ДО юнитов
+    // (z-порядок: фон → сетка → препятствия → юниты → эффекты).
+    // Вид спрайта по клетке — чистая G.obstacleSprite(x, y); guard —
+    // УМД-ловушка «G снимается один раз» (паттерн hpBarColor/
+    // combatBackground): нет sprites.js → null → фолбэк-квадрат.
+    // Картинка — из spriteLoader КАЖДЫЙ render (паттерн фона 000049:
+    // поздняя загрузка подхватывается без рестарта). Итерация по Set
+    // (порядок вставки — детерминирован). Фолбэк — тёмный квадрат:
+    // непроходимость — правило ядра (combat.js), а не только визуал,
+    // поэтому без ассетов клетка остаётся читаемой.
+    if (c.obstacles && c.obstacles.size) {
+      for (const key of c.obstacles) {
+        const sep = key.indexOf(',');
+        const ox = Number(key.slice(0, sep));
+        const oy = Number(key.slice(sep + 1));
+        const px = ox * CELL, py = oy * CELL;
+        const opath = G.obstacleSprite ? G.obstacleSprite(ox, oy) : null;
+        const oimg = (opath && ctx.spriteLoader)
+          ? ctx.spriteLoader.image(opath) : null;
+        if (oimg) {
+          g2.drawImage(oimg, px, py, CELL, CELL);
+        } else {
+          g2.fillStyle = '#3a4150';
+          g2.fillRect(px + 3, py + 3, CELL - 6, CELL - 6);
+        }
+      }
+    }
+
+    // Юниты (мобы + герой) — ПОВЕРХ фона, сетки и препятствий, до
+    // DOM-части render (задача 000047). Отдельная функция.
     drawUnits(c, now, hpFrac, hpColor);
 
     // Панель состояния.

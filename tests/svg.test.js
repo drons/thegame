@@ -6,8 +6,10 @@
 // в каталоге: 25 — невалидный XML, 4 — NaN в атрибутах.
 //
 // Что проверяет этот тест (ноль npm-зависимостей, как весь проект):
-//  * обход ВСЕХ assets/**/*.svg (272 файла: tiles 12, combat/bg 11,
-//    dungeon 22 (floor 15 + walls 6 + chest 1 — 000067), sprites 226,
+//  * обход ВСЕХ assets/**/*.svg (283 файла: tiles 12, combat/bg 11,
+//    combat/obstacles 3 (задача 000050),
+//    dungeon 22 (floor 15 + walls 6 + chest 1 — 000067), sprites 234
+//    (buildings 13, mobs 192, phlogiston 8, efir 8 — 000034, visuals 13),
 //    logo.svg 1);
 //  * XML well-formedness — минимальный парсер ограниченного
 //    SVG-подмножества, реально встречающегося в ассетах: теги с
@@ -433,6 +435,7 @@ function checkTmpSvg(name, content) {
 const EXPECTED_SVG_BY_DIR = {
   tiles: 12,                          // тайлы карты мира
   'combat/bg': 11,                    // фоны боя
+  'combat/obstacles': 3,              // препятствия боя (задача 000050)
   'dungeon/floor': 15,                // полы подземелья (задача 000069)
   'dungeon/walls': 6,                 // «непроходимые» стены (задача 000070)
   'dungeon': 1,                       // сундук assets/dungeon/chest.svg (задача 000067)

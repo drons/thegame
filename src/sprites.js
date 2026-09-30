@@ -368,6 +368,38 @@
   // tests/svg.test.js).
   const DUNGEON_CHEST = 'assets/dungeon/chest.svg';
 
+  // --- Препятствия поля боя (задача 000050) ---
+  //
+  // 3 статичных универсальных SVG в assets/combat/obstacles/ (камень,
+  // валун, пни-кусты) — читаются на ВСЕХ 11 фонах 000049 (нейтральная
+  // палитра: серые, как у мирских декораций-камней, + приглушённая
+  // зелень; без насыщенных цветов). combat-ui.js рисует их слоем между
+  // сеткой и юнитами; непроходимость — правило ядра (combat.js),
+  // визуал — отдельный слой поверх общего фона (решение (б) 000030).
+  // ЛИТЕРАЛ без require combat.js (паттерн MOB_SPRITE_KINDS): набор
+  // клеток боя (c.obstacles) приходит из ядра, вид — только от координат.
+  const OBSTACLE_DIR = 'assets/combat/obstacles/';
+  const OBSTACLE_SPRITES = [
+    OBSTACLE_DIR + 'rock.svg',
+    OBSTACLE_DIR + 'boulder.svg',
+    OBSTACLE_DIR + 'bush.svg',
+  ];
+
+  /**
+   * Путь SVG-спрайта препятствия на клетке (x, y) (задача 000050).
+   * Чистая функция: (x*3 + y*5) % 3 — тот же приём, что фазы кадров
+   * (frameIndex), соседи дают разные виды, цикл 3.
+   * @param {number} x координата клетки (целое >= 0)
+   * @param {number} y координата клетки (целое >= 0)
+   * @returns {string|null} путь из OBSTACLE_SPRITES; нецелое/отрицательное
+   *   (клеток вне поля не существует) → null (рендерер — фолбэк-квадрат)
+   */
+  function obstacleSprite(x, y) {
+    if (!Number.isInteger(x) || !Number.isInteger(y)) return null;
+    if (x < 0 || y < 0) return null;
+    return OBSTACLE_SPRITES[(x * 3 + y * 5) % OBSTACLE_SPRITES.length];
+  }
+
   // --- Волна на воде (задача 000025) ---
   //
   // Волна в текстуре имеет период 16px (четверть тайла 64px), каждый
@@ -630,6 +662,10 @@
     }
     // Сундук подземелья (задача 000067): 1 SVG.
     paths.push(DUNGEON_CHEST);
+    // Препятствия боя (задача 000050): 3 универсальных спрайта.
+    for (const p of OBSTACLE_SPRITES) {
+      paths.push(p);
+    }
     return Array.from(new Set(paths));
   }
 
@@ -745,6 +781,7 @@
     BUILDING_SPRITES,
     COMBAT_BG_DIR, COMBAT_BG_TERRAIN, COMBAT_BG_DUNGEON, COMBAT_BG_FALLBACK,
     combatBackground,
+    OBSTACLE_DIR, OBSTACLE_SPRITES, obstacleSprite,
     DUNGEON_FLOOR_DIR, DUNGEON_FLOOR_FRAMES, DUNGEON_FLOOR_SEED,
     dungeonFloorFrame,
     DUNGEON_WALL_FRAMES,

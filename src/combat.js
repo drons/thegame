@@ -5,9 +5,16 @@
 // Все случайности идут через combat._rng (mulberry32), поэтому бой
 // детерминирован при фиксированном сиде.
 //
+// Препятствия (задача 000050): c.obstacles — Set 'x,y' непроходимых
+// клеток, генерируются в createCombat (generateObstacles) ТОЛЬКО через
+// c._rng — детерминированы по сиду. Блокируют только ДВИЖЕНИЕ
+// (playerMove/rectFree → stepToward/stepAway); атаки и заклинания
+// (в т.ч. дальние) летают поверх — линий видимости в модели нет.
+//
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js (mulberry32), player.js (derived/takeDamage/heal/addXp),
-// global-settings.js (level_delta_max, combat_difficulty/combat_difficulties).
+// global-settings.js (level_delta_max, combat_difficulty/combat_difficulties,
+// combat_obstacle_min_frac/combat_obstacle_max_frac).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -217,14 +224,40 @@
     return x >= 0 && y >= 0 && x < c.width && y < c.height;
   }
 
+  // Достигнутые из старта игрока (c.px, c.py) клетки по НЕ-препятствиям
+  // (задача 000050): BFS, мобы ИГНОРИРОВАНЫ (они могут сойти с дороги).
+  // Чистая функция (c не мутирует) → Set строк 'x,y' (включая старт).
+  // Экспортируется — тесты достижимости препятствий.
+  function reachableCells(c) {
+    const start = c.px + ',' + c.py;
+    const seen = new Set([start]);
+    const q = [[c.px, c.py]];
+    for (let i = 0; i < q.length; i++) {
+      const [x, y] = q[i];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= c.width || ny >= c.height) continue;
+        const k = nx + ',' + ny;
+        if (seen.has(k)) continue;
+        if (c.obstacles && c.obstacles.has(k)) continue;
+        seen.add(k);
+        q.push([nx, ny]);
+      }
+    }
+    return seen;
+  }
+
   // Прямоугольник w×h с якорем (x, y) свободно: в пределах поля,
-  // не на игроке и не пересекает других живых юнитов (ignore — сам
-  // перемещающийся юнит).
+  // не на игроке, не на препятствии (c.obstacles, задача 000050) и не
+  // пересекает других живых юнитов (ignore — сам перемещающийся юнит).
+  // ОДНА точка проверки для stepToward И stepAway (оба используют
+  // rectFree): мобы не проходят сквозь камни и не встают на них.
   function rectFree(c, x, y, w, h, ignore) {
     if (x < 0 || y < 0 || x + w > c.width || y + h > c.height) return false;
     if (x <= c.px && c.px < x + w && y <= c.py && c.py < y + h) return false;
     for (let yy = y; yy < y + h; yy++) {
       for (let xx = x; xx < x + w; xx++) {
+        if (c.obstacles && c.obstacles.has(xx + ',' + yy)) return false;
         const v = c.units.find((m) => m !== ignore && m.alive && !m.fled
           && xx >= m.x && xx < m.x + (m.size.w || 1)
           && yy >= m.y && yy < m.y + (m.size.h || 1));
@@ -509,6 +542,9 @@
     if (c.ps.moveLeft <= 0) return { ok: false, reason: 'шаги на ход исчерпаны' };
     const nx = c.px + dx, ny = c.py + dy;
     if (!inBounds(c, nx, ny)) return { ok: false, reason: 'стена' };
+    if (c.obstacles && c.obstacles.has(nx + ',' + ny)) {
+      return { ok: false, reason: 'препятствие' };
+    }
     if (unitAt(c, nx, ny)) return { ok: false, reason: 'тут стоит моб' };
     c.px = nx; c.py = ny;
     c.ps.moveLeft -= 1;
@@ -964,6 +1000,77 @@
     }
   }
 
+  // Препятствия (задача 000050): случайные непроходимые клетки поля.
+  // Вызывается в createCombat РОВНО между placeUnits (нужны стартовые
+  // прямоугольники мобов) и refillPools — порядок потока c._rng:
+  // delta-roll и count-roll (волчья стая) → placeUnits (без RNG) →
+  // generateObstacles → refillPools/targetId (без RNG).
+  //
+  // Алгоритм (ВСЕ броски — c._rng, детерминизм по сиду; последователь
+  // «1 бросок на target + 2 на кандидата» закреплена — не менять):
+  //   area = width×height;
+  //   min  = round(combat_obstacle_min_frac × area);
+  //   max  = round(combat_obstacle_max_frac × area) (live-чтение
+  //           settings.SETTINGS, паттерн level_delta_max; guard max<min);
+  //   target = min + floor(c._rng() × (max − min + 1)) — ОДИН бросок;
+  //   цикл (лимит MAX_OBSTACLE_TRIES попыток, guard ≤ 500):
+  //     x = floor(c._rng() × width), y = floor(c._rng() × height) —
+  //     ДВА броска на кандидата;
+  //     клетка в reserved (старт игрока + ВСЕ клетки стартовых
+  //     прямоугольников мобов) или уже занята — continue;
+  //     иначе добавить и проверить достижимость: BFS из старта игрока
+  //     по НЕ-препятствиям (мобы игнорируя) обязан достигать ≥1 клетки
+  //     стартового прямоугольника КАЖДОГО моба; нарушение — удалить
+  //     только что добавленную клетку («перегенерация» той же клетки
+  //     следующим кандидатом) и продолжить;
+  //   лимит попыток дошёл раньше target — меньше препятствий
+  //   (допустимый фолбэк: поле играбельно, плотность ниже min).
+  // При max_frac ≤ 0 бросков НЕТ вообще — поток c._rng совпадает с
+  // боем без генерации (критично для снэпшот-тестов).
+  const MAX_OBSTACLE_TRIES = 500;
+  function generateObstacles(c) {
+    c.obstacles = new Set();
+    const area = c.width * c.height;
+    const minFrac = Number(settings.SETTINGS.combat_obstacle_min_frac) || 0;
+    const maxFrac = Number(settings.SETTINGS.combat_obstacle_max_frac) || 0;
+    let min = Math.round(minFrac * area);
+    let max = Math.round(maxFrac * area);
+    if (max < min) max = min;
+    if (max <= 0) return;
+    const target = min + Math.floor(c._rng() * (max - min + 1));
+    // Зарезервировано: клетка старта игрока + все клетки стартовых
+    // прямоугольников всех мобов (placeUnits уже расставил юнитов).
+    const reserved = new Set([c.px + ',' + c.py]);
+    for (const u of c.units) {
+      for (let yy = u.y; yy < u.y + (u.size.h || 1); yy++) {
+        for (let xx = u.x; xx < u.x + (u.size.w || 1); xx++) {
+          reserved.add(xx + ',' + yy);
+        }
+      }
+    }
+    const mobReachable = () => {
+      const reach = reachableCells(c);
+      for (const u of c.units) {
+        let hit = false;
+        for (let yy = u.y; yy < u.y + (u.size.h || 1) && !hit; yy++) {
+          for (let xx = u.x; xx < u.x + (u.size.w || 1); xx++) {
+            if (reach.has(xx + ',' + yy)) { hit = true; break; }
+          }
+        }
+        if (!hit) return false;
+      }
+      return true;
+    };
+    for (let i = 0; i < MAX_OBSTACLE_TRIES && c.obstacles.size < target; i++) {
+      const x = Math.floor(c._rng() * c.width);
+      const y = Math.floor(c._rng() * c.height);
+      const k = x + ',' + y;
+      if (reserved.has(k) || c.obstacles.has(k)) continue;
+      c.obstacles.add(k);
+      if (!mobReachable()) c.obstacles.delete(k); // нарушение — перегенерация
+    }
+  }
+
   /**
    * Создаёт бой.
    * @param {object} opts
@@ -978,6 +1085,9 @@
    *   по умолчанию level_delta_max из src/global-settings.js)
    * @param {string} [opts.difficulty] сложность ('easy'/'medium'/'hard';
    *   по умолчанию combat_difficulty из src/global-settings.js)
+   * @returns {object} объект боя c. Поле c.obstacles (задача 000050) —
+   *   Set 'x,y' непроходимых клеток (может быть пустым); генерация —
+   *   generateObstacles, детерминирована по сиду.
    */
   function createCombat(opts) {
     const p = opts.player;
@@ -1022,6 +1132,9 @@
       groupName: opts.groupName || (recipe ? recipe.name : 'блуждающая группа'),
       difficulty,
       units,
+      // Препятствия (задача 000050): Set 'x,y', всегда есть (может быть
+      // пустым); заполняется generateObstacles ниже.
+      obstacles: new Set(),
       px: Math.floor(width / 2),
       py: height - 1,
       round: 1,
@@ -1048,6 +1161,9 @@
     };
     // Мобы — в верхней части, игрок — в центре нижнего края.
     placeUnits(c, units);
+    // Препятствия (задача 000050): ПОСЛЕ расстановки (стартовые
+    // прямоугольники мобов — reserved-клетки), ДО любых в-бою RNG-бросков.
+    generateObstacles(c);
     refillPools(c);
     log(c, `Бой: ${c.groupName} (уровень ${level}, мобы ${units.length}).`);
     if (hasLeader) log(c, 'Лидер вдохновляет группу: +5% урона, +5% защиты.');
@@ -1075,6 +1191,9 @@
     LEADER_DMG_MULT, LEADER_DEF_MULT,
     PRACTICE_XP,
     hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
+    // Препятствия (задача 000050): достижимость клеток от игрока по
+    // не-препятствиям — чистая функция для тестов.
+    reachableCells,
     // Боевые internals для src/spells.js (задача 000045): применение
     // заклинания в бою переиспользует проверки и урон ядра.
     combatInternals: {

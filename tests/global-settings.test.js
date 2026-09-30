@@ -26,6 +26,7 @@ test('модуль: CommonJS-экспорт { SETTINGS } — все настра
   // городского канала src/map.js).
   assert.deepEqual(Object.keys(SETTINGS).sort(), [
     'city_channel', 'combat_difficulties', 'combat_difficulty',
+    'combat_obstacle_max_frac', 'combat_obstacle_min_frac',
     'dungeon_memory_days', 'level_delta_max', 'move_interval_ms',
     'points_per_level', 'respawn_days', 'steps_per_day',
   ]);
@@ -33,6 +34,13 @@ test('модуль: CommonJS-экспорт { SETTINGS } — все настра
       'level_delta_max', 'points_per_level', 'move_interval_ms']) {
     assert.equal(typeof SETTINGS[k], 'number');
   }
+  // Препятствия поля боя (задача 000050): доли клеток поля.
+  assert.equal(typeof SETTINGS.combat_obstacle_min_frac, 'number');
+  assert.equal(typeof SETTINGS.combat_obstacle_max_frac, 'number');
+  assert.ok(SETTINGS.combat_obstacle_min_frac >= 0
+    && SETTINGS.combat_obstacle_max_frac >= 0, 'доли неотрицательны');
+  assert.ok(SETTINGS.combat_obstacle_min_frac <= SETTINGS.combat_obstacle_max_frac,
+    'min_frac <= max_frac');
   // Сложность боя (задача 000027): текущая сложность + таблица множителей.
   assert.equal(typeof SETTINGS.combat_difficulty, 'string');
   assert.equal(SETTINGS.combat_difficulty, 'medium');
@@ -49,6 +57,10 @@ test('значения по умолчанию совпадают со SPEC.md',
   assert.equal(SETTINGS.dungeon_memory_days, 3); // «Мобы»
   assert.equal(SETTINGS.level_delta_max, 3);     // «Мобы»
   assert.equal(SETTINGS.points_per_level, 2);    // «Навыки»
+  // Препятствия поля боя (задача 000050): доля клеток, которую
+  // занимают непроходимые клетки (мин/макс для броска).
+  assert.equal(SETTINGS.combat_obstacle_min_frac, 0.10);
+  assert.equal(SETTINGS.combat_obstacle_max_frac, 0.20);
 });
 
 test('значения по умолчанию: move_interval_ms (задача 000063)', () => {
@@ -219,4 +231,36 @@ test('единый источник: main.js читает move_interval_ms (ст
     'ключ move_interval_ms присутствует в main.js');
   assert.ok(!text.includes('const MOVE_INTERVAL_MS = 140'),
     'старый хардкод «const MOVE_INTERVAL_MS = 140» удалён');
+});
+
+test('единый источник: доли препятствий в SETTINGS управляют генерацией (000050)', (t) => {
+  // createCombat читает settings.SETTINGS live (паттерн level_delta_max)
+  // — перезагрузка модуля не нужна.
+  const C = require('../src/combat.js');
+  const min0 = SETTINGS.combat_obstacle_min_frac;
+  const max0 = SETTINGS.combat_obstacle_max_frac;
+  t.after(() => {
+    SETTINGS.combat_obstacle_min_frac = min0;
+    SETTINGS.combat_obstacle_max_frac = max0;
+  });
+  // min = max = 0 → препятствий нет вообще (бросков нет — поток RNG
+  // совпадает с боем без генерации, критично для снэпшот-тестов).
+  SETTINGS.combat_obstacle_min_frac = 0;
+  SETTINGS.combat_obstacle_max_frac = 0;
+  const c0 = C.createCombat({
+    player: P.createCharacter(), groupType: 3, seed: 1,
+  });
+  assert.ok(c0.obstacles instanceof Set, 'c.obstacles — Set «x,y»');
+  assert.equal(c0.obstacles.size, 0, 'доли 0/0 → препятствий нет');
+
+  // min = max > 0 → число ≤ round(frac × area) (бросок вырождается).
+  SETTINGS.combat_obstacle_min_frac = 0.2;
+  SETTINGS.combat_obstacle_max_frac = 0.2;
+  const c1 = C.createCombat({
+    player: P.createCharacter(), groupType: 3, seed: 1,
+  });
+  const area = c1.width * c1.height; // 7×7 = 49
+  assert.ok(c1.obstacles.size > 0, 'доли 0.2/0.2 → препятствия есть');
+  assert.ok(c1.obstacles.size <= Math.round(0.2 * area),
+    'число не больше round(frac × area)');
 });
