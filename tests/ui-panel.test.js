@@ -57,6 +57,46 @@
 //     в СКРЫТОМ pane (после переключения на другую вкладку);
 //   * item-кнопки data-act: «Магазин» — buy, «Инвентарь» —
 //     use/quick/remove (торговля не сломана перестройкой).
+//
+// 000097 — тултипы навыков и предметов (.cp-tip, чистый CSS-показ по
+// hover): :hover в стабе не симулируется — проверяем СОДЕРЖИМОЕ/
+// структуру узлов и CSS-текст index.html.
+//
+// КРАСНЫЕ (падают до реализации, зелёные после):
+//   * у КАЖДОЙ строки ОСНОВНОГО навыка (все 6) .cp-tip: desc,
+//     «В бою: <combat>», «В мире: <world>», «Требование: —»;
+//   * у КАЖДОЙ строки ВТОРИЧНОГО навыка (все 31) .cp-tip: desc,
+//     effectType, stat, String(perLevel), титул (lvl = 0 — базовое
+//     имя), требование (как в .cp-req, иначе «—»); render() обновляет
+//     титул по names[] (G.secondaryName) в том же узле;
+//   * у КАЖДОЙ заполненной строки ПРЕДМЕТА (снаряжение/быстрые/
+//     инвентарь) .cp-tip: desc, «Вес: <weight> кг», «Цена: <value> з»
+//     и строка своего kind (Урон/Броня/Эффект); реагент — БЕЗ строки
+//     «Эффект»;
+//   * CSS index.html: .cp-tip скрыт по умолчанию (opacity: 0 /
+//     visibility: hidden), position: absolute, max-width,
+//     pointer-events: none; показ по :hover И :focus-within —
+//     opacity: 1;
+//   * touch-fallback: клик по СТРОКЕ навыка/предмета (не по кнопке) —
+//     <tr> / .cp-itemrow через делегированный click[0] — полное
+//     описание в .cp-notice (flashNotice), opacity '1'; навык НЕ
+//     прокачан, .cp-req не тронут;
+//   * пере-рендер после клика «+» сохраняет .cp-tip (тот же узел) с
+//     актуальным титулом; .cp-name/.cp-level/.cp-req/
+//     .cp-btn[data-skill] без изменений (контракт ui-skills.test.js);
+//   * вспышка reason в .cp-req (1.5 с, паттерн 000041) НЕ смешивается
+//     с .cp-tip: reason — только в .cp-req, через 1.5 с — постоянные
+//     тексты (пометка потолка), содержимое .cp-tip стабильно.
+//
+// ЗЕЛЁНЫЕ с первого запуска (отрицательный контракт — зелёные и до
+// реализации, обязаны остаться после):
+//   * пустые строки («— без оружия —», «— без брони —», «— пусто —»)
+//     и строки МАГАЗИНА — БЕЗ .cp-tip (магазин — зона 000101);
+//   * клик по КНОПКЕ и по строке магазина — notice НЕ появляется
+//     (ветки .cp-btn/.cp-tab не сломаны, у магазина tip нет).
+//
+// РЕГРЕССИЯ БЕЗ ИЗМЕНЕНИЙ: tests/ui-skills.test.js,
+// tests/main-visuals.test.js, полный npm test.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -635,6 +675,330 @@ test('панель: строки навыков находятся и обнов
     '3 (12/' + env.G.skillXpForNext(3) + ')',
     'значения обновлены render() в скрытом pane');
   assert.equal(btn.disabled, false, 'очко есть — кнопка «+» активна');
+});
+
+// --- 000097: тултипы .cp-tip (красные до реализации) ---
+
+// Строка навыка в таблице: кнопка data-skill → <tr> → .cp-tip.
+function skillTipRow(panel, skillId) {
+  const btn = findAll(panel, '.cp-btn')
+    .find((b) => b.dataset.skill === skillId);
+  assert.ok(btn, 'кнопка data-skill=' + skillId + ' найдена');
+  const tr = btn.closest('tr');
+  assert.ok(tr, 'кнопка находится в строке <tr>');
+  return { btn, tr, tip: tr.querySelector('.cp-tip') };
+}
+
+// Строка предмета (.cp-itemrow) по подстроке .cp-itemname.
+function itemRowByName(root, namePart) {
+  return findAll(root, '.cp-itemrow')
+    .find((r) => {
+      const name = r.querySelector('.cp-itemname');
+      return name && String(name.textContent).includes(namePart);
+    }) || null;
+}
+
+// .cp-notice панели (flashNotice — канал touch-fallback'а).
+function noticeOf(panel) {
+  const n = findAll(panel, '.cp-notice')[0];
+  assert.ok(n, 'уведомление .cp-notice есть в панели');
+  return n;
+}
+
+test('панель: у КАЖДОЙ строки ОСНОВНОГО навыка (все 6) .cp-tip — desc + «В бою» + «В мире» + требование', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  // Все строки навыков в панели: 6 основных + 31 вторичный.
+  const skillBtns = findAll(panel, '.cp-btn')
+    .filter((b) => b.dataset.skill);
+  assert.equal(skillBtns.length,
+    env.G.PRIMARY_SKILLS.length +
+    Object.keys(env.G.SECONDARY_SKILLS).length,
+    'строки навыков: все основные + все вторичные');
+  for (const p of env.G.PRIMARY_SKILLS) {
+    const { tr, tip } = skillTipRow(panel, p.id);
+    assert.ok(tip, 'у строки «' + p.name + '» есть .cp-tip');
+    assert.ok(tip.textContent.includes(p.desc),
+      'desc навыка в тултипе: ' + p.desc);
+    assert.ok(tip.textContent.includes('В бою: ' + p.combat),
+      '«В бою: ' + p.combat + '» в тултипе');
+    assert.ok(tip.textContent.includes('В мире: ' + p.world),
+      '«В мире: ' + p.world + '» в тултипе');
+    assert.ok(tip.textContent.includes('Требование: —'),
+      'у основного требования нет — «Требование: —»');
+  }
+});
+
+test('панель: у КАЖДОЙ строки ВТОРИЧНОГО навыка (все 31) .cp-tip — desc + эффект + титул + требование; render() обновляет титул по names[]', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter(); // все вторичные — уровень 0
+  const panel = openPanel(env, c);
+  const skills = Object.entries(env.G.SECONDARY_SKILLS);
+  assert.equal(skills.length, 31, 'в каталоге 31 вторичный навык');
+  for (const [id, s] of skills) {
+    const { tr, tip } = skillTipRow(panel, id);
+    assert.ok(tip, 'у строки «' + s.name + '» есть .cp-tip');
+    const t = tip.textContent;
+    assert.ok(t.includes(s.desc), 'desc: ' + s.desc);
+    assert.ok(t.includes(s.effectType), 'effectType: ' + s.effectType);
+    assert.ok(t.includes(s.effect.stat), 'stat эффекта: ' + s.effect.stat);
+    assert.ok(t.includes(String(s.effect.perLevel)),
+      'perLevel эффекта (как в каталоге): ' + s.effect.perLevel);
+    // lvl = 0 — титул ещё базовое имя (не ранг).
+    assert.ok(t.includes(s.name), 'базовый титул: ' + s.name);
+    // Требование — тот же текст, что в .cp-req (render() уже нарисовал),
+    // иначе «—».
+    const reqTd = tr.querySelector('.cp-req');
+    assert.ok(t.includes('Требование: ' + (reqTd.textContent || '—')),
+      'требование совпадает с .cp-req: «' + (reqTd.textContent || '—') + '»');
+  }
+  // Титул НЕ строится один раз в build(): после прокачки и render()
+  // в том же узле — текущий титул по names[].
+  c.secondary.swordsman = 5;
+  env.G.playerUI.render();
+  const tip5 = skillTipRow(panel, 'swordsman').tip;
+  assert.ok(tip5, 'узел .cp-tip жив после render()');
+  assert.ok(tip5.textContent.includes(env.G.secondaryName('swordsman', 5)),
+    'после render() титул по names[]: ' + env.G.secondaryName('swordsman', 5));
+});
+
+test('панель: у КАЖДОЙ заполненной строки предмета .cp-tip — desc + вес + цена + строка kind', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  // Снаряжение: оружие + броня.
+  env.G.addItem(c, 'iron_sword');
+  env.G.equip(c, 'iron_sword');
+  env.G.addItem(c, 'leather_armor');
+  env.G.equip(c, 'leather_armor');
+  // Быстрый слот: зелье.
+  env.G.addItem(c, 'healing_potion');
+  env.G.setQuick(c, 0, 'healing_potion');
+  // Инвентарь: еда, книга, реагент.
+  env.G.addItem(c, 'bread');
+  env.G.addItem(c, 'alchemy_manual');
+  env.G.addItem(c, 'sulfur');
+  const panel = openPanel(env, c);
+
+  const G = env.G;
+  const checks = [
+    // [корень секции, подстрока имени, предмет, строка kind]
+    [panel._equipBody, 'Железный меч', G.getItem('iron_sword'),
+      ['Урон: ' + G.getItem('iron_sword').stats.damage]],
+    [panel._equipBody, 'Кожаный доспех', G.getItem('leather_armor'),
+      ['Броня: ' + G.getItem('leather_armor').stats.armor]],
+    [panel._quickBody, 'Слот 1: Зелье лечения', G.getItem('healing_potion'),
+      ['Эффект: +' + G.getItem('healing_potion').effect.amount + ' HP']],
+    [panel._invBody, 'Хлеб', G.getItem('bread'),
+      ['Эффект: +' + G.getItem('bread').effect.amount + ' HP']],
+    [panel._invBody, 'Трактат алхимика', G.getItem('alchemy_manual'),
+      ['Эффект: +' + G.getItem('alchemy_manual').effect.amount +
+        ' опыта («' + G.SECONDARY_SKILLS.alchemy.name + '»)']],
+    [panel._invBody, 'Сера', G.getItem('sulfur'), []],
+  ];
+  for (const [root, namePart, it, kindLines] of checks) {
+    const row = itemRowByName(root, namePart);
+    assert.ok(row, 'строка предмета «' + namePart + '» найдена');
+    const tip = row.querySelector('.cp-tip');
+    assert.ok(tip, 'у строки «' + namePart + '» есть .cp-tip');
+    const t = tip.textContent;
+    assert.ok(t.includes(it.desc), 'desc предмета: ' + it.desc);
+    assert.ok(t.includes('Вес: ' + it.weight + ' кг'),
+      'вес предмета: ' + it.weight + ' кг');
+    assert.ok(t.includes('Цена: ' + it.value + ' з'),
+      'цена предмета: ' + it.value + ' з');
+    for (const line of kindLines) {
+      assert.ok(t.includes(line), 'строка kind: «' + line + '»');
+    }
+  }
+  // Реагент — БЕЗ строки эффекта (effect в каталоге отсутствует).
+  const reagentTip = itemRowByName(panel._invBody, 'Сера')
+    .querySelector('.cp-tip');
+  assert.ok(!reagentTip.textContent.includes('Эффект'),
+    'у реагента строки «Эффект» нет');
+});
+
+test('панель: пустые строки («— без оружия —», «— без брони —», «— пусто —») БЕЗ .cp-tip', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter(); // снаряжение и слоты пусты
+  const panel = openPanel(env, c);
+  for (const namePart of ['— без оружия —', '— без брони —']) {
+    const row = itemRowByName(panel._equipBody, namePart);
+    assert.ok(row, 'строка «' + namePart + '» найдена');
+    assert.equal(row.querySelector('.cp-tip'), null,
+      'у пустой строки «' + namePart + '» НЕТ .cp-tip');
+  }
+  const quickRows = findAll(panel._quickBody, '.cp-itemrow');
+  assert.equal(quickRows.length, env.G.QUICK_SLOTS,
+    'строк быстрых слотов = QUICK_SLOTS');
+  for (const r of quickRows) {
+    const name = r.querySelector('.cp-itemname').textContent;
+    assert.ok(name.includes('— пусто —'), 'слот пуст: ' + name);
+    assert.equal(r.querySelector('.cp-tip'), null,
+      'у пустого слота НЕТ .cp-tip');
+  }
+});
+
+test('CSS: .cp-tip скрыт по умолчанию; absolute/max-width/pointer-events: none; показ по :hover и :focus-within (opacity: 1)', () => {
+  const html = page();
+  const t = cssRule(html, 'cp-tip');
+  assert.ok(t.opacity === '0' || t.visibility === 'hidden',
+    'скрыт по умолчанию (opacity: 0 или visibility: hidden)');
+  assert.equal(t.position, 'absolute', 'position: absolute');
+  assert.ok(t['max-width'], 'max-width задан (переполнение)');
+  assert.equal(t['pointer-events'], 'none',
+    'pointer-events: none — тултип не перехватывает курсор и клики');
+  // Правила показа — compound-селекторы (владельцы: :hover /
+  // :focus-within); cssRule() матчит только одиночные «.name {…}» —
+  // проверяем отдельными regex.
+  assert.match(html, /:hover[^{]*\.cp-tip[^{]*\{[^}]*opacity:\s*1/,
+    'показ по :hover — opacity: 1');
+  assert.match(html, /:focus-within[^{]*\.cp-tip[^{]*\{[^}]*opacity:\s*1/,
+    'показ по :focus-within — opacity: 1 (клавиатура)');
+});
+
+test('панель: клик по СТРОКЕ навыка (не по кнопке) — полное описание в .cp-notice; навык НЕ прокачан, .cp-req не тронут', () => {
+  // Touch-fallback: hover на таче нет — тап/клик по не-кнопочной части
+  // строки выводит полное описание в .cp-notice (flashNotice).
+  // Решение зафиксировано тестом: канал — .cp-notice, контент —
+  // содержимое .cp-tip.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const s = env.G.SECONDARY_SKILLS.heavy; // lvl = 0 — требует «Мечник 5»
+  const { tr, tip } = skillTipRow(panel, 'heavy');
+  assert.ok(tip, 'у строки «heavy» есть .cp-tip');
+  const reqTd = tr.querySelector('.cp-req');
+  assert.equal(reqTd.textContent, 'Мечник 5', 'требование до клика');
+  const notice = noticeOf(panel);
+  assert.equal(notice.textContent, '', 'notice пуст до клика');
+
+  const clickers = panel.listeners.click || [];
+  assert.ok(clickers.length === 1,
+    'один делегированный click-обработчик (ветка строк — внутри него)');
+  clickers[0]({ target: tr });
+
+  assert.ok(notice.textContent.includes(s.desc),
+    'в .cp-notice — полное описание навыка: ' + s.desc);
+  assert.equal(notice.style.opacity, '1', '.cp-notice подсвечен');
+  assert.equal(c.points, 0, 'очки не потрачены');
+  assert.ok(!c.secondary.heavy, 'уровень навыка НЕ изменился');
+  assert.equal(reqTd.textContent, 'Мечник 5',
+    '.cp-req кликом по строке не тронут');
+  assert.equal(tr.querySelector('.cp-tip'), tip, 'узел .cp-tip тот же');
+});
+
+test('панель: клик по СТРОКЕ предмета — desc предмета в .cp-notice', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  env.G.addItem(c, 'iron_sword');
+  env.G.equip(c, 'iron_sword');
+  const panel = openPanel(env, c);
+  const row = itemRowByName(panel._equipBody, 'Железный меч');
+  assert.ok(row, 'строка оружия найдена');
+  const notice = noticeOf(panel);
+  const clickers = panel.listeners.click || [];
+  assert.ok(clickers.length === 1, 'один делегированный click-обработчик');
+  clickers[0]({ target: row });
+  const sword = env.G.getItem('iron_sword');
+  assert.ok(notice.textContent.includes(sword.desc),
+    'в .cp-notice — desc предмета: ' + sword.desc);
+  assert.equal(notice.style.opacity, '1', '.cp-notice подсвечен');
+});
+
+test('панель: клик по КНОПКЕ и по строке МАГАЗИНА (без .cp-tip) — notice НЕ появляется', () => {
+  // Ветка .cp-btn (и .cp-tab) обрабатывается РАНЬШЕ ветки строк —
+  // поведение кнопок без изменений; строки магазина tip НЕ получают
+  // (зона 000101) — клик по пустой части строки ничего не делает.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter(); // points = 0 — «+» не пройдёт
+  const panel = openPanel(env, c);
+  const notice = noticeOf(panel);
+
+  // Клик по кнопке «+»: reason — во вспышку .cp-req, НО не в notice.
+  const { btn } = skillTipRow(panel, 'swordsman');
+  (panel.listeners.click || [])[0]({ target: btn });
+  assert.equal(notice.textContent, '',
+    'клик по кнопке notice НЕ заполняет');
+
+  // Строка магазина: нет .cp-tip — клик ничего не делает.
+  env.G.playerUI.setShop(
+    env.G.makeShop(0, 0, env.G.BUILDING_TYPES.APOTHECARY, 2));
+  env.G.playerUI.render();
+  const shopRow = findAll(panel._shopBody, '.cp-itemrow')[0];
+  assert.ok(shopRow, 'строка магазина найдена');
+  assert.equal(shopRow.querySelector('.cp-tip'), null,
+    'у строки магазина НЕТ .cp-tip (магазин — зона 000101)');
+  (panel.listeners.click || [])[0]({ target: shopRow });
+  assert.equal(notice.textContent, '',
+    'клик по строке магазина notice НЕ заполняет');
+});
+
+test('панель: пере-рендер после клика «+» сохраняет .cp-tip (тот же узел, актуальный титул); DOM-контракт строк не сломан', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  c.primary.strength = 10;
+  c.secondary.swordsman = 3;
+  c.points = 1;
+  const panel = openPanel(env, c);
+  const { btn, tr, tip } = skillTipRow(panel, 'swordsman');
+  assert.ok(tip, '.cp-tip есть до клика');
+
+  (panel.listeners.click || [])[0]({ target: btn });
+  assert.equal(c.secondary.swordsman, 4, 'кнопка «+» прокачала навык');
+  assert.equal(c.points, 0, 'очко потрачено');
+
+  // render() внутри обработчика НЕ пересобирает строку: узел tip тот
+  // же, текст — с актуальным титулом (lvl 4).
+  const tipAfter = tr.querySelector('.cp-tip');
+  assert.equal(tipAfter, tip, '.cp-tip — тот же DOM-узел после render()');
+  assert.ok(tipAfter.textContent.includes(env.G.secondaryName('swordsman', 4)),
+    'актуальный титул по names[] в сохранённом узле');
+
+  // DOM-контракт (tests/ui-skills.test.js) не сломан.
+  const nameTd = tr.querySelector('.cp-name');
+  const lvTd = tr.querySelector('.cp-level');
+  const reqTd = tr.querySelector('.cp-req');
+  assert.ok(nameTd && lvTd && reqTd,
+    'ячейки .cp-name/.cp-level/.cp-req на месте');
+  assert.equal(nameTd.textContent,
+    env.G.secondaryName('swordsman', 4) + ' (4)', 'имя с титулом и уровнем');
+  assert.equal(lvTd.textContent, '4', 'уровень');
+  assert.equal(reqTd.textContent, '', 'ниже потолка — требование пусто');
+  assert.equal(tr.querySelector('.cp-btn').dataset.skill, 'swordsman',
+    'кнопка data-skill не сломана');
+});
+
+test('панель: вспышка reason в .cp-req НЕ смешивается с .cp-tip; через 1.5 с — постоянные тексты', async () => {
+  // Паттерн 000041: reason неудачного «+» пишется в .cp-req на 1.5 с,
+  // потом render() возвращает постоянный текст (пометка потолка).
+  // Тултип — стабильное содержимое: reason в него НЕ попадает.
+  const env = loadPanelUi();
+  const c = env.G.createCharacter(); // points = 0 — «+» не пройдёт
+  c.primary.strength = 5;
+  c.secondary.swordsman = 10; // потолок практикой: 5×2 = 10
+  const panel = openPanel(env, c);
+  const { btn, tr, tip } = skillTipRow(panel, 'swordsman');
+  assert.ok(tip, '.cp-tip есть');
+  const reqTd = tr.querySelector('.cp-req');
+  const marker = reqTd.textContent;
+  assert.ok(marker.startsWith('потолок практикой:'),
+    'пометка потолка до клика: ' + marker);
+  const tipBefore = tip.textContent;
+
+  (panel.listeners.click || [])[0]({ target: btn });
+  assert.equal(reqTd.textContent, 'нет свободных очков навыков',
+    'reason виден в .cp-req (вспышка 1.5 с)');
+  assert.ok(!tip.textContent.includes('нет свободных очков навыков'),
+    'reason НЕ попал в .cp-tip');
+  assert.equal(tip.textContent, tipBefore,
+    '.cp-tip — стабильное содержимое во время вспышки');
+
+  await new Promise((r) => setTimeout(r, 1700));
+  assert.equal(reqTd.textContent, marker,
+    'через 1.5 с пометка потолка восстановлена');
+  assert.equal(tip.textContent, tipBefore,
+    'через 1.5 с содержимое .cp-tip стабильно');
 });
 
 test('панель: item-кнопки data-act — «Магазин» (buy) и «Инвентарь» (use/quick/remove)', () => {
