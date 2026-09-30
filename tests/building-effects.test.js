@@ -848,8 +848,9 @@ function frameAt(h, now) {
 // BFS по правилам игрока (4 направления, только passable), исключая:
 //   * тайлы групп мобов (шаг = startCombat — мир останавливается);
 //   * входы пещер (шаг = лабиринт);
-//   * городские тайлы (000103: buildingId != null, building = -1 —
-//     слотовой записи нет).
+//   * городские тайлы (000103: building = -1 — слотовой записи нет;
+//     предикат города — по building, с 000073 у слотовых 8..12 тоже
+//     есть buildingId — подтип).
 function findBuilding(G, myMap, start, wantNpc) {
   const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const npcList = G.NpcData.NPCS;
@@ -868,7 +869,10 @@ function findBuilding(G, myMap, start, wantNpc) {
         if (!t.passable || t.hasMobGroup) continue;
         if (t.hasBuilding) {
           if (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE) continue;
-          if (t.buildingId != null) continue; // город (000103)
+          // Задача 000073: город — по building = NONE (до 000073 —
+          // buildingId != null; слотовые входы тоже получили
+          // buildingId — подтип, и они обязаны оставаться целями).
+          if (t.building === G.BUILDING_TYPES.NONE) continue; // город (000103)
         }
         visited.add(k);
         prev.set(k, cur.x + ',' + cur.y);
