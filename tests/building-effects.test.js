@@ -444,10 +444,12 @@ function matchesSel(el, sel) {
     return false;
   }
   if (attr) {
-    if (!attr[1].startsWith('data-')) return false;
-    const v = el.dataset ? el.dataset[attr[1].slice(5)] : undefined;
+    // attr = [имя, значение]: attr[0] — имя (bm[1]), attr[1] —
+    // значение (bm[2], undefined у '[data-buid]').
+    if (!attr[0].startsWith('data-')) return false;
+    const v = el.dataset ? el.dataset[attr[0].slice(5)] : undefined;
     if (v === undefined) return false;
-    return attr[2] === undefined ? true : String(v) === attr[2];
+    return attr[1] === undefined ? true : String(v) === attr[1];
   }
   return true;
 }
@@ -476,12 +478,16 @@ function makeEl(tag) {
     children: [],
     parent: null,
     listeners: {},
+    // children хранят СУРЫЕ target (а не прокси): remove() ищёт в
+    // массиве target по identity — прокси в массиве нашёл бы -1 и
+    // «удалённый» оверлей остался бы в body (B2: countOverlays).
     appendChild(ch) {
-      if (ch.parent) {
-        ch.parent.children.splice(ch.parent.children.indexOf(ch), 1);
+      const raw = ch && ch.__raw ? ch.__raw : ch;
+      if (raw.parent) {
+        raw.parent.children.splice(raw.parent.children.indexOf(raw), 1);
       }
-      ch.parent = target;
-      target.children.push(ch);
+      raw.parent = target;
+      target.children.push(raw);
       return ch;
     },
     remove() {
@@ -505,6 +511,15 @@ function makeEl(tag) {
         target.dataset[name.slice(5)] = value;
       }
     },
+    // canvas: 2d/WebGL-контексты — no-op-прокси. combat-ui.js создаёт
+    // СВОЙ canvas боя (document.createElement('canvas')) — без
+    // getContext-стаба render() роняет TypeError (B8). Явные
+    // переопределения #game/#sprites в bootSandbox сохраняются
+    // (прокси set поверх этого метода).
+    getContext(kind) {
+      if (tag !== 'canvas') return null;
+      return kind === 'webgl' ? makeGl() : makeContext2d(target);
+    },
     getBoundingClientRect() { return { left: 0, top: 0 }; },
     blur() {},
     closest(sel) {
@@ -527,6 +542,8 @@ function makeEl(tag) {
       target.children.length = 0;
     },
   });
+  // Ссылка прокси → сырой target (appendChild нормализует детей).
+  target.__raw = target;
   return new Proxy(target, {
     get(t, k) {
       if (k in t) return t[k];
