@@ -452,6 +452,14 @@ test('город 000105: вход — шаг на входной тайл (ка�
   assert.equal(dg.kind, 'city', 'dungeonState.kind === «city»');
   assert.equal(dg.name, rec.особые_параметры.название_карты,
     'имя города — название_карты каталога');
+  // Контракт __game.dungeon для города (ревью 000105, раунд 1):
+  // type — null (у layout города поля type нет; НЕ undefined —
+  // JSON-сериализация drop'ит undefined), mobs/chests — null
+  // (contents у города null).
+  assert.equal(dg.type, null,
+    'город: type — null (у layout города нет поля type)');
+  assert.equal(dg.mobs, null, 'город: mobs — null (contents null)');
+  assert.equal(dg.chests, null, 'город: chests — null (contents null)');
   assert.equal(G.dungeonUI.isActive(), true, 'dungeonUI активен (режим города)');
   assert.deepEqual({ x: g.state.player.x, y: g.state.player.y },
     found.target, 'мировой герой остаётся на входном тайле города');
@@ -509,7 +517,7 @@ test('город 000105: выход — шаг на layout.exit → состоя
   // проходит»: единственный мировой шаг между ними — вход).
   const day0 = g.state.day;
   const steps0 = g.state.stepsToday;
-  walkTiles(h, now, [tiles[tiles.length - 1]]);
+  now = walkTiles(h, now, [tiles[tiles.length - 1]]);
   const dg = g.dungeon;
   assert.ok(dg, 'в городе');
   assert.equal(dg.kind, 'city');
@@ -561,6 +569,26 @@ test('город 000105: выход — шаг на layout.exit → состоя
     'сейв: позиция — входной тайл города');
   assert.equal(save.data.day, g.state.day,
     'сейв: день — текущий (день не прошёл)');
+  // HUD после выхода (ревью 000105, раунд 1): герой стоит на
+  // городском тайле (мировых шагов после выхода нет) — строка
+  // «Здесь: » обязана показывать ИМЯ города: у города building —
+  // NONE, buildingNameUi(NONE) = '' (до фикса — пустое имя строкой
+  // «Здесь: » до следующего шага). Имя — из каталожной записи
+  // (название_карты || название), регистр — конвенция buildingNameUi.
+  const rec = G.getBuilding(found.t.buildingId);
+  const rawName = (rec.особые_параметры &&
+    rec.особые_параметры.название_карты) || rec.название;
+  const cityName = rawName.charAt(0).toLowerCase() + rawName.slice(1);
+  for (let i = 0; i < 2; i++) {
+    now += 16;
+    h.frameFn(now);
+  }
+  const hudText = h.hud.textContent;
+  assert.ok(hudText.includes('Здесь: ' + cityName),
+    'HUD после выхода: «Здесь: <имя города>»: ' + JSON.stringify(hudText));
+  assert.ok(!hudText.includes('Здесь: \n'),
+    'HUD после выхода: нет строки «Здесь: » с пустым именем: '
+    + JSON.stringify(hudText));
 });
 
 test('подземелье 000105 (регрессия): kind dungeon, имя — DUNGEON_NAMES[type]; выход — состояние снято, ДЕНЬ проходит', async () => {
@@ -660,6 +688,15 @@ test('подземелье 000105 (регрессия): kind dungeon, имя —
   assert.equal(g.state.day, dayBefore + 1,
     'подземелье: на выходе ДЕНЬ проходит (clock.event — существующее)');
   assert.equal(g.state.stepsToday, 0, 'event() — счётчик шагов сброшен');
+  // HUD после выхода из пещеры (РЕГРЕССИЯ ветки «Здесь:», переделанной
+  // под города — ревью 000105, раунд 1): строка пещеры НЕ меняется —
+  // имя из каталога + «(вход — шагните)». Кадр без нажатых клавиш
+  // (keys пуста — мировых шагов нет): только рендер + hudUpdate.
+  h.frameFn(NOW + 100000);
+  const hudCave = h.hud.textContent;
+  assert.ok(hudCave.includes('Здесь: вход в пещеру (вход — шагните)'),
+    'HUD после выхода из пещеры: «Здесь: вход в пещеру (вход — шагните)»: '
+    + JSON.stringify(hudCave));
 });
 
 test('город 000105: кадры main.js после входа не падают; HUD — заголовок города и «До выхода»', async () => {

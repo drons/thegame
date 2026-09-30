@@ -1436,7 +1436,7 @@
       const shopHint = G.shopKindsFor(t.building) ? '  (торговля — панель [I])' : '';
       // [E] — РОУТЕР: действия упоминаем ВСЕГДА, когда есть эффекты
       // (NPC не перекрывает их): «([E] имя, действия)» /
-      // «([E] имя)» / «([E] действия)» (ревью раунда 3).
+      // «([E] имя)» / «([E] действия)» (ревью раунда 3, 000071).
       let eHint = '';
       if (npcHere && effectsHere) {
         eHint = '  ([E] ' + npcHere.имя + ', действия)';
@@ -1445,8 +1445,28 @@
       } else if (effectsHere) {
         eHint = '  ([E] действия)';
       }
-      line += '\nЗдесь: ' + G.buildingNameUi(t.building) + shopHint + eHint +
-        (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE ? ' (вход — шагните)' : '');
+      let name = G.buildingNameUi(t.building);
+      let hint = t.building === G.BUILDING_TYPES.CAVE_ENTRANCE
+        ? ' (вход — шагните)' : '';
+      // Городской тайл (000103/000105): building — NONE (у города нет
+      // map_index → buildingNameUi ''). Имя — из каталожной записи
+      // (000102): название_карты || название (тот же вывод, что
+      // заголовок города в makeCityState), регистр — конвенция
+      // buildingNameUi (первая буква в нижнем). Без ветки: строка
+      // «Здесь: » с пустым именем — видна после выхода из города,
+      // пока герой стоит на городском тайле (ревью 000105, раунд 1).
+      if (name === '' && t.buildingId != null) {
+        const rec = G.getBuilding(t.buildingId);
+        if (rec && rec.категория === 'город') {
+          const raw = (rec.особые_параметры &&
+            rec.особые_параметры.название_карты) || rec.название;
+          if (typeof raw === 'string' && raw !== '') {
+            name = raw.charAt(0).toLowerCase() + raw.slice(1);
+            hint = ' (вход — шагните)';
+          }
+        }
+      }
+      line += '\nЗдесь: ' + name + shopHint + eHint + hint;
     } else if (t.hasMobGroup) {
       // Имя группы — из каталога лениво (задача 000057): map.js
       // грузится ДО main.js, G.mobGroupName всегда на месте.
@@ -1588,7 +1608,11 @@
       // (contents у города null, type у layout города нет).
       return {
         kind: ds.kind,
-        type: ds.dg.type,
+        // Город: null, а не undefined (ревью 000105, раунд 1):
+        // у layout города (createCityLayout) поля type нет —
+        // undefined JSON-сериализация тихо drop'ит, null —
+        // явный «типа нет» как у mobs/chests.
+        type: ds.kind === 'city' ? null : ds.dg.type,
         name: ds.kind === 'city' ? ds.name : G.DUNGEON_NAMES[ds.dg.type],
         width: ds.dg.width, height: ds.dg.height,
         cells: ds.dg.cells,
