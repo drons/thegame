@@ -930,7 +930,13 @@
   function maybeEnterDungeon() {
     if (dungeonState) return;
     const t = map.tileAt(player.x, player.y);
-    if (!t.hasBuilding || t.building !== G.BUILDING_TYPES.CAVE_ENTRANCE) return;
+    // Задача 000073: развалины (подтип слота 9, buildingId 48) —
+    // ПОСТРОЙКА, а не вход: шаг на тайл НЕ открывает лабиринт
+    // (пара с подавлением хинта «(вход — шагните)» в hudUpdate).
+    // buildingId null (без каталога — фолбэк) — вход сохраняется
+    // (fail-open).
+    if (!t.hasBuilding || t.building !== G.BUILDING_TYPES.CAVE_ENTRANCE
+        || t.buildingId === 48) return;
     const worldKey = player.x + ',' + player.y;
     const d = G.createDungeon(player.x, player.y, mapPixels, t.terrain);
     const saved = dungeonMemory.get(worldKey);
@@ -1446,23 +1452,33 @@
         eHint = '  ([E] действия)';
       }
       let name = G.buildingNameUi(t.building);
+      // Задача 000073: у подтипа слота 9 «развалины» (buildingId 48)
+      // хинт подавлен — тайл не вход (пара с гардом
+      // maybeEnterDungeon); остальные пещерные тайлы (базовая 31,
+      // в т.ч. buildingId null без каталога) — как раньше.
       let hint = t.building === G.BUILDING_TYPES.CAVE_ENTRANCE
+        && t.buildingId !== 48
         ? ' (вход — шагните)' : '';
-      // Городской тайл (000103/000105): building — NONE (у города нет
-      // map_index → buildingNameUi ''). Имя — из каталожной записи
-      // (000102): название_карты || название (тот же вывод, что
-      // заголовок города в makeCityState), регистр — конвенция
-      // buildingNameUi (первая буква в нижнем). Без ветки: строка
-      // «Здесь: » с пустым именем — видна после выхода из города,
-      // пока герой стоит на городском тайле (ревью 000105, раунд 1).
-      if (name === '' && t.buildingId != null) {
+      // Каталожная запись тайла: город (000103/000105 — building
+      // NONE, buildingNameUi '') И подтипы слотов 8..12 (000073 —
+      // building — обобщённое имя слота). Имя — из записи:
+      // название_карты || название (тот же вывод, что заголовок
+      // города в makeCityState), регистр — конвенция buildingNameUi
+      // (первая буква в нижнем). У базовых подтипов строки те же,
+      // что buildingNameUi(slot); у подтипов — своё имя (000073).
+      // Слоты 0..7 и без каталога — buildingId null, ветка не
+      // срабатывает (имя — имя слота, как до задачи).
+      if (t.buildingId != null) {
         const rec = G.getBuilding(t.buildingId);
-        if (rec && rec.категория === 'город') {
+        if (rec) {
           const raw = (rec.особые_параметры &&
             rec.особые_параметры.название_карты) || rec.название;
           if (typeof raw === 'string' && raw !== '') {
             name = raw.charAt(0).toLowerCase() + raw.slice(1);
-            hint = ' (вход — шагните)';
+            // Хинт «(вход — шагните)» — у города (000105); у
+            // слотовых — только пещера без подтипа-развалин (см.
+            // выше).
+            if (rec.категория === 'город') hint = ' (вход — шагните)';
           }
         }
       }
