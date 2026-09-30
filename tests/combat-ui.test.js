@@ -786,6 +786,11 @@ test('боевой UI: endTurn — _unitFx: сдвинулся = move, атак�
   // Лучник в трёх → дальний бой (2..4) — бьёт, не двигаясь.
   wolf.x = c.px + 2; wolf.y = c.py;
   archer.x = c.px + 3; archer.y = c.py;
+  // Задача 000050: сценарий проверяет FX-эвристику (move/attack-кадры
+  // по позиции/урону), а не навигацию — жадный stepToward волка не
+  // обходит камень на его пути (deadlock сценария, не карты; закреплено
+  // в анализе 000050) — препятствия сняты.
+  c.obstacles.clear();
   c._rng = () => 0.01; // все атаки мобов попадают: HP игрока падает
   const hpBefore = c.player.hp;
   press(keydown, 'Space');
@@ -820,4 +825,93 @@ test('боевой UI: endTurn — _unitFx: сдвинулся = move, атак�
   assert.equal(c.player.hp, hp2, 'промахи: HP не упало');
   assert.ok(!c._unitFx[archer.id],
     'промах в упор — без attack-FX (удар не нанесён)');
+});
+
+// --- Слой препятствий (задача 000050) ---
+//
+// z-порядок: фон → сетка (stroke) → препятствия → юниты → эффекты.
+// Сетка — единственные g2.stroke() в render (подсветка цели —
+// strokeRect), поэтому «последний stroke сетки» — последний 'stroke'.
+// Картинка — из spriteLoader КАЖДЫЙ render (паттерн фона 000049);
+// без лоадера/ассетов — фолбэк-квадрат fillRect(CELL-6) (42×42).
+// Спрайт — G.obstacleSprite(x, y) (sprites.js ДО combat-ui.js —
+// порядок закреплён tests/index-order.test.js; UMD «G снимается
+// один раз» — guard как у hpBarColor).
+
+test('боевой UI: препятствия — слой ПОСЛЕ сетки и ПЕРЕД юнитами (000050)', () => {
+  const { G, body } = loadCombatUi();
+  assert.equal(typeof G.obstacleSprite, 'function',
+    'в порядке index.html Game.obstacleSprite есть до combat-ui.js');
+  const fakeObs = { __fake: 'obs' }, fakeWolf = { __fake: 'wolf' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => {
+        if (p.startsWith('assets/combat/obstacles/')) return fakeObs;
+        if (p.startsWith('assets/sprites/mobs/wolf_')) return fakeWolf;
+        return null;
+      },
+    },
+  });
+  assert.ok(c.obstacles.size > 0, 'в бою есть препятствия');
+  const calls = findCanvas(body).drawCalls;
+  const strokes = calls.map((x, i) => (x[0] === 'stroke' ? i : -1))
+    .filter((i) => i >= 0);
+  assert.ok(strokes.length > 0, 'сетка нарисована (stroke)');
+  const lastGridStroke = strokes[strokes.length - 1];
+  const obsDraws = calls
+    .map((x, i) => (x[0] === 'drawImage' && x[1][0] === fakeObs ? i : -1))
+    .filter((i) => i >= 0);
+  assert.equal(obsDraws.length, c.obstacles.size,
+    'по одному drawImage на препятствие');
+  const iObs = obsDraws[0];
+  const iWolf = calls.findIndex((x) => x[0] === 'drawImage' && x[1][0] === fakeWolf);
+  assert.ok(iWolf >= 0, 'спрайт волка нарисован');
+  assert.ok(iObs > lastGridStroke,
+    `препятствия ПОСЛЕ последнего stroke сетки (${iObs} > ${lastGridStroke})`);
+  assert.ok(iObs < iWolf, `препятствия ПЕРЕД спрайтом юнита (${iObs} < ${iWolf})`);
+  // Позиция — на всю клетку: (x*CELL, y*CELL, CELL, CELL).
+  const firstObs = calls[iObs];
+  const k = c.obstacles.values().next().value; // Set: порядок вставки
+  const [ox, oy] = k.split(',').map(Number);
+  assert.equal(firstObs[1][1], ox * 48);
+  assert.equal(firstObs[1][2], oy * 48);
+  assert.equal(firstObs[1][3], 48);
+  assert.equal(firstObs[1][4], 48);
+});
+
+test('боевой UI: без лоадера — препятствия тёмным квадратом, drawImage нет (000050)', () => {
+  const { G, body } = loadCombatUi();
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c.obstacles.size > 0, 'в бою есть препятствия');
+  const calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((x) => x[0] === 'drawImage'),
+    'нет лоадера — drawImage не вызывается (ни фон, ни юниты, ни препятствия)');
+  // Фолбэк-квадрат: fillRect(CELL-6) = 42×42 — сигнатура отлична от
+  // моб-прямоугольника 32×32 и базовой заливки 336×336.
+  const fallbacks = calls.filter(
+    (x) => x[0] === 'fillRect' && x[1][2] === 42 && x[1][3] === 42);
+  assert.equal(fallbacks.length, c.obstacles.size,
+    'по одному фолбэк-квадрату на препятствие');
+  for (const [, a] of fallbacks) {
+    assert.equal(a[0] % 48, 3, 'квадрат с отступом 3px от края клетки');
+    assert.equal(a[1] % 48, 3, 'квадрат с отступом 3px от края клетки');
+  }
+});
+
+test('боевой UI: шаг в препятствие по клавише — «препятствие» в журнал, позиция не меняется (000050)', () => {
+  const { G, keydown } = loadCombatUi();
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  c.obstacles.clear();
+  c.obstacles.add(c.px + ',' + (c.py - 1)); // камень прямо перед героем
+  const x0 = c.px, y0 = c.py;
+  press(keydown, 'ArrowUp');
+  assert.ok(c.log.includes('препятствие'),
+    'reason отклонения шага в журнале: ' + JSON.stringify(c.log.slice(-3)));
+  assert.equal(c.px, x0, 'позиция не изменилась');
+  assert.equal(c.py, y0, 'позиция не изменилась');
 });
