@@ -463,3 +463,513 @@ test('vm: cities.js БЕЗ perlin.js — throw с явным сообщение�
   assert.match(String(err.message), /cities\.js/,
     'сообщение называет cities.js (паттерн гарда day.js)');
 });
+
+// ============================================================
+// Содержимое города (задача 000106) — generateCityContents
+// ============================================================
+//
+// generateCityContents(layout, cityX, cityY, cityRecord, wealth) →
+//   { buildings: [{ x, y, buildingId }], seed }
+//
+// Зафиксированные решения (memory/000106-city-contents.md):
+//  * CITY_CONTENT_CONST = 0x434f4e54 (ASCII «CONT») — НОВАЯ соль:
+//    seed = hash2(cityX, cityY, CITY_CONTENT_CONST) >>> 0 — от
+//    ПОЗИЦИИ якоря; wealth в сид НЕ входит (один якорь → один
+//    rng-поток на все wealth); totalXp — тоже нет (город статичен);
+//    seed ≠ layout.seed (у layout своя соль CITY_LAYOUT_CONST);
+//  * count = мин_постройки + wealth (без верхнего лимита —
+//    размещение ограничено местом); ассортимент — топ-(1+wealth)
+//    ключей доли_типов по (доля убыв, id растущ);
+//  * таверна (id 44) строится ПЕРВОЙ (count ≥ 1), остальные —
+//    взвешенный выбор по долям активных типов (1 rng-вызов на тип,
+//    кумулятивная сумма в порядке сортировки);
+//  * постройки 1x1 (ВСЕ внутренние, включая Арены id 7, 3x3 в
+//    каталоге — размер каталога внутри города НЕ уважается,
+//    решение, держать scope 000105/000107/000110); только FLOOR,
+//    НИЧЕГО на entrance/exit; паттерн takeSpot (src/dungeon.js):
+//    ≤200 случайных попыток из rng; КАЖДАЯ попытка проверяется
+//    4-направленным BFS от entrance (занятые клетки = стены):
+//    недостижимый FLOOR (включая exit) → отклонение; после 200
+//    провалов — детерминированный y→x скан (БЕЗ rng); валидных
+//    мест нет → GRACEFUL-стоп (buildings.length < count — норма,
+//    без throw и без зацикливания);
+//  * ДОСТИЖИМОСТЬ — СТРОГИЙ инвариант (функция обеспечивает);
+//    мин_постройки — best-effort: у деревни 4x4 при РАЗНЫХ
+//    колоннах входа/выхода максимум при сохранной достижимости
+//    = 1 < мин 2 (брутфорс-проверено; 2 из 4 классностей, ~50%
+//    якорей) — функция останавливается gracefully;
+//  * хутор (fp1): FLOOR только entrance/exit → spots пуст →
+//    buildings: [] при ЛЮБОМ wealth (мин_постройки = 0, 000102 —
+//    задокументированное исключение «таверна в каждом городе»);
+//  * pool/квоты — только из особых_параметры cityRecord
+//    (source of truth 000053): ключи доли_типов нормализуются
+//    Number(); города новых типов НЕ вводит (категория ≠ «город»).
+//
+// СТАНЦИЯ КРАСНЫХ ТЕСТОВ (TDD): до реализации падают на
+// «C.generateCityContents — function». GOLDEN: seed уже
+// зафиксирован формулой (0x434f4e54); литералы списков построек
+// пиннются ПОСЛЕ ПЕРВОГО ЗЕЛЁНОГО ПРОГОНА (null — плейсхолдер,
+// как в 000104): любое изменение порядка вызовов rng (таверна →
+// (тип, место)×N; 200 попыток; порядок y→x) ломает пины.
+
+const BUILDINGS_DIR = path.join(ROOT, 'assets', 'buildings');
+
+function catalogAll() {
+  return fs.readdirSync(BUILDINGS_DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .map((f) => JSON.parse(fs.readFileSync(path.join(BUILDINGS_DIR, f), 'utf8')));
+}
+const CATALOG_BY_ID = new Map(catalogAll().map((b) => [b.id, b]));
+const CITY_RECORDS = new Map(
+  catalogAll().filter((b) => b.категория === 'город')
+    .map((b) => [b.id, b]));
+
+const TAV_ID = 44; // Таверна — минимум 1 в каждом городе с внутренностями
+const WEALTHS = [0, 1, 2, 3];
+
+// Закреплённые якоря: реальные городские 000103 (tests/map.test.js).
+const C_ANCHORS = { 51: [-119, -104], 52: [-114, -119],
+  53: [100, -40], 54: [-37, 21] };
+// 4 классности деревни 4x4 — layout деревни определяется ТОЛЬКО
+// парой колонн (вход, выход) из {1,2}; закреплены якорями:
+// одинаковые колонны → 2 валидные клетки (минимум 2 выполним),
+// разные → 1 валидная (брутфорс; максимум 1 < мин 2).
+const V_CASES = [
+  { x: -400, y: -400, entrance: { x: 2, y: 3 }, exit: { x: 1, y: 0 } },
+  { x: -400, y: -399, entrance: { x: 1, y: 3 }, exit: { x: 1, y: 0 } },
+  { x: -400, y: -395, entrance: { x: 1, y: 3 }, exit: { x: 2, y: 0 } },
+  { x: -400, y: -391, entrance: { x: 2, y: 3 }, exit: { x: 2, y: 0 } },
+];
+
+function range2d(from, to) {
+  const out = [];
+  for (let x = from; x <= to; x++)
+    for (let y = from; y <= to; y++) out.push([x, y]);
+  return out;
+}
+// Детерминированные sweep-сетки якорей (без флейка: фикс. координаты).
+const V_SWEEP = range2d(-300, -289); // деревня: 144 якоря
+const T_SWEEP = range2d(-160, -151); // город: 100 якорей
+const S_SWEEP = range2d(-60, -47);   // столица: 196 якорей
+const V_ANCHORS = [C_ANCHORS[52], ...V_SWEEP,
+  ...V_CASES.map((v) => [v.x, v.y])];
+
+function genFor(C, id, x, y, wealth) {
+  const rec = CITY_RECORDS.get(id);
+  const L = C.createCityLayout(x, y, rec.размер.ширина);
+  return { res: C.generateCityContents(L, x, y, rec, wealth), L, rec };
+}
+
+/** Достигимость после размещения: клетки построек = стены; ВСЕ
+ *  оставшиеся FLOOR-клетки (включая entrance/exit) достижимы от
+ *  entrance 4-направленным BFS (D.reachableFrom — референс). */
+function floorReachOK(C, L, buildings) {
+  const cells = L.cells.slice();
+  for (const b of buildings) cells[b.y * L.width + b.x] = C.CELL_WALL;
+  const reach = D.reachableFrom(
+    { width: L.width, height: L.height, cells },
+    L.entrance.x, L.entrance.y);
+  for (let y = 0; y < L.height; y++)
+    for (let x = 0; x < L.width; x++)
+      if (cells[y * L.width + x] === C.CELL_FLOOR &&
+          !reach.has(x + ',' + y)) return false;
+  return true;
+}
+
+function typesOf(res) {
+  return [...new Set(res.buildings.map((b) => b.buildingId))]
+    .sort((a, b) => a - b);
+}
+
+// --- API, константа, сид ---
+
+test('000106 API: generateCityContents — функция (ровно 5 параметров), CITY_CONTENT_CONST — число', () => {
+  const C = loadCities();
+  assert.equal(typeof C.generateCityContents, 'function',
+    'generateCityContents(layout, cityX, cityY, cityRecord, wealth)');
+  assert.equal(C.generateCityContents.length, 5,
+    'ровно 5 параметров: totalXp-параметра НЕТ (город не меняется с опытом)');
+  assert.equal(typeof C.CITY_CONTENT_CONST, 'number',
+    'CITY_CONTENT_CONST — зафиксированная соль содержимого');
+});
+
+test('CITY_CONTENT_CONST: зафиксирован (0x434f4e54 «CONT»), новая соль — НЕ известные (аудит 000053)', () => {
+  const C = loadCities();
+  assert.equal(C.CITY_CONTENT_CONST, 0x434f4e54,
+    'golden-пин: смена = смена ВСЕХ городских содержимых');
+  const others = [
+    C.CITY_LAYOUT_CONST, M.GLOBAL_SEED, M.CITY_SEED_CONST,
+    0xd0d6b5e5, 0x5e11c3a7, 0x0c9f4b2d, 0x5e11, 0x7777,
+  ];
+  for (const s of others) assert.notEqual(C.CITY_CONTENT_CONST, s,
+    'коллизия солей с 0x' + s.toString(16));
+});
+
+test('seed содержимого = hash2(cityX, cityY, CITY_CONTENT_CONST) >>> 0; wealth в сид НЕ входит; ≠ layout.seed', () => {
+  const C = loadCities();
+  for (const [id, [x, y]] of Object.entries(C_ANCHORS)) {
+    const rec = CITY_RECORDS.get(id);
+    const L = C.createCityLayout(x, y, rec.размер.ширина);
+    let seed0 = null;
+    for (const w of WEALTHS) {
+      const res = C.generateCityContents(L, x, y, rec, w);
+      assert.equal(res.seed,
+        (P.hash2(x, y, C.CITY_CONTENT_CONST) >>> 0),
+        `тип ${id} (${x},${y}) w${w}: формула сида`);
+      if (seed0 === null) seed0 = res.seed;
+      assert.equal(res.seed, seed0,
+        `тип ${id} (${x},${y}): seed одинаков для всех wealth`);
+    }
+    assert.notEqual(seed0, L.seed,
+      `тип ${id} (${x},${y}): seed содержимого ≠ layout.seed`);
+  }
+});
+
+test('форма результата: ровно {buildings, seed}; building — ровно {x, y, buildingId}; plain (JSON-сериализуемо для сейва 000109)', () => {
+  const C = loadCities();
+  const { res } = genFor(C, 53, 100, -40, 1);
+  assert.deepEqual(Object.keys(res).sort(), ['buildings', 'seed'],
+    'ровно 2 поля (без Set/Map)');
+  assert.ok(Array.isArray(res.buildings), 'buildings — массив');
+  for (const b of res.buildings) {
+    assert.deepEqual(Object.keys(b).sort(), ['buildingId', 'x', 'y'],
+      'building — ровно {x, y, buildingId}');
+    assert.ok(Number.isInteger(b.x) && Number.isInteger(b.y));
+    assert.ok(Number.isInteger(b.buildingId));
+  }
+  assert.ok(Number.isInteger(res.seed) && res.seed >= 0 &&
+    res.seed < 2 ** 32, 'seed — unsigned 32-bit');
+  assert.deepEqual(JSON.parse(JSON.stringify(res)), res,
+    'plain-объекты — сериализуемо');
+});
+
+test('детерминизм: повторный вызов → идентичный результат (весь объект)', () => {
+  const C = loadCities();
+  for (const [id, w] of [[51, 0], [51, 3], [52, 2], [53, 3], [54, 1]]) {
+    const [x, y] = C_ANCHORS[id];
+    assert.deepEqual(genFor(C, id, x, y, w).res,
+      genFor(C, id, x, y, w).res, `тип ${id} (${x},${y}) w${w}`);
+  }
+});
+
+// --- GOLDEN: seed зафиксирован формулой (0x434f4e54, вычислен);
+// литералы списков построек пиннются ПОСЛЕ ПЕРВОГО ЗЕЛЁНОГО
+// ПРОГОНА (null — плейсхолдер; как в 000104).
+const GOLDEN_CONTENT = {
+  // «id,x,y,wealth» → { seed, buildings }
+  '51,-119,-104,0': { seed: 1811910784, buildings: [] },
+  '51,-119,-104,3': { seed: 1811910784, buildings: [] },
+  '52,-114,-119,0': { seed: 4224836588, buildings: null },
+  '52,-114,-119,2': { seed: 4224836588, buildings: null },
+  '52,-114,-119,3': { seed: 4224836588, buildings: null },
+  '53,100,-40,0':   { seed: 2930258412, buildings: null },
+  '53,100,-40,3':   { seed: 2930258412, buildings: null },
+  '54,-37,21,1':    { seed: 1979804739, buildings: null },
+};
+
+test('golden: фикс. (якорь, тип, wealth) → фикс. seed + список построек', () => {
+  const C = loadCities();
+  for (const [key, g] of Object.entries(GOLDEN_CONTENT)) {
+    const [id, x, y, w] = key.split(',').map(Number);
+    const { res } = genFor(C, id, x, y, w);
+    assert.equal(res.seed, g.seed, `golden ${key}: seed`);
+    if (g.buildings === null) continue; // пин — на зелёной стадии
+    assert.deepEqual(res.buildings, g.buildings,
+      `golden ${key}: buildings`);
+  }
+});
+
+// --- Каталог и pool ---
+
+test('ссылочная целостность: каждый buildingId ∈ каталогу assets/buildings и категория ≠ «город» (все 4 типа × wealth)', () => {
+  const C = loadCities();
+  for (const [id, [x, y]] of Object.entries(C_ANCHORS)) {
+    for (const w of WEALTHS) {
+      const { res } = genFor(C, id, x, y, w);
+      for (const b of res.buildings) {
+        assert.ok(CATALOG_BY_ID.has(b.buildingId),
+          `тип ${id} (${x},${y}) w${w}: id ${b.buildingId} нет в каталоге`);
+        assert.notEqual(CATALOG_BY_ID.get(b.buildingId).категория,
+          'город',
+          `тип ${id} (${x},${y}) w${w}: вложенный город id ${b.buildingId} недопустим`);
+      }
+    }
+  }
+});
+
+test('типы — только из доли_типов cityRecord (source of truth 000053; все 4 типа × wealth)', () => {
+  const C = loadCities();
+  for (const [id, [x, y]] of Object.entries(C_ANCHORS)) {
+    const rec = CITY_RECORDS.get(id);
+    const pool = new Set(
+      Object.keys(rec.особые_параметры.доли_типов).map(Number));
+    for (const w of WEALTHS) {
+      const { res } = genFor(C, id, x, y, w);
+      for (const b of res.buildings) {
+        assert.ok(pool.has(b.buildingId),
+          `тип ${id} (${x},${y}) w${w}: id ${b.buildingId} вне доли_типов`);
+      }
+    }
+  }
+});
+
+// --- Таверна и минимум ---
+
+test('таверна (44) — минимум 1: деревня/город/столица (все wealth + sweep); хутор — buildings: [] (дегенерат 000102)', () => {
+  const C = loadCities();
+  for (const [id, anchors] of Object.entries({
+    52: V_ANCHORS, 53: [C_ANCHORS[53], ...T_SWEEP],
+    54: [C_ANCHORS[54], ...S_SWEEP],
+  })) {
+    for (const [x, y] of anchors) {
+      for (const w of WEALTHS) {
+        const { res } = genFor(C, Number(id), x, y, w);
+        assert.ok(res.buildings.some((b) => b.buildingId === TAV_ID),
+          `тип ${id} (${x},${y}) w${w}: таверна обязательна (найм 000065/000078)`);
+      }
+    }
+  }
+  for (const [x, y] of [C_ANCHORS[51], [-118, 33]])
+    for (const w of WEALTHS) {
+      const { res } = genFor(C, 51, x, y, w);
+      assert.deepEqual(res.buildings, [],
+        `хутор (${x},${y}) w${w}: FLOOR только entrance/exit → пусто`);
+    }
+});
+
+test('минимум: город/столица — length ≥ мин_постройки (все wealth + sweep); деревня — ≥ 1 (таверна), (−114,−119) — ровно 2 (мин. выполнимо); graceful-стоп при разных колоннах', () => {
+  const C = loadCities();
+  for (const [id, sweep] of [[53, T_SWEEP], [54, S_SWEEP]]) {
+    const min = CITY_RECORDS.get(id).особые_параметры.мин_постройки;
+    for (const [x, y] of [[C_ANCHORS[id][0], C_ANCHORS[id][1]], ...sweep])
+      for (const w of WEALTHS) {
+        const { res } = genFor(C, id, x, y, w);
+        assert.ok(res.buildings.length >= min,
+          `тип ${id} (${x},${y}) w${w}: ${res.buildings.length} < ${min}`);
+      }
+  }
+  // Деревня: ≥ 1 ВСЕГДА (хотя бы таверна — есть валидное место);
+  // при РАЗНЫХ колоннах максимум = 1 < мин 2 → graceful-стоп,
+  // НЕ throw (приоритет: достижимость > минимум — 000106/memory).
+  for (const [x, y] of V_ANCHORS)
+    for (const w of WEALTHS) {
+      const { res } = genFor(C, 52, x, y, w);
+      assert.ok(res.buildings.length >= 1,
+        `деревня (${x},${y}) w${w}: ни одной постройки`);
+    }
+  // (−114,−119): одинаковые колонны → 2 валидные клетки = минимум 2
+  for (const w of WEALTHS) {
+    const { res } = genFor(C, 52, -114, -119, w);
+    assert.equal(res.buildings.length, 2,
+      `деревня (−114,−119) w${w}: минимум 2 выполнен (count = 2+wealth, мест 2)`);
+  }
+});
+
+test('graceful-стоп: мест не хватает → length < count БЕЗ throw; достижимость сохранена (синт. min=50 на деревне)', () => {
+  const C = loadCities();
+  const rec = {
+    id: 999, название: 'Тест', категория: 'город',
+    особые_параметры: { мин_постройки: 50,
+      доли_типов: { '44': 0.5, '1': 0.5 } },
+  };
+  const L = C.createCityLayout(-114, -119, 2); // 4 внутренние клетки, валидных 2
+  const res = C.generateCityContents(L, -114, -119, rec, 3); // count = 53
+  assert.ok(res.buildings.length >= 1, 'хотя бы таверна (места есть)');
+  assert.ok(res.buildings.length < 50,
+    'стоп, когда мест нет (не зациклился, не бросил)');
+  assert.ok(res.buildings.length <= 4, 'не больше внутренних FLOOR-клеток');
+  assert.ok(floorReachOK(C, L, res.buildings), 'достижимость сохранена');
+});
+
+// --- Гигиена и достижимость ---
+
+test('гигиена размещения: ничего на entrance/exit; координаты в пределах layout; клетки FLOOR; уникальны (1x1, без пересечений)', () => {
+  const C = loadCities();
+  for (const [id, [x, y]] of Object.entries(C_ANCHORS)) {
+    for (const w of WEALTHS) {
+      const { res, L } = genFor(C, id, x, y, w);
+      const keys = new Set();
+      for (const b of res.buildings) {
+        assert.ok(b.x >= 0 && b.x < L.width && b.y >= 0 && b.y < L.height,
+          `тип ${id} w${w}: (${b.x},${b.y}) вне layout`);
+        assert.ok(!(b.x === L.entrance.x && b.y === L.entrance.y),
+          `тип ${id} w${w}: постройка на entrance`);
+        assert.ok(!(b.x === L.exit.x && b.y === L.exit.y),
+          `тип ${id} w${w}: постройка на exit`);
+        assert.equal(L.cells[b.y * L.width + b.x], C.CELL_FLOOR,
+          `тип ${id} w${w}: постройка не на FLOOR`);
+        const k = b.x + ',' + b.y;
+        assert.ok(!keys.has(k), `тип ${id} w${w}: пересечение на (${k})`);
+        keys.add(k);
+      }
+    }
+  }
+});
+
+test('достижимость (СТРОГОЕ): после размещения ВСЕ незастроенные FLOOR достижимы от entrance (BFS 4 напр.), выход достижим — все 4 типа × wealth, sweep + 4 классности деревни', () => {
+  const C = loadCities();
+  const all = {
+    51: [C_ANCHORS[51], [-118, 33]],
+    52: V_ANCHORS,
+    53: [C_ANCHORS[53], ...T_SWEEP],
+    54: [C_ANCHORS[54], ...S_SWEEP],
+  };
+  for (const [id, anchors] of Object.entries(all)) {
+    for (const [x, y] of anchors) {
+      for (const w of WEALTHS) {
+        const { res, L } = genFor(C, Number(id), x, y, w);
+        assert.ok(floorReachOK(C, L, res.buildings),
+          `тип ${id} (${x},${y}) w${w}: замурованы FLOOR-клетки (или выход)`);
+      }
+    }
+  }
+});
+
+// --- Формула count/ассортимента ---
+
+test('ассортимент = топ-(1+wealth) по (доля убыв, id растущ): w0 → только топ-1 тип + таверна; Арена (7) — ВНЕ ассортимента столицы при ЛЮБОМ wealth (5-й по доле)', () => {
+  const C = loadCities();
+  // w0: город и столица → ровно {44, 25} (топ-1 — Дом кузнеца 25,
+  // доля 0.3; у столицы 1-й по (доля,id), у города тоже).
+  for (const [id, x, y] of [[53, 100, -40], [54, -37, 21]]) {
+    const { res } = genFor(C, id, x, y, 0);
+    assert.deepEqual(typesOf(res), [25, 44], `тип ${id} w0: ассортимент`);
+  }
+  // деревня w0: топ-1 — Оружейная 1 (доля 0.5, id 1 < 44) → ⊆ {1, 44}
+  for (const [x, y] of V_ANCHORS) {
+    const { res } = genFor(C, 52, x, y, 0);
+    for (const b of res.buildings)
+      assert.ok(b.buildingId === 1 || b.buildingId === TAV_ID,
+        `деревня (${x},${y}) w0: тип ${b.buildingId} вне {1, 44}`);
+  }
+  // деревня (−114,−119) w0: ровно {44, 1} (таверна + Оружейная)
+  assert.deepEqual(typesOf(genFor(C, 52, -114, -119, 0).res), [1, 44]);
+  // столица: 7 (Арена) — НИКОГДА: 5-й по (доля, id) — доля 0.15 =
+  // у 1, но id 7 > 1; топ-(1+wealth) ≤ топ-4 не доходит до него.
+  for (const [x, y] of [C_ANCHORS[54], ...S_SWEEP])
+    for (const w of WEALTHS) {
+      const { res } = genFor(C, 54, x, y, w);
+      for (const b of res.buildings)
+        assert.notEqual(b.buildingId, 7,
+          `столица (${x},${y}) w${w}: Арена вне ассортимента`);
+    }
+});
+
+test('доли в пределах допуска: столица w3, детерминированный сэмпл 196 якорей — эмпирическая частота каждого активного типа в ±0.15 (абс.) от нормализованной доли', () => {
+  const C = loadCities();
+  const total = {};
+  let n = 0;
+  for (const [x, y] of S_SWEEP) {
+    const { res } = genFor(C, 54, x, y, 3);
+    for (const b of res.buildings) {
+      total[b.buildingId] = (total[b.buildingId] || 0) + 1;
+      n++;
+    }
+  }
+  assert.equal(n, S_SWEEP.length * 9,
+    'каждая столица w3 дала 9 построек (count = 6+3, все поместились)');
+  // Активные типы w3: 25:0.3, 10:0.2, 44:0.2, 1:0.15 (сумма 0.85;
+  // таверна строится первой — смещение +11 п.п. на 44, в допуске).
+  const norm = { 25: 0.3 / 0.85, 10: 0.2 / 0.85,
+    44: 0.2 / 0.85, 1: 0.15 / 0.85 };
+  for (const [id, share] of Object.entries(norm)) {
+    const freq = (total[id] || 0) / n;
+    assert.ok(Math.abs(freq - share) <= 0.15,
+      `тип ${id}: частота ${(freq * 100).toFixed(1)}% вне допуска ±15 п.п. от ${(share * 100).toFixed(1)}%`);
+  }
+});
+
+test('wealth: город (100,−40) — (w0) ≠ (w3); count = мин_постройки + wealth: length(w0) = 4, length(w3) = 7', () => {
+  const C = loadCities();
+  const r0 = genFor(C, 53, 100, -40, 0).res;
+  const r3 = genFor(C, 53, 100, -40, 3).res;
+  assert.notDeepEqual(r0, r3, 'wealth меняет содержимое');
+  assert.equal(r0.buildings.length, 4, 'count w0 = 4+0');
+  assert.equal(r3.buildings.length, 7, 'count w3 = 4+3');
+});
+
+// --- Чистота ---
+
+test('layout НЕ мутируется: generateCityContents работает на своих копиях (000105 кеширует layout и переиспользует)', () => {
+  const C = loadCities();
+  const rec = CITY_RECORDS.get(53);
+  const L = C.createCityLayout(100, -40, 5);
+  const before = JSON.parse(JSON.stringify(L));
+  C.generateCityContents(L, 100, -40, rec, 3);
+  assert.deepEqual(L, before, 'layout после вызова deepEqual-равен до');
+});
+
+test('чистота: vm-песочница БЕЗ dungeon.js (цепочка perlin → cities) — generateCityContents работает, результат = node', () => {
+  const C = loadCities();
+  const perlinCode = fs.readFileSync(path.join(ROOT, 'src', 'perlin.js'), 'utf8');
+  const citiesCode = fs.readFileSync(CITIES_PATH, 'utf8');
+  const sandbox = { console: { warn() {}, error() {}, log() {} } };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  vm.runInContext(perlinCode, sandbox, { filename: 'perlin.js' });
+  vm.runInContext(citiesCode, sandbox, { filename: 'cities.js' });
+  const G = sandbox.Game;
+  assert.ok(G.Cities, 'браузерная ветка: Game.Cities');
+  assert.equal(typeof G.Cities.generateCityContents, 'function');
+  assert.equal(typeof G.Cities.CITY_CONTENT_CONST, 'number');
+  const L = G.Cities.createCityLayout(100, -40, 5);
+  const rec = JSON.parse(JSON.stringify(CITY_RECORDS.get(53)));
+  const resVm = G.Cities.generateCityContents(L, 100, -40, rec, 1);
+  const resNode = C.generateCityContents(
+    C.createCityLayout(100, -40, 5), 100, -40, CITY_RECORDS.get(53), 1);
+  // Строка JSON, а не deepEqual: объекты из vm — чужой realm.
+  assert.equal(JSON.stringify(resVm), JSON.stringify(resNode),
+    'vm и node — идентичный результат (golden-значения совпадают)');
+});
+
+// --- Валидация ---
+
+test('валидация: wealth — целое 0..3, иначе throw с явным сообщением', () => {
+  const C = loadCities();
+  const rec = CITY_RECORDS.get(53);
+  const L = C.createCityLayout(100, -40, 5);
+  for (const w of [-1, 4, 1.5, '2', null, undefined, NaN, true]) {
+    assert.throws(() => C.generateCityContents(L, 100, -40, rec, w),
+      /cities\.js/, `wealth=${String(w)} обязан бросать`);
+  }
+  for (const w of WEALTHS) C.generateCityContents(L, 100, -40, rec, w);
+});
+
+test('валидация: cityRecord — особые_параметры / мин_постройки (целое ≥ 0) / доли_типов (числовые ключи, доли > 0), иначе throw', () => {
+  const C = loadCities();
+  const L = C.createCityLayout(100, -40, 5);
+  const base = () => JSON.parse(JSON.stringify(CITY_RECORDS.get(53)));
+  const bad = [null];
+  const r1 = base(); delete r1.особые_параметры; bad.push(r1);
+  const r2 = base(); r2.особые_параметры = {}; bad.push(r2);
+  const r3 = base(); delete r3.особые_параметры.мин_постройки; bad.push(r3);
+  const r4 = base(); delete r4.особые_параметры.доли_типов; bad.push(r4);
+  for (const min of [-1, 1.5, '2', null]) {
+    const r = base();
+    r.особые_параметры.мин_постройки = min;
+    bad.push(r);
+  }
+  for (const доли of [{}, { '44': 0 }, { '44': -0.2 }, { '44': 'abc' },
+    { '44': null }, { abc: 0.5 }, 42]) {
+    const r = base();
+    r.особые_параметры.доли_типов = доли;
+    bad.push(r);
+  }
+  for (const r of bad) {
+    assert.throws(() => C.generateCityContents(L, 100, -40, r, 1),
+      /cities\.js/,
+      'невалидный cityRecord: ' + JSON.stringify(r && r.особые_параметры));
+  }
+});
+
+test('валидация: layout — width/height/cells/entrance/exit, иначе throw', () => {
+  const C = loadCities();
+  const rec = CITY_RECORDS.get(53);
+  const full = C.createCityLayout(100, -40, 5);
+  for (const field of ['width', 'height', 'cells', 'entrance', 'exit']) {
+    const broken = { ...full };
+    delete broken[field];
+    assert.throws(() => C.generateCityContents(broken, 100, -40, rec, 1),
+      /cities\.js/, `layout без ${field} обязан бросать`);
+  }
+});
