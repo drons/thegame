@@ -36,7 +36,7 @@ test('index.html: нужные модули подключены', () => {
     'src/global-settings.js', 'src/day.js', 'src/player.js',
     'src/items.js', 'src/controls.js', 'src/combat-keys.js',
     'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
-    'src/dungeon.js', 'src/dungeon-ui.js',
+    'src/dungeon.js', 'src/cities.js', 'src/dungeon-ui.js',
     'src/dungeons-data.js',
     'src/visuals-data.js',
     'src/motion.js',
@@ -560,4 +560,31 @@ test('порядок битый: craft.js без spells.js → Game.Craft нет
   assert.equal(sandbox.Game.Craft, undefined,
     'без spells.js Craft не создаётся');
   assert.ok(errors.length > 0, 'guard обязан оставить след в консоли');
+});
+
+// --- Задача 000104: layout города (src/cities.js) ---
+//
+// cities.js (браузерная ветка) при ЗАГРУЗКЕ снимает hash2/mulberry32
+// из Game (perlin.js) — UMD-ловушка (000018/000038): perlin.js обязан
+// идти раньше. Модуль вставляется сразу после dungeon.js и ДО
+// dungeon-ui.js/main.js: main.js снимает Game один раз при загрузке,
+// а 000105 (экранный) снимет Game.Cities — cities.js обязан быть
+// в Game раньше и тех, и другого. Без явного пина вставка может
+// сдвинуться при правке index.html.
+
+test('index.html: src/cities.js подключён; perlin.js → cities.js; dungeon.js → cities.js → dungeon-ui.js → main.js (задача 000104)', () => {
+  assert.notEqual(pos('src/cities.js'), -1,
+    'src/cities.js не подключён в index.html (задача 000104)');
+  assert.ok(pos('src/perlin.js') < pos('src/cities.js'),
+    'src/cities.js обязан быть позже src/perlin.js (браузерная ' +
+    'ветка снимает hash2 из Game; UMD-ловушка 000018/000038)');
+  assert.ok(pos('src/dungeon.js') < pos('src/cities.js'),
+    'src/cities.js обязан быть после src/dungeon.js ' +
+    '(слот сразу после dungeon.js)');
+  assert.ok(pos('src/cities.js') < pos('src/dungeon-ui.js'),
+    'src/cities.js обязан быть раньше src/dungeon-ui.js ' +
+    '(000105 снимет Game.Cities)');
+  assert.ok(pos('src/cities.js') < pos('src/main.js'),
+    'src/cities.js обязан быть раньше src/main.js ' +
+    '(main.js снимает Game один раз при загрузке)');
 });
