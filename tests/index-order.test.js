@@ -39,6 +39,8 @@ test('index.html: нужные модули подключены', () => {
     'src/dungeon.js', 'src/cities.js', 'src/dungeon-ui.js',
     'src/dungeons-data.js',
     'src/visuals-data.js',
+    'src/building-effects.js',
+    'src/building-ui.js',
     'src/motion.js',
     'src/main.js',
   ]) {
@@ -607,4 +609,71 @@ test('index.html: src/cities.js подключён; perlin.js → cities.js; dun
   assert.ok(pos('src/cities.js') < pos('src/main.js'),
     'src/cities.js обязан быть раньше src/main.js ' +
     '(main.js снимает Game один раз при загрузке)');
+});
+
+// --- Задача 000071: building-effects.js и building-ui.js ---
+//
+// main.js (IIFE) снимает const G = globalThis.Game ОДИН раз при загрузке
+// (UMD-ловушка 000038): ОБА новых модуля обязаны быть ДО src/main.js,
+// иначе G.buildingUI/G.buildingEffects — undefined всегда и [E] молча
+// деградирует к старому прямому npcUI. building-effects.js — после
+// buildings.js и npc.js (задача: «после buildings.js/npc.js, до
+// main.js»; принцип 000053 — каталожная часть цепочки); building-ui.js
+// — после ui.js (оверлей по образцу npcUI).
+
+test('index.html: building-effects.js подключён ПОСЛЕ buildings.js и npc.js и ДО main.js (задача 000071)', () => {
+  assert.notEqual(pos('src/building-effects.js'), -1,
+    'src/building-effects.js не подключён в index.html (задача 000071)');
+  assert.ok(pos('src/buildings.js') < pos('src/building-effects.js'),
+    'src/buildings.js должен быть раньше src/building-effects.js ' +
+      '(задача 000071)');
+  assert.ok(pos('src/npc.js') < pos('src/building-effects.js'),
+    'src/npc.js должен быть раньше src/building-effects.js ' +
+      '(задача 000071)');
+  assert.ok(pos('src/building-effects.js') < pos('src/main.js'),
+    'src/building-effects.js должен быть раньше src/main.js ' +
+      '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+test('index.html: building-ui.js подключён ПОСЛЕ ui.js и ДО main.js (задача 000071)', () => {
+  assert.notEqual(pos('src/building-ui.js'), -1,
+    'src/building-ui.js не подключён в index.html (задача 000071)');
+  assert.ok(pos('src/ui.js') < pos('src/building-ui.js'),
+    'src/ui.js должен быть раньше src/building-ui.js ' +
+      '(оверлей — по образцу npcUI из ui.js, задача 000071)');
+  assert.ok(pos('src/building-ui.js') < pos('src/main.js'),
+    'src/building-ui.js должен быть раньше src/main.js ' +
+      '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+test('порядок core → building-effects.js: Game.buildingEffects в браузерном realm, buildingActions работает (задача 000071)', () => {
+  // Полный «браузерный» путь: ядро из index.html + building-effects.js.
+  // Модуль обязан дать Game.buildingEffects БЕЗ require в момент
+  // загрузки (взаимных require НЕТ — прецедент 000053) и работать в
+  // чужом realm (UMD-проводка).
+  const modPath = path.join(ROOT, 'src', 'building-effects.js');
+  assert.ok(fs.existsSync(modPath),
+    'src/building-effects.js должен существовать (задача 000071)');
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of CORE_SCRIPTS.concat('src/building-effects.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  const BE = sandbox.Game.buildingEffects;
+  assert.ok(BE, 'Game.buildingEffects существует после правильного порядка');
+  for (const k of ['EFFECTS', 'buildingActions', 'effectIds', 'hasEffects',
+    'hasDailyLimit']) {
+    assert.ok(BE[k] !== undefined, 'Game.buildingEffects.' + k);
+  }
+  // Работоспособность в браузерном realm: NPC — только «Диалог».
+  const res = BE.buildingActions(
+    { id: 40, особые_параметры: {} },
+    { id: 'npc_x', имя: 'Тест' },
+    { day: 1, tile: { x: 0, y: 0 }, hero: {}, save: {} });
+  assert.equal(res.length, 1, 'без эффектов — только «Диалог»');
+  assert.equal(res[0].id, 'dialog');
+  assert.equal(res[0].имя, 'Диалог');
+  assert.equal(res[0].доступен, true);
 });
