@@ -238,6 +238,13 @@
 
   // Игровое время (SPEC.md «Игровое время», src/day.js).
   const clock = G.createClock();
+  // Журнал квестов (000100): read-only зеркало во вкладке «Квесты»
+  // панели персонажа. ВАЖНО: проводка ПОСЛЕ `const clock` (TDZ:
+  // clock.day читаем только здесь); NPCS/questBook объявлены выше.
+  // Журнал мутируется in place (restore) — re-wiring не нужен,
+  // панель перерисовывает render() в зоне восстановления сейва.
+  G.playerUI && G.playerUI.setQuests
+    && G.playerUI.setQuests({ npcs: NPCS, book: questBook, day: clock.day });
   // Побеждённые группы: 'x,y' → день поражения (респаун через respawn_days).
   const defeatedAt = new Map();
   // Состояние эффектов построек (задача 000072): «раз в день» по

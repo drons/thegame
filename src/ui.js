@@ -11,6 +11,13 @@
   let shop = null;      // текущий магазин (main.js передаёт стоящий тайл)
   let shopKey = '';
   let notice = null;
+  // Журнал квестов (000100): каталог, журнал и день проводки —
+  // вкладка «Квесты» — read-only зеркало (действия — только в диалоге
+  // NPC). day — снимок на момент проводки, в рендере не используется
+  // (спецификация задачи требует только текущие квесты).
+  let questNpcs = null;
+  let questBook = null;
+  let questDay = null;
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -28,6 +35,53 @@
     const td = el('td', 'cp-tipcell');
     td.appendChild(el('div', 'cp-tip', ''));
     return td;
+  }
+
+  // --- Строки активных квестов: ОДИН рендерер (000100) ---
+  // Общий источник строк «В работе» для диалога NPC (npcUI — с
+  // кнопкой «сдать») и панели персонажа (read-only — без кнопок):
+  // дублирование текстов запрещено (тексты — дословно как в npcUI).
+  // Порядок детей строки сохранён как в npcUI: name → [кнопка] → meta
+  // (DOM оверлея идентичен).
+  function buildActiveQuestRow(quest, instance, c, withTurninButton) {
+    const row = el('div', 'cp-itemrow');
+    row.appendChild(el('span', 'cp-itemname', quest.название));
+    const goal = quest.цель;
+    let meta;
+    if (goal.тип === 'kill_group') {
+      // Имя группы — из каталога (задача 000057); гард —
+      // UMD-ловушка «G снимается один раз».
+      meta = 'повержено ' + instance.progress + ' из ' + goal.количество +
+        ' — ' + ((G.mobGroupName && G.mobGroupName(goal.группа))
+          || 'группа ' + goal.группа);
+    } else {
+      const it = G.getItem(goal.предмет);
+      meta = 'предмет: ' + (it ? it.name : goal.предмет) + ' ×' +
+        goal.количество + ' (есть: ' + G.totalQty(c, goal.предмет) + ')';
+    }
+    if (instance.status === 'ready') {
+      meta += ' — готов к сдаче';
+      if (withTurninButton) {
+        const b = el('button', 'cp-btn', 'сдать');
+        b.dataset.npcact = 'turnin';
+        b.dataset.quest = instance.questId;
+        row.appendChild(b);
+      }
+    } else {
+      meta += ' — в работе';
+    }
+    row.appendChild(el('span', 'cp-itemmeta', meta));
+    return row;
+  }
+
+  // Квест по id по всему каталогу (журнал хранит только id) — общий
+  // для npcUI («Выполнено») и панели (000100).
+  function findQuestInCatalog(npcs, qid) {
+    for (const n of npcs) {
+      const q = (n.квесты || []).find((x) => x.id === qid);
+      if (q) return q;
+    }
+    return null;
   }
 
   // --- Data-driven ряды вкладок (000051, задача 000096) ---
@@ -154,10 +208,13 @@
       id: 'quests',
       label: 'Квесты',
       build(pane) {
-        // Placeholder: 000100 добавит сюда журнал квестов.
-        pane.appendChild(el('div', 'cp-section', 'Квесты'));
-        pane.appendChild(el('div', 'cp-itemmeta',
-          'квесты появятся позже (задача 000100)'));
+        // Журнал квестов (000100): read-only зеркало; render()
+        // обновляет тело in place (панель не пересобирает panes).
+        const questsSec = el('div', 'cp-section', 'Квесты');
+        const questsBody = el('div', 'cp-items');
+        questsSec.appendChild(questsBody);
+        pane.appendChild(questsSec);
+        panel._questsBody = questsBody;
       },
     },
   ];
@@ -485,6 +542,53 @@
     return lines.join('\n');
   }
 
+  // Вкладка «Квесты» (000100): read-only зеркало журнала.
+  // bring_item-квесты сверяем с инвентарем перед отрисовкой
+  // (refreshBringItems мутирует book — идемпотентно, тот же паттерн
+  // npcUI); записью в сейв из панели НЕ занимается (сейв — только
+  // main.js / диалог NPC при обычных сохранениях).
+  function renderQuestsPane(body) {
+    body.textContent = '';
+    if (!questBook) {
+      body.appendChild(el('div', 'cp-itemmeta',
+        'Журнал квестов недоступен.'));
+      return;
+    }
+    const c = character;
+    if (G.refreshBringItems && questNpcs) {
+      G.refreshBringItems(questNpcs, questBook, c);
+    }
+    const NPCS = questNpcs || [];
+
+    // «В работе» — общий рендерер строк (ОДИН источник с npcUI),
+    // read-only: кнопки «сдать» в панели нет.
+    const active = el('div', 'cp-section', 'В работе');
+    const actives = G.activeQuests(NPCS, questBook);
+    if (!actives.length) {
+      active.appendChild(el('div', 'cp-itemmeta', 'нет активных квестов'));
+    }
+    for (const { quest, instance } of actives) {
+      if (!quest) continue;
+      active.appendChild(buildActiveQuestRow(quest, instance, c, false));
+    }
+    body.appendChild(active);
+
+    // «Выполнено» — счётчик + краткий список названий (id вне
+    // каталога — голый id, фолбэк npcUI).
+    const done = el('div', 'cp-section', 'Выполнено');
+    if (!questBook.done.length) {
+      done.appendChild(el('div', 'cp-itemmeta', 'пока ничего'));
+    } else {
+      done.appendChild(el('div', 'cp-itemmeta',
+        'Выполнено: ' + questBook.done.length));
+      for (const qid of questBook.done) {
+        const q = findQuestInCatalog(NPCS, qid);
+        done.appendChild(el('div', 'cp-itemrow', q ? q.название : qid));
+      }
+    }
+    body.appendChild(done);
+  }
+
   function render() {
     if (!panel || !character) return;
     const c = character;
@@ -543,6 +647,12 @@
     });
 
     renderItems();
+
+    // «Квесты» (000100): тело обновляется каждым render — в том числе
+    // в СКРЫТОМ pane (иначе прогресс квестов просрочен после боя);
+    // активную вкладку переключение не сбрасывает (panes не
+    // пересобираются).
+    if (panel._questsBody) renderQuestsPane(panel._questsBody);
   }
 
   function isOpen() {
@@ -629,6 +739,17 @@
       shopKey = key;
       if (panel) render();
     },
+    // Журнал квестов (000100) — вкладка «Квесты» (read-only зеркало).
+    // o: { npcs — каталог NPC, book — журнал (G.createQuestBook())
+    // или null, day — день проводки (снимок) }. Порядок вызовов не
+    // важен: до построения панели — состояние хранится, первый
+    // render (toggle) нарисует; после — сеттер сам шлёт render().
+    setQuests(o) {
+      questNpcs = (o && o.npcs) || null;
+      questBook = (o && o.book) || null;
+      questDay = (o && o.day != null) ? o.day : null;
+      if (panel) render();
+    },
     toggle,
     render,
     isOpen,
@@ -662,13 +783,9 @@
     }
 
     // Квест по id по всему каталогу (для секции «Выполнено»: book.done
-    // хранит только id).
+    // хранит только id) — общий findQuestInCatalog (000100).
     function questById(qid) {
-      for (const n of npcs()) {
-        const q = (n.квесты || []).find((x) => x.id === qid);
-        if (q) return q;
-      }
-      return null;
+      return findQuestInCatalog(npcs(), qid);
     }
 
     // --- Вкладки ---
@@ -787,32 +904,9 @@
       if (!actives.length) active.appendChild(el('div', 'cp-itemmeta', 'нет активных квестов'));
       for (const { quest, instance } of actives) {
         if (!quest) continue;
-        const row = el('div', 'cp-itemrow');
-        row.appendChild(el('span', 'cp-itemname', quest.название));
-        const goal = quest.цель;
-        let meta;
-        if (goal.тип === 'kill_group') {
-          // Имя группы — из каталога (задача 000057); гард —
-          // UMD-ловушка «G снимается один раз».
-          meta = 'повержено ' + instance.progress + ' из ' + goal.количество +
-            ' — ' + ((G.mobGroupName && G.mobGroupName(goal.группа))
-              || 'группа ' + goal.группа);
-        } else {
-          const it = G.getItem(goal.предмет);
-          meta = 'предмет: ' + (it ? it.name : goal.предмет) + ' ×' +
-            goal.количество + ' (есть: ' + G.totalQty(c, goal.предмет) + ')';
-        }
-        if (instance.status === 'ready') {
-          meta += ' — готов к сдаче';
-          const b = el('button', 'cp-btn', 'сдать');
-          b.dataset.npcact = 'turnin';
-          b.dataset.quest = instance.questId;
-          row.appendChild(b);
-        } else {
-          meta += ' — в работе';
-        }
-        row.appendChild(el('span', 'cp-itemmeta', meta));
-        active.appendChild(row);
+        // ОДИН рендерер строк с панелью персонажа (000100): у диалога
+        // NPC — с кнопкой «сдать» (withTurninButton = true).
+        active.appendChild(buildActiveQuestRow(quest, instance, c, true));
       }
       body.appendChild(active);
 
