@@ -98,12 +98,16 @@
   // Вариант тайла города: чистая функция (count, x, y, seed) —
   // детерминированно по (x, y, layout.seed); hash2 — перlin.js
   // (в цепочке ДО dungeon-ui.js; читаем из живого Game в момент
-  // вызова — UMD-ловушка).
+  // вызова — UMD-ловушка). Фолбэк (perlin.js не в цепочке) тоже
+  // зависит от seed — соль та же, иначе разные города (разные
+  // layout.seed) окрасились бы ОДИНАКОВО (регрессия раунда-ревью
+  // 000105; тест «фолбэк без perlin», tests/dungeon-ui.test.js).
   function cityTileVariant(count, x, y, seed) {
     const live = liveGame();
+    const salt = (seed + CITY_TILE_SEED) >>> 0;
     const h = (typeof live.hash2 === 'function')
-      ? live.hash2(x, y, (seed + CITY_TILE_SEED) >>> 0) >>> 0
-      : ((x * 73856093) ^ (y * 19349663)) >>> 0;
+      ? live.hash2(x, y, salt) >>> 0
+      : (((x * 73856093) ^ (y * 19349663) ^ salt) >>> 0);
     return h % count;
   }
 

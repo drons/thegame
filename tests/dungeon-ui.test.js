@@ -223,7 +223,13 @@ function loadDungeonUi(opts = {}) {
     sandbox.cancelAnimationFrame = opts.cancelAnimationFrame;
   }
   vm.createContext(sandbox);
-  const chain = ['global-settings.js', 'perlin.js', 'map.js'];
+  const chain = ['global-settings.js'];
+  // withoutPerlin (000105, раунд-ревью): цепочка БЕЗ perlin.js —
+  // Game.hash2 отсутствует, рендер города обязан пройти
+  // fallback-ветку cityTileVariant (детерминированность по
+  // (x, y, seed) без perlin).
+  if (!opts.withoutPerlin) chain.push('perlin.js');
+  chain.push('map.js');
   if (!opts.withoutControls) chain.push('controls.js');
   if (opts.withCombat) {
     chain.push('skills-data.js', 'items-data.js', 'player.js', 'items.js',
@@ -2084,6 +2090,47 @@ test('город UI 000105: детерминированность тайлов 
   const mAs = cityCellColors(findCanvas(A.body).drawCalls, A.G, sA, 40, 5, 5);
   assert.notEqual(JSON.stringify(mAs), JSON.stringify(mB),
     'разные seed → раскраска хотя бы одной клетки различается');
+});
+
+test('город UI 000105 (фолбэк без perlin): без Game.hash2 вариант тайла всё равно функция (x, y, seed) — тот же layout, другой seed → раскраска различается', () => {
+  // perlin.js НЕ в цепочке — liveGame().hash2 нет → рендер города
+  // идёт по fallback-ветке cityTileVariant. Фолбэк обязан оставаться
+  // чистой функцией (x, y, seed) по КОНТРАКТУ: без seed-зависимости
+  // разные города (разные layout.seed) окрасились бы одинаково
+  // (регрессия раунда-ревью 000105). Изолируем seed: layout (cells)
+  // ОДИН, seed — РАЗНЫЙ (копия dg с подменённым seed).
+  const A = loadDungeonUi({ withoutPerlin: true,
+    performance: { now: () => 1000 } });
+  assert.equal(typeof A.G.hash2, 'undefined',
+    'предусловие: perlin.js не в цепочке — Game.hash2 нет (fallback)');
+  const sA = makeCityState({ fp: 5, cx: 100, cy: -40, name: 'Город' });
+  A.G.dungeonUI.start({ state: sA, onMove() {}, zoom: 40 });
+  const canvasA = findCanvas(A.body);
+  const n0 = canvasA.drawCalls.length;
+  A.G.dungeonUI.render(1000); // второй рендер того же города
+  const mFirst = cityCellColors(canvasA.drawCalls.slice(0, n0),
+    A.G, sA, 40, 5, 5);
+  const mSecond = cityCellColors(canvasA.drawCalls.slice(n0),
+    A.G, sA, 40, 5, 5);
+  assert.equal(JSON.stringify(mFirst), JSON.stringify(mSecond),
+    'фолбэк: два рендера одного города — идентичны (чистая функция)');
+  const B = loadDungeonUi({ withoutPerlin: true,
+    performance: { now: () => 1000 } });
+  assert.equal(typeof B.G.hash2, 'undefined',
+    'предусловие (B): Game.hash2 нет (fallback)');
+  // Тот же layout (те же cells/entrance/exit), ТОЛЬКО seed другой —
+  // переменная под тестом одна.
+  const sB = Object.assign({}, sA, {
+    dg: Object.assign({}, sA.dg, { seed: (sA.dg.seed ^ 0x12345678) >>> 0 }),
+  });
+  assert.deepEqual(sB.dg.cells, sA.dg.cells,
+    'предусловие: layout один (cells совпадают)');
+  assert.notEqual(sB.dg.seed, sA.dg.seed,
+    'предусловие: seed другой');
+  B.G.dungeonUI.start({ state: sB, onMove() {}, zoom: 40 });
+  const mB = cityCellColors(findCanvas(B.body).drawCalls, B.G, sB, 40, 5, 5);
+  assert.notEqual(JSON.stringify(mFirst), JSON.stringify(mB),
+    'фолбэк: seed НЕ игнорируется — раскраска различается');
 });
 
 test('город UI 000105 (регрессия маркеров): выход «X»/вход — те же маркеры, что подземелье', () => {
