@@ -595,7 +595,9 @@
   // buildingOncePerDay.set('x,y:effectId', clock.day) (только если
   // hasDailyLimit — хук 000092) + saveNow() СРАЗУ (не ждать
   // beforeunload — паттерн 000029/000072, прецедент _lastUnkillDay)
-  // + hudFlash(message).
+  // + hudFlash(message). При НЕ-ok: message (если есть) тоже в
+  // hudFlash — отказ apply не гаснет молча (ревью раунда 2);
+  // маркировки и saveNow НЕТ (эффект не сработал).
   function onBuildingAction(action, t, b, npc) {
     if (action.id === 'dialog') {
       if (npc) openNpcDialog(npc, t);
@@ -612,7 +614,17 @@
       // живых ссылок на состояние мира.
       save: collectSaveData(),
     });
-    if (!r || !r.ok) return;
+    if (!r || !r.ok) {
+      // Отказ apply: видимый отказ (message → hudFlash), без
+      // маркировки раз-в-день и saveNow — эффект не сработал
+      // (ревью раунда 2: до этого message неуспешного apply
+      // отбрасывался — нажатие умирало молча).
+      if (r && r.message) {
+        hudFlash = r.message;
+        hudFlashUntil = performance.now() + 5000;
+      }
+      return;
+    }
     if (BE.hasDailyLimit(b, action.id)) {
       buildingOncePerDay.set(
         player.x + ',' + player.y + ':' + action.id, clock.day);
@@ -718,8 +730,11 @@
     // return стоит ДО движения мира и прочих действий; KeyA в бою —
     // движение (как в мире), KeyE — «быстрый предмет» (toggleNpcDialog
     // выше сам гасится активным боем).
-    // Наблюдение (вне 000048): KeyI выше этого return — в бою Ш
-    // переключает панель персонажа поверх оверлея.
+    // Наблюдение (вне 000048; ревью 000071 раунд 2 — buildingUI):
+    // KeyI выше ВСЕХ гейтов — Ш переключает панель персонажа
+    // поверх ОТКРЫТОГО оверлея (боевого/подземелья/NPC/постройки).
+    // Поведение ДО 000071 (для combatUI задокументировано здесь),
+    // не регрессия; общий keydown — зона других задач.
     if (G.combatUI && G.combatUI.isActive()) return;
     if (G.dungeonUI && G.dungeonUI.isActive()) return;
     if (G.npcUI && G.npcUI.isActive()) return;

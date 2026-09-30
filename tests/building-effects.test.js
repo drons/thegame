@@ -8,8 +8,15 @@
 // memory/000071-building-ui.md; полный отчёт — tasks/result/000071.md
 // на стадии Finalize):
 //   * REЕСТР EFFECTS = {} (в этой задаче ПУСТ — подзадачи 000074+
-//     добавляют только СВОИ записи): id → { имя, разВДень?, apply(state)
-//     → { ok, message? } }.
+//     добавляют только СВОИ записи): id → { имя, разВДень?,
+//     available?(state), apply(state) → { ok, message? } }.
+//     available?(state) — НЕДНЕВНАЯ доступность (state — тот же
+//     СНИМОК { day, tile, hero, save }): истина (не строка) —
+//     доступно; false/null/undefined/'' — недоступно (reason
+//     «недоступно»); непустая строка — недоступно, строка — reason
+//     (пример: круг без пары «молчит»). buildingActions опрашивает
+//     available ДО лимита раз-в-день: недоступная строка disabled —
+//     нажатие не доходит до apply (ревью раунда 2: дыра контракта).
 //   * Чистая buildingActions(building, npc, state) →
 //     [{ id, имя, доступен, reason? }]: сначала «Диалог» (id 'dialog',
 //     имя 'Диалог'; если npc != null), затем эффекты.
@@ -44,7 +51,9 @@
 //   * apply(state) → { ok, message? }: при ok main.js ПРЯМО маркирует
 //     buildingOncePerDay.set('x,y:'+id, clock.day) (если hasDailyLimit)
 //     и вызывает saveNow() СРАЗУ (фиксатор прецедента _lastUnkillDay,
-//     000072) + hudFlash(message).
+//     000072) + hudFlash(message). При НЕ-ok: message (если есть)
+//     тоже в hudFlash — отказ не гаснет молча; маркировки раз-в-день
+//     и saveNow НЕТ (ревью раунда 2).
 //   * Оверлей блокирует движение (keydown-гейт, как npcUI); открытие
 //     боя поверх buildingUI — закрывает его (стек оверлеев, паттерн
 //     startCombat закрывает playerUI); при открытии buildingUI панель
@@ -354,6 +363,103 @@ test('A14. building-effects (UMD vm): грузится БЕЗ других мо�
       { day: 4, tile: { x: 5, y: 7 }, hero: {},
         save: { buildingOncePerDay: { '5,7:40': 3 } } });
     assert.equal(r2[0].доступен, true, 'fallback освобождает следующий');
+  } finally {
+    delete BE.EFFECTS['40'];
+  }
+});
+
+test('A15. available?(state): недневная доступность — reason по строке/false, истина — доступно (ревью раунда 2)', () => {
+  const BE = loadBE();
+  // available(state) — строка: недоступно, строка — reason.
+  BE.EFFECTS['40'] = {
+    имя: 'Тест',
+    available: (st) => (st.save && st.save.открыт ? true : 'тест: молчит'),
+  };
+  try {
+    const closed = BE.buildingActions(
+      { id: 40, особые_параметры: {} }, null,
+      makeState({ save: { открыт: false } }));
+    assert.equal(closed[0].доступен, false, 'available → строка: недоступно');
+    assert.equal(closed[0].reason, 'тест: молчит',
+      'reason — строка, возвращённая available');
+    const open = BE.buildingActions(
+      { id: 40, особые_параметры: {} }, null,
+      makeState({ save: { открыт: true } }));
+    assert.equal(open[0].доступен, true, 'available → true: доступно');
+    assert.equal(open[0].reason, undefined, 'без причины доступность');
+  } finally {
+    delete BE.EFFECTS['40'];
+  }
+  // false/null/'' — недоступно, reason «недоступно»; available нет —
+  // доступно (регрессия: прежние записи реестра без available).
+  BE.EFFECTS['41'] = { имя: 'Т', available: () => false };
+  BE.EFFECTS['42'] = { имя: 'Т', available: () => null };
+  BE.EFFECTS['43'] = { имя: 'Т', available: () => '' };
+  BE.EFFECTS['44'] = { имя: 'Т' };
+  try {
+    const st = makeState();
+    for (const id of ['41', '42', '43']) {
+      const r = BE.buildingActions(
+        { id: Number(id), особые_параметры: {} }, null, st);
+      assert.equal(r[0].доступен, false,
+        id + ': false/null/\'\' — недоступно');
+      assert.equal(r[0].reason, 'недоступно', id + ': reason по умолчанию');
+    }
+    const r44 = BE.buildingActions(
+      { id: 44, особые_параметры: {} }, null, st);
+    assert.equal(r44[0].доступен, true,
+      'без available — доступно (регрессия)');
+  } finally {
+    for (const id of ['41', '42', '43', '44']) delete BE.EFFECTS[id];
+  }
+});
+
+test('A16. available ПЕРВОЙ: недневная причина перебивает «уже использовано сегодня»; state не мутирован', () => {
+  const BE = loadBE();
+  BE.EFFECTS['40'] = {
+    имя: 'Тест',
+    available: () => 'тест: молчит',
+    apply: () => ({ ok: true }),
+  };
+  try {
+    const b = { id: 40, особые_параметры: { раз_в_день: true } };
+    const state = makeState({
+      day: 3, tile: { x: 5, y: 7 },
+      save: { buildingOncePerDay: { '5,7:40': 3 } },
+    });
+    const s0 = JSON.parse(JSON.stringify(state));
+    const r = BE.buildingActions(b, null, state);
+    assert.equal(r[0].доступен, false, 'недоступно по available');
+    assert.equal(r[0].reason, 'тест: молчит',
+      'reason available, а не лимитный «уже использовано сегодня»');
+    assert.deepEqual(state, s0, 'state (снимок) не мутирован');
+  } finally {
+    delete BE.EFFECTS['40'];
+  }
+});
+
+test('A17. building-effects (UMD vm): available?(state) работает в песочнице БЕЗ других модулей', () => {
+  const modPath = path.join(ROOT, 'src', 'building-effects.js');
+  const code = fs.readFileSync(modPath, 'utf8');
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  vm.runInContext(code, sandbox, { filename: 'building-effects.js' });
+  const BE = sandbox.Game.buildingEffects;
+  BE.EFFECTS['40'] = {
+    имя: 'Тест',
+    available: (st) => (st.day > 2 ? true : 'тест: ещё спит'),
+  };
+  try {
+    const r1 = BE.buildingActions(
+      { id: 40, особые_параметры: {} }, null,
+      { day: 1, tile: { x: 0, y: 0 }, hero: {}, save: {} });
+    assert.equal(r1[0].доступен, false, 'в чужом realm: недоступно');
+    assert.equal(r1[0].reason, 'тест: ещё спит');
+    const r2 = BE.buildingActions(
+      { id: 40, особые_параметры: {} }, null,
+      { day: 3, tile: { x: 0, y: 0 }, hero: {}, save: {} });
+    assert.equal(r2[0].доступен, true, 'в чужом realm: доступно');
   } finally {
     delete BE.EFFECTS['40'];
   }
@@ -1193,4 +1299,88 @@ test('B9. buildingUI: ↑↓ — курсор (wrap, пропускает нед
   key(h, 'Digit1');
   assert.deepEqual(calls, ['x3', 'x1'], '1..9 — прямое выполнение');
   assert.equal(bui.isActive(), false, 'после цифры оверлей закрыт');
+});
+
+test('B10. apply → НЕ-ok: message — в hudFlash (не гаснет молча), без маркировки раз-в-день (ревью раунда 2)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findBuilding(G, myMap, g.state.player, false);
+  assert.ok(found, 'сценарий: найдена достижимая постройка без NPC');
+  walkTo(h, found.steps);
+  const st = g.state;
+  const t = myMap.tileAt(st.player.x, st.player.y);
+  const b = G.buildingForMapIndex(t.building);
+  const fxId = String(b.id);
+  const applied = [];
+  G.buildingEffects.EFFECTS[fxId] = {
+    имя: 'Тест-отказ',
+    apply: (state) => {
+      applied.push(state);
+      return { ok: false, message: 'тест: эффект отказался' };
+    },
+  };
+  try {
+    const key1 = st.player.x + ',' + st.player.y + ':' + fxId;
+    key(h, 'KeyE');
+    assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+    key(h, 'Digit1');
+    assert.equal(applied.length, 1, 'apply вызвана');
+    assert.equal(G.buildingUI.isActive(), false, 'оверлей закрывается сам');
+    // Отказ ВИДЕН: message — в hudFlash (до ревью раунда 2 message
+    // неуспешного apply отбрасывался — нажатие умирало молча).
+    frameAt(h, NOW + 200);
+    assert.ok(String(h.hud.textContent).includes('тест: эффект отказался'),
+      'message неуспешного apply виден в HUD');
+    // Эффект не сработал — без маркировки раз-в-день (успешный apply
+    // по B3 помечал бы этот же ключ: hasDailyLimit для записи с
+    // apply — true).
+    const saveAfter = readSave(h);
+    const m = saveAfter.data.buildingOncePerDay;
+    assert.ok(m == null || m[key1] == null,
+      'неудавшееся действие НЕ маркируется раз-в-день');
+  } finally {
+    delete G.buildingEffects.EFFECTS[fxId];
+  }
+});
+
+test('B11. available?(state) end-to-end: строка disabled + reason, нажатие не доходит до apply (ревью раунда 2)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findBuilding(G, myMap, g.state.player, false);
+  assert.ok(found, 'сценарий: найдена достижимая постройка без NPC');
+  walkTo(h, found.steps);
+  const st = g.state;
+  const t = myMap.tileAt(st.player.x, st.player.y);
+  const b = G.buildingForMapIndex(t.building);
+  const fxId = String(b.id);
+  const applied = [];
+  G.buildingEffects.EFFECTS[fxId] = {
+    имя: 'Тест-молчит',
+    available: () => 'тест: круг молчит',
+    apply: () => {
+      applied.push(1);
+      return { ok: true, message: 'не должно выполниться' };
+    },
+  };
+  try {
+    key(h, 'KeyE');
+    assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+    const row = findRow(findOverlay(h), fxId);
+    assert.ok(row, 'строка действия в оверлее');
+    assert.equal(row.disabled, true,
+      'недневная недоступность — строка disabled (не «доступно»)');
+    assert.ok(textOf(row).includes('тест: круг молчит'),
+      'reason available виден в строке');
+    key(h, 'Digit1');
+    assert.equal(applied.length, 0, 'недоступное действие НЕ вызывает apply');
+    assert.equal(G.buildingUI.isActive(), true, 'оверлей остаётся открытым');
+    key(h, 'Escape');
+    assert.equal(G.buildingUI.isActive(), false);
+  } finally {
+    delete G.buildingEffects.EFFECTS[fxId];
+  }
 });

@@ -12,6 +12,15 @@
 //     000074–000077/000091–000095 добавляют только СВОИ записи):
 //     id → { имя, разВДень?, available?(state),
 //     apply?(state) → { ok, message? } }.
+//     available?(state) — НЕДНЕВНАЯ доступность (state — тот же
+//     СНИМОК { day, tile, hero, save }): истина (не строка) —
+//     доступно; false/null/undefined/'' — недоступно (reason
+//     «недоступно»); непустая строка — недоступно, строка — reason
+//     (пример: телепорт-круг без пары — «молчит»). buildingActions
+//     опрашивает available ДО проверки лимита раз-в-день:
+//     недоступная строка — disabled, нажатие не доходит до apply
+//     (ревью раунда 2: дыра контракта — available задокументирован,
+//     но никогда не опрашивался).
 //   * Чистая buildingActions(building, npc, state) →
 //     [{ id, имя, доступен, reason? }]: сначала «Диалог» (id 'dialog',
 //     имя 'Диалог'; если npc != null), затем эффекты (порядок каталога).
@@ -115,10 +124,29 @@
     return lastUsedDay !== day;
   }
 
+  // available?(state) — недневная доступность (контракт шапки,
+  // зафиксирован тестами A15/A16/A17). Возвращает undefined, если
+  // действие ДОСТУПНО, и строку-reason, если НЕТ:
+  //   истина (не строка: true, 1, объект) — доступно;
+  //   false / null / undefined / '' — недоступно, reason «недоступно»;
+  //   непустая строка — недоступно, reason = эта строка (пример:
+  //   телепорт-круг без пары — «круг молчит»).
+  // st — тот же СНИМОК { day, tile, hero, save }; строка
+  // buildingActions снимок не мутирует (available — код записи).
+  function unavailableReason(entry, st) {
+    if (typeof entry.available !== 'function') return undefined;
+    const res = entry.available(st);
+    if (typeof res === 'string') return res === '' ? 'недоступно' : res;
+    return res ? undefined : 'недоступно';
+  }
+
   /**
    * Список действий на тайле постройки (чистая, без DOM):
    * [{ id, имя, доступен, reason? }]. Порядок: сначала «Диалог»
    * (id 'dialog', если npc != null), затем эффекты (порядок каталога).
+   * Доступность эффекта: СНАЧАЛА available?(state) (недневная), затем
+   * лимит раз-в-день; reason — причина недоступности (виден в
+   * оверлее; строка disabled — нажатие не доходит до apply).
    * building/npc/state (снимок сейва) не мутируются.
    * @param {object} building запись каталога (id, особые_параметры)
    * @param {object|null} npc запись каталога NPC (или null)
@@ -135,15 +163,24 @@
     for (const id of effectIds(building)) {
       const entry = EFFECTS[id];
       const action = { id, имя: entry.имя, доступен: true };
-      if (hasDailyLimit(building, id)) {
+      // Недневная доступность — ПЕРВОЙ: если эффект в принципе
+      // недоступен (круг без пары «молчит»), лимитный reason не
+      // важен (ревью раунда 2: дыра контракта — available не
+      // опрашивался, оверлей показывал действие доступным, а
+      // нажатие умирало молча).
+      let reason = unavailableReason(entry, st);
+      if (reason === undefined && hasDailyLimit(building, id)) {
         // Ключ 'x,y:effectId' — конвенция 000072 (целые координаты,
         // могут быть отрицательными; effectId — без ':'/',').
         const key = tile.x + ',' + tile.y + ':' + id;
         const last = readOncePerDay(st.save, key);
         if (!canUseTodayLazy(last, st.day)) {
-          action.доступен = false;
-          action.reason = 'уже использовано сегодня';
+          reason = 'уже использовано сегодня';
         }
+      }
+      if (reason !== undefined) {
+        action.доступен = false;
+        action.reason = reason;
       }
       out.push(action);
     }

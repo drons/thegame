@@ -179,7 +179,7 @@
 
   function buildDom(o) {
     closeDom(); // повторное открытие — разбирать прежний оверлей
-    overlay = el('div', 'combat-overlay building-overlay');
+    overlay = el('div', 'combat-overlay');
     const side = el('div', 'combat-side');
 
     const title = el('div', 'cp-title');
@@ -194,10 +194,10 @@
     const list = el('div', 'cp-items');
     rows = [];
     actions.forEach((a, i) => {
-      const row = el('button', 'cp-btn building-action');
+      const row = el('button', 'cp-btn');
       row.setAttribute('data-buid', String(a.id));
       row.disabled = !a.доступен;
-      row.appendChild(el('span', 'building-action-num', String(i + 1)));
+      row.appendChild(el('span', '', String(i + 1)));
       const nameSpan = el('span', 'cp-itemname');
       row.appendChild(nameSpan);
       if (a.reason) {
