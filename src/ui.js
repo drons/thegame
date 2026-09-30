@@ -19,6 +19,17 @@
     return n;
   }
 
+  // --- Тултипы (000097): носитель для строк навыков ---
+  // Отдельная ПУСТАЯ ячейка в конце <tr>: render() каждый раз
+  // переписывает textContent .cp-name/.cp-level/.cp-req, а запись
+  // textContent в существующем td убрала бы дочерний узел .cp-tip.
+  // Текст наполняется в render() в узел .cp-tip (один текст-нод).
+  function skillTipCell() {
+    const td = el('td', 'cp-tipcell');
+    td.appendChild(el('div', 'cp-tip', ''));
+    return td;
+  }
+
   // --- Data-driven ряды вкладок (000051, задача 000096) ---
   // Новая вкладка = новая запись { id, label, build(pane) } в массиве
   // столбца: 000098 (форма настроек), 000100 (журнал квестов),
@@ -54,6 +65,7 @@
           const btn = el('button', 'cp-btn', '+');
           btn.dataset.skill = p.id;
           tr.appendChild(btn);
+          tr.appendChild(skillTipCell()); // 000097: тултип строки
           primTable.appendChild(tr);
         }
         primaries.appendChild(primTable);
@@ -73,6 +85,7 @@
             const btn = el('button', 'cp-btn', '+');
             btn.dataset.skill = id;
             tr.appendChild(btn);
+            tr.appendChild(skillTipCell()); // 000097: тултип строки
             table.appendChild(tr);
           }
           section.appendChild(table);
@@ -213,6 +226,10 @@
     // Один обработчик кликов на всю панель: вкладки + прокачка +
     // предметы/торговля. Ветка вкладок ПЕРВАЯ: вкладка — .cp-tab
     // (не .cp-btn), в item/skill-обработчик попасть не должна.
+    // Ветка КНОПОК (.cp-btn) — без изменений (контракт ui-skills);
+    // ПОСЛЕ неё — ветка СТРОК (000097): клик/тап по не-кнопочной
+    // части строки навыка/предмета — полное описание (.cp-tip) в
+    // .cp-notice (touch-fallback: hover на таче нет).
     panel.addEventListener('click', (e) => {
       const tab = e.target.closest('.cp-tab');
       if (tab) {
@@ -220,25 +237,37 @@
         return;
       }
       const btn = e.target.closest('.cp-btn');
-      if (!btn || !character) return;
-      if (btn.dataset.act) {
-        doItemAction(btn);
+      if (btn) {
+        if (!character) return;
+        if (btn.dataset.act) {
+          doItemAction(btn);
+          render();
+          return;
+        }
+        const r = G.raiseSkill(character, btn.dataset.skill);
         render();
+        if (!r.ok) {
+          // Краткая обратная связь: причина неудачи в .cp-req на 1.5 с.
+          // Пишется ПОСЛЕ render(), чтобы вспышка была видна; а через 1.5 с
+          // снова render() — вернёт постоянный текст ячейки (пометка потолка
+          // практикой / требование), а не зальёт её пустой строкой.
+          const tr = btn.closest('tr');
+          const req = tr.querySelector('.cp-req');
+          if (req) {
+            req.textContent = r.reason;
+            setTimeout(render, 1500);
+          }
+        }
         return;
       }
-      const r = G.raiseSkill(character, btn.dataset.skill);
-      render();
-      if (!r.ok) {
-        // Краткая обратная связь: причина неудачи в .cp-req на 1.5 с.
-        // Пишется ПОСЛЕ render(), чтобы вспышка была видна; а через 1.5 с
-        // снова render() — вернёт постоянный текст ячейки (пометка потолка
-        // практикой / требование), а не зальёт её пустой строкой.
-        const tr = btn.closest('tr');
-        const req = tr.querySelector('.cp-req');
-        if (req) {
-          req.textContent = r.reason;
-          setTimeout(render, 1500);
-        }
+      // Строка (не кнопка): .cp-itemrow (предмет) или tr (навык).
+      // Строки магазина .cp-tip НЕ имеют — клик по ним ничего не
+      // делает (магазин — зона 000101).
+      if (!character) return;
+      const owner = e.target.closest('.cp-itemrow') || e.target.closest('tr');
+      if (owner) {
+        const tip = owner.querySelector('.cp-tip');
+        if (tip && tip.textContent) flashNotice(tip.textContent);
       }
     });
 
@@ -284,8 +313,11 @@
     return r;
   }
 
-  // Строка предмета в секциях панели.
-  function itemRow(name, meta, buttons) {
+  // Строка предмета в секциях панели. tip (000097) — АДДИТИВНЫЙ
+  // 4-й аргумент: текст тултипа заполненной строки (снаряжение/
+  // быстрые/инвентарь); пустые строки и строки магазина (зона
+  // 000101) его не получают.
+  function itemRow(name, meta, buttons, tip) {
     const div = el('div', 'cp-itemrow');
     div.appendChild(el('span', 'cp-itemname', name));
     if (meta) div.appendChild(el('span', 'cp-itemmeta', meta));
@@ -295,6 +327,7 @@
       for (const [k, v] of Object.entries(data)) b.dataset[k] = v;
       div.appendChild(b);
     }
+    if (tip != null) div.appendChild(el('div', 'cp-tip', tip));
     return div;
   }
 
@@ -308,15 +341,19 @@
     const eq = c.equipment || { weapon: null, armor: null };
     panel._equipBody.textContent = '';
     const wep = eq.weapon ? G.getItem(eq.weapon) : null;
+    // Тултипы (000097) — только у ЗАПОЛНЕННЫХ строк; пустые
+    // («— без оружия —» и т.п.) их не получают.
     panel._equipBody.appendChild(itemRow(
       wep ? wep.name : '— без оружия —',
       wep ? 'урон ' + wep.stats.damage : '',
-      wep ? [['снять', 'unequip', { equipslot: 'weapon' }]] : []));
+      wep ? [['снять', 'unequip', { equipslot: 'weapon' }]] : [],
+      wep ? itemTipText(wep) : null));
     const arm = eq.armor ? G.getItem(eq.armor) : null;
     panel._equipBody.appendChild(itemRow(
       arm ? arm.name : '— без брони —',
       arm ? 'броня +' + arm.stats.armor : '',
-      arm ? [['снять', 'unequip', { equipslot: 'armor' }]] : []));
+      arm ? [['снять', 'unequip', { equipslot: 'armor' }]] : [],
+      arm ? itemTipText(arm) : null));
 
     // Быстрые слоты.
     panel._quickBody.textContent = '';
@@ -326,7 +363,8 @@
       panel._quickBody.appendChild(itemRow(
         'Слот ' + (i + 1) + ': ' + (q ? q.name : '— пусто —'),
         '',
-        q ? [['убрать', 'quick-clear', { slot: i }]] : []));
+        q ? [['убрать', 'quick-clear', { slot: i }]] : [],
+        q ? itemTipText(q) : null));
     }
 
     // Инвентарь.
@@ -350,7 +388,8 @@
       panel._invBody.appendChild(itemRow(
         it.name + (e.qty > 1 ? ' ×' + e.qty : ''),
         (it.weight * e.qty).toFixed(1) + ' кг, ' + it.value + ' з',
-        btns));
+        btns,
+        itemTipText(it)));
     }
 
     // Торговля (видна, когда герой стоит у магазина).
@@ -392,6 +431,58 @@
       ? G.PRIMARY_SKILLS.find((p) => p.id === id).name
       : (G.SECONDARY_SKILLS[id] || { name: id }).name;
     return `${name} ${s.requires.level}`;
+  }
+
+  // --- Тултипы (000097): текст — ТОЛЬКО из каталогов ---
+  // Строки склеиваются '\n' — ОДИН текст-нод (в DOM-стабе textContent
+  // детей не учитывает; в браузере — white-space: pre-line).
+
+  // Строка навыка: основное — desc + «В бою»/«В мире» + «Требование:
+  // —»; вторичное — desc + эффект (как в каталоге) + текущий титул
+  // (names[] — вычисляется в render(), не в build) + требование
+  // (тот же текст, что в .cp-req, иначе «—»).
+  function skillTipText(id, c) {
+    const p = G.PRIMARY_SKILLS.find((x) => x.id === id);
+    if (p) {
+      return [p.desc,
+        'В бою: ' + p.combat,
+        'В мире: ' + p.world,
+        'Требование: —'].join('\n');
+    }
+    const s = G.SECONDARY_SKILLS[id];
+    if (!s) return '';
+    const lvl = (c.secondary && c.secondary[id]) || 0;
+    // lvl = 0 — базовое имя (rankOf(0) дал бы последний ранг —
+    // артефакт player.js; ранговую логику не дублируем).
+    const title = lvl > 0 ? G.secondaryName(id, lvl) : s.name;
+    return [s.desc,
+      'Эффект: ' + s.effectType + ' (' + s.effect.stat + ' ' +
+        s.effect.perLevel + ' за уровень)',
+      'Уровень: ' + title,
+      'Требование: ' + (requiresText(s) || '—')].join('\n');
+  }
+
+  // Строка предмета: desc + строка kind (статы оружия/брони или эффект
+  // расходника; у реагента эффекта в каталоге нет — строки нет) +
+  // вес + цена.
+  function itemTipText(it) {
+    const lines = [it.desc];
+    if (it.kind === 'weapon') {
+      lines.push('Урон: ' + it.stats.damage);
+    } else if (it.kind === 'armor') {
+      lines.push('Броня: ' + it.stats.armor);
+    } else if (it.effect) {
+      if (it.effect.kind === 'heal') lines.push('Эффект: +' + it.effect.amount + ' HP');
+      else if (it.effect.kind === 'mp') lines.push('Эффект: +' + it.effect.amount + ' MP');
+      else if (it.effect.kind === 'eat') lines.push('Эффект: +' + it.effect.amount + ' HP');
+      else if (it.effect.kind === 'skill_xp') {
+        const sk = G.SECONDARY_SKILLS[it.effect.skill] || { name: it.effect.skill };
+        lines.push('Эффект: +' + it.effect.amount + ' опыта («' + sk.name + '»)');
+      }
+    }
+    lines.push('Вес: ' + it.weight + ' кг');
+    lines.push('Цена: ' + it.value + ' з');
+    return lines.join('\n');
   }
 
   function render() {
@@ -443,6 +534,12 @@
         }
         btn.disabled = !G.canRaise(c, skill).ok;
       }
+      // Тултип (000097): пересчёт в том же узле — у вторичных титул
+      // зависит от уровня (меняется после прокачки); у основных текст
+      // статичен, пересчёт безвреден. Вспышка reason (выше, по кнопке)
+      // пишется ТОЛЬКО в .cp-req — в .cp-tip не попадает.
+      const tip = tr.querySelector('.cp-tip');
+      if (tip) tip.textContent = skillTipText(skill, c);
     });
 
     renderItems();

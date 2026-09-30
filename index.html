@@ -109,6 +109,43 @@
       background: #2c3040; color: #e8dcc0; cursor: pointer;
     }
     .cp-btn:disabled { opacity: 0.3; cursor: default; }
+    /* Тултипы навыков/предметов (задача 000097): .cp-tip — скрыт по
+       умолчанию, показ ЧИСТЫМ CSS по :hover / :focus-within владельца
+       (строка навыка — td.cp-tipcell, строка предмета — .cp-itemrow).
+       Скоуп position:relative под .char-panel ОБЯЗАТЕЛЕН: npcUI
+       переиспользует .cp-itemrow (оверлей NPC) — попадать туда не
+       должно. z-index 11 — внутри stacking-контекста .char-panel
+       (z-10, fixed); лестница 5/10/15/20 — в root-контексте. */
+    .char-panel .cp-tipcell { position: relative; width: 1px; padding: 0; }
+    .char-panel .cp-itemrow { position: relative; }
+    .cp-tip {
+      position: absolute;
+      z-index: 11;
+      bottom: calc(100% + 4px);
+      min-width: 180px;
+      max-width: 300px;
+      padding: 6px 8px;
+      background: rgba(10, 12, 16, 0.97);
+      border: 1px solid #6b6248;
+      border-radius: 6px;
+      color: #e8dcc0;
+      font-size: 11px;
+      line-height: 1.4;
+      white-space: pre-line;
+      overflow-wrap: break-word;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+    }
+    .char-panel .cp-tipcell .cp-tip { right: 0; }
+    .char-panel .cp-itemrow > .cp-tip { left: 0; }
+    .char-panel .cp-itemrow:hover > .cp-tip,
+    .char-panel .cp-itemrow:focus-within > .cp-tip,
+    .char-panel tr:hover .cp-tip,
+    .char-panel tr:focus-within .cp-tip {
+      opacity: 1;
+      visibility: visible;
+    }
     /* Кнопка полноэкранного режима (задача 000017): правый нижний угол,
        под оверлеями боя/подземелья (z-index 20). */
     .fs-btn {
