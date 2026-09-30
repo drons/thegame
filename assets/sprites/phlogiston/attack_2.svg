@@ -110,9 +110,9 @@
       <path d="M51.52 36.91 L52.41 37.09 M51.79 36.13 L53.09 36.25 M51.67 35.32 L52.57 35.3" stroke="#d99b72" stroke-width="0.5" fill="none"/>
     <g transform="translate(52.05 14.4) rotate(3.92)">
       <circle cx="0" cy="-2.4" r="6.3" fill="url(#glowG)"/>
-      <path d="M-1.5 -11.2 L-3 -12.6" stroke="#ffe9a8" stroke-width="0.7" stroke-linecap="round" fill="none"/>
-      <path d="M1.5 -11.2 L3 -12.6" stroke="#ffe9a8" stroke-width="0.7" stroke-linecap="round" fill="none"/>
-      <path d="M0 -11.4 L0 -12.4" stroke="#ffe9a8" stroke-width="0.7" stroke-linecap="round" fill="none"/>
+      <path d="M-1.5 -11.2 L-3 -12.0" stroke="#ffe9a8" stroke-width="0.7" stroke-linecap="round" fill="none"/>
+      <path d="M1.5 -11.2 L3 -12.0" stroke="#ffe9a8" stroke-width="0.7" stroke-linecap="round" fill="none"/>
+      <path d="M0 -11.4 L0 -11.8" stroke="#ffe9a8" stroke-width="0.7" stroke-linecap="round" fill="none"/>
       <path d="M-3.4 -9.6 L-5.2 -10.8" stroke="#ffe9a8" stroke-width="0.7" stroke-linecap="round" fill="none"/>
       <path d="M3.4 -9.6 L5.2 -10.8" stroke="#ffe9a8" stroke-width="0.7" stroke-linecap="round" fill="none"/>
       <path d="M0 0 C-2.6 -3.2 -2.2 -7.2 0 -10.4 C2.2 -7.2 2.6 -3.2 0 0 Z" fill="url(#flameG)"/>

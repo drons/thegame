@@ -1566,6 +1566,256 @@ test('16 персонажных SVG (8 героя + 8 Эфира): формат 
   }
 });
 
+// --- Геометрия героя: все элементы 8 кадров строго в канвасе 64×64 ---
+//
+// Правка по итогам ревью (раунд 1): кончики трёх искровых лучей
+// attack_2 (stroke 0.7, round caps) после стека <g transform>
+// (внешний rotate(±5) + внутренняя группа пламени translate/rotate)
+// С учётом stroke-объёма выходили НАД верхним краем канваса на
+// 0.09–0.34 px (глобальные y = -0.086 / -0.258 / -0.343). Лучи
+// укорочены (кончики в локальных координатах группы пламени
+// -12.6/-12.4 → -12.0/-11.8); тест закрепляет, что ни один элемент
+// героя не вылезает за канвас.
+// Кадры Эфира сознательно НЕ покрываются: они несут предсуществующие
+// в master элементы за краем канваса (efir/attack_2.svg — дуга
+// удара-плети до x=64.5; efir/cast_2.svg — круг (32,7) r=6.5 до
+// y=-0.10), а byte-идентичность master — контракт (дух-арт не
+// трогаем; SVG viewport их режет, как и в master).
+//
+// Чекер: аффинный стек (translate/rotate/scale групп <g> и элемента),
+// path-токенизатор M/L/H/V/C/S/Q/T/A/Z (включая относительные); кривые
+// — бокс контрольных точек (переоценка), дуги — диск радиуса 2r вокруг
+// конца (переоценка); stroke — расширение на stroke-width/2 (точно:
+// трансформы — повороты+сдвиги, round cap — полудиск вокруг конца).
+// Well-formedness/схему не повторяем — территория tests/svg.test.js
+// (000120).
+
+const HERO_AFFINE = (() => {
+  const ID = [1, 0, 0, 1, 0, 0];
+  const mul = (A, B) => [ // A ∘ B: сначала B, потом A
+    A[0] * B[0] + A[2] * B[1], A[1] * B[0] + A[3] * B[1],
+    A[0] * B[2] + A[2] * B[3], A[1] * B[2] + A[3] * B[3],
+    A[0] * B[4] + A[2] * B[5] + A[4],
+    A[1] * B[4] + A[3] * B[5] + A[5],
+  ];
+  const tr = (x, y) => [1, 0, 0, 1, x, y];
+  const rot = (deg) => {
+    const r = deg * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
+    return [c, s, -s, c, 0, 0];
+  };
+  const apply = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+  const parseTransform = (str) => {
+    let m = ID;
+    const re = /(\w+)\s*\(([^)]*)\)/g;
+    let mm;
+    while ((mm = re.exec(str))) {
+      const args = mm[2].trim().split(/[\s,]+/).map(Number);
+      let f;
+      if (mm[1] === 'translate') f = tr(args[0] || 0, args[1] || 0);
+      else if (mm[1] === 'rotate') f = args.length >= 3
+        ? mul(mul(tr(args[1], args[2]), rot(args[0])), tr(-args[1], -args[2]))
+        : rot(args[0] || 0);
+      else if (mm[1] === 'scale') {
+        const sx = args[0] || 1, sy = args.length > 1 ? args[1] : sx;
+        f = [sx, 0, 0, sy, 0, 0];
+      } else throw new Error('неподдерживаемый transform: ' + mm[1]);
+      m = mul(m, f); // слева-направо в атрибуте: левый применяется ПОСЛЕДНИМ
+    }
+    return m;
+  };
+  const NUM = /-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?/g;
+  const STEP = { M: 2, L: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, T: 2, A: 7, Z: 0 };
+  // локальный бокс path d: [minX minY maxX maxY]
+  const pathBBox = (d) => {
+    const segs = [];
+    const re = /([MmLlHhVvCcSsQqTtAaZz])([^MmLlHhVvCcSsQqTtAaZz]*)/g;
+    let m;
+    while ((m = re.exec(d))) {
+      const cmd = m[1], C = cmd.toUpperCase();
+      const nums = (m[2].match(NUM) || []).map(Number);
+      const step = STEP[C];
+      if (C === 'Z') { segs.push({ cmd, nums: [] }); continue; }
+      for (let i = 0; i + step <= nums.length; i += step) {
+        segs.push({ cmd, nums: nums.slice(i, i + step) });
+      }
+    }
+    let bb = null;
+    const add = (x, y) => {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        throw new Error('неконечная координата в path-боксе: ' + d);
+      }
+      if (bb === null) bb = [x, y, x, y];
+      else {
+        bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y);
+        bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y);
+      }
+    };
+    let cur = [0, 0], start = [0, 0];
+    for (const { cmd, nums: it } of segs) {
+      const rel = cmd === cmd.toLowerCase();
+      const C = cmd.toUpperCase();
+      if (bb !== null) add(cur[0], cur[1]); // начало сегмента (путь уже начался)
+      if (C === 'M') { cur = rel ? [cur[0] + it[0], cur[1] + it[1]] : [it[0], it[1]]; start = [cur[0], cur[1]]; }
+      else if (C === 'L') { cur = rel ? [cur[0] + it[0], cur[1] + it[1]] : [it[0], it[1]]; }
+      else if (C === 'H') { cur = [rel ? cur[0] + it[0] : it[0], cur[1]]; }
+      else if (C === 'V') { cur = [cur[0], rel ? cur[1] + it[0] : it[0]]; }
+      else if (C === 'C') {
+        const c1 = rel ? [cur[0] + it[0], cur[1] + it[1]] : [it[0], it[1]];
+        const c2 = rel ? [cur[0] + it[2], cur[1] + it[3]] : [it[2], it[3]];
+        cur = rel ? [cur[0] + it[4], cur[1] + it[5]] : [it[4], it[5]];
+        add(c1[0], c1[1]); add(c2[0], c2[1]);
+      } else if (C === 'S') {
+        const c2 = rel ? [cur[0] + it[0], cur[1] + it[1]] : [it[0], it[1]];
+        cur = rel ? [cur[0] + it[2], cur[1] + it[3]] : [it[2], it[3]];
+        add(c2[0], c2[1]);
+      } else if (C === 'Q') {
+        const c1 = rel ? [cur[0] + it[0], cur[1] + it[1]] : [it[0], it[1]];
+        cur = rel ? [cur[0] + it[2], cur[1] + it[3]] : [it[2], it[3]];
+        add(c1[0], c1[1]);
+      } else if (C === 'T') { cur = rel ? [cur[0] + it[0], cur[1] + it[1]] : [it[0], it[1]]; }
+      else if (C === 'A') {
+        cur = rel ? [cur[0] + it[5], cur[1] + it[6]] : [it[5], it[6]];
+        const r = 2 * Math.max(it[0], it[1]);
+        add(cur[0] - r, cur[1] - r); add(cur[0] + r, cur[1] + r);
+      } else if (C === 'Z') { cur = [start[0], start[1]]; }
+      add(cur[0], cur[1]);
+    }
+    if (bb === null) bb = [0, 0, 0, 0];
+    return bb;
+  };
+  const shapeBBox = (tag, attrs, d) => {
+    const num = (n, dv = 0) => { const v = attrs[n]; return (v === undefined || v === '') ? dv : Number(v); };
+    let bb = null;
+    const add = (x, y) => {
+      if (bb === null) bb = [x, y, x, y];
+      else {
+        bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], y);
+        bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], y);
+      }
+    };
+    const addRect = (x, y, w, h) => { add(x, y); add(x + w, y); add(x, y + h); add(x + w, y + h); };
+    switch (tag) {
+      case 'circle': addRect(num('cx') - num('r'), num('cy') - num('r'), 2 * num('r'), 2 * num('r')); break;
+      case 'ellipse': addRect(num('cx') - num('rx'), num('cy') - num('ry'), 2 * num('rx'), 2 * num('ry')); break;
+      case 'rect': addRect(num('x'), num('y'), num('width'), num('height')); break;
+      case 'line': add(num('x1'), num('y1')); add(num('x2'), num('y2')); break;
+      case 'polygon':
+      case 'polyline': {
+        const pts = (attrs.points || '').trim().split(/[\s,]+/).map(Number);
+        for (let i = 0; i + 1 < pts.length; i += 2) add(pts[i], pts[i + 1]);
+        break;
+      }
+      case 'path': return pathBBox(d);
+      default: return null;
+    }
+    return bb;
+  };
+  const frameIssues = (text) => {
+    const tags = [];
+    let i = 0;
+    while (i < text.length) {
+      const lt = text.indexOf('<', i);
+      if (lt === -1) break;
+      if (text.startsWith('<!--', lt)) {
+        const e = text.indexOf('-->', lt + 4);
+        i = e === -1 ? text.length : e + 3;
+        continue;
+      }
+      let j = lt + 1;
+      let quote = null;
+      while (j < text.length) {
+        const ch = text[j];
+        if (quote) { if (ch === quote) quote = null; }
+        else if (ch === '"' || ch === "'") quote = ch;
+        else if (ch === '>') break;
+        j += 1;
+      }
+      if (j >= text.length) break;
+      tags.push(text.slice(lt, j + 1));
+      i = j + 1;
+    }
+    const DRAW = new Set(['path', 'circle', 'ellipse', 'rect', 'line', 'polygon', 'polyline']);
+    const SKIP = new Set(['svg', 'defs', 'title', 'desc', 'metadata', 'style']);
+    const stack = [ID];
+    const issues = [];
+    for (const t of tags) {
+      const nameM = t.match(/^<\/?\s*([a-zA-Z][\w.:-]*)/);
+      if (!nameM) continue;
+      const name = nameM[1].toLowerCase();
+      const selfClose = /\/\s*>$/.test(t);
+      if (t.startsWith('</')) { stack.pop(); continue; }
+      if (SKIP.has(name)) { if (!selfClose) stack.push(stack[stack.length - 1]); continue; }
+      const attrs = {};
+      for (const a of t.matchAll(/([a-zA-Z_][\w.:-]*)\s*=\s*"([^"]*)"/g)) attrs[a[1]] = a[2];
+      let m = stack[stack.length - 1];
+      if (attrs.transform) m = mul(m, parseTransform(attrs.transform));
+      if (DRAW.has(name)) {
+        const bb = shapeBBox(name, attrs, attrs.d || '');
+        if (bb) {
+          const stroked = attrs.stroke !== undefined && attrs.stroke !== 'none' && attrs.stroke !== '';
+          const e = stroked ? (attrs['stroke-width'] !== undefined ? Number(attrs['stroke-width']) : 1) / 2 : 0;
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          for (const [x, y] of [[bb[0] - e, bb[1] - e], [bb[2] + e, bb[1] - e], [bb[0] - e, bb[3] + e], [bb[2] + e, bb[3] + e]]) {
+            const g = apply(m, x, y);
+            minX = Math.min(minX, g[0]); minY = Math.min(minY, g[1]);
+            maxX = Math.max(maxX, g[0]); maxY = Math.max(maxY, g[1]);
+          }
+          if (minX < 0 || minY < 0 || maxX > 64 || maxY > 64) {
+            issues.push(`${name} x[${minX.toFixed(3)};${maxX.toFixed(3)}] y[${minY.toFixed(3)};${maxY.toFixed(3)}]`);
+          }
+        }
+      }
+      if (!selfClose) stack.push(m);
+    }
+    return issues;
+  };
+  return { apply, mul, parseTransform, frameIssues };
+})();
+
+test('чекер аффинных трансформаций: самопроверка (состав = поинтовому преобразованию)', () => {
+  const { apply, mul, parseTransform } = HERO_AFFINE;
+  const closePt = (p, ex, ey, msg) => {
+    assert.ok(Math.abs(p[0] - ex) < 1e-9 && Math.abs(p[1] - ey) < 1e-9,
+      `${msg}: (${p[0]},${p[1]}) ≠ (${ex},${ey})`);
+  };
+  closePt(apply(parseTransform('rotate(90)'), 1, 0), 0, 1, 'rotate(90)');
+  closePt(apply(parseTransform('rotate(90 1 0)'), 2, 0), 1, 1, 'rotate с pivot');
+  closePt(apply(parseTransform('translate(10 0) scale(2)'), 1, 0), 12, 0,
+    'порядок в атрибуте: левый — последний');
+  // полная цепочка attack_2 (внешний rotate(-5 32 46) translate(1.2 0),
+  // группа пламени translate(52.05 14.4) rotate(3.92)) vs независимое
+  // последовательное преобразование точки — ловит ошибку порядка составa
+  const R = (deg) => (p) => {
+    const r = deg * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
+    return [c * p[0] - s * p[1], s * p[0] + c * p[1]];
+  };
+  const T = (x, y) => (p) => [p[0] + x, p[1] + y];
+  const RP = (deg, cx, cy) => (p) => {
+    const q = R(deg)([p[0] - cx, p[1] - cy]);
+    return [q[0] + cx, q[1] + cy];
+  };
+  const chain = (p) => RP(-5, 32, 46)(T(1.2, 0)(T(52.05, 14.4)(R(3.92)(p))));
+  const m = mul(
+    mul(parseTransform('rotate(-5 32 46)'), parseTransform('translate(1.2 0)')),
+    mul(parseTransform('translate(52.05 14.4)'), parseTransform('rotate(3.92)')));
+  for (const p of [[-3, -12.6], [3, -12.6], [0, -12.4], [0, -10.4], [0, 0]]) {
+    const [gx, gy] = apply(m, p[0], p[1]);
+    const [ix, iy] = chain(p);
+    assert.ok(Math.abs(gx - ix) < 1e-9 && Math.abs(gy - iy) < 1e-9,
+      `состав трансформов для (${p[0]},${p[1]}): ${gx},${gy} ≠ ${ix},${iy}`);
+  }
+});
+
+test('герой: все элементы 8 кадров строго в канвасе 64×64 (аффинный чекер, с учётом stroke)', () => {
+  for (const a of EFIR_ACTIONS) {
+    for (const n of [1, 2]) {
+      const rel = `assets/sprites/phlogiston/${a}_${n}.svg`;
+      const issues = HERO_AFFINE.frameIssues(svgText(rel));
+      assert.deepEqual(issues, [], rel + ': ' + issues.join('; '));
+    }
+  }
+});
+
 // --- Различие кадров действия (защита от «дубля-кадра») ---
 //
 // Два кадра действия различаются позами/энергией (MOBS.md), а не общим

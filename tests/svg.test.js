@@ -439,6 +439,8 @@ const EXPECTED_SVG_BY_DIR = {
   'sprites/buildings': 13,
   'sprites/mobs': 192,
   'sprites/phlogiston': 8,
+  'sprites/efir': 8,                  // дух Эфир (задача 000034: прежние
+                                      // кадры героя перенесены сюда)
   'sprites/visuals': 13,
   logo: 1,                            // assets/logo.svg
 };
