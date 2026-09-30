@@ -575,36 +575,147 @@
   const keys = new Set();
   const moveKey = (e) => G.moveKeyForEvent(e);
 
-  // Действие [E] (задача 000010): диалог NPC / повторное нажатие —
-  // закрыть. Вызывается и с клавиатуры, и с on-screen-кнопки «E»
-  // тач-варианта контролов (задача 000018).
+  // Диалог NPC (задача 000010): ТЕ ЖЕ параметры, что и до 000071.
+  function openNpcDialog(npc, t) {
+    G.npcUI.open({
+      npc,
+      character: hero,
+      book: questBook,
+      tile: { x: player.x, y: player.y,
+        building: t.building, buildingWealth: t.buildingWealth },
+      // Сток общий на сессию + сейв при изменениях (000029).
+      shop: npcShopFor(npc.id),
+      onChange: saveNow,
+      day: clock.day,
+    });
+  }
+
+  // Действие эффекта из оверлея (задача 000071): «Диалог» — npcUI;
+  // эффект — entry.apply(state) → при ok: маркировка раз-в-день
+  // buildingOncePerDay.set('x,y:effectId', clock.day) (только если
+  // hasDailyLimit — хук 000092) + saveNow() СРАЗУ (не ждать
+  // beforeunload — паттерн 000029/000072, прецедент _lastUnkillDay)
+  // + hudFlash(message). При НЕ-ok: message (если есть) тоже в
+  // hudFlash — отказ apply не гаснет молча (ревью раунда 2);
+  // маркировки и saveNow НЕТ (эффект не сработал).
+  function onBuildingAction(action, t, b, npc) {
+    // Реестр эффектов — ПЕРВЫМИ (ревью раунда 3): запись
+    // EFFECTS['dialog'] (если появится в каталоге) не должна
+    // затеняться спецкейсом ниже. 'dialog' — fallback: NPC-диалог.
+    const BE = G.buildingEffects;
+    const entry = BE && BE.EFFECTS ? BE.EFFECTS[action.id] : null;
+    if (entry && typeof entry.apply === 'function') {
+      const r = entry.apply({
+        day: clock.day,
+        tile: { x: player.x, y: player.y },
+        hero,
+        // СНИМОК сейва (обычный объект, 000072): эффект не получает
+        // живых ссылок на состояние мира.
+        save: collectSaveData(),
+      });
+      if (!r || !r.ok) {
+        // Отказ apply: видимый отказ (message → hudFlash), без
+        // маркировки раз-в-день и saveNow — эффект не сработал
+        // (ревью раунда 2: до этого message неуспешного apply
+        // отбрасывался — нажатие умирало молча).
+        if (r && r.message) {
+          hudFlash = r.message;
+          hudFlashUntil = performance.now() + 5000;
+        }
+        return;
+      }
+      if (BE.hasDailyLimit(b, action.id)) {
+        buildingOncePerDay.set(
+          player.x + ',' + player.y + ':' + action.id, clock.day);
+      }
+      saveNow();
+      if (r.message) {
+        hudFlash = r.message;
+        hudFlashUntil = performance.now() + 5000;
+      }
+      G.playerUI && G.playerUI.render();
+      return;
+    }
+    if (action.id === 'dialog') {
+      if (npc) openNpcDialog(npc, t);
+      return;
+    }
+  }
+
+  // Открыть оверлей «действия постройки» (задача 000071): список —
+  // buildingActions (чистый модуль, src/building-effects.js). Пустой
+  // список (нет NPC и нет эффектов) — ничего (как сейчас).
+  function openBuildingUI(t, b, npc) {
+    if (!G.buildingEffects) return false;
+    const actions = G.buildingEffects.buildingActions(b, npc, {
+      day: clock.day,
+      tile: { x: player.x, y: player.y },
+      hero,
+      save: collectSaveData(),
+    });
+    if (!actions.length) return false;
+    G.buildingUI.open({
+      title: G.buildingNameUi ? G.buildingNameUi(t.building) : 'Постройка',
+      actions,
+      onAction: (a) => onBuildingAction(a, t, b, npc),
+    });
+    return true;
+  }
+
+  // Действие [E] (задача 000010, задача 000071 — ЕДИНЫЙ путь): роутинг
+  // [E] на тайле постройки → оверлей Game.buildingUI (список действий:
+  // «Диалог», если у постройки NPC, + эффекты каталога). Повторный
+  // [E] — закрыть оверлей. Постройка с NPC и БЕЗ эффектов — тоже
+  // оверлей из одного пункта «Диалог» (НЕ прямой npcUI — 000076/000107;
+  // Digit1 открывает диалог). Вызывается и с клавиатуры, и с
+  // on-screen-кнопки «E» тач-варианта (задача 000018) — семантика
+  // кнопки «действие на тайле» совпадает автоматически.
   function toggleNpcDialog() {
     if (!G.npcUI) return;
     if (G.combatUI && G.combatUI.isActive()) return;
     if (G.dungeonUI && G.dungeonUI.isActive()) return;
+    if (G.buildingUI) {
+      // Повторный [E] — закрыть оверлей действий.
+      if (G.buildingUI.isActive()) {
+        G.buildingUI.close();
+        return;
+      }
+      // Открыт диалог NPC (после «Диалог» из оверлея): повторный [E]
+      // закрывает диалог — поведение master (до 000071 проверка
+      // npcUI.isActive() шла ПЕРВОЙ в toggleNpcDialog). Без неё
+      // buildingUI открывался СВЕРХУ открытого npcUI — оба оверлея
+      // активны одновременно (регрессия, тест B4).
+      if (G.npcUI.isActive()) {
+        G.npcUI.close();
+        return;
+      }
+      if (map) {
+        const t = map.tileAt(player.x, player.y);
+        if (t.hasBuilding) {
+          const b = G.buildingForMapIndex(t.building);
+          if (b) {
+            const npc = G.npcForBuilding(NPCS, b.id);
+            openBuildingUI(t, b, npc);
+          }
+        }
+      }
+      return;
+    }
+    // G.buildingUI отсутствует (регрессия порядка загрузки — паттерн
+    // 000018/000038): console.error + деградация к старому прямому
+    // npcUI — игра не ломается, ошибка заметна в консоли.
+    console.error('main.js: [E], но Game.buildingUI отсутствует — ' +
+      'src/building-ui.js обязан грузиться ДО src/main.js');
     if (G.npcUI.isActive()) { // повторно — закрыть диалог
       G.npcUI.close();
       return;
     }
-    // На тайле постройки с NPC — открываем диалог.
     if (map) {
       const t = map.tileAt(player.x, player.y);
       if (t.hasBuilding) {
         const b = G.buildingForMapIndex(t.building);
         const npc = b && G.npcForBuilding(NPCS, b.id);
-        if (npc) {
-          G.npcUI.open({
-            npc,
-            character: hero,
-            book: questBook,
-            tile: { x: player.x, y: player.y,
-              building: t.building, buildingWealth: t.buildingWealth },
-            // Сток общий на сессию + сейв при изменениях (000029).
-            shop: npcShopFor(npc.id),
-            onChange: saveNow,
-            day: clock.day,
-          });
-        }
+        if (npc) openNpcDialog(npc, t);
       }
     }
   }
@@ -624,11 +735,17 @@
     // return стоит ДО движения мира и прочих действий; KeyA в бою —
     // движение (как в мире), KeyE — «быстрый предмет» (toggleNpcDialog
     // выше сам гасится активным боем).
-    // Наблюдение (вне 000048): KeyI выше этого return — в бою Ш
-    // переключает панель персонажа поверх оверлея.
+    // Наблюдение (вне 000048; ревью 000071 раунд 2 — buildingUI):
+    // KeyI выше ВСЕХ гейтов — Ш переключает панель персонажа
+    // поверх ОТКРЫТОГО оверлея (боевого/подземелья/NPC/постройки).
+    // Поведение ДО 000071 (для combatUI задокументировано здесь),
+    // не регрессия; общий keydown — зона других задач.
     if (G.combatUI && G.combatUI.isActive()) return;
     if (G.dungeonUI && G.dungeonUI.isActive()) return;
     if (G.npcUI && G.npcUI.isActive()) return;
+    if (G.buildingUI && G.buildingUI.isActive()) return; // 000071:
+    // движение заблокировано, пока открыт оверлей действий постройки
+    // (как npcUI).
     const k = moveKey(e);
     if (k) {
       keys.add(k);
@@ -715,6 +832,9 @@
     // KeyI в бою по-прежнему переключает (коммент ниже), но это осознанный
     // выбор игрока, а не случайное состояние.
     if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
+    // Оверлей действий постройки (000071) под боевым оверлеем —
+    // закрываем (тот же стек, паттерн 000096).
+    if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
     const t = map.tileAt(player.x, player.y);
     if (!t.hasMobGroup) return;
     const key = player.x + ',' + player.y;
@@ -836,6 +956,7 @@
     // То же, что и в мире (000096): панель не должна накрывать
     // подземелье после боя.
     if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
+    if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close(); // 000071
     G.combatUI.startCombat({
       hero,
       // Фон поля боя по типу подземелья (задача 000049): тайла мира в
@@ -1180,13 +1301,22 @@
     // NPC постройки текущего тайла (задача 000010) — подсказка [E].
     const bHere = t.hasBuilding ? G.buildingForMapIndex(t.building) : null;
     const npcHere = bHere && G.npcForBuilding ? G.npcForBuilding(NPCS, bHere.id) : null;
+    // Эффекты постройки (задача 000071): ПОДСКАЗКА «[E] действия» —
+    // только когда NPC НЕТ (NPC без эффектов — ТЕКУЩИЙ текст,
+    // регрессия). hasEffects — дешёвый lookup реестра/каталога БЕЗ
+    // сейва (сериализация сейва на кадр НЕ вводится).
+    const effectsHere = bHere && G.buildingEffects
+      && typeof G.buildingEffects.hasEffects === 'function'
+      ? G.buildingEffects.hasEffects(bHere)
+      : false;
     let line = 'Флогистон, ур. ' + hero.level + '  (' + player.x + ', ' + player.y + ')\n' +
       'HP ' + hero.hp + '/' + d.maxHP + '  |  Золото: ' + hero.gold + '  |  Очки: ' + hero.points + '\n' +
       'Местность: ' + G.TERRAIN_NAMES[t.terrain] + '\n' +
       'День: ' + clock.day + '  |  Масштаб: ' + zoom + 'px  |  карта: ' + map.width + 'x' + map.height +
       (map.fromPng ? ' (map.png)' : ' (пересчёт)') +
       (spriteLoader ? '  |  графика: ' + spriteLoader.readyCount() + '/' + spriteLoader.totalCount() : '') + '\n' +
-      '[I] персонаж' + (npcHere ? '  |  [E] диалог' : '');
+      '[I] персонаж' + (npcHere ? '  |  [E] диалог'
+        : (effectsHere ? '  |  [E] действия' : ''));
     if (dungeonState) {
       const ds = dungeonState;
       const dist = Math.abs(ds.x - ds.dg.exit.x) + Math.abs(ds.y - ds.dg.exit.y);
@@ -1195,8 +1325,18 @@
         (ds.contents.mobs.filter((m) => !m.defeated).length) + ' групп(ы)';
     } else if (t.hasBuilding) {
       const shopHint = G.shopKindsFor(t.building) ? '  (торговля — панель [I])' : '';
-      const npcHint = npcHere ? '  ([E] ' + npcHere.имя + ')' : '';
-      line += '\nЗдесь: ' + G.buildingNameUi(t.building) + shopHint + npcHint +
+      // [E] — РОУТЕР: действия упоминаем ВСЕГДА, когда есть эффекты
+      // (NPC не перекрывает их): «([E] имя, действия)» /
+      // «([E] имя)» / «([E] действия)» (ревью раунда 3).
+      let eHint = '';
+      if (npcHere && effectsHere) {
+        eHint = '  ([E] ' + npcHere.имя + ', действия)';
+      } else if (npcHere) {
+        eHint = '  ([E] ' + npcHere.имя + ')';
+      } else if (effectsHere) {
+        eHint = '  ([E] действия)';
+      }
+      line += '\nЗдесь: ' + G.buildingNameUi(t.building) + shopHint + eHint +
         (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE ? ' (вход — шагните)' : '');
     } else if (t.hasMobGroup) {
       // Имя группы — из каталога лениво (задача 000057): map.js
@@ -1222,11 +1362,13 @@
     const inCombat = G.combatUI && G.combatUI.isActive();
     const inDungeon = dungeonState !== null;
     const inNpc = G.npcUI && G.npcUI.isActive();
+    const inBuilding = G.buildingUI && G.buildingUI.isActive(); // 000071
     // Интервал шага (задача 000033 + 000063): база — из глобальных
     // настроек (420 мс), навык «Ловкий шаг» укорачивает, нижний кламп —
     // G.MIN_MOVE_INTERVAL_MS. Одно значение для шага и окна walk/idle.
     const stepMs = stepIntervalMs();
-    if (!inCombat && !inDungeon && !inNpc && now - lastMove >= stepMs) {
+    if (!inCombat && !inDungeon && !inNpc && !inBuilding
+        && now - lastMove >= stepMs) {
       if (keys.size && tryMove()) {
         lastMove = now;
         // Глейд prev→next (задача 000033): рендер скользит между тайлами
@@ -1364,6 +1506,8 @@
         // после отладочного боя полноэкранная панель не должна
         // накрывать карту.
         if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
+        // Стек оверлеев (000071): оверлей действий под боем — закрыть.
+        if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
         return G.combatUI.startCombat({
           hero,
           tile: { mobGroup: groupType },

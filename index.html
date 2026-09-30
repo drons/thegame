@@ -392,6 +392,11 @@
   <script src="src/buildings.js"></script>
   <script src="src/npc.js"></script>
   <script src="src/companions.js"></script>
+  <!-- Реестр эффектов построек (задача 000071): после buildings.js/npc.js
+       (каталожная часть цепочки), ДО main.js (UMD-ловушка 000038:
+       main.js снимает Game один раз). Чистый модуль — взаимных require
+       в момент загрузки нет (прецедент 000053). -->
+  <script src="src/building-effects.js"></script>
   <script src="src/combat.js"></script>
   <script src="src/spells-data.js"></script>
   <script src="src/spells.js"></script>
@@ -416,6 +421,11 @@
   <script src="src/controls.js"></script>
   <script src="src/combat-keys.js"></script>
   <script src="src/ui.js"></script>
+  <!-- Оверлей «действия постройки» (задача 000071): после ui.js
+       (оверлей по образцу npcUI), ДО main.js (UMD-ловушка 000038).
+       При загрузке DOM не трогает (vm-песочницы подхватывают скрипт
+       из CHAIN — не роняют загрузку). -->
+  <script src="src/building-ui.js"></script>
   <script src="src/visuals-data.js"></script>
   <script src="src/sprites.js"></script>
   <script src="src/combat-ui.js"></script>
