@@ -5,7 +5,9 @@
 // Униформный модуль: в браузере — globalThis.Game.Spells, в node — require().
 // Зависимости (ПОРЯДОК ВАЖЕН, UMD-ловушка 000038):
 //   * spells-data.js (Game.SpellsData — зеркало каталога, фолбэк file://);
-//   * combat.js (Game.combatInternals — боевые функции ядра,
+//   * combat.js (Game.combatInternals — боевые функции ядра; при
+//     загрузке spells.js дописывает туда allySpells = SPELLS_BY_ID —
+//     ленивый каталог для ИИ support-союзника, задача 000080;
 //     Game.PRACTICE_XP — опыт практики);
 //   * player.js (Game.derived/heal/skillPractice — характеристики и HP/MP).
 //
@@ -85,6 +87,13 @@
 
   const SPELLS = SpellsData.SPELLS;
   const SPELLS_BY_ID = SpellsData.SPELLS_BY_ID;
+
+  // Задача 000080: ЛЕНИВЫЙ каталог для ИИ support-союзника — combat.js
+  // грузится в браузере ДО spells-data.js/spells.js (UMD-ловушка 000038)
+  // и читать каталог сам не может; spells.js ставит его в
+  // combatInternals.allySpells одной строкой при загрузке (обе ветки
+  // UMD — общий factory; одна ссылка: node-require кэш / Game).
+  internals.allySpells = SPELLS_BY_ID;
 
   function getSpell(id) {
     if (typeof id !== 'string' || !id) return null;
@@ -346,7 +355,13 @@
     let t = null;
     if (TARGETED.has(spell.действие)) {
       t = targetId ? c.units.find((u) => u.id === targetId) : nearestMob(c);
-      if (!t || !t.alive || t.fled) {
+      // Союзник — не цель (000080, раунд ревью 1): своя сторона — та же
+      // причина «нет цели», что в combat.js playerAttack/playerSpell/
+      // canDoAction. Без side-проверки уронной каст ставил союзнику
+      // hp = NaN (makeAlly ранее не имел damageTakenMult) — неубиваемый
+      // и вымывавший пул лечения support. nearestMob (фолбэк без
+      // targetId) side уже фильтрует.
+      if (!t || !t.alive || t.fled || t.side === 'ally') {
         return { fail: { ok: false, reason: 'нет цели' } };
       }
       if (unitDist(c, t) > SPELL_MAX_DIST) {
