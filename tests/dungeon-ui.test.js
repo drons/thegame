@@ -223,7 +223,13 @@ function loadDungeonUi(opts = {}) {
     sandbox.cancelAnimationFrame = opts.cancelAnimationFrame;
   }
   vm.createContext(sandbox);
-  const chain = ['global-settings.js', 'perlin.js', 'map.js'];
+  const chain = ['global-settings.js'];
+  // withoutPerlin (000105, раунд-ревью): цепочка БЕЗ perlin.js —
+  // Game.hash2 отсутствует, рендер города обязан пройти
+  // fallback-ветку cityTileVariant (детерминированность по
+  // (x, y, seed) без perlin).
+  if (!opts.withoutPerlin) chain.push('perlin.js');
+  chain.push('map.js');
   if (!opts.withoutControls) chain.push('controls.js');
   if (opts.withCombat) {
     chain.push('skills-data.js', 'items-data.js', 'player.js', 'items.js',
@@ -1863,4 +1869,456 @@ test('подземелье UI 000068: структурный — dungeon-ui.js �
   assert.ok(!text.includes('createMover'),
     'dungeon-ui.js не ссылается на createMover '
     + '(мувер создаётся в main.js, не в оверлее)');
+});
+
+// =====================================================================
+// Задача 000105: экран города — режим dungeon-ui (по state.kind).
+// =====================================================================
+//
+// Состояние города — форма main.js enterCity (000105): dungeonState
+// с полем kind: 'city', dg = layout из G.Cities.createCityLayout
+// (000104; форма { width, height, cells, entrance, exit, seed, kind }
+// — БЕЗ type/rooms/wallObjs), contents = null (содержимое — 000106),
+// name = название_карты каталога. Экран: заголовок — имя города,
+// СВОИ тайлы пола/стен (детерминированный выбор варианта по
+// (x, y, seed); палитра ограничена: пол ≤3, стена ≤2), маркеры
+// выхода/входа — те же, что подземелье, hint — без «Сундук и мобы»
+// (город пуст) и без «[E] — постройки» (взаимодействие — 000107),
+// глейд/зум/камера — общий движок 000066/000068 (без изменений).
+//
+// Состояние подземелья (без kind) — БЕЗ ИЗМЕНЕНИЙ: пол #182029,
+// прежний hint, маркеры.
+//
+// КРАСНЫЕ (до реализации): S1 (stateEl «undefined»/Группы/Сундуки),
+// S2 (стены города не рисуются, пол — фолбэк подземелья), S3
+// (палитра/детерминированность), S5 (hint с «Сундук и мобы»).
+// ЗЕЛЁНЫЕ (регрессии, зелёные с первого запуска): S4 (маркеры),
+// S6 (глейд), S7 (rAF/центрирование 2x2), S8 (подземный пол),
+// S8b (структурный).
+
+const CITIES = require('../src/cities.js');
+
+// Состояние города — форма main.js enterCity (000105): dg = layout
+// (createCityLayout), contents = null (000106), kind = 'city',
+// name = название_карты, первая клетка — layout.entrance.
+function makeCityState(opts = {}) {
+  const fp = opts.fp != null ? opts.fp : 1;
+  const cx = opts.cx != null ? opts.cx : -119;
+  const cy = opts.cy != null ? opts.cy : -104;
+  const d = CITIES.createCityLayout(cx, cy, fp);
+  const name = opts.name != null ? opts.name : 'Хутор';
+  const s = {
+    dg: d,
+    contents: null, // город пока пуст (содержимое — 000106)
+    kind: 'city',
+    name,
+    x: d.entrance.x,
+    y: d.entrance.y,
+    prevX: d.entrance.x,
+    prevY: d.entrance.y,
+    log: [name + ': вход.'],
+  };
+  if (opts.px != null) s.x = opts.px;
+  if (opts.py != null) s.y = opts.py;
+  if (opts.pos) s.pos = opts.pos;
+  return s;
+}
+
+// Все элементы в дереве с className, содержащим cls (в порядке
+// обхода): у оверлея dungeon-ui «combat-state» — ДВА (stateEl и
+// hint — одноимённый класс по паттерну combat-ui).
+function allByClass(el, cls) {
+  const out = [];
+  (function walk(n) {
+    if (typeof n.className === 'string' && n.className.includes(cls)) {
+      out.push(n);
+    }
+    for (const ch of n.children || []) walk(ch);
+  })(el);
+  return out;
+}
+
+// Карта «x,y → fillStyle» по КЛЕТКАМ layout: fillRect с ТОЧНЫМ
+// экранным углом клетки (G.worldToScreen — та же формула, что
+// рендер) и размером zoom×zoom. Маркеры входа/выхода исключены
+// (размер zoom−4/zoom−8, смещение +2/+4), фон (w,h) — тоже.
+// Клетка, не нарисованная fillRect'ом — null.
+function cityCellColors(calls, G, s, zoom, camX, camY) {
+  const d = s.dg;
+  const out = {};
+  for (let y = 0; y < d.height; y++) {
+    for (let x = 0; x < d.width; x++) {
+      const p = G.worldToScreen(x, y, camX, camY, zoom, VW, VH);
+      const c = calls.find((c) => c[0] === 'fillRect'
+        && Math.abs(c[1][0] - p.x) <= 1e-9
+        && Math.abs(c[1][1] - p.y) <= 1e-9
+        && c[1][2] === zoom
+        && c[1][3] === zoom);
+      out[x + ',' + y] = c ? c[2] : null;
+    }
+  }
+  return out;
+}
+
+test('город UI 000105: stateEl — имя города, текущая клетка, «До выхода»; без «undefined»/«Группы»/«Сундуки»', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  const s = makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
+  const states = allByClass(loaded.body, 'combat-state');
+  assert.ok(states.length >= 2, 'оверлей: stateEl + hint (combat-state)');
+  const text = states[0].textContent;
+  assert.ok(text.includes('Хутор'),
+    'stateEl: имя города (название_карты): ' + JSON.stringify(text));
+  assert.ok(text.includes('(0, 1)'),
+    'stateEl: текущая клетка героя (0,1) — layout.entrance: '
+    + JSON.stringify(text));
+  assert.ok(/До выхода: \d+ клеток/.test(text),
+    'stateEl: «До выхода: N клеток»: ' + JSON.stringify(text));
+  assert.ok(!text.includes('undefined'),
+    'stateEl: без «undefined» (у layout города нет DUNGEON_NAMES[type]): '
+    + JSON.stringify(text));
+  assert.ok(!text.includes('Группы'),
+    'stateEl: без «Группы» (у города contents нет): ' + JSON.stringify(text));
+  assert.ok(!text.includes('Сундуки'),
+    'stateEl: без «Сундуки» (у города contents нет): ' + JSON.stringify(text));
+});
+
+test('город UI 000105: СВОИ тайлы — 2x2 хутор: пол/стены рисуются, не фолбэк-подземные; палитра пол ≤3, стена ≤2', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  const s = makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
+  assert.ok(2 * 40 <= VW && 2 * 40 <= VH,
+    '2x2 @ 40 — вьюпорт больше layout → cam центрирован (1,1)');
+  const colors = cityCellColors(findCanvas(loaded.body).drawCalls,
+    G, s, 40, 1, 1);
+  const d = s.dg;
+  const floorKeys = [];
+  const wallKeys = [];
+  for (let y = 0; y < d.height; y++) {
+    for (let x = 0; x < d.width; x++) {
+      (d.cells[y * d.width + x] === G.CELL_FLOOR
+        ? floorKeys : wallKeys).push(x + ',' + y);
+    }
+  }
+  assert.deepEqual(floorKeys.sort(), ['0,0', '0,1'],
+    '2x2: пол — вход (0,1) и выход (0,0)');
+  assert.deepEqual(wallKeys.sort(), ['1,0', '1,1'],
+    '2x2: стены — остальные две клетки');
+  for (const k of floorKeys) {
+    assert.ok(colors[k], 'город: пол (' + k + ') нарисован');
+    assert.notEqual(colors[k], '#182029',
+      'город: пол (' + k + ') — не фолбэк-пол подземелья');
+    assert.notEqual(colors[k], '#0a0d12',
+      'город: пол (' + k + ') — не фон «за пределами»');
+  }
+  for (const k of wallKeys) {
+    assert.ok(colors[k],
+      'город: стена (' + k + ') нарисована (у города стены — рисуются)');
+    assert.notEqual(colors[k], '#0a0d12',
+      'город: стена (' + k + ') — не фон «за пределами»');
+  }
+  const floorPalette = new Set(floorKeys.map((k) => colors[k]));
+  assert.ok(floorPalette.size <= 3,
+    'городский пол: ≤3 варианта (сейчас ' + floorPalette.size + ')');
+  const wallPalette = new Set(wallKeys.map((k) => colors[k]));
+  assert.ok(wallPalette.size <= 2,
+    'городская стена: ≤2 варианта (сейчас ' + wallPalette.size + ')');
+});
+
+test('город UI 000105: СВОИ тайлы — 14x14 столица: все клетки; ≥2 варианта пола по (x,y,seed); без фолбэка #182029', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  const s = makeCityState({ fp: 7, cx: -37, cy: 21, name: 'Столица' });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
+  assert.ok(14 * 40 <= VW && 14 * 40 <= VH,
+    '14x14 @ 40 — вьюпорт больше layout → cam центрирован (7,7)');
+  const colors = cityCellColors(findCanvas(loaded.body).drawCalls,
+    G, s, 40, 7, 7);
+  const d = s.dg;
+  let undrawn = 0;
+  const floorPalette = new Set();
+  const wallPalette = new Set();
+  for (let y = 0; y < d.height; y++) {
+    for (let x = 0; x < d.width; x++) {
+      const col = colors[x + ',' + y];
+      if (!col) { undrawn++; continue; }
+      (d.cells[y * d.width + x] === G.CELL_FLOOR
+        ? floorPalette : wallPalette).add(col);
+    }
+  }
+  assert.equal(undrawn, 0,
+    '14x14: все 196 клеток layout нарисованы fillRect' +
+    (undrawn ? ' (не нарисовано: ' + undrawn + ')' : ''));
+  assert.ok(floorPalette.size >= 2,
+    'город: ≥2 варианта пола (детерминированный выбор по (x,y,seed), '
+    + 'не один цвет на всё поле); сейчас: ' + floorPalette.size);
+  assert.ok(floorPalette.size <= 3,
+    'городский пол: ≤3 варианта; сейчас: ' + floorPalette.size);
+  assert.ok(wallPalette.size <= 2,
+    'городская стена: ≤2 варианта; сейчас: ' + wallPalette.size);
+  assert.ok(!floorPalette.has('#182029'),
+    'город: пол — не фолбэк-пол подземелья #182029');
+  assert.ok(!wallPalette.has('#182029'),
+    'город: стена — не фолбэк-пол подземелья #182029');
+});
+
+test('город UI 000105: детерминированность тайлов — два рендера одного города идентичны; разные якоря (seed) — раскраска различается', () => {
+  // (а) Два рендера ОДНОГО города (seed, layout) — одинаковая
+  // раскраска: вариант клетки — чистая функция (x, y, seed).
+  const A = loadDungeonUi({ performance: { now: () => 1000 } });
+  const sA = makeCityState({ fp: 5, cx: 100, cy: -40, name: 'Город' });
+  A.G.dungeonUI.start({ state: sA, onMove() {}, zoom: 40 });
+  const canvasA = findCanvas(A.body);
+  const n0 = canvasA.drawCalls.length;
+  A.G.dungeonUI.render(1000); // тот же now — второй рендер
+  const mStart = cityCellColors(canvasA.drawCalls.slice(0, n0),
+    A.G, sA, 40, 5, 5);
+  const mSecond = cityCellColors(canvasA.drawCalls.slice(n0),
+    A.G, sA, 40, 5, 5);
+  assert.equal(JSON.stringify(mStart), JSON.stringify(mSecond),
+    'два рендера одного города — идентичная раскраска (чистая функция)');
+  // (б) Разные якоря → разные seed → раскраска хотя бы одной
+  // клетки различается (seed 3580905026 vs 2388422751, 000104).
+  const B = loadDungeonUi({ performance: { now: () => 1000 } });
+  const sB = makeCityState({ fp: 5, cx: 101, cy: -40, name: 'Город' });
+  B.G.dungeonUI.start({ state: sB, onMove() {}, zoom: 40 });
+  assert.notEqual(sA.dg.seed, sB.dg.seed,
+    'предусловие: layout от разных якорей — разные seed');
+  const mB = cityCellColors(findCanvas(B.body).drawCalls, B.G, sB, 40, 5, 5);
+  const mAs = cityCellColors(findCanvas(A.body).drawCalls, A.G, sA, 40, 5, 5);
+  assert.notEqual(JSON.stringify(mAs), JSON.stringify(mB),
+    'разные seed → раскраска хотя бы одной клетки различается');
+});
+
+test('город UI 000105 (фолбэк без perlin): без Game.hash2 вариант тайла всё равно функция (x, y, seed) — тот же layout, другой seed → раскраска различается', () => {
+  // perlin.js НЕ в цепочке — liveGame().hash2 нет → рендер города
+  // идёт по fallback-ветке cityTileVariant. Фолбэк обязан оставаться
+  // чистой функцией (x, y, seed) по КОНТРАКТУ: без seed-зависимости
+  // разные города (разные layout.seed) окрасились бы одинаково
+  // (регрессия раунда-ревью 000105). Изолируем seed: layout (cells)
+  // ОДИН, seed — РАЗНЫЙ (копия dg с подменённым seed).
+  const A = loadDungeonUi({ withoutPerlin: true,
+    performance: { now: () => 1000 } });
+  assert.equal(typeof A.G.hash2, 'undefined',
+    'предусловие: perlin.js не в цепочке — Game.hash2 нет (fallback)');
+  const sA = makeCityState({ fp: 5, cx: 100, cy: -40, name: 'Город' });
+  A.G.dungeonUI.start({ state: sA, onMove() {}, zoom: 40 });
+  const canvasA = findCanvas(A.body);
+  const n0 = canvasA.drawCalls.length;
+  A.G.dungeonUI.render(1000); // второй рендер того же города
+  const mFirst = cityCellColors(canvasA.drawCalls.slice(0, n0),
+    A.G, sA, 40, 5, 5);
+  const mSecond = cityCellColors(canvasA.drawCalls.slice(n0),
+    A.G, sA, 40, 5, 5);
+  assert.equal(JSON.stringify(mFirst), JSON.stringify(mSecond),
+    'фолбэк: два рендера одного города — идентичны (чистая функция)');
+  const B = loadDungeonUi({ withoutPerlin: true,
+    performance: { now: () => 1000 } });
+  assert.equal(typeof B.G.hash2, 'undefined',
+    'предусловие (B): Game.hash2 нет (fallback)');
+  // Тот же layout (те же cells/entrance/exit), ТОЛЬКО seed другой —
+  // переменная под тестом одна.
+  const sB = Object.assign({}, sA, {
+    dg: Object.assign({}, sA.dg, { seed: (sA.dg.seed ^ 0x12345678) >>> 0 }),
+  });
+  assert.deepEqual(sB.dg.cells, sA.dg.cells,
+    'предусловие: layout один (cells совпадают)');
+  assert.notEqual(sB.dg.seed, sA.dg.seed,
+    'предусловие: seed другой');
+  B.G.dungeonUI.start({ state: sB, onMove() {}, zoom: 40 });
+  const mB = cityCellColors(findCanvas(B.body).drawCalls, B.G, sB, 40, 5, 5);
+  assert.notEqual(JSON.stringify(mFirst), JSON.stringify(mB),
+    'фолбэк: seed НЕ игнорируется — раскраска различается');
+});
+
+test('город UI 000105 (GOLDEN-ПИН): CITY_TILE_SEED = 0x43495459 и палитры зафиксированы (ревью раунда 3)', () => {
+  // Соль выбора городского тайла закреплена ЛИТЕРАЛОМ (паттерн
+  // CITY_SEED_CONST 000103 / CITY_LAYOUT_CONST 000104): смена
+  // CITY_TILE_SEED в src/dungeon-ui.js = перекраска ВСЕХ городов —
+  // недопустима после мержа. Пересчёт варианта в тесте независим от
+  // модуля (hash2 перlin.js + литерал соли): смена константы в коде —
+  // вариант клеток не совпадёт и тест упадёт. Палитры тоже пины.
+  const CITY_TILE_SEED_PIN = 0x43495459; // ASCII «CITY»
+  const FLOOR = ['#b3a284', '#a5947a', '#c0b090']; // CITY_FLOOR_VARIANTS
+  const WALL = ['#77685a', '#66594c'];             // CITY_WALL_VARIANTS
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  const s = makeCityState({ fp: 5, cx: 100, cy: -40, name: 'Город' });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
+  G.dungeonUI.render(1000);
+  const colors = cityCellColors(findCanvas(loaded.body).drawCalls,
+    G, s, 40, 5, 5);
+  const d = s.dg;
+  for (let y = 0; y < d.height; y++) {
+    for (let x = 0; x < d.width; x++) {
+      const isFloor = d.cells[y * d.width + x] === G.CELL_FLOOR;
+      const pal = isFloor ? FLOOR : WALL;
+      const idx = ((G.hash2(x, y,
+        (d.seed + CITY_TILE_SEED_PIN) >>> 0)) >>> 0) % pal.length;
+      assert.equal(colors[x + ',' + y], pal[idx],
+        'клетка ' + x + ',' + y + ': вариант по соли 0x43495459 ' +
+        '+ палитра ' + (isFloor ? 'пол' : 'стена'));
+    }
+  }
+});
+
+test('город UI 000105 (регрессия маркеров): выход «X»/вход — те же маркеры, что подземелье', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  const s = makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
+  const calls = findCanvas(loaded.body).drawCalls;
+  // 2x2 @ 40, cam (1,1): выход (0,0), вход (0,1) — layout 000104.
+  const ex = G.worldToScreen(0, 0, 1, 1, 40, VW, VH);
+  const en = G.worldToScreen(0, 1, 1, 1, 40, VW, VH);
+  assert.ok(fillRectAt(calls, '#d4b45a', ex.x + 2, ex.y + 2, 36, 36),
+    'выход: жёлтый квадрат (zoom−4)');
+  assert.ok(fillTextNear(calls, 'X', '#101418', ex.x + 20, ex.y + 35, 2),
+    'выход: буква «X»');
+  assert.ok(fillRectAt(calls, '#3f9d55', en.x + 4, en.y + 4, 32, 32),
+    'вход: зелёный квадрат (zoom−8)');
+});
+
+test('город UI 000105: contents: null — без сундуков/мобов, рендер не падает; hint — без «Сундук и мобы» и без «[E]»', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня' });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48 });
+  const calls = findCanvas(loaded.body).drawCalls;
+  assert.ok(calls.length > 0, 'render при contents: null — без падения');
+  assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#e0b13c'),
+    'город: фолбэк-сундука #e0b13c нет (сундуков нет)');
+  assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#d9483b'),
+    'город: фолбэк-моба #d9483b нет (мобов нет)');
+  assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#b06ad4'),
+    'город: boss-подсветка #b06ad4 нет');
+  const states = allByClass(loaded.body, 'combat-state');
+  const hint = states[1].textContent;
+  assert.ok(hint.includes('Жёлтая клетка «X» — выход.'),
+    'hint: указание на выход: ' + JSON.stringify(hint));
+  assert.ok(!hint.includes('Сундук'),
+    'hint: без «Сундук и мобы» (город пуст; содержимое — 000106): '
+    + JSON.stringify(hint));
+  assert.ok(!hint.includes('[E]'),
+    'hint: без «[E] — постройки» (взаимодействие — 000107): '
+    + JSON.stringify(hint));
+  // Регрессия: у ПОДЗЕМЕЛЬЯ hint не меняется.
+  const D = loadDungeonUi({ performance: { now: () => 1000 } });
+  D.G.dungeonUI.start({ state: makeState(), onMove() {}, zoom: 48 });
+  const dHint = allByClass(D.body, 'combat-state')[1].textContent;
+  assert.ok(dHint.includes('Сундук и мобы'),
+    'подземелье: hint — прежний текст («Сундук и мобы»)');
+});
+
+test('город UI 000105 (регрессия глейда): общий движок 000066/000068 — pos-хук, walk-кадр, дробная точка', () => {
+  const { G, body, T } = loadSpriteDungeon();
+  const walk = G.phlogistonFrames('walk');
+  const idle = G.phlogistonFrames('idle');
+  const loader = makeSpriteLoader([...idle, ...walk]);
+  const settings = G.GlobalSettings && G.GlobalSettings.SETTINGS;
+  const interval = (settings && Number.isFinite(settings.move_interval_ms)
+    && settings.move_interval_ms > 0)
+    ? settings.move_interval_ms : 420;
+  // 14x14 (fp7, −37,21): вход (9,13); шаг на север (9,12) — FLOOR.
+  const mover = G.createMover({ x: 9, y: 13, intervalMs: interval });
+  const s = makeCityState({
+    fp: 7, cx: -37, cy: 21, name: 'Столица',
+    pos: (now) => mover.position(now),
+  });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40, spriteLoader: loader });
+  const canvas = findCanvas(body);
+  // 14x14 @ 40 → 560 ≤ 800/600 → cam центрирован (7,7).
+  // Шаг (9,13) → (9,12) в t = 1000 — симуляция main.js cityMove:
+  // s.x/s.y обновляются ДО глейда (паттерн dungeonMove, 000068).
+  T.t = 1000;
+  s.x = 9;
+  s.y = 12;
+  mover.step({ x: 9, y: 13 }, { x: 9, y: 12 }, 1000);
+  const mid = 1000 + interval / 2;
+  const n0 = canvas.drawCalls.length;
+  G.dungeonUI.render(mid);
+  const seg = canvas.drawCalls.slice(n0);
+  const pos = mover.position(mid);
+  assert.equal(pos.x, 9, 'x не меняется (шаг на север)');
+  assert.ok(pos.y > 12 && pos.y < 13,
+    'предусловие: дробная точка строго между клетками: ' + JSON.stringify(pos));
+  const p = G.worldToScreen(pos.x + 0.5, pos.y + 0.5, 7, 7, 40, VW, VH);
+  const sz = 40 * 1.15; // формула Флогистона (zoom*1.15)
+  const imgs = seg.filter((c) => c[0] === 'drawImage'
+    && Math.abs(c[1][1] - (p.x - sz / 2)) <= 1e-9
+    && Math.abs(c[1][2] - (p.y - sz / 2)) <= 1e-9
+    && c[1][3] === sz && c[1][4] === sz);
+  assert.equal(imgs.length, 1,
+    'спрайт игрока в дробной точке глейда (zoom*1.15)');
+  const fi = Math.floor(G.frameIndex(mid, pos.x, pos.y, walk.length));
+  assert.equal(imgs[0][1][0] && imgs[0][1][0].__img, walk[fi],
+    'во время глейда — кадр «walk» (посредник — общий движок)');
+});
+
+test('город UI 000105 (регрессия rAF): rAF-цикл в режиме города; вырожденный 2x2 — камера центрирована (нет NaN)', () => {
+  const rafStubs = makeRafStubs();
+  const T = { t: 1000 };
+  const loaded = loadDungeonUi({
+    performance: { now: () => T.t },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const G = loaded.G;
+  const s = makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
+  assert.ok(rafStubs.scheduled.length >= 1,
+    'start: rAF-цикл запланирован (режим города)');
+  const canvas = findCanvas(loaded.body);
+  T.t += 16;
+  tick(rafStubs);
+  T.t += 16;
+  tick(rafStubs);
+  // 2x2 @ 40 → 80 ≤ 800/600 → жёсткое центрирование cam (1,1)
+  // (degenerate: диапазон клампа пуст — без центрирования cam ушёл
+  // бы в NaN, паттерн 000066).
+  const p00 = G.worldToScreen(0, 0, 1, 1, 40, VW, VH);
+  assert.ok(Number.isFinite(p00.x) && Number.isFinite(p00.y),
+    'проекция клетки — конечные числа');
+  const cellRect = (seg) => seg.some((c) => c[0] === 'fillRect'
+    && Math.abs(c[1][0] - p00.x) <= 1e-9
+    && Math.abs(c[1][1] - p00.y) <= 1e-9
+    && c[1][2] === 40 && c[1][3] === 40);
+  assert.ok(cellRect(canvas.drawCalls),
+    '2x2: cam центрирован (1,1) — клетка (0,0) в проекции');
+  // Герой на выходной клетке (0,0) — камера остаётся центрированной.
+  s.x = 0;
+  s.y = 0;
+  T.t += 16;
+  tick(rafStubs);
+  assert.ok(cellRect(canvas.drawCalls),
+    'камера — по-прежнему центрирована (2*40 ≤ 800/600)');
+});
+
+test('город UI 000105 (регрессия): состояние без kind (подземелье) — пол #182029 как раньше (городские тайлы не «переливаются»)', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  const s = makeState(); // 5x5, без kind — существующая форма dungeonState
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48 });
+  const calls = findCanvas(loaded.body).drawCalls;
+  // 5x5 @ 48 → 240 ≤ 800/600 → cam центрирован (2.5, 2.5).
+  for (let y = 1; y <= 3; y++) {
+    for (let x = 1; x <= 3; x++) {
+      const p = G.worldToScreen(x, y, 2.5, 2.5, 48, VW, VH);
+      assert.ok(floorRectAt(calls, p.x, p.y, 48),
+        'подземный пол (' + x + ',' + y + ') — #182029 (фолбэк), без изменений');
+    }
+  }
+});
+
+test('город UI 000105: структурный — dungeon-ui.js НЕ создаёт layout города (layout — в main.js, enterCity)', () => {
+  // UMD-ловушка, как с createMover (motion.js после dungeon-ui.js):
+  // dungeon-ui не должен ГЕНЕРИРОВАТЬ layout (createCityLayout) —
+  // layout создаётся в main.js (enterCity) и передаётся в state.dg;
+  // оверлей только РИСУЕТ его (и читает s.kind для режима).
+  const text = src('dungeon-ui.js');
+  assert.ok(!text.includes('createCityLayout'),
+    'dungeon-ui.js не ссылается на createCityLayout '
+    + '(layout создаётся в main.js)');
 });

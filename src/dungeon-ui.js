@@ -31,6 +31,14 @@
 // спрайта/ромба игрока, и для цели камеры; когда pos ≠ (s.x, s.y)
 // (глейд) — действие кадра 'walk'.
 //
+// Город (задача 000105): режим по state.kind === 'city' — тот же
+// движок вьюпорта/камеры/зума и те же маркеры входа/выхода; СВОИ
+// тайлы (палитра + чистая функция выбора варианта по (x, y, seed),
+// стены периметра рисуются); stateEl — имя города, без строк
+// групп/сундуков (contents у города null — 000106); hint — без
+// строк про сундуки/мобы и без «[E]» (000107). Оверлей НЕ создаёт
+// layout города — layout и мувер создаются в main.js (UMD-ловушка).
+//
 // Спрайты (задача 000067): игрок — кадры G.phlogistonFrames(действие
 // playerAction: 'walk' во время глейда, pos(now) ≠ (s.x, s.y), —
 // 000068 — иначе 'idle'), zoom*1.15; мобы — ПО КАЖДОМУ mobId группы
@@ -72,6 +80,36 @@
   // Детерминированные смещения юнита группы ПО ИНДЕКСУ (задача
   // 000067): группа «встает» вокруг своей клетки.
   const MOB_UNIT_OFF = [[0, 0], [-0.35, 0.15], [0.35, 0.15]];
+
+  // --- Город (задача 000105): режим по state.kind === 'city' ---
+  // СВОИ тайлы (не 5 типов подземелий): палитра — данные, выбор
+  // варианта — чистая функция от (x, y, seed) по паттерну
+  // 000069/000070. Табличная структура, чтобы 000110 мог подменить
+  // цвета на SVG-пути (визуальное доведение). Стены города (периметр
+  // layout) РИСУЮТСЯ (в подземелье стена-клетки не рисуются).
+  // layout (и seed) создаёт main.js — оверлей только РИСУЕТ
+  // (UMD-ловушка, см. 000068: мувер — тоже только в main.js).
+  const CITY_FLOOR_VARIANTS = ['#b3a284', '#a5947a', '#c0b090'];
+  const CITY_WALL_VARIANTS = ['#77685a', '#66594c'];
+  // Соль выбора городского тайла: НОВАЯ константа (не GLOBAL_SEED,
+  // не CITY_SEED_CONST 000103, не сиды dungeon.js).
+  const CITY_TILE_SEED = 0x43495459; // ASCII «CITY»
+
+  // Вариант тайла города: чистая функция (count, x, y, seed) —
+  // детерминированно по (x, y, layout.seed); hash2 — перlin.js
+  // (в цепочке ДО dungeon-ui.js; читаем из живого Game в момент
+  // вызова — UMD-ловушка). Фолбэк (perlin.js не в цепочке) тоже
+  // зависит от seed — соль та же, иначе разные города (разные
+  // layout.seed) окрасились бы ОДИНАКОВО (регрессия раунда-ревью
+  // 000105; тест «фолбэк без perlin», tests/dungeon-ui.test.js).
+  function cityTileVariant(count, x, y, seed) {
+    const live = liveGame();
+    const salt = (seed + CITY_TILE_SEED) >>> 0;
+    const h = (typeof live.hash2 === 'function')
+      ? live.hash2(x, y, salt) >>> 0
+      : (((x * 73856093) ^ (y * 19349663) ^ salt) >>> 0);
+    return h % count;
+  }
 
   // --- Время и кадры (паттерн src/combat-ui.js, задача 000047) ---
   // typeof-гарды обязательны: в vm-песочнице requestAnimationFrame
@@ -196,7 +234,14 @@
     side.appendChild(logEl);
     const hint = document.createElement('div');
     hint.className = 'combat-state';
-    hint.textContent = 'Стрелки/WASD — шаг.\nЖёлтая клетка «X» — выход.\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).';
+    // Город (000105) — без строк про сундуки/мобы (город пуст,
+    // содержимое — 000106) и без «[E] — постройки» (взаимодействие —
+    // 000107; до неё подсказка может отсутствовать). Подземелье —
+    // прежний текст (без kind — dungeon).
+    const s0 = state();
+    hint.textContent = (s0 && s0.kind === 'city')
+      ? 'Стрелки/WASD — шаг.\nЖёлтая клетка «X» — выход.'
+      : 'Стрелки/WASD — шаг.\nЖёлтая клетка «X» — выход.\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).';
     side.appendChild(hint);
 
     overlay.appendChild(side);
@@ -232,12 +277,25 @@
     const y0 = Math.max(0, range.y0), y1 = Math.min(d.height - 1, range.y1);
     const loader = ctx.spriteLoader || null;
 
-    // Пол (000069): спрайт через DI spriteLoader; гарды (функции нет /
-    // путь нет / изображение не готово) — фолбэк #182029, как раньше.
+    // Пол. Город (000105, s.kind === 'city') — СВОИ тайлы: вариант
+    // — чистая функция (x, y, layout.seed); стена-клетки (периметр)
+    // РИСУЮТСЯ (в подземелье не рисуются). Подземелье (без kind) —
+    // без изменений: спрайт dungeonFloorFrame, фолбэк #182029.
+    const isCity = s.kind === 'city';
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
-        if (d.cells[y * d.width + x] !== G.CELL_FLOOR) continue;
+        const isFloor = d.cells[y * d.width + x] === G.CELL_FLOOR;
+        if (!isCity && !isFloor) continue; // подземелье: стена-клетки нет
         const p = proj(x, y);
+        if (isCity) {
+          g2.fillStyle = isFloor
+            ? CITY_FLOOR_VARIANTS[cityTileVariant(
+                CITY_FLOOR_VARIANTS.length, x, y, d.seed)]
+            : CITY_WALL_VARIANTS[cityTileVariant(
+                CITY_WALL_VARIANTS.length, x, y, d.seed)];
+          g2.fillRect(p.x, p.y, zoom, zoom);
+          continue;
+        }
         const path = live.dungeonFloorFrame
           ? live.dungeonFloorFrame(d.type, x, y) : null;
         const img = (path && loader && typeof loader.image === 'function')
@@ -424,11 +482,21 @@
     }
 
     const dist = Math.abs(s.x - d.exit.x) + Math.abs(s.y - d.exit.y);
-    stateEl.textContent =
-      G.DUNGEON_NAMES[d.type] + '  (' + s.x + ', ' + s.y + ')\n' +
-      'До выхода: ' + dist + ' клеток (на глаз)\n' +
-      'Группы: ' + c.mobs.filter((m) => !m.defeated).length +
-      '  |  Сундуки: ' + c.chests.filter((x) => !x.opened).length;
+    if (isCity) {
+      // Город (000105): заголовок — имя города (название_карты
+      // каталога); БЕЗ строк групп/сундуков (contents у города null —
+      // содержимое — 000106) и БЕЗ DUNGEON_NAMES[d.type] (у layout
+      // города type нет).
+      stateEl.textContent =
+        s.name + '  (' + s.x + ', ' + s.y + ')\n' +
+        'До выхода: ' + dist + ' клеток (на глаз)';
+    } else {
+      stateEl.textContent =
+        G.DUNGEON_NAMES[d.type] + '  (' + s.x + ', ' + s.y + ')\n' +
+        'До выхода: ' + dist + ' клеток (на глаз)\n' +
+        'Группы: ' + c.mobs.filter((m) => !m.defeated).length +
+        '  |  Сундуки: ' + c.chests.filter((x) => !x.opened).length;
+    }
     logEl.textContent = (s.log || []).slice(-8).join('\n');
   }
 

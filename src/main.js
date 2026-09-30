@@ -523,9 +523,11 @@
   let hudFlash = '';
   let hudFlashUntil = 0;
 
-  // Подземелье: текущая вылазка и память содержимого по входам.
-  // dungeonMemory: 'x,y' входа → { contents, lastVisitDay }.
-  // { dg, contents, x, y, prevX, prevY, worldKey, log, mover, pos }
+  // Подземелье/город (000105): текущая вылазка и память содержимого
+  // по входам. dungeonMemory: 'x,y' входа → { contents, lastVisitDay }
+  // (для ГОРОДА не применяется — персистентность сейва, 000109).
+  // { dg, contents, kind: 'dungeon'|'city', name (город), x, y,
+  //   prevX, prevY, worldKey, log, mover, pos }
   // (mover/pos — 000068: мувер motion.js + дробная позиция рендера)
   let dungeonState = null;
   const dungeonMemory = new Map();
@@ -904,6 +906,7 @@
   function makeDungeonState(d, contents, worldKey) {
     const ds = {
       dg: d, contents,
+      kind: 'dungeon', // 000105: ветка состояния (город — 'city')
       x: d.entrance.x, y: d.entrance.y,
       prevX: d.entrance.x, prevY: d.entrance.y,
       worldKey,
@@ -1055,6 +1058,104 @@
     }
     // Каждый шаг игрока — шаг блуждания мобов.
     G.wanderStep(c, d);
+  }
+
+  // --- Город (задача 000105, подзадача 000052) ---
+  //
+  // Тот же движок, что подземелье: dungeonState — ОДИН, ветка по
+  // kind: 'city'. Layout — G.Cities.createCityLayout (000104) от
+  // ЯКОРЯ (t.buildingAnchor), а НЕ от позиции героя: один якорь →
+  // один layout навсегда. Город пока ПУСТО (содержимое — 000106,
+  // взаимодействие [E] — 000107): contents — null, мобов/сундуков/
+  // wanderStep в городе нет. РЕШЕНИЕ (SPEC «Города и деревни»):
+  // вход/выход НЕ тратит день — clock.event НЕ вызывается (город —
+  // локация поверх мира, а не «подземная экспедиция»); dungeonMemory/
+  // contentValid для города не применяются (персистентность — сейв,
+  // 000109).
+
+  // Состояние города — та же форма, что makeDungeonState (000068):
+  // ОТДЕЛЬНЫЙ мувер + дробная позиция ds.pos(now) для рендера.
+  function makeCityState(layout, buildingRec, worldKey) {
+    const name = (buildingRec.особые_параметры &&
+      buildingRec.особые_параметры.название_карты)
+      || buildingRec.название;
+    const ds = {
+      dg: layout,
+      contents: null, // город пуст (содержимое — 000106)
+      kind: 'city',
+      name,
+      x: layout.entrance.x, y: layout.entrance.y,
+      prevX: layout.entrance.x, prevY: layout.entrance.y,
+      worldKey,
+      log: [name + ': вход.'],
+    };
+    ds.mover = G.createMover
+      ? G.createMover({ x: layout.entrance.x, y: layout.entrance.y,
+          intervalMs: MOVE_INTERVAL_MS })
+      : null;
+    // Защитный снап в entrance (как makeDungeonState, 000068).
+    if (ds.mover) ds.mover.teleport(layout.entrance.x, layout.entrance.y);
+    ds.pos = (now) => (ds.mover
+      ? ds.mover.position(now)
+      : { x: ds.x, y: ds.y });
+    return ds;
+  }
+
+  // Шаг на тайл постройки с каталожной записью категории «город»
+  // (000102/000103: buildingId 51..54; у города building — NONE,
+  // опознаётся по buildingId) → экран города.
+  function maybeEnterCity() {
+    if (dungeonState) return;
+    const t = map.tileAt(player.x, player.y);
+    if (!t.hasBuilding || t.buildingId == null) return;
+    const rec = G.getBuilding(t.buildingId);
+    if (!rec || rec.категория !== 'город') return;
+    // Layout — от ЯКОРЯ, не от входного тайла (000104).
+    const [ax, ay] = t.buildingAnchor;
+    const layout = G.Cities.createCityLayout(ax, ay, rec.размер.ширина);
+    dungeonState = makeCityState(layout, rec, player.x + ',' + player.y);
+    G.dungeonUI.start({
+      get state() { return dungeonState; },
+      onMove: (dx, dy) => cityMove(dx, dy),
+      // Тот же общий zoom, что подземелье (задача 000066): колесо
+      // поверх оверлея меняет тот же zoom, что мир.
+      zoom,
+      onZoom: (z) => { zoom = z; },
+      spriteLoader,
+    });
+  }
+
+  function exitCity() {
+    // ДЕНЬ НЕ проходит (SPEC «Города и деревни»): clock.event НЕ
+    // вызывается; dungeonMemory — НЕ применяется (000109).
+    dungeonState = null;
+    G.dungeonUI.close();
+    saveNow();
+  }
+
+  // Шаг внутри города (вызывается dungeon-ui по клавише). Город
+  // пуст (до 000106): мобов/сундуков/wanderStep нет.
+  function cityMove(dx, dy) {
+    const ds = dungeonState;
+    if (!ds || ds.kind !== 'city'
+        || (G.combatUI && G.combatUI.isActive())) return;
+    const d = ds.dg;
+    const nx = ds.x + dx, ny = ds.y + dy;
+    if (nx < 0 || ny < 0 || nx >= d.width || ny >= d.height) return;
+    if (d.cells[ny * d.width + nx] !== G.CELL_FLOOR) return; // стена
+    if (nx === d.exit.x && ny === d.exit.y) {
+      exitCity();
+      hudFlash = 'Вы вышли из ' + ds.name + '.';
+      hudFlashUntil = performance.now() + 5000;
+      return;
+    }
+    ds.prevX = ds.x; ds.prevY = ds.y;
+    ds.x = nx; ds.y = ny;
+    // Глейд prev→next (000068, паттерн dungeonMove): шаг ДО конца.
+    if (ds.mover) {
+      ds.mover.step({ x: ds.prevX, y: ds.prevY }, { x: nx, y: ny },
+        performance.now());
+    }
   }
 
   // --- Камера ---
@@ -1320,14 +1421,22 @@
     if (dungeonState) {
       const ds = dungeonState;
       const dist = Math.abs(ds.x - ds.dg.exit.x) + Math.abs(ds.y - ds.dg.exit.y);
-      line += '\n--- ' + G.DUNGEON_NAMES[ds.dg.type] + ' (' + ds.x + ', ' + ds.y + ') ---' +
-        '\nДо выхода: ~' + dist + ' клеток  |  ' +
-        (ds.contents.mobs.filter((m) => !m.defeated).length) + ' групп(ы)';
+      if (ds.kind === 'city') {
+        // Город (000105): заголовок — имя города; contents null
+        // (000106) — строк групп/сундуков нет (ds.contents.mobs
+        // упадёт — ветка по kind обязательна).
+        line += '\n--- ' + ds.name + ' (' + ds.x + ', ' + ds.y + ') ---' +
+          '\nДо выхода: ~' + dist + ' клеток';
+      } else {
+        line += '\n--- ' + G.DUNGEON_NAMES[ds.dg.type] + ' (' + ds.x + ', ' + ds.y + ') ---' +
+          '\nДо выхода: ~' + dist + ' клеток  |  ' +
+          (ds.contents.mobs.filter((m) => !m.defeated).length) + ' групп(ы)';
+      }
     } else if (t.hasBuilding) {
       const shopHint = G.shopKindsFor(t.building) ? '  (торговля — панель [I])' : '';
       // [E] — РОУТЕР: действия упоминаем ВСЕГДА, когда есть эффекты
       // (NPC не перекрывает их): «([E] имя, действия)» /
-      // «([E] имя)» / «([E] действия)» (ревью раунда 3).
+      // «([E] имя)» / «([E] действия)» (ревью раунда 3, 000071).
       let eHint = '';
       if (npcHere && effectsHere) {
         eHint = '  ([E] ' + npcHere.имя + ', действия)';
@@ -1336,8 +1445,28 @@
       } else if (effectsHere) {
         eHint = '  ([E] действия)';
       }
-      line += '\nЗдесь: ' + G.buildingNameUi(t.building) + shopHint + eHint +
-        (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE ? ' (вход — шагните)' : '');
+      let name = G.buildingNameUi(t.building);
+      let hint = t.building === G.BUILDING_TYPES.CAVE_ENTRANCE
+        ? ' (вход — шагните)' : '';
+      // Городской тайл (000103/000105): building — NONE (у города нет
+      // map_index → buildingNameUi ''). Имя — из каталожной записи
+      // (000102): название_карты || название (тот же вывод, что
+      // заголовок города в makeCityState), регистр — конвенция
+      // buildingNameUi (первая буква в нижнем). Без ветки: строка
+      // «Здесь: » с пустым именем — видна после выхода из города,
+      // пока герой стоит на городском тайле (ревью 000105, раунд 1).
+      if (name === '' && t.buildingId != null) {
+        const rec = G.getBuilding(t.buildingId);
+        if (rec && rec.категория === 'город') {
+          const raw = (rec.особые_параметры &&
+            rec.особые_параметры.название_карты) || rec.название;
+          if (typeof raw === 'string' && raw !== '') {
+            name = raw.charAt(0).toLowerCase() + raw.slice(1);
+            hint = ' (вход — шагните)';
+          }
+        }
+      }
+      line += '\nЗдесь: ' + name + shopHint + eHint + hint;
     } else if (t.hasMobGroup) {
       // Имя группы — из каталога лениво (задача 000057): map.js
       // грузится ДО main.js, G.mobGroupName всегда на месте.
@@ -1380,6 +1509,7 @@
         clock.addStep(1); // шаги мира тикают игровой день
         maybeStartCombat();
         maybeEnterDungeon();
+        maybeEnterCity(); // 000105: город — та же точка входа, что пещера
         saveNow();
       }
     }
@@ -1470,20 +1600,31 @@
     get combat() {
       return G.combatUI ? G.combatUI.current() : null;
     },
-    // Текущее подземелье (или null).
+    // Текущее подземелье/город (или null; 000105 — kind).
     get dungeon() {
       if (!dungeonState) return null;
       const ds = dungeonState;
+      // Город (000105): name — название_карты, type/mobs/chests — null
+      // (contents у города null, type у layout города нет).
       return {
-        type: ds.dg.type, name: G.DUNGEON_NAMES[ds.dg.type],
+        kind: ds.kind,
+        // Город: null, а не undefined (ревью 000105, раунд 1):
+        // у layout города (createCityLayout) поля type нет —
+        // undefined JSON-сериализация тихо drop'ит, null —
+        // явный «типа нет» как у mobs/chests.
+        type: ds.kind === 'city' ? null : ds.dg.type,
+        name: ds.kind === 'city' ? ds.name : G.DUNGEON_NAMES[ds.dg.type],
         width: ds.dg.width, height: ds.dg.height,
         cells: ds.dg.cells,
         entrance: { x: ds.dg.entrance.x, y: ds.dg.entrance.y },
         x: ds.x, y: ds.y,
         exit: { x: ds.dg.exit.x, y: ds.dg.exit.y },
-        mobs: ds.contents.mobs.filter((m) => !m.defeated)
-          .map((m) => ({ x: m.x, y: m.y })),
-        chests: ds.contents.chests.filter((c) => !c.opened).length,
+        mobs: ds.contents
+          ? ds.contents.mobs.filter((m) => !m.defeated)
+            .map((m) => ({ x: m.x, y: m.y }))
+          : null,
+        chests: ds.contents
+          ? ds.contents.chests.filter((c) => !c.opened).length : null,
         day: clock.day,
       };
     },
