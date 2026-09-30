@@ -44,6 +44,14 @@ const CITIES_PATH = path.join(ROOT, 'src', 'cities.js');
 const P = require('../src/perlin.js');
 const D = require('../src/dungeon.js');
 const M = require('../src/map.js');
+// 000108: городские лавки — обёртка СУЩЕСТВУЮЩЕЙ торговли
+// (items.js — makeShop/buyItem/sellPrice..., buildings.js — каталог
+// id → map_index; player.js — персонаж для buy/sell-тестов).
+// Эти модули в node чистые (тестируются в node) — require здесь
+// не тянет cities.js (циклического require нет).
+const I = require('../src/items.js');
+const B = require('../src/buildings.js');
+const PL = require('../src/player.js');
 
 function loadCities() { return require('../src/cities.js'); }
 
@@ -169,15 +177,24 @@ test('модуль существует и даёт API (node, без DOM)', () 
     'cityLayoutSeed(cityX, cityY) — расшириемый экспорт для 000105/000106');
 });
 
-test('структура исходника: ЕДИНСТВЕННЫЙ require — ./perlin.js (взаимных require в момент загрузки нет)', () => {
-  // cities.js не может тянуть dungeon.js/map.js (цепочки vm-
+test('структура исходника: require — ТОЛЬКО ./perlin.js + ./items.js + ./buildings.js (000108; взаимных require в момент загрузки нет)', () => {
+  // 000104: cities.js не тянет dungeon.js/map.js (цепочки vm-
   // песочниц tests/dungeon-ui.test.js и tests/sprites.test.js
-  // грузят подмножества; прецедент 000064).
+  // грузят подмножества БЕЗ cities.js — проверено grep; прецедент
+  // 000064). 000108 (осознанное расширение, memory/000108-city-
+  // shops.md): makeCityShop вызывает СУЩЕСТВУЮЩИЙ items.makeShop и
+  // читает каталог (buildingId → особые_параметры.map_index),
+  // поэтому node-ветка требует ./items.js и ./buildings.js (оба
+  // чистые в node; ни один из них НЕ требует cities.js — цикла нет).
+  // Браузерная ветка ничего НЕ требует при ЗАГРУЗКЕ — референсы
+  // ленивые (root.Game в момент вызова), поэтому порядок скриптов
+  // index.html не становится скрытой зависимостью (items.js 391 и
+  // buildings.js 392 и так раньше cities.js 402).
   const src = fs.readFileSync(CITIES_PATH, 'utf8');
   const reqs = [...src.matchAll(/require\(\s*['"]([^'"]+)['"]\s*\)/g)]
     .map((m) => m[1]);
-  assert.deepEqual(reqs, ['./perlin.js'],
-    'cities.js обязан требовать только ./perlin.js');
+  assert.deepEqual(reqs, ['./perlin.js', './items.js', './buildings.js'],
+    'cities.js обязан требовать только perlin.js, items.js, buildings.js');
 });
 
 test('dungeon-совместимость: CELL_WALL/CELL_FLOOR РАВНЫ значениям dungeon.js', () => {
@@ -1008,4 +1025,404 @@ test('валидация: layout — width/height/cells/entrance/exit, инач�
     assert.throws(() => C.generateCityContents(broken, 100, -40, rec, 1),
       /cities\.js/, `layout без ${field} обязан бросать`);
   }
+});
+
+// ============================================================
+// Лавки города (задача 000108) — makeCityShop
+// ============================================================
+//
+// makeCityShop(cityX, cityY, tx, ty, buildingId, wealth) → shop-
+// объект в makeShop/setShop-формате {x, y, buildingType, wealth,
+// stock, seed} — РОВНО 6 полей, где x/y = ЛОКАЛЬНАЯ клетка (tx,ty)
+// города (ключ состояния 000109 «tx,ty»).
+//
+// Зафиксированные решения (memory/000108-city-shops.md):
+//  * лавка = обёртка СУЩЕСТВУЮЩего items.makeShop с офсетом
+//    координат города: makeShop(cityX*256+tx, cityY*256+ty,
+//    map_index, wealth) — семантика стока/seed/ассортимента/
+//    универсала-w3 НЕ дублируется (формула закреплена golden-
+//    пинами items.test.js, 000060);
+//  * CITY_SHOP_CELL_BASE = 256 — инъективная кодировка (город,
+//    клетка) → координаты makeShop: x′ = cityX*256+tx,
+//    y′ = cityY*256+ty. 256 > максимальный размер layout
+//    (2×footprint−1 ≤ 14): две РАЗНЫЕ пары (город, клетка)
+//    никогда не дают общие координаты — ВКЛЮЧАЯ СОСЕДНИЕ якоря
+//    (наивная сумма cityX+tx дала бы коллизию: (100,−40)+tx=1 и
+//    (101,−40)+tx=0 — оба x′=101 → общий сток; ловит тест
+//    «анти-прецедент» ниже);
+//  * buildingId → запись каталога assets/buildings (ЛЕНИВЫЙ
+//    референс: node — require, браузер — Game в момент вызова) →
+//    особые_параметры.map_index: записи нет → throw (ошибка
+//    вызывающего); map_index нет (города 51..54) или «виды» нет
+//    (Арена 7 / Стрельбище 10 / Дом кузнеца 25) → null (не лавка);
+//    КРОСС-ССЫЛКА — id каталога, НЕ map_index: 44 (Таверна) → 11,
+//    1 (Оружейная) → 0 (shopKindsFor(44) — null, shopKindsFor(1) —
+//    Бронник ['armor'], типичная ошибка — ловят тесты ниже);
+//  * wealth — целое 0..3, cities.js-конвенция (throw, как в
+//    generateCityContents); в проде — tileAt().buildingWealth;
+//  * buy/sell — СУЩЕСТВУЮЩИЕ I.buyItem/I.sellItem/buyPrice/
+//    sellPrice БЕЗ ИЗМЕНЕНИЙ: городская лавка «влезает» в
+//    существующий интерфейс playerUI.setShop как есть;
+//  * sellItem НЕ увеличивает сток (существующая семантика: товар
+//    скупается и исчезает, items.js) — формулировка задачи
+//    «продажа — увеличивает» неточна; тесты пиннят ФАКТИЧЕСКОЕ
+//    поведение (расхождение — в отчёте);
+//  * ЛОВУШКА-ПРЕЦЕДЕНТ: мировой npcStocks (main.js) ключируется по
+//    npcId — «все тайлы храма солнца делят один сток». Городские
+//    лавки — СВОИ стоки по (город, клетка): повторный вызов
+//    makeCityShop даёт НОВЫЙ объект stock (тест ниже), мировой
+//    npcStocks в этой задаче НЕ трогается (регрессионный
+//    структурный тест в конце раздела).
+//
+// СТАДИЯ КРАСНЫХ ТЕСТОВ (TDD): makeCityShop ещё НЕ реализован в
+// src/cities.js — тесты ниже падают на «C.makeCityShop is not a
+// function» (паттерн 000104/000106). Golden-литералы stock/seed
+// зафиксированы ЗАРАНЕЕ из существующего закреплённого makeShop
+// (items.test.js, 000060): seed = hash2(cityX*256+tx, cityY*256+ty,
+// 0x154075) ^ (map_index+1) — обёртка обязана вернуть ровно эти
+// значения; ре-имплементация логики стока вместо вызова makeShop
+// их сломает.
+
+// --- API и константа ---
+
+test('000108 API: makeCityShop — функция (ровно 6 параметров); CITY_SHOP_CELL_BASE = 256 (golden-пин литерала)', () => {
+  const C = loadCities();
+  assert.equal(typeof C.makeCityShop, 'function',
+    'makeCityShop(cityX, cityY, tx, ty, buildingId, wealth)');
+  assert.equal(C.makeCityShop.length, 6,
+    'ровно 6 параметров: layout/cityRecord-аргументов НЕТ ' +
+    '(данные — из (город, клетка) и каталога по buildingId)');
+  assert.equal(C.CITY_SHOP_CELL_BASE, 256,
+    'golden-пин: 256 > максимального layout (2×footprint−1 ≤ 14); ' +
+    'смена после мержа = смена ВСЕХ городских стоков — недопустимо');
+});
+
+// --- Не-лавки и валидация ---
+
+test('не-лавка → null: Арена (7), Стрельбище (10), Дом кузнеца (25) — без «виды»; города (51..54) — без map_index; все wealth', () => {
+  const C = loadCities();
+  for (const id of [7, 10, 25])
+    for (const w of WEALTHS)
+      assert.equal(C.makeCityShop(100, -40, 2, 2, id, w), null,
+        `buildingId ${id} — не лавка (w${w})`);
+  for (const id of [51, 52, 53, 54])
+    assert.equal(C.makeCityShop(-114, -119, 1, 1, id, 1), null,
+      `город ${id} — не лавка (map_index нет)`);
+});
+
+test('buildingId нет в каталоге → throw (ошибка вызывающего), /cities\\.js/', () => {
+  const C = loadCities();
+  for (const id of [999, 500, -1])
+    assert.throws(() => C.makeCityShop(100, -40, 2, 2, id, 1),
+      /cities\.js/, `buildingId ${id} — нет в каталоге`);
+});
+
+test('валидация: cityX/cityY/tx/ty/buildingId — целые (cityX/cityY — ЛЮБЫЕ, включая отрицательные), иначе throw /cities\\.js/', () => {
+  const C = loadCities();
+  for (const bad of [1.5, -0.5, '2', NaN, null, undefined]) {
+    assert.throws(() => C.makeCityShop(bad, -40, 2, 2, 44, 1),
+      /cities\.js/, 'cityX=' + String(bad));
+    assert.throws(() => C.makeCityShop(100, bad, 2, 2, 44, 1),
+      /cities\.js/, 'cityY=' + String(bad));
+    assert.throws(() => C.makeCityShop(100, -40, bad, 2, 44, 1),
+      /cities\.js/, 'tx=' + String(bad));
+    assert.throws(() => C.makeCityShop(100, -40, 2, bad, 44, 1),
+      /cities\.js/, 'ty=' + String(bad));
+    assert.throws(() => C.makeCityShop(100, -40, 2, 2, bad, 1),
+      /cities\.js/, 'buildingId=' + String(bad));
+  }
+  // Отрицательные координаты города — ВАЛИДНЫ (реальные якоря:
+  // (−114,−119), (−37,21), (−119,−104)).
+  assert.ok(C.makeCityShop(-114, -119, 1, 1, 44, 1), 'cityX/cityY < 0');
+});
+
+test('валидация: wealth — целое 0..3 (cities.js-конвенция, как generateCityContents); tx/ty — [0, 256) (инъективность), иначе throw', () => {
+  const C = loadCities();
+  for (const w of [-1, 4, 1.5, '2', null, undefined, NaN, true])
+    assert.throws(() => C.makeCityShop(100, -40, 2, 2, 44, w),
+      /cities\.js/, 'wealth=' + String(w));
+  for (const [tx, ty] of [[256, 0], [0, 256], [-1, 0], [0, -1], [257, 257]])
+    assert.throws(() => C.makeCityShop(100, -40, tx, ty, 44, 1),
+      /cities\.js/, `tx=${tx},ty=${ty} вне [0,256)`);
+  // Граница 255 — валидна (максимальный layout 14 — гард защищает
+  // кодировку, а не layout).
+  assert.ok(C.makeCityShop(100, -40, 255, 255, 44, 1), 'tx=ty=255');
+});
+
+// --- Форма shop-объекта ---
+
+test('форма shop: РОВНО 6 полей makeShop/setShop-формата; x/y = локальная клетка (tx,ty); buildingType = map_index каталога (44→11, 1→0)', () => {
+  const C = loadCities();
+  const s = C.makeCityShop(100, -40, 2, 2, 44, 2);
+  assert.ok(s, 'таверна — лавка');
+  assert.deepEqual(Object.keys(s).sort(),
+    ['buildingType', 'seed', 'stock', 'wealth', 'x', 'y'],
+    'ровно 6 полей — без доп. полей (влезает в playerUI.setShop ' +
+    'и buy/sell, читающие stock/wealth/buildingType)');
+  assert.equal(s.x, 2, 'x = tx — ЛОКАЛЬНАЯ клетка (ключ 000109 «tx,ty»), а не cityX*256+tx');
+  assert.equal(s.y, 2, 'y = ty');
+  assert.equal(s.buildingType, 11,
+    'id 44 (Таверна) → map_index 11, НЕ 44 (shopKindsFor(44) — null)');
+  assert.equal(s.wealth, 2);
+  assert.ok(s.stock && typeof s.stock === 'object' &&
+    Object.keys(s.stock).length > 0, 'stock не пуст');
+  // Ассортимент — из каталога (000060): wealth < 3 — только виды
+  // записи (таверна: food/potion).
+  for (const w of [0, 1, 2]) {
+    const s2 = C.makeCityShop(100, -40, 2, 2, 44, w);
+    for (const id of Object.keys(s2.stock))
+      assert.ok(['food', 'potion'].includes(I.getItem(id).kind),
+        `таверна w${w}: «${id}» вне видов [food, potion]`);
+  }
+  // Оружейная (id 1): map_index 0 (НЕ 1 — shopKindsFor(1) это
+  // Бронник ['armor']), сток — только оружие.
+  const ws = C.makeCityShop(-114, -119, 1, 1, 1, 1);
+  assert.equal(ws.buildingType, 0, 'id 1 (Оружейная) → map_index 0');
+  for (const id of Object.keys(ws.stock))
+    assert.equal(I.getItem(id).kind, 'weapon', `оружейная: «${id}»`);
+  // plain (JSON-сериализуемо для сейва 000109).
+  assert.deepEqual(JSON.parse(JSON.stringify(s)), s, 'plain-объект');
+});
+
+// --- Формула (ядро задачи) и детерминизм ---
+
+test('формула: shop = СУЩЕСТВУЮЩИЙ makeShop(cityX*256+tx, cityY*256+ty, map_index, wealth) — seed/stock без дублирования логики', () => {
+  const C = loadCities();
+  // Кросс-ссылка id → map_index — из каталога (B.getBuilding),
+  // НЕ через обёртку: независимый референс.
+  for (const [cx, cy, tx, ty, id, w] of [
+    [100, -40, 2, 2, 44, 2],
+    [100, -40, 7, 5, 44, 3],
+    [-114, -119, 1, 1, 1, 1],
+    [-37, 21, 1, 7, 44, 1],
+    [100, -40, 2, 2, 1, 0],
+  ]) {
+    const mi = B.getBuilding(id).особые_параметры.map_index;
+    const ref = I.makeShop(cx * 256 + tx, cy * 256 + ty, mi, w);
+    const s = C.makeCityShop(cx, cy, tx, ty, id, w);
+    assert.equal(s.seed, ref.seed,
+      `(${cx},${cy}) (${tx},${ty}) id${id} w${w}: seed — из (город, клетка)`);
+    assert.deepEqual(s.stock, ref.stock,
+      `(${cx},${cy}) (${tx},${ty}) id${id} w${w}: сток — семантика makeShop`);
+  }
+});
+
+test('детерминизм: повторный вызов → deepEqual; НО stock — НОВЫЙ объект при каждом вызове (общего стока НЕТ — анти-прецедент npcStocks)', () => {
+  const C = loadCities();
+  const a = C.makeCityShop(100, -40, 2, 2, 44, 2);
+  const b = C.makeCityShop(100, -40, 2, 2, 44, 2);
+  assert.deepEqual(a, b, 'результат идентичен');
+  assert.notEqual(a.stock, b.stock,
+    'stock — новый объект (ссылочного общего стока нет, в отличие от npcStocks)');
+  // Мутация стока одной лавки не трогает другую.
+  delete a.stock.healing_potion;
+  assert.ok('healing_potion' in b.stock, 'мутация a.stock не тронула b.stock');
+  const c1 = C.makeCityShop(100, -40, 2, 2, 44, 2);
+  assert.deepEqual(c1.stock, b.stock, 'третий вызов — тот же сток');
+});
+
+// --- GOLDEN: литералы из существующего закреплённого makeShop ---
+const SHOP_GOLDEN = {
+  // «cx,cy,tx,ty,id,wealth» → {seed, stock}. Литералы вычислены из
+  // существующего makeShop (golden 000060 items.test.js): seed =
+  // hash2(cx*256+tx, cy*256+ty, 0x154075) ^ (map_index+1). Любая
+  // ре-имплементация стока вместо вызова makeShop ломает пины.
+  '100,-40,2,2,44,2': { seed: 7804926, stock: {
+    healing_potion: 3, greater_healing: 3, mana_potion: 4,
+    bread: 4, honey_cake: 2 } },
+  '100,-40,7,5,44,3': { seed: 3425630131, stock: {
+    wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
+    hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
+    chainmail: 1, knight_plate: 2, minor_healing: 2, healing_potion: 5,
+    greater_healing: 3, mana_potion: 3, mana_elixir: 4, bread: 4,
+    meat: 1, honey_cake: 1, alchemy_manual: 1, sword_treatise: 4,
+    sulfur: 4, moonstone: 5, phoenix_feather: 1, stone_fist_grimoire: 4,
+    iron_hide_tome: 3, fire_spellbook: 2, ice_spellbook: 2,
+    heavy_tome: 4, meditation_scroll: 3, nature_scroll: 1, iron_ore: 1,
+    copper_ore: 1, wood_log: 1, stone_chunk: 3, hide: 5, herb_healing: 3,
+    herb_mana: 2, herb_bitter: 5, stone_chisel: 5 } },
+  '-114,-119,1,1,1,1': { seed: 550380853, stock: {
+    iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
+    war_hammer: 1 } },
+  '-37,21,1,7,44,1': { seed: 1556417893, stock: {
+    minor_healing: 3, greater_healing: 3, mana_potion: 2,
+    mana_elixir: 3, bread: 3, meat: 1, honey_cake: 1 } },
+};
+
+test('golden: фикс. (якорь, клетка, buildingId, wealth) → фикс. seed/stock (литералы)', () => {
+  const C = loadCities();
+  for (const [key, g] of Object.entries(SHOP_GOLDEN)) {
+    const [cx, cy, tx, ty, id, w] = key.split(',').map(Number);
+    const s = C.makeCityShop(cx, cy, tx, ty, id, w);
+    assert.equal(s.seed, g.seed, `golden ${key}: seed`);
+    assert.deepEqual(s.stock, g.stock, `golden ${key}: stock`);
+  }
+});
+
+// --- Разные города / клетки / wealth ---
+
+test('разные города → РАЗНЫЕ стоки (одна клетка/тип/wealth); тот же город/клетка → тот же сток (детерминизм)', () => {
+  const C = loadCities();
+  const a = C.makeCityShop(100, -40, 2, 2, 44, 2);
+  const b = C.makeCityShop(-37, 21, 2, 2, 44, 2);
+  assert.notEqual(a.seed, b.seed, 'seed различен');
+  assert.notDeepEqual(a.stock, b.stock, 'сток не общий между городами');
+  assert.deepEqual(C.makeCityShop(100, -40, 2, 2, 44, 2), a,
+    'тот же город/клетка — детерминизм');
+});
+
+test('анти-прецедент инъективной кодировки: СОСЕДНИЕ якоря (100,−40)+tx=1 и (101,−40)+tx=0 → РАЗНЫЕ стоки (наивный cityX+tx дал бы обоим x′=101 → общий сток)', () => {
+  const C = loadCities();
+  // 100*256+1 = 25601; 101*256+0 = 25856 — различны. При сумме
+  // 100+1 = 101 = 101+0 — коллизия (баг, который ловит тест).
+  const a = C.makeCityShop(100, -40, 1, 0, 44, 2);
+  const b = C.makeCityShop(101, -40, 0, 0, 44, 2);
+  assert.notEqual(a.seed, b.seed, 'seed различен');
+  assert.notDeepEqual(a.stock, b.stock, 'стоки различны');
+});
+
+test('один город, один тип, РАЗНЫЕ клетки → РАЗНЫЕ стоки (ключ — клетка, НЕ тип и НЕ город; 4 таверны у 000106-golden (100,−40) w3: (7,5), (7,3), (1,2), (2,6))', () => {
+  const C = loadCities();
+  const s1 = C.makeCityShop(100, -40, 7, 5, 44, 3);
+  const s2 = C.makeCityShop(100, -40, 7, 3, 44, 3);
+  const s3 = C.makeCityShop(100, -40, 1, 2, 44, 3);
+  const s4 = C.makeCityShop(100, -40, 2, 6, 44, 3);
+  assert.notDeepEqual(s1.stock, s2.stock, 'таверны (7,5) и (7,3)');
+  assert.notDeepEqual(s1.stock, s3.stock, 'таверны (7,5) и (1,2)');
+  assert.notDeepEqual(s3.stock, s4.stock, 'таверны (1,2) и (2,6)');
+});
+
+test('wealth: сток w0 ≠ w3; универсам (w3) содержит виды ВНЕ видов таверны (смесь); buyPrice(w1) ≠ buyPrice(w2) для общего предмета (BUY_WEALTH_MULT)', () => {
+  const C = loadCities();
+  const w0 = C.makeCityShop(100, -40, 2, 2, 44, 0);
+  const w3 = C.makeCityShop(100, -40, 2, 2, 44, 3);
+  assert.notDeepEqual(w0.stock, w3.stock, 'wealth меняет сток');
+  const kinds = new Set(
+    Object.keys(w3.stock).map((id) => I.getItem(id).kind));
+  const foreign = [...kinds].filter((k) =>
+    !['food', 'potion'].includes(k));
+  assert.ok(foreign.length > 0,
+    'универсам (w3) — смесь: виды ' + foreign.join(', ') +
+    ' вне видов таверны');
+  const w1 = C.makeCityShop(100, -40, 2, 2, 44, 1);
+  const w2 = C.makeCityShop(100, -40, 2, 2, 44, 2);
+  assert.ok('healing_potion' in w1.stock &&
+    'healing_potion' in w2.stock, 'общий предмет в стоках w1 и w2');
+  const c = PL.createCharacter();
+  assert.notEqual(I.buyPrice(w1, 'healing_potion', c),
+    I.buyPrice(w2, 'healing_potion', c),
+    'цена покупки зависит от wealth (0.10 за уровень)');
+});
+
+// --- buy/sell: городская лавка «влезает» в СУЩЕСТВУЮЩУЮ торговлю ---
+
+test('buyItem (существующий): покупка уменьшает сток и золото; «нет в наличии»; «мало золота»', () => {
+  const C = loadCities();
+  const s = C.makeCityShop(100, -40, 2, 2, 44, 2);
+  const c = PL.createCharacter(); // gold = 100
+  const price = I.buyPrice(s, 'healing_potion', c);
+  const before = s.stock.healing_potion;
+  const r = I.buyItem(s, c, 'healing_potion', 2);
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(c.gold, 100 - 2 * price, 'золото − цена');
+  assert.equal(I.totalQty(c, 'healing_potion'), 2, 'предмет в инвентаре');
+  assert.equal(s.stock.healing_potion, before - 2, 'сток − qty');
+  // Нет в наличии: реагент таверна не продаёт вовсе.
+  assert.equal(I.buyItem(s, c, 'sulfur').ok, false, 'нет в наличии');
+  // Мало золота.
+  c.gold = 0;
+  const poor = I.buyItem(s, c, 'healing_potion');
+  assert.equal(poor.ok, false);
+  assert.match(poor.reason, /золота/);
+});
+
+test('sellItem (существующий): золото +, инвентарь −, сток НЕ меняется (рефакторинг-безопасный факт: скупленное исчезает, в сток не возвращается); таверна НЕ скупает weapon (buildingType проходит в shopKindsFor)', () => {
+  const C = loadCities();
+  const s = C.makeCityShop(100, -40, 2, 2, 44, 2);
+  const c = PL.createCharacter();
+  const stockBefore = JSON.parse(JSON.stringify(s.stock));
+  I.addItem(c, 'bread', 1);
+  const sell = I.sellItem(s, c, 'bread', 1);
+  assert.equal(sell.ok, true, JSON.stringify(sell));
+  assert.equal(c.gold, 100 + I.sellPrice(s, 'bread', c),
+    'золото + цена продажи (SELL_WEALTH_MULT)');
+  assert.equal(I.totalQty(c, 'bread'), 0, 'предмет покинул инвентарь');
+  assert.deepEqual(s.stock, stockBefore,
+    'сток НЕ увеличивается продажей (существующая семантика)');
+  // Таверна (buildingType 11) не скупает оружие.
+  I.addItem(c, 'wood_sword');
+  const no = I.sellItem(s, c, 'wood_sword');
+  assert.equal(no.ok, false);
+  assert.match(no.reason, /не скупает/);
+});
+
+// --- vm-песочницы ---
+
+test('vm perlin → cities (БЕЗ items.js): makeCityShop → throw, сообщение называет cities.js И items.js; РЕГРЕССИЯ: createCityLayout/generateCityContents в той же песочнице работают', () => {
+  const C = loadCities();
+  const perlinCode = fs.readFileSync(path.join(ROOT, 'src', 'perlin.js'), 'utf8');
+  const citiesCode = fs.readFileSync(CITIES_PATH, 'utf8');
+  const sandbox = { console: { warn() {}, error() {}, log() {} } };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  vm.runInContext(perlinCode, sandbox, { filename: 'perlin.js' });
+  vm.runInContext(citiesCode, sandbox, { filename: 'cities.js' });
+  const G = sandbox.Game;
+  assert.ok(G.Cities, 'браузерная ветка: Game.Cities');
+  // РЕГРЕССИЯ: минимальная цепочка не сломана (000104/000106).
+  assert.equal(G.Cities.createCityLayout(100, -40, 5).seed,
+    3580905026, 'createCityLayout — как в node');
+  const rec = JSON.parse(JSON.stringify(CITY_RECORDS.get(53)));
+  assert.ok(G.Cities.generateCityContents(
+    G.Cities.createCityLayout(100, -40, 5), 100, -40, rec, 1)
+    .buildings.length >= 1, 'generateCityContents работает');
+  // makeCityShop без items.js — ЯВНЫЙ throw (гард порядка,
+  // паттерн 000018/000038; load-time-гарда на items.js НЕТ —
+  // существующие vm-тесты цепочки perlin→cities обязаны остаться
+  // зелёными).
+  let err = null;
+  try {
+    G.Cities.makeCityShop(100, -40, 2, 2, 44, 1);
+  } catch (e) { err = e; }
+  assert.ok(err, 'без items.js makeCityShop обязан бросить');
+  assert.match(String(err.message), /cities\.js/,
+    'сообщение называет cities.js');
+  assert.match(String(err.message), /items\.js/,
+    'сообщение называет items.js');
+});
+
+test('vm ПОЛНАЯ цепочка (global-settings → perlin → map → skills-data → items-data → player → items → buildings → cities): G.Cities.makeCityShop работает, JSON-результат = node-результат', () => {
+  const C = loadCities();
+  const sandbox = {};
+  const chain = ['global-settings.js', 'perlin.js', 'map.js',
+    'skills-data.js', 'items-data.js', 'player.js', 'items.js',
+    'buildings.js', 'cities.js'];
+  for (const f of chain)
+    vm.runInNewContext(
+      fs.readFileSync(path.join(ROOT, 'src', f), 'utf8'), sandbox,
+      { filename: f });
+  const G = sandbox.Game;
+  assert.ok(G.Cities, 'Game.Cities (браузерная ветка)');
+  assert.equal(typeof G.Cities.makeCityShop, 'function');
+  // Ленивые референсы подхватывают Game.Items/Game.BUILDINGS в
+  // момент вызова — результат идентичен node (JSON, чужой realm).
+  const vmShop = G.Cities.makeCityShop(100, -40, 2, 2, 44, 2);
+  const nodeShop = C.makeCityShop(100, -40, 2, 2, 44, 2);
+  assert.equal(JSON.stringify(vmShop), JSON.stringify(nodeShop),
+    'vm и node — идентичный результат');
+  // Каталог подхвачен: не-лавка в песочнице — тоже null.
+  assert.equal(G.Cities.makeCityShop(100, -40, 1, 1, 7, 2), null,
+    'арена — не лавка (в песочнице)');
+});
+
+// --- РЕГРЕССИЯ: мировой сток NPC (ловушка-прецедент задачи) ---
+
+test('регрессия: мировой npcStocks (main.js) ключируется по npcId — БЕЗ ИЗМЕНЕНИЙ (src/main.js браузерный, в node не require-ается — структурный ассерт по паттерну проекта)', () => {
+  const mainSrc = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
+  assert.match(mainSrc, /const npcStocks = \{\}/,
+    'npcStocks — глобальный объект');
+  assert.match(mainSrc, /if \(!npcStocks\[npcId\]\)/,
+    'ленивое создание по npcId');
+  assert.match(mainSrc, /npcStocks\[npcId\] = shop\.stock/,
+    'ключ — npcId (НЕ (город, клетка)); городской сток — другой ключ (000109)');
 });
