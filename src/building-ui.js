@@ -41,7 +41,7 @@
   let onAction = null;
   let active = false;
   let keyHandler = null;
-  let rows = [];    // [{ btn, nameSpan, action }] — параллельно actions
+  let rows = [];    // [{ row, nameSpan, action }] — параллельно actions
   let cursor = -1;  // индекс строки под курсором (-1 — нет доступных)
 
   function el(tag, cls, text) {
@@ -151,7 +151,11 @@
       close();
       return;
     }
-    const row = t.closest('button[data-buid]');
+    // Строка — div.cp-itemrow (не button): closest('[data-buid]').
+    // row.disabled — JS-свойство (ставится при buildDom; у div в
+    // реальном браузере нет нативного disabled — двойная защита:
+    // executeAction ещё раз проверяет action.доступен).
+    const row = t.closest('[data-buid]');
     if (!row || row.disabled) return;
     executeAction(findAction(row.dataset.buid));
   }
@@ -191,19 +195,25 @@
 
     // Строки действий: 1..9 — нумерация, data-buid — id действия
     // (тач-клик 000123); недоступные — disabled + reason виден.
+    // Строка — div.cp-itemrow по образцу itemRow npcUI (ui.js:288):
+    // span.cp-btn — чип номера (CSS .cp-itemrow .cp-btn: width auto,
+    // не 24px), span.cp-itemname (flex:1), span.cp-itemmeta (reason).
+    // Клик — по ВСЕЙ строке (hit-area широкая); голый button.cp-btn
+    // (24px) был тесен: текст не влезал, кликалась только кнопка.
     const list = el('div', 'cp-items');
     rows = [];
     actions.forEach((a, i) => {
-      const row = el('button', 'cp-btn');
+      const row = el('div', 'cp-itemrow');
       row.setAttribute('data-buid', String(a.id));
       row.disabled = !a.доступен;
-      row.appendChild(el('span', '', String(i + 1)));
+      if (!a.доступен) row.style.opacity = '0.3'; // как .cp-btn:disabled
+      row.appendChild(el('span', 'cp-btn', String(i + 1)));
       const nameSpan = el('span', 'cp-itemname');
       row.appendChild(nameSpan);
       if (a.reason) {
         row.appendChild(el('span', 'cp-itemmeta', ' — ' + a.reason));
       }
-      rows.push({ btn: row, nameSpan, action: a });
+      rows.push({ row, nameSpan, action: a });
       list.appendChild(row);
     });
     side.appendChild(list);

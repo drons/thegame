@@ -465,6 +465,32 @@ test('A17. building-effects (UMD vm): available?(state) работает в пе
   }
 });
 
+test('A18. раз-в-день: apply БЕЗ флага — лимита НЕТ (implicit-лимит убран, ревью раунда 3)', () => {
+  // Контракт плана 000064: «фонтан: исцеление лимит / монета — нет».
+  // До ревью раунда 3 hasDailyLimit возвращал true на любое
+  // «исполняемое» (есть apply) — фонтан монет получал бы ложный
+  // лимит раз в день.
+  const BE = loadBE();
+  BE.EFFECTS['40'] = {
+    имя: 'Монета',
+    apply: () => ({ ok: true, message: '+1' }),
+  };
+  try {
+    const b = { id: 40, особые_параметры: {} };
+    assert.equal(BE.hasDailyLimit(b, '40'), false,
+      'apply без флага — без лимита');
+    // И через buildingActions: в тот же день — снова доступно.
+    const st = makeState({
+      day: 3, tile: { x: 5, y: 7 },
+      save: { buildingOncePerDay: { '5,7:40': 3 } },
+    });
+    assert.equal(BE.buildingActions(b, null, st)[0].доступен, true,
+      'запись в сейве без флага — не блокирует');
+  } finally {
+    delete BE.EFFECTS['40'];
+  }
+});
+
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
 //
 // Паттерн tests/save-restore.test.js: DOM/WebGL-стабы + МОК
@@ -1034,8 +1060,12 @@ test('B3. [E] end-to-end: постройка БЕЗ NPC — оверлей, appl
     'постройка без NPC (id ' + (b && b.id) + ')');
   const fxId = String(b.id);
   const applied = [];
+  // Лимит — ЯВНЫЙ флаг записи реестра разВДень (ревью раунда 3:
+  // implicit «есть apply → лимит» убран — контракт плана 000064:
+  // «фонтан: исцеление лимит / монета — нет»; без флага — см. B12).
   G.buildingEffects.EFFECTS[fxId] = {
     имя: 'Тест-действие',
+    разВДень: true,
     apply: (state) => {
       applied.push(state);
       return { ok: true, message: 'тест-эффект сработал' };
@@ -1334,8 +1364,8 @@ test('B10. apply → НЕ-ok: message — в hudFlash (не гаснет мол�
     assert.ok(String(h.hud.textContent).includes('тест: эффект отказался'),
       'message неуспешного apply виден в HUD');
     // Эффект не сработал — без маркировки раз-в-день (успешный apply
-    // по B3 помечал бы этот же ключ: hasDailyLimit для записи с
-    // apply — true).
+    // С флагом разВДень помечал бы этот же ключ — B3; у этой записи
+    // флага нет: без маркировки и успех, и отказ — B12).
     const saveAfter = readSave(h);
     const m = saveAfter.data.buildingOncePerDay;
     assert.ok(m == null || m[key1] == null,
@@ -1380,6 +1410,57 @@ test('B11. available?(state) end-to-end: строка disabled + reason, наж�
     assert.equal(G.buildingUI.isActive(), true, 'оверлей остаётся открытым');
     key(h, 'Escape');
     assert.equal(G.buildingUI.isActive(), false);
+  } finally {
+    delete G.buildingEffects.EFFECTS[fxId];
+  }
+});
+
+test('B12. раз-в-день: эффект БЕЗ флага — повторяем в тот же день (контракт плана 000064, ревью раунда 3)', async () => {
+  // «Фонтан: исцеление лимит / монета — нет». До ревью раунда 3
+  // implicit «есть apply → лимит» блокировал повторное нажатие
+  // в тот же день; маркировки buildingOncePerDay быть НЕ должно.
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findBuilding(G, myMap, g.state.player, false);
+  assert.ok(found, 'сценарий: найдена достижимая постройка без NPC');
+  walkTo(h, found.steps);
+  const st = g.state;
+  const t = myMap.tileAt(st.player.x, st.player.y);
+  const b = G.buildingForMapIndex(t.building);
+  const fxId = String(b.id);
+  const applied = [];
+  G.buildingEffects.EFFECTS[fxId] = {
+    имя: 'Тест-монета',
+    apply: () => {
+      applied.push(1);
+      return { ok: true, message: 'монета +1' };
+    },
+  };
+  try {
+    const key1 = st.player.x + ',' + st.player.y + ':' + fxId;
+    // Первое нажатие.
+    key(h, 'KeyE');
+    assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+    key(h, 'Digit1');
+    assert.equal(applied.length, 1, 'первый apply');
+    assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+    // ВТОРОЕ нажатие в тот же день — строка доступна, apply снова.
+    key(h, 'KeyE');
+    assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается');
+    const row = findRow(findOverlay(h), fxId);
+    assert.ok(row, 'строка действия в оверлее');
+    assert.equal(row.disabled, false,
+      'без флага — НЕ заблокировано в тот же день');
+    key(h, 'Digit1');
+    assert.equal(applied.length, 2,
+      'повторно в тот же день — ВЫПОЛНЕНО (без флага)');
+    // Маркировки раз-в-день в сейве нет.
+    const saveAfter = readSave(h);
+    const m = saveAfter.data.buildingOncePerDay;
+    assert.ok(m == null || m[key1] == null,
+      'без флага — ключ «x,y:effectId» не пишется в сейв');
   } finally {
     delete G.buildingEffects.EFFECTS[fxId];
   }

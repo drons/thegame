@@ -599,42 +599,47 @@
   // hudFlash — отказ apply не гаснет молча (ревью раунда 2);
   // маркировки и saveNow НЕТ (эффект не сработал).
   function onBuildingAction(action, t, b, npc) {
+    // Реестр эффектов — ПЕРВЫМИ (ревью раунда 3): запись
+    // EFFECTS['dialog'] (если появится в каталоге) не должна
+    // затеняться спецкейсом ниже. 'dialog' — fallback: NPC-диалог.
+    const BE = G.buildingEffects;
+    const entry = BE && BE.EFFECTS ? BE.EFFECTS[action.id] : null;
+    if (entry && typeof entry.apply === 'function') {
+      const r = entry.apply({
+        day: clock.day,
+        tile: { x: player.x, y: player.y },
+        hero,
+        // СНИМОК сейва (обычный объект, 000072): эффект не получает
+        // живых ссылок на состояние мира.
+        save: collectSaveData(),
+      });
+      if (!r || !r.ok) {
+        // Отказ apply: видимый отказ (message → hudFlash), без
+        // маркировки раз-в-день и saveNow — эффект не сработал
+        // (ревью раунда 2: до этого message неуспешного apply
+        // отбрасывался — нажатие умирало молча).
+        if (r && r.message) {
+          hudFlash = r.message;
+          hudFlashUntil = performance.now() + 5000;
+        }
+        return;
+      }
+      if (BE.hasDailyLimit(b, action.id)) {
+        buildingOncePerDay.set(
+          player.x + ',' + player.y + ':' + action.id, clock.day);
+      }
+      saveNow();
+      if (r.message) {
+        hudFlash = r.message;
+        hudFlashUntil = performance.now() + 5000;
+      }
+      G.playerUI && G.playerUI.render();
+      return;
+    }
     if (action.id === 'dialog') {
       if (npc) openNpcDialog(npc, t);
       return;
     }
-    const BE = G.buildingEffects;
-    const entry = BE && BE.EFFECTS ? BE.EFFECTS[action.id] : null;
-    if (!entry || typeof entry.apply !== 'function') return;
-    const r = entry.apply({
-      day: clock.day,
-      tile: { x: player.x, y: player.y },
-      hero,
-      // СНИМОК сейва (обычный объект, 000072): эффект не получает
-      // живых ссылок на состояние мира.
-      save: collectSaveData(),
-    });
-    if (!r || !r.ok) {
-      // Отказ apply: видимый отказ (message → hudFlash), без
-      // маркировки раз-в-день и saveNow — эффект не сработал
-      // (ревью раунда 2: до этого message неуспешного apply
-      // отбрасывался — нажатие умирало молча).
-      if (r && r.message) {
-        hudFlash = r.message;
-        hudFlashUntil = performance.now() + 5000;
-      }
-      return;
-    }
-    if (BE.hasDailyLimit(b, action.id)) {
-      buildingOncePerDay.set(
-        player.x + ',' + player.y + ':' + action.id, clock.day);
-    }
-    saveNow();
-    if (r.message) {
-      hudFlash = r.message;
-      hudFlashUntil = performance.now() + 5000;
-    }
-    G.playerUI && G.playerUI.render();
   }
 
   // Открыть оверлей «действия постройки» (задача 000071): список —
@@ -1320,9 +1325,18 @@
         (ds.contents.mobs.filter((m) => !m.defeated).length) + ' групп(ы)';
     } else if (t.hasBuilding) {
       const shopHint = G.shopKindsFor(t.building) ? '  (торговля — панель [I])' : '';
-      const npcHint = npcHere ? '  ([E] ' + npcHere.имя + ')'
-        : (effectsHere ? '  ([E] действия)' : '');
-      line += '\nЗдесь: ' + G.buildingNameUi(t.building) + shopHint + npcHint +
+      // [E] — РОУТЕР: действия упоминаем ВСЕГДА, когда есть эффекты
+      // (NPC не перекрывает их): «([E] имя, действия)» /
+      // «([E] имя)» / «([E] действия)» (ревью раунда 3).
+      let eHint = '';
+      if (npcHere && effectsHere) {
+        eHint = '  ([E] ' + npcHere.имя + ', действия)';
+      } else if (npcHere) {
+        eHint = '  ([E] ' + npcHere.имя + ')';
+      } else if (effectsHere) {
+        eHint = '  ([E] действия)';
+      }
+      line += '\nЗдесь: ' + G.buildingNameUi(t.building) + shopHint + eHint +
         (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE ? ' (вход — шагните)' : '');
     } else if (t.hasMobGroup) {
       // Имя группы — из каталога лениво (задача 000057): map.js
