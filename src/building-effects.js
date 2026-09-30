@@ -7,6 +7,35 @@
 // из globalThis.Game в момент ВЫЗОВА, fallback — last !== day: модуль
 // обязан работать в песочнице без day.js.
 //
+// Задача 000075 (телепорт-круг, id 41): первые РЕАЛЬНЫЕ записи и
+// ЧИСТЫЕ функции переноса:
+//   * linkTeleportCircles(circles, x, y, R, tieHash) →
+//     { pairId: 'x,y' | null, reason?: 'no_pair' } — ближайший другой
+//     круг по РАССТОЯНИЮ CHEBYSHEV в радиусе R (граница включительно);
+//     якорь (x, y) сам (если в списке) игнорируется; при равенстве
+//     расстояний — MIN tieHash(x, y); финальный тай-брейк — лекс.
+//     (x, затем y). Пары АССИМЕТРИЧНЫ: каждый круг — к СВОЕМУ
+//     ближайшему (симметрия НЕ гарантируется — зафиксировано A25).
+//   * teleportDestination(anchor, size, passable, tieHash) →
+//     {x, y} | null — проходимый тайл в footprint-соседстве парного
+//     круга (кольцо dx -1..width, dy -1..height; внутренние тайлы
+//     footprint'а — не кандидаты); oracle passable(x, y) — мир-
+//     предикат main.js; порядок: ближайшие к якорю по Чебышеву,
+//     затем tieHash, затем лекс.; нет проходимых → null.
+//   * teleportCharge(hero, active, cost) → { ok, gold, message? } —
+//     первое использование списывает стоимость, повтор (active) —
+//     НЕ списывает, мало золота — отказ БЕЗ списания; hero не
+//     мутируется.
+//   * serializeTeleports(Map) / restoreTeleports(объект) — раздел
+//     сейва data.teleports (имя зафиксировано 000072): 'x,y' →
+//     { pair: 'px,py'|null, dest: 'dx,dy'|null, active: boolean };
+//     мусорный раздел — пустой Map без исключения; мусорная запись —
+//     отброс (fail-open, 000029); roundtrip.
+//   * TELEPORT_TIE_SEED — сид tieHash для main.js (golden-пины).
+//   * EFFECTS['41'] — «Активировать/Телепорт», БЕЗ лимита раз-в-день;
+//     available/apply — по СНИМКУ сейва (dest и стоимость читает
+//     main.js — у apply мира и каталога НЕТ, контракт 000072).
+//
 // Контракты (зафиксированы tests/building-effects.test.js):
 //   * РЕЕСТР EFFECTS = {} (в задаче 000071 ПУСТ — подзадачи
 //     000074–000077/000091–000095 добавляют только СВОИ записи):
@@ -52,10 +81,90 @@
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self, function () {
 
+  // Ключ раздела сейва teleports — 'x,y' (целые координаты, могут
+  // быть отрицательными). pair/dest — те же строки или null.
+  const XY_KEY_RE = /^-?\d+,-?\d+$/;
+
+  // Сид тай-брейка парности/цели телепорт-круга (000075): ASCII
+  // 'TELP' — прецедент SUBTYPE_SEED_CONST (000073): СВОЯ константа,
+  // НЕ GLOBAL_SEED. main.js передаёт (x, y) => G.hash2(x, y,
+  // TELEPORT_TIE_SEED); экспорт — для golden-пинов.
+  const TELEPORT_TIE_SEED = 0x54454c50;
+
+  // Сообщение успеха переноса (зафиксировано A32/тестом).
+  const TELEPORT_MSG = 'телепорт: перенос к парному кругу';
+
+  // Раздел сейва teleports (имя зафиксировано 000072): чтение
+  // записи СНИМКА по ключу 'x,y' — прототип-безопасно, с лёгкой
+  // проверкой формы (fail-open, 000029): раздела нет / не объект /
+  // запись не той формы → null (для available/apply — «нет
+  // записи»; мусорная pair/dest строка — «нет пары»/«нет
+  // проходимого»). Снимок не мутируется.
+  function readTeleportEntry(st, key) {
+    const save = st && st.save;
+    if (!save || typeof save !== 'object' || Array.isArray(save)) return null;
+    const m = save.teleports;
+    if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+    if (!Object.prototype.hasOwnProperty.call(m, key)) return null;
+    const e = m[key];
+    if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+    const pair = (typeof e.pair === 'string' && XY_KEY_RE.test(e.pair))
+      ? e.pair : null;
+    const dest = (typeof e.dest === 'string' && XY_KEY_RE.test(e.dest))
+      ? e.dest : null;
+    return { pair, dest, active: !!e.active };
+  }
+
+  // Ключ тайла героя в снимке: 'x,y'.
+  function tileKeyOf(st) {
+    const t = st && st.tile;
+    return (t ? t.x : 0) + ',' + (t ? t.y : 0);
+  }
+
   // Реестр эффектов: id → { имя, разВДень?, available?(state),
   // apply?(state) → { ok, message? } }. В 000071 ПУСТ — подзадачи
-  // 000074–000077/000091–000095 добавляют только СВОИ записи.
-  const EFFECTS = {};
+  // 000074–000077/000091–000095 добавляют только СВОИ записи
+  // (в КОНЕЦ объекта; запись '41' — только 000075).
+  const EFFECTS = {
+    // 000075: телепорт-круг (id 41, подтип слота 10 — 000073).
+    // Разовая оплата (каталог особые_параметры.эффект.стоимость),
+    // дальше бесплатно — лимита раз-в-день НЕТ нигде (ни каталог,
+    // ни запись). available/apply — по СНИМКУ сейва (раздел
+    // teleports): СКАН пары и dest делает main.js при первом
+    // подходе и кэширует в сейве; у apply мира и каталога НЕТ —
+    // он НЕ перемещает и НЕ списывает (исполнение — ханк r.teleport
+    // в onBuildingAction main.js; контракт — memory/000075-
+    // teleport-circles.md).
+    '41': {
+      имя: 'Активировать/Телепорт',
+      available: (st) => {
+        const e = readTeleportEntry(st, tileKeyOf(st));
+        return (e && e.pair) ? true : 'круг молчит: нет пары вблизи';
+      },
+      apply: (st) => {
+        const e = readTeleportEntry(st, tileKeyOf(st));
+        if (!e || !e.pair) {
+          return { ok: false, message: 'круг молчит: нет пары вблизи' };
+        }
+        if (!e.dest) {
+          return {
+            ok: false,
+            message: 'нет проходимого тайла рядом с парным кругом',
+          };
+        }
+        const sep = e.dest.indexOf(',');
+        return {
+          ok: true,
+          message: TELEPORT_MSG,
+          // dest ИЗ СНИМКА сейва (кэш скана первого подхода).
+          teleport: {
+            x: Number(e.dest.slice(0, sep)),
+            y: Number(e.dest.slice(sep + 1)),
+          },
+        };
+      },
+    },
+  };
 
   /**
    * Ids эффектов постройки — только те, что есть в реестре; порядок —
@@ -186,5 +295,164 @@
     return out;
   }
 
-  return { EFFECTS, buildingActions, effectIds, hasEffects, hasDailyLimit };
+  /**
+   * Парность телепорт-кругов (000075): ближайший ДРУГОЙ круг по
+   * РАССТОЯНИЮ CHEBYSHEV в радиусе R (граница включительно).
+   * Чистая (мира нет): circles — список позиций кругов {x, y}
+   * (в тесте — синтетический, в игре — результат скана tileAt
+   * main.js). Якорь (x, y) сам, если в списке, игнорируется.
+   * Равенство расстояний — MIN tieHash(px, py); финальный
+   * тай-брейк — лексикографический (x, затем y): hash2 32-битный,
+   * коллизия теоретически возможна. ПАРЫ АССИММЕТРИЧНЫ: каждый
+   * круг — к СВОЕМУ ближайшему (симметрия НЕ гарантируется —
+   * зафиксировано A25). Пары нет — «спит» (НЕ ошибка):
+   * { pairId: null, reason: 'no_pair' }.
+   * @param {Array<{x: number, y: number}>} circles
+   * @param {number} x якорный тайл (круг, для которого ищем пару)
+   * @param {number} y
+   * @param {number} R радиус (Чебышев, граница включительно)
+   * @param {(px: number, py: number) => number} tieHash
+   * @returns {{pairId: string|null, reason?: string}}
+   */
+  function linkTeleportCircles(circles, x, y, R, tieHash) {
+    let best = null;
+    if (Array.isArray(circles)) {
+      for (const c of circles) {
+        if (!c || !Number.isInteger(c.x) || !Number.isInteger(c.y)) {
+          continue; // мусорная позиция — пропуск (fail-open)
+        }
+        if (c.x === x && c.y === y) continue; // сам якорь — не пара
+        const d = Math.max(Math.abs(c.x - x), Math.abs(c.y - y));
+        if (d > R) continue;
+        const h = Number(tieHash(c.x, c.y)) || 0;
+        if (best === null || d < best.d ||
+            (d === best.d && (h < best.h ||
+              (h === best.h && (c.x < best.x ||
+                (c.x === best.x && c.y < best.y)))))) {
+          best = { d, h, x: c.x, y: c.y };
+        }
+      }
+    }
+    if (best === null) return { pairId: null, reason: 'no_pair' };
+    return { pairId: best.x + ',' + best.y };
+  }
+
+  /**
+   * Цель телепорта (000075): проходимый тайл в footprint-соседстве
+   * парного круга — КОЛЬЦО: dx -1..width, dy -1..height вокруг
+   * якоря (внутренние тайлы footprint'а — не кандидаты: в стену
+   * не переносим). Порядок: ближайшие к якорю по Чебышеву, затем
+   * tieHash, затем лекс. (x, затем y). passable(x, y) — мир-оракль
+   * (main.js: t.passable && !t.inBuilding && !t.hasMobGroup &&
+   * не тайл исходного круга). Нет проходимых → null (в игре:
+   * переноса нет, золото не тратится).
+   * @param {{x: number, y: number}} anchor якорь парного круга
+   * @param {{width: number, height: number}} size footprint круга
+   * @param {(px: number, py: number) => boolean} passable
+   * @param {(px: number, py: number) => number} tieHash
+   * @returns {{x: number, y: number}|null}
+   */
+  function teleportDestination(anchor, size, passable, tieHash) {
+    const w = (size && Number.isInteger(size.width) && size.width > 0)
+      ? size.width : 1;
+    const h = (size && Number.isInteger(size.height) && size.height > 0)
+      ? size.height : 1;
+    const ax = anchor.x, ay = anchor.y;
+    let best = null;
+    for (let dy = -1; dy <= h; dy++) {
+      for (let dx = -1; dx <= w; dx++) {
+        // Внутренний тайл footprint'а — не кандидат (цель — кольцо
+        // вокруг круга).
+        if (dx >= 0 && dx < w && dy >= 0 && dy < h) continue;
+        const px = ax + dx, py = ay + dy;
+        if (!passable(px, py)) continue;
+        const d = Math.max(Math.abs(px - ax), Math.abs(py - ay));
+        const th = Number(tieHash(px, py)) || 0;
+        if (best === null || d < best.d ||
+            (d === best.d && (th < best.th ||
+              (th === best.th && (px < best.x ||
+                (px === best.x && py < best.y)))))) {
+          best = { d, th, x: px, y: py };
+        }
+      }
+    }
+    return best ? { x: best.x, y: best.y } : null;
+  }
+
+  /**
+   * Разовая активация телепорт-круга (000075): первое
+   * использование списывает стоимость из золота, повтор
+   * (active — круг уже активирован, сейв) — НЕ списывает,
+   * мало золота — отказ БЕЗ списания. Чистая: hero НЕ
+   * мутируется (возвращается новое золото).
+   * @param {{gold: number}} hero
+   * @param {boolean} active круг уже активирован (сейв)
+   * @param {number} cost стоимость из каталога
+   * @returns {{ok: boolean, gold: number, message?: string}}
+   */
+  function teleportCharge(hero, active, cost) {
+    const gold = hero && Number.isFinite(hero.gold) ? hero.gold : 0;
+    const c = Number.isFinite(cost) ? cost : 0;
+    if (active) return { ok: true, gold }; // повтор — бесплатно
+    if (gold >= c) return { ok: true, gold: gold - c };
+    return { ok: false, message: 'недостаточно золота', gold };
+  }
+
+  /**
+   * Раздел сейва teleports (имя — 000072): Map 'x,y' →
+   * { pair: 'px,py'|null, dest: 'dx,dy'|null, active: boolean }
+   * → обычный объект (JSON). Пустой Map — {}.
+   * @param {Map<string, {pair: string|null, dest: string|null,
+   *         active: boolean}>} m
+   * @returns {object}
+   */
+  function serializeTeleports(m) {
+    const out = {};
+    if (m && typeof m.forEach === 'function') {
+      m.forEach((v, k) => {
+        out[String(k)] = {
+          pair: (v && v.pair != null) ? String(v.pair) : null,
+          dest: (v && v.dest != null) ? String(v.dest) : null,
+          active: !!(v && v.active),
+        };
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Раздел сейва teleports → Map (fail-open, 000029): раздел
+   * не объект/массив — пустой Map БЕЗ исключения; мусорная
+   * запись — отброс ЗАПИСИ (ключ не 'x,y'; pair/dest не
+   * 'x,y'|null; active не boolean или отсутствует), валидные
+   * выживают. Roundtrip с serializeTeleports.
+   * @param {*} raw раздел сейва (обычный объект)
+   * @returns {Map<string, {pair: string|null, dest: string|null,
+   *         active: boolean}>}
+   */
+  function restoreTeleports(raw) {
+    const out = new Map();
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    for (const k of Object.keys(raw)) {
+      if (!XY_KEY_RE.test(k)) continue;
+      const v = raw[k];
+      if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+      if (typeof v.active !== 'boolean') continue; // нет active — мусор
+      // pair/dest — null ИЛИ строка 'x,y'; другое — мусорная запись
+      // (отброс ЦЕЛИКОМ, A29 — не нормализуем к null: форма раздела
+      // сейва зафиксирована).
+      const xyOk = (p) => p === null ||
+        (typeof p === 'string' && XY_KEY_RE.test(p));
+      if (!xyOk(v.pair) || !xyOk(v.dest)) continue;
+      out.set(k, { pair: v.pair, dest: v.dest, active: v.active });
+    }
+    return out;
+  }
+
+  return {
+    EFFECTS, buildingActions, effectIds, hasEffects, hasDailyLimit,
+    linkTeleportCircles, teleportDestination, teleportCharge,
+    serializeTeleports, restoreTeleports,
+    TELEPORT_TIE_SEED,
+  };
 });

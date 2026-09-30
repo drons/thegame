@@ -1,14 +1,39 @@
-// Задача 000071: основание эффектов построек — ПУСТЫЙ реестр
+// Задача 000071: основание эффектов построек — реестр
 // src/building-effects.js (чистый UMD-модуль) + оверлей Game.buildingUI
 // (src/building-ui.js) + ЕДИНЫЙ роутинг [E] через него (src/main.js).
+//
+// Задача 000075: телепорт-круг (id 41, подтип слота 10 — 000073) —
+// пары, активация, перемещение:
+//   * ЧИСТЫЕ функции (секция A20+): linkTeleportCircles,
+//     teleportDestination, teleportCharge, serializeTeleports,
+//     restoreTeleports — контракты в блоке перед A20.
+//   * Запись EFFECTS['41'] (имя «Активировать/Телепорт», БЕЗ лимита
+//     раз-в-день; available/apply — по СНИМКУ сейва, секция A30+).
+//   * wiring (секция B13+): main.js РЕШАЕТ запись тайла ПО buildingId
+//     (подтип, а не базовая запись слота — RESOLVE-БУГ: без этого
+//     действие «41» никогда не появится в оверлее); скан пары — при
+//     ПЕРВОМ подходе (openBuildingUI), кэш в разделе сейва `teleports`
+//     (имя зафиксировано 000072); активация — разовое списание
+//     (стоимость из каталога 000041.особые_параметры.эффект.стоимость)
+//     + перенос на dest + снап мувера; повтор — без списания.
+//   * РЕВОРК существующих B-тестов (критик): findBuilding резолвит
+//     запись по buildingId + опциональный pred; временные записи
+//     EFFECTS — под СИНТЕТИЧЕСКИМИ id (88..97) с save/restore в
+//     try/finally (реальные записи '40'/'41'/'43' — 000074/000075/
+//     000077 — не затираются); B12 — постройка БЕЗ каталожного
+//     раз_в_день (первая без NPC — id 43, у НЕГО флаг в каталоге).
+//   * A1 (пустой реестр 000071) переопределён: первая РЕАЛЬНАЯ
+//     запись — '41' (000074/000076 добавят свои — правка A1
+//     «кто смержился первым», см. memory/000075-teleport-circles.md).
 //
 // КРАСНЫЕ тесты (TDD): написаны ДО реализации; падают до зелёной стадии.
 //
 // Контракты, зафиксированные здесь (решения —
 // memory/000071-building-ui.md; полный отчёт — tasks/result/000071.md
 // на стадии Finalize):
-//   * REЕСТР EFFECTS = {} (в этой задаче ПУСТ — подзадачи 000074+
-//     добавляют только СВОИ записи): id → { имя, разВДень?,
+//   * REЕСТР EFFECTS: в 000071 был ПУСТ; с 000075 в нём первая
+//     РЕАЛЬНАЯ запись — '41' (телепорт-круг); подзадачи 000074/000076
+//     добавляют только СВОИ записи: id → { имя, разВДень?,
 //     available?(state), apply(state) → { ok, message? } }.
 //     available?(state) — НЕДНЕВНАЯ доступность (state — тот же
 //     СНИМОК { day, tile, hero, save }): истина (не строка) —
@@ -102,25 +127,32 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   assert.ok(BE, 'модуль существует');
   assert.ok(BE.EFFECTS && typeof BE.EFFECTS === 'object',
     'EFFECTS — объект-реестр');
-  assert.equal(Object.keys(BE.EFFECTS).length, 0,
-    'в задаче 000071 реестр ПУСТ (записи — в подзадачах 000074+)');
+  // 000075 ПЕРЕОПРЕДЕЛЯЕТ пин «реестр ПУСТ» (000071): первая РЕАЛЬНАЯ
+  // запись — '41' (телепорт-круг). 000074/000076 добавят СВОИ записи —
+  // правка этого пина «кто смержился первым» (memory/000075-
+  // teleport-circles.md), чтобы не было тройного конфликта.
+  assert.deepEqual(Object.keys(BE.EFFECTS).sort(), ['41'],
+    'в задаче 000075 в реестре только СВОЯ запись 41');
   for (const m of ['buildingActions', 'effectIds', 'hasEffects',
-    'hasDailyLimit']) {
+    'hasDailyLimit', 'linkTeleportCircles', 'teleportDestination',
+    'teleportCharge', 'serializeTeleports', 'restoreTeleports']) {
     assert.equal(typeof BE[m], 'function', 'BE.' + m + ' — функция');
   }
 });
 
-test('A2. buildingActions: пустой реестр, NPC нет — пустой список', () => {
+test('A2. buildingActions: постройки без записи в реестре, NPC нет — пустой список', () => {
   const BE = loadBE();
+  // СИНТЕТИЧЕСКИЙ id (000075): тест обязан проходить при ЛЮБОМ составе
+  // реестра (000074/000075/000076 добавляют реальные записи).
   const res = BE.buildingActions(
-    { id: 40, особые_параметры: {} }, null, makeState());
+    { id: 97, особые_параметры: {} }, null, makeState());
   assert.deepEqual(res, [], 'ни «Диалога», ни эффектов');
 });
 
 test('A3. buildingActions: NPC есть, эффектов нет — ровно «Диалог»', () => {
   const BE = loadBE();
   const res = BE.buildingActions(
-    { id: 36, особые_параметры: {} }, NPC(), makeState());
+    { id: 96, особые_параметры: {} }, NPC(), makeState());
   assert.equal(res.length, 1, 'один пункт');
   assert.equal(res[0].id, 'dialog', 'id зафиксирован');
   assert.equal(res[0].имя, 'Диалог', 'имя зафиксировано');
@@ -129,19 +161,21 @@ test('A3. buildingActions: NPC есть, эффектов нет — ровно 
 
 test('A4. buildingActions: связь 1-к-1 по building.id; «Диалог» ПЕРВЫМ', () => {
   const BE = loadBE();
-  BE.EFFECTS['40'] = { имя: 'Тест-действие' };
+  // СИНТЕТИЧЕСКИЙ id 90 (000075): временные записи реестра не должны
+  // затенять/тирать РЕАЛЬНЫЕ записи ('40' — 000074, '41' — 000075).
+  BE.EFFECTS['90'] = { имя: 'Тест-действие' };
   try {
-    const b = { id: 40, особые_параметры: {} };
+    const b = { id: 90, особые_параметры: {} };
     const r1 = BE.buildingActions(b, null, makeState());
     assert.equal(r1.length, 1, 'без NPC — только эффект');
-    assert.equal(r1[0].id, '40', 'id эффекта = String(building.id)');
+    assert.equal(r1[0].id, '90', 'id эффекта = String(building.id)');
     assert.equal(r1[0].имя, 'Тест-действие');
     assert.equal(r1[0].доступен, true);
     const r2 = BE.buildingActions(b, NPC(), makeState());
-    assert.deepEqual(r2.map((r) => r.id), ['dialog', '40'],
+    assert.deepEqual(r2.map((r) => r.id), ['dialog', '90'],
       'порядок: «Диалог» первым, затем эффекты');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
 });
 
@@ -166,34 +200,37 @@ test('A5. buildingActions: порядок эффектов — из катало
 
 test('A6. effectIds/hasEffects: дешёвая проверка БЕЗ сейва (хук HUD)', () => {
   const BE = loadBE();
-  assert.equal(BE.hasEffects({ id: 40, особые_параметры: {} }), false,
-    'пустой реестр — эффектов нет');
-  BE.EFFECTS['40'] = { имя: 'Тест' };
+  // СИНТЕТИЧЕСКИЕ id (000075): «без записи» проверяем на id, которых в
+  // реестре НЕ БУДЕТ НИКОГДА (97/98), — реальные записи '40' (000074)
+  // и '41' (000075) этот тест не ломают.
+  assert.equal(BE.hasEffects({ id: 97, особые_параметры: {} }), false,
+    'id без записи в реестре — эффектов нет');
+  BE.EFFECTS['90'] = { имя: 'Тест' };
   try {
-    assert.deepEqual(BE.effectIds({ id: 40, особые_параметры: {} }), ['40']);
-    assert.equal(BE.hasEffects({ id: 40, особые_параметры: {} }), true);
+    assert.deepEqual(BE.effectIds({ id: 90, особые_параметры: {} }), ['90']);
+    assert.equal(BE.hasEffects({ id: 90, особые_параметры: {} }), true);
     BE.EFFECTS['b'] = { имя: 'Бэ' };
     try {
       assert.deepEqual(
         BE.effectIds({ id: 99, особые_параметры: { эффекты: ['b', 'a'] } }),
         ['b'], 'только id с записями в реестре (порядок каталога)');
-      assert.equal(BE.hasEffects({ id: 41, особые_параметры: {} }), false);
+      assert.equal(BE.hasEffects({ id: 98, особые_параметры: {} }), false);
     } finally {
       delete BE.EFFECTS['b'];
     }
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
 });
 
 test('A7. раз-в-день: флаг каталога раз_в_день — тот же день заблокирован, следующий — свободен', () => {
   const BE = loadBE();
-  BE.EFFECTS['40'] = { имя: 'Тест' };
+  BE.EFFECTS['90'] = { имя: 'Тест' };
   try {
-    const b = { id: 40, особые_параметры: { раз_в_день: true } };
+    const b = { id: 90, особые_параметры: { раз_в_день: true } };
     const used = makeState({
       day: 3, tile: { x: 5, y: 7 },
-      save: { buildingOncePerDay: { '5,7:40': 3 } },
+      save: { buildingOncePerDay: { '5,7:90': 3 } },
     });
     const r1 = BE.buildingActions(b, null, used);
     assert.equal(r1[0].доступен, false, 'использовано в день 3, день 3');
@@ -204,102 +241,102 @@ test('A7. раз-в-день: флаг каталога раз_в_день — �
     assert.equal(r2[0].доступен, true, 'следующий день — свободно');
     assert.equal(r2[0].reason, undefined, 'без причины доступность');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
 });
 
 test('A8. раз-в-день: флага НУГДЕ — эффект доступен, даже с записью в сейве (лимит не наследуется)', () => {
   const BE = loadBE();
-  BE.EFFECTS['40'] = { имя: 'Тест' };
+  BE.EFFECTS['90'] = { имя: 'Тест' };
   try {
-    const b = { id: 40, особые_параметры: {} };
+    const b = { id: 90, особые_параметры: {} };
     const r = BE.buildingActions(b, null, makeState({
       day: 3, tile: { x: 5, y: 7 },
-      save: { buildingOncePerDay: { '5,7:40': 3 } },
+      save: { buildingOncePerDay: { '5,7:90': 3 } },
     }));
     assert.equal(r[0].доступен, true, 'без флага лимита нет');
     assert.equal(r[0].reason, undefined);
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
 });
 
 test('A9. раз-в-день: флаг ЧИТАЕТСЯ ИЗ КАТАЛОГА (принцип 000053): две постройки, одна запись реестра', () => {
   const BE = loadBE();
-  BE.EFFECTS['40'] = { имя: 'Тест' };
+  BE.EFFECTS['90'] = { имя: 'Тест' };
   try {
     const st = makeState({
       day: 3, tile: { x: 5, y: 7 },
-      save: { buildingOncePerDay: { '5,7:40': 3 } },
+      save: { buildingOncePerDay: { '5,7:90': 3 } },
     });
-    const withFlag = { id: 40, особые_параметры: { раз_в_день: true } };
-    const withoutFlag = { id: 40, особые_параметры: {} };
-    assert.equal(BE.hasDailyLimit(withFlag, '40'), true, 'флаг каталога — true');
-    assert.equal(BE.hasDailyLimit(withoutFlag, '40'), false, 'без флага — false');
+    const withFlag = { id: 90, особые_параметры: { раз_в_день: true } };
+    const withoutFlag = { id: 90, особые_параметры: {} };
+    assert.equal(BE.hasDailyLimit(withFlag, '90'), true, 'флаг каталога — true');
+    assert.equal(BE.hasDailyLimit(withoutFlag, '90'), false, 'без флага — false');
     assert.equal(BE.buildingActions(withFlag, null, st)[0].доступен, false,
       'с флагом каталога — заблокировано');
     assert.equal(BE.buildingActions(withoutFlag, null, st)[0].доступен, true,
       'без флага каталога — доступно');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
 });
 
 test('A10. раз-в-день: флага в каталоге нет — fallback на запись реестра разВДень; каталог false побеждает', () => {
   const BE = loadBE();
-  BE.EFFECTS['40'] = { имя: 'Тест', разВДень: true };
+  BE.EFFECTS['90'] = { имя: 'Тест', разВДень: true };
   try {
     const st = makeState({
       day: 3, tile: { x: 5, y: 7 },
-      save: { buildingOncePerDay: { '5,7:40': 3 } },
+      save: { buildingOncePerDay: { '5,7:90': 3 } },
     });
-    const noFlag = { id: 40, особые_параметры: {} };
-    assert.equal(BE.hasDailyLimit(noFlag, '40'), true,
+    const noFlag = { id: 90, особые_параметры: {} };
+    assert.equal(BE.hasDailyLimit(noFlag, '90'), true,
       'fallback: разВДень записи реестра');
     assert.equal(BE.buildingActions(noFlag, null, st)[0].доступен, false,
       'fallback-лимит работает через сейв');
-    const falseFlag = { id: 40, особые_параметры: { раз_в_день: false } };
-    assert.equal(BE.hasDailyLimit(falseFlag, '40'), false,
+    const falseFlag = { id: 90, особые_параметры: { раз_в_день: false } };
+    assert.equal(BE.hasDailyLimit(falseFlag, '90'), false,
       'каталог false побеждает над fallback true');
     assert.equal(BE.buildingActions(falseFlag, null, st)[0].доступен, true,
       'с явным false в каталоге — доступно');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
 });
 
 test('A11. раз-в-день: ключ сейва «x,y:effectId» с ОТРИЦАТЕЛЬНЫМИ координатами', () => {
   const BE = loadBE();
-  BE.EFFECTS['40'] = { имя: 'Тест' };
+  BE.EFFECTS['90'] = { имя: 'Тест' };
   try {
-    const b = { id: 40, особые_параметры: { раз_в_день: true } };
+    const b = { id: 90, особые_параметры: { раз_в_день: true } };
     const st = makeState({
       day: 3, tile: { x: -3, y: -7 },
-      save: { buildingOncePerDay: { '-3,-7:40': 3 } },
+      save: { buildingOncePerDay: { '-3,-7:90': 3 } },
     });
     assert.equal(BE.buildingActions(b, null, st)[0].доступен, false,
-      'запись «-3,-7:40» читается');
+      'запись «-3,-7:90» читается');
     // Запись ДРУГОГО тайла не блокирует этот.
     const st2 = makeState({
       day: 3, tile: { x: -3, y: -7 },
-      save: { buildingOncePerDay: { '-3,-8:40': 3 } },
+      save: { buildingOncePerDay: { '-3,-8:90': 3 } },
     });
     assert.equal(BE.buildingActions(b, null, st2)[0].доступен, true,
       'другой тайл — не блокирует');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
 });
 
 test('A12. buildingActions: чистая — building/npc/state (снимок) не мутируются', () => {
   const BE = loadBE();
-  BE.EFFECTS['40'] = { имя: 'Тест' };
+  BE.EFFECTS['90'] = { имя: 'Тест' };
   try {
-    const building = { id: 40, особые_параметры: { раз_в_день: true } };
+    const building = { id: 90, особые_параметры: { раз_в_день: true } };
     const npc = NPC();
     const state = makeState({
       day: 3, tile: { x: 5, y: 7 },
-      save: { buildingOncePerDay: { '5,7:40': 3 } },
+      save: { buildingOncePerDay: { '5,7:90': 3 } },
     });
     const b0 = JSON.parse(JSON.stringify(building));
     const n0 = JSON.parse(JSON.stringify(npc));
@@ -309,22 +346,22 @@ test('A12. buildingActions: чистая — building/npc/state (снимок) �
     assert.deepEqual(npc, n0, 'npc не мутирован');
     assert.deepEqual(state, s0, 'state (снимок сейва) не мутирован');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
 });
 
 test('A13. раз-в-день: сейв отсутствует/мусорный — fail-open (000029), игра не ломается', () => {
   const BE = loadBE();
-  BE.EFFECTS['40'] = { имя: 'Тест' };
+  BE.EFFECTS['90'] = { имя: 'Тест' };
   try {
-    const b = { id: 40, особые_параметры: { раз_в_день: true } };
+    const b = { id: 90, особые_параметры: { раз_в_день: true } };
     assert.equal(BE.buildingActions(b, null, makeState({ save: {} }))[0]
       .доступен, true, 'save без раздела — доступно');
     assert.equal(BE.buildingActions(b, null,
       makeState({ save: { buildingOncePerDay: 'junk' } }))[0].доступен, true,
       'мусорный раздел — доступно (fail-open)');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
 });
 
@@ -344,7 +381,7 @@ test('A14. building-effects (UMD vm): грузится БЕЗ других мо�
   // Работоспособность в чужом realm БЕЗ day.js (canUseToday — fallback
   // last !== day): блокировка/свобода по снимку сейва.
   const res1 = BE.buildingActions(
-    { id: 40, особые_параметры: {} },
+    { id: 90, особые_параметры: {} },
     { id: 'npc_x', имя: 'Тест' },
     { day: 1, tile: { x: 0, y: 0 }, hero: {}, save: {} });
   assert.equal(res1.length, 1);
@@ -352,80 +389,82 @@ test('A14. building-effects (UMD vm): грузится БЕЗ других мо�
   assert.equal(res1[0].имя, 'Диалог');
   assert.equal(res1[0].доступен, true);
   // Лимит без Game.canUseToday: fallback-сравнение дней.
-  BE.EFFECTS['40'] = { имя: 'Тест' };
+  BE.EFFECTS['90'] = { имя: 'Тест' };
   try {
-    const b = { id: 40, особые_параметры: { раз_в_день: true } };
+    const b = { id: 90, особые_параметры: { раз_в_день: true } };
     const r1 = BE.buildingActions(b, null,
       { day: 3, tile: { x: 5, y: 7 }, hero: {},
-        save: { buildingOncePerDay: { '5,7:40': 3 } } });
+        save: { buildingOncePerDay: { '5,7:90': 3 } } });
     assert.equal(r1[0].доступен, false, 'fallback блокирует тот же день');
     const r2 = BE.buildingActions(b, null,
       { day: 4, tile: { x: 5, y: 7 }, hero: {},
-        save: { buildingOncePerDay: { '5,7:40': 3 } } });
+        save: { buildingOncePerDay: { '5,7:90': 3 } } });
     assert.equal(r2[0].доступен, true, 'fallback освобождает следующий');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
 });
 
 test('A15. available?(state): недневная доступность — reason по строке/false, истина — доступно (ревью раунда 2)', () => {
   const BE = loadBE();
   // available(state) — строка: недоступно, строка — reason.
-  BE.EFFECTS['40'] = {
+  BE.EFFECTS['88'] = {
     имя: 'Тест',
     available: (st) => (st.save && st.save.открыт ? true : 'тест: молчит'),
   };
   try {
     const closed = BE.buildingActions(
-      { id: 40, особые_параметры: {} }, null,
+      { id: 88, особые_параметры: {} }, null,
       makeState({ save: { открыт: false } }));
     assert.equal(closed[0].доступен, false, 'available → строка: недоступно');
     assert.equal(closed[0].reason, 'тест: молчит',
       'reason — строка, возвращённая available');
     const open = BE.buildingActions(
-      { id: 40, особые_параметры: {} }, null,
+      { id: 88, особые_параметры: {} }, null,
       makeState({ save: { открыт: true } }));
     assert.equal(open[0].доступен, true, 'available → true: доступно');
     assert.equal(open[0].reason, undefined, 'без причины доступность');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['88'];
   }
   // false/null/'' — недоступно, reason «недоступно»; available нет —
   // доступно (регрессия: прежние записи реестра без available).
-  BE.EFFECTS['41'] = { имя: 'Т', available: () => false };
-  BE.EFFECTS['42'] = { имя: 'Т', available: () => null };
-  BE.EFFECTS['43'] = { имя: 'Т', available: () => '' };
-  BE.EFFECTS['44'] = { имя: 'Т' };
+  // СИНТЕТИЧЕСКИЕ id 89..92 (000075): 41 — РЕАЛЬНАЯ запись этой
+  // задачи, временные записи её не затирают.
+  BE.EFFECTS['89'] = { имя: 'Т', available: () => false };
+  BE.EFFECTS['90'] = { имя: 'Т', available: () => null };
+  BE.EFFECTS['91'] = { имя: 'Т', available: () => '' };
+  BE.EFFECTS['92'] = { имя: 'Т' };
   try {
     const st = makeState();
-    for (const id of ['41', '42', '43']) {
+    for (const id of ['89', '90', '91']) {
       const r = BE.buildingActions(
         { id: Number(id), особые_параметры: {} }, null, st);
       assert.equal(r[0].доступен, false,
         id + ': false/null/\'\' — недоступно');
       assert.equal(r[0].reason, 'недоступно', id + ': reason по умолчанию');
     }
-    const r44 = BE.buildingActions(
-      { id: 44, особые_параметры: {} }, null, st);
-    assert.equal(r44[0].доступен, true,
+    const r92 = BE.buildingActions(
+      { id: 92, особые_параметры: {} }, null, st);
+    assert.equal(r92[0].доступен, true,
       'без available — доступно (регрессия)');
   } finally {
-    for (const id of ['41', '42', '43', '44']) delete BE.EFFECTS[id];
+    for (const id of ['89', '90', '91', '92']) delete BE.EFFECTS[id];
   }
 });
 
 test('A16. available ПЕРВОЙ: недневная причина перебивает «уже использовано сегодня»; state не мутирован', () => {
   const BE = loadBE();
-  BE.EFFECTS['40'] = {
+  BE.EFFECTS['88'] = {
     имя: 'Тест',
     available: () => 'тест: молчит',
     apply: () => ({ ok: true }),
   };
   try {
-    const b = { id: 40, особые_параметры: { раз_в_день: true } };
+    const b = { id: 88, особые_параметры: { раз_в_день: true } };
     const state = makeState({
       day: 3, tile: { x: 5, y: 7 },
-      save: { buildingOncePerDay: { '5,7:40': 3 } },
+      save: { buildingOncePerDay: { '5,7:88': 3 } },
     });
     const s0 = JSON.parse(JSON.stringify(state));
     const r = BE.buildingActions(b, null, state);
@@ -434,7 +473,7 @@ test('A16. available ПЕРВОЙ: недневная причина переб�
       'reason available, а не лимитный «уже использовано сегодня»');
     assert.deepEqual(state, s0, 'state (снимок) не мутирован');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['88'];
   }
 });
 
@@ -446,22 +485,22 @@ test('A17. building-effects (UMD vm): available?(state) работает в пе
   vm.createContext(sandbox);
   vm.runInContext(code, sandbox, { filename: 'building-effects.js' });
   const BE = sandbox.Game.buildingEffects;
-  BE.EFFECTS['40'] = {
+  BE.EFFECTS['88'] = {
     имя: 'Тест',
     available: (st) => (st.day > 2 ? true : 'тест: ещё спит'),
   };
   try {
     const r1 = BE.buildingActions(
-      { id: 40, особые_параметры: {} }, null,
+      { id: 88, особые_параметры: {} }, null,
       { day: 1, tile: { x: 0, y: 0 }, hero: {}, save: {} });
     assert.equal(r1[0].доступен, false, 'в чужом realm: недоступно');
     assert.equal(r1[0].reason, 'тест: ещё спит');
     const r2 = BE.buildingActions(
-      { id: 40, особые_параметры: {} }, null,
+      { id: 88, особые_параметры: {} }, null,
       { day: 3, tile: { x: 0, y: 0 }, hero: {}, save: {} });
     assert.equal(r2[0].доступен, true, 'в чужом realm: доступно');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['88'];
   }
 });
 
@@ -471,24 +510,330 @@ test('A18. раз-в-день: apply БЕЗ флага — лимита НЕТ (
   // «исполняемое» (есть apply) — фонтан монет получал бы ложный
   // лимит раз в день.
   const BE = loadBE();
-  BE.EFFECTS['40'] = {
+  BE.EFFECTS['90'] = {
     имя: 'Монета',
     apply: () => ({ ok: true, message: '+1' }),
   };
   try {
-    const b = { id: 40, особые_параметры: {} };
-    assert.equal(BE.hasDailyLimit(b, '40'), false,
+    const b = { id: 90, особые_параметры: {} };
+    assert.equal(BE.hasDailyLimit(b, '90'), false,
       'apply без флага — без лимита');
     // И через buildingActions: в тот же день — снова доступно.
     const st = makeState({
       day: 3, tile: { x: 5, y: 7 },
-      save: { buildingOncePerDay: { '5,7:40': 3 } },
+      save: { buildingOncePerDay: { '5,7:90': 3 } },
     });
     assert.equal(BE.buildingActions(b, null, st)[0].доступен, true,
       'запись в сейве без флага — не блокирует');
   } finally {
-    delete BE.EFFECTS['40'];
+    delete BE.EFFECTS['90'];
   }
+});
+
+// --- Задача 000075: телепорт-круг — ЧИСТЫЕ контракты (секция A) ---
+//
+// Контракты, зафиксированные здесь (решения — memory/000075-
+// teleport-circles.md; полный отчёт — tasks/result/000075.md):
+//   * linkTeleportCircles(circles, x, y, R, tieHash) →
+//     { pairId: 'x,y' | null, reason?: 'no_pair' }: ближайший другой
+//     круг по РАССТОЯНИЮ CHEBYSHEV в радиусе R (граница включительно);
+//     якорь (x, y) сам (если в списке) игнорируется; при равенстве
+//     расстояний — MIN tieHash(x, y); финальный лекс. тай-брейк
+//     (x, затем y). Пары АССИМЕТРИЧНЫ: каждый круг — к СВОЕМУ
+//     ближайшему (симметрия НЕ гарантируется — зафиксировано A25).
+//   * teleportDestination(anchor, size, passable, tieHash) →
+//     { x, y } | null: проходимый тайл в footprint-соседстве парного
+//     круга (кольцо: dx -1..width, dy -1..height; внутренние тайлы
+//     footprint'а — не кандидаты); oracle passable(x, y) — мир-
+//     предикат main.js (t.passable && !t.inBuilding && !t.hasMobGroup);
+//     порядок: ближайшие к якорь-тайлу по Чебышеву, затем tieHash,
+//     затем лекс.; нет проходимых → null (в игре: переноса нет,
+//     золото не тратится).
+//   * teleportCharge(hero, active, cost) → { ok: true, gold } |
+//     { ok: false, message: 'недостаточно золота', gold }: первое
+//     использование списывает стоимость, повтор (active) — НЕ
+//     списывает, мало золота — отказ БЕЗ списания; hero не мутируется.
+//   * serializeTeleports(Map) / restoreTeleports(объект) — раздел
+//     сейва data.teleports (имя зафиксировано 000072):
+//     'x,y' → { pair: 'px,py'|null, dest: 'dx,dy'|null,
+//     active: boolean }; мусорный раздел (не-объект/массив) — пустой
+//     Map без исключения; мусорная запись — отброс записи (fail-open,
+//     000029); roundtrip.
+//   * EFFECTS['41'] — имя «Активировать/Телепорт», БЕЗ лимита
+//     раз-в-день (ни каталог 000041, ни запись реестра): разовая
+//     оплата, дальше бесплатно. available(state) — пара в
+//     save.teleports[tile] → true, иначе «круг молчит: нет пары
+//     вблизи»; apply(state) — ЧИСТАЯ валидация по СНИМКУ (мира и
+//     каталога у apply НЕТ — dest и стоимость читает main.js):
+//     нет пары → not-ok «круг молчит: нет пары вблизи»; пара, но
+//     dest:null → not-ok «нет проходимого тайла рядом с парным
+//     кругом»; пара + dest → { ok: true, message: TELEPORT_MSG,
+//     teleport: {x, y} } — dest ИЗ СНИМКА сейва (скан делает main.js
+//     при первом подходе и кэширует). apply НЕ мутирует снимок,
+//     НЕ трогает hero.gold и НЕ перемещает — исполнение (списание,
+//     hero.gold, player.x/y, mover.teleport, saveNow) — в onBuildingAction
+//     main.js в общей ok-ветке по r.teleport (контракт — memory).
+
+const TELEPORT_MSG = 'телепорт: перенос к парному кругу';
+
+test('A20. link: ближайший по CHEBYSHEV (не евклидов)', () => {
+  const BE = loadBE();
+  const tie = (x, y) => ((x * 31 + y) & 0xffffffff) >>> 0;
+  // (5,5): cheb 5, eucl 7.07; (6,0): cheb 6, eucl 6 — евклидово
+  // ближе (6,0), чебышефово — (5,5).
+  const r = BE.linkTeleportCircles(
+    [{ x: 5, y: 5 }, { x: 6, y: 0 }], 0, 0, 100, tie);
+  assert.equal(r.pairId, '5,5', 'расстояние — Чебышев, не евклидов');
+});
+
+test('A21. link: граница R включительно; за R — «спит» (no_pair)', () => {
+  const BE = loadBE();
+  const tie = (x, y) => x;
+  assert.equal(BE.linkTeleportCircles(
+    [{ x: 100, y: 0 }], 0, 0, 100, tie).pairId, '100,0',
+    'граница R=100 — пара');
+  const r = BE.linkTeleportCircles([{ x: 101, y: 0 }], 0, 0, 100, tie);
+  assert.deepEqual(r, { pairId: null, reason: 'no_pair' },
+    'за R — «спит» (НЕ ошибка)');
+});
+
+test('A22. link: тай-брейк по tieHash — перестановка списка НЕ меняет результат', () => {
+  const BE = loadBE();
+  // Три круга на одном чебышевском расстоянии (1 от (0,0));
+  // min tieHash — у (0,1).
+  const tie = (x, y) => ((x === 0 && y === 1) ? 0 : (x === 1 ? 1 : 2));
+  const base = [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 1 }];
+  const perms = [
+    base,
+    [base[1], base[0], base[2]],
+    [base[1], base[2], base[0]],
+    [base[2], base[0], base[1]],
+    [base[2], base[1], base[0]],
+    [base[0], base[2], base[1]],
+  ];
+  for (const p of perms) {
+    assert.equal(BE.linkTeleportCircles(p, 0, 0, 10, tie).pairId, '0,1',
+      'все 6 перестановок списка → одна пара (детерминизм по tieHash)');
+  }
+});
+
+test('A23. link: пустой список / одиночный круг / круг НА якорном тайле — no_pair, без исключения', () => {
+  const BE = loadBE();
+  const tie = () => 0;
+  assert.deepEqual(BE.linkTeleportCircles([], 0, 0, 100, tie),
+    { pairId: null, reason: 'no_pair' }, 'пустой список');
+  assert.deepEqual(
+    BE.linkTeleportCircles([{ x: 0, y: 0 }], 0, 0, 100, tie),
+    { pairId: null, reason: 'no_pair' }, 'круг на якорном тайле — не пара');
+  assert.equal(BE.linkTeleportCircles(
+    [{ x: 0, y: 0 }, { x: 5, y: 5 }], 0, 0, 100, tie).pairId, '5,5',
+    'сам якорь игнорируется — пара найдена среди остальных');
+});
+
+test('A24. link: детерминизм «в двух мирах» + лекс. финальный тай-брейк (tieHash константа)', () => {
+  const BE = loadBE();
+  // Тот же набор кругов, разные порядки списка, один tieHash —
+  // одна пара («два мира» — один и тот же мир, другой порядок скана).
+  const circles = [{ x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+  const tie = (x, y) => x * 7 + y;
+  const r1 = BE.linkTeleportCircles(circles, 0, 0, 5, tie);
+  const r2 = BE.linkTeleportCircles([...circles].reverse(), 0, 0, 5, tie);
+  assert.equal(r1.pairId, r2.pairId, 'перестановка списка — та же пара');
+  assert.equal(r1.pairId, '-1,0', 'выбор по tieHash (min x*7+y)');
+  // tieHash константа (hash2 32-битный — коллизия теоретически
+  // возможна): финальный тай-брейк лексикографический (x, затем y).
+  assert.equal(
+    BE.linkTeleportCircles(circles, 0, 0, 5, () => 0).pairId, '-1,0',
+    'лекс. финальный тай-брейк: min x, затем min y');
+});
+
+test('A25. link: АССИМЕТРИЯ пар ЗАФИКСИРОВАНА — каждый круг к СВОЕМУ ближайшему (A→B, B→C, C→B)', () => {
+  const BE = loadBE();
+  const tie = (x, y) => x;
+  // A(0,0), B(10,0), C(19,0): cheb A-B 10, B-C 9, A-C 19.
+  // Пара A — B, но пара B — C: телепорт из A ведёт к B, хотя «связка»
+  // B ведёт дальше. Это ОСОЗНАННОЕ поведение (каждый круг парится со
+  // своим ближайшим, симметрия НЕ гарантируется) — зафиксировано.
+  assert.equal(BE.linkTeleportCircles(
+    [{ x: 10, y: 0 }, { x: 19, y: 0 }], 0, 0, 100, tie).pairId, '10,0',
+    'A → B (10 < 19)');
+  assert.equal(BE.linkTeleportCircles(
+    [{ x: 0, y: 0 }, { x: 19, y: 0 }], 10, 0, 100, tie).pairId, '19,0',
+    'B → C (9 < 19)');
+  assert.equal(BE.linkTeleportCircles(
+    [{ x: 0, y: 0 }, { x: 10, y: 0 }], 19, 0, 100, tie).pairId, '10,0',
+    'C → B (9 < 19)');
+});
+
+test('A26. teleportDestination: 1x1 — цель в footprint-соседстве (кольцо cheb 1) по tieHash; 2x2 — ближайший к якорю', () => {
+  const BE = loadBE();
+  const allPass = () => true;
+  // 1x1 в (10,20): все 8 соседей проходимы; min x*7+y — (9,19).
+  const r1 = BE.teleportDestination(
+    { x: 10, y: 20 }, { width: 1, height: 1 }, allPass, (x, y) => x * 7 + y);
+  assert.deepEqual(r1, { x: 9, y: 19 }, '1x1: кольцо + тай-брейк по tieHash');
+  assert.equal(Math.max(Math.abs(r1.x - 10), Math.abs(r1.y - 20)), 1,
+    'цель — footprint-соседство (cheb 1 от круга)');
+  assert.notDeepEqual(r1, { x: 10, y: 20 }, 'НЕ сам тайл круга');
+  // 2x2 в (10,20): footprint (10,20)-(11,21); кольцо — 12 тайлов.
+  // tieHash константа → ближайшие к якорь-тайлу по Чебышеву (cheb 1):
+  // (9,19),(9,20),(9,21),(10,19),(11,19) → лекс. — (9,19).
+  const r2 = BE.teleportDestination(
+    { x: 10, y: 20 }, { width: 2, height: 2 }, allPass, () => 0);
+  assert.deepEqual(r2, { x: 9, y: 19 },
+    '2x2: ближайший к якорю (не дальний угол кольца), затем лекс.');
+  const inFoot = (p) => p.x >= 10 && p.x < 12 && p.y >= 20 && p.y < 22;
+  assert.ok(!inFoot(r2), 'цель — не тайл ВНУТРИ footprint (2x2)');
+});
+
+test('A27. teleportDestination: непроходимые соседи пропускаются (oracle); все непроходимы → null', () => {
+  const BE = loadBE();
+  const tie = (x, y) => x * 7 + y;
+  // 1x1 в (0,0): проходимы только (1,0) и (0,1); tieHash: (0,1)=1 < (1,0)=7.
+  const somePass = (x, y) => (x === 1 && y === 0) || (x === 0 && y === 1);
+  assert.deepEqual(BE.teleportDestination(
+    { x: 0, y: 0 }, { width: 1, height: 1 }, somePass, tie),
+    { x: 0, y: 1 }, 'непроходимые пропускаются; из проходимых — по tieHash');
+  assert.equal(BE.teleportDestination(
+    { x: 0, y: 0 }, { width: 1, height: 1 }, () => false, tie), null,
+    'все соседи непроходимы → null (в игре: переноса нет, золото не тратится)');
+});
+
+test('A28. teleportCharge: первое — списывает, повтор — не списывает, мало золота — отказ без списания; чистота', () => {
+  const BE = loadBE();
+  const hero = { gold: 100 };
+  const h0 = JSON.parse(JSON.stringify(hero));
+  const r1 = BE.teleportCharge(hero, false, 25);
+  assert.equal(r1.ok, true, 'первое использование — ok');
+  assert.equal(r1.gold, 75, 'списана стоимость (25)');
+  const r2 = BE.teleportCharge({ gold: 24 }, false, 25);
+  assert.equal(r2.ok, false, 'мало золота — отказ');
+  assert.equal(r2.message, 'недостаточно золота', 'сообщение отказов зафиксировано');
+  assert.equal(r2.gold, 24, 'отказ БЕЗ списания');
+  const r3 = BE.teleportCharge({ gold: 75 }, true, 25);
+  assert.equal(r3.ok, true, 'повтор (active) — ok');
+  assert.equal(r3.gold, 75, 'повтор — НЕ списывает');
+  const r4 = BE.teleportCharge({ gold: 100 }, false, 0);
+  assert.equal(r4.ok, true, 'cost 0 — ok');
+  assert.equal(r4.gold, 100, 'cost 0 — без списания');
+  assert.deepEqual(hero, h0, 'hero не мутирован (чистота)');
+});
+
+test('A29. serialize/restoreTeleports: roundtrip; мусорный раздел — пустой Map; мусорная запись — отброс', () => {
+  const BE = loadBE();
+  const m = new Map([
+    ['1,2', { pair: '3,4', dest: '5,6', active: true }],
+    ['-7,0', { pair: null, dest: null, active: false }],
+  ]);
+  const s = BE.serializeTeleports(m);
+  assert.deepEqual(s, {
+    '1,2': { pair: '3,4', dest: '5,6', active: true },
+    '-7,0': { pair: null, dest: null, active: false },
+  }, 'сериализация — обычный объект зафиксированной формы');
+  assert.deepEqual(BE.serializeTeleports(new Map()), {}, 'пустой Map — {}');
+  const back = BE.restoreTeleports(s);
+  assert.equal(back.size, 2, 'roundtrip: обе записи');
+  assert.deepEqual(back.get('1,2'), { pair: '3,4', dest: '5,6', active: true });
+  assert.deepEqual(back.get('-7,0'), { pair: null, dest: null, active: false });
+  // Мусорный раздел — пустой Map БЕЗ исключения (fail-open, 000029).
+  for (const junk of ['junk', [], null, undefined, 42]) {
+    assert.equal(BE.restoreTeleports(junk).size, 0,
+      'мусорный раздел ' + String(junk) + ' — пустой Map');
+  }
+  // Мусорная запись — отброс записи, валидные выживают.
+  const mixed = BE.restoreTeleports({
+    '1,2': { pair: '3,4', dest: '5,6', active: true },
+    'junk-key': { pair: null, dest: null, active: false }, // key не 'x,y'
+    '4,5': { pair: 'x,y', dest: null, active: false }, // pair не 'x,y'
+    '6,7': { pair: null, dest: 5, active: false }, // dest не 'x,y'
+    '8,9': { pair: null, dest: null, active: 'yes' }, // active не boolean
+    '10,11': { pair: null, dest: null }, // нет active
+  });
+  assert.equal(mixed.size, 1, 'выживает только валидная запись');
+  assert.deepEqual(mixed.get('1,2'), { pair: '3,4', dest: '5,6', active: true });
+});
+
+test('A30. EFFECTS[41] на месте: имя «Активировать/Телепорт»; лимита раз-в-день НЕТ', () => {
+  const BE = loadBE();
+  const e = BE.EFFECTS['41'];
+  assert.ok(e, 'запись реестра 41 (красный: до реализации её нет)');
+  assert.equal(e.имя, 'Активировать/Телепорт', 'имя действия зафиксировано');
+  assert.equal(typeof e.available, 'function', 'available(state) на месте');
+  assert.equal(typeof e.apply, 'function', 'apply(state) на месте');
+  assert.notEqual(e.разВДень, true, 'в записи реестра НЕТ флага раз-в-день');
+  // Каталог (зеркало 000055): флага НЕТ и там — разовая оплата,
+  // дальше бесплатно вечно (явный false не нужен: отсутствие флага
+  // = без лимита, A18).
+  const cat = require('../src/buildings.js').getBuilding(41);
+  assert.ok(cat, 'каталожная запись 41 существует');
+  assert.equal(BE.hasDailyLimit(cat, '41'), false,
+    'телепорт — БЕЗ лимита раз-в-день');
+});
+
+test('A31. available: пара в сейве → true; «спит»/нет записи → «круг молчит: нет пары вблизи»; state не мутирован', () => {
+  const BE = loadBE();
+  const b = { id: 41, особые_параметры: {} };
+  const withPair = makeState({
+    save: { teleports: { '5,7': { pair: '10,20', dest: '11,21', active: true } } },
+  });
+  const sleeping = makeState({
+    save: { teleports: { '5,7': { pair: null, dest: null, active: false } } },
+  });
+  const missing = makeState({ save: {} });
+  for (const [name, st] of [['пара', withPair], ['спит', sleeping],
+    ['нет записи', missing]]) {
+    const s0 = JSON.parse(JSON.stringify(st));
+    const r = BE.buildingActions(b, null, st);
+    assert.equal(r.length, 1, name + ': ровно одна строка');
+    assert.equal(r[0].id, '41', name + ': id действия 41');
+    assert.deepEqual(st, s0, name + ': state (снимок) не мутирован');
+  }
+  const r1 = BE.buildingActions(b, null, withPair);
+  assert.equal(r1[0].доступен, true, 'пара в сейве — доступно');
+  assert.equal(r1[0].reason, undefined, 'без причины доступность');
+  const r2 = BE.buildingActions(b, null, sleeping);
+  assert.equal(r2[0].доступен, false, '«спит» (pair: null) — недоступно');
+  assert.equal(r2[0].reason, 'круг молчит: нет пары вблизи',
+    'reason «спит» зафиксирован текстом (ТЗ)');
+  const r3 = BE.buildingActions(b, null, missing);
+  assert.equal(r3[0].доступен, false, 'записи в сейве нет — недоступно');
+  assert.equal(r3[0].reason, 'круг молчит: нет пары вблизи',
+    'нет записи — тот же reason (скана ещё не было / пары нет)');
+});
+
+test('A32. apply: нет пары — not-ok «спит»; пара + dest:null — «нет проходимого тайла»; пара + dest — ok + teleport ИЗ СНИМКА; снимок не мутирован', () => {
+  const BE = loadBE();
+  const apply = BE.EFFECTS['41'].apply;
+  // Нет пары («спит»).
+  const r1 = apply(makeState({
+    save: { teleports: { '5,7': { pair: null, dest: null, active: false } } },
+  }));
+  assert.equal(r1.ok, false, 'нет пары — not-ok');
+  assert.equal(r1.message, 'круг молчит: нет пары вблизи');
+  // Записи в сейве нет вовсе — то же (скана ещё не было).
+  const r1b = apply(makeState({ save: {} }));
+  assert.equal(r1b.ok, false, 'нет записи — not-ok');
+  assert.equal(r1b.message, 'круг молчит: нет пары вблизи');
+  // Пара есть, но при скане не нашлось проходимого тайла (dest: null).
+  const r2 = apply(makeState({
+    save: { teleports: { '5,7': { pair: '10,20', dest: null, active: false } } },
+  }));
+  assert.equal(r2.ok, false, 'пара + dest:null — not-ok (переноса не будет)');
+  assert.equal(r2.message, 'нет проходимого тайла рядом с парным кругом',
+    'reason «нет проходимого» зафиксирован текстом');
+  // Пара + dest — ok; teleport — ровно dest ИЗ СНИМКА сейва (apply мира
+  // не имеет: dest кэширован сканом при первом подходе, main.js).
+  const ok = makeState({
+    save: { teleports: { '5,7': { pair: '10,20', dest: '11,21', active: false } } },
+  });
+  const s0 = JSON.parse(JSON.stringify(ok));
+  const r3 = apply(ok);
+  assert.equal(r3.ok, true, 'пара + dest — ok');
+  assert.deepEqual(r3.teleport, { x: 11, y: 21 },
+    'teleport — ровно dest из СНИМКА сейва');
+  assert.equal(r3.message, TELEPORT_MSG, 'сообщение успеха зафиксировано');
+  assert.deepEqual(ok, s0,
+    'apply не мутирует СНИМОК (hero.gold, save — глубокое сравнение)');
 });
 
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
@@ -698,9 +1043,14 @@ function textOf(n) {
 }
 
 // --- localStorage-мок (паттерн save-restore) ---
+// seed (000075): ДОСЕЯННЫЙ сейв (v1) ДО запуска цепочки — main.js
+// читает его синхронно при загрузке (G.load в самом верху IIFE),
+// поэтому посеять после bootSandbox() поздно (restoreFromSave уже
+// прошёл): паттерн tests/save-restore.test.js.
 
-function makeStorage() {
+function makeStorage(seed) {
   const m = new Map();
+  if (seed != null) m.set(SAVE_KEY, JSON.stringify(seed));
   return {
     getItem: (k) => (m.has(k) ? m.get(k) : null),
     setItem: (k, v) => { m.set(k, String(v)); },
@@ -708,9 +1058,14 @@ function makeStorage() {
   };
 }
 
+// Оболочка досеянного сейва актуальной версии (v1).
+function seedSave(data) {
+  return { version: 1, savedAt: new Date(0).toISOString(), data };
+}
+
 // --- Песочница: вся цепочка index.html ---
 
-function bootSandbox() {
+function bootSandbox(seed) {
   const winListeners = {};
   const raf = [];
   const errors = [];
@@ -722,7 +1077,7 @@ function bootSandbox() {
     ? makeGl() : makeContext2d(gameCanvas));
   spriteCanvas.getContext = (kind) => (kind === '2d'
     ? makeContext2d(spriteCanvas) : null);
-  const storage = makeStorage();
+  const storage = makeStorage(seed);
   const body = makeEl('body');
   const document = {
     createElement: (tag) => makeEl(tag),
@@ -808,8 +1163,8 @@ function bootSandbox() {
 // спавн, requestAnimationFrame).
 const drain = () => new Promise((r) => setImmediate(r));
 
-async function boot() {
-  const h = bootSandbox();
+async function boot(seed) {
+  const h = bootSandbox(seed);
   await drain();
   await drain();
   await drain();
@@ -851,7 +1206,15 @@ function frameAt(h, now) {
 //   * городские тайлы (000103: building = -1 — слотовой записи нет;
 //     предикат города — по building, с 000073 у слотовых 8..12 тоже
 //     есть buildingId — подтип).
-function findBuilding(G, myMap, start, wantNpc) {
+// Задача 000075 (RESOLVE-БУГ, критик): каталожная запись тайла
+// резолвится ПО buildingId (подтип слотов 8..12 — РЕАЛЬНАЯ запись
+// тайла; базовая запись слота buildingForMapIndex(t.building) —
+// «обобщённое» имя, НЕ запись тайла). main.js обязан резолвить ТАК
+// ЖЕ (одинаковое однострочное выражение — memory/000075-
+// teleport-circles.md): без этого действие «41» никогда не появится
+// в оверлее. pred — опциональный фильтр по РЕШЁННОЙ записи
+// (B12: постройка без каталожного раз_в_день; B13: id 41).
+function findBuilding(G, myMap, start, wantNpc, pred) {
   const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const npcList = G.NpcData.NPCS;
   const startKey = start.x + ',' + start.y;
@@ -877,10 +1240,14 @@ function findBuilding(G, myMap, start, wantNpc) {
         visited.add(k);
         prev.set(k, cur.x + ',' + cur.y);
         if (t.hasBuilding) {
-          const b = G.buildingForMapIndex(t.building);
+          // 000075: запись ПО buildingId (подтип), fallback — базовая
+          // запись слота (слоты 0..7: buildingId null).
+          const b = t.buildingId != null
+            ? G.getBuilding(t.buildingId)
+            : G.buildingForMapIndex(t.building);
           if (b) {
             const npc = G.npcForBuilding(npcList, b.id);
-            if (!!npc === !!wantNpc) {
+            if (!!npc === !!wantNpc && (!pred || pred(b))) {
               const steps = [];
               let kk = k;
               while (kk !== startKey) {
@@ -1046,8 +1413,9 @@ test('B2. buildingUI: 1..9/клик — действие + само-закрыт
 
 test('B3. [E] end-to-end: постройка БЕЗ NPC — оверлей, apply(state), saveNow СРАЗУ, маркировка раз-в-день, HUD-подсказка, повторный [E] — закрыть, тот же день — заблокировано', async () => {
   // Проблема рунического камня (задача 000071): [E] на постройке без
-  // NPC ничего не делал. Реестр в этой задаче ПУСТ — тест регистрирует
-  // СВОЮ запись EFFECTS (подзадачи 000074+ добавят свои).
+  // NPC ничего не делал. Тест регистрирует СВОЮ временную запись
+  // EFFECTS; РЕАЛЬНЫЕ записи (000074 '40', 000075 '41', 000077 '43')
+  // НЕ затираются — save/restore в try/finally (критик, 000075).
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -1059,14 +1427,23 @@ test('B3. [E] end-to-end: постройка БЕЗ NPC — оверлей, appl
   const st = g.state;
   const t = myMap.tileAt(st.player.x, st.player.y);
   assert.ok(t.hasBuilding, 'игрок стоит на тайле постройки');
-  const b = G.buildingForMapIndex(t.building);
+  // 000075 (RESOLVE-БУГ): запись тайла — ПО buildingId (found.building
+  // — решённая запись). Первая достижимая постройка без NPC в seed-мире
+  // — (4,3), id 43 (подтип слота 10; базовая запись слота — 40 — НЕ
+  // запись тайла). main.js обязан резолвить ТАК ЖЕ — иначе оверлей
+  // увидит базовую запись и действие '43'/'41' не откроется.
+  const b = found.building;
   assert.ok(b && !G.npcForBuilding(G.NpcData.NPCS, b.id),
     'постройка без NPC (id ' + (b && b.id) + ')');
+  assert.equal(b.id, 43, 'golden: первая достижимая без NPC — id 43 (4,3)');
   const fxId = String(b.id);
   const applied = [];
-  // Лимит — ЯВНЫЙ флаг записи реестра разВДень (ревью раунда 3:
-  // implicit «есть apply → лимит» убран — контракт плана 000064:
-  // «фонтан: исцеление лимит / монета — нет»; без флага — см. B12).
+  // Лимит — каталог (id 43: раз_в_день true, принцип 000053) И явный
+  // флаг записи разВДень (fallback): оба источника активны. Без
+  // флага — см. B12.
+  const priorEntry = G.buildingEffects.EFFECTS[fxId];
+  const hadEntry = Object.prototype.hasOwnProperty.call(
+    G.buildingEffects.EFFECTS, fxId);
   G.buildingEffects.EFFECTS[fxId] = {
     имя: 'Тест-действие',
     разВДень: true,
@@ -1144,7 +1521,8 @@ test('B3. [E] end-to-end: постройка БЕЗ NPC — оверлей, appl
     key(h, 'Escape');
     assert.equal(G.buildingUI.isActive(), false);
   } finally {
-    delete G.buildingEffects.EFFECTS[fxId];
+    if (hadEntry) G.buildingEffects.EFFECTS[fxId] = priorEntry;
+    else delete G.buildingEffects.EFFECTS[fxId];
   }
 });
 
@@ -1344,10 +1722,13 @@ test('B10. apply → НЕ-ok: message — в hudFlash (не гаснет мол�
   assert.ok(found, 'сценарий: найдена достижимая постройка без NPC');
   walkTo(h, found.steps);
   const st = g.state;
-  const t = myMap.tileAt(st.player.x, st.player.y);
-  const b = G.buildingForMapIndex(t.building);
+  // 000075: запись — по buildingId (found.building), как в main.js.
+  const b = found.building;
   const fxId = String(b.id);
   const applied = [];
+  const priorEntry = G.buildingEffects.EFFECTS[fxId];
+  const hadEntry = Object.prototype.hasOwnProperty.call(
+    G.buildingEffects.EFFECTS, fxId);
   G.buildingEffects.EFFECTS[fxId] = {
     имя: 'Тест-отказ',
     apply: (state) => {
@@ -1375,7 +1756,8 @@ test('B10. apply → НЕ-ok: message — в hudFlash (не гаснет мол�
     assert.ok(m == null || m[key1] == null,
       'неудавшееся действие НЕ маркируется раз-в-день');
   } finally {
-    delete G.buildingEffects.EFFECTS[fxId];
+    if (hadEntry) G.buildingEffects.EFFECTS[fxId] = priorEntry;
+    else delete G.buildingEffects.EFFECTS[fxId];
   }
 });
 
@@ -1388,10 +1770,13 @@ test('B11. available?(state) end-to-end: строка disabled + reason, наж�
   assert.ok(found, 'сценарий: найдена достижимая постройка без NPC');
   walkTo(h, found.steps);
   const st = g.state;
-  const t = myMap.tileAt(st.player.x, st.player.y);
-  const b = G.buildingForMapIndex(t.building);
+  // 000075: запись — по buildingId (found.building), как в main.js.
+  const b = found.building;
   const fxId = String(b.id);
   const applied = [];
+  const priorEntry = G.buildingEffects.EFFECTS[fxId];
+  const hadEntry = Object.prototype.hasOwnProperty.call(
+    G.buildingEffects.EFFECTS, fxId);
   G.buildingEffects.EFFECTS[fxId] = {
     имя: 'Тест-молчит',
     available: () => 'тест: круг молчит',
@@ -1415,7 +1800,8 @@ test('B11. available?(state) end-to-end: строка disabled + reason, наж�
     key(h, 'Escape');
     assert.equal(G.buildingUI.isActive(), false);
   } finally {
-    delete G.buildingEffects.EFFECTS[fxId];
+    if (hadEntry) G.buildingEffects.EFFECTS[fxId] = priorEntry;
+    else delete G.buildingEffects.EFFECTS[fxId];
   }
 });
 
@@ -1423,18 +1809,31 @@ test('B12. раз-в-день: эффект БЕЗ флага — повторя
   // «Фонтан: исцеление лимит / монета — нет». До ревью раунда 3
   // implicit «есть apply → лимит» блокировал повторное нажатие
   // в тот же день; маркировки buildingOncePerDay быть НЕ должно.
+  // 000075: целевая постройка — БЕЗ каталожного раз_в_день (принцип
+  // 000053: каталог побеждает над записью реестра): первая
+  // достижимая без NPC — id 43, у НЕГО раз_в_день в каталоге (его
+  // заберёт 000077), поэтому pred пропускает её: в seed-мире первая
+  // без флага — (50,3), id 38 «Храм горы» (golden).
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   const myMap = G.createMap(G.generateSeedPixels());
-  const found = findBuilding(G, myMap, g.state.player, false);
-  assert.ok(found, 'сценарий: найдена достижимая постройка без NPC');
+  const found = findBuilding(G, myMap, g.state.player, false,
+    (b) => !(b.особые_параметры &&
+             b.особые_параметры.раз_в_день === true));
+  assert.ok(found, 'сценарий: найдена достижимая постройка без NPC ' +
+    'и без каталожного раз_в_день');
   walkTo(h, found.steps);
   const st = g.state;
-  const t = myMap.tileAt(st.player.x, st.player.y);
-  const b = G.buildingForMapIndex(t.building);
+  // 000075: запись — по buildingId (found.building), как в main.js.
+  const b = found.building;
+  assert.equal(b.id, 38, 'golden: первая без NPC без каталожного ' +
+    'лимит-флага — id 38 (50,3)');
   const fxId = String(b.id);
   const applied = [];
+  const priorEntry = G.buildingEffects.EFFECTS[fxId];
+  const hadEntry = Object.prototype.hasOwnProperty.call(
+    G.buildingEffects.EFFECTS, fxId);
   G.buildingEffects.EFFECTS[fxId] = {
     имя: 'Тест-монета',
     apply: () => {
@@ -1466,6 +1865,245 @@ test('B12. раз-в-день: эффект БЕЗ флага — повторя
     assert.ok(m == null || m[key1] == null,
       'без флага — ключ «x,y:effectId» не пишется в сейв');
   } finally {
-    delete G.buildingEffects.EFFECTS[fxId];
+    if (hadEntry) G.buildingEffects.EFFECTS[fxId] = priorEntry;
+    else delete G.buildingEffects.EFFECTS[fxId];
   }
+});
+
+// --- Задача 000075: телепорт-круг — wiring E2E (секция B13+) ---
+//
+// ФАКТЫ seed-МИРА (детерминированный: map.png onerror →
+// G.generateSeedPixels, фикс. сид; проверено пробом BFS из спавна
+// (0,0) — при смене генерации мира эти goldens требуют пересмотра,
+// тесты упадут ВИДИМО):
+//   * ближайший от спавна круг id 41 — (-17, 36) (61 шаг);
+//   * его пара — '25,-50' (Чебышев 86 ≤ R=100; в окне R других кругов
+//     нет — пара ЕДИНСТВЕННЫЙ кандидат, тай-брейк не нужен);
+//   * все 8 footprint-соседей пары (25,-50) проходимы, без построек
+//     и групп мобов; DEST '24,-51' — первый из кольца (golden B14);
+//   * кругов id 41 в мире 29 — все, КРОМЕ (314,-27), имеют пару
+//     (у него — «спит»; в стандартном мире «спящий» круг
+//     недостижимым путём — B15 покрывает pre-seeded сейвом).
+
+const CIRCLE_KEY = '-17,36';
+const CIRCLE = { x: -17, y: 36 };
+const PAIR_KEY = '25,-50';
+const PAIR = { x: 25, y: -50 };
+const DEST = '24,-51';
+
+test('B13. телепорт E2E: первый подход — скан, пара в сейве (golden); активация — списание ИЗ КАТАЛОГА, перенос на dest, active, снап мувера, hudFlash', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  // СЦЕНАРИЙ: ближайший круг id 41 (BFS-предикат по РЕШЁННОЙ записи).
+  const found = findBuilding(G, myMap, g.state.player, false,
+    (b) => b.id === 41);
+  assert.ok(found, 'сценарий: найдена достижимая постройка id 41');
+  assert.equal(found.building.id, 41,
+    'запись РЕШЕНА по buildingId (не базовая запись слота 10 → 40)');
+  assert.equal(found.tile.x, CIRCLE.x, 'golden: ближайший круг — x');
+  assert.equal(found.tile.y, CIRCLE.y, 'golden: ближайший круг — y');
+  walkTo(h, found.steps);
+  const goldBefore = g.state.hero.gold; // 100 (старт героя, player.js)
+  // HUD-подсказка ДО действия: bHere — по buildingId → эффекты есть.
+  frameAt(h, NOW + 200);
+  const hudLine = String(h.hud.textContent);
+  assert.ok(hudLine.includes('([E] действия)'),
+    'строка «Здесь:» — «([E] действия)»: ' + hudLine);
+  // [E] → СКАН при ПЕРВОМ подходе: сразу после открытия оверлея в
+  // сейве (saveNow) — пара (golden) + dest + active:false.
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен');
+  // Заголовок — имя САМОГО круга (не базовое «рунический камень»
+  // слота; регистр не зафиксирован — сравнение в нижнем).
+  assert.ok(String(textOf(ov)).toLowerCase().includes('телепорт-круг'),
+    'заголовок оверлея — имя круга: ' + textOf(ov));
+  const saveScan = readSave(h);
+  assert.ok(saveScan.data.teleports,
+    'раздел teleports в сейве (скан при первом подходе)');
+  const eScan = saveScan.data.teleports[CIRCLE_KEY];
+  assert.ok(eScan, 'запись круга (-17,36) в разделе');
+  assert.equal(eScan.pair, PAIR_KEY, 'golden: пара круга (-17,36)');
+  assert.ok(typeof eScan.dest === 'string' && eScan.dest !== 'null' &&
+    eScan.dest !== '', 'dest вычислен (проходимый тайл рядом с парой)');
+  assert.equal(eScan.active, false, 'ещё не активирован');
+  const row = findRow(ov, '41');
+  assert.ok(row, 'строка действия 41 в оверлее');
+  assert.equal(row.disabled, false, 'пара найдена — строка доступна');
+  // Digit1 → apply (ok) + перенос: списание, перенос, active, saveNow.
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false,
+    'оверлей закрывается после действия');
+  // Игрок — на dest (ИЗ сейва-кэша скана): dest проходим, не в
+  // постройке, без группы мобов, в footprint-соседстве пары.
+  const pos = g.state.player;
+  const [dx, dy] = String(eScan.dest).split(',').map(Number);
+  assert.equal(pos.x, dx, 'перенос: игрок на dest (x)');
+  assert.equal(pos.y, dy, 'перенос: игрок на dest (y)');
+  const tDest = myMap.tileAt(dx, dy);
+  assert.ok(tDest.passable && !tDest.inBuilding && !tDest.hasMobGroup,
+    'dest — проходимый тайл, не постройка, без группы мобов');
+  assert.equal(Math.max(Math.abs(dx - PAIR.x), Math.abs(dy - PAIR.y)), 1,
+    'dest — в footprint-соседстве пары (25,-50)');
+  // Списание: стоимость ИЗ КАТАЛОГА (000041.особые_параметры.эффект.
+  // стоимость), не хардкод в main.js/тесте.
+  const cost = G.getBuilding(41).особые_параметры.эффект.стоимость;
+  assert.equal(typeof cost, 'number',
+    'каталог 41: стоимость — число (поле эффект — объект, 000075)');
+  assert.equal(g.state.hero.gold, goldBefore - cost,
+    'золото: разовое списание стоимости ИЗ КАТАЛОГА');
+  // active — в сейве (saveNow сразу после действия; переживёт
+  // перезагрузку — повтор бесплатно, B14).
+  const saveAfter = readSave(h);
+  assert.equal(saveAfter.data.teleports[CIRCLE_KEY].active, true,
+    'активирован — active:true в сейве');
+  assert.equal(saveAfter.data.teleports[CIRCLE_KEY].pair, PAIR_KEY,
+    'пара не изменилась');
+  // Снап мувера (mover.teleport, паттерн restoreFromSave):
+  // playerRender == player — персонаж не «скользит» от старой точки.
+  const pr = g.state.playerRender;
+  assert.equal(pr.x, pos.x, 'снап мувера (x)');
+  assert.equal(pr.y, pos.y, 'снап мувера (y)');
+  // hudFlash (сообщение успеха — зафиксировано A32/TELEPORT_MSG).
+  frameAt(h, NOW + 400);
+  assert.ok(String(h.hud.textContent).includes(TELEPORT_MSG),
+    'hudFlash сообщения переноса виден в HUD');
+});
+
+test('B14. телепорт: повторная активация — НЕ списывает (pre-seeded сейв: active:true, повторного скана нет)', async () => {
+  // Сейв ДОСЕЯН до запуска цепочки (restoreFromSave читает его при
+  // boot): позиция — на круге, запись телепорта — active:true.
+  // hero в сейве НЕТ — персонаж по умолчанию (золото 100).
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: CIRCLE.x, y: CIRCLE.y },
+    teleports: {
+      [CIRCLE_KEY]: { pair: PAIR_KEY, dest: DEST, active: true },
+    },
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, CIRCLE.x, 'позиция сейва — круг (x)');
+  assert.equal(g.state.player.y, CIRCLE.y, 'позиция сейва — круг (y)');
+  // Pre-seeded dest — валиден в мире (проходим, не постройка, без
+  // мобов, footprint-соседство пары).
+  const [dx, dy] = DEST.split(',').map(Number);
+  const tD = myMap.tileAt(dx, dy);
+  assert.ok(tD.passable && !tD.inBuilding && !tD.hasMobGroup,
+    'pre-seeded dest валиден в мире');
+  assert.equal(Math.max(Math.abs(dx - PAIR.x), Math.abs(dy - PAIR.y)), 1,
+    'dest — в footprint-соседстве пары');
+  // Сейв в хранилище — досеянный (restoreFromSave НЕ вызывает
+  // saveNow, 000031).
+  const text0 = h.storage.getItem(SAVE_KEY);
+  assert.ok(text0, 'сейв в хранилище (досеянный)');
+  const goldBefore = g.state.hero.gold;
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const row = findRow(findOverlay(h), '41');
+  assert.ok(row, 'строка действия 41 в оверлее');
+  assert.equal(row.disabled, false,
+    'пара в сейве — строка доступна (БЕЗ повторного скана)');
+  // ПОВТОРНОГО скана нет: ключ в сейве — saveNow при открытии
+  // оверлея НЕ вызывается (скан переписал бы сейв — savedAt
+  // изменился; текст хранилища неизменен).
+  assert.equal(h.storage.getItem(SAVE_KEY), text0,
+    'при открытии оверлея saveNow нет (кэш в сейве — скана нет)');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  assert.equal(g.state.player.x, dx, 'перенос на dest (x)');
+  assert.equal(g.state.player.y, dy, 'перенос на dest (y)');
+  assert.equal(g.state.hero.gold, goldBefore,
+    'повторная активация — НЕ списывает (gold неизменен)');
+  const saveAfter = readSave(h);
+  assert.equal(saveAfter.data.teleports[CIRCLE_KEY].active, true,
+    'active не изменился (true → true)');
+  assert.deepEqual(saveAfter.data.teleports,
+    JSON.parse(text0).data.teleports,
+    'раздел teleports не переписан (повторного скана нет)');
+});
+
+test('B15. телепорт «спит» E2E (pre-seed pair:null): строка disabled с reason, Digit1 — НЕ выполнено', async () => {
+  // «Спящий» круг в стандартном seed-мире отсутствует (все ближние
+  // круги имеют пары) — сценарий покрывается pre-seeded сейвом
+  // (pair:null — круг без пары в радиусе; результат скана).
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: CIRCLE.x, y: CIRCLE.y },
+    teleports: {
+      [CIRCLE_KEY]: { pair: null, dest: null, active: false },
+    },
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, CIRCLE.x, 'позиция сейва — круг');
+  const goldBefore = g.state.hero.gold;
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const row = findRow(findOverlay(h), '41');
+  assert.ok(row, 'строка действия 41 в оверлее');
+  assert.equal(row.disabled, true, '«спит» — строка disabled');
+  assert.ok(textOf(row).includes('круг молчит: нет пары вблизи'),
+    'reason «спит» виден в строке: ' + textOf(row));
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), true,
+    'оверлей остаётся открытым (действие НЕ выполнено)');
+  assert.equal(g.state.player.x, CIRCLE.x, 'переноса нет (x)');
+  assert.equal(g.state.player.y, CIRCLE.y, 'переноса нет (y)');
+  assert.equal(g.state.hero.gold, goldBefore, 'золото не потрачено');
+  const saveAfter = readSave(h);
+  assert.equal(saveAfter.data.teleports[CIRCLE_KEY].active, false,
+    'active не изменился');
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
+});
+
+test('B16. телепорт «нет проходимого» E2E (pre-seed pair, dest:null): строка доступна; Digit1 — hudFlash, без переноса, без списания, раздел не изменён', async () => {
+  // Пара найдена (pair: '25,-50'), но при скане проходимого тайла
+  // рядом не оказалось (dest: null) — перенос невозможен: отказ
+  // apply, золото НЕ тратится, сейв не переписывается (saveNow
+  // только при ok — контракт 000071).
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: CIRCLE.x, y: CIRCLE.y },
+    teleports: {
+      [CIRCLE_KEY]: { pair: PAIR_KEY, dest: null, active: false },
+    },
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, CIRCLE.x, 'позиция сейва — круг');
+  const goldBefore = g.state.hero.gold;
+  const text0 = h.storage.getItem(SAVE_KEY);
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const row = findRow(findOverlay(h), '41');
+  assert.ok(row, 'строка действия 41 в оверлее');
+  assert.equal(row.disabled, false,
+    'пара в сейве — строка доступна (dest проверит apply)');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false,
+    'оверлей закрывается (действие выполнено — apply not-ok)');
+  frameAt(h, NOW + 200);
+  assert.ok(
+    String(h.hud.textContent).includes(
+      'нет проходимого тайла рядом с парным кругом'),
+    'message отказа в hudFlash (не гаснет молча)');
+  assert.equal(g.state.player.x, CIRCLE.x, 'переноса нет (x)');
+  assert.equal(g.state.player.y, CIRCLE.y, 'переноса нет (y)');
+  assert.equal(g.state.hero.gold, goldBefore, 'золото НЕ списано');
+  assert.equal(h.storage.getItem(SAVE_KEY), text0,
+    'apply not-ok → saveNow нет: сейв (раздел teleports) не изменён');
 });
