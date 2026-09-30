@@ -9,21 +9,30 @@
 //
 // Чистое ядро без DOM — тестируется в node (tests/cities.test.js).
 // Униформный модуль: в браузере — globalThis.Game (неймспейс
-// Game.Cities), в node — require(). Зависимость: perlin.js
-// (hash2, mulberry32) — ЕДИНСТВЕННЫЙ require; взаимных require в
-// момент загрузки нет (цепочки vm-песочниц грузят подмножества).
-// Решения закреплены в memory/000104-cities-layout.md; golden-пины —
-// в tests/cities.test.js (смена CITY_LAYOUT_CONST после мержа
-// недопустима — сменит ВСЕ города).
+// Game.Cities), в node — require(). Зависимости: perlin.js
+// (hash2, mulberry32 — load-time), items.js (makeShop) и
+// buildings.js (каталог: buildingId → особые_параметры.map_index) —
+// для makeCityShop (000108); взаимных require в момент загрузки нет
+// (items.js/buildings.js cities.js НЕ требуют — цикла нет; цепочки
+// vm-песочниц без items.js — cities.js грузится, а makeCityShop
+// бросает ленивый гард при вызове). Решения закреплены в
+// memory/000104-cities-layout.md и memory/000108-city-shops.md;
+// golden-пины — в tests/cities.test.js (смена CITY_LAYOUT_CONST /
+// CITY_SHOP_CELL_BASE после мержа недопустима — сменит ВСЕ города).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('./perlin.js'));
+    module.exports = factory(
+      require('./perlin.js'),
+      require('./items.js'),
+      require('./buildings.js'));
   } else {
     const G0 = typeof root.Game === 'object' ? root.Game : {};
-    root.Game = Object.assign({}, G0, { Cities: factory(G0) });
+    root.Game = Object.assign({}, G0,
+      { Cities: factory(G0, null, null, root) });
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin) {
+})(typeof globalThis !== 'undefined' ? globalThis : self,
+function (perlin, items, buildings, rootRef) {
 
   if (!perlin || typeof perlin.hash2 !== 'function' ||
       typeof perlin.mulberry32 !== 'function') {
@@ -348,6 +357,112 @@
     return { buildings, seed };
   }
 
+  // ============================================================
+  // Лавки города (задача 000108) — makeCityShop
+  // ============================================================
+  //
+  // У городских лавок — СВОИ стоки, ключируемые по (город, клетка),
+  // а не по npcId (ловушка-прецедент: мировой npcStocks в main.js —
+  // «все тайлы храма солнца делят один сток»). Лавка = обёртка
+  // СУЩЕСТВУЮЩего items.makeShop с офсетом координат города:
+  // makeShop(cityX*256+tx, cityY*256+ty, map_index, wealth) —
+  // seed/сток/ассортимент/универсам-w3 — семантика makeShop без
+  // дублирования логики (SPEC.md: «лавки — стоки makeShop с офсетом
+  // координат города (сток ключируется по (город, клетке))»).
+  // Решения закреплены в memory/000108-city-shops.md; golden-пины —
+  // в tests/cities.test.js (раздел «Лавки города»).
+
+  // Базис инъективной кодировки (город, клетка) → координаты
+  // makeShop: x′ = cityX*256+tx, y′ = cityY*256+ty. 256 > любого
+  // layout (2×footprint−1 ≤ 14): две РАЗНЫЕ пары (город, клетка)
+  // никогда не дают общие координаты — ВКЛЮЧАЯ СОСЕДНИЕ якоря
+  // (наивная сумма cityX+tx дала бы коллизию (100,−40)+tx=1 и
+  // (101,−40)+tx=0 — оба x′=101 → общий сток). GOLDEN-ПИН: смена
+  // после мержа = смена ВСЕХ городских стоков — недопустима.
+  const CITY_SHOP_CELL_BASE = 256;
+
+  // Ленивый референс items.js (паттерн гарда perlin в этом модуле и
+  // buildingsCatalogRef items.js, 000055/000060): в node —
+  // require-модуль; в браузере — rootRef.Game в МОМЕНТ ВЫЗОВА
+  // (function переживает Object.assign({}, Game, …) и любую
+  // перегрузку). Load-time-гарда НЕТ: цепочки vm-песочниц
+  // perlin→cities (000104/000106) обязаны грузиться без items.js —
+  // гард срабатывает на первом вызове makeCityShop.
+  function itemsRef() {
+    if (items && typeof items.makeShop === 'function') return items;
+    const g = rootRef && rootRef.Game;
+    if (g && typeof g.makeShop === 'function') return g;
+    throw new Error(
+      'cities.js: не найден items.js (makeShop) — загрузите items.js ' +
+      'до вызова cities.makeCityShop');
+  }
+
+  // Ленивый референс каталога построек (buildingId → запись).
+  function buildingsRef() {
+    if (buildings && typeof buildings.getBuilding === 'function')
+      return buildings;
+    const g = rootRef && rootRef.Game;
+    if (g && typeof g.getBuilding === 'function') return g;
+    throw new Error(
+      'cities.js: не найден buildings.js (каталог) — загрузите ' +
+      'buildings.js до вызова cities.makeCityShop');
+  }
+
+  /**
+   * Лавка города: СВОЙ сток по (город, клетка) — обёртка
+   * items.makeShop(cityX*256+tx, cityY*256+ty, map_index, wealth).
+   * Чистая функция; каждый вызов — НОВЫЕ объекты (общего стока нет,
+   * анти-прецедент npcStocks). buy/sell — существующие
+   * buyItem/sellItem/buyPrice/sellPrice без изменений (shop-объект
+   * влезает в playerUI.setShop как есть).
+   * @param {number} cityX координата якоря города (любая, incl. < 0)
+   * @param {number} cityY координата якоря города (любая, incl. < 0)
+   * @param {number} tx клетка лавки в layout города, 0..255
+   * @param {number} ty клетка лавки в layout города, 0..255
+   * @param {number} buildingId id каталога (1..54) — запись каталога
+   *        ОБЯЗАТЕЛЬНА (нет → throw — ошибка вызывающего)
+   * @param {number} wealth богатство якоря 0..3 (tileAt, cities.js-
+   *        конвенция: throw вне 0..3 — как generateCityContents)
+   * @returns {null|{x:tx, y:ty, buildingType, wealth, stock, seed}}
+   *   РОВНО 6 полей makeShop/setShop-формата, где x/y = ЛОКАЛЬНАЯ
+   *   клетка (ключ состояния 000109 «tx,ty»), buildingType =
+   *   особые_параметры.map_index (НЕ id каталога). null — не лавка:
+   *   map_index нет (города 51..54) или «виды» нет (Арена 7 /
+   *   Стрельбище 10 / Дом кузнеца 25).
+   */
+  function makeCityShop(cityX, cityY, tx, ty, buildingId, wealth) {
+    for (const [n, v] of [['cityX', cityX], ['cityY', cityY],
+        ['tx', tx], ['ty', ty], ['buildingId', buildingId]])
+      if (!Number.isInteger(v))
+        throw new Error('cities.js: ' + n + ' — целое (получено ' +
+          String(v) + ')');
+    if (tx < 0 || tx >= CITY_SHOP_CELL_BASE ||
+        ty < 0 || ty >= CITY_SHOP_CELL_BASE)
+      throw new Error('cities.js: tx/ty — [0,' + CITY_SHOP_CELL_BASE +
+        ') (получено ' + tx + ',' + ty + ')');
+    validateWealth(wealth);
+    // Гард порядка: СНАЧАЛА items.js (без него лавку не собрать),
+    // потом buildings.js (каталог).
+    const I = itemsRef();
+    const B = buildingsRef();
+    const rec = B.getBuilding(buildingId);
+    if (!rec)
+      throw new Error('cities.js: buildingId ' + buildingId +
+        ' — нет в каталоге построек (ошибка вызывающего)');
+    const pp = rec.особые_параметры;
+    if (!pp || typeof pp.map_index !== 'number')
+      return null; // город (51..54) — лавок нет
+    const shop = I.makeShop(cityX * CITY_SHOP_CELL_BASE + tx,
+      cityY * CITY_SHOP_CELL_BASE + ty, pp.map_index, wealth);
+    if (!shop)
+      return null; // «виды» нет — не лавка (Арена/Стрельбище/кузнец)
+    // x/y — ЛОКАЛЬНАЯ клетка города (ключ 000109 «tx,ty»), а не
+    // смещённые координаты makeShop; stock/seed/buildingType/wealth —
+    // из makeShop как есть (обёртка без дублирования логики).
+    return { x: tx, y: ty, buildingType: shop.buildingType,
+      wealth: shop.wealth, stock: shop.stock, seed: shop.seed };
+  }
+
   return {
     CELL_WALL, CELL_FLOOR,
     CITY_LAYOUT_CONST,
@@ -355,5 +470,7 @@
     createCityLayout,
     CITY_CONTENT_CONST,
     generateCityContents,
+    CITY_SHOP_CELL_BASE,
+    makeCityShop,
   };
 });
