@@ -5,7 +5,9 @@
 // Униформный модуль: в браузере — globalThis.Game.Spells, в node — require().
 // Зависимости (ПОРЯДОК ВАЖЕН, UMD-ловушка 000038):
 //   * spells-data.js (Game.SpellsData — зеркало каталога, фолбэк file://);
-//   * combat.js (Game.combatInternals — боевые функции ядра,
+//   * combat.js (Game.combatInternals — боевые функции ядра; при
+//     загрузке spells.js дописывает туда allySpells = SPELLS_BY_ID —
+//     ленивый каталог для ИИ support-союзника, задача 000080;
 //     Game.PRACTICE_XP — опыт практики);
 //   * player.js (Game.derived/heal/skillPractice — характеристики и HP/MP).
 //
@@ -85,6 +87,13 @@
 
   const SPELLS = SpellsData.SPELLS;
   const SPELLS_BY_ID = SpellsData.SPELLS_BY_ID;
+
+  // Задача 000080: ЛЕНИВЫЙ каталог для ИИ support-союзника — combat.js
+  // грузится в браузере ДО spells-data.js/spells.js (UMD-ловушка 000038)
+  // и читать каталог сам не может; spells.js ставит его в
+  // combatInternals.allySpells одной строкой при загрузке (обе ветки
+  // UMD — общий factory; одна ссылка: node-require кэш / Game).
+  internals.allySpells = SPELLS_BY_ID;
 
   function getSpell(id) {
     if (typeof id !== 'string' || !id) return null;

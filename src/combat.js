@@ -11,6 +11,16 @@
 // (playerMove/rectFree → stepToward/stepAway); атаки и заклинания
 // (в т.ч. дальние) летают поверх — линий видимости в модели нет.
 //
+// Союзные юниты (задача 000080): side 'ally', всегда 1×1 — отдельный
+// формат makeAlly(data, idx, moraleMult) (формулы makeMob БЕЗ множителей
+// сложности; явные maxHP/damage/kind/attrs — для Эфира 000081). createCombat
+// принимает opts.allies; очередь — игрок → союзники → мобы; ИИ — allyAct по
+// ролям; модель целей МОБА расширена: ближайшая цель СТОРОНЫ ИГРОКА (игрок
+// ИЛИ союзник — гибель союзника ≠ поражение). При 0 союзников всё поведение
+// (поток c._rng, логи, исход) БИТ-В-БИТ как до 000080. Каталог заклинаний
+// для ИИ support читается ЛЕНИВО из combatInternals.allySpells (его ставит
+// spells.js — UMD-ловушка 000038; без каталога support — melee-фолбэк).
+//
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js (mulberry32), player.js (derived/takeDamage/heal/addXp),
 // global-settings.js (level_delta_max, combat_difficulty/combat_difficulties,
@@ -186,6 +196,9 @@
       (2 + 0.7 * level) * t.dmg * (hasLeader ? LEADER_DMG_MULT : 1) * diff.damage));
     return {
       id: 'm' + idx,
+      // Сторона боя (задача 000080): 'mob' — враг (явно; поведение не
+      // меняется), 'ally' — союзник (makeAlly).
+      side: 'mob',
       mobId,
       name: t.name,
       role: t.role,
@@ -211,6 +224,58 @@
       xp: t.xp || { base: 8, perLevel: 4 },
       skills: t.skills || [],
       loot: t.loot || [],
+    };
+  }
+
+  // Союзный юнит (задача 000080): ВСЕГДА 1×1, side 'ally'.
+  // data — данные найма (контракт 000078: assets/npc, поле «найм») либо
+  // данные Эфира (000081):
+  //   { name, role: 'melee'|'ranged'|'shield'|'support', level,
+  //     dmg, hp, armor?, skills?, spells?, attrs?, kind?, id?,
+  //     maxHP? (явное, в обход формулы), damage? (явное, в обход) }.
+  // Формулы статов — паттерн makeMob БЕЗ множителей сложности
+  // combat_difficulties (они — для врагов) и без hasLeader:
+  //   maxHP  = max(1, round((8 + 4·ур) · hp · hpРоль)),
+  //   damage = max(1, round((2 + 0.7·ур) · dmg · moraleMult)),
+  //   armor  = (armor || 0) + floor(ур / 10);
+  // hpРоль — те же ролевые HP-множители, что у мобов: support 0.7,
+  // shield 1.8, melee/ranged/swarm 1.0. moraleMult (по умолчанию 1) —
+  // мораль отряда 1 + companionMoraleBonus (createCombat считает от
+  // P.derived(p); +5%/ур. Предводителя — НЕ вражеская роль 'leader'/
+  // hasLeader); хранится на юните u.moraleMult для будущих урон-кастов
+  // (Эфир, 000112/000113). Чистая функция — тестируется.
+  function makeAlly(data, idx, moraleMult = 1) {
+    const level = data.level || 1;
+    const hpRoleMult = { support: 0.7, shield: 1.8 }[data.role] || 1.0;
+    const maxHP = data.maxHP != null
+      ? data.maxHP
+      : Math.max(1, Math.round((8 + 4 * level) * (data.hp || 1) * hpRoleMult));
+    const damage = data.damage != null
+      ? data.damage
+      : Math.max(1, Math.round((2 + 0.7 * level) * (data.dmg || 1) * moraleMult));
+    return {
+      // data.id — дискриминатор (Эфир 000081), иначе индексный 'aN'.
+      id: data.id || 'a' + idx,
+      side: 'ally',
+      name: data.name,
+      role: data.role,
+      level,
+      maxHP,
+      hp: maxHP,
+      armor: (data.armor || 0) + Math.floor(level / 10),
+      damage,
+      moraleMult,
+      movePerTurn: 1,
+      size: { w: 1, h: 1 },
+      x: 0,
+      y: 0,
+      alive: true,
+      fled: false,
+      traits: {},
+      skills: (data.skills || []).slice(),
+      spells: (data.spells || []).slice(),
+      attrs: data.attrs || {},
+      kind: data.kind || 'merc',
     };
   }
 
@@ -277,38 +342,100 @@
     return dx + dy;
   }
 
+  // Нормализует юнит ({x, y, size}) или прямоугольник ({x, y, w, h}).
+  function rectOf(v) {
+    return v.size
+      ? { x: v.x, y: v.y, w: v.size.w || 1, h: v.size.h || 1 }
+      : { x: v.x, y: v.y, w: v.w || 1, h: v.h || 1 };
+  }
+
+  // Манхэттен-расстояние между двумя прямоугольками (задача 000080);
+  // 0 — пересечение/соседство по оси (диапазоны на оси пересекаются).
+  // rectDist(игрок 1×1, юнит) ≡ unitDist — бит-в-бит (регрессия).
+  function rectDist(a, b) {
+    const A = rectOf(a), B = rectOf(b);
+    const ax1 = A.x + A.w - 1, ay1 = A.y + A.h - 1;
+    const bx1 = B.x + B.w - 1, by1 = B.y + B.h - 1;
+    const dx = ax1 < B.x ? B.x - ax1 : (bx1 < A.x ? A.x - bx1 : 0);
+    const dy = ay1 < B.y ? B.y - ay1 : (by1 < A.y ? A.y - by1 : 0);
+    return dx + dy;
+  }
+
   function nearestMob(c) {
     let best = null;
     for (const u of c.units) {
-      if (!u.alive || u.fled) continue;
+      if (!u.alive || u.fled || u.side !== 'mob') continue;
       if (!best || unitDist(c, u) < unitDist(c, best)) best = u;
     }
     return best;
   }
 
+  // Живые мобы (side 'mob'): цель игрока/спеллов, аггрегация, победа.
+  // Фильтр side (000080): союзники сюда НЕ попадают — игрок не цели и не
+  // цель по своей стороне; при 0 союзников — ровно прежний набор.
   function livingMobs(c) {
-    return c.units.filter((u) => u.alive && !u.fled);
+    return c.units.filter((u) => u.side === 'mob' && u.alive && !u.fled);
   }
 
-  // Очередь хода (задача 000036): игрок первым, затем живые мобы
-  // в порядке c.units. Мёртвые (alive=false) и сбежавшие (fled)
-  // исключены. Чистая функция — тестируется в tests/combat.test.js.
+  function livingAllies(c) {
+    return c.units.filter((u) => u.side === 'ally' && u.alive && !u.fled);
+  }
+
+  // Ближайший живой МОБ от союзника u (ИИ союзника, 000080);
+  // тай-брейк — порядок c.units (строго <). null — врагов нет.
+  function nearestEnemy(c, u) {
+    let best = null;
+    for (const m of livingMobs(c)) {
+      if (!best || rectDist(u, m) < rectDist(u, best)) best = m;
+    }
+    return best;
+  }
+
+  // Ближайшая цель СТОРОНЫ ИГРОКА от моба u (000080): игрок ИЛИ живой
+  // союзник — расширение модели целей, без которого гибель союзника
+  // недостижима. Тай-брейк — игрок (строгий <). При 0 союзников —
+  // всегда игрок (бит-в-бит: rectDist(u, игрок 1×1) ≡ unitDist).
+  // Возврат: { x, y, w, h, isPlayer } | { x, y, w, h, unit: ally }.
+  function nearestPlayerSide(c, u) {
+    let best = { x: c.px, y: c.py, w: 1, h: 1, isPlayer: true };
+    let bestD = rectDist(u, best);
+    for (const a of livingAllies(c)) {
+      const d = rectDist(u, a);
+      if (d < bestD) {
+        best = { x: a.x, y: a.y, w: a.size.w || 1, h: a.size.h || 1, unit: a };
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  // Очередь хода (задача 000036, расширено 000080): игрок первым, затем
+  // живые СОЮЗНИКИ (порядок c.units), затем живые МОБЫ (порядок c.units).
+  // Мёртвые (alive=false) и сбежавшие (fled) исключены. Чистая функция —
+  // тестируется в tests/combat.test.js.
   function buildTurnOrder(c) {
-    return ['player', ...livingMobs(c).map((u) => u.id)];
+    return ['player',
+      ...livingAllies(c).map((u) => u.id),
+      ...livingMobs(c).map((u) => u.id)];
   }
 
   function log(c, msg) {
     c.log.push(msg);
   }
 
-  // Один шаг к игроку (сначала большая ось; если занято — другая).
-  // Для многоклеточных мобов — шаг всего прямоугольника;
-  // направление — по расстоянию от соответствующего края до игрока.
-  function stepToward(c, u) {
+  // Один шаг к ПРЯМОУГОЛЬНИКУ ЦЕЛИ (задача 000080: общая для мобов —
+  // цель-прямоугольник стороны игрока, и для будущих целей; МОБЫ при
+  // 0 союзников вызывают с прямоугольником игрока — БИТ-В-БИТ прежняя
+  // логика и порядок осей: сначала большая ось, при равенстве — x;
+  // если занято — другая). Для многоклеточных юнитов — шаг всего
+  // прямоугольника; направление — по расстоянию от соответствующего
+  // края до цели.
+  function stepTowardRect(c, u, r) {
+    const R = rectOf(r);
     const w = u.size.w || 1, h = u.size.h || 1;
     const x1 = u.x + w - 1, y1 = u.y + h - 1;
-    const sx = c.px < u.x ? -1 : (c.px > x1 ? 1 : 0);
-    const sy = c.py < u.y ? -1 : (c.py > y1 ? 1 : 0);
+    const sx = R.x < u.x ? -1 : (R.x + R.w - 1 > x1 ? 1 : 0);
+    const sy = R.y < u.y ? -1 : (R.y + R.h - 1 > y1 ? 1 : 0);
     const adx = Math.abs(sx), ady = Math.abs(sy);
     const tries = (adx >= ady ? [[sx, 0], [0, sy]] : [[0, sy], [sx, 0]])
       .filter(([a, b]) => a !== 0 || b !== 0);
@@ -322,15 +449,67 @@
     return false;
   }
 
-  // Один шаг от игрока (паника, отступление).
-  function stepAway(c, u) {
-    const d0 = unitDist(c, u);
+  // Один шаг к игроку (обёртка: цель — клетка игрока 1×1).
+  function stepToward(c, u) {
+    return stepTowardRect(c, u, { x: c.px, y: c.py, w: 1, h: 1 });
+  }
+
+  // Один шаг ОТ прямоугольника цели (паника, отступление): порядок
+  // направлений прежний (↑, ↓, ←, →); берётся первая свободная клетка,
+  // где расстояние до цели ВЫРОСЛО (бит-в-бит при цели-игроке).
+  function stepAwayRect(c, u, r) {
+    const d0 = rectDist(u, r);
     const w = u.size.w || 1, h = u.size.h || 1;
     for (const [sx, sy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
       const nx = u.x + sx, ny = u.y + sy;
       if (!rectFree(c, nx, ny, w, h, u)) continue;
       const u2 = { x: nx, y: ny, size: u.size };
-      if (unitDist({ px: c.px, py: c.py, units: [] }, u2) > d0) {
+      if (rectDist(u2, r) > d0) {
+        u.x = nx; u.y = ny;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Один шаг от игрока (обёртка: цель — клетка игрока 1×1).
+  function stepAway(c, u) {
+    return stepAwayRect(c, u, { x: c.px, y: c.py, w: 1, h: 1 });
+  }
+
+  // Шаг СОЮЗНИКА (1×1) к цели-прямоугольнику (задача 000080): сначала
+  // ось x (если оси различаются), затем ось y; направление — к цели;
+  // первая rectFree-клетка. Красные тесты фиксируют и «обход занятой
+  // клетки» по другой оси, и шаг по x (красные тесты 000080: piny).
+  function allyStepToward(c, u, r) {
+    const R = rectOf(r);
+    const w = u.size.w || 1, h = u.size.h || 1;
+    const x1 = u.x + w - 1, y1 = u.y + h - 1;
+    const sx = R.x < u.x ? -1 : (R.x + R.w - 1 > x1 ? 1 : 0);
+    const sy = R.y < u.y ? -1 : (R.y + R.h - 1 > y1 ? 1 : 0);
+    for (const [dx, dy] of [[sx, 0], [0, sy]]
+      .filter(([a, b]) => a !== 0 || b !== 0)) {
+      const nx = u.x + dx, ny = u.y + dy;
+      if (rectFree(c, nx, ny, w, h, u)) {
+        u.x = nx; u.y = ny;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Шаг СОЮЗНИКА от цели-прямоугольника: порядок направлений →, ↑, ↓, ←;
+  // первая rectFree-клетка, где расстояние до цели выросло. Красные тесты
+  // 000080 фиксируют: отступление ranged при d≤1 И «кайтинг»-шаг при
+  // d>RANGED_MAX_DIST (см. memory/000080-ally-framework.md).
+  function allyStepAway(c, u, r) {
+    const d0 = rectDist(u, r);
+    const w = u.size.w || 1, h = u.size.h || 1;
+    for (const [dx, dy] of [[1, 0], [0, -1], [0, 1], [-1, 0]]) {
+      const nx = u.x + dx, ny = u.y + dy;
+      if (!rectFree(c, nx, ny, w, h, u)) continue;
+      const u2 = { x: nx, y: ny, size: u.size };
+      if (rectDist(u2, r) > d0) {
         u.x = nx; u.y = ny;
         return true;
       }
@@ -388,12 +567,30 @@
     return dmg;
   }
 
+  // Урон по СОЮЗНИКУ (задача 000080): броня, минимум 1. Без блока/щита/
+  // «Несокрушимости» — эффекты c.ps действуют ТОЛЬКО на игрока (v1).
+  // Гибель союзника — покидает бой: НИКАКОГО checkVictory/поражения,
+  // клетка освобождается (alive=false), из очереди исключается.
+  // Возвращает фактический урон.
+  function dealDamageToAlly(c, t, raw) {
+    const dmg = Math.max(1, Math.round(raw) - (t.armor || 0));
+    t.hp -= dmg;
+    if (t.hp <= 0) {
+      t.hp = 0;
+      t.alive = false;
+      log(c, `${t.name} пал в бою!`);
+    }
+    return dmg;
+  }
+
   function checkVictory(c) {
     if (c.result) return;
     const left = livingMobs(c);
     if (left.length > 0) return;
     c.phase = 'over';
-    const killed = c.units.filter((u) => !u.alive);
+    // Лут/опыт/«defeated» — ТОЛЬКО за мобов (000080): мёртвые союзники
+    // в lут не попадают и опыта не дают (xp у них нет).
+    const killed = c.units.filter((u) => u.side === 'mob' && !u.alive);
     // Опыт за победу: сумма опыта поверженных мобов (assets/mobs, xp =
     // base + perLevel * уровень моба; задача 000022).
     const xp = killed.reduce(
@@ -426,7 +623,10 @@
     if (blocked) return blocked;
     if (c.ps.attack <= 0) return { ok: false, reason: 'действий «Удар» больше нет' };
     const t = targetId ? c.units.find((u) => u.id === targetId) : nearestMob(c);
-    if (!t || !t.alive || t.fled) return { ok: false, reason: 'нет цели' };
+    // Союзник — не цель игрока (000080): своя сторона, reason «нет цели».
+    if (!t || !t.alive || t.fled || t.side === 'ally') {
+      return { ok: false, reason: 'нет цели' };
+    }
     const p = c.player;
     const d = P.derived(p);
     const eq = I.equipmentStats(p);
@@ -471,7 +671,10 @@
       if (c.ps.spellInt <= 0) return { ok: false, reason: 'действий «Заклинание» (Интеллект) больше нет' };
       if (p.mp < 3) return { ok: false, reason: 'не хватает маны (3)' };
       const t = targetId ? c.units.find((u) => u.id === targetId) : nearestMob(c);
-      if (!t || !t.alive || t.fled) return { ok: false, reason: 'нет цели' };
+      // Союзник — не цель (000080).
+      if (!t || !t.alive || t.fled || t.side === 'ally') {
+        return { ok: false, reason: 'нет цели' };
+      }
       if (unitDist(c, t) > SPELL_MAX_DIST) return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
       c.ps.spellInt -= 1;
       p.mp -= 3;
@@ -545,7 +748,15 @@
     if (c.obstacles && c.obstacles.has(nx + ',' + ny)) {
       return { ok: false, reason: 'препятствие' };
     }
-    if (unitAt(c, nx, ny)) return { ok: false, reason: 'тут стоит моб' };
+    // unitAt — все юниты (000050): и моб, и союзник блокируют клетку;
+    // у союзника — своя формулировка (000080).
+    const blocker = unitAt(c, nx, ny);
+    if (blocker) {
+      return {
+        ok: false,
+        reason: blocker.side === 'ally' ? 'тут стоит союзник' : 'тут стоит моб',
+      };
+    }
     c.px = nx; c.py = ny;
     c.ps.moveLeft -= 1;
     return { ok: true };
@@ -613,7 +824,10 @@
 
   function playerSelectTarget(c, targetId) {
     const t = c.units.find((u) => u.id === targetId);
-    if (!t || !t.alive || t.fled) return { ok: false, reason: 'недоступная цель' };
+    // Союзник — не цель (000080): та же причина, что у мёртвого/сбежавшего.
+    if (!t || !t.alive || t.fled || t.side === 'ally') {
+      return { ok: false, reason: 'недоступная цель' };
+    }
     c.targetId = targetId;
     return { ok: true };
   }
@@ -637,7 +851,9 @@
       if (blocked) return blocked;
       if (c.ps.attack <= 0) return { ok: false, reason: 'действий «Удар» больше нет' };
       const t = a.targetId ? c.units.find((u) => u.id === a.targetId) : nearestMob(c);
-      if (!t || !t.alive || t.fled) return { ok: false, reason: 'нет цели' };
+      if (!t || !t.alive || t.fled || t.side === 'ally') {
+        return { ok: false, reason: 'нет цели' };
+      }
       // Снаряжение читаем прямым доступом, БЕЗ I.equipmentStats (тот через
       // ensureEquipment лениво СОЗДАЁТ p.equipment — canDoAction обязан
       // быть без побочных эффектов). Для дальности нужен только subtype.
@@ -661,7 +877,9 @@
       if (c.ps.spellInt <= 0) return { ok: false, reason: 'действий «Заклинание» (Интеллект) больше нет' };
       if (p.mp < 3) return { ok: false, reason: 'не хватает маны (3)' };
       const t = a.targetId ? c.units.find((u) => u.id === a.targetId) : nearestMob(c);
-      if (!t || !t.alive || t.fled) return { ok: false, reason: 'нет цели' };
+      if (!t || !t.alive || t.fled || t.side === 'ally') {
+        return { ok: false, reason: 'нет цели' };
+      }
       if (unitDist(c, t) > SPELL_MAX_DIST) return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
       return { ok: true };
     }
@@ -791,6 +1009,22 @@
     }
   }
 
+  // Удар моба по СОЮЗНИКУ (задача 000080): те же бросок/ослабление, но
+  // трейты (яд/вампиризм/дебафф) в v1 действуют ТОЛЬКО на игрока —
+  // сюда не переносятся. Гибель союзника — НЕ поражение (dealDamageToAlly).
+  function mobAttackAlly(c, u, t) {
+    if (c._rng() >= hitChance(u.level, 0, t.level, 0)) {
+      log(c, `${u.name} промахивается.`);
+      return;
+    }
+    let dmg = u.damage;
+    if (u.weaken && u.weaken.turns > 0) {
+      dmg *= u.weaken.mult;
+      u.weaken.turns -= 1;
+    }
+    dealDamageToAlly(c, t, dmg);
+  }
+
   function mobAct(c, u) {
     if (!u.alive || u.fled || c.result) return;
     // Контроль (задача 000045, ставится src/spells.js): скованный моб
@@ -801,7 +1035,17 @@
       log(c, `${u.name} скован — пропускает действие.`);
       return;
     }
-    const dToP = unitDist(c, u);
+    // Расширенная модель целей (задача 000080): ближайшая цель СТОРОНЫ
+    // ИГРОКА — игрок ИЛИ живой союзник (без этого гибель союзника
+    // недостижима). При 0 союзников — всегда игрок: rectDist(u, игрок)
+    // ≡ unitDist, шаги/атаки — бит-в-бит как до изменения.
+    const target = nearestPlayerSide(c, u);
+    const dToP = rectDist(u, target);
+    const stepToTarget = () => stepTowardRect(c, u, target);
+    const stepFromTarget = () => stepAwayRect(c, u, target);
+    const attackTarget = () => (target.isPlayer
+      ? mobAttack(c, u)
+      : mobAttackAlly(c, u, target.unit));
 
     // Регенерация (водные стихийники).
     if (u.traits.regen) {
@@ -816,7 +1060,7 @@
         checkVictory(c);
         return;
       }
-      stepAway(c, u);
+      stepFromTarget();
       return;
     }
 
@@ -824,15 +1068,15 @@
       case MOB_ROLES.RANGED:
         // Держит дистанцию; при подходе паникует и отступает.
         if (dToP <= 1) {
-          stepAway(c, u);
+          stepFromTarget();
           log(c, `${u.name} отступает.`);
           return;
         }
-        if (dToP <= RANGED_MAX_DIST) mobAttack(c, u);
-        else stepToward(c, u);
+        if (dToP <= RANGED_MAX_DIST) attackTarget();
+        else stepToTarget();
         return;
       case MOB_ROLES.SUPPORT:
-        // Лечит самого раненого союзника; в одиночку — бьёт сама.
+        // Лечит самого раненого СОЮЗНОГО МОБА; в одиночку — бьёт сама.
         const allies = livingMobs(c).filter((a) => a !== u);
         const wounded = allies
           .filter((a) => a.hp < a.maxHP * 0.7)
@@ -842,26 +1086,136 @@
           wounded.hp = Math.min(wounded.maxHP, wounded.hp + amount);
           log(c, `${u.name} лечит ${wounded.name} (+${amount}).`);
         } else if (dToP <= 1) {
-          mobAttack(c, u);
+          attackTarget();
         } else {
-          stepToward(c, u);
+          stepToTarget();
         }
         return;
       case MOB_ROLES.LEADER:
         // Бафф группы — на старте боя; сам лидер тоже дерётся.
-        if (dToP <= 1) mobAttack(c, u);
-        else stepToward(c, u);
+        if (dToP <= 1) attackTarget();
+        else stepToTarget();
         return;
       default: // melee, shield, swarm
         if (dToP <= 1) {
-          mobAttack(c, u);
+          attackTarget();
         } else {
           for (let i = 0; i < u.movePerTurn && !c.result; i++) {
-            if (unitDist(c, u) <= 1) break;
-            stepToward(c, u);
+            if (rectDist(u, target) <= 1) break;
+            stepToTarget();
           }
         }
         return;
+    }
+  }
+
+  // --- Ход союзника (задача 000080) ---
+
+  // Атака союзника: бросок c._rng (hitChance от уровня союзника/цели),
+  // урон — u.damage (мораль уже применена при создании) через
+  // dealDamageToMob (гибель последнего моба → checkVictory — победа).
+  function allyAttack(c, u, t) {
+    if (c._rng() >= hitChance(u.level, 0, t.level, 0)) {
+      log(c, `${u.name} промахивается.`);
+      return;
+    }
+    // t — МОБ-цель (dealDamageToMob: 2-й аргумент — получающий урон).
+    const r = dealDamageToMob(c, t, u.damage);
+    log(c, `${u.name} бьёт ${t.name}: ${r.dmg}.`);
+  }
+
+  // Лечение support (задача 000080): каталог заклинаний читается ЛЕНИВО
+  // из combatInternals.allySpells (UMD-ловушка 000038: в браузере
+  // combat.js грузится ДО spells-data.js/spells.js; spells.js одной
+  // строкой ставит каталог при загрузке). Без каталога/без лечебных
+  // спеллов/без раненых — false → melee-фолбэк (задокументировано).
+  // Заклинание — сильнейшая степень из СПИСКА СОЮЗНИКА u.spells
+  // (действие «лечение»; тай-брейк — порядок списка). Цель — САМОГО
+  // РАНЕНОГО пула [игрок, ...живые союзники] (порядок: игрок первым,
+  // затем c.units): минимальная доля hp/maxHP; тай-брейк — порядок пула.
+  // Формула — формула лечения spells.js с attrs союзника (у наёмника
+  // attrs пуст → уровень): round((4 + 0.5·attr + ур)·(1 + 0.15·(степень−1))).
+  // Игрок лечится P.heal; союзник — прямой hp (без c.ps-эффектов).
+  function allyHeal(c, u) {
+    const catalog = combatInternals.allySpells;
+    if (!catalog) return false;
+    let spell = null;
+    for (const id of u.spells) {
+      const s = catalog[id];
+      if (!s || s['действие'] !== 'лечение') continue;
+      if (!spell || s['степень'] > spell['степень']) spell = s;
+    }
+    if (!spell) return false;
+    const p = c.player;
+    const pMax = P.derived(p).maxHP;
+    let best = null, bestFrac = null;
+    const consider = (frac, ref) => {
+      if (frac >= 1) return; // не ранен (включая «пере-HP» 9999/270)
+      if (bestFrac == null || frac < bestFrac) { best = ref; bestFrac = frac; }
+    };
+    consider(p.hp / pMax, { player: true });
+    for (const a of livingAllies(c)) consider(a.hp / a.maxHP, { unit: a });
+    if (!best) return false;
+    const amount = Math.round(
+      (4 + 0.5 * ((u.attrs && u.attrs[spell['атрибут']]) || 0) + u.level) *
+      (1 + 0.15 * (spell['степень'] - 1)));
+    if (best.player) {
+      P.heal(p, amount);
+      log(c, `${u.name} лечит ${p.name} (+${amount}).`);
+    } else {
+      const a = best.unit;
+      a.hp = Math.min(a.maxHP, a.hp + amount);
+      log(c, `${u.name} лечит ${a.name} (+${amount}).`);
+    }
+    return true;
+  }
+
+  // ИИ союзника (аналог mobAct на нашей стороне, задача 000080):
+  // цель — nearestEnemy (ближайший живой МОБ); роли:
+  //  * melee/shield/swarm — шаг к цели (allyStepToward, movePerTurn)
+  //    + атака при d≤1;
+  //  * ranged — d≤1: отступление (allyStepAway, лог «отступает»);
+  //    1<d≤RANGED_MAX_DIST: атака в даль БЕЗ сближения;
+  //    d>RANGED_MAX_DIST: «кайтинг»-шаг (красные тесты 000080 пинят
+  //    allyStepAway — см. memory/000080-ally-framework.md);
+  //  * support — лечит самого раненого (игрок В пуле); нет раненого/
+  //    заклинаний/каталога — melee-ветка.
+  function allyAct(c, u) {
+    if (!u.alive || u.fled || c.result) return;
+    const t = nearestEnemy(c, u);
+    if (!t) return; // врагов нет — бой кончается чужим checkVictory
+    const d = rectDist(u, t);
+    if (u.role === MOB_ROLES.RANGED) {
+      if (d <= 1) {
+        // Паника (красные тесты 000080): отступает, ПОКА враг в d ≤ 2 —
+        // за свой ход враг сокращает дистанцию на 1, и тест пинит, что к
+        // концу раунда (после хода врага) дистанция ВЫРОСЛА: отступление
+        // должно закончиться при d ≥ 3. Застрял (углы/юниты) — выходит
+        // из цикла, лог тот же (как у моба: лог не зависит от успеха шага).
+        let dNow = d;
+        while (dNow <= 2) {
+          if (!allyStepAway(c, u, t)) break;
+          dNow = rectDist(u, t);
+        }
+        log(c, `${u.name} отступает.`);
+        return;
+      }
+      if (d <= RANGED_MAX_DIST) {
+        allyAttack(c, u, t);
+        return;
+      }
+      allyStepAway(c, u, t); // d > 4: зафиксированный тестом шаг
+      return;
+    }
+    if (u.role === MOB_ROLES.SUPPORT && allyHeal(c, u)) return;
+    // melee / shield / swarm / support-фолбэк: подход + атака при d≤1.
+    if (d <= 1) {
+      allyAttack(c, u, t);
+      return;
+    }
+    for (let i = 0; i < u.movePerTurn && !c.result; i++) {
+      if (rectDist(u, t) <= 1) break;
+      allyStepToward(c, u, t);
     }
   }
 
@@ -884,9 +1238,12 @@
       const u = c.units.find((x) => x.id === c.turnOrder[i]);
       if (!u || !u.alive || u.fled) continue; // слот пуст — токен серый
       c.turnIndex = i;
-      mobAct(c, u);
+      // Союзник (000080) — allyAct, иначе mobAct; инвариант 000036
+      // сохранён: c.turnOrder[c.turnIndex] = id действующего.
+      if (u.side === 'ally') allyAct(c, u);
+      else mobAct(c, u);
       // Бой закончился (игрок погиб) — turnIndex замирает на последнем
-      // действовавшем мобе; очередь в phase 'over' не пересчитывается.
+      // действовавшем юните; очередь в phase 'over' не пересчитывается.
       if (c.result) return;
     }
 
@@ -1000,6 +1357,47 @@
     }
   }
 
+  // Расстановка СОЮЗНИКОВ (задача 000080): рядом с игроком (низ поля).
+  // Детерминированные якоря вокруг (c.px, c.py) В ПОРЯДКЕ массива allies:
+  //   (px−1, py−1), (px+1, py−1), (px, py−1), (px−1, py), (px+1, py)
+  // — все в d≤2 от старта; при занятости — построчный скан СНИЗУ
+  // (от нижнего края вверх, слева направо). БЕЗ бросков c._rng
+  // (поток RNG боя не меняется; один сид → одна расстановка).
+  // Занятость — игрок + все уже расставленные мобы (c.units до
+  // конкатенации союзников). Мест нет — throw (как у мобов).
+  function placeAllies(c, allies) {
+    const occ = new Set([c.px + ',' + c.py]);
+    for (const u of c.units) {
+      for (let yy = u.y; yy < u.y + (u.size.h || 1); yy++) {
+        for (let xx = u.x; xx < u.x + (u.size.w || 1); xx++) {
+          occ.add(xx + ',' + yy);
+        }
+      }
+    }
+    const free = (x, y) => x >= 0 && y >= 0 && x < c.width && y < c.height
+      && !occ.has(x + ',' + y);
+    const anchors = [
+      [c.px - 1, c.py - 1], [c.px + 1, c.py - 1], [c.px, c.py - 1],
+      [c.px - 1, c.py], [c.px + 1, c.py],
+    ];
+    for (const u of allies) {
+      let spot = null;
+      for (const [ax, ay] of anchors) {
+        if (free(ax, ay)) { spot = [ax, ay]; break; }
+      }
+      if (!spot) {
+        outer: for (let y = c.height - 1; y >= 0; y--) {
+          for (let x = 0; x < c.width; x++) {
+            if (free(x, y)) { spot = [x, y]; break outer; }
+          }
+        }
+      }
+      if (!spot) throw new Error('нет места для союзника ' + (u.name || u.id));
+      u.x = spot[0]; u.y = spot[1];
+      occ.add(u.x + ',' + u.y);
+    }
+  }
+
   // Препятствия (задача 000050): случайные непроходимые клетки поля.
   // Вызывается в createCombat РОВНО между placeUnits (нужны стартовые
   // прямоугольники мобов) и refillPools — порядок потока c._rng:
@@ -1085,6 +1483,11 @@
    *   по умолчанию level_delta_max из src/global-settings.js)
    * @param {string} [opts.difficulty] сложность ('easy'/'medium'/'hard';
    *   по умолчанию combat_difficulty из src/global-settings.js)
+   * @param {Array<object>} [opts.allies] союзные юниты (задача 000080):
+   *   массив data для makeAlly — { name, role: 'melee'|'ranged'|'shield'|
+   *   'support', level, dmg, hp, armor?, skills?, spells?, attrs?, kind?,
+   *   id?, maxHP?, damage? }. Без allies — бой БИТ-В-БИТ как без 000080
+   *   (расстановка союзников не потребляет c._rng).
    * @returns {object} объект боя c. Поле c.obstacles (задача 000050) —
    *   Set 'x,y' непроходимых клеток (может быть пустым); генерация —
    *   generateObstacles, детерминирована по сиду.
@@ -1122,7 +1525,15 @@
       }
     }
     const hasLeader = ids.some((id) => MOB_TYPES[id].role === MOB_ROLES.LEADER);
-    const units = ids.map((mobId, i) => makeMob(mobId, level, i, hasLeader, diff));
+    const mobs = ids.map((mobId, i) => makeMob(mobId, level, i, hasLeader, diff));
+    // Союзники (задача 000080): данные отряда (000078/000079) или Эфира
+    // (000081) — формат makeAlly. Мораль: урон ВСЕХ союзников ×
+    // (1 + companionMoraleBonus) — навык ПРЕДВОДИТЕЛЬ персонажа
+    // (src/player.js, +5%/уровень); НЕ вражеский hasLeader (бафф ГРУППЫ
+    // МОБОВ — другая сущность, регрессионный тест).
+    const moraleMult = 1 + (P.derived(p).companionMoraleBonus || 0);
+    const allies = (Array.isArray(opts.allies) ? opts.allies : [])
+      .map((d, i) => makeAlly(d, i, moraleMult));
 
     const c = {
       player: p,
@@ -1131,7 +1542,7 @@
       groupType: opts.groupType,
       groupName: opts.groupName || (recipe ? recipe.name : 'блуждающая группа'),
       difficulty,
-      units,
+      units: mobs,
       // Препятствия (задача 000050): Set 'x,y', всегда есть (может быть
       // пустым); заполняется generateObstacles ниже.
       obstacles: new Set(),
@@ -1140,7 +1551,8 @@
       round: 1,
       phase: 'player',
       result: null,
-      // Очередь хода (задача 000036): ['player', ...id живых мобов];
+      // Очередь хода (задача 000036, 000080):
+      // ['player', ...id живых союзников, ...id живых мобов];
       // пересчитывается в начале каждого раунда (createCombat/endPlayerTurn).
       turnOrder: null,
       // Индекс действующего в turnOrder: 0 в phase 'player',
@@ -1160,12 +1572,19 @@
       day,
     };
     // Мобы — в верхней части, игрок — в центре нижнего края.
-    placeUnits(c, units);
+    placeUnits(c, mobs);
+    // Союзники (000080) — рядом с игроком (низ поля); ДО generateObstacles,
+    // чтобы их клетки попали в reserved (reserved строится из c.units).
+    if (allies.length) {
+      c.units = c.units.concat(allies);
+      placeAllies(c, allies);
+    }
     // Препятствия (задача 000050): ПОСЛЕ расстановки (стартовые
-    // прямоугольники мобов — reserved-клетки), ДО любых в-бою RNG-бросков.
+    // прямоугольники мобов + клетки союзников — reserved-клетки),
+    // ДО любых в-бою RNG-бросков.
     generateObstacles(c);
     refillPools(c);
-    log(c, `Бой: ${c.groupName} (уровень ${level}, мобы ${units.length}).`);
+    log(c, `Бой: ${c.groupName} (уровень ${level}, мобы ${mobs.length}).`);
     if (hasLeader) log(c, 'Лидер вдохновляет группу: +5% урона, +5% защиты.');
     c.targetId = (nearestMob(c) || {}).id || null;
     // Начало боя: все мобы живы — очередь собрана, turnIndex указывает
@@ -1186,18 +1605,25 @@
     return c;
   }
 
+  // Боевые internals для src/spells.js (задача 000045): применение
+  // заклинания в бою переиспользует проверки и урон ядра. ОДНОБАЗОВЫЙ
+  // объект (node-require кэш и браузерный Game.combatInternals — одна
+  // ссылка): spells.js при загрузке дописывает сюда allySpells
+  // (задача 000080) — ленивый каталог для ИИ support-союзника.
+  const combatInternals = {
+    log, nearestMob, unitDist, checkTurn, checkBlocked, dealDamageToMob,
+  };
+
   return {
     MOB_ROLES, ROLE_NAMES, AGGRO, MOB_TYPES, GROUP_RECIPES,
     LEADER_DMG_MULT, LEADER_DEF_MULT,
     PRACTICE_XP,
     hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
+    // Союзники (задача 000080): союзный юнит 1×1 из данных.
+    makeAlly,
     // Препятствия (задача 000050): достижимость клеток от игрока по
     // не-препятствиям — чистая функция для тестов.
     reachableCells,
-    // Боевые internals для src/spells.js (задача 000045): применение
-    // заклинания в бою переиспользует проверки и урон ядра.
-    combatInternals: {
-      log, nearestMob, unitDist, checkTurn, checkBlocked, dealDamageToMob,
-    },
+    combatInternals,
   };
 });
