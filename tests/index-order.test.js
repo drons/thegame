@@ -201,6 +201,26 @@ test('index.html: ui.js и controls.js ДО main.js', () => {
   assert.ok(pos('src/save.js') < pos('src/main.js'));
 });
 
+test('index.html: companions.js подключён ПОСЛЕ npc.js и ДО combat.js/ui.js/main.js (задача 000079)', () => {
+  // UMD-ловушка (000018/000038): каждый UMD-модуль ЗАМЕНЯЕТ объект Game
+  // (root.Game = Object.assign({}, root.Game, …)), а потребители
+  // (ui.js/main.js/combat-ui.js) снимают const G = globalThis.Game один
+  // раз при загрузке. companions.js обязан встать ПОСЛЕ npc.js
+  // (зависимости: hireCandidates/skillLevel + perlin hash2/mulberry32 +
+  // GlobalSettings) и РАНЬЕ всех, кто снимает Game и будет вызывать
+  // G.companions (000083/000087 подвешивают найм/жалованье).
+  assert.notEqual(pos('src/companions.js'), -1,
+    'src/companions.js не подключён в index.html (задача 000079)');
+  assert.ok(pos('src/npc.js') < pos('src/companions.js'),
+    'src/npc.js должен быть раньше src/companions.js (задача 000079)');
+  assert.ok(pos('src/companions.js') < pos('src/combat.js'),
+    'src/companions.js должен быть раньше src/combat.js (задача 000079)');
+  assert.ok(pos('src/companions.js') < pos('src/ui.js'),
+    'src/companions.js должен быть раньше потребителя src/ui.js (задача 000079)');
+  assert.ok(pos('src/companions.js') < pos('src/main.js'),
+    'src/companions.js должен быть раньше потребителя src/main.js (задача 000079)');
+});
+
 test('index.html: src/mob-groups-data.js подключён и ДО src/map.js (задача 000057)', () => {
   // Каталог стационарных групп мобов (assets/mob_groups) дублируется
   // в JS-модуле для file://. Потребители — map.js (ленивые

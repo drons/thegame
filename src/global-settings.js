@@ -87,6 +87,23 @@
     // в createCombat (src/combat.js), детерминирована по сиду.
     combat_obstacle_min_frac: 0.10,
     combat_obstacle_max_frac: 0.20,
+    // Спутники (задача 000079, SPEC.md «Спутники»): параметры ядра
+    // отряда src/companions.js. Доли (не проценты) — как
+    // combat_difficulties. companion_xp_share НЕ здесь — добавляет 000082.
+    max_companions: 3,        // отряд до 3 спутников
+    companion_loyalty: {
+      start: 50,              // лояльность новичка = start + Харизма
+      paid: 2,                // + за оплаченное жалованье
+      unpaid: 20,             // − за неоплату
+      quit_low: 20,           // ≤ — уйдёт верно
+      quit_high: 40,          // (20…40] — с вероятностью quit_chance_mid
+      quit_chance_mid: 0.5,   // 50% в полосе 21…40
+    },
+    companion_refusal: {
+      base: 0.30,             // база шанса отказа от найма
+      charisma_per_level: 0.02, // − за уровень Харизмы
+      artist_per_level: 0.05,   // − за уровень Артиста
+    },
   };
 
   return { SETTINGS };
