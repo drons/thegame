@@ -663,6 +663,15 @@
         G.buildingUI.close();
         return;
       }
+      // Открыт диалог NPC (после «Диалог» из оверлея): повторный [E]
+      // закрывает диалог — поведение master (до 000071 проверка
+      // npcUI.isActive() шла ПЕРВОЙ в toggleNpcDialog). Без неё
+      // buildingUI открывался СВЕРХУ открытого npcUI — оба оверлея
+      // активны одновременно (регрессия, тест B4).
+      if (G.npcUI.isActive()) {
+        G.npcUI.close();
+        return;
+      }
       if (map) {
         const t = map.tileAt(player.x, player.y);
         if (t.hasBuilding) {

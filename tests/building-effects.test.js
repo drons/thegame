@@ -4,8 +4,9 @@
 //
 // КРАСНЫЕ тесты (TDD): написаны ДО реализации; падают до зелёной стадии.
 //
-// Контракты, зафиксированные здесь (memory/000071-*.md на стадии
-// Finalize):
+// Контракты, зафиксированные здесь (решения —
+// memory/000071-building-ui.md; полный отчёт — tasks/result/000071.md
+// на стадии Finalize):
 //   * REЕСТР EFFECTS = {} (в этой задаче ПУСТ — подзадачи 000074+
 //     добавляют только СВОИ записи): id → { имя, разВДень?, apply(state)
 //     → { ok, message? } }.
@@ -28,9 +29,13 @@
 //     координаты, могут быть отрицательными), значение — день.
 //   * reason при сгоревшем лимите: «уже использовано сегодня».
 //   * buildingUI = { open({ title, actions, onAction(action) }),
-//     close(), isActive() }: 1..9 — выполнить, клик по строке —
-//     выполнить (тач, 000123), [Esc]/[E] — закрыть; недоступные строки
-//     — disabled (data-buid — id действия); после onAction — закрывается
+//     close(), isActive() }: 1..9 — выполнить строку N (до 9 строк),
+//     ↑↓ — курсор по доступным строкам (wrap, недоступные пропускаются;
+//     строка под курсором помечена «▸ » в тексте имени),
+//     Enter/NumpadEnter — выполнить строку под курсором (10+ строк —
+//     единственная альтернатива 1..9), клик по строке — выполнить
+//     (тач, 000123), [Esc]/[E] — закрыть; недоступные строки —
+//     disabled (data-buid — id действия); после onAction — закрывается
 //     САМ.
 //   * ЕДИНЫЙ путь [E] (SPEC 453, задача 000071): постройка с NPC и БЕЗ
 //     эффектов — оверлей из одного пункта «Диалог» (НЕ прямой npcUI);
@@ -606,10 +611,21 @@ function bootSandbox() {
     location: { search: '' },
     localStorage: storage,
     confirm: () => false,
+    // Семантика браузерного window: повторный add одного и того же
+    // слушателя — no-op, remove — реально снимает. Без этого
+    // no-op-«удаление» накапливало в winListeners УСТАРЕВШИЕ
+    // buildingUI-keyHandler (общий замыкатель onKeyDown) — и каждое
+    // нажатие обрабатывалось дважды (B9: курсор прыгал на 2 строки).
     addEventListener: (t, f) => {
-      (winListeners[t] || (winListeners[t] = [])).push(f);
+      const a = winListeners[t] || (winListeners[t] = []);
+      if (!a.includes(f)) a.push(f);
     },
-    removeEventListener() {},
+    removeEventListener: (t, f) => {
+      const a = winListeners[t];
+      if (!a) return;
+      const i = a.indexOf(f);
+      if (i >= 0) a.splice(i, 1);
+    },
   };
   // Image-стаб: assets/map.png ВСЕГДА onerror (детерминированный фолбэк
   // G.generateSeedPixels, main.js loadMapPixels), остальные — onload.
@@ -1021,6 +1037,15 @@ test('B4. [E]: постройка С NPC (без эффектов) — един�
   assert.ok(ov, 'оверлей .npc-overlay подвешен к body');
   assert.ok(textOf(ov).includes(found.npc.имя),
     'диалог — того NPC, что у постройки (' + found.npc.имя + ')');
+  // РЕГРЕССИЯ (ревью): повторный [E] при ОТКРЫТОМ диалоге закрывает
+  // диалог — поведение master (в toggleNpcDialog проверка
+  // npcUI.isActive() шла до открытия). Без неё buildingUI открывался
+  // СВЕРХУ открытого npcUI — оба оверлея активны одновременно.
+  key(h, 'KeyE');
+  assert.equal(G.npcUI.isActive(), false,
+    'повторный [E] закрывает открытый диалог');
+  assert.equal(G.buildingUI.isActive(), false,
+    'оверлей НЕ открывается поверх открытого диалога');
 });
 
 test('B5. [E]: постройка без NPC и без эффектов — ничего (текущее поведение сохранено)', async () => {
@@ -1101,4 +1126,71 @@ test('B8. стек оверлеев: открытие боя поверх buildi
   assert.equal(G.combatUI.isActive(), true, 'бой активен');
   assert.equal(G.buildingUI.isActive(), false,
     'buildingUI закрыт под боевым оверлеем (паттерн startCombat)');
+});
+
+test('B9. buildingUI: ↑↓ — курсор (wrap, пропускает недоступные), Enter — выполнить под курсором (10+ строк — альтернатива 1..9)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  assert.ok(G.buildingUI, 'Game.buildingUI существует');
+  const bui = G.buildingUI;
+  const mk = (id, avail = true, reason) =>
+    ({ id, имя: 'Действие ' + id, доступен: avail, reason });
+  const acts = [mk('x1', true), mk('x2', false, 'уже использовано сегодня'),
+    mk('x3', true)];
+  const calls = [];
+  const open3 = () => bui.open({
+    title: 'Курсор', actions: acts, onAction: (a) => calls.push(a.id),
+  });
+
+  open3();
+  assert.equal(bui.isActive(), true, 'оверлей открыт');
+  const ov = findOverlay(h);
+  // Курсор — на ПЕРВОЙ доступной строке (маркер «▸ » в имени).
+  assert.ok(textOf(findRow(ov, 'x1')).includes('▸'),
+    'курсор на первой доступной строке (x1)');
+  assert.ok(!textOf(findRow(ov, 'x2')).includes('▸'),
+    'второй строки (x2) маркера нет');
+  // ArrowDown — следующая доступная: x2 (недоступная) пропускается.
+  key(h, 'ArrowDown');
+  assert.ok(textOf(findRow(ov, 'x3')).includes('▸'),
+    'ArrowDown пропускает недоступную строку (x2 → x3)');
+  assert.ok(!textOf(findRow(ov, 'x2')).includes('▸'),
+    'курсор НЕ встаёт на недоступную строку');
+  // ArrowDown — wrap: с последней доступной на первую.
+  key(h, 'ArrowDown');
+  assert.ok(textOf(findRow(ov, 'x1')).includes('▸'),
+    'wrap: с последней доступной — на первую');
+  // ArrowUp — wrap в обратную сторону: на последнюю доступную.
+  key(h, 'ArrowUp');
+  assert.ok(textOf(findRow(ov, 'x3')).includes('▸'),
+    'ArrowUp wrap: на последнюю доступную');
+  // NumpadEnter — выполнить строку под курсором + само-закрытие.
+  key(h, 'NumpadEnter');
+  assert.deepEqual(calls, ['x3'], 'Enter выполняет строку под курсором');
+  assert.equal(bui.isActive(), false, 'после Enter оверлей закрыт');
+
+  // 10+ строк: 10-я строка НЕДОСТИЖИМА 1..9 — только ↑↓+Enter
+  // (каталог открыт — длина списка не ограничена; оверлей единый,
+  // последующие подзадачи его не трогают).
+  const many = [];
+  for (let i = 1; i <= 10; i++) many.push(mk('m' + i));
+  const calls10 = [];
+  bui.open({ title: '10 строк', actions: many,
+    onAction: (a) => calls10.push(a.id) });
+  for (let i = 0; i < 9; i++) key(h, 'ArrowDown');
+  assert.equal(calls10.length, 0, 'стрелки сами по себе НЕ выполняют');
+  assert.ok(textOf(findRow(findOverlay(h), 'm10')).includes('▸'),
+    'курсор дошёл до 10-й строки (стрелками)');
+  key(h, 'Enter');
+  assert.deepEqual(calls10, ['m10'], '10-я строка — через ↑↓+Enter');
+  assert.equal(bui.isActive(), false, 'после Enter оверлей закрыт');
+
+  // Регрессия: 1..9 — прямое выполнение; недоступное — по-прежнему
+  // не выполняется; [Esc] — закрыть.
+  open3();
+  key(h, 'Digit2');
+  assert.equal(calls.length, 1, 'недоступное (цифра) — не выполняется');
+  key(h, 'Digit1');
+  assert.deepEqual(calls, ['x3', 'x1'], '1..9 — прямое выполнение');
+  assert.equal(bui.isActive(), false, 'после цифры оверлей закрыт');
 });
