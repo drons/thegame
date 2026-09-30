@@ -918,3 +918,18 @@ test('цепочки: несколько улучшений одной базы 
     loadSpells();
   }
 });
+
+// Задача 000080: ИИ союзника (support) читает каталог заклинаний ЛЕНИВО
+// через combatInternals.allySpells — UMD-ловушка 000038: в браузере
+// combat.js грузится ДО spells-data.js/spells.js, поэтому spells.js
+// обязан поставить каталог в combatInternals при загрузке (ОДНА строка,
+// обе ветки UMD). Боевое поведение — tests/combat.test.js.
+test('combatInternals.allySpells: каталог для ИИ союзников стоит после загрузки spells.js (задача 000080)', () => {
+  loadSpells();
+  const combat = require('../src/combat.js');
+  assert.ok(combat.combatInternals, 'combatInternals экспортирован');
+  assert.equal(
+    combat.combatInternals.allySpells,
+    require('../src/spells-data.js').SPELLS_BY_ID,
+    'spells.js ставит каталог в combatInternals.allySpells при загрузке');
+});

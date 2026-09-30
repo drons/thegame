@@ -5,6 +5,7 @@ const path = require('node:path');
 const {
   hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
   MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT, PRACTICE_XP, reachableCells,
+  makeAlly,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
@@ -1927,4 +1928,627 @@ test('препятствия: mob stepToward не встаёт на камень
   for (const [x, y] of unitRect(w)) {
     assert.ok(!c.obstacles.has(x + ',' + y), 'моб не «внутри» камня');
   }
+});
+
+// --- Фреймворк «союзные юниты» (задача 000080) ---
+//
+// Союзник — отдельный юнит в c.units с side 'ally' (всегда 1×1):
+//  * спавн рядом с игроком (низ поля) — детерминированные якоря,
+//    БЕЗ бросков c._rng (поток RNG боя без союзников — бит-в-бит как до);
+//  * очередь хода: игрок → союзники → мобы (пересчёт каждый раунд);
+//  * модель целей МОБА расширена: ближайшая цель СТОРОНЫ ИГРОКА
+//    (игрок ИЛИ союзник) — гибель союзника возможна;
+//  * гибель союзника — покидает бой, НЕ поражение (checkVictory/лут/
+//    опыт — только мобы); клетка освобождается, из очереди исключён;
+//  * союзники НЕ цели и не цель стороны игрока: playerSelectTarget/
+//    playerAttack/playerSpell/canDoAction/nearestMob отклоняют союзников;
+//    игрок не проходит на клетку союзника (unitAt — все юниты);
+//  * мораль: урон ВСЕХ союзников × (1 + companionMoraleBonus) —
+//    заготовка src/player.js (ПРЕДВОДИТЕЛЬ, +5%/ур), НЕ вражеский
+//    'leader'/hasLeader (регрессия — отдельный пин);
+//  * ИИ по ролям (аналог mobAct, на нашей стороне): melee/shield/swarm —
+//    шаг к ближайшему врагу + атака при d≤1; ranged — d≤1 отступление,
+//    1<d≤4 — атака в даль, d>4 — подход; support — лечит САМОГО РАНЕНОГО
+//    из (игрок + живые союзники) сильнейшим лечебным заклинанием из
+//    своего списка (каталог — ЛЕНИВО через combatInternals.allySpells,
+//    который ставит spells.js; без каталога — melee-фолбэк).
+// Формулы статов — паттерн makeMob БЕЗ множителей сложности (они для
+// врагов): maxHP = max(1, round((8+4ур)·hp·роль-множитель)),
+// damage = max(1, round((2+0.7ур)·dmg·moraleMult)),
+// armor = (armor||0) + floor(ур/10). Ролевые HP-множители — те же,
+// что у мобов: support 0.7, shield 1.8 (melee/ranged 1.0).
+// Данные союзника (схема для 000081 «Эфир»: attrs/kind/явные статы):
+//   { name, role: 'melee'|'ranged'|'shield'|'support', level,
+//     dmg, hp, armor?, skills?, spells?, attrs?, kind?, id?,
+//     maxHP? (явное, в обход формулы), damage? (явное) }.
+
+// Данные найма (assets/npc, контракт 000078) — как их пошлют из roster.
+const ALLY_VOLK = { name: 'Вольк', role: 'melee', level: 1, dmg: 1.2, hp: 1.1, skills: ['swordsman'], spells: [] };
+const ALLY_ASHKA = { name: 'Ашка', role: 'ranged', level: 1, dmg: 1.0, hp: 0.9, skills: [], spells: [] };
+const ALLY_BALDOR = { name: 'Бальдор', role: 'shield', level: 1, dmg: 1.1, hp: 1.5, armor: 3, skills: [], spells: [] };
+const ALLY_MIRA = { name: 'Мира', role: 'support', level: 1, dmg: 0.5, hp: 0.8, skills: [], spells: ['mend'] };
+
+test('makeAlly: формат союзного юнита — side/size/формулы статов (makeMob без сложности)/id/копии', () => {
+  assert.equal(typeof makeAlly, 'function', 'makeAlly экспортирован из combat.js');
+  const v = makeAlly(ALLY_VOLK, 0);
+  assert.equal(v.side, 'ally', 'side — "ally"');
+  assert.deepEqual(v.size, { w: 1, h: 1 }, 'союзник всегда 1×1');
+  assert.equal(v.name, 'Вольк');
+  assert.equal(v.role, 'melee');
+  assert.equal(v.level, 1);
+  // Формулы makeMob (базы без множителей сложности combat_difficulties).
+  assert.equal(v.maxHP, Math.max(1, Math.round((8 + 4 * 1) * 1.1)), 'maxHP = 13');
+  assert.equal(v.hp, v.maxHP, 'старт с полным HP');
+  assert.equal(v.damage, Math.max(1, Math.round((2 + 0.7 * 1) * 1.2)), 'damage = 3');
+  assert.equal(v.armor, (0) + Math.floor(1 / 10), 'armor = 0 + floor(ур/10)');
+  assert.equal(v.id, 'a0', 'id по индексу "aN"');
+  assert.equal(v.alive, true);
+  assert.equal(v.fled, false);
+  assert.equal(v.movePerTurn, 1);
+  assert.deepEqual(v.skills, ['swordsman'], 'skills — копия из данных');
+  assert.deepEqual(v.spells, [], 'spells — копия из данных');
+  // support: HP-множитель роли 0.7 (паттерн makeMob); id по индексу.
+  const m = makeAlly({ name: 'Мира', role: 'support', level: 5, dmg: 0.5, hp: 0.8, skills: [], spells: ['mend', 'light_heal'] }, 2);
+  assert.equal(m.maxHP, Math.max(1, Math.round((8 + 4 * 5) * 0.8 * 0.7)), 'support ×0.7 → 16');
+  assert.equal(m.damage, Math.max(1, Math.round((2 + 0.7 * 5) * 0.5)), 'damage 5-ур. support = 3');
+  assert.equal(m.id, 'a2');
+  // shield: HP-множитель 1.8, armor + floor(ур/10).
+  const b = makeAlly({ name: 'Бальдор', role: 'shield', level: 10, dmg: 1.1, hp: 1.5, armor: 3, skills: [], spells: [] }, 1);
+  assert.equal(b.maxHP, Math.max(1, Math.round((8 + 4 * 10) * 1.5 * 1.8)), 'shield ×1.8 → 130');
+  assert.equal(b.damage, Math.max(1, Math.round((2 + 0.7 * 10) * 1.1)), 'damage = 10');
+  assert.equal(b.armor, 3 + Math.floor(10 / 10), 'armor 3 + 1 = 4');
+});
+
+test('makeAlly: мораль множит урон (u.moraleMult); явные maxHP/damage/id/kind (Эфир, 000081)', () => {
+  // moraleMult — явный параметр: createCombat считает его из
+  // P.derived(p).companionMoraleBonus (тест «мораль» ниже).
+  const v = makeAlly(ALLY_VOLK, 0, 1.25);
+  assert.equal(v.moraleMult, 1.25, 'множитель хранится на юните');
+  assert.equal(v.damage, Math.max(1, Math.round((2 + 0.7) * 1.2 * 1.25)), 'round(4.05) = 4');
+  const v0 = makeAlly(ALLY_VOLK, 0);
+  assert.equal(v0.moraleMult, 1, 'мораль по умолчанию — 1');
+  assert.equal(v0.damage, 3, 'без морали — базовый урон');
+  // Эфир (000081): СОБСТВЕННЫЕ явные статы — в обход формул makeMob.
+  const efir = makeAlly({ name: 'Эфир', role: 'support', level: 1, dmg: 1, hp: 1, maxHP: 12, damage: 4, kind: 'efir' }, 0);
+  assert.equal(efir.maxHP, 12, 'явный maxHP не перебивается формулой');
+  assert.equal(efir.damage, 4, 'явный урон не перебивается формулой');
+  assert.equal(efir.kind, 'efir');
+  const def = makeAlly(ALLY_VOLK, 3);
+  assert.equal(def.kind, 'merc', 'kind по умолчанию — "merc"');
+  // Стабильный id (turnOrder/UI-токены не должны зависеть от порядка
+  // создания): data.id — дискриминатор 000081.
+  const custom = makeAlly(Object.assign({}, ALLY_VOLK, { id: 'efir' }), 0);
+  assert.equal(custom.id, 'efir');
+});
+
+test('createCombat({allies}): союзники в c.units (side "ally"/"mob"), очередь игрок → союзники → мобы', () => {
+  const c = createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK, ALLY_ASHKA, ALLY_MIRA],
+    mobs: ['wolf', 'spider', 'troll'], mobLevel: 3, seed: 7,
+  });
+  assert.equal(c.units.length, 6, '3 моба + 3 союзника в c.units');
+  const allies = c.units.filter((u) => u.side === 'ally');
+  const mobs = c.units.filter((u) => u.side === 'mob');
+  assert.equal(allies.length, 3, 'все союзники — side "ally"');
+  assert.equal(mobs.length, 3, 'все мобы — side "mob"');
+  for (const a of allies) assert.deepEqual(a.size, { w: 1, h: 1 }, 'союзник 1×1');
+  // Очередь: игрок → союзники (порядок массива allies) → мобы (порядок mobs).
+  assert.deepEqual(c.turnOrder, ['player', 'a0', 'a1', 'a2', 'm0', 'm1', 'm2']);
+  assert.deepEqual(buildTurnOrder(c), ['player', 'a0', 'a1', 'a2', 'm0', 'm1', 'm2']);
+  assert.equal(c.turnIndex, 0, 'начало боя — очередь у игрока');
+  assert.equal(c.phase, 'player');
+});
+
+test('союзники: спавн рядом с игроком (низ поля), без перекрытий, 10 юнитов на 7×7', () => {
+  const c = createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK, ALLY_ASHKA, ALLY_MIRA],
+    mobs: ['wolf', 'wolf', 'wolf', 'spider', 'spider', 'troll'], mobLevel: 3, seed: 7,
+  });
+  assert.equal(c.units.length, 9, 'игрок + 3 союзника + 6 мобов = 10 юнитов');
+  // Без перекрытий: клетки всех юнитов + клетка игрока — уникальны,
+  // все в пределах поля.
+  const seen = new Set([c.px + ',' + c.py]);
+  for (const u of c.units) {
+    assert.ok(u.x >= 0 && u.y >= 0 && u.x + u.size.w <= 7 && u.y + u.size.h <= 7,
+      `${u.id}: вне поля (${u.x},${u.y})`);
+    for (const [x, y] of unitRect(u)) {
+      const k = x + ',' + y;
+      assert.ok(!seen.has(k), `(${x},${y}) занято дважды`);
+      seen.add(k);
+    }
+  }
+  // Союзники — рядом с игроком (низ поля): ≤ 2 клетки от старта.
+  for (const a of c.units.filter((u) => u.side === 'ally')) {
+    const d = Math.abs(a.x - c.px) + Math.abs(a.y - c.py);
+    assert.ok(d <= 2, `${a.id} (${a.x},${a.y}): слишком далеко от игрока (d=${d})`);
+  }
+});
+
+test('союзники: 3 без мобов — у старта; 4 союзника (Эфир + 3) + 6 мобов — помещаются на 7×7', () => {
+  const c = createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK, ALLY_ASHKA, ALLY_MIRA], mobs: [], seed: 7,
+  });
+  assert.equal(c.units.length, 3);
+  assert.deepEqual(c.turnOrder, ['player', 'a0', 'a1', 'a2'],
+    'без мобов очередь — игрок и союзники');
+  for (const a of c.units) {
+    const d = Math.abs(a.x - c.px) + Math.abs(a.y - c.py);
+    assert.ok(d <= 2, `${a.id} (${a.x},${a.y}): d=${d} — не у старта`);
+  }
+  // Четыре союзника (Эфир + 3 наёмника) + 6 мобов (включая 2×2) на 7×7.
+  const c2 = createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK, ALLY_ASHKA, ALLY_BALDOR, ALLY_MIRA],
+    mobs: ['wolf', 'wolf', 'wolf', 'spider', 'spider', 'troll'], mobLevel: 3, seed: 7,
+  });
+  assert.equal(c2.units.length, 10);
+  const seen = new Set([c2.px + ',' + c2.py]);
+  for (const u of c2.units) {
+    assert.ok(u.x >= 0 && u.y >= 0 && u.x + u.size.w <= 7 && u.y + u.size.h <= 7,
+      `4+3: ${u.id} вне поля`);
+    for (const [x, y] of unitRect(u)) {
+      const k = x + ',' + y;
+      assert.ok(!seen.has(k), `4+3: (${x},${y}) занято дважды`);
+      seen.add(k);
+    }
+  }
+  for (const a of c2.units.filter((u) => u.side === 'ally')) {
+    const d = Math.abs(a.x - c2.px) + Math.abs(a.y - c2.py);
+    assert.ok(d <= 2, `4+3: ${a.id} (${a.x},${a.y}): d=${d} > 2`);
+  }
+});
+
+test('союзники: клетки в reserved generateObstacles, мобы достижимы, детерминизм по сиду', () => {
+  const mk = (seed) => createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK, ALLY_ASHKA, ALLY_MIRA],
+    mobs: ['wolf', 'wolf', 'spider', 'spider', 'troll', 'cave_bear'], mobLevel: 3, seed,
+  });
+  const c = mk(100);
+  assert.equal(c.units.filter((u) => u.side === 'ally').length, 3,
+    'союзники в c.units (side "ally")');
+  // Препятствия НЕ на клетках союзников (reserved строится из c.units).
+  for (const a of c.units.filter((u) => u.side === 'ally')) {
+    for (const [x, y] of unitRect(a)) {
+      assert.ok(!c.obstacles.has(x + ',' + y), `(${x},${y}): камень на клетке союзника`);
+    }
+  }
+  // Достигимость каждого моба от игрока по не-препятствиям (000050).
+  const reach = reachableCells(c);
+  for (const m of c.units.filter((u) => u.side === 'mob')) {
+    assert.ok(unitRect(m).some(([x, y]) => reach.has(x + ',' + y)),
+      `${m.mobId} (${m.x},${m.y}) недостижим`);
+  }
+  // Детерминизм: расстановка союзников не потребляет c._rng —
+  // один сид → идентичные позиции и препятствия, другой сид → другие.
+  const c2 = mk(100);
+  assert.deepEqual(obstacleList(c), obstacleList(c2), 'один сид → один набор камней');
+  assert.deepEqual(
+    c.units.map((u) => [u.id, u.x, u.y]),
+    c2.units.map((u) => [u.id, u.x, u.y]),
+    'один сид → одна расстановка');
+  const c3 = mk(101);
+  assert.notDeepEqual(obstacleList(c), obstacleList(c3), 'другой сид → другой набор');
+});
+
+test('buildTurnOrder: мёртвые и fled союзники исключены; союзники — перед мобы', () => {
+  const c = createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK, ALLY_ASHKA, ALLY_MIRA],
+    mobs: ['wolf', 'spider', 'troll'], mobLevel: 3, seed: 3,
+  });
+  assert.deepEqual(buildTurnOrder(c), ['player', 'a0', 'a1', 'a2', 'm0', 'm1', 'm2']);
+  c.units.find((u) => u.id === 'a1').alive = false;
+  c.units.find((u) => u.id === 'a2').fled = true;
+  assert.deepEqual(buildTurnOrder(c), ['player', 'a0', 'm0', 'm1', 'm2'],
+    'мёртвые/fled союзники вне очереди');
+});
+
+test('turnIndex: союзник действует в фазе мобов — turnOrder[turnIndex] = id союзника (инвариант 000036)', () => {
+  const p = strongHero();
+  const c = createCombat({
+    player: p,
+    allies: [ALLY_VOLK],
+    mobs: ['wolf', 'spider'], mobLevel: 2, seed: 33,
+  });
+  const a0 = c.units.find((u) => u.id === 'a0');
+  const w = c.units.find((u) => u.id === 'm0');
+  a0.x = w.x; a0.y = w.y + 1; // вплотную к волку — атака на первом же ходу
+  w.hp = 5;
+  let i = 0; const rolls = [0.01, 0.99, 0.99, 0.99, 0.99];
+  c._rng = () => rolls[i++ % rolls.length];
+  assert.deepEqual(c.turnOrder, ['player', 'a0', 'm0', 'm1']);
+  assert.equal(c.turnIndex, 0);
+
+  const events = []; // [строка лога, c.turnIndex, c.turnOrder]
+  const origPush = c.log.push.bind(c.log);
+  c.log.push = (msg) => {
+    events.push([msg, c.turnIndex, c.turnOrder.slice()]);
+    return origPush(msg);
+  };
+  c.endTurn();
+
+  // Союзник — на позиции 1 (ПОСЛЕ игрока, ПЕРЕД мобы).
+  const aEv = events.find(([m, ti]) => ti === 1 && m.includes('Вольк'));
+  assert.ok(aEv, `нет действия союзника в phase "mob": ${c.log.join(' | ')}`);
+  assert.equal(aEv[2][1], 'a0', 'turnOrder[turnIndex] — id действующего союзника');
+  assert.ok(c.log.includes('Вольк бьёт Волк: 3.'),
+    'пин удара союзника: ' + c.log.join(' | '));
+  // Моб — на СВОЕЙ позиции (2), после союзника.
+  const mEv = events.find(([m, ti]) => ti === 2 && m.includes('Волк'));
+  assert.ok(mEv, `нет действия волка: ${c.log.join(' | ')}`);
+  assert.equal(mEv[2][2], 'm0', 'turnOrder[turnIndex] — id действующего моба');
+  // Новый раунд: очередь у игрока, живой союзник в очереди.
+  assert.equal(c.phase, 'player');
+  assert.equal(c.turnIndex, 0);
+  assert.deepEqual(c.turnOrder, ['player', 'a0', 'm0', 'm1']);
+});
+
+test('союзник: ход/атака детерминированы по сиду (повторный прогон — идентичный снимок)', () => {
+  const run = () => {
+    const p = strongHero();
+    const c = createCombat({
+      player: p,
+      allies: [ALLY_VOLK],
+      mobs: ['wolf', 'spider'], mobLevel: 2, seed: 33,
+    });
+    const a0 = c.units.find((u) => u.id === 'a0');
+    const w = c.units.find((u) => u.id === 'm0');
+    a0.x = w.x; a0.y = w.y + 1;
+    w.hp = 5;
+    let i = 0; const rolls = [0.01, 0.99, 0.99, 0.99, 0.99];
+    c._rng = () => rolls[i++ % rolls.length];
+    c.endTurn();
+    return {
+      log: c.log.slice(),
+      units: c.units.map((u) => [u.id, u.x, u.y, u.hp, u.alive, u.fled]),
+    };
+  };
+  const r1 = run(), r2 = run();
+  assert.deepEqual(r1, r2, 'повторный прогон — идентичный снимок');
+  assert.ok(r1.log.includes('Вольк бьёт Волк: 3.'), 'пин: ' + r1.log.join(' | '));
+  const wolf = r1.units.find((u) => u[0] === 'm0');
+  assert.equal(wolf[3], 2, 'волк 5 → 2 (урон 3, броня 0)');
+});
+
+test('союзники: игрок не может цельсить союзника (selectTarget/attack/fire/canDoAction/nearestMob)', () => {
+  const C2 = require('../src/combat.js');
+  const c = createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK, ALLY_ASHKA],
+    mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  const a0 = c.units.find((u) => u.id === 'a0');
+  a0.x = c.px; a0.y = c.py - 1; // союзник БЛИЖЕ моба — ловушка nearestMob
+  assert.deepEqual(c.selectTarget(a0.id),
+    { ok: false, reason: 'недоступная цель' }, 'selectTarget отклоняет союзника');
+  const atk = c.attack(a0.id);
+  assert.equal(atk.ok, false);
+  assert.equal(atk.reason, 'нет цели', 'attack по союзнику — «нет цели»');
+  const fire = c.spell('fire', a0.id);
+  assert.equal(fire.ok, false, 'fire по союзнику');
+  assert.equal(fire.reason, 'нет цели');
+  const cd = canDoAction(c, 'attack', { targetId: a0.id });
+  assert.equal(cd.ok, false);
+  assert.equal(cd.reason, 'нет цели', 'canDoAction — зеркало ядра (000037)');
+  // nearestMob (экспорт combatInternals, подхватывает spells.js) —
+  // возвращает моба, даже если союзник ближе.
+  const near = C2.combatInternals.nearestMob(c);
+  assert.ok(near, 'есть живые мобы');
+  assert.equal(near.id, 'm0', 'nearestMob игнорирует союзников');
+});
+
+test('ranged-союзник: d≤1 — отступление, 1<d≤4 — атака в даль без сближения, d>4 — подход', () => {
+  const mk = () => {
+    const c = createCombat({
+      player: strongHero(),
+      allies: [ALLY_ASHKA],
+      mobs: ['wolf'], mobLevel: 2, seed: 5,
+    });
+    c.obstacles.clear(); // сценарий проверяет ИИ, не навигацию (паттерн 000050)
+    const a0 = c.units.find((u) => u.id === 'a0');
+    const w = c.units.find((u) => u.id === 'm0');
+    let i = 0; const rolls = [0.01, 0.99, 0.99, 0.99];
+    c._rng = () => rolls[i++ % rolls.length];
+    return { c, a0, w };
+  };
+  // d = 1 — отступление: дистанция до врага выросла, лог «отступает».
+  {
+    const { c, a0, w } = mk();
+    w.x = 3; w.y = 4; a0.x = 3; a0.y = 5;
+    const d0 = Math.abs(a0.x - w.x) + Math.abs(a0.y - w.y);
+    c.endTurn();
+    const d1 = Math.abs(a0.x - w.x) + Math.abs(a0.y - w.y);
+    assert.ok(d1 > d0, `d=1: отступил (d ${d0} → ${d1}, позиция ${a0.x},${a0.y})`);
+    assert.ok(c.log.some((l) => l.includes('отступает')),
+      'лог отступления: ' + c.log.join(' | '));
+  }
+  // 1 < d ≤ 4 — атака в даль, позиция НЕ меняется.
+  {
+    const { c, a0, w } = mk();
+    w.x = 3; w.y = 0; a0.x = 3; a0.y = 3; // d = 3
+    const hp0 = w.hp;
+    c.endTurn();
+    assert.deepEqual([a0.x, a0.y], [3, 3], 'стрелок не сближается');
+    assert.equal(w.hp, hp0 - 3, 'урон в даль: round(2.7×1.0) = 3');
+    assert.ok(c.log.includes('Ашка бьёт Волк: 3.'), 'пин: ' + c.log.join(' | '));
+  }
+  // d > 4 — шаг к врагу (ближайшему мобо).
+  {
+    const { c, a0, w } = mk();
+    w.x = 0; w.y = 0; a0.x = 5; a0.y = 4; // d = 9
+    c.endTurn();
+    assert.deepEqual([a0.x, a0.y], [6, 4], 'шаг к врагу (большая ось)');
+    assert.ok(!c.log.some((l) => l.includes('бьёт Волк')), 'в даль не достаёт — не бьёт');
+  }
+});
+
+test('shield-союзник: подход через rectFree (не сквозь камень/юнит), урон вблизи (пин)', () => {
+  const mk = (allies) => {
+    const c = createCombat({
+      player: strongHero(),
+      allies,
+      mobs: ['wolf'], mobLevel: 2, seed: 5,
+    });
+    c.obstacles.clear();
+    const a0 = c.units.find((u) => u.id === 'a0');
+    const w = c.units.find((u) => u.id === 'm0');
+    let i = 0; const rolls = [0.01, 0.99, 0.99, 0.99];
+    c._rng = () => rolls[i++ % rolls.length];
+    return { c, a0, w };
+  };
+  // Камень прямо на пути — щит стоит (как моб, паттерн 000050), не «внутри».
+  {
+    const { c, a0, w } = mk([ALLY_BALDOR]);
+    w.x = 3; w.y = 2; a0.x = 3; a0.y = 5;
+    c.obstacles.add('3,4');
+    c.endTurn();
+    assert.deepEqual([a0.x, a0.y], [3, 5], 'за камнем стоит (зафиксировано)');
+    assert.ok(!c.obstacles.has(a0.x + ',' + a0.y), 'не «внутри» камня');
+  }
+  // Клетка на пути занята ЧУЖИМ союзником — шаг по другой оси.
+  {
+    const { c, a0, w } = mk([ALLY_BALDOR, ALLY_ASHKA]);
+    const a1 = c.units.find((u) => u.id === 'a1');
+    w.x = 2; w.y = 2; a0.x = 3; a0.y = 5; a1.x = 2; a1.y = 5; // (2,5) — занято
+    c.endTurn();
+    assert.deepEqual([a0.x, a0.y], [3, 4], 'обход занятой клетки (другая ось)');
+    assert.notDeepEqual([a0.x, a0.y], [a1.x, a1.y], 'не на клетке союзника');
+  }
+  // Вплотную — атака: пин урона round(2.7×1.1) = 3.
+  {
+    const { c, a0, w } = mk([ALLY_BALDOR]);
+    w.x = 3; w.y = 4; a0.x = 3; a0.y = 5; // d = 1
+    const hp0 = w.hp;
+    c.endTurn();
+    assert.equal(w.hp, hp0 - 3, 'урон щита 3');
+    assert.ok(c.log.includes('Бальдор бьёт Волк: 3.'), 'пин: ' + c.log.join(' | '));
+  }
+});
+
+test('support-союзник: лечит САМОГО РАНЕНОГО (минимальная доля hp/maxHP), формула spells.js, сильнейшая степень', () => {
+  // Формула лечения spells.js с attrs союзника (у наёмника attrs пуст →
+  // уровень): round((4 + 0.5×attr + ур) × (1 + 0.15×(степень−1))).
+  const mk = (spells) => {
+    const c = createCombat({
+      player: strongHero(),
+      allies: [Object.assign({}, ALLY_MIRA, { spells }), ALLY_VOLK],
+      mobs: ['wolf'], mobLevel: 2, seed: 5,
+    });
+    c.obstacles.clear();
+    const a0 = c.units.find((u) => u.id === 'a0'); // Мира (support)
+    const a1 = c.units.find((u) => u.id === 'a1'); // Вольк (melee)
+    a0.x = 0; a0.y = 6; a1.x = 1; a1.y = 6; // рядом с игроком (3,6)
+    c._rng = () => 0.99; // (моб доходит только шагом — бросков нет)
+    return { c, a0, a1 };
+  };
+  // Раненый СОЮЗНИК (3/13 ≈ 23% — минимум) при полном игроке — лечится он.
+  {
+    const { c, a0, a1 } = mk(['mend']);
+    a1.hp = 3;
+    c.endTurn();
+    assert.equal(a1.hp, 8, 'Вольк 3 + 5 = 8 (round((4+0+1)×1) = 5)');
+    assert.ok(c.log.includes('Мира лечит Вольк (+5).'),
+      'пин лечения союзника: ' + c.log.join(' | '));
+    assert.equal(c.player.hp, 9999, 'полный игрок не лечится');
+  }
+  // Сильнейшая степень: mend (степень 1) + greater_heal (степень 2)
+  // → round(5×1.15) = 6.
+  {
+    const { c, a1 } = mk(['mend', 'greater_heal']);
+    a1.hp = 3;
+    c.endTurn();
+    assert.equal(a1.hp, 9, 'greater_heal: 3 + 6 = 9');
+    assert.ok(c.log.includes('Мира лечит Вольк (+6).'),
+      'пин сильнейшей степени: ' + c.log.join(' | '));
+  }
+});
+
+test('support-союзник: лечит ИГРОКА (игрок — в пуле «самый раненый», через P.heal)', () => {
+  // strongHero: maxHP 270; 108/270 = 40% — самый раненый (союзники целы).
+  const c = createCombat({
+    player: strongHero(),
+    allies: [ALLY_MIRA, ALLY_VOLK],
+    mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  c.obstacles.clear();
+  const a0 = c.units.find((u) => u.id === 'a0');
+  const a1 = c.units.find((u) => u.id === 'a1');
+  a0.x = 0; a0.y = 6; a1.x = 1; a1.y = 6;
+  c.player.hp = 108;
+  c._rng = () => 0.99;
+  c.endTurn();
+  assert.equal(c.player.hp, 113, 'игрок 108 + 5 через P.heal');
+  assert.ok(c.log.includes('Мира лечит Флогистон (+5).'),
+    'пин лечения игрока: ' + c.log.join(' | '));
+  assert.equal(a1.hp, a1.maxHP, 'целый союзник не лечится');
+});
+
+test('support-союзник без лечебных заклинаний и без раненых — melee (не падает, не лечит)', () => {
+  const mk = () => {
+    const c = createCombat({
+      player: strongHero(),
+      allies: [Object.assign({}, ALLY_MIRA, { spells: [] })],
+      mobs: ['wolf'], mobLevel: 2, seed: 5,
+    });
+    c.obstacles.clear();
+    const a0 = c.units.find((u) => u.id === 'a0');
+    const w = c.units.find((u) => u.id === 'm0');
+    c._rng = () => 0.99;
+    return { c, a0, w };
+  };
+  // spells: [] — нет лечебных заклинаний: melee-ветка (шаг к врагу).
+  {
+    const { c, a0, w } = mk();
+    w.x = 3; w.y = 2; a0.x = 3; a0.y = 5; // d = 3
+    c.endTurn();
+    assert.ok(!c.log.some((l) => l.includes('лечит')), 'без заклинаний не лечит');
+    assert.deepEqual([a0.x, a0.y], [3, 4], 'шаг к врагу (melee-ветка)');
+  }
+  // Заклинания есть, но НИКТО не ранен (все полные) — тоже melee.
+  {
+    const c2 = createCombat({
+      player: strongHero(),
+      allies: [ALLY_MIRA],
+      mobs: ['wolf'], mobLevel: 2, seed: 5,
+    });
+    c2.obstacles.clear();
+    const a0 = c2.units.find((u) => u.id === 'a0');
+    const w = c2.units.find((u) => u.id === 'm0');
+    w.x = 3; w.y = 2; a0.x = 3; a0.y = 5;
+    c2._rng = () => 0.99;
+    c2.endTurn();
+    assert.ok(!c2.log.some((l) => l.includes('лечит')),
+      'все полные — лечения нет');
+    assert.deepEqual([a0.x, a0.y], [3, 4], 'melee-ветка (шаг)');
+  }
+});
+
+test('гибель союзника ≠ поражение: моб бьёт ближайшую цель стороны игрока; бой играбелен до победы', () => {
+  const p = strongHero();
+  const c = createCombat({
+    player: p,
+    allies: [ALLY_VOLK],
+    mobs: ['wolf'], mobLevel: 10, seed: 5,
+  });
+  c.obstacles.clear();
+  const a0 = c.units.find((u) => u.id === 'a0');
+  const w = c.units.find((u) => u.id === 'm0');
+  // Волк ближе к СОЮЗНИКУ (d=2), чем к игроку (d=3) — цель: союзник
+  // (расширенная модель целей, без него гибель недостижима).
+  a0.x = 3; a0.y = 5;
+  w.x = 3; w.y = 3;
+  w.damage = 20; // добивает слабого союзника (13 HP) одним ударом
+  c._rng = () => 0.01; // все попадания
+  c.endTurn();
+  assert.equal(a0.alive, false, 'союзник погиб в бою');
+  assert.ok(c.log.includes('Вольк пал в бою!'),
+    'лог гибели: ' + c.log.join(' | '));
+  assert.equal(c.result, null, 'гибель союзника — НЕ поражение');
+  assert.equal(c.phase, 'player', 'бой продолжается');
+  // Мёртвый союзник исключён из очереди следующего раунда.
+  assert.deepEqual(c.turnOrder, ['player', 'm0']);
+  // Бой играбелен до победы игрока (паттерн autoPlay 000050: камни сняты).
+  standNextTo(c, w);
+  let n = 0;
+  while (!c.result && n++ < 60) {
+    c.ps.attack = 99;
+    c.attack(w.id);
+    c.endTurn();
+  }
+  assert.ok(c.result, 'бой завершился');
+  assert.equal(c.result.outcome, 'victory', 'игрок побеждает');
+  assert.ok(p.alive, 'игрок жив');
+  // checkVictory/опыт — только мобы: мёртвый союзник НЕ в луте
+  // (xp волка уровня 10 = 8 + 4×10 = 48).
+  assert.equal(c.result.xp, 48, 'опыт — только за поверженных мобов');
+});
+
+test('мораль: companionMoraleBonus × урон ВСЕХ союзников; вражеский лидер НЕ влияет на союзников', () => {
+  const leaderHero = () => { const p = strongHero(); p.secondary.leader = 5; return p; };
+  // Предводитель 5 → +25% (companionMoraleBonus = 0.25).
+  const c1 = createCombat({
+    player: leaderHero(),
+    allies: [ALLY_VOLK, ALLY_ASHKA],
+    mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  const v1 = c1.units.find((u) => u.id === 'a0');
+  const a1 = c1.units.find((u) => u.id === 'a1');
+  assert.equal(v1.damage, Math.max(1, Math.round(2.7 * 1.2 * 1.25)),
+    'Вольк: round(3.24×1.25) = 4');
+  assert.equal(v1.moraleMult, 1.25, 'множитель на юните (для 000112/000113)');
+  assert.equal(a1.damage, Math.max(1, Math.round(2.7 * 1.0 * 1.25)),
+    'Ашка: round(3.375) = 3 — мораль у ВСЕХ союзников');
+  // Предводитель 0 — множителя нет.
+  const c2 = createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK],
+    mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  assert.equal(c2.units.find((u) => u.id === 'a0').damage, 3, 'leader 0 — базовый урон');
+  // РЕГРЕССИЯ: вражеский hasLeader (orc_captain) — это бафф ГРУППЫ МОБОВ,
+  // а не мораль союзников (разные сущности: роль 'leader' у врагов).
+  const c3 = createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK],
+    mobs: ['orc_captain', 'orc_grunt'], mobLevel: 2, seed: 5,
+  });
+  assert.equal(c3.units.find((u) => u.id === 'a0').damage, 3,
+    'hasLeader врагов НЕ даёт +5% союзнику');
+  const cap = c3.units.find((u) => u.role === 'leader');
+  assert.equal(cap.damageTakenMult, 0.95, 'бафф вражеской группы — как был');
+});
+
+test('ленивый каталог: без combatInternals.allySpells support — melee-фолбэк; с каталогом — лечит', (t) => {
+  // UMD-ловушка 000038: в браузере combat.js грузится ДО spells.js —
+  // каталог заклинаний combat.js читать не может; его ЛЕНИВО ставит
+  // spells.js в combatInternals.allySpells. Без каталога support-союзник
+  // с лечебными spells не падает и деградирует в melee.
+  const C2 = require('../src/combat.js');
+  const save = C2.combatInternals.allySpells;
+  t.after(() => { C2.combatInternals.allySpells = save; });
+  const scenario = (seed) => {
+    const c = createCombat({
+      player: strongHero(),
+      allies: [ALLY_MIRA, ALLY_VOLK],
+      mobs: ['wolf'], mobLevel: 2, seed,
+    });
+    c.obstacles.clear();
+    const a0 = c.units.find((u) => u.id === 'a0');
+    const a1 = c.units.find((u) => u.id === 'a1');
+    a0.x = 0; a0.y = 6; a1.x = 5; a1.y = 6;
+    a1.hp = 3; // раненый союзник — цель лечения
+    c._rng = () => 0.99;
+    c.endTurn();
+    return c;
+  };
+  C2.combatInternals.allySpells = undefined; // каталог «ещё не загружен»
+  const c1 = scenario(5);
+  assert.ok(!c1.log.some((l) => l.includes('лечит')), 'без каталога — нет лечения');
+  const a0 = c1.units.find((u) => u.id === 'a0');
+  assert.deepEqual([a0.x, a0.y], [1, 6], 'melee-фолбэк: шаг к врагу (без падений)');
+  // Каталог на месте (src/spells-data.js) — лечит по формуле.
+  C2.combatInternals.allySpells = require('../src/spells-data.js').SPELLS_BY_ID;
+  const c2 = scenario(5);
+  const b1 = c2.units.find((u) => u.id === 'a1');
+  assert.equal(b1.hp, 8, 'с каталогом — лечение +5');
+  assert.ok(c2.log.includes('Мира лечит Вольк (+5).'), 'пин: ' + c2.log.join(' | '));
+});
+
+test('движение: зайти на клетку союзника нельзя (unitAt — все юниты, reason «тут стоит союзник»)', () => {
+  const c = createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK],
+    mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  c.obstacles.clear();
+  const a0 = c.units.find((u) => u.id === 'a0');
+  a0.x = c.px; a0.y = c.py - 1; // прямо перед игроком
+  c.ps.moveLeft = 5;
+  const r = c.move(0, -1);
+  assert.equal(r.ok, false, 'клетка союзника не проходима');
+  assert.equal(r.reason, 'тут стоит союзник', 'точная строка reason');
 });
