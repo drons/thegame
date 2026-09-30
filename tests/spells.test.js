@@ -933,3 +933,60 @@ test('combatInternals.allySpells: каталог для ИИ союзников 
     require('../src/spells-data.js').SPELLS_BY_ID,
     'spells.js ставит каталог в combatInternals.allySpells при загрузке');
 });
+
+// Задача 000080, раунд ревью 1: явный targetId у целевых заклинаний
+// (урон/ослабление/контроль) — СОЮЗНИК НЕ ЦЕЛЬ. Все пять путей
+// прицеливания игрока в combat.js (selectTarget/attack/fire/
+// canDoAction/move) защищены side-проверкой (пин
+// memory/000080-ally-framework.md), но core-API spells.js (000045)
+// side не проверял: castSpell(c, spell, idСоюзника) ставил союзнику
+// hp = NaN (makeAlly не имел damageTakenMult → amount*undefined в
+// dealDamageToMob) — неубиваемый (NaN<=0 false) и «нелечимый»
+// (NaN перехватывал пул лечения support). Причина — «нет цели», как в
+// combat.js playerAttack/playerSpell (000080); canCastSpell — зеркало
+// (000037): та же причина БЕЗ расхода пула/маны (evalSpell отказывает
+// ДО расхода).
+test('castSpell: союзник как цель — отказ «нет цели», без расхода и NaN (000080, ревью)', () => {
+  const { castSpell, canCastSpell } = loadSpells();
+  const p = spellHero({ spells: ['shadow_bolt', 'chill'],
+    intelligence: 10, mp: 30 });
+  const c = createCombat({
+    player: p, mobs: ['wolf'], mobLevel: 2, seed: 5,
+    allies: [{ name: 'Вольк', role: 'melee', level: 1, dmg: 1.2,
+      hp: 1.1, skills: [], spells: [] }],
+  });
+  const ally = c.units.find((u) => u.side === 'ally');
+  assert.ok(ally, 'союзник в c.units');
+  const pool = c.ps.spellInt, mp = p.mp, hpBefore = ally.hp;
+
+  // Уронное заклинание с явным targetId — союзник не цель.
+  const r = castSpell(c, 'shadow_bolt', ally.id);
+  assert.equal(r.ok, false, 'каст по союзнику отклонён');
+  assert.equal(r.reason, 'нет цели', 'та же причина, что в combat.js');
+  // Отказ ДО расхода (evalSpell): пул и мана не тронуты.
+  assert.equal(c.ps.spellInt, pool, 'пул не потрачен на отказ');
+  assert.equal(p.mp, mp, 'мана не потрачена на отказ');
+  // Союзник не задет: hp без NaN, жив, без статусов.
+  assert.equal(ally.hp, hpBefore, 'hp союзника не изменилось (не NaN)');
+  assert.equal(ally.alive, true, 'союзник жив');
+  assert.equal(ally.weaken, undefined, 'без «ослабления» союзника');
+  assert.equal(ally.bind, undefined, 'без «ковки» союзника');
+  // Зеркало 000037: canCastSpell — одна и та же причина.
+  assert.deepEqual(canCastSpell(c, 'shadow_bolt', { targetId: ally.id }),
+    { ok: false, reason: 'нет цели' });
+  // Неуронная целевая ветка (ослабление) — тот же отказ; guard на
+  // уровне TARGETED, а не только урона.
+  const r2 = castSpell(c, 'chill', ally.id);
+  assert.equal(r2.ok, false, 'ослабление по союзнику отклонено');
+  assert.equal(r2.reason, 'нет цели');
+  assert.equal(c.ps.spellInt, pool, 'пул нетронут после второго отказа');
+  // Контроль — тоже целевая ветка.
+  const pVine = spellHero({ spells: ['vine'], intelligence: 10, mp: 30 });
+  const cVine = createCombat({
+    player: pVine, mobs: ['wolf'], mobLevel: 2, seed: 5,
+    allies: [{ name: 'Вольк', role: 'melee', level: 1, dmg: 1.2,
+      hp: 1.1, skills: [], spells: [] }],
+  });
+  const allyV = cVine.units.find((u) => u.side === 'ally');
+  assert.equal(castSpell(cVine, 'vine', allyV.id).reason, 'нет цели');
+});

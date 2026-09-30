@@ -264,6 +264,11 @@
       hp: maxHP,
       armor: (data.armor || 0) + Math.floor(level / 10),
       damage,
+      // Тотальная модель урона (000080, раунд ревью 1): dealDamageToMob
+      // умножает на это поле — у мобов оно всегда есть (1/
+      // LEADER_DEF_MULT); без него союзник получал hp = NaN. 000112/
+      // 000113 (урон-касты) читают множители с юнита.
+      damageTakenMult: 1,
       moraleMult,
       movePerTurn: 1,
       size: { w: 1, h: 1 },

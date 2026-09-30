@@ -30,6 +30,7 @@ maxHP | `data.maxHP != null ? data.maxHP : max(1, round((8+4·ур)·hp·hpRoleM
 hp | = maxHP (свежий союзник)
 armor | `(data.armor || 0) + floor(ур / 10)`
 damage | `data.damage != null ? data.damage : max(1, round((2+0.7·ур)·dmg·moraleMult))`
+damageTakenMult | `1` (раунд ревью 1: тотальная модель урона — dealDamageToMob умножает на это; без него уронный каст давал hp = NaN)
 moraleMult | 1 + companionMoraleBonus (см. ниже); хранится на юните
 size/movePerTurn | 1×1 / 1; x=y=0 (расставит placeAllies)
 traits | {} (v1: poison/lifesteal/debuff мобов — ТОЛЬКО против игрока)
@@ -151,6 +152,12 @@ checkVictory). `d = rectDist(u, t)`.
 * playerSelectTarget — союзник → `{ok:false, reason:'недоступная цель'}`.
 * playerMove на клетку союзника → `{ok:false, reason:'тут стоит союзник'}`
   (у мобов «тут стоит моб» — прежний текст сохранён).
+* evalSpell (core-API spells.js, 000045): явный targetId = союзник →
+  `{ok:false, reason:'нет цели'}` для ВСЕХ целевых веток (урон/
+  ослабление/контроль) — раунд ревью 1: это был единственный путь
+  прицеливания игрока без side-проверки (каст ставил союзнику hp = NaN).
+  canCastSpell — зеркало, отказ ДО расхода пула/маны. Тест —
+  tests/spells.test.js «castSpell: союзник как цель».
 
 ## Бит-в-бит (при 0 союзников) — ГАРАНТИИ
 

@@ -355,7 +355,13 @@
     let t = null;
     if (TARGETED.has(spell.действие)) {
       t = targetId ? c.units.find((u) => u.id === targetId) : nearestMob(c);
-      if (!t || !t.alive || t.fled) {
+      // Союзник — не цель (000080, раунд ревью 1): своя сторона — та же
+      // причина «нет цели», что в combat.js playerAttack/playerSpell/
+      // canDoAction. Без side-проверки уронной каст ставил союзнику
+      // hp = NaN (makeAlly ранее не имел damageTakenMult) — неубиваемый
+      // и вымывавший пул лечения support. nearestMob (фолбэк без
+      // targetId) side уже фильтрует.
+      if (!t || !t.alive || t.fled || t.side === 'ally') {
         return { fail: { ok: false, reason: 'нет цели' } };
       }
       if (unitDist(c, t) > SPELL_MAX_DIST) {

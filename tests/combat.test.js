@@ -1981,6 +1981,10 @@ test('makeAlly: формат союзного юнита — side/size/форм�
   assert.equal(v.hp, v.maxHP, 'старт с полным HP');
   assert.equal(v.damage, Math.max(1, Math.round((2 + 0.7 * 1) * 1.2)), 'damage = 3');
   assert.equal(v.armor, (0) + Math.floor(1 / 10), 'armor = 0 + floor(ур/10)');
+  // Тотальная модель урона (000080, раунд ревью 1): dealDamageToMob
+  // умножает на damageTakenMult — у мобов всегда есть (1/LEADER_DEF_MULT);
+  // у союзника без него — hp = NaN.
+  assert.equal(v.damageTakenMult, 1, 'damageTakenMult = 1');
   assert.equal(v.id, 'a0', 'id по индексу "aN"');
   assert.equal(v.alive, true);
   assert.equal(v.fled, false);
