@@ -328,8 +328,11 @@ test('отказ: живое чтение companion_refusal.base = 0 → отк�
 test('лояльность новичка: 50 + Харизма (1:1), cap 100', () => {
   const r3 = C.createRoster();
   assert.equal(C.hire(r3, merc('merc_a'), hero(3, 1000), 11).entry.loyalty, 53);
+  // Пин (стадия реализации): Харизма 1 → шанс отказа 0.28; день 12
+  // (roll 0.195) у merc_b — ОТКАЗ по сиду, поэтому пин дня — 14
+  // (roll 0.797 ≥ 0.28 — найм).
   const r1 = C.createRoster();
-  assert.equal(C.hire(r1, merc('merc_b'), hero(1, 1000), 12).entry.loyalty, 51);
+  assert.equal(C.hire(r1, merc('merc_b'), hero(1, 1000), 14).entry.loyalty, 51);
   const r60 = C.createRoster();
   const res = C.hire(r60, merc('merc_c'), hero(60, 1000), 13);
   assert.equal(res.entry.loyalty, 100, 'cap 100 (50 + 60 → 100)');
@@ -516,10 +519,13 @@ test('candidatesForTavern: правила каталога (найм, не на�
   const plain = { id: 'tavern_keeper', постройки: [44] }; // найм-данных нет
   const npcs = [plain, hired, dead];
   // Каждое исключающее условие по отдельности (и все вместе)
-  assert.equal(C.candidatesForTavern(npcs, [], []).length, 1,
-    'остался тот, у кого есть найм-данные (plain без найма — нет)');
-  assert.equal(C.candidatesForTavern(npcs, [entry('merc_hired')], []).length, 0,
-    'нанят — нет');
+  // Исправлено на стадии реализации: и merc_hired, и merc_dead созданы
+  // merc() — с найм-данными, значит без исключений кандидатов ДВОЕ
+  // (plain без найма — нет).
+  assert.equal(C.candidatesForTavern(npcs, [], []).length, 2,
+    'остались те, у кого есть найм-данные (plain без найма — нет)');
+  assert.equal(C.candidatesForTavern(npcs, [entry('merc_hired')], []).length, 1,
+    'нанят — нет (остался merc_dead)');
   assert.equal(C.candidatesForTavern(npcs, [], ['merc_dead']).length, 1,
     'мёртв (deadMercs) — нет');
   const res = C.candidatesForTavern(npcs, [entry('merc_hired')], ['merc_dead']);
