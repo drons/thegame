@@ -862,13 +862,15 @@ test('A32. apply: нет пары — not-ok «спит»; пара + dest:null 
 //     grantBuff отсутствует — { ok:false, message:'недоступно' }
 //     (fail-open, 000029). СНИМОК (state) НЕ мутируется (000071/A12):
 //     живой массив buffs меняет main.js (общий хук r.buffs).
-//   * moonDreamHint(map, x, y) — ЧИСТАЯ: полная скан карты (без
-//     радиуса), вход = hasBuilding && building === CAVE_ENTRANCE
+//   * moonDreamHint(map, x, y) — ЧИСТАЯ: скан ОКНА max(w,h)×max(w,h),
+//     ЦЕНТРИРОВАННОГО на (x,y) (ревью раунд 1: мир бесконечен,
+//     [0,w)×[0,h) — размер пиксельной сетки, не мира),
+//     вход = hasBuilding && building === CAVE_ENTRANCE
 //     (ленивый Game.BUILDING_TYPES, fallback 9) && buildingId !== 48
 //     (развалины — 000073); ближайший по Чебышеву, тай-брейк —
 //     лексикографически меньший (x, затем y); dungeonType — ленивый
 //     Game.dungeonTypeFor(terrain, альфа map.pixelAt(x,y)[3],
-//     fallback 255); нет входов / map бит — { entrance:null,
+//     fallback 255); нет входов в окне / map бит — { entrance:null,
 //     dungeonType:null } без исключений.
 
 // ЛЕНИВЫЕ Game-функции (как canUseTodayLazy): на время вызова
@@ -1135,6 +1137,35 @@ test('A41. moonDreamHint: детерминизм (повтор — тот же �
     assert.deepEqual(h1, h2, 'повторный вызов — тот же результат');
     assert.deepEqual(h1.entrance, { x: 2, y: 2 },
       'тай-брейк: меньший x, при равенстве — меньший y');
+  });
+});
+
+test('A28. moonDreamHint: окно ЦЕНТРИРОВАНО на постройке (ревью раунд 1): вход ВНЕ [0,w)×[0,h) но ближе — выбран; вне окна — не кандидат', () => {
+  const BE = loadBE();
+  const D = require('../src/dungeon.js');
+  const M = require('../src/map.js');
+  withGame({ BUILDING_TYPES: M.BUILDING_TYPES,
+    dungeonTypeFor: D.dungeonTypeFor }, () => {
+    // Синтетическая карта 16×16 → окно 16×16 по центру (5,5):
+    // [-3,13)×[-3,13) (R=8). Старая семантика сканировала бы
+    // [0,16)×[0,16).
+    // (a) (-2,5) — ВНЕ старого окна (x<0), д. Чебышёва 7; (13,5) —
+    //     в старом окне, д. 8. Старая семантика → (13,5) (ближайший
+    //     в окне); центрированное окно → (-2,5) — ИСТИННО ближе.
+    const cells = new Map();
+    cells.set('-2,5', caveTile(-2, 5));
+    cells.set('13,5', caveTile(13, 5));
+    const h1 = BE.moonDreamHint(synthMap(cells), 5, 5);
+    assert.deepEqual(h1.entrance, { x: -2, y: 5 },
+      'вход вне [0,16)², но ближе к храму — выбран');
+    // (b) Окно КОНЕЧНО: единственный вход (-12,5) вне окна
+    //     (|dx|=17 > R=8) → null-подсказка (не исключение, не
+    //     «виден через всё поле»).
+    const cells2 = new Map();
+    cells2.set('-12,5', caveTile(-12, 5));
+    const h2 = BE.moonDreamHint(synthMap(cells2), 5, 5);
+    assert.deepEqual(h2, { entrance: null, dungeonType: null },
+      'вне центрированного окна — не кандидат');
   });
 });
 
@@ -2513,11 +2544,13 @@ test('B16. телепорт «нет проходимого» E2E (pre-seed pair
 //   37 (луна, NPC нет)      — (41,-19), 60 шагов (BFS от спавна (0,0);
 //     карта БЕСКОНЕЧНА — период 256x256, спавн не в углу, 000056);
 //   39 (заброшенный) — 000077, здесь не покрывается.
-// Ближайший вход в пещеру к (41,-19) — (72,9) (buildingId 31, песок,
-// alpha 135; dungeonTypeFor → «простая пещера»), дистанция Чебышёва
-// 31, единственен (без тай-брейка); развалины (48) — не кандидаты.
-// Координаты замерены на базе мастер-сборки worktree (см. memory/
-// 000076-temple-blessings.md).
+// Ближайший вход в пещеру к (41,-19) — (44,-1) (buildingId 31, трава,
+// alpha 166; dungeonTypeFor → «простая пещера»), дистанция Чебышёва
+// 18, единственен (без тай-брейка); развалины (48) — не кандидаты.
+// Окно moonDreamHint ЦЕНТРИРОВАНО на храме (ревью раунд 1): (44,-1)
+// ВНЕ пиксельной сетки [0,256)² (y=-1) — старое окно [0,256)² дало
+// бы (72,9), д. 31, — НЕ истинно ближайший. Координаты замерены на
+// базе мастер-сборки worktree (см. memory/000076-temple-blessings.md).
 //
 // КРАСНОЕ до реализации: реестра '36'/'37'/'38' нет, роутер [E]
 // (main.js) использует запись БАЗОВУЮ слота (36) — у 37/38 свои
@@ -2670,10 +2703,12 @@ test('B19. «Сон» e2e: храм луны (37) — подсказка: бли
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   frameAt(h, NOW + 400);
   const hudLine = String(h.hud.textContent);
-  // Детерминированная карта: храм (41,-19) → ближайший вход (72,9)
-  // (buildingId 31, песок, alpha 135 → dungeonTypeFor: «простая
-  // пещера»), д. Чебышёва 31, единственен (замерено, см. шапку).
-  assert.ok(hudLine.includes('(72, 9)'),
+  // Детерминированная карта: храм (41,-19) → ближайший вход (44,-1)
+  // (buildingId 31, трава, alpha 166 → dungeonTypeFor: «простая
+  // пещера»), д. Чебышёва 18, единственен (замерено, см. шапку;
+  // вход ВНЕ сетки [0,256)² — окно подсказки центрировано на храме,
+  // ревью раунд 1).
+  assert.ok(hudLine.includes('(44, -1)'),
     'подсказка — координаты ближайшего входа: ' + hudLine);
   assert.ok(hudLine.includes('простая пещера'),
     'подсказка — имя типа (DUNGEON_NAMES): ' + hudLine);
@@ -2691,7 +2726,7 @@ test('B19. «Сон» e2e: храм луны (37) — подсказка: бли
   assert.equal(G.buildingUI.isActive(), false,
     'повторный «Сон» в тот же день — выполняется');
   frameAt(h, NOW + 600);
-  assert.ok(String(h.hud.textContent).includes('(72, 9)'),
+  assert.ok(String(h.hud.textContent).includes('(44, -1)'),
     'повторная подсказка — та же (детерминированно)');
   key(h, 'Escape');
   assert.equal(G.buildingUI.isActive(), false);
