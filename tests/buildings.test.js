@@ -844,3 +844,70 @@ test('buildings.js (000102): шапочный комментарий и JSDoc с
   assert.ok(src.includes(`1..${BUILDINGS.length}`),
     'JSDoc getBuilding: «1..N» — N = размер каталога');
 });
+
+// --- Задача 000073: размещение подтипов — особые_параметры.размещение ---
+//
+// 10 «некартовых» записям каталога (37/38/39 храм, 41/42/43 маг.
+// знаки, 45/46/48/49 прочее) — поле особых_параметры.размещение
+// { слот, доля } — source of truth генерации подтипов слотов 8..12
+// (src/map.js: subtypeFor по hash2(x, y, SUBTYPE_SEED_CONST); доля
+// базовой записи слота = остаток 100 − Σдоля — поле У НЕЁ НЕТ).
+// Таблица зафиксирована задачей 000073 (подзадача 000064).
+// Зеркало src/buildings.js ≡ JSON — покрывает существующий тест
+// «файлы assets/buildings … содержимое = JS-фолбэк» после
+// регенерации scripts/sync-buildings-data.js (write-atomic).
+//
+// СТАДИЯ КРАСНЫХ ТЕСТОВ: поле ещё нет в JSON — тесты падают.
+
+const SUBTYPE_PLACEMENT_0073 = {
+  8: { 37: 10, 38: 10, 39: 10 },  // храмы: луна/гора/заброшенный
+  9: { 48: 20 },                  // развалины (базовая 31 — 80)
+  10: { 41: 15, 42: 15, 43: 15 }, // телепорт/обелиск/маг. круг
+  11: { 45: 15, 49: 25 },         // колодец/фонтан (базовая 44 — 60)
+  12: { 46: 30 },                 // смотровая башня (базовая 25 — 70)
+};
+const BASE_SLOT_IDS_0073 = { 8: 36, 9: 31, 10: 40, 11: 44, 12: 25 };
+
+test('каталог 000073: ровно 10 записей-подтипов с особые_параметры.размещение; таблица = ТЗ (слот → {id: доля})', () => {
+  const withPlacement = BUILDINGS.filter(
+    (b) => b.особые_параметры && b.особые_параметры.размещение);
+  assert.equal(withPlacement.length, 10,
+    'ровно 10 записей-подтипов (получено: ' +
+    (withPlacement.map((b) => b.id).join(', ') || 'нет') + ')');
+  const seen = {};
+  for (const b of withPlacement) {
+    const r = b.особые_параметры.размещение;
+    const slot = r.слот;
+    assert.ok(Number.isInteger(slot) && slot >= 8 && slot <= 12,
+      `${b.id} ${b.название}: слот ${slot} — подтипы только слоты 8..12`);
+    assert.ok(Number.isInteger(r.доля) && r.доля >= 1 && r.доля <= 100,
+      `${b.id} ${b.название}: доля — целое 1..100 (получено ${r.доля})`);
+    (seen[slot] = seen[slot] || {})[b.id] = r.доля;
+  }
+  assert.deepEqual(Object.keys(seen).map(Number).sort((a, b) => a - b),
+    [8, 9, 10, 11, 12], 'подтипы — ровно в слотах 8..12');
+  for (const [slot, rows] of Object.entries(SUBTYPE_PLACEMENT_0073)) {
+    assert.deepEqual(seen[Number(slot)], rows,
+      `слот ${slot}: таблица размещения подтипов (id → доля)`);
+  }
+  // Подтипы — НЕ новые слоты: map_index у них нет (13 слотов не
+  // меняются, BUILDING_COUNT = 13).
+  for (const b of withPlacement) {
+    assert.equal(b.особые_параметры.map_index, undefined,
+      `${b.id} ${b.название}: подтип — без map_index (слоты не меняются)`);
+  }
+});
+
+test('каталог 000073: сумма долей подтипов слота < 100 (остаток базовой > 0); 5 базовых записей — БЕЗ размещения', () => {
+  for (const [slot, rows] of Object.entries(SUBTYPE_PLACEMENT_0073)) {
+    const sum = Object.values(rows).reduce((s, v) => s + v, 0);
+    assert.ok(sum < 100,
+      `слот ${slot}: сумма долей подтипов = ${sum} — остаток базовой обязан быть > 0`);
+  }
+  for (const [slot, baseId] of Object.entries(BASE_SLOT_IDS_0073)) {
+    const b = buildingForMapIndex(Number(slot));
+    assert.equal(b && b.id, baseId, `слот ${slot}: базовая запись — id ${baseId}`);
+    assert.ok(!(b.особые_параметры.размещение),
+      `${b.id} ${b.название}: у базовой нет размещения (доля = остаток 100 − Σдоля)`);
+  }
+});

@@ -580,11 +580,15 @@ function recOf(myMap, ax, ay) {
 //   * тайлы групп мобов — шаг на группу = startCombat (мир
 //     останавливается в песочнице);
 //   * входы пещер — maybeEnterDungeon (лабиринт поверх кадра);
-//   * входы городов (задача 000103, buildingId != null) — городских
-//     спрайтов в каталоге пока нет (000104/000105),
+//   * входы городов (задача 000103; предикат — building = NONE,
+//     с 000073 слотовые входы тоже имеют buildingId — подтип) —
+//     городских спрайтов в каталоге пока нет (000104/000105),
 //     buildingSprite(NONE) = null (main.js их не рисует), а recOf
 //     зажат в 3x3, тогда как города до 7x7 — геометрия теста
 //     уедет. Сам тайл входа проходим — путь может через него идти.
+//     Задача 000073: слотовые multi-входы (Арена/Храм) ОСТАЮТСЯ
+//     валидными целями — у подтипа ЕСТЬ спрайт (спрайт своего
+//     слота: buildingSprite(rec.type)).
 // Целевой вход multi-постройки безопасен: в footprint'е мобы не
 // рождаются, а в мире как multi (не города) рождается только
 // Арена/Храм.
@@ -608,7 +612,10 @@ function findNearestMulti(G, myMap, start) {
         visited.add(k);
         prev.set(k, cur.x + ',' + cur.y);
         // Городской вход — НЕ цель (см. комментарий выше, 000103).
-        if (t.isEntrance && t.buildingId == null) {
+        // Задача 000073: город — по building = NONE (до 000073 —
+        // buildingId == null; у слотовых multi-входов теперь есть
+        // buildingId — подтип, и они остаются целями).
+        if (t.isEntrance && t.building !== G.BUILDING_TYPES.NONE) {
           const [ax, ay] = t.buildingAnchor;
           const rec = recOf(myMap, ax, ay);
           if (rec.w > 1 || rec.h > 1) {

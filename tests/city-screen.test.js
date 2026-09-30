@@ -365,9 +365,15 @@ function findNearest(G, myMap, start, isTarget, radius = 600) {
           }
           return { target: { x: nx, y: ny }, t, steps, depth };
         }
+        // Задача 000073: город — по building = NONE (до 000073 —
+        // buildingId != null; слотовые 8..12 тоже получили buildingId
+        // — подтип, и старое условие сделало бы ВСЕ слотовые входы
+        // непроходимыми для BFS). Слотовые входы — не авто-вход
+        // (подземелье/город), путь может через них идти — как до
+        // задачи.
         if (t.hasBuilding
             && (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE
-                || t.buildingId != null)) continue;
+                || t.building === G.BUILDING_TYPES.NONE)) continue;
         next.push({ x: nx, y: ny });
       }
     }
@@ -596,8 +602,14 @@ test('подземелье 000105 (регрессия): kind dungeon, имя —
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
   const myMap = G.createMap(G.generateSeedPixels());
+  // Задача 000073: развалины (слот 9, buildingId 48) — ПОСТРОЙКА, не
+  // вход: шаг на них dungeon НЕ открывает (maybeEnterDungeon-гард) —
+  // сценарий сломается ДО HUD-пина. Исключаем из целей; базовая 31
+  // (остальные ~80% слота 9) остаётся.
   const found = findNearest(G, myMap, g.state.player,
-    (t) => t.hasBuilding && t.building === G.BUILDING_TYPES.CAVE_ENTRANCE);
+    (t) => t.hasBuilding &&
+      t.building === G.BUILDING_TYPES.CAVE_ENTRANCE &&
+      t.buildingId !== 48);
   assert.ok(found, 'сценарий: пещера достижима пешком от спавна');
   walkTiles(h, NOW, found.steps);
   const dg = g.dungeon;
@@ -697,6 +709,91 @@ test('подземелье 000105 (регрессия): kind dungeon, имя —
   assert.ok(hudCave.includes('Здесь: вход в пещеру (вход — шагните)'),
     'HUD после выхода из пещеры: «Здесь: вход в пещеру (вход — шагните)»: '
     + JSON.stringify(hudCave));
+});
+
+// --- Задача 000073: подтипы слотов на карте — игровое поведение ---
+//
+// Подтипы (слот 9: 31 «вход в пещеру» 80 / 48 «развалины» 20; слот 8:
+// 36 «храм солнца» 70 / 37 «храм луны» 10 / 38 «храм горы» 10 /
+// 39 «заброшенный храм» 10 и т.д.) — НЕРЕЗЕРВИРУЮЩИЕ: геометрия
+// (footprint/вход) — базовой записи слота, buildingId тайла — id
+// записи подтипа. Игровое поведение:
+//   * развалины (buildingId 48) — ПОСТРОЙКА, а не вход: шаг на тайл
+//     НЕ открывает dungeon (maybeEnterDungeon-гард buildingId 48),
+//     HUD — «Здесь: развалины» БЕЗ «(вход — шагните)» (подавление
+//     хинта связано с гардом парой);
+//   * HUD «Здесь: …» подтипов — имя из КАТАЛОЖНОЙ записи по
+//     t.buildingId (название_карты || название, регистр конвенции
+//     buildingNameUi), а не обобщённое имя слота (у храма — «храм
+//     солнца»).
+// Цели ищутся ДИНАМИЧЕСКИ (BFS от спавна, паттерн файла); до
+// реализации (buildingId слотовых = null) целей нет — тесты падают.
+
+test('подземелье 000073: развалины (слот 9, buildingId 48) — постройка, НЕ вход: шаг не открывает dungeon; HUD «развалины» без «(вход — шагните)»', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findNearest(G, myMap, g.state.player,
+    (t) => t.hasBuilding &&
+      t.building === G.BUILDING_TYPES.CAVE_ENTRANCE &&
+      t.buildingId === 48);
+  assert.ok(found,
+    'сценарий: развалины (подтип слота 9) достижимы пешком от спавна');
+  walkTiles(h, NOW, found.steps);
+  assert.equal(g.dungeon, null,
+    'шаг на развалины — dungeonState НЕ открыт (постройка, не вход: гард buildingId 48)');
+  assert.deepEqual({ x: g.state.player.x, y: g.state.player.y },
+    found.target, 'герой — на тайле развалин');
+  // HUD (кадр без нажатых клавиш — только рендер + hudUpdate): имя —
+  // из каталожной записи 48 (название_карты || название), НЕ обобщённое
+  // «вход в пещеру»; хинт «(вход — шагните)» подавлен для развалин.
+  h.frameFn(NOW + 100000);
+  const hud = h.hud.textContent;
+  const rec = G.getBuilding(48);
+  const raw = (rec.особые_параметры &&
+    rec.особые_параметры.название_карты) || rec.название;
+  const name = raw.charAt(0).toLowerCase() + raw.slice(1);
+  assert.ok(hud.includes('Здесь: ' + name),
+    'HUD: «Здесь: развалины» (каталожное имя по buildingId): '
+    + JSON.stringify(hud));
+  assert.ok(!hud.includes('Здесь: вход в пещеру'),
+    'HUD: обобщённое имя слота «вход в пещеру» у развалин НЕ показывается: '
+    + JSON.stringify(hud));
+  assert.ok(!hud.includes('(вход — шагните)'),
+    'HUD: хинт «(вход — шагните)» у развалин подавлен: '
+    + JSON.stringify(hud));
+});
+
+test('HUD 000073: «Здесь: <имя подтипа>» — из каталожной записи по buildingId (храм не-солнечного подтипа ≠ «храм солнца»)', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  // Ближайший храм-подтип (37/38/39) — любой: цель динамическая,
+  // переживает будущие ре-пины мира.
+  const found = findNearest(G, myMap, g.state.player,
+    (t) => t.hasBuilding &&
+      t.building === G.BUILDING_TYPES.TEMPLE &&
+      (t.buildingId === 37 || t.buildingId === 38 || t.buildingId === 39));
+  assert.ok(found,
+    'сценарий: храм-подтип (37/38/39) достижим пешком от спавна');
+  walkTiles(h, NOW, found.steps);
+  const rec = G.getBuilding(found.t.buildingId);
+  assert.ok(rec, 'каталожная запись подтипа есть');
+  assert.equal(rec.категория, 'храм', 'цель — храм (не базовый храм солнца)');
+  // HUD (кадр без нажатых клавиш): имя подтипа — из каталожной записи
+  // (название_карты || название), регистр — конвенция buildingNameUi.
+  h.frameFn(NOW + 100000);
+  const hud = h.hud.textContent;
+  const raw = (rec.особые_параметры &&
+    rec.особые_параметры.название_карты) || rec.название;
+  const name = raw.charAt(0).toLowerCase() + raw.slice(1);
+  assert.ok(hud.includes('Здесь: ' + name),
+    'HUD: «Здесь: <имя подтипа>» из каталога: ' + JSON.stringify(hud));
+  assert.ok(!hud.includes('Здесь: храм солнца'),
+    'HUD: обобщённое имя слота «храм солнца» у подтипа НЕ показывается: '
+    + JSON.stringify(hud));
 });
 
 test('город 000105: кадры main.js после входа не падают; HUD — заголовок города и «До выхода»', async () => {

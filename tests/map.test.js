@@ -18,12 +18,18 @@ const {
   // Задача 000103 (стадия красных тестов): собственный сид городского
   // канала ещё не экспортируется — тесты ниже падают, пока его нет.
   GLOBAL_SEED, hash2, CITY_SEED_CONST,
+  // Задача 000073 (стадия красных тестов): сид подтипов слотов 8..12
+  // и чистая функция subtypeFor(x, y, slot) ещё не экспортируются —
+  // тесты секции «подтипы» падают, пока их нет.
+  SUBTYPE_SEED_CONST, subtypeFor,
 } = require('../src/map.js');
 const {
   deltaForEvent, deltaForMoveKey,
   layoutTouchControls, touchActionAt,
 } = require('../src/controls.js');
-const { BUILDINGS, buildingSize, getBuilding } = require('../src/buildings.js');
+const {
+  BUILDINGS, buildingSize, getBuilding, buildingForMapIndex,
+} = require('../src/buildings.js');
 const { SETTINGS } = require('../src/global-settings.js');
 const { createPerlin2D } = require('../src/perlin.js');
 const { generateSeedPixels, MAP_PNG_SIZE, MAP_PNG_SEED } = require('../src/mapseed.js');
@@ -408,9 +414,12 @@ test('1x1-совместимость: hasBuilding ⇒ isEntrance, passable, ва
         `постройка — валидный слот или город (building=${t.building})`);
       assert.ok(t.buildingWealth >= 0 && t.buildingWealth <= 3);
       // 1x1-постройка: в footprint'е только вход.
-      // Задача 000103: города (buildingId) — много-тайловые с
+      // Задача 000103: города (building = NONE) — много-тайловые с
       // каталожным входом, «правило угла» к ним не относится.
-      if (t.buildingId == null &&
+      // Задача 000073: предикат города — по building = NONE (НЕ
+      // buildingId == null: у слотовых 8..12 появился buildingId —
+      // подтип, и старое условие молча отключило бы проверку).
+      if (t.building !== BUILDING_TYPES.NONE &&
           t.building !== BUILDING_TYPES.ARENA && t.building !== BUILDING_TYPES.TEMPLE) {
         const corner = map.tileAt(x + 1, y);
         assert.ok(!corner.inBuilding || corner.buildingAnchor.join(',') !== t.buildingAnchor.join(','),
@@ -956,8 +965,9 @@ test('vm, реальный порядок index.html: имена построе�
 // tileAt на фиксированных координатах реального assets/map.png
 // (seed 0xf10c7a26): 12 входов (включая две 3x3 постройки — храм
 // солнца якорь [-119,9] и арена якорь [-118,-90] и три городских
-// входа 000103), 8 стен (включая стену деревни 52 — 000103), 6 групп
-// мобов, вода/горы/суша.
+// входа 000103), 8 стен (включая стену деревни 52 — 000103),
+// 6 групп мобов, вода/горы/суша + 8 контрольных тайлов подтипов
+// 000073 (7 входов 1x1 + 1 стена 3x3 храма луны).
 //
 // РЕ-ПИН 000103 (сознательное изменение мира): городской канал
 // ЗАБРАЛ часть якорей у 13-слотовых построек — пин «-119,-104»
@@ -968,27 +978,52 @@ test('vm, реальный порядок index.html: имена построе�
 // У всех тайлов появилось поле buildingId (51..54 у городов, null
 // иначе). Генерация слотов (hash2 % 13) и остальных элементов мира
 // НЕ меняется — пины без пометки 000103 сохранены.
+//
+// РЕ-ПИН 000073 (сознательное изменение мира): у тайлов СЛОТОВ 8..12
+// поле buildingId заполняется id-записи подтипа (базовая + подтипы
+// каталога, особые_параметры.размещение). Из старых пинов пере-пинены
+// ВТОРОМ ПОЛЕ buildingId (остальные поля byte-в те же — геометрия
+// инвариантна: footprint/вход/wealth генерируются по БАЗОВОЙ записи):
+// храм солнца якорь [-119,9] → 36 (базовая слота 8), таверны
+// [-116,-100] → 45 (колодец), [-114,18] → 44 (таверна). ДОБАВЛЕНЫ
+// контрольные пины подтипов (входы 1x1 и стена 3x3): развалины
+// [-252,87] (слот 9 → 48), обелиск [-255,-252] (слот 10 → 42),
+// телепорт [-227,104] (слот 10 → 41), маг. круг [-236,-69]
+// (слот 10 → 43), колодец [-253,144] (слот 11 → 45), фонтан
+// [-250,49] (слот 11 → 49), башня [-255,137] (слот 12 → 46),
+// храм луны якорь [-255,11] (слот 8 → 37, стена 3x3). Слоты 0..7 —
+// buildingId по-прежнему null (подтипов нет).
 const GOLDEN_TILES = {
   '-119,-104': { x: -119, y: -104, terrain: 2, passable: true, hasBuilding: true, building: -1, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-119, -104], buildingId: 51 }, // вход, город 51 (000103)
   '-119,-19': { x: -119, y: -19, terrain: 3, passable: true, hasBuilding: true, building: 2, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-119, -19], buildingId: null }, // вход
   '-118,-114': { x: -118, y: -114, terrain: 3, passable: true, hasBuilding: true, building: 1, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, -114], buildingId: null }, // вход
   '-118,-25': { x: -118, y: -25, terrain: 3, passable: true, hasBuilding: true, building: 1, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, -25], buildingId: null }, // вход
-  '-118,11': { x: -118, y: 11, terrain: 5, passable: true, hasBuilding: true, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-119, 9], buildingId: null }, // вход (3x3)
+  '-118,11': { x: -118, y: 11, terrain: 5, passable: true, hasBuilding: true, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-119, 9], buildingId: 36 }, // вход (3x3), храм солнца 36 (РЕ-ПИН 000073)
   '-118,33': { x: -118, y: 33, terrain: 3, passable: true, hasBuilding: true, building: -1, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, 33], buildingId: 51 }, // вход, город 51 (000103)
   '-117,-88': { x: -117, y: -88, terrain: 3, passable: true, hasBuilding: true, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-118, -90], buildingId: null }, // вход (3x3)
   '-117,111': { x: -117, y: 111, terrain: 3, passable: true, hasBuilding: true, building: -1, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-117, 111], buildingId: 51 }, // вход, город 51 (000103)
-  '-116,-100': { x: -116, y: -100, terrain: 2, passable: true, hasBuilding: true, building: 11, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-116, -100], buildingId: null }, // вход
+  '-116,-100': { x: -116, y: -100, terrain: 2, passable: true, hasBuilding: true, building: 11, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-116, -100], buildingId: 45 }, // вход, колодец 45 (РЕ-ПИН 000073)
   '-114,-119': { x: -114, y: -119, terrain: 2, passable: false, hasBuilding: false, building: -1, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-114, -119], buildingId: 52 }, // стена, город 52 2x2 (000103)
   '-114,-35': { x: -114, y: -35, terrain: 3, passable: true, hasBuilding: true, building: 1, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-114, -35], buildingId: null }, // вход
-  '-114,18': { x: -114, y: 18, terrain: 5, passable: true, hasBuilding: true, building: 11, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-114, 18], buildingId: null }, // вход
-  '-119,9': { x: -119, y: 9, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: null }, // стена (3x3)
-  '-119,10': { x: -119, y: 10, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: null }, // стена (3x3)
-  '-119,11': { x: -119, y: 11, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: null }, // стена (3x3)
+  '-114,18': { x: -114, y: 18, terrain: 5, passable: true, hasBuilding: true, building: 11, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-114, 18], buildingId: 44 }, // вход, таверна 44 (РЕ-ПИН 000073)
+  '-119,9': { x: -119, y: 9, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: 36 }, // стена (3x3), 36 (РЕ-ПИН 000073)
+  '-119,10': { x: -119, y: 10, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: 36 }, // стена (3x3), 36 (РЕ-ПИН 000073)
+  '-119,11': { x: -119, y: 11, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: 36 }, // стена (3x3), 36 (РЕ-ПИН 000073)
   '-118,-90': { x: -118, y: -90, terrain: 3, passable: false, hasBuilding: false, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-118, -90], buildingId: null }, // стена (3x3)
   '-118,-89': { x: -118, y: -89, terrain: 3, passable: false, hasBuilding: false, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-118, -90], buildingId: null }, // стена (3x3)
   '-118,-88': { x: -118, y: -88, terrain: 3, passable: false, hasBuilding: false, building: 4, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-118, -90], buildingId: null }, // стена (3x3)
-  '-118,9': { x: -118, y: 9, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: null }, // стена (3x3)
-  '-118,10': { x: -118, y: 10, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: null }, // стена (3x3)
+  '-118,9': { x: -118, y: 9, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: 36 }, // стена (3x3), 36 (РЕ-ПИН 000073)
+  '-118,10': { x: -118, y: 10, terrain: 5, passable: false, hasBuilding: false, building: 8, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-119, 9], buildingId: 36 }, // стена (3x3), 36 (РЕ-ПИН 000073)
+  // --- Контрольные пины подтипов 000073 (доля из каталога по
+  // hash2(x, y, SUBTYPE_SEED_CONST); остальные поля — как до задачи) ---
+  '-252,87': { x: -252, y: 87, terrain: 3, passable: true, hasBuilding: true, building: 9, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-252, 87], buildingId: 48 }, // вход, развалины 48 (слот 9)
+  '-255,-252': { x: -255, y: -252, terrain: 5, passable: true, hasBuilding: true, building: 10, buildingWealth: 1, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-255, -252], buildingId: 42 }, // вход, обелиск 42 (слот 10)
+  '-227,104': { x: -227, y: 104, terrain: 3, passable: true, hasBuilding: true, building: 10, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-227, 104], buildingId: 41 }, // вход, телепорт-круг 41 (слот 10)
+  '-236,-69': { x: -236, y: -69, terrain: 5, passable: true, hasBuilding: true, building: 10, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-236, -69], buildingId: 43 }, // вход, магический круг 43 (слот 10)
+  '-253,144': { x: -253, y: 144, terrain: 3, passable: true, hasBuilding: true, building: 11, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-253, 144], buildingId: 45 }, // вход, колодец 45 (слот 11)
+  '-250,49': { x: -250, y: 49, terrain: 3, passable: true, hasBuilding: true, building: 11, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-250, 49], buildingId: 49 }, // вход, фонтан 49 (слот 11)
+  '-255,137': { x: -255, y: 137, terrain: 3, passable: true, hasBuilding: true, building: 12, buildingWealth: 3, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: true, buildingAnchor: [-255, 137], buildingId: 46 }, // вход, смотровая башня 46 (слот 12)
+  '-255,11': { x: -255, y: 11, terrain: 3, passable: false, hasBuilding: false, building: 8, buildingWealth: 2, hasMobGroup: false, mobGroup: -1, inBuilding: true, isEntrance: false, buildingAnchor: [-255, 11], buildingId: 37 }, // стена (3x3), храм луны 37 (слот 8)
   '-120,-113': { x: -120, y: -113, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 0, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // группа мобов
   '-120,-88': { x: -120, y: -88, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 0, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // группа мобов
   '-120,-78': { x: -120, y: -78, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: true, mobGroup: 2, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null }, // группа мобов
@@ -1426,10 +1461,10 @@ test('vm: инъекция ИСКРЁВЛЕННОГО MobGroupsData — mobGroup
 //     размеру или отсутствует (не_сжимать — без сжатия до 3x3/1x1 и без
 //     слотового фолбэка — пустой якорь, не постройка);
 //   * tileAt: новое поле buildingId — id каталожной записи, которую
-//     разместила: 51..54 на городских тайлах, null на всех остальных
-//     (слотовые постройки — null: подтипы слотов в buildingId заполнит
-//     000073); у городских тайлов building = BUILDING_TYPES.NONE (-1) —
-//     building остаётся чистой семантикой слота.
+//     разместила: 51..54 на городских тайлах; у городских тайлов
+//     building = BUILDING_TYPES.NONE (-1) — building остаётся чистой
+//     семантикой слота. (Слотовые: до 000073 null; с 000073 — id
+//     записи подтипа на слотах 8..12, см. секцию «подтипы» ниже.)
 //
 // СТАДИЯ КРАСНЫХ ТЕСТОВ: экспорта CITY_SEED_CONST, поля buildingId в
 // tileAt и SETTINGS.city_channel ещё нет — тесты секции падают.
@@ -1480,12 +1515,15 @@ function assertCityChannelInfra(map) {
 }
 
 // Сканирование мира ±R: городские якоря и их тайлы (группы по якорю).
+// Задача 000073: город опознаётся по building = NONE (до 000073 —
+// buildingId != null; слотовые 8..12 тоже получили buildingId —
+// подтип, и предикат city ≠ слотовой переехал на building).
 function scanCityGroups(map, R) {
   const groups = new Map();
   for (let x = -R; x < R; x++) {
     for (let y = -R; y < R; y++) {
       const t = map.tileAt(x, y);
-      if (!t.inBuilding || t.buildingId == null) continue;
+      if (!t.inBuilding || t.building !== BUILDING_TYPES.NONE) continue;
       const key = t.buildingAnchor.join(',');
       if (!groups.has(key)) {
         groups.set(key, { anchor: t.buildingAnchor, tiles: new Set() });
@@ -1640,8 +1678,12 @@ test('городской канал: формула — город только 
           assert.equal(rec.buildingId, cityTypeAt(x, y),
             `${label} (${x},${y}): тип города — hash2(x,y,CITY_SEED) по долям`);
         } else {
-          assert.equal(rec.buildingId, null,
-            `${label} (${x},${y}): buildingId слотовой постройки — null (подтипы — 000073)`);
+          // Задача 000073: у слотовых 8..12 buildingId — id подтипа
+          // (1..50); городская запись (51..54) на слотовом якоре
+          // запрещена (город только на городском канале).
+          assert.ok(rec.buildingId == null ||
+              (rec.buildingId >= 1 && rec.buildingId <= 50),
+            `${label} (${x},${y}): городская запись (51..54) на слотовом якоре`);
           assert.equal(rec.type, hash2(x, y, GLOBAL_SEED) % buildingCount(),
             `${label} (${x},${y}): слотовой hash (hash2 % 13) ИЗМЕНИЛСЯ`);
         }
@@ -1696,6 +1738,8 @@ test('город забирает якоря, не рождается из ни�
       `городской якорь (${ax},${ay}): в до-задачном мире на этом тайле был якорь постройки (city ⊂ slot anchor)`);
   }
   // Город РЕЖЕ: городских якорей меньше слотовых на сэмпле.
+  // Задача 000073: предикат города — building = NONE (до 000073 —
+  // buildingId != null; у слотовых 8..12 buildingId теперь подтип).
   const R = 200;
   let cityAnchors = 0, slotAnchors = 0;
   const seen = new Set();
@@ -1706,7 +1750,7 @@ test('город забирает якоря, не рождается из ни�
       const k = t.buildingAnchor.join(',');
       if (seen.has(k)) continue;
       seen.add(k);
-      if (t.buildingId != null) cityAnchors++; else slotAnchors++;
+      if (t.building === BUILDING_TYPES.NONE) cityAnchors++; else slotAnchors++;
     }
   }
   assert.ok(cityAnchors > 0, 'городские якоря есть');
@@ -1714,27 +1758,72 @@ test('город забирает якоря, не рождается из ни�
     `город реже обычной постройки: ${cityAnchors} < ${slotAnchors}`);
 });
 
-test('tileAt: buildingId — 51..54 на городских тайлах (building = -1), иначе null (поле есть у всех тайлов)', () => {
+// Задача 000073: набор записей слота (базовая + подтипы каталога).
+// Доли/подтипы — данные каталога (особые_параметры.размещение),
+// базовая — buildingForMapIndex(slot). До реализации 000073 набор
+// вырождается в {базовая} — тесты ниже падают.
+function subtypeSetFor(slot) {
+  const base = buildingForMapIndex(slot);
+  const subs = BUILDINGS.filter((b) => b.особые_параметры &&
+    b.особые_параметры.размещение &&
+    b.особые_параметры.размещение.слот === slot);
+  return new Set([base.id, ...subs.map((b) => b.id)]);
+}
+
+// Задача 000073: таблица долей слота — подтипы из каталога (доля),
+// базовая = остаток (100 − Σдоля). Порядок в таблице НЕ важен для
+// распределения (его закрепляют golden-пины), важен состав/доли.
+function subtypeTableFor(slot) {
+  const base = buildingForMapIndex(slot);
+  const subs = BUILDINGS.filter((b) => b.особые_параметры &&
+    b.особые_параметры.размещение &&
+    b.особые_параметры.размещение.слот === slot);
+  const sum = subs.reduce(
+    (s, b) => s + b.особые_параметры.размещение.доля, 0);
+  const entries = [{ id: base.id, share: 100 - sum }];
+  for (const b of subs) {
+    entries.push({ id: b.id, share: b.особые_параметры.размещение.доля });
+  }
+  return entries;
+}
+
+test('tileAt: buildingId — 000073 семантика: 51..54 у городов, id записи подтипа у слотов 8..12, null у слотов 0..7 и без постройки', () => {
   const { width, height, data } = decodePng('assets/map.png');
   const map = createMap({ width, height, data });
   assertCityChannelInfra(map);
-  let cityTiles = 0;
+  let cityTiles = 0, slotSubtypeTiles = 0, slotPlainTiles = 0;
   for (let x = -100; x < 100; x++) {
     for (let y = -100; y < 100; y++) {
       const t = map.tileAt(x, y);
       assert.ok('buildingId' in t, `(${x},${y}): нет поля buildingId`);
       if (t.inBuilding) {
-        if (t.buildingId != null) {
+        if (t.building === BUILDING_TYPES.NONE) {
+          // Город (000103): без изменений.
           cityTiles++;
           assert.ok(t.buildingId >= 51 && t.buildingId <= 54,
             `(${x},${y}): buildingId — id города`);
-          assert.equal(t.building, BUILDING_TYPES.NONE,
-            `(${x},${y}): город — building = NONE (-1), building остаётся семантикой слота`);
           assert.equal(t.hasBuilding, t.isEntrance,
             `(${x},${y}): hasBuilding = isEntrance`);
         } else {
           assert.ok(t.building >= 0 && t.building < buildingCount(),
             `(${x},${y}): слотовая постройка — валидный слот`);
+          if (t.building >= 8) {
+            // Задача 000073: слоты 8..12 — id записи подтипа
+            // (базовая или подтип каталога); запись buildingAt —
+            // тот же id (тайл и запись согласованы).
+            slotSubtypeTiles++;
+            const set = subtypeSetFor(t.building);
+            assert.ok(set.has(t.buildingId),
+              `(${x},${y}): buildingId ${t.buildingId} — не из записей слота ${t.building} (${[...set].join(', ')})`);
+            const rec = map.buildingAt(t.buildingAnchor[0], t.buildingAnchor[1]);
+            assert.ok(rec && rec.buildingId === t.buildingId,
+              `(${x},${y}): buildingAt — buildingId ≠ тайлу`);
+          } else {
+            // Задача 000073: слоты 0..7 — подтипов нет, как есть.
+            slotPlainTiles++;
+            assert.equal(t.buildingId, null,
+              `(${x},${y}): слот ${t.building} (0..7) — подтипов нет, buildingId = null`);
+          }
         }
       } else {
         assert.equal(t.buildingId, null, `(${x},${y}): постройки нет — buildingId = null`);
@@ -1743,6 +1832,8 @@ test('tileAt: buildingId — 51..54 на городских тайлах (buildi
     }
   }
   assert.ok(cityTiles >= 1, 'городских тайлов нет (красный: нет каналов)');
+  assert.ok(slotSubtypeTiles >= 1, 'слотовых тайлов 8..12 нет в сэмпле');
+  assert.ok(slotPlainTiles >= 1, 'слотовых тайлов 0..7 нет в сэмпле');
 });
 
 test('окно buildMaxW/H() = 7/7 с каталогом (map_index ∪ города); vm без каталога — фолбэк 3/3', () => {
@@ -1765,10 +1856,16 @@ test('окно buildMaxW/H() = 7/7 с каталогом (map_index ∪ горо
   assert.equal(sandbox.Game.buildMaxW(), 7, 'vm с каталогом — 7 (map_index ∪ города)');
   assert.equal(sandbox.Game.buildMaxH(), 7, 'vm с каталогом — 7');
   const bMap = sandbox.Game.createMap(syntheticPixels(8, 8, 128, 128, 128, 255));
+  // Задача 000073: город опознаётся по inBuilding + building = NONE
+  // (до 000073 — buildingId != null; у слотовых 8..12 buildingId
+  // теперь подтип; у тайла БЕЗ постройки building тоже NONE —
+  // поэтому предикат с inBuilding).
   let found = 0;
   for (let x = -100; x < 100; x++) {
     for (let y = -100; y < 100; y++) {
-      if (bMap.tileAt(x, y).buildingId != null) found++;
+      const t = bMap.tileAt(x, y);
+      if (t.inBuilding &&
+          t.building === sandbox.Game.BUILDING_TYPES.NONE) found++;
     }
   }
   assert.equal(found, 0, 'vm без global-settings: города не генерируются');
@@ -1805,13 +1902,18 @@ test('фолбэк: vm без global-settings.js — города не гене�
   for (let x = -100; x < 100; x++) {
     for (let y = -100; y < 100; y++) {
       const t = bMap.tileAt(x, y);
-      assert.ok(t.buildingId == null,
-        `(${x},${y}): в песочнице без global-settings города не генерируются`);
+      // Задача 000073: городов НЕТ (настройки нет), но у слотовых 8..12
+      // buildingId — id подтипа (1..50): «городской» диапазон 51..54
+      // запрещён.
+      assert.ok(t.buildingId == null ||
+          (t.buildingId >= 1 && t.buildingId <= 50),
+        `(${x},${y}): в песочнице без global-settings города (51..54) не генерируются`);
       if (!t.inBuilding) continue;
       const [ax, ay] = t.buildingAnchor;
       const rec = bMap.buildingAt(ax, ay);
-      assert.ok(rec.buildingId == null,
-        `(${ax},${ay}): городская запись без global-settings`);
+      assert.ok(rec.buildingId == null ||
+          (rec.buildingId >= 1 && rec.buildingId <= 50),
+        `(${ax},${ay}): городская запись (51..54) без global-settings`);
       assert.equal(rec.type,
         sandbox.Game.hash2(ax, ay, sandbox.Game.GLOBAL_SEED) % sandbox.Game.buildingCount(),
         `(${ax},${ay}): слотовой hash в фолбэке изменился`);
@@ -1830,17 +1932,216 @@ test('браузер: полная цепочка index.html (global-settings П
   const sandbox = {};
   loadBrowserChain(sandbox);
   const bMap = sandbox.Game.createMap(sandbox.Game.generateSeedPixels());
+  // Задача 000073: городские тайлы — по inBuilding + building = NONE
+  // (до 000073 — buildingId != null; слотовые 8..12 тоже получили
+  // buildingId — подтип; у тайла без постройки building тоже NONE).
   let found = 0;
   for (let x = -150; x < 150; x++) {
     for (let y = -150; y < 150; y++) {
       const t = bMap.tileAt(x, y);
-      if (t.buildingId == null) continue;
+      if (!t.inBuilding ||
+          t.building !== sandbox.Game.BUILDING_TYPES.NONE) continue;
       found++;
       assert.ok(t.buildingId >= 51 && t.buildingId <= 54, 'город — id каталога');
-      assert.equal(t.building, sandbox.Game.BUILDING_TYPES.NONE,
-        'город — building = NONE');
     }
   }
   assert.ok(found >= 1,
     'на фолбэк-мире (generateSeedPixels) города отсутствуют — канал не активен в browser-режиме');
+});
+
+// --- Задача 000073: подтипы слотов 8..12 (НЕРЕЗЕРВИРУЮЩИЕ, внутри слотов) ---
+//
+// 10 «некартовых» записям каталога (37/38/39 храм, 41/42/43 маг.
+// знаки, 45/46/48/49 прочее) — слоты 8..12 внутри: ВТОРОЙ hash
+// hash2(x, y, SUBTYPE_SEED_CONST) выбирает запись по долям из каталога
+// (особые_параметры.размещение { слот, доля }; доля базовой = остаток).
+// Ловушка детерминизма: слотовой hash (hash2 % 13), BUILDING_COUNT,
+// footprint/вход/wealth (по БАЗОВОЙ записи) — НЕ МЕНЯЮТСЯ; меняется
+// только поле buildingId (сознательное изменение мира, РЕ-ПИН
+// GOLDEN_TILES выше). Слоты 0..7 — без подтипов (buildingId null).
+// vm-песочницы без buildings.js — деградация: buildingId слотовых =
+// null (id без каталога получить невозможно), мир побайтово как до
+// задачи (паттерн 000055: ленивый каталог, функции не константы,
+// пустой вывод не кэшируется).
+//
+// СТАДИЯ КРАСНЫХ ТЕСТОВ: экспорта SUBTYPE_SEED_CONST/subtypeFor, поля
+// размещения в каталоге и подтипов в buildingId ещё нет — тесты
+// секции падают. Стражи (слотовой hash, геометрия, фолбэки) — зелёные
+// и обязаны остаться зелёными.
+
+// Сид подтипов ЗАФИКСИРОВАН: GLOBAL_SEED ^ 0x53554254 (ASCII «SUBT»;
+// прецедент CITY_SEED_CONST = GLOBAL_SEED ^ 0x43495459 «CITY»). Свой
+// сид — НЕ GLOBAL_SEED (слоты), не CITY_SEED_CONST (города) и не сид
+// моб-групп (GLOBAL_SEED ^ 0xabcdef): подтип детерминированно зависит
+// только от позиции якоря. Смена константы = смена карты подтипов —
+// недопустима без перепина (hash2-пины ниже + GOLDEN_TILES).
+const SUBTYPE_SEED_EXPECTED = GLOBAL_SEED ^ 0x53554254;
+
+test('SUBTYPE_SEED_CONST: зафиксирован, отделён от слотового/городского/моб-сидов; hash2-пины (golden)', () => {
+  assert.equal(typeof SUBTYPE_SEED_CONST, 'number',
+    'map.js: нет экспорта SUBTYPE_SEED_CONST (сид подтипов слотов 8..12)');
+  assert.equal(SUBTYPE_SEED_CONST, SUBTYPE_SEED_EXPECTED,
+    'константа зафиксирована (смена = смена карты подтипов)');
+  assert.notEqual(SUBTYPE_SEED_CONST, GLOBAL_SEED,
+    'свой сид — НЕ GLOBAL_SEED (слотовой hash)');
+  assert.notEqual(SUBTYPE_SEED_CONST, CITY_SEED_CONST,
+    'не сид городского канала (000103)');
+  assert.notEqual(SUBTYPE_SEED_CONST, GLOBAL_SEED ^ 0xabcdef,
+    'не сид моб-групп');
+  // Золотые пины хэша канала подтипов (perlin.hash2 — тот же, что
+  // экспортирует map.js): детерминизм подтипа от позиции.
+  assert.equal(hash2(12345, -6789, SUBTYPE_SEED_CONST), 3791884486);
+  assert.equal(hash2(0, 0, SUBTYPE_SEED_CONST), 1381530846);
+  assert.equal(hash2(-120, 33, SUBTYPE_SEED_CONST), 126326031);
+  assert.equal(hash2(7, 41, SUBTYPE_SEED_CONST), 52607510);
+});
+
+test('subtypeFor: слот 8..12 → id из записей слота (базовая + подтипы); слоты 0..7 и вне 8..12 → null (единое правило)', () => {
+  assert.equal(typeof subtypeFor, 'function',
+    'map.js: нет экспорта subtypeFor(x, y, slot) (чистая функция, ленивый каталог)');
+  for (let slot = 8; slot <= 12; slot++) {
+    const set = subtypeSetFor(slot);
+    for (let x = -200; x < 200; x += 13) {
+      for (let y = -200; y < 200; y += 17) {
+        const id = subtypeFor(x, y, slot);
+        assert.ok(set.has(id),
+          `subtypeFor(${x}, ${y}, ${slot}) = ${id} — не из записей слота ${slot} (${[...set].join(', ')})`);
+      }
+    }
+  }
+  // Зафиксированное правило: подтипы ЕСТЬ только на слотах 8..12;
+  // слоты 0..7 — «как есть» (buildingId остаётся null, golden не
+  // ломается), вне диапазона 8..12 — null.
+  for (let slot = 0; slot < 8; slot++) {
+    assert.equal(subtypeFor(123, 456, slot), null,
+      `слот ${slot} (0..7) — подтипов нет → null`);
+  }
+  assert.equal(subtypeFor(1, 2, 13), null, 'слот 13 — вне 8..12 → null');
+  assert.equal(subtypeFor(1, 2, -1), null, 'слот -1 — вне 8..12 → null');
+});
+
+test('подтипы: доли — окно 512×512 координат по ЧИСТОМУ хэшу subtypeFor (±2 п.п. от каталожных долей)', () => {
+  // Чистый хэш (не «размещённые якоря»): 262144 координат, детермизм
+  // тот же, отклонение хэша от равномерного на этом объёме ≤ 0.2 п.п.
+  // (замерено до задачи) — допуск ±2 п.п. стабилен.
+  assert.equal(typeof subtypeFor, 'function',
+    'map.js: нет экспорта subtypeFor(x, y, slot)');
+  const TOTAL = 512 * 512;
+  for (let slot = 8; slot <= 12; slot++) {
+    const table = subtypeTableFor(slot);
+    const cnt = {};
+    for (let x = -256; x < 256; x++) {
+      for (let y = -256; y < 256; y++) {
+        const id = subtypeFor(x, y, slot);
+        cnt[id] = (cnt[id] || 0) + 1;
+      }
+    }
+    for (const e of table) {
+      const obs = 100 * (cnt[e.id] || 0) / TOTAL;
+      assert.ok(Math.abs(obs - e.share) <= 2,
+        `слот ${slot}: id ${e.id} — наблюдаемая доля ${obs.toFixed(2)}% ≠ каталожным ${e.share}% ±2 п.п.`);
+    }
+  }
+});
+
+test('подтипы: доли — РАЗМЕЩЁННЫЕ якоря реального мира, окно 512×512 (±10 п.п.)', () => {
+  // Реальный мир (assets/map.png): якоря — подмножество координат
+  // (fbm-порог + rarity), поэтому отклонение от каталожных долей
+  // больше, чем у чистого хэша (замерено до задачи: до 8 п.п. при
+  // ~130–150 якорях на слот — ±2 п.п. статистически недостижимо).
+  // Окно детерминировано (ре-пинов не планируется) — допуск ±10 п.п.
+  assert.equal(typeof subtypeFor, 'function',
+    'map.js: нет экспорта subtypeFor(x, y, slot)');
+  const { width, height, data } = decodePng('assets/map.png');
+  const map = createMap({ width, height, data });
+  const perSlot = {};
+  const seen = new Set();
+  for (let x = -256; x < 256; x++) {
+    for (let y = -256; y < 256; y++) {
+      const t = map.tileAt(x, y);
+      if (!t.inBuilding) continue;
+      const k = t.buildingAnchor[0] + ',' + t.buildingAnchor[1];
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const rec = map.buildingAt(t.buildingAnchor[0], t.buildingAnchor[1]);
+      if (!rec || rec.type < 8 || rec.type > 12) continue;
+      const id = subtypeFor(rec.anchor[0], rec.anchor[1], rec.type);
+      perSlot[rec.type] = perSlot[rec.type] || {};
+      perSlot[rec.type][id] = (perSlot[rec.type][id] || 0) + 1;
+    }
+  }
+  for (let slot = 8; slot <= 12; slot++) {
+    const cnt = perSlot[slot] || {};
+    const n = Object.values(cnt).reduce((s, v) => s + v, 0);
+    assert.ok(n >= 100, `слот ${slot}: размещённых якорей в окне ${n} — мало`);
+    for (const e of subtypeTableFor(slot)) {
+      const obs = 100 * (cnt[e.id] || 0) / n;
+      assert.ok(Math.abs(obs - e.share) <= 10,
+        `слот ${slot}: id ${e.id} — ${obs.toFixed(1)}% из ${n} якорей ≠ ${e.share}% ±10 п.п.`);
+    }
+  }
+});
+
+test('подтипы: детерминизм — два createMap с теми же пикселями дают тот же buildingId (окно ±100, реальный map.png)', () => {
+  const { width, height, data } = decodePng('assets/map.png');
+  const m1 = createMap({ width, height, data });
+  const m2 = createMap({ width, height, data });
+  for (let x = -100; x < 100; x++) {
+    for (let y = -100; y < 100; y++) {
+      assert.equal(m1.tileAt(x, y).buildingId, m2.tileAt(x, y).buildingId,
+        `(${x},${y}): другой createMap — другой buildingId`);
+    }
+  }
+});
+
+test('vm: подтипы лениво из каталога — без buildings.js buildingId слотовых = null (мир как до задачи), после загрузки каталога — подтипы (пустой вывод не закэширован)', () => {
+  // Порядок index.html: global-settings → perlin → map.js → … →
+  // buildings.js. vm-песочница БЕЗ buildings.js (combat-ui/sprites):
+  // каталога нет → id подтипа получить невозможно → buildingId
+  // слотовых = null — генерация побайтово как до 000073 (деградация,
+  // паттерн 000055). В тот же sandbox грузим buildings.js — НОВЫЙ
+  // createMap обязан показать подтипы (кэш ПУСТОГО вывода запрещён;
+  // старый createMap с закэшированными якорями не трогаем).
+  const { width, height, data } = decodePng('assets/map.png');
+  const sandbox = {};
+  loadInSandbox('global-settings.js', sandbox);
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  const preMap = sandbox.Game.createMap({ width, height, data });
+  let slotTiles = 0, nonNull = 0;
+  for (let x = -150; x < 150; x++) {
+    for (let y = -150; y < 150; y++) {
+      const t = preMap.tileAt(x, y);
+      if (t.inBuilding && t.building >= 8 && t.building <= 12) {
+        slotTiles++;
+        if (t.buildingId != null) nonNull++;
+      }
+    }
+  }
+  assert.ok(slotTiles > 0, 'в сэмпле есть слотовые постройки 8..12');
+  assert.equal(nonNull, 0,
+    'без каталога подтипов нет — buildingId слотовых = null (мир как до 000073)');
+  loadInSandbox('buildings.js', sandbox);
+  const postMap = sandbox.Game.createMap({ width, height, data });
+  let withId = 0;
+  for (let x = -150; x < 150; x++) {
+    for (let y = -150; y < 150; y++) {
+      const t = postMap.tileAt(x, y);
+      if (t.inBuilding && t.building >= 8 && t.building <= 12 &&
+          t.buildingId != null) {
+        withId++;
+      }
+    }
+  }
+  assert.ok(withId > 0,
+    'после загрузки каталога подтипы появились (пустой вывод не закэширован)');
+  // Мир песочницы (с каталогом и настройками) = мир node: buildingId
+  // совпадает на всём окне (числа/null — без realm-проблем).
+  const nMap = createMap({ width, height, data });
+  for (let x = -150; x < 150; x++) {
+    for (let y = -150; y < 150; y++) {
+      assert.equal(postMap.tileAt(x, y).buildingId,
+        nMap.tileAt(x, y).buildingId, `(${x},${y})`);
+    }
+  }
 });

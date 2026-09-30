@@ -184,6 +184,15 @@
   // (tests/map.test.js: hash2-пины).
   const CITY_SEED_CONST = GLOBAL_SEED ^ 0x43495459;
 
+  // Сид подтипов слотов 8..12 (задача 000073): ЗАФИКСИРОВАН —
+  // GLOBAL_SEED ^ 0x53554254 (ASCII «SUBT»; прецедент CITY_SEED_CONST
+  // = GLOBAL_SEED ^ 0x43495459 «CITY»). Свой сид — НЕ GLOBAL_SEED
+  // (слотовой hash) и не сид моб-групп: подтип детерминированно
+  // зависит только от позиции якоря. Смена константы = смена карты
+  // подтипов — недопустима без перепина (tests/map.test.js:
+  // hash2-пины + GOLDEN_TILES).
+  const SUBTYPE_SEED_CONST = GLOBAL_SEED ^ 0x53554254;
+
   const TERRAIN = {
     DEEP_WATER: 0,
     WATER: 1,
@@ -391,8 +400,9 @@
   //     якорь пустой (без сжатия до 3x3/1x1 и без слотового фолбэка);
   //   * запись якоря города получает buildingId (id каталожной
   //     записи), а building остаётся чистой семантикой слота —
-  //     BUILDING_TYPES.NONE (-1); buildingId слотовых записей — null
-  //     (подтипы слотов заполнит 000073).
+  //     BUILDING_TYPES.NONE (-1); buildingId слотовых якорей —
+  //     подтип слотов 8..12 (000073) или null (слоты 0..7, каталога
+  //     нет).
   //
   // Ленивый вывод (паттерн 000055/000057): нет ИЛИ настроек, ИЛИ
   // каталога, ИЛИ городской записи из type_shares → null (НЕ
@@ -435,6 +445,87 @@
       if (u < acc) return e.id;
     }
     return cd.entries[cd.entries.length - 1].id;
+  }
+
+  // --- Подтипы слотов 8..12 (задача 000073) ---
+  //
+  // 10 «некартовых» записям каталога (37/38/39 храмы, 41/42/43
+  // магические знаки, 45/46/48/49 прочее) — НЕРЕЗЕРВИРУЮЩИЙ подтип
+  // ВНУТРИ слотов 8..12: ВТОРОЙ hash hash2(x, y, SUBTYPE_SEED_CONST)
+  // выбирает каталожную запись по кумулятивным долям — поле
+  // особые_параметры.размещение { слот, доля } у записей-подтипов;
+  // доля базовой записи слота (buildingForMapIndex) — остаток
+  // (100 − Σдоля). Ловушка детерминизма (зафиксировано задачей):
+  // слотовой hash (hash2 % 13), BUILDING_COUNT и геометрия
+  // (placeBuilding по БАЗОВОЙ записи) — НЕ меняются; подтип
+  // попадает только в поле buildingId (РЕ-ПИН GOLDEN_TILES,
+  // tests/map.test.js). Слоты 0..7 — подтипов НЕТ (buildingId null,
+  // мир «как есть»).
+  //
+  // Ленивый вывод (паттерн 000055): каталог — в момент вызова
+  // (catalogRef), функции а не константы/getter'ы (Object.assign-
+  // ловушка), кэш ПУСТОГО вывода запрещён: vm-песочницы без
+  // buildings.js → null (деградация, мир побайтово как до 000073);
+  // после загрузки каталога в тот же sandbox — подтипы появляются.
+  //
+  // Порядок кумуляции — возрастание id: записи [базовая + подтипы]
+  // слота (базовая — наименьший id слота; подтипы — по id). Хвост —
+  // последняя запись (наибольший id).
+
+  // Кэш таблиц по слотам: заполняется ТОЛЬКО после успешного
+  // подхвата каталога (null не кэшируется — см. паттерн выше).
+  const _subtypeTables = {};
+
+  // Таблица долей слота: [{id, share}, …] (в порядке возрастания
+  // id) или null: слот вне 8..12; каталога нет (НЕ кэшируем); нет
+  // базовой записи; неверная конфигурация (остаток базовой <= 0 —
+  // деградация к null: buildingId остаётся null, мир как до задачи).
+  function subtypeTable(slot) {
+    if (!Number.isInteger(slot) || slot < 8 || slot > 12) return null;
+    if (slot in _subtypeTables) return _subtypeTables[slot];
+    const c = catalogRef();
+    if (!c || !Array.isArray(c.BUILDINGS) ||
+        typeof c.buildingForMapIndex !== 'function') return null;
+    const base = c.buildingForMapIndex(slot);
+    if (!base) return null;
+    const subs = [];
+    for (const b of c.BUILDINGS) {
+      const p = b && b.особые_параметры;
+      const r = p && p.размещение;
+      if (r && r.слот === slot && Number.isInteger(r.доля) && r.доля > 0) {
+        subs.push({ id: b.id, share: r.доля });
+      }
+    }
+    const rest = 100 - subs.reduce((s, e) => s + e.share, 0);
+    if (rest <= 0) return null;
+    const table = [{ id: base.id, share: rest }, ...subs]
+      .sort((a, b) => a.id - b.id);
+    _subtypeTables[slot] = table;
+    return table;
+  }
+
+  /**
+   * Id каталожной записи подтипа на слотовом якоре (x, y) (задача
+   * 000073): hash2(x, y, SUBTYPE_SEED_CONST) по кумулятивным долям
+   * каталога (доля базовой — остаток). Только слоты 8..12; слоты
+   * 0..7, слот вне 8..12, каталога нет или неверная конфигурация —
+   * null (деградация: buildingId null, мир как до 000073). Чистая
+   * функция: одна позиция → всегда один и тот же подтип.
+   * @param {number} x
+   * @param {number} y
+   * @param {number} slot
+   * @returns {number|null} id каталожной записи или null
+   */
+  function subtypeFor(x, y, slot) {
+    const table = subtypeTable(slot);
+    if (!table) return null;
+    const u = hash2(x, y, SUBTYPE_SEED_CONST) / 4294967296;
+    let acc = 0;
+    for (const e of table) {
+      acc += e.share;
+      if (u * 100 < acc) return e.id;
+    }
+    return table[table.length - 1].id;
   }
 
   // Масштаб «крупных» фич шума (в тайлах) и фич построек/мобов.
@@ -692,9 +783,13 @@
             h: placed.h,
             entrance: placed.entrance,
             wealth: Math.max(0, Math.min(3, Math.round((wf + 0.5) * 4))),
-            // Только у городов — id каталожной записи; слотовые — null
-            // (подтипы слотов заполнит 000073).
-            buildingId: anchor.buildingId != null && b ? b.id : null,
+            // Города — id каталожной записи (51..54). Слотовые якоря:
+            // слоты 8..12 — id записи подтипа (задача 000073: второй
+            // hash по долям каталога; базовая запись — остаток);
+            // слоты 0..7 и без каталога — null (мир как до 000073).
+            buildingId: anchor.buildingId != null
+              ? b.id
+              : subtypeFor(ax, ay, anchor.type),
           };
         }
       }
@@ -714,9 +809,11 @@
      * прямоугольником w×h ОТ ЯКОРЯ, а не сканом по tileAt — скан
      * «вправо/вниз» без проверки якоря зальётся чужой соседней
      * постройкой.
-     * buildingId (задача 000103): id каталожной записи города
-     * (51..54) у городских якорей, null у слотовых (подтипы слотов —
-     * 000073); у города type = BUILDING_TYPES.NONE.
+     * buildingId (задачи 000103/000073): id каталожной записи
+     * размещения — 51..54 у городских якорей (у города type =
+     * BUILDING_TYPES.NONE); у слотовых якорей: слоты 8..12 — id
+     * записи подтипа (базовая + подтипы каталога, 000073), слоты
+     * 0..7 и без каталога — null.
      * @param {number} ax
      * @param {number} ay
      * @returns {{anchor:[number,number], type:number, x:number, y:number,
@@ -746,11 +843,12 @@
 
     /**
      * Состояние тайла в целочисленных координатах (x, y).
-     * buildingId (задача 000103): id каталожной записи, которую
-     * разместила, — 51..54 на городских тайлах (у них building =
-     * BUILDING_TYPES.NONE, building остаётся чистой семантикой
-     * слота), null на всех остальных (слотовые постройки — подтипы
-     * слотов в buildingId заполнит 000073).
+     * buildingId (задачи 000103/000073): id каталожной записи,
+     * которую разместила, — 51..54 на городских тайлах (у них
+     * building = BUILDING_TYPES.NONE, building остаётся чистой
+     * семантикой слота); на слотовых тайлах: слоты 8..12 — id
+     * записи подтипа (базовая + подтипы каталога, 000073), слоты
+     * 0..7 и без постройки (и без каталога) — null.
      * @returns {{
      *   x:number, y:number, terrain:number, passable:boolean,
      *   hasBuilding:boolean, building:number, buildingWealth:number,
@@ -799,8 +897,9 @@
         inBuilding: !!cover,
         isEntrance,
         buildingAnchor: cover ? cover.anchor : null,
-        // Задача 000103: id каталожной записи размещения (51..54 у
-        // городов, null иначе — см. JSDoc tileAt).
+        // Задачи 000103/000073: id каталожной записи размещения
+        // (51..54 у городов; подтипы слотов 8..12; null иначе —
+        // см. JSDoc tileAt).
         buildingId: cover ? cover.buildingId : null,
       };
     }
@@ -969,6 +1068,8 @@
   return {
     GLOBAL_SEED,
     CITY_SEED_CONST, // сид городского канала (задача 000103) — golden-пины
+    SUBTYPE_SEED_CONST, // сид подтипов слотов 8..12 (задача 000073)
+    subtypeFor, // подтип слотового якоря (000073): id записи или null
     TERRAIN, TERRAIN_NAMES, TERRAIN_DATA,
     BUILDING_TYPES,
     buildingCount, buildingNames, buildingNameUi,
