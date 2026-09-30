@@ -23,11 +23,15 @@ function loadInSandbox(file, sandbox) {
 test('модуль: CommonJS-экспорт { SETTINGS } — все настраиваемые параметры', () => {
   assert.equal(typeof SETTINGS, 'object');
   // Ре-пин пометка 000103: добавился ключ city_channel (параметры
-  // городского канала src/map.js).
+  // городского канала src/map.js). Ре-пин 000079: добавились ключи
+  // спутников (max_companions, companion_loyalty, companion_refusal).
+  // Точка конфликта с параллельным 000050 (combat_obstacle_*): при
+  // ребейзе — union обоих наборов.
   assert.deepEqual(Object.keys(SETTINGS).sort(), [
     'city_channel', 'combat_difficulties', 'combat_difficulty',
     'combat_obstacle_max_frac', 'combat_obstacle_min_frac',
-    'dungeon_memory_days', 'level_delta_max', 'move_interval_ms',
+    'companion_loyalty', 'companion_refusal', 'dungeon_memory_days',
+    'level_delta_max', 'max_companions', 'move_interval_ms',
     'points_per_level', 'respawn_days', 'steps_per_day',
   ]);
   for (const k of ['steps_per_day', 'respawn_days', 'dungeon_memory_days',
@@ -212,6 +216,48 @@ test('SETTINGS.city_channel (000103): порог редкости и доли ч
       `при rarity=${r}: порог города (${(cc.fbm + cc.rarity * r).toFixed(3)}) ` +
       `ниже порога слота (${(0.33 + 0.14 * r).toFixed(3)})`);
   }
+});
+
+// Задача 000079 (стадия красных тестов): параметры спутников
+// (src/companions.js). SPEC.md «Спутники»: отряд до 3, старт лояльности
+// 50 + Харизма, +2 за оплату, −20 за неоплату, пороги ухода 20/40 и
+// 50% посередине; шанс отказа 30% − 2%/ур. Харизма − 5%/ур. Артист.
+// Доли (не проценты) — как combat_difficulties. companion_xp_share
+// НЕ здесь — добавляет 000082.
+test('SETTINGS: ключи спутников (000079) — лимит, лояльность, отказ', () => {
+  assert.equal(typeof SETTINGS.max_companions, 'number',
+    'max_companions — число');
+  assert.ok(Number.isInteger(SETTINGS.max_companions) &&
+    SETTINGS.max_companions > 0, 'max_companions — целое > 0');
+  assert.equal(SETTINGS.max_companions, 3, 'SPEC «Спутники»: отряд до 3');
+
+  const loy = SETTINGS.companion_loyalty;
+  assert.ok(loy && typeof loy === 'object' && !Array.isArray(loy),
+    'companion_loyalty — объект параметров лояльности');
+  assert.equal(loy.start, 50, 'старт лояльности 50');
+  assert.equal(loy.paid, 2, '+2 за оплату');
+  assert.equal(loy.unpaid, 20, '−20 за неоплату');
+  assert.equal(loy.quit_low, 20, 'порог «уйдёт верно»');
+  assert.equal(loy.quit_high, 40, 'порог «50%»');
+  assert.equal(loy.quit_chance_mid, 0.5, '50% в полосе 21…40');
+  // Здравый смысл (формулы ядра опираются на порядок величин)
+  assert.ok(loy.start >= 0 && loy.start <= 100, 'старт в диапазоне 0…100');
+  assert.ok(0 < loy.quit_low && loy.quit_low < loy.quit_high &&
+    loy.quit_high < 100, '0 < quit_low < quit_high < 100');
+  assert.ok(loy.paid > 0, 'оплата растит лояльность');
+  assert.ok(loy.unpaid > 0, 'неоплата снижает лояльность');
+  assert.ok(0 < loy.quit_chance_mid && loy.quit_chance_mid < 1,
+    'шанс ухода в (0, 1)');
+
+  const ref = SETTINGS.companion_refusal;
+  assert.ok(ref && typeof ref === 'object' && !Array.isArray(ref),
+    'companion_refusal — объект параметров отказа');
+  assert.equal(ref.base, 0.30, 'база отказа 30%');
+  assert.equal(ref.charisma_per_level, 0.02, '−2% за уровень Харизмы');
+  assert.equal(ref.artist_per_level, 0.05, '−5% за уровень Артиста');
+  assert.ok(ref.base >= 0 && ref.base <= 1, 'база-доля в [0, 1]');
+  assert.ok(ref.charisma_per_level > 0 && ref.artist_per_level > 0,
+    'доли за уровень положительны');
 });
 
 test('единый источник: main.js читает move_interval_ms (структурный)', () => {
