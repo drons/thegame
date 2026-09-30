@@ -2133,6 +2133,37 @@ test('город UI 000105 (фолбэк без perlin): без Game.hash2 ва�
     'фолбэк: seed НЕ игнорируется — раскраска различается');
 });
 
+test('город UI 000105 (GOLDEN-ПИН): CITY_TILE_SEED = 0x43495459 и палитры зафиксированы (ревью раунда 3)', () => {
+  // Соль выбора городского тайла закреплена ЛИТЕРАЛОМ (паттерн
+  // CITY_SEED_CONST 000103 / CITY_LAYOUT_CONST 000104): смена
+  // CITY_TILE_SEED в src/dungeon-ui.js = перекраска ВСЕХ городов —
+  // недопустима после мержа. Пересчёт варианта в тесте независим от
+  // модуля (hash2 перlin.js + литерал соли): смена константы в коде —
+  // вариант клеток не совпадёт и тест упадёт. Палитры тоже пины.
+  const CITY_TILE_SEED_PIN = 0x43495459; // ASCII «CITY»
+  const FLOOR = ['#b3a284', '#a5947a', '#c0b090']; // CITY_FLOOR_VARIANTS
+  const WALL = ['#77685a', '#66594c'];             // CITY_WALL_VARIANTS
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  const s = makeCityState({ fp: 5, cx: 100, cy: -40, name: 'Город' });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
+  G.dungeonUI.render(1000);
+  const colors = cityCellColors(findCanvas(loaded.body).drawCalls,
+    G, s, 40, 5, 5);
+  const d = s.dg;
+  for (let y = 0; y < d.height; y++) {
+    for (let x = 0; x < d.width; x++) {
+      const isFloor = d.cells[y * d.width + x] === G.CELL_FLOOR;
+      const pal = isFloor ? FLOOR : WALL;
+      const idx = ((G.hash2(x, y,
+        (d.seed + CITY_TILE_SEED_PIN) >>> 0)) >>> 0) % pal.length;
+      assert.equal(colors[x + ',' + y], pal[idx],
+        'клетка ' + x + ',' + y + ': вариант по соли 0x43495459 ' +
+        '+ палитра ' + (isFloor ? 'пол' : 'стена'));
+    }
+  }
+});
+
 test('город UI 000105 (регрессия маркеров): выход «X»/вход — те же маркеры, что подземелье', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
