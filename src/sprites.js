@@ -329,6 +329,17 @@
     stalactite_2: 'assets/dungeon/walls/stalactite_2.svg',
   };
 
+  // --- Спрайт сундука подземелья (задача 000067) ---
+  //
+  // ОДИН статичный SVG 64×64 (assets/dungeon/chest.svg, прозрачный
+  // фон, в стиле полов/стен 000069/000070): подземелье рисует его
+  // через DI spriteLoader (zoom*0.8, центр клетки); ОТКРЫТЫЙ сундук
+  // не рисуется вовсе. Литерал в паттерне BUILDING_SPRITES (без
+  // require dungeon.js); существование файла и путь в allAssetPaths
+  // закрывают тесты (tests/dungeon-ui.test.js, обход
+  // tests/svg.test.js).
+  const DUNGEON_CHEST = 'assets/dungeon/chest.svg';
+
   // --- Волна на воде (задача 000025) ---
   //
   // Волна в текстуре имеет период 16px (четверть тайла 64px), каждый
@@ -578,6 +589,8 @@
     for (const p of Object.values(DUNGEON_WALL_FRAMES)) {
       paths.push(p);
     }
+    // Сундук подземелья (задача 000067): 1 SVG.
+    paths.push(DUNGEON_CHEST);
     return Array.from(new Set(paths));
   }
 
@@ -695,6 +708,7 @@
     DUNGEON_FLOOR_DIR, DUNGEON_FLOOR_FRAMES, DUNGEON_FLOOR_SEED,
     dungeonFloorFrame,
     DUNGEON_WALL_FRAMES,
+    DUNGEON_CHEST,
     HP_BAR_COLORS, hpBarColor,
     VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE, VISUALS_MIN_ZOOM,
     FRAME_MS,

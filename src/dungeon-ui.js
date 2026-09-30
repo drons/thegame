@@ -26,8 +26,24 @@
 //
 // Хук state.pos(now) (задел 000068): позиция игрока в момент кадра —
 // функция (000068 даст ds.pos = (now) => ds.mover.renderPos(now)),
-// фолбэк (s.x, s.y). Та же точка — и для ромба игрока, и для цели
-// камеры. rAF-цикл — задел под спрайты мобов (000067) и глейд.
+// фолбэк (s.x, s.y). Та же точка — и для спрайта/ромба игрока, и для
+// цели камеры.
+//
+// Спрайты (задача 000067): игрок — кадры G.phlogistonFrames(действие
+// playerAction; в этой задаче всегда 'idle', 000068 даст 'walk' при
+// глейде), zoom*1.15; мобы — ПО КАЖДОМУ mobId группы
+// (mobSpriteKind → MOB_FRAMES → кадр Math.floor(G.frameIndex(now,
+// ux, uy, frames.length)) — floor ОБЯЗАТЕЛЕН: frameIndex на дробных
+// координатах юнита возвращает ДРОБНЫЙ индекс), zoom*1.2, смещения
+// юнита по индексу (группа «встает» вокруг своей клетки); сундук —
+// G.DUNGEON_CHEST, zoom*0.8, центр клетки (открытый — не рисуется).
+// Фолбэки ПЕР-ЮНИТ (паттерн 000047): spriteLoader=null / image null /
+// sprites.js не загружен / mobSpriteKind null → прежний
+// ромб/красный-фиолетовый квадрат/золотой сундук ИМЕННО для этого
+// юнита (legacy-группа без mobIds — полный групповой фолбэк),
+// остальные — спрайты. Boss — #b06ad4-прямоугольник bounding box
+// юнитов (± половина спрайта 0.6 клетки), рисуется ПЕРЕД спрайтами
+// юнитов. Выход «X» и вход остаются текстовыми/цветовыми (решение).
 
 (function () {
   'use strict';
@@ -50,6 +66,10 @@
   function liveGame() {
     return (typeof globalThis !== 'undefined' && globalThis.Game) || G;
   }
+
+  // Детерминированные смещения юнита группы ПО ИНДЕКСУ (задача
+  // 000067): группа «встает» вокруг своей клетки.
+  const MOB_UNIT_OFF = [[0, 0], [-0.35, 0.15], [0.35, 0.15]];
 
   // --- Время и кадры (паттерн src/combat-ui.js, задача 000047) ---
   // typeof-гарды обязательны: в vm-песочнице requestAnimationFrame
@@ -99,6 +119,13 @@
       if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) return p;
     }
     return { x: s.x, y: s.y };
+  }
+
+  // Действие кадра Флогистона в подземелье (задача 000067): пока
+  // ВСЕГДА 'idle'. Единственный call-site для выбора действия:
+  // 000068 (глейд) переключит на 'walk' одной правкой здесь.
+  function playerAction(s, now) {
+    return 'idle';
   }
 
   // Конечная сетка: камера не выходит за подземелье; если вьюпорт
@@ -161,7 +188,7 @@
     side.appendChild(logEl);
     const hint = document.createElement('div');
     hint.className = 'combat-state';
-    hint.textContent = 'Стрелки/WASD — шаг.\nЖёлтая клетка «X» — выход.\nЗолотое — сундук, красное — мобы.';
+    hint.textContent = 'Стрелки/WASD — шаг.\nЖёлтая клетка «X» — выход.\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).';
     side.appendChild(hint);
 
     overlay.appendChild(side);
@@ -178,6 +205,8 @@
     const d = s.dg, c = s.contents || { chests: [], mobs: [] };
     const w = canvas.width, h = canvas.height;
     const live = liveGame();
+    // now — время кадра (rAF-цикл); из событий (keydown) — текущее.
+    const nowT = now == null ? nowMs() : now;
     // Та же формула «мир→экран», что мир (map.js, 000061): y растёт вниз.
     const proj = (tx, ty) =>
       live.worldToScreen(tx, ty, cam.x, cam.y, zoom, w, h);
@@ -234,8 +263,9 @@
       }
     }
 
-    // Выход (спрайтится в 000067; пока — цвет/текст как раньше, но
-    // размер и проекция — мировые).
+    // Выход «X» и вход — ОСТАЮТСЯ текстовыми/цветовыми маркерами
+    // (решение 000067: читаемость; спрайт-изация — за рамками).
+    // Размер и проекция — мировые.
     const ex = proj(d.exit.x, d.exit.y);
     g2.fillStyle = '#d4b45a';
     g2.fillRect(ex.x + 2, ex.y + 2, zoom - 4, zoom - 4);
@@ -248,38 +278,142 @@
     g2.fillStyle = '#3f9d55';
     g2.fillRect(en.x + 4, en.y + 4, zoom - 8, zoom - 8);
 
-    // Сундуки.
+    // Сундуки (000067): спрайт G.DUNGEON_CHEST (zoom*0.8, центр
+    // клетки); гарды (sprites.js не загружен / нет пути /
+    // spriteLoader=null / изображение не готово) — прежний золотой
+    // квадрат + тёмная полоса. ОТКРЫТЫЙ сундук — не рисуется (клетка
+    // пуста, как раньше).
+    const chestPath = typeof live.DUNGEON_CHEST === 'string'
+      ? live.DUNGEON_CHEST : null;
     for (const ch of c.chests) {
       if (ch.opened) continue;
-      const p = proj(ch.x, ch.y);
-      g2.fillStyle = '#e0b13c';
-      g2.fillRect(p.x + 3, p.y + 3, zoom - 6, zoom - 6);
-      g2.fillStyle = '#7a5c16';
-      g2.fillRect(p.x + 3, p.y + zoom / 2 - 1, zoom - 6, 2);
+      const img = (chestPath && loader && typeof loader.image === 'function')
+        ? ((typeof loader.isReady === 'function' ? loader.isReady(chestPath) : true)
+          && loader.image(chestPath)) || null
+        : null;
+      if (img) {
+        const cs = zoom * 0.8;
+        const pc = proj(ch.x + 0.5, ch.y + 0.5);
+        g2.drawImage(img, pc.x - cs / 2, pc.y - cs / 2, cs, cs);
+      } else {
+        const p = proj(ch.x, ch.y);
+        g2.fillStyle = '#e0b13c';
+        g2.fillRect(p.x + 3, p.y + 3, zoom - 6, zoom - 6);
+        g2.fillStyle = '#7a5c16';
+        g2.fillRect(p.x + 3, p.y + zoom / 2 - 1, zoom - 6, 2);
+      }
     }
-    // Мобы (блуждающие группы).
+    // Мобы (блуждающие группы). 000067: каждый mobId группы — СВОЙ
+    // спрайт (мир-паттерн «одна группа = один спрайт» неприменим):
+    // mobSpriteKind → MOB_FRAMES → кадр Math.floor(frameIndex(now,
+    // ux, uy, frames.length)) — floor ОБЯЗАТЕЛЕН: frameIndex на
+    // ДРОБНЫХ координатах юнита (смещения off) возвращает дробный
+    // индекс, frames[1.6] = undefined — моб ушёл бы в фолбэк молча.
+    // Фолбэки ПЕР-ЮНИТ: image не готов / вида нет → прежний квадрат
+    // ИМЕННО для этого юнита, остальные — спрайты. Legacy-группа
+    // БЕЗ mobIds (или sprites.js не в цепочке) — один групповой
+    // квадрат, как раньше. Boss — #b06ad4-прямоугольник bounding box
+    // юнитов (± половина спрайта 0.6 клетки), рисуется ПЕРЕД
+    // спрайтами юнитов.
+    const mobSpriteOk = typeof live.mobSpriteKind === 'function'
+      && live.MOB_FRAMES && typeof live.MOB_FRAMES === 'object'
+      && typeof live.frameIndex === 'function';
     for (const m of c.mobs) {
       if (m.defeated) continue;
-      const p = proj(m.x, m.y);
-      g2.fillStyle = m.boss ? '#b06ad4' : '#d9483b';
-      g2.fillRect(p.x + 3, p.y + 3, zoom - 6, zoom - 6);
+      const units = (Array.isArray(m.mobIds) && m.mobIds.length > 0
+        && mobSpriteOk)
+        ? m.mobIds.map((id, i) => ({
+          id,
+          x: m.x + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][0],
+          y: m.y + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][1],
+        }))
+        : null;
+      if (units) {
+        if (m.boss) {
+          // Boss-подсветка — bounding box юнитов (центр ± 0.6 клетки),
+          // ДО спрайтов (слой под ними).
+          let minX = Infinity, minY = Infinity;
+          let maxX = -Infinity, maxY = -Infinity;
+          for (const u of units) {
+            minX = Math.min(minX, u.x - 0.1);
+            maxX = Math.max(maxX, u.x + 1.1);
+            minY = Math.min(minY, u.y - 0.1);
+            maxY = Math.max(maxY, u.y + 1.1);
+          }
+          const bb = proj(minX, minY);
+          g2.fillStyle = '#b06ad4';
+          g2.fillRect(bb.x, bb.y, (maxX - minX) * zoom, (maxY - minY) * zoom);
+        }
+        for (const u of units) {
+          const kind = live.mobSpriteKind(u.id);
+          const frames = kind ? live.MOB_FRAMES[kind] : null;
+          let img = null;
+          if (frames && frames.length && loader
+              && typeof loader.image === 'function') {
+            const fi = Math.floor(
+              live.frameIndex(nowT, u.x, u.y, frames.length));
+            const path = frames[fi];
+            if (path) {
+              img = (typeof loader.isReady === 'function'
+                ? loader.isReady(path) : true) && loader.image(path)
+                || null;
+            }
+          }
+          if (img) {
+            const ms = zoom * 1.2; // формула мобов мира
+            const mc = proj(u.x + 0.5, u.y + 0.5);
+            g2.drawImage(img, mc.x - ms / 2, mc.y - ms / 2, ms, ms);
+          } else {
+            const pu = proj(u.x, u.y);
+            g2.fillStyle = m.boss ? '#b06ad4' : '#d9483b';
+            g2.fillRect(pu.x + 3, pu.y + 3, zoom - 6, zoom - 6);
+          }
+        }
+      } else {
+        const p = proj(m.x, m.y);
+        g2.fillStyle = m.boss ? '#b06ad4' : '#d9483b';
+        g2.fillRect(p.x + 3, p.y + 3, zoom - 6, zoom - 6);
+      }
+      // Номер уровня группы (как раньше, центр клетки группы).
+      const pn = proj(m.x, m.y);
       g2.fillStyle = '#fff';
       g2.font = (zoom - 10) + 'px ui-monospace, monospace';
-      g2.fillText(String(m.level), p.x + zoom / 2, p.y + zoom / 2 + 3);
+      g2.fillText(String(m.level), pn.x + zoom / 2, pn.y + zoom / 2 + 3);
     }
     // Игрок: та же точка, что и цель камеры (хук state.pos(now),
-    // задел 000068).
-    const pos = playerPos(s, (now == null ? nowMs() : now));
+    // задел 000068). 000067: спрайт Флогистона (zoom*1.15, формула
+    // мира), кадр — по действию playerAction (всегда 'idle'); гарды
+    // (sprites.js нет / лоадера нет / кадр не готов) — прежний
+    // голубой ромб.
+    const pos = playerPos(s, nowT);
     const pp = proj(pos.x + 0.5, pos.y + 0.5);
-    const r = zoom * 0.3;
-    g2.fillStyle = '#8cf2fc';
-    g2.beginPath();
-    g2.moveTo(pp.x, pp.y - r);
-    g2.lineTo(pp.x + r, pp.y);
-    g2.lineTo(pp.x, pp.y + r);
-    g2.lineTo(pp.x - r, pp.y);
-    g2.closePath();
-    g2.fill();
+    let playerImg = null;
+    const pf = typeof live.phlogistonFrames === 'function'
+      ? live.phlogistonFrames(playerAction(s, nowT)) : null;
+    if (pf && pf.length && loader && typeof loader.image === 'function'
+        && typeof live.frameIndex === 'function') {
+      const fi = Math.floor(
+        live.frameIndex(nowT, pos.x, pos.y, pf.length));
+      const path = pf[fi];
+      if (path) {
+        playerImg = (typeof loader.isReady === 'function'
+          ? loader.isReady(path) : true) && loader.image(path) || null;
+      }
+    }
+    if (playerImg) {
+      const ps = zoom * 1.15; // формула Флогистона мира
+      g2.drawImage(playerImg, pp.x - ps / 2, pp.y - ps / 2, ps, ps);
+    } else {
+      const r = zoom * 0.3;
+      g2.fillStyle = '#8cf2fc';
+      g2.beginPath();
+      g2.moveTo(pp.x, pp.y - r);
+      g2.lineTo(pp.x + r, pp.y);
+      g2.lineTo(pp.x, pp.y + r);
+      g2.lineTo(pp.x - r, pp.y);
+      g2.closePath();
+      g2.fill();
+    }
 
     const dist = Math.abs(s.x - d.exit.x) + Math.abs(s.y - d.exit.y);
     stateEl.textContent =
