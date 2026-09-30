@@ -247,6 +247,11 @@
   // fastForward без слушателей, 000031).
   const buildingOncePerDay = new Map();
   const buffs = [];
+  // Телепорт-круг (задача 000075): 'x,y' круга → { pair: 'px,py'|null,
+  // dest: 'dx,dy'|null, active: boolean } — раздел сейва `teleports`
+  // (имя зафиксировано 000072). СКАН пары — только при ПЕРВОМ подходе
+  // (openBuildingUI, не в кадре); повторного скана НЕТ (кэш в сейве).
+  const teleports = new Map();
 
   // --- Сохранение (задача 000031; механизм — src/save.js) ---
   // Состояние мира и игрока — в localStorage. Версия структур данных
@@ -307,6 +312,10 @@
       buildingOncePerDay: G.serializeDayMap
         ? G.serializeDayMap(buildingOncePerDay) : {},
       buffs: G.serializeBuffs ? G.serializeBuffs(buffs) : [],
+      // Задача 000075: телепорт-круги — пары/цели/активация.
+      // Неломкое расширение v1 (000031): версию НЕ поднимаем.
+      teleports: (G.buildingEffects && G.buildingEffects.serializeTeleports)
+        ? G.buildingEffects.serializeTeleports(teleports) : {},
     };
   }
 
@@ -468,6 +477,34 @@
       console.warn('Сейв: не удалось восстановить buffs:', err);
     }
 
+    // --- Телепорт-круги (teleports) (задача 000075) ---
+    // 'x,y' круга → { pair: 'px,py'|null, dest: 'dx,dy'|null,
+    // active: boolean } (структура — memory/000075-
+    // teleport-circles.md). restoreTeleports сам отбрасывает
+    // мусорные записи; битый раздел — сброс + предупреждение
+    // (000029, паттерн 000072). Старому сейву раздела нет —
+    // пустой Map → скан при первом [E].
+    try {
+      const raw = d.teleports;
+      if (raw != null) {
+        if (typeof raw !== 'object' || Array.isArray(raw)) {
+          console.warn('Сейв: раздел teleports некорректен — сбрасываю.');
+          teleports.clear();
+        } else if (G.buildingEffects &&
+                   G.buildingEffects.restoreTeleports) {
+          const m = G.buildingEffects.restoreTeleports(raw);
+          teleports.clear();
+          for (const [k, v] of m) teleports.set(k, v);
+          if (m.size === 0 && Object.keys(raw).length > 0) {
+            console.warn(
+              'Сейв: teleports — валидных записей нет — сбрасываю.');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить teleports:', err);
+    }
+
     // --- Позиция ---
     try {
       const p = d.position;
@@ -626,6 +663,39 @@
         }
         return;
       }
+      // Телепорт (задача 000075): р.teleport — декларация переноса
+      // из ЧИСТОГО apply (dest ИЗ СНИМКА сейва). Исполнение здесь —
+      // в снимке мира НЕТ: списание (стоимость ИЗ КАТАЛОГА, не
+      // хардкод), hero.gold, позиция + снап мувера. Ханк
+      // срабатывает ТОЛЬКО при r.teleport — чужие эффекты (в т.ч.
+      // тестовые B3) не затрагиваются. Контракт — memory/000075-
+      // teleport-circles.md (для 000093+).
+      if (r.teleport) {
+        const key = player.x + ',' + player.y;
+        const info = teleports.get(key);
+        const op = b && b.особые_параметры;
+        const eff = op && typeof op.эффект === 'object' ? op.эффект : null;
+        const cost = eff && Number.isFinite(eff.стоимость)
+          ? eff.стоимость : 0;
+        const ch = G.buildingEffects.teleportCharge(
+          hero, !!(info && info.active), cost);
+        if (!ch.ok) {
+          // Мало золота — отказ БЕЗ списания/переноса (мировое
+          // состояние не изменилось) → ДО saveNow (контракт 000071:
+          // отказ — message в hudFlash, без saveNow/маркировки).
+          hudFlash = ch.message;
+          hudFlashUntil = performance.now() + 5000;
+          return;
+        }
+        hero.gold = ch.gold;
+        if (info && !info.active) info.active = true;
+        player.x = r.teleport.x;
+        player.y = r.teleport.y;
+        prevPos.x = player.x; prevPos.y = player.y;
+        if (mover) mover.teleport(player.x, player.y); // снап (000033):
+        // персонаж не «скользит» от старой точки (паттерн
+        // restoreFromSave).
+      }
       if (BE.hasDailyLimit(b, action.id)) {
         buildingOncePerDay.set(
           player.x + ',' + player.y + ':' + action.id, clock.day);
@@ -644,11 +714,73 @@
     }
   }
 
+  // Скан пары телепорт-круга (задача 000075): окно [-R..R]² вокруг
+  // круга (x, y), R — каталог особые_параметры.эффект.радиус
+  // (фолбэк 100). Предфильтр — necessary-условие якоря слота
+  // (map.js: hash2(x, y, GLOBAL_SEED) % buildingCount() === слот) —
+  // ~1 из 13 тайлов, остальные не требуют tileAt (полный скан 40k
+  // tileAt ≈ 1 c — недопустимо даже при первом подходе; формулу
+  // якоря фиксируют золотые пины 000073 — не менять без переписи
+  // скана, memory/000075-teleport-circles.md). Подтверждение —
+  // tileAt(...).buildingId === 41 (подтип, 000073). Результат — в
+  // Map teleports + saveNow; ПОВТОРНОГО скана никогда (кэш в
+  // сейве). Вызывается ТОЛЬКО из openBuildingUI (не в кадре).
+  function scanTeleportPair(x, y, b) {
+    const op = b && b.особые_параметры;
+    const eff = op && typeof op.эффект === 'object' ? op.эффект : null;
+    const R = eff && Number.isFinite(eff.радиус) ? eff.радиус : 100;
+    const slot = op && op.размещение && Number.isFinite(op.размещение.слот)
+      ? op.размещение.слот : 10;
+    const BE = G.buildingEffects;
+    const tie = (px, py) => G.hash2(px, py, BE.TELEPORT_TIE_SEED);
+    const count = G.buildingCount ? G.buildingCount() : 0;
+    const circles = [];
+    for (let cy = y - R; cy <= y + R; cy++) {
+      for (let cx = x - R; cx <= x + R; cx++) {
+        // Предфильтр якоря слота (см. выше) + свой тайл — не пара.
+        if (cx === x && cy === y) continue;
+        if (count > 0 && G.hash2(cx, cy, G.GLOBAL_SEED) % count !== slot) {
+          continue;
+        }
+        const t = map.tileAt(cx, cy);
+        if (t.buildingId === 41) circles.push({ x: cx, y: cy });
+      }
+    }
+    const link = BE.linkTeleportCircles(circles, x, y, R, tie);
+    let dest = null;
+    if (link.pairId) {
+      const sep = link.pairId.indexOf(',');
+      const size = G.buildingSize ? G.buildingSize(b) : { width: 1, height: 1 };
+      // мир-оракль dest (контракт memory): проходим, НЕ в footprint'е
+      // постройки, без группы мобов (шаг в группу = мгновенный бой,
+      // паттерн findSpawn), и не тайл исходного круга.
+      dest = BE.teleportDestination(
+        { x: Number(link.pairId.slice(0, sep)),
+          y: Number(link.pairId.slice(sep + 1)) },
+        size,
+        (px, py) => {
+          if (px === x && py === y) return false;
+          const t = map.tileAt(px, py);
+          return t.passable && !t.inBuilding && !t.hasMobGroup;
+        }, tie);
+      dest = dest ? dest.x + ',' + dest.y : null;
+    }
+    teleports.set(x + ',' + y, {
+      pair: link.pairId, dest, active: false,
+    });
+    saveNow();
+  }
+
   // Открыть оверлей «действия постройки» (задача 000071): список —
   // buildingActions (чистый модуль, src/building-effects.js). Пустой
   // список (нет NPC и нет эффектов) — ничего (как сейчас).
   function openBuildingUI(t, b, npc) {
     if (!G.buildingEffects) return false;
+    // Задача 000075: телепорт-круг — скан пары при ПЕРВОМ подходе
+    // (кэш в разделе сейва teleports; повторного скана НЕТ).
+    if (t.buildingId === 41 && !teleports.has(t.x + ',' + t.y)) {
+      scanTeleportPair(t.x, t.y, b);
+    }
     const actions = G.buildingEffects.buildingActions(b, npc, {
       day: clock.day,
       tile: { x: player.x, y: player.y },
@@ -656,8 +788,21 @@
       save: collectSaveData(),
     });
     if (!actions.length) return false;
+    // Заголовок — имя РЕШЁННОЙ записи (000075 RESOLVE-БУГ, 000073):
+    // у подтипов слотов 8..12 — своё название (b.id 41 → «телепорт-
+    // круг», а не базовое имя слота 10 «рунический камень»);
+    // паттерн HUD «Здесь:» (название_карты || название, первая
+    // буква нижним).
+    let title = G.buildingNameUi ? G.buildingNameUi(t.building) : 'Постройка';
+    if (b) {
+      const raw = (b.особые_параметры &&
+        b.особые_параметры.название_карты) || b.название;
+      if (typeof raw === 'string' && raw !== '') {
+        title = raw.charAt(0).toLowerCase() + raw.slice(1);
+      }
+    }
     G.buildingUI.open({
-      title: G.buildingNameUi ? G.buildingNameUi(t.building) : 'Постройка',
+      title,
       actions,
       onAction: (a) => onBuildingAction(a, t, b, npc),
     });
@@ -694,7 +839,14 @@
       if (map) {
         const t = map.tileAt(player.x, player.y);
         if (t.hasBuilding) {
-          const b = G.buildingForMapIndex(t.building);
+          // 000075 RESOLVE-БУГ: запись тайла ПО buildingId (подтип
+          // слотов 8..12 — РЕАЛЬНАЯ запись; базовая запись слота —
+          // обобщённое имя, НЕ запись тайла) — ОДИН И ТОТ ЖЕ
+          // выражение, что и в HUD/тесте (memory/000075-
+          // teleport-circles.md).
+          const b = t.buildingId != null
+            ? G.getBuilding(t.buildingId)
+            : G.buildingForMapIndex(t.building);
           if (b) {
             const npc = G.npcForBuilding(NPCS, b.id);
             openBuildingUI(t, b, npc);
@@ -715,7 +867,11 @@
     if (map) {
       const t = map.tileAt(player.x, player.y);
       if (t.hasBuilding) {
-        const b = G.buildingForMapIndex(t.building);
+        // 000075 RESOLVE-БУГ: та же резолюция по buildingId (см.
+        // выше в toggleNpcDialog).
+        const b = t.buildingId != null
+          ? G.getBuilding(t.buildingId)
+          : G.buildingForMapIndex(t.building);
         const npc = b && G.npcForBuilding(NPCS, b.id);
         if (npc) openNpcDialog(npc, t);
       }
@@ -1406,7 +1562,17 @@
     const d = G.derived(hero);
     const key = player.x + ',' + player.y;
     // NPC постройки текущего тайла (задача 000010) — подсказка [E].
-    const bHere = t.hasBuilding ? G.buildingForMapIndex(t.building) : null;
+    // 000075 RESOLVE-БУГ: запись тайла ПО buildingId (подтип слотов
+    // 8..12 — РЕАЛЬНАЯ запись тайла; базовая запись слота —
+    // обобщённое имя) — ОДИН И ТОТ ЖЕ выражение, что и в
+    // toggleNpcDialog (memory/000075-teleport-circles.md): без
+    // него эффекты подтипов (41) не видны в подсказке «[E]
+    // действия».
+    const bHere = t.hasBuilding
+      ? (t.buildingId != null
+          ? G.getBuilding(t.buildingId)
+          : G.buildingForMapIndex(t.building))
+      : null;
     const npcHere = bHere && G.npcForBuilding ? G.npcForBuilding(NPCS, bHere.id) : null;
     // Эффекты постройки (задача 000071): ПОДСКАЗКА «[E] действия» —
     // только когда NPC НЕТ (NPC без эффектов — ТЕКУЩИЙ текст,
