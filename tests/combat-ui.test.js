@@ -923,7 +923,12 @@ test('боевой UI: 000076 — startCombat пробрасывает buffMods 
     buffMods: { damageMult: 1.05, armor: 1 },
   });
   assert.ok(c, 'бой создан');
-  assert.deepEqual(c.buffMods, { damageMult: 1.05, armor: 1 },
+  // c.buffMods — объект из vm-песочницы (чужой realm): deepStrictEqual
+  // сравнивает Object.prototype между realm'ами и падает даже на
+  // равные по структуре — сравнение через JSON-нормализацию
+  // (контракт — точные значения).
+  assert.deepEqual(JSON.parse(JSON.stringify(c.buffMods)),
+    { damageMult: 1.05, armor: 1 },
     'buffMods дошёл до контекста боя (G.createCombat)');
   // Без buffMods — нейтральный дефолт (своя песочница: isActive()).
   const h2 = loadCombatUi();
@@ -931,6 +936,7 @@ test('боевой UI: 000076 — startCombat пробрасывает buffMods 
     hero: h2.G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
   });
   assert.ok(c2, 'бой создан');
-  assert.deepEqual(c2.buffMods, { damageMult: 1, armor: 0 },
+  assert.deepEqual(JSON.parse(JSON.stringify(c2.buffMods)),
+    { damageMult: 1, armor: 0 },
     'без opts.buffMods — нейтральный дефолт');
 });

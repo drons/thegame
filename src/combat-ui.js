@@ -723,6 +723,9 @@
      * @param {number} [opts.dungeonType] тип подземелья (000049)
      * @param {object} [opts.spriteLoader] загрузчик спрайтов (main.js;
      *   может быть null — тогда фон не рисуется, сплошная база)
+     * @param {{damageMult?: number, armor?: number}} [opts.buffMods]
+     *   благословения храма (задача 000076) — проброс в G.createCombat
+     *   (единственный путь main.js → ядро боя; там нормализуется).
      */
     startCombat(opts) {
       if (isActive()) return null;
@@ -737,6 +740,8 @@
           ? G.mobGroupName(opts.tile.mobGroup) : undefined),
         seed: opts.seed,
         day: opts.day,
+        // Задача 000076: благословения (000072) — до ядра боя.
+        buffMods: opts.buffMods,
       });
       // Путь фона (задача 000049) — ОДИН раз при старте. Guard
       // G.combatBackground — УМД-ловушка «G снимается один раз»

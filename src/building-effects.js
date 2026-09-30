@@ -37,10 +37,14 @@
 //     main.js — у apply мира и каталога НЕТ, контракт 000072).
 //
 // Контракты (зафиксированы tests/building-effects.test.js):
-//   * РЕЕСТР EFFECTS = {} (в задаче 000071 ПУСТ — подзадачи
-//     000074–000077/000091–000095 добавляют только СВОИ записи):
-//     id → { имя, разВДень?, available?(state),
-//     apply?(state) → { ok, message? } }.
+//   * РЕЕСТР EFFECTS — id → { имя, разВДень?, available?(state),
+//     apply?(state) → { ok, message?, buffs? } }. Задача 000071 —
+//     ПУСТОЕ основание; 000076 добавляет записи храмов '36'
+//     (Благословение, kind 'damage'), '37' («Сон» — подсказка),
+//     '38' (Благословение, kind 'armor'); подзадачи
+//     000074/000075/000077/000091–000095 добавляют только СВОИ.
+//     r.buffs — НОВЫЙ массив (grantBuff, 000072): apply не
+//     мутирует СНИМОК — живой массив меняет main.js общим хуком.
 //     available?(state) — НЕДНЕВНАЯ доступность (state — тот же
 //     СНИМОК { day, tile, hero, save }): истина (не строка) —
 //     доступно; false/null/undefined/'' — недоступно (reason
@@ -166,6 +170,59 @@
     },
   };
 
+  // --- Группа 000076: храмы (подтипы слота 8, 000073) ---
+  // Солнце (36) — «Благословение» kind 'damage' (+5% урона, 1 день);
+  // Гора (38) — «Благословение» kind 'armor' (+1 броня, 1 день);
+  // Луна (37) — «Сон» — подсказка (БЕЗ раз-в-день — подсказка
+  // бесплатна, флага в каталоге 000037.json нет; лимит — из каталога,
+  // 000053). Раз_в_день для 36/38 — в каталоге (000036/000038.json,
+  // паттерн 000043). Заброшенный храм (39) — задача 000077.
+  // Записи 000074/000075/000077 добавляются их задачами (полный
+  // набор ключей тестами НЕ фиксируется — конфликты при ребазе
+  // параллельных веток: memory/000076-temple-blessings.md).
+  EFFECTS['36'] = {
+    имя: 'Благословение (солнце)',
+    apply: (st) => applyBlessing(
+      st, 'damage', 'Благословение солнца: +5% урона на 1 день.'),
+  };
+  EFFECTS['37'] = {
+    имя: 'Сон',
+    apply: (st) => {
+      // «Сон» читает карту (map в СНИМОК state добавлен main.js —
+      // read-only ссылка, задокументировано memory/000076-…):
+      // подсказка детерминированна (полный скан, без радиуса).
+      if (!st.map || typeof st.map !== 'object') {
+        return { ok: false, message: 'недоступно' };
+      }
+      const tile = st.tile || { x: 0, y: 0 };
+      const hint = moonDreamHint(st.map, tile.x, tile.y);
+      if (!hint.entrance) {
+        // Входов нет — сообщение, а не ошибка (подсказка
+        // «не видно», A26).
+        return { ok: true, message: 'Сон: входы в пещеры не видны.' };
+      }
+      // Имя типа — из DUNGEON_NAMES (лениво, dungeon.js); без
+      // каталога/типа — общее «подземелье».
+      let name = 'подземелье';
+      const G = lazyGame();
+      const names = G && G.DUNGEON_NAMES;
+      if (hint.dungeonType != null && names &&
+          typeof names[hint.dungeonType] === 'string') {
+        name = names[hint.dungeonType];
+      }
+      return {
+        ok: true,
+        message: 'Сон: ' + name + ' — вход (' +
+                 hint.entrance.x + ', ' + hint.entrance.y + ').',
+      };
+    },
+  };
+  EFFECTS['38'] = {
+    имя: 'Благословение (гора)',
+    apply: (st) => applyBlessing(
+      st, 'armor', 'Благословение горы: +1 броня на 1 день.'),
+  };
+
   /**
    * Ids эффектов постройки — только те, что есть в реестре; порядок —
    * из каталога (массив особых_параметры.эффекты) либо 1-к-1 запись
@@ -221,15 +278,117 @@
     return Object.prototype.hasOwnProperty.call(m, key) ? m[key] : undefined;
   }
 
+  // Game в момент ВЫЗОВА (ленивый захват, паттерн 000053): модуль
+  // обязан грузиться с НОЛЕМ зависимостей (ни require, ни захват
+  // Game-функций в момент загрузки); все Game-функции читаются из
+  // globalThis.Game только когда их вызывают.
+  function lazyGame() {
+    return typeof globalThis !== 'undefined' ? globalThis.Game : null;
+  }
+
   // canUseToday (day.js:105) — ЛЕНИВО из globalThis.Game в момент
   // вызова: модуль обязан грузиться в vm-песочнице БЕЗ day.js
   // (прецедент 000053); fallback — то же сравнение last !== day.
   function canUseTodayLazy(lastUsedDay, day) {
-    const G = typeof globalThis !== 'undefined' ? globalThis.Game : null;
+    const G = lazyGame();
     if (G && typeof G.canUseToday === 'function') {
       return G.canUseToday(lastUsedDay, day);
     }
     return lastUsedDay !== day;
+  }
+
+  // --- Задача 000076: благословения храмов (солнце 36 / гора 38) и
+  // «Сон» храма луны (37). Заброшенный храм (39) — задача 000077.
+  //
+  // Благословение — МИРНОЕ состояние с дедлайном (000072): apply
+  // ВЕРНЕТ НОВЫЙ массив благословений (Game.grantBuff — чистый,
+  // ЛЕНИВО из globalThis.Game; паттерн canUseTodayLazy) — живой
+  // массив buffs меняет main.js ОБЩИМ хуком «apply вернул новое
+  // состояние» (r.buffs) ПЕРЕД saveNow. СНИМОК (state) не
+  // мутируется (000071/A12). grantBuff отсутствует — fail-open
+  // { ok:false, message:'недоступно' } (000029). Множители/сила
+  // НЕ здесь: фиксированы на вид в day.js (SUN_DAMAGE_MULT /
+  // MOUNTAIN_ARMOR, 000072) — каталог описывает эффект текстом +
+  // раз_в_день.
+  function applyBlessing(st, kind, message) {
+    const G = lazyGame();
+    if (!G || typeof G.grantBuff !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const tile = st.tile || { x: 0, y: 0 };
+    const save = st.save || {};
+    const next = G.grantBuff(save.buffs, tile.x + ',' + tile.y, st.day, kind);
+    return { ok: true, buffs: next, message };
+  }
+
+  /**
+   * «Сон» (задача 000076): ЧИСТАЯ подсказка о ближайшем входе в
+   * пещеру и типе подземелья.
+   *
+   * Полный скан карты (width×height, без радиуса — разовое действие,
+   * НЕ per-frame; HUD-подсказка использует дешёвый hasEffects):
+   *   * вход = тайл hasBuilding && building === CAVE_ENTRANCE
+   *     (ленивый Game.BUILDING_TYPES, fallback 9) && buildingId !== 48
+   *     (развалины — 000073: гард-литерал, как main.js);
+   *   * ближайший по Чебышеву (max(|dx|, |dy|)); тай-брейк при
+   *     равенстве — ЛЕКСИКОГРАФИЧЕСКИ МЕНЬШИЙ (x, затем y) —
+   *     детерминизм (решение НЕ задано ТЗ/SPEC, зафиксировано
+   *     memory/000076-temple-blessings.md);
+   *   * тип — ленивый Game.dungeonTypeFor(terrain входа, альфа
+   *     map.pixelAt(ex, ey)[3], fallback 255) (dungeon.js); без
+   *     dungeonTypeFor — тип null (вход всё равно виден, A25).
+   *
+   * map отсутствует/бит (нет width/height/tileAt) — { entrance:null,
+   * dungeonType:null } без исключений (fail-open, 000029).
+   * @param {object|null} map карта мира (width/height/tileAt/pixelAt)
+   * @param {number} x координата тайла (построение, откуда «сон»)
+   * @param {number} y
+   * @returns {{entrance: {x: number, y: number}|null,
+   *            dungeonType: number|null}}
+   */
+  function moonDreamHint(map, x, y) {
+    const out = { entrance: null, dungeonType: null };
+    if (!map || typeof map !== 'object') return out;
+    const w = map.width;
+    const h = map.height;
+    if (!Number.isInteger(w) || !Number.isInteger(h) || w <= 0 || h <= 0) {
+      return out;
+    }
+    if (typeof map.tileAt !== 'function') return out;
+    const G = lazyGame();
+    const cave = (G && G.BUILDING_TYPES &&
+                  G.BUILDING_TYPES.CAVE_ENTRANCE != null)
+      ? G.BUILDING_TYPES.CAVE_ENTRANCE : 9;
+    let best = null;
+    let bestDist = Infinity;
+    for (let ty = 0; ty < h; ty++) {
+      for (let tx = 0; tx < w; tx++) {
+        let t;
+        try { t = map.tileAt(tx, ty); } catch (err) { t = null; }
+        if (!t || !t.hasBuilding || t.building !== cave) continue;
+        if (t.buildingId === 48) continue; // развалины (000073)
+        const dist = Math.max(Math.abs(tx - x), Math.abs(ty - y));
+        if (best === null || dist < bestDist ||
+            (dist === bestDist &&
+             (tx < best.x || (tx === best.x && ty < best.y)))) {
+          best = { x: tx, y: ty, terrain: t.terrain };
+          bestDist = dist;
+        }
+      }
+    }
+    if (!best) return out;
+    out.entrance = { x: best.x, y: best.y };
+    if (G && typeof G.dungeonTypeFor === 'function') {
+      let alpha = 255;
+      if (typeof map.pixelAt === 'function') {
+        let px = null;
+        try { px = map.pixelAt(best.x, best.y); } catch (err) { px = null; }
+        if (Array.isArray(px) && Number.isFinite(px[3])) alpha = px[3];
+      }
+      const type = G.dungeonTypeFor(best.terrain, alpha);
+      if (typeof type === 'number') out.dungeonType = type;
+    }
+    return out;
   }
 
   // available?(state) — недневная доступность (контракт шапки,
@@ -454,5 +613,7 @@
     linkTeleportCircles, teleportDestination, teleportCharge,
     serializeTeleports, restoreTeleports,
     TELEPORT_TIE_SEED,
+    // Задача 000076: чистая подсказка «Сна» (скан карты + dungeonTypeFor).
+    moonDreamHint,
   };
 });

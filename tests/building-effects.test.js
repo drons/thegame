@@ -1572,8 +1572,9 @@ function findBuilding(G, myMap, start, wantNpc, pred) {
 // Задача 000076: BFS по id каталожной записи (t.buildingId — подтип,
 // 000073), НЕ по слоту: все храмы слота 8 имеют building=8 (TEMPLE),
 // подтип — в buildingId (36 солнце / 37 луна / 38 гора / 39
-// заброшенный). Детерминированная карта (фикс. сид, замерено):
-// ближайший достижимый 36 → (7,30), 38 → (50,3), 37 → (55,33).
+// заброшенный). Детерминированная карта (фикс. сид, замерено на базе
+// worktree, см. memory/000076-temple-blessings.md): ближайший
+// достижимый 36 → (7,30), 38 → (50,3), 37 → (41,-19).
 function findTempleById(G, myMap, start, wantId) {
   const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const startKey = start.x + ',' + start.y;
@@ -1605,6 +1606,58 @@ function findTempleById(G, myMap, start, wantId) {
             kk = prev.get(kk);
           }
           return { tile: t, steps };
+        }
+        next.push({ x: nx, y: ny });
+      }
+    }
+    frontier = next;
+  }
+  return null;
+}
+
+// Задача 000076 (B12): BFS, как findBuilding(false), НО запись
+// роутера цели (t.buildingId, 000073) обязана иметь и NPC нет, и
+// каталожного раз_в_день НЕТ: лимит — из каталога (принцип 000053),
+// и первая постройка без NPC — (4,3), подтип 43 — флаг В каталоге
+// есть (там «без лимита» не проверить). На детерминированной карте
+// (замерено): (36,-21), слот 12, buildingId 46, 57 шагов.
+function findBuildingNoDailyLimit(G, myMap, start) {
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const startKey = start.x + ',' + start.y;
+  const visited = new Set([startKey]);
+  const prev = new Map();
+  let frontier = [{ x: start.x, y: start.y }];
+  for (let depth = 0; depth < 300 && frontier.length; depth++) {
+    const next = [];
+    for (const cur of frontier) {
+      for (const [dx, dy] of DIRS) {
+        const nx = cur.x + dx, ny = cur.y + dy;
+        const k = nx + ',' + ny;
+        if (visited.has(k)) continue;
+        const t = myMap.tileAt(nx, ny);
+        if (!t.passable || t.hasMobGroup) continue;
+        if (t.hasBuilding) {
+          if (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE) continue;
+          if (t.building === G.BUILDING_TYPES.NONE) continue; // город
+        }
+        visited.add(k);
+        prev.set(k, cur.x + ',' + cur.y);
+        if (t.hasBuilding) {
+          const b = (t.buildingId != null && G.getBuilding(t.buildingId))
+            || G.buildingForMapIndex(t.building);
+          const npc = G.npcForBuilding(G.NpcData.NPCS, b.id);
+          const flag = !!(b.особые_параметры
+            && b.особые_параметры.раз_в_день === true);
+          if (!npc && !flag) {
+            const steps = [];
+            let kk = k;
+            while (kk !== startKey) {
+              const [px, py] = kk.split(',').map(Number);
+              steps.unshift([px, py]);
+              kk = prev.get(kk);
+            }
+            return { tile: t, building: b, steps };
+          }
         }
         next.push({ x: nx, y: ny });
       }
@@ -2156,26 +2209,22 @@ test('B12. раз-в-день: эффект БЕЗ флага — повторя
   // «Фонтан: исцеление лимит / монета — нет». До ревью раунда 3
   // implicit «есть apply → лимит» блокировал повторное нажатие
   // в тот же день; маркировки buildingOncePerDay быть НЕ должно.
-  // 000075: целевая постройка — БЕЗ каталожного раз_в_день (принцип
-  // 000053: каталог побеждает над записью реестра): первая
-  // достижимая без NPC — id 43, у НЕГО раз_в_день в каталоге (его
-  // заберёт 000077), поэтому pred пропускает её: в seed-мире первая
-  // без флага — (50,3), id 38 «Храм горы» (golden).
+  // Задача 000076: цель — постройка БЕЗ каталожного раз_в_день
+  // (принцип 000053: каталог побеждает над записью реестра). Первая
+  // достижимая без NPC — с флагом в каталоге (id 43), и храмы 36/38
+  // — тоже (000076) — поэтому findBuildingNoDailyLimit (BFS по записи
+  // роутера, без пина конкретного id).
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   const myMap = G.createMap(G.generateSeedPixels());
-  const found = findBuilding(G, myMap, g.state.player, false,
-    (b) => !(b.особые_параметры &&
-             b.особые_параметры.раз_в_день === true));
-  assert.ok(found, 'сценарий: найдена достижимая постройка без NPC ' +
-    'и без каталожного раз_в_день');
+  const found = findBuildingNoDailyLimit(G, myMap, g.state.player);
+  assert.ok(found, 'сценарий: найдена постройка без NPC и без ' +
+    'каталожного раз_в_день');
   walkTo(h, found.steps);
   const st = g.state;
   // 000075: запись — по buildingId (found.building), как в main.js.
   const b = found.building;
-  assert.equal(b.id, 38, 'golden: первая без NPC без каталожного ' +
-    'лимит-флага — id 38 (50,3)');
   const fxId = String(b.id);
   const applied = [];
   const priorEntry = G.buildingEffects.EFFECTS[fxId];
@@ -2459,12 +2508,16 @@ test('B16. телепорт «нет проходимого» E2E (pre-seed pair
 //
 // Мир детерминированный (фикс. сид, замерено сканом): храмы —
 // подтипы слота 8 (000073), ищутся по t.buildingId:
-//   36 (солнце, NPC Элдира) — ближайший достижимый (7,30);
-//   38 (гора, NPC нет)      — (50,3);
-//   37 (луна, NPC нет)      — (55,33);
+//   36 (солнце, NPC Элдира) — ближайший достижимый (7,30), 39 шагов;
+//   38 (гора, NPC нет)      — (50,3), 55 шагов;
+//   37 (луна, NPC нет)      — (41,-19), 60 шагов (BFS от спавна (0,0);
+//     карта БЕСКОНЕЧНА — период 256x256, спавн не в углу, 000056);
 //   39 (заброшенный) — 000077, здесь не покрывается.
-// Ближайший вход в пещеру к (55,33) — (56,26) (buildingId 31, трава;
-// dungeonTypeFor → «простая пещера»); развалины (48) к (55,33) дальше.
+// Ближайший вход в пещеру к (41,-19) — (72,9) (buildingId 31, песок,
+// alpha 135; dungeonTypeFor → «простая пещера»), дистанция Чебышёва
+// 31, единственен (без тай-брейка); развалины (48) — не кандидаты.
+// Координаты замерены на базе мастер-сборки worktree (см. memory/
+// 000076-temple-blessings.md).
 //
 // КРАСНОЕ до реализации: реестра '36'/'37'/'38' нет, роутер [E]
 // (main.js) использует запись БАЗОВУЮ слота (36) — у 37/38 свои
@@ -2534,7 +2587,12 @@ test('B17. «Благословение» e2e: храм солнца (36) — «
   // c.buffMods (wiring main.js → combat-ui.js → createCombat).
   const c = g.actions.startCombat(3);
   assert.ok(c, 'отладочный бой запущен');
-  assert.deepEqual(c.buffMods, { damageMult: 1.05, armor: 0 },
+  // c.buffMods — объект из vm-песочницы (чужой realm): deepStrictEqual
+  // сравнивает Object.prototype между realm'ами и падает даже на
+  // равных по структуре — сравнение через JSON-нормализацию
+  // (контракт — точные значения).
+  assert.deepEqual(JSON.parse(JSON.stringify(c.buffMods)),
+    { damageMult: 1.05, armor: 0 },
     'бой получил buffMods (солнце: ×1.05 урона, броня 0)');
 });
 
@@ -2583,7 +2641,10 @@ test('B18. «Благословение» e2e: храм горы (38) — NPC н
   key(h, 'Escape');
   const c = g.actions.startCombat(3);
   assert.ok(c, 'отладочный бой запущен');
-  assert.deepEqual(c.buffMods, { damageMult: 1, armor: 1 },
+  // JSON-нормализация: c.buffMods — из vm-песочницы (чужой realm,
+  // см. комментарий в B13).
+  assert.deepEqual(JSON.parse(JSON.stringify(c.buffMods)),
+    { damageMult: 1, armor: 1 },
     'бой получил buffMods (гора: +1 броня)');
 });
 
@@ -2609,16 +2670,18 @@ test('B19. «Сон» e2e: храм луны (37) — подсказка: бли
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   frameAt(h, NOW + 400);
   const hudLine = String(h.hud.textContent);
-  // Детерминированная карта: ближайший вход к (55,33) — (56,26)
-  // (buildingId 31, трава → dungeonTypeFor: «простая пещера»).
-  assert.ok(hudLine.includes('(56, 26)'),
+  // Детерминированная карта: храм (41,-19) → ближайший вход (72,9)
+  // (buildingId 31, песок, alpha 135 → dungeonTypeFor: «простая
+  // пещера»), д. Чебышёва 31, единственен (замерено, см. шапку).
+  assert.ok(hudLine.includes('(72, 9)'),
     'подсказка — координаты ближайшего входа: ' + hudLine);
   assert.ok(hudLine.includes('простая пещера'),
     'подсказка — имя типа (DUNGEON_NAMES): ' + hudLine);
   // Лимита НЕТ (флага раз_в_день в каталоге 37 нет):
   // маркировки в сейве нет, повтор в тот же день — доступен.
   const save = readSave(h);
-  assert.ok(save.data.buildingOncePerDay['55,33:37'] == null,
+  assert.ok(save.data.buildingOncePerDay[
+    st.player.x + ',' + st.player.y + ':37'] == null,
     'маркировки раз-в-день НЕТ (подсказка бесплатна)');
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается снова');
@@ -2628,7 +2691,7 @@ test('B19. «Сон» e2e: храм луны (37) — подсказка: бли
   assert.equal(G.buildingUI.isActive(), false,
     'повторный «Сон» в тот же день — выполняется');
   frameAt(h, NOW + 600);
-  assert.ok(String(h.hud.textContent).includes('(56, 26)'),
+  assert.ok(String(h.hud.textContent).includes('(72, 9)'),
     'повторная подсказка — та же (детерминированно)');
   key(h, 'Escape');
   assert.equal(G.buildingUI.isActive(), false);
