@@ -525,7 +525,9 @@
 
   // Подземелье: текущая вылазка и память содержимого по входам.
   // dungeonMemory: 'x,y' входа → { contents, lastVisitDay }.
-  let dungeonState = null; // { dg, contents, x, y, prevX, prevY, worldKey, log }
+  // { dg, contents, x, y, prevX, prevY, worldKey, log, mover, pos }
+  // (mover/pos — 000068: мувер motion.js + дробная позиция рендера)
+  let dungeonState = null;
   const dungeonMemory = new Map();
 
   // Смена дня: восстановление, респауны групп (SPEC.md «Игровое время»).
@@ -770,6 +772,37 @@
 
   // --- Подземелье ---
 
+  // Состояние подземелья (задача 000068) + ОТДЕЛЬНЫЙ мувер
+  // (src/motion.js, паттерн мира 000033): дробная позиция ds.pos(now)
+  // для рендера — глейд prev→next за интервал шага (MOVE_INTERVAL_MS —
+  // тот же источник, что мировой мувер; «Ловкий шаг» в подземелье НЕ
+  // применяется — шаг на keydown, троттлинг мира не переносится,
+  // ограничение ТЗ). Мувер живёт в dungeonState и умирает вместе с
+  // ним (exitDungeon — без изменений). ОДИН хелпер на ОБА входа
+  // (maybeEnterDungeon и отладочный __game.actions.enterDungeon) —
+  // одна форма состояния.
+  function makeDungeonState(d, contents, worldKey) {
+    const ds = {
+      dg: d, contents,
+      x: d.entrance.x, y: d.entrance.y,
+      prevX: d.entrance.x, prevY: d.entrance.y,
+      worldKey,
+      log: [G.DUNGEON_NAMES[d.type] + ': вход.'],
+    };
+    ds.mover = G.createMover
+      ? G.createMover({ x: d.entrance.x, y: d.entrance.y,
+          intervalMs: MOVE_INTERVAL_MS })
+      : null;
+    // Защитный снап в entrance (ТЗ: формальность — новый мувер уже
+    // там; деградация без motion.js — ds.mover = null, как мировой).
+    if (ds.mover) ds.mover.teleport(d.entrance.x, d.entrance.y);
+    // Дробная позиция для dungeon-ui (спрайт/ромб + цель камеры).
+    ds.pos = (now) => (ds.mover
+      ? ds.mover.position(now)
+      : { x: ds.x, y: ds.y });
+    return ds;
+  }
+
   // Шаг на тайл с входом в пещеру → лабиринт (ядро: src/dungeon.js).
   function maybeEnterDungeon() {
     if (dungeonState) return;
@@ -783,13 +816,7 @@
       ? saved.contents
       : null;
     if (!contents) contents = G.generateDungeonContents(d, hero);
-    dungeonState = {
-      dg: d, contents,
-      x: d.entrance.x, y: d.entrance.y,
-      prevX: d.entrance.x, prevY: d.entrance.y,
-      worldKey,
-      log: [G.DUNGEON_NAMES[d.type] + ': вход.'],
-    };
+    dungeonState = makeDungeonState(d, contents, worldKey);
     if (saved) saved.lastVisitDay = clock.day; // продлить память
     G.dungeonUI.start({
       get state() { return dungeonState; },
@@ -828,6 +855,9 @@
         } else {
           // Побег и смерть: назад на клетку, с которой зашёл в бой.
           ds.x = ds.prevX; ds.y = ds.prevY;
+          // Снап мувера (000068): иначе спрайт скользил бы обратно
+          // через поле боя (аналог снапа мира при побеге/смерти).
+          if (ds.mover) ds.mover.teleport(ds.prevX, ds.prevY);
           if (res.outcome === 'dead') {
             hero.alive = true;
             hero.hp = Math.max(1, Math.round(G.derived(hero).maxHP / 2));
@@ -867,6 +897,14 @@
     }
     ds.prevX = ds.x; ds.prevY = ds.y;
     ds.x = nx; ds.y = ny;
+    // Глейд prev→next (000068, паттерн мира 000033): ставится ДО
+    // проверок моб/сундук — бой начинается с клетки, к которой игрок
+    // ДОХОДИТ глейдом. Заблокированные шаги (стена/граница/выход) —
+    // ранний return выше, мувер не вызывается.
+    if (ds.mover) {
+      ds.mover.step({ x: ds.prevX, y: ds.prevY }, { x: nx, y: ny },
+        performance.now());
+    }
     // Блуждающая группа на клетке → бой.
     const g = c.mobs.find((m) => !m.defeated && m.x === nx && m.y === ny);
     if (g) {
@@ -1374,13 +1412,11 @@
         const t = map.tileAt(player.x, player.y);
         const d = G.createDungeon(player.x, player.y, mapPixels,
           terrain != null ? terrain : t.terrain);
-        dungeonState = {
-          dg: d, contents: G.generateDungeonContents(d, hero),
-          x: d.entrance.x, y: d.entrance.y,
-          prevX: d.entrance.x, prevY: d.entrance.y,
-          worldKey: player.x + ',' + player.y,
-          log: [G.DUNGEON_NAMES[d.type] + ': вход.'],
-        };
+        // Тот же хелпер, что maybeEnterDungeon (000068): одна форма
+        // состояния — отладочный вход тоже получает мувер + ds.pos.
+        dungeonState = makeDungeonState(
+          d, G.generateDungeonContents(d, hero),
+          player.x + ',' + player.y);
         G.dungeonUI.start({
           get state() { return dungeonState; },
           onMove: (dx, dy) => dungeonMove(dx, dy),
