@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#d8fbff" stop-opacity="0.7"/>
+      <stop offset="0.55" stop-color="#7fe3ff" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#7fe3ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4fffe"/>
+      <stop offset="0.55" stop-color="#b7f0fb"/>
+      <stop offset="1" stop-color="#52c4e8"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="35" r="26" fill="url(#glow)"/>
+  <g transform="translate(0,1.8)">
+    <!-- языки пламени (чуть короче — пульс) -->
+    <path d="M32 7 C30 10.5 28.8 12.8 29.4 15.6 C31 13.2 31.6 11.8 31.8 10 C32.5 12.4 33.4 14 35.2 15 C35.4 11.6 34.2 9 32 7 Z" fill="#a5ecff" opacity="0.95"/>
+    <!-- тело -->
+    <path d="M32 12 C25 18 19 27 19 37 C19 47.5 24.5 53.5 32 54.5 C39.5 53.5 45 47.5 45 37 C45 27 39 18 32 12 Z" fill="url(#bodyG)" stroke="#1c7fa3" stroke-width="1.2"/>
+    <ellipse cx="28.5" cy="29" rx="6.5" ry="9.5" fill="#ffffff" opacity="0.4"/>
+    <!-- руки-пламёны -->
+    <circle cx="16.8" cy="39.4" r="3.2" fill="#8fe8fa" stroke="#1c7fa3" stroke-width="1"/>
+    <circle cx="47.2" cy="39.4" r="3.2" fill="#8fe8fa" stroke="#1c7fa3" stroke-width="1"/>
+    <!-- стопы -->
+    <ellipse cx="27" cy="54.5" rx="3.6" ry="2.6" fill="#7fdcf4"/>
+    <ellipse cx="37" cy="54.5" rx="3.6" ry="2.6" fill="#7fdcf4"/>
+    <!-- лицо -->
+    <circle cx="27.3" cy="33.5" r="2.7" fill="#0d3a4a"/>
+    <circle cx="36.7" cy="33.5" r="2.7" fill="#0d3a4a"/>
+    <circle cx="28.2" cy="32.6" r="0.9" fill="#ffffff"/>
+    <circle cx="37.6" cy="32.6" r="0.9" fill="#ffffff"/>
+    <path d="M29.6 40.2 Q32 42.2 34.4 40.2" stroke="#0d3a4a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

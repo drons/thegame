@@ -1,39 +1,126 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<!-- Флогистон (человек) — кадр walk_1: широкополая синяя шляпа с золотым ободком, синий кафтан, деревянный посох с огненным свечением (дизайн — assets/logo.svg) -->
   <defs>
-    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#d8fbff" stop-opacity="0.65"/>
-      <stop offset="0.55" stop-color="#7fe3ff" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="#7fe3ff" stop-opacity="0"/>
+    <radialGradient id="glowG">
+      <stop offset="0" stop-color="#ffdf8a" stop-opacity="0.85"/>
+      <stop offset="0.5" stop-color="#ffb347" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ff8a2a" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#f4fffe"/>
-      <stop offset="0.55" stop-color="#b7f0fb"/>
-      <stop offset="1" stop-color="#52c4e8"/>
+    <linearGradient id="flameG" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#ff5a1f"/>
+      <stop offset="0.45" stop-color="#ff9d2e"/>
+      <stop offset="0.8" stop-color="#ffd35e"/>
+      <stop offset="1" stop-color="#fff3b8"/>
+    </linearGradient>
+    <linearGradient id="goldG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbe69a"/>
+      <stop offset="0.55" stop-color="#e6b954"/>
+      <stop offset="1" stop-color="#c08a2b"/>
     </linearGradient>
   </defs>
-  <!-- штрихи движения -->
-  <g stroke="#bfeefb" stroke-width="1.5" stroke-linecap="round" opacity="0.6">
-    <path d="M9 28 h6"/>
-    <path d="M7 36 h5"/>
+    <ellipse cx="32" cy="61.5" rx="13" ry="2.2" fill="#0a0820" opacity="0.35"/>
+    <g>
+      <path d="M11.5 31 h5.5" stroke="#c8963a" stroke-width="1.3" stroke-linecap="round" opacity="0.55" fill="none"/>
+      <path d="M10 38 h4.5" stroke="#c8963a" stroke-width="1.3" stroke-linecap="round" opacity="0.55" fill="none"/>
+    </g>
+  <g transform="rotate(-3 32 44) translate(-0.6 0.4)">
+      <path d="M32 32.5 C25.5 33.5 23 36 22.2 40 L19 53.5 Q25 56.5 32 56.5 Q39 56.5 45 53.5 L41.8 40 C41 36 38.5 33.5 32 32.5 Z" fill="#322c66"/>
+      <path d="M27.5 37 C26 42 25.2 47 24.4 52.5" stroke="#241f4d" stroke-width="1.1" fill="none" opacity="0.85"/>
+      <path d="M36.5 37 C38 42 38.8 47 39.6 52.5" stroke="#241f4d" stroke-width="1.1" fill="none" opacity="0.85"/>
+      <path d="M23.4 41.5 Q22.8 45 22.6 48.5" stroke="#241f4d" stroke-width="0.8" fill="none" opacity="0.6"/>
+      <path d="M19 53.5 Q25 56.5 32 56.5 Q39 56.5 45 53.5" stroke="#c8963a" stroke-width="1.5" fill="none"/>
+      <path d="M22.2 40 L19 53.5" stroke="#c8963a" stroke-width="1" fill="none" opacity="0.8"/>
+      <path d="M41.8 40 L45 53.5" stroke="#ff8a2a" stroke-width="1.1" fill="none" opacity="0.5"/>
+      <path d="M26.3 43.35 L26.62 44.18 L27.45 44.5 L26.62 44.82 L26.3 45.65 L25.98 44.82 L25.15 44.5 L25.98 44.18 Z" fill="#d9a63a"/>
+      <path d="M37.7 41.35 L38.02 42.18 L38.85 42.5 L38.02 42.82 L37.7 43.65 L37.38 42.82 L36.55 42.5 L37.38 42.18 Z" fill="#d9a63a"/>
+      <path d="M34.6 49.65 L34.92 50.48 L35.75 50.8 L34.92 51.12 L34.6 51.95 L34.28 51.12 L33.45 50.8 L34.28 50.48 Z" fill="#d9a63a"/>
+      <path d="M32 33.5 C31.3 40 31 46 31.2 55.5 L32.8 55.5 C33 46 32.7 40 32 33.5 Z" fill="#453e8c"/>
+      <line x1="32" y1="34.5" x2="32" y2="55" stroke="#322c66" stroke-width="0.8"/>
+      <circle cx="32" cy="40" r="0.9" fill="#d9a63a"/>
+      <circle cx="32" cy="46" r="0.9" fill="#d9a63a"/>
+      <path d="M25.8 47 C29 48.6 35 48.9 38.2 47.6 L38.2 49.4 C35 50.7 29 50.4 25.8 48.8 Z" fill="#7a2440"/>
+      <path d="M25.8 47 C29 48.6 35 48.9 38.2 47.6" stroke="#d9a63a" stroke-width="0.9" fill="none"/>
+      <line x1="37.8" y1="48.4" x2="39.4" y2="49.4" stroke="#5d3d22" stroke-width="1"/>
+      <rect x="38.9" y="49.2" width="3.6" height="3.2" rx="0.8" fill="#6e4a26" stroke="#4a2f16" stroke-width="0.6"/>
+      <line x1="38.9" y1="50.2" x2="42.5" y2="50.2" stroke="#4a2f16" stroke-width="0.6"/>
+      <circle cx="40.7" cy="50.7" r="0.5" fill="#d9a63a"/>
+      <rect x="23.6" y="53.6" width="5.5" height="8.5" rx="1.8" fill="#2a1c14"/>
+      <line x1="23.6" y1="56.5" x2="29.1" y2="56.5" stroke="#c8963a" stroke-width="1.3"/>
+      <rect x="34.8" y="50.9" width="5.5" height="7.4" rx="1.8" fill="#2a1c14"/>
+      <line x1="34.8" y1="53.8" x2="40.3" y2="53.8" stroke="#c8963a" stroke-width="1.3"/>
+      <path d="M28.5 30.5 Q32 33.5 35.5 30.5 L34.9 33 Q32 34.5 29.1 33 Z" fill="#241f4d"/>
+      <path d="M29.1 32.7 Q32 34.1 34.9 32.7" stroke="#c8963a" stroke-width="0.8" fill="none"/>
+      <rect x="30.7" y="29.6" width="2.6" height="2.6" fill="#e8b892"/>
+      <circle cx="32" cy="26.2" r="5.2" fill="#f0c49e"/>
+      <path d="M35.4 23.6 A5.2 5.2 0 0 1 35.4 28.8" stroke="#ff9d5a" stroke-width="0.8" fill="none" opacity="0.55"/>
+      <circle cx="26.9" cy="27.4" r="1.1" fill="#e8b892"/>
+      <circle cx="37.1" cy="27.4" r="1.1" fill="#e8b892"/>
+      <path d="M28.2 24.7 Q27.4 26.6 28 28.8 Q28.8 26.9 28.8 25.3 Z" fill="#4a3020"/>
+      <path d="M35.8 24.7 Q36.6 26.6 36 28.8 Q35.2 26.9 35.2 25.3 Z" fill="#4a3020"/>
+      <path d="M29.1 25.6 Q30 25.2 30.9 25.6" stroke="#4a3020" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+      <path d="M33.1 25.6 Q34 25.2 34.9 25.6" stroke="#4a3020" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+      <ellipse cx="30.2" cy="26.9" rx="0.9" ry="1" fill="#ffffff"/>
+      <ellipse cx="33.8" cy="26.9" rx="0.9" ry="1" fill="#ffffff"/>
+      <circle cx="30.25" cy="27" r="0.62" fill="#3f6d5a"/>
+      <circle cx="33.75" cy="27" r="0.62" fill="#3f6d5a"/>
+      <circle cx="30.3" cy="27.05" r="0.3" fill="#141021"/>
+      <circle cx="33.7" cy="27.05" r="0.3" fill="#141021"/>
+      <circle cx="29.9" cy="26.6" r="0.2" fill="#ffffff"/>
+      <circle cx="33.4" cy="26.6" r="0.2" fill="#ffffff"/>
+      <path d="M32 27.2 L31.85 28.3 Q32.15 28.7 32.65 28.45" stroke="#d99b72" stroke-width="0.6" fill="none" stroke-linecap="round"/>
+      <path d="M31 29.5 Q32 30.3 33 29.5" stroke="#b06a4a" stroke-width="0.7" fill="none" stroke-linecap="round"/>
+      <ellipse cx="29" cy="28.6" rx="0.8" ry="0.5" fill="#e8a585" opacity="0.4"/>
+      <ellipse cx="35" cy="28.6" rx="0.8" ry="0.5" fill="#e8a585" opacity="0.4"/>
+      <path d="M27.8 24.4 Q32 26.1 36.2 24.4 L36.2 25.2 Q32 26.9 27.8 25.2 Z" fill="#1a1540" opacity="0.3"/>
+      <ellipse cx="32" cy="22.2" rx="10.8" ry="2.4" fill="#221d4f"/>
+      <path d="M23.5 22.8 Q32 24.6 40.5 22.8" stroke="#3a3478" stroke-width="0.6" fill="none" opacity="0.7"/>
+      <path d="M37.8 7.8 C35.6 11.5 31.5 16 28.3 20.2 L36 20.2 C36.4 15 37.2 11.4 37.8 7.8 Z" fill="#2a2463"/>
+      <path d="M37.8 7.8 C37.2 11.4 36.4 15 36 20.2 L34.6 20.2 C35.2 14.8 36.6 11.2 37.8 7.8 Z" fill="#221d55"/>
+      <path d="M27.8 18.2 L36.8 18.2 L37.2 20.6 L27.4 20.6 Z" fill="url(#goldG)"/>
+      <circle cx="30" cy="19.5" r="0.5" fill="#8a5f1d"/>
+      <circle cx="32.4" cy="19.5" r="0.5" fill="#8a5f1d"/>
+      <circle cx="34.8" cy="19.5" r="0.5" fill="#8a5f1d"/>
+      <path d="M34.2 10.9 L34.65 12.05 L35.8 12.5 L34.65 12.95 L34.2 14.1 L33.75 12.95 L32.6 12.5 L33.75 12.05 Z" fill="#f2d27a"/>
+      <path d="M31.6 14.6 L31.94 15.46 L32.8 15.8 L31.94 16.14 L31.6 17 L31.26 16.14 L30.4 15.8 L31.26 15.46 Z" fill="#f2d27a"/>
+      <path d="M28.8 19.2 Q24.6 14.8 22.4 11.6 Q26.4 14.2 27.5 18.7 Z" fill="#3fae8c"/>
+      <line x1="27" y1="18" x2="23.6" y2="12.8" stroke="#2b7d66" stroke-width="0.5"/>
+      <circle cx="37.8" cy="7.8" r="1.1" fill="#d9a63a"/>
+      <line x1="27.3" y1="34.8" x2="23.4" y2="46" stroke="#322c66" stroke-width="3.2" stroke-linecap="round"/>
+      <line x1="25.66" y1="39.5" x2="25.16" y2="40.96" stroke="#241f4d" stroke-width="0.8" opacity="0.8"/>
+      <line x1="24.18" y1="43.76" x2="23.63" y2="45.33" stroke="#c8963a" stroke-width="3.2" stroke-linecap="round"/>
+      <circle cx="23.4" cy="46" r="1.9" fill="#f0c49e"/>
+      <path d="M22.22 46.96 L21.83 47.78 M22.91 47.42 L22.48 48.64 M23.73 47.49 L23.53 48.37" stroke="#d99b72" stroke-width="0.5" fill="none"/>
+      <line x1="51.5" y1="61.2" x2="48.7" y2="13.2" stroke="#6b4527" stroke-width="2.2" stroke-linecap="round"/>
+      <line x1="51.84" y1="60.18" x2="49.01" y2="11.58" stroke="#8a5c33" stroke-width="0.7" opacity="0.85"/>
+      <path d="M49.03 18.79 L48.82 15.2 M48.96 17.59 L50 17.53 M48.89 16.39 L49.93 16.33" stroke="#f2d27a" stroke-width="0.6" fill="none" stroke-linecap="round"/>
+      <path d="M49.27 22.98 L49.06 19.39 M49.2 21.79 L50.25 21.72 M49.13 20.59 L50.18 20.53" stroke="#f2d27a" stroke-width="0.6" fill="none" stroke-linecap="round"/>
+      <line x1="48.77" y1="30.73" x2="50.67" y2="30.61" stroke="#d9a63a" stroke-width="1.3" stroke-linecap="round"/>
+      <line x1="49.29" y1="39.71" x2="51.19" y2="39.6" stroke="#d9a63a" stroke-width="1.3" stroke-linecap="round"/>
+      <line x1="49.82" y1="48.7" x2="51.72" y2="48.58" stroke="#d9a63a" stroke-width="1.3" stroke-linecap="round"/>
+      <ellipse cx="49.57" cy="28.17" rx="0.55" ry="1.2" transform="rotate(-3.34 49.57 28.17)" fill="#3a2414"/>
+      <ellipse cx="50.1" cy="37.16" rx="0.55" ry="1.2" transform="rotate(-3.34 50.1 37.16)" fill="#3a2414"/>
+      <ellipse cx="50.62" cy="46.14" rx="0.55" ry="1.2" transform="rotate(-3.34 50.62 46.14)" fill="#3a2414"/>
+      <ellipse cx="48.7" cy="13.2" rx="2.4" ry="1.1" transform="rotate(-3.34 48.7 13.2)" fill="url(#goldG)"/>
+      <path d="M50.08 14.52 Q51.09 16.47 50.13 17.02 Q49.22 15.17 50.08 14.52 Z" fill="#e6b954"/>
+      <path d="M47.48 14.67 Q46.7 16.72 47.73 17.16 Q48.42 15.22 47.48 14.67 Z" fill="#c08a2b"/>
+      <circle cx="50.13" cy="17.02" r="0.5" fill="#f2d27a"/>
+      <circle cx="47.73" cy="17.16" r="0.5" fill="#f2d27a"/>
+      <circle cx="47.4" cy="16.68" r="0.5" fill="none" stroke="#d9a63a" stroke-width="0.4"/>
+      <circle cx="47.07" cy="17.8" r="0.5" fill="none" stroke="#d9a63a" stroke-width="0.4"/>
+      <line x1="36.7" y1="34.8" x2="49.5" y2="35.5" stroke="#322c66" stroke-width="3.2" stroke-linecap="round"/>
+      <line x1="42.08" y1="35.09" x2="43.74" y2="35.19" stroke="#241f4d" stroke-width="0.8" opacity="0.8"/>
+      <line x1="46.94" y1="35.36" x2="48.73" y2="35.46" stroke="#c8963a" stroke-width="3.2" stroke-linecap="round"/>
+      <circle cx="49.5" cy="35.5" r="1.9" fill="#f0c49e"/>
+      <path d="M50.75 36.37 L51.65 36.52 M51 35.58 L52.3 35.65 M50.84 34.77 L51.75 34.72" stroke="#d99b72" stroke-width="0.5" fill="none"/>
+    <g transform="translate(48.65 12.4) rotate(-3.34)">
+      <circle cx="0" cy="-2.28" r="5.4" fill="url(#glowG)"/>
+      <path d="M0 0 C-2.47 -3.04 -2.09 -6.84 0 -9.88 C2.09 -6.84 2.47 -3.04 0 0 Z" fill="url(#flameG)"/>
+      <path d="M0 0 C-1.49 -1.84 -1.26 -4.14 0 -5.98 C1.26 -4.14 1.5 -1.84 0 0 Z" transform="translate(0.3 -0.7)" fill="#ffb347" opacity="0.95"/>
+      <path d="M0 0 C-0.85 -1.04 -0.72 -2.34 0 -3.38 C0.72 -2.34 0.85 -1.04 0 0 Z" transform="translate(0 -0.9)" fill="#fff3b8"/>
+      <circle cx="0" cy="-3.04" r="4.2" fill="none" stroke="#ffd77a" stroke-width="0.5" stroke-dasharray="1.6 2.6" opacity="0.55"/>
+      <circle cx="-2.8" cy="-1.6" r="0.5" fill="#ffe9a8"/>
+      <circle cx="2.9" cy="-2.4" r="0.45" fill="#ffd77a"/>
+      <circle cx="0.1" cy="-3.6" r="0.5" fill="#fff2c9"/>
+    </g>
   </g>
-  <circle cx="32" cy="35" r="25" fill="url(#glow)"/>
-  <g transform="translate(-1.2,0.6) rotate(-4 32 42)">
-    <!-- языки пламени -->
-    <path d="M32 4 C29.5 8.5 28 11.5 28.8 15.5 C30.6 12.6 31.4 10.8 31.7 8.6 C32.4 11.4 33.6 13.8 36 15.2 C36.2 11 34.6 7.4 32 4 Z" fill="#a5ecff" opacity="0.95"/>
-    <!-- тело -->
-    <path d="M32 12 C25 18 19 27 19 37 C19 47.5 24.5 53.5 32 54.5 C39.5 53.5 45 47.5 45 37 C45 27 39 18 32 12 Z" fill="url(#bodyG)" stroke="#1c7fa3" stroke-width="1.2"/>
-    <ellipse cx="28.5" cy="29" rx="6.5" ry="9.5" fill="#ffffff" opacity="0.4"/>
-    <!-- руки -->
-    <circle cx="15.8" cy="37" r="3.2" fill="#8fe8fa" stroke="#1c7fa3" stroke-width="1"/>
-    <circle cx="48.2" cy="39.5" r="3.2" fill="#8fe8fa" stroke="#1c7fa3" stroke-width="1"/>
-    <!-- лицо -->
-    <circle cx="27.3" cy="33.5" r="2.7" fill="#0d3a4a"/>
-    <circle cx="36.7" cy="33.5" r="2.7" fill="#0d3a4a"/>
-    <circle cx="28.2" cy="32.6" r="0.9" fill="#ffffff"/>
-    <circle cx="37.6" cy="32.6" r="0.9" fill="#ffffff"/>
-    <path d="M29.2 40 Q32 42.6 34.8 40" stroke="#0d3a4a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-  </g>
-  <!-- стопы: левая вперёд, правая оторвана -->
-  <ellipse cx="24.5" cy="55.5" rx="3.6" ry="2.6" fill="#7fdcf4"/>
-  <ellipse cx="38.5" cy="52.5" rx="3.2" ry="2.3" fill="#9ae6f7"/>
 </svg>

@@ -3,6 +3,9 @@
 // Ассеты:
 //   assets/tiles/<террейн>[_n].svg            — текстуры тайлов (вода — анимация);
 //   assets/sprites/phlogiston/<действие>_n.svg — Флогистон (idle/walk/attack/cast);
+//   assets/sprites/efir/<действие>_n.svg       — Эфир (дух, старая форма
+//     Флогистона; задача 000034 — прежние кадры героя перенесены без
+//     изменений, герой перерисован человеком по assets/logo.svg);
 //   assets/sprites/mobs/<моб>_n.svg           — базовые типы мобов;
 //   assets/sprites/buildings/<постройка>.svg  — иконки построек;
 //   assets/sprites/visuals/<элемент>.svg      — декорации тайлов (000021),
@@ -86,6 +89,31 @@
     cast: [
       'assets/sprites/phlogiston/cast_1.svg',
       'assets/sprites/phlogiston/cast_2.svg',
+    ],
+  };
+
+  // Кадры Эфира (задача 000034): добрый дух, старая форма Флогистона —
+  // прежние духовные кадры героя перенесены БЕЗ изменений в
+  // assets/sprites/efir/ (git mv, byte-идентично). ИМЕНА экспортов —
+  // контракт задачи 000114 (EFIR_FRAMES / efirFrames(action)); паттерн
+  // PHLOGISTON_ACTIONS/phlogistonFrames: таблица-литерал, чистая
+  // функция, неизвестное действие → [].
+  const EFIR_FRAMES = {
+    idle: [
+      'assets/sprites/efir/idle_1.svg',
+      'assets/sprites/efir/idle_2.svg',
+    ],
+    walk: [
+      'assets/sprites/efir/walk_1.svg',
+      'assets/sprites/efir/walk_2.svg',
+    ],
+    attack: [
+      'assets/sprites/efir/attack_1.svg',
+      'assets/sprites/efir/attack_2.svg',
+    ],
+    cast: [
+      'assets/sprites/efir/cast_1.svg',
+      'assets/sprites/efir/cast_2.svg',
     ],
   };
 
@@ -458,6 +486,15 @@
   }
 
   /**
+   * Кадры анимации Эфира (задача 000034) для действия
+   * idle|walk|attack|cast. Чистая функция; неизвестное действие → []
+   * (паттерн phlogistonFrames).
+   */
+  function efirFrames(action) {
+    return EFIR_FRAMES[action] || [];
+  }
+
+  /**
    * Декорации тайла (задача 000021): какие небольшие графические
    * объекты рисовать поверх текстуры тайла (tx, ty) террейна terrain.
    * Чистая функция: выбор и позиция — только от координат тайла и
@@ -565,6 +602,8 @@
     const paths = [];
     for (const frames of Object.values(TILE_FRAMES)) paths.push(...frames);
     for (const frames of Object.values(PHLOGISTON_ACTIONS)) paths.push(...frames);
+    // Эфир (задача 000034): 8 кадров (idle/walk/attack/cast × 2).
+    for (const frames of Object.values(EFIR_FRAMES)) paths.push(...frames);
     for (const frames of Object.values(MOB_FRAMES)) paths.push(...frames);
     // Персональный арт мобов (задача 000062): 36 × (move 2 + attack 2
     // + dead 1) = 180 файлов.
@@ -699,6 +738,7 @@
   return {
     TILE_BASE, TILE_FRAMES,
     PHLOGISTON_ACTIONS,
+    EFIR_FRAMES,
     MOB_KINDS, MOB_FRAMES,
     MOB_SPRITE_KINDS, mobSpriteKind,
     MOB_ART_DIR, MOB_ART_FRAME_COUNTS, MOB_ART_ACTIONS, mobArtFrames,
@@ -716,6 +756,7 @@
     wavePhase, waterTileFrame,
     frameIndex, waterFrame,
     tileFrames, mobKind, mobFrames, buildingSprite, phlogistonFrames,
+    efirFrames,
     tileVisuals, visualDrawRect,
     allAssetPaths,
     createSpriteLoader,
