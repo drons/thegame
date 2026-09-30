@@ -127,15 +127,26 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   assert.ok(BE, 'модуль существует');
   assert.ok(BE.EFFECTS && typeof BE.EFFECTS === 'object',
     'EFFECTS — объект-реестр');
-  // 000075 ПЕРЕОПРЕДЕЛЯЕТ пин «реестр ПУСТ» (000071): первая РЕАЛЬНАЯ
-  // запись — '41' (телепорт-круг). 000074/000076 добавят СВОИ записи —
-  // правка этого пина «кто смержился первым» (memory/000075-
-  // teleport-circles.md), чтобы не было тройного конфликта.
-  assert.deepEqual(Object.keys(BE.EFFECTS).sort(), ['41'],
-    'в задаче 000075 в реестре только СВОЯ запись 41');
+  // Пин «кто смержился первым» (memory/000075-teleport-circles.md):
+  // смержены 000075 ('41') и 000076 ('36'/'37'/'38') — полный НАБОР
+  // ['36', '37', '38', '41']; 000074 ('40', '42') и 000077 ('39')
+  // расширят список при своём мерже (000076 в красных тестах намеренно
+  // не фиксировал набор — правка при ребейзе,
+  // memory/000076-temple-blessings.md).
+  assert.deepEqual(Object.keys(BE.EFFECTS).sort(),
+    ['36', '37', '38', '41'],
+    'реестр: 000075 (41) + 000076 (36/37/38)');
+  for (const id of ['36', '37', '38']) {
+    assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
+    assert.equal(typeof BE.EFFECTS[id].apply, 'function',
+      id + ': apply(state)');
+  }
+  assert.equal(Object.prototype.hasOwnProperty.call(BE.EFFECTS, '39'),
+    false, '39 (заброшенный храм) — задача 000077, не в реестре');
   for (const m of ['buildingActions', 'effectIds', 'hasEffects',
     'hasDailyLimit', 'linkTeleportCircles', 'teleportDestination',
-    'teleportCharge', 'serializeTeleports', 'restoreTeleports']) {
+    'teleportCharge', 'serializeTeleports', 'restoreTeleports',
+    'moonDreamHint']) {
     assert.equal(typeof BE[m], 'function', 'BE.' + m + ' — функция');
   }
 });
@@ -151,6 +162,8 @@ test('A2. buildingActions: постройки без записи в реест�
 
 test('A3. buildingActions: NPC есть, эффектов нет — ровно «Диалог»', () => {
   const BE = loadBE();
+  // id 96 — СИНТЕТИЧЕСКИЙ (000075): тест обязан проходить при ЛЮБОМ
+  // составе реестра; 36 с 000076 — «Благословение» (не «без эффектов»).
   const res = BE.buildingActions(
     { id: 96, особые_параметры: {} }, NPC(), makeState());
   assert.equal(res.length, 1, 'один пункт');
@@ -836,6 +849,295 @@ test('A32. apply: нет пары — not-ok «спит»; пара + dest:null 
     'apply не мутирует СНИМОК (hero.gold, save — глубокое сравнение)');
 });
 
+// --- Задача 000076: благословения храма (36 солнце / 38 гора) и «Сон»
+// храма луны (37) — КРАСНЫЕ тесты (TDD), падают до реализации. ---
+//
+// Контракты (решения — memory/000076-temple-blessings.md):
+//   * Реестр: записи '36' (Благословение, солнце — kind 'damage'),
+//     '38' (Благословение, гора — kind 'armor'), '37' («Сон» —
+//     подсказка, без раз-в-день). '39' — НЕ здесь (000077).
+//   * apply('36'/'38') → { ok, buffs, message }: buffs — НОВЫЙ массив
+//     от ЛЕНИВОГО Game.grantBuff(state.save.buffs, 'x,y', day, kind)
+//     (паттерн canUseTodayLazy; Game из globalThis в момент вызова);
+//     grantBuff отсутствует — { ok:false, message:'недоступно' }
+//     (fail-open, 000029). СНИМОК (state) НЕ мутируется (000071/A12):
+//     живой массив buffs меняет main.js (общий хук r.buffs).
+//   * moonDreamHint(map, x, y) — ЧИСТАЯ: полная скан карты (без
+//     радиуса), вход = hasBuilding && building === CAVE_ENTRANCE
+//     (ленивый Game.BUILDING_TYPES, fallback 9) && buildingId !== 48
+//     (развалины — 000073); ближайший по Чебышеву, тай-брейк —
+//     лексикографически меньший (x, затем y); dungeonType — ленивый
+//     Game.dungeonTypeFor(terrain, альфа map.pixelAt(x,y)[3],
+//     fallback 255); нет входов / map бит — { entrance:null,
+//     dungeonType:null } без исключений.
+
+// ЛЕНИВЫЕ Game-функции (как canUseTodayLazy): на время вызова
+// устанавливаем globalThis.Game, затем восстанавливаем (node-realm;
+// vm-песочницы секции B — другие realm, не затрагиваются).
+function withGame(fake, fn) {
+  const had = Object.prototype.hasOwnProperty.call(globalThis, 'Game');
+  const prev = globalThis.Game;
+  globalThis.Game = fake;
+  try {
+    return fn();
+  } finally {
+    if (had) globalThis.Game = prev;
+    else delete globalThis.Game;
+  }
+}
+
+// Синтетическая карта для moonDreamHint: cells — Map 'x,y' → тайл;
+// прочее — пустые тайлы (трава, без постройки). pixelAt — по
+// умолчанию альфа 255 (тесты переопределяют).
+function synthMap(cells) {
+  return {
+    width: 16,
+    height: 16,
+    tileAt(x, y) {
+      const t = cells.get(x + ',' + y);
+      if (t) return t;
+      return {
+        x, y, terrain: 3, passable: true, hasBuilding: false,
+        building: -1, buildingId: null,
+      };
+    },
+    pixelAt() { return [0, 0, 0, 255]; },
+  };
+}
+
+// Тайл входа в пещеру (слот 9): базовая 31, подтипы 31..35,
+// развалины — buildingId 48 (000073).
+function caveTile(x, y, over = {}) {
+  return Object.assign(
+    { x, y, terrain: 3, passable: true, hasBuilding: true,
+      building: 9, buildingId: 31 }, over);
+}
+
+test('A33. каталог (зеркало 000055): 36/38 — «эффект» + раз_в_день; 37 — «эффект» БЕЗ лимита (подсказка бесплатна)', () => {
+  const B = require('../src/buildings.js');
+  const p36 = B.getBuilding(36).особые_параметры;
+  const p37 = B.getBuilding(37).особые_параметры;
+  const p38 = B.getBuilding(38).особые_параметры;
+  // Солнце: +5% урона, 1 день, раз в день (паттерн 000043).
+  assert.equal(p36.раз_в_день, true, '36: раз_в_день — true');
+  assert.equal(typeof p36.эффект, 'string', '36: эффект — текст');
+  assert.match(p36.эффект, /5%/i, '36: текст — +5%');
+  assert.match(p36.эффект, /урон/i, '36: текст — урон');
+  assert.match(p36.эффект, /1 день/i, '36: текст — 1 день');
+  // Гора: +1 броня, 1 день, раз в день.
+  assert.equal(p38.раз_в_день, true, '38: раз_в_день — true');
+  assert.equal(typeof p38.эффект, 'string', '38: эффект — текст');
+  assert.match(p38.эффект, /броня/i, '38: текст — броня');
+  assert.match(p38.эффект, /1 день/i, '38: текст — 1 день');
+  // Луна: подсказка — БЕЗ раз_в_день (подсказка бесплатна).
+  assert.equal(typeof p37.эффект, 'string', '37: эффект — текст');
+  assert.match(p37.эффект, /подсказк|сон/i, '37: текст — подсказка/сон');
+  assert.ok(!p37.раз_в_день, '37: флага раз_в_день НЕТ');
+});
+
+test('A34. apply(«36») — благословение солнца: grantBuff(save.buffs, «x,y», day, «damage») → НОВЫЙ массив в r.buffs; снимок не мутирован', () => {
+  const BE = loadBE();
+  const state = makeState({
+    day: 5, tile: { x: 7, y: -3 }, save: { buffs: [] },
+  });
+  const s0 = JSON.parse(JSON.stringify(state));
+  const calls = [];
+  const sentinel = [{ source: '7,-3', day: 5, kind: 'damage' }];
+  withGame({
+    grantBuff: (buffs, source, day, kind) => {
+      calls.push([buffs, source, day, kind]);
+      return sentinel;
+    },
+  }, () => {
+    const r = BE.EFFECTS['36'].apply(state);
+    assert.equal(r.ok, true, 'ok');
+    assert.equal(r.buffs, sentinel,
+      'r.buffs — тот самый массив grantBuff (мировые buffs не тронуты)');
+    assert.equal(typeof r.message, 'string', 'message есть');
+    assert.match(r.message, /благословение/i, 'message — «благословение»');
+    assert.match(r.message, /5%/i, 'message — +5%');
+    assert.deepEqual(calls, [[state.save.buffs, '7,-3', 5, 'damage']],
+      'grantBuff(save.buffs, «7,-3», 5, «damage»)');
+    assert.deepEqual(state, s0, 'СНИМОК (state) не мутирован');
+  });
+});
+
+test('A35. apply(«38») — благословение горы: kind «armor»', () => {
+  const BE = loadBE();
+  const state = makeState({
+    day: 5, tile: { x: 7, y: -3 }, save: { buffs: [] },
+  });
+  const calls = [];
+  withGame({
+    grantBuff: (buffs, source, day, kind) => {
+      calls.push([buffs, source, day, kind]);
+      return [{ source: '7,-3', day: 5, kind: 'armor' }];
+    },
+  }, () => {
+    const r = BE.EFFECTS['38'].apply(state);
+    assert.equal(r.ok, true, 'ok');
+    assert.deepEqual(calls, [[state.save.buffs, '7,-3', 5, 'armor']]);
+    assert.match(r.message, /благословение/i, 'message — «благословение»');
+    assert.match(r.message, /броня/i, 'message — «броня»');
+  });
+});
+
+test('A36. apply(«36»/«38») БЕЗ Game.grantBuff — fail-open: ok:false, без исключений (000029)', () => {
+  const BE = loadBE();
+  withGame({}, () => {
+    for (const id of ['36', '38']) {
+      const r = BE.EFFECTS[id].apply(makeState({
+        day: 5, tile: { x: 1, y: 2 }, save: { buffs: [] },
+      }));
+      assert.equal(r.ok, false, id + ': ok:false');
+      assert.equal(r.message, 'недоступно', id + ': reason «недоступно»');
+    }
+  });
+});
+
+test('A37. apply(«36»/«38») → РЕАЛЬНЫЙ day.js buffMods: активен день выдачи, на следующий — истёк (контракт 000072)', () => {
+  const BE = loadBE();
+  const D = require('../src/day.js');
+  withGame({ grantBuff: D.grantBuff }, () => {
+    const st = makeState({
+      day: 10, tile: { x: 0, y: 0 }, save: { buffs: [] },
+    });
+    const rd = BE.EFFECTS['36'].apply(st);
+    assert.equal(rd.ok, true);
+    assert.deepEqual(D.buffMods(rd.buffs, 10),
+      { damageMult: 1.05, armor: 0 }, 'солнце: активен в день выдачи');
+    assert.deepEqual(D.buffMods(rd.buffs, 11),
+      { damageMult: 1, armor: 0 }, 'солнце: истёк на следующий день');
+    const ra = BE.EFFECTS['38'].apply(st);
+    assert.equal(ra.ok, true);
+    assert.deepEqual(D.buffMods(ra.buffs, 10),
+      { damageMult: 1, armor: 1 }, 'гора: armor +1 в день выдачи');
+    assert.deepEqual(D.buffMods(ra.buffs, 11),
+      { damageMult: 1, armor: 0 }, 'гора: истёк на следующий день');
+  });
+});
+
+test('A38. moonDreamHint: ближайший по Чебышеву; развалины (48) и другие слоты — НЕ кандидаты; тип — dungeonTypeFor', () => {
+  const BE = loadBE();
+  const D = require('../src/dungeon.js');
+  const M = require('../src/map.js');
+  const cells = new Map();
+  cells.set('2,2', caveTile(2, 2, { terrain: 7 })); // болото → затопленная
+  cells.set('8,2', caveTile(8, 2)); // та же дистанция (3), x больше
+  cells.set('2,8', caveTile(2, 8, { buildingId: 48 })); // развалины — не вход
+  cells.set('5,4', {
+    x: 5, y: 4, terrain: 3, passable: true, hasBuilding: true,
+    building: 8, buildingId: 37, // храм ближе (1) — но НЕ пещера
+  });
+  const map = synthMap(cells);
+  withGame({ BUILDING_TYPES: M.BUILDING_TYPES,
+    dungeonTypeFor: D.dungeonTypeFor }, () => {
+    const h = BE.moonDreamHint(map, 5, 5);
+    assert.deepEqual(h.entrance, { x: 2, y: 2 },
+      'ближайший (2,2); развалины (2,8) и (8,2) не выбраны');
+    assert.equal(h.dungeonType, D.DUNGEON_TYPES.DROWNED,
+      'болото (terrain 7) → затопленная пещера');
+  });
+});
+
+test('A38b. moonDreamHint: холмистый вход — тип по альфа-каналу пикселя (альфа читаётся из map.pixelAt)', () => {
+  const BE = loadBE();
+  const D = require('../src/dungeon.js');
+  const M = require('../src/map.js');
+  const cells = new Map();
+  cells.set('5,2', caveTile(5, 2, { terrain: 5 })); // холм
+  const map = synthMap(cells);
+  map.pixelAt = (x, y) =>
+    (x === 5 && y === 2 ? [0, 0, 0, 10] : [0, 0, 0, 255]);
+  withGame({ BUILDING_TYPES: M.BUILDING_TYPES,
+    dungeonTypeFor: D.dungeonTypeFor }, () => {
+    const h = BE.moonDreamHint(map, 5, 5);
+    assert.deepEqual(h.entrance, { x: 5, y: 2 });
+    assert.equal(h.dungeonType, D.DUNGEON_TYPES.ABYSS,
+      'холм + тёмная альфа (10 < 64) → бездна');
+  });
+});
+
+test('A39. moonDreamHint: входов нет / map отсутствует/бит — null-подсказка, без исключений; без Game — fallback (вход да, тип null)', () => {
+  const BE = loadBE();
+  const D = require('../src/dungeon.js');
+  const M = require('../src/map.js');
+  withGame({ BUILDING_TYPES: M.BUILDING_TYPES,
+    dungeonTypeFor: D.dungeonTypeFor }, () => {
+    assert.deepEqual(
+      BE.moonDreamHint(synthMap(new Map()), 5, 5),
+      { entrance: null, dungeonType: null }, 'входов нет — null');
+    assert.deepEqual(BE.moonDreamHint(null, 5, 5),
+      { entrance: null, dungeonType: null }, 'map=null — без исключений');
+    assert.deepEqual(BE.moonDreamHint({ width: 4, height: 4 }, 1, 1),
+      { entrance: null, dungeonType: null }, 'tileAt нет — fail-open');
+  });
+  // Чужой realm БЕЗ dungeon.js (как A14): CAVE_ENTRANCE fallback 9,
+  // тип — null (вход всё равно виден).
+  withGame({}, () => {
+    const cells = new Map();
+    cells.set('3,3', caveTile(3, 3));
+    const h = BE.moonDreamHint(synthMap(cells), 5, 5);
+    assert.deepEqual(h.entrance, { x: 3, y: 3 },
+      'fallback CAVE_ENTRANCE = 9: вход найден без Game.BUILDING_TYPES');
+    assert.equal(h.dungeonType, null,
+      'dungeonTypeFor нет — тип null (без исключения)');
+  });
+});
+
+test('A40. apply(«37») — «Сон»: сообщение с координатами входа и именем типа (DUNGEON_NAMES); state без map — ok:false; входов нет — ok:true (сообщение, не ошибка)', () => {
+  const BE = loadBE();
+  const D = require('../src/dungeon.js');
+  const M = require('../src/map.js');
+  withGame({
+    BUILDING_TYPES: M.BUILDING_TYPES,
+    dungeonTypeFor: D.dungeonTypeFor,
+    DUNGEON_NAMES: D.DUNGEON_NAMES,
+  }, () => {
+    const cells = new Map();
+    cells.set('2,2', caveTile(2, 2, { terrain: 7 }));
+    const st = makeState({ day: 3, tile: { x: 5, y: 5 }, save: {} });
+    st.map = synthMap(cells);
+    const r = BE.EFFECTS['37'].apply(st);
+    assert.equal(r.ok, true, 'ok');
+    assert.ok(r.message.includes('(2, 2)'),
+      'сообщение — координаты входа: ' + r.message);
+    assert.ok(r.message.includes(
+      D.DUNGEON_NAMES[D.DUNGEON_TYPES.DROWNED]),
+      'сообщение — имя типа из DUNGEON_NAMES: ' + r.message);
+    // state без map — недоступно (не исключение).
+    const r2 = BE.EFFECTS['37'].apply(makeState());
+    assert.equal(r2.ok, false, 'без map — ok:false');
+    // Входов нет — ок (подсказка «не видно»), не ошибка.
+    const r3 = BE.EFFECTS['37'].apply(
+      Object.assign(makeState(), { map: synthMap(new Map()) }));
+    assert.equal(r3.ok, true, 'входов нет — не ошибка');
+    assert.match(r3.message, /не видны/i,
+      'сообщение «входы не видны»: ' + r3.message);
+  });
+});
+
+test('A41. moonDreamHint: детерминизм (повтор — тот же результат); равнодистантные — лексикографически меньший (x, затем y)', () => {
+  const BE = loadBE();
+  const D = require('../src/dungeon.js');
+  const M = require('../src/map.js');
+  const mk = () => {
+    const cells = new Map();
+    cells.set('2,2', caveTile(2, 2));
+    cells.set('8,2', caveTile(8, 2)); // равная Чебышёвская (3), x больше
+    cells.set('2,8', caveTile(2, 8)); // равная дистанция, y больше
+    return synthMap(cells);
+  };
+  withGame({ BUILDING_TYPES: M.BUILDING_TYPES,
+    dungeonTypeFor: D.dungeonTypeFor }, () => {
+    const h1 = BE.moonDreamHint(mk(), 5, 5);
+    const h2 = BE.moonDreamHint(mk(), 5, 5);
+    assert.deepEqual(h1, h2, 'повторный вызов — тот же результат');
+    assert.deepEqual(h1.entrance, { x: 2, y: 2 },
+      'тай-брейк: меньший x, при равенстве — меньший y');
+  });
+});
+
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
 //
 // Паттерн tests/save-restore.test.js: DOM/WebGL-стабы + МОК
@@ -1258,6 +1560,51 @@ function findBuilding(G, myMap, start, wantNpc, pred) {
               return { tile: t, building: b, npc, steps };
             }
           }
+        }
+        next.push({ x: nx, y: ny });
+      }
+    }
+    frontier = next;
+  }
+  return null;
+}
+
+// Задача 000076: BFS по id каталожной записи (t.buildingId — подтип,
+// 000073), НЕ по слоту: все храмы слота 8 имеют building=8 (TEMPLE),
+// подтип — в buildingId (36 солнце / 37 луна / 38 гора / 39
+// заброшенный). Детерминированная карта (фикс. сид, замерено):
+// ближайший достижимый 36 → (7,30), 38 → (50,3), 37 → (55,33).
+function findTempleById(G, myMap, start, wantId) {
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const startKey = start.x + ',' + start.y;
+  const visited = new Set([startKey]);
+  const prev = new Map();
+  let frontier = [{ x: start.x, y: start.y }];
+  for (let depth = 0; depth < 400 && frontier.length; depth++) {
+    const next = [];
+    for (const cur of frontier) {
+      for (const [dx, dy] of DIRS) {
+        const nx = cur.x + dx, ny = cur.y + dy;
+        const k = nx + ',' + ny;
+        if (visited.has(k)) continue;
+        const t = myMap.tileAt(nx, ny);
+        if (!t.passable || t.hasMobGroup) continue;
+        if (t.hasBuilding) {
+          if (t.building === G.BUILDING_TYPES.CAVE_ENTRANCE) continue;
+          if (t.building === G.BUILDING_TYPES.NONE) continue; // город
+        }
+        visited.add(k);
+        prev.set(k, cur.x + ',' + cur.y);
+        if (t.hasBuilding && t.building === G.BUILDING_TYPES.TEMPLE
+            && t.buildingId === wantId) {
+          const steps = [];
+          let kk = k;
+          while (kk !== startKey) {
+            const [px, py] = kk.split(',').map(Number);
+            steps.unshift([px, py]);
+            kk = prev.get(kk);
+          }
+          return { tile: t, steps };
         }
         next.push({ x: nx, y: ny });
       }
@@ -2106,4 +2453,218 @@ test('B16. телепорт «нет проходимого» E2E (pre-seed pair
   assert.equal(g.state.hero.gold, goldBefore, 'золото НЕ списано');
   assert.equal(h.storage.getItem(SAVE_KEY), text0,
     'apply not-ok → saveNow нет: сейв (раздел teleports) не изменён');
+});
+
+// --- Задача 000076: e2e — благословения храмов и «Сон» луны ---
+//
+// Мир детерминированный (фикс. сид, замерено сканом): храмы —
+// подтипы слота 8 (000073), ищутся по t.buildingId:
+//   36 (солнце, NPC Элдира) — ближайший достижимый (7,30);
+//   38 (гора, NPC нет)      — (50,3);
+//   37 (луна, NPC нет)      — (55,33);
+//   39 (заброшенный) — 000077, здесь не покрывается.
+// Ближайший вход в пещеру к (55,33) — (56,26) (buildingId 31, трава;
+// dungeonTypeFor → «простая пещера»); развалины (48) к (55,33) дальше.
+//
+// КРАСНОЕ до реализации: реестра '36'/'37'/'38' нет, роутер [E]
+// (main.js) использует запись БАЗОВУЮ слота (36) — у 37/38 свои
+// действия не появятся (переключение на t.buildingId — часть задачи),
+// c.buffMods в бое нет, data.buffs не пишется действием.
+
+test('B17. «Благословение» e2e: храм солнца (36) — «Диалог» (Элдира) ПЕРВЫМ, затем «Благословение»: buffs в сейве, маркировка раз-в-день, buffMods в бою', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findTempleById(G, myMap, g.state.player, 36);
+  assert.ok(found, 'сценарий: достижимый храм солнца (buildingId 36)');
+  assert.ok(found.steps.length > 0, 'сценарий: путь не пуст');
+  walkTo(h, found.steps);
+  const st = g.state;
+  const t = myMap.tileAt(st.player.x, st.player.y);
+  assert.equal(t.buildingId, 36, 'игрок на храме солнца');
+  const key1 = st.player.x + ',' + st.player.y + ':36';
+  // HUD: NPC (Элдира) + эффект — топ-строка «[E] диалог»,
+  // «Здесь:» — диалог + действия (запись '36' в реестре).
+  frameAt(h, NOW + 200);
+  const hudLine = String(h.hud.textContent);
+  assert.ok(hudLine.includes('[E] диалог'),
+    'топ-строка «  |  [E] диалог»: ' + hudLine);
+  assert.ok(hudLine.includes('([E] Элдира, действия)'),
+    '«Здесь:» — диалог + действия: ' + hudLine);
+  // [E] → buildingUI (НЕ прямой npcUI).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает buildingUI');
+  assert.equal(G.npcUI.isActive(), false, 'npcUI НЕ открывается сразу');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  assert.deepEqual(
+    findAll(ov, '[data-buid]').map((r) => r.dataset.buid),
+    ['dialog', '36'],
+    'строки: «Диалог» (Элдира) ПЕРВЫМ, затем «Благословение» (36)');
+  // До действия — благословений в сейве нет.
+  const saveBefore = readSave(h);
+  assert.ok(saveBefore.data.buffs == null
+    || saveBefore.data.buffs.length === 0,
+    'до действия в data.buffs пусто');
+  // Digit2 — «Благословение» (первая строка — диалог, B20).
+  key(h, 'Digit2');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  assert.ok(String(h.hud.textContent).match(/благословение/i),
+    'hudFlash «Благословение…»: ' + String(h.hud.textContent));
+  // Сейв СРАЗУ (saveNow): data.buffs + data.buildingOncePerDay.
+  const save = readSave(h);
+  assert.deepEqual(save.data.buffs,
+    [{
+      source: st.player.x + ',' + st.player.y, day: st.day, kind: 'damage',
+    }], 'data.buffs — благословение солнца (kind damage) в сейве');
+  assert.equal(save.data.buildingOncePerDay[key1], st.day,
+    'маркировка «x,y:36» → день (раз_в_день из каталога)');
+  // Повторный [E] в тот же день — строка disabled (лимит).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается');
+  const row = findRow(findOverlay(h), '36');
+  assert.ok(row, 'строка «Благословение» в оверлее');
+  assert.equal(row.disabled, true, 'использовано сегодня — disabled');
+  assert.ok(textOf(row).includes('уже использовано сегодня'),
+    'reason виден в строке');
+  key(h, 'Escape');
+  // Благословение действует во ВСЕХ боях дня: отладочный бой →
+  // c.buffMods (wiring main.js → combat-ui.js → createCombat).
+  const c = g.actions.startCombat(3);
+  assert.ok(c, 'отладочный бой запущен');
+  assert.deepEqual(c.buffMods, { damageMult: 1.05, armor: 0 },
+    'бой получил buffMods (солнце: ×1.05 урона, броня 0)');
+});
+
+test('B18. «Благословение» e2e: храм горы (38) — NPC нет («Диалог» отсутствует), kind armor: buffMods {1, 1}', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findTempleById(G, myMap, g.state.player, 38);
+  assert.ok(found, 'сценарий: достижимый храм горы (buildingId 38)');
+  walkTo(h, found.steps);
+  const st = g.state;
+  const t = myMap.tileAt(st.player.x, st.player.y);
+  assert.equal(t.buildingId, 38, 'игрок на храме горы');
+  const key1 = st.player.x + ',' + st.player.y + ':38';
+  // HUD: жреца у 38 в каталоге NPC нет — «[E] действия»,
+  // НЕ «[E] диалог» (без переключения роутера на buildingId здесь
+  // показался бы «[E] диалог» Элдиры — запись базовой 36).
+  frameAt(h, NOW + 200);
+  const hudLine = String(h.hud.textContent);
+  assert.ok(hudLine.includes('[E] действия'),
+    'топ-строка «  |  [E] действия»: ' + hudLine);
+  assert.ok(!hudLine.includes('[E] диалог'),
+    'NPC нет — «[E] диалог» нет: ' + hudLine);
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает buildingUI');
+  assert.equal(G.npcUI.isActive(), false, 'npcUI не открывается');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  assert.deepEqual(
+    findAll(ov, '[data-buid]').map((r) => r.dataset.buid),
+    ['38'], 'ровно ОДНА строка: «Благословение» (38), «Диалога» нет');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const save = readSave(h);
+  assert.deepEqual(save.data.buffs,
+    [{
+      source: st.player.x + ',' + st.player.y, day: st.day, kind: 'armor',
+    }], 'data.buffs — благословение горы (kind armor)');
+  assert.equal(save.data.buildingOncePerDay[key1], st.day,
+    'маркировка «x,y:38» → день');
+  key(h, 'KeyE');
+  const row = findRow(findOverlay(h), '38');
+  assert.equal(row.disabled, true, 'использовано сегодня — disabled');
+  key(h, 'Escape');
+  const c = g.actions.startCombat(3);
+  assert.ok(c, 'отладочный бой запущен');
+  assert.deepEqual(c.buffMods, { damageMult: 1, armor: 1 },
+    'бой получил buffMods (гора: +1 броня)');
+});
+
+test('B19. «Сон» e2e: храм луны (37) — подсказка: ближайший вход (не развалины) + тип подземелья; лимита раз-в-день НЕТ', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findTempleById(G, myMap, g.state.player, 37);
+  assert.ok(found, 'сценарий: достижимый храм луны (buildingId 37)');
+  walkTo(h, found.steps);
+  const st = g.state;
+  const t = myMap.tileAt(st.player.x, st.player.y);
+  assert.equal(t.buildingId, 37, 'игрок на храме луны');
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает buildingUI');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  assert.deepEqual(
+    findAll(ov, '[data-buid]').map((r) => r.dataset.buid),
+    ['37'], 'ровно ОДНА строка: «Сон» (37)');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hudLine = String(h.hud.textContent);
+  // Детерминированная карта: ближайший вход к (55,33) — (56,26)
+  // (buildingId 31, трава → dungeonTypeFor: «простая пещера»).
+  assert.ok(hudLine.includes('(56, 26)'),
+    'подсказка — координаты ближайшего входа: ' + hudLine);
+  assert.ok(hudLine.includes('простая пещера'),
+    'подсказка — имя типа (DUNGEON_NAMES): ' + hudLine);
+  // Лимита НЕТ (флага раз_в_день в каталоге 37 нет):
+  // маркировки в сейве нет, повтор в тот же день — доступен.
+  const save = readSave(h);
+  assert.ok(save.data.buildingOncePerDay['55,33:37'] == null,
+    'маркировки раз-в-день НЕТ (подсказка бесплатна)');
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается снова');
+  const row = findRow(findOverlay(h), '37');
+  assert.equal(row.disabled, false, 'в тот же день — ДОСТУПНО (без лимита)');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false,
+    'повторный «Сон» в тот же день — выполняется');
+  frameAt(h, NOW + 600);
+  assert.ok(String(h.hud.textContent).includes('(56, 26)'),
+    'повторная подсказка — та же (детерминированно)');
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
+});
+
+test('B20. регрессия храма солнца: «Диалог» с Элдирой — ПЕРВАЯ строка (npcUI), «Благословение» — независимое действие', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findTempleById(G, myMap, g.state.player, 36);
+  assert.ok(found, 'сценарий: достижимый храм солнца (36)');
+  walkTo(h, found.steps);
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает buildingUI');
+  const ov = findOverlay(h);
+  const rows = findAll(ov, '[data-buid]');
+  assert.deepEqual(rows.map((r) => r.dataset.buid),
+    ['dialog', '36'], '«Диалог» — ПЕРВАЯ строка');
+  assert.equal(rows[0].disabled, false, '«Диалог» доступен');
+  key(h, 'Digit1'); // «Диалог»
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  assert.equal(G.npcUI.isActive(), true, 'открыт диалог npcUI');
+  const nov = findAll(h.body, '.npc-overlay')[0];
+  assert.ok(nov && textOf(nov).includes('Элдира'),
+    'диалог — Элдира (NPC храма солнца, постройки [20, 36])');
+  // Повторный [E] закрывает диалог (регрессия B4).
+  key(h, 'KeyE');
+  assert.equal(G.npcUI.isActive(), false, 'повторный [E] закрыл диалог');
+  // «Благословение» — независимое действие: доступно после диалога.
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается снова');
+  const row = findRow(findOverlay(h), '36');
+  assert.ok(row, 'строка «Благословение» есть');
+  assert.equal(row.disabled, false,
+    '«Благословение» — доступно (действия независимы)');
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
 });
