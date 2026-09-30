@@ -608,7 +608,7 @@ test('CITY_CONTENT_CONST: зафиксирован (0x434f4e54 «CONT»), нов
 test('seed содержимого = hash2(cityX, cityY, CITY_CONTENT_CONST) >>> 0; wealth в сид НЕ входит; ≠ layout.seed', () => {
   const C = loadCities();
   for (const [id, [x, y]] of Object.entries(C_ANCHORS)) {
-    const rec = CITY_RECORDS.get(id);
+    const rec = CITY_RECORDS.get(Number(id));
     const L = C.createCityLayout(x, y, rec.размер.ширина);
     let seed0 = null;
     for (const w of WEALTHS) {
@@ -656,15 +656,51 @@ test('детерминизм: повторный вызов → идентичн
 // литералы списков построек пиннются ПОСЛЕ ПЕРВОГО ЗЕЛЁНОГО
 // ПРОГОНА (null — плейсхолдер; как в 000104).
 const GOLDEN_CONTENT = {
-  // «id,x,y,wealth» → { seed, buildings }
+  // «id,x,y,wealth» → { seed, buildings } — литералы зафиксированы
+  // из ПЕРВОГО зелёного прогона (зелёная стадия, паттерн 000104):
+  // порядок вызовов rng (таверна: место; дальше: тип → место;
+  // ≤200 попыток; y→x скан без rng) — любое изменение ломает пины.
+  // Деревня (−114,−119): одинаковые колонны входа/выхода → ровно
+  // 2 валидные клетки (1,1)/(1,2) → buildings.length = 2 при
+  // ЛЮБОМ wealth (count = 2+wealth — feasibility-cap, graceful-стоп).
   '51,-119,-104,0': { seed: 1811910784, buildings: [] },
   '51,-119,-104,3': { seed: 1811910784, buildings: [] },
-  '52,-114,-119,0': { seed: 4224836588, buildings: null },
-  '52,-114,-119,2': { seed: 4224836588, buildings: null },
-  '52,-114,-119,3': { seed: 4224836588, buildings: null },
-  '53,100,-40,0':   { seed: 2930258412, buildings: null },
-  '53,100,-40,3':   { seed: 2930258412, buildings: null },
-  '54,-37,21,1':    { seed: 1979804739, buildings: null },
+  '52,-114,-119,0': { seed: 4224836588, buildings: [
+    { x: 1, y: 2, buildingId: 44 },
+    { x: 1, y: 1, buildingId: 1 },
+  ] },
+  '52,-114,-119,2': { seed: 4224836588, buildings: [
+    { x: 1, y: 2, buildingId: 44 },
+    { x: 1, y: 1, buildingId: 1 },
+  ] },
+  '52,-114,-119,3': { seed: 4224836588, buildings: [
+    { x: 1, y: 2, buildingId: 44 },
+    { x: 1, y: 1, buildingId: 1 },
+  ] },
+  '53,100,-40,0':   { seed: 2930258412, buildings: [
+    { x: 7, y: 5, buildingId: 44 },
+    { x: 1, y: 4, buildingId: 25 },
+    { x: 2, y: 4, buildingId: 25 },
+    { x: 7, y: 3, buildingId: 25 },
+  ] },
+  '53,100,-40,3':   { seed: 2930258412, buildings: [
+    { x: 7, y: 5, buildingId: 44 },
+    { x: 1, y: 4, buildingId: 7 },
+    { x: 2, y: 4, buildingId: 7 },
+    { x: 7, y: 3, buildingId: 44 },
+    { x: 8, y: 6, buildingId: 1 },
+    { x: 1, y: 2, buildingId: 44 },
+    { x: 2, y: 6, buildingId: 44 },
+  ] },
+  '54,-37,21,1':    { seed: 1979804739, buildings: [
+    { x: 1, y: 7, buildingId: 44 },
+    { x: 2, y: 11, buildingId: 25 },
+    { x: 5, y: 5, buildingId: 25 },
+    { x: 11, y: 6, buildingId: 10 },
+    { x: 5, y: 12, buildingId: 10 },
+    { x: 10, y: 3, buildingId: 25 },
+    { x: 2, y: 6, buildingId: 10 },
+  ] },
 };
 
 test('golden: фикс. (якорь, тип, wealth) → фикс. seed + список построек', () => {
@@ -685,7 +721,7 @@ test('ссылочная целостность: каждый buildingId ∈ к�
   const C = loadCities();
   for (const [id, [x, y]] of Object.entries(C_ANCHORS)) {
     for (const w of WEALTHS) {
-      const { res } = genFor(C, id, x, y, w);
+      const { res } = genFor(C, Number(id), x, y, w);
       for (const b of res.buildings) {
         assert.ok(CATALOG_BY_ID.has(b.buildingId),
           `тип ${id} (${x},${y}) w${w}: id ${b.buildingId} нет в каталоге`);
@@ -700,11 +736,11 @@ test('ссылочная целостность: каждый buildingId ∈ к�
 test('типы — только из доли_типов cityRecord (source of truth 000053; все 4 типа × wealth)', () => {
   const C = loadCities();
   for (const [id, [x, y]] of Object.entries(C_ANCHORS)) {
-    const rec = CITY_RECORDS.get(id);
+    const rec = CITY_RECORDS.get(Number(id));
     const pool = new Set(
       Object.keys(rec.особые_параметры.доли_типов).map(Number));
     for (const w of WEALTHS) {
-      const { res } = genFor(C, id, x, y, w);
+      const { res } = genFor(C, Number(id), x, y, w);
       for (const b of res.buildings) {
         assert.ok(pool.has(b.buildingId),
           `тип ${id} (${x},${y}) w${w}: id ${b.buildingId} вне доли_типов`);
@@ -787,7 +823,7 @@ test('гигиена размещения: ничего на entrance/exit; ко
   const C = loadCities();
   for (const [id, [x, y]] of Object.entries(C_ANCHORS)) {
     for (const w of WEALTHS) {
-      const { res, L } = genFor(C, id, x, y, w);
+      const { res, L } = genFor(C, Number(id), x, y, w);
       const keys = new Set();
       for (const b of res.buildings) {
         assert.ok(b.x >= 0 && b.x < L.width && b.y >= 0 && b.y < L.height,
