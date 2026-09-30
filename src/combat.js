@@ -21,10 +21,19 @@
 // для ИИ support читается ЛЕНИВО из combatInternals.allySpells (его ставит
 // spells.js — UMD-ловушка 000038; без каталога support — melee-фолбэк).
 //
+// Опыт спутников (задача 000082): при победе c.result.allyXp — каждому
+// ВЫЖИВШЕМУ союзнику kind 'merc' доля companion_xp_share от БАЗОВОГО
+// боевого xp (Math.round, не делится на число спутников; положительный
+// фильтр — Эфир 'efir' (000081) и неизвестные kind вне доли). Чистая
+// арифметика: НОЛЬ новых вызовов c._rng (gold-роллы — до) — бит-в-бит
+// при 0 союзников; игрок — 100% БЕЗ ИЗМЕНЕНИЙ; лог-строка победы —
+// без изменений. В 'fled'/'dead' поля allyXp нет (000087 гвардит
+// outcome === 'victory'). Контракт — memory/000082-companion-xp.md.
+//
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js (mulberry32), player.js (derived/takeDamage/heal/addXp),
 // global-settings.js (level_delta_max, combat_difficulty/combat_difficulties,
-// combat_obstacle_min_frac/combat_obstacle_max_frac).
+// combat_obstacle_min_frac/combat_obstacle_max_frac, companion_xp_share).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -604,7 +613,26 @@
     if (killed.length > 0) {
       P.addXp(c.player, xp);
       c.player.gold += gold;
-      c.result = { outcome: 'victory', xp, gold, defeated: killed.length };
+      // Доля боевого опыта ВЫЖИВШИМ спутникам (задача 000082, SPEC.md
+      // «Спутники» → «Опыт и уровни», memory/000082-companion-xp.md):
+      // каждому живому союзнику kind 'merc' (ПОЛОЖИТЕЛЬНЫЙ фильтр —
+      // Эфир kind 'efir' (000081) и неизвестные kind вне доли:
+      // у Эфира свой пул, он растёт с 100% xp) — Math.round(базовый
+      // xp × companion_xp_share) НЕЗАВИСИМО (не делится на число
+      // спутников). Игрок — без изменений (100% + «Учёный» внутри
+      // P.addXp; «Учёный» спутникам НЕ идёт). Чистая арифметика —
+      // НОЛЬ новых вызовов c._rng (gold-роллы выше) — бит-в-бит
+      // поток RNG сохранён. Настройка читается ЖИВО: Number(...) || 0
+      // (мусор в настройках → 0, бой не падает). allyXp ВСЕГДА массив
+      // (может быть пустым); в 'fled'/'dead' поля нет — обработчик
+      // конца боя (000087) гвардит outcome === 'victory'.
+      // Лог-строка победы — без изменений (сообщения о спутниках —
+      // 000087).
+      const share = Number(settings.SETTINGS.companion_xp_share) || 0;
+      const allyXp = livingAllies(c)
+        .filter((u) => u.kind === 'merc')
+        .map((u) => ({ id: u.id, xp: Math.round(xp * share) }));
+      c.result = { outcome: 'victory', xp, gold, defeated: killed.length, allyXp };
       log(c, `Победа! +${xp} опыта, +${gold} золота.`);
     } else {
       // Все сбежали — лута нет.

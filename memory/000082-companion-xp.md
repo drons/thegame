@@ -127,3 +127,28 @@ tests/global-settings.test.js (ре-пин ключей + тест companion_xp_
   (tests/global-settings.test.js, ре-пин 000079/000103) и API_KEYS
   (tests/companions.test.js, ре-пин 000079: + applyCombatXp,
   + allyDataForEntry).
+
+## Реализация (стадия «реализация») — зафиксированные находки
+
+* **Коллизия ключей npc.js / player.js**: оба экспортируют `skillLevel`
+  (у player.js — ТОЛЬКО secondary; у npc.js — primary ПЕРЕД secondary).
+  В index.html player.js (389) загружается ДО npc.js (393) → в
+  браузерном Game побеждает версия npc.js. Node-UMD companions.js
+  повторяет ЭТОТ порядок merge (perlin → player → npc) — иначе
+  `refusalChance` (Харизма — primary) ломалась (3 теста 000079).
+  Guard player.js в companions.js стоит ПОСЛЕ guard npc.js (под тестом
+  browser-guard 000082 npc-API стаббится).
+* **Кросс-realm семантика VM в тестах** (исправлены 2 бага красной
+  стадии; пины заменены с сохранением интента):
+  * Ошибка, брошенная в VM, НЕ `instanceof` хостового Error (прототип —
+    Error песочницы) → браузер-тест guard проверяет свойства
+    (typeof e.message + регулярки), а не instanceof.
+  * Объекты/массивы, СОЗДАННЫЕ в VM, не проходят deepStrictEqual с
+    хост-литералами (прототипы) → браузер-тест applyCombatXp пинит
+    events через JSON.stringify (паттерн day.test.js; фиксирует контент
+    и порядок ключей {type, npcId, level}).
+  Для будущих vm-тестов (000085/000087): не deepStrictEqual-ить
+  объекты, созданные в песочнице; не instanceof-ить её ошибки.
+* Бит-в-бит подтверждён: все 1110 базовых тестов (вкл. 107 combat)
+  зелёны БЕЗ правок; 0 новых вызовов c._rng в checkVictory;
+  лог-строка победы не тронута.

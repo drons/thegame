@@ -19,16 +19,32 @@
 // Форма записи отряда ЗАФИКСИРОВАНА под сейв 000085: ровно
 // {npcId, level, xp, loyalty, hiredDay} (000082/000085 не меняют).
 //
+// Опыт и уровни (задача 000082, SPEC.md «Спутники» → «Опыт и уровни»):
+// applyCombatXp — применяет c.result.allyXp (доля боевого xp, combat.js)
+// к записям: xp += доля, повышение порогом xpForNext (while — один бой
+// может дать несколько уровней; остаток копится между боями); тихий
+// skip «призраков»/мусора; возврат {applied, levelUps, events}.
+// allyDataForEntry — мост в бой (000087): данные makeAlly из записи +
+// каталога найма (id — npcId, level — из записи; рост статов
+// имплицитный — makeAlly пересчитывает из уровня; «призрак» → null).
+// Контракт — memory/000082-companion-xp.md.
+//
 // Зависимости: global-settings.js (max_companions, companion_loyalty,
 // companion_refusal — читаются ЖИВО при вызове, паттерн combat.js, не
 // захват при загрузке), perlin.js (hash2/mulberry32),
-// npc.js (skillLevel/hireCandidates — стабильный API 000078).
+// npc.js (skillLevel/hireCandidates — стабильный API 000078),
+// player.js (xpForNext — порог уровня, 000082; в браузере — топовый
+// ключ Game.xpForNext, в node — require).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
+    // Порядок merge = порядок index.html (player.js ДО npc.js): у обоих
+    // общий ключ skillLevel — побеждает версия npc.js (читает primary
+    // ПЕРЕД secondary — refusalChance/loyalty от Харизмы, 000079).
     module.exports = factory(
       require('./global-settings.js'),
-      Object.assign({}, require('./perlin.js'), require('./npc.js')));
+      Object.assign({}, require('./perlin.js'), require('./player.js'),
+        require('./npc.js')));
   } else {
     const G0 = typeof root.Game === 'object' ? root.Game : {};
     root.Game = Object.assign({}, G0,
@@ -49,6 +65,13 @@ function (settings, G) {
       typeof G.skillLevel !== 'function') {
     throw new Error('companions.js: не найден npc.js — ' +
       'загрузите npc.js до companions.js');
+  }
+  // player.js (xpForNext — порог уровня, 000082): в браузере топовый
+  // ключ Game.xpForNext (player.js разворачивает экспорты прямо в
+  // Game, не в Game.Player).
+  if (typeof G.xpForNext !== 'function') {
+    throw new Error('companions.js: не найден player.js — ' +
+      'загрузите player.js до companions.js');
   }
 
   // Разные события — разные константы-сиды (3-й аргумент hash2).
@@ -268,8 +291,91 @@ function (settings, G) {
       (n) => !hired.has(n.id) && !dead.has(n.id));
   }
 
+  // --- Опыт и уровни (задача 000082) ---
+
+  /**
+   * Применяет долю боевого опыта к записям отряда (задача 000082,
+   * SPEC.md «Спутники» → «Опыт и уровни»).
+   * @param {Array} roster отряд (записи {npcId, level, xp, loyalty,
+   *   hiredDay}) — мутируется.
+   * @param {Array} gains c.result.allyXp = [{id, xp}] (000082: id —
+   *   npcId, xp — доля каждого выжившего; «фолбэк-мусор» после
+   *   сейва/UI допустим).
+   * @returns {{applied:number, levelUps:number, events:object[]}}
+   *   ЧИСТАЯ функция (без rng/DOM, паттерн payWages):
+   *   * xp += доля; повышение уровня порогом xpForNext (src/player.js):
+   *     while-цикл — один бой может дать НЕСКОЛЬКО уровней; остаток xp
+   *     копится между боями (в записи). Потолка уровня в v1 нет (как у
+   *     игрока — SPEC);
+   *   * ТИХИЙ skip (без исключений, applied не считает): запись не
+   *     найдена («призрак»/неизвестный id), xp ≤ 0, xp не число
+   *     (NaN/«мусор»), gains не массив (null/строка/объект/undefined)
+   *     → {applied:0, levelUps:0, events:[]}, roster без изменений;
+   *   * events: [{type:'level_up', npcId, level}] — событие на каждое
+   *     повышение (level — НОВОЕ значение), в порядке записей roster.
+   *     Паттерн payWages.events: 000087 → hudFlash + saveNow.
+   *     Отдельных xp-событий нет («+N опыта» 000087 строит из
+   *     c.result.allyXp сам).
+   *   Форма записи НЕМЕНЯЕТСЯ (сейв 000085): новых полей нет, очков
+   *   навыков нет (v1).
+   */
+  function applyCombatXp(roster, gains) {
+    const events = [];
+    let applied = 0;
+    let levelUps = 0;
+    if (!Array.isArray(gains)) return { applied, levelUps, events };
+    const entries = roster || [];
+    for (const g of gains) {
+      if (!g || typeof g.xp !== 'number' ||
+          !Number.isFinite(g.xp) || g.xp <= 0) continue;
+      const e = entries.find((x) => x && x.npcId === g.id);
+      if (!e) continue;
+      e.xp += g.xp;
+      applied += 1;
+      while (e.xp >= G.xpForNext(e.level)) {
+        e.xp -= G.xpForNext(e.level);
+        e.level += 1;
+        levelUps += 1;
+        events.push({ type: 'level_up', npcId: e.npcId, level: e.level });
+      }
+    }
+    return { applied, levelUps, events };
+  }
+
+  /**
+   * Мост в бой (задача 000082, для 000087): данные makeAlly из записи
+   * отряда + каталога найма:
+   *   {id: npc.id (— npcId), name, role, level: entry.level, dmg, hp,
+   *   armor?, skills, spells, kind:'merc'}.
+   * Рост статов ИМПЛИЦИТНЫЙ: в запись статы не пишутся (форма
+   * зафиксирована) — makeAlly пересчитывает maxHP/damage/armor из
+   * нового уровня при следующем createCombat (формулы makeMob).
+   * «Призрак» (npc нет / найм-данных нет / entry.npcId ≠ npc.id) →
+   * null (тихий skip — 000087 не шлёт таких в бой).
+   */
+  function allyDataForEntry(entry, npc) {
+    if (!entry || !npc || npc.id !== entry.npcId) return null;
+    const h = npc.найм;
+    if (!h || typeof h !== 'object') return null;
+    return {
+      id: npc.id,
+      name: npc.имя,
+      role: h.роль,
+      level: entry.level,
+      dmg: h.dmg,
+      hp: h.hp,
+      armor: h.armor,
+      skills: (h.skills || []).slice(),
+      spells: (h.spells || []).slice(),
+      kind: 'merc',
+    };
+  }
+
   return {
     createRoster, canHire, hire, canDismiss, dismiss,
     wagesTotal, payWages, loyaltyTick, candidatesForTavern, eventSeed,
+    // Опыт и уровни (задача 000082): применение доли боевого xp и
+    // мост roster → данные makeAlly (000087).
+    applyCombatXp, allyDataForEntry,
   };
 });

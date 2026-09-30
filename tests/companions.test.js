@@ -933,7 +933,9 @@ test('000082 браузер: без player.js — понятная ошибка 
     () => vm.runInContext(
       fs.readFileSync(path.join(__dirname, '..', 'src', 'companions.js'), 'utf8'),
       sandbox, { filename: 'companions.js' }),
-    (e) => e instanceof Error
+    // Кросс-realm: ошибка СОЗДАНА в VM — `e instanceof Error` (хост)
+    // ложна (прототип — Error песочницы). Проверяем свойства.
+    (e) => e && typeof e.message === 'string'
       && /companions\.js/.test(e.message)
       && /player\.js/.test(e.message),
     'guard: «companions.js: … player.js …» (имена обоих файлов)');
@@ -961,5 +963,10 @@ test('000082 браузер: applyCombatXp работает в браузерн�
   assert.equal(res.levelUps, 1);
   assert.equal(roster[0].level, 2, 'level-up в браузерном realm');
   assert.equal(roster[0].xp, 5);
-  assert.deepEqual(res.events, [{ type: 'level_up', npcId: 'merc_volk', level: 2 }]);
+  // События СОЗДАНЫ в VM-realm: deepStrictEqual отклоняет их
+  // (прототип — Object.prototype песочницы, не хоста — кросс-realm
+  // семантика, проверено). JSON-пин (паттерн day.test.js) фиксирует
+  // контент И порядок ключей {type, npcId, level}.
+  assert.equal(JSON.stringify(res.events),
+    JSON.stringify([{ type: 'level_up', npcId: 'merc_volk', level: 2 }]));
 });
