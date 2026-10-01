@@ -562,7 +562,10 @@
     if (c.ps.blocked) {
       dmg *= 1 - Math.min(0.6, 0.2 + 0.02 * p.primary.constitution);
     }
-    dmg = Math.max(0, Math.round(dmg) - d.armor - I.equipmentStats(p).armor);
+    // Задача 000076: благословение горы (c.buffMods.armor, 000072) —
+    // +броня поверх уровня/снаряжения. Дефолт 0 — бит-в-бит (−0).
+    dmg = Math.max(0, Math.round(dmg) - d.armor - I.equipmentStats(p).armor
+      - c.buffMods.armor);
     if (dmg > 0) P.takeDamage(p, dmg);
     if (!p.alive) {
       // «Несокрушимость»: шанс выжить смертельный удар — 1 раз в игровой день
@@ -677,6 +680,11 @@
       const base = 3 + Math.floor(p.primary.strength * 0.8) + Math.floor(p.level * 0.5);
       dmg = base * (1 + d.fistDamageBonus + d.heavyDamageBonus);
     }
+    // Задача 000076: благословение солнца (c.buffMods.damageMult, 000072)
+    // — множитель к расчётному урону (удар И стрельба — обе ветки
+    // формулы). Применён ДО round() в dealDamageToMob; дефолт ×1 —
+    // бит-в-бит, НОЛЬ новых вызовов c._rng (детерминизм 000080/000082).
+    dmg *= c.buffMods.damageMult;
     const hitBonus = eq.damage > 0 ? eq.hitBonus : d.swordHitBonus;
     if (c._rng() >= hitChance(p.level, hitBonus, t.level, 0)) {
       log(c, `Вы промахнулись (${t.name}).`);
@@ -711,8 +719,11 @@
       if (unitDist(c, t) > SPELL_MAX_DIST) return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
       c.ps.spellInt -= 1;
       p.mp -= 3;
-      // Заклинание: всегда попадает, игнорирует броню.
-      const dmg = Math.round((3 + 0.5 * p.primary.intelligence) * (1 + d.fireDamageBonus));
+      // Заклинание: всегда попадает, игнорирует броню. Задача 000076:
+      // благословение солнца (c.buffMods.damageMult) — ×множитель
+      // (дефолт ×1 — бит-в-бит, НОЛЬ новых вызовов c._rng).
+      const dmg = Math.round((3 + 0.5 * p.primary.intelligence)
+        * (1 + d.fireDamageBonus) * c.buffMods.damageMult);
       const r = dealDamageToMob(c, t, dmg, true);
       log(c, `Огненная стрела по ${t.name}: ${r.dmg}.`);
       // Практика: каст даёт опыт «Повелителю огня» (задача 000013).
@@ -1502,6 +1513,24 @@
     }
   }
 
+  // Задача 000076: нормализация opts.buffMods (благословения храма,
+  // 000072). Не-объект/мусор — нейтральный дефолт (fail-open, 000029):
+  // бой не падает. damageMult — число > 0, armor — число >= 0;
+  // невалидное поле — дефолт (неполный объект доводится до полного).
+  function normalizeBuffMods(m) {
+    const out = { damageMult: 1, armor: 0 };
+    if (!m || typeof m !== 'object' || Array.isArray(m)) return out;
+    const dm = m.damageMult;
+    if (typeof dm === 'number' && Number.isFinite(dm) && dm > 0) {
+      out.damageMult = dm;
+    }
+    const ar = m.armor;
+    if (typeof ar === 'number' && Number.isFinite(ar) && ar >= 0) {
+      out.armor = ar;
+    }
+    return out;
+  }
+
   /**
    * Создаёт бой.
    * @param {object} opts
@@ -1521,9 +1550,17 @@
    *   'support', level, dmg, hp, armor?, skills?, spells?, attrs?, kind?,
    *   id?, maxHP?, damage? }. Без allies — бой БИТ-В-БИТ как без 000080
    *   (расстановка союзников не потребляет c._rng).
+   * @param {{damageMult?: number, armor?: number}} [opts.buffMods]
+   *   благословения храма (задача 000076, 000072): { damageMult —
+   *   множитель урона игрока (удар/стрельба/заклинания), armor —
+   *   +броня игрока } из day.js buffMods(buffs, day). Нормализуется в
+   *   c.buffMods (дефолт { damageMult: 1, armor: 0 }; мусор — дефолт,
+   *   fail-open). Дефолт — бой БИТ-В-БИТ как без 000076 (×1/−0),
+   *   НОЛЬ новых вызовов c._rng (детерминизм 000080/000082).
    * @returns {object} объект боя c. Поле c.obstacles (задача 000050) —
    *   Set 'x,y' непроходимых клеток (может быть пустым); генерация —
-   *   generateObstacles, детерминирована по сиду.
+   *   generateObstacles, детерминирована по сиду. Поле c.buffMods
+   *   (задача 000076) — нормализованные { damageMult, armor }.
    */
   function createCombat(opts) {
     const p = opts.player;
@@ -1603,6 +1640,10 @@
       },
       _rng: rng,
       day,
+      // Задача 000076: благословения храма (000072) — ПАРАМЕТР боя,
+      // не поле персонажа (derived не трогается). Дефолт ×1/−0 —
+      // бит-в-бит как без 000076.
+      buffMods: normalizeBuffMods(opts.buffMods),
     };
     // Мобы — в верхней части, игрок — в центре нижнего края.
     placeUnits(c, mobs);

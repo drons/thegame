@@ -915,3 +915,28 @@ test('боевой UI: шаг в препятствие по клавише — 
   assert.equal(c.px, x0, 'позиция не изменилась');
   assert.equal(c.py, y0, 'позиция не изменилась');
 });
+
+test('боевой UI: 000076 — startCombat пробрасывает buffMods в createCombat (wiring main.js → ядро боя)', () => {
+  const { G } = loadCombatUi();
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    buffMods: { damageMult: 1.05, armor: 1 },
+  });
+  assert.ok(c, 'бой создан');
+  // c.buffMods — объект из vm-песочницы (чужой realm): deepStrictEqual
+  // сравнивает Object.prototype между realm'ами и падает даже на
+  // равные по структуре — сравнение через JSON-нормализацию
+  // (контракт — точные значения).
+  assert.deepEqual(JSON.parse(JSON.stringify(c.buffMods)),
+    { damageMult: 1.05, armor: 1 },
+    'buffMods дошёл до контекста боя (G.createCombat)');
+  // Без buffMods — нейтральный дефолт (своя песочница: isActive()).
+  const h2 = loadCombatUi();
+  const c2 = h2.G.combatUI.startCombat({
+    hero: h2.G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c2, 'бой создан');
+  assert.deepEqual(JSON.parse(JSON.stringify(c2.buffMods)),
+    { damageMult: 1, armor: 0 },
+    'без opts.buffMods — нейтральный дефолт');
+});

@@ -259,6 +259,14 @@
   // (имя зафиксировано 000072). СКАН пары — только при ПЕРВОМ подходе
   // (openBuildingUI, не в кадре); повторного скана НЕТ (кэш в сейве).
   const teleports = new Map();
+  // Задача 000076: модификаторы активных благословений на текущий
+  // день (day.js buffMods, 000072) — для точек создания боя:
+  // благословение действует во ВСЕХ боях дня (мир/подземелье/
+  // отладочный). day.js отсутствует — undefined (ядро боя —
+  // нейтральный дефолт, fail-open).
+  function currentBuffMods() {
+    return G.buffMods ? G.buffMods(buffs, clock.day) : undefined;
+  }
 
   // --- Сохранение (задача 000031; механизм — src/save.js) ---
   // Состояние мира и игрока — в localStorage. Версия структур данных
@@ -656,8 +664,12 @@
         tile: { x: player.x, y: player.y },
         hero,
         // СНИМОК сейва (обычный объект, 000072): эффект не получает
-        // живых ссылок на состояние мира.
+        // живых ссылок на состояние мира. Исключение (000076): map —
+        // READ-ONLY ссылка на живую карту (для «Сна» 37 — подсказка
+        // сканирует тайлы; запись эффекта карту не мутирует —
+        // задокументировано memory/000076-temple-blessings.md).
         save: collectSaveData(),
+        map: map || null,
       });
       if (!r || !r.ok) {
         // Отказ apply: видимый отказ (message → hudFlash), без
@@ -702,6 +714,15 @@
         if (mover) mover.teleport(player.x, player.y); // снап (000033):
         // персонаж не «скользит» от старой точки (паттерн
         // restoreFromSave).
+      }
+      // Задача 000076: ОБЩИЙ хук «apply вернул новое состояние» —
+      // r.buffs (НОВЫЙ массив, grantBuff 000072) заменяет содержимое
+      // живого массива buffs ДО saveNow (СНИМОК не мутировался —
+      // main.js владеет живым состоянием). Не храм-специфично: любой
+      // эффект-запись может нести новое состояние.
+      if (Array.isArray(r.buffs)) {
+        buffs.length = 0;
+        for (const b of r.buffs) buffs.push(b);
       }
       if (BE.hasDailyLimit(b, action.id)) {
         buildingOncePerDay.set(
@@ -792,7 +813,11 @@
       day: clock.day,
       tile: { x: player.x, y: player.y },
       hero,
+      // СНИМОК (000071) + map — READ-ONLY ссылка (000076, см.
+      // onBuildingAction): available?(state) эффектов получает то же
+      // состояние, что apply.
       save: collectSaveData(),
+      map: map || null,
     });
     if (!actions.length) return false;
     // Заголовок — имя РЕШЁННОЙ записи (000075 RESOLVE-БУГ, 000073):
@@ -814,6 +839,23 @@
       onAction: (a) => onBuildingAction(a, t, b, npc),
     });
     return true;
+  }
+
+  // Каталожная запись тайла (задача 000076, подтипы 000073):
+  // ПОДТИП (t.buildingId — id каталожной записи 36..39 и пр.)
+  // ПРЕВЫШАЕТ базовую запись слота — у подтипа свои NPC/эффекты/
+  // имя (храм горы 38 — без Элдиры, у Элдиры постройки [20, 36]).
+  // Без подтипа (слоты 0..7 — buildingId null) либо без каталога
+  // (getBuilding → null) — базовая запись слота (как до задачи).
+  // Город (000103: building NONE, buildingId 51..54) — запись через
+  // buildingId; базовой записи слота -1 нет — поведение как до.
+  function buildingRecForTile(t) {
+    if (!t || !t.hasBuilding) return null;
+    if (t.buildingId != null) {
+      const rec = G.getBuilding ? G.getBuilding(t.buildingId) : null;
+      if (rec) return rec;
+    }
+    return G.buildingForMapIndex(t.building);
   }
 
   // Действие [E] (задача 000010, задача 000071 — ЕДИНЫЙ путь): роутинг
@@ -846,14 +888,7 @@
       if (map) {
         const t = map.tileAt(player.x, player.y);
         if (t.hasBuilding) {
-          // 000075 RESOLVE-БУГ: запись тайла ПО buildingId (подтип
-          // слотов 8..12 — РЕАЛЬНАЯ запись; базовая запись слота —
-          // обобщённое имя, НЕ запись тайла) — ОДИН И ТОТ ЖЕ
-          // выражение, что и в HUD/тесте (memory/000075-
-          // teleport-circles.md).
-          const b = t.buildingId != null
-            ? G.getBuilding(t.buildingId)
-            : G.buildingForMapIndex(t.building);
+          const b = buildingRecForTile(t); // 000076: подтип слота 8..12
           if (b) {
             const npc = G.npcForBuilding(NPCS, b.id);
             openBuildingUI(t, b, npc);
@@ -874,11 +909,7 @@
     if (map) {
       const t = map.tileAt(player.x, player.y);
       if (t.hasBuilding) {
-        // 000075 RESOLVE-БУГ: та же резолюция по buildingId (см.
-        // выше в toggleNpcDialog).
-        const b = t.buildingId != null
-          ? G.getBuilding(t.buildingId)
-          : G.buildingForMapIndex(t.building);
+        const b = buildingRecForTile(t); // 000076: подтип слота 8..12
         const npc = b && G.npcForBuilding(NPCS, b.id);
         if (npc) openNpcDialog(npc, t);
       }
@@ -1015,6 +1046,8 @@
       prev: { x: prevPos.x, y: prevPos.y },
       seed: G.hash2(player.x, player.y, 0x5eedc0de),
       day: clock.day,
+      // Задача 000076: активные благословения — во ВСЕХ боях дня.
+      buffMods: currentBuffMods(),
       onEnd: (res) => {
         if (res.outcome === 'victory') {
           defeatedAt.set(key, clock.day);
@@ -1141,6 +1174,8 @@
       prev: { x: ds.prevX, y: ds.prevY },
       seed: G.hash2(g.boss ? 999 : (parseInt(g.id.slice(1), 36) || 17), g.level, 0xb055),
       day: clock.day,
+      // Задача 000076: активные благословения — во ВСЕХ боях дня.
+      buffMods: currentBuffMods(),
       onEnd: (res) => {
         if (res.outcome === 'victory') {
           g.defeated = true;
@@ -1569,17 +1604,10 @@
     const d = G.derived(hero);
     const key = player.x + ',' + player.y;
     // NPC постройки текущего тайла (задача 000010) — подсказка [E].
-    // 000075 RESOLVE-БУГ: запись тайла ПО buildingId (подтип слотов
-    // 8..12 — РЕАЛЬНАЯ запись тайла; базовая запись слота —
-    // обобщённое имя) — ОДИН И ТОТ ЖЕ выражение, что и в
-    // toggleNpcDialog (memory/000075-teleport-circles.md): без
-    // него эффекты подтипов (41) не видны в подсказке «[E]
-    // действия».
-    const bHere = t.hasBuilding
-      ? (t.buildingId != null
-          ? G.getBuilding(t.buildingId)
-          : G.buildingForMapIndex(t.building))
-      : null;
+    // Задача 000076: подтип слота 8..12 (buildingId) — СВОЯ запись
+    // (свои NPC/эффекты): храм горы (38) — «[E] действия» БЕЗ
+    // «[E] диалог» (Элдира — только 20/36). Базовые слоты — как до.
+    const bHere = buildingRecForTile(t);
     const npcHere = bHere && G.npcForBuilding ? G.npcForBuilding(NPCS, bHere.id) : null;
     // Эффекты постройки (задача 000071): ПОДСКАЗКА «[E] действия» —
     // только когда NPC НЕТ (NPC без эффектов — ТЕКУЩИЙ текст,
@@ -1849,6 +1877,8 @@
           prev: { x: player.x, y: player.y },
           seed: 42,
           day: clock.day,
+          // Задача 000076: активные благословения — во ВСЕХ боях дня.
+          buffMods: currentBuffMods(),
           onEnd: (res) => {
             // Лут/опыт уже начислены в ядре (checkVictory).
             // Квесты: kill_group (задача 000010).
@@ -1865,7 +1895,7 @@
         if (G.npcUI.isActive()) return true;
         const t = map.tileAt(player.x, player.y);
         if (!t.hasBuilding) return false;
-        const b = G.buildingForMapIndex(t.building);
+        const b = buildingRecForTile(t); // 000076: подтип слота 8..12
         const npc = b && G.npcForBuilding(NPCS, b.id);
         if (!npc) return false;
         G.npcUI.open({

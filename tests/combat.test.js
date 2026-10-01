@@ -2842,3 +2842,159 @@ test('000082: практика НЕ начисляется спутникам �
     'игрок не действовал; атака союзника НЕ вызывает P.skillPractice (v1)');
   assert.equal(c.result.xp, 16, 'опыт боя — всё равно игроку (100%)');
 });
+
+// --- Задача 000076: благословения храмов в формулах боя (КРАСНЫЕ) ---
+//
+// Контракты (решения — memory/000076-temple-blessings.md):
+//   * opts.buffMods { damageMult, armor } → c.buffMods (нормализовано,
+//     дефолт {damageMult:1, armor:0}; мусор — дефолт, fail-open).
+//   * Урон игрока (удар/стрельба — playerAttack, «огонь» —
+//     playerSpell) × c.buffMods.damageMult; урон ПО ИГРОКУ —
+//     − c.buffMods.armor (уровень d.armor + снаряжение).
+//   * НОЛЬ новых вызовов c._rng: без баффа (×1/−0) бой БИТ-В-БИТ
+//     как сейчас (регрессия 000080/000082); союзники баффуются НЕ
+//     должны (множитель — только playerAttack/playerSpell/
+//     dealDamageToPlayer, НЕ dealDamageToMob allyAct-пути).
+
+test('000076: c.buffMods — параметр контекста боя: дефолт {damageMult:1, armor:0}; мусор — дефолт (fail-open)', () => {
+  // Без opts.buffMods — нейтральный дефолт (без баффа — бит-в-бит).
+  const c = createCombat({ player: strongHero(), groupType: 0, seed: 11 });
+  assert.deepEqual(c.buffMods, { damageMult: 1, armor: 0 },
+    'без opts.buffMods — нейтральный дефолт');
+  // Мусор — дефолт (fail-open, 000029): бой не падает.
+  for (const junk of [null, 'x', [1], 5, {},
+    { damageMult: -1, armor: -2 }, { damageMult: 'a', armor: null }]) {
+    const cj = createCombat({
+      player: strongHero(), groupType: 0, seed: 11, buffMods: junk,
+    });
+    assert.deepEqual(cj.buffMods, { damageMult: 1, armor: 0 },
+      'мусор ' + JSON.stringify(junk) + ' — дефолт');
+  }
+  // Валидное — как есть; неполное — недостающее поле в дефолт.
+  const c2 = createCombat({
+    player: strongHero(), groupType: 0, seed: 11,
+    buffMods: { damageMult: 1.05, armor: 1 },
+  });
+  assert.deepEqual(c2.buffMods, { damageMult: 1.05, armor: 1 },
+    'валидное buffMods — в c.buffMods');
+  const c3 = createCombat({
+    player: strongHero(), groupType: 0, seed: 11,
+    buffMods: { damageMult: 1.05 },
+  });
+  assert.deepEqual(c3.buffMods, { damageMult: 1.05, armor: 0 },
+    'armor отсутствует — дефолт 0');
+});
+
+test('000076: благословение солнца — урон playerAttack ×1.05; без баффа — как сейчас (регрессия)', () => {
+  const setup = (buffMods) => {
+    const p = strongHero();
+    p.primary.strength = 20; // база кулаков = 3 + floor(20*0.8) + 0 = 19
+    const c = createCombat({ player: p, groupType: 0, seed: 11, buffMods });
+    c._rng = () => 0.01; // гарантированное попадание
+    const w = c.units.find((u) => u.mobId === 'orc_warrior');
+    standNextTo(c, w);
+    w.hp = 9999; w.maxHP = 9999; // сценарий: один удар не убивает
+    return { c, w };
+  };
+  const base = 3 + Math.floor(20 * 0.8) + Math.floor(1 * 0.5); // 19
+  assert.ok(base > 1, 'сценарий: база урона > 1 (округление 1.05 виден)');
+  const a = setup(undefined);
+  const r0 = a.c.attack(a.w.id);
+  assert.equal(r0.ok, true, 'удар');
+  assert.equal(r0.hit, true, 'попадание');
+  assert.equal(a.w.hp, 9999 - Math.max(1, base - a.w.armor),
+    'без баффа — текущая формула (регрессия)');
+  const b = setup({ damageMult: 1.05, armor: 0 });
+  const r1 = b.c.attack(b.w.id);
+  assert.equal(r1.hit, true, 'попадание');
+  assert.equal(b.w.hp,
+    9999 - Math.max(1, Math.round(base * 1.05) - b.w.armor),
+    'с благословением — урон ×1.05');
+});
+
+test('000076: благословение солнца — заклинание «огонь» ×1.05 (броня по-прежнему игнорируется); без баффа — как сейчас', () => {
+  const setup = (buffMods) => {
+    const p = createCharacter();
+    p.primary.intelligence = 20; // (3 + 0.5*20) = 13
+    p.mp = 20;
+    const c = createCombat({ player: p, groupType: 0, seed: 27, buffMods });
+    const w = c.units.find((u) => u.mobId === 'orc_warrior');
+    w.x = c.px; w.y = c.py - 1; // подтянуть цель в дальность
+    w.hp = 9999; w.maxHP = 9999; // сценарий: каст не убивает
+    return { p, c, w };
+  };
+  const a = setup(undefined);
+  const r0 = a.c.spell('fire', a.w.id);
+  assert.equal(r0.ok, true, 'каст');
+  const intBonus = derived(a.p).fireDamageBonus;
+  const base = Math.round(
+    (3 + 0.5 * a.p.primary.intelligence) * (1 + intBonus));
+  assert.equal(a.w.hp, 9999 - base,
+    'без баффа — текущая формула (броня игнорируется)');
+  const b = setup({ damageMult: 1.05, armor: 0 });
+  const r1 = b.c.spell('fire', b.w.id);
+  assert.equal(r1.ok, true, 'каст');
+  assert.equal(b.w.hp, 9999 - Math.max(1, Math.round(base * 1.05)),
+    'с благословением — ×1.05 (броня всё ещё игнорируется)');
+});
+
+test('000076: благословение горы — урон ПО ИГРОКУ −1 броня (один ход моба, один и тот же сид)', () => {
+  const run = (buffMods) => {
+    const p = strongHero();
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 1, seed: 3, buffMods,
+    });
+    c._rng = () => 0.01; // гарантированное попадание волка
+    standNextTo(c, c.units[0]);
+    c.endTurn(); // игрок не действует — ход волка (один удар)
+    return p.hp;
+  };
+  const hp0 = run(undefined);
+  assert.ok(hp0 < 9999, 'сценарий: волк нанёс урон (без баффа)');
+  const hp1 = run({ damageMult: 1, armor: 1 });
+  assert.equal(hp1 - hp0, 1,
+    'с благословением: урон за удар на 1 меньше (−1 броня)');
+});
+
+test('000076: детерминизм — buffMods НЕ потребляет c._rng: поток RNG с/без баффа идентичен; баффовый бой — бит-в-бит', () => {
+  const mk = (buffMods) => {
+    const p = strongHero();
+    p.primary.strength = 20;
+    const c = createCombat({ player: p, groupType: 0, seed: 31, buffMods });
+    // Сценарий: ничто не умирает (нет побед/бегств — без
+    // расходования RNG в checkVictory/бегстве) — потоки с/без
+    // баффа сравниваются полностью.
+    for (const u of c.units) { u.hp = 99999; u.maxHP = 99999; }
+    const calls = [];
+    const orig = c._rng;
+    c._rng = () => { const v = orig(); calls.push(v); return v; };
+    return { c, calls, p };
+  };
+  const a = mk(undefined);
+  const b = mk({ damageMult: 1.05, armor: 0 });
+  for (let i = 0; i < 5 && !a.c.result && !b.c.result; i++) {
+    const ra = a.c.attack();
+    const rb = b.c.attack();
+    assert.equal(ra.ok, rb.ok, 'одинаковая структура действия');
+    assert.equal(ra.hit, rb.hit, 'одинаковый паттерн попаданий');
+    a.c.endTurn();
+    b.c.endTurn();
+  }
+  assert.deepEqual(a.calls, b.calls,
+    'buffMods не потребляет c._rng — идентичный поток (000080/000082)');
+  // Бит-в-бит: два баффовых прогона — идентичные лог/состояние.
+  const runBuffed = () => {
+    const m = mk({ damageMult: 1.05, armor: 0 });
+    for (let i = 0; i < 5 && !m.c.result; i++) {
+      m.c.attack();
+      m.c.endTurn();
+    }
+    return {
+      log: m.c.log,
+      units: m.c.units.map((u) => [u.id, u.x, u.y, u.hp, u.alive, u.fled]),
+      hp: m.p.hp,
+    };
+  };
+  assert.deepEqual(runBuffed(), runBuffed(),
+    'баффовый прогон — бит-в-бит (сид + сценарий)');
+});
