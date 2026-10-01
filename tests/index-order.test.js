@@ -42,6 +42,7 @@ test('index.html: нужные модули подключены', () => {
     'src/visuals-data.js',
     'src/building-effects.js',
     'src/building-ui.js',
+    'src/building-actions.js',
     'src/motion.js',
     'src/main.js',
   ]) {
@@ -701,4 +702,27 @@ test('порядок core → building-effects.js: Game.buildingEffects в бр�
   assert.equal(res[0].id, 'dialog');
   assert.equal(res[0].имя, 'Диалог');
   assert.equal(res[0].доступен, true);
+});
+
+// --- Задача 000128: building-actions.js ---
+//
+// main.js (IIFE) снимает const G = globalThis.Game ОДИН раз при
+// загрузке (UMD-ловушка 000038): building-actions.js обязан быть в
+// Game РАНЬШЕ, иначе G.buildingActions — undefined всегда и [E]
+// молча деградирует. Слот по ТЗ: сразу ПОСЛЕ building-ui.js (доменная
+// группа building-effects → building-ui → building-actions); МЕЖДУ
+// building-actions.js и main.js остаётся свободный слот под будущие
+// спец-модули (000077/000091–000095) и hud.js (000129) — adjacency
+// к main.js НЕ закрепляется (свой пин — своя задача).
+
+test('index.html: building-actions.js подключён ПОСЛЕ building-ui.js и ДО main.js (задача 000128)', () => {
+  assert.notEqual(pos('src/building-actions.js'), -1,
+    'src/building-actions.js не подключён в index.html (задача 000128)');
+  assert.ok(pos('src/building-ui.js') < pos('src/building-actions.js'),
+    'src/building-ui.js должен быть раньше src/building-actions.js ' +
+    '(доменная группа: building-effects → building-ui → building-actions, ' +
+    'задача 000128)');
+  assert.ok(pos('src/building-actions.js') < pos('src/main.js'),
+    'src/building-actions.js должен быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: main.js снимает Game один раз)');
 });

@@ -62,7 +62,7 @@
 
 ## Статус
 
-* **000127 — выполнено (финализация 2026-10-01), ждёт мержа**:
+* **000127 — выполнено (финализация 2026-10-01), смёрджено в master (6c76e7b)**:
   workflow, ветка task/000127, worktree .worktrees/task-000127,
   задача перенесена в tasks/done. Проектирование — контракт:
   memory/000127-locations-module.md (Game.locations, 9 функций,
@@ -81,3 +81,24 @@
   249 строк — в пределах оценки 250–350; сеть −157 из-за ~+80
   тонкой проводки, остающейся в main.js по требованию ТЗ, и
   непереноса startDungeonCombat/MOVE_INTERVAL_MS — контракт §11).
+
+## Статус выполнения (workflow-станции)
+
+* **000128 — ПРОЕКТИРОВАНИЕ завершено** (2026-10-01, worktree
+  task/000128, база master 1885163). Контракт для 000074+ —
+  memory/000128-building-actions.md (API Game.buildingActions,
+  deps-бандл init, таблица specials + self-registration, ctx,
+  пайплайн apply → r.teleport/r.buffs → specials → маркировка →
+  saveNow → flash → playerRender, 1:1-перенос 6 функций).
+  Файлы: src/building-actions.js (новый, чистый UMD), main.js
+  (тонкая проводка), index.html (тег сразу после building-ui.js),
+  tests/building-actions.test.js (новый, RED BA1–BA7) + pin IO1 в
+  tests/index-order.test.js.
+  Размер main.js: ДО 1979 строк (master 1885163); переносимый
+  регион L632–917 = 286 строк; +wiring ~40–45; ПОСЛЕ ≈ 1735–1760
+  (точная цифра фиксируется в tasks/result/000128.md после
+  зелёной стадии). 000127 ещё не в master (параллельный worktree)
+  — регионы не пересекаются, на мерже — ребейз (000127 → 000128).
+* 000127 — в работе (параллельный worktree, src/locations.js).
+* 000129 (hud.js) — после 000128; slot в index.html — между
+  building-actions.js и main.js (свободен: 430..436).
