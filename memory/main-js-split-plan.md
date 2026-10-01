@@ -62,7 +62,7 @@
 
 ## Статус
 
-* **000127 — выполнено (финализация 2026-10-01), ждёт мержа**:
+* **000127 — выполнено (финализация 2026-10-01), смёрджено в master (6c76e7b)**:
   workflow, ветка task/000127, worktree .worktrees/task-000127,
   задача перенесена в tasks/done. Проектирование — контракт:
   memory/000127-locations-module.md (Game.locations, 9 функций,
@@ -81,3 +81,30 @@
   249 строк — в пределах оценки 250–350; сеть −157 из-за ~+80
   тонкой проводки, остающейся в main.js по требованию ТЗ, и
   непереноса startDungeonCombat/MOVE_INTERVAL_MS — контракт §11).
+
+## Статус выполнения (workflow-станции)
+
+* **000128 — ВЫПОЛНЕНО (финализация 2026-10-01), ждёт мержа**:
+  ветка task/000128 (база master 1885163), задача в tasks/done,
+  отчёт — tasks/result/000128.md. Контракт для 000074+ —
+  memory/000128-building-actions.md (API Game.buildingActions,
+  deps-бандл init, таблица specials + self-registration, ctx,
+  пайплайн apply → r.teleport/r.buffs → specials → маркировка →
+  saveNow → flash → playerRender, 1:1-перенос 6 функций).
+  Фактические размеры (wc -l): src/main.js — 1979 (база 1885163)
+  → 1746 (ветка; −233); src/building-actions.js — 456. После
+  ребейза на мастер (000127: 1822) — 1589 (пробный ребейз на
+  6c76e7b: 1221/1221 зелёных; конфликт ТОЛЬКО в этом файле —
+  Статус-секция, рецепт — memory/000128-building-actions.md §8;
+  на момент финализации мастер = c99cfca, 000124 не трогает
+  main.js/index-order/этот файл). Тесты: 1200 → 1208 (+8:
+  BA1–BA7 + IO1).
+* 000127 — выполнено, смёрджено в master (6c76e7b): main.js
+  1979 → 1822, src/locations.js — 410.
+* 000129 (hud.js) — после 000128; slot в index.html — между
+  building-actions.js и main.js (свободен: 430..436).
+* 000130 (ui-tab-*) — параллельно, ещё не в master (ui.js).
+* Серия — фактические размеры (wc -l, 2026-10-01): база 1885163:
+  main.js 1979; master 6c76e7b: main.js 1822 + locations.js 410;
+  ветка task/000128: main.js 1746 + building-actions.js 456.
+  Остаток серии: hud (000129), вкладки панели (000130+).
