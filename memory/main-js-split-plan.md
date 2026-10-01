@@ -26,8 +26,13 @@
   хинты, flash-отрисовка). Концентрация HUD-правок — в отдельном
   стабильном файле (осталась общая для HUD-задач — это нормально:
   один домен, маленькая зона).
-* **000130 → вкладки панели: саморегистрирующиеся
-  модули**: ядро
+  СТАТУС: ПРОЕКТИРОВАНИЕ завершено (2026-10-02) — контракт
+  memory/000129-hud-module.md (Game.hud: update/buildLine/
+  eHint/buildingNameHint/hereLine/locationLine; per-call ctx
+  14 полей; flash-состояние в main.js; тег после building-
+  actions.js; обёртка renderHud; отклонение по размеру —
+  §9 контракта).
+* **000130 → вкладки панели: саморегистрирующиеся модули**: ядро
   панели (два столбца, переключение, тултипы, [I]/Esc, setShop/
   setQuests-проводка) — в ui.js; каждая вкладка — свой файл
   (src/ui-tab-*.js), регистрирующий себя в реестре вкладок
@@ -99,27 +104,48 @@
 
 ## Статус выполнения (workflow-станции)
 
-* **000128 — ВЫПОЛНЕНО (финализация 2026-10-01), ждёт мержа**:
-  ветка task/000128 (база master 1885163), задача в tasks/done,
-  отчёт — tasks/result/000128.md. Контракт для 000074+ —
-  memory/000128-building-actions.md (API Game.buildingActions,
-  deps-бандл init, таблица specials + self-registration, ctx,
-  пайплайн apply → r.teleport/r.buffs → specials → маркировка →
-  saveNow → flash → playerRender, 1:1-перенос 6 функций).
-  Фактические размеры (wc -l): src/main.js — 1979 (база 1885163)
-  → 1746 (ветка; −233); src/building-actions.js — 456. После
-  ребейза на мастер (000127: 1822) — 1589 (пробный ребейз на
-  6c76e7b: 1221/1221 зелёных; конфликт ТОЛЬКО в этом файле —
-  Статус-секция, рецепт — memory/000128-building-actions.md §8;
-  на момент финализации мастер = c99cfca, 000124 не трогает
-  main.js/index-order/этот файл). Тесты: 1200 → 1208 (+8:
-  BA1–BA7 + IO1).
-* 000127 — выполнено, смёрджено в master (6c76e7b): main.js
+* **000127 — выполнено, смёрджено в master (6c76e7b)**: main.js
   1979 → 1822, src/locations.js — 410.
-* 000129 (hud.js) — после 000128; slot в index.html — между
-  building-actions.js и main.js (свободен: 430..436).
-* 000130 (ui-tab-*) — параллельно, ещё не в master (ui.js).
-* Серия — фактические размеры (wc -l, 2026-10-01): база 1885163:
-  main.js 1979; master 6c76e7b: main.js 1822 + locations.js 410;
-  ветка task/000128: main.js 1746 + building-actions.js 456.
-  Остаток серии: hud (000129), вкладки панели (000130+).
+* **000128 — выполнено, смёрджено в master (7564e91,
+  2026-10-02)**: задача в tasks/done, отчёт — tasks/result/
+  000128.md. Контракт для 000074+ — memory/000128-building-
+  actions.md (API Game.buildingActions, deps-бандл init, таблица
+  specials + self-registration, ctx, пайплайн apply →
+  r.teleport/r.buffs → specials → маркировка → saveNow → flash →
+  playerRender, 1:1-перенос 6 функций). Фактические размеры
+  (wc -l): src/main.js — 1979 (база 1885163) → 1589 (после
+  ребейза на мастер 6c76e7b; −233); src/building-actions.js —
+  456. Тесты: 1200 → 1208 (+8: BA1–BA7 + IO1).
+* **000130 — выполнено, смёрджено в master (9a7920d, 2026-10-02)**:
+  вкладки панели — саморегистрирующиеся UMD-модули; контракт —
+  memory/000130-ui-tabs.md (реестр Game.uiTabs — src/ui-tabs.js +
+  5×src/ui-tab-*.js, теги ДО ui.js). ui.js 1333 → 986 (−347,
+  wc -l); main.js — 0 строк. Тесты: +121 строка
+  tests/index-order.test.js + tests/ui-panel.test.js.
+* **000129 (hud.js) — ПРОЕКТИРОВАНИЕ завершено (2026-10-02),
+  контракт зафиксирован — memory/000129-hud-module.md**:
+  Game.hud = { update, buildLine, eHint, buildingNameHint,
+  hereLine, locationLine }; per-call ctx (14 полей, снапшот
+  main.js), flash-состояние ОСТАЁТСЯ в main.js, тег после
+  building-actions.js (IO-пин), обёртка в main.js переименована
+  в renderHud (HU7: `function hudUpdate` из main.js уходит).
+  Реализация — ветка task/000129 (worktree .worktrees/
+  task-000129, база 7564e91). Ожидаемые размеры: main.js
+  1589 → ≈1504 (−103 блок + ~18 проводки; точный замер —
+  отчёт), src/hud.js — ≈170–210; тесты 1233 → 1241 (+8:
+  HU1–HU7 + IO1). Отклонение ТЗ «итого 1150–1300» — устаревшая
+  оценка (контракт §9).
+* Серия 000127–000130 — ЗАВЕРШЕНА после мержа 000129: все
+  четыре в master. Фактические размеры (wc -l): база 1885163:
+  main.js 1979; после 000127 (6c76e7b): main.js 1822 +
+  locations.js 410; после 000128 (7564e91): main.js 1589 +
+  building-actions.js 456; после 000130 (9a7920d): main.js 1589
+  (000130 не трогает main.js) + ui.js 986 + ui-tabs.js 92 +
+  вкладки 182/215/150/53/105; после 000129: main.js ≈1504 +
+  hud.js ≈170–210 (точные числа — в отчёте 000129).
+* Ребейз ветки task/000129 на master 9a7920d (000130 в master):
+  ожидаемые конфликты — ТОЛЬКО append-блоки в конце
+  tests/index-order.test.js (у 000130 блок L730+, у 000129 свой
+  — сохранить ОБА) и, при сдвиге, «Целевая архитектура» (блок
+  000130 из master) — рецепт 000128 §8; main.js и hud-слот
+  index.html — 000130 не трогает (чисто).

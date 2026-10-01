@@ -847,3 +847,26 @@ test('000130: vm — ПРОВАЛЕННЫЙ порядок (ui-tab-quests.js б�
   assert.ok(!sandbox.Game || !sandbox.Game.uiTabs,
     'регистрации нет (реестра нет)');
 });
+
+// --- Задача 000129: hud.js (разбиение main.js 3/4) ---
+//
+// main.js (IIFE) снимает const G = globalThis.Game ОДИН раз при
+// загрузке (UMD-ловушка 000038): src/hud.js обязан быть в Game
+// РАНЬШЕ, иначе G.hud — undefined всегда и строки HUD молча
+// исчезают (тихий HUD-loss; защита — load-time гард в main.js +
+// этот пин). Слот по ТЗ: сразу ПОСЛЕ building-actions.js (доменная
+// группа серии 000127→000130); МЕЖДУ building-actions.js и main.js
+// остаётся свободный слот под будущие спец-модули
+// (000077/000091–95) — adjacency к main.js НЕ закрепляется
+// (прецедент 000128).
+
+test('index.html: src/hud.js подключён ПОСЛЕ building-actions.js и ДО main.js (задача 000129)', () => {
+  assert.notEqual(pos('src/hud.js'), -1,
+    'src/hud.js не подключён в index.html (задача 000129)');
+  assert.ok(pos('src/building-actions.js') < pos('src/hud.js'),
+    'src/building-actions.js должен быть раньше src/hud.js ' +
+    '(доменная группа серии разбиения main.js, задача 000129)');
+  assert.ok(pos('src/hud.js') < pos('src/main.js'),
+    'src/hud.js должен быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
