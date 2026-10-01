@@ -54,7 +54,13 @@ function makeEl(tag, buttons) {
     // button') — отдаём список кнопок, созданных в этой песочнице
     // (они и есть кнопки панели действий; в стабе их больше нет).
     querySelectorAll() { return buttons; },
-    getBoundingClientRect() { return { left: 0, top: 0 }; },
+    // 000124: rect несёт и width/height (canvas после build = 336×336,
+    // т.е. 1:1 — семантика существующих тестов без изменений; новая
+    // нормализация клика по фактическому размеру canvas читает
+    // r.width/r.height, фолбэк — canvas.width/height).
+    getBoundingClientRect() {
+      return { left: 0, top: 0, width: this.width, height: this.height };
+    },
   };
   if (tag === 'canvas') {
     el.width = 0;
@@ -939,4 +945,121 @@ test('боевой UI: 000076 — startCombat пробрасывает buffMods 
   assert.deepEqual(JSON.parse(JSON.stringify(c2.buffMods)),
     { damageMult: 1, armor: 0 },
     'без opts.buffMods — нейтральный дефолт');
+});
+
+// --- Экран боя: вьюпорт + иконные кнопки (задача 000124) ---
+//
+// Контракт — memory/000124-combat-layout.md:
+//  * кнопки .combat-actions — SVG-иконка (img assets/ui/combat_*.svg)
+//    + aria-label = имя действия, текстовой подписи НЕТ (подпись
+//    «Имя [клавиша]» уходит; таблица combat-keys.js не меняется);
+//  * боевой оверлей несёт скоуп-класс .combat-overlay--combat — весь
+//    layout боя (CSS) живёт только в этом скоупе;
+//  * клик по клетке — по фактическому (CSS-масштабированному) размеру
+//    canvas: getBoundingClientRect().width/height, фолбэк —
+//    canvas.width/height (регрессия: при CSS-scale клик падал НЕ В ТУ
+//    клетку, см. «Состояние сейчас» в tasks/pending/000124.md).
+
+test('боевой UI: кнопки .combat-actions — иконка (img assets/ui/combat_*.svg) + aria-label, без текстовой подписи (000124)', () => {
+  const { G, buttons } = loadCombatUi();
+  G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.equal(buttons.length, 8, 'кнопок действий = 8 (таблица combat-keys.js)');
+  const byAction = {};
+  for (const it of G.CombatKeys.describeCombatKeys()) byAction[it.action] = it;
+  for (const b of buttons) {
+    const item = byAction[b.dataset.act];
+    assert.ok(item, 'кнопка из таблицы: ' + b.dataset.act);
+    // Иконка — единственный img-ребёнок; src — файл assets/ui/,
+    // и файл СУЩЕСТВУЕТ (контракт иконок — память 000124).
+    const imgs = b.children.filter((ch) => ch.tagName === 'img');
+    assert.equal(imgs.length, 1,
+      'кнопка ' + b.dataset.act + ': ровно одна иконка <img>, найдено: '
+      + imgs.length);
+    const img = imgs[0];
+    assert.match(img.src, /^assets\/ui\/combat_[a-z]+\.svg$/,
+      'кнопка ' + b.dataset.act + ': src иконки — assets/ui/combat_*.svg, '
+      + 'факт: ' + img.src);
+    assert.ok(fs.existsSync(path.join(ROOT, img.src)),
+      'кнопка ' + b.dataset.act + ': файл иконки существует: ' + img.src);
+    // Доступность: aria-label = имя действия (из describeCombatKeys).
+    assert.equal(b.ariaLabel, item.label,
+      'кнопка ' + b.dataset.act + ': aria-label = «' + item.label
+      + '», факт: ' + b.ariaLabel);
+    // Текстовой подписи (и клавиши-подсказки [J] и т.п.) НЕТ.
+    assert.equal(b.textContent, '',
+      'кнопка ' + b.dataset.act + ': текстовой подписи нет, '
+      + 'факт: ' + JSON.stringify(b.textContent));
+  }
+});
+
+test('боевой UI: боевой оверлей несёт скоуп-класс combat-overlay--combat (000124)', () => {
+  const { G, body } = loadCombatUi();
+  G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const overlay = body.children[0];
+  assert.ok(overlay, 'оверлей подвешен к body');
+  assert.ok(overlay.className.includes('combat-overlay--combat'),
+    'оверлей боя — в скоупе .combat-overlay--combat (layout CSS), '
+    + 'факт: ' + overlay.className);
+});
+
+test('боевой UI: клик по МАСШТАБИРОВАННОМУ canvas (rect 672×672) — правильная цель (000124)', () => {
+  const { G, body } = loadCombatUi();
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  wolf.x = 1; wolf.y = 2; // 1×1 в клетке (1,2)
+  // createCombat автоматически берёт ближайшего моба целью
+  // (combat.js) — снимаем, чтобы клик должен был ВЫБРАТЬ цель.
+  c.targetId = null;
+  assert.equal(c.targetId, null, 'до клика цели нет');
+  const canvas = findCanvas(body);
+  // CSS-масштаб ×2: на экране rect 672×672 при внутреннем 336×336
+  // (96 экранных px на клетку).
+  canvas.getBoundingClientRect =
+    () => ({ left: 0, top: 0, width: 672, height: 672 });
+  // Центр клетки (1,2) в экранных координатах: (1.5·96, 2.5·96) = (144, 240).
+  canvas.listeners.click[0]({ clientX: 144, clientY: 240 });
+  assert.equal(c.targetId, wolf.id,
+    'клик (144,240) при rect 672×672 → волк в (1,2); факт: ' + c.targetId);
+});
+
+test('боевой UI: клик 1:1 (rect 336×336) — та же цель (000124, якорь)', () => {
+  // Якорь: при canvas 1:1 (rect = внутренний размер) поведение клика
+  // как было — клетка по clientX/clientY / CELL.
+  const { G, body } = loadCombatUi();
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  wolf.x = 1; wolf.y = 2;
+  c.targetId = null; // снять авто-цель: клик должен выбрать цель
+  const canvas = findCanvas(body);
+  canvas.getBoundingClientRect =
+    () => ({ left: 0, top: 0, width: 336, height: 336 });
+  // Центр клетки (1,2) при 48px/клетку: (1.5·48, 2.5·48) = (60, 120).
+  canvas.listeners.click[0]({ clientX: 60, clientY: 120 });
+  assert.equal(c.targetId, wolf.id, '1:1 → волк в (1,2)');
+});
+
+test('боевой UI: нулевой rect (width/height = 0) — фолбэк 1:1, без ошибок (000124, якорь)', () => {
+  // Якорь фолбэка: rect без размеров (патологии/DOM-стабы) —
+  // координаты по внутреннему размеру canvas (canvas.width/height),
+  // деление на ноль/NaN невозможны.
+  const { G, body } = loadCombatUi();
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  wolf.x = 1; wolf.y = 2;
+  c.targetId = null; // снять авто-цель: клик должен выбрать цель
+  const canvas = findCanvas(body);
+  canvas.getBoundingClientRect =
+    () => ({ left: 0, top: 0, width: 0, height: 0 });
+  canvas.listeners.click[0]({ clientX: 60, clientY: 120 });
+  assert.equal(c.targetId, wolf.id, 'нулевой rect → фолбэк 1:1, волк в (1,2)');
 });
