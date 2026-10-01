@@ -62,7 +62,12 @@
 
 ## Статус
 
-* **000127 — в работе** (2026-10-01): workflow, ветка task/000127,
-  worktree .worktrees/task-000127. Проектирование завершено —
+* **000127 — реализовано, ждёт мержа** (2026-10-01): workflow, ветка
+  task/000127, worktree .worktrees/task-000127. Проектирование —
   контракт: memory/000127-locations-module.md (Game.locations, 9
   функций, события возврата, проводка в main.js, RED-план 13 тестов).
+  Реализация: src/locations.js (410 строк, чистый UMD, ленивый Game)
+  + проводка main.js (1979 → 1822 строки) + script-тег в index.html
+  (после cities.js, до main.js, пин ORD-1). npm test (внутри
+  worktree) — 1213/1213 зелёных. Дальше по серии: 000128 (тот же
+  main.js — последовательно).
