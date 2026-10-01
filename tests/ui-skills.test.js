@@ -124,12 +124,17 @@ function makeEl(tag) {
 
 // Цепочка из index.html до ui.js включительно (порядок ВАЖЕН: controls.js
 // ДО ui.js — guard в ui.js; регрессия порядка — tests/index-order.test.js).
+// 000130: между combat-keys.js и ui.js — реестр + саморегистрирующиеся
+// вкладочные модули (тех. правка: файлы переехали, поведение — то же).
 const CHAIN = [
   'global-settings.js', 'perlin.js', 'mapseed.js',
   'skills-data.js', 'items-data.js', 'npc-data.js',
   'map.js', 'player.js', 'day.js', 'items.js', 'buildings.js',
   'npc.js', 'combat.js', 'dungeon.js',
-  'controls.js', 'combat-keys.js', 'ui.js',
+  'controls.js', 'combat-keys.js',
+  'ui-tabs.js', 'ui-tab-skills.js', 'ui-tab-inventory.js',
+  'ui-tab-settings.js', 'ui-tab-shop.js', 'ui-tab-quests.js',
+  'ui.js',
 ];
 
 // Загрузка цепочки в vm-песочницу. Возвращает { G, body, errors }:
@@ -241,9 +246,12 @@ test('панель: выше потолка (уровни книгами) — п
     'имя основного и X×2: ' + t);
 });
 
-test('панель: структурный — ui.js рисует c.skillXp и G.practiceCap', () => {
+test('панель: структурный — вкладка «Персонаж» рисует c.skillXp и G.practiceCap', () => {
   // Ловит «забыли отрисовать», даже если рендер-тесты пострадают.
-  const ui = src('ui.js');
+  // 000130: рендер строк навыков переехал из ui.js в
+  // src/ui-tab-skills.js (саморегистрирующаяся вкладка) — код панели
+  // теперь в новом пути; интент фиксатора тот же.
+  const ui = src('ui-tab-skills.js');
   assert.match(ui, /skillXp/, 'копилка опыта практикуется (c.skillXp)');
   assert.match(ui, /practiceCap/, 'потолок практики — G.practiceCap');
 });

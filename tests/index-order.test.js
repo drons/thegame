@@ -726,3 +726,124 @@ test('index.html: building-actions.js подключён ПОСЛЕ building-ui.
     'src/building-actions.js должен быть раньше src/main.js ' +
     '(UMD-ловушка 000038: main.js снимает Game один раз)');
 });
+
+// --- Задача 000130: вкладки панели — саморегистрирующиеся модули ---
+//
+// Вкладки (src/ui-tab-*.js) грузятся ДО ui.js и регистрируются в
+// Game.uiTabs (src/ui-tabs.js) при ЗАГРУЗКЕ — реестр обязан
+// существовать раньше первой вкладки; ui.js читает его лениво в
+// buildPanel. ДОБАВЛЕНИЕ вкладки = новый файл + script-тег в блоке
+// между ui-tabs.js и ui.js — ui.js НЕ правится (анти-прецедент —
+// tests/ui-panel.test.js, секция 000130). ПОЗИЦИЯ тега = позиция
+// вкладки в столбце (контракт memory/000130-ui-tabs.md §4.4/§5:
+// порядок записей = порядок регистрации = порядок тегов) — без
+// цепочного пина порядок .cp-tab зависел бы от случайности
+// index.html. RED-фаза: тегов нет → падает по первому пиновому
+// assert; GREEN-фаза: цепочка на месте.
+
+test('index.html: ui-tabs.js + ui-tab-*.js ДО ui.js (000130)', () => {
+  // Реестр — ПЕРВЫЙ (до всех вкладок); все провайдеры G.* (player/
+  // items/buildings/npc/map/skills-data/companions) — ВЫШЕ в
+  // index.html (основная цепочка задачей не трогается).
+  assert.notEqual(pos('src/ui-tabs.js'), -1,
+    'src/ui-tabs.js не подключён в index.html (задача 000130)');
+  // Полная цепочка блока: порядок тегов = порядок вкладок в
+  // столбцах (левый: character→inventory→settings, правый:
+  // equipment→shop→quests; 'equipment' регистрируется из
+  // ui-tab-inventory.js — ДВЕ вкладки в одном файле).
+  const chain = [
+    'src/ui-tabs.js',
+    'src/ui-tab-skills.js',
+    'src/ui-tab-inventory.js',
+    'src/ui-tab-settings.js',
+    'src/ui-tab-shop.js',
+    'src/ui-tab-quests.js',
+    'src/ui.js',
+  ];
+  for (let i = 0; i < chain.length - 1; i++) {
+    assert.notEqual(pos(chain[i]), -1,
+      chain[i] + ' не подключён в index.html (задача 000130)');
+    assert.ok(pos(chain[i]) < pos(chain[i + 1]),
+      chain[i] + ' должен быть раньше ' + chain[i + 1] +
+        ' (задача 000130: порядок тегов = порядок вкладок в столбце)');
+  }
+  // Самоперечисление: каждый src/ui-tab-*.js НА ДИСКЕ подключён и
+  // стоит ДО ui.js (будущее: новый вкладочный файл без тега
+  // ловится здесь; RED-фаза — диска файлов нет, цикл тривиально
+  // зелёный).
+  const disk = fs.readdirSync(path.join(ROOT, 'src'))
+    .filter((f) => /^ui-tab-.*\.js$/.test(f));
+  for (const f of disk) {
+    assert.notEqual(pos('src/' + f), -1,
+      'src/' + f + ' существует на диске, но не подключён в ' +
+      'index.html (задача 000130)');
+    assert.ok(pos('src/' + f) < pos('src/ui.js'),
+      'src/' + f + ' должен быть раньше src/ui.js ' +
+      '(задача 000130: саморегистрация до инициализации панели)');
+  }
+});
+
+test('000130: vm — цепочка index.html (до ui.js) → реестр = 6 вкладок в порядке тегов + Game.buildActiveQuestRow', () => {
+  // Полный «браузерный» путь без DOM: ВСЕ модули цепи чисты при
+  // загрузке (НОЛЬ DOM — 000053), поэтому песочница { console }
+  // достаточна. Порядок тегов index.html = порядок РЕГИСТРАЦИИ =
+  // порядок вкладок в столбцах: character → inventory → equipment →
+  // settings → shop → quests (equipment — вторая вкладка из
+  // ui-tab-inventory.js — ДВЕ вкладки в одном файле).
+  const errors = [];
+  const sandbox = {
+    console: {
+      log: () => {}, info: () => {}, warn: () => {},
+      error: (m) => errors.push(String(m)),
+    },
+  };
+  vm.createContext(sandbox);
+  const all = Array.from(
+    html.matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1]);
+  const i = all.indexOf('src/ui.js');
+  assert.ok(i >= 0, 'ui.js подключён в index.html');
+  for (const f of all.slice(0, i + 1)) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  assert.equal(errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + errors.join('; '));
+  assert.ok(sandbox.Game, 'Game создан цепочкой');
+  const reg = sandbox.Game.uiTabs;
+  assert.ok(reg && typeof reg === 'object',
+    'Game.uiTabs — реестр (src/ui-tabs.js)');
+  // [...]: список из ЧУЖОГО realm (vm) — deepStrictEqual сравнивает
+  // прототипы; спред даёт массив host-realm с теми же id.
+  assert.deepEqual([...reg.list().map((t) => t.id)],
+    ['character', 'inventory', 'equipment', 'settings', 'shop',
+     'quests'],
+    'порядок реестра = порядок script-тегов index.html');
+  assert.equal(typeof sandbox.Game.buildActiveQuestRow, 'function',
+    'Game.buildActiveQuestRow — плоский game-экспорт ui-tab-quests.js');
+  assert.equal(typeof sandbox.Game.findQuestInCatalog, 'function',
+    'Game.findQuestInCatalog — плоский game-экспорт ui-tab-quests.js');
+  assert.ok(sandbox.Game.playerUI, 'ui.js загружен (Game.playerUI)');
+});
+
+test('000130: vm — ПРОВАЛЕННЫЙ порядок (ui-tab-quests.js без ui-tabs.js) → console.error, без краха, без регистрации', () => {
+  // Деградация (000053): битый порядок (вкладочный модуль раньше
+  // реестра) не роняет загрузку — console.error + без регистрации;
+  // игра не падает (фиксатор: не «тихий» fallback).
+  const errors = [];
+  const sandbox = {
+    console: {
+      log: () => {}, info: () => {}, warn: () => {},
+      error: (m) => errors.push(String(m)),
+    },
+  };
+  vm.createContext(sandbox);
+  assert.doesNotThrow(() => vm.runInContext(
+    fs.readFileSync(path.join(ROOT, 'src', 'ui-tab-quests.js'), 'utf8'),
+    sandbox, { filename: 'ui-tab-quests.js' }),
+    'ui-tab-quests.js без ui-tabs.js — без краха');
+  assert.ok(errors.length >= 1, 'console.error при битом порядке');
+  assert.ok(String(errors[0]).includes('Game.uiTabs не найден'),
+    'текст ошибки — про порядок: ' + errors[0]);
+  assert.ok(!sandbox.Game || !sandbox.Game.uiTabs,
+    'регистрации нет (реестра нет)');
+});

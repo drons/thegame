@@ -546,6 +546,18 @@
        main.js использует Game.playerUI/touchControls. -->
   <script src="src/controls.js"></script>
   <script src="src/combat-keys.js"></script>
+  <!-- Вкладки панели персонажа (задача 000130): саморегистрирующиеся
+       модули ДО ui.js. ui-tabs.js — ПЕРВЫЙ (реестр обязан существовать
+       раньше первой вкладки); ПОЗИЦИЯ тега = позиция вкладки в
+       столбце (порядок тегов = порядок вкладок — пин
+       tests/index-order.test.js). Добавление вкладки = новый файл
+       src/ui-tab-*.js + тег здесь; ui.js НЕ правится. -->
+  <script src="src/ui-tabs.js"></script>
+  <script src="src/ui-tab-skills.js"></script>
+  <script src="src/ui-tab-inventory.js"></script>
+  <script src="src/ui-tab-settings.js"></script>
+  <script src="src/ui-tab-shop.js"></script>
+  <script src="src/ui-tab-quests.js"></script>
   <script src="src/ui.js"></script>
   <!-- Оверлей «действия постройки» (задача 000071): после ui.js
        (оверлей по образцу npcUI), ДО main.js (UMD-ловушка 000038).
