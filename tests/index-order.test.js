@@ -36,7 +36,8 @@ test('index.html: нужные модули подключены', () => {
     'src/global-settings.js', 'src/day.js', 'src/player.js',
     'src/items.js', 'src/controls.js', 'src/combat-keys.js',
     'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
-    'src/dungeon.js', 'src/cities.js', 'src/dungeon-ui.js',
+    'src/dungeon.js', 'src/cities.js', 'src/locations.js',
+    'src/dungeon-ui.js',
     'src/dungeons-data.js',
     'src/visuals-data.js',
     'src/building-effects.js',
@@ -609,6 +610,30 @@ test('index.html: src/cities.js подключён; perlin.js → cities.js; dun
   assert.ok(pos('src/cities.js') < pos('src/main.js'),
     'src/cities.js обязан быть раньше src/main.js ' +
     '(main.js снимает Game один раз при загрузке)');
+});
+
+// --- Задача 000127: locations.js (разбиение main.js) ---
+//
+// main.js (IIFE) снимает const G = globalThis.Game ОДИН раз при
+// загрузке (UMD-ловушка 000038): src/locations.js обязан быть ДО
+// src/main.js, иначе G.locations — undefined всегда и домен
+// «подземелье/город» молча деградирует. Слот — сразу ПОСЛЕ
+// src/cities.js (доменная группа dungeon.js → cities.js →
+// locations.js); motion.js может стоять позже (locations.js читает
+// G.createMover лениво в момент вызова).
+
+test('index.html: src/locations.js подключён; dungeon.js → locations.js, cities.js → locations.js → main.js (задача 000127)', () => {
+  assert.notEqual(pos('src/locations.js'), -1,
+    'src/locations.js не подключён в index.html (задача 000127)');
+  assert.ok(pos('src/dungeon.js') < pos('src/locations.js'),
+    'src/locations.js обязан быть после src/dungeon.js ' +
+    '(доменная группа, задача 000127)');
+  assert.ok(pos('src/cities.js') < pos('src/locations.js'),
+    'src/locations.js обязан быть после src/cities.js ' +
+    '(слот сразу после cities.js, задача 000127)');
+  assert.ok(pos('src/locations.js') < pos('src/main.js'),
+    'src/locations.js обязан быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: main.js снимает Game один раз)');
 });
 
 // --- Задача 000071: building-effects.js и building-ui.js ---
