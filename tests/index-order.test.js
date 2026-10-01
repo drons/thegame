@@ -43,6 +43,7 @@ test('index.html: нужные модули подключены', () => {
     'src/building-effects.js',
     'src/building-ui.js',
     'src/building-actions.js',
+    'src/hud.js',
     'src/motion.js',
     'src/main.js',
   ]) {

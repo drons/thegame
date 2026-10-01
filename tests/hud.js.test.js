@@ -790,10 +790,19 @@ test('HU5. full-chain index.html: Game.hud в браузерном realm, заг
     'строка «HP N/N  |  Золото: N  |  Очки: N»: ' + JSON.stringify(text));
   assert.ok(/\nМестность: [^\n]+\n/.test(text),
     'строка «Местность: …»: ' + JSON.stringify(text));
+  // В полной цепочке спрайты загружены (Image-стаб onload) —
+  // spriteLoader не null, и фрагмент «  |  графика: a/b» В СТРОКЕ
+  // (1:1 main.js L1280; проверено по исходному main.js HEAD —
+  // побайтово тот же вывод). a/b — детерминированные счётчики
+  // (число ассетов), в пине — \d+.
   assert.ok(
-    /\nДень: \d+  \|  Масштаб: \d+px  \|  карта: \d+x\d+ \(пересчёт\)\n/
+    /\nДень: \d+  \|  Масштаб: \d+px  \|  карта: \d+x\d+ \(пересчёт\)(  \|  графика: \d+\/\d+)?\n/
       .test(text),
     'строка «День: N  |  Масштаб: Npx  |  карта: WxH (пересчёт)»: '
+    + JSON.stringify(text));
+  assert.ok(
+    /\(пересчёт\)  \|  графика: \d+\/\d+\n/.test(text),
+    'фрагмент «  |  графика: a/b» побайтово (спрайти в цепочке): '
     + JSON.stringify(text));
   assert.ok(text.includes('[I] персонаж'),
     'строка «[I] персонаж»: ' + JSON.stringify(text));

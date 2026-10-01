@@ -707,6 +707,15 @@
       'src/building-actions.js обязан грузиться ДО src/main.js');
   }
 
+  // HUD (задача 000129): строки — src/hud.js (Game.hud). Модуль
+  // обязан грузиться ДО main.js (UMD-ловушка 000038: снапшот const G
+  // снят вверху) — иначе G.hud — undefined всегда и строки HUD молча
+  // исчезают; ошибка видна ОДИН раз при загрузке.
+  if (!G.hud) {
+    console.error('main.js: Game.hud отсутствует — src/hud.js ' +
+      'обязан грузиться ДО src/main.js (000129)');
+  }
+
   // --- Ввод ---
   // Маппинг клавиш→направление — в src/controls.js (чистые функции):
   // сначала e.code (физические стрелки/WASD — в русской раскладке это и
@@ -914,7 +923,8 @@
       onMove,
       // ОДИН общий zoom (задача 000066): колесо поверх оверлея меняет
       // тот же zoom, что мир (мировой слушатель на #game накрыт) —
-      // hudUpdate («Масштаб: Xpx») остаётся корректным без изменений.
+      // renderHud/Game.hud («Масштаб: Xpx») остаётся корректным
+      // без изменений.
       zoom,
       onZoom: (z) => { zoom = z; },
       spriteLoader,
@@ -1253,108 +1263,20 @@
     }
   }
 
-  function hudUpdate() {
-    const t = map.tileAt(player.x, player.y);
-    const d = G.derived(hero);
-    const key = player.x + ',' + player.y;
-    // NPC постройки текущего тайла (задача 000010) — подсказка [E].
-    // Задача 000076: подтип слота 8..12 (buildingId) — СВОЯ запись
-    // (свои NPC/эффекты): храм горы (38) — «[E] действия» БЕЗ
-    // «[E] диалог» (Элдира — только 20/36). Базовые слоты — как до.
-    const bHere = G.buildingActions
-      ? G.buildingActions.buildingRecForTile(t) : null;
-    const npcHere = bHere && G.npcForBuilding ? G.npcForBuilding(NPCS, bHere.id) : null;
-    // Эффекты постройки (задача 000071): ПОДСКАЗКА «[E] действия» —
-    // только когда NPC НЕТ (NPC без эффектов — ТЕКУЩИЙ текст,
-    // регрессия). hasEffects — дешёвый lookup реестра/каталога БЕЗ
-    // сейва (сериализация сейва на кадр НЕ вводится).
-    const effectsHere = bHere && G.buildingEffects
-      && typeof G.buildingEffects.hasEffects === 'function'
-      ? G.buildingEffects.hasEffects(bHere)
-      : false;
-    let line = 'Флогистон, ур. ' + hero.level + '  (' + player.x + ', ' + player.y + ')\n' +
-      'HP ' + hero.hp + '/' + d.maxHP + '  |  Золото: ' + hero.gold + '  |  Очки: ' + hero.points + '\n' +
-      'Местность: ' + G.TERRAIN_NAMES[t.terrain] + '\n' +
-      'День: ' + clock.day + '  |  Масштаб: ' + zoom + 'px  |  карта: ' + map.width + 'x' + map.height +
-      (map.fromPng ? ' (map.png)' : ' (пересчёт)') +
-      (spriteLoader ? '  |  графика: ' + spriteLoader.readyCount() + '/' + spriteLoader.totalCount() : '') + '\n' +
-      '[I] персонаж' + (npcHere ? '  |  [E] диалог'
-        : (effectsHere ? '  |  [E] действия' : ''));
-    if (dungeonState) {
-      const ds = dungeonState;
-      const dist = Math.abs(ds.x - ds.dg.exit.x) + Math.abs(ds.y - ds.dg.exit.y);
-      if (ds.kind === 'city') {
-        // Город (000105): заголовок — имя города; contents null
-        // (000106) — строк групп/сундуков нет (ds.contents.mobs
-        // упадёт — ветка по kind обязательна).
-        line += '\n--- ' + ds.name + ' (' + ds.x + ', ' + ds.y + ') ---' +
-          '\nДо выхода: ~' + dist + ' клеток';
-      } else {
-        line += '\n--- ' + G.DUNGEON_NAMES[ds.dg.type] + ' (' + ds.x + ', ' + ds.y + ') ---' +
-          '\nДо выхода: ~' + dist + ' клеток  |  ' +
-          (ds.contents.mobs.filter((m) => !m.defeated).length) + ' групп(ы)';
-      }
-    } else if (t.hasBuilding) {
-      const shopHint = G.shopKindsFor(t.building) ? '  (торговля — панель [I])' : '';
-      // [E] — РОУТЕР: действия упоминаем ВСЕГДА, когда есть эффекты
-      // (NPC не перекрывает их): «([E] имя, действия)» /
-      // «([E] имя)» / «([E] действия)» (ревью раунда 3, 000071).
-      let eHint = '';
-      if (npcHere && effectsHere) {
-        eHint = '  ([E] ' + npcHere.имя + ', действия)';
-      } else if (npcHere) {
-        eHint = '  ([E] ' + npcHere.имя + ')';
-      } else if (effectsHere) {
-        eHint = '  ([E] действия)';
-      }
-      let name = G.buildingNameUi(t.building);
-      // Задача 000073: у подтипа слота 9 «развалины» (buildingId 48)
-      // хинт подавлен — тайл не вход (пара с гардом
-      // maybeEnterDungeon); остальные пещерные тайлы (базовая 31,
-      // в т.ч. buildingId null без каталога) — как раньше.
-      let hint = t.building === G.BUILDING_TYPES.CAVE_ENTRANCE
-        && t.buildingId !== 48
-        ? ' (вход — шагните)' : '';
-      // Каталожная запись тайла: город (000103/000105 — building
-      // NONE, buildingNameUi '') И подтипы слотов 8..12 (000073 —
-      // building — обобщённое имя слота). Имя — из записи:
-      // название_карты || название (тот же вывод, что заголовок
-      // города в makeCityState), регистр — конвенция buildingNameUi
-      // (первая буква в нижнем). У базовых подтипов строки те же,
-      // что buildingNameUi(slot); у подтипов — своё имя (000073).
-      // Слоты 0..7 и без каталога — buildingId null, ветка не
-      // срабатывает (имя — имя слота, как до задачи).
-      if (t.buildingId != null) {
-        const rec = G.getBuilding(t.buildingId);
-        if (rec) {
-          const raw = (rec.особые_параметры &&
-            rec.особые_параметры.название_карты) || rec.название;
-          if (typeof raw === 'string' && raw !== '') {
-            name = raw.charAt(0).toLowerCase() + raw.slice(1);
-            // Хинт «(вход — шагните)» — у города (000105); у
-            // слотовых — только пещера без подтипа-развалин (см.
-            // выше).
-            if (rec.категория === 'город') hint = ' (вход — шагните)';
-          }
-        }
-      }
-      line += '\nЗдесь: ' + name + shopHint + eHint + hint;
-    } else if (t.hasMobGroup) {
-      // Имя группы — из каталога лениво (задача 000057): map.js
-      // грузится ДО main.js, G.mobGroupName всегда на месте.
-      line += defeatedAt.has(key)
-        ? '\nГруппа ' + G.mobGroupName(t.mobGroup) + ' повержена.'
-        : '\nОсторожно: ' + G.mobGroupName(t.mobGroup) + '!';
-    }
-    // Магазин текущего тайла → вкладка «Магазин» в панели персонажа.
-    if (G.playerUI) {
-      const isShop = !dungeonState && t.hasBuilding && G.shopKindsFor(t.building);
-      G.playerUI.setShop(isShop
-        ? G.makeShop(player.x, player.y, t.building, t.buildingWealth)
-        : null);
-    }
-    if (performance.now() < hudFlashUntil) line += '\n' + hudFlash;
-    hud.textContent = line;
+  // 000129: строки HUD (мир/подземелье/город, «Здесь:», хинты
+  // [E]/[I], flash-отрисовка) — src/hud.js (Game.hud). Владелец
+  // hudFlash/hudFlashUntil — main.js (пишут действия/бой); модуль
+  // получает значения в ctx. tileAt — ОДИН раз на кадр (здесь).
+  function renderHud() {
+    if (!G.hud) return; // тихий per-frame гард (ошибка уже видна при загрузке)
+    G.hud.update({
+      hudEl: hud, game: G,
+      tile: map.tileAt(player.x, player.y),
+      map, player, hero,
+      day: clock.day, zoom, spriteLoader,
+      dungeonState, defeatedAt, npcs: NPCS,
+      flash: hudFlash, flashUntil: hudFlashUntil,
+    });
   }
 
   // --- Цикл ---
@@ -1410,7 +1332,7 @@
     }
     drawSprites(now, rp);
 
-    hudUpdate();
+    renderHud();
     requestAnimationFrame(frame);
   }
 
