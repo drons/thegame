@@ -1,5 +1,16 @@
 // Панель персонажа (HTML-оверлей): статы, навыки, расход очков.
 // Браузерный модуль (не тестируется в node; ядро — src/player.js).
+//
+// Задача 000130: ВКЛАДКИ переехали в саморегистрирующиеся модули —
+// src/ui-tabs.js (реестр Game.uiTabs) + src/ui-tab-*.js (вкладки,
+// грузятся ДО ui.js и регистрируются ПРИ ЗАГРУЗКЕ). Ядро остаётся:
+// два столбца, переключение вкладок, тултипы (000097), [I]/Esc,
+// проводка setShop/setQuests, render-цикл (хуки вкладок в порядке
+// регистрации). Реестр читается ЛЕНИВО в buildPanel: ui.js обязан
+// грузиться чисто БЕЗ реестра (деградация — два пустых столбца +
+// console.error, без краха). ДОБАВЛЕНИЕ вкладки = новый файл
+// src/ui-tab-*.js + script-тег в index.html; ui.js не правится
+// (контракт memory/000130-ui-tabs.md).
 
 (function () {
   'use strict';
@@ -12,12 +23,18 @@
   let shopKey = '';
   let notice = null;
   // Журнал квестов (000100): каталог, журнал и день проводки —
-  // вкладка «Квесты» — read-only зеркало (действия — только в диалоге
-  // NPC). day — снимок на момент проводки, в рендере не используется
-  // (спецификация задачи требует только текущие квесты).
+  // вкладка «Квесты» (модуль src/ui-tab-quests.js) — read-only
+  // зеркало (действия — только в диалоге NPC). day — снимок на
+  // момент проводки, в рендере не используется (спецификация
+  // задачи требует только текущие квесты).
   let questNpcs = null;
   let questBook = null;
   let questDay = null;
+  // 000130: ctx ядро→вкладки (контракт §4.3) и записи реестра,
+  // зафиксированные при buildPanel (копия list(); поздняя
+  // саморегистрация до ПЕРВОГО toggle успевает — buildPanel ленивый).
+  let panelCtx = null;
+  let panelTabs = [];
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -26,198 +43,16 @@
     return n;
   }
 
-  // --- Тултипы (000097): носитель для строк навыков ---
-  // Отдельная ПУСТАЯ ячейка в конце <tr>: render() каждый раз
-  // переписывает textContent .cp-name/.cp-level/.cp-req, а запись
-  // textContent в существующем td убрала бы дочерний узел .cp-tip.
-  // Текст наполняется в render() в узел .cp-tip (один текст-нод).
-  function skillTipCell() {
-    const td = el('td', 'cp-tipcell');
-    td.appendChild(el('div', 'cp-tip', ''));
-    return td;
-  }
-
-  // --- Строки активных квестов: ОДИН рендерер (000100) ---
-  // Общий источник строк «В работе» для диалога NPC (npcUI — с
-  // кнопкой «сдать») и панели персонажа (read-only — без кнопок):
-  // дублирование текстов запрещено (тексты — дословно как в npcUI).
-  // Порядок детей строки сохранён как в npcUI: name → [кнопка] → meta
-  // (DOM оверлея идентичен).
-  function buildActiveQuestRow(quest, instance, c, withTurninButton) {
-    const row = el('div', 'cp-itemrow');
-    row.appendChild(el('span', 'cp-itemname', quest.название));
-    const goal = quest.цель;
-    let meta;
-    if (goal.тип === 'kill_group') {
-      // Имя группы — из каталога (задача 000057); гард —
-      // UMD-ловушка «G снимается один раз».
-      meta = 'повержено ' + instance.progress + ' из ' + goal.количество +
-        ' — ' + ((G.mobGroupName && G.mobGroupName(goal.группа))
-          || 'группа ' + goal.группа);
-    } else {
-      const it = G.getItem(goal.предмет);
-      meta = 'предмет: ' + (it ? it.name : goal.предмет) + ' ×' +
-        goal.количество + ' (есть: ' + G.totalQty(c, goal.предмет) + ')';
-    }
-    if (instance.status === 'ready') {
-      meta += ' — готов к сдаче';
-      if (withTurninButton) {
-        const b = el('button', 'cp-btn', 'сдать');
-        b.dataset.npcact = 'turnin';
-        b.dataset.quest = instance.questId;
-        row.appendChild(b);
-      }
-    } else {
-      meta += ' — в работе';
-    }
-    row.appendChild(el('span', 'cp-itemmeta', meta));
-    return row;
-  }
-
-  // Квест по id по всему каталогу (журнал хранит только id) — общий
-  // для npcUI («Выполнено») и панели (000100).
-  function findQuestInCatalog(npcs, qid) {
-    for (const n of npcs) {
-      const q = (n.квесты || []).find((x) => x.id === qid);
-      if (q) return q;
-    }
-    return null;
-  }
-
-  // --- Data-driven ряды вкладок (000051, задача 000096) ---
-  // Новая вкладка = новая запись { id, label, build(pane) } в массиве
-  // столбца: 000098 (форма настроек), 000100 (журнал квестов),
-  // 000101 (строка «Магазина здесь нет») и 000086 («Отряд» — 7-я
-  // вкладка) достраивают механизм записями, без переделки.
-  // build(pane) вызывается ОДИН раз при сборке панели; render() pane
-  // НЕ пересобирает — только обновляет существующие тела in place
-  // (форма 000098 опирается на живость focus).
-  const LEFT_TABS = [
-    {
-      id: 'character',
-      label: 'Персонаж',
-      build(pane) {
-        // Заголовок — имя персонажа; render() обновляет его in place
-        // (переименование — restoreFromSave).
-        const title = el('div', 'cp-title', character ? character.name : '');
-        pane.appendChild(title);
-        panel._title = title;
-
-        const stats = el('div', 'cp-stats');
-        pane.appendChild(stats);
-        panel._stats = stats;
-
-        // Основные навыки (строки/классы БЕЗ ИЗМЕНЕНИЙ — DOM-контракт
-        // tests/ui-skills.test.js).
-        const primaries = el('div', 'cp-section', 'Основные навыки');
-        const primTable = el('table', 'cp-table');
-        for (const p of G.PRIMARY_SKILLS) {
-          const tr = el('tr');
-          tr.appendChild(el('td', 'cp-name', p.name));
-          const lv = el('td', 'cp-level', '—');
-          tr.appendChild(lv);
-          const btn = el('button', 'cp-btn', '+');
-          btn.dataset.skill = p.id;
-          tr.appendChild(btn);
-          tr.appendChild(skillTipCell()); // 000097: тултип строки
-          primTable.appendChild(tr);
-        }
-        primaries.appendChild(primTable);
-        pane.appendChild(primaries);
-
-        // Вторичные навыки по группам основных.
-        for (const p of G.PRIMARY_SKILLS) {
-          const section = el('div', 'cp-section', p.name);
-          const table = el('table', 'cp-table');
-          for (const [id, s] of Object.entries(G.SECONDARY_SKILLS)) {
-            if (s.primary !== p.id) continue;
-            const tr = el('tr');
-            tr.appendChild(el('td', 'cp-name')); // имя подставится при render
-            tr.appendChild(el('td', 'cp-req', ''));
-            const lv = el('td', 'cp-level', '—');
-            tr.appendChild(lv);
-            const btn = el('button', 'cp-btn', '+');
-            btn.dataset.skill = id;
-            tr.appendChild(btn);
-            tr.appendChild(skillTipCell()); // 000097: тултип строки
-            table.appendChild(tr);
-          }
-          section.appendChild(table);
-          pane.appendChild(section);
-        }
-      },
-    },
-    {
-      id: 'inventory',
-      label: 'Инвентарь',
-      build(pane) {
-        const sec = el('div', 'cp-section', 'Инвентарь');
-        const invBody = el('div', 'cp-items');
-        sec.appendChild(invBody);
-        pane.appendChild(sec);
-        panel._invBody = invBody;
-      },
-    },
-    {
-      id: 'settings',
-      label: 'Игровые настройки',
-      build(pane) {
-        // Placeholder: 000098 добавит сюда форму настроек.
-        pane.appendChild(el('div', 'cp-section', 'Игровые настройки'));
-        pane.appendChild(el('div', 'cp-itemmeta',
-          'настройки появятся позже (задача 000098)'));
-      },
-    },
-  ];
-
-  const RIGHT_TABS = [
-    {
-      id: 'equipment',
-      label: 'Снаряжение',
-      build(pane) {
-        const equipSec = el('div', 'cp-section', 'Снаряжение');
-        const equipBody = el('div', 'cp-items');
-        equipSec.appendChild(equipBody);
-        pane.appendChild(equipSec);
-        panel._equipBody = equipBody;
-
-        const quickSec = el('div', 'cp-section', 'Быстрые слоты (бой)');
-        const quickBody = el('div', 'cp-items');
-        quickSec.appendChild(quickBody);
-        pane.appendChild(quickSec);
-        panel._quickBody = quickBody;
-      },
-    },
-    {
-      id: 'shop',
-      label: 'Магазин',
-      build(pane) {
-        // Торговля (000009) переезжает в pane «Магазин» как есть:
-        // renderItems() обновляет _shopBody in place и прячет секцию,
-        // когда shop === null (000101 добавит строку «Магазина здесь
-        // нет» в этот же pane).
-        const shopSec = el('div', 'cp-section', 'Магазин');
-        const shopBody = el('div', 'cp-items');
-        shopSec.appendChild(shopBody);
-        pane.appendChild(shopSec);
-        panel._shopSec = shopSec;
-        panel._shopBody = shopBody;
-      },
-    },
-    {
-      id: 'quests',
-      label: 'Квесты',
-      build(pane) {
-        // Журнал квестов (000100): read-only зеркало; render()
-        // обновляет тело in place (панель не пересобирает panes).
-        const questsSec = el('div', 'cp-section', 'Квесты');
-        const questsBody = el('div', 'cp-items');
-        questsSec.appendChild(questsBody);
-        pane.appendChild(questsSec);
-        panel._questsBody = questsBody;
-      },
-    },
-  ];
+  // --- Data-driven ряды вкладок (000051, задача 000096) — 000130 ---
+  // Вкладки — записи реестра Game.uiTabs (src/ui-tabs.js); модули
+  // src/ui-tab-*.js САМОРЕГИСТРИРУЮТСЯ при загрузке (ДО ui.js).
+  // Новая вкладка = новый модуль + script-тег в index.html: ui.js
+  // НЕ правится (анти-прецедент закреплён тестом). Порядок записей =
+  // порядок регистрации = порядок тегов (пин index-order).
+  // build(pane, ctx) вызывается ОДИН раз при сборке панели; render()
+  // pane НЕ пересобирает — только обновляет существующие тела in
+  // place (форма 000098 опирается на живость focus). Реестр читается
+  // ЛЕНИВО в buildPanel (не при загрузке!).
 
   // Состояние вкладок по столбцам (closure; ЖИВЁТ через render() —
   // pane не пересобираются). rec: { active, buttons, panes, apply }.
@@ -227,7 +62,10 @@
     const col = el('div', 'cp-column');
     const tabsRow = el('div', 'cp-tabs');
     col.appendChild(tabsRow);
-    const rec = { active: defs[0].id, buttons: {}, panes: {} };
+    // 000130: guard ПУСТОГО столбца (реестра нет — деградация:
+    // столбец строится, вкладок в нём нет, без краха).
+    const rec = { active: defs.length ? defs[0].id : null,
+      buttons: {}, panes: {} };
     for (const t of defs) {
       const btn = el('button', 'cp-tab', t.label);
       btn.dataset.col = String(colIndex);
@@ -236,7 +74,7 @@
       tabsRow.appendChild(btn);
       const pane = el('div', 'cp-tabpane');
       rec.panes[t.id] = pane;
-      t.build(pane);
+      t.build(pane, panelCtx);
       col.appendChild(pane);
     }
     rec.apply = function () {
@@ -270,11 +108,39 @@
     closeBtn.addEventListener('click', () => toggle(false));
     panel.appendChild(closeBtn);
 
+    // 000130: ctx ядро→вкладка (контракт memory/000130-ui-tabs.md
+    // §4.3) — строится ОДИН раз: panel (тела — panel._*), el
+    // (DOM-фабрика ядра — НЕ дублировать в модулях), itemRow/
+    // itemTipText (общий механизм строк, 000097) и ЖИВЫЕ getters
+    // closure-состояния ядра (character/shop/quests).
+    panelCtx = {
+      panel,
+      el,
+      itemRow,
+      itemTipText,
+      get character() { return character; },
+      get shop() { return shop; },
+      get quests() { return { npcs: questNpcs, book: questBook }; },
+    };
+
     // Два столбца: лево — Персонаж/Инвентарь/настройки,
-    // право — Снаряжение/Магазин/Квесты.
+    // право — Снаряжение/Магазин/Квесты. 000130: ЗАПИСИ — из
+    // реестра Game.uiTabs (модули src/ui-tab-*.js, загруженные ДО
+    // ui.js); читается ЛЕНИВО — ui.js грузится чисто без реестра.
+    const reg = G.uiTabs;
+    if (!reg || typeof reg.list !== 'function') {
+      console.error('ui.js: Game.uiTabs не найден — src/ui-tabs.js ' +
+        'должен грузиться ДО src/ui.js (задача 000130); панель — ' +
+        'два пустых столбца');
+      panelTabs = [];
+    } else {
+      panelTabs = reg.list();
+    }
     const columns = el('div', 'cp-columns');
-    columns.appendChild(makeColumn(LEFT_TABS, 0));
-    columns.appendChild(makeColumn(RIGHT_TABS, 1));
+    columns.appendChild(makeColumn(
+      panelTabs.filter((t) => t.column === 0), 0));
+    columns.appendChild(makeColumn(
+      panelTabs.filter((t) => t.column === 1), 1));
     panel.appendChild(columns);
 
     notice = el('div', 'cp-notice', '');
@@ -373,7 +239,8 @@
   // Строка предмета в секциях панели. tip (000097) — АДДИТИВНЫЙ
   // 4-й аргумент: текст тултипа заполненной строки (снаряжение/
   // быстрые/инвентарь); пустые строки и строки магазина (зона
-  // 000101) его не получают.
+  // 000101) его не получают. 000130: ОСТАЁТСЯ в ядре и идёт
+  // вкладкам через ctx (общий механизм строк — ЛЮБОЙ вкладке, как el).
   function itemRow(name, meta, buttons, tip) {
     const div = el('div', 'cp-itemrow');
     div.appendChild(el('span', 'cp-itemname', name));
@@ -388,140 +255,10 @@
     return div;
   }
 
-  // Секции снаряжения, быстрых слотов, инвентаря и торговли.
-  function renderItems() {
-    if (!panel || !character) return;
-    const c = character;
-    const inv = c.inventory || { slots: [], quick: [] };
-
-    // Снаряжение.
-    const eq = c.equipment || { weapon: null, armor: null };
-    panel._equipBody.textContent = '';
-    const wep = eq.weapon ? G.getItem(eq.weapon) : null;
-    // Тултипы (000097) — только у ЗАПОЛНЕННЫХ строк; пустые
-    // («— без оружия —» и т.п.) их не получают.
-    panel._equipBody.appendChild(itemRow(
-      wep ? wep.name : '— без оружия —',
-      wep ? 'урон ' + wep.stats.damage : '',
-      wep ? [['снять', 'unequip', { equipslot: 'weapon' }]] : [],
-      wep ? itemTipText(wep) : null));
-    const arm = eq.armor ? G.getItem(eq.armor) : null;
-    panel._equipBody.appendChild(itemRow(
-      arm ? arm.name : '— без брони —',
-      arm ? 'броня +' + arm.stats.armor : '',
-      arm ? [['снять', 'unequip', { equipslot: 'armor' }]] : [],
-      arm ? itemTipText(arm) : null));
-
-    // Быстрые слоты.
-    panel._quickBody.textContent = '';
-    for (let i = 0; i < G.QUICK_SLOTS; i++) {
-      const qid = inv.quick[i];
-      const q = qid ? G.getItem(qid) : null;
-      panel._quickBody.appendChild(itemRow(
-        'Слот ' + (i + 1) + ': ' + (q ? q.name : '— пусто —'),
-        '',
-        q ? [['убрать', 'quick-clear', { slot: i }]] : [],
-        q ? itemTipText(q) : null));
-    }
-
-    // Инвентарь.
-    panel._invBody.textContent = '';
-    if (!inv.slots.length) {
-      panel._invBody.appendChild(el('div', 'cp-itemmeta',
-        'пусто (' + G.INVENTORY_SLOTS + ' слотов)'));
-    }
-    for (const e of inv.slots) {
-      const it = G.getItem(e.id);
-      if (!it) continue;
-      const btns = [];
-      if (it.kind === 'potion' || it.kind === 'food' || it.kind === 'skill_book') {
-        btns.push(['исп.', 'use', { item: e.id }]);
-      }
-      if (it.kind === 'weapon' || it.kind === 'armor') {
-        btns.push(['надеть', 'equip', { item: e.id }]);
-      }
-      btns.push(['быстр.', 'quick', { item: e.id }]);
-      btns.push(['−1', 'remove', { item: e.id }]);
-      panel._invBody.appendChild(itemRow(
-        it.name + (e.qty > 1 ? ' ×' + e.qty : ''),
-        (it.weight * e.qty).toFixed(1) + ' кг, ' + it.value + ' з',
-        btns,
-        itemTipText(it)));
-    }
-
-    // Торговля (видна, когда герой стоит у магазина).
-    if (!shop) {
-      panel._shopSec.style.display = 'none';
-      return;
-    }
-    panel._shopSec.style.display = '';
-    panel._shopBody.textContent = '';
-    panel._shopBody.appendChild(el('div', 'cp-itemmeta',
-      (G.buildingNameUi(shop.buildingType) || 'магазин') + ', богатство ' + shop.wealth + '/3'));
-    for (const [id, qty] of Object.entries(shop.stock)) {
-      const it = G.getItem(id);
-      if (!it || qty < 1) continue;
-      panel._shopBody.appendChild(itemRow(
-        it.name + ' ×' + qty,
-        'покупка ' + G.buyPrice(shop, id, c) + ' з',
-        [['купить', 'buy', { item: id }]]));
-    }
-    const kinds = G.shopKindsFor(shop.buildingType) || [];
-    const sellable = {};
-    for (const e of inv.slots) {
-      const it = G.getItem(e.id);
-      if (it && kinds.includes(it.kind)) sellable[e.id] = (sellable[e.id] || 0) + e.qty;
-    }
-    for (const [id, qty] of Object.entries(sellable)) {
-      const it = G.getItem(id);
-      panel._shopBody.appendChild(itemRow(
-        it.name + ' ×' + qty,
-        'продажа ' + G.sellPrice(shop, id, c) + ' з',
-        [['продать', 'sell', { item: id }]]));
-    }
-  }
-
-  function requiresText(s) {
-    if (!s.requires) return '';
-    const id = s.requires.skill;
-    const name = G.PRIMARY_SKILLS.some((p) => p.id === id)
-      ? G.PRIMARY_SKILLS.find((p) => p.id === id).name
-      : (G.SECONDARY_SKILLS[id] || { name: id }).name;
-    return `${name} ${s.requires.level}`;
-  }
-
-  // --- Тултипы (000097): текст — ТОЛЬКО из каталогов ---
-  // Строки склеиваются '\n' — ОДИН текст-нод (в DOM-стабе textContent
-  // детей не учитывает; в браузере — white-space: pre-line).
-
-  // Строка навыка: основное — desc + «В бою»/«В мире» + «Требование:
-  // —»; вторичное — desc + эффект (как в каталоге) + текущий титул
-  // (names[] — вычисляется в render(), не в build) + требование
-  // (тот же текст, что в .cp-req, иначе «—»).
-  function skillTipText(id, c) {
-    const p = G.PRIMARY_SKILLS.find((x) => x.id === id);
-    if (p) {
-      return [p.desc,
-        'В бою: ' + p.combat,
-        'В мире: ' + p.world,
-        'Требование: —'].join('\n');
-    }
-    const s = G.SECONDARY_SKILLS[id];
-    if (!s) return '';
-    const lvl = (c.secondary && c.secondary[id]) || 0;
-    // lvl = 0 — базовое имя (rankOf(0) дал бы последний ранг —
-    // артефакт player.js; ранговую логику не дублируем).
-    const title = lvl > 0 ? G.secondaryName(id, lvl) : s.name;
-    return [s.desc,
-      'Эффект: ' + s.effectType + ' (' + s.effect.stat + ' ' +
-        s.effect.perLevel + ' за уровень)',
-      'Уровень: ' + title,
-      'Требование: ' + (requiresText(s) || '—')].join('\n');
-  }
-
   // Строка предмета: desc + строка kind (статы оружия/брони или эффект
   // расходника; у реагента эффекта в каталоге нет — строки нет) +
-  // вес + цена.
+  // вес + цена. (000097; 000130: остаётся в ядре, вкладки — через
+  // ctx.itemTipText.)
   function itemTipText(it) {
     const lines = [it.desc];
     if (it.kind === 'weapon') {
@@ -542,117 +279,16 @@
     return lines.join('\n');
   }
 
-  // Вкладка «Квесты» (000100): read-only зеркало журнала.
-  // bring_item-квесты сверяем с инвентарем перед отрисовкой
-  // (refreshBringItems мутирует book — идемпотентно, тот же паттерн
-  // npcUI); записью в сейв из панели НЕ занимается (сейв — только
-  // main.js / диалог NPC при обычных сохранениях).
-  function renderQuestsPane(body) {
-    body.textContent = '';
-    if (!questBook) {
-      body.appendChild(el('div', 'cp-itemmeta',
-        'Журнал квестов недоступен.'));
-      return;
-    }
-    const c = character;
-    if (G.refreshBringItems && questNpcs) {
-      G.refreshBringItems(questNpcs, questBook, c);
-    }
-    const NPCS = questNpcs || [];
-
-    // «В работе» — общий рендерер строк (ОДИН источник с npcUI),
-    // read-only: кнопки «сдать» в панели нет.
-    const active = el('div', 'cp-section', 'В работе');
-    const actives = G.activeQuests(NPCS, questBook);
-    if (!actives.length) {
-      active.appendChild(el('div', 'cp-itemmeta', 'нет активных квестов'));
-    }
-    for (const { quest, instance } of actives) {
-      if (!quest) continue;
-      active.appendChild(buildActiveQuestRow(quest, instance, c, false));
-    }
-    body.appendChild(active);
-
-    // «Выполнено» — счётчик + краткий список названий (id вне
-    // каталога — голый id, фолбэк npcUI).
-    const done = el('div', 'cp-section', 'Выполнено');
-    if (!questBook.done.length) {
-      done.appendChild(el('div', 'cp-itemmeta', 'пока ничего'));
-    } else {
-      done.appendChild(el('div', 'cp-itemmeta',
-        'Выполнено: ' + questBook.done.length));
-      for (const qid of questBook.done) {
-        const q = findQuestInCatalog(NPCS, qid);
-        done.appendChild(el('div', 'cp-itemrow', q ? q.название : qid));
-      }
-    }
-    body.appendChild(done);
-  }
-
   function render() {
     if (!panel || !character) return;
-    const c = character;
-    // Заголовок — имя персонажа (узел собран один раз в buildPanel;
-    // переименование — restoreFromSave).
-    if (panel._title) panel._title.textContent = c.name;
-    const d = G.derived(c);
-    const eqA = G.equipmentStats ? G.equipmentStats(c).armor : 0;
-    const w = G.inventoryWeight(c);
-    const maxW = G.maxCarryWeight(c);
-    panel._stats.textContent =
-      `Уровень ${c.level}  |  Опыт ${c.xp}/${G.xpForNext(c.level)}\n` +
-      `HP ${c.hp}/${d.maxHP}  |  MP ${c.mp}/${d.maxMP}  |  Броня ${d.armor + eqA}\n` +
-      `Золото: ${c.gold}  |  Свободные очки: ${c.points}\n` +
-      `Вес: ${w.toFixed(1)}/${maxW.toFixed(1)} кг  |  Слоты: ${G.slotCount(c)}/${G.INVENTORY_SLOTS}`;
-
-    // Все строки — по кнопке (data-skill): основные и вторичные навыки.
-    // Кнопки предметов/торговли (data-act) вне таблицы — пропускаем.
-    panel.querySelectorAll('.cp-btn').forEach((btn) => {
-      const skill = btn.dataset.skill;
-      if (!skill) return;
-      const tr = btn.closest('tr');
-      if (!tr) return;
-      const nameTd = tr.querySelector('.cp-name');
-      const lvTd = tr.querySelector('.cp-level');
-      const reqTd = tr.querySelector('.cp-req');
-      if (G.PRIMARY_SKILLS.some((p) => p.id === skill)) {
-        lvTd.textContent = String(c.primary[skill]);
-        btn.disabled = !G.canRaise(c, skill).ok;
-      } else {
-        const s = G.SECONDARY_SKILLS[skill];
-        const lvl = c.secondary[skill] || 0;
-        nameTd.textContent = lvl > 0 ? `${G.secondaryName(skill, lvl)} (${lvl})` : s.name;
-        // Опыт практики: копилка и сколько нужно до следующего уровня (000013).
-        const bank = (c.skillXp && c.skillXp[skill]) || 0;
-        lvTd.textContent = bank > 0 && lvl < G.MAX_SKILL_LEVEL
-          ? `${lvl} (${bank}/${G.skillXpForNext(lvl)})`
-          : String(lvl);
-        const cap = G.practiceCap(c, skill);
-        if (reqTd) {
-          if (lvl > 0 && lvl < G.MAX_SKILL_LEVEL && lvl >= cap) {
-            const pName = ((G.PRIMARY_SKILLS.find((p) => p.id === s.primary) || {}).name) || s.primary;
-            reqTd.textContent = 'потолок практикой: ' + pName + ' ' + (cap / 2) + '×2 — дальше растёт только очками и книгами';
-          } else {
-            reqTd.textContent = lvl > 0 ? '' : requiresText(s);
-          }
-        }
-        btn.disabled = !G.canRaise(c, skill).ok;
-      }
-      // Тултип (000097): пересчёт в том же узле — у вторичных титул
-      // зависит от уровня (меняется после прокачки); у основных текст
-      // статичен, пересчёт безвреден. Вспышка reason (выше, по кнопке)
-      // пишется ТОЛЬКО в .cp-req — в .cp-tip не попадает.
-      const tip = tr.querySelector('.cp-tip');
-      if (tip) tip.textContent = skillTipText(skill, c);
-    });
-
-    renderItems();
-
-    // «Квесты» (000100): тело обновляется каждым render — в том числе
-    // в СКРЫТОМ pane (иначе прогресс квестов просрочен после боя);
-    // активную вкладку переключение не сбрасывает (panes не
-    // пересобираются).
-    if (panel._questsBody) renderQuestsPane(panel._questsBody);
+    // 000130: тела вкладок — хуки render(ctx) в ПОРЯДКЕ РЕГИСТРАЦИИ
+    // (panelTabs — копия с buildPanel; в списке render НЕ
+    // перечитывается — саморегистрация действует при ЗАГРУЗКЕ
+    // страницы, до первой сборки панели). Каждый хук пишет ТОЛЬКО в
+    // СВОИ panel._* — тела независимы, порядок хуков DOM не меняет.
+    for (const t of panelTabs) {
+      if (typeof t.render === 'function') t.render(panelCtx);
+    }
   }
 
   function isOpen() {
@@ -732,6 +368,9 @@
       if (panel) render();
     },
     // Магазин текущего тайла (или null) — вкладка «Магазин».
+    // 000130: shopKey-гард ОСТАЁТСЯ в ядре — main.js (L1695) зовёт
+    // setShop КАЖДЫЙ кадр; перенос гарда во вкладочный модуль дал бы
+    // render() 30 раз/с (контракт §6.5).
     setShop(s) {
       shop = s;
       const key = s ? s.x + ',' + s.y + ',' + s.buildingType + ',' + s.wealth : '';
@@ -784,8 +423,13 @@
 
     // Квест по id по всему каталогу (для секции «Выполнено»: book.done
     // хранит только id) — общий findQuestInCatalog (000100).
+    // 000130: извлечён в src/ui-tab-quests.js (плоский game-экспорт
+    // Game.findQuestInCatalog) — ЛЕНИВЫЙ typeof-guard в момент вызова
+    // (песочница без модуля — null → «Выполнено» рисует голый id,
+    // фолбэк npcUI; на загрузке ошибок нет).
     function questById(qid) {
-      return findQuestInCatalog(npcs(), qid);
+      return (typeof G.findQuestInCatalog === 'function')
+        ? G.findQuestInCatalog(npcs(), qid) : null;
     }
 
     // --- Вкладки ---
@@ -906,7 +550,16 @@
         if (!quest) continue;
         // ОДИН рендерер строк с панелью персонажа (000100): у диалога
         // NPC — с кнопкой «сдать» (withTurninButton = true).
-        active.appendChild(buildActiveQuestRow(quest, instance, c, true));
+        // 000130: извлечён в src/ui-tab-quests.js (Game.buildActive-
+        // QuestRow) — ЛЕНИВЫЙ typeof-guard в момент вызова: песочница
+        // без модуля — строка пропускается (console.error), без краха.
+        if (typeof G.buildActiveQuestRow === 'function') {
+          active.appendChild(G.buildActiveQuestRow(quest, instance, c, true));
+        } else {
+          console.error('ui.js: Game.buildActiveQuestRow не найден — ' +
+            'src/ui-tab-quests.js должен грузиться ДО src/ui.js ' +
+            '(задача 000130); строка «В работе» пропущена');
+        }
       }
       body.appendChild(active);
 

@@ -258,13 +258,18 @@ function makeEl(tag) {
 
 // Цепочка из index.html до ui.js включительно (порядок ВАЖЕН:
 // controls.js ДО ui.js — guard в ui.js; регрессия порядка —
-// tests/index-order.test.js).
+// tests/index-order.test.js). 000130: между combat-keys.js и ui.js —
+// реестр + саморегистрирующиеся вкладочные модули (тех. правка:
+// файлы переехали, поведение — то же).
 const CHAIN = [
   'global-settings.js', 'perlin.js', 'mapseed.js',
   'skills-data.js', 'items-data.js', 'npc-data.js',
   'map.js', 'player.js', 'day.js', 'items.js', 'buildings.js',
   'npc.js', 'combat.js', 'dungeon.js',
-  'controls.js', 'combat-keys.js', 'ui.js',
+  'controls.js', 'combat-keys.js',
+  'ui-tabs.js', 'ui-tab-skills.js', 'ui-tab-inventory.js',
+  'ui-tab-settings.js', 'ui-tab-shop.js', 'ui-tab-quests.js',
+  'ui.js',
 ];
 
 // Загрузка цепочки в vm-песочницу. Возвращает { G, body, doc, errors }:
@@ -1898,4 +1903,162 @@ test('000130 RED: node — require() каждого src/ui-tabs.js/ui-tab-*.js �
         f + ': game.findQuestInCatalog');
     }
   }
+});
+
+// --- GREEN: guards реестра, деградация, фиксаторы экстракции ---
+
+test('000130 GREEN: реестр — guards: дубликат id (первая авторитетна), невалидные записи (skip + console.error), list() — копия', () => {
+  // node-ветка UMD: require() — тот же экземпляр реестра (контракт
+  // §4.2), тестируется в node напрямую.
+  const reg = require(path.join(ROOT, 'src', 'ui-tabs.js'));
+  assert.equal(reg.list().length, 0, 'свежий реестр — пуст');
+  assert.doesNotThrow(() => reg.register({
+    column: 0, id: 'a', label: 'A', build() {},
+  }), 'register валидной записи — без броска');
+  assert.equal(reg.list().length, 1);
+  // Дубликат id — console.error + сохраняется ПЕРВАЯ (порядок
+  // скриптов авторитетен).
+  assert.equal(reg.get('a').label, 'A', 'до дубликата — первая запись');
+  reg.register({ column: 1, id: 'a', label: 'A2', build() {} });
+  assert.equal(reg.get('a').label, 'A', 'дубликат — первая авторитетна');
+  assert.equal(reg.list().length, 1, 'дубликат не добавлен');
+  // Невалидные — console.error + skip, НИКОГДА не бросает.
+  for (const bad of [
+    null, 42,
+    {},
+    { id: '', label: 'x', column: 0, build() {} },
+    { id: 'b', column: 0, build() {} },  // без label
+    { id: 'b', label: 'B', column: 2, build() {} },  // column не 0|1
+    { id: 'b', label: 'B', column: 0 },  // без build
+    { id: 'b', label: 'B', column: 0, build() {}, render: 42 },
+  ]) {
+    assert.doesNotThrow(() => reg.register(bad),
+      'register невалидной записи — без броска: ' + JSON.stringify(bad));
+  }
+  assert.equal(reg.list().length, 1, 'невалидные записи — все skip');
+  // render — опционально: без поля и с undefined — ок.
+  reg.register({ id: 'c', label: 'C', column: 1, build() {} });
+  assert.equal(reg.list().length, 2, 'без render — регистрируется');
+  assert.equal(reg.get('no_such'), null, 'get(нет) → null');
+  // list() — КОПИЯ: мутация возвращённого не влияет на реестр.
+  const copy = reg.list();
+  copy.length = 0;
+  assert.equal(reg.list().length, 2, 'list() — копия, не ссылка');
+});
+
+test('000130 GREEN: деградация — вкладочный модуль БЕЗ Game.uiTabs: без throw, console.error, без регистрации', () => {
+  // Паттерн 000053: отсутствие зависимости — console.error +
+  // деградация, игра не падает (в т.ч. в голом sandbox без Game —
+  // G0 = {}, без throw).
+  for (const gameVariant of [undefined, {}]) {
+    const errors = [];
+    const sandbox = {
+      console: {
+        log: () => {}, info: () => {}, warn: () => {},
+        error: (m) => errors.push(String(m)),
+      },
+    };
+    if (gameVariant !== undefined) sandbox.Game = gameVariant;
+    vm.createContext(sandbox);
+    assert.doesNotThrow(() => vm.runInContext(src('ui-tab-quests.js'),
+      sandbox, { filename: 'ui-tab-quests.js' }),
+      'ui-tab-quests.js без реестра — без throw');
+    assert.ok(errors.length >= 1,
+      'console.error при отсутствии Game.uiTabs');
+    assert.ok(String(errors[0]).includes('Game.uiTabs не найден'),
+      'текст ошибки — про порядок: ' + errors[0]);
+    assert.ok(!sandbox.Game || !sandbox.Game.uiTabs,
+      'регистрации нет (реестра нет)');
+  }
+});
+
+test('000130 GREEN: деградация — ui.js БЕЗ ui-tabs.js: загрузка чистая, toggle → console.error + 2 пустых столбца, без краха', () => {
+  // ui.js обязан грузиться чисто БЕЗ реестра (tests/index-order.
+  // test.js гоняет ui.js один в голом sandbox без document):
+  // реестр читается ЛЕНИВО в buildPanel.
+  const errors = [];
+  const document = {
+    createElement: (tag) => makeEl(tag),
+    body: makeEl('body'),
+    querySelector: () => null,
+    hidden: false,
+    listeners: {},
+    addEventListener(type, fn) {
+      (this.listeners[type] || (this.listeners[type] = [])).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const a = this.listeners[type];
+      if (!a) return;
+      const i = a.indexOf(fn);
+      if (i >= 0) a.splice(i, 1);
+    },
+  };
+  const window = {
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  };
+  const sandbox = {
+    console: {
+      log: () => {}, info: () => {}, warn: () => {},
+      error: (m) => errors.push(String(m)),
+    },
+    document, window, setTimeout, clearTimeout,
+  };
+  vm.createContext(sandbox);
+  const chain = CHAIN_000130.filter((f) =>
+    f !== 'ui-tabs.js' && !f.startsWith('ui-tab-'));
+  for (const f of chain) vm.runInContext(src(f), sandbox, { filename: f });
+  assert.equal(errors.length, 0,
+    'загрузка ui.js без реестра — ЧИСТАЯ (ленивое чтение)');
+  const c = sandbox.Game.createCharacter();
+  let panel = null;
+  assert.doesNotThrow(() => {
+    sandbox.Game.playerUI.setCharacter(c);
+    sandbox.Game.playerUI.toggle(true);
+    panel = findAll(document.body, '.char-panel')[0];
+  }, 'toggle без реестра — без краха');
+  assert.ok(panel, 'панель собрана (деградация, не отказ)');
+  assert.ok(errors.length >= 1,
+    'console.error при ПЕРВОЙ сборке панели без реестра');
+  const cols = findAll(panel, '.cp-column');
+  assert.equal(cols.length, 2, 'два столбца');
+  for (const col of cols) {
+    assert.equal(findAll(col, '.cp-tab').length, 0,
+      'пустой столбец: вкладки нет');
+    assert.equal(findAll(col, '.cp-tabpane').length, 0,
+      'пустой столбец: pane нет');
+  }
+  assert.equal(sandbox.Game.playerUI.isOpen(), true,
+    'панель открыта — деградация не ломает isOpen');
+});
+
+test('000130 GREEN: каждый src/ui-tab-*.js на диске НЕ содержит saveNow (панель сейв не трогает)', () => {
+  // Фиксатор 000100 расширяется на вкладочные модули (условно по
+  // existsSync — будущее: новый файл вкладки подхватится сам).
+  const files = fs.readdirSync(path.join(ROOT, 'src'))
+    .filter((f) => /^ui-tab-.*\.js$/.test(f));
+  assert.ok(files.length >= 5,
+    'вкладочные модули на диске: ' + files.join(','));
+  for (const f of files) {
+    assert.doesNotMatch(
+      fs.readFileSync(path.join(ROOT, 'src', f), 'utf8'), /saveNow/,
+      'src/' + f + ' не содержит saveNow (сейв — только main.js/' +
+      'диалог NPC)');
+  }
+});
+
+test('000130 GREEN: ui.js — ленивые typeof-гарды на Game.buildActiveQuestRow/Game.findQuestInCatalog (защита экстракции) и записи вкладок НЕ в ui.js', () => {
+  // npcUI читает общий рендерер квестов (000100) через G с ЛЕНИВЫМ
+  // гардом в момент вызова (песочница без ui-tab-quests.js —
+  // строка пропускается + console.error, на загрузке ошибок нет —
+  // npc-hire.test.js). Записи вкладок (LEFT_TABS/RIGHT_TABS) в
+  // ui.js больше НЕТ — только реестр (контракт §1).
+  const ui = src('ui.js');
+  assert.match(ui, /typeof G\.buildActiveQuestRow === 'function'/,
+    'ui.js: ленивый гард G.buildActiveQuestRow');
+  assert.match(ui, /typeof G\.findQuestInCatalog === 'function'/,
+    'ui.js: ленивый гард G.findQuestInCatalog');
+  assert.match(ui, /G\.uiTabs/, 'ui.js: реестр читается (лениво)');
+  assert.doesNotMatch(ui, /LEFT_TABS|RIGHT_TABS/,
+    'ui.js: записей вкладок нет (переехали в src/ui-tab-*.js)');
 });

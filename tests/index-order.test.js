@@ -782,3 +782,68 @@ test('index.html: ui-tabs.js + ui-tab-*.js ДО ui.js (000130)', () => {
       '(задача 000130: саморегистрация до инициализации панели)');
   }
 });
+
+test('000130: vm — цепочка index.html (до ui.js) → реестр = 6 вкладок в порядке тегов + Game.buildActiveQuestRow', () => {
+  // Полный «браузерный» путь без DOM: ВСЕ модули цепи чисты при
+  // загрузке (НОЛЬ DOM — 000053), поэтому песочница { console }
+  // достаточна. Порядок тегов index.html = порядок РЕГИСТРАЦИИ =
+  // порядок вкладок в столбцах: character → inventory → equipment →
+  // settings → shop → quests (equipment — вторая вкладка из
+  // ui-tab-inventory.js — ДВЕ вкладки в одном файле).
+  const errors = [];
+  const sandbox = {
+    console: {
+      log: () => {}, info: () => {}, warn: () => {},
+      error: (m) => errors.push(String(m)),
+    },
+  };
+  vm.createContext(sandbox);
+  const all = Array.from(
+    html.matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1]);
+  const i = all.indexOf('src/ui.js');
+  assert.ok(i >= 0, 'ui.js подключён в index.html');
+  for (const f of all.slice(0, i + 1)) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  assert.equal(errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + errors.join('; '));
+  assert.ok(sandbox.Game, 'Game создан цепочкой');
+  const reg = sandbox.Game.uiTabs;
+  assert.ok(reg && typeof reg === 'object',
+    'Game.uiTabs — реестр (src/ui-tabs.js)');
+  // [...]: список из ЧУЖОГО realm (vm) — deepStrictEqual сравнивает
+  // прототипы; спред даёт массив host-realm с теми же id.
+  assert.deepEqual([...reg.list().map((t) => t.id)],
+    ['character', 'inventory', 'equipment', 'settings', 'shop',
+     'quests'],
+    'порядок реестра = порядок script-тегов index.html');
+  assert.equal(typeof sandbox.Game.buildActiveQuestRow, 'function',
+    'Game.buildActiveQuestRow — плоский game-экспорт ui-tab-quests.js');
+  assert.equal(typeof sandbox.Game.findQuestInCatalog, 'function',
+    'Game.findQuestInCatalog — плоский game-экспорт ui-tab-quests.js');
+  assert.ok(sandbox.Game.playerUI, 'ui.js загружен (Game.playerUI)');
+});
+
+test('000130: vm — ПРОВАЛЕННЫЙ порядок (ui-tab-quests.js без ui-tabs.js) → console.error, без краха, без регистрации', () => {
+  // Деградация (000053): битый порядок (вкладочный модуль раньше
+  // реестра) не роняет загрузку — console.error + без регистрации;
+  // игра не падает (фиксатор: не «тихий» fallback).
+  const errors = [];
+  const sandbox = {
+    console: {
+      log: () => {}, info: () => {}, warn: () => {},
+      error: (m) => errors.push(String(m)),
+    },
+  };
+  vm.createContext(sandbox);
+  assert.doesNotThrow(() => vm.runInContext(
+    fs.readFileSync(path.join(ROOT, 'src', 'ui-tab-quests.js'), 'utf8'),
+    sandbox, { filename: 'ui-tab-quests.js' }),
+    'ui-tab-quests.js без ui-tabs.js — без краха');
+  assert.ok(errors.length >= 1, 'console.error при битом порядке');
+  assert.ok(String(errors[0]).includes('Game.uiTabs не найден'),
+    'текст ошибки — про порядок: ' + errors[0]);
+  assert.ok(!sandbox.Game || !sandbox.Game.uiTabs,
+    'регистрации нет (реестра нет)');
+});
