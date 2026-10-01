@@ -2843,6 +2843,134 @@ test('000082: практика НЕ начисляется спутникам �
   assert.equal(c.result.xp, 16, 'опыт боя — всё равно игроку (100%)');
 });
 
+// --- Эфир: постоянный союзник (задача 000081) ---
+//
+// КРАСНЫЕ тесты (TDD): падают, пока src/efir.js не существует
+// (модуль + данные makeAlly). Проводка «Эфир ВСЕГДА в allies» — в
+// main.js/combat-ui.js — пинится отдельно (tests/combat-ui.test.js,
+// tests/main-visuals.test.js, tests/index-order.test.js).
+//
+// Контракт (memory/000081-efir.md + memory/000081-efir-ally.md):
+//   * Эфир — частный случай «союзного юнита» (000080): kind 'efir',
+//     данные — Game.efir.efirAllyData(state); combat.js — 0 изменений;
+//   * state {level, xp, skills} — ВНЕ боя (владелец main.js); HP в
+//     состоянии НЕТ → каждый бой НОВЫЙ makeAlly (hp = maxHP):
+//     «возврат со 100% HP» — структурно, без кода восстановления;
+//   * НОЛЬ новых вызовов c._rng в проводке (placeAllies без RNG — 000080).
+//
+// require src/efir.js — ЛЕНИВО (хелпер try/catch → assert.fail):
+// top-level require в шапке в красной фазе (файл отсутствует) валит
+// ВСЕ тесты этого файла (прецедент: loadLocations, tests/locations.
+// test.js).
+function loadEfir000081() {
+  try {
+    return require(path.join(__dirname, '..', 'src', 'efir.js'));
+  } catch (e) {
+    assert.fail('src/efir.js не существует или не грузится ' +
+      '(задача 000081): ' + e.message);
+  }
+}
+
+test('000081: Эфир в allies — юнит id/kind "efir", side "ally", полный HP, 1×1, первый якорь (px−1, py−1), очередь после player; мораль ×(1+companionMoraleBonus)', () => {
+  const E = loadEfir000081();
+  // Без навыка «Предводитель»: мораль ×1 (урон — чистая формула).
+  const p = strongHero();
+  const c = createCombat({
+    player: p,
+    allies: [E.efirAllyData(E.createEfir())],
+    mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  const u = c.units.find((x) => x.id === 'efir');
+  assert.ok(u, 'Эфир в allies (createCombat({allies: [efirAllyData]}))');
+  assert.equal(u.kind, 'efir', "kind — строго 'efir'");
+  assert.equal(u.side, 'ally');
+  assert.equal(u.name, 'Эфир');
+  assert.equal(u.role, 'support');
+  assert.equal(u.alive, true);
+  assert.equal(u.hp, u.maxHP, 'старт с полным HP');
+  assert.equal(u.maxHP, Math.max(1, Math.round((8 + 4 * 1) * 0.7)),
+    'L1 support: maxHP = 8 (формула makeAlly)');
+  assert.deepEqual(u.size, { w: 1, h: 1 }, 'союзник всегда 1×1');
+  assert.equal(u.x, c.px - 1, 'первый якорь (px−1, py−1) «всегда со мной»');
+  assert.equal(u.y, c.py - 1);
+  assert.deepEqual(c.turnOrder, ['player', 'efir', 'm0'],
+    'очередь: player → Эфир → мобы');
+  // Мораль: без «Предводителя» — ×1 (урон = формула).
+  assert.equal(u.moraleMult, 1, 'без навыка — mult 1');
+  assert.equal(u.damage, Math.max(1, Math.round(2 + 0.7 * 1)),
+    'без навыка — damage = round(2.7) = 3');
+  // «Предводитель» 10 → companionMoraleBonus 0.5 → урон ×1.5 (000080).
+  const p2 = strongHero();
+  p2.secondary.leader = 10;
+  const c2 = createCombat({
+    player: p2,
+    allies: [E.efirAllyData(E.createEfir())],
+    mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  const u2 = c2.units.find((x) => x.id === 'efir');
+  assert.equal(u2.moraleMult, 1.5, 'leader 10 → 1 + 0.05×10 = 1.5');
+  assert.equal(u2.damage, Math.max(1, Math.round((2 + 0.7 * 1) * 1.5)),
+    'damage = round(2.7·1.5) = 4 (моральный бонус в уроне)');
+});
+
+test('000081: гибель в бою → возврат в следующем бою со 100% HP (state не мутируется)', () => {
+  const E = loadEfir000081();
+  const p = strongHero();
+  const state = E.createEfir();
+  // Бой 1: волк добивает Эфира одним ударом (гибель союзника ≠ поражение,
+  // паттерн теста 000082 «погибший в бою»).
+  const c1 = createCombat({
+    player: p,
+    allies: [E.efirAllyData(state)],
+    mobs: ['wolf'], mobLevel: 10, seed: 5,
+  });
+  c1.obstacles.clear();
+  const e1 = c1.units.find((x) => x.id === 'efir');
+  const w = c1.units.find((x) => x.id === 'm0');
+  w.x = 3; w.y = 3; // ближе к Эфиру (px−1, py−1), чем к игроку
+  w.damage = 20;    // добивает Эфира (8 HP) одним ударом
+  c1._rng = () => 0.01; // все попадания
+  c1.endTurn(); // игрок (не действует) → Эфир (support) → волк
+  assert.equal(e1.alive, false, 'Эфир погиб в бою 1');
+  assert.equal(c1.result, null, 'гибель союзника — НЕ поражение');
+  // Бой 2: тот же persistent-объект state → НОВЫЙ makeAlly: hp = maxHP.
+  const c2 = createCombat({
+    player: p,
+    allies: [E.efirAllyData(state)],
+    mobs: ['wolf'], mobLevel: 2, seed: 7,
+  });
+  const e2 = c2.units.find((x) => x.id === 'efir');
+  assert.ok(e2, 'Эфир в allies СЛЕДУЮЩЕГО боя (ВСЕГДА)');
+  assert.equal(e2.alive, true, 'возвращается в бой');
+  assert.equal(e2.hp, e2.maxHP, 'возврат со 100% HP (hp = maxHP у makeAlly)');
+  // Бой не пишет в state (level/xp — только addEfirXp в проводке 000081).
+  assert.equal(state.level, 1);
+  assert.equal(state.xp, 0);
+});
+
+test('000081: детерминизм хода Эфира (по сиду): два прогона сценария → идентичные снимки', () => {
+  const E = loadEfir000081();
+  const run = () => {
+    const p = strongHero();
+    const state = E.createEfir();
+    const c = createCombat({
+      player: p,
+      allies: [E.efirAllyData(state)],
+      mobs: ['wolf'], mobLevel: 2, seed: 11,
+    });
+    c.obstacles.clear();
+    // Сценарий: игрок не действует, 3 раунда (Эфир ходит по очереди).
+    for (let i = 0; i < 3 && !c.result; i++) c.endTurn();
+    return {
+      units: c.units.map((u) => [u.id, u.x, u.y, u.hp, u.alive]),
+      log: c.log,
+      turnOrder: c.turnOrder,
+    };
+  };
+  assert.deepEqual(run(), run(),
+    'тот же сид + сценарий — тот же поток c._rng (детерминизм)');
+});
+
 // --- Задача 000076: благословения храмов в формулах боя (КРАСНЫЕ) ---
 //
 // Контракты (решения — memory/000076-temple-blessings.md):

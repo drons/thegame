@@ -826,6 +826,30 @@ test('000130: vm — цепочка index.html (до ui.js) → реестр = 6
   assert.ok(sandbox.Game.playerUI, 'ui.js загружен (Game.playerUI)');
 });
 
+// --- Задача 000081: efir.js (Эфир — постоянный союзник) ---
+//
+// UMD-ловушка (000018/000038): combat-ui.js и main.js снимают
+// const G = globalThis.Game ОДИН раз при загрузке — efir.js обязан
+// быть РАНЬШЕ них, иначе G.efir — undefined вечно (тихая деградация:
+// бои без Эфира). Позиция — в блоке спутников: ПОСЛЕ companions.js,
+// ПЕРЕД building-effects.js; player.js раньше (xpForNext — лениво,
+// но порядок закреплён).
+
+test('index.html: src/efir.js подключён ПОСЛЕ player.js и companions.js, РАНЬШЕ combat-ui.js и main.js (задача 000081)', () => {
+  assert.notEqual(pos('src/efir.js'), -1,
+    'src/efir.js не подключён в index.html (задача 000081)');
+  assert.ok(pos('src/player.js') < pos('src/efir.js'),
+    'src/player.js должен быть раньше src/efir.js (xpForNext, задача 000081)');
+  assert.ok(pos('src/companions.js') < pos('src/efir.js'),
+    'src/efir.js — в блоке спутников: после src/companions.js (задача 000081)');
+  assert.ok(pos('src/efir.js') < pos('src/combat-ui.js'),
+    'src/efir.js должен быть раньше src/combat-ui.js ' +
+    '(UMD-ловушка 000038: снапшот Game при загрузке)');
+  assert.ok(pos('src/efir.js') < pos('src/main.js'),
+    'src/efir.js должен быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: снапшот Game при загрузке)');
+});
+
 test('000130: vm — ПРОВАЛЕННЫЙ порядок (ui-tab-quests.js без ui-tabs.js) → console.error, без краха, без регистрации', () => {
   // Деградация (000053): битый порядок (вкладочный модуль раньше
   // реестра) не роняет загрузку — console.error + без регистрации;
