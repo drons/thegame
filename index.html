@@ -299,9 +299,12 @@
       color: #fff;
       text-shadow: 0 1px 2px rgba(0,0,0,0.9);
     }
+    /* Кнопки действий — только бой (grep по src/): ЧЕТЫРЕ колонки
+       (8 кнопок = 2 ряда) и иконные кнопки БЕЗ текстовой подписи
+       (задача 000124; иконки assets/ui/combat_*.svg). */
     .combat-actions {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(4, 1fr);
       gap: 6px;
       margin-bottom: 10px;
     }
@@ -311,7 +314,16 @@
       background: #2c3040;
       color: #e8dcc0;
       cursor: pointer;
-      padding: 4px 6px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      aspect-ratio: 1 / 1;
+    }
+    .combat-actions button img {
+      width: 68%;
+      height: 68%;
+      display: block;
     }
     .combat-actions button:disabled { opacity: 0.3; cursor: default; }
     .combat-log {
@@ -335,6 +347,113 @@
       background: rgba(10, 12, 16, 0.85);
       border-radius: 8px;
       cursor: pointer;
+    }
+    /* Экран боя (задача 000124): поле + ВСЕ панели вписаны во вьюпорт
+       без скролла (десктоп + мобильные). Поле (canvas 336×336 внутри)
+       масштабируется ЧИСТЫМ CSS под доступную высоту:
+       width: min(100vh - 32, 100vw - 304) + aspect-ratio 1/1
+       (32 = padding 16×2; 304 = padding 32 + gap 16 + панель 256
+       border-box) — формула сама вписывает layout: полная ширина
+       W + 304 ≤ 100vw, полная высота W + 32 ≤ 100vh. Панель —
+       flex-колонка компактной ширины 256px (4 кнопки × ~52px),
+       лог — flex: 1 (всё оставшееся место под кнопками). ВСЯ
+       геометрия боя — только в скоупе .combat-overlay--combat:
+       базовые .combat-overlay/.combat-side/.combat-log НЕ ТРОГАЕМ
+       (чужие оверлеи: подземелье, NPC, постройка; контракт —
+       memory/000124-combat-layout.md). image-rendering: pixelated —
+       пиксельный арт 336→~700 без сглаживания. */
+    .combat-overlay--combat {
+      padding: 16px;
+      align-items: stretch;
+    }
+    .combat-overlay--combat .combat-box {
+      flex: 0 1 auto;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .combat-overlay--combat .combat-box canvas {
+      box-sizing: border-box;
+      display: block;
+      aspect-ratio: 1 / 1;
+      height: auto;
+      width: min(100vh - 32px, 100vw - 304px);
+      max-width: 100%;
+      image-rendering: pixelated;
+    }
+    .combat-overlay--combat .combat-side {
+      box-sizing: border-box;
+      flex: 0 0 auto;
+      width: 256px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .combat-overlay--combat .combat-log {
+      flex: 1 1 auto;
+      min-height: 0;
+      height: auto;
+    }
+    /* Баннер результата (ревью 2026-10-01): на master .combat-box был
+       ровно размером с canvas, поэтому баннер (absolute inset 0)
+       покрывал поле. Теперь box растягивается (row — на высоту
+       оверлея, portrait — на остаток колонки), поэтому в боевом
+       скоупе баннер центрируется и ограничивается РАЗМЕРОМ CANVAS
+       (та же формула, что у canvas ниже/в медиа-правилах): фон и
+       зона клика finish() совпадают с полем, как на master. */
+    .combat-overlay--combat .combat-banner {
+      top: 50%;
+      left: 50%;
+      right: auto;
+      bottom: auto;
+      transform: translate(-50%, -50%);
+      width: min(100vh - 32px, 100vw - 304px);
+      height: min(100vh - 32px, 100vw - 304px);
+    }
+    /* Портретный мобильный (задача 000124): КОЛОНКА — поле по
+       ШИРИНЕ (приоритет ТЗ: вписалось > полная высота), панель под
+       ним во всю ширину, кнопки остаются в 4 колонки (крупнее —
+       удобнее тапать), лог flex: 1 (min-height 0 из скоупа —
+       скроллится). БЮДЖЕТ ПАНЕЛИ 512px (ревью 2026-10-01):
+       естественная высота панели с заполненным журналом (до 9 строк)
+       и кнопками, РАСТАЩИМИСЯ с шириной, превышает 512 — без капа
+       canvas вылезал за верх вьюпорта (390×844, 568×748, 430×932).
+       Формула canvas (−520 = gap 8 + кап 512) гарантирует
+       поле+gap+панель+padding ≤ 100vh при ЛЮБОМ содержимом панели.
+       Брейкпоинт 640px + portrait — решение Проектирования: узкий
+       альбомный 568×320 и 844×390 остаются в row (844 > 640).
+       Медиа-правила ИДУТ ПОСЛЕ основного скоуп-блока (та же
+       специфичность — победа по порядку каскада). */
+    @media (max-width: 640px) and (orientation: portrait) {
+      .combat-overlay--combat {
+        flex-direction: column;
+        padding: 8px;
+        gap: 8px;
+      }
+      .combat-overlay--combat .combat-box {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      /* Ревью 2026-10-01: 100% УБРАНО — в колонке (базовое
+         align-items: center) ширина box = shrink-to-fit canvas:
+         циркулярный процент (риск схлопнуться в 0 px); доступная
+         ширина = 100vw − 16 (padding 8×2) — абсолютная длина.
+         520 = gap 8 + кап панели 512 (max-height ниже): поле+gap+
+         панель+padding ≤ 100vh при ЛЮБОМ содержимом панели. */
+      .combat-overlay--combat .combat-box canvas {
+        width: min(100vw - 16px, 100vh - 16px - 520px);
+      }
+      .combat-overlay--combat .combat-side {
+        flex: 0 0 auto;
+        width: 100%;
+        max-height: 512px;
+        min-height: 0;
+      }
+      .combat-overlay--combat .combat-banner {
+        width: min(100vw - 16px, 100vh - 16px - 520px);
+        height: min(100vw - 16px, 100vh - 16px - 520px);
+      }
     }
     /* Подземелье (задача 000066): вьюпорт на весь экран — тот же
        движок, что мир: canvas fullscreen (absolute inset 0), камера

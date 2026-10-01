@@ -2,13 +2,21 @@
 // Браузерный модуль (ядро — src/combat.js, тестируется в node).
 //
 // Управление в бою — единая таблица src/combat-keys.js (задача 000048;
-// подписи кнопок и keydown строятся из неё же, хардкода нет):
+// aria-label кнопок и keydown строятся из неё же, хардкода нет):
 //   стрелки / WASD / ЦФЫВ — шаг (те же e.code, что в мире — controls.js),
 //   J — удар (K — дубль),  Q — огненная стрела,  R — исцеление,
 //   B — блок,  E — быстрый предмет,  T — предмет (U — дубль),
 //   F — побег,  Space — конец хода,
 //   клик по мобо — выбор цели,
 //   Esc / Space / Enter — закрыть оверлей (только после боя).
+// Экран боя (задача 000124): кнопки действий — SVG-иконки
+// (assets/ui/combat_<action>.svg) БЕЗ текстовой подписи; клавиша-
+// подсказка [J] и т.п. с кнопок убрана (сами клавиши работают;
+// aria-label = имя действия из таблицы). ВЕСЬ layout боя (вьюпорт,
+// 4 колонки, лог flex:1) — CSS в скоупе .combat-overlay--combat
+// (контракт — memory/000124-combat-layout.md); canvas CSS-масштабируется
+// под доступную высоту, поэтому клик по клетке нормализуется по
+// фактическому размеру canvas (getBoundingClientRect).
 // На русской раскладке: J=О, K=Л, U=Г (e.code — физическая клавиша,
 // задача 000028). Невозможное действие/шаг — причина в журнал
 // (canDoAction, задача 000037; раньше — тишина).
@@ -69,7 +77,12 @@
 
   function build() {
     overlay = document.createElement('div');
-    overlay.className = 'combat-overlay';
+    // Скоуп-класс (задача 000124): вся геометрия боевого layout живёт
+    // в CSS .combat-overlay--combat; базовые .combat-overlay,
+    // .combat-side, .combat-log НЕ ТРОГАЕМ (их переиспользуют диалог
+    // NPC, подземелье, постройка — контракт memory/000124-combat-
+    // layout.md).
+    overlay.className = 'combat-overlay combat-overlay--combat';
 
     const box = document.createElement('div');
     box.className = 'combat-box';
@@ -111,12 +124,20 @@
     const actions = document.createElement('div');
     actions.className = 'combat-actions';
     // Кнопки — из единой таблицы src/combat-keys.js (задача 000048):
-    // подпись «Имя [первичная клавиша]», порядок = порядок в таблице.
+    // порядок = порядок в таблице. Содержимое — SVG-иконка БЕЗ
+    // текстовой подписи (задача 000124): имя файла — деривация из
+    // имени действия (assets/ui/combat_<action>.svg; контракт иконок
+    // — memory/000124-combat-layout.md), клавиша-подсказка с кнопок
+    // убрана (сами клавиши работают). aria-label = имя действия
+    // (доступность; alt="" — иконка презентационная).
     // b.dataset.act — имя действия ядра для canDoAction (задача 000037).
     for (const item of G.CombatKeys.describeCombatKeys()) {
       const b = document.createElement('button');
-      b.textContent = item.label + ' [' +
-        G.CombatKeys.keyLabel(item.primaryKey) + ']';
+      const icon = document.createElement('img');
+      icon.src = 'assets/ui/combat_' + item.action.toLowerCase() + '.svg';
+      icon.alt = '';
+      b.appendChild(icon);
+      b.ariaLabel = item.label;
       b.dataset.act = item.action;
       b.addEventListener('click', () => {
         // Как по клавише: зеркало ok, но ядро отклонило (сейчас 'invItem'
@@ -144,8 +165,18 @@
 
     canvas.addEventListener('click', (e) => {
       const r = canvas.getBoundingClientRect();
-      const cx = Math.floor((e.clientX - r.left) / CELL);
-      const cy = Math.floor((e.clientY - r.top) / CELL);
+      // Нормализация по ФАКТЧЕСКОМУ размеру canvas на экране
+      // (задача 000124): canvas CSS-масштабируется под вьюпорт
+      // (aspect-ratio 1/1, см. .combat-overlay--combat в index.html),
+      // поэтому экранные px ≠ внутренним (CELL=48): коэффициент =
+      // внутренний/экранный. Фолбэк r.width || canvas.width —
+      // нулевой/отсутствующий rect (DOM-стабы, патология) → 1:1.
+      // Border 2px входит в rect (border-box) — смещение < 0.1 клетки
+      // при масштабе ×2, не компенсируется (не усложняем).
+      const rw = r.width || canvas.width;
+      const rh = r.height || canvas.height;
+      const cx = Math.floor((e.clientX - r.left) * (canvas.width / rw) / CELL);
+      const cy = Math.floor((e.clientY - r.top) * (canvas.height / rh) / CELL);
       // Клик в любую клетку прямоугольника моба (задача 000040).
       const u = c.units.find((x) => x.alive && !x.fled
         && cx >= x.x && cx < x.x + (x.size.w || 1)
