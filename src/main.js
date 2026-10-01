@@ -1088,64 +1088,29 @@
     });
   }
 
-  // --- Подземелье ---
-
-  // Состояние подземелья (задача 000068) + ОТДЕЛЬНЫЙ мувер
-  // (src/motion.js, паттерн мира 000033): дробная позиция ds.pos(now)
-  // для рендера — глейд prev→next за интервал шага (MOVE_INTERVAL_MS —
-  // тот же источник, что мировой мувер; «Ловкий шаг» в подземелье НЕ
-  // применяется — шаг на keydown, троттлинг мира не переносится,
-  // ограничение ТЗ). Мувер живёт в dungeonState и умирает вместе с
-  // ним (exitDungeon — без изменений). ОДИН хелпер на ОБА входа
-  // (maybeEnterDungeon и отладочный __game.actions.enterDungeon) —
-  // одна форма состояния.
-  function makeDungeonState(d, contents, worldKey) {
-    const ds = {
-      dg: d, contents,
-      kind: 'dungeon', // 000105: ветка состояния (город — 'city')
-      x: d.entrance.x, y: d.entrance.y,
-      prevX: d.entrance.x, prevY: d.entrance.y,
-      worldKey,
-      log: [G.DUNGEON_NAMES[d.type] + ': вход.'],
-    };
-    ds.mover = G.createMover
-      ? G.createMover({ x: d.entrance.x, y: d.entrance.y,
-          intervalMs: MOVE_INTERVAL_MS })
-      : null;
-    // Защитный снап в entrance (ТЗ: формальность — новый мувер уже
-    // там; деградация без motion.js — ds.mover = null, как мировой).
-    if (ds.mover) ds.mover.teleport(d.entrance.x, d.entrance.y);
-    // Дробная позиция для dungeon-ui (спрайт/ромб + цель камеры).
-    ds.pos = (now) => (ds.mover
-      ? ds.mover.position(now)
-      : { x: ds.x, y: ds.y });
-    return ds;
-  }
-
-  // Шаг на тайл с входом в пещеру → лабиринт (ядро: src/dungeon.js).
-  function maybeEnterDungeon() {
+  // --- Подземелье/город (задача 000127): домен — src/locations.js ---
+  // Проводка: владение dungeonState/dungeonMemory, оверлей, saveNow,
+  // flash-строки СЛОВО В СЛОВО, бой — startDungeonCombat (ниже).
+  function enterLocation() {
     if (dungeonState) return;
-    const t = map.tileAt(player.x, player.y);
-    // Задача 000073: развалины (подтип слота 9, buildingId 48) —
-    // ПОСТРОЙКА, а не вход: шаг на тайл НЕ открывает лабиринт
-    // (пара с подавлением хинта «(вход — шагните)» в hudUpdate).
-    // buildingId null (без каталога — фолбэк) — вход сохраняется
-    // (fail-open).
-    if (!t.hasBuilding || t.building !== G.BUILDING_TYPES.CAVE_ENTRANCE
-        || t.buildingId === 48) return;
-    const worldKey = player.x + ',' + player.y;
-    const d = G.createDungeon(player.x, player.y, mapPixels, t.terrain);
-    const saved = dungeonMemory.get(worldKey);
-    // Содержимое живёт, пока внутри + dungeon_memory_days (SPEC).
-    let contents = saved && G.contentValid(saved.lastVisitDay, clock.day)
-      ? saved.contents
-      : null;
-    if (!contents) contents = G.generateDungeonContents(d, hero);
-    dungeonState = makeDungeonState(d, contents, worldKey);
-    if (saved) saved.lastVisitDay = clock.day; // продлить память
+    const L = G.locations;
+    if (!L) {
+      console.error('main.js: Game.locations отсутствует — ' +
+        'src/locations.js обязан грузиться ДО src/main.js (000127)');
+      return;
+    }
+    const ctx = { map, mapPixels, player, hero, day: clock.day,
+      memory: dungeonMemory, intervalMs: MOVE_INTERVAL_MS };
+    const ds = L.maybeEnterDungeon(ctx) || L.maybeEnterCity(ctx);
+    if (ds) {
+      dungeonState = ds;
+      startLocationUI(ds.kind === 'city' ? cityOnMove : dungeonOnMove);
+    }
+  }
+  function startLocationUI(onMove) {
     G.dungeonUI.start({
       get state() { return dungeonState; },
-      onMove: (dx, dy) => dungeonMove(dx, dy),
+      onMove,
       // ОДИН общий zoom (задача 000066): колесо поверх оверлея меняет
       // тот же zoom, что мир (мировой слушатель на #game накрыт) —
       // hudUpdate («Масштаб: Xpx») остаётся корректным без изменений.
@@ -1153,6 +1118,56 @@
       onZoom: (z) => { zoom = z; },
       spriteLoader,
     });
+  }
+  function exitLocation(ds) {
+    if (ds.kind === 'city') G.locations.exitCity(ds);
+    else G.locations.exitDungeon(ds, { day: clock.day,
+      memory: dungeonMemory, clock });
+    dungeonState = null;
+    G.dungeonUI.close();
+    saveNow();
+  }
+  function dungeonOnMove(dx, dy) {
+    const ds = dungeonState;
+    if (!ds) return;
+    const ev = G.locations.dungeonMove(ds, dx, dy, performance.now(),
+      { inCombat: !!(G.combatUI && G.combatUI.isActive()) });
+    if (!ev) return;
+    if (ev.type === 'exit') {
+      exitLocation(ds);
+      hudFlash = 'Вы вышли из ' + ev.name + '.';
+      hudFlashUntil = performance.now() + 5000;
+      return;
+    }
+    if (ev.type === 'combat') { startDungeonCombat(ev.group); return; }
+    const chest = ev.chest;
+    if (chest) {
+      hero.gold += chest.gold;
+      // Предмет в сундуке — id из каталога (assets/items) → в инвентарь.
+      let itemMsg = '';
+      if (chest.item) {
+        const it = G.getItem(chest.item);
+        const add = G.addItem(hero, chest.item);
+        itemMsg = add.ok
+          ? ', ' + it.name
+          : ' (инвентарь полон: ' + it.name + ' потерян)';
+      }
+      const msg = 'Сундук: +' + chest.gold + ' золота' + itemMsg;
+      ds.log.push(msg);
+      hudFlash = msg;
+      hudFlashUntil = performance.now() + 5000;
+      G.playerUI && G.playerUI.render();
+    }
+  }
+  function cityOnMove(dx, dy) {
+    const ds = dungeonState;
+    if (!ds) return;
+    const ev = G.locations.cityMove(ds, dx, dy, performance.now(),
+      { inCombat: !!(G.combatUI && G.combatUI.isActive()) });
+    if (!ev || ev.type !== 'exit') return;
+    exitLocation(ds);
+    hudFlash = 'Вы вышли из ' + ev.name + '.';
+    hudFlashUntil = performance.now() + 5000;
   }
 
   // Бой с блуждающей группой подземелья.
@@ -1198,168 +1213,6 @@
         saveNow();
       },
     });
-  }
-
-  function exitDungeon() {
-    const ds = dungeonState;
-    dungeonMemory.set(ds.worldKey, { contents: ds.contents, lastVisitDay: clock.day });
-    clock.event('dungeon'); // вылазка забирает день (SPEC «Игровое время»)
-    dungeonState = null;
-    G.dungeonUI.close();
-    saveNow();
-  }
-
-  // Шаг внутри лабиринта (вызывается dungeon-ui по клавише).
-  function dungeonMove(dx, dy) {
-    const ds = dungeonState;
-    if (!ds || (G.combatUI && G.combatUI.isActive())) return;
-    const d = ds.dg, c = ds.contents;
-    const nx = ds.x + dx, ny = ds.y + dy;
-    if (nx < 0 || ny < 0 || nx >= d.width || ny >= d.height) return;
-    if (d.cells[ny * d.width + nx] !== G.CELL_FLOOR) return; // стена
-    if (nx === d.exit.x && ny === d.exit.y) {
-      exitDungeon();
-      hudFlash = 'Вы вышли из ' + G.DUNGEON_NAMES[d.type] + '.';
-      hudFlashUntil = performance.now() + 5000;
-      return;
-    }
-    ds.prevX = ds.x; ds.prevY = ds.y;
-    ds.x = nx; ds.y = ny;
-    // Глейд prev→next (000068, паттерн мира 000033): ставится ДО
-    // проверок моб/сундук — бой начинается с клетки, к которой игрок
-    // ДОХОДИТ глейдом. Заблокированные шаги (стена/граница/выход) —
-    // ранний return выше, мувер не вызывается.
-    if (ds.mover) {
-      ds.mover.step({ x: ds.prevX, y: ds.prevY }, { x: nx, y: ny },
-        performance.now());
-    }
-    // Блуждающая группа на клетке → бой.
-    const g = c.mobs.find((m) => !m.defeated && m.x === nx && m.y === ny);
-    if (g) {
-      startDungeonCombat(g);
-      return;
-    }
-    // Сундук на клетке → открыть.
-    const ch = c.chests.find((x) => !x.opened && x.x === nx && x.y === ny);
-    if (ch) {
-      const r = G.openChest(c, ch.id);
-      if (r.ok) {
-        hero.gold += r.gold;
-        // Предмет в сундуке — id из каталога (assets/items) → в инвентарь.
-        let itemMsg = '';
-        if (r.item) {
-          const it = G.getItem(r.item);
-          const add = G.addItem(hero, r.item);
-          itemMsg = add.ok
-            ? ', ' + it.name
-            : ' (инвентарь полон: ' + it.name + ' потерян)';
-        }
-        ds.log.push('Сундук: +' + r.gold + ' золота' + itemMsg);
-        hudFlash = 'Сундук: +' + r.gold + ' золота' + itemMsg;
-        hudFlashUntil = performance.now() + 5000;
-        G.playerUI && G.playerUI.render();
-      }
-    }
-    // Каждый шаг игрока — шаг блуждания мобов.
-    G.wanderStep(c, d);
-  }
-
-  // --- Город (задача 000105, подзадача 000052) ---
-  //
-  // Тот же движок, что подземелье: dungeonState — ОДИН, ветка по
-  // kind: 'city'. Layout — G.Cities.createCityLayout (000104) от
-  // ЯКОРЯ (t.buildingAnchor), а НЕ от позиции героя: один якорь →
-  // один layout навсегда. Город пока ПУСТО (содержимое — 000106,
-  // взаимодействие [E] — 000107): contents — null, мобов/сундуков/
-  // wanderStep в городе нет. РЕШЕНИЕ (SPEC «Города и деревни»):
-  // вход/выход НЕ тратит день — clock.event НЕ вызывается (город —
-  // локация поверх мира, а не «подземная экспедиция»); dungeonMemory/
-  // contentValid для города не применяются (персистентность — сейв,
-  // 000109).
-
-  // Состояние города — та же форма, что makeDungeonState (000068):
-  // ОТДЕЛЬНЫЙ мувер + дробная позиция ds.pos(now) для рендера.
-  function makeCityState(layout, buildingRec, worldKey) {
-    const name = (buildingRec.особые_параметры &&
-      buildingRec.особые_параметры.название_карты)
-      || buildingRec.название;
-    const ds = {
-      dg: layout,
-      contents: null, // город пуст (содержимое — 000106)
-      kind: 'city',
-      name,
-      x: layout.entrance.x, y: layout.entrance.y,
-      prevX: layout.entrance.x, prevY: layout.entrance.y,
-      worldKey,
-      log: [name + ': вход.'],
-    };
-    ds.mover = G.createMover
-      ? G.createMover({ x: layout.entrance.x, y: layout.entrance.y,
-          intervalMs: MOVE_INTERVAL_MS })
-      : null;
-    // Защитный снап в entrance (как makeDungeonState, 000068).
-    if (ds.mover) ds.mover.teleport(layout.entrance.x, layout.entrance.y);
-    ds.pos = (now) => (ds.mover
-      ? ds.mover.position(now)
-      : { x: ds.x, y: ds.y });
-    return ds;
-  }
-
-  // Шаг на тайл постройки с каталожной записью категории «город»
-  // (000102/000103: buildingId 51..54; у города building — NONE,
-  // опознаётся по buildingId) → экран города.
-  function maybeEnterCity() {
-    if (dungeonState) return;
-    const t = map.tileAt(player.x, player.y);
-    if (!t.hasBuilding || t.buildingId == null) return;
-    const rec = G.getBuilding(t.buildingId);
-    if (!rec || rec.категория !== 'город') return;
-    // Layout — от ЯКОРЯ, не от входного тайла (000104).
-    const [ax, ay] = t.buildingAnchor;
-    const layout = G.Cities.createCityLayout(ax, ay, rec.размер.ширина);
-    dungeonState = makeCityState(layout, rec, player.x + ',' + player.y);
-    G.dungeonUI.start({
-      get state() { return dungeonState; },
-      onMove: (dx, dy) => cityMove(dx, dy),
-      // Тот же общий zoom, что подземелье (задача 000066): колесо
-      // поверх оверлея меняет тот же zoom, что мир.
-      zoom,
-      onZoom: (z) => { zoom = z; },
-      spriteLoader,
-    });
-  }
-
-  function exitCity() {
-    // ДЕНЬ НЕ проходит (SPEC «Города и деревни»): clock.event НЕ
-    // вызывается; dungeonMemory — НЕ применяется (000109).
-    dungeonState = null;
-    G.dungeonUI.close();
-    saveNow();
-  }
-
-  // Шаг внутри города (вызывается dungeon-ui по клавише). Город
-  // пуст (до 000106): мобов/сундуков/wanderStep нет.
-  function cityMove(dx, dy) {
-    const ds = dungeonState;
-    if (!ds || ds.kind !== 'city'
-        || (G.combatUI && G.combatUI.isActive())) return;
-    const d = ds.dg;
-    const nx = ds.x + dx, ny = ds.y + dy;
-    if (nx < 0 || ny < 0 || nx >= d.width || ny >= d.height) return;
-    if (d.cells[ny * d.width + nx] !== G.CELL_FLOOR) return; // стена
-    if (nx === d.exit.x && ny === d.exit.y) {
-      exitCity();
-      hudFlash = 'Вы вышли из ' + ds.name + '.';
-      hudFlashUntil = performance.now() + 5000;
-      return;
-    }
-    ds.prevX = ds.x; ds.prevY = ds.y;
-    ds.x = nx; ds.y = ny;
-    // Глейд prev→next (000068, паттерн dungeonMove): шаг ДО конца.
-    if (ds.mover) {
-      ds.mover.step({ x: ds.prevX, y: ds.prevY }, { x: nx, y: ny },
-        performance.now());
-    }
   }
 
   // --- Камера ---
@@ -1725,8 +1578,7 @@
         lastStepAt = now; // Флогистон переключается на анимацию ходьбы
         clock.addStep(1); // шаги мира тикают игровой день
         maybeStartCombat();
-        maybeEnterDungeon();
-        maybeEnterCity(); // 000105: город — та же точка входа, что пещера
+        enterLocation(); // 000127: домен — src/locations.js (подземелье/город)
         saveNow();
       }
     }
@@ -1912,25 +1764,16 @@
       },
       // Подземелье из текущего тайла (не требует входа в пещеру).
       enterDungeon: (terrain) => {
-        if (dungeonState) return null;
-        const t = map.tileAt(player.x, player.y);
-        const d = G.createDungeon(player.x, player.y, mapPixels,
-          terrain != null ? terrain : t.terrain);
+        if (dungeonState || !G.locations) return null;
         // Тот же хелпер, что maybeEnterDungeon (000068): одна форма
-        // состояния — отладочный вход тоже получает мувер + ds.pos.
-        dungeonState = makeDungeonState(
-          d, G.generateDungeonContents(d, hero),
-          player.x + ',' + player.y);
-        G.dungeonUI.start({
-          get state() { return dungeonState; },
-          onMove: (dx, dy) => dungeonMove(dx, dy),
-          // Тот же общий zoom, что maybeEnterDungeon (задача 000066):
-          // отладочный вход не «расходится» с миром по масштабу.
-          zoom,
-          onZoom: (z) => { zoom = z; },
-          spriteLoader,
-        });
-        return dungeonState;
+        // состояния (000127: домен — src/locations.js).
+        const ds = G.locations.debugEnterDungeon(
+          { map, mapPixels, player, hero, intervalMs: MOVE_INTERVAL_MS },
+          terrain);
+        if (!ds) return null;
+        dungeonState = ds;
+        startLocationUI(dungeonOnMove);
+        return ds;   // = dungeonState (как раньше)
       },
       // Отладка времени: довести часы до дня n (день = отдых).
       setDay: (n) => {

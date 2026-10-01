@@ -562,9 +562,9 @@ test('LOC-8: dungeonMove: моб → {type: \'combat\', group} без wanderStep
       'moved');
     const evC2 = L.dungeonMove(dsC, 1, 0, NOW, { inCombat: false });
     assert.equal(evC2.chest, null, 'открытый сундук — chest: null');
-    assert.equal((B.log.match(/openChest/g) || []).length, 1,
+    assert.equal((B.log.join(' ').match(/openChest/g) || []).length, 1,
       'openChest — ВСЕГО один раз');
-    assert.equal((B.log.match(/wanderStep/g) || []).length, 3,
+    assert.equal((B.log.join(' ').match(/wanderStep/g) || []).length, 3,
       'wanderStep — 3 раза за 3 успешных шага');
     assert.equal(B.moverCalls.steps.length, 3);
   });
