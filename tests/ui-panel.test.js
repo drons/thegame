@@ -1605,3 +1605,297 @@ test('npcUI-регрессия (защита экстракции): «В раб�
   assert.ok(textOf(done).includes('Орочий набег'),
     'название в «Выполнено»: ' + textOf(done));
 });
+
+// =====================================================================
+// 000130 — вкладки панели: саморегистрирующиеся модули
+// =====================================================================
+//
+// Задача: вкладки панели персонажа (LEFT_TABS/RIGHT_TABS в src/ui.js)
+// переезжают в саморегистрирующиеся модули: src/ui-tabs.js — реестр
+// Game.uiTabs = { register(tab), get(id), list() } (вкладки грузятся
+// ДО ui.js и регистрируются при ЗАГРУЗКЕ — реестр обязан существовать
+// раньше первой вкладки); src/ui-tab-*.js — вкладки (UMD по образцу
+// src/cities.js: node-ветка — определение, браузерная —
+// self-registration). Ядро панели (два столбца, переключение,
+// тултипы, [I]/Esc, setShop/setQuests-проводка, render-цикл) остаётся
+// в ui.js и читает реестр ЛЕНИВО в buildPanel.
+// Контракт: memory/000130-ui-tabs.md (форма записи { column, id,
+// label, build(pane, ctx), render?(ctx) }, ctx, порядок = порядок
+// регистрации = порядок script-тегов, зафиксирован пином
+// tests/index-order.test.js).
+//
+// ДОБАВЛЕНИЕ вкладки = новый файл src/ui-tab-*.js + script-тег
+// (между ui-tabs.js и ui.js в index.html); ui.js при этом НЕ
+// правится — анти-прецедент закреплён тестом R4 (тестовая вкладка
+// саморегистрацией в песочнице + doesNotMatch по тексту src/ui.js).
+//
+// КРАСНЫЕ (падают до реализации — Game.uiTabs/модулей ещё нет,
+// зелёные после):
+//   * R1: Game.uiTabs — реестр: register/get/list; get(нет) → null;
+//   * R2: зарегистрированы ВСЕ 6 вкладок — id/label/column/порядок
+//     1:1 с текущими столбцами (левый: character→inventory→settings;
+//     правый: equipment→shop→quests; «Навыки» — это строки во вкладке
+//     «Персонаж», отдельной вкладки нет — ТЗ 000130 vs 000096);
+//   * R3: панель строится ИЗ реестра — кнопки .cp-tab в каждом
+//     столбце (порядок/подпись/data-tabid) и pane 1:1 с записями
+//     list() для колонки; побайтовый рендер — фиксаторы (42
+//     существующих теста файла, тот же запуск);
+//   * R4: анти-прецедент — тестовая вкладка ИНЛАЙН-UMD-сниппетом
+//     («новый файл» в песочнице, саморегистрация) появляется в
+//     панели, а src/ui.js НЕ содержит её id (ui.js не изменялся);
+//   * R6: node — require() каждого src/ui-tabs.js/src/ui-tab-*.js
+//     чист (UMD-node-ветка: DOM при загрузке — краш в node,
+//     взаимных require и RNG — ноль) и возвращает определение
+//     вкладки (quests — + плоский game-экспорт
+//     buildActiveQuestRow/findQuestInCatalog — ОДИН рендерер строк
+//     «В работе» на панель и npcUI, 000100).
+// R5 (index.html: теги ДО ui.js, полная цепочка + самоперечисление
+// файлов на диске) — в tests/index-order.test.js (пин предписан ТЗ).
+//
+// ЛОАДЕР секции — СВОЯ динамическая цепочка из index.html (паттерн
+// tests/main-visuals.test.js: все <script>-теги до ui.js
+// включительно). RED-фаза: тегов ui-tabs.*/ui-tab-* в index.html
+// ещё нет — цепочка грузится штатно, тесты падают по СИМВОЛУ
+// Game.uiTabs (не ENOENT, не SyntaxError); GREEN-фаза: теги
+// подхватываются сами — лоадер между фазами НЕ правится. ЖЁСТКИЙ
+// CHAIN существующих 42 тестов этого файла в RED-фазе НЕ трогается
+// (техническая правка — GREEN-коммит).
+//
+// РЕГРЕССИЯ БЕЗ ИЗМЕНЕНИЙ: 42 теста этого файла (верстка/подписи/
+// тултипы/квесты/гарды), tests/ui-skills.test.js, tests/npc-hire.
+// test.js, tests/main-visuals.test.js, tests/save-restore.test.js,
+// полный npm test.
+
+const CHAIN_000130 = (() => {
+  const all = Array.from(
+    page().matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1])
+    .map((p) => p.replace(/^src\//, ''));
+  const i = all.indexOf('ui.js');
+  assert.ok(i >= 0, 'ui.js подключён в index.html');
+  return all.slice(0, i + 1);
+})();
+
+// Песочница секции (дублирование стаба loadPanelUi принято в
+// проекте): цепочка — CHAIN_000130 (динамическая, из index.html);
+// дополнительно возвращает sandbox — R4 исполняет в нём «новый файл
+// вкладки» (инлайн-UMD-сниппет) между загрузкой цепочки и toggle
+// (buildPanel ленивый — регистрация успевает до первой сборки).
+function loadTabsUi() {
+  const errors = [];
+  const document = {
+    createElement: (tag) => makeEl(tag),
+    body: makeEl('body'),
+    querySelector: () => null,
+    hidden: false,
+    listeners: {},
+    addEventListener(type, fn) {
+      (this.listeners[type] || (this.listeners[type] = [])).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const a = this.listeners[type];
+      if (!a) return;
+      const i = a.indexOf(fn);
+      if (i >= 0) a.splice(i, 1);
+    },
+  };
+  const window = {
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  };
+  const sandbox = {
+    console: {
+      log: () => {}, info: () => {}, warn: () => {},
+      error: (m) => errors.push(String(m)),
+    },
+    document, window, setTimeout, clearTimeout,
+  };
+  vm.createContext(sandbox);
+  for (const f of CHAIN_000130) vm.runInContext(src(f), sandbox, { filename: f });
+  return { G: sandbox.Game, body: document.body, doc: document,
+    errors, sandbox };
+}
+
+test('000130 RED: Game.uiTabs — реестр: register/get/list', () => {
+  const env = loadTabsUi();
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  const reg = env.G.uiTabs;
+  assert.ok(reg && typeof reg === 'object',
+    'Game.uiTabs — реестр вкладок (src/ui-tabs.js, задача 000130): ' +
+    'вкладки регистрируются при загрузке ДО ui.js');
+  for (const m of ['register', 'get', 'list']) {
+    assert.equal(typeof reg[m], 'function', 'Game.uiTabs.' + m + '()');
+  }
+  assert.ok(Array.isArray(reg.list()),
+    'uiTabs.list() — массив записей в порядке регистрации');
+  assert.equal(reg.get('no_such_tab_000130'), null,
+    'get(отсутствующий id) → null');
+});
+
+test('000130 RED: зарегистрированы ВСЕ 6 вкладок (id/label/column/порядок = текущие столбцы)', () => {
+  const env = loadTabsUi();
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  const reg = env.G.uiTabs;
+  assert.ok(reg && typeof reg === 'object',
+    'Game.uiTabs — реестр вкладок (задача 000130)');
+  const list = reg.list();
+  assert.ok(Array.isArray(list), 'uiTabs.list() — массив записей');
+  // Текущие столбцы 1:1 (побайтовые подписи — фиксаторы этого же
+  // файла). Левый: Персонаж/Инвентарь/Игровые настройки; правый:
+  // Снаряжение/Магазин/Квесты. Порядок записей внутри столбца =
+  // порядок регистрации = порядок script-тегов (пин index-order).
+  const left = list.filter((t) => t.column === 0);
+  const right = list.filter((t) => t.column === 1);
+  assert.equal(list.length, 6,
+    'реестр — ровно 6 записей: ' + list.map((t) => t.id).join(','));
+  assert.equal(left.length, 3, 'левый столбец — 3 записи');
+  assert.equal(right.length, 3, 'правый столбец — 3 записи');
+  const expectLeft = [
+    ['character', 'Персонаж'],
+    ['inventory', 'Инвентарь'],
+    ['settings', 'Игровые настройки'],
+  ];
+  const expectRight = [
+    ['equipment', 'Снаряжение'],
+    ['shop', 'Магазин'],
+    ['quests', 'Квесты'],
+  ];
+  for (let i = 0; i < 3; i++) {
+    assert.equal(left[i].id, expectLeft[i][0], 'левый ' + i + ': id');
+    assert.equal(left[i].label, expectLeft[i][1],
+      'левый ' + i + ': label (побайтово, 000096)');
+    assert.equal(right[i].id, expectRight[i][0], 'правый ' + i + ': id');
+    assert.equal(right[i].label, expectRight[i][1],
+      'правый ' + i + ': label (побайтово, 000096)');
+    assert.equal(typeof left[i].build, 'function',
+      left[i].id + ': build(pane, ctx) — функция');
+    assert.equal(typeof right[i].build, 'function',
+      right[i].id + ': build(pane, ctx) — функция');
+  }
+});
+
+test('000130 RED: панель строится ИЗ реестра — DOM-вкладки = записи; рендер тот же', () => {
+  const env = loadTabsUi();
+  const reg = env.G.uiTabs;
+  assert.ok(reg && typeof reg === 'object',
+    'Game.uiTabs — реестр вкладок (задача 000130)');
+  const list = reg.list();
+  assert.ok(Array.isArray(list), 'uiTabs.list() — массив записей');
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const cols = colsOf(panel);
+  for (const col of [0, 1]) {
+    const expected = list.filter((t) => t.column === col);
+    const tabs = tabsOf(cols[col]);
+    const panes = panesOf(cols[col]);
+    assert.equal(tabs.length, expected.length,
+      'столбец ' + col + ': кнопки .cp-tab = записи реестра (' +
+      expected.map((t) => t.id).join(','));
+    assert.equal(panes.length, expected.length,
+      'столбец ' + col + ': pane на каждую запись');
+    for (let i = 0; i < expected.length; i++) {
+      assert.equal(tabs[i].textContent, expected[i].label,
+        'столбец ' + col + ' кнопка ' + i + ': подпись (побайтово)');
+      assert.equal(tabs[i].dataset.tabid, expected[i].id,
+        'столбец ' + col + ' кнопка ' + i + ': data-tabid');
+    }
+  }
+  // Побайтовый рендер тел — фиксаторы (42 теста этого файла проходят
+  // тем же запуском); здесь — только корреляция DOM ↔ реестр.
+});
+
+// «Новый файл вкладки» — инлайн-UMD-сниппет в форме браузерной ветки
+// вкладочного модуля (контракт §2): self-registration в Game.uiTabs
+// при загрузке, НОЛЬ DOM. Коммитный тестовый файл в src — мёртвый
+// код; строка в тесте автономна.
+const TEST_TAB_130_SNIPPET =
+  '(function (root) {\n' +
+  "  'use strict';\n" +
+  "  const G0 = typeof root.Game === 'object' ? root.Game : {};\n" +
+  '  const tab = {\n' +
+  '    column: 1,\n' +
+  "    id: 'wf_test_tab_130',\n" +
+  "    label: 'Тест',\n" +
+  '    build(pane, ctx) {\n' +
+  "      pane.appendChild(ctx.el('div', 'cp-row', 'тестовая вкладка'));\n" +
+  '    },\n' +
+  '  };\n' +
+  '  if (G0.uiTabs && typeof G0.uiTabs.register === \'function\') {\n' +
+  '    G0.uiTabs.register(tab);\n' +
+  '  }\n' +
+  '})(typeof globalThis !== \'undefined\' ? globalThis : self);\n';
+
+test('000130 RED: анти-прецедент — новая вкладка саморегистрацией (новый файл в песочнице); ui.js не изменялся', () => {
+  const env = loadTabsUi();
+  const reg = env.G.uiTabs;
+  assert.ok(reg && typeof reg === 'object',
+    'Game.uiTabs — реестр вкладок (задача 000130)');
+  // «Установка» новой вкладки: исполняем её «файл» в песочнице ПОСЛЕ
+  // цепочки, ДО toggle (buildPanel ленивый — первая сборка панели
+  // увидит регистрацию; порядок хуков/кнопок = порядок регистрации).
+  vm.runInContext(TEST_TAB_130_SNIPPET, env.sandbox,
+    { filename: 'wf_test_tab_130.js' });
+  assert.ok(env.G.uiTabs.get('wf_test_tab_130'),
+    'тестовая вкладка зарегистрирована саморегистрацией при загрузке');
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const cols = colsOf(panel);
+  const tabs = tabsOf(cols[1]);
+  const panes = panesOf(cols[1]);
+  assert.equal(tabs.length, 4,
+    'правый столбец: 4 кнопки (3 + тестовая) — добавление вкладки не ' +
+    'требует правок ui.js');
+  assert.equal(tabs[3].textContent, 'Тест', 'четвёртая вкладка — «Тест»');
+  assert.equal(tabs[3].dataset.tabid, 'wf_test_tab_130',
+    'data-tabid тестовой вкладки');
+  assert.ok(panes[3] && textOf(panes[3]).includes('тестовая вкладка'),
+    'pane тестовой вкладки собран build(pane, ctx) из реестра: ' +
+    (panes[3] ? textOf(panes[3]) : '(нет pane)'));
+  // Анти-прецедент (ТЗ): при добавлении вкладки src/ui.js НЕ
+  // изменялся — его текст не содержит id тестовой вкладки.
+  assert.doesNotMatch(src('ui.js'), /wf_test_tab_130/,
+    'src/ui.js не содержит id тестовой вкладки — ui.js не правился');
+});
+
+test('000130 RED: node — require() каждого src/ui-tabs.js/ui-tab-*.js чист (UMD-ветка)', () => {
+  // UMD по образцу src/cities.js/src/dungeon.js/src/building-effects.js
+  // (инвариант ТЗ): node-ветка — require() БЕЗ исключений; DOM при
+  // загрузке в node — краш (document не определён) — «чистота»
+  // проверяется самим require; взаимных require и RNG при загрузке
+  // — ноль (000053). Экспорт — определение вкладки (браузерная ветка
+  // — self-registration + плоский spread game-экспорта на Game).
+  const files = [
+    'ui-tabs.js',
+    'ui-tab-quests.js',
+    'ui-tab-skills.js',
+    'ui-tab-inventory.js',
+    'ui-tab-settings.js',
+    'ui-tab-shop.js',
+  ];
+  for (const f of files) {
+    const m = require(path.join(ROOT, 'src', f));
+    if (f === 'ui-tabs.js') {
+      // Реестр — экземпляр (тестируется в node напрямую).
+      for (const k of ['register', 'get', 'list']) {
+        assert.equal(typeof m[k], 'function', f + ': ' + k + '()');
+      }
+      continue;
+    }
+    assert.ok(m.tab && typeof m.tab === 'object', f + ': экспорт .tab');
+    assert.equal(typeof m.tab.id, 'string', f + ': tab.id — строка');
+    assert.equal(typeof m.tab.label, 'string', f + ': tab.label — строка');
+    assert.ok(m.tab.column === 0 || m.tab.column === 1,
+      f + ': tab.column — строго 0 или 1');
+    assert.equal(typeof m.tab.build, 'function',
+      f + ': tab.build(pane, ctx) — функция');
+    if (f === 'ui-tab-quests.js') {
+      // Плоский game-экспорт (контракт §2): ОДИН рендерер строк
+      // «В работе» на панель и npcUI (000100, защита экстракции).
+      assert.equal(typeof m.game.buildActiveQuestRow, 'function',
+        f + ': game.buildActiveQuestRow');
+      assert.equal(typeof m.game.findQuestInCatalog, 'function',
+        f + ': game.findQuestInCatalog');
+    }
+  }
+});
