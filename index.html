@@ -405,6 +405,13 @@
   <script src="src/craft.js"></script>
   <script src="src/dungeon.js"></script>
   <script src="src/cities.js"></script>
+  <!-- Локации (задача 000127, разбиение main.js 1/4): состояние и
+       переходы подземелья/города. После dungeon.js/cities.js
+       (доменная группа), ДО main.js (UMD-ловушка 000038: main.js
+       снимает Game один раз — const G = globalThis.Game). Чистый
+       модуль — ноль зависимостей в момент загрузки (000053/000071),
+       Game-функции лениво в момент вызова. -->
+  <script src="src/locations.js"></script>
   <!-- Порядок здесь ВАЖЕН (задача 000018, регрессия проверена в
        tests/index-order.test.js): controls.js ДО ui.js — Game.touchControls
        в ui.js собирается при ЗАГРУЗКЕ из Game.layoutTouchControls/touchActionAt,
