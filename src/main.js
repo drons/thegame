@@ -257,7 +257,7 @@
   // Телепорт-круг (задача 000075): 'x,y' круга → { pair: 'px,py'|null,
   // dest: 'dx,dy'|null, active: boolean } — раздел сейва `teleports`
   // (имя зафиксировано 000072). СКАН пары — только при ПЕРВОМ подходе
-  // (openBuildingUI, не в кадре); повторного скана НЕТ (кэш в сейве).
+  // (building-actions.js, не в кадре); повторного скана НЕТ (кэш в сейве).
   const teleports = new Map();
   // Задача 000076: модификаторы активных благословений на текущий
   // день (day.js buffMods, 000072) — для точек создания боя:
@@ -619,6 +619,94 @@
     throw new Error('не найден проходимый тайл для старта');
   }
 
+  // --- Постройки [E] (задача 000128): роутер и проводка действий —
+  // в src/building-actions.js (Game.buildingActions) ---
+  // Именованные замыкания — узкие точки мира для роутера: 1:1 с
+  // телами перенесённых функций. flash — инлайновые флэш-места
+  // пайплайна действий [E]: та же константа 5000 и те же
+  // let-переменные hudFlash/hudFlashUntil (иначе HUD-тайминг флэшей
+  // сдвинется).
+  function flash(msg) {
+    hudFlash = msg;
+    hudFlashUntil = performance.now() + 5000;
+  }
+  // Перенос героя (телепорт-чанк 000075 1:1): снап мувера (000033) —
+  // персонаж не «скользит» от старой точки (паттерн
+  // restoreFromSave).
+  function moveHero(x, y) {
+    player.x = x;
+    player.y = y;
+    prevPos.x = player.x; prevPos.y = player.y;
+    if (mover) mover.teleport(player.x, player.y);
+  }
+  function playerRender() {
+    G.playerUI && G.playerUI.render();
+  }
+  // Отладочный бой на текущем тайле (одна точка истины: делегация
+  // __game.actions.startCombat ниже; тело — 1:1).
+  function startCombatAt(groupType = 0) {
+    if (G.combatUI && G.combatUI.isActive()) return null;
+    // Тот же паттерн, что и в боях мира/подземелья (000096):
+    // после отладочного боя полноэкранная панель не должна
+    // накрывать карту.
+    if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
+    // Стек оверлеев (000071): оверлей действий под боем — закрыть.
+    if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
+    return G.combatUI.startCombat({
+      hero,
+      tile: { mobGroup: groupType },
+      // Бой «на текущем тайле»: передаём terrain реального тайла
+      // (задача 000049) — согласованно с боем мира; без карты
+      // фолбэк plain.svg.
+      terrain: map ? map.tileAt(player.x, player.y).terrain : undefined,
+      spriteLoader,
+      prev: { x: player.x, y: player.y },
+      seed: 42,
+      day: clock.day,
+      // Задача 000076: активные благословения — во ВСЕХ боях дня.
+      buffMods: currentBuffMods(),
+      onEnd: (res) => {
+        // Лут/опыт уже начислены в ядре (checkVictory).
+        // Квесты: kill_group (задача 000010).
+        if (res && res.outcome === 'victory' && questBook && G.notifyGroupDefeated) {
+          G.notifyGroupDefeated(NPCS, questBook, groupType);
+        }
+        G.playerUI && G.playerUI.render();
+      },
+    });
+  }
+  // Проводка: явный бандл ссылок (контракт — memory/000128-
+  // building-actions.md §2.2). map — GETTER (let, назначается после
+  // асинхронной загрузки карты). Модуль отсутствует (регрессия
+  // порядка загрузки — паттерн 000038/000053): console.error, [E]
+  // инертен — игра не роняется.
+  if (G.buildingActions) {
+    G.buildingActions.init({
+      game: G, // снапшот main.js (единственный, 000038)
+      clock, // live clock (.day; .fastForward/.rest — доступны)
+      hero, // ЖИВАЯ ссылка (спец-хендлеры мутируют: gold и пр.)
+      player, // live { x, y }
+      prevPos, // live { x, y } (escape-hatch в world)
+      getMap: () => map,
+      mover, // const — live-ссылка, никогда не перезаписывается
+      npcs: NPCS, // каталог (зеркало assets/npc)
+      questBook, // nullable
+      npcShopFor, // (npcId) → { npc, stock } | null
+      collectSaveData, // () → снимок сейва (чистая)
+      saveNow, // () → запись в localStorage
+      flash,
+      buildingOncePerDay, // live Map 'x,y:effectId' → день (000072)
+      buffs, // live Array (000072/000076)
+      teleports, // live Map 'x,y' → { pair, dest, active } (000075)
+      playerRender,
+      moveHero,
+      startCombat: startCombatAt,
+    });
+  } else {
+    console.error('main.js: [E] — Game.buildingActions отсутствует — ' +
+      'src/building-actions.js обязан грузиться ДО src/main.js');
+  }
+
   // --- Ввод ---
   // Маппинг клавиш→направление — в src/controls.js (чистые функции):
   // сначала e.code (физические стрелки/WASD — в русской раскладке это и
@@ -629,308 +717,21 @@
   const keys = new Set();
   const moveKey = (e) => G.moveKeyForEvent(e);
 
-  // Диалог NPC (задача 000010): ТЕ ЖЕ параметры, что и до 000071.
-  function openNpcDialog(npc, t) {
-    G.npcUI.open({
-      npc,
-      character: hero,
-      book: questBook,
-      tile: { x: player.x, y: player.y,
-        building: t.building, buildingWealth: t.buildingWealth },
-      // Сток общий на сессию + сейв при изменениях (000029).
-      shop: npcShopFor(npc.id),
-      onChange: saveNow,
-      day: clock.day,
-    });
-  }
-
-  // Действие эффекта из оверлея (задача 000071): «Диалог» — npcUI;
-  // эффект — entry.apply(state) → при ok: маркировка раз-в-день
-  // buildingOncePerDay.set('x,y:effectId', clock.day) (только если
-  // hasDailyLimit — хук 000092) + saveNow() СРАЗУ (не ждать
-  // beforeunload — паттерн 000029/000072, прецедент _lastUnkillDay)
-  // + hudFlash(message). При НЕ-ok: message (если есть) тоже в
-  // hudFlash — отказ apply не гаснет молча (ревью раунда 2);
-  // маркировки и saveNow НЕТ (эффект не сработал).
-  function onBuildingAction(action, t, b, npc) {
-    // Реестр эффектов — ПЕРВЫМИ (ревью раунда 3): запись
-    // EFFECTS['dialog'] (если появится в каталоге) не должна
-    // затеняться спецкейсом ниже. 'dialog' — fallback: NPC-диалог.
-    const BE = G.buildingEffects;
-    const entry = BE && BE.EFFECTS ? BE.EFFECTS[action.id] : null;
-    if (entry && typeof entry.apply === 'function') {
-      const r = entry.apply({
-        day: clock.day,
-        tile: { x: player.x, y: player.y },
-        hero,
-        // СНИМОК сейва (обычный объект, 000072): эффект не получает
-        // живых ссылок на состояние мира. Исключение (000076): map —
-        // READ-ONLY ссылка на живую карту (для «Сна» 37 — подсказка
-        // сканирует тайлы; запись эффекта карту не мутирует —
-        // задокументировано memory/000076-temple-blessings.md).
-        save: collectSaveData(),
-        map: map || null,
-      });
-      if (!r || !r.ok) {
-        // Отказ apply: видимый отказ (message → hudFlash), без
-        // маркировки раз-в-день и saveNow — эффект не сработал
-        // (ревью раунда 2: до этого message неуспешного apply
-        // отбрасывался — нажатие умирало молча).
-        if (r && r.message) {
-          hudFlash = r.message;
-          hudFlashUntil = performance.now() + 5000;
-        }
-        return;
-      }
-      // Телепорт (задача 000075): р.teleport — декларация переноса
-      // из ЧИСТОГО apply (dest ИЗ СНИМКА сейва). Исполнение здесь —
-      // в снимке мира НЕТ: списание (стоимость ИЗ КАТАЛОГА, не
-      // хардкод), hero.gold, позиция + снап мувера. Ханк
-      // срабатывает ТОЛЬКО при r.teleport — чужие эффекты (в т.ч.
-      // тестовые B3) не затрагиваются. Контракт — memory/000075-
-      // teleport-circles.md (для 000093+).
-      if (r.teleport) {
-        const key = player.x + ',' + player.y;
-        const info = teleports.get(key);
-        const op = b && b.особые_параметры;
-        const eff = op && typeof op.эффект === 'object' ? op.эффект : null;
-        const cost = eff && Number.isFinite(eff.стоимость)
-          ? eff.стоимость : 0;
-        const ch = G.buildingEffects.teleportCharge(
-          hero, !!(info && info.active), cost);
-        if (!ch.ok) {
-          // Мало золота — отказ БЕЗ списания/переноса (мировое
-          // состояние не изменилось) → ДО saveNow (контракт 000071:
-          // отказ — message в hudFlash, без saveNow/маркировки).
-          hudFlash = ch.message;
-          hudFlashUntil = performance.now() + 5000;
-          return;
-        }
-        hero.gold = ch.gold;
-        if (info && !info.active) info.active = true;
-        player.x = r.teleport.x;
-        player.y = r.teleport.y;
-        prevPos.x = player.x; prevPos.y = player.y;
-        if (mover) mover.teleport(player.x, player.y); // снап (000033):
-        // персонаж не «скользит» от старой точки (паттерн
-        // restoreFromSave).
-      }
-      // Задача 000076: ОБЩИЙ хук «apply вернул новое состояние» —
-      // r.buffs (НОВЫЙ массив, grantBuff 000072) заменяет содержимое
-      // живого массива buffs ДО saveNow (СНИМОК не мутировался —
-      // main.js владеет живым состоянием). Не храм-специфично: любой
-      // эффект-запись может нести новое состояние.
-      if (Array.isArray(r.buffs)) {
-        buffs.length = 0;
-        for (const b of r.buffs) buffs.push(b);
-      }
-      if (BE.hasDailyLimit(b, action.id)) {
-        buildingOncePerDay.set(
-          player.x + ',' + player.y + ':' + action.id, clock.day);
-      }
-      saveNow();
-      if (r.message) {
-        hudFlash = r.message;
-        hudFlashUntil = performance.now() + 5000;
-      }
-      G.playerUI && G.playerUI.render();
-      return;
-    }
-    if (action.id === 'dialog') {
-      if (npc) openNpcDialog(npc, t);
-      return;
-    }
-  }
-
-  // Скан пары телепорт-круга (задача 000075): окно [-R..R]² вокруг
-  // круга (x, y), R — каталог особые_параметры.эффект.радиус
-  // (фолбэк 100). Предфильтр — necessary-условие якоря слота
-  // (map.js: hash2(x, y, GLOBAL_SEED) % buildingCount() === слот) —
-  // ~1 из 13 тайлов, остальные не требуют tileAt (полный скан 40k
-  // tileAt ≈ 1 c — недопустимо даже при первом подходе; формулу
-  // якоря фиксируют золотые пины 000073 — не менять без переписи
-  // скана, memory/000075-teleport-circles.md). Подтверждение —
-  // tileAt(...).buildingId === 41 (подтип, 000073). Результат — в
-  // Map teleports + saveNow; ПОВТОРНОГО скана никогда (кэш в
-  // сейве). Вызывается ТОЛЬКО из openBuildingUI (не в кадре).
-  function scanTeleportPair(x, y, b) {
-    const op = b && b.особые_параметры;
-    const eff = op && typeof op.эффект === 'object' ? op.эффект : null;
-    const R = eff && Number.isFinite(eff.радиус) ? eff.радиус : 100;
-    const slot = op && op.размещение && Number.isFinite(op.размещение.слот)
-      ? op.размещение.слот : 10;
-    const BE = G.buildingEffects;
-    const tie = (px, py) => G.hash2(px, py, BE.TELEPORT_TIE_SEED);
-    const count = G.buildingCount ? G.buildingCount() : 0;
-    const circles = [];
-    for (let cy = y - R; cy <= y + R; cy++) {
-      for (let cx = x - R; cx <= x + R; cx++) {
-        // Предфильтр якоря слота (см. выше) + свой тайл — не пара.
-        if (cx === x && cy === y) continue;
-        if (count > 0 && G.hash2(cx, cy, G.GLOBAL_SEED) % count !== slot) {
-          continue;
-        }
-        const t = map.tileAt(cx, cy);
-        if (t.buildingId === 41) circles.push({ x: cx, y: cy });
-      }
-    }
-    const link = BE.linkTeleportCircles(circles, x, y, R, tie);
-    let dest = null;
-    if (link.pairId) {
-      const sep = link.pairId.indexOf(',');
-      const size = G.buildingSize ? G.buildingSize(b) : { width: 1, height: 1 };
-      // мир-оракль dest (контракт memory): проходим, НЕ в footprint'е
-      // постройки, без группы мобов (шаг в группу = мгновенный бой,
-      // паттерн findSpawn), и не тайл исходного круга.
-      dest = BE.teleportDestination(
-        { x: Number(link.pairId.slice(0, sep)),
-          y: Number(link.pairId.slice(sep + 1)) },
-        size,
-        (px, py) => {
-          if (px === x && py === y) return false;
-          const t = map.tileAt(px, py);
-          return t.passable && !t.inBuilding && !t.hasMobGroup;
-        }, tie);
-      dest = dest ? dest.x + ',' + dest.y : null;
-    }
-    teleports.set(x + ',' + y, {
-      pair: link.pairId, dest, active: false,
-    });
-    saveNow();
-  }
-
-  // Открыть оверлей «действия постройки» (задача 000071): список —
-  // buildingActions (чистый модуль, src/building-effects.js). Пустой
-  // список (нет NPC и нет эффектов) — ничего (как сейчас).
-  function openBuildingUI(t, b, npc) {
-    if (!G.buildingEffects) return false;
-    // Задача 000075: телепорт-круг — скан пары при ПЕРВОМ подходе
-    // (кэш в разделе сейва teleports; повторного скана НЕТ).
-    if (t.buildingId === 41 && !teleports.has(t.x + ',' + t.y)) {
-      scanTeleportPair(t.x, t.y, b);
-    }
-    const actions = G.buildingEffects.buildingActions(b, npc, {
-      day: clock.day,
-      tile: { x: player.x, y: player.y },
-      hero,
-      // СНИМОК (000071) + map — READ-ONLY ссылка (000076, см.
-      // onBuildingAction): available?(state) эффектов получает то же
-      // состояние, что apply.
-      save: collectSaveData(),
-      map: map || null,
-    });
-    if (!actions.length) return false;
-    // Заголовок — имя РЕШЁННОЙ записи (000075 RESOLVE-БУГ, 000073):
-    // у подтипов слотов 8..12 — своё название (b.id 41 → «телепорт-
-    // круг», а не базовое имя слота 10 «рунический камень»);
-    // паттерн HUD «Здесь:» (название_карты || название, первая
-    // буква нижним).
-    let title = G.buildingNameUi ? G.buildingNameUi(t.building) : 'Постройка';
-    if (b) {
-      const raw = (b.особые_параметры &&
-        b.особые_параметры.название_карты) || b.название;
-      if (typeof raw === 'string' && raw !== '') {
-        title = raw.charAt(0).toLowerCase() + raw.slice(1);
-      }
-    }
-    G.buildingUI.open({
-      title,
-      actions,
-      onAction: (a) => onBuildingAction(a, t, b, npc),
-    });
-    return true;
-  }
-
-  // Каталожная запись тайла (задача 000076, подтипы 000073):
-  // ПОДТИП (t.buildingId — id каталожной записи 36..39 и пр.)
-  // ПРЕВЫШАЕТ базовую запись слота — у подтипа свои NPC/эффекты/
-  // имя (храм горы 38 — без Элдиры, у Элдиры постройки [20, 36]).
-  // Без подтипа (слоты 0..7 — buildingId null) либо без каталога
-  // (getBuilding → null) — базовая запись слота (как до задачи).
-  // Город (000103: building NONE, buildingId 51..54) — запись через
-  // buildingId; базовой записи слота -1 нет — поведение как до.
-  function buildingRecForTile(t) {
-    if (!t || !t.hasBuilding) return null;
-    if (t.buildingId != null) {
-      const rec = G.getBuilding ? G.getBuilding(t.buildingId) : null;
-      if (rec) return rec;
-    }
-    return G.buildingForMapIndex(t.building);
-  }
-
-  // Действие [E] (задача 000010, задача 000071 — ЕДИНЫЙ путь): роутинг
-  // [E] на тайле постройки → оверлей Game.buildingUI (список действий:
-  // «Диалог», если у постройки NPC, + эффекты каталога). Повторный
-  // [E] — закрыть оверлей. Постройка с NPC и БЕЗ эффектов — тоже
-  // оверлей из одного пункта «Диалог» (НЕ прямой npcUI — 000076/000107;
-  // Digit1 открывает диалог). Вызывается и с клавиатуры, и с
-  // on-screen-кнопки «E» тач-варианта (задача 000018) — семантика
-  // кнопки «действие на тайле» совпадает автоматически.
-  function toggleNpcDialog() {
-    if (!G.npcUI) return;
-    if (G.combatUI && G.combatUI.isActive()) return;
-    if (G.dungeonUI && G.dungeonUI.isActive()) return;
-    if (G.buildingUI) {
-      // Повторный [E] — закрыть оверлей действий.
-      if (G.buildingUI.isActive()) {
-        G.buildingUI.close();
-        return;
-      }
-      // Открыт диалог NPC (после «Диалог» из оверлея): повторный [E]
-      // закрывает диалог — поведение master (до 000071 проверка
-      // npcUI.isActive() шла ПЕРВОЙ в toggleNpcDialog). Без неё
-      // buildingUI открывался СВЕРХУ открытого npcUI — оба оверлея
-      // активны одновременно (регрессия, тест B4).
-      if (G.npcUI.isActive()) {
-        G.npcUI.close();
-        return;
-      }
-      if (map) {
-        const t = map.tileAt(player.x, player.y);
-        if (t.hasBuilding) {
-          const b = buildingRecForTile(t); // 000076: подтип слота 8..12
-          if (b) {
-            const npc = G.npcForBuilding(NPCS, b.id);
-            openBuildingUI(t, b, npc);
-          }
-        }
-      }
-      return;
-    }
-    // G.buildingUI отсутствует (регрессия порядка загрузки — паттерн
-    // 000018/000038): console.error + деградация к старому прямому
-    // npcUI — игра не ломается, ошибка заметна в консоли.
-    console.error('main.js: [E], но Game.buildingUI отсутствует — ' +
-      'src/building-ui.js обязан грузиться ДО src/main.js');
-    if (G.npcUI.isActive()) { // повторно — закрыть диалог
-      G.npcUI.close();
-      return;
-    }
-    if (map) {
-      const t = map.tileAt(player.x, player.y);
-      if (t.hasBuilding) {
-        const b = buildingRecForTile(t); // 000076: подтип слота 8..12
-        const npc = b && G.npcForBuilding(NPCS, b.id);
-        if (npc) openNpcDialog(npc, t);
-      }
-    }
-  }
-
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyI' && G.playerUI) { // I (Ш) — панель персонажа
       G.playerUI.toggle();
       return;
     }
     if (e.code === 'KeyE' && G.npcUI) { // E (У) — диалог NPC
-      toggleNpcDialog();
+      if (G.buildingActions) G.buildingActions.toggle();
       return;
     }
     // В бою клавиши обрабатывает combat-ui (единая таблица
     // src/combat-keys.js, задача 000048), в подземелье — dungeon-ui,
     // в диалоге NPC — npcUI. Конфликтов с боевой таблицей нет: этот
     // return стоит ДО движения мира и прочих действий; KeyA в бою —
-    // движение (как в мире), KeyE — «быстрый предмет» (toggleNpcDialog
-    // выше сам гасится активным боем).
+    // движение (как в мире), KeyE — «быстрый предмет»
+    // (G.buildingActions.toggle() выше сам гасится активным боем).
     // Наблюдение (вне 000048; ревью 000071 раунд 2 — buildingUI):
     // KeyI выше ВСЕХ гейтов — Ш переключает панель персонажа
     // поверх ОТКРЫТОГО оверлея (боевого/подземелья/NPC/постройки).
@@ -988,7 +789,7 @@
         // что и настоящие: кадр вызывает tryMove → G.deltaForMoveKey.
         onHold: (dir) => keys.add('touch:' + dir),
         onRelease: (dir) => keys.delete('touch:' + dir),
-        onInteract: toggleNpcDialog,
+        onInteract: () => { G.buildingActions && G.buildingActions.toggle(); },
       });
       G.touchControls.show();
     } else {
@@ -1460,7 +1261,8 @@
     // Задача 000076: подтип слота 8..12 (buildingId) — СВОЯ запись
     // (свои NPC/эффекты): храм горы (38) — «[E] действия» БЕЗ
     // «[E] диалог» (Элдира — только 20/36). Базовые слоты — как до.
-    const bHere = buildingRecForTile(t);
+    const bHere = G.buildingActions
+      ? G.buildingActions.buildingRecForTile(t) : null;
     const npcHere = bHere && G.npcForBuilding ? G.npcForBuilding(NPCS, bHere.id) : null;
     // Эффекты постройки (задача 000071): ПОДСКАЗКА «[E] действия» —
     // только когда NPC НЕТ (NPC без эффектов — ТЕКУЩИЙ текст,
@@ -1710,56 +1512,21 @@
         return true;
       },
       // Отладочный бой на текущем тайле (не требует шага на группу).
-      startCombat: (groupType = 0) => {
-        if (G.combatUI && G.combatUI.isActive()) return null;
-        // Тот же паттерн, что и в боях мира/подземелья (000096):
-        // после отладочного боя полноэкранная панель не должна
-        // накрывать карту.
-        if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
-        // Стек оверлеев (000071): оверлей действий под боем — закрыть.
-        if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
-        return G.combatUI.startCombat({
-          hero,
-          tile: { mobGroup: groupType },
-          // Бой «на текущем тайле»: передаём terrain реального тайла
-          // (задача 000049) — согласованно с боем мира; без карты
-          // фолбэк plain.svg.
-          terrain: map ? map.tileAt(player.x, player.y).terrain : undefined,
-          spriteLoader,
-          prev: { x: player.x, y: player.y },
-          seed: 42,
-          day: clock.day,
-          // Задача 000076: активные благословения — во ВСЕХ боях дня.
-          buffMods: currentBuffMods(),
-          onEnd: (res) => {
-            // Лут/опыт уже начислены в ядре (checkVictory).
-            // Квесты: kill_group (задача 000010).
-            if (res && res.outcome === 'victory' && questBook && G.notifyGroupDefeated) {
-              G.notifyGroupDefeated(NPCS, questBook, groupType);
-            }
-            G.playerUI && G.playerUI.render();
-          },
-        });
-      },
+      // Тело — в wiring-секции (startCombatAt, задача 000128): одна
+      // точка истины, семантика без изменений.
+      startCombat: startCombatAt,
       // Открыть диалог NPC текущего тайла (задача 000010, смоук-тесты).
+      // Делегация building-actions.js (задача 000128): тело openNpcDialog
+      // 1:1 (дедуп — во main.js [E]-подобного пути больше нет).
       openNpc: () => {
-        if (!G.npcUI || !map) return false;
+        if (!G.npcUI || !map || !G.buildingActions) return false;
         if (G.npcUI.isActive()) return true;
         const t = map.tileAt(player.x, player.y);
         if (!t.hasBuilding) return false;
-        const b = buildingRecForTile(t); // 000076: подтип слота 8..12
+        const b = G.buildingActions.buildingRecForTile(t); // 000076: подтип слота 8..12
         const npc = b && G.npcForBuilding(NPCS, b.id);
         if (!npc) return false;
-        G.npcUI.open({
-          npc,
-          character: hero,
-          book: questBook,
-          tile: { x: player.x, y: player.y,
-            building: t.building, buildingWealth: t.buildingWealth },
-          shop: npcShopFor(npc.id),
-          onChange: saveNow,
-          day: clock.day,
-        });
+        G.buildingActions.openNpcDialog(npc, t);
         return G.npcUI.isActive();
       },
       // Подземелье из текущего тайла (не требует входа в пещеру).

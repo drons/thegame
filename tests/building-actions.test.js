@@ -202,6 +202,7 @@ test('BA2. маршрут dialog vs effects: диалог — 1:1 payload, эф�
       },
     };
     e.log.length = 0;
+    e.calls.dialog.length = 0; // (a) уже открыл один — измеряем только (b)
     e.BA.onBuildingAction(
       { id: '88', имя: 'Тест-эффект', доступен: true }, t, b, npc);
     assert.equal(applied.length, 1, 'entry.apply — ровно один раз');
