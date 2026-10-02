@@ -146,6 +146,19 @@
       opacity: 1;
       visibility: visible;
     }
+    /* Форма игровых настроек (задача 000098): только НОВЫЕ классы
+       .cp-set* (свои; чужие .cp-* не трогаются). */
+    .cp-set { margin-top: 4px; }
+    .cp-setrow { display: flex; align-items: center; gap: 6px; padding: 1px 0; }
+    .cp-setlabel { flex: 1; font-size: 12px; }
+    .cp-sethead { margin-top: 8px; font-weight: 700; color: #d8c27a; }
+    .cp-setinput { width: 76px; background: #101418; color: #e8dcc0;
+      border: 1px solid #6b6248; border-radius: 4px; padding: 1px 4px;
+      font-size: 12px; }
+    .cp-setbtn { width: auto; min-width: 24px; padding: 0 6px; height: 20px;
+      border: 1px solid #6b6248; border-radius: 5px; background: #2c3040;
+      color: #e8dcc0; cursor: pointer; font-size: 11px; }
+    .cp-setall { margin-top: 8px; }
     /* Кнопка полноэкранного режима (задача 000017): правый нижний угол,
        под оверлеями боя/подземелья (z-index 20). */
     .fs-btn {
