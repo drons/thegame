@@ -2,11 +2,13 @@
 //
 // Падают, пока src/efir.js не существует (модуль ещё не создан):
 //   * R1 — модуль грузится (node require + браузерная ветка БЕЗ Game),
-//     экспорты ровно {createEfir, addEfirXp, levelUp, efirAllyData},
-//     НОЛЬ require( в источнике (чистота 000053/000038);
-//   * R2 — createEfir(): {level:1, xp:0, skills:{}} (форма сейва 000085;
-//     HP/MP в состоянии НЕТ), независимые объекты; скромный пул
-//     [spark, mend] — данные МОДУЛЯ, свежая копия на вызов;
+//     экспорты ровно 11 (9 функций + данные EFIR_SKILLS/
+//     EFIR_SPELL_UNLOCKS, 000111), НОЛЬ require( в источнике
+//     (чистота 000053/000038);
+//   * R2 — createEfir(): {level:1, xp:0, skillXp:{}, skills:{},
+//     spells:[spark,mend]} (форма сейва 000085→000115; HP/MP в
+//     состоянии НЕТ), независимые объекты; attrs — 3 собственных;
+//     старт [spark, mend] — данные МОДУЛЯ, свежая копия на вызов;
 //     id ∈ assets/spells (целостность 000053);
 //   * R3 — addEfirXp: порог xpForNext (src/player.js: round(50·ур^1.5)),
 //     while-цикл (несколько уровней за один бой), остаток копится;
@@ -133,15 +135,24 @@ const SKILL_META = (() => {
   return m;
 })();
 
-test('000081 R1: efir.js грузится (node + браузерная ветка без Game); экспорты ровно 4; в источнике НЕТ require(', () => {
+test('000081 R1: efir.js грузится (node + браузерная ветка без Game); экспорты ровно 11 (9 функций + 2 данных); в источнике НЕТ require(', () => {
   const E = loadEfir();
   assert.deepEqual(
     Object.keys(E).sort(),
-    ['addEfirXp', 'createEfir', 'efirAllyData', 'levelUp'],
-    'экспорты — ровно {createEfir, addEfirXp, levelUp, efirAllyData}');
-  for (const k of Object.keys(E)) {
+    ['EFIR_SKILLS', 'EFIR_SPELL_UNLOCKS', 'addEfirXp', 'createEfir',
+     'efirAllyData', 'efirSkillCap', 'efirSkillXpForNext',
+     'efirSpellsByLevel', 'efirStats', 'levelUp', 'reprocessEfirSkills'],
+    'экспорты — ровно 11: 9 функций + 2 данных (000111: ' +
+    'EFIR_SKILLS, EFIR_SPELL_UNLOCKS)');
+  const FUNCS = ['createEfir', 'addEfirXp', 'levelUp', 'efirAllyData',
+    'efirStats', 'efirSpellsByLevel', 'reprocessEfirSkills',
+    'efirSkillXpForNext', 'efirSkillCap'];
+  for (const k of FUNCS) {
     assert.equal(typeof E[k], 'function', 'экспорт ' + k);
   }
+  assert.ok(Array.isArray(E.EFIR_SKILLS), 'EFIR_SKILLS — массив данных');
+  assert.ok(Array.isArray(E.EFIR_SPELL_UNLOCKS),
+    'EFIR_SPELL_UNLOCKS — массив данных');
   // Браузерная ветка БЕЗ Game: root.Game.efir (UMD: root.Game =
   // Object.assign({}, G0, { efir: factory() })); 0 console.error,
   // 0 исключений (чистая загрузка — без DOM и без зависимостей).
@@ -158,9 +169,12 @@ test('000081 R1: efir.js грузится (node + браузерная ветк�
     'браузерная ветка без Game — без исключений');
   const GE = sandbox.Game && sandbox.Game.efir;
   assert.ok(GE, 'браузерная ветка: root.Game.efir создан');
-  for (const k of ['createEfir', 'addEfirXp', 'levelUp', 'efirAllyData']) {
+  for (const k of FUNCS) {
     assert.equal(typeof GE[k], 'function', 'Game.efir.' + k);
   }
+  assert.ok(Array.isArray(GE.EFIR_SKILLS), 'Game.efir.EFIR_SKILLS');
+  assert.ok(Array.isArray(GE.EFIR_SPELL_UNLOCKS),
+    'Game.efir.EFIR_SPELL_UNLOCKS');
   assert.equal(errors.length, 0,
     '0 console.error при загрузке: ' + errors.join('; '));
   // Чистота (000053/000038): НОЛЬ require( во всём файле.
@@ -168,34 +182,47 @@ test('000081 R1: efir.js грузится (node + браузерная ветк�
     'в src/efir.js НОЛЬ require( — чистый UMD (прецедент 000053/000038)');
 });
 
-test('000081 R2: createEfir() — {level:1, xp:0, skills:{}} (ровно 3 поля); независимые объекты; скромный пул [spark, mend] — данные модуля, копия на вызов, id ∈ assets/spells', () => {
+test('000081 R2: createEfir() — {level:1, xp:0, skillXp:{}, skills:{}, spells:[spark,mend]} (ровно 5 полей); независимые объекты; старт [spark, mend] — данные модуля, копия на вызов, id ∈ assets/spells', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
     const s = E.createEfir();
-    assert.deepEqual(Object.keys(s).sort(), ['level', 'skills', 'xp'],
-      'состояние — ровно {level, xp, skills} (форма сейва 000085; HP/MP НЕТ)');
+    assert.deepEqual(
+      Object.keys(s).sort(),
+      ['level', 'skillXp', 'skills', 'spells', 'xp'],
+      'состояние — ровно {level, xp, skillXp, skills, spells} ' +
+      '(форма сейва 000085→000115; HP/MP НЕТ)');
     assert.equal(s.level, 1);
     assert.equal(s.xp, 0);
+    assert.deepEqual(s.skillXp, {}, 'skillXp — пустой банк на старте');
     assert.deepEqual(s.skills, {});
+    assert.deepEqual(s.spells, ['spark', 'mend'],
+      'spells — стартовая книга [spark, mend] (ТЗ 000111)');
     // Два вызова — независимые объекты (пул изолирован в модуле).
     const s2 = E.createEfir();
     assert.notEqual(s, s2, 'вызовы независимы');
     assert.notEqual(s.skills, s2.skills, 'skills — независимы');
-    // Данные makeAlly (контракт 000081 §3): id/kind/name/role/level/
-    // attrs/skills; явных maxHP/damage НЕТ (формульный путь — мораль).
+    assert.notEqual(s.skillXp, s2.skillXp, 'skillXp — независимы');
+    assert.notEqual(s.spells, s2.spells, 'spells — независимы');
+    // Данные makeAlly (контракт 000081 §3, 000111 D2/D3): id/kind/
+    // name/role/level/attrs/skills; attrs — 3 СОБСТВЕННЫХ атрибута
+    // (таблица, L1: 3/3/3); явных maxHP/damage НЕТ (формульный путь
+    // — мораль; явные боевые статы — 000112).
     const d1 = E.efirAllyData(s);
     assert.equal(d1.id, 'efir', 'id — "efir"');
     assert.equal(d1.kind, 'efir', "kind — строго 'efir' (не 'ether')");
     assert.equal(d1.name, 'Эфир');
     assert.equal(d1.role, 'support');
     assert.equal(d1.level, 1);
-    assert.deepEqual(d1.attrs, {});
+    assert.deepEqual(d1.attrs,
+      { intelligence: 3, wisdom: 3, constitution: 3 },
+      'attrs — 3 собственных атрибута (L1: таблица 3 + floor((1−1)/2))');
     assert.deepEqual(d1.skills, []);
-    // Скромный пул (ТЗ: «огонь/исцеление»): данные МОДУЛЯ; СВЕЖАЯ
-    // КОПИЯ на каждый вызов (мутация данных боя не ломает модуль).
+    // Стартовая книга (ТЗ 000111: старт [spark, mend] — «скромный
+    // пул: огонь/исцеление» 000081): данные МОДУЛЯ; СВЕЖАЯ КОПИЯ на
+    // каждый вызов (мутация данных боя не ломает модуль).
     const d2 = E.efirAllyData(s);
     assert.deepEqual(d1.spells, ['spark', 'mend'],
-      'скромный пул: spark (огонь) / mend (исцеление)');
+      'стартовая книга: spark (огонь) / mend (исцеление)');
     assert.deepEqual(d2.spells, ['spark', 'mend']);
     assert.notEqual(d1.spells, d2.spells, 'spells — свежая копия на вызов');
     for (const id of d1.spells) {
