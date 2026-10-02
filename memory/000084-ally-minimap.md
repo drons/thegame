@@ -64,7 +64,7 @@ w/h = (u.size…)||1 — как в mob-ветке; в 1×1 дают CELL=48):
 | 4. HP-полоса, заполнение | fillStyle `G.hpBarColor(frac)` (гард '#6fdc6f'); fillRect | (px+8, py+2, round((pw−16)·clamp01(frac)), 4) |
 | 5. уровень | fillStyle '#fff'; font '12px ui-monospace, monospace'; textAlign 'center'; fillText `String(u.level)` | (px+pw/2, py+ph/2+4) — как у мобов |
 | 6. рамка «свой» | strokeStyle `ALLY_MARKER` = '#8cf2fc'; lineWidth 2; strokeRect | (px+4.5, py+4.5, pw−9, ph−9) = **39×39** — ВСЕГДА |
-| 7. индикатор хода | strokeStyle '#ffe27a'; lineWidth 2; strokeRect | (px+2.5, py+2.5, pw−5, ph−5) = **41×41** — только isCurrent |
+| 7. индикатор хода | strokeStyle '#ffe27a'; lineWidth 2; strokeRect | (px+2.5, py+2.5, pw−7, ph−7) = **41×41** — только isCurrent |
 
 * Сигнатуры УНИКАЛЬНЫ в render: fillRect 44×44 (подложка; ближайшее —
   42×42 фолбэк препятствия), strokeRect 41×41 (кольцо; других нет).

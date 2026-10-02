@@ -9,6 +9,11 @@
 //   F — побег,  Space — конец хода,
 //   клик по мобо — выбор цели,
 //   Esc / Space / Enter — закрыть оверлей (только после боя).
+// Союзники (задача 000084): на мини-карте — спрайт (Эфир —
+// efirFrames 000034, наёмник — MOB_FRAMES orc), полоса HP
+// (hpBarColor, паттерн 000038), маркер «свой», индикатор хода;
+// герой рисуется ПОСЛЕ всех союзников (контракт —
+// memory/000084-ally-render.md).
 // Экран боя (задача 000124): кнопки действий — SVG-иконки
 // (assets/ui/combat_<action>.svg) БЕЗ текстовой подписи; клавиша-
 // подсказка [J] и т.п. с кнопок убрана (сами клавиши работают;
@@ -38,6 +43,15 @@
     melee: '#d9483b', ranged: '#e08a3c', support: '#5cb85c',
     leader: '#b06ad4', shield: '#a98545', swarm: '#e0b13c',
   };
+  // Союзники (задача 000084): маркер «свой» — подложка + рамка
+  // (палитра «стороны игрока»: герой-ромб #8cf2fc, --hero-токен;
+  // «новых цветов не вводим», паттерн 000038). ALLY_MERC_KIND —
+  // архетип-заглушка ВСЕХ ролей наёмника (per-role/per-NPC спрайты —
+  // 000087/000114). Значения зафиксированы контрактом
+  // memory/000084-ally-render.md (пины styleCalls R3/R5).
+  const ALLY_MERC_KIND = 'orc';
+  const ALLY_MARKER = '#8cf2fc';
+  const ALLY_MARKER_UNDERLAY = 'rgba(140, 242, 252, 0.25)';
 
   // --- Время и кадры анимации (задача 000047) ---
   //
@@ -406,9 +420,15 @@
   // --- Юниты (задача 000047): спрайты поверх фона и сетки ---
   //
   // Список: не-fled-мобы (включая МЁРТВЫХ — труп, задача 000062) +
-  // герой. СОРТИРОВКА по bottomY («низ» юнита = якорь y + высота;
-  // герой — py+1) для «глубины»: дальние (меньше y) рисуются раньше,
-  // ближние — поверх. Тай-брейк детерминированный: затем x, затем id.
+  // живые союзники (задача 000084; мёртвый союзник — «ничего»,
+  // арта смерти нет) + герой. СОРТИРОВКА по bottomY («низ» юнита =
+  // якорь y + высота; герой — py+1) для «глубины»: дальние (меньше y)
+  // рисуются раньше, ближние — поверх. Тай-брейк детерминированный:
+  // затем x, затем id. ПОСЛЕ сортировки — перевставка героя ПОСЛЕ
+  // последнего союзника (ТЗ 000084: союзники не перекрывают игрока);
+  // no-op-инвариант — без союзников (или когда все союзники ВЫШЕ
+  // героя) список не меняется (контракт memory/000084-ally-minimap.md
+  // §5.2).
   // Выбор кадра — ТОЛЬКО чистые функции: G.frameIndex(now, x, y, n)
   // (now — аргументом; время внутри селектора нет — детерминизм
   // мира). Фолбэк — ПО ЮНИТУ, ЦЕПОЧКОЙ (задача 000062):
@@ -426,11 +446,26 @@
   // 'attack' → кадры attack, иначе → move.
   // Слои юнита: спрайт/фолбэк → полоса HP → уровень → подсветка
   // цели (по всему прямоугольнику, как до спрайтов); у мёртвого —
-  // только кадр; у героя — миниполоса HP ПОСЛЕ спрайта.
+  // только кадр; у героя — миниполоса HP ПОСЛЕ спрайта. У союзника
+  // (задача 000084): подложка «свой» → спрайт/фолбэк → полоса HP
+  // (трек + заполнение hpBarColor) → уровень → рамка «свой» →
+  // индикатор хода (кольцо, только ходящий) — контракт
+  // memory/000084-ally-render.md.
   function drawUnits(c, now, hpFrac, hpColor) {
     const list = [];
     for (const u of c.units) {
       if (u.fled) continue;
+      if (u.side === 'ally') {
+        // Союзник (задача 000084): живой — в список со своей ветвью;
+        // мёртвый — «ничего» (арта смерти нет — ассеты без изменений;
+        // паттерн 000062: цветной прямоугольник-труп не рисуем).
+        if (!u.alive) continue;
+        list.push({
+          kind: 'ally', u, id: u.id, x: u.x,
+          bottomY: u.y + ((u.size && u.size.h) || 1),
+        });
+        continue;
+      }
       list.push({
         kind: 'mob', u, id: u.id, x: u.x,
         bottomY: u.y + ((u.size && u.size.h) || 1),
@@ -440,6 +475,26 @@
     list.sort((a, b) => (a.bottomY - b.bottomY)
       || (a.x - b.x)
       || (a.id < b.id ? -1 : (a.id > b.id ? 1 : 0)));
+    // Союзники не перекрывают игрока (задача 000084): герой — ПОСЛЕ
+    // всех союзников в отсортированном списке. NO-OP-ИНВАРИАНТ
+    // (контракт §5.2): перевставка ТОЛЬКО когда последний союзник
+    // НИЖЕ героя (lastAlly > hi); без союзников (lastAlly = −1) и
+    // когда все союзники выше героя — список не тронут (бит-в-бит).
+    // Компромисс: моб с bottomY между героем и нижним союзником —
+    // герой «перепрыгивает» его (твёрдое ТЗ-требование побеждает
+    // мягкое 000081 «порядок отрисовки игрока/мобов — не трогать»).
+    const hi = list.findIndex((it) => it.kind === 'hero');
+    let lastAlly = -1;
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].kind === 'ally') lastAlly = i;
+    }
+    if (hi >= 0 && lastAlly > hi) {
+      const hero = list.splice(hi, 1)[0];
+      // герой удалён на hi → последний союзник сдвинулся на
+      // lastAlly − 1; вставка на lastAlly ставит героя РОВНО ПОСЛЕ
+      // него.
+      list.splice(lastAlly, 0, hero);
+    }
 
     // Спрайт моба цепочкой фолбэков (см. выше): персональный арт →
     // базовый вид → null (прямоугольник). Чистая по c/now/u.
@@ -458,8 +513,80 @@
       return null;
     }
 
+    // Спрайт союзника (задача 000084): Эфир — G.efirFrames (000034:
+    // кадры Флогистона переданы Эфиру, каталог assets/sprites/efir/);
+    // наёмник — G.MOB_FRAMES[ALLY_MERC_KIND] (архетип-заглушка ВСЕХ
+    // ролей; per-role/per-NPC — расширение 000087/000114). Чистая
+    // селекция (аналог mobSprite): кадры → G.frameIndex(now, x, y, n)
+    // (детерминизм, now — один на render) → spriteLoader.image()
+    // (картинка, загрузившаяся ПОСЛЕ старта боя — подхватывается
+    // следующим render, паттерн фона 000049). v1: action = 'idle'
+    // всегда (MOB_FRAMES действий не имеют; c._unitFx — player-
+    // центричная эвристика 000062, в ally-ветке НЕ читается — ложный
+    // 'attack'). Без кадров/лоадера — null → фолбэк-прямоугольник
+    // по роли в вызывающей ветке (деградация, не падение).
+    function allyFrames(u, now, action) {
+      let frames = [];
+      if (u.kind === 'efir') frames = G.efirFrames ? G.efirFrames(action) : [];
+      else frames = G.MOB_FRAMES ? (G.MOB_FRAMES[ALLY_MERC_KIND] || []) : [];
+      if (!frames.length || !ctx.spriteLoader) return null;
+      const idx = (frames.length > 1 && G.frameIndex)
+        ? G.frameIndex(now, u.x, u.y, frames.length) : 0;
+      return ctx.spriteLoader.image(frames[idx]) || null;
+    }
+
     for (const item of list) {
-      if (item.kind === 'mob') {
+      if (item.kind === 'ally') {
+        // Союзник (задача 000084): слои ПОРЯДКОМ — подложка «свой» →
+        // спрайт/фолбэк → полоса HP (трек + заполнение) → уровень →
+        // рамка «свой» → индикатор хода (контракт §3, пины R3/R6).
+        // Геометрия 1×1 (makeAlly: ВСЕГДА size {w:1,h:1}), формулы —
+        // через w/h, как в mob-ветке.
+        const u = item.u;
+        const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
+        const px = u.x * CELL, py = u.y * CELL;
+        const pw = w * CELL, ph = h * CELL;
+        // Подложка «свой» — ПЕРВАЯ (под всеми слоями юнита).
+        g2.fillStyle = ALLY_MARKER_UNDERLAY;
+        g2.fillRect(px + 2, py + 2, pw - 4, ph - 4);
+        // Спрайт (запас 8px — как у мобов) или фолбэк-прямоугольник.
+        const img = allyFrames(u, now, 'idle');
+        if (img) {
+          g2.drawImage(img, px + 8, py + 8, pw - 16, ph - 16);
+        } else {
+          g2.fillStyle = ROLE_COLORS[u.role] || '#888';
+          g2.fillRect(px + 8, py + 8, pw - 16, ph - 16);
+        }
+        // Полоса HP: ГЕОМЕТРИЯ — компактная (как у мобов, ТЗ); ЦВЕТ
+        // заполнения — пороговый hpBarColor (паттерн 000038, как у
+        // игрока): гард '#6fdc6f' — без sprites.js (деградация).
+        // Кламп [0,1] — защита (u.hp ≤ u.maxHP структурно).
+        const afrac = Math.min(1, Math.max(0, u.hp / u.maxHP));
+        g2.fillStyle = '#3a0d0d';
+        g2.fillRect(px + 8, py + 2, pw - 16, 4);
+        g2.fillStyle = (G.hpBarColor ? G.hpBarColor(afrac) : '#6fdc6f');
+        g2.fillRect(px + 8, py + 2, Math.round((pw - 16) * afrac), 4);
+        // Уровень (центр прямоугольника) — как у мобов.
+        g2.fillStyle = '#fff';
+        g2.font = '12px ui-monospace, monospace';
+        g2.textAlign = 'center';
+        g2.fillText(String(u.level), px + pw / 2, py + ph / 2 + 4);
+        // Рамка «свой» — ПОВЕРХ спрайта (паттерн подсветки цели).
+        g2.strokeStyle = ALLY_MARKER;
+        g2.lineWidth = 2;
+        g2.strokeRect(px + 4.5, py + 4.5, pw - 9, ph - 9);
+        // Индикатор хода — ТОЛЬКО у союзника (ТЗ «и у союзников»;
+        // игроку/мобам канвас-индикатор не добавляется — «не больше,
+        // чем ТЗ», 000081). Формула — та же, что токены
+        // renderTurnOrder (000036). Кольцо — СНАРУЖИ рамки «свой».
+        const isCurrent = !c.result && c.turnOrder
+          && c.turnOrder[c.turnIndex] === u.id && u.alive && !u.fled;
+        if (isCurrent) {
+          g2.strokeStyle = '#ffe27a';
+          g2.lineWidth = 2;
+          g2.strokeRect(px + 2.5, py + 2.5, pw - 7, ph - 7);
+        }
+      } else if (item.kind === 'mob') {
         const u = item.u;
         const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
         const px = u.x * CELL, py = u.y * CELL;

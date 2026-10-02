@@ -29,7 +29,7 @@ memory/000084-ally-minimap.md. Файлы задач 000084–000087/000111–
   (паттерн 000038: ≥0.5 '#6fdc6f', ≥0.2 '#e0b13c', иначе '#d9483b';
   гард '#6fdc6f'). Моб-бар (плоский '#6fdc6f') — без изменений.
 * Индикатор хода — жёлтое кольцо '#ffe27a' (цвет --current-токена
-  ряда очереди) strokeRect (px+2.5, py+2.5, pw−5, ph−5), lineWidth 2;
+  ряда очереди) strokeRect (px+2.5, py+2.5, pw−7, ph−7), lineWidth 2;
   формула isCurrent — та же, что токены 000036 (!c.result &&
   turnOrder[turnIndex] === u.id && alive && !fled). Только для
   СОЮЗНИКОВ. Ряд очереди renderTurnOrder — без изменений (000080

@@ -1535,8 +1535,11 @@ test('боевой UI: 000084 — детерминизм отрисовки (gol
   const norm = (c) => {
     const [n, a] = c;
     // vm-правило 000082: drawImage — по метке пути, не identity.
-    return n === 'drawImage' ? [n, a[0] && a[0].__path, ...a.slice(1)]
-      : [n, ...a];
+    // Форма [name, [args...]] — как у записи drawCalls и golden ниже
+    // (техническая правка стадии реализации: плоская форма не
+    // сравнимая с golden через deepStrictEqual).
+    return n === 'drawImage'
+      ? [n, [a[0] && a[0].__path, ...a.slice(1)]] : [n, a];
   };
   assert.ok(A.calls.length > 0, 'рендер отрисовал вызовы');
   assert.equal(A.calls.length, B.calls.length,
