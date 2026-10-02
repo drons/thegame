@@ -4704,9 +4704,13 @@ test('B24. круг (43) + храм (39) e2e: [E] «Круг»/«Храм» — 
     // Босс — бой СТАРТОВАН (стандартный поток), состав 1–3 troll.
     assert.equal(G.combatUI.isActive(), true, 'босс — бой активен');
     const c = G.combatUI.current();
-    assert.ok(c.units.length >= 1 && c.units.length <= 3,
-      'состав 1–3: ' + c.units.length);
-    for (const u of c.units) {
+    // Мобы — БЕЗ союзников (Эфир — постоянный союзник 000081: в
+    // c.units после concat, side 'ally', без mobId — паттерн
+    // u.side === 'mob', tests/combat.test.js).
+    const mobs1 = c.units.filter((u) => u.side === 'mob');
+    assert.ok(mobs1.length >= 1 && mobs1.length <= 3,
+      'состав 1–3: ' + mobs1.length);
+    for (const u of mobs1) {
       assert.equal(u.mobId, 'troll', 'босс — troll (рецепт BUILDING_BOSS)');
     }
     // Тестовая развязка (playerFlee — вероятностный).
@@ -4773,7 +4777,8 @@ test('B24. круг (43) + храм (39) e2e: [E] «Круг»/«Храм» — 
   if (rec2.type === 'boss') {
     assert.equal(G.combatUI.isActive(), true, 'день 2: босс — бой активен');
     const c2 = G.combatUI.current();
-    assert.ok(c2.units.length >= 1 && c2.units.length <= 3,
+    const mobs2 = c2.units.filter((u) => u.side === 'mob');
+    assert.ok(mobs2.length >= 1 && mobs2.length <= 3,
       'день 2: состав 1–3');
     if (!c2.result) {
       c2.phase = 'over'; c2.result = { outcome: 'fled' };
@@ -4839,7 +4844,8 @@ test('B24. круг (43) + храм (39) e2e: [E] «Круг»/«Храм» — 
   if (recA.type === 'boss') {
     assert.equal(G2.combatUI.isActive(), true, 'храм: босс — бой активен');
     const cA = G2.combatUI.current();
-    for (const u of cA.units) {
+    const mobsA = cA.units.filter((u) => u.side === 'mob');
+    for (const u of mobsA) {
       assert.equal(u.mobId, 'troll', 'храм: босс — troll');
     }
     if (!cA.result) {

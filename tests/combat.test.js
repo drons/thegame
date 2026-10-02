@@ -1151,7 +1151,10 @@ test('размер: крупные мобы двигаются целым пря
 
 test('размер: расстановка без перекрытий и в пределах поля', () => {
   const p = strongHero();
-  for (const type of Object.keys(GROUP_RECIPES)) {
+  // ТОЛЬКО числовые ключи (0..6): строковый 'BUILDING_BOSS' (000077)
+  // — не «все группы» (Number → NaN; паттерн 000077, §11).
+  for (const type of Object.keys(GROUP_RECIPES)
+    .filter((t) => String(t) === String(Number(t)))) {
     for (const seed of [1, 2, 3, 7]) {
       const c = createCombat({ player: p, groupType: Number(type), seed, levelDeltaMax: 0 });
       const seen = new Set();
@@ -1844,7 +1847,10 @@ test('препятствия: число в [min, max] от площади по�
   const max = Math.round(SETTINGS.combat_obstacle_max_frac * 49); // → 10
   assert.equal(min, 5, 'минимум — 5 (0.10×49)');
   assert.equal(max, 10, 'максимум — 10 (0.20×49)');
-  for (const [type, recipe] of Object.entries(GROUP_RECIPES)) {
+  // 000077: только ЧИСЛОВЫЕ (каталожные) ключи — «все группы» =
+  // 7 каталожных; строковый BUILDING_BOSS — не «все группы».
+  for (const [type, recipe] of Object.entries(GROUP_RECIPES)
+    .filter(([type]) => String(type) === String(Number(type)))) {
     for (const seed of [1, 7, 42]) {
       const c = createCombat({
         player: strongHero(), groupType: Number(type), seed, levelDeltaMax: 0,
@@ -1888,7 +1894,10 @@ test('препятствия: нет на старте игрока и в ЛЮБ
 test('препятствия: достижимость — BFS от игрока до каждого стартового прямоугольника', () => {
   // reachableCells — чистая: BFS из (c.px,c.py) по не-препятствиям
   // (мобы игнорируются), старт включён, c не мутирует.
-  for (const [type, recipe] of Object.entries(GROUP_RECIPES)) {
+  // 000077: только ЧИСЛОВЫЕ (каталожные) ключи — «все группы» =
+  // 7 каталожных; строковый BUILDING_BOSS — не «все группы».
+  for (const [type, recipe] of Object.entries(GROUP_RECIPES)
+    .filter(([type]) => String(type) === String(Number(type)))) {
     for (const seed of [1, 9, 42]) {
       const c = createCombat({
         player: strongHero(), groupType: Number(type), seed, levelDeltaMax: 0,
