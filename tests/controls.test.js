@@ -5,12 +5,18 @@
 // main.js мёртвыми/перепутанными связками).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
 const {
   DIRS, DIR_DELTA, CODE_DIRS, KEY_DIRS,
   moveKeyForEvent, deltaForMoveKey, deltaForEvent,
   TOUCH_ACTIONS, TOUCH_DEADZONE,
   touchMoveKeyForAction, isTouchDevice, chooseControlsScheme,
   layoutTouchControls, touchActionAt,
+  // 000121: роутинг тача и маппинг тач→e.code (красные тесты внизу —
+  // в RED-фазе неопределены, обращения только в телах).
+  routeTouchScreen, TOUCH_KEY_CODES, touchKeyCode,
 } = require('../src/controls.js');
 
 test('DELTA: y растёт вниз (мировые координаты)', () => {
@@ -341,4 +347,98 @@ test('touch: TOUCH_ACTIONS — inventory; touch:inventory не направле�
   // гарды — уже так на master, запираем контрактом).
   assert.equal(deltaForMoveKey('touch:inventory'), null);
   assert.equal(touchMoveKeyForAction('inventory'), null);
+});
+
+// ---------------------------------------------------------------------------
+// Роутинг тач-ввода: бой > подземелье > карта (задача 000121)
+//
+// Чистая функция routeTouchScreen(screens) — решение «какой экран
+// активен» по СНИМКУ оверлеев в момент события (клей main.js собирает
+// снимок и маршрутизирует колбэки). dialog/building — map-локальные
+// оверлеи (npcUI/buildingUI): принимаются в снимке, но НЕ ПОТРЕБЛЯЮТСЯ
+// (поведение при них = как на карте). Контракт —
+// memory/000121-touch-dungeon-combat.md, memory/000121-dpad-routing.md.
+// ---------------------------------------------------------------------------
+
+test('touch: routeTouchScreen — все комбинации {бой, подземелье, диалог}, приоритет бой > подземелье (000121)', () => {
+  // Приоритет (ТЗ): бой > подземелье > карта.
+  assert.equal(routeTouchScreen({ combat: true, dungeon: true }), 'combat',
+    'бой и подземелье — БОЙ (явный приоритет)');
+  assert.equal(routeTouchScreen({ combat: true }), 'combat');
+  assert.equal(routeTouchScreen({ dungeon: true }), 'dungeon');
+  assert.equal(routeTouchScreen({ dialog: true }), 'map',
+    'диалог — map-локальный: как на карте');
+  assert.equal(routeTouchScreen({}), 'map', 'ничего не активно — карта');
+  // dialog НЕ МЕНЯЕТ результат (3 пары из 8 комбинаций).
+  assert.equal(routeTouchScreen({ combat: true, dialog: true }), 'combat');
+  assert.equal(routeTouchScreen({ dungeon: true, dialog: true }), 'dungeon');
+  assert.equal(routeTouchScreen(
+    { combat: true, dungeon: true, dialog: true }), 'combat');
+  // Мусор/не-boolean — 'map' (жёсткие === true: деградация, не крах).
+  for (const junk of [null, undefined, 42, 'x',
+      { combat: 'yes' }, { combat: 1 }, { dungeon: 'yes' },
+      { combat: false, dungeon: false }]) {
+    assert.equal(routeTouchScreen(junk), 'map',
+      'мусор → map: ' + JSON.stringify(junk));
+  }
+  // Чистота: повторный вызов — тот же результат, аргумент не мутирован.
+  const snap = { combat: true, dungeon: true, dialog: true };
+  const before = JSON.parse(JSON.stringify(snap));
+  const r1 = routeTouchScreen(snap);
+  const r2 = routeTouchScreen(snap);
+  assert.equal(r1, r2, 'повторный вызов — тот же результат');
+  assert.equal(r1, 'combat');
+  assert.deepEqual(snap, before, 'снимок не мутирован');
+});
+
+test('touch: touchKeyCode — маппинг тач→e.code (канон — стрелки), interact → KeyE (000121)', () => {
+  for (const dir of DIRS) {
+    const code = touchKeyCode(dir);
+    // Канон направлений — СТРЕЛКИ: стрелки и WASD дают один
+    // resolveCombatKey-результат (одна таблица combat-keys).
+    assert.match(code, /^Arrow(Up|Down|Left|Right)$/,
+      dir + ' — каноничная стрелка: ' + code);
+    // Структурный инвариант: код возвращается в то же направление.
+    assert.equal(CODE_DIRS[code], dir,
+      dir + ': CODE_DIRS[touchKeyCode(dir)] === dir');
+  }
+  assert.equal(touchKeyCode('up'), 'ArrowUp');
+  assert.equal(touchKeyCode('down'), 'ArrowDown');
+  assert.equal(touchKeyCode('left'), 'ArrowLeft');
+  assert.equal(touchKeyCode('right'), 'ArrowRight');
+  assert.equal(touchKeyCode('interact'), 'KeyE',
+    'кнопка [E] — та же клавиша, что у клавиатуры');
+  // Не-направления/неизвестные — null ([I] не роутится — гард-контракт).
+  assert.equal(touchKeyCode('inventory'), null);
+  assert.equal(touchKeyCode('jump'), null);
+  assert.equal(touchKeyCode(null), null);
+  assert.equal(touchKeyCode(''), null);
+  assert.equal(touchKeyCode(42), null);
+  // Таблица — единая точка маппинга (экспортирована).
+  assert.equal(TOUCH_KEY_CODES.up, 'ArrowUp');
+  assert.equal(TOUCH_KEY_CODES.down, 'ArrowDown');
+  assert.equal(TOUCH_KEY_CODES.left, 'ArrowLeft');
+  assert.equal(TOUCH_KEY_CODES.right, 'ArrowRight');
+  assert.equal(TOUCH_KEY_CODES.interact, 'KeyE');
+  assert.equal(TOUCH_KEY_CODES.inventory, undefined,
+    'в таблице нет кода для inventory');
+});
+
+// «Браузерный» путь UMD: исполняем файл в чистом контексте без
+// module/exports (паттерн loadInSandbox, tests/global-settings.test.js).
+function loadInSandbox(file, sandbox) {
+  const code = fs.readFileSync(path.join(__dirname, '..', 'src', file), 'utf8');
+  vm.runInNewContext(code, sandbox || {});
+}
+
+test('touch: controls.js в чужом realm — роутер и маппинг на Game (UMD) (000121)', () => {
+  const sandbox = { Game: { Marker: 1 } };
+  loadInSandbox('controls.js', sandbox);
+  assert.equal(sandbox.Game.Marker, 1, 'Game не перезаписан');
+  // UMD-обёртка работает вне хоста: роутер и маппинг — на Game.
+  assert.equal(sandbox.Game.routeTouchScreen({ combat: true }), 'combat',
+    'в чужом realm: роутер бой > …');
+  assert.equal(sandbox.Game.routeTouchScreen({ dungeon: true }), 'dungeon');
+  assert.equal(sandbox.Game.touchKeyCode('up'), 'ArrowUp');
+  assert.equal(sandbox.Game.touchKeyCode('interact'), 'KeyE');
 });

@@ -1153,3 +1153,96 @@ test('боевой UI: 000081 — деградация: opts.efir БЕЗ efir.js
   assert.ok(errors.length > 0,
     'console.error записан (opts.efir передан, efir.js не загружен)');
 });
+
+// --- handleCode: единый путь «code → действие боя» (задача 000121) ---
+//
+// KРАСНЫЕ (TDD): падают, пока G.combatUI.handleCode не существует.
+// Контракт (memory/000121-touch-dungeon-combat.md, D3): тело keydown
+// 1:1 вынесено в handleCode(code) (consumed = прежний handled,
+// render() внутри при consumed); keydown — тонкая обёртка
+// (preventDefault/stopPropagation при consumed). handleCode —
+// ЕДИНСТВЕННЫЙ вход «code → действие боя» для клавиатуры и тача:
+// тап D-pad = ОДНО нажатие handleCode — БЕЗ повтора (в бою каждое
+// действие тратит ход). Существующие keydown-тесты (press) —
+// страховка 1:1-рефакторинга, здесь не трогаются.
+
+test('боевой UI: handleCode — единый путь «code → действие боя» (тап = одно действие, БЕЗ повтора) (000121)', () => {
+  const { G } = loadCombatUi();
+  // Вход существует: функция (единый путь клавиатуры и тача).
+  assert.equal(typeof G.combatUI.handleCode, 'function',
+    'G.combatUI.handleCode — функция (единый путь code → действие)');
+  // До startCombat — false (оверлей неактивен, без действия).
+  assert.equal(G.combatUI.handleCode('KeyB'), false,
+    'до startCombat — false');
+
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf', 'spider'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c, 'бой создан');
+  assert.equal(c.phase, 'player');
+
+  // (а) Блок: ровно одно действие, одна строка лога (как press KeyB).
+  const n0 = c.log.length;
+  assert.equal(G.combatUI.handleCode('KeyB'), true, 'блок — consumed');
+  assert.deepEqual(Array.from(c.log).slice(n0), ['Вы ставите блок.'],
+    'ровно ОДНО действие — одна строка лога: '
+    + JSON.stringify(Array.from(c.log).slice(n0)));
+  assert.equal(c.ps.blocked, true, 'блок поставлен');
+
+  // (б) Digit1 — none: НЕ «проглатывается» (false), без побочных строк.
+  const n1 = c.log.length;
+  assert.equal(G.combatUI.handleCode('Digit1'), false,
+    'Digit1 — none: не «проглатывается» (false)');
+  assert.equal(c.log.length, n1, 'неизвестный code — без строки в журнале');
+
+  // (в) Шаг: handleCode('ArrowUp') — как keydown ArrowUp. Две
+  // идентичные песочницы (один seed) — поведение бит-в-бит.
+  const a = loadCombatUi();
+  const ca = a.G.combatUI.startCombat({
+    hero: a.G.createCharacter(), mobs: ['wolf', 'spider'], mobLevel: 1, seed: 42,
+  });
+  const an = ca.log.length;
+  press(a.keydown, 'ArrowUp');
+  const b = loadCombatUi();
+  const cb = b.G.combatUI.startCombat({
+    hero: b.G.createCharacter(), mobs: ['wolf', 'spider'], mobLevel: 1, seed: 42,
+  });
+  const bn = cb.log.length;
+  assert.equal(b.G.combatUI.handleCode('ArrowUp'), true, 'шаг — consumed');
+  assert.equal(cb.px, ca.px, 'шаг: позиция x — как у keydown ArrowUp');
+  assert.equal(cb.py, ca.py, 'шаг: позиция y — как у keydown ArrowUp');
+  assert.deepEqual(Array.from(cb.log).slice(bn), Array.from(ca.log).slice(an),
+    'шаг: журнал — как у keydown ArrowUp');
+
+  // (г) [E] → quickItem: ровно ОДНА строка лога (quickItem либо
+  // canDo-reason — точный текст не пиним); фаза/раунд не сдвинуты.
+  const e1 = loadCombatUi();
+  const ce = e1.G.combatUI.startCombat({
+    hero: e1.G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const en = ce.log.length;
+  const phaseBefore = ce.phase, roundBefore = ce.round;
+  assert.equal(e1.G.combatUI.handleCode('KeyE'), true, 'KeyE — consumed');
+  const eAdded = Array.from(ce.log).slice(en);
+  assert.equal(eAdded.length, 1,
+    'ровно ОДНА строка лога (quickItem или reason): ' + JSON.stringify(eAdded));
+  assert.equal(ce.phase, phaseBefore, 'фаза не сдвинута');
+  assert.equal(ce.round, roundBefore, 'раунд не сдвинут');
+
+  // (д) result-фаза: Space → finish (onEnd), прочие клавиши — false
+  // (паттерн существующего 000081: c.result + Escape/Space закрывают).
+  const r1 = loadCombatUi();
+  let ended = null;
+  const cr = r1.G.combatUI.startCombat({
+    hero: r1.G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    onEnd: (res) => { ended = res; },
+  });
+  cr.result = { outcome: 'victory' };
+  assert.equal(r1.G.combatUI.handleCode('Space'), true,
+    'Space после боя — finish (consumed)');
+  assert.ok(ended, 'onEnd вызван (finish)');
+  assert.equal(ended.outcome, 'victory');
+  assert.equal(r1.G.combatUI.isActive(), false, 'оверлей закрыт');
+  assert.equal(r1.G.combatUI.handleCode('KeyJ'), false,
+    'после finish — false (не «проглатывается»)');
+});
