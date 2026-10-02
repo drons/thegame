@@ -214,12 +214,18 @@ test('000081 R4: levelUp + рост статов по уровню (формул
     assert.equal(u1.maxHP, 8, 'L1: maxHP = round(12·0.7) = 8');
     assert.equal(u1.damage, 3, 'L1: damage = round(2.7) = 3');
     assert.equal(u1.armor, 0, 'L1: armor = 0 + floor(1/10) = 0');
-    // levelUp: по уровню, БЕЗ нового xp (L1→L2→L3).
-    assert.equal(E.levelUp(s), 1, 'levelUp → 1 уровень');
+    // levelUp: while-цикл по порогам xpForNext, БЕЗ нового xp —
+    // обрабатывает xp, накопленный в деградационном окне (R6) и при
+    // нормализации сейва (000085/000115): нет xp — нет уровня.
+    // L1: 50 — порог; L2: 141 — порог.
+    s.xp = 50; // xp без уровня (деградация / нормализация)
+    assert.equal(E.levelUp(s), 1, 'levelUp: 50 ≥ 50 → 1 уровень');
     assert.equal(s.level, 2);
-    assert.equal(s.xp, 0, 'xp не меняется');
-    assert.equal(E.levelUp(s), 1, 'levelUp повторно');
+    assert.equal(s.xp, 0, 'xp списан по порогу');
+    s.xp = 141;
+    assert.equal(E.levelUp(s), 1, 'levelUp повторно: 141 ≥ 141 → 1 уровень');
     assert.equal(s.level, 3);
+    assert.equal(s.xp, 0, 'xp списан по порогу (L2)');
     const u3 = stat(s);
     assert.equal(u3.maxHP, 14, 'L3: maxHP = round(20·0.7) = 14');
     assert.equal(u3.damage, 4, 'L3: damage = round(4.1) = 4');
