@@ -271,6 +271,13 @@
   // (имя зафиксировано 000072). СКАН пары — только при ПЕРВОМ подходе
   // (building-actions.js, не в кадре); повторного скана НЕТ (кэш в сейве).
   const teleports = new Map();
+  // Квесты построек (задача 000074): 'x,y' → { questId: string,
+  // day: integer≥1, status: 'active'|'done' } — ИСТОЧНИК ИСТИНЫ
+  // (из него же rehydrateBuildingQuests воссоздаёт инстансы
+  // questBook.source='building'). Раздел сейва `buildingQuests`
+  // (имя зафиксировано контрактом 000074). «Раз в день» самого
+  // касания — отдельно, buildingOncePerDay.
+  const buildingQuests = new Map();
   // Задача 000076: модификаторы активных благословений на текущий
   // день (day.js buffMods, 000072) — для точек создания боя:
   // благословение действует во ВСЕХ боях дня (мир/подземелье/
@@ -343,6 +350,12 @@
       // Неломкое расширение v1 (000031): версию НЕ поднимаем.
       teleports: (G.buildingEffects && G.buildingEffects.serializeTeleports)
         ? G.buildingEffects.serializeTeleports(teleports) : {},
+      // Задача 000074: квесты построек ('x,y' → запись) — источник
+      // истины для questBook.source='building'. Неломкое расширение
+      // v1 (000031): версию НЕ поднимаем, миграций нет.
+      buildingQuests: (G.buildingEffects &&
+        G.buildingEffects.serializeBuildingQuests)
+        ? G.buildingEffects.serializeBuildingQuests(buildingQuests) : {},
     };
   }
 
@@ -532,6 +545,45 @@
       console.warn('Сейв: не удалось восстановить teleports:', err);
     }
 
+    // --- Квесты построек (buildingQuests) (задача 000074) ---
+    // 'x,y' → { questId, day, status: 'active'|'done' } — источник
+    // истины; из него же ниже rehydrateBuildingQuests воссоздаёт
+    // инстансы questBook.source='building'. restoreBuildingQuests
+    // сам отбрасывает мусорные записи (000029, паттерн 000072/75);
+    // дополнительно: 'active' с днём ВЫДАЧИ позже дня мира —
+    // подделанный сейв, отбрасываем (+warn). 'done' — ВСЕГДА
+    // храним (отброс позволил бы повторную выдачу и повторную
+    // награду — повторного касания к уже «замолчавшему» обелиску
+    // нет, но запись done — единственный маркер «выплачено»).
+    try {
+      const rawBQ = d.buildingQuests;
+      if (rawBQ != null) {
+        if (typeof rawBQ !== 'object' || Array.isArray(rawBQ)) {
+          console.warn('Сейв: раздел buildingQuests некорректен — сбрасываю.');
+          buildingQuests.clear();
+        } else if (G.buildingEffects &&
+                   G.buildingEffects.restoreBuildingQuests) {
+          const mBQ = G.buildingEffects.restoreBuildingQuests(rawBQ);
+          for (const [k, v] of mBQ) {
+            if (v.status === 'active' &&
+                Number.isInteger(v.day) && v.day > clock.day) {
+              console.warn('Сейв: квест постройки ' + k +
+                ' выдан в день ' + v.day + ' > дня мира ' + clock.day +
+                ' — отбрасываю.');
+            } else {
+              buildingQuests.set(k, v);
+            }
+          }
+          if (mBQ.size === 0 && Object.keys(rawBQ).length > 0) {
+            console.warn(
+              'Сейв: buildingQuests — валидных записей нет — сбрасываю.');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить buildingQuests:', err);
+    }
+
     // --- Позиция ---
     try {
       const p = d.position;
@@ -577,6 +629,13 @@
       }
     } catch (err) {
       console.warn('Сейв: не удалось восстановить квесты/стоки:', err);
+    }
+
+    // 000074: квесты построек → журнал (из раздела buildingQuests;
+    // инстансы source='building' serializeQuestBook не пишет — R2).
+    if (questBook && G.rehydrateBuildingQuests) {
+      try { G.rehydrateBuildingQuests(questBook, buildingQuests); }
+      catch (err) { console.warn('Сейв: квесты построек:', err); }
     }
 
     if (G.playerUI) {
@@ -713,6 +772,7 @@
       buildingOncePerDay, // live Map 'x,y:effectId' → день (000072)
       buffs, // live Array (000072/000076)
       teleports, // live Map 'x,y' → { pair, dest, active } (000075)
+      buildingQuests, // live Map 'x,y' → { questId, day, status } (000074)
       playerRender,
       moveHero,
       startCombat: startCombatAt,
