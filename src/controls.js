@@ -232,7 +232,7 @@
     const dpad = { x: M, y: h - M - S, w: S, h: S };
     // Член floor((availH − inset − GAP) / 2) — пара action+inventory
     // влезает в вьюпорт с учётом bottomInset (задача 000123). На
-    // типичных вьюпортах он не активен — action битево как раньше.
+    // типичных вьюпортах он не активен — action побайтово как раньше.
     const B = Math.max(0, Math.min(
       96, Math.max(56, Math.floor(S * 0.5)), availW, availH - inset,
       Math.floor((availH - inset - TOUCH_ACTION_GAP) / 2)));
