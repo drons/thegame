@@ -570,6 +570,12 @@
        тегом и main.js — спец-модули (000077/000091–95) и hud.js
        (000129). -->
   <script src="src/building-actions.js"></script>
+  <!-- HUD (задача 000129, разбиение main.js 3/4): строки мира/
+       подземелья/города. После building-actions.js (доменная группа
+       серии 000127→000130), ДО main.js (UMD-ловушка 000038: main.js
+       снимает Game один раз). Чистый модуль — ноль зависимостей при
+       загрузке (000053); состояние flash — в main.js. -->
+  <script src="src/hud.js"></script>
   <script src="src/visuals-data.js"></script>
   <script src="src/sprites.js"></script>
   <script src="src/combat-ui.js"></script>
