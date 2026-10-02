@@ -245,3 +245,100 @@ test('touch: touchMoveKeyForAction и deltaForMoveKey понимают touch:<di
   assert.equal(deltaForMoveKey('touch:interact'), null);
   assert.equal(deltaForMoveKey('touch:jump'), null);
 });
+
+// ---------------------------------------------------------------------------
+// Кнопка инвентаря [I] в раскладке и хит-тесте (задача 000123)
+// ---------------------------------------------------------------------------
+
+test('touch: layoutTouchControls — inventory: над action, тот же размер, зазор ≥ 8 (000123)', () => {
+  const L = layoutTouchControls(800, 600);
+  // Третий прямоугольник — inventory (новая кнопка [I]).
+  assert.ok(L.inventory, 'в раскладке есть прямоугольник inventory');
+  // Эталон 800×600: та же колонка и размер, что action, над ним (зазор 12 px).
+  assert.deepEqual(L.inventory, { x: 688, y: 380, w: 96, h: 96 });
+  assert.equal(L.inventory.w, L.action.w);
+  assert.equal(L.inventory.h, L.action.h);
+  assert.equal(L.inventory.x, L.action.x);
+  // Строго ВЫШЕ action: зазор ≥ 8 (и > 0 — пересечений нет).
+  const gap = L.action.y - (L.inventory.y + L.inventory.h);
+  assert.ok(gap >= 8, 'зазор между кнопками ≥ 8');
+  // Не пересекается с D-pad на типичном экране (паттерн существующего теста).
+  const overlapX = Math.max(L.dpad.x, L.inventory.x) <
+    Math.min(L.dpad.x + L.dpad.w, L.inventory.x + L.inventory.w);
+  const overlapY = Math.max(L.dpad.y, L.inventory.y) <
+    Math.min(L.dpad.y + L.dpad.h, L.inventory.y + L.inventory.h);
+  assert.equal(overlapX && overlapY, false);
+  // Пара в вьюпорте.
+  assert.ok(L.inventory.y >= 0 && L.inventory.y + L.inventory.h <= 600);
+  assert.ok(L.action.y >= 0 && L.action.y + L.action.h <= 600);
+  // bottomInset=48: пара поднимается, action — на своё прежнее место (регрессия).
+  const lifted = layoutTouchControls(800, 600, { bottomInset: 48 });
+  assert.equal(lifted.action.y, L.action.y - 48);
+  assert.ok(lifted.inventory.y >= 0);
+  assert.ok(lifted.inventory.y + lifted.inventory.h <= 600);
+  assert.ok(lifted.action.y - (lifted.inventory.y + lifted.inventory.h) >= 8);
+});
+
+test('touch: layoutTouchControls — пара на низком/узком вьюпорте, невалидные → нули (000123)', () => {
+  // Низкий вьюпорт: пара (2×B + зазор) влезает — B может быть < 56.
+  const low = layoutTouchControls(800, 140);
+  assert.ok(low.inventory.y >= 0 && low.inventory.y + low.inventory.h <= 140);
+  assert.ok(low.action.y + low.action.h <= 140);
+  assert.ok(low.action.y - (low.inventory.y + low.inventory.h) >= 8);
+  assert.equal(low.inventory.w, low.action.w);
+  assert.equal(low.inventory.h, low.action.h);
+  // Узкий вьюпорт: обе кнопки в пределах 100×120.
+  const narrow = layoutTouchControls(100, 120);
+  assert.ok(narrow.inventory.x >= 0 && narrow.inventory.x + narrow.inventory.w <= 100);
+  assert.ok(narrow.inventory.y >= 0 && narrow.inventory.y + narrow.inventory.h <= 120);
+  assert.ok(narrow.action.x >= 0 && narrow.action.x + narrow.action.w <= 100);
+  assert.ok(narrow.action.y >= 0 && narrow.action.y + narrow.action.h <= 120);
+  assert.ok(narrow.action.y - (narrow.inventory.y + narrow.inventory.h) >= 8);
+  // Невалидные размеры → ВСЕ ТРИ прямоугольника нулевые.
+  for (const [w, h] of [[0, 600], [-5, 600], [NaN, 600], [800, 0]]) {
+    const bad = layoutTouchControls(w, h);
+    assert.equal(bad.dpad.w, 0);
+    assert.equal(bad.action.w, 0);
+    assert.equal(bad.inventory.w, 0);
+    assert.equal(bad.inventory.h, 0);
+  }
+  // Гигантский bottomInset — пара не влезает → B = 0 (D-pad от inset не зависит).
+  const over = layoutTouchControls(800, 600, { bottomInset: 1e6 });
+  assert.equal(over.action.w, 0);
+  assert.equal(over.action.h, 0);
+  assert.equal(over.inventory.w, 0);
+  assert.equal(over.inventory.h, 0);
+});
+
+test('touch: touchActionAt — точка в inventory → inventory, без регрессий (000123)', () => {
+  const L = layoutTouchControls(800, 600);
+  // Центр и угол inventory (координаты — из раскладки, устойчиво к зазору).
+  const icx = L.inventory.x + L.inventory.w / 2;
+  const icy = L.inventory.y + L.inventory.h / 2;
+  assert.equal(touchActionAt(icx, icy, L), 'inventory');
+  assert.equal(touchActionAt(L.inventory.x + 2, L.inventory.y + 2, L), 'inventory');
+  // Точка в зазоре между кнопками (зазор ≥ 8, +4 — внутри) — null.
+  assert.equal(touchActionAt(icx, L.inventory.y + L.inventory.h + 4, L), null);
+  // Кнопка действия — 'interact' (не сменилась на 'inventory').
+  const acx = L.action.x + L.action.w / 2;
+  const acy = L.action.y + L.action.h / 2;
+  assert.equal(touchActionAt(acx, acy, L), 'interact');
+  // D-pad — компактные регрессии (полное покрытие — в существующем тесте).
+  const dcx = L.dpad.x + L.dpad.w / 2;
+  const dcy = L.dpad.y + L.dpad.h / 2;
+  assert.equal(touchActionAt(dcx, dcy - 70, L), 'up');
+  assert.equal(touchActionAt(dcx, dcy + 70, L), 'down');
+  // Мёртвая зона и мусорные координаты — null.
+  assert.equal(touchActionAt(dcx, dcy, L), null);
+  assert.equal(touchActionAt(NaN, 0, L), null);
+  assert.equal(touchActionAt(0, null, L), null);
+});
+
+test('touch: TOUCH_ACTIONS — inventory; touch:inventory не направление (000123)', () => {
+  assert.ok(TOUCH_ACTIONS.includes('inventory'),
+    "TOUCH_ACTIONS содержит 'inventory'");
+  // Не направление: виртуальная «клавиша» и дельта — null (регрессионные
+  // гарды — уже так на master, запираем контрактом).
+  assert.equal(deltaForMoveKey('touch:inventory'), null);
+  assert.equal(touchMoveKeyForAction('inventory'), null);
+});
