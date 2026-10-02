@@ -2864,3 +2864,94 @@ test('000125: состав панели инвариантен — .cp-title →
   assert.ok(String(log.className).split(/\s+/).includes('combat-state'),
     'лог несёт и .combat-state (оформление pre-line/цвет)');
 });
+
+// =====================================================================
+// 000123 — тач-кнопка [I]: toggle(force, tabId)
+// =====================================================================
+// Тач-кнопка [I] (src/ui.js touchControls → main.js onInventory) зовёт
+// G.playerUI.toggle(undefined, 'inventory') — явная вкладка «Инвентарь».
+// Контракт: memory/000123-touch-buttons.md (toggle(force, tabId): tabId
+// ищется в columnState (closure); неизвестный id — тихо игнорируется;
+// без tabId — поведение БЕЗ ИЗМЕНЕНИЙ).
+
+// ПANE по id вкладки: вкладка i ↔ pane i в ТОМ ЖЕ столбце (000130
+// data-driven: порядок .cp-tab и .cp-tabpane = порядок записей).
+function paneByTabid(panel, tabid) {
+  for (const col of findAll(panel, '.cp-column')) {
+    const tabs = findAll(col, '.cp-tab');
+    const idx = tabs.findIndex((t) => t.dataset.tabid === tabid);
+    if (idx < 0) continue;
+    return findAll(col, '.cp-tabpane')[idx];
+  }
+  return null;
+}
+
+test('000123: toggle(true, "inventory") — панель открывается на вкладке «Инвентарь»', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  env.G.playerUI.setCharacter(c);
+  env.G.playerUI.toggle(true, 'inventory');
+  const panel = findAll(env.body, '.char-panel')[0];
+  assert.ok(panel, 'панель .char-panel подвешена к body');
+  assert.equal(panel.style.display, 'flex', 'панель открыта (display: flex)');
+  const inv = paneByTabid(panel, 'inventory');
+  assert.ok(inv, 'pane «Инвентарь» найден');
+  assert.notEqual(inv.style.display, 'none', '«Инвентарь» — ВИДИМ');
+  const ch = paneByTabid(panel, 'character');
+  assert.equal(ch.style.display, 'none', '«Персонаж» — скрыт');
+  const eq = paneByTabid(panel, 'equipment');
+  assert.notEqual(eq.style.display, 'none',
+    'правый столбец не тронут (дефолтная вкладка «Снаряжение» видима)');
+});
+
+test('000123: вкладка «Инвентарь» ЖИВА после повторного открытия БЕЗ tabId (columnState)', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  env.G.playerUI.setCharacter(c);
+  env.G.playerUI.toggle(true, 'inventory');
+  env.G.playerUI.toggle(false);
+  assert.equal(findAll(env.body, '.char-panel')[0].style.display, 'none',
+    'toggle(false) закрыл панель');
+  env.G.playerUI.toggle(true);
+  const panel = findAll(env.body, '.char-panel')[0];
+  const inv = paneByTabid(panel, 'inventory');
+  assert.notEqual(inv.style.display, 'none',
+    'повторное открытие без tabId — «Инвентарь» всё ещё активен ' +
+    '(статус columnState не сбрасывается)');
+});
+
+test('000123: toggle(true, "shop") — правый столбец; неизвестный tabId — без краха', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  env.G.playerUI.setCharacter(c);
+  env.G.playerUI.toggle(true, 'shop');
+  const panel = findAll(env.body, '.char-panel')[0];
+  const shop = paneByTabid(panel, 'shop');
+  assert.notEqual(shop.style.display, 'none', 'правый столбец — «Магазин» активен');
+  const equip = paneByTabid(panel, 'equipment');
+  assert.equal(equip.style.display, 'none', '«Снаряжение» — скрыт');
+  // Неизвестный id — тихо игнорируется (activateTab гардится по
+  // rec.panes[id]): без краха, панель открыта, активная вкладка не меняется.
+  env.G.playerUI.toggle(true, 'nope');
+  assert.equal(panel.style.display, 'flex', 'панель по-прежнему открыта');
+  assert.notEqual(shop.style.display, 'none', '«Магазин» не сменился');
+  const ch = paneByTabid(panel, 'character');
+  assert.notEqual(ch.style.display, 'none',
+    'левый столбец не тронут (дефолт «Персонаж» видима)');
+});
+
+test('000123: toggle() без аргументов — поведение БЕЗ ИЗМЕНЕНИЙ (anchor)', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  env.G.playerUI.setCharacter(c);
+  env.G.playerUI.toggle();
+  const panel = findAll(env.body, '.char-panel')[0];
+  assert.equal(panel.style.display, 'flex', 'toggle() открыл закрытую панель');
+  env.G.playerUI.toggle();
+  assert.equal(panel.style.display, 'none', 'toggle() закрыл открытую панель');
+  env.G.playerUI.toggle();
+  assert.equal(panel.style.display, 'flex', 'toggle() снова открыл');
+  const inv = paneByTabid(panel, 'inventory');
+  assert.equal(inv.style.display, 'none',
+    'без tabId — дефолтная вкладка («Персонаж» видима, «Инвентарь» скрыта)');
+});

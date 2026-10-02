@@ -270,12 +270,19 @@ if (G.touchControls) {
 * vm-boot-тесты (main-visuals / hud.js / city-screen / save /
   save-restore): в ВСЕХ пяти песочницах схема 'keyboard' → впервые
   выполняется НОВЫЙ путь main.js: `init({dpad:false, …}) + show()`.
-  Стабы снисходительные (Proxy: неизвестный член → no-op; `style` = {} —
-  place() жив; classList no-op; innerWidth/innerHeight есть;
-  document.querySelector → null; blur() no-op; setAttribute no-op) →
-  путь проживает БЕЗ console.error (пин errors.length===0) — УСЛОВИЕ:
+  Стабы: в 5 из них document — Proxy (неизвестный член → `() =>
+  undefined`), в остальных — makeEl. `style` = {} — place() жив;
+  innerWidth/innerHeight есть; document.querySelector → null; blur()/
+  setAttribute no-op. ВАЖНО (опыт реализации): `root.classList` у
+  Proxy-стаба — ФУНКЦИЯ-заглушка, и `classList.add` БРОСАЕТ TypeError
+  («p.classList.add is not a function») — classList НЕ no-op. Поэтому
+  show()/hide() — typeof-guard: `if (typeof root.classList ===
+  'object' && root.classList) { … }` (прецедент проекта: typeof-guards
+  на стабы в ui.js attachEsc/bottomInset). УСЛОВИЕ прожитости пути:
   guard стрелок/place по dpadEl в applyLayout (arrows={} → TypeError
-  иначе). Чистота загрузки IIFE (build только в init) — не менять.
+  иначе) + typeof-guard classList + БЕЗ console.error (пин
+  errors.length===0). Чистота загрузки IIFE (build только в init) —
+  не менять.
 * Побайтовые/структурные пины — проходят БЕЗ правок (проверено):
   deepEqual dpad/action 800×600 (L153-170), bottomInset action −48
   (L172-185), 100×120 bounds (L187-193), touchActionAt-точки (L202-232 —
@@ -378,8 +385,11 @@ if (G.touchControls) {
    «ожидается 297, найдено 295».
 5. **vm-boot-тесты прогоняют НОВЫЙ путь** ('keyboard'-схема в 5
    песочницах): TypeError в applyLayout (arrows={}, цикл стрелок без
-   guard) и ЛЮБОЙ console.error (пин errors.length===0) — оба ломают
-   набор. Чистота загрузки IIFE не менять (build только в init).
+   guard), TypeError `root.classList.add` (Proxy-стаб: classList —
+   функция-заглушка, НЕ no-op —typeof-guard в show()/hide(), см.
+   «Тесты») и ЛЮБОЙ console.error (пин errors.length===0) — всё это
+   ломает набор. Чистота загрузки IIFE не менять (build только в
+   init).
 6. **B ужимается НИЖЕ 56** на очень низком вьюпорте (новый член min) —
    существующие точные пины не бьются (800×600, 360×640 проверены
    арифметически), но новые тесты R2 — с ассертами «пара в вьюпорте»,
@@ -406,6 +416,13 @@ if (G.touchControls) {
     (memory/test-runner-worktrees.md: node --test рекурсивно сканирует
     .worktrees/); флейк чужого теста — перепуск `node --test
     tests/<файл>` + запись в отчёт.
+
+## Отметки исполнения (стадия РЕАЛИЗАЦИЯ, 2026-10-02)
+
+* По регламенту workflow стадия реализации — ОДИН коммит: шаги 2-5 плана
+  ниже сбиты в один коммит «Задача 000123: …» (красный коммит b14b454 —
+  отдельный, стадия «Красные тесты»). Класс-лист guard show()/hide() —
+  отклонение от контракта в «Тесты» (там же — причина).
 
 ## План реализации (коммиты, ветка task/000123)
 

@@ -175,11 +175,13 @@
       cursor: pointer;
     }
     .fs-btn:hover { background: rgba(0, 0, 0, 0.65); }
-    /* On-screen-контролы для тачскрина (задача 000018): D-pad внизу
-       слева, кнопка «E» — внизу справа. Контейнер на весь экран, но
-       прозрачный для событий (pointer-events: none) — к канвасу идут
-       колесо/жесты; события ловят сами контролы. z-index 5 — под
-       панелями (10) и оверлеями боя/диалога (20). */
+    /* On-screen-контролы (задачи 000018, 000123): D-pad внизу слева
+       (только схема 'touch'), кнопки [E] (действие) и [I] (инвентарь)
+       — внизу справа, пара [I] над [E]; В ОБОИХ схемах (000123).
+       Контейнер на весь экран, но прозрачный для событий
+       (pointer-events: none) — к канвасу идут колесо/жесты; события
+       ловят сами контролы. z-index 5 — под панелями (10) и оверлеями
+       боя/диалога (20). */
     #touch-controls {
       position: fixed;
       inset: 0;
@@ -202,6 +204,8 @@
       font-size: 16px;
       pointer-events: none;
     }
+    /* Кнопки [E]/[I] (000123): содержимое — SVG-иконка (assets/ui/),
+       буквы убраны; flex-центрирование под img. */
     .tc-action {
       position: absolute;
       pointer-events: auto;
@@ -209,11 +213,18 @@
       border-radius: 50%;
       background: rgba(0, 0, 0, 0.5);
       border: 1px solid #6b6248;
-      color: #e8dcc0;
-      font: 700 18px/1 ui-monospace, monospace;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
     }
     .tc-action:active { background: rgba(0, 0, 0, 0.75); }
+    .tc-action img {
+      width: 60%;
+      height: 60%;
+      display: block;
+    }
     .combat-overlay {
       position: fixed;
       inset: 0;

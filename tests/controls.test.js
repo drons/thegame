@@ -113,7 +113,7 @@ test('keydown/keyup дают одинаковый id при смене реги�
 
 test('touch: набор действий и мёртвая зона', () => {
   assert.deepEqual(TOUCH_ACTIONS,
-    ['up', 'down', 'left', 'right', 'interact']);
+    ['up', 'down', 'left', 'right', 'interact', 'inventory']);
   assert.ok(TOUCH_DEADZONE > 0 && TOUCH_DEADZONE < 0.5);
 });
 

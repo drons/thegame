@@ -842,13 +842,15 @@
     if (G.touchControls) G.touchControls.releaseAll();
   });
 
-  // --- Тач-вариант контролов (задача 000018) ---
+  // --- Тач-вариант контролов (задачи 000018, 000123) ---
   // Чистая часть — в src/controls.js (тестируется в node): детект
   // устройства по СНИМКУ окружения, выбор схемы, раскладка и хит-тест.
-  // On-screen-контролы (D-pad + кнопка «E») — в src/ui.js.
+  // On-screen-контролы (D-pad + кнопки [E]/[I]) — в src/ui.js.
   // Схема: 'touch' на тач-устройстве, иначе 'keyboard'; вариант можно
   // переопределить параметром URL ?controls=touch|keyboard (для теста
   // на десктопе и наоборот).
+  // 000123: кнопки [E] (действие) и [I] (инвентарь) видны в ОБЕИХ
+  // схемах; D-pad — только в 'touch' (флаг dpad в touchControls.init).
   function touchEnvSnapshot() {
     const nav = globalThis.navigator || {};
     let coarse = false;
@@ -866,24 +868,26 @@
     .exec(window.location.search || '');
   const controlsScheme = G.chooseControlsScheme(
     touchEnvSnapshot(), mControls ? mControls[1] : null);
-  if (controlsScheme === 'touch') {
-    if (G.touchControls) {
-      G.touchControls.init({
-        // Виртуальные «клавиши» 'touch:<dir>' ложатся в тот же Set,
-        // что и настоящие: кадр вызывает tryMove → G.deltaForMoveKey.
-        onHold: (dir) => keys.add('touch:' + dir),
-        onRelease: (dir) => keys.delete('touch:' + dir),
-        onInteract: () => { G.buildingActions && G.buildingActions.toggle(); },
-      });
-      G.touchControls.show();
-    } else {
-      // Game.touchControls собирается в ui.js при ЗАГРУЗКЕ — если его
-      // нет, controls.js загрузился позже (регрессия порядка — tests/
-      // index-order.test.js). На чистом тачскрине без этого у игрока
-      // не будет НИКАКОГО управления, поэтому — console.error.
-      console.error('main.js: схема контролов touch, но Game.touchControls ' +
-        'отсутствует — проверьте порядок загрузки: src/controls.js ДО src/ui.js');
-    }
+  if (G.touchControls) {
+    G.touchControls.init({
+      dpad: controlsScheme === 'touch', // D-pad только в 'touch' (000123)
+      // Виртуальные «клавиши» 'touch:<dir>' ложатся в тот же Set,
+      // что и настоящие: кадр вызывает tryMove → G.deltaForMoveKey.
+      onHold: (dir) => keys.add('touch:' + dir),
+      onRelease: (dir) => keys.delete('touch:' + dir),
+      onInteract: () => { G.buildingActions && G.buildingActions.toggle(); },
+      onInventory: () => {
+        if (G.playerUI) G.playerUI.toggle(undefined, 'inventory');
+      },
+    });
+    G.touchControls.show();
+  } else {
+    // Game.touchControls собирается в ui.js при ЗАГРУЗКЕ — если его
+    // нет, controls.js загрузился позже (регрессия порядка — tests/
+    // index-order.test.js). На чистом тачскрине без этого у игрока
+    // не будет НИКАКОГО управления, поэтому — console.error.
+    console.error('main.js: Game.touchControls отсутствует — проверьте ' +
+      'порядок загрузки: src/controls.js ДО src/ui.js');
   }
 
   canvas.addEventListener('wheel', (e) => {

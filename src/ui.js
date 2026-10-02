@@ -343,7 +343,7 @@
     escHandler = null;
   }
 
-  function toggle(force) {
+  function toggle(force, tabId) {
     if (!panel) buildPanel();
     if (!character) return;
     const show = force != null ? force : panel.style.display === 'none';
@@ -355,6 +355,20 @@
     // уходил на левый край.
     panel.style.display = show ? 'flex' : 'none';
     if (show) {
+      // 000123: явная вкладка (тач-кнопка [I] → 'inventory').
+      // Активируем ДО render(): render() тела перерисовывает, но
+      // display паней меняет только rec.apply() (activateTab) —
+      // порядок: activateTab → render. Неизвестный id — тихо
+      // игнорируется (activateTab сам гардится по rec.panes[id]).
+      if (tabId) {
+        for (let i = 0; i < columnState.length; i++) {
+          const rec = columnState[i];
+          if (rec && rec.panes[tabId]) {
+            activateTab(i, tabId);
+            break;
+          }
+        }
+      }
       render();
       attachEsc();
     } else {
@@ -819,12 +833,16 @@
     };
   }
 
-  // --- On-screen-контролы для тачскрина (задача 000018) ---
+  // --- On-screen-контролы (задача 000018, расширено 000123) ---
   // Чистая логика (выбор схемы, раскладка, хит-тест, детект устройства) —
   // в src/controls.js (тестируется в node); здесь только DOM-привязка.
-  // D-pad (внизу слева): удержание — движение, скольжение пальца —
-  // переключение направления; кнопка «E» (внизу справа) — действие
-  // (диалог NPC / вход в подземелье), то же, что клавиша [E].
+  // D-pad (внизу слева, ТОЛЬКО если init-флаг dpad === true): удержание
+  // — движение, скольжение пальца — переключение направления.
+  // Кнопки внизу справа (ОБЕ схемы, задача 000123): [I] (инвентарь,
+  // панель персонажа) НАД [E] (действие — то же, что клавиша [E]) —
+  // вертикальная пара. Содержимое кнопок — SVG-иконки assets/ui/
+  // (000123, паттерн 000124: img + alt + aria-label), ТЕКСТОВЫХ букв
+  // «E»/«I» на кнопках больше нет.
   (function () {
     // controls.js ОБЯЗАН быть загружен раньше ui.js (см. index.html):
     // при отсутствии функций контролы не собираются — это ошибка порядка
@@ -834,13 +852,14 @@
         'src/controls.js должен загружаться ДО src/ui.js');
       return;
     }
-    let root = null, dpadEl = null, actionEl = null;
-    const arrows = {}; // dir -> span
+    let root = null, dpadEl = null, actionEl = null, inventoryEl = null;
+    const arrows = {}; // dir -> span (пусто, если D-pad не строится)
     let shown = false;
     let layout = null;
     let heldPointer = null; // pointerId, удерживающий D-pad (один)
     let heldDir = null;
-    let onHold = null, onRelease = null, onInteract = null;
+    let onHold = null, onRelease = null, onInteract = null,
+        onInventory = null;
 
     // Под кнопку полноэкранного режима (внизу справа, если она есть)
     // оставляем место: action-кнопку раскладка поднимет вверх.
@@ -850,7 +869,11 @@
     }
 
     function applyLayout() {
-      if (!root || !dpadEl || !actionEl) return;
+      // Guard — по actionEl, НЕ по dpadEl (задача 000123): в схеме
+      // 'keyboard' D-pad не строится (dpadEl === null), но кнопки
+      // [E]/[I] ЕСТЬ и обязаны раскладываться. Кнопки — ВСЕГДА,
+      // D-pad и стрелки — только при dpadEl.
+      if (!root || !actionEl) return;
       layout = G.layoutTouchControls(
         window.innerWidth, window.innerHeight, { bottomInset: bottomInset() });
       const place = (node, r) => {
@@ -859,20 +882,23 @@
         node.style.width = r.w + 'px';
         node.style.height = r.h + 'px';
       };
-      place(dpadEl, layout.dpad);
       place(actionEl, layout.action);
-      // Стрелки — в центре «лучей» D-pad (координаты внутри dpadEl).
-      const d = layout.dpad;
-      const off = d.w * 0.30;
-      const pos = {
-        up: [d.w / 2, d.w / 2 - off],
-        down: [d.w / 2, d.w / 2 + off],
-        left: [d.w / 2 - off, d.h / 2],
-        right: [d.w / 2 + off, d.h / 2],
-      };
-      for (const dir of G.DIRS) {
-        arrows[dir].style.left = pos[dir][0] + 'px';
-        arrows[dir].style.top = pos[dir][1] + 'px';
+      place(inventoryEl, layout.inventory);
+      if (dpadEl) {
+        place(dpadEl, layout.dpad);
+        // Стрелки — в центре «лучей» D-pad (координаты внутри dpadEl).
+        const d = layout.dpad;
+        const off = d.w * 0.30;
+        const pos = {
+          up: [d.w / 2, d.w / 2 - off],
+          down: [d.w / 2, d.w / 2 + off],
+          left: [d.w / 2 - off, d.h / 2],
+          right: [d.w / 2 + off, d.h / 2],
+        };
+        for (const dir of G.DIRS) {
+          arrows[dir].style.left = pos[dir][0] + 'px';
+          arrows[dir].style.top = pos[dir][1] + 'px';
+        }
       }
     }
 
@@ -889,62 +915,88 @@
       heldDir = null;
     }
 
-    function build() {
+    function build(withDpad) {
       root = el('div');
       root.id = 'touch-controls';
-      dpadEl = el('div', 'tc-dpad');
-      for (const dir of G.DIRS) {
-        const a = el('span', 'tc-arrow',
-          dir === 'up' ? '▲' : dir === 'down' ? '▼'
-            : dir === 'left' ? '◀' : '▶');
-        a.style.transform = 'translate(-50%, -50%)';
-        arrows[dir] = a;
-        dpadEl.appendChild(a);
+      // D-pad — УСЛОВНО (задача 000123): строится строго при
+      // init-флаге dpad === true (схема 'touch'); в схеме 'keyboard'
+      // dpadEl остаётся null и arrows пуст — вся heldPointer-механика
+      // null-guard-ится и инертна.
+      if (withDpad) {
+        dpadEl = el('div', 'tc-dpad');
+        for (const dir of G.DIRS) {
+          const a = el('span', 'tc-arrow',
+            dir === 'up' ? '▲' : dir === 'down' ? '▼'
+              : dir === 'left' ? '◀' : '▶');
+          a.style.transform = 'translate(-50%, -50%)';
+          arrows[dir] = a;
+          dpadEl.appendChild(a);
+        }
+        // D-pad: down → держать направление; move → скольжение (смена
+        // направления, мёртвая зона — текущее); up/cancel → отпустить.
+        // setPointerCapture — pointerup доедет до D-pad даже поверх
+        // оверлеев (бой/диалог), поэтому «залипший» палец не останется.
+        dpadEl.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          if (heldPointer !== null) return; // второй палец на D-pad — нет
+          const dir = dirAt(e.clientX, e.clientY);
+          if (!dir) return; // мёртвая зона/снаружи лучей — не берём
+          heldPointer = e.pointerId;
+          heldDir = dir;
+          if (onHold) onHold(dir);
+          try { dpadEl.setPointerCapture(e.pointerId); } catch (err) { /* ie */ }
+        });
+        dpadEl.addEventListener('pointermove', (e) => {
+          if (e.pointerId !== heldPointer || !heldDir) return;
+          const dir = dirAt(e.clientX, e.clientY);
+          if (!dir || dir === heldDir) return; // мёртвая зона — держим текущее
+          const old = heldDir;
+          heldDir = dir;
+          if (onRelease) onRelease(old);
+          if (onHold) onHold(dir);
+        });
+        const end = (e) => {
+          if (e.pointerId !== heldPointer) return;
+          releasePointer(e.pointerId);
+        };
+        dpadEl.addEventListener('pointerup', end);
+        dpadEl.addEventListener('pointercancel', end);
+        root.appendChild(dpadEl);
       }
-      actionEl = el('button', 'tc-action', 'E');
-      actionEl.setAttribute('aria-label', 'Действие (диалог NPC)');
 
-      // D-pad: down → держать направление; move → скольжение (смена
-      // направления, мёртвая зона — текущее); up/cancel → отпустить.
-      // setPointerCapture — pointerup доедет до D-pad даже поверх
-      // оверлеев (бой/диалог), поэтому «залипший» палец не останется.
-      dpadEl.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        if (heldPointer !== null) return; // второй палец на D-pad — нет
-        const dir = dirAt(e.clientX, e.clientY);
-        if (!dir) return; // мёртвая зона/снаружи лучей — не берём
-        heldPointer = e.pointerId;
-        heldDir = dir;
-        if (onHold) onHold(dir);
-        try { dpadEl.setPointerCapture(e.pointerId); } catch (err) { /* ie */ }
-      });
-      dpadEl.addEventListener('pointermove', (e) => {
-        if (e.pointerId !== heldPointer || !heldDir) return;
-        const dir = dirAt(e.clientX, e.clientY);
-        if (!dir || dir === heldDir) return; // мёртвая зона — держим текущее
-        const old = heldDir;
-        heldDir = dir;
-        if (onRelease) onRelease(old);
-        if (onHold) onHold(dir);
-      });
-      const end = (e) => {
-        if (e.pointerId !== heldPointer) return;
-        releasePointer(e.pointerId);
-      };
-      dpadEl.addEventListener('pointerup', end);
-      dpadEl.addEventListener('pointercancel', end);
-
-      // Кнопка «E» — действие (аналог клавиши [E] в main.js).
+      // Кнопки [E]/[I] — БЕЗ текстовых букв (задача 000123):
+      // содержимое — SVG-иконка assets/ui/ (паттерн 000124: img +
+      // alt="" — иконка презентационная, aria-label несёт имя).
       // blur() — чтобы Enter/Space на гибридных устройствах не
       // «перепечатывали» сфокусированную кнопку.
+      actionEl = el('button', 'tc-action');
+      const actionIcon = el('img');
+      actionIcon.src = 'assets/ui/icon_action.svg';
+      actionIcon.alt = '';
+      actionEl.appendChild(actionIcon);
+      actionEl.setAttribute('aria-label', 'Действие (диалог NPC / постройка)');
       actionEl.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         if (onInteract) onInteract();
         actionEl.blur();
       });
 
-      root.appendChild(dpadEl);
+      inventoryEl = el('button', 'tc-action');
+      const invIcon = el('img');
+      invIcon.src = 'assets/ui/icon_inventory.svg';
+      invIcon.alt = '';
+      inventoryEl.appendChild(invIcon);
+      inventoryEl.setAttribute('aria-label', 'Инвентарь');
+      // Кнопка «I» — то же поведение, что [E] (аналог клавиши [I] в
+      // main.js: панель персонажа, вкладка «Инвентарь»).
+      inventoryEl.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (onInventory) onInventory();
+        inventoryEl.blur();
+      });
+
       root.appendChild(actionEl);
+      root.appendChild(inventoryEl);
       document.body.appendChild(root);
       window.addEventListener('resize', applyLayout);
       // Вкладка в фоне / системный жест — палец «срезан»: отпускаем.
@@ -956,28 +1008,43 @@
     G.touchControls = {
       /**
        * Инициализировать on-screen-контролы (один раз).
-       * @param {{onHold: (dir: string) => void,
-       *          onRelease: (dir: string) => void,
-       *          onInteract: () => void}} h
+       * @param {{onHold?: (dir: string) => void,
+       *          onRelease?: (dir: string) => void,
+       *          onInteract?: () => void,
+       *          onInventory?: () => void,
+       *          dpad?: boolean}} h
        *   onHold/onRelease — 'up'|'down'|'left'|'right' (направление
-       *   удерживается / отпущено), onInteract — действие (диалог).
+       *   удерживается / отпущено), onInteract — действие (диалог /
+       *   постройка, аналог [E]), onInventory — панель инвентаря
+       *   (аналог [I]; задача 000123). dpad — собирать ли D-pad:
+       *   true — схема 'touch' (D-pad + обе кнопки), false/не задано —
+       *   схема 'keyboard' (только кнопки, D-pad не строится, задача
+       *   000123).
        */
       init(h) {
         if (root) return;
+        h = h || {};
         onHold = h.onHold;
         onRelease = h.onRelease;
         onInteract = h.onInteract;
-        build();
+        onInventory = h.onInventory;
+        build(h.dpad === true);
       },
       show() {
         if (!root) return;
-        root.classList.add('visible');
+        // typeof-guard: vm-boot-станды в тестах дают classList, у которого
+        // нет add/remove (см. шапку файла — прецеденты typeof-guard).
+        if (typeof root.classList === 'object' && root.classList) {
+          root.classList.add('visible');
+        }
         shown = true;
         applyLayout();
       },
       hide() {
         if (!root) return;
-        root.classList.remove('visible');
+        if (typeof root.classList === 'object' && root.classList) {
+          root.classList.remove('visible');
+        }
         shown = false;
         releasePointer(null);
       },
