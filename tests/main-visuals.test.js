@@ -136,6 +136,14 @@ function makeEl(tag) {
     remove() {},
     blur() {},
   };
+  if (tag === 'canvas') {
+    // 000081: боевой оверлей (combat-ui.js build()) создаёт canvas через
+    // document.createElement — без 2d-стаба startCombat в песочнице падал
+    // бы (g2 = undefined → TypeError при set fillStyle). Существующие
+    // тесты бой НЕ начинают — на них изменение не влияет (бит-в-бит).
+    target.getContext = (kind) => (kind === '2d'
+      ? makeContext2d(target) : null);
+  }
   return new Proxy(target, {
     get(t, k) {
       if (k in t) return t[k];
@@ -999,4 +1007,43 @@ test('группа: после «победы» спрайт скрыт, дру�
     'спрайт поверженной группы вернулся автоматически в день респауна');
   assert.equal(mobDraws(c3).length, groups.length,
     'все группы кадра снова на месте');
+});
+
+// --- Эфир: постоянный союзник (задача 000081) ---
+//
+// КРАСНЫЙ e2e-тест (TDD): полная цепочка index.html (тег src/efir.js
+// подхватывается АВТОМАТИЧЕСКИ) + проводка main.js. Падают, пока
+// src/efir.js не существует и main.js не передаёт efir в startCombat.
+//
+// Пинит «ВСЕГДА» (ТЗ): отладочный бой [E] (startCombat(0)) — один из
+// трёх входов main.js (startCombatAt / maybeStartCombat /
+// startDungeonCombat) — обязан содержать Эфира. Без этого пина будущая
+// правка main.js молча отключила бы проводку. h.errors — пин «efir.js
+// грузится чисто» (0 console.error — условие зелёных всех full-chain
+// vm-тестов).
+
+test('000081 e2e: цепочка грузится чисто; отладочный бой — Эфир в allies; __game.state.efir жив', async () => {
+  const h = await boot(new Set());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет (efir.js грузится чисто, main.js молчит): '
+    + h.errors.join('; '));
+  const g = h.sandbox.__game;
+  assert.ok(g, '__game (main.js выполнен)');
+  // Отладочный бой — ВСЕГДА через main.js (startCombat(0) → startCombatAt).
+  const c = g.actions.startCombat(0);
+  assert.ok(c, 'отладочный бой создан');
+  const u = c.units.find((x) => x.kind === 'efir');
+  assert.ok(u, 'Эфир в allies отладочного боя (main.js передаёт efir ВСЕГДА)');
+  assert.equal(u.id, 'efir');
+  assert.equal(u.side, 'ally');
+  assert.equal(u.alive, true);
+  assert.equal(u.hp, u.maxHP, 'старт с полным HP');
+  // __game.state.efir — live-объект {level, xp, skills} (точка для
+  // 000086/000116).
+  const st = g.state.efir;
+  assert.ok(st, '__game.state.efir существует (live-ссылка)');
+  assert.equal(st.level, 1, 'новая сессия — L1');
+  assert.equal(st.xp, 0);
+  assert.deepEqual(Object.keys(st).sort(), ['level', 'skills', 'xp'],
+    'форма {level, xp, skills} (000085)');
 });

@@ -734,6 +734,16 @@
     ctx.open = false;
     const onEnd = ctx.onEnd;
     const result = ctx.combat.result;
+    // Эфир (задача 000081): 100% боевого опыта — в его пул ДО onEnd
+    // (следующий бой сразу видит новый уровень) и ДО ctx = null.
+    // Правило: ТОЛЬКО victory, ВЕСЬ result.xp (тот же, что 100%
+    // игроку, до бонуса «Учёный»), БЕЗ companion_xp_share (он — для
+    // наёмников, 000082), БЕЗ условия выживания Эфира (000035#11:
+    // погиб в бою — опыт всё равно в пул). ctx.efir != null только
+    // когда G.efir был доступен на startCombat — снапшот G неизменен.
+    if (ctx.efir && result.outcome === 'victory' && result.xp > 0) {
+      G.efir.addEfirXp(ctx.efir, result.xp);
+    }
     if (overlay) overlay.remove();
     overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl = null;
     hpbarEl = hpbarFillEl = hpbarTextEl = null;
@@ -761,6 +771,25 @@
     startCombat(opts) {
       if (isActive()) return null;
       ended = false;
+      // Эфир (задача 000081): постоянный союзник — opts.efir
+      // (состояние {level, xp, skills} из main.js); данные makeAlly —
+      // G.efir.efirAllyData. Эфир ПЕРВЫМ в allies — первый якорь
+      // placeAllies (px−1, py−1) «всегда со мной»; 000087 расширит
+      // ЭТУ ЖЕ строку: [efirData, ...rosterData]. Деградация: opts.
+      // efir передан, но G.efir нет (битый порядок — UMD-ловушка
+      // 000038, пин R12) → console.error + бой без Эфира (не крах —
+      // R11). G снимается один раз при загрузке — efir.js обязан быть
+      // до combat-ui.js (index.html, пин tests/index-order.test.js).
+      let efirData = null;
+      if (opts.efir) {
+        if (G.efir && typeof G.efir.efirAllyData === 'function') {
+          efirData = G.efir.efirAllyData(opts.efir);
+        } else {
+          console.error('combat-ui.js: opts.efir передан, но Game.efir ' +
+            'недоступен (src/efir.js обязан грузиться до src/' +
+            'combat-ui.js, задача 000081) — в бою нет Эфира');
+        }
+      }
       const combat = G.createCombat({
         player: opts.hero,
         // opts.mobs — произвольный состав (подземелья); иначе группа тайла.
@@ -773,6 +802,8 @@
         day: opts.day,
         // Задача 000076: благословения (000072) — до ядра боя.
         buffMods: opts.buffMods,
+        // Эфир (задача 000081): постоянный союзник (см. выше).
+        allies: efirData ? [efirData] : [],
       });
       // Путь фона (задача 000049) — ОДИН раз при старте. Guard
       // G.combatBackground — УМД-ловушка «G снимается один раз»
@@ -792,6 +823,10 @@
         // opts.spriteLoader — из main.js, может быть null (нет s2 /
         // нет G.createSpriteLoader) — null-guard в render().
         spriteLoader: opts.spriteLoader || null,
+        // Эфир (задача 000081): состояние — finish() начисляет 100%
+        // боевого xp. null — Эфир НЕ участвует в бою (opts.efir нет
+        // или деградация — XP начислять нечего).
+        efir: efirData ? opts.efir : null,
       };
       build();
       render();

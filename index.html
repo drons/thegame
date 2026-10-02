@@ -511,6 +511,12 @@
   <script src="src/buildings.js"></script>
   <script src="src/npc.js"></script>
   <script src="src/companions.js"></script>
+  <!-- Эфир (задача 000081): постоянный союзник — состояние
+       {level, xp, skills} и пул. Блок спутников: после companions.js;
+       ДО combat-ui.js и main.js (UMD-ловушка 000038: они снимают
+       снапшот Game один раз при загрузке). Чистый модуль — ноль
+       зависимостей при загрузке (xpForNext — лениво). -->
+  <script src="src/efir.js"></script>
   <!-- Реестр эффектов построек (задача 000071): после buildings.js/npc.js
        (каталожная часть цепочки), ДО main.js (UMD-ловушка 000038:
        main.js снимает Game один раз). Чистый модуль — взаимных require

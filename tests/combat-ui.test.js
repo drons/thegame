@@ -80,6 +80,9 @@ function makeEl(tag, buttons) {
 // задача 000038); map.js нужен для sprites.js при загрузке (TERRAIN).
 // false — цепочка без sprites.js: покрывает фолбэк '#6fdc6f' в
 // combat-ui.js (sprites.js отсутствует вовсе — деградация, не падение).
+// opts.withEfir (000081, по умолчанию false) — efir.js в цепочку ПОСЛЕ
+// player.js (позиция из index.html): тесты проводки Эфира (wiring) и
+// деградации «opts.efir без efir.js». Без параметра — старая цепочка.
 function loadCombatUi(withSprites = true, opts = {}) {
   const keydown = [];
   const buttons = [];
@@ -109,8 +112,24 @@ function loadCombatUi(withSprites = true, opts = {}) {
   for (const f of [
     'global-settings.js', 'perlin.js', 'map.js',
     'skills-data.js', 'items-data.js',
-    'player.js', 'items.js', 'controls.js', 'combat.js', 'combat-keys.js',
+    'player.js',
   ]) {
+    vm.runInContext(src(f), sandbox, { filename: f });
+  }
+  if (opts.withEfir) {
+    // 000081: efir.js — ПОСЛЕ player.js (та же пара, что в index.html;
+    // позиция закреплена в tests/index-order.test.js). Существующие
+    // тесты параметр НЕ передают → старая цепочка → бит-в-бит.
+    // Красная фаза: файла нет — осмысленный assert.fail.
+    let efirCode;
+    try {
+      efirCode = fs.readFileSync(path.join(ROOT, 'src', 'efir.js'), 'utf8');
+    } catch (e) {
+      assert.fail('src/efir.js не существует (задача 000081): ' + e.message);
+    }
+    vm.runInContext(efirCode, sandbox, { filename: 'efir.js' });
+  }
+  for (const f of ['items.js', 'controls.js', 'combat.js', 'combat-keys.js']) {
     vm.runInContext(src(f), sandbox, { filename: f });
   }
   if (withSprites) {
@@ -1062,4 +1081,75 @@ test('боевой UI: нулевой rect (width/height = 0) — фолбэк 1
     () => ({ left: 0, top: 0, width: 0, height: 0 });
   canvas.listeners.click[0]({ clientX: 60, clientY: 120 });
   assert.equal(c.targetId, wolf.id, 'нулевой rect → фолбэк 1:1, волк в (1,2)');
+});
+
+// --- Эфир: постоянный союзник (задача 000081) ---
+//
+// КРАСНЫЕ тесты (TDD): падают, пока src/efir.js не существует и проводка
+// в startCombat/finish (src/combat-ui.js) не сделана.
+//
+// Контракт (memory/000081-efir.md): ОДИН воронка — startCombat +
+// finish() в combat-ui.js (main.js минимален: `efir,` в opts трёх
+// startCombat). finish(): после «const result = ctx.combat.result»,
+// ДО onEnd и ДО «ctx = null»:
+//   if (ctx.efir && result.outcome === 'victory' && result.xp > 0)
+//     G.efir.addEfirXp(ctx.efir, result.xp);
+// Правило 100%: только victory, ВЕСЬ result.xp, БЕЗ companion_xp_share,
+// БЕЗ условия выживания Эфира. vm-правила 000082: ассерты — только
+// примитивы (level/xp/alive) и наличие юнита (объекты чужого realm —
+// не deepStrictEqual/instanceof).
+
+test('боевой UI: 000081 — startCombat ВСЕГДА добавляет Эфир (wiring), finish: 100% result.xp → в пул (до onEnd)', () => {
+  const { G, keydown } = loadCombatUi(true, { withEfir: true });
+  const state = G.efir.createEfir();
+  assert.ok(state, 'G.efir.createEfir (efir.js в цепочке)');
+  let ended = null;
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(),
+    mobs: ['wolf'], mobLevel: 1, seed: 42,
+    efir: state,
+    onEnd: (r) => { ended = r; },
+  });
+  assert.ok(c, 'бой создан');
+  // Юнит Эфира в бою: id/kind 'efir', side 'ally', полный HP,
+  // первый якорь placeAllies (px−1, py−1) — «всегда со мной».
+  const u = c.units.find((x) => x.kind === 'efir');
+  assert.ok(u, 'Эфир в allies (wiring startCombat → createCombat)');
+  assert.equal(u.id, 'efir');
+  assert.equal(u.side, 'ally');
+  assert.equal(u.alive, true);
+  assert.equal(u.hp, u.maxHP, 'старт с полным HP');
+  assert.equal(u.x, c.px - 1, 'первый якорь (px−1, py−1)');
+  assert.equal(u.y, c.py - 1);
+  // Имитация победы → finish(): 100% result.xp — в пул, ДО onEnd.
+  c.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
+    allyXp: [] };
+  press(keydown, 'Escape');
+  assert.ok(ended, 'onEnd вызван (finish)');
+  assert.equal(ended.outcome, 'victory');
+  assert.equal(state.level, 2,
+    'xp 50 = xpForNext(1) → уровень 2 (100%, НЕ ×0.5)');
+  assert.equal(state.xp, 0, 'остаток xp — 0');
+});
+
+test('боевой UI: 000081 — деградация: opts.efir БЕЗ efir.js (старая цепочка) → console.error, бой создан без Эфира, без краха', () => {
+  const { G } = loadCombatUi(); // старая цепочка (без efir.js)
+  const errors = [];
+  const realError = console.error;
+  console.error = (m) => errors.push(String(m));
+  let c = null;
+  try {
+    c = G.combatUI.startCombat({
+      hero: G.createCharacter(),
+      mobs: ['wolf'], mobLevel: 1, seed: 42,
+      efir: { level: 1, xp: 0, skills: {} },
+    });
+  } finally {
+    console.error = realError;
+  }
+  assert.ok(c, 'бой создан (деградация, не крах)');
+  assert.ok(!c.units.some((x) => x.kind === 'efir'),
+    'Эфира в бою нет (G.efir недоступен)');
+  assert.ok(errors.length > 0,
+    'console.error записан (opts.efir передан, efir.js не загружен)');
 });

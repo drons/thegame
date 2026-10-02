@@ -195,6 +195,18 @@
   let mapPixels = null; // пиксели map.png — нужны для сида подземелий
   const hero = G.createCharacter('Флогистон'); // персонаж (src/player.js)
   G.playerUI && G.playerUI.setCharacter(hero);
+  // Эфир (задача 000081): постоянный союзник — состояние
+  // {level, xp, skills} (форма зафиксирована под сейв 000085; до
+  // него — только память сессии). Модуль отсутствует (регрессия
+  // порядка — паттерн 000038/000053): efir = null + видимая ошибка
+  // — бои без Эфира (деградация, не крах).
+  let efir = null;
+  if (G.efir && typeof G.efir.createEfir === 'function') {
+    efir = G.efir.createEfir();
+  } else {
+    console.error('main.js: efir.js не загружен (обязан грузиться ' +
+      'ДО src/main.js, задача 000081) — в боях нет Эфира');
+  }
   // NPC (задача 000010): каталог — зеркало src/npc-data.js
   // (source of truth — assets/npc), журнал квестов — один на сессию.
   const NPCS = (G.NpcData && G.NpcData.NPCS) || [];
@@ -654,6 +666,9 @@
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
     return G.combatUI.startCombat({
       hero,
+      // Эфир (задача 000081): постоянный союзник — ВСЕГДА, включая
+      // отладочный бой (тоже боевой, с xp).
+      efir,
       tile: { mobGroup: groupType },
       // Бой «на текущем тайле»: передаём terrain реального тайла
       // (задача 000049) — согласованно с боем мира; без карты
@@ -847,6 +862,8 @@
     if (defeatedAt.has(key)) return;
     G.combatUI.startCombat({
       hero,
+      // Эфир (задача 000081): постоянный союзник — ВСЕГДА.
+      efir,
       tile: t,
       // Фон поля боя по типу местности (задача 000049): terrain тайла,
       // где начался бой. spriteLoader может быть null (нет s2/лоадера) —
@@ -990,6 +1007,8 @@
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close(); // 000071
     G.combatUI.startCombat({
       hero,
+      // Эфир (задача 000081): постоянный союзник — ВСЕГДА.
+      efir,
       // Фон поля боя по типу подземелья (задача 000049): тайла мира в
       // подземелье нет, тип — DUNGEON_TYPES (ds.dg.type).
       dungeonType: ds.dg.type,
@@ -1369,6 +1388,10 @@
           craftXp: hero.craftXp,
           equipmentBonus: hero.equipmentBonus,
         },
+        // Эфир (задача 000081): live-объект {level, xp, skills}
+        // (или null, если модуль не загрузился) — точка для
+        // 000086/000116.
+        efir: efir || null,
         map: map ? { width: map.width, height: map.height, fromPng: map.fromPng } : null,
         npcs: NPCS.map((n) => n.id),
         sprites: spriteLoader
