@@ -663,3 +663,277 @@ test('000098: S8 — новый ключ SETTINGS БЕЗ записи в META: g
   assert.equal(rs.ok, false, 'enum [текущее]: чужое — отказ (не падает)');
   assert.equal(typeof rs.reason, 'string', 'отказ — с reason (заметка)');
 });
+
+// =====================================================================
+// 000099 — Настройки применяются НА ЛЕТУ: ядро читает SETTINGS в
+// момент ВЫЗОВА, а не снапшоты при загрузке модуля
+// =====================================================================
+//
+// ТЗ (tasks/pending/000099.md): изменение значения во вкладке
+// «Игровые настройки» (000098) действует БЕЗ перезагрузки: ядро
+// читает Game.GlobalSettings.SETTINGS.* в момент ВЫЗОВА. Механизм —
+// объект SETTINGS живёт, ссылка не меняется (000098: форма пишет в
+// place, setByPath) → чтение `.SETTINGS.<ключ>` в теле функции видит
+// мутацию БЕЗ re-require, в node (require) и в браузере (UMD/vm).
+// Контракты: memory/000099-live-settings.md (точки, guard'ы, решения)
+// + memory/000099-settings-live.md (само live-паттерн:
+// opts > SETTINGS (live) > DEFAULTS > снапшот).
+//
+// Паттерн тестов: vm-песочница (loadInSandbox), мутация
+// sandbox.Game.GlobalSettings.SETTINGS ПОСЛЕ загрузки БЕЗ re-require
+// (тот же объект, что удерживает модуль; vm realm изолирован от
+// node-SETTINGS → t.after-restore НЕ нужен, в отличие от node-тестов
+// файла). Мутация ДО загрузки — ТОЛЬКО в guard-тестах R6/R7
+// (двухэтапная схема: снапшот ≠ DEFAULTS — иначе тест не
+// дискриминирует: fallback при битом значении = значение по
+// умолчанию, однотактная «дефолт → 0» была бы зелёной и ДО
+// реализации). Публичные оверрайды (opts/respawnDays/memoryDays)
+// намеренно НЕ передаются — тесты попадают в live-значение
+// по умолчанию; приоритет opts > SETTINGS (паттерн 000020) не
+// переворачивается.
+//
+// RED (падают до реализации «снапшот → live», зелёные после):
+//   * R1: live day.js createClock/addStep — steps_per_day в момент
+//     вызова (getter и ТЕЛО addStep на СУЩЕСТВУЮЩИХ часах: main.js
+//     создаёт часы один раз при старте);
+//   * R2: live day.js dueForRespawn — respawn_days;
+//   * R3: live player.js addXp — points_per_level (одна значимость
+//     на вызов: начисление и возврат);
+//   * R4: live dungeon.js generateDungeonContents — level_delta_max
+//     (ABYSS-босс: level = player.level + delta, детерминирован —
+//     без «удачи» RNG; ВСЕ мобы и босс);
+//   * R5: live dungeon.js contentValid — dungeon_memory_days;
+//   * R6: guard day.js — битые steps_per_day/respawn_days (0/0) →
+//     DEFAULTS 40/3, НЕ while-зависание в addStep (критичный
+//     hazard: guard ДО цикла);
+//   * R7: guard player/dungeon — битые 0/−1/0 → DEFAULTS 2/3/3
+//     (level_delta_max: guard ≥ 0 — 0 ВАЛИДНО, «±0»);
+//   * R8: структурный main.js — const MOVE_INTERVAL_MS и все
+//     call-sites убраны (\b: подстрока в MIN_MOVE_INTERVAL_MS не
+//     считается), stepIntervalMs читает move_interval_ms ПРЯМО В
+//     ТЕЛЕ (каждый кадр); fallback 140 — только при отсутствии
+//     global-settings.js (guard 000063 без изменений).
+//   * R9 (ревью): guard — SETTINGS = null/undefined ЦЕЛИКОМ (объект
+//     заменён в рантайме, devtools) → хелперы НЕ бросают TypeError,
+//     DEFAULTS — как при битом значении (main.js в той же задаче
+//     уже null-safe: gs && … → 140; ядро приведено в соответствие —
+//     ТЗ п.3 «подделанный/битый SETTINGS не роняет и не зависает»).
+//
+// GREEN без изменений: ВСЕ существующие тесты файла (re-require
+// «единый источник», структурный main.js 281–298, S1–S8) +
+// tests/day|player|dungeon|motion|combat. Кросс-realm массивы —
+// JSON-roundtrip (разные Array.prototype, паттерн файла L97–99).
+
+test('000099 RED: R1 — live: day.js createClock/addStep читают steps_per_day в момент вызова (vm, без re-require)', () => {
+  const sandbox = {};
+  loadInSandbox('global-settings.js', sandbox);
+  loadInSandbox('day.js', sandbox);
+  const c0 = sandbox.Game.createClock();
+  assert.equal(c0.stepsPerDay, 40, 'sanity: дефолт 40');
+  sandbox.Game.GlobalSettings.SETTINGS.steps_per_day = 7;
+  const c = sandbox.Game.createClock();
+  assert.equal(c.stepsPerDay, 7, 'live stepsPerDay (getter)');
+  c.addStep(6);
+  assert.equal(c.day, 1, '6 < 7 — день 1');
+  c.addStep(1);
+  assert.equal(c.day, 2, 'порог 7 — день 2');
+  // live в ТЕЛЕ addStep: мутация ПОСЛЕ createClock меняет порог на
+  // СУЩЕСТВУЮЩИХ часах (main.js создаёт createClock() один раз при
+  // старте — только per-call даёт «без перезагрузки»).
+  sandbox.Game.GlobalSettings.SETTINGS.steps_per_day = 5;
+  c.addStep(5);
+  assert.equal(c.day, 3, 'порог 5 по новому значению — день 3');
+});
+
+test('000099 RED: R2 — live: day.js dueForRespawn читает respawn_days в момент вызова (vm)', () => {
+  const sandbox = {};
+  loadInSandbox('global-settings.js', sandbox);
+  loadInSandbox('day.js', sandbox);
+  sandbox.Game.GlobalSettings.SETTINGS.respawn_days = 1;
+  // Кросс-realm: массив из vm-песочницы НЕ deepStrictEqual хостовому
+  // (разные Array.prototype) — JSON-roundtrip (паттерн файла L97–99).
+  const due1 = sandbox.Game.dueForRespawn(new Map([['1,1', 5]]), 6);
+  assert.deepEqual(JSON.parse(JSON.stringify(due1)), ['1,1'],
+    'день+1 (6−5=1 ≥ 1) — уже пора');
+  const due2 = sandbox.Game.dueForRespawn(new Map([['1,1', 5]]), 5);
+  assert.deepEqual(JSON.parse(JSON.stringify(due2)), [],
+    'тот же день (0 < 1) — ещё нет');
+});
+
+test('000099 RED: R3 — live: player.js addXp читает points_per_level в момент вызова (vm)', () => {
+  const sandbox = {};
+  loadInSandbox('global-settings.js', sandbox);
+  loadInSandbox('skills-data.js', sandbox);
+  loadInSandbox('player.js', sandbox);
+  const c = sandbox.Game.createCharacter();
+  sandbox.Game.GlobalSettings.SETTINGS.points_per_level = 5;
+  const r = sandbox.Game.addXp(c, sandbox.Game.xpForNext(1));
+  assert.equal(r.levelsGained, 1, 'ровно 1 уровень');
+  assert.equal(r.pointsGained, 5, 'pointsGained live');
+  assert.equal(c.points, 5, 'c.points live (старт 0)');
+});
+
+test('000099 RED: R4 — live: dungeon.js generateDungeonContents читает level_delta_max в момент вызова (vm, ABYSS-босс)', () => {
+  const sandbox = {};
+  for (const f of ['global-settings.js', 'perlin.js', 'mapseed.js',
+      'map.js', 'dungeons-data.js', 'dungeon.js']) {
+    loadInSandbox(f, sandbox);
+  }
+  // createDungeon(37, −12, тёмный альфа, HILL) → детерминированно
+  // ABYSS (босс есть) — наблюдатель delta: уровень босса =
+  // player.level + delta точно (без RNG), мобы — ±delta.
+  const d = sandbox.Game.createDungeon(37, -12,
+    sandbox.Game.syntheticPixels(8, 8, 128, 128, 128, 10),
+    sandbox.Game.TERRAIN.HILL);
+  assert.equal(d.type, sandbox.Game.DUNGEON_TYPES.ABYSS,
+    'ABYSS (босс есть)');
+  sandbox.Game.GlobalSettings.SETTINGS.level_delta_max = 0;
+  const contents = sandbox.Game.generateDungeonContents(
+    d, { totalXp: 12345, level: 15 });
+  const boss = contents.mobs.find((m) => m.boss);
+  assert.ok(boss, 'босс есть (ABYSS)');
+  for (const m of contents.mobs) {
+    assert.equal(m.level, 15,
+      'моб ' + m.id + ' = 15 при delta 0 (получено ' + m.level + ')');
+  }
+});
+
+test('000099 RED: R5 — live: dungeon.js contentValid читает dungeon_memory_days в момент вызова (vm)', () => {
+  const sandbox = {};
+  for (const f of ['global-settings.js', 'perlin.js', 'mapseed.js',
+      'map.js', 'dungeons-data.js', 'dungeon.js']) {
+    loadInSandbox(f, sandbox);
+  }
+  sandbox.Game.GlobalSettings.SETTINGS.dungeon_memory_days = 9;
+  assert.equal(sandbox.Game.contentValid(1, 10), true,
+    '10 ≤ 1+9 — живо (live 9)');
+  assert.equal(sandbox.Game.contentValid(1, 4), true, '4 ≤ 10 — живо');
+  assert.equal(sandbox.Game.contentValid(1, 11), false,
+    '11 > 1+9 — протухло');
+});
+
+test('000099 RED: R6 — guard: битые steps_per_day/respawn_days → DEFAULTS (40/3), НЕ while-зависание (vm, двухэтапно)', () => {
+  // ДВУХЭТАПНО: мутация ДО загрузки day.js (снапшот 7/1 ≠ DEFAULTS —
+  // иначе тест не дискриминирует: fallback при битом значении равен
+  // дефолту, однотактная «дефолт → 0» была бы зелёной и до
+  // реализации), затем битые 0/0 ПОСЛЕ загрузки.
+  const sandbox = {};
+  loadInSandbox('global-settings.js', sandbox);
+  sandbox.Game.GlobalSettings.SETTINGS.steps_per_day = 7;
+  sandbox.Game.GlobalSettings.SETTINGS.respawn_days = 1;
+  loadInSandbox('day.js', sandbox);
+  sandbox.Game.GlobalSettings.SETTINGS.steps_per_day = 0;
+  sandbox.Game.GlobalSettings.SETTINGS.respawn_days = 0;
+  const c = sandbox.Game.createClock();
+  // guard ДО while-цикла: 0 → DEFAULTS 40, НЕ зависание addStep.
+  assert.equal(c.stepsPerDay, 40,
+    'битое 0 → DEFAULTS 40 (не 7 — снапшот, не 0)');
+  c.addStep(41);
+  assert.equal(c.day, 2, 'порог 40: день 2');
+  assert.equal(c.steps, 1, 'остаток 1');
+  const due0 = sandbox.Game.dueForRespawn(new Map([['1,1', 5]]), 6);
+  assert.deepEqual(JSON.parse(JSON.stringify(due0)), [],
+    'respawn 0 → DEFAULTS 3: 6−5=1 < 3 — ещё нет');
+});
+
+test('000099 RED: R7 — guard: битые points_per_level/level_delta_max/dungeon_memory_days → DEFAULTS (2/3/3) (vm, двухэтапно)', () => {
+  // ДВУХЭТАПНО (см. R6): снапшот 5/5/9 при загрузке ≠ DEFAULTS.
+  const sandbox = {};
+  loadInSandbox('global-settings.js', sandbox);
+  sandbox.Game.GlobalSettings.SETTINGS.points_per_level = 5;
+  sandbox.Game.GlobalSettings.SETTINGS.level_delta_max = 5;
+  sandbox.Game.GlobalSettings.SETTINGS.dungeon_memory_days = 9;
+  for (const f of ['perlin.js', 'mapseed.js', 'map.js', 'skills-data.js',
+      'dungeons-data.js', 'player.js', 'dungeon.js']) {
+    loadInSandbox(f, sandbox);
+  }
+  sandbox.Game.GlobalSettings.SETTINGS.points_per_level = 0;
+  sandbox.Game.GlobalSettings.SETTINGS.level_delta_max = -1;
+  sandbox.Game.GlobalSettings.SETTINGS.dungeon_memory_days = 0;
+  const hero = sandbox.Game.createCharacter();
+  const r = sandbox.Game.addXp(hero, sandbox.Game.xpForNext(1));
+  assert.equal(r.levelsGained, 1, 'уровень начисляется');
+  assert.equal(r.pointsGained, 2,
+    'points 0 → DEFAULTS 2 (не 5 — снапшот, не 0)');
+  const d = sandbox.Game.createDungeon(37, -12,
+    sandbox.Game.syntheticPixels(8, 8, 128, 128, 128, 10),
+    sandbox.Game.TERRAIN.HILL);
+  const contents = sandbox.Game.generateDungeonContents(
+    d, { totalXp: 999, level: 15 });
+  const boss = contents.mobs.find((m) => m.boss);
+  assert.ok(boss, 'босс есть (ABYSS)');
+  assert.equal(boss.level, 18,
+    'босс 15+3 (DEFAULTS; −1 невалиден — guard ≥ 0), не 15+5 (получено '
+      + boss.level + ')');
+  assert.equal(sandbox.Game.contentValid(1, 5), false,
+    'memory 0 → DEFAULTS 3: 5 > 1+3 — протухло (не 1+9 — снапшот)');
+});
+
+test('000099 RED: R8 — структурный: main.js stepIntervalMs читает move_interval_ms live в теле; const MOVE_INTERVAL_MS убран; fallback 140 в теле', () => {
+  const text = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  // \b — граница слова: «MIN_MOVE_INTERVAL_MS» (комментарии main.js,
+  // G.MIN_MOVE_INTERVAL_MS из motion.js) НЕ считается — перед «M»
+  // стоит «_» (символ слова). Пиним именно const и его call-sites
+  // (L59–61, 72/74, 241, 1049, 1618).
+  assert.ok(!/\bMOVE_INTERVAL_MS\b/.test(text),
+    'const MOVE_INTERVAL_MS и все его использования убраны');
+  const iFn = text.indexOf('function stepIntervalMs');
+  assert.notEqual(iFn, -1, 'stepIntervalMs на месте');
+  // Тело функции (до её закрывающей «  }»): live-чтение ключа из
+  // SETTINGS + guard/fallback 140 (деградация без global-settings.js,
+  // 000063) — каждый кадр, а не closure-const при загрузке.
+  const iEnd = text.indexOf('\n  }', iFn);
+  const body = text.slice(iFn, iEnd);
+  assert.ok(body.includes('move_interval_ms'),
+    'live-чтение move_interval_ms в теле stepIntervalMs');
+  assert.ok(body.includes('140'),
+    'fallback 140 в теле stepIntervalMs');
+});
+
+test('000099 RED: R9 — guard: SETTINGS = null/undefined ЦЕЛИКОМ (объект заменён в рантайме) → хелперы не бросают, DEFAULTS (vm, ревью)', () => {
+  // Ревью (minor): все 5 live-хелперов читали
+  // settings.SETTINGS.<ключ> без guard'а самого объекта; замена
+  // ЦЕЛИКОГО объекта (devtools: Game.GlobalSettings.SETTINGS = null)
+  // → TypeError в цикле rAF → игра зависает. main.js (ta же задача)
+  // уже null-safe (gs && … → 140) — несогласованность закрыта.
+  const sandbox = {};
+  for (const f of ['global-settings.js', 'perlin.js', 'mapseed.js',
+      'map.js', 'skills-data.js', 'dungeons-data.js', 'day.js',
+      'player.js', 'dungeon.js']) {
+    loadInSandbox(f, sandbox);
+  }
+  sandbox.Game.GlobalSettings.SETTINGS = null;
+  // day.js: getter + ТЕЛО addStep (НЕ while-зависание) + dueForRespawn.
+  const c = sandbox.Game.createClock();
+  assert.equal(c.stepsPerDay, 40, 'null → DEFAULTS 40 (не TypeError)');
+  c.addStep(41);
+  assert.equal(c.day, 2, 'порог 40: день 2');
+  assert.equal(c.steps, 1, 'остаток 1');
+  const due0 = sandbox.Game.dueForRespawn(new Map([['1,1', 5]]), 6);
+  assert.deepEqual(JSON.parse(JSON.stringify(due0)), [],
+    'respawn → DEFAULTS 3: 6−5=1 < 3 — ещё нет');
+  // player.js: addXp не бросает, очки → DEFAULTS.
+  const hero = sandbox.Game.createCharacter();
+  const r = sandbox.Game.addXp(hero, sandbox.Game.xpForNext(1));
+  assert.equal(r.levelsGained, 1, 'уровень начисляется');
+  assert.equal(r.pointsGained, 2, 'points → DEFAULTS 2');
+  // dungeon.js: contentValid + ABYSS-босс (delta → DEFAULTS 3).
+  assert.equal(sandbox.Game.contentValid(1, 4), true,
+    'memory → DEFAULTS 3: 4 ≤ 1+3 — живо');
+  assert.equal(sandbox.Game.contentValid(1, 5), false,
+    '5 > 1+3 — протухло');
+  const d = sandbox.Game.createDungeon(37, -12,
+    sandbox.Game.syntheticPixels(8, 8, 128, 128, 128, 10),
+    sandbox.Game.TERRAIN.HILL);
+  const contents = sandbox.Game.generateDungeonContents(
+    d, { totalXp: 12345, level: 15 });
+  const boss = contents.mobs.find((m) => m.boss);
+  assert.ok(boss, 'босс есть (ABYSS)');
+  assert.equal(boss.level, 18,
+    'босс 15+3 (DEFAULTS; объект null — не 15+15, не TypeError)');
+  // undefined — та же ветка guard'а.
+  sandbox.Game.GlobalSettings.SETTINGS = undefined;
+  assert.equal(sandbox.Game.createClock().stepsPerDay, 40,
+    'undefined → DEFAULTS 40');
+});

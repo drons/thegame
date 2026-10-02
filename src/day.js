@@ -23,13 +23,34 @@
   const STEPS_PER_DAY = settings.SETTINGS.steps_per_day;
   const RESPAWN_DAYS = settings.SETTINGS.respawn_days;
 
+  // 000099: live-чтение настройки в момент ВЫЗОВА (паттерн 000020):
+  // объект SETTINGS живёт, ссылка не меняется (000098: форма пишет в
+  // place) → мутация вкладки «Игровые настройки» видна ядру без
+  // перезагрузки. Guard — границы META 000098 (min 1); битое значение
+  // → DEFAULTS, последняя опора — снапшот (подделанный settings без
+  // DEFAULTS). Снапшоты выше — load-time API (экспорт-константы).
+  // Ревью 000099: ЦЕЛИКОМ SETTINGS может быть заменён в рантайме
+  // (null/undefined, devtools) — guard и на объект: NaN не пройдёт
+  // guard значения → DEFAULTS (как main.js: gs && … → 140).
+  function liveStepsPerDay() {
+    const s = settings.SETTINGS;
+    const v = (s && typeof s === 'object') ? s.steps_per_day : NaN;
+    return (typeof v === 'number' && Number.isFinite(v) && v >= 1)
+      ? v : (settings.DEFAULTS ? settings.DEFAULTS.steps_per_day : STEPS_PER_DAY);
+  }
+  function liveRespawnDays() {
+    const s = settings.SETTINGS;
+    const v = (s && typeof s === 'object') ? s.respawn_days : NaN;
+    return (typeof v === 'number' && Number.isFinite(v) && v >= 1)
+      ? v : (settings.DEFAULTS ? settings.DEFAULTS.respawn_days : RESPAWN_DAYS);
+  }
+
   /**
    * Часы игрового дня.
    * День сменяется: каждые stepsPerDay шагов мира, или явно — event()/rest().
    * @param {{stepsPerDay?: number}} [opts]
    */
   function createClock(opts = {}) {
-    const perDay = opts.stepsPerDay || STEPS_PER_DAY;
     let day = 1;
     let steps = 0;
     const listeners = [];
@@ -45,11 +66,20 @@
     return {
       get day() { return day; },
       get steps() { return steps; },
-      get stepsPerDay() { return perDay; },
+      // 000099: порог — на каждый вызов (opts > SETTINGS live >
+      // DEFAULTS > снапшот): main.js создаёт часы один раз при старте,
+      // поэтому только per-call даёт «изменение действует без
+      // перезагрузки» на живых часах.
+      get stepsPerDay() {
+        return opts.stepsPerDay || liveStepsPerDay();
+      },
       /** Подписка на смену дня: fn({ day, reason }). Возвращает часы. */
       onDay(fn) { listeners.push(fn); return this; },
       /** Шаги по основной карте: при пороге — новый день (избыток переходит). */
       addStep(n = 1) {
+        // 000099: guard ≥ 1 — ДО while-цикла (битое steps_per_day 0 →
+        // DEFAULTS 40, НЕ while-бесконечность).
+        const perDay = opts.stepsPerDay || liveStepsPerDay();
         steps += n;
         while (steps >= perDay) {
           steps -= perDay;
@@ -93,7 +123,8 @@
    * @param {number} [respawnDays]
    * @returns {string[]} ключи тайлов
    */
-  function dueForRespawn(defeatedAt, day, respawnDays = RESPAWN_DAYS) {
+  // 000099: default-параметр живёт — оценивается на ВЫЗОВЕ (live).
+  function dueForRespawn(defeatedAt, day, respawnDays = liveRespawnDays()) {
     const out = [];
     for (const [key, defeatedDay] of defeatedAt) {
       if (day - defeatedDay >= respawnDays) out.push(key);
