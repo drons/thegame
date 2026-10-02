@@ -129,13 +129,15 @@ test('A1. building-effects (UMD node): реестр и чистые функци
     'EFFECTS — объект-реестр');
   // Пин «кто смержился первым» (memory/000075-teleport-circles.md):
   // смержены 000075 ('41'), 000076 ('36'/'37'/'38') и 000074
-  // ('40'/'42') — полный НАБОР ['36', '37', '38', '40', '41', '42'];
-  // 000077 ('39') расширит список при своём мерже (правка при
+  // ('40'/'42'); 000093 добавляет '46' (смотровая башня,
+  // memory/000093-explored-tower.md); 000077 ('39') и
+  // 000091/92/94/95 расширят список при своих мержах (правка при
   // ребейзе: union, memory/000076-temple-blessings.md /
   // 000074-rune-stone-obelisk.md).
   assert.deepEqual(Object.keys(BE.EFFECTS).sort(),
-    ['36', '37', '38', '40', '41', '42'],
-    'реестр: 000075 (41) + 000076 (36/37/38) + 000074 (40/42)');
+    ['36', '37', '38', '40', '41', '42', '46'],
+    'реестр: 000075 (41) + 000076 (36/37/38) + 000074 (40/42) + ' +
+    '000093 (46)');
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
     assert.equal(typeof BE.EFFECTS[id].apply, 'function',
@@ -146,7 +148,11 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   for (const m of ['buildingActions', 'effectIds', 'hasEffects',
     'hasDailyLimit', 'linkTeleportCircles', 'teleportDestination',
     'teleportCharge', 'serializeTeleports', 'restoreTeleports',
-    'moonDreamHint']) {
+    'moonDreamHint',
+    // 000093: смотровая башня — explored (чистые экспорты,
+    // память 000093-explored-tower.md §2.2).
+    'markExplored', 'exploredCount', 'serializeExplored',
+    'restoreExplored']) {
     assert.equal(typeof BE[m], 'function', 'BE.' + m + ' — функция');
   }
 });
@@ -1843,6 +1849,342 @@ test('A54. квест обелиска без «название» — опре�
       save: {}, catalog: c42real }));
     assert.ok(r3.quest, 'валидный квест — выдача (A50)');
   });
+});
+
+// --- Задача 000093: смотровая башня — «Взглянуть» (explored) ---
+//
+// Чистые контракты (контракт — memory/000093-explored-tower.md,
+// данные раздела — memory/000093-explored.md):
+//   * markExplored(explored, towerKey, tiles, R) → НОВЫЙ plain
+//     object (иммутабельно): 'x,y' башни → каноническая строка
+//     'x,y;x,y;…' (row-major: y по возрастанию, затем x, ЧИСЛЕННАЯ
+//     сортировка); граница Чебышёва R ВКЛЮЧИТЕЛЬНО; защитный R-
+//     фильтр (тайлы вне окна — SKIP); чужие башни — как есть;
+//     мусорный вход (не-object) — {} (fail-open, НЕ бросает);
+//     towerKey/R — программные ошибки → THROW (тест-пин).
+//   * exploredCount(object) — СУММА валидных сегментов ПО БАШНЯМ
+//     (пересечения СЧИТАЮТСЯ ДВАЖДЫ — union НЕ здесь, отсрочка
+//     миникарты).
+//   * serializeExplored(Map) / restoreExplored(object) — ser/de
+//     раздела сейва explored (паттерн 000072/teleports): restore —
+//     ТИХИЙ fail-open (ни throw, ни console — warn в main.js);
+//     roundtrip byte-identical (каноника на обеих сторонах).
+//   * EFFECTS['46'] — «Взглянуть»: apply ЧИСТО (снимок), Р — ТОЛЬКО
+//     из каталога (особые_параметры.эффект.радиус, 000053); фолбэк
+//     20 — только когда объект эффект есть, но радиус не integer
+//     ≥ 0. Лимита раз-в-день НЕТ нигде (взгляд бесплатен и
+//     идемпотентен, ТЗ). message «Взгляд: исследовано N тайлов.»
+//     (N — сумма по всем башням ПОСЛЕ пометки; текст зафиксирован).
+//   * Каталог 46: особый_параметр эффект = { радиус: 20 }; зеркала
+//     buildings.js ≡ JSON (000055, npm run sync:buildings).
+
+// Окно Чебышёва R вокруг (tx, ty) — массив {x, y} (row-major).
+function chebWindow(tx, ty, R) {
+  const out = [];
+  for (let dy = -R; dy <= R; dy++) {
+    for (let dx = -R; dx <= R; dx++) out.push({ x: tx + dx, y: ty + dy });
+  }
+  return out;
+}
+
+test('A55. markExplored: окно 41×41 (R=20, граница включительно), защитный R-фильтр, иммутабельно', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.markExplored, 'function',
+    'markExplored (red: отсутствует)');
+  const R = 20;
+  const T = { x: 36, y: -21 };
+  const windowTiles = chebWindow(T.x, T.y, R);
+  assert.equal(windowTiles.length, 1681, 'окно 41×41 — 1681 тайлов');
+  const res = BE.markExplored(null, '36,-21', windowTiles, R);
+  assert.ok(res && typeof res === 'object' && !Array.isArray(res),
+    'результат — plain object (формат снимка)');
+  const segs = String(res['36,-21']).split(';');
+  assert.equal(segs.length, 1681, 'ВСЕ тайлы окна помечены');
+  const set = new Set(segs);
+  assert.equal(set.size, 1681, 'дубликатов нет');
+  // Граница R=20 ВКЛЮЧИТЕЛЬНО: 4 угла + середины рёбер.
+  for (const c of ['16,-41', '56,-41', '16,-1', '56,-1',
+    '36,-41', '36,-1', '16,-21', '56,-21']) {
+    assert.ok(set.has(c), 'граница (' + c + '): R=20 включительно');
+  }
+  // Снаружи (|dx| или |dy| = 21) — НЕ помечено.
+  for (const c of ['15,-21', '57,-21', '36,-42', '36,0', '15,-41', '57,0']) {
+    assert.ok(!set.has(c), 'вне окна (' + c + '): не помечено');
+  }
+  // Иммутабельно: входной explored НЕ мутируется, НОВЫЙ объект;
+  // старые валидные сегменты башни — сохраняются (объединение).
+  const input = { '9,9': '1,1;2,2' };
+  const r2 = BE.markExplored(input, '9,9', [{ x: 1, y: 1 }], 5);
+  assert.notEqual(r2, input, 'возврат НОВОГО объекта');
+  assert.equal(input['9,9'], '1,1;2,2', 'вход не мутирован');
+  assert.equal(r2['9,9'], '1,1;2,2', 'старые валидные сегменты — union');
+  // ЗАЩИТНЫЙ фильтр: 2000 «лишних» тайлов далеко от башни → только
+  // окно Чебышёва ≤ R (кап ≤1681 даже при «мусорном» входе).
+  const junk = [];
+  for (let i = 0; i < 2000; i++) {
+    junk.push({ x: i % 100, y: 300 + Math.floor(i / 100) });
+  }
+  const r3 = BE.markExplored(null, '36,-21', junk.concat(windowTiles), R);
+  assert.equal(String(r3['36,-21']).split(';').length, 1681,
+    'защитный R-фильтр: вне Чебышёва ≤20 от башни — SKIP');
+});
+
+test('A56. apply(«46»): непроходимые тайлы помечаются — проходимость НЕ читается (данные разведки)', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['46']
+    && typeof BE.EFFECTS['46'].apply === 'function',
+    'запись «46» в реестре (red: отсутствует)');
+  const B = require('../src/buildings.js');
+  const c46 = B.getBuilding(46);
+  // Синтетическая карта: ВСЕ тайлы окна — вода/горы (passable:false).
+  // Если код «помощник» отфильтрует по проходимости — окно будет
+  // пустым и тест упадёт (ТЗ: НЕЗАВИСИМО ОТ ПРОХОДИМОСТИ).
+  let calls = 0;
+  const map = {
+    tileAt: (x, y) => {
+      calls++;
+      return { x, y, terrain: ((x + y) % 2) ? 2 : 1, passable: false };
+    },
+  };
+  const state = makeState({
+    day: 1, tile: { x: 36, y: -21 }, save: {}, catalog: c46, map,
+  });
+  const r = BE.EFFECTS['46'].apply(state);
+  assert.equal(r.ok, true, 'взгляд — ok (red: без эффекта «недоступно»)');
+  assert.ok(r.explored && typeof r.explored === 'object'
+    && !Array.isArray(r.explored),
+    'r.explored — НОВОЕ значение раздела (plain object, не дельта)');
+  const segs = String(r.explored['36,-21']).split(';');
+  assert.equal(segs.length, 1681,
+    'непроходимые (вода/горы) помечаются РАВНО проходимым');
+  assert.equal(new Set(segs).size, 1681, 'дубликатов нет');
+  assert.ok(calls >= 1681, 'окно собрано через tileAt (1681 вызовов)');
+  // message зафиксирован контрактом: N — сумма по всем башням ПОСЛЕ
+  // пометки (пустой снимок → одна башня, 1681).
+  assert.equal(r.message, 'Взгляд: исследовано 1681 тайлов.',
+    'message: стиль «Префикс: результат.» (A-пин)');
+  // Чистота: снимок state не мутирован.
+  assert.deepEqual(state.save, {}, 'save-снимок не мутирован');
+  assert.deepEqual(state.tile, { x: 36, y: -21 }, 'tile не мутирован');
+});
+
+test('A57. markExplored: идемпотентность — повторный «взгляд» — тот же explored (deepEqual), без дубликатов', () => {
+  const BE = loadBE();
+  const R = 20;
+  const T = { x: 36, y: -21 };
+  const windowTiles = chebWindow(T.x, T.y, R);
+  const first = BE.markExplored(null, '36,-21', windowTiles, R);
+  const second = BE.markExplored(first, '36,-21', windowTiles, R);
+  assert.deepEqual(second, first, 'повтор — тот же explored (deepEqual)');
+  assert.notEqual(second, first, 'но НОВЫЙ объект (иммутабельно)');
+  // Вторая башня с ПЕРЕСЕКАЮЩИМСЯ окном: union, без дубликатов,
+  // первая башня не изменяется.
+  const T2 = { x: 50, y: -5 }; // пересечение с окном (36,-21) ≠ ∅
+  const both = BE.markExplored(first, '50,-5',
+    chebWindow(T2.x, T2.y, R), R);
+  assert.deepEqual(both['36,-21'], first['36,-21'],
+    'первая башня — как была');
+  assert.equal(String(both['50,-5']).split(';').length, 1681,
+    'вторая башня — полное окно');
+  // Повтор на мультибашенном объекте — deepEqual (Set: дублей нет).
+  const again = BE.markExplored(both, '36,-21', windowTiles, R);
+  assert.deepEqual(again, both, 'повторный взгляд — deepEqual');
+});
+
+test('A58. serializeExplored/restoreExplored: roundtrip deepEqual, канонический row-major (численный), мусор — только валидные', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.serializeExplored, 'function',
+    'serializeExplored (red: отсутствует)');
+  assert.equal(typeof BE.restoreExplored, 'function',
+    'restoreExplored (red: отсутствует)');
+  // Две башни; у первой — ПЕРЕМЕШАННЫЙ (неканонический) порядок +
+  // «лишние» тайлы.
+  const m = new Map();
+  m.set('36,-21', new Set(['56,-1', '36,-21', '9,-100', '16,-41', '10,-2']));
+  m.set('-5,7', new Set(['-5,7', '-6,6', '-4,8']));
+  const s = BE.serializeExplored(m);
+  assert.ok(s && typeof s === 'object' && !Array.isArray(s),
+    'снимок — plain object');
+  assert.deepEqual(Object.keys(s).sort(), ['-5,7', '36,-21'],
+    'ключи — башни');
+  // Каноника row-major: y по возрастанию, затем x.
+  assert.equal(s['-5,7'], '-6,6;-5,7;-4,8',
+    'row-major: сначала y (6 < 7 < 8), затем x');
+  // Roundtrip: restore(serialize(m)) deepEqual m (контракт §2.2).
+  const back = BE.restoreExplored(s);
+  assert.ok(back instanceof Map, 'restore — Map');
+  assert.deepEqual(back, m, 'roundtrip deepEqual');
+  // Перемешанный вход — ТА ЖЕ каноническая строка (byte-identical).
+  const m2 = new Map();
+  m2.set('36,-21', new Set(['16,-41', '36,-21', '9,-100', '56,-1', '10,-2']));
+  assert.equal(BE.serializeExplored(m2)['36,-21'], s['36,-21'],
+    'порядок во входе НЕ влияет на канонику');
+  // ЧИСЛЕННАЯ (не строковая!) сортировка: y 9 < 10 (строковая даст
+  // «0,10» < «0,9» — баг, ловим пином).
+  const m3 = new Map([['0,0', new Set(['0,10', '0,9', '0,0', '0,-10'])]]);
+  assert.equal(BE.serializeExplored(m3)['0,0'], '0,-10;0,0;0,9;0,10',
+    'числовая сортировка row-major');
+  // Пустая башня (size 0) — НЕ пишется; пустой Map/null → {}.
+  const s4 = BE.serializeExplored(new Map([
+    ['1,1', new Set()], ['2,2', new Set(['2,2'])],
+  ]));
+  assert.deepEqual(s4, { '2,2': '2,2' }, 'пустая башня — не пишется');
+  assert.deepEqual(BE.serializeExplored(new Map()), {}, 'пустой Map — {}');
+  assert.deepEqual(BE.serializeExplored(null), {}, 'null — {}');
+  assert.deepEqual(BE.serializeExplored(undefined), {}, 'undefined — {}');
+});
+
+test('A59. restoreExplored: битый раздел — ТИХИЙ fail-open (ни throw, ни console), валидные выживают', () => {
+  const BE = loadBE();
+  const consoleCalls = [];
+  const origWarn = console.warn;
+  const origErr = console.error;
+  console.warn = (x) => consoleCalls.push('warn: ' + String(x));
+  console.error = (x) => consoleCalls.push('error: ' + String(x));
+  try {
+    // Мусорный РАЗДЕЛ (не-объект/массив/null): ни throw, ни console,
+    // пустой Map (warn живёт в main.js restoreFromSave — паттерн
+    // 000072/A52: restoreTeleports/restoreBuildingQuests — тихие).
+    for (const junk of ['junk', 42, [1, 2], null, undefined, NaN, {}]) {
+      const mm = BE.restoreExplored(junk);
+      assert.ok(mm instanceof Map,
+        'мусорный раздел ' + String(junk) + ' — Map возвращается');
+      assert.equal(mm.size, 0, 'мусорный раздел — пустой Map');
+    }
+    // Мусорная ЗАПИСЬ: некорректный ключ/значение — отброс;
+    // некорректные сегменты — отброс; дубли — дедупликация.
+    const mixed = BE.restoreExplored({
+      '36,-21': '36,-21;16,-41;junk;56,-1', // сегмент «junk» — SKIP
+      'not-a-key': '1,1',                    // ключ не 'x,y' — SKIP
+      '9,9': 42,                             // значение не строка — SKIP
+      '5,5': '5,5;5,5;6,6',                  // валидная (дубль — дедуп)
+    });
+    assert.equal(mixed.size, 2, 'валидных записей — ровно 2');
+    assert.ok(mixed.has('36,-21') && mixed.has('5,5'),
+      'валидные ключи на месте');
+    assert.ok(!mixed.has('not-a-key'), 'ключ не «x,y» — отброшен');
+    assert.ok(!mixed.has('9,9'), 'значение не строка — отброшено');
+    assert.equal(mixed.get('36,-21').size, 3,
+      'некорректный сегмент «junk» — отброшен');
+    assert.ok(mixed.get('36,-21').has('36,-21')
+      && mixed.get('36,-21').has('16,-41')
+      && mixed.get('36,-21').has('56,-1'),
+      'валидные сегменты сохранены');
+    assert.equal(mixed.get('5,5').size, 2, 'дубли — дедупликация');
+    assert.equal(consoleCalls.length, 0,
+      'restoreExplored — ТИХИЙ (ни console.warn, ни console.error): '
+      + consoleCalls.join(' | '));
+  } finally {
+    console.warn = origWarn;
+    console.error = origErr;
+  }
+});
+
+test('A60. markExplored: ограничение роста — на башню ≤ 1681 ключей (41×41, закладка ТЗ)', () => {
+  const BE = loadBE();
+  const R = 20;
+  const T = { x: 36, y: -21 };
+  // Большой tiles-массив: 5000 тайлов ДАЛЕКО от башни + полное окно.
+  const tiles = [];
+  for (let i = 0; i < 5000; i++) {
+    tiles.push({ x: -200 + (i % 100), y: -200 + Math.floor(i / 100) });
+  }
+  tiles.push(...chebWindow(T.x, T.y, R));
+  const res = BE.markExplored(null, '36,-21', tiles, R);
+  const segs = String(res['36,-21']).split(';');
+  assert.ok(segs.length <= 1681,
+    'на башню ≤ 1681 ключей (ловушка разрастания localStorage)');
+  assert.equal(segs.length, 1681, 'полное окно — ровно 41×41');
+  assert.equal(new Set(segs).size, 1681, 'без дубликатов');
+  // Повторный вызов с другим «мусорным» массивом — кап держится.
+  const res2 = BE.markExplored(res, '36,-21', tiles.slice(0, 2500), R);
+  assert.ok(String(res2['36,-21']).split(';').length <= 1681,
+    'кап сохраняется при повторе');
+});
+
+test('A61. exploredCount: null → 0; сумма валидных сегментов ПО БАШНЯМ (пересечение — дважды, НЕ union)', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.exploredCount, 'function',
+    'exploredCount (red: отсутствует)');
+  assert.equal(BE.exploredCount(null), 0, 'null → 0');
+  assert.equal(BE.exploredCount(undefined), 0, 'undefined → 0');
+  assert.equal(BE.exploredCount('junk'), 0, 'не-object → 0');
+  assert.equal(BE.exploredCount(42), 0, 'не-object → 0');
+  assert.equal(BE.exploredCount({}), 0, 'пусто → 0');
+  // Сумма по башням: невалидные сегменты НЕ считаются; пересечение
+  // окон двух башен СЧИТАЕТСЯ ДВАЖДЫ (union — задача миникарты,
+  // отсрочено; формат раздела union-совместим).
+  const e = {
+    '36,-21': '36,-21;16,-41;junk;56,-1;16,-41', // 3 валидных (дубль)
+    '50,-5': '50,-5;36,-21',                      // 2 (пересечение '36,-21')
+  };
+  assert.equal(BE.exploredCount(e), 5,
+    'сумма по башням: 3 + 2 (union дал бы 4 — НЕ union)');
+});
+
+test('A62. каталог 46: эффект.радиус = 20 (раз_в_день НЕТ) + зеркало ≡ JSON; реестр «Взглянуть» без лимита', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const p46 = B.getBuilding(46).особые_параметры;
+  // Эффект — ОБЪЕКТ параметров (конвенция 000075; модель 000041):
+  // радиус ЧИТАЕТСЯ КОДОМ (окно), не хардкодится.
+  assert.equal(typeof p46.эффект, 'object',
+    '46: эффект — объект (red: поле отсутствует в каталоге)');
+  assert.equal(p46.эффект.радиус, 20, '46: эффект.радиус — 20 (ТЗ)');
+  // Лимит «раз в день» НЕТ (ТЗ: взгляд бесплатен и идемпотентен):
+  // флага раз_в_день в каталоге нет.
+  assert.equal(p46.раз_в_день, undefined,
+    '46: раз_в_день НЕ добавляется (взгляд бесплатен)');
+  // Реестр: запись «Взглянуть» БЕЗ разВДень (каталог побеждает,
+  // 000053 — и каталог без флага → лимита нет).
+  assert.ok(BE.EFFECTS['46'], 'запись «46» в реестре (red: отсутствует)');
+  assert.equal(BE.EFFECTS['46'].имя, 'Взглянуть', '46: имя по ТЗ');
+  assert.equal(typeof BE.EFFECTS['46'].apply, 'function',
+    '46: apply(state)');
+  assert.notEqual(BE.EFFECTS['46'].разВДень, true,
+    '46: разВДень в реестре не ставится');
+  assert.equal(BE.hasDailyLimit(B.getBuilding(46), '46'), false,
+    'hasDailyLimit(каталог 46, «46») === false');
+  // Зеркало src/buildings.js — byte-в-byte с каталогом (000055;
+  // регенерация npm run sync:buildings; паттерн A43).
+  const j46 = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'assets', 'buildings', '000046.json'), 'utf8'));
+  assert.deepEqual(B.getBuilding(46), j46, 'зеркало 46: buildings.js ≡ JSON');
+});
+
+test('A63. apply(«46»): деградации — без эффекта/без карты → «недоступно»; радиус не-integer → фолбэк R=20', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['46']
+    && typeof BE.EFFECTS['46'].apply === 'function',
+    'запись «46» в реестре (red: отсутствует)');
+  const mapOk = { tileAt: () => ({ x: 0, y: 0, passable: true }) };
+  const tile = { x: 36, y: -21 };
+  // (a) Каталог БЕЗ эффекта (нет объекта особых_параметры.эффект):
+  // радиус НЕ гадаем (000053) — «недоступно».
+  const noEff = { id: 46, особые_параметры: { малая: true } };
+  const r1 = BE.EFFECTS['46'].apply(makeState({
+    day: 1, tile, save: {}, catalog: noEff, map: mapOk }));
+  assert.equal(r1.ok, false, 'без эффекта — ok:false');
+  assert.equal(r1.message, 'недоступно', 'деградация: текст зафиксирован');
+  // (b) Карта отсутствует/мусор — «недоступно» (гард-карты, паттерн
+  // записи «37»).
+  for (const badMap of [null, undefined, 'карта', 42]) {
+    const r = BE.EFFECTS['46'].apply(makeState({
+      day: 1, tile, save: {},
+      catalog: { id: 46, особые_параметры: { эффект: { радиус: 20 } } },
+      map: badMap,
+    }));
+    assert.equal(r.ok, false, 'map=' + String(badMap) + ' — ok:false');
+    assert.equal(r.message, 'недоступно', 'гард-карты');
+  }
+  // (c) Радиус НЕ integer ≥ 0 (1.5) — объект эффект ЕСТЬ, но параметр
+  // бит → фолбэк 20 (ТЗ-фиксированный R): окно 1681.
+  const badR = { id: 46, особые_параметры: { эффект: { радиус: 1.5 } } };
+  const r3 = BE.EFFECTS['46'].apply(makeState({
+    day: 1, tile, save: {}, catalog: badR, map: mapOk }));
+  assert.equal(r3.ok, true, 'эффект есть, радиус не-integer — ok');
+  assert.equal(String(r3.explored['36,-21']).split(';').length, 1681,
+    'радиус 1.5 → фолбэк R=20 (окно 41×41)');
 });
 
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
@@ -3718,4 +4060,115 @@ test('B23. квест постройки e2e: выполнение → done, н�
     'перезагрузка: раздел не изменился');
   assert.ok(save3.data.buildingQuests['1,2'] == null,
     'перезагрузка: «будущей» записи нет');
+});
+
+test('B24. смотровая башня e2e: «Взглянуть» — explored-раздел (окно 1681), без лимита раз-в-день, HUD «Исследовано: 1681 тайлов»', async () => {
+  // Pre-seeded сейв (B14): день 1, игрок НА башне (36,-21) — золотой
+  // факт стандартного seed-мира (башня id 46, проходимый тайл,
+  // window (16..56, -41..-1) целиком в карте 256×256 → ровно 1681).
+  const h = await boot(seedSave({ day: 1, position: { x: 36, y: -21 } }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, 36, 'позиция сейва (x)');
+  assert.equal(g.state.player.y, -21, 'позиция сейва (y)');
+  assert.equal(g.state.day, 1, 'день 1');
+  // Тайл — башня: проходим, hasBuilding, buildingId 46, NPC нет.
+  const myMap = G.createMap(G.generateSeedPixels());
+  const t = myMap.tileAt(36, -21);
+  assert.ok(t.passable, 'тайл башни проходим');
+  assert.ok(t.hasBuilding, 'на тайле постройка');
+  assert.equal(t.buildingId, 46, 'golden: buildingId 46');
+  assert.ok(!G.npcForBuilding(G.NpcData.NPCS, 46), 'на башне NPC нет');
+  // HUD-подсказка ДО действия (red: без записи «46» в реестре — нет).
+  frameAt(h, NOW + 200);
+  const hud0 = String(h.hud.textContent);
+  assert.ok(hud0.includes('  |  [E] действия'),
+    'топ-строка — «  |  [E] действия»: ' + hud0);
+  assert.ok(!hud0.includes('Исследовано'),
+    'до взгляда строки «Исследовано» нет (раздел пуст)');
+  // [E] → оверлей ровно С ОДНОЙ строкой «Взглянуть».
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает buildingUI');
+  assert.equal(G.npcUI.isActive(), false, 'npcUI НЕ открывается');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  const rows = findAll(ov, '[data-buid]');
+  assert.equal(rows.length, 1,
+    'ровно одна строка действия (red: записи «46» нет)');
+  assert.equal(rows[0].dataset.buid, '46', 'строка — id 46');
+  assert.equal(rows[0].disabled, false, 'строка доступна');
+  assert.ok(textOf(rows[0]).includes('Взглянуть'),
+    'имя действия: ' + textOf(rows[0]));
+  // Сейв до действия — без explored (досеянный сейв).
+  assert.equal((readSave(h).data.explored || null) == null, true,
+    'до действия explored в сейве нет');
+  // Digit1 → apply + само-закрытие.
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false,
+    'оверлей закрылся после действия');
+  // saveNow СРАЗУ: explored-раздел в сейве — окно башни.
+  const save1 = readSave(h);
+  assert.ok(save1.data.explored && typeof save1.data.explored === 'object'
+    && !Array.isArray(save1.data.explored),
+    'раздел explored в сейве (red: раздел не пишется)');
+  const str = save1.data.explored['36,-21'];
+  assert.equal(typeof str, 'string', 'ключ башни «36,-21» → строка');
+  const segs = str.split(';');
+  assert.equal(segs.length, 1681, 'окно 41×41 — ровно 1681 тайлов');
+  assert.equal(new Set(segs).size, 1681, 'дубликатов нет');
+  for (const s of segs) {
+    const parts = s.split(',').map(Number);
+    assert.ok(parts.length === 2
+      && Math.abs(parts[0] - 36) <= 20
+      && Math.abs(parts[1] - -21) <= 20,
+      'сегмент ' + s + ' внутри окна Чебышёва ≤ 20 от башни');
+  }
+  // БЕЗ лимита раз-в-день (ТЗ: взгляд бесплатен): маркировки НЕТ.
+  assert.equal((save1.data.buildingOncePerDay || {})['36,-21:46'],
+    undefined, 'buildingOncePerDay: «36,-21:46» НЕ ставится');
+  // HUD: строка «Исследовано: 1681 тайлов» (top-блок, red: строки нет).
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('Исследовано: 1681 тайлов'),
+    'HUD «Исследовано: 1681 тайлов»: ' + hud1);
+});
+
+test('B25. смотровая башня e2e: повторный «Взглянуть» в тот же день — НЕ заблокирован (лимит НЕТ), explored deepEqual, день не сдвинулся', async () => {
+  const h = await boot(seedSave({ day: 1, position: { x: 36, y: -21 } }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  // Первый взгляд.
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает (1-й раз)');
+  const row1 = findRow(findOverlay(h), '46');
+  assert.ok(row1, 'строка «Взглянуть» (1-й раз)');
+  assert.equal(row1.disabled, false, '1-й раз — доступна');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, '1-й раз: оверлей закрыт');
+  const save1 = readSave(h);
+  assert.ok(save1.data.explored, '1-й взгляд: explored записан');
+  // ПОВТОРНЫЙ взгляд — тот же день: лимита раз-в-день НЕТ (ТЗ: взгляда
+  // днём может быть сколько угодно): оверлей открывается, строка
+  // доступна (НЕ «уже использовано сегодня»).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true,
+    '[E] открывает (2-й раз, тот же день)');
+  const row2 = findRow(findOverlay(h), '46');
+  assert.ok(row2, 'строка «Взглянуть» (2-й раз)');
+  assert.equal(row2.disabled, false,
+    '2-й раз — НЕ заблокирован «уже использовано сегодня»');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, '2-й раз: оверлей закрыт');
+  const save2 = readSave(h);
+  assert.deepEqual(save2.data.explored, save1.data.explored,
+    'explored идентичен (идемпотентное объединение — дублей нет)');
+  // Маркировки нет, день не сдвинулся.
+  assert.equal((save2.data.buildingOncePerDay || {})['36,-21:46'],
+    undefined, 'маркировки раз-в-день нет (лимит НЕТ)');
+  assert.equal(g.state.day, 1, 'день не сдвинулся (живо)');
+  assert.equal(save2.data.day, 1, 'день сейва = 1');
 });

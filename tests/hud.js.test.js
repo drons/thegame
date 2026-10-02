@@ -923,3 +923,35 @@ test('HU7. структурный: hudUpdate из main.js ушёл в src/hud.js
   assert.ok(main.includes('function flash'),
     'flash() — в main.js (пишут действия/бой)');
 });
+
+test('HU8. buildLine(ctx): строка «Исследовано: N тайлов» (задача 000093) — top-блок, ПОСЛЕ «[I] персонаж» + [E]-хинта, ДО «Здесь:»; без склонений; 0/NaN/нет поля — строки нет', () => {
+  const hud = require('../src/hud.js');
+  // (a) N = 1681 (окно башни 41×41) — побайтово: строка ПРЯМО ПОСЛЕ
+  // top-блока «[I] персонаж» + [E]-хинта (контракт 000093-explored-
+  // tower.md §2.3; red: строка отсутствует).
+  assert.equal(hud.buildLine(makeCtx({ exploredCount: 1681 })),
+    TOP_BASE + '[I] персонаж\nИсследовано: 1681 тайлов',
+    '«Исследовано: 1681 тайлов» побайтово (red: строка отсутствует)');
+  // (b) Грамматика «N тайлов» БЕЗ склонений (контракт ТЗ).
+  assert.equal(hud.buildLine(makeCtx({ exploredCount: 1 })),
+    TOP_BASE + '[I] персонаж\nИсследовано: 1 тайлов',
+    '«1 тайлов» — без склонений');
+  // (c) 0 / NaN / поле отсутствует — строки НЕТ (побайтово = базовая
+  // строка; гард — Number.isFinite(ctx.exploredCount)).
+  const base = TOP_BASE + '[I] персонаж';
+  assert.equal(hud.buildLine(makeCtx({ exploredCount: 0 })), base,
+    '0 — строки нет');
+  assert.equal(hud.buildLine(makeCtx({ exploredCount: NaN })), base,
+    'NaN — строки нет');
+  assert.equal(hud.buildLine(makeCtx()), base, 'поля нет — строки нет');
+  // (d) ПОЗИЦИЯ строки: ПОСЛЕ top-блока, ДО «Здесь:» (тайл постройки)
+  // — ветки dungeonState/hereLine/mobgroup идут ПОСЛЕ explored-строки.
+  assert.equal(hud.buildLine(makeCtx({
+    tile: { terrain: 3, hasBuilding: true, building: 10,
+      buildingId: null, hasMobGroup: false },
+    exploredCount: 3,
+  })),
+    TOP_BASE + '[I] персонаж\nИсследовано: 3 тайлов\n' +
+    'Здесь: рунический камень',
+    'строка между top-блоком и «Здесь:»');
+});

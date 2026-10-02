@@ -578,3 +578,45 @@ test('000046: hero.craft/craftXp/equipmentBonus — roundtrip и поддела�
     { weapon: null, armor: null }, 'старый сейв: equipmentBonus → дефолт');
   assert.deepEqual(host(state2.hero.spells), [], 'старый сейв: spells → []');
 });
+
+// --- Задача 000093: смотровая башня — раздел explored в сейве ---
+//
+// data.explored — plain object { towerKey 'x,y' → 'x,y;x,y;…' }
+// (контракт — memory/000093-explored.md). Неломкое расширение v1:
+// версия НЕ повышается, миграций НЕТ (000031; прецедент 000072);
+// save.js — общая механика, раздела explored НЕ знает (не лезет в
+// данные). Живая форма Map<towerKey, Set<tileKey>> — main.js;
+// ser/de — building-effects.js (serializeExplored/restoreExplored,
+// паттерн 000072/teleports).
+
+test('000093: v1-сейв без раздела explored восстанавливается как есть (нет миграции, save.js раздел не знает)', () => {
+  const st = makeStorage();
+  const data = { day: 4, position: { x: 1, y: 2 }, hero: { gold: 5 } };
+  assert.equal(S.save(st, data, 111), true);
+  const res = S.load(st);
+  assert.equal(res.status, 'ok');
+  assert.equal(res.save.migrated, undefined, 'миграций нет (v1)');
+  assert.deepEqual(res.save.data, data,
+    'данные — как есть (explored НЕ добавляется механикой сейва)');
+  assert.equal(res.save.data.explored, undefined,
+    'в данных раздела explored нет (как в сейве)');
+});
+
+test('000093: roundtrip explored: save/load без потерь + restoreExplored → Map<towerKey, Set<tileKey>>', () => {
+  const st = makeStorage();
+  const data = { day: 7, explored: { '36,-21': '36,-21;16,-41;56,-1' } };
+  assert.equal(S.save(st, data, 222), true);
+  const res = S.load(st);
+  assert.equal(res.status, 'ok');
+  assert.deepEqual(res.save.data, data,
+    'раздел explored проходит save/load без потерь');
+  // Восстановление в ЖИВОЮ форму (чистая функция building-effects).
+  const BE = require('../src/building-effects.js');
+  assert.equal(typeof BE.restoreExplored, 'function',
+    'restoreExplored (red: экспорт отсутствует)');
+  const m = BE.restoreExplored(res.save.data.explored);
+  assert.ok(m instanceof Map, 'живая форма — Map');
+  assert.deepEqual(m,
+    new Map([['36,-21', new Set(['36,-21', '16,-41', '56,-1'])]]),
+    'Map<towerKey, Set<tileKey>> восстановлен');
+});
