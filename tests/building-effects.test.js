@@ -1758,6 +1758,93 @@ test('A52. сейв buildingQuests: serialize/restore (fail-open) + rehydrateBui
   assert.equal(book.active.q1.day, 99, 'мусор — без изменений');
 });
 
+test('A53. невалидный hero (null/не-объект) — 40/42 деградируют «недоступно» БЕЗ исключения (ревью: асимметрия applyRuneStone/applyObelisk)', () => {
+  const BE = loadBE();
+  const PL = require('../src/perlin.js');
+  const N = require('../src/npc.js');
+  const B = require('../src/buildings.js');
+  const c40 = B.getBuilding(40);
+  const c42 = B.getBuilding(42);
+  const G40 = { hash2: PL.hash2, derived: P.derived,
+    skillLevel: N.skillLevel };
+  const G42 = { hash2: PL.hash2, derived: P.derived };
+  const badHeroes = [null, undefined, 'hero', 42, [1, 2]];
+  withGame(G40, () => {
+    for (const bad of badHeroes) {
+      const r = BE.EFFECTS['40'].apply(
+        makeState({ catalog: c40, hero: bad }));
+      assert.equal(r.ok, false,
+        '40: hero=' + String(bad) + ' — ok:false (не TypeError)');
+      assert.equal(r.message, 'недоступно', '40: деградация');
+    }
+  });
+  withGame(G42, () => {
+    for (const bad of badHeroes) {
+      const r = BE.EFFECTS['42'].apply(
+        makeState({ catalog: c42, hero: bad }));
+      assert.equal(r.ok, false,
+        '42: hero=' + String(bad) + ' — ok:false (не TypeError)');
+      assert.equal(r.message, 'недоступно', '42: деградация (симметрия)');
+    }
+  });
+});
+
+test('A54. квест обелиска без «название» — определение невалидно: без r.quest/r.questComplete, XP/фрагмент — как прежде (ревью)', () => {
+  const BE = loadBE();
+  const PL = require('../src/perlin.js');
+  const B = require('../src/buildings.js');
+  const c42real = B.getBuilding(42);
+  const mkCat = (name) => {
+    const quest = Object.assign({}, c42real.особые_параметры.квест);
+    if (name === undefined) delete quest.название;
+    else quest.название = name;
+    return {
+      id: 42,
+      особые_параметры: {
+        раз_в_день: true,
+        эффект: c42real.особые_параметры.эффект,
+        квест: quest,
+      },
+    };
+  };
+  const G = { hash2: PL.hash2, derived: P.derived };
+  const hero = mkHero({ level: 3, secondary: { scholar: 5 } });
+  withGame(G, () => {
+    // Пустой снимок, «название» отсутствует — выдачи НЕТ.
+    const r1 = BE.EFFECTS['42'].apply(makeState({
+      day: 1, tile: { x: 5, y: 7 }, hero,
+      save: {}, catalog: mkCat(undefined) }));
+    assert.equal(r1.ok, true, 'XP/фрагмент — не бьёт');
+    assert.equal(r1.xp, 12, 'XP — по формуле (A46)');
+    assert.ok(r1.fragment, 'фрагмент — есть');
+    assert.equal(r1.quest, undefined, 'без названия — выдачи нет');
+    assert.equal(r1.questComplete, undefined);
+    // Пустая строка — тоже невалидно.
+    const r1b = BE.EFFECTS['42'].apply(makeState({
+      day: 1, tile: { x: 5, y: 7 }, hero,
+      save: {}, catalog: mkCat('') }));
+    assert.equal(r1b.ok, true);
+    assert.equal(r1b.quest, undefined, 'пустое название — выдачи нет');
+    // Активный снимок, «название» отсутствует — выполнения НЕТ
+    // (квест остаётся active в сейве; повторной выдачи тоже нет).
+    const r2 = BE.EFFECTS['42'].apply(makeState({
+      day: 2, tile: { x: 5, y: 7 }, hero,
+      save: { buildingQuests: {
+        '5,7': { questId: 'obelisk_touch_5_7', day: 1,
+          status: 'active' }, } },
+      catalog: mkCat(undefined) }));
+    assert.equal(r2.ok, true);
+    assert.equal(r2.xp, 12, 'XP — как при каждом прикосновении');
+    assert.equal(r2.questComplete, undefined,
+      'без названия — без выполнения');
+    // Контроль: ВАЛИДНЫЙ квест (реальный каталог) — выдача есть.
+    const r3 = BE.EFFECTS['42'].apply(makeState({
+      day: 1, tile: { x: 5, y: 7 }, hero,
+      save: {}, catalog: c42real }));
+    assert.ok(r3.quest, 'валидный квест — выдача (A50)');
+  });
+});
+
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
 //
 // Паттерн tests/save-restore.test.js: DOM/WebGL-стабы + МОК

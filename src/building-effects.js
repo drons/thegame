@@ -520,7 +520,8 @@
    * main.js ставит daily-марку + saveNow — иначе повтор в тот же
    * день был бы доступен, а ТЗ: повтор → недоступно), БЕЗ
    * xp/fragment. Недневной отказ (нет Game-функций / мусор
-   * каталога) — { ok:false, message:'недоступно' }.
+   * каталога / невалидный hero — не-объект) — { ok:false,
+   * message:'недоступно' }.
    * @returns {{ok: boolean, success?: boolean, xp?: number,
    *            fragment?: string, message?: string}}
    */
@@ -542,11 +543,18 @@
     }
     const texts = eff.тексты;
     if (!validTexts(texts)) return { ok: false, message: 'недоступно' };
+    const hero = st && st.hero;
+    // Герой — объект (ревью: асимметрия с applyObelisk — null/
+    // не-объект раньше уходил в TypeError из G.skillLevel/G.derived
+    // вместо задокументированной деградации «недоступно»).
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
     const tile = st.tile || { x: 0, y: 0 };
     const x = tile.x, y = tile.y, day = st.day;
     // Уровень навыка ИЗ КАТАЛОГА (в игре — G.skillLevel из npc.js;
     // 'runes' — вторичный навык).
-    const R = G.skillLevel(st.hero, eff.навык);
+    const R = G.skillLevel(hero, eff.навык);
     const success = deterministicRoll(x, y, day, STONE_ROLL_SEED, G.hash2)
       < stoneChance(eff, R);
     if (!success) {
@@ -556,7 +564,7 @@
         message: 'Расшифровка: руны молчат — попытка сгорела.',
       };
     }
-    const xp = stoneXp(eff, R, G.derived(st.hero).runePowerMult);
+    const xp = stoneXp(eff, R, G.derived(hero).runePowerMult);
     const fragment = pickFragment(texts, x, y, day, STONE_TEXT_SEED, G.hash2);
     return {
       ok: true,
@@ -620,6 +628,12 @@
     const questValid = quest && typeof quest === 'object' &&
       !Array.isArray(quest) &&
       typeof quest.id === 'string' && quest.id !== '' &&
+      // название — непустая строка (ревью: main.js печатает
+      // def.название в HUD при r.quest/r.questComplete — без
+      // названия это было бы «Квест получен: undefined»;
+      // невалидное определение — квест просто не в результате,
+      // XP/фрагмент не бьёт, как при мусорной награде).
+      typeof quest.название === 'string' && quest.название !== '' &&
       quest.награда && typeof quest.награда === 'object' &&
       !Array.isArray(quest.награда) &&
       Number.isFinite(quest.награда.опыт) &&
