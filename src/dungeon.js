@@ -161,6 +161,23 @@
   const LEVEL_DELTA_MAX = settings.SETTINGS.level_delta_max; // моб = персонаж ± N
   const CHEST_ITEM_CHANCE = 0.4;
 
+  // 000099: live-чтение в момент вызова (паттерн 000020; см. day.js):
+  // guard — границы META 000098 (dungeon_memory_days min 1;
+  // level_delta_max min 0 — 0 ВАЛИДНО, «±0»), битое → DEFAULTS →
+  // снапшот. Снапшоты выше — load-time API (экспорт-константы).
+  function liveLevelDeltaMax() {
+    const v = settings.SETTINGS.level_delta_max;
+    return (typeof v === 'number' && Number.isFinite(v) && v >= 0)
+      ? v : (settings.DEFAULTS ? settings.DEFAULTS.level_delta_max
+        : LEVEL_DELTA_MAX);
+  }
+  function liveMemoryDays() {
+    const v = settings.SETTINGS.dungeon_memory_days;
+    return (typeof v === 'number' && Number.isFinite(v) && v >= 1)
+      ? v : (settings.DEFAULTS ? settings.DEFAULTS.dungeon_memory_days
+        : DUNGEON_MEMORY_DAYS);
+  }
+
   // Тип подземелья из тайла входа (SPEC.md: «тип — из типа тайла входа»).
   // «Бездна» — редкая: холмистый/горный вход с тёмным альфа-каналом
   // пикселя (тёмный A = редкие фичи).
@@ -351,6 +368,10 @@
     const rng = mulberry32(seed);
     const table = DUNGEON_MOBS[d.type];
     const items = DUNGEON_ITEMS[d.type];
+    // 000099: ОДНО live-чтение на генерацию (детерминизм: одна
+    // значимость и для мобов, и для босса; порядок вызовов rng() не
+    // меняется — замена константы на локальную переменную).
+    const delta = liveLevelDeltaMax();
 
     // Входная комната остаётся безопасной; выход — тоже.
     const safe = new Set();
@@ -371,7 +392,7 @@
       }
       return null;
     };
-    const mobLevel = () => Math.max(1, player.level + Math.floor(rng() * (2 * LEVEL_DELTA_MAX + 1)) - LEVEL_DELTA_MAX);
+    const mobLevel = () => Math.max(1, player.level + Math.floor(rng() * (2 * delta + 1)) - delta);
 
     // Блуждающие группы: 3-6, по 1-3 моба (SPEC: «мобы подземелий — блуждающие»).
     const mobs = [];
@@ -393,7 +414,7 @@
         id: 'boss',
         mobIds: ['abomination', 'lower_demon', 'lower_demon'],
         x: s[0], y: s[1],
-        level: Math.max(1, player.level + LEVEL_DELTA_MAX),
+        level: Math.max(1, player.level + delta),
         defeated: false,
         boss: true,
       });
@@ -427,7 +448,8 @@
    * @param {number} currentDay текущий игровой день
    * @param {number} [memoryDays]
    */
-  function contentValid(lastVisitDay, currentDay, memoryDays = DUNGEON_MEMORY_DAYS) {
+  // 000099: default-параметр живёт — оценивается на ВЫЗОВЕ (live).
+  function contentValid(lastVisitDay, currentDay, memoryDays = liveMemoryDays()) {
     return currentDay <= lastVisitDay + memoryDays;
   }
 

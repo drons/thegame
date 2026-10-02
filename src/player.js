@@ -50,6 +50,15 @@
   // Глобальная настройка (src/global-settings.js, SPEC.md «Навыки»).
   const POINTS_PER_LEVEL = settings.SETTINGS.points_per_level;
 
+  // 000099: live-чтение в момент вызова (паттерн 000020; см. day.js):
+  // guard META 000098 (min 1), битое → DEFAULTS → снапшот.
+  function livePointsPerLevel() {
+    const v = settings.SETTINGS.points_per_level;
+    return (typeof v === 'number' && Number.isFinite(v) && v >= 1)
+      ? v : (settings.DEFAULTS ? settings.DEFAULTS.points_per_level
+        : POINTS_PER_LEVEL);
+  }
+
   function rankOf(level) {
     for (const r of RANKS) {
       if (level >= r.min && level <= r.max) return r;
@@ -319,18 +328,21 @@
     let gained = Math.round(amount * derived(c).xpMult);
     c.totalXp += gained;
     c.xp += gained;
+    // 000099: ОДНО live-чтение на вызов — начисление и возврат
+    // pointsGained — одна значимость.
+    const ppl = livePointsPerLevel();
     let levelsGained = 0;
     while (c.xp >= xpForNext(c.level)) {
       c.xp -= xpForNext(c.level);
       c.level += 1;
       levelsGained += 1;
-      c.points += POINTS_PER_LEVEL;
+      c.points += ppl;
     }
     // maxHP/maxMP зависят только от навыков; перекладываем в новые границы.
     const d = derived(c);
     c.hp = Math.min(d.maxHP, c.hp);
     c.mp = Math.min(d.maxMP, c.mp);
-    return { levelsGained, pointsGained: levelsGained * POINTS_PER_LEVEL };
+    return { levelsGained, pointsGained: levelsGained * ppl };
   }
 
   // --- Практика навыков (задача 000013, SPEC.md «Повышение вторичных навыков», п. 2) ---

@@ -53,13 +53,11 @@
   // Базовый интервал шага по глобальной карте (задача 000063) — из
   // глобальных настроек (единый источник, паттерн 000020): 140 * 3 =
   // 420 мс, базовая скорость передвижения уменьшена в три раза.
-  // Настроек нет (файл не загрузился) — старое поведение, 140 мс
-  // (деградация, паттерн 000033 с G.createMover).
-  const gs = G.GlobalSettings && G.GlobalSettings.SETTINGS;
-  const MOVE_INTERVAL_MS = (gs && Number.isFinite(gs.move_interval_ms)
-    && gs.move_interval_ms > 0)
-    ? gs.move_interval_ms
-    : 140;
+  // 000099: move_interval_ms читается ЖИВО в момент ВЫЗОВА (каждый
+  // кадр), а не снапшотом при загрузке (настройка из вкладки действует
+  // без перезагрузки). Настроек нет (файл не загрузился) или битое
+  // значение — старое поведение, 140 мс (деградация, паттерн 000033 с
+  // G.createMover; guard 000063 без изменений).
 
   // Текущий интервал шага с учётом «Ловкого шага» (задача 000033;
   // SPEC: Ловкость → «Скорость перемещения по карте»): база — из
@@ -68,10 +66,26 @@
   // (moveSpeedMult = 1) — базовый интервал. Один источник для цикла
   // шагов и окна анимации walk/idle (drawSprites).
   function stepIntervalMs() {
+    const gs = G.GlobalSettings && G.GlobalSettings.SETTINGS;
+    const base = (gs && Number.isFinite(gs.move_interval_ms)
+      && gs.move_interval_ms > 0)
+      ? gs.move_interval_ms
+      : 140;
     return G.moveIntervalMs
-      ? G.moveIntervalMs(MOVE_INTERVAL_MS,
-        (G.derived(hero) || {}).moveSpeedMult)
-      : MOVE_INTERVAL_MS;
+      ? G.moveIntervalMs(base, (G.derived(hero) || {}).moveSpeedMult)
+      : base;
+  }
+  // База интервала шага БЕЗ «Ловкого шага» (000099): ТОТ ЖЕ guard и
+  // fallback 140, что в stepIntervalMs (копия в синхроне), но без
+  // G.moveIntervalMs — муверы подземелья/города и фабрика мувера не
+  // масштабируются Ловкостью (документированное ограничение
+  // 000066/000067). Значение — в момент вызова.
+  function moveIntervalBase() {
+    const gs = G.GlobalSettings && G.GlobalSettings.SETTINGS;
+    return (gs && Number.isFinite(gs.move_interval_ms)
+      && gs.move_interval_ms > 0)
+      ? gs.move_interval_ms
+      : 140;
   }
 
   // --- Спрайты (src/sprites.js) ---
@@ -238,7 +252,7 @@
   // старт (спавн/сейв), восстановление сейва, побег/смерть из боя.
   const mover = G.createMover
     ? G.createMover({ x: player.x, y: player.y,
-        intervalMs: MOVE_INTERVAL_MS })
+        intervalMs: moveIntervalBase() })
     : null;
   function renderPos(now) {
     if (mover) {
@@ -1046,7 +1060,7 @@
       return;
     }
     const ctx = { map, mapPixels, player, hero, day: clock.day,
-      memory: dungeonMemory, intervalMs: MOVE_INTERVAL_MS };
+      memory: dungeonMemory, intervalMs: moveIntervalBase() };
     const ds = L.maybeEnterDungeon(ctx) || L.maybeEnterCity(ctx);
     if (ds) {
       dungeonState = ds;
@@ -1615,7 +1629,7 @@
         // Тот же хелпер, что maybeEnterDungeon (000068): одна форма
         // состояния (000127: домен — src/locations.js).
         const ds = G.locations.debugEnterDungeon(
-          { map, mapPixels, player, hero, intervalMs: MOVE_INTERVAL_MS },
+          { map, mapPixels, player, hero, intervalMs: moveIntervalBase() },
           terrain);
         if (!ds) return null;
         dungeonState = ds;
