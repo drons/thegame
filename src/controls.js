@@ -270,9 +270,63 @@
     return dy >= 0 ? 'down' : 'up';
   }
 
+  // --- Роутинг тач-ввода (задача 000121) ---
+  //
+  // Единый D-pad (000018) маршрутизирует события в активный экран по
+  // приоритету: бой > подземелье > карта. Решение «какой экран активен»
+  // — чистая функция от СНИМКА оверлеев (клей main.js собирает снимок в
+  // момент события). dialog/building — map-локальные оверлеи (npcUI/
+  // buildingUI): принимаются в снимке, но НЕ ПОТРЕБЛЯЮТСЯ (поведение
+  // при них = как на карте: движение подавит frame-гейт main.js,
+  // [E] → buildingActions.toggle() закроет их сам). Контракт —
+  // memory/000121-touch-dungeon-combat.md, memory/000121-dpad-routing.md.
+
+  // Единая точка маппинга тач→e.code: направления D-pad дают те же
+  // коды, что клавиатура (СТРЕЛКИ — каноничная половина CODE_DIRS;
+  // стрелки и WASD дают один resolveCombatKey-результат — одна
+  // таблица combat-keys.js, дублирования нет), [E] — 'KeyE' (в бою —
+  // «Быстрый предмет», та же ветка, что клавиша). 'inventory' кода
+  // не имеет — [I] НЕ роутится (000123; контракт-гард, а не крах).
+  const TOUCH_KEY_CODES = {
+    up: 'ArrowUp',
+    down: 'ArrowDown',
+    left: 'ArrowLeft',
+    right: 'ArrowRight',
+    interact: 'KeyE',
+  };
+
+  /**
+   * e.code тач-действия — тот же, что у клавиатуры, или null.
+   * @param {'up'|'down'|'left'|'right'|'interact'|string|null} action
+   * @returns {'ArrowUp'|'ArrowDown'|'ArrowLeft'|'ArrowRight'|'KeyE'|null}
+   *          null — для 'inventory'/неизвестных (не роутится)
+   */
+  function touchKeyCode(action) {
+    return TOUCH_KEY_CODES[action] || null;
+  }
+
+  /**
+   * Активный экран для тач-ввода по снимку оверлеев (ЧИСТАЯ функция:
+   * без Game/document/navigator, аргумент не мутирует).
+   * Приоритет (ТЗ 000121): бой > подземелье > карта.
+   * @param {{combat?: boolean, dungeon?: boolean, dialog?: boolean,
+   *          building?: boolean}|null|undefined} screens
+   *   Снимок в МОМЕНТ события. dialog/building — map-локальные
+   *   оверлеи: на результат не влияют.
+   * @returns {'combat'|'dungeon'|'map'}
+   *   Мусор/не-boolean (жёсткие === true) → 'map' — деградация к
+   *   поведению карты, не крах.
+   */
+  function routeTouchScreen(screens) {
+    if (screens && screens.combat === true) return 'combat';
+    if (screens && screens.dungeon === true) return 'dungeon';
+    return 'map';
+  }
+
   return { DIRS, DIR_DELTA, CODE_DIRS, KEY_DIRS,
     moveKeyForEvent, deltaForMoveKey, deltaForEvent,
     TOUCH_ACTIONS, TOUCH_DEADZONE,
     touchMoveKeyForAction, isTouchDevice, chooseControlsScheme,
-    layoutTouchControls, touchActionAt };
+    layoutTouchControls, touchActionAt,
+    TOUCH_KEY_CODES, touchKeyCode, routeTouchScreen };
 });

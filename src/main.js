@@ -842,15 +842,37 @@
     if (G.touchControls) G.touchControls.releaseAll();
   });
 
-  // --- Тач-вариант контролов (задачи 000018, 000123) ---
+  // --- Тач-вариант контролов (задачи 000018, 000123, 000121) ---
   // Чистая часть — в src/controls.js (тестируется в node): детект
-  // устройства по СНИМКУ окружения, выбор схемы, раскладка и хит-тест.
+  // устройства по СНИМКУ окружения, выбор схемы, раскладка и хит-тест,
+  // РОУТИНГ тач-ввода (routeTouchScreen: бой > подземелье > карта;
+  // touchKeyCode: тач-действие → e.code клавиатуры — 000121).
   // On-screen-контролы (D-pad + кнопки [E]/[I]) — в src/ui.js.
   // Схема: 'touch' на тач-устройстве, иначе 'keyboard'; вариант можно
   // переопределить параметром URL ?controls=touch|keyboard (для теста
   // на десктопе и наоборот).
   // 000123: кнопки [E] (действие) и [I] (инвентарь) видны в ОБЕИХ
   // схемах; D-pad — только в 'touch' (флаг dpad в touchControls.init).
+  // 000121: ОДИН D-pad маршрутизируется в активный экран (клей без
+  // состояния, снимок в момент события):
+  //   бой        — тап = ОДНО действие handleCode(code), БЕЗ повтора
+  //                (каждое действие тратит ход); [E] → quickItem (KeyE);
+  //   подземелье — touchHold/touchRelease: тап = шаг, повтор при
+  //                удержании — в rAF-цикле dungeon-ui (move_interval_ms);
+  //                [E] → no-op (кнопка не скрывается);
+  //   карта      — как 000018: виртуальная клавиша 'touch:<dir>' в Set
+  //                keys; [E] → buildingActions.toggle() (диалог/
+  //                постройка закрываются сами — frame-гейт подавляет
+  //                движение, как по клавишам).
+  function touchScreens() {
+    // Снимок активных оверлеев в МОМЕНТ события (контракт 000121).
+    return {
+      combat: !!(G.combatUI && G.combatUI.isActive()),
+      dungeon: !!(G.dungeonUI && G.dungeonUI.isActive()),
+      dialog: !!(G.npcUI && G.npcUI.isActive()),
+      building: !!(G.buildingUI && G.buildingUI.isActive()),
+    };
+  }
   function touchEnvSnapshot() {
     const nav = globalThis.navigator || {};
     let coarse = false;
@@ -871,11 +893,44 @@
   if (G.touchControls) {
     G.touchControls.init({
       dpad: controlsScheme === 'touch', // D-pad только в 'touch' (000123)
-      // Виртуальные «клавиши» 'touch:<dir>' ложатся в тот же Set,
-      // что и настоящие: кадр вызывает tryMove → G.deltaForMoveKey.
-      onHold: (dir) => keys.add('touch:' + dir),
-      onRelease: (dir) => keys.delete('touch:' + dir),
-      onInteract: () => { G.buildingActions && G.buildingActions.toggle(); },
+      // Маршрутизация — чистая routeTouchScreen (controls.js, 000121):
+      // боевой тап = одно действие, подземелье — touchHold (повтор в
+      // rAF dungeon-ui), карта — 'touch:<dir>' в тот же Set keys, что
+      // и настоящие клавиши (кадр вызывает tryMove → deltaForMoveKey).
+      onHold: (dir) => {
+        const screen = G.routeTouchScreen(touchScreens());
+        if (screen === 'combat') {
+          const code = G.touchKeyCode(dir);
+          if (code && G.combatUI) G.combatUI.handleCode(code);
+        } else if (screen === 'dungeon') {
+          if (G.dungeonUI && typeof G.dungeonUI.touchHold === 'function') {
+            G.dungeonUI.touchHold(dir);
+          }
+        } else {
+          keys.add('touch:' + dir);
+        }
+      },
+      // Оба вызова — идемпотентные no-op на «чужом» экране (клей без
+      // отслеживания маршрута: повтор живёт в dungeon-ui и гаснет там).
+      onRelease: (dir) => {
+        if (G.dungeonUI && typeof G.dungeonUI.touchRelease === 'function') {
+          G.dungeonUI.touchRelease(dir);
+        }
+        keys.delete('touch:' + dir);
+      },
+      // [E] по экранам (000121): бой → quickItem (KeyE — та же ветка,
+      // что клавиша), подземелье → no-op, карта → как 000123.
+      onInteract: () => {
+        const screen = G.routeTouchScreen(touchScreens());
+        if (screen === 'combat') {
+          const code = G.touchKeyCode('interact'); // 'KeyE'
+          if (code && G.combatUI) G.combatUI.handleCode(code);
+        } else if (screen === 'dungeon') {
+          // В подземелье действий нет — no-op (кнопка не скрывается).
+        } else {
+          G.buildingActions && G.buildingActions.toggle();
+        }
+      },
       onInventory: () => {
         if (G.playerUI) G.playerUI.toggle(undefined, 'inventory');
       },

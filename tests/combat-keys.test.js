@@ -275,3 +275,35 @@ test('source-регрессия: main.js — ранний return по бою Д�
   assert.ok(earlyReturn < moveKeyHandle,
     'в бою мир не должен получать клавиши движения (задача 000048)');
 });
+
+// ---------------------------------------------------------------------------
+// Маппинг тач→бой (задача 000121): тач-действие даёт ТОТ ЖЕ e.code, что
+// клавиатура (Controls.touchKeyCode, src/controls.js), и коды идут в
+// СУЩЕСТВУЮЩУЮ таблицу COMBAT_KEYS (без дублирования — combat-keys.js
+// не расширяется). Тап D-pad = то же действие, что клавиша.
+// ---------------------------------------------------------------------------
+
+test('маппинг тач→бой: каждое направление D-pad через resolveCombatKey = клавиша (move dx/dy, quickItem) (000121)', () => {
+  for (const dir of Controls.DIRS) {
+    const code = Controls.touchKeyCode(dir);
+    const st = { phase: 'player' };
+    const byTouch = resolveCombatKey(code, st);
+    const byKey = resolveCombatKey('Arrow' + dir[0].toUpperCase() + dir.slice(1), st);
+    const [dx, dy] = Controls.DIR_DELTA[dir];
+    assert.deepEqual(byTouch, { kind: 'move', dx, dy },
+      'тач «' + dir + '» → move (' + dx + ', ' + dy + '): ' + JSON.stringify(byTouch));
+    assert.deepEqual(byTouch, byKey,
+      'тач «' + dir + '» — то же действие, что стрелка (таблица одна)');
+    // Тап = то же действие, что клавиша: дельта виртуальной клавиши
+    // 'touch:<dir>' совпадает с dx/dy боя.
+    const delta = Controls.deltaForMoveKey('touch:' + dir);
+    assert.equal(delta[0], byTouch.dx, dir + ': touch:<dir> dx совпадает');
+    assert.equal(delta[1], byTouch.dy, dir + ': touch:<dir> dy совпадает');
+  }
+  // [E] → KeyE → «Быстрый предмет» (та же ветка, что клавиша).
+  assert.deepEqual(
+    resolveCombatKey(Controls.touchKeyCode('interact'),
+      { phase: 'player', canDo: { ok: true } }),
+    { kind: 'action', action: 'quickItem' },
+    'interact → KeyE → quickItem');
+});

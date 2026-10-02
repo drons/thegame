@@ -2322,3 +2322,206 @@ test('город UI 000105: структурный — dungeon-ui.js НЕ соз
     'dungeon-ui.js не ссылается на createCityLayout '
     + '(layout создаётся в main.js)');
 });
+
+// --- Тач-D-pad: touchHold/touchRelease (задача 000121) ---
+//
+// КРАСНЫЕ (TDD): падают, пока G.dungeonUI.touchHold/touchRelease не
+// существуют. Контракт (memory/000121-touch-dungeon-combat.md, D4):
+//  * тап = ОДИН шаг — тело keydown 1:1 (deltaForMoveKey('touch:'+dir)
+//    → ctx.onMove → render); гарды каждого шага: isActive() +
+//    liveGame().combatUI.isActive() (бой выше по стеке);
+//  * повтор при удержании — в СУЩЕСТВУЮЩЕМ rAF-цикле (hook в tick),
+//    интервал — живое move_interval_ms (000063, дефолт 420 мс);
+//  * сброс состояния в start()/close() — утечек между подземельями нет.
+
+test('подземелье UI: touchHold/touchRelease — тап = один шаг, повтор при удержании (rAF), стоп в бою и после release (000121)', () => {
+  // (а) Тап — ровно ОДИН шаг по направлениям (песочница без rAF —
+  // повтора по определению нет; как существующие тесты 000043).
+  {
+    const { G } = loadDungeonUi();
+    const moves = [];
+    openDungeon(G, moves);
+    const CASES = [
+      ['up', 0, -1], ['down', 0, 1], ['left', -1, 0], ['right', 1, 0],
+    ];
+    for (const [dir, dx, dy] of CASES) {
+      moves.length = 0;
+      G.dungeonUI.touchHold(dir);
+      G.dungeonUI.touchRelease(dir);
+      assert.deepEqual(moves, [[dx, dy]],
+        dir + ' → ровно ОДИН шаг (' + dx + ', ' + dy + '): ' + JSON.stringify(moves));
+    }
+    // Не-направления — onMove не вызывается, без краха.
+    for (const a of ['interact', 'inventory', 'jump', 'nope']) {
+      moves.length = 0;
+      G.dungeonUI.touchHold(a);
+      G.dungeonUI.touchRelease(a);
+      assert.equal(moves.length, 0, a + ': onMove не вызывается');
+    }
+    // После close() — onMove не вызывается (состояние сброшено).
+    G.dungeonUI.close();
+    G.dungeonUI.touchHold('up');
+    assert.equal(moves.length, 0, 'после close — onMove не вызывается');
+  }
+  // (б) До start() — onMove не вызывается (своя песочница).
+  {
+    const { G } = loadDungeonUi();
+    const moves = [];
+    G.dungeonUI.touchHold('up');
+    assert.equal(moves.length, 0, 'до start — onMove не вызывается');
+  }
+  // (в) Повтор при удержании — в rAF-цикле, интервал move_interval_ms
+  // (420 мс, global-settings); touchRelease — стоп.
+  {
+    const rafStubs = makeRafStubs();
+    const T = { t: 1000 };
+    const { G } = loadDungeonUi({
+      performance: { now: () => T.t },
+      requestAnimationFrame: rafStubs.requestAnimationFrame,
+      cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+    });
+    const moves = [];
+    openDungeon(G, moves);
+    G.dungeonUI.touchHold('up');
+    assert.deepEqual(moves, [[0, -1]], 'тап — шаг 1');
+    T.t += 420; // move_interval_ms
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]], 'повтор — шаг 2 (420 мс)');
+    T.t += 419; // ещё не 420 — третьего шага нет
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      'до 420 мс — повтор НЕ наступил');
+    G.dungeonUI.touchRelease('up');
+    T.t += 420;
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      'после touchRelease — повтор остановлен');
+  }
+  // (г) Активный бой выше по стеку — onMove НЕ вызывается, без
+  // console.error (гард каждого шага; боевые действия не выпускаются).
+  {
+    const { G, errors } = loadDungeonUi({ withCombat: true });
+    assert.ok(G.combatUI, 'Game.combatUI создан');
+    const moves = [];
+    openDungeon(G, moves);
+    const c = G.combatUI.startCombat({
+      hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    });
+    assert.ok(c, 'бой создан');
+    assert.equal(G.combatUI.isActive(), true, 'бой активен');
+    G.dungeonUI.touchHold('up');
+    G.dungeonUI.touchRelease('up');
+    assert.equal(moves.length, 0, 'во время боя onMove не вызывается');
+    assert.equal(errors.length, 0,
+      'нет console.error (гард, не крах): ' + JSON.stringify(errors));
+  }
+});
+
+// --- Ревью 000121: touchStepMs() — live move_interval_ms, кламп,
+// фолбэк (ветки, которые R5 покрывала только по пути 420 мс) ---
+//
+// global-settings.js — ПЕРВЫЙ в цепочке песочницы: G.GlobalSettings.
+// SETTINGS — живой объект (000098), перезапись видна touchStepMs()
+// (live-чтение liveGame() в момент вызова). Каждый кейс — своя
+// песочница: чужие тесты не затрагиваются.
+
+test('подземелье UI: touchHold — интервал повтора: live move_interval_ms, кламп ≥ 60, фолбэк 420 (000121, ревью)', () => {
+  // (а) Кастомное move_interval_ms = 100 — повтор через 100 мс
+  // (ЖИВОЕ чтение, не зашитое 420).
+  {
+    const rafStubs = makeRafStubs();
+    const T = { t: 1000 };
+    const { G } = loadDungeonUi({
+      performance: { now: () => T.t },
+      requestAnimationFrame: rafStubs.requestAnimationFrame,
+      cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+    });
+    assert.ok(G.GlobalSettings && G.GlobalSettings.SETTINGS,
+      'GlobalSettings.SETTINGS в песочнице (global-settings.js в цепочке)');
+    G.GlobalSettings.SETTINGS.move_interval_ms = 100;
+    const moves = [];
+    openDungeon(G, moves);
+    G.dungeonUI.touchHold('up');
+    assert.deepEqual(moves, [[0, -1]], 'тап — шаг 1');
+    T.t += 100;
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]], 'повтор — шаг 2 (100 мс)');
+    T.t += 99; // ещё не 100 — третьего шага нет
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      '99 мс — повтор НЕ наступил (интервал 100, не 420)');
+  }
+  // (б) move_interval_ms = 10 — кламп ≥ 60 (MIN_MOVE_INTERVAL_MS).
+  {
+    const rafStubs = makeRafStubs();
+    const T = { t: 1000 };
+    const { G } = loadDungeonUi({
+      performance: { now: () => T.t },
+      requestAnimationFrame: rafStubs.requestAnimationFrame,
+      cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+    });
+    G.GlobalSettings.SETTINGS.move_interval_ms = 10;
+    const moves = [];
+    openDungeon(G, moves);
+    G.dungeonUI.touchHold('up');
+    assert.deepEqual(moves, [[0, -1]], 'тап — шаг 1');
+    T.t += 60; // кламп 60, а не 10
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      'повтор — шаг 2 (кламп 60 мс)');
+    T.t += 59; // 59 < 60 — третьего шага нет
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      '59 мс — повтор НЕ наступил (кламп 60, не 10)');
+  }
+  // (в) Мусор/не-число/≤ 0 — фолбэк 420 (граница 419/420).
+  for (const v of ['junk', 0, -5, NaN]) {
+    const rafStubs = makeRafStubs();
+    const T = { t: 1000 };
+    const { G, errors } = loadDungeonUi({
+      performance: { now: () => T.t },
+      requestAnimationFrame: rafStubs.requestAnimationFrame,
+      cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+    });
+    G.GlobalSettings.SETTINGS.move_interval_ms = v;
+    const moves = [];
+    openDungeon(G, moves);
+    G.dungeonUI.touchHold('up');
+    assert.deepEqual(moves, [[0, -1]],
+      'move_interval_ms=' + String(v) + ': тап — шаг 1');
+    T.t += 419;
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1]],
+      'move_interval_ms=' + String(v) + ': 419 мс — повтора нет');
+    T.t += 1; // итого 420 — фолбэк
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      'move_interval_ms=' + String(v) + ': 420 мс — фолбэк, шаг 2');
+    assert.equal(errors.length, 0,
+      'move_interval_ms=' + String(v) + ': без console.error (деградация)');
+  }
+  // (г) GlobalSettings отсутствует вовсе — фолбэк 420.
+  {
+    const rafStubs = makeRafStubs();
+    const T = { t: 1000 };
+    const { G, errors } = loadDungeonUi({
+      performance: { now: () => T.t },
+      requestAnimationFrame: rafStubs.requestAnimationFrame,
+      cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+    });
+    delete G.GlobalSettings;
+    const moves = [];
+    openDungeon(G, moves);
+    G.dungeonUI.touchHold('up');
+    assert.deepEqual(moves, [[0, -1]], 'тап — шаг 1');
+    T.t += 419;
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1]], '419 мс — повтора нет');
+    T.t += 1;
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      '420 мс — фолбэк (GlobalSettings отсутствует), шаг 2');
+    assert.equal(errors.length, 0,
+      'без console.error (деградация, не крах): ' + JSON.stringify(errors));
+  }
+});
