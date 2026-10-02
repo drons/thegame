@@ -494,10 +494,69 @@
       width: 270px;
       background: rgba(16, 18, 24, 0.85);
     }
-    /* Диалог NPC (задача 000010): оверлей .combat-overlay с панелью
-       .combat-side; длинные списки — прокрутка внутри панели и лога. */
-    .npc-overlay .combat-side { max-height: 84vh; overflow-y: auto; }
-    .npc-log { max-height: 140px; overflow-y: auto; }
+    /* Диалог NPC на весь экран (задача 000125, диалог — 000010):
+       ДЕКЭПЛИНГ от боя — панель СВОЙ класс .npc-panel (не
+       .combat-side), поэтому layout диалога не зависит от геометрии
+       боевой панели при ЛЮБОМ порядке мержей 000124/000125.
+       Оверлей держит .combat-overlay как полноэкранный слой (fixed
+       inset:0, z-20, шрифт) + маркер .npc-overlay (фильтр
+       building-effects и скоуп ниже). Блок — В КОНЦЕ <style>:
+       display: block перебивает flex-center базы .combat-overlay по
+       порядку каскада (прецедент .dungeon-overlay, 000066); тёмный
+       «рамочный» фон базы гасится непрозрачной подложкой.
+       Панель — flex-колонка 100%×100%: заголовок и строка вкладок —
+       фиксированы сверху (вкладки — wrap: 5 подписей впритык при
+       320px), тело .cp-items — основной скролл (flex: 1 +
+       min-height: 0), лог — фиксированная зона внизу (max-height
+       vh, свой скролл; автораскрутка — ui.js). Заголовок — ВЕСЬ
+       экран (кнопка «закрыть» у правого края); колонка контента
+       (вкладки/тело/лог) — max-width 680px по центру (читабельность
+       на широких экранах), фон панели — весь экран. Состав панели
+       и обработчики (npcBuild) не меняются; боевой/подземельный/
+       построечный оверлеи не затрагиваются. Контракт:
+       memory/000125-npc-fullscreen.md. */
+    .npc-overlay {
+      display: block;
+      background: #101418;
+    }
+    .npc-panel {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 14px;
+      background: rgba(16, 18, 24, 0.95);
+    }
+    .npc-panel .cp-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+    .npc-panel > .cp-itemrow {
+      flex: 0 0 auto;
+      flex-wrap: wrap;
+    }
+    .npc-panel .cp-items {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    .npc-panel > .cp-itemrow,
+    .npc-panel .cp-items,
+    .npc-log {
+      width: 100%;
+      max-width: 680px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .npc-log {
+      flex: 0 0 auto;
+      max-height: 30vh;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
