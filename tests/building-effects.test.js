@@ -128,14 +128,14 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   assert.ok(BE.EFFECTS && typeof BE.EFFECTS === 'object',
     'EFFECTS — объект-реестр');
   // Пин «кто смержился первым» (memory/000075-teleport-circles.md):
-  // смержены 000075 ('41') и 000076 ('36'/'37'/'38') — полный НАБОР
-  // ['36', '37', '38', '41']; 000074 ('40', '42') и 000077 ('39')
-  // расширят список при своём мерже (000076 в красных тестах намеренно
-  // не фиксировал набор — правка при ребейзе,
-  // memory/000076-temple-blessings.md).
+  // смержены 000075 ('41'), 000076 ('36'/'37'/'38') и 000074
+  // ('40'/'42') — полный НАБОР ['36', '37', '38', '40', '41', '42'];
+  // 000077 ('39') расширит список при своём мерже (правка при
+  // ребейзе: union, memory/000076-temple-blessings.md /
+  // 000074-rune-stone-obelisk.md).
   assert.deepEqual(Object.keys(BE.EFFECTS).sort(),
-    ['36', '37', '38', '41'],
-    'реестр: 000075 (41) + 000076 (36/37/38)');
+    ['36', '37', '38', '40', '41', '42'],
+    'реестр: 000075 (41) + 000076 (36/37/38) + 000074 (40/42)');
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
     assert.equal(typeof BE.EFFECTS[id].apply, 'function',
@@ -1167,6 +1167,591 @@ test('A28. moonDreamHint: окно ЦЕНТРИРОВАНО на построй�
     assert.deepEqual(h2, { entrance: null, dungeonType: null },
       'вне центрированного окна — не кандидат');
   });
+});
+
+// --- Задача 000074: рунический камень (40) + обелиск (42) ---
+// Контракты: memory/000074-rune-stone-obelisk.md (apply/каталог/
+// детерминизм/сиды) и memory/000074-rune-obelisk.md («уровень мира»
+// = hero.level, квест постройки source 'building', grantXpRaw).
+// Золотые (детерминированный seed-мир, замерено реальным
+// perlin.hash2 по зафиксированным сидам):
+//   * ролл камня на (-25,34) при runes 5 (chance 0.5): день 1 —
+//     провал (0.695932), день 2 — успех (0.499819);
+//   * фрагмент камня (5,7): день 1 — провал (0.994353), день 3 —
+//     успех (0.040535), фрагмент дня 3 — T40[1];
+//   * фрагменты обелиска (80,-51): день 1 — T42[2], день 2 — T42[1],
+//     день 3 — как день 1 (T42[2]); (5,7) день 1 — T42[1].
+// (T40/T42 — каталожные «тексты» 000040/000042, фиксация —
+// memory/000074-rune-stone-obelisk.md.)
+
+// Герой с ядром createCharacter (player.js): реальный derived()
+// (runePowerMult/xpMult) работает без моков; over — merge полей.
+const P = require('../src/player.js');
+function mkHero(over = {}) {
+  return Object.assign(P.createCharacter(), over);
+}
+
+test('A42. реестр: записи камня (40) и обелиска (42); «раз в день» — из каталога', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['40'],
+    'запись 40 в реестре (red: нет до реализации)');
+  assert.ok(BE.EFFECTS['42'], 'запись 42 в реестре');
+  assert.equal(BE.EFFECTS['40'].имя, 'Расшифровать', '40: имя по ТЗ');
+  assert.equal(BE.EFFECTS['42'].имя, 'Прикоснуться', '42: имя по ТЗ');
+  assert.equal(typeof BE.EFFECTS['40'].apply, 'function',
+    '40: apply(state)');
+  assert.equal(typeof BE.EFFECTS['42'].apply, 'function',
+    '42: apply(state)');
+  // «Раз в день» — ИЗ КАТАЛОГА (принцип 000053): реальные записи.
+  const B = require('../src/buildings.js');
+  const c40 = B.getBuilding(40);
+  const c42 = B.getBuilding(42);
+  assert.equal(BE.hasDailyLimit(c40, '40'), true,
+    'каталог 40: раз_в_день → true (red: флага нет)');
+  assert.equal(BE.hasDailyLimit(c42, '42'), true,
+    'каталог 42: раз_в_день → true');
+  // В записях реестра разВДень НЕ ставят — каталог побеждает
+  // (ТЗ: «флаг раз_в_день добавить в каталог»).
+  assert.notEqual(BE.EFFECTS['40'].разВДень, true,
+    '40: разВДень в реестре не ставится (каталог побеждает)');
+  assert.notEqual(BE.EFFECTS['42'].разВДень, true,
+    '42: разВДень в реестре не ставится (каталог побеждает)');
+});
+
+test('A43. каталог 40/42: эффект — ОБЪЕКТ (параметры, тексты, квест) + зеркало buildings.js', () => {
+  const B = require('../src/buildings.js');
+  const p40 = B.getBuilding(40).особые_параметры;
+  const p42 = B.getBuilding(42).особые_параметры;
+  // 40: эффект — объект (конвенция 000075), числа SPEC, навык runes.
+  assert.equal(typeof p40.эффект, 'object',
+    '40: эффект — объект (red: сейчас строка)');
+  assert.equal(p40.эффект.шанс_база, 0.25, '40: шанс_база');
+  assert.equal(p40.эффект.шанс_шаг, 0.05, '40: шанс_шаг');
+  assert.equal(p40.эффект.опыт_база, 10, '40: опыт_база');
+  assert.equal(p40.эффект.опыт_шаг, 2, '40: опыт_шаг');
+  assert.equal(p40.эффект.навык, 'runes', '40: навык — «Рунопись»');
+  assert.ok(Array.isArray(p40.эффект.тексты)
+    && p40.эффект.тексты.length >= 3, '40: тексты ≥ 3');
+  assert.ok(p40.эффект.тексты
+    .every((s) => typeof s === 'string' && s.length > 0),
+    '40: тексты — непустые строки');
+  assert.equal(p40.раз_в_день, true, '40: раз_в_день — true');
+  // Тексты зафиксированы (memory/000074-rune-stone-obelisk.md:
+  // «стадия кода только транслитерирует в JSON»).
+  assert.deepEqual(p40.эффект.тексты, [
+    '…и семь печатей скрепят слово, что не должно было быть сказано…',
+    '…камень помнит руку, что вырезала его в эпоху до карт…',
+    '…число девять повторено трижды — это не совпадение, это приказ…',
+    '…когда руны замолчат — ищите обелиск. Он молчит дольше…',
+    '…флогистон не стихия. флогистон — имя того, кто зажёг первую…',
+    '…тот, кто расшифрует эту запись, получит знание, от которого боги отвели глаза…',
+  ], '40: тексты — зафиксированные (T40)');
+  // 42: эффект — объект; квест — объект формы npc.квесты.
+  assert.equal(typeof p42.эффект, 'object',
+    '42: эффект — объект (red: сейчас строка)');
+  assert.equal(p42.эффект.опыт_база, 5, '42: опыт_база');
+  assert.equal(p42.эффект.опыт_шаг, 2, '42: опыт_шаг');
+  assert.ok(Array.isArray(p42.эффект.тексты)
+    && p42.эффект.тексты.length >= 3, '42: тексты ≥ 3');
+  assert.ok(p42.эффект.тексты
+    .every((s) => typeof s === 'string' && s.length > 0),
+    '42: тексты — непустые строки');
+  assert.equal(p42.раз_в_день, true, '42: раз_в_день — true');
+  assert.deepEqual(p42.эффект.тексты, [
+    '…старый мир держался на трёх обелисках; третий стоит там, где теперь море…',
+    '…наследники Флогистона научились читать камни, но не научились их замолчать…',
+    '…каждое прикосновение к обелиску — вопрос; мир отвечает опытом…',
+    '…карты старейшего архива называют долину «Ртом». Почему — не помнит никто…',
+    '…когда рунические камни замолчали, обелиски продолжили говорить — с теми, кто коснётся…',
+    '…в основание обелиска вложено одно слово на старом наречии: «ждите»…',
+  ], '42: тексты — зафиксированные (T42)');
+  const q = p42.квест;
+  assert.equal(typeof q, 'object',
+    '42: квест — объект (red: отсутствует)');
+  assert.equal(q.id, 'obelisk_touch', '42: квест.id');
+  assert.equal(q.название, 'Камни помнят', '42: квест.название');
+  assert.equal(q.описание,
+    'Обелиск принял твоё прикосновение. Вернись к нему на другой день и коснись ещё раз — тогда память передастся целиком.',
+    '42: квест.описание — зафиксировано');
+  assert.deepEqual(q.цель, { тип: 'прикосновение', количество: 1 },
+    '42: квест.цель');
+  assert.deepEqual(q.награда, { опыт: 25, золото: 20, предметы: [] },
+    '42: квест.награда');
+  // Зеркало src/buildings.js — byte-в-byte с каталогом (000055;
+  // регенерация npm run sync:buildings).
+  const j40 = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'assets', 'buildings', '000040.json'), 'utf8'));
+  const j42 = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'assets', 'buildings', '000042.json'), 'utf8'));
+  assert.deepEqual(B.getBuilding(40), j40, 'зеркало 40: buildings.js ≡ JSON');
+  assert.deepEqual(B.getBuilding(42), j42, 'зеркало 42: buildings.js ≡ JSON');
+});
+
+test('A44. камень: шанс min(1, 0.25 + 0.05·Рунопись) — таблица с капом 1.0', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.stoneChance, 'function',
+    'stoneChance(эффект, R) (red: отсутствует)');
+  const B = require('../src/buildings.js');
+  const eff = B.getBuilding(40).особые_параметры.эффект;
+  assert.equal(BE.stoneChance(eff, 0), 0.25, 'R=0 → 0.25');
+  assert.equal(BE.stoneChance(eff, 5), 0.5, 'R=5 → 0.5');
+  assert.equal(BE.stoneChance(eff, 20), 1, 'R=20 → сырое 1.25 → КАП 1.0');
+});
+
+test('A45. камень: XP round((10 + 2·Рунопись) · runePowerMult); xpMult НЕ применяется', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.stoneXp, 'function',
+    'stoneXp(эффект, R, runePowerMult) (red: отсутствует)');
+  const B = require('../src/buildings.js');
+  const eff = B.getBuilding(40).особые_параметры.эффект;
+  // Учёный 5 → xpMult 1.1 ≠ 1: ошибка «прогнал через addXp/xpMult»
+  // дала бы 11/28/110 — тест падал бы.
+  for (const [R, xp] of [[0, 10], [5, 25], [20, 100]]) {
+    const hero = mkHero({ secondary: { runes: R, scholar: 5 } });
+    assert.equal(BE.stoneXp(eff, R, P.derived(hero).runePowerMult), xp,
+      'R=' + R + ': round(' + (10 + 2 * R) + '·'
+        + (1 + 0.05 * R) + ')');
+  }
+});
+
+test('A46. обелиск: XP round((5 + 2·уровень) · xpMult); «уровень мира» = hero.level', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.obeliskXp, 'function',
+    'obeliskXp(эффект, L, xpMult) (red: отсутствует)');
+  const B = require('../src/buildings.js');
+  const eff = B.getBuilding(42).особые_параметры.эффект;
+  // Фиксирует решение: отдельного «уровня мира» нет — уровень
+  // персонажа (memory/000074-rune-obelisk.md; 000092 — та же
+  // трактовка).
+  for (const [L, scholar, xp] of [[3, 0, 11], [3, 5, 12], [3, 20, 15],
+    [1, 0, 7], [1, 5, 8], [1, 20, 10]]) {
+    const hero = mkHero({ level: L, secondary: { scholar } });
+    assert.equal(BE.obeliskXp(eff, L, P.derived(hero).xpMult), xp,
+      'L=' + L + ', scholar=' + scholar + ': round(' + (5 + 2 * L)
+        + '·' + (1 + 0.02 * scholar) + ')');
+  }
+});
+
+test('A47. ролл/тексты: детерминизм по (tile, day) — две сессии; разные (tile, day) — различаются', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.deterministicRoll, 'function',
+    'deterministicRoll(x, y, day, seed, hash) (red: отсутствует)');
+  assert.equal(typeof BE.pickFragment, 'function',
+    'pickFragment(тексты, x, y, day, seed, hash) (red: отсутствует)');
+  // Свои сид-константы (паттерн TELEPORT_TIE_SEED 000075) —
+  // экспортированы для golden-пинов (B21/B22/B23).
+  assert.equal(BE.STONE_ROLL_SEED, 0x53544e52, 'STONE_ROLL_SEED (STNR)');
+  assert.equal(BE.STONE_TEXT_SEED, 0x53544e54, 'STONE_TEXT_SEED (STNT)');
+  assert.equal(BE.OBELISK_TEXT_SEED, 0x4f424c54, 'OBELISK_TEXT_SEED (OBLT)');
+  const PL = require('../src/perlin.js');
+  const hash = PL.hash2;
+  const texts = ['а', 'б', 'в', 'г', 'д', 'е'];
+  const cases = [[5, 7, 1, BE.STONE_TEXT_SEED],
+    [-25, 34, 2, BE.STONE_TEXT_SEED],
+    [80, -51, 3, BE.OBELISK_TEXT_SEED]];
+  for (const [x, y, day, seed] of cases) {
+    // Формулы зафиксированы контрактом:
+    // roll = hash(x, y, seed ^ day) / 2^32;
+    // фрагмент = тексты[hash(x, y, seed ^ day) % len].
+    const v = BE.deterministicRoll(x, y, day, seed, hash);
+    assert.equal(v, hash(x, y, seed ^ day) / 4294967296,
+      'формула ролла: hash(x, y, seed ^ day) / 2^32');
+    assert.ok(v >= 0 && v < 1, 'ролл ∈ [0, 1)');
+    assert.equal(BE.pickFragment(texts, x, y, day, seed, hash),
+      texts[hash(x, y, seed ^ day) % texts.length],
+      'формула фрагмента: тексты[hash % len]');
+  }
+  // Две независимые сессии (свежий require после очистки кэша) —
+  // тот же фрагмент/ролл по тому же (tile, day).
+  const f1 = (x, y, d, s) => BE.pickFragment(texts, x, y, d, s, hash);
+  const r1 = (x, y, d, s) => BE.deterministicRoll(x, y, d, s, hash);
+  delete require.cache[require.resolve('../src/building-effects.js')];
+  const BE2 = loadBE();
+  for (const [x, y, day, seed] of cases) {
+    assert.equal(f1(x, y, day, seed),
+      BE2.pickFragment(texts, x, y, day, seed, hash),
+      'две сессии — тот же фрагмент');
+    assert.equal(r1(x, y, day, seed),
+      BE2.deterministicRoll(x, y, day, seed, hash),
+      'две сессии — тот же ролл');
+  }
+  // Разные (tile, day) — не все фрагменты совпадают.
+  const frags = new Set();
+  for (let d = 1; d <= 6; d++) {
+    frags.add(BE.pickFragment(texts, 5, 7, d, BE.STONE_TEXT_SEED, hash));
+  }
+  assert.ok(frags.size >= 2, 'разные (tile, day) — фрагменты различаются');
+  // Мусорные входы: пустые/не-массив тексты → null (без исключения).
+  assert.equal(BE.pickFragment([], 5, 7, 1, BE.STONE_TEXT_SEED, hash),
+    null, 'пустые тексты → null');
+  assert.equal(BE.pickFragment('мусор', 5, 7, 1, BE.STONE_TEXT_SEED, hash),
+    null, 'не-массив тексты → null');
+});
+
+test('A48. «раз в день» для 40/42: buildingActions на реальных записях каталога', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const c40 = B.getBuilding(40);
+  const c42 = B.getBuilding(42);
+  // День 1 + марки дня 1 — оба действия сгорели.
+  const used = makeState({ day: 1, tile: { x: 5, y: 7 },
+    save: { buildingOncePerDay: { '5,7:40': 1, '5,7:42': 1 } } });
+  const row40 = BE.buildingActions(c40, null, used)[0];
+  assert.ok(row40,
+    'строка 40 в списке (red: нет записи «40» → список пуст)');
+  assert.equal(row40.id, '40');
+  assert.equal(row40.имя, 'Расшифровать');
+  assert.equal(row40.доступен, false, 'день 1 + марка → недоступно');
+  assert.equal(row40.reason, 'уже использовано сегодня');
+  const row42 = BE.buildingActions(c42, null, used)[0];
+  assert.ok(row42, 'строка 42 в списке');
+  assert.equal(row42.id, '42');
+  assert.equal(row42.имя, 'Прикоснуться');
+  assert.equal(row42.доступен, false, 'день 1 + марка → недоступно');
+  assert.equal(row42.reason, 'уже использовано сегодня');
+  // День 2 — снова доступны (через 000072: марка < день).
+  const next = Object.assign({}, used, { day: 2 });
+  assert.equal(BE.buildingActions(c40, null, next)[0].доступен, true,
+    '40: день 2 → доступно');
+  assert.equal(BE.buildingActions(c42, null, next)[0].доступен, true,
+    '42: день 2 → доступно');
+});
+
+test('A49. apply(«40»): успех — XP + фрагмент + message; провал — попытка сгорела (ok:true); чистота', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['40']
+    && typeof BE.EFFECTS['40'].apply === 'function',
+    'apply(«40») в реестре (red: отсутствует)');
+  const PL = require('../src/perlin.js');
+  const N = require('../src/npc.js');
+  const B = require('../src/buildings.js');
+  const c40 = B.getBuilding(40);
+  const texts = c40.особые_параметры.эффект.тексты;
+  // Реальные Game-функции: perlin.hash2, player.derived,
+  // npc.skillLevel (версия npc.js — для 'runes' та же, что
+  // secondary).
+  const G = { hash2: PL.hash2, derived: P.derived,
+    skillLevel: N.skillLevel };
+  withGame(G, () => {
+    // День-УСПЕХ (golden): (5,7), день 3 — ролл 0.040535 < 0.5
+    // (runes 5 → chance 0.5).
+    const hero = mkHero({ secondary: { runes: 5, scholar: 5 } });
+    const state = makeState({ day: 3, tile: { x: 5, y: 7 }, hero,
+      save: {}, catalog: c40 });
+    const s0 = JSON.parse(JSON.stringify(state));
+    const r = BE.EFFECTS['40'].apply(state);
+    assert.equal(r.ok, true, 'успех — ok:true');
+    assert.equal(r.success, true, 'успех — success:true');
+    assert.equal(r.xp, 25, 'XP = round((10 + 2·5)·1.25) — A45');
+    assert.ok(texts.includes(r.fragment), 'фрагмент — из каталога');
+    assert.equal(r.fragment,
+      '…камень помнит руку, что вырезала его в эпоху до карт…',
+      'golden-фрагмент (5,7) день 3');
+    assert.equal(r.message,
+      'Расшифровка: успех (+25 оп.). «' + r.fragment + '»',
+      'message зафиксирован контрактом');
+    assert.deepEqual(state, s0, 'чистота: state не мутирован');
+    // День-ПРОВАЛ (golden): (5,7), день 1 — ролл 0.994353 ≥ 0.5.
+    const state2 = makeState({ day: 1, tile: { x: 5, y: 7 },
+      hero: mkHero({ secondary: { runes: 5, scholar: 5 } }),
+      save: {}, catalog: c40 });
+    const s2 = JSON.parse(JSON.stringify(state2));
+    const r2 = BE.EFFECTS['40'].apply(state2);
+    assert.equal(r2.ok, true,
+      'провал — ok:true (R3: попытка СГОРЕЛА → ok-ветка main.js '
+      + 'ставит daily-марк + saveNow)');
+    assert.equal(r2.success, false, 'успех — false');
+    assert.equal(r2.xp, undefined, 'провал — без XP');
+    assert.equal(r2.fragment, undefined, 'провал — без фрагмента');
+    assert.equal(r2.message,
+      'Расшифровка: руны молчат — попытка сгорела.',
+      'message провала зафиксирован');
+    assert.deepEqual(state2, s2, 'чистота при провале');
+  });
+  // Деградация (песочница без perlin/player) — «недоступно»
+  // (паттерн A14; в игре функции всегда в цепочке).
+  withGame({}, () => {
+    const r = BE.EFFECTS['40'].apply(makeState({ catalog: c40 }));
+    assert.equal(r.ok, false, 'нет Game-функций — ok:false');
+    assert.equal(r.message, 'недоступно');
+  });
+});
+
+test('A50. apply(«42»): XP по формуле + лор; quest/questComplete — по СНИМКУ buildingQuests', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['42']
+    && typeof BE.EFFECTS['42'].apply === 'function',
+    'apply(«42») в реестре (red: отсутствует)');
+  const PL = require('../src/perlin.js');
+  const B = require('../src/buildings.js');
+  const c42 = B.getBuilding(42);
+  const texts = c42.особые_параметры.эффект.тексты;
+  const G = { hash2: PL.hash2, derived: P.derived };
+  withGame(G, () => {
+    // Пустой снимок — ВЫДАЧА квеста (первое прикосновение).
+    const state = makeState({ day: 1, tile: { x: 5, y: 7 },
+      hero: mkHero({ level: 3, secondary: { scholar: 5 } }),
+      save: {}, catalog: c42 });
+    const s0 = JSON.parse(JSON.stringify(state));
+    const r = BE.EFFECTS['42'].apply(state);
+    assert.equal(r.ok, true);
+    assert.equal(r.xp, 12, 'XP = round((5 + 2·3)·1.1) — A46');
+    assert.ok(texts.includes(r.fragment), 'фрагмент — из каталога');
+    assert.equal(r.fragment,
+      '…наследники Флогистона научились читать камни, но не научились их замолчать…',
+      'golden-фрагмент (5,7) день 1');
+    assert.equal(r.message,
+      'Обелиск: +12 оп. «' + r.fragment + '»',
+      'message зафиксирован контрактом');
+    assert.ok(r.quest, 'пустой снимок — выдача квеста');
+    assert.equal(r.quest.questId, 'obelisk_touch_5_7',
+      'per-tile questId = квест.id + _x_y');
+    assert.equal(r.quest.day, 1, 'quest.day — из state');
+    assert.equal(r.questComplete, undefined, 'выдача — без questComplete');
+    assert.deepEqual(state, s0, 'чистота: state не мутирован');
+    // Активный снимок — ВЫПОЛНЕНИЕ (пёрсистированный questId).
+    const st2 = makeState({ day: 2, tile: { x: 5, y: 7 },
+      hero: mkHero({ level: 3, secondary: { scholar: 5 } }),
+      save: { buildingQuests: {
+        '5,7': { questId: 'obelisk_touch_5_7', day: 1,
+          status: 'active' }, } },
+      catalog: c42 });
+    const s2 = JSON.parse(JSON.stringify(st2));
+    const r2 = BE.EFFECTS['42'].apply(st2);
+    assert.equal(r2.ok, true);
+    assert.equal(r2.xp, 12, 'XP — при каждом прикосновении');
+    assert.equal(r2.questComplete, 'obelisk_touch_5_7',
+      'active → questComplete (пёрсистированный questId)');
+    assert.equal(r2.quest, undefined, 'повторной выдачи нет');
+    assert.deepEqual(st2, s2, 'чистота при выполнении');
+    // Done — ни выдачи, ни выполнения (повторно не выдаётся).
+    const st3 = makeState({ day: 3, tile: { x: 5, y: 7 },
+      hero: mkHero({ level: 3, secondary: { scholar: 5 } }),
+      save: { buildingQuests: {
+        '5,7': { questId: 'obelisk_touch_5_7', day: 1,
+          status: 'done' }, } },
+      catalog: c42 });
+    const r3 = BE.EFFECTS['42'].apply(st3);
+    assert.equal(r3.ok, true);
+    assert.equal(r3.xp, 12);
+    assert.equal(r3.quest, undefined, 'done — повторной выдачи нет');
+    assert.equal(r3.questComplete, undefined, 'done — без выполнения');
+    // Мусорная запись — как done (fail-open: не даёт двойной
+    // награды).
+    const st4 = makeState({ day: 4, tile: { x: 5, y: 7 },
+      hero: mkHero({ level: 3, secondary: { scholar: 5 } }),
+      save: { buildingQuests: { '5,7': { questId: 'x' } } },
+      catalog: c42 });
+    const r4 = BE.EFFECTS['42'].apply(st4);
+    assert.equal(r4.ok, true);
+    assert.equal(r4.quest, undefined, 'мусор — выдачи нет');
+    assert.equal(r4.questComplete, undefined, 'мусор — без выполнения');
+  });
+  // Деградация (паттерн A14).
+  withGame({}, () => {
+    const r = BE.EFFECTS['42'].apply(makeState({ catalog: c42 }));
+    assert.equal(r.ok, false, 'нет Game-функций — ok:false');
+    assert.equal(r.message, 'недоступно');
+  });
+});
+
+test('A51. квест постройки: source «building», лимит 5 NPC + 1 building, выполнение, без ре-выдачи', () => {
+  const N = require('../src/npc.js');
+  const B = require('../src/buildings.js');
+  const I = require('../src/items.js');
+  // npc.js: API квеста постройки (новый source «building»,
+  // аддитивно; ЛОГИКА NPC-квестов — без изменений).
+  assert.equal(typeof N.acceptBuildingQuest, 'function',
+    'acceptBuildingQuest (red: отсутствует)');
+  assert.equal(typeof N.completeBuildingQuest, 'function',
+    'completeBuildingQuest (red: отсутствует)');
+  // Определение — из КАТАЛОГА обелиска (не из npc.квесты).
+  const def = B.getBuilding(42).особые_параметры.квест;
+  assert.ok(def && typeof def === 'object',
+    'каталог 42: квест — объект');
+  const QID = 'obelisk_touch_5_7';
+  const capNpc = {
+    id: 'm',
+    имя: 'Хранителька',
+    постройки: [44],
+    квесты: [1, 2, 3, 4, 5, 6].map((i) => ({
+      id: 'c' + i,
+      название: 'Задание ' + i,
+      описание: 'Простое задание.',
+      цель: { тип: 'kill_group', группа: 0, количество: 1 },
+      награда: { опыт: 5, золото: 5 },
+      предыдущий: null,
+    })),
+  };
+  // Форма инстанса (NPC-квеста): {source:'building', tile, questId,
+  // status, progress, day} — БЕЗ npcId (квест не NPC-инициирован).
+  const book = N.createQuestBook();
+  const acc = N.acceptBuildingQuest(book, QID, '5,7', 3);
+  assert.equal(acc.ok, true, 'выдача — ok');
+  assert.deepEqual(book.active[QID],
+    { source: 'building', tile: '5,7', questId: QID,
+      status: 'active', progress: 0, day: 3 },
+    'форма инстанса зафиксирована (без npcId)');
+  // Повторная выдача, пока active — отказ.
+  assert.equal(N.acceptBuildingQuest(book, QID, '5,7', 4).ok, false,
+    'повторная выдача, пока active — отказ');
+  // serializeQuestBook: building-инстанс НЕ в секцию quests
+  // (R2: deserializeQuestBook строгий); NPC-формы —
+  // байт-идентичны.
+  N.acceptQuest(book, [capNpc], capNpc, 'c1');
+  const s = N.serializeQuestBook(book);
+  assert.deepEqual(Object.keys(s.active), ['c1'],
+    'секция quests — только NPC-инстансы');
+  assert.deepEqual(s.active.c1,
+    { npcId: 'm', questId: 'c1', status: 'active', progress: 0 },
+    'NPC-форма — без изменений');
+  assert.deepEqual(s.done, [], 'done — без изменений');
+  // Лимит: building-квест НЕ считается в MAX_ACTIVE_QUESTS.
+  const book2 = N.createQuestBook();
+  for (let i = 1; i <= 4; i++) {
+    assert.equal(N.acceptQuest(book2, [capNpc], capNpc, 'c' + i).ok,
+      true, 'NPC ' + i + ' — ok');
+  }
+  assert.equal(N.acceptBuildingQuest(book2, 'obelisk_touch_1_2', '1,2', 1).ok,
+    true, '4 NPC + 1 building — ok');
+  assert.equal(N.acceptQuest(book2, [capNpc], capNpc, 'c5').ok, true,
+    '5 NPC + 1 building СОСУЩЕСТВУЮТ (зафиксировано)');
+  assert.equal(N.acceptQuest(book2, [capNpc], capNpc, 'c6').reason,
+    'слишком много активных квестов (5)',
+    '6-й NPC — лимит (NPC-логика без изменений)');
+  // acceptBuildingQuest — БЕЗ лимит-проверки.
+  const book3 = N.createQuestBook();
+  for (let i = 1; i <= 5; i++) {
+    assert.equal(N.acceptQuest(book3, [capNpc], capNpc, 'c' + i).ok,
+      true, 'NPC ' + i + ' — ok');
+  }
+  assert.equal(N.acceptBuildingQuest(book3, 'obelisk_touch_2_3', '2,3', 2).ok,
+    true, '5 NPC + building — ok (лимит-проверки нет)');
+  // Выполнение: награда — золото + XP ШТАТНЫМ addXp (с Учёным).
+  const hero = mkHero({ secondary: { scholar: 5 } }); // gold 100, xp 0
+  const res = N.completeBuildingQuest(book, def, hero, QID);
+  assert.equal(res.ok, true, 'выполнение — ok');
+  assert.equal(book.active[QID], undefined, 'active — удалён');
+  assert.equal(book.done[book.done.length - 1], QID,
+    'done — questId (per-tile)');
+  assert.equal(hero.gold, 120, 'золото +20 (каталожная награда)');
+  assert.equal(hero.xp, 28,
+    'XP — штатный addXp: round(25·1.1) = 28 (Учёный 5)');
+  assert.equal(hero.totalXp, 28, 'totalXp — вестись');
+  assert.deepEqual(res.reward, { xp: 25, gold: 20, items: [] },
+    'reward — каталожный');
+  // Повторное выполнение — отказ.
+  assert.equal(N.completeBuildingQuest(book, def, hero, QID).reason,
+    'квест не в работе', 'повторное выполнение — отказ');
+  // Ре-выдача после done — отказ (повторно не выдаётся).
+  assert.equal(N.acceptBuildingQuest(book, QID, '5,7', 5).ok, false,
+    'done — повторной выдачи нет');
+  // Атомарность предметов: инвентарь полон → НЕ выполняется,
+  // квест остаётся active (повтор — следующее прикосновение;
+  // паттерн turnInQuest, для обелиска — no-op).
+  const heroFull = mkHero({});
+  for (const it of I.allItems()) {
+    if (I.slotCount(heroFull) >= I.INVENTORY_SLOTS) break;
+    I.addItem(heroFull, it.id, 1);
+  }
+  assert.equal(I.slotCount(heroFull), I.INVENTORY_SLOTS,
+    'инвентарь полон');
+  const book4 = N.createQuestBook();
+  const QID4 = 'obelisk_touch_9_9';
+  assert.equal(N.acceptBuildingQuest(book4, QID4, '9,9', 1).ok, true);
+  const defItems = Object.assign({}, def, {
+    награда: { опыт: 10, золото: 5,
+      предметы: [{ предмет: 'moonstone', количество: 1 }] } });
+  const rFull = N.completeBuildingQuest(book4, defItems, heroFull, QID4);
+  assert.equal(rFull.ok, false, 'инвентарь полон — не выполняется');
+  assert.equal(rFull.reason, 'инвентарь полон');
+  assert.ok(book4.active[QID4], 'квест остаётся active (повтор)');
+  assert.equal(heroFull.gold, 100, 'золото не тронуто');
+  assert.equal(heroFull.totalXp, 0, 'XP не тронуто');
+  // Журнал: activeQuests — building-инстанс → quest null (без
+  // краха; ui.js-фолбэк — голый id).
+  const aj = N.activeQuests([capNpc], book2);
+  const bRec = aj.find((r) => r.instance.source === 'building');
+  assert.ok(bRec, 'building-инстанс в списке журнала');
+  assert.equal(bRec.quest, null, 'questDef без npcId — null');
+});
+
+test('A52. сейв buildingQuests: serialize/restore (fail-open) + rehydrateBuildingQuests', () => {
+  const BE = loadBE();
+  const N = require('../src/npc.js');
+  assert.equal(typeof BE.serializeBuildingQuests, 'function',
+    'serializeBuildingQuests (red: отсутствует)');
+  assert.equal(typeof BE.restoreBuildingQuests, 'function',
+    'restoreBuildingQuests (red: отсутствует)');
+  assert.equal(typeof N.rehydrateBuildingQuests, 'function',
+    'rehydrateBuildingQuests (red: отсутствует)');
+  // Roundtrip: Map → объект → Map.
+  const m = new Map([
+    ['5,7', { questId: 'obelisk_touch_5_7', day: 3, status: 'active' }],
+    ['-25,34', { questId: 'obelisk_touch_-25_34', day: 1,
+      status: 'done' }],
+  ]);
+  const s = BE.serializeBuildingQuests(m);
+  assert.deepEqual(s, {
+    '5,7': { questId: 'obelisk_touch_5_7', day: 3, status: 'active' },
+    '-25,34': { questId: 'obelisk_touch_-25_34', day: 1,
+      status: 'done' },
+  }, 'сериализация — plain-объект зафиксированной формы');
+  assert.deepEqual(BE.serializeBuildingQuests(new Map()), {},
+    'пустой Map — {}');
+  const back = BE.restoreBuildingQuests(s);
+  assert.ok(back instanceof Map, 'restore — Map');
+  assert.equal(back.size, 2, 'roundtrip: обе записи');
+  assert.deepEqual(back.get('5,7'),
+    { questId: 'obelisk_touch_5_7', day: 3, status: 'active' });
+  assert.deepEqual(back.get('-25,34'),
+    { questId: 'obelisk_touch_-25_34', day: 1, status: 'done' });
+  // Мусорный раздел (не-объект/массив) — пустой Map БЕЗ исключения
+  // (fail-open 000029; warn делает main.js).
+  for (const junk of ['мусор', [], null, undefined, 42]) {
+    assert.equal(BE.restoreBuildingQuests(junk).size, 0,
+      'мусорный раздел — пустой Map');
+  }
+  // Мусорная ЗАПИСЬ — отброс записи, валидные выживают.
+  const mixed = BE.restoreBuildingQuests({
+    '5,7': { questId: 'q', day: 1, status: 'active' },
+    'junk-key': { questId: 'q', day: 1, status: 'active' },
+    '1,2': { questId: 5, day: 1, status: 'active' },
+    '3,4': { questId: 'q', day: 0, status: 'active' },
+    '6,7': { questId: 'q', day: 1, status: 'nope' },
+    '8,9': { questId: 'q', day: 1 },
+    '10,11': 'мусор',
+  });
+  assert.equal(mixed.size, 1, 'выживает только валидная запись');
+  assert.deepEqual(mixed.get('5,7'), { questId: 'q', day: 1,
+    status: 'active' });
+  // rehydrate: active → журнал; done — НЕ зеркалируется;
+  // идемпотентно (существующий ключ не затирается).
+  const book = N.createQuestBook();
+  const m2 = new Map([
+    ['5,7', { questId: 'q1', day: 1, status: 'active' }],
+    ['1,2', { questId: 'q2', day: 1, status: 'done' }],
+  ]);
+  N.rehydrateBuildingQuests(book, m2);
+  assert.deepEqual(book.active.q1,
+    { source: 'building', tile: '5,7', questId: 'q1',
+      status: 'active', progress: 0, day: 1 },
+    'active — воссоздан в журнале');
+  assert.equal(book.active.q2, undefined, 'done — не зеркалируется');
+  // Идемпотентно: существующий ключ не затирается.
+  book.active.q1.day = 99;
+  N.rehydrateBuildingQuests(book, m2);
+  assert.equal(book.active.q1.day, 99, 'существующий ключ — не затёрт');
+  N.rehydrateBuildingQuests(book, new Map([
+    ['5,7', { questId: 'q1', day: 5, status: 'active' }]]));
+  assert.equal(book.active.q1.day, 99,
+    'повторный вызов с новым Map — тоже не затирает');
+  // Мусорный ввод — без исключений.
+  N.rehydrateBuildingQuests(book, null);
+  N.rehydrateBuildingQuests(book, 'мусор');
+  N.rehydrateBuildingQuests(book, new Map([
+    ['5,7', { questId: 'q1', day: 1 }]])); // битая запись — отброс
+  assert.equal(book.active.q1.day, 99, 'мусор — без изменений');
 });
 
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
@@ -2765,4 +3350,276 @@ test('B20. регрессия храма солнца: «Диалог» с Эл�
     '«Благословение» — доступно (действия независимы)');
   key(h, 'Escape');
   assert.equal(G.buildingUI.isActive(), false);
+});
+
+// --- Задача 000074: камень (40) + обелиск (42) — wiring E2E (B21+) ---
+// Золотые (детерминированный seed-мир, замерено; контракты —
+// memory/000074-rune-stone-obelisk.md):
+//   * камень id 40 — (-25, 34), 71 шаг от спавна (БЛИЖАЙШИЙ);
+//   * обелиск id 42 — (80, -51), 131 шаг (B22/B23 — позиция
+//     PRE-SEED'ом на тайле, паттерн B14; тайл проходим);
+//   * ролл камня (-25,34) при runes 5 (chance 0.5): день 1 — провал
+//     (0.695932), день 2 — успех (0.499819);
+//   * фрагменты: камень (-25,34) день 2 — T40[2]; обелиск (80,-51)
+//     день 1 — T42[2], день 2 — T42[1].
+const STONE_KEY = '-25,34';
+const OBELISK_KEY = '80,-51';
+const OBELISK_QID = 'obelisk_touch_80_-51';
+const STONE_FAIL_MSG = 'Расшифровка: руны молчат — попытка сгорела.';
+const STONE_TEXT_D2 =
+  '…число девять повторено трижды — это не совпадение, это приказ…';
+const OBELISK_TEXT_D1 =
+  '…каждое прикосновение к обелиску — вопрос; мир отвечает опытом…';
+const OBELISK_TEXT_D2 =
+  '…наследники Флогистона научились читать камни, но не научились их замолчать…';
+
+test('B21. камень e2e: [E] «Расшифровать», исход по (tile, day), попытка сгорела, daily-марка, смена дня', async () => {
+  // Позиция PRE-SEED'ом на камне (паттерн B14): ХОД к камню (71 шаг)
+  // при steps_per_day=40 СМЕНИЛ БЫ ДЕНЬ (день 1 → 2) и сломал бы
+  // golden-исходы; pre-seed держит день 1.
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: -25, y: 34 },
+    hero: mkHero({ secondary: { runes: 5, scholar: 5 } }),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  // Голден: ближайший камень — (-25, 34), 71 шаг от спавна (0,0) —
+  // BFS-пин (сценарий достижимости; ходим по сейву, а не шагами).
+  const found = findBuilding(G, myMap, { x: 0, y: 0 }, false,
+    (b) => b.id === 40);
+  assert.ok(found, 'сценарий: достижимый камень (id 40)');
+  assert.equal(found.building.id, 40,
+    'запись резолвлена по buildingId');
+  assert.equal(found.tile.x, -25, 'golden: x камня');
+  assert.equal(found.tile.y, 34, 'golden: y камня');
+  assert.equal(found.steps.length, 71, 'golden: 71 шаг от спавна');
+  assert.equal(g.state.player.x, -25, 'позиция сейва — камень (x)');
+  assert.equal(g.state.player.y, 34, 'позиция сейва — камень (y)');
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  assert.equal(g.state.hero.xp, 0, 'hero: xp 0 до действия');
+  // HUD: «Здесь: рунический камень  ([E] действия)».
+  frameAt(h, NOW + 200);
+  const hudLine = String(h.hud.textContent);
+  assert.ok(hudLine.includes('[E] действия'),
+    'топ-строка «([E] действия)» (red: у 40 нет эффектов → нет '
+    + 'хинта): ' + hudLine);
+  // [E] → оверлей: заголовок, строка «Расшифровать».
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  assert.ok(String(textOf(ov)).toLowerCase().includes('рунический камень'),
+    'заголовок оверлея: ' + textOf(ov));
+  const row = findRow(ov, '40');
+  assert.ok(row, 'строка 40 в оверлее (red: нет записи «40» → строки нет)');
+  assert.ok(textOf(row).includes('Расшифровать'),
+    'имя строки: «Расшифровать»');
+  assert.equal(row.disabled, false, 'день 1 — доступно');
+  // Digit1 — ДЕНЬ 1: ПРОВАЛ (golden-ролл 0.695932 ≥ 0.5): message,
+  // XP нет, НО попытка сгорела (ok:true) — daily-марка + saveNow.
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes(STONE_FAIL_MSG),
+    'hudFlash — message провала: ' + hud1);
+  assert.equal(g.state.hero.xp, 0, 'провал — XP не изменился');
+  const saveF = readSave(h);
+  assert.ok(saveF, 'saveNow — сразу после действия');
+  assert.equal(saveF.data.hero.totalXp, 0, 'провал — totalXp нет');
+  assert.equal(saveF.data.buildingOncePerDay[STONE_KEY + ':40'], 1,
+    'провал — попытка сгорела: daily-марка (R3)');
+  // Повтор в тот же день — disabled.
+  key(h, 'KeyE');
+  const rowSame = findRow(findOverlay(h), '40');
+  assert.equal(rowSame.disabled, true, 'в тот же день — disabled');
+  assert.ok(textOf(rowSame).includes('уже использовано сегодня'),
+    'reason «уже использовано сегодня»: ' + textOf(rowSame));
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
+  // День 2 — доступно (golden-ролл 0.499819 < 0.5 — успех).
+  g.actions.setDay(2);
+  key(h, 'KeyE');
+  const row2 = findRow(findOverlay(h), '40');
+  assert.equal(row2.disabled, false, 'день 2 — доступно');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 600);
+  const hud2 = String(h.hud.textContent);
+  assert.ok(hud2.includes('Расшифровка: успех (+25 оп.)'),
+    'hudFlash — успех + XP: ' + hud2);
+  assert.ok(hud2.includes(STONE_TEXT_D2),
+    'hudFlash: фрагмент из каталога (golden день 2): ' + hud2);
+  assert.equal(g.state.hero.xp, 25,
+    'XP = 25 = round((10 + 2·5)·1.25) (A45; НЕ 28 — xpMult не '
+    + 'применяется)');
+  const saveS = readSave(h);
+  assert.equal(saveS.data.hero.totalXp, 25,
+    'totalXp — вестись (R4: grantXpRaw — зеркало addXp)');
+  assert.equal(saveS.data.buildingOncePerDay[STONE_KEY + ':40'], 2,
+    'марка → день 2');
+});
+
+test('B22. обелиск e2e: «Прикоснуться» — XP + лор + выдача квеста (source «building»)', async () => {
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 80, y: -51 },
+    hero: mkHero({ level: 3, secondary: { scholar: 5 } }),
+    quests: { active: {}, done: [] },
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, 80, 'позиция сейва — обелиск (x)');
+  assert.equal(g.state.player.y, -51, 'позиция сейва — обелиск (y)');
+  assert.equal(myMap.tileAt(80, -51).buildingId, 42,
+    'на тайле — обелиск');
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  assert.ok(String(textOf(ov)).toLowerCase().includes('обелиск'),
+    'заголовок оверлея: ' + textOf(ov));
+  const row = findRow(ov, '42');
+  assert.ok(row, 'строка 42 в оверлее (red: нет записи «42» → строки нет)');
+  assert.ok(textOf(row).includes('Прикоснуться'),
+    'имя строки: «Прикоснуться»');
+  assert.equal(row.disabled, false, 'день 1 — доступно');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 200);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('Обелиск: +12 оп.'),
+    'hudFlash: XP = round((5 + 2·3)·1.1) = 12 (A46): ' + hud1);
+  assert.ok(hud1.includes(OBELISK_TEXT_D1),
+    'hudFlash: лор-фрагмент (голен день 1): ' + hud1);
+  assert.ok(hud1.includes('Квест получен: Камни помнят'),
+    'hudFlash: выдача квеста (название из каталога): ' + hud1);
+  assert.equal(g.state.hero.xp, 12,
+    'XP = 12 (Учёный 5 действует на формулу обелиска)');
+  // Раздел сейва: buildingQuests — source of truth (имя — 000072).
+  const save1 = readSave(h);
+  assert.deepEqual(save1.data.buildingQuests[OBELISK_KEY],
+    { questId: OBELISK_QID, day: 1, status: 'active' },
+    'buildingQuests: запись active (red: раздела нет)');
+  assert.equal(save1.data.buildingOncePerDay[OBELISK_KEY + ':42'], 1,
+    'daily-марка');
+  // Журнал: инстанс source «building»…
+  const inst = g.quests.active.find((i) => i.questId === OBELISK_QID);
+  assert.ok(inst, 'журнал: активный building-инстанс');
+  assert.equal(inst.source, 'building', 'source «building»');
+  assert.equal(inst.tile, OBELISK_KEY, 'tile «x,y»');
+  // …но НЕ в секции quests сейва (R2: deserialize строгий).
+  assert.deepEqual(save1.data.quests, { active: {}, done: [] },
+    'секция quests — только NPC-инстансы (building не пишется)');
+  // Повтор в тот же день — disabled; день 2 — доступно, квест
+  // по-прежнему active.
+  key(h, 'KeyE');
+  assert.equal(findRow(findOverlay(h), '42').disabled, true,
+    'в тот же день — disabled');
+  key(h, 'Escape');
+  g.actions.setDay(2);
+  key(h, 'KeyE');
+  assert.equal(findRow(findOverlay(h), '42').disabled, false,
+    'день 2 — доступно');
+  key(h, 'Escape');
+  assert.ok(g.quests.active.some(
+    (i) => i.questId === OBELISK_QID && i.status === 'active'),
+    'квест по-прежнему active на день 2');
+});
+
+test('B23. квест постройки e2e: выполнение → done, награда, без ре-выдачи; rehydrate на restore; «будущий» день отброшен', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    position: { x: 80, y: -51 },
+    hero: mkHero({ level: 3, secondary: { scholar: 5 } }),
+    buildingQuests: {
+      [OBELISK_KEY]: { questId: OBELISK_QID, day: 1,
+        status: 'active' },
+      // «Будущий» день (гигиена 000029): rehydrate не воссоздаёт,
+      // на restore отброшен.
+      '1,2': { questId: 'obelisk_touch_1_2', day: 99,
+        status: 'active' },
+    },
+    quests: { active: {}, done: [] },
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, 80, 'позиция — обелиск');
+  // rehydrate: building-инстанс воссоздан из buildingQuests
+  // (в секции quests его НЕТ — R2).
+  const inst0 = g.quests.active.find((i) => i.questId === OBELISK_QID);
+  assert.ok(inst0, 'rehydrate: активный инстанс после restore');
+  assert.equal(inst0.source, 'building', 'source «building»');
+  assert.ok(!g.quests.active.some((i) => i.questId === 'obelisk_touch_1_2'),
+    '«будущий» день (99 > 2) — отброшен, не rehydrated');
+  const gold0 = g.state.hero.gold; // createCharacter: 100
+  assert.equal(gold0, 100, 'золото до действия');
+  assert.equal(g.state.hero.xp, 0, 'xp 0 до действия');
+  // Прикосновение (день 2): марки дня 1 НЕ блокируют.
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  assert.equal(findRow(findOverlay(h), '42').disabled, false,
+    'день 2 — доступно');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 200);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('Обелиск: +12 оп.'),
+    'hudFlash: XP касания: ' + hud1);
+  assert.ok(hud1.includes(
+    'Квест выполнен: Камни помнят (+25 оп., +20 з.)'),
+    'hudFlash: выполнение квеста (награда из каталога): ' + hud1);
+  assert.equal(g.state.hero.xp, 40,
+    'XP = 12 (касание) + 28 (round(25·1.1) — награда ШТАТНЫМ addXp, '
+    + 'Учёный действует на награду)');
+  assert.equal(g.state.hero.gold, gold0 + 20, 'золото +20 (каталог)');
+  const save1 = readSave(h);
+  assert.deepEqual(save1.data.buildingQuests[OBELISK_KEY],
+    { questId: OBELISK_QID, day: 1, status: 'done' },
+    'buildingQuests → done');
+  assert.ok(save1.data.quests.done.includes(OBELISK_QID),
+    'журнал done: questId (per-tile)');
+  assert.deepEqual(save1.data.quests.active, {}, 'active — пусто');
+  assert.ok(save1.data.buildingQuests['1,2'] == null,
+    '«будущий» день — не в сейве (отброшен на restore)');
+  // День 3: третье касание — XP снова, квест НЕ повторно.
+  g.actions.setDay(3);
+  key(h, 'KeyE');
+  assert.equal(findRow(findOverlay(h), '42').disabled, false,
+    'день 3 — доступно');
+  key(h, 'Digit1');
+  assert.equal(g.state.hero.xp, 52, 'третье касание: +12 (без награды)');
+  assert.equal(g.state.hero.gold, gold0 + 20, 'повторной награды нет');
+  const save2 = readSave(h);
+  assert.deepEqual(save2.data.buildingQuests[OBELISK_KEY],
+    { questId: OBELISK_QID, day: 1, status: 'done' },
+    'buildingQuests не изменился');
+  assert.deepEqual(save2.data.quests.done, [OBELISK_QID],
+    'done не растёт');
+  assert.deepEqual(save2.data.quests.active, {}, 'active — пусто');
+  // ТЭЙЛ: перезагрузка — квест НЕ выдан повторно (done держится).
+  const h2 = await boot(save2);
+  const g2 = h2.sandbox.__game;
+  assert.equal(h2.errors.length, 0,
+    'перезагрузка: ошибок нет: ' + h2.errors.join('; '));
+  assert.ok(!g2.quests.active.some((i) => i.questId === OBELISK_QID),
+    'перезагрузка: активного инстанса нет');
+  assert.deepEqual(g2.quests.active, [], 'перезагрузка: журнал пуст');
+  assert.ok(g2.quests.done.includes(OBELISK_QID),
+    'перезагрузка: done держится');
+  const save3 = readSave(h2);
+  assert.deepEqual(save3.data.buildingQuests[OBELISK_KEY],
+    { questId: OBELISK_QID, day: 1, status: 'done' },
+    'перезагрузка: раздел не изменился');
+  assert.ok(save3.data.buildingQuests['1,2'] == null,
+    'перезагрузка: «будущей» записи нет');
 });
