@@ -1047,3 +1047,367 @@ test('000081 e2e: цепочка грузится чисто; отладочны
   assert.deepEqual(Object.keys(st).sort(), ['level', 'skills', 'xp'],
     'форма {level, xp, skills} (000085)');
 });
+
+// --- Задача 000110: города на глобальной карте (footprint w×h,
+// спрайты городов, HUD-имя) ---
+//
+// ТЗ (tasks/pending/000110.md): город виден на карте как footprint
+// (механизм 000042, расширение на 7×7), а не одним спрайтом на
+// входном тайле; HUD-имя — уже в master (000105/000129, пин —
+// tests/hud.js.test.js HU-C1), здесь — рендер и спрайты.
+//
+// Корень RED: проход 2 drawSprites (main.js) для городского якоря
+// берёт G.buildingSprite(rec.type), у городов type = NONE → null →
+// skip; в sprites.js нет селектора городских спрайтов
+// (CITY_SPRITES/citySprite), файлов assets/sprites/cities/ нет —
+// cityDraws пуст, и expectedCities падает на отсутствующем
+// G.citySprite (нет функции — осмысленное падение, не синтаксис).
+//
+// Город НЕ слот (000103: свой канал, building = NONE, buildingId
+// 51..54) — слотовая отрисовка и её тесты (000042) НЕ меняются:
+// cityDraws фильтрует ТОЛЬКО assets/sprites/cities/, buildingDraws —
+// только assets/sprites/buildings/.
+//
+// Хелперы новые (старые — findNearestMulti/expectedBuildings/recOf/
+// buildingDraws — БЕЗ ИЗМЕНЕНИЙ). recOf НЕ подходит для городов:
+// он зажат в 3×3, города — до 7×7; источник геометрии —
+// myMap.buildingAt(ax, ay) (тот же, что у buildingRec в main.js,
+// 000042: запись раскладывала мир — один источник footprint'а).
+//
+// ЛОВУШКА (memory/000103-city-channel.md устарела после 000105):
+// исключения city-входов из findNearestMulti/expectedBuildings НЕ
+// снимать — сняв их, старые walk-тесты шагнут на городской вход,
+// откроют экран города (maybeEnterCity) и зависнут (guard !inDungeon
+// блокирует world-движение). Городские тесты получают СОБСТВЕННЫЙ
+// BFS (cityRoute/walkToCity) — входы городов в нём препятствия.
+//
+// Сценарии (координаты вычислены исполнением на реальной цепочке —
+// фолбэчный мир generateSeedPixels, фикс. сид; спавн (0,0),
+// ZOOM_START = 80, view 1280×720):
+//   * MV-C1 — столица 54: якорь (−84,−48), 7×7, вход (−81,−42).
+//     Цель (−86,−47) — ближайший по BFS тайл, из которого весь
+//     7×7-footprint в кадре (133 шага; диапазон видимости
+//     −95..−78 × −52..−42 ⊇ bbox). В кадре ровно ОДИН город.
+//   * MV-C2 — один walk до (21,−14) (35 шагов): в кадре
+//     ОДНОВРЕМЕННО деревня 52 (якорь (20,−16), 2×2, вход (21,−15))
+//     и хутор 51 (якорь (19,−12), 1×1, вход = якорь). Кадр
+//     12..29 × −19..−9. Анти-«штамп»: «один общий спрайт 5×5/7×7
+//     для всех городов» провалит мультимножественное равенство.
+//
+// Камера: экспоненциальное сглаживание τ≈74.7 мс (G.cameraStep),
+// цель — центр тайла игрока (player+0.5); после 4 осадочных кадров
+// ×200 мс ошибка < 3e-3 тайла — границы диапазона видимости
+// стабильны (гвард bbox-в-диапазоне даёт явное сообщение).
+// День в песочнице не ассертим (133 шага = 3 смены дня; onDay
+// безопасен: saveNow no-op без localStorage).
+
+// drawImage-вызовы городских спрайтов (по метке __asset, каталог
+// assets/sprites/cities/ — новый, город НЕ слот).
+function cityDraws(calls) {
+  return calls.filter((c) => c[0] === 'drawImage'
+    && c[1][0]
+    && typeof c[1][0].__asset === 'string'
+    && c[1][0].__asset.startsWith('assets/sprites/cities/'));
+}
+
+// Ожидаемые городские drawImage кадра: якоря — по видимым тайлам
+// (t.inBuilding && t.buildingId != null && t.building = NONE —
+// фильтр по NONE ОБЯЗАТЕЛЕН: у слотовых якорей 8..12 тоже есть
+// buildingId (подтип, 000073), но это не города). Запись — из
+// myMap.buildingAt(ax, ay) (НЕ recOf: он зажат в 3×3). Каждый
+// видимый город — ровно ОДИН w×h-прямоугольник ОТ ЯКОРЯ: позиция
+// G.worldToScreen(rec.x, rec.y), размер w*zoom × h*zoom (те же
+// формулы, что у слотовых построек, main.js проход 2).
+// asset — G.citySprite(rec.buildingId); RED: функции нет — падение
+// TypeError «G.citySprite is not a function» (символ отсутствует).
+function expectedCities(G, myMap, cam, zoom) {
+  const range = G.visibleTileRange(cam.x, cam.y, VIEW_W, VIEW_H, zoom);
+  const anchors = new Map();
+  for (let ty = range.y0; ty <= range.y1; ty++) {
+    for (let tx = range.x0; tx <= range.x1; tx++) {
+      const t = myMap.tileAt(tx, ty);
+      if (!t.inBuilding) continue;
+      if (t.buildingId == null) continue;
+      if (t.building !== G.BUILDING_TYPES.NONE) continue;
+      if (!t.buildingAnchor) continue;
+      const k = t.buildingAnchor[0] + ',' + t.buildingAnchor[1];
+      if (anchors.has(k)) continue;
+      anchors.set(k, myMap.buildingAt(t.buildingAnchor[0],
+        t.buildingAnchor[1]));
+    }
+  }
+  const out = [];
+  for (const rec of anchors.values()) {
+    if (!rec) continue;
+    const asset = G.citySprite(rec.buildingId);
+    if (!asset) continue;
+    const p = G.worldToScreen(rec.x, rec.y, cam.x, cam.y, zoom,
+      VIEW_W, VIEW_H);
+    out.push({
+      asset,
+      x: p.x, y: p.y,
+      w: rec.w * zoom, h: rec.h * zoom,
+    });
+  }
+  return out;
+}
+
+// BFS до ЯВНОЙ цели (в отличие от findNearestMulti — своей, не
+// трогаем её). Правила — как у игрока (4 направления, только
+// passable). Препятствия (и НЕ цели):
+//   * тайлы групп мобов — startCombat остановит мир в песочнице;
+//   * входы пещер — maybeEnterDungeon;
+//   * ВСЕ городские входы — шаг на них открывает экран города
+//     (maybeEnterCity, 000105), guard !inDungeon остановит
+//     world-движение → walk зависнет. Предикат: hasBuilding +
+//     buildingId != null + building = NONE (слотовые входы —
+//     building ≠ NONE — проходимы, тест 000042 ходит на вход храма).
+// Целевой тайл — СНАРУЖИ footprint'а города.
+function cityRoute(G, myMap, start, goal) {
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const key = (x, y) => x + ',' + y;
+  const visited = new Set([key(start.x, start.y)]);
+  const prev = new Map();
+  let frontier = [start];
+  for (let depth = 0; depth < 400 && frontier.length; depth++) {
+    const next = [];
+    for (const cur of frontier) {
+      for (const [dx, dy] of DIRS) {
+        const nx = cur.x + dx, ny = cur.y + dy;
+        const k = key(nx, ny);
+        if (visited.has(k)) continue;
+        const t = myMap.tileAt(nx, ny);
+        if (!t.passable || t.hasMobGroup) continue;
+        if (t.hasBuilding
+            && t.building === G.BUILDING_TYPES.CAVE_ENTRANCE) continue;
+        if (t.hasBuilding && t.buildingId != null
+            && t.building === G.BUILDING_TYPES.NONE) continue;
+        visited.add(k);
+        prev.set(k, key(cur.x, cur.y));
+        if (nx === goal.x && ny === goal.y) {
+          // Восстановление пути: тайлы от цели к спавну.
+          const steps = [];
+          let kk = k;
+          while (kk !== key(start.x, start.y)) {
+            const [px, py] = kk.split(',').map(Number);
+            steps.unshift([px, py]);
+            kk = prev.get(kk);
+          }
+          return steps;
+        }
+        next.push({ x: nx, y: ny });
+      }
+    }
+    frontier = next;
+  }
+  return null;
+}
+
+// Ход игрока до ЯВНОЙ цели — протокол ТОЧНО как walkToMulti:
+// на каждый шаг keydown(направление) → кадры по +200 мс, ПОКА игрок
+// фактически не перешёл (tryMove — в frame при now−lastMove ≥
+// stepMs = 420 мс; один кадр хода не гарантирует) → keyup; лимит
+// 10 кадров/шаг; в конце 4 осадочных кадра (глейд мувера + сглажение
+// камеры завершаются). cam/zoom — из __game.state ПОСЛЕ кадра
+// (точность без терпимости на схождение).
+function walkToCity(h, goal) {
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const spawn = { x: g.state.player.x, y: g.state.player.y };
+  const steps = cityRoute(G, myMap, spawn, goal);
+  assert.ok(steps,
+    'сценарий: цель (' + goal.x + ',' + goal.y
+    + ') достижима городским BFS');
+  assert.ok(steps.length > 0, 'сценарий: путь до цели не пуст');
+  let now = NOW;
+  let calls = null;
+  for (let i = 0; i < steps.length; i++) {
+    const [fx, fy] = i === 0 ? [spawn.x, spawn.y] : steps[i - 1];
+    const [tx, ty] = steps[i];
+    const dx = tx - fx, dy = ty - fy;
+    assert.ok(Math.abs(dx) + Math.abs(dy) === 1,
+      'BFS: шаг по соседнему тайлу');
+    const code = dx === 1 ? 'ArrowRight' : dx === -1 ? 'ArrowLeft'
+      : dy === 1 ? 'ArrowDown' : 'ArrowUp';
+    const e = { code, preventDefault() {} };
+    for (const fn of h.winListeners['keydown'] || []) fn(e);
+    let guard = 0;
+    do {
+      now += 200;
+      calls = frameAt(h, now);
+    } while ((g.state.player.x !== tx || g.state.player.y !== ty)
+      && ++guard < 10);
+    for (const fn of h.winListeners['keyup'] || []) fn(e);
+    assert.ok(g.state.player.x === tx && g.state.player.y === ty,
+      'сценарий: игрок не перешёл на (' + tx + ',' + ty + ') за '
+      + guard + ' кадров (движение заблокировано?)');
+  }
+  for (let i = 0; i < 4; i++) {
+    now += 200;
+    calls = frameAt(h, now);
+  }
+  return { calls, steps };
+}
+
+test('000110 MV-C1: столица 7×7 — footprint отрисован: все 49 тайлов, без выхода за bbox, не 1×1 на входе', async () => {
+  const h = await boot(new Set());
+  // Цель (−86,−47): ближайший по BFS тайл, из которого весь
+  // 7×7-footprint столицы в кадре (133 шага).
+  const goal = { x: -86, y: -47 };
+  const { calls, steps } = walkToCity(h, goal);
+  const g = h.sandbox.__game;
+  const st = g.state;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  // (a) Сценарные гварды: игрок на цели, путь = 133 шага (падение
+  // с сообщением, если мир/генерация сместится).
+  assert.deepEqual({ x: st.player.x, y: st.player.y }, goal,
+    'игрок дошёл до цели (−86,−47) (walk-протокол работает)');
+  assert.equal(steps.length, 133,
+    'сценарий: путь до столицы = 133 шага (если мир сместился — '
+    + 'тест обязан упасть: факт ' + steps.length + ')');
+  const rec = myMap.buildingAt(-84, -48);
+  assert.ok(rec && rec.buildingId === 54
+      && rec.type === G.BUILDING_TYPES.NONE
+      && rec.x === -84 && rec.y === -48 && rec.w === 7 && rec.h === 7
+      && rec.entrance[0] === -81 && rec.entrance[1] === -42,
+    'сценарий: столица 54 — якорь (−84,−48), 7×7, вход (−81,−42)');
+  // (b) Гвард: bbox footprint'а (−84..−78 × −48..−42) — внутри
+  // видимого диапазона (49/49 тайлов при zoom 80).
+  const range = G.visibleTileRange(st.cam.x, st.cam.y, VIEW_W,
+    VIEW_H, st.zoom);
+  assert.ok(range.x0 <= rec.x && range.x1 >= rec.x + rec.w - 1
+      && range.y0 <= rec.y && range.y1 >= rec.y + rec.h - 1,
+    'сценарий: bbox столицы (' + rec.x + '..' + (rec.x + rec.w - 1)
+    + ' × ' + rec.y + '..' + (rec.y + rec.h - 1) + ') внутри '
+    + JSON.stringify(range) + ' (cam ' + st.cam.x + ',' + st.cam.y
+    + ', zoom ' + st.zoom + ')');
+  assert.ok(tileDraws(calls).length > 0, 'текстуры тайлов на месте');
+  // (c) Мультимножественное равенство: каждый видимый город — ровно
+  // ОДИН draw w×h от якоря, без лишнего, без пропусков. RED:
+  // expectedCities падает на отсутствующем G.citySprite.
+  const expected = expectedCities(G, myMap, st.cam, st.zoom);
+  assert.ok(expected.length >= 1,
+    'сценарий: в кадре есть городской якорь (найдено '
+    + expected.length + ')');
+  assertBuildingsEqual(cityDraws(calls), expected, 'footprint столицы');
+  // (d) Ровно ОДИН draw city_54 в worldToScreen(−84,−48) размером
+  // 7z×7z.
+  const asset = G.citySprite(54);
+  const p = G.worldToScreen(rec.x, rec.y, st.cam.x, st.cam.y,
+    st.zoom, VIEW_W, VIEW_H);
+  const atAnchor = cityDraws(calls).filter(([, a]) =>
+    a[0].__asset === asset
+    && Math.abs(a[1] - p.x) < EPS && Math.abs(a[2] - p.y) < EPS
+    && Math.abs(a[3] - rec.w * st.zoom) < EPS
+    && Math.abs(a[4] - rec.h * st.zoom) < EPS);
+  assert.equal(atAnchor.length, 1,
+    'спрайт столицы — ровно ОДИН раз на якоре (−84,−48) 7z×7z');
+  // (e) Объединение прямоугольников cityDraws (мировые координаты —
+  // инверсия worldToScreen) покрывает ВСЕ 49 тайлов bbox и НЕ
+  // выходит за него. (В кадре ровно один город — столица.)
+  const covered = new Set();
+  let stray = 0;
+  for (const [, a] of cityDraws(calls)) {
+    const wx0 = st.cam.x + (a[1] - VIEW_W / 2) / st.zoom;
+    const wy0 = st.cam.y + (a[2] - VIEW_H / 2) / st.zoom;
+    const wx1 = wx0 + a[3] / st.zoom;
+    const wy1 = wy0 + a[4] / st.zoom;
+    // Прямой угол — в угловом тайле (draw ОТ ЯКОРЯ, по сетке).
+    const gx0 = Math.round(wx0), gy0 = Math.round(wy0);
+    const gx1 = Math.round(wx1), gy1 = Math.round(wy1);
+    assert.ok(Math.abs(wx0 - gx0) < 0.01 && Math.abs(wy0 - gy0) < 0.01
+        && Math.abs(wx1 - gx1) < 0.01 && Math.abs(wy1 - gy1) < 0.01,
+      'городский draw по сетке тайлов (угол в угловом тайле): '
+      + wx0.toFixed(4) + ',' + wy0.toFixed(4) + ' '
+      + a[3].toFixed(2) + '×' + a[4].toFixed(2));
+    for (let tx = gx0; tx < gx1; tx++) {
+      for (let ty = gy0; ty < gy1; ty++) {
+        if (tx < rec.x || tx >= rec.x + rec.w
+            || ty < rec.y || ty >= rec.y + rec.h) stray++;
+        covered.add(tx + ',' + ty);
+      }
+    }
+  }
+  assert.equal(stray, 0,
+    'городские draw НЕ выходят за bbox столицы (' + stray
+    + ' тайла(ов) за границей)');
+  let missing = 0;
+  for (let tx = rec.x; tx < rec.x + rec.w; tx++) {
+    for (let ty = rec.y; ty < rec.y + rec.h; ty++) {
+      if (!covered.has(tx + ',' + ty)) missing++;
+    }
+  }
+  assert.equal(missing, 0,
+    'footprint столицы покрыт: все 49 тайлов bbox нарисованы '
+    + '(не покрыто ' + missing + ')');
+  // (f) НОЛЬ city-draw по старой 1×1-формуле (0.92·zoom в
+  // pe + 0.04·zoom) на входном тайле (−81,−42).
+  const pe = G.worldToScreen(rec.entrance[0], rec.entrance[1],
+    st.cam.x, st.cam.y, st.zoom, VIEW_W, VIEW_H);
+  const atOldEntrance = cityDraws(calls).filter(([, a]) =>
+    Math.abs(a[1] - (pe.x + st.zoom * 0.04)) < EPS
+    && Math.abs(a[2] - (pe.y + st.zoom * 0.04)) < EPS
+    && Math.abs(a[3] - st.zoom * 0.92) < EPS
+    && Math.abs(a[4] - st.zoom * 0.92) < EPS);
+  assert.equal(atOldEntrance.length, 0,
+    'старая 1×1-формула на тайле входа города не используется');
+});
+
+test('000110 MV-C2: деревня 2×2 и хутор 1×1 — footprint отрисован ТОЧНО (анти-«штамп»)', async () => {
+  const h = await boot(new Set());
+  // ОДИН walk до (21,−14) (35 шагов): в кадре одновременно деревня
+  // 52 (якорь (20,−16), 2×2, вход (21,−15)) и хутор 51 (якорь
+  // (19,−12), 1×1, вход = якорь) — отдельный walk к хутору не нужен.
+  const goal = { x: 21, y: -14 };
+  const { calls, steps } = walkToCity(h, goal);
+  const st = h.sandbox.__game.state;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.deepEqual({ x: st.player.x, y: st.player.y }, goal,
+    'игрок дошёл до цели (21,−14) (walk-протокол работает)');
+  assert.equal(steps.length, 35,
+    'сценарий: путь = 35 шагов (если мир сместился — тест обязан '
+    + 'упасть: факт ' + steps.length + ')');
+  const v = myMap.buildingAt(20, -16);
+  const f = myMap.buildingAt(19, -12);
+  assert.ok(v && v.buildingId === 52 && v.w === 2 && v.h === 2
+      && v.entrance[0] === 21 && v.entrance[1] === -15,
+    'сценарий: деревня 52 — якорь (20,−16), 2×2, вход (21,−15)');
+  assert.ok(f && f.buildingId === 51 && f.w === 1 && f.h === 1
+      && f.entrance[0] === 19 && f.entrance[1] === -12,
+    'сценарий: хутор 51 — якорь (19,−12), 1×1, вход = якорь');
+  const range = G.visibleTileRange(st.cam.x, st.cam.y, VIEW_W,
+    VIEW_H, st.zoom);
+  assert.ok(range.x0 <= 19 && range.x1 >= 21 && range.y0 <= -16
+      && range.y1 >= -12,
+    'сценарий: деревня и хутор в кадре ' + JSON.stringify(range)
+    + ' (cam ' + st.cam.x + ',' + st.cam.y + ')');
+  const expected = expectedCities(G, myMap, st.cam, st.zoom);
+  assert.ok(expected.some((e) => e.w === 2 * st.zoom
+      && e.h === 2 * st.zoom),
+    'сценарий: деревня 2×2 в кадре');
+  assert.ok(expected.some((e) => e.w === st.zoom && e.h === st.zoom),
+    'сценарий: хутор 1×1 в кадре');
+  assertBuildingsEqual(cityDraws(calls), expected, 'деревня + хутор');
+  // Деревня: ровно ОДИН draw 2z×2z ОТ ЯКОРЯ (20,−16) — без
+  // перелива на соседние тайлы.
+  const pv = G.worldToScreen(v.x, v.y, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const vDraws = cityDraws(calls).filter(([, a]) =>
+    Math.abs(a[1] - pv.x) < EPS && Math.abs(a[2] - pv.y) < EPS
+    && Math.abs(a[3] - 2 * st.zoom) < EPS
+    && Math.abs(a[4] - 2 * st.zoom) < EPS);
+  assert.equal(vDraws.length, 1,
+    'деревня — ровно 4 тайла: ОДИН draw 2z×2z от якоря (20,−16)');
+  // Хутор: ровно ОДИН draw 1z×1z ОТ ЯКОРЯ (19,−12) — 1 тайл.
+  const pf = G.worldToScreen(f.x, f.y, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const fDraws = cityDraws(calls).filter(([, a]) =>
+    Math.abs(a[1] - pf.x) < EPS && Math.abs(a[2] - pf.y) < EPS
+    && Math.abs(a[3] - st.zoom) < EPS
+    && Math.abs(a[4] - st.zoom) < EPS);
+  assert.equal(fDraws.length, 1,
+    'хутор — ровно 1 тайл: ОДИН draw 1z×1z от якоря (19,−12)');
+});

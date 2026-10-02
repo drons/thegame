@@ -134,6 +134,82 @@ test('постройки: у каждого типа есть иконка, фа
   assert.equal(S.buildingSprite(999), null);
 });
 
+// --- Задача 000110: спрайты городов — отдельный канал ---
+//
+// Город НЕ слот (000103: свой канал, type = BUILDING_TYPES.NONE,
+// buildingId 51..54) — BUILDING_SPRITES (13 слотов) не расширяется
+// (контракт слотов; citySprite(0..12) → null). Новые 4 SVG по типу
+// города (хутор/деревня/город/столица — ids 51..54 каталога
+// assets/buildings) — assets/sprites/cities/city_<id>.svg; таблица
+// CITY_SPRITES — ЛИТЕРАЛ в sprites.js (паттерн BUILDING_SPRITES:
+// нет require каталога при загрузке — vm-песочница без buildings.js
+// работает), селектор citySprite(buildingId) — чистая функция
+// (NONE/нецелое/неизвестное/слот-ид → null). Пути — в
+// allAssetPaths (иначе main.js не поставит SVG в очередь загрузки).
+//
+// Стадия красных тестов: CITY_SPRITES/citySprite в sprites.js и 4
+// файла assets/sprites/cities/ ещё не существуют — тесты падают
+// (нет символа/файла), не синтаксически.
+
+const CITIES_DIR = 'assets/sprites/cities/';
+const { getBuildingsByCategory } = require('../src/buildings.js');
+
+test('SP-C1: городские спрайты — все 4 типа каталога (категория «город») → путь к существующему SVG; NONE/неизвестное/нецелое/слот-ид → null', () => {
+  const cities = getBuildingsByCategory('город');
+  assert.equal(cities.length, 4,
+    'сценарий: в каталоге ровно 4 типа городов');
+  assert.equal(typeof S.citySprite, 'function',
+    'src/sprites.js: нет селектора citySprite() (город — канал, '
+    + 'отдельный от слотовых buildingSprite)');
+  for (const c of cities) {
+    const p = S.citySprite(c.id);
+    assert.ok(p, `нет городского спрайта для «${c.название}» (id ${c.id})`);
+    assert.ok(p.startsWith(CITIES_DIR),
+      `путь в каталоге ${CITIES_DIR}: ${p}`);
+    assert.ok(exists(p), `нет файла: ${p}`);
+  }
+  assert.equal(S.citySprite(BUILDING_TYPES.NONE), null,
+    'NONE (−1) → null (не город)');
+  assert.equal(S.citySprite(999), null, 'неизвестный id → null');
+  assert.equal(S.citySprite(51.5), null, 'нецелое → null');
+  assert.equal(S.citySprite('51'), null, 'строка → null');
+  for (let s = 0; s < buildingCount(); s++) {
+    assert.equal(S.citySprite(s), null,
+      `слотовый id ${s} → null (слоты — свой канал)`);
+  }
+});
+
+test('SP-C2: городские спрайты — 4 РАЗНЫХ пути в assets/sprites/cities/, CITY_SPRITES ≡ каталогу, все 4 в allAssetPaths', () => {
+  const cities = getBuildingsByCategory('город');
+  assert.ok(S.CITY_SPRITES && typeof S.CITY_SPRITES === 'object',
+    'src/sprites.js: нет таблицы CITY_SPRITES (литерал по образцу '
+    + 'BUILDING_SPRITES)');
+  // Ключи ≡ id типов городов каталога (source of truth —
+  // getBuildingsByCategory, не хардкод 51..54).
+  assert.deepEqual(
+    Object.keys(S.CITY_SPRITES).map(Number).sort((a, b) => a - b),
+    cities.map((c) => c.id).sort((a, b) => a - b),
+    'ключи CITY_SPRITES ≠ id городов каталога');
+  const paths = cities.map((c) => S.CITY_SPRITES[c.id]);
+  assert.ok(paths.every((p) => typeof p === 'string'
+    && p.startsWith(CITIES_DIR) && p.endsWith('.svg')),
+    'все пути — assets/sprites/cities/*.svg');
+  assert.equal(new Set(paths).size, 4,
+    '4 типа → 4 РАЗНЫХ файла (не «один штамп для всех»); '
+    + 'дубли: ' + JSON.stringify(paths));
+  // Таблица ≡ селектору (один источник для обоих).
+  for (const c of cities) {
+    assert.equal(S.CITY_SPRITES[c.id], S.citySprite(c.id),
+      'CITY_SPRITES[' + c.id + '] ≠ citySprite(' + c.id + ')');
+  }
+  // Очередь загрузчика: все 4 пути в allAssetPaths (иначе main.js
+  // их не загрузит — draw не отрисовался бы).
+  const all = S.allAssetPaths();
+  for (const p of paths) {
+    assert.ok(all.includes(p), `путь не в allAssetPaths: ${p}`);
+  }
+});
+
 // --- Детерминизм выбора (не зависит от загрузки) ---
 
 test('выбор спрайтов детерминирован и не зависит от факта загрузки', () => {
@@ -1107,6 +1183,43 @@ test('vm: MobGroupsData ДО загрузки sprites.js — виды из ка�
   loadInSandbox('sprites.js', sandbox);
   assert.equal(sandbox.Game.mobKind(0), 'spider', 'вид из каталога');
   assert.equal(sandbox.Game.mobKind(1), null, 'вне каталога — null');
+});
+
+// --- Задача 000110 (SP-C3): citySprite без каталога (vm-минимальная
+// цепочка perlin→map→sprites, без buildings.js — паттерн теста
+// «vm без каталога mob_groups» выше). Таблица CITY_SPRITES — ЛИТЕРАЛ
+// (не require/данные каталога): загрузка ЧИСТА (0 console.error),
+// селектор работает по литералу. ---
+
+test('SP-C3: vm без каталога (perlin→map→sprites): citySprite — литерал, загрузка чистая (0 console.error)', () => {
+  const errors = [];
+  const sandbox = {
+    console: {
+      error: (m) => errors.push(String(m)),
+      warn: () => {},
+      log: () => {},
+    },
+  };
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('sprites.js', sandbox);
+  assert.equal(errors.length, 0,
+    'загрузка sprites.js без buildings.js — чистая (нет require/'
+    + 'каталога при загрузке): ' + errors.join('; '));
+  const G = sandbox.Game;
+  assert.equal(typeof G.citySprite, 'function',
+    'citySprite есть в vm-realm (таблица-литерал, не каталог)');
+  assert.equal(G.citySprite(51), 'assets/sprites/cities/city_51.svg',
+    '51 → хутор (из литерала, без каталога)');
+  assert.equal(G.citySprite(52), 'assets/sprites/cities/city_52.svg',
+    '52 → деревня');
+  assert.equal(G.citySprite(53), 'assets/sprites/cities/city_53.svg',
+    '53 → город');
+  assert.equal(G.citySprite(54), 'assets/sprites/cities/city_54.svg',
+    '54 → столица');
+  assert.equal(G.citySprite(BUILDING_TYPES.NONE), null, 'NONE → null');
+  assert.equal(G.citySprite(999), null, 'неизвестный id → null');
+  assert.equal(G.citySprite(0), null, 'слотовый id → null');
 });
 
 // --- Тайлы пола подземелья (задача 000069) ---
