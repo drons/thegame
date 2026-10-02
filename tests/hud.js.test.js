@@ -245,6 +245,26 @@ test('HU3. buildingNameHint (000073/000103/000105): имя/хинт постро
     { name: 'храм солнца', hint: '' });
 });
 
+// Задача 000110: HUD-имя — ВСЕ 4 типа городов (ТЗ «4 типа»).
+// Реализация — в master с 000105/000129 (buildingNameHint: имя из
+// название_карты каталога, первая буква в нижнем; хинт «(вход —
+// шагните)» — категория «город»); HU3 пинит 51/53 — HU-C1 докрывает
+// все 4 типа (51..54) как пин покрытия. hereLine→buildLine вызван
+// только на тайле входа (hasBuilding) — «имя + подсказка на тайле
+// входа» — ровно по ТЗ; экран города (000105) — не здесь.
+test('HU-C1. buildingNameHint: все 4 типа городов (51..54) — имя каталога + хинт «(вход — шагните)» (задача 000110)', () => {
+  const hud = require('../src/hud.js');
+  const g = makeGame();
+  assert.deepEqual(hud.buildingNameHint(g, { building: -1, buildingId: 51 }),
+    { name: 'хутор', hint: ' (вход — шагните)' });
+  assert.deepEqual(hud.buildingNameHint(g, { building: -1, buildingId: 52 }),
+    { name: 'деревня', hint: ' (вход — шагните)' });
+  assert.deepEqual(hud.buildingNameHint(g, { building: -1, buildingId: 53 }),
+    { name: 'город', hint: ' (вход — шагните)' });
+  assert.deepEqual(hud.buildingNameHint(g, { building: -1, buildingId: 54 }),
+    { name: 'столица', hint: ' (вход — шагните)' });
+});
+
 test('HU4. buildLine(ctx) — побайтовый снимок строки HUD; update: setShop ДО textContent (задача 000129)', () => {
   const hud = require('../src/hud.js'); // RED: MODULE_NOT_FOUND
 

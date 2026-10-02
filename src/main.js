@@ -1242,8 +1242,14 @@
       const same = (t) => t.inBuilding && t.buildingAnchor &&
         t.buildingAnchor[0] === ax && t.buildingAnchor[1] === ay;
       let w = 1, hgt = 1;
-      while (w < (G.BUILD_MAX_W || 3) && same(tileCache.tile(ax + w, ay))) w++;
-      while (hgt < (G.BUILD_MAX_H || 3) && same(tileCache.tile(ax, ay + hgt))) hgt++;
+      // Окно фолбэк-скана — по текущему максимуму footprint'а
+      // (000055: константы стали функциями buildMaxW()/buildMaxH();
+      // города — до 7×7, 000103). memory/000042: `undefined || 3`
+      // совпадало случайно — правка обязательна.
+      while (w < (G.buildMaxW ? G.buildMaxW() : (G.BUILD_MAX_W || 3))
+           && same(tileCache.tile(ax + w, ay))) w++;
+      while (hgt < (G.buildMaxH ? G.buildMaxH() : (G.BUILD_MAX_H || 3))
+           && same(tileCache.tile(ax, ay + hgt))) hgt++;
       return { anchor: [ax, ay], type: t0.building,
                x: ax, y: ay, w, h: hgt,
                entrance: [ax, ay], wealth: 0 };
@@ -1294,7 +1300,17 @@
       const ay = Number(key.slice(sep + 1));
       const rec = buildingRec(ax, ay);
       if (!rec) continue;
-      const img = spriteLoader.image(G.buildingSprite(rec.type));
+      // Спрайт: слотовая ветка — первична (побайтово как раньше).
+      // Город (задача 000110) — НЕ слот: у него type = NONE
+      // (buildingSprite → null), спрайт — по каталожному buildingId
+      // (CITY_SPRITES, канал 000103). typeof-гард: старый sprites.js
+      // без citySprite — город не рисуется (тихая деградация, игра
+      // не падает); слотовые якоря 8..12 в деградации городской
+      // спрайт не наденут (citySprite(подтип) → null).
+      const asset = G.buildingSprite(rec.type) ||
+        (rec.buildingId != null && typeof G.citySprite === 'function'
+         ? G.citySprite(rec.buildingId) : null);
+      const img = spriteLoader.image(asset);
       if (!img) continue;
       const p = toPt(rec.x, rec.y);
       s2.drawImage(img, p.x, p.y, rec.w * zoom, rec.h * zoom);

@@ -245,6 +245,21 @@
     [BUILDING_TYPES.NPC_HOUSE]: 'assets/sprites/buildings/npc_house.svg',
   };
 
+  // Спрайты городов (задача 000110): город НЕ слот (000103 — свой
+  // канал, type = BUILDING_TYPES.NONE, buildingId 51..54) — отдельная
+  // таблица, ЛИТЕРАЛЬНОЕ зеркало каталога по категории «город»
+  // (ключи — id каталожных записей 51..54; синхрон с каталогом
+  // закрывает тест tests/sprites.test.js SP-C2). Отдельный каталог
+  // assets/sprites/cities/ — фильтр buildings/ (префикс) и byte-level
+  // пины 000042 остаются нетронутыми. Один SVG на тип: хутор 1×1,
+  // деревня 2×2, город 5×5, столица 7×7 (viewBox = 64·w × 64·w).
+  const CITY_SPRITES = {
+    51: 'assets/sprites/cities/city_51.svg',
+    52: 'assets/sprites/cities/city_52.svg',
+    53: 'assets/sprites/cities/city_53.svg',
+    54: 'assets/sprites/cities/city_54.svg',
+  };
+
   // --- Декорации тайлов (задача 000021) ---
   //
   // Небольшие графические объекты поверх текстуры тайла: травинки,
@@ -512,6 +527,21 @@
     return BUILDING_SPRITES[buildingType] || null;
   }
 
+  /**
+   * Спрайт города (путь) по id каталожной записи (задача 000110):
+   * город НЕ слот (000103: type = NONE, buildingId 51..54) — канал,
+   * отдельный от buildingSprite (слоты 0..12). Чистая функция;
+   * NONE/нецелое/неизвестное/слотовый id → null (рендерер skip'ает
+   * спрайт, как buildingSprite(NONE)).
+   * @param {number} buildingId id каталожной записи (map.js:
+   *   rec.buildingId городского якоря)
+   * @returns {string|null} путь в assets/sprites/cities/ или null
+   */
+  function citySprite(buildingId) {
+    if (!Number.isInteger(buildingId)) return null;
+    return CITY_SPRITES[buildingId] || null;
+  }
+
   /** Кадры анимации Флогистона для действия idle|walk|attack|cast. */
   function phlogistonFrames(action) {
     return PHLOGISTON_ACTIONS[action] || [];
@@ -643,6 +673,8 @@
       for (const a of MOB_ART_ACTIONS) paths.push(...mobArtFrames(mobId, a));
     }
     paths.push(...Object.values(BUILDING_SPRITES));
+    // Города (задача 000110): 4 спрайта по типу (отдельный канал).
+    paths.push(...Object.values(CITY_SPRITES));
     for (const v of VISUALS) paths.push(v.спрайт);
     // Фоны боя (задача 000049): 11 файлов из двух карт + фолбэк.
     for (const k of Object.values(COMBAT_BG_TERRAIN)) {
@@ -779,6 +811,7 @@
     MOB_SPRITE_KINDS, mobSpriteKind,
     MOB_ART_DIR, MOB_ART_FRAME_COUNTS, MOB_ART_ACTIONS, mobArtFrames,
     BUILDING_SPRITES,
+    CITY_SPRITES,
     COMBAT_BG_DIR, COMBAT_BG_TERRAIN, COMBAT_BG_DUNGEON, COMBAT_BG_FALLBACK,
     combatBackground,
     OBSTACLE_DIR, OBSTACLE_SPRITES, obstacleSprite,
@@ -792,7 +825,8 @@
     WAVE_PERIOD_MS, WATER_FRAME_COUNT,
     wavePhase, waterTileFrame,
     frameIndex, waterFrame,
-    tileFrames, mobKind, mobFrames, buildingSprite, phlogistonFrames,
+    tileFrames, mobKind, mobFrames, buildingSprite, citySprite,
+    phlogistonFrames,
     efirFrames,
     tileVisuals, visualDrawRect,
     allAssetPaths,
