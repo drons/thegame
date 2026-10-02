@@ -160,7 +160,11 @@ function standNextTo(c, u) {
 
 test('состав группы: 2-6 мобов, уровень персонажа ±3', () => {
   const p = createCharacter(); // уровень 1
-  for (const [type, recipe] of Object.entries(GROUP_RECIPES)) {
+  // 000077: в GROUP_RECIPES строковый ключ 'BUILDING_BOSS' —
+  // итерируем ТОЛЬКО ЧИСЛОВЫЕ (каталожные) типы: Number('BUILDING_BOSS')
+  // = NaN → createCombat бросил бы «неизвестный тип группы».
+  for (const [type, recipe] of Object.entries(GROUP_RECIPES)
+    .filter(([type]) => String(type) === String(Number(type)))) {
     const c = createCombat({ player: p, groupType: Number(type), seed: 7 });
     const mobs = c.units;
     assert.ok(mobs.length >= 2 && mobs.length <= 6,
@@ -860,7 +864,10 @@ test('единый источник: SETTINGS.combat_difficulty задаёт с�
 test('баланс: разумно сильный герой побеждает ВСЕ стандартные группы на medium', () => {
   // Герой уровня группы (levelDeltaMax: 0), разумная игра (autoPlay):
   // поддержка первой, все удары, блок в конце хода.
-  for (const [type, recipe] of Object.entries(GROUP_RECIPES)) {
+  // 000077: только ЧИСЛОВЫЕ (каталожные) ключи — «стандартные =
+  // 7 каталожных»; боссовый рецепт BUILDING_BOSS — вне «всех групп».
+  for (const [type, recipe] of Object.entries(GROUP_RECIPES)
+    .filter(([type]) => String(type) === String(Number(type)))) {
     for (const seed of [1, 2, 3, 4, 5]) {
       const p = midGameHero();
       const c = createCombat({
@@ -881,7 +888,10 @@ test('баланс: разумно сильный герой побеждает 
 });
 
 test('баланс: безопасная зона (мобы -3 к герою) на medium — тоже победа', () => {
-  for (const [type, recipe] of Object.entries(GROUP_RECIPES)) {
+  // 000077: только ЧИСЛОВЫЕ ключи (боссовый состав НЕ заносить
+  // молча в «все группы»).
+  for (const [type, recipe] of Object.entries(GROUP_RECIPES)
+    .filter(([type]) => String(type) === String(Number(type)))) {
     // Кастомный состав рецепта с фиксированным уровнем мобов = герой - 3
     // (безопасные локации по SPEC: дельта ближе к -N).
     let mobs = recipe.mobs.slice();
@@ -3126,4 +3136,46 @@ test('000076: детерминизм — buffMods НЕ потребляет c._r
   };
   assert.deepEqual(runBuffed(), runBuffed(),
     'баффовый прогон — бит-в-бит (сид + сценарий)');
+});
+
+// --- 000077: рецепт босса постройки (строковый ключ — не каталог) ---
+
+test('C1. BUILDING_BOSS: рецепт босса (1–3 troll) + регрессия 7 каталожных групп', () => {
+  // Строковый ключ — легален (контракт 000077 R-2): каталог
+  // mob_groups ЗАПРЕЩЁН схемой 000057 (id 1..7, «число» 2..6,
+  // спрайт-enum); «8-я группа в каталоге» тоже запрещена —
+  // mobGroupCount() 7→8 ломает генерацию карт (hash2 % N).
+  // Рецепт живёт в КОДЕ, за GROUP_RECIPES.
+  const r = GROUP_RECIPES.BUILDING_BOSS;
+  assert.ok(r, 'GROUP_RECIPES.BUILDING_BOSS — рецепт босса (red: нет)');
+  assert.equal(typeof r.name, 'string', 'name — string');
+  assert.ok(Array.isArray(r.mobs) && r.mobs.length >= 1,
+    'mobs — массив id');
+  for (const id of r.mobs) {
+    assert.ok(MOB_TYPES[id], 'mobs: «' + id + '» ∈ MOB_TYPES');
+  }
+  assert.deepEqual(r.count, [1, 3],
+    'count [1,3] (каталожные 2..6 — не для босса)');
+  // Регрессия: 7 КАТАЛОЖНЫХ рецептов (0..6) НЕ ИЗМЕНЕНЫ — ≡
+  // каталогу (защита от случайной переделки при добавлении
+  // строкового ключа).
+  const MOB_GROUPS_DIR = path.join(__dirname, '..', 'assets', 'mob_groups');
+  const files = fs.readdirSync(MOB_GROUPS_DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort()
+    .map((f) => JSON.parse(
+      fs.readFileSync(path.join(MOB_GROUPS_DIR, f), 'utf8')));
+  assert.equal(files.length, 7, 'каталог: ровно 7 групп');
+  for (let i = 0; i < 7; i++) {
+    const rec = GROUP_RECIPES[i], f = files[i];
+    assert.equal(rec.name, f.состав.название,
+      `тип ${i}: recipe.name ≠ каталогу`);
+    assert.deepEqual(rec.mobs, f.состав.мобы,
+      `тип ${i}: состав мобов ≠ каталогу`);
+    if ('число' in f.состав) {
+      assert.deepEqual(rec.count, f.состав.число,
+        `тип ${i}: count ≠ каталогу`);
+    } else {
+      assert.equal(rec.count, undefined, `тип ${i}: лишнее count`);
+    }
+  }
 });
