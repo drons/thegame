@@ -293,30 +293,35 @@
     }
   }
 
-  window.addEventListener('keydown', (e) => {
-    if (!isActive()) return;
+  // Единый путь «code → действие боя» (задача 000121): клавиатурный
+  // keydown и тач-D-pad (controls.js touchKeyCode) проходят через ОДИН
+  // и тот же код — единая таблица src/combat-keys.js, без дублирования.
+  // Тап D-pad = ОДИН вызов handleCode — БЕЗ повтора при удержании
+  // (в бою каждое действие тратит ход; удержание повторять нельзя).
+  function handleCode(code) {
+    if (!isActive()) return false;
     const c = ctx.combat;
-    let handled = true;
-    if (e.code === 'Escape') {
+    let consumed = true;
+    if (code === 'Escape') {
       // Закрыть оверлей можно только когда бой закончен.
       if (c.result) finish();
     } else if (c.result) {
       // Закрытие — Space/Enter (ветка ДО таблицы: Space=«конец хода»
       // конфликтовать с Space=«закрыть» не может). Прочие клавиши после
-      // боя не «проглатываем» (handled=false) — на геймплей не влияет,
+      // боя не «проглатываем» (consumed=false) — на геймплей не влияет,
       // main.js всё равно ранним return'ит, пока оверлей открыт.
-      if (e.code === 'Space' || e.code === 'Enter') finish();
-      else handled = false;
+      if (code === 'Space' || code === 'Enter') finish();
+      else consumed = false;
     } else {
       // Единая таблица (src/combat-keys.js, задача 000048): движение и
       // действия. Снимок для resolveCombatKey: canDo — результат
       // canDoAction именно для действия этой клавиши (000037).
-      const entry = G.CombatKeys.COMBAT_KEYS[e.code];
+      const entry = G.CombatKeys.COMBAT_KEYS[code];
       const st = { phase: c.phase, result: c.result };
       if (entry && entry.type === 'action') {
         st.canDo = G.canDoAction(c, entry.action, { targetId: c.targetId });
       }
-      const r = G.CombatKeys.resolveCombatKey(e.code, st);
+      const r = G.CombatKeys.resolveCombatKey(code, st);
       if (r.kind === 'move') {
         // playerMove само проверяет ход/блок/шаги/стену/моба и
         // возвращает reason — в журнал, а не тишина (задача 000048).
@@ -328,13 +333,17 @@
           runAction(c, r.action);
         }
       } else {
-        handled = false;
+        consumed = false;
       }
     }
-    if (handled) {
+    if (consumed) render();
+    return consumed;
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (handleCode(e.code)) {
       e.preventDefault();
       e.stopPropagation();
-      render();
     }
   });
 
@@ -837,5 +846,8 @@
     },
     isActive,
     current,
+    // Единый путь «code → действие боя» (задача 000121): клавиатура
+    // (keydown выше) и тач-D-pad (main.js → touchKeyCode → handleCode).
+    handleCode,
   };
 })();

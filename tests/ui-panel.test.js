@@ -500,9 +500,19 @@ test('CSS: .char-panel — top/left/right, bottom ≥ 56px, НЕТ width; z-inde
   const zF = parseFloat(cssRule(html, 'fs-btn')['z-index']);
   assert.ok(Number.isFinite(zP) && Number.isFinite(zF),
     'z-index задан у .char-panel и .fs-btn');
-  assert.equal(zP, 10, 'z-index .char-panel = 10 (лестница 5/10/15/20)');
+  assert.equal(zP, 10, 'z-index .char-panel = 10 (лестница 10/15/20/30)');
   assert.equal(zF, 15, 'z-index .fs-btn = 15');
   assert.ok(zP < zF, 'z-index .char-panel < z-index .fs-btn');
+  // 000121: #touch-controls — выше оверлеев боя/подземелья (20):
+  // D-pad/кнопки не перекрываются (лестница 10/15/20/30).
+  const mT = html.match(/#touch-controls\s*{([^}]*)}/);
+  assert.ok(mT, 'CSS-правило #touch-controls найдено в index.html');
+  const zT = parseFloat((mT[1].match(/z-index:\s*([\d.]+)/) || [])[1]);
+  assert.ok(Number.isFinite(zT), '#touch-controls: z-index задан');
+  assert.equal(zT, 30, 'z-index #touch-controls = 30 (лестница 10/15/20/30)');
+  const zO = parseFloat(cssRule(html, 'combat-overlay')['z-index']);
+  assert.ok(zT > zO,
+    'z-index #touch-controls выше оверлеев боя/подземелья (20)');
 });
 
 // --- КРАСНЫЕ: [Esc] закрывает панель (document keydown) ---

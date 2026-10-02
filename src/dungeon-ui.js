@@ -194,6 +194,66 @@
     render();
   });
 
+  // --- Тач-D-pad (задача 000121): тап = один шаг, удержание = повтор ---
+  //
+  // keydown выше — БУКВАЛЬНО НЕ ТРОНУТ: тач — параллельный источник
+  // ввода, тело шага — ОТОБРАЖЕНИЕ keydown 1:1 без события
+  // (deltaForMoveKey('touch:'+dir) → ctx.onMove → render). Повтор при
+  // удержании — в СУЩЕСТВУЮЩЕМ rAF-цикле (hook в tick): setInterval в
+  // vm-песочнице отсутствует, rAF/performance-стабы уже есть. Интервал
+  // — глобальная настройка move_interval_ms (000063, ЖИВОЕ чтение,
+  // дефолт 420, кламп ≥ 60). Гарды НА КАЖДЫЙ шаг (тап и повтор):
+  // оверлей активен + бой НЕ активен выше по стеку (паттерн keydown) —
+  // бой начался во время удержания → повтор СТОПТИТСЯ, боевые действия
+  // НЕ выпускаются (в бою каждое действие тратит ход — игрок тапает).
+  // Контракт: memory/000121-touch-dungeon-combat.md (D4).
+  let touchHoldDir = null; // удерживаемое направление D-pad (или null)
+  let lastTouchHoldStepAt = 0; // время последнего шага (тап/повтор), мс
+
+  // Интервал тач-повтора, мс: live-чтение move_interval_ms (000063) в
+  // момент вызова; нет/мусор → 420 (дефолт SETTINGS); кламп ≥ 60
+  // (MIN_MOVE_INTERVAL_MS, motion.js).
+  function touchStepMs() {
+    const live = liveGame();
+    const v = live.GlobalSettings && live.GlobalSettings.SETTINGS
+      ? live.GlobalSettings.SETTINGS.move_interval_ms : 420;
+    const base = (Number.isFinite(v) && v > 0) ? v : 420;
+    return Math.max(60, base);
+  }
+
+  // Один тач-шаг (тело keydown 1:1, без события — у тача нет
+  // preventDefault/stopPropagation). Гарды каждого шага: оверлей
+  // активен, бой не активен выше по стеку. Направление — через ту же
+  // deltaForMoveKey, что tryMove карты и keydown: 'touch:interact'/
+  // 'touch:inventory'/неизвестное → null — шага нет, не крах.
+  function touchHoldStep(dir, now) {
+    if (!isActive()) return false;
+    const live = liveGame();
+    if (live.combatUI && live.combatUI.isActive()) return false;
+    const d = (typeof live.deltaForMoveKey === 'function')
+      ? live.deltaForMoveKey('touch:' + dir) : null;
+    if (!d) return false;
+    ctx.onMove(d[0], d[1]);
+    render(now);
+    return true;
+  }
+
+  // Тап D-pad: немедленно один шаг; при успехе запоминает направление
+  // и время — повтор идёт в tick() с интервалом touchStepMs().
+  function touchHold(dir) {
+    const now = nowMs();
+    if (touchHoldStep(dir, now)) {
+      touchHoldDir = dir;
+      lastTouchHoldStepAt = now;
+    }
+  }
+
+  // Отпускание: стоп повтора. Идемпотентный no-op для «чужого»
+  // направления — клей main.js вызывает без отслеживания маршрута.
+  function touchRelease(dir) {
+    if (touchHoldDir === dir) touchHoldDir = null;
+  }
+
   // Колесо над оверлеем (мировой слушатель на canvas #game накрыт
   // полноэкранным оверлеем; #game — sibling, не предок, bubbling к нему
   // не идёт). Та же математика, что мир (main.js): ×1.2/÷1.2 и те же
@@ -530,6 +590,17 @@
   }
 
   function tick() {
+    // Тач-повтор (000121): удерживаемое направление + прошёл интервал
+    // touchStepMs() → один шаг (ДО step() — новый кадр с новой клеткой
+    // отрисует step). Непроход гарда → стоп (touchHoldDir = null).
+    // При touchHoldDir === null блок инертен (существующие rAF-тесты).
+    if (touchHoldDir !== null) {
+      const t = nowMs();
+      if (t - lastTouchHoldStepAt >= touchStepMs()) {
+        lastTouchHoldStepAt = t;
+        if (!touchHoldStep(touchHoldDir, t)) touchHoldDir = null;
+      }
+    }
     step();
     if (isActive() && raf) rafId = raf(tick);
   }
@@ -556,6 +627,10 @@
         cam = { x: 0.5, y: 0.5 };
       }
       lastT = null;
+      // Тач-состояние (000121): сброс при входе — утечек удержания
+      // между подземельями нет.
+      touchHoldDir = null;
+      lastTouchHoldStepAt = 0;
       render();
       // Цикл (паттерн combat-ui.js): без rAF (vm-песочница 000043) —
       // null, событийный синхронный рендер, как раньше.
@@ -569,8 +644,16 @@
       overlay = canvas = g2 = stateEl = logEl = null;
       ctx = null;
       lastT = null;
+      // Тач-состояние (000121): сброс при выходе — повтор не переживёт
+      // close() (rAF-цикл и так остановлен выше).
+      touchHoldDir = null;
+      lastTouchHoldStepAt = 0;
     },
     isActive,
     render,
+    // Тач-D-pad (задача 000121): тап = один шаг, повтор при удержании
+    // — в rAF-цикле (см. touchHold/touchRelease выше).
+    touchHold,
+    touchRelease,
   };
 })();
