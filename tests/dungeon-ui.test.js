@@ -2416,3 +2416,112 @@ test('подземелье UI: touchHold/touchRelease — тап = один ша
       'нет console.error (гард, не крах): ' + JSON.stringify(errors));
   }
 });
+
+// --- Ревью 000121: touchStepMs() — live move_interval_ms, кламп,
+// фолбэк (ветки, которые R5 покрывала только по пути 420 мс) ---
+//
+// global-settings.js — ПЕРВЫЙ в цепочке песочницы: G.GlobalSettings.
+// SETTINGS — живой объект (000098), перезапись видна touchStepMs()
+// (live-чтение liveGame() в момент вызова). Каждый кейс — своя
+// песочница: чужие тесты не затрагиваются.
+
+test('подземелье UI: touchHold — интервал повтора: live move_interval_ms, кламп ≥ 60, фолбэк 420 (000121, ревью)', () => {
+  // (а) Кастомное move_interval_ms = 100 — повтор через 100 мс
+  // (ЖИВОЕ чтение, не зашитое 420).
+  {
+    const rafStubs = makeRafStubs();
+    const T = { t: 1000 };
+    const { G } = loadDungeonUi({
+      performance: { now: () => T.t },
+      requestAnimationFrame: rafStubs.requestAnimationFrame,
+      cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+    });
+    assert.ok(G.GlobalSettings && G.GlobalSettings.SETTINGS,
+      'GlobalSettings.SETTINGS в песочнице (global-settings.js в цепочке)');
+    G.GlobalSettings.SETTINGS.move_interval_ms = 100;
+    const moves = [];
+    openDungeon(G, moves);
+    G.dungeonUI.touchHold('up');
+    assert.deepEqual(moves, [[0, -1]], 'тап — шаг 1');
+    T.t += 100;
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]], 'повтор — шаг 2 (100 мс)');
+    T.t += 99; // ещё не 100 — третьего шага нет
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      '99 мс — повтор НЕ наступил (интервал 100, не 420)');
+  }
+  // (б) move_interval_ms = 10 — кламп ≥ 60 (MIN_MOVE_INTERVAL_MS).
+  {
+    const rafStubs = makeRafStubs();
+    const T = { t: 1000 };
+    const { G } = loadDungeonUi({
+      performance: { now: () => T.t },
+      requestAnimationFrame: rafStubs.requestAnimationFrame,
+      cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+    });
+    G.GlobalSettings.SETTINGS.move_interval_ms = 10;
+    const moves = [];
+    openDungeon(G, moves);
+    G.dungeonUI.touchHold('up');
+    assert.deepEqual(moves, [[0, -1]], 'тап — шаг 1');
+    T.t += 60; // кламп 60, а не 10
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      'повтор — шаг 2 (кламп 60 мс)');
+    T.t += 59; // 59 < 60 — третьего шага нет
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      '59 мс — повтор НЕ наступил (кламп 60, не 10)');
+  }
+  // (в) Мусор/не-число/≤ 0 — фолбэк 420 (граница 419/420).
+  for (const v of ['junk', 0, -5, NaN]) {
+    const rafStubs = makeRafStubs();
+    const T = { t: 1000 };
+    const { G, errors } = loadDungeonUi({
+      performance: { now: () => T.t },
+      requestAnimationFrame: rafStubs.requestAnimationFrame,
+      cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+    });
+    G.GlobalSettings.SETTINGS.move_interval_ms = v;
+    const moves = [];
+    openDungeon(G, moves);
+    G.dungeonUI.touchHold('up');
+    assert.deepEqual(moves, [[0, -1]],
+      'move_interval_ms=' + String(v) + ': тап — шаг 1');
+    T.t += 419;
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1]],
+      'move_interval_ms=' + String(v) + ': 419 мс — повтора нет');
+    T.t += 1; // итого 420 — фолбэк
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      'move_interval_ms=' + String(v) + ': 420 мс — фолбэк, шаг 2');
+    assert.equal(errors.length, 0,
+      'move_interval_ms=' + String(v) + ': без console.error (деградация)');
+  }
+  // (г) GlobalSettings отсутствует вовсе — фолбэк 420.
+  {
+    const rafStubs = makeRafStubs();
+    const T = { t: 1000 };
+    const { G, errors } = loadDungeonUi({
+      performance: { now: () => T.t },
+      requestAnimationFrame: rafStubs.requestAnimationFrame,
+      cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+    });
+    delete G.GlobalSettings;
+    const moves = [];
+    openDungeon(G, moves);
+    G.dungeonUI.touchHold('up');
+    assert.deepEqual(moves, [[0, -1]], 'тап — шаг 1');
+    T.t += 419;
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1]], '419 мс — повтора нет');
+    T.t += 1;
+    tick(rafStubs);
+    assert.deepEqual(moves, [[0, -1], [0, -1]],
+      '420 мс — фолбэк (GlobalSettings отсутствует), шаг 2');
+    assert.equal(errors.length, 0,
+      'без console.error (деградация, не крах): ' + JSON.stringify(errors));
+  }
+});
