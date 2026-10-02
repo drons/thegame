@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320">
+  <defs>
+    <linearGradient id="c53w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a8494"/>
+      <stop offset="1" stop-color="#5f5a68"/>
+    </linearGradient>
+    <linearGradient id="c53r" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#96793f"/>
+      <stop offset="1" stop-color="#6d5730"/>
+    </linearGradient>
+  </defs>
+  <!-- периметральная стена (полоса толщиною 18) -->
+  <path d="M0 0 H320 V320 H0 Z M18 18 H302 V302 H18 Z" fill="url(#c53w)" fill-rule="evenodd" stroke="#4f4a58" stroke-width="1.5"/>
+  <rect x="18" y="18" width="284" height="284" fill="none" stroke="#6a6472" stroke-width="1" opacity="0.7"/>
+  <!-- дорога от ворот к храму -->
+  <polygon points="148,320 172,320 166,152 154,152" fill="#948da0" opacity="0.45"/>
+  <!-- храм: неф, колокольня, шпиль -->
+  <rect x="128" y="104" width="64" height="48" fill="url(#c53w)" stroke="#4f4a58" stroke-width="1.2"/>
+  <polygon points="122,104 198,104 160,78" fill="url(#c53r)" stroke="#5c4a26" stroke-width="1.2"/>
+  <rect x="148" y="52" width="24" height="56" fill="url(#c53w)" stroke="#4f4a58" stroke-width="1.2"/>
+  <polygon points="143,52 177,52 160,22" fill="url(#c53r)" stroke="#5c4a26" stroke-width="1.2"/>
+  <rect x="158" y="10" width="4" height="14" fill="#c9b06a"/>
+  <rect x="153" y="15" width="14" height="4" fill="#c9b06a"/>
+  <path d="M154 152 V138 Q154 132 160 132 Q166 132 166 138 V152 Z" fill="#3a3542"/>
+  <!-- ряды домов: левый -->
+  <g>
+    <rect x="40" y="168" width="44" height="22" fill="url(#c53w)" stroke="#4f4a58" stroke-width="1"/>
+    <polygon points="36,168 88,168 62,150" fill="url(#c53r)" stroke="#5c4a26" stroke-width="1"/>
+    <rect x="59" y="176" width="8" height="14" fill="#3a3542"/>
+  </g>
+  <g>
+    <rect x="40" y="236" width="44" height="22" fill="url(#c53w)" stroke="#4f4a58" stroke-width="1"/>
+    <polygon points="36,236 88,236 62,218" fill="url(#c53r)" stroke="#5c4a26" stroke-width="1"/>
+    <rect x="59" y="244" width="8" height="14" fill="#3a3542"/>
+  </g>
+  <!-- ряды домов: правый -->
+  <g>
+    <rect x="236" y="168" width="44" height="22" fill="url(#c53w)" stroke="#4f4a58" stroke-width="1"/>
+    <polygon points="232,168 284,168 258,150" fill="url(#c53r)" stroke="#5c4a26" stroke-width="1"/>
+    <rect x="253" y="176" width="8" height="14" fill="#3a3542"/>
+  </g>
+  <g>
+    <rect x="236" y="236" width="44" height="22" fill="url(#c53w)" stroke="#4f4a58" stroke-width="1"/>
+    <polygon points="232,236 284,236 258,218" fill="url(#c53r)" stroke="#5c4a26" stroke-width="1"/>
+    <rect x="253" y="244" width="8" height="14" fill="#3a3542"/>
+  </g>
+  <!-- угловые башни -->
+  <g>
+    <rect x="0" y="0" width="40" height="40" fill="#9a94a4" stroke="#4f4a58" stroke-width="1.2"/>
+    <rect x="6" y="6" width="28" height="28" fill="none" stroke="#6a6472" stroke-width="1" opacity="0.8"/>
+    <rect x="280" y="0" width="40" height="40" fill="#9a94a4" stroke="#4f4a58" stroke-width="1.2"/>
+    <rect x="286" y="6" width="28" height="28" fill="none" stroke="#6a6472" stroke-width="1" opacity="0.8"/>
+    <rect x="0" y="280" width="40" height="40" fill="#9a94a4" stroke="#4f4a58" stroke-width="1.2"/>
+    <rect x="6" y="286" width="28" height="28" fill="none" stroke="#6a6472" stroke-width="1" opacity="0.8"/>
+    <rect x="280" y="280" width="40" height="40" fill="#9a94a4" stroke="#4f4a58" stroke-width="1.2"/>
+    <rect x="286" y="286" width="28" height="28" fill="none" stroke="#6a6472" stroke-width="1" opacity="0.8"/>
+  </g>
+  <!-- ворота (нижняя кромка, x=160) -->
+  <path d="M146 320 V300 Q146 286 160 286 Q174 286 174 300 V320 Z" fill="#3a3542"/>
+  <path d="M146 320 V300 Q146 286 160 286 Q174 286 174 300" stroke="#9a94a4" stroke-width="1.6" fill="none" opacity="0.5"/>
+  <rect x="140" y="280" width="40" height="6" fill="#7a7484" stroke="#4f4a58" stroke-width="1"/>
+</svg>

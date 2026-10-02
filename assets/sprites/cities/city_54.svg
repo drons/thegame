@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 448">
+  <defs>
+    <linearGradient id="c54w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a8494"/>
+      <stop offset="1" stop-color="#5f5a68"/>
+    </linearGradient>
+    <linearGradient id="c54r" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#96793f"/>
+      <stop offset="1" stop-color="#6d5730"/>
+    </linearGradient>
+  </defs>
+  <!-- периметральная стена (полоса толщиною 22) -->
+  <path d="M0 0 H448 V448 H0 Z M22 22 H426 V426 H22 Z" fill="url(#c54w)" fill-rule="evenodd" stroke="#4f4a58" stroke-width="1.8"/>
+  <rect x="22" y="22" width="404" height="404" fill="none" stroke="#6a6472" stroke-width="1.2" opacity="0.7"/>
+  <!-- дорога от ворот к замку -->
+  <polygon points="212,448 236,448 230,236 218,236" fill="#948da0" opacity="0.45"/>
+  <!-- донжон -->
+  <rect x="188" y="132" width="72" height="92" fill="url(#c54w)" stroke="#4f4a58" stroke-width="1.5"/>
+  <g fill="#7a7484" stroke="#4f4a58" stroke-width="1">
+    <rect x="188" y="120" width="12" height="12"/>
+    <rect x="208" y="120" width="12" height="12"/>
+    <rect x="228" y="120" width="12" height="12"/>
+    <rect x="248" y="120" width="12" height="12"/>
+  </g>
+  <path d="M216 224 V200 Q216 190 224 190 Q232 190 232 200 V224 Z" fill="#3a3542"/>
+  <!-- фланкирующие башни -->
+  <rect x="138" y="104" width="38" height="120" fill="url(#c54w)" stroke="#4f4a58" stroke-width="1.5"/>
+  <polygon points="132,104 182,104 157,60" fill="url(#c54r)" stroke="#5c4a26" stroke-width="1.2"/>
+  <rect x="272" y="104" width="38" height="120" fill="url(#c54w)" stroke="#4f4a58" stroke-width="1.5"/>
+  <polygon points="266,104 316,104 291,60" fill="url(#c54r)" stroke="#5c4a26" stroke-width="1.2"/>
+  <!-- знамя над донжоном -->
+  <path d="M224 120 V96" stroke="#5c4a26" stroke-width="1.6"/>
+  <polygon points="224,96 238,100 224,104" fill="#96793f"/>
+  <!-- ряды домов: верхний -->
+  <g>
+    <rect x="60" y="90" width="48" height="24" fill="url(#c54w)" stroke="#4f4a58" stroke-width="1.2"/>
+    <polygon points="55,90 113,90 84,68" fill="url(#c54r)" stroke="#5c4a26" stroke-width="1.2"/>
+    <rect x="80" y="98" width="9" height="16" fill="#3a3542"/>
+  </g>
+  <g>
+    <rect x="340" y="90" width="48" height="24" fill="url(#c54w)" stroke="#4f4a58" stroke-width="1.2"/>
+    <polygon points="335,90 393,90 364,68" fill="url(#c54r)" stroke="#5c4a26" stroke-width="1.2"/>
+    <rect x="359" y="98" width="9" height="16" fill="#3a3542"/>
+  </g>
+  <!-- ряды домов: средний -->
+  <g>
+    <rect x="52" y="176" width="48" height="24" fill="url(#c54w)" stroke="#4f4a58" stroke-width="1.2"/>
+    <polygon points="47,176 105,176 76,154" fill="url(#c54r)" stroke="#5c4a26" stroke-width="1.2"/>
+    <rect x="72" y="184" width="9" height="16" fill="#3a3542"/>
+  </g>
+  <g>
+    <rect x="348" y="176" width="48" height="24" fill="url(#c54w)" stroke="#4f4a58" stroke-width="1.2"/>
+    <polygon points="343,176 401,176 372,154" fill="url(#c54r)" stroke="#5c4a26" stroke-width="1.2"/>
+    <rect x="367" y="184" width="9" height="16" fill="#3a3542"/>
+  </g>
+  <!-- ряды домов: нижний -->
+  <g>
+    <rect x="88" y="272" width="48" height="24" fill="url(#c54w)" stroke="#4f4a58" stroke-width="1.2"/>
+    <polygon points="83,272 141,272 112,250" fill="url(#c54r)" stroke="#5c4a26" stroke-width="1.2"/>
+    <rect x="108" y="280" width="9" height="16" fill="#3a3542"/>
+  </g>
+  <g>
+    <rect x="312" y="272" width="48" height="24" fill="url(#c54w)" stroke="#4f4a58" stroke-width="1.2"/>
+    <polygon points="307,272 365,272 336,250" fill="url(#c54r)" stroke="#5c4a26" stroke-width="1.2"/>
+    <rect x="331" y="280" width="9" height="16" fill="#3a3542"/>
+  </g>
+  <!-- угловые башни -->
+  <g>
+    <rect x="0" y="0" width="56" height="56" fill="#9a94a4" stroke="#4f4a58" stroke-width="1.5"/>
+    <rect x="8" y="8" width="40" height="40" fill="none" stroke="#6a6472" stroke-width="1.2" opacity="0.8"/>
+    <rect x="392" y="0" width="56" height="56" fill="#9a94a4" stroke="#4f4a58" stroke-width="1.5"/>
+    <rect x="400" y="8" width="40" height="40" fill="none" stroke="#6a6472" stroke-width="1.2" opacity="0.8"/>
+    <rect x="0" y="392" width="56" height="56" fill="#9a94a4" stroke="#4f4a58" stroke-width="1.5"/>
+    <rect x="8" y="400" width="40" height="40" fill="none" stroke="#6a6472" stroke-width="1.2" opacity="0.8"/>
+    <rect x="392" y="392" width="56" height="56" fill="#9a94a4" stroke="#4f4a58" stroke-width="1.5"/>
+    <rect x="400" y="400" width="40" height="40" fill="none" stroke="#6a6472" stroke-width="1.2" opacity="0.8"/>
+  </g>
+  <!-- ворота (нижняя кромка, x=224) -->
+  <path d="M208 448 V420 Q208 402 224 402 Q240 402 240 420 V448 Z" fill="#3a3542"/>
+  <path d="M208 448 V420 Q208 402 224 402 Q240 402 240 420" stroke="#9a94a4" stroke-width="1.8" fill="none" opacity="0.5"/>
+  <rect x="200" y="394" width="48" height="8" fill="#7a7484" stroke="#4f4a58" stroke-width="1.2"/>
+</svg>
