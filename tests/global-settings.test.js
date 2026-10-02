@@ -3,7 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { SETTINGS } = require('../src/global-settings.js');
+// 000098: расширенное деструктурирование — новые ЧИСТЫЕ экспорты
+// (META/DEFAULTS/clampValue/resetKey/resetAll); в RED-фазе = undefined
+// (без throw — обращения только в телах тестов секции 000098 внизу).
+const { SETTINGS, META, DEFAULTS, clampValue, resetKey, resetAll } =
+  require('../src/global-settings.js');
 const P = require('../src/player.js');
 
 // Перезагрузка модуля (обновляет значения, захваченные при загрузке,
@@ -323,4 +327,339 @@ test('единый источник: доли препятствий в SETTINGS
   assert.ok(c1.obstacles.size > 0, 'доли 0.2/0.2 → препятствия есть');
   assert.ok(c1.obstacles.size <= Math.round(0.2 * area),
     'число не больше round(frac × area)');
+});
+
+// =====================================================================
+// 000098 — Вкладка «Игровые настройки»: ядро META/DEFAULTS/clamp/reset
+// =====================================================================
+//
+// ТЗ (tasks/pending/000098.md): НОВЫЕ ЧИСТЫЕ экспорты
+// src/global-settings.js — META (таблица метаданных на ВСЕ ключи
+// SETTINGS), DEFAULTS (frozen глубокий клон значений при загрузке),
+// clampValue (валидация/кламп по dot-path, чистая), resetKey/resetAll
+// (сброс к DEFAULTS, ссылка на SETTINGS НЕ меняется). Форма вкладки —
+// src/ui-tab-settings.js (зона 000098, контракт 000130) — тестируется
+// в tests/ui-panel.test.js (U1–U5). Контракты:
+// memory/000098-game-settings-tab.md (ядро) +
+// memory/000098-settings-tab.md (вкладка, session-only).
+//
+// RED (падают до реализации ядра, зелёные после):
+//   * S1: META — ВСЕ ключи SETTINGS 1:1 + форма записи;
+//   * S2: META — типы/границы корректны (int min; move_interval_ms
+//     min 60 + sync с motion.js; enum = ключи combat_difficulties;
+//     вложенные hp/damage float > 0; доли [0,1]; level_delta_max min 0);
+//   * S3: DEFAULTS — frozen глубокий клон, НЕЗАВИСИМ от SETTINGS;
+//   * S4: clampValue — мусор → отказ, вне диапазона → ближайшее
+//     допустимое; positive ≤ 0 → отказ; dot-path; чистая;
+//   * S5: resetKey/resetAll — значения из DEFAULTS, вложенные целиком,
+//     ссылка на SETTINGS не меняется;
+//   * S6: SETTINGS — живой объект (мутация видна без re-require);
+//     DEFAULTS — независим (ФИКСАТОР: live-чтение ядра — 000099);
+//   * S7: браузерный UMD-путь несёт те же экспорты (не смешивая Game).
+//
+// GREEN без изменений: все 14 тестов выше (первый deepEqual — 15 ключей;
+// «единый источник»-тесты; структурный main.js).
+//
+// Мутации SETTINGS — с t.after-restore (объект общий на процесс;
+// паттерн файла).
+
+test('000098 RED: S1 — META покрывает ВСЕ ключи SETTINGS 1:1 + форма записи', () => {
+  assert.ok(META && typeof META === 'object',
+    'META — экспорт таблицы метаданных (ОТДЕЛЬНЫЙ объект от SETTINGS)');
+  assert.deepEqual(Object.keys(META).sort(), Object.keys(SETTINGS).sort(),
+    'ключи META = ключи SETTINGS 1:1 (динамика: будущие ключи — ' +
+    'с обновлением META и ре-пином первого deepEqual-теста)');
+  for (const [k, rec] of Object.entries(META)) {
+    assert.ok(rec && typeof rec === 'object' && !Array.isArray(rec),
+      k + ': запись — объект');
+    assert.equal(typeof rec.label, 'string', k + ': label — строка (рус.)');
+    assert.ok(rec.label.length > 0, k + ': label не пуст');
+    assert.ok(['int', 'float', 'enum', 'nested'].includes(rec.type),
+      k + ': type из домена int|float|enum|nested, есть «' +
+      rec.type + '»');
+    if (rec.min !== undefined) {
+      assert.equal(typeof rec.min, 'number', k + ': min — число');
+    }
+    if (rec.max !== undefined) {
+      assert.equal(typeof rec.max, 'number', k + ': max — число');
+    }
+    if (rec.options !== undefined) {
+      assert.ok(Array.isArray(rec.options) ||
+        typeof rec.options === 'string',
+        k + ': options — статический массив или имя ключа SETTINGS ' +
+        '(live-источник)');
+    }
+  }
+});
+
+test('000098 RED: S2 — META: типы и границы корректны (int/float/enum; вложенные)', () => {
+  assert.ok(META && typeof META === 'object', 'META — экспорт');
+  for (const k of ['steps_per_day', 'respawn_days', 'dungeon_memory_days',
+      'level_delta_max', 'points_per_level', 'move_interval_ms']) {
+    assert.equal(META[k].type, 'int', k + ': type int');
+  }
+  assert.equal(META.steps_per_day.min, 1,
+    'steps_per_day min 1 (≤ 0 — БЕСКОНЕЧНЫЙ цикл while в day.js:54)');
+  for (const k of ['respawn_days', 'dungeon_memory_days', 'points_per_level']) {
+    assert.equal(META[k].min, 1, k + ': min 1');
+  }
+  assert.equal(META.level_delta_max.min, 0,
+    'level_delta_max min 0 (0 — ВАЛИДНО: тест «±0» в этом файле; ' +
+    'отклонение от формулы ТЗ «int ≥ 1» зафиксировано)');
+  // move_interval_ms: [60, разумный максимум]. 60 = MIN_MOVE_INTERVAL_MS
+  // (src/motion.js) — ниже «съедает» навык «Ловкий шаг» (memory/000063).
+  assert.equal(META.move_interval_ms.min, 60,
+    'move_interval_ms min 60 = MIN_MOVE_INTERVAL_MS');
+  assert.equal(typeof META.move_interval_ms.max, 'number',
+    'move_interval_ms max — число');
+  assert.ok(Number.isFinite(META.move_interval_ms.max)
+    && META.move_interval_ms.max > META.move_interval_ms.min,
+    'move_interval_ms max — конечное > min');
+  assert.ok(
+    fs.readFileSync(path.join(__dirname, '..', 'src', 'motion.js'), 'utf8')
+      .includes('MIN_MOVE_INTERVAL_MS = 60'),
+    'sync: src/motion.js содержит «MIN_MOVE_INTERVAL_MS = 60»');
+  // Сложность — enum, options = LIVE-ключи combat_difficulties.
+  assert.equal(META.combat_difficulty.type, 'enum',
+    'combat_difficulty — enum');
+  assert.equal(META.combat_difficulty.options, 'combat_difficulties',
+    'combat_difficulty.options — имя ключа SETTINGS (live-источник)');
+  assert.deepEqual(Object.keys(SETTINGS.combat_difficulties),
+    ['easy', 'medium', 'hard'],
+    'live-ключи combat_difficulties — easy/medium/hard');
+  // Вложенные: на КАЖДУЮ сложность hp/damage — float > 0.
+  const cd = META.combat_difficulties;
+  assert.equal(cd.type, 'nested', 'combat_difficulties — nested');
+  assert.ok(cd.subkeys && typeof cd.subkeys === 'object',
+    'combat_difficulties.subkeys — объект');
+  for (const d of ['easy', 'medium', 'hard']) {
+    const dd = cd.subkeys[d];
+    assert.ok(dd && dd.subkeys && typeof dd.subkeys === 'object',
+      'сложность ' + d + ' — вложенная запись со subkeys');
+    for (const f of ['hp', 'damage']) {
+      const leaf = dd.subkeys[f];
+      assert.ok(leaf, d + '.' + f + ' — запись есть');
+      assert.equal(leaf.type, 'float', d + '.' + f + ' — float');
+      assert.equal(leaf.positive, true,
+        d + '.' + f + ' — positive (строго > 0: 0×HP ломает бой)');
+    }
+  }
+  // Доли [0,1]: generic min=1 СЛОМАЛ бы доли — явные записи (000082).
+  assert.equal(META.companion_xp_share.min, 0,
+    'companion_xp_share min 0 (доля [0,1]; 0 — «не получают»)');
+  for (const k of ['combat_obstacle_min_frac', 'combat_obstacle_max_frac']) {
+    assert.equal(META[k].min, 0, k + ': min 0');
+    assert.equal(META[k].max, 1, k + ': max 1 (доля)');
+  }
+});
+
+test('000098 RED: S3 — DEFAULTS: frozen глубокий клон, НЕЗАВИСИМ от SETTINGS', (t) => {
+  assert.ok(DEFAULTS && typeof DEFAULTS === 'object',
+    'DEFAULTS — экспорт значений по умолчанию');
+  // JSON-roundtrip (кросс-realm deepStrictEqual невозможен — паттерн
+  // файла, тест «браузер: вешает Game.GlobalSettings»).
+  assert.deepEqual(JSON.parse(JSON.stringify(DEFAULTS)),
+    JSON.parse(JSON.stringify(SETTINGS)),
+    'DEFAULTS = значения SETTINGS в момент загрузки модуля');
+  assert.ok(Object.isFrozen(DEFAULTS), 'DEFAULTS — frozen');
+  assert.ok(Object.isFrozen(DEFAULTS.combat_difficulties),
+    'глубокий freeze: combat_difficulties');
+  assert.ok(Object.isFrozen(DEFAULTS.combat_difficulties.easy),
+    'глубокий freeze: combat_difficulties.easy');
+  assert.ok(Object.isFrozen(DEFAULTS.city_channel),
+    'глубокий freeze: city_channel');
+  assert.ok(Object.isFrozen(DEFAULTS.companion_loyalty),
+    'глубокий freeze: companion_loyalty');
+  assert.ok(DEFAULTS.combat_difficulties !== SETTINGS.combat_difficulties,
+    'глубина клона: вложенные объекты НЕ по ссылке');
+  // Мутация SETTINGS → DEFAULTS не трогает (направление закрыто).
+  const v = SETTINGS.steps_per_day;
+  SETTINGS.steps_per_day = 99;
+  t.after(() => { SETTINGS.steps_per_day = v; });
+  assert.equal(DEFAULTS.steps_per_day, 40,
+    'DEFAULTS не видит мутацию SETTINGS');
+});
+
+test('000098 RED: S4 — clampValue: мусор → отказ, вне диапазона → ближайшее, positive → отказ; чистая', () => {
+  assert.equal(typeof clampValue, 'function', 'clampValue — экспорт');
+  const before = JSON.stringify(SETTINGS);
+  // int: 0/−5 → min 1; дробное → Math.round; clamped — признак заметки.
+  const r1 = clampValue('steps_per_day', 0);
+  assert.equal(r1.ok, true, '0 → принято (кламп в допустимое)');
+  assert.equal(r1.value, 1, 'steps_per_day 0 → 1 (min)');
+  assert.equal(r1.clamped, true, '0 — вне диапазона: clamped true');
+  const r2 = clampValue('steps_per_day', -5);
+  assert.equal(r2.ok, true, '−5 → принято (кламп)');
+  assert.equal(r2.value, 1, 'steps_per_day −5 → 1');
+  const r3 = clampValue('steps_per_day', 40.6);
+  assert.equal(r3.ok, true);
+  assert.equal(r3.value, 41, 'дробное 40.6 → 41 (int: Math.round)');
+  assert.equal(r3.clamped, true,
+    '40.6 ≠ 41: clamped true (округление — корректировка, заметка в UI)');
+  // Дробное В ГРАНИЦЕ: 0.5 → round → 1 = min. Заметка ОБЯЗАНА быть
+  // (clamped — значение изменилось): раньше clamped считался по
+  // УЖЕ скруглённому значению (1 < 1 → false) — 0.5 → 1 проходило
+  // БЕЗ заметки, тогда как '-0' → 1 — С заметкой (ревью 000098).
+  const r10 = clampValue('steps_per_day', '0.5');
+  assert.equal(r10.ok, true, '0.5 → принято (round в min)');
+  assert.equal(r10.value, 1, '0.5 → 1 (int: round → min)');
+  assert.equal(r10.clamped, true,
+    '0.5 ≠ 1: clamped true (нарушение границы, заметка в UI)');
+  // Мусор — value НЕ принимается (restore в UI) + reason.
+  for (const junk of ['abc', '', NaN, Infinity, -Infinity]) {
+    const r = clampValue('steps_per_day', junk);
+    assert.equal(r.ok, false,
+      'мусор ' + String(junk) + ' — отказ (value не принимается)');
+    assert.equal(typeof r.reason, 'string',
+      'мусор ' + String(junk) + ' — reason (заметка в UI)');
+  }
+  // move_interval_ms: [60, max].
+  const r4 = clampValue('move_interval_ms', 10);
+  assert.equal(r4.ok, true, '10 → принято (кламп)');
+  assert.equal(r4.value, 60, 'move_interval_ms 10 → 60 (min)');
+  const r5 = clampValue('move_interval_ms', 1e9);
+  assert.equal(r5.ok, true, '1e9 → принято (кламп в max)');
+  assert.equal(r5.value, META.move_interval_ms.max,
+    'move_interval_ms 1e9 → max из META');
+  assert.equal(r5.clamped, true, '1e9 — clamped true');
+  // enum — только live-значения.
+  const r6 = clampValue('combat_difficulty', 'hard');
+  assert.equal(r6.ok, true, 'enum «hard» — ок');
+  assert.equal(r6.value, 'hard');
+  const r7 = clampValue('combat_difficulty', 'x');
+  assert.equal(r7.ok, false, 'enum «x» — отказ');
+  assert.equal(typeof r7.reason, 'string', 'enum «x» — reason');
+  // Вложенные (dot-path): множители боя — float > 0: 0/−1 → ОТКАЗ
+  // (у (0,∞) «ближайшего допустимого» нет).
+  const hp = 'combat_difficulties.easy.hp';
+  assert.equal(clampValue(hp, 0).ok, false,
+    hp + ' = 0 — ОТКАЗ (positive: 0×HP = поломка боя)');
+  assert.equal(clampValue(hp, -1).ok, false,
+    hp + ' = −1 — ОТКАЗ (positive)');
+  const r8 = clampValue(hp, 0.7);
+  assert.equal(r8.ok, true, hp + ' = 0.7 — ок');
+  assert.equal(r8.value, 0.7, hp + ' = 0.7 (float — без round)');
+  assert.equal(r8.clamped, false, '0.7 — в допустимом: clamped false');
+  assert.equal(clampValue(hp, 'abc').ok, false,
+    hp + ' = «abc» — отказ (мусор во вложенном)');
+  // Доли [0,1]: 5 → 1 (max).
+  const r9 = clampValue('city_channel.fbm', 5);
+  assert.equal(r9.ok, true, 'city_channel.fbm = 5 — принято (кламп)');
+  assert.equal(r9.value, 1, 'city_channel.fbm 5 → 1 (max)');
+  assert.equal(r9.clamped, true, 'fbm 5 — clamped true');
+  assert.equal(JSON.stringify(SETTINGS), before,
+    'clampValue — чистая: мутаций SETTINGS нет');
+});
+
+test('000098 RED: S5 — resetKey/resetAll: DEFAULTS, вложенные целиком, ссылка на SETTINGS не меняется', (t) => {
+  assert.equal(typeof resetKey, 'function', 'resetKey — экспорт');
+  assert.equal(typeof resetAll, 'function', 'resetAll — экспорт');
+  const s0 = SETTINGS;
+  t.after(() => { resetAll(); });
+  // per-ключ: плоский.
+  SETTINGS.steps_per_day = 9;
+  resetKey('steps_per_day');
+  assert.equal(SETTINGS.steps_per_day, 40,
+    'resetKey(steps_per_day) → значение из DEFAULTS');
+  // per-ключ: лист dot-path.
+  SETTINGS.combat_difficulties.easy.hp = 0.9;
+  resetKey('combat_difficulties.easy.hp');
+  assert.equal(SETTINGS.combat_difficulties.easy.hp, 0.3,
+    'resetKey(combat_difficulties.easy.hp) → 0.3 (dot-path)');
+  // per-ключ: вложенный объект — ЦЕЛИКОМ (и клон, не ссылка).
+  SETTINGS.combat_difficulties.hard.damage = 0.99;
+  resetKey('combat_difficulties');
+  assert.deepEqual(SETTINGS.combat_difficulties,
+    JSON.parse(JSON.stringify(DEFAULTS.combat_difficulties)),
+    'resetKey(combat_difficulties) — объект целиком = DEFAULTS');
+  assert.ok(SETTINGS.combat_difficulties !== DEFAULTS.combat_difficulties,
+    'вложенный — клон (DEFAULTS остаётся frozen)');
+  // «Сбросить всё»: Object.assign-семантика, ссылка не меняется.
+  SETTINGS.steps_per_day = 7;
+  SETTINGS.combat_difficulties.medium.hp = 0.77;
+  SETTINGS.companion_xp_share = 0.1;
+  resetAll();
+  assert.deepEqual(JSON.parse(JSON.stringify(SETTINGS)),
+    JSON.parse(JSON.stringify(DEFAULTS)),
+    'resetAll() → SETTINGS = DEFAULTS (JSON, вложенные целиком)');
+  assert.equal(SETTINGS, s0, 'ссылка на SETTINGS НЕ меняется');
+});
+
+test('000098: S6 — SETTINGS: живой объект (мутация видна без re-require); DEFAULTS: независим (фиксатор: live-чтение ядра — 000099)', (t) => {
+  const again = require('../src/global-settings.js');
+  assert.equal(again.SETTINGS, SETTINGS,
+    'SETTINGS — тот же объект при повторном require (без re-require)');
+  assert.ok(DEFAULTS && typeof DEFAULTS === 'object', 'DEFAULTS — экспорт');
+  assert.equal(again.DEFAULTS, DEFAULTS,
+    'DEFAULTS — тот же объект при повторном require');
+  const v = SETTINGS.points_per_level;
+  const d0 = DEFAULTS.points_per_level;
+  SETTINGS.points_per_level = 5;
+  t.after(() => { SETTINGS.points_per_level = v; });
+  assert.equal(again.SETTINGS.points_per_level, 5,
+    'мутация SETTINGS видна без re-require (живой объект)');
+  assert.equal(DEFAULTS.points_per_level, d0,
+    'DEFAULTS не видит мутацию SETTINGS (независим)');
+  // ФИКСАТОР: live-чтение SETTINGS ядром (day/player/dungeon/motion)
+  // В МОМЕНТ ВЫЗОВА — НЕ ЭТОЙ задачей (000099): до неё ядро читает
+  // снапшоты при загрузке — форма меняет значения, которые ядро видит
+  // только после перезагрузки (формулировка ТЗ; live НЕ обещать).
+});
+
+test('000098 RED: S7 — браузерный UMD-путь несёт те же экспорты (Game не смешан)', () => {
+  const sandbox = { Game: { Marker: 1 } };
+  loadInSandbox('global-settings.js', sandbox);
+  assert.equal(sandbox.Game.Marker, 1, 'Game не перезаписан');
+  const gs = sandbox.Game.GlobalSettings;
+  assert.ok(gs && typeof gs === 'object', 'Game.GlobalSettings — объект');
+  for (const m of ['SETTINGS', 'META', 'DEFAULTS', 'clampValue',
+      'resetKey', 'resetAll']) {
+    assert.ok(gs[m] !== undefined,
+      'браузерный экспорт несёт ' + m + ' (node = браузерная ветка)');
+  }
+  assert.equal(typeof gs.clampValue, 'function',
+    'браузерный clampValue — функция');
+  assert.equal(typeof gs.resetKey, 'function',
+    'браузерный resetKey — функция');
+  assert.equal(typeof gs.resetAll, 'function',
+    'браузерный resetAll — функция');
+});
+
+test('000098: S8 — новый ключ SETTINGS БЕЗ записи в META: generic-фолбэк (тип по typeof, min = 1 для чисел), НЕ падает (ревью)', (t) => {
+  // ТЗ «Что сделать» п.1: «ключ без записи в таблице → generic-запись
+  // (тип по typeof SETTINGS[k], min = 1 для чисел) — новый ключ НЕ
+  // падает». Ветка реализована (metaFor/genericMeta) но не была
+  // закреплена тестом (ревью 000098). Временные ключи — с t.after-
+  // restore (объект SETTINGS общий на процесс — паттерн файла).
+  for (const k of ['tmp_future_float', 'tmp_future_int', 'tmp_future_str']) {
+    assert.ok(!(k in SETTINGS), k + ' — отсутствует на старте');
+  }
+  SETTINGS.tmp_future_float = 2.5;
+  SETTINGS.tmp_future_int = 7;
+  SETTINGS.tmp_future_str = 'a';
+  t.after(() => {
+    delete SETTINGS.tmp_future_float;
+    delete SETTINGS.tmp_future_int;
+    delete SETTINGS.tmp_future_str;
+  });
+  // Число (не целое) → generic float, min 1.
+  assert.doesNotThrow(() => clampValue('tmp_future_float', 3),
+    'новый ключ — clampValue не бросает');
+  assert.equal(clampValue('tmp_future_float', 3).value, 3,
+    '3 в допустимом (min 1) — без изменений');
+  const rf = clampValue('tmp_future_float', 0.5);
+  assert.equal(rf.ok, true, 'generic float — не бросает');
+  assert.equal(rf.value, 1, 'generic float min 1: 0.5 → 1');
+  assert.equal(rf.clamped, true, '0.5 ≠ 1: clamped true (заметка)');
+  // Число (целое) → generic int, min 1.
+  const ri = clampValue('tmp_future_int', 0);
+  assert.equal(ri.ok, true, 'generic int — не бросает');
+  assert.equal(ri.value, 1, 'generic int min 1: 0 → 1');
+  assert.equal(ri.clamped, true, '0 ≠ 1: clamped true (заметка)');
+  // Строка → generic enum из [текущее значение].
+  assert.equal(clampValue('tmp_future_str', 'a').ok, true,
+    'enum [текущее]: текущее значение — ок');
+  const rs = clampValue('tmp_future_str', 'z');
+  assert.equal(rs.ok, false, 'enum [текущее]: чужое — отказ (не падает)');
+  assert.equal(typeof rs.reason, 'string', 'отказ — с reason (заметка)');
 });

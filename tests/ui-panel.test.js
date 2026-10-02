@@ -2062,3 +2062,362 @@ test('000130 GREEN: ui.js — ленивые typeof-гарды на Game.buildAc
   assert.doesNotMatch(ui, /LEFT_TABS|RIGHT_TABS/,
     'ui.js: записей вкладок нет (переехали в src/ui-tab-*.js)');
 });
+
+// =====================================================================
+// 000098 — Вкладка «Игровые настройки»: форма по SETTINGS + META,
+// кламп, сброс (session-only)
+// =====================================================================
+//
+// Зона 000098 — src/ui-tab-settings.js (контракт 000130; НЕ src/ui.js —
+// анти-прецедент R4). Контракты: memory/000098-settings-tab.md (форма/
+// apply/session-only) + memory/000098-game-settings-tab.md (ядро
+// META/DEFAULTS/clampValue).
+//
+// Форма (build — ОДИН раз в buildPanel, render() её НЕ трогает):
+// 15 ключей SETTINGS = 28 контролов (27 input[type=number] + 1 select)
+// + 33 кнопки (15 toповых сбросов + 17 leaf-сбросов + 1 «Сбросить всё»)
+// + 32 строки .cp-setrow (28 контрольных + 4 шапки .cp-sethead:
+// «Сложности боя» [group] / «Городской канал» / «Лояльность
+// спутников» / «Отказ спутников»). У ВСЕХ контролов и кнопок
+// dataset.key = dot-path. Классы ТОЛЬКО .cp-set* (ловушка .cp-btn:
+// делегированный click ядра → raiseSkill(undefined)).
+//
+// RED (placeholder 000130 — 2 div, контролов/слушателей нет; зелёные
+// после реализации):
+//   * U1: форма строится ОДИН раз: 28 контролов с dataset.key,
+//     значения = SETTINGS; введённый вручную value и узлы переживают
+//     render(); ОДИН делегированный click на панели; 33 кнопки;
+//   * U2: change → SETTINGS обновлён (кламп); мусор — НЕ принят +
+//     заметка в ядровой .cp-notice; ссылка SETTINGS не меняется;
+//   * U3: «сбросить всё» → inputs = DEFAULTS; SETTINGS = DEFAULTS;
+//     ссылка не меняется; форма не пересобрана;
+//   * U4: «Сложности боя»: ровно 1 select (enum = ключи
+//     combat_difficulties) + ровно 6 number (hp/damage × 3) —
+//     редактируемы; 0 для hp — ОТКАЗ (float > 0) + заметка.
+//     Расхождение ТЗ «8 полей: select + 6 number» (= 7 контролов)
+//     зафиксировано: пиним СТРУКТУРУ (1 select + ровно 6 number),
+//     не число 8;
+//   * U5: steps_per_day 0/−5 из input → SETTINGS ≥ 1 (кламп —
+//     бесконечный цикл while в addStep day.js:54 невозможен) + заметка.
+//
+// Локальный расширенный DOM-стаб (дублирование стабов принято в
+// проекте): makeEl + value/type у элементов (input/select). Лоадер —
+// ТО ЖЕ динамическое CHAIN_000130 (цепочка из index.html уже содержит
+// ui-tab-settings.js — тега нет; лоадер МЕЖДУ ФАЗАМИ не правится).
+// Песочница на тест: Game/SETTINGS — свои (браузерная UMD-ветка
+// global-settings.js в новом контексте).
+
+function makeElS(tag) {
+  const el = makeEl(tag);
+  el.value = '';
+  el.type = '';
+  return el;
+}
+
+function loadSettingsUi() {
+  const errors = [];
+  const document = {
+    createElement: (tag) => makeElS(tag),
+    body: makeElS('body'),
+    querySelector: () => null,
+    hidden: false,
+    listeners: {},
+    addEventListener(type, fn) {
+      (this.listeners[type] || (this.listeners[type] = [])).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const a = this.listeners[type];
+      if (!a) return;
+      const i = a.indexOf(fn);
+      if (i >= 0) a.splice(i, 1);
+    },
+  };
+  const window = {
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  };
+  const sandbox = {
+    console: {
+      log: () => {}, info: () => {}, warn: () => {},
+      error: (m) => errors.push(String(m)),
+    },
+    document, window, setTimeout, clearTimeout,
+  };
+  vm.createContext(sandbox);
+  for (const f of CHAIN_000130) vm.runInContext(src(f), sandbox, { filename: f });
+  return { G: sandbox.Game, body: document.body, doc: document,
+    errors, sandbox };
+}
+
+// Тестовый helper: значение по dot-path.
+function getByPath(obj, p) {
+  return p.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
+}
+
+// Pane вкладки «Игровые настройки» (левый столбец, 3-я вкладка —
+// реестр 000130).
+function settingsPane(env, panel) {
+  const cols = colsOf(panel);
+  const panes = panesOf(cols[0]);
+  assert.equal(panes.length, 3, 'левый столбец — 3 pane');
+  clickTab(panel, cols[0], 2);
+  return panes[2];
+}
+
+// Контрол (input/select) по dataset.key (dot-path).
+function byKey(pane, key) {
+  return findAll(pane, 'input').concat(findAll(pane, 'select'))
+    .find((el) => el.dataset && el.dataset.key === key) || null;
+}
+
+// dispatch 'change' через ПАНЕВЫЙ слушатель (apply по change, НЕ input).
+function dispatchChange(pane, el) {
+  const ch = pane.listeners.change;
+  assert.ok(Array.isArray(ch) && ch.length >= 1,
+    'change-слушатель на ПАНЕ (apply по change, не input)');
+  ch[0]({ target: el });
+}
+
+test('000098 RED: U1 — форма строится ОДИН раз (buildPanel): 28 контролов = SETTINGS; введённый value и узлы переживают render(); один панельный click; 33 кнопки', () => {
+  const env = loadSettingsUi();
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const pane = settingsPane(env, panel);
+  const S = env.G.GlobalSettings.SETTINGS;
+  const inputs = findAll(pane, 'input');
+  const selects = findAll(pane, 'select');
+  assert.equal(selects.length, 1,
+    'ровно 1 select (combat_difficulty) в pane: ' + selects.length);
+  assert.equal(inputs.length, 27,
+    '27 input[type=number] (10 плоских + 17 листьев): ' + inputs.length);
+  // У ВСЕХ контролов dataset.key = dot-path и value = SETTINGS[path].
+  for (const el of inputs.concat(selects)) {
+    assert.ok(el.dataset && typeof el.dataset.key === 'string' &&
+      el.dataset.key.length > 0,
+      'у контрола есть dataset.key (dot-path)');
+    assert.equal(el.value, String(getByPath(S, el.dataset.key)),
+      'value ' + el.dataset.key + ' = SETTINGS на сборке');
+  }
+  // Кнопки: 33 = 15 toповых «сброс» + 17 leaf-«сброс» + 1 «Сбросить всё».
+  const btns = findAll(pane, 'button');
+  assert.equal(btns.length, 33,
+    '33 кнопки (15 toповых + 17 leaf + «Сбросить всё»): ' + btns.length);
+  assert.ok(btns.some((b) => b.dataset && b.dataset.all === 'all'),
+    'кнопка «Сбросить всё» (dataset.all)');
+  // Форма НЕ пересобирается render(): тот же узел, введённый вручную
+  // value СОХРАНЁН (живость focus — ТЗ); без change SETTINGS не тронут.
+  const steps = byKey(pane, 'steps_per_day');
+  assert.ok(steps, 'input steps_per_day в форме');
+  const s0 = S.steps_per_day;
+  steps.value = '123';
+  env.G.playerUI.render();
+  assert.equal(byKey(pane, 'steps_per_day'), steps,
+    'узел input steps_per_day — ТОТ ЖЕ после render() (одна сборка)');
+  assert.equal(steps.value, '123',
+    'введённый вручную value переживает render()');
+  assert.equal(S.steps_per_day, s0,
+    'без события change SETTINGS не изменился');
+  // ОДИН делегированный click на панели (инвариант 000130): слушатели
+  // формы — на ПАНЕ, не на панели.
+  assert.equal(panel.listeners.click.length, 1,
+    'на панели ОДИН делегированный click (pane-слушатели не считаются)');
+});
+
+test('000098 RED: U2 — change → SETTINGS обновлён (кламп); мусор — НЕ принят + заметка в .cp-notice', () => {
+  const env = loadSettingsUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const pane = settingsPane(env, panel);
+  const S = env.G.GlobalSettings.SETTINGS;
+  const sref = S;
+  const inp = byKey(pane, 'steps_per_day');
+  assert.ok(inp, 'input steps_per_day в форме');
+  // Валидное значение — принято, ссылка SETTINGS не меняется.
+  inp.value = '7';
+  dispatchChange(pane, inp);
+  assert.equal(S.steps_per_day, 7, 'SETTINGS обновлён по change');
+  assert.equal(inp.value, '7', 'input — принятое значение');
+  assert.equal(S, sref, 'ссылка на SETTINGS НЕ меняется (мутация in place)');
+  // Мусор — НЕ принят, input восстановлен, заметка в ядровой .cp-notice.
+  inp.value = 'abc';
+  dispatchChange(pane, inp);
+  assert.equal(S.steps_per_day, 7, 'мусор не принят в SETTINGS');
+  assert.equal(inp.value, '7', 'input восстановлен к текущему значению');
+  const notice = noticeOf(panel);
+  assert.ok(String(notice.textContent).length > 0,
+    '.cp-notice — заметка (ЕДИНЫЙ ядровой элемент, ленивый доступ)');
+  assert.equal(panel.listeners.click.length, 1,
+    'на панели по-прежнему ОДИН делегированный click');
+});
+
+test('000098 RED: U3 — «Сбросить всё» → inputs = DEFAULTS; SETTINGS = DEFAULTS; ссылка не меняется; форма не пересобрана', () => {
+  const env = loadSettingsUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const pane = settingsPane(env, panel);
+  const GS = env.G.GlobalSettings;
+  const S = GS.SETTINGS;
+  const D = GS.DEFAULTS;
+  assert.ok(D && typeof D === 'object',
+    'Game.GlobalSettings.DEFAULTS присутствует (session-only)');
+  const sref = S;
+  // Мутации через change (в т.ч. вложенное и enum).
+  const steps = byKey(pane, 'steps_per_day');
+  assert.ok(steps, 'input steps_per_day в форме');
+  steps.value = '99'; dispatchChange(pane, steps);
+  const hardHp = byKey(pane, 'combat_difficulties.hard.hp');
+  assert.ok(hardHp, 'input combat_difficulties.hard.hp в форме');
+  hardHp.value = '0.99'; dispatchChange(pane, hardHp);
+  const sel = byKey(pane, 'combat_difficulty');
+  assert.ok(sel, 'select combat_difficulty в форме');
+  sel.value = 'easy'; dispatchChange(pane, sel);
+  // «Сбросить всё» — СВОЙ pane-слушатель click (делегированный click
+  // панели .cp-setbtn НЕ обрабатывает — классы .cp-set*, не .cp-btn).
+  const btnAll = findAll(pane, 'button')
+    .find((b) => b.dataset && b.dataset.all === 'all');
+  assert.ok(btnAll, 'кнопка «Сбросить всё» в форме');
+  const clicks = pane.listeners.click;
+  assert.ok(Array.isArray(clicks) && clicks.length >= 1,
+    'click-слушатель на ПАНЕ (кнопки сброса)');
+  clicks[0]({ target: btnAll });
+  assert.deepEqual(JSON.parse(JSON.stringify(S)),
+    JSON.parse(JSON.stringify(D)),
+    'SETTINGS = DEFAULTS после «Сбросить всё» (JSON, вложенные целиком)');
+  assert.equal(S, sref, 'ссылка на SETTINGS НЕ меняется');
+  // ВСЕ inputs/selectы = значения из DEFAULTS (пересборка значений,
+  // а не формы).
+  for (const el of findAll(pane, 'input').concat(findAll(pane, 'select'))) {
+    assert.equal(el.value, String(getByPath(S, el.dataset.key)),
+      'input ' + el.dataset.key + ' = значение DEFAULTS');
+  }
+  assert.equal(byKey(pane, 'steps_per_day'), steps,
+    'узел input — ТОТ ЖЕ после сброса (форма не пересобрана)');
+});
+
+test('000098 RED: U4 — «Сложности боя»: select (enum = ключи combat_difficulties) + ровно 6 number (hp/damage × 3) редактируемы; 0 для hp — ОТКАЗ', () => {
+  const env = loadSettingsUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const pane = settingsPane(env, panel);
+  const S = env.G.GlobalSettings.SETTINGS;
+  // Ровно 1 select — combat_difficulty; options = live-ключи.
+  const selects = findAll(pane, 'select');
+  assert.equal(selects.length, 1, 'ровно 1 select в форме');
+  const sel = selects[0];
+  assert.equal(sel.dataset.key, 'combat_difficulty',
+    'select — combat_difficulty');
+  assert.deepEqual(sel.children.map((o) => o.value),
+    ['easy', 'medium', 'hard'],
+    'option\'ы select = ключи combat_difficulties (live)');
+  assert.equal(sel.value, String(S.combat_difficulty),
+    'select value = текущая сложность');
+  // Ровно 6 number — hp/damage × easy/medium/hard.
+  const nums = findAll(pane, 'input')
+    .filter((i) => i.dataset.key
+      && i.dataset.key.indexOf('combat_difficulties.') === 0);
+  assert.equal(nums.length, 6,
+    'ровно 6 number для сложностей: ' + nums.length);
+  for (const d of ['easy', 'medium', 'hard']) {
+    for (const f of ['hp', 'damage']) {
+      assert.ok(nums.some((i) =>
+        i.dataset.key === 'combat_difficulties.' + d + '.' + f),
+        'number combat_difficulties.' + d + '.' + f + ' в форме');
+    }
+  }
+  // Редактируемы: select и вложенный лист.
+  sel.value = 'hard';
+  dispatchChange(pane, sel);
+  assert.equal(S.combat_difficulty, 'hard',
+    'сложность обновлена по change select');
+  const hardHp = byKey(pane, 'combat_difficulties.hard.hp');
+  hardHp.value = '0.7';
+  dispatchChange(pane, hardHp);
+  assert.equal(S.combat_difficulties.hard.hp, 0.7,
+    'combat_difficulties.hard.hp обновлён (float)');
+  // 0 — НЕ принят (float > 0: 0×HP = поломка боя) + заметка.
+  hardHp.value = '0';
+  dispatchChange(pane, hardHp);
+  assert.equal(S.combat_difficulties.hard.hp, 0.7,
+    '0 для hp НЕ принят (positive — отказ, не кламп)');
+  assert.equal(hardHp.value, '0.7', 'input восстановлен');
+  assert.ok(String(noticeOf(panel).textContent).length > 0,
+    'заметка в .cp-notice');
+});
+
+test('000098 RED: U5 — steps_per_day 0/−5 из input → SETTINGS ≥ 1 (игра не зависает) + заметка в .cp-notice', () => {
+  const env = loadSettingsUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const pane = settingsPane(env, panel);
+  const S = env.G.GlobalSettings.SETTINGS;
+  const inp = byKey(pane, 'steps_per_day');
+  assert.ok(inp, 'input steps_per_day в форме');
+  // ФИКСАТОР опасности: steps_per_day ≤ 0 — БЕСКОНЕЧНЫЙ цикл
+  // while (steps >= perDay) в addStep (day.js:54) — зависание игры.
+  inp.value = '0';
+  dispatchChange(pane, inp);
+  assert.ok(S.steps_per_day >= 1,
+    'steps_per_day ≥ 1 после «0» (кламп — зависание невозможно)');
+  assert.equal(S.steps_per_day, 1, '0 клампится в 1 (min)');
+  assert.equal(inp.value, '1', 'input нормализован к принятому');
+  assert.ok(String(noticeOf(panel).textContent).length > 0,
+    'заметка о клампе в .cp-notice');
+  inp.value = '-5';
+  dispatchChange(pane, inp);
+  assert.ok(S.steps_per_day >= 1, '−5 → всё ещё ≥ 1');
+  assert.equal(S.steps_per_day, 1, '−5 клампится в 1 (min)');
+});
+
+test('000098: U6 — guard build: без Game.GlobalSettings — console.error + деградация «Настройки недоступны», игра не падает (ревью: паттерн 000053)', () => {
+  const env = loadSettingsUi();
+  assert.equal(env.errors.length, 0,
+    'загрузка цепочки — чисто (guard — в build, не при загрузке)');
+  const c = env.G.createCharacter();
+  // GlobalSettings уберён ДО СБОРКИ панели: t.build — в buildPanel
+  // (toggle(true)), НЕ при клике по вкладке.
+  delete env.G.GlobalSettings;
+  let panel = null;
+  let pane = null;
+  assert.doesNotThrow(() => {
+    panel = openPanel(env, c);      // сборка → guard → console.error
+    pane = settingsPane(env, panel); // клик по вкладке (idx 2)
+  }, 'сборка панели + клик по вкладке без GlobalSettings не бросают');
+  assert.ok(env.errors.some((e) => e.includes('Game.GlobalSettings')),
+    'console.error про Game.GlobalSettings: ' + env.errors.join('; '));
+  assert.equal(findAll(pane, '.cp-set').length, 0,
+    'формы .cp-set нет (деградация, не крах)');
+  assert.ok(findAll(pane, '.cp-itemmeta').some((m) =>
+      String(m.textContent).includes('Настройки недоступны')),
+    'строка деградации «Настройки недоступны» в pane');
+});
+
+test('000098: U7 — будущий ключ SETTINGS без записи в META: generic-строка в форме, apply работает, не падает (ревью: ТЗ «новый ключ НЕ падает»)', () => {
+  const env = loadSettingsUi();
+  assert.equal(env.errors.length, 0, 'ошибок при загрузке нет');
+  // Ключ ДО СБОРКИ формы (форма строится в buildPanel/toggle).
+  // Песочница — СВОЯ копия SETTINGS (vm-контекст) — node-SETTINGS не
+  // затрагивается; других тестов на эту песочницу нет.
+  const S = env.G.GlobalSettings.SETTINGS;
+  S.tmp_future_key = 2.5;
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  assert.equal(env.errors.length, 0,
+    'сборка формы с новым ключом — без ошибок: ' + env.errors.join('; '));
+  const pane = settingsPane(env, panel);
+  const inp = byKey(pane, 'tmp_future_key');
+  assert.ok(inp, 'generic-строка нового ключа (dataset.key) в форме');
+  assert.equal(String(inp.tagName).toLowerCase(), 'input',
+    'generic число — input (не select)');
+  assert.equal(inp.type, 'number', 'generic float → input[type=number]');
+  assert.equal(inp.value, '2.5', 'value = SETTINGS на сборке');
+  // apply: 0.5 → 1 (generic float min 1) + заметка о корректировке.
+  inp.value = '0.5';
+  dispatchChange(pane, inp);
+  assert.equal(S.tmp_future_key, 1,
+    'generic кламп: 0.5 → 1 (float min 1)');
+  assert.equal(inp.value, '1', 'input нормализован к принятому');
+  assert.ok(String(noticeOf(panel).textContent).length > 0,
+    'заметка о клампе в .cp-notice');
+});
