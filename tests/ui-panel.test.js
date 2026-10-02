@@ -2588,15 +2588,19 @@ test('000101 RED: секции «Торговля» в панели НЕТ; _sho
   const env = loadTabsUi();
   const c = env.G.createCharacter();
   const panel = openPanel(env, c);
+  // textContent стаба НЕ агрегирует детей (в реальном DOM секция
+  // несла бы и текст плейсхолдера из _shopBody) — ассерты на
+  // СОБСТВЕННЫЙ текстовый узел секции (заголовок), как читает
+  // textOf:
   const trade = findAll(panel, '.cp-section')
-    .filter((s) => String(s.textContent) === 'Торговля');
+    .filter((s) => s._text === 'Торговля');
   assert.equal(trade.length, 0,
     'секции .cp-section «Торговля» в панели нет (торговля — только ' +
     'вкладка «Магазин»)');
   const pane = shopPaneOf(panel);
   assert.ok(panel._shopSec, 'panel._shopSec зафиксирован');
-  assert.equal(String(panel._shopSec.textContent), 'Магазин',
-    'заголовок секции — «Магазин»');
+  assert.equal(panel._shopSec._text, 'Магазин',
+    'заголовок секции — «Магазин» (собственный текстовый узел)');
   assert.equal(panel._shopBody.parent, panel._shopSec,
     '_shopBody живёт внутри секции «Магазин»');
   assert.equal(panel._shopSec.parent, pane,
