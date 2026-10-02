@@ -1038,14 +1038,15 @@ test('000081 e2e: цепочка грузится чисто; отладочны
   assert.equal(u.side, 'ally');
   assert.equal(u.alive, true);
   assert.equal(u.hp, u.maxHP, 'старт с полным HP');
-  // __game.state.efir — live-объект {level, xp, skills} (точка для
-  // 000086/000116).
+  // __game.state.efir — live-объект
+  // {level, xp, skillXp, skills, spells} (точка для 000086/000116).
   const st = g.state.efir;
   assert.ok(st, '__game.state.efir существует (live-ссылка)');
   assert.equal(st.level, 1, 'новая сессия — L1');
   assert.equal(st.xp, 0);
-  assert.deepEqual(Object.keys(st).sort(), ['level', 'skills', 'xp'],
-    'форма {level, xp, skills} (000085)');
+  assert.deepEqual(
+    Object.keys(st).sort(), ['level', 'skillXp', 'skills', 'spells', 'xp'],
+    'форма {level, xp, skillXp, skills, spells} (000085→000115)');
 });
 
 // --- Задача 000110: города на глобальной карте (footprint w×h,
