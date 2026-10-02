@@ -130,6 +130,27 @@
   // render, §2.6 memory). try/catch вокруг спец-хендлера НЕ
   // добавляется (1:1: выброс из apply и сегодня роняет так же; баг
   // хендлера — баг задачи, который ловят ЕЁ тесты).
+  // Начислить опыт БЕЗ множителя «Учёный» (задача 000074, решение
+  // D-XP в memory/000074-rune-obelisk.md): рунический камень даёт
+  // готовую формулу stoneXp (своим runePowerMult), и штатный addXp
+  // умножил бы её ещё на xpMult — двойное начисление. ТОЧНОЕ ЗЕРКАЛО
+  // addXp (player.js:317) БЕЗ xpMult — при изменении addXp
+  // синхронизировать (R1: дубль лупы уровней; totalXp ОБЯЗАН вестись,
+  // R4). player.js НЕ ТРОГАЕТСЯ (вне файлов ТЗ).
+  function grantXpRaw(c, amount) {
+    if (!c || !c.alive || !Number.isFinite(amount) || amount <= 0) return;
+    c.totalXp += amount;
+    c.xp += amount;
+    while (c.xp >= deps.game.xpForNext(c.level)) {
+      c.xp -= deps.game.xpForNext(c.level);
+      c.level += 1;
+      c.points += deps.game.POINTS_PER_LEVEL;
+    }
+    const d = deps.game.derived(c);
+    c.hp = Math.min(d.maxHP, c.hp);
+    c.mp = Math.min(d.maxMP, c.mp);
+  }
+
   function onBuildingAction(action, t, b, npc) {
     if (!needDeps()) return;
     // Реестр эффектов — ПЕРВЫМИ (ревью раунда 3): запись
@@ -150,6 +171,10 @@
         // задокументировано memory/000076-temple-blessings.md).
         save: deps.collectSaveData(),
         map: deps.getMap() || null,
+        // Задача 000074: каталожная запись (READ-ONLY) — apply
+        // читает параметры ТОЛЬКО из state.catalog.особые_параметры
+        // (принцип 000053: код каталог-драйвен, ничего не хардкодит).
+        catalog: b,
       });
       if (!r || !r.ok) {
         // Отказ apply: видимый отказ (message → flash), без
@@ -194,6 +219,52 @@
       if (Array.isArray(r.buffs)) {
         deps.buffs.length = 0;
         for (const b of r.buffs) deps.buffs.push(b);
+      }
+      // Задача 000074: р.xp — ОБЩИЙ ханк (amount — ГОТОВАЯ формула,
+      // БЕЗ xpMult: grantXpRaw, решение D-XP). Ролл-эффекты (камень)
+      // при провале НЕ возвращают r.xp — опыт не начисляется.
+      if (Number.isFinite(r.xp)) grantXpRaw(deps.hero, r.xp);
+      // Квест постройки (source 'building', пер-тайл questId):
+      // ПЕРВОЕ касание обелиска — выдача (r.quest), СЛЕДУЮЩЕЕ —
+      // выполнение (r.questComplete — ПЕРСИСТИРОВАННЫЙ questId).
+      // Инстансы source='building' serializeQuestBook НЕ пишет
+      // (строгий deserializeQuestBook — R2); источник истины —
+      // buildingQuests (раздел сейва), rehydrate при загрузке.
+      const def = b && b.особые_параметры &&
+        b.особые_параметры.квест;
+      if (r.quest) {
+        const acc = deps.game.acceptBuildingQuest
+          ? deps.game.acceptBuildingQuest(deps.questBook, r.quest.questId,
+              deps.player.x + ',' + deps.player.y, deps.clock.day)
+          : { ok: false, reason: 'недоступно' };
+        if (acc.ok) {
+          deps.buildingQuests.set(deps.player.x + ',' + deps.player.y,
+            { questId: r.quest.questId, day: deps.clock.day,
+              status: 'active' });
+          r.message += '\nКвест получен: ' + def.название;
+        } else {
+          r.message += '\n' + acc.reason; // дефенсивно; не ожидается
+        }
+      } else if (r.questComplete) {
+        const res = deps.game.completeBuildingQuest
+          ? deps.game.completeBuildingQuest(deps.questBook, def, deps.hero,
+              r.questComplete)
+          : { ok: false, reason: 'недоступно' };
+        if (res.ok) {
+          const key = deps.player.x + ',' + deps.player.y;
+          const e = deps.buildingQuests.get(key) ||
+            { questId: r.questComplete, day: deps.clock.day };
+          deps.buildingQuests.set(key,
+            Object.assign({}, e, { status: 'done' }));
+          r.message += '\nКвест выполнен: ' + def.название +
+            ' (+' + def.награда.опыт + ' оп., +' +
+            def.награда.золото + ' з.)';
+        } else {
+          r.message += '\nКвест не сдан: ' + res.reason;
+          // (инвентарь полон — квест остаётся active; повтор —
+          //  следующее прикосновение; daily-марк и saveNow ВСЁ РАВНО
+          //  — касание случилось)
+        }
       }
     }
     // Спец-действие (задача 000128): хендлер со «стороной» — ПОСЛЕ
@@ -335,6 +406,10 @@
       // состояние, что apply.
       save: deps.collectSaveData(),
       map: deps.getMap() || null,
+      // Задача 000074: каталожная запись (READ-ONLY) — эффекты
+      // читают параметры ТОЛЬКО из state.catalog.особые_параметры
+      // (принцип 000053: код каталог-драйвен, ничего не хардкодит).
+      catalog: b,
     });
     if (!actions.length) return false;
     // Заголовок — имя РЕШЁННОЙ записи (000075 RESOLVE-БУГ, 000073):

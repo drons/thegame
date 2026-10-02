@@ -330,7 +330,13 @@
   function acceptQuest(book, npcs, npc, questId, day) {
     const quest = availableQuests(npcs, book, npc).find((q) => q.id === questId);
     if (!quest) return { ok: false, reason: 'квест недоступен' };
-    if (Object.keys(book.active).length >= MAX_ACTIVE_QUESTS) {
+    // Лимит — только по NPC-квестам: building-инстансы (source
+    // 'building', задача 000074) не считаются (зафиксированное
+    // поведение: 5 NPC + 1 building сосуществуют; тесты
+    // npc.test.js без building-инстансов — идентичное поведение).
+    const activeNpc = Object.values(book.active).filter(
+      (i) => i && i.source !== 'building').length;
+    if (activeNpc >= MAX_ACTIVE_QUESTS) {
       return { ok: false, reason: 'слишком много активных квестов (' + MAX_ACTIVE_QUESTS + ')' };
     }
     const inst = { npcId: npc.id, questId, status: 'active', progress: 0 };
@@ -425,6 +431,150 @@
     };
   }
 
+  // --- Квесты постройки (задача 000074): новый источник 'building' ---
+  // Определение квеста — из КАТАЛОГА постройки
+  // (особые_параметры.квест записи обелиска: { id, название,
+  // описание, цель, награда }), НЕ из npc.квесты; def передаёт
+  // вызывающий (main.js) — каталог npc.js не нужен. ЛОГИКА
+  // NPC-квестов (accept/turnIn/лимит/гигиена) — БЕЗ ИЗМЕНЕНИЙ;
+  // единственная семантическая точка — лимит acceptQuest считает
+  // только НЕ-building-инстансы (выше). Форма инстанса (book.
+  // active[questId]): { source: 'building', tile: 'x,y', questId,
+  // status: 'active', progress: 0, day? } — БЕЗ npcId (квест не
+  // NPC-инициирован); следствие: строгий deserializeQuestBook его
+  // отверг бы → building-инстансы НЕ ПИШУТСЯ в секцию quests
+  // (guard serializeQuestBook ниже) и воссоздаются rehydrate из
+  // раздела сейва buildingQuests (source of truth). Контракт —
+  // memory/000074-rune-obelisk.md.
+
+  // Ключ тайла 'x,y' (целые координаты, могут быть отрицательными) —
+  // та же форма, что ключи раздела сейва buildingQuests
+  // (building-effects.js).
+  const BUILDING_TILE_KEY_RE = /^-?\d+,-?\d+$/;
+
+  /**
+   * Принимает квест постройки (source 'building'). БЕЗ лимит-
+   * проверки (MAX_ACTIVE_QUESTS — для NPC-квестов; зафиксировано:
+   * 5 NPC + 1 building сосуществуют). Повторная выдача — пока
+   * active или после done — отказ (квест одноразовый). Мусорная
+   * форма (book/questId/tileKey) — отказ, не TypeError (fail-open).
+   * @param {object} book — журнал квестов (mutable)
+   * @param {string} questId per-tile id (квест.id + '_' + x + '_' + y)
+   * @param {string} tileKey ключ тайла 'x,y'
+   * @param {number} [day] день мира при выдаче (гигиена 000029)
+   * @returns {{ok:true}|{ok:false, reason}}
+   */
+  function acceptBuildingQuest(book, questId, tileKey, day) {
+    if (!book || typeof book !== 'object' || Array.isArray(book) ||
+        !book.active || typeof book.active !== 'object' ||
+        Array.isArray(book.active)) {
+      return { ok: false, reason: 'квест недоступен' };
+    }
+    if (typeof questId !== 'string' || questId === '') {
+      return { ok: false, reason: 'квест недоступен' };
+    }
+    if (typeof tileKey !== 'string' ||
+        !BUILDING_TILE_KEY_RE.test(tileKey)) {
+      return { ok: false, reason: 'квест недоступен' };
+    }
+    if (book.active[questId] ||
+        (Array.isArray(book.done) && book.done.includes(questId))) {
+      return { ok: false, reason: 'квест недоступен' };
+    }
+    const inst = { source: 'building', tile: tileKey, questId,
+      status: 'active', progress: 0 };
+    if (Number.isInteger(day) && day >= 1) inst.day = day; // день выдачи
+    book.active[questId] = inst;
+    return { ok: true };
+  }
+
+  /**
+   * Выполняет квест постройки (source 'building'). Награда — ровно
+   * один раз: единственный путь к ней — однократный переход
+   * active → done. def — определение ИЗ КАТАЛОГА (вызывающий);
+   * предметы — атомарно (паттерн turnInQuest: инвентарь полон →
+   * откат, квест остаётся active — повтор следующее прикосновение);
+   * золото — напрямую; опыт — ШТАТНЫЙ P.addXp (с Учёным —
+   * установленный паттерн turnInQuest для NPC-квестов).
+   * @returns {{ok:true, quest, reward:{xp,gold,items}}|
+   *          {ok:false, reason}}
+   */
+  function completeBuildingQuest(book, def, character, questId) {
+    if (!book || typeof book !== 'object' || Array.isArray(book) ||
+        !book.active || typeof book.active !== 'object' ||
+        !book.active[questId]) {
+      return { ok: false, reason: 'квест не в работе' };
+    }
+    if (!character || typeof character !== 'object' ||
+        Array.isArray(character)) {
+      return { ok: false, reason: 'квест недоступен' };
+    }
+    if (!def || typeof def !== 'object' || Array.isArray(def)) {
+      return { ok: false, reason: 'квест не найден' };
+    }
+    const reward = def.награда;
+    if (!reward || typeof reward !== 'object' || Array.isArray(reward)) {
+      return { ok: false, reason: 'квест не найден' };
+    }
+    // Награда-предметы атомарно: либо весь набор, либо ничего.
+    const items = Array.isArray(reward.предметы) ? reward.предметы : [];
+    const given = [];
+    for (const g of items) {
+      if (!g || typeof g !== 'object' || Array.isArray(g) ||
+          typeof g.предмет !== 'string') continue; // мусор — пропуск
+      const add = I.addItem(character, g.предмет, g.количество);
+      if (!add.ok) {
+        for (const d of given) {
+          I.removeItem(character, d.предмет, d.количество);
+        }
+        return { ok: false, reason: 'инвентарь полон' };
+      }
+      given.push(g);
+    }
+    character.gold += Number.isFinite(reward.золото) ? reward.золото : 0;
+    P.addXp(character, Number.isFinite(reward.опыт) ? reward.опыт : 0);
+    delete book.active[questId];
+    if (!Array.isArray(book.done)) book.done = [];
+    book.done.push(questId);
+    return {
+      ok: true,
+      quest: def,
+      reward: { xp: reward.опыт, gold: reward.золото, items },
+    };
+  }
+
+  /**
+   * Воссоздаёт 'active' инстансы квестов постройки в журнале из
+   * раздела сейва buildingQuests (source of truth; секция quests
+   * сейва содержит ТОЛЬКО NPC-инстансы — строгий deserialize).
+   * Идемпотентно: существующие ключи НЕ затирает; done — не
+   * зеркалируется; мусорный ввод (не Map / битая запись) —
+   * отброс без исключений. Вызывается main.js ПОСЛЕ quests-блока
+   * restoreFromSave (questBook должен быть восстановлен).
+   * @param {object} book — журнал квестов (mutable)
+   * @param {Map<string, {questId: string, day: number,
+   *         status: 'active'|'done'}>} m
+   */
+  function rehydrateBuildingQuests(book, m) {
+    if (!book || typeof book !== 'object' || Array.isArray(book)) return;
+    if (!book.active || typeof book.active !== 'object' ||
+        Array.isArray(book.active)) {
+      book.active = {};
+    }
+    if (!Array.isArray(book.done)) book.done = [];
+    if (!m || typeof m.forEach !== 'function') return;
+    m.forEach((v, k) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return;
+      if (v.status !== 'active') return; // done — не зеркалируется
+      if (typeof v.questId !== 'string' || v.questId === '') return;
+      if (book.active[v.questId]) return; // идемпотентно: не затирает
+      const inst = { source: 'building', tile: String(k),
+        questId: v.questId, status: 'active', progress: 0 };
+      if (Number.isInteger(v.day) && v.day >= 1) inst.day = v.day;
+      book.active[v.questId] = inst;
+    });
+  }
+
   /** Активные квесты для журнала: [{ quest, instance }]. */
   function activeQuests(npcs, book) {
     return Object.values(book.active).map((instance) => ({
@@ -449,6 +599,12 @@
     const active = {};
     for (const [qid, inst] of Object.entries(book.active || {})) {
       if (!inst || typeof inst !== 'object' || Array.isArray(inst)) continue;
+      // Квест постройки (source 'building', 000074) — НЕ в секцию
+      // quests: строгий deserializeQuestBook его отверг бы (нет
+      // npcId) — секция сбросила бы весь журнал. Source of truth
+      // building-квестов — раздел сейва buildingQuests; на restore
+      // инстанс воссоздаёт rehydrateBuildingQuests.
+      if (inst.source === 'building') continue;
       const out = { npcId: inst.npcId, questId: inst.questId,
         status: inst.status, progress: inst.progress };
       if (inst.day != null) out.day = inst.day;
@@ -566,6 +722,8 @@
     defaultStock, createNpcShop, npcBuyPrice, npcSellPrice, npcBuy, npcSell,
     createQuestBook, questDef, availableQuests, acceptQuest,
     notifyGroupDefeated, refreshBringItems, turnInQuest, activeQuests,
+    // Задача 000074: квесты постройки (source 'building', аддитивно).
+    acceptBuildingQuest, completeBuildingQuest, rehydrateBuildingQuests,
     serializeQuestBook, deserializeQuestBook, pruneQuestBookByDay,
     serializeNpcStocks, restoreNpcStocks,
   };

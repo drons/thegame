@@ -36,6 +36,32 @@
 //     available/apply — по СНИМКУ сейва (dest и стоимость читает
 //     main.js — у apply мира и каталога НЕТ, контракт 000072).
 //
+// Задача 000074 (рунический камень id 40 / обелиск id 42): первые
+// эффекты-«действия» с раз-в-день ИЗ КАТАЛОГА (раз_в_день):
+//   * EFFECTS['40'] — «Расшифровать»: шанс stoneChance =
+//     min(1, шанс_база + шанс_шаг·Рунопись); ролл детерминирован
+//     по (tile, day) — deterministicRoll(x, y, day, STONE_ROLL_SEED,
+//     hash); успех — XP stoneXp = round((опыт_база + опыт_шаг·R)·
+//     runePowerMult) (xpMult Учёного к камню НЕ применяется) +
+//     фрагмент pickFragment(тексты, ..., STONE_TEXT_SEED, hash);
+//     провал — попытка сгорела (ok:true — daily-марка ставится).
+//   * EFFECTS['42'] — «Прикоснуться»: XP obeliskXp =
+//     round((опыт_база + опыт_шаг·hero.level)·xpMult) («уровень
+//     мира» = hero.level — решение memory/000074-rune-obelisk.md) +
+//     лор-фрагмент (OBELISK_TEXT_SEED) + ОДНОРАЗОВЫЙ квест постройки
+//     (определение — каталог запись.особые_параметры.квест; r.quest
+//     при пустом снимке buildingQuests, r.questComplete при active;
+//     исполнение — main.js/npc.js, source 'building').
+//   * Детерминизм: НИКАКОГО Math.random/Date — только (tile, day)-
+//     сиды (свои ASCII-константы, паттерн TELEPORT_TIE_SEED;
+//     hash — ЛЕНИВО G.hash2 (perlin.js) в момент apply).
+//   * serializeBuildingQuests/restoreBuildingQuests — раздел сейва
+//     buildingQuests (имя — 000072): 'x,y' → { questId, day,
+//     status: 'active'|'done' }; паттерн teleports (fail-open).
+//   * apply ЧИСТО: параметры ТОЛЬКО из st.catalog (РЕШЁННАЯ запись);
+//     state/hero/save не мутирует; G.hash2/G.derived/G.skillLevel
+//     отсутствуют — { ok:false, message:'недоступно' }.
+//
 // Контракты (зафиксированы tests/building-effects.test.js):
 //   * РЕЕСТР EFFECTS — id → { имя, разВДень?, available?(state),
 //     apply?(state) → { ok, message?, buffs? } }. Задача 000071 —
@@ -97,6 +123,15 @@
 
   // Сообщение успеха переноса (зафиксировано A32/тестом).
   const TELEPORT_MSG = 'телепорт: перенос к парному кругу';
+
+  // Сиды детерминированных роллов/фрагментов 000074 (ASCII, СВОИ
+  // константы, НЕ GLOBAL_SEED — паттерн TELEPORT_TIE_SEED): экспорт
+  // — для golden-пинов тестов (A47/B21–B23). Формулы:
+  //   roll      = hash(x, y, seed ^ day) / 2^32  ∈ [0, 1);
+  //   фрагмент  = тексты[hash(x, y, seed ^ day) % тексты.length].
+  const STONE_ROLL_SEED = 0x53544e52;   // 'STNR' — ролл успеха камня
+  const STONE_TEXT_SEED = 0x53544e54;   // 'STNT' — фрагмент камня
+  const OBELISK_TEXT_SEED = 0x4f424c54; // 'OBLT' — фрагмент обелиска
 
   // Раздел сейва teleports (имя зафиксировано 000072): чтение
   // записи СНИМКА по ключу 'x,y' — прототип-безопасно, с лёгкой
@@ -224,6 +259,26 @@
       st, 'armor', 'Благословение горы: +1 броня на 1 день.'),
   };
 
+  // --- Группа 000074: рунический камень (40) и обелиск (42) ---
+  // Раз-в-день — ИЗ КАТАЛОГА (особые_параметры.раз_в_день, паттерн
+  // 000072/000043): в записях реестра разВДень НЕ ставится — каталог
+  // побеждает (hasDailyLimit, 000053). Параметры (шанс, база/шаг XP,
+  // тексты, квест) — ТОЛЬКО из ст.catalog (РешёННАЯ каталожная запись,
+  // main.js передаёт catalog: b; каталога ГЛОБАЛЬНО в apply НЕТ —
+  // 000053: код читает каталог, не хардкодит). apply ЧИСТО (000071):
+  // state/hero/save не мутирует, G.addXp/accept* не вызывает — только
+  // ВОЗВРАЩАЕТ результат (исполнение — ханки main.js, паттерн
+  // r.teleport/r.buffs). Детерминизм — (tile, day)-сиды, ГЛОБАЛЬНОГО
+  // RNG НЕТ. Контракт — memory/000074-rune-stone-obelisk.md.
+  EFFECTS['40'] = {
+    имя: 'Расшифровать',
+    apply: (st) => applyRuneStone(st),
+  };
+  EFFECTS['42'] = {
+    имя: 'Прикоснуться',
+    apply: (st) => applyObelisk(st),
+  };
+
   /**
    * Ids эффектов постройки — только те, что есть в реестре; порядок —
    * из каталога (массив особых_параметры.эффекты) либо 1-к-1 запись
@@ -320,6 +375,268 @@
     const save = st.save || {};
     const next = G.grantBuff(save.buffs, tile.x + ',' + tile.y, st.day, kind);
     return { ok: true, buffs: next, message };
+  }
+
+  // --- Задача 000074: рунический камень (40) и обелиск (42) ---
+  // Чистые формулы/роллы — (tile, day)-СИДЫ (НИКАКОГО Math.random —
+  // детерминизм, ТЗ); hash-функция — ПАРАМЕТР (в песочницах —
+  // инъект perlin.hash2, в игре — ленивый G.hash2). Параметры (шанс,
+  // база/шаг XP, тексты, квест) — ТОЛЬКО из ст.catalog (РешёННАЯ
+  // каталожная запись, 000053 — код читает каталог, не хардкодит);
+  // каталога ГЛОБАЛЬНО в apply НЕТ. apply НЕ мутирует state/hero/save
+  // и НЕ вызывает G.addXp/accept* — только ВОЗВРАЩАЕТ результат
+  // (исполнение — ханки main.js; контракт —
+  // memory/000074-rune-stone-obelisk.md).
+
+  /**
+   * Детерминированный ролл по (tile, day) ∈ [0, 1):
+   * `hash(x, y, seed ^ day) / 2^32` (day ВКЛЮЧЁН — детерминизм по
+   * дню; вариант без day отвергнут). Чистый (hash — параметр).
+   * @param {number} x координата тайла
+   * @param {number} y
+   * @param {number} day день мира
+   * @param {number} seed сид (STONE_ROLL_SEED и пр.)
+   * @param {(x: number, y: number, seed: number) => number} hash
+   * @returns {number} [0, 1)
+   */
+  function deterministicRoll(x, y, day, seed, hash) {
+    return hash(x, y, seed ^ day) / 4294967296;
+  }
+
+  /**
+   * Детерминированный фрагмент по (tile, day):
+   * `тексты[hash(x, y, seed ^ day) % тексты.length]`. Мусорные
+   * тексты (не массив/пусто) → null (без исключения; apply сам
+   * валидирует тексты). Чистый (hash — параметр).
+   * @returns {string|null}
+   */
+  function pickFragment(texts, x, y, day, seed, hash) {
+    if (!Array.isArray(texts) || texts.length === 0) return null;
+    return texts[hash(x, y, seed ^ day) % texts.length];
+  }
+
+  /** Per-tile questId квеста постройки: `baseId + '_' + x + '_' + y`. */
+  function questIdForTile(baseId, x, y) {
+    return baseId + '_' + x + '_' + y;
+  }
+
+  /**
+   * Шанс камня: `min(1, шанс_база + шанс_шаг·R)` (кап 1.0 — сырое
+   * 1.25 при R=20). effect — объект каталога (валидирует apply).
+   * @returns {number} [0, 1]
+   */
+  function stoneChance(effect, R) {
+    const base = effect && effect.шанс_база;
+    const step = effect && effect.шанс_шаг;
+    if (!Number.isFinite(base) || !Number.isFinite(step)) return 0;
+    return Math.min(1, base + step * (Number(R) || 0));
+  }
+
+  /**
+   * XP камня: `round((опыт_база + опыт_шаг·R) · runePowerMult)`.
+   * xpMult Учёного к камню НЕ применяется (решение —
+   * memory/000074-rune-obelisk.md; существующий derived —
+   * явный потребитель).
+   * @returns {number}
+   */
+  function stoneXp(effect, R, runePowerMult) {
+    const base = effect && effect.опыт_база;
+    const step = effect && effect.опыт_шаг;
+    const mult = Number(runePowerMult) || 0;
+    if (!Number.isFinite(base) || !Number.isFinite(step)) return 0;
+    return Math.round((base + step * (Number(R) || 0)) * mult);
+  }
+
+  /**
+   * XP обелиска: `round((опыт_база + опыт_шаг·L) · xpMult)`.
+   * «Уровень мира» = hero.level (решение —
+   * memory/000074-rune-obelisk.md; 000092 — та же трактовка).
+   * xpMult — существующий derived Учёного.
+   * @returns {number}
+   */
+  function obeliskXp(effect, L, xpMult) {
+    const base = effect && effect.опыт_база;
+    const step = effect && effect.опыт_шаг;
+    const mult = Number(xpMult) || 0;
+    if (!Number.isFinite(base) || !Number.isFinite(step)) return 0;
+    return Math.round((base + step * (Number(L) || 0)) * mult);
+  }
+
+  // Тексты каталога — ≥1 непустая строка (валидация apply).
+  function validTexts(texts) {
+    return Array.isArray(texts) && texts.length >= 1 &&
+      texts.every((t) => typeof t === 'string' && t.length > 0);
+  }
+
+  // Эффект-ОБЪЕКТ решённой каталожной записи (000074, конвенция
+  // 000075): ст.catalog.особые_параметры.эффект; отсутствует/мусор —
+  // null (деградация «недоступно»).
+  function catalogEffect(st) {
+    const c = st && st.catalog;
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return null;
+    const op = c.особые_параметры;
+    if (!op || typeof op !== 'object' || Array.isArray(op)) return null;
+    const eff = op.эффект;
+    if (!eff || typeof eff !== 'object' || Array.isArray(eff)) return null;
+    return eff;
+  }
+
+  /**
+   * Раздел сейва buildingQuests (000074; source of truth): запись
+   * СНИМКА по ключу 'x,y' — прототип-безопасно, fail-open (000029).
+   * Возврат:
+   *   null — раздела/ключа НЕТ (записи нет) — квест К ВЫДАЧЕ;
+   *   { questId: string|null, status: 'active'|'done'|null } —
+   *     запись ЕСТЬ: 'active' → к выполнению; 'done' ИЛИ мусор
+   *     (status null) → ни выдачи, ни выполнения (повторно не
+   *     выдаётся; мусор не даёт двойной награды).
+   * Снимок не мутируется.
+   * @returns {{questId: string|null, status: string|null}|null}
+   */
+  function readBuildingQuestEntry(st, key) {
+    const save = st && st.save;
+    if (!save || typeof save !== 'object' || Array.isArray(save)) {
+      return null;
+    }
+    const m = save.buildingQuests;
+    if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+    if (!Object.prototype.hasOwnProperty.call(m, key)) return null;
+    const e = m[key];
+    if (!e || typeof e !== 'object' || Array.isArray(e)) {
+      return { questId: null, status: null };
+    }
+    return {
+      questId: (typeof e.questId === 'string') ? e.questId : null,
+      status: (e.status === 'active' || e.status === 'done')
+        ? e.status : null,
+    };
+  }
+
+  /**
+   * «Расшифровать» (рунический камень, 40): один раз в день (флаг
+   * каталога раз_в_день — hasDailyLimit). Успех (ролл < шанс) —
+   * XP + фрагмент зашифрованного текста (оба детерминированы по
+   * (tile, day)); провал — попытка СГОРЕЛА: ok:true (R3: ok-ветка
+   * main.js ставит daily-марку + saveNow — иначе повтор в тот же
+   * день был бы доступен, а ТЗ: повтор → недоступно), БЕЗ
+   * xp/fragment. Недневной отказ (нет Game-функций / мусор
+   * каталога) — { ok:false, message:'недоступно' }.
+   * @returns {{ok: boolean, success?: boolean, xp?: number,
+   *            fragment?: string, message?: string}}
+   */
+  function applyRuneStone(st) {
+    const G = lazyGame();
+    if (!G || typeof G.hash2 !== 'function' ||
+        typeof G.derived !== 'function' ||
+        typeof G.skillLevel !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const eff = catalogEffect(st);
+    if (!eff) return { ok: false, message: 'недоступно' };
+    if (!Number.isFinite(eff.шанс_база) || !Number.isFinite(eff.шанс_шаг) ||
+        !Number.isFinite(eff.опыт_база) || !Number.isFinite(eff.опыт_шаг)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    if (typeof eff.навык !== 'string') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const texts = eff.тексты;
+    if (!validTexts(texts)) return { ok: false, message: 'недоступно' };
+    const tile = st.tile || { x: 0, y: 0 };
+    const x = tile.x, y = tile.y, day = st.day;
+    // Уровень навыка ИЗ КАТАЛОГА (в игре — G.skillLevel из npc.js;
+    // 'runes' — вторичный навык).
+    const R = G.skillLevel(st.hero, eff.навык);
+    const success = deterministicRoll(x, y, day, STONE_ROLL_SEED, G.hash2)
+      < stoneChance(eff, R);
+    if (!success) {
+      return {
+        ok: true,
+        success: false,
+        message: 'Расшифровка: руны молчат — попытка сгорела.',
+      };
+    }
+    const xp = stoneXp(eff, R, G.derived(st.hero).runePowerMult);
+    const fragment = pickFragment(texts, x, y, day, STONE_TEXT_SEED, G.hash2);
+    return {
+      ok: true,
+      success: true,
+      xp,
+      fragment,
+      message: 'Расшифровка: успех (+' + xp + ' оп.). «' + fragment + '»',
+    };
+  }
+
+  /**
+   * «Прикоснуться» (обелиск, 42): один раз в день (каталог).
+   * Каждый прикосновение — XP по «уровню мира» (= hero.level) +
+   * лор-фрагмент (детерминированы по (tile, day)). ОДНОРАЗОВЫЙ
+   * квест постройки — по СНИМКУ buildingQuests (прототип-безопасно):
+   *   * записи НЕТ + квест-определение валидно → r.quest
+   *     { questId: questIdForTile(квест.id, x, y), day } — ВЫДАЧА
+   *     (первое прикосновение);
+   *   * запись status 'active' → r.questComplete = запись.questId
+   *     (ПЕРСИСТИРОВАННЫЙ id — каталог мог измениться) — ВЫПОЛНЕНИЕ;
+   *   * 'done' или мусор → ни того, ни другого (повторно не
+   *     выдаётся).
+   * Определение квеста — каталог записи (особые_параметры.квест:
+   * { id, название, описание, цель, награда }); невалидное — квест
+   * просто не в результате (XP/фрагмент — не бьёт).
+   * @returns {{ok: boolean, xp?: number, fragment?: string,
+   *            message?: string, quest?: {questId: string, day: number},
+   *            questComplete?: string}}
+   */
+  function applyObelisk(st) {
+    const G = lazyGame();
+    if (!G || typeof G.hash2 !== 'function' ||
+        typeof G.derived !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const eff = catalogEffect(st);
+    if (!eff) return { ok: false, message: 'недоступно' };
+    if (!Number.isFinite(eff.опыт_база) || !Number.isFinite(eff.опыт_шаг)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const texts = eff.тексты;
+    if (!validTexts(texts)) return { ok: false, message: 'недоступно' };
+    const hero = st && st.hero;
+    // «Уровень мира» = hero.level (решение 000074; единая
+    // трактовка с 000092).
+    const L = hero && hero.level;
+    if (!Number.isFinite(L)) return { ok: false, message: 'недоступно' };
+    const tile = st.tile || { x: 0, y: 0 };
+    const x = tile.x, y = tile.y, day = st.day;
+    const xp = obeliskXp(eff, L, G.derived(hero).xpMult);
+    const fragment = pickFragment(
+      texts, x, y, day, OBELISK_TEXT_SEED, G.hash2);
+    const out = {
+      ok: true,
+      xp,
+      fragment,
+      message: 'Обелиск: +' + xp + ' оп. «' + fragment + '»',
+    };
+    const c = st.catalog;
+    const quest = c && c.особые_параметры && c.особые_параметры.квест;
+    const questValid = quest && typeof quest === 'object' &&
+      !Array.isArray(quest) &&
+      typeof quest.id === 'string' && quest.id !== '' &&
+      quest.награда && typeof quest.награда === 'object' &&
+      !Array.isArray(quest.награда) &&
+      Number.isFinite(quest.награда.опыт) &&
+      Number.isFinite(quest.награда.золото);
+    if (questValid) {
+      const entry = readBuildingQuestEntry(st, x + ',' + y);
+      if (entry === null) {
+        // Первое прикосновение — выдача (per-tile questId).
+        out.quest = { questId: questIdForTile(quest.id, x, y), day };
+      } else if (entry.status === 'active') {
+        // Следующее прикосновение — выполнение (персистированный
+        // questId).
+        out.questComplete = entry.questId;
+      }
+      // 'done'/мусор — ничего (повторной выдачи нет).
+    }
+    return out;
   }
 
   /**
@@ -631,6 +948,55 @@
     return out;
   }
 
+  /**
+   * Раздел сейва buildingQuests (задача 000074, имя — 000072):
+   * Map 'x,y' → { questId: string, day: integer ≥ 1,
+   * status: 'active'|'done' } → обычный объект (JSON). Пустой Map —
+   * {}. Квест постройки — ОДНОРАЗОВЫЙ: запись не истекает
+   * (onDay-очистки НЕТ; done — навсегда, повторной выдачи нет).
+   * @param {Map<string, {questId: string, day: number,
+   *         status: 'active'|'done'}>} m
+   * @returns {object}
+   */
+  function serializeBuildingQuests(m) {
+    const out = {};
+    if (m && typeof m.forEach === 'function') {
+      m.forEach((v, k) => {
+        out[String(k)] = {
+          questId: (v && typeof v.questId === 'string') ? v.questId : null,
+          day: (v && Number.isInteger(v.day) && v.day >= 1) ? v.day : 1,
+          status: (v && v.status === 'done') ? 'done' : 'active',
+        };
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Раздел сейва buildingQuests → Map (fail-open, 000029): раздел
+   * не объект/массив — пустой Map БЕЗ исключения; мусорная запись —
+   * отброс ЗАПИСИ (ключ не 'x,y'; questId не строка; day не целое ≥
+   * 1; status не 'active'/'done'), валидные выживают. Roundtrip с
+   * serializeBuildingQuests.
+   * @param {*} raw раздел сейва (обычный объект)
+   * @returns {Map<string, {questId: string, day: number,
+   *         status: 'active'|'done'}>}
+   */
+  function restoreBuildingQuests(raw) {
+    const out = new Map();
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    for (const k of Object.keys(raw)) {
+      if (!XY_KEY_RE.test(k)) continue;
+      const v = raw[k];
+      if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+      if (typeof v.questId !== 'string') continue;
+      if (!Number.isInteger(v.day) || v.day < 1) continue;
+      if (v.status !== 'active' && v.status !== 'done') continue;
+      out.set(k, { questId: v.questId, day: v.day, status: v.status });
+    }
+    return out;
+  }
+
   return {
     EFFECTS, buildingActions, effectIds, hasEffects, hasDailyLimit,
     linkTeleportCircles, teleportDestination, teleportCharge,
@@ -638,5 +1004,11 @@
     TELEPORT_TIE_SEED,
     // Задача 000076: чистая подсказка «Сна» (скан карты + dungeonTypeFor).
     moonDreamHint,
+    // Задача 000074: камень (40) / обелиск (42) — чистые формулы,
+    // (tile, day)-сиды, квест постройки (снимок/раздел сейва).
+    stoneChance, stoneXp, obeliskXp, deterministicRoll, pickFragment,
+    questIdForTile, readBuildingQuestEntry,
+    serializeBuildingQuests, restoreBuildingQuests,
+    STONE_ROLL_SEED, STONE_TEXT_SEED, OBELISK_TEXT_SEED,
   };
 });

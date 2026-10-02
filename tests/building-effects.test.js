@@ -1649,10 +1649,14 @@ test('A51. квест постройки: source «building», лимит 5 NPC 
   // Атомарность предметов: инвентарь полон → НЕ выполняется,
   // квест остаётся active (повтор — следующее прикосновение;
   // паттерн turnInQuest, для обелиска — no-op).
-  const heroFull = mkHero({});
+  // Технически: у персонажа с back-50 лимит веса позволяет
+  // заполнить все 20 слотов уникальными предметами (иначе весовая
+  // проверка checkAdd остановит заполнение раньше слотовой).
+  const heroFull = mkHero({ secondary: { back: 50 } });
   for (const it of I.allItems()) {
     if (I.slotCount(heroFull) >= I.INVENTORY_SLOTS) break;
-    I.addItem(heroFull, it.id, 1);
+    const rAdd = I.addItem(heroFull, it.id, 1);
+    assert.ok(rAdd.ok, 'заполнение инвентаря: ' + it.id);
   }
   assert.equal(I.slotCount(heroFull), I.INVENTORY_SLOTS,
     'инвентарь полон');
@@ -3613,7 +3617,12 @@ test('B23. квест постройки e2e: выполнение → done, н�
     'перезагрузка: ошибок нет: ' + h2.errors.join('; '));
   assert.ok(!g2.quests.active.some((i) => i.questId === OBELISK_QID),
     'перезагрузка: активного инстанса нет');
-  assert.deepEqual(g2.quests.active, [], 'перезагрузка: журнал пуст');
+  // g2.quests.active — массив из realm vm-песочницы (Object.values):
+  // deepStrictEqual сравнивает прототипы между realm'ами и падает
+  // даже на равных по структуре — сравнение через JSON-нормализацию
+  // (конвенция файла, паттерн B17 c.buffMods).
+  assert.deepEqual(JSON.parse(JSON.stringify(g2.quests.active)), [],
+    'перезагрузка: журнал пуст');
   assert.ok(g2.quests.done.includes(OBELISK_QID),
     'перезагрузка: done держится');
   const save3 = readSave(h2);
