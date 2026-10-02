@@ -1,6 +1,6 @@
 // Вкладка «Магазин» панели персонажа (задача 000130 — разбиение
-// ui.js): секция торговли (000009). Строку «Магазина здесь нет» при
-// !shop добавит задача 000101 (зона 000101 — ЭТОТ файл, в render-хуке).
+// ui.js): секция торговли (000009). Строка «Магазина здесь нет» при
+// !shop добавлена (000101; зона 000101 — ЭТОТ файл, в render-хуке).
 //
 // Чистый UMD-модуль (образец src/cities.js): node — require()
 // возвращает определение вкладки (без регистрации); браузер —
@@ -49,9 +49,9 @@ function (G0, rootRef) {
     label: 'Магазин',
     build(pane, ctx) {
       // Торговля (000009) переезжает в pane «Магазин» как есть:
-      // render() обновляет _shopBody in place и прячет секцию,
-      // когда shop === null (000101 добавит строку «Магазина здесь
-      // нет» в этот же pane).
+      // render() обновляет _shopBody in place; при shop === null —
+      // строка «Магазина здесь нет» (000101) в этом же pane,
+      // секция остаётся видимой.
       const shopSec = ctx.el('div', 'cp-section', 'Магазин');
       const shopBody = ctx.el('div', 'cp-items');
       shopSec.appendChild(shopBody);
@@ -69,7 +69,14 @@ function (G0, rootRef) {
       // return прежнего renderItems переехал в хук ЦЕЛИКОМ:
       // инвентарь/снаряжение рендерятся независимо (свои хуки).
       if (!shop) {
-        panel._shopSec.style.display = 'none';
+        // 000101: вместо скрытия секции — placeholder-строка (по
+        // образцу .cp-itemmeta; секция остаётся видимой). Тело
+        // ОБЯЗАТЕЛЬНО чистим — прежний ранний return не чистил
+        // (stale-строки после setShop(null)).
+        panel._shopSec.style.display = '';
+        panel._shopBody.textContent = '';
+        panel._shopBody.appendChild(
+          ctx.el('div', 'cp-itemmeta', 'Магазина здесь нет'));
         return;
       }
       panel._shopSec.style.display = '';
