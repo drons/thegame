@@ -35,7 +35,9 @@
 //              SETTINGS в момент загрузки (structuredClone не
 //              используется — только Node 24/браузеры различаются);
 //   clampValue(path, raw) — валидация/кламп по dot-path: вне
-//              диапазона → ближайшее допустимое (clamped), мусор →
+//              диапазона → ближайшее допустимое, int — round;
+//              clamped: true — когда принятое значение отличается
+//              от входного (round/кламп → заметка в UI); мусор →
 //              отказ (reason), positive ≤ 0 → отказ; чистая;
 //   resetKey(path) / resetAll() — сброс к DEFAULTS; ссылка на
 //              SETTINGS НЕ меняется.
@@ -339,14 +341,21 @@
         return { ok: false, reason: '«' + String(raw) +
           '» — не число' };
       }
+      const given = n;             // исходное конечное (до round/клампа)
       if (rec.type === 'int') n = Math.round(n);
       let v = n;
-      let clamped = false;
       if (rec.positive && v <= 0) {
         return { ok: false, reason: 'значение должно быть больше 0' };
       }
-      if (rec.min != null && v < rec.min) { v = rec.min; clamped = true; }
-      if (rec.max != null && v > rec.max) { v = rec.max; clamped = true; }
+      if (rec.min != null && v < rec.min) v = rec.min;
+      if (rec.max != null && v > rec.max) v = rec.max;
+      // clamped — принятое значение ИЗМЕНИЛОСЬ относительно входного
+      // (round целочисленного или кламп в min/max): 0.5 → 1 (min),
+      // 40.6 → 41 (round), 1e9 → max. UI обязан показать заметку
+      // (ревью 000098: сравнение УЖЕ скруглённого значения с min/max
+      // пропускало 0.5 → 1 — заметки не было, тогда как '-0' → 1 —
+      // была; расхождение в обратной связи закрыто).
+      const clamped = v !== given;
       return { ok: true, value: v, clamped };
     }
     if (rec.type === 'enum') {

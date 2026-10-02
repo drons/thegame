@@ -114,13 +114,21 @@ S3/S6).
 берётся по сегментам (запись → subkeys → generic). Чистая: без DOM, без
 мутаций, НИКОГДА не бросает.
 * int: n = Number(raw); raw = ''/NaN/±Inf/нечисловая строка → { ok:false,
-  reason } (НЕ принимается — ТЗ); v = Math.round(n); v < min → min;
-  max != null && v > max → max; → { ok, value, clamped }.
+  reason } (НЕ принимается — ТЗ); given = n; v = Math.round(n); v < min →
+  min; max != null && v > max → max; → { ok, value, clamped }.
 * float: то же без round; **positive: true && v ≤ 0 → { ok:false,
   reason } — ОТКАЗ, не кламп** (у (0,∞) «ближайшего допустимого» нет;
   0×HP = поломка боя; альтернатива a1 «кламп в 0.01» ОТКЛОНЕНА); v < min →
   min; v > max → max.
 * enum: String(raw) ∈ options (live) → { ok, value }; иначе { ok:false }.
+* clamped: true — КОГДА ПРИНЯТОЕ ЗНАЧЕНИЕ ОТЛИЧАЕТСЯ ОТ ВХОДНОГО
+  (v !== given: round целочисленного ИЛИ кламп в min/max) → заметка в
+  UI. Ревью 000098 (исправлено): раньше clamped считался по УЖЕ
+  скруглённому значению (1 < 1 → false) — 0.5 → 1 (round в min)
+  проходило БЕЗ заметки, тогда как '-0' → 1 — С заметкой (расхождение
+  в обратной связи); 40.6 → 41 (округление) — тоже clamped (заметка
+  «значение скорректировано» корректна: игрок увидел не своё число).
+  Фиксаторы: S4 (r3/r10) + U7 (generic 0.5 → 1 + заметка).
 * Нарушение границ — ВСЕГДА «ближайшее допустимое» (clamped: true, заметка
   в UI); мусор — value не принимается (заметка в UI).
 * КРОСС-ПОЛЯ (obstacle min≤max; quit_low<quit_high) формой НЕ гоняются:

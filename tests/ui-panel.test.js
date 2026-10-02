@@ -2369,3 +2369,55 @@ test('000098 RED: U5 — steps_per_day 0/−5 из input → SETTINGS ≥ 1 (и�
   assert.ok(S.steps_per_day >= 1, '−5 → всё ещё ≥ 1');
   assert.equal(S.steps_per_day, 1, '−5 клампится в 1 (min)');
 });
+
+test('000098: U6 — guard build: без Game.GlobalSettings — console.error + деградация «Настройки недоступны», игра не падает (ревью: паттерн 000053)', () => {
+  const env = loadSettingsUi();
+  assert.equal(env.errors.length, 0,
+    'загрузка цепочки — чисто (guard — в build, не при загрузке)');
+  const c = env.G.createCharacter();
+  // GlobalSettings уберён ДО СБОРКИ панели: t.build — в buildPanel
+  // (toggle(true)), НЕ при клике по вкладке.
+  delete env.G.GlobalSettings;
+  let panel = null;
+  let pane = null;
+  assert.doesNotThrow(() => {
+    panel = openPanel(env, c);      // сборка → guard → console.error
+    pane = settingsPane(env, panel); // клик по вкладке (idx 2)
+  }, 'сборка панели + клик по вкладке без GlobalSettings не бросают');
+  assert.ok(env.errors.some((e) => e.includes('Game.GlobalSettings')),
+    'console.error про Game.GlobalSettings: ' + env.errors.join('; '));
+  assert.equal(findAll(pane, '.cp-set').length, 0,
+    'формы .cp-set нет (деградация, не крах)');
+  assert.ok(findAll(pane, '.cp-itemmeta').some((m) =>
+      String(m.textContent).includes('Настройки недоступны')),
+    'строка деградации «Настройки недоступны» в pane');
+});
+
+test('000098: U7 — будущий ключ SETTINGS без записи в META: generic-строка в форме, apply работает, не падает (ревью: ТЗ «новый ключ НЕ падает»)', () => {
+  const env = loadSettingsUi();
+  assert.equal(env.errors.length, 0, 'ошибок при загрузке нет');
+  // Ключ ДО СБОРКИ формы (форма строится в buildPanel/toggle).
+  // Песочница — СВОЯ копия SETTINGS (vm-контекст) — node-SETTINGS не
+  // затрагивается; других тестов на эту песочницу нет.
+  const S = env.G.GlobalSettings.SETTINGS;
+  S.tmp_future_key = 2.5;
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  assert.equal(env.errors.length, 0,
+    'сборка формы с новым ключом — без ошибок: ' + env.errors.join('; '));
+  const pane = settingsPane(env, panel);
+  const inp = byKey(pane, 'tmp_future_key');
+  assert.ok(inp, 'generic-строка нового ключа (dataset.key) в форме');
+  assert.equal(String(inp.tagName).toLowerCase(), 'input',
+    'generic число — input (не select)');
+  assert.equal(inp.type, 'number', 'generic float → input[type=number]');
+  assert.equal(inp.value, '2.5', 'value = SETTINGS на сборке');
+  // apply: 0.5 → 1 (generic float min 1) + заметка о корректировке.
+  inp.value = '0.5';
+  dispatchChange(pane, inp);
+  assert.equal(S.tmp_future_key, 1,
+    'generic кламп: 0.5 → 1 (float min 1)');
+  assert.equal(inp.value, '1', 'input нормализован к принятому');
+  assert.ok(String(noticeOf(panel).textContent).length > 0,
+    'заметка о клампе в .cp-notice');
+});

@@ -494,6 +494,17 @@ test('000098 RED: S4 — clampValue: мусор → отказ, вне диап�
   const r3 = clampValue('steps_per_day', 40.6);
   assert.equal(r3.ok, true);
   assert.equal(r3.value, 41, 'дробное 40.6 → 41 (int: Math.round)');
+  assert.equal(r3.clamped, true,
+    '40.6 ≠ 41: clamped true (округление — корректировка, заметка в UI)');
+  // Дробное В ГРАНИЦЕ: 0.5 → round → 1 = min. Заметка ОБЯЗАНА быть
+  // (clamped — значение изменилось): раньше clamped считался по
+  // УЖЕ скруглённому значению (1 < 1 → false) — 0.5 → 1 проходило
+  // БЕЗ заметки, тогда как '-0' → 1 — С заметкой (ревью 000098).
+  const r10 = clampValue('steps_per_day', '0.5');
+  assert.equal(r10.ok, true, '0.5 → принято (round в min)');
+  assert.equal(r10.value, 1, '0.5 → 1 (int: round → min)');
+  assert.equal(r10.clamped, true,
+    '0.5 ≠ 1: clamped true (нарушение границы, заметка в UI)');
   // Мусор — value НЕ принимается (restore в UI) + reason.
   for (const junk of ['abc', '', NaN, Infinity, -Infinity]) {
     const r = clampValue('steps_per_day', junk);
@@ -612,4 +623,43 @@ test('000098 RED: S7 — браузерный UMD-путь несёт те же 
     'браузерный resetKey — функция');
   assert.equal(typeof gs.resetAll, 'function',
     'браузерный resetAll — функция');
+});
+
+test('000098: S8 — новый ключ SETTINGS БЕЗ записи в META: generic-фолбэк (тип по typeof, min = 1 для чисел), НЕ падает (ревью)', (t) => {
+  // ТЗ «Что сделать» п.1: «ключ без записи в таблице → generic-запись
+  // (тип по typeof SETTINGS[k], min = 1 для чисел) — новый ключ НЕ
+  // падает». Ветка реализована (metaFor/genericMeta) но не была
+  // закреплена тестом (ревью 000098). Временные ключи — с t.after-
+  // restore (объект SETTINGS общий на процесс — паттерн файла).
+  for (const k of ['tmp_future_float', 'tmp_future_int', 'tmp_future_str']) {
+    assert.ok(!(k in SETTINGS), k + ' — отсутствует на старте');
+  }
+  SETTINGS.tmp_future_float = 2.5;
+  SETTINGS.tmp_future_int = 7;
+  SETTINGS.tmp_future_str = 'a';
+  t.after(() => {
+    delete SETTINGS.tmp_future_float;
+    delete SETTINGS.tmp_future_int;
+    delete SETTINGS.tmp_future_str;
+  });
+  // Число (не целое) → generic float, min 1.
+  assert.doesNotThrow(() => clampValue('tmp_future_float', 3),
+    'новый ключ — clampValue не бросает');
+  assert.equal(clampValue('tmp_future_float', 3).value, 3,
+    '3 в допустимом (min 1) — без изменений');
+  const rf = clampValue('tmp_future_float', 0.5);
+  assert.equal(rf.ok, true, 'generic float — не бросает');
+  assert.equal(rf.value, 1, 'generic float min 1: 0.5 → 1');
+  assert.equal(rf.clamped, true, '0.5 ≠ 1: clamped true (заметка)');
+  // Число (целое) → generic int, min 1.
+  const ri = clampValue('tmp_future_int', 0);
+  assert.equal(ri.ok, true, 'generic int — не бросает');
+  assert.equal(ri.value, 1, 'generic int min 1: 0 → 1');
+  assert.equal(ri.clamped, true, '0 ≠ 1: clamped true (заметка)');
+  // Строка → generic enum из [текущее значение].
+  assert.equal(clampValue('tmp_future_str', 'a').ok, true,
+    'enum [текущее]: текущее значение — ок');
+  const rs = clampValue('tmp_future_str', 'z');
+  assert.equal(rs.ok, false, 'enum [текущее]: чужое — отказ (не падает)');
+  assert.equal(typeof rs.reason, 'string', 'отказ — с reason (заметка)');
 });
