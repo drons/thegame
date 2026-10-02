@@ -3,9 +3,9 @@
 Дополнение к memory/000098-game-settings-tab.md (контракт ядра:
 META/DEFAULTS/clampValue/resetKey/resetAll в src/global-settings.js).
 Здесь — контракт САМОЙ вкладки (src/ui-tab-settings.js, зона 000098 по
-000130). Статус: ПРОЕКТИРОВАНИЕ (2026-10-02, worktree .worktrees/
-task-000098, ветка task/000098, база master c9c99d6); после GREEN —
-«реализована».
+000130). Статус: реализована (2026-10-02, worktree .worktrees/task-000098,
+ветка task/000098, база master 9d4ac85 после ребейза; полный
+npm test — 1298/1298).
 
 ## 1. Что вкладка
 
