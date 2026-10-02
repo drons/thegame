@@ -2421,3 +2421,328 @@ test('000098: U7 — будущий ключ SETTINGS без записи в MET
   assert.ok(String(noticeOf(panel).textContent).length > 0,
     'заметка о клампе в .cp-notice');
 });
+
+// =====================================================================
+// 000101 — Вкладка «Магазин»: строка «Магазина здесь нет» при
+// shop === null (placeholder, секция остаётся видимой)
+// =====================================================================
+//
+// Зона 000101 — src/ui-tab-shop.js (контракт 000130; НЕ src/ui.js —
+// анти-прецедент). Перенос «Торговли» в pane «Магазин» выполнен
+// ДОСРОЧНО в 000096/000130 (одноколоночной секции «Торговля» в DOM
+// нет — S3 фиксирует). Остаток 000101, строго по ТЗ: shop === null —
+// placeholder-строка «Магазина здесь нет» (ГОЛЫЙ div.cp-itemmeta,
+// образцы — «Журнал квестов недоступен.» / «Настройки недоступны»)
+// ВМЕСТО скрытия секции (было: display='none' + stale-строки в
+// _shopBody — ранний return без очистки). Контракт:
+// memory/000101-shop-tab.md.
+//
+// Лоадер — существующий loadTabsUi() + CHAIN_000130 (цепочка из
+// index.html уже содержит ui-tab-shop.js — НОВЫХ тегов/файлов/стабов
+// НЕТ; лоадер МЕЖДУ ФАЗАМИ не правится). Help'еры — openPanel/
+// colsOf/panesOf/clickTab/findAll/noticeOf/textOf + src().
+//
+// КРАСНЫЕ (падают до реализации, зелёные после):
+//   * S1: shop = null — секция «Магазин» НЕ скрыта, строка
+//     «Магазина здесь нет» (.cp-itemmeta), _shopBody — ровно 1 ребёнок,
+//     строк .cp-itemrow и кнопок нет;
+//   * S2: setShop(shop) — строки магазина (имена/цены — из stock и
+//     ядра, без хардкода); setShop(null) — плейсхолдер ВЕРНУЛСЯ,
+//     старые строки очищены (stale); краснеет на ПЕРЕХОДЕ
+//     setShop(null) (фаза 1 — фиксатор досрочного переноса —
+//     зелёная с 1-го).
+// ЗЕЛЁНЫЕ с первого запуска (регрессия-фиксаторы):
+//   * S3: секции «Торговля» в панели НЕТ; _shopBody живёт в секции
+//     «Магазин» внутри pane вкладки «Магазин»;
+//   * S4: клик data-act buy через panel.listeners.click[0]
+//     (doItemAction) — покупка: gold−buyPrice, stock−1, инвентарь+1,
+//     notice «Куплено: <name> за N з» (цена — из результата ядра);
+//     строка (qty−1 < 1) убрана после ре-рендера;
+//   * S5: клик data-act sell — продажа: gold+sellPrice,
+//     инвентарь−1, notice «Продано: … за N з»; строка ×2 → ×1,
+//     тот же _shopBody;
+//   * S6: смена setShop (s1 → s2-универсам → null) — остальные
+//     вкладки сохранены: те же DOM-узлы pane, активные вкладки НЕ
+//     сбрасываются render(), строки «Снаряжение»/«Инвентарь» не
+//     тронуты;
+//   * S7: плейсхолдер живёт в src/ui-tab-shop.js, НЕ в ядре ui.js
+//     (литерал уже есть в шапке-комментарии модуля — фиксатор зоны).
+//
+// РЕГРЕССИЯ БЕЗ ИЗМЕНЕНИЙ: tests/items.test.js (ядро торговли),
+// tests/ui-skills.test.js, остальное этого файла, полный npm test.
+
+// Pane вкладки «Магазин» (правый столбец, 2-й pane — порядок
+// закреплён пинами 000096/000130).
+function shopPaneOf(panel) {
+  const cols = colsOf(panel);
+  const rp = panesOf(cols[1]);
+  assert.equal(rp.length, 3, 'правый столбец — 3 pane');
+  return rp[1];
+}
+
+test('000101 RED: shop = null — секция видима, строка «Магазина здесь нет» (.cp-itemmeta), строк/кнопок нет', () => {
+  const env = loadTabsUi();
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c); // setShop не зван — shop === null
+  const pane = shopPaneOf(panel);
+  assert.ok(panel._shopSec, 'panel._shopSec зафиксирован (секция «Магазин»)');
+  assert.ok(panel._shopBody, 'panel._shopBody зафиксирован');
+  assert.notEqual(panel._shopSec.style.display, 'none',
+    'при shop = null секция «Магазин» НЕ скрыта (placeholder виден)');
+  const ph = findAll(pane, '.cp-itemmeta')
+    .find((m) => String(m.textContent) === 'Магазина здесь нет');
+  assert.ok(ph,
+    'плейсхолдер-строка «Магазина здесь нет» (.cp-itemmeta) в pane: '
+    + textOf(pane));
+  assert.equal(panel._shopBody.children.length, 1,
+    '_shopBody — ровно 1 ребёнок (голый placeholder, не .cp-itemrow)');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    'в pane нет строк .cp-itemrow');
+  assert.equal(findAll(pane, '.cp-btn').length, 0,
+    'в pane нет кнопок купить/продать');
+  assert.equal(env.errors.length, 0,
+    'консоли-ошибок при рендере плейсхолдера нет');
+});
+
+test('000101 RED: setShop → строки магазина; setShop(null) → плейсхолдер снова, старые строки очищены', () => {
+  const env = loadTabsUi();
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  const c = env.G.createCharacter();
+  env.G.addItem(c, 'healing_potion', 2); // продаётся у аптекаря
+  const panel = openPanel(env, c);
+  const pane = shopPaneOf(panel);
+  const s1 = env.G.makeShop(0, 0, env.G.BUILDING_TYPES.APOTHECARY, 2);
+
+  // Фаза 1 (зелёная с 1-го — фиксатор досрочного переноса 000096/
+  // 000130): строки из stock — имена/цены из ядра, без хардкода.
+  env.G.playerUI.setShop(s1);
+  const bname = env.G.buildingNameUi(s1.buildingType) || 'магазин';
+  const meta = findAll(panel._shopBody, '.cp-itemmeta')
+    .find((m) => String(m.textContent)
+      .includes(', богатство ' + s1.wealth + '/3'));
+  assert.ok(meta, 'мета-строка «<постройка>, богатство N/3» в _shopBody: '
+    + textOf(pane));
+  assert.ok(String(meta.textContent).includes(bname),
+    'мета — имя постройки из buildingNameUi: ' + meta.textContent);
+  for (const [id, qty] of Object.entries(s1.stock)) {
+    if (qty < 1) continue;
+    const it = env.G.getItem(id);
+    const row = findAll(panel._shopBody, '.cp-itemrow')
+      .find((r) => {
+        const name = r.querySelector('.cp-itemname');
+        const btn = r.querySelector('.cp-btn');
+        return name && btn
+          && String(name.textContent) === it.name + ' ×' + qty
+          && btn.dataset.act === 'buy' && btn.dataset.item === id;
+      });
+    assert.ok(row,
+      'buy-строка ' + id + ' («' + it.name + ' ×' + qty + '»): '
+      + textOf(pane));
+  }
+  const sellRow = findAll(panel._shopBody, '.cp-itemrow')
+    .find((r) => {
+      const btn = r.querySelector('.cp-btn');
+      return btn && btn.dataset.act === 'sell'
+        && btn.dataset.item === 'healing_potion';
+    });
+  assert.ok(sellRow,
+    'sell-строка healing_potion (инвентарь персонажа) в _shopBody: '
+    + textOf(pane));
+  // Все кнопки pane — только существующие data-act buy/sell.
+  const acts = findAll(pane, '.cp-btn').map((b) => b.dataset.act);
+  assert.ok(acts.length >= 1
+      && acts.every((a) => a === 'buy' || a === 'sell'),
+    'все .cp-btn в pane — data-act ∈ {buy, sell}: ' + acts.join(','));
+  assert.ok(!textOf(pane).includes('Магазина здесь нет'),
+    'плейсхолдера нет, пока магазин открыт');
+
+  // Фаза 2 (КРАСНАЯ до реализации): setShop(null) — плейсхолдер
+  // снова, старые строки очищены (было: display='none' + stale-
+  // строки — ранний return не чистил тело).
+  env.G.playerUI.setShop(null);
+  const ph = findAll(pane, '.cp-itemmeta')
+    .find((m) => String(m.textContent) === 'Магазина здесь нет');
+  assert.ok(ph,
+    'после setShop(null) плейсхолдер «Магазина здесь нет» ВЕРНУЛСЯ: '
+    + textOf(pane));
+  assert.equal(panel._shopBody.children.length, 1,
+    '_shopBody — ровно 1 ребёнок (stale-строки очищены)');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    'после setShop(null) строк магазина нет (stale убран)');
+  assert.equal(findAll(pane, '.cp-btn').length, 0,
+    'после setShop(null) кнопок купить/продать нет');
+  assert.ok(!textOf(pane).includes('покупка')
+      && !textOf(pane).includes('продажа'),
+    'текста «покупка»/«продажа» в pane после setShop(null) НЕТ');
+  assert.equal(env.errors.length, 0,
+    'консоли-ошибок при переходе shop → null нет');
+});
+
+test('000101 RED: секции «Торговля» в панели НЕТ; _shopBody живёт в pane вкладки «Магазин»', () => {
+  // Зелёный с 1-го — фиксатор ТЗ «секция Торговля в одноколоночной
+  // раскладке УБИРАЕТСЯ» (выполнено досрочно 000096/000130): чтобы
+  // секция не вернулась.
+  const env = loadTabsUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const trade = findAll(panel, '.cp-section')
+    .filter((s) => String(s.textContent) === 'Торговля');
+  assert.equal(trade.length, 0,
+    'секции .cp-section «Торговля» в панели нет (торговля — только ' +
+    'вкладка «Магазин»)');
+  const pane = shopPaneOf(panel);
+  assert.ok(panel._shopSec, 'panel._shopSec зафиксирован');
+  assert.equal(String(panel._shopSec.textContent), 'Магазин',
+    'заголовок секции — «Магазин»');
+  assert.equal(panel._shopBody.parent, panel._shopSec,
+    '_shopBody живёт внутри секции «Магазин»');
+  assert.equal(panel._shopSec.parent, pane,
+    'секция «Магазин» — в pane вкладки «Магазин» (правый столбец)');
+});
+
+test('000101 GREEN: клик data-act buy через panel.listeners.click[0] — покупка (регрессия ядра items.js)', () => {
+  const env = loadTabsUi();
+  const c = env.G.createCharacter();
+  const panel = openPanel(env, c);
+  const s1 = env.G.makeShop(0, 0, env.G.BUILDING_TYPES.APOTHECARY, 2);
+  env.G.playerUI.setShop(s1);
+  // Первый в stock предмет с qty ≥ 1 — из фикстуры, без хардкода.
+  const entry = Object.entries(s1.stock).find(([, q]) => q >= 1);
+  assert.ok(entry, 'в stock есть предмет с qty ≥ 1');
+  const [id, qty] = entry;
+  const it = env.G.getItem(id);
+  const price = env.G.buyPrice(s1, id, c);
+  const gold0 = c.gold;
+  const before = env.G.totalQty(c, id);
+  const btn = findAll(panel._shopBody, '.cp-btn')
+    .find((b) => b.dataset.act === 'buy' && b.dataset.item === id);
+  assert.ok(btn, 'кнопка «купить» (data-item=' + id + ') в pane');
+  const clickers = panel.listeners.click || [];
+  assert.equal(clickers.length, 1, 'ОДИН делегированный click на панели');
+  clickers[0]({ target: btn });
+  assert.equal(c.gold, gold0 - price,
+    'gold − buyPrice (' + gold0 + ' − ' + price + ' = '
+    + (gold0 - price) + ')');
+  assert.equal(env.G.totalQty(c, id), before + 1,
+    'инвентарь +1 («' + it.name + '»)');
+  assert.equal(s1.stock[id], qty - 1, 'сток магазина −1');
+  assert.equal(noticeOf(panel).textContent,
+    'Куплено: ' + it.name + ' за ' + price + ' з',
+    'notice «Куплено: <name> за N з» (цена — из результата ядра)');
+  const buyRowAfter = findAll(panel._shopBody, '.cp-itemrow')
+    .find((r) => {
+      const b = r.querySelector('.cp-btn');
+      return b && b.dataset.act === 'buy' && b.dataset.item === id;
+    });
+  assert.ok(!buyRowAfter,
+    'buy-строка предмета УБРАНА после ре-рендера в обработчике ' +
+    '(qty − 1 < 1)');
+});
+
+test('000101 GREEN: клик data-act sell — продажа (регрессия)', () => {
+  const env = loadTabsUi();
+  const c = env.G.createCharacter();
+  env.G.addItem(c, 'healing_potion', 2);
+  const panel = openPanel(env, c);
+  const s1 = env.G.makeShop(0, 0, env.G.BUILDING_TYPES.APOTHECARY, 2);
+  env.G.playerUI.setShop(s1);
+  const it = env.G.getItem('healing_potion');
+  const price = env.G.sellPrice(s1, 'healing_potion', c);
+  const gold0 = c.gold;
+  const body0 = panel._shopBody;
+  const btn = findAll(panel._shopBody, '.cp-btn')
+    .find((b) => b.dataset.act === 'sell'
+      && b.dataset.item === 'healing_potion');
+  assert.ok(btn, 'кнопка «продать» (healing_potion) в pane');
+  (panel.listeners.click || [])[0]({ target: btn });
+  assert.equal(c.gold, gold0 + price,
+    'gold + sellPrice (' + gold0 + ' + ' + price + ' = '
+    + (gold0 + price) + ')');
+  assert.equal(env.G.totalQty(c, 'healing_potion'), 1,
+    'инвентарь −1 (×2 → ×1)');
+  assert.equal(noticeOf(panel).textContent,
+    'Продано: ' + it.name + ' за ' + price + ' з',
+    'notice «Продано: <name> за N з» (цена — из результата ядра)');
+  assert.equal(panel._shopBody, body0,
+    '_shopBody — тот же узел (тело обновляется in place)');
+  const row = findAll(panel._shopBody, '.cp-itemrow')
+    .find((r) => {
+      const b = r.querySelector('.cp-btn');
+      return b && b.dataset.item === 'healing_potion';
+    });
+  assert.ok(row, 'sell-строка обновлена после ре-рендера в обработчике');
+  assert.equal(String(row.querySelector('.cp-itemname').textContent),
+    it.name + ' ×1',
+    'строка обновлена in place: ×2 → ×1');
+});
+
+test('000101 GREEN: смена setShop (shop → другой shop → null) — остальные вкладки сохранены', () => {
+  const env = loadTabsUi();
+  const c = env.G.createCharacter();
+  env.G.addItem(c, 'iron_sword');
+  env.G.equip(c, 'iron_sword'); // строка «Снаряжение»
+  env.G.addItem(c, 'healing_potion', 2); // строка «Инвентарь»
+  const panel = openPanel(env, c);
+  const cols = colsOf(panel);
+  const left = cols[0], right = cols[1];
+  const lp = panesOf(left), rp = panesOf(right);
+  clickTab(panel, right, 1); // активен «Магазин»
+  assert.ok(textOf(rp[0]).includes('Железный меч'),
+    'строка «Снаряжение» (iron_sword): ' + textOf(rp[0]));
+  assert.ok(textOf(lp[1]).includes('×2'),
+    'строка «Инвентарь» (healing_potion ×2): ' + textOf(lp[1]));
+
+  const s1 = env.G.makeShop(0, 0, env.G.BUILDING_TYPES.APOTHECARY, 2);
+  const s2 = env.G.makeShop(1, 1, env.G.BUILDING_TYPES.APOTHECARY, 3);
+  const buyCount = () => findAll(shopPaneOf(panel), '.cp-btn')
+    .filter((b) => b.dataset.act === 'buy').length;
+
+  env.G.playerUI.setShop(s1);
+  assert.equal(buyCount(),
+    Object.entries(s1.stock).filter(([, q]) => q >= 1).length,
+    's1: buy-строк = предметы стока с qty ≥ 1 (из фикстуры)');
+
+  env.G.playerUI.setShop(s2);
+  assert.equal(buyCount(), Object.keys(s2.stock).length,
+    's2 (универсам): buy-строк = ВСЕ предметы стока (динамически)');
+  assert.ok(textOf(shopPaneOf(panel))
+      .includes(', богатство ' + s2.wealth + '/3'),
+    'мета обновлена под s2 («богатство ' + s2.wealth + '/3»): '
+    + textOf(shopPaneOf(panel)));
+
+  // setShop(null) — последний переход (плейсхолдер — контракт S1/S2;
+  // здесь только инварианты «остальные вкладки сохранены»).
+  env.G.playerUI.setShop(null);
+
+  // Остальные вкладки сохранены: pane НЕ пересобираются render()
+  // (хуки пишут только в свои тела), активные вкладки не сбрасываются.
+  const rp2 = panesOf(right), lp2 = panesOf(left);
+  for (let i = 0; i < 3; i++) {
+    assert.equal(rp2[i], rp[i], 'правый pane ' + i + ' — тот же узел');
+    assert.equal(lp2[i], lp[i], 'левый pane ' + i + ' — тот же узел');
+  }
+  assert.notEqual(rp[1].style.display, 'none',
+    'активная правая вкладка ВСЁ ЕЩЁ «Магазин»');
+  assert.equal(rp[0].style.display, 'none', 'правый «Снаряжение» скрыт');
+  assert.equal(rp[2].style.display, 'none', 'правый «Квесты» скрыт');
+  assert.notEqual(lp[0].style.display, 'none',
+    'левый «Персонаж» по-прежнему активен');
+  assert.ok(textOf(rp[0]).includes('Железный меч'),
+    'строка «Снаряжение» не тронута сменой setShop');
+  assert.ok(textOf(lp[1]).includes('×2'),
+    'строка «Инвентарь» не тронута сменой setShop');
+});
+
+test('000101 GREEN: фиксаторы — плейсхолдер в ui-tab-shop.js, НЕ в ядре', () => {
+  // Строка «Магазина здесь нет» рендерится вкладочным модулем (зона
+  // 000101 по контракту 000130 §5) — ядро ui.js её не знает
+  // (аналог анти-прецедента 000130 R4). saveNow-скан не
+  // повторять — общий readdirSync-скан 000130.
+  assert.match(src('ui-tab-shop.js'), /Магазина здесь нет/,
+    'src/ui-tab-shop.js содержит плейсхолдер «Магазина здесь нет»');
+  assert.doesNotMatch(src('ui.js'), /Магазина здесь нет/,
+    'плейсхолдер НЕ в ядре src/ui.js (анти-прецедент)');
+});
