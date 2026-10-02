@@ -27,9 +27,30 @@ const src = (f) => fs.readFileSync(path.join(ROOT, 'src', f), 'utf8');
 // (фон — первым, после базового fillRect, до сетки).
 function makeContext2d(el) {
   const calls = el.drawCalls = [];
+  // Задача 000084 — ТЕХНИЧЕСКОЕ дополнение (семантика drawCalls НЕ
+  // меняется, все существующие ассерты индексов/сигнатур без правок):
+  //  * styleCalls — журнал присвоений fillStyle/strokeStyle [prop,
+  //    value] (пины ЦВЕТОВ: hpBarColor-заполнение ally-бара vs
+  //    плоский '#6fdc6f' моб-бара, подложка rgba(140,242,252,0.25),
+  //    рамка '#8cf2fc', кольцо '#ffe27a' — где геометрия совпадает с
+  //    подсветкой цели);
+  //  * events — ЕДИНЫЙ хронологический лог (вызовы + стили) для
+  //    перебора «цвет, действовавший в момент вызова» (styledCalls).
+  const styleCalls = el.styleCalls = [];
+  const events = el.events = [];
   return new Proxy({}, {
-    get: (t, k) => (k in t ? t[k] : (...args) => { calls.push([k, args]); }),
-    set: (t, k, v) => { t[k] = v; return true; },
+    get: (t, k) => (k in t ? t[k] : (...args) => {
+      calls.push([k, args]);
+      events.push({ c: [k, args] });
+    }),
+    set: (t, k, v) => {
+      t[k] = v;
+      if (k === 'fillStyle' || k === 'strokeStyle') {
+        styleCalls.push([k, v]);
+        events.push({ s: [k, v] });
+      }
+      return true;
+    },
   });
 }
 
@@ -1245,4 +1266,473 @@ test('боевой UI: handleCode — единый путь «code → дейс�
   assert.equal(r1.G.combatUI.isActive(), false, 'оверлей закрыт');
   assert.equal(r1.G.combatUI.handleCode('KeyJ'), false,
     'после finish — false (не «проглатывается»)');
+});
+
+// --- Союзники на мини-карте (задача 000084) ---
+//
+// Контракт: memory/000084-ally-minimap.md (геометрия/цвета/слои
+// 'ally'-ветки drawUnits, allyFrames, перевставка героя) и
+// memory/000084-ally-render.md (стабильный рендер-контракт для
+// 000086/000087/000114). КРАСНЫЕ тесты (TDD): падают, потому что
+// 'ally'-ветки в drawUnits НЕТ — союзник рисуется ветвью МОБА:
+// ROLE_COLORS-прямоугольник + плоский '#6fdc6f' моб-бар + уровень;
+// спрайта союзника, маркера «свой» и канвас-индикатора хода нет.
+//
+// Сцены: Эфир — opts.withEfir + opts.efir (G.efir.createEfir, 000081);
+// наёмник — G.makeAlly (kind 'merc', 000080) + push в c.units и
+// c.turnOrder (белая коробка, паттерн мутаций существующих тестов).
+// Re-render — rAF-tick (makeRafStubs, чистый render без клавиш) при
+// фиксированном performance.now (детерминизм кадров, 000047).
+// vm-правила 000082: ассерты — примитивы/сигнатуры; аргумент
+// drawImage — по метке запрошенного пути (лоадер-фак пишет
+// requested[], изображения — ОБЪЕКТЫ-ДИСТИНКТЫ по пути), не
+// deepEqual/identity на объектах.
+
+const NOW84 = 1000;
+
+// Лоадер-фак: prefixes — [[префикс пути, маркер]...]; requested[] —
+// все запрошенные пути (порядок); на каждый путь — дистинктный
+// объект с меткой __path (нормализация drawImage в golden).
+function fakeLoader84(requested, prefixes) {
+  const images = new Map();
+  return {
+    image: (p) => {
+      requested.push(p);
+      for (const [pre, fake] of prefixes) {
+        if (fake && p.startsWith(pre)) {
+          if (!images.has(p)) images.set(p, Object.assign({ __path: p }, fake));
+          return images.get(p);
+        }
+      }
+      return null;
+    },
+  };
+}
+
+// Сцена 000084: цепочка со sprites.js (+ efir.js, если opts.efir),
+// фикс. now, rAF-стабы, моб — волк (1×1). opts.loader — префиксы
+// спрайт-факов; без него spriteLoader = null (фолбэк-сцены).
+function scene84(opts = {}) {
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body } = loadCombatUi(true, {
+    withEfir: !!opts.efir,
+    performance: { now: () => NOW84 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const requested = [];
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(),
+    mobs: opts.mobs || ['wolf'], mobLevel: 1, seed: 42,
+    ...(opts.efir ? { efir: G.efir.createEfir() } : {}),
+    ...(opts.loader
+      ? { spriteLoader: fakeLoader84(requested, opts.loader) } : {}),
+  });
+  return { G, c, canvas: findCanvas(body), body, keydown, rafStubs,
+    requested };
+}
+
+// Re-render через rAF-tick: окно ПОСЛЕДНЕГО рендера (срезы drawCalls /
+// styleCalls / единого логa events — один временной интервал).
+function tickSlice(canvas, rafStubs) {
+  const n0 = canvas.drawCalls.length;
+  const s0 = canvas.styleCalls.length;
+  const e0 = canvas.events.length;
+  rafStubs.scheduled[rafStubs.scheduled.length - 1]();
+  return {
+    calls: canvas.drawCalls.slice(n0),
+    styleCalls: canvas.styleCalls.slice(s0),
+    events: canvas.events.slice(e0),
+  };
+}
+
+// «Цвет, действовавший в момент вызова»: перебор единого логa
+// (стили → последующие вызовы несут их до нового присвоения).
+function styledCalls(events) {
+  const out = [];
+  let fillStyle, strokeStyle;
+  for (const ev of events) {
+    if (ev.s) {
+      if (ev.s[0] === 'fillStyle') fillStyle = ev.s[1];
+      else strokeStyle = ev.s[1];
+    } else {
+      out.push({ name: ev.c[0], args: ev.c[1], fillStyle, strokeStyle });
+    }
+  }
+  return out;
+}
+
+// Левый верх (x, y) вызова: fillRect/strokeRect — args 0/1;
+// drawImage/fillText — args 1/2.
+const callXY = (n, a) => (n === 'fillRect' || n === 'strokeRect')
+  ? [a[0], a[1]] : [a[1], a[2]];
+
+// Наёмник (kind 'merc', 000080): G.makeAlly + ручные x/y и запись в
+// очередь хода (белая коробка, паттерн существующих тестов).
+function addMerc84(c, G, x, y, role = 'ranged', name = 'Орк') {
+  const merc = G.makeAlly({ name, role, level: 2, dmg: 1, hp: 1 }, 1);
+  merc.x = x; merc.y = y;
+  c.units.push(merc);
+  c.turnOrder.push(merc.id);
+  return merc;
+}
+
+test('боевой UI: 000084 — Эфир в рендере: спрайт (efirFrames, 000034) на клетке союзника, кадр детерминирован', () => {
+  const S = scene84({ efir: true,
+    loader: [['assets/sprites/efir/', { __fake: 'efir' }]] });
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  assert.ok(u, 'Эфир в бою (000081)');
+  const { calls } = tickSlice(S.canvas, S.rafStubs);
+  const di = calls.find((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'efir');
+  assert.ok(di, 'спрайт Эфира нарисован (drawImage), а не фолбэк-прямоугольник');
+  assert.equal(di[1][1], u.x * 48 + 8, 'x — клетка союзника + запас 8px (как у мобов)');
+  assert.equal(di[1][2], u.y * 48 + 8, 'y — клетка союзника');
+  assert.equal(di[1][3], 32, '1×1: ширина 32px');
+  assert.equal(di[1][4], 32, '1×1: высота 32px');
+  // Кадр детерминирован: efirFrames('idle')[frameIndex(NOW, u.x, u.y, 2)]
+  // (action v1 = 'idle'; c._unitFx в ally-ветке не читается).
+  const idx = S.G.frameIndex(NOW84, u.x, u.y, 2);
+  const frame = S.G.efirFrames('idle')[idx];
+  assert.ok(S.requested.includes(frame),
+    'запрошен кадр: ' + frame + ' | ' + JSON.stringify(S.requested));
+});
+
+test('боевой UI: 000084 — полоса HP у союзника: компактная (геометрия моба), цвет заполнения = hpBarColor (паттерн 000038)', () => {
+  // Раненый Эфир: hp = 1/8 → frac 0.125 < 0.2 → красный. Сейчас —
+  // плоский моб-цвет '#6fdc6f' (красная: пороговый цвет 000038).
+  let S = scene84({ efir: true });
+  let u = S.c.units.find((x) => x.kind === 'efir');
+  u.hp = 1;
+  const ex = u.x * 48, ey = u.y * 48;
+  const t1 = tickSlice(S.canvas, S.rafStubs);
+  const styled1 = styledCalls(t1.events);
+  const inBar = (c, w) => c.name === 'fillRect'
+    && c.args[0] === ex + 8 && c.args[1] === ey + 2
+    && c.args[2] === w && c.args[3] === 4;
+  const track = styled1.find((c) => inBar(c, 32) && c.fillStyle === '#3a0d0d');
+  assert.ok(track, 'HP-трек (ex+8, ey+2, 32×4 — геометрия моба)');
+  const fill = styled1.filter((c) => inBar(c, Math.round(32 * (1 / u.maxHP))));
+  assert.equal(fill.length, 1,
+    'заполнение: ширина = round(32 × hp/maxHP) = 4px');
+  assert.equal(fill[0].fillStyle, S.G.hpBarColor(1 / u.maxHP),
+    'цвет заполнения — из Game.hpBarColor (паттерн 000038), '
+    + 'а не плоский цвет моб-бара; факт: ' + fill[0].fillStyle);
+  assert.equal(fill[0].fillStyle, '#d9483b', 'frac < 0.2 → красный');
+  // Якорь: полный HP → '#6fdc6f' (геометрия — как у мобов).
+  S = scene84({ efir: true });
+  u = S.c.units.find((x) => x.kind === 'efir');
+  const ex2 = u.x * 48, ey2 = u.y * 48;
+  const bars = styledCalls(tickSlice(S.canvas, S.rafStubs).events)
+    .filter((c) => c.name === 'fillRect'
+      && c.args[0] === ex2 + 8 && c.args[1] === ey2 + 2
+      && c.args[2] === 32 && c.args[3] === 4);
+  assert.equal(bars.length, 2, 'полный HP: трек + заполнение');
+  assert.ok(bars.some((b) => b.fillStyle === '#3a0d0d'), 'трек — тёмный');
+  assert.ok(bars.some((b) => b.fillStyle === '#6fdc6f'),
+    'полный HP → «#6fdc6f» (hpBarColor)');
+});
+
+test('боевой UI: 000084 — маркер «свой»: синяя подложка 44×44 + рамка 39×39 (без лоадера — фолбэк + маркер)', () => {
+  const S = scene84({ efir: true }); // без лоадера: фолбэк-прямоугольник
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  S.c.targetId = null; // без подсветки цели (сигнатура 39×39)
+  const ex = u.x * 48, ey = u.y * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложка «свой» 44×44 (px+2, py+2)');
+  assert.ok(t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамка «свой» 39×39 (px+4.5, py+4.5)');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'fillStyle'
+    && s[1] === 'rgba(140, 242, 252, 0.25)').length, 1,
+    'цвет подложки — ровно один раз (одна союзная клетка)');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 1,
+    'цвет рамки — ровно один раз');
+  // Якорь: фолбэк-прямоугольник без лоадера на месте.
+  assert.ok(t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 8 && c[1][1] === ey + 8
+    && c[1][2] === 32 && c[1][3] === 32),
+    'фолбэк-прямоугольник 32×32 (без лоадера)');
+});
+
+test('боевой UI: 000084 — индикатор хода у союзника: кольцо 41×41, когда turnOrder[turnIndex] = союзник; в остальное время — нет', () => {
+  const S = scene84({ efir: true });
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  S.c.targetId = null; // без подсветки цели (цвет '#ffe27a')
+  const ex = u.x * 48, ey = u.y * 48;
+  // Ход Эфира: канвас-индикатор в его клетке.
+  S.c.phase = 'mob';
+  S.c.turnIndex = S.c.turnOrder.indexOf('efir');
+  const t1 = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(t1.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 2.5 && c[1][1] === ey + 2.5
+    && c[1][2] === 41 && c[1][3] === 41),
+    'кольцо хода 41×41 (px+2.5, py+2.5) — снаружи рамки «свой»');
+  assert.equal(t1.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#ffe27a').length, 1,
+    'цвет кольца — ровно один раз (цели нет — без коллизии)');
+  // Не ход Эфира — кольца нет нигде.
+  S.c.turnIndex = 0;
+  const t2 = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(!t2.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][2] === 41 && c[1][3] === 41),
+    'не ход союзника — кольца нет');
+  assert.equal(t2.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#ffe27a').length, 0,
+    '«#ffe27a» отсутствует (цели нет, кольца нет)');
+});
+
+test('боевой UI: 000084 — наёмник (kind «merc»): спрайт моба-архетипа (MOB_FRAMES[«orc»]) + маркер «свой»', () => {
+  const S = scene84({ loader:
+    [['assets/sprites/mobs/orc_', { __fake: 'orc' }]] });
+  const merc = addMerc84(S.c, S.G, 5, 2, 'ranged');
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const di = t.calls.find((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__fake === 'orc');
+  assert.ok(di, 'спрайт наёмника (drawImage моба-архетипа)');
+  assert.equal(di[1][1], merc.x * 48 + 8, 'x — клетка наёмника');
+  assert.equal(di[1][2], merc.y * 48 + 8, 'y — клетка наёмника');
+  assert.equal(di[1][3], 32, '1×1: 32px');
+  assert.equal(di[1][4], 32, '1×1: 32px');
+  const frame = S.G.MOB_FRAMES['orc'][S.G.frameIndex(NOW84, merc.x, merc.y, 2)];
+  assert.ok(S.requested.includes(frame),
+    'запрошенный путь = MOB_FRAMES["orc"][frameIndex]: ' + frame
+    + ' | ' + JSON.stringify(S.requested));
+  // Маркер «свой» на клетке наёмника (сцена с ОДНИМ союзником).
+  assert.ok(t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === merc.x * 48 + 2 && c[1][1] === merc.y * 48 + 2
+    && c[1][2] === 44 && c[1][3] === 44), 'подложка на клетке наёмника');
+  assert.ok(t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === merc.x * 48 + 4.5 && c[1][1] === merc.y * 48 + 4.5
+    && c[1][2] === 39 && c[1][3] === 39), 'рамка на клетке наёмника');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'fillStyle'
+    && s[1] === 'rgba(140, 242, 252, 0.25)').length, 1,
+    'подложка — ровно один раз');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 1, 'рамка — ровно один раз');
+});
+
+test('боевой UI: 000084 — детерминизм отрисовки (golden): один seed/now/efir-state → одна последовательность вызовов', () => {
+  // Эфир + наёмник + волк, препятствий нет, фикс. now: ДВА рендера
+  // подряд (rAF-tick'и) — срезы поэлементно идентичны; подпоследо-
+  // вательность клеток Эфира = golden-порядок слоёв (контракт §3).
+  const S = scene84({
+    efir: true,
+    loader: [['assets/sprites/efir/', { __fake: 'efir' }],
+             ['assets/sprites/mobs/orc_', { __fake: 'orc' }]],
+  });
+  addMerc84(S.c, S.G, 5, 2, 'ranged');
+  S.c.obstacles.clear();
+  S.c.targetId = null; // без подсветки цели в golden
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  const A = tickSlice(S.canvas, S.rafStubs);
+  const B = tickSlice(S.canvas, S.rafStubs);
+  const norm = (c) => {
+    const [n, a] = c;
+    // vm-правило 000082: drawImage — по метке пути, не identity.
+    return n === 'drawImage' ? [n, a[0] && a[0].__path, ...a.slice(1)]
+      : [n, ...a];
+  };
+  assert.ok(A.calls.length > 0, 'рендер отрисовал вызовы');
+  assert.equal(A.calls.length, B.calls.length,
+    'два рендера — одинаковое число вызовов');
+  assert.deepEqual(A.calls.map(norm), B.calls.map(norm),
+    'тот же now/seed/state → та же последовательность вызовов');
+  // Golden: порядок слоёв в клетке Эфира: подложка → спрайт → трек →
+  // заполнение → уровень → рамка (кольца нет: turnIndex = 0).
+  // Вызовы героя (спрайт 55.2px вылезает за клетку; миниполоса 55×4
+  // может попасть в диапазон клетки) исключаются по сигнатуре.
+  const ex = u.x * 48, ey = u.y * 48;
+  const isHero = (n, a) => (n === 'drawImage' && a[0]
+      && a[0].__fake === 'hero')
+    || (n === 'fillRect' && a[2] === 55 && a[3] === 4);
+  const cell = A.calls.filter(([n, a]) => {
+    if (isHero(n, a)) return false;
+    const [x, y] = callXY(n, a);
+    return x >= ex && x < ex + 48 && y >= ey && y < ey + 48;
+  }).map(norm);
+  const frame = S.G.efirFrames('idle')[S.G.frameIndex(NOW84, u.x, u.y, 2)];
+  const golden = [
+    ['fillRect', [ex + 2, ey + 2, 44, 44]],            // подложка «свой»
+    ['drawImage', [frame, ex + 8, ey + 8, 32, 32]],    // спрайт
+    ['fillRect', [ex + 8, ey + 2, 32, 4]],             // HP-трек
+    ['fillRect', [ex + 8, ey + 2, 32, 4]],             // HP-fill (полный)
+    ['fillText', [String(u.level), ex + 24, ey + 28]], // уровень
+    ['strokeRect', [ex + 4.5, ey + 4.5, 39, 39]],      // рамка «свой»
+  ];
+  assert.deepEqual(cell, golden,
+    'клетка Эфира — golden-порядок слоёв: ' + JSON.stringify(cell));
+});
+
+test('боевой UI: 000084 — слои: союзники не перекрывают игрока (герой — ПОСЛЕ всех союзников)', () => {
+  // Герой (3,3): спрайт 55.2px вылезает за клетку (левый верх
+  // 140.4 < 144), миниполоса (141,132) — герой пинится по СигНАТУРЕ,
+  // не по клетке (как существующий пин [[141,132]]).
+  const heroCall = (n, a) => (n === 'drawImage' && a[0]
+      && a[0].__fake === 'hero')
+    || (n === 'fillRect' && a[0] === 141 && a[1] === 132
+      && a[2] === 55 && a[3] === 4);
+  // (а) Наёмник НИЖЕ героя (3,4): герой после ВСЕХ союзников.
+  let S = scene84({
+    loader: [['assets/sprites/phlogiston/idle_', { __fake: 'hero' }],
+             ['assets/sprites/mobs/orc_', { __fake: 'orc' }]],
+  });
+  addMerc84(S.c, S.G, 3, 4, 'ranged');
+  S.c.obstacles.clear();
+  S.c.px = 3; S.c.py = 3;
+  const A = tickSlice(S.canvas, S.rafStubs);
+  const iHero = A.calls.findIndex((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__fake === 'hero');
+  const iOrc = A.calls.findIndex((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__fake === 'orc');
+  assert.ok(iHero >= 0, 'спрайт героя нарисован');
+  assert.ok(iOrc >= 0, 'спрайт наёмника нарисован');
+  assert.ok(iHero > iOrc,
+    '(а) герой после всех союзников (наёмник ниже): iHero '
+    + iHero + ' vs iOrc ' + iOrc);
+  // (б) Ловушка: союзник на (px+1, py) — тот же bottomY, x больше:
+  // ВСЕ ally-вызовы раньше ВСЕХ hero-вызовов.
+  S = scene84({
+    loader: [['assets/sprites/phlogiston/idle_', { __fake: 'hero' }],
+             ['assets/sprites/mobs/orc_', { __fake: 'orc' }]],
+  });
+  addMerc84(S.c, S.G, 4, 3, 'ranged');
+  S.c.obstacles.clear();
+  S.c.px = 3; S.c.py = 3;
+  const B = tickSlice(S.canvas, S.rafStubs);
+  const allyIdx = [], heroIdx = [];
+  B.calls.forEach(([n, a], i) => {
+    const [x, y] = callXY(n, a);
+    if (x >= 4 * 48 && x < 5 * 48 && y >= 3 * 48 && y < 4 * 48) {
+      allyIdx.push(i);
+    }
+    if (heroCall(n, a)) heroIdx.push(i);
+  });
+  assert.ok(allyIdx.length > 0, 'вызовы наёмника в сцене');
+  assert.ok(heroIdx.length > 0, 'вызовы героя в сцене');
+  assert.ok(Math.max(...allyIdx) < Math.min(...heroIdx),
+    '(б) все ally-вызовы раньше всех hero-вызовов: max ally '
+    + Math.max(...allyIdx) + ' vs min hero ' + Math.min(...heroIdx));
+});
+
+test('боевой UI: 000084 — деградация (без sprites.js): Эфир — фолбэк + маркер, drawImage нет, исключений/ошибок нет', () => {
+  const rafStubs = makeRafStubs();
+  const { G, body } = loadCombatUi(false, {
+    withEfir: true,
+    performance: { now: () => NOW84 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const errors = [];
+  const realError = console.error;
+  console.error = (m) => errors.push(String(m));
+  let c = null;
+  try {
+    c = G.combatUI.startCombat({
+      hero: G.createCharacter(),
+      mobs: ['wolf'], mobLevel: 1, seed: 42,
+      efir: G.efir.createEfir(),
+    });
+    const canvas = findCanvas(body);
+    assert.ok(canvas, 'оверлей на месте, render() не упал');
+    rafStubs.scheduled[rafStubs.scheduled.length - 1](); // re-render
+  } finally {
+    console.error = realError;
+  }
+  assert.ok(c, 'бой создан (деградация, не крах)');
+  assert.equal(errors.length, 0, 'console.error = 0: ' + JSON.stringify(errors));
+  const u = c.units.find((x) => x.kind === 'efir');
+  assert.ok(u, 'Эфир в бою');
+  const ex = u.x * 48, ey = u.y * 48;
+  const calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((x) => x[0] === 'drawImage'),
+    'drawImage нет (в цепочке нет sprites.js)');
+  // Якорь: фолбэк-прямоугольник (геометрия ветки) на месте.
+  assert.ok(calls.some((x) => x[0] === 'fillRect'
+    && x[1][0] === ex + 8 && x[1][1] === ey + 8
+    && x[1][2] === 32 && x[1][3] === 32),
+    'фолбэк-прямоугольник 32×32');
+  // Красная часть: маркер «свой» — единая ветвь с фолбэком.
+  assert.ok(calls.some((x) => x[0] === 'fillRect'
+    && x[1][0] === ex + 2 && x[1][1] === ey + 2
+    && x[1][2] === 44 && x[1][3] === 44),
+    'подложка «свой» без sprites.js');
+  assert.ok(calls.some((x) => x[0] === 'strokeRect'
+    && x[1][0] === ex + 4.5 && x[1][1] === ey + 4.5
+    && x[1][2] === 39 && x[1][3] === 39),
+    'рамка «свой» без sprites.js');
+});
+
+test('боевой UI: 000084 — мёртвый союзник — «ничего»: без подложки/спрайта/полосы/уровня/рамки/кольца (пин)', () => {
+  const S = scene84({ efir: true });
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  u.alive = false; u.hp = 0;
+  const ex = u.x * 48, ey = u.y * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44), 'без подложки');
+  assert.ok(!t.calls.some((c) => c[0] === 'drawImage'
+    && c[1][1] === ex + 8 && c[1][2] === ey + 8
+    && c[1][3] === 32 && c[1][4] === 32), 'без спрайта');
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 8 && c[1][1] === ey + 2 && c[1][3] === 4),
+    'без HP-полосы (ни трек, ни заполнение)');
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 8 && c[1][1] === ey + 8
+    && c[1][2] === 32 && c[1][3] === 32), 'без фолбэк-прямоугольника');
+  assert.ok(!t.calls.some((c) => c[0] === 'fillText'
+    && c[1][1] === ex + 24 && c[1][2] === ey + 28), 'без уровня');
+  assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5), 'без рамки «свой»');
+  assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 2.5 && c[1][1] === ey + 2.5), 'без кольца хода');
+});
+
+test('боевой UI: 000084 — ряд очереди: токен Эфира несёт --current, когда его ход (пин, 000080)', () => {
+  const S = scene84({ efir: true });
+  S.c.phase = 'mob';
+  S.c.turnIndex = S.c.turnOrder.indexOf('efir');
+  tickSlice(S.canvas, S.rafStubs);
+  const el = findByClass(S.body, 'combat-turnorder');
+  // ЛОВУШКА стаба: textContent='' НЕ очищает children (настоящий DOM
+  // так не ведёт) — читаем ХВОСТ (первый тест в файле, читающий
+  // этот элемент).
+  const tail = el.children.slice(-S.c.turnOrder.length);
+  assert.equal(tail.length, 3, 'токены: герой, Эфир, волк');
+  const [heroTok, efirTok, mobTok] = tail;
+  assert.ok(heroTok.className.includes('turn-token--hero'),
+    'токен героя');
+  assert.ok(!heroTok.className.includes('turn-token--current'),
+    'герой — не current (turnIndex на Эфире)');
+  assert.ok(heroTok.className.includes('turn-token--acted'),
+    'герой — уже ходил');
+  assert.ok(efirTok.className.includes('turn-token--current'),
+    'токен Эфира — current');
+  assert.equal(efirTok.title, 'Эфир (ур. 1) — ходит',
+    'title токена Эфира: ' + JSON.stringify(efirTok.title));
+  assert.ok(!mobTok.className.includes('turn-token--current'),
+    'волк — не current');
+});
+
+test('боевой UI: 000084 — клик по клетке союзника: цель не изменилась, лог не вырос (пин: ядро отклоняет)', () => {
+  const S = scene84({ efir: true });
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  const wolf = S.c.units.find((x) => x.side === 'mob');
+  assert.equal(S.c.targetId, wolf.id, 'авто-цель — волк');
+  const n0 = S.c.log.length;
+  // Центр клетки Эфира (canvas 1:1 — rect = внутренний размер).
+  S.canvas.listeners.click[0]({
+    clientX: (u.x + 0.5) * 48, clientY: (u.y + 0.5) * 48,
+  });
+  assert.equal(S.c.targetId, wolf.id,
+    'клик по клетке союзника — цель не изменилась '
+    + '(ядро отклонило «недоступная цель», 000080)');
+  assert.equal(S.c.log.length, n0,
+    'тихий отказ (000080): лог не вырос');
 });
