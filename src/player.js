@@ -52,8 +52,11 @@
 
   // 000099: live-чтение в момент вызова (паттерн 000020; см. day.js):
   // guard META 000098 (min 1), битое → DEFAULTS → снапшот.
+  // Ревью 000099: guard и на ЦЕЛИКОМ SETTINGS (null/undefined в
+  // рантайме) — NaN не пройдёт guard значения → DEFAULTS.
   function livePointsPerLevel() {
-    const v = settings.SETTINGS.points_per_level;
+    const s = settings.SETTINGS;
+    const v = (s && typeof s === 'object') ? s.points_per_level : NaN;
     return (typeof v === 'number' && Number.isFinite(v) && v >= 1)
       ? v : (settings.DEFAULTS ? settings.DEFAULTS.points_per_level
         : POINTS_PER_LEVEL);

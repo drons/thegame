@@ -298,3 +298,37 @@ function declarations, хостятся до L241).
     параллельно правят 000042/000085/000087 — ребейз + перепроверка
     stepIntervalMs/moveIntervalBase + полный npm test; .merge-pending —
     только стадия мержа.
+
+## 8. Правки по итогам ревью (2026-10-03)
+
+Два findings (3 ревьюера), оба minor, оба РЕАЛЕН, оба закрыты:
+
+* **F1 — live-хелперы бросают TypeError, если ЦЕЛИКОМ SETTINGS
+  заменён на null/undefined в рантайме.** ТЗ п.3 («подделанный/битый
+  SETTINGS не роняет и не зависает игру») и guard main.js в той же
+  задаче уже null-safe (`gs && …` → 140) — несогласованность внутри
+  новой функциональности. Игровая кодовая тропа такого состояния не
+  создаёт (000098 пишет per-key setByPath; SETTINGS session-only) —
+  devtools/ручная подмена → minor. ИСПРАВЛЕНО: в каждом из 5
+  хелперов (day.js liveStepsPerDay/liveRespawnDays, player.js
+  livePointsPerLevel, dungeon.js liveLevelDeltaMax/liveMemoryDays)
+  — `const s = settings.SETTINGS; const v = (s && typeof s ===
+  'object') ? s.<ключ> : NaN;` — NaN не проходит guard значения →
+  DEFAULTS → снапшот (та же цепочка, что при битом значении;
+  while-зависания в addStep нет). combat.js/companions.js НЕ
+  тронуты (задача запрещает; устоявшаяся проектная модель —
+  битые ЗНАЧЕНИЯ, а не замена объекта) — кандидат в follow-up.
+  Тест R9 (tests/global-settings.test.js, vm, цепочка
+  global-settings+perlin+mapseed+map+skills-data+dungeons-data+
+  day+player+dungeon): SETTINGS = null → stepsPerDay 40, addStep(41)
+  → день 2 без зависания, dueForRespawn → DEFAULTS 3, addXp →
+  pointsGained 2, contentValid(1,4)=true/(1,5)=false, ABYSS-босс
+  15+3; SETTINGS = undefined → та же ветка. До фикса R9 красный
+  (TypeError), 30/31 зелёные; после — 31/31. Полный набор 1354/1354.
+* **F2 — отсутствует CHANGELOG-упоминание 000099** (запланировано
+  на стадию мержа, §1.7/§6 D-changelog). Задача меняет поведение,
+  видимое игроку. По прецеденту 000121 (finding #4 — та же
+  ситуация, выполнена на станции ревью) и инструкции станции —
+  выполнено СЕЙЧАС отдельным коммитом «Задача 000099: CHANGELOG — …»
+  (дата 2026-10-03, раздел «Интерфейс», рядом с записью 000098);
+  на стадии мержа добавлять нечего — строка уже в ветке.

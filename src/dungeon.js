@@ -165,14 +165,18 @@
   // guard — границы META 000098 (dungeon_memory_days min 1;
   // level_delta_max min 0 — 0 ВАЛИДНО, «±0»), битое → DEFAULTS →
   // снапшот. Снапшоты выше — load-time API (экспорт-константы).
+  // Ревью 000099: guard и на ЦЕЛИКОМ SETTINGS (null/undefined в
+  // рантайме, devtools) — NaN не пройдёт guard значения → DEFAULTS.
   function liveLevelDeltaMax() {
-    const v = settings.SETTINGS.level_delta_max;
+    const s = settings.SETTINGS;
+    const v = (s && typeof s === 'object') ? s.level_delta_max : NaN;
     return (typeof v === 'number' && Number.isFinite(v) && v >= 0)
       ? v : (settings.DEFAULTS ? settings.DEFAULTS.level_delta_max
         : LEVEL_DELTA_MAX);
   }
   function liveMemoryDays() {
-    const v = settings.SETTINGS.dungeon_memory_days;
+    const s = settings.SETTINGS;
+    const v = (s && typeof s === 'object') ? s.dungeon_memory_days : NaN;
     return (typeof v === 'number' && Number.isFinite(v) && v >= 1)
       ? v : (settings.DEFAULTS ? settings.DEFAULTS.dungeon_memory_days
         : DUNGEON_MEMORY_DAYS);

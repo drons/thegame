@@ -29,13 +29,18 @@
   // перезагрузки. Guard — границы META 000098 (min 1); битое значение
   // → DEFAULTS, последняя опора — снапшот (подделанный settings без
   // DEFAULTS). Снапшоты выше — load-time API (экспорт-константы).
+  // Ревью 000099: ЦЕЛИКОМ SETTINGS может быть заменён в рантайме
+  // (null/undefined, devtools) — guard и на объект: NaN не пройдёт
+  // guard значения → DEFAULTS (как main.js: gs && … → 140).
   function liveStepsPerDay() {
-    const v = settings.SETTINGS.steps_per_day;
+    const s = settings.SETTINGS;
+    const v = (s && typeof s === 'object') ? s.steps_per_day : NaN;
     return (typeof v === 'number' && Number.isFinite(v) && v >= 1)
       ? v : (settings.DEFAULTS ? settings.DEFAULTS.steps_per_day : STEPS_PER_DAY);
   }
   function liveRespawnDays() {
-    const v = settings.SETTINGS.respawn_days;
+    const s = settings.SETTINGS;
+    const v = (s && typeof s === 'object') ? s.respawn_days : NaN;
     return (typeof v === 'number' && Number.isFinite(v) && v >= 1)
       ? v : (settings.DEFAULTS ? settings.DEFAULTS.respawn_days : RESPAWN_DAYS);
   }

@@ -713,6 +713,11 @@ test('000098: S8 — новый ключ SETTINGS БЕЗ записи в META: g
 //     считается), stepIntervalMs читает move_interval_ms ПРЯМО В
 //     ТЕЛЕ (каждый кадр); fallback 140 — только при отсутствии
 //     global-settings.js (guard 000063 без изменений).
+//   * R9 (ревью): guard — SETTINGS = null/undefined ЦЕЛИКОМ (объект
+//     заменён в рантайме, devtools) → хелперы НЕ бросают TypeError,
+//     DEFAULTS — как при битом значении (main.js в той же задаче
+//     уже null-safe: gs && … → 140; ядро приведено в соответствие —
+//     ТЗ п.3 «подделанный/битый SETTINGS не роняет и не зависает»).
 //
 // GREEN без изменений: ВСЕ существующие тесты файла (re-require
 // «единый источник», структурный main.js 281–298, S1–S8) +
@@ -884,4 +889,51 @@ test('000099 RED: R8 — структурный: main.js stepIntervalMs чита
     'live-чтение move_interval_ms в теле stepIntervalMs');
   assert.ok(body.includes('140'),
     'fallback 140 в теле stepIntervalMs');
+});
+
+test('000099 RED: R9 — guard: SETTINGS = null/undefined ЦЕЛИКОМ (объект заменён в рантайме) → хелперы не бросают, DEFAULTS (vm, ревью)', () => {
+  // Ревью (minor): все 5 live-хелперов читали
+  // settings.SETTINGS.<ключ> без guard'а самого объекта; замена
+  // ЦЕЛИКОГО объекта (devtools: Game.GlobalSettings.SETTINGS = null)
+  // → TypeError в цикле rAF → игра зависает. main.js (ta же задача)
+  // уже null-safe (gs && … → 140) — несогласованность закрыта.
+  const sandbox = {};
+  for (const f of ['global-settings.js', 'perlin.js', 'mapseed.js',
+      'map.js', 'skills-data.js', 'dungeons-data.js', 'day.js',
+      'player.js', 'dungeon.js']) {
+    loadInSandbox(f, sandbox);
+  }
+  sandbox.Game.GlobalSettings.SETTINGS = null;
+  // day.js: getter + ТЕЛО addStep (НЕ while-зависание) + dueForRespawn.
+  const c = sandbox.Game.createClock();
+  assert.equal(c.stepsPerDay, 40, 'null → DEFAULTS 40 (не TypeError)');
+  c.addStep(41);
+  assert.equal(c.day, 2, 'порог 40: день 2');
+  assert.equal(c.steps, 1, 'остаток 1');
+  const due0 = sandbox.Game.dueForRespawn(new Map([['1,1', 5]]), 6);
+  assert.deepEqual(JSON.parse(JSON.stringify(due0)), [],
+    'respawn → DEFAULTS 3: 6−5=1 < 3 — ещё нет');
+  // player.js: addXp не бросает, очки → DEFAULTS.
+  const hero = sandbox.Game.createCharacter();
+  const r = sandbox.Game.addXp(hero, sandbox.Game.xpForNext(1));
+  assert.equal(r.levelsGained, 1, 'уровень начисляется');
+  assert.equal(r.pointsGained, 2, 'points → DEFAULTS 2');
+  // dungeon.js: contentValid + ABYSS-босс (delta → DEFAULTS 3).
+  assert.equal(sandbox.Game.contentValid(1, 4), true,
+    'memory → DEFAULTS 3: 4 ≤ 1+3 — живо');
+  assert.equal(sandbox.Game.contentValid(1, 5), false,
+    '5 > 1+3 — протухло');
+  const d = sandbox.Game.createDungeon(37, -12,
+    sandbox.Game.syntheticPixels(8, 8, 128, 128, 128, 10),
+    sandbox.Game.TERRAIN.HILL);
+  const contents = sandbox.Game.generateDungeonContents(
+    d, { totalXp: 12345, level: 15 });
+  const boss = contents.mobs.find((m) => m.boss);
+  assert.ok(boss, 'босс есть (ABYSS)');
+  assert.equal(boss.level, 18,
+    'босс 15+3 (DEFAULTS; объект null — не 15+15, не TypeError)');
+  // undefined — та же ветка guard'а.
+  sandbox.Game.GlobalSettings.SETTINGS = undefined;
+  assert.equal(sandbox.Game.createClock().stepsPerDay, 40,
+    'undefined → DEFAULTS 40');
 });
