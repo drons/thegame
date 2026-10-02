@@ -725,7 +725,9 @@
     function npcBuild() {
       npcCloseDom(); // повторное открытие — разбирать прежний оверлей
       overlay = el('div', 'combat-overlay npc-overlay');
-      const side = el('div', 'combat-side');
+      // Панель — СВОЙ класс .npc-panel (000125): декэплинг от боевой
+      // .combat-side — layout диалога не зависит от её геометрии.
+      const side = el('div', 'npc-panel');
 
       const title = el('div', 'cp-title', '');
       titleText = el('span', '');

@@ -2750,3 +2750,117 @@ test('000101 GREEN: фиксаторы — плейсхолдер в ui-tab-shop
   assert.doesNotMatch(src('ui.js'), /Магазина здесь нет/,
     'плейсхолдер НЕ в ядре src/ui.js (анти-прецедент)');
 });
+
+// =====================================================================
+// 000125 — Диалог NPC на весь экран (декэплинг от .combat-side,
+// свой класс панели .npc-panel)
+// =====================================================================
+//
+// Зона: npcBuild() в src/ui.js (725–774 на базе db99913) + NPC-CSS в
+// конце <style> index.html (контракт: memory/000125-npc-fullscreen.md;
+// ТЗ: tasks/pending/000125.md). МЕХАНИКА не трогается: вкладки
+// диалог/торговля/школа/квесты/найм (000010/000078), onChange/сейв
+// (000029), Esc, автораскрутка лога — тесты этих зон выше проходят
+// без изменений.
+//
+// Лоадер — существующий loadTabsUi() + CHAIN_000130 (динамическая
+// цепочка из index.html до ui.js; новых модулей/скриптов НЕТ —
+// лоадер между фазами НЕ правится). Help'еры — findAll/textOf/src().
+//
+// КРАСНЫЕ (падают до реализации, зелёные после):
+//   * R1: npcUI.open — панель несёт СОБСТВЕННЫЙ класс .npc-panel
+//     (НЕ .combat-side); оверлей держит .npc-overlay; в поддереве
+//     оверлея .combat-side НЕТ (декэплинг: layout диалога не зависит
+//     от геометрии .combat-side при ЛЮБОМ порядке мержей 000124/
+//     000125).
+// ЗЕЛЁНЫЕ с первого запуска (регрессия-фиксаторы нового контракта):
+//   * G1: состав панели инвариантен — ровно 4 прямых ребёнка по
+//     порядку: .cp-title (span «имя — роль» + button .cp-close
+//     «закрыть [Esc]», data-npcact=close) → .cp-itemrow (5×
+//     .cp-btn[data-npcact=tab]: dialog/trade/train/quests/hire) →
+//     .cp-items (тело) → .npc-log (ПОСЛЕДНИЙ ребёнок, несёт и
+//     .combat-state).
+// Статическая часть контракта (CSS index.html + текст src/ui.js) —
+// отдельный файл tests/npc-layout.test.js (R2–R8 + стража G2).
+//
+// РЕГРЕССИЯ БЕЗ ИЗМЕНЕНИЙ: tests/npc-hire.test.js (5 вкладок,
+// подписи), tests/building-effects.test.js (findOverlay фильтрует
+// по 'npc-overlay'), остальные тесты этого файла, полный npm test.
+
+test('000125 RED: npcUI.open — панель .npc-panel (НЕ .combat-side); оверлей держит .npc-overlay; в поддереве .combat-side нет (декэплинг)', () => {
+  const env = loadTabsUi();
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  const c = env.G.createCharacter();
+  const npc = env.G.NpcData.NPCS[0];
+  env.G.npcUI.open({ npc, character: c, book: env.G.createQuestBook() });
+  assert.equal(env.G.npcUI.isActive(), true, 'диалог NPC открыт');
+  const overlay = findAll(env.body, '.npc-overlay')[0];
+  assert.ok(overlay, 'оверлей .npc-overlay подвешен к body (регрессия)');
+  // Панель — единственный прямой ребёнок оверлея (npcBuild).
+  assert.equal(overlay.children.length, 1,
+    'оверлей — ровно 1 ребёнок (панель): '
+    + overlay.children.length);
+  const panel = overlay.children[0];
+  assert.ok(String(panel.className).split(/\s+/).includes('npc-panel'),
+    'панель несёт СОБСТВЕННЫЙ класс .npc-panel; факт: '
+    + panel.className);
+  assert.ok(!String(panel.className).split(/\s+/).includes('combat-side'),
+    'панель НЕ несёт боевой класс .combat-side (декэплинг); факт: '
+    + panel.className);
+  assert.equal(findAll(overlay, '.combat-side').length, 0,
+    'в поддереве оверлея нет элементов .combat-side — layout диалога '
+    + 'не зависит от геометрии боевой панели (000124/000125 — любой '
+    + 'порядок мержей)');
+});
+
+test('000125: состав панели инвариантен — .cp-title → .cp-itemrow (5 вкладок) → .cp-items → .npc-log (последний ребёнок)', () => {
+  const env = loadTabsUi();
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  const c = env.G.createCharacter();
+  const npc = env.G.NpcData.NPCS[0];
+  env.G.npcUI.open({ npc, character: c, book: env.G.createQuestBook() });
+  const overlay = findAll(env.body, '.npc-overlay')[0];
+  assert.ok(overlay, 'оверлей .npc-overlay подвешен к body');
+  const panel = overlay.children[0];
+  assert.equal(panel.children.length, 4,
+    'панель — ровно 4 прямых ребёнка: '
+    + panel.children.map((ch) => ch.className).join(' | '));
+  const [title, tabsRow, body, log] = panel.children;
+  // 1. Заголовок: span «имя — роль» + кнопка .cp-close «закрыть [Esc]».
+  assert.ok(String(title.className).split(/\s+/).includes('cp-title'),
+    '1-й ребёнок — .cp-title: ' + title.className);
+  const nameSpan = title.querySelector('span');
+  assert.ok(nameSpan, '.cp-title несёт span «имя — роль»');
+  assert.ok(String(nameSpan.textContent).includes(' — '),
+    'span «имя — роль»: ' + nameSpan.textContent);
+  const closeBtn = title.querySelector('.cp-close');
+  assert.ok(closeBtn, '.cp-title несёт button .cp-close');
+  assert.equal(closeBtn.textContent, 'закрыть [Esc]',
+    'подпись кнопки «закрыть [Esc]» (тапабельна на мобильном)');
+  assert.equal(closeBtn.dataset.npcact, 'close',
+    "data-npcact='close' (делегированный onOverlayClick)");
+  // 2. Строка вкладок: 5 кнопок .cp-btn[data-npcact=tab] в порядке
+  //    npcBuild (найм — 000078; состав БЕЗ ИЗМЕНЕНИЙ).
+  assert.ok(String(tabsRow.className).split(/\s+/).includes('cp-itemrow'),
+    '2-й ребёнок — .cp-itemrow: ' + tabsRow.className);
+  const tabs = findAll(tabsRow, '.cp-btn')
+    .filter((b) => b.dataset.npcact === 'tab');
+  assert.equal(tabs.length, 5,
+    'ряд вкладок — 5 кнопок: '
+    + tabs.map((t) => t.dataset.tab).join(','));
+  assert.deepEqual(
+    tabs.map((t) => t.dataset.tab),
+    ['dialog', 'trade', 'train', 'quests', 'hire'],
+    'порядок data-tab вкладок');
+  // 3. Тело.
+  assert.ok(String(body.className).split(/\s+/).includes('cp-items'),
+    '3-й ребёнок — .cp-items (тело): ' + body.className);
+  // 4. Лог — ПОСЛЕДНИЙ ребёнок панели; несёт и .combat-state
+  //    (текстовое оформление, не геометрия).
+  assert.ok(String(log.className).split(/\s+/).includes('npc-log'),
+    '4-й (последний) ребёнок — .npc-log: ' + log.className);
+  assert.ok(String(log.className).split(/\s+/).includes('combat-state'),
+    'лог несёт и .combat-state (оформление pre-line/цвет)');
+});

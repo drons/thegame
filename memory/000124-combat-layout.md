@@ -43,8 +43,11 @@ combat-keys.js НЕ трогаются). Добавлено:
 `.combat-state` НЕ ТРОГАТЬ. Единственное исключение — `.combat-actions`
 (только бой) правится в базе. Запрело — статические тесты-стражи в
 tests/combat-layout.test.js: база `.combat-side` = 320px, база
-`.combat-log` = 170px, правила `.dungeon-overlay .combat-side` и
-`.npc-overlay .combat-side` на месте. Это гарантирует критерий 000125
+`.combat-log` = 170px, правило `.dungeon-overlay .combat-side` на
+месте. Правило `.npc-overlay .combat-side` и его стража УДАЛЕНЫ в
+000125 (диалог декэплен на свой класс `.npc-panel`; стража layout
+диалога — tests/npc-layout.test.js, секция 000125). Это гарантирует
+критерий 000125
 «layout диалога не ломается при ЛЮБОМ порядке мержей 000124/000125»:
 диалог NPC (декэплинг в 000125 на свой класс `.npc-panel`) и подземелье
 не затрагиваются при любом порядке. Никто в JS не querySelector'ит
@@ -269,8 +272,10 @@ const cy = Math.floor((e.clientY - r.top)  * (canvas.height / rh) / CELL);
     `/repeat\(\s*4\s*,/`; (R5) `.combat-overlay--combat .combat-log` —
     есть `/flex:\s*1/`, нет `height:\d+px`.
   * ЗЕЛЁНЫЕ стражи (000125/подземелье): база `.combat-side` — width 320px;
-    база `.combat-log` — height 170px; правила `.dungeon-overlay
-    .combat-side` и `.npc-overlay .combat-side` на месте.
+    база `.combat-log` — height 170px; правило `.dungeon-overlay
+    .combat-side` на месте (правило `.npc-overlay .combat-side` и его
+    стража УДАЛЕНЫ в 000125 — диалог декэплен на `.npc-panel`, стража —
+    tests/npc-layout.test.js, секция 000125).
   * Правки ревью 2026-10-01 (ЗЕЛЁНЫЕ; парсер portraitMediaBody/
     portraitRule — тело @media, cssRule выше берёт первое вхождение
     файла = row-скоуп): панель portrait — max-height 512px +
