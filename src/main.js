@@ -346,6 +346,17 @@
   // города — ВСЕГДА null (состояние НЕ там: ловушка dungeon-ui.js —
   // memory/000109-city-save-respawn.md).
   const cityStates = new Map();
+  // Панель «Отряд» (задача 000086): ЖИВЫЕ ссылки — мутация
+  // roster (hire/dismiss/payWages) и efir (addEfirXp) видна панели
+  // без re-wiring; onChange — хук сейва (saveNow, function-декларация
+  // ниже — hoisted в этом же scope).
+  if (G.squadUI && typeof G.squadUI.init === 'function') {
+    G.squadUI.init({ roster, efir, onChange: saveNow });
+  } else {
+    console.error('main.js: Game.squadUI отсутствует — src/ui.js ' +
+      'обязан грузиться ДО src/main.js (000086) — панель ' +
+      '«Отряд» отключена');
+  }
   // Задача 000076: модификаторы активных благословений на текущий
   // день (day.js buffMods, 000072) — для точек создания боя:
   // благословение действует во ВСЕХ боях дня (мир/подземелье/
@@ -1021,6 +1032,10 @@
     // после отладочного боя полноэкранная панель не должна
     // накрывать карту.
     if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
+    // 000086: панель «Отряд» под непрозрачным боевым оверлеем
+    // (z-20) устаревает (000087 мутирует уровни roster, Эфир xp) —
+    // закрыть во всех входах (паттерн 000096).
+    if (G.squadUI && G.squadUI.isOpen()) G.squadUI.toggle(false);
     // Стек оверлеев (000071): оверлей действий под боем — закрыть.
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
     if (G.craftUI && G.craftUI.isActive()) G.craftUI.close(); // 000126
@@ -1151,6 +1166,13 @@
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyI' && G.playerUI) { // I (Ш) — панель персонажа
       G.playerUI.toggle();
+      return;
+    }
+    // C (С) — панель «Отряд» (задача 000086): KeyC СВОБОДНА (сверено:
+    // COMBAT_KEYS/controls.js не знают её — в бою остаётся свободной).
+    // Семантика = KeyI: работает поверх ОТКРЫТЫХ оверлеев, до гейтов.
+    if (e.code === 'KeyC' && G.squadUI) {
+      G.squadUI.toggle();
       return;
     }
     if (e.code === 'KeyE' && G.npcUI) { // E (У) — диалог NPC
@@ -1327,6 +1349,8 @@
     // KeyI в бою по-прежнему переключает (коммент ниже), но это осознанный
     // выбор игрока, а не случайное состояние.
     if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
+    // 000086: панель «Отряд» — закрыть (тот же стек, паттерн 000096).
+    if (G.squadUI && G.squadUI.isOpen()) G.squadUI.toggle(false);
     // Оверлей действий постройки (000071) под боевым оверлеем —
     // закрываем (тот же стек, паттерн 000096).
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
@@ -1589,6 +1613,8 @@
     // То же, что и в мире (000096): панель не должна накрывать
     // подземелье после боя.
     if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
+    // 000086: панель «Отряд» — закрыть (тот же стек, паттерн 000096).
+    if (G.squadUI && G.squadUI.isOpen()) G.squadUI.toggle(false);
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close(); // 000071
     if (G.craftUI && G.craftUI.isActive()) G.craftUI.close(); // 000126
     G.combatUI.startCombat({
