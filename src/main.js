@@ -1684,6 +1684,9 @@
           : null,
         hero: {
           level: hero.level, xp: hero.xp, hp: hero.hp,
+          // 000094: alive — смоук-фиксатор «ловушка не убивает»
+          // (clamp HP ≥ 1; B25 tests/building-effects.test.js).
+          alive: hero.alive,
           gold: hero.gold, points: hero.points,
           weight: G.inventoryWeight(hero),
           maxWeight: G.maxCarryWeight(hero),

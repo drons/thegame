@@ -188,6 +188,16 @@
   // teleports/buildingQuests); КЛЮЧИ каталожных долей — русские
   // (сундук/босс/реликвия, 000053) — решение R-1.
   const BUILDING_CONTENT_TYPES = ['chest', 'boss', 'relic'];
+  // Сиды детерминированных роллов развалин 000094 (ASCII, СВОИ
+  // константы, НЕ GLOBAL_SEED — паттерн STONE_*/TELEPORT_TIE_SEED):
+  // экспорт — для golden-пинов тестов (A57/B24–B25). Формулы:
+  //   содержимое = hash(x, y, RUINS_ROLL_SEED ^ day) / 2^32
+  //                → кумулятивные пороги каталога эффект.доли;
+  //   предмет    = предметы[hash(x, y, RUINS_LOOT_SEED ^ day) % len];
+  //   фрагмент   = тексты[hash(x, y, RUINS_NOTE_SEED ^ day) % len].
+  const RUINS_ROLL_SEED = 0x5255494e;   // 'RUIN' — ролл содержимого
+  const RUINS_LOOT_SEED = 0x52554c54;   // 'RULT' — выбор предмета лута
+  const RUINS_NOTE_SEED = 0x52554e54;   // 'RUNT' — выбор фрагмента записи
 
   // Раздел сейва teleports (имя зафиксировано 000072): чтение
   // записи СНИМКА по ключу 'x,y' — прототип-безопасно, с лёгкой
@@ -372,6 +382,26 @@
     имя: 'Храм',
     available: dailyContentAvailable,
     apply: (st) => applyDailyContent(st, 'Храм'),
+  };
+  // --- Группа 000094: развалины (подтип слота 9, buildingId 48,
+  // 000073 — вход в подземелье на них закрыт гардом maybeEnterDungeon)
+  // ---
+  // «Осмотреть» — РАЗ В ДЕНЬ (флаг раз_в_день — в каталоге 000048,
+  // 000053; в записи разВДень НЕ ставится — каталог побеждает).
+  // apply ЧИСТО: детерминированный ролл содержимого по (tile, day)
+  // (лут 40 / ловушка 30 / запись 30 — каталог эффект.доли),
+  // лут — itemId, запись — расшифровка по Интеллекту (чистое
+  // сравнение level >= порог), ловушка — ЗАЯВЛЕННЫЙ урон
+  // (каталог эффект.урон_ловушки); МИР-«сторона» (hp, инвентарь)
+  // исполняет спец-модуль src/building-effect-48.js (контракт
+  // 000128 §2.3: саморегистрация registerSpecial('48') — main.js и
+  // building-actions.js НЕ ПРАВЯТСЯ). ЛЮБОЙ валидный исход — ok:true
+  // (попытка сгорела, R3: daily-марка + saveNow — роутером);
+  // ok:false — только «недоступно». Контракт — memory/000094-
+  // ruins-inspect.md; числа/формулы — memory/000094-ruins.md.
+  EFFECTS['48'] = {
+    имя: 'Осмотреть',
+    apply: (st) => applyRuins(st),
   };
 
   /**
@@ -977,6 +1007,207 @@
       message: имяДействия + ': ' +
         (type === 'chest' ? 'сундук' : 'реликвия') + ' — „' +
         itemDisplayName(G, item) + '“.',
+    };
+  }
+
+  // --- Задача 000094: развалины (48) — «Осмотр» ---
+  // Чистые функции + apply ЧИСТО (000071): state/hero/save не
+  // мутирует; МИР-«сторона» (урон ловушки, лут в инвентарь) — спец-
+  // модуль src/building-effect-48.js (контракт 000128 §2.3; apply
+  // только ВОЗВРАЩАЕТ результат). Детерминизм — (tile, day)-сиды
+  // RUINS_*, НИКАКОГО Math.random/Date (ТЗ); hash — ПАРАМЕТР
+  // (песочница — инъект perlin.hash2; игра — ленивый G.hash2).
+  // Параметры — ТОЛЬКО из st.catalog.особые_параметры.эффект
+  // (каталога ГЛОБАЛЬНО в apply НЕТ — 000053). Контракт —
+  // memory/000094-ruins-inspect.md; числа/формулы — memory/
+  // 000094-ruins.md.
+
+  /**
+   * Ролл содержимого осмотра развалин по (tile, day):
+   * `r = hash(x, y, RUINS_ROLL_SEED ^ day) / 2^32` ∈ [0, 1) →
+   * кумулятивные пороги каталога eff.доли, ПОРЯДОК ФИКСИРОВАН
+   * КОДОМ (лут → ловушка → запись), нормализация по сумме
+   * (Σ ≠ 100 не ломает формулу — решение D-ДОЛИ). Чистый
+   * (hash — параметр).
+   * @param {string} tileKey ключ тайла 'x,y' (XY_KEY_RE)
+   * @param {number} day день мира
+   * @param {object} eff эффект-объект каталога (поле доли)
+   * @param {(x: number, y: number, seed: number) => number} hash
+   * @returns {'loot'|'trap'|'note'|null} — null: мусор tileKey/доли
+   */
+  function rollRuinsContent(tileKey, day, eff, hash) {
+    if (typeof tileKey !== 'string' || !XY_KEY_RE.test(tileKey)) {
+      return null;
+    }
+    const parts = tileKey.split(',');
+    const x = Number(parts[0]), y = Number(parts[1]);
+    const d = eff && eff.доли;
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+    const loot = d.лут, trap = d.ловушка, note = d.запись;
+    if (!Number.isFinite(loot) || !Number.isFinite(trap) ||
+        !Number.isFinite(note) || loot < 0 || trap < 0 || note < 0) {
+      return null;
+    }
+    const sum = loot + trap + note;
+    if (sum <= 0) return null;
+    const r = deterministicRoll(x, y, day, RUINS_ROLL_SEED, hash);
+    if (r < loot / sum) return 'loot';
+    if (r < (loot + trap) / sum) return 'trap';
+    return 'note';
+  }
+
+  /**
+   * Предмет лута детерминированно по (tile, day):
+   * `items[hash(x, y, RUINS_LOOT_SEED ^ day) % items.length]`
+   * (паттерн pickFragment; порядок массива — индекс, не менять без
+   * регенерации golden). Чистый (hash — параметр).
+   * @param {string} tileKey ключ тайла 'x,y' (XY_KEY_RE)
+   * @param {number} day день мира
+   * @param {string[]} items id предметов (каталог эффект.предметы)
+   * @param {(x: number, y: number, seed: number) => number} hash
+   * @returns {string|null} — null: мусор tileKey/предметы
+   */
+  function ruinsLoot(tileKey, day, items, hash) {
+    if (typeof tileKey !== 'string' || !XY_KEY_RE.test(tileKey)) {
+      return null;
+    }
+    if (!Array.isArray(items) || items.length === 0 ||
+        !items.every((id) => typeof id === 'string' && id !== '')) {
+      return null;
+    }
+    const parts = tileKey.split(',');
+    const x = Number(parts[0]), y = Number(parts[1]);
+    return items[hash(x, y, RUINS_LOOT_SEED ^ day) % items.length];
+  }
+
+  /**
+   * Расшифровка записи — проверкой ИНТЕЛЛЕКТА (ТЗ «проверка
+   * Интеллекта: порог уровня»): ЧИСТОЕ сравнение
+   * `level >= threshold` — детерминированно, НЕ ролл.
+   * Мусор (оба — finite-числа) → false (без исключения).
+   * @param {number} level уровень Интеллекта героя
+   * @param {number} threshold порог (каталог эффект.порог_интеллект)
+   * @returns {boolean}
+   */
+  function readNote(level, threshold) {
+    if (!Number.isFinite(level) || !Number.isFinite(threshold)) {
+      return false;
+    }
+    return level >= threshold;
+  }
+
+  /**
+   * «Осмотр» (развалины, 48): один раз в день (каталог).
+   * Детерминированный ролл содержимого по (tile, day) —
+   * лут / ловушка / запись (доли — каталог):
+   *   * лут — itemId (каталог эффект.предметы); message — имя
+   *     предмета ИЗ Г.getItem (ОПЦИОНАЛЕН: без него — fallback
+   *     «Осмотр развалин: лут.» — НЕ «недоступно»); в инвентарь
+   *     кладёт спец-хендлер (отказ addItem — r.message, R6);
+   *   * ловушка — ЗАЯВЛЕННЫЙ урон (каталог эффект.урон_ловушки,
+   *     = 2, БЕЗ БОЯ, без Телосложения — формула фиксирована);
+   *     исполнение (clamp HP ≥ 1 — НЕ УБИВАЕТ) — спец-хендлер;
+   *   * запись — фрагмент (каталог эффект.тексты) + ЧИСТАЯ
+   *     проверка Интеллекта readNote(G.skillLevel(hero,
+   *     'intelligence'), порог): успех — fragment + message;
+   *     провал — «Осмотр развалин: запись не читается.»
+   *     (фрагмент НЕ выдаётся — ТЗ).
+   * ЛЮБОЙ валидный исход — ok:true (попытка сгорела, R3: daily-
+   * марка + saveNow — роутером); ok:false — только «недоступно»
+   * (нет G.hash2/G.skillLevel, мусорный каталог, hero не-объект).
+   * state/hero/save НЕ мутирует (000071/A12).
+   * @returns {{ok: boolean, content?: 'loot'|'trap'|'note',
+   *            itemId?: string, damage?: number, success?: boolean,
+   *            fragment?: string, message?: string}}
+   */
+  function applyRuins(st) {
+    const G = lazyGame();
+    if (!G || typeof G.hash2 !== 'function' ||
+        typeof G.skillLevel !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const eff = catalogEffect(st);
+    if (!eff) return { ok: false, message: 'недоступно' };
+    const d = eff.доли;
+    if (!d || typeof d !== 'object' || Array.isArray(d) ||
+        !Number.isFinite(d.лут) || !Number.isFinite(d.ловушка) ||
+        !Number.isFinite(d.запись) || d.лут < 0 || d.ловушка < 0 ||
+        d.запись < 0 || (d.лут + d.ловушка + d.запись) <= 0) {
+      return { ok: false, message: 'недоступно' };
+    }
+    if (!Array.isArray(eff.предметы) || eff.предметы.length < 1 ||
+        !eff.предметы.every((id) => typeof id === 'string' &&
+          id !== '')) {
+      return { ok: false, message: 'недоступно' };
+    }
+    if (!validTexts(eff.тексты)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    if (!Number.isFinite(eff.порог_интеллект) ||
+        !Number.isFinite(eff.урон_ловушки) || eff.урон_ловушки < 0) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const hero = st && st.hero;
+    // Герой — объект (A53-паттерн: не-объект/массив — деградация
+    // «недоступно», не TypeError).
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const tile = st.tile || { x: 0, y: 0 };
+    const tileKey = tile.x + ',' + tile.y;
+    const day = st.day;
+    const content = rollRuinsContent(tileKey, day, eff, G.hash2);
+    if (content === null) return { ok: false, message: 'недоступно' };
+    if (content === 'loot') {
+      const itemId = ruinsLoot(tileKey, day, eff.предметы, G.hash2);
+      // Имя предмета — ОПЦИОНАЛЬНО (G.getItem отсутствует/неизвестен
+      // id — fallback-строка, НЕ «недоступно»: исход валиден).
+      const item = G.getItem
+        && typeof G.getItem === 'function'
+        ? G.getItem(itemId) : null;
+      const name = item && typeof item.name === 'string' &&
+        item.name !== '' ? item.name : null;
+      return {
+        ok: true,
+        content: 'loot',
+        itemId,
+        message: name !== null
+          ? 'Осмотр развалин: лут — «' + name + '».'
+          : 'Осмотр развалин: лут.',
+      };
+    }
+    if (content === 'trap') {
+      // Урон ЗАЯВЛЁН (исполнение + clamp HP ≥ 1 — спец-хендлер;
+      // apply hp НЕ меняет — чистота 000071/A12).
+      return {
+        ok: true,
+        content: 'trap',
+        damage: eff.урон_ловушки,
+        message: 'Осмотр развалин: ловушка! −' +
+          eff.урон_ловушки + ' HP.',
+      };
+    }
+    // Запись: фрагмент детерминирован по (tile, day); расшифровка —
+    // ЧИСТЫМ сравнением Интеллекта (level = G.skillLevel; 'intelligence'
+    // — primary, skills-data.js; порог — каталог). Провал — фрагмент
+    // НЕ выдаётся (ТЗ); повтор — новый день, новый ролл.
+    const fragment = pickFragment(
+      eff.тексты, tile.x, tile.y, day, RUINS_NOTE_SEED, G.hash2);
+    const level = G.skillLevel(hero, 'intelligence');
+    if (!readNote(level, eff.порог_интеллект)) {
+      return {
+        ok: true,
+        content: 'note',
+        success: false,
+        message: 'Осмотр развалин: запись не читается.',
+      };
+    }
+    return {
+      ok: true,
+      content: 'note',
+      success: true,
+      fragment,
+      message: 'Осмотр развалин: запись: «' + fragment + '»',
     };
   }
 
@@ -1642,5 +1873,10 @@
     serializeBuildingContent, restoreBuildingContent,
     CONTENT_ROLL_SEED, CHEST_LOOT_SEED, BOSS_COMBAT_SEED,
     RELIC_ITEM_SEED,
+    // Задача 000094: развалины (48) — «Осмотр»: чистые роллы
+    // (tile, day) + порог Интеллекта; мир-сторона — спец-модуль
+    // src/building-effect-48.js.
+    rollRuinsContent, ruinsLoot, readNote,
+    RUINS_ROLL_SEED, RUINS_LOOT_SEED, RUINS_NOTE_SEED,
   };
 });
