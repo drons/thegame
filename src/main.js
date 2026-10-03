@@ -253,6 +253,31 @@
     }
     return { npc, stock: npcStocks[npcId] };
   }
+  // Стоки барахолки лагеря (задача 000095): 'x,y' ТАЙЛА лагеря →
+  // { day, stock, seed } (несколько лагерей — независимые стойки;
+  // НЕ позиция игрока — в e2e игрок в другом месте, контракт §6.6).
+  // Сток ССЫЛКОЙ в wrap (buyItem мутирует in place — campStocks
+  // актуален, ui.js L226). Респаун по дню — respawn_days каталога.
+  const CAMP_ID = 47;
+  const campStocks = {};
+  function campShopFor(x, y, tile) {
+    if (!tile || tile.buildingId !== CAMP_ID) return null;
+    const rec = G.getBuilding(CAMP_ID);
+    const wealth = tile.buildingWealth;
+    const key = x + ',' + y;
+    const op = rec && rec.особые_параметры;
+    const eff = op && op.эффект;
+    const respawnDays = (eff && Number.isInteger(eff.respawn_days)
+      && eff.respawn_days >= 1) ? eff.respawn_days : 1;
+    const entry = campStocks[key];
+    if (!entry || G.campStockDueRefresh(entry, clock.day, respawnDays)) {
+      const shop = G.makeCampShop(x, y, clock.day, wealth, rec);
+      if (!shop) return null;
+      campStocks[key] = { day: clock.day, stock: shop.stock, seed: shop.seed };
+    }
+    const e = campStocks[key];
+    return { x, y, buildingType: CAMP_ID, wealth, stock: e.stock, seed: e.seed };
+  }
   const player = { x: 0, y: 0 };
   const prevPos = { x: 0, y: 0 }; // позиция до последнего шага (побег/смерть)
   let zoom = G.ZOOM_START; // пикселей на тайл (детальный старт, 000019)
@@ -469,6 +494,12 @@
         ? G.Cities.serializeCityStates(cityStates, clock.day,
             cityRespawnDays())
         : {},
+      // Задача 000095: барахолка лагеря — стоки стойок 'x,y' →
+      // { day, stock } (seed НЕ сериализуется — перегенерируется
+      // из x,y,day при восстановлении). Неломкое расширение v1
+      // (000031): версию НЕ поднимаем, миграций нет.
+      campStocks: G.serializeCampStocks
+        ? G.serializeCampStocks(campStocks) : {},
     };
   }
 
@@ -890,6 +921,25 @@
       console.warn('Сейв: не удалось восстановить cities:', err);
     }
 
+    // --- Барахолка лагеря (задача 000095): стоки стойок 'x,y' ---
+    // Битый раздел — warn + ПУСТО (fail-open 000029/000072); старые
+    // сейвы БЕЗ секции — rawCamp null → без действия. День мира
+    // восстановлен выше (clock.fastForward) — restore сверяет с ним.
+    try {
+      const rawCamp = d.campStocks;
+      if (rawCamp != null && G.restoreCampStocks) {
+        const restored = G.restoreCampStocks(
+          rawCamp, clock.day, (x, y) => map.tileAt(x, y),
+          G.getBuilding(CAMP_ID));
+        for (const k of Object.keys(campStocks)) delete campStocks[k];
+        Object.assign(campStocks, restored);
+      } else if (rawCamp != null) {
+        console.warn('Сейв: раздел campStocks — restore недоступен — сбрасываю.');
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить campStocks:', err);
+    }
+
     // --- Позиция ---
     try {
       const p = d.position;
@@ -1124,6 +1174,8 @@
       // npcShopFor, 000029).
       cityState: () => dungeonState,
       shopFor, // (npc, t) → { npc, stock } | null
+      campShopFor, // (x, y, tile) → wrap | null (000095: сток
+      // барахолки по тайлу лагеря; респаун по clock.day)
       collectSaveData, // () → снимок сейва (чистая)
       saveNow, // () → запись в localStorage
       flash,
@@ -1929,6 +1981,7 @@
       dungeonState, defeatedAt, npcs: NPCS,
       flash: hudFlash, flashUntil: hudFlashUntil,
       exploredCount,
+      campShopFor, // ОПЦИОНАЛЬНОЕ поле ctx (000095): лагерь
     });
   }
 
@@ -2065,6 +2118,11 @@
       const out = {};
       for (const [k, v] of cityStates) out[k] = v;
       return out;
+    },
+    // Барахолка лагеря (задача 000095): 'x,y' → { day, stock, seed }.
+    // ГЛУБОКАЯ копия (stock-объекты общие с wrap-перами).
+    get campStocks() {
+      return JSON.parse(JSON.stringify(campStocks));
     },
     // Отладочные действия (смоук-тесты, ручная проверка баланса).
     // Текущий бой (для смоук-тестов и отладки).

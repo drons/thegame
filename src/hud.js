@@ -15,7 +15,10 @@
 // (контракт §3 memory/000129-hud-module.md):
 //   ctx = { hudEl, game, tile, map, player, hero, day, zoom,
 //           spriteLoader, dungeonState, defeatedAt, npcs, flash,
-//           flashUntil, exploredCount }
+//           flashUntil, exploredCount, campShopFor }
+// campShopFor — ОПЦИОНАЛЬНОЕ поле ctx (задача 000095, 16-е):
+// (x, y, tile) → wrap барахолки лагеря | null; нет поля — ветка
+// лагеря мертва (1:1 с цепочкой без лагеря, HU9c).
 // game — ЕДИНСТВЕННЫЙ снапшот main.js (const G = globalThis.Game,
 // 000038); tile — main.js считает map.tileAt ОДИН раз на кадр (в
 // модуле tileAt НЕ вызывается). СОСТОЯНИЕ flash
@@ -28,7 +31,9 @@
 // Публичная поверхность Game.hud (контракт §2 memory):
 //   * update(ctx) — полный кадр 1:1 hudUpdate: строка → setShop →
 //     ctx.hudEl.textContent (порядок main.js L1350–1357 сохранён);
-//     setShop — ЕДИНСТВЕННЫЙ side-эффект модуля (D9).
+//     setShop — ЕДИНСТВЕННЫЙ side-эффект модуля (D9); исключение —
+//     000095-ревью: смена seed лагеря → ctx.game.playerUI.render()
+//     1× (дневная ротация стока барахолки, lastCampSeed, HU9).
 //   * buildLine(ctx) → string — ЧИСТАЯ (DOM не трогает): вся строка
 //     HUD, включая flash-строку (полный побайтовый снимок, HU4).
 //   * eHint(npc, effects) → 4 ветки 1:1 (000071):
@@ -52,8 +57,9 @@
 // 000127): DUNGEON_NAMES отсутствует ИЛИ нет ключа типа —
 // console.error (1×/вызов) + fallback «подземелье»; в норме
 // недостижимо (dungeon.js пинан, DUNGEON_NAMES закрывает все типы).
-// В main.js остаётся тонкая проводка: обёртка renderHud (ctx 15
-// полей — exploredCount добавлен 000093) + load-time гард (000038).
+// В main.js остаётся тонкая проводка: обёртка renderHud (ctx 16
+// полей — exploredCount добавлен 000093, campShopFor — 000095,
+// опциональное) + load-time гард (000038).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -216,19 +222,54 @@
     return line;
   }
 
+  // 000095 (правка по итогам ревью): сток барахолки лагеря РОТАЦИЯ
+  // по дню — seed wrap'а меняется, а key setShop (x, y, 47, wealth)
+  // дня НЕ содержит → пока панель открыта на тайле лагеря, вкладка
+  // «Магазин» держит количества предшествующего дня до СЛЕДУЮЩЕГО
+  // render-события (покупка читает живой сток — данные не ломаются,
+  // DOM просрочен). Смена seed лагеря — ОДИН повторный render()
+  // (1 раз/день, а не каждый кадр: seed стабилен в пределах дня;
+  // seed «картового» магазина дня не содержит — для него ветка
+  // мертва).
+  let lastCampSeed = null;
+
   // Полный кадр 1:1 hudUpdate (main.js база L1256–1358): строка →
   // setShop → запись textContent (порядок L1350–1357; setShop —
-  // ЕДИНСТВЕННЫЙ side-эффект, D9).
+  // ЕДИНСТВЕННЫЙ side-эффект, D9; исключение — 000095-ревью: смена
+  // seed лагеря → ctx.game.playerUI.render() 1×, HU9).
   function update(ctx) {
     const line = buildLine(ctx);
     // Магазин текущего тайла → вкладка «Магазин» в панели персонажа.
     if (ctx.game.playerUI) {
       const isShop = !ctx.dungeonState && ctx.tile.hasBuilding
         && ctx.game.shopKindsFor(ctx.tile.building);
-      ctx.game.playerUI.setShop(isShop
+      // Лагерь (задача 000095): лагерь — НЕ «картовый» магазин
+      // (shopKindsFor(47) → null → isShop мертва), поэтому wrap
+      // барахолки БЕЗ makeShop; isShop ПЕРЕБИВАЕТ лагерь;
+      // dungeonState — null на обеих ветках (гард 1:1). Вызов
+      // campShopFor — ТОЛЬКО при !isShop (паттерн 1:1, без
+      // лишних вызовов на магазинных тайлах).
+      const campShop = !isShop
+        && !ctx.dungeonState && typeof ctx.campShopFor === 'function'
+        ? ctx.campShopFor(ctx.player.x, ctx.player.y, ctx.tile)
+        : null;
+      const shop = isShop
         ? ctx.game.makeShop(ctx.player.x, ctx.player.y,
           ctx.tile.building, ctx.tile.buildingWealth)
-        : null);
+        : campShop;
+      ctx.game.playerUI.setShop(shop);
+      // 000095 (ревью): сток лагеря подменён на дневной — key setShop
+      // не изменился, render() не шёл; setShop ОБНОВИЛ ссылку shop →
+      // перерисовываем вкладку ОДИН раз на смену seed. Свой wrap —
+      // ТОЛЬКО лагерь (shop === campShop; «картовый» wrap другой
+      // объект, seed стабилен на тайле).
+      if (shop === campShop && shop && shop.seed != null
+          && shop.seed !== lastCampSeed) {
+        lastCampSeed = shop.seed;
+        if (typeof ctx.game.playerUI.render === 'function') {
+          ctx.game.playerUI.render();
+        }
+      }
     }
     ctx.hudEl.textContent = line;
   }

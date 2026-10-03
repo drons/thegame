@@ -696,6 +696,209 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
   }
 });
 
+// --- Задача 000095: Барахолка лагеря (id 47) ---
+//
+// Сток стойки — формулой контракта
+// memory/000095-camp-fire-bazaar.md §2.3:
+//   seed = (hash2(x, y, CAMP_STOCK_SEED=0x43414d50)
+//           ^ ((day+1) * 0x9E3779B9)) >>> 0;
+//   rng  = mulberry32(seed);
+//   пул  = allItems() видов особых_параметры.эффект.виды каталога
+//          (000047: food/potion/weapon/armor);
+//   if (rng() < 0.55 + 0.1*wealth) stock[id] = 1 + floor(rng()*(2+wealth));
+//   пустой сток → пул[0].id = 1.
+// wealth НЕ входит в сид (как makeShop — только type; у лагеря
+// type = id каталога 47). BUY-ONLY: shopKindsFor(47) → null
+// (нет map_index) → sellItem отказ, кнопок «продать» нет.
+
+const campRec = bRec('000047');
+const CAMP_KINDS = ['food', 'potion', 'weapon', 'armor'];
+
+test('makeCampShop: golden (x, y, day, wealth) — формула контракта (000095)', () => {
+  assert.equal(I.CAMP_STOCK_SEED, 0x43414d50,
+    'CAMP_STOCK_SEED — 0x43414d50 (ASCII «CAMP»)');
+  const PL = require('../src/perlin.js');
+  const seedOf = (x, y, day) =>
+    (PL.hash2(x, y, I.CAMP_STOCK_SEED) ^ ((day + 1) * 0x9E3779B9)) >>> 0;
+  const GOLDEN_CAMP = [
+    { x: 10, y: 20, day: 1, w: 2,
+      stock: { iron_sword: 3, battle_axe: 3, war_hammer: 2,
+        leather_armor: 4, chainmail: 2, knight_plate: 3,
+        minor_healing: 4, healing_potion: 4, mana_potion: 1,
+        bread: 3, meat: 4 } },
+    { x: 10, y: 20, day: 2, w: 2,
+      stock: { wood_sword: 1, steel_sword: 1, short_bow: 2,
+        battle_axe: 1, war_hammer: 3, leather_armor: 1, chainmail: 1,
+        minor_healing: 3, healing_potion: 4, greater_healing: 2,
+        mana_potion: 1, mana_elixir: 3, bread: 3 } },
+    { x: 10, y: 20, day: 1, w: 0,
+      stock: { war_hammer: 2, leather_armor: 1, chainmail: 2,
+        minor_healing: 1, greater_healing: 2, mana_potion: 2, meat: 2 } },
+    { x: 10, y: 20, day: 1, w: 3,
+      stock: { iron_sword: 4, hunting_bow: 2, battle_axe: 2,
+        war_hammer: 2, leather_armor: 4, chainmail: 2, knight_plate: 2,
+        minor_healing: 3, mana_potion: 1, bread: 3, meat: 5 } },
+  ];
+  for (const g of GOLDEN_CAMP) {
+    const s = I.makeCampShop(g.x, g.y, g.day, g.w, campRec);
+    assert.ok(s, 'барахолка существует (' + g.x + ',' + g.y + ',d' + g.day + ',' + g.w + ')');
+    assert.equal(s.seed, seedOf(g.x, g.y, g.day),
+      'seed = (tile, day) (' + g.x + ',' + g.y + ',d' + g.day + ')');
+    assert.deepEqual(s.stock, g.stock,
+      'golden-сток (x=' + g.x + ' y=' + g.y + ' day=' + g.day
+      + ' wealth=' + g.w + ')');
+    for (const id of Object.keys(s.stock)) {
+      assert.ok(CAMP_KINDS.includes(I.getItem(id).kind),
+        id + ': вид из каталога (000047)');
+    }
+  }
+  // Форма обёртки — СОВМЕСТИМА с торговлей ядра (ui-tab-shop,
+  // buyPrice/buyItem): { x, y, buildingType: 47 (id каталога),
+  // wealth, stock, seed }.
+  const s = I.makeCampShop(10, 20, 1, 2, campRec);
+  assert.deepEqual(
+    { x: s.x, y: s.y, buildingType: s.buildingType, wealth: s.wealth },
+    { x: 10, y: 20, buildingType: 47, wealth: 2 },
+    'обёртка { x, y, buildingType: 47, wealth }');
+  // Детерминизм + wealth-кламп (1:1 makeShop).
+  assert.deepEqual(I.makeCampShop(10, 20, 1, 2, campRec).stock,
+    s.stock, 'повтор — тот же сток');
+  assert.deepEqual(I.makeCampShop(10, 20, 1, 9, campRec).stock,
+    I.makeCampShop(10, 20, 1, 3, campRec).stock, 'wealth 9 → 3');
+  assert.equal(I.makeCampShop(10, 20, 1, 9, campRec).seed, s.seed,
+    'seed не зависит от wealth');
+  assert.notDeepEqual(I.makeCampShop(11, 21, 1, 2, campRec).stock,
+    s.stock, 'другой тайл — другой сток');
+});
+
+test('makeCampShop: null-ветки fail-open (нет каталога/видов) (000095)', () => {
+  assert.equal(I.makeCampShop(1, 2, 1, 1, null), null, 'record null — null');
+  assert.equal(
+    I.makeCampShop(1, 2, 1, 1,
+      { id: 47, особые_параметры: {} }), null, 'без «эффект» — null');
+  assert.equal(
+    I.makeCampShop(1, 2, 1, 1,
+      { id: 47, особые_параметры: { эффект: { respawn_days: 1 } } }),
+    null, 'без «виды» — null');
+  assert.equal(
+    I.makeCampShop(1, 2, 1, 1,
+      { id: 47, особые_параметры: { эффект: { виды: ['bogus'] } } }),
+    null, 'все виды невалидны — null');
+  // Невалидный вид ОТФИЛЬТРОВЫВАЕТСЯ (гард, не отказ): food остаётся.
+  const s = I.makeCampShop(1, 2, 1, 1,
+    { id: 47, особые_параметры: { эффект: { виды: ['food', 'bogus'] } } });
+  assert.ok(s, 'один валидный вид — магазин');
+  assert.ok(Object.keys(s.stock).length >= 1, 'не пуст');
+  for (const id of Object.keys(s.stock)) {
+    assert.equal(I.getItem(id).kind, 'food', id + ': только food');
+  }
+});
+
+test('campStockDueRefresh: (day − entry.day) ≥ respawnDays, fail-open (000095)', () => {
+  assert.equal(typeof I.campStockDueRefresh, 'function',
+    'items.js: campStockDueRefresh — экспортирована');
+  const fn = I.campStockDueRefresh;
+  // Нет entry / мусор / не-int — ротация (fail-open).
+  assert.equal(fn(null, 1, 1), true, 'entry null — ротация');
+  assert.equal(fn('мусор', 5, 1), true, 'entry не-объект — ротация');
+  assert.equal(fn({}, 5, 1), true, 'entry без day — ротация');
+  assert.equal(fn({ day: 1 }, 0, 1), true, 'день 0 — ротация');
+  assert.equal(fn({ day: '1' }, 5, 1), true, 'entry.day строка — ротация');
+  // respawn_days из каталога (000047: 1): тот же день — НЕ, день+1 — ДА.
+  assert.equal(fn({ day: 1 }, 1, 1), false, 'тот же день — НЕ');
+  assert.equal(fn({ day: 1 }, 2, 1), true, 'день+1 — ДА (respawn 1)');
+  // Общая формула: ≥, не >.
+  assert.equal(fn({ day: 1 }, 3, 3), false, 'respawn 3: день 3 — НЕ');
+  assert.equal(fn({ day: 1 }, 4, 3), true, 'respawn 3: день 4 — ДА');
+});
+
+test('serialize/restoreCampStocks: roundtrip, кламп, призраки, «будущий» день, мусор (000095)', () => {
+  assert.equal(typeof I.serializeCampStocks, 'function',
+    'items.js: serializeCampStocks — экспортирована');
+  assert.equal(typeof I.restoreCampStocks, 'function',
+    'items.js: restoreCampStocks — экспортирована');
+  // tileAt — источник buildingWealth (в main.js — map.tileAt).
+  const W = 2;
+  const tileAt = (x, y) => ({ x, y, buildingId: 47, buildingWealth: W });
+  const eA = I.makeCampShop(10, 20, 1, W, campRec);
+  const eB = I.makeCampShop(11, 21, 1, W, campRec);
+  // Сериализация: { 'x,y': { day, stock } }; seed НЕ пишется.
+  assert.equal(I.serializeCampStocks(null), null, 'null — null');
+  assert.equal(I.serializeCampStocks('мусор'), null, 'не-объект — null');
+  assert.deepEqual(I.serializeCampStocks({}), {}, 'пусто — {}');
+  assert.deepEqual(I.serializeCampStocks({
+    '10,20': { day: 1, stock: Object.assign({}, eA.stock), seed: 999 },
+    'мусор,ключ': 'не-объект',
+    '3,4': { day: 0, stock: { bread: 1 } },
+  }), { '10,20': { day: 1, stock: eA.stock } },
+    'снимок: seed нет, entry-мусор и day<1 — skip');
+  // Roundtrip: два ключа НЕЗАВИСИМО; seed воссоздан.
+  const rt = I.restoreCampStocks(I.serializeCampStocks({
+    '10,20': { day: 1, stock: Object.assign({}, eA.stock) },
+    '11,21': { day: 1, stock: Object.assign({}, eB.stock) },
+  }), 1, tileAt, campRec);
+  assert.deepEqual(rt['10,20'].stock, eA.stock, 'roundtrip «10,20»');
+  assert.deepEqual(rt['11,21'].stock, eB.stock, 'roundtrip «11,21»');
+  assert.equal(typeof rt['10,20'].seed, 'number', 'seed воссоздан');
+  // Кламп min(qty, initial); отсутствие — initial; призрак — отброс.
+  const rp = I.restoreCampStocks({
+    '10,20': { day: 1, stock: { bread: 0, meat: 99, ghost_item: 9 } },
+  }, 1, tileAt, campRec);
+  const init = eA.stock;
+  for (const id of Object.keys(init)) {
+    const saved = { bread: 0, meat: 99, ghost_item: 9 }[id];
+    const expect = (Number.isInteger(saved) && saved >= 0)
+      ? Math.min(saved, init[id]) : init[id];
+    assert.equal(rp['10,20'].stock[id], expect, id + ': кламп/отсутствие');
+  }
+  assert.ok(!('ghost_item' in rp['10,20'].stock), 'призрак отброшен');
+  // «Будущий» день (entry.day > day) и мусорные ключи — skip.
+  assert.deepEqual(I.restoreCampStocks(
+    { '10,20': { day: 99, stock: {} }, 'x,y': { day: 1, stock: {} },
+      '10': { day: 1, stock: {} }, '10,20,3': { day: 1, stock: {} } },
+    1, tileAt, campRec), {}, '«будущий» день и мусор — {}');
+  assert.deepEqual(I.restoreCampStocks(null, 1, tileAt, campRec), {},
+    'saved null — {}');
+});
+
+test('барахолка BUY-ONLY: sellItem отказ, buyPrice — wealth-скидка, buyItem мутирует сток (000095)', () => {
+  const hero = createCharacter();
+  hero.gold = 100;
+  const s = I.makeCampShop(10, 20, 1, 2, campRec);
+  // BUY-ONLY: 47 — не «картовый» индекс (нет map_index) →
+  // shopKindsFor(47) → null → «продать» не с чего.
+  assert.equal(I.shopKindsFor(47), null,
+    'shopKindsFor(47) — null (нет map_index)');
+  I.addItem(hero, 'bread', 1);
+  assert.deepEqual(I.sellItem(s, hero, 'bread', 1),
+    { ok: false, reason: 'магазин не скупает такие предметы' },
+    'sellItem — отказ (buy-only)');
+  // Цены — по wealth ОБОЛОЧКИ (1:1 buyPrice ядра): скидка 0.10×w.
+  const bread = I.getItem('bread'); // value 2
+  const w0 = I.makeCampShop(10, 20, 1, 0, campRec);
+  const w3 = I.makeCampShop(10, 20, 1, 3, campRec);
+  assert.equal(I.buyPrice(w0, 'bread', hero),
+    Math.max(1, Math.round(bread.value * (1 - 0.10 * 0) * 1)),
+    'buyPrice wealth 0 = value');
+  assert.equal(I.buyPrice(w3, 'bread', hero),
+    Math.max(1, Math.round(bread.value * (1 - 0.10 * 3) * 1)),
+    'buyPrice wealth 3 = value × 0.7');
+  assert.ok(I.buyPrice(w3, 'bread', hero) < I.buyPrice(w0, 'bread', hero),
+    'богатство — дешевле');
+  // buyItem: золото списано, сток мутирован in place, предмет добавлен.
+  const qty0 = s.stock.bread;
+  assert.ok(qty0 >= 1, 'bread в стоке (10,20,1,w2)');
+  const invBefore = I.totalQty(hero, 'bread');
+  const price = I.buyPrice(s, 'bread', hero);
+  const r = I.buyItem(s, hero, 'bread', 1);
+  assert.ok(r.ok, 'buyItem — ок');
+  assert.equal(r.price, price, 'цена как buyPrice');
+  assert.equal(hero.gold, 100 - price, 'золото списано');
+  assert.equal(s.stock.bread, qty0 - 1, 'сток мутирован in place');
+  assert.equal(I.totalQty(hero, 'bread'), invBefore + 1,
+    'bread в инвентаре (+1)');
+});
+
 // vm-песочница: «браузерный» путь UMD (без module/exports, паттерн
 // tests/map.test.js / tests/combat-ui.test.js). Цепочка — минимальная,
 // БЕЗ buildings.js, как в tests/combat-ui.test.js.

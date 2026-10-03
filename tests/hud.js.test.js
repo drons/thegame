@@ -955,3 +955,219 @@ test('HU8. buildLine(ctx): строка «Исследовано: N тайлов
     'Здесь: рунический камень',
     'строка между top-блоком и «Здесь:»');
 });
+
+test('HU9. update(): ветка лагеря — ctx.campShopFor → setShop(campWrap), dungeon → null, без campShopFor — 1:1, isShop побеждает (задача 000095)', () => {
+  const hud = require('../src/hud.js');
+  const CAMP_WRAP = { x: 5, y: 7, buildingType: 47, wealth: 0,
+    stock: { bread: 2 }, seed: 123456 };
+
+  // (a) тайл лагеря + campShopFor в ctx → setShop(campWrap) РОВНО 1×,
+  // makeShop НЕ вызывается (лагерь — не «картовый» магазин:
+  // shopKindsFor(-1) → null → ветка isShop мертва). Контракт
+  // §2.7: setShop(isShop ? makeShop(...) : campShop).
+  {
+    const log = [];
+    const setShopArgs = [];
+    let makeShopCalls = 0;
+    const ctxA = makeCtx({
+      tile: { terrain: 3, hasBuilding: true, building: -1,
+        buildingId: 47, hasMobGroup: false, buildingWealth: 0 },
+      game: {
+        playerUI: {
+          setShop: (arg) => { setShopArgs.push(arg); log.push('setShop'); },
+        },
+        makeShop: () => { makeShopCalls++; return { shop: true }; },
+      },
+      campShopFor: (x, y, tile) => CAMP_WRAP,
+    });
+    ctxA.hudEl = makeHudEl(log);
+    hud.update(ctxA);
+    assert.equal(setShopArgs.length, 1, 'setShop — РОВНО 1×/кадр');
+    assert.deepEqual(setShopArgs[0], CAMP_WRAP,
+      'setShop(campWrap) — сток лагеря (не makeShop)');
+    assert.equal(makeShopCalls, 0, 'makeShop НЕ вызван (не магазин)');
+    assert.deepEqual(log, ['setShop', 'text'],
+      'порядок 1:1: строка → setShop → запись textContent');
+  }
+  // (b) dungeonState — setShop(null) ДАЖЕ при campShopFor
+  // (гард !dungeonState на обеих ветках, 1:1 существующий).
+  // Стуб — МИНИМАЛЬНО корректная форма (x/y/dg.exit/contents.mobs):
+  // buildLine → locationLine (hud.js) читает их (реал-форма —
+  // makeDungeonState, src/locations.js).
+  {
+    const setShopArgs = [];
+    const ctxB = makeCtx({
+      dungeonState: { kind: 'dungeon', x: 0, y: 0,
+        dg: { type: 0, cells: [], exit: { x: 0, y: 0 } },
+        contents: { mobs: [] } },
+      game: { playerUI: { setShop: (arg) => setShopArgs.push(arg) } },
+      campShopFor: () => CAMP_WRAP,
+    });
+    hud.update(ctxB);
+    assert.deepEqual(setShopArgs, [null],
+      'подземелье → setShop(null), campShop не пробивается');
+  }
+  // (c) ctx БЕЗ campShopFor (текущая цепочка, 14 полей) — campShop
+  // null → поведение 1:1 (регрессия существующих hud-тестов).
+  {
+    const setShopArgs = [];
+    const ctxC = makeCtx({
+      game: { playerUI: { setShop: (arg) => setShopArgs.push(arg) } },
+    });
+    hud.update(ctxC);
+    assert.deepEqual(setShopArgs, [null],
+      'без campShopFor — setShop(null) (1:1)');
+  }
+  // (d) «картовый» магазин + campShopFor — isShop ПЕРЕБИВАЕТ:
+  // setShop(makeShop(x, y, building, wealth)), campWrap не
+  // используется (контракт §2.7: isShop ? makeShop : campShop).
+  {
+    const setShopArgs = [];
+    const ctxD = makeCtx({
+      tile: { terrain: 3, hasBuilding: true, building: 0,
+        buildingId: null, hasMobGroup: false, buildingWealth: 2 },
+      game: {
+        shopKindsFor: (bt) => (bt === 0 ? ['food'] : null),
+        playerUI: { setShop: (arg) => setShopArgs.push(arg) },
+        makeShop: (x, y, bt, w) => ({ shop: true, x, y, building: bt,
+          wealth: w }),
+      },
+      campShopFor: () => CAMP_WRAP,
+    });
+    hud.update(ctxD);
+    assert.deepEqual(setShopArgs,
+      [{ shop: true, x: 5, y: 7, building: 0, wealth: 2 }],
+      'магазин тайла побеждает — setShop(makeShop(...))');
+    assert.notDeepEqual(setShopArgs[0], CAMP_WRAP,
+      'campWrap НЕ передан (isShop true)');
+  }
+});
+
+test('HU9. update(): сток барахолки ротация по дню — повторный render() РОВНО 1× на смену seed (задача 000095, правка по итогам ревью)', () => {
+  const hud = require('../src/hud.js');
+  // Тайл лагеря (buildingId 47, shopKindsFor(-1) → null — ветка
+  // isShop мертва) и фабрика wrap'а: seed — маркер дня (в живом
+  // main.js seed = f(x, y, день), memory §2.3).
+  const tile = { terrain: 3, hasBuilding: true, building: -1,
+    buildingId: 47, hasMobGroup: false, buildingWealth: 0 };
+  const wrap = (seed, stock) => ({ x: 5, y: 7, buildingType: 47,
+    wealth: 0, stock, seed });
+
+  // (a) первый seed: setShop + render() 1×; тот же seed на
+  // следующих кадрах — setShop каждый кадр, render() НЕТ (1
+  // раз/день, а не раз/кадр: seed стабилен в пределах дня).
+  {
+    const log = [];
+    let renders = 0;
+    let setShops = 0;
+    let w = wrap(111, { bread: 2 });
+    const ctx = makeCtx({
+      tile,
+      game: {
+        playerUI: {
+          setShop: () => { setShops++; log.push('setShop'); },
+          render: () => { renders++; log.push('render'); },
+        },
+      },
+      campShopFor: () => w,
+    });
+    ctx.hudEl = makeHudEl(log);
+    hud.update(ctx);
+    assert.deepEqual(log, ['setShop', 'render', 'text'],
+      'смена seed: строка → setShop → render → textContent');
+    hud.update(ctx);
+    hud.update(ctx);
+    assert.equal(setShops, 3, 'setShop — 1×/кадр');
+    assert.equal(renders, 1,
+      'seed тот же — render только 1× (раз/день, не раз/кадр)');
+    assert.deepEqual(log,
+      ['setShop', 'render', 'text', 'setShop', 'text', 'setShop',
+       'text'],
+      'кадры 2–3: setShop есть, render НЕТ');
+  }
+  // (b) смена дня: НОВЫЙ seed → ровно ОДИН повторный render;
+  // render() — ПОСЛЕ setShop (ссылка shop уже обновлена на новый
+  // wrap) — вкладка видит сток нового дня.
+  {
+    const log = [];
+    let renders = 0;
+    let lastSeed = null;
+    let w = wrap(211, { bread: 2 });
+    const ctx = makeCtx({
+      tile,
+      game: {
+        playerUI: {
+          setShop: (arg) => log.push('setShop:'
+            + (arg ? arg.seed : 'null')),
+          render: () => { renders++; lastSeed = w.seed;
+            log.push('render'); },
+        },
+      },
+      campShopFor: () => w,
+    });
+    ctx.hudEl = makeHudEl(log);
+    hud.update(ctx); // день 1
+    w = wrap(222, { meat: 3 }); // день 2 — новый seed, новый сток
+    hud.update(ctx);
+    assert.equal(renders, 2, 'день 2 — повторный render ровно 1×');
+    assert.equal(lastSeed, 222,
+      'render на НОВОМ wrap (seed 222 — сток дня 2)');
+    assert.deepEqual(log,
+      ['setShop:211', 'render', 'text', 'setShop:222', 'render',
+       'text'],
+      'setShop (новая ссылка) → render → textContent');
+    hud.update(ctx); // тот же день 2
+    assert.equal(renders, 2, 'тот же день — стабильно (без render)');
+  }
+  // (c) уход с лагеря: setShop(null), render НЕТ; возврат в тот же
+  // день (тот же seed) — render НЕТ (setShop сам перерисовал панель
+  // по смене ключа «»→«5,7,47,0» — лишний render не нужен); новый
+  // день — seed сменился → render 1×.
+  {
+    const log = [];
+    let renders = 0;
+    let w = wrap(311, { bread: 2 });
+    const ctx = makeCtx({
+      tile,
+      game: {
+        playerUI: {
+          setShop: (arg) => log.push('setShop:'
+            + (arg ? arg.seed : 'null')),
+          render: () => { renders++; log.push('render'); },
+        },
+      },
+      campShopFor: () => w,
+    });
+    ctx.hudEl = makeHudEl(log);
+    hud.update(ctx); // на лагере, день 1
+    assert.equal(renders, 1, 'первый seed — render 1×');
+    w = null; // игрок уходит с тайла лагеря
+    hud.update(ctx);
+    assert.equal(renders, 1, 'ушёл с лагеря — render НЕТ');
+    w = wrap(311, { bread: 2 }); // возврат в тот же день
+    hud.update(ctx);
+    assert.equal(renders, 1,
+      'возврат в тот же день (seed тот же) — render НЕТ');
+    w = wrap(322, { meat: 3 }); // новый день
+    hud.update(ctx);
+    assert.equal(renders, 2, 'новый день — render ровно 1×');
+    assert.deepEqual(log,
+      ['setShop:311', 'render', 'text', 'setShop:null', 'text',
+       'setShop:311', 'text', 'setShop:322', 'render', 'text'],
+      'журнал 1:1');
+  }
+  // (d) playerUI БЕЗ render (старая цепь/стаб) — без исключения
+  // (деградация 000053): setShop вызывается, render пропускается.
+  {
+    const setShopArgs = [];
+    const ctx = makeCtx({
+      tile,
+      game: { playerUI: { setShop: (arg) => setShopArgs.push(arg) } },
+      campShopFor: () => wrap(333, { bread: 1 }),
+    });
+    hud.update(ctx);
+    assert.equal(setShopArgs.length, 1, 'setShop — 1×');
+    assert.deepEqual(setShopArgs[0], wrap(333, { bread: 1 }),
+      'wrap передан (без render — без падения)');
+  }
+});

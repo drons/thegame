@@ -801,6 +801,162 @@
     return { ok: true, item: itemId, qty, price };
   }
 
+  // --- Барахолка лагеря (задача 000095, id 47) ---
+  // Сток стойки — детерминирован по (ТАЙЛ, ДЕНЬ): сид
+  //   seed = (hash2(x, y, CAMP_STOCK_SEED) ^ ((day + 1) · 0x9E3779B9)) >>> 0
+  // (свои константы — паттерн TELEPORT_TIE_SEED/STONE_ROLL_SEED; НЕ
+  // GLOBAL_SEED, НЕ сид makeShop 0x154075; формула зафиксирована
+  // golden-пинами tests/items.test.js / building-effects A57).
+  // Виды — ТОЛЬКО каталог (record.особые_параметры.эффект.виды,
+  // 000053: record ПЕРЕДАЁТСЯ параметром — node-тесты не зависят от
+  // Game; каталог-драйвенность — на уровне вызывающего main.js).
+  // Вероятность/кол-во — 1:1 makeShop (0.55 + 0.1·wealth; 1 +
+  // floor(rng·(2+wealth))); магазин не пуст (pool[0]). wealth НЕ
+  // входит в сид. BUY-ONLY: shopKindsFor(47) → null (47 — не
+  // «картовый» индекс, нет map_index) → sellItem отказывает,
+  // кнопок «продать» в панели нет. Контракт —
+  // memory/000095-camp-fire-bazaar.md §2.3–2.4.
+
+  const CAMP_STOCK_SEED = 0x43414d50; // ASCII «CAMP»
+
+  // id КАТАЛОГА лагеря (не слот): buildingType обёртки + guard.
+  const CAMP_BUILDING_ID = 47;
+
+  /**
+   * Сток барахолки: { x, y, buildingType: 47, wealth, stock, seed }
+   * | null (fail-open: record null / каталог без валидных «виды» —
+   * не магазин). record — решённая каталожная запись 47.
+   */
+  function makeCampShop(x, y, day, wealth, record) {
+    const op = record && record.особые_параметры;
+    const eff = op && typeof op === 'object' ? op.эффект : null;
+    const kindsRaw = eff && typeof eff === 'object' ? eff.виды : null;
+    const kinds = Array.isArray(kindsRaw)
+      ? kindsRaw.filter((k) => KIND_IDS.includes(k)) : [];
+    if (kinds.length === 0) return null;
+    wealth = Math.max(0, Math.min(3, Math.floor(wealth || 0)));
+    const seed = (hash2(x, y, CAMP_STOCK_SEED)
+      ^ ((day + 1) * 0x9E3779B9)) >>> 0;
+    const rng = mulberry32(seed);
+    const pool = allItems().filter((it) => kinds.includes(it.kind));
+    const stock = {};
+    for (const it of pool) {
+      if (rng() < 0.55 + 0.1 * wealth) {
+        stock[it.id] = 1 + Math.floor(rng() * (2 + wealth));
+      }
+    }
+    if (!Object.keys(stock).length) stock[pool[0].id] = 1;
+    return { x, y, buildingType: CAMP_BUILDING_ID, wealth, stock, seed };
+  }
+
+  /**
+   * Срок ротации стока (АБСОЛЮТНЫЕ дни, паттерн npcStocks/
+   * defeatedAt — БЕЗ арифметики циклов): (day − entry.day) ≥
+   * respawnDays. fail-open (000029): нет entry / мусор / не-int≥1 —
+   * ротация (true).
+   */
+  function campStockDueRefresh(entry, day, respawnDays) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return true;
+    }
+    if (!Number.isInteger(day) || day < 1) return true;
+    if (!Number.isInteger(entry.day) || entry.day < 1) return true;
+    return (day - entry.day) >= respawnDays;
+  }
+
+  /**
+   * Раздел сейва campStocks (имя зафиксировано 000095):
+   * 'x,y' → { day: int≥1, stock: {itemId: int≥0} } (копия; seed НЕ
+   * сериализуется — воспроизводится из (x, y, day)). Паттерн
+   * serializeNpcStocks (000029): stocks не-объект → null; entry
+   * не-объект / day < 1 — skip. Пустые стоки — {}.
+   */
+  function serializeCampStocks(stocks) {
+    if (!stocks || typeof stocks !== 'object' || Array.isArray(stocks)) {
+      return null;
+    }
+    const out = {};
+    for (const [key, entry] of Object.entries(stocks)) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        continue;
+      }
+      if (!Number.isInteger(entry.day) || entry.day < 1) continue;
+      const stock = entry.stock;
+      if (!stock || typeof stock !== 'object' || Array.isArray(stock)) {
+        continue;
+      }
+      const outStock = {};
+      for (const [itemId, qty] of Object.entries(stock)) {
+        if (Number.isInteger(qty) && qty >= 0) outStock[itemId] = qty;
+      }
+      out[key] = { day: entry.day, stock: outStock };
+    }
+    return out;
+  }
+
+  /**
+   * Раздел сейва campStocks → состояние (fail-open, 000029/000072):
+   *   * saved не-объект — {};
+   *   * ключ не 'x,y' (два int) / entry не-объект / entry.day не
+   *     int≥1 — skip;
+   *   * entry.day > day («будущий» день — подделка) — skip
+   *     (паттерн buildingOncePerDay/pruneQuestBookByDay);
+   *   * initial — makeCampShop(x, y, entry.day, tileAt(x, y).
+   *     buildingWealth, record); tileAt/каталог упали — skip;
+   *   * qty: int≥0 → min(qty, initial), иначе initial; предмет вне
+   *     initial (призрак/чужой день) — отброс; отсутствующий в
+   *     снимке — initial (000029);
+   *   * seed — из того же makeCampShop-вызова.
+   * @param {object} saved раздел сейва
+   * @param {number} day день мира (граница «будущего»)
+   * @param {(x: number, y: number) => object} tileAt источник
+   *        buildingWealth (в main.js — map.tileAt)
+   * @param {object} record каталожная запись лагеря (G.getBuilding(47))
+   * @returns {object} { 'x,y': { day, stock, seed } } (может быть пустым)
+   */
+  function restoreCampStocks(saved, day, tileAt, record) {
+    const out = {};
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
+      return out;
+    }
+    if (!Number.isInteger(day) || day < 1) return out;
+    for (const [key, entry] of Object.entries(saved)) {
+      if (typeof key !== 'string') continue;
+      const parts = key.split(',');
+      if (parts.length !== 2) continue;
+      if (!/^-?\d+$/.test(parts[0]) || !/^-?\d+$/.test(parts[1])) {
+        continue;
+      }
+      const x = Number(parts[0]);
+      const y = Number(parts[1]);
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        continue;
+      }
+      if (!Number.isInteger(entry.day) || entry.day < 1) continue;
+      if (entry.day > day) continue; // «будущий» день — подделка
+      let tile = null;
+      try {
+        tile = (typeof tileAt === 'function') ? tileAt(x, y) : null;
+      } catch (err) { tile = null; }
+      if (!tile || typeof tile !== 'object') continue;
+      let initial = null;
+      try {
+        initial = makeCampShop(x, y, entry.day, tile.buildingWealth, record);
+      } catch (err) { initial = null; }
+      if (!initial) continue;
+      const savedStock = (entry.stock && typeof entry.stock === 'object'
+        && !Array.isArray(entry.stock)) ? entry.stock : {};
+      const stock = {};
+      for (const [itemId, init] of Object.entries(initial.stock)) {
+        const q = savedStock[itemId];
+        stock[itemId] = (Number.isInteger(q) && q >= 0)
+          ? Math.min(q, init) : init;
+      }
+      out[key] = { day: entry.day, stock, seed: initial.seed };
+    }
+    return out;
+  }
+
   return {
     ITEM_KINDS, WEAPON_SUBTYPES, EFFECT_KINDS,
     INVENTORY_SLOTS, QUICK_SLOTS, MAX_STACK, BASE_CARRY_WEIGHT,
@@ -815,5 +971,9 @@
     addSkillXp, useItem,
     equip, unequip, equipmentStats,
     shopKindsFor, makeShop, buyPrice, sellPrice, buyItem, sellItem,
+    // Задача 000095: барахолка лагеря (id 47) — сток (tile, day),
+    // свежестность, сериализация/восстановление раздела campStocks.
+    CAMP_STOCK_SEED, makeCampShop, campStockDueRefresh,
+    serializeCampStocks, restoreCampStocks,
   };
 });

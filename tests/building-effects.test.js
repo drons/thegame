@@ -134,11 +134,12 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // и '43' (круг); 000094 добавляет '48' (развалины — осмотр,
   // memory/000094-ruins-inspect.md); 000091 добавляет
   // '44_rest'/'44_rumors' (таверна, memory/000091-tavern-rest-
-  // rumors.md); 000092/95 расширят список при своих мержах
-  // (правка при ребейзе: union,
+  // rumors.md); 000095 добавляет 'fire'/'market' (лагерь,
+  // memory/000095-camp-fire-bazaar.md); 000092 расширит список
+  // при своём мерже (правка при ребейзе: union,
   // memory/000076-temple-blessings.md / 000074-rune-stone-obelisk.md
   // / 000077-building-content.md §8 / 000094-ruins-inspect.md
-  // / 000091-tavern-rest-rumors.md).
+  // / 000091-tavern-rest-rumors.md / 000095-camp-fire-bazaar.md).
   // Форм-пин — ЧЛЕНСТВО
   // (отклонение от точного deepEqual: точный union не замкнулся бы
   // до мержей 000091–000095, добавляющих собственные записи):
@@ -152,10 +153,13 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // Ребейз 000091 на мастер (2026-10-03): MERGED/UNION +=
   // '44_rest'/'44_rumors' (000091) — пин регенерирован по
   // фактическому коду.
+  // Ребейз 000095 на мастер (2026-10-03): MERGED/UNION +=
+  // 'fire'/'market' (000095, лагерь) — пин регенерирован по
+  // фактическому коду.
   const MERGED = ['36', '37', '38', '40', '41', '42', '46', '48',
-    '44_rest', '44_rumors'];
+    '44_rest', '44_rumors', 'fire', 'market'];
   const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '46',
-    '48', '44_rest', '44_rumors'];
+    '48', '44_rest', '44_rumors', 'fire', 'market'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -164,7 +168,7 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   for (const id of regKeys) {
     assert.ok(UNION.includes(id),
       'реестр: чужой id «' + id + '» (union 000074/000075/000076/' +
-      '000077/000093/000094/000091)');
+      '000077/000093/000094/000091/000095)');
   }
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
@@ -3461,6 +3465,362 @@ test('A69. tavernRest — node (спец-модуль): clock.rest → {ok, mess
   // globalThis.Game — сработало).
 });
 
+// --- Задача 000095: Лагерь (id 47) — «Костёр» и «Барахолка» ---
+//
+// Контракты — memory/000095-camp-fire-bazaar.md. Лагерь НЕ
+// генерируется на карте (нет map_index/размещения) — e2e (B24–B29)
+// идёт через ГРАНЬ building-actions с синтетическим тайлом.
+
+test('A55. «Лагерь» (47): EFFECTS «fire»/«market» — имена, БЕЗ apply/разВДень; buildingActions — [Диалог, Костёр, Барахолка]; без лимита (задача 000095)', () => {
+  const BE = loadBE();
+  // Записи-«стороны» (000128 §2.3): имя в реестре, apply НЕТ
+  // (сторона — в спец-хендлере src/building-effect-camp.js),
+  // разВДень НЕТ (повтор в тот же день допустим — прецедент 000091).
+  const fire = BE.EFFECTS['fire'];
+  const market = BE.EFFECTS['market'];
+  assert.ok(fire, 'EFFECTS[«fire»] — запись «Костёр» на месте');
+  assert.ok(market, 'EFFECTS[«market»] — запись «Барахолка» на месте');
+  assert.equal(fire.имя, 'Костёр', 'имя «Костёр»');
+  assert.equal(market.имя, 'Барахолка', 'имя «Барахолка»');
+  for (const [id, e] of [['fire', fire], ['market', market]]) {
+    assert.equal(e.apply, undefined,
+      id + ': apply НЕТ (мир-сторона — спец-хендлер)');
+    assert.notEqual(e.разВДень, true,
+      id + ': разВДень НЕТ (без лимита раз-в-день)');
+  }
+  // Каталог-драйвен (000053): эффекты — из записи 000047
+  // (особые_параметры.эффекты — первый каталог с 2 действиями).
+  const B = require('../src/buildings.js');
+  const camp = B.getBuilding(47);
+  assert.ok(camp, 'каталог: запись 47 «Лагерь»');
+  assert.deepEqual(BE.effectIds(camp), ['fire', 'market'],
+    'effectIds(47) — массив каталога (порядок = порядок строк)');
+  // buildingActions: «Диалог» ПЕРВЫМ (существующее правило),
+  // затем эффекты в порядке каталога.
+  const npc = { id: 'camp_wanderer', имя: 'Кочевник' };
+  const withNpc = BE.buildingActions(camp, npc, makeState());
+  assert.deepEqual(withNpc.map((a) => a.id),
+    ['dialog', 'fire', 'market'],
+    'с NPC — [«Диалог», «Костёр», «Барахолка»]');
+  assert.equal(withNpc[1].имя, 'Костёр', 'имя строки «Костёр»');
+  assert.equal(withNpc[2].имя, 'Барахолка', 'имя строки «Барахолка»');
+  assert.equal(withNpc[1].доступен, true, '«Костёр» — доступен');
+  assert.equal(withNpc[2].доступен, true, '«Барахолка» — доступна');
+  const noNpc = BE.buildingActions(camp, null, makeState());
+  assert.deepEqual(noNpc.map((a) => a.id), ['fire', 'market'],
+    'без NPC — только эффекты (нет «Диалога»)');
+  // Лимита раз-в-день НЕТ: каталог без флага раз_в_день,
+  // записи без разВДень → повторные действия в тот же день
+  // ДОПУСТИМЫ (B25: второй «Костёр» — ещё +1 день).
+  assert.equal(BE.hasDailyLimit(camp, 'fire'), false,
+    '«Костёр» — без лимита раз-в-день');
+  assert.equal(BE.hasDailyLimit(camp, 'market'), false,
+    '«Барахолка» — без лимита раз-в-день');
+});
+
+test('A56. каталог 000047: эффекты/эффект + зеркало src/buildings.js; 000050 — без изменений (задача 000095)', () => {
+  const BDIR = path.join(ROOT, 'assets', 'buildings');
+  const b47 = JSON.parse(
+    fs.readFileSync(path.join(BDIR, '000047.json'), 'utf8'));
+  assert.equal(b47.id, 47, 'id 47');
+  assert.equal(b47.название, 'Лагерь', 'название «Лагерь»');
+  const op = b47.особые_параметры;
+  assert.equal(op.даёт, 'костёр, торговля на барахолке',
+    '«даёт» — без изменений');
+  assert.deepEqual(op.эффекты, ['fire', 'market'],
+    'эффекты — массив (порядок = порядок строк оверлея)');
+  assert.deepEqual(op.эффект,
+    { respawn_days: 1, виды: ['food', 'potion', 'weapon', 'armor'] },
+    'эффект: respawn_days 1 (дневная ротация) + виды барахолки');
+  // Лагерь НЕ генерируется на карте (SPEC «Расширение карты»:
+  // новый map_index перераспределил бы слоты): слотовых/входовых
+  // параметров — НЕТ; лимита раз-в-день — НЕТ (костёр — как
+  // «Отдых» таверны, 000091).
+  for (const k of ['map_index', 'размещение', 'размер', 'вход',
+    'раз_в_день']) {
+    assert.ok(!Object.prototype.hasOwnProperty.call(op, k),
+      '000047: «' + k + '» — НЕ даётся');
+  }
+  // Зеркало (src/buildings.js) — регенерация скриптом
+  // (scripts/sync-buildings-data.js; byte-пины).
+  const B = require('../src/buildings.js');
+  const m47 = B.getBuilding(47);
+  assert.ok(m47, 'зеркало: запись 47 на месте');
+  assert.deepEqual(m47.особые_параметры, op,
+    'зеркало == JSON-каталог (особые_параметры побайтово)');
+  // id 50 (Мост / Ворота) — РЕЗЕРВ: решение только в SPEC/memory
+  // (L565–568), кода не требует — запись НЕ ТРОГАЕТСЯ.
+  const b50 = JSON.parse(
+    fs.readFileSync(path.join(BDIR, '000050.json'), 'utf8'));
+  assert.equal(b50.id, 50, 'id 50');
+  assert.equal(b50.название, 'Мост / Ворота', 'название 000050');
+  assert.ok(
+    !Object.prototype.hasOwnProperty.call(b50.особые_параметры, 'эффекты'),
+    '000050: «эффекты» нет (резерв)');
+  assert.ok(
+    !Object.prototype.hasOwnProperty.call(b50.особые_параметры, 'map_index'),
+    '000050: map_index не даётся (не генерируется)');
+});
+
+test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды из каталога, null-ветки, не-пустота (задача 000095)', () => {
+  const I = require('../src/items.js');
+  const PL = require('../src/perlin.js');
+  const B = require('../src/buildings.js');
+  const rec = B.getBuilding(47);
+  assert.equal(I.CAMP_STOCK_SEED, 0x43414d50,
+    'CAMP_STOCK_SEED — 0x43414d50 (ASCII «CAMP»)');
+  // Формула СЕДА зафиксирована golden: (tile, day); wealth НЕ
+  // входит в сид (как у makeShop — только type).
+  const seedD1 = (PL.hash2(10, 20, I.CAMP_STOCK_SEED)
+    ^ ((1 + 1) * 0x9E3779B9)) >>> 0;
+  assert.equal(seedD1, 1684487409,
+    'golden seed (10,20,день 1) = hash2 ^ ((day+1)·0x9E3779B9)');
+  // Детерминированность: повторный вызов — тот же сток.
+  const s1 = I.makeCampShop(10, 20, 1, 2, rec);
+  const s2 = I.makeCampShop(10, 20, 1, 2, rec);
+  assert.ok(s1, 'makeCampShop — магазин (обёртка)');
+  assert.deepEqual(s1.stock, s2.stock, 'детерминированность');
+  assert.equal(s1.seed, seedD1,
+    'seed = (hash2(x,y,CAMP_STOCK_SEED) ^ ((day+1)·0x9E3779B9)) >>> 0');
+  // Golden-сток (10,20,день 1,wealth 2) — пул 18 предметов
+  // (3 food + 5 potion + 7 weapon + 3 armor — виды каталога).
+  assert.deepEqual(s1.stock, {
+    iron_sword: 3, battle_axe: 3, war_hammer: 2, leather_armor: 4,
+    chainmail: 2, knight_plate: 3, minor_healing: 4, healing_potion: 4,
+    mana_potion: 1, bread: 3, meat: 4,
+  }, 'golden-сток (10,20,день 1,w2)');
+  // Форма обёртки: buildingType — id КАТАЛОГА (47, не слот).
+  assert.deepEqual(
+    { x: s1.x, y: s1.y, buildingType: s1.buildingType,
+      wealth: s1.wealth },
+    { x: 10, y: 20, buildingType: 47, wealth: 2 },
+    'обёртка { x, y, buildingType: 47, wealth, … }');
+  // Смена ДНЯ → новый сток (respawn_days 1 из каталога) и новый
+  // seed; смена ТАЙЛА → другой сток.
+  const sD2 = I.makeCampShop(10, 20, 2, 2, rec);
+  assert.equal(sD2.seed,
+    (PL.hash2(10, 20, I.CAMP_STOCK_SEED) ^ ((2 + 1) * 0x9E3779B9)) >>> 0,
+    'seed дня 2 (формула)');
+  assert.notDeepEqual(sD2.stock, s1.stock, 'день 2 — новый сток');
+  assert.notDeepEqual(
+    I.makeCampShop(11, 21, 1, 2, rec).stock, s1.stock,
+    'другой тайл — другой сток');
+  // Wealth: кламп 0..3 (1:1 makeShop); seed НЕ зависит от wealth.
+  assert.deepEqual(
+    I.makeCampShop(10, 20, 1, 5, rec).stock,
+    I.makeCampShop(10, 20, 1, 3, rec).stock, 'wealth 5 → 3 (кламп)');
+  assert.deepEqual(
+    I.makeCampShop(10, 20, 1, -1, rec).stock,
+    I.makeCampShop(10, 20, 1, 0, rec).stock, 'wealth −1 → 0 (кламп)');
+  assert.equal(I.makeCampShop(10, 20, 1, 5, rec).seed, s1.seed,
+    'seed не зависит от wealth');
+  // Виды — ТОЛЬКО из каталога (особые_параметры.эффект.виды):
+  // reagent/skill_book — не барахолка.
+  for (const id of Object.keys(s1.stock)) {
+    assert.ok(['food', 'potion', 'weapon', 'armor']
+      .includes(I.getItem(id).kind), id + ': вид из каталога');
+  }
+  // Магазин НЕ пуст (1:1 makeShop: pool[0] докидывается).
+  assert.ok(Object.keys(s1.stock).length >= 1, 'барахолка не пустая');
+  // Null-ветки (fail-open: каталог без видов — не магазин).
+  assert.equal(I.makeCampShop(1, 2, 1, 2, null), null,
+    'record null — null');
+  assert.equal(
+    I.makeCampShop(1, 2, 1, 2, { id: 47, особые_параметры: {} }),
+    null, 'без «эффект» — null');
+  assert.equal(
+    I.makeCampShop(1, 2, 1, 2,
+      { id: 47, особые_параметры: { эффект: { respawn_days: 1 } } }),
+    null, 'без «виды» — null');
+  assert.equal(
+    I.makeCampShop(1, 2, 1, 2,
+      { id: 47, особые_параметры:
+        { эффект: { виды: ['bogus_kind'] } } }),
+    null, 'виды все невалидны — null');
+  // Не-валидный вид ОТФИЛЬТРОВЫВАЕТСЯ: ['food','bogus'] → только
+  // food (гард, а не отказ).
+  const foodOnly = I.makeCampShop(1, 2, 1, 2,
+    { id: 47, особые_параметры:
+      { эффект: { виды: ['food', 'bogus'] } } });
+  assert.ok(foodOnly, 'один валидный вид — магазин');
+  assert.ok(Object.keys(foodOnly.stock).length >= 1, 'не пуст');
+  for (const id of Object.keys(foodOnly.stock)) {
+    assert.equal(I.getItem(id).kind, 'food', 'только food');
+  }
+});
+
+test('A58. campStockDueRefresh: абсолютные дни (day − entry.day ≥ respawnDays), fail-open (задача 000095)', () => {
+  const I = require('../src/items.js');
+  const fn = I.campStockDueRefresh;
+  assert.equal(typeof fn, 'function',
+    'items.js: campStockDueRefresh — экспортирована');
+  // Нет entry (новый лагерь) / мусор → ротация (fail-open).
+  assert.equal(fn(null, 1, 1), true, 'entry null — ротация');
+  assert.equal(fn(undefined, 1, 1), true, 'entry undefined — ротация');
+  assert.equal(fn('мусор', 1, 1), true, 'entry не-объект — ротация');
+  assert.equal(fn({}, 1, 1), true, 'entry без day — ротация');
+  // day / entry.day не int≥1 → ротация (fail-open).
+  assert.equal(fn({ day: 1, stock: {} }, 0, 1), true, 'день 0 — ротация');
+  assert.equal(fn({ day: 1, stock: {} }, 1.5, 1), true,
+    'день дробный — ротация');
+  assert.equal(fn({ day: 0, stock: {} }, 5, 1), true,
+    'entry.day 0 — ротация');
+  assert.equal(fn({ day: '1', stock: {} }, 5, 1), true,
+    'entry.day строка — ротация');
+  // respawn_days = 1 (каталог 000047): тот же день — НЕ, день+1 — ДА.
+  assert.equal(fn({ day: 1, stock: {} }, 1, 1), false,
+    'тот же день — НЕ ротация');
+  assert.equal(fn({ day: 1, stock: {} }, 2, 1), true,
+    'день+1 (respawn 1) — ротация');
+  // Общая формула (respawnDays из каталога, не хардкод 1):
+  // (day − entry.day) ≥ respawnDays.
+  assert.equal(fn({ day: 1, stock: {} }, 2, 3), false,
+    'respawn 3: день 2 — НЕ');
+  assert.equal(fn({ day: 1, stock: {} }, 3, 3), false,
+    'respawn 3: день 3 — НЕ');
+  assert.equal(fn({ day: 1, stock: {} }, 4, 3), true,
+    'respawn 3: день 4 — ДА');
+});
+
+test('A59. serialize/restoreCampStocks: roundtrip, независимость «x,y», кламп, призраки, «будущий» день, мусор (задача 000095)', () => {
+  const I = require('../src/items.js');
+  const B = require('../src/buildings.js');
+  const rec = B.getBuilding(47);
+  assert.equal(typeof I.serializeCampStocks, 'function',
+    'items.js: serializeCampStocks — экспортирована');
+  assert.equal(typeof I.restoreCampStocks, 'function',
+    'items.js: restoreCampStocks — экспортирована');
+  const W = 2;
+  // tileAt — источник buildingWealth (в main.js: map.tileAt).
+  const tileAt = (x, y) => ({ x, y, buildingId: 47, buildingWealth: W });
+  const base = (x, y, day) => I.makeCampShop(x, y, day, W, rec);
+  const eA = base(10, 20, 1);
+  const eB = base(11, 21, 1);
+  // --- Сериализация: { 'x,y': { day, stock } }; seed НЕ пишется.
+  assert.equal(I.serializeCampStocks(null), null,
+    'stocks null — null (1:1 serializeNpcStocks)');
+  assert.equal(I.serializeCampStocks('мусор'), null,
+    'stocks не-объект — null');
+  assert.deepEqual(I.serializeCampStocks({}), {},
+    'пустые стоки — {} (не null)');
+  const stocks = {
+    '10,20': { day: 1, stock: Object.assign({}, eA.stock),
+      seed: eA.seed },
+    '11,21': { day: 1, stock: Object.assign({}, eB.stock),
+      seed: eB.seed },
+    'мусор,ключ': 'не-объект',
+    '3,4': { day: 0, stock: { bread: 1 } },
+  };
+  assert.deepEqual(I.serializeCampStocks(stocks), {
+    '10,20': { day: 1, stock: eA.stock },
+    '11,21': { day: 1, stock: eB.stock },
+  }, 'снимок: entry-мусор и day<1 — skip; seed НЕ сериализуется');
+  // --- Restore: roundtrip (два ключа НЕЗАВИСИМО).
+  const rt = I.restoreCampStocks(
+    I.serializeCampStocks({
+      '10,20': { day: 1, stock: Object.assign({}, eA.stock) },
+      '11,21': { day: 1, stock: Object.assign({}, eB.stock) },
+    }), 1, tileAt, rec);
+  assert.deepEqual(rt['10,20'].stock, eA.stock,
+    'roundtrip: сток «10,20» — без изменений');
+  assert.equal(rt['10,20'].day, 1, 'roundtrip: day');
+  assert.deepEqual(rt['11,21'].stock, eB.stock,
+    'roundtrip: сток «11,21» — независимо');
+  assert.equal(typeof rt['10,20'].seed, 'number',
+    'seed воссоздан из (x, y, day)');
+  // Частичный снимок (куплено → qty уменьшено): кламп min(qty,
+  // initial); отсутствующий из initial — initial; призраки — отброс.
+  const partial = {
+    '10,20': { day: 1, stock: {
+      bread: 0,
+      meat: Math.max(0, (eA.stock.meat || 0) - 1),
+      ghost_item: 9,
+    } },
+  };
+  const rp = I.restoreCampStocks(partial, 1, tileAt, rec);
+  const initA = eA.stock;
+  for (const [id, init] of Object.entries(initA)) {
+    const saved = partial['10,20'].stock[id];
+    const expect = (Number.isInteger(saved) && saved >= 0)
+      ? Math.min(saved, init) : init;
+    assert.equal(rp['10,20'].stock[id], expect,
+      id + ': кламп/отсутствие по initial');
+  }
+  assert.ok(!('ghost_item' in rp['10,20'].stock),
+    'призрак (вне initial) — отброшен');
+  // «Будущий» день (entry.day > day — подделка) — skip.
+  const future = I.restoreCampStocks(
+    { '10,20': { day: 99, stock: Object.assign({}, eA.stock) } },
+    1, tileAt, rec);
+  assert.ok(!('10,20' in future), 'entry.day 99 > день 1 — отброшен');
+  // Мусорные ключи/entry — skip (fail-open: игра не роняется).
+  const junk = I.restoreCampStocks({
+    'x,y': { day: 1, stock: {} },
+    '10,20,3': { day: 1, stock: {} },
+    '10': { day: 1, stock: {} },
+    '10,20': 'не-объект',
+    '12,13': { day: 0, stock: {} },
+    '14,15': { day: '1', stock: {} },
+  }, 1, tileAt, rec);
+  assert.deepEqual(junk, {}, 'мусор — {} (все записи отброшены)');
+  assert.deepEqual(I.restoreCampStocks(null, 1, tileAt, rec), {},
+    'saved null — {}');
+  assert.deepEqual(I.restoreCampStocks([1, 2], 1, tileAt, rec), {},
+    'saved массив — {}');
+});
+
+test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зеркало 18 записей, npcForBuilding(47) (задача 000095)', () => {
+  const NDIR = path.join(ROOT, 'assets', 'npc');
+  // Файл — по нумерации (npc-data.test.js: ровно N файлов
+  // 000001..N.json подряд, N = NPCS.length): 17 + Кочевник = 18.
+  const npc = JSON.parse(
+    fs.readFileSync(path.join(NDIR, '000018.json'), 'utf8'));
+  assert.equal(npc.id, 'camp_wanderer', 'id «camp_wanderer»');
+  assert.equal(npc.имя, 'Кочевник', 'имя «Кочевник»');
+  assert.equal(npc.роль, 'странствующий торговец',
+    'роль «странствующий торговец»');
+  assert.deepEqual(npc.постройки, [47],
+    'постройки: [47] (связь с лагерем → npcForBuilding, 000071)');
+  assert.deepEqual(
+    npc.диалог.map((d) => [d.id, d.действие]),
+    [['prives', 'подсказка'], ['trade', 'торговля']],
+    'диалог: подсказка + торговля');
+  // Витрина: СУЩЕСТВУЮЩИЕ предметы каталога; покупка дороже
+  // продажи; количество 1..99 (schema.json).
+  const I = require('../src/items.js');
+  const items = npc.торговля.предметы;
+  assert.equal(items.length, 5, 'витрина — 5 позиций');
+  for (const p of items) {
+    assert.ok(I.getItem(p.предмет),
+      'предмет существует в каталоге: ' + p.предмет);
+    assert.ok(p.цена_покупки > p.цена_продажи,
+      p.предмет + ': покупка дороже продажи');
+    assert.ok(p.количество >= 1 && p.количество <= 99,
+      p.предмет + ': количество 1..99');
+  }
+  // Зеркало (src/npc-data.js, регенерация скриптом): 17 → 18.
+  const ND = require('../src/npc-data.js');
+  assert.equal(ND.NPCS.length, 18,
+    'зеркало: 18 NPC (17 + Кочевник)');
+  const inMirror = ND.NPCS.find((n) => n.id === 'camp_wanderer');
+  assert.ok(inMirror, 'зеркало: camp_wanderer на месте');
+  assert.deepEqual(inMirror.постройки, [47],
+    'зеркало: постройки [47]');
+  // «Диалог» — БЕЗ НОВОГО КОДА (fallback роутера, 000071):
+  // npcForBuilding(NPCS, 47) → Кочевник.
+  const N = require('../src/npc.js');
+  const bound = N.npcForBuilding(ND.NPCS, 47);
+  assert.ok(bound, 'npcForBuilding(…, 47) — NPC найден');
+  assert.equal(bound.id, 'camp_wanderer', '→ Кочевник');
+  // Сток кочевника (система NPC, НЕ барахолка): создаётся, витрина
+  // = каталог.
+  const shop = N.createNpcShop(inMirror);
+  assert.ok(shop, 'createNpcShop — сток кочевника');
+  assert.deepEqual(Object.keys(shop.stock).sort(),
+    items.map((p) => p.предмет).sort(),
+    'сток = витрина каталога');
+});
+
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
 //
 // Паттерн tests/save-restore.test.js: DOM/WebGL-стабы + МОК
@@ -6180,4 +6540,364 @@ test('B28. регрессия: диалог Берты (NPC таверны) — 
     'оверлей снова содержит «Диалог»');
   key(h, 'Escape');
   assert.equal(G.buildingUI.isActive(), false);
+});
+
+// --- Задача 000095: Лагерь (id 47) — e2e через ГРАНЬ ---
+//
+// Лагерь НЕ генерируется на карте (нет map_index/размещения; SPEC
+// «Расширение карты») — тайл «поставить» нельзя (tileAt — чистая
+// функция координат). E2E — только через ГРАНЬ building-actions
+// (openBuildingUI/onBuildingAction — публичные) с СИНТЕТИЧЕСКИМ
+// тайлом (a3 §2.4 / memory/000095-camp-fire-bazaar.md §4).
+//
+// Богатство синтетического тайла — от РЕАЛЬНОГО тайла (40,40)
+// детерминированного мира (fallback-сид: buildingWealth 0):
+// restoreCampStocks при загрузке сейва читает buildingWealth через
+// map.tileAt — с реальным wealth сток-«initial» воспроизводится
+// идентично, и roundtrip сейва честен (B28).
+
+function campTile(over = {}) {
+  return Object.assign({ x: 40, y: 40, hasBuilding: true,
+    building: -1, buildingId: 47, buildingWealth: 0 }, over);
+}
+function campRecord(G) {
+  const b = G.getBuilding(47);
+  assert.ok(b, 'каталог: запись 47 «Лагерь»');
+  return b;
+}
+function campNpc(G) {
+  return G.npcForBuilding(G.NpcData.NPCS, 47);
+}
+// Оверлей NPC-диалога (npcUI) — .combat-overlay С классом npc-overlay
+// (findOverlay как раз его исключает).
+function findNpcOverlay(h) {
+  return findAll(h.body, '.combat-overlay')
+    .find((o) => String(o.className).includes('npc-overlay')) || null;
+}
+const CAMP_FIRE = { id: 'fire', имя: 'Костёр', доступен: true };
+const CAMP_MARKET = { id: 'market', имя: 'Барахолка', доступен: true };
+const CAMP_DIALOG = { id: 'dialog', имя: 'Диалог', доступен: true };
+
+test('B24. спец-модуль лагеря: цепочка index.html грузится чисто, EFFECTS «fire»/«market» в браузерном realm, деградации модуля нет (задача 000095)', async () => {
+  const h = await boot();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет (тег спец-модуля чист): '
+    + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const be = G.buildingEffects;
+  assert.ok(be && be.EFFECTS['fire'],
+    'EFFECTS[«fire»] в браузерном realm (red: записи нет)');
+  assert.equal(be.EFFECTS['fire'].имя, 'Костёр', 'имя «Костёр»');
+  assert.ok(be.EFFECTS['market'],
+    'EFFECTS[«market»] в браузерном realm (red: записи нет)');
+  assert.equal(be.EFFECTS['market'].имя, 'Барахолка', 'имя «Барахолка»');
+  // Саморегистрация specials — в момент загрузки модуля (между
+  // building-actions.js и main.js — 000128 §2.3; порядок пины
+  // index-order.test.js; функционально — B25/B26). Текст деградации
+  // (нет buildingActions / тег после main.js — 000038) не должен
+  // появиться.
+  for (const e of h.errors) {
+    assert.ok(!String(e).includes('building-effect-camp'),
+      'деградация спец-модуля не произошла: ' + e);
+  }
+  // Игра стартовала (main.js — ПОСЛЕ спец-модуля).
+  const g = h.sandbox.__game;
+  assert.ok(g && g.state.map, '__game: игра стартовала');
+});
+
+test('B25. «Костёр» e2e (граница, синтетический тайл): clock.rest → день+1, steps 0, onDay-flash «День N.», сейв, повтор в тот же день (без лимита), БЕЗ марки buildingOncePerDay (задача 000095)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const npc = campNpc(G);
+  assert.ok(npc && npc.id === 'camp_wanderer',
+    'NPC лагеря — Кочевник (000018; red: NPC нет)');
+  const t = campTile();
+  const b = campRecord(G);
+  // Оверлей на синтетическом тайле: заголовок «лагерь», строки
+  // «Диалог» / «Костёр» / «Барахолка».
+  assert.equal(G.buildingActions.openBuildingUI(t, b, npc), true,
+    'openBuildingUI — оверлей (red: нет эффектов → действий нет)');
+  assert.equal(G.buildingUI.isActive(), true, 'оверлей открыт');
+  const ov = findOverlay(h);
+  assert.ok(textOf(ov).toLowerCase().includes('лагерь'),
+    'заголовок — «лагерь» (имя каталога): ' + textOf(ov));
+  const rowFire = findRow(ov, 'fire');
+  assert.ok(rowFire,
+    'строка «Костёр» (data-buid «fire» — red: записи нет)');
+  assert.ok(textOf(rowFire).includes('Костёр'), 'имя строки «Костёр»');
+  assert.equal(rowFire.disabled, false, 'день 1 — доступно');
+  key(h, 'Escape');
+  // Действие через ГРАНЬ: спец-хендлер fire → ctx.clock.rest().
+  const day0 = g.state.day;
+  assert.equal(day0, 1, 'день 1');
+  G.buildingActions.onBuildingAction(CAMP_FIRE, t, b, npc);
+  assert.equal(g.state.day, day0 + 1, 'clock.rest() — день +1');
+  assert.equal(g.state.stepsToday, 0, 'rest — steps = 0');
+  // onDay: flash «День N.». Хендлер БЕЗ своего message — смена-дня
+  // не затирается (контракт §2.5: msg = r.message || sres.message).
+  frameAt(h, NOW + 200);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('День ' + (day0 + 1) + '.'),
+    'hudFlash — «День 2.» (onDay, не затёрт): ' + hud1);
+  // saveNow (пайплайн + onDay) — сейв обновлён.
+  const save1 = readSave(h);
+  assert.ok(save1, 'сейв после действия');
+  assert.equal(save1.data.day, day0 + 1, 'сейв: день');
+  // Лимита НЕТ (каталог без раз_в_день): марки '…:fire' НЕТ.
+  const once1 = save1.data.buildingOncePerDay || {};
+  assert.ok(!Object.keys(once1).some((k) => k.endsWith(':fire')),
+    'buildingOncePerDay — без марки «…:fire» (без лимита)');
+  // Повтор в тот же день — ДОПУСТИМ (прецедент «Отдых» таверны):
+  // ещё +1 день, марки по-прежнему нет.
+  G.buildingActions.onBuildingAction(CAMP_FIRE, t, b, npc);
+  assert.equal(g.state.day, day0 + 2, 'повтор — день +2');
+  const save2 = readSave(h);
+  const once2 = save2.data.buildingOncePerDay || {};
+  assert.ok(!Object.keys(once2).some((k) => k.endsWith(':fire')),
+    'после повтора — марки по-прежнему нет');
+});
+
+test('B26. «Барахолка» e2e (граница): стойка «x,y» ТАЙЛА (не игрока), сток-каталог (виды 000047), панель «Магазин», покупка мутирует стойку in place, BUY-ONLY (задача 000095)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const npc = campNpc(G);
+  const t = campTile(); // wealth реального тайла (40,40) = 0
+  const b = campRecord(G);
+  const px0 = g.state.player.x, py0 = g.state.player.y;
+  assert.ok(px0 !== t.x || py0 !== t.y,
+    'сценарий: игрок НЕ на лагере (спавн) — ключ ≠ позиция');
+  // Открытие барахолки: setShop(обёртка) + панель на вкладке «Магазин».
+  G.buildingActions.onBuildingAction(CAMP_MARKET, t, b, npc);
+  assert.equal(G.playerUI.isOpen(), true,
+    'панель персонажа открыта (хендлер: toggle(true, «shop»))');
+  // Ключ стойки = координаты ТАЙЛА-ЛАГЕРЯ (ctx.t), НЕ позиции
+  // игрока (контракт §2.3/§6.6: в e2e — другое место).
+  assert.ok(g.campStocks['40,40'],
+    'campStocks: стойка «40,40» (red: поведения нет)');
+  const playerKey = px0 + ',' + py0;
+  assert.ok(!('' + playerKey in g.campStocks && g.campStocks[playerKey]),
+    'стойки с ключом позиции игрока НЕТ');
+  const entry0 = g.campStocks['40,40'];
+  assert.equal(entry0.day, 1, 'entry.day — день мира');
+  assert.ok(Object.keys(g.campStocks).length === 1,
+    'одна стойка (только «40,40»)');
+  // Сток — golden (40,40, день 1, w0): кросс-реалем-пин (та же
+  // формула, что в node — A57; виды — каталог 000047).
+  // JSON-roundtrip — нормализация vm-реалма (assert/strict:
+  // прототипы песочницы ≠ прототипы хоста; паттерн файла —
+  // L3661/L4069): сравниваются ЗНАЧЕНИЯ стока.
+  assert.deepEqual(JSON.parse(JSON.stringify(entry0.stock)), {
+    wood_sword: 1, steel_sword: 1, short_bow: 2, hunting_bow: 1,
+    battle_axe: 1, war_hammer: 2, minor_healing: 2, healing_potion: 2,
+    greater_healing: 2, mana_elixir: 2, bread: 2, honey_cake: 1,
+  }, 'golden-сток стойки (40,40, день 1, w0)');
+  for (const id of Object.keys(entry0.stock)) {
+    assert.ok(['food', 'potion', 'weapon', 'armor']
+      .includes(G.getItem(id).kind), id + ': вид из каталога');
+  }
+  // Панель: вкладки/строки — у каждого предмета «купить» (1 шт.),
+  // «продать» НЕТ (buy-only: shopKindsFor(47) → null, §2.3).
+  const panel = findAll(h.body, '.char-panel')[0];
+  assert.ok(panel, 'панель .char-panel подвешена к body');
+  const buyBtns = findAll(panel, '.cp-btn')
+    .filter((btn) => btn.dataset.act === 'buy');
+  assert.equal(buyBtns.length, Object.keys(entry0.stock).length,
+    'кнопка «купить» у каждого предмета стока');
+  const sellBtns = findAll(panel, '.cp-btn')
+    .filter((btn) => btn.dataset.act === 'sell');
+  assert.equal(sellBtns.length, 0,
+    'BUY-ONLY: кнопок «продать» нет (лагерь не скупает)');
+  assert.ok(textOf(panel).includes('магазин, богатство 0/3'),
+    'шапка вкладки: «магазин, богатство 0/3» (buildingNameUi(47) '
+    + '→ fallback «магазин»): ' + textOf(panel));
+  // Покупка: buyItem(shop, hero, id, 1) — обёртка setShop держит
+  // ССЫЛКУ на entry.stock (ui.js) → мутация in place → campStocks
+  // актуален без дополнительной записи.
+  const btn0 = buyBtns[0];
+  const buyId = btn0.dataset.item;
+  const qtyBefore = entry0.stock[buyId];
+  const goldBefore = g.state.hero.gold;
+  panel.listeners.click[0]({ target: btn0 });
+  assert.ok(g.state.hero.gold < goldBefore, 'золото уменьшилось');
+  assert.equal(g.campStocks['40,40'].stock[buyId], qtyBefore - 1,
+    'покупка мутировала сток стойки (in place)');
+  // g.state.hero.inventory — МАССИВ слотов (getter __game).
+  assert.ok(g.state.hero.inventory.some(
+    (s) => s && s.id === buyId), 'предмет — в инвентаре');
+});
+
+test('B27. детерминизм барахолки: два мира, один (tile, day) — ОДИН сток; день+1 (respawn_days 1) — новый сток, одинаково в обоих (задача 000095)', async () => {
+  const h1 = await boot();
+  const h2 = await boot();
+  const G1 = h1.sandbox.Game, G2 = h2.sandbox.Game;
+  const g1 = h1.sandbox.__game, g2 = h2.sandbox.__game;
+  for (const h of [h1, h2]) {
+    assert.equal(h.errors.length, 0,
+      'ошибок загрузки нет: ' + h.errors.join('; '));
+  }
+  const b1 = campRecord(G1), b2 = campRecord(G2);
+  const n1 = campNpc(G1), n2 = campNpc(G2);
+  const t1 = campTile(), t2 = campTile();
+  // День 1: одинаковый (tile, day) — одинаковый сток (сид
+  // (tile, day), ноль Math.random).
+  G1.buildingActions.onBuildingAction(CAMP_MARKET, t1, b1, n1);
+  G2.buildingActions.onBuildingAction(CAMP_MARKET, t2, b2, n2);
+  const s1 = g1.campStocks['40,40'];
+  const s2 = g2.campStocks['40,40'];
+  assert.ok(s1 && s2, 'стойки в обоих мирах');
+  assert.equal(s1.seed, 1223027174, 'seed дня 1 — golden (40,40)');
+  assert.equal(s1.seed, s2.seed, 'seed — одинаков');
+  assert.deepEqual(JSON.parse(JSON.stringify(s1.stock)),
+    JSON.parse(JSON.stringify(s2.stock)),
+    'один (tile, day) — один сток (vm-реалм → JSON-нормализация)');
+  // День+1: respawn_days из каталога = 1 → повторное открытие
+  // рождает НОВЫЙ сток (seed дня 2) — одинаково в обоих мирах.
+  g1.actions.setDay(2);
+  g2.actions.setDay(2);
+  G1.buildingActions.onBuildingAction(CAMP_MARKET, t1, b1, n1);
+  G2.buildingActions.onBuildingAction(CAMP_MARKET, t2, b2, n2);
+  const s1d2 = g1.campStocks['40,40'];
+  const s2d2 = g2.campStocks['40,40'];
+  assert.equal(s1d2.day, 2, 'entry.day — день 2 (респаун)');
+  assert.notDeepEqual(s1d2.stock, s1.stock,
+    'день 2 — новый сток (respawn_days 1)');
+  assert.equal(s1d2.seed, 2922215359, 'seed дня 2 — golden');
+  assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)), {
+    iron_sword: 2, hunting_bow: 1, battle_axe: 1, chainmail: 2,
+    healing_potion: 2, mana_potion: 2, mana_elixir: 2, honey_cake: 1,
+  }, 'golden-сток дня 2 (40,40, w0) — кросс-реалем-пин формулы');
+  assert.equal(s1d2.seed, s2d2.seed, 'seed дня 2 — одинаков');
+  assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)),
+    JSON.parse(JSON.stringify(s2d2.stock)),
+    'оба мира — одинаковый новый сток (vm-реалм → JSON-нормализация)');
+});
+
+test('B28. сейв campStocks: roundtrip (стойка пережила перезагрузку), форма { «x,y»: { day, stock } } без seed, мусорный раздел — fail-open (warn + пусто), игра не роняется (задача 000095)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const npc = campNpc(G);
+  const t = campTile();
+  const b = campRecord(G);
+  G.buildingActions.onBuildingAction(CAMP_MARKET, t, b, npc);
+  const stock0 = JSON.parse(JSON.stringify(g.campStocks['40,40'].stock));
+  assert.ok(Object.keys(stock0).length >= 1, 'сток не пуст');
+  // saveNow (пайплайн) — раздел campStocks в сейве; форма:
+  // { «x,y»: { day, stock } } — seed НЕ сериализуется.
+  const save1 = readSave(h);
+  assert.ok(save1.data.campStocks,
+    'раздел campStocks в сейве (red: раздела нет)');
+  assert.deepEqual(save1.data.campStocks,
+    { '40,40': { day: 1, stock: stock0 } },
+    'форма раздела: seed нет');
+  // Перезагрузка с тем же сейвом — сток восстановлен (fail-open
+  // restore; wealth — с реального тайла (40,40) → initial совпал).
+  const h2 = await boot(save1);
+  const g2 = h2.sandbox.__game;
+  assert.equal(h2.errors.length, 0,
+    'перезагрузка: ошибок нет: ' + h2.errors.join('; '));
+  assert.ok(g2.campStocks['40,40'],
+    'стойка «40,40» восстановлена (red: restore нет)');
+  assert.equal(g2.campStocks['40,40'].day, 1, 'day — день сейва');
+  assert.deepEqual(JSON.parse(JSON.stringify(g2.campStocks['40,40'].stock)),
+    stock0, 'сток восстановлен побайтово (roundtrip)');
+  // Мусорный раздел — warn + ПУСТО (fail-open 000029/000072):
+  // «будущий» день, мусорные ключи/entry — все отброшены;
+  // ошибки загрузки НЕТ.
+  const badSave = JSON.parse(JSON.stringify(save1));
+  badSave.data.campStocks = {
+    '40,40': { day: 99, stock: { bread: 5 } },
+    'x,y': { day: 1, stock: { bread: 5 } },
+    '41,41': 'не-объект',
+    '42,42': { day: 0, stock: { bread: 5 } },
+  };
+  const h3 = await boot(badSave);
+  const g3 = h3.sandbox.__game;
+  assert.equal(h3.errors.length, 0,
+    'мусорный раздел — без ошибок загрузки: '
+    + h3.errors.join('; '));
+  assert.deepEqual(JSON.parse(JSON.stringify(g3.campStocks)), {},
+    'мусор — {} (fail-open: игра не роняется)');
+});
+
+test('B29. «Диалог» кочевника и «Барахолка» — ДВЕ НЕЗАВИСИМЫЕ системы торговли: npcStocks (ключ npcId) и campStocks (ключ «x,y») (задача 000095)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const npc = campNpc(G);
+  const t = campTile();
+  const b = campRecord(G);
+  // (1) «Диалог» — fallback роутера (БЕЗ нового кода, 000071):
+  // npcUI (не buildingUI), витрина кочевника.
+  G.buildingActions.onBuildingAction(CAMP_DIALOG, t, b, npc);
+  assert.equal(G.npcUI.isActive(), true,
+    '«Диалог» открыл NPC-диалог (red: NPC нет → fallback не сработает)');
+  assert.equal(G.buildingUI.isActive(), false,
+    'buildingUI НЕ открыт');
+  const ov = findNpcOverlay(h);
+  assert.ok(ov, 'оверлей NPC открыт (класс npc-overlay)');
+  assert.ok(String(ov.className).includes('npc-overlay'),
+    'это оверлей NPC');
+  assert.ok(textOf(ov).includes('Кочевник'),
+    'оверлей Кочевника: ' + textOf(ov));
+  // (2) Вкладка «торговля» — опция диалога.
+  const optTrade = findAll(ov, 'button[data-npcact="opt"]')
+    .find((btn) => btn.dataset.optid === 'trade');
+  assert.ok(optTrade, 'опция «trade» в диалоге');
+  ov.listeners.click[0]({ target: optTrade });
+  assert.equal(findAll(ov, 'button[data-npcact="buy"]').length, 5,
+    'витрина — 5 предметов (каталог 000018)');
+  // Сток NPC создан лениво: ключ = npcId (ОБЩАЯ на все лагеря).
+  const npcStock0 = g.npcStocks['camp_wanderer'];
+  assert.ok(npcStock0,
+    'npcStocks: «camp_wanderer» создан (red: NPC нет в каталоге)');
+  // (3) Барахолка: стойка тайла (ключ «x,y») — отдельная система.
+  G.npcUI.close();
+  G.buildingActions.onBuildingAction(CAMP_MARKET, t, b, npc);
+  const campBeforeNpcBuy = JSON.parse(
+    JSON.stringify(g.campStocks['40,40'].stock));
+  assert.ok(campBeforeNpcBuy,
+    'campStocks: «40,40» — стойка тайла (red: поведения нет)');
+  // (4) Покупка у Кочевника — мутирует ТОЛЬКО npcStocks.
+  G.buildingActions.onBuildingAction(CAMP_DIALOG, t, b, npc);
+  const ov2 = findNpcOverlay(h);
+  assert.ok(ov2, 'повторный диалог: оверлей NPC снова открыт');
+  const opt2 = findAll(ov2, 'button[data-npcact="opt"]')
+    .find((btn) => btn.dataset.optid === 'trade');
+  ov2.listeners.click[0]({ target: opt2 });
+  const buyBtn = findAll(ov2, 'button[data-npcact="buy"]')[0];
+  const npcItemId = buyBtn.dataset.item;
+  const npcQty0 = g.npcStocks['camp_wanderer'][npcItemId];
+  ov2.listeners.click[0]({ target: buyBtn });
+  assert.equal(g.npcStocks['camp_wanderer'][npcItemId], npcQty0 - 1,
+    'покупка у Кочевника — npcStocks мутирован');
+  assert.deepEqual(JSON.parse(JSON.stringify(g.campStocks['40,40'].stock)),
+    campBeforeNpcBuy,
+    '…а сток барахолки НЕ изменился (системы независимы)');
+  G.npcUI.close();
+  // (5) Покупка в барахолке — мутирует ТОЛЬКО campStocks.
+  G.buildingActions.onBuildingAction(CAMP_MARKET, t, b, npc);
+  const panel = findAll(h.body, '.char-panel')[0];
+  const campBuyBtn = findAll(panel, '.cp-btn')
+    .find((btn) => btn.dataset.act === 'buy');
+  const campItemId = campBuyBtn.dataset.item;
+  const campQty0 = g.campStocks['40,40'].stock[campItemId];
+  const npcStockBeforeCampBuy = JSON.parse(
+    JSON.stringify(g.npcStocks['camp_wanderer']));
+  panel.listeners.click[0]({ target: campBuyBtn });
+  assert.equal(g.campStocks['40,40'].stock[campItemId], campQty0 - 1,
+    'покупка в барахолке — campStocks мутирован');
+  assert.deepEqual(JSON.parse(JSON.stringify(g.npcStocks['camp_wanderer'])),
+    npcStockBeforeCampBuy,
+    '…а сток Кочевника НЕ изменился (системы независимы)');
 });
