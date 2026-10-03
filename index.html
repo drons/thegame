@@ -704,8 +704,10 @@
        (доменная группа building-effects → building-ui → building-
        actions), ДО main.js (UMD-ловушка 000038). Слот МЕЖДУ этим
        тегом и main.js — спец-модули (000077/000091–95) и hud.js
-       (000129). -->
+       (000129). Первый спец-модуль — building-effect-44_rest.js
+       (000091: «Отдых» таверны, саморегистрация в момент загрузки). -->
   <script src="src/building-actions.js"></script>
+  <script src="src/building-effect-44_rest.js"></script>
   <!-- Ежедневный контент (задача 000077: круг 43 / храм 39):
        спец-модуль (000128 §2.3) — саморегистрация хендлера на ОБА id
        в момент загрузки: ПОСЛЕ building-actions.js (нужен

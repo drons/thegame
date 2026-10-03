@@ -3370,8 +3370,10 @@ test('A58. applyTavernRumors (= EFFECTS[44_rumors].apply): реальный ка
     const st = makeState({
       day: 1, tile: { x: 5, y: 5 }, save: {}, catalog: real44,
     });
-    st.map = synthMap(cells);
+    // Снимок чистоты — ДО подвешивания map: map — live-ссылка с
+    // ФУНКЦИЯМИ (000076), а JSON их в снимок не переносит.
     const snap = JSON.parse(JSON.stringify(st));
+    st.map = synthMap(cells);
     const r = BE.EFFECTS['44_rumors'].apply(st);
     assert.equal(r.ok, true, 'ok (каталог + вход)');
     assert.ok(r.message.startsWith('Слухи:\n· '),
@@ -3385,8 +3387,11 @@ test('A58. applyTavernRumors (= EFFECTS[44_rumors].apply): реальный ка
       'message — координаты входа: ' + r.message);
     assert.ok(r.message.includes(D.DUNGEON_NAMES[0]),
       'message — имя типа подземелья (DUNGEON_NAMES): ' + r.message);
-    // Снапшот НЕ мутирован (apply-профиль).
-    assert.deepEqual(st, snap, 'снапшот не мутирован');
+    // Снапшот НЕ мутирован (apply-профиль; map — live-ссылка, часть
+    // данных снимка — day/tile/hero/save/catalog).
+    const stData = Object.assign({}, st);
+    delete stData.map;
+    assert.deepEqual(stData, snap, 'снапшот не мутирован');
     // Без карты → НЕ отказ (fail-open, §2.6): ok + «Входы в пещеры
     // не видны.» (лор из каталога всё равно).
     const r2 = BE.EFFECTS['44_rumors'].apply(Object.assign(
