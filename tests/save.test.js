@@ -402,7 +402,10 @@ function makeEl(tag) {
   });
 }
 
-function bootWithSave(storage, heroExtra) {
+// dataExtra (000085): ДОПОЛНИТЕЛЬНЫЕ поля data (companions/efir/
+// dead_mercs) — ОПЦИОНАЛЬНЫЙ 3-й аргумент (additive: Object.assign
+// игнорирует undefined) — существующие вызовы без правок.
+function bootWithSave(storage, heroExtra, dataExtra) {
   // Сейв записывается ДО запуска цепочки: main.js снимает
   // window.localStorage и читает его при ЗАГРУЗКЕ (restoreFromSave).
   const hero = Object.assign({
@@ -419,7 +422,7 @@ function bootWithSave(storage, heroExtra) {
   rawSet(storage, {
     version: 1,
     savedAt: new Date(0).toISOString(),
-    data: { day: 1, steps: 0, hero },
+    data: Object.assign({ day: 1, steps: 0, hero }, dataExtra),
   });
 
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
@@ -619,4 +622,278 @@ test('000093: roundtrip explored: save/load без потерь + restoreExplore
   assert.deepEqual(m,
     new Map([['36,-21', new Set(['36,-21', '16,-41', '56,-1'])]]),
     'Map<towerKey, Set<tileKey>> восстановлен');
+});
+
+// =====================================================================
+// Задача 000085: отряд и Эфир в сейве (неломкое расширение v1, 000031:
+// БЕЗ бампа CURRENT_VERSION, MIGRATIONS пуст; каждый раздел restore —
+// свой try/catch, 000031/000029 «призрак»).
+// Контракт: memory/000085-save-party-efir.md (D1–D8, D13) +
+// memory/000085-save-roster.md (компактный контракт).
+// КРАСНЫЕ, пока нет: serializeRoster/deserializeRoster (companions.js),
+// serializeEfir/deserializeEfir (efir.js), разделы companions/efir/
+// dead_mercs в collectSaveData/restoreFromSave (main.js).
+// =====================================================================
+
+const C = require('../src/companions.js');
+const E = require('../src/efir.js');
+const { NPCS } = require('../src/npc-data.js');
+
+// Сerde-функции ОБЯЗАНЫ быть тихими (0 console.warn) — warn печатает
+// main.js по dropped/битым разделам (D3/D8).
+function quiet(fn) {
+  const orig = console.warn;
+  let n = 0;
+  console.warn = () => { n += 1; };
+  try {
+    return { res: fn(), n };
+  } finally {
+    console.warn = orig;
+  }
+}
+
+test('000085 T1: serializeRoster — чистая копия ровно 5 полей, лишнее отброшено, fresh-copy; тихая', () => {
+  const volk = { npcId: 'merc_volk', level: 2, xp: 30, loyalty: 77, hiredDay: 3 };
+  const snap = C.serializeRoster([
+    volk,
+    { npcId: 'merc_ashka', level: 1, xp: 0, loyalty: 50, hiredDay: 2, extra: 99 },
+    'junk', 42, { level: 1, xp: 0 }, // не-объект / без строки npcId — skip
+  ]);
+  assert.deepEqual(snap, [
+    { npcId: 'merc_volk', level: 2, xp: 30, loyalty: 77, hiredDay: 3 },
+    { npcId: 'merc_ashka', level: 1, xp: 0, loyalty: 50, hiredDay: 2 },
+  ], 'ровно 5 полей (лишние отброшены), не-объект/без npcId — skip');
+  volk.level = 99; // fresh-copy: мутация входа не меняет снапшот
+  assert.deepEqual(snap[0],
+    { npcId: 'merc_volk', level: 2, xp: 30, loyalty: 77, hiredDay: 3 },
+    'fresh-copy — мутация input не меняет снапшот');
+  assert.deepEqual(C.serializeRoster('junk'), [], 'не-массив → []');
+  assert.deepEqual(C.serializeRoster(null), [], 'null → []');
+  const q = quiet(() => C.serializeRoster([volk]));
+  assert.equal(q.n, 0, 'serializeRoster ТИХАЯ (warn печатает main.js)');
+});
+
+test('000085 T2: deserializeRoster — призрак/дубли/лимит/числа; round-trip; тихая', () => {
+  const mk = (npcId, over) => Object.assign(
+    { npcId, level: 1, xp: 0, loyalty: 50, hiredDay: 1 }, over);
+  const volk = mk('merc_volk');
+  const ashka = mk('merc_ashka');
+  const baldor = mk('merc_baldor');
+  const mira = mk('merc_mira');
+
+  // Старый сейв: null/undefined → {roster:[], dropped:[]} — ТИХО
+  // (тотальная функция; ПУСТОЙ отряд ЗАФИКСИРОВАНО ТЗ, warn НЕТ).
+  const q0 = quiet(() => C.deserializeRoster(NPCS, null));
+  assert.deepEqual(q0.res, { roster: [], dropped: [] }, 'null → пустой отряд (тихо)');
+  assert.equal(q0.n, 0, 'null — без warn (старый сейв)');
+  assert.deepEqual(C.deserializeRoster(NPCS, undefined),
+    { roster: [], dropped: [] }, 'undefined → пустой отряд');
+
+  // Битый раздел (не-массив) → null — main.js: warn + сброс.
+  for (const bad of ['junk', 42, {}]) {
+    assert.equal(C.deserializeRoster(NPCS, bad), null,
+      'не-массив → null: ' + JSON.stringify(bad));
+  }
+
+  // Призрак (нет в каталоге), дубликат, сверх-лимит
+  // (max_companions = 3, LIVE-чтение) → dropped (строки npcId);
+  // порядок валидных сохранён.
+  const q1 = quiet(() => C.deserializeRoster(NPCS,
+    [volk, mk('ghost_merc'), mk('merc_volk'), ashka, baldor, mira]));
+  assert.deepEqual(q1.res.roster, [volk, ashka, baldor],
+    'первый дубль живёт, призрак и 4-й сверх-лимита → dropped; порядок сохранён');
+  assert.deepEqual(q1.res.dropped, ['ghost_merc', 'merc_volk', 'merc_mira'],
+    'dropped — строки npcId');
+  assert.equal(q1.n, 0, 'deserializeRoster ТИХАЯ (warn печатает main.js)');
+
+  // Неидентифицируемо (не-объект / npcId не строка) — тихий skip,
+  // в dropped НЕ попадает.
+  const q2 = quiet(() => C.deserializeRoster(NPCS,
+    [{ npcId: 42, level: 1, xp: 0, loyalty: 50, hiredDay: 1 }, 'junk', 7, volk]));
+  assert.deepEqual(q2.res.roster, [volk], 'npcId не строка / не-объект — skip');
+  assert.deepEqual(q2.res.dropped, [], 'skip НЕ попадает в dropped');
+  assert.equal(q2.n, 0);
+
+  // Числа (D3): невалидные → запись в dropped; валидные → as-is /
+  // дешёвая нормализация (loyalty — clamp 0..100 без округления,
+  // hiredDay — floor; дроби xp ЛЕГИТИМНЫ — прецедент hero.xp).
+  const NUM = [
+    [{ level: 2.5 }, null, 'level'],
+    [{ level: 0 }, null, 'level'],
+    [{ xp: -1 }, null, 'xp'],
+    [{ xp: 7.9 }, 7.9, 'xp'],
+    [{ loyalty: 150 }, 100, 'loyalty'],
+    [{ loyalty: 'x' }, null, 'loyalty'],
+    [{ loyalty: 77.5 }, 77.5, 'loyalty'],
+    [{ hiredDay: 0 }, null, 'hiredDay'],
+    [{ hiredDay: 2.7 }, 2, 'hiredDay'],
+  ];
+  for (const [over, expected, field] of NUM) {
+    const res = C.deserializeRoster(NPCS, [mk('merc_volk', over)]).roster;
+    if (expected === null) {
+      assert.equal(res.length, 0, 'числа: ' + JSON.stringify(over) + ' → drop');
+    } else {
+      assert.equal(res.length, 1, 'числа: ' + JSON.stringify(over) + ' → kept');
+      assert.equal(res[0][field], expected, 'числа: ' + JSON.stringify(over));
+    }
+  }
+
+  // Round-trip: serialize → deserialize — идентично (значения и порядок).
+  const rt = C.deserializeRoster(NPCS, [
+    mk('merc_volk', { level: 2, xp: 30, loyalty: 77, hiredDay: 3 }),
+    mk('merc_ashka', { xp: 7.9, loyalty: 77.5 }),
+  ]);
+  assert.deepEqual(C.deserializeRoster(NPCS, C.serializeRoster(rt.roster)), rt,
+    'round-trip serialize(deserialize(x)) === deserialize(x)');
+});
+
+test('000085 T3: serializeEfir/deserializeEfir — round-trip 5 полей; 3-полевая legacy; сломанные → null', () => {
+  // Фикс-точка под будущим reprocessEfirSkills (000115):
+  // skillXp 2.5 < efirSkillXpForNext(1) = 30, xp 10 < xpForNext(2) = 141.
+  const afterBattle = {
+    level: 2, xp: 10, skillXp: { firelord: 2.5 }, skills: { firelord: 1 },
+    spells: ['spark', 'mend', 'light_heal'],
+  };
+  const fresh = E.createEfir();
+  assert.deepEqual(E.deserializeEfir(E.serializeEfir(fresh)), fresh,
+    'round-trip: свежий createEfir() (5 полей)');
+  assert.deepEqual(E.deserializeEfir(E.serializeEfir(afterBattle)), afterBattle,
+    'round-trip: «после боя» (дроби skillXp, порядок spells)');
+
+  // 3-полевая legacy-форма (до 000111): дефолты skillXp→{}, spells→старт.
+  assert.deepEqual(E.deserializeEfir({ level: 2, xp: 5, skills: {} }),
+    { level: 2, xp: 5, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
+    '3-полевая legacy → 5 полей (000111 §9)');
+  assert.deepEqual(E.deserializeEfir({ level: 1, xp: 0, spells: [] }),
+    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
+    'пустые spells → EFIR_SPELL_START (НЕ выводить из уровня, 000115)');
+
+  // Сломанные → null (main.js: warn + тихий сброс на createEfir()).
+  const broken = [
+    ['«junk»', 'junk'],
+    ['42', 42],
+    ['null', null],
+    ['undefined', undefined],
+    ['[1]', [1]],
+    ['level 0.5', { level: 0.5, xp: 0, skillXp: {}, skills: {}, spells: ['spark'] }],
+    ['level 0', { level: 0, xp: 0, skillXp: {}, skills: {}, spells: ['spark'] }],
+    ["xp 'x'", { level: 1, xp: 'x', skillXp: {}, skills: {}, spells: ['spark'] }],
+    ['xp -1', { level: 1, xp: -1, skillXp: {}, skills: {}, spells: ['spark'] }],
+    ["skillXp 'abc'", { level: 1, xp: 0, skillXp: 'abc', skills: {}, spells: ['spark'] }],
+    ['skillXp {a:-1}', { level: 1, xp: 0, skillXp: { a: -1 }, skills: {}, spells: ['spark'] }],
+    ['skills 42', { level: 1, xp: 0, skillXp: {}, skills: 42, spells: ['spark'] }],
+    ["skills {a:'x'}", { level: 1, xp: 0, skillXp: {}, skills: { a: 'x' }, spells: ['spark'] }],
+    ['skills {a:2.5}', { level: 1, xp: 0, skillXp: {}, skills: { a: 2.5 }, spells: ['spark'] }],
+    ["spells 'abc'", { level: 1, xp: 0, skillXp: {}, skills: {}, spells: 'abc' }],
+    ['spells [1]', { level: 1, xp: 0, skillXp: {}, skills: {}, spells: [1] }],
+  ];
+  for (const [label, raw] of broken) {
+    assert.equal(E.deserializeEfir(raw), null, 'сломанные → null: ' + label);
+  }
+
+  assert.equal(E.serializeEfir(42), null, 'serializeEfir: не plain-object → null');
+  assert.equal(E.serializeEfir(null), null, 'serializeEfir: null → null');
+  assert.equal(E.serializeEfir(['a']), null, 'serializeEfir: массив → null');
+});
+
+test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs переживают сейв (vm, полная цепочка)', async () => {
+  const st = makeStorage();
+  // day:7 — день найма уже прошёл; efir L5: light_heal легитимно
+  // по EFIR_SPELL_UNLOCKS (порог 5); skillXp 2.5 — фикс-точка (< 30).
+  const seed = {
+    day: 7,
+    companions: [
+      { npcId: 'merc_volk', level: 2, xp: 30, loyalty: 77, hiredDay: 3 },
+      { npcId: 'merc_ashka', level: 1, xp: 0, loyalty: 50, hiredDay: 2 },
+    ],
+    efir: {
+      level: 5, xp: 5, skillXp: { firelord: 2.5 }, skills: { firelord: 1 },
+      spells: ['spark', 'mend', 'light_heal'],
+    },
+    dead_mercs: ['merc_baldor'],
+  };
+  const h = bootWithSave(st, null, seed);
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  const state = h.sandbox.__game.state;
+  // PITFALL (000082): host(undefined) БРОСАЕТ — сначала Array.isArray.
+  assert.ok(Array.isArray(state.roster), 'state.roster — массив');
+  assert.deepEqual(host(state.roster), seed.companions,
+    'отряд восстановлен из сейва (5 полей на запись)');
+  assert.deepEqual(host(state.deadMercs), seed.dead_mercs,
+    'dead_mercs восстановлены');
+  assert.deepEqual(host(state.efir), seed.efir,
+    'Эфир восстановлен (5 полей, форма 000111)');
+  // Round-trip: beforeunload → saveNow → те же разделы в сейве,
+  // CURRENT_VERSION НЕ бампится (000031).
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
+  assert.deepEqual(saved.data.companions, seed.companions, 'companions в сейве');
+  assert.deepEqual(saved.data.efir, seed.efir, 'efir в сейве');
+  assert.deepEqual(saved.data.dead_mercs, seed.dead_mercs, 'dead_mercs в сейве');
+});
+
+test('000085 T5: СТАРЫЙ сейв (без companions/efir/dead_mercs) — отряд [], Эфир L1, version 1', async () => {
+  const st = makeStorage();
+  const h = bootWithSave(st, null, { day: 5 });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  const state = h.sandbox.__game.state;
+  assert.ok(Array.isArray(state.roster), 'state.roster — массив');
+  assert.deepEqual(host(state.roster), [], 'старый сейв: ПУСТОЙ отряд (ЗАФИКСИРОВАНО)');
+  assert.deepEqual(host(state.deadMercs), [], 'старый сейв: deadMercs []');
+  assert.deepEqual(host(state.efir),
+    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
+    'старый сейв: Эфир L1-дефолт, 5 полей (ЗАФИКСИРОВАНО)');
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
+  assert.deepEqual(saved.data.companions, [], 'companions [] в сейве');
+  assert.deepEqual(saved.data.dead_mercs, [], 'dead_mercs [] в сейве');
+  assert.deepEqual(saved.data.efir,
+    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
+    'efir L1-дефолт в сейве (5 полей)');
+});
+
+test('000085 T6: битые разделы + призраки — 0 ошибок, warns с именами разделов, чистый сейв', async () => {
+  const st = makeStorage();
+  const validVolk = { npcId: 'merc_volk', level: 1, xp: 0, loyalty: 50, hiredDay: 1 };
+  const h = bootWithSave(st, null, {
+    day: 5,
+    companions: [
+      validVolk,
+      { npcId: 'ghost_merc', level: 1, xp: 0, loyalty: 50, hiredDay: 1 },
+      { npcId: 42, level: 1, xp: 0, loyalty: 50, hiredDay: 1 }, // тихий skip
+      'junk',                                                    // тихий skip
+    ],
+    efir: 'junk',
+    dead_mercs: ['merc_rena', 'ghost_dead', 42, 'merc_rena'],
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок НЕТ (тихий сброс, игра не падает): '
+    + h.errors.join('; '));
+  assert.ok(h.warns.some((m) => m.includes('companions') && m.includes('ghost_merc')),
+    'warn: companions — призрак ghost_merc');
+  assert.ok(h.warns.some((m) => m.includes('efir')), 'warn: раздел efir');
+  assert.ok(h.warns.some((m) => m.includes('dead_mercs') && m.includes('ghost_dead')),
+    'warn: dead_mercs — призрак ghost_dead');
+  const state = h.sandbox.__game.state;
+  assert.deepEqual(host(state.roster), [validVolk],
+    'roster: только валидная запись (skip не в составе)');
+  assert.deepEqual(host(state.efir),
+    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
+    'efir: тихий сброс на L1-дефолт');
+  assert.deepEqual(host(state.deadMercs), ['merc_rena'],
+    'deadMercs: дубль/призрак/число отброшены, порядок сохранён');
+  // Битое вычищено за 1 цикл: повторный сейв — ЧИСТЫЕ разделы
+  // (мусор не размножается).
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.deepEqual(saved.data.companions, [validVolk],
+    'companions — чистые (мусор не размножается)');
+  assert.deepEqual(saved.data.efir,
+    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
+    'efir — чистый L1-дефолт (не «junk»)');
+  assert.deepEqual(saved.data.dead_mercs, ['merc_rena'], 'dead_mercs — чистые');
 });

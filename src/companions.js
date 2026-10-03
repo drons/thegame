@@ -29,6 +29,13 @@
 // имплицитный — makeAlly пересчитывает из уровня; «призрак» → null).
 // Контракт — memory/000082-companion-xp.md.
 //
+// Сериализация для сейва (задача 000085): serializeRoster — чистая
+// проекция ровно 5 полей (shape-guard, нормализации значений НЕТ —
+// runtime well-formed); deserializeRoster — «призрак» (000029):
+// {roster, dropped} | null, тихая (warn печатает main.js), каталог —
+// ПАРАМЕТР (новых require НЕТ). Контракт — memory/000085-
+// save-party-efir.md (D2/D3).
+//
 // Зависимости: global-settings.js (max_companions, companion_loyalty,
 // companion_refusal — читаются ЖИВО при вызове, паттерн combat.js, не
 // захват при загрузке), perlin.js (hash2/mulberry32),
@@ -371,11 +378,115 @@ function (settings, G) {
     };
   }
 
+  // --- Сериализация отряда (задача 000085, «призрак» 000029) ---
+  // Контракт: memory/000085-save-party-efir.md (D2/D3). Функции
+  // ТИХИЕ (без console) — warn печатает main.js по returned dropped
+  // и битым разделам (паттерн pruneQuestBookByDay 000072). Каталог
+  // NPC — ПАРАМЕТР deserialize (новых require НЕТ, чистый UMD).
+
+  /**
+   * Снапшот отряда для сейва (data.companions): ЧИСТАЯ проекция ровно
+   * {npcId, level, xp, loyalty, hiredDay} (форма ЗАФИКСИРОВАНА 000079;
+   * лишние поля записи отбрасываются). Нормализации значений НЕТ —
+   * runtime всегда well-formed (xp — целые, combat.js; loyalty —
+   * clamped 0..100, payWages; level/hiredDay — целые), единая точка
+   * ремонта — deserializeRoster. Тихая (0 console).
+   * @param {Array} roster отряд; не-массив → [].
+   * @returns {object[]} записи ровно 5 полей (свежие копии); запись
+   *   не-объект / без строки npcId — тихий skip (неидентифицируемо).
+   */
+  function serializeRoster(roster) {
+    if (!Array.isArray(roster)) return [];
+    const snap = [];
+    for (const e of roster) {
+      if (!e || typeof e !== 'object' || Array.isArray(e) ||
+          typeof e.npcId !== 'string') continue;
+      snap.push({
+        npcId: e.npcId,
+        level: e.level,
+        xp: e.xp,
+        loyalty: e.loyalty,
+        hiredDay: e.hiredDay,
+      });
+    }
+    return snap;
+  }
+
+  /**
+   * Восстановление отряда из сейва (data.companions), «призрак»
+   * (000029): каталог-первый (прецедент restoreNpcStocks, src/npc.js)
+   * — запись валидна только если npcId в каталоге с найм-данными
+   * (критерий npcForEntry: self-cleaning при правках каталога).
+   * Тихая (0 console) — warn печатает main.js по returned.
+   * @param {Array} npcs каталог NPC (src/npc-data.js).
+   * @param {*} raw data.companions из сейва.
+   * @returns {{roster:object[], dropped:string[]}|null}
+   *   * raw == null (старый сейв, поля нет) → {roster:[], dropped:[]}
+   *     ТИХО (ПУСТОЙ отряд ЗАФИКСИРОВАНО ТЗ; main.js дополнительно
+   *     гвардит rawC != null);
+   *   * !Array.isArray(raw) (битый раздел) → null (main.js: warn
+   *     «раздел некорректен» + roster.length = 0 — игра НЕ падает);
+   *   * иначе — {roster (валидные, порядок сохранён), dropped
+   *     (строки npcId)}: «призрак» / дубликат npcId / сверх
+   *     max_companions (LIVE-чтение, guard int ≥ 1 иначе 3 — иначе
+   *     slice(0, NaN) → [] и отряд молча испарялся) / битое число
+   *     → запись в dropped.
+   *   Числа (D3, сброс ЗАПИСИ, не починка значения — SPEC
+   *   «невалидные записи — тихий сброс»): level — int ≥ 1 (forged
+   *   2.5 НЕ floor'ится, прецедент hero.level); xp — finite ≥ 0 КАК
+   *   ЕСТЬ (дроби легитимны — прецедент hero.xp, 000082); loyalty —
+   *   finite → clamp 0..100 без округления (77.5 валиден), не-finite
+   *   → drop; hiredDay — finite ≥ 1 → floor (2.7 → 2). Не-объект /
+   *   npcId не строка — тихий skip (в dropped НЕ попадает).
+   */
+  function deserializeRoster(npcs, raw) {
+    if (raw == null) return { roster: [], dropped: [] };
+    if (!Array.isArray(raw)) return null;
+    const maxRaw = settings.SETTINGS.max_companions;
+    const max = (Number.isInteger(maxRaw) && maxRaw >= 1) ? maxRaw : 3;
+    const roster = [];
+    const dropped = [];
+    const seen = new Set();
+    for (const e of raw) {
+      if (!e || typeof e !== 'object' || Array.isArray(e) ||
+          typeof e.npcId !== 'string') continue; // неидентифицируемо
+      if (!npcForEntry(npcs, e)) { dropped.push(e.npcId); continue; }
+      if (seen.has(e.npcId)) { dropped.push(e.npcId); continue; }
+      if (roster.length >= max) { dropped.push(e.npcId); continue; }
+      if (!Number.isInteger(e.level) || e.level < 1) {
+        dropped.push(e.npcId); continue;
+      }
+      if (typeof e.xp !== 'number' || !Number.isFinite(e.xp) ||
+          e.xp < 0) {
+        dropped.push(e.npcId); continue;
+      }
+      if (typeof e.loyalty !== 'number' || !Number.isFinite(e.loyalty)) {
+        dropped.push(e.npcId); continue;
+      }
+      if (typeof e.hiredDay !== 'number' || !Number.isFinite(e.hiredDay) ||
+          e.hiredDay < 1) {
+        dropped.push(e.npcId); continue;
+      }
+      seen.add(e.npcId);
+      roster.push({
+        npcId: e.npcId,
+        level: e.level,
+        xp: e.xp,
+        loyalty: Math.min(100, Math.max(0, e.loyalty)),
+        hiredDay: Math.floor(e.hiredDay),
+      });
+    }
+    return { roster, dropped };
+  }
+
   return {
     createRoster, canHire, hire, canDismiss, dismiss,
     wagesTotal, payWages, loyaltyTick, candidatesForTavern, eventSeed,
     // Опыт и уровни (задача 000082): применение доли боевого xp и
     // мост roster → данные makeAlly (000087).
     applyCombatXp, allyDataForEntry,
+    // Сериализация отряда для сейва (задача 000085; контракт
+    // memory/000085-save-party-efir.md D2/D3).
+    serializeRoster, deserializeRoster,
   };
 });
