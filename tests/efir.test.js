@@ -1451,3 +1451,113 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
     } finally { C.combatInternals.allySpells = saveCatalog; }
   });
 });
+
+// --- Задача 000113: «Вдох Эфира» — фирменное действие (1 раз за бой) ---
+//
+// КРАСНЫЕ тесты (контракт memory/000113-efir-breath.md §2/§6). Фиксируют
+// НОВУЮ функциональность, которой ЕЩЁ НЕТ в src/efir.js:
+//   * breathInfo — объект {name, desc, firstEncounter} (экспорт для UI
+//     000116 — имя ТОЧНО). name — label БЕЗ «!» (заголовок вкладки —
+//     статичен в UI-коде); лог-строка «Вдох Эфира!» — отдельное поле.
+//   * EFIR_BREATH — алиас {text: breathInfo.desc} для СМЕРЖЕННОГО хука
+//     000116 (G.efir.EFIR_BREATH → .lines||.текст||.text; хук берёт .text).
+//     desc = BREATH_FALLBACK 000116 ДОСЛОВНО — одна точка формулировок
+//     (все E7-подстроки tests/ui-efir.test.js в нём).
+//   * takeFirstEncounterLine() — one-shot: 1-й вызов → строка первой
+//     встречи, далее → null (сессионный флаг — НЕ сейв).
+//   * u.breath — снапшот данных Вдоха (flat-примитивы), который
+//     buildEfirUnit кладёт на юнит: combat.js читает данные С ЮНИТА
+//     (ноль require, ноль ленивых Game-чтений для триггера). L1: heal 12
+//     (round(10 + 0.8·3)); L15: heal 18 (round(10 + 0.8·10)).
+// Тест ПАДАЕТ, пока соответствующих экспортов/поведения нет (осмысленная
+// краснота — «символа/поведения нет», не синтаксис). R1 («ровно 14») в
+// красной фазе НЕ ПРАВИТСЯ — правка «ровно 17» идёт вместе с GREEN
+// (прецедент 000112).
+
+test('000113 BR-1: breathInfo {name, desc, firstEncounter} + алиас EFIR_BREATH + one-shot takeFirstEncounterLine + снапшот u.breath (L1 heal 12, L15 heal 18; state не мутирован)', () => {
+  const E = loadEfir();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  withGame(gameWithXp(), () => {
+    try {
+      // --- (a) breathInfo — данные действия (строки; формулы — в u.breath)
+      assert.ok(E.breathInfo && typeof E.breathInfo === 'object',
+        'экспорт breathInfo — объект данных (задача 000113)');
+      const bi = E.breathInfo;
+      assert.equal(bi.name, 'Вдох Эфира',
+        'name — label «Вдох Эфира» (БЕЗ «!» — лог-строка отдельное поле): '
+        + JSON.stringify(bi.name));
+      // firstEncounter — ТОЧНО по ТЗ/SPEC; многоточие — ОДИН символ U+2026
+      // (НЕ «...»); 000118 сверит по breathInfo.
+      assert.equal(bi.firstEncounter,
+        'Эфир материализуется рядом с Флогистоном…',
+        'firstEncounter — строка первой встречи (U+2026, один символ): '
+        + JSON.stringify(bi.firstEncounter));
+      assert.ok(typeof bi.desc === 'string' && bi.desc.length,
+        'desc — непустая строка-описание');
+      // desc содержит ВСЕ E7-подстроки 000116 (tests/ui-efir.test.js):
+      // desc = BREATH_FALLBACK 000116 дословно → правка текста = сломать E7.
+      for (const sub of ['1 раз за бой', '40%', '20 маны',
+        'round(10 + 0.8 * Мудрость)', '×0.8', '2 хода']) {
+        assert.ok(bi.desc.includes(sub),
+          'desc содержит E7-подстроку «' + sub + '»: ' + JSON.stringify(bi.desc));
+      }
+      // Алиас для смерженного хука 000116 (G.efir.EFIR_BREATH → .text).
+      assert.ok(E.EFIR_BREATH && typeof E.EFIR_BREATH === 'object',
+        'экспорт EFIR_BREATH — объект (алиас для хука 000116)');
+      assert.equal(E.EFIR_BREATH.text, bi.desc,
+        'EFIR_BREATH.text === breathInfo.desc (хук берёт .text)');
+      // --- (b) one-shot takeFirstEncounterLine ---
+      assert.equal(typeof E.takeFirstEncounterLine, 'function',
+        'экспорт takeFirstEncounterLine — функция (one-shot первой встречи)');
+      const l1 = E.takeFirstEncounterLine();
+      assert.equal(l1, bi.firstEncounter,
+        '1-й вызов — строка первой встречи: ' + JSON.stringify(l1));
+      assert.equal(E.takeFirstEncounterLine(), null,
+        '2-й вызов — null (one-shot: сессионный флаг, не сейв)');
+      // --- (c) снапшот u.breath (buildEfirUnit) — flat-примитивы ---
+      const snap = (L) => {
+        const p = hero112();
+        const state = E.createEfir();
+        while (state.level < L) {
+          state.xp = P.xpForNext(state.level);
+          E.levelUp(state);   // Game.xpForNext — на время с withGame
+        }
+        const c = createCombat({
+          player: p, allies: [E.efirAllyData(state)],
+          mobs: ['wolf'], mobLevel: 2, seed: 5,
+        });
+        c.obstacles.clear();
+        const before = { level: state.level, xp: state.xp,
+          spells: state.spells.slice(), skills: Object.assign({}, state.skills) };
+        const u = E.buildEfirUnit(state, c);
+        // state НЕ мутирован buildEfirUnit (5 полей as-is — пины 000115/e2e).
+        assert.equal(state.level, before.level, 'state.level не мутирован');
+        assert.equal(state.xp, before.xp, 'state.xp не мутирован');
+        assert.deepEqual(state.spells, before.spells, 'state.spells не мутирован');
+        assert.deepEqual(state.skills, before.skills, 'state.skills не мутирован');
+        return u.breath;
+      };
+      // L1 (Мудр=3): heal = round(10 + 0.8·3) = round(12.4) = 12.
+      const b1 = snap(1);
+      assert.ok(b1 && typeof b1 === 'object',
+        'u.breath — снапшот данных Вдоха на юните (задача 000113)');
+      assert.equal(b1.name, 'Вдох Эфира', 'u.breath.name — label');
+      assert.equal(b1.logLine, 'Вдох Эфира!',
+        'u.breath.logLine — ТОЧНАЯ лог-строка «Вдох Эфира!»');
+      assert.equal(b1.playerFrac, 0.4, 'u.breath.playerFrac = 0.4 (≤ 40% HP)');
+      assert.equal(b1.mpCost, 20, 'u.breath.mpCost = 20 (расход 20 маны)');
+      assert.equal(b1.heal, 12, 'L1: heal = round(10 + 0.8·3) = 12');
+      assert.equal(b1.weakenMult, 0.8, 'u.breath.weakenMult = 0.8 (их урон ×0.8)');
+      assert.equal(b1.weakenTurns, 2, 'u.breath.weakenTurns = 2 (на 2 хода)');
+      // L15 (Мудр=10): heal = round(10 + 0.8·10) = 18; остальное не меняется.
+      const b15 = snap(15);
+      assert.equal(b15.heal, 18, 'L15: heal = round(10 + 0.8·10) = 18');
+      assert.equal(b15.mpCost, 20, 'L15: mpCost = 20 (не зависит от уровня)');
+    } finally {
+      C.combatInternals.allySpells = saveCatalog;
+    }
+  });
+});
