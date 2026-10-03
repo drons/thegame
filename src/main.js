@@ -210,10 +210,10 @@
   const hero = G.createCharacter('Флогистон'); // персонаж (src/player.js)
   G.playerUI && G.playerUI.setCharacter(hero);
   // Эфир (задача 000081): постоянный союзник — состояние
-  // {level, xp, skills} (форма зафиксирована под сейв 000085; до
-  // него — только память сессии). Модуль отсутствует (регрессия
-  // порядка — паттерн 000038/000053): efir = null + видимая ошибка
-  // — бои без Эфира (деградация, не крах).
+  // {level, xp, skillXp, skills, spells} — 5 полей (000111), форма
+  // ЗАФИКСИРОВАНА под сейв (000085; до него — только память сессии).
+  // Модуль отсутствует (регрессия порядка — паттерн 000038/000053):
+  // efir = null + видимая ошибка — бои без Эфира (деградация, не крах).
   let efir = null;
   if (G.efir && typeof G.efir.createEfir === 'function') {
     efir = G.efir.createEfir();
@@ -366,8 +366,8 @@
 
   // Текущее состояние (структура v1): день мира, позиция, персонаж,
   // журнал квестов, стоки торговцев NPC (задача 000029), побеждённые
-  // группы мобов (000031) — доп. поля БЕЗ повышения версии
-  // (неломкое расширение).
+  // группы мобов (000031), отряд/Эфир/dead_mercs (000085) — доп. поля
+  // БЕЗ повышения версии (неломкое расширение).
   function collectSaveData() {
     return {
       day: clock.day,
@@ -415,6 +415,17 @@
         G.buildingEffects.serializeBuildingContent)
         ? G.buildingEffects.serializeBuildingContent(buildingContent)
         : {},
+      // Задача 000085: отряд наёмников (записи ровно 5 полей, 000079),
+      // Эфир (5 полей, 000111) и погибшие наёмники. Неломкое расширение
+      // v1 (000031): версию НЕ поднимаем, миграций нет — СТАРЫЙ сейв
+      // без этих полей восстанавливается restoreFromSave с пустым
+      // отрядом и Эфиром L1 (ЗАФИКСИРОВАНО ТЗ).
+      companions: (G.companions &&
+        typeof G.companions.serializeRoster === 'function')
+        ? G.companions.serializeRoster(roster) : [],
+      efir: (G.efir && typeof G.efir.serializeEfir === 'function')
+        ? G.efir.serializeEfir(efir) : null,
+      dead_mercs: deadMercs.slice(),
     };
   }
 
@@ -507,6 +518,94 @@
       }
     } catch (err) {
       console.warn('Сейв: не удалось восстановить персонажа:', err);
+    }
+
+    // --- Отряд наёмников (companions) (задача 000085) ---
+    // Записи {npcId, level, xp, loyalty, hiredDay}. Валидация —
+    // G.companions.deserializeRoster («призрак» 000029: призрак/дубли/
+    // битые числа → dropped; тихая — warn печатает здесь). Старому
+    // сейву раздела НЕТ → ПУСТОЙ отряд (ЗАФИКСИРОВАНО ТЗ, warn НЕТ).
+    // Live-ссылка: мутация in place — 000086/000087 держат state.roster.
+    try {
+      const rawC = d.companions;
+      if (rawC != null && G.companions &&
+          typeof G.companions.deserializeRoster === 'function') {
+        const res = G.companions.deserializeRoster(NPCS, rawC);
+        if (res === null) {
+          console.warn('Сейв: раздел companions некорректен — сбрасываю.');
+          roster.length = 0;
+        } else {
+          roster.length = 0;
+          for (const e of res.roster) roster.push(e);
+          if (res.roster.length === 0 && rawC.length > 0) {
+            console.warn(
+              'Сейв: companions — валидных записей нет — сбрасываю.');
+          }
+          if (res.dropped.length) {
+            console.warn('Сейв: companions — отброшены: ' +
+              res.dropped.join(', '));
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить отряд:', err);
+    }
+
+    // --- Эфир (efir) (задача 000085) ---
+    // 5 полей {level, xp, skillXp, skills, spells} (000111). Любой
+    // дефект раздела → тихий сброс на createEfir() (L1): efir создан
+    // на старте сессии и ДО restore не мутировался — переназначать не
+    // нужно (Object.assign — live-ссылка, паттерн hero: state и
+    // combat-finish держат live-объект). Старому сейву раздела НЕТ →
+    // L1 (ЗАФИКСИРОВАНО ТЗ, warn НЕТ). efir === null (модуль мёртв) —
+    // тихий skip (console.error уже на загрузке).
+    try {
+      const rawE = d.efir;
+      if (rawE != null && efir && G.efir &&
+          typeof G.efir.deserializeEfir === 'function') {
+        const e = G.efir.deserializeEfir(rawE);
+        if (e) {
+          Object.assign(efir, e);
+        } else {
+          console.warn('Сейв: раздел efir некорректен — сбрасываю.');
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить Эфира:', err);
+    }
+
+    // --- Погибшие наёмники (dead_mercs) (задача 000085) ---
+    // Плоский массив npcId — только merc (каталог + объект «найм» —
+    // критерий npcForEntry, СТРОЖЕ чистого членства: self-cleaning
+    // при правках каталога/демотации merc; консистентно с roster).
+    // Битый раздел/призрак/дубли — отброс + warn (000029, паттерн
+    // restoreNpcStocks). Старому сейву раздела нет → [].
+    try {
+      const rawD = d.dead_mercs;
+      if (rawD != null) {
+        if (!Array.isArray(rawD)) {
+          console.warn('Сейв: раздел dead_mercs некорректен — сбрасываю.');
+          deadMercs.length = 0;
+        } else {
+          const kept = [];
+          const bad = [];
+          for (const id of rawD) {
+            if (typeof id !== 'string') continue; // тихий skip
+            const npc = NPCS.find((n) => n && n.id === id &&
+              n.найм && typeof n.найм === 'object');
+            if (!npc || kept.includes(id)) { bad.push(id); continue; }
+            kept.push(id);
+          }
+          deadMercs.length = 0;
+          for (const id of kept) deadMercs.push(id);
+          if (bad.length) {
+            console.warn('Сейв: dead_mercs — неизвестные/дубли npcId: ' +
+              bad.join(', '));
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить dead_mercs:', err);
     }
 
     // --- Побеждённые группы (defeatedAt) ---
@@ -1751,10 +1850,18 @@
           craftXp: hero.craftXp,
           equipmentBonus: hero.equipmentBonus,
         },
-        // Эфир (задача 000081): live-объект {level, xp, skills}
-        // (или null, если модуль не загрузился) — точка для
-        // 000086/000116.
+        // Эфир (задача 000081): live-объект
+        // {level, xp, skillXp, skills, spells} (5 полей, 000111;
+        // сейв — 000085; или null, если модуль не загрузился) —
+        // точка для 000086/000116.
         efir: efir || null,
+        // Отряд (000079; сейв — 000085): live-массив записей
+        // {npcId, level, xp, loyalty, hiredDay} — точка smoke-теста
+        // для 000086/000087 (читать, не менять — 000079).
+        roster,
+        // Погибшие наёмники (000085): live-массив npcId — точка
+        // smoke-теста для 000086/000087.
+        deadMercs,
         map: map ? { width: map.width, height: map.height, fromPng: map.fromPng } : null,
         npcs: NPCS.map((n) => n.id),
         sprites: spriteLoader

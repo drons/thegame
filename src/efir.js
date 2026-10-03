@@ -24,7 +24,8 @@
 // 000115): ровно {level, xp, skillXp, skills, spells} (000111). HP/MP
 // в состоянии НЕТ: каждый бой — новый makeAlly (hp = maxHP) →
 // «возврат со 100% HP» — СТРУКТУРНО, кода восстановления нет
-// (serializeEfir/deserializeEfir добавит 000085 прямо в этот файл).
+// (serializeEfir/deserializeEfir — 000085, в этом же файле, хвост
+// фабрики; расширение 000115 — id-валидация + reprocess).
 // skills — КЭШ id → уровень (источник истины: skillXp + уровень через
 // атрибуты → потолок; пишется ТОЛЬКО reprocessEfirSkills); spells —
 // append-only данные состояния (заклинания не удаляются).
@@ -384,6 +385,109 @@
     return changed;
   }
 
+  // --- Сериализация состояния (задача 000085) ---
+  // Контракт: memory/000085-save-party-efir.md (D1/D4/D5). Форма сейва
+  // = 5 полей состояния (000111: state = форма сейва). Функции ЧИСТЫЕ
+  // и тихие (0 console, 0 require, 0 обращений к Game — чистый UMD
+  // сохранён); warn печатает main.js. DESERIALIZE НЕ зовёт
+  // reprocessEfirSkills и НЕ валидирует id скилов/заклинаний —
+  // обязанность 000115 (её ТЗ п.3/п.4); spells «из уровня» НЕ выводим
+  // (дефолт — EFIR_SPELL_START, правило 000115).
+
+  // plain-object (null/массивы/примитивы — нет).
+  function isPlainObject(v) {
+    return v !== null && typeof v === 'object' && !Array.isArray(v);
+  }
+
+  /**
+   * Снапшот состояния Эфира для сейва (data.efir): ЧИСТАЯ копия ровно
+   * 5 полей {level, xp, skillXp, skills, spells} (D4). level/xp —
+   * as-is (нормализации значений НЕТ: runtime well-formed — reprocess
+   * пишет Math.floor, addEfirXp — finite); skillXp/skills — копии
+   * plain-объектов (нет/не объект → {}); spells — копия массива
+   * (нет/не массив → []).
+   * @param {*} state состояние Эфира.
+   * @returns {object|null} 5 полей; не plain-object → null
+   *   (main.js пишет null в data.efir — restore пропустит раздел).
+   */
+  function serializeEfir(state) {
+    if (!isPlainObject(state)) return null;
+    const copyMap = (v) => (isPlainObject(v) ? Object.assign({}, v) : {});
+    return {
+      level: state.level,
+      xp: state.xp,
+      skillXp: copyMap(state.skillXp),
+      skills: copyMap(state.skills),
+      spells: Array.isArray(state.spells) ? state.spells.slice() : [],
+    };
+  }
+
+  /**
+   * Восстановление состояния Эфира из сейва (data.efir) — СТРОГО
+   * структурно (D5): ЛЮБОЙ дефект → null (main.js: warn + тихий сброс
+   * на createEfir() — L1; efir не мутировался между createEfir() на
+   * старте сессии и restore, переназначать не нужно).
+   * @param {*} raw data.efir из сейва.
+   * @returns {object|null} НОВОЕ состояние ровно 5 полей; null —
+   *   * raw == null (старый сейв, поля нет — main.js гвардит и НЕ
+   *     трогает efir: L1, ЗАФИКСИРОВАНО ТЗ, warn НЕТ);
+   *   * не plain-object (строка/число/массив/null);
+   *   * level — не int ≥ 1 (forged 999.5 НЕ floor'ится, прецедент
+   *     sanitizeSavedHero.level);
+   *   * xp — не finite ≥ 0 (дроби как есть — прецедент hero.xp);
+   *   * skillXp — есть, но не plain-object c ВСЕМИ значениями
+   *     finite ≥ 0 (дроби ЛЕГИТИМНЫ — практика 000117);
+   *   * skills — есть, но не plain-object c ВСЕМИ значениями
+   *     int ≥ 0 (форма 000111 §2: целые; forged 2.5 — дефект формы,
+   *     не floor);
+   *   * spells — не массив строк (элемент не-строка → null; дубли —
+   *     первый остаётся). Отсутствует ИЛИ ПУСТОЙ → EFIR_SPELL_START
+   *     (старт [spark, mend] — НЕ выводить из уровня, 000115:
+   *     легитимная книга никогда не пуста).
+   *   skillXp/skills отсутствуют → {} (3-полевая legacy-форма до
+   *   000111 → 5 полей, 000111 §9).
+   */
+  function deserializeEfir(raw) {
+    if (raw == null || !isPlainObject(raw)) return null;
+    if (!Number.isInteger(raw.level) || raw.level < 1) return null;
+    if (typeof raw.xp !== 'number' || !Number.isFinite(raw.xp) ||
+        raw.xp < 0) {
+      return null;
+    }
+    let skillXp = {};
+    if (raw.skillXp !== undefined) {
+      if (!isPlainObject(raw.skillXp)) return null;
+      for (const [k, v] of Object.entries(raw.skillXp)) {
+        if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) {
+          return null;
+        }
+        skillXp[k] = v;
+      }
+    }
+    let skills = {};
+    if (raw.skills !== undefined) {
+      if (!isPlainObject(raw.skills)) return null;
+      for (const [k, v] of Object.entries(raw.skills)) {
+        if (!Number.isInteger(v) || v < 0) return null;
+        skills[k] = v;
+      }
+    }
+    let spells;
+    if (raw.spells === undefined ||
+        (Array.isArray(raw.spells) && raw.spells.length === 0)) {
+      spells = EFIR_SPELL_START.slice();
+    } else if (Array.isArray(raw.spells)) {
+      spells = [];
+      for (const s of raw.spells) {
+        if (typeof s !== 'string') return null;
+        if (!spells.includes(s)) spells.push(s); // дубли — первый
+      }
+    } else {
+      return null;
+    }
+    return { level: raw.level, xp: raw.xp, skillXp, skills, spells };
+  }
+
   return {
     // 000081 (сигнатуры без изменений; тела createEfir/levelUp/
     // efirAllyData расширены 000111):
@@ -393,5 +497,9 @@
     efirStats, efirSpellsByLevel, reprocessEfirSkills,
     efirSkillXpForNext, efirSkillCap,
     EFIR_SKILLS, EFIR_SPELL_UNLOCKS,
+    // 000085 (сериализация состояния под сейв; контракт
+    // memory/000085-save-party-efir.md D1/D4/D5; расширения 000115 —
+    // id-валидация + reprocess — в этот же хвост):
+    serializeEfir, deserializeEfir,
   };
 });
