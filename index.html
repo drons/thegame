@@ -758,6 +758,13 @@
        registerSpecial), ДО main.js (UMD-ловушка 000038). Пин порядка
        — tests/index-order.test.js. -->
   <script src="src/building-content.js"></script>
+  <!-- Спец-модули 000092: фонтан (49) и колодец (45) (контракт
+       000128: между building-actions.js и hud.js; саморегистрация
+       registerSpecial при загрузке; main.js снимает Game ОДИН раз —
+       модули обязаны стоять ДО main.js). Порядок — по возрастанию
+       id (45 → 49); параллельные спец-модули 000091/93/94/95 — в
+       тот же слот. -->
+  <script src="src/building-effect-45.js"></script>
   <!-- Развалины «Осмотреть» (задача 000094): спец-действие id 48 —
        саморегистрация в Game.buildingActions.specials в момент
        загрузки (контракт 000128 §2.3: ПОСЛЕ building-actions.js,
@@ -771,6 +778,9 @@
        один раз). Слот общий с 000077/000091–95 (adjacency к hud.js
        не закреплена). -->
   <script src="src/building-effect-camp.js"></script>
+  <!-- Спец-модуль 000092: фонтан (49) — после 48, порядок id
+       по возрастанию (слот спец-модулей 000128). -->
+  <script src="src/building-effect-49.js"></script>
   <!-- HUD (задача 000129, разбиение main.js 3/4): строки мира/
        подземелья/города. После building-actions.js (доменная группа
        серии 000127→000130), ДО main.js (UMD-ловушка 000038: main.js

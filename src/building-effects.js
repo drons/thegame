@@ -91,6 +91,32 @@
 //   * Контракты — memory/000077-building-content.md (конкретика) и
 //     memory/000077-daily-content.md (переиспользуемый механизм).
 //
+// Задача 000092 (фонтан 49 / колодец 45, подтип слота 11 — 000073):
+//   * EFFECTS['heal'] — «Исцеление» (фонтан): round(0.25) макс. HP +
+//     макс. MP (CLAMP по максимуму, дельты ≥ 0), РАЗ В ДЕНЬ (каталог:
+//     per-эффектный объект раз_в_день { heal: true, coin: false });
+//     apply возвращает АБСОЛЮТНЫЕ новые hp/mp + дельту — живой hero
+//     НАЗНАЧАЕТ спец-модуль (src/building-effect-49.js, 000128).
+//   * EFFECTS['coin'] — «Монета» (фонтан): шанс min(1, шанс_база +
+//     шанс_шаг·Ловкость) (основной навык, G.skillLevel — primary
+//     первым, npc.js); успех → золото_база + золото_шаг·hero.level
+//     («уровень мира» — решение 000074); БЕЗ лимита (явный
+//     coin: false — независимость счётчиков, ТЗ-тест-фиксатор
+//     A63/B25); провал — ничего (ok:true, марки НЕ ставится).
+//   * EFFECTS['45'] — «Посмотреть на дно» (колодец, 1-к-1): шанс
+//     min(1, шанс_база + derived().thiefBonus) («Тать», perLevel из
+//     skills-каталога); предмет id детерминированно по (tile, day)
+//     (WELL_ITEM_SEED, РАЗНЫЙ сид от ролла — паттерн 000074) из
+//     каталога эффект.предметы (только существующие id); РАЗ В ДЕНЬ
+//     (boolean); провал ролла — попытка СГОРЕЛА (ok:true, марка
+//     ставится); полный инвентарь — отказ спец-а {ok:false} (марки
+//     нет, предмет остался на дне, повтор — тот же id).
+//   * hasDailyLimit — ЕДИНСТВЕННОЕ изменение существующей функции:
+//     +ветка «per-эффектный объект» (boolean-ветка и фолбэк на
+//     реестр — БУКВАЛЬНО как раньше, A7–A11/A18 инвариантны).
+//   * Сиды COIN_ROLL/WELL_ROLL/WELL_ITEM — свои ASCII-константы;
+//     детерминизм — (tile, day), Math.random/Date НЕТ.
+//
 // Контракты (зафиксированы tests/building-effects.test.js):
 //   * РЕЕСТР EFFECTS — id → { имя, разВДень?, available?(state),
 //     apply?(state) → { ok, message?, buffs? } }. Задача 000071 —
@@ -121,11 +147,11 @@
 //     обелиск 42, круг 43, …). Id без записи в реестре — пропуск.
 //   * «Раз в день»: флаг ЧИТАЕТСЯ ИЗ КАТАЛОГА (принцип 000053):
 //     hasDailyLimit(building, effectId) — особые_параметры.раз_в_день
-//     (boolean — каталог побеждает, включая явное false); fallback (в
-//     каталоге флага нет) — запись реестра разВДень === true, либо
-//     исполняемый эффект (есть apply) — лимит по умолчанию (в этой
-//     задаче каталог ещё без пер-эффектных флагов; 000074+ дописывает
-//     раз_в_день в каталог, 000092 расширяет hasDailyLimit).
+//     (boolean — каталог побеждает, включая явное false; либо
+//     per-эффектный объект { effectId: bool } — 000092: объект решает
+//     сам, ключа нет / значение ≠ true — лимита нет, фолбэка на
+//     реестр НЕТ); fallback (флага нет / мусор — массив, строка,
+//     число, null) — запись реестра разВДень === true.
 //     Лимит — canUseToday + раздел сейва buildingOncePerDay (000072):
 //     ключ 'x,y:effectId' (целые координаты, могут быть отрицательными),
 //     значение — день. Мусорный/отсутствующий сейв — fail-open (000029).
@@ -207,6 +233,15 @@
   const RUMORS_COUNT_SEED = 0x52554d43; // 'RUMC' — число фрагментов
   const RUMORS_TEXT_SEED = 0x52554d54;  // 'RUMT' — первый фрагмент
   const RUMORS_TEXT2_SEED = 0x52554d32; // 'RUM2' — второй фрагмент
+
+  // Сиды детерминированных роллов/предмета 000092 (фонтан 49 —
+  // «Монета», колодец 45 — «Посмотреть на дно»): ASCII, СВОИ
+  // константы, НЕ GLOBAL_SEED — паттерн STONE_ROLL_SEED; ролл и
+  // предмет колодца — РАЗНЫЕ сиды (паттерн двух сидов камня,
+  // 000074). Экспорт — для golden-пинов (A68/B24–B27).
+  const COIN_ROLL_SEED = 0x434f494e;   // 'COIN' — ролл монеты (фонтан 49)
+  const WELL_ROLL_SEED = 0x57454c4c;   // 'WELL' — ролл предмета (колодец 45)
+  const WELL_ITEM_SEED = 0x5749544d;   // 'WITM' — предмет на дне (колодец 45)
 
   // Раздел сейва teleports (имя зафиксировано 000072): чтение
   // записи СНИМКА по ключу 'x,y' — прототип-безопасно, с лёгкой
@@ -440,6 +475,30 @@
     имя: 'Слухи',
     apply: (st) => applyTavernRumors(st),
   };
+  // --- Группа 000092: фонтан (49) — ДВА НЕЗАВИСИМЫХ счётчика
+  //     (исцеление — раз в день, монета — без лимита; ключ
+  //     'x,y:effectId' — 000072), колодец (45) — 1-к-1 ---
+  // «Раз в день» — ИЗ КАТАЛОГА (особые_параметры.раз_в_день: у 49 —
+  // per-effect объект {heal: true, coin: false}, у 45 — boolean,
+  // D1 memory/000092-fountain-well.md): в записях разВДень НЕ
+  // ставится (A42-паттерн: каталог побеждает). Монета — на Ловкость
+  // («Удача» — плейсхолдер старых таблиц, навык НЕ добавляется,
+  // SPEC «Эффекты построек»); колодец — на Тать (derived.thiefBonus);
+  // «уровень мира» = hero.level (000074). apply ЧИСТО: hero/save не
+  // мутирует (исполнение — спец-модули building-effect-49/45.js,
+  // 000128); детерминизм — (tile, day)-сиды, Math.random/Date НЕТ.
+  EFFECTS['heal'] = {
+    имя: 'Исцеление',
+    apply: (st) => applyFountainHeal(st),
+  };
+  EFFECTS['coin'] = {
+    имя: 'Монета',
+    apply: (st) => applyFountainCoin(st),
+  };
+  EFFECTS['45'] = {
+    имя: 'Посмотреть на дно',
+    apply: (st) => applyWell(st),
+  };
 
   // --- Группа 000095: лагерь (id 47) — «Костёр» и «Барахолка» ---
   // Записи-«стороны» (контракт 000128 §2.3): только ИМЯ в реестре,
@@ -489,18 +548,30 @@
   /**
    * «Раз в день»: у эффекта есть лимит?
    * Флаг читается из КАТАЛОГА (принцип 000053):
-   * особые_параметры.раз_в_день (boolean — каталог побеждает, включая
-   * явное false над записью реестра). Fallback (в каталоге флага нет):
+   * особые_параметры.раз_в_день — boolean (каталог побеждает, включая
+   * явное false над записью реестра) ИЛИ пер-эффектный объект
+   * { effectId: boolean } (000092, фонтан 49: «исцеление» — лимит /
+   * «монета» — нет; объект решает САМ: ключа нет / значение ≠ true —
+   * лимита нет, фолбэка на реестр НЕТ; прототип-безопасно). Fallback
+   * (в каталоге флага нет / мусор — массив, строка, число, null):
    * ТОЛЬКО запись реестра разВДень === true. Эффект БЕЗ флага —
    * ВСЕГДА доступен (повторяем в тот же день сколько угодно):
    * контракт плана 000064 — «фонтан: исцеление лимит / монета — нет»
-   * (закреплено тестом B3).
+   * (закреплено тестами A58/B24/B25).
    * @param {object} building запись каталога (id, особые_параметры)
    * @param {string} effectId id эффекта (ключ реестра)
    */
   function hasDailyLimit(building, effectId) {
     const op = building && building.особые_параметры;
-    if (op && typeof op.раз_в_день === 'boolean') return op.раз_в_день;
+    const flag = op && op.раз_в_день;
+    if (typeof flag === 'boolean') return flag;
+    if (flag && typeof flag === 'object' && !Array.isArray(flag)) {
+      // 000092: per-эффектный объект (фонтан 49): ключа нет = лимита
+      // нет (fail-open; каталожная тишина = нет лимита). Прототип-
+      // безопасно (000029). Фолбэка на реестр НЕТ — объект решает сам.
+      return Object.prototype.hasOwnProperty.call(flag, effectId)
+        && flag[effectId] === true;
+    }
     const entry = EFFECTS[effectId];
     return !!(entry && entry.разВДень === true);
   }
@@ -1263,6 +1334,224 @@
       success: true,
       fragment,
       message: 'Осмотр развалин: запись: «' + fragment + '»',
+    };
+  }
+  // --- Задача 000092: фонтан (49) и колодец (45) ---
+  // Чистые формулы/роллы — (tile, day)-СИДЫ (НИКАКОГО Math.random —
+  // детерминизм, ТЗ), параметры — ТОЛЬКО из st.catalog
+  // (000053: код читает каталог, не хардкодит). apply НЕ мутирует
+  // state/hero/save и НЕ вызывает мир-функции с побочкой (addItem и
+  // пр. — спец-модули building-effect-49/45.js, 000128) — только
+  // ВОЗВРАЩАЕТ результат. Деградация (нет Game-функций / каталог-
+  // мусор / невалидный hero) — { ok:false, message:'недоступно' }
+  // БЕЗ исключения (A53-паттерн). Контракт —
+  // memory/000092-fountain-well.md (D1–D14).
+
+  /**
+   * Шанс монеты (фонтан 49): `min(1, шанс_база + шанс_шаг·D)` (кап
+   * 1.0). D — уровень навыка из каталога (dexterity — ОСНОВНОЙ;
+   * G.skillLevel читает primary первым, npc.js:48). Не-числовые
+   * поля/уровень → 0 (деградация — apply). «Удача» — НЕ НАВЫК:
+   * формула на Ловкость (SPEC «Эффекты построек»).
+   * @returns {number} [0, 1]
+   */
+  function coinChance(effect, dexLevel) {
+    const base = effect && effect.шанс_база;
+    const step = effect && effect.шанс_шаг;
+    if (!Number.isFinite(base) || !Number.isFinite(step)) return 0;
+    return Math.min(1, base + step * (Number(dexLevel) || 0));
+  }
+
+  /**
+   * Шанс предмета (колодец 45): `min(1, шанс_база + thiefBonus)`
+   * (кап 1.0). thiefBonus — СУЩЕСТВУЮЩИЙ derived (player.js:
+   * 0.05·уровень «Тать» — ЧИСЛЕННО ТОЖДЕСТВЕННО 0.15 + 0.05·Тать;
+   * perLevel — единый источник, skills-каталог, 000053).
+   * @returns {number} [0, 1]
+   */
+  function wellChance(effect, thiefBonus) {
+    const base = effect && effect.шанс_база;
+    if (!Number.isFinite(base)) return 0;
+    return Math.min(1, base + (Number(thiefBonus) || 0));
+  }
+
+  /**
+   * Золото монеты (фонтан 49): `золото_база + золото_шаг·L`.
+   * L — hero.level («уровень мира» — решение 000074; 000092 —
+   * та же трактовка). Не-числовые поля/уровень → 0 (деградация —
+   * apply).
+   * @returns {number}
+   */
+  function coinGold(effect, level) {
+    const base = effect && effect.золото_база;
+    const step = effect && effect.золото_шаг;
+    if (!Number.isFinite(base) || !Number.isFinite(step)) return 0;
+    return base + step * (Number(level) || 0);
+  }
+
+  /**
+   * «Исцеление» (фонтан, 49): РАЗ В ДЕНЬ (каталог: per-эффектный
+   * объект раз_в_день). +round(исцеление_доля·макс) HP и MP,
+   * CLAMP по максимумам (дельты ≥ 0). Возврат — АБСОЛЮТНЫЕ новые
+   * значения (heal.hp/heal.mp) + дельта (для сообщения): живой hero
+   * НАЗНАЧАЕТ спец-модуль (разделение: apply = «какими должны стать
+   * hp/mp», хендлер = «назначить живому hero»). Полный hero —
+   * дельта 0/0 (попытка сгорает, ok:true).
+   * @returns {{ok: boolean, heal?: {hp: number, mp: number},
+   *            delta?: {hp: number, mp: number}, message?: string}}
+   */
+  function applyFountainHeal(st) {
+    const G = lazyGame();
+    if (!G || typeof G.derived !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const eff = catalogEffect(st);
+    if (!eff) return { ok: false, message: 'недоступно' };
+    if (!Number.isFinite(eff.исцеление_доля)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const hero = st && st.hero;
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    if (!Number.isFinite(hero.hp) || !Number.isFinite(hero.mp)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const d = G.derived(hero);
+    const share = eff.исцеление_доля;
+    const newHp = Math.min(d.maxHP,
+      hero.hp + Math.round(share * d.maxHP));
+    const newMp = Math.min(d.maxMP,
+      hero.mp + Math.round(share * d.maxMP));
+    const delta = { hp: newHp - hero.hp, mp: newMp - hero.mp };
+    return {
+      ok: true,
+      heal: { hp: newHp, mp: newMp },
+      delta,
+      message: 'Фонтан: исцеление (+' + delta.hp + ' HP, +' +
+        delta.mp + ' MP).',
+    };
+  }
+
+  /**
+   * «Монета» (фонтан, 49): БЕЗ лимита (каталог coin: false —
+   * независимый счётчик, НЕ наследует лимит «исцеления»). Шанс —
+   * coinChance (Ловкость); ролл детерминирован по (tile, day)
+   * (COIN_ROLL_SEED) → повтор В ТОТ ЖЕ ДЕНЬ — тот же исход. Успех —
+   * золото coinGold (hero.level — «уровень мира», 000074); провал —
+   * ничего (ok:true, gold 0 — марки НЕТ: роутер маркирует только при
+   * hasDailyLimit). Золото начисляет спец-модуль.
+   * @returns {{ok: boolean, success?: boolean, gold?: number,
+   *            message?: string}}
+   */
+  function applyFountainCoin(st) {
+    const G = lazyGame();
+    if (!G || typeof G.hash2 !== 'function' ||
+        typeof G.skillLevel !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const eff = catalogEffect(st);
+    if (!eff) return { ok: false, message: 'недоступно' };
+    if (!Number.isFinite(eff.шанс_база) || !Number.isFinite(eff.шанс_шаг) ||
+        !Number.isFinite(eff.золото_база) ||
+        !Number.isFinite(eff.золото_шаг)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    if (typeof eff.навык !== 'string') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const hero = st && st.hero;
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    if (!Number.isFinite(hero.level)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const tile = st.tile || { x: 0, y: 0 };
+    const x = tile.x, y = tile.y, day = st.day;
+    const success = deterministicRoll(
+      x, y, day, COIN_ROLL_SEED, G.hash2) < coinChance(eff,
+      G.skillLevel(hero, eff.навык));
+    if (!success) {
+      return {
+        ok: true,
+        success: false,
+        gold: 0,
+        message: 'Фонтан: монета — ничего не найдено.',
+      };
+    }
+    const gold = coinGold(eff, hero.level);
+    return {
+      ok: true,
+      success: true,
+      gold,
+      message: 'Фонтан: монета — +' + gold + ' золота.',
+    };
+  }
+
+  /**
+   * «Посмотреть на дно» (колодец, 45): РАЗ В ДЕНЬ (каталог,
+   * boolean). Шанс — wellChance (derived.thiefBonus — «Тать»); ролл
+   * и предмет детерминированы по (tile, day) — РАЗНЫЕ сиды
+   * (WELL_ROLL_SEED / WELL_ITEM_SEED, паттерн 000074). Успех —
+   * itemId = предметы[hash % len] (только существующие id — ТЗ);
+   * провал — попытка СГОРЕЛА: ok:true, itemId null, марки СТАВИТСЯ
+   * (прецедент R3 000074: ок-ветка роутера маркирует + saveNow).
+   * Предмет в инвентарь кладёт спец-модуль (addItem; полный
+   * инвентарь — отказ {ok:false}: предмета нет, предмет остался на
+   * дне, повтор в тот же день → тот же id).
+   * @returns {{ok: boolean, success?: boolean, itemId?: string|null,
+   *            message?: string}}
+   */
+  function applyWell(st) {
+    const G = lazyGame();
+    if (!G || typeof G.hash2 !== 'function' ||
+        typeof G.derived !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const eff = catalogEffect(st);
+    if (!eff) return { ok: false, message: 'недоступно' };
+    if (!Number.isFinite(eff.шанс_база)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const pool = eff.предметы;
+    if (!Array.isArray(pool) || pool.length === 0 ||
+        !pool.every((id) => typeof id === 'string' && id !== '')) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const hero = st && st.hero;
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const tile = st.tile || { x: 0, y: 0 };
+    const x = tile.x, y = tile.y, day = st.day;
+    const success = deterministicRoll(
+      x, y, day, WELL_ROLL_SEED, G.hash2) <
+      wellChance(eff, G.derived(hero).thiefBonus);
+    if (!success) {
+      return {
+        ok: true,
+        success: false,
+        itemId: null,
+        message: 'Колодец: на дне — только вода.',
+      };
+    }
+    const itemId = pickFragment(
+      pool, x, y, day, WELL_ITEM_SEED, G.hash2);
+    // Имя предмета — лениво (G.getItem — items.js; в песочницах —
+    // инъект): fallback — id (сообщение не бьётся без каталога).
+    let name = itemId;
+    if (typeof G.getItem === 'function') {
+      const it = G.getItem(itemId);
+      if (it && typeof it.name === 'string' && it.name !== '') {
+        name = it.name;
+      }
+    }
+    return {
+      ok: true,
+      success: true,
+      itemId,
+      message: 'Колодец: на дне — «' + name + '».',
     };
   }
 
@@ -2053,5 +2342,10 @@
     // Задача 000091: таверна (44) «Слухи» — чистое ядро + (tile,
     // day)-сиды (golden-пины A67/A68/B27).
     tavernRumors, RUMORS_COUNT_SEED, RUMORS_TEXT_SEED, RUMORS_TEXT2_SEED,
+    // Задача 000092: фонтан (49) / колодец (45) — чистые формулы,
+    // (tile, day)-сиды монеты и предмета.
+    coinChance, wellChance, coinGold,
+    applyFountainHeal, applyFountainCoin, applyWell,
+    COIN_ROLL_SEED, WELL_ROLL_SEED, WELL_ITEM_SEED,
   };
 });
