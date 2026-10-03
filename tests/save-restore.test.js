@@ -300,6 +300,8 @@ test('битые разделы: цепочка не падает, console.warn,
     day: 3,
     buildingOncePerDay: 'junk',
     buffs: 'junk',
+    // 000093: explored — тоже битый раздел (fail-open 000029).
+    explored: 'junk',
   }));
   assert.equal(h.errors.length, 0, 'игра не роняется: ' + h.errors.join('; '));
   assertRestored(h, 3);
@@ -307,11 +309,17 @@ test('битые разделы: цепочка не падает, console.warn,
     'предупреждение о разделе buildingOncePerDay: ' + h.warns.join(' | '));
   assert.ok(h.warns.some((m) => m.includes('buffs')),
     'предупреждение о разделе buffs: ' + h.warns.join(' | '));
+  // 000093: предупреждение о разделе explored (warn — main.js,
+  // паттерн 000072; сам restoreExplored — тихий).
+  assert.ok(h.warns.some((m) => m.includes('explored')),
+    'предупреждение о разделе explored: ' + h.warns.join(' | '));
 
   fireBeforeUnload(h);
   const saved = readSave(h);
   assert.deepEqual(saved.data.buildingOncePerDay, {}, 'битый раздел сброшен в {}');
   assert.deepEqual(saved.data.buffs, [], 'битый раздел сброшен в []');
+  assert.deepEqual(saved.data.explored, {},
+    'битый раздел explored сброшен в {} (000093)');
 });
 
 test('подделанный «будущий» день: отброшен (запись day > day, бафф day > day)', async () => {
@@ -356,4 +364,8 @@ test('старый v1-сейв без новых разделов: boot ок, н
   assert.deepEqual(saved.data.buildingOncePerDay, {},
     'отсутствующий раздел восстановился пустым и так же записан');
   assert.deepEqual(saved.data.buffs, []);
+  // 000093: explored — тоже неломкое расширение: старый v1-сейв без
+  // раздела → восстановлен пустым → новый сейв пишет {}.
+  assert.deepEqual(saved.data.explored, {},
+    'explored: отсутствующий раздел → {} (без миграции)');
 });

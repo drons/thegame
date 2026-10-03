@@ -15,7 +15,7 @@
 // (контракт §3 memory/000129-hud-module.md):
 //   ctx = { hudEl, game, tile, map, player, hero, day, zoom,
 //           spriteLoader, dungeonState, defeatedAt, npcs, flash,
-//           flashUntil }
+//           flashUntil, exploredCount }
 // game — ЕДИНСТВЕННЫЙ снапшот main.js (const G = globalThis.Game,
 // 000038); tile — main.js считает map.tileAt ОДИН раз на кадр (в
 // модуле tileAt НЕ вызывается). СОСТОЯНИЕ flash
@@ -52,8 +52,8 @@
 // 000127): DUNGEON_NAMES отсутствует ИЛИ нет ключа типа —
 // console.error (1×/вызов) + fallback «подземелье»; в норме
 // недостижимо (dungeon.js пинан, DUNGEON_NAMES закрывает все типы).
-// В main.js остаётся тонкая проводка: обёртка renderHud (ctx 14
-// полей) + load-time гард (000038).
+// В main.js остаётся тонкая проводка: обёртка renderHud (ctx 15
+// полей — exploredCount добавлен 000093) + load-time гард (000038).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -190,6 +190,15 @@
       (ctx.spriteLoader ? '  |  графика: ' + ctx.spriteLoader.readyCount() + '/' + ctx.spriteLoader.totalCount() : '') + '\n' +
       '[I] персонаж' + (npcHere ? '  |  [E] диалог'
         : (effectsHere ? '  |  [E] действия' : ''));
+    // Задача 000093: «Исследовано: N тайлов» (сумма по explored,
+    // main.js) — отдельная строка ПОСЛЕ top-блока, ДО веток
+    // dungeonState/hereLine/mobgroup; ТОЛЬКО при N>0 (0/NaN/нет
+    // поля — строки нет; гард — Number.isFinite); грамматика БЕЗ
+    // склонений (ТЗ-текст «исследовано N тайлов»).
+    const exploredCount = Number.isFinite(ctx.exploredCount)
+      ? ctx.exploredCount : 0;
+    line += (exploredCount > 0)
+      ? '\nИсследовано: ' + exploredCount + ' тайлов' : '';
     if (ctx.dungeonState) {
       line += locationLine(g, ctx.dungeonState);
     } else if (t.hasBuilding) {

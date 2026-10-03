@@ -279,6 +279,24 @@
     apply: (st) => applyObelisk(st),
   };
 
+  // --- Задача 000093: смотровая башня (id 46, подтип слота 12 —
+  // 000073) — «Взглянуть» (разведка, без миникарты) ---
+  // Окно Чебышёва R вокруг башни (тайл ИГРОКА — конвенция [E]:
+  // действие доступно только на тайле постройки) помечается
+  // «исследованными» — раздел сейва explored (имя — 000072; данные —
+  // memory/000093-explored.md). НЕЗАВИСИМО ОТ ПРОХОДИМОСТИ (данные
+  // разведки, не проходимость — вода/горы/чужие постройки помечаются).
+  // Повтор — ИДЕМПОТЕНТНО (объединение множеств, дубликатов нет).
+  // Лимита раз-в-день НЕТ (взгляд бесплатен и идемпотентен, ТЗ):
+  // флага раз_в_день в каталоге нет И разВДень в записи не ставится →
+  // hasDailyLimit('46') === false. R — ТОЛЬКО из каталога
+  // (особые_параметры.эффект.радиус, 000053); МИНИКАРТА — ОТСРОЧЕНА
+  // (ТЗ: здесь — только данные + HUD-индикатор).
+  EFFECTS['46'] = {
+    имя: 'Взглянуть',
+    apply: (st) => applyExplore(st),
+  };
+
   /**
    * Ids эффектов постройки — только те, что есть в реестре; порядок —
    * из каталога (массив особых_параметры.эффекты) либо 1-к-1 запись
@@ -1011,6 +1029,229 @@
     return out;
   }
 
+  // --- Задача 000093: смотровая башня — «Взглянуть» (explored) ---
+  //
+  // Раздел сейва explored (имя — 000072; контракт данных —
+  // memory/000093-explored.md): СНИМОК — plain object
+  // { towerKey 'x,y' → 'x,y;x,y;…' } — ключи тайлов окна Чебышёва
+  // башни, граница включительно. КАНОНИЧЕСКАЯ строка — row-major:
+  // y по возрастанию, затем x, ЧИСЛЕННАЯ сортировка (строковая даёт
+  // «10» < «9» при |координате| > 9 — баг); единая сериализация:
+  // roundtrip serialize→restore byte-identical. Живая форма
+  // (владеет main.js) — Map<towerKey, Set<tileKey>>. Ограничение
+  // роста: R=20 → ≤ 41×41 = 1681 ключей на башню (ловушка
+  // localStorage, ТЗ) — защитный R-фильтр markExplored держит кап
+  // даже при «лишних» тайлах во входе.
+
+  // Ключ 'x,y' → [x, y] ЧИСЛА (null — не ключ).
+  function parseXYKey(s) {
+    if (typeof s !== 'string' || !XY_KEY_RE.test(s)) return null;
+    const sep = s.indexOf(',');
+    return [Number(s.slice(0, sep)), Number(s.slice(sep + 1))];
+  }
+
+  // Row-major (y, затем x) сортировка канонических ключей.
+  function sortTileKeys(keys) {
+    return keys.slice().sort((a, b) => {
+      const pa = parseXYKey(a), pb = parseXYKey(b);
+      if (pa[1] !== pb[1]) return pa[1] - pb[1];
+      return pa[0] - pb[0];
+    });
+  }
+
+  /**
+   * «Взглянуть» (000093): тайлы окна Чебышёва R вокруг башни —
+   * исследованы. ВОЗВРАЩАЕТ НОВОЕ plain object (снимок) — входной
+   * explored не мутируется (иммутабельно, паттерн 000072).
+   *   explored: plain object {towerKey:'x,y;…'} | null/undefined →
+   *     {}; не-object/Array → {} (fail-open, НЕ бросает).
+   *   towerKey: строка 'x,y' (XY_KEY_RE) — иначе THROW (программная
+   *     ошибка).
+   *   R: integer ≥ 0 — иначе THROW (программная ошибка).
+   *   tiles: массив {x: int, y: int} | null/undefined → []; элемент
+   *     не {x,y}-целые-конечные → SKIP (fail-open); tile c
+   *     Chebyshev-расстоянием > R от башни → SKIP (ЗАЩИТНЫЙ фильтр:
+   *     вызовчик передаёт точное окно — поведение идентично; кап
+   *     ≤1681 держится при «мусорном» входе).
+   * Мерж: валидные сегменты старшего значения башни (XY_KEY_RE) ∪
+   * новые тайлы (Set — дедупликация). Чужие башни копируются как
+   * есть. Значение = канонический row-major, join(';').
+   * @returns {object} новый plain object
+   */
+  function markExplored(explored, towerKey, tiles, R) {
+    if (typeof towerKey !== 'string' || !XY_KEY_RE.test(towerKey)) {
+      throw new TypeError(
+        'markExplored: towerKey — строка «x,y» (программная ошибка)');
+    }
+    if (!Number.isInteger(R) || R < 0) {
+      throw new TypeError(
+        'markExplored: R — целое ≥ 0 (программная ошибка)');
+    }
+    const out = {};
+    if (explored && typeof explored === 'object' &&
+        !Array.isArray(explored)) {
+      for (const k of Object.keys(explored)) out[k] = explored[k];
+    }
+    const sep = towerKey.indexOf(',');
+    const tx = Number(towerKey.slice(0, sep));
+    const ty = Number(towerKey.slice(sep + 1));
+    // Башня: валидные сегменты старшего значения (union) + новые.
+    const set = new Set();
+    const prev = out[towerKey];
+    if (typeof prev === 'string') {
+      for (const s of prev.split(';')) {
+        if (XY_KEY_RE.test(s)) set.add(s);
+      }
+    }
+    if (Array.isArray(tiles)) {
+      for (const t of tiles) {
+        if (!t || typeof t !== 'object') continue;
+        if (!Number.isInteger(t.x) || !Number.isInteger(t.y)) continue;
+        // ЗАЩИТНЫЙ R-фильтр (ЧИСЛЕННЫЕ координаты): окно — данные
+        // разведки башни, «лишние» тайлы вне Чебышёва ≤ R — SKIP.
+        if (Math.max(Math.abs(t.x - tx), Math.abs(t.y - ty)) > R) continue;
+        set.add(t.x + ',' + t.y);
+      }
+    }
+    if (set.size === 0) {
+      delete out[towerKey]; // пустая башня — не пишется
+    } else {
+      out[towerKey] = sortTileKeys(Array.from(set)).join(';');
+    }
+    return out;
+  }
+
+  /**
+   * exploredCount(explored) → number — СУММА валидных сегментов ПО
+   * БАШНЯМ (на башню: split(';'), фильтр XY_KEY_RE, дедупликация).
+   * Пересечения окон двух башен СЧИТАЮТСЯ ДВАЖДЫ: union по башням —
+   * решение БУДУЩЕЙ задачи миникарты (отсрочено, ТЗ). explored —
+   * plain object (снимок) | null/undefined → 0; не-object → 0.
+   * @returns {number}
+   */
+  function exploredCount(explored) {
+    if (!explored || typeof explored !== 'object' ||
+        Array.isArray(explored)) {
+      return 0;
+    }
+    let n = 0;
+    for (const k of Object.keys(explored)) {
+      const v = explored[k];
+      if (typeof v !== 'string') continue;
+      const seen = new Set();
+      for (const s of v.split(';')) {
+        if (XY_KEY_RE.test(s)) seen.add(s);
+      }
+      n += seen.size;
+    }
+    return n;
+  }
+
+  /**
+   * Раздел сейва explored: ЖИВАЯ форма Map<towerKey, Set<tileKey>>
+   * → СНИМОК (plain object). Запись: ключ — строка; значение — Set
+   * (не Set → SKIP); пустая башня (size 0) → НЕ пишется. Значение —
+   * каноническая row-major строка (только валидные сегменты
+   * XY_KEY_RE). m — Map | null/undefined → {}.
+   * @returns {object}
+   */
+  function serializeExplored(m) {
+    const out = {};
+    if (m && typeof m.forEach === 'function') {
+      m.forEach((v, k) => {
+        if (!(v instanceof Set)) return;
+        if (v.size === 0) return;
+        const keys = [];
+        for (const s of v) {
+          if (typeof s === 'string' && XY_KEY_RE.test(s)) keys.push(s);
+        }
+        if (keys.length === 0) return;
+        out[String(k)] = sortTileKeys(keys).join(';');
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Раздел сейва explored → ЖИВАЯ форма Map<towerKey, Set<tileKey>>.
+   * ТИХИЙ fail-open (000029, паттерн restoreTeleports/
+   * restoreBuildingQuests): НЕ throw, НЕ console (warn — в main.js
+   * restoreFromSave): раздел не-object/Array/null/undefined →
+   * пустой Map; запись: ключ не 'x,y' ИЛИ значение не строка →
+   * отброс; сегменты — фильтр XY_KEY_RE + дедупликация (Set);
+   * пустой результат → запись отброшена.
+   * @returns {Map<string, Set<string>>}
+   */
+  function restoreExplored(raw) {
+    const out = new Map();
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    for (const k of Object.keys(raw)) {
+      if (!XY_KEY_RE.test(k)) continue;
+      const v = raw[k];
+      if (typeof v !== 'string') continue;
+      const set = new Set();
+      for (const s of v.split(';')) {
+        if (XY_KEY_RE.test(s)) set.add(s);
+      }
+      if (set.size > 0) out.set(k, set);
+    }
+    return out;
+  }
+
+  /**
+   * «Взглянуть» (000093): окрестности башни — исследованы. ЧИСТО
+   * (паттерн applyRuneStone/applyObelisk): state не мутирует, мира и
+   * каталога ГЛОБАЛЬНО нет — только СНИМОК st.save + READ-ONLY map +
+   * каталожная запись st.catalog. Возврат:
+   *   { ok: true, explored: <НОВОЕ значение раздела (снимок)>,
+   *     message: 'Взгляд: исследовано N тайлов.' } — N = СУММА ПО
+   *     ВСЕМ БАШНЯМ ПОСЛЕ пометки (согласовано с HUD-индикатором;
+   *     повтор — та же строка, идемпотентно). Текст фиксирован
+   *     (тест-пин): стиль «Префикс: результат.».
+   * Деградации (000053): каталога/эффекта нет → { ok:false,
+   * message:'недоступно' } (радиус НЕ гадаем без эффекта); гард
+   * карты (нет map/tileAt) → то же.
+   * @returns {{ok: boolean, explored?: object, message: string}}
+   */
+  function applyExplore(st) {
+    const eff = catalogEffect(st);
+    if (!eff) return { ok: false, message: 'недоступно' };
+    const map = st && st.map;
+    if (!map || typeof map !== 'object' ||
+        typeof map.tileAt !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    // R — ТОЛЬКО из каталога (000053); фолбэк 20 — только когда
+    // объект эффект ЕСТЬ, но радиус не integer ≥ 0 (ТЗ-фиксированный
+    // R=20 — ловушка битого параметра, окно всё равно 41×41).
+    const R = (Number.isInteger(eff.радиус) && eff.радиус >= 0)
+      ? eff.радиус : 20;
+    const tile = st.tile || { x: 0, y: 0 };
+    const tx = tile.x, ty = tile.y;
+    // Окно Чебышёва row-major (dy внешний, dx внутренний); 41×41 =
+    // 1681 вызов tileAt разово (НЕ в кадре), кэш не нужен
+    // (идемпотентно). ПРОХОДИМОСТЬ НЕ ЧИТАЕТСЯ (ТЗ: данные разведки).
+    const tiles = [];
+    for (let dy = -R; dy <= R; dy++) {
+      for (let dx = -R; dx <= R; dx++) {
+        let t;
+        try { t = map.tileAt(tx + dx, ty + dy); } catch (err) { t = null; }
+        if (!t) continue; // falsy — пропуск (fail-open)
+        tiles.push({ x: tx + dx, y: ty + dy });
+      }
+    }
+    // Башня = тайл ИГРОКА (конвенция [E]: действие доступно только
+    // на тайле постройки — игрок И на башне).
+    const towerKey = tileKeyOf(st);
+    const next = markExplored(
+      st.save && st.save.explored, towerKey, tiles, R);
+    return {
+      ok: true,
+      explored: next,
+      message: 'Взгляд: исследовано ' + exploredCount(next) + ' тайлов.',
+    };
+  }
+
   return {
     EFFECTS, buildingActions, effectIds, hasEffects, hasDailyLimit,
     linkTeleportCircles, teleportDestination, teleportCharge,
@@ -1024,5 +1265,9 @@
     questIdForTile, readBuildingQuestEntry,
     serializeBuildingQuests, restoreBuildingQuests,
     STONE_ROLL_SEED, STONE_TEXT_SEED, OBELISK_TEXT_SEED,
+    // Задача 000093: смотровая башня (46) — explored: чистые
+    // markExplored/exploredCount + ser/de раздела сейва (контракт —
+    // memory/000093-explored-tower.md §2.2).
+    markExplored, exploredCount, serializeExplored, restoreExplored,
   };
 });
