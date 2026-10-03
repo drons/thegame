@@ -198,6 +198,15 @@
   const RUINS_ROLL_SEED = 0x5255494e;   // 'RUIN' — ролл содержимого
   const RUINS_LOOT_SEED = 0x52554c54;   // 'RULT' — выбор предмета лута
   const RUINS_NOTE_SEED = 0x52554e54;   // 'RUNT' — выбор фрагмента записи
+  // Сиды слухов таверны (задача 000091; ASCII, СВОИ константы —
+  // паттерн 000074/TELEPORT_TIE_SEED): экспорт — для golden-пинов
+  // (A67/A68/B27). Формулы (tile, day) — tavernRumors:
+  //   f  = тексты.length < 2 ? 1 : 1 + (hash(x, y, RUMC ^ day) % 2);
+  //   i0 = hash(x, y, RUMT ^ day) % L;
+  //   i1 = hash(x, y, RUM2 ^ day) % L (i1 === i0 → (i0 + 1) % L).
+  const RUMORS_COUNT_SEED = 0x52554d43; // 'RUMC' — число фрагментов
+  const RUMORS_TEXT_SEED = 0x52554d54;  // 'RUMT' — первый фрагмент
+  const RUMORS_TEXT2_SEED = 0x52554d32; // 'RUM2' — второй фрагмент
 
   // Раздел сейва teleports (имя зафиксировано 000072): чтение
   // записи СНИМКА по ключу 'x,y' — прототип-безопасно, с лёгкой
@@ -402,6 +411,34 @@
   EFFECTS['48'] = {
     имя: 'Осмотреть',
     apply: (st) => applyRuins(st),
+  };
+
+  // --- Группа 000091: таверна (44) — отдых и слухи (000064
+  // §3.2.1/§3.2.2; контракт — memory/000091-tavern-rest-rumors.md) ---
+  // «Отдых» (44_rest) — МИР-ДЕЙСТВИЕ (день проходит: существующий
+  // clock.rest — restore/респауны/saveNow — onDay-подписчики
+  // main.js; новых формул НЕТ, ТЗ): обработчик со «стороной» —
+  // спец-модуль src/building-effect-44_rest.js (шаблон 000128 §2.3,
+  // саморегистрация '44_rest' в specials в момент загрузки). В
+  // записи НЕТ apply (мир-действие не может быть чистым по
+  // снапшоту) и НЕТ message — сообщение несёт спец-а с НОВЫМ днём
+  // (msg = (r && r.message) || (sres && sres.message), 000128).
+  // Лимита раз-в-день НЕТ (ТЗ: повтор в новый день — снова
+  // доступно; повтор в тот же день не запрещён — день всё равно
+  // проходит). НАЙМ — НЕ здесь (задача 000065).
+  // «Слухи» (44_rumors) — ЧИСТЫЕ ДАННЫЕ (каталог
+  // эффект.слухи.тексты + map READ-ONLY через переиспользованный
+  // moonDreamHint, 000076): apply-профиль, 2–3 подсказки (1–2
+  // фрагмента лора + ближайший вход в пещеру с типом подземелья),
+  // message «Слухи:\n· …» (многострочный HUD-flash). Детерминизм —
+  // (tile, day)-сиды RUMC/RUMT/RUM2 (НИКАКОГО RNG). Лимита НЕТ
+  // (флаги раз_в_день/разВДень отсутствуют).
+  EFFECTS['44_rest'] = {
+    имя: 'Отдых',
+  };
+  EFFECTS['44_rumors'] = {
+    имя: 'Слухи',
+    apply: (st) => applyTavernRumors(st),
   };
 
   /**
@@ -1211,6 +1248,62 @@
     };
   }
 
+  // --- Задача 000091: таверна (44) «Слухи» (apply-слой) ---
+  // Чистые данные (apply-профиль, 000071/000076 «Сон»): СНАПШОТ не
+  // мутирует, в мир не лезет. Тексты — ТОЛЬКО каталог (000053: код
+  // каталог-драйвен): st.catalog.особые_параметры.эффект.слухи.тексты
+  // (РЕШЁННАЯ запись — main.js передаёт catalog: b; каталога
+  // ГЛОБАЛЬНО в apply НЕТ). Вход в пещеру — переиспользованный
+  // moonDreamHint (000076) по map READ-ONLY (исключение 000076:
+  // state.map — live-ссылка, запись карту не мутирует).
+  // Fail-open (000029, без исключений):
+  //   * G.hash2 отсутствует (lazyGame, паттерн applyRuneStone) —
+  //     отказ «недоступно»;
+  //   * содержимого НЕТ вовсе (нет ВАЛИДНЫХ текстов И нет входа) —
+  //     отказ «недоступно»;
+  //   * map отсутствует — НЕ отказ (в отличие от «Сна», где карта =
+  //     всё действие: слухи — лор из каталога, карта лишь часть):
+  //     ok с фрагментами + «Входы в пещеры не видны.» (1:1 «Сон»).
+  // Состав (порядок ФИКСИРОВАН — фрагменты, потом вход):
+  //   1..2 строки фрагментов «…»; последняя — «Вход в пещеру
+  //   (x, y) — <тип>.» (DUNGEON_NAMES лениво, fallback «подземелье»
+  //   1:1 «Сон») либо «Входы в пещеры не видны.»
+  function applyTavernRumors(st) {
+    const G = lazyGame();
+    if (!G || typeof G.hash2 !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const c = st && st.catalog;
+    const op = c && c.особые_параметры;
+    const eff = (op && typeof op.эффект === 'object' &&
+                 !Array.isArray(op.эффект)) ? op.эффект : null;
+    const sl = (eff && typeof eff.слухи === 'object' &&
+                !Array.isArray(eff.слухи)) ? eff.слухи : null;
+    const texts = validTexts(sl && sl.тексты) ? sl.тексты : [];
+    const tile = (st && st.tile) || { x: 0, y: 0 };
+    const core = tavernRumors(st.map, tile.x, tile.y, st.day, texts,
+      G.hash2);
+    if (texts.length === 0 && core.entrance === null) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const hints = core.fragments.map((f) => '«' + f + '»');
+    if (core.entrance) {
+      // Имя типа — из DUNGEON_NAMES (лениво, dungeon.js); без
+      // каталога/типа — общее «подземелье» (1:1 «Сон»).
+      let name = 'подземелье';
+      const names = G.DUNGEON_NAMES;
+      if (core.dungeonType != null && names &&
+          typeof names[core.dungeonType] === 'string') {
+        name = names[core.dungeonType];
+      }
+      hints.push('Вход в пещеру (' + core.entrance.x + ', ' +
+        core.entrance.y + ') — ' + name + '.');
+    } else {
+      hints.push('Входы в пещеры не видны.');
+    }
+    return { ok: true, message: 'Слухи:\n· ' + hints.join('\n· ') };
+  }
+
   /**
    * «Сон» (задача 000076): ЧИСТАЯ подсказка о ближайшем входе в
    * пещеру и типе подземелья.
@@ -1299,6 +1392,51 @@
       }
       const type = G.dungeonTypeFor(best.terrain, alpha);
       if (typeof type === 'number') out.dungeonType = type;
+    }
+    return out;
+  }
+
+  // --- Задача 000091: таверна (44) «Слухи» — ЧИСТОЕ ЯДРО (1:1
+  // паттерн A40/«Сон»: данные — ядро, форматирование — apply-слой) ---
+  // Детерминизм — (tile, day)-СИДЫ RUMC/RUMT/RUM2 (НИКАКОГО
+  // Math.random/Date, ТЗ). map/texts/hash — ПАРАМЕТРЫ: ленивых
+  // ссылок на Game в ядре НЕТ (moonDreamHint внутри сам лениво
+  // читает G.BUILDING_TYPES/G.dungeonTypeFor, 000076).
+  // Число фрагментов f = 1..2 (RUMC; тексты.length === 1 → f = 1 —
+  // повтор невозможен по построению); индексы БЕЗ ПОВОРА (L ≥ 2):
+  // i0 = hash(x, y, RUMT ^ day) % L; i1 = hash(x, y, RUM2 ^ day) % L
+  // (i1 === i0 → (i0 + 1) % L). ВХОД — moonDreamHint (000076) 1:1:
+  // ближайший по Чебышеву, слот 9, buildingId ≠ 48 (развалины —
+  // НЕ входят), лекс. тай-брейк, тип через dungeonTypeFor.
+  /**
+   * @param {object|null} map карта мира (width/height/tileAt/pixelAt)
+   * @param {number} x координата тайла таверны
+   * @param {number} y
+   * @param {number} day день мира
+   * @param {string[]} texts тексты слухов (каталог)
+   * @param {(x: number, y: number, seed: number) => number} hash
+   * @returns {{entrance: {x: number, y: number}|null,
+   *            dungeonType: number|null, fragments: string[]}}
+   *            — ВЕРНЁТ ОБЪЕКТ (никогда не null: map отсутствует/бит
+   *            — fail-open moonDreamHint без исключения)
+   */
+  function tavernRumors(map, x, y, day, texts, hash) {
+    const hint = moonDreamHint(map, x, y);
+    const out = {
+      entrance: hint.entrance,
+      dungeonType: hint.dungeonType,
+      fragments: [],
+    };
+    const L = Array.isArray(texts) ? texts.length : 0;
+    if (L === 0) return out;
+    const f = L < 2
+      ? 1 : 1 + (hash(x, y, RUMORS_COUNT_SEED ^ day) % 2);
+    const i0 = hash(x, y, RUMORS_TEXT_SEED ^ day) % L;
+    out.fragments.push(texts[i0]);
+    if (f === 2) {
+      let i1 = hash(x, y, RUMORS_TEXT2_SEED ^ day) % L;
+      if (i1 === i0) i1 = (i0 + 1) % L;
+      out.fragments.push(texts[i1]);
     }
     return out;
   }
@@ -1894,5 +2032,8 @@
     // src/building-effect-48.js.
     rollRuinsContent, ruinsLoot, readNote,
     RUINS_ROLL_SEED, RUINS_LOOT_SEED, RUINS_NOTE_SEED,
+    // Задача 000091: таверна (44) «Слухи» — чистое ядро + (tile,
+    // day)-сиды (golden-пины A67/A68/B27).
+    tavernRumors, RUMORS_COUNT_SEED, RUMORS_TEXT_SEED, RUMORS_TEXT2_SEED,
   };
 });

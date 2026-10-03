@@ -43,6 +43,7 @@ test('index.html: нужные модули подключены', () => {
     'src/building-effects.js',
     'src/building-ui.js',
     'src/building-actions.js',
+    'src/building-effect-44_rest.js',
     'src/building-content.js',
     'src/building-effect-48.js',
     'src/hud.js',
@@ -975,4 +976,73 @@ test('index.html: src/hud.js подключён ПОСЛЕ building-actions.js �
   assert.ok(pos('src/hud.js') < pos('src/main.js'),
     'src/hud.js должен быть раньше src/main.js ' +
     '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+// --- Задача 000091: спец-модуль «Отдыха» таверны ---
+//
+// Первый спец-модуль проекта (шаблон 000128 §2.3): self-registration
+// в момент загрузки (Game.buildingActions.registerSpecial) — тег
+// обязан стоять ПОСЛЕ building-actions.js (registerSpecial должен
+// существовать) и ДО main.js (UMD-ловушка 000038: main.js снимает
+// Game один раз; модуль после main.js с новым Game-объектом будет
+// невидим). Пин ОТИОЛЬНЫЙ (не-смежный, как hud.js L893): параллельные
+// задачи добавят СВОИ теги в тот же слот, конфликт — union'ом.
+
+test('index.html: src/building-effect-44_rest.js подключён ПОСЛЕ building-actions.js и ДО main.js (задача 000091)', () => {
+  assert.notEqual(pos('src/building-effect-44_rest.js'), -1,
+    'src/building-effect-44_rest.js не подключён в index.html (задача 000091)');
+  assert.ok(pos('src/building-actions.js') < pos('src/building-effect-44_rest.js'),
+    'src/building-actions.js должен быть раньше src/building-effect-44_rest.js '
+    + '(registerSpecial обязан существовать, задача 000091)');
+  assert.ok(pos('src/building-effect-44_rest.js') < pos('src/main.js'),
+    'src/building-effect-44_rest.js должен быть раньше src/main.js '
+    + '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+test('000091: vm — загрузка building-effect-44_rest.js: standalone (без Game) — тихо; без buildingActions — console.error, без регистрации; с buildingActions — specials[44_rest] (задача 000091)', () => {
+  // Лён-чтение: до зелёной стадии файла нет — readFileSync падает
+  // ENOENT (осмысленный красный: модуль не создан).
+  const restCode = fs.readFileSync(
+    path.join(ROOT, 'src', 'building-effect-44_rest.js'), 'utf8');
+  const actionsCode = fs.readFileSync(
+    path.join(ROOT, 'src', 'building-actions.js'), 'utf8');
+  const mkConsole = (sink) => ({
+    log: () => {}, info: () => {}, warn: () => {},
+    error: (m) => sink.push(String(m)),
+  });
+  // (a) standalone (без Game) — тихий выход: 0 console.error, 0 краха.
+  const errorsA = [];
+  const sandboxA = { console: mkConsole(errorsA) };
+  vm.createContext(sandboxA);
+  assert.doesNotThrow(() => vm.runInContext(
+    restCode, sandboxA, { filename: 'building-effect-44_rest.js' }),
+    'standalone (без Game) — без краха');
+  assert.equal(errorsA.length, 0,
+    'standalone (без Game) — 0 console.error: ' + errorsA.join('; '));
+  // (b) Game БЕЗ buildingActions — console.error (текст §2.3),
+  // без регистрации (деградация 000053: игра не роняется).
+  const errorsB = [];
+  const sandboxB = { Game: {}, console: mkConsole(errorsB) };
+  vm.createContext(sandboxB);
+  assert.doesNotThrow(() => vm.runInContext(
+    restCode, sandboxB, { filename: 'building-effect-44_rest.js' }),
+    'без buildingActions — без краха (деградация 000053)');
+  assert.ok(errorsB.length >= 1, 'без buildingActions — console.error');
+  assert.ok(String(errorsB[0]).includes('Game.buildingActions отсутствует'),
+    'текст ошибки — про порядок: ' + errorsB[0]);
+  // (c) с buildingActions (building-actions.js загружен ПЕРВЫМ) —
+  // self-registration: specials['44_rest'] — функция.
+  const errorsC = [];
+  const sandboxC = { Game: {}, console: mkConsole(errorsC) };
+  vm.createContext(sandboxC);
+  vm.runInContext(actionsCode, sandboxC, { filename: 'building-actions.js' });
+  vm.runInContext(restCode, sandboxC,
+    { filename: 'building-effect-44_rest.js' });
+  assert.equal(errorsC.length, 0,
+    'с buildingActions — без ошибок: ' + errorsC.join('; '));
+  assert.ok(sandboxC.Game.buildingActions,
+    'buildingActions есть (building-actions.js загружен)');
+  assert.equal(
+    typeof sandboxC.Game.buildingActions.specials['44_rest'], 'function',
+    'specials[44_rest] зарегистрирован (self-registration при загрузке)');
 });
