@@ -760,6 +760,9 @@
           if (onChange) onChange();
           renderTab();
           G.playerUI && G.playerUI.render();
+          // 000086: открытая панель «Отряд» (z-10) под диалогом (z-20)
+          // не устаревает — состав изменился (no-op, если её нет).
+          G.squadUI && G.squadUI.render();
         } else if (r.refused) {
           // Детерминизм 000079: тот же (день, npcId) — тот же
           // исход; суффикс — игрокоориентированная версия.
@@ -783,10 +786,13 @@
         const r = C.dismiss(roster, id);
         if (r.ok) {
           // «Призрак» (npcId нет в каталоге) — голый id (тихий,
-          // паттерн 000029/000085).
+          // паттерн 000029/000085). playerUI.render сознательно нет
+          // (прецедент «accept»); панель «Отряд» (000086) перерисовываем
+          // — состав панели изменился (no-op, если её нет).
           npcLog('Уволен: ' + (n ? n.имя : id));
           if (onChange) onChange();
           renderTab();
+          G.squadUI && G.squadUI.render();
         } else {
           npcLog(r.reason);
           renderTab();
@@ -985,6 +991,243 @@
       render: () => { if (npc) renderTab(); },
     };
   }
+
+  // --- Панель «Отряд» (задача 000086, родитель 000065) ---
+  // Глобальный оверлей уровня .char-panel (z-10) ВНЕ диалога таверны:
+  // состав спутников (ядро 000079, найм 000083) + Эфир (000081 —
+  // «всегда со мной»). Паттерн — G.playerUI (000096): ленивый build
+  // при первом toggle, display 'flex' (НЕ 'block' — CSS .squad-panel
+  // обязан действовать), Esc-гарды (точная копия цепочки playerUI:
+  // диалог z-20 / оверлей результата боя закрываются первыми).
+  // На загрузке ui.js — НОЛЬ чтений companions/efir/NpcData
+  // (UMD-ловушка 000038): все гарды ЛЕНИВЫЕ, в момент вызова.
+  // Контракт — memory/000086-squad-panel.md.
+  (function () {
+    let panel = null;
+    let body = null;        // .squad-body (render пересобирает in place)
+    let initialized = false;
+    let coreErrorShown = false; // деградация без ядра — ОДИН раз
+    let roster = null;      // ЖИВАЯ ссылка main.js: Array | null
+    let efir = null;        // ЖИВОЙ объект {level, xp, ...} main.js | null
+    let onChange = null;    // хук на изменение состояния (сейв в main.js)
+    let escHandler = null;
+
+    // Каталог NPC — лениво (npc-data.js грузится ДО ui.js; паттерн
+    // npcUI): имя и жалованье строк.
+    const npcs = () => (G.NpcData && G.NpcData.NPCS) || [];
+
+    // Строка Эфира — ЛЕНИВО в момент render (rootRef-паттерн 000053,
+    // обходит снапшот-ловушку 000038): G.efir.efirStats(level).maxHP.
+    // Эфир всегда 100% HP — структурно (000081: HP в state нет,
+    // каждый бой — новый makeAlly). G.efir отсутствует (регрессия
+    // порядка) — null (строка Эфира деградирует без HP-части).
+    function efirData() {
+      if (!efir) return null;
+      if (!G.efir || typeof G.efir.efirStats !== 'function') return null;
+      const lv = (Number.isFinite(efir.level) && efir.level >= 1)
+        ? efir.level : 1;
+      const st = G.efir.efirStats(lv);
+      if (!st || !Number.isFinite(st.maxHP) || st.maxHP < 0) return null;
+      return { level: lv, maxHP: st.maxHP };
+    }
+
+    function isOpen() {
+      return !!panel && panel.style.display === 'flex';
+    }
+
+    function buildSquad() {
+      panel = el('div', 'squad-panel');
+      panel.style.display = 'none';
+
+      // close-кнопка — СВОЙ слушатель (паттерн playerUI):
+      const closeBtn = el('button', 'cp-close', 'закрыть [C]/[Esc]');
+      closeBtn.addEventListener('click', () => toggle(false));
+      panel.appendChild(closeBtn);
+
+      panel.appendChild(el('div', 'cp-title', 'Отряд'));
+      body = el('div', 'squad-body');
+      panel.appendChild(body);
+
+      // ОДИН делегированный слушатель кликов на панели (кроме
+      // close-кнопки): «уволить» из строк (data-squadact). Состояние
+      // пересматривается в момент клика: stale-кнопка (roster
+      // изменился после рендера) — canDismiss ВНУТРИ dismiss() →
+      // тихо, БЕЗ сейва (паттерн 000083).
+      panel.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-squadact]');
+        if (!btn || !initialized) return;
+        const act = btn.dataset.squadact;
+        if (act !== 'dismiss') return;
+        const C = G.companions;
+        if (!C || typeof C.dismiss !== 'function' ||
+            !Array.isArray(roster)) return;
+        const r = C.dismiss(roster, btn.dataset.npcid);
+        if (r.ok) {
+          if (onChange) onChange(); // хук на изменение состояния (сейв в main.js)
+        }
+        render(); // перерисовка (неудача — тихо: панель без .npc-log)
+      });
+
+      document.body.appendChild(panel);
+    }
+
+    // Строка Эфира (000081) — ПОСЛЕ блока наёмников; НЕ зависит от
+    // ядра (efirData ленивый). xp-бар — по контракту 000081 §6
+    // (до xpForNext(level); данных только: efir.xp + G.xpForNext).
+    function renderEfirRow(ed) {
+      if (!ed) return;
+      const row = el('div', 'cp-itemrow');
+      row.appendChild(el('span', 'cp-itemname', 'Эфир'));
+      row.appendChild(el('span', 'cp-itemmeta',
+        'уровень ' + ed.level + ' · HP ' + ed.maxHP + '/' + ed.maxHP +
+        ' · всегда со мной'));
+      if (typeof G.xpForNext === 'function' && efir &&
+          Number.isFinite(efir.xp) && efir.xp >= 0) {
+        const need = G.xpForNext(ed.level);
+        if (Number.isFinite(need) && need > 0) {
+          const pct = Math.min(100, Math.max(0,
+            Math.round(efir.xp / need * 100)));
+          const bar = el('div', 'squad-xp');
+          const fill = el('div', 'squad-xp-fill');
+          fill.style.width = pct + '%';
+          bar.appendChild(fill);
+          row.appendChild(bar);
+        }
+      }
+      body.appendChild(row);
+    }
+
+    function render() {
+      if (!panel || !body) return; // панель не построена — no-op
+      body.textContent = '';
+      const C = G.companions;
+      const haveCore = !!C &&
+        typeof C.rosterSummary === 'function' &&
+        typeof C.dismiss === 'function';
+      if (!haveCore) {
+        // Регрессия порядка (в игре НЕВОЗМОЖНА — пин index-order:
+        // companions.js < ui.js): read-only строки из сырых записей
+        // (БЕЗ хвоста жалованья, БЕЗ кнопок) + ОДИН раз ошибка.
+        if (!coreErrorShown) {
+          coreErrorShown = true;
+          console.error('ui.js: Game.companions отсутствует — ' +
+            'src/companions.js обязан грузиться ДО src/ui.js ' +
+            '(задача 000079); панель «Отряд» — read-only');
+        }
+        const entries = Array.isArray(roster) ? roster : [];
+        if (entries.length === 0) {
+          body.appendChild(el('div', 'cp-itemmeta',
+            'Отряд пуст. Наймите спутников в таверне.'));
+        }
+        for (const e of entries) {
+          if (!e || !e.npcId) continue;
+          const npc = npcs().find((n) => n && n.id === e.npcId) || null;
+          const level = (Number.isFinite(e.level) && e.level >= 1)
+            ? e.level : 1;
+          const loyalty = (Number.isFinite(e.loyalty) && e.loyalty >= 0)
+            ? e.loyalty : 0;
+          const row = el('div', 'cp-itemrow');
+          row.appendChild(el('span', 'cp-itemname',
+            npc ? npc.имя : String(e.npcId)));
+          row.appendChild(el('span', 'cp-itemmeta',
+            'уровень ' + level + ' · лояльность ' + loyalty));
+          body.appendChild(row);
+        }
+      } else {
+        // Сводка — чистая функция ядра (000086): имя/уровень/
+        // лояльность/жалованье + строка Эфира (ПАРАМЕТР efirData).
+        const s = C.rosterSummary(roster, npcs(), efirData());
+        if (s.empty) {
+          // ОДНА строка (БЕЗ .cp-itemrow — прецедент 000083 «Отряд
+          // пуст.» — другой слой, НЕ путать).
+          body.appendChild(el('div', 'cp-itemmeta',
+            'Отряд пуст. Наймите спутников в таверне.'));
+        }
+        for (const m of s.members) {
+          const row = el('div', 'cp-itemrow');
+          row.appendChild(el('span', 'cp-itemname', m.name));
+          let meta = 'уровень ' + m.level + ' · лояльность ' + m.loyalty;
+          if (m.wage != null) {
+            meta += ' · жалованье ' + m.wage + ' з/день';
+          }
+          row.appendChild(el('span', 'cp-itemmeta', meta));
+          const btn = el('button', 'cp-btn', 'уволить');
+          btn.dataset.squadact = 'dismiss';
+          btn.dataset.npcid = m.npcId;
+          row.appendChild(btn);
+          body.appendChild(row);
+        }
+      }
+      renderEfirRow(efirData());
+    }
+
+    // Esc — document-слушатель, живёт пока панель открыта (attach на
+    // open, detach на close). ТОЧНАЯ копия цепочки гардов playerUI
+    // (000096): открыт верхний слой, закрываемый по Esc (диалог NPC —
+    // npcUI, z-20; оверлей РЕЗУЛЬТАТА боя — combatUI.result, z-20) —
+    // Esc его закрывает, панель «Отряд» не трогаем (слушатель npcUI
+    // на window срабатывает ПОСЛЕ document — bubble).
+    function attachEsc() {
+      if (escHandler) return;
+      escHandler = (e) => {
+        if (e.code !== 'Escape' || !isOpen()) return;
+        if (G.npcUI && typeof G.npcUI.isActive === 'function' &&
+            G.npcUI.isActive()) return;
+        if (G.combatUI && typeof G.combatUI.isActive === 'function' &&
+            G.combatUI.isActive()) {
+          const cc = (typeof G.combatUI.current === 'function')
+            ? G.combatUI.current() : null;
+          if (cc && cc.result) return;
+        }
+        toggle(false);
+      };
+      if (typeof document.addEventListener === 'function') {
+        document.addEventListener('keydown', escHandler);
+      }
+    }
+    function detachEsc() {
+      if (!escHandler) return;
+      if (typeof document.removeEventListener === 'function') {
+        document.removeEventListener('keydown', escHandler);
+      }
+      escHandler = null;
+    }
+
+    function toggle(force) {
+      if (!panel) buildSquad();
+      if (!initialized) return; // до init (main.js) — no-op
+      const show = force != null ? force : panel.style.display === 'none';
+      // 'flex', а не 'block': CSS .squad-panel { display:flex;
+      // flex-direction:column } обязан действовать (прецедент
+      // 000096: инлайн-блок ломал бы .squad-body flex:1/min-height:0).
+      panel.style.display = show ? 'flex' : 'none';
+      if (show) {
+        render();
+        attachEsc();
+      } else {
+        detachEsc();
+      }
+    }
+
+    G.squadUI = {
+      // ЖИВЫЕ ссылки (main.js, один раз; идемпотентно — перезапись):
+      // roster — Array | null (мутация hire/dismiss/payWages видна
+      // панели без re-wiring); efir — live-объект {level, xp, ...}
+      // | null (addEfirXp — тоже); onChange — хук на изменение
+      // состояния (сейв в main.js).
+      init(o) {
+        roster = (o && Array.isArray(o.roster)) ? o.roster : null;
+        efir = (o && o.efir) ? o.efir : null;
+        onChange = (o && typeof o.onChange === 'function')
+          ? o.onChange : null;
+        initialized = true;
+        if (isOpen()) render();
+      },
+      toggle,
+      render,
+      isOpen,
+    };
+  })();
 
   // --- On-screen-контролы (задача 000018, расширено 000123) ---
   // Чистая логика (выбор схемы, раскладка, хит-тест, детект устройства) —

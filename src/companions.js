@@ -209,6 +209,68 @@ function (settings, G) {
     return { ok: true };
   }
 
+  // --- Сводка отряда (задача 000086, панель «Отряд» — src/ui.js) ---
+
+  /**
+   * Сводка отряда для панели «Отряд» (задача 000086): состав —
+   * имя/уровень/лояльность/жалованье по записям + строка Эфира.
+   * @param {Array|null} roster записи {npcId, level, xp, loyalty,
+   *   hiredDay} (форма зафиксирована под сейв 000085 — READ-ONLY,
+   *   функция не мутирует; не массив → тихий empty).
+   * @param {Array|null} npcs каталог (Game.NpcData.NPCS): источник
+   *   имени (npc.имя) и жалованья (npc.найм.жалованье — НЕ из
+   *   записи, прецедент wagesTotal).
+   * @param {null|{level:number, maxHP:number}} efirData строка Эфира
+   *   ПАРАМЕТРОМ (не чтение G.efir внутри: UMD-ловушка 000038 —
+   *   снапшот Game при загрузке companions.js НЕ содержит efir.js;
+   *   вызывающий — ui.js render — вычисляет ЛЕНИВО через
+   *   G.efir.efirStats). В результате КЛЮЧЕЙ loyalty/wage НЕТ
+   *   (000081: Эфир — не наёмник).
+   * @returns {{members:Array<{npcId:string, name:string,
+   *   level:number, loyalty:number, wage:?number}>, empty:boolean,
+   *   efir:null|{level:number, maxHP:number}}}
+   *   members — порядок = порядок roster; «призрак» (id нет в
+   *   каталоге) — ГОЛЫЙ npcId (тихий, паттерн 000029/000083),
+   *   wage = null (НЕ 0 — «жалованье 0 з/день» не строка); мусорные
+   *   записи (null / без npcId) — тихий skip. ЧИСТАЯ функция
+   *   (без DOM/rng/console, паттерн payWages).
+   */
+  function rosterSummary(roster, npcs, efirData) {
+    const members = [];
+    for (const e of roster || []) {
+      if (!e || !e.npcId) continue; // мусорная запись — тихий skip
+      const npc = (npcs || []).find((n) => n && n.id === e.npcId) || null;
+      const level = (Number.isFinite(e.level) && e.level >= 1)
+        ? e.level : 1;
+      const loyalty = (Number.isFinite(e.loyalty) && e.loyalty >= 0)
+        ? e.loyalty : 0;
+      const wage = (npc && npc.найм &&
+          typeof npc.найм.жалованье === 'number')
+        ? npc.найм.жалованье : null;
+      members.push({
+        npcId: e.npcId,
+        name: npc ? npc.имя : String(e.npcId),
+        level,
+        loyalty,
+        wage,
+      });
+    }
+    // Строка Эфира: оба поля finite (level ≥1, maxHP ≥0) — как
+    // переданы (таблицу функция НЕ пересчитывает); null/мусор —
+    // как отсутствует.
+    let efir = null;
+    if (efirData != null && typeof efirData === 'object' &&
+        Number.isFinite(efirData.level) && efirData.level >= 1 &&
+        Number.isFinite(efirData.maxHP) && efirData.maxHP >= 0) {
+      efir = { level: efirData.level, maxHP: efirData.maxHP };
+    }
+    return {
+      members,
+      empty: !Array.isArray(roster) || roster.length === 0,
+      efir,
+    };
+  }
+
   // --- Жалованье и лояльность (смена дня, 000087) ---
 
   /** Σ найм.жалованье по отряду («призраки» — тихий skip). */
@@ -488,5 +550,8 @@ function (settings, G) {
     // Сериализация отряда для сейва (задача 000085; контракт
     // memory/000085-save-party-efir.md D2/D3).
     serializeRoster, deserializeRoster,
+    // Сводка отряда (задача 000086): чистая функция для панели
+    // «Отряд» (src/ui.js) — состав + строка Эфира.
+    rosterSummary,
   };
 });

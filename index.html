@@ -615,6 +615,50 @@
       margin-left: auto;
       margin-right: auto;
     }
+    /* Панель «Отряд» (задача 000086): глобальный оверлей уровня
+       .char-panel (z-10) — ниже боевых/подземельных оверлеев (z-20);
+       .fs-btn (z-15) панель НЕ перекрывает: bottom 56px — выше
+       верхней кромки кнопки (как .char-panel). Контент — узкая
+       колонка (≤3 наёмника + Эфир). Чужие .cp-* правила не
+       переопределяются; строки переиспользуют СУЩЕСТВУЮЩИЕ
+       глобальные .cp-itemrow/.cp-itemname/.cp-itemmeta/.cp-btn. */
+    .squad-panel {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      bottom: 56px;
+      display: flex;
+      flex-direction: column;
+      color: #e8dcc0;
+      font: 13px/1.45 ui-monospace, monospace;
+      background: rgba(16, 18, 24, 0.92);
+      border: 1px solid #4a4433;
+      border-radius: 12px;
+      padding: 12px 14px;
+      z-index: 10;
+    }
+    .squad-body {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+      max-width: 560px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .squad-xp {
+      width: 100%;
+      height: 4px;
+      background: #2c3040;
+      border-radius: 2px;
+      margin-top: 2px;
+    }
+    .squad-xp-fill {
+      height: 100%;
+      width: 0;
+      background: #d8c27a;
+      border-radius: 2px;
+    }
   </style>
 </head>
 <body>

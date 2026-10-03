@@ -125,11 +125,13 @@ const BROWSER_CHAIN = [
 // Ре-пин 000085: serializeRoster/deserializeRoster (сериализация отряда
 // для сейва; каталог — ПАРАМЕТР, новых require НЕТ) — контракт в
 // memory/000085-save-party-efir.md (D2/D3).
+// Ре-пин 000086 (ТЕХНИЧЕСКИЙ): + rosterSummary — чистая сводка отряда
+// для панели «Отряд» (контракт memory/000086-squad-panel.md §4).
 const API_KEYS = [
   'allyDataForEntry', 'applyCombatXp', 'canDismiss', 'canHire',
   'candidatesForTavern', 'createRoster', 'deserializeRoster', 'dismiss',
-  'eventSeed', 'hire', 'loyaltyTick', 'payWages', 'serializeRoster',
-  'wagesTotal',
+  'eventSeed', 'hire', 'loyaltyTick', 'payWages', 'rosterSummary',
+  'serializeRoster', 'wagesTotal',
 ];
 
 // --- Модуль и API ---
@@ -973,4 +975,131 @@ test('000082 браузер: applyCombatXp работает в браузерн�
   // контент И порядок ключей {type, npcId, level}.
   assert.equal(JSON.stringify(res.events),
     JSON.stringify([{ type: 'level_up', npcId: 'merc_volk', level: 2 }]));
+});
+
+// --- Сводка отряда (задача 000086, панель «Отряд») ---
+//
+// КРАСНЫЕ тесты (TDD): падают, пока src/companions.js не экспортирует
+// rosterSummary.
+//
+// Контракт (memory/000086-squad-panel.md §4):
+//   rosterSummary(roster, npcs, efirData) →
+//     { members: [{npcId, name, level, loyalty, wage}],
+//       empty: boolean,
+//       efir: null | { level, maxHP } }
+//   * members — порядок = порядок roster; name — каталог (npc.имя),
+//     «призрак» (id нет в каталоге) — ГОЛЫЙ npcId (тихий);
+//     level/loyalty — из записи (кламп: не finite → 1/0);
+//     wage — найм.жалованье из каталога (НЕ из записи); «призрак»
+//     или NPC без найм-данных → null (НЕ 0 — «жалованье 0 з/день»
+//     не строка);
+//   * empty — !Array.isArray(roster) || roster.length === 0: Эфир НЕ
+//     делает отряд непустым («Отряд пуст…» — про спутников);
+//   * efir — ПАРАМЕТР (не чтение G.efir внутри: UMD-ловушка 000038 —
+//     снапшот при загрузке companions.js не содержит efir.js;
+//     вызывающий в ui.js вычисляет лениво через G.efir.efirStats):
+//     оба поля finite (level ≥1, maxHP ≥0) → как переданы;
+//     null/мусор → null (как отсутствует). КЛЮЧЕЙ loyalty/wage НЕТ
+//     (000081: Эфир — не наёмник);
+//   * ЧИСТОТА: roster НЕ мутируется (форма записи заморожена под
+//     сейв 000085), без DOM/rng/console — node-тест без efir.js.
+
+test('000086 S1: rosterSummary — экспорт в API (функция, в пине API)', () => {
+  assert.equal(typeof C.rosterSummary, 'function',
+    'C.rosterSummary — функция (сводка отряда, 000086)');
+  assert.ok(API_KEYS.includes('rosterSummary'),
+    'пин API (API_KEYS) включает rosterSummary');
+});
+
+test('000086 S2: rosterSummary — строки: имя/уровень/лояльность/жалованье, порядок roster; roster не мутирован', () => {
+  const roster = [
+    { npcId: 'merc_ashka', level: 3, xp: 100, loyalty: 77, hiredDay: 2 },
+    { npcId: 'merc_volk', level: 1, xp: 0, loyalty: 51, hiredDay: 1 },
+  ];
+  const before = JSON.stringify(roster);
+  const s = C.rosterSummary(roster, NPCS, null);
+  assert.equal(JSON.stringify(roster), before,
+    'roster НЕ мутирован (чистая функция)');
+  assert.equal(s.empty, false, 'отряд непустой');
+  assert.equal(s.members.length, 2, 'строка на запись');
+  assert.deepEqual(s.members.map((m) => m.npcId),
+    ['merc_ashka', 'merc_volk'], 'порядок = порядок roster');
+  const a = s.members[0];
+  assert.equal(a.name, 'Ашка', 'имя — из каталога');
+  assert.equal(a.level, 3, 'уровень — из записи');
+  assert.equal(a.loyalty, 77, 'лояльность — из записи');
+  assert.equal(a.wage, 1, 'жалованье — найм.жалованье каталога');
+  const v = s.members[1];
+  assert.equal(v.name, 'Вольк', 'имя — из каталога');
+  assert.equal(v.level, 1);
+  assert.equal(v.loyalty, 51);
+  assert.equal(v.wage, 1);
+});
+
+test('000086 S3: rosterSummary — «призрак» (npcId нет в каталоге) — голый id, wage = null (не 0), без броска; NPC без найм-данных — имя из каталога, wage = null', () => {
+  const roster = [
+    { npcId: 'merc_ghost', level: 2, xp: 5, loyalty: 42, hiredDay: 1 },
+    { npcId: 'tavern_keeper', level: 1, xp: 0, loyalty: 50, hiredDay: 1 },
+  ];
+  const s = C.rosterSummary(roster, NPCS, null);
+  assert.equal(s.members.length, 2, 'обе записи дают строки (не отбрасываются)');
+  const g = s.members[0];
+  assert.equal(g.npcId, 'merc_ghost');
+  assert.equal(g.name, 'merc_ghost',
+    '«призрак» — ГОЛЫЙ npcId (тихий, паттерн 000029/000083)');
+  assert.equal(g.level, 2);
+  assert.equal(g.loyalty, 42);
+  assert.equal(g.wage, null,
+    'каталога нет — wage = null (не 0: не «жалованье 0 з/день»)');
+  const t = s.members[1];
+  assert.equal(t.name, 'Берта',
+    'NPC без найм-данных — имя всё равно из каталога');
+  assert.equal(t.wage, null, 'нет найм.жалованье — wage = null (не 0)');
+});
+
+test('000086 S4: rosterSummary — строка Эфира: {level, maxHP} из ПАРАМЕТРА (без ключей loyalty/wage); null/мусор efirData → null', () => {
+  const s = C.rosterSummary(
+    [{ npcId: 'merc_volk', level: 1, xp: 0, loyalty: 51, hiredDay: 1 }],
+    NPCS, { level: 1, maxHP: 16 });
+  assert.ok(s.efir, 'строка Эфира — если efirData передан');
+  assert.equal(s.efir.level, 1, 'уровень — как передан');
+  assert.equal(s.efir.maxHP, 16,
+    'maxHP — как передан (efirStats(1).maxHP = 16)');
+  assert.deepEqual(Object.keys(s.efir).sort(), ['level', 'maxHP'],
+    'в объекте Эфира КЛЮЧЕЙ loyalty/wage НЕТ (000081: не наёмник)');
+  // Другой уровень — как передан (таблицу функция НЕ пересчитывает:
+  // вызывающий вычисляет через G.efir.efirStats).
+  const s3 = C.rosterSummary([], NPCS, { level: 3, maxHP: 18 });
+  assert.equal(s3.efir.level, 3);
+  assert.equal(s3.efir.maxHP, 18, 'efirStats(3).maxHP = 18');
+  // null — Эфира нет.
+  assert.equal(C.rosterSummary([], NPCS, null).efir, null,
+    'efirData null → efir: null');
+  // Мусор — как отсутствует (без броска).
+  for (const bad of [
+    { level: 0, maxHP: 16 },
+    { level: 1, maxHP: NaN },
+    { level: 'мусор', maxHP: 16 },
+    'мусор',
+    {},
+  ]) {
+    assert.equal(C.rosterSummary([], NPCS, bad).efir, null,
+      'мусорный efirData → null (JSON: ' + JSON.stringify(bad) + ')');
+  }
+});
+
+test('000086 S5: rosterSummary — пустой отряд: members [], empty: true; строка Эфира независимо (empty не зависит от Эфира); roster не массив — empty', () => {
+  const s = C.rosterSummary([], NPCS, { level: 1, maxHP: 16 });
+  assert.deepEqual(s.members, [], 'строк нет');
+  assert.equal(s.empty, true, 'empty — отряд пуст');
+  assert.ok(s.efir, 'строка Эфира — независимо от состава отряда');
+  assert.equal(s.efir.maxHP, 16);
+  // Эфира нет — всё равно пуст.
+  const s0 = C.rosterSummary([], NPCS, null);
+  assert.equal(s0.empty, true);
+  assert.equal(s0.efir, null);
+  // Не массив — тихий empty (без броска).
+  const sN = C.rosterSummary(null, NPCS, null);
+  assert.equal(sN.empty, true, 'roster null — empty');
+  assert.deepEqual(sN.members, []);
 });
