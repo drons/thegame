@@ -45,8 +45,10 @@ test('index.html: нужные модули подключены', () => {
     'src/building-actions.js',
     'src/building-effect-44_rest.js',
     'src/building-content.js',
+    'src/building-effect-45.js',
     'src/building-effect-48.js',
     'src/building-effect-camp.js',
+    'src/building-effect-49.js',
     'src/hud.js',
     // Слот спец-модулей 000128 (после hud.js, до visuals-data.js);
     // добавлено на зелёной стадии (план красной — см. коммит
@@ -1066,5 +1068,36 @@ test('index.html: src/building-effect-camp.js подключён ПОСЛЕ buil
     'src/building-effect-camp.js (registerSpecial, задача 000128)');
   assert.ok(pos('src/building-effect-camp.js') < pos('src/main.js'),
     'src/building-effect-camp.js должен быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+// --- Задача 000092: спец-модули фонтана (49) и колодца (45) ---
+//
+// Само-регистрирующиеся спец-модули (контракт 000128 §2.3, первый
+// прецедент): при ЗАГРУЗКЕ (браузерная ветка) вызывают
+// buildingActions.registerSpecial — building-actions.js обязан
+// загрузиться РАНЬШЕ (иначе гард console.error + деградация:
+// действие не зарегистрировано). main.js снимает Game ОДИН раз при
+// загрузке (UMD-ловушка 000038) — модули должны стоять ДО main.js.
+// Слот: МЕЖДУ building-actions.js и hud.js; порядок id — по возрастанию
+// (45 → 49). Adjacency к main.js НЕ закрепляется — параллельные
+// спец-модули 000091/000093/000094/000095 тоже живут в этом слоте
+// (прецедент 000128/000129: между building-actions.js и hud.js).
+
+test('index.html: building-effect-45.js/49.js — ПОСЛЕ building-actions.js, в порядке id, ДО hud.js и ДО main.js (задача 000092)', () => {
+  assert.notEqual(pos('src/building-effect-45.js'), -1,
+    'src/building-effect-45.js не подключён в index.html (задача 000092)');
+  assert.notEqual(pos('src/building-effect-49.js'), -1,
+    'src/building-effect-49.js не подключён в index.html (задача 000092)');
+  assert.ok(pos('src/building-actions.js') < pos('src/building-effect-45.js'),
+    'src/building-effect-45.js должен быть ПОСЛЕ src/building-actions.js '
+    + '(само-регистрация registerSpecial при загрузке, задача 000092)');
+  assert.ok(pos('src/building-effect-45.js') < pos('src/building-effect-49.js'),
+    'порядок id — по возрастанию: 45 → 49 (задача 000092)');
+  assert.ok(pos('src/building-effect-49.js') < pos('src/hud.js'),
+    'src/building-effect-49.js должен быть ДО src/hud.js ' +
+    '(слот между building-actions.js и hud.js, задача 000092)');
+  assert.ok(pos('src/building-effect-49.js') < pos('src/main.js'),
+    'src/building-effect-49.js должен быть ДО src/main.js ' +
     '(UMD-ловушка 000038: main.js снимает Game один раз)');
 });

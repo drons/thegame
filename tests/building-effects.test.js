@@ -132,11 +132,12 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // ('40'/'42'); 000093 добавляет '46' (смотровая башня,
   // memory/000093-explored-tower.md); 000077 добавляет '39' (храм)
   // и '43' (круг); 000094 добавляет '48' (развалины — осмотр,
-  // memory/000094-ruins-inspect.md); 000091 добавляет
-  // '44_rest'/'44_rumors' (таверна, memory/000091-tavern-rest-
-  // rumors.md); 000095 добавляет 'fire'/'market' (лагерь,
-  // memory/000095-camp-fire-bazaar.md); 000092 расширит список
-  // при своём мерже (правка при ребейзе: union,
+  // memory/000094-ruins-inspect.md); 000092 добавляет '45' (колодец),
+  // 'heal'/'coin' (фонтан, memory/000092-fountain-well.md);
+  // 000091 добавляет '44_rest'/'44_rumors' (таверна,
+  // memory/000091-tavern-rest-rumors.md); 000095 добавляет
+  // 'fire'/'market' (лагерь, memory/000095-camp-fire-bazaar.md);
+  // (правка при ребейзе: union,
   // memory/000076-temple-blessings.md / 000074-rune-stone-obelisk.md
   // / 000077-building-content.md §8 / 000094-ruins-inspect.md
   // / 000091-tavern-rest-rumors.md / 000095-camp-fire-bazaar.md).
@@ -156,10 +157,12 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // Ребейз 000095 на мастер (2026-10-03): MERGED/UNION +=
   // 'fire'/'market' (000095, лагерь) — пин регенерирован по
   // фактическому коду.
-  const MERGED = ['36', '37', '38', '40', '41', '42', '46', '48',
-    '44_rest', '44_rumors', 'fire', 'market'];
-  const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '46',
-    '48', '44_rest', '44_rumors', 'fire', 'market'];
+  // Ребейз 000092 на мастер (2026-10-03): MERGED/UNION += '45'/'coin'/
+  // 'heal' (000092) — пин регенерирован по фактическому коду.
+  const MERGED = ['36', '37', '38', '40', '41', '42', '45', '46', '48',
+    '44_rest', '44_rumors', 'fire', 'market', 'coin', 'heal'];
+  const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '45',
+    '46', '48', '44_rest', '44_rumors', 'fire', 'market', 'coin', 'heal'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -168,7 +171,7 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   for (const id of regKeys) {
     assert.ok(UNION.includes(id),
       'реестр: чужой id «' + id + '» (union 000074/000075/000076/' +
-      '000077/000093/000094/000091/000095)');
+      '000077/000091/000092/000093/000094/000095)');
   }
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
@@ -3820,6 +3823,496 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
     items.map((p) => p.предмет).sort(),
     'сток = витрина каталога');
 });
+// --- Задача 000092: фонтан (49) + колодец (45) ---
+//
+// Контракты: memory/000092-fountain-well.md (D1–D14: формулы, сиды,
+// сообщения, golden-значения). «Удача» — НЕ навык: монета — на
+// Ловкость (primary dexterity), колодец — на derived.thiefBonus.
+// GOLDEN (детерминированный мир, замерено perlin.hash2):
+//   * coin (5,7): день 1 — 0.912698 (провал при dex 1 → 0.25),
+//     день 2 — 0.246469 (успех, +12 золота при level 1);
+//   * well (3,9): день 1 — 0.307111 → leather_armor, день 2 —
+//     0.564729 → herb_healing;
+//   * е2е-тайлы: фонтан (-113,19) — монета день 1 0.758747, день 2
+//     0.351938; колодец (-75,15) — день 1 0.311079 → honey_cake,
+//     день 2 0.176420 → bread, день 3 0.676061 (провал).
+
+test('A55. реестр 000092: «heal»/«coin»/«45» — имена по ТЗ, apply — функции, разВДень в реестре НЕ стоит (A42-паттерн)', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['heal'] && typeof BE.EFFECTS['heal'].apply === 'function',
+    'реестр: запись «heal» с apply (red: отсутствует)');
+  assert.ok(BE.EFFECTS['coin'] && typeof BE.EFFECTS['coin'].apply === 'function',
+    'реестр: запись «coin» с apply (red: отсутствует)');
+  assert.ok(BE.EFFECTS['45'] && typeof BE.EFFECTS['45'].apply === 'function',
+    'реестр: запись «45» с apply (red: отсутствует)');
+  assert.equal(BE.EFFECTS['heal'].имя, 'Исцеление',
+    '«heal»: имя по ТЗ');
+  assert.equal(BE.EFFECTS['coin'].имя, 'Монета',
+    '«coin»: имя по ТЗ');
+  assert.equal(BE.EFFECTS['45'].имя, 'Посмотреть на дно',
+    '«45»: имя по ТЗ');
+  // «Раз в день» — из КАТАЛОГА (000053): в реестре НЕ ставится
+  // (A42-паттерн: каталог побеждает; объект {heal, coin} — D1).
+  for (const id of ['heal', 'coin', '45']) {
+    assert.notEqual(BE.EFFECTS[id].разВДень, true,
+      id + ': разВДень в реестре не стоит (каталог решает)');
+  }
+});
+
+test('A56. каталог 49 (фонтан): эффекты + раз_в_день per-effect (объект) + параметры формул + зеркало buildings.js ≡ JSON', () => {
+  const B = require('../src/buildings.js');
+  const p49 = B.getBuilding(49).особые_параметры;
+  assert.deepEqual(p49.эффекты, ['heal', 'coin'],
+    '49: эффекты [«heal», «coin»] (red: поле отсутствует)');
+  assert.deepEqual(p49.раз_в_день, { heal: true, coin: false },
+    '49: раз_в_день — per-effect объект (red: сейчас boolean true)');
+  assert.deepEqual(p49.эффект, {
+    исцеление_доля: 0.25,
+    шанс_база: 0.2,
+    шанс_шаг: 0.05,
+    навык: 'dexterity',
+    золото_база: 10,
+    золото_шаг: 2,
+  }, '49: эффект — параметры формул (000053; red: отсутствует)');
+  // Зеркало src/buildings.js — тождественно каталогу (000055).
+  const j49 = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'assets', 'buildings', '000049.json'), 'utf8'));
+  assert.deepEqual(B.getBuilding(49), j49,
+    'зеркало 49: buildings.js ≡ assets/buildings/000049.json');
+});
+
+test('A57. каталог 45 (колодец): раз_в_день (boolean) + эффект (шанс + 10 предметов) + зеркало buildings.js ≡ JSON', () => {
+  const B = require('../src/buildings.js');
+  const p45 = B.getBuilding(45).особые_параметры;
+  assert.equal(p45.раз_в_день, true,
+    '45: раз_в_день — true (red: флаг отсутствует)');
+  assert.deepEqual(p45.эффект, {
+    шанс_база: 0.15,
+    предметы: ['bread', 'honey_cake', 'minor_healing', 'mana_potion',
+      'herb_healing', 'herb_mana', 'copper_ore', 'stone_chunk',
+      'wood_sword', 'leather_armor'],
+  }, '45: эффект — шанс + пул из 10 существующих id (red: отсутствует)');
+  // ТЗ: «Новые предметы — НЕ ВВОДИТЬ» — каждый id ∈ assets/items.
+  const itemIds = fs.readdirSync(path.join(ROOT, 'assets', 'items'))
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .map((f) => JSON.parse(fs.readFileSync(
+      path.join(ROOT, 'assets', 'items', f), 'utf8')).id);
+  for (const id of p45.эффект.предметы) {
+    assert.ok(itemIds.includes(id),
+      '45: «' + id + '» ∈ assets/items (не новый предмет)');
+  }
+  const j45 = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'assets', 'buildings', '000045.json'), 'utf8'));
+  assert.deepEqual(B.getBuilding(45), j45,
+    'зеркало 45: buildings.js ≡ assets/buildings/000045.json');
+});
+
+test('A58. hasDailyLimit: per-effect объект (49: heal true / coin false; 45: «45» true); boolean — регрессия; у объекта НЕТ фолбэка на реестр', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const c49 = B.getBuilding(49);
+  const c45 = B.getBuilding(45);
+  // Реальный каталог 000092: исцеление — раз в день; монета — БЕЗ
+  // лимита (явный false — самодокументация решения ТЗ); колодец —
+  // классический boolean.
+  assert.equal(BE.hasDailyLimit(c49, 'heal'), true,
+    '49: heal — true (объект {heal: true})');
+  assert.equal(BE.hasDailyLimit(c49, 'coin'), false,
+    '49: coin — false (red: сейчас флаг boolean true — наследует)');
+  assert.equal(BE.hasDailyLimit(c45, '45'), true,
+    '45: boolean true — как раньше (red: флаг отсутствует)');
+  // Регрессия: boolean-ветка БУКВАЛЬНО как раньше (A7/A8/A9/A10/A18).
+  BE.EFFECTS['90'] = { имя: 'Тест', разВДень: true };
+  try {
+    assert.equal(BE.hasDailyLimit(
+      { id: 90, особые_параметры: { раз_в_день: true } }, '90'), true,
+      'boolean true — как раньше');
+    assert.equal(BE.hasDailyLimit(
+      { id: 90, особые_параметры: { раз_в_день: false } }, '90'), false,
+      'явный boolean false ПОВЕРХ реестра (регрессия A10)');
+    assert.equal(BE.hasDailyLimit(
+      { id: 90, особые_параметры: {} }, '90'), true,
+      'нет флага — фолбэк на реестр (регрессия A10)');
+  } finally {
+    delete BE.EFFECTS['90'];
+  }
+  // Per-effect объект: объект решает САМ — фолбэка на реестр НЕТ
+  // (контракт D1: тишина объекта = лимита нет; прототип-безопасно).
+  BE.EFFECTS['a'] = { имя: 'А', разВДень: true };
+  try {
+    assert.equal(BE.hasDailyLimit(
+      { id: 91, особые_параметры: { раз_в_день: { a: true } } }, 'a'), true,
+      'объект: own-ключ = true → true');
+    assert.equal(BE.hasDailyLimit(
+      { id: 91, особые_параметры: { раз_в_день: { a: false } } }, 'a'), false,
+      'объект: own-ключ = false → false (реестр true не спасает)');
+    assert.equal(BE.hasDailyLimit(
+      { id: 91, особые_параметры: { раз_в_день: { b: true } } }, 'a'), false,
+      'объект: ключа «a» нет → false (фолбэка на реестр НЕТ)');
+    assert.equal(BE.hasDailyLimit(
+      { id: 91, особые_параметры: { раз_в_день: { a: 'да' } } }, 'a'), false,
+      'объект: значение ≠ true → false');
+    // Мусор (массив/строка/число/null) — старая логика: фолбэк на
+    // реестр (boolean-/object-ветки не применяются).
+    for (const junk of [[true], 'да', 1, null]) {
+      assert.equal(BE.hasDailyLimit(
+        { id: 91, особые_параметры: { раз_в_день: junk } }, 'a'), true,
+        'мусор (' + String(junk) + ') → фолбэк на реестр');
+    }
+  } finally {
+    delete BE.EFFECTS['a'];
+  }
+});
+
+test('A59. фонтан «Исцеление»: 25% макс. HP/MP (round), clamp по максимуму, чистота, деградация', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['heal'] && typeof BE.EFFECTS['heal'].apply === 'function',
+    'реестр: запись «heal» с apply (red: отсутствует)');
+  const B = require('../src/buildings.js');
+  const c49 = B.getBuilding(49);
+  // Контракт: heal требует Г.derived (минимальный G — пин гарда).
+  const G = { derived: P.derived };
+  withGame(G, () => {
+    // mkHero: maxHP 25, maxMP 16 (P.derived). round(0.25·25) = 6,
+    // round(0.25·16) = 4.
+    const hero = mkHero({ hp: 5, mp: 4 });
+    const st = makeState({ day: 1, tile: { x: 5, y: 7 },
+      hero, save: {}, catalog: c49 });
+    const snap = JSON.parse(JSON.stringify(st));
+    const r = BE.EFFECTS['heal'].apply(st);
+    assert.equal(r.ok, true, 'исцеление — ok');
+    assert.equal(r.heal.hp, 11, 'hp: 5 + 6 = 11 (АБСОЛЮТ)');
+    assert.equal(r.heal.mp, 8, 'mp: 4 + 4 = 8 (АБСОЛЮТ)');
+    assert.deepEqual(r.delta, { hp: 6, mp: 4 }, 'delta (после clamp)');
+    assert.equal(r.message, 'Фонтан: исцеление (+6 HP, +4 MP).',
+      'message зафиксирован (дельты, не формула)');
+    assert.deepEqual(st, snap, 'ЧИСТОТА: state не мутирует');
+    // Clamp: 24 + 6 = 30 → maxHP 25; 15 + 4 = 19 → maxMP 16.
+    const rClamp = BE.EFFECTS['heal'].apply(makeState({
+      day: 1, tile: { x: 5, y: 7 },
+      hero: mkHero({ hp: 24, mp: 15 }), save: {}, catalog: c49 }));
+    assert.equal(rClamp.ok, true);
+    assert.deepEqual(rClamp.heal, { hp: 25, mp: 16 },
+      'clamp по максимуму (не больше max)');
+    assert.deepEqual(rClamp.delta, { hp: 1, mp: 1 },
+      'delta — фактический прирост (не формула)');
+    assert.equal(rClamp.message, 'Фонтан: исцеление (+1 HP, +1 MP).',
+      'message — фактическая дельта');
+    // Граница: 19 + 6 = 25 — ровно max (без clamp); 12 + 4 = 16.
+    const rEdge = BE.EFFECTS['heal'].apply(makeState({
+      day: 1, tile: { x: 5, y: 7 },
+      hero: mkHero({ hp: 19, mp: 12 }), save: {}, catalog: c49 }));
+    assert.deepEqual(rEdge.heal, { hp: 25, mp: 16 }, 'граница max');
+    assert.deepEqual(rEdge.delta, { hp: 6, mp: 4 });
+    // Полный hero — дельта 0/0 (не отрицательная, не «провал»).
+    const rFull = BE.EFFECTS['heal'].apply(makeState({
+      day: 1, tile: { x: 5, y: 7 }, hero: mkHero(),
+      save: {}, catalog: c49 }));
+    assert.deepEqual(rFull.delta, { hp: 0, mp: 0 }, 'полный — 0/0');
+    assert.equal(rFull.message, 'Фонтан: исцеление (+0 HP, +0 MP).');
+  });
+  // Деградация: нет G.derived — «недоступно» БЕЗ исключения (A53).
+  withGame({}, () => {
+    const r = BE.EFFECTS['heal'].apply(
+      makeState({ catalog: c49, hero: mkHero() }));
+    assert.equal(r.ok, false, 'без derived — ok:false (не TypeError)');
+    assert.equal(r.message, 'недоступно');
+  });
+});
+
+test('A60. фонтан «Исцеление»: раз в день — «5,7:heal» день 3 → «уже использовано сегодня», день 4 → доступно', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const c49 = B.getBuilding(49);
+  const st = makeState({ day: 3, tile: { x: 5, y: 7 },
+    save: { buildingOncePerDay: { '5,7:heal': 3 } } });
+  const rows = BE.buildingActions(c49, null, st);
+  const heal = rows.find((r) => r.id === 'heal');
+  assert.ok(heal, 'строка «Исцеление» в списке (red: эффектов нет → [])');
+  assert.equal(heal.имя, 'Исцеление', 'имя строки');
+  assert.equal(heal.доступен, false, 'день 3 + марка → недоступно');
+  assert.equal(heal.reason, 'уже использовано сегодня',
+    'reason зафиксирован (000072)');
+  // День 4 — доступно (марка «вчера» не блокирует).
+  const next = Object.assign({}, st, { day: 4 });
+  const heal4 = BE.buildingActions(c49, null, next)
+    .find((r) => r.id === 'heal');
+  assert.equal(heal4.доступен, true, 'день 4 → доступно');
+});
+
+test('A61. фонтан «Монета»: chance = min(1, 0.2 + 0.05·Ловкость) — таблица + кап 1.0', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.coinChance, 'function',
+    'BE.coinChance(эффект, уровень) — функция (red: не экспортирована)');
+  const B = require('../src/buildings.js');
+  const eff = B.getBuilding(49).особые_параметры.эффект;
+  assert.ok(eff, 'каталог 49: эффект (red: поле отсутствует)');
+  assert.equal(BE.coinChance(eff, 0), 0.2, 'Ловкость 0 → 0.2');
+  assert.equal(BE.coinChance(eff, 1), 0.25, 'Ловкость 1 → 0.25');
+  assert.equal(BE.coinChance(eff, 16), 1, 'Ловкость 16 → 1.0');
+  assert.equal(BE.coinChance(eff, 100), 1, 'кап 1.0');
+});
+
+test('A62. фонтан «Монета»: успех → +10+2·уровень золота, провал → ничего; детерминизм по (tile, day) — две сессии; чистота', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['coin'] && typeof BE.EFFECTS['coin'].apply === 'function',
+    'реестр: запись «coin» с apply (red: отсутствует)');
+  const PL = require('../src/perlin.js');
+  const N = require('../src/npc.js');
+  const B = require('../src/buildings.js');
+  const c49 = B.getBuilding(49);
+  // Контракт: coin требует G.hash2 + G.skillLevel (минимальный G).
+  const G = { hash2: PL.hash2, skillLevel: N.skillLevel };
+  withGame(G, () => {
+    // mkHero: dexterity 1 (primary) → chance 0.25; level 1 → gold 12.
+    // GOLDEN (5,7): день 1 — 0.912698 ≥ 0.25 — ПРОВАЛ;
+    //               день 2 — 0.246469 < 0.25 — УСПЕХ.
+    const hero = mkHero();
+    const stFail = makeState({ day: 1, tile: { x: 5, y: 7 },
+      hero, save: {}, catalog: c49 });
+    const snap = JSON.parse(JSON.stringify(stFail));
+    const r1 = BE.EFFECTS['coin'].apply(stFail);
+    assert.equal(r1.ok, true, 'провал — ok:true (лимит НЕТ — без марки)');
+    assert.equal(r1.success, false,
+      'день 1 (5,7): 0.912698 ≥ 0.25 — провал');
+    assert.equal(r1.gold, 0, 'провал — золота нет');
+    assert.equal(r1.message, 'Фонтан: монета — ничего не найдено.',
+      'message провала зафиксирован');
+    assert.deepEqual(stFail, snap, 'ЧИСТОТА: провал не мутирует state');
+    const r2 = BE.EFFECTS['coin'].apply(makeState({
+      day: 2, tile: { x: 5, y: 7 }, hero, save: {}, catalog: c49 }));
+    assert.equal(r2.ok, true);
+    assert.equal(r2.success, true,
+      'день 2 (5,7): 0.246469 < 0.25 — успех');
+    assert.equal(r2.gold, 12, 'gold = 10 + 2·level 1 = 12');
+    assert.equal(r2.message, 'Фонтан: монета — +12 золота.',
+      'message успеха зафиксирован');
+  });
+  // ДВЕ СЕССИИ (пересборка модуля из require.cache) — тот же исход
+  // по (tile, day).
+  const once = (BE_) => withGame(G, () => BE_.EFFECTS['coin'].apply(
+    makeState({ day: 1, tile: { x: 5, y: 7 }, hero: mkHero(),
+      save: {}, catalog: c49 })));
+  const a1 = once(BE);
+  delete require.cache[require.resolve('../src/building-effects.js')];
+  const BE2 = loadBE();
+  const a2 = once(BE2);
+  assert.equal(a2.success, a1.success, 'две сессии — тот же исход');
+  assert.equal(a2.gold, a1.gold, 'две сессии — то же золото');
+});
+
+test('A63. фонтан «Монета»: НЕЗАВИСИМОСТЬ от «Исцеления» (тест-фиксатор ТЗ): марка heal не блокирует coin; coin-лимита нет', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const c49 = B.getBuilding(49);
+  // Контракт D1: coin — без лимита (явный false в каталоге).
+  assert.equal(BE.hasDailyLimit(c49, 'coin'), false,
+    'hasDailyLimit(49, «coin») === false (red: наследует лимит)');
+  // День 3: «5,7:heal» стоит — исцеление закрыто, монета доступна.
+  const st = makeState({ day: 3, tile: { x: 5, y: 7 },
+    save: { buildingOncePerDay: { '5,7:heal': 3 } } });
+  const rows = BE.buildingActions(c49, null, st);
+  const heal = rows.find((r) => r.id === 'heal');
+  const coin = rows.find((r) => r.id === 'coin');
+  assert.ok(heal, 'строка «Исцеление» (red: эффектов нет → [])');
+  assert.ok(coin, 'строка «Монета»');
+  assert.equal(heal.доступен, false, 'heal: марка дня 3 → недоступно');
+  assert.equal(heal.reason, 'уже использовано сегодня');
+  assert.equal(coin.доступен, true,
+    'coin: доступна в тот же день (независимость счётчиков)');
+  assert.equal(coin.reason, undefined, 'coin: причины нет');
+  // Мусорная «5,7:coin» в сейве НЕ блокирует (лимит нет — не читается).
+  const junk = makeState({ day: 3, tile: { x: 5, y: 7 },
+    save: { buildingOncePerDay: { '5,7:coin': 3 } } });
+  const coinJ = BE.buildingActions(c49, null, junk)
+    .find((r) => r.id === 'coin');
+  assert.equal(coinJ.доступен, true, '«5,7:coin» не читается (лимит нет)');
+});
+
+test('A64. колодец: предмет детерминирован по (tile, day) — два мира (разные состояния сейва) + две сессии → тот же id; (3,9,1) → leather_armor, (3,9,2) → herb_healing; id ∈ каталог ∩ assets/items', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['45'] && typeof BE.EFFECTS['45'].apply === 'function',
+    'реестр: запись «45» с apply (red: отсутствует)');
+  const PL = require('../src/perlin.js');
+  const I = require('../src/items.js');
+  const B = require('../src/buildings.js');
+  const c45 = B.getBuilding(45);
+  const pool = c45.особые_параметры.эффект.предметы;
+  assert.ok(Array.isArray(pool) && pool.length,
+    'каталог 45: эффект.предметы (red: поле отсутствует)');
+  const itemIds = fs.readdirSync(path.join(ROOT, 'assets', 'items'))
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .map((f) => JSON.parse(fs.readFileSync(
+      path.join(ROOT, 'assets', 'items', f), 'utf8')).id);
+  // Контракт: well требует G.hash2 + G.derived (+getItem для имени в
+  // message; skillLevel НЕ нужен — шанс через thiefBonus).
+  const G = { hash2: PL.hash2, derived: P.derived, getItem: I.getItem };
+  // thief 17 → thiefBonus 0.85 → chance = min(1, 0.15 + 0.85) = 1.0 —
+  // предмет гарантирован; ВЫБОР предмета — по (tile, day), НЕ зависит
+  // от шанса.
+  const mkThief = () => mkHero({ secondary: { thief: 17 } });
+  withGame(G, () => {
+    const r1 = BE.EFFECTS['45'].apply(makeState({
+      day: 1, tile: { x: 3, y: 9 }, hero: mkThief(),
+      save: {}, catalog: c45 }));
+    assert.equal(r1.ok, true);
+    assert.equal(r1.success, true,
+      '(3,9) день 1: 0.307111 < 1.0 — успех');
+    assert.equal(r1.itemId, 'leather_armor',
+      'golden (3,9,1) — leather_armor');
+    assert.equal(r1.message, 'Колодец: на дне — «Кожаный доспех».',
+      'message — имя предмета из assets/items');
+    assert.ok(pool.includes(r1.itemId),
+      'id ∈ каталогу эффект.предметы');
+    assert.ok(itemIds.includes(r1.itemId), 'id ∈ assets/items');
+    const r2 = BE.EFFECTS['45'].apply(makeState({
+      day: 2, tile: { x: 3, y: 9 }, hero: mkThief(),
+      save: {}, catalog: c45 }));
+    assert.equal(r2.success, true,
+      '(3,9) день 2: 0.564729 < 1.0 — успех');
+    assert.equal(r2.itemId, 'herb_healing',
+      'golden (3,9,2) — herb_healing');
+    assert.notEqual(r2.itemId, r1.itemId, 'разные дни — разные id');
+    assert.ok(pool.includes(r2.itemId), 'id ∈ каталогу');
+    assert.ok(itemIds.includes(r2.itemId), 'id ∈ assets/items');
+  });
+  // ДВЕ СЕССИИ — тот же предмет по (tile, day).
+  const idOf = (BE_, day) => withGame(G, () => BE_.EFFECTS['45'].apply(
+    makeState({ day, tile: { x: 3, y: 9 }, hero: mkThief(),
+      save: {}, catalog: c45 }))).itemId;
+  const i1 = idOf(BE, 1);
+  const i2 = idOf(BE, 2);
+  delete require.cache[require.resolve('../src/building-effects.js')];
+  const BE2 = loadBE();
+  assert.equal(idOf(BE2, 1), i1, 'две сессии — тот же id (день 1)');
+  assert.equal(idOf(BE2, 2), i2, 'две сессии — тот же id (день 2)');
+  // «Два мира» (ТЗ): входы applyWell — (tile, day, hero, каталог):
+  // мир-сид в них НЕ входит (GLOBAL_SEED map.js — фиксированная
+  // константа, «другого мира» в игре нет; st.save apply не читает).
+  // Проверимо как «два мира-состояния»: разные сейвы при том же
+  // (tile, day) → тот же id (пик: выбор предмета не завязан на
+  // состояние мира).
+  const worldOf = (BE_, save) => withGame(G, () => BE_.EFFECTS['45']
+    .apply(makeState({ day: 1, tile: { x: 3, y: 9 }, hero: mkThief(),
+      save, catalog: c45 }))).itemId;
+  assert.equal(worldOf(BE, {}), i1,
+    'мир 1 (пустой сейв) — тот же id по (tile, day)');
+  assert.equal(worldOf(BE, {
+    day: 47,
+    position: { x: -75, y: 15 },
+    hero: { level: 5, gold: 777, hp: 30, mp: 12 },
+    buildingOncePerDay: { '-75,15:45': 3, '5,7:heal': 9 },
+  }), i1, 'мир 2 (другое состояние сейва) — тот же id');
+});
+
+test('A65. колодец: chance = min(1, 0.15 + thiefBonus) — таблица + кап 1.0', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.wellChance, 'function',
+    'BE.wellChance(эффект, thiefBonus) — функция (red: не экспортирована)');
+  const B = require('../src/buildings.js');
+  const eff = B.getBuilding(45).особые_параметры.эффект;
+  assert.ok(eff, 'каталог 45: эффект (red: поле отсутствует)');
+  assert.equal(BE.wellChance(eff, 0), 0.15, 'thief 0 → 0.15');
+  assert.equal(BE.wellChance(eff, 0.05), 0.2, 'thief 1 → 0.2');
+  assert.equal(BE.wellChance(eff, 0.85), 1, 'thief 17 → кап 1.0');
+  assert.equal(BE.wellChance(eff, 1.5), 1, 'thiefBonus 1.5 → кап 1.0');
+});
+
+test('A66. колодец: раз в день — «5,7:45» день 3 → «уже использовано сегодня», день 4 → доступно', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const c45 = B.getBuilding(45);
+  const st = makeState({ day: 3, tile: { x: 5, y: 7 },
+    save: { buildingOncePerDay: { '5,7:45': 3 } } });
+  const rows = BE.buildingActions(c45, null, st);
+  const row = rows.find((r) => r.id === '45');
+  assert.ok(row,
+    'строка «Посмотреть на дно» (red: эффектов нет → [])');
+  assert.equal(row.имя, 'Посмотреть на дно', 'имя строки');
+  assert.equal(row.доступен, false, 'день 3 + марка → недоступно');
+  assert.equal(row.reason, 'уже использовано сегодня');
+  const next = Object.assign({}, st, { day: 4 });
+  assert.equal(BE.buildingActions(c45, null, next)
+    .find((r) => r.id === '45').доступен, true, 'день 4 → доступно');
+});
+
+test('A67. деградация 000092: невалидный hero / каталог-мусор — все три apply «недоступно» БЕЗ исключения (A53-паттерн)', () => {
+  const BE = loadBE();
+  for (const id of ['heal', 'coin', '45']) {
+    assert.ok(BE.EFFECTS[id] && typeof BE.EFFECTS[id].apply === 'function',
+      'реестр: запись «' + id + '» с apply (red: отсутствует)');
+  }
+  const PL = require('../src/perlin.js');
+  const N = require('../src/npc.js');
+  const I = require('../src/items.js');
+  const B = require('../src/buildings.js');
+  const c49 = B.getBuilding(49);
+  const c45 = B.getBuilding(45);
+  const G = { hash2: PL.hash2, derived: P.derived,
+    skillLevel: N.skillLevel, getItem: I.getItem };
+  const badHeroes = [null, undefined, 'hero', 42, [1, 2]];
+  // Нет Game / нет нужных функций — деградация всех трёх.
+  withGame({}, () => {
+    assert.equal(BE.EFFECTS['heal'].apply(makeState({
+      catalog: c49, hero: mkHero() })).message, 'недоступно',
+      'heal: без G.derived');
+    assert.equal(BE.EFFECTS['coin'].apply(makeState({
+      catalog: c49, hero: mkHero() })).message, 'недоступно',
+      'coin: без G.hash2/G.skillLevel');
+    assert.equal(BE.EFFECTS['45'].apply(makeState({
+      catalog: c45, hero: mkHero() })).message, 'недоступно',
+      '45: без G.hash2/G.derived');
+  });
+  // Невалидный hero — все три (Game полный).
+  withGame(G, () => {
+    for (const bad of badHeroes) {
+      for (const [id, cat] of [['heal', c49], ['coin', c49],
+        ['45', c45]]) {
+        const r = BE.EFFECTS[id].apply(
+          makeState({ catalog: cat, hero: bad }));
+        assert.equal(r.ok, false,
+          id + ': hero=' + String(bad) + ' — ok:false (не TypeError)');
+        assert.equal(r.message, 'недоступно', id + ': деградация');
+      }
+    }
+  });
+  // Каталог-мусор — все три.
+  withGame(G, () => {
+    assert.equal(BE.EFFECTS['heal'].apply(makeState({
+      hero: mkHero(), catalog: { id: 49, особые_параметры: {} } }))
+      .message, 'недоступно', 'heal: каталог без эффект');
+    assert.equal(BE.EFFECTS['coin'].apply(makeState({
+      hero: mkHero(),
+      catalog: { id: 49, особые_параметры: {
+        эффект: { шанс_база: 'много', шанс_шаг: 0.05,
+          навык: 'dexterity', золото_база: 10, золото_шаг: 2 } } } }))
+      .message, 'недоступно', 'coin: не-числовое шанс_база');
+    assert.equal(BE.EFFECTS['45'].apply(makeState({
+      hero: mkHero(),
+      catalog: { id: 45, особые_параметры: {
+        эффект: { шанс_база: 0.15, предметы: [] } } } }))
+      .message, 'недоступно', '45: предметы:[] (пусто)');
+  });
+});
+
+test('A68. экспорты 000092: сиды COIN/WELL_ROLL/WELL_ITEM — hex-пины, 7 сидов различны; 6 чистых функций на месте', () => {
+  const BE = loadBE();
+  for (const m of ['coinChance', 'wellChance', 'coinGold',
+    'applyFountainHeal', 'applyFountainCoin', 'applyWell']) {
+    assert.equal(typeof BE[m], 'function',
+      'BE.' + m + ' — функция (red: не экспортирована)');
+  }
+  assert.equal(BE.COIN_ROLL_SEED, 0x434f494e, 'COIN_ROLL_SEED = COIN');
+  assert.equal(BE.WELL_ROLL_SEED, 0x57454c4c, 'WELL_ROLL_SEED = WELL');
+  assert.equal(BE.WELL_ITEM_SEED, 0x5749544d, 'WELL_ITEM_SEED = WITM');
+  // Все 7 сидов домена различны (A47-паттерн: STONE/OBELISK/TELEPORT).
+  const seeds = [BE.TELEPORT_TIE_SEED, BE.STONE_ROLL_SEED,
+    BE.STONE_TEXT_SEED, BE.OBELISK_TEXT_SEED, BE.COIN_ROLL_SEED,
+    BE.WELL_ROLL_SEED, BE.WELL_ITEM_SEED];
+  assert.equal(new Set(seeds).size, 7, '7 сидов различны (коллизий нет)');
+});
+
+
 
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
 //
@@ -6900,4 +7393,363 @@ test('B29. «Диалог» кочевника и «Барахолка» — Д�
   assert.deepEqual(JSON.parse(JSON.stringify(g.npcStocks['camp_wanderer'])),
     npcStockBeforeCampBuy,
     '…а сток Кочевника НЕ изменился (системы независимы)');
+});
+
+// --- Задача 000092: фонтан (49) + колодец (45) — wiring E2E (B24+) ---
+//
+// Контракты: memory/000092-fountain-well.md (D1–D14). Стратегия —
+// PRE-SEED позиции (B21/B14): 132/90 шагов > steps_per_day=40 —
+// walkTo сменит день и сломает golden-исходы.
+// Золотые (детерминированный seed-мир, замерено):
+//   * фонтан id 49 — (-113, 19), 132 шага от спавна (БЛИЖАЙШИЙ,
+//     steps.length findBuilding);
+//   * колодец id 45 — (-75, 15), 90 шагов (БЛИЖАЙШИЙ);
+//   * фонтан (-113,19) ролл монеты: день 1 — 0.758747, день 2 —
+//     0.351938 (при chance 1.0 — успех оба дня);
+//   * колодец (-75,15) ролл (chance 0.35 при thief 4): день 1 —
+//     0.311079 (успех), день 2 — 0.176420 (успех), день 3 —
+//     0.676061 (провал); предмет: день 1 — honey_cake, день 2 —
+//     bread;
+//   * исцеление: 25% max (round): maxHP 25 → +6, maxMP 16 → +4.
+const FOUNTAIN_KEY = '-113,19';
+const WELL_KEY = '-75,15';
+const HEAL_MSG_D1 = 'Фонтан: исцеление (+6 HP, +4 MP).';
+const COIN_MSG_12 = 'Фонтан: монета — +12 золота.';
+const WELL_MSG_HONEY = 'Колодец: на дне — «Медовый пирог».';
+const WELL_MSG_BREAD = 'Колодец: на дне — «Хлеб».';
+const WELL_MSG_WATER = 'Колодец: на дне — только вода.';
+const WELL_MSG_FULL =
+  'Колодец: «Медовый пирог» не взять (нет свободных слотов '
+  + 'инвентаря) — предмет остался на дне.';
+
+// Живой инвентарь: g.state.hero.inventory — САМ живой массив
+// hero.inventory.slots (debug-хук main.js, 000127: проекция state.hero
+// без mp/primary; items.totalQty(g.state.hero) НЕЛЬЗЯ — у проекции
+// .inventory — сам массив, .slots у него нет). Счётчик по id —
+// локальный.
+function qtyOf(g, id) {
+  return (g.state.hero.inventory || [])
+    .filter((e) => e && e.id === id)
+    .reduce((s, e) => s + (e.qty || 0), 0);
+}
+
+test('B24. фонтан исцеление e2e: [E] «Исцеление», +25% HP/MP, saveNow + daily-марка сразу, повтор в день — disabled, смена дня', async () => {
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: -113, y: 19 },
+    hero: mkHero({ hp: 5, mp: 4 }),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  // Голден: ближайший фонтан — (-113, 19), 132 шага от спавна (0,0)
+  // — BFS-пин (сценарий достижимости; позиция — по сейву).
+  const found = findBuilding(G, myMap, { x: 0, y: 0 }, false,
+    (b) => b.id === 49);
+  assert.ok(found, 'сценарий: достижимый фонтан (id 49)');
+  assert.equal(found.building.id, 49,
+    'запись резолвлена по buildingId');
+  assert.equal(found.tile.x, -113, 'golden: x фонтана');
+  assert.equal(found.tile.y, 19, 'golden: y фонтана');
+  assert.equal(found.steps.length, 132,
+    'golden: 132 шага от спавна (steps.length)');
+  assert.equal(g.state.player.x, -113, 'позиция сейва — фонтан (x)');
+  assert.equal(g.state.player.y, 19, 'позиция сейва — фонтан (y)');
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  // hero до действия: hp — в проекции state.hero; mp — в проекции НЕТ
+  // (debug-хук main.js) → читаем из досеянного сейва.
+  assert.equal(g.state.hero.hp, 5, 'hero: hp 5 до действия');
+  const save0 = readSave(h);
+  assert.ok(save0, 'досеянный сейв на месте');
+  assert.equal(save0.data.hero.mp, 4, 'hero: mp 4 до действия (сейв)');
+  // HUD: «Здесь: фонтан  ([E] действия)».
+  frameAt(h, NOW + 200);
+  const hudLine = String(h.hud.textContent);
+  assert.ok(hudLine.includes('[E] действия'),
+    'топ-строка «([E] действия)» (red: у 49 нет эффектов → нет '
+    + 'хинта): ' + hudLine);
+  // [E] → оверлей: заголовок «Фонтан», строки «Исцеление» + «Монета».
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  assert.ok(String(textOf(ov)).toLowerCase().includes('фонтан'),
+    'заголовок оверлея: ' + textOf(ov));
+  const rowHeal = findRow(ov, 'heal');
+  assert.ok(rowHeal, 'строка «Исцеление» (red: записи «heal» нет)');
+  assert.ok(textOf(rowHeal).includes('Исцеление'),
+    'имя строки: «Исцеление»');
+  const rowCoin = findRow(ov, 'coin');
+  assert.ok(rowCoin, 'строка «Монета» (red: записи «coin» нет)');
+  assert.ok(textOf(rowCoin).includes('Монета'),
+    'имя строки: «Монета»');
+  assert.ok(!textOf(ov).includes('Диалог'),
+    '«Диалога» нет (NPC на тайле нет)');
+  assert.equal(rowHeal.disabled, false, 'день 1 — доступно');
+  // Digit1 — ДЕНЬ 1: hp 5 → 11 (+6 = round(0.25·25)), mp 4 → 8
+  // (+4 = round(0.25·16)); saveNow СРАЗУ, марка дня 1.
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes(HEAL_MSG_D1),
+    'hudFlash — message исцеления (дельты): ' + hud1);
+  assert.equal(g.state.hero.hp, 11, 'hp: 5 + 6 = 11');
+  const save1 = readSave(h);
+  assert.ok(save1, 'saveNow — сразу после действия');
+  assert.equal(save1.data.hero.hp, 11, 'сейв: hp 11');
+  assert.equal(save1.data.hero.mp, 8, 'сейв: mp 4 + 4 = 8');
+  assert.equal(save1.data.buildingOncePerDay[FOUNTAIN_KEY + ':heal'], 1,
+    'daily-марка «-113,19:heal» = 1');
+  assert.ok(save1.data.buildingOncePerDay[FOUNTAIN_KEY + ':coin'] == null,
+    'монета — без марки (лимит нет)');
+  // Повтор в тот же день — disabled.
+  key(h, 'KeyE');
+  const rowSame = findRow(findOverlay(h), 'heal');
+  assert.equal(rowSame.disabled, true, 'в тот же день — disabled');
+  assert.ok(textOf(rowSame).includes('уже использовано сегодня'),
+    'reason «уже использовано сегодня»: ' + textOf(rowSame));
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
+  // День 2 — доступно.
+  g.actions.setDay(2);
+  key(h, 'KeyE');
+  assert.equal(findRow(findOverlay(h), 'heal').disabled, false,
+    'день 2 — доступно');
+});
+
+test('B25. фонтан монета e2e: НЕЗАВИСИМОСТЬ от исцеления + 2× в один день + смена дня', async () => {
+  // dexterity 16 → chance = min(1, 0.2 + 0.05·16) = 1.0 — УСПЕХ в
+  // любой день (golden-роли 0.758747 / 0.351938 < 1.0).
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: -113, y: 19 },
+    hero: mkHero({
+      primary: { strength: 1, dexterity: 16, constitution: 1,
+        intelligence: 1, wisdom: 1, charisma: 1 },
+    }),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.hero.gold, 100,
+    'золото до действий (createCharacter)');
+  // День 1: сначала «Исцеление» (Digit1), затем «Монета» (Digit2) —
+  // ТИМ ЖЕ ДЕНЬ (пин независимости).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  const saveHeal = readSave(h);
+  assert.equal(saveHeal.data.buildingOncePerDay[FOUNTAIN_KEY + ':heal'], 1,
+    'исцеление — марка дня 1');
+  // «Монета» — ДОСТУПНА в тот же день (независимость счётчиков).
+  key(h, 'KeyE');
+  const coinRow = findRow(findOverlay(h), 'coin');
+  assert.ok(coinRow, 'строка «Монета» (red: записи «coin» нет)');
+  assert.equal(coinRow.disabled, false,
+    'монета доступна в тот же день (pin независимости)');
+  // Исцеление полного hero — clamp: hp без изменений (mp — не в
+  // проекции state.hero; clamp mp закреплён в A59).
+  assert.equal(g.state.hero.hp, 25, 'исцеление: hp 25 (полный — clamp)');
+  // Digit2 — монета ДЕНЬ 1: УСПЕХ (0.758747 < 1.0): +12 золота.
+  key(h, 'Digit2');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes(COIN_MSG_12),
+    'hudFlash — «+12 золота.» (10 + 2·level 1): ' + hud1);
+  assert.equal(g.state.hero.gold, 112, 'gold: 100 + 12 = 112');
+  const saveCoin1 = readSave(h);
+  assert.ok(
+    saveCoin1.data.buildingOncePerDay[FOUNTAIN_KEY + ':coin'] == null,
+    'КЛЮЧА «-113,19:coin» НЕТ (лимит нет — марку не ставит)');
+  // ВТОРОЕ использование в тот же день — доступно и снова успех.
+  key(h, 'KeyE');
+  const coinRow2 = findRow(findOverlay(h), 'coin');
+  assert.equal(coinRow2.disabled, false,
+    'монета в тот же день — по-прежнему доступна (тест-фиксатор)');
+  key(h, 'Digit2');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 600);
+  assert.equal(g.state.hero.gold, 124,
+    'gold: 112 + 12 = 124 (2× в один день)');
+  const saveCoin2 = readSave(h);
+  assert.ok(
+    saveCoin2.data.buildingOncePerDay[FOUNTAIN_KEY + ':coin'] == null,
+    'ключ «:coin» по-прежнему отсутствует');
+  // День 2: исцеление снова доступно; монета — день 2 (0.351938 < 1.0).
+  g.actions.setDay(2);
+  key(h, 'KeyE');
+  assert.equal(findRow(findOverlay(h), 'heal').disabled, false,
+    'день 2: исцеление снова доступно');
+  key(h, 'Digit2');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 800);
+  const hud2 = String(h.hud.textContent);
+  assert.ok(hud2.includes(COIN_MSG_12),
+    'hudFlash — день 2: «+12 золота.»: ' + hud2);
+  assert.equal(g.state.hero.gold, 136, 'gold: 124 + 12 = 136 (день 2)');
+});
+
+test('B26. колодец e2e: «Посмотреть на дно» — предмет по (tile, day), провал — попытка сгорела (марка), раз в день', async () => {
+  // thief 4 → thiefBonus 0.2 → chance = min(1, 0.15 + 0.2) = 0.35.
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: -75, y: 15 },
+    hero: mkHero({ secondary: { thief: 4 } }),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  // Голден: ближайший колодец — (-75, 15), 90 шагов от спавна (0,0).
+  const found = findBuilding(G, myMap, { x: 0, y: 0 }, false,
+    (b) => b.id === 45);
+  assert.ok(found, 'сценарий: достижимый колодец (id 45)');
+  assert.equal(found.building.id, 45,
+    'запись резолвлена по buildingId');
+  assert.equal(found.tile.x, -75, 'golden: x колодца');
+  assert.equal(found.tile.y, 15, 'golden: y колодца');
+  assert.equal(found.steps.length, 90,
+    'golden: 90 шагов от спавна (steps.length)');
+  assert.equal(g.state.player.x, -75, 'позиция сейва — колодец (x)');
+  assert.equal(g.state.player.y, 15, 'позиция сейва — колодец (y)');
+  // [E] → оверлей: заголовок «Колодец», строка «Посмотреть на дно».
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  assert.ok(String(textOf(ov)).toLowerCase().includes('колодец'),
+    'заголовок оверлея: ' + textOf(ov));
+  const row = findRow(ov, '45');
+  assert.ok(row, 'строка «45» в оверлее (red: записи нет)');
+  assert.ok(textOf(row).includes('Посмотреть на дно'),
+    'имя строки: «Посмотреть на дно»');
+  assert.equal(row.disabled, false, 'день 1 — доступно');
+  // Digit1 — ДЕНЬ 1: УСПЕХ (0.311079 < 0.35) — honey_cake в
+  // инвентаре, марка дня 1.
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 200);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes(WELL_MSG_HONEY),
+    'hudFlash — предмет дня 1 (golden honey_cake): ' + hud1);
+  assert.equal(qtyOf(g, 'honey_cake'), 1,
+    'honey_cake в инвентаре: 1');
+  const save1 = readSave(h);
+  assert.equal(save1.data.buildingOncePerDay[WELL_KEY + ':45'], 1,
+    'daily-марка дня 1');
+  // Повтор в тот же день — disabled.
+  key(h, 'KeyE');
+  const rowSame = findRow(findOverlay(h), '45');
+  assert.equal(rowSame.disabled, true, 'в тот же день — disabled');
+  assert.ok(textOf(rowSame).includes('уже использовано сегодня'),
+    'reason «уже использовано сегодня»: ' + textOf(rowSame));
+  key(h, 'Escape');
+  // ДЕНЬ 2: УСПЕХ (0.176420 < 0.35) — bread (golden).
+  g.actions.setDay(2);
+  key(h, 'KeyE');
+  assert.equal(findRow(findOverlay(h), '45').disabled, false,
+    'день 2 — доступно');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hud2 = String(h.hud.textContent);
+  assert.ok(hud2.includes(WELL_MSG_BREAD),
+    'hudFlash — предмет дня 2 (golden bread): ' + hud2);
+  assert.equal(qtyOf(g, 'bread'), 1,
+    'bread в инвентаре: 1');
+  assert.equal(qtyOf(g, 'honey_cake'), 1,
+    'honey_cake не растёт');
+  const save2 = readSave(h);
+  assert.equal(save2.data.buildingOncePerDay[WELL_KEY + ':45'], 2,
+    'марка → день 2');
+  // ДЕНЬ 3: ПРОВАЛ (0.676061 ≥ 0.35) — предмета нет, НО попытка
+  // сгорела: марка дня 3.
+  g.actions.setDay(3);
+  key(h, 'KeyE');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 600);
+  const hud3 = String(h.hud.textContent);
+  assert.ok(hud3.includes(WELL_MSG_WATER),
+    'hudFlash — провал «только вода.»: ' + hud3);
+  assert.equal(qtyOf(g, 'honey_cake'), 1,
+    'провал — предмета нет (honey_cake)');
+  assert.equal(qtyOf(g, 'bread'), 1,
+    'провал — предмета нет (bread)');
+  const save3 = readSave(h);
+  assert.equal(save3.data.buildingOncePerDay[WELL_KEY + ':45'], 3,
+    'провал — попытка сгорела: марка дня 3');
+});
+
+test('B27. колодец: инвентарь полон — отказ addItem БЕЗ марки, повтор в тот же день → тот же предмет (детерминизм)', async () => {
+  // thief 4 → chance 0.35; день 1 (golden) — honey_cake. Инвентарь
+  // полон (20×wood_sword, non-stackable, INVENTORY_SLOTS=20):
+  // addItem → «нет свободных слотов инвентаря» (проверка слотов —
+  // ПЕРЕД весом).
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: -75, y: 15 },
+    hero: mkHero({ secondary: { thief: 4 } }),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  // ИНВЕНТАРЬ ПОЛОН — in-place мутация ЖИВОГО массива:
+  // g.state.hero.inventory — сам hero.inventory.slots (debug-хук
+  // main.js); pre-seed не подходит: sanitizeInventory на restore
+  // слиял бы 20×wood_sword в ОДИН слот qty 20.
+  const slots = g.state.hero.inventory;
+  assert.ok(Array.isArray(slots),
+    'инвентарь — живой массив слотов (debug-хук)');
+  slots.length = 0;
+  for (let i = 0; i < 20; i++) slots.push({ id: 'wood_sword', qty: 1 });
+  assert.equal(slots.length, 20, 'инвентарь: 20 слотов (полон)');
+  // Digit1 — ДЕНЬ 1: на дне honey_cake (успех), НО addItem — отказ.
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 200);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes(WELL_MSG_FULL),
+    'hudFlash — отказ addItem (reason из items.js): ' + hud1);
+  assert.equal(qtyOf(g, 'honey_cake'), 0,
+    'предмет НЕ добавлен');
+  const save1 = readSave(h);
+  const m1 = save1 == null ? null : save1.data.buildingOncePerDay;
+  assert.ok(m1 == null || m1[WELL_KEY + ':45'] == null,
+    'отказ спец-а → БЕЗ марки (повтор в тот же день)');
+  // Освобождение слота (in-place) → повтор ТИМ ЖЕ ДЕНЬ:
+  // доступно (марки нет) → УСПЕХ, тот же honey_cake (детерминизм
+  // по (tile, day)).
+  slots.pop();
+  assert.equal(slots.length, 19, 'инвентарь: 19 слотов (один свободен)');
+  key(h, 'KeyE');
+  const row = findRow(findOverlay(h), '45');
+  assert.ok(row, 'строка «45» в оверлее (red: записи нет)');
+  assert.equal(row.disabled, false,
+    'повтор в тот же день — доступно (без марки)');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hud2 = String(h.hud.textContent);
+  assert.ok(hud2.includes(WELL_MSG_HONEY),
+    'hudFlash — тот же honey_cake (день 1, детерминизм): ' + hud2);
+  assert.equal(qtyOf(g, 'honey_cake'), 1,
+    'honey_cake добавлен: 1');
+  const save2 = readSave(h);
+  assert.equal(save2.data.buildingOncePerDay[WELL_KEY + ':45'], 1,
+    'успех — марка дня 1');
 });
