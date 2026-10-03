@@ -314,6 +314,15 @@
   // (объединение множеств); лимита раз-в-день НЕТ (взгляд бесплатен,
   // ТЗ). МИНИКАРТА — отсрочена (данные — заготовка).
   const explored = new Map();
+  // «Ежедневный контент» построек (задача 000077: круг 43 / храм
+  // 39): 'x,y' тайла → { day: integer≥1, type: 'chest'|'boss'|
+  // 'relic' } — результат последнего ролла (лут НЕ храним — повтор
+  // «молчит», содержимое выдано, R-5). ОБЩИЙ раздел для всех
+  // «ежедневных» эффектов (контракт — memory/000077-daily-content.
+  // md); имя зафиксировано резервом 000072. Запись — спец-хендлер
+  // src/building-content.js (ЖИВАЯ ссылка через world); «раз в
+  // день» — отдельно, buildingOncePerDay (backstop).
+  const buildingContent = new Map();
   // Задача 000076: модификаторы активных благословений на текущий
   // день (day.js buffMods, 000072) — для точек создания боя:
   // благословение действует во ВСЕХ боях дня (мир/подземелье/
@@ -398,6 +407,14 @@
       // поднимаем, миграций нет.
       explored: (G.buildingEffects && G.buildingEffects.serializeExplored)
         ? G.buildingEffects.serializeExplored(explored) : {},
+      // Задача 000077: «ежедневный контент» построек (круг 43 /
+      // храм 39) — 'x,y' → { day, type }. Неломкое расширение v1
+      // (000031): версию НЕ поднимаем; старого сейва без раздела —
+      // пустой Map, без warn (паттерн raw == null).
+      buildingContent: (G.buildingEffects &&
+        G.buildingEffects.serializeBuildingContent)
+        ? G.buildingEffects.serializeBuildingContent(buildingContent)
+        : {},
     };
   }
 
@@ -653,6 +670,46 @@
       console.warn('Сейв: не удалось восстановить explored:', err);
     }
 
+    // --- «Ежедневный контент» построек (buildingContent,
+    // задача 000077: круг 43 / храм 39) ---
+    // 'x,y' → { day, type: 'chest'|'boss'|'relic' } — результат
+    // последнего ролла. restoreBuildingContent сам отбрасывает
+    // мусорные ЗАПИСИ (000029, паттерн 000072/75); дополнительно:
+    // запись с днём позже дня мира — подделанный сейв, ОТБРОС
+    // (+warn) (000031: дни абсолютные); день < дня мира — НОРМА,
+    // храним (повтор блокируется только в тот же день — новый
+    // ролл дня D+1 не затираем). Старого сейва без раздела —
+    // пусто, без warn (паттерн raw == null).
+    try {
+      const rawBC = d.buildingContent;
+      if (rawBC != null) {
+        if (typeof rawBC !== 'object' || Array.isArray(rawBC)) {
+          console.warn(
+            'Сейв: раздел buildingContent некорректен — сбрасываю.');
+          buildingContent.clear();
+        } else if (G.buildingEffects &&
+                   G.buildingEffects.restoreBuildingContent) {
+          const mBC = G.buildingEffects.restoreBuildingContent(rawBC);
+          for (const [k, v] of mBC) {
+            if (Number.isInteger(v.day) && v.day > clock.day) {
+              console.warn('Сейв: запись buildingContent ' + k +
+                ' с днём ' + v.day + ' > дня мира ' + clock.day +
+                ' — отбрасываю.');
+            } else {
+              buildingContent.set(k, v);
+            }
+          }
+          if (mBC.size === 0 && Object.keys(rawBC).length > 0) {
+            console.warn(
+              'Сейв: buildingContent — валидных записей нет — ' +
+              'сбрасываю.');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить buildingContent:', err);
+    }
+
     // --- Позиция ---
     try {
       const p = d.position;
@@ -782,9 +839,14 @@
   function playerRender() {
     G.playerUI && G.playerUI.render();
   }
-  // Отладочный бой на текущем тайле (одна точка истины: делегация
-  // __game.actions.startCombat ниже; тело — 1:1).
-  function startCombatAt(groupType = 0) {
+  // Бой на текущем тайле (одна точка истины мир-боя: делегация
+  // __game.actions.startCombat ниже; тело — 1:1). extra (задача
+  // 000077): { seed } — детерминированный боевой сид (босс
+  // «ежедневного контента» — BOSS_COMBAT_SEED по (tile, day));
+  // ОДНОАРГУМЕНТНЫЕ вызовы (debug-бой, делегация) — БЕЗ ИЗМЕНЕНИЙ
+  // (seed 42). Новые боевые точки — расширяют extra, НЕ создают
+  // параллельных функций (контракт 000077 R-8).
+  function startCombatAt(groupType = 0, extra = null) {
     if (G.combatUI && G.combatUI.isActive()) return null;
     // Тот же паттерн, что и в боях мира/подземелья (000096):
     // после отладочного боя полноэкранная панель не должна
@@ -792,6 +854,10 @@
     if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
     // Стек оверлеев (000071): оверлей действий под боем — закрыть.
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
+    // Бой «на текущем тайле»: prev = тайл, на котором герой стоит
+    // (у мира — prevPos, тайл, с которого зашёл; здесь герой в бою не
+    // сдвигается, поэтому «возврат» при не-победе — на тот же тайл).
+    const prev = { x: player.x, y: player.y };
     return G.combatUI.startCombat({
       hero,
       // Эфир (задача 000081): постоянный союзник — ВСЕГДА, включая
@@ -803,18 +869,50 @@
       // фолбэк plain.svg.
       terrain: map ? map.tileAt(player.x, player.y).terrain : undefined,
       spriteLoader,
-      prev: { x: player.x, y: player.y },
-      seed: 42,
+      prev,
+      // Задача 000077: боевой сид из extra (босс «ежедневного
+      // контента»); без extra — 42 (поведение БЕЗ ИЗМЕНЕНИЙ).
+      seed: (extra && extra.seed != null) ? extra.seed : 42,
       day: clock.day,
       // Задача 000076: активные благословения — во ВСЕХ боях дня.
       buffMods: currentBuffMods(),
+      // onEnd 1:1 с боем мира (000077, ревью): победа — flash +
+      // квесты kill_group; смерть — подъём (половина HP, −20% золота —
+      // полная система смерти 000008) + flash; побег — flash. Не-победа
+      // — возврат на точку боя (prev — текущий тайл). saveNow —
+      // существующая пост-боевая точка сейва (ТЗ: «сейв после боя —
+      // существующие точки saveNow»): без него перемены героя после
+      // босс-боя фиксировались бы только следующей точкой сейва.
       onEnd: (res) => {
         // Лут/опыт уже начислены в ядре (checkVictory).
-        // Квесты: kill_group (задача 000010).
-        if (res && res.outcome === 'victory' && questBook && G.notifyGroupDefeated) {
-          G.notifyGroupDefeated(NPCS, questBook, groupType);
+        if (res && res.outcome === 'victory') {
+          // Квесты: kill_group (задача 000010).
+          if (questBook && G.notifyGroupDefeated) {
+            G.notifyGroupDefeated(NPCS, questBook, groupType);
+          }
+          hudFlash = `Победа! +${res.xp} опыта, +${res.gold} золота.`;
+        } else if (res && res.outcome === 'dead') {
+          // Подъём: половину HP, −20% золота (полная система смерти —
+          // 000008).
+          hero.alive = true;
+          hero.hp = Math.max(1, Math.round(G.derived(hero).maxHP / 2));
+          hero.gold = Math.floor(hero.gold * 0.8);
+          hudFlash = 'Вы очнулись. −20% золота.';
+        } else {
+          hudFlash = 'Вы ушли от боя.';
+        }
+        // Побег и смерть: назад на тайл, где начался бой (1:1 с боем
+        // мира; здесь prev — текущий тайл, герой остаётся на месте).
+        if (res && res.outcome !== 'victory') {
+          player.x = prev.x;
+          player.y = prev.y;
+          // Снап (000033): иначе спрайт будет скользить обратно через
+          // поле боя.
+          if (mover) mover.teleport(player.x, player.y);
         }
         G.playerUI && G.playerUI.render();
+        hudFlashUntil = performance.now() + 5000;
+        saveNow();
       },
     });
   }
@@ -845,6 +943,7 @@
       roster, // live Array (000083/000085): отряд — npcUI.open
       deadMercs, // live Array [npcId] (000083/000085)
       explored, // live Map 'x,y' → Set<'x,y'> (000093)
+      buildingContent, // live Map 'x,y' → { day, type } (000077)
       playerRender,
       moveHero,
       startCombat: startCombatAt,

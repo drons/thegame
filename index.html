@@ -662,6 +662,12 @@
        тегом и main.js — спец-модули (000077/000091–95) и hud.js
        (000129). -->
   <script src="src/building-actions.js"></script>
+  <!-- Ежедневный контент (задача 000077: круг 43 / храм 39):
+       спец-модуль (000128 §2.3) — саморегистрация хендлера на ОБА id
+       в момент загрузки: ПОСЛЕ building-actions.js (нужен
+       registerSpecial), ДО main.js (UMD-ловушка 000038). Пин порядка
+       — tests/index-order.test.js. -->
+  <script src="src/building-content.js"></script>
   <!-- HUD (задача 000129, разбиение main.js 3/4): строки мира/
        подземелья/города. После building-actions.js (доменная группа
        серии 000127→000130), ДО main.js (UMD-ловушка 000038: main.js

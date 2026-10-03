@@ -130,21 +130,35 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // Пин «кто смержился первым» (memory/000075-teleport-circles.md):
   // смержены 000075 ('41'), 000076 ('36'/'37'/'38') и 000074
   // ('40'/'42'); 000093 добавляет '46' (смотровая башня,
-  // memory/000093-explored-tower.md); 000077 ('39') и
-  // 000091/92/94/95 расширят список при своих мержах (правка при
-  // ребейзе: union, memory/000076-temple-blessings.md /
-  // 000074-rune-stone-obelisk.md).
-  assert.deepEqual(Object.keys(BE.EFFECTS).sort(),
-    ['36', '37', '38', '40', '41', '42', '46'],
-    'реестр: 000075 (41) + 000076 (36/37/38) + 000074 (40/42) + ' +
-    '000093 (46)');
+  // memory/000093-explored-tower.md); 000077 добавляет '39' (храм)
+  // и '43' (круг); 000091/92/94/95 расширят список при своих
+  // мержах (правка при ребейзе: union,
+  // memory/000076-temple-blessings.md / 000074-rune-stone-obelisk.md
+  // / 000077-building-content.md §8). Форм-пин — ЧЛЕНСТВО
+  // (отклонение от точного deepEqual: точный union не замкнулся бы
+  // до мержей 000091–000095, добавляющих собственные записи):
+  //   * все смерженные записи НА МЕСТЕ (анти-дрейф при ребейзе);
+  //   * чужих id НЕТ (параллельные P3 не затирают состав).
+  // Присутствие '39'/'43' — закреплён A59 (красный до 000077).
+  // Ребейз 000077 на мастер (2026-10-03): union += '46' (000093) —
+  // пин регенерирован по фактическому коду.
+  const MERGED = ['36', '37', '38', '40', '41', '42', '46'];
+  const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '46'];
+  const regKeys = Object.keys(BE.EFFECTS);
+  for (const id of MERGED) {
+    assert.ok(regKeys.includes(id),
+      'реестр: смерженная запись «' + id + '» на месте');
+  }
+  for (const id of regKeys) {
+    assert.ok(UNION.includes(id),
+      'реестр: чужой id «' + id + '» (union 000074/000075/000076/' +
+      '000077/000093)');
+  }
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
     assert.equal(typeof BE.EFFECTS[id].apply, 'function',
       id + ': apply(state)');
   }
-  assert.equal(Object.prototype.hasOwnProperty.call(BE.EFFECTS, '39'),
-    false, '39 (заброшенный храм) — задача 000077, не в реестре');
   for (const m of ['buildingActions', 'effectIds', 'hasEffects',
     'hasDailyLimit', 'linkTeleportCircles', 'teleportDestination',
     'teleportCharge', 'serializeTeleports', 'restoreTeleports',
@@ -2209,6 +2223,423 @@ test('A64. markExplored: towerKey/R — программные ошибки → 
     'R отрицательный — throw');
 });
 
+// --- Задача 000077: «ежедневный контент» круга (43) / храма (39) ---
+// Единый механизм: один детерминированный ролл по (tile, day)
+// РАЗ В ДЕНЬ → 'chest'|'boss'|'relic' (доли — каталог
+// особые_параметры.эффект.доли) → мир-эффект → запись в раздел
+// сейва buildingContent ('x,y' → { day, type }). Контракты:
+// memory/000077-building-content.md (§2 сиды, §3 сейв, §7 тексты),
+// переиспользуемый контракт — memory/000077-daily-content.md.
+
+test('A55. 000077: экспорты building-effects — 4 чистые (tile,day)-функции + serialize/restore + 4 ASCII-сида', () => {
+  const BE = loadBE();
+  // ASCII-сиды (контракт 000077 §2: НЕ GLOBAL_SEED; экспорт — для
+  // golden-пинов, паттерн TELEPORT_TIE_SEED 000075).
+  assert.equal(BE.CONTENT_ROLL_SEED, 0x434f4e54,
+    'CONTENT_ROLL_SEED = 0x434f4e54 ("CONT")');
+  assert.equal(BE.CHEST_LOOT_SEED, 0x43484553,
+    'CHEST_LOOT_SEED = 0x43484553 ("CHES")');
+  assert.equal(BE.BOSS_COMBAT_SEED, 0x424f5353,
+    'BOSS_COMBAT_SEED = 0x424f5353 ("BOSS")');
+  assert.equal(BE.RELIC_ITEM_SEED, 0x52454c49,
+    'RELIC_ITEM_SEED = 0x52454c49 ("RELI")');
+  for (const m of ['rollBuildingContent', 'chestLoot', 'bossGroup',
+    'relicItem', 'serializeBuildingContent', 'restoreBuildingContent']) {
+    assert.equal(typeof BE[m], 'function',
+      'BE.' + m + ' — функция (red: отсутствует)');
+  }
+});
+
+test('A56. 000077: rollBuildingContent — доли каталога 60/30/10 на N=10000 (tile,day) ±2%', () => {
+  const BE = loadBE();
+  const PL = require('../src/perlin.js');
+  const B = require('../src/buildings.js');
+  assert.equal(typeof BE.rollBuildingContent, 'function',
+    'rollBuildingContent(x, y, day, доли, hash) (red: отсутствует)');
+  const доли = B.getBuilding(43).особые_параметры.эффект.доли;
+  assert.ok(доли && typeof доли === 'object' && !Array.isArray(доли),
+    'каталог 43: эффект.доли — объект (red: эффект — строка)');
+  const counts = { chest: 0, boss: 0, relic: 0, null: 0 };
+  const N = 10000;
+  // 10000 РАЗНЫХ (tile, day): x ∈ [0,100), y ∈ [1000,1100),
+  // day ∈ [1,400).
+  for (let i = 0; i < N; i++) {
+    const x = i % 100;
+    const y = 1000 + Math.floor(i / 100);
+    const day = 1 + (i % 400);
+    const t = BE.rollBuildingContent(x, y, day, доли, PL.hash2);
+    counts[t == null ? 'null' : t] += 1;
+  }
+  assert.equal(counts.null, 0, 'валидные доли — null нет');
+  for (const [type, key] of [['chest', 'сундук'], ['boss', 'босс'],
+    ['relic', 'реликвия']]) {
+    const expect = доли[key] * N;
+    const got = counts[type];
+    assert.ok(Math.abs(got - expect) <= 0.02 * N,
+      type + ': ' + got + '/' + N + ' ≠ доля ' + доли[key] +
+      ' ±2% (ожидалось ≈' + expect + ')');
+  }
+});
+
+test('A57. 000077: детерминизм — тот же (tile,day) → тот же тип+лут (две сессии); разные дни — различаются', () => {
+  const BE = loadBE();
+  const PL = require('../src/perlin.js');
+  const B = require('../src/buildings.js');
+  const D = require('../src/dungeon.js');
+  const eff = B.getBuilding(43).особые_параметры.эффект;
+  assert.ok(eff && typeof eff === 'object' && !Array.isArray(eff)
+    && Array.isArray(eff.реликвии),
+    'каталог 43: эффект { доли, реликвии } (red: эффект — строка)');
+  const доли = eff.доли;
+  const relics = eff.реликвии;
+  const table0 = D.DUNGEON_ITEMS[0];
+  const cases = [[5, 7, 1], [-42, -31, 2], [4, 3, 3]];
+  // Формулы (контракт §2): roll = hash(x,y,seed^day)/2^32
+  // (deterministicRoll, CONTENT_ROLL_SEED); лут/реликвия —
+  // pickFragment-паттерн; босс — ЧИСЛО hash (боевой сид).
+  const t1 = (x, y, d) => BE.rollBuildingContent(x, y, d, доли, PL.hash2);
+  const l1 = (x, y, d) => BE.chestLoot(x, y, d, table0, PL.hash2);
+  const b1 = (x, y, d) => BE.bossGroup(x, y, d, PL.hash2);
+  const r1 = (x, y, d) => BE.relicItem(x, y, d, relics, PL.hash2);
+  // Две независимые сессии (свежий require после очистки кэша —
+  // паттерн A47): тот же результат — скрытого состояния НЕТ.
+  delete require.cache[require.resolve('../src/building-effects.js')];
+  const BE2 = loadBE();
+  for (const [x, y, day] of cases) {
+    assert.equal(t1(x, y, day),
+      BE2.rollBuildingContent(x, y, day, доли, PL.hash2),
+      '(' + x + ',' + y + ', день ' + day + '): тип');
+    assert.equal(l1(x, y, day),
+      BE2.chestLoot(x, y, day, table0, PL.hash2),
+      '(' + x + ',' + y + ', день ' + day + '): лут сундука');
+    assert.equal(b1(x, y, day),
+      BE2.bossGroup(x, y, day, PL.hash2),
+      '(' + x + ',' + y + ', день ' + day + '): боевой сид');
+    assert.equal(r1(x, y, day),
+      BE2.relicItem(x, y, day, relics, PL.hash2),
+      '(' + x + ',' + y + ', день ' + day + '): реликвия');
+  }
+  // Разные (tile, day) — не все типы совпадают (день ВКЛЮЧЁН в
+  // сид: день D+1 — НОВЫЙ ролл, может отличаться).
+  const types = new Set();
+  for (let d = 1; d <= 60; d++) {
+    types.add(BE.rollBuildingContent(5, 7, d, доли, PL.hash2));
+  }
+  assert.ok(types.size >= 2,
+    'разные (tile,day) — типы различаются (60 дней)');
+});
+
+test('A58. 000077: каталог 39/43 — эффект-объект { доли, реликвии } + раз_в_день (39) + зеркало buildings.js', () => {
+  const B = require('../src/buildings.js');
+  const j39 = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'assets', 'buildings', '000039.json'), 'utf8'));
+  const j43 = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'assets', 'buildings', '000043.json'), 'utf8'));
+  // 8 СУЩЕСТВУЮЩИХ id (контракт §6; новых предметов НЕТ — ТЗ).
+  const RELICS = [
+    'phoenix_feather', 'heavy_tome', 'stone_fist_grimoire',
+    'knight_plate', 'moonstone', 'fire_spellbook', 'ice_spellbook',
+    'iron_hide_tome',
+  ];
+  const itemIds = new Set();
+  for (const f of fs.readdirSync(path.join(ROOT, 'assets', 'items'))) {
+    if (f.endsWith('.json')) {
+      itemIds.add(JSON.parse(fs.readFileSync(
+        path.join(ROOT, 'assets', 'items', f), 'utf8')).id);
+    }
+  }
+  const checkEff = (eff, name) => {
+    assert.ok(eff && typeof eff === 'object' && !Array.isArray(eff),
+      name + ': эффект — объект (red: 39 — поля нет / 43 — строка)');
+    assert.deepEqual(eff.доли,
+      { сундук: 0.6, босс: 0.3, реликвия: 0.1 },
+      name + ': доли 60/30/10 (ТЗ)');
+    assert.ok(Array.isArray(eff.реликвии) && eff.реликвии.length === 8,
+      name + ': реликвии — массив 8 id');
+    assert.deepEqual([...eff.реликвии].sort(), [...RELICS].sort(),
+      name + ': реликвии — 8 фиксированных id (контракт §6)');
+    for (const id of eff.реликвии) {
+      assert.ok(itemIds.has(id),
+        name + ': реликвия «' + id + '» ∈ assets/items');
+    }
+  };
+  checkEff(j43.особые_параметры.эффект, '43');
+  assert.equal(j43.особые_параметры.раз_в_день, true,
+    '43: раз_в_день — true (было)');
+  assert.equal(j39.особые_параметры.раз_в_день, true,
+    '39: раз_в_день — true (red: поля нет)');
+  checkEff(j39.особые_параметры.эффект, '39');
+  assert.equal(j39.особые_параметры.даёт,
+    'случайный контент: ловушки, босс, реликвия',
+    '39: «даёт» сохранён (потребителей нет — не трогаем)');
+  // Зеркало src/buildings.js — регенерация npm run sync:buildings
+  // (паттерн A43: deepEqual с каталогом).
+  assert.deepEqual(B.getBuilding(39), j39, 'зеркало 39: buildings.js ≡ JSON');
+  assert.deepEqual(B.getBuilding(43), j43, 'зеркало 43: buildings.js ≡ JSON');
+});
+
+test('A59. 000077: реестр — записи «39» (Храм) и «43» (Круг); buildingActions — строки по каталогу', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  assert.ok(Object.prototype.hasOwnProperty.call(BE.EFFECTS, '43'),
+    'запись «43» в реестре (red: нет)');
+  assert.ok(Object.prototype.hasOwnProperty.call(BE.EFFECTS, '39'),
+    'запись «39» в реестре (red: нет)');
+  assert.equal(BE.EFFECTS['43'].имя, 'Круг', '43: имя «Круг» (ТЗ)');
+  assert.equal(BE.EFFECTS['39'].имя, 'Храм', '39: имя «Храм» (ТЗ)');
+  for (const id of ['39', '43']) {
+    assert.equal(typeof BE.EFFECTS[id].available, 'function',
+      id + ': available(st) — по СНИМКУ сейва');
+    assert.equal(typeof BE.EFFECTS[id].apply, 'function',
+      id + ': apply(st) — чистый');
+  }
+  // buildingActions: по каталожным записям (NPC нет) — строка
+  // эффекта, доступна (день 1, записей нет).
+  const row43 = BE.buildingActions(B.getBuilding(43), null, makeState());
+  assert.equal(row43.length, 1, '43: ровно одна строка (эффект)');
+  assert.equal(row43[0].id, '43');
+  assert.equal(row43[0].имя, 'Круг');
+  assert.equal(row43[0].доступен, true, '43: день 1 — доступно');
+  const row39 = BE.buildingActions(B.getBuilding(39), null, makeState());
+  assert.equal(row39.length, 1, '39: ровно одна строка (эффект)');
+  assert.equal(row39[0].id, '39');
+  assert.equal(row39[0].имя, 'Храм');
+  assert.equal(row39[0].доступен, true, '39: день 1 — доступно');
+});
+
+test('A60. 000077: повтор в тот же день — «круг молчит: содержимое уже получено»; день D+1 / нет записи — новый ролл (ok:true)', () => {
+  const BE = loadBE();
+  const PL = require('../src/perlin.js');
+  const B = require('../src/buildings.js');
+  const D = require('../src/dungeon.js');
+  const I = require('../src/items.js');
+  const c43 = B.getBuilding(43);
+  const c39 = B.getBuilding(39);
+  assert.ok(BE.EFFECTS['43'] && BE.EFFECTS['39'],
+    'записи «43»/«39» в реестре (red: нет)');
+  const eff43 = c43.особые_параметры.эффект;
+  assert.ok(eff43 && typeof eff43 === 'object' && Array.isArray(eff43.реликвии),
+    'каталог 43: эффект { доли, реликвии } (red: строка)');
+  // state.map — как в пайплайне (контракт §2 R-4): terrain тайла +
+  // альфа pixelAt (fallback 255). terrain 3 (песок/трава-класс) →
+  // тип подземелья 0 (CAVE).
+  const mapFake = {
+    tileAt: () => ({ terrain: 3 }),
+    pixelAt: () => [0, 0, 0, 142],
+  };
+  const G = {
+    hash2: PL.hash2,
+    dungeonTypeFor: D.dungeonTypeFor,
+    DUNGEON_ITEMS: D.DUNGEON_ITEMS,
+    getItem: I.getItem,
+  };
+  const st43 = (day, save) => makeState({
+    day, tile: { x: 5, y: 7 }, hero: mkHero(), save,
+    catalog: c43, map: mapFake,
+  });
+  const st39 = (day, save) => makeState({
+    day, tile: { x: -42, y: -31 }, hero: mkHero(), save,
+    catalog: c39, map: mapFake,
+  });
+  withGame(G, () => {
+    // Повтор: запись с day === СЕГОДНЯ → reason-строка ТЗ
+    // (available ПЕРВЫМ, ДО daily-лимита — пайплайн 000128).
+    const same = st43(3, { buildingContent: { '5,7': { day: 3, type: 'chest' } } });
+    assert.equal(BE.EFFECTS['43'].available(same),
+      'круг молчит: содержимое уже получено',
+      '43: повтор в тот же день — reason (ТЗ-текст)');
+    const rowSame = BE.buildingActions(c43, null, same)[0];
+    assert.equal(rowSame.доступен, false, 'строка — disabled');
+    assert.equal(rowSame.reason,
+      'круг молчит: содержимое уже получено',
+      'строка: reason — ТЗ-текст (НЕ «уже использовано сегодня»)');
+    // 39 — ОБЩИЙ механизм: та же строка.
+    const same39 = st39(3, { buildingContent: { '-42,-31': { day: 3, type: 'boss' } } });
+    assert.equal(BE.EFFECTS['39'].available(same39),
+      'круг молчит: содержимое уже получено',
+      '39: повтор — тот же ТЗ-текст');
+    // День D+1 — запись НЕ блокирует (сравнение rec.day === today).
+    const next = st43(4, { buildingContent: { '5,7': { day: 3, type: 'chest' } } });
+    const aNext = BE.EFFECTS['43'].available(next);
+    assert.ok(aNext && typeof aNext !== 'string',
+      'день D+1 — доступно (не reason-строка)');
+    // Записи нет — доступно.
+    const aFresh = BE.EFFECTS['43'].available(st43(1, {}));
+    assert.ok(aFresh && typeof aFresh !== 'string', 'без записи — доступно');
+    // apply: новый ролл — ok:true, type ∈ {chest,boss,relic};
+    // сообщения — в apply (контракт §7); снимок НЕ мутирует.
+    const snap = { buildingContent: {} };
+    const snapBefore = JSON.stringify(snap);
+    const seen = new Set();
+    for (let day = 1; day <= 200; day++) {
+      const r = BE.EFFECTS['43'].apply(st43(day, snap));
+      assert.equal(r.ok, true, 'день ' + day + ': ok:true');
+      assert.ok(['chest', 'boss', 'relic'].includes(r.type),
+        'день ' + day + ': type — «' + r.type + '»');
+      seen.add(r.type);
+      if (r.type === 'chest') {
+        const type = D.dungeonTypeFor(3, 142);
+        assert.ok(D.DUNGEON_ITEMS[type].includes(r.item),
+          'сундук: предмет «' + r.item + '» ∈ таблицы типа ' + type);
+        assert.ok(/^Круг: сундук — „.+“\.$/.test(r.message),
+          'сундук: message «Круг: сундук — „<название>“.»: ' + r.message);
+      } else if (r.type === 'boss') {
+        assert.equal(typeof r.seed, 'number',
+          'босс: боевой сид — ЧИСЛО (opts.seed createCombat)');
+        assert.equal(r.message, 'Круг: босс — к бою!',
+          'босс: message (контракт §7)');
+      } else {
+        assert.ok(eff43.реликвии.includes(r.item),
+          'реликвия: «' + r.item + '» ∈ эффект.реликвии');
+        assert.ok(/^Круг: реликвия — „.+“\.$/.test(r.message),
+          'реликвия: message «Круг: реликвия — „<название>“.»: ' + r.message);
+      }
+    }
+    assert.ok(seen.has('chest') && seen.has('boss') && seen.has('relic'),
+      '200 дней: все три типа выпали (60/30/10)');
+    assert.equal(JSON.stringify(snap), snapBefore,
+      'apply ЧИСТ (000071): снимок сейва не мутирован');
+  });
+});
+
+test('A61. 000077: босс — рецепт BUILDING_BOSS (1–3 troll) + createCombat по (tile,day)-сиду', () => {
+  const BE = loadBE();
+  const PL = require('../src/perlin.js');
+  const C = require('../src/combat.js');
+  // Рецепт — в КОДЕ, не каталоге (R-2: схема 000057 запрещает
+  // 1–3 моба; 8-я группа ломала бы карты).
+  const r = C.GROUP_RECIPES.BUILDING_BOSS;
+  assert.ok(r, 'GROUP_RECIPES.BUILDING_BOSS (red: рецепт не добавлен)');
+  assert.equal(typeof r.name, 'string', 'name — string');
+  assert.ok(Array.isArray(r.mobs) && r.mobs.length >= 1,
+    'mobs — массив id');
+  for (const id of r.mobs) {
+    assert.ok(C.MOB_TYPES[id], 'mobs: «' + id + '» ∈ MOB_TYPES');
+  }
+  assert.deepEqual(r.count, [1, 3],
+    'count [1,3] (каталожные 2..6 — не для босса)');
+  // Боевой сид — ЧИСЛО по (tile, day) (BOSS_COMBAT_SEED).
+  const seed = BE.bossGroup(5, 7, 1, PL.hash2);
+  assert.equal(typeof seed, 'number', 'bossGroup → числовой боевой сид');
+  assert.ok(Number.isFinite(seed), 'сид — finite');
+  // Smoke: groupType-путь — тот, что использует игра (контракт §5):
+  // recipe найден СТРОКОВЫМ ключом; rng — mulberry32(seed).
+  const hero = mkHero();
+  const c = C.createCombat({ player: hero, groupType: 'BUILDING_BOSS', seed: 7 });
+  assert.ok(c.units.length >= 1 && c.units.length <= 3,
+    'состав 1–3 моба: ' + c.units.length);
+  for (const u of c.units) {
+    assert.ok(C.MOB_TYPES[u.mobId], 'моб «' + u.mobId + '» ∈ MOB_TYPES');
+    assert.ok(u.level >= 1, 'уровень ≥ 1');
+  }
+  // Детерминизм: тот же seed → тот же состав [mobId, level]
+  // (стандартные формулы ядра, НЕ собственные).
+  const c2 = C.createCombat({ player: hero, groupType: 'BUILDING_BOSS', seed: 7 });
+  assert.deepEqual(
+    c.units.map((u) => [u.mobId, u.level]),
+    c2.units.map((u) => [u.mobId, u.level]),
+    'тот же seed — тот же состав босса');
+});
+
+test('A62. 000077: сундук — id ∈ DUNGEON_ITEMS[type]; реликвия — id ∈ эффект.реликвии ∩ assets/items; мусор → null', () => {
+  const BE = loadBE();
+  const PL = require('../src/perlin.js');
+  const B = require('../src/buildings.js');
+  const D = require('../src/dungeon.js');
+  const eff = B.getBuilding(43).особые_параметры.эффект;
+  assert.ok(eff && typeof eff === 'object' && !Array.isArray(eff)
+    && Array.isArray(eff.реликвии),
+    'каталог 43: эффект { доли, реликвии } (red: эффект — строка)');
+  const itemIds = new Set();
+  for (const f of fs.readdirSync(path.join(ROOT, 'assets', 'items'))) {
+    if (f.endsWith('.json')) {
+      itemIds.add(JSON.parse(fs.readFileSync(
+        path.join(ROOT, 'assets', 'items', f), 'utf8')).id);
+    }
+  }
+  // Сундук: 5 типов подземелий × 50 (tile,day) — id ∈ таблицы
+  // типа ∩ assets/items (таблицы передаёт ВЫЗЫВАЮЩИЙ — чистота).
+  for (let type = 0; type < 5; type++) {
+    const table = D.DUNGEON_ITEMS[type];
+    assert.ok(Array.isArray(table) && table.length > 0,
+      'DUNGEON_ITEMS[' + type + '] — непустая таблица');
+    for (let i = 0; i < 50; i++) {
+      const x = i % 10;
+      const y = 2000 + type * 10 + Math.floor(i / 10);
+      const day = 1 + i;
+      const id = BE.chestLoot(x, y, day, table, PL.hash2);
+      assert.ok(typeof id === 'string' && table.includes(id)
+        && itemIds.has(id),
+        'chestLoot(тип ' + type + ') → «' + id + '» ∈ таблицы ∩ items');
+    }
+  }
+  // Реликвия: 50 (tile,day) — id ∈ эффект.реликвии ∩ assets/items.
+  for (let i = 0; i < 50; i++) {
+    const id = BE.relicItem(i % 10, 3000 + Math.floor(i / 10), 1 + i,
+      eff.реликвии, PL.hash2);
+    assert.ok(eff.реликвии.includes(id) && itemIds.has(id),
+      'relicItem → «' + id + '» ∈ эффект.реликвии ∩ items');
+  }
+  // Мусорные входы → null БЕЗ исключения (fail-open; apply сам
+  // деградирует «недоступно»).
+  assert.equal(BE.chestLoot(5, 7, 1, null, PL.hash2), null,
+    'null-таблица → null');
+  assert.equal(BE.chestLoot(5, 7, 1, [], PL.hash2), null,
+    'пустая таблица → null');
+  assert.equal(BE.relicItem(5, 7, 1, 'мусор', PL.hash2), null,
+    'не-массив реликвий → null');
+  assert.equal(BE.relicItem(5, 7, 1, [], PL.hash2), null,
+    'пустые реликвии → null');
+  assert.equal(BE.rollBuildingContent(5, 7, 1, null, PL.hash2), null,
+    'null-доли → null');
+  assert.equal(BE.rollBuildingContent(5, 7, 1,
+    { сундук: NaN, босс: 0.3, реликвия: 0.7 }, PL.hash2), null,
+    'не-finite доля → null');
+});
+
+test('A63. 000077: buildingContent — serialize/restore (roundtrip) + fail-open (мусор — отброс, игра не падает)', () => {
+  const BE = loadBE();
+  // Форма зафиксирована (ТЗ/контракт §3): 'x,y' →
+  // { day: integer ≥ 1, type: 'chest'|'boss'|'relic' }.
+  const m = new Map([
+    ['5,7', { day: 3, type: 'chest' }],
+    ['-42,-31', { day: 1, type: 'boss' }],
+  ]);
+  const s = BE.serializeBuildingContent(m);
+  assert.deepEqual(s, {
+    '5,7': { day: 3, type: 'chest' },
+    '-42,-31': { day: 1, type: 'boss' },
+  }, 'сериализация — plain-объект зафиксированной формы');
+  assert.deepEqual(BE.serializeBuildingContent(new Map()), {},
+    'пустой Map — {}');
+  const back = BE.restoreBuildingContent(s);
+  assert.ok(back instanceof Map, 'restore — Map');
+  assert.equal(back.size, 2, 'roundtrip: обе записи');
+  assert.deepEqual(back.get('5,7'), { day: 3, type: 'chest' });
+  assert.deepEqual(back.get('-42,-31'), { day: 1, type: 'boss' });
+  // Мусорный раздел (не-объект/массив) — пустой Map БЕЗ исключения
+  // (fail-open 000029; warn делает main.js).
+  for (const junk of ['мусор', [], null, undefined, 42]) {
+    assert.equal(BE.restoreBuildingContent(junk).size, 0,
+      'мусорный раздел — пустой Map');
+  }
+  // Мусорная ЗАПИСЬ — отброс записи, валидные выживают
+  // (ключ — XY_KEY_RE: целые, отрицательные — храм (-42,-31);
+  // type — whitelist).
+  const mixed = BE.restoreBuildingContent({
+    '5,7': { day: 3, type: 'chest' },
+    'junk-key': { day: 1, type: 'boss' },
+    '1,2': { day: 0, type: 'boss' },
+    '3,4': { day: 1.5, type: 'boss' },
+    '6,7': { day: 1, type: 'nope' },
+    '8,9': { day: 1 },
+    '10,11': 'мусор',
+    '12,13': null,
+  });
+  assert.equal(mixed.size, 1, 'выживает только валидная запись');
+  assert.deepEqual(mixed.get('5,7'), { day: 3, type: 'chest' });
+});
+
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
 //
 // Паттерн tests/save-restore.test.js: DOM/WebGL-стабы + МОК
@@ -3042,12 +3473,19 @@ test('B5. [E]: постройка без NPC и без эффектов — ни
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   const myMap = G.createMap(G.generateSeedPixels());
-  const found = findBuilding(G, myMap, g.state.player, false);
+  // 000077: первая постройка без NPC — (4,3), id 43 — ПОСЛЕ задачи
+  // ИМЕТЬ эффекты (круг) — предикат «без эффектов» исключает её
+  // (и 39/36–38/40/41/42): смысл («без NPC и без эффектов —
+  // ничего») сохраняется; цель — следующая постройка без эффектов
+  // (замерено: (36,-21), id 46).
+  const found = findBuilding(G, myMap, g.state.player, false,
+    (b) => !G.buildingEffects.hasEffects(b));
   assert.ok(found, 'сценарий: найдена достижимая постройка без NPC');
   walkTo(h, found.steps);
   frameAt(h, NOW + 200);
   const hudLine = String(h.hud.textContent);
-  // Реестр пуст — ни подсказки «[E] действия», ни «[E] диалог».
+  // Цель — без эффектов и без NPC: ни подсказки «[E] действия»,
+  // ни «[E] диалог».
   assert.ok(!hudLine.includes('[E] действия'),
     'без эффектов — подсказки «[E] действия» нет: ' + hudLine);
   assert.ok(!hudLine.includes('[E] диалог'),
@@ -4193,4 +4631,328 @@ test('B25. смотровая башня e2e: повторный «Взглян�
     undefined, 'маркировки раз-в-день нет (лимит НЕТ)');
   assert.equal(g.state.day, 1, 'день не сдвинулся (живо)');
   assert.equal(save2.data.day, 1, 'день сейва = 1');
+});
+
+// --- Задача 000077: «ежедневный контент» — wiring E2E (B24) ---
+// Золотые (детерминированный seed-мир, замерено):
+//   * круг id 43 — (4,3), 7 шагов от (0,0) (B3 golden);
+//   * храм id 39 — (-42,-31), 73 шага от (0,0).
+// Позиция PRE-SEED'ом на тайле (паттерн B21): ХОД к храму (73 шага)
+// при steps_per_day=40 СМЕНИЛ БЫ ДЕНЬ и сломал бы golden-исходы.
+// Босс: бой развязываем ТЕСТОВОЙ мутацией c.result = { outcome:
+// 'fled' } + handleCode('Space') (playerFlee — вероятностный;
+// finish() — стандартный). ПРИБАВИТЕЛЬНО: в бою main-loop
+// «замораживается» (последний rAF — tick боя), поэтому flash/HUD
+// НЕ ЧИТАЕМ, пока бой активен или после него (hud-флэш сундука/
+// реликвии проверяем ДО боя — main-loop жив).
+
+test('B24. круг (43) + храм (39) e2e: [E] «Круг»/«Храм» — ролл по (tile,day), предмет/бой, сейв buildingContent + daily-марка, повтор «молчит», день D+1 — новый ролл', async () => {
+  // --- Часть 1: круг (4,3), id 43 ---
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 4, y: 3 },
+    hero: mkHero(),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  // Голден: круг — (4,3), 7 шагов от спавна (BFS-пин).
+  const found = findBuilding(G, myMap, { x: 0, y: 0 }, false,
+    (b) => b.id === 43);
+  assert.ok(found, 'сценарий: достижимый круг (id 43)');
+  assert.equal(found.building.id, 43, 'запись резолвлена по buildingId');
+  assert.equal(found.tile.x, 4, 'golden: x круга');
+  assert.equal(found.tile.y, 3, 'golden: y круга');
+  assert.equal(found.steps.length, 7, 'golden: 7 шагов от спавна');
+  assert.equal(myMap.tileAt(4, 3).buildingId, 43, 'на тайле — круг');
+  assert.equal(g.state.player.x, 4, 'позиция сейва — круг (x)');
+  assert.equal(g.state.player.y, 3, 'позиция сейва — круг (y)');
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  // HUD: «[E] действия» — НОВОЕ поведение (red: у 43 нет эффектов
+  // → hasEffects false → хинта нет).
+  frameAt(h, NOW + 200);
+  const hud0 = String(h.hud.textContent);
+  assert.ok(hud0.includes('[E] действия'),
+    'топ-строка «([E] действия)» (red: нет хинта): ' + hud0);
+  // [E] → оверлей: строка «Круг».
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  const row = findRow(ov, '43');
+  assert.ok(row, 'строка 43 в оверлее (red: нет записи «43» → строки нет)');
+  assert.ok(textOf(row).includes('Круг'),
+    'имя строки: «Круг»: ' + textOf(row));
+  assert.equal(row.disabled, false, 'день 1 — доступно');
+  // Digit1 — ролл дня 1 по (tile,day).
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  // Сейв СРАЗУ: buildingContent['4,3'] = { day, type } + daily-марка.
+  const save1 = readSave(h);
+  assert.ok(save1, 'saveNow — сразу после действия');
+  const rec1 = save1.data.buildingContent
+    && save1.data.buildingContent['4,3'];
+  assert.ok(rec1, 'сейв: buildingContent[«4,3»] (red: раздела нет)');
+  assert.equal(rec1.day, 1, 'запись: день 1');
+  assert.ok(['chest', 'boss', 'relic'].includes(rec1.type),
+    'запись: тип контента «' + rec1.type + '»');
+  assert.equal(save1.data.buildingOncePerDay['4,3:43'], 1,
+    'daily-марка «4,3:43»');
+  if (rec1.type === 'boss') {
+    // Босс — бой СТАРТОВАН (стандартный поток), состав 1–3 troll.
+    assert.equal(G.combatUI.isActive(), true, 'босс — бой активен');
+    const c = G.combatUI.current();
+    // Мобы — БЕЗ союзников (Эфир — постоянный союзник 000081: в
+    // c.units после concat, side 'ally', без mobId — паттерн
+    // u.side === 'mob', tests/combat.test.js).
+    const mobs1 = c.units.filter((u) => u.side === 'mob');
+    assert.ok(mobs1.length >= 1 && mobs1.length <= 3,
+      'состав 1–3: ' + mobs1.length);
+    for (const u of mobs1) {
+      assert.equal(u.mobId, 'troll', 'босс — troll (рецепт BUILDING_BOSS)');
+    }
+    // Тестовая развязка (playerFlee — вероятностный).
+    if (!c.result) { c.phase = 'over'; c.result = { outcome: 'fled' }; }
+    G.combatUI.handleCode('Space');
+    assert.equal(G.combatUI.isActive(), false,
+      'бой закрыт (тестовая развязка)');
+  } else {
+    // Сундук/реликвия — предмет в инвентаре (старт — пустой) +
+    // flash (main-loop жив — боя нет).
+    frameAt(h, NOW + 400);
+    const hud1 = String(h.hud.textContent);
+    const slots = g.state.hero.inventory;
+    assert.equal(slots.length, 1, 'предмет выдан: ровно 1 слот');
+    const id = slots[0].id;
+    if (rec1.type === 'chest') {
+      // Таблица — ПО ТАЙЛУ (R-4): dungeonTypeFor(terrain, альфа).
+      const D = require('../src/dungeon.js');
+      const t = D.dungeonTypeFor(myMap.tileAt(4, 3).terrain,
+        myMap.pixelAt(4, 3)[3]);
+      assert.ok(D.DUNGEON_ITEMS[t].includes(id),
+        'сундук: «' + id + '» ∈ таблицы типа ' + t);
+      assert.ok(hud1.includes('Круг: сундук — „'),
+        'hudFlash «Круг: сундук — „…».: ' + hud1);
+    } else {
+      const B = require('../src/buildings.js');
+      const relics = B.getBuilding(43)
+        .особые_параметры.эффект.реликвии;
+      assert.ok(relics.includes(id),
+        'реликвия: «' + id + '» ∈ каталог 43 эффект.реликвии');
+      assert.ok(hud1.includes('Круг: реликвия — „'),
+        'hudFlash «Круг: реликвия — „…».: ' + hud1);
+    }
+  }
+  // Повтор в тот же день — disabled, ТЗ-строка; apply повторно НЕ
+  // вызывается (запись не изменилась).
+  key(h, 'KeyE');
+  const rowSame = findRow(findOverlay(h), '43');
+  assert.ok(rowSame, 'повтор: строка 43 в оверлее');
+  assert.equal(rowSame.disabled, true, 'повтор в тот же день — disabled');
+  assert.ok(textOf(rowSame)
+    .includes('круг молчит: содержимое уже получено'),
+    'reason (ТЗ-текст): ' + textOf(rowSame));
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
+  const saveSame = readSave(h);
+  assert.deepEqual(saveSame.data.buildingContent['4,3'], rec1,
+    'повтор — запись не изменилась (apply повторно не вызван)');
+  // День 2 — НОВЫЙ ролл (запись дня 1 не блокирует: rec.day !== 2).
+  g.actions.setDay(2);
+  key(h, 'KeyE');
+  const row2 = findRow(findOverlay(h), '43');
+  assert.equal(row2.disabled, false, 'день 2 — доступно');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  const save2 = readSave(h);
+  const rec2 = save2.data.buildingContent['4,3'];
+  assert.ok(rec2, 'день 2: запись есть');
+  assert.equal(rec2.day, 2, 'день 2: запись ПЕРЕЗАПИСАНА (ключ один)');
+  assert.ok(['chest', 'boss', 'relic'].includes(rec2.type),
+    'день 2: тип контента «' + rec2.type + '»');
+  assert.equal(save2.data.buildingOncePerDay['4,3:43'], 2,
+    'марка → день 2');
+  if (rec2.type === 'boss') {
+    assert.equal(G.combatUI.isActive(), true, 'день 2: босс — бой активен');
+    const c2 = G.combatUI.current();
+    const mobs2 = c2.units.filter((u) => u.side === 'mob');
+    assert.ok(mobs2.length >= 1 && mobs2.length <= 3,
+      'день 2: состав 1–3');
+    if (!c2.result) {
+      c2.phase = 'over'; c2.result = { outcome: 'fled' };
+    }
+    G.combatUI.handleCode('Space');
+    assert.equal(G.combatUI.isActive(), false,
+      'день 2: бой закрыт (тестовая развязка)');
+  } else {
+    const slots2 = g.state.hero.inventory;
+    assert.ok(slots2.length >= 1, 'день 2: предмет выдан');
+  }
+
+  // --- Часть 2: храм (-42,-31), id 39 — тот же механизм ---
+  const h2 = await boot(seedSave({
+    day: 1,
+    position: { x: -42, y: -31 },
+    hero: mkHero(),
+  }));
+  const G2 = h2.sandbox.Game;
+  const g2 = h2.sandbox.__game;
+  const myMap2 = G2.createMap(G2.generateSeedPixels());
+  assert.equal(h2.errors.length, 0,
+    'храм: ошибок загрузки нет: ' + h2.errors.join('; '));
+  const found2 = findBuilding(G2, myMap2, { x: 0, y: 0 }, false,
+    (b) => b.id === 39);
+  assert.ok(found2, 'сценарий: достижимый храм (id 39)');
+  assert.equal(found2.building.id, 39, 'запись резолвлена по buildingId');
+  assert.equal(found2.tile.x, -42, 'golden: x храма');
+  assert.equal(found2.tile.y, -31, 'golden: y храма');
+  assert.equal(found2.steps.length, 73, 'golden: 73 шага от спавна');
+  assert.equal(myMap2.tileAt(-42, -31).buildingId, 39, 'на тайле — храм');
+  assert.equal(g2.state.player.x, -42, 'позиция сейва — храм (x)');
+  assert.equal(g2.state.player.y, -31, 'позиция сейва — храм (y)');
+  assert.equal(g2.state.day, 1, 'день 1 (pre-seed)');
+  frameAt(h2, NOW + 200);
+  const hud20 = String(h2.hud.textContent);
+  assert.ok(hud20.includes('[E] действия'),
+    'храм: топ-строка «([E] действия)» (red: у 39 нет эффектов → '
+    + 'нет хинта): ' + hud20);
+  key(h2, 'KeyE');
+  assert.equal(G2.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov2 = findOverlay(h2);
+  assert.ok(ov2, 'оверлей подвешен к body');
+  const row39 = findRow(ov2, '39');
+  assert.ok(row39,
+    'строка 39 в оверлее (red: нет записи «39» → строки нет)');
+  assert.ok(textOf(row39).includes('Храм'),
+    'имя строки: «Храм»: ' + textOf(row39));
+  assert.equal(row39.disabled, false, 'день 1 — доступно');
+  key(h2, 'Digit1');
+  assert.equal(G2.buildingUI.isActive(), false, 'оверлей закрылся');
+  const saveA = readSave(h2);
+  assert.ok(saveA, 'храм: saveNow — сразу после действия');
+  const recA = saveA.data.buildingContent
+    && saveA.data.buildingContent['-42,-31'];
+  assert.ok(recA,
+    'храм: сейв buildingContent[«-42,-31»] (red: раздела нет)');
+  assert.equal(recA.day, 1, 'храм: запись — день 1');
+  assert.ok(['chest', 'boss', 'relic'].includes(recA.type),
+    'храм: тип контента «' + recA.type + '»');
+  assert.equal(saveA.data.buildingOncePerDay['-42,-31:39'], 1,
+    'храм: daily-марка «-42,-31:39»');
+  if (recA.type === 'boss') {
+    assert.equal(G2.combatUI.isActive(), true, 'храм: босс — бой активен');
+    const cA = G2.combatUI.current();
+    const mobsA = cA.units.filter((u) => u.side === 'mob');
+    for (const u of mobsA) {
+      assert.equal(u.mobId, 'troll', 'храм: босс — troll');
+    }
+    if (!cA.result) {
+      cA.phase = 'over'; cA.result = { outcome: 'fled' };
+    }
+    G2.combatUI.handleCode('Space');
+    assert.equal(G2.combatUI.isActive(), false,
+      'храм: бой закрыт (тестовая развязка)');
+  }
+  // Повтор — disabled, ОБЩИЙ ТЗ-текст (для 43 и 39).
+  key(h2, 'KeyE');
+  const row39Same = findRow(findOverlay(h2), '39');
+  assert.ok(row39Same, 'храм: повтор — строка 39 в оверлее');
+  assert.equal(row39Same.disabled, true,
+    'храм: повтор в тот же день — disabled');
+  assert.ok(textOf(row39Same)
+    .includes('круг молчит: содержимое уже получено'),
+    'храм: reason (ТЗ-текст, общий с кругом): ' + textOf(row39Same));
+  key(h2, 'Escape');
+  assert.equal(G2.buildingUI.isActive(), false);
+});
+
+// --- Задача 000077 (ревью): смерть в бою с боссом — подъём (000008) ---
+// onEnd startCombatAt (debug/босс-бой, одна точка истины) обязан
+// отражать onEnd боя мира: 'dead' → подъём (alive, половина maxHP,
+// −20% золота) + флэш, не-'victory' → возврат на точку боя (prev —
+// текущий тайл, герой остаётся на месте) + снап мувера, saveNow —
+// существующая пост-боевая точка (без него мёртвый герой/штраф
+// фиксировались бы только следующей точкой сейва, а restore
+// принудительно оживлял без штрафа).
+// Золотой: (4,3) день 1 — ролл «boss» (детерминированно, как B24).
+// Смерть — ТЕСТОВОЙ мутацией, как в ядре (combat.js ~L588-599):
+// c.player (ЖИВОЙ герой) — alive=false, hp=0, затем c.result =
+// { outcome: 'dead' } + handleCode('Space') (finish → onEnd).
+// Примечание B24: после босс-боя main-loop «заморожен» (последний
+// rAF — тик боя), поэтому флэш/HUD НЕ ЧИТАЕМ — проверяем состояние
+// (ЖИВОГО героя c.player) и сейв (saveNow — точка фиксации).
+test('B25. босс «ежедневного контента»: исход «dead» — подъём (alive, половина maxHP, −20% золота), герой на тайле, сейв', async () => {
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 4, y: 3 },
+    hero: mkHero(),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(myMap.tileAt(4, 3).buildingId, 43, 'golden: тайл — круг');
+  assert.equal(g.state.player.x, 4, 'позиция сейва — круг (x)');
+  assert.equal(g.state.player.y, 3, 'позиция сейва — круг (y)');
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  // [E] → «Круг» → Digit1: золотой (4,3) день 1 — ролл «boss».
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const row = findRow(findOverlay(h), '43');
+  assert.ok(row, 'строка 43 в оверлее');
+  assert.equal(row.disabled, false, 'день 1 — доступно');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  assert.equal(G.combatUI.isActive(), true,
+    'golden (4,3) день 1: ролл «boss» — бой активен');
+  const c = G.combatUI.current();
+  const mobs = c.units.filter((u) => u.side === 'mob');
+  assert.ok(mobs.length >= 1 && mobs.length <= 3,
+    'состав 1–3: ' + mobs.length);
+  for (const u of mobs) {
+    assert.equal(u.mobId, 'troll', 'босс — troll (рецепт BUILDING_BOSS)');
+  }
+  // ЖИВОЙ герой в бою = c.player (createCombat: player: opts.hero).
+  const hero = c.player;
+  assert.equal(hero.gold, 100, 'старт: золото 100 (createCharacter)');
+  const maxHP = G.derived(hero).maxHP;
+  assert.equal(maxHP, 25, 'L1 (телосложения 1): maxHP = 20 + 1·5');
+  assert.equal(hero.hp, maxHP, 'старт: полное HP');
+  // Тестовая смерть (как ядро: урон → p.alive=false, hp=0, result).
+  hero.alive = false;
+  hero.hp = 0;
+  if (!c.result) { c.phase = 'over'; c.result = { outcome: 'dead' }; }
+  G.combatUI.handleCode('Space');
+  assert.equal(G.combatUI.isActive(), false,
+    'бой закрыт (тестовая развязка)');
+  // ПОДЪЁМ (ревью: до фикса герой оставался мёртвым до конца сессии).
+  assert.equal(hero.alive, true,
+    'подъём: hero.alive = true (до фикса: мёртв до перезагрузки)');
+  assert.equal(hero.hp, Math.max(1, Math.round(maxHP / 2)),
+    'подъём: hp = половина maxHP (25 → 13)');
+  // ШТРАФ: −20% золота.
+  assert.equal(hero.gold, Math.floor(100 * 0.8),
+    'штраф: золото −20% (100 → 80)');
+  // Позиция: герой остаётся на тайле боя (prev — текущий тайл).
+  assert.equal(g.state.player.x, 4, 'позиция: x — тайл круга');
+  assert.equal(g.state.player.y, 3, 'позиция: y — тайл круга');
+  // saveNow (ревью: до фикса — только следующей точкой сейва).
+  const save = readSave(h);
+  assert.ok(save, 'сейв существует');
+  assert.equal(save.data.hero.alive, true,
+    'сейв: hero.alive = true (saveNow после боя)');
+  assert.equal(save.data.hero.hp, Math.max(1, Math.round(maxHP / 2)),
+    'сейв: hero.hp — половина maxHP');
+  assert.equal(save.data.hero.gold, 80, 'сейв: hero.gold = 80');
+  assert.equal(save.data.position.x, 4, 'сейв: позиция x — тайл круга');
+  assert.equal(save.data.position.y, 3, 'сейв: позиция y — тайл круга');
+  // День НЕ отменяется: запись «boss» цела (контент уже явлен).
+  assert.deepEqual(save.data.buildingContent['4,3'],
+    { day: 1, type: 'boss' },
+    'buildingContent: запись дня цела (смерть не отменяет день)');
+  assert.equal(save.data.buildingOncePerDay['4,3:43'], 1,
+    'daily-марка: день 1 (не сбросилась)');
 });

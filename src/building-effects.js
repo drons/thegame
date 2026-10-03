@@ -62,6 +62,35 @@
 //     state/hero/save не мутирует; G.hash2/G.derived/G.skillLevel
 //     отсутствуют — { ok:false, message:'недоступно' }.
 //
+// Задача 000077 (магический круг id 43 / заброшенный храм id 39):
+// единый механизм «ежедневный контент» (ОБЩИЙ для обоих id):
+//   * ОДИН детерминированный ролл по (tile, day) РАЗ В ДЕНЬ
+//     (каталожный флаг раз_в_день): 'chest'|'boss'|'relic' (доли —
+//     каталог особые_параметры.эффект.доли, 000053). Повтор в тот же
+//     день — «круг молчит: содержимое уже получено» (available по
+//     СНИМКУ buildingContent, ДО daily-лимита пайплайна); день D+1 —
+//     новый ролл. Состояние — раздел сейва buildingContent ('x,y' →
+//     { day, type }; имя — резерв 000072); лут НЕ храним (R-5).
+//   * ЧИСТЫЕ (tile, day)-функции (hash — ПАРАМЕТР; мусор → null):
+//     rollBuildingContent (доли), chestLoot (таблица подземелий —
+//     передаёт вызывающий), bossGroup (ЧИСЛО — боевой сид для
+//     createCombat), relicItem (каталог эффект.реликвии); 4 СВОИ
+//     ASCII-сида (НЕ GLOBAL_SEED, паттерн
+//     STONE_ROLL_SEED; экспорт — golden-пины).
+//   * EFFECTS['43'] «Круг» / EFFECTS['39'] «Храм» — ОДНО apply
+//     (applyDailyContent, имя действия — параметр): ЧИСТ (000071) —
+//     только ВОЗВРАТ { ok, type, item|seed, message } (сундук —
+//     1 предмет таблицей ПО ТАЙЛУ (dungeonTypeFor(terrain, альфа
+//     pixelAt, fallback 255)), БЕЗ золота; босс — боевой сид;
+//     реликвия — id из каталога). МИР-ЭФФЕКТЫ (addItem/бой/запись
+//     buildingContent) — спец-хендлер src/building-content.js
+//     (000128 §2.3: у apply на это НЕТ ссылок).
+//   * serializeBuildingContent/restoreBuildingContent — ОБЩИЕ для
+//     всех «ежедневных» эффектов (whitelist BUILDING_CONTENT_TYPES —
+//     ОДНА константа; паттерн teleports/buildingQuests, fail-open).
+//   * Контракты — memory/000077-building-content.md (конкретика) и
+//     memory/000077-daily-content.md (переиспользуемый механизм).
+//
 // Контракты (зафиксированы tests/building-effects.test.js):
 //   * РЕЕСТР EFFECTS — id → { имя, разВДень?, available?(state),
 //     apply?(state) → { ok, message?, buffs? } }. Задача 000071 —
@@ -132,6 +161,33 @@
   const STONE_ROLL_SEED = 0x53544e52;   // 'STNR' — ролл успеха камня
   const STONE_TEXT_SEED = 0x53544e54;   // 'STNT' — фрагмент камня
   const OBELISK_TEXT_SEED = 0x4f424c54; // 'OBLT' — фрагмент обелиска
+
+  // Сиды детерминированных роллов 000077 «ежедневный контент»
+  // (магический круг 43 / заброшенный храм 39): СВОИ ASCII-константы,
+  // НЕ GLOBAL_SEED (паттерн STONE_ROLL_SEED); экспорт — golden-пины
+  // (A55–A57). Формулы (контракт §2):
+  //   тип контента  = hash(x, y, CONTENT_ROLL_SEED ^ day) / 2^32
+  //                   (deterministicRoll, переиспользуется);
+  //   предмет сундука = table[hash(x, y, CHEST_LOOT_SEED ^ day) % len]
+  //                   (pickFragment-паттерн);
+  //   боевой сид босса = hash(x, y, BOSS_COMBAT_SEED ^ day) — ЧИСЛО,
+  //                   → opts.seed createCombat (состав/уровень —
+  //                   стандартные формулы ядра, рецепт BUILDING_BOSS);
+  //   реликвия      = реликвии[hash(x, y, RELIC_ITEM_SEED ^ day) % len].
+  const CONTENT_ROLL_SEED = 0x434f4e54; // 'CONT' — тип контента (доли)
+  const CHEST_LOOT_SEED = 0x43484553;   // 'CHES' — предмет сундука
+  const BOSS_COMBAT_SEED = 0x424f5353;  // 'BOSS' — боевой сид босса
+  const RELIC_ITEM_SEED = 0x52454c49;   // 'RELI' — реликвия
+
+  // Whitelist типов «ежедневного контента» (раздел сейва
+  // buildingContent): ОДНА константа на весь механизм (000077:
+  // 'chest'/'boss'/'relic') — ЕДИНСТВЕННАЯ точка расширения для
+  // будущих «ежедневных» эффектов (контракт — memory/000077-
+  // daily-content.md §3; restoreBuildingContent валидирует по ней).
+  // ВНЕШНИЕ значения — латиница (кодовое конвенции сейва, паттерн
+  // teleports/buildingQuests); КЛЮЧИ каталожных долей — русские
+  // (сундук/босс/реликвия, 000053) — решение R-1.
+  const BUILDING_CONTENT_TYPES = ['chest', 'boss', 'relic'];
 
   // Раздел сейва teleports (имя зафиксировано 000072): чтение
   // записи СНИМКА по ключу 'x,y' — прототип-безопасно, с лёгкой
@@ -295,6 +351,27 @@
   EFFECTS['46'] = {
     имя: 'Взглянуть',
     apply: (st) => applyExplore(st),
+  };
+  // --- Группа 000077: магический круг (43) и заброшенный храм (39) —
+  // «ежедневный контент» (ОБЩИЙ механизм, ОДНО apply на оба id;
+  // мир-эффекты — спец-хендлер src/building-content.js, 000128 §2.3) ---
+  // Раз-в-день — ИЗ КАТАЛОГА (особые_параметры.раз_в_день: у 43 уже,
+  // у 39 добавлен 000077) — в записях реестра разВДень НЕ ставится
+  // (каталог побеждает, hasDailyLimit). available — по СНИМКУ
+  // buildingContent (повтор в тот же день — ТЗ-строка, ДО
+  // daily-лимита); apply ЧИСТ (000071): { ok, type, item|seed,
+  // message }, параметров из st.catalog.особые_параметры.эффект
+  // (000053: доли/реликвии — каталог). Контракт — memory/000077-
+  // building-content.md.
+  EFFECTS['43'] = {
+    имя: 'Круг',
+    available: dailyContentAvailable,
+    apply: (st) => applyDailyContent(st, 'Круг'),
+  };
+  EFFECTS['39'] = {
+    имя: 'Храм',
+    available: dailyContentAvailable,
+    apply: (st) => applyDailyContent(st, 'Храм'),
   };
 
   /**
@@ -669,6 +746,238 @@
       // 'done'/мусор — ничего (повторной выдачи нет).
     }
     return out;
+  }
+
+  // --- Задача 000077: «ежедневный контент» (круг 43 / храм 39) ---
+  // Единый детерминированный механизм для обоих id: ОДИН ролл по
+  // (tile, day) РАЗ В ДЕНЬ (каталожный флаг раз_в_день):
+  // 'chest'|'boss'|'relic' (доли — каталог особые_параметры.
+  // эффект.доли, 000053). Чистый слой: НОЛЬ Math.random/Date —
+  // только (tile, day)-сида (4 СВОИ ASCII-константы, НЕ
+  // GLOBAL_SEED); hash — ПАРАМЕТР чистых функций (в песочницах —
+  // инъект perlin.hash2, в apply — ленивый G.hash2). МИР-ЭФФЕКТЫ
+  // (addItem/бой/запись buildingContent) — НЕ здесь: у apply на это
+  // НЕТ ссылок (000071) — их исполняет спец-хендлер
+  // src/building-content.js (000128 §2.3). Контракт —
+  // memory/000077-building-content.md (§2/§4/§7), переиспользуемый
+  // механизм — memory/000077-daily-content.md.
+
+  /**
+   * Раздел сейва buildingContent (имя — резерв 000072): запись
+   * СНИМКА по ключу 'x,y' — прототип-безопасно, fail-open (000029):
+   * раздела нет / запись не той формы (не объект; day не integer ≥
+   * 1; type вне whitelist) → null (для available — «нет записи»;
+   * лут НЕ храним — повтор «молчит», содержимое выдано, R-5).
+   * Снимок не мутируется.
+   * @returns {{day: number, type: string}|null}
+   */
+  function readBuildingContentEntry(st, key) {
+    const save = st && st.save;
+    if (!save || typeof save !== 'object' || Array.isArray(save)) {
+      return null;
+    }
+    const m = save.buildingContent;
+    if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+    if (!Object.prototype.hasOwnProperty.call(m, key)) return null;
+    const e = m[key];
+    if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+    if (!Number.isInteger(e.day) || e.day < 1) return null;
+    if (typeof e.type !== 'string' ||
+        BUILDING_CONTENT_TYPES.indexOf(e.type) === -1) {
+      return null;
+    }
+    return { day: e.day, type: e.type };
+  }
+
+  // Доли каталога (000053): каждый ключ (сундук/босс/реликвия) —
+  // finite число [0, 1]; мусор/отсутствие ключа → false (rollBuilding-
+  // Content → null, apply деградирует «недоступно»).
+  function validShares(доли) {
+    if (!доли || typeof доли !== 'object' || Array.isArray(доли)) {
+      return false;
+    }
+    return ['сундук', 'босс', 'реликвия'].every((k) => {
+      const v = доли[k];
+      return typeof v === 'number' && Number.isFinite(v) &&
+        v >= 0 && v <= 1;
+    });
+  }
+
+  /**
+   * Тип «ежедневного контента» (000077): один детерминированный
+   * ролл по (tile, day) → 'chest'|'boss'|'relic' по КУМУЛЯТИВНЫМ
+   * долям в ФИКСИРОВАННОМ порядке каталога: roll <
+   * доли.сундук → 'chest'; roll < доли.сундук + доли.босс → 'boss';
+   * остаток → 'relic'. roll = hash(x, y, CONTENT_ROLL_SEED ^ day) /
+   * 2^32 (deterministicRoll, переиспользуется; день ВКЛЮЧЁН —
+   * день D+1 = новый ролл). Мусорные доли → null (без исключений;
+   * apply сам деградирует). Чистый (hash — параметр).
+   * @param {object} доли каталог эффект.доли
+   * @returns {'chest'|'boss'|'relic'|null}
+   */
+  function rollBuildingContent(x, y, day, доли, hash) {
+    if (!validShares(доли)) return null;
+    const roll = deterministicRoll(x, y, day, CONTENT_ROLL_SEED, hash);
+    if (roll < доли.сундук) return 'chest';
+    if (roll < доли.сундук + доли.босс) return 'boss';
+    return 'relic';
+  }
+
+  /**
+   * Предмет сундука (000077): id из ТАБЛИЦЫ по (tile, day)
+   * (pickFragment-паттерн): table[hash(x, y, CHEST_LOOT_SEED ^ day)
+   * % table.length]. table — МАССИВ id (таблица подземелий) —
+   * передаёт ВЫЗЫВАЮЩИЙ (apply) — чистота: без зависимостей от
+   * dungeon.js в node-тесте. Мусорная/пустая таблица → null.
+   * Чистый (hash — параметр).
+   * @returns {string|null}
+   */
+  function chestLoot(x, y, day, table, hash) {
+    if (!Array.isArray(table) || table.length === 0) return null;
+    return table[hash(x, y, CHEST_LOOT_SEED ^ day) % table.length];
+  }
+
+  /**
+   * Боевой сид босса (000077): ЧИСЛО hash(x, y, BOSS_COMBAT_SEED ^
+   * day) — передаётся в createCombat (opts.seed); состав и уровень —
+   * СТАНДАРТНЫЕ формулы ядра (рецепт GROUP_RECIPES.BUILDING_BOSS,
+   * level = max(1, hero.level ± level_delta_max) — R-3), не
+   * собственные. Тот же (tile, day) + тот же hero.level → тот же
+   * босс (детерминизм по сиду). Чистый (hash — параметр).
+   * @returns {number}
+   */
+  function bossGroup(x, y, day, hash) {
+    return hash(x, y, BOSS_COMBAT_SEED ^ day);
+  }
+
+  /**
+   * Реликвия (000077): id из каталожного списка эффект.реликвии по
+   * (tile, day) (pickFragment-паттерн):
+   * реликвии[hash(x, y, RELIC_ITEM_SEED ^ day) % len]. Мусорный/
+   * пустой список → null. Чистый (hash — параметр).
+   * @returns {string|null}
+   */
+  function relicItem(x, y, day, реликвии, hash) {
+    if (!Array.isArray(реликвии) || реликвии.length === 0) return null;
+    return реликвии[hash(x, y, RELIC_ITEM_SEED ^ day) % реликвии.length];
+  }
+
+  // available?(state) записей 43/39 (ОБЩИЙ механизм): повтор в тот
+  // же день (запись buildingContent с day === ст.day) — reason-строка
+  // ТЗ «круг молчит: содержимое уже получено» (ОДНА строка на оба
+  // id — для 43 И 39); запись дня < today или её нет — доступно.
+  // Пайплайн 000128 опрашивает available ПЕРВЫМ (до daily-лимита) —
+  // игрок видит ТЗ-строку, а не generic «уже использовано сегодня»
+  // (та — backstop: каталожный флаг раз_в_день, 000072).
+  function dailyContentAvailable(st) {
+    const rec = readBuildingContentEntry(st, tileKeyOf(st));
+    if (rec && rec.day === st.day) {
+      return 'круг молчит: содержимое уже получено';
+    }
+    return true;
+  }
+
+  // Имя предмета в success-сообщении: ЛЕНИВЫЙ G.getItem(id).name
+  // (fallback — id; 000029). apply ЧИСТ — предмета в мире нет,
+  // только название для сообщения.
+  function itemDisplayName(G, id) {
+    const it = (typeof G.getItem === 'function') ? G.getItem(id) : null;
+    return (it && typeof it.name === 'string' && it.name !== '')
+      ? it.name : id;
+  }
+
+  /**
+   * «Круг» (43) / «Храм» (39) — «ежедневный контент» (000077):
+   * ОБЩИЙ apply на обе записи (имя действия — параметр). Один
+   * детерминированный ролл по (tile, day):
+   *   * chest — 1 предмет БЕЗ золота (R-4) таблицой ПО ТАЙЛУ:
+   *     dungeonTypeFor(terrain тайла, альфа pixelAt, fallback 255 —
+   *     паттерн moonDreamHint; нет карты — default-ветка CAVE);
+   *     таблица — G.DUNGEON_ITEMS[type] (dungeon.js, из каталога);
+   *   * boss — БОЕВОЙ СИД (bossGroup) — состав/уровень — стандартные
+   *     формулы createCombat по рецепту BUILDING_BOSS (R-2/R-3);
+   *   * relic — id из каталога эффект.реликвии.
+   * Success-сообщения СТРОЯТСЯ ЗДЕСЬ (чистый; хендлер сообщений не
+   * строит — 000128 §2.4 приоритетизирует r.message):
+   *   «<Действие>: сундук — „<название>“.» / «<Действие>: босс —
+   *   к бою!» / «<Действие>: реликвия — „<название>“.».
+   * apply ЧИСТ (000071): state/hero/save не мутирует; мир-действия —
+   * спец-хендлер. Недневной отказ (нет G.hash2/G.dungeonTypeFor,
+   * мусор каталога/долей/реликвий, нет таблицы/предмета) —
+   * { ok:false, message:'недоступно' }.
+   * @param {string} имяДействия имя из реестра («Круг»/«Храм»)
+   * @returns {{ok: boolean, type?: 'chest'|'boss'|'relic',
+   *            item?: string, seed?: number, message?: string}}
+   */
+  function applyDailyContent(st, имяДействия) {
+    const G = lazyGame();
+    if (!G || typeof G.hash2 !== 'function' ||
+        typeof G.dungeonTypeFor !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const eff = catalogEffect(st);
+    if (!eff) return { ok: false, message: 'недоступно' };
+    if (!validShares(eff.доли) ||
+        !Array.isArray(eff.реликвии) || eff.реликвии.length === 0 ||
+        !eff.реликвии.every((id) => typeof id === 'string')) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const tile = (st && st.tile) || { x: 0, y: 0 };
+    const x = tile.x, y = tile.y, day = st && st.day;
+    const type = rollBuildingContent(x, y, day, eff.доли, G.hash2);
+    if (!type) return { ok: false, message: 'недоступно' };
+    if (type === 'boss') {
+      // Босс: БОЕВОЙ СИД — стандартный поток createCombat
+      // (startCombat('BUILDING_BOSS', { seed }) — спец-хендлер).
+      return {
+        ok: true,
+        type,
+        seed: bossGroup(x, y, day, G.hash2),
+        message: имяДействия + ': босс — к бою!',
+      };
+    }
+    // Сундук/реликвия — 1 предмет (БЕЗ золота, R-4).
+    let table = null;
+    if (type === 'chest') {
+      // Таблица ПО ТАЙЛУ (R-4): terrain тайла + альфа пикселя (нет
+      // map/pixelAt/мусор — fallback, паттерн moonDreamHint, строки
+      // ≈730–745 000076).
+      let terrain = undefined;
+      const map = st && st.map;
+      if (map && typeof map.tileAt === 'function') {
+        try {
+          const t = map.tileAt(x, y);
+          terrain = t && t.terrain;
+        } catch (err) { terrain = undefined; }
+      }
+      let alpha = 255;
+      if (map && typeof map.pixelAt === 'function') {
+        let px = null;
+        try { px = map.pixelAt(x, y); } catch (err) { px = null; }
+        if (Array.isArray(px) && Number.isFinite(px[3])) alpha = px[3];
+      }
+      const dType = G.dungeonTypeFor(terrain, alpha);
+      if (typeof dType === 'number' && G.DUNGEON_ITEMS &&
+          Array.isArray(G.DUNGEON_ITEMS[dType]) &&
+          G.DUNGEON_ITEMS[dType].length > 0) {
+        table = G.DUNGEON_ITEMS[dType];
+      }
+    } else {
+      table = eff.реликвии;
+    }
+    const item = (type === 'chest')
+      ? chestLoot(x, y, day, table, G.hash2)
+      : relicItem(x, y, day, eff.реликвии, G.hash2);
+    if (!item) return { ok: false, message: 'недоступно' };
+    return {
+      ok: true,
+      type,
+      item,
+      // Кавычки „…“ — зафиксировано тестом A60 (стиль сообщений).
+      message: имяДействия + ': ' +
+        (type === 'chest' ? 'сундук' : 'реликвия') + ' — „' +
+        itemDisplayName(G, item) + '“.',
+    };
   }
 
   /**
@@ -1169,6 +1478,35 @@
         out[String(k)] = sortTileKeys(keys).join(';');
       });
     }
+    return out
+  }
+  /**
+   * Раздел сейва buildingContent (задача 000077, имя — резерв
+   * 000072; ОБЩИЙ для всех «ежедневных» эффектов): Map 'x,y' →
+   * { day: integer ≥ 1, type: 'chest'|'boss'|'relic' } → обычный
+   * объект (JSON). Пустой Map — {}. Запись ПЕРЕЗАПИСЫВАЕТСЯ новым
+   * роллом (день D+1) — рост Map ограничен числом посещённых
+   * построек-контентников; очистки onDay НЕТ (запись сама по себе
+   * наград не даёт, R-5).
+   * @param {Map<string, {day: number, type: string}>} m
+   * @returns {object}
+   */
+  function serializeBuildingContent(m) {
+    const out = {};
+    if (m && typeof m.forEach === 'function') {
+      m.forEach((v, k) => {
+        // Мусорная запись (не 'x,y' / не та форма) — не сериализуем
+        // (fail-open; живой Map в игре — только валидные записи).
+        if (!XY_KEY_RE.test(String(k))) return;
+        if (!v || typeof v !== 'object' || Array.isArray(v)) return;
+        if (!Number.isInteger(v.day) || v.day < 1) return;
+        if (typeof v.type !== 'string' ||
+            BUILDING_CONTENT_TYPES.indexOf(v.type) === -1) {
+          return;
+        }
+        out[String(k)] = { day: v.day, type: v.type };
+      });
+    }
     return out;
   }
 
@@ -1194,6 +1532,33 @@
         if (XY_KEY_RE.test(s)) set.add(s);
       }
       if (set.size > 0) out.set(k, set);
+    }
+    return out
+  }
+
+  /**
+   * Раздел сейва buildingContent → Map (fail-open, 000029): раздел
+   * не объект/массив — пустой Map БЕЗ исключения (warn делает
+   * main.js); мусорная запись — отброс ЗАПИСИ (ключ не 'x,y'; day не
+   * integer ≥ 1; type вне whitelist BUILDING_CONTENT_TYPES),
+   * валидные выживают. Roundtrip с serializeBuildingContent.
+   * day < clock.day — НОРМА (запись прошлого дня не блокирует новый
+   * ролл; повтор блокируется только в тот же день); day > clock.day
+   * main.js отбрасывает при restore (подделка, 000031).
+   * @param {*} raw раздел сейва (обычный объект)
+   * @returns {Map<string, {day: number, type: string}>}
+   */
+  function restoreBuildingContent(raw) {
+    const out = new Map();
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+    for (const k of Object.keys(raw)) {
+      if (!XY_KEY_RE.test(k)) continue;
+      const v = raw[k];
+      if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+      if (!Number.isInteger(v.day) || v.day < 1) continue;
+      if (typeof v.type !== 'string' ||
+          BUILDING_CONTENT_TYPES.indexOf(v.type) === -1) continue;
+      out.set(k, { day: v.day, type: v.type });
     }
     return out;
   }
@@ -1269,5 +1634,13 @@
     // markExplored/exploredCount + ser/de раздела сейва (контракт —
     // memory/000093-explored-tower.md §2.2).
     markExplored, exploredCount, serializeExplored, restoreExplored,
+    // Задача 000077: «ежедневный контент» (круг 43 / храм 39) —
+    // чистые (tile, day)-функции, раздел сейва buildingContent,
+    // свои ASCII-сида.
+    rollBuildingContent, chestLoot, bossGroup, relicItem,
+    readBuildingContentEntry,
+    serializeBuildingContent, restoreBuildingContent,
+    CONTENT_ROLL_SEED, CHEST_LOOT_SEED, BOSS_COMBAT_SEED,
+    RELIC_ITEM_SEED,
   };
 });

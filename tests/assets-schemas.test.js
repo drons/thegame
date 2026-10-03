@@ -262,3 +262,51 @@ for (const name of CATALOGS) {
       'лишнее поле не поймано');
   });
 }
+
+// --- 000077: «ежедневный контент» — форма новых полей каталога 39/43 ---
+
+test('buildings: 000039/000043 — «ежедневный контент» (000077): форма новых полей', () => {
+  const schema = loadSchema('buildings');
+  const read = (f) => JSON.parse(
+    fs.readFileSync(path.join(catalogDir('buildings'), f), 'utf8'));
+  const j39 = read('000039.json');
+  const j43 = read('000043.json');
+  // Фиксатор: оба файла валидны по схеме (особые_параметры —
+  // free-form: проходят и до, и после 000077).
+  assert.deepEqual(validateData(schema, j39), [],
+    '39: валиден по schema.json');
+  assert.deepEqual(validateData(schema, j43), [],
+    '43: валиден по schema.json');
+  // Форма новых полей (контракт 000077 §6): эффект — ОБЪЕКТ
+  // { доли: {сундук, босс, реликвия}, реликвии: [id] } (red: у 39
+  // поля нет, у 43 эффект — строка).
+  for (const [id, j] of [['39', j39], ['43', j43]]) {
+    const p = j.особые_параметры;
+    assert.ok(p.эффект && typeof p.эффект === 'object'
+      && !Array.isArray(p.эффект),
+      id + ': эффект — объект (000077)');
+    const d = p.эффект.доли;
+    assert.ok(d && typeof d === 'object' && !Array.isArray(d),
+      id + ': эффект.доли — объект');
+    for (const k of ['сундук', 'босс', 'реликвия']) {
+      assert.equal(typeof d[k], 'number',
+        id + ': доля «' + k + '» — число');
+      assert.ok(Number.isFinite(d[k]) && d[k] >= 0 && d[k] <= 1,
+        id + ': доля «' + k + '» ∈ [0,1]');
+    }
+    const sum = d.сундук + d.босс + d.реликвия;
+    assert.ok(Math.abs(sum - 1) < 1e-9,
+      id + ': суммы долей = 1 (получено ' + sum + ')');
+    assert.ok(Array.isArray(p.эффект.реликвии)
+      && p.эффект.реликвии.length > 0,
+      id + ': эффект.реликвии — массив id');
+    for (const rid of p.эффект.реликвии) {
+      assert.equal(typeof rid, 'string',
+        id + ': реликвия — строка id («' + rid + '»)');
+    }
+  }
+  assert.equal(j39.особые_параметры.раз_в_день, true,
+    '39: раз_в_день — true (red: поля нет)');
+  assert.equal(j43.особые_параметры.раз_в_день, true,
+    '43: раз_в_день — true');
+});

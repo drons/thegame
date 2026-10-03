@@ -270,7 +270,12 @@ test('package.json: npm-скрипт sync:mobgroups (интерфейс един
 test('зеркало: GROUP_RECIPES (combat.js) ≡ каталогу (название/мобы/число по id−1)', () => {
   const { GROUP_RECIPES } = require(path.join(ROOT, 'src', 'combat.js'));
   const files = catalogFiles();
-  const keys = Object.keys(GROUP_RECIPES).map(Number).sort((a, b) => a - b);
+  // 000077: в GROUP_RECIPES строковый ключ 'BUILDING_BOSS' —
+  // фильтруем ЧИСЛОВЫЕ ДО map(Number) (иначе Number → NaN в
+  // deepEqual [0..6]).
+  const keys = Object.keys(GROUP_RECIPES)
+    .filter((k) => String(k) === String(Number(k)))
+    .map(Number).sort((a, b) => a - b);
   assert.deepEqual(keys, [0, 1, 2, 3, 4, 5, 6], 'ровно 7 рецептов, типы 0..6');
   for (let i = 0; i < 7; i++) {
     const r = GROUP_RECIPES[i], f = files[i];

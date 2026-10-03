@@ -43,6 +43,7 @@ test('index.html: нужные модули подключены', () => {
     'src/building-effects.js',
     'src/building-ui.js',
     'src/building-actions.js',
+    'src/building-content.js',
     'src/hud.js',
     'src/motion.js',
     'src/main.js',
@@ -731,6 +732,29 @@ test('index.html: building-actions.js подключён ПОСЛЕ building-ui.
   assert.ok(pos('src/building-actions.js') < pos('src/main.js'),
     'src/building-actions.js должен быть раньше src/main.js ' +
     '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+// --- Задача 000077: building-content.js (спец-модуль 000128 §2.3) ---
+//
+// building-content.js в момент ЗАГРУЗКИ читает Game.buildingActions
+// (registerSpecial) и саморегистрирует хендлер «ежедневного контента»
+// на ОБА id (43/39) ДО init — building-actions.js обязан быть РАНЬШЕ,
+// main.js (init-бандл c world.buildingContent + extra.seed) — ПОЗЖЕ.
+// Слот — зарезервированный блок спец-модулей (000128): adjacency к
+// hud.js/main.js НЕ закрепляется (прецедент 000128/000129); пин —
+// только «роутер → спец-модуль → main.js».
+
+test('index.html: building-content.js подключён ПОСЛЕ building-actions.js и ДО main.js (задача 000077)', () => {
+  assert.notEqual(pos('src/building-content.js'), -1,
+    'src/building-content.js не подключён в index.html (задача 000077)');
+  assert.ok(pos('src/building-actions.js') < pos('src/building-content.js'),
+    'src/building-actions.js должен быть раньше src/building-content.js ' +
+    '(регистрация registerSpecial — load-time обязанность спец-модуля, ' +
+    '000128 §2.3, задача 000077)');
+  assert.ok(pos('src/building-content.js') < pos('src/main.js'),
+    'src/building-content.js должен быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: main.js снимает Game один раз; init-бандл ' +
+    'получает world.buildingContent, задача 000077)');
 });
 
 // --- Задача 000130: вкладки панели — саморегистрирующиеся модули ---
