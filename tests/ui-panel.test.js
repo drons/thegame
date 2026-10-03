@@ -1747,7 +1747,7 @@ test('000130 RED: Game.uiTabs — реестр: register/get/list', () => {
     'get(отсутствующий id) → null');
 });
 
-test('000130 RED: зарегистрированы ВСЕ 6 вкладок (id/label/column/порядок = текущие столбцы)', () => {
+test('000130 RED: зарегистрированы ВСЕ 7 вкладок (id/label/column/порядок = текущие столбцы; 000116: +efir — 4-я в левом)', () => {
   const env = loadTabsUi();
   assert.equal(env.errors.length, 0,
     'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
@@ -1757,34 +1757,38 @@ test('000130 RED: зарегистрированы ВСЕ 6 вкладок (id/l
   const list = reg.list();
   assert.ok(Array.isArray(list), 'uiTabs.list() — массив записей');
   // Текущие столбцы 1:1 (побайтовые подписи — фиксаторы этого же
-  // файла). Левый: Персонаж/Инвентарь/Игровые настройки; правый:
-  // Снаряжение/Магазин/Квесты. Порядок записей внутри столбца =
-  // порядок регистрации = порядок script-тегов (пин index-order).
+  // файла). Левый: Персонаж/Инвентарь/Игровые настройки/Эфир
+  // (000116: Эфир — ПОСЛЕДНЯЯ (4-я)); правый: Снаряжение/Магазин/
+  // Квесты. Порядок записей внутри столбца = порядок регистрации =
+  // порядок script-тегов (пин index-order).
   const left = list.filter((t) => t.column === 0);
   const right = list.filter((t) => t.column === 1);
-  assert.equal(list.length, 6,
-    'реестр — ровно 6 записей: ' + list.map((t) => t.id).join(','));
-  assert.equal(left.length, 3, 'левый столбец — 3 записи');
+  assert.equal(list.length, 7,
+    'реестр — ровно 7 записей: ' + list.map((t) => t.id).join(','));
+  assert.equal(left.length, 4, 'левый столбец — 4 записи');
   assert.equal(right.length, 3, 'правый столбец — 3 записи');
   const expectLeft = [
     ['character', 'Персонаж'],
     ['inventory', 'Инвентарь'],
     ['settings', 'Игровые настройки'],
+    ['efir', 'Эфир'],
   ];
   const expectRight = [
     ['equipment', 'Снаряжение'],
     ['shop', 'Магазин'],
     ['quests', 'Квесты'],
   ];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     assert.equal(left[i].id, expectLeft[i][0], 'левый ' + i + ': id');
     assert.equal(left[i].label, expectLeft[i][1],
-      'левый ' + i + ': label (побайтово, 000096)');
+      'левый ' + i + ': label (побайтово, 000096/000116)');
+    assert.equal(typeof left[i].build, 'function',
+      left[i].id + ': build(pane, ctx) — функция');
+  }
+  for (let i = 0; i < 3; i++) {
     assert.equal(right[i].id, expectRight[i][0], 'правый ' + i + ': id');
     assert.equal(right[i].label, expectRight[i][1],
       'правый ' + i + ': label (побайтово, 000096)');
-    assert.equal(typeof left[i].build, 'function',
-      left[i].id + ': build(pane, ctx) — функция');
     assert.equal(typeof right[i].build, 'function',
       right[i].id + ': build(pane, ctx) — функция');
   }
@@ -1887,6 +1891,7 @@ test('000130 RED: node — require() каждого src/ui-tabs.js/ui-tab-*.js �
     'ui-tab-inventory.js',
     'ui-tab-settings.js',
     'ui-tab-shop.js',
+    'ui-tab-efir.js',
   ];
   for (const f of files) {
     const m = require(path.join(ROOT, 'src', f));
@@ -2167,11 +2172,11 @@ function getByPath(obj, p) {
 }
 
 // Pane вкладки «Игровые настройки» (левый столбец, 3-я вкладка —
-// реестр 000130).
+// реестр 000130; 000116: «Эфир» — 4-я, индексы 0-2 не сдвигаются).
 function settingsPane(env, panel) {
   const cols = colsOf(panel);
   const panes = panesOf(cols[0]);
-  assert.equal(panes.length, 3, 'левый столбец — 3 pane');
+  assert.equal(panes.length, 4, 'левый столбец — 4 pane');
   clickTab(panel, cols[0], 2);
   return panes[2];
 }

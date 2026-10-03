@@ -834,8 +834,8 @@ test('index.html: ui-tabs.js + ui-tab-*.js ДО ui.js (000130)', () => {
   assert.notEqual(pos('src/ui-tabs.js'), -1,
     'src/ui-tabs.js не подключён в index.html (задача 000130)');
   // Полная цепочка блока: порядок тегов = порядок вкладок в
-  // столбцах (левый: character→inventory→settings, правый:
-  // equipment→shop→quests; 'equipment' регистрируется из
+  // столбцах (левый: character→inventory→settings→efir (000116),
+  // правый: equipment→shop→quests; 'equipment' регистрируется из
   // ui-tab-inventory.js — ДВЕ вкладки в одном файле).
   const chain = [
     'src/ui-tabs.js',
@@ -844,6 +844,7 @@ test('index.html: ui-tabs.js + ui-tab-*.js ДО ui.js (000130)', () => {
     'src/ui-tab-settings.js',
     'src/ui-tab-shop.js',
     'src/ui-tab-quests.js',
+    'src/ui-tab-efir.js',
     'src/ui.js',
   ];
   for (let i = 0; i < chain.length - 1; i++) {
@@ -869,7 +870,7 @@ test('index.html: ui-tabs.js + ui-tab-*.js ДО ui.js (000130)', () => {
   }
 });
 
-test('000130: vm — цепочка index.html (до ui.js) → реестр = 6 вкладок в порядке тегов + Game.buildActiveQuestRow', () => {
+test('000130: vm — цепочка index.html (до ui.js) → реестр = 7 вкладок в порядке тегов (000116: +efir) + Game.buildActiveQuestRow', () => {
   // Полный «браузерный» путь без DOM: ВСЕ модули цепи чисты при
   // загрузке (НОЛЬ DOM — 000053), поэтому песочница { console }
   // достаточна. Порядок тегов index.html = порядок РЕГИСТРАЦИИ =
@@ -902,7 +903,7 @@ test('000130: vm — цепочка index.html (до ui.js) → реестр = 6
   // прототипы; спред даёт массив host-realm с теми же id.
   assert.deepEqual([...reg.list().map((t) => t.id)],
     ['character', 'inventory', 'equipment', 'settings', 'shop',
-     'quests'],
+     'quests', 'efir'],
     'порядок реестра = порядок script-тегов index.html');
   assert.equal(typeof sandbox.Game.buildActiveQuestRow, 'function',
     'Game.buildActiveQuestRow — плоский game-экспорт ui-tab-quests.js');
