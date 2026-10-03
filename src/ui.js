@@ -423,6 +423,8 @@
     let npcShop = null;      // сток NPC (общий на сессию; создаётся лениво)
     let onChange = null;     // хук main.js: изменение состояния → сейв
     let day = null;          // день мира на момент открытия (день выдачи квестов)
+    let roster = null;       // 000083: ЖИВАЯ ссылка на отряд main.js (Array | null)
+    let deadMercs = null;    // 000083: ЖИВАЯ ссылка [npcId] main.js (Array | null)
     let log = [];            // строки лога (область .combat-state)
     let overlay = null, body = null, titleText = null, logEl = null;
     let escHandler = null;   // window keydown (Esc): вешается на open, снимается на close
@@ -586,11 +588,37 @@
       body.appendChild(done);
     }
 
-    // Вкладка «найм» (задача 000078): ЧИТАЕМЫЙ список кандидатов —
-    // только данные (Game.NpcData через G.hireCandidates), детерминированно
-    // (порядок каталога), rng не вводится (отказ найма — 000079).
-    // Кнопки «нанять»/«уволить» и блок «Отряд» — задача 000083.
-    function renderHireTab() {
+    // Вкладка «найм» (задача 000078 — слой данных; 000083 — интерактив):
+    // список кандидатов — детерминированно (порядок каталога), rng в
+    // рендере не вводится (отказ найма — сид (день, npcId), 000079).
+    //
+    // 000083: ИНТЕРАКТИВНЫЙ путь (кнопки «нанять»/«уволить» + блок
+    // «Отряд») — при НАЛИЧИИ ядра G.companions (typeof-guard на
+    // candidatesForTavern/canHire/hire/dismiss — ЛЕНИВО, в момент
+    // вызова, паттерн 000130: частично «отремонтированный» модуль
+    // деградирует целиком) И ЖИВОГО массива roster (open). Деградация
+    // (нет ядра ИЛИ нет roster) — ровно рендер 000078: console.error
+    // только про отсутствующее ядро; без ЖИВОГО массива найм пушил бы
+    // запись в одноразовый [] (золото списано, запись потеряна).
+    // Строка кандидата (000078): имя → meta (роль/навыки/контракт/
+    // жалованье) → [кнопка «нанять» — 000083].
+    function hireRowMeta(h) {
+      const skills = (h.skills || []).map((id) => {
+        const s = G.SECONDARY_SKILLS && G.SECONDARY_SKILLS[id];
+        if (s) return s.name;
+        const p = G.PRIMARY_SKILLS &&
+          G.PRIMARY_SKILLS.find((x) => x.id === id);
+        return p ? p.name : id;
+      });
+      return 'роль: ' + h.роль +
+        (skills.length ? ' · навыки: ' + skills.join(', ') : '') +
+        ' · контракт ' + h.цена + ' з' +
+        ' · жалованье ' + h.жалованье + ' з/день';
+    }
+
+    // Деградация — ровно рендер 000078 (ЧИТАЕМЫЙ список, БЕЗ кнопок
+    // и БЕЗ блока «Отряд»): регрессионный пин tests/npc-hire.test.js.
+    function renderHireTabReadonly() {
       const list = G.hireCandidates(npcs());
       if (!list.length) {
         body.appendChild(el('div', 'cp-itemmeta', 'Наёмников не найдено.'));
@@ -599,23 +627,73 @@
       body.appendChild(el('div', 'cp-itemmeta',
         'Наёмники в дорогу: контракт + жалованье за день.'));
       for (const m of list) {
-        const h = m.найм;
         const row = el('div', 'cp-itemrow');
         row.appendChild(el('span', 'cp-itemname', m.имя));
-        const skills = (h.skills || []).map((id) => {
-          const s = G.SECONDARY_SKILLS && G.SECONDARY_SKILLS[id];
-          if (s) return s.name;
-          const p = G.PRIMARY_SKILLS &&
-            G.PRIMARY_SKILLS.find((x) => x.id === id);
-          return p ? p.name : id;
-        });
-        row.appendChild(el('span', 'cp-itemmeta',
-          'роль: ' + h.роль +
-          (skills.length ? ' · навыки: ' + skills.join(', ') : '') +
-          ' · контракт ' + h.цена + ' з' +
-          ' · жалованье ' + h.жалованье + ' з/день'));
+        row.appendChild(el('span', 'cp-itemmeta', hireRowMeta(m.найм)));
         body.appendChild(row);
       }
+    }
+
+    function renderHireTab() {
+      const C = G.companions;
+      const haveCore = !!C &&
+        typeof C.candidatesForTavern === 'function' &&
+        typeof C.canHire === 'function' &&
+        typeof C.hire === 'function' &&
+        typeof C.dismiss === 'function';
+      if (!haveCore || !Array.isArray(roster)) {
+        if (!haveCore) {
+          console.error('ui.js: Game.companions отсутствует — ' +
+            'src/companions.js обязан грузиться ДО src/ui.js ' +
+            '(задача 000079); вкладка «найм» — только список');
+        }
+        renderHireTabReadonly();
+        return;
+      }
+      body.appendChild(el('div', 'cp-itemmeta',
+        'Наёмники в дорогу: контракт + жалованье за день.'));
+      const list = C.candidatesForTavern(npcs(), roster, deadMercs || []);
+      for (const m of list) {
+        const row = el('div', 'cp-itemrow');
+        row.appendChild(el('span', 'cp-itemname', m.имя));
+        row.appendChild(el('span', 'cp-itemmeta', hireRowMeta(m.найм)));
+        const b = el('button', 'cp-btn', 'нанять');
+        b.dataset.npcact = 'hire';
+        b.dataset.npcid = m.id;
+        // Статус кнопок — при рендере; stale-кнопка (состояние
+        // изменилось после отрисовки) решается re-check ВНУТРИ
+        // hire() в момент клика (паттерн renderTrainTab).
+        const can = C.canHire(roster, m, c);
+        if (!can.ok) { b.disabled = true; b.title = can.reason; }
+        row.appendChild(b);
+        body.appendChild(row);
+      }
+      if (!list.length) {
+        body.appendChild(el('div', 'cp-itemmeta', 'Наёмников не найдено.'));
+      }
+      // Блок «Отряд» — ПОСЛЕ списка кандидатов (000083): текущий
+      // состав (live-roster) + «уволить». Пустой отряд — текст ТОЛЬКО,
+      // .cp-itemrow НЕТ (ограничение-пин: деградация = 000078).
+      const squad = el('div', 'cp-section', 'Отряд');
+      if (!roster.length) {
+        squad.appendChild(el('div', 'cp-itemmeta', 'Отряд пуст.'));
+      }
+      for (const e of roster) {
+        const n = npcs().find((x) => x && x.id === e.npcId) || null;
+        const row = el('div', 'cp-itemrow');
+        row.appendChild(el('span', 'cp-itemname', n ? n.имя : e.npcId));
+        let meta = 'уровень ' + e.level + ' · лояльность ' + e.loyalty;
+        if (n && n.найм && typeof n.найм.жалованье === 'number') {
+          meta += ' · жалованье ' + n.найм.жалованье + ' з/день';
+        }
+        row.appendChild(el('span', 'cp-itemmeta', meta));
+        const bd = el('button', 'cp-btn', 'уволить');
+        bd.dataset.npcact = 'dismiss';
+        bd.dataset.npcid = e.npcId;
+        row.appendChild(bd);
+        squad.appendChild(row);
+      }
+      body.appendChild(squad);
     }
 
     // --- Кнопки (один обработчик на весь оверлей) ---
@@ -647,6 +725,54 @@
           // 000078: доступ к найму — существующие «требования» опции
           // (entry.доступен проверен выше), новой системы нет.
           tab = 'hire';
+          renderTab();
+        }
+        return;
+      }
+      if (act === 'hire') {
+        // 000083: найм (ядро 000079). Состояние пересматривается в
+        // момент клика: stale-кнопка (roster/золото изменились после
+        // рендера) — canHire ВНУТРИ hire() → reason в лог, БЕЗ сейва.
+        const C = G.companions;
+        if (!C || typeof C.hire !== 'function') return;
+        const m = npcs().find((x) => x && x.id === btn.dataset.npcid);
+        if (!m || !Array.isArray(roster)) return;
+        const d = Number.isInteger(day) && day >= 1 ? day : 1;
+        const r = C.hire(roster, m, c, d);
+        if (r.ok) {
+          npcLog('Нанят: ' + m.имя + ' за ' + m.найм.цена + ' з');
+          if (onChange) onChange();
+          renderTab();
+          G.playerUI && G.playerUI.render();
+        } else if (r.refused) {
+          // Детерминизм 000079: тот же (день, npcId) — тот же
+          // исход; суффикс — игрокоориентированная версия.
+          npcLog(m.имя + ': ' + r.reason +
+            ' — повторить попытку можно на следующий день');
+          renderTab();
+        } else {
+          npcLog(r.reason);
+          renderTab();
+        }
+        return;
+      }
+      if (act === 'dismiss') {
+        // 000083: увольнение — возврата денег НЕТ (playerUI.render
+        // НЕ вызывается — прецедент ветки 'accept').
+        const C = G.companions;
+        if (!C || typeof C.dismiss !== 'function' ||
+            !Array.isArray(roster)) return;
+        const id = btn.dataset.npcid;
+        const n = npcs().find((x) => x && x.id === id) || null;
+        const r = C.dismiss(roster, id);
+        if (r.ok) {
+          // «Призрак» (npcId нет в каталоге) — голый id (тихий,
+          // паттерн 000029/000085).
+          npcLog('Уволен: ' + (n ? n.имя : id));
+          if (onChange) onChange();
+          renderTab();
+        } else {
+          npcLog(r.reason);
           renderTab();
         }
         return;
@@ -734,6 +860,8 @@
       book = null;
       npcShop = null;
       onChange = null;
+      roster = null;
+      deadMercs = null;
     }
 
     function npcBuild() {
@@ -811,6 +939,11 @@
        * @param {object} o.character персонаж
        * @param {object} o.book      журнал квестов (G.createQuestBook())
        * @param {object} o.tile      тайл постройки (x, y, building, buildingWealth)
+       * @param {Array} [o.roster]    000083: ЖИВАЯ ссылка на отряд
+       *                              (записи {npcId, level, xp, loyalty,
+       *                              hiredDay}, main.js) — вкладка «найм»
+       * @param {Array} [o.deadMercs] 000083: ЖИВАЯ ссылка [npcId]
+       *                              погибших (main.js) — вкладка «найм»
        */
       open(o) {
         npc = o.npc;
@@ -822,6 +955,10 @@
         npcShop = o.shop || null;
         onChange = typeof o.onChange === 'function' ? o.onChange : null;
         day = Number.isInteger(o.day) && o.day >= 1 ? o.day : null;
+        // 000083: ЖИВЫЕ ссылки (main.js): мутация через
+        // G.companions.hire/dismiss (push/splice) видна на всех уровнях.
+        roster = Array.isArray(o.roster) ? o.roster : null;
+        deadMercs = Array.isArray(o.deadMercs) ? o.deadMercs : null;
         log = [npc.описание || (npc.имя + ', ' + npc.роль)];
         npcBuild();
       },

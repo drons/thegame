@@ -110,6 +110,12 @@ function makeEnv(over = {}) {
     moveHero: (x, y) => { calls.moveHero.push([x, y]); },
     startCombat: () => {},
   };
+  // 000083: состояние отряда — только если тест передаёт (дефолт
+  // makeEnv — БЕЗ ключей: W1(b) — deps без roster/deadMercs →
+  // undefined в payload, краха нет). Существующие ассерты BA2
+  // (payload по полям) не трогаются.
+  if (over.roster !== undefined) deps.roster = over.roster;
+  if (over.deadMercs !== undefined) deps.deadMercs = over.deadMercs;
   const game = {
     buildingEffects: {
       EFFECTS: {},
@@ -838,4 +844,68 @@ test('BA7. [E]-wiring вынесен из main.js: onBuildingAction нет, пр
     'main.js: тонкая проводка — G.buildingActions (init/деградация)');
   assert.ok(main.includes('.toggle('),
     'main.js: вызов .toggle() (KeyE/touch → Game.buildingActions.toggle())');
+});
+
+// --- 000083: состояние отряда (roster/deadMercs) в проводке найма ---
+//
+// Kонтракт (memory/000083-hire-tab-ui.md §4/§7): main.js вводит
+// ЖИВЫЕ const-массивы roster (записи {npcId, level, xp, loyalty,
+// hiredDay}) и deadMercs ([npcId]); deps-бандл G.buildingActions.init
+// передаёт ТЕ ЖЕ ссылки в openNpcDialog → npcUI.open (контракт 000128
+// §2.2): мутация hire/dismiss (push/splice) видна на всех трёх
+// уровнях без переснабоксовки; 000085 восстановит in place
+// (length=0 + push — ПЕРЕЗАПИСЫВАТЬ const-ссылки нельзя).
+
+test('W1. 000083: openNpcDialog — payload несёт roster/deadMercs из deps: ЖИВЫЕ ссылки; deps без ключей — undefined, краха нет', () => {
+  // (a) Живые ссылки: payload — ТОТ ЖЕ массив, что в deps (не копия):
+  // 000085 restore in place, npcUI мутирует через hire/dismiss.
+  const R = [];
+  const D = [];
+  const e = initMod({ roster: R, deadMercs: D });
+  const npc = { id: 'npc_x', имя: 'Тест' };
+  const t = { x: 5, y: 7, hasBuilding: true, building: 3,
+    buildingWealth: 2 };
+  const b = { id: 30, название: 'Тестовая постройка' };
+  e.BA.onBuildingAction(
+    { id: 'dialog', имя: 'Диалог', доступен: true }, t, b, npc);
+  assert.equal(e.calls.dialog.length, 1, 'диалог: npcUI.open вызван');
+  const p = e.calls.dialog[0];
+  assert.equal(p.roster, R,
+    'payload.roster — deps.roster (ЖИВАЯ ссылка, не копия)');
+  assert.equal(p.deadMercs, D,
+    'payload.deadMercs — deps.deadMercs (ЖИВАЯ ссылка, не копия)');
+
+  // (b) deps БЕЗ ключей (дефолт makeEnv — старые вызовы/тесты) —
+  // undefined в payload, краха нет (open() → null → тихая
+  // деградация вкладки «найм»).
+  const e2 = initMod({});
+  e2.BA.onBuildingAction(
+    { id: 'dialog', имя: 'Диалог', доступен: true }, t, b, npc);
+  assert.equal(e2.calls.dialog.length, 1, 'диалог открыт (краха нет)');
+  assert.equal(e2.calls.dialog[0].roster, undefined,
+    'deps без roster → payload.roster undefined');
+  assert.equal(e2.calls.dialog[0].deadMercs, undefined,
+    'deps без deadMercs → payload.deadMercs undefined');
+});
+
+test('W2. 000083: main.js — состояние отряда: const roster (фабрика createRoster, guard) + const deadMercs; оба — в deps-бандле buildingActions.init', () => {
+  const main = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
+  assert.ok(main.includes('const roster'),
+    'main.js: const roster — ЖИВОЙ массив записей отряда (const, НЕ ' +
+    'let: 000085 восстановит СТРОГО in place — length=0 + push)');
+  assert.ok(main.includes('const deadMercs'),
+    'main.js: const deadMercs — ЖИВОЙ массив [npcId] погибших');
+  assert.ok(main.includes('createRoster'),
+    'main.js: запись рождается фабрикой G.companions.createRoster ' +
+    '(guard: модуль отсутствует — [] + console.error, паттерн efir ' +
+    '000081)');
+  // Проводка: оба — в deps-бандле G.buildingActions.init({...})
+  // (~L758, после buildingQuests). collectSaveData/restoreFromSave —
+  // НЕ пинить (зона 000085).
+  const m = /G\.buildingActions\.init\(\{[\s\S]*?\}\);/.exec(main);
+  assert.ok(m, 'main.js: G.buildingActions.init({...}) — блок проводки');
+  assert.ok(m[0].includes('roster'),
+    'deps-бандл init: roster (live Array → npcUI.open)');
+  assert.ok(m[0].includes('deadMercs'),
+    'deps-бандл init: deadMercs (live Array [npcId])');
 });

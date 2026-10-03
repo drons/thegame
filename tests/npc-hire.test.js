@@ -434,3 +434,50 @@ test('npcUI: найм-опция с требованиями — disabled + пр
   assert.ok(text.includes(candidates[0].имя),
     'вкладка «найм» открыта: список кандидатов на месте');
 });
+
+// --- 000083: деградация БЕЗ G.companions (CHAIN файла — без
+// companions.js — теперь явная РЕГРЕССИЯ ДЕГРАДАЦИИ) ---
+//
+// Инвариант 000038/000053/000130: отсутствие зависимости —
+// console.error + деградация, игра не падает. Вкладка «найм» без
+// ядра отряда — ровно рендер 000078 (ЧИТАЕМЫЙ список, те же
+// .cp-itemrow/.cp-itemname/.cp-itemmeta) БЕЗ кнопок «нанять» и БЕЗ
+// блока «Отряд» (даже если roster передан) + ОДИН console.error
+// про Game.companions. Интерактивная ветка (кнопки/«Отряд») — только
+// при наличии ядра: без ЖИВОГО массива найм списал бы золото, а
+// запись ушла бы в одноразовый [] (контракт 000083 §2).
+// (Существующие 4 теста — без изменений: их assert errors.length===0
+// срабатывает на ОТКРЫТИИ, до рендера вкладки найм.)
+
+test('npcUI: нет G.companions (CHAIN без companions.js) — читаемый список 000078 + console.error, кнопок/«Отряда» нет', () => {
+  const env = loadHireUi();
+  const candidates = assertCandidates(env);
+  const entry = firstPlainHireOption(env);
+  assert.ok(entry, 'кандидат без требований доступа к найму есть в каталоге');
+  const { overlay } = openNpcDialog(env, entry.npc);
+
+  overlayClick(overlay, optButton(overlay, entry.opt.id));
+
+  const body = bodyOf(overlay);
+  // Деградация — ровно рендер 000078: ЧИТАЕМЫЙ список ВСЕХ
+  // кандидатов в порядке каталога (регрессионный пин побайтового
+  // совпадения — 000083 не меняет слой данных).
+  const rows = findAll(body, '.cp-itemrow');
+  const names = rows.map((r) => {
+    const nm = r.querySelector('.cp-itemname');
+    assert.ok(nm, 'строка кандидата несёт .cp-itemname (имя)');
+    return nm.textContent;
+  });
+  assert.deepEqual(names, Array.from(candidates, (n) => n.имя),
+    'деградация: читаемый список кандидатов (как 000078)');
+  // Интерактивного слоя НЕТ: ни кнопок «нанять», ни блока «Отряд».
+  assert.equal(findAll(body, 'button[data-npcact=hire]').length, 0,
+    'деградация: кнопок «нанять» (data-npcact=hire) НЕТ');
+  assert.equal(findAll(body, '.cp-section').length, 0,
+    'деградация: блока «Отряд» (.cp-section) НЕТ');
+  // Отсутствие зависимости — след в консоли (инвариант:
+  // console.error + деградация, паттерн 000130 в том же ui.js).
+  assert.ok(
+    env.errors.some((e) => e.includes('Game.companions')),
+    'console.error про Game.companions: ' + env.errors.join('; '));
+});

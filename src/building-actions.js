@@ -114,6 +114,11 @@
       shop: deps.npcShopFor(npc.id),
       onChange: deps.saveNow,
       day: deps.clock.day,
+      // 000083: ЖИВЫЕ ссылки на отряд main.js (чтение на вызове —
+      // как все поля бандла). deps без ключей (старые вызовы) →
+      // undefined → open() → null → тихая деградация вкладки «найм».
+      roster: deps.roster,
+      deadMercs: deps.deadMercs,
     });
   }
 

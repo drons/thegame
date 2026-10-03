@@ -292,6 +292,21 @@
   // (имя зафиксировано контрактом 000074). «Раз в день» самого
   // касания — отдельно, buildingOncePerDay.
   const buildingQuests = new Map();
+  // Отряд спутников (задача 000083, родитель 000065; сейв — 000085):
+  // ЖИВЫЕ const-массивы — deps-бандл buildingActions передаёт ТЕ ЖЕ
+  // ссылки в npcUI.open (контракт 000128 §2.2). 000085 восстановит
+  // in place (length=0 + push, паттерн buffs) — ПЕРЕЗАПИСЫВАТЬ нельзя.
+  // const, НЕ let: reassignment запрещён контрактом (deps-бандл и
+  // npcUI держат ссылки).
+  const hasCompanions = G.companions &&
+    typeof G.companions.createRoster === 'function';
+  const roster = hasCompanions ? G.companions.createRoster() : [];
+  const deadMercs = []; // [npcId] погибших — гибель 000087, сейв 000085
+  if (!hasCompanions) {
+    console.error('main.js: Game.companions отсутствует — ' +
+      'src/companions.js обязан грузиться ДО src/main.js (000079) — ' +
+      'найм/увольнение отключены');
+  }
   // Задача 000076: модификаторы активных благословений на текущий
   // день (day.js buffMods, 000072) — для точек создания боя:
   // благословение действует во ВСЕХ боях дня (мир/подземелье/
@@ -787,6 +802,8 @@
       buffs, // live Array (000072/000076)
       teleports, // live Map 'x,y' → { pair, dest, active } (000075)
       buildingQuests, // live Map 'x,y' → { questId, day, status } (000074)
+      roster, // live Array (000083/000085): отряд — npcUI.open
+      deadMercs, // live Array [npcId] (000083/000085)
       playerRender,
       moveHero,
       startCombat: startCombatAt,
