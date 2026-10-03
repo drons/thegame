@@ -131,10 +131,12 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // смержены 000075 ('41'), 000076 ('36'/'37'/'38') и 000074
   // ('40'/'42'); 000093 добавляет '46' (смотровая башня,
   // memory/000093-explored-tower.md); 000077 добавляет '39' (храм)
-  // и '43' (круг); 000091/92/94/95 расширят список при своих
-  // мержах (правка при ребейзе: union,
+  // и '43' (круг); 000094 добавляет '48' (развалины — осмотр,
+  // memory/000094-ruins-inspect.md); 000091/92/95 расширят список
+  // при своих мержах (правка при ребейзе: union,
   // memory/000076-temple-blessings.md / 000074-rune-stone-obelisk.md
-  // / 000077-building-content.md §8). Форм-пин — ЧЛЕНСТВО
+  // / 000077-building-content.md §8 / 000094-ruins-inspect.md).
+  // Форм-пин — ЧЛЕНСТВО
   // (отклонение от точного deepEqual: точный union не замкнулся бы
   // до мержей 000091–000095, добавляющих собственные записи):
   //   * все смерженные записи НА МЕСТЕ (анти-дрейф при ребейзе);
@@ -142,8 +144,10 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // Присутствие '39'/'43' — закреплён A59 (красный до 000077).
   // Ребейз 000077 на мастер (2026-10-03): union += '46' (000093) —
   // пин регенерирован по фактическому коду.
-  const MERGED = ['36', '37', '38', '40', '41', '42', '46'];
-  const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '46'];
+  // Ребейз 000094 на мастер (2026-10-03): MERGED/UNION += '48'
+  // (000094) — пин регенерирован по фактическому коду.
+  const MERGED = ['36', '37', '38', '40', '41', '42', '46', '48'];
+  const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '46', '48'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -152,7 +156,7 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   for (const id of regKeys) {
     assert.ok(UNION.includes(id),
       'реестр: чужой id «' + id + '» (union 000074/000075/000076/' +
-      '000077/000093)');
+      '000077/000093/000094)');
   }
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
@@ -2640,6 +2644,450 @@ test('A63. 000077: buildingContent — serialize/restore (roundtrip) + fail-open
   assert.deepEqual(mixed.get('5,7'), { day: 3, type: 'chest' });
 });
 
+// --- Задача 000094: развалины (id 48) — «Осмотр» (лут/ловушка/запись) ---
+//
+// Контракты — memory/000094-ruins-inspect.md; числа/формулы —
+// memory/000094-ruins.md. Ролл содержимого — детерминированный по
+// (tile, day): 40/30/30 (доли — каталог); лут — предмет id из
+// каталога (детерминированно); ловушка — урон 2 БЕЗ БОЯ, HP ≥ 1
+// (clamp — спец-хендлер, НЕ apply); запись — фрагмент лора +
+// проверка ИНТЕЛЛЕКТА (порог — каталог; уровень ≥ порога → текст).
+// Чистота apply (A12): урон/лут — НЕ в apply (мир-сторона —
+// спец-модуль src/building-effect-48.js). Семантика попытки (R3):
+// ЛЮБОЙ валидный исход — ok:true (попытка сгорела, daily-марка +
+// saveNow — роутером); ok:false — только «недоступно».
+
+test('A55. реестр: запись «48» «Осмотреть»; «раз в день» — из каталога 48 (A48-паттерн на реальной записи)', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['48'],
+    'запись 48 в реестре (red: нет до реализации)');
+  assert.equal(BE.EFFECTS['48'].имя, 'Осмотреть', '48: имя по ТЗ');
+  assert.equal(typeof BE.EFFECTS['48'].apply, 'function',
+    '48: apply(state)');
+  // «Раз в день» — ИЗ КАТАЛОГА (принцип 000053; ТЗ: «флаг добавить
+  // в каталог id 48»); в записи реестра разВДень НЕ ставится.
+  const B = require('../src/buildings.js');
+  const c48 = B.getBuilding(48);
+  assert.equal(c48.особые_параметры.раз_в_день, true,
+    'каталог 48: раз_в_день — true (red: флага нет)');
+  assert.equal(BE.hasDailyLimit(c48, '48'), true,
+    '48: hasDailyLimit — по каталогу');
+  assert.notEqual(BE.EFFECTS['48'].разВДень, true,
+    '48: разВДень в реестре не ставится (каталог побеждает)');
+  // День 1 + марка дня 1 — действие сгорело (A48-паттерн).
+  const used = makeState({ day: 1, tile: { x: 5, y: 7 },
+    save: { buildingOncePerDay: { '5,7:48': 1 } } });
+  const rows = BE.buildingActions(c48, null, used);
+  assert.equal(rows.length, 1, 'одна строка (NPC у развалин нет)');
+  assert.equal(rows[0].id, '48', 'id строки — «48»');
+  assert.equal(rows[0].имя, 'Осмотреть');
+  assert.equal(rows[0].доступен, false, 'день 1 + марка → недоступно');
+  assert.equal(rows[0].reason, 'уже использовано сегодня');
+  // День 2 — снова доступно (через 000072: марка < день).
+  const next = Object.assign({}, used, { day: 2 });
+  assert.equal(BE.buildingActions(c48, null, next)[0].доступен, true,
+    'день 2 → доступно');
+});
+
+test('A56. каталог 000048: раз_в_день + эффект (доли 40/30/30, урон 2, порог 5, 16 предметов, 8 текстов) + зеркало', () => {
+  const B = require('../src/buildings.js');
+  const p48 = B.getBuilding(48).особые_параметры;
+  assert.equal(p48.раз_в_день, true,
+    '48: раз_в_день — true (red: поля нет)');
+  assert.equal(typeof p48.эффект, 'object',
+    '48: эффект — объект (red: поля нет)');
+  const eff = p48.эффект;
+  assert.deepEqual(eff.доли, { лут: 40, ловушка: 30, запись: 30 },
+    '48: доли — целые проценты, сумма 100');
+  assert.equal(eff.урон_ловушки, 2, '48: урон_ловушки — 2');
+  assert.equal(eff.порог_интеллект, 5, '48: порог_интеллект — 5');
+  // Порядок массива = индекс для `% len` (не менять без регенерации
+  // golden, memory/000094-ruins.md).
+  assert.deepEqual(eff.предметы, [
+    'minor_healing', 'healing_potion', 'mana_potion', 'bread',
+    'meat', 'honey_cake', 'wood_sword', 'leather_armor',
+    'iron_ore', 'copper_ore', 'coal', 'stone_chunk',
+    'hide', 'sulfur', 'moonstone', 'herb_healing',
+  ], '48: предметы — зафиксированные 16 id');
+  // Кросс-сверка id с каталогом assets/items: НОВЫХ предметов НЕ
+  // ВВОДИТЬ (ТЗ); у apply каталога items глобально нет (000053),
+  // поэтому сверка — здесь (fs), не в apply.
+  const itemsDir = path.join(ROOT, 'assets', 'items');
+  const itemIds = new Set();
+  for (const f of fs.readdirSync(itemsDir)) {
+    if (f === 'schema.json') continue;
+    itemIds.add(JSON.parse(
+      fs.readFileSync(path.join(itemsDir, f), 'utf8')).id);
+  }
+  for (const id of eff.предметы) {
+    assert.ok(itemIds.has(id),
+      '48: предмет ' + id + ' существует в assets/items');
+  }
+  assert.deepEqual(eff.тексты, [
+    '…стены города, которого нет на картах, рушатся, но держатся — пока кто-то их помнит…',
+    '…на камне у входа выбит знак, которого нет ни в одном словаре: три спирали и точка…',
+    '…жители долины говорят: не тратьте железо на эти обломки — камни здесь не каменные…',
+    '…в пепле развалин иногда вспыхивает флогистон. Днём — голубой, ночью — зелёный…',
+    '…тот, кто нашёл здесь записку, дописал её: «не читайте вслух после заката»…',
+    '…под обвалившейся аркой видна вторая арка, и под ней — третья. Куда они ведут — не спрашивайте…',
+    '…развалины помнят пожар. Пожар ничего не помнит. Это несправедливо, но так…',
+    '…в основании колонны выбита дата на старом счёте — и число, повторённое четырежды…',
+  ], '48: тексты — зафиксированные 8 фрагментов');
+  // Зеркало src/buildings.js — byte-в-byte с каталогом (000055;
+  // регенерация npm run sync:buildings).
+  const j48 = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'assets', 'buildings', '000048.json'), 'utf8'));
+  assert.deepEqual(B.getBuilding(48), j48, 'зеркало 48: buildings.js ≡ JSON');
+});
+
+test('A57. rollRuinsContent/ruinsLoot: доли 40/30/30 (N=10000), детерминизм (tile, day), сиды, мусор', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.rollRuinsContent, 'function',
+    'rollRuinsContent(tileKey, day, eff, hash) (red: отсутствует)');
+  assert.equal(typeof BE.ruinsLoot, 'function',
+    'ruinsLoot(tileKey, day, items, hash) (red: отсутствует)');
+  // Свои ASCII-сид-константы экспортированы (golden-пины); различны
+  // между собой и с сидами чужих задач (STNR/STNT/OBLT/TELP — A47).
+  assert.equal(BE.RUINS_ROLL_SEED, 0x5255494e,
+    'RUINS_ROLL_SEED ("RUIN" — ролл содержимого)');
+  assert.equal(BE.RUINS_LOOT_SEED, 0x52554c54,
+    'RUINS_LOOT_SEED ("RULT" — выбор предмета лута)');
+  assert.equal(BE.RUINS_NOTE_SEED, 0x52554e54,
+    'RUINS_NOTE_SEED ("RUNT" — выбор фрагмента записи)');
+  const PL = require('../src/perlin.js');
+  const hash = PL.hash2;
+  const B = require('../src/buildings.js');
+  const eff = B.getBuilding(48).особые_параметры.эффект;
+  // Доли: N=10000 (tile, day) — 40/30/30 ±2% (ТЗ); сетка
+  // x=i, y=j (i, j ∈ 0..99), day = i*100 + j (замер: 4004/2951/3045).
+  let loot = 0, trap = 0, note = 0;
+  for (let i = 0; i < 100; i++) {
+    for (let j = 0; j < 100; j++) {
+      const c = BE.rollRuinsContent(i + ',' + j, i * 100 + j, eff, hash);
+      if (c === 'loot') loot++;
+      else if (c === 'trap') trap++;
+      else if (c === 'note') note++;
+    }
+  }
+  assert.equal(loot + trap + note, 10000, 'все роллы — валидные исходы');
+  assert.ok(Math.abs(loot - 4000) <= 200, 'лут ≈ 40% (±200): ' + loot);
+  assert.ok(Math.abs(trap - 3000) <= 200,
+    'ловушка ≈ 30% (±200): ' + trap);
+  assert.ok(Math.abs(note - 3000) <= 200, 'запись ≈ 30% (±200): ' + note);
+  // Голден (2,-4) — замерено (memory/000094-ruins.md):
+  // день 1 — лут (roll 0.3639…), день 2 — ловушка (0.4830…),
+  // день 5 — запись (0.7590…).
+  assert.equal(BE.rollRuinsContent('2,-4', 1, eff, hash), 'loot',
+    'golden (2,-4) день 1 — лут');
+  assert.equal(BE.rollRuinsContent('2,-4', 2, eff, hash), 'trap',
+    'golden (2,-4) день 2 — ловушка');
+  assert.equal(BE.rollRuinsContent('2,-4', 5, eff, hash), 'note',
+    'golden (2,-4) день 5 — запись');
+  // Детерминизм: тот же (tileKey, day) — тот же content И тот же
+  // itemId И тот же фрагмент текста (два вызова).
+  assert.equal(BE.rollRuinsContent('2,-4', 1, eff, hash),
+    BE.rollRuinsContent('2,-4', 1, eff, hash),
+    'тот же (tile, day) — тот же content');
+  assert.equal(BE.ruinsLoot('2,-4', 1, eff.предметы, hash), 'meat',
+    'golden (2,-4) день 1 — лут «meat»');
+  assert.equal(BE.ruinsLoot('2,-4', 1, eff.предметы, hash),
+    BE.ruinsLoot('2,-4', 1, eff.предметы, hash),
+    'тот же (tile, day) — тот же itemId');
+  // Фрагмент — pickFragment + RUINS_NOTE_SEED (та же формула, что в
+  // applyRuins; день 5 — golden-день «запись» (A59)).
+  assert.equal(
+    BE.pickFragment(eff.тексты, 2, -4, 5, BE.RUINS_NOTE_SEED, hash),
+    BE.pickFragment(eff.тексты, 2, -4, 5, BE.RUINS_NOTE_SEED, hash),
+    'тот же (tile, day) — тот же фрагмент текста');
+  // Две независимые сессии (свежий require после очистки кэша,
+  // A47-паттерн) — те же результаты.
+  const c1 = BE.rollRuinsContent('2,-4', 1, eff, hash);
+  const l1 = BE.ruinsLoot('2,-4', 1, eff.предметы, hash);
+  const f1 = BE.pickFragment(eff.тексты, 2, -4, 5, BE.RUINS_NOTE_SEED,
+    hash);
+  delete require.cache[require.resolve('../src/building-effects.js')];
+  const BE2 = loadBE();
+  assert.equal(c1, BE2.rollRuinsContent('2,-4', 1, eff, hash),
+    'две сессии — тот же content');
+  assert.equal(l1, BE2.ruinsLoot('2,-4', 1, eff.предметы, hash),
+    'две сессии — тот же itemId');
+  assert.equal(f1,
+    BE2.pickFragment(eff.тексты, 2, -4, 5, BE.RUINS_NOTE_SEED, hash),
+    'две сессии — тот же фрагмент текста');
+  // Разные (tile, day) — не все исходы/предметы совпадают.
+  const contents = new Set();
+  const items = new Set();
+  for (let d = 1; d <= 10; d++) {
+    contents.add(BE.rollRuinsContent('2,-4', d, eff, hash));
+    items.add(BE.ruinsLoot('2,-4', d, eff.предметы, hash));
+  }
+  assert.ok(contents.size >= 2,
+    'разные (tile, day) — содержимое различается');
+  assert.ok(items.size >= 2, 'разные (tile, day) — предметы различаются');
+  // Мусорные входы (без исключения): tileKey 'abc' → null; доли {} →
+  // null; предметы [] → null.
+  assert.equal(BE.rollRuinsContent('abc', 1, eff, hash), null,
+    'tileKey "abc" → null');
+  assert.equal(BE.rollRuinsContent('2,-4', 1, { доли: {} }, hash), null,
+    'доли {} → null');
+  assert.equal(BE.ruinsLoot('2,-4', 1, [], hash), null,
+    'предметы [] → null');
+});
+
+test('A58. readNote: порог Интеллекта — граничные кейсы (чистое сравнение, НЕ ролл)', () => {
+  const BE = loadBE();
+  assert.equal(typeof BE.readNote, 'function',
+    'readNote(level, threshold) (red: отсутствует)');
+  const B = require('../src/buildings.js');
+  const threshold = B.getBuilding(48)
+    .особые_параметры.эффект.порог_интеллект;
+  assert.ok(Number.isFinite(threshold),
+    'порог — реальное значение каталога 48 (red: поля нет)');
+  assert.equal(BE.readNote(threshold - 1, threshold), false,
+    'level = порог−1 → false (граница)');
+  assert.equal(BE.readNote(threshold, threshold), true,
+    'level = порог → true (граница — успех)');
+  assert.equal(BE.readNote(threshold + 1, threshold), true,
+    'level = порог+1 → true');
+  // Мусор: NaN/не-числа → false (без исключения).
+  assert.equal(BE.readNote(NaN, threshold), false, 'NaN level → false');
+  assert.equal(BE.readNote(5, NaN), false, 'NaN threshold → false');
+  assert.equal(BE.readNote('5', threshold), false,
+    'не-числовой level → false');
+});
+
+test('A59. apply(«48») «Осмотреть»: голден (2,-4) дни 1/2/5 — лут/ловушка/запись; порог Интеллекта; чистота; деградация', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['48']
+    && typeof BE.EFFECTS['48'].apply === 'function',
+    'apply(«48») в реестре (red: отсутствует)');
+  const PL = require('../src/perlin.js');
+  const N = require('../src/npc.js');
+  const B = require('../src/buildings.js');
+  const c48 = B.getBuilding(48);
+  const texts = c48.особые_параметры.эффект.тексты;
+  // Имена предметов — из РЕАЛЬНОГО каталога assets/items (stub
+  // G.getItem по нему; каталога items у apply глобально нет — 000053).
+  const itemsDir = path.join(ROOT, 'assets', 'items');
+  const itemNames = new Map();
+  for (const f of fs.readdirSync(itemsDir)) {
+    if (f === 'schema.json') continue;
+    const it = JSON.parse(
+      fs.readFileSync(path.join(itemsDir, f), 'utf8'));
+    itemNames.set(it.id, it.name);
+  }
+  const getItem = (id) => (itemNames.has(id)
+    ? { id, name: itemNames.get(id) } : null);
+  const hero = mkHero();
+  hero.primary.intelligence = 5; // === порога (каталог 48)
+  const G = { hash2: PL.hash2, skillLevel: N.skillLevel, getItem };
+  withGame(G, () => {
+    // День 1 — ЛУТ (golden): 'meat', message с именем предмета.
+    let state = makeState({ day: 1, tile: { x: 2, y: -4 }, hero,
+      save: {}, catalog: c48 });
+    let s0 = JSON.parse(JSON.stringify(state));
+    let r = BE.EFFECTS['48'].apply(state);
+    assert.equal(r.ok, true, 'лут — ok:true');
+    assert.equal(r.content, 'loot', 'день 1 — content «лоут» (golden)');
+    assert.equal(r.itemId, 'meat', 'golden: лут — «meat»');
+    assert.equal(r.message, 'Осмотр развалин: лут — «Жареное мясо».',
+      'message лута: имя из G.getItem');
+    assert.deepEqual(state, s0, 'чистота: state не мутирован');
+    // День 2 — ЛОВУШКА (golden): урон 2 ЗАЯВЛЕН (исполнение —
+    // спец-хендлер, A60); apply hp НЕ трогает.
+    state = makeState({ day: 2, tile: { x: 2, y: -4 }, hero,
+      save: {}, catalog: c48 });
+    s0 = JSON.parse(JSON.stringify(state));
+    r = BE.EFFECTS['48'].apply(state);
+    assert.equal(r.ok, true, 'ловушка — ok:true (попытка сгорела, R3)');
+    assert.equal(r.content, 'trap', 'день 2 — content «ловушка» (golden)');
+    assert.equal(r.damage, 2, 'урон — из каталога (2)');
+    assert.equal(r.message, 'Осмотр развалин: ловушка! −2 HP.',
+      'message ловушки зафиксирован (Unicode-минус)');
+    assert.equal(state.hero.hp, s0.hero.hp,
+      'чистота: apply hp НЕ меняет (сторона — спец-хендлер)');
+    assert.deepEqual(state, s0, 'чистота при ловушке');
+    // День 5 — ЗАПИСЬ (golden), УСПЕХ: intelligence === порога.
+    state = makeState({ day: 5, tile: { x: 2, y: -4 }, hero,
+      save: {}, catalog: c48 });
+    s0 = JSON.parse(JSON.stringify(state));
+    r = BE.EFFECTS['48'].apply(state);
+    assert.equal(r.ok, true, 'запись — ok:true');
+    assert.equal(r.content, 'note', 'день 5 — content «запись» (golden)');
+    assert.equal(r.success, true,
+      'intelligence 5 === порог 5 → успех');
+    assert.equal(r.fragment, texts[7],
+      'golden: фрагмент №7 (день 5, fragIdx 7)');
+    assert.ok(texts.includes(r.fragment), 'фрагмент — из каталога');
+    assert.equal(r.message,
+      'Осмотр развалин: запись: «' + r.fragment + '»',
+      'message записи-успеха зафиксирован');
+    assert.deepEqual(state, s0, 'чистота при записи');
+    // Детерминизм (ТЗ «тот же результат и тот же текст»): повторный
+    // apply(«48») с тем же (tile, day) — тот же фрагмент (уровень
+    // apply: ловит недетерминизм на всём пути, не только формулу).
+    const r5b = BE.EFFECTS['48'].apply(makeState({
+      day: 5, tile: { x: 2, y: -4 }, hero, save: {}, catalog: c48 }));
+    assert.equal(r5b.fragment, r.fragment,
+      'тот же (tile, day) — тот же фрагмент текста');
+    // День 5 — ЗАПИСЬ, ПРОВАЛ: intelligence 4 < порога → фрагмент
+    // НЕ выдаётся (ТЗ).
+    const hero4 = mkHero();
+    hero4.primary.intelligence = 4;
+    const st4 = makeState({ day: 5, tile: { x: 2, y: -4 }, hero: hero4,
+      save: {}, catalog: c48 });
+    const s4 = JSON.parse(JSON.stringify(st4));
+    const r4 = BE.EFFECTS['48'].apply(st4);
+    assert.equal(r4.ok, true, 'провал — ok:true (попытка сгорела, R3)');
+    assert.equal(r4.content, 'note', 'день 5 — запись');
+    assert.equal(r4.success, false, 'intelligence 4 < 5 → провал');
+    assert.equal(r4.fragment, undefined, 'провал — фрагмент НЕ выдаётся');
+    assert.equal(r4.message, 'Осмотр развалин: запись не читается.',
+      'message провала зафиксирован (строка ТЗ дословно)');
+    assert.deepEqual(st4, s4, 'чистота при провале');
+  });
+  // Fallback: G.getItem ОТСУТСТВУЕТ — message лута БЕЗ имени
+  // (НЕ «недоступно»).
+  withGame({ hash2: PL.hash2, skillLevel: N.skillLevel }, () => {
+    const r = BE.EFFECTS['48'].apply(makeState({
+      day: 1, tile: { x: 2, y: -4 }, hero, save: {}, catalog: c48 }));
+    assert.equal(r.ok, true, 'без getItem — всё равно ok:true');
+    assert.equal(r.message, 'Осмотр развалин: лут.',
+      'fallback-message без имени предмета');
+  });
+  // Деградация: Game-функций нет — «недоступно» (A36-паттерн).
+  withGame({}, () => {
+    const r = BE.EFFECTS['48'].apply(makeState({ catalog: c48 }));
+    assert.equal(r.ok, false, 'нет Game-функций — ok:false');
+    assert.equal(r.message, 'недоступно');
+  });
+  // Каталог без эффекта / hero не-объект — «недоступно» (A53-паттерн).
+  withGame(G, () => {
+    const rCat = BE.EFFECTS['48'].apply(makeState({
+      catalog: { id: 48, особые_параметры: {} } }));
+    assert.equal(rCat.ok, false, 'каталог без эффекта — ok:false');
+    assert.equal(rCat.message, 'недоступно');
+    const rHero = BE.EFFECTS['48'].apply(makeState({
+      hero: null, catalog: c48 }));
+    assert.equal(rHero.ok, false, 'hero null — ok:false (не TypeError)');
+    assert.equal(rHero.message, 'недоступно');
+  });
+});
+
+test('A60. спец-хендлер (src/building-effect-48.js): ловушка — clamp HP ≥ 1; лут — addItem, отказ → r.message (R6); запись — без мир-сторон', () => {
+  const M = require('../src/building-effect-48.js');
+  assert.equal(typeof M.handle, 'function',
+    'node-экспорт handle (red: модуль отсутствует)');
+  assert.equal(typeof M.register, 'function',
+    'node-экспорт register(G)');
+  const trap = (hp) => {
+    const hero = { hp };
+    const r = { ok: true, content: 'trap', damage: 2, message: 'x' };
+    const res = M.handle({ hero, r, world: { game: {} } });
+    return { res, hero };
+  };
+  assert.equal(trap(10).res.ok, true, 'ловушка — { ok: true }');
+  assert.equal(trap(10).hero.hp, 8, 'hp 10 → 8 (урон 2, без боя)');
+  assert.equal(trap(4).hero.hp, 2, 'hp 4 → 2');
+  assert.equal(trap(2).hero.hp, 1, 'hp 2 → 1 (clamp ≥ 1 — ТЗ-кейс)');
+  assert.equal(trap(1).hero.hp, 1, 'hp 1 → 1 (не убивает — герой жив)');
+  // Дефенсивный fallback урона 2 при мусоре r.damage.
+  const heroFb = { hp: 10 };
+  M.handle({ hero: heroFb, r: { ok: true, content: 'trap' },
+    world: { game: {} } });
+  assert.equal(heroFb.hp, 8, 'r.damage мусор → fallback 2');
+  // Лут: G.addItem(hero, itemId, 1); успех — r НЕ мутирован
+  // (message — уже от apply).
+  const calls = [];
+  const G = {
+    addItem: (hero, itemId, qty) => {
+      calls.push([hero, itemId, qty]);
+      return { ok: true };
+    },
+  };
+  const heroL = { hp: 10 };
+  const r0 = { ok: true, content: 'loot', itemId: 'meat',
+    message: 'Осмотр развалин: лут — «Жареное мясо».' };
+  const res0 = M.handle({ hero: heroL, r: r0, world: { game: G } });
+  assert.equal(res0.ok, true, 'лут-успех — { ok: true }');
+  assert.deepEqual(calls, [[heroL, 'meat', 1]],
+    'G.addItem(hero, itemId, 1)');
+  assert.equal(r0.message, 'Осмотр развалин: лут — «Жареное мясо».',
+    'лут-успех — r не мутирован');
+  // Лут-ОТКАЗ (R6): попытка ВСЁ РАВНО сгорает ({ ok: true });
+  // r.message — причина (роутер флэшит r.message ПЕРВЫМ).
+  const G2 = { addItem: () => ({ ok: false,
+    reason: 'нет свободных слотов инвентаря' }) };
+  const r1 = { ok: true, content: 'loot', itemId: 'meat',
+    message: 'Осмотр развалин: лут — «Жареное мясо».' };
+  const res1 = M.handle({ hero: heroL, r: r1, world: { game: G2 } });
+  assert.equal(res1.ok, true, 'отказ — { ok: true } (попытка сгорела)');
+  assert.equal(r1.message,
+    'Осмотр развалин: не удалось подобрать лут '
+    + '(нет свободных слотов инвентаря).',
+    'отказ — r.message = причина (R6-фиксатор)');
+  // Запись: мир-сторон НЕТ (текст — в r.message); hero/r не
+  // мутированы.
+  const heroN = { hp: 10 };
+  const rN = { ok: true, content: 'note', success: true, fragment: '…',
+    message: 'Осмотр развалин: запись: «…»' };
+  const sN = JSON.parse(JSON.stringify({ hero: heroN, r: rN }));
+  const resN = M.handle({ hero: heroN, r: rN, world: { game: G } });
+  assert.equal(resN.ok, true, 'запись — { ok: true }');
+  assert.deepEqual({ hero: heroN, r: rN }, sN,
+    'запись — hero/r не мутированы');
+  // Дефенсив: ctx.r null / ctx без world.game / ctx null — no-op
+  // { ok: true }, без краха.
+  assert.deepEqual(M.handle({ hero: heroL, r: null }), { ok: true },
+    'ctx.r null — no-op { ok: true }');
+  assert.deepEqual(M.handle({ hero: heroL, r: r0 }), { ok: true },
+    'ctx без world.game — no-op { ok: true } (без краха)');
+  assert.deepEqual(M.handle(null), { ok: true }, 'ctx null — no-op');
+});
+
+test('A61. vm-загрузка спец-модуля: пара с building-actions.js — саморегистрация; без него — console.error, без регистрации (000053)', () => {
+  const errors = [];
+  const sandbox = {
+    console: { log: () => {}, warn: () => {},
+      error: (m) => errors.push(String(m)) },
+  };
+  vm.createContext(sandbox);
+  // (а) Пара в порядке index.html (слот спец-модулей: ПОСЛЕ
+  // building-actions.js) — ошибок 0, саморегистрация specials['48']
+  // БЕЗ правок main.js (критерий 000128).
+  for (const f of ['src/building-actions.js', 'src/building-effect-48.js']) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox,
+      { filename: f });
+  }
+  assert.equal(errors.length, 0,
+    'ошибок загрузки пары нет: ' + errors.join('; '));
+  const BA = sandbox.Game && sandbox.Game.buildingActions;
+  assert.ok(BA && typeof BA.specials['48'] === 'function',
+    'саморегистрация Game.buildingActions.specials["48"]'
+    + ' (red: модуль отсутствует)');
+  // (б) Модуль БЕЗ building-actions.js — без краша, console.error,
+  // регистрации нет (деградация 000053: игра не падает).
+  const errors2 = [];
+  const sandbox2 = {
+    console: { log: () => {}, warn: () => {},
+      error: (m) => errors2.push(String(m)) },
+  };
+  vm.createContext(sandbox2);
+  assert.doesNotThrow(() => vm.runInContext(
+    fs.readFileSync(path.join(ROOT, 'src', 'building-effect-48.js'),
+      'utf8'),
+    sandbox2, { filename: 'building-effect-48.js' }),
+    'без building-actions.js — без краха');
+  assert.ok(errors2.length >= 1, 'console.error при битом порядке');
+  assert.ok(String(errors2[0]).includes('Game.buildingActions не найден'),
+    'текст ошибки — про порядок: ' + errors2[0]);
+  assert.ok(!sandbox2.Game
+    || !sandbox2.Game.buildingActions
+    || !sandbox2.Game.buildingActions.specials['48'],
+    'регистрации нет (buildingActions нет)');
+});
+
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
 //
 // Паттерн tests/save-restore.test.js: DOM/WebGL-стабы + МОК
@@ -3062,6 +3510,51 @@ function findBuilding(G, myMap, start, wantNpc, pred) {
               return { tile: t, building: b, npc, steps };
             }
           }
+        }
+        next.push({ x: nx, y: ny });
+      }
+    }
+    frontier = next;
+  }
+  return null;
+}
+
+// Задача 000094: BFS до ближайших развалин (t.buildingId === 48) —
+// БЕЗ пропуска слота 9 (findBuilding пропускает CAVE_ENTRANCE: для
+// него цель — входы в подземелье, а развалины — ПОДТИП слота 9 и
+// обязаны оставаться целью; «не вход в подземелье» — гард 000073
+// maybeEnterDungeon, не обход). Голден: (2,-4), 6 шагов от спавна
+// (0,0) — детерминированный пин достижимости (замерено на HEAD,
+// memory/000094-ruins.md).
+function findRuins(G, myMap, start) {
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const startKey = start.x + ',' + start.y;
+  const visited = new Set([startKey]);
+  const prev = new Map();
+  let frontier = [{ x: start.x, y: start.y }];
+  for (let depth = 0; depth < 300 && frontier.length; depth++) {
+    const next = [];
+    for (const cur of frontier) {
+      for (const [dx, dy] of DIRS) {
+        const nx = cur.x + dx, ny = cur.y + dy;
+        const k = nx + ',' + ny;
+        if (visited.has(k)) continue;
+        const t = myMap.tileAt(nx, ny);
+        if (!t.passable || t.hasMobGroup) continue;
+        if (t.hasBuilding && t.building === G.BUILDING_TYPES.NONE) {
+          continue; // город (000103)
+        }
+        visited.add(k);
+        prev.set(k, cur.x + ',' + cur.y);
+        if (t.hasBuilding && t.buildingId === 48) {
+          const steps = [];
+          let kk = k;
+          while (kk !== startKey) {
+            const [px, py] = kk.split(',').map(Number);
+            steps.unshift([px, py]);
+            kk = prev.get(kk);
+          }
+          return { tile: t, steps };
         }
         next.push({ x: nx, y: ny });
       }
@@ -4955,4 +5448,165 @@ test('B25. босс «ежедневного контента»: исход «de
     'buildingContent: запись дня цела (смерть не отменяет день)');
   assert.equal(save.data.buildingOncePerDay['4,3:43'], 1,
     'daily-марка: день 1 (не сбросилась)');
+});
+
+// --- Задача 000094: развалины (48) — «Осмотр» wiring E2E (B24+) ---
+//
+// Золотые (детерминированный seed-мир, замерено на HEAD; контракты —
+// memory/000094-ruins.md):
+//   * ближайшая развалина от спавна (0,0) — тайл (2,-4), 6 шагов BFS
+//     (slot 9 НЕ пропускатся; тайл: passable, building 9,
+//     buildingId 48, isEntrance true — вход в подземелье всё равно
+//     исключён гардом 000073);
+//   * (2,-4) день 1 — ЛУТ 'meat' («Жареное мясо»), день 2 — ЛОВУШКА
+//     (урон 2, clamp HP ≥ 1), день 5 — ЗАПИСЬ (fragIdx 7).
+// Позиция PRE-SEED'ом на тайле (паттерн B14/B21): ХОД НЕ используется
+// (pre-seed держит день).
+const RUINS_KEY = '2,-4';
+const RUINS_LOOT_MSG = 'Осмотр развалин: лут — «Жареное мясо».';
+const RUINS_TRAP_MSG = 'Осмотр развалин: ловушка! −2 HP.';
+
+test('B24. развалины e2e: [E] «Осмотреть», день 1 = голден ЛУТ: инвентарь + flash + daily-марка; повтор в тот же день — недоступно, новый день — доступно', async () => {
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 2, y: -4 },
+    hero: mkHero(),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  // Голден: ближайшая развалина — (2,-4), 6 шагов от спавна
+  // (findRuins — слот 9 НЕ пропускается; ХОД НЕ используется —
+  // pre-seed держит день).
+  const found = findRuins(G, myMap, { x: 0, y: 0 });
+  assert.ok(found, 'сценарий: достижимые развалины (buildingId 48)');
+  assert.equal(found.tile.x, 2, 'golden: x развалин');
+  assert.equal(found.tile.y, -4, 'golden: y развалин');
+  assert.equal(found.steps.length, 6, 'golden: 6 шагов от спавна');
+  assert.equal(found.tile.building, 9, 'развалины — подтип слота 9');
+  assert.equal(found.tile.buildingId, 48,
+    'запись резолвлена по buildingId 48');
+  assert.equal(g.state.player.x, 2, 'позиция сейва — развалины (x)');
+  assert.equal(g.state.player.y, -4, 'позиция сейва — развалины (y)');
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  // g.state.hero.inventory — УЖЕ массив слотов (main.js:1544:
+  // `(hero.inventory || {slots:[]}).slots`), а не объект инвентаря.
+  // JSON-нормализация: массив из vm-realm (прототипы между realm'ами
+  // не равны для deepStrictEqual, паттерн B23).
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(g.state.hero.inventory)), [],
+    'инвентарь пуст до действия');
+  // HUD: «Здесь: развалины  ([E] действия)» (хинт — автоматически
+  // через hasEffects, 000071).
+  frameAt(h, NOW + 200);
+  const hudLine = String(h.hud.textContent);
+  assert.ok(hudLine.includes('Здесь: развалины'),
+    'HUD: «Здесь: развалины»: ' + hudLine);
+  assert.ok(hudLine.includes('[E] действия'),
+    'топ-строка «([E] действия)» (red: у 48 нет эффектов → хинта '
+    + 'нет): ' + hudLine);
+  // [E] → оверлей: заголовок, строка «Осмотреть».
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  assert.ok(String(textOf(ov)).toLowerCase().includes('развалины'),
+    'заголовок оверлея: ' + textOf(ov));
+  const row = findRow(ov, '48');
+  assert.ok(row,
+    'строка 48 в оверлее (red: нет записи «48» → строки нет)');
+  assert.ok(textOf(row).includes('Осмотреть'),
+    'имя строки: «Осмотреть»');
+  assert.equal(row.disabled, false, 'день 1 — доступно');
+  // Digit1 — ДЕНЬ 1: ЛУТ (golden): инвентарь + 'meat', flash
+  // message, saveNow + daily-марка (попытка сгорела, R3).
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes(RUINS_LOOT_MSG),
+    'hudFlash — голден лут день 1 (red: нет спец-модуля/записи): '
+    + hud1);
+  assert.ok(g.state.hero.inventory
+    .some((s) => s.id === 'meat'),
+    'лут в инвентаре: meat (red: спец-хендлер не зарегистрирован)');
+  const saveF = readSave(h);
+  assert.ok(saveF, 'saveNow — сразу после действия');
+  assert.equal(saveF.data.buildingOncePerDay[RUINS_KEY + ':48'], 1,
+    'попытка сгорела: daily-марка (R3)');
+  // Повтор в тот же день — disabled.
+  key(h, 'KeyE');
+  const rowSame = findRow(findOverlay(h), '48');
+  assert.equal(rowSame.disabled, true, 'в тот же день — disabled');
+  assert.ok(textOf(rowSame).includes('уже использовано сегодня'),
+    'reason «уже использовано сегодня»: ' + textOf(rowSame));
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
+  // День 2 — доступно (golden: ловушка).
+  g.actions.setDay(2);
+  key(h, 'KeyE');
+  const row2 = findRow(findOverlay(h), '48');
+  assert.equal(row2.disabled, false, 'день 2 — доступно');
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
+});
+
+test('B25. развалины e2e: ловушка (день 2 = голден) — HP −2 (кейс ТЗ) и clamp HP ≥ 1 (hp 2 → 1, НЕ смерть)', async () => {
+  // Сценарий 1: свежий герой (hp 25), день 2 — голден ЛОВУШКА.
+  const h = await boot(seedSave({
+    day: 2,
+    position: { x: 2, y: -4 },
+    hero: mkHero(),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, 2, 'позиция сейва — развалины (x)');
+  assert.equal(g.state.player.y, -4, 'позиция сейва — развалины (y)');
+  assert.equal(g.state.day, 2, 'день 2 (pre-seed)');
+  assert.equal(g.state.hero.hp, 25, 'hero: hp 25 до действия');
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const row = findRow(findOverlay(h), '48');
+  assert.ok(row, 'строка 48 в оверлее (red: нет записи «48»)');
+  assert.equal(row.disabled, false, 'день 2 — доступно');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 200);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes(RUINS_TRAP_MSG),
+    'hudFlash — ловушка (red: нет спец-модуля): ' + hud1);
+  assert.equal(g.state.hero.hp, 23,
+    'HP −2 (кейс ТЗ; red: без спец-хендлера hp не меняется)');
+  const save1 = readSave(h);
+  assert.equal(save1.data.hero.hp, 23, 'saveNow: hp — в сейве');
+  assert.equal(save1.data.buildingOncePerDay[RUINS_KEY + ':48'], 2,
+    'daily-марка день 2');
+  // Сценарий 2: герой с hp 2 (свежий boot) — clamp ≥ 1, НЕ смерть
+  // (restore-clamp main.js сохраняет hp=2 — tests/save-restore).
+  const h2 = await boot(seedSave({
+    day: 2,
+    position: { x: 2, y: -4 },
+    hero: mkHero({ hp: 2 }),
+  }));
+  const g2 = h2.sandbox.__game;
+  assert.equal(h2.errors.length, 0,
+    'ошибок загрузки нет (сценарий 2): ' + h2.errors.join('; '));
+  assert.equal(g2.state.hero.hp, 2, 'hero: hp 2 (restore-clamp)');
+  key(h2, 'KeyE');
+  const row2 = findRow(findOverlay(h2), '48');
+  assert.ok(row2, 'строка 48 в оверлее (сценарий 2)');
+  assert.equal(row2.disabled, false, 'день 2 — доступно (свежий сейв)');
+  key(h2, 'Digit1');
+  frameAt(h2, NOW + 200);
+  assert.equal(g2.state.hero.hp, 1,
+    'clamp HP ≥ 1: hp 2 → 1 (НЕ смерть, герой жив)');
+  assert.equal(g2.state.hero.alive, true, 'герой жив — игра идёт');
+  const save2 = readSave(h2);
+  assert.equal(save2.data.hero.hp, 1, 'saveNow: hp=1 — в сейве');
+  assert.equal(save2.data.buildingOncePerDay[RUINS_KEY + ':48'], 2,
+    'daily-марка день 2 (сценарий 2)');
 });
