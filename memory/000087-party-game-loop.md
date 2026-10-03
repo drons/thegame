@@ -8,7 +8,7 @@
 
 | Точка | Где (якорь) | Что происходит с отрядом | saveNow |
 |---|---|---|---|
-| Смена дня | onDay L884-897 (`clock.onDay`) | payWages(roster, NPCS, hero, НОВЫЙ day) — между buff-cleanup и playerUI.render: оплачено → gold −= Σ жалованье, всем +2 лояльности (cap 100); не хватает золота → золото НЕ списывается, всем −20 (floor 0) + проверка ухода: ≤20 — уходит верно, 21…40 — 50% roll seed (day, npcId), >40 — остаётся; уход — splice ВНУТРИ payWages (000079) + строка в hudFlash | существующий L896 (ДО него — payWages, D1) |
+| Смена дня | onDay L884-897 (`clock.onDay`) | payWages(roster, NPCS, hero, НОВЫЙ day) — между buff-cleanup и playerUI.render: оплачено → gold −= Σ жалованье, всем +2 лояльности (cap 100); не хватает золота → золото НЕ списывается, всем −20 (floor 0) + проверка ухода: ≤20 — уходит верно, 21…40 — 50% roll seed (day, npcId), >40 — остаётся; уход — splice ВНУТРИ payWages (000079) + строка в hudFlash; открытая панель «Отряд» (000086) — G.squadUI.render() (правка по итогам ревью 2026-10-03) | существующий L896 (ДО него — payWages, D1) |
 | Конец debug-боя | startCombatAt L948, onEnd L985-1015 | combatEndCompanions(res, combat) (D2/D5) | существующий L1014 (с 000077) |
 | Конец боя мира | maybeStartCombat L1250, onEnd L1278-1314 | то же | существующий L1313 |
 | Конец боя подземелья | startDungeonCombat L1439, onEnd L1461-1481 | то же, НО строки — в ds.log (по одной на push) | существующий L1480 |

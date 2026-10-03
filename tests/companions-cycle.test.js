@@ -4,11 +4,13 @@
 // memory/000087-party-game-loop.md. ТЗ: tasks/pending/000087.md.
 //
 // Поверхность:
-//   * S1–S3 — структурный скан src (паттерн day.test.js L406: окно
+//   * S1–S4 — структурный скан src (паттерн day.test.js L406: окно
 //     между маркерами + regex) — Точки подвешивания 000087:
 //     onDay → payWages ДО saveNow + строки; 3 onEnd → combatEnd-
 //     Companions + хелпер (applyCombatXp/allyXp/deadMercs); 3
-//     rosterData: companionAllies() + combat-ui opts.rosterData.
+//     rosterData: companionAllies() + combat-ui opts.rosterData;
+//     onDay → перерисовка открытой панели «Отряд» (000086) — S4,
+//     правка по итогам ревью (зелёный с первого коммита).
 //   * V1–V5 — vm e2e, ПОЛНАЯ цепочка index.html (браузерная ветка
 //     UMD): реальные onDay/boi через __game.actions + HUD-флэш
 //     (паттерн HU5: rAF-кадры ПЕРЕД чтением hud.textContent —
@@ -381,8 +383,9 @@ function mainFrameAt(h, now = NOW + 500) {
 }
 
 // =====================================================================
-// S1–S3. Структурный скан src — точки подвешивания 000087
-// (паттерн day.test.js L406). RED: символов в текущем коде нет.
+// S1–S4. Структурный скан src — точки подвешивания 000087
+// (паттерн day.test.js L406). RED: символов в текущем коде нет
+// (S4 — правка по итогам ревью, зелёный с коммита ревью-фиксов).
 // =====================================================================
 
 test('S1: onDay — G.companions.payWages( ДО saveNow + 3 фиксированные строки (D1/D9)', () => {
@@ -403,6 +406,26 @@ test('S1: onDay — G.companions.payWages( ДО saveNow + 3 фиксирован
     'строка: «Не хватает денег на жалованье — лояльность падает.» (D9)');
   assert.ok(before.includes('покинул отряд'),
     'строка: «<имя> покинул отряд.» (D9)');
+});
+
+test('S4: onDay — открытая панель «Отряд» (000086) перерисовывается после payWages (правка по итогам ревью)', () => {
+  const text = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
+  const iOn = text.indexOf('clock.onDay(');
+  assert.ok(iOn >= 0, 'main.js: регистрация clock.onDay(');
+  const iNext = text.indexOf('function startCombatAt(', iOn);
+  assert.ok(iNext > iOn, 'окно onDay — до следующей функции');
+  const win = text.slice(iOn, iNext);
+  const iSave = win.indexOf('saveNow();');
+  assert.ok(iSave > 0, 'onDay: существующий saveNow в окне');
+  const before = win.slice(0, iSave);
+  const iPw = before.search(/G\.companions\.payWages\s*\(/);
+  assert.ok(iPw >= 0, 'onDay: payWages в окне (D1)');
+  assert.ok(before.includes('G.squadUI.isOpen()'),
+    'onDay: guard isOpen() — панель рендерится, только если открыта');
+  const iSq = before.indexOf('G.squadUI.render()');
+  assert.ok(iSq > iPw,
+    'onDay: G.squadUI.render() — ПОСЛЕ payWages, ДО saveNow ' +
+    '(перерисовка открытой панели 000086 после лояльности/ухода)');
 });
 
 test('S2: хелпер combatEndCompanions (applyCombatXp/allyXp/deadMercs/уровень/гибель) + вызов во ВСЕХ 3 onEnd (D2/D3/D5)', () => {
