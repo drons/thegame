@@ -32,8 +32,11 @@ actions.md §2.3/§2.5/§2.6. Паттерны (tile, day)-роллов — memo
   test.js; пере-пин A1 (union + '48') + пин порядка в tests/
   index-order.test.js.
 
-НЕ ТРОГАТЬ: src/main.js (0 строк — «wiring» ТЗ реализовано контрактом
-000128 §2.3: маркировка/saveNow/flash — АВТОМАТИЧЕСКИ роутером),
+НЕ ТРОГАТЬ: src/main.js (без правок игровой логики — «wiring» ТЗ
+реализовано контрактом 000128 §2.3: маркировка/saveNow/flash —
+АВТОМАТИЧЕСКИ роутером; ЕДИНСТВЕННОЕ исключение: +3 строки debug-поля
+alive в __game.state.hero — смоук-фиксатор B25 «ловушка не убивает»,
+сейв/поведение не меняются),
 src/building-actions.js (контракт 000128 §2.3), src/building-ui.js
 («реестр buildingUI» ТЗ = реестр EFFECTS — UI подхватывает через
 effectIds/hasEffects автоматически), src/player.js, src/items.js,
@@ -57,6 +60,7 @@ NPC-каталог/схему, moonDreamHint (48-skip, building-effects.js:723),
 | src/building-effects.js | export (L1014-1027) | + rollRuinsContent, ruinsLoot, readNote, RUINS_ROLL_SEED, RUINS_LOOT_SEED, RUINS_NOTE_SEED |
 | src/building-effect-48.js | НОВЫЙ файл | спец-модуль (≈100 строк): UMD, handleInspect, register |
 | index.html | после L664 (building-actions.js), ДО L665-670 (коммент+hud.js) | свой тег + свой комментарий (слот спец-модулей 000128 §5) |
+| src/main.js | debug-снапшот __game.state.hero (≈1508) | +3 строки: поле alive (смоук-фиксатор B25; игровой процесс/сейв не меняются) |
 | assets/buildings/000048.json | особые_параметры | + раз_в_день: true + эффект (§Каталог); порядок ключей: даёт, раз_в_день, эффект, размещение |
 | src/buildings.js | GENERATED id 48 (≈605) | ТОЛЬКО `npm run sync:buildings` |
 | tests/building-effects.test.js | A1 (L125-140) | пере-пин union: ['36','37','38','40','41','42','48'] (единственная семантическая правка существующего теста; «кто смержился первым» — при rebase union с 000077/000091–95) |
@@ -412,6 +416,11 @@ onerror → generateSeedPixels, сид 20260926; фиксировать при
 * **000073-гарды** (locations.js:171, hud.js:91, moonDreamHint
   48-skip) — регрессия для ВСЕХ 000091–95 (развалины — подтип
   слота 9; у новых подтипов слота 9 — свои buildingId ≠ 48).
+* **Debug-снапшот __game.state.hero — допустимая точка для
+  test-фиксаторов** (B-сценарии читают состояние через него):
+  000094 добавил +3 строки (поле alive — B25 «ловушка не убивает»).
+  Свои фиксаторы в main.js — ТОЛЬКО аддитивные поля этого
+  debug-геттера; игровой процесс/сейв-формат — НЕ трогать.
 * r.*-ханки ОБЩЕГО пайплайна (r.teleport/r.buffs/r.xp/r.quest) —
   НЕ трогать; спец-хендлер 000094 использует только СВОИ поля
   r.content/r.itemId/r.damage (общих полей r.* НЕТ).
@@ -429,7 +438,11 @@ onerror → generateSeedPixels, сид 20260926; фиксировать при
    onBuildingAction): «wiring» ТЗ = спец-модуль + автоматика
    роутера (марка/saveNow/flash). При соблазне «вот один ханк в
    onBuildingAction» — НЕТ: контракт §2.3 + параллельные 000091–95
-   правят бы ту же функцию (конфликты).
+   правят бы ту же функцию (конфликты). ИСКЛЮЧЕНИЕ (факт ветки, не
+   правило): +3 строки — debug-поле alive в __game.state.hero
+   (смоук-фиксатор B25 «ловушка не убивает»); игровой процесс и сейв
+   НЕ меняются; debug-снапшот __game.state.hero — допустимая точка
+   для test-фиксаторов (сейв-формат — НЕ трогать).
 3. **Провал записи / loot-отказ = ok:true** (R3/R6): ок-ветка
    роутера ставит daily-марку + saveNow ТОЛЬКО при ok. ok:false
    означало бы «повтор в тот же день» — против ТЗ («повтор — новый
@@ -468,8 +481,9 @@ onerror → generateSeedPixels, сид 20260926; фиксировать при
     брать значения этого каталога (у каждой задачи — свой каталог).
 11. **save-формат НЕ меняется** (buildingOncePerDay уже существует
     — 000072; v1 совместим).
-12. **main.js не меняется** → статические пины (map.test.js
-    828/1346, day.test.js:412, cities.test.js:1420) — риск нулевой.
+12. **main.js — только +3 строки debug-снапшота (alive)** (игровой
+    процесс не меняется) → статические пины (map.test.js 828/1346,
+    day.test.js:412, cities.test.js:1420) — риск нулевой.
 13. **npm test — ВНУТРИ worktree** (memory/test-runner-
     worktrees.md: node --test сканирует .worktrees/ рекурсивно).
 

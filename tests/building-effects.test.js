@@ -2784,7 +2784,7 @@ test('A57. rollRuinsContent/ruinsLoot: доли 40/30/30 (N=10000), детерм
   assert.equal(BE.rollRuinsContent('2,-4', 5, eff, hash), 'note',
     'golden (2,-4) день 5 — запись');
   // Детерминизм: тот же (tileKey, day) — тот же content И тот же
-  // itemId (два вызова).
+  // itemId И тот же фрагмент текста (два вызова).
   assert.equal(BE.rollRuinsContent('2,-4', 1, eff, hash),
     BE.rollRuinsContent('2,-4', 1, eff, hash),
     'тот же (tile, day) — тот же content');
@@ -2793,16 +2793,27 @@ test('A57. rollRuinsContent/ruinsLoot: доли 40/30/30 (N=10000), детерм
   assert.equal(BE.ruinsLoot('2,-4', 1, eff.предметы, hash),
     BE.ruinsLoot('2,-4', 1, eff.предметы, hash),
     'тот же (tile, day) — тот же itemId');
+  // Фрагмент — pickFragment + RUINS_NOTE_SEED (та же формула, что в
+  // applyRuins; день 5 — golden-день «запись» (A59)).
+  assert.equal(
+    BE.pickFragment(eff.тексты, 2, -4, 5, BE.RUINS_NOTE_SEED, hash),
+    BE.pickFragment(eff.тексты, 2, -4, 5, BE.RUINS_NOTE_SEED, hash),
+    'тот же (tile, day) — тот же фрагмент текста');
   // Две независимые сессии (свежий require после очистки кэша,
   // A47-паттерн) — те же результаты.
   const c1 = BE.rollRuinsContent('2,-4', 1, eff, hash);
   const l1 = BE.ruinsLoot('2,-4', 1, eff.предметы, hash);
+  const f1 = BE.pickFragment(eff.тексты, 2, -4, 5, BE.RUINS_NOTE_SEED,
+    hash);
   delete require.cache[require.resolve('../src/building-effects.js')];
   const BE2 = loadBE();
   assert.equal(c1, BE2.rollRuinsContent('2,-4', 1, eff, hash),
     'две сессии — тот же content');
   assert.equal(l1, BE2.ruinsLoot('2,-4', 1, eff.предметы, hash),
     'две сессии — тот же itemId');
+  assert.equal(f1,
+    BE2.pickFragment(eff.тексты, 2, -4, 5, BE.RUINS_NOTE_SEED, hash),
+    'две сессии — тот же фрагмент текста');
   // Разные (tile, day) — не все исходы/предметы совпадают.
   const contents = new Set();
   const items = new Set();
@@ -2912,6 +2923,13 @@ test('A59. apply(«48») «Осмотреть»: голден (2,-4) дни 1/2/
       'Осмотр развалин: запись: «' + r.fragment + '»',
       'message записи-успеха зафиксирован');
     assert.deepEqual(state, s0, 'чистота при записи');
+    // Детерминизм (ТЗ «тот же результат и тот же текст»): повторный
+    // apply(«48») с тем же (tile, day) — тот же фрагмент (уровень
+    // apply: ловит недетерминизм на всём пути, не только формулу).
+    const r5b = BE.EFFECTS['48'].apply(makeState({
+      day: 5, tile: { x: 2, y: -4 }, hero, save: {}, catalog: c48 }));
+    assert.equal(r5b.fragment, r.fragment,
+      'тот же (tile, day) — тот же фрагмент текста');
     // День 5 — ЗАПИСЬ, ПРОВАЛ: intelligence 4 < порога → фрагмент
     // НЕ выдаётся (ТЗ).
     const hero4 = mkHero();
