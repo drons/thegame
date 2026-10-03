@@ -750,25 +750,43 @@ test('000085 T2: deserializeRoster — призрак/дубли/лимит/чи
 });
 
 test('000085 T3: serializeEfir/deserializeEfir — round-trip 5 полей; 3-полевая legacy; сломанные → null', () => {
-  // Фикс-точка под будущим reprocessEfirSkills (000115):
-  // skillXp 2.5 < efirSkillXpForNext(1) = 30, xp 10 < xpForNext(2) = 141.
+  // 000115 D4 (техническая фиксация под ОБЯЗАТЕЛЬНЫЙ reprocessEfirSkills
+  // ВНУТРИ deserialize, канон 000111 §9): ВЫХОД deserialize — ПЛОТНЫЙ
+  // (ВСЕ 4 id пула материализованы); round-trip-идентичность — на
+  // post-reprocess (неподвижной) форме. Фикс-точки: skillXp 2.5 <
+  // efirSkillXpForNext(1) = 30; icelord — requires firelord ≥ 5 не
+  // выполнен → 0/0; xp 10 < xpForNext(2) = 141 (reprocess level не
+  // трогает).
   const afterBattle = {
-    level: 2, xp: 10, skillXp: { firelord: 2.5 }, skills: { firelord: 1 },
+    level: 2, xp: 10,
+    skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
+    skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
     spells: ['spark', 'mend', 'light_heal'],
   };
   const fresh = E.createEfir();
-  assert.deepEqual(E.deserializeEfir(E.serializeEfir(fresh)), fresh,
-    'round-trip: свежий createEfir() (5 полей)');
+  assert.deepEqual(E.deserializeEfir(E.serializeEfir(fresh)), {
+    level: 1, xp: 0,
+    skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+    skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+    spells: ['spark', 'mend'],
+  }, 'round-trip: свежий createEfir() (5 полей; reprocess → плотный 4×0)');
   assert.deepEqual(E.deserializeEfir(E.serializeEfir(afterBattle)), afterBattle,
-    'round-trip: «после боя» (дроби skillXp, порядок spells)');
+    'round-trip: «после боя» (дроби skillXp, порядок spells) — неподвижная точка');
 
-  // 3-полевая legacy-форма (до 000111): дефолты skillXp→{}, spells→старт.
+  // 3-полевая legacy-форма (до 000111): дефолты skillXp→{}, spells→старт
+  // (+ reprocess 000115 → плотный 4×0).
   assert.deepEqual(E.deserializeEfir({ level: 2, xp: 5, skills: {} }),
-    { level: 2, xp: 5, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
-    '3-полевая legacy → 5 полей (000111 §9)');
+    { level: 2, xp: 5,
+      skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+      skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+      spells: ['spark', 'mend'] },
+    '3-полевая legacy → 5 полей (000111 §9; reprocess → плотный 4×0)');
   assert.deepEqual(E.deserializeEfir({ level: 1, xp: 0, spells: [] }),
-    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
-    'пустые spells → EFIR_SPELL_START (НЕ выводить из уровня, 000115)');
+    { level: 1, xp: 0,
+      skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+      skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+      spells: ['spark', 'mend'] },
+    'пустые spells → EFIR_SPELL_START (НЕ выводить из уровня, 000115; reprocess → плотный 4×0)');
 
   // Сломанные → null (main.js: warn + тихий сброс на createEfir()).
   const broken = [
@@ -802,6 +820,9 @@ test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs пережи�
   const st = makeStorage();
   // day:7 — день найма уже прошёл; efir L5: light_heal легитимно
   // по EFIR_SPELL_UNLOCKS (порог 5); skillXp 2.5 — фикс-точка (< 30).
+  // 000115 D4 (техническая фиксация): раздел сейва — КАНОНИЧЕСКАЯ
+  // post-reprocess форма (плотный: ВСЕ 4 id пула; icelord — requires
+  // firelord ≥ 5 не выполнен → 0/0) — неподвижная точка reprocess.
   const seed = {
     day: 7,
     companions: [
@@ -809,7 +830,9 @@ test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs пережи�
       { npcId: 'merc_ashka', level: 1, xp: 0, loyalty: 50, hiredDay: 2 },
     ],
     efir: {
-      level: 5, xp: 5, skillXp: { firelord: 2.5 }, skills: { firelord: 1 },
+      level: 5, xp: 5,
+      skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
+      skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
       spells: ['spark', 'mend', 'light_heal'],
     },
     dead_mercs: ['merc_baldor'],

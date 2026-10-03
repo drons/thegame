@@ -235,6 +235,33 @@
     console.error('main.js: efir.js не загружен (обязан грузиться ' +
       'ДО src/main.js, задача 000081) — в боях нет Эфира');
   }
+  // Каталоги id-валидации раздела сейва Эфира (задача 000115, D2):
+  // ПОЛНЫЕ зеркала assets (source of truth — каталоги JSON; JS-модули
+  // — фолбэк file://): skills = PRIMARY_SKILLS (массив, 6) +
+  // Object.values(SECONDARY_SKILLS) (ОБЪЕКТ-КАРТА, 31 — НЕ массив:
+  // .concat добавил бы объект как элемент) = 37 id; spells = SPELLS
+  // (массив, 16 id). G = снапшот Game (000038); порядок (skills-data
+  // и spells-data ДО main.js) закрепляет пин index-order.
+  // Каталог недоступен (регрессия порядка) → null → id-валидация ВЫКЛ
+  // (безопасное направление: unknown-id инертен, 000085) + видимая
+  // деградация — игра не падает.
+  const EFIR_SKILL_CATALOG =
+    (G.SkillsData && Array.isArray(G.SkillsData.PRIMARY_SKILLS) &&
+     G.SkillsData.SECONDARY_SKILLS &&
+     typeof G.SkillsData.SECONDARY_SKILLS === 'object' &&
+     !Array.isArray(G.SkillsData.SECONDARY_SKILLS))
+      ? G.SkillsData.PRIMARY_SKILLS.concat(
+          Object.values(G.SkillsData.SECONDARY_SKILLS))
+      : null;
+  const EFIR_SPELL_CATALOG =
+    (G.SpellsData && Array.isArray(G.SpellsData.SPELLS))
+      ? G.SpellsData.SPELLS : null;
+  if ((!EFIR_SKILL_CATALOG || EFIR_SKILL_CATALOG.length === 0) ||
+      !EFIR_SPELL_CATALOG || EFIR_SPELL_CATALOG.length === 0) {
+    console.error('main.js: каталоги skills/spells недоступны (Game.' +
+      'SkillsData/Game.SpellsData обязаны грузиться ДО src/main.js, ' +
+      'задача 000115) — id-валидация сейва Эфира отключена');
+  }
   // NPC (задача 000010): каталог — зеркало src/npc-data.js
   // (source of truth — assets/npc), журнал квестов — один на сессию.
   const NPCS = (G.NpcData && G.NpcData.NPCS) || [];
@@ -636,19 +663,24 @@
       console.warn('Сейв: не удалось восстановить отряд:', err);
     }
 
-    // --- Эфир (efir) (задача 000085) ---
+    // --- Эфир (efir) (задача 000085; расширение 000115) ---
     // 5 полей {level, xp, skillXp, skills, spells} (000111). Любой
     // дефект раздела → тихий сброс на createEfir() (L1): efir создан
     // на старте сессии и ДО restore не мутировался — переназначать не
     // нужно (Object.assign — live-ссылка, паттерн hero: state и
     // combat-finish держат live-объект). Старому сейву раздела НЕТ →
     // L1 (ЗАФИКСИРОВАНО ТЗ, warn НЕТ). efir === null (модуль мёртв) —
-    // тихий skip (console.error уже на загрузке).
+    // тихий skip (console.error уже на загрузке). 000115: id-валидация
+    // по каталогам-параметрам (чужой id → null на весь раздел) +
+    // ОБЯЗАТЕЛЬНЫЙ reprocessEfirSkills ВНУТРИ deserialize (канон 000111
+    // §9 — выход ПЛОТНЫЙ: все 4 id пула материализованы); проводки
+    // reprocess здесь НЕТ (внутри десериализатора).
     try {
       const rawE = d.efir;
       if (rawE != null && efir && G.efir &&
           typeof G.efir.deserializeEfir === 'function') {
-        const e = G.efir.deserializeEfir(rawE);
+        const e = G.efir.deserializeEfir(rawE,
+          EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG);
         if (e) {
           Object.assign(efir, e);
         } else {
