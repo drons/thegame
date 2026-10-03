@@ -991,10 +991,15 @@ test('HU9. update(): ветка лагеря — ctx.campShopFor → setShop(cam
   }
   // (b) dungeonState — setShop(null) ДАЖЕ при campShopFor
   // (гард !dungeonState на обеих ветках, 1:1 существующий).
+  // Стуб — МИНИМАЛЬНО корректная форма (x/y/dg.exit/contents.mobs):
+  // buildLine → locationLine (hud.js) читает их (реал-форма —
+  // makeDungeonState, src/locations.js).
   {
     const setShopArgs = [];
     const ctxB = makeCtx({
-      dungeonState: { dg: { type: 0 }, cells: [] },
+      dungeonState: { kind: 'dungeon', x: 0, y: 0,
+        dg: { type: 0, cells: [], exit: { x: 0, y: 0 } },
+        contents: { mobs: [] } },
       game: { playerUI: { setShop: (arg) => setShopArgs.push(arg) } },
       campShopFor: () => CAMP_WRAP,
     });

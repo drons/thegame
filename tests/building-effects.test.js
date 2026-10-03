@@ -6689,7 +6689,10 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
     'одна стойка (только «40,40»)');
   // Сток — golden (40,40, день 1, w0): кросс-реалем-пин (та же
   // формула, что в node — A57; виды — каталог 000047).
-  assert.deepEqual(entry0.stock, {
+  // JSON-roundtrip — нормализация vm-реалма (assert/strict:
+  // прототипы песочницы ≠ прототипы хоста; паттерн файла —
+  // L3661/L4069): сравниваются ЗНАЧЕНИЯ стока.
+  assert.deepEqual(JSON.parse(JSON.stringify(entry0.stock)), {
     wood_sword: 1, steel_sword: 1, short_bow: 2, hunting_bow: 1,
     battle_axe: 1, war_hammer: 2, minor_healing: 2, healing_potion: 2,
     greater_healing: 2, mana_elixir: 2, bread: 2, honey_cake: 1,
@@ -6750,8 +6753,9 @@ test('B27. детерминизм барахолки: два мира, один 
   assert.ok(s1 && s2, 'стойки в обоих мирах');
   assert.equal(s1.seed, 1223027174, 'seed дня 1 — golden (40,40)');
   assert.equal(s1.seed, s2.seed, 'seed — одинаков');
-  assert.deepEqual(s1.stock, s2.stock,
-    'один (tile, day) — один сток');
+  assert.deepEqual(JSON.parse(JSON.stringify(s1.stock)),
+    JSON.parse(JSON.stringify(s2.stock)),
+    'один (tile, day) — один сток (vm-реалм → JSON-нормализация)');
   // День+1: respawn_days из каталога = 1 → повторное открытие
   // рождает НОВЫЙ сток (seed дня 2) — одинаково в обоих мирах.
   g1.actions.setDay(2);
@@ -6764,13 +6768,14 @@ test('B27. детерминизм барахолки: два мира, один 
   assert.notDeepEqual(s1d2.stock, s1.stock,
     'день 2 — новый сток (respawn_days 1)');
   assert.equal(s1d2.seed, 2922215359, 'seed дня 2 — golden');
-  assert.deepEqual(s1d2.stock, {
+  assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)), {
     iron_sword: 2, hunting_bow: 1, battle_axe: 1, chainmail: 2,
     healing_potion: 2, mana_potion: 2, mana_elixir: 2, honey_cake: 1,
   }, 'golden-сток дня 2 (40,40, w0) — кросс-реалем-пин формулы');
   assert.equal(s1d2.seed, s2d2.seed, 'seed дня 2 — одинаков');
-  assert.deepEqual(s1d2.stock, s2d2.stock,
-    'оба мира — одинаковый новый сток');
+  assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)),
+    JSON.parse(JSON.stringify(s2d2.stock)),
+    'оба мира — одинаковый новый сток (vm-реалм → JSON-нормализация)');
 });
 
 test('B28. сейв campStocks: roundtrip (стойка пережила перезагрузку), форма { «x,y»: { day, stock } } без seed, мусорный раздел — fail-open (warn + пусто), игра не роняется (задача 000095)', async () => {
@@ -6802,8 +6807,8 @@ test('B28. сейв campStocks: roundtrip (стойка пережила пер�
   assert.ok(g2.campStocks['40,40'],
     'стойка «40,40» восстановлена (red: restore нет)');
   assert.equal(g2.campStocks['40,40'].day, 1, 'day — день сейва');
-  assert.deepEqual(g2.campStocks['40,40'].stock, stock0,
-    'сток восстановлен побайтово (roundtrip)');
+  assert.deepEqual(JSON.parse(JSON.stringify(g2.campStocks['40,40'].stock)),
+    stock0, 'сток восстановлен побайтово (roundtrip)');
   // Мусорный раздел — warn + ПУСТО (fail-open 000029/000072):
   // «будущий» день, мусорные ключи/entry — все отброшены;
   // ошибки загрузки НЕТ.
@@ -6819,7 +6824,7 @@ test('B28. сейв campStocks: roundtrip (стойка пережила пер�
   assert.equal(h3.errors.length, 0,
     'мусорный раздел — без ошибок загрузки: '
     + h3.errors.join('; '));
-  assert.deepEqual(g3.campStocks, {},
+  assert.deepEqual(JSON.parse(JSON.stringify(g3.campStocks)), {},
     'мусор — {} (fail-open: игра не роняется)');
 });
 
@@ -6876,7 +6881,8 @@ test('B29. «Диалог» кочевника и «Барахолка» — Д�
   ov2.listeners.click[0]({ target: buyBtn });
   assert.equal(g.npcStocks['camp_wanderer'][npcItemId], npcQty0 - 1,
     'покупка у Кочевника — npcStocks мутирован');
-  assert.deepEqual(g.campStocks['40,40'].stock, campBeforeNpcBuy,
+  assert.deepEqual(JSON.parse(JSON.stringify(g.campStocks['40,40'].stock)),
+    campBeforeNpcBuy,
     '…а сток барахолки НЕ изменился (системы независимы)');
   G.npcUI.close();
   // (5) Покупка в барахолке — мутирует ТОЛЬКО campStocks.
@@ -6891,6 +6897,7 @@ test('B29. «Диалог» кочевника и «Барахолка» — Д�
   panel.listeners.click[0]({ target: campBuyBtn });
   assert.equal(g.campStocks['40,40'].stock[campItemId], campQty0 - 1,
     'покупка в барахолке — campStocks мутирован');
-  assert.deepEqual(g.npcStocks['camp_wanderer'], npcStockBeforeCampBuy,
+  assert.deepEqual(JSON.parse(JSON.stringify(g.npcStocks['camp_wanderer'])),
+    npcStockBeforeCampBuy,
     '…а сток Кочевника НЕ изменился (системы независимы)');
 });

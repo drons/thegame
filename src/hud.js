@@ -15,7 +15,10 @@
 // (контракт §3 memory/000129-hud-module.md):
 //   ctx = { hudEl, game, tile, map, player, hero, day, zoom,
 //           spriteLoader, dungeonState, defeatedAt, npcs, flash,
-//           flashUntil, exploredCount }
+//           flashUntil, exploredCount, campShopFor }
+// campShopFor — ОПЦИОНАЛЬНОЕ поле ctx (задача 000095, 16-е):
+// (x, y, tile) → wrap барахолки лагеря | null; нет поля — ветка
+// лагеря мертва (1:1 с цепочкой без лагеря, HU9c).
 // game — ЕДИНСТВЕННЫЙ снапшот main.js (const G = globalThis.Game,
 // 000038); tile — main.js считает map.tileAt ОДИН раз на кадр (в
 // модуле tileAt НЕ вызывается). СОСТОЯНИЕ flash
@@ -52,8 +55,9 @@
 // 000127): DUNGEON_NAMES отсутствует ИЛИ нет ключа типа —
 // console.error (1×/вызов) + fallback «подземелье»; в норме
 // недостижимо (dungeon.js пинан, DUNGEON_NAMES закрывает все типы).
-// В main.js остаётся тонкая проводка: обёртка renderHud (ctx 15
-// полей — exploredCount добавлен 000093) + load-time гард (000038).
+// В main.js остаётся тонкая проводка: обёртка renderHud (ctx 16
+// полей — exploredCount добавлен 000093, campShopFor — 000095,
+// опциональное) + load-time гард (000038).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -225,10 +229,17 @@
     if (ctx.game.playerUI) {
       const isShop = !ctx.dungeonState && ctx.tile.hasBuilding
         && ctx.game.shopKindsFor(ctx.tile.building);
-      ctx.game.playerUI.setShop(isShop
+      // Лагерь (задача 000095): лагерь — НЕ «картовый» магазин
+      // (shopKindsFor(47) → null → isShop мертва), поэтому wrap
+      // барахолки БЕЗ makeShop; isShop ПЕРЕБИВАЕТ лагерь;
+      // dungeonState — null на обеих ветках (гард 1:1).
+      const shop = isShop
         ? ctx.game.makeShop(ctx.player.x, ctx.player.y,
           ctx.tile.building, ctx.tile.buildingWealth)
-        : null);
+        : (!ctx.dungeonState && typeof ctx.campShopFor === 'function'
+          ? ctx.campShopFor(ctx.player.x, ctx.player.y, ctx.tile)
+          : null);
+      ctx.game.playerUI.setShop(shop);
     }
     ctx.hudEl.textContent = line;
   }
