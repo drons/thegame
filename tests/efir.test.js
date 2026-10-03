@@ -2,9 +2,9 @@
 //
 // Падают, пока src/efir.js не существует (модуль ещё не создан):
 //   * R1 — модуль грузится (node require + браузерная ветка БЕЗ Game),
-//     экспорты ровно 11 (9 функций + данные EFIR_SKILLS/
-//     EFIR_SPELL_UNLOCKS, 000111), НОЛЬ require( в источнике
-//     (чистота 000053/000038);
+//     экспорты ровно 13 (11 функций + данные EFIR_SKILLS/
+//     EFIR_SPELL_UNLOCKS, 000111; serializeEfir/deserializeEfir —
+//     000085), НОЛЬ require( в источнике (чистота 000053/000038);
 //   * R2 — createEfir(): {level:1, xp:0, skillXp:{}, skills:{},
 //     spells:[spark,mend]} (форма сейва 000085→000115; HP/MP в
 //     состоянии НЕТ), независимые объекты; attrs — 3 собственных;
@@ -135,18 +135,19 @@ const SKILL_META = (() => {
   return m;
 })();
 
-test('000081 R1: efir.js грузится (node + браузерная ветка без Game); экспорты ровно 11 (9 функций + 2 данных); в источнике НЕТ require(', () => {
+test('000081 R1: efir.js грузится (node + браузерная ветка без Game); экспорты ровно 13 (11 функций + 2 данных); в источнике НЕТ require(', () => {
   const E = loadEfir();
   assert.deepEqual(
     Object.keys(E).sort(),
     ['EFIR_SKILLS', 'EFIR_SPELL_UNLOCKS', 'addEfirXp', 'createEfir',
-     'efirAllyData', 'efirSkillCap', 'efirSkillXpForNext',
-     'efirSpellsByLevel', 'efirStats', 'levelUp', 'reprocessEfirSkills'],
-    'экспорты — ровно 11: 9 функций + 2 данных (000111: ' +
-    'EFIR_SKILLS, EFIR_SPELL_UNLOCKS)');
+     'deserializeEfir', 'efirAllyData', 'efirSkillCap', 'efirSkillXpForNext',
+     'efirSpellsByLevel', 'efirStats', 'levelUp', 'reprocessEfirSkills',
+     'serializeEfir'],
+    'экспорты — ровно 13: 11 функций + 2 данных (000085: ' +
+    'serializeEfir/deserializeEfir; 000111: EFIR_SKILLS, EFIR_SPELL_UNLOCKS)');
   const FUNCS = ['createEfir', 'addEfirXp', 'levelUp', 'efirAllyData',
     'efirStats', 'efirSpellsByLevel', 'reprocessEfirSkills',
-    'efirSkillXpForNext', 'efirSkillCap'];
+    'efirSkillXpForNext', 'efirSkillCap', 'deserializeEfir', 'serializeEfir'];
   for (const k of FUNCS) {
     assert.equal(typeof E[k], 'function', 'экспорт ' + k);
   }

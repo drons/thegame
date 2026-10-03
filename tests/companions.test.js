@@ -122,10 +122,14 @@ const BROWSER_CHAIN = [
 // опыта к roster) и allyDataForEntry (мост roster → данные makeAlly
 // для боя; 000087). Не «лишние» экспорты: контракт зафиксирован в
 // memory/000082-companion-xp.md.
+// Ре-пин 000085: serializeRoster/deserializeRoster (сериализация отряда
+// для сейва; каталог — ПАРАМЕТР, новых require НЕТ) — контракт в
+// memory/000085-save-party-efir.md (D2/D3).
 const API_KEYS = [
   'allyDataForEntry', 'applyCombatXp', 'canDismiss', 'canHire',
-  'candidatesForTavern', 'createRoster', 'dismiss', 'eventSeed', 'hire',
-  'loyaltyTick', 'payWages', 'wagesTotal',
+  'candidatesForTavern', 'createRoster', 'deserializeRoster', 'dismiss',
+  'eventSeed', 'hire', 'loyaltyTick', 'payWages', 'serializeRoster',
+  'wagesTotal',
 ];
 
 // --- Модуль и API ---
