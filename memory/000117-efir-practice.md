@@ -17,15 +17,18 @@ tests/ui-*) → конфликтов с нашими файлами НЕТ; ре
   `c.efirState = efir` в buildEfirUnit (после `c.efir = u;`); 15-й экспорт
   (13 функций + 2 данных) — `practiceEfir` ПОСЛЕ `buildEfirUnit` в
   return-блоке; docstring-правки (шапка + buildEfirUnit 598-599).
-* `src/combat.js` (ГОРЯЧИЙ — дифф = вставки + ОДНА изменённая строка):
+* `src/combat.js` (ГОРЯЧИЙ — дифф = вставки + 3 изменённые строки —
+  рев. 3, правка по итогам ревью):
   локальный хелпер `efirPractice(c, skillId, amount)` (перед `function
   efirTurn`, ~стр. 1409); замена якоря-коммента 000112 в блоке (3)
-  efirTurn (1493-1495) — хук урон-каста; `mobAttackAlly` (1096-1107) —
-  defDodge precog в СУЩЕСТВУЮЩИЙ единственный бросок (единственная
-  изменённая строка: 4-й аргумент hitChance 0 → dodge) + практика в
+  efirTurn (1493-1495) — хук урон-каста (изменённые строки 3/3: 3
+  строки коммента → код+коммент); `mobAttackAlly` (1096-1107) —
+  defDodge precog в СУЩЕСТВУЮЩИЙ единственный бросок (изменённая
+  строка 2/3: 4-й аргумент hitChance 0 → dodge) + практика в
   ветке промаха; `dealDamageToAlly` (629-638) — опциональный 4-й
-  аргумент `opts` с `{ magic: true }` (сопротивление perception +
-  практика).
+  аргумент `opts` с `{ magic: true }` (изменённая строка 1/3:
+  сигнатура (c, t, raw) → (c, t, raw, opts)) — сопротивление
+  perception + практика.
 * `tests/efir.test.js`: раздел «000117» (E1..E5, append после EF-4) +
   ТЕХНИЧЕСКОЕ правка R1 (14→15) — в GREEN-коммите.
 * `tests/combat.test.js`: раздел «000117» (C1..C2, append после 3713).
@@ -233,17 +236,19 @@ function efirPractice(c, skillId, amount) {   // ~стр. 1409 combat.js
   3. dealDamageToAlly, в блоке opts.magic (при срабатывании):
      `efirPractice(c, 'perception', PRACTICE_XP.block);`
 
-### 3.3 Вставки combat.js (ТОЛЬКО вставки + 1 изменённая строка)
+### 3.3 Изменения combat.js (вставки + 3 изменённые строки — рев. 3)
 
+* `dealDamageToAlly` (629-638): сигнатура `(c, t, raw)` → `(c, t, raw,
+  opts)` (изменённая строка 1/3); блок резиста ПЕРЕД `const dmg = ...`
+  (~7 строк с комментом).
 * `mobAttackAlly` (1096-1107): ДО броска — вычисление dodge (2-3 строки):
   `const dodge = (t.kind === 'efir' && t.efirSkills) ? 0.05 *
   ((t.efirSkills.precog) || 0) : 0;` + ИЗМЕНЕНИЕ строки 1097:
   `hitChance(u.level, 0, t.level, 0)` → `hitChance(u.level, 0, t.level,
-  dodge)` (ЕДИНСТВЕННАЯ изменённая существующая строка; не-Эфир/precog 0 →
+  dodge)` (изменённая строка 2/3; не-Эфир/precog 0 →
   dodge 0 → идентично) + практика в ветке промаха (1 строка + guard).
-* `dealDamageToAlly` (629-638): сигнатура `(c, t, raw)` → `(c, t, raw,
-  opts)`; блок резиста ПЕРЕД `const dmg = ...` (~7 строк с комментом).
-* efirTurn блок (3): якорь-коммент (1493-1495) → 2 строки кода + коммент.
+* efirTurn блок (3): якорь-коммент (1493-1495) → 2 строки кода + коммент
+  (изменённые строки 3/3: 3 строки коммента → код+коммент).
 * НЕ ТРОГАТЬ: createCombat, endPlayerTurn, refill c.efs, PRACTICE_XP,
   диспетчер allyAct, playerAttack/playerSpell/playerBlock (практика
   игрока 000082 — якорь «не трогает игрока»), makeAlly/makeMob/mobAct,
@@ -393,8 +398,14 @@ function efirPractice(c, skillId, amount) {   // ~стр. 1409 combat.js
 
 ## 6. Подводные камни
 
-* **Единственная изменённая строка combat.js** — 4-й аргумент hitChance в
-  mobAttackAlly (1097): 0 → dodge. Всё остальное — вставки. При ребейзе —
+* **Изменённые строки combat.js — ТРИ** (рев. 3 — правка по итогам
+  ревью; GREEN-коммит 5dc43e2 гласит «1 изменённая строка» — история не
+  переписывается, факт — 3): (1) сигнатура dealDamageToAlly (c, t,
+  raw) → (c, t, raw, opts); (2) 4-й аргумент hitChance в mobAttackAlly
+  (1097): 0 → dodge; (3) якорь-коммент 000112 в блоке (3) efirTurn
+  (3 строки коммента → код+коммент). Всё остальное — вставки; все три
+  изменения поведенчески безопасны (см. §3.6). Мерж-станции: при
+  region-union с 000113 (§9) учитывать ВСЕ ТРИ региона как изменённые,
   сверять СМЫСЛ, не строки.
 * **dodge вычисляется ДО броска, но бросок — ТОТ ЖЕ ОДИН** (нулевые новые
   c._rng — детерминизм-набор жёсткий фиксатор). Не «два броска» (анти-
@@ -450,7 +461,8 @@ Claude Code <noreply@anthropic.com>):
 2. «Задача 000117: src/efir.js — practiceEfir + c.efirState в buildEfirUnit»
    (+ технический R1 14→15, docstring/шапка).
 3. «Задача 000117: src/combat.js — практика Эфира: якорь каста, уклонение
-   precog, сопротивление perception» (INSERTIONS ONLY + 1 строка).
+   precog, сопротивление perception» (вставки + 3 изменённые строки —
+   рев. 3).
 4. Фиксы по итогам агентов анализа (fixup в том же стиле).
 
 CHANGELOG (стадия мержа, отдельный коммит «Задача 000117: CHANGELOG — …»,
