@@ -1103,3 +1103,128 @@ test('000086 S5: rosterSummary — пустой отряд: members [], empty: t
   assert.equal(sN.empty, true, 'roster null — empty');
   assert.deepEqual(sN.members, []);
 });
+
+// =====================================================================
+// Задача 000087 — Отряд в игровом цикле: смена дня, гибель, повторный
+// найм. Контракт: memory/000087-companion-cycle.md (D1/D3/D7/D9/D10/D12),
+// шпаргалка — memory/000087-party-game-loop.md §4/§5.
+//
+// ЭТОТ блок — контракт-пины ТЗ-золотых (node, direct require):
+// ЗЕЛЁНЫЕ уже в red-фазе — ядро 000079 (payWages/loyalty/candidates)
+// и 000082 (applyCombatXp) УЖЕ в master. Красные (точки подвешивания
+// в main.js/combat-ui.js) — tests/companions-cycle.test.js (S1–S3,
+// V1–V5). ТЗ: tasks/pending/000087.md.
+// =====================================================================
+
+// Каталог найма — РЕАЛЬНЫЕ записи (числа — не хардкод, паттерн 000053).
+const NPC_VOLK = NPCS.find((n) => n.id === 'merc_volk');
+assert.ok(NPC_VOLK && NPC_VOLK.найм, 'каталог: merc_volk с найм-данными');
+
+// Золотые пины 50%-ролла ухода G1: (5, 'merc_volk', 'quit').
+// Схема (FNV-1a + hash2 + mulberry32) пересчитана независимо ниже.
+const QUIT_SEED_VOLK_D5 = 726194406;
+const QUIT_ROLL_VOLK_D5 = 0.7840951501857489;
+
+test('000087 G1: ТЗ-золотой — найм день 2 (gold 40→0, лояльность 65); неоплач. дни 4/5/6 — уход в день 6', (t) => {
+  // Отказ 0%: base 0 (live-чтение payWages/hire) И Харизма 15
+  // (30% − 2%×15 = 0%) — двойной фикс по контракту D12.
+  SETTINGS.companion_refusal.base = 0;
+  t.after(() => { SETTINGS.companion_refusal.base = 0.30; });
+  function run() {
+    const c = hero(15, 40); // Харизма 15, gold = цена Волька (40)
+    const r = C.createRoster();
+    const res = C.hire(r, NPC_VOLK, c, 2);
+    assert.equal(res.ok, true, 'день 2: найм (отказ 0%)');
+    assert.equal(c.gold, 0, 'найм: gold 40 − 40 = 0');
+    assert.equal(r.length, 1);
+    assert.deepEqual(r[0], {
+      npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2,
+    }, 'запись: лояльность 50 + Харизма 15 = 65, hiredDay = день найма');
+    // Неоплаченные дни 4/5/6 (gold 0 < жалованье 1).
+    const d4 = C.payWages(r, NPCS, c, 4);
+    assert.equal(d4.paid, false, 'день 4: не хватает');
+    assert.deepEqual(d4.events, [{ type: 'wages_unpaid', total: 1 }],
+      'день 4: событие wages_unpaid (ухода ещё нет — 45 > 40, ролла нет)');
+    assert.equal(r[0].loyalty, 45, 'день 4: 65 − 20 = 45 (выше quit_high — остаётся)');
+    const d5 = C.payWages(r, NPCS, c, 5);
+    assert.equal(d5.paid, false, 'день 5: не хватает');
+    // ЗОЛОТОЙ ПИН РОЛЛА: полоса 21…40 — roll по сиду (5, 'merc_volk',
+    // 'quit'). Независимый пересчёт = зафиксированные литералы.
+    assert.equal(C.eventSeed(5, 'merc_volk', 'quit'), QUIT_SEED_VOLK_D5,
+      'eventSeed(5, ' + QUIT_SEED_VOLK_D5 + ')');
+    assert.equal(myRoll(5, 'merc_volk', 'quit'), QUIT_ROLL_VOLK_D5,
+      'независимый roll = ' + QUIT_ROLL_VOLK_D5);
+    assert.ok(QUIT_ROLL_VOLK_D5 >= 0.5, 'roll ≥ 0.5 — остаётся');
+    assert.deepEqual(d5.events, [{ type: 'wages_unpaid', total: 1 }],
+      'день 5: события — только wages_unpaid (ухода нет: roll ≥ 0.5)');
+    assert.equal(r[0].loyalty, 25, 'день 5: 45 − 20 = 25');
+    const d6 = C.payWages(r, NPCS, c, 6);
+    assert.equal(d6.paid, false, 'день 6: не хватает');
+    assert.deepEqual(d6.events, [
+      { type: 'wages_unpaid', total: 1 },
+      { type: 'left', npcId: 'merc_volk' },
+    ], 'день 6: wages_unpaid + left (порядок: сначала жалованье)');
+    assert.equal(r.length, 0, 'день 6: лояльность 5 ≤ 20 — ушёл ВЕРНО (сплис внутри payWages)');
+    assert.equal(c.gold, 0, 'gold не тронут (при неоплате НЕ списывается)');
+    return { gold: c.gold, roster: C.serializeRoster(r) };
+  }
+  // Два независимых прогона — deepEqual (детерминизм, паттерн L602).
+  const a = run();
+  const b = run();
+  assert.deepEqual(b, a, 'повторный прогон — тот же исход');
+});
+
+test('000087 G2: после ГИБЕЛИ — не в candidatesForTavern (окончательно), остальные на месте', () => {
+  // Фильтры НЕЗАВИСИМЫ: нанят (roster) + мёртв (deadMercs) — оба
+  // отфильтрованы; остальной каталог — в порядке каталога.
+  const cands = C.candidatesForTavern(NPCS, [entry('merc_baldor')],
+    ['merc_volk']);
+  assert.deepEqual(cands.map((n) => n.id),
+    ['merc_ashka', 'merc_mira', 'merc_torga', 'merc_rena'],
+    'мёртвый volk и нанятый baldor отфильтрованы, порядок каталога');
+});
+
+test('000087 G3: после УВОЛЬНЕНИЯ — повторный найм тот же день (кандидат вернулся, новая запись)', (t) => {
+  // День на фильтр НЕ влияет (сид найма — hash2(day, npcId) — влияет
+  // только на ОТКАЗ; base 0 → отказа нет).
+  SETTINGS.companion_refusal.base = 0;
+  t.after(() => { SETTINGS.companion_refusal.base = 0.30; });
+  const c = hero(0, 100);
+  const r = C.createRoster();
+  assert.equal(C.hire(r, NPC_VOLK, c, 2).ok, true, 'найм день 2');
+  assert.equal(c.gold, 60);
+  assert.equal(C.dismiss(r, 'merc_volk').ok, true, 'увольнение');
+  assert.equal(r.length, 0);
+  assert.equal(c.gold, 60, 'увольнение — возврата денег нет');
+  const cands = C.candidatesForTavern(NPCS, r, []);
+  assert.ok(cands.some((n) => n.id === 'merc_volk'),
+    'volk СНОВА кандидат — в тот же день (2)');
+  assert.equal(C.hire(r, NPC_VOLK, c, 2).ok, true,
+    'повторный найм тот же день (тот же сид — base 0 → 0% отказа)');
+  assert.equal(c.gold, 20, 'цена контракта списана повторно');
+  assert.deepEqual(r[0], {
+    npcId: 'merc_volk', level: 1, xp: 0, loyalty: 50, hiredDay: 2,
+  }, 'НОВАЯ запись: hiredDay = день, лояльность = старт 50 + Харизма 0');
+});
+
+test('000087 W3: баланс — ЛЮБОЕ трио реального каталога: Σ жалованье ≤ 10 з/день (20% от ~50)', () => {
+  const mercs = NPCS.filter((n) => n.найм
+    && typeof n.найм.жалованье === 'number');
+  assert.equal(mercs.length, 6, 'каталог найма — 6 наёмников');
+  const wages = mercs.map((n) => n.найм.жалованье);
+  let max = 0;
+  for (let i = 0; i < wages.length; i++) {
+    for (let j = i + 1; j < wages.length; j++) {
+      for (let k = j + 1; k < wages.length; k++) {
+        const sum = wages[i] + wages[j] + wages[k];
+        assert.ok(sum <= 10,
+          'трио ' + [i, j, k].map((x) => mercs[x].id).join('+')
+          + ' = ' + sum + ' ≤ 10');
+        max = Math.max(max, sum);
+      }
+    }
+  }
+  // Фактический максимум каталога (torga+rena+baldor/mira) — 8
+  // (16% от ~50) — порог W3 проходит с запасом (D10: каталог не правится).
+  assert.equal(max, 8, 'максимальное трио = 8');
+});

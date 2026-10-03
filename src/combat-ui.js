@@ -903,6 +903,10 @@
      * @param {{damageMult?: number, armor?: number}} [opts.buffMods]
      *   благословения храма (задача 000076) — проброс в G.createCombat
      *   (единственный путь main.js → ядро боя; там нормализуется).
+     * @param {Array<object>} [opts.rosterData] отряд (задача 000087):
+     *   данные makeAlly (main.js companionAllies(), 000082) — в allies
+     *   ПОСЛЕ Эфира. Не передан / не-массив → [] (старое поведение
+     *   бит-в-бит).
      */
     startCombat(opts) {
       if (isActive()) return null;
@@ -939,7 +943,12 @@
         // Задача 000076: благословения (000072) — до ядра боя.
         buffMods: opts.buffMods,
         // Эфир (задача 000081): постоянный союзник (см. выше).
-        allies: efirData ? [efirData] : [],
+        // Задача 000087: отряд — opts.rosterData (данные makeAlly,
+        // main.js companionAllies()) — ПОСЛЕ Эфира. Без rosterData —
+        // allies БАЙТ-В-БАЙТ как раньше (якорь placeAllies: Эфир
+        // ПЕРВЫМ, px−1, py−1).
+        allies: (efirData ? [efirData] : []).concat(
+          Array.isArray(opts.rosterData) ? opts.rosterData : []),
       });
       // Эфир в бою (задача 000112): боевой профиль на СУЩЕСТВУЮЩЕМ
       // юните (buildEfirUnit — 12-й экспорт efir.js, D1/D2: ОДИН раз,

@@ -373,6 +373,69 @@
       'src/companions.js обязан грузиться ДО src/main.js (000079) — ' +
       'найм/увольнение отключены');
   }
+  // Задача 000087: отряд в игровом цикле — хелперы-клей (контракт
+  // memory/000087-companion-cycle.md D4). После roster-блока: клозуры
+  // roster/deadMercs/hasCompanions/NPCS объявлены выше. Новых модулей
+  // НЕТ (main.js — клей; 0 script-тегов, 0 экспортов).
+  // Имя NPC из каталога; «призрак» (id не в каталоге) → голый id
+  // (паттерн 000083/000085).
+  function npcName(id) {
+    const npc = G.npcById ? G.npcById(NPCS, id) : null;
+    return (npc && npc.имя) ? npc.имя : String(id);
+  }
+  // Снимок отряда на старте боя (D5): данные makeAlly по каждой записи
+  // (kind 'merc', 000082) — порядок = порядок roster; «призрак» —
+  // тихий skip (allyDataForEntry → null); деградация UMD → [] (бой
+  // без отряда, не крах).
+  function companionAllies() {
+    if (!hasCompanions || typeof G.companions.allyDataForEntry !== 'function')
+      return [];
+    const out = [];
+    for (const e of roster) {
+      const npc = G.npcById ? G.npcById(NPCS, e.npcId) : null;
+      const d = G.companions.allyDataForEntry(e, npc);
+      if (d) out.push(d);
+    }
+    return out;
+  }
+  // Конец боя (все 3 боевые точки, D2/D3/D9):
+  //   * victory + res.allyXp (combat.js 000082) — applyCombatXp в
+  //     записи (xp/уровни; while — несколько уровней за бой);
+  //   * ЛЮБОЙ исход — гибель из ЖИВОГО объекта боя (combat.units:
+  //     side 'ally', kind 'merc', !alive) → deadMercs (окончательно,
+  //     dedup) + splice записи. Эфир (kind 'efir') — НИКОГДА не
+  //     попадает в deadMercs (SPEC: не умирает навсегда).
+  // Мутирует roster/deadMercs in place (000085: const-ссылки,
+  // переприсваиваний НЕТ). Возврат — строки: xp/уровни, потом гибель.
+  function combatEndCompanions(res, combat) {
+    if (!hasCompanions) return [];
+    const xpLines = [];
+    if (res && res.outcome === 'victory' && Array.isArray(res.allyXp) &&
+        typeof G.companions.applyCombatXp === 'function') {
+      const r = G.companions.applyCombatXp(roster, res.allyXp);
+      if (r && Array.isArray(r.events)) {
+        for (const ev of r.events) if (ev.type === 'level_up')
+          xpLines.push(npcName(ev.npcId) + ' повысил уровень (до ' +
+            ev.level + ').');
+      }
+      const gained = res.allyXp.filter((g) => g && g.xp > 0);
+      if (gained.length)
+        xpLines.push('Спутники: +' + gained[0].xp + ' опыта (' +
+          gained.map((g) => npcName(g.id)).join(', ') + ').');
+    }
+    const deadLines = [];
+    if (combat && Array.isArray(combat.units)) {
+      for (const u of combat.units) {
+        if (u.side === 'ally' && u.kind === 'merc' && !u.alive) {
+          if (deadMercs.indexOf(u.id) === -1) deadMercs.push(u.id);
+          const i = roster.findIndex((e) => e && e.npcId === u.id);
+          if (i !== -1) roster.splice(i, 1);
+          deadLines.push(npcName(u.id) + ' погиб в бою.');
+        }
+      }
+    }
+    return xpLines.concat(deadLines);
+  }
   // Задача 000093: смотровая башня — «исследованные» окрестности:
   // 'x,y' башни → Set<'x,y'> тайлов окна Чебышёва (граница
   // включительно) — раздел сейва `explored` (имя зафиксировано
@@ -1053,8 +1116,40 @@
     for (let i = buffs.length - 1; i >= 0; i--) {
       if (buffs[i].day < day) buffs.splice(i, 1);
     }
+    // Задача 000087: жалованье отряда (000079) — МЕЖДУ buff-cleanup и
+    // render, ДО saveNow (D1/D8): payWages мутирует hero.gold/roster in
+    // place — существующий saveNow в конце фиксирует итог. day — НОВЫЙ
+    // день (аргумент колбэка): сид ухода (day, npcId) детерминирован.
+    // Пустой отряд: total = 0 → events: [] (контракт ядра) →
+    // compLines пусто → flash БАЙТ-В-БАЙТ как до 000087 (тест V3).
+    // «Уход» — splice ВНУТРИ payWages (000079); main.js строит только
+    // строки.
+    let compLines = [];
+    if (hasCompanions && typeof G.companions.payWages === 'function') {
+      const wr = G.companions.payWages(roster, NPCS, hero, day);
+      if (wr && Array.isArray(wr.events)) {
+        for (const ev of wr.events) {
+          if (ev.type === 'wages_paid') {
+            compLines.push('Жалованье выплачено.');
+          } else if (ev.type === 'wages_unpaid') {
+            compLines.push('Не хватает денег на жалованье — лояльность падает.');
+          } else if (ev.type === 'left') {
+            compLines.push(npcName(ev.npcId) + ' покинул отряд.');
+          }
+        }
+      }
+    }
+    // Ревью 000087: панель «Отряд» (000086) держит live-ссылку на
+    // roster — после payWages (лояльность/уход) открытая панель
+    // перерисовывается. Guard — no-op до 000086 (G.squadUI нет);
+    // паттерн тот же, что в 3 точках старта боя (там — закрытие).
+    if (G.squadUI && G.squadUI.isOpen()) G.squadUI.render();
     G.playerUI && G.playerUI.render();
-    hudFlash = (due.length ? 'Мобилизуются новые группы мобов.\n' : '') + 'День ' + day + '.';
+    // Порядок строк (D1): «Мобилизуются…» → строки отряда → «День N.»
+    // (день — ПОСЛЕДНЯЯ строка, как до 000087).
+    hudFlash = (due.length ? 'Мобилизуются новые группы мобов.\n' : '')
+      + (compLines.length ? compLines.join('\n') + '\n' : '')
+      + 'День ' + day + '.';
     hudFlashUntil = performance.now() + 5000;
     saveNow();
   });
@@ -1125,11 +1220,17 @@
     // (у мира — prevPos, тайл, с которого зашёл; здесь герой в бою не
     // сдвигается, поэтому «возврат» при не-победе — на тот же тайл).
     const prev = { x: player.x, y: player.y };
-    return G.combatUI.startCombat({
+    // Задача 000087: `const combat` — onEnd (finish) читает ЖИВОЙ
+    // объект боя ПОЗЖЕ return (гибель — по combat.units, D2);
+    // startCombat → null (isActive guard выше) → onEnd не вызывается.
+    const combat = G.combatUI.startCombat({
       hero,
       // Эфир (задача 000081): постоянный союзник — ВСЕГДА, включая
       // отладочный бой (тоже боевой, с xp).
       efir,
+      // Задача 000087: отряд — данные makeAlly (000082), ПОСЛЕ Эфира
+      // (companionAllies: снимок на старте боя, D5).
+      rosterData: companionAllies(),
       tile: { mobGroup: groupType },
       // Бой «на текущем тайле»: передаём terrain реального тайла
       // (задача 000049) — согласованно с боем мира; без карты
@@ -1177,11 +1278,17 @@
           // поле боя.
           if (mover) mover.teleport(player.x, player.y);
         }
+        // Задача 000087: отряд — xp/уровни/гибель (до saveNow, D8);
+        // строки — ПОСЛЕ базовой флэш-строки (база не тронута).
+        const compLines = combatEndCompanions(res, combat);
+        if (compLines.length)
+          hudFlash = hudFlash + '\n' + compLines.join('\n');
         G.playerUI && G.playerUI.render();
         hudFlashUntil = performance.now() + 5000;
         saveNow();
       },
     });
+    return combat;
   }
   // Проводка: явный бандл ссылок (контракт — memory/000128-
   // building-actions.md §2.2). map — GETTER (let, назначается после
@@ -1443,10 +1550,14 @@
     if (!t.hasMobGroup) return;
     const key = player.x + ',' + player.y;
     if (defeatedAt.has(key)) return;
-    G.combatUI.startCombat({
+    // Задача 000087: `const combat` — onEnd читает ЖИВОЙ объект боя
+    // ПОЗЖЕ (гибель — по combat.units, D2); guard isActive — выше.
+    const combat = G.combatUI.startCombat({
       hero,
       // Эфир (задача 000081): постоянный союзник — ВСЕГДА.
       efir,
+      // Задача 000087: отряд — данные makeAlly (000082), ПОСЛЕ Эфира.
+      rosterData: companionAllies(),
       tile: t,
       // Фон поля боя по типу местности (задача 000049): terrain тайла,
       // где начался бой. spriteLoader может быть null (нет s2/лоадера) —
@@ -1491,6 +1602,11 @@
           // поле боя.
           if (mover) mover.teleport(player.x, player.y);
         }
+        // Задача 000087: отряд — xp/уровни/гибель (до saveNow, D8);
+        // строки — ПОСЛЕ базовой флэш-строки (база не тронута).
+        const compLines = combatEndCompanions(res, combat);
+        if (compLines.length)
+          hudFlash = hudFlash + '\n' + compLines.join('\n');
         G.playerUI && G.playerUI.render();
         hudFlashUntil = performance.now() + 5000;
         saveNow();
@@ -1701,10 +1817,15 @@
     if (G.squadUI && G.squadUI.isOpen()) G.squadUI.toggle(false);
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close(); // 000071
     if (G.craftUI && G.craftUI.isActive()) G.craftUI.close(); // 000126
-    G.combatUI.startCombat({
+    // Задача 000087: `const combat` — onEnd читает ЖИВОЙ объект боя
+    // ПОЗЖЕ (гибель — по combat.units, D2); guard isActive — выше
+    // (в вызывающем коде подземелья).
+    const combat = G.combatUI.startCombat({
       hero,
       // Эфир (задача 000081): постоянный союзник — ВСЕГДА.
       efir,
+      // Задача 000087: отряд — данные makeAlly (000082), ПОСЛЕ Эфира.
+      rosterData: companionAllies(),
       // Фон поля боя по типу подземелья (задача 000049): тайла мира в
       // подземелье нет, тип — DUNGEON_TYPES (ds.dg.type).
       dungeonType: ds.dg.type,
@@ -1734,6 +1855,11 @@
             ds.log.push('Вы очнулись. −20% золота.');
           }
         }
+        // Задача 000087: отряд — xp/уровни/гибель в журнал подземелья
+        // (до saveNow, D8). Канал — ds.log, НЕ hudFlash: строка =
+        // событие (паттерн 000066 — ПО ОДНОЙ на push, не join('\n'));
+        // порядок: строка «…повержена. +N опыта.» → строки отряда.
+        for (const l of combatEndCompanions(res, combat)) ds.log.push(l);
         G.playerUI && G.playerUI.render();
         G.dungeonUI.render();
         saveNow();
