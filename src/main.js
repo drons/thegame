@@ -854,6 +854,10 @@
     if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
     // Стек оверлеев (000071): оверлей действий под боем — закрыть.
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
+    // Бой «на текущем тайле»: prev = тайл, на котором герой стоит
+    // (у мира — prevPos, тайл, с которого зашёл; здесь герой в бою не
+    // сдвигается, поэтому «возврат» при не-победе — на тот же тайл).
+    const prev = { x: player.x, y: player.y };
     return G.combatUI.startCombat({
       hero,
       // Эфир (задача 000081): постоянный союзник — ВСЕГДА, включая
@@ -865,20 +869,50 @@
       // фолбэк plain.svg.
       terrain: map ? map.tileAt(player.x, player.y).terrain : undefined,
       spriteLoader,
-      prev: { x: player.x, y: player.y },
+      prev,
       // Задача 000077: боевой сид из extra (босс «ежедневного
       // контента»); без extra — 42 (поведение БЕЗ ИЗМЕНЕНИЙ).
       seed: (extra && extra.seed != null) ? extra.seed : 42,
       day: clock.day,
       // Задача 000076: активные благословения — во ВСЕХ боях дня.
       buffMods: currentBuffMods(),
+      // onEnd 1:1 с боем мира (000077, ревью): победа — flash +
+      // квесты kill_group; смерть — подъём (половина HP, −20% золота —
+      // полная система смерти 000008) + flash; побег — flash. Не-победа
+      // — возврат на точку боя (prev — текущий тайл). saveNow —
+      // существующая пост-боевая точка сейва (ТЗ: «сейв после боя —
+      // существующие точки saveNow»): без него перемены героя после
+      // босс-боя фиксировались бы только следующей точкой сейва.
       onEnd: (res) => {
         // Лут/опыт уже начислены в ядре (checkVictory).
-        // Квесты: kill_group (задача 000010).
-        if (res && res.outcome === 'victory' && questBook && G.notifyGroupDefeated) {
-          G.notifyGroupDefeated(NPCS, questBook, groupType);
+        if (res && res.outcome === 'victory') {
+          // Квесты: kill_group (задача 000010).
+          if (questBook && G.notifyGroupDefeated) {
+            G.notifyGroupDefeated(NPCS, questBook, groupType);
+          }
+          hudFlash = `Победа! +${res.xp} опыта, +${res.gold} золота.`;
+        } else if (res && res.outcome === 'dead') {
+          // Подъём: половину HP, −20% золота (полная система смерти —
+          // 000008).
+          hero.alive = true;
+          hero.hp = Math.max(1, Math.round(G.derived(hero).maxHP / 2));
+          hero.gold = Math.floor(hero.gold * 0.8);
+          hudFlash = 'Вы очнулись. −20% золота.';
+        } else {
+          hudFlash = 'Вы ушли от боя.';
+        }
+        // Побег и смерть: назад на тайл, где начался бой (1:1 с боем
+        // мира; здесь prev — текущий тайл, герой остаётся на месте).
+        if (res && res.outcome !== 'victory') {
+          player.x = prev.x;
+          player.y = prev.y;
+          // Снап (000033): иначе спрайт будет скользить обратно через
+          // поле боя.
+          if (mover) mover.teleport(player.x, player.y);
         }
         G.playerUI && G.playerUI.render();
+        hudFlashUntil = performance.now() + 5000;
+        saveNow();
       },
     });
   }

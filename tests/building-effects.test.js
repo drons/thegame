@@ -4867,3 +4867,92 @@ test('B24. круг (43) + храм (39) e2e: [E] «Круг»/«Храм» — 
   key(h2, 'Escape');
   assert.equal(G2.buildingUI.isActive(), false);
 });
+
+// --- Задача 000077 (ревью): смерть в бою с боссом — подъём (000008) ---
+// onEnd startCombatAt (debug/босс-бой, одна точка истины) обязан
+// отражать onEnd боя мира: 'dead' → подъём (alive, половина maxHP,
+// −20% золота) + флэш, не-'victory' → возврат на точку боя (prev —
+// текущий тайл, герой остаётся на месте) + снап мувера, saveNow —
+// существующая пост-боевая точка (без него мёртвый герой/штраф
+// фиксировались бы только следующей точкой сейва, а restore
+// принудительно оживлял без штрафа).
+// Золотой: (4,3) день 1 — ролл «boss» (детерминированно, как B24).
+// Смерть — ТЕСТОВОЙ мутацией, как в ядре (combat.js ~L588-599):
+// c.player (ЖИВОЙ герой) — alive=false, hp=0, затем c.result =
+// { outcome: 'dead' } + handleCode('Space') (finish → onEnd).
+// Примечание B24: после босс-боя main-loop «заморожен» (последний
+// rAF — тик боя), поэтому флэш/HUD НЕ ЧИТАЕМ — проверяем состояние
+// (ЖИВОГО героя c.player) и сейв (saveNow — точка фиксации).
+test('B25. босс «ежедневного контента»: исход «dead» — подъём (alive, половина maxHP, −20% золота), герой на тайле, сейв', async () => {
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 4, y: 3 },
+    hero: mkHero(),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(myMap.tileAt(4, 3).buildingId, 43, 'golden: тайл — круг');
+  assert.equal(g.state.player.x, 4, 'позиция сейва — круг (x)');
+  assert.equal(g.state.player.y, 3, 'позиция сейва — круг (y)');
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  // [E] → «Круг» → Digit1: золотой (4,3) день 1 — ролл «boss».
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const row = findRow(findOverlay(h), '43');
+  assert.ok(row, 'строка 43 в оверлее');
+  assert.equal(row.disabled, false, 'день 1 — доступно');
+  key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  assert.equal(G.combatUI.isActive(), true,
+    'golden (4,3) день 1: ролл «boss» — бой активен');
+  const c = G.combatUI.current();
+  const mobs = c.units.filter((u) => u.side === 'mob');
+  assert.ok(mobs.length >= 1 && mobs.length <= 3,
+    'состав 1–3: ' + mobs.length);
+  for (const u of mobs) {
+    assert.equal(u.mobId, 'troll', 'босс — troll (рецепт BUILDING_BOSS)');
+  }
+  // ЖИВОЙ герой в бою = c.player (createCombat: player: opts.hero).
+  const hero = c.player;
+  assert.equal(hero.gold, 100, 'старт: золото 100 (createCharacter)');
+  const maxHP = G.derived(hero).maxHP;
+  assert.equal(maxHP, 25, 'L1 (телосложения 1): maxHP = 20 + 1·5');
+  assert.equal(hero.hp, maxHP, 'старт: полное HP');
+  // Тестовая смерть (как ядро: урон → p.alive=false, hp=0, result).
+  hero.alive = false;
+  hero.hp = 0;
+  if (!c.result) { c.phase = 'over'; c.result = { outcome: 'dead' }; }
+  G.combatUI.handleCode('Space');
+  assert.equal(G.combatUI.isActive(), false,
+    'бой закрыт (тестовая развязка)');
+  // ПОДЪЁМ (ревью: до фикса герой оставался мёртвым до конца сессии).
+  assert.equal(hero.alive, true,
+    'подъём: hero.alive = true (до фикса: мёртв до перезагрузки)');
+  assert.equal(hero.hp, Math.max(1, Math.round(maxHP / 2)),
+    'подъём: hp = половина maxHP (25 → 13)');
+  // ШТРАФ: −20% золота.
+  assert.equal(hero.gold, Math.floor(100 * 0.8),
+    'штраф: золото −20% (100 → 80)');
+  // Позиция: герой остаётся на тайле боя (prev — текущий тайл).
+  assert.equal(g.state.player.x, 4, 'позиция: x — тайл круга');
+  assert.equal(g.state.player.y, 3, 'позиция: y — тайл круга');
+  // saveNow (ревью: до фикса — только следующей точкой сейва).
+  const save = readSave(h);
+  assert.ok(save, 'сейв существует');
+  assert.equal(save.data.hero.alive, true,
+    'сейв: hero.alive = true (saveNow после боя)');
+  assert.equal(save.data.hero.hp, Math.max(1, Math.round(maxHP / 2)),
+    'сейв: hero.hp — половина maxHP');
+  assert.equal(save.data.hero.gold, 80, 'сейв: hero.gold = 80');
+  assert.equal(save.data.position.x, 4, 'сейв: позиция x — тайл круга');
+  assert.equal(save.data.position.y, 3, 'сейв: позиция y — тайл круга');
+  // День НЕ отменяется: запись «boss» цела (контент уже явлен).
+  assert.deepEqual(save.data.buildingContent['4,3'],
+    { day: 1, type: 'boss' },
+    'buildingContent: запись дня цела (смерть не отменяет день)');
+  assert.equal(save.data.buildingOncePerDay['4,3:43'], 1,
+    'daily-марка: день 1 (не сбросилась)');
+});

@@ -254,9 +254,25 @@ boss:                                  // пайплайна, 000128 §2.4)
      отклонён: одна точка истины для мир-боя сохраняется;
      startDungeonCombat — подземельный поток, не подходит:
      dungeonState/prevX).
-* **onEnd босса (R3) — безопасен БЕЗ ПРАВОК**: startCombatAt НЕ
-  пишет defeatedAt (это другой бой — блуждающая группа тайла,
-  L984–999, ключ тайла героя — босс НЕ скрывает её);
+* **onEnd босса — 1:1 с боем мира (Ревью раунд 1, ИСПРАВЛЕНО)**:
+  на стадии реализации onEnd startCombatAt обрабатывал ТОЛЬКО
+  'victory' (notifyGroupDefeated + render) — смерть в босс-бою
+  (исход 'dead') оставляла героя мёртвым до конца сессии (ни
+  подъёма 000008, ни −20% золота, ни возврата на точку, ни
+  saveNow — restore принудительно оживлял БЕЗ штрафа). Фикс:
+  onEnd отражает onEnd боя мира: victory — flash «Победа! +xp
+  опыта, +gold золота.» + notifyGroupDefeated (как было); dead —
+  подъём (alive=true, hp = max(1, round(derived.maxHP/2)),
+  gold = floor(gold·0.8)) + flash «Вы очнулись. −20% золота.»;
+  остальное (fled) — flash «Вы ушли от боя.»; не-'victory' —
+  player.x/y = prev (у босса prev = ТЕКУЩИЙ тайл — герой остаётся
+  на месте; у мира — prevPos) + снап mover.teleport (000033);
+  в конце render + hudFlashUntil + saveNow (пост-боевая точка —
+  ТЗ). Тот же фикс закрывает отладочный actions.startCombat
+  (делегирует startCombatAt). Пин — e2e B25 (исход 'dead':
+  подъём + штраф + позиция + сейв; golden (4,3) день 1 = 'boss').
+  startCombatAt НЕ пишет defeatedAt (чужой бой — блуждающая
+  группа тайла; босс её НЕ скрывает);
   notifyGroupDefeated(NPCS, questBook, 'BUILDING_BOSS') —
   no-op: kill_group-цели НЕсут ТОЛЬКО числа 0..6 (каталог
   assets/npc), `goal.группа !== groupType` (npc.js L359) —
@@ -413,7 +429,7 @@ BFS без флага устоят), mob-groups GOLDEN_COMPOSITIONS (seed 42,
 | R-6 | Имя спец-модуля | src/building-content.js | один модуль на общий механизм (оба id); имя = имя механизма (daily content) |
 | R-7 | Отказ addItem | {ok:false} ДО записи — день не сгорает (000128 §2.6) | отказ = «эффект не сработал» — повтор в тот же день (детерминированный ролл → тот же предмет) |
 | R-8 | startCombatAt vs startBuildingCombat | расширение startCombatAt(groupType, extra=null): seed extra.seed ?? 42 | 000128 §2.7 разрешает wiring-расширение в 000077; одна точка истины мир-боя; debug-вызовы без изменений |
-| R-9 | onEnd босса | без правок | defeatedAt — чужой бой; notifyGroupDefeated('BUILDING_BOSS') — no-op (kill_group: только 0..6) |
+| R-9 | onEnd босса | без правок (СТАРОВО); Ревью раунд 1: onEnd 1:1 с боем мира (dead → подъём 000008 + saveNow + флэши; не-victory → prev + снап) | исход 'dead' не был рассмотрен при проектировании: hero.alive=false персистился, restore оживлял БЕЗ штрафа; defeatedAt — чужой бой; notifyGroupDefeated('BUILDING_BOSS') — no-op (kill_group: только 0..6) |
 
 ## 10. Файлы и точки (file:line по baseline f0e0c20)
 
@@ -523,3 +539,33 @@ EFFECTS ('91'–'95' — параллельные P3; union-пин A1 береч
 * **Тест A61**: createCombat smoke — ОБА пути: groupType-путь
   ('BUILDING_BOSS') — тот, что использует игра; mobs-путь
   (opts.mobs) — существующий фиксатор L665 (не трогать).
+
+## Ревью раунд 1 (зафиксировано)
+
+Три finding'а: (1) BLOCKER — onEnd startCombatAt без обработки
+'dead' (см. §5: герой мёртв до конца сессии, restore оживлял без
+штрафа; смерть вероятна — 30% ролл, до 3 troll'ей уровня hero±3);
+(2) MINOR — в onEnd нет saveNow/флэшей (наградная фиксация только
+следующей точкой сейва); (3) MINOR (процесс) — пин порядка
+building-content.js в index-order.test.js добавлен в коммите
+реализации a99afbd, а не в красном a29aa4b (позиционный пин для
+ещё не существующего тега — штатная практика репозитория, так же
+000128/000129; функциональное красное покрытие полное — 12
+тестов A55–A63/B24/C1/S1 подтверждены на a29aa4b; НЕ дефект,
+правки НЕ требуется; пожелание — на будущих задачах писать
+порядок-пин в красном коммите).
+
+Решения:
+* (1)+(2) — ОДНИМ фиксом: onEnd startCombatAt отражает onEnd боя
+  мира 1:1 (src/main.js): victory/dead/fled — флэши (те же строки),
+  dead — подъём (000008), не-'victory' — prev + снап мувера,
+  в конце saveNow. prev = ТЕКУЩИЙ тайл (боевая точка «на месте»,
+  hero не сдвигается) — герой после боя остаётся на тайле
+  постройки (НЕ prevPos — это выкинуло бы с тайла; ТЗ «конец боя —
+  как в мире» = система исходов, а не механика шага).
+* e2e B25 (tests/building-effects.test.js): исход 'dead' босс-боя
+  (мутация как в ядре: c.player alive=false/hp=0 + result +
+  Space) → подъём (alive, maxHP/2 = 13 при L1/25), штраф 100→80,
+  позиция (4,3), сейв (saveNow), день не отменён (запись 'boss'
+  цела). RED проверен на старом onEnd (падает на alive=false).
+* (3) — без правок (процессное наблюдение, зафиксировано).
