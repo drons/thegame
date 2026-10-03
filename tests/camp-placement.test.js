@@ -497,3 +497,50 @@ test('CP-5: аддитивность — vm без global-settings: 0 лагер
   }
   assert.ok(checked > 0, 'нелагерные якоря есть');
 });
+
+// ====================================================================
+// CP-5b: деградация — каталог 000047 отсутствует (сценарий merge-
+// конфликта с 000095: механика лагеря не мержнулась, каталожной
+// записи 47 нет). ПОЛНАЯ цепочка global-settings+perlin+map+
+// buildings (настройки ЕСТЬ — ветка «нет camp_channel» из CP-5а не
+// срабатывает), но catalogRef().getBuilding(47) → null — getBuilding
+// переопределён ПОСЛЕ загрузки (каталог до 000095). campDerived —
+// null-ветка «нет записи 47 в каталоге» (src/map.js) → лагерный
+// канал выключен: 0 тайлов с buildingId 47 в ±150; городской канал
+// НЕ затронут (города 51..54 остаются — гард селективный, а не
+// «каталога нет» целиком); генерация мира — без ошибок. НЕ красный
+// (до-задачный мир тоже без лагерей) — регресс-страж каталог-гарда:
+// все остальные ветки campDerived дают лагеря, и только эта молча
+// выключает канал.
+// ====================================================================
+test('CP-5b: деградация — каталога 47 нет: 0 лагерей в ±150, городской канал работает, мир без ошибок', () => {
+  const { width, height, data } = decodePng('assets/map.png');
+  const sandbox = {};
+  loadInSandbox('global-settings.js', sandbox);
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('buildings.js', sandbox);
+  assert.equal(typeof sandbox.Game.getBuilding, 'function',
+    'buildings.js: getBuilding в Game (ленивый каталог)');
+  const realGetBuilding = sandbox.Game.getBuilding;
+  assert.ok(realGetBuilding(CAMP_ID),
+    'каталог: запись лагеря 000047 есть в buildings.js');
+  // Каталог до 000095: запись 47 отсутствует, остальные записи —
+  // как в каталоге (городской канал жив — селективная деградация).
+  sandbox.Game.getBuilding = (id) =>
+    (id === CAMP_ID ? null : realGetBuilding(id));
+  const map = sandbox.Game.createMap({ width, height, data });
+  let campTiles = 0, cityTiles = 0;
+  for (let x = -150; x < 150; x++) {
+    for (let y = -150; y < 150; y++) {
+      const t = map.tileAt(x, y);
+      if (t.buildingId === CAMP_ID) campTiles++;
+      else if (t.buildingId >= 51 && t.buildingId <= 54) cityTiles++;
+    }
+  }
+  assert.equal(campTiles, 0,
+    'каталога 47 нет: лагерный канал выключен — 0 тайлов с '
+    + 'buildingId 47 (каталог-гард campDerived)');
+  assert.ok(cityTiles >= 1,
+    'городской канал (51..54) не затронут — деградация селективная');
+});

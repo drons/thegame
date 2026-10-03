@@ -725,9 +725,12 @@ function expectedBuildings(G, myMap, cam, zoom) {
     // пропуск). Ожидаемый набор — только со спрайтом.
     // 000131: лагерь (type = NONE, buildingId 47) — 1:1-зеркало
     // резолва прохождением 2 main.js: campSprite по каталожному id.
-    // Городскую ветку сознательно не добавляем: у городов спрайта
-    // нет (citySprite(51..54) = null), а 47 в CITY_SPRITES не
-    // значится, поэтому campSprite единственный нетривиальный путь.
+    // Городскую ветку не добавляем: в кадровых окнах main-visuals
+    // нет якорей городов (51..54) — попади город в кадр, main.js
+    // рисовал бы его через citySprite (CITY_SPRITES, 000110) и до,
+    // и после задачи. 47 — единственный нетривиальный нетиповой
+    // buildingId в этих окнах, поэтому campSprite — единственная
+    // ветка, которую зеркалим.
     const asset = G.buildingSprite(rec.type) ||
       (rec.buildingId != null && typeof G.campSprite === 'function'
        ? G.campSprite(rec.buildingId) : null);
