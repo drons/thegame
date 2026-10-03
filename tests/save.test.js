@@ -422,6 +422,8 @@ function bootWithSave(storage, heroExtra, dataExtra) {
   rawSet(storage, {
     version: 1,
     savedAt: new Date(0).toISOString(),
+    // 000109: dataExtra — дополнительные поля раздела data (напр.,
+    // cities), day/steps переопределяются (restore — до fastForward).
     data: Object.assign({ day: 1, steps: 0, hero }, dataExtra),
   });
 
@@ -896,4 +898,165 @@ test('000085 T6: битые разделы + призраки — 0 ошибок
     { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
     'efir — чистый L1-дефолт (не «junk»)');
   assert.deepEqual(saved.data.dead_mercs, ['merc_rena'], 'dead_mercs — чистые');
+});
+
+// --- 000109: раздел cities — сейв и респаун состояния города ---
+//
+// Контракты (memory/000109-city-save-respawn.md):
+//   * data.cities = { 'cx,cy': { lastVisitDay, stock: { 'tx,ty':
+//     {itemId: qty} } } } — ключ = ЯКОРЬ города; АБСОЛЮТНЫЕ дни
+//     (000031); неломкое расширение v1 (версия НЕ поднимается);
+//   * restore — паттерн 000072: СВОЙ try/catch, битый раздел →
+//     console.warn + сброс (игру не роняем), валидных 0 при
+//     непустом — warn;
+//   * ОБРЕЗКА: истёкшие (day − lastVisitDay >= city_respawn_days) и
+//     «будущие» (lastVisitDay > day) отбрасываются И при сейве, И
+//     при восстановлении;
+//   * save() → false (квота localStorage) — saveNow: console.warn
+//     ОДИН раз за сессию, падений нет.
+// STADIA KRASNYKH TESTOV: раздела cities в main.js ещё НЕТ — тесты
+// ниже падают по осмысленной причине (нет функциональности).
+
+test('000109 R5: неломкое расширение v1 — старый сейв (без cities) грузится; версия не поднимается; сейв ВСЕГДА пишет data.cities ({} )', async () => {
+  const st = makeStorage();
+  const h = bootWithSave(st);
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  const g = h.sandbox.__game;
+  assert.ok(g, 'main.js выполнен (__game)');
+  assert.ok(g.state.save, 'сейв загружен');
+  // Старый сейв без cities — легитимен: warn о cities НЕТ.
+  assert.ok(!h.warns.some((w) => /cities/i.test(w)),
+    'старый сейв: без warn о cities (неломко): ' + h.warns.join('; '));
+  const beforeUnload = h.winListeners['beforeunload'];
+  assert.ok(beforeUnload && beforeUnload.length > 0,
+    'beforeunload зарегистрирован');
+  beforeUnload[0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1,
+    'версия НЕ поднимается (v1, неломкое расширение — 000031)');
+  assert.deepEqual(saved.data.cities, {},
+    'сейв: data.cities пишется ВСЕГДА (пусто — {})');
+});
+
+test('000109 R6: засеянное состояние города (в окне респауна) переживает boot и roundtrip; в hero полей города НЕТ', async () => {
+  const st = makeStorage();
+  const seedCities = {
+    '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2, honey_cake: 1 } } },
+  };
+  const h = bootWithSave(st, null, { day: 20, cities: seedCities });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  const state = h.sandbox.__game.state;
+  assert.equal(state.day, 20, 'день восстановлен (fastForward)');
+  // Состояние города — НЕ в hero (ловушка-прецедент _lastUnkillDay:
+  // состояние обязано быть в сейве, но в СВОЁМ разделе).
+  assert.ok(!('cities' in state.hero)
+    && !('cityStates' in state.hero),
+    'hero: полей cities/cityStates НЕТ (свой раздел data.cities)');
+  const beforeUnload = h.winListeners['beforeunload'];
+  beforeUnload[0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.deepEqual(saved.data.cities, seedCities,
+    'в-окне состояние (20 − 18 = 2 < city_respawn_days) '
+    + 'переживает roundtrip как есть');
+});
+
+test('000109 R7: битый раздел cities — console.warn + сброс (игру не роняем); в сейве — {}', async () => {
+  const broken = [
+    'junk',                                                    // строка
+    [1, 2, 3],                                                 // массив
+    42,                                                        // число
+    { '20,-16': { lastVisitDay: 18, stock: 'nope' } },   // битый stock
+    { '20,-16': { lastVisitDay: '18' } },             // битый день
+  ];
+  for (const cities of broken) {
+    const st = makeStorage();
+    const h = bootWithSave(st, null, { day: 20, cities });
+    for (let i = 0; i < 5; i++) await h.drain();
+    assert.equal(h.errors.length, 0,
+      'ошибок НЕТ (игру не роняем): ' + h.errors.join('; ')
+      + ' — ' + JSON.stringify(cities));
+    // Warn о cities: битый раздел → сброс (паттерн 000072:
+    // не-объект/массив — явный warn; валидных 0 при непустом — warn).
+    assert.ok(h.warns.some((w) => /cities/i.test(w)),
+      'warn о cities — ' + JSON.stringify(cities)
+      + ' (warns: ' + h.warns.join('; ') + ')');
+    const beforeUnload = h.winListeners['beforeunload'];
+    beforeUnload[0]();
+    const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+    assert.deepEqual(saved.data.cities, {},
+      'битый раздел сброшен, сейв — {} — ' + JSON.stringify(cities));
+  }
+});
+
+test('000109 R8: ОБРЕЗКА при сейве — 1000 истёкших городов не переживают сейв (мир бесконечен — без обрезки раздувание до квоты)', async () => {
+  const st = makeStorage();
+  const cities = {};
+  for (let i = 0; i < 1000; i++)
+    cities[i + ',' + i] = { lastVisitDay: 1, stock: {} }; // 10 − 1 ≥ 3
+  // В-окне (день 10, last 10 — diff 0): переживает.
+  cities['20,-16'] = { lastVisitDay: 10, stock: { '2,2': { bread: 1 } } };
+  const h = bootWithSave(st, null, { day: 10, cities });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  const beforeUnload = h.winListeners['beforeunload'];
+  beforeUnload[0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.deepEqual(saved.data.cities,
+    { '20,-16': { lastVisitDay: 10, stock: { '2,2': { bread: 1 } } } },
+    '1000 истёкших отброшены, в-окне пережил сейв');
+});
+
+test('000109 R9: ОБРЕЗКА при восстановлении — «будущие» (lastVisitDay > day) отброшены при загрузке (fastForward без слушателей — 000031)', async () => {
+  const st = makeStorage();
+  const h = bootWithSave(st, null, {
+    day: 20,
+    cities: {
+      '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } } },
+      // 25 > 20 — подделка/«будущее» — отброс.
+      '30,0': { lastVisitDay: 25, stock: {} },
+    },
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  const g = h.sandbox.__game;
+  assert.equal(g.state.day, 20, 'день — 20 (город из «будущего» не сдвинул день)');
+  const beforeUnload = h.winListeners['beforeunload'];
+  beforeUnload[0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.deepEqual(saved.data.cities,
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } } } },
+    'в-окне пережил, «будущее» отброшено (restore обрезает сам)');
+});
+
+test('000109 R11: save() → false (квота localStorage) — saveNow: без падений, ровно ОДИН console.warn за сессию', async () => {
+  const st = makeStorage();
+  const h = bootWithSave(st);
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  // Эмуляция квоты: setItem бросает (save.js — тихо false).
+  st.setItem = () => { throw new Error('QuotaExceededError'); };
+  const beforeUnload = h.winListeners['beforeunload'];
+  assert.ok(beforeUnload && beforeUnload.length > 0,
+    'beforeunload зарегистрирован');
+  const warnsBefore = h.warns.length;
+  // saveNow — на каждом мировом шаге: спам warn недопустим —
+  // три сохранения подряд.
+  for (let i = 0; i < 3; i++) beforeUnload[0]();
+  assert.equal(h.errors.length, 0,
+    'ошибок НЕТ (saveNow обрабатывает false): '
+    + h.errors.join('; '));
+  const newWarns = h.warns.slice(warnsBefore);
+  assert.equal(newWarns.length, 1,
+    'ровно ОДИН warn за сессию (не спам): ' + JSON.stringify(newWarns));
+  assert.match(newWarns[0], /квот|Сейв|save/i,
+    'warn называет проблему: ' + newWarns[0]);
+  const g = h.sandbox.__game;
+  assert.equal(g.state.day, 1, 'состояние игры целое после квоты');
 });

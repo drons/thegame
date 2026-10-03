@@ -937,3 +937,26 @@ test('000099 RED: R9 — guard: SETTINGS = null/undefined ЦЕЛИКОМ (объ
   assert.equal(sandbox.Game.createClock().stepsPerDay, 40,
     'undefined → DEFAULTS 40');
 });
+
+// --- Задача 000109: сейв и респаун состояния города ---
+
+test('000109 R4: новый ключ city_respawn_days — в SETTINGS (int, «несколько игровых дней») и в META (type int, min ≥ 1)', () => {
+  // ТЗ «Что сделать» п.3: респаун города при входе —
+  // `day − lastVisitDay >= city_respawn_days` → перегенерация стока.
+  // Параметр — в глобальные настройки (симметрия: respawn_days=3,
+  // dungeon_memory_days=3).
+  assert.equal(typeof SETTINGS.city_respawn_days, 'number',
+    'SETTINGS: city_respawn_days присутствует');
+  assert.ok(Number.isInteger(SETTINGS.city_respawn_days),
+    'city_respawn_days — целое (дни)');
+  assert.ok(SETTINGS.city_respawn_days >= 2
+    && SETTINGS.city_respawn_days <= 7,
+    'city_respawn_days — «несколько игровых дней» (2..7, дефолт 3)');
+  const m = META.city_respawn_days;
+  assert.ok(m, 'META: запись city_respawn_days (META 1:1 с SETTINGS)');
+  assert.equal(m.type, 'int', 'META: type — int');
+  assert.equal(typeof m.label, 'string', 'META: label — строка');
+  assert.ok(m.label.length > 0, 'META: label непустой');
+  assert.ok(Number.isFinite(m.min) && m.min >= 1,
+    'META: min ≥ 1 (дни — положительные целые)');
+});

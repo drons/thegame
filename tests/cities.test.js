@@ -1426,3 +1426,174 @@ test('регрессия: мировой npcStocks (main.js) ключирует�
   assert.match(mainSrc, /npcStocks\[npcId\] = shop\.stock/,
     'ключ — npcId (НЕ (город, клетка)); городской сток — другой ключ (000109)');
 });
+
+// --- Состояние города для сейва (задача 000109) ---
+//
+// Контракты (memory/000109-city-save-respawn.md):
+//   * Чистые функции — в src/cities.js (доменный модуль; НЕ day.js —
+//     require-пин выше фиксирует цепочку cities.js):
+//     - validateCityStock(stock) → копия { 'tx,ty': {itemId: qty} }
+//       (мусор отбрасывается, вход не мутируется);
+//     - serializeCityStates(cityStates, day, respawnDays) → JSON-объект
+//       раздела (копии; ОБРЕЗКА: истёкшие
+//       `day − lastVisitDay >= respawnDays` и «будущие»
+//       `lastVisitDay > day` отбрасываются);
+//     - restoreCityStates(saved, day, respawnDays) → Map
+//       (не-объект/массив → пустой Map, тихо).
+//   * Запись: { lastVisitDay: int ≥ 1, stock: { 'tx,ty': {itemId: qty ≥ 0} } };
+//     ключ города — ЯКОРЬ (целые координаты, отрицательные возможны).
+//   * day/respawnDays — ПАРАМЕТРАМИ (конвенция 000072 restoreBuffs).
+// STADIA KRASNYKH TESTOV: функций в src/cities.js ещё НЕТ — тесты ниже
+// падают по осмысленной причине (нет экспорта/функциональности), не
+// по синтаксической.
+
+test('000109 R1: API — cities.js экспортирует validateCityStock/serializeCityStates/restoreCityStates (чистые функции)', () => {
+  const C = loadCities();
+  assert.equal(typeof C.validateCityStock, 'function',
+    'cities.js: validateCityStock (контракт 000109)');
+  assert.equal(typeof C.serializeCityStates, 'function',
+    'cities.js: serializeCityStates (контракт 000109)');
+  assert.equal(typeof C.restoreCityStates, 'function',
+    'cities.js: restoreCityStates (контракт 000109)');
+});
+
+test('000109 R2: roundtrip раздела, мусор отбрасывается, входы не мутируются', () => {
+  const C = loadCities();
+  // Валидный раздел: отрицательный якорь, qty 0 легитимно
+  // (buyItem доводит сток до 0). День 20, окно 3: оба в окне.
+  const input = {
+    '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2, honey_cake: 1 } } },
+    '-114,-119': { lastVisitDay: 19, stock: { '0,0': { minor_healing: 0 } } },
+  };
+  const serialized = C.serializeCityStates(input, 20, 3);
+  assert.deepEqual(serialized, input,
+    'serialize: валидные записи переживают как есть (копия)');
+  const restored = C.restoreCityStates(serialized, 20, 3);
+  assert.ok(restored instanceof Map, 'restoreCityStates → Map');
+  assert.equal(restored.size, 2, 'restore: обе валидные записи');
+  assert.deepEqual(restored.get('20,-16'),
+    { lastVisitDay: 18, stock: { '2,2': { bread: 2, honey_cake: 1 } } },
+    'запись переживает roundtrip');
+  assert.deepEqual(restored.get('-114,-119'),
+    { lastVisitDay: 19, stock: { '0,0': { minor_healing: 0 } } },
+    'roundtrip: отрицательный якорь, qty 0 — легитимно');
+  // Map-вход — принимается (в-памяти состояние main.js — Map).
+  const fromMap = C.serializeCityStates(restored, 20, 3);
+  assert.deepEqual(fromMap, input, 'serialize: Map-вход — тот же результат');
+  // ВХОДЫ не мутируются: serialize — копии; restore — чтения.
+  serialized['20,-16'].stock['2,2'].bread = 999;
+  serialized['-114,-119'].lastVisitDay = 999;
+  assert.equal(input['20,-16'].stock['2,2'].bread, 2,
+    'serialize: вход не мутирован (stock)');
+  assert.equal(input['-114,-119'].lastVisitDay, 19,
+    'serialize: вход не мутирован (lastVisitDay)');
+  // Мусорные ЗАПИСИ — тихий отброс (000029), валидные переживают.
+  const dirty = {
+    '1x2': { lastVisitDay: 10, stock: { '2,2': { bread: 1 } } }, // битый ключ
+    '4,4,5': { lastVisitDay: 10, stock: {} },                   // битый ключ
+    '4,11': { lastVisitDay: 10, stock: { '1,0': { bread: 3 } } }, // валидная
+    '7,7': { lastVisitDay: 0, stock: {} },                       // день < 1
+    '8,8': { lastVisitDay: 1.5, stock: {} },                     // не целое
+    '9,9': { lastVisitDay: '7', stock: {} },                     // строка
+    '10,10': { stock: { '2,2': { bread: 1 } } },                 // нет дня
+    '11,11': { lastVisitDay: 10 },                               // нет stock
+    '12,12': { lastVisitDay: 10, stock: 'nope' },                // stock-строка
+    '13,13': { lastVisitDay: 10, stock: [1, 2] },                // stock-массив
+    '14,14': { lastVisitDay: 10, stock: null },                  // stock null
+  };
+  const dirtyOut = C.serializeCityStates(dirty, 12, 3);
+  assert.deepEqual(Object.keys(dirtyOut).sort(), ['4,11'],
+    'serialize: мусорные записи отброшены (осталась валидная)');
+  // Мусор ВНУТРИ stock — чистится, сама запись переживает.
+  const dirtyStock = {
+    '4,11': {
+      lastVisitDay: 10,
+      stock: {
+        '2,2': { bread: 3, honey_cake: 'x' }, // qty-строка — отброс
+        '3x3': { bread: 1 },                  // битая клетка — отброс
+        '5,6,7': { bread: 1 },                // битая клетка — отброс
+        '1,0': { bread: -1 },                 // отрицательный — отброс
+        '2,0': { bread: 1.5 },                // не целое — отброс
+        '0,1': { bread: 0 },                  // 0 — легитимно
+      },
+    },
+  };
+  const dsOut = C.serializeCityStates(dirtyStock, 12, 3);
+  assert.deepEqual(dsOut, {
+    '4,11': { lastVisitDay: 10,
+      stock: { '2,2': { bread: 3 }, '0,1': { bread: 0 } } },
+  }, 'serialize: мусорный stock очищен, запись пережила');
+  assert.deepEqual(dirtyStock['4,11'].stock['2,2'],
+    { bread: 3, honey_cake: 'x' }, 'stock-вход не мутирован');
+  // restore — те же правила: мусор тихо, валидные остаются, вход не
+  // мутируется.
+  const dirtyRestored = C.restoreCityStates(dirty, 12, 3);
+  assert.ok(dirtyRestored instanceof Map, 'restore: Map (грязный вход)');
+  assert.equal(dirtyRestored.size, 1, 'restore: мусорные записи отброшены');
+  assert.deepEqual(dirtyRestored.get('4,11'),
+    { lastVisitDay: 10, stock: { '1,0': { bread: 3 } } });
+  assert.deepEqual(dirty['12,12'],
+    { lastVisitDay: 10, stock: 'nope' }, 'restore: вход не мутирован');
+  // Не-объект/массив — тихо (пусто), без броска.
+  assert.deepEqual(C.serializeCityStates(null, 20, 3), {},
+    'serialize: null → {}');
+  assert.deepEqual(C.serializeCityStates([1, 2], 20, 3), {},
+    'serialize: массив → {}');
+  assert.deepEqual(C.serializeCityStates(42, 20, 3), {},
+    'serialize: число → {}');
+  const emptyMap = C.restoreCityStates(null, 20, 3);
+  assert.ok(emptyMap instanceof Map && emptyMap.size === 0,
+    'restore: null → пустой Map (тихо)');
+  assert.equal(C.restoreCityStates([1, 2, 3], 20, 3).size, 0,
+    'restore: массив → пустой Map (тихо)');
+  // validateCityStock — чистая, отдельно: копия; не-объект → {};
+  // вход не мутируется.
+  const rawStock = { '2,2': { bread: 3, junk: 'x' }, 'bad': { bread: 1 } };
+  const cleaned = C.validateCityStock(rawStock);
+  assert.deepEqual(cleaned, { '2,2': { bread: 3 } },
+    'validateCityStock: мусор отброшен, копия');
+  assert.deepEqual(rawStock,
+    { '2,2': { bread: 3, junk: 'x' }, 'bad': { bread: 1 } },
+    'validateCityStock: вход не мутирован');
+  assert.deepEqual(C.validateCityStock(null), {}, 'validateCityStock: null → {}');
+  assert.deepEqual(C.validateCityStock([1]), {}, 'validateCityStock: массив → {}');
+  assert.deepEqual(C.validateCityStock('s'), {}, 'validateCityStock: строка → {}');
+});
+
+test('000109 R3: ОБРЕЗКА при сейве И при восстановлении — истёкшие (day − lastVisitDay >= respawnDays) и «будущие» (lastVisitDay > day) отбрасываются', () => {
+  const C = loadCities();
+  const day = 10, r = 3;
+  // Граница: last = day − r (10 − 7 = 3 ≥ 3) — отброс;
+  // last = day − r + 1 (10 − 8 = 2 < 3) — остаётся.
+  const boundary = {
+    '1,1': { lastVisitDay: 8, stock: { '0,0': { bread: 1 } } },  // 2 < 3 — keep
+    '2,2': { lastVisitDay: 7, stock: { '0,0': { bread: 1 } } },  // 3 ≥ 3 — drop
+    '3,3': { lastVisitDay: 11, stock: {} },                      // будущее — drop
+    '4,4': { lastVisitDay: 100, stock: {} },                     // будущее — drop
+  };
+  const out = C.serializeCityStates(boundary, day, r);
+  assert.deepEqual(Object.keys(out), ['1,1'],
+    'serialize: граница — живёт только last = day − r + 1');
+  const rest = C.restoreCityStates(boundary, day, r);
+  assert.equal(rest.size, 1,
+    'restore: истёкшие/«будущие» отброшены (fastForward без '
+    + 'слушателей — 000031: restore обрезает сам)');
+  assert.deepEqual(rest.get('1,1'),
+    { lastVisitDay: 8, stock: { '0,0': { bread: 1 } } },
+    'restore: валидная запись — как есть');
+  // Масштаб (мир бесконечен): 1000 истёкших + 5 свежих → ровно 5.
+  const many = {};
+  for (let i = 0; i < 1000; i++)
+    many[i + ',' + i] = { lastVisitDay: 1, stock: {} }; // 10 − 1 ≥ 3
+  for (let i = 0; i < 5; i++)
+    many['100' + i + ',5'] =
+      { lastVisitDay: 9, stock: { '0,0': { bread: i } } }; // 10 − 9 < 3
+  const manyOut = C.serializeCityStates(many, day, r);
+  assert.equal(Object.keys(manyOut).length, 5,
+    'serialize: 1000 истёкших отброшено (без обрезки — раздувание до квоты)');
+  assert.deepEqual(Object.keys(manyOut).sort(),
+    ['1000,5', '1001,5', '1002,5', '1003,5', '1004,5'].sort(),
+    'serialize: в окне — только свежие');
+  assert.equal(C.restoreCityStates(many, day, r).size, 5,
+    'restore: истёкшие отброшены и при загрузке');
+});
