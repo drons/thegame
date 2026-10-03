@@ -3711,3 +3711,120 @@ test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощае�
     assert.equal(r4.w.hp, 95, 'spark: round((3+0.5·3)·1) = 5');
   } finally { C.combatInternals.allySpells = saveCatalog; }
 });
+
+// --- Задача 000117: практика Эфира: рост навыков от применения (ТЗ —
+// tasks/pending/000117.md; контракты —
+// memory/000117-efir-practice.md). КРАСНЫЕ тесты PC-1/PC-2 (вместе с
+// PR-1..PR-5 в tests/efir.test.js — ровно 7 новых красных, D10):
+// падают, пока нет practiceEfir (15-й экспорт efir.js) — TypeError
+// «practiceEfir is not a function» — и dodge-ветки precog в
+// mobAttackAlly (AssertionError: B == A). Осмысленная краснота —
+// «функциональности нет», не синтаксис/окружение.
+//
+// Формула lord-множителя (урон +5%·уровень) — СУЩЕСТВУЮЩАЯ (000112;
+// CB-3 пинит lord 0); 000117 поднимает lord практикой — снапшот
+// u.efirSkills (D7). Фейк Game = { xpForNext, efir: E } — ленивый хук
+// combat.js читает globalThis.Game.efir в момент ВЫЗОВА (контракт
+// §3.2); в красной фазе хука нет — фейк инертен.
+
+test('000117 PC-1: прокачанный firelord — урон Эфира +5%·уровень (по сиду)', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  withGame112({ xpForNext: PL.xpForNext, efir: E }, () => {
+    try {
+      // L5 (Int 5): база = 3 + 0.5·5 = 5.5. Один волк (armor 50 —
+      // заклинание игнорирует, hp 100, d 3 ≤ 4), seed 5 (board112),
+      // rng 0.99 (волк — все промахи). ФОРМУЛА в тесте (паттерн CB-3,
+      // без хардкода значений): round((3 + 0.5·Int)·(1 + 0.05·lord)).
+      const dmgFromLog = (c) => {
+        const line = c.log.find((l) => l.includes('«Искра» по'));
+        assert.ok(line, 'лог-строка каста: ' + c.log.join(' | '));
+        return Number(line.slice(line.lastIndexOf(':') + 1));
+      };
+      const expectDmg = (lord) => Math.round(
+        (3 + 0.5 * 5) * (1 + 0.05 * lord));
+      const mk = (firelordXp) => {
+        const p = hero112(); // 270/270 — (1)/(2) не срабатывают
+        const state = E.createEfir();
+        raiseEfir112(E, state, 5);
+        if (firelordXp > 0) {
+          E.practiceEfir(state, 'firelord', firelordXp);
+        }
+        state.spells = ['spark'];
+        const { c, w, u } = board112(E, p, state);
+        w.x = 3; w.y = 3; w.armor = 50; w.maxHP = 100; w.hp = 100;
+        c._rng = () => 0.99;
+        E.buildEfirUnit(state, c);
+        c.endTurn();
+        return { snap: snap112(c, u, p), dmg: dmgFromLog(c), c, u, p };
+      };
+      // A — firelord 0: round(5.5·1) = 6.
+      const rA = mk(0);
+      assert.deepEqual(mk(0).snap, rA.snap, 'детерминизм (A)');
+      assert.equal(rA.dmg, expectDmg(0),
+        'A: firelord 0 → round(5.5·1) = 6: ' + rA.c.log.join(' | '));
+      // B — firelord 4 (15+30+45+60 = 150): round(5.5·1.2) =
+      // round(6.6) = 7.
+      const rB = mk(150);
+      assert.deepEqual(mk(150).snap, rB.snap, 'детерминизм (B)');
+      assert.equal(rB.dmg, expectDmg(4),
+        'B: firelord 4 → round(5.5·1.2) = round(6.6) = 7: '
+        + rB.c.log.join(' | '));
+      assert.ok(rB.dmg > rA.dmg,
+        'B > A: +5%·4 уровня firelord (детерминизм по сиду 5)');
+    } finally { C.combatInternals.allySpells = saveCatalog; }
+  });
+});
+
+test('000117 PC-2: уклонение precog снижает попадания врага (по сиду)', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  withGame112({ xpForNext: PL.xpForNext, efir: E }, () => {
+    try {
+      // Волк L2 (2,4) → Эфир L3 (2,5) d 1 (игрок (3,6) d 3 →
+      // nearestPlayerSide выберет Эфира), rng 0.3, seed 5.
+      // A — precog 0: hitChance(2,0,3,0) = 0.52 → hit (0.3 < 0.52),
+      // урон по Эфиру > 0; B — perception 5 (requires) + precog 8:
+      // defDodge 0.4 → hitChance = 0.12 → miss (0.3 ≥ 0.12), урон 0,
+      // лог «промахивается.». Один rng-вызов на удар — бит-в-бит без
+      // precog (D4: 4-й аргумент hitChance, новых c._rng НЕТ).
+      const mk = (withPrecog) => {
+        const p = hero112(); // 270/270
+        const state = E.createEfir();
+        raiseEfir112(E, state, 3);
+        if (withPrecog) {
+          E.practiceEfir(state, 'perception', 225); // → 5 (requires)
+          E.practiceEfir(state, 'precog', 540);     // → 8 (cap L3 8)
+        }
+        state.spells = ['mend'];
+        const { c, w, u } = board112(E, p, state);
+        w.x = 2; w.y = 4; w.maxHP = 100; w.hp = 100;
+        c._rng = () => 0.3;
+        E.buildEfirUnit(state, c);
+        const hp0 = u.hp;
+        c.endTurn();
+        return { snap: snap112(c, u, p), u, p, c, dmg: hp0 - u.hp };
+      };
+      const rA = mk(false);
+      assert.deepEqual(mk(false).snap, rA.snap, 'детерминизм (A)');
+      assert.ok(rA.dmg > 0,
+        'A (precog 0): 0.3 < 0.52 → hit, урон > 0: '
+        + rA.c.log.join(' | '));
+      const rB = mk(true);
+      assert.deepEqual(mk(true).snap, rB.snap, 'детерминизм (B)');
+      assert.equal(rB.dmg, 0,
+        'B (precog 8): 0.3 ≥ 0.12 → уклонение, урон 0: '
+        + rB.c.log.join(' | '));
+      assert.ok(rB.c.log.some((l) => l.includes('промахивается')),
+        'лог «промахивается»: ' + rB.c.log.join(' | '));
+      assert.ok(rB.dmg < rA.dmg,
+        'B < A: уклонение снижает попадания (детерминизм по сиду 5)');
+    } finally { C.combatInternals.allySpells = saveCatalog; }
+  });
+});
