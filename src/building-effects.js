@@ -200,7 +200,7 @@
   const RUINS_NOTE_SEED = 0x52554e54;   // 'RUNT' — выбор фрагмента записи
   // Сиды слухов таверны (задача 000091; ASCII, СВОИ константы —
   // паттерн 000074/TELEPORT_TIE_SEED): экспорт — для golden-пинов
-  // (A57/A58/B25). Формулы (tile, day) — tavernRumors:
+  // (A67/A68/B27). Формулы (tile, day) — tavernRumors:
   //   f  = тексты.length < 2 ? 1 : 1 + (hash(x, y, RUMC ^ day) % 2);
   //   i0 = hash(x, y, RUMT ^ day) % L;
   //   i1 = hash(x, y, RUM2 ^ day) % L (i1 === i0 → (i0 + 1) % L).
@@ -2033,7 +2033,7 @@
     rollRuinsContent, ruinsLoot, readNote,
     RUINS_ROLL_SEED, RUINS_LOOT_SEED, RUINS_NOTE_SEED,
     // Задача 000091: таверна (44) «Слухи» — чистое ядро + (tile,
-    // day)-сиды (golden-пины A57/A58/B25).
+    // day)-сиды (golden-пины A67/A68/B27).
     tavernRumors, RUMORS_COUNT_SEED, RUMORS_TEXT_SEED, RUMORS_TEXT2_SEED,
   };
 });

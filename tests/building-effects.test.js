@@ -3104,7 +3104,7 @@ test('A61. vm-загрузка спец-модуля: пара с building-actio
 // отсутствуют). main.js и building-actions.js НЕ трогаются (контракт
 // 000128) — «Отдых» = существующий clock.rest() + onDay-подписчики.
 
-test('A55. реестр + каталог 44: «Отдых» (44_rest, БЕЗ apply) и «Слухи» (44_rumors, apply); лимитов НЕТ; оверлей dialog+эффекты; зеркало каталога (задача 000091)', () => {
+test('A65. реестр + каталог 44: «Отдых» (44_rest, БЕЗ apply) и «Слухи» (44_rumors, apply); лимитов НЕТ; оверлей dialog+эффекты; зеркало каталога (задача 000091)', () => {
   const BE = loadBE();
   // Реестр: две записи (id — префикс здания 44_, namespace 000091).
   assert.ok(BE.EFFECTS['44_rest'],
@@ -3156,7 +3156,7 @@ test('A55. реестр + каталог 44: «Отдых» (44_rest, БЕЗ app
   }
 });
 
-test('A56. «Отдых» (44_rest) — полный пайплайн onBuildingAction: день 1→2 (reason rest), шаги 0, восстановление, saveNow, БЕЗ отметки; отказ без clock (задача 000091)', () => {
+test('A66. «Отдых» (44_rest) — полный пайплайн onBuildingAction: день 1→2 (reason rest), шаги 0, восстановление, saveNow, БЕЗ отметки; отказ без clock (задача 000091)', () => {
   const BE = loadBE();
   const BA = require('../src/building-actions.js');
   const D = require('../src/day.js');
@@ -3247,15 +3247,15 @@ test('A56. «Отдых» (44_rest) — полный пайплайн onBuilding
   assert.equal(res.clock.day, 2, '+Медитация 1: день 1→2');
   assert.equal(hero.hp, 8, '+Медитация 1: hp 5→8');
   assert.equal(hero.mp, 6, '+Медитация 1: mp 4→6');
-  // Вариант 3: +Медитация 2 + Вдох 1 (B24-герой) — 0.19/0.14 → +5/+2
+  // Вариант 3: +Медитация 2 + Вдох 1 (B26-герой) — 0.19/0.14 → +5/+2
   // → hp 10 / mp 6 (таблица §5 memory).
   hero = mkHero({ hp: 5, mp: 4, secondary: { meditation: 2, breath: 1 } });
   res = runRest(hero);
-  assert.equal(res.clock.day, 2, 'B24-герой: день 1→2');
-  assert.equal(hero.hp, 10, 'B24-герой: hp 5→10 (0.19 от maxHP 25)');
-  assert.equal(hero.mp, 6, 'B24-герой: mp 4→6 (0.14 от maxMP 16)');
+  assert.equal(res.clock.day, 2, 'B26-герой: день 1→2');
+  assert.equal(hero.hp, 10, 'B26-герой: hp 5→10 (0.19 от maxHP 25)');
+  assert.equal(hero.mp, 6, 'B26-герой: mp 4→6 (0.14 от maxMP 16)');
   assert.deepEqual(res.calls.flash,
-    ['Отдых: вы выспались — день 2.'], 'B24-герой: flash');
+    ['Отдых: вы выспались — день 2.'], 'B26-герой: flash');
   // Отказ: спец-модуль без clock (нет rest) → {ok:false, message:
   // 'недоступно'} → БЕЗ saveNow/отметки/render, flash «недоступно»
   // (семантика отказа §2.6).
@@ -3270,7 +3270,7 @@ test('A56. «Отдых» (44_rest) — полный пайплайн onBuilding
   assert.equal(hero.hp, 5, 'отказ: герой НЕ восстановлен');
 });
 
-test('A57. tavernRumors — чистое ядро: детерминизм (tile, day); число/индексы фрагментов; ближайший вход (Чебышев, не развалины, лекс. тай-брейк); fail-open (задача 000091)', () => {
+test('A67. tavernRumors — чистое ядро: детерминизм (tile, day); число/индексы фрагментов; ближайший вход (Чебышев, не развалины, лекс. тай-брейк); fail-open (задача 000091)', () => {
   const BE = loadBE();
   const PL = require('../src/perlin.js');
   const D = require('../src/dungeon.js');
@@ -3349,14 +3349,14 @@ test('A57. tavernRumors — чистое ядро: детерминизм (tile,
   });
 });
 
-test('A58. applyTavernRumors (= EFFECTS[44_rumors].apply): реальный каталог 44 + synthMap; message «Слухи:…»; снапшот не мутирован; fail-open без карты; отказ без содержимого/без hash2 (задача 000091)', () => {
+test('A68. applyTavernRumors (= EFFECTS[44_rumors].apply): реальный каталог 44 + synthMap; message «Слухи:…»; снапшот не мутирован; fail-open без карты; отказ без содержимого/без hash2 (задача 000091)', () => {
   const BE = loadBE();
   const PL = require('../src/perlin.js');
   const D = require('../src/dungeon.js');
   const M = require('../src/map.js');
   const B = require('../src/buildings.js');
   const p44 = B.getBuilding(44).особые_параметры;
-  const texts = p44.эффект.слухи.тексты; // 8 строк (A55)
+  const texts = p44.эффект.слухи.тексты; // 8 строк (A65)
   const real44 = B.getBuilding(44);
   withGame({
     BUILDING_TYPES: M.BUILDING_TYPES,
@@ -3432,7 +3432,7 @@ test('A58. applyTavernRumors (= EFFECTS[44_rumors].apply): реальный ка
   });
 });
 
-test('A59. tavernRest — node (спец-модуль): clock.rest → {ok, message с новым днём}; guard (null/нет rest) → «недоступно»; чистота (задача 000091)', () => {
+test('A69. tavernRest — node (спец-модуль): clock.rest → {ok, message с новым днём}; guard (null/нет rest) → «недоступно»; чистота (задача 000091)', () => {
   // RED: файла src/building-effect-44_rest.js нет → MODULE_NOT_FOUND.
   const mod = require('../src/building-effect-44_rest.js');
   assert.equal(typeof mod.tavernRest, 'function',
@@ -5984,7 +5984,7 @@ test('B25. развалины e2e: ловушка (день 2 = голден) �
     'daily-марка день 2 (сценарий 2)');
 });
 
-// --- Задача 000091: таверна (44) — отдых и слухи — wiring E2E (B24+) ---
+// --- Задача 000091: таверна (44) — отдых и слухи — wiring E2E (B26+) ---
 // Золотые (детерминированный seed-мир, замерено; контракты —
 // memory/000091-tavern-rest-rumors.md):
 //   * ближайшая к спавну (0,0) таверна id 44 = (41, 2), 43 шага (BFS) —
@@ -5994,14 +5994,14 @@ test('B25. развалины e2e: ловушка (день 2 = голден) �
 //     (tavern_keeper, id 9) — «Диалог» ПЕРВАЯ строка;
 //   * moonDreamHint((41,2)) → вход (44, -1) (buildingId 31, alpha 166)
 //     → dungeonType 0 «простая пещера» (совпадает с B19-голденом «Сона»);
-//   * B24-герой: Медитация 2 + Вдох 1 → hpRegen 0.19 / mpRegen 0.14
+//   * B26-герой: Медитация 2 + Вдох 1 → hpRegen 0.19 / mpRegen 0.14
 //     (maxHP 25 / maxMP 16 у level-1): hp 5→10, mp 4→6 (таблица §5).
 //   * e2e-чтение mp: readSave(h).data.hero.mp — g.state.hero.mp НЕТ.
 
-test('B24. «Отдых» e2e: таверна (41,2) — HUD «([E] Берта, действия)», оверлей [dialog,44_rest,44_rumors], Digit2 — день 1→2, hero 10/6, flash, БЕЗ отметки; повтор в тот же день (ТЗ) (задача 000091)', async () => {
+test('B26. «Отдых» e2e: таверна (41,2) — HUD «([E] Берта, действия)», оверлей [dialog,44_rest,44_rumors], Digit2 — день 1→2, hero 10/6, flash, БЕЗ отметки; повтор в тот же день (ТЗ) (задача 000091)', async () => {
   // Позиция PRE-SEED'ом на таверне (паттерн B14/B21): ХОД к таверне
   // (43 шага) при steps_per_day=40 СМЕНИЛ БЫ ДЕНЬ (1→2); pre-seed держит
-  // день 1. B24-герой: Медитация 2 + Вдох 1 (0.19/0.14, таблица §5).
+  // день 1. B26-герой: Медитация 2 + Вдох 1 (0.19/0.14, таблица §5).
   const h = await boot(seedSave({
     day: 1,
     position: { x: 41, y: 2 },
@@ -6071,7 +6071,7 @@ test('B24. «Отдых» e2e: таверна (41,2) — HUD «([E] Берта, 
   assert.equal(G.buildingUI.isActive(), false);
 });
 
-test('B25. «Слухи» e2e: таверна (41,2), день 1 — flash «Слухи:…» (фрагмент каталога + вход (44,-1) «простая пещера»), день НЕ тратится, БЕЗ отметки, повтор — детерминированно (задача 000091)', async () => {
+test('B27. «Слухи» e2e: таверна (41,2), день 1 — flash «Слухи:…» (фрагмент каталога + вход (44,-1) «простая пещера»), день НЕ тратится, БЕЗ отметки, повтор — детерминированно (задача 000091)', async () => {
   // Позиция PRE-SEED'ом на таверне (паттерн B14/B21): 43 шага > 40.
   const h = await boot(seedSave({
     day: 1,
@@ -6137,11 +6137,11 @@ test('B25. «Слухи» e2e: таверна (41,2), день 1 — flash «С�
   assert.equal(G.buildingUI.isActive(), false);
 });
 
-test('B26. регрессия: диалог Берты (NPC таверны) — «Диалог» ПЕРВАЯ строка, npcUI, повторный [E] закрывает (задача 000091)', async () => {
+test('B28. регрессия: диалог Берты (NPC таверны) — «Диалог» ПЕРВАЯ строка, npcUI, повторный [E] закрывает (задача 000091)', async () => {
   // GREEN-GUARD: НЕ красный — защита от регрессии (NPC-схема НЕ
   // трогается; НАЙМ — задача 000065, не здесь). Все ассерты проходят
   // на текущем коде (оверлей до задачи = ['dialog']); «Диалог» ПЕРВЫЙ
-  // — сосуществование dialog + эффекты покрывает B24 (красный).
+  // — сосуществование dialog + эффекты покрывает B26 (красный).
   const h = await boot(seedSave({
     day: 1,
     position: { x: 41, y: 2 },
