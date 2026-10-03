@@ -1031,6 +1031,19 @@
       return { level: lv, maxHP: st.maxHP };
     }
 
+    // Переход на вкладку «Эфир» (000116): закрыть «Отряд» (обе
+    // панели z-10 — полная замена поверхности; Esc-detach — внутри
+    // toggle(false)) + открыть панель персонажа на вкладке
+    // (toggle(force, tabId) — 000123; неизвестный tabid — тихо,
+    // activateTab гардится по rec.panes[id]). Состояние НЕ
+    // мутировано — хук на изменение состояния (сейв в main.js) НЕ
+    // вызывается.
+    function gotoEfirTab() {
+      toggle(false);
+      const p = G.playerUI;
+      if (p && typeof p.toggle === 'function') p.toggle(true, 'efir');
+    }
+
     function isOpen() {
       return !!panel && panel.style.display === 'flex';
     }
@@ -1054,6 +1067,17 @@
       // изменился после рендера) — canDismiss ВНУТРИ dismiss() →
       // тихо, БЕЗ сейва (паттерн 000083).
       panel.addEventListener('click', (e) => {
+        // Переход из строки «Эфир» (000116): клик ПО СТРОКЕ — в
+        // строке кнопок НЕТ (000086 P3: Эфир — не наёмник);
+        // data-атрибут + ветка — контракт 000086 §9 (аддитивно,
+        // строка не переделана). Селектор с тегом (DOM-стабы:
+        // «тег[attr]», голый [attr] не поддерживается). Ветка
+        // ПЕРВАЯ: с кнопкой-веткой селекторы не пересекаются.
+        const er = e.target.closest('div[data-efirtab]');
+        if (er && initialized && er.dataset.efirtab === 'efir') {
+          gotoEfirTab();
+          return;
+        }
         const btn = e.target.closest('button[data-squadact]');
         if (!btn || !initialized) return;
         const act = btn.dataset.squadact;
@@ -1077,6 +1101,8 @@
     function renderEfirRow(ed) {
       if (!ed) return;
       const row = el('div', 'cp-itemrow');
+      row.dataset.efirtab = 'efir'; // 000116: переход на вкладку
+      // (маркер для click-ветки панели)
       row.appendChild(el('span', 'cp-itemname', 'Эфир'));
       row.appendChild(el('span', 'cp-itemmeta',
         'уровень ' + ed.level + ' · HP ' + ed.maxHP + '/' + ed.maxHP +
