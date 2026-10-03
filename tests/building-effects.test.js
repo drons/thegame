@@ -132,10 +132,13 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // ('40'/'42'); 000093 добавляет '46' (смотровая башня,
   // memory/000093-explored-tower.md); 000077 добавляет '39' (храм)
   // и '43' (круг); 000094 добавляет '48' (развалины — осмотр,
-  // memory/000094-ruins-inspect.md); 000091/92/95 расширят список
-  // при своих мержах (правка при ребейзе: union,
+  // memory/000094-ruins-inspect.md); 000091 добавляет
+  // '44_rest'/'44_rumors' (таверна, memory/000091-tavern-rest-
+  // rumors.md); 000092/95 расширят список при своих мержах
+  // (правка при ребейзе: union,
   // memory/000076-temple-blessings.md / 000074-rune-stone-obelisk.md
-  // / 000077-building-content.md §8 / 000094-ruins-inspect.md).
+  // / 000077-building-content.md §8 / 000094-ruins-inspect.md
+  // / 000091-tavern-rest-rumors.md).
   // Форм-пин — ЧЛЕНСТВО
   // (отклонение от точного deepEqual: точный union не замкнулся бы
   // до мержей 000091–000095, добавляющих собственные записи):
@@ -146,8 +149,13 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // пин регенерирован по фактическому коду.
   // Ребейз 000094 на мастер (2026-10-03): MERGED/UNION += '48'
   // (000094) — пин регенерирован по фактическому коду.
-  const MERGED = ['36', '37', '38', '40', '41', '42', '46', '48'];
-  const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '46', '48'];
+  // Ребейз 000091 на мастер (2026-10-03): MERGED/UNION +=
+  // '44_rest'/'44_rumors' (000091) — пин регенерирован по
+  // фактическому коду.
+  const MERGED = ['36', '37', '38', '40', '41', '42', '46', '48',
+    '44_rest', '44_rumors'];
+  const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '46',
+    '48', '44_rest', '44_rumors'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -156,7 +164,7 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   for (const id of regKeys) {
     assert.ok(UNION.includes(id),
       'реестр: чужой id «' + id + '» (union 000074/000075/000076/' +
-      '000077/000093/000094)');
+      '000077/000093/000094/000091)');
   }
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
@@ -3088,6 +3096,366 @@ test('A61. vm-загрузка спец-модуля: пара с building-actio
     'регистрации нет (buildingActions нет)');
 });
 
+// --- Задача 000091: таверна (44) — отдых и слухи (подзадача 000064) ---
+// Контракты: memory/000091-tavern-rest-rumors.md (реестр 44_rest/
+// 44_rumors, спец-модуль building-effect-44_rest.js, чистое ядро
+// tavernRumors + сиды RUMC/RUMT/RUM2, applyTavernRumors, каталог
+// 000044). Красные: падают ДО зелёной стадии (реестр/каталог/модуль
+// отсутствуют). main.js и building-actions.js НЕ трогаются (контракт
+// 000128) — «Отдых» = существующий clock.rest() + onDay-подписчики.
+
+test('A55. реестр + каталог 44: «Отдых» (44_rest, БЕЗ apply) и «Слухи» (44_rumors, apply); лимитов НЕТ; оверлей dialog+эффекты; зеркало каталога (задача 000091)', () => {
+  const BE = loadBE();
+  // Реестр: две записи (id — префикс здания 44_, namespace 000091).
+  assert.ok(BE.EFFECTS['44_rest'],
+    'запись 44_rest в реестре (red: нет до реализации)');
+  assert.equal(BE.EFFECTS['44_rest'].имя, 'Отдых',
+    '44_rest: имя «Отдых»');
+  assert.notEqual(typeof BE.EFFECTS['44_rest'].apply, 'function',
+    '44_rest: БЕЗ apply (мир-действие — спец-модуль, не чистый apply)');
+  assert.ok(BE.EFFECTS['44_rumors'],
+    'запись 44_rumors в реестре (red: нет до реализации)');
+  assert.equal(BE.EFFECTS['44_rumors'].имя, 'Слухи',
+    '44_rumors: имя «Слухи»');
+  assert.equal(typeof BE.EFFECTS['44_rumors'].apply, 'function',
+    '44_rumors: apply(state) — чистые данные (каталог + map RO)');
+  // Зеркало каталога 44 (000053: каталог-драйвен; sync-скрипт, byte-match).
+  const B = require('../src/buildings.js');
+  const p44 = B.getBuilding(44).особые_параметры;
+  assert.deepEqual(p44.эффекты, ['44_rest', '44_rumors'],
+    'каталог 44: особые_параметры.эффекты — массив ДВУХ действий (red: нет)');
+  const texts = p44.эффект && p44.эффект.слухи && p44.эффект.слухи.тексты;
+  assert.ok(Array.isArray(texts) && texts.length === 8,
+    'каталог 44: эффект.слухи.тексты — ровно 8 строк (red: нет)');
+  for (const t of texts) {
+    assert.equal(typeof t, 'string', 'текст слуха — строка');
+    assert.ok(t.length > 0, 'текст слуха — non-empty');
+  }
+  assert.equal(p44.раз_в_день, undefined,
+    'каталог 44: БЕЗ раз_в_день (ТЗ: лимитов нет)');
+  // НЕ трогать (000060/000064): map_index 11, виды, малая.
+  assert.equal(p44.map_index, 11, 'каталог 44: map_index 11 не тронут');
+  assert.deepEqual(p44.виды, ['food', 'potion'],
+    'каталог 44: виды [food, potion] не тронуты (магазин 000060)');
+  assert.equal(p44.малая, true, 'каталог 44: малая true не тронута');
+  // Лимитов НЕТ для обоих эффектов (каталог без флага + запись без разВДень).
+  assert.equal(BE.hasDailyLimit(B.getBuilding(44), '44_rest'), false,
+    'hasDailyLimit(44, 44_rest) — false (без лимита)');
+  assert.equal(BE.hasDailyLimit(B.getBuilding(44), '44_rumors'), false,
+    'hasDailyLimit(44, 44_rumors) — false (без лимита)');
+  // Связка «постройка → эффекты» — через массив (1-к-1 НЕ покрывает два).
+  assert.deepEqual(BE.effectIds(B.getBuilding(44)),
+    ['44_rest', '44_rumors'], 'effectIds(44) — из массива каталога');
+  // Оверлей: «Диалог» (NPC Берта) ПЕРВЫМ, затем эффекты в порядке каталога.
+  const res = BE.buildingActions(B.getBuilding(44), NPC(), makeState());
+  assert.deepEqual(res.map((a) => a.id),
+    ['dialog', '44_rest', '44_rumors'],
+    'buildingActions(44, npc): dialog + эффекты (red: нет записей)');
+  for (const a of res) {
+    assert.equal(a.доступен, true, 'строка «' + a.id + '» — доступна');
+  }
+});
+
+test('A56. «Отдых» (44_rest) — полный пайплайн onBuildingAction: день 1→2 (reason rest), шаги 0, восстановление, saveNow, БЕЗ отметки; отказ без clock (задача 000091)', () => {
+  const BE = loadBE();
+  const BA = require('../src/building-actions.js');
+  const D = require('../src/day.js');
+  // Спец-модуль (НОВЫЙ, первый в проекте): node-ветка module.exports =
+  // { tavernRest } (без регистрации — в node Game нет; тест регистрирует
+  // вручную, паттерн §2.3 memory). RED: файла нет → MODULE_NOT_FOUND.
+  const mod = require('../src/building-effect-44_rest.js');
+  assert.equal(typeof mod.tavernRest, 'function',
+    'спец-модуль экспортирует tavernRest(clock)');
+  const B = require('../src/buildings.js');
+  const b44 = B.getBuilding(44);
+  const t44 = { x: 5, y: 7, hasBuilding: true, building: 11, buildingId: 44 };
+  // Регистрация вручную (node — нет Game; browser саморегистрируется).
+  BA.registerSpecial('44_rest', (ctx) => mod.tavernRest(ctx && ctx.clock));
+  // Часы + onDay-подписчик 1:1 main.js L659 (восстановление + респаун).
+  function restClock(hero) {
+    const clock = D.createClock();
+    const defeatedAt = new Map();
+    const buffs = [];
+    clock.onDay(({ day }) => {
+      P.restoreDay(hero); // часть HP/MP по формулам навыков (SPEC)
+      const due = D.dueForRespawn(defeatedAt, day);
+      for (const k of due) defeatedAt.delete(k);
+      for (let i = buffs.length - 1; i >= 0; i--) {
+        if (buffs[i].day < day) buffs.splice(i, 1);
+      }
+    });
+    return clock;
+  }
+  function makeDeps(clock, hero) {
+    const calls = { saveNow: 0, flash: [], playerRender: 0 };
+    const deps = {
+      game: {
+        buildingEffects: {
+          EFFECTS: BE.EFFECTS, hasDailyLimit: BE.hasDailyLimit,
+        },
+        npcUI: { open: () => {} },
+        hash2: () => 0, xpForNext: () => 100, POINTS_PER_LEVEL: 1,
+        derived: P.derived,
+      },
+      clock,
+      hero, // ЖИВАЯ ссылка (спец-хендлер/restoreDay мутируют)
+      player: { x: 5, y: 7 },
+      prevPos: { x: 5, y: 7 },
+      getMap: () => null,
+      mover: null,
+      npcs: [],
+      questBook: {},
+      npcShopFor: () => ({}),
+      collectSaveData: () => ({ day: clock.day }),
+      saveNow: () => { calls.saveNow++; },
+      flash: (m) => { calls.flash.push(m); },
+      buildingOncePerDay: new Map(),
+      buffs: [],
+      teleports: new Map(),
+      buildingQuests: new Map(),
+      playerRender: () => { calls.playerRender++; },
+      moveHero: () => {},
+      startCombat: () => {},
+    };
+    return { calls, deps };
+  }
+  function runRest(hero, clockOverride) {
+    const clock = clockOverride || restClock(hero);
+    const { calls, deps } = makeDeps(clock, hero);
+    BA.init(deps);
+    BA.onBuildingAction(
+      { id: '44_rest', имя: 'Отдых', доступен: true }, t44, b44, null);
+    return { clock, calls, deps };
+  }
+  // Вариант 1: базовый герой (без навыков) — 0.10/0.10 → +3/+2 → hp 8 / mp 6.
+  let hero = mkHero({ hp: 5, mp: 4 });
+  let res = runRest(hero);
+  assert.equal(res.clock.day, 2, 'базовый: день 1→2 (clock.rest)');
+  assert.equal(res.clock.steps, 0, 'базовый: шаги сброшены (rest)');
+  assert.equal(hero.hp, 8, 'базовый: hp 5→8 (0.10 от maxHP 25)');
+  assert.equal(hero.mp, 6, 'базовый: mp 4→6 (0.10 от maxMP 16)');
+  assert.equal(res.calls.saveNow, 1, 'базовый: saveNow вызван');
+  assert.equal(res.calls.playerRender, 1, 'базовый: playerRender');
+  assert.deepEqual(res.calls.flash,
+    ['Отдых: вы выспались — день 2.'],
+    'базовый: flash — message спец-а с НОВЫМ днём: ' + res.calls.flash);
+  assert.equal(res.deps.buildingOncePerDay.size, 0,
+    'базовый: БЕЗ отметки (лимитов нет)');
+  // Вариант 2: +Медитация 1 — 0.12/0.12 → +3/+2 → hp 8 / mp 6.
+  hero = mkHero({ hp: 5, mp: 4, secondary: { meditation: 1 } });
+  res = runRest(hero);
+  assert.equal(res.clock.day, 2, '+Медитация 1: день 1→2');
+  assert.equal(hero.hp, 8, '+Медитация 1: hp 5→8');
+  assert.equal(hero.mp, 6, '+Медитация 1: mp 4→6');
+  // Вариант 3: +Медитация 2 + Вдох 1 (B24-герой) — 0.19/0.14 → +5/+2
+  // → hp 10 / mp 6 (таблица §5 memory).
+  hero = mkHero({ hp: 5, mp: 4, secondary: { meditation: 2, breath: 1 } });
+  res = runRest(hero);
+  assert.equal(res.clock.day, 2, 'B24-герой: день 1→2');
+  assert.equal(hero.hp, 10, 'B24-герой: hp 5→10 (0.19 от maxHP 25)');
+  assert.equal(hero.mp, 6, 'B24-герой: mp 4→6 (0.14 от maxMP 16)');
+  assert.deepEqual(res.calls.flash,
+    ['Отдых: вы выспались — день 2.'], 'B24-герой: flash');
+  // Отказ: спец-модуль без clock (нет rest) → {ok:false, message:
+  // 'недоступно'} → БЕЗ saveNow/отметки/render, flash «недоступно»
+  // (семантика отказа §2.6).
+  const brokenClock = { day: 1 }; // .day — да, .rest — нет
+  hero = mkHero({ hp: 5, mp: 4 });
+  res = runRest(hero, brokenClock);
+  assert.equal(res.calls.saveNow, 0, 'отказ: saveNow НЕ вызван');
+  assert.equal(res.calls.playerRender, 0, 'отказ: playerRender нет');
+  assert.equal(res.deps.buildingOncePerDay.size, 0, 'отказ: отметки нет');
+  assert.deepEqual(res.calls.flash, ['недоступно'],
+    'отказ: flash «недоступно» (без saveNow): ' + res.calls.flash);
+  assert.equal(hero.hp, 5, 'отказ: герой НЕ восстановлен');
+});
+
+test('A57. tavernRumors — чистое ядро: детерминизм (tile, day); число/индексы фрагментов; ближайший вход (Чебышев, не развалины, лекс. тай-брейк); fail-open (задача 000091)', () => {
+  const BE = loadBE();
+  const PL = require('../src/perlin.js');
+  const D = require('../src/dungeon.js');
+  const M = require('../src/map.js');
+  const hash = PL.hash2;
+  assert.equal(typeof BE.tavernRumors, 'function',
+    'tavernRumors экспортирована (red: отсутствует)');
+  for (const s of ['RUMORS_COUNT_SEED', 'RUMORS_TEXT_SEED',
+    'RUMORS_TEXT2_SEED']) {
+    assert.equal(typeof BE[s], 'number', s + ' — сид экспортирован');
+  }
+  withGame({
+    BUILDING_TYPES: M.BUILDING_TYPES,
+    dungeonTypeFor: D.dungeonTypeFor,
+    DUNGEON_NAMES: D.DUNGEON_NAMES,
+  }, () => {
+    const texts = ['сплетня один', 'сплетня два', 'сплетня три'];
+    // Детерминизм «два мира»: два synthMap с одними cell → deepEqual.
+    const mkCells = () => {
+      const m = new Map();
+      m.set('7,7', caveTile(7, 7));
+      return m;
+    };
+    const r1 = BE.tavernRumors(synthMap(mkCells()), 5, 5, 1, texts, hash);
+    const r2 = BE.tavernRumors(synthMap(mkCells()), 5, 5, 1, texts, hash);
+    assert.deepEqual(r1, r2, 'детерминизм: два мира — идентичный результат');
+    assert.equal(typeof r1, 'object', 'ВЕРНЁТ ОБЪЕКТ (никогда не null)');
+    // Число фрагментов 1..2; с входом подсказок 2–3 (фрагменты + вход).
+    for (const day of [1, 2, 3]) {
+      const r = BE.tavernRumors(synthMap(mkCells()), 5, 5, day, texts, hash);
+      assert.ok(r.fragments.length >= 1 && r.fragments.length <= 2,
+        'день ' + day + ': фрагментов 1..2');
+      assert.ok(r.fragments.length + 1 >= 2 && r.fragments.length + 1 <= 3,
+        'день ' + day + ': подсказки 2–3 (фрагменты + вход)');
+      // Фрагменты — из каталога, БЕЗ повтора (L≥2).
+      assert.equal(new Set(r.fragments).size, r.fragments.length,
+        'день ' + day + ': без повтора фрагментов');
+    }
+    // Повтор по тому же (tile, day) — бит-в-бит (детерминизм).
+    assert.deepEqual(
+      BE.tavernRumors(synthMap(mkCells()), 5, 5, 1, texts, hash), r1,
+      'повтор (tile, day) — идентичен');
+    // Ближайший вход: пещеры (10,0) и (5,3) от (4,2) → (5,3) (Чебышев:
+    // (5,3) d=1, (10,0) d=6).
+    const cellsN = new Map();
+    cellsN.set('10,0', caveTile(10, 0));
+    cellsN.set('5,3', caveTile(5, 3));
+    const rN = BE.tavernRumors(synthMap(cellsN), 4, 2, 1, texts, hash);
+    assert.deepEqual(rN.entrance, { x: 5, y: 3 },
+      'ближайший по Чебышеву — (5,3)');
+    assert.equal(rN.dungeonType, D.dungeonTypeFor(3, 255),
+      'dungeonType — через dungeonTypeFor(terrain, alpha)');
+    // Развалины (buildingId 48) рядом — НЕ кандидат (000073, 000094).
+    const cellsR = new Map();
+    cellsR.set('5,3', caveTile(5, 3, { buildingId: 48 }));
+    const rR = BE.tavernRumors(synthMap(cellsR), 4, 2, 1, texts, hash);
+    assert.equal(rR.entrance, null, 'развалины (48) — НЕ вход');
+    // Тай-брейк при равенстве дистанции — лексикографически меньший (x, y).
+    const cellsT = new Map();
+    cellsT.set('6,5', caveTile(6, 5));
+    cellsT.set('4,5', caveTile(4, 5));
+    const rT = BE.tavernRumors(synthMap(cellsT), 5, 5, 1, texts, hash);
+    assert.deepEqual(rT.entrance, { x: 4, y: 5 },
+      'тай-брейк — лексикографически меньший (x)');
+    // Входа нет (пустая карта) → entrance: null, фрагменты на месте.
+    const rE = BE.tavernRumors(synthMap(new Map()), 5, 5, 1, texts, hash);
+    assert.equal(rE.entrance, null, 'входа нет — entrance null');
+    assert.ok(rE.fragments.length >= 1, 'входа нет — фрагменты на месте');
+    // map: null → без исключения, entrance: null, фрагменты (fail-open).
+    const rN2 = BE.tavernRumors(null, 5, 5, 1, texts, hash);
+    assert.equal(rN2.entrance, null, 'map=null — без исключения, null');
+    assert.ok(rN2.fragments.length >= 1, 'map=null — фрагменты (fail-open)');
+    // texts.length === 1 → f=1 (повтор невозможен по построению).
+    const r1t = BE.tavernRumors(synthMap(mkCells()), 5, 5, 1, ['один'], hash);
+    assert.equal(r1t.fragments.length, 1, 'texts.length===1 → f=1');
+  });
+});
+
+test('A58. applyTavernRumors (= EFFECTS[44_rumors].apply): реальный каталог 44 + synthMap; message «Слухи:…»; снапшот не мутирован; fail-open без карты; отказ без содержимого/без hash2 (задача 000091)', () => {
+  const BE = loadBE();
+  const PL = require('../src/perlin.js');
+  const D = require('../src/dungeon.js');
+  const M = require('../src/map.js');
+  const B = require('../src/buildings.js');
+  const p44 = B.getBuilding(44).особые_параметры;
+  const texts = p44.эффект.слухи.тексты; // 8 строк (A55)
+  const real44 = B.getBuilding(44);
+  withGame({
+    BUILDING_TYPES: M.BUILDING_TYPES,
+    dungeonTypeFor: D.dungeonTypeFor,
+    DUNGEON_NAMES: D.DUNGEON_NAMES,
+    hash2: PL.hash2,
+  }, () => {
+    // Реальный каталог 44 + synthMap с caveTile(7,7) → ok, message.
+    const cells = new Map();
+    cells.set('7,7', caveTile(7, 7));
+    const st = makeState({
+      day: 1, tile: { x: 5, y: 5 }, save: {}, catalog: real44,
+    });
+    st.map = synthMap(cells);
+    const snap = JSON.parse(JSON.stringify(st));
+    const r = BE.EFFECTS['44_rumors'].apply(st);
+    assert.equal(r.ok, true, 'ok (каталог + вход)');
+    assert.ok(r.message.startsWith('Слухи:\n· '),
+      'message — «Слухи:\n· …» (мультисайновый flash): ' + r.message);
+    // Первый фрагмент — i0 = hash(x,y,RUMT^day) % L (тот же код, что
+    // apply: сиды переименованы RUMC/RUMT/RUM2, §5/§9 memory).
+    const i0 = PL.hash2(5, 5, BE.RUMORS_TEXT_SEED ^ 1) % texts.length;
+    assert.ok(r.message.includes('«' + texts[i0] + '»'),
+      'message — «фрагмент» i0 (сид RUMT): ' + r.message);
+    assert.ok(r.message.includes('(7, 7)'),
+      'message — координаты входа: ' + r.message);
+    assert.ok(r.message.includes(D.DUNGEON_NAMES[0]),
+      'message — имя типа подземелья (DUNGEON_NAMES): ' + r.message);
+    // Снапшот НЕ мутирован (apply-профиль).
+    assert.deepEqual(st, snap, 'снапшот не мутирован');
+    // Без карты → НЕ отказ (fail-open, §2.6): ok + «Входы в пещеры
+    // не видны.» (лор из каталога всё равно).
+    const r2 = BE.EFFECTS['44_rumors'].apply(Object.assign(
+      makeState({ tile: { x: 5, y: 5 }, save: {}, catalog: real44 }),
+      { map: null }));
+    assert.equal(r2.ok, true, 'без карты — НЕ отказ (fail-open)');
+    assert.ok(r2.message.includes('Входы в пещеры не видны.'),
+      'без карты — «Входы в пещеры не видны.»: ' + r2.message);
+    assert.ok(r2.message.startsWith('Слухи:\n· '),
+      'без карты — фрагменты на месте: ' + r2.message);
+    // Каталог БЕЗ текстов (эффект без слухи) + карта БЕЗ входа →
+    // отказ «недоступно» (fail-open: без исключений).
+    const noText44 = Object.assign({}, real44, {
+      особые_параметры: Object.assign({}, p44, { эффект: {} }),
+    });
+    const r3res = BE.EFFECTS['44_rumors'].apply(Object.assign(
+      makeState({ day: 1, tile: { x: 5, y: 5 }, save: {},
+        catalog: noText44 }),
+      { map: synthMap(new Map()) }));
+    assert.deepEqual(r3res, { ok: false, message: 'недоступно' },
+      'без текстов И без входа — отказ «недоступно»');
+  });
+  // Без G.hash2 → отказ (паттерн applyRuneStone; hash2 — lazyGame()).
+  withGame({
+    BUILDING_TYPES: M.BUILDING_TYPES,
+    dungeonTypeFor: D.dungeonTypeFor,
+    DUNGEON_NAMES: D.DUNGEON_NAMES,
+  }, () => {
+    const st = makeState({
+      day: 1, tile: { x: 5, y: 5 }, save: {}, catalog: real44,
+    });
+    const cells = new Map();
+    cells.set('7,7', caveTile(7, 7));
+    st.map = synthMap(cells);
+    const r = BE.EFFECTS['44_rumors'].apply(st);
+    assert.deepEqual(r, { ok: false, message: 'недоступно' },
+      'без G.hash2 — отказ (fail-open)');
+  });
+});
+
+test('A59. tavernRest — node (спец-модуль): clock.rest → {ok, message с новым днём}; guard (null/нет rest) → «недоступно»; чистота (задача 000091)', () => {
+  // RED: файла src/building-effect-44_rest.js нет → MODULE_NOT_FOUND.
+  const mod = require('../src/building-effect-44_rest.js');
+  assert.equal(typeof mod.tavernRest, 'function',
+    'tavernRest(clock) экспортирована (node-ветка)');
+  // Фейковый clock: rest() инкрементит day (как createClock).
+  let restCalls = 0;
+  const clock = {
+    day: 1,
+    rest() { restCalls += 1; this.day += 1; },
+  };
+  const r = mod.tavernRest(clock);
+  assert.equal(r.ok, true, 'ok (clock.rest — функция)');
+  assert.equal(r.message, 'Отдых: вы выспались — день 2.',
+    'message — «Отдых: вы выспались — день N.» (N — НОВЫЙ день): ' +
+      r.message);
+  assert.equal(restCalls, 1, 'clock.rest() вызван ровно 1 раз');
+  // Guard: null / нет rest → {ok:false, message:'недоступно'} (не
+  // исключение, 000029).
+  assert.deepEqual(mod.tavernRest(null),
+    { ok: false, message: 'недоступно' }, 'null — «недоступно»');
+  assert.deepEqual(mod.tavernRest({}),
+    { ok: false, message: 'недоступно' }, 'без rest — «недоступно»');
+  assert.deepEqual(mod.tavernRest({ day: 3 }),
+    { ok: false, message: 'недоступно' }, 'rest не функция — «недоступно»');
+  // Чистота node-ветки: нет зависимости от Game (тест прогнал без
+  // globalThis.Game — сработало).
+});
+
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
 //
 // Паттерн tests/save-restore.test.js: DOM/WebGL-стабы + МОК
@@ -5609,4 +5977,202 @@ test('B25. развалины e2e: ловушка (день 2 = голден) �
   assert.equal(save2.data.hero.hp, 1, 'saveNow: hp=1 — в сейве');
   assert.equal(save2.data.buildingOncePerDay[RUINS_KEY + ':48'], 2,
     'daily-марка день 2 (сценарий 2)');
+});
+
+// --- Задача 000091: таверна (44) — отдых и слухи — wiring E2E (B24+) ---
+// Золотые (детерминированный seed-мир, замерено; контракты —
+// memory/000091-tavern-rest-rumors.md):
+//   * ближайшая к спавну (0,0) таверна id 44 = (41, 2), 43 шага (BFS) —
+//     > steps_per_day (40) → e2e ОБЯЗАНЫ pre-seedовать позицию (паттерн
+//     B14/B21: walkTo утащил бы в новый день и сломал golden);
+//   * тайл (41,2): buildingId 44 (слот 11, terrain 3), NPC Берта
+//     (tavern_keeper, id 9) — «Диалог» ПЕРВАЯ строка;
+//   * moonDreamHint((41,2)) → вход (44, -1) (buildingId 31, alpha 166)
+//     → dungeonType 0 «простая пещера» (совпадает с B19-голденом «Сона»);
+//   * B24-герой: Медитация 2 + Вдох 1 → hpRegen 0.19 / mpRegen 0.14
+//     (maxHP 25 / maxMP 16 у level-1): hp 5→10, mp 4→6 (таблица §5).
+//   * e2e-чтение mp: readSave(h).data.hero.mp — g.state.hero.mp НЕТ.
+
+test('B24. «Отдых» e2e: таверна (41,2) — HUD «([E] Берта, действия)», оверлей [dialog,44_rest,44_rumors], Digit2 — день 1→2, hero 10/6, flash, БЕЗ отметки; повтор в тот же день (ТЗ) (задача 000091)', async () => {
+  // Позиция PRE-SEED'ом на таверне (паттерн B14/B21): ХОД к таверне
+  // (43 шага) при steps_per_day=40 СМЕНИЛ БЫ ДЕНЬ (1→2); pre-seed держит
+  // день 1. B24-герой: Медитация 2 + Вдох 1 (0.19/0.14, таблица §5).
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 41, y: 2 },
+    hero: mkHero({ hp: 5, mp: 4, secondary: { meditation: 2, breath: 1 } }),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, 41, 'позиция сейва — таверна (x)');
+  assert.equal(g.state.player.y, 2, 'позиция сейва — таверна (y)');
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  const t = myMap.tileAt(41, 2);
+  assert.equal(t.buildingId, 44, 'тайл (41,2) — таверна (buildingId 44)');
+  // HUD: «Здесь: …  ([E] Берта, действия)» (eHint 000129: NPC + эффекты).
+  // RED: до задачи effectIds(44) = [] → eHint '  ([E] Берта)' (без
+  // «действий») — assertion падает (нет эффектов).
+  frameAt(h, NOW + 200);
+  const hudLine = String(h.hud.textContent);
+  assert.ok(hudLine.includes('([E] Берта, действия)'),
+    '«Здесь:» — диалог + действия (red: нет эффектов → «([E] Берта)»): '
+    + hudLine);
+  // [E] → оверлей: [dialog, 44_rest, 44_rumors] (dialog ПЕРВЫМ — Берта).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  assert.equal(G.npcUI.isActive(), false, 'npcUI не открывается сразу');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  const rows = findAll(ov, '[data-buid]');
+  assert.deepEqual(rows.map((r) => r.dataset.buid),
+    ['dialog', '44_rest', '44_rumors'],
+    'строки: «Диалог» (Берта) ПЕРВЫМ + «Отдых» + «Слухи» '
+    + '(red: нет записей в реестре/каталоге)');
+  for (const r of rows) {
+    assert.equal(r.disabled, false,
+      'строка «' + r.dataset.buid + '» — доступна');
+  }
+  // Digit2 — «Отдых» (1=dialog, 2=44_rest).
+  key(h, 'Digit2');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  assert.equal(g.state.day, 2, 'день 1→2 (clock.rest)');
+  assert.equal(g.state.stepsToday, 0, 'шаги сброшены (rest)');
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('Отдых: вы выспались — день 2.'),
+    'hudFlash — message спец-а с НОВЫМ днём: ' + hud1);
+  // saveNow: день 2 в сейве; герой восстановлен (mp — через readSave).
+  const save = readSave(h);
+  assert.equal(save.data.day, 2, 'saveNow: data.day === 2');
+  assert.equal(g.state.hero.hp, 10, 'hero hp 5→10 (0.19, таблица §5)');
+  assert.equal(save.data.hero.mp, 6,
+    'hero mp 4→6 (0.14, через readSave — §5 memory)');
+  // Лимитов НЕТ → отметки нет (ключ «41,2:44_rest» никогда).
+  assert.ok(save.data.buildingOncePerDay['41,2:44_rest'] == null,
+    'НЕТ отметки «41,2:44_rest» (лимитов нет)');
+  // Повтор в тот же день (ТЗ): строка доступна, Digit2 → день 3.
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается снова');
+  const rowRest = findRow(findOverlay(h), '44_rest');
+  assert.ok(rowRest, 'строка 44_rest в оверлее');
+  assert.equal(rowRest.disabled, false,
+    'в тот же день — ДОСТУПНО (без лимита)');
+  key(h, 'Digit2');
+  assert.equal(g.state.day, 3, 'повторный «Отдых» — день 3');
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
+});
+
+test('B25. «Слухи» e2e: таверна (41,2), день 1 — flash «Слухи:…» (фрагмент каталога + вход (44,-1) «простая пещера»), день НЕ тратится, БЕЗ отметки, повтор — детерминированно (задача 000091)', async () => {
+  // Позиция PRE-SEED'ом на таверне (паттерн B14/B21): 43 шага > 40.
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 41, y: 2 },
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  const t = myMap.tileAt(41, 2);
+  assert.equal(t.buildingId, 44, 'тайл (41,2) — таверна');
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  const rows = findAll(ov, '[data-buid]');
+  assert.deepEqual(rows.map((r) => r.dataset.buid),
+    ['dialog', '44_rest', '44_rumors'],
+    'строки: dialog + 44_rest + 44_rumors (red: нет записей)');
+  const rowR = findRow(ov, '44_rumors');
+  assert.ok(rowR, 'строка 44_rumors в оверлее (red: строки нет)');
+  assert.equal(rowR.disabled, false, 'день 1 — доступно');
+  // Digit3 — «Слухи» (1=dialog, 2=44_rest, 3=44_rumors).
+  key(h, 'Digit3');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('Слухи:'),
+    'hudFlash — «Слухи:…»: ' + hud1);
+  // Голден-фрагмент дня 1 — ИЗ каталога (000053: без хардкода):
+  // i0 = hash(41, 2, RUMT ^ 1) % L (тот же код, что apply; сиды
+  // RUMC/RUMT/RUM2 — ⚠ переименованы, a1-таблица на 'TAVR' невалидна).
+  const BE = require('../src/building-effects.js');
+  const PL = require('../src/perlin.js');
+  const B = require('../src/buildings.js');
+  const T44 = B.getBuilding(44).особые_параметры.эффект.слухи.тексты;
+  const i0 = PL.hash2(41, 2, BE.RUMORS_TEXT_SEED ^ 1) % T44.length;
+  assert.ok(hud1.includes('«' + T44[i0] + '»'),
+    'hudFlash — фрагмент дня 1 (i0, сид RUMT): ' + hud1);
+  assert.ok(hud1.includes('(44, -1)'),
+    'hudFlash — координаты ближайшего входа: ' + hud1);
+  assert.ok(hud1.includes('простая пещера'),
+    'hudFlash — имя типа подземелья (DUNGEON_NAMES): ' + hud1);
+  // День НЕ тратится (слухи — чистые данные, не event/rest).
+  assert.equal(g.state.day, 1, 'день НЕ тратится (слухи — данные)');
+  // Лимитов НЕТ → отметки нет.
+  const save1 = readSave(h);
+  assert.ok(save1.data.buildingOncePerDay['41,2:44_rumors'] == null,
+    'НЕТ отметки «41,2:44_rumors» (без лимита)');
+  // Повтор в тот же день — детерминированно (по (tile, day)): тот же
+  // фрагмент и тот же вход.
+  key(h, 'KeyE');
+  const rowR2 = findRow(findOverlay(h), '44_rumors');
+  assert.equal(rowR2.disabled, false, 'повтор в тот же день — доступно');
+  key(h, 'Digit3');
+  frameAt(h, NOW + 600);
+  const hud2 = String(h.hud.textContent);
+  assert.equal(hud2, hud1,
+    'повтор — flash БИТ-в-БИТ идентичен (детерминизм)');
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
+});
+
+test('B26. регрессия: диалог Берты (NPC таверны) — «Диалог» ПЕРВАЯ строка, npcUI, повторный [E] закрывает (задача 000091)', async () => {
+  // GREEN-GUARD: НЕ красный — защита от регрессии (NPC-схема НЕ
+  // трогается; НАЙМ — задача 000065, не здесь). Все ассерты проходят
+  // на текущем коде (оверлей до задачи = ['dialog']); «Диалог» ПЕРВЫЙ
+  // — сосуществование dialog + эффекты покрывает B24 (красный).
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 41, y: 2 },
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  const t = myMap.tileAt(41, 2);
+  assert.equal(t.buildingId, 44, 'тайл (41,2) — таверна');
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  const rows = findAll(ov, '[data-buid]');
+  assert.ok(rows.length >= 1, 'строка действия есть');
+  assert.equal(rows[0].dataset.buid, 'dialog',
+    '«Диалог» — ПЕРВАЯ строка (NPC Берта)');
+  assert.equal(rows[0].disabled, false, '«Диалог» доступен');
+  key(h, 'Digit1'); // «Диалог»
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  assert.equal(G.npcUI.isActive(), true, 'открыт диалог npcUI');
+  const nov = findAll(h.body, '.npc-overlay')[0];
+  assert.ok(nov && textOf(nov).includes('Берта'),
+    'диалог — Берта (NPC таверны, постройки [44]): '
+    + (nov ? textOf(nov) : '(нет оверлея)'));
+  // Повторный [E] закрывает диалог (регрессия B4).
+  key(h, 'KeyE');
+  assert.equal(G.npcUI.isActive(), false, 'повторный [E] закрыл диалог');
+  // [E] снова → оверлей снова содержит строку «Диалог».
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается снова');
+  const rows2 = findAll(findOverlay(h), '[data-buid]');
+  assert.ok(rows2.some((r) => r.dataset.buid === 'dialog'),
+    'оверлей снова содержит «Диалог»');
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
 });
