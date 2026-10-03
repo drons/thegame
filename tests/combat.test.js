@@ -4312,3 +4312,286 @@ test('000113 BR-8: internals healAlly/weakenAllEnemies (export combatInternals) 
     C.combatInternals.allySpells = saveCatalog;
   }
 });
+
+// --- Задача 000119: Баланс: Эфир против стандартных групп (симуляция)
+//     (КРАСНЫЕ) ---
+//
+// Контракт (memory/000119-efir-balance.md), ТЗ tasks/pending/000119.md:
+//   * (a) medium: «разумно играющий» герой (скрипт 000027 «удары + блок»,
+//     midGameHero L15, levelDeltaMax: 0) + НОВЫЙ Эфир (createEfir L1)
+//     побеждают ВСЕ стандартные группы (7 числовых GROUP_RECIPES) на всех
+//     сидах 1..5 (sweep, как в 000027);
+//   * (b) hard остаётся сложным: ПАССИВНЫЙ герой («ждёт» — только endTurn)
+//     + Эфир проигрывают ВСЕ стандартные группы;
+//   * (c) бой не тривиален: зафиксированные метрики свипа (a) — средняя
+//     длительность (раунды) и HP героя после боя; агрегат по свипу (D4:
+//     per-combat «урон в каждом бою» недостижим — 13/35 full-HP боёв —
+//     СВОЙСТВО БАЗЛАЙНА 000027: мобы ≤ брони героя, не эффект Эфира);
+//   * РЕШЕНИЕ «БЕЗ ТЮНИНГА» (D1): симуляция ДО изменений при текущих
+//     combat_difficulties (easy 0.30/0.30, medium 0.45/0.45, hard
+//     0.60/0.55 — src/global-settings.js) уже удовлетворяет всем трём
+//     пунктам; краснота фиксаторов доказана mutation-прогоном (при
+//     сломанном балансе каждый тест краснеет: medium {4.5, 4.5} → BAL-1;
+//     hard {0.06, 0.055} → BAL-2; medium {0.045, 0.045} → BAL-3) — тесты
+//     фиксируют баланс, а не «вечно зелёные»;
+//   * ЛОВУШКА autoTarget (D3): существующий autoTarget (000027) строит
+//     пул целей по ВСЕМ живым c.units и приоритизирует role 'support' —
+//     а Эфир = support: бот целит СВОЕГО Эфира → c.attack отклоняет
+//     'ally' → `break` → deadlock «блок навсегда» (измерено:
+//     abyss_spirit 0/5 на medium). Поэтому СВОИ mob-only хелперы
+//     (autoTargetMob119/autoPlay119); существующие autoTarget/autoPlay —
+//     НОЛЬ правок (инвариант);
+//   * 000117 (практика) НЕ искажает симуляцию: бой читает СНАПШОТ
+//     u.efirSkills (buildEfirUnit); у нового Эфира навыки 0; прирост от
+//     практики вступает со СЛЕДУЮЩЕГО боя (внутри одного боя — не
+//     действует);
+//   * «Вдох» при L1 недостижим (mp 11 < 20 — баланс-факт 000113:
+//     maxMP = 5+Инт+Муд, порог недостижим до L11) — симуляция L1 Вдох НЕ
+//     включает; u.mp = 20 НЕ ставим (ТЗ-паттерн 000113 — только «если
+//     сценарий требует», сценарий не требует);
+//   * Лог-строки НЕ ассертим (D9 — 000118 параллельно правит их в этом
+//     же файле; наш регион — конец файла, при мерже — регион-юнион).
+//
+// Зафиксированные метрики (симуляция 2026-10-04, сиды 1..5; per-group
+// таблицы — tasks/result/000119.md):
+//   (a) medium + Эфир L1: 35/35 victory; avg 8.40 раунда (min 3,
+//       orc_raid); avg HP героя после 0.944 (min 0.694, abyss_spirit);
+//       hardest-группа (6) — per-combat hpFrac < 1.0; без Эфира
+//       (базлайн 000027): 35/35, avg 8.91, avg 0.941 — Эфир бой на
+//       ~0.5 раунда короче, герой получает урона в среднем чуть БОЛЬШЕ
+//       (танкует удары на 16 HP, но hardest-группы ранят сильнее) — НЕ
+//       тривиализация;
+//   (b) hard + пассив: 35/35 'dead' (смерть R12–R72, avg 34.7).
+
+// ЧИСЛОВЫЕ ключи GROUP_RECIPES — 7 каталожных стандартных групп
+// ('BUILDING_BOSS' — строковый ключ, исключён; фильтр 000077).
+function numericGroups119() {
+  return Object.keys(GROUP_RECIPES)
+    .filter((t) => String(t) === String(Number(t)));
+}
+
+// Цель «разумной» авто-игры 000119: живые (!alive-сборка как у
+// autoTarget) ТОЛЬКО side 'mob'. Приоритет support (самый раненый по
+// frac) — среди мобов support нет, работает ближайший (uDist); null —
+// если мобов нет. (Существующий autoTarget НЕ трогаем: он бы взял Эфир
+// (role 'support') целью — deadlock, см. баннер D3.)
+function autoTargetMob119(c) {
+  const alive = c.units.filter(
+    (u) => u.alive && !u.fled && u.side === 'mob');
+  if (!alive.length) return null;
+  const supports = alive.filter((u) => u.role === 'support');
+  if (supports.length) {
+    return supports.reduce((a, b) => (b.hp / b.maxHP < a.hp / a.maxHP ? b : a));
+  }
+  return alive.reduce((a, b) => (uDist(c, a) <= uDist(c, b) ? a : b));
+}
+
+// Авто-игра «разумного» игрока (копия autoPlay 000027: удары при
+// d ≤ 1, иначе движение rect к цели, fallback «прижаты» → ближайший
+// самый раненый, блок в конце хода, endTurn) с ЕДИНСТВЕННЫМ отличием:
+// цели ТОЛЬКО side 'mob' (в авто-выборе И в adjacent-fallback).
+// Остальное — побайтово как 000027. Возврат — c.result.
+function autoPlay119(c, { maxRounds = 80 } = {}) {
+  let n = 0;
+  while (!c.result && n++ < maxRounds) {
+    let t = autoTargetMob119(c);
+    while (c.result === null && (c.ps.attack > 0 || c.ps.moveLeft > 0) && t) {
+      const d = uDist(c, t);
+      if (d <= 1 && c.ps.attack > 0) {
+        const r = c.attack(t.id);
+        if (!r.ok) break;
+        if (!t.alive || t.fled) t = autoTargetMob119(c);
+      } else if (c.ps.moveLeft > 0) {
+        // Шаг ИГРОКА к ближайшему краю прямоугольника цели (000040).
+        const x1 = t.x + ((t.size && t.size.w) || 1) - 1;
+        const y1 = t.y + ((t.size && t.size.h) || 1) - 1;
+        const dx = c.px < t.x ? 1 : (c.px > x1 ? -1 : 0);
+        const dy = c.py < t.y ? 1 : (c.py > y1 ? -1 : 0);
+        const tries = Math.abs(dx) >= Math.abs(dy)
+          ? [[dx, 0], [0, dy]] : [[0, dy], [dx, 0]];
+        let moved = false;
+        for (const [sx, sy] of tries) {
+          if (!sx && !sy) continue;
+          if (c.move(sx, sy).ok) { moved = true; break; }
+        }
+        if (moved) continue;
+        // Прижаты (многоклеточный моб закрыл путь, 000040) — ближайший
+        // самый раненый МОБ (фильтр side 'mob' — D3).
+        const adjacent = c.units
+          .filter((u) => u.alive && !u.fled && u.side === 'mob'
+            && uDist(c, u) <= 1)
+          .sort((a, b) => a.hp / a.maxHP - b.hp / b.maxHP)[0];
+        if (adjacent && c.ps.attack > 0) {
+          const r = c.attack(adjacent.id);
+          if (!r.ok) break;
+          if (!t.alive || t.fled) t = autoTargetMob119(c);
+          continue;
+        }
+        break;
+      } else {
+        break;
+      }
+    }
+    // Блок — последнее действие хода, снижает получаемый урон.
+    if (c.result === null && c.ps.block > 0) c.block();
+    c.endTurn();
+  }
+  return c.result;
+}
+
+// Пассивная игра ТЗ (b): герой «ждёт» — только endTurn (без ударов и
+// блока). maxRounds — бюджет (зафиксирован max смерти R72, запас): при
+// исчерпании возврат null → ассерт в тесте (бой не «завис» — тест не
+// висит). Возврат — c.result.
+function passivePlay119(c, { maxRounds = 120 } = {}) {
+  let n = 0;
+  while (!c.result && n++ < maxRounds) c.endTurn();
+  return c.result;
+}
+
+// Проводка боя 000119 (порядок 000112/000113, board112): midGameHero
+// (L15, maxHP 62) + createEfir L1 (hp 16, mp 11, навыки 0 — снапшот) +
+// allies → createCombat (difficulty ЯВНЫЙ — паттерн 000027) →
+// c.obstacles.clear() (проверяем баланс, не навигацию — жадный бот
+// deadlock-ится за камнем, 000027/000050) → buildEfirUnit (апгрейд
+// юнита, 0 новых RNG). Каждый бой — СВОИ hero/efir (свежие объекты —
+// паттерн :869-877). save/restore combatInternals.allySpells в
+// try/finally (D12, паттерн 000112 CB-1: каталог ИИ союзника — его
+// ставит шапка, require spells.js :20; save/restore — страховка
+// изолированных запусков). hpFrac — ПОСЛЕ боя (D11: victory-ап P.addXp
+// мог бы поднять уровень и maxHP — метрика «как в UI»).
+// Возврат { c, p, u, r, rounds, hpFrac }: rounds = c.round на момент
+// c.result (1-based, бой ≥ 1 раунда); в (b) hero мёртв → p.hp = 0 →
+// hpFrac = 0.
+function battle119({ type, seed, difficulty, passive }) {
+  const C119 = require('../src/combat.js'); // тот же кэш, что в шапке
+  const E = loadEfir000081();
+  const saveCatalog = C119.combatInternals.allySpells;
+  C119.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    const p = midGameHero();
+    const st = E.createEfir();
+    const c = createCombat({
+      player: p,
+      allies: [E.efirAllyData(st)],
+      groupType: Number(type), seed, levelDeltaMax: 0, difficulty,
+    });
+    if (c.obstacles) c.obstacles.clear();
+    const u = E.buildEfirUnit(st, c);
+    assert.ok(u && c.efs, 'боевой профиль Эфира построен (000119)');
+    const r = passive ? passivePlay119(c) : autoPlay119(c);
+    const hpFrac = p.hp / derived(p).maxHP;
+    return { c, p, u, r, rounds: c.round, hpFrac };
+  } finally {
+    C119.combatInternals.allySpells = saveCatalog;
+  }
+}
+
+// Пороги фиксаторов баланса 000119 (одна точка тюнинга пинов; D5).
+// Интервалы ~±40% от измеренных: ловят дрейф баланса, не флейкают на
+// ребейзе (пин детерминирован сидами). Зафиксированные значения —
+// tasks/result/000119.md (симуляция 2026-10-04, сиды 1..5):
+// avg rounds = 8.40, avg hpFrac = 0.944, min hpFrac = 0.694.
+const EFIR_BAL119 = {
+  // per-combat (a): rounds ≥ 2 — бой не «мгновенный» (зафиксирован min 3).
+  minRounds: 2,
+  // свип (a): avg rounds ∈ [5, 12] — нижняя — ТЗ «не мгновенно»,
+  // верхняя — страховка от дрейфа (soft-lock/осада).
+  avgRoundsMin: 5,
+  avgRoundsMax: 12,
+  // свип (a): avg hpFrac < 1.0 — герой ПОЛУЧАЕТ урон на уровне свипа.
+  avgHpFracCeil: 1.0,
+  // свип (a): min hpFrac ≤ 0.80 — есть бой, где герой реально ранен.
+  minHpFracCeil: 0.80,
+};
+
+test('000119 BAL-1: герой (свои удары + блок) + НОВЫЙ Эфир (L1) побеждают ВСЕ стандартные группы на medium (7 групп × сиды 1–5)', () => {
+  for (const type of numericGroups119()) {
+    const name = GROUP_RECIPES[type].name;
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const b = battle119({ type, seed, difficulty: 'medium', passive: false });
+      assert.ok(b.r, `${name} (seed ${seed}): бой не завершился`);
+      assert.equal(b.r.outcome, 'victory',
+        `${name} (seed ${seed}): исход ${b.r.outcome}`);
+      assert.ok(b.r.xp > 0 && b.r.gold > 0,
+        `${name} (seed ${seed}): лут за победу`);
+      assert.ok(b.rounds >= EFIR_BAL119.minRounds,
+        `${name} (seed ${seed}): бой «мгновенный» (${b.rounds} раундов)`);
+      // hardest-группа (6, abyss_spirit) — per-combat: герой ПОЛУЧАЕТ
+      // урон (hpFrac < 1.0). Прочие группы: per-combat «урон в каждом
+      // бою» недостижим (13/35 full-HP — свойство базлайна 000027: мобы
+      // ≤ брони героя, не эффект Эфира) — (c) читается агрегатом,
+      // см. BAL-3.
+      if (Number(type) === 6) {
+        assert.ok(b.hpFrac < 1.0,
+          `abyss_spirit (seed ${seed}): герой не пострадал `
+          + `(hpFrac ${b.hpFrac.toFixed(3)})`);
+      }
+    }
+  }
+  // Детерминизм-пин (D8): один бой (group 3 — wolf_pack, seed 5) — ДВА
+  // прогона → deepEqual снимка {result, c.round, p.hp, позиции/hp всех
+  // юнитов}: симуляция с Эфиром детерминирована (бот — чистая функция
+  // состояния; RNG посеянный; Эфир-ход = 0 новых c._rng-вызовов).
+  const pin = () => {
+    const b = battle119({ type: '3', seed: 5, difficulty: 'medium',
+      passive: false });
+    return {
+      result: b.r,
+      rounds: b.rounds,
+      pHp: b.p.hp,
+      units: b.c.units.map((u) => ({ id: u.id, x: u.x, y: u.y,
+        hp: u.hp, alive: u.alive })),
+    };
+  };
+  assert.deepEqual(pin(), pin(),
+    'детерминизм: group 3 (wolf_pack), seed 5 — два прогона → '
+    + 'идентичный снимок');
+});
+
+test('000119 BAL-2: hard остаётся сложным — ПАССИВНЫЙ герой + Эфир проигрывают ВСЕ стандартные группы (7 групп × сиды 1–5)', () => {
+  for (const type of numericGroups119()) {
+    const name = GROUP_RECIPES[type].name;
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const b = battle119({ type, seed, difficulty: 'hard', passive: true });
+      assert.ok(b.r,
+        `${name} (seed ${seed}): бой не завершился до 120 раундов`);
+      assert.equal(b.r.outcome, 'dead',
+        `${name} (seed ${seed}): пассивный герой выжил `
+        + `(исход ${b.r.outcome})`);
+    }
+  }
+});
+
+test('000119 BAL-3: бой с Эфиром не тривиален — зафиксированные метрики (deterministic sweep (a))', () => {
+  // Пересчёт свипа (a) (детерминизм — те же числа, что в BAL-1).
+  // Зафиксированные значения (симуляция 2026-10-04; per-group таблицы —
+  // tasks/result/000119.md): avg rounds = 8.40 (min 3), avg hpFrac =
+  // 0.944, min hpFrac = 0.694 (abyss_spirit).
+  const rows = [];
+  for (const type of numericGroups119()) {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const b = battle119({ type, seed, difficulty: 'medium', passive: false });
+      assert.equal(b.r.outcome, 'victory',
+        `группа ${GROUP_RECIPES[type].name} (seed ${seed}): исход `
+        + `${b.r.outcome}`);
+      rows.push({ rounds: b.rounds, hpFrac: b.hpFrac });
+    }
+  }
+  const avgRounds = rows.reduce((s, x) => s + x.rounds, 0) / rows.length;
+  const avgHpFrac = rows.reduce((s, x) => s + x.hpFrac, 0) / rows.length;
+  const minHpFrac = Math.min(...rows.map((x) => x.hpFrac));
+  assert.ok(avgRounds >= EFIR_BAL119.avgRoundsMin,
+    `средняя длительность ${avgRounds.toFixed(2)} < ${EFIR_BAL119.avgRoundsMin} `
+    + `— бой «мгновенный»`);
+  assert.ok(avgRounds <= EFIR_BAL119.avgRoundsMax,
+    `средняя длительность ${avgRounds.toFixed(2)} > ${EFIR_BAL119.avgRoundsMax} `
+    + `— дрейф баланса (soft-lock/осада?)`);
+  assert.ok(avgHpFrac < EFIR_BAL119.avgHpFracCeil,
+    `среднее HP героя после боя ${avgHpFrac.toFixed(3)} — герой НЕ получает `
+    + `урон: Эфир тривиализует бой`);
+  assert.ok(minHpFrac <= EFIR_BAL119.minHpFracCeil,
+    `минимальное HP героя после боя ${minHpFrac.toFixed(3)} > `
+    + `${EFIR_BAL119.minHpFracCeil} — нет боя, где герой реально ранен`);
+});
