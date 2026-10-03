@@ -2,9 +2,10 @@
 //
 // Падают, пока src/efir.js не существует (модуль ещё не создан):
 //   * R1 — модуль грузится (node require + браузерная ветка БЕЗ Game),
-//     экспорты ровно 15 (13 функций + данные EFIR_SKILLS/
+//     экспорты ровно 18 (14 функций + данные EFIR_SKILLS/
 //     EFIR_SPELL_UNLOCKS, 000111; serializeEfir/deserializeEfir —
-//     000085; buildEfirUnit — 000112; practiceEfir — 000117),
+//     000085; buildEfirUnit — 000112; practiceEfir — 000117;
+//     breathInfo/EFIR_BREATH/takeFirstEncounterLine — 000113),
 //     НОЛЬ require( в источнике (чистота 000053/000038);
 //   * R2 — createEfir(): {level:1, xp:0, skillXp:{}, skills:{},
 //     spells:[spark,mend]} (форма сейва 000085→000115; HP/MP в
@@ -156,27 +157,44 @@ const SPELL_FILES = () => fs.readdirSync(SPELLS_DIR)
 const SPELL_CATALOG = SPELL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8')));
 
-test('000081 R1: efir.js грузится (node + браузерная ветка без Game); экспорты ровно 15 (13 функций + 2 данных); в источнике НЕТ require(', () => {
+test('000081 R1: efir.js грузится (node + браузерная ветка без Game); экспорты ровно 18 (14 функций + 4 данных); в источнике НЕТ require(', () => {
   const E = loadEfir();
   assert.deepEqual(
     Object.keys(E).sort(),
-    ['EFIR_SKILLS', 'EFIR_SPELL_UNLOCKS', 'addEfirXp', 'buildEfirUnit',
-     'createEfir', 'deserializeEfir', 'efirAllyData', 'efirSkillCap',
-     'efirSkillXpForNext', 'efirSpellsByLevel', 'efirStats', 'levelUp',
-     'practiceEfir', 'reprocessEfirSkills', 'serializeEfir'],
-    'экспорты — ровно 15: 13 функций + 2 данных (000085: ' +
+    ['EFIR_BREATH', 'EFIR_SKILLS', 'EFIR_SPELL_UNLOCKS', 'addEfirXp',
+     'breathInfo', 'buildEfirUnit', 'createEfir', 'deserializeEfir',
+     'efirAllyData', 'efirSkillCap', 'efirSkillXpForNext',
+     'efirSpellsByLevel', 'efirStats', 'levelUp', 'practiceEfir',
+     'reprocessEfirSkills', 'serializeEfir', 'takeFirstEncounterLine'],
+    'экспорты — ровно 18: 14 функций + 4 данных (000085: ' +
     'serializeEfir/deserializeEfir; 000111: EFIR_SKILLS, EFIR_SPELL_UNLOCKS; ' +
-    '000112: buildEfirUnit; 000117: practiceEfir)');
+    '000112: buildEfirUnit; 000117: practiceEfir; 000113: ' +
+    'breathInfo, EFIR_BREATH, takeFirstEncounterLine)');
   const FUNCS = ['createEfir', 'addEfirXp', 'levelUp', 'efirAllyData',
     'efirStats', 'efirSpellsByLevel', 'reprocessEfirSkills',
     'efirSkillXpForNext', 'efirSkillCap', 'buildEfirUnit',
-    'deserializeEfir', 'serializeEfir', 'practiceEfir'];
+    'deserializeEfir', 'serializeEfir', 'practiceEfir',
+    'takeFirstEncounterLine'];
   for (const k of FUNCS) {
     assert.equal(typeof E[k], 'function', 'экспорт ' + k);
   }
   assert.ok(Array.isArray(E.EFIR_SKILLS), 'EFIR_SKILLS — массив данных');
   assert.ok(Array.isArray(E.EFIR_SPELL_UNLOCKS),
     'EFIR_SPELL_UNLOCKS — массив данных');
+  // 000113: данные действия «Вдох Эфира» (контракт
+  // memory/000113-efir-breath.md §3): breathInfo {name, desc,
+  // firstEncounter} + алиас EFIR_BREATH для смерженного хука 000116
+  // (G.efir.EFIR_BREATH → .lines || .текст || .text — хук берёт .text).
+  assert.ok(E.breathInfo && typeof E.breathInfo === 'object',
+    'breathInfo — объект данных (000113)');
+  for (const k of ['name', 'desc', 'firstEncounter']) {
+    assert.equal(typeof E.breathInfo[k], 'string',
+      'breathInfo.' + k + ' — строка');
+  }
+  assert.ok(E.EFIR_BREATH && typeof E.EFIR_BREATH === 'object',
+    'EFIR_BREATH — объект (алиас хука 000116)');
+  assert.equal(typeof E.EFIR_BREATH.text, 'string',
+    'EFIR_BREATH.text — строка (хук читает .text)');
   // Браузерная ветка БЕЗ Game: root.Game.efir (UMD: root.Game =
   // Object.assign({}, G0, { efir: factory() })); 0 console.error,
   // 0 исключений (чистая загрузка — без DOM и без зависимостей).
@@ -199,6 +217,10 @@ test('000081 R1: efir.js грузится (node + браузерная ветк�
   assert.ok(Array.isArray(GE.EFIR_SKILLS), 'Game.efir.EFIR_SKILLS');
   assert.ok(Array.isArray(GE.EFIR_SPELL_UNLOCKS),
     'Game.efir.EFIR_SPELL_UNLOCKS');
+  assert.ok(GE.breathInfo && typeof GE.breathInfo === 'object',
+    'Game.efir.breathInfo (000113)');
+  assert.ok(GE.EFIR_BREATH && typeof GE.EFIR_BREATH === 'object',
+    'Game.efir.EFIR_BREATH (000113)');
   assert.equal(errors.length, 0,
     '0 console.error при загрузке: ' + errors.join('; '));
   // Чистота (000053/000038): НОЛЬ require( во всём файле.
@@ -1065,7 +1087,12 @@ function heroFull117() {
 
 test('000117 PR-1: практика — в ЕГО пул (skillXp); player.skillXp/secondary — deepEqual до/после', () => {
   const E = loadEfir();
-  withGame({ xpForNext: P.xpForNext, efir: E }, () => {
+  // 000113: фейк сужен до practiceEfir — реальный E на Game.efir
+  // расходовал бы one-shot takeFirstEncounterLine (createCombat
+  // (b) ниже), и BR-1 (ниже в файле) получил бы null на 1-м
+  // вызове. Хук 000117 читает только practiceEfir.
+  withGame({ xpForNext: P.xpForNext,
+             efir: { practiceEfir: E.practiceEfir } }, () => {
     // (a) Чистая: +3 в банк, уровень 0 (3 < 15), все 4 id пула
     // материализованы (reprocessEfirSkills).
     {
@@ -1200,7 +1227,10 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
   const saveCatalog = C.combatInternals.allySpells;
   C.combatInternals.allySpells =
     require('../src/spells-data.js').SPELLS_BY_ID;
-  withGame({ xpForNext: P.xpForNext, efir: E }, () => {
+  // 000113: фейк сужен до practiceEfir — см. комментарий PR-1
+  // (one-shot первой встречи vs createCombat в этом процессе).
+  withGame({ xpForNext: P.xpForNext,
+             efir: { practiceEfir: E.practiceEfir } }, () => {
     try {
       // (a) Огонь: L1, книга ['spark'] → каст → skillXp.firelord === 3
       // (PRACTICE_XP.spell), icelord не тронут.

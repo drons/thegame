@@ -822,3 +822,24 @@ BR-1..BR-8 (AssertionError «нет символа/поведения» — ос
 * memory/000113-efir-breath.md: этот документ.
 * CHANGELOG.md: +~4 (стадия мержа, ПОСЛЕ ребейза и зелёных тестов).
 * index.html / CSS / main.js / combat-ui.js / assets/: **0**.
+
+## 10. Факт после GREEN-фазы (реализация)
+
+* Ребейз на мастер ≥5377b81 выполнен (конфликты append-at-EOF в
+  обоих test-файлах — разрешение: мастер + мой блок; 000117 смержен
+  ДО → экспорты ед.: R1 15 → 18 (14 функций + 4 данных)).
+* Фейки 000117 (PC-1/PC-2 tests/combat.test.js, PR-1/PR-5
+  tests/efir.test.js) СУЖЕНЫ до `efir: { practiceEfir: E.practiceEfir }`:
+  реальный модуль E на Game.efir через createCombat расходовал бы
+  one-shot takeFirstEncounterLine (первая встреча) → ломал бы
+  детерминизм log (PC-1) и BR-1 (1-й вызов — null). Техническая
+  правка под новый путь; семантика тестов 000117 не тронута.
+* npm test: 1594/1594 зелёные (красный базис после ребейза —
+  1594, 1586 pass / 8 fail = ровно BR-1..BR-8).
+* Убраная опечатка: D9-сниппет «EG.efir» → 000117-идиом `const G =
+  typeof globalThis !== 'undefined' ? globalThis.Game : null;
+  const f = G && G.efir && G.efir.takeFirstEncounterLine;`.
+* Тик ослабления — livingMobs(c) (мёртвые не атакуют — статус
+  без значения); placement: endPlayerTurn сразу после тика
+  c.efirShield (тот же ритм — «2 хода» = раунды R и R+1, включая
+  раунд триггера; алли-фаза раньше моб-фазы).

@@ -3725,7 +3725,10 @@ test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощае�
 // CB-3 пинит lord 0); 000117 поднимает lord практикой — снапшот
 // u.efirSkills (D7). Фейк Game = { xpForNext, efir: E } — ленивый хук
 // combat.js читает globalThis.Game.efir в момент ВЫЗОВА (контракт
-// §3.2); в красной фазе хука нет — фейк инертен.
+// §3.2); в красной фазе хука нет — фейк инертен. 000113: фейк
+// сужен до practiceEfir (реальный E на Game.efir расходовал бы
+// one-shot первой встречи — createCombat читает
+// Game.efir.takeFirstEncounterLine).
 
 test('000117 PC-1: прокачанный firelord — урон Эфира +5%·уровень (по сиду)', () => {
   const E = loadEfir000081();
@@ -3733,7 +3736,11 @@ test('000117 PC-1: прокачанный firelord — урон Эфира +5%·
   const saveCatalog = C.combatInternals.allySpells;
   C.combatInternals.allySpells =
     require('../src/spells-data.js').SPELLS_BY_ID;
-  withGame112({ xpForNext: PL.xpForNext, efir: E }, () => {
+  // 000113: фейк уже сужен до practiceEfir — реальный модуль E
+  // на Game.efir расходовал бы one-shot takeFirstEncounterLine
+  // (createCombat) и ломал бы детерминизм log (snap112).
+  withGame112({ xpForNext: PL.xpForNext,
+                efir: { practiceEfir: E.practiceEfir } }, () => {
     try {
       // L5 (Int 5): база = 3 + 0.5·5 = 5.5. Один волк (armor 50 —
       // заклинание игнорирует, hp 100, d 3 ≤ 4), seed 5 (board112),
@@ -3785,7 +3792,11 @@ test('000117 PC-2: уклонение precog снижает попадания �
   const saveCatalog = C.combatInternals.allySpells;
   C.combatInternals.allySpells =
     require('../src/spells-data.js').SPELLS_BY_ID;
-  withGame112({ xpForNext: PL.xpForNext, efir: E }, () => {
+  // 000113: фейк уже сужен до practiceEfir — реальный модуль E
+  // на Game.efir расходовал бы one-shot takeFirstEncounterLine
+  // (createCombat) и ломал бы детерминизм log (snap112).
+  withGame112({ xpForNext: PL.xpForNext,
+                efir: { practiceEfir: E.practiceEfir } }, () => {
     try {
       // Волк L2 (2,4) → Эфир L3 (2,5) d 1 (игрок (3,6) d 3 →
       // nearestPlayerSide выберет Эфира), rng 0.3, seed 5.
