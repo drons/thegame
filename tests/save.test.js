@@ -797,6 +797,9 @@ test('000085 T3: serializeEfir/deserializeEfir — round-trip 5 полей; 3-п
     ['[1]', [1]],
     ['level 0.5', { level: 0.5, xp: 0, skillXp: {}, skills: {}, spells: ['spark'] }],
     ['level 0', { level: 0, xp: 0, skillXp: {}, skills: {}, spells: ['spark'] }],
+    // 000115 D5: save-integrity-граница (защита от зависания reprocess
+    // поддельным уровнем); 1-арг. вызов — guard срабатывает до каталогов.
+    ['level > 1e6', { level: 1000001, xp: 0, skillXp: {}, skills: {}, spells: ['spark'] }],
     ["xp 'x'", { level: 1, xp: 'x', skillXp: {}, skills: {}, spells: ['spark'] }],
     ['xp -1', { level: 1, xp: -1, skillXp: {}, skills: {}, spells: ['spark'] }],
     ["skillXp 'abc'", { level: 1, xp: 0, skillXp: 'abc', skills: {}, spells: ['spark'] }],
@@ -1096,7 +1099,9 @@ test('000109 R11: save() → false (квота localStorage) — saveNow: без
 //       ВСЕ 4 id пула материализованы.
 // КРАСНЫЕ: N1/N2/V1/V2 — функция существует, поведения НЕТ
 // (AssertionError «нет поведения», не Syntax/ReferenceError); N3 —
-// зелёный с самого начала (re-pin версии, ТЗ явно в списке «Тесты»).
+// зелёный с самого начала (re-pin версии, ТЗ явно в списке «Тесты»);
+// N4 — пин D5 level-guard (добавлен правками по итогам ревью: guard
+// уже был в коде, пин — чтобы рефакторинг не убрал защиту незаметно).
 // Контракт: memory/000115-efir-save-final.md (D1–D9).
 // =====================================================================
 
@@ -1223,6 +1228,31 @@ test('000115 N2: deserializeEfir — ОБЯЗАТЕЛЬНЫЙ reprocess при �
     E.deserializeEfir(raw, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG),
     E.deserializeEfir(raw, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG),
     'идемпотентно (повторный deserialize → идентично)');
+});
+
+test('000115 N4: D5 level-guard — level > 1e6 → null (сброс ЗАПИСИ, тихая); граница level = 1e6 ВКЛЮЧИТЕЛЬНА (игровой кэп не введён)', () => {
+  // D5 (memory/000115-efir-save-final.md): save-integrity-граница —
+  // защита от зависания while-цикла reprocess поддельным уровнем
+  // (forged ~1e15 + банк → cap ≈ 2·attr → ~1e15 итераций, вкладка
+  // замёрзнет; новый путь после 000115, до неё недостижимый). НЕ
+  // игровой кэп: L999/1e6 проходят (000085 D5 «без кэпа уровня»).
+  const q = quiet(() => E.deserializeEfir({
+    level: 2000000, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'],
+  }, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG));
+  assert.equal(q.res, null, 'level > 1e6 → null (сброс ЗАПИСИ, 000029)');
+  assert.equal(q.n, 0, 'тихая: сброс БЕЗ warn (warn печатает main.js)');
+
+  // Граница ВКЛЮЧИТЕЛЬНА: level = 1e6 проходит. Банк пуст → цикл
+  // reprocess не крутится (0 < cost(0) = 15) — выход: плотный 4×0.
+  assert.deepEqual(
+    E.deserializeEfir({
+      level: 1000000, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'],
+    }, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG),
+    { level: 1000000, xp: 0,
+      skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+      skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+      spells: ['spark', 'mend'] },
+    'level = 1e6 → состояние (граница включена; кэп не введён; плотный 4×0)');
 });
 
 test('000115 N3: версия НЕ поднята — CURRENT_VERSION = 1, MIGRATIONS пуст (re-pin 000072, ТЗ явно в списке «Тесты»)', () => {
