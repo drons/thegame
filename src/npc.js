@@ -84,7 +84,7 @@
    * требования найм-опции (паттерн Оратора), новой системы проверок нет.
    */
   function dialogOptions(npc, character) {
-    return (npc.диалог || []).map((option) => {
+    const out = (npc.диалог || []).map((option) => {
       const req = option.требования || {};
       let причина = null;
       if (typeof req.харизма === 'number' && character.primary.charisma < req.харизма) {
@@ -97,6 +97,43 @@
       }
       return { option, доступен: причина === null, причина };
     });
+    // Наставничество по крафту (задача 000126, решение (b)): опции
+    // «обучить <вид>» ПРИДВИГАЮТСЯ ПОСЛЕ каталожных опций диалога
+    // (СИНТЕЗ, не данные npc.диалог). Опция существует ТОЛЬКО если
+    // NPC обучает навык, маппящийся в вид (Game.Craft.SKILL_CRAFT_TYPE),
+    // И стоит в постройке этого вида (npc.постройки ∩
+    // typeBuildings(вид) непусто — иначе ломался бы pин
+    // o.length === 4 для trainNpc: [7] ∉ кузнечного [8, 25]).
+    // Дедупликация по виду (Set): два навыка одного вида — ОДНА опция
+    // (runes намеренно без маппинга — один навык на три вида).
+    // ЛЕНИВОЕ чтение Game.Craft В МОМЕНТ ВЫЗОВА: npc.js грузится ДО
+    // craft.js — G-снапшот npc.js Craft НЕ несёт (UMD-ловушка 000038;
+    // паттерн craftReprocessHook ниже). Причины/цена — из ядра
+    // canMentorCraft (000046), не из UI.
+    const G = (typeof globalThis !== 'undefined' &&
+      typeof globalThis.Game === 'object') ? globalThis.Game : null;
+    if (G && G.Craft && Array.isArray(npc.постройки)) {
+      const seen = new Set();
+      for (const s of schoolSkills(npc)) {
+        const t = G.Craft.SKILL_CRAFT_TYPE[s];
+        if (!t || seen.has(t)) continue;
+        seen.add(t);
+        const of = G.Craft.typeBuildings(t);
+        if (!npc.постройки.some((b) => of.includes(b))) continue;
+        const check = G.Craft.canMentorCraft(npc, character, t);
+        out.push({
+          option: {
+            id: 'mentor_' + t,
+            текст: 'обучить ' + t,
+            действие: 'обучить_крафт',
+            вид: t,
+          },
+          доступен: check.ok,
+          причина: check.ok ? null : check.reason,
+        });
+      }
+    }
+    return out;
   }
 
   // --- Школы навыков (обучение за монеты, перенос очков) ---

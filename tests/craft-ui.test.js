@@ -438,7 +438,9 @@ test('CU-3. [E] с NPC: Кузница + Торн — строки [«Диало
   assert.ok(thor, 'Торн стоит в Кузнице (npcForBuilding)');
   const state = { day: 1, tile: { x: 0, y: 0 }, hero: {}, save: {} };
   const rows = G.buildingEffects.buildingActions(b8, thor, state);
-  assert.deepEqual(rows.map((r) => r.id), ['dialog', 'craft'],
+  // Array.from: строки рождаются в realm vm-песочницы — assert/strict
+  // сравнивает прототипы, чужой realm падает; значения те же.
+  assert.deepEqual(Array.from(rows.map((r) => r.id)), ['dialog', 'craft'],
     'с NPC строки: «Диалог» ПЕРВЫМ, «Крафт» КОНЦОМ (решение 1: '
     + 'игрок выбирает; порядок — регрессия для тач/клавиш по номеру); '
     + 'факт: ' + JSON.stringify(rows.map((r) => r.id)));
@@ -487,8 +489,8 @@ test('CU-4. состав экрана: виды с уровнем, рецепт�
   // Кнопки «изготовить»: data-craftact='craft' data-recipe=<id>.
   const btns = findAll(ov, 'button[data-craftact="craft"]');
   assert.equal(btns.length, 6, 'кнопка на каждый рецепт здания');
-  const ids = btns.map((b) => b.dataset.recipe).sort();
-  assert.deepEqual(ids, here.map((r) => r.id).sort(),
+  const ids = Array.from(btns.map((b) => b.dataset.recipe).sort());
+  assert.deepEqual(ids, Array.from(here.map((r) => r.id).sort()),
     'data-recipe — id рецепта');
   // «нужно ур. N / есть L»: уровень 3 < 4 у steel_sword — пометка +
   // disabled по canCraft; у iron_sword (ур. 2 ≤ 3) — не хватает
@@ -550,6 +552,9 @@ test('CU-5. крафт: «изготовить» — исходники спис
   const b8 = G.getBuilding(8);
   const c = G.createCharacter();
   c.craft = { кузнечное_дело: 2 }; // iron_sword: нужно ур. 2
+  // Потолок практикой = forge × 2: 4 > 2 → xp виду КОПИТСЯ (000046:
+  // при level >= limit копилка сбрасывается в 0 и xp не начисляется).
+  c.secondary.forge = 2;
   G.addItem(c, 'wood_sword', 1);
   G.addItem(c, 'sulfur', 2);
   assert.ok(G.craftUI && typeof G.craftUI.open === 'function',
@@ -578,7 +583,7 @@ test('CU-5. крафт: «изготовить» — исходники спис
     'исходник sulfur ×2 списан');
   assert.equal(G.totalQty(c, 'iron_sword'), 1, 'результат в инвентаре');
   // Качество: бонус качества — ОТДЕЛЬНЫЙ слот (weapon → damage).
-  // Множитель вида у свежего персонажа = 1 (forge 0) → +1.
+  // Множитель вида = 1 + 0.05×forge = 1.10 (forge 2) → round(1×1.10) = 1.
   const bonusSlot = (c.inventory.slots || [])
     .find((s) => s.id === 'iron_sword' && s.bonus);
   assert.ok(bonusSlot,
@@ -641,6 +646,9 @@ test('CU-6. зачарование: пикер только изученных (
   // ману, бонус = качество (1) + заклинание (степень 1) = 2.
   const c = G.createCharacter();
   c.craft = { зачарование: 5, алхимия: 6 };
+  // Потолок практикой зачарования = runes × 2: 6 > 5 → xp виду
+  // КОПИТСЯ (000046). maxMP не меняется (зависит от интел/мудр).
+  c.secondary.runes = 3;
   c.spells = ['frost_bolt'];
   const mp0 = c.mp;
   assert.equal(mp0, 16, 'свежий персонаж: maxMP 16 (проверка фикстуры)');

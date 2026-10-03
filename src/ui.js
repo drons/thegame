@@ -726,6 +726,22 @@
           // (entry.доступен проверен выше), новой системы нет.
           tab = 'hire';
           renderTab();
+        } else if (o.действие === 'обучить_крафт') {
+          // Наставник по крафту (задача 000126): ядро
+          // Game.Craft.mentorCraft (000046) — +1 уровень виду за
+          // цена_за_уровень; причины/цена — из ядра. G-снапшот ui.js
+          // Craft несёт (craft.js грузится ДО ui.js), typeof-гард
+          // оставлен по образцу findQuestInCatalog (000130).
+          const r = (G.Craft && typeof G.Craft.mentorCraft === 'function')
+            ? G.Craft.mentorCraft(npc, c, o.вид)
+            : { ok: false, reason: 'Крафт недоступен' };
+          npcLog(r.ok
+            ? 'Обучение: ' + o.вид + ' — уровень ' + r.level
+              + ' (−' + r.price + ' з)'
+            : r.reason);
+          if (r.ok && onChange) onChange();
+          renderTab();
+          G.playerUI && G.playerUI.render();
         }
         return;
       }
