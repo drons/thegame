@@ -102,16 +102,24 @@
 
   // Диалог NPC (задача 000010): ТЕ ЖЕ параметры, что и до 000071.
   // Экспорт — делегация debug openNpc (дедуп 1:1-тел).
+  // Задача 000107 (D4): t — ЕДИНСТВЕННЫЙ источник координат (tile =
+  // { x, y, building, buildingWealth }): в мире map.tileAt(x, y)
+  // возвращает { x, y } = запрос (t.x/t.y === deps.player.x/y ВСЕГДА —
+  // behavior-preserving), в городе — клетка города (deps.player —
+  // мир-якорь входа, был бы неверен). shop — через deps.shopFor(npc,
+  // t) (город: сток cityShops по (город, клетка), 000108; мир —
+  // fallback npcShopFor, 000029).
   function openNpcDialog(npc, t) {
     if (!needDeps()) return;
     deps.game.npcUI.open({
       npc,
       character: deps.hero,
       book: deps.questBook,
-      tile: { x: deps.player.x, y: deps.player.y,
+      tile: { x: t.x, y: t.y,
         building: t.building, buildingWealth: t.buildingWealth },
-      // Сток общий на сессию + сейв при изменениях (000029).
-      shop: deps.npcShopFor(npc.id),
+      // Сток: город — cityShops (000107/000108), мир — общий на
+      // сессию + сейв при изменениях (000029).
+      shop: deps.shopFor ? deps.shopFor(npc, t) : deps.npcShopFor(npc.id),
       onChange: deps.saveNow,
       day: deps.clock.day,
       // 000083: ЖИВЫЕ ссылки на отряд main.js (чтение на вызове —
@@ -418,7 +426,10 @@
     }
     const actions = deps.game.buildingEffects.buildingActions(b, npc, {
       day: deps.clock.day,
-      tile: { x: deps.player.x, y: deps.player.y },
+      // Задача 000107 (D4): клетка тайла t, а не deps.player — в городе
+      // это клетка города (мир-якорь входа был бы неверен); в мире
+      // map.tileAt возвращает { x, y } = запрос (behavior-preserving).
+      tile: { x: t.x, y: t.y },
       hero: deps.hero,
       // СНИМОК (000071) + map — READ-ONLY ссылка (000076, см.
       // onBuildingAction): available?(state) эффектов получает то же
@@ -536,9 +547,85 @@
     }
   }
 
+  // [E] в городе (задача 000107): ЕДИНЫЙ путь — buildingUI (000071) →
+  // «Диалог» → npcUI. Без аргументов: состояние — через deps (как
+  // toggle): deps.cityState() — текущее dungeonState города.
+  // ОБХОД ЗАПРЕЩЁН (TZ): прямого npcUI.open из города НЕТ НИГДЕ —
+  // даже при деградации без Game.buildingUI: console.error + no-op
+  // (намеренная АСИММЕТРИЯ с деградацией toggle(), где прямой
+  // openNpcDialog допустим — в городе он не строится).
+  // Гарды/стек — паритет с toggle(): needDeps → !npcUI → combatUI
+  // (бой выше по стеку) → стек buildingUI/npcUI (повторный [E]
+  // закрывает) → клетка без постройки = НИЧЕГО. Гард
+  // dungeonUI.isActive в toggle() СОХРАНЁН (в городе toggle не
+  // вызывается — [E] идёт через dungeon-ui → cityOnInteract → сюда).
+  // Небывалые ситуации — console.error + no-op, игра не падает
+  // (UMD-деградация 000053).
+  function interactCity() {
+    if (!needDeps()) return;
+    if (!deps.game.npcUI) return; // без npcUI [E] инертен (как toggle)
+    if (deps.game.combatUI && deps.game.combatUI.isActive()) return;
+    const ds = deps.cityState ? deps.cityState() : null;
+    if (!ds || ds.kind !== 'city') return;
+    if (deps.game.buildingUI) {
+      // Повторный [E] — закрыть открытый оверлей (стек, паритет с
+      // toggle): buildingUI первым; npcUI — buildingUI уже закрыт
+      // executeAction (000071).
+      if (deps.game.buildingUI.isActive()) {
+        deps.game.buildingUI.close();
+        return;
+      }
+      if (deps.game.npcUI.isActive()) {
+        deps.game.npcUI.close();
+        return;
+      }
+    }
+    // Клетка под героем (целочисленные ds.x/ds.y — логическая
+    // позиция после шага; НЕ ds.pos — glide-рендер 000105).
+    const cell = ds.cityContents && Array.isArray(ds.cityContents.buildings)
+      ? ds.cityContents.buildings.find(
+          (p) => p.x === ds.x && p.y === ds.y)
+      : null;
+    if (!cell) return; // клетка без постройки — НИЧЕГО (TZ)
+    const b = deps.game.getBuilding
+      ? deps.game.getBuilding(cell.buildingId) : null;
+    if (!b) {
+      console.error('building-actions.js: interactCity — постройка ' +
+        cell.buildingId + ' не найдена в каталоге (getBuilding) — ' +
+        '[E] ничего не делает');
+      return;
+    }
+    if (!deps.game.buildingUI) {
+      // Обход запрещён (TZ 000107): в городе [E] — ТОЛЬКО через
+      // buildingUI. Деградация — no-op (в отличие от toggle()).
+      console.error('building-actions.js: [E] в городе, но ' +
+        'Game.buildingUI отсутствует — обход запрещён (000107), ' +
+        '[E] ничего не делает');
+      return;
+    }
+    const npc = deps.game.npcForBuilding
+      ? deps.game.npcForBuilding(deps.npcs, b.id) : null;
+    // Синтетический tile (контракт 000107 §3): координаты КЛЕТКИ
+    // ГОРОДА; building — map_index записи (как мировой t.building);
+    // buildingWealth — богатство якоря (ds.cityWealth).
+    const t = {
+      x: cell.x, y: cell.y,
+      buildingId: cell.buildingId,
+      building: b.особые_параметры &&
+        b.особые_параметры.map_index != null
+          ? b.особые_параметры.map_index : null,
+      buildingWealth: ds.cityWealth,
+    };
+    // СУЩЕСТВУЮЩАЯ точка: buildingUI.open + actions (городские
+    // записи БЕЗ эффектов → ровно «Диалог», если npc != null;
+    // пустой список — openBuildingUI false → [E] ничего).
+    openBuildingUI(t, b, npc);
+  }
+
   return {
     init,
     toggle,
+    interactCity,
     openBuildingUI,
     onBuildingAction,
     buildingRecForTile,

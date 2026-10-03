@@ -933,6 +933,12 @@
       npcs: NPCS, // каталог (зеркало assets/npc)
       questBook, // nullable
       npcShopFor, // (npcId) → { npc, stock } | null
+      // Задача 000107: [E] в городе — городское состояние (getter —
+      // let dungeonState, L выше) + единый решатель shop-формата
+      // (city: сток cityShops по (город, клетка), 000108; мир —
+      // npcShopFor, 000029).
+      cityState: () => dungeonState,
+      shopFor, // (npc, t) → { npc, stock } | null
       collectSaveData, // () → снимок сейва (чистая)
       saveNow, // () → запись в localStorage
       flash,
@@ -978,6 +984,11 @@
       return;
     }
     if (e.code === 'KeyE' && G.npcUI) { // E (У) — диалог NPC
+      // Задача 000107: в городе реальный путь [E] — dungeon-ui →
+      // cityOnInteract → buildingActions.interactCity (dungeon-ui
+      // регистрируется ДО main.js — срабатывает первым); здесь гард
+      // toggle() dungeonUI.isActive гасит дубль. В мире/подземелье —
+      // обычный toggle() (подземелье — гард, no-op).
       if (G.buildingActions) G.buildingActions.toggle();
       return;
     }
@@ -1221,13 +1232,19 @@
     const ds = L.maybeEnterDungeon(ctx) || L.maybeEnterCity(ctx);
     if (ds) {
       dungeonState = ds;
-      startLocationUI(ds.kind === 'city' ? cityOnMove : dungeonOnMove);
+      // Задача 000107: onInteract — ТОЛЬКО для города ([E] — путь
+      // buildingUI); в подземелье undefined → ветка KeyE dungeon-ui
+      // мёртвая (000121: [E] в подземелье — no-op).
+      startLocationUI(
+        ds.kind === 'city' ? cityOnMove : dungeonOnMove,
+        ds.kind === 'city' ? cityOnInteract : undefined);
     }
   }
-  function startLocationUI(onMove) {
+  function startLocationUI(onMove, onInteract) {
     G.dungeonUI.start({
       get state() { return dungeonState; },
       onMove,
+      onInteract, // 000107: город — [E] → cityOnInteract (undefined — мёртвая ветка)
       // ОДИН общий zoom (задача 000066): колесо поверх оверлея меняет
       // тот же zoom, что мир (мировой слушатель на #game накрыт) —
       // renderHud/Game.hud («Масштаб: Xpx») остаётся корректным
@@ -1280,12 +1297,43 @@
   function cityOnMove(dx, dy) {
     const ds = dungeonState;
     if (!ds) return;
+    // Задача 000107: открытые оверлеи (buildingUI/npcUI) — движение
+    // заблокировано (паритет с миром: гейты keydown main.js). Оба
+    // канала: keyboard (dungeon-ui → ctx.onMove) и touch D-pad
+    // (touchMove → onMove).
+    if ((G.buildingUI && G.buildingUI.isActive()) ||
+        (G.npcUI && G.npcUI.isActive())) return;
     const ev = G.locations.cityMove(ds, dx, dy, performance.now(),
       { inCombat: !!(G.combatUI && G.combatUI.isActive()) });
     if (!ev || ev.type !== 'exit') return;
     exitLocation(ds);
     hudFlash = 'Вы вышли из ' + ev.name + '.';
     hudFlashUntil = performance.now() + 5000;
+  }
+  // Задача 000107: [E] в городе — ЕДИНЫЙ путь buildingUI (000071) →
+  // «Диалог» → npcUI (обход запрещён — в building-actions.interactCity).
+  // Вызывается dungeon-ui по KeyE (onInteract — только для города).
+  function cityOnInteract() {
+    if (G.buildingActions) G.buildingActions.interactCity();
+  }
+  // Задача 000107 (D4): ЕДИНСТВЕННЫЙ решатель shop-формата {npc,
+  // stock} для npcUI (deps.shopFor building-actions). Город (000108):
+  // сток — ds.cityShops по (город, клетка) — 6-полевой makeCityShop,
+  // подаём только .stock; ТОЛЬКО у NPC с торговля (иначе null —
+  // иначе TypeError в ui.js renderTradeTab: у Берты таверны 44
+  // записи в cityShops ЕСТЬ, а торговля НЕТ). Мир — как было
+  // (npcShopFor, 000029) — КЛЮЧЕВОЙ путь не тронут.
+  function shopFor(npc, t) {
+    const ds = dungeonState;
+    if (ds && ds.kind === 'city' && ds.cityShops && t) {
+      const s = ds.cityShops[t.x + ',' + t.y];
+      if (!s) return null;
+      if (!npc || !npc.торговля || !Array.isArray(npc.торговля.предметы)) {
+        return null;
+      }
+      return { npc, stock: s.stock };
+    }
+    return npcShopFor(npc.id);
   }
 
   // Бой с блуждающей группой подземелья.
@@ -1756,6 +1804,10 @@
           : null,
         chests: ds.contents
           ? ds.contents.chests.filter((c) => !c.opened).length : null,
+        // Задача 000107: содержимое города в рантайме (тесты/отладка;
+        // хендофф 000109). null — подземелье и город без генерации.
+        buildings: ds.cityContents
+          ? ds.cityContents.buildings : null,
         day: clock.day,
       };
     },

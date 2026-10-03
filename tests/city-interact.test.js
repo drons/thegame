@@ -968,7 +968,9 @@ test('CI-V2. «Диалог» из buildingUI → npcUI: Бренн — сток
   // (b) Таверна: Берта без торговля → «Этот NPC не торгует.»; вкладка
   // «найм» (000083) — не падает (код найма не тронут).
   const tv = found.contents.buildings.find((b) => b.buildingId === 44);
-  walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, tv.x, tv.y));
+  // Второй обход — от ТЕКУЩЕЙ позиции (Оружейная w): dg — снапшот
+  // входа (getter __game.dungeon — свежий объект на каждое чтение).
+  walkCity(h, cityStepsTo({ x: w.x, y: w.y }, tv.x, tv.y));
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), true, '[E] — buildingUI (таверна)');
   key(h, 'Digit1');
