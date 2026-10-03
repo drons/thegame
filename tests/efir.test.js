@@ -1028,3 +1028,418 @@ test('000112 EF-4: мана — СВОЯ: p.mp ДО/ПОСЛЕ одинаков;
     }
   });
 });
+
+// --- Задача 000117: практика Эфира: рост навыков от применения (ТЗ —
+// tasks/pending/000117.md; контракты — memory/000117-efir-practice.md).
+// КРАСНЫЕ тесты PR-1..PR-5 (D10: ровно 7 новых красных — здесь
+// PR-1..PR-5 + PC-1/PC-2 в tests/combat.test.js): падают, пока нет
+// 15-го экспорта practiceEfir (TypeError «practiceEfir is not a
+// function») и боевых хуков-маппинга (AssertionError: skillXp пуст /
+// нет уклонения / нет сопротивления). Осмысленная краснота —
+// «функциональности нет», не синтаксис/окружение.
+// R1 (14 экспортов) — НЕ правится в красной фазе: 14 → 15
+// (+ 'practiceEfir') — вместе с GREEN-коммитом (D9).
+// Кривая L0..Lv — через efirSkillXpForNext, без хардкода сумм
+// (паттерн T5).
+
+function xpToLevel117(E, lv) {
+  let cost = 0;
+  for (let l = 0; l < lv; l++) cost += E.efirSkillXpForNext(l);
+  return cost;
+}
+
+// Герой-полный: hp = maxHP — ветки (1)/(2) efirTurn не срабатывают.
+function heroFull117() {
+  const p = hero112();
+  p.hp = P.derived(p).maxHP;
+  return p;
+}
+
+test('000117 PR-1: практика — в ЕГО пул (skillXp); player.skillXp/secondary — deepEqual до/после', () => {
+  const E = loadEfir();
+  withGame({ xpForNext: P.xpForNext, efir: E }, () => {
+    // (a) Чистая: +3 в банк, уровень 0 (3 < 15), все 4 id пула
+    // материализованы (reprocessEfirSkills).
+    {
+      const state = E.createEfir();
+      E.practiceEfir(state, 'firelord', 3);
+      assert.equal(state.skillXp.firelord, 3, 'банк: +3 (без округления)');
+      assert.equal(state.skills.firelord, 0, 'уровень 0 (банк 3 < 15)');
+      assert.deepEqual(Object.keys(state.skillXp).sort(),
+        ['firelord', 'icelord', 'perception', 'precog'],
+        'все 4 id его пула материализованы');
+      assert.deepEqual(Object.keys(state.skills).sort(),
+        ['firelord', 'icelord', 'perception', 'precog'],
+        'skills — все 4 id');
+    }
+    // (b) Боевой: L1, книга ['spark'], волк d 3 (armor 50 — заклинание
+    // игнорирует), rng 0.99 (волк — все промахи) → Эфир кастует →
+    // хук: firelord +3 (PRACTICE_XP.spell); игрок не действует — его
+    // skillXp/secondary бит-в-бит (практика — только от его действий).
+    {
+      const C = require('../src/combat.js');
+      const saveCatalog = C.combatInternals.allySpells;
+      C.combatInternals.allySpells =
+        require('../src/spells-data.js').SPELLS_BY_ID;
+      try {
+        const p = heroFull117();
+        const state = E.createEfir();
+        state.spells = ['spark'];
+        const c = createCombat({
+          player: p, allies: [E.efirAllyData(state)],
+          mobs: ['wolf'], mobLevel: 2, seed: 5,
+        });
+        c.obstacles.clear();
+        const w = c.units.find((x) => x.id === 'm0');
+        w.x = 3; w.y = 3; w.armor = 50; w.maxHP = 100; w.hp = 100;
+        c._rng = () => 0.99;
+        const pXp0 = JSON.parse(JSON.stringify(p.skillXp));
+        const pSec0 = JSON.parse(JSON.stringify(p.secondary));
+        E.buildEfirUnit(state, c);
+        c.endTurn();
+        assert.equal(state.skillXp.firelord, 3,
+          'каст огня (spark) → firelord +3 (PRACTICE_XP.spell): '
+          + c.log.join(' | '));
+        assert.deepEqual(p.skillXp, pXp0,
+          'player.skillXp — не тронут (практика — только его своя)');
+        assert.deepEqual(p.secondary, pSec0, 'player.secondary — не тронут');
+      } finally { C.combatInternals.allySpells = saveCatalog; }
+    }
+  });
+});
+
+test('000117 PR-2: потолок = ЕГО атрибут × 2 (L1: Интеллект 3 → 6); overflow — в банке', () => {
+  const E = loadEfir();
+  withGame({ xpForNext: P.xpForNext, efir: E }, () => {
+    const state = E.createEfir();
+    E.practiceEfir(state, 'firelord', 999);
+    assert.equal(state.skills.firelord, 6,
+      'потолок: L1 Интеллект 3 × 2 = 6 — уровень не растёт выше');
+    assert.equal(state.skillXp.firelord, 999 - xpToLevel117(E, 6),
+      'overflow хранится: 999 − (15+30+45+60+75+90) = 684');
+    // Повторная практика → уровень 6 (потолок), банк +5, без падения.
+    E.practiceEfir(state, 'firelord', 5);
+    assert.equal(state.skills.firelord, 6, 'уровень по-прежнему 6');
+    assert.equal(state.skillXp.firelord, 999 + 5 - xpToLevel117(E, 6),
+      'банк растёт: 684 + 5 = 689');
+    // Guards (контракт §3.1): skillId вне пула / amount ≤ 0 — тихий
+    // return [], без мутаций.
+    const bank0 = state.skillXp.firelord;
+    assert.deepEqual(E.practiceEfir(state, 'nope', 3), [],
+      'неизвестный skillId → []');
+    assert.deepEqual(E.practiceEfir(state, 'firelord', 0), [],
+      'amount 0 → []');
+    assert.deepEqual(E.practiceEfir(state, 'firelord', -5), [],
+      'amount < 0 → []');
+    assert.equal(state.skillXp.firelord, bank0, 'guards — без мутаций');
+  });
+});
+
+test('000117 PR-3: requires (icelord ← firelord 5): до гейта банк ЦЕЛИКОМ, после — полная конвертация', () => {
+  const E = loadEfir();
+  withGame({ xpForNext: P.xpForNext, efir: E }, () => {
+    const state = E.createEfir();
+    // (1) icelord 90 — firelord 0 < 5: уровень 0, банк цел (не сгорел).
+    E.practiceEfir(state, 'icelord', 90);
+    assert.equal(state.skills.icelord, 0, 'requires не выполнен → 0');
+    assert.equal(state.skillXp.icelord, 90, 'банк 90 ЦЕЛИКОМ');
+    // (2) firelord 225 = 15+30+45+60+75 → уровень 5, банк 0; банк
+    // icelord конвертируется ПОЛНОСТЬЮ: 90 − (15+30+45) = 0 → уровень
+    // 3 (семантика 000111 T6).
+    E.practiceEfir(state, 'firelord', 225);
+    assert.equal(state.skills.firelord, 5, 'firelord 5');
+    assert.equal(state.skillXp.firelord, 0, 'банк firelord 0');
+    assert.equal(state.skills.icelord, 3,
+      'icelord 3: 90 − (15+30+45) = 0 — конвертация полная');
+    assert.equal(state.skillXp.icelord, 0, 'банк icelord 0');
+  });
+});
+
+test('000117 PR-4: переучёт при load: дроби (без floor) + requires-порядок + идемпотентность', () => {
+  const E = loadEfir();
+  withGame({ xpForNext: P.xpForNext, efir: E }, () => {
+    const state = E.createEfir();
+    // firelord 150.5 → уровень 4 (15+30+45+60 = 150), банк 0.5
+    // (дробь).
+    E.practiceEfir(state, 'firelord', 150.5);
+    assert.equal(state.skills.firelord, 4, 'уровень 4');
+    assert.equal(state.skillXp.firelord, 0.5, 'дробный банк (без округла)');
+    // icelord 30 — requires не выполнен (firelord 4 < 5): уровень 0,
+    // банк 30.
+    E.practiceEfir(state, 'icelord', 30);
+    assert.equal(state.skills.icelord, 0, 'requires не выполнен (4 < 5) → 0');
+    assert.equal(state.skillXp.icelord, 30, 'банк 30 цел');
+    // Конвейер: serialize → deserialize (переучёт при загрузке, 000115)
+    // — те же уровни и банки.
+    const raw = E.serializeEfir(state);
+    const loaded = E.deserializeEfir(raw, SKILL_CATALOG, SPELL_CATALOG);
+    assert.equal(loaded.skills.firelord, 4, 'firelord 4 после load');
+    assert.equal(loaded.skillXp.firelord, 0.5,
+      'дробь 0.5 — БЕЗ floor (000115)');
+    assert.equal(loaded.skills.icelord, 0,
+      'icelord 0 (requires ПОВЕРЯЕТСЯ после переучёта)');
+    assert.equal(loaded.skillXp.icelord, 30, 'банк icelord 30 цел');
+    // Идемпотентность: повторный load — бит-в-бит.
+    const reloaded = E.deserializeEfir(E.serializeEfir(loaded),
+      SKILL_CATALOG, SPELL_CATALOG);
+    assert.deepEqual(reloaded, loaded, 'повторный load — идемпотентно');
+  });
+});
+
+test('000117 PR-5: маппинг действий → навыки: огонь → firelord (3), лёд → icelord (3), уклонение → precog (2), сопротивление → perception (2); лечение/щит/Касание — практики НЕ дают', () => {
+  const E = loadEfir();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  withGame({ xpForNext: P.xpForNext, efir: E }, () => {
+    try {
+      // (a) Огонь: L1, книга ['spark'] → каст → skillXp.firelord === 3
+      // (PRACTICE_XP.spell), icelord не тронут.
+      {
+        const p = heroFull117();
+        const state = E.createEfir();
+        state.spells = ['spark'];
+        const c = createCombat({
+          player: p, allies: [E.efirAllyData(state)],
+          mobs: ['wolf'], mobLevel: 2, seed: 5,
+        });
+        c.obstacles.clear();
+        const w = c.units.find((x) => x.id === 'm0');
+        w.x = 3; w.y = 3; w.armor = 50; w.maxHP = 100; w.hp = 100;
+        c._rng = () => 0.99;
+        E.buildEfirUnit(state, c);
+        c.endTurn();
+        assert.equal(state.skillXp.firelord, 3,
+          'огонь-каст (spark) → firelord 3: ' + c.log.join(' | '));
+        assert.equal(state.skillXp.icelord || 0, 0, 'icelord не тронут');
+      }
+      // (b) Лёд: L8 (атрибуты 6/6/6, mp 17), книга ['frost_bolt']
+      // (4 маны) → каст → skillXp.icelord === 3, firelord НЕ изменился
+      // (огненных кастов нет).
+      {
+        const p = heroFull117();
+        const state = E.createEfir();
+        while (state.level < 8) {
+          state.xp = P.xpForNext(state.level);
+          E.levelUp(state);
+        }
+        state.spells = ['frost_bolt'];
+        const c = createCombat({
+          player: p, allies: [E.efirAllyData(state)],
+          mobs: ['wolf'], mobLevel: 2, seed: 5,
+        });
+        c.obstacles.clear();
+        const w = c.units.find((x) => x.id === 'm0');
+        w.x = 3; w.y = 3; w.armor = 50; w.maxHP = 100; w.hp = 100;
+        c._rng = () => 0.99;
+        E.buildEfirUnit(state, c);
+        c.endTurn();
+        assert.equal(state.skillXp.icelord, 3,
+          'лёд-каст (frost_bolt) → icelord 3: ' + c.log.join(' | '));
+        assert.equal(state.skillXp.firelord || 0, 0,
+          'firelord не изменился');
+      }
+      // (c) Уклонение: L3 (wis 4, cap precog 8). Волк (2,4) — d 1 до
+      // Эфира (2,5), d 3 до игрока (3,6) → nearestPlayerSide выберет
+      // Эфира; rng 0.3. precog 8 → hitChance(2,0,3,0.4) = 0.12 →
+      // 0.3 ≥ 0.12 → промах → precog +2 (PRACTICE_XP.block), урон 0;
+      // КОНТРОЛЬ precog 0 → 0.52 → hit (0.3 < 0.52), практики нет.
+      {
+        const mk = (withPrecog) => {
+          const p = heroFull117();
+          const state = E.createEfir();
+          while (state.level < 3) {
+            state.xp = P.xpForNext(state.level);
+            E.levelUp(state);
+          }
+          if (withPrecog) {
+            E.practiceEfir(state, 'perception', 225); // → 5 (requires)
+            E.practiceEfir(state, 'precog', 540);     // → 8 (cap L3 8)
+          }
+          state.spells = ['mend'];
+          const c = createCombat({
+            player: p, allies: [E.efirAllyData(state)],
+            mobs: ['wolf'], mobLevel: 2, seed: 5,
+          });
+          c.obstacles.clear();
+          const w = c.units.find((x) => x.id === 'm0');
+          w.x = 2; w.y = 4; w.maxHP = 100; w.hp = 100;
+          c._rng = () => 0.3;
+          const u = E.buildEfirUnit(state, c);
+          const hp0 = u.hp;
+          c.endTurn();
+          return { state, u, c, dmg: hp0 - u.hp };
+        };
+        const rA = mk(false); // контроль: precog 0
+        assert.ok(rA.dmg > 0,
+          'контроль (precog 0): 0.3 < 0.52 → hit: '
+          + rA.c.log.join(' | '));
+        assert.equal(rA.state.skillXp.precog || 0, 0,
+          'hit — precog-практики нет');
+        const rB = mk(true);  // precog 8
+        assert.equal(rB.dmg, 0,
+          'precog 8: 0.3 ≥ 0.12 → уклонение, урон 0: '
+          + rB.c.log.join(' | '));
+        assert.ok(rB.c.log.some((l) => l.includes('промахивается')),
+          'лог «промахивается»: ' + rB.c.log.join(' | '));
+        assert.equal(rB.state.skillXp.precog, 2,
+          'уклонение → precog +2 (PRACTICE_XP.block)');
+        assert.ok(rB.dmg < rA.dmg, 'B < A');
+      }
+      // (d) Сопротивление: L5 (wis 5, cap perception 10),
+      // practiceEfir perception 45 (15+30 → уровень 2, банк 0).
+      // Снапшот u.efirSkills.perception 2 →
+      // dealDamageToAlly(c, u, 20, { magic: true }) = max(1, round(20 /
+      // (1 + 0.05·2))) = 18 (ФОРМУЛА в тесте; броня = 0), лог
+      // «сопротивляется», skillXp.perception === 2 (+2 практика).
+      // КОНТРОЛИ: 3-арг-вызов → 20 бит-в-бит (без лог/практики);
+      // perception 0 + { magic: true } → 20, без лог/практики.
+      {
+        const p = heroFull117();
+        const state = E.createEfir();
+        while (state.level < 5) {
+          state.xp = P.xpForNext(state.level);
+          E.levelUp(state);
+        }
+        E.practiceEfir(state, 'perception', 45); // → уровень 2, банк 0
+        state.spells = [];
+        const c = createCombat({
+          player: p, allies: [E.efirAllyData(state)],
+          mobs: ['wolf'], mobLevel: 2, seed: 5,
+        });
+        c.obstacles.clear();
+        const u = E.buildEfirUnit(state, c);
+        assert.equal(u.efirSkills.perception, 2, 'снапшот: perception 2');
+        const d1 = C.combatInternals.dealDamageToAlly(c, u, 20,
+          { magic: true });
+        assert.equal(d1, Math.max(1, Math.round(20 / (1 + 0.05 * 2))),
+          'резист: 20 / 1.1 → 18 (до брони; броня = 0): '
+          + c.log.join(' | '));
+        assert.ok(c.log.some((l) => l.includes('сопротивляется')),
+          'лог «сопротивляется»: ' + c.log.join(' | '));
+        assert.equal(state.skillXp.perception, 2,
+          'резист → perception +2 (банк; уровень 2)');
+        // Контроль: 3-арг-вызов — без резиста (бит-в-бит).
+        c.log.length = 0;
+        const d2 = C.combatInternals.dealDamageToAlly(c, u, 20);
+        assert.equal(d2, 20, '3 аргумента — полный урон (opts нет)');
+        assert.ok(!c.log.some((l) => l.includes('сопротивляется')),
+          '3 аргумента — лога резиста нет');
+        assert.equal(state.skillXp.perception, 2,
+          '3 аргумента — практики нет');
+        // Контроль: perception 0 + { magic: true } — полный урон.
+        const p0 = heroFull117();
+        const state0 = E.createEfir();
+        while (state0.level < 5) {
+          state0.xp = P.xpForNext(state0.level);
+          E.levelUp(state0);
+        }
+        state0.spells = [];
+        const c0 = createCombat({
+          player: p0, allies: [E.efirAllyData(state0)],
+          mobs: ['wolf'], mobLevel: 2, seed: 5,
+        });
+        c0.obstacles.clear();
+        const u0 = E.buildEfirUnit(state0, c0);
+        assert.equal(u0.efirSkills.perception || 0, 0,
+          'снапшот: perception 0');
+        const d3 = C.combatInternals.dealDamageToAlly(c0, u0, 20,
+          { magic: true });
+        assert.equal(d3, 20, 'perception 0 — резиста нет');
+        assert.ok(!c0.log.some((l) => l.includes('сопротивляется')),
+          'perception 0 — лога нет');
+        assert.equal(state0.skillXp.perception || 0, 0,
+          'perception 0 — практики нет');
+      }
+      // (e) ОТРИЦАТЕЛЬНЫЙ: лечение/щит/«Касание духа» — практики НЕ
+      // дают (соответствующих навыков в пуле нет).
+      {
+        // (e1) Лечение (mend): игрок 40% → Эфир лечит.
+        const p = hero112();
+        p.hp = Math.floor(P.derived(p).maxHP * 0.4);
+        const state = E.createEfir();
+        state.spells = ['mend'];
+        const c = createCombat({
+          player: p, allies: [E.efirAllyData(state)],
+          mobs: ['wolf'], mobLevel: 2, seed: 5,
+        });
+        c.obstacles.clear();
+        const w = c.units.find((x) => x.id === 'm0');
+        w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100; // далеко
+        c._rng = () => 0.99;
+        const pXp0 = JSON.parse(JSON.stringify(p.skillXp));
+        const pSec0 = JSON.parse(JSON.stringify(p.secondary));
+        const hp0 = p.hp;
+        E.buildEfirUnit(state, c);
+        c.endTurn();
+        assert.ok(p.hp > hp0, 'лечение сработало (сценарий жив): '
+          + c.log.join(' | '));
+        for (const id of ['firelord', 'icelord', 'perception', 'precog']) {
+          assert.equal(state.skillXp[id] || 0, 0,
+            'лечение — практики нет (' + id + ')');
+        }
+        assert.deepEqual(p.skillXp, pXp0, 'player.skillXp — не тронут');
+        assert.deepEqual(p.secondary, pSec0, 'player.secondary — не тронут');
+      }
+      {
+        // (e2) Щит: книга БЕЗ лечения ['spark', 'magic_shield'], игрок
+        // frac 0.4 ≤ 0.5 → (2) кастует щит.
+        const p = hero112();
+        p.hp = Math.floor(P.derived(p).maxHP * 0.4);
+        const state = E.createEfir();
+        state.spells = ['spark', 'magic_shield'];
+        const c = createCombat({
+          player: p, allies: [E.efirAllyData(state)],
+          mobs: ['wolf'], mobLevel: 2, seed: 5,
+        });
+        c.obstacles.clear();
+        const w = c.units.find((x) => x.id === 'm0');
+        w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
+        c._rng = () => 0.99;
+        const pXp0 = JSON.parse(JSON.stringify(p.skillXp));
+        const pSec0 = JSON.parse(JSON.stringify(p.secondary));
+        E.buildEfirUnit(state, c);
+        c.endTurn();
+        assert.ok(c.efirShield, 'щит кастован (сценарий жив): '
+          + c.log.join(' | '));
+        for (const id of ['firelord', 'icelord', 'perception', 'precog']) {
+          assert.equal(state.skillXp[id] || 0, 0,
+            'щит — практики нет (' + id + ')');
+        }
+        assert.deepEqual(p.skillXp, pXp0, 'player.skillXp — не тронут');
+        assert.deepEqual(p.secondary, pSec0, 'player.secondary — не тронут');
+      }
+      {
+        // (e3) «Касание духа»: mp 0 ((3) spark не кастует), волк d 1 →
+        // Касание 4. Волк ПОПАДАЕТ (rng 0.01 < 0.58) — не промах →
+        // precog-практики нет.
+        const p = heroFull117();
+        const state = E.createEfir();
+        state.spells = ['spark'];
+        const c = createCombat({
+          player: p, allies: [E.efirAllyData(state)],
+          mobs: ['wolf'], mobLevel: 2, seed: 5,
+        });
+        c.obstacles.clear();
+        const w = c.units.find((x) => x.id === 'm0');
+        w.x = 2; w.y = 4; w.maxHP = 100; w.hp = 100;
+        c._rng = () => 0.01; // волк — попадание
+        const pXp0 = JSON.parse(JSON.stringify(p.skillXp));
+        const pSec0 = JSON.parse(JSON.stringify(p.secondary));
+        const u = E.buildEfirUnit(state, c);
+        u.mp = 0;
+        const wHp0 = w.hp;
+        c.endTurn();
+        assert.ok(w.hp < wHp0, 'Касание сработало (сценарий жив): '
+          + c.log.join(' | '));
+        for (const id of ['firelord', 'icelord', 'perception', 'precog']) {
+          assert.equal(state.skillXp[id] || 0, 0,
+            'Касание — практики нет (' + id + ')');
+        }
+        assert.deepEqual(p.skillXp, pXp0, 'player.skillXp — не тронут');
+        assert.deepEqual(p.secondary, pSec0, 'player.secondary — не тронут');
+      }
+    } finally { C.combatInternals.allySpells = saveCatalog; }
+  });
+});
