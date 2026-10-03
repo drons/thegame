@@ -628,12 +628,15 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
   let saved = readSave(h);
   assert.equal(saved.data.companions[0].xp, 25, 'сейв: xp 25');
   assert.equal(saved.data.efir.level, 2, 'сейв: Эфир level 2');
-  // Бой 2: xp 25 + 25 = 50 ≥ xpForNext(1) = 50 → level 2, xp 0.
+  // Бой 2: xp 25 + 25 = 50 ≥ xpForNext(1) = 50 → level 2, xp 0 —
+  // уровень растёт в onEnd этого боя (ниже). ДО боя запись — level 1
+  // (xp 25 < 50, пин выше) — юнит берёт level ИМЕННО из записи
+  // (рост статов ИМПЛИЦИТНЫЙ: makeAlly пересчитывает из level записи).
   const c2 = g.actions.startCombat(0);
   assert.ok(c2, 'второй бой начался');
   const u2 = (c2.units || []).find((u) => u && u.kind === 'merc');
   assert.ok(u2, 'второй бой: наёмник в c.units');
-  assert.equal(u2.level, 2, 'рост статов ИМПЛИЦИТНЫЙ: makeAlly пересчитывает из level записи');
+  assert.equal(u2.level, 1, 'рост статов ИМПЛИЦИТНЫЙ: makeAlly пересчитывает из level записи (1, xp 25 < 50)');
   c2.phase = 'over';
   c2.result = {
     outcome: 'victory', xp: 50, gold: 1, defeated: 1,
@@ -645,7 +648,10 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
     [{ npcId: 'merc_volk', level: 2, xp: 0, loyalty: 65, hiredDay: 2 }],
     'roster: level_up (while-цикл, 000082)');
   assert.equal(g.state.hero.xp, heroXp0, 'hero.xp — по-прежнему не тронут');
-  assert.equal(g.state.efir.level, 3, 'Эфир: 2-й бой — ещё 50 (1×) → level 3');
+  // Эфир: 0 + 50 < 141 (xpForNext(2)) → level 2, xp 50 — ровно 1×
+  // result.xp (при 2× было бы level 3, xp 9 — порог 141 перекрыт).
+  assert.equal(g.state.efir.level, 2, 'Эфир: 2-й бой — 50 < 141 → level 2 (ровно 1×)');
+  assert.equal(g.state.efir.xp, 50, 'Эфир: xp 50 — ровно 1× (при 2×: level 3, xp 9)');
   mainFrameAt(h);
   hud = String(h.hud.textContent);
   assert.ok(hud.includes('Вольк повысил уровень (до 2).'),
@@ -657,7 +663,8 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
   saved = readSave(h);
   assert.equal(saved.data.companions[0].level, 2, 'сейв: level 2');
   assert.equal(saved.data.companions[0].xp, 0, 'сейв: остаток xp 0');
-  assert.equal(saved.data.efir.level, 3, 'сейв: Эфир level 3');
+  assert.equal(saved.data.efir.level, 2, 'сейв: Эфир level 2');
+  assert.equal(saved.data.efir.xp, 50, 'сейв: Эфир xp 50 (ровно 1×)');
 });
 
 // V5: гибель —merc ПРИБЫЛ в бою (мутация юнита: любой исход — здесь
