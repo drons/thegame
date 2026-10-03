@@ -385,19 +385,51 @@
     return changed;
   }
 
-  // --- Сериализация состояния (задача 000085) ---
-  // Контракт: memory/000085-save-party-efir.md (D1/D4/D5). Форма сейва
-  // = 5 полей состояния (000111: state = форма сейва). Функции ЧИСТЫЕ
-  // и тихие (0 console, 0 require, 0 обращений к Game — чистый UMD
-  // сохранён); warn печатает main.js. DESERIALIZE НЕ зовёт
-  // reprocessEfirSkills и НЕ валидирует id скилов/заклинаний —
-  // обязанность 000115 (её ТЗ п.3/п.4); spells «из уровня» НЕ выводим
-  // (дефолт — EFIR_SPELL_START, правило 000115).
+  // --- Сериализация состояния (задача 000085; расширение 000115) ---
+  // Контракт: memory/000085-save-party-efir.md (D1/D4/D5) +
+  // memory/000115-efir-save-final.md (D2/D3/D5). Форма сейва = 5 полей
+  // состояния (000111: state = форма сейва). Функции ЧИСТЫЕ и тихие
+  // (0 console, 0 require, 0 обращений к Game — чистый UMD сохранён);
+  // warn печатает main.js. 000115: DESERIALIZE валидирует id
+  // скилов/заклинаний по КАТАЛОГАМ-ПАРАМЕТРАМ (чужой id → null на весь
+  // раздел; каталог-параметр — UMD-чистота, 0 require) и ОБЯЗАТЕЛЬНО
+  // зовёт reprocessEfirSkills до return (канон 000111 §9: выход
+  // ПЛОТНЫЙ — все 4 id пула материализованы). spells «из уровня» НЕ
+  // выводим (дефолт — EFIR_SPELL_START, правило 000115).
 
   // plain-object (null/массивы/примитивы — нет).
   function isPlainObject(v) {
     return v !== null && typeof v === 'object' && !Array.isArray(v);
   }
+
+  /**
+   * Набор id каталога (000115 D2): массив записей каталога (объекты со
+   * строковым .id) → Set<string>. null / не-массив / пустой / без
+   * валидных id → null (каталог недоступен → id-валидация ВЫКЛ —
+   * безопасное направление: unknown-id остаётся инертен, поведение
+   * 000085; serde-функции тихие — warn печатает main.js).
+   * @param {*} catalog массив записей каталога (mirror assets).
+   * @returns {Set<string>|null} id-набор; null — каталог недоступен.
+   */
+  function catalogIds(catalog) {
+    if (!Array.isArray(catalog) || catalog.length === 0) return null;
+    const ids = new Set();
+    for (const e of catalog) {
+      if (e && typeof e === 'object' && typeof e.id === 'string') {
+        ids.add(e.id);
+      }
+    }
+    return ids.size > 0 ? ids : null;
+  }
+
+  // 000115 D5: save-integrity-граница уровня (НЕ игровой кэп — L999
+  // по-прежнему проходит). after 000115 reprocess зовётся ИЗ
+  // deserialize — forged level ~1e15 + bank → while-цикл reprocess
+  // ограничен cap ≈ 2·attr(level) → ~1e15 итераций (вкладка замерзает);
+  // до 000115 путь из сейва недостижим. Реальный сейв недостижим
+  // (xp до L1e6 ≈ 3.3e16, ~1e14 боёв); reprocess при 1e6 — миллисекунды.
+  // Прецедент MAX_SAVED_DAY (main.js): «защита от подделанного сейва».
+  const EFIR_SAVE_MAX_LEVEL = 1e6;
 
   /**
    * Снапшот состояния Эфира для сейва (data.efir): ЧИСТАЯ копия ровно
@@ -423,23 +455,39 @@
   }
 
   /**
-   * Восстановление состояния Эфира из сейва (data.efir) — СТРОГО
-   * структурно (D5): ЛЮБОЙ дефект → null (main.js: warn + тихий сброс
-   * на createEfir() — L1; efir не мутировался между createEfir() на
-   * старте сессии и restore, переназначать не нужно).
+   * Восстановление состояния Эфира из сейва (data.efir) — структурно
+   * (000085 D5) + id-валидация по каталогам (000115 D2) + ОБЯЗАТЕЛЬНЫЙ
+   * reprocessEfirSkills до return (000115 D3, канон 000111 §9). ЛЮБОЙ
+   * дефект → null (main.js: warn + тихий сброс на createEfir() — L1;
+   * efir не мутировался между createEfir() на старте сессии и
+   * restore, переназначать не нужно).
    * @param {*} raw data.efir из сейва.
-   * @returns {object|null} НОВОЕ состояние ровно 5 полей; null —
+   * @param {Array} [skillCatalog] записи каталога assets/skills (mirror
+   *   EFIR_SKILL_CATALOG, main.js); null/нет → id-валидация ВЫКЛ
+   *   (структурный режим — совместимость 000085: 1-арг. вызовы
+   *   существующих тестов легальны, unknown-id инертен).
+   * @param {Array} [spellCatalog] записи каталога assets/spells (mirror
+   *   EFIR_SPELL_CATALOG, main.js); null/нет → ВЫКЛ.
+   * @returns {object|null} НОВОЕ состояние ровно 5 полей — ВЫХОД
+   *   ПЛОТНЫЙ (reprocess: ВСЕ 4 id пула материализованы в skillXp/
+   *   skills; level/xp/spells — as-is, идемпотентно); null —
    *   * raw == null (старый сейв, поля нет — main.js гвардит и НЕ
    *     трогает efir: L1, ЗАФИКСИРОВАНО ТЗ, warn НЕТ);
    *   * не plain-object (строка/число/массив/null);
    *   * level — не int ≥ 1 (forged 999.5 НЕ floor'ится, прецедент
    *     sanitizeSavedHero.level);
+   *   * level > EFIR_SAVE_MAX_LEVEL (000115 D5: save-integrity-
+   *     граница — защита от зависания reprocess поддельным уровнем;
+   *     реальный сейв недостижим, прецедент MAX_SAVED_DAY);
    *   * xp — не finite ≥ 0 (дроби как есть — прецедент hero.xp);
    *   * skillXp — есть, но не plain-object c ВСЕМИ значениями
    *     finite ≥ 0 (дроби ЛЕГИТИМНЫ — практика 000117);
    *   * skills — есть, но не plain-object c ВСЕМИ значениями
    *     int ≥ 0 (форма 000111 §2: целые; forged 2.5 — дефект формы,
    *     не floor);
+   *   * (000115 D2, при переданном каталоге) ЛЮБОЙ ключ skillXp или
+   *     skills ∉ каталога скилов, ИЛИ элемент spells ∉ каталога
+   *     заклинаний → null на ВЕСЬ раздел (сброс ЗАПИСИ, 000029);
    *   * spells — не массив строк (элемент не-строка → null; дубли —
    *     первый остаётся). Отсутствует ИЛИ ПУСТОЙ → EFIR_SPELL_START
    *     (старт [spark, mend] — НЕ выводить из уровня, 000115:
@@ -447,9 +495,10 @@
    *   skillXp/skills отсутствуют → {} (3-полевая legacy-форма до
    *   000111 → 5 полей, 000111 §9).
    */
-  function deserializeEfir(raw) {
+  function deserializeEfir(raw, skillCatalog, spellCatalog) {
     if (raw == null || !isPlainObject(raw)) return null;
     if (!Number.isInteger(raw.level) || raw.level < 1) return null;
+    if (raw.level > EFIR_SAVE_MAX_LEVEL) return null; // D5: guard
     if (typeof raw.xp !== 'number' || !Number.isFinite(raw.xp) ||
         raw.xp < 0) {
       return null;
@@ -485,7 +534,32 @@
     } else {
       return null;
     }
-    return { level: raw.level, xp: raw.xp, skillXp, skills, spells };
+    // 000115 D2: id-валидация по каталогам-параметрам. Каталог
+    // null/мусор → catalogIds null → ВЫКЛ (безопасное направление:
+    // unknown-id инертен, поведение 000085; тихая — warn печатает
+    // main.js при null на раздел).
+    const skillIds = catalogIds(skillCatalog);
+    if (skillIds) {
+      for (const k of Object.keys(skillXp)) {
+        if (!skillIds.has(k)) return null; // сброс ЗАПИСИ (000029)
+      }
+      for (const k of Object.keys(skills)) {
+        if (!skillIds.has(k)) return null;
+      }
+    }
+    const spellIds = catalogIds(spellCatalog);
+    if (spellIds) {
+      for (const s of spells) {
+        if (!spellIds.has(s)) return null;
+      }
+    }
+    // 000115 D3: ОБЯЗАТЕЛЬНЫЙ переучёт (канон 000111 §9): банк-дроби →
+    // уровни в requires-порядке, cap, overflow; материализация ВСЕХ 4
+    // id пула (выход ПЛОТНЫЙ); level/xp/spells — не трогает;
+    // идемпотентен (неподвижная точка на канонической форме).
+    const state = { level: raw.level, xp: raw.xp, skillXp, skills, spells };
+    reprocessEfirSkills(state);
+    return state;
   }
 
   return {
