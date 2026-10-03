@@ -36,7 +36,8 @@
 //     map_index|null, buildingWealth} (КЛЕТКА ГОРОДА, не deps.player —
 //     D4), shop: {npc, stock: ds.cityShops['tx,ty'].stock} (city-ветка
 //     shopFor — fake npcShopFor НЕ вызывается), onChange: saveNow,
-//     day: clock.day}.
+//     day: clock.day}. Сравнение ПОЛЕ-В-ПОЛЕ (payload расширяет
+//     000083: roster/deadMercs — пин тестов 000083).
 //   * CI-U2 — клетка без постройки → ничего (ни buildingUI, ни npcUI).
 //   * CI-U3 — ds.cityContents: null (генерация не сработала) → ничего.
 //   * CI-U4 — стек (паритет с миром): buildingUI.isActive → [E]
@@ -54,6 +55,9 @@
 //   * CI-U9 — [ЗЕЛЁНЫЙ ПИН] toggle() при активном dungeonUI → return
 //     (гард building-actions.js L469 сохранён — 000128; в городе
 //     toggle — МЁРТВЫЙ путь, [E] ведёт через interactCity).
+//   * CI-U10 — деградация: Game.buildingUI отсутствует → no-op +
+//     console.error «обход запрещён», прямого npcUI.open НЕТ (ТЗ §2 —
+//     намеренная асимметрия с деградацией toggle()).
 //   * CI-V1 — [E] на клетке с постройкой в ГОРОДЕ (full-chain) →
 //     buildingUI активен (NPC/запись из каталога, строка «Диалог»);
 //     npcUI напрямую НЕ открывается; dungeonUI остаётся активен.
@@ -221,6 +225,7 @@ function makeDeps(over = {}) {
     getMap: () => ((x, y) => ({ x, y, passable: true, hasBuilding: false })),
     mover: null,
   };
+  if (over.noBuildingUI) delete deps.game.buildingUI;
   return { deps, o, ds, npcShopForCalls, hero, book, saveNow };
 }
 
@@ -246,15 +251,23 @@ test('CI-U1. [E] на клетке с постройкой → buildingUI.open �
   // «Диалог» → onBuildingAction (fallback) → openNpcDialog (D4).
   p.onAction({ id: 'dialog' });
   assert.equal(o.calls.npcOpen.length, 1, '«Диалог» → npcUI.open');
-  assert.deepEqual(o.calls.npcOpen[0], {
-    npc: NPC_WREN,
-    character: hero,
-    book,
-    tile: { x: 2, y: 3, building: 0, buildingWealth: 1 },
-    shop: { npc: NPC_WREN, stock: STOCK_W },
-    onChange: saveNow,
-    day: 5,
-  }, 'payload npcUI: tile — КЛЕТКА ГОРОДА (2,3), shop — городской сток');
+  // ПОЛЕ-В-ПОЛЕ (не deepEqual всего payload): контракт 000107 — 7
+  // полей ТЗ (npc, character, book, tile, shop, onChange, day). На
+  // master 000083 расширяет тот же payload ключами roster/deadMercs
+  // (их пин — тесты 000083, не 000107): full-deepEqual ломал бы
+  // ребейз/мерж. Поле-в-поле — зелёно и на базе ветки, и после
+  // ребейза на master.
+  const n = o.calls.npcOpen[0];
+  assert.equal(n.npc, NPC_WREN, 'npc — NPC постройки (Бренн)');
+  assert.equal(n.character, hero, 'character — герой');
+  assert.equal(n.book, book, 'book — questBook');
+  assert.deepEqual(n.tile,
+    { x: 2, y: 3, building: 0, buildingWealth: 1 },
+    'tile — КЛЕТКА ГОРОДА (2,3), не deps.player (D4)');
+  assert.deepEqual(n.shop, { npc: NPC_WREN, stock: STOCK_W },
+    'shop — городской сток (cityShops по (город, клетка), 000108)');
+  assert.equal(n.onChange, saveNow, 'onChange — saveNow');
+  assert.equal(n.day, 5, 'day — clock.day');
   assert.equal(npcShopForCalls.length, 0,
     'city-ветка shopFor — мирный npcShopFor НЕ вызывается');
 });
@@ -357,6 +370,23 @@ test('CI-U9. [зелёный пин] toggle() при активном dungeonUI 
     'toggle в городе/подземелье — buildingUI не открывает');
   assert.equal(o.calls.npcOpen.length, 0, 'npcUI — тоже');
   assert.equal(o.calls.buildingClose + o.calls.npcClose, 0, 'ничего не закрыто');
+});
+
+test('CI-U10. деградация: Game.buildingUI отсутствует → no-op + console.error «обход запрещён», не падает (ТЗ §2)', () => {
+  const { BA, o } = initCity({ noBuildingUI: true });
+  const errs = [];
+  const orig = console.error;
+  console.error = (...a) => { errs.push(a.join(' ')); };
+  try {
+    BA.interactCity();
+  } finally {
+    console.error = orig;
+  }
+  assert.equal(o.calls.buildingOpen.length, 0, 'buildingUI.open — не вызван');
+  assert.equal(o.calls.npcOpen.length, 0,
+    'npcUI.open — не вызван (прямой обход НЕ строится — асимметрия с toggle())');
+  assert.ok(errs.some((m) => m.includes('обход запрещён')),
+    'console.error «обход запрещён»: ' + JSON.stringify(errs));
 });
 
 // ============================================================
