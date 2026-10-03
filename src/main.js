@@ -307,6 +307,13 @@
       'src/companions.js обязан грузиться ДО src/main.js (000079) — ' +
       'найм/увольнение отключены');
   }
+  // Задача 000093: смотровая башня — «исследованные» окрестности:
+  // 'x,y' башни → Set<'x,y'> тайлов окна Чебышёва (граница
+  // включительно) — раздел сейва `explored` (имя зафиксировано
+  // 000072; данные — memory/000093-explored.md). Идемпотентно
+  // (объединение множеств); лимита раз-в-день НЕТ (взгляд бесплатен,
+  // ТЗ). МИНИКАРТА — отсрочена (данные — заготовка).
+  const explored = new Map();
   // Задача 000076: модификаторы активных благословений на текущий
   // день (day.js buffMods, 000072) — для точек создания боя:
   // благословение действует во ВСЕХ боях дня (мир/подземелье/
@@ -385,6 +392,12 @@
       buildingQuests: (G.buildingEffects &&
         G.buildingEffects.serializeBuildingQuests)
         ? G.buildingEffects.serializeBuildingQuests(buildingQuests) : {},
+      // Задача 000093: смотровая башня — исследованные окрестности
+      // ('x,y' башни → каноническая строка окна). Пишется ВСЕГДА
+      // (даже {}) — неломкое расширение v1 (000031): версию НЕ
+      // поднимаем, миграций нет.
+      explored: (G.buildingEffects && G.buildingEffects.serializeExplored)
+        ? G.buildingEffects.serializeExplored(explored) : {},
     };
   }
 
@@ -613,6 +626,33 @@
       console.warn('Сейв: не удалось восстановить buildingQuests:', err);
     }
 
+    // --- Исследованные окрестности (explored) (задача 000093) ---
+    // 'x,y' башни → 'x,y;x,y;…' (окно Чебышёва; данные —
+    // memory/000093-explored.md). restoreExplored ТИХИЙ (без
+    // console) — warn живёт здесь (1:1 шаблон teleports, 000072):
+    // битый раздел — fail-open сброс, игра не роняется (000029).
+    // Старому сейву раздела нет — пустой Map → записан обратно {}.
+    try {
+      const rawE = d.explored;
+      if (rawE != null) {
+        if (typeof rawE !== 'object' || Array.isArray(rawE)) {
+          console.warn('Сейв: раздел explored некорректен — сбрасываю.');
+          explored.clear();
+        } else if (G.buildingEffects &&
+                   G.buildingEffects.restoreExplored) {
+          const mE = G.buildingEffects.restoreExplored(rawE);
+          explored.clear();
+          for (const [k, v] of mE) explored.set(k, v);
+          if (mE.size === 0 && Object.keys(rawE).length > 0) {
+            console.warn(
+              'Сейв: explored — валидных записей нет — сбрасываю.');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить explored:', err);
+    }
+
     // --- Позиция ---
     try {
       const p = d.position;
@@ -804,6 +844,7 @@
       buildingQuests, // live Map 'x,y' → { questId, day, status } (000074)
       roster, // live Array (000083/000085): отряд — npcUI.open
       deadMercs, // live Array [npcId] (000083/000085)
+      explored, // live Map 'x,y' → Set<'x,y'> (000093)
       playerRender,
       moveHero,
       startCombat: startCombatAt,
@@ -1454,6 +1495,11 @@
   // получает значения в ctx. tileAt — ОДИН раз на кадр (здесь).
   function renderHud() {
     if (!G.hud) return; // тихий per-frame гард (ошибка уже видна при загрузке)
+    // Задача 000093: «исследовано N тайлов» — СУММА Set.size по живой
+    // Map explored (O(башен), БЕЗ сериализации в кадре); строку
+    // строит hud.js (только при N>0).
+    let exploredCount = 0;
+    for (const s of explored.values()) exploredCount += s.size;
     G.hud.update({
       hudEl: hud, game: G,
       tile: map.tileAt(player.x, player.y),
@@ -1461,6 +1507,7 @@
       day: clock.day, zoom, spriteLoader,
       dungeonState, defeatedAt, npcs: NPCS,
       flash: hudFlash, flashUntil: hudFlashUntil,
+      exploredCount,
     });
   }
 

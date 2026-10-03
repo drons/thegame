@@ -225,6 +225,20 @@
         deps.buffs.length = 0;
         for (const b of r.buffs) deps.buffs.push(b);
       }
+      // Задача 000093: r.explored — ОБЩИЙ ханк (паттерн r.buffs,
+      // 000076): ЦЕЛОЕ новое значение раздела (plain object,
+      // каноническая форма) заменяет живую Map explored ДО saveNow.
+      // Гарды: deps.explored — живой Map из бандла main.js (контракт
+      // явного бандла 000128 §2.2; защищает фейковые deps тестов);
+      // typeof BE.restoreExplored — деградированный модуль (в ветке
+      // apply BE реален — запись взята из BE.EFFECTS).
+      if (r.explored && typeof r.explored === 'object' &&
+          !Array.isArray(r.explored) && deps.explored &&
+          typeof BE.restoreExplored === 'function') {
+        const m = BE.restoreExplored(r.explored);
+        deps.explored.clear();
+        for (const [k, v] of m) deps.explored.set(k, v);
+      }
       // Задача 000074: р.xp — ОБЩИЙ ханк (amount — ГОТОВАЯ формула,
       // БЕЗ xpMult: grantXpRaw, решение D-XP). Ролл-эффекты (камень)
       // при провале НЕ возвращают r.xp — опыт не начисляется.
