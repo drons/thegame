@@ -2084,9 +2084,11 @@ test('000130 GREEN: ui.js — ленивые typeof-гарды на Game.buildAc
 // META/DEFAULTS/clampValue).
 //
 // Форма (build — ОДИН раз в buildPanel, render() её НЕ трогает):
-// 15 ключей SETTINGS = 28 контролов (27 input[type=number] + 1 select)
-// + 33 кнопки (15 toповых сбросов + 17 leaf-сбросов + 1 «Сбросить всё»)
-// + 32 строки .cp-setrow (28 контрольных + 4 шапки .cp-sethead:
+// 16 ключей SETTINGS (ре-пин 000109: +city_respawn_days) = 29
+// контролов (28 input[type=number] + 1 select)
+// + 34 кнопки (16 toповых сбросов + 17 leaf-сбросов + 1
+// «Сбросить всё»)
+// + 33 строки .cp-setrow (29 контрольных + 4 шапки .cp-sethead:
 // «Сложности боя» [group] / «Городской канал» / «Лояльность
 // спутников» / «Отказ спутников»). У ВСЕХ контролов и кнопок
 // dataset.key = dot-path. Классы ТОЛЬКО .cp-set* (ловушка .cp-btn:
@@ -2094,9 +2096,9 @@ test('000130 GREEN: ui.js — ленивые typeof-гарды на Game.buildAc
 //
 // RED (placeholder 000130 — 2 div, контролов/слушателей нет; зелёные
 // после реализации):
-//   * U1: форма строится ОДИН раз: 28 контролов с dataset.key,
+//   * U1: форма строится ОДИН раз: 29 контролов с dataset.key,
 //     значения = SETTINGS; введённый вручную value и узлы переживают
-//     render(); ОДИН делегированный click на панели; 33 кнопки;
+//     render(); ОДИН делегированный click на панели; 34 кнопки;
 //   * U2: change → SETTINGS обновлён (кламп); мусор — НЕ принят +
 //     заметка в ядровой .cp-notice; ссылка SETTINGS не меняется;
 //   * U3: «сбросить всё» → inputs = DEFAULTS; SETTINGS = DEFAULTS;
@@ -2188,7 +2190,7 @@ function dispatchChange(pane, el) {
   ch[0]({ target: el });
 }
 
-test('000098 RED: U1 — форма строится ОДИН раз (buildPanel): 28 контролов = SETTINGS; введённый value и узлы переживают render(); один панельный click; 33 кнопки', () => {
+test('000098 RED: U1 — форма строится ОДИН раз (buildPanel): 29 контролов = SETTINGS (ре-пин 000109: +city_respawn_days); введённый value и узлы переживают render(); один панельный click; 34 кнопки', () => {
   const env = loadSettingsUi();
   assert.equal(env.errors.length, 0,
     'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
@@ -2200,8 +2202,9 @@ test('000098 RED: U1 — форма строится ОДИН раз (buildPanel
   const selects = findAll(pane, 'select');
   assert.equal(selects.length, 1,
     'ровно 1 select (combat_difficulty) в pane: ' + selects.length);
-  assert.equal(inputs.length, 27,
-    '27 input[type=number] (10 плоских + 17 листьев): ' + inputs.length);
+  assert.equal(inputs.length, 28,
+    '28 input[type=number] (11 плоских + 17 листьев; ре-пин 000109): '
+    + inputs.length);
   // У ВСЕХ контролов dataset.key = dot-path и value = SETTINGS[path].
   for (const el of inputs.concat(selects)) {
     assert.ok(el.dataset && typeof el.dataset.key === 'string' &&
@@ -2210,10 +2213,11 @@ test('000098 RED: U1 — форма строится ОДИН раз (buildPanel
     assert.equal(el.value, String(getByPath(S, el.dataset.key)),
       'value ' + el.dataset.key + ' = SETTINGS на сборке');
   }
-  // Кнопки: 33 = 15 toповых «сброс» + 17 leaf-«сброс» + 1 «Сбросить всё».
+  // Кнопки: 34 = 16 toповых «сброс» + 17 leaf-«сброс» + 1
+  // «Сбросить всё» (ре-пин 000109: +city_respawn_days).
   const btns = findAll(pane, 'button');
-  assert.equal(btns.length, 33,
-    '33 кнопки (15 toповых + 17 leaf + «Сбросить всё»): ' + btns.length);
+  assert.equal(btns.length, 34,
+    '34 кнопки (16 toповых + 17 leaf + «Сбросить всё»): ' + btns.length);
   assert.ok(btns.some((b) => b.dataset && b.dataset.all === 'all'),
     'кнопка «Сбросить всё» (dataset.all)');
   // Форма НЕ пересобирается render(): тот же узел, введённый вручную

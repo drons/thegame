@@ -66,7 +66,7 @@ memory/000109-city-save.md.
     000031: restore сам отбрасывает «будущее» и «истёкшее»).
   * `day`/`respawnDays` — ПАРАМЕТРАМИ (конвенция 000072:
     restoreBuffs(saved, day)), дефолтов НЕТ (не дрейфуют от
-    настроек); main.js всегда передаёт clock.day / CITY_RESPAWN_DAYS.
+    настроек); main.js всегда передаёт clock.day / cityRespawnDays().
 
 ## Контракты и границы
 
@@ -108,7 +108,7 @@ memory/000109-city-save.md.
   НЕ бросают на мусоре — try/catch сам по себе warn не даёт,
   прецедент 000072.)
 * **collectSaveData**: `cities: G.Cities.serializeCityStates ?
-  …(cityStates, clock.day, CITY_RESPAWN_DAYS) : {}` — пишется
+  …(cityStates, clock.day, cityRespawnDays()) : {}` — пишется
   ВСЕГДА (пустой — `{}`), версия НЕ поднимается.
 * **`__game.cities` getter** (main.js, рядом с `get npcStocks()`):
   поверхностная копия записей — значения LIVE-объекты. Контракт
@@ -149,10 +149,12 @@ src/cities.js, решать в задаче)». Решение: **stock-вали
   функции чистые, items/buildings не нужны); браузерная ветка —
   как есть (ленивые itemsRef/buildingsRef в момент вызова
   makeCityShop; load-time гард — только perlin).
-* main.js: `CITY_RESPAWN_DAYS` — из `G.GlobalSettings.SETTINGS`
-  при загрузке (паттерн MOVE_INTERVAL_MS, main.js:58-62; guard:
-  global-settings.js не загрузился — дефолт 3, недостижимо в
-  браузере — index-order). Все `G.Cities.*`/`G.getBuilding` —
+* main.js: `cityRespawnDays()` — ЖИВОЕ чтение
+  `G.GlobalSettings.SETTINGS.city_respawn_days` в момент ВЫЗОВА
+  (000099 live-паттерн: снапшот при загрузке УБРАН — настройка из
+  вкладки действует без перезагрузки); guard: global-settings.js
+  не загрузился / значение некорректно — 3 (недостижимо в браузере
+  — index-order). Все `G.Cities.*`/`G.getBuilding` —
   гарды в момент вызова (prepareCityState: нет API →
   console.error + деградация, город остаётся пустым как до
   000109, игра не падает — паттерн 000053/000071).

@@ -31,11 +31,15 @@ test('модуль: CommonJS-экспорт { SETTINGS } — все настра
   // спутников (max_companions, companion_loyalty, companion_refusal).
   // Ре-пин 000082: добавился companion_xp_share (доля боевого опыта
   // выживших спутников, SPEC «Спутники» → «Опыт и уровни»).
+  // Ре-пин 000109: добавился city_respawn_days (дней до
+  // ПЕРЕГЕНЕРАЦИИ стока лавок города при входе, SPEC «Города и
+  // деревни» → «Состояние, сейв, респаун»).
   // Точка конфликта с параллельным 000050 (combat_obstacle_*): при
   // ребейзе — union обоих наборов.
   assert.deepEqual(Object.keys(SETTINGS).sort(), [
-    'city_channel', 'combat_difficulties', 'combat_difficulty',
-    'combat_obstacle_max_frac', 'combat_obstacle_min_frac',
+    'city_channel', 'city_respawn_days', 'combat_difficulties',
+    'combat_difficulty', 'combat_obstacle_max_frac',
+    'combat_obstacle_min_frac',
     'companion_loyalty', 'companion_refusal', 'companion_xp_share',
     'dungeon_memory_days',
     'level_delta_max', 'max_companions', 'move_interval_ms',

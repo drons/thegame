@@ -463,6 +463,122 @@ function (perlin, items, buildings, rootRef) {
       wealth: shop.wealth, stock: shop.stock, seed: shop.seed };
   }
 
+  // ============================================================
+  // Состояние города для сейва (задача 000109) — ЧИСТЫЕ функции
+  // ============================================================
+  //
+  // Раздел сейва `cities` (имя зафиксировано 000072; формат —
+  // контракт 000108, НЕ переименовывать):
+  //   { 'cx,cy': { lastVisitDay: N, stock: { 'tx,ty': {itemId: qty} } } }
+  // где 'cx,cy' — ЯКОРЬ города (buildingAnchor, НЕ тайл входа),
+  // 'tx,ty' — локальная клетка лавки (x/y shop-объекта
+  // makeCityShop), дни АБСОЛЮТНЫЕ (000031: fastForward при
+  // восстановлении НЕ оповещает слушателей — restore обрезает сам).
+  // Мир БЕСКОНЕЧЕН: ОБРЕЗКА просроченных (сток всё равно
+  // перегенерируется при входе) и «будущих» (подделка) записей
+  // обязательна И при сейве, И при восстановлении — без неё раздел
+  // раздует localStorage до квоты (save() → false). day/respawnDays
+  // — ПАРАМЕТРАМИ (конвенция 000072 restoreBuffs — дефолтов нет,
+  // не дрейфуют от настроек). Функции — в доменном модуле (прецедент
+  // 000072: npc.js/building-effects.js), НЕ в day.js (require-пин
+  // tests/cities.test.js: perlin/items/buildings — не расширяется).
+
+  // Ключи города/клетки — целые координаты (отрицательные возможны),
+  // тот же формат, что у day.js COORD_RE: 'x,y'.
+  const CITY_KEY_RE = /^-?\d+,-?\d+$/;
+
+  /**
+   * Валидация стока города: ЧИСТАЯ копия { 'tx,ty': {itemId: qty} }.
+   * Ключ 'tx,ty' — целые координаты (ре CITY_KEY_RE); qty — целое
+   * ≥ 0 (0 ЛЕГИТИМНО: buyItem доводит сток до 0, items.js);
+   * мусорные записи — тихий отброс (000029); не-объект/массив → {};
+   * вход не мутируется (новые объекты).
+   * @returns {object}
+   */
+  function validateCityStock(stock) {
+    const out = {};
+    if (!stock || typeof stock !== 'object' || Array.isArray(stock))
+      return out;
+    for (const [k, items] of Object.entries(stock)) {
+      if (typeof k !== 'string' || !CITY_KEY_RE.test(k)) continue;
+      if (!items || typeof items !== 'object' || Array.isArray(items))
+        continue;
+      const cleaned = {};
+      for (const [id, qty] of Object.entries(items)) {
+        if (Number.isInteger(qty) && qty >= 0) cleaned[id] = qty;
+      }
+      // Клетка без валидных предметов — мусор (живой сток makeShop
+      // всегда непуст).
+      if (Object.keys(cleaned).length) out[k] = cleaned;
+    }
+    return out;
+  }
+
+  // Запись раздела: { lastVisitDay: int ≥ 1, stock: plain-объект } в
+  // окне респауна: lastVisitDay ≤ day И day − lastVisitDay <
+  // respawnDays («будущее»/истёкшее — отброс, формула — dueForRespawn
+  // day.js:96). Чистая копия; null — запись отбрасывается.
+  function validateCityState(rec, day, respawnDays) {
+    if (!rec || typeof rec !== 'object' || Array.isArray(rec)) return null;
+    const last = rec.lastVisitDay;
+    if (!Number.isInteger(last) || last < 1) return null;
+    if (last > day || day - last >= respawnDays) return null;
+    if (rec.stock === null || typeof rec.stock !== 'object' ||
+        Array.isArray(rec.stock)) return null;
+    return { lastVisitDay: last, stock: validateCityStock(rec.stock) };
+  }
+
+  /**
+   * Живое состояние (Map) или plain-объект → JSON-объект раздела
+   * (копии; НЕ мутирует вход). Принимает Map (main.js) и
+   * plain-объект (roundtrip-тесты); не-объект/массив → {}.
+   * ОБРЕЗКА: истёкшие (day − lastVisitDay >= respawnDays) и
+   * «будущие» (lastVisitDay > day) — отброс; невалидные записи —
+   * тихий отброс (000029).
+   * @param {Map|object} cityStates
+   * @param {number} day текущий день мира
+   * @param {number} respawnDays city_respawn_days
+   * @returns {object}
+   */
+  function serializeCityStates(cityStates, day, respawnDays) {
+    const out = {};
+    if (!cityStates || typeof cityStates !== 'object' ||
+        Array.isArray(cityStates)) return out;
+    const entries = (typeof cityStates.entries === 'function')
+      ? cityStates.entries()
+      : Object.entries(cityStates);
+    for (const [k, rec] of entries) {
+      if (typeof k !== 'string' || !CITY_KEY_RE.test(k)) continue;
+      const rec2 = validateCityState(rec, day, respawnDays);
+      if (rec2) out[k] = rec2;
+    }
+    return out;
+  }
+
+  /**
+   * JSON-объект раздела → Map (паттерн restoreDayMap/
+   * restoreTeleports/restoreBuildingQuests, 000072). Не-объект/
+   * массив → пустой Map (тихо, 000029); невалидные записи и ОБРЕЗКА
+   * — те же, что serialize: fastForward без слушателей (000031) —
+   * onDay-очистка не пройдёт, restore сам отбрасывает «будущее» и
+   * «истёкшее». Вход не мутируется (копии).
+   * @param {object} saved
+   * @param {number} day текущий день мира
+   * @param {number} respawnDays city_respawn_days
+   * @returns {Map<string, {lastVisitDay:number, stock:object}>}
+   */
+  function restoreCityStates(saved, day, respawnDays) {
+    const out = new Map();
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved))
+      return out;
+    for (const [k, rec] of Object.entries(saved)) {
+      if (typeof k !== 'string' || !CITY_KEY_RE.test(k)) continue;
+      const rec2 = validateCityState(rec, day, respawnDays);
+      if (rec2) out.set(k, rec2);
+    }
+    return out;
+  }
+
   return {
     CELL_WALL, CELL_FLOOR,
     CITY_LAYOUT_CONST,
@@ -472,5 +588,8 @@ function (perlin, items, buildings, rootRef) {
     generateCityContents,
     CITY_SHOP_CELL_BASE,
     makeCityShop,
+    validateCityStock,
+    serializeCityStates,
+    restoreCityStates,
   };
 });

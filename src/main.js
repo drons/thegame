@@ -59,6 +59,20 @@
   // значение — старое поведение, 140 мс (деградация, паттерн 000033 с
   // G.createMover; guard 000063 без изменений).
 
+  // Респаун города (задача 000109): дней до ПЕРЕГЕНЕРАЦИИ стока
+  // лавок при входе (SPEC «Города и деревни» → «Состояние, сейв,
+  // респаун» — «несколько игровых дней»). Глобальная настройка —
+  // 000099 live-паттерн: читается в момент ВЫЗОВА (единый источник,
+  // 000020); файла нет / значение некорректно — 3 (симметрия
+  // respawn_days / dungeon_memory_days).
+  function cityRespawnDays() {
+    const gs = G.GlobalSettings && G.GlobalSettings.SETTINGS;
+    return (gs && Number.isInteger(gs.city_respawn_days)
+      && gs.city_respawn_days >= 1)
+      ? gs.city_respawn_days
+      : 3;
+  }
+
   // Текущий интервал шага с учётом «Ловкого шага» (задача 000033;
   // SPEC: Ловкость → «Скорость перемещения по карте»): база — из
   // глобальных настроек (задача 000063), чем выше навык, тем короче
@@ -323,6 +337,15 @@
   // src/building-content.js (ЖИВАЯ ссылка через world); «раз в
   // день» — отдельно, buildingOncePerDay (backstop).
   const buildingContent = new Map();
+  // Состояние городов (задача 000109): 'cx,cy' (ЯКОРЬ города,
+  // buildingAnchor — НЕ тайл входа) → { lastVisitDay: int — АБСОЛЮТНЫЙ
+  // день (000031), stock: { 'tx,ty': {itemId: qty} } }. stock —
+  // LIVE-объекты (тот же объект, что у shop-объекта сессии; мутации
+  // 000107 попадают в сейв). Раздел сейва — `cities` (имя
+  // зафиксировано 000072, формат — контракт 000108). ds.contents у
+  // города — ВСЕГДА null (состояние НЕ там: ловушка dungeon-ui.js —
+  // memory/000109-city-save-respawn.md).
+  const cityStates = new Map();
   // Задача 000076: модификаторы активных благословений на текущий
   // день (day.js buffMods, 000072) — для точек создания боя:
   // благословение действует во ВСЕХ боях дня (мир/подземелье/
@@ -426,11 +449,31 @@
       efir: (G.efir && typeof G.efir.serializeEfir === 'function')
         ? G.efir.serializeEfir(efir) : null,
       dead_mercs: deadMercs.slice(),
+      // Задача 000109: состояние городов (сток лавок, день последнего
+      // визита). Пишется ВСЕГДА (пусто — {}); неломкое расширение v1
+      // (000031): версию НЕ поднимаем, миграций нет. ОБРЕЗКА истёкших
+      // записей — внутри serializeCityStates (мир БЕСКОНЕЧЕН — без
+      // неё раздел раздует localStorage до квоты).
+      cities: (G.Cities && G.Cities.serializeCityStates)
+        ? G.Cities.serializeCityStates(cityStates, clock.day,
+            cityRespawnDays())
+        : {},
     };
   }
 
+  // false-возврат save() (квота localStorage, save.js) — сообщение
+  // ОДИН раз за сессию (saveNow — на каждом мировом шаге: спам
+  // недопустим); падений/confirm НЕТ (confirm — только
+  // migration_failed/corrupt при загрузке).
+  let saveWarned = false;
   function saveNow() {
-    if (saveStorage && G.save) G.save(saveStorage, collectSaveData());
+    if (!saveStorage || !G.save) return;
+    if (G.save(saveStorage, collectSaveData()) === false
+        && !saveWarned) {
+      saveWarned = true;
+      console.warn('Сейв: квота localStorage исчерпана — сохранение ' +
+        'не записано (повторные предупреждения подавлены).');
+    }
   }
   window.addEventListener('beforeunload', saveNow);
 
@@ -807,6 +850,33 @@
       }
     } catch (err) {
       console.warn('Сейв: не удалось восстановить buildingContent:', err);
+    }
+
+    // --- Состояние городов (cities) (задача 000109) ---
+    // 'cx,cy' (якорь) → { lastVisitDay (абсолютный день), stock }.
+    // restoreCityStates сам отбрасывает невалидные записи (000029)
+    // и ОБРЕЗАЕТ истёкшие/«будущие» (fastForward без слушателей —
+    // 000031: onDay-очистка при восстановлении НЕ пройдёт, restore
+    // обрезает сам). Битый раздел — warn + сброс (паттерн
+    // 000072/teleports/buildingQuests); игру не роняем.
+    try {
+      const rawCities = d.cities;
+      if (rawCities != null) {
+        if (typeof rawCities !== 'object' || Array.isArray(rawCities)) {
+          console.warn('Сейв: раздел cities некорректен — сбрасываю.');
+          cityStates.clear();
+        } else if (G.Cities && G.Cities.restoreCityStates) {
+          const mC = G.Cities.restoreCityStates(rawCities, clock.day,
+            cityRespawnDays());
+          for (const [k, v] of mC) cityStates.set(k, v);
+          if (mC.size === 0 && Object.keys(rawCities).length > 0) {
+            console.warn(
+              'Сейв: cities — валидных записей нет — сбрасываю.');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить cities:', err);
     }
 
     // --- Позиция ---
@@ -1331,6 +1401,9 @@
     const ds = L.maybeEnterDungeon(ctx) || L.maybeEnterCity(ctx);
     if (ds) {
       dungeonState = ds;
+      // Задача 000109: вход в город — состояние (сток/lastVisitDay)
+      // до UI (контент перегенерация + сток из сейва при в-окне).
+      if (ds.kind === 'city') prepareCityState(ds);
       // Задача 000107: onInteract — ТОЛЬКО для города ([E] — путь
       // buildingUI); в подземелье undefined → ветка KeyE dungeon-ui
       // мёртвая (000121: [E] в подземелье — no-op).
@@ -1338,6 +1411,76 @@
         ds.kind === 'city' ? cityOnMove : dungeonOnMove,
         ds.kind === 'city' ? cityOnInteract : undefined);
     }
+  }
+
+  // Состояние города при входе (задача 000109): контент
+  // (buildings) ВСЕГДА перегенерируется (детерминирован — один
+  // якорь → один результат); сток — ветка: day − lastVisitDay >=
+  // cityRespawnDays() → ПЕРЕГЕНЕРАЦИЯ (fresh-сток makeCityShop, без
+  // соли по дню — детерминизм по (якорь, клетка)), иначе —
+  // ВОССТАНОВЛЕНИЕ из сейва (LIVE-ссылка на сохранённый сток);
+  // lastVisitDay = day при входе (визит = визит). Ключ — ЯКОРЬ
+  // (t.buildingAnchor входного тайла, тот же, что в maybeEnterCity),
+  // НЕ worldKey (тайл входа нестабилен у многотайловых городов).
+  // API нет — console.error + деградация (город пуст, как до 000109;
+  // игра не падает — паттерн 000053/000071).
+  function prepareCityState(ds) {
+    const C = G.Cities;
+    if (!C || typeof C.generateCityContents !== 'function' ||
+        typeof C.makeCityShop !== 'function') {
+      console.error('main.js: Game.Cities (src/cities.js) отсутствует ' +
+        '— состояние города не восстанавливается (000109)');
+      return;
+    }
+    // Входной тайл — ds.worldKey ('x,y'); якорь/богатство/id — поля
+    // тайла (те же, что читает maybeEnterCity).
+    const parts = String(ds.worldKey).split(',');
+    const ex = Number(parts[0]), ey = Number(parts[1]);
+    let t = null;
+    if (Number.isInteger(ex) && Number.isInteger(ey) && map) {
+      try { t = map.tileAt(ex, ey); } catch (err) { t = null; }
+    }
+    if (!t || !t.buildingAnchor || t.buildingId == null) {
+      console.error('main.js: входной тайл города — без buildingAnchor/' +
+        'buildingId — состояние не восстанавливается (000109)');
+      return;
+    }
+    const rec = G.getBuilding ? G.getBuilding(t.buildingId) : null;
+    if (!rec) {
+      console.error('main.js: каталожная запись города ' +
+        String(t.buildingId) + ' отсутствует (000109)');
+      return;
+    }
+    const [ax, ay] = t.buildingAnchor;
+    const anchorKey = ax + ',' + ay;
+    let contents = null;
+    try {
+      contents = C.generateCityContents(ds.dg, ax, ay, rec,
+        t.buildingWealth);
+    } catch (err) {
+      console.error('main.js: generateCityContents — ' + err +
+        ' (000109) — сток не восстанавливается');
+      return;
+    }
+    const saved = cityStates.get(anchorKey);
+    const fresh = !saved
+      || clock.day - saved.lastVisitDay >= cityRespawnDays();
+    const stock = {};
+    for (const b of contents.buildings) {
+      let shop = null;
+      try {
+        shop = C.makeCityShop(ax, ay, b.x, b.y, b.buildingId,
+          t.buildingWealth);
+      } catch (err) { shop = null; } // нет записи каталога — не лава
+      if (!shop) continue;
+      const cellKey = b.x + ',' + b.y;
+      if (!fresh && saved && saved.stock &&
+          Object.prototype.hasOwnProperty.call(saved.stock, cellKey)) {
+        shop.stock = saved.stock[cellKey]; // LIVE-ссылка
+      }
+      stock[cellKey] = shop.stock;
+    }
+    cityStates.set(anchorKey, { lastVisitDay: clock.day, stock });
   }
   function startLocationUI(onMove, onInteract) {
     G.dungeonUI.start({
@@ -1880,6 +2023,15 @@
     // Стоки торговцев NPC (задача 000029): npcId → { itemId: qty }.
     get npcStocks() {
       return Object.assign({}, npcStocks);
+    },
+    // Состояние городов (задача 000109): якорь 'cx,cy' →
+    // { lastVisitDay, stock }. Поверхностная копия записей —
+    // значения LIVE-объекты (контракт 000107: мутация стока
+    // попадает в cityStates → в сейв).
+    get cities() {
+      const out = {};
+      for (const [k, v] of cityStates) out[k] = v;
+      return out;
     },
     // Отладочные действия (смоук-тесты, ручная проверка баланса).
     // Текущий бой (для смоук-тестов и отладки).
