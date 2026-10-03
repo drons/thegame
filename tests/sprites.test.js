@@ -2069,3 +2069,52 @@ test('Эфир: выбор кадров детерминирован и не з�
   assert.deepEqual(again, snap,
     'повторный выбор другой после провала загрузки (кадр зависит от загрузки)');
 });
+
+// --- Задача 000114: защитные тесты (RED-фаза no-op) ---
+// 000034/000084 СМЕРЖЕНЫ в базу ветки (master 7ab2c03) и
+// предудовлетворили весь скоуп ТЗ 000114 — тесты фиксируют
+// СУЩЕСТВУЮЩЕЕ поведение (expectedRedCount = 0). Контракт —
+// memory/000114-efir-combat-render.md (§1/§2) и memory/
+// 000114-efir-sprite.md.
+
+test('Задача 000114: Эфир — кадры для каждого действия (каталог на месте); каталога нет — штатная деградация на границе лоадера, без ошибок', async () => {
+  // Каталог на месте: кадры для каждого действия — ровно 2 пути,
+  // файлы существуют на диске.
+  const snap = EFIR_ACTIONS.map((a) => S.efirFrames(a));
+  for (const a of EFIR_ACTIONS) {
+    assert.deepEqual(S.efirFrames(a), [
+      `assets/sprites/efir/${a}_1.svg`,
+      `assets/sprites/efir/${a}_2.svg`,
+    ], `кадры ${a}`);
+    for (const p of S.efirFrames(a)) {
+      assert.ok(exists(p), `нет файла: ${p}`);
+    }
+  }
+  // «Каталога нет» — симуляция на ГРАНИЦЕ лоадера: loadFn → null
+  // для префикса assets/sprites/efir/. Кадры не обязательны для
+  // загрузки (паттерн createSpriteLoader): «не загрузилось» —
+  // штатное состояние, исключений нет; мутации файловой системы
+  // в тестах НЕ ДЕЛАЕМ (таблица — статичный литерал).
+  const efirPaths = snap.flat();
+  assert.equal(efirPaths.length, 8, '8 кадров Эфира');
+  const loader = S.createSpriteLoader((p) => Promise.resolve(
+    p.startsWith('assets/sprites/efir/') ? null : {}));
+  for (const p of efirPaths) loader.queue(p);
+  await tick();
+  assert.equal(loader.readyCount(), 0,
+    'ни один кадр Эфира не «загрузился» (loadFn → null)');
+  for (const p of efirPaths) {
+    assert.equal(loader.image(p), null, `image(${p}) → null (фолбэк)`);
+  }
+  // Таблица статична: повторный выбор — тот же (не зависит от
+  // факта загрузки); неизвестное действие → [] без ошибок.
+  assert.deepEqual(EFIR_ACTIONS.map((a) => S.efirFrames(a)), snap,
+    'таблица кадров не изменилась после провала загрузки');
+  assert.deepEqual(S.efirFrames('нет-такого-действия'), [],
+    'неизвестное действие → [] без ошибок');
+  // Включённость в allAssetPaths(): не бросает, все 8 путей на месте.
+  const all = S.allAssetPaths();
+  for (const p of efirPaths) {
+    assert.ok(all.includes(p), `нет в allAssetPaths: ${p}`);
+  }
+});

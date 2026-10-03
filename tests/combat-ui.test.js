@@ -1739,3 +1739,59 @@ test('боевой UI: 000084 — клик по клетке союзника: �
   assert.equal(S.c.log.length, n0,
     'тихий отказ (000080): лог не вырос');
 });
+
+// --- Задача 000114: защитный тест (RED-фаза no-op) ---
+// 000034/000084 СМЕРЖЕНЫ в базу ветки (master 7ab2c03): союзник
+// kind 'efir' уже рисуется кадрами efirFrames + маркером «свой» —
+// тест фиксирует СУЩЕСТВУЮЩЕЕ поведение (expectedRedCount = 0).
+// Негативный пин scoped на КЛЕТКУ ЭФИРА: hero-ветка легитимно
+// запрашивает phlogiston-пути через ТОТ ЖЕ лоадер, но рисует в
+// (hx−27.6, …, 55.2×55.2) — пересечения с клеткой (px+8, …, 32×32)
+// нет. Контракт — memory/000114-efir-combat-render.md (§2/§5).
+
+test('боевой UI: 000114 — союзник kind «efir»: кадры efirFrames (а не кадрами героя) + маркер «свой»', () => {
+  const S = scene84({ efir: true,
+    loader: [['assets/sprites/efir/', { __fake: 'efir' }]] });
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  assert.ok(u, 'Эфир в бою (000081)');
+  S.c.targetId = null; // без подсветки цели (сигнатура 39×39)
+  const ex = u.x * 48, ey = u.y * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  // Спрайт на клетке Эфира — изображение с __path из каталога efir
+  // (лоадер-фак метит каждое изображение путём запрошенного пути).
+  const inCell = (c) => c[0] === 'drawImage'
+    && c[1][1] === ex + 8 && c[1][2] === ey + 8
+    && c[1][3] === 32 && c[1][4] === 32;
+  const di = t.calls.find((c) => inCell(c)
+    && c[1][0] && c[1][0].__path
+    && c[1][0].__path.startsWith('assets/sprites/efir/'));
+  assert.ok(di,
+    'спрайт Эфира на клетке: drawImage с путём assets/sprites/efir/…');
+  // Кадр = efirFrames('idle')[frameIndex(NOW84, u.x, u.y, 2)]
+  // (action v1 = 'idle'; c._unitFx в ally-ветке не читается).
+  const frame = S.G.efirFrames('idle')[S.G.frameIndex(NOW84, u.x, u.y, 2)];
+  assert.equal(di[1][0].__path, frame,
+    'кадр на клетке = efirFrames("idle")[frameIndex(NOW84, u.x, u.y, 2)]');
+  assert.ok(S.requested.includes(frame), 'кадр запрошен у лоадера');
+  // Негативный пин 000114: на клетке Эфира НЕТ drawImage с
+  // phlogiston-путём — кадры героя только в hero-ветке.
+  assert.ok(!t.calls.some((c) => inCell(c)
+    && c[1][0] && c[1][0].__path
+    && c[1][0].__path.startsWith('assets/sprites/phlogiston/')),
+    'на клетке Эфира нет кадров героя (assets/sprites/phlogiston/)');
+  // Маркер «свой» (паттерн 000084): подложка 44×44 + рамка 39×39.
+  assert.ok(t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложка «свой» 44×44 (px+2, py+2)');
+  assert.ok(t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамка «свой» 39×39 (px+4.5, py+4.5)');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'fillStyle'
+    && s[1] === 'rgba(140, 242, 252, 0.25)').length, 1,
+    'цвет подложки — ровно один раз');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 1,
+    'цвет рамки — ровно один раз');
+});
