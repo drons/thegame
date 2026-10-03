@@ -44,6 +44,7 @@ test('index.html: нужные модули подключены', () => {
     'src/building-ui.js',
     'src/building-actions.js',
     'src/building-content.js',
+    'src/building-effect-48.js',
     'src/hud.js',
     'src/motion.js',
     'src/main.js',
@@ -755,6 +756,30 @@ test('index.html: building-content.js подключён ПОСЛЕ building-act
     'src/building-content.js должен быть раньше src/main.js ' +
     '(UMD-ловушка 000038: main.js снимает Game один раз; init-бандл ' +
     'получает world.buildingContent, задача 000077)');
+});
+
+// --- Задача 000094: спец-модуль «Осмотр» (развалины, id 48) ---
+//
+// Саморегистрация в Game.buildingActions.specials в момент загрузки
+// (контракт 000128 §2.3): тег — в слоте спец-модулей ПОСЛЕ
+// building-actions.js (реестр specials обязан существовать),
+// ДО hud.js и ДО main.js (UMD-ловушка 000038: снапшот Game — если
+// тег УЙТИ в main.js, регистрация попадёт в НОВЫЙ объект Game и
+// лут/ловушка молча не сработают).
+
+test('index.html: building-effect-48.js подключён ПОСЛЕ building-actions.js и ДО hud.js и main.js (задача 000094)', () => {
+  assert.notEqual(pos('src/building-effect-48.js'), -1,
+    'src/building-effect-48.js не подключён в index.html (задача 000094)');
+  assert.ok(pos('src/building-actions.js') < pos('src/building-effect-48.js'),
+    'src/building-actions.js должен быть раньше src/building-effect-48.js ' +
+    '(саморегистрация требует Game.buildingActions, задача 000094)');
+  assert.ok(pos('src/building-effect-48.js') < pos('src/hud.js'),
+    'src/building-effect-48.js — слот спец-модулей: раньше src/hud.js ' +
+    '(задача 000094)');
+  assert.ok(pos('src/building-effect-48.js') < pos('src/main.js'),
+    'src/building-effect-48.js должен быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: main.js снимает Game один раз)');
+
 });
 
 // --- Задача 000130: вкладки панели — саморегистрирующиеся модули ---
