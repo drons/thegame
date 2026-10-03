@@ -3,7 +3,7 @@
 //
 // Рефакторинг БЕЗ смены поведения: домен «строки HUD» переезжает из
 // src/main.js (L1256–1358: hudUpdate) в чистый UMD-модуль; в main.js
-// остаётся тонкая проводка (обёртка renderHud с ctx-литералом 14 полей
+// остаётся тонкая проводка (обёртка renderHud с ctx-литералом 15 полей
 // + load-time гард) и СОСТОЯНИЕ flash hudFlash/hudFlashUntil (пишут
 // действия/бой — hud.js только отрисовывает). Вывод — побайтово.
 // Контракт зафиксирован в memory/000129-hud-module.md (для ~10
@@ -907,7 +907,7 @@ test('HU7. структурный: hudUpdate из main.js ушёл в src/hud.js
     'домен переехал в src/hud.js');
   // Тонкая проводка на месте.
   assert.ok(main.includes('function renderHud'),
-    'main.js: обёртка renderHud (контекст 14 полей)');
+    'main.js: обёртка renderHud (контекст 15 полей)');
   assert.ok(main.includes('G.hud.update('),
     'main.js: вызов G.hud.update(ctx) в проводке');
   // Load-time гард (D12): src/hud.js обязан грузиться ДО main.js

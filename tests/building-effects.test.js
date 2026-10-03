@@ -2187,6 +2187,28 @@ test('A63. apply(«46»): деградации — без эффекта/без 
     'радиус 1.5 → фолбэк R=20 (окно 41×41)');
 });
 
+test('A64. markExplored: towerKey/R — программные ошибки → THROW TypeError (тест-пин)', () => {
+  const BE = loadBE();
+  // towerKey — не строка по шаблону «x,y» (XY_KEY_RE):
+  assert.throws(
+    () => BE.markExplored(null, 'не-ключ', [], 5),
+    TypeError,
+    'towerKey вне шаблона «x,y» — throw (программная ошибка)');
+  assert.throws(
+    () => BE.markExplored(null, 42, [], 5),
+    TypeError,
+    'towerKey не строка — throw');
+  // R — не integer ≥ 0:
+  assert.throws(
+    () => BE.markExplored(null, '1,2', [], 1.5),
+    TypeError,
+    'R дробный — throw');
+  assert.throws(
+    () => BE.markExplored(null, '1,2', [], -1),
+    TypeError,
+    'R отрицательный — throw');
+});
+
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
 //
 // Паттерн tests/save-restore.test.js: DOM/WebGL-стабы + МОК
