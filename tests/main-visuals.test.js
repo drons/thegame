@@ -1412,3 +1412,401 @@ test('000110 MV-C2: деревня 2×2 и хутор 1×1 — footprint отр�
   assert.equal(fDraws.length, 1,
     'хутор — ровно 1 тайл: ОДИН draw 1z×1z от якоря (19,−12)');
 });
+
+// --- Задача 000112: Эфир в бою — полная цепочка в vm (W1 мир +
+// D1 подземелье; CB-8/CB-9) ---
+//
+// Контракт (memory/000112-efir-combat.md §6): оба входа в бой
+// покрыты vm — maybeStartCombat (мир: ходьба на тайл группы) и
+// startDungeonCombat (подземелье: блуждающая группа через
+// dungeonOnMove). В бою Эфир — 100% HP и своя мана u.mp =
+// efirStats.maxMP, c.efs {spellInt, spellWis, touch: 1, move: 3}
+// и явный u.maxHP = efirStats.maxHP (buildEfirUnit — 12-й экспорт
+// src/efir.js, вызов в combat-ui startCombat); гибель — новый
+// combatInternals.dealDamageToAlly; победа — 100% боевого xp в
+// Эфир (finish → addEfirXp, 000081) и закрытие панели Space.
+//
+// Корень RED: makeAlly (000080/000081) создаёт Эфира с hp = maxHP
+// (round((8+4·1)·0.7) = 8) БЕЗ своей маны u.mp (undefined) и без
+// явного maxHP/c.efs — первый падающий ассерт ТОЛЬКО на u.mp
+// (порядок пинов: u.hp === u.maxHP — 8===8, зелёный в red;
+// u.mp === stats.maxMP — undefined !== 11, RED; c.efs по-полю;
+// u.maxHP === stats.maxHP). Падение осмысленное (нет поля), не
+// синтаксическое.
+//
+// vm-реальм (000082): u/c.efs — объекты песочницы; пины —
+// примитивы, c.efs сравнивается по-полю (не deepEqual).
+//
+// Детерминизм сценария: фолбэчный мир (generateSeedPixels, фикс.
+// сид); содержимое подземелья — чистая функция (totalXp, сид
+// подземелья); позиции блуждания P_s — чистая функция номера шага
+// (wanderStep: rng от (step, seed), игнорирует игрока) →
+// time-expanded BFS воспроизводим.
+
+const DIRS112 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+// Пины Эфира в бою (vm: только примитивы, 000082). Уровень —
+// актуальный (g.state.efir.level): после побед Эфир мог вырасти
+// (addEfirXp — до onEnd), формулы пулов — зеркало buildEfirUnit.
+function assertEfirCombat(G, g, c, label) {
+  assert.ok(c, label + ': бой существует');
+  const u = c.units.find((x) => x.kind === 'efir');
+  assert.ok(u, label + ': Эфир в бою (main.js передаёт efir ВСЕГДА)');
+  assert.equal(u.alive, true, label + ': жив на старте');
+  assert.equal(u.hp, u.maxHP, label + ': полный HP на старте (100%)');
+  const stats = G.efir.efirStats(g.state.efir.level);
+  assert.equal(u.mp, stats.maxMP,
+    label + ': своя мана u.mp = maxMP (buildEfirUnit)');
+  assert.ok(c.efs,
+    label + ': c.efs — боевой профиль построен (buildEfirUnit)');
+  assert.equal(c.efs.spellInt,
+    1 + Math.floor(stats.intelligence / 10), label + ': пул spellInt');
+  assert.equal(c.efs.spellWis,
+    1 + Math.floor(stats.wisdom / 10), label + ': пул spellWis');
+  assert.equal(c.efs.touch, 1, label + ': пул touch');
+  assert.equal(c.efs.move, 3, label + ': пул move');
+  assert.equal(u.maxHP, stats.maxHP,
+    label + ': явный maxHP = efirStats (buildEfirUnit)');
+  return u;
+}
+
+// Гибель Эфира (новый combatInternals.dealDamageToAlly) + победа
+// (мобы 9999 через dealDamageToMob → checkVictory) + Space →
+// finish (100% xp в Эфир, onEnd, панель закрыта).
+function resolveCombatVictory(G, c, label) {
+  const u = c.units.find((x) => x.kind === 'efir');
+  assert.ok(u, label + ': Эфир в бою');
+  G.combatInternals.dealDamageToAlly(c, u, 9999);
+  assert.equal(u.alive, false, label + ': Эфир пал (dealDamageToAlly)');
+  for (const m of c.units.filter((x) => x.side === 'mob' && x.alive)) {
+    G.combatInternals.dealDamageToMob(c, m, 9999);
+  }
+  assert.ok(c.result && c.result.outcome === 'victory',
+    label + ': победа (checkVictory)');
+  assert.ok(c.result.xp > 0, label + ': xp > 0 (победа над группой)');
+  G.combatUI.handleCode('Space');
+  assert.equal(G.combatUI.isActive(), false,
+    label + ': панель закрыта (Space → finish)');
+}
+
+// Мир: BFS от start к ближайшему тайлу группы. Тайл группы — ЦЕЛЬ
+// (шаг на него = бой), путь его НЕ пересекает (BFS возвращается на
+// первой найденной группе). Входы пещер и городов — непроходимы:
+// enterLocation откроет оверлей и заморозит мир (guard ходьбы
+// зависнет). Прочие входы построек — безопасны (паттерн
+// walkToMulti).
+function worldGroupRoute(G, myMap, start) {
+  const startKey = start.x + ',' + start.y;
+  const visited = new Set([startKey]);
+  const prev = new Map();
+  let frontier = [{ x: start.x, y: start.y }];
+  for (let depth = 0; depth < 600 && frontier.length; depth++) {
+    const next = [];
+    for (const cur of frontier) {
+      for (const [dx, dy] of DIRS112) {
+        const nx = cur.x + dx, ny = cur.y + dy;
+        const k = nx + ',' + ny;
+        if (visited.has(k)) continue;
+        const t = myMap.tileAt(nx, ny);
+        if (!t.passable) continue;
+        if (t.hasBuilding
+            && t.building === G.BUILDING_TYPES.CAVE_ENTRANCE) continue;
+        if (t.hasBuilding && t.buildingId != null) {
+          const rec = G.getBuilding(t.buildingId);
+          if (rec && rec.категория === 'город') continue;
+        }
+        visited.add(k);
+        prev.set(k, cur.x + ',' + cur.y);
+        if (t.hasMobGroup) {
+          const steps = [];
+          let kk = k;
+          while (kk !== startKey) {
+            const [px, py] = kk.split(',').map(Number);
+            steps.unshift({ x: px, y: py });
+            kk = prev.get(kk);
+          }
+          return { target: { x: nx, y: ny }, steps, key: k };
+        }
+        next.push({ x: nx, y: ny });
+      }
+    }
+    frontier = next;
+  }
+  return null;
+}
+
+// Ходьба по BFS-маршруту (мир): шаг = keydown → кадры по +200 мс,
+// пока игрок фактически не перешёл (stepMs ≤ 420 мс из настроек,
+// 000063) → keyup (протокол walkToMulti). Бой может начаться в
+// кадре последнего шага (tryMove → maybeStartCombat) — игрок уже
+// на целевом тайле.
+function walkWorldRoute(h, steps) {
+  const g = h.sandbox.__game;
+  let now = NOW;
+  for (let i = 0; i < steps.length; i++) {
+    const [fx, fy] = i === 0
+      ? [g.state.player.x, g.state.player.y]
+      : [steps[i - 1].x, steps[i - 1].y];
+    const tx = steps[i].x, ty = steps[i].y;
+    const dx = tx - fx, dy = ty - fy;
+    assert.ok(Math.abs(dx) + Math.abs(dy) === 1,
+      'BFS: шаг по соседнему тайлу');
+    const code = dx === 1 ? 'ArrowRight' : dx === -1 ? 'ArrowLeft'
+      : dy === 1 ? 'ArrowDown' : 'ArrowUp';
+    const e = { code, preventDefault() {} };
+    for (const fn of h.winListeners['keydown'] || []) fn(e);
+    let guard = 0;
+    do {
+      now += 200;
+      frameAt(h, now);
+    } while ((g.state.player.x !== tx || g.state.player.y !== ty)
+      && ++guard < 10);
+    for (const fn of h.winListeners['keyup'] || []) fn(e);
+    assert.ok(g.state.player.x === tx && g.state.player.y === ty,
+      `сценарий: игрок не перешёл на (${tx},${ty}) за ${guard} кадров`);
+  }
+  return now;
+}
+
+// Подземелье: число floor-клеток (окно time-expanded BFS).
+function dungeonFloorCount(G, d) {
+  let n = 0;
+  for (let i = 0; i < d.cells.length; i++) {
+    if (d.cells[i] === G.CELL_FLOOR) n++;
+  }
+  return n;
+}
+
+// Подземелье: time-expanded BFS. Позиции блуждания P_s — чистая
+// функция номера шага (wanderStep: rng от (step, seed), игнорирует
+// игрока) — симулируются на КОПИИ contents (P_0 — текущее).
+// Переход с клетки глубины s к соседу: бой, если живая группа на
+// соседе в P_s (dungeonMove проверяет группы ДО wanderStep этого
+// шага); иначе шаг успешен и сдвигает счётчик на s+1 (следующий
+// уровень BFS). Возврат: { steps, group } (бой на ПОСЛЕДНЕМ шаге)
+// либо { steps, group: null } — путь к клетке окна (игрок
+// продвигает счётчик шагов для следующего окна); null — от позиции
+// не проходимое (сценарий).
+function dungeonEncounterPlan(G, d, contents, start, window) {
+  const floor = (x, y) => x >= 0 && y >= 0 && x < d.width && y < d.height
+    && d.cells[y * d.width + x] === G.CELL_FLOOR;
+  const sim = {
+    step: contents.step || 0,
+    seed: contents.seed,
+    mobs: contents.mobs.map((m) => Object.assign({}, m)),
+  };
+  // СНИМКИ позиций: wanderStep мутирует m.x/m.y на месте — ссылки
+  // на сим-мобы в старых снимках показали бы ФИНАЛЬНЫЕ позиции.
+  const snap = () => sim.mobs.filter((m) => !m.defeated)
+    .map((m) => ({ x: m.x, y: m.y }));
+  const groups = [snap()];
+  for (let s = 1; s <= window; s++) {
+    G.wanderStep(sim, d);
+    groups[s] = snap();
+  }
+  const startKey = start.x + ',' + start.y;
+  const parent = new Map([[startKey, null]]);
+  let frontier = [[startKey, start.x, start.y]];
+  for (let s = 0; s < window && frontier.length; s++) {
+    const next = [];
+    for (const [k, x, y] of frontier) {
+      for (const [dx, dy] of DIRS112) {
+        const nx = x + dx, ny = y + dy;
+        const nk = nx + ',' + ny;
+        if (parent.has(nk)) continue;
+        if (!floor(nx, ny)) continue;
+        if (nx === d.exit.x && ny === d.exit.y) continue; // выход — не шаг
+        const grp = groups[s].find((m) => m.x === nx && m.y === ny);
+        if (grp) {
+          const steps = [{ x: nx, y: ny }];
+          let kk = k;
+          while (kk !== startKey) {
+            const [px, py] = kk.split(',').map(Number);
+            steps.unshift({ x: px, y: py });
+            kk = parent.get(kk);
+          }
+          return { steps, group: grp };
+        }
+        parent.set(nk, k);
+        next.push([nk, nx, ny]);
+      }
+    }
+    frontier = next;
+  }
+  if (!frontier.length) return null;
+  const [k] = frontier[frontier.length - 1];
+  const steps = [];
+  let kk = k;
+  while (kk !== startKey) {
+    const [px, py] = kk.split(',').map(Number);
+    steps.unshift({ x: px, y: py });
+    kk = parent.get(kk);
+  }
+  return { steps, group: null };
+}
+
+// Подземелье: один шаг — ОДИН keydown (dungeon-ui → ctx.onMove →
+// dungeonMove синхронно: 1 клавиша = 1 клетка; wanderStep — ровно
+// раз на успешный шаг). Бой, если живая группа на клетке — после
+// шага combatUI.isActive() = true.
+function stepDungeon(h, tx, ty) {
+  const g = h.sandbox.__game;
+  const dx = tx - g.dungeon.x, dy = ty - g.dungeon.y;
+  assert.ok(Math.abs(dx) + Math.abs(dy) === 1,
+    'BFS: шаг по соседней клетке');
+  const code = dx === 1 ? 'ArrowRight' : dx === -1 ? 'ArrowLeft'
+    : dy === 1 ? 'ArrowDown' : 'ArrowUp';
+  const e = { code, key: code, preventDefault() {}, stopPropagation() {} };
+  for (const fn of h.winListeners['keydown'] || []) fn(e);
+}
+
+// Подземелье: встреча с блуждающей группой (цикл окон; «пустое»
+// окно — ходьба к краю BFS, продвигающая счётчик шагов, и повтор).
+// Возврат: active-бой (c) или null (бюджет окон исчерпан —
+// сценарий-фолбэк решает тест).
+function encounterCombat(h, G, g, ds, window) {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const plan = dungeonEncounterPlan(G, ds.dg, ds.contents,
+      { x: g.dungeon.x, y: g.dungeon.y }, window);
+    assert.ok(plan,
+      'сценарий: подземелье проходимое от текущей клетки');
+    if (plan.group) {
+      for (const s of plan.steps) stepDungeon(h, s.x, s.y);
+      return G.combatUI.current();
+    }
+    if (!plan.steps.length) break;
+    for (const s of plan.steps) stepDungeon(h, s.x, s.y);
+  }
+  return null;
+}
+
+// Подземелье: путь к выходу (BFS по floor-клеткам; группы НЕ
+// препятствия — бой по пути резолвится и ход продолжается;
+// выходная клетка — цель: шаг на неё закрывает подземелье
+// (exitLocation), позиция игрока не сдвигается).
+function walkDungeonToExit(h, G, g, ds) {
+  const d = ds.dg;
+  const start = { x: g.dungeon.x, y: g.dungeon.y };
+  const startKey = start.x + ',' + start.y;
+  const floor = (x, y) => x >= 0 && y >= 0 && x < d.width && y < d.height
+    && d.cells[y * d.width + x] === G.CELL_FLOOR;
+  const parent = new Map([[startKey, null]]);
+  let frontier = [[start.x, start.y]];
+  let found = null;
+  for (let depth = 0; depth < 5000 && frontier.length && !found; depth++) {
+    const next = [];
+    for (const [x, y] of frontier) {
+      for (const [dx, dy] of DIRS112) {
+        const nx = x + dx, ny = y + dy;
+        const nk = nx + ',' + ny;
+        if (parent.has(nk) || !floor(nx, ny)) continue;
+        parent.set(nk, [x, y]);
+        if (nx === d.exit.x && ny === d.exit.y) { found = [nx, ny]; break; }
+        next.push([nx, ny]);
+      }
+    }
+    frontier = next;
+  }
+  assert.ok(found, 'сценарий: выход достижим');
+  const steps = [];
+  let kk = found[0] + ',' + found[1];
+  while (kk !== startKey) {
+    const [px, py] = kk.split(',').map(Number);
+    steps.unshift({ x: px, y: py });
+    kk = parent.get(kk).join(',');
+  }
+  for (const s of steps) {
+    stepDungeon(h, s.x, s.y);
+    if (G.combatUI.isActive()) {
+      resolveCombatVictory(G, G.combatUI.current(),
+        'подземелье: бой по пути к выходу');
+    }
+  }
+  assert.equal(g.dungeon, null,
+    'выход: подземелье закрыто (exitLocation)');
+}
+
+test('000112 CB-8: W1 (мир) — ходьба на тайл группы → maybeStartCombat: Эфир 100% HP/MP, c.efs (1/1/1/3); гибель через dealDamageToAlly; победа — Space, 100% xp в Эфир; второй бой — снова 100% HP/MP (текущий уровень)', async () => {
+  const h = await boot(new Set());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(G.combatUI.isActive(), false,
+    'сценарий: спавн не на тайле группы');
+  const spawn = { x: g.state.player.x, y: g.state.player.y };
+
+  // Бой 1: ближайший по BFS тайл группы.
+  const r1 = worldGroupRoute(G, myMap, spawn);
+  assert.ok(r1, 'сценарий: найдена достижимая группа');
+  walkWorldRoute(h, r1.steps);
+  assert.equal(G.combatUI.isActive(), true,
+    'шаг на тайл группы — бой начался (maybeStartCombat)');
+  assertEfirCombat(G, g, G.combatUI.current(), 'бой 1');
+  resolveCombatVictory(G, G.combatUI.current(), 'бой 1');
+  assert.ok(g.state.efir.xp > 0,
+    'Эфир получил 100% боевого опыта (000081): ' + g.state.efir.xp);
+
+  // Бой 2: другой тайл группы (побеждённый тайл проходимо:
+  // defeatedAt; BFS стартует С НЕГО — он в visited и целью не
+  // может быть).
+  const from2 = { x: g.state.player.x, y: g.state.player.y };
+  const r2 = worldGroupRoute(G, myMap, from2);
+  assert.ok(r2, 'сценарий: найдена вторая группа');
+  assert.notEqual(r2.key, r1.key, 'второй бой — на другом тайле');
+  walkWorldRoute(h, r2.steps);
+  assert.equal(G.combatUI.isActive(), true,
+    'второй бой начался (maybeStartCombat)');
+  const c2 = G.combatUI.current();
+  // Уровень мог вырасти (xp боя 1: addEfirXp — ДО onEnd) — пины
+  // по актуальному уровню (assertEfirCombat читает g.state.efir).
+  assertEfirCombat(G, g, c2, 'бой 2');
+  resolveCombatVictory(G, c2, 'бой 2');
+  assert.ok(g.state.efir.xp > 0, 'xp сохранён после второго боя');
+});
+
+test('000112 CB-9: D1 (подземелье) — enterDungeon (отладочный вход) + ходьба к блуждающей группе → startDungeonCombat: Эфир 100% HP/MP, c.efs; гибель через dealDamageToAlly; победа — Space, 100% xp; второй бой — снова 100% HP/MP', async () => {
+  const h = await boot(new Set());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const ds = g.actions.enterDungeon();
+  assert.ok(ds,
+    'enterDungeon — состояние подземелья (отладочный вход, 000127)');
+  assert.ok(g.dungeon, '__game.dungeon — подземелье активно');
+  const window = Math.max(64, dungeonFloorCount(G, ds.dg));
+
+  // Бой 1: встреча с блуждающей группой (time-expanded BFS).
+  const c1 = encounterCombat(h, G, g, ds, window);
+  assert.ok(c1, 'сценарий: встречена блуждающая группа');
+  assert.equal(G.combatUI.isActive(), true,
+    'бой начался (dungeonOnMove → startDungeonCombat)');
+  assertEfirCombat(G, g, c1, 'бой 1');
+  resolveCombatVictory(G, c1, 'бой 1');
+  assert.ok(g.state.efir.xp > 0,
+    'Эфир получил 100% боевого опыта (000081): ' + g.state.efir.xp);
+  assert.ok(g.dungeon,
+    'подземелье активно после боя (onEnd не закрывает)');
+
+  // Бой 2: группа повержена (onEnd: g.defeated = true), счётчик
+  // шагов сдвинут — новый план от актуального contents.
+  let c2 = encounterCombat(h, G, g, ds, window);
+  if (!c2) {
+    // Фолбэк (контракт §6): выход и повторный вход — новое
+    // содержимое (totalXp изменился после боя 1 → другой сид).
+    walkDungeonToExit(h, G, g, ds);
+    const ds2 = g.actions.enterDungeon();
+    assert.ok(ds2, 'повторный вход: новое подземелье (новый сид)');
+    assert.notStrictEqual(ds2.contents, ds.contents,
+      'содержимое нового подземелья — другой объект');
+    c2 = encounterCombat(h, G, g, ds2,
+      Math.max(64, dungeonFloorCount(G, ds2.dg)));
+    assert.ok(c2, 'сценарий: группа встречена в новом содержимом');
+  }
+  assert.equal(G.combatUI.isActive(), true, 'второй бой начался');
+  assertEfirCombat(G, g, c2, 'бой 2');
+  resolveCombatVictory(G, c2, 'бой 2');
+  assert.ok(g.state.efir.xp > 0, 'xp сохранён после второго боя');
+});

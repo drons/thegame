@@ -30,6 +30,18 @@
 // без изменений. В 'fled'/'dead' поля allyXp нет (000087 гвардит
 // outcome === 'victory'). Контракт — memory/000082-companion-xp.md.
 //
+// Ход Эфира (задача 000112): поддерживающий ИИ на фреймворке союзных
+// юнитов — диспетчеризация в allyAct (u.kind 'efir' + c.efs — маркер
+// боевого профиля buildEfirUnit, efir.js), своя мана u.mp (без регена)
+// и пулы c.efs, «Касание духа» (ВСЕГДА попадает, игнор брони),
+// детерминированные приоритеты (лечит самого раненого → щитит игрока
+// → урон-каст d≤4 → Касание d≤1) и движение-эскорт (цель ОДИН РАЗ,
+// x-ось первой). Щит — ОТДЕЛЬНЫЙ статус c.efirShield (аддитивный,
+// щит игрока c.ps.shield НЕ считается; тик + рефилл c.efs — в
+// endPlayerTurn). НОЛЬ новых вызовов c._rng; бои без Эфира —
+// бит-в-бит (поля c.efs/c.efir/c.efirShield существуют только после
+// buildEfirUnit/каста). Контракт — memory/000112-efir-combat.md.
+//
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js (mulberry32), player.js (derived/takeDamage/heal/addXp),
 // global-settings.js (level_delta_max, combat_difficulty/combat_difficulties,
@@ -576,6 +588,13 @@
     const shield = c.ps.shield;
     if (shield && shield.turns > 0) {
       dmg = Math.max(0, dmg - shield.armor);
+    }
+    // Щит Эфира (задача 000112): ОТДЕЛЬНЫЙ аддитивный статус
+    // c.efirShield (каст Эфира, тик — endPlayerTurn) — плоское
+    // поглощение, как c.ps.shield; порядок коммутативен. Щит ИГРОКА
+    // c.ps.shield НЕ считается для условия (2) ИИ — свой статус (D4).
+    if (c.efirShield && c.efirShield.turns > 0) {
+      dmg = Math.max(0, dmg - c.efirShield.armor);
     }
     if (c.ps.blocked) {
       dmg *= 1 - Math.min(0.6, 0.2 + 0.02 * p.primary.constitution);
@@ -1244,6 +1263,11 @@
   //    заклинаний/каталога — melee-ветка.
   function allyAct(c, u) {
     if (!u.alive || u.fled || c.result) return;
+    // Эфир (задача 000112): СОБСТВЕННЫЙ ход — efirTurn (поддерживающий
+    // ИИ, своя мана/пулы c.efs). c.efs — маркер «боевой профиль
+    // построен» (buildEfirUnit); без c.efs — ветка 000080
+    // (support → allyHeal) БИТ-В-БИТ (опция Y, D3).
+    if (u.kind === 'efir' && c.efs) { efirTurn(c, u); return; }
     const t = nearestEnemy(c, u);
     if (!t) return; // врагов нет — бой кончается чужим checkVictory
     const d = rectDist(u, t);
@@ -1278,6 +1302,211 @@
     for (let i = 0; i < u.movePerTurn && !c.result; i++) {
       if (rectDist(u, t) <= 1) break;
       allyStepToward(c, u, t);
+    }
+  }
+
+  // --- Ход Эфира (задача 000112) ---
+  //
+  // Контракт: memory/000112-efir-combat.md §3.3. Детерминирован:
+  // НОЛЬ вызовов c._rng (Касание/касты — ВСЕГДА попадают, паттерн
+  // каста игрока; отличие от allyAttack legacy — pин CB-4 при
+  // c._rng 0.99). МанА — u.mp (своя, БЕЗ регена в бою — ТЗ), пулы —
+  // c.efs (рефилл — endPlayerTurn). Каталог заклинаний — ЛЕНИВО из
+  // combatInternals.allySpells (паттерн allyHeal; нет каталога —
+  // ветка пропускается тихо, console.error НЕТ). vine («контроль»)
+  // — НЕ запрашивается (в ИИ v1 НЕ используется — отдельная задача).
+
+  // «Самое сильное» известное (000112): по КНИГЕ юнита u.spells —
+  // каталог ЛЕНИВО (combatInternals.allySpells); фильтр —
+  // s['действие'] === action; выбор — МАКСИМУМ s['мани']; тай-брейк —
+  // ЛЕКСИГРАФИЧЕСКИ МЕНЬШЕЕ id (строгий > по «мани»; при равенстве —
+  // s.id < best.id: канонически раньше в каталоге, детерминировано;
+  // НЕ порядок книги — пин CB-6). БЕЗ фолбэка на более слабое (ТЗ:
+  // «маны хватает → самое сильное»). Нет каталога/спелла в книге —
+  // null (тихий skip, console.error НЕТ — паттерн allyHeal).
+  // Чистая функция (детерминизм). Имя зафиксировано для 000113/000117.
+  function strongestKnown(u, action) {
+    const catalog = combatInternals.allySpells;
+    if (!catalog) return null;
+    let best = null;
+    for (const id of (u.spells || [])) {
+      const s = catalog[id];
+      if (!s || s['действие'] !== action) continue;
+      if (!best) { best = s; continue; }
+      const m = Number(s['мани']) || 0;
+      const bm = Number(best['мани']) || 0;
+      if (m > bm || (m === bm && s.id < best.id)) best = s;
+    }
+    return best;
+  }
+
+  // Пул действия — по полю «атрибут» заклинания каталога (000112 D10;
+  // ТЗ: «Каст из ЕГО книги: пул — по полю «атрибут» заклинания
+  // каталога (spellInt/spellWis)»): 'intelligence' → 'spellInt',
+  // иначе → 'spellWis'. ЕДИНАЯ точка выбора для ВСЕХ кастов (1)/(2)/(3)
+  // — правка по итогам ревью 000112 (раньше (1) вычислял, а (2)/(3)
+  // читали пул жёстко: spellWis/spellInt — при баланс-правке каталога
+  // (000119: wisdom-урон / intelligence-защита) Эфир списал бы чужой
+  // пул). На текущем каталоге поведение идентично (проверено по
+  // assets/spells: урон — intelligence ×7; лечение/защита — wisdom
+  // ×7): пины EF-3/CB-2/CB-3 не меняются. Чистая функция
+  // (детерминизм).
+  function efirPool(s) {
+    return (s && s['атрибут'] === 'intelligence') ? 'spellInt'
+      : 'spellWis';
+  }
+
+  // Самый раненый пула [игрок, ...живые союзники] (000112; паттерн
+  // allyHeal 000080; ЭФИР ВКЛЮЧЁН — само-лечение, ТЗ (1): «союзник
+  // (включая игрока) ≤ 70%»): eligible — frac = hp/maxHP ≤ maxFrac
+  // (и < 1 — «пере-HP» 9999/270 не ранен, наследуется allyHeal);
+  // лучший — мин. frac (строгий <), тай — порядок пула (игрок первым).
+  // Возврат {player:true} | {unit:a} | null.
+  function mostWounded(c, maxFrac) {
+    const p = c.player;
+    const pMax = P.derived(p).maxHP;
+    let best = null, bestFrac = null;
+    const consider = (frac, ref) => {
+      if (frac >= 1 || frac > maxFrac) return;
+      if (bestFrac == null || frac < bestFrac) { best = ref; bestFrac = frac; }
+    };
+    consider(p.hp / pMax, { player: true });
+    for (const a of livingAllies(c)) consider(a.hp / a.maxHP, { unit: a });
+    return best;
+  }
+
+  // Ход Эфира (000112): движение-эскорт + действия по приоритетам.
+  // (000113: «Вдох Эфира» — ТОЧКА РАСШИРЕНИЯ: здесь, вверху, ДО
+  //  движения — триггер «на ЕГО ходу, ПЕРЕД прочими действиями».)
+  // Движение (D13): ЦЕЛЬ ВЫБИРАЕТСЯ ОДИН РАЗ в начале фазы: d до
+  // игрока > 3 → игрок; ИНАЧЕ d до ближайшего врага > 3 → враг;
+  // иначе — стоим (бюджет не тратится) — «эскорт: не отходит от
+  // игрока» выполняется выбором цели (перебор на каждый шаг дал бы
+  // зигзаг и сжог бы бюджет маятником). Шаги — allyStepToward
+  // (ВСЕГДА ось x первой), бюджет c.efs.move (3) — ВСЕ шаги хода
+  // тратятся на выбранную цель (ТЗ: «до 3 клеток за ход»); стоп:
+  // бюджет 0 / соседство с целью (d ≤ 1) / stuck (без телепортов)
+  // / c.result.
+  // Действия (приоритеты; пулы расходуются в этом порядке, пока не
+  // пусты; (1) пере-проверяется после каждого действия):
+  //  (1) союзник (включая игрока) ≤ 70% maxHP — самое сильное
+  //      известное лечебное САМОМУ раненому: round(3 + 0.5·Мудрость
+  //      + u.level) (НЕ allyHeal-формула 000080 — D12), ФАКТ = hp
+  //      после − hp до (000037); игрок — P.heal, союзник — прямой;
+  //  (2) игрок ≤ 50% maxHP и щит НЕ стоит (c.efirShield.turns ≤ 0 —
+  //      щит ИГРОКА НЕ считается, D4) — самое сильное известное
+  //      защитное на игрока (неизвестны — skip): c.efirShield =
+  //      {armor: round(5 + 0.5·Мудрость), turns: 2} — ОБНОВЛЕНИЕ
+  //      повторным кастом (переопределение, не сумма);
+  //  (3) мана + пул spellInt — самое сильное известное урон-
+  //      заклинание ближайшему врагу в дальности 4 (SPELL_MAX_DIST;
+  //      «дальше — сначала движение» — выполнено фазой движения):
+  //      round((3 + 0.5·Интеллект)·(1 + 0.05·уровень лорда)), лорд
+  //      по ШКОЛЕ («лёд» → icelord, иначе firelord — снапшот
+  //      u.efirSkills, D7/D8), ВСЕГДА попадает, игнорирует броню;
+  //      (000117: якорь начисления практики — после dealDamageToMob
+  //      ниже; ленивый вызов функции efir.js);
+  //  (4) иначе — «Касание духа»: враг d ≤ 1, урон u.damage, пул
+  //      touch, ВСЕГДА попадает, игнорирует броню (паттерн каста);
+  //  (5) пулы пусты / целей нет — ход завершён.
+  function efirTurn(c, u) {
+    // (000113: триггер «Вдох Эфира» — здесь, перед движением.)
+    // --- Движение (D13) ---
+    const pCell = { x: c.px, y: c.py, w: 1, h: 1 };
+    let target = null;
+    if (rectDist(u, pCell) > 3) {
+      target = pCell;
+    } else {
+      const e0 = nearestEnemy(c, u);
+      if (e0 && rectDist(u, e0) > 3) target = e0;
+    }
+    while (target && c.efs.move > 0 && !c.result
+           && rectDist(u, target) > 1) {
+      if (!allyStepToward(c, u, target)) break; // stuck — стоп (D13)
+      c.efs.move -= 1;
+    }
+    // --- Действия (приоритеты, пока пулы не пусты) ---
+    for (;;) {
+      if (c.result) return;
+      // (1) Лечение — самого раненого (игрок В пуле, frac ≤ 0.7).
+      const W = mostWounded(c, 0.7);
+      if (W) {
+        const s = strongestKnown(u, 'лечение');
+        const pool = efirPool(s);
+        if (s && c.efs[pool] > 0 && u.mp >= (Number(s['мани']) || 0)) {
+          c.efs[pool] -= 1;
+          u.mp -= (Number(s['мани']) || 0);
+          const amount = Math.round(
+            3 + 0.5 * ((u.attrs && u.attrs.wisdom) || 0) + u.level);
+          const before = W.player ? c.player.hp : W.unit.hp;
+          if (W.player) {
+            P.heal(c.player, amount);
+          } else {
+            W.unit.hp = Math.min(W.unit.maxHP, W.unit.hp + amount);
+          }
+          const actual = (W.player ? c.player.hp : W.unit.hp) - before;
+          log(c, `Эфир лечит ${W.player ? c.player.name : W.unit.name} ` +
+            `(+${actual}).`);
+          continue;
+        }
+      }
+      // (2) Щит — игрок ≤ 50% и щит Эфира не стоит.
+      const pFrac = c.player.hp / P.derived(c.player).maxHP;
+      if (pFrac <= 0.5 && pFrac < 1
+          && !(c.efirShield && c.efirShield.turns > 0)) {
+        const s = strongestKnown(u, 'защита');
+        const pool = efirPool(s);
+        if (s && c.efs[pool] > 0
+            && u.mp >= (Number(s['мани']) || 0)) {
+          c.efs[pool] -= 1;
+          u.mp -= (Number(s['мани']) || 0);
+          c.efirShield = {
+            armor: Math.round(
+              5 + 0.5 * ((u.attrs && u.attrs.wisdom) || 0)),
+            turns: 2,
+          };
+          log(c, `Эфир: «${s['название']}»: +${c.efirShield.armor} ` +
+            'брони на 2 раунда.');
+          continue;
+        }
+      }
+      // (3) Урон-каст — ближайший враг d ≤ SPELL_MAX_DIST (та же
+      //     константа, что у каста игрока — правка по итогам ревью
+      //     000112: литерал 4 отставал бы от баланса 000119), пул —
+      //     по «атрибуту» каталога (efirPool), мана.
+      const e = nearestEnemy(c, u);
+      if (e && rectDist(u, e) <= SPELL_MAX_DIST) {
+        const s = strongestKnown(u, 'урон');
+        const pool = efirPool(s);
+        if (s && c.efs[pool] > 0
+            && u.mp >= (Number(s['мани']) || 0)) {
+          c.efs[pool] -= 1;
+          u.mp -= (Number(s['мани']) || 0);
+          const lord = (u.efirSkills
+            && u.efirSkills[s['школа'] === 'лёд' ? 'icelord' : 'firelord'])
+            || 0;
+          const dmg = Math.round(
+            (3 + 0.5 * ((u.attrs && u.attrs.intelligence) || 0))
+            * (1 + 0.05 * lord));
+          const r = dealDamageToMob(c, e, dmg, true);
+          log(c, `Эфир: «${s['название']}» по ${e.name}: ${r.dmg}.`);
+          // (000117: якорь начисления практики — после
+          // dealDamageToMob; ленивый вызов функции efir.js
+          // (guard typeof — паттерн combatInternals.allySpells)).
+          if (c.result) return;
+          continue;
+        }
+      }
+      // (4) «Касание духа» — враг d ≤ 1, пул touch.
+      if (e && rectDist(u, e) <= 1 && c.efs.touch > 0) {
+        c.efs.touch -= 1;
+        const r = dealDamageToMob(c, e, u.damage, true);
+        log(c, `Эфир касается ${e.name}: ${r.dmg}.`);
+        if (c.result) return;
+        continue;
+      }
+      // (5) Пулы пусты / целей нет — ход завершён.
+      return;
     }
   }
 
@@ -1318,6 +1547,21 @@
     // refillPools) — эффект держится ровно `turns` раундов, включая
     // раунд каста (защита в раунде каста — до этого тика).
     if (c.ps.shield && c.ps.shield.turns > 0) c.ps.shield.turns -= 1;
+    // Щит Эфира (задача 000112): тик — тот же ритм; идёт и ПОСЛЕ
+    // ГИБЕЛИ Эфира (тик в efirTurn дал бы вечный щит у мёртвого духа
+    // — «2 хода» именно 2; D5).
+    if (c.efirShield && c.efirShield.turns > 0) c.efirShield.turns -= 1;
+    // Пулы Эфира (задача 000112): рефилл — ЗЕРКАЛЬНАЯ формула
+    // buildEfirUnit (efir.js) от c.efir.attrs (D5: тот же ритм, что у
+    // игрока); мана u.mp — НЕ пополняется (БЕЗ регена в бою — ТЗ).
+    if (c.efir && c.efs) {
+      c.efs.spellInt = 1 + Math.floor(
+        ((c.efir.attrs && c.efir.attrs.intelligence) || 0) / 10);
+      c.efs.spellWis = 1 + Math.floor(
+        ((c.efir.attrs && c.efir.attrs.wisdom) || 0) / 10);
+      c.efs.touch = 1;
+      c.efs.move = 3;
+    }
     // Новый раунд — новая очередь (задача 000036): из очереди вышли
     // мёртвые и сбежавшие мобы, turnIndex возвращается к игроку.
     c.turnOrder = buildTurnOrder(c);
@@ -1709,6 +1953,10 @@
   // (задача 000080) — ленивый каталог для ИИ support-союзника.
   const combatInternals = {
     log, nearestMob, unitDist, checkTurn, checkBlocked, dealDamageToMob,
+    // 000112: урон по союзнику (гибель Эфира в тесте; объект уже
+    // экспортирован — 1 член). rectDist/efirTurn НЕ добавляются —
+    // node-тестам достаточно c.endTurn-сценариев (минимальный дифф).
+    dealDamageToAlly,
   };
 
   return {

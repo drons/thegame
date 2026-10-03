@@ -13,6 +13,13 @@
 // [spark, mend] + пороги 5/8/10/12/15/20/25/30 — данные
 // EFIR_SPELL_UNLOCKS; append-only; автоматически при level up).
 //
+// 000112: buildEfirUnit(efir, c) — боевой профиль на юните поля
+// (12-й экспорт; АПГРЕЙД существующего makeAlly-юнита, не создание):
+// явные maxHP/hp = efirStats (100%), своя мана u.mp = maxMP (без
+// регена в бою), «Касание духа» u.damage (мораль ВНУТРИ round),
+// пулы действий c.efs (паттерн refillPools), снапшот лордов
+// u.efirSkills, ссылка c.efir. Контракт — memory/000112-efir-combat.md.
+//
 // ЧИСТЫЙ UMD-модуль, НОЛЬ зависимостей при загрузке (прецеденты
 // 000053/000038/000127): node — module.exports = factory(); браузер —
 // Game.efir. Взаимных require при загрузке нет (оба ветки): порог
@@ -48,8 +55,10 @@
 // Контракты: memory/000081-efir.md (решения), memory/000081-efir-
 // ally.md (стабильный API для 000084–000087), memory/000111-efir-
 // growth.md (000111: форма состояния, 11 экспортов, семантика
-// переучёта — контракт для 000085/000112/000115/000116/000117).
-// Тесты: tests/efir.test.js (R1–R6, 000111 T1–T9).
+// переучёта — контракт для 000085/000112/000115/000116/000117),
+// memory/000112-efir-combat.md (000112: боевой профиль buildEfirUnit,
+// ход Эфира — контракт для 000113/000117/000118/000119).
+// Тесты: tests/efir.test.js (R1–R6, 000111 T1–T9, 000112 EF-1..4).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -562,6 +571,59 @@
     return state;
   }
 
+  /**
+   * Боевой профиль Эфира (задача 000112, контракт
+   * memory/000112-efir-combat.md §3.1): АПГРЕЙД СУЩЕСТВУЮЩЕГО боевого
+   * юнита (D2 — поиск id 'efir' side 'ally'; расстановка/резервация/
+   * очередь сделаны createCombat — ноль новых вызовов c._rng, ноль
+   * правок createCombat). Явные статы (в обход формулы makeAlly —
+   * данные efirAllyData её не несут):
+   *   u.maxHP = u.hp = efirStats.maxHP (100% на старте боя; возврат
+   *     после гибели — СТРУКТУРНО: каждый бой — новый makeAlly +
+   *     buildEfirUnit),
+   *   u.mp = efirStats.maxMP — мана СОБСТВЕННАЯ, полная, БЕЗ регена
+   *     в бою (зафиксировано ТЗ),
+   *   u.damage — «Касание духа»: max(1, round((2 + 0.5·Мудрость)·
+   *     (u.moraleMult || 1))) — мораль ВНУТРИ round (D6: паттерн
+   *     makeAlly 000080; companionMoraleBonus — как у любого союзника),
+   *   c.efs — СВОИ пулы действий (паттерн refillPools, зеркальная
+   *     формула в endPlayerTurn combat.js — пин EF-1): spellInt =
+   *     1 + floor(Интеллект/10), spellWis = 1 + floor(Мудрость/10),
+   *     touch = 1, move = 3 (клетки за ход; у Эфира нет Ловкости),
+   *   u.efirSkills — СНАПШОТ пула лордов (ВСЕ ЧЕТЫРЕ id по
+   *     EFIR_SKILLS из state.skills; D8: бой не зависит от мутаций
+   *     state в полёте; 000117 читает как базу переучёта; НЕ путать
+   *     с u.skills — список id из данных makeAlly),
+   *   c.efir — ссылка на юнит (refill/тики в endPlayerTurn).
+   * state (efir) — ТОЛЬКО чтение (level/skills); бой state НЕ
+   * мутирует. Тихая деградация: юнита нет / c без units → null.
+   * @returns {object|null} проапгрейденный юнит; null — деградация.
+   */
+  function buildEfirUnit(efir, c) {
+    const u = (c && Array.isArray(c.units))
+      ? c.units.find((x) => x.id === 'efir' && x.side === 'ally')
+      : null;
+    if (!u) return null;
+    const stats = efirStats(u.level);
+    u.maxHP = stats.maxHP;
+    u.hp = stats.maxHP;
+    u.mp = stats.maxMP;
+    u.damage = Math.max(1, Math.round(
+      (2 + 0.5 * stats.wisdom) * (u.moraleMult || 1)));
+    c.efs = {
+      spellInt: 1 + Math.floor(((u.attrs && u.attrs.intelligence) || 0) / 10),
+      spellWis: 1 + Math.floor(((u.attrs && u.attrs.wisdom) || 0) / 10),
+      touch: 1,
+      move: 3,
+    };
+    u.efirSkills = {};
+    for (const def of EFIR_SKILLS) {
+      u.efirSkills[def.id] = (efir && efir.skills && efir.skills[def.id]) || 0;
+    }
+    c.efir = u;
+    return u;
+  }
+
   return {
     // 000081 (сигнатуры без изменений; тела createEfir/levelUp/
     // efirAllyData расширены 000111):
@@ -575,5 +637,9 @@
     // memory/000085-save-party-efir.md D1/D4/D5; расширения 000115 —
     // id-валидация + reprocess — в этот же хвост):
     serializeEfir, deserializeEfir,
+    // 000112 (контракт memory/000112-efir-combat.md §3.1: боевой
+    // профиль — в хвост return-блока, конфликт с 000085-serialize
+    // минимален):
+    buildEfirUnit,
   };
 });
