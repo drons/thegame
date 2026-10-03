@@ -1059,3 +1059,200 @@ test('000109 R11: save() → false (квота localStorage) — saveNow: без
   const g = h.sandbox.__game;
   assert.equal(g.state.day, 1, 'состояние игры целое после квоты');
 });
+
+// =====================================================================
+// Задача 000115: сейв Эфира — финальная форма (аудит 000085 + пробелы
+// ТЗ). 000085 уже закрыло базовую форму (5 полей, legacy-нормализация,
+// efir отсутствует → createEfir(), структурный мусор → null + warn,
+// version 1) — 000115 добавляет:
+//   (1) id-валидацию в deserializeEfir по КАТАЛОГАМ-ПАРАМЕТРАМ:
+//       id скила ∉ assets/skills / id заклинания ∉ assets/spells → null
+//       на ВЕСЬ раздел (сброс ЗАПИСИ, 000029; warn печатает main.js);
+//   (2) ОБЯЗАТЕЛЬНЫЙ reprocessEfirSkills ВНУТРИ deserializeEfir до
+//       return (канон 000111 §9, efir.js:335–336) — выход ПЛОТНЫЙ:
+//       ВСЕ 4 id пула материализованы.
+// КРАСНЫЕ: N1/N2/V1/V2 — функция существует, поведения НЕТ
+// (AssertionError «нет поведения», не Syntax/ReferenceError); N3 —
+// зелёный с самого начала (re-pin версии, ТЗ явно в списке «Тесты»).
+// Контракт: memory/000115-efir-save-final.md (D1–D9).
+// =====================================================================
+
+const SD = require('../src/skills-data.js');
+const SP = require('../src/spells-data.js');
+// Полные зеркала assets (D2): skills = PRIMARY_SKILLS (массив, 6) +
+// Object.values(SECONDARY_SKILLS) (ОБЪЕКТ-КАРТА, 31 — не массив!) =
+// 37 id; spells = SPELLS (массив, 16 id).
+const EFIR_SKILL_CATALOG = SD.PRIMARY_SKILLS.concat(
+  Object.values(SD.SECONDARY_SKILLS));
+const EFIR_SPELL_CATALOG = SP.SPELLS;
+
+test('000115 N1: deserializeEfir — id-валидация по каталогам-параметрам: чужой id (skillXp/skills/spells) → null (сброс ЗАПИСИ); тихая; каталог null/мусор → off (совместимость 000085)', () => {
+  // Каталоги — полные зеркала assets (37 + 16 id).
+  assert.equal(EFIR_SKILL_CATALOG.length, 37,
+    'каталог skills: 6 primary + 31 secondary = 37 записей');
+  assert.equal(EFIR_SPELL_CATALOG.length, 16, 'каталог spells: 16 записей');
+
+  const base = { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] };
+
+  // Чужой id (вне ЛЮБОГО каталога) → null — сброс ЗАПИСИ (000029).
+  const q0 = quiet(() => E.deserializeEfir({ ...base, skillXp: { nope: 1 } },
+    EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG));
+  assert.equal(q0.res, null, 'чужой skill id в skillXp → null');
+  assert.equal(q0.n, 0, 'тихая: сброс БЕЗ warn (warn печатает main.js)');
+  assert.equal(E.deserializeEfir({ ...base, skills: { nope: 1 } },
+    EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG), null,
+    'чужой skill id в skills → null');
+  assert.equal(E.deserializeEfir({ ...base, spells: ['spark', 'nope'] },
+    EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG), null,
+    'чужой spell id в spells → null');
+  assert.equal(E.deserializeEfir({ ...base, spells: ['nope'] },
+    EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG), null,
+    'чужой spell id (spells ["nope"]) → null');
+
+  // Каталогически-валидные id (пул) → состояние; reprocess (000115) —
+  // ПЛОТНАЯ форма (неподвижная точка: 2.5 < efirSkillXpForNext(1) = 30,
+  // ВСЕ 4 id пула).
+  const q = quiet(() => E.deserializeEfir({
+    level: 5, xp: 0,
+    skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
+    skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
+    spells: ['spark', 'mend', 'light_heal'],
+  }, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG));
+  assert.ok(q.res !== null, 'каталогически-валидные id — приняты');
+  assert.deepEqual(q.res, {
+    level: 5, xp: 0,
+    skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
+    skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
+    spells: ['spark', 'mend', 'light_heal'],
+  }, 'валидные id → состояние (плотная форма после reprocess, неподвижная точка)');
+
+  // Каталогический id ВНЕ пула (strength / flame_burst) — ПРОХОДИТ и
+  // персистит (D2-последствие: ИНЕРТЕН — reprocess пишет только 4 id
+  // пула; поведение то же, что на master — регрессии нет).
+  const q2 = quiet(() => E.deserializeEfir({
+    ...base, skills: { strength: 3 }, spells: ['spark', 'flame_burst'],
+  }, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG));
+  assert.ok(q2.res !== null,
+    'каталогический id вне пула — проходит (инертен, D2-последствие)');
+
+  // Каталоги null/undefined → СТРУКТУРНЫЙ режим (совместимость 000085:
+  // unknown-id инертен) — пин 1-арг. вызовов существующих тестов.
+  assert.notEqual(E.deserializeEfir({ ...base, skills: { nope: 1 } }), null,
+    '1-арг. вызов — структурный режим (nope проходит)');
+  assert.notEqual(E.deserializeEfir({ ...base, skills: { nope: 1 } },
+    null, undefined), null,
+    'каталоги null/undefined → id-валидация off');
+
+  // Мусорный каталог (не-массив / записи без строкового id / пустой) →
+  // off БЕЗ исключений (безопасное направление).
+  for (const bad of ['junk', 42, { nope: 1 }, [], [{}, 'x', 42]]) {
+    assert.doesNotThrow(() => {
+      assert.notEqual(E.deserializeEfir({ ...base, skills: { nope: 1 } },
+        bad, EFIR_SPELL_CATALOG), null,
+        'мусорный каталог → off: ' + JSON.stringify(bad));
+    }, 'мусорный каталог — без исключений: ' + JSON.stringify(bad));
+  }
+
+  // Тихая: serde-функции не warn'ят (warn печатает main.js).
+  assert.equal(q.n, 0, 'тихая: 0 console.warn (валидные id)');
+  assert.equal(q2.n, 0, 'тихая: 0 console.warn (инертный id)');
+});
+
+test('000115 N2: deserializeEfir — ОБЯЗАТЕЛЬНЫЙ reprocess при загрузке (банк → уровни, cap, overflow; плотная форма 4 id пула); round-trip идентично на канонической форме; 3-полевая legacy → плотная', () => {
+  // Банк-оверфлоу: L1 cap = 3·2 = 6; 999 − (15+30+45+60+75+90) = 684
+  // (фикс-точка 000111 T5).
+  assert.deepEqual(
+    E.deserializeEfir({ level: 1, xp: 0, skillXp: { firelord: 999 }, skills: {}, spells: ['spark', 'mend'] },
+      EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG),
+    { level: 1, xp: 0,
+      skillXp: { firelord: 684, icelord: 0, perception: 0, precog: 0 },
+      skills: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
+      spells: ['spark', 'mend'] },
+    'банк-оверфлоу → cap + overflow, материализованы ВСЕ 4 id пула');
+
+  // Round-trip на КАНОНИЧЕСКОЙ (post-reprocess) форме — идентично
+  // (дроби skillXp 2.5, порядок spells [spark, mend, light_heal] — ТЗ).
+  // Неподвижная точка: 2.5 < 30; reprocess не пишет level/xp/spells.
+  const x = {
+    level: 2, xp: 10,
+    skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
+    skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
+    spells: ['spark', 'mend', 'light_heal'],
+  };
+  assert.deepEqual(E.deserializeEfir(E.serializeEfir(x),
+    EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG), x,
+    'round-trip идентично на канонической форме (дроби + порядок)');
+
+  // 3-полевая legacy (до 000111) → 5-полевая ПЛОТНАЯ
+  // (нормализация 000085 + reprocess 000115).
+  assert.deepEqual(
+    E.deserializeEfir({ level: 2, xp: 5, skills: {} },
+      EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG),
+    { level: 2, xp: 5,
+      skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+      skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+      spells: ['spark', 'mend'] },
+    '3-полевая legacy → плотная 4×0 + [spark, mend]');
+
+  // Идемпотентность: повторный deserialize того же raw → идентично.
+  const raw = { level: 1, xp: 0, skillXp: { firelord: 999 }, skills: {}, spells: ['spark', 'mend'] };
+  assert.deepEqual(
+    E.deserializeEfir(raw, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG),
+    E.deserializeEfir(raw, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG),
+    'идемпотентно (повторный deserialize → идентично)');
+});
+
+test('000115 N3: версия НЕ поднята — CURRENT_VERSION = 1, MIGRATIONS пуст (re-pin 000072, ТЗ явно в списке «Тесты»)', () => {
+  assert.equal(S.CURRENT_VERSION, 1,
+    'финальная форма (5 полей) — неломкое расширение v1 (000031, ТЗ п.2)');
+  assert.deepEqual(Object.keys(S.MIGRATIONS), [], 'миграций нет (MIGRATIONS пуст)');
+});
+
+test('000115 V1: e2e — чужие id в разделе efir: 0 ошибок, warn с именем раздела, state.efir = L1-дефолт (сброс ЗАПИСИ — не частичная чистка), повторный сейв — ЧИСТЫЙ раздел, version 1', async () => {
+  const st = makeStorage();
+  const h = bootWithSave(st, null, {
+    day: 5,
+    efir: { level: 2, xp: 0, skillXp: {}, skills: { nope: 1 }, spells: ['spark', 'nope'] },
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок НЕТ (тихий сброс, игра не падает): '
+    + h.errors.join('; '));
+  assert.ok(h.warns.some((m) => m.includes('efir')),
+    'warn: раздел efir (текст main.js:570)');
+  const state = h.sandbox.__game.state;
+  assert.ok(state.efir, 'state.efir существует');
+  assert.deepEqual(host(state.efir),
+    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
+    'чужой id → L1-дефолт: сброс ЗАПИСИ (не частичная чистка, не материализованный пул)');
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
+  assert.deepEqual(saved.data.efir,
+    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
+    'мусор не размножается (000029) — повторный сейв чистый');
+});
+
+test('000115 V2: e2e — reprocess при загрузке (банк-оверфлоу): state.efir = ПЛОТНАЯ форма (cap + overflow), beforeunload → ТА ЖЕ форма в сейве (идентичность, дроби не теряются), version 1', async () => {
+  const DENSE = {
+    level: 1, xp: 0,
+    skillXp: { firelord: 684, icelord: 0, perception: 0, precog: 0 },
+    skills: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
+    spells: ['spark', 'mend'],
+  };
+  const st = makeStorage();
+  const h = bootWithSave(st, null, {
+    day: 7,
+    efir: { level: 1, xp: 0, skillXp: { firelord: 999 }, skills: {}, spells: ['spark', 'mend'] },
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  const state = h.sandbox.__game.state;
+  assert.ok(state.efir, 'state.efir существует');
+  assert.deepEqual(host(state.efir), DENSE,
+    'reprocess при загрузке: банк → cap + overflow (плотная 4 id пула)');
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
+  assert.deepEqual(saved.data.efir, DENSE,
+    'раздел переживает сейв БЕЗ ПОТЕРЬ (идемпотентно, 000111 §4)');
+});

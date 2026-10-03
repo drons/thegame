@@ -135,6 +135,18 @@ const SKILL_META = (() => {
   return m;
 })();
 
+// --- Задача 000115: полные КАТАЛОГИ-ЗАПИСИ (id-валидация в
+// deserializeEfir по каталогам-параметрам, D2): массивы записей каталога
+// (объекты со строковым .id — не только id-набор). Зеркала assets:
+// skills — 37 записей, spells — 16 записей.
+const SKILL_CATALOG = SKILL_FILES()
+  .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
+const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
+const SPELL_FILES = () => fs.readdirSync(SPELLS_DIR)
+  .filter((f) => /^\d{6}\.json$/.test(f));
+const SPELL_CATALOG = SPELL_FILES()
+  .map((f) => JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8')));
+
 test('000081 R1: efir.js грузится (node + браузерная ветка без Game); экспорты ровно 13 (11 функций + 2 данных); в источнике НЕТ require(', () => {
   const E = loadEfir();
   assert.deepEqual(
@@ -706,4 +718,67 @@ test('000111 T9: боевая проекция — лечение от собс�
       C.combatInternals.allySpells = saveCatalog;
     }
   });
+});
+
+// --- Задача 000115: сейв Эфира — финальная форма (аудит 000085 +
+// пробелы ТЗ) ---
+// КРАСНЫЙ: id-валидация по каталогам-параметрам + ОБЯЗАТЕЛЬНЫЙ
+// reprocessEfirSkills ВНУТРИ deserializeEfir (канон 000111 §9 /
+// efir.js:335–336) — функция существует, поведения НЕТ (AssertionError,
+// не Syntax/ReferenceError). Контракт: memory/000115-efir-save-final.md
+// (D2/D3). R1/R2 — без правок (новых экспортов НЕТ, require/ НЕТ).
+
+test('000115: deserializeEfir — id-валидация по каталогам-параметрам (чужой id → null; валидные → 5 полей, ПЛОТНЫЕ 4 id пула) + ОБЯЗАТЕЛЬНЫЙ reprocess; тихая; Game НЕ нужен', () => {
+  const E = loadEfir();
+  // Каталоги — полные зеркала assets (записи, не только id-набор).
+  assert.equal(SKILL_CATALOG.length, 37,
+    'каталог skills: 37 записей (6 primary + 31 secondary)');
+  assert.equal(SPELL_CATALOG.length, 16, 'каталог spells: 16 записей');
+
+  // Чужой id (вне ЛЮБОГО каталога) → null — сброс ЗАПИСИ (000029).
+  const base = { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] };
+  for (const [label, raw] of [
+    ['skillXp', { ...base, skillXp: { nope: 1 } }],
+    ['skills', { ...base, skills: { nope: 1 } }],
+    ['spells', { ...base, spells: ['spark', 'nope'] }],
+  ]) {
+    assert.equal(
+      E.deserializeEfir(raw, SKILL_CATALOG, SPELL_CATALOG), null,
+      'чужой id → null (сброс ЗАПИСИ): ' + label);
+  }
+
+  // Каталогически-валидные id → состояние ровно 5 полей; ОБЯЗАТЕЛЬНЫЙ
+  // reprocess материализует ВСЕ 4 id пула (выход — ПЛОТНЫЙ).
+  const res = E.deserializeEfir({
+    level: 2, xp: 5,
+    skillXp: { firelord: 2.5 }, skills: { firelord: 1 },
+    spells: ['spark', 'mend'],
+  }, SKILL_CATALOG, SPELL_CATALOG);
+  assert.ok(res !== null, 'каталогически-валидные id — приняты');
+  assert.deepEqual(Object.keys(res).sort(),
+    ['level', 'skillXp', 'skills', 'spells', 'xp'], 'ровно 5 полей');
+  assert.deepEqual(res.skillXp,
+    { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
+    'skillXp — ВСЕ 4 id пула (reprocess, плотный выход)');
+  assert.deepEqual(res.skills,
+    { firelord: 1, icelord: 0, perception: 0, precog: 0 },
+    'skills — ВСЕ 4 id пула (reprocess, плотный выход)');
+  assert.deepEqual(res.spells, ['spark', 'mend'], 'spells — как в сейве');
+
+  // Идемпотентность: round-trip на post-reprocess форме — идентично.
+  assert.deepEqual(
+    E.deserializeEfir(E.serializeEfir(res), SKILL_CATALOG, SPELL_CATALOG), res,
+    'round-trip идентично на post-reprocess форме (идемпотентность)');
+
+  // Тихая (warn печатает main.js) + serde ЧИСТЫЙ: Game НЕ нужен
+  // (каталог — параметр; require/ и fs в модуле НЕТ — пин R1).
+  const orig = console.warn;
+  let n = 0;
+  console.warn = () => { n += 1; };
+  try {
+    E.deserializeEfir({ ...base, skillXp: { nope: 1 } }, SKILL_CATALOG, SPELL_CATALOG);
+  } finally {
+    console.warn = orig;
+  }
+  assert.equal(n, 0, 'тихая: 0 console.warn');
 });
