@@ -2181,7 +2181,7 @@ test('город UI 000105 (регрессия маркеров): выход «X
     'вход: зелёный квадрат (zoom−8)');
 });
 
-test('город UI 000105: contents: null — без сундуков/мобов, рендер не падает; hint — без «Сундук и мобы» и без «[E]»', () => {
+test('город UI 000105/000107: contents: null — без сундуков/мобов, рендер не падает; hint — без «Сундук и мобы» и С «[E] — постройки»', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
   const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня' });
@@ -2201,8 +2201,8 @@ test('город UI 000105: contents: null — без сундуков/мобо�
   assert.ok(!hint.includes('Сундук'),
     'hint: без «Сундук и мобы» (город пуст; содержимое — 000106): '
     + JSON.stringify(hint));
-  assert.ok(!hint.includes('[E]'),
-    'hint: без «[E] — постройки» (взаимодействие — 000107): '
+  assert.ok(hint.includes('[E] — постройки.'),
+    'hint: «[E] — постройки.» (взаимодействие — 000107): '
     + JSON.stringify(hint));
   // Регрессия: у ПОДЗЕМЕЛЬЯ hint не меняется.
   const D = loadDungeonUi({ performance: { now: () => 1000 } });

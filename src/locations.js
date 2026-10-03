@@ -122,21 +122,31 @@
 
   // Состояние города (задача 000105, подзадача 000052) — та же форма,
   // что makeDungeonState (000068): ОТДЕЛЬНЫЙ мувер + дробная позиция
-  // ds.pos(now) для рендера. Город пока ПУСТО (содержимое — 000106,
-  // взаимодействие [E] — 000107): contents — null.
+  // ds.pos(now) для рендера. ds.contents — ВСЕГДА null (ловушка
+  // __game.dungeon: mobs/chests по ds.contents); содержимое города —
+  // ОТДЕЛЬНЫЕ поля cityContents/cityShops/cityWealth (заполняет
+  // maybeEnterCity, 000106/000108; interaction [E] — 000107).
   function makeCityState(layout, buildingRec, worldKey, env) {
     const name = (buildingRec.особые_параметры &&
       buildingRec.особые_параметры.название_карты)
       || buildingRec.название;
     const ds = {
       dg: layout,
-      contents: null, // город пуст (содержимое — 000106)
+      contents: null, // ЛОВУШКА __game.dungeon: ОБЯЗАТЕЛЬНО null (000107)
       kind: 'city',
       name,
       x: layout.entrance.x, y: layout.entrance.y,
       prevX: layout.entrance.x, prevY: layout.entrance.y,
       worldKey,
       log: [name + ': вход.'],
+      // Задача 000107: содержимое города (000106) + стоки лавок
+      // (000108) + богатство якоря — заполняются maybeEnterCity ПОСЛЕ
+      // создания ds (имена полей ЗАФИКСИРОВАНЫ для 000109 — restore
+      // подменит те же поля в той же точке). null — генерация не
+      // сработала (деградация); {} — пусто легитимо (хутор).
+      cityContents: null, // {buildings:[{x,y,buildingId}], seed} | null
+      cityShops: null,    // {'tx,ty': makeCityShop 6-полевой} | null
+      cityWealth: null,   // 0..3 | null
     };
     return attachMover(ds, layout.entrance.x, layout.entrance.y, env);
   }
@@ -247,8 +257,44 @@
     // Layout — от ЯКОРЯ, не от входного тайла (000104).
     const [ax, ay] = t.buildingAnchor;
     const layout = G.Cities.createCityLayout(ax, ay, rec.размер.ширина);
-    return makeCityState(layout, rec, player.x + ',' + player.y,
+    // Задача 000107: содержимое (000106) + стоки лавок (000108) —
+    // ЖЁСТКАЯ (eager) генерация при ВХОДЕ (не ленивая): 000109
+    // (restore) подменит те же поля в той же точке. Порядок
+    // makeCityShop = порядок buildings из generateCityContents
+    // (детерминирован; RNG — только в ядрах, в ТЕХ ЖЕ вызовах:
+    // createCityLayout → generateCityContents → makeCityShop×N).
+    // Хутор (fp1): buildings: [] → cityShops = {} (ПУСТОЙ объект,
+    // не null — содержимое сгенерировано, построек нет).
+    const wealth = t.buildingWealth;
+    let cityContents = null, cityShops = null, cityWealth = null;
+    if (Number.isInteger(wealth) && wealth >= 0 && wealth <= 3 &&
+        typeof G.Cities.generateCityContents === 'function') {
+      cityContents = G.Cities.generateCityContents(
+        layout, ax, ay, rec, wealth);
+      cityWealth = wealth;
+      cityShops = {};
+      if (typeof G.Cities.makeCityShop === 'function') {
+        for (const bl of cityContents.buildings) {
+          const s = G.Cities.makeCityShop(
+            ax, ay, bl.x, bl.y, bl.buildingId, wealth);
+          if (s) cityShops[bl.x + ',' + bl.y] = s; // null (не 1/44) — мимо
+        }
+      }
+    } else {
+      // Деградация (000053): wealth не 0..3 или cities.js не дотянул
+      // функции 000106 — город без содержимого ([E] в городе no-op);
+      // мир не роняется. validateWealth/throw функций НЕ достижим:
+      // входы проверены.
+      console.error('locations.js: содержимое города не сгенерировано ' +
+        '(000107: Game.Cities.generateCityContents отсутствует или ' +
+        'wealth вне 0..3) — город без построек/лавок');
+    }
+    const ds = makeCityState(layout, rec, player.x + ',' + player.y,
       { intervalMs: ctx.intervalMs });
+    ds.cityContents = cityContents;
+    ds.cityShops = cityShops;
+    ds.cityWealth = cityWealth;
+    return ds;
   }
 
   // Шаг внутри лабиринта (вызывается dungeon-ui по клавише). Чистая:

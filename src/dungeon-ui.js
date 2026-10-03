@@ -31,13 +31,15 @@
 // спрайта/ромба игрока, и для цели камеры; когда pos ≠ (s.x, s.y)
 // (глейд) — действие кадра 'walk'.
 //
-// Город (задача 000105): режим по state.kind === 'city' — тот же
+// Город (задачи 000105/000107): режим по state.kind === 'city' — тот же
 // движок вьюпорта/камеры/зума и те же маркеры входа/выхода; СВОИ
 // тайлы (палитра + чистая функция выбора варианта по (x, y, seed),
 // стены периметра рисуются); stateEl — имя города, без строк
 // групп/сундуков (contents у города null — 000106); hint — без
-// строк про сундуки/мобы и без «[E]» (000107). Оверлей НЕ создаёт
-// layout города — layout и мувер создаются в main.js (UMD-ловушка).
+// строк про сундуки/мобы (000105) и с «[E] — постройки» (000107:
+// [E] → ctx.onInteract → buildingUI, только для города). Оверлей
+// НЕ создаёт layout города — layout и мувер создаются в main.js
+// (UMD-ловушка).
 //
 // Спрайты (задача 000067): игрок — кадры G.phlogistonFrames(действие
 // playerAction: 'walk' во время глейда, pos(now) ≠ (s.x, s.y), —
@@ -186,6 +188,19 @@
   window.addEventListener('keydown', (e) => {
     if (!isActive()) return;
     if (G.combatUI && G.combatUI.isActive()) return; // бой выше по стеку
+    // Задача 000107: [E] в городе — единый путь buildingUI (000071).
+    // onInteract передаётся ТОЛЬКО для города (main.js); в подземелье
+    // и тестовых хостах ветка мёртвая (000121: [E] в подземелье —
+    // no-op, byte-в-точности: без preventDefault/stopPropagation).
+    // stopPropagation на window НЕ гасит слушатель main.js (KeyE →
+    // toggle() → гард dungeonUI.isActive → return) — дубль гасит
+    // гард, не propagation (контракт 000107 §8).
+    if (e.code === 'KeyE' && typeof ctx.onInteract === 'function') {
+      e.preventDefault();
+      e.stopPropagation();
+      ctx.onInteract();
+      return;
+    }
     const d = G.deltaForEvent(e);
     if (!d) return;
     e.preventDefault();
@@ -294,13 +309,12 @@
     side.appendChild(logEl);
     const hint = document.createElement('div');
     hint.className = 'combat-state';
-    // Город (000105) — без строк про сундуки/мобы (город пуст,
-    // содержимое — 000106) и без «[E] — постройки» (взаимодействие —
-    // 000107; до неё подсказка может отсутствовать). Подземелье —
-    // прежний текст (без kind — dungeon).
+    // Город (000105/000107) — без строк про сундуки/мобы (000105) и
+    // С «[E] — постройки» (взаимодействие [E] — 000107, buildingUI).
+    // Подземелье — прежний текст (без kind — dungeon).
     const s0 = state();
     hint.textContent = (s0 && s0.kind === 'city')
-      ? 'Стрелки/WASD — шаг.\nЖёлтая клетка «X» — выход.'
+      ? 'Стрелки/WASD — шаг.\nЖёлтая клетка «X» — выход.\n[E] — постройки.'
       : 'Стрелки/WASD — шаг.\nЖёлтая клетка «X» — выход.\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).';
     side.appendChild(hint);
 

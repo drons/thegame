@@ -144,7 +144,7 @@ test('BA1. модуль на месте: UMD node-ветка + чистая од
     'module.exports — объект (UMD node-ветка)');
   for (const m of ['init', 'toggle', 'openBuildingUI', 'onBuildingAction',
     'buildingRecForTile', 'openNpcDialog', 'scanTeleportPair',
-    'registerSpecial']) {
+    'registerSpecial', 'interactCity']) {
     assert.equal(typeof BA[m], 'function', 'поверхность модуля: ' + m);
   }
   assert.ok(BA.specials && typeof BA.specials === 'object',
@@ -787,7 +787,7 @@ test('BA5. full-chain index.html: Game.buildingActions на месте, загр
   assert.ok(ba, 'Game.buildingActions на месте (src/building-actions.js)');
   for (const m of ['init', 'toggle', 'openBuildingUI', 'onBuildingAction',
     'buildingRecForTile', 'openNpcDialog', 'scanTeleportPair',
-    'registerSpecial']) {
+    'registerSpecial', 'interactCity']) {
     assert.equal(typeof ba[m], 'function', 'Game.buildingActions.' + m);
   }
   assert.ok(ba.specials && typeof ba.specials === 'object',
