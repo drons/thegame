@@ -941,6 +941,17 @@
         // Эфир (задача 000081): постоянный союзник (см. выше).
         allies: efirData ? [efirData] : [],
       });
+      // Эфир в бою (задача 000112): боевой профиль на СУЩЕСТВУЮЩЕМ
+      // юните (buildEfirUnit — 12-й экспорт efir.js, D1/D2: ОДИН раз,
+      // сразу после createCombat — createCombat остаётся
+      // независимым от efir.js; апгрейд, не создание): явные
+      // maxHP/hp, своя мана u.mp, пулы c.efs, «Касание духа»,
+      // снапшот лордов. Без buildEfirUnit (деградация) — бой как до
+      // 000112 (ветка 000080; тихая деградация — G.efir уже проверен
+      // выше при efirAllyData, пин 000081 R11 без изменений).
+      if (efirData && G.efir && typeof G.efir.buildEfirUnit === 'function') {
+        G.efir.buildEfirUnit(opts.efir, combat);
+      }
       // Путь фона (задача 000049) — ОДИН раз при старте. Guard
       // G.combatBackground — УМД-ловушка «G снимается один раз»
       // (как hpBarColor, задача 000038): sprites.js отсутствует

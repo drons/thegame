@@ -3252,9 +3252,12 @@ function withGame112(fake, fn) {
 }
 
 // Герой сценария: Тело 50 (maxHP 270), hp — по сценарию.
+// hp = maxHP ЯВНО (createCharacter ставит hp от статов-единиц ДО
+// повышения Тела; сценарии, не переопределяющие p.hp, — «270/270»).
 function hero112() {
   const p = createCharacter();
   p.primary.constitution = 50;
+  p.hp = derived(p).maxHP;
   return p;
 }
 
@@ -3404,7 +3407,8 @@ test('000112 CB-2: приоритет (2) — игрок ≤ 50% и щита н�
     assert.ok(r1.c.efirShield, 'c.efirShield создан (приоритет 2)');
     assert.equal(r1.c.efirShield.armor, 7,
       'armor = round(5+0.5·3) = 7');
-    assert.equal(r1.c.efirShield.turns, 2, 'turns = 2');
+    assert.equal(r1.c.efirShield.turns, 1,
+      'turns: 2 (каст) − 1 (тик endPlayerTurn) = 1');
     assert.equal(r1.u.mp, 6, 'mp 11 − 5 (magic_shield «мани») = 6');
     assert.equal(r1.p.hp, 100, 'игрок не лечен (книга без лечебных)');
     assert.ok(
