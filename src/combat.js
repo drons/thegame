@@ -42,6 +42,21 @@
 // бит-в-бит (поля c.efs/c.efir/c.efirShield существуют только после
 // buildEfirUnit/каста). Контракт — memory/000112-efir-combat.md.
 //
+// «Вдох Эфира» (задача 000113): фирменное действие 1 раз за бой —
+// триггер ВВЕРХУ efirTurn (зарезервированная точка 000112, ДО
+// движения): HP игрока ≤ 40% maxHP И u.mp ≥ 20 И ещё не сработал
+// (c.efirBreathed — флаг в СОСТОЯНИИ БОЯ, не сейв; ТОЛЬКО при
+// успехе). Расход: 20 маны + ВЕСЬ ход: лечение ВСЕМ союзным
+// (healAlly: игрок P.heal-путь + livingAllies — включая Эфира) по
+// u.breath.heal (снапшот данных — efir.js) + ослабление ВСЕМ живым
+// врагам (weakenAllEnemies: u.weakened {mult 0.8, turns 2} — их
+// урон ×mult в mobAttack/mobAttackAlly, тик по раундам —
+// endPlayerTurn, паттерн щита 000112). НОЛЬ новых вызовов c._rng;
+// бои без Эфира/Вдоха — бит-в-бит (u.weakened !== undefined — 1
+// проверка гарда в каждом месте). Первая встреча — createCombat
+// (строка из efir.js, ленивый one-shot; без Game.efir — тихо).
+// Контракт — memory/000113-efir-breath.md.
+//
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js (mulberry32), player.js (derived/takeDamage/heal/addXp),
 // global-settings.js (level_delta_max, combat_difficulty/combat_difficulties,
@@ -648,6 +663,34 @@
     return dmg;
   }
 
+  // Лечение союзника (000113, «Вдох Эфира»; export —
+  // combatInternals): игрок — P.heal (кап — derived maxHP; У
+  // ИГРОКА НЕТ поля maxHP — только hp), юнит — прямой кап maxHP;
+  // ФАКТИЧЕСКОЕ восстановление = hp после − hp до (000037).
+  // Возвращает факт (0 — цель на максе).
+  function healAlly(c, unit, amount) {
+    const before = unit.hp;
+    if (unit === c.player) {
+      P.heal(unit, amount);
+    } else {
+      unit.hp = Math.min(unit.maxHP, unit.hp + amount);
+    }
+    return unit.hp - before;
+  }
+
+  // Ослабление ВСЕМ живым врагам (000113, «Вдох Эфира»; export —
+  // combatInternals): статус u.weakened = {mult, turns} — ОТДЕЛЬНЫЙ
+  // аддитивный статус (НЕ u.weaken из 000045 — тот тикает по
+  // ударам, ставится кастом игрока); при turns > 0 урон врага ×mult
+  // (mobAttack/mobAttackAlly), тик — endPlayerTurn (паттерн щита
+  // 000112). НЕ обновляется (1 раз за бой): присваивание, НЕ
+  // накопление. Мёртвые/сбежавшие — НЕ получают статус.
+  function weakenAllEnemies(c, mult, turns) {
+    for (const m of livingMobs(c)) {
+      m.weakened = { mult, turns };
+    }
+  }
+
   function checkVictory(c) {
     if (c.result) return;
     const left = livingMobs(c);
@@ -1080,6 +1123,11 @@
       dmg *= u.weaken.mult;
       u.weaken.turns -= 1;
     }
+    // Ослабление (000113, «Вдох Эфира»): отдельный статус u.weakened
+    // (тик по РАУНДАМ — endPlayerTurn, паттерн щита 000112) —
+    // мультипликативно с u.weaken (000045, тик по ударам). Декремента
+    // при применении НЕТ (тик — в endPlayerTurn).
+    if (u.weakened && u.weakened.turns > 0) dmg *= u.weakened.mult;
     const dealt = dealDamageToPlayer(c, dmg);
     if (dealt <= 0 || c.result) return;
     if (u.traits.lifesteal) {
@@ -1122,6 +1170,10 @@
       dmg *= u.weaken.mult;
       u.weaken.turns -= 1;
     }
+    // Ослабление (000113, «Вдох Эфира»): тот же отдельный статус
+    // u.weakened, что в mobAttack (тик по раундам — endPlayerTurn;
+    // дробь ×0.8 округляется Math.round ВНУТРИ dealDamageToAlly).
+    if (u.weakened && u.weakened.turns > 0) dmg *= u.weakened.mult;
     dealDamageToAlly(c, t, dmg);
   }
 
@@ -1395,8 +1447,9 @@
   }
 
   // Ход Эфира (000112): движение-эскорт + действия по приоритетам.
-  // (000113: «Вдох Эфира» — ТОЧКА РАСШИРЕНИЯ: здесь, вверху, ДО
-  //  движения — триггер «на ЕГО ходу, ПЕРЕД прочими действиями».)
+  // (000113: (0) «Вдох Эфира» — вверху, ДО движения: 1 раз за бой,
+  //  ВЕСЬ ход — триггер/расход/эффекты — см. начало функции;
+  //  данные — СНАПШОТ u.breath (efir.js).)
   // Движение (D13): ЦЕЛЬ ВЫБИРАЕТСЯ ОДИН РАЗ в начале фазы: d до
   // игрока > 3 → игрок; ИНАЧЕ d до ближайшего врага > 3 → враг;
   // иначе — стоим (бюджет не тратится) — «эскорт: не отходит от
@@ -1446,7 +1499,30 @@
   }
 
   function efirTurn(c, u) {
-    // (000113: триггер «Вдох Эфира» — здесь, перед движением.)
+    // (0) «Вдох Эфира» (000113): 1 раз за бой, на ЕГО ходу, ПЕРЕД
+    // прочими действиями (движение ТОЖЕ не выполняется — ВЕСЬ ход).
+    // Триггер: HP игрока ≤ 40% maxHP (u.breath.playerFrac) И u.mp ≥
+    // 20 (u.breath.mpCost) И ещё не сработал в этом бою (c.efirBreathed
+    // — флаг в СОСТОЯНИИ БОЯ, не сейв; выставляется ТОЛЬКО при успехе —
+    // провал триггера не «сжигает» действие). Данные — СНАПШОТ
+    // u.breath (buildEfirUnit, efir.js): без снапшота (000080-ветка)
+    // триггер недостижим — B undefined, бит-в-бит. Порядок операций
+    // детерминирован (НУЛЬ c._rng): флаг → mp −20 → heal игрока →
+    // heal живых союзников (порядок c.units — включая Эфира) →
+    // weakenAllEnemies → log → return.
+    const B = u.breath;
+    if (B && !c.efirBreathed) {
+      const pMax = P.derived(c.player).maxHP;
+      if (c.player.hp / pMax <= B.playerFrac && u.mp >= B.mpCost) {
+        c.efirBreathed = true;
+        u.mp -= B.mpCost;
+        healAlly(c, c.player, B.heal);
+        for (const a of livingAllies(c)) healAlly(c, a, B.heal);
+        weakenAllEnemies(c, B.weakenMult, B.weakenTurns);
+        log(c, B.logLine);
+        return; // весь ход — движение и приоритеты не выполняются (ТЗ)
+      }
+    }
     // --- Движение (D13) ---
     const pCell = { x: c.px, y: c.py, w: 1, h: 1 };
     let target = null;
@@ -1590,6 +1666,15 @@
     // ГИБЕЛИ Эфира (тик в efirTurn дал бы вечный щит у мёртвого духа
     // — «2 хода» именно 2; D5).
     if (c.efirShield && c.efirShield.turns > 0) c.efirShield.turns -= 1;
+    // Ослабление врагов (000113, «Вдох Эфира»): тик по РАУНДАМ — тот
+    // же ритм, что c.efirShield (000112): «2 хода» = ровно 2 раунда
+    // вражеских атак, включая раунд триггера (алли-фаза всегда раньше
+    // моб-фазы в turnOrder — все мобы раунда R атакуют ослабленными).
+    // Тик живых мобов (livingMobs) — мёртвые не атакуют, их статус
+    // не имеет значения.
+    for (const m of livingMobs(c)) {
+      if (m.weakened && m.weakened.turns > 0) m.weakened.turns -= 1;
+    }
     // Пулы Эфира (задача 000112): рефилл — ЗЕРКАЛЬНАЯ формула
     // buildEfirUnit (efir.js) от c.efir.attrs (D5: тот же ритм, что у
     // игрока); мана u.mp — НЕ пополняется (БЕЗ регена в бою — ТЗ).
@@ -1966,6 +2051,21 @@
     refillPools(c);
     log(c, `Бой: ${c.groupName} (уровень ${level}, мобы ${mobs.length}).`);
     if (hasLeader) log(c, 'Лидер вдохновляет группу: +5% урона, +5% защиты.');
+    // Первая встреча (000113): в ПЕРВОМ бою сессии при Эфире в отряде —
+    // flavor-строка из efir.js (BREATH_INFO.firstEncounter; one-shot —
+    // сессионный флаг модуля, НЕ сейв: state.efir 5 полей не меняется;
+    // UI/fx — 000118). Ленивое чтение в момент ВЫЗОВА (нет зависимости
+    // при загрузке — паттерн efirPractice, 000117); без Game.efir —
+    // ТИХО (деградация: игра не падает, строки просто нет — паттерн
+    // 000112 «без каталога — тихо»).
+    if (c.units.some((x) => x.id === 'efir' && x.side === 'ally')) {
+      const G = typeof globalThis !== 'undefined' ? globalThis.Game : null;
+      const f = G && G.efir && G.efir.takeFirstEncounterLine;
+      if (typeof f === 'function') {
+        const line = f();
+        if (line) log(c, line);
+      }
+    }
     c.targetId = (nearestMob(c) || {}).id || null;
     // Начало боя: все мобы живы — очередь собрана, turnIndex указывает
     // на игрока (игрок ходит первым).
@@ -1996,6 +2096,10 @@
     // экспортирован — 1 член). rectDist/efirTurn НЕ добавляются —
     // node-тестам достаточно c.endTurn-сценариев (минимальный дифф).
     dealDamageToAlly,
+    // 000113: «Вдох Эфира» (контракт memory/000113-efir-breath.md §3.1):
+    // healAlly (лечение игрока/союзника, возврат факта) +
+    // weakenAllEnemies (u.weakened на живых мобах).
+    healAlly, weakenAllEnemies,
   };
 
   return {

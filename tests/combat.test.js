@@ -3725,7 +3725,10 @@ test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощае�
 // CB-3 пинит lord 0); 000117 поднимает lord практикой — снапшот
 // u.efirSkills (D7). Фейк Game = { xpForNext, efir: E } — ленивый хук
 // combat.js читает globalThis.Game.efir в момент ВЫЗОВА (контракт
-// §3.2); в красной фазе хука нет — фейк инертен.
+// §3.2); в красной фазе хука нет — фейк инертен. 000113: фейк
+// сужен до practiceEfir (реальный E на Game.efir расходовал бы
+// one-shot первой встречи — createCombat читает
+// Game.efir.takeFirstEncounterLine).
 
 test('000117 PC-1: прокачанный firelord — урон Эфира +5%·уровень (по сиду)', () => {
   const E = loadEfir000081();
@@ -3733,7 +3736,11 @@ test('000117 PC-1: прокачанный firelord — урон Эфира +5%·
   const saveCatalog = C.combatInternals.allySpells;
   C.combatInternals.allySpells =
     require('../src/spells-data.js').SPELLS_BY_ID;
-  withGame112({ xpForNext: PL.xpForNext, efir: E }, () => {
+  // 000113: фейк уже сужен до practiceEfir — реальный модуль E
+  // на Game.efir расходовал бы one-shot takeFirstEncounterLine
+  // (createCombat) и ломал бы детерминизм log (snap112).
+  withGame112({ xpForNext: PL.xpForNext,
+                efir: { practiceEfir: E.practiceEfir } }, () => {
     try {
       // L5 (Int 5): база = 3 + 0.5·5 = 5.5. Один волк (armor 50 —
       // заклинание игнорирует, hp 100, d 3 ≤ 4), seed 5 (board112),
@@ -3785,7 +3792,11 @@ test('000117 PC-2: уклонение precog снижает попадания �
   const saveCatalog = C.combatInternals.allySpells;
   C.combatInternals.allySpells =
     require('../src/spells-data.js').SPELLS_BY_ID;
-  withGame112({ xpForNext: PL.xpForNext, efir: E }, () => {
+  // 000113: фейк уже сужен до practiceEfir — реальный модуль E
+  // на Game.efir расходовал бы one-shot takeFirstEncounterLine
+  // (createCombat) и ломал бы детерминизм log (snap112).
+  withGame112({ xpForNext: PL.xpForNext,
+                efir: { practiceEfir: E.practiceEfir } }, () => {
     try {
       // Волк L2 (2,4) → Эфир L3 (2,5) d 1 (игрок (3,6) d 3 →
       // nearestPlayerSide выберет Эфира), rng 0.3, seed 5.
@@ -3827,4 +3838,477 @@ test('000117 PC-2: уклонение precog снижает попадания �
         'B < A: уклонение снижает попадания (детерминизм по сиду 5)');
     } finally { C.combatInternals.allySpells = saveCatalog; }
   });
+});
+
+// --- Задача 000113: «Вдох Эфира» (КРАСНЫЕ) ---
+//
+// Контракт memory/000113-efir-breath.md §2/§6. Фиксируют НОВУЮ
+// функциональность в src/combat.js (строГО аддитивный дифф) + снапшот
+// u.breath из src/efir.js:
+//   * Триггер «Вдох Эфира» — вверху efirTurn, ДО движения (замена
+//     якоря 000112, строка 1413): HP игрока ≤ 40% maxHP (u.breath.
+//     playerFrac) И u.mp ≥ 20 (u.breath.mpCost) И ещё не сработал
+//     (c.efirBreathed — флаг в СОСТОЯНИИ БОЯ, не сейв; ТОЛЬКО при
+//     успехе). Расход: 20 маны + ВЕСЬ ход (движение и приоритеты
+//     НЕ выполняются): лечение ВСЕМ союзным (c.player P.heal-путь +
+//     livingAllies — включая самого Эфира) по u.breath.heal +
+//     ослабление ВСЕМ живым врагам (u.weakened {mult 0.8, turns 2} —
+//     их урон ×0.8, тик по раундам в endPlayerTurn).
+//   * healAlly(c, unit, amount) / weakenAllEnemies(c, mult, turns) —
+//     новые internals (export combatInternals).
+//   * Множитель u.weakened — в mobAttack/mobAttackAlly (×mult пока
+//     turns > 0); тик — endPlayerTurn (паттерн щита 000112).
+//   * Первая встреча — в createCombat: 1-й бой сессии с Эфиром в
+//     отряде — flavor-строка из efir.js (ленивый globalThis.Game.efir
+//     one-shot; без Game.efir — ТИХО).
+// Все сценарии — c.endTurn; каждый — ДВА прогона (тот же сид) либо
+// детерминизм-снимок. Тесты ПАДАЮТ, пока функциональности нет.
+
+// Детерминизм-снимок 000113 = snap112 + round + c.efirBreathed +
+// weakened-статусы мобов ({mult,turns}|null, по полям — vm-инвариант)
+// + u.breath?.heal.
+function snap113(c, u, p) {
+  return {
+    ...snap112(c, u, p),
+    round: c.round,
+    breathed: c.efirBreathed,
+    weakened: c.units.filter((x) => x.side === 'mob')
+      .map((m) => [m.id, m.weakened
+        ? { mult: m.weakened.mult, turns: m.weakened.turns } : null]),
+    breathHeal: u.breath ? u.breath.heal : null,
+  };
+}
+
+// Наёмник melee (000080): явные maxHP 13, урон 5 (без формулы makeAlly).
+// id 'a1' (idx 1 — после Эфира idx 0). Якорь (4,5) — рядом с игроком.
+const mercData = () => ({ name: 'Наёмник', role: 'melee', level: 1,
+                          maxHP: 13, damage: 5 });
+
+test('000113 BR-2: границы триггера (41%—нет/40%—да; mp 19—нет/20—да) + «весь ход» (позиция не сдвинулась, кастов/лечения нет, лог ровно [бой, «Вдох Эфира!»])', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // Геометрия: Эфир заранее на (0,0) (д 9 до игрока (3,6) — пин «весь
+    // ход»: после Вдоха позиция НЕ изменится); волк m0 на (0,1).
+    // hero112: maxHP 270, броня 0. L1, книга ['mend']. u.mp = 20 ПОСЛЕ
+    // buildEfirUnit (он затирает mp = maxMP = 11). c._rng = 0.01 (все
+    // попадания) — для «нет»-случаев (обычный ход).
+    const run = (pHp, uMp) => {
+      const p = hero112();
+      p.hp = pHp;
+      const state = E.createEfir();
+      state.spells = ['mend'];
+      const { c, w, u } = board112(E, p, state);
+      w.x = 0; w.y = 1; w.maxHP = 100; w.hp = 100;
+      c._rng = () => 0.01;
+      E.buildEfirUnit(state, c);
+      u.x = 0; u.y = 0;
+      u.mp = uMp;
+      c.endTurn();
+      return { p, w, u, c };
+    };
+    // (a) 110/270 = 0.4074 > 0.4 → НЕТ: обычный ход (mend + движение),
+    //     флага/ослабления нет. (Текущее поведение — «нет»-случай.)
+    {
+      const { p, w, u, c } = run(110, 20);
+      assert.equal(c.efirBreathed, undefined,
+        '(a) 41%: флага c.efirBreathed НЕТ (frac > 0.4)');
+      assert.equal(w.weakened, undefined, '(a) 41%: волк НЕ ослаблен');
+      assert.equal(u.mp, 17, '(a) 41%: обычный ход — mend (mp 20 − 3 = 17)');
+      assert.equal(p.hp, 116, '(a) 41%: игрок 110 + 6 (mend) = 116');
+      assert.ok(!c.log.includes('Вдох Эфира!'),
+        '(a) 41%: лог БЕЗ «Вдох Эфира!»: ' + c.log.join(' | '));
+    }
+    // (b) 108/270 === 0.4 И mp 20 → ДА: ВЕСЬ ход, mp 20→0, игрок +12,
+    //     волк ослаблен, Эфир НЕ сдвинулся, лог ровно [бой, Вдох].
+    {
+      const { p, w, u, c } = run(108, 20);
+      assert.equal(c.efirBreathed, true,
+        '(b) 40%+mp20: флаг c.efirBreathed = true (Вдох сработал)');
+      assert.ok(c.log.includes('Вдох Эфира!'),
+        '(b) лог «Вдох Эфира!» (строка из efir.js): ' + c.log.join(' | '));
+      assert.equal(u.mp, 0, '(b) mp 20 − 20 = 0');
+      assert.equal(p.hp, 120, '(b) игрок 108 + 12 (round(10+0.8·3)) = 120');
+      assert.deepEqual(w.weakened, { mult: 0.8, turns: 1 },
+        '(b) волк ослаблен: 2 (Вдох) − 1 (тик endPlayerTurn) = {0.8, 1}');
+      assert.equal(u.x, 0, '(b) «весь ход»: Эфир НЕ сдвинулся по x (на (0,0))');
+      assert.equal(u.y, 0, '(b) «весь ход»: Эфир НЕ сдвинулся по y');
+      assert.ok(!c.log.some((l) => l.includes('Эфир лечит')
+        || l.includes('Эфир:')),
+        '(b) «весь ход»: прочие действия НЕ выполнены (лечения/кастов нет): '
+        + c.log.join(' | '));
+      assert.deepEqual(c.log,
+        ['Бой: блуждающая группа (уровень 2, мобы 1).', 'Вдох Эфира!'],
+        '(b) лог ровно [бой, «Вдох Эфира!»] (ни движения, ни кастов, ни атак)');
+    }
+    // (c) 108/270 И mp 19 < 20 → НЕТ (мана недобор): обычный ход.
+    {
+      const { p, w, u, c } = run(108, 19);
+      assert.equal(c.efirBreathed, undefined,
+        '(c) mp 19: флага НЕТ (mp < 20)');
+      assert.equal(w.weakened, undefined, '(c) mp 19: волк НЕ ослаблен');
+      assert.equal(u.mp, 16, '(c) mp 19: обычный ход — mend (mp 19 − 3 = 16)');
+      assert.equal(p.hp, 114, '(c) mp 19: игрок 108 + 6 (mend) = 114');
+    }
+    // (d) 108/270 И mp 20 → ДА (граница маны): Вдох сработал.
+    {
+      const { p, w, u, c } = run(108, 20);
+      assert.equal(c.efirBreathed, true, '(d) mp 20: ДА — флаг c.efirBreathed');
+      assert.equal(u.mp, 0, '(d) mp 20 − 20 = 0');
+      assert.equal(p.hp, 120, '(d) игрок 108 + 12 = 120');
+      assert.ok(c.log.includes('Вдох Эфира!'), '(d) лог-строка «Вдох Эфира!»');
+    }
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});
+
+test('000113 BR-3: разовость — Вдох РОВНО ОДИН раз за бой (флаг c.efirBreathed); mp НЕ тратится повторно; ослабление НЕ обновляется (естественный тик 2→1→0); 3-й раунд — полный урон', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // Геометрия: волк m0 на (3,5) (д 1 к игроку (3,6) — бьёт каждый
+    // раунд, урон 10, все попадания). Книга [] — ИЗОЛЯЦИЯ ФЛАГА (никаких
+    // кастов, чтобы mp НЕ тратился повторно). Эфир на якорь (2,5) — д 1
+    // к волку (Касание 4 в раундах 2–3).
+    const p = hero112();
+    p.hp = 108;
+    const state = E.createEfir();
+    state.spells = [];
+    const { c, w, u } = board112(E, p, state);
+    w.x = 3; w.y = 5; w.maxHP = 100; w.hp = 100; w.damage = 10;
+    c._rng = () => 0.01;
+    E.buildEfirUnit(state, c);
+    u.mp = 20;
+    c.endTurn();        // r1: Вдох (108→120), волк ×0.8 = 8 → 112, тик 2→1
+    u.mp = 20;          // ручная подкачка (регена в бою НЕТ — изоляция флага)
+    p.hp = 108;
+    c.endTurn();        // r2: ВДОХА НЕТ (флаг) — Касание, волк ×0.8
+    c.endTurn();        // r3: тик исчерпан — полный урон
+    assert.equal(c.log.filter((l) => l === 'Вдох Эфира!').length, 1,
+      'ровно ОДНА строка «Вдох Эфира!» (1 раз за бой): ' + c.log.join(' | '));
+    assert.equal(c.efirBreathed, true, 'флаг c.efirBreathed = true (после r1)');
+    assert.equal(u.mp, 20, 'mp НЕ потрачена повторно (Вдох не пошёл в r2)');
+    assert.equal(p.hp, 90,
+      'p.hp: 120−8(r1 ×0.8) → 108(подстройка) −8(r2 ×0.8) −10(r3 ПОЛНЫЙ) = 90');
+    assert.equal(w.hp, 92, 'волк: 100 − 2·4 (Касание r2/r3) = 92');
+    assert.equal(w.weakened.turns, 0,
+      'ослабление НЕ обновлено: естественный тик 2→1→0 (не сброс в 2)');
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});
+
+test('000113 BR-4: формула — лечение ВСЕМ союзным (игрок + наёмник + сам Эфир, self-heal) по u.breath.heal = 12 (L1); mp 20→0; p.mp игрока НЕ тронулся', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // Отряд: игрок (108/270), наёмник (1/13), Эфир (4/16 — тестом).
+    // Волк m0 на (0,0) (д 9 — в раунд 1 не дотянется); c._rng = 0.99
+    // (все промахи — волк никого не бьёт).
+    const p = hero112();
+    p.hp = 108;
+    const pMp0 = p.mp;
+    const state = E.createEfir();
+    state.spells = ['mend'];
+    const c = createCombat({
+      player: p, allies: [E.efirAllyData(state), mercData()],
+      mobs: ['wolf'], mobLevel: 2, seed: 5,
+    });
+    c.obstacles.clear();
+    const w = c.units.find((x) => x.id === 'm0');
+    w.x = 0; w.y = 0; w.maxHP = 100; w.hp = 100;
+    c._rng = () => 0.99;
+    const u = E.buildEfirUnit(state, c);
+    u.mp = 20;
+    const merc = c.units.find((x) => x.id === 'a1');
+    u.hp = 4;     // maxHP 16 − 12
+    merc.hp = 1;  // maxHP 13 − 12
+    c.endTurn();
+    assert.equal(c.efirBreathed, true, 'флаг c.efirBreathed = true (Вдох)');
+    assert.equal(p.hp, 120, 'игрок 108 + 12 (P.heal-путь) = 120');
+    assert.equal(merc.hp, 13, 'наёмник 1 + 12 = 13 (факт 12, кап maxHP 13)');
+    assert.equal(u.hp, 16, 'Эфир 4 + 12 = 16 (self-heal — ВКЛЮЧЁН)');
+    assert.equal(u.mp, 0, 'mp 20 − 20 = 0');
+    assert.equal(p.mp, pMp0, 'p.mp игрока НЕ тронулся (мана Эфира — своя)');
+    assert.ok(c.log.includes('Вдох Эфира!'), 'лог-строка: ' + c.log.join(' | '));
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});
+
+test('000113 BR-5: окно ослабления — урон врага ×0.8 ровно 2 раунда (включая раунд триггера), потом возвращается: (a) mobAttack hpAfter [112,104,94], turns [1,0,0]; (b) mobAttackAlly — волк бьёт наёмника 10·0.8 = 8 → 13−8 = 5 (НЕ 3)', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // (a) mobAttack: волк (3,5) д 1 к игроку, урон 10, броня hero112 = 0,
+    // c._rng 0.01. Вдох r1 (108→120) → r1: 120−round(10·0.8)=112 (тик 2→1);
+    // r2: 112−8=104 (1→0); r3: 104−10=94 (полный урон — «возвращается»).
+    {
+      const p = hero112();
+      p.hp = 108;
+      const state = E.createEfir();
+      state.spells = ['mend'];
+      const { c, w, u } = board112(E, p, state);
+      w.x = 3; w.y = 5; w.maxHP = 100; w.hp = 100; w.damage = 10;
+      c._rng = () => 0.01;
+      E.buildEfirUnit(state, c);
+      u.mp = 20;
+      const hpAfter = [];
+      const turnsAfter = [];
+      for (let i = 0; i < 3; i++) {
+        c.endTurn();
+        hpAfter.push(p.hp);
+        turnsAfter.push(w.weakened ? w.weakened.turns : null);
+      }
+      assert.deepEqual(hpAfter, [112, 104, 94],
+        '×0.8 ровно 2 раунда, потом полный урон: ' + hpAfter.join(', '));
+      assert.deepEqual(turnsAfter, [1, 0, 0],
+        'тик по раундам (endPlayerTurn): 2→1→0→(0)');
+      assert.equal(w.hp, 92, 'волк: 100 − 2·4 (Касание r2/r3) = 92');
+    }
+    // (b) mobAttackAlly: наёмник (4,5) 13/13 д 1; волк (4,4) бьёт
+    // НАЁМНИКА (ближайшая цель): 10·0.8 = 8 → 13 − 8 = 5.
+    {
+      const p = hero112();
+      p.hp = 108;
+      const state = E.createEfir();
+      state.spells = ['mend'];
+      const c = createCombat({
+        player: p, allies: [E.efirAllyData(state), mercData()],
+        mobs: ['wolf'], mobLevel: 2, seed: 5,
+      });
+      c.obstacles.clear();
+      const w = c.units.find((x) => x.id === 'm0');
+      w.x = 4; w.y = 4; w.maxHP = 100; w.hp = 100; w.damage = 10;
+      c._rng = () => 0.01;
+      const u = E.buildEfirUnit(state, c);
+      u.mp = 20;
+      const merc = c.units.find((x) => x.id === 'a1');
+      c.endTurn();
+      assert.equal(c.efirBreathed, true, '(b) Вдох сработал (флаг)');
+      assert.equal(merc.hp, 5,
+        '(b) mobAttackAlly: 10·0.8 = 8 → 13 − 8 = 5 (без ослабления — 3)');
+      assert.equal(p.hp, 120,
+        '(b) игрок 108 + 12 (Вдох) = 120 (волк бьёт наёмника, не игрока)');
+      assert.ok(c.log.includes('Вдох Эфира!'), 'лог: ' + c.log.join(' | '));
+    }
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});
+
+test('000113 BR-6: не переносится в следующий бой — новый createCombat: c.efirBreathed/u.weakened отсутствуют; повторная настройка (mp 20, p.hp 108) → Вдох СРАБАТЫВАЕТ СНОВА (разовость — на БОЙ, не на игру)', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  withGame112({}, () => {  // Game БЕЗ .efir — первой встречи нет (чистота)
+    try {
+      const state = E.createEfir();
+      state.spells = [];
+      const p = hero112();
+      p.hp = 108;
+      const setup = (c) => {
+        c.obstacles.clear();
+        const w = c.units.find((x) => x.id === 'm0');
+        w.x = 3; w.y = 5; w.maxHP = 100; w.hp = 100; w.damage = 10;
+        c._rng = () => 0.01;
+        const u = E.buildEfirUnit(state, c);
+        u.mp = 20;
+        return { w, u };
+      };
+      // Бой 1: Вдох (лог, флаг true, ослабление после тика {0.8, 1}).
+      const c1 = createCombat({
+        player: p, allies: [E.efirAllyData(state)],
+        mobs: ['wolf'], mobLevel: 2, seed: 5,
+      });
+      const s1 = setup(c1);
+      c1.endTurn();
+      assert.equal(c1.efirBreathed, true, 'бой 1: флаг c.efirBreathed = true');
+      assert.ok(c1.log.includes('Вдох Эфира!'), 'бой 1: лог-строка');
+      assert.deepEqual(s1.w.weakened, { mult: 0.8, turns: 1 },
+        'бой 1: ослабление после тика {0.8, 1}');
+      // Бой 2 (тот же persistent state/игрок): состояние ЧИСТОЕ.
+      p.hp = 108;
+      const c2 = createCombat({
+        player: p, allies: [E.efirAllyData(state)],
+        mobs: ['wolf'], mobLevel: 2, seed: 5,
+      });
+      const s2 = setup(c2);
+      assert.equal(c2.efirBreathed, undefined,
+        'бой 2: c.efirBreathed НЕТ (состояние боя, не сейв)');
+      assert.equal(s2.w.weakened, undefined,
+        'бой 2: u.weakened НЕТ (не переносится между боями)');
+      // Повторная настройка → Вдох СРАБАТЫВАЕТ СНОВА.
+      c2.endTurn();
+      assert.equal(c2.efirBreathed, true, 'бой 2: Вдох снова (на БОЙ)');
+      assert.equal(c2.log.filter((l) => l === 'Вдох Эфира!').length, 1,
+        'бой 2: ровно одна строка (свежий бой): ' + c2.log.join(' | '));
+      assert.equal(s2.u.mp, 0, 'бой 2: mp 20 − 20 = 0');
+      assert.equal(p.hp, 112,
+        'бой 2: p.hp 108 + 12 (Вдох) − 8 (×0.8) = 112');
+    } finally {
+      C.combatInternals.allySpells = saveCatalog;
+    }
+  });
+});
+
+test('000113 BR-7: детерминизм по сиду — сценарий (игрок + наёмник + Эфир, волк, 3 endTurn): ДВА прогона → deepEqual snap113; ноль новых c._rng (fake Game БЕЗ .efir)', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  withGame112({}, () => {  // Game БЕЗ .efir — one-shot не расходуется
+    try {
+      // Волк (4,4) д 1 к наёмнику (4,5): бьёт наёмника (10·0.8 r1,
+      // 10·0.8 r2 → гибель). Наёмник бьёт волка 5 (r1/r2). Вдох — r1.
+      const run = () => {
+        const p = hero112();
+        p.hp = 108;
+        const state = E.createEfir();
+        state.spells = ['mend'];
+        const c = createCombat({
+          player: p, allies: [E.efirAllyData(state), mercData()],
+          mobs: ['wolf'], mobLevel: 2, seed: 5,
+        });
+        c.obstacles.clear();
+        const w = c.units.find((x) => x.id === 'm0');
+        w.x = 4; w.y = 4; w.maxHP = 100; w.hp = 100; w.damage = 10;
+        c._rng = () => 0.01;
+        const u = E.buildEfirUnit(state, c);
+        u.mp = 20;
+        for (let i = 0; i < 3 && !c.result; i++) c.endTurn();
+        return { snap: snap113(c, u, p), c };
+      };
+      // (1) Маркеры Вдоха на прогоне 1 (падают СЕЙЧАС — функциональности нет):
+      const r1 = run();
+      assert.equal(r1.c.log.filter((l) => l === 'Вдох Эфира!').length, 1,
+        'прогон 1: ровно одна строка «Вдох Эфира!»: ' + r1.c.log.join(' | '));
+      assert.equal(r1.c.efirBreathed, true, 'прогон 1: флаг c.efirBreathed = true');
+      assert.equal(r1.c.player.hp, 120,
+        'прогон 1: игрок 108 + 12 (Вдох) = 120');
+      assert.ok(r1.snap.weakened[0] && r1.snap.weakened[0][1],
+        'прогон 1: волк ослаблен (статус u.weakened у m0)');
+      assert.equal(r1.snap.breathHeal, 12, 'прогон 1: u.breath.heal = 12 (L1)');
+      // (2) Идентичность прогонов (тот же сид) → deepEqual snap113.
+      const r2 = run();
+      assert.deepEqual(r2.snap, r1.snap,
+        'два прогона (тот же сид) → идентичный snap113 (детерминизм, '
+        + 'ноль новых c._rng)');
+    } finally {
+      C.combatInternals.allySpells = saveCatalog;
+    }
+  });
+});
+
+test('000113 BR-8: internals healAlly/weakenAllEnemies (export combatInternals) + первая встреча (1-й бой с Эфиром — строка из efir.js, 2-й — без; без Game.efir — тихо, без краха)', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const I = C.combatInternals;
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // (a) Экспорты (первым ассертом — красная точка: символа нет).
+    assert.equal(typeof I.healAlly, 'function',
+      'combatInternals.healAlly — функция (000113)');
+    assert.equal(typeof I.weakenAllEnemies, 'function',
+      'combatInternals.weakenAllEnemies — функция (000113)');
+    // (b) healAlly: союзник — кап maxHP, возврат ФАКТА (hp после − до);
+    // игрок — P.heal-путь (кап derived maxHP).
+    const p = hero112();   // maxHP 270
+    const c = createCombat({
+      player: p, allies: [E.efirAllyData(E.createEfir())],
+      mobs: ['wolf'], mobLevel: 2, seed: 5,
+    });
+    let aLow = { hp: 1, maxHP: 13 };
+    assert.equal(I.healAlly(c, aLow, 12), 12,
+      '1/13 +12 → 13: факт 12 (ровно до капа)');
+    assert.equal(aLow.hp, 13, '1/13 +12 → 13 (кап maxHP)');
+    let aMid = { hp: 5, maxHP: 13 };
+    assert.equal(I.healAlly(c, aMid, 12), 8,
+      '5/13 +12 → 13: факт 8 (кап maxHP)');
+    assert.equal(aMid.hp, 13, '5/13 +12 → 13');
+    let aFull = { hp: 13, maxHP: 13 };
+    assert.equal(I.healAlly(c, aFull, 12), 0,
+      '13/13 +12: факт 0 (нет оверфлова)');
+    assert.equal(aFull.hp, 13, '13/13 +12 → 13 (полный)');
+    p.hp = 200;
+    assert.equal(I.healAlly(c, p, 12), 12,
+      'игрок 200 +12 → 212: факт 12 (P.heal-путь, unit === c.player)');
+    assert.equal(p.hp, 212, 'игрок 200 +12 = 212');
+    p.hp = 265;
+    assert.equal(I.healAlly(c, p, 12), 5,
+      'игрок 265 +12 → 270: факт 5 (кап derived maxHP 270)');
+    assert.equal(p.hp, 270, 'игрок 265 +12 = 270 (кап)');
+    // (c) weakenAllEnemies: ВСЕ живые мобы — {mult: 0.8, turns: 2}
+    // ИМЕННО; мёртвый — НЕ задет.
+    const c2 = createCombat({
+      player: hero112(), mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 7,
+    });
+    const m0 = c2.units.find((x) => x.id === 'm0');
+    const m1 = c2.units.find((x) => x.id === 'm1');
+    m1.alive = false;
+    m1.hp = 0;
+    I.weakenAllEnemies(c2, 0.8, 2);
+    assert.deepEqual(m0.weakened, { mult: 0.8, turns: 2 },
+      'живой моб — {mult: 0.8, turns: 2}');
+    assert.equal(m1.weakened, undefined, 'мёртвый моб — НЕ задет');
+    // (d) Первая встреча: ленивый globalThis.Game.efir (one-shot) —
+    // 1-й бой с Эфиром в отряде — flavor-строка, 2-й (тот же fake —
+    // съеден) — без; без Game.efir — ТИХО (деградация, без краха).
+    // Fake — closure (НЕ реальный модуль E — one-shot не расходуется).
+    // Путь — globalThis.Game.efir (браузерный UMD root.Game.efir и
+    // main.js G.efir, где G = globalThis.Game).
+    const LINE = 'Эфир материализуется рядом с Флогистоном…';
+    const mkFake = () => {
+      let used = false;
+      return {
+        takeFirstEncounterLine: () => {
+          if (used) return null;
+          used = true;
+          return LINE;
+        },
+      };
+    };
+    withGame112({ efir: mkFake() }, () => {
+      const c3 = createCombat({
+        player: hero112(), allies: [E.efirAllyData(E.createEfir())],
+        mobs: ['wolf'], mobLevel: 2, seed: 5,
+      });
+      assert.ok(c3.log.includes(LINE),
+        '1-й бой: строка первой встречи в c.log: ' + c3.log.join(' | '));
+      const c4 = createCombat({
+        player: hero112(), allies: [E.efirAllyData(E.createEfir())],
+        mobs: ['wolf'], mobLevel: 2, seed: 6,
+      });
+      assert.ok(!c4.log.includes(LINE),
+        '2-й бой (тот же fake — съеден): строки НЕТ: ' + c4.log.join(' | '));
+    });
+    withGame112({}, () => {
+      const c5 = createCombat({
+        player: hero112(), allies: [E.efirAllyData(E.createEfir())],
+        mobs: ['wolf'], mobLevel: 2, seed: 7,
+      });
+      assert.ok(!c5.log.includes(LINE),
+        'без Game.efir — тишина (строки нет, краха нет — деградация)');
+    });
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
 });

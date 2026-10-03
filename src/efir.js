@@ -26,6 +26,14 @@
 // Бой читает снапшот u.efirSkills — рост в следующий бой. Контракт
 // — memory/000117-efir-practice.md.
 //
+// 000113: «Вдох Эфира» — ДАННЫЕ фирменного действия (формулы +
+// flavor-строки — данные модуля, НЕ каталог): константа BREATH_INFO
+// + breathInfo {name, desc, firstEncounter} (экспорт для UI, имя
+// ТОЧНО) + one-shot takeFirstEncounterLine() (первая встреча —
+// сессионный флаг, НЕ сейв) + СНАПШОТ u.breath в buildEfirUnit
+// (бой читает данные с юнита — ноль модульной зависимости).
+// Контракт — memory/000113-efir-breath.md.
+//
 // ЧИСТЫЙ UMD-модуль, НОЛЬ зависимостей при загрузке (прецеденты
 // 000053/000038/000127): node — module.exports = factory(); браузер —
 // Game.efir. Взаимных require при загрузке нет (оба ветки): порог
@@ -64,11 +72,13 @@
 // переучёта — контракт для 000085/000112/000115/000116/000117),
 // memory/000112-efir-combat.md (000112: боевой профиль buildEfirUnit,
 // ход Эфира — контракт для 000113/000117/000118/000119),
+// memory/000113-efir-breath.md (000113: «Вдох Эфира» — данные
+// действия + снапшот u.breath — контракт для 000118/000119),
 // memory/000117-efir-practice.md (000117: практика ЕГО пула —
 // practiceEfir + боевые хуки combat.js — контракт для
 // 000118/000119).
 // Тесты: tests/efir.test.js (R1–R6, 000111 T1–T9, 000112 EF-1..4,
-// 000117 PR-1..PR-5).
+// 000117 PR-1..PR-5, 000113 BR-1).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -261,6 +271,38 @@
     { id: 'precog', primary: 'wisdom',
       requires: { skill: 'perception', level: 5 } },
   ];
+
+  // 000113: «Вдох Эфира» — ВСЕ данные фирменного действия (ТЗ:
+  // «src/efir.js — данные действия (формулы + flavor-строки)» —
+  // данные модуля, НЕ каталог — прецедент 000053; ОДНА точка
+  // формул/строк: триггер combat.js читает СНАПШОТ u.breath, UI
+  // 000116/000118 — breathInfo/EFIR_BREATH; 000119 «не тюнить» —
+  // правка ИМЕННО здесь). desc = BREATH_FALLBACK вкладки 000116
+  // (src/ui-tab-efir.js) ДОСЛОВНО — одна точка формулировок
+  // (E7-подстроки tests/ui-efir.test.js; правка = сломать E7).
+  // firstEncounter — многоточие ОДИН символ U+2026 (пин BR-1).
+  const BREATH_INFO = {
+    name: 'Вдох Эфира',           // label (БЕЗ «!» — лог отдельное поле)
+    logLine: 'Вдох Эфира!',       // ТОЧНАЯ лог-строка (ТЗ)
+    desc: '1 раз за бой, авто-триггер на его ходу: игрок ≤ 40% HP и ' +
+      'мана Эфира ≥ 20.\n' +
+      'Расходует 20 маны и весь ход: лечение всем союзным ' +
+      'round(10 + 0.8 * Мудрость);\n' +
+      'ослабление всех врагов: их урон ×0.8 на 2 хода.',
+    firstEncounter: 'Эфир материализуется рядом с Флогистоном…',
+    playerFrac: 0.4,              // триггер: HP игрока ≤ 40% maxHP
+    mpCost: 20,                   // расход 20 маны + ВЕСЬ ход
+    healBase: 10, healWisdom: 0.8, // round(10 + 0.8·Мудрость); L1: 12
+    weakenMult: 0.8, weakenTurns: 2, // их урон ×0.8 на 2 хода
+  };
+  // Экспорт для UI (000116/000118) — ИМЯ ТОЧНО (фиксация ТЗ):
+  // {name, desc, firstEncounter}; строки статичны, чтение live
+  // при render (паттерн 000096).
+  const breathInfo = {
+    name: BREATH_INFO.name,
+    desc: BREATH_INFO.desc,
+    firstEncounter: BREATH_INFO.firstEncounter,
+  };
 
   /**
    * Собственные атрибуты Эфира (НЕ шесть основных игрока) + maxHP/
@@ -581,6 +623,18 @@
     return state;
   }
 
+  // Первая встреча (000113): one-shot — 1-й вызов возвращает строку,
+  // следующие — null. Сессионное состояние модуля (НЕ сейв:
+  // state.efir ЗАМОРОЖЕНА на 5 полях — пины 000115/e2e; апгрейд в
+  // сейв — 000118). Прецедент мутабельного модульного let — xpWarned.
+  // Единственный потребитель в проде — createCombat (combat.js).
+  let firstEncounterUsed = false;
+  function takeFirstEncounterLine() {
+    if (firstEncounterUsed) return null;
+    firstEncounterUsed = true;
+    return BREATH_INFO.firstEncounter;
+  }
+
   /**
    * Боевой профиль Эфира (задача 000112, контракт
    * memory/000112-efir-combat.md §3.1): АПГРЕЙД СУЩЕСТВУЮЩЕГО боевого
@@ -606,7 +660,13 @@
    *     с u.skills — список id из данных makeAlly),
    *   c.efir — ссылка на юнит (refill/тики в endPlayerTurn);
    *   c.efirState — live-ссылка на state (000117: только практика —
-   *     efirPractice combat.js; боевые формулы её НЕ читают).
+   *     efirPractice combat.js; боевые формулы её НЕ читают);
+   *   u.breath — СНАПШОТ данных «Вдоха Эфира» (000113, flat-
+   *     примитивы, свежий объект на бой): боевой триггер combat.js
+   *     читает данные С ЮНИТА (ноль require, ноль ленивых
+   *     Game-чтений); heal ПРЕДВАРИТЕЛЬНО ВЫЧИСЛЕН — уровень Эфира
+   *     в бою не меняется (levelUp — после боя) → снапшот ≡
+   *     значению в момент триггера (детерминизм).
    * state (efir) — чтение (level/skills) + ПРАКТИКА 000117 мутирует
    * skillXp/skills в полёте (practiceEfir); формулы боя читают
    * СНАПШОТ u.efirSkills — рост в следующий бой. Тихая деградация:
@@ -634,6 +694,19 @@
     for (const def of EFIR_SKILLS) {
       u.efirSkills[def.id] = (efir && efir.skills && efir.skills[def.id]) || 0;
     }
+    // 000113: снапшот данных «Вдоха Эфира» (flat-примитивы —
+    // vm-инвариант 000082; свежий объект на бой — боевое состояние,
+    // не сейв): триггер efirTurn combat.js читает ТОЛЬКО его.
+    u.breath = {
+      name: BREATH_INFO.name,
+      logLine: BREATH_INFO.logLine,
+      playerFrac: BREATH_INFO.playerFrac,
+      mpCost: BREATH_INFO.mpCost,
+      heal: Math.round(BREATH_INFO.healBase
+        + BREATH_INFO.healWisdom * stats.wisdom),
+      weakenMult: BREATH_INFO.weakenMult,
+      weakenTurns: BREATH_INFO.weakenTurns,
+    };
     c.efir = u;
     c.efirState = efir; // 000117: live state — только практика
     return u;
@@ -699,5 +772,14 @@
     // 000117 (контракт memory/000117-efir-practice.md §3.1: практика
     // ЕГО пула — 15-й экспорт, 13 функций + 2 данных):
     practiceEfir,
+    // 000113 (контракт memory/000113-efir-breath.md §3.4: «Вдох
+    // Эфира» — данные + одна функция; итог 18 экспортов: 14 функций
+    // + 4 данных):
+    breathInfo,
+    // Алиас для СМЕРЖЕННОГО хука 000116 (src/ui-tab-efir.js читает
+    // G.efir.EFIR_BREATH → .lines || .текст || .text — хук берёт
+    // .text); не удалять, пока хук живёт.
+    EFIR_BREATH: { text: BREATH_INFO.desc },
+    takeFirstEncounterLine,
   };
 });
