@@ -5187,31 +5187,55 @@ test('B4. [E]: постройка С NPC (без эффектов) — един�
     'оверлей НЕ открывается поверх открытого диалога');
 });
 
-test('B5. [E]: постройка без NPC и без эффектов — ничего (текущее поведение сохранено)', async () => {
-  const h = await boot();
+test('B5. [E]: постройка с эффектами и без NPC — «[E] действия», без «диалог» (роутинг 000071)', async () => {
+  // Ребейз 000092 на мастер: прежний сценарий («постройка без NPC и
+  // без эффектов — ничего») на seed-мире недостижим: последние такие
+  // постройки — колодец (45) и фонтан (49) — ПОЛУЧИЛИ эффекты в
+  // 000092, а остальные типы без NPC — входы в пещеры (31–35) и
+  // города (51–54), которые findBuilding пропускает по дизайну
+  // (000103). Предикат 000077 («без эффектов») исчерпан. B5
+  // пере-пин на ближайший выживший инвариант роутинга [E]:
+  // постройка С эффектами и БЕЗ NPC — ближайший колодец (45),
+  // замерено: (-75, 15), 90 шагов от спавна; позиция — pre-seed
+  // (паттерн B24/B26: 90 шагов > steps_per_day=40 — walkTo сменил
+  // бы день). Ветвь «ничего» (openBuildingUI: !actions.length →
+  // false) в коде сохранена, но из каталога недостижима.
+  const h = await boot(seedSave({ day: 1, position: { x: -75, y: 15 } }));
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   const myMap = G.createMap(G.generateSeedPixels());
-  // 000077: первая постройка без NPC — (4,3), id 43 — ПОСЛЕ задачи
-  // ИМЕТЬ эффекты (круг) — предикат «без эффектов» исключает её
-  // (и 39/36–38/40/41/42): смысл («без NPC и без эффектов —
-  // ничего») сохраняется; цель — следующая постройка без эффектов
-  // (замерено: (36,-21), id 46).
-  const found = findBuilding(G, myMap, g.state.player, false,
-    (b) => !G.buildingEffects.hasEffects(b));
-  assert.ok(found, 'сценарий: найдена достижимая постройка без NPC');
-  walkTo(h, found.steps);
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const found = findBuilding(G, myMap, { x: 0, y: 0 }, false,
+    (b) => b.id === 45);
+  assert.ok(found, 'сценарий: достижимый колодец (id 45)');
+  assert.equal(found.building.id, 45,
+    'запись резолвлена по buildingId');
+  assert.equal(found.tile.x, -75, 'golden: x колодца');
+  assert.equal(found.tile.y, 15, 'golden: y колодца');
+  assert.equal(found.steps.length, 90,
+    'golden: 90 шагов от спавна (steps.length)');
+  assert.equal(g.state.player.x, -75, 'позиция сейва — колодец (x)');
+  assert.equal(g.state.player.y, 15, 'позиция сейва — колодец (y)');
   frameAt(h, NOW + 200);
   const hudLine = String(h.hud.textContent);
-  // Цель — без эффектов и без NPC: ни подсказки «[E] действия»,
-  // ни «[E] диалог».
-  assert.ok(!hudLine.includes('[E] действия'),
-    'без эффектов — подсказки «[E] действия» нет: ' + hudLine);
+  // Эффекты ЕСТЬ → подсказка «[E] действия»; NPC НЕТ → без
+  // «[E] диалог» (в отличие от B4).
+  assert.ok(hudLine.includes('[E] действия'),
+    'топ-строка: «[E] действия» (у 45 есть эффекты): ' + hudLine);
   assert.ok(!hudLine.includes('[E] диалог'),
-    'без NPC — подсказки «[E] диалог» нет: ' + hudLine);
+    'NPC нет — подсказки «[E] диалог» нет: ' + hudLine);
   key(h, 'KeyE');
-  assert.equal(G.buildingUI.isActive(), false, 'buildingUI не открывается');
-  assert.equal(G.npcUI.isActive(), false, 'npcUI не открывается');
+  assert.equal(G.buildingUI.isActive(), true,
+    'оверлей действий открывается');
+  assert.equal(G.npcUI.isActive(), false, 'npcUI НЕ открывается');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  assert.ok(!textOf(ov).includes('Диалог'),
+    'в оверлее строки «Диалог» нет (NPC на тайле нет)');
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false,
+    'Escape закрывает оверлей');
 });
 
 test('B6. buildingUI открыт: движение заблокировано (keydown-гейт, как npcUI)', async () => {
