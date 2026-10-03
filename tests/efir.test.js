@@ -2,10 +2,10 @@
 //
 // Падают, пока src/efir.js не существует (модуль ещё не создан):
 //   * R1 — модуль грузится (node require + браузерная ветка БЕЗ Game),
-//     экспорты ровно 14 (12 функций + данные EFIR_SKILLS/
+//     экспорты ровно 15 (13 функций + данные EFIR_SKILLS/
 //     EFIR_SPELL_UNLOCKS, 000111; serializeEfir/deserializeEfir —
-//     000085; buildEfirUnit — 000112), НОЛЬ require( в источнике
-//     (чистота 000053/000038);
+//     000085; buildEfirUnit — 000112; practiceEfir — 000117),
+//     НОЛЬ require( в источнике (чистота 000053/000038);
 //   * R2 — createEfir(): {level:1, xp:0, skillXp:{}, skills:{},
 //     spells:[spark,mend]} (форма сейва 000085→000115; HP/MP в
 //     состоянии НЕТ), независимые объекты; attrs — 3 собственных;
@@ -61,6 +61,14 @@
 //   * T9 — боевая проекция: лечение от СОБСТВЕННЫХ attrs (L1: mend +7;
 //     L20: greater_heal +35), u.attrs = 3×12; явных maxHP/damage в
 //     данных makeAlly НЕТ (D2: формульный путь до 000112).
+//
+// --- Задача 000117: практика Эфира: рост навыков от применения
+// (ТЗ — tasks/pending/000117.md; контракты —
+// memory/000117-efir-practice.md). GREEN-тесты PR-1..PR-5:
+// практика — в ЕГО пул (player.skillXp/secondary deepEqual),
+// потолок/overflow, requires, переучёт при load (дроби,
+// идемпотентно), маппинг действий → навыки (боевые хуки combat.js).
+//
 // Р1–R6 (000081) — БЕЗ ПРАВОК в красной фазе (технические правки
 // R1/R2 — вместе с GREEN-коммитом, вводящим экспорты/форму).
 
@@ -148,21 +156,21 @@ const SPELL_FILES = () => fs.readdirSync(SPELLS_DIR)
 const SPELL_CATALOG = SPELL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8')));
 
-test('000081 R1: efir.js грузится (node + браузерная ветка без Game); экспорты ровно 14 (12 функций + 2 данных); в источнике НЕТ require(', () => {
+test('000081 R1: efir.js грузится (node + браузерная ветка без Game); экспорты ровно 15 (13 функций + 2 данных); в источнике НЕТ require(', () => {
   const E = loadEfir();
   assert.deepEqual(
     Object.keys(E).sort(),
     ['EFIR_SKILLS', 'EFIR_SPELL_UNLOCKS', 'addEfirXp', 'buildEfirUnit',
      'createEfir', 'deserializeEfir', 'efirAllyData', 'efirSkillCap',
      'efirSkillXpForNext', 'efirSpellsByLevel', 'efirStats', 'levelUp',
-     'reprocessEfirSkills', 'serializeEfir'],
-    'экспорты — ровно 14: 12 функций + 2 данных (000085: ' +
+     'practiceEfir', 'reprocessEfirSkills', 'serializeEfir'],
+    'экспорты — ровно 15: 13 функций + 2 данных (000085: ' +
     'serializeEfir/deserializeEfir; 000111: EFIR_SKILLS, EFIR_SPELL_UNLOCKS; ' +
-    '000112: buildEfirUnit)');
+    '000112: buildEfirUnit; 000117: practiceEfir)');
   const FUNCS = ['createEfir', 'addEfirXp', 'levelUp', 'efirAllyData',
     'efirStats', 'efirSpellsByLevel', 'reprocessEfirSkills',
     'efirSkillXpForNext', 'efirSkillCap', 'buildEfirUnit',
-    'deserializeEfir', 'serializeEfir'];
+    'deserializeEfir', 'serializeEfir', 'practiceEfir'];
   for (const k of FUNCS) {
     assert.equal(typeof E[k], 'function', 'экспорт ' + k);
   }

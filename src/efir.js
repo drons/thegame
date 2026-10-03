@@ -20,6 +20,12 @@
 // пулы действий c.efs (паттерн refillPools), снапшот лордов
 // u.efirSkills, ссылка c.efir. Контракт — memory/000112-efir-combat.md.
 //
+// 000117: practiceEfir(state, skillId, amount) — практика ЕГО пула
+// (15-й экспорт; guards — тихий []): skillXp += amount (дроби,
+// округла НЕТ) + reprocessEfirSkills (потолок/Requires/overflow).
+// Бой читает снапшот u.efirSkills — рост в следующий бой. Контракт
+// — memory/000117-efir-practice.md.
+//
 // ЧИСТЫЙ UMD-модуль, НОЛЬ зависимостей при загрузке (прецеденты
 // 000053/000038/000127): node — module.exports = factory(); браузер —
 // Game.efir. Взаимных require при загрузке нет (оба ветки): порог
@@ -57,8 +63,12 @@
 // growth.md (000111: форма состояния, 11 экспортов, семантика
 // переучёта — контракт для 000085/000112/000115/000116/000117),
 // memory/000112-efir-combat.md (000112: боевой профиль buildEfirUnit,
-// ход Эфира — контракт для 000113/000117/000118/000119).
-// Тесты: tests/efir.test.js (R1–R6, 000111 T1–T9, 000112 EF-1..4).
+// ход Эфира — контракт для 000113/000117/000118/000119),
+// memory/000117-efir-practice.md (000117: практика ЕГО пула —
+// practiceEfir + боевые хуки combat.js — контракт для
+// 000118/000119).
+// Тесты: tests/efir.test.js (R1–R6, 000111 T1–T9, 000112 EF-1..4,
+// 000117 PR-1..PR-5).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -594,9 +604,13 @@
    *     EFIR_SKILLS из state.skills; D8: бой не зависит от мутаций
    *     state в полёте; 000117 читает как базу переучёта; НЕ путать
    *     с u.skills — список id из данных makeAlly),
-   *   c.efir — ссылка на юнит (refill/тики в endPlayerTurn).
-   * state (efir) — ТОЛЬКО чтение (level/skills); бой state НЕ
-   * мутирует. Тихая деградация: юнита нет / c без units → null.
+   *   c.efir — ссылка на юнит (refill/тики в endPlayerTurn);
+   *   c.efirState — live-ссылка на state (000117: только практика —
+   *     efirPractice combat.js; боевые формулы её НЕ читают).
+   * state (efir) — чтение (level/skills) + ПРАКТИКА 000117 мутирует
+   * skillXp/skills в полёте (practiceEfir); формулы боя читают
+   * СНАПШОТ u.efirSkills — рост в следующий бой. Тихая деградация:
+   * юнита нет / c без units → null.
    * @returns {object|null} проапгрейденный юнит; null — деградация.
    */
   function buildEfirUnit(efir, c) {
@@ -621,7 +635,48 @@
       u.efirSkills[def.id] = (efir && efir.skills && efir.skills[def.id]) || 0;
     }
     c.efir = u;
+    c.efirState = efir; // 000117: live state — только практика
     return u;
+  }
+
+  // --- 000117: практика ЕГО пула (рост навыков от применения) ---
+  /**
+   * Практика Эфира (задача 000117, ТЗ п.1): прибавка amount в ЕГО
+   * skillXp[skillId] + переучёт (reprocessEfirSkills — ТРЕТЬЯ точка
+   * вызова, задокументирована в нём). ЧИСТАЯ функция: ноль Game,
+   * ноль RNG, ноль console (UMD-чистота, R1). Тихие guards
+   * (return []): state не plain-объект; skillId вне пула
+   * EFIR_SKILLS (4 id); amount не finite число > 0. Дроби ЛЕГИТИМНЫ
+   * (000111 §9 / 000115: serde переносит дроби без floor) — amount
+   * НЕ округляется; битый банк (не-число/NaN/<0) нормализуется в 0
+   * (семантика reprocessEfirSkills). Потолок = основной атрибут
+   * НАВЫКА × 2 по ЕГО атрибутам (EFIR_SKILLS.primary + efirStats),
+   * requires-цепочки, overflow за потолком ХРАНИТСЯ в банке — всё
+   * в reprocessEfirSkills (логика не дублируется).
+   * @param {object} state состояние Эфира (МУТИРУЕТСЯ: skillXp/
+   *   skills).
+   * @param {string} skillId id из пула (firelord/icelord/
+   *   perception/precog).
+   * @param {number} amount finite > 0 (дроби разрешены).
+   * @returns {string[]} id, чей уровень ИЗМЕНИЛСЯ (reprocess);
+   *   [] — guards (no-op) или без повышения.
+   */
+  function practiceEfir(state, skillId, amount) {
+    if (!isPlainObject(state)) return [];
+    if (!EFIR_SKILLS.some((d) => d.id === skillId)) return [];
+    if (typeof amount !== 'number' || !Number.isFinite(amount) ||
+        amount <= 0) {
+      return [];
+    }
+    if (!state.skillXp || typeof state.skillXp !== 'object' ||
+        Array.isArray(state.skillXp)) {
+      state.skillXp = {};
+    }
+    const bank = state.skillXp[skillId];
+    const cur = (typeof bank === 'number' && Number.isFinite(bank)
+      && bank >= 0) ? bank : 0;
+    state.skillXp[skillId] = cur + amount;
+    return reprocessEfirSkills(state);
   }
 
   return {
@@ -641,5 +696,8 @@
     // профиль — в хвост return-блока, конфликт с 000085-serialize
     // минимален):
     buildEfirUnit,
+    // 000117 (контракт memory/000117-efir-practice.md §3.1: практика
+    // ЕГО пула — 15-й экспорт, 13 функций + 2 данных):
+    practiceEfir,
   };
 });

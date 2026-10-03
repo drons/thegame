@@ -626,7 +626,18 @@
   // Гибель союзника — покидает бой: НИКАКОГО checkVictory/поражения,
   // клетка освобождается (alive=false), из очереди исключается.
   // Возвращает фактический урон.
-  function dealDamageToAlly(c, t, raw) {
+  function dealDamageToAlly(c, t, raw, opts) {
+    // 000117: opts { magic: true } — сопротивление Эфира (эффект
+    // perception, снапшот t.efirSkills): raw / (1 + 0.05·уровень)
+    // ПЕРЕД бронёй (зеркало magicResistMult игрока — делился,
+    // player.js) + практика. opts нет (все существующие 3-арг-
+    // вызовы) — блок не входит, бит-в-бит.
+    if (opts && opts.magic && t.efirSkills
+        && (t.efirSkills.perception || 0) > 0) {
+      raw = raw / (1 + 0.05 * t.efirSkills.perception);
+      log(c, `${t.name} сопротивляется магическому урону.`);
+      efirPractice(c, 'perception', PRACTICE_XP.block);
+    }
     const dmg = Math.max(1, Math.round(raw) - (t.armor || 0));
     t.hp -= dmg;
     if (t.hp <= 0) {
@@ -1094,8 +1105,16 @@
   // трейты (яд/вампиризм/дебафф) в v1 действуют ТОЛЬКО на игрока —
   // сюда не переносятся. Гибель союзника — НЕ поражение (dealDamageToAlly).
   function mobAttackAlly(c, u, t) {
-    if (c._rng() >= hitChance(u.level, 0, t.level, 0)) {
+    // 000117: уклонение Эфира (эффект precog) — 4-й аргумент ТОГО
+    // же единственного броска (0.05·уровень из снапшота
+    // t.efirSkills; не-Эфир / без профиля / precog 0 → 0 —
+    // бит-в-бит, ноль новых c._rng).
+    const efirDodge = (t.kind === 'efir' && t.efirSkills)
+      ? 0.05 * (t.efirSkills.precog || 0) : 0;
+    if (c._rng() >= hitChance(u.level, 0, t.level, efirDodge)) {
       log(c, `${u.name} промахивается.`);
+      // 000117: промах ПО ЭФИРУ = «уклонение» — практика precog.
+      if (t.kind === 'efir') efirPractice(c, 'precog', PRACTICE_XP.block);
       return;
     }
     let dmg = u.damage;
@@ -1409,6 +1428,23 @@
   //  (4) иначе — «Касание духа»: враг d ≤ 1, урон u.damage, пул
   //      touch, ВСЕГДА попадает, игнорирует броню (паттерн каста);
   //  (5) пулы пусты / целей нет — ход завершён.
+  // Практика Эфира (000117): ЛЕНИВЫЙ вызов Game.efir.practiceEfir на
+  // live state (c.efirState — buildEfirUnit, efir.js) в момент
+  // вызова: typeof-guard, тихий no-op (БЕЗ console.error — бой без
+  // buildEfirUnit и node-тесты без Game.efir — бит-в-бит 000112;
+  // прецедент strongestKnown — тихий skip). Ноль новых c._rng;
+  // мана/пулы НЕ расходуются; рост навыков — в СЛЕДУЮЩИЙ бой
+  // (снапшот u.efirSkills). Контракт —
+  // memory/000117-efir-practice.md §3.2.
+  function efirPractice(c, skillId, amount) {
+    const st = c && c.efirState;
+    if (!st) return;
+    const G = typeof globalThis !== 'undefined' ? globalThis.Game : null;
+    const f = G && G.efir && G.efir.practiceEfir;
+    if (typeof f !== 'function') return;
+    f(st, skillId, amount);
+  }
+
   function efirTurn(c, u) {
     // (000113: триггер «Вдох Эфира» — здесь, перед движением.)
     // --- Движение (D13) ---
@@ -1490,9 +1526,12 @@
             * (1 + 0.05 * lord));
           const r = dealDamageToMob(c, e, dmg, true);
           log(c, `Эфир: «${s['название']}» по ${e.name}: ${r.dmg}.`);
-          // (000117: якорь начисления практики — после
-          // dealDamageToMob; ленивый вызов функции efir.js
-          // (guard typeof — паттерн combatInternals.allySpells)).
+          // 000117: практика урон-каста — школа тем же
+          // дискриминатором, что у лорда выше («лёд» → icelord,
+          // иначе firelord); PRACTICE_XP.spell.
+          efirPractice(c,
+            (s['школа'] === 'лёд') ? 'icelord' : 'firelord',
+            PRACTICE_XP.spell);
           if (c.result) return;
           continue;
         }
