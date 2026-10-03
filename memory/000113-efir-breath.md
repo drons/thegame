@@ -42,8 +42,8 @@ memory, коммитов НЕТ (красная стадия закоммити�
   для UI 000116 — имя ТОЧНО) + сессионный one-shot
   `firstEncounterUsed` + `takeFirstEncounterLine()` (флаг первой
   встречи) + СНАПШОТ `u.breath` в buildEfirUnit (до `return u`) +
-  3 экспорта в ХВОСТ return-блока (14 → 17: 13 функций + 4 данных)
-  + строка в шапке-комментарии.
+  3 экспорта в ХВОСТ return-блока (15 → 18: 14 функций + 4 данных,
+  база — после мержа 000117) + строка в шапке-комментарии.
 * `src/combat.js` (+~60; СТРОГО АДДИТИВНО — только вставки, сигнатура
   UMD не трогается): блок триггера вверху efirTurn (замена
   якорного комментария 000112, строка 1413 — зарезервированная точка
@@ -55,7 +55,7 @@ memory, коммитов НЕТ (красная стадия закоммити�
   встречи в createCombat ПОСЛЕ лога «Лидер вдохновляет» (~1929);
   combatInternals +2 члена (healAlly, weakenAllEnemies).
 * Тесты: tests/efir.test.js (+~90: BR-1 данные breathInfo + one-shot
-  + снапшот u.breath + тех. R1 14→17 в GREEN), tests/combat.test.js
+  + снапшот u.breath + тех. R1 15→18 в GREEN), tests/combat.test.js
   (+~250: секция «000113», BR-2..BR-8, snap113).
 * `memory/000113-efir-breath.md` — этот документ.
 * CHANGELOG.md — стадия мержа (отдельный коммит, «## 2026-10-03» →
@@ -271,23 +271,21 @@ function weakenAllEnemies(c, mult, turns) {
     // тот же ритм, что c.efirShield (000112): «2 хода» = ровно 2
     // РАУНДА вражеских атак, включая раунд триггера (алли-фаза
     // всегда раньше моб-фазы в turnOrder — все мобы раунда R
-    // атакуют ослабленными). Идёт и ПОСЛЕ ГИБЕЛИ носителя
-    // (временна́я семантика — паттерн щита 000112 D5).
-    for (const m of c.units) {
-      if (m.side === 'mob' && m.weakened && m.weakened.turns > 0) {
-        m.weakened.turns -= 1;
-      }
+    // атакуют ослабленными).
+    // Тик живых мобов (livingMobs) — мёртвые не атакуют, их статус
+    // не имеет значения.
+    for (const m of livingMobs(c)) {
+      if (m.weakened && m.weakened.turns > 0) m.weakened.turns -= 1;
     }
 ```
 
-* Итерируем ВСЕ моб-юниты c.units (гард side 'mob' + m.weakened),
-  НЕ livingMobs — тик продолжается после ГИБЕЛИ/побега носителя:
-  статус — временна́я вещь (2 раунда), а не «2 удара»; прецедент —
-  щит Эфира тикает после гибели Эфира (000112 D5: «тик в
-  efirTurn дал бы вечный щит у мёртвого духа — «2 хода» именно
-  2»). Наблюдательная разница в бою нулевая (мёртвый моб не
-  атакует — mobAct гардится alive), но семантика и 000118-UX
-  однозначны.
+* Тик — livingMobs(c): мёртвые/сбежавшие мобы статуса не тикают
+  (они не атакуют и в бою не возрождаются — статус без значения;
+  §10). Ключевое — тик в endPlayerTurn (НЕ в efirTurn/mobAct): идёт
+  и ПОСЛЕ ГИБЕЛИ Эфира (носителя действия) — «2 хода» именно 2
+  раунда (прецедент — щит Эфира тикает после гибели Эфира, 000112
+  D5: «тик в efirTurn дал бы вечный щит у мёртвого духа — «2 хода»
+  именно 2»).
 * ОКНО (верифицировано по очереди; порядок endPlayerTurn 000112
   §3.5: [алли+мобы — один цикл, союзники раньше мобов] →
   round++ → refillPools → тик c.ps.shield → тик c.efirShield →
@@ -347,17 +345,18 @@ function weakenAllEnemies(c, mult, turns) {
   вдохновляет…');` (~1929), ДО `c.targetId = …`:
 
 ```js
-    // Первая встреча (000113): в ПЕРВОМ бою игры при духе в
-    // отряде — flavor-строка из efir.js (one-shot; флаг —
-    // сессионный, не сейв; UI/fx — 000118). Ленивое чтение в
-    // момент ВЫЗОВА (нет зависимости при загрузке); без
-    // Game.efir — ТИШЕ (degradation, паттерн 000112 «без
-    // каталога — тихо»).
+    // Первая встреча (000113): в ПЕРВОМ бою сессии при Эфире в отряде —
+    // flavor-строка из efir.js (BREATH_INFO.firstEncounter; one-shot —
+    // сессионный флаг модуля, НЕ сейв: state.efir 5 полей не меняется;
+    // UI/fx — 000118). Ленивое чтение в момент ВЫЗОВА (нет зависимости
+    // при загрузке — паттерн efirPractice, 000117); без Game.efir —
+    // ТИХО (деградация: игра не падает, строки просто нет — паттерн
+    // 000112 «без каталога — тихо»).
     if (c.units.some((x) => x.id === 'efir' && x.side === 'ally')) {
-      const EG = (typeof globalThis !== 'undefined') ? globalThis : null;
-      const EE = EG && EG.efir;
-      if (EE && typeof EE.takeFirstEncounterLine === 'function') {
-        const line = EE.takeFirstEncounterLine();
+      const G = typeof globalThis !== 'undefined' ? globalThis.Game : null;
+      const f = G && G.efir && G.efir.takeFirstEncounterLine;
+      if (typeof f === 'function') {
+        const line = f();
         if (line) log(c, line);
       }
     }
@@ -399,17 +398,19 @@ function weakenAllEnemies(c, mult, turns) {
 * Имя breathInfo — ТОЧНО (фиксация ТЗ/задачи) — {name, desc,
   firstEncounter}; 000116 не ломается (он читает алиас, не
   breathInfo — но 000118/будущие UI-задачи — breathInfo).
-* Экспорты: 14 → **17 (13 функций + 4 данных)** — точный
-  sort-список для R1 (проверен в node):
+* Экспорты: 15 → **18 (14 функций + 4 данных)** — точный
+  sort-список для R1 (проверен в node после ребейза: база — после
+  мержа 000117, уже 15 экспортов, practiceEfir в списке):
   ['EFIR_BREATH','EFIR_SKILLS','EFIR_SPELL_UNLOCKS','addEfirXp',
   'breathInfo','buildEfirUnit','createEfir','deserializeEfir',
   'efirAllyData','efirSkillCap','efirSkillXpForNext',
-  'efirSpellsByLevel','efirStats','levelUp','reprocessEfirSkills',
-  'serializeEfir','takeFirstEncounterLine'] — ВНИМАНИЕ: 'breathInfo'
-  ХОДИТ ПЕРЕД 'buildEfirUnit' ('r' < 'u'). FUNCS (13) = прежние 12
-  + takeFirstEncounterLine. Данные (4) = EFIR_BREATH, EFIR_SKILLS,
-  EFIR_SPELL_UNLOCKS, breathInfo. (a3-черновик «ровно 15/16» —
-  устарел: one-shot-функция +1.)
+  'efirSpellsByLevel','efirStats','levelUp','practiceEfir',
+  'reprocessEfirSkills','serializeEfir','takeFirstEncounterLine'] —
+  ВНИМАНИЕ: 'breathInfo' ХОДИТ ПЕРЕД 'buildEfirUnit' ('r' < 'u'),
+  'practiceEfir' — между 'levelUp' и 'reprocessEfirSkills' (000117).
+  FUNCS (14) = прежние 13 + takeFirstEncounterLine. Данные (4) =
+  EFIR_BREATH, EFIR_SKILLS, EFIR_SPELL_UNLOCKS, breathInfo.
+  (a3-черновик «ровно 15/16» — устарел: one-shot-функция +1.)
 
 ### D11. name = 'Вдох Эфира' (label БЕЗ «!»); «Вдох Эфира!» —
 отдельное поле logLine
@@ -485,7 +486,7 @@ function weakenAllEnemies(c, mult, turns) {
   e2e — без правок); c.efirBreathed/u.weakened/u.breath — живут
   только в контексте боя.
 
-### 3.4 API efir.js после 000113 (17 экспортов)
+### 3.4 API efir.js после 000113 (18 экспортов)
 
 * `breathInfo` — {name: 'Вдох Эфира', desc: <фиксированная
   строка, §2 D10>, firstEncounter: 'Эфир материализуется рядом с
@@ -666,14 +667,15 @@ function weakenAllEnemies(c, mult, turns) {
 npm test: **1576 тестов, 1568 pass, 8 fail** — падают ТОЛЬКО
 BR-1..BR-8 (AssertionError «нет символа/поведения» — осмысленная
 краснота, НЕ синтаксис; в сообщениях — дамы c.log.join(' | '),
-паттерн CB-x). R1 НЕ ПРАВИТСЯ в красной фазе (остаётся «ровно 14»
-— зелёный: экспортов пока 14; правка — вместе с GREEN, прецедент
+паттерн CB-x). R1 НЕ ПРАВИТСЯ в красной фазе (остаётся «ровно 15»
+— зелёный: экспортов пока 15 — база уже с practiceEfir после
+мержа 000117; правка на «ровно 18» — вместе с GREEN, прецедент
 000112).
 
 ### Технические правки существующих тестов — ОДНА (GREEN)
 
-* tests/efir.test.js R1 (151-199): «экспорты ровно 14 (12 функций
-  + 2 данных)» → **ровно 17 (13 функций + 4 данных)**; key-list —
+* tests/efir.test.js R1 (151-199): «экспорты ровно 15 (13 функций
+  + 2 данных)» → **ровно 18 (14 функций + 4 данных)**; key-list —
   точный sort-список §2 D10 (breathInfo ПЕРЕД buildEfirUnit);
   FUNCS + 'takeFirstEncounterLine'; ассерты данных: breathInfo —
   объект 3 строковых ключа, EFIR_BREATH — объект со строкой .text;
@@ -736,8 +738,8 @@ BR-1..BR-8 (AssertionError «нет символа/поведения» — ос
   выставляется; BR-3 изолирует флаг ручным re-fill mp).
 * **Тик — endPlayerTurn, НЕ mobAct** (паттерн 000112 D5): окно =
   2 раунда вражеских атак, включая раунд триггера (алли-фаза
-  раньше моб-фазы); тик итерует ВСЕ моб-юниты (после гибели/побега
-  носителя — тоже; наблюдательной разницы нет, семантика — время).
+  раньше моб-фазы); тик итерует livingMobs(c) — мёртвые/сбежавшие
+  не тикают (не атакуют — статус без значения; §10).
 * **Порядок операций триггера детерминирован** (D2) — не менять
   без перепина BR (log ПОСЛЕДНИМ — паттерн 000112: действие,
   потом лог).
@@ -779,7 +781,7 @@ BR-1..BR-8 (AssertionError «нет символа/поведения» — ос
    пересчитать: 17 + экспорты 000117, sort-список — конкатенация).
    000131 (лагерь на карте) — файловых пересечений НЕТ (000095-
    область, не efir/combat).
-2. После ребейза — ПОЛНЫЙ npm test (особенно: R1 17; BR-1..8;
+2. После ребейза — ПОЛНЫЙ npm test (особенно: R1 18; BR-1..8;
    CB-1..7/EF-1..4 — бит-в-бит 000112; R7/R8/R9/T9; 000045;
    000076; main-visuals CB-8/9 + e2e; ui-efir E7/E10; save
    000085/000115) + анализ.
@@ -790,7 +792,7 @@ BR-1..BR-8 (AssertionError «нет символа/поведения» — ос
    (a) «Задача 000113: красные тесты» (BR-1..8 + memory/
        000113-efir-breath.md — эта станция);
    (b) «Задача 000113: "Вдох Эфира" — реализация (src/efir.js +
-       src/combat.js)» (+ R1 14→17 в GREEN);
+       src/combat.js)» (+ R1 15→18 в GREEN);
    (c) «Задача 000113: CHANGELOG — "Вдох Эфира"» (пуллет в
        «## 2026-10-03» → «### Игровой процесс»; игрок-ориентирован-
        ный текст, напр.: «**Вдох Эфира.** У Эфира появилось
@@ -815,7 +817,7 @@ BR-1..BR-8 (AssertionError «нет символа/поведения» — ос
   триггер ~18 вверху efirTurn (замена якоря 1413) + ~3 строки
   «(0) Вдох» в шапке efirTurn; первая встреча ~8 в createCombat;
   combatInternals +2 + комментарий).
-* tests/efir.test.js: +~90 (BR-1/1b/1c) + ~10 (R1 14→17 + шапка +
+* tests/efir.test.js: +~90 (BR-1/1b/1c) + ~10 (R1 15→18 + шапка +
   vm-ветка — GREEN).
 * tests/combat.test.js: +~250 (секция «000113»: snap113 +
   BR-2..BR-8, каждый — 2 прогона).
