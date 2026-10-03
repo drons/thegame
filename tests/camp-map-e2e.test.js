@@ -260,6 +260,7 @@ function bootSandbox() {
   return {
     sandbox, winListeners, raf, warns, errors,
     gameCanvas, spriteCanvas, hud, storage,
+    body: document.body, // DOM-хелперы оверлеев ищут .combat-overlay/.npc-overlay
   };
 }
 
@@ -591,7 +592,10 @@ test('CP-8: Барахолка — стойка «-18,-12», seed-формула
   assert.ok(shop1, 'makeCampShop — сток лагеря (виды каталога)');
   assert.equal(shop1.seed, seed1,
     'seed makeCampShop — та же формула (кросс-проверка)');
-  assert.deepEqual(JSON.parse(JSON.stringify(entry1.stock)), shop1.stock,
+  // Обе стороны → JSON: makeCampShop возвращает объекты vm-реалма,
+  // deepStrictEqual (strict) различает прототипы реалмов.
+  assert.deepEqual(JSON.parse(JSON.stringify(entry1.stock)),
+    JSON.parse(JSON.stringify(shop1.stock)),
     'сток стойки ≡ makeCampShop(−18,−12, day 1, w1) (vm-реалм → JSON)');
   // «Костёр» (Digit2): панель закрыта оверлеем (стек 000096),
   // оверлей → Digit2 → clock.rest(): день +1, шаги 0.
@@ -615,7 +619,8 @@ test('CP-8: Барахолка — стойка «-18,-12», seed-формула
     'seed дня 2 — формула (tile, day 2)');
   assert.notEqual(entry2.seed, seed1, 'новый день — новый seed');
   const shop2 = G.makeCampShop(-18, -12, 2, 1, rec);
-  assert.deepEqual(JSON.parse(JSON.stringify(entry2.stock)), shop2.stock,
+  assert.deepEqual(JSON.parse(JSON.stringify(entry2.stock)),
+    JSON.parse(JSON.stringify(shop2.stock)),
     'сток дня 2 ≡ makeCampShop(−18,−12, day 2, w1)');
 });
 

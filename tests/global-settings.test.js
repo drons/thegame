@@ -34,10 +34,13 @@ test('модуль: CommonJS-экспорт { SETTINGS } — все настра
   // Ре-пин 000109: добавился city_respawn_days (дней до
   // ПЕРЕГЕНЕРАЦИИ стока лавок города при входе, SPEC «Города и
   // деревни» → «Состояние, сейв, респаун»).
+  // Ре-пин 000131: добавился camp_channel (параметры лагерного
+  // канала src/map.js, «Лагерь» — размещение лагерей на карте).
   // Точка конфликта с параллельным 000050 (combat_obstacle_*): при
   // ребейзе — union обоих наборов.
   assert.deepEqual(Object.keys(SETTINGS).sort(), [
-    'city_channel', 'city_respawn_days', 'combat_difficulties',
+    'camp_channel', 'city_channel', 'city_respawn_days',
+    'combat_difficulties',
     'combat_difficulty', 'combat_obstacle_max_frac',
     'combat_obstacle_min_frac',
     'companion_loyalty', 'companion_refusal', 'companion_xp_share',

@@ -2065,13 +2065,19 @@
       // Спрайт: слотовая ветка — первична (побайтово как раньше).
       // Город (задача 000110) — НЕ слот: у него type = NONE
       // (buildingSprite → null), спрайт — по каталожному buildingId
-      // (CITY_SPRITES, канал 000103). typeof-гард: старый sprites.js
-      // без citySprite — город не рисуется (тихая деградация, игра
-      // не падает); слотовые якоря 8..12 в деградации городской
-      // спрайт не наденут (citySprite(подтип) → null).
+      // (CITY_SPRITES, канал 000103). Лагерь (задача 000131) — тоже
+      // НЕ слот (type = NONE, buildingId 47, канал 000131): городская
+      // ветка его не наденет (citySprite(47) → null, таблица 51..54),
+      // спрайт — CAMP_SPRITES. typeof-гард: старый sprites.js без
+      // citySprite/campSprite — город/лагерь не рисуются (тихая
+      // деградация, игра не падает); слотовые якоря 8..12 в
+      // деградации городским/лагерным спрайтом не наденут
+      // (citySprite/campSprite(подтип) → null).
       const asset = G.buildingSprite(rec.type) ||
         (rec.buildingId != null && typeof G.citySprite === 'function'
-         ? G.citySprite(rec.buildingId) : null);
+         ? G.citySprite(rec.buildingId) : null) ||
+        (rec.buildingId != null && typeof G.campSprite === 'function'
+         ? G.campSprite(rec.buildingId) : null);
       const img = spriteLoader.image(asset);
       if (!img) continue;
       const p = toPt(rec.x, rec.y);

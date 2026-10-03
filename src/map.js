@@ -447,6 +447,57 @@
     return cd.entries[cd.entries.length - 1].id;
   }
 
+  // --- Лагерный канал (задача 000131) ---
+  //
+  // Нейтральный лагерь (каталог 000047, механика 000095: костёр/
+  // барахолка/кочевник) размещается на глобальной карте как
+  // постройка-вход через АДДИТИВНЫЙ детерминированный канал в
+  // anchorAt — вариант городского (000103):
+  //   * срабатывает ТОЛЬКО там, где слотовый якорь НЕ генерируется
+  //     (fb(511.1) ≤ 0.33 + 0.14·rarity) — города первичны (их
+  //     проверка раньше в anchorAt); порогами непересечение
+  //     гарантировано (лагерь: fb ≤ 0.33+0.14·r, город:
+  //     fb > 0.45+0.10·r — при r ∈ [0,1] невозможно);
+  //   * собственный ОФСЕТ features-шума (CAMP_FEATURE_OFFSET,
+  //     смещение 733.7 — паттерн литералов 511.1/222.9/444.1/903.7):
+  //     декорреляция размещения лагерей от плотностей слотов/мобов/
+  //     wealth — лагерь НЕ «тень» слотовой структуры;
+  //   * тип НЕ выбирается (всегда CAMP_ID = 47) — СВОЕЙ
+  //     СИД-КОНСТАНТЫ канал НЕ имеет (не путать с CAMP_STOCK_SEED
+  //     0x43414d50 в src/items.js — сид СТОКА барахолки, 000095);
+  //   * размещение — существующий пайплайн buildingAtAnchor/
+  //     placeBuilding (000026): каталог 000047 БЕЗ «размер» → 1×1,
+  //     вход = якорь (дефолты buildingSize/buildingEntranceRel),
+  //     «без пересечений» + «у входа проходимый сосед» — из
+  //     isFreeForBuilding/entranceReachable; запись: type = NONE,
+  //     buildingId = 47, wealth — формула 222.9/444.1.
+  //
+  // Ленивый вывод (паттерн cityDerived, 000103): нет настроек, нет
+  // camp_channel {fbm:number, rarity:number}, нет каталога или
+  // записи 47 → null (НЕ кэшируется) → канал ВЫКЛ → генерация
+  // ПОБАЙТОВО идентична до-задачной (деградация: vm-песочницы без
+  // global-settings.js).
+  // Примечание: CAMP_ID объявлен НИЖЕ по тексту (у FEATURE_SCALE),
+  // обращение — в момент ВЫЗОВА (createMap), TDZ не бьёт.
+
+  let _campDerived = null;
+
+  // Параметры канала из настроек+каталога или null (не кэшируем).
+  function campDerived() {
+    if (_campDerived) return _campDerived;
+    const s = settingsRef();
+    const c = catalogRef();
+    const cc = s && s.camp_channel;
+    if (!cc || typeof cc !== 'object' ||
+        typeof cc.fbm !== 'number' || typeof cc.rarity !== 'number') {
+      return null;
+    }
+    if (!c || typeof c.getBuilding !== 'function') return null;
+    if (!c.getBuilding(CAMP_ID)) return null; // каталог 000047 отсутствует
+    _campDerived = { fbm: cc.fbm, rarity: cc.rarity, buildingId: CAMP_ID };
+    return _campDerived;
+  }
+
   // --- Подтипы слотов 8..12 (задача 000073) ---
   //
   // 10 «некартовых» записям каталога (37/38/39 храмы, 41/42/43
@@ -536,6 +587,14 @@
   // бить шум в одну фиксированную фазу в каждой клетке решётки, где
   // амплитуда Перлина гасит себя (см. тест «сэмпл мира»).
   const FEATURE_SCALE = 0.618;
+
+  // Лагерный канал (задача 000131): собственный ОФСЕТ features-шума
+  // (декорреляция размещения лагерей от плотностей слотов/мобов/
+  // wealth; паттерн литералов 511.1/222.9/444.1/903.7 — именованная
+  // константа, НЕ экспортируется) и id каталожной записи лагеря
+  // (000095). СВОЕЙ СИД-КОНСТАНТЫ канала НЕТ (тип не выбирается).
+  const CAMP_FEATURE_OFFSET = 733.7;
+  const CAMP_ID = 47;
 
   /**
    * Создаёт генератор карты.
@@ -634,7 +693,27 @@
       if (cd && fb > cd.fbm + cd.rarity * rarity) {
         return { x, y, buildingId: cityTypeId(x, y, cd) };
       }
-      if (fb <= 0.33 + 0.14 * rarity) return null;
+      if (fb <= 0.33 + 0.14 * rarity) {
+        // Лагерный канал (задача 000131): АДДИТИВНЫЙ — срабатывает
+        // ТОЛЬКО там, где слотовый якорь НЕ генерируется (сюда мы
+        // пришли именно потому, что fb ≤ 0.33 + 0.14·rarity), ПОСЛЕ
+        // городского канала (города первичны; порогами
+        // непересечение гарантировано — см. campDerived). Собственный
+        // ОФСЕТ features-шума + порог из SETTINGS.camp_channel;
+        // тип не выбирается — всегда CAMP_ID. Настроек/каталога 47
+        // нет (campDerived → null) — канал выключен, мир
+        // побайтово до-задачный (деградация).
+        const cbd = campDerived();
+        if (cbd) {
+          const fc = features.fbm(
+            x * FEATURE_SCALE + CAMP_FEATURE_OFFSET,
+            y * FEATURE_SCALE + CAMP_FEATURE_OFFSET, 3);
+          if (fc > cbd.fbm + cbd.rarity * rarity) {
+            return { x, y, buildingId: CAMP_ID };
+          }
+        }
+        return null;
+      }
       return { x, y, type: hash2(x, y, GLOBAL_SEED) % buildingCount() };
     }
 
