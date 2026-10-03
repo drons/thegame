@@ -169,7 +169,7 @@ function makeStorage() {
 
 // --- Песочница: вся цепочка index.html (браузерная ветка UMD) ---
 
-function bootSandbox() {
+function bootSandbox(seedData) {
   const winListeners = {};
   const raf = [];
   const warns = [];
@@ -184,6 +184,15 @@ function bootSandbox() {
   spriteCanvas.getContext = (kind) => (kind === '2d'
     ? makeContext2d(spriteCanvas) : null);
   const storage = makeStorage();
+  // 000109: опциональный засеянный сейв (раздел data) — пишется ДО
+  // запуска цепочки (restoreFromSave — при загрузке).
+  if (seedData) {
+    storage.store['phlogiston.save'] = JSON.stringify({
+      version: 1,
+      savedAt: new Date(0).toISOString(),
+      data: seedData,
+    });
+  }
   const document = {
     createElement: (tag) => makeEl(tag),
     getElementById: (id) => (
@@ -274,6 +283,21 @@ async function boot() {
   // валидна на любом моменте. Кадр вызываем ЕЁ (dungeon-ui tick
   // после входа в город/подземелье тоже живёт в rAF, но кадр
   // main.js обязан идти — в нём hudUpdate/цикл дня).
+  h.frameFn = h.raf[h.raf.length - 1];
+  return h;
+}
+
+// 000109: песочница с засеянным сейвом (раздел data: day, cities,
+// hero) — тот же boot, данные записаны ДО запуска цепочки.
+async function bootSeeded(seedData) {
+  const h = bootSandbox(seedData);
+  await drain();
+  await drain();
+  await drain();
+  const g = h.sandbox.__game;
+  assert.ok(g, 'globalThis.__game выставлен (main.js выполнен)');
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет (порядок цепочки): ' + h.errors.join('; '));
   h.frameFn = h.raf[h.raf.length - 1];
   return h;
 }
@@ -822,4 +846,151 @@ test('город 000105: кадры main.js после входа не пада�
     'HUD: «До выхода: ~N клеток»');
   assert.ok(!text.includes('undefined'),
     'HUD: без «undefined» (у города нет DUNGEON_NAMES[type])');
+});
+
+// --- 000109: сейв и респаун состояния города (экран города) ---
+//
+// Фикстура (детерминированный мир, фикс. сид generateSeedPixels):
+// деревня 52, ЯКОРЬ (20, −16), вход (21, −15) — единственный
+// проходимый тайл footprint'а, wealth 1, 36 шагов от спавна (0,0)
+// (< steps_per_day = 40 — вход НЕ сдвигает день). Содержимое: одна
+// лавочная клетка (2,2) — трактир 44 (map_index 11).
+//
+// Контракт (memory/000109-city-save-respawn.md): при входе
+// `day − lastVisitDay >= city_respawn_days` → ПЕРЕГЕНЕРАЦИЯ стока
+// (новый полный, детерминированный — без соли по дню), иначе —
+// ВОССТАНОВЛЕНИЕ из сейва; lastVisitDay = day при входе; сейв
+// входного шага — frame() (enterLocation → saveNow) — уже содержит
+// состояние города.
+
+const V109 = {
+  buildingId: 52,
+  anchor: [20, -16],
+  entrance: [21, -15],
+  steps: 36,
+  wealth: 1,
+  cell: '2,2',
+  day: 20,
+};
+const DEPLETED_STOCK = { bread: 0, healing_potion: 0, minor_healing: 0 };
+const HERO109 = {
+  name: 'Смоук', level: 2, xp: 10, totalXp: 100, gold: 50,
+  hp: 20, mp: 10, points: 1,
+  primary: {
+    strength: 2, dexterity: 1, constitution: 1,
+    intelligence: 1, wisdom: 1, charisma: 1,
+  },
+  secondary: { forge: 3 },
+  skillXp: {},
+  spells: ['spark'],
+};
+
+// Деревня 52 по якорю (НЕ «ближайший город» — тот хутор 51 на
+// 30 шагов; цель — явная, фикстура стабильна).
+function isVillage109(G, t) {
+  return isCity(G, t) && t.buildingId === V109.buildingId
+    && JSON.stringify(t.buildingAnchor) === JSON.stringify(V109.anchor);
+}
+
+async function enterVillage109(h) {
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findNearest(G, myMap, g.state.player, (t) => isVillage109(G, t));
+  assert.ok(found,
+    'сценарий: деревня 52 @ якорь (20,-16) достижима пешком (BFS)');
+  assert.deepEqual(found.target,
+    { x: V109.entrance[0], y: V109.entrance[1] },
+    'фикстура: вход (21,-15)');
+  assert.equal(found.steps.length, V109.steps,
+    'фикстура: ' + V109.steps + ' шагов от спавна (0,0)');
+  assert.equal(found.t.buildingWealth, V109.wealth,
+    'фикстура: wealth ' + V109.wealth);
+  walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg, 'в городе (dungeonState установлена)');
+  assert.equal(dg.kind, 'city', 'экран города');
+  assert.equal(g.state.day, V109.day,
+    'вход НЕ сдвигает день (36 < steps_per_day = 40)');
+  return { g, G, dg, found };
+}
+
+test('000109 R10a: вход через city_respawn_days после визита (20 − 17 = 3 >= 3) — сток ПЕРЕГЕНЕРИРОВАН (fresh, детерминированный), lastVisitDay = day; сейв входного шага', async () => {
+  const h = await bootSeeded({
+    day: V109.day, steps: 0, hero: HERO109,
+    cities: { '20,-16': { lastVisitDay: 17, stock: { '2,2': DEPLETED_STOCK } } },
+  });
+  const { g, G, dg, found } = await enterVillage109(h);
+  assert.equal(dg.entrance.x, 1, 'фикстура: layout 4x4, entrance (1,3)');
+  assert.equal(dg.entrance.y, 3, 'фикстура: layout 4x4, entrance (1,3)');
+  // Фреш-сток — детерминированный (якорь, клетка): трактир 44,
+  // (2,2), wealth 1. Чужой realm — JSON-рондтрип (паттерн host()).
+  const [ax, ay] = found.t.buildingAnchor;
+  const fresh = G.Cities.makeCityShop(ax, ay, 2, 2, 44, V109.wealth).stock;
+  const freshHost = JSON.parse(JSON.stringify(fresh));
+  assert.ok(freshHost && Object.keys(freshHost).length > 0,
+    'фикстура: fresh-сток трактира непуст');
+  assert.notDeepEqual(freshHost, DEPLETED_STOCK,
+    'сценарий: fresh ≠ истощённый сток (тест различим)');
+  // Сейв входного шага (frame: enterLocation → saveNow) — состояние
+  // города уже в localStorage, выходить из города не нужно.
+  const saveText = h.storage.store['phlogiston.save'];
+  assert.ok(saveText, 'входной шаг: saveNow вызван (сейв записан)');
+  const saved = JSON.parse(saveText);
+  assert.deepEqual(saved.data.cities, {
+    '20,-16': { lastVisitDay: V109.day, stock: { '2,2': freshHost } },
+  }, '20 − 17 = 3 >= city_respawn_days: сток ПЕРЕГЕНЕРИРОВАН '
+    + '(fresh, а не истощённый), lastVisitDay = day');
+  // __game.cities (контракт 000107): getter — поверхностная копия
+  // записей; значения — LIVE-объекты (cityStates Map), не копии.
+  const c1 = g.cities, c2 = g.cities;
+  assert.notEqual(c1, c2, 'getter: новый контейнер при каждом вызове');
+  assert.ok(Object.prototype.hasOwnProperty.call(c1, '20,-16'),
+    'cities: запись по якорю (20,-16)');
+  assert.equal(c1['20,-16'].lastVisitDay, V109.day,
+    'cities: lastVisitDay = day (день визита)');
+  assert.equal(c1['20,-16'], c2['20,-16'],
+    'LIVE: запись — тот же объект при двух вызовах getter');
+  assert.equal(c1['20,-16'].stock['2,2'], c2['20,-16'].stock['2,2'],
+    'LIVE: сток — тот же объект сессии (не копия)');
+});
+
+test('000109 R10b: вход через день после визита (20 − 19 = 1 < 3) — сток ВОССТАНОВЛЕН из сейва (НЕ перегенерирован), lastVisitDay = day', async () => {
+  const h = await bootSeeded({
+    day: V109.day, steps: 0, hero: HERO109,
+    cities: { '20,-16': { lastVisitDay: 19, stock: { '2,2': DEPLETED_STOCK } } },
+  });
+  const { g, G, dg, found } = await enterVillage109(h);
+  const [ax, ay] = found.t.buildingAnchor;
+  const fresh = G.Cities.makeCityShop(ax, ay, 2, 2, 44, V109.wealth).stock;
+  assert.notDeepEqual(JSON.parse(JSON.stringify(fresh)), DEPLETED_STOCK,
+    'сценарий: fresh ≠ истощённый сток (тест различим)');
+  const saveText = h.storage.store['phlogiston.save'];
+  assert.ok(saveText, 'входной шаг: saveNow вызван (сейв записан)');
+  const saved = JSON.parse(saveText);
+  assert.deepEqual(saved.data.cities, {
+    '20,-16': { lastVisitDay: V109.day, stock: { '2,2': DEPLETED_STOCK } },
+  }, '20 − 19 = 1 < city_respawn_days: сток ВОССТАНОВЛЕН из сейва '
+    + '(НЕ перегенерирован), lastVisitDay обновлён до дня входа');
+  // __game.cities (контракт 000107): getter — поверхностная копия
+  // записей; значения — LIVE-объекты (cityStates Map), не копии;
+  // мутация через getter → cityStates → следующий сейв.
+  const c1 = g.cities, c2 = g.cities;
+  assert.notEqual(c1, c2, 'getter: новый контейнер при каждом вызове');
+  assert.ok(Object.prototype.hasOwnProperty.call(c1, '20,-16'),
+    'cities: запись по якорю (20,-16)');
+  assert.equal(c1['20,-16'].lastVisitDay, V109.day,
+    'cities: lastVisitDay = day (день визита)');
+  assert.equal(c1['20,-16'], c2['20,-16'],
+    'LIVE: запись — тот же объект при двух вызовах getter');
+  assert.equal(c1['20,-16'].stock['2,2'], c2['20,-16'].stock['2,2'],
+    'LIVE: сток — тот же объект сессии (не копия)');
+  c1['20,-16'].stock['2,2'].sentinel000109 = 1;
+  const fns = h.winListeners['beforeunload'];
+  assert.ok(fns && fns.length, 'beforeunload зарегистрирован (saveNow)');
+  for (const fn of fns) fn({});
+  const saved2 = JSON.parse(h.storage.store['phlogiston.save']);
+  assert.deepEqual(saved2.data.cities['20,-16'].stock['2,2'],
+    { ...DEPLETED_STOCK, sentinel000109: 1 },
+    'LIVE: мутация стока через getter попала в сейв (000107)');
 });
