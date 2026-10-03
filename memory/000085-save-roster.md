@@ -31,6 +31,19 @@ CURRENT_VERSION = 1, MIGRATIONS = {} (000031: неломкое расширен�
   УДАЛЯТЬ объявление 000085 (ханк a), сохранять save/restore-ханки
   (semantic rebase). Два `let roster` → ReferenceError на load → падают
   ВСЕ vm-тесты.
+  ВЫПОЛНЕНО 2026-10-03 (станция «правки по итогам ревью»): semantic
+  rebase на мастер 2b066e4 (000099/000083/000093/000077/000114) —
+  объявление 000085 (`let roster` + `const deadMercs`, ханк после
+  блока efir) УДАЛЕНО (git применял его ЧИСТО, без текстового
+  конфликта — дубликат `roster` дал бы SyntaxError на load);
+  const-пара 000083 (hasCompanions/roster/deadMercs, ~строки 301–308)
+  СОХРАНЕНО — restore мутирует in place (length=0 + push), совместимо
+  с const. Ханк хвоста collectSaveData — union (explored/
+  buildingContent 000093/000077 + companions/efir/dead_mercs 000085);
+  хвост save.test.js — union (блок 000093 + блок T1–T6). ВНИМАНИЕ:
+  `roster,`/`deadMercs,` в deps-бандле buildingActions.init
+  (~строки 943–944, 000083) и в `__game.state` (000085) — РАЗНЫЕ
+  объекты, дубликата нет. После ребейза: npm test 1414/1414 зелёных.
 
 ## Сериализация (функции, quiet — warn печатает main.js)
 
