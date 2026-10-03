@@ -29,8 +29,9 @@
 //    (город — НЕ тип подземелья; 000105 переиспользует
 //    dungeonState и читает city-shape, 000106 — содержимое).
 //
-// STADIA KRASNYKH TESTOV (TDD): модуля src/cities.js ещё НЕТ —
-// тесты ниже падают до реализации. Ленивый require: отсутствие
+// Контракты — memory/000104-cities-layout.md (layout),
+// memory/000106-city-contents.md, memory/000108-city-shops.md,
+// memory/000109-city-save-respawn.md. Ленивый require: отсутствие
 // модуля не ломает загрузку этого файла (паттерн 000046).
 
 const { test } = require('node:test');
@@ -1443,9 +1444,7 @@ test('регрессия: мировой npcStocks (main.js) ключирует�
 //   * Запись: { lastVisitDay: int ≥ 1, stock: { 'tx,ty': {itemId: qty ≥ 0} } };
 //     ключ города — ЯКОРЬ (целые координаты, отрицательные возможны).
 //   * day/respawnDays — ПАРАМЕТРАМИ (конвенция 000072 restoreBuffs).
-// STADIA KRASNYKH TESTOV: функций в src/cities.js ещё НЕТ — тесты ниже
-// падают по осмысленной причине (нет экспорта/функциональности), не
-// по синтаксической.
+// Контракты 000109 — memory/000109-city-save-respawn.md.
 
 test('000109 R1: API — cities.js экспортирует validateCityStock/serializeCityStates/restoreCityStates (чистые функции)', () => {
   const C = loadCities();

@@ -941,6 +941,18 @@ test('000109 R10a: вход через city_respawn_days после визита
     '20,-16': { lastVisitDay: V109.day, stock: { '2,2': freshHost } },
   }, '20 − 17 = 3 >= city_respawn_days: сток ПЕРЕГЕНЕРИРОВАН '
     + '(fresh, а не истощённый), lastVisitDay = day');
+  // __game.cities (контракт 000107): getter — поверхностная копия
+  // записей; значения — LIVE-объекты (cityStates Map), не копии.
+  const c1 = g.cities, c2 = g.cities;
+  assert.notEqual(c1, c2, 'getter: новый контейнер при каждом вызове');
+  assert.ok(Object.prototype.hasOwnProperty.call(c1, '20,-16'),
+    'cities: запись по якорю (20,-16)');
+  assert.equal(c1['20,-16'].lastVisitDay, V109.day,
+    'cities: lastVisitDay = day (день визита)');
+  assert.equal(c1['20,-16'], c2['20,-16'],
+    'LIVE: запись — тот же объект при двух вызовах getter');
+  assert.equal(c1['20,-16'].stock['2,2'], c2['20,-16'].stock['2,2'],
+    'LIVE: сток — тот же объект сессии (не копия)');
 });
 
 test('000109 R10b: вход через день после визита (20 − 19 = 1 < 3) — сток ВОССТАНОВЛЕН из сейва (НЕ перегенерирован), lastVisitDay = day', async () => {
@@ -960,4 +972,25 @@ test('000109 R10b: вход через день после визита (20 − 
     '20,-16': { lastVisitDay: V109.day, stock: { '2,2': DEPLETED_STOCK } },
   }, '20 − 19 = 1 < city_respawn_days: сток ВОССТАНОВЛЕН из сейва '
     + '(НЕ перегенерирован), lastVisitDay обновлён до дня входа');
+  // __game.cities (контракт 000107): getter — поверхностная копия
+  // записей; значения — LIVE-объекты (cityStates Map), не копии;
+  // мутация через getter → cityStates → следующий сейв.
+  const c1 = g.cities, c2 = g.cities;
+  assert.notEqual(c1, c2, 'getter: новый контейнер при каждом вызове');
+  assert.ok(Object.prototype.hasOwnProperty.call(c1, '20,-16'),
+    'cities: запись по якорю (20,-16)');
+  assert.equal(c1['20,-16'].lastVisitDay, V109.day,
+    'cities: lastVisitDay = day (день визита)');
+  assert.equal(c1['20,-16'], c2['20,-16'],
+    'LIVE: запись — тот же объект при двух вызовах getter');
+  assert.equal(c1['20,-16'].stock['2,2'], c2['20,-16'].stock['2,2'],
+    'LIVE: сток — тот же объект сессии (не копия)');
+  c1['20,-16'].stock['2,2'].sentinel000109 = 1;
+  const fns = h.winListeners['beforeunload'];
+  assert.ok(fns && fns.length, 'beforeunload зарегистрирован (saveNow)');
+  for (const fn of fns) fn({});
+  const saved2 = JSON.parse(h.storage.store['phlogiston.save']);
+  assert.deepEqual(saved2.data.cities['20,-16'].stock['2,2'],
+    { ...DEPLETED_STOCK, sentinel000109: 1 },
+    'LIVE: мутация стока через getter попала в сейв (000107)');
 });
