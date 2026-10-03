@@ -46,6 +46,7 @@ test('index.html: нужные модули подключены', () => {
     'src/building-effect-44_rest.js',
     'src/building-content.js',
     'src/building-effect-48.js',
+    'src/building-effect-camp.js',
     'src/hud.js',
     // Слот спец-модулей 000128 (после hud.js, до visuals-data.js);
     // добавлено на зелёной стадии (план красной — см. коммит
@@ -1045,4 +1046,25 @@ test('000091: vm — загрузка building-effect-44_rest.js: standalone (б
   assert.equal(
     typeof sandboxC.Game.buildingActions.specials['44_rest'], 'function',
     'specials[44_rest] зарегистрирован (self-registration при загрузке)');
+});
+
+// --- Задача 000095: building-effect-camp.js (спец-модуль лагеря) ---
+//
+// Спец-модуль регистрирует specials (fire/market) в building-actions.js
+// (000128 §2.3): обязан грузиться ПОСЛЕ building-actions.js (иначе
+// registerSpecial — undefined) и ДО main.js (UMD-ловушка 000038:
+// main.js снимает Game один раз при загрузке). Слот общий с
+// 000077/000091–95 — adjacency к hud.js/main.js НЕ закрепляется
+// (контракт memory/000095-camp-fire-bazaar.md §1.2).
+
+test('index.html: src/building-effect-camp.js подключён ПОСЛЕ building-actions.js и ДО main.js (задача 000095)', () => {
+  assert.notEqual(pos('src/building-effect-camp.js'), -1,
+    'src/building-effect-camp.js не подключён в index.html ' +
+    '(задача 000095: спец-модуль «Костёр»/«Барахолка»)');
+  assert.ok(pos('src/building-actions.js') < pos('src/building-effect-camp.js'),
+    'src/building-actions.js должен быть раньше ' +
+    'src/building-effect-camp.js (registerSpecial, задача 000128)');
+  assert.ok(pos('src/building-effect-camp.js') < pos('src/main.js'),
+    'src/building-effect-camp.js должен быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: main.js снимает Game один раз)');
 });

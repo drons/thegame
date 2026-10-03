@@ -955,3 +955,85 @@ test('HU8. buildLine(ctx): строка «Исследовано: N тайлов
     'Здесь: рунический камень',
     'строка между top-блоком и «Здесь:»');
 });
+
+test('HU9. update(): ветка лагеря — ctx.campShopFor → setShop(campWrap), dungeon → null, без campShopFor — 1:1, isShop побеждает (задача 000095)', () => {
+  const hud = require('../src/hud.js');
+  const CAMP_WRAP = { x: 5, y: 7, buildingType: 47, wealth: 0,
+    stock: { bread: 2 }, seed: 123456 };
+
+  // (a) тайл лагеря + campShopFor в ctx → setShop(campWrap) РОВНО 1×,
+  // makeShop НЕ вызывается (лагерь — не «картовый» магазин:
+  // shopKindsFor(-1) → null → ветка isShop мертва). Контракт
+  // §2.7: setShop(isShop ? makeShop(...) : campShop).
+  {
+    const log = [];
+    const setShopArgs = [];
+    let makeShopCalls = 0;
+    const ctxA = makeCtx({
+      tile: { terrain: 3, hasBuilding: true, building: -1,
+        buildingId: 47, hasMobGroup: false, buildingWealth: 0 },
+      game: {
+        playerUI: {
+          setShop: (arg) => { setShopArgs.push(arg); log.push('setShop'); },
+        },
+        makeShop: () => { makeShopCalls++; return { shop: true }; },
+      },
+      campShopFor: (x, y, tile) => CAMP_WRAP,
+    });
+    ctxA.hudEl = makeHudEl(log);
+    hud.update(ctxA);
+    assert.equal(setShopArgs.length, 1, 'setShop — РОВНО 1×/кадр');
+    assert.deepEqual(setShopArgs[0], CAMP_WRAP,
+      'setShop(campWrap) — сток лагеря (не makeShop)');
+    assert.equal(makeShopCalls, 0, 'makeShop НЕ вызван (не магазин)');
+    assert.deepEqual(log, ['setShop', 'text'],
+      'порядок 1:1: строка → setShop → запись textContent');
+  }
+  // (b) dungeonState — setShop(null) ДАЖЕ при campShopFor
+  // (гард !dungeonState на обеих ветках, 1:1 существующий).
+  {
+    const setShopArgs = [];
+    const ctxB = makeCtx({
+      dungeonState: { dg: { type: 0 }, cells: [] },
+      game: { playerUI: { setShop: (arg) => setShopArgs.push(arg) } },
+      campShopFor: () => CAMP_WRAP,
+    });
+    hud.update(ctxB);
+    assert.deepEqual(setShopArgs, [null],
+      'подземелье → setShop(null), campShop не пробивается');
+  }
+  // (c) ctx БЕЗ campShopFor (текущая цепочка, 14 полей) — campShop
+  // null → поведение 1:1 (регрессия существующих hud-тестов).
+  {
+    const setShopArgs = [];
+    const ctxC = makeCtx({
+      game: { playerUI: { setShop: (arg) => setShopArgs.push(arg) } },
+    });
+    hud.update(ctxC);
+    assert.deepEqual(setShopArgs, [null],
+      'без campShopFor — setShop(null) (1:1)');
+  }
+  // (d) «картовый» магазин + campShopFor — isShop ПЕРЕБИВАЕТ:
+  // setShop(makeShop(x, y, building, wealth)), campWrap не
+  // используется (контракт §2.7: isShop ? makeShop : campShop).
+  {
+    const setShopArgs = [];
+    const ctxD = makeCtx({
+      tile: { terrain: 3, hasBuilding: true, building: 0,
+        buildingId: null, hasMobGroup: false, buildingWealth: 2 },
+      game: {
+        shopKindsFor: (bt) => (bt === 0 ? ['food'] : null),
+        playerUI: { setShop: (arg) => setShopArgs.push(arg) },
+        makeShop: (x, y, bt, w) => ({ shop: true, x, y, building: bt,
+          wealth: w }),
+      },
+      campShopFor: () => CAMP_WRAP,
+    });
+    hud.update(ctxD);
+    assert.deepEqual(setShopArgs,
+      [{ shop: true, x: 5, y: 7, building: 0, wealth: 2 }],
+      'магазин тайла побеждает — setShop(makeShop(...))');
+    assert.notDeepEqual(setShopArgs[0], CAMP_WRAP,
+      'campWrap НЕ передан (isShop true)');
+  }
+});
