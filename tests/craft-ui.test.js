@@ -41,8 +41,10 @@
 //   * CU-7 деградация (000053): craft-ui.js грузится чисто без
 //     buildingActions/Craft (с buildingActions — саморегистрация
 //     'craft'); open() без Game.Craft — console.error, без краха,
-//     isActive false. + 40/42: осиротевшая марка 'x,y:craft' НЕ гасит
-//     строку (решение 5 контракта).
+//     isActive false. + цепь без craft.js (голая песочница
+//     Game = {}) → buildingActions({id:8}) БЕЗ строки 'craft'
+//     (гард синтеза). + 40/42: осиротевшая марка 'x,y:craft' НЕ
+//     гасит строку (решение 5 контракта).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -802,4 +804,41 @@ test('CU-7. деградация: craft-ui.js грузится чисто без
   assert.equal(row.доступен, true,
     'осиротевшая марка 0,0:craft НЕ гасит строку «Крафт» '
     + '(крафт у 40/42 не ограничен раз-в-день)');
+  // (4) Цепь БЕЗ craft.js → строки 'craft' нет (карта CU-7,
+  // решение 1 контракта): минимальная vm-песочница со СНАПШОТОМ
+  // Game = {} — lazyGame() в building-effects.js НЕ несёт Craft →
+  // гард синтеза (G && G.Craft && Array.isArray(G.Craft.CRAFT))
+  // ЛОЖЕН → у крафтового здания (8 — Кузница) строка id 'craft'
+  // НЕ синтезируется (деградация 000053, без краха). Отличие от
+  // A2 (building-effects.test.js): там ЧУЖОЕ здание {id:97} в
+  // ПОЛНОЙ цепи (Craft на месте, строки нет потому что здание);
+  // здесь КРАФТОВОЕ здание без Craft — проверяется сам гард.
+  {
+    const errors = [];
+    const sandbox = {
+      console: {
+        error: (m) => errors.push(String(m)),
+        warn: () => {}, log: () => {},
+      },
+      Game: {}, // без Craft — цепь без craft.js
+    };
+    vm.createContext(sandbox);
+    const beCode = fs.readFileSync(
+      path.join(ROOT, 'src', 'building-effects.js'), 'utf8');
+    vm.runInContext(beCode, sandbox, { filename: 'building-effects.js' });
+    assert.equal(errors.length, 0,
+      'building-effects.js грузится чисто без Craft: '
+      + errors.join('; '));
+    const be = sandbox.Game.buildingEffects;
+    assert.ok(be && typeof be.buildingActions === 'function',
+      'Game.buildingEffects.buildingActions доступен в голом realm');
+    const rows = be.buildingActions(
+      { id: 8 }, null,
+      { day: 1, tile: { x: 0, y: 0 }, hero: {}, save: {} });
+    assert.equal(rows.find((r) => r.id === 'craft'), undefined,
+      'без Game.Craft строка id «craft» НЕ синтезируется (000053)');
+    assert.equal(rows.length, 0,
+      'у здания 8 нет записей реестра — пустой список; факт: '
+      + JSON.stringify(rows));
+  }
 });

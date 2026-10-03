@@ -46,6 +46,10 @@ test('index.html: нужные модули подключены', () => {
     'src/building-content.js',
     'src/building-effect-48.js',
     'src/hud.js',
+    // Слот спец-модулей 000128 (после hud.js, до visuals-data.js);
+    // добавлено на зелёной стадии (план красной — см. коммит
+    // «Задача 000126: красные тесты»: «ОТЛОЖЕНО на зелёную стадию»).
+    'src/craft-ui.js',
     'src/motion.js',
     'src/main.js',
   ]) {
