@@ -260,6 +260,16 @@
     54: 'assets/sprites/cities/city_54.svg',
   };
 
+  // Спрайт лагеря (задача 000131): лагерь НЕ слот (свой канал в
+  // anchorAt: type = NONE, buildingId 47; механика 000095) —
+  // отдельная таблица, ОДНА каталожная запись (каталог 000047,
+  // подтипов нет — тип не выбирается). Семья buildings/ (64×64 —
+  // размер слотовой иконки): лагерь 1×1 карта-постройка = визуально
+  // семья слотовых иконок (у городов своя семья cities/ 64·w).
+  const CAMP_SPRITES = {
+    47: 'assets/sprites/buildings/camp.svg',
+  };
+
   // --- Декорации тайлов (задача 000021) ---
   //
   // Небольшие графические объекты поверх текстуры тайла: травинки,
@@ -542,6 +552,22 @@
     return CITY_SPRITES[buildingId] || null;
   }
 
+  /**
+   * Спрайт лагеря (путь) по id каталожной записи (задача 000131):
+   * лагерь НЕ слот (свой канал в anchorAt: type = NONE,
+   * buildingId 47) — канал, отдельный от buildingSprite (слоты
+   * 0..12) и citySprite (51..54). Чистая функция;
+   * NONE/нецелое/неизвестное/слотовый id/городский id → null
+   * (рендерер skip'ает спрайт, как buildingSprite(NONE)).
+   * @param {number} buildingId id каталожной записи (map.js:
+   *   rec.buildingId лагерного якоря)
+   * @returns {string|null} путь к camp.svg или null
+   */
+  function campSprite(buildingId) {
+    if (!Number.isInteger(buildingId)) return null;
+    return CAMP_SPRITES[buildingId] || null;
+  }
+
   /** Кадры анимации Флогистона для действия idle|walk|attack|cast. */
   function phlogistonFrames(action) {
     return PHLOGISTON_ACTIONS[action] || [];
@@ -675,6 +701,8 @@
     paths.push(...Object.values(BUILDING_SPRITES));
     // Города (задача 000110): 4 спрайта по типу (отдельный канал).
     paths.push(...Object.values(CITY_SPRITES));
+    // Лагерь (задача 000131): 1 спрайт (отдельный канал, id 47).
+    paths.push(...Object.values(CAMP_SPRITES));
     for (const v of VISUALS) paths.push(v.спрайт);
     // Фоны боя (задача 000049): 11 файлов из двух карт + фолбэк.
     for (const k of Object.values(COMBAT_BG_TERRAIN)) {
@@ -812,6 +840,7 @@
     MOB_ART_DIR, MOB_ART_FRAME_COUNTS, MOB_ART_ACTIONS, mobArtFrames,
     BUILDING_SPRITES,
     CITY_SPRITES,
+    CAMP_SPRITES,
     COMBAT_BG_DIR, COMBAT_BG_TERRAIN, COMBAT_BG_DUNGEON, COMBAT_BG_FALLBACK,
     combatBackground,
     OBSTACLE_DIR, OBSTACLE_SPRITES, obstacleSprite,
@@ -825,7 +854,7 @@
     WAVE_PERIOD_MS, WATER_FRAME_COUNT,
     wavePhase, waterTileFrame,
     frameIndex, waterFrame,
-    tileFrames, mobKind, mobFrames, buildingSprite, citySprite,
+    tileFrames, mobKind, mobFrames, buildingSprite, citySprite, campSprite,
     phlogistonFrames,
     efirFrames,
     tileVisuals, visualDrawRect,

@@ -2118,3 +2118,56 @@ test('Задача 000114: Эфир — кадры для каждого дей�
     assert.ok(all.includes(p), `нет в allAssetPaths: ${p}`);
   }
 });
+
+// --- Лагерь (задача 000131, размещение лагерей на карте) ---
+// Стадия красных тестов: CAMP_SPRITES/campSprite в sprites.js и файл
+// assets/sprites/buildings/camp.svg ещё не существуют — тесты падают
+// (нет символа/файла), не синтаксически.
+//
+// Дизайн (контракт §4): лагерь (каталог 000047, механика 000095) —
+// карта-постройка 1×1; спрайт — в СЕМЬЕ buildings/ (64×64, слотовые
+// иконки): тест main-visuals «декорации: порядок слоёв» ждёт у
+// маркера постройки префикс 'assets/sprites/buildings/' — проходит
+// без правок. У городов своя семья cities/ (64·w). СВОЕЙ СИД-КОНСТАНТЫ
+// канал не имеет (тип не выбирается — всегда 47), подтипов нет —
+// таблица ровно ОДИН id.
+
+const CAMP_SVG_PATH = 'assets/sprites/buildings/camp.svg';
+
+test('SP-47: спрайт лагеря — campSprite(47) → путь к существующему SVG; NONE/слоты/подтип/города/нецелое/строка → null; CAMP_SPRITES ≡ {47}, путь в allAssetPaths', () => {
+  assert.equal(typeof S.campSprite, 'function',
+    'src/sprites.js: нет селектора campSprite() (лагерь — канал, '
+    + 'отдельный от слотовых buildingSprite)');
+  assert.equal(S.campSprite(47), CAMP_SVG_PATH,
+    'campSprite(47) — путь к camp.svg');
+  assert.ok(exists(CAMP_SVG_PATH), `нет файла: ${CAMP_SVG_PATH}`);
+  assert.equal(S.campSprite(BUILDING_TYPES.NONE), null,
+    'NONE (−1) → null (не лагерь)');
+  for (let s = 0; s < buildingCount(); s++) {
+    assert.equal(S.campSprite(s), null,
+      `слотовый id ${s} → null (слоты — свой канал buildingSprite)`);
+  }
+  assert.equal(S.campSprite(41), null,
+    'id подтипа 41 (рунический камень) → null');
+  for (const id of [51, 52, 53, 54]) {
+    assert.equal(S.campSprite(id), null,
+      `городской id ${id} → null (города — семья cities/, citySprite)`);
+  }
+  assert.equal(S.campSprite(47.5), null, 'нецелое → null');
+  assert.equal(S.campSprite('47'), null, 'строка → null');
+  // Таблица CAMP_SPRITES — ОДИН тип (каталог 000047), подтипов нет:
+  // ровно один ключ (deepEqual пинит и отсутствие лишних id);
+  // таблица ≡ селектору (один источник).
+  assert.ok(S.CAMP_SPRITES && typeof S.CAMP_SPRITES === 'object',
+    'src/sprites.js: нет таблицы CAMP_SPRITES (литерал по образцу '
+    + 'CITY_SPRITES)');
+  assert.deepEqual(S.CAMP_SPRITES, { 47: CAMP_SVG_PATH },
+    'CAMP_SPRITES — ровно лагерь (47)');
+  assert.equal(S.campSprite(47), S.CAMP_SPRITES[47],
+    'CAMP_SPRITES[47] ≡ campSprite(47) (один источник)');
+  // Очередь загрузчика: путь в allAssetPaths (иначе main.js не
+  // загрузит спрайт — проход 2 drawSprites не отрисует лагерь).
+  const all = S.allAssetPaths();
+  assert.ok(all.includes(CAMP_SVG_PATH),
+    `путь не в allAssetPaths: ${CAMP_SVG_PATH}`);
+});

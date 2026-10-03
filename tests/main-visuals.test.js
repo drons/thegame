@@ -579,7 +579,10 @@ function recOf(myMap, ax, ay) {
         t.buildingAnchor[0] === ax && t.buildingAnchor[1] === ay) h++;
     else break;
   }
-  return { ax, ay, w, h, type: myMap.tileAt(ax, ay).building };
+  // 000131: buildingId — 1:1-зеркало резолва спрайта в прохождении 2
+  // main.js (лагерь: type = NONE, buildingId 47 → campSprite).
+  const t0 = myMap.tileAt(ax, ay);
+  return { ax, ay, w, h, type: t0.building, buildingId: t0.buildingId };
 }
 
 // BFS до ближайшего входа много-тайловой постройки (правила те же,
@@ -720,7 +723,17 @@ function expectedBuildings(G, myMap, cam, zoom) {
     // спрайтов пока не имеют (000104/000105) — buildingSprite(-1)
     // = null, и main.js их НЕ рисует (spriteLoader.image(null) →
     // пропуск). Ожидаемый набор — только со спрайтом.
-    const asset = G.buildingSprite(rec.type);
+    // 000131: лагерь (type = NONE, buildingId 47) — 1:1-зеркало
+    // резолва прохождением 2 main.js: campSprite по каталожному id.
+    // Городскую ветку не добавляем: в кадровых окнах main-visuals
+    // нет якорей городов (51..54) — попади город в кадр, main.js
+    // рисовал бы его через citySprite (CITY_SPRITES, 000110) и до,
+    // и после задачи. 47 — единственный нетривиальный нетиповой
+    // buildingId в этих окнах, поэтому campSprite — единственная
+    // ветка, которую зеркалим.
+    const asset = G.buildingSprite(rec.type) ||
+      (rec.buildingId != null && typeof G.campSprite === 'function'
+       ? G.campSprite(rec.buildingId) : null);
     if (!asset) continue;
     const p = G.worldToScreen(rec.ax, rec.ay, cam.x, cam.y, zoom, VIEW_W, VIEW_H);
     out.push({

@@ -2195,7 +2195,7 @@ function dispatchChange(pane, el) {
   ch[0]({ target: el });
 }
 
-test('000098 RED: U1 — форма строится ОДИН раз (buildPanel): 29 контролов = SETTINGS (ре-пин 000109: +city_respawn_days); введённый value и узлы переживают render(); один панельный click; 34 кнопки', () => {
+test('000098 RED: U1 — форма строится ОДИН раз (buildPanel): 31 контролов = SETTINGS (ре-пин 000131: +camp_channel); введённый value и узлы переживают render(); один панельный click; 37 кнопок', () => {
   const env = loadSettingsUi();
   assert.equal(env.errors.length, 0,
     'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
@@ -2207,9 +2207,9 @@ test('000098 RED: U1 — форма строится ОДИН раз (buildPanel
   const selects = findAll(pane, 'select');
   assert.equal(selects.length, 1,
     'ровно 1 select (combat_difficulty) в pane: ' + selects.length);
-  assert.equal(inputs.length, 28,
-    '28 input[type=number] (11 плоских + 17 листьев; ре-пин 000109): '
-    + inputs.length);
+  assert.equal(inputs.length, 30,
+    '30 input[type=number] (11 плоских + 19 листьев; ре-пин 000131: '
+    + '+camp_channel): ' + inputs.length);
   // У ВСЕХ контролов dataset.key = dot-path и value = SETTINGS[path].
   for (const el of inputs.concat(selects)) {
     assert.ok(el.dataset && typeof el.dataset.key === 'string' &&
@@ -2218,11 +2218,11 @@ test('000098 RED: U1 — форма строится ОДИН раз (buildPanel
     assert.equal(el.value, String(getByPath(S, el.dataset.key)),
       'value ' + el.dataset.key + ' = SETTINGS на сборке');
   }
-  // Кнопки: 34 = 16 toповых «сброс» + 17 leaf-«сброс» + 1
-  // «Сбросить всё» (ре-пин 000109: +city_respawn_days).
+  // Кнопки: 37 = 17 toповых «сброс» + 19 leaf-«сброс» + 1
+  // «Сбросить всё» (ре-пин 000131: +camp_channel).
   const btns = findAll(pane, 'button');
-  assert.equal(btns.length, 34,
-    '34 кнопки (16 toповых + 17 leaf + «Сбросить всё»): ' + btns.length);
+  assert.equal(btns.length, 37,
+    '37 кнопки (17 toповых + 19 leaf + «Сбросить всё»): ' + btns.length);
   assert.ok(btns.some((b) => b.dataset && b.dataset.all === 'all'),
     'кнопка «Сбросить всё» (dataset.all)');
   // Форма НЕ пересобирается render(): тот же узел, введённый вручную

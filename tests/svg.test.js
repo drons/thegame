@@ -440,7 +440,7 @@ const EXPECTED_SVG_BY_DIR = {
   'dungeon/floor': 15,                // полы подземелья (задача 000069)
   'dungeon/walls': 6,                 // «непроходимые» стены (задача 000070)
   'dungeon': 1,                       // сундук assets/dungeon/chest.svg (задача 000067)
-  'sprites/buildings': 13,
+  'sprites/buildings': 14,            // + лагерь (задача 000131: camp.svg)
   'sprites/cities': 4,                // спрайты городов (задача 000110: 4 типа)
   'sprites/mobs': 192,
   'sprites/phlogiston': 8,

@@ -1491,6 +1491,23 @@ function isCityCondition(map, x, y) {
   return fb > cc.fbm + cc.rarity * rarity;
 }
 
+// Лагерное условие (задача 000131) в тайле: чистая проходимость
+// террейна + слотового якоря НЕТ (fb(511.1) ≤ 0.33 + 0.14·rarity) +
+// порог канала по СОБСТВЕННОМУ офсету features-шума
+// (fc(733.7) > camp_channel.fbm + camp_channel.rarity·rarity).
+function isCampCondition(map, x, y) {
+  const cc = SETTINGS.camp_channel;
+  if (!cc || typeof cc !== 'object') return false;
+  const t = map.tileAt(x, y);
+  if (!TERRAIN_DATA[t.terrain].passable) return false;
+  const a = map.pixelAt(x, y)[3];
+  const rarity = 1 - a / 255;
+  const fb = CITY_FEATURES.fbm(x * 0.618 + 511.1, y * 0.618 + 511.1, 3);
+  if (fb > 0.33 + 0.14 * rarity) return false; // слотовый якорь/город
+  const fc = CITY_FEATURES.fbm(x * 0.618 + 733.7, y * 0.618 + 733.7, 3);
+  return fc > cc.fbm + cc.rarity * rarity;
+}
+
 // Тип города на якоре: hash2 по кумулятивным долям (позиция → тип,
 // ВСЕГДА один и тот же — детерминизм, закреплённый тестом).
 function cityTypeAt(x, y) {
@@ -1518,6 +1535,9 @@ function assertCityChannelInfra(map) {
 // Задача 000073: город опознаётся по building = NONE (до 000073 —
 // buildingId != null; слотовые 8..12 тоже получили buildingId —
 // подтип, и предикат city ≠ слотовой переехал на building).
+// Задача 000131: лагерный канал ТОЖЕ даёт type = NONE (buildingId 47)
+// — предикат уточнён по городским ID 51..54 (лагеря в города не
+// попадают; лагерные пины — tests/camp-placement.test.js).
 function scanCityGroups(map, R) {
   const groups = new Map();
   for (let x = -R; x < R; x++) {
@@ -1526,6 +1546,8 @@ function scanCityGroups(map, R) {
       if (!t.inBuilding || t.building !== BUILDING_TYPES.NONE) continue;
       const key = t.buildingAnchor.join(',');
       if (!groups.has(key)) {
+        const rec = map.buildingAt(t.buildingAnchor[0], t.buildingAnchor[1]);
+        if (!rec || rec.buildingId < 51 || rec.buildingId > 54) continue;
         groups.set(key, { anchor: t.buildingAnchor, tiles: new Set() });
       }
       groups.get(key).tiles.add(x + ',' + y);
@@ -1677,6 +1699,14 @@ test('городской канал: формула — город только 
             `${label} (${x},${y}): buildingId — id города`);
           assert.equal(rec.buildingId, cityTypeAt(x, y),
             `${label} (${x},${y}): тип города — hash2(x,y,CITY_SEED) по долям`);
+        } else if (rec.type === BUILDING_TYPES.NONE &&
+            rec.buildingId === 47) {
+          // Задача 000131: лагерный канал — type = NONE, buildingId
+          // 47, ТОЛЬКО на тайлах с лагерным условием (собственный
+          // офсет 733.7; инвариант «обе стороны» —
+          // tests/camp-placement.test.js CP-2).
+          assert.ok(isCampCondition(map, x, y),
+            `${label} (${x},${y}): лагерь без лагерного условия`);
         } else {
           // Задача 000073: у слотовых 8..12 buildingId — id подтипа
           // (1..50); городская запись (51..54) на слотовом якоре
@@ -1740,6 +1770,9 @@ test('город забирает якоря, не рождается из ни�
   // Город РЕЖЕ: городских якорей меньше слотовых на сэмпле.
   // Задача 000073: предикат города — building = NONE (до 000073 —
   // buildingId != null; у слотовых 8..12 buildingId теперь подтип).
+  // Задача 000131: лагеря ТОЖЕ type = NONE (buildingId 47) — в счёт
+  // «город реже» попадают только якоря 51..54 (лагеря не слотовые
+  // якоря и не города — в оба счётчика не идут).
   const R = 200;
   let cityAnchors = 0, slotAnchors = 0;
   const seen = new Set();
@@ -1750,7 +1783,12 @@ test('город забирает якоря, не рождается из ни�
       const k = t.buildingAnchor.join(',');
       if (seen.has(k)) continue;
       seen.add(k);
-      if (t.building === BUILDING_TYPES.NONE) cityAnchors++; else slotAnchors++;
+      if (t.building === BUILDING_TYPES.NONE) {
+        const rec = map.buildingAt(t.buildingAnchor[0], t.buildingAnchor[1]);
+        if (rec && rec.buildingId >= 51 && rec.buildingId <= 54) cityAnchors++;
+      } else {
+        slotAnchors++;
+      }
     }
   }
   assert.ok(cityAnchors > 0, 'городские якоря есть');
@@ -1791,19 +1829,28 @@ test('tileAt: buildingId — 000073 семантика: 51..54 у городов
   const { width, height, data } = decodePng('assets/map.png');
   const map = createMap({ width, height, data });
   assertCityChannelInfra(map);
-  let cityTiles = 0, slotSubtypeTiles = 0, slotPlainTiles = 0;
+  let cityTiles = 0, campTiles = 0, slotSubtypeTiles = 0, slotPlainTiles = 0;
   for (let x = -100; x < 100; x++) {
     for (let y = -100; y < 100; y++) {
       const t = map.tileAt(x, y);
       assert.ok('buildingId' in t, `(${x},${y}): нет поля buildingId`);
       if (t.inBuilding) {
         if (t.building === BUILDING_TYPES.NONE) {
-          // Город (000103): без изменений.
-          cityTiles++;
-          assert.ok(t.buildingId >= 51 && t.buildingId <= 54,
-            `(${x},${y}): buildingId — id города`);
-          assert.equal(t.hasBuilding, t.isEntrance,
-            `(${x},${y}): hasBuilding = isEntrance`);
+          if (t.buildingId === 47) {
+            // Лагерь (задача 000131): type = NONE, buildingId 47 —
+            // отдельный аддитивный канал (пины —
+            // tests/camp-placement.test.js).
+            campTiles++;
+            assert.equal(t.hasBuilding, t.isEntrance,
+              `(${x},${y}): hasBuilding = isEntrance`);
+          } else {
+            // Город (000103): без изменений.
+            cityTiles++;
+            assert.ok(t.buildingId >= 51 && t.buildingId <= 54,
+              `(${x},${y}): buildingId — id города`);
+            assert.equal(t.hasBuilding, t.isEntrance,
+              `(${x},${y}): hasBuilding = isEntrance`);
+          }
         } else {
           assert.ok(t.building >= 0 && t.building < buildingCount(),
             `(${x},${y}): слотовая постройка — валидный слот`);
@@ -1832,6 +1879,8 @@ test('tileAt: buildingId — 000073 семантика: 51..54 у городов
     }
   }
   assert.ok(cityTiles >= 1, 'городских тайлов нет (красный: нет каналов)');
+  assert.ok(campTiles >= 1,
+    'лагерных тайлов нет (000131: канал лагерей на реальном map.png)');
   assert.ok(slotSubtypeTiles >= 1, 'слотовых тайлов 8..12 нет в сэмпле');
   assert.ok(slotPlainTiles >= 1, 'слотовых тайлов 0..7 нет в сэмпле');
 });
@@ -1941,8 +1990,11 @@ test('браузер: полная цепочка index.html (global-settings П
       const t = bMap.tileAt(x, y);
       if (!t.inBuilding ||
           t.building !== sandbox.Game.BUILDING_TYPES.NONE) continue;
+      // 000131: лагерный канал (NONE + buildingId 47) — НЕ город:
+      // города считаем только по id 51..54 (семантика теста —
+      // «городской канал активен» — не меняется).
+      if (!(t.buildingId >= 51 && t.buildingId <= 54)) continue;
       found++;
-      assert.ok(t.buildingId >= 51 && t.buildingId <= 54, 'город — id каталога');
     }
   }
   assert.ok(found >= 1,

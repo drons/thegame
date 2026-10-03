@@ -34,10 +34,13 @@ test('модуль: CommonJS-экспорт { SETTINGS } — все настра
   // Ре-пин 000109: добавился city_respawn_days (дней до
   // ПЕРЕГЕНЕРАЦИИ стока лавок города при входе, SPEC «Города и
   // деревни» → «Состояние, сейв, респаун»).
+  // Ре-пин 000131: добавился camp_channel (параметры лагерного
+  // канала src/map.js, «Лагерь» — размещение лагерей на карте).
   // Точка конфликта с параллельным 000050 (combat_obstacle_*): при
   // ребейзе — union обоих наборов.
   assert.deepEqual(Object.keys(SETTINGS).sort(), [
-    'city_channel', 'city_respawn_days', 'combat_difficulties',
+    'camp_channel', 'city_channel', 'city_respawn_days',
+    'combat_difficulties',
     'combat_difficulty', 'combat_obstacle_max_frac',
     'combat_obstacle_min_frac',
     'companion_loyalty', 'companion_refusal', 'companion_xp_share',
@@ -226,6 +229,52 @@ test('SETTINGS.city_channel (000103): порог редкости и доли ч
     assert.ok(cc.fbm + cc.rarity * r >= 0.33 + 0.14 * r,
       `при rarity=${r}: порог города (${(cc.fbm + cc.rarity * r).toFixed(3)}) ` +
       `ниже порога слота (${(0.33 + 0.14 * r).toFixed(3)})`);
+  }
+});
+
+// Задача 000131 (стадия красных тестов): параметры лагерного канала
+// размещения (src/map.js). Лагерь (каталог 000047, механика 000095)
+// ДО задачи не генерировался на карте; 000131 добавляет АДДИТИВНЫЙ
+// детерминированный канал в anchorAt (паттерн городского, 000103):
+// «лагерь = по редкости как город» — тот же порог 0.45/0.10 по
+// СОБСТВЕННОМУ смещению features-шума (733.7). БЕЗ type_shares —
+// тип не выбирается (всегда 47, сид-константы канала НЕТ). Тест
+// падает, пока SETTINGS.camp_channel не добавлен.
+test('SETTINGS.camp_channel (000131): порог редкости лагеря — {fbm: 0.45, rarity: 0.10}, без type_shares; форма META', () => {
+  const cc = SETTINGS.camp_channel;
+  assert.ok(cc && typeof cc === 'object' && !Array.isArray(cc),
+    'SETTINGS.camp_channel — объект (параметры лагерного канала)');
+  // Редкость ТОЖЕ, что у города (контракт §2): «лагерь = по
+  // редкости как город» — 0.45/0.10 (deepEqual пинит ЗНАЧЕНИЯ и
+  // отсутствие type_shares — подтипов/выбора типа у лагеря НЕТ).
+  assert.deepEqual(cc, { fbm: 0.45, rarity: 0.10 },
+    'camp_channel ≡ {fbm: 0.45, rarity: 0.10} (как city_channel; '
+    + 'type_shares НЕТ — тип не выбирается, всегда 47)');
+  // Лагерь РЕЖЕ слотового якоря: порог канала НЕ НИЖЕ порога слота
+  // (0.33 + 0.14·rarity) при ВСЕХ rarity ∈ [0,1] (property-сетка) —
+  // иначе лагерь рождался бы там, где есть слотовый якорь (канал
+  // обязан срабатывать ТОЛЬКО где слотового якоря нет).
+  for (let i = 0; i <= 20; i++) {
+    const r = i / 20;
+    assert.ok(cc.fbm + cc.rarity * r >= 0.33 + 0.14 * r,
+      `при rarity=${r}: порог лагеря (${(cc.fbm + cc.rarity * r).toFixed(3)}) `
+      + `ниже порога слота (${(0.33 + 0.14 * r).toFixed(3)})`);
+  }
+  // Форма META (паттерн city_channel): nested, subkeys fbm/rarity —
+  // float [0,1], шаг 0.01.
+  const mc = META && META.camp_channel;
+  assert.ok(mc && typeof mc === 'object',
+    'META.camp_channel — запись метаданных');
+  assert.equal(typeof mc.label, 'string', 'label — строка');
+  assert.ok(mc.label.length > 0, 'label не пуст');
+  assert.equal(mc.type, 'nested', 'type — nested (как city_channel)');
+  assert.ok(mc.subkeys && typeof mc.subkeys === 'object', 'subkeys');
+  for (const k of ['fbm', 'rarity']) {
+    assert.ok(mc.subkeys[k], 'subkeys.' + k);
+    assert.equal(mc.subkeys[k].type, 'float', k + ': type float');
+    assert.equal(mc.subkeys[k].min, 0, k + ': min 0');
+    assert.equal(mc.subkeys[k].max, 1, k + ': max 1');
+    assert.equal(mc.subkeys[k].step, 0.01, k + ': step 0.01');
   }
 });
 
