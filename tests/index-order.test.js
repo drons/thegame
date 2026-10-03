@@ -46,6 +46,10 @@ test('index.html: нужные модули подключены', () => {
     'src/building-content.js',
     'src/building-effect-48.js',
     'src/hud.js',
+    // Слот спец-модулей 000128 (после hud.js, до visuals-data.js);
+    // добавлено на зелёной стадии (план красной — см. коммит
+    // «Задача 000126: красные тесты»: «ОТЛОЖЕНО на зелёную стадию»).
+    'src/craft-ui.js',
     'src/motion.js',
     'src/main.js',
   ]) {
@@ -534,6 +538,29 @@ test('index.html: craft-data.js и craft.js подключены в правил
     'src/craft.js должен быть раньше src/combat-ui.js (задача 000046)');
   assert.ok(pos('src/craft.js') < pos('src/main.js'),
     'src/craft.js должен быть раньше src/main.js (задача 000046)');
+});
+
+// --- Задача 000126: экран крафта (src/craft-ui.js, спец-модуль) ---
+//
+// craft-ui.js — слот спец-модулей (000128): ПОСЛЕ building-actions.js
+// (читает Game.buildingActions.specials при саморегистрации) и ПОСЛЕ
+// craft.js (Game.Craft — лениво, но порядок фиксируем); ДО main.js
+// (UMD-ловушка 000038: main.js снимает const G = globalThis.Game при
+// загрузке — гейты/закрытия `G.craftUI && G.craftUI.isActive()`
+// должны видеть модуль). Позиция в index.html — после hud.js, до
+// visuals-data.js (memory/000126-craft-ui.md, «Порядок модулей»).
+
+test('index.html: craft-ui.js подключён в порядке craft.js/building-actions.js < craft-ui.js < main.js (задача 000126)', () => {
+  assert.notEqual(pos('src/craft-ui.js'), -1,
+    'src/craft-ui.js не подключён в index.html (задача 000126)');
+  assert.ok(pos('src/craft.js') < pos('src/craft-ui.js'),
+    'src/craft.js должен быть раньше src/craft-ui.js (задача 000126)');
+  assert.ok(pos('src/building-actions.js') < pos('src/craft-ui.js'),
+    'src/building-actions.js должен быть раньше src/craft-ui.js '
+    + '(саморегистрация спец-действия «craft» в specials)');
+  assert.ok(pos('src/craft-ui.js') < pos('src/main.js'),
+    'src/craft-ui.js должен быть раньше src/main.js (UMD-ловушка: '
+    + 'снапшот Game в main.js несёт craftUI)');
 });
 
 test('порядок core → craft-data.js → craft.js: Game.Craft существует и крафтит', () => {

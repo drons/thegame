@@ -497,6 +497,10 @@
     if (!deps.game.npcUI) return;
     if (deps.game.combatUI && deps.game.combatUI.isActive()) return;
     if (deps.game.dungeonUI && deps.game.dungeonUI.isActive()) return;
+    // Задача 000126: [E] не открывает buildingUI СВЕРХУ открытого
+    // экрана крафта (KeyE обрабатывается ДО keydown-гейтов main.js —
+    // гард здесь несущий; deps.game — снапшот main.js, несёт craftUI).
+    if (deps.game.craftUI && deps.game.craftUI.isActive()) return;
     if (deps.game.buildingUI) {
       // Повторный [E] — закрыть оверлей действий.
       if (deps.game.buildingUI.isActive()) {

@@ -1023,6 +1023,7 @@
     if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
     // Стек оверлеев (000071): оверлей действий под боем — закрыть.
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
+    if (G.craftUI && G.craftUI.isActive()) G.craftUI.close(); // 000126
     // Бой «на текущем тайле»: prev = тайл, на котором герой стоит
     // (у мира — prevPos, тайл, с которого зашёл; здесь герой в бою не
     // сдвигается, поэтому «возврат» при не-победе — на тот же тайл).
@@ -1178,6 +1179,9 @@
     if (G.buildingUI && G.buildingUI.isActive()) return; // 000071:
     // движение заблокировано, пока открыт оверлей действий постройки
     // (как npcUI).
+    if (G.craftUI && G.craftUI.isActive()) return; // 000126: экран
+    // крафта — движение/прочие действия мира заблокированы (как
+    // buildingUI); Esc-закрытие — внутри craft-ui.js (escHandler).
     const k = moveKey(e);
     if (k) {
       keys.add(k);
@@ -1326,6 +1330,7 @@
     // Оверлей действий постройки (000071) под боевым оверлеем —
     // закрываем (тот же стек, паттерн 000096).
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
+    if (G.craftUI && G.craftUI.isActive()) G.craftUI.close(); // 000126
     const t = map.tileAt(player.x, player.y);
     if (!t.hasMobGroup) return;
     const key = player.x + ',' + player.y;
@@ -1585,6 +1590,7 @@
     // подземелье после боя.
     if (G.playerUI && G.playerUI.isOpen()) G.playerUI.toggle(false);
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close(); // 000071
+    if (G.craftUI && G.craftUI.isActive()) G.craftUI.close(); // 000126
     G.combatUI.startCombat({
       hero,
       // Эфир (задача 000081): постоянный союзник — ВСЕГДА.
@@ -1907,11 +1913,12 @@
     const inDungeon = dungeonState !== null;
     const inNpc = G.npcUI && G.npcUI.isActive();
     const inBuilding = G.buildingUI && G.buildingUI.isActive(); // 000071
+    const inCraft = G.craftUI && G.craftUI.isActive(); // 000126
     // Интервал шага (задача 000033 + 000063): база — из глобальных
     // настроек (420 мс), навык «Ловкий шаг» укорачивает, нижний кламп —
     // G.MIN_MOVE_INTERVAL_MS. Одно значение для шага и окна walk/idle.
     const stepMs = stepIntervalMs();
-    if (!inCombat && !inDungeon && !inNpc && !inBuilding
+    if (!inCombat && !inDungeon && !inNpc && !inBuilding && !inCraft
         && now - lastMove >= stepMs) {
       if (keys.size && tryMove()) {
         lastMove = now;
