@@ -3188,3 +3188,522 @@ test('C1. BUILDING_BOSS: рецепт босса (1–3 troll) + регресс�
     }
   }
 });
+
+// --- Задача 000112: Эфир в бою — боевой профиль buildEfirUnit +
+//     ИИ efirTurn (КРАСНЫЕ) ---
+//
+// Контракт (memory/000112-efir-combat.md):
+//   * buildEfirUnit(efir, c) — 12-й экспорт src/efir.js: явные статы
+//     (hp = maxHP = efirStats, СВОЯ мана u.mp = maxMP), Касание
+//     u.damage = max(1, round((2+0.5·Мудр)·moraleMult)), пул c.efs
+//     {spellInt, spellWis, touch, move}, снапшот лордов u.efirSkills,
+//     ссылка c.efir (для рефила/тиков);
+//   * allyAct: ПОСЛЕ гарда — `if (u.kind === 'efir' && c.efs)
+//     efirTurn(c, u)`: БЕЗ c.efs — legacy-путь 000080 (бит-в-бит;
+//     регрессионные якоря R7/R8/R9/T9 — НЕ ТРОГАТЬ);
+//   * efirTurn — детерминирован, НУЛЬ новых c._rng: движение (эскорт:
+//     цель выбирается ОДИН РАЗ — dP>3 → игрок, иначе dE>3 → ближайший
+//     враг, иначе стоим; allyStepToward — ось x первой; бюджет
+//     c.efs.move = 3) + действия по приоритету, пока пулы не пусты:
+//     (1) самое раненое frac ≤ 0.7 (пул [игрок, союзники + Эфир]),
+//     strongestKnown('лечение'), amount = round(3+0.5·Мудр+уровень);
+//     (2) игрок frac ≤ 0.5 И нет c.efirShield (turns > 0) →
+//     strongestKnown('защита') → c.efirShield {armor:
+//     round(5+0.5·Мудр), turns: 2};
+//     (3) враг rectDist ≤ 4 И c.efs.spellInt > 0 →
+//     strongestKnown('урон') (по «мани», тай-брейк — id) →
+//     dmg = round((3+0.5·Инт)·(1+0.05·лорд)) — ВСЕГДА попадает,
+//     броня игнорируется;
+//     (4) rectDist ≤ 1 И c.efs.touch > 0 → Касание (u.damage, ВСЕГДА
+//     попадает, броня игнорируется, c._rng НЕ вызывается);
+//     (5) break;
+//   * endPlayerTurn: refill c.efs от c.efir.attrs (зеркальная формула,
+//     u.mp НЕ трогается) + тик c.efirShield.turns (пока > 0);
+//   * dealDamageToPlayer: поглощение c.efirShield (ПОСЛЕ c.ps.shield);
+//   * combatInternals + dealDamageToAlly.
+//
+// Каждый сценарий — ДВА прогона (тот же сид + сценарий → deepEqual
+// снимка {units[id,x,y,hp,alive], u.mp, c.efs, c.efirShield, p.hp,
+// p.mp, log, turnOrder} — детерминизм ТЗ: Эфир не добавляет бросков
+// c._rng). Красная фаза падает ТОЛЬКО на отсутствии buildEfirUnit /
+// efirTurn-поведения (нет символа — НЕ синтаксическая ошибка).
+//
+// Словарь каталога (assets/spells, «мани»): spark 3, frost_bolt 4,
+// magic_shield 5, fireball 6, light_heal 6, nature_blessing 7, ward 12,
+// greater_heal 11, mend 3, vine 5. Книги по уровню (000111):
+// L1 [spark, mend]; +L5 light_heal, +L8 frost_bolt, +L10 fireball,
+// +L12 magic_shield, +L15 vine, +L20 greater_heal, +L25 ward,
+// +L30 nature_blessing.
+
+const PL = require('../src/player.js');
+
+// ЛЕНИВЫЙ Game (прецедент tests/efir.test.js withGame): efir.js читает
+// globalThis.Game.xpForNext в момент ВЫЗОВА levelUp.
+function withGame112(fake, fn) {
+  const had = Object.prototype.hasOwnProperty.call(globalThis, 'Game');
+  const prev = globalThis.Game;
+  globalThis.Game = fake;
+  try {
+    return fn();
+  } finally {
+    if (had) globalThis.Game = prev;
+    else delete globalThis.Game;
+  }
+}
+
+// Герой сценария: Тело 50 (maxHP 270), hp — по сценарию.
+function hero112() {
+  const p = createCharacter();
+  p.primary.constitution = 50;
+  return p;
+}
+
+// Поднять state Эфира до уровня L (levelUp-цикл, без хардкода сумм) —
+// книга становится естественной (старт + пороги ≤ L).
+function raiseEfir112(E, state, L) {
+  withGame112({ xpForNext: PL.xpForNext }, () => {
+    while (state.level < L) {
+      state.xp = PL.xpForNext(state.level);
+      E.levelUp(state);
+    }
+  });
+  return state;
+}
+
+// Детерминизм-снимок (ТЗ): примитивы + лог.
+function snap112(c, u, p) {
+  return {
+    units: c.units.map((x) => [x.id, x.x, x.y, x.hp, x.alive]),
+    uMp: u.mp,
+    efs: c.efs ? { spellInt: c.efs.spellInt, spellWis: c.efs.spellWis,
+                   touch: c.efs.touch, move: c.efs.move } : null,
+    shield: c.efirShield ? { armor: c.efirShield.armor,
+                             turns: c.efirShield.turns } : null,
+    pHp: p.hp,
+    pMp: p.mp,
+    log: c.log,
+    turnOrder: c.turnOrder,
+  };
+}
+
+// Стандартное поле: игрок (3,6), Эфир — якорь (2,5), один волк m0
+// (позицию/hp/броню/урон — по сценарию), препятствия сняты.
+function board112(E, p, state) {
+  const c = createCombat({
+    player: p,
+    allies: [E.efirAllyData(state)],
+    mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  c.obstacles.clear();
+  return {
+    c,
+    w: c.units.find((x) => x.id === 'm0'),
+    u: c.units.find((x) => x.id === 'efir'),
+  };
+}
+
+test('000112 CB-1: приоритет (1) — лечение самого раненого (frac ≤ 0.7): 2 цели → мин. frac (само-лечение, +6, мана 3); все frac > 0.7 — не лечит; книга L12 → light_heal («мани» 6), НЕ mend (3) — amount 19', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // (a) Игрок 162/270 (0.6) + Эфир 5/16 (0.3125) → само-лечение
+    // mend +6 (11); игрок НЕ тронут; mp 11 − 3 = 8.
+    const t1 = () => {
+      const p = hero112();
+      p.hp = Math.floor(270 * 0.6); // 162
+      const state = E.createEfir();
+      const { c, w, u } = board112(E, p, state);
+      w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100; // d 9 → 3 шага → 6 > 4
+      c._rng = () => 0.99; // волк — все промахи
+      E.buildEfirUnit(state, c);
+      u.hp = 5;
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, p, c };
+    };
+    const r1 = t1();
+    assert.deepEqual(t1().snap, r1.snap,
+      'детерминизм (a): 2 прогона → идентичный снимок');
+    assert.equal(r1.u.hp, 11,
+      'само-лечение: 5 + 6 (round(3+0.5·3+1)) = 11');
+    assert.equal(r1.p.hp, 162, 'игрок не лечен — Эфир раненее');
+    assert.equal(r1.u.mp, 8, 'mp 11 − 3 («мани» mend) = 8');
+    assert.ok(r1.c.log.includes('Эфир лечит Эфир (+6).'),
+      'лог-строка: ' + r1.c.log.join(' | '));
+
+    // (b) Все целы (frac = 1 — исключаются): не лечит, каста нет
+    // (d 6 > 4), Касания нет (d 6 > 1) — мана цела.
+    const t2 = () => {
+      const p = hero112(); // hp = maxHP = 270
+      const state = E.createEfir();
+      const { c, w, u } = board112(E, p, state);
+      w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
+      c._rng = () => 0.99;
+      E.buildEfirUnit(state, c);
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, p, c };
+    };
+    const r2 = t2();
+    assert.deepEqual(t2().snap, r2.snap, 'детерминизм (b)');
+    assert.equal(r2.u.hp, 16, 'не лечит себя (frac 1)');
+    assert.equal(r2.u.mp, 11, 'мана не потрачена');
+    assert.ok(!r2.c.log.some((l) => l.includes('лечит')), 'нет лечения');
+    assert.equal(r2.p.hp, 270);
+
+    // (c) L12 (статы 8/8/8, mp 21): игрок 148/270 (frac 0.548 — (1) да,
+    // (2) нет); естественная книга L12 → strongestKnown('лечение') =
+    // light_heal («мани» 6), НЕ mend (3); amount = round(3+0.5·8+12) = 19.
+    const t3 = () => {
+      const p = hero112();
+      p.hp = Math.floor(270 * 0.55); // 148
+      const state = raiseEfir112(E, E.createEfir(), 12);
+      const { c, w, u } = board112(E, p, state);
+      w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
+      c._rng = () => 0.99;
+      E.buildEfirUnit(state, c);
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, p, c };
+    };
+    const r3 = t3();
+    assert.deepEqual(t3().snap, r3.snap, 'детерминизм (c)');
+    assert.equal(r3.p.hp, 167,
+      'лечение 148 + 19 (round(3+0.5·8+12)) = 167');
+    assert.equal(r3.u.mp, 15,
+      'mp 21 − 6 (light_heal) = 15 — а не 18 (mend «мани» 3)');
+    assert.ok(r3.c.log.includes('Эфир лечит Флогистон (+19).'),
+      'лог-строка: ' + r3.c.log.join(' | '));
+  } finally { C.combatInternals.allySpells = saveCatalog; }
+});
+
+test('000112 CB-2: приоритет (2) — игрок ≤ 50% и щита нет → strongestKnown(«защита»): magic_shield → c.efirShield {armor 7, turns 2}, «мани» 5, spellWis −1; книга без защитных — (1) лечит игрока mend, (2) ПРОПУСКАЕТСЯ → c.efirShield не создан', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // (a) Книга БЕЗ лечения [spark, magic_shield] (иначе (1) первым
+    // потратит единственный spellWis L1): (1) — нет лечебных, (2) — щит.
+    // Игрок 100/270 (frac 0.37 ≤ 0.5).
+    const t1 = () => {
+      const p = hero112();
+      p.hp = 100;
+      const state = E.createEfir();
+      state.spells = ['spark', 'magic_shield'];
+      const { c, w, u } = board112(E, p, state);
+      w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
+      c._rng = () => 0.99;
+      E.buildEfirUnit(state, c);
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, p, c };
+    };
+    const r1 = t1();
+    assert.deepEqual(t1().snap, r1.snap, 'детерминизм (a)');
+    assert.ok(r1.c.efirShield, 'c.efirShield создан (приоритет 2)');
+    assert.equal(r1.c.efirShield.armor, 7,
+      'armor = round(5+0.5·3) = 7');
+    assert.equal(r1.c.efirShield.turns, 2, 'turns = 2');
+    assert.equal(r1.u.mp, 6, 'mp 11 − 5 (magic_shield «мани») = 6');
+    assert.equal(r1.p.hp, 100, 'игрок не лечен (книга без лечебных)');
+    assert.ok(
+      r1.c.log.includes('Эфир: «Магический щит»: +7 брони на 2 раунда.'),
+      'лог-строка: ' + r1.c.log.join(' | '));
+
+    // (b) Книга [spark, mend]: (1) лечит игрока mend (+6 → 106);
+    // (2) frac 106/270 ≤ 0.5 НО защитных в книге нет → пропуск;
+    // (3) d 6 > 4 → каста нет. c.efirShield не создан.
+    const t2 = () => {
+      const p = hero112();
+      p.hp = 100;
+      const state = E.createEfir();
+      state.spells = ['spark', 'mend'];
+      const { c, w, u } = board112(E, p, state);
+      w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
+      c._rng = () => 0.99;
+      E.buildEfirUnit(state, c);
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, p, c };
+    };
+    const r2 = t2();
+    assert.deepEqual(t2().snap, r2.snap, 'детерминизм (b)');
+    assert.equal(r2.p.hp, 106, '(1) первым: mend +6 → 106');
+    assert.equal(r2.u.mp, 8, 'mp 11 − 3 (mend) = 8');
+    assert.equal(r2.c.efirShield, undefined,
+      '(2) пропущен: в книге нет защитных → щита нет');
+  } finally { C.combatInternals.allySpells = saveCatalog; }
+});
+
+test('000112 CB-3: приоритет (3) — «самое сильное» по «мани» (L15: fireball 6, НЕ spark/frost_bolt), лорд по школе: враг d 5 → движение 3 (к d 2 ≤ 4) → каст; пул spellInt 2 → ДВА fireball (mp −12, урон 8 каждый); с маной 6 — ровно ОДИН', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // L15: статы 10/10/10 (mp 25), пул 2/2/1/3, естественная книга
+    // (fireball — сильнейший урон по «мани» 6). Игрок 9999 — вне пула.
+    // Волк (2,0): d 5 > 3 → движение к врагу (x первым; x равен — только
+    // y): (2,4),(2,3),(2,2) → d 2 ≤ 4.
+    const mk = (uMpPre) => {
+      const p = strongHero();
+      const state = raiseEfir112(E, E.createEfir(), 15);
+      const { c, w, u } = board112(E, p, state);
+      w.x = 2; w.y = 0; w.maxHP = 100; w.hp = 100; w.armor = 50;
+      c._rng = () => 0.99;
+      E.buildEfirUnit(state, c);
+      if (uMpPre != null) u.mp = uMpPre;
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, w, p, c };
+    };
+    // (a) mp 25: пул spellInt 2 → 2 каста fireball
+    // (dmg = round((3+0.5·10)·(1+0.05·0)) = 8, броня 50 игнорируется).
+    const r1 = mk(null);
+    assert.deepEqual(mk(null).snap, r1.snap, 'детерминизм (a)');
+    assert.deepEqual([r1.u.x, r1.u.y], [2, 2],
+      'движение: d 5 > 3 → 3 шага к врагу (ось x первой)');
+    assert.equal(r1.w.hp, 84, '2 × fireball: 100 − 2·8 = 84');
+    assert.equal(r1.u.mp, 13, 'mp 25 − 2·6 = 13');
+    assert.equal(
+      r1.c.log.filter((l) => l.includes('Огненный шар')).length, 2,
+      'fireball (самое сильное по «мани» 6) — дважды: '
+        + r1.c.log.join(' | '));
+    // (b) mp 6: ровно ОДИН fireball (второй неплатёжен по мане).
+    const r2 = mk(6);
+    assert.deepEqual(mk(6).snap, r2.snap, 'детерминизм (b)');
+    assert.equal(r2.w.hp, 92, '1 × fireball: 100 − 8');
+    assert.equal(r2.u.mp, 0, 'mp 6 − 6 = 0');
+    assert.equal(
+      r2.c.log.filter((l) => l.includes('Огненный шар')).length, 1);
+  } finally { C.combatInternals.allySpells = saveCatalog; }
+});
+
+test('000112 CB-4: приоритет (4) — Касание: d ≤ 1, пул touch, ВСЕГДА попадает (c._rng НЕ вызывается — при 0.99 всё равно бьёт), броня игнорируется; u.damage (L1: 4; «Предводитель» 10 → 5 — мораль ВНУТРИ round); работает при 0 маны (после недоступного (3))', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    const mk = (leader) => {
+      const p = strongHero();
+      if (leader) p.secondary.leader = 10;
+      const state = E.createEfir();
+      state.spells = ['spark'];
+      const { c, w, u } = board112(E, p, state);
+      w.x = 2; w.y = 4; w.maxHP = 100; w.hp = 100; w.armor = 50;
+      c._rng = () => 0.99; // Касание не бросает: при 0.99 — всё равно бьёт
+      E.buildEfirUnit(state, c);
+      u.mp = 0; // (3) неплатёжен → доходим до (4)
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, w, p, c };
+    };
+    // (a) Без «Предводителя»: Касание = max(1, round((2+0.5·3)·1)) = 4.
+    const r1 = mk(false);
+    assert.deepEqual(mk(false).snap, r1.snap, 'детерминизм (a)');
+    assert.equal(r1.w.hp, 96,
+      'Касание 4: броня 50 игнорируется, всегда попадает');
+    assert.equal(r1.u.mp, 0, 'мана не потрачена');
+    assert.ok(r1.c.log.includes('Эфир касается Волк: 4.'),
+      'лог-строка: ' + r1.c.log.join(' | '));
+    assert.equal(r1.c.efs.touch, 1,
+      'touch-пул потрачен в ходе — рефилл в конце endPlayerTurn');
+    // (b) «Предводитель» 10 → moraleMult 1.5:
+    // Касание = round((2+0.5·3)·1.5) = round(5.25) = 5.
+    const r2 = mk(true);
+    assert.deepEqual(mk(true).snap, r2.snap, 'детерминизм (b)');
+    assert.equal(r2.w.hp, 95,
+      'Касание 5: мораль ВНУТРИ round (round(base·mult))');
+    assert.equal(r2.u.mp, 0);
+  } finally { C.combatInternals.allySpells = saveCatalog; }
+});
+
+test('000112 CB-5: движение-эскорт (D13): dP > 3 → 3 клетки к игроку (ось x первой: из (0,0) к (3,6) → (1,0),(2,0),(3,0)); dP ≤ 3 и dE > 3 → к врагу; оба ≤ 3 — стоим (позиция неизменна); бюджет move = 3; рефилл c.efs в конце хода', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    const mk = (efirAt, wolfAt, book) => {
+      const p = strongHero();
+      const state = E.createEfir();
+      if (book) state.spells = book.slice();
+      const { c, w, u } = board112(E, p, state);
+      if (efirAt) { u.x = efirAt[0]; u.y = efirAt[1]; }
+      w.x = wolfAt[0]; w.y = wolfAt[1]; w.maxHP = 100; w.hp = 100;
+      c._rng = () => 0.99;
+      E.buildEfirUnit(state, c);
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, w, p, c };
+    };
+    // (a) dP 9 > 3 → цель игрок (выбрана ОДИН раз); x первым:
+    // (0,0) → (1,0) → (2,0) → (3,0). (3) d 5 > 4 — каста нет.
+    const r1 = mk([0, 0], [6, 2]);
+    assert.deepEqual(mk([0, 0], [6, 2]).snap, r1.snap, 'детерминизм (a)');
+    assert.deepEqual([r1.u.x, r1.u.y], [3, 0],
+      'ось x первой: y не сдвинулась');
+    assert.equal(r1.c.efs.move, 3,
+      'бюджет move потрачен в ходе (3 шага) — рефилл в конце хода');
+    // (b) dP 2 ≤ 3, dE 9 > 3 → цель враг: (2,5) → (3,5) → (4,5) → (5,5).
+    // После хода d 6 > 4 — каста/Касания нет.
+    const r2 = mk(null, [6, 0]);
+    assert.deepEqual(mk(null, [6, 0]).snap, r2.snap, 'детерминизм (b)');
+    assert.deepEqual([r2.u.x, r2.u.y], [5, 5]);
+    assert.equal(r2.u.mp, 11, 'каста нет (d 6 > 4), Касания нет (d 6 > 1)');
+    // (c) dP 2 ≤ 3, dE 2 ≤ 3 → стоим; книга ['mend'] → (3) без
+    // «урон»-спеллов — пропускается.
+    const r3 = mk(null, [3, 4], ['mend']);
+    assert.deepEqual(mk(null, [3, 4], ['mend']).snap, r3.snap,
+      'детерминизм (c)');
+    assert.deepEqual([r3.u.x, r3.u.y], [2, 5], 'стоим на месте');
+    assert.equal(r3.u.mp, 11);
+    assert.ok(!r3.c.log.some((l) => l.includes('Эфир:')),
+      'действий нет: ' + r3.c.log.join(' | '));
+  } finally { C.combatInternals.allySpells = saveCatalog; }
+});
+
+test('000112 CB-6: «самое сильное» — тай-брейк по id (меньшее побеждает): инъекция каталога с двумя равными по «мани» (паттерн T9 save/set/restore); книга [zeta_bolt, alpha_bolt] (порядок книги — zeta первым) → кастуется alpha_bolt («Альфа»), НЕ «Дзета»', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells = {
+    zeta_bolt: { id: 'zeta_bolt', название: 'Дзета', школа: 'огонь',
+                 степень: 1, атрибут: 'intelligence', мани: 5,
+                 действие: 'урон' },
+    alpha_bolt: { id: 'alpha_bolt', название: 'Альфа', школа: 'огонь',
+                  степень: 1, атрибут: 'intelligence', мани: 5,
+                  действие: 'урон' },
+  };
+  try {
+    // Волк (4,4): d 3 ≤ 4 (каст), d 3 > 1 (без Касания), dE ≤ 3
+    // (без движения). dmg = round((3+0.5·3)·(1+0.05·0)) = 5.
+    const mk = () => {
+      const p = strongHero();
+      const state = E.createEfir();
+      state.spells = ['zeta_bolt', 'alpha_bolt']; // zeta — первым
+      const { c, w, u } = board112(E, p, state);
+      w.x = 4; w.y = 4; w.maxHP = 100; w.hp = 100; w.armor = 50;
+      c._rng = () => 0.99;
+      E.buildEfirUnit(state, c);
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, w, p, c };
+    };
+    const r1 = mk();
+    assert.deepEqual(mk().snap, r1.snap, 'детерминизм');
+    assert.ok(r1.c.log.includes('Эфир: «Альфа» по Волк: 5.'),
+      'побеждает меньшее id: ' + r1.c.log.join(' | '));
+    assert.ok(!r1.c.log.some((l) => l.includes('Дзета')),
+      '«Дзета» не кастуется (тай-брейк — id, не порядок книги)');
+    assert.equal(r1.u.mp, 6, 'mp 11 − 5 = 6');
+    assert.equal(r1.w.hp, 95, 'урон 5, броня игнорируется');
+  } finally { C.combatInternals.allySpells = saveCatalog; }
+});
+
+test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощает в раунд каста и следующий, 3-й удар — полный урон); повторный каст — ОБНОВЛЕНИЕ {7, 2} (не 3 хода, не сумма); щит стоит (turns > 0) → повторный каст НЕ идёт (мана цела, тик идёт); щит ИГРОКА c.ps.shield (2) НЕ блокирует — оба щита действуют (урон − armor обоих)', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // (a) Pre-set {7, 2}, волк (4,6, d 1 к игроку) бьёт по 10
+    // (все попадания): раунд 1: 10−7 = 3 (тик 2→1); раунд 2: 3
+    // (тик 1→0); раунд 3: 10 (щита нет).
+    const t1 = () => {
+      const p = hero112(); // 270/270 — повторного каста не будет
+      const state = E.createEfir();
+      state.spells = []; // книга пуста — кастов нет
+      const { c, w, u } = board112(E, p, state);
+      w.x = 4; w.y = 6; w.maxHP = 100; w.hp = 100; w.damage = 10;
+      c._rng = () => 0.01; // все попадания
+      E.buildEfirUnit(state, c);
+      c.efirShield = { armor: 7, turns: 2 }; // «уже кастован»
+      const hpAfter = [p.hp];
+      for (let i = 0; i < 3 && !c.result; i++) {
+        c.endTurn();
+        hpAfter.push(p.hp);
+      }
+      return { snap: { ...snap112(c, u, p), hpAfter }, u, p, c };
+    };
+    const r1 = t1();
+    assert.deepEqual(t1().snap, r1.snap, 'детерминизм (a)');
+    assert.deepEqual(r1.snap.hpAfter, [270, 267, 264, 254],
+      'поглощение ровно 2 раунда: −3, −3, −10');
+    assert.equal(r1.c.efirShield.turns, 0,
+      'щит истёк после двух тиков (endPlayerTurn)');
+
+    // (b) Повторный каст — обновление: pre-set {armor: 3, turns: 1} →
+    // раунд 1: (2) НЕ кастует (turns 1 > 0), тик 1→0; раунд 2: каст →
+    // {7, 2}, тик 2→1.
+    const t2 = () => {
+      const p = hero112();
+      p.hp = 100; // frac 0.37 ≤ 0.5
+      const state = E.createEfir();
+      state.spells = ['magic_shield'];
+      const { c, w, u } = board112(E, p, state);
+      w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
+      c._rng = () => 0.99;
+      E.buildEfirUnit(state, c);
+      c.efirShield = { armor: 3, turns: 1 };
+      c.endTurn();
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, p, c };
+    };
+    const r2 = t2();
+    assert.deepEqual(t2().snap, r2.snap, 'детерминизм (b)');
+    assert.equal(r2.c.efirShield.armor, 7,
+      'обновление: round(5+0.5·3) = 7 — не 3 и не 3+7');
+    assert.equal(r2.c.efirShield.turns, 1,
+      'не 3 хода: {7, 2} − тик конца 2-го раунда = 1');
+    assert.equal(r2.u.mp, 6, 'ровно ОДИН каст: mp 11 − 5 = 6');
+
+    // (c) Щит стоит (turns 2 > 0) → повторный каст НЕ идёт: мана цела,
+    // тик всё равно идёт (turns 2 → 1) — red-дискриминатор тика.
+    const t3 = () => {
+      const p = hero112();
+      p.hp = 100;
+      const state = E.createEfir();
+      state.spells = ['spark', 'magic_shield'];
+      const { c, w, u } = board112(E, p, state);
+      w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
+      c._rng = () => 0.99;
+      E.buildEfirUnit(state, c);
+      c.efirShield = { armor: 7, turns: 2 };
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, p, c };
+    };
+    const r3 = t3();
+    assert.deepEqual(t3().snap, r3.snap, 'детерминизм (c)');
+    assert.equal(r3.u.mp, 11, 'повторный каст не пошёл: мана не потрачена');
+    assert.equal(r3.c.efirShield.turns, 1, 'тик: 2 → 1 (endPlayerTurn)');
+    assert.equal(r3.c.efirShield.armor, 7);
+
+    // (d) Щит ИГРОКА c.ps.shield (2) НЕ блокирует: c.efirShield стоит
+    // несмотря на него; Оба щита поглощают: 10 − 1 (игрок) − 7 (Эфир)
+    // = 2. (3) — spark по волку (d 3 ≤ 4): mp 11 − 5 − 3 = 3.
+    const t4 = () => {
+      const p = hero112();
+      p.hp = 100;
+      const state = E.createEfir();
+      state.spells = ['spark', 'magic_shield'];
+      const { c, w, u } = board112(E, p, state);
+      w.x = 4; w.y = 6; w.maxHP = 100; w.hp = 100; w.damage = 10;
+      c._rng = () => 0.01; // волк попадает
+      E.buildEfirUnit(state, c);
+      c.ps.shield = { armor: 1, turns: 1 }; // СВОЙ щит игрока
+      c.endTurn();
+      return { snap: snap112(c, u, p), u, w, p, c };
+    };
+    const r4 = t4();
+    assert.deepEqual(t4().snap, r4.snap, 'детерминизм (d)');
+    assert.ok(r4.c.efirShield,
+      '(2) кастуется: щит игрока c.ps.shield НЕ считается (D4)');
+    assert.equal(r4.c.efirShield.armor, 7);
+    assert.equal(r4.c.efirShield.turns, 1);
+    assert.equal(r4.p.hp, 98, 'оба щита: 100 − (10 − 1 − 7) = 98');
+    assert.equal(r4.u.mp, 3, 'mp 11 − 5 (щит) − 3 (spark) = 3');
+    assert.equal(r4.w.hp, 95, 'spark: round((3+0.5·3)·1) = 5');
+  } finally { C.combatInternals.allySpells = saveCatalog; }
+});
