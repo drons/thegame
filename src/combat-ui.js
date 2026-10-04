@@ -71,6 +71,10 @@
     ? cancelAnimationFrame : null;
   // Длительность анимации действия героя (attack/cast), мс.
   const FX_MS = 300;
+  // 000118: «Вдох Эфира» — длительность fx-заявки c._fx.breath, мс
+  // (2×FX_MS — эффект «всей команды» дольше герой-кадра; пин
+  // tests/combat-ui.test.js CU118-FX).
+  const BREATH_FX_MS = 600;
 
   let ctx = null; // { combat, hero, onEnd, open, bgPath, spriteLoader }
   let overlay = null, canvas = null, g2 = null;
@@ -700,6 +704,74 @@
     }
   }
 
+  // FX «Вдох Эфира» (000118): отдельный слой эффектов — вызов в
+  // render() СРАЗУ ПОСЛЕ drawUnits (z-порядок: фон → сетка →
+  // препятствия → юниты → эффекты; 000114 §4: FX ПОВЕРХ всех слоёв
+  // юнита). Источники: (1) аура на каждом ЖИВОМ союзнике
+  // (side 'ally' в c.units, включая Эфира; герой НЕ в c.units —
+  // «не больше, чем ТЗ»): beginPath + arc(центр клетки,
+  // CELL·(0.35 + 0.15·t), 0, 2π), fill ALLY_MARKER_UNDERLAY +
+  // stroke ALLY_MARKER (lineWidth 2); (2) волна от Эфира
+  // (u.id === 'efir', живой; фолбэк — центр поля): растущее кольцо
+  // r = CELL·0.5 + max(width, height)·CELL·0.5·t, stroke ALLY_MARKER
+  // (lineWidth 2); (3) малые кольца на живых врагах (side 'mob',
+  // не fled): arc(центр, CELL·(0.2 + 0.2·t), …), stroke ALLY_MARKER
+  // (lineWidth 1.5). Палитра — ТОЛЬКО существующие константы
+  // ALLY_MARKER/ALLY_MARKER_UNDERLAY (000038: новых цветов НЕТ).
+  // Детерминизм: НУЛЬ c._rng — мутируется только c._fx (UI-поле,
+  // ядро его не читает). t = (now − at)/(until − at) ∈ [0, 1) —
+  // плавный рост; экспирация — now ≥ until → ничего (ранний
+  // возврат; под-объект в c._fx может остаться — инертен: рендер
+  // гвардится by until, hero-селектор c._fx.action его не видит).
+  // Риск (контракт 000118 §5 R2, задокументировано, НЕ чинится —
+  // «не больше ТЗ»): действие героя ПОСЛЕ Вдоха заменяет c._fx
+  // целиком (runAction: {action:'attack'|'cast', …}) →
+  // c._fx.breath теряется → эффект заканчивается досрочно (окно
+  // 600 мс — косметически допустимо).
+  function drawBreathFx(c, now) {
+    const fx = c._fx && c._fx.breath;
+    if (!fx || now >= fx.until) return;
+    const t = (now - fx.at) / (fx.until - fx.at); // [0, 1)
+    const center = (u) => [
+      (u.x + ((u.size && u.size.w) || 1) / 2) * CELL,
+      (u.y + ((u.size && u.size.h) || 1) / 2) * CELL,
+    ];
+    // (1) Аура на живых союзниках.
+    for (const u of c.units) {
+      if (u.side !== 'ally' || !u.alive) continue;
+      const [ax, ay] = center(u);
+      g2.beginPath();
+      g2.arc(ax, ay, CELL * (0.35 + 0.15 * t), 0, Math.PI * 2);
+      g2.fillStyle = ALLY_MARKER_UNDERLAY;
+      g2.fill();
+      g2.strokeStyle = ALLY_MARKER;
+      g2.lineWidth = 2;
+      g2.stroke();
+    }
+    // (2) Волна от Эфира.
+    const efirU = c.units.find((u) => u.id === 'efir' && u.alive);
+    const [wx, wy] = efirU
+      ? center(efirU)
+      : [c.width / 2 * CELL, c.height / 2 * CELL];
+    g2.beginPath();
+    g2.arc(wx, wy,
+      CELL * 0.5 + Math.max(c.width, c.height) * CELL * 0.5 * t,
+      0, Math.PI * 2);
+    g2.strokeStyle = ALLY_MARKER;
+    g2.lineWidth = 2;
+    g2.stroke();
+    // (3) Малые кольца на живых врагах.
+    for (const u of c.units) {
+      if (u.side !== 'mob' || !u.alive || u.fled) continue;
+      const [ex, ey] = center(u);
+      g2.beginPath();
+      g2.arc(ex, ey, CELL * (0.2 + 0.2 * t), 0, Math.PI * 2);
+      g2.strokeStyle = ALLY_MARKER;
+      g2.lineWidth = 1.5;
+      g2.stroke();
+    }
+  }
+
   function render() {
     if (!ctx || !ctx.open) return;
     const c = ctx.combat;
@@ -707,6 +779,20 @@
     // кадров (G.frameIndex) получают его аргументом — весь кадр
     // выбирается детерминированно (тот же now → те же кадры).
     const now = nowMs();
+
+    // FX «Вдох Эфира» (000118): edge-detect c.efirBreathed (ядро
+    // 000113 — выставляется один раз за бой в алли-фазе; контракт
+    // 000113 §8: «UI видит переключение при рендере»). Ядро НЕ знает
+    // о fx: c._fx.breath — ПОД-ОБЪЕКТ, НЕ слот действия героя
+    // {action, until} (hero-ветка drawUnits читает c._fx.action —
+    // undefined → 'idle'; существующие пины c._fx не задеты).
+    // ctx.breathedPrev — на боевом ctx (сброс на каждый startCombat).
+    const breathed = !!c.efirBreathed;
+    if (breathed && !ctx.breathedPrev) {
+      const fxB = c._fx || (c._fx = {});
+      fxB.breath = { at: now, until: now + BREATH_FX_MS };
+    }
+    ctx.breathedPrev = breathed;
 
     g2.fillStyle = '#0d1117';
     g2.fillRect(0, 0, canvas.width, canvas.height);
@@ -799,12 +885,35 @@
     // DOM-части render (задача 000047). Отдельная функция.
     drawUnits(c, now, hpFrac, hpColor);
 
+    // FX «Вдох Эфира» (000118): слой эффектов ПОСЛЕ drawUnits
+    // (z-порядок: фон → сетка → препятствия → юниты → эффекты;
+    // 000062-паттерн — будущие боевые эффекты вызываются здесь).
+    // Без c._fx.breath / после until — ранний возврат (ничего).
+    drawBreathFx(c, now);
+
     // Панель состояния.
     const t = c.units.find((u) => u.id === c.targetId && u.alive && !u.fled);
+    // Подсказка состава отряда (000118): строка «Отряд: <имя (роль), …»
+    // между «Шаги:…» и строкой цели — минимальное аддитивное
+    // расширение HUD (stateEl, .combat-state: white-space:pre-line,
+    // фиксированной высоты НЕТ — лишняя строка безопасна). Состав =
+    // ТОЛЬКО side 'ally' в c.units (герой НЕ в c.units — его там нет
+    // автоматически); порядок = c.units (Эфир первым); мёртвые
+    // союзники ВКЛЮЧЕНЫ (состав стабилен — ТЗ молчит). Роль — через
+    // G.ROLE_NAMES (экспорт combat.js) с fallback raw role (деградация
+    // без краха). Пустой отряд → строки НЕТ (существующий вывод
+    // бит-в-бит).
+    const RN = G.ROLE_NAMES || {};
+    const allies = c.units.filter((u) => u.side === 'ally');
+    const roster = allies.length
+      ? 'Отряд: ' + allies.map(
+        (u) => `${u.name} (${RN[u.role] || u.role})`).join(', ') + '\n'
+      : '';
     stateEl.textContent =
       `${c.groupName}, раунд ${c.round}\n` +
       `HP ${p.hp}/${d.maxHP}  |  MP ${p.mp}/${d.maxMP}\n` +
       `Шаги: ${c.ps.moveLeft}  |  Удар: ${c.ps.attack}  |  Огонь: ${c.ps.spellInt}  |  Леч: ${c.ps.spellWis}\n` +
+      roster +
       (c.ps.blocked ? 'БЛОК  ' : '') + (c.ps.poison > 0 ? `ЯД ${c.ps.poison}  ` : '') +
       (t ? `Цель: ${t.name} (ур. ${t.level}, HP ${t.hp}/${t.maxHP})` : 'Цели нет');
 
@@ -907,6 +1016,11 @@
      *   данные makeAlly (main.js companionAllies(), 000082) — в allies
      *   ПОСЛЕ Эфира. Не передан / не-массив → [] (старое поведение
      *   бит-в-бит).
+     * @param {boolean} [opts.efirMet] первая встреча Эфира (задача
+     *   000118, вариант (a)): true — «Эфир уже встречен в бою» (флаг
+     *   из сейва main.js) — строка первой встречи в createCombat не
+     *   показывается. Опционально: undefined/фальс — старое
+     *   поведение (бит-в-бит; BR-8).
      */
     startCombat(opts) {
       if (isActive()) return null;
@@ -949,6 +1063,10 @@
         // ПЕРВЫМ, px−1, py−1).
         allies: (efirData ? [efirData] : []).concat(
           Array.isArray(opts.rosterData) ? opts.rosterData : []),
+        // 000118 (вариант (a)): флаг «уже встречались» — из сейва
+        // main.js (top-level efir_met) → ядро (шов первой встречи).
+        // undefined → старое поведение (бит-в-бит; BR-8).
+        efirMet: !!opts.efirMet,
       });
       // Эфир в бою (задача 000112): боевой профиль на СУЩЕСТВУЮЩЕМ
       // юните (buildEfirUnit — 12-й экспорт efir.js, D1/D2: ОДИН раз,
@@ -983,6 +1101,10 @@
         // боевого xp. null — Эфир НЕ участвует в бою (opts.efir нет
         // или деградация — XP начислять нечего).
         efir: efirData ? opts.efir : null,
+        // 000118: edge-detect c.efirBreathed в render() — «уже видел
+        // Вдох» на уровне боя (сброс на каждый startCombat: новый
+        // ctx → false; one-shot ядра — один раз за бой).
+        breathedPrev: false,
       };
       build();
       render();

@@ -29,10 +29,16 @@
    нет; index.html/CSS — ноль.
 5. Тесты: 6 красных (combat-ui.test.js: CU118-FX, FX-негатив, LOG, HUD,
    FE2; save.test.js: CU118-SAVE) + guard FE1; GREEN-фаза — 6 пин-правок
-   (combat.test.js 3336/3378/3512/3599/3939, efir.test.js 724/736).
+   ВСЕ в combat.test.js (3336/3378/3512/3599/3750-PC-1/3939-guard;
+   3750 найден прогоном, не планом). tests/efir.test.js НЕ тронут:
+   T9 724/736 — путь 000080 allyHeal (без c.efs), строка «Эфир лечит
+   Флогистон» вне ТЗ-списка переименований (контракт ошибся).
 6. Дельта: combat.js ~15–20, combat-ui.js ~70–85, main.js ~35–40,
    тесты +~280. НУЛЬ: efir.js, index.html, assets, save.js,
    global-settings.js.
 7. Риск-топ: R2 (hero-действие режет c._fx.breath досрочно — косметика),
    R5 (000119 — тот же файл combat.test.js, union по регионам),
    R9 (BR-8 — пин обратной совместимости, не править).
+8. GREEN (2026-10-04): 1613/1613 зелёных (база 1608 + 5 красных).
+   000119 уже в master (719c022, аддитивный, ноль src/) → rebase
+   union по регионам. Детали — memory/000118-efir-combat-ux.md §9.
