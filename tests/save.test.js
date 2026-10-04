@@ -1396,4 +1396,19 @@ test('000118: e2e — флаг первой встречи: бой с Эфиро
     'мусор: state.efirMet = false (безопасная деградация)');
   assert.ok(h4.warns.some((m) => m.includes('efir_met')),
     'warn с именем поля efir_met: ' + h4.warns.join('; '));
+
+  // (5) Легальный false (поле ВСЕГДА пишется — паттерн 000109 R5):
+  //     сейв игрока, сделанный ДО первого боя с Эфиром. false —
+  //     валидное значение → принимается МОЛЧА, 0 warn (ложное
+  //     «невалидное значение» для штатного значения — ревью
+  //     2026-10-04). Безопасное направление: строка первой встречи
+  //     повторится максимум ОДИН раз.
+  const st5 = makeStorage();
+  const h5 = bootWithSave(st5, null, { day: 1, efir_met: false });
+  for (let i = 0; i < 5; i++) await h5.drain();
+  assert.equal(h5.sandbox.__game.state.efirMet, false,
+    'легальный false: state.efirMet = false');
+  assert.ok(!h5.warns.some((m) => m.includes('efir_met')),
+    'легальный false: warn об efir_met нет (значение валидно): '
+    + h5.warns.join('; '));
 });
