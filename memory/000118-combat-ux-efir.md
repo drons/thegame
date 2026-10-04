@@ -1,0 +1,38 @@
+# 000118 (UX боя Эфира) — дайджест
+
+Полный контракт: memory/000118-efir-combat-ux.md (обязателен к прочтению
+перед кодом).
+
+Коротко (2026-10-04, проектирование завершено):
+1. Лог (combat.js): 3 строки переименованы в ТЗ-паттерны —
+   «Эфир исцеляет <имя> (+N).», «Эфир: «<заклинание>» — <имя>: N.»
+   (em-dash U+2014), «Касание духа: N.»; щит и «Вдох Эфира!» — НЕ трогать;
+   блоку Вдоха НОВЫХ строк нет (пин BR-2 deepEqual).
+2. Первая встреча — вариант (a): флаг main.js `efirMet` → сейв
+   `efir_met` (ТОП-УРОВЕНЬ, вне state.efir), nеломкое v1 (версия 1,
+   MIGRATIONS нет, поле всегда пишется); restore: `=== true` / мусор →
+   warn+false / отсутствует → false; установка — `noteEfirCombat(combat)`
+   после всех 3 точек startCombat (реальные c.units); шов combat.js —
+   `&& !opts.efirMet` (undefined → старое поведение, BR-8 без правок);
+   efir.js НЕ трогать (one-shot — вторая преграда).
+3. FX «Вдоха» (combat-ui.js): edge-detect `c.efirBreathed` в render()
+   (контракт 000113: «UI видит переключение при рендере») → под-объект
+   `c._fx.breath = {at, until: at+600}` (НЕ слот {action,until} героя →
+   hero-ветка и её пины бит-в-бит); `drawBreathFx(c, now)` — отдельный
+   слой ПОСЛЕ drawUnits (000114 §4): аура на живых side 'ally' + волна
+   от Эфира + кольца на живых врагах; палитра — ТОЛЬКО ALLY_MARKER /
+   ALLY_MARKER_UNDERLAY; «arc» в файле не было → чистая красная
+   сигнатура; ноль c._rng.
+4. HUD: строка «Отряд: <имя (роль), …» в stateEl (.combat-state) между
+   «Шаги:…» и строкой цели; только side 'ally' (герой не в c.units);
+   ROLE_NAMES (combat.js:91) с fallback raw role; без союзников строки
+   нет; index.html/CSS — ноль.
+5. Тесты: 6 красных (combat-ui.test.js: CU118-FX, FX-негатив, LOG, HUD,
+   FE2; save.test.js: CU118-SAVE) + guard FE1; GREEN-фаза — 6 пин-правок
+   (combat.test.js 3336/3378/3512/3599/3939, efir.test.js 724/736).
+6. Дельта: combat.js ~15–20, combat-ui.js ~70–85, main.js ~35–40,
+   тесты +~280. НУЛЬ: efir.js, index.html, assets, save.js,
+   global-settings.js.
+7. Риск-топ: R2 (hero-действие режет c._fx.breath досрочно — косметика),
+   R5 (000119 — тот же файл combat.test.js, union по регионам),
+   R9 (BR-8 — пин обратной совместимости, не править).

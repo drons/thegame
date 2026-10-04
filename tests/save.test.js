@@ -393,6 +393,20 @@ function makeEl(tag) {
     remove() {},
     blur() {},
   };
+  if (tag === 'canvas') {
+    // 000118: боевой оверлей (combat-ui.js build()) создаёт canvas через
+    // document.createElement — без 2d-стаба startCombat в песочнице
+    // падал (g2 = undefined → TypeError при set fillStyle).
+    // Существующие тесты бой НЕ начинают — на них изменение не
+    // влияет (бит-в-бит; прецедент 000081 main-visuals). Явные
+    // getContext у gameCanvas/spriteCanvas в bootWithSave ПЕРЕОПРЕДЕЛЯЮТ
+    // этот стаб после создания (те же поведения).
+    target.getContext = (kind) => (kind === '2d'
+      ? new Proxy({}, {
+          get: (t, k) => (k in t ? t[k] : () => undefined),
+          set: (t, k, v) => { t[k] = v; return true; },
+        }) : null);
+  }
   return new Proxy(target, {
     get(t, k) {
       if (k in t) return t[k];
@@ -1308,4 +1322,78 @@ test('000115 V2: e2e — reprocess при загрузке (банк-оверф�
   assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
   assert.deepEqual(saved.data.efir, DENSE,
     'раздел переживает сейв БЕЗ ПОТЕРЬ (идемпотентно, 000111 §4)');
+});
+
+// --- Задача 000118: флаг первой встречи Эфира (вариант (а)) —
+// ТОП-УРОВНЕВОЕ поле сейва efir_met (вне замороженного 5-полевого
+// раздела efir — пины 000085/000115) ---
+//
+// КРАСНЫЙ (TDD): падает, пока в main.js нет let efirMet, поля
+// efir_met в collectSaveData (ВСЕГДА пишется — паттерн 000109 R5),
+// restore-ветки (=== true / мусор → warn+false / отсутствует →
+// false), вызова noteEfirCombat после точек startCombat (реальные
+// c.units), efirMet в opts и __game.state.
+//
+// Round-trip: бой с Эфиром → beforeunload → saved.data.efir_met =
+// true (version 1) → СВЕЖАЯ песочница (модульный one-shot efir.js
+// ЦЕЛ — строка повторилась бы без флага) → state.efirMet = true →
+// строки первой встречи НЕТ (проверка флага ЧЕРЕЗ сейв, R8).
+
+test('000118: e2e — флаг первой встречи: бой с Эфиром → beforeunload: efir_met = true (version 1); reload → state.efirMet → строки НЕТ; seed true → без строки; мусор → false + warn (CU118-SAVE)', async () => {
+  const LINE = 'Эфир материализуется рядом с Флогистоном…'; // U+2026
+  // (1) Свежая сессия: отладочный бой (Эфир ВСЕГДА, 000081) →
+  //     строка в логе + флаг в сейве (топ-уровень, version 1).
+  const st = makeStorage();
+  const h = bootWithSave(st, null, { day: 1 });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  const c1 = h.sandbox.__game.actions.startCombat(0);
+  assert.ok(c1, 'отладочный бой создан');
+  assert.ok(c1.log.includes(LINE), 'бой 1: строка первой встречи: '
+    + c1.log.join(' | '));
+  assert.equal(h.sandbox.__game.state.efirMet, true,
+    'state.efirMet = true после боя с Эфиром');
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1,
+    'CURRENT_VERSION = 1 (неломкое расширение v1 — без бампа)');
+  assert.equal(saved.data.efir_met, true,
+    'efir_met = true в сейве (ТОП-УРОВЕНЬ, вне раздела efir)');
+  assert.deepEqual(Object.keys(saved.data.efir).sort(),
+    ['level', 'skillXp', 'skills', 'spells', 'xp'],
+    'раздел efir — ровно 5 полей (000115 — не трогается)');
+
+  // (2) Reload из этого сейва: флаг восстановлен → строки НЕТ,
+  //     даже в СВЕЖЕЙ песочнице (модульный one-shot там цел!).
+  const st2 = makeStorage();
+  const h2 = bootWithSave(st2, null, saved.data);
+  for (let i = 0; i < 5; i++) await h2.drain();
+  assert.equal(h2.sandbox.__game.state.efirMet, true,
+    'restore: efir_met = true → state.efirMet = true');
+  const c2 = h2.sandbox.__game.actions.startCombat(0);
+  assert.ok(c2, 'бой 2 (после рестора)');
+  assert.ok(!c2.log.includes(LINE),
+    'бой 2 (сейв с флагом): строки НЕТ: ' + c2.log.join(' | '));
+
+  // (3) Seed efir_met: true напрямую (без боевого round-trip) →
+  //     state true → строки НЕТ.
+  const st3 = makeStorage();
+  const h3 = bootWithSave(st3, null, { day: 1, efir_met: true });
+  for (let i = 0; i < 5; i++) await h3.drain();
+  assert.equal(h3.sandbox.__game.state.efirMet, true,
+    'seed: state.efirMet = true');
+  const c3 = h3.sandbox.__game.actions.startCombat(0);
+  assert.ok(c3, 'бой 3 (seed)');
+  assert.ok(!c3.log.includes(LINE),
+    'seed true: строки НЕТ: ' + c3.log.join(' | '));
+
+  // (4) Мусор: 'junk' (не-boolean) → false + warn с именем поля
+  //     (безопасное направление: строка максимум РАЗ повторится).
+  const st4 = makeStorage();
+  const h4 = bootWithSave(st4, null, { day: 1, efir_met: 'junk' });
+  for (let i = 0; i < 5; i++) await h4.drain();
+  assert.equal(h4.sandbox.__game.state.efirMet, false,
+    'мусор: state.efirMet = false (безопасная деградация)');
+  assert.ok(h4.warns.some((m) => m.includes('efir_met')),
+    'warn с именем поля efir_met: ' + h4.warns.join('; '));
 });
