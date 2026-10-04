@@ -1795,3 +1795,285 @@ test('боевой UI: 000114 — союзник kind «efir»: кадры efirF
     && s[1] === '#8cf2fc').length, 1,
     'цвет рамки — ровно один раз');
 });
+
+// --- Задача 000118: UX боя Эфира — лог-строки, fx «Вдоха Эфира»,
+// подсказка состава отряда (контракт:
+// memory/000118-efir-combat-ux.md; план tests — tasks/000118) ---
+//
+// КРАСНЫЕ (TDD) — падают, пока функциональности НЕТ в неизменённом
+// коде (осмысленная причина — отсутствие, не синтаксис):
+//  * CU118-FX: в src/combat-ui.js нет edge-detect c.efirBreathed
+//    (контракт 000113 §8: «UI видит переключение при рендере»),
+//    под-объекта c._fx.breath {at, until: at + 600} и слоя
+//    drawBreathFx ('arc' в файле ВОДОБЩЕ не встречается — grep);
+//  * CU118-LOG: ТЗ-паттерны «Эфир исцеляет … (+N).»,
+//    «Эфир: «…» — …: N.» (em-dash U+2014), «Касание духа: N.» —
+//    нет в src/combat.js (сейчас «Эфир лечит …», «… по …: N.»,
+//    «Эфир касается …: N.»);
+//  * CU118-HUD: строки «Отряд: …» в .combat-state — нет в render();
+//  * CU118-FE2: персистентного флага «уже встречались» (opts.efirMet
+//    — вариант (а)) — нет в createCombat/combat-ui/main.js.
+// CU118-FE1 — ЗЕЛЁНЫЙ ГВАРД (000113 смержен: сессионный one-shot
+// уже работает) — фиксатор, чтобы шов варианта (а) не сломал 000113.
+//
+// Детерминизм сцен (vm-правила 000082/000047): фикс. performance.now
+// (NOW84), c._rng = () => 0.99 (мобы промахиваются — изоляция),
+// примитивные ассерты (строки/числа/identity внутри realm).
+
+// Строка первой встречи (efir.js BREATH_INFO.firstEncounter; пин BR-1):
+// многоточие — ОДИН символ U+2026.
+const EFIR_LINE118 = 'Эфир материализуется рядом с Флогистоном…';
+
+test('боевой UI: 000118 — «Вдох Эфира»: c._fx.breath — заявка при триггере (edge c.efirBreathed в render) + слой «arc»; без триггера (mp 19 / полный HP / без Эфира) — нет (CU118-FX)', () => {
+  const S = scene84({ efir: true });
+  const c = S.c;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.side === 'mob');
+  const arcsOf = (slice) => slice.calls.filter((x) => x[0] === 'arc');
+
+  // Якорь ДО триггера: рендер без «arc», c._fx.breath не записано.
+  const pre = tickSlice(S.canvas, S.rafStubs);
+  assert.equal(arcsOf(pre).length, 0,
+    'до триггера — «arc» в рендере нет: '
+    + JSON.stringify(pre.calls.map((x) => x[0])));
+  assert.equal(c._fx && c._fx.breath, undefined,
+    'c._fx.breath не записано до триггера');
+
+  // Триггер (ядро 000113 — НЕ ТРОГАЕТСЯ): HP игрока 40% (10/25 = 0.4
+  // ТОЧНО), мана Эфира 20 (buildEfirUnit переписал u.mp — L1: 11),
+  // волк далеко, c._rng — промахи (изоляция).
+  c.player.hp = 10;
+  u.mp = 20;
+  wolf.x = 0; wolf.y = 0;
+  c._rng = () => 0.99;
+  press(S.keydown, 'Space'); // endTurn → алли-фаза → «Вдох» (ВЕСЬ ход)
+
+  // Ядро 000113 (зелёные пины — механика без изменений):
+  assert.equal(c.efirBreathed, true, 'ядро: c.efirBreathed (000113)');
+  assert.ok(c.log.includes('Вдох Эфира!'),
+    'ядро: «Вдох Эфира!» в логе: ' + c.log.join(' | '));
+  assert.equal(u.mp, 0, 'ядро: мана 20 израсходована (mpCost)');
+
+  // UI 000118: заявка c._fx.breath {at, until: at + 600} (BREATH_FX_MS)
+  // — edge-detect в render (синхронный render внутри handleCode ПОСЛЕ
+  // c.endTurn — UI видит переключение c.efirBreathed при рендере).
+  // Под-объект, НЕ слот действия героя {action, until}: hero-ветка
+  // drawUnits читает c._fx.action — undefined → 'idle' (бит-в-бит).
+  assert.ok(c._fx && c._fx.breath,
+    'c._fx.breath — заявка после триггера: ' + JSON.stringify(c._fx));
+  assert.equal(c._fx.breath.at, NOW84, 'at = фикс. now (детерминизм)');
+  assert.equal(c._fx.breath.until - c._fx.breath.at, 600,
+    'until = at + 600 (BREATH_FX_MS = 2×FX_MS)');
+
+  // FX-слой (000114 §4: эффекты ПОВЕРХ всех слоёв юнита, вызов в
+  // render() ПОСЛЕ drawUnits): «arc» появляется в drawCalls;
+  // палитра — ТОЛЬКО ALLY_MARKER '#8cf2fc' /
+  // ALLY_MARKER_UNDERLAY 'rgba(140, 242, 252, 0.25)'.
+  const t1 = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(arcsOf(t1).length > 0,
+    '«arc» в drawCalls после триггера: '
+    + JSON.stringify(t1.calls.map((x) => x[0])));
+  const styled1 = styledCalls(t1.events);
+  assert.ok(styled1.some((x) => x.name === 'arc'
+    && x.strokeStyle === '#8cf2fc'),
+    'arc — strokeStyle #8cf2fc (ALLY_MARKER)');
+  assert.ok(styled1.some((x) => x.name === 'arc'
+    && x.fillStyle === 'rgba(140, 242, 252, 0.25)'),
+    'arc — fillStyle rgba(140, 242, 252, 0.25) (ALLY_MARKER_UNDERLAY)');
+
+  // Экспирация без sleep: until в прошлое → следующий render БЕЗ
+  // новых «arc» (ранний возврат drawBreathFx по now >= until).
+  c._fx.breath.until = NOW84 - 1;
+  const t2 = tickSlice(S.canvas, S.rafStubs);
+  assert.equal(arcsOf(t2).length, 0,
+    '«arc» после истечения until — нет: '
+    + JSON.stringify(t2.calls.map((x) => x[0])));
+
+  // One-shot ядра (000113): повторный Space (mp 0) — НОВОЙ заявки
+  // fx нет (тот же объект — edge не срабатывает повторно).
+  const ref = c._fx.breath;
+  press(S.keydown, 'Space');
+  assert.equal(c._fx.breath, ref,
+    'повторное нажатие — без НОВОЙ заявки c._fx.breath (one-shot ядра)');
+
+  // FX-НЕГАТИВ — три под-сцены БЕЗ триггера: c.efirBreathed
+  // undefined, c._fx.breath undefined, «arc» нет (endTurn — действие
+  // ИГРОКА, hero-fx c._fx не пишет — негативный контроллер).
+  const negScene = (N, setup) => {
+    const nc = N.c;
+    const nu = nc.units.find((x) => x.kind === 'efir');
+    const nw = nc.units.find((x) => x.side === 'mob');
+    setup(nc, nu, nw);
+    press(N.keydown, 'Space');
+    const tn = tickSlice(N.canvas, N.rafStubs);
+    assert.equal(nc.efirBreathed, undefined,
+      'без триггера: c.efirBreathed undefined: ' + JSON.stringify(nc.log));
+    assert.equal(nc._fx && nc._fx.breath, undefined,
+      'без триггера: c._fx.breath не записано');
+    assert.equal(tn.calls.filter((x) => x[0] === 'arc').length, 0,
+      'без триггера: «arc» в рендере нет');
+  };
+  // (A) мана 19 (< 20 — mpCost):
+  negScene(scene84({ efir: true }), (nc, nu, nw) => {
+    nc.player.hp = 10; nu.mp = 19; nw.x = 0; nw.y = 0;
+    nc._rng = () => 0.99;
+  });
+  // (B) полный HP (frac 1.0 > 0.4 — playerFrac):
+  negScene(scene84({ efir: true }), (nc, nu, nw) => {
+    nu.mp = 20; nw.x = 0; nw.y = 0; nc._rng = () => 0.99;
+  });
+  // (C) без Эфира в сцене (opts.withEfir нет):
+  negScene(scene84(), (nc, nu, nw) => {
+    nc.player.hp = 10; nc._rng = () => 0.99;
+  });
+});
+
+test('боевой UI: 000118 — c.log: строки действий Эфира по паттернам ТЗ (CU118-LOG)', () => {
+  // Белый каталог ВНУТРИ теста (паттерн 000111 T9): vm-цепочка НЕ
+  // грузит spells-data.js/spells.js → G.combatInternals.allySpells
+  // undefined → ИИ Эфира не кастует (melee-фолбэк 000080). Каждый
+  // под-сценарий — своя песочница (своё G); restore в finally.
+  const catalog = require('../src/spells-data.js').SPELLS_BY_ID;
+  const mkLogScene = () => {
+    const L = scene84({ efir: true });
+    const saved = L.G.combatInternals.allySpells;
+    L.G.combatInternals.allySpells = catalog;
+    return { L, saved };
+  };
+  const savedCats = [];
+  try {
+    // (1) heal — игрок 17/25 (frac 0.68 ≤ 0.7), волк ДАЛЕКО
+    //     (d 9 > SPELL_MAX_DIST 4): приоритет (1) — самое сильное
+    //     известное лечебное (mend, L1: round(3 + 0.5·3 + 1) = 6):
+    //     «Эфир исцеляет Флогистон (+6).»
+    {
+      const { L, saved } = mkLogScene();
+      savedCats.push([L.G, saved]);
+      const c = L.c;
+      const w = c.units.find((x) => x.side === 'mob');
+      w.x = 0; w.y = 0;
+      c.player.hp = 17;
+      c._rng = () => 0.99;
+      press(L.keydown, 'Space');
+      assert.ok(c.log.includes('Эфир исцеляет Флогистон (+6).'),
+        'heal — паттерн ТЗ «Эфир исцеляет <имя> (+N).»: '
+        + c.log.join(' | '));
+    }
+    // (2) cast — игрок ПОЛНЫЙ HP (лечения нет), волк d 2 (≤ 4):
+    //     приоритет (3) — урон-каст (spark, L1: round((3 + 0.5·3)·
+    //     (1 + 0.05·0)) = 5, ВСЕГДА попадает, игнор брони):
+    //     «Эфир: «Искра» — Волк: 5.» (em-dash U+2014).
+    {
+      const { L, saved } = mkLogScene();
+      savedCats.push([L.G, saved]);
+      const c = L.c;
+      const w = c.units.find((x) => x.side === 'mob');
+      w.x = c.px; w.y = c.py - 2; // d 2 от игрока; d 2 от Эфира (px−1,py−1)
+      c._rng = () => 0.99;
+      press(L.keydown, 'Space');
+      assert.ok(c.log.includes('Эфир: «Искра» — Волк: 5.'),
+        'cast — паттерн ТЗ «Эфир: «<заклинание>» — <имя>: N.»: '
+        + c.log.join(' | '));
+    }
+    // (3) touch — волк d 1 от Эфира, книга [] (урон-каста НЕТ):
+    //     приоритет (4) — «Касание духа» (u.damage, L1: max(1,
+    //     round((2 + 0.5·3)·1)) = 4): «Касание духа: 4.»
+    {
+      const { L, saved } = mkLogScene();
+      savedCats.push([L.G, saved]);
+      const c = L.c;
+      const u = c.units.find((x) => x.kind === 'efir');
+      const w = c.units.find((x) => x.side === 'mob');
+      u.spells = []; // без каталога-кандидатов урона — каст невозможен
+      w.x = c.px; w.y = c.py - 1; // вплотную к Эфиру (px−1, py−1): d 1
+      c._rng = () => 0.99;
+      press(L.keydown, 'Space');
+      assert.ok(c.log.includes('Касание духа: 4.'),
+        'touch — паттерн ТЗ «Касание духа: N.»: ' + c.log.join(' | '));
+    }
+    // (4) «Вдох Эфира!» (000113, ЗЕЛЁНЫЙ якорь — строка уже в
+    //     efir.js u.breath.logLine; краснота теста — за счёт (1)–(3)).
+    {
+      const { L, saved } = mkLogScene();
+      savedCats.push([L.G, saved]);
+      const c = L.c;
+      const u = c.units.find((x) => x.kind === 'efir');
+      const w = c.units.find((x) => x.side === 'mob');
+      w.x = 0; w.y = 0;
+      c.player.hp = 10; // 10/25 = 0.4 (playerFrac)
+      u.mp = 20;        // mpCost
+      c._rng = () => 0.99;
+      press(L.keydown, 'Space');
+      assert.ok(c.log.includes('Вдох Эфира!'),
+        '«Вдох Эфира!» (000113 — строка уже в master): '
+        + c.log.join(' | '));
+    }
+  } finally {
+    for (const [Gx, saved] of savedCats) Gx.combatInternals.allySpells = saved;
+  }
+});
+
+test('боевой UI: 000118 — HUD: подсказка состава отряда в .combat-state (имя (роль) юнитов side «ally») (CU118-HUD)', () => {
+  const S = scene84({ efir: true });
+  addMerc84(S.c, S.G, 5, 2, 'ranged'); // Орк (дальний бой) — 000080
+  tickSlice(S.canvas, S.rafStubs);
+  const state = findByClass(S.body, 'combat-state');
+  assert.ok(state, '.combat-state в оверлее');
+  const text = state.textContent;
+  assert.ok(text.includes('Отряд:'),
+    'строка «Отряд:» в .combat-state: ' + JSON.stringify(text));
+  assert.ok(text.includes('Эфир (поддержка)'),
+    'Эфир: имя + роль (ROLE_NAMES.support): ' + JSON.stringify(text));
+  assert.ok(text.includes('Орк (дальний бой)'),
+    'наёмник: имя + роль (ROLE_NAMES.ranged): ' + JSON.stringify(text));
+  // Без союзников — строки НЕТ (существующий вывод бит-в-бит).
+  const P = scene84();
+  const state2 = findByClass(P.body, 'combat-state');
+  assert.ok(!state2.textContent.includes('Отряд:'),
+    'без союзников — строки «Отряд:» нет: '
+    + JSON.stringify(state2.textContent));
+});
+
+test('боевой UI: 000118 — первая встреча (вариант (а)): флаг «уже встречались» (opts.efirMet — из сейва) — строки НЕТ при ЦЕЛОМ модульном one-shot (CU118-FE2)', () => {
+  // СВЕЖАЯ песочница: модульный one-shot efir.js ЦЕЛ (строка
+  // повторилась бы, если бы преградой был ТОЛЬКО сессионный флаг
+  // 000113). opts.efirMet: true — имитация «сейв с флагом
+  // восстановлен»: шов (main.js efirMet → combat-ui opts →
+  // createCombat) обязан срезать строку ДО one-shot.
+  const { G } = loadCombatUi(true, { withEfir: true });
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    efir: G.efir.createEfir(),
+    efirMet: true,
+  });
+  assert.ok(c, 'бой создан (неизвестный опс — без краха)');
+  assert.ok(c.units.some((x) => x.id === 'efir' && x.side === 'ally'),
+    'Эфир в бою (шов не прячет союзника)');
+  assert.ok(!c.log.includes(EFIR_LINE118),
+    'флаг true — строки первой встречи НЕТ (one-shot цел, флаг режет шов): '
+    + c.log.join(' | '));
+});
+
+test('боевой UI: 000118 — первая встреча (ГВАРД 000113): строка только в ПЕРВОМ бою сессии (модульный one-shot), во втором — нет (CU118-FE1)', () => {
+  // ОДНА песочница (один модуль efir.js): бой №1 — строка; бой №2 —
+  // one-shot съеден, строки нет. Зелёный фиксатор: шов варианта (а)
+  // (createCombat) не должен сломать сессионное поведение 000113.
+  const { G, keydown } = loadCombatUi(true, { withEfir: true });
+  const mk = (seed) => G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed,
+    efir: G.efir.createEfir(),
+  });
+  const close = (x) => {
+    x.result = { outcome: 'victory', xp: 0, gold: 0, defeated: 0, allyXp: [] };
+    press(keydown, 'Escape');
+  };
+  const c1 = mk(42);
+  assert.ok(c1, 'бой 1');
+  assert.ok(c1.log.includes(EFIR_LINE118),
+    'бой 1: строка первой встречи: ' + c1.log.join(' | '));
+  close(c1);
+  const c2 = mk(7);
+  assert.ok(c2, 'бой 2 (та же песочница — one-shot съеден)');
+  assert.ok(!c2.log.includes(EFIR_LINE118),
+    'бой 2: строки НЕТ (one-shot 000113): ' + c2.log.join(' | '));
+});

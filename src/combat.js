@@ -1557,7 +1557,8 @@
             W.unit.hp = Math.min(W.unit.maxHP, W.unit.hp + amount);
           }
           const actual = (W.player ? c.player.hp : W.unit.hp) - before;
-          log(c, `Эфир лечит ${W.player ? c.player.name : W.unit.name} ` +
+          // 000118: паттерн ТЗ «Эфир исцеляет <имя> (+N).»
+          log(c, `Эфир исцеляет ${W.player ? c.player.name : W.unit.name} ` +
             `(+${actual}).`);
           continue;
         }
@@ -1601,7 +1602,9 @@
             (3 + 0.5 * ((u.attrs && u.attrs.intelligence) || 0))
             * (1 + 0.05 * lord));
           const r = dealDamageToMob(c, e, dmg, true);
-          log(c, `Эфир: «${s['название']}» по ${e.name}: ${r.dmg}.`);
+          // 000118: паттерн ТЗ «Эфир: «<заклинание>» — <имя>: N.»
+          // (em-dash U+2014).
+          log(c, `Эфир: «${s['название']}» — ${e.name}: ${r.dmg}.`);
           // 000117: практика урон-каста — школа тем же
           // дискриминатором, что у лорда выше («лёд» → icelord,
           // иначе firelord); PRACTICE_XP.spell.
@@ -1616,7 +1619,8 @@
       if (e && rectDist(u, e) <= 1 && c.efs.touch > 0) {
         c.efs.touch -= 1;
         const r = dealDamageToMob(c, e, u.damage, true);
-        log(c, `Эфир касается ${e.name}: ${r.dmg}.`);
+        // 000118: паттерн ТЗ «Касание духа: N.» (без имени).
+        log(c, `Касание духа: ${r.dmg}.`);
         if (c.result) return;
         continue;
       }
@@ -1943,6 +1947,11 @@
    *   c.buffMods (дефолт { damageMult: 1, armor: 0 }; мусор — дефолт,
    *   fail-open). Дефолт — бой БИТ-В-БИТ как без 000076 (×1/−0),
    *   НОЛЬ новых вызовов c._rng (детерминизм 000080/000082).
+   * @param {boolean} [opts.efirMet] первая встреча Эфира (задача
+   *   000118, вариант (a)): true — «Эфир уже встречен в бою» (флаг
+   *   из сейва main.js, проводка через combat-ui) — строка первой
+   *   встречи НЕ показывается. Опционально: undefined/фальс — старое
+   *   поведение (сессионный one-shot efir.js, бит-в-бит; BR-8).
    * @returns {object} объект боя c. Поле c.obstacles (задача 000050) —
    *   Set 'x,y' непроходимых клеток (может быть пустым); генерация —
    *   generateObstacles, детерминирована по сиду. Поле c.buffMods
@@ -2054,11 +2063,16 @@
     // Первая встреча (000113): в ПЕРВОМ бою сессии при Эфире в отряде —
     // flavor-строка из efir.js (BREATH_INFO.firstEncounter; one-shot —
     // сессионный флаг модуля, НЕ сейв: state.efir 5 полей не меняется;
-    // UI/fx — 000118). Ленивое чтение в момент ВЫЗОВА (нет зависимости
-    // при загрузке — паттерн efirPractice, 000117); без Game.efir —
-    // ТИХО (деградация: игра не падает, строки просто нет — паттерн
-    // 000112 «без каталога — тихо»).
-    if (c.units.some((x) => x.id === 'efir' && x.side === 'ally')) {
+    // UI/fx — 000118). 000118 (вариант (a)): персистентный флаг
+    // opts.efirMet (сейв main.js, топ-уровневое поле efir_met) —
+    // ДВОЙНАЯ преграда: флаг true → строки нет даже в СВЕЖЕЙ сессии
+    // (сессионный one-shot там ещё цел); undefined/фальс → старое
+    // поведение бит-в-бит (BR-8). Ленивое чтение в момент ВЫЗОВА
+    // (нет зависимости при загрузке — паттерн efirPractice, 000117);
+    // без Game.efir — ТИХО (деградация: игра не падает, строки просто
+    // нет — паттерн 000112 «без каталога — тихо»).
+    if (c.units.some((x) => x.id === 'efir' && x.side === 'ally'
+        && !opts.efirMet)) {
       const G = typeof globalThis !== 'undefined' ? globalThis.Game : null;
       const f = G && G.efir && G.efir.takeFirstEncounterLine;
       if (typeof f === 'function') {

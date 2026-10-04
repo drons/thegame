@@ -3333,7 +3333,7 @@ test('000112 CB-1: приоритет (1) — лечение самого ран
       'само-лечение: 5 + 6 (round(3+0.5·3+1)) = 11');
     assert.equal(r1.p.hp, 162, 'игрок не лечен — Эфир раненее');
     assert.equal(r1.u.mp, 8, 'mp 11 − 3 («мани» mend) = 8');
-    assert.ok(r1.c.log.includes('Эфир лечит Эфир (+6).'),
+    assert.ok(r1.c.log.includes('Эфир исцеляет Эфир (+6).'),
       'лог-строка: ' + r1.c.log.join(' | '));
 
     // (b) Все целы (frac = 1 — исключаются): не лечит, каста нет
@@ -3375,7 +3375,7 @@ test('000112 CB-1: приоритет (1) — лечение самого ран
       'лечение 148 + 19 (round(3+0.5·8+12)) = 167');
     assert.equal(r3.u.mp, 15,
       'mp 21 − 6 (light_heal) = 15 — а не 18 (mend «мани» 3)');
-    assert.ok(r3.c.log.includes('Эфир лечит Флогистон (+19).'),
+    assert.ok(r3.c.log.includes('Эфир исцеляет Флогистон (+19).'),
       'лог-строка: ' + r3.c.log.join(' | '));
   } finally { C.combatInternals.allySpells = saveCatalog; }
 });
@@ -3509,7 +3509,7 @@ test('000112 CB-4: приоритет (4) — Касание: d ≤ 1, пул to
     assert.equal(r1.w.hp, 96,
       'Касание 4: броня 50 игнорируется, всегда попадает');
     assert.equal(r1.u.mp, 0, 'мана не потрачена');
-    assert.ok(r1.c.log.includes('Эфир касается Волк: 4.'),
+    assert.ok(r1.c.log.includes('Касание духа: 4.'),
       'лог-строка: ' + r1.c.log.join(' | '));
     assert.equal(r1.c.efs.touch, 1,
       'touch-пул потрачен в ходе — рефилл в конце endPlayerTurn');
@@ -3596,7 +3596,7 @@ test('000112 CB-6: «самое сильное» — тай-брейк по id (
     };
     const r1 = mk();
     assert.deepEqual(mk().snap, r1.snap, 'детерминизм');
-    assert.ok(r1.c.log.includes('Эфир: «Альфа» по Волк: 5.'),
+    assert.ok(r1.c.log.includes('Эфир: «Альфа» — Волк: 5.'),
       'побеждает меньшее id: ' + r1.c.log.join(' | '));
     assert.ok(!r1.c.log.some((l) => l.includes('Дзета')),
       '«Дзета» не кастуется (тай-брейк — id, не порядок книги)');
@@ -3747,7 +3747,7 @@ test('000117 PC-1: прокачанный firelord — урон Эфира +5%·
       // rng 0.99 (волк — все промахи). ФОРМУЛА в тесте (паттерн CB-3,
       // без хардкода значений): round((3 + 0.5·Int)·(1 + 0.05·lord)).
       const dmgFromLog = (c) => {
-        const line = c.log.find((l) => l.includes('«Искра» по'));
+        const line = c.log.find((l) => l.includes('«Искра» —'));
         assert.ok(line, 'лог-строка каста: ' + c.log.join(' | '));
         return Number(line.slice(line.lastIndexOf(':') + 1));
       };
@@ -3936,7 +3936,7 @@ test('000113 BR-2: границы триггера (41%—нет/40%—да; mp 
         '(b) волк ослаблен: 2 (Вдох) − 1 (тик endPlayerTurn) = {0.8, 1}');
       assert.equal(u.x, 0, '(b) «весь ход»: Эфир НЕ сдвинулся по x (на (0,0))');
       assert.equal(u.y, 0, '(b) «весь ход»: Эфир НЕ сдвинулся по y');
-      assert.ok(!c.log.some((l) => l.includes('Эфир лечит')
+      assert.ok(!c.log.some((l) => l.includes('Эфир исцеляет')
         || l.includes('Эфир:')),
         '(b) «весь ход»: прочие действия НЕ выполнены (лечения/кастов нет): '
         + c.log.join(' | '));
