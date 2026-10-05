@@ -591,3 +591,252 @@ test('доступность найма: ПЕРВЫЙ NPC каталога та�
     `${tavernNpc.id}: тавернщик не должен быть кандидатом на найм ` +
     '(найм-данные — только у наёмников)');
 });
+
+// --- Начальные списки (задача 000141) ---
+//
+// Контракт (memory/000141-merc-initial-lists.md, решение D3):
+// различия наёмных персонажей — ТОЛЬКО начальные списки (ТЗ 000139):
+//  * найм.базовые_характеристики = {strength, dexterity, constitution,
+//    intelligence, wisdom, charisma} — 6 целых ≥ 1 (границы схемы 1..10);
+//    главная по роли — строгий максимум (melee→strength, ranged→dexterity,
+//    shield→constitution, support→intelligence + вторичная wisdom ≥ 2);
+//  * найм.начальные_навыки = {id: level} — явные уровни (контракт слияния
+//    000143: при слиянии побеждают implicit 1 плоского skills[]);
+//    keys(начальные_навыки) == set(найм.skills) — двусторонний пин;
+//  * оба поля — ОПЦИОНАЛЬНЫЕ в схеме (НЕ в найм.required: анти-тест
+//    okHire остаётся валидным), у всех 6 наёмных обязательны на уровне
+//    данных;
+//  * цифры — зафиксированы золотыми таблицами T5/T6 (golden-паттерн:
+//    баланс правится правкой таблиц EXPECTED, не механикой).
+// Игровой код (src/npc.js, src/companions.js) не трогается — чтение
+// полей появится в 000143.
+const ATTR_KEYS = ['strength', 'dexterity', 'constitution',
+  'intelligence', 'wisdom', 'charisma'];
+
+// Роль → главная характеристика (strict max; у support wisdom —
+// вторичная, ≥ 2).
+const ROLE_PRIMARY_ATTR = {
+  melee: 'strength',
+  ranged: 'dexterity',
+  shield: 'constitution',
+  support: 'intelligence',
+};
+
+// Золотые профили (memory/000141-merc-data.md, решение D3).
+const EXPECTED_ATTRS = {
+  merc_volk: { strength: 3, dexterity: 1, constitution: 2,
+               intelligence: 1, wisdom: 1, charisma: 1 },
+  merc_ashka: { strength: 1, dexterity: 3, constitution: 1,
+                intelligence: 1, wisdom: 1, charisma: 1 },
+  merc_baldor: { strength: 2, dexterity: 1, constitution: 3,
+                 intelligence: 1, wisdom: 1, charisma: 1 },
+  merc_mira: { strength: 1, dexterity: 1, constitution: 1,
+               intelligence: 3, wisdom: 2, charisma: 1 },
+  merc_torga: { strength: 4, dexterity: 1, constitution: 2,
+                intelligence: 1, wisdom: 1, charisma: 1 },
+  merc_rena: { strength: 1, dexterity: 3, constitution: 1,
+               intelligence: 2, wisdom: 1, charisma: 1 },
+};
+
+const EXPECTED_INITIAL_SKILLS = {
+  merc_volk: { swordsman: 2 },
+  merc_ashka: { archer: 2, accuracy: 1 },
+  merc_baldor: { heavy: 2 },
+  merc_mira: { meditation: 2 },
+  merc_torga: { fists: 2 },
+  merc_rena: { archer: 2 },
+};
+
+test('schema.json: найм.базовые_характеристики — закрытые 6 целых 1..10 (000141)', () => {
+  const hire = loadSchema().properties.найм;
+  const b = hire.properties.базовые_характеристики;
+  assert.ok(b && typeof b === 'object',
+    'найм.properties: под-схема «базовые_характеристики» есть (000141)');
+  assert.equal(b.type, 'object', 'базовые_характеристики: type object');
+  assert.equal(b.additionalProperties, false,
+    'базовые_характеристики: закрытый объект (additionalProperties false)');
+  assert.ok(Array.isArray(b.required),
+    'базовые_характеристики: required — массив');
+  assert.deepEqual([...b.required].sort(), [...ATTR_KEYS].sort(),
+    'базовые_характеристики: required — ровно 6 id PRIMARY_SKILLS');
+  assert.ok(b.properties && typeof b.properties === 'object',
+    'базовые_характеристики: properties');
+  for (const k of ATTR_KEYS) {
+    assert.equal(b.properties[k].type, 'integer',
+      `базовые_характеристики.${k} — integer`);
+    assert.equal(b.properties[k].minimum, 1,
+      `базовые_характеристики.${k}: minimum 1`);
+    assert.equal(b.properties[k].maximum, 10,
+      `базовые_характеристики.${k}: maximum 10 (разумный максимум)`);
+  }
+  assert.ok(!hire.required.includes('базовые_характеристики'),
+    'базовые_характеристики — ОПЦИОНАЛЬНО (не в найм.required)');
+});
+
+test('schema.json: найм.начальные_навыки — объект {id: level} (000141)', () => {
+  const hire = loadSchema().properties.найм;
+  const n = hire.properties.начальные_навыки;
+  assert.ok(n && typeof n === 'object',
+    'найм.properties: под-схема «начальные_навыки» есть (000141)');
+  assert.equal(n.type, 'object', 'начальные_навыки: type object');
+  assert.ok(!hire.required.includes('начальные_навыки'),
+    'начальные_навыки — ОПЦИОНАЛЬНО (не в найм.required)');
+  // Значения {id: level} минимальным валидатором НЕ проверяются
+  // (patternProperties — вне ALLOWED_SCHEMA_KEYS): фиксация — в
+  // данных-тестах T4/T6 (id из каталога, уровень целое ≥ 1,
+  // keys == set(найм.skills), золотые таблицы).
+});
+
+test('schema.json: найм с новыми полями — валидация (000141)', () => {
+  const hire = loadSchema().properties.найм;
+  const base = {
+    цена: 50, жалованье: 2, роль: 'melee', dmg: 1.2, hp: 1.1,
+    skills: ['swordsman'], spells: [],
+  };
+  const goodAttrs = { strength: 3, dexterity: 1, constitution: 2,
+    intelligence: 1, wisdom: 1, charisma: 1 };
+  // Положительные (сначала: красное ДО падает именно здесь — схема
+  // ещё не принимает новые поля).
+  assert.deepEqual(validateData(hire, Object.assign({}, base, {
+    базовые_характеристики: goodAttrs,
+    начальные_навыки: { swordsman: 2 },
+  }), 'найм'), [],
+    'найм с базовые_характеристики + начальные_навыки — валиден');
+  assert.deepEqual(validateData(hire, base, 'найм'), [],
+    'найм БЕЗ новых полей — валиден (поля опциональны)');
+  // Отрицательные: содержимое базовые_характеристики.
+  const noCharisma = Object.assign({}, goodAttrs);
+  delete noCharisma.charisma;
+  const badAttrs = [
+    ['нет charisma', noCharisma],
+    ['лишний ключ', Object.assign({}, goodAttrs, { luck: 1 })],
+    ['характеристика 0', Object.assign({}, goodAttrs, { strength: 0 })],
+    ['характеристика-строка', Object.assign({}, goodAttrs, { strength: '3' })],
+  ];
+  for (const [label, attrs] of badAttrs) {
+    assert.ok(validateData(hire,
+      Object.assign({}, base, { базовые_характеристики: attrs }),
+      'найм').length > 0,
+      `базовые_характеристики: ${label} — invalid`);
+  }
+  // Отрицательные: начальные_навыки — объект, не массив/строка.
+  for (const [label, skills] of [
+    ['начальные_навыки — массив', ['swordsman']],
+    ['начальные_навыки — строка', 'swordsman'],
+  ]) {
+    assert.ok(validateData(hire,
+      Object.assign({}, base, { начальные_навыки: skills }),
+      'найм').length > 0,
+      `${label} — invalid`);
+  }
+});
+
+test('данные: все 6 наёмных — базовые_характеристики + начальные_навыки, роль-правила (000141)', () => {
+  const candidates = hireCandidates();
+  assert.equal(candidates.length, 6,
+    'кандидатов на найм ровно 6, а найдено: ' + candidates.length);
+  for (const n of candidates) {
+    const h = n.найм;
+    const attrs = h.базовые_характеристики;
+    assert.ok(attrs !== null && typeof attrs === 'object' &&
+      !Array.isArray(attrs),
+      `${n.id}: нет найм.базовые_характеристики (объект) — 000141`);
+    assert.deepEqual(Object.keys(attrs).sort(), [...ATTR_KEYS].sort(),
+      `${n.id}: ключи базовые_характеристики — ровно 6 id PRIMARY_SKILLS`);
+    for (const k of ATTR_KEYS) {
+      assert.ok(Number.isInteger(attrs[k]) && attrs[k] >= 1,
+        `${n.id}: базовые_характеристики.${k} — целое ≥ 1, а есть ${attrs[k]}`);
+    }
+    const primary = ROLE_PRIMARY_ATTR[h.роль];
+    assert.ok(primary,
+      `${n.id}: роль «${h.роль}» не из 4 боевых ролей найма`);
+    for (const k of ATTR_KEYS) {
+      if (k === primary) continue;
+      assert.ok(attrs[primary] > attrs[k],
+        `${n.id} (${h.роль}): главная ${primary} (${attrs[primary]}) ` +
+        `строго больше ${k} (${attrs[k]})`);
+    }
+    if (h.роль === 'support') {
+      assert.ok(attrs.wisdom >= 2,
+        `${n.id} (support): вторичная wisdom ≥ 2, а есть ${attrs.wisdom}`);
+    }
+    const init = h.начальные_навыки;
+    assert.ok(init !== null && typeof init === 'object' &&
+      !Array.isArray(init),
+      `${n.id}: нет найм.начальные_навыки (объект {id: level}) — 000141`);
+    for (const [id, level] of Object.entries(init)) {
+      assert.ok(knownSkillId(id),
+        `${n.id}: начальные_навыки: навык "${id}" нет в каталоге skills`);
+      assert.ok(Number.isInteger(level) && level >= 1,
+        `${n.id}: начальные_навыки.${id} — уровень целое ≥ 1, а есть ${level}`);
+    }
+    // Двусторонний пин: keys(начальные_навыки) == set(найм.skills) —
+    // два источника одного начального списка не расходятся (контракт
+    // слияния 000143: явные уровни побеждают implicit 1).
+    assert.deepEqual(Object.keys(init).sort(), [...h.skills].sort(),
+      `${n.id}: keys(начальные_навыки) == set(найм.skills)`);
+    for (const id of h.spells) {
+      assert.ok(SPELLS_BY_ID[id] !== undefined,
+        `${n.id}: найм.spells: заклинание "${id}" нет в каталоге spells`);
+    }
+  }
+});
+
+test('данные: зафиксированные профили характеристик 6 наёмных (000141)', () => {
+  for (const [id, expected] of Object.entries(EXPECTED_ATTRS)) {
+    const n = NPCS.find((x) => x.id === id);
+    assert.ok(n && n.найм,
+      `${id}: наёмник не найден в каталоге (или без найм-данных)`);
+    assert.ok(n.найм.базовые_характеристики !== undefined,
+      `${id}: нет найм.базовые_характеристики — 000141`);
+    assert.deepEqual(n.найм.базовые_характеристики, expected,
+      `${id}: зафиксированный профиль характеристик (решение D3)`);
+  }
+});
+
+test('данные: зафиксированные начальные_навыки 6 наёмных (000141)', () => {
+  // Уровни: главный навык роли = 2, дополнительный (accuracy у Ашки) = 1.
+  for (const [id, expected] of Object.entries(EXPECTED_INITIAL_SKILLS)) {
+    const n = NPCS.find((x) => x.id === id);
+    assert.ok(n && n.найм,
+      `${id}: наёмник не найден в каталоге (или без найм-данных)`);
+    assert.ok(n.найм.начальные_навыки !== undefined,
+      `${id}: нет найм.начальные_навыки — 000141`);
+    assert.deepEqual(n.найм.начальные_навыки, expected,
+      `${id}: зафиксированный профиль начальных навыков (решение D3)`);
+  }
+});
+
+test('зеркало: новые поля найма совпадают с каталогом (drift, sync:check, 000141)', () => {
+  // Полный deepEqual «зеркало = каталог» (выше) сейчас зелёный: и
+  // зеркало, и каталог без новых полей. Явная проверка новых полей
+  // ловит dev-состояние «JSON правлен, зеркало не перегенерировано»
+  // (npm run sync:check — тот же дрейф на уровне git).
+  const files = listNpcFiles();
+  let checked = 0;
+  for (let i = 0; i < files.length; i++) {
+    const h = NPCS[i] && NPCS[i].найм;
+    if (!h) continue;
+    const fromFile = JSON.parse(
+      fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
+    checked += 1;
+    const mirAttrs = h.базовые_характеристики;
+    const fileAttrs = fromFile.найм.базовые_характеристики;
+    assert.ok(mirAttrs !== undefined,
+      `${files[i]}: зеркало: нет найм.базовые_характеристики (000141)`);
+    assert.ok(fileAttrs !== undefined,
+      `${files[i]}: каталог: нет найм.базовые_характеристики (000141)`);
+    assert.deepEqual(mirAttrs, fileAttrs,
+      `${files[i]}: зеркало = каталог: базовые_характеристики`);
+    const mirSkills = h.начальные_навыки;
+    const fileSkills = fromFile.найм.начальные_навыки;
+    assert.ok(mirSkills !== undefined,
+      `${files[i]}: зеркало: нет найм.начальные_навыки (000141)`);
+    assert.ok(fileSkills !== undefined,
+      `${files[i]}: каталог: нет найм.начальные_навыки (000141)`);
+    assert.deepEqual(mirSkills, fileSkills,
+      `${files[i]}: зеркало = каталог: начальные_навыки`);
+  }
+  assert.equal(checked, 6,
+    `проверено 6 наёмных, а проверено: ${checked}`);
+});
