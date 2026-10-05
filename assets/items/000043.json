@@ -1,0 +1,12 @@
+{
+  "id": "fireball_scroll",
+  "name": "Свиток: Огненный шар",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "desc": "Свиток: изучает «Огненный шар» (нужен ранг школы).",
+  "effect": {
+    "kind": "spell",
+    "spell": "fireball"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "magic_shield_scroll",
+  "name": "Свиток: Магический щит",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "desc": "Свиток: изучает «Магический щит» (нужен ранг школы).",
+  "effect": {
+    "kind": "spell",
+    "spell": "magic_shield"
+  }
+}

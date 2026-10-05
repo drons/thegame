@@ -1,0 +1,12 @@
+{
+  "id": "light_heal_scroll",
+  "name": "Свиток: Свет исцеления",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 70,
+  "desc": "Свиток: изучает «Свет исцеления» (нужен ранг школы).",
+  "effect": {
+    "kind": "spell",
+    "spell": "light_heal"
+  }
+}

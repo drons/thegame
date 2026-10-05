@@ -1,0 +1,12 @@
+{
+  "id": "flame_burst_scroll",
+  "name": "Свиток: Пламенный взрыв",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 120,
+  "desc": "Свиток: изучает «Пламенный взрыв» (нужны ранг школы и «Огненный шар»).",
+  "effect": {
+    "kind": "spell",
+    "spell": "flame_burst"
+  }
+}

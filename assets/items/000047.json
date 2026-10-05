@@ -1,0 +1,12 @@
+{
+  "id": "chill_scroll",
+  "name": "Свиток: Хлад",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "desc": "Свиток: изучает «Хлад» (нужен ранг школы).",
+  "effect": {
+    "kind": "spell",
+    "spell": "chill"
+  }
+}

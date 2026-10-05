@@ -1,0 +1,12 @@
+{
+  "id": "vine_scroll",
+  "name": "Свиток: Плетень",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 50,
+  "desc": "Свиток: изучает «Плетень» (нужен ранг школы).",
+  "effect": {
+    "kind": "spell",
+    "spell": "vine"
+  }
+}

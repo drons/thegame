@@ -12,7 +12,9 @@
     "alchemy_manual",
     "chainmail",
     "mana_potion",
-    "meditation_scroll"
+    "meditation_scroll",
+    "chill_scroll",
+    "light_heal_scroll"
   ],
   "размер": 27,
   "постройка": 32,

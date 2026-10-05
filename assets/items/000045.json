@@ -1,0 +1,12 @@
+{
+  "id": "frost_bolt_scroll",
+  "name": "Свиток: Морозная стрела",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "desc": "Свиток: изучает «Морозную стрелу» (нужен ранг школы).",
+  "effect": {
+    "kind": "spell",
+    "spell": "frost_bolt"
+  }
+}
