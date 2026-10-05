@@ -215,6 +215,16 @@
       line += ctx.defeatedAt.has(key)
         ? '\nГруппа ' + g.mobGroupName(t.mobGroup) + ' повержена.'
         : '\nОсторожно: ' + g.mobGroupName(t.mobGroup) + '!';
+    } else if (ctx.zoneGroup != null) {
+      // 000135: зона триггерящей группы (ВНЕ тайла группы) — раннее
+      // предупреждение ДО боя. zoneGroup — ЗНАЧЕНИЕ из ctx (main.js:
+      // findZoneCombat по живому defeatedAt, dist > 0 — только
+      // aggressive/territorial 5×5). На тайле группы — ветка выше
+      // (без изменений, пин HU4). Поверженная сегодня группа —
+      // ТИШИНА (main.js фильтрует defeatedAt). Нет поля / undefined
+      // / null — ветка мертва (000129, паттерн campShopFor —
+      // существующие строки побайтово).
+      line += '\nОсторожно: ' + g.mobGroupName(ctx.zoneGroup) + ' — зона';
     }
     // flash: ЗНАЧЕНИЯ из ctx (состояние — main.js, §4 memory); часы —
     // в момент вызова (в песочницах заморожены — NOW).

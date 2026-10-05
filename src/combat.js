@@ -371,6 +371,70 @@
     return seen;
   }
 
+  // --- Зоны групп (задача 000135) ---
+  // SPEC L161: у группы есть «зона» 3×3 или 5×5 клеток вокруг ТАЙЛА
+  // ГРУППЫ. Размер/триггер — ЧИСТАЯ функция состава (без rng): по
+  // aggro ПЕРВОГО МОБА (mobs[0]) рецепта (решение D1 — «первый =
+  // доминирующий»): aggressive/territorial — 5×5 (radius 2) + бой при
+  // ВХОДЕ В ЗОНУ; neutral/timid — 3×3 (radius 1), бой ТОЛЬКО на тайле
+  // (поведение без изменений). Нет данных (recipe/моб/aggro) —
+  // консервативно { radius: 1, triggers: false }: как до 000135.
+  function groupZoneInfo(groupType) {
+    const recipe = GROUP_RECIPES[groupType];
+    const first = recipe && Array.isArray(recipe.mobs)
+      ? recipe.mobs[0] : null;
+    const mob = first != null ? MOB_TYPES[first] : null;
+    const aggro = mob ? mob.aggro : null;
+    const triggers = aggro === AGGRO.AGGRESSIVE
+      || aggro === AGGRO.TERRITORIAL;
+    return { radius: triggers ? 2 : 1, triggers };
+  }
+
+  // Чистый триггер зоны (детерминизм: rng НЕТ; без Game/map в момент
+  // вызова — groupTiles собирает ВЫЗЫВАЮЩИЙ, combat.js про map не
+  // знает). Якорь боя — ТАЙЛ ГРУППЫ (возврат {x, y, mobGroup}):
+  // 1) группа НА ТАЙЛЕ игрока (dist 0, ЛЮБОЙ класс, !defeatedAt) —
+  //    приоритет (текущее поведение бит-в-бит);
+  // 2) иначе триггерящая группа dist ≤ radius (Чебышёв), !defeatedAt
+  //    (ключ ТАЙЛА ГРУППЫ, формат 'x,y') — ближайшая; при равенстве
+  //    dist — tie-break (x, y) лексикографически (D9, детерминизм
+  //    мульти-зоны);
+  // 3) иначе null. Аргументы НЕ мутируются; не-group тайлы в списке
+  // пропускаются; defeatedAt — null-safe.
+  function findZoneCombat(px, py, groupTiles, defeatedAt) {
+    if (!Array.isArray(groupTiles)) return null;
+    const defeated = (k) => defeatedAt != null && defeatedAt.has(k);
+    // 1) свой тайл — своя группа (текущее поведение; зона чужой
+    // группы НЕ перехватывает).
+    for (const t of groupTiles) {
+      if (!t || !t.hasMobGroup) continue;
+      if (t.x === px && t.y === py
+          && !defeated(t.x + ',' + t.y)) {
+        return { x: t.x, y: t.y, mobGroup: t.mobGroup };
+      }
+    }
+    // 2) зоны триггерящих групп (dist > 0).
+    let best = null; // { x, y, mobGroup, dist }
+    for (const t of groupTiles) {
+      if (!t || !t.hasMobGroup) continue;
+      if (t.x === px && t.y === py) continue; // dist 0 — выше
+      if (defeated(t.x + ',' + t.y)) continue;
+      const info = groupZoneInfo(t.mobGroup);
+      if (!info.triggers) continue;
+      const dist = Math.max(Math.abs(t.x - px), Math.abs(t.y - py));
+      if (dist > info.radius) continue;
+      if (best === null
+          || dist < best.dist
+          || (dist === best.dist
+              && (t.x < best.x
+                  || (t.x === best.x && t.y < best.y)))) {
+        best = { x: t.x, y: t.y, mobGroup: t.mobGroup, dist };
+      }
+    }
+    return best
+      ? { x: best.x, y: best.y, mobGroup: best.mobGroup } : null;
+  }
+
   // Прямоугольник w×h с якорем (x, y) свободно: в пределах поля,
   // не на игроке, не на препятствии (c.obstacles, задача 000050) и не
   // пересекает других живых юнитов (ignore — сам перемещающийся юнит).
@@ -2198,6 +2262,9 @@
     // Препятствия (задача 000050): достижимость клеток от игрока по
     // не-препятствиям — чистая функция для тестов.
     reachableCells,
+    // Зоны (задача 000135): чистое ядро зоны группы (3×3/5×5 по
+    // aggro mobs[0]) + чистый триггер (якорь — тайл группы).
+    groupZoneInfo, findZoneCombat,
     combatInternals,
   };
 });

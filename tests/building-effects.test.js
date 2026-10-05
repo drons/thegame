@@ -4890,9 +4890,16 @@ function findBuildingNoDailyLimit(G, myMap, start) {
 
 // Доход до цели по шагам BFS: на каждый шаг keydown → кадры по +200 мс
 // ПОКА игрок не перешёл (один кадр = не более одного хода) → keyup.
-// В конце — 4 осадочных кадра (глейд мувера/камеры).
+// 000135: мир стал опаснее — маршрут (или сама цель) может оказаться
+// в 5×5-зоне триггерящей группы → zone-бой посреди ходьбы
+// (inCombat замораживает tryMove). Техническая правка: авторазрешение
+// ПОСЛЕ КАЖДОГО шага (мобы 9999 → Space; Эфир НЕ убиваем — отличие
+// от resolveCombatVictory, где гибель Эфира — ассерт). Ассерты
+// тестов — про постройку/эффекты, не про бой. В конце — 4 осадочных
+// кадра (глейд мувера/камеры).
 function walkTo(h, steps) {
   const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
   let now = NOW;
   for (let i = 0; i < steps.length; i++) {
     const [fx, fy] = i === 0
@@ -4903,7 +4910,7 @@ function walkTo(h, steps) {
     assert.ok(Math.abs(dx) + Math.abs(dy) === 1, 'BFS: шаг по соседнему');
     const code = dx === 1 ? 'ArrowRight' : dx === -1 ? 'ArrowLeft'
       : dy === 1 ? 'ArrowDown' : 'ArrowUp';
-    const e = { code, preventDefault() {} };
+    const e = { code, preventDefault() {}, stopPropagation() {} };
     for (const fn of (h.winListeners['keydown'] || []).slice()) fn(e);
     let guard = 0;
     do {
@@ -4914,6 +4921,18 @@ function walkTo(h, steps) {
     for (const fn of (h.winListeners['keyup'] || []).slice()) fn(e);
     assert.ok(g.state.player.x === tx && g.state.player.y === ty,
       `сценарий: игрок не перешёл на (${tx},${ty}) за ${guard} кадров`);
+    if (G.combatUI.isActive()) {
+      const c = G.combatUI.current();
+      for (const m of c.units.filter((x) => x.side === 'mob'
+          && x.alive)) {
+        G.combatInternals.dealDamageToMob(c, m, 9999);
+      }
+      assert.ok(c.result && c.result.outcome === 'victory',
+        '000135: zone-бой по маршруту — победа');
+      G.combatUI.handleCode('Space');
+      assert.equal(G.combatUI.isActive(), false,
+        '000135: zone-бой закрыт (Space → finish)');
+    }
   }
   for (let i = 0; i < 4; i++) {
     now += 200;
