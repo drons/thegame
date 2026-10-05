@@ -45,11 +45,16 @@
 // существующего пина tests/dungeon-ui.test.js L764: drawn ⟺
 // inRange ∧ cheb ≤ radiusFor(1.0) — в том файле).
 // ЗЕЛЁНЫЕ с первого запуска (регрессионные пины): FOG-C1 (git diff по
-// src/dungeon.js пуст; МЕЖЗАДАЧНАЯ МИНА: последующая задача, правящая
-// dungeon.js — 000133 и др. — ре-пинит/убирает пин в своей задаче,
-// правило аудита §6), FOG-E1 (full-chain smoke: enterDungeon + «Кошачий
-// глаз» + кадры — без ошибок; единственный тест, проверяющий проводку
-// main.js end-to-end).
+// src/dungeon.js пуст — рабочее дерево + дельта ВЕТКИ к master
+// (master...HEAD, правка по итогам ревью: пин по HEAD не ловил
+// закоммиченную правку dungeon.js на ветке); МЕЖЗАДАЧНАЯ МИНА:
+// последующая задача, правящая dungeon.js — 000133 и др. — ре-пинит/
+// убирает пин в своей задаче, правило аудита §6), FOG-E1 (full-chain
+// smoke: enterDungeon + «Кошачий глаз» + кадры — без ошибок), FOG-E2
+// (full-chain e2e: «Кошачий глаз» (навык > 0) — радиус шире ЧЕРЕЗ
+// реальную проводку main.js: opts.visionMult → G.derived(hero) →
+// caveVisionMult → radiusFor → маска → рендер; e2e-кейс ТЗ,
+// правка по итогам ревью).
 //
 // Причины красных (осмысленные — функциональность ТЗ ещё не существует):
 //   A1-A3: G.dungeonUI.vision — undefined (экспорта нет, grep 'explored'
@@ -595,6 +600,27 @@ test('туман FOG-C1: регрессия — src/dungeon.js не изменё
   }
   assert.equal(st.stdout.trim(), '',
     'нет незакоммиченных изменений src/dungeon.js');
+  // Дельта ВЕТКИ к master (правка по итогам ревью 000136): пин по HEAD
+  // (выше) ловит только незакоммиченный дрейф рабочего дерева; если бы
+  // на ветке появился КОММИТ, правящий dungeon.js, diff по HEAD снова
+  // стал бы пустым. master...HEAD — дельта от merge-base(master, HEAD):
+  // будущий коммит ветки, правящий dungeon.js, ломает пин; движение
+  // master (чужие мержи) — НЕ ломает (наша дельта — от точки
+  // ответвления). Контроль стадии мержа (memory D10) сохраняется.
+  const base = spawnSync('git',
+    ['diff', 'master...HEAD', '--', 'src/dungeon.js'],
+    { cwd: ROOT, encoding: 'utf8' });
+  if (base.error) {
+    t.skip('git diff master...HEAD недоступен: ' + base.error.message);
+    return;
+  }
+  if (base.status !== 0) {
+    t.skip('git diff master...HEAD не выполнен: ' + (base.stderr || ''));
+    return;
+  }
+  assert.equal(base.stdout.trim(), '',
+    'git diff master...HEAD -- src/dungeon.js — пуст (ветка не меняет '
+    + 'ядро относительно master, ТЗ «git diff пуст по файлу»)');
 });
 
 // =====================================================================
@@ -644,12 +670,21 @@ function makeGl() {
   return gl;
 }
 
-// --- Canvas 2D-стаб: каждый ВЫЗОВ метода — [имя, args] ---
+// --- Canvas 2D-стаб: каждый ВЫЗОВ метода — [имя, args, fillStyle] ---
 function makeFullContext2d(el) {
   const calls = el.drawCalls = [];
+  // fillStyle на момент ВЫЗОВА (правка по итогам ревью 000136): FOG-E2
+  // сверяет цвет/координаты пол-клеток; FOG-E1 форму calls не читает.
+  let fillStyle = null;
   return new Proxy({}, {
-    get: (t, k) => (k in t ? t[k] : (...args) => { calls.push([k, args]); }),
-    set: (t, k, v) => { t[k] = v; return true; },
+    get: (t, k) => (k in t ? t[k] : (...args) => {
+      calls.push([k, args, fillStyle]);
+    }),
+    set: (t, k, v) => {
+      if (k === 'fillStyle') fillStyle = v;
+      t[k] = v;
+      return true;
+    },
   });
 }
 
@@ -826,4 +861,159 @@ test('туман FOG-E1: полная цепочка — enterDungeon + «Кош
   assert.equal(h.errors.length, 0,
     'нет ошибок после входа + «Кошачий глаз» + кадров '
     + '(проводка main.js end-to-end): ' + h.errors.join('; '));
+});
+
+// =====================================================================
+// FOG-E2: full-chain e2e (правка по итогам ревью 000136): «Кошачий
+// глаз» (навык > 0) — радиус шире (derived live) ЧЕРЕЗ реальную
+// проводку main.js
+// =====================================================================
+//
+// E2e-кейс ТЗ закрывался частично: FOG-B4 доказывал live-механику
+// visionMult, но ФУНКЦИЮ давал тест (G.derived не участвует); FOG-E1
+// прогоняет полную цепочку, но ассертит только errors.length === 0.
+// FOG-E2 — прямая асеркция на РИСУЕМЫЙ радиус через startLocationUI →
+// opts.visionMult → G.derived(hero) → caveVisionMult → radiusFor →
+// маску:
+//   кадр 1 (навыка НЕТ): кольцо cheb 6 — в тумане (база R = 5 — та же
+//     проводка, phantom-радиуса нет);
+//   навык > 0 ПО ВРЕМЯ визита (live, без перезагрузки/пересоздания
+//   оверлея) → кадр 2: кольцо cheb 6 видно, cheb 7 скрыто — R = 6
+//   РОВНО (1 + 0.1 = 1.1 → ceil(5.5 − 1e-9) = 6, D2).
+// Ловит любой разрыв links: guard, всегда возвращающий 1, опечатка в
+// имени стата (caveVisionMult → undefined → 1 → R = 5), сломанный
+// вызов G.derived (исключение → try/catch dungeon-ui → 1 → R = 5),
+// заморозка значения при входе (train во время визита — без эффекта).
+// Детерминизм: сид карты фиксирован (MAP_PNG_SEED), player (0,0),
+// подземелье type 0, 25×25, вход/герой (7,17) — золотые клетки ниже
+// (сверено прогоном; cam (8, 17.5) — кламп на вьюпорт 1280×720,
+// zoom 80 = ZOOM_START, колесо в песочнице не срабатывает).
+
+// Пол-клетка (x, y) нарисована в кадре: спрайт drawImage(img, p.x,
+// p.y, zoom, zoom) (sprites.js в цепочке — Image-стаб «загружает»
+// все assets кроме map.png) либо фолбэк fillRect '#182029' (FOG-B)
+// в тех же координатах/размерах. Точные (p.x, p.y, zoom, zoom) —
+// ТОЛЬКО слой пола: сундуки/мобы/игрок — центрированные (другие
+// смещения/размеры: cs = zoom·0.8, ms, ps = zoom·1.15), wallObjs —
+// только на wall-клетках (на floor-клетках отсутствуют).
+function floorCellDrawn(drawCalls, p, zoom) {
+  return drawCalls.some((c) => (
+    (c[0] === 'drawImage'
+      && Math.abs(c[1][1] - p.x) < 1e-6
+      && Math.abs(c[1][2] - p.y) < 1e-6
+      && Math.abs(c[1][3] - zoom) < 1e-6
+      && Math.abs(c[1][4] - zoom) < 1e-6)
+    || (c[0] === 'fillRect' && c[2] === '#182029'
+      && Math.abs(c[1][0] - p.x) < 1e-6
+      && Math.abs(c[1][1] - p.y) < 1e-6
+      && Math.abs(c[1][2] - zoom) < 1e-6
+      && Math.abs(c[1][3] - zoom) < 1e-6)
+  ));
+}
+
+test('туман FOG-E2: «Кошачий глаз» (derived live) — радиус шире end-to-end (проводка main.js)', async () => {
+  const h = await bootFull();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет (порядок цепочки): ' + h.errors.join('; '));
+  const g = h.sandbox.__game;
+  const G2 = h.sandbox.Game;
+  const v = G2.dungeonUI.vision;
+  assert.ok(v, 'G.dungeonUI.vision — экспорт ядра видимости (000136)');
+  // catseye 1: mult = 1 + 0.1 = 1.1 → R = 6 (D2); без навыка — R = 5.
+  assert.equal(v.radiusFor(1.1), 6, '×1.1 (catseye 1) — R = 6 (D2)');
+  assert.equal(v.radiusFor(1.0), 5, 'база (без навыка) — R = 5');
+
+  // Подземелье БЕЗ навыка: проводка main.js уже активна
+  // (startLocationUI → opts.visionMult → G.derived(hero) →
+  // caveVisionMult = 1 — навыка нет).
+  const ds = g.actions.enterDungeon();
+  assert.ok(ds, 'enterDungeon — состояние подземелья');
+  const dg = g.dungeon;
+  assert.ok(dg, '__game.dungeon — подземелье активно');
+  // Canvas оверлея — ПОСЛЕДНИЙ в дереве body (remove() стаба — no-op,
+  // паттерн lastCanvas FOG-B5).
+  const cv = allCanvases(h.sandbox.document.body, []).pop();
+  assert.ok(cv, 'canvas оверлея подземелья — в дереве body');
+  // Камера после start(): снап к герою + кламп (та же формула clampCam
+  // dungeon-ui.js). Фиксированный NOW → dt = 0 на каждом тике
+  // (cameraStep: dt ≤ 0 — без движения) → cam стабилен во всех кадрах.
+  const zoom = G2.ZOOM_START;
+  const clampCamV = (val, extent, viewPx, z) => (extent * z <= viewPx)
+    ? extent / 2
+    : Math.min(extent - viewPx / 2 / z,
+      Math.max(viewPx / 2 / z, val));
+  const camX = clampCamV(ds.x + 0.5, dg.width, cv.width, zoom);
+  const camY = clampCamV(ds.y + 0.5, dg.height, cv.height, zoom);
+  // Вьюпорт-диапазон — ТА ЖЕ функция/маржа, что render dungeon-ui.
+  const range = G2.visibleTileRange(camX, camY, cv.width, cv.height, zoom);
+  const proj = (x, y) => G2.worldToScreen(
+    x, y, camX, camY, zoom, cv.width, cv.height);
+  // Floor-клетки кольца чебышёв RING от героя, в вьюпорт-диапазоне.
+  const ringFloor = (ring) => {
+    const out = [];
+    for (let y = 0; y < dg.height; y++) {
+      for (let x = 0; x < dg.width; x++) {
+        if (dg.cells[y * dg.width + x] !== G2.CELL_FLOOR) continue;
+        if (Math.max(Math.abs(x - ds.x), Math.abs(y - ds.y)) !== ring)
+          continue;
+        if (x < range.x0 || x > range.x1 || y < range.y0 || y > range.y1)
+          continue;
+        out.push([x, y]);
+      }
+    }
+    return out;
+  };
+  // Золотые клетки (детерминизм генерации; сверено прогоном).
+  const r5 = ringFloor(5);
+  const r6 = ringFloor(6);
+  const r7 = ringFloor(7);
+  assert.ok(r5.length > 0, 'кольцо 5: floor-клетки в вьюпорте есть');
+  assert.deepEqual(r6, [[13, 12], [13, 13], [13, 14], [13, 15], [13, 16]],
+    'кольцо 6: floor-клетки в вьюпорте (детерминизм генерации)');
+  assert.deepEqual(r7, [[14, 12], [14, 13], [14, 14], [14, 15], [14, 16]],
+    'кольцо 7: floor-клетки в вьюпорте (детерминизм генерации)');
+
+  // Кадр 1 — БЕЗ навыка: R = 5 — граница (cheb 5) видна, cheb 6 — туман.
+  h.raf[h.raf.length - 1](NOW);
+  let calls = cv.drawCalls.slice();
+  assert.ok(calls.length > 0, 'кадр 1 отрисован (rAF-цикл оверлея)');
+  for (const [x, y] of r5) {
+    assert.ok(floorCellDrawn(calls, proj(x, y), zoom),
+      'без навыка: (' + x + ',' + y + ') — cheb 5 (граница R = 5) — видима');
+  }
+  for (const [x, y] of r6) {
+    assert.ok(!floorCellDrawn(calls, proj(x, y), zoom),
+      'без навыка: (' + x + ',' + y + ') — cheb 6 — в тумане (R = 5)');
+  }
+  for (const [x, y] of r7) {
+    assert.ok(!floorCellDrawn(calls, proj(x, y), zoom),
+      'без навыка: (' + x + ',' + y + ') — cheb 7 — в тумане (R = 5)');
+  }
+
+  // «Кошачий глаз» ПО ВРЕМЯ визита (live-чтение на каждом кадре;train —
+  // данные героя, локация не ограничена) — без перезагрузки/пересоздания
+  // оверлея: быстрая заморозка значения при входе не даст эффекта.
+  g.actions.givePoints(3);
+  assert.equal(g.actions.train('dexterity').ok, true,
+    '«Ловкость» поднята (требование «Кошачьего глаза»)');
+  const r = g.actions.train('catseye');
+  assert.equal(r.ok, true, '«Кошачий глаз» поднят: ' + (r.reason || ''));
+
+  // Кадр 2 — С навыком: R = 6 — cheb 6 виден, cheb 7 — туман.
+  h.raf[h.raf.length - 1](NOW);
+  calls = cv.drawCalls.slice();
+  for (const [x, y] of r6) {
+    assert.ok(floorCellDrawn(calls, proj(x, y), zoom),
+      'catseye 1 (×1.1): (' + x + ',' + y + ') — cheb 6 (граница R = 6) — '
+      + 'видима (live, без перезагрузки)');
+  }
+  for (const [x, y] of r7) {
+    assert.ok(!floorCellDrawn(calls, proj(x, y), zoom),
+      'catseye 1 (×1.1): (' + x + ',' + y + ') — cheb 7 — вне R = 6 — '
+      + 'в тумане');
+  }
+  assert.equal(h.errors.length, 0,
+    'нет ошибок (проводка main.js end-to-end: opts.visionMult → '
+    + 'G.derived(hero).caveVisionMult → radiusFor → маска → рендер): '
+    + h.errors.join('; '));
 });
