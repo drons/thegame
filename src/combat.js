@@ -691,6 +691,72 @@
     }
   }
 
+  // Лут с мобов при победе (задача 000132, SPEC.md «Лут» L217-221;
+  // контракт — memory/000132-mob-loot.md): per-mob таблицы u.loot
+  // (данные assets/mobs, зеркало MOB_TYPES) + базовый и редкий пулы.
+  // Пулы — ДАННЫЕ МОДУЛЯ (фиксированные списки, паттерн текстов
+  // efir.js): каталог в рантайме НЕ читается (000133 может расти
+  // параллельно — состав пула не сдвигается; целостность id — пин
+  // N6). Выбор из пула — равномерный pool[floor(c._rng() * len)].
+  const LOOT_BASE_CHANCE = 0.25;
+  // Базовый пул — ВСЕ предметы каталога kind food/potion (8),
+  // порядок файлов каталога (000011..000018).
+  const LOOT_BASE_POOL = [
+    'minor_healing', 'healing_potion', 'greater_healing', 'mana_potion',
+    'mana_elixir', 'bread', 'meat', 'honey_cake',
+  ];
+  // Редкий пул — ВСЕ skill_book (11) + weapon/armor верхней половины
+  // каталога по value (value > 35 СТРОГО — медиана каталога 35; 7)
+  // = 18, порядок файлов каталога. Шанс = 0.05 + 0.01 × уровень
+  // старшего поверженного моба — реализация SPEC «уровень лута =
+  // моб+дельта»: каталог БЕЗ уровней — дельта влияет на ШАНС пула,
+  // не на предмет.
+  const LOOT_RARE_CHANCE_BASE = 0.05;
+  const LOOT_RARE_CHANCE_PER_LV = 0.01;
+  const LOOT_RARE_POOL = [
+    'iron_sword', 'steel_sword', 'hunting_bow', 'battle_axe', 'war_hammer',
+    'chainmail', 'knight_plate',
+    'alchemy_manual', 'sword_treatise', 'archery_manual',
+    'stone_fist_grimoire', 'iron_hide_tome', 'fire_spellbook',
+    'ice_spellbook', 'heavy_tome', 'archer_scroll', 'meditation_scroll',
+    'nature_scroll',
+  ];
+
+  // Чистая функция (кроме c._rng): killed — поверженные мобы (тот же
+  // список, что для xp/gold). Порядок вызовов c._rng ФИКСИРОВАН
+  // (детерминизм, пин N2): для КАЖДОГО u из killed (порядок c.units)
+  // — КАЖДАЯ запись (u.loot || []) по порядку таблицы: c._rng() <
+  // chance (1 вызов на запись, независимый), затем 1 базовый ролл
+  // (+1 на выбор при попадании); ПОСЛЕ цикла — 1 ОБЩИЙ ролл редкого
+  // (+1 на выбор при попадании). Пустые таблицы (orc_mad, centipede)
+  // — цикл 0 итераций (деградация, без краша). Вызов — в checkVictory
+  // ТОЛЬКО в victory-ветке, СТРОГО ПОСЛЕ gold-роллов (бит-в-бит поток
+  // createCombat-пинов). Возврат — c.result.items: массив {id, qty}
+  // (повторяющиеся id — слиты; порядок — первого появления; может
+  // быть пустым).
+  function rollVictoryLoot(c, killed) {
+    const items = [];
+    const drop = (id) => {
+      const rec = items.find((r) => r.id === id);
+      if (rec) rec.qty += 1;
+      else items.push({ id, qty: 1 });
+    };
+    for (const u of killed) {
+      for (const e of (u.loot || [])) {
+        if (c._rng() < e.chance) drop(e.item);
+      }
+      if (c._rng() < LOOT_BASE_CHANCE)
+        drop(LOOT_BASE_POOL[Math.floor(c._rng() * LOOT_BASE_POOL.length)]);
+    }
+    if (killed.length) {
+      const maxLvl = killed.reduce((m, u) => Math.max(m, u.level || 0), 0);
+      if (c._rng() < LOOT_RARE_CHANCE_BASE
+          + LOOT_RARE_CHANCE_PER_LV * maxLvl)
+        drop(LOOT_RARE_POOL[Math.floor(c._rng() * LOOT_RARE_POOL.length)]);
+    }
+    return items;
+  }
+
   function checkVictory(c) {
     if (c.result) return;
     const left = livingMobs(c);
@@ -726,7 +792,11 @@
       const allyXp = livingAllies(c)
         .filter((u) => u.kind === 'merc')
         .map((u) => ({ id: u.id, xp: Math.round(xp * share) }));
-      c.result = { outcome: 'victory', xp, gold, defeated: killed.length, allyXp };
+      // Лут с мобов (задача 000132): роллы ВНУТРИ victory-ветки,
+      // СТРОГО ПОСЛЕ gold-роллов выше — поток createCombat/gold-пинов
+      // бит-в-бит (N5). 'fled'/'dead' — поля items нет (шаблон allyXp).
+      const items = rollVictoryLoot(c, killed);
+      c.result = { outcome: 'victory', xp, gold, defeated: killed.length, allyXp, items };
       log(c, `Победа! +${xp} опыта, +${gold} золота.`);
     } else {
       // Все сбежали — лута нет.
@@ -1717,7 +1787,7 @@
     c.ps.spellInt = d.spellActionsInt;
     c.ps.spellWis = d.spellActionsWis;
     c.ps.quickItem = 1 + Math.floor(p.primary.dexterity / 10);
-    c.ps.invItem = 1; // «Удача» появится вместе с инвентарём
+    c.ps.invItem = 1; // «Предмет из инвентаря» — 1 действие за ход (items.js)
     c.ps.block = 1;
   }
 
@@ -2120,6 +2190,8 @@
     MOB_ROLES, ROLE_NAMES, AGGRO, MOB_TYPES, GROUP_RECIPES,
     LEADER_DMG_MULT, LEADER_DEF_MULT,
     PRACTICE_XP,
+    // Лут с мобов (задача 000132): пулы — данные модуля (пины N6).
+    LOOT_BASE_POOL, LOOT_RARE_POOL,
     hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
     // Союзники (задача 000080): союзный юнит 1×1 из данных.
     makeAlly,
