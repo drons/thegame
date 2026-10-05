@@ -678,7 +678,7 @@ function walkToMulti(h) {
     assert.ok(Math.abs(dx) + Math.abs(dy) === 1, 'BFS: шаг по соседнему тайлу');
     const code = dx === 1 ? 'ArrowRight' : dx === -1 ? 'ArrowLeft'
       : dy === 1 ? 'ArrowDown' : 'ArrowUp';
-    const e = { code, preventDefault() {} };
+    const e = { code, preventDefault() {}, stopPropagation() {} };
     for (const fn of h.winListeners['keydown'] || []) fn(e);
     // Лимит 10 кадров = 2 с: закрывает любой интервал шага от
     // MIN_MOVE_INTERVAL_MS (60 мс, motion.js) и выше; больше интервала
@@ -692,6 +692,24 @@ function walkToMulti(h) {
     for (const fn of h.winListeners['keyup'] || []) fn(e);
     assert.ok(g.state.player.x === tx && g.state.player.y === ty,
       `сценарий: игрок не перешёл на (${tx},${ty}) за ${guard} кадров`);
+    // 000135: мир стал опаснее — маршрут пересекает 5×5-зону
+    // триггерящей группы → бой посреди ходьбы (inCombat замораживает
+    // tryMove). Техническая правка: авторазрешение zone-боя (мобы
+    // 9999 → Space; Эфир НЕ убиваем — отличие от
+    // resolveCombatVictory, где гибель Эфира — ассерт), ходьба
+    // продолжается. Ассерты тестов — про отрисовку, не про бой.
+    if (G.combatUI.isActive()) {
+      const c = G.combatUI.current();
+      for (const m of c.units.filter((x) => x.side === 'mob'
+          && x.alive)) {
+        G.combatInternals.dealDamageToMob(c, m, 9999);
+      }
+      assert.ok(c.result && c.result.outcome === 'victory',
+        '000135: zone-бой по маршруту — победа');
+      G.combatUI.handleCode('Space');
+      assert.equal(G.combatUI.isActive(), false,
+        '000135: zone-бой закрыт (Space → finish)');
+    }
   }
   for (let i = 0; i < 4; i++) {
     now += 200;
@@ -1244,7 +1262,7 @@ function walkToCity(h, goal) {
       'BFS: шаг по соседнему тайлу');
     const code = dx === 1 ? 'ArrowRight' : dx === -1 ? 'ArrowLeft'
       : dy === 1 ? 'ArrowDown' : 'ArrowUp';
-    const e = { code, preventDefault() {} };
+    const e = { code, preventDefault() {}, stopPropagation() {} };
     for (const fn of h.winListeners['keydown'] || []) fn(e);
     let guard = 0;
     do {
@@ -1256,6 +1274,22 @@ function walkToCity(h, goal) {
     assert.ok(g.state.player.x === tx && g.state.player.y === ty,
       'сценарий: игрок не перешёл на (' + tx + ',' + ty + ') за '
       + guard + ' кадров (движение заблокировано?)');
+    // 000135: маршрут до города пересекает 5×5-зону триггерящей
+    // группы — авторазрешение zone-боя (см. walkToMulti), чтобы
+    // ходьба не зависла (inCombat замораживает tryMove). Ассерты
+    // тестов — про отрисовку, не про бой.
+    if (G.combatUI.isActive()) {
+      const c = G.combatUI.current();
+      for (const m of c.units.filter((x) => x.side === 'mob'
+          && x.alive)) {
+        G.combatInternals.dealDamageToMob(c, m, 9999);
+      }
+      assert.ok(c.result && c.result.outcome === 'victory',
+        '000135: zone-бой по маршруту — победа');
+      G.combatUI.handleCode('Space');
+      assert.equal(G.combatUI.isActive(), false,
+        '000135: zone-бой закрыт (Space → finish)');
+    }
   }
   for (let i = 0; i < 4; i++) {
     now += 200;
@@ -1502,12 +1536,31 @@ function resolveCombatVictory(G, c, label) {
     label + ': панель закрыта (Space → finish)');
 }
 
-// Мир: BFS от start к ближайшему тайлу группы. Тайл группы — ЦЕЛЬ
-// (шаг на него = бой), путь его НЕ пересекает (BFS возвращается на
-// первой найденной группе). Входы пещер и городов — непроходимы:
-// enterLocation откроет оверлей и заморозит мир (guard ходьбы
-// зависнет). Прочие входы построек — безопасны (паттерн
-// walkToMulti).
+// 000135: hasMobGroup-тайлы окрестности (x, y) — окно Чебышёва ≤ 2
+// (максимум радиуса зоны), формат findZoneCombat.
+function zoneTilesAt(G, myMap, x, y) {
+  const tiles = [];
+  for (let dx = -2; dx <= 2; dx++) {
+    for (let dy = -2; dy <= 2; dy++) {
+      const t = myMap.tileAt(x + dx, y + dy);
+      if (t.hasMobGroup) {
+        tiles.push({ x: t.x, y: t.y, hasMobGroup: true,
+          mobGroup: t.mobGroup });
+      }
+    }
+  }
+  return tiles;
+}
+
+// Мир: BFS от start к ближайшему ТАЙЛУ ЗОНЫ ГРУППЫ (000135): тайлу
+// группы (нейтральные/трусливые — как до) ИЛИ краю 5×5-зоны
+// триггерящей группы (агрессивные/территориальные — бой на шаге
+// ВХОДА В ЗОНУ, не на тайле). findZoneCombat с пустым defeatedAt —
+// консервативно: первый такой тайл — ЦЕЛЬ (шаг на него = бой), путь
+// его НЕ пересекает (BFS возвращается на первой найденной).
+// Входы пещер и городов — непроходимы: enterLocation откроет
+// оверлей и заморозит мир (guard ходьбы зависнет). Прочие входы
+// построек — безопасны (паттерн walkToMulti).
 function worldGroupRoute(G, myMap, start) {
   const startKey = start.x + ',' + start.y;
   const visited = new Set([startKey]);
@@ -1530,7 +1583,13 @@ function worldGroupRoute(G, myMap, start) {
         }
         visited.add(k);
         prev.set(k, cur.x + ',' + cur.y);
-        if (t.hasMobGroup) {
+        // 000135: стоп на тайле группы (любой класс, dist 0) ИЛИ на
+        // тайле 5×5-зоны триггерящей группы (dist ≤ radius) — там
+        // шаг вызывает бой (findZoneCombat — та же логика, что в
+        // main.js). defeatedAt — пустой: маршрут строится ДО боя
+        // (консервативно; поверженные группы в игре не триггерят).
+        if (G.findZoneCombat(nx, ny, zoneTilesAt(G, myMap, nx, ny),
+            new Map()) !== null) {
           const steps = [];
           let kk = k;
           while (kk !== startKey) {
@@ -1551,10 +1610,15 @@ function worldGroupRoute(G, myMap, start) {
 // Ходьба по BFS-маршруту (мир): шаг = keydown → кадры по +200 мс,
 // пока игрок фактически не перешёл (stepMs ≤ 420 мс из настроек,
 // 000063) → keyup (протокол walkToMulti). Бой может начаться в
-// кадре последнего шага (tryMove → maybeStartCombat) — игрок уже
-// на целевом тайле.
+// кадре ПОСЛЕДНЕГО шага (tryMove → maybeStartCombat: тайл группы
+// ИЛИ вход в 5×5-зону, 000135) — игрок уже на целевом тайле, бой
+// остаётся активным (тест решает его сам). 000135: зона-бой на
+// НЕПОСЛЕДНЕМ шаге невозможен по построению (BFS — первый тайл
+// зоны), авторазрешение — страховка (мобы 9999 → Space; Эфир НЕ
+// убиваем), без него inCombat заморозил бы tryMove.
 function walkWorldRoute(h, steps) {
   const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
   let now = NOW;
   for (let i = 0; i < steps.length; i++) {
     const [fx, fy] = i === 0
@@ -1566,7 +1630,7 @@ function walkWorldRoute(h, steps) {
       'BFS: шаг по соседнему тайлу');
     const code = dx === 1 ? 'ArrowRight' : dx === -1 ? 'ArrowLeft'
       : dy === 1 ? 'ArrowDown' : 'ArrowUp';
-    const e = { code, preventDefault() {} };
+    const e = { code, preventDefault() {}, stopPropagation() {} };
     for (const fn of h.winListeners['keydown'] || []) fn(e);
     let guard = 0;
     do {
@@ -1577,6 +1641,18 @@ function walkWorldRoute(h, steps) {
     for (const fn of h.winListeners['keyup'] || []) fn(e);
     assert.ok(g.state.player.x === tx && g.state.player.y === ty,
       `сценарий: игрок не перешёл на (${tx},${ty}) за ${guard} кадров`);
+    if (i < steps.length - 1 && G.combatUI.isActive()) {
+      const c = G.combatUI.current();
+      for (const m of c.units.filter((x) => x.side === 'mob'
+          && x.alive)) {
+        G.combatInternals.dealDamageToMob(c, m, 9999);
+      }
+      assert.ok(c.result && c.result.outcome === 'victory',
+        '000135: zone-бой по маршруту — победа');
+      G.combatUI.handleCode('Space');
+      assert.equal(G.combatUI.isActive(), false,
+        '000135: zone-бой закрыт (Space → finish)');
+    }
   }
   return now;
 }
@@ -1750,20 +1826,23 @@ test('000112 CB-8: W1 (мир) — ходьба на тайл группы → m
     'сценарий: спавн не на тайле группы');
   const spawn = { x: g.state.player.x, y: g.state.player.y };
 
-  // Бой 1: ближайший по BFS тайл группы.
+  // Бой 1: ближайшая по BFS группа — тайл группы ИЛИ край её 5×5-
+  // зоны (000135: нейтральная/трусливая — тайл, как до;
+  // агрессивная/территориальная — вход в зону).
   const r1 = worldGroupRoute(G, myMap, spawn);
   assert.ok(r1, 'сценарий: найдена достижимая группа');
   walkWorldRoute(h, r1.steps);
   assert.equal(G.combatUI.isActive(), true,
-    'шаг на тайл группы — бой начался (maybeStartCombat)');
+    'шаг на тайл группы / в зону — бой начался (maybeStartCombat)');
   assertEfirCombat(G, g, G.combatUI.current(), 'бой 1');
   resolveCombatVictory(G, G.combatUI.current(), 'бой 1');
   assert.ok(g.state.efir.xp > 0,
     'Эфир получил 100% боевого опыта (000081): ' + g.state.efir.xp);
 
-  // Бой 2: другой тайл группы (побеждённый тайл проходимо:
-  // defeatedAt; BFS стартует С НЕГО — он в visited и целью не
-  // может быть).
+  // Бой 2: другая группа (побеждённый тайл проходимо: defeatedAt;
+  // BFS стартует С НЕГО — он в visited и целью не может быть).
+  // 000135: цель — тайл группы ИЛИ край 5×5-зоны (spider_nest —
+  // territorial — бой на шаге ВХОДА В ЗОНУ, не на тайле).
   const from2 = { x: g.state.player.x, y: g.state.player.y };
   const r2 = worldGroupRoute(G, myMap, from2);
   assert.ok(r2, 'сценарий: найдена вторая группа');

@@ -332,6 +332,7 @@ function release(h, e) {
 
 function walkTiles(h, now, tiles) {
   const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
   for (const [tx, ty] of tiles) {
     const dx = tx - g.state.player.x, dy = ty - g.state.player.y;
     assert.ok(Math.abs(dx) + Math.abs(dy) === 1, 'BFS: шаг по соседнему тайлу');
@@ -349,6 +350,23 @@ function walkTiles(h, now, tiles) {
       'сценарий: игрок перешёл на (' + tx + ', ' + ty + ') — x');
     assert.equal(g.state.player.y, ty,
       'сценарий: игрок перешёл на (' + tx + ', ' + ty + ') — y');
+    // 000135: маршрут к городу/постройке может пересечь 5×5-зону
+    // триггерящей группы — авторазрешение zone-боя после КАЖДОГО
+    // шага (мобы 9999 → Space; Эфир НЕ убиваем — отличие от
+    // resolveCombatVictory), без него inCombat заморозит tryMove.
+    // Ассерты тестов — про HUD/город, не про бой.
+    if (G.combatUI.isActive()) {
+      const c = G.combatUI.current();
+      for (const m of c.units.filter((x) => x.side === 'mob'
+          && x.alive)) {
+        G.combatInternals.dealDamageToMob(c, m, 9999);
+      }
+      assert.ok(c.result && c.result.outcome === 'victory',
+        '000135: zone-бой по маршруту — победа');
+      G.combatUI.handleCode('Space');
+      assert.equal(G.combatUI.isActive(), false,
+        '000135: zone-бой закрыт (Space → finish)');
+    }
   }
   // Осадочные кадры (глейд мувера и сглаживание камеры завершаются).
   for (let i = 0; i < 4; i++) {

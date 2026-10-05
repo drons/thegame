@@ -1646,9 +1646,65 @@
     return false;
   }
 
+  // 000135: зоны групп — чистое ядро в combat.js (G). combat.js
+  // обязан грузиться ДО main.js (UMD-ловушка 000038: снапшот const G
+  // снят вверху). Модуль/экспорт отсутствует (регрессия порядка) —
+  // видимая ошибка ОДИН раз + поведение ДО 000135 (бой только на
+  // тайле — деградация, не крах; паттерн 000053/000071).
+  if (typeof G.findZoneCombat !== 'function'
+      || typeof G.groupZoneInfo !== 'function') {
+    console.error('main.js: Game.findZoneCombat/Game.groupZoneInfo ' +
+      'отсутствуют — src/combat.js обязан грузиться ДО src/main.js ' +
+      '(000135) — зоны групп отключены (бой только на тайле)');
+  }
+
+  // 000135: hasMobGroup-тайлы окрестности игрока — окно Чебышёва
+  // ≤ 2 = максимум радиуса зоны. tileCache (000019) — шум НЕ
+  // пересчитывается (map.tileAt — fbm на каждый вызов).
+  function nearbyGroupTiles() {
+    const out = [];
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dy = -2; dy <= 2; dy++) {
+        const t = tileCache.tile(player.x + dx, player.y + dy);
+        if (t.hasMobGroup) out.push(t);
+      }
+    }
+    return out;
+  }
+
+  // 000135: зона для текущей позиции (тайл группы или null) — ОДИН
+  // общий скан (бой + HUD). Тихий гард — ошибка уже видна при
+  // загрузке.
+  function zoneCombatInfo() {
+    if (typeof G.findZoneCombat !== 'function') return null;
+    return G.findZoneCombat(player.x, player.y,
+      nearbyGroupTiles(), defeatedAt);
+  }
+
+  // 000135: тайл zone-боя (тайл ГРУППЫ) или null.
+  function zoneCombatTile() {
+    const z = zoneCombatInfo();
+    return z ? tileCache.tile(z.x, z.y) : null;
+  }
+
+  // 000135: группа зоны для HUD (ВНЕ тайла группы) или null —
+  // ЗНАЧЕНИЕ для ctx (000129: hud.js не дотягивается до Game/map).
+  // dist 0 → null: на тайле группы — существующая ветка (пин).
+  function zoneGroupForHud() {
+    const z = zoneCombatInfo();
+    return z && (z.x !== player.x || z.y !== player.y)
+      ? z.mobGroup : null;
+  }
+
   // Шаг на тайл с группой мобов (ещё не побеждённой) → мини-карта боя.
-  function maybeStartCombat() {
-    if (G.combatUI && G.combatUI.isActive()) return;
+  // 000135: scanZones — скан зон на успешном шаге (frame передаёт
+  // true): агрессивная/территориальная группа — бой при ВХОДЕ В ЕЁ
+  // 5×5-зону; нейтральная/трусливая — бой ТОЛЬКО на тайле (без
+  // изменений). Тайл боя = тайл ГРУППЫ (key/seed/terrain/quest —
+  // ВСЁ от него); на тайле — тайл игрока (бит-в-бит, как до).
+  // Возврат: true — бой начался (приоритет над входом в локацию).
+  function maybeStartCombat(scanZones) {
+    if (G.combatUI && G.combatUI.isActive()) return false;
     // Полноэкранная панель накроет карту в бою — закрываем (000096).
     // KeyI в бою по-прежнему переключает (коммент ниже), но это осознанный
     // выбор игрока, а не случайное состояние.
@@ -1659,10 +1715,15 @@
     // закрываем (тот же стек, паттерн 000096).
     if (G.buildingUI && G.buildingUI.isActive()) G.buildingUI.close();
     if (G.craftUI && G.craftUI.isActive()) G.craftUI.close(); // 000126
-    const t = map.tileAt(player.x, player.y);
-    if (!t.hasMobGroup) return;
-    const key = player.x + ',' + player.y;
-    if (defeatedAt.has(key)) return;
+    const pt = tileCache.tile(player.x, player.y); // кэш (тот же тайл)
+    // 000135: ТАЙЛ БОЯ: на тайле группы — тайл игрока (текущее
+    // поведение); в зоне триггерящей группы — тайл ГРУППЫ.
+    const t = pt.hasMobGroup
+      ? pt
+      : (scanZones ? zoneCombatTile() : null);
+    if (!t) return false;
+    const key = t.x + ',' + t.y; // 000135: ключ ТАЙЛА ГРУППЫ
+    if (defeatedAt.has(key)) return false; // общий guard (зона и тайл)
     // Задача 000087: `const combat` — onEnd читает ЖИВОЙ объект боя
     // ПОЗЖЕ (гибель — по combat.units, D2); guard isActive — выше.
     const combat = G.combatUI.startCombat({
@@ -1680,7 +1741,10 @@
       terrain: t.terrain,
       spriteLoader,
       prev: { x: prevPos.x, y: prevPos.y },
-      seed: G.hash2(player.x, player.y, 0x5eedc0de),
+      // 000135: seed — от ТАЙЛА ГРУППЫ (тот же salt; на тайле —
+      // значения идентичны: существующие createCombat-пины не
+      // сдвигаются; zone-старт — новая точка).
+      seed: G.hash2(t.x, t.y, 0x5eedc0de),
       day: clock.day,
       // Задача 000076: активные благословения — во ВСЕХ боях дня.
       buffMods: currentBuffMods(),
@@ -1734,6 +1798,7 @@
     });
     // 000118: первая встреча Эфира — флаг (реальные c.units).
     noteEfirCombat(combat);
+    return true; // 000135: бой начался (приоритет над входом в локацию)
   }
 
   // --- Подземелье/город (задача 000127): домен — src/locations.js ---
@@ -2289,6 +2354,11 @@
       flash: hudFlash, flashUntil: hudFlashUntil,
       exploredCount,
       campShopFor, // ОПЦИОНАЛЬНОЕ поле ctx (000095): лагерь
+      // 000135: ОПЦИОНАЛЬНОЕ поле ctx (ЗНАЧЕНИЕ — тип группы или
+      // null): зона триггерящей группы ВНЕ тайла → раннее
+      // предупреждение. В подземелье/городе скан не гоняем
+      // (dungeonState != null — цепь hud.js и так гасит ветку).
+      zoneGroup: dungeonState ? null : zoneGroupForHud(),
     });
   }
 
@@ -2315,8 +2385,12 @@
           { x: player.x, y: player.y }, now, stepMs);
         lastStepAt = now; // Флогистон переключается на анимацию ходьбы
         clock.addStep(1); // шаги мира тикают игровой день
-        maybeStartCombat();
-        enterLocation(); // 000127: домен — src/locations.js (подземелье/город)
+        // 000135: скан зон — ТОЛЬКО на успешном шаге (ТЗ); бой >
+        // вход в локацию (два оверлея в одном кадре — сломанное
+        // состояние; вход откладывается на следующий шаг — герой
+        // на тайле входа, побег/смерть — возврат на prevPos).
+        if (!maybeStartCombat(true))
+          enterLocation(); // 000127: домен — src/locations.js
         saveNow();
       }
     }
