@@ -7796,3 +7796,333 @@ test('B27. колодец: инвентарь полон — отказ addItem 
   assert.equal(save2.data.buildingOncePerDay[WELL_KEY + ':45'], 1,
     'успех — марка дня 1');
 });
+
+// --- Задача 000137: таверна «Выступление» (44_perform) + городской ключ ---
+// Контракт: memory/000137-tavern-perform-city-daily.md (+ шпаргалка
+// memory/000137-tavern-perform.md). Причины красного (НЕТ функционала,
+// не синтаксис): нет записи EFFECTS['44_perform'], нет функций
+// performGold/applyTavernPerform/performAvailable/dailyKeyFor, нет
+// «выступление» в каталоге 000044, нет файла
+// src/building-effect-44_perform.js (MODULE_NOT_FOUND, паттерн A66),
+// нет строки в оверлее.
+// Формула (зафиксирована пином):
+//   income = round(round(база + шаг×Артист) × performanceIncomeMult)
+// база/шаг/навык — из каталога 000044 (10/2/artist, масштаб фонтана);
+// mult — LIVE-чтение (000013) в момент apply. День НЕ проходит (в
+// отличие от 44_rest). Отказ повторного вызова — «выступал сегодня».
+// Ключ: мир — «x,y:44_perform» (тайл, пин BA4(e) без изменений),
+// город — «ax,ay:44_perform» (якорь, DK1).
+
+// 000137: deps-бандл для живого пути (onBuildingAction): живые BE
+// (EFFECTS + hasDailyLimit + buildingActions для openBuildingUI),
+// снапшот collectSaveData отражает ЖИВОЙ buildingOncePerDay (зеркало
+// main.js: serializeDayMap).
+function makePerformDeps(over = {}) {
+  const calls = { saveNow: 0, flash: [], playerRender: 0,
+    buildingOpen: [] };
+  const clock = { day: 5 };
+  const deps = {
+    game: {
+      buildingEffects: loadBE(),
+      buildingUI: {
+        open: (p) => { calls.buildingOpen.push(p); },
+        isActive: () => false,
+        close: () => {},
+      },
+      npcUI: { open: () => {}, isActive: () => false, close: () => {} },
+    },
+    clock,
+    hero: over.hero,
+    player: { x: 5, y: 7 },
+    prevPos: { x: 5, y: 7 },
+    getMap: () => null,
+    mover: null,
+    npcs: [],
+    questBook: {},
+    npcShopFor: () => ({}),
+    collectSaveData: () => ({
+      day: clock.day,
+      buildingOncePerDay: Object.fromEntries(
+        deps.buildingOncePerDay.entries()),
+    }),
+    saveNow: () => { calls.saveNow++; },
+    flash: (m) => { calls.flash.push(m); },
+    buildingOncePerDay: new Map(),
+    buffs: [],
+    teleports: new Map(),
+    buildingQuests: new Map(),
+    playerRender: () => { calls.playerRender++; },
+    moveHero: () => {},
+    startCombat: () => {},
+  };
+  return { calls, deps };
+}
+
+test('PF1. 000137: «Выступление» — формула дохода round(round(база + шаг×Артист) × performanceIncomeMult): каталог 000044 (10/2/artist), mult — LIVE; полный путь onBuildingAction → +gold (паттерн handlerCoin)', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['44_perform'],
+    'запись 44_perform в реестре (красный: записи нет)');
+  assert.equal(BE.EFFECTS['44_perform'].имя, 'Выступление',
+    '44_perform: имя по ТЗ');
+  assert.equal(typeof BE.EFFECTS['44_perform'].apply, 'function',
+    '44_perform: apply(state)');
+  // Каталог — ЖИВОЙ (000053: код каталог-драйвен; имена полей
+  // «база/шаг/навык» — контракт, зафиксирован пином).
+  const B = require('../src/buildings.js');
+  const b44 = B.getBuilding(44);
+  const eff = b44.особые_параметры.эффект &&
+    b44.особые_параметры.эффект.выступление;
+  assert.ok(eff && typeof eff === 'object',
+    'каталог 44: особые_параметры.эффект.выступление — объект '
+    + '(красный: в каталоге нет)');
+  assert.equal(eff.база, 10, 'каталог: база 10 (масштаб фонтана)');
+  assert.equal(eff.шаг, 2, 'каталог: шаг 2');
+  assert.equal(eff.навык, 'artist', 'каталог: навык artist');
+  // Спец-модуль — живые (регистрация как 44_rest, паттерн A66:
+  // require в теле, не на верхнем уровне).
+  const mod = require('../src/building-effect-44_perform.js');
+  assert.equal(typeof mod.tavernPerform, 'function',
+    'спец-модуль экспортирует tavernPerform(r, hero)');
+  const BA = require('../src/building-actions.js');
+  BA.registerSpecial('44_perform',
+    (ctx) => mod.tavernPerform(ctx && ctx.r, ctx && ctx.hero));
+  // Формула: L ∈ {0, 1, 5, 10} — СВЕЖИЕ окружения (daily-лимит не
+  // мешает); expected пересчитан из LIVE-чтения derived на каждый L
+  // (мёртвый снапшот mult не пройдёт). Dробный L=1 закрывает внешний
+  // round (целое золото).
+  for (const L of [0, 1, 5, 10]) {
+    const hero = mkHero({ secondary: { artist: L } });
+    withGame({ derived: P.derived, skillLevel: P.skillLevel }, () => {
+      const r = BE.EFFECTS['44_perform'].apply(makeState({
+        day: 1, tile: { x: 5, y: 7 }, hero, save: {}, catalog: b44,
+      }));
+      assert.ok(r && r.ok, 'apply ok (L=' + L + '): ' + JSON.stringify(r));
+      assert.equal(r.success, true, 'L=' + L + ': success');
+      const mult = P.derived(hero).performanceIncomeMult; // LIVE (000013)
+      const expected = Math.round(Math.round(eff.база + eff.шаг * L) * mult);
+      assert.equal(r.gold, expected,
+        'L=' + L + ': gold = round(round(база + шаг×L) × mult)');
+      assert.ok(String(r.message).includes('+' + expected + ' золота'),
+        'message содержит +gold: ' + r.message);
+    });
+  }
+  // Золотые пины (реальный каталог 10/2): L=0 → 10, L=1 → 13
+  // (12×1.1 = 13.2), L=5 → 30 (20×1.5), L=10 → 60 (30×2.0).
+  withGame({ derived: P.derived, skillLevel: P.skillLevel }, () => {
+    const golds = [0, 1, 5, 10].map((L) => BE.EFFECTS['44_perform']
+      .apply(makeState({
+        day: 1, tile: { x: 5, y: 7 },
+        hero: mkHero({ secondary: { artist: L } }),
+        save: {}, catalog: b44,
+      })).gold);
+    assert.deepEqual(golds, [10, 13, 30, 60],
+      'золотые пины: L=0→10, L=1→13, L=5→30, L=10→60: ' + golds);
+  });
+  // Полный путь: onBuildingAction — apply → спец-обработчик
+  // (handlerCoin: золото только при успехе) → марка + saveNow + flash.
+  {
+    const hero = mkHero({ secondary: { artist: 5 } });
+    const { calls, deps } = makePerformDeps({ hero });
+    const t44 = { x: 5, y: 7, hasBuilding: true, building: 11,
+      buildingId: 44 };
+    BA.init(deps);
+    withGame({ derived: P.derived, skillLevel: P.skillLevel }, () => {
+      const before = hero.gold;
+      BA.onBuildingAction(
+        { id: '44_perform', имя: 'Выступление', доступен: true },
+        t44, b44, null);
+      assert.equal(hero.gold, before + 30,
+        'полный путь: hero.gold += 30 (handlerCoin, живая ссылка)');
+      assert.deepEqual(calls.flash, ['Выступление: +30 золота.'],
+        'flash — message: ' + JSON.stringify(calls.flash));
+      assert.equal(calls.saveNow, 1, 'saveNow (автоматика роутера)');
+    });
+    assert.equal(deps.buildingOncePerDay.get('5,7:44_perform'), 5,
+      'марка (МИРНЫЙ ключ "x,y:effectId") → день 5');
+    assert.equal(deps.buildingOncePerDay.size, 1, 'ровно одна марка');
+  }
+});
+
+test('PF2. 000137: «Выступление» — раз в день: марка "5,7:44_perform" (мир), повтор — отказ «выступал сегодня» (без gold/марки-дубля), СВЕЖАЯ openBuildingUI — строка недоступна (reason)', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['44_perform'],
+    'запись 44_perform в реестре (красный: записи нет)');
+  const mod = require('../src/building-effect-44_perform.js');
+  const BA = require('../src/building-actions.js');
+  BA.registerSpecial('44_perform',
+    (ctx) => mod.tavernPerform(ctx && ctx.r, ctx && ctx.hero));
+  const B = require('../src/buildings.js');
+  const b44 = B.getBuilding(44);
+  const t44 = { x: 5, y: 7, hasBuilding: true, building: 11,
+    buildingId: 44 };
+  const hero = mkHero({ secondary: { artist: 5 } }); // +30
+  const { calls, deps } = makePerformDeps({ hero });
+  BA.init(deps);
+  withGame({ derived: P.derived, skillLevel: P.skillLevel }, () => {
+    // Первый вызов: ok, +gold, марка.
+    BA.onBuildingAction(
+      { id: '44_perform', имя: 'Выступление', доступен: true },
+      t44, b44, null);
+    assert.equal(hero.gold, 100 + 30, 'первый вызов: hero.gold += 30');
+    assert.equal(deps.buildingOncePerDay.get('5,7:44_perform'), 5,
+      'марка "5,7:44_perform" → день 5 (мирный ключ)');
+    assert.equal(deps.buildingOncePerDay.size, 1, 'ровно одна марка');
+    // Повтор в тот же день (СТАРЫЙ оверлей — прямой onBuildingAction):
+    // отказ — flash «выступал сегодня», без gold, без марки-дубля.
+    calls.saveNow = 0;
+    calls.flash.length = 0;
+    calls.playerRender = 0;
+    BA.onBuildingAction(
+      { id: '44_perform', имя: 'Выступление', доступен: true },
+      t44, b44, null);
+    assert.deepEqual(calls.flash, ['выступал сегодня'],
+      'повтор: flash «выступал сегодня» (строка ТЗ): '
+      + JSON.stringify(calls.flash));
+    assert.equal(calls.saveNow, 0, 'отказ: saveNow не вызван');
+    assert.equal(calls.playerRender, 0, 'отказ: playerRender не вызван');
+    assert.equal(hero.gold, 130, 'отказ: gold НЕ добавлен');
+    assert.equal(deps.buildingOncePerDay.size, 1,
+      'отказ: марка НЕ продублирована');
+    assert.equal(deps.buildingOncePerDay.get('5,7:44_perform'), 5,
+      'марка не изменилась (день 5)');
+    // СВЕЖАЯ openBuildingUI: строка 44_perform — недоступна (reason).
+    BA.openBuildingUI(t44, b44, null);
+    const p = calls.buildingOpen[calls.buildingOpen.length - 1];
+    assert.ok(p, 'openBuildingUI — buildingUI.open');
+    const row = p.actions.find((a) => a.id === '44_perform');
+    assert.ok(row, 'строка 44_perform в actions');
+    assert.equal(row.доступен, false, 'строка — недоступна (лимит)');
+    assert.equal(row.reason, 'выступал сегодня',
+      'reason — строка ТЗ: ' + JSON.stringify(row.reason));
+  });
+});
+
+test('PF3. 000137: «Выступление» — детерминизм: доход = функция (каталог, уровень, mult) ТОЛЬКО — НЕ (tile, day); ядро performGold — чистая (нет Math.random/Date-сидов)', () => {
+  const BE = loadBE();
+  assert.ok(BE.EFFECTS['44_perform'],
+    'запись 44_perform в реестре (красный: записи нет)');
+  assert.equal(typeof BE.performGold, 'function',
+    'ядро performGold(eff, level, mult) — экспортировано '
+    + '(красный: функции нет)');
+  const B = require('../src/buildings.js');
+  const b44 = B.getBuilding(44);
+  const eff = b44.особые_параметры.эффект &&
+    b44.особые_параметры.эффект.выступление;
+  assert.ok(eff && typeof eff === 'object',
+    'каталог 44: «выступление» (красный: в каталоге нет)');
+  const L = 3;
+  withGame({ derived: P.derived, skillLevel: P.skillLevel }, () => {
+    const hero = mkHero({ secondary: { artist: L } });
+    const mult = P.derived(hero).performanceIncomeMult;
+    // Ядро: два последовательных вызова — равны (нет RNG/Date).
+    const g1 = BE.performGold(eff, L, mult);
+    const g2 = BE.performGold(eff, L, mult);
+    assert.equal(g1, g2,
+      'performGold — детерминировано (те же аргументы → тот же результат)');
+    assert.equal(g1, Math.round(Math.round(eff.база + eff.шаг * L) * mult),
+      'формула: round(round(база + шаг×L) × mult)');
+    // apply: РАЗНЫЕ tile/day при том же L — тот же доход (в отличие
+    // от монеты фонтана 49 — сид (tile, day)).
+    const r1 = BE.EFFECTS['44_perform'].apply(makeState({
+      day: 1, tile: { x: 5, y: 7 },
+      hero: mkHero({ secondary: { artist: L } }), save: {}, catalog: b44,
+    }));
+    const r2 = BE.EFFECTS['44_perform'].apply(makeState({
+      day: 9, tile: { x: -12, y: 43 },
+      hero: mkHero({ secondary: { artist: L } }), save: {}, catalog: b44,
+    }));
+    assert.ok(r1.ok && r2.ok, 'apply ok в обоих мирах');
+    assert.equal(r2.gold, r1.gold,
+      'разный (tile, day) — тот же доход (сидов нет)');
+  });
+});
+
+test('PF4. 000137: e2e «Выступление»: таверна (41,2) — [E] → Digit4: +gold (формула), день НЕ проходит, марка "41,2:44_perform"; повтор — «выступал сегодня»; после 44_rest (день 2) — снова доступно', async () => {
+  const L = 5; // Артист 5 → mult 1.5 → +30 (реальный каталог 10/2)
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 41, y: 2 },
+    hero: mkHero({ secondary: { artist: L } }),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок при загрузке нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, 41, 'save-позиция — таверна (x)');
+  assert.equal(g.state.player.y, 2, 'save-позиция — таверна (y)');
+  assert.equal(g.state.day, 1, 'день 1 (предзаполнен)');
+  const t = myMap.tileAt(41, 2);
+  assert.equal(t.buildingId, 44, 'тайл (41,2) — таверна');
+  // [E] → оверлей: 4 строки (44_perform — аппенд, Digit4).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей в body');
+  const rows = findAll(ov, '[data-buid]');
+  assert.deepEqual(rows.map((r) => r.dataset.buid),
+    ['dialog', '44_rest', '44_rumors', '44_perform'],
+    'строки: «Диалог» (Берта) первыми + «Отдых» + «Слухи» + '
+    + '«Выступление» (красный: нет записи/каталога)');
+  const rowP = findRow(ov, '44_perform');
+  assert.ok(rowP, 'строка 44_perform в оверлее');
+  assert.ok(textOf(rowP).includes('Выступление'),
+    'имя строки: «Выступление»: ' + textOf(rowP));
+  assert.equal(rowP.disabled, false, 'день 1 — доступно');
+  // Каталог — живой: база/шаг; mult — LIVE derived (000013).
+  const B = require('../src/buildings.js');
+  const eff = B.getBuilding(44).особые_параметры.эффект.выступление;
+  assert.ok(eff && typeof eff === 'object',
+    'каталог 44: эффект.выступление (красный: в каталоге нет)');
+  const mult = G.derived(g.state.hero).performanceIncomeMult;
+  assert.equal(mult, 1 + 0.1 * L,
+    'performanceIncomeMult = 1 + 0.1×Артист (SPEC)');
+  const expected = Math.round(Math.round(eff.база + eff.шаг * L) * mult);
+  // Digit4 — «Выступление»: +gold, день НЕ проходит (мир-действие
+  // БЕЗ «стороны» — в отличие от 44_rest).
+  const gold0 = g.state.hero.gold;
+  const steps0 = g.state.stepsToday;
+  key(h, 'Digit4');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  assert.equal(g.state.day, 1, 'день НЕ проходит (в отличие от 44_rest)');
+  assert.equal(g.state.stepsToday, steps0, 'stepsToday не изменился');
+  assert.equal(g.state.hero.gold, gold0 + expected,
+    'hero.gold += round(база + шаг×L) × mult: ' + gold0
+    + ' → ' + (gold0 + expected));
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('Выступление: +' + expected + ' золота.'),
+    'hudFlash — message: ' + hud1);
+  // saveNow: gold + МИРНЫЙ ключ (формат-пин).
+  const save1 = readSave(h);
+  assert.ok(save1, 'saveNow — сразу после действия');
+  assert.equal(save1.data.day, 1, 'save: день 1 (день не прошёл)');
+  assert.equal(save1.data.hero.gold, gold0 + expected, 'save: gold');
+  assert.equal(save1.data.buildingOncePerDay['41,2:44_perform'], 1,
+    'формат-пин МИРНОГО ключа: "41,2:44_perform" → 1');
+  // Повтор в тот же день — строка disabled («выступал сегодня»).
+  key(h, 'KeyE');
+  const rowSame = findRow(findOverlay(h), '44_perform');
+  assert.ok(rowSame, 'строка 44_perform в оверлее (повтор)');
+  assert.equal(rowSame.disabled, true, 'повтор в тот же день — disabled');
+  assert.ok(textOf(rowSame).includes('выступал сегодня'),
+    'reason «выступал сегодня»: ' + textOf(rowSame));
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрыт');
+  // Смена дня через «Отдых» (44_rest) → день 2 → снова доступно.
+  key(h, 'KeyE');
+  key(h, 'Digit2'); // «Отдых»
+  assert.equal(g.state.day, 2, 'день 1→2 (44_rest)');
+  key(h, 'KeyE');
+  const row2 = findRow(findOverlay(h), '44_perform');
+  assert.equal(row2.disabled, false, 'день 2 — снова доступно');
+  const gold1 = g.state.hero.gold;
+  key(h, 'Digit4');
+  assert.equal(g.state.hero.gold, gold1 + expected,
+    'день 2: +gold снова (та же формула)');
+  const save2 = readSave(h);
+  assert.equal(save2.data.buildingOncePerDay['41,2:44_perform'], 2,
+    'марка → 2 (день 2)');
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрыт');
+});

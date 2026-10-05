@@ -87,8 +87,12 @@ function makeEnv(over = {}) {
   const deps = {
     game: null, // фейковый Game — ниже (циклическая ссылка допустима)
     clock: { day: 5 },
-    hero: { hp: 10, gold: 100 },
-    player: { x: 5, y: 7 },
+    // 000137 (DK1): overridable (реальный герой с primary/secondary —
+    // для живых P.derived/P.skillLevel в apply).
+    hero: over.hero !== undefined ? over.hero : { hp: 10, gold: 100 },
+    // 000137 (DK1): overridable (городской контекст — тайл ВХОДА в мире,
+    // live-объект; при смене города мутируется).
+    player: over.player !== undefined ? over.player : { x: 5, y: 7 },
     prevPos: { x: 5, y: 7 },
     getMap: () => map,
     mover: null,
@@ -97,10 +101,14 @@ function makeEnv(over = {}) {
     npcShopFor: (id) => ({ shopFor: id }),
     // СНИМОК отражает ЖИВОЕ состояние в момент ВЫЗОВА (свежесть —
     // §2.5 memory: хендлер видит мир ПОСЛЕ apply-сторон).
-    collectSaveData: () => ({
-      day: 5,
-      buffs: deps.buffs.map((b) => Object.assign({}, b)),
-    }),
+    // 000137 (DK1): overridable — снапшот обязан отражать ЖИВОЙ
+    // buildingOncePerDay (зеркало main.js collectSaveData).
+    collectSaveData: () => (over.collectSaveData
+      ? over.collectSaveData(deps)
+      : {
+        day: 5,
+        buffs: deps.buffs.map((b) => Object.assign({}, b)),
+      }),
     saveNow: () => { calls.saveNow++; log.push('saveNow'); },
     flash: (m) => { calls.flash.push(m); log.push('flash:' + m); },
     buildingOncePerDay: new Map(),
@@ -116,7 +124,9 @@ function makeEnv(over = {}) {
   // (payload по полям) не трогаются.
   if (over.roster !== undefined) deps.roster = over.roster;
   if (over.deadMercs !== undefined) deps.deadMercs = over.deadMercs;
-  const game = {
+  // 000137 (DK1): over.game — полный объект Game (реальные BE + каталог
+  // + buildingUI); по умолчанию — фейк (поведение БЕЗ ИЗМЕНЕНИЙ).
+  const game = over.game !== undefined ? over.game : {
     buildingEffects: {
       EFFECTS: {},
       hasDailyLimit: (b, id) => !!(over.dailyLimit && over.dailyLimit[id]),
@@ -125,6 +135,9 @@ function makeEnv(over = {}) {
       open: (p) => { calls.dialog.push(p); log.push('dialog'); },
     },
   };
+  // 000137 (DK1): over.cityState — городское состояние (getter ds;
+  // по умолчанию — отсутствует, мирный контекст).
+  if (over.cityState !== undefined) deps.cityState = over.cityState;
   deps.game = game;
   return { calls, log, game, deps, map };
 }
@@ -908,4 +921,136 @@ test('W2. 000083: main.js — состояние отряда: const roster (ф�
     'deps-бандл init: roster (live Array → npcUI.open)');
   assert.ok(m[0].includes('deadMercs'),
     'deps-бандл init: deadMercs (live Array [npcId])');
+});
+
+// --- Задача 000137: городской daily-ключ (таверна «Выступление», 44_perform) ---
+//
+// Ловушка (memory/000107-city-interact.md:147-148): ключ раз-в-день
+// строится из deps.player.x/y — в ГОРОДЕ это тайл ВХОДА в мире
+// (позиция героя — ds.x/y, ЛОКАЛЬНЫЕ клетки), а чтение
+// (buildingActions) использует state.tile (локальная клетка) → ключи
+// НЕ совпадают и лимит в городе никогда не срабатывает. Фикс (000137):
+// для городского контекста — ключ с ЯКОРЕМ города
+// (buildingAnchor входного тайла через ds.worldKey → map.tileAt):
+// «ax,ay:effectId» — ОДНА форма ключа, как мирный (DAY_MAP_KEY_RE,
+// day.js:203). Два города с таверной на ОДНОЙ локальной клетке (1,1) —
+// у каждого СВОЙ раз-в-день (разные якоря); мирный ключ — без
+// изменений (пин BA4(e)). Контракт:
+// memory/000137-tavern-perform-city-daily.md.
+
+// 000137: withGame — временный Game в node-realm для живого apply
+// (lazyGame в building-effects.js); паттерн building-effects.test.js.
+function withGame137(fake, fn) {
+  const had = Object.prototype.hasOwnProperty.call(globalThis, 'Game');
+  const prev = globalThis.Game;
+  globalThis.Game = fake;
+  try {
+    return fn();
+  } finally {
+    if (had) globalThis.Game = prev;
+    else delete globalThis.Game;
+  }
+}
+
+test('DK1. 000137: городской daily-ключ: два города, таверна на одной локальной клетке — лимиты не спорят (якорь); формат-пин "100,100:44_perform"', () => {
+  const P = require('../src/player.js');
+  const BE = require('../src/building-effects.js');
+  const B = require('../src/buildings.js');
+  const NPC_BERTA = { id: 'npc_berta', имя: 'Берта', постройки: [44] };
+  // Мировые тайлы ВХОДА: A (101,100) → якорь [100,100]; B (201,200) →
+  // якорь [200,200]. Якорь ≠ вход — тест дискриминирует ключ
+  // «по тайлу входа» (неверная реализация).
+  const map = {
+    tileAt(x, y) {
+      if (x === 101 && y === 100) {
+        return { x, y, hasBuilding: true, buildingId: 51,
+          buildingAnchor: [100, 100] };
+      }
+      if (x === 201 && y === 200) {
+        return { x, y, hasBuilding: true, buildingId: 51,
+          buildingAnchor: [200, 200] };
+      }
+      return { x, y, hasBuilding: false };
+    },
+  };
+  // Оба города — таверна 44 на ОДНОЙ локальной клетке (1,1) — ловушка.
+  const dsA = { kind: 'city', x: 1, y: 1, worldKey: '101,100',
+    cityContents: { buildings: [{ x: 1, y: 1, buildingId: 44 }], seed: 1 },
+    cityShops: {}, cityWealth: 5, name: 'Город A' };
+  const dsB = { kind: 'city', x: 1, y: 1, worldKey: '201,200',
+    cityContents: { buildings: [{ x: 1, y: 1, buildingId: 44 }], seed: 2 },
+    cityShops: {}, cityWealth: 5, name: 'Город B' };
+  let ds = dsA;
+  const player = { x: 101, y: 100 }; // тайл входа в мире (live-объект)
+  const opened = [];
+  const game = {
+    buildingEffects: BE, // живые BE (реестр + каталог, 000053)
+    getBuilding: (id) => B.getBuilding(id),
+    npcForBuilding: (list, bid) =>
+      (list || []).find((n) => Array.isArray(n.постройки)
+        && n.постройки.includes(bid)) || null,
+    buildingUI: {
+      open: (p) => { opened.push(p); },
+      isActive: () => false,
+      close: () => {},
+    },
+    npcUI: { open: () => {}, isActive: () => false, close: () => {} },
+  };
+  const e = initMod({
+    map, player, game,
+    // Реальный герой (primary/secondary — живые derived/skillLevel).
+    hero: P.createCharacter(),
+    cityState: () => ds,
+    // Снапшот отражает ЖИВОЙ buildingOncePerDay (зеркало main.js:
+    // serializeDayMap) — иначе performAvailable/re-check не видят марку.
+    collectSaveData: (d) => ({
+      day: d.clock.day,
+      buildingOncePerDay: Object.fromEntries(
+        d.buildingOncePerDay.entries()),
+    }),
+  });
+  const once = e.deps.buildingOncePerDay;
+
+  // Город A: [E] у таверны (1,1) — оверлей, «Выступление» доступно.
+  e.BA.interactCity();
+  assert.equal(opened.length, 1, 'город A: buildingUI.open (таверна)');
+  const pA1 = opened[0];
+  assert.ok(pA1.actions.some((a) => a.id === '44_perform'),
+    'строка 44_perform в оверлее '
+    + '(красный: нет записи в реестре/каталоге)');
+  const rowA1 = pA1.actions.find((a) => a.id === '44_perform');
+  assert.equal(rowA1.доступен, true, 'день 5 — доступно (марки нет)');
+  // «Выступление» — живой путь interactCity → onAction (apply живые —
+  // нужен Game для derived/skillLevel: withGame).
+  withGame137({ derived: P.derived, skillLevel: P.skillLevel },
+    () => pA1.onAction(rowA1));
+  // Марка: ЕДИНАЯ точка — ЯКОРЬ города (не локальная клетка, не
+  // мировой тайл входа), формат «ax,ay:effectId».
+  assert.equal(once.size, 1, 'ровно одна марка');
+  assert.equal(once.get('100,100:44_perform'), 5,
+    'формат-пин: "100,100:44_perform" → день 5 (якорь, 000137)');
+  assert.equal(once.get('1,1:44_perform'), undefined,
+    'НЕТ марки по локальной клетке (ловушка 000107)');
+  assert.equal(once.get('101,100:44_perform'), undefined,
+    'НЕТ марки по мировому тайлу входа');
+  // Повтор в городе A (СВЕЖЕЕ состояние): строка недоступна —
+  // «выступал сегодня».
+  e.BA.interactCity();
+  assert.equal(opened.length, 2, 'город A: повтор — buildingUI.open');
+  const rowA2 = opened[1].actions.find((a) => a.id === '44_perform');
+  assert.ok(rowA2, 'строка 44_perform в оверлее (повтор, город A)');
+  assert.equal(rowA2.доступен, false, 'повтор в тот же день — недоступно');
+  assert.equal(rowA2.reason, 'выступал сегодня',
+    'reason — строка ТЗ: ' + JSON.stringify(rowA2.reason));
+  // Город B: таверна на той же локальной клетке (1,1) — лимиты НЕ
+  // спорят (якоря разные).
+  ds = dsB;
+  player.x = 201;
+  player.y = 200; // герой у входа в город B
+  e.BA.interactCity();
+  assert.equal(opened.length, 3, 'город B: buildingUI.open');
+  const rowB = opened[2].actions.find((a) => a.id === '44_perform');
+  assert.ok(rowB, 'строка 44_perform в оверлее (город B)');
+  assert.equal(rowB.доступен, true,
+    'город B — доступно (якорь другой — лимиты не спорят)');
 });

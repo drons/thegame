@@ -1051,6 +1051,87 @@ test('000091: vm — загрузка building-effect-44_rest.js: standalone (б
     'specials[44_rest] зарегистрирован (self-registration при загрузке)');
 });
 
+// --- Задача 000137: building-effect-44_perform.js (спец-модуль
+// «Выступление» таверны) ---
+//
+// Второй спец-модуль (шаблон 44_rest, 000091/000128): саморегистрация
+// в МОМЕНТ загрузки (registerSpecial('44_perform')) — тег обязан
+// стоять ПОСЛЕ building-actions.js (registerSpecial должен
+// существовать) и ДО main.js (UMD-ловушка 000038: main.js снимает
+// Game один раз). ТЗ: рядом с 44_rest (слот спец-модулей таверны; в
+// этой волне index.html только здесь тегируем — audit §6). Пин
+// не-смежный (union).
+
+test('IO1. 000137: спец-модуль «Выступление» — тег src/building-effect-44_perform.js в index.html (ПОСЛЕ building-actions.js, рядом с 44_rest, ДО main.js) + UMD-гарды (standalone тихо / без buildingActions — console.error + без регистрации / с — specials[44_perform])', () => {
+  // (a) Порядок тега (красный: тег отсутствует — pos === -1).
+  assert.notEqual(pos('src/building-effect-44_perform.js'), -1,
+    'src/building-effect-44_perform.js не подключён в index.html '
+    + '(задача 000137)');
+  assert.ok(pos('src/building-actions.js')
+    < pos('src/building-effect-44_perform.js'),
+    'src/building-actions.js должен быть раньше '
+    + 'src/building-effect-44_perform.js '
+    + '(registerSpecial обязан существовать, задача 000128)');
+  assert.ok(pos('src/building-effect-44_rest.js')
+    < pos('src/building-effect-44_perform.js'),
+    'src/building-effect-44_perform.js — рядом с 44_rest (слот '
+    + 'спец-модулей таверны, задача 000137)');
+  assert.ok(pos('src/building-effect-44_perform.js') < pos('src/main.js'),
+    'src/building-effect-44_perform.js должен быть раньше src/main.js '
+    + '(UMD-ловушка 000038: main.js снимает Game один раз)');
+  // (b) vm-load (ленивое чтение: до зелёной стадии файла нет —
+  // readFileSync падает ENOENT — осмысленный красный, паттерн 000091).
+  const performCode = fs.readFileSync(
+    path.join(ROOT, 'src', 'building-effect-44_perform.js'), 'utf8');
+  const actionsCode = fs.readFileSync(
+    path.join(ROOT, 'src', 'building-actions.js'), 'utf8');
+  const mkConsole = (sink) => ({
+    log: () => {}, info: () => {}, warn: () => {},
+    error: (m) => sink.push(String(m)),
+  });
+  // (b1) standalone (без Game) — тихий выход: 0 console.error,
+  // 0 краха.
+  const errorsA = [];
+  const sandboxA = { console: mkConsole(errorsA) };
+  vm.createContext(sandboxA);
+  assert.doesNotThrow(() => vm.runInContext(
+    performCode, sandboxA,
+    { filename: 'building-effect-44_perform.js' }),
+    'standalone (без Game) — без краха');
+  assert.equal(errorsA.length, 0,
+    'standalone (без Game) — 0 console.error: ' + errorsA.join('; '));
+  // (b2) Game БЕЗ buildingActions — console.error (фиксированный
+  // текст), без регистрации (деградация 000053: игра не роняется).
+  const errorsB = [];
+  const sandboxB = { Game: {}, console: mkConsole(errorsB) };
+  vm.createContext(sandboxB);
+  assert.doesNotThrow(() => vm.runInContext(
+    performCode, sandboxB,
+    { filename: 'building-effect-44_perform.js' }),
+    'без buildingActions — без краха (деградация 000053)');
+  assert.ok(errorsB.length >= 1, 'без buildingActions — console.error');
+  assert.ok(
+    String(errorsB[0]).includes('Game.buildingActions отсутствует'),
+    'текст ошибки — про порядок: ' + errorsB[0]);
+  // (b3) с buildingActions (building-actions.js загружен ПЕРВЫМ) —
+  // self-registration: specials['44_perform'] — функция.
+  const errorsC = [];
+  const sandboxC = { Game: {}, console: mkConsole(errorsC) };
+  vm.createContext(sandboxC);
+  vm.runInContext(actionsCode, sandboxC, { filename: 'building-actions.js' });
+  vm.runInContext(performCode, sandboxC,
+    { filename: 'building-effect-44_perform.js' });
+  assert.equal(errorsC.length, 0,
+    'с buildingActions — без ошибок: ' + errorsC.join('; '));
+  assert.ok(sandboxC.Game.buildingActions,
+    'buildingActions есть (building-actions.js загружен)');
+  assert.equal(
+    typeof sandboxC.Game.buildingActions.specials['44_perform'],
+    'function',
+    'specials[44_perform] зарегистрирован (self-registration при '
+    + 'загрузке)');
+});
+
 // --- Задача 000095: building-effect-camp.js (спец-модуль лагеря) ---
 //
 // Спец-модуль регистрирует specials (fire/market) в building-actions.js
