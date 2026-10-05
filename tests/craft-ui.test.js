@@ -874,6 +874,10 @@ test('E3. 000133: свиток → fireball в пикере зачаровани
     описание: 'тест',
   };
   G.Craft.CRAFT.push(fake);
+  // CRAFT_BY_ID — индекс, собранный при загрузке craft-data.js (ссылки
+  // на те же объекты): canCraft ищет рецепт ТОЛЬКО там (craft.js
+  // evalCraft) — синтетический рецепт регистрируем и в индексе.
+  G.Craft.CRAFT_BY_ID[fake.id] = fake;
   try {
     // (a) fireball выучен СВИТКОМ (КРАСНАЯ точка: предмета нет).
     const c = G.createCharacter();
@@ -939,5 +943,6 @@ test('E3. 000133: свиток → fireball в пикере зачаровани
     G.craftUI.close();
   } finally {
     G.Craft.CRAFT.pop(); // возврат каталога (общая песочница)
+    delete G.Craft.CRAFT_BY_ID[fake.id]; // и индекса (см. выше)
   }
 });

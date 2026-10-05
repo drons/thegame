@@ -1456,6 +1456,11 @@ test('E2. 000133: свиток — learned in game → saveNow (смена дн�
     'свиток выдан (red: неизвестный предмет): ' + JSON.stringify(give));
   // useItem в vm (Game-реалм) — «мост»: живые spells/inventory +
   // первичные атрибуты (снапшоту state.hero их нет).
+  // state.hero.inventory — ЖИВОЙ МАССИВ slots (getter main.js
+  // `hero.inventory.slots`), а НЕ объект инвентаря — оборачиваем в
+  // форму {slots}, которую ждут useItem/totalQty (items.js
+  // ensureInventory).
+  const liveSlots = g.state.hero.inventory;
   const bridge = {
     level: g.state.hero.level,
     hp: g.state.hero.hp,
@@ -1465,7 +1470,7 @@ test('E2. 000133: свиток — learned in game → saveNow (смена дн�
     },
     secondary: {},
     spells: g.state.hero.spells, // ЖИВАЯ ссылка (снапшот main.js)
-    inventory: g.state.hero.inventory, // ЖИВАЯ ссылка
+    inventory: { slots: liveSlots, quick: [] }, // ЖИВОЙ массив slots
   };
   const res = h.sandbox.Game.useItem(bridge, 'fireball_scroll');
   assert.equal(res.ok, true,

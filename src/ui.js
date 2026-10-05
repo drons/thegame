@@ -273,6 +273,18 @@
         const sk = G.SECONDARY_SKILLS[it.effect.skill] || { name: it.effect.skill };
         lines.push('Эффект: +' + it.effect.amount + ' опыта («' + sk.name + '»)');
       }
+      // 000133: свиток заклинания — «изучает» (G.Spells — typeof-guard;
+      // без каталога названия — id из effect.spell).
+      else if (it.effect.kind === 'spell') {
+        const S = G.Spells;
+        const sp = (S && typeof S.getSpell === 'function')
+          ? S.getSpell(it.effect.spell) : null;
+        if (sp) {
+          lines.push('Эффект: изучает «' + sp.название + '»');
+        } else {
+          lines.push('Эффект: изучает заклинание «' + it.effect.spell + '»');
+        }
+      }
     }
     lines.push('Вес: ' + it.weight + ' кг');
     lines.push('Цена: ' + it.value + ' з');

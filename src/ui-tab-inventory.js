@@ -74,7 +74,8 @@ function (G0, rootRef) {
         if (!it) continue;
         const btns = [];
         if (it.kind === 'potion' || it.kind === 'food'
-            || it.kind === 'skill_book') {
+            || it.kind === 'skill_book'
+            || it.kind === 'spell_scroll') { // 000133: изучение свитком
           btns.push(['исп.', 'use', { item: e.id }]);
         }
         if (it.kind === 'weapon' || it.kind === 'armor') {

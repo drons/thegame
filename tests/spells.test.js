@@ -1229,7 +1229,11 @@ test('E1. 000133: e2e — свиток: addItem → useItem «Изучено» �
   assert.equal(G.totalQty(p, 'fireball_scroll'), 0, 'свиток тратится');
   assert.match(res.message, /Изучено/i, 'message: ' + res.message);
   // (c) Бой: изученное заклинание КАСТИРУЕТСЯ (000045).
-  const c = G.createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+  // Моб — Пещерный медведь (ур 2: maxHP 26, броня 1): hp ≥ dmg,
+  // ПОТОМУ полные 10 ложатся на hp (волк maxHP 6 < 10 — кап 0,
+  // assert «броня игнорируется» был бы неопределён); броня 1 —
+  // проверка ignoreArmor (было бы 9, а не 10).
+  const c = G.createCombat({ player: p, mobs: ['cave_bear'], mobLevel: 2,
     seed: 5 });
   const w = c.units[0];
   w.x = c.px;
