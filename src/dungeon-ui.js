@@ -56,6 +56,22 @@
 // остальные — спрайты. Boss — #b06ad4-прямоугольник bounding box
 // юнитов (± половина спрайта 0.6 клетки), рисуется ПЕРЕД спрайтами
 // юнитов. Выход «X» и вход остаются текстовыми/цветовыми (решение).
+//
+// Туман войны (задача 000136): подземелье не видно целиком — радиус
+// видимости вокруг героя: база 5 клеток (метрика Чебышёва — квадрат) ×
+// derived.caveVisionMult («Кошачий глаз», player.js — закрывает
+// мёртвый стат; SPEC: «+10% дистанция зрения в пещерах»). live-чтение
+// ОДИН раз на кадр через opts.visionMult (main.js — ФУНКЦИЯ, не
+// getter: start() делает {...opts} — getter замёрз бы при входе;
+// число — тесты; мусор/отсутствие → 1, тихо). explored — состояние
+// ВИЗИТА: Set<'x,y'> в этом модуле (start — new Set() = «вход»,
+// close — null; НЕ сейв, НЕ dungeon.js — нулевая diff ТЗ). Клетки:
+// видимые (cheb ≤ R) — полный рендер; исследованные вне радиуса —
+// затемнение (FOG_DIM_FILL, проход до игрока); неисследованные —
+// скрыты (фон). Город — БЕЗ тумана (isCity: mask не считается).
+// Чистое ядро — G.dungeonUI.vision { baseRadius, radiusFor, maskFor }
+// (контракты memory/000136-dungeon-fog-vision.md D1-D12,
+// формула/семантика memory/000136-dungeon-fog.md).
 
 (function () {
   'use strict';
@@ -112,6 +128,71 @@
       : (((x * 73856093) ^ (y * 19349663) ^ salt) >>> 0);
     return h % count;
   }
+
+  // --- Туман войны (задача 000136): чистое ядро видимости ---
+  // Радиус = база × mult, метрика — ЧЕБЫШЁВ (D1): один max(), «5 клеток
+  // во все стороны», предсказуемая квадратная граница. liveGame не
+  // используется (чистые функции — детерминизм: та же (pos, explored,
+  // radius) → та же маска, ТЗ).
+  const VISION_BASE_RADIUS = 5; // база, клеток (D2: pin mult 1.0 → 5)
+  // Затемнение исследованной клетки (D8): hue ТОЧНО фона #0a0d12,
+  // альфа 0.65 — пол/маркеры просвечивают («затемнены, не скрыты»);
+  // неисследованная — чистый фон → два различимых состояния.
+  const FOG_DIM_FILL = 'rgba(10, 13, 18, 0.65)';
+
+  // R = ceil(VISION_BASE_RADIUS × mult − 1e-9), int ≥ 1 (D2): уровень 1
+  // навыка (×1.1 → 5.5) УЖЕ даёт +1 клетку (5→6); ε — защита от float
+  // (5×1.8 = 9.0000000000000002 — без ε ceil дал бы 10 ≠ +80%).
+  // Guards: не number/NaN/≤ 0 → baseRadius (тихая деградация, без
+  // console.error — обычные вызовы без player.js).
+  function radiusFor(mult) {
+    if (typeof mult !== 'number' || !Number.isFinite(mult) || mult <= 0) {
+      return VISION_BASE_RADIUS;
+    }
+    return Math.max(1, Math.ceil(VISION_BASE_RADIUS * mult - 1e-9));
+  }
+
+  // Чистая маска видимости по ВСЕЙ сетке (не только вьюпорт — ТЗ
+  // «маска — на уровень/кадр, не на клетку»). Индекс = y·w + x
+  // (конвенция d.cells). Значения: 0 — скрыто (неисследованное),
+  // 1 — explored вне радиуса (затемнить), 2 — видно:
+  // cheb = max(|x−cx|, |y−cy|) ≤ R — +0.5-сдвигов НЕТ (центры клеток
+  // сокращаются; cx, cy = playerPos — дробные при глейде). exploredSet —
+  // ключи 'x,y' (конвенция dungeonMemory); НЕ мутируется (только .has).
+  // Guards: w/h не integer/≤ 0 → Uint8Array(0); radius не number/≤ 0 →
+  // baseRadius; cx/cy не finite → 0; exploredSet null/без .has → пусто.
+  function maskFor(w, h, cx, cy, radius, exploredSet) {
+    if (!Number.isInteger(w) || !Number.isInteger(h) || w <= 0 || h <= 0) {
+      return new Uint8Array(0);
+    }
+    let R = radius;
+    if (typeof R !== 'number' || !Number.isFinite(R) || R <= 0) {
+      R = VISION_BASE_RADIUS;
+    }
+    if (typeof cx !== 'number' || !Number.isFinite(cx)) cx = 0;
+    if (typeof cy !== 'number' || !Number.isFinite(cy)) cy = 0;
+    const has = (exploredSet && typeof exploredSet.has === 'function')
+      ? exploredSet.has.bind(exploredSet) : null;
+    const m = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++) {
+      const dy = Math.abs(y - cy);
+      const row = y * w;
+      for (let x = 0; x < w; x++) {
+        if (Math.max(dy, Math.abs(x - cx)) <= R) {
+          m[row + x] = 2;
+        } else if (has && has(x + ',' + y)) {
+          m[row + x] = 1;
+        }
+      }
+    }
+    return m;
+  }
+
+  // explored — состояние визита (D4): union видимых клеток (каждый кадр
+  // render: все клетки маски == 2, ВЕСЬ w·h, не только вьюпорт).
+  // start() — new Set() (вход = новый визит, ТЗ), close() — null
+  // (гигиена: утечек между подземельями нет). НЕ сейв, НЕ dungeon.js.
+  let explored = null;
 
   // --- Время и кадры (паттерн src/combat-ui.js, задача 000047) ---
   // typeof-гарды обязательны: в vm-песочнице requestAnimationFrame
@@ -356,10 +437,42 @@
     // РИСУЮТСЯ (в подземелье не рисуются). Подземелье (без kind) —
     // без изменений: спрайт dungeonFloorFrame, фолбэк #182029.
     const isCity = s.kind === 'city';
+
+    // Туман войны (000136): маска видимости ПОВЕРХ viewport-обрезки
+    // (ТЗ; порядок слоёв не меняется — D7). Центр — playerPos: ТА ЖЕ
+    // точка, что спрайт/ромб игрока и цель камеры (D3; дробная при
+    // глейде). Радиус — база × caveVisionMult («Кошачий глаз»):
+    // opts.visionMult — ФУНКЦИЯ (main.js: live G.derived(hero)) или
+    // ЧИСЛО (тесты); ОДИН раз на кадр (паттерн liveLevelDeltaMax);
+    // мусор/отсутствие → 1 ТИХО (radiusFor-guard; без console.error —
+    // обычный режим). explored — ленивая инициализация (render без
+    // start) + union ВСЕХ клеток маски == 2 по всей сетке w·h (D4).
+    // Город — без тумана: mask === null (guard'ы слоёв — !isCity).
+    const pos = playerPos(s, nowT);
+    let mask = null;
+    if (!isCity) {
+      if (explored === null) explored = new Set();
+      const vmRaw = ctx.visionMult;
+      let mult = 1;
+      if (typeof vmRaw === 'function') {
+        try { mult = vmRaw(); } catch (err) { mult = 1; }
+      } else if (typeof vmRaw === 'number') {
+        mult = vmRaw;
+      }
+      mask = maskFor(d.width, d.height, pos.x, pos.y,
+        radiusFor(mult), explored);
+      for (let i = 0; i < mask.length; i++) {
+        if (mask[i] === 2) {
+          explored.add((i % d.width) + ',' + Math.floor(i / d.width));
+        }
+      }
+    }
+
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         const isFloor = d.cells[y * d.width + x] === G.CELL_FLOOR;
         if (!isCity && !isFloor) continue; // подземелье: стена-клетки нет
+        if (!isCity && mask[y * d.width + x] === 0) continue; // 000136: скрыто
         const p = proj(x, y);
         if (isCity) {
           g2.fillStyle = isFloor
@@ -393,6 +506,7 @@
     if (loader && wallFrames && Array.isArray(d.wallObjs)) {
       for (const wo of d.wallObjs) {
         if (!wo || wo.x < x0 || wo.x > x1 || wo.y < y0 || wo.y > y1) continue;
+        if (!isCity && mask[wo.y * d.width + wo.x] === 0) continue; // 000136
         const path = wallFrames[wo.obj];
         if (!path) continue;
         const img = (typeof loader.isReady === 'function'
@@ -405,18 +519,23 @@
 
     // Выход «X» и вход — ОСТАЮТСЯ текстовыми/цветовыми маркерами
     // (решение 000067: читаемость; спрайт-изация — за рамками).
-    // Размер и проекция — мировые.
-    const ex = proj(d.exit.x, d.exit.y);
-    g2.fillStyle = '#d4b45a';
-    g2.fillRect(ex.x + 2, ex.y + 2, zoom - 4, zoom - 4);
-    g2.fillStyle = '#101418';
-    g2.font = 'bold ' + (zoom - 8) + 'px ui-monospace, monospace';
-    g2.textAlign = 'center';
-    g2.fillText('X', ex.x + zoom / 2, ex.y + zoom - 5);
+    // Размер и проекция — мировые. 000136: маркеры следуют за КЛЕТКОЙ
+    // (исследованной либо видимой) — исключений ТЗ нет; город — всегда.
+    if (isCity || mask[d.exit.y * d.width + d.exit.x] !== 0) {
+      const ex = proj(d.exit.x, d.exit.y);
+      g2.fillStyle = '#d4b45a';
+      g2.fillRect(ex.x + 2, ex.y + 2, zoom - 4, zoom - 4);
+      g2.fillStyle = '#101418';
+      g2.font = 'bold ' + (zoom - 8) + 'px ui-monospace, monospace';
+      g2.textAlign = 'center';
+      g2.fillText('X', ex.x + zoom / 2, ex.y + zoom - 5);
+    }
     // Вход (откуда зашли).
-    const en = proj(d.entrance.x, d.entrance.y);
-    g2.fillStyle = '#3f9d55';
-    g2.fillRect(en.x + 4, en.y + 4, zoom - 8, zoom - 8);
+    if (isCity || mask[d.entrance.y * d.width + d.entrance.x] !== 0) {
+      const en = proj(d.entrance.x, d.entrance.y);
+      g2.fillStyle = '#3f9d55';
+      g2.fillRect(en.x + 4, en.y + 4, zoom - 8, zoom - 8);
+    }
 
     // Сундуки (000067): спрайт G.DUNGEON_CHEST (zoom*0.8, центр
     // клетки); гарды (sprites.js не загружен / нет пути /
@@ -427,6 +546,7 @@
       ? live.DUNGEON_CHEST : null;
     for (const ch of c.chests) {
       if (ch.opened) continue;
+      if (!isCity && mask[ch.y * d.width + ch.x] === 0) continue; // 000136
       const img = (chestPath && loader && typeof loader.image === 'function')
         ? ((typeof loader.isReady === 'function' ? loader.isReady(chestPath) : true)
           && loader.image(chestPath)) || null
@@ -460,6 +580,10 @@
       && typeof live.frameIndex === 'function';
     for (const m of c.mobs) {
       if (m.defeated) continue;
+      // 000136: guard по КЛЕТКЕ ГРУППЫ (m.x, m.y): смещения юнитов ±0.35
+      // могут вылезти ≤ полклетки в скрытую соседнюю (допущенный
+      // артефакт, D7).
+      if (!isCity && mask[m.y * d.width + m.x] === 0) continue;
       const units = (Array.isArray(m.mobIds) && m.mobIds.length > 0
         && mobSpriteOk)
         ? m.mobIds.map((id, i) => ({
@@ -520,12 +644,31 @@
       g2.font = (zoom - 10) + 'px ui-monospace, monospace';
       g2.fillText(String(m.level), pn.x + zoom / 2, pn.y + zoom / 2 + 3);
     }
+
+    // Затемнение исследованных клеток вне радиуса (000136): ОДИН проход
+    // с ОДНИМ fillStyle FOG_DIM_FILL по viewport-диапазону (x0..x1,
+    // y0..y1) для клеток mask == 1 — поверх всего контента затемнённых
+    // клеток («полупрозрачный слой, не скрыты» ТЗ). ПОСЛЕ всех контурных
+    // слоёв и ПЕРЕД игроком — игрок никогда не затемняется (его клетка
+    // всегда mask == 2). Подземелье только; город — без прохода.
+    if (!isCity) {
+      g2.fillStyle = FOG_DIM_FILL;
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          if (mask[y * d.width + x] === 1) {
+            const p = proj(x, y);
+            g2.fillRect(p.x, p.y, zoom, zoom);
+          }
+        }
+      }
+    }
+
     // Игрок: та же точка, что и цель камеры (хук state.pos(now),
-    // задел 000068). 000067: спрайт Флогистона (zoom*1.15, формула
+    // задел 000068; pos — вынесен вверх: центр маски тумана, D3).
+    // 000067: спрайт Флогистона (zoom*1.15, формула
     // мира), кадр — по действию playerAction (всегда 'idle'); гарды
     // (sprites.js нет / лоадера нет / кадр не готов) — прежний
     // голубой ромб.
-    const pos = playerPos(s, nowT);
     const pp = proj(pos.x + 0.5, pos.y + 0.5);
     let playerImg = null;
     const pf = typeof live.phlogistonFrames === 'function'
@@ -645,6 +788,9 @@
       // между подземельями нет.
       touchHoldDir = null;
       lastTouchHoldStepAt = 0;
+      // Туман войны (000136): вход = новый визит — explored сброшен
+      // (визит-состояние, D4; повторный вход — с нуля).
+      explored = new Set();
       render();
       // Цикл (паттерн combat-ui.js): без rAF (vm-песочница 000043) —
       // null, событийный синхронный рендер, как раньше.
@@ -662,6 +808,17 @@
       // close() (rAF-цикл и так остановлен выше).
       touchHoldDir = null;
       lastTouchHoldStepAt = 0;
+      // Туман войны (000136): визит завершён — explored в null (D4:
+      // утечек между подземельями нет).
+      explored = null;
+    },
+    // Туман войны (000136): чистое ядро видимости — контракты
+    // memory/000136-dungeon-fog-vision.md (D5). Создаётся один раз
+    // при загрузке; функции чистые (liveGame не используют).
+    vision: {
+      baseRadius: VISION_BASE_RADIUS,
+      radiusFor,
+      maskFor,
     },
     isActive,
     render,

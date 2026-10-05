@@ -334,7 +334,12 @@ test('туман FOG-A2: маска — 2 видно / 1 explored (затемн�
   // explored — ключи 'x,y' (конвенция проекта, dungeonMemory).
   const explored = new Set(['7,1', '9,9', '20,20', '2,2']);
   const m = v.maskFor(25, 25, 1, 1, R, explored);
-  assert.ok(m instanceof Uint8Array, 'maskFor → Uint8Array(w·h)');
+  // Утиный тип, а не instanceof: маска — Uint8Array из ВМ-области
+  // песочницы — instanceof Uint8Array хоста не проходит (паттерн
+  // tests/main-visuals.test.js:978 — defeatedAt). deepEqual ниже
+  // работает кросс-realm (FOG-A3).
+  assert.equal(Object.prototype.toString.call(m),
+    '[object Uint8Array]', 'maskFor → Uint8Array(w·h)');
   assert.equal(m.length, 25 * 25, 'маска — по всей сетке w·h');
   // 2 — видно: внутри радиуса, исследованные и нет (исследованная
   // В РАДИУСЕ не затемняется — затемнение только mask == 1).
