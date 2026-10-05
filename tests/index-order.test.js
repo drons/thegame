@@ -1238,3 +1238,27 @@ test('index.html: src/start-window.js подключён и ДО src/main.js (з
   assert.ok(pos('src/start-window.js') < pos('src/main.js'),
     'src/start-window.js должен быть раньше src/main.js (задача 000138)');
 });
+
+// --- Задача 000142: портреты партии (src/portraits-data.js) ---
+//
+// src/portraits-data.js — зеркало каталога assets/portraits (UMD:
+// Game.PortraitsData; генерируется scripts/sync-portraits.js).
+// «После данных, до ui.js» (ТЗ): конец блока *-data.js — МЕЖДУ
+// mob-groups-data.js и map.js. UMD-ловушка 000038: тег обязан быть ДО
+// main.js — транзитивно закреплено через «< ui.js» (ui.js < main.js
+// уже запинено выше) — иначе Game.PortraitsData вне снапшота.
+// Пин НЕ-смежный (union): не ломается, если задача 000140 вставит свой
+// тег (sheet.js) между map.js и player.js — порядок обоих тегов
+// держится автоматически (контракт C4, волна A).
+
+test('index.html: src/portraits-data.js подключён ПОСЛЕ src/mob-groups-data.js (данные) и ДО src/ui.js (задача 000142)', () => {
+  assert.notEqual(pos('src/portraits-data.js'), -1,
+    'src/portraits-data.js не подключён в index.html (задача 000142)');
+  assert.ok(pos('src/mob-groups-data.js') < pos('src/portraits-data.js'),
+    'src/portraits-data.js должен быть ПОСЛЕ src/mob-groups-data.js ' +
+    '(конец блока данных, задача 000142)');
+  assert.ok(pos('src/portraits-data.js') < pos('src/map.js'),
+    'src/portraits-data.js должен быть ДО src/map.js (задача 000142)');
+  assert.ok(pos('src/portraits-data.js') < pos('src/ui.js'),
+    'src/portraits-data.js должен быть ДО src/ui.js (задача 000142)');
+});
