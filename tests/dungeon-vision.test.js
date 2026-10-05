@@ -75,7 +75,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const src = (f) => fs.readFileSync(path.join(ROOT, 'src', f), 'utf8');
@@ -567,61 +566,19 @@ test('туман FOG-B6: сундук/выход вне радиуса и неи
 });
 
 // =====================================================================
-// FOG-C1: регрессия — src/dungeon.js НЕ изменён (зелёный пин)
-// =====================================================================
-
-test('туман FOG-C1: регрессия — src/dungeon.js не изменён (нулевая diff, ТЗ)', (t) => {
-  // Прецедент git-пина — tests/sync-all.test.js (spawnSync; git
-  // недоступен → skip с предупреждением).
-  // МЕЖЗАДАЧНАЯ МИНА (memory/000136-dungeon-fog-vision.md): любая
-  // последующая задача, легитимно правящая dungeon.js (000133 —
-  // сундуки/пул и др.), сломает этот пин в СВОЁМ сьюте — та задача
-  // ре-пинит/убирает пин в своей красной/зелёной стадии (аудит §6).
-  const diff = spawnSync('git',
-    ['diff', '--name-only', 'HEAD', '--', 'src/dungeon.js'],
-    { cwd: ROOT, encoding: 'utf8' });
-  if (diff.error) {
-    t.skip('git недоступен: ' + diff.error.message);
-    return;
-  }
-  if (diff.status !== 0) {
-    t.skip('git diff не выполнен: ' + (diff.stderr || ''));
-    return;
-  }
-  assert.equal(diff.stdout.trim(), '',
-    'git diff HEAD -- src/dungeon.js — пуст (ядро не мутирует)');
-  const st = spawnSync('git',
-    ['status', '--porcelain', '--', 'src/dungeon.js'],
-    { cwd: ROOT, encoding: 'utf8' });
-  if (st.error || st.status !== 0) {
-    t.skip('git status недоступен: '
-      + ((st && (st.stderr || (st.error && st.error.message))) || ''));
-    return;
-  }
-  assert.equal(st.stdout.trim(), '',
-    'нет незакоммиченных изменений src/dungeon.js');
-  // Дельта ВЕТКИ к master (правка по итогам ревью 000136): пин по HEAD
-  // (выше) ловит только незакоммиченный дрейф рабочего дерева; если бы
-  // на ветке появился КОММИТ, правящий dungeon.js, diff по HEAD снова
-  // стал бы пустым. master...HEAD — дельта от merge-base(master, HEAD):
-  // будущий коммит ветки, правящий dungeon.js, ломает пин; движение
-  // master (чужие мержи) — НЕ ломает (наша дельта — от точки
-  // ответвления). Контроль стадии мержа (memory D10) сохраняется.
-  const base = spawnSync('git',
-    ['diff', 'master...HEAD', '--', 'src/dungeon.js'],
-    { cwd: ROOT, encoding: 'utf8' });
-  if (base.error) {
-    t.skip('git diff master...HEAD недоступен: ' + base.error.message);
-    return;
-  }
-  if (base.status !== 0) {
-    t.skip('git diff master...HEAD не выполнен: ' + (base.stderr || ''));
-    return;
-  }
-  assert.equal(base.stdout.trim(), '',
-    'git diff master...HEAD -- src/dungeon.js — пуст (ветка не меняет '
-    + 'ядро относительно master, ТЗ «git diff пуст по файлу»)');
-});
+// FOG-C1: регрессия «src/dungeon.js не изменён» — УБРАН в задаче
+// 000133 (зелёная стадия).
+//
+// МЕЖЗАДАЧНАЯ МИНА сработала как спроектировано
+// (memory/000136-dungeon-fog-vision.md; правило аудита §6): 000133
+// легитимно правит FALLBACK_DUNGEONS в src/dungeon.js (свитки
+// заклинаний — 1:1 с каталогом, ТЗ) → условие пина «файл заморожен»
+// больше не выполняется ни на ветке, ни после мержа. Назначение пина
+// (гард скоупа 000136: туман не трогает ядро) на master исчерпано.
+// Содержимое dungeon.js осталось ЗАКРЕПЛЁНЫМ: deepEqual-пины
+// FALLBACK_DUNGEONS 1:1 с каталогом (tests/dungeon.test.js :343-356
+// + tests/index-order.test.js DUNGEON_ITEMS, в 000133 ре-пинирован
+// под новые свитки).
 
 // =====================================================================
 // FOG-E1: full-chain smoke (зелёный пин)

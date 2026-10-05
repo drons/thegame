@@ -162,11 +162,16 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // Ребейз 000137 на мастер (2026-10-05): MERGED/UNION += '44_perform'
   // (000137, таверна «Выступление») — пин регенерирован по
   // фактическому коду.
+  // Ребейз 000133 на мастер (2026-10-06): MERGED/UNION +=
+  // '40_spell'/'42_spell' (000133, «Расшифровка (заклинание)» —
+  // камень 40 / обелиск 42) — пин регенерирован по фактическому
+  // коду.
   const MERGED = ['36', '37', '38', '40', '41', '42', '45', '46', '48',
-    '44_rest', '44_rumors', '44_perform', 'fire', 'market', 'coin', 'heal'];
+    '44_rest', '44_rumors', '44_perform', 'fire', 'market', 'coin',
+    'heal', '40_spell', '42_spell'];
   const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '45',
     '46', '48', '44_rest', '44_rumors', '44_perform',
-    'fire', 'market', 'coin', 'heal'];
+    'fire', 'market', 'coin', 'heal', '40_spell', '42_spell'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -175,7 +180,7 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   for (const id of regKeys) {
     assert.ok(UNION.includes(id),
       'реестр: чужой id «' + id + '» (union 000074/000075/000076/' +
-      '000077/000091/000092/000093/000094/000095/000137)');
+      '000077/000091/000092/000093/000094/000095/000137/000133)');
   }
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
