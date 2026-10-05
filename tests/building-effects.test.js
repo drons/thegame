@@ -159,10 +159,14 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // фактическому коду.
   // Ребейз 000092 на мастер (2026-10-03): MERGED/UNION += '45'/'coin'/
   // 'heal' (000092) — пин регенерирован по фактическому коду.
+  // Ребейз 000137 на мастер (2026-10-05): MERGED/UNION += '44_perform'
+  // (000137, таверна «Выступление») — пин регенерирован по
+  // фактическому коду.
   const MERGED = ['36', '37', '38', '40', '41', '42', '45', '46', '48',
-    '44_rest', '44_rumors', 'fire', 'market', 'coin', 'heal'];
+    '44_rest', '44_rumors', '44_perform', 'fire', 'market', 'coin', 'heal'];
   const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '45',
-    '46', '48', '44_rest', '44_rumors', 'fire', 'market', 'coin', 'heal'];
+    '46', '48', '44_rest', '44_rumors', '44_perform',
+    'fire', 'market', 'coin', 'heal'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -171,7 +175,7 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   for (const id of regKeys) {
     assert.ok(UNION.includes(id),
       'реестр: чужой id «' + id + '» (union 000074/000075/000076/' +
-      '000077/000091/000092/000093/000094/000095)');
+      '000077/000091/000092/000093/000094/000095/000137)');
   }
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
@@ -3129,8 +3133,10 @@ test('A65. реестр + каталог 44: «Отдых» (44_rest, БЕЗ app
   // Зеркало каталога 44 (000053: каталог-драйвен; sync-скрипт, byte-match).
   const B = require('../src/buildings.js');
   const p44 = B.getBuilding(44).особые_параметры;
-  assert.deepEqual(p44.эффекты, ['44_rest', '44_rumors'],
-    'каталог 44: особые_параметры.эффекты — массив ДВУХ действий (red: нет)');
+  assert.deepEqual(p44.эффекты,
+    ['44_rest', '44_rumors', '44_perform'],
+    'каталог 44: особые_параметры.эффекты — массив ТРЁХ действий '
+    + '(44_perform — аппенд 000137)');
   const texts = p44.эффект && p44.эффект.слухи && p44.эффект.слухи.тексты;
   assert.ok(Array.isArray(texts) && texts.length === 8,
     'каталог 44: эффект.слухи.тексты — ровно 8 строк (red: нет)');
@@ -3138,25 +3144,32 @@ test('A65. реестр + каталог 44: «Отдых» (44_rest, БЕЗ app
     assert.equal(typeof t, 'string', 'текст слуха — строка');
     assert.ok(t.length > 0, 'текст слуха — non-empty');
   }
-  assert.equal(p44.раз_в_день, undefined,
-    'каталог 44: БЕЗ раз_в_день (ТЗ: лимитов нет)');
+  // 000137: per-эффектный объект — ТОЛЬКО 44_perform (boolean нельзя:
+  // поставил бы лимит на 44_rest/44_rumors задним числом — регресс
+  // B26/B27/A65).
+  assert.deepEqual(p44.раз_в_день, { '44_perform': true },
+    'каталог 44: раз_в_день — per-эффектный {44_perform:true} (000137)');
   // НЕ трогать (000060/000064): map_index 11, виды, малая.
   assert.equal(p44.map_index, 11, 'каталог 44: map_index 11 не тронут');
   assert.deepEqual(p44.виды, ['food', 'potion'],
     'каталог 44: виды [food, potion] не тронуты (магазин 000060)');
   assert.equal(p44.малая, true, 'каталог 44: малая true не тронута');
-  // Лимитов НЕТ для обоих эффектов (каталог без флага + запись без разВДень).
+  // Лимитов НЕТ для 44_rest/44_rumors (каталог: ключа нет; запись
+  // без разВДень); 000137: 44_perform — С ЛИМИТОМ (per-эффектный).
   assert.equal(BE.hasDailyLimit(B.getBuilding(44), '44_rest'), false,
     'hasDailyLimit(44, 44_rest) — false (без лимита)');
   assert.equal(BE.hasDailyLimit(B.getBuilding(44), '44_rumors'), false,
     'hasDailyLimit(44, 44_rumors) — false (без лимита)');
+  assert.equal(BE.hasDailyLimit(B.getBuilding(44), '44_perform'), true,
+    'hasDailyLimit(44, 44_perform) — true (per-эффектный, 000137)');
   // Связка «постройка → эффекты» — через массив (1-к-1 НЕ покрывает два).
   assert.deepEqual(BE.effectIds(B.getBuilding(44)),
-    ['44_rest', '44_rumors'], 'effectIds(44) — из массива каталога');
+    ['44_rest', '44_rumors', '44_perform'],
+    'effectIds(44) — из массива каталога (44_perform — 000137)');
   // Оверлей: «Диалог» (NPC Берта) ПЕРВЫМ, затем эффекты в порядке каталога.
   const res = BE.buildingActions(B.getBuilding(44), NPC(), makeState());
   assert.deepEqual(res.map((a) => a.id),
-    ['dialog', '44_rest', '44_rumors'],
+    ['dialog', '44_rest', '44_rumors', '44_perform'],
     'buildingActions(44, npc): dialog + эффекты (red: нет записей)');
   for (const a of res) {
     assert.equal(a.доступен, true, 'строка «' + a.id + '» — доступна');
@@ -6929,9 +6942,10 @@ test('B26. «Отдых» e2e: таверна (41,2) — HUD «([E] Берта, 
   assert.ok(ov, 'оверлей подвешен к body');
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
-    ['dialog', '44_rest', '44_rumors'],
+    ['dialog', '44_rest', '44_rumors', '44_perform'],
     'строки: «Диалог» (Берта) ПЕРВЫМ + «Отдых» + «Слухи» '
-    + '(red: нет записей в реестре/каталоге)');
+    + '+ «Выступление» (44_perform — аппенд 000137; '
+    + 'red: нет записей в реестре/каталоге)');
   for (const r of rows) {
     assert.equal(r.disabled, false,
       'строка «' + r.dataset.buid + '» — доступна');
@@ -6987,8 +7001,9 @@ test('B27. «Слухи» e2e: таверна (41,2), день 1 — flash «С�
   assert.ok(ov, 'оверлей подвешен к body');
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
-    ['dialog', '44_rest', '44_rumors'],
-    'строки: dialog + 44_rest + 44_rumors (red: нет записей)');
+    ['dialog', '44_rest', '44_rumors', '44_perform'],
+    'строки: dialog + 44_rest + 44_rumors + 44_perform (аппенд 000137; '
+    + 'red: нет записей)');
   const rowR = findRow(ov, '44_rumors');
   assert.ok(rowR, 'строка 44_rumors в оверлее (red: строки нет)');
   assert.equal(rowR.disabled, false, 'день 1 — доступно');
@@ -8039,10 +8054,14 @@ test('PF3. 000137: «Выступление» — детерминизм: дох
 
 test('PF4. 000137: e2e «Выступление»: таверна (41,2) — [E] → Digit4: +gold (формула), день НЕ проходит, марка "41,2:44_perform"; повтор — «выступал сегодня»; после 44_rest (день 2) — снова доступно', async () => {
   const L = 5; // Артист 5 → mult 1.5 → +30 (реальный каталог 10/2)
+  // LIVE derived — по ОБЪЕКТУ героя (ядро createCharacter + artist L):
+  // g.state.hero — снапшот __game (main.js) БЕЗ primary/secondary —
+  // для формулы не подходит (паттерн PF1/PF3: P.derived по hero).
+  const hero0 = mkHero({ secondary: { artist: L } });
   const h = await boot(seedSave({
     day: 1,
     position: { x: 41, y: 2 },
-    hero: mkHero({ secondary: { artist: L } }),
+    hero: hero0,
   }));
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -8074,7 +8093,7 @@ test('PF4. 000137: e2e «Выступление»: таверна (41,2) — [E]
   const eff = B.getBuilding(44).особые_параметры.эффект.выступление;
   assert.ok(eff && typeof eff === 'object',
     'каталог 44: эффект.выступление (красный: в каталоге нет)');
-  const mult = G.derived(g.state.hero).performanceIncomeMult;
+  const mult = P.derived(hero0).performanceIncomeMult;
   assert.equal(mult, 1 + 0.1 * L,
     'performanceIncomeMult = 1 + 0.1×Артист (SPEC)');
   const expected = Math.round(Math.round(eff.база + eff.шаг * L) * mult);

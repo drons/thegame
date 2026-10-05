@@ -475,6 +475,24 @@
     имя: 'Слухи',
     apply: (st) => applyTavernRumors(st),
   };
+  // --- Задача 000137: таверна (44) — «Выступление» (44_perform) ---
+  // РАЗ В ДЕНЬ (каталог 000044: per-эффектный объект раз_в_день;
+  // 44_rest/44_rumors — лимита нет, как до). Доход золотом — ЧИСТАЯ
+  // формула performGold (каталог эффект.выступление {база, шаг,
+  // навык} × derived.performanceIncomeMult — LIVE-чтение, 000013;
+  // детерминизм: НЕТ Math.random/Date/(tile, day)-сидов — в отличие
+  // от монеты фонтана 49). Мир-действие БЕЗ «стороны» (день НЕ
+  // проходит — в отличие от 44_rest): золото живому hero начисляет
+  // спец-модуль src/building-effect-44_perform.js (паттерн
+  // handlerCoin 000092). available — performAvailable (строка ТЗ
+  // «выступал сегодня»; ДО generic «уже использовано сегодня»).
+  // Ключ раз-в-день — dailyKeyFor (город — якорь, мир — тайл;
+  // контракт — memory/000137-tavern-perform-city-daily.md).
+  EFFECTS['44_perform'] = {
+    имя: 'Выступление',
+    available: (st) => performAvailable(st),
+    apply: (st) => applyTavernPerform(st),
+  };
   // --- Группа 000092: фонтан (49) — ДВА НЕЗАВИСИМЫХ счётчика
   //     (исцеление — раз в день, монета — без лимита; ключ
   //     'x,y:effectId' — 000072), колодец (45) — 1-к-1 ---
@@ -583,6 +601,36 @@
     const m = save.buildingOncePerDay;
     if (!m || typeof m !== 'object' || Array.isArray(m)) return undefined;
     return Object.prototype.hasOwnProperty.call(m, key) ? m[key] : undefined;
+  }
+
+  /**
+   * Задача 000137: ЕДИНАЯ точка построения ключа «раз в день».
+   * Формат ВСЕГДА `<целое_X>,<целое_Y>:<effectId>` (одна форма —
+   * DAY_MAP_KEY_RE day.js: restoreDayMap молча отбрасывает ключи
+   * другой формы — лимит сбрасывался бы при загрузке сейва):
+   *   * город — (X,Y) = ЯКОРЬ ГОРОДА: tile.cityAnchor — строка
+   *     'ax,ay' (buildingAnchor входного тайла, резолв —
+   *     interactCity building-actions.js; тот же ключ, что
+   *     cityStates 000109). Формат для ВСЕХ будущих городских
+   *     эффектов с лимитом (memory/000137-tavern-perform-city-daily.md
+   *     §1, audit §7; ловушка 000107 — локальные координаты);
+   *   * мир — (X,Y) = тайл постройки: дословно текущий формат
+   *     'x,y:effectId' (000072; пины BA4(e)/PF2/41,2:44_perform).
+   * Четыре стороны идут через ЭТУ строку: mark (onBuildingAction),
+   * read (buildingActions), available (performAvailable), re-check в
+   * apply (applyTavernPerform). tile.cityAnchor — непустая строка →
+   * якорь; иначе/мусор — клетка (деградация согласована на обеих
+   * сторонах — игра не падает).
+   * @param {{x: number, y: number, cityAnchor?: string|null}} tile
+   * @param {string} effectId id эффекта (без ':'/','/пробелов)
+   * @returns {string} ключ buildingOncePerDay
+   */
+  function dailyKeyFor(tile, effectId) {
+    const t = tile || { x: 0, y: 0 };
+    const anchor = (typeof t.cityAnchor === 'string'
+      && t.cityAnchor !== '') ? t.cityAnchor : null;
+    if (anchor !== null) return anchor + ':' + effectId;
+    return t.x + ',' + t.y + ':' + effectId;
   }
 
   // Game в момент ВЫЗОВА (ленивый захват, паттерн 000053): модуль
@@ -1611,6 +1659,121 @@
     return { ok: true, message: 'Слухи:\n· ' + hints.join('\n· ') };
   }
 
+  // --- Задача 000137: таверна (44) «Выступление» (44_perform) ---
+  // Доход золотом — ЧИСТАЯ функция (каталог, уровень, mult): НЕТ
+  // Math.random/Date/(tile, day)-сидов (ТЗ «детерминизм»; в отличие
+  // от монеты фонтана 49 — сид (tile, day)). mult —
+  // derived.performanceIncomeMult — LIVE-чтение в apply (000013;
+  // закрывает мёртвый стат player.js:247 — SPEC «заработок на
+  // выступлениях»). Мир-действие БЕЗ «стороны»: день НЕ проходит
+  // (clock не трогать — в отличие от 44_rest); золото живому hero
+  // начисляет спец-модуль building-effect-44_perform.js (паттерн
+  // handlerCoin 000092: apply → результат → исполнение ханками).
+  // Контракт — memory/000137-tavern-perform-city-daily.md §4.
+
+  /**
+   * Ядро дохода «Выступления» (таверна 44): ЦЕЛОЕ золото
+   * `round(round(база + шаг × level) × mult)`. eff —
+   * особые_параметры.эффект.выступление { база, шаг, навык }
+   * (каталог 000044, 000053); level — G.skillLevel(hero, eff.навык);
+   * mult — G.derived(hero).performanceIncomeMult (LIVE, 000013).
+   * Не-числовые база/шаг → 0 (деградация); level не-число → 0;
+   * mult не-finite → 1 (fail-open 000029). Внешний round — ЦЕЛОЕ
+   * золото (combat.js:706, coinGold): mult = 1+0.1L даёт дробь
+   * (L=1: 12×1.1 = 13.2 → 13). Чистая: те же аргументы — тот же
+   * результат (детерминизм; PF3).
+   * @returns {number} золото (целое ≥ 0)
+   */
+  function performGold(effect, level, mult) {
+    const base = effect && effect.база;
+    const step = effect && effect.шаг;
+    if (!Number.isFinite(base) || !Number.isFinite(step)) return 0;
+    const m = Number.isFinite(mult) ? mult : 1;
+    return Math.round(Math.round(base + step * (Number(level) || 0)) * m);
+  }
+
+  /**
+   * «Выступление» (таверна, 44_perform): РАЗ В ДЕНЬ (каталог:
+   * per-эффектный объект раз_в_день). Успех — { ok:true, success:
+   * true, gold, message:'Выступление: +N золота.' }; золото НЕ
+   * clamp-аемо (в отличие от исцеления фонтана) → RE-CHECK марки
+   * из СНИМКА (защита в глубину, отличие от существующих эффектов —
+   * осознанное, §4 контракта): stale-повторный вызов обязан быть
+   * отказом { ok:false, message:'выступал сегодня' } на ВСЕХ путях
+   * (роутер: flash, БЕЗ марки/saveNow/render). Ключ — dailyKeyFor
+   * (город — st.cityAnchor отдельным полем apply-state, мир —
+   * тайл). Гарды — отказ «недоступно»: нет G/G.skillLevel/
+   * G.derived; каталог-мусор (выступление не объект / база/шаг
+   * не-finite / навык не строка); нет hero. apply ЧИСТО: снимок не
+   * мутирует.
+   * @returns {{ok: boolean, success?: boolean, gold?: number,
+   *            message?: string}}
+   */
+  function applyTavernPerform(st) {
+    const G = lazyGame();
+    if (!G || typeof G.skillLevel !== 'function' ||
+        typeof G.derived !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const eff0 = catalogEffect(st);
+    const eff = (eff0 && typeof eff0.выступление === 'object' &&
+                 !Array.isArray(eff0.выступление))
+      ? eff0.выступление : null;
+    if (!eff || !Number.isFinite(eff.база) || !Number.isFinite(eff.шаг)
+        || typeof eff.навык !== 'string') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const hero = st && st.hero;
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    // RE-CHECK марки (снимок; ключ — dailyKeyFor: город —
+    // st.cityAnchor, мир — тайл; §4 контракта).
+    const tile = (st && st.tile) || { x: 0, y: 0 };
+    const anchor = (typeof st.cityAnchor === 'string'
+      && st.cityAnchor !== '')
+      ? st.cityAnchor
+      : (typeof tile.cityAnchor === 'string' && tile.cityAnchor !== ''
+        ? tile.cityAnchor : null);
+    const key = dailyKeyFor(
+      Object.assign({}, tile, { cityAnchor: anchor }), '44_perform');
+    const last = readOncePerDay(st.save, key);
+    if (!canUseTodayLazy(last, st.day)) {
+      return { ok: false, message: 'выступал сегодня' };
+    }
+    const level = G.skillLevel(hero, eff.навык);
+    const d = G.derived(hero);
+    const mult = (d && Number.isFinite(d.performanceIncomeMult))
+      ? d.performanceIncomeMult : 1; // fail-open (000029)
+    const gold = performGold(eff, level, mult);
+    return {
+      ok: true,
+      success: true,
+      gold,
+      message: 'Выступление: +' + gold + ' золота.',
+    };
+  }
+
+  /**
+   * available?(state) «Выступления» (таверна 44_perform): без
+   * каталожного лимита — доступно; с лимитом — марка (dailyKeyFor,
+   * тот же ключ, что mark/apply) в тот же день — строка ТЗ
+   * «выступал сегодня» (ОПРАШИВАЕТСЯ ДО generic
+   * «уже использовано сегодня» в buildingActions — generic для
+   * 44_perform недостижим). Паттерн dailyContentAvailable.
+   * @returns {true|string} true — доступно; строка — reason
+   */
+  function performAvailable(st) {
+    if (!hasDailyLimit(st && st.catalog, '44_perform')) return true;
+    const tile = (st && st.tile) || { x: 0, y: 0 };
+    const key = dailyKeyFor(tile, '44_perform');
+    const last = readOncePerDay(st && st.save, key);
+    if (!canUseTodayLazy(last, st && st.day)) {
+      return 'выступал сегодня';
+    }
+    return true;
+  }
+
   /**
    * «Сон» (задача 000076): ЧИСТАЯ подсказка о ближайшем входе в
    * пещеру и типе подземелья.
@@ -1794,9 +1957,10 @@
       // нажатие умирало молча).
       let reason = unavailableReason(entry, st);
       if (reason === undefined && hasDailyLimit(building, id)) {
-        // Ключ 'x,y:effectId' — конвенция 000072 (целые координаты,
-        // могут быть отрицательными; effectId — без ':'/',').
-        const key = tile.x + ',' + tile.y + ':' + id;
+        // Ключ — ЕДИНАЯ точка dailyKeyFor (задача 000137): мир —
+        // 'x,y:effectId' (конвенция 000072 — без изменений), город —
+        // 'ax,ay:effectId' (якорь; tile.cityAnchor из openBuildingUI).
+        const key = dailyKeyFor(tile, id);
         const last = readOncePerDay(st.save, key);
         if (!canUseTodayLazy(last, st.day)) {
           reason = 'уже использовано сегодня';
@@ -2347,5 +2511,9 @@
     coinChance, wellChance, coinGold,
     applyFountainHeal, applyFountainCoin, applyWell,
     COIN_ROLL_SEED, WELL_ROLL_SEED, WELL_ITEM_SEED,
+    // Задача 000137: таверна (44) «Выступление» (44_perform) — ядро
+    // performGold + apply/available + ЕДИНАЯ точка ключа dailyKeyFor
+    // (город — якорь, мир — тайл; §1–2 контракта).
+    performGold, applyTavernPerform, performAvailable, dailyKeyFor,
   };
 });

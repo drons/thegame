@@ -44,6 +44,9 @@ test('index.html: нужные модули подключены', () => {
     'src/building-ui.js',
     'src/building-actions.js',
     'src/building-effect-44_rest.js',
+    // 000137: спец-модуль «Выступление» (рядом с 44_rest — слот
+    // спец-модулей таверны; порядок закрепляет IO1).
+    'src/building-effect-44_perform.js',
     'src/building-content.js',
     'src/building-effect-45.js',
     'src/building-effect-48.js',
