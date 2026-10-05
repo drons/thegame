@@ -761,7 +761,7 @@ test('подземелье UI: стартовый zoom — из opts (миров
     'без opts.zoom → G.ZOOM_START (' + G.ZOOM_START + ' px/клетку)');
 });
 
-test('подземелье UI: рисуется только G.visibleTileRange ∩ границы подземелья', () => {
+test('подземелье UI: рисуется = G.visibleTileRange ∩ границы ∩ маска видимости (000136)', () => {
   const rafStubs = makeRafStubs();
   const T = { t: 1000 };
   const { G, body } = loadDungeonUi({
@@ -769,6 +769,13 @@ test('подземелье UI: рисуется только G.visibleTileRange 
     requestAnimationFrame: rafStubs.requestAnimationFrame,
     cancelAnimationFrame: rafStubs.cancelAnimationFrame,
   });
+  // 000136: туман войны — ядро видимости G.dungeonUI.vision
+  // (контракт memory/000136-dungeon-fog-vision.md): клетка floor
+  // нарисована ⟺ в inRange И в радиусе: чебышёв(kлетка, hero) ≤
+  // radiusFor(mult). КРАСНО: экспорт ещё не существует.
+  const vision = G.dungeonUI.vision;
+  assert.ok(vision && typeof vision.radiusFor === 'function',
+    'G.dungeonUI.vision.radiusFor — экспорт ядра видимости (000136)');
   const s = makeState({ width: 25, height: 25 });
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
   T.t += 16;
@@ -776,7 +783,10 @@ test('подземелье UI: рисуется только G.visibleTileRange 
   const calls = findCanvas(body).drawCalls;
   // Игрок (1,1) — цель камеры (1.5,1.5) вне [viewW/2/zoom, w−viewW/2/zoom]
   // = [10, 15]×[7.5, 17.5] → снап+кламп: cam (10, 7.5).
+  // Центр маски = playerPos = (s.x, s.y) = (1, 1) (pos-функции нет);
+  // hero без «Кошачьего глаза»: mult 1 → R = radiusFor(1.0).
   const camX = VW / 2 / 40, camY = VH / 2 / 40;
+  const R = vision.radiusFor(1.0);
   const r = G.visibleTileRange(camX, camY, VW, VH, 40);
   let visibleFloor = 0;
   let hiddenFloor = 0;
@@ -786,14 +796,19 @@ test('подземелье UI: рисуется только G.visibleTileRange 
       const inRange =
         x >= Math.max(0, r.x0) && x <= Math.min(24, r.x1)
         && y >= Math.max(0, r.y0) && y <= Math.min(24, r.y1);
+      // 000136: чебышёв-расстояние до КЛЕТКИ героя (целочисленная
+      // позиция; +0.5-сдвигов НЕТ — контракт D3).
+      const inMask =
+        Math.max(Math.abs(x - s.x), Math.abs(y - s.y)) <= R;
       const p = G.worldToScreen(x, y, camX, camY, 40, VW, VH);
       const drawn = floorRectAt(calls, p.x, p.y, 40);
-      if (inRange) {
+      if (inRange && inMask) {
         assert.ok(drawn, 'видимая floor-клетка (' + x + ',' + y + ') нарисована');
         visibleFloor++;
       } else {
         assert.ok(!drawn,
-          'floor-клетка (' + x + ',' + y + ') вне visibleTileRange не нарисована');
+          'floor-клетка (' + x + ',' + y + ') вне inRange/радиуса '
+          + 'не нарисована');
         hiddenFloor++;
       }
     }
@@ -1173,9 +1188,16 @@ test('подземелье UI: state.pos(now) — цель КАМЕРЫ тоже
   T.t += 16;
   tick(rafStubs);
   calls = findCanvas(loaded.body).drawCalls;
-  p = G.worldToScreen(13, 13, VW / 2 / 40, VH / 2 / 40, 40, VW, VH);
+  // 000136 (ложная регрессия, правка пина по ТЗ): floor (13,13) в
+  // клампе (10, 7.5) — чебышёв 12 от центра маски (1,1) → с туманом
+  // войны НЕ рисуется ПО ЗАПРОЕКТУ (не баг). Пин механизма (камера
+  // у клампа, cell-клетка в вьюпорте) — клетка (1,1) = центр маски
+  // (hero, без pos), в вьюпорте [0,20]×[0,15].
+  p = G.worldToScreen(1, 1, VW / 2 / 40, VH / 2 / 40, 40, VW, VH);
   assert.ok(floorRectAt(calls, p.x, p.y, 40),
-    'без pos: камера у клампа (10, 7.5) — floor (13,13) в ' + p.x + ',' + p.y);
+    'без pos: камера у клампа (10, 7.5) — floor (1,1) в ' + p.x + ',' + p.y
+    + ' (000136: (13,13) — чебышёв 12 от центра маски (1,1) — '
+    + 'не рисуется по проекту)');
 });
 
 // --- Красные: требования задачи 000067 (падают до реализации) ---

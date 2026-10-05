@@ -1845,6 +1845,19 @@
       zoom,
       onZoom: (z) => { zoom = z; },
       spriteLoader,
+      // Туман войны (задача 000136): множитель радиуса видимости —
+      // derived.caveVisionMult («Кошачий глаз», player.js — закрывает
+      // мёртвый стат). ФУНКЦИЯ, а не getter: start() делает {...opts},
+      // который оценивает getter ОДИН раз (заморозка при входе); live —
+      // только функция. Чтение — один раз на кадр в render dungeon-ui
+      // (паттерн liveLevelDeltaMax dungeon.js); город — без тумана
+      // (dungeon-ui игнорирует visionMult при isCity).
+      visionMult: () => {
+        const dd = G.derived ? G.derived(hero) : null;
+        const m = dd ? dd.caveVisionMult : 1;
+        return (typeof m === 'number' && Number.isFinite(m) && m > 0)
+          ? m : 1;
+      },
     });
   }
   function exitLocation(ds) {
