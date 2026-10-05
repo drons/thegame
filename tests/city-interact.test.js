@@ -96,17 +96,22 @@ const ROOT = path.join(__dirname, '..');
 // ============================================================
 
 // Городские записи каталога (срез нужных полей; map_index — из
-// 000001/000044: оружейная 0, таверна 11).
+// 000001/000044: оружейная 0, таверна 11; лавка странника 5 —
+// map_index НЕТ: SPEC L349-350, 000134 — канал только NPC-торговля).
 const CITY_RECS = {
   1: { id: 1, название: 'Оружейная', категория: 'здание',
     особые_параметры: { map_index: 0, виды: ['weapon'] } },
+  5: { id: 5, название: 'Лавка странника', категория: 'здание',
+    особые_параметры: { виды: [] } }, // map_index нет (SPEC L349-350)
   7: { id: 7, название: 'Арена', категория: 'здание',
     особые_параметры: { map_index: 2, виды: ['training'] } },
   44: { id: 44, название: 'Таверна', категория: 'здание',
     особые_параметры: { map_index: 11, виды: ['food', 'potion'] } },
 };
 // NPC постройок (постройки — массив id, как в каталоге assets/npc).
-const NPC_WREN = { id: 'npc_wren', имя: 'Бренн', постройки: [1],
+// 000134: у Бренна + Лавка (5) — фейковый торговец для пина
+// shopFor-fallback (D2); реальный NPC Лавки — Хольд (000011.json).
+const NPC_WREN = { id: 'npc_wren', имя: 'Бренн', постройки: [1, 5],
   торговля: { предметы: [{ предмет: 'wood_sword' },
     { предмет: 'iron_sword' }] } };
 const NPC_BERTA = { id: 'npc_berta', имя: 'Берта', постройки: [44] };
@@ -198,9 +203,12 @@ function makeDeps(over = {}) {
     prevPos: { x: 5, y: 7 },
     npcs: over.npcs === undefined ? [NPC_WREN, NPC_BERTA] : over.npcs,
     cityState: () => ds,
+    // Зеркало main.js npcShopFor (000029): {npc, stock} — npc
+    // резолвится из deps.npcs (реальный — G.npcById); stock — фейк.
     npcShopFor: (id) => {
       npcShopForCalls.push(id);
-      return { npc: null, stock: { world_item: 1 } };
+      const npc = (deps.npcs || []).find((n) => n.id === id) || null;
+      return { npc, stock: { world_item: 1 } };
     },
     // city-ветка контракта shopFor (main.js): {npc, stock} | null.
     // Мир — fallback npcShopFor (в городе не должен вызываться).
@@ -208,7 +216,10 @@ function makeDeps(over = {}) {
       const d = deps.cityState();
       if (d && d.kind === 'city' && d.cityShops && t) {
         const s = d.cityShops[t.x + ',' + t.y];
-        if (!s) return null;
+        // 000134 (зеркало D2): клетка города С cityShops-записью →
+        // городской сток; БЕЗ записи (Лавка 5 — нет map_index,
+        // SPEC L349-350) → NPC-канал npcStocks как в мире.
+        if (!s) return npc ? deps.npcShopFor(npc.id) : null;
         if (!npc || !npc.торговля || !Array.isArray(npc.торговля.предметы)) {
           return null; // таверна: Берта без торговля — гасим ДО npcUI
         }
@@ -391,6 +402,32 @@ test('CI-U10. деградация: Game.buildingUI отсутствует → n
     'npcUI.open — не вызван (прямой обход НЕ строится — асимметрия с toggle())');
   assert.ok(errs.some((m) => m.includes('обход запрещён')),
     'console.error «обход запрещён»: ' + JSON.stringify(errs));
+});
+
+test('CI-U11. 000134: клетка города БЕЗ cityShops-записи (Лавка id 5 — нет map_index, SPEC L349-350) → shopFor — fallback npcShopFor (живой NPC-сток), не null (D2, юнит-пин; e2e — CI-134A)', () => {
+  // ds = {kind: 'city', cityShops: {}} — записи городской стока НЕТ
+  // (makeCityShop → null у Лавки — guard !map_index, cities.js:453);
+  // NPC постройки 5 — Бренн (фейковый торговец; реальный — Хольд,
+  // 000011.json). Без fallback (D2) shop = null → одноразовая
+  // копия стока в ui.js — покупки не сериализуются.
+  const { BA, o, npcShopForCalls } = initCity({
+    cityContents: [{ x: 2, y: 3, buildingId: 5 }],
+    cityShops: {},
+  });
+  BA.interactCity();
+  assert.equal(o.calls.buildingOpen.length, 1, 'buildingUI (Лавка)');
+  const p = o.calls.buildingOpen[0];
+  assert.equal(p.title, 'лавка странника', 'title — из каталога');
+  assert.equal(p.actions.length, 1, 'одна строка — «Диалог» (NPC есть)');
+  p.onAction({ id: 'dialog' });
+  assert.equal(o.calls.npcOpen.length, 1, '«Диалог» → npcUI.open');
+  assert.deepEqual(npcShopForCalls, ['npc_wren'],
+    'RED: fallback — мирный npcShopFor ВЫЗВАН (ключ — npcId)');
+  const n = o.calls.npcOpen[0];
+  assert.deepEqual(n.shop, { npc: NPC_WREN, stock: { world_item: 1 } },
+    'RED: shop — NPC-канал (живой сток npcStocks), НЕ null/одноразовый');
+  assert.equal(n.tile.building, null,
+    'tile.building — null (map_index нет — SPEC L349-350)');
 });
 
 // ============================================================
