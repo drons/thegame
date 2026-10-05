@@ -665,7 +665,16 @@
   // недопустим); падений/confirm НЕТ (confirm — только
   // migration_failed/corrupt при загрузке).
   let saveWarned = false;
+  // 000138: флаг подавления re-сейва после ПОДТВЕРЖДЁННОГО
+  // «Начать заново»: location.reload() fire'ит beforeunload →
+  // saveNow() перезаписал бы (восстановленный) СТАРЫЙ сейв сразу
+  // после G.clear — «сброс» тихо откатился бы (memory/000138-
+  // start-window.md §6). Флаг ставится ДО clear+reload (блок
+  // стартового окна ниже); ФЛАГ, а не removeEventListener — кроет
+  // ЛЮБОЙ путь saveNow (каждый мировой шаг и beforeunload).
+  let resetPending = false;
   function saveNow() {
+    if (resetPending) return; // 000138: не перезаписывать после сброса
     if (!saveStorage || !G.save) return;
     if (G.save(saveStorage, collectSaveData()) === false
         && !saveWarned) {
@@ -675,6 +684,35 @@
     }
   }
   window.addEventListener('beforeunload', saveNow);
+
+  // --- Стартовое окно (задача 000138) ---
+  // Логотип assets/logo.svg + «Продолжить» (зелёный) /
+  // «Начать заново» (красный). Игра ПОД окном стартует как сейчас
+  // (окно — оверлей, не гейт: пины e2e бута). Ядро —
+  // src/start-window.js (Game.startWindow, чистая стейт-машина,
+  // тестируется в node); здесь — DOM-привязка, сброс данных
+  // (G.clear + reload) и подавление re-сейва (resetPending).
+  // Модуль не загружен (регрессия порядка — UMD-ловушка 000038):
+  // окна нет, игра стартует как раньше (деградация, не крах).
+  let startWindow = null;
+  if (G.startWindow &&
+      typeof G.startWindow.createStartWindow === 'function') {
+    startWindow = G.startWindow.createStartWindow({
+      document,
+      onRestartConfirmed: () => {
+        // 000138: флаг ДО clear+reload — иначе beforeunload на
+        // reload перезапишет старый сейв (saveNow выше).
+        resetPending = true;
+        if (saveStorage && G.clear) G.clear(saveStorage);
+        const loc = window.location;
+        if (loc && typeof loc.reload === 'function') loc.reload();
+      },
+    });
+  } else {
+    console.error('main.js: start-window.js не загружен (обязан ' +
+      'стоять ДО src/main.js — UMD-ловушка 000038, задача ' +
+      '000138) — нет стартового окна');
+  }
 
   // Верхняя граница дня в сейве (защита от подделанного сейва).
   // Восстановление дня — O(1) (clock.fastForward, без слушателей),
@@ -2499,6 +2537,10 @@
         controls: controlsScheme, // 'touch' | 'keyboard' (задача 000018)
       };
     },
+    // Стартовое окно (000138): объект src/start-window.js
+    // (createStartWindow) — { root, dom, isActive, hide } — или
+    // null (модуль не загружен). Точка e2e/смоук-тестов.
+    startWindow,
     // Журнал квестов (задача 000010): active — инстансы, done — ids.
     get quests() {
       return questBook
