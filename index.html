@@ -659,6 +659,81 @@
       background: #d8c27a;
       border-radius: 2px;
     }
+    /* Стартовое окно (задача 000138): полноэкранная НЕПРОЗРАЧНАЯ
+       подложка (визуально заменяет «Загрузка мира…» в #hud) —
+       логотип + «Продолжить» (зелёный) / «Начать заново» (красный);
+       «Начать заново» — тройное переспрашивание (Да/Нет/Да) перед
+       стиранием сохранений. z-index 40 — НОВАЯ верхняя ступень
+       лестницы (.char-panel 10 < .fs-btn 15 < оверлеи боя/
+       подземелья 20 < #touch-controls 30 < start-window 40).
+       Панель подтверждения (.start-window-confirm) показывается
+       inline display:flex из src/start-window.js (базовый display
+       none здесь — страховка). */
+    .start-window {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      padding: 16px;
+      background: #101418;
+      color: #e8dcc0;
+      font: 16px/1.5 ui-monospace, monospace;
+      text-align: center;
+    }
+    .start-window-logo {
+      width: min(42vh, 42vw, 300px);
+      height: auto;
+      display: block;
+    }
+    .start-window-main {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 24px;
+    }
+    .start-window-confirm {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      max-width: 560px;
+    }
+    .start-window-question {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .start-window-ans {
+      display: flex;
+      gap: 24px;
+    }
+    .start-window-btn {
+      min-width: 220px;
+      padding: 12px 28px;
+      border: 1px solid #6b6248;
+      border-radius: 10px;
+      background: #2c3040;
+      color: #e8dcc0;
+      font: 700 16px ui-monospace, monospace;
+      cursor: pointer;
+    }
+    .start-window-btn--continue {
+      background: #6fdc6f;
+      color: #101418;
+    }
+    .start-window-btn--continue:hover {
+      background: #8bf58b;
+    }
+    .start-window-btn--restart {
+      background: #d9483b;
+      color: #fff;
+    }
+    .start-window-btn--restart:hover {
+      background: #e65f52;
+    }
   </style>
 </head>
 <body>
@@ -811,6 +886,11 @@
   <script src="src/fullscreen.js"></script>
   <script src="src/save.js"></script>
   <script src="src/motion.js"></script>
+  <!-- Стартовое окно (задача 000138): ОБЯЗАН стоять ДО src/main.js
+       (UMD-ловушка 000038: main.js снимает Game один раз при
+       загрузке — Game.startWindow обязан быть в снапшоте); загрузка
+       чистая (DOM при загрузке не трогается). -->
+  <script src="src/start-window.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>

@@ -58,6 +58,10 @@ test('index.html: нужные модули подключены', () => {
     // «Задача 000126: красные тесты»: «ОТЛОЖЕНО на зелёную стадию»).
     'src/craft-ui.js',
     'src/motion.js',
+    // Стартовое окно (задача 000138): слот утилит МЕЖДУ motion.js и
+    // main.js (UMD-ловушка 000038: main.js снимает Game один раз —
+    // Game.startWindow обязан быть в снапшоте; пин SW-O1 ниже).
+    'src/start-window.js',
     'src/main.js',
   ]) {
     assert.notEqual(pos(f), -1, f + ' не подключён в index.html');
@@ -1185,4 +1189,21 @@ test('index.html: building-effect-45.js/49.js — ПОСЛЕ building-actions.js
   assert.ok(pos('src/building-effect-49.js') < pos('src/main.js'),
     'src/building-effect-49.js должен быть ДО src/main.js ' +
     '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+// --- Задача 000138: стартовое окно (src/start-window.js) ---
+//
+// main.js (IIFE) снимает const G = globalThis.Game ОДИН раз при
+// загрузке (UMD-ловушка 000038): src/start-window.js обязан быть в
+// Game РАНЬШЕ, иначе G.startWindow — undefined всегда и стартовое
+// окно молча отсутствует (тихая деградация; проводка main.js
+// пишет console.error, но порядок закрепляется здесь — образец
+// пина motion.js < main.js выше). Слот — утилиты МЕЖДУ
+// motion.js и main.js.
+
+test('index.html: src/start-window.js подключён и ДО src/main.js (задача 000138, UMD-ловушка 000038: main.js снимает Game один раз)', () => {
+  assert.notEqual(pos('src/start-window.js'), -1,
+    'src/start-window.js не подключён в index.html (задача 000138)');
+  assert.ok(pos('src/start-window.js') < pos('src/main.js'),
+    'src/start-window.js должен быть раньше src/main.js (задача 000138)');
 });
