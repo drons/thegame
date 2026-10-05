@@ -162,11 +162,16 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // Ребейз 000137 на мастер (2026-10-05): MERGED/UNION += '44_perform'
   // (000137, таверна «Выступление») — пин регенерирован по
   // фактическому коду.
+  // Ребейз 000133 на мастер (2026-10-06): MERGED/UNION +=
+  // '40_spell'/'42_spell' (000133, «Расшифровка (заклинание)» —
+  // камень 40 / обелиск 42) — пин регенерирован по фактическому
+  // коду.
   const MERGED = ['36', '37', '38', '40', '41', '42', '45', '46', '48',
-    '44_rest', '44_rumors', '44_perform', 'fire', 'market', 'coin', 'heal'];
+    '44_rest', '44_rumors', '44_perform', 'fire', 'market', 'coin',
+    'heal', '40_spell', '42_spell'];
   const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '45',
     '46', '48', '44_rest', '44_rumors', '44_perform',
-    'fire', 'market', 'coin', 'heal'];
+    'fire', 'market', 'coin', 'heal', '40_spell', '42_spell'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -175,7 +180,7 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   for (const id of regKeys) {
     assert.ok(UNION.includes(id),
       'реестр: чужой id «' + id + '» (union 000074/000075/000076/' +
-      '000077/000091/000092/000093/000094/000095/000137)');
+      '000077/000091/000092/000093/000094/000095/000137/000133)');
   }
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
@@ -4327,6 +4332,191 @@ test('A68. экспорты 000092: сиды COIN/WELL_ROLL/WELL_ITEM — hex-п
 
 
 
+
+// --- Задача 000133: руны (заклинание) — каталог, реестр, чистые
+// функции (R1-R4) ---
+//
+// КРАСНЫЕ (TDD): реестр EFFECTS['40_spell']/['42_spell'], экспорт
+// applyRuneSpell/runeSpellPool/RUNE_SPELL_SEED и каталожные поля
+// (эффекты/заклинания у 40/42) НЕ СУЩЕСТВУЮТ до зелёной стадии.
+// Контракт: memory/000133-spell-scrolls-runes.md §3 (пул, формула
+// (tile, day), деградация «недоступно», ОТКАЗ без марки при пустых
+// кандидатах — осознанное отличие от XP-'40', 000074 R3).
+// applyRuneSpell ЧИСТА (000071/A49): hero только ЧИТАЕТ, learn() —
+// в спец-модуле (е2e — R5/R6, секция B).
+
+test('R1. 000133: реестр 40_spell/42_spell + каталог (эффекты, пулы заклинаний) + сид RUNE', () => {
+  const BE = loadBE();
+  for (const id of ['40_spell', '42_spell']) {
+    const rec = BE.EFFECTS[id];
+    assert.ok(rec, 'EFFECTS[' + id + '] (red: записи нет)');
+    assert.equal(rec.имя, 'Расшифровка (заклинание)',
+      id + ': имя по контракту; факт: ' + (rec && rec.имя));
+    assert.equal(typeof rec.apply, 'function', id + ': apply(st)');
+    assert.notEqual(rec.разВДень, true,
+      id + ': разВДень в реестре НЕ ставится (каталог побеждает, A42)');
+  }
+  const B = require('../src/buildings.js');
+  const c40 = B.getBuilding(40);
+  const c42 = B.getBuilding(42);
+  assert.deepEqual(c40.особые_параметры.эффекты, ['40', '40_spell'],
+    '40: эффекты — СУЩЕСТВУЮЩЕЕ действие ПЕРВЫМ (red: массива нет); '
+    + 'факт: ' + JSON.stringify(c40.особые_параметры.эффекты));
+  assert.deepEqual(c42.особые_параметры.эффекты, ['42', '42_spell'],
+    '42: эффекты — существующее первым; факт: '
+    + JSON.stringify(c42.особые_параметры.эффекты));
+  assert.deepEqual(c40.особые_параметры.эффект.заклинания,
+    ['frost_bolt', 'chill', 'vine', 'magic_shield', 'fireball',
+      'shadow_bolt', 'light_heal'],
+    '40: пул ЗАКЛИНАНИЙ — ранние (ур.1-2, без базовых); факт: '
+    + JSON.stringify(c40.особые_параметры.эффект && c40.особые_параметры.эффект.заклинания));
+  assert.deepEqual(c42.особые_параметры.эффект.заклинания,
+    ['stone_skin', 'nature_blessing', 'flame_burst', 'greater_heal',
+      'ward'],
+    '42: пул — поздние (ур.2-3; 3 с базовыми); факт: '
+    + JSON.stringify(c42.особые_параметры.эффект && c42.особые_параметры.эффект.заклинания));
+  // Регрессионные пины: существующее действие и флаг НЕ изменились.
+  assert.equal(c40.особые_параметры.раз_в_день, true,
+    '40: раз_в_день (регрессия)');
+  assert.equal(c42.особые_параметры.раз_в_день, true,
+    '42: раз_в_день (регрессия)');
+  assert.equal(c40.особые_параметры.эффект.шанс_база, 0.25,
+    '40: шанс_база 0.25 (регрессия, 000074)');
+  assert.equal(BE.hasDailyLimit(c40, '40'), true,
+    '40: hasDailyLimit «40» (регрессия)');
+  assert.equal(BE.hasDailyLimit(c40, '40_spell'), true,
+    '40: «40_spell» — тоже раз в день (верхнеуровневый флаг каталога '
+    + '→ все effectIds)');
+  assert.equal(BE.hasDailyLimit(c42, '42_spell'), true,
+    '42: «42_spell» — тоже раз в день');
+  assert.deepEqual(BE.effectIds(c40), ['40', '40_spell'],
+    '40: effectIds — оба действия (red: реестра «40_spell» нет → ['
+    + '«40»])');
+  assert.deepEqual(BE.effectIds(c42), ['42', '42_spell'],
+    '42: effectIds — оба действия');
+  // Чистые экспорты (контракт §3.2).
+  assert.equal(typeof BE.applyRuneSpell, 'function',
+    'BE.applyRuneSpell (red: не экспортирована)');
+  assert.equal(typeof BE.runeSpellPool, 'function',
+    'BE.runeSpellPool (red: не экспортирована)');
+  assert.equal(BE.RUNE_SPELL_SEED, 0x52554e45,
+    'RUNE_SPELL_SEED = ASCII «RUNE» (hex-пин, A47-паттерн)');
+});
+
+// Герой-фикстура камня (R2/R3/R4/R5): INT 11 (Знаток — огонь/тень
+// ур.2 открыты), Рунопись 2, frost_bolt УЖЕ изучен (фильтр
+// «уже изучено» в действии), wisdom 1 (light_heal ур.2 — закрыт).
+// Кандидаты по пулу камня: chill, vine, magic_shield, fireball,
+// shadow_bolt (порядок пула).
+function runeHeroStone() {
+  return mkHero({
+    primary: { strength: 1, dexterity: 1, constitution: 1,
+      intelligence: 11, wisdom: 1, charisma: 1 },
+    secondary: { runes: 2 },
+    spells: ['spark', 'mend', 'frost_bolt'],
+  });
+}
+
+test('R2. 000133: applyRuneSpell — успех: golden-пик (tile, day), ЧИСТО (hero не мутируется)', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const PL = require('../src/perlin.js');
+  const S = require('../src/spells.js');
+  const st = makeState({
+    day: 1,
+    tile: { x: 5, y: 7 },
+    hero: runeHeroStone(),
+    catalog: B.getBuilding(40),
+  });
+  const s0 = JSON.parse(JSON.stringify(st));
+  const r = withGame({ hash2: PL.hash2, Spells: S },
+    () => BE.applyRuneSpell(st));
+  assert.equal(r.ok, true, 'ok:true (red: applyRuneSpell отсутствует)');
+  assert.equal(r.success, true, 'success:true — успех (контракт §3.2.5)');
+  assert.equal(r.spellId, 'shadow_bolt',
+    'golden: (5,7) день 1, 5 кандидатов → idx hash2%5 = 4 → '
+    + 'shadow_bolt; факт: ' + JSON.stringify(r));
+  assert.equal(r.message, 'Расшифровано: «Теневой сгусток»',
+    'message по контракту; факт: ' + r.message);
+  assert.deepEqual(st, s0,
+    'ЧИСТОТА (000071/A49): state БЕЗ МУТАЦИЙ, hero включён — '
+    + 'learn() не в apply, а в спец-модуле');
+});
+
+test('R3. 000133: applyRuneSpell — пустые кандидаты (Рунопись 0): ok:false, причина, БЕЗ spellId, чистота', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const PL = require('../src/perlin.js');
+  const S = require('../src/spells.js');
+  // Свежий герой: Рунопись 0, все атрибуты 1 — все 7 пула камня
+  // отфильтрованы (руны < уровня каждого).
+  const hero = P.createCharacter();
+  const st = makeState({
+    day: 1, tile: { x: 5, y: 7 }, hero, catalog: B.getBuilding(40),
+  });
+  const s0 = JSON.parse(JSON.stringify(st));
+  const r = withGame({ hash2: PL.hash2, Spells: S },
+    () => BE.applyRuneSpell(st));
+  assert.equal(r.ok, false,
+    'ok:false — ОТКАЗ (red: applyRuneSpell отсутствует)');
+  assert.equal(r.success, undefined, 'success отсутствует (нет успеха)');
+  assert.match(r.message, /нет заклинаний, доступных для расшифровки/,
+    'причина по контракту; факт: ' + r.message);
+  assert.equal(r.spellId, undefined, 'spellId отсутствует');
+  assert.deepEqual(st, s0, 'чистота: state без мутаций');
+});
+
+test('R4. 000133: applyRuneSpell — детерминизм (tile, day), каталог-драйвен, деградация без Game', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const PL = require('../src/perlin.js');
+  const S = require('../src/spells.js');
+  const base = {
+    hero: runeHeroStone(),
+    catalog: B.getBuilding(40),
+  };
+  // (a) Два НЕЗАВИСИМЫХ apply — один исход (никакого Math.random).
+  const stA = makeState({ day: 1, tile: { x: 5, y: 7 }, ...base });
+  const stB = makeState({ day: 1, tile: { x: 5, y: 7 }, ...base });
+  const rA = withGame({ hash2: PL.hash2, Spells: S },
+    () => BE.applyRuneSpell(stA));
+  const rB = withGame({ hash2: PL.hash2, Spells: S },
+    () => BE.applyRuneSpell(stB));
+  assert.equal(rA.ok, true, 'ok (red: applyRuneSpell отсутствует)');
+  assert.equal(rA.spellId, rB.spellId,
+    'детерминизм: (tile, day) → один исход');
+  // (b) Голден-пины: день 1 → shadow_bolt; день 2 → vine.
+  assert.equal(rA.spellId, 'shadow_bolt',
+    'golden (5,7) день 1; факт: ' + rA.spellId);
+  const stC = makeState({ day: 2, tile: { x: 5, y: 7 }, ...base });
+  const rC = withGame({ hash2: PL.hash2, Spells: S },
+    () => BE.applyRuneSpell(stC));
+  assert.equal(rC.spellId, 'vine',
+    'golden (5,7) день 2 (день входит в хэш); факт: ' + rC.spellId);
+  // (c) Каталог-драйвен: пул — из ст.catalog.особые_параметры.
+  //     заклинания (синтетика: один кандидат → он).
+  const synth = {
+    id: 40,
+    особые_параметры: {
+      раз_в_день: true,
+      эффект: { заклинания: ['fireball'] },
+    },
+  };
+  const stD = makeState({
+    day: 1, tile: { x: 5, y: 7 }, ...base, catalog: synth,
+  });
+  const rD = withGame({ hash2: PL.hash2, Spells: S },
+    () => BE.applyRuneSpell(stD));
+  assert.equal(rD.spellId, 'fireball',
+    'пул из каталога (код не хардкодит); факт: ' + rD.spellId);
+  assert.deepEqual(BE.runeSpellPool(stD), ['fireball'],
+    'runeSpellPool — читает пул из ст.catalog (каталог-драйвен)');
+  // (d) Деградация: Game без hash2/Spells → «недоступно» (000053).
+  const stE = makeState({ day: 1, tile: { x: 5, y: 7 }, ...base });
+  const rE = withGame({}, () => BE.applyRuneSpell(stE));
+  assert.deepEqual(rE, { ok: false, message: 'недоступно' },
+    'деградация по контракту; факт: ' + JSON.stringify(rE));
+});
 // --- Секция B: wiring через ВЕСЬ index.html в vm (браузерный realm) ---
 //
 // Паттерн tests/save-restore.test.js: DOM/WebGL-стабы + МОК
@@ -6295,6 +6485,145 @@ test('B23. квест постройки e2e: выполнение → done, н�
     'перезагрузка: раздел не изменился');
   assert.ok(save3.data.buildingQuests['1,2'] == null,
     'перезагрузка: «будущей» записи нет');
+});
+
+// --- Задача 000133: руны (заклинание) — wiring E2E (R5/R6) ---
+//
+// КРАСНЫЕ: [E]-оверлей строится из effectIds(каталог) × EFFECTS —
+// до зелёной стадии реестра «40_spell»/«42_spell» НЕТ → в оверлее
+// ОДНА строка (существующее действие), findRow('40_spell') → null.
+// На зелёной стадии: спец-модуль src/building-effect-runes.js
+// (learn source «rune»), марка 'x,y:40_spell'/'x,y:42_spell',
+// saveNow — автоматика pipeline (building-actions.js:337-351).
+// Золотые (перлин-сид RUNE_SPELL_SEED, замерено): камень (-25,34)
+// день 1 → fireball; обелиск (80,-51) день 1 → stone_skin.
+
+test('R5. 000133: камень e2e: [E] — вторая строка «Расшифровка (заклинание)», fireball, daily-марка, сейв', async () => {
+  // Позиция PRE-SEED на камне (паттерн B21/B14). Герой: INT 11
+  // (Знаток), Рунопись 2, frost_bolt УЖЕ изучен — golden-фильтр.
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: -25, y: 34 },
+    hero: runeHeroStone(),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, -25, 'позиция — камень (x)');
+  assert.equal(g.state.player.y, 34, 'позиция — камень (y)');
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  // [E] → оверлей: ДВЕ строки, существующее действие ПЕРВЫМ
+  // (регрессия B21: порядок строк не сдвигается).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  const rows = findAll(ov, '[data-buid]').map((r) => r.dataset.buid);
+  // «craft» — строка крафта (000126): рецепты stone_chisel/moonstone/
+  // moonstone_runes ссылаются на здание 40 → строка ВСЕГДА в конце
+  // (000126: существующие строки не перенумеровываются).
+  assert.deepEqual(rows, ['40', '40_spell', 'craft'],
+    'строки: «40» ПЕРВОЙ, новая «40_spell» ВТОРОЙ, «craft» в конце '
+    + '(red: реестра «40_spell» нет → её нет); факт: ' + JSON.stringify(rows));
+  const row = findRow(ov, '40_spell');
+  assert.ok(row, 'строка 40_spell в оверлее (red: строки нет)');
+  assert.ok(textOf(row).includes('Расшифровка (заклинание)'),
+    'имя строки: ' + textOf(row));
+  assert.equal(row.disabled, false, 'день 1 — доступно');
+  // Digit2 — УСПЕХ (golden (−25,34) день 1 → fireball).
+  key(h, 'Digit2');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('Расшифровано: «Огненный шар»'),
+    'hudFlash — message успеха (golden fireball): ' + hud1);
+  assert.ok(g.state.hero.spells.includes('fireball'),
+    'ЖИВОЙ hero.spells += fireball (спец-модуль: learn «rune»)');
+  const save1 = readSave(h);
+  assert.ok(save1, 'saveNow после успеха');
+  assert.ok(save1.data.hero.spells.includes('fireball'),
+    'сейв: hero.spells содержит fireball (раздел 000045)');
+  assert.equal(save1.data.buildingOncePerDay[STONE_KEY + ':40_spell'], 1,
+    'daily-марка НОВОГО действия (свой ключ effectId)');
+  assert.equal(save1.data.buildingOncePerDay[STONE_KEY + ':40'], undefined,
+    'существующее «40» — НЕ выполнялось → марки нет');
+  // Повтор в тот же день — disabled (лимит per-effectId).
+  key(h, 'KeyE');
+  assert.equal(findRow(findOverlay(h), '40_spell').disabled, true,
+    'в тот же день — disabled («уже использовано сегодня»)');
+  assert.equal(findRow(findOverlay(h), '40').disabled, false,
+    'существующее «40» — независимо (сегодня не тратилось)');
+  key(h, 'Escape');
+});
+
+test('R6. 000133: обелиск e2e: «Расшифровка (заклинание)» → stone_skin; квест и XP действия «42» НЕ затронуты', async () => {
+  // Позиция PRE-SEED на обелиске (паттерн B22). Герой: Мудрость 11
+  // (Знаток), Рунопись 2, без изученных — кандидаты 2 (stone_skin,
+  // nature_blessing); golden (80,-51) день 1 → stone_skin.
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 80, y: -51 },
+    hero: mkHero({
+      primary: { strength: 1, dexterity: 1, constitution: 1,
+        intelligence: 1, wisdom: 11, charisma: 1 },
+      secondary: { runes: 2 },
+      spells: ['spark', 'mend'],
+    }),
+    quests: { active: {}, done: [] },
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, 80, 'позиция — обелиск (x)');
+  assert.equal(g.state.player.y, -51, 'позиция — обелиск (y)');
+  const xp0 = g.state.hero.xp;
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  const rows = findAll(ov, '[data-buid]').map((r) => r.dataset.buid);
+  // «craft» — строка крафта (000126): moonstone_runes ссылается на
+  // 42 → строка ВСЕГДА в конце.
+  assert.deepEqual(rows, ['42', '42_spell', 'craft'],
+    'строки: «42» ПЕРВОЙ, «42_spell» ВТОРОЙ, «craft» в конце '
+    + '(red: «42_spell» нет); факт: ' + JSON.stringify(rows));
+  const row = findRow(ov, '42_spell');
+  assert.ok(textOf(row).includes('Расшифровка (заклинание)'),
+    'имя строки: ' + textOf(row));
+  assert.equal(row.disabled, false, 'день 1 — доступно');
+  key(h, 'Digit2');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('Расшифровано: «Каменная кожа»'),
+    'hudFlash — golden stone_skin: ' + hud1);
+  assert.ok(g.state.hero.spells.includes('stone_skin'),
+    'ЖИВОЙ hero.spells += stone_skin');
+  const save1 = readSave(h);
+  assert.ok(save1.data.hero.spells.includes('stone_skin'),
+    'сейв: hero.spells содержит stone_skin');
+  assert.equal(save1.data.buildingOncePerDay[OBELISK_KEY + ':42_spell'], 1,
+    'daily-марка нового действия');
+  // Инварианты (B22): «42_spell» — НЕ «Прикоснуться»: квест НЕ
+  // выдаётся, XP НЕ начисляется, марки «42» нет.
+  assert.equal(g.state.hero.xp, xp0,
+    'XP не изменился (начисление — только действие «42»)');
+  assert.equal(save1.data.buildingOncePerDay[OBELISK_KEY + ':42'], undefined,
+    '«42» не выполнялось — марки нет');
+  assert.ok(!g.quests.active.some((i) => i.questId === OBELISK_QID),
+    'квест «Камни помнят» НЕ задет (выдаёт только «42»)');
+  assert.ok(!save1.data.buildingQuests
+    || Object.keys(save1.data.buildingQuests).length === 0,
+    'сейв: buildingQuests — записей нет');
+  // Повтор в тот же день — disabled; «42» — независимо.
+  key(h, 'KeyE');
+  assert.equal(findRow(findOverlay(h), '42_spell').disabled, true,
+    'в тот же день — disabled');
+  assert.equal(findRow(findOverlay(h), '42').disabled, false,
+    '«42» — независимо (сегодня не тратилось)');
+  key(h, 'Escape');
 });
 
 test('B24. смотровая башня e2e: «Взглянуть» — explored-раздел (окно 1681), без лимита раз-в-день, HUD «Исследовано: 1681 тайлов»', async () => {

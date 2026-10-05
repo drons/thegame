@@ -1,0 +1,12 @@
+{
+  "id": "blizzard_scroll",
+  "name": "Свиток: Метель",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 110,
+  "desc": "Свиток: изучает «Метель» (нужны ранг школы и «Морозная стрела»).",
+  "effect": {
+    "kind": "spell",
+    "spell": "blizzard"
+  }
+}

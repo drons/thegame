@@ -684,8 +684,12 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
       stock: { sulfur: 2, moonstone: 2, phoenix_feather: 1, stone_fist_grimoire: 2, iron_hide_tome: 1, archer_scroll: 2, hide: 1, coal: 1, herb_healing: 2, stone_chisel: 2 } },
     { x: 5, y: 7, type: B.TAVERN, w: 0, seed: 766909004,
       stock: { healing_potion: 2, greater_healing: 2, mana_potion: 2, mana_elixir: 1, bread: 1, meat: 2 } },
+    // Ре-пин 000133: универсам (wealth 3, пул allItems) — свитки
+    // заклинаний (000043-000050) добавлены КОНЦОМ каталога →
+    // существующие стоки не сдвинулись, += свитки, вытянутые rng-хвостом
+    // (chill/magic_shield в этом (x,y) не выпали — и в золотом их нет).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
-      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5 } },
+      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -996,4 +1000,180 @@ test('vm-песочница: реальный каталог подхвачен 
   }
   assert.equal(sandbox.Game.shopKindsFor(4), null, 'арена — без «виды»');
   assert.equal(sandbox.Game.shopKindsFor(8), null, 'храм — без «виды»');
+});
+
+// --- Задача 000133: свитки заклинаний (kind spell_scroll, source 'scroll') ---
+//
+// КРАСНЫЕ тесты (TDD): написаны ДО реализации, падают на текущем
+// (неизменённом) коде:
+//   * assets/items/000043..000050.json отсутствуют (S1/S4-S8: нет
+//     каталожных записей — addItem/useItem «неизвестный предмет»);
+//   * kind 'spell_scroll' / effect.kind 'spell' не в schema.json (S2);
+//   * пулы подземелий без свитков (S3);
+//   * useItem — ветка spell_scroll отсутствует (S4: в красной стадии
+//     свиток не изучает НИЧЕГО; S5-S8: отказ-пути не реализованы).
+// Контракты — memory/000133-spell-scrolls-runes.md (§2) и
+// memory/000133-spell-learning.md (§1-3). Ре-пины (дungeon-golden,
+// зеркало items-data, A1-union) — стадия ЗЕЛЁНАЯ (§5), здесь — новые
+// тесты только.
+
+const SPELLS = require('../src/spells.js');
+
+// Фиксированный состав (решение ТЗ, memory §2.2): файл → id → spell.
+const SCROLLS_000133 = [
+  { file: '000043.json', id: 'fireball_scroll', spell: 'fireball' },
+  { file: '000044.json', id: 'flame_burst_scroll', spell: 'flame_burst' },
+  { file: '000045.json', id: 'frost_bolt_scroll', spell: 'frost_bolt' },
+  { file: '000046.json', id: 'blizzard_scroll', spell: 'blizzard' },
+  { file: '000047.json', id: 'chill_scroll', spell: 'chill' },
+  { file: '000048.json', id: 'light_heal_scroll', spell: 'light_heal' },
+  { file: '000049.json', id: 'magic_shield_scroll', spell: 'magic_shield' },
+  { file: '000050.json', id: 'vine_scroll', spell: 'vine' },
+];
+
+test('S1. 000133: каталог — 8 свитков, фиксированный состав (id/kind/effect/spell, 1-2 на школу, все 6 школ)', () => {
+  const byFile = new Map();
+  for (const f of fs.readdirSync(ITEMS_DIR)
+      .filter((x) => /^\d{6}\.json$/.test(x))) {
+    byFile.set(f, JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  }
+  const jsById = new Map(I.allItems().map((it) => [it.id, it]));
+  for (const e of SCROLLS_000133) {
+    const j = byFile.get(e.file);
+    assert.ok(j, e.file + ': файл в assets/items (red: файла нет)');
+    assert.equal(j.id, e.id, e.file + ': id — ' + e.id + ' (red: записи нет)');
+    const it = jsById.get(e.id);
+    assert.ok(it, 'зеркало items-data.js: ' + e.id + ' (red: записи нет)');
+    assert.deepEqual(it, j, e.id + ': зеркало ≡ JSON');
+    assert.equal(it.kind, 'spell_scroll',
+      e.id + ': kind — spell_scroll (red: kind неизвестен)');
+    assert.equal(it.weight, 0.2, e.id + ': weight 0.2 (как книги/свитки)');
+    assert.ok(it.value >= 45 && it.value <= 120,
+      e.id + ': value 45..120 по уровню заклинания; факт: ' + it.value);
+    assert.equal(it.effect.kind, 'spell', e.id + ': effect.kind «spell»');
+    assert.equal(it.effect.spell, e.spell, e.id + ': effect.spell — ' + e.spell);
+    assert.ok(SPELLS.SPELLS_BY_ID[e.spell],
+      e.id + ': spell «' + e.spell + '» есть в каталоге заклинаний');
+    assert.ok(String(it.name).startsWith('Свиток: '),
+      e.id + ': имя «Свиток: <название>»; факт: ' + it.name);
+  }
+  // Состав ПОЛНЫЙ: ровно 8 предметов kind spell_scroll (ни больше,
+  // ни меньше — решение ТЗ).
+  const scrolls = I.allItems().filter((it) => it.kind === 'spell_scroll');
+  assert.equal(scrolls.length, 8,
+    'ровно 8 spell_scroll; факт: ' + scrolls.length);
+  // 1-2 свитка на школу, все 6 школ (школа — по spell.школа).
+  const bySchool = {};
+  for (const it of scrolls) {
+    const sch = SPELLS.SPELLS_BY_ID[it.effect.spell].школа;
+    bySchool[sch] = (bySchool[sch] || 0) + 1;
+  }
+  assert.equal(Object.keys(bySchool).length, 6,
+    'покрыты все 6 школ; факт: ' + JSON.stringify(bySchool));
+  for (const [sch, n] of Object.entries(bySchool)) {
+    assert.ok(n >= 1 && n <= 2,
+      'школа «' + sch + '»: 1-2 свитка; факт: ' + n);
+  }
+});
+
+// useItem (спелл-ветка) читает globalThis.Game ЛЕНИВО в момент ВЫЗОВА
+// (паттерн G.Craft items.js:533-539): на время вызова Game =
+// { Spells }, затем восстановление (как withGame в
+// building-effects.test.js).
+function withGame000133(game, fn) {
+  const had = Object.prototype.hasOwnProperty.call(globalThis, 'Game');
+  const prev = globalThis.Game;
+  globalThis.Game = game;
+  try {
+    return fn();
+  } finally {
+    if (had) globalThis.Game = prev;
+    else delete globalThis.Game;
+  }
+}
+
+test('S4. 000133: useItem свиток — успех (INT 11): изучено, предмет списан', () =>
+  withGame000133({ Spells: SPELLS }, () => {
+    const c = createCharacter();
+    c.primary.intelligence = 11; // Знаток (ранг 2) — fireball (ур. 2)
+    const add = I.addItem(c, 'fireball_scroll', 1);
+    assert.equal(add.ok, true,
+      'выдача свитка (red: неизвестный предмет): ' + JSON.stringify(add));
+    const res = I.useItem(c, 'fireball_scroll');
+    assert.equal(res.ok, true,
+      'useItem: ok (red: ' + JSON.stringify(res) + ')');
+    assert.ok(c.spells.includes('fireball'),
+      'заклинание изучено (red: useItem без ветки spell_scroll)');
+    assert.equal(I.totalQty(c, 'fireball_scroll'), 0,
+      'свиток тратится (ровно 1 шт.)');
+    assert.match(res.message, /Изучено/i,
+      'message «Изучено: …»; факт: ' + res.message);
+  }));
+
+test('S5. 000133: useItem свиток — низкий ранг (INT 10): отказ с причиной, предмет не тратится', () =>
+  withGame000133({ Spells: SPELLS }, () => {
+    const c = createCharacter();
+    c.primary.intelligence = 10; // Ученик (ранг 1) < tier 2
+    const add = I.addItem(c, 'fireball_scroll', 1);
+    assert.equal(add.ok, true, 'выдача свитка (red: неизвестный предмет)');
+    const res = I.useItem(c, 'fireball_scroll');
+    assert.equal(res.ok, false,
+      'отказ (red: свиток молча тратится без эффекта — ok:true)');
+    assert.match(res.reason, /нужен ранг школы «Знаток»/,
+      'причина из canLearn; факт: ' + res.reason);
+    assert.ok(!c.spells.includes('fireball'), 'заклинание не изучено');
+    assert.equal(I.totalQty(c, 'fireball_scroll'), 1,
+      'предмет НЕ тратится (отказ — не расход)');
+  }));
+
+test('S6. 000133: useItem свиток — совершенствование без базового (INT 26, без fireball): «нужно базовое заклинание», не потрачен', () =>
+  withGame000133({ Spells: SPELLS }, () => {
+    const c = createCharacter();
+    c.primary.intelligence = 26; // Мастер (ранг 3) — tier 3 открыт
+    // fireball НЕ изучено — flame_burst (база fireball) отказывается.
+    const add = I.addItem(c, 'flame_burst_scroll', 1);
+    assert.equal(add.ok, true, 'выдача свитка (red: неизвестный предмет)');
+    const res = I.useItem(c, 'flame_burst_scroll');
+    assert.equal(res.ok, false, 'отказ (red: молча тратится — ok:true)');
+    assert.match(res.reason, /нужно базовое заклинание: Огненный шар/,
+      'причина из canLearn; факт: ' + res.reason);
+    assert.ok(!c.spells.includes('flame_burst'), 'совершенствование не изучено');
+    assert.equal(I.totalQty(c, 'flame_burst_scroll'), 1, 'предмет не тратится');
+  }));
+
+test('S7. 000133: useItem свиток — дубль: «уже изучено», предмет не тратится, дубля в книге нет', () =>
+  withGame000133({ Spells: SPELLS }, () => {
+    const c = createCharacter();
+    c.primary.intelligence = 11;
+    c.spells.push('fireball'); // уже изучено
+    const add = I.addItem(c, 'fireball_scroll', 1);
+    assert.equal(add.ok, true, 'выдача свитка (red: неизвестный предмет)');
+    const res = I.useItem(c, 'fireball_scroll');
+    assert.equal(res.ok, false, 'отказ (red: молча тратится — ok:true)');
+    assert.match(res.reason, /уже изучено/, 'причина; факт: ' + res.reason);
+    assert.equal(c.spells.filter((s) => s === 'fireball').length, 1,
+      'дубля в книге заклинаний нет');
+    assert.equal(I.totalQty(c, 'fireball_scroll'), 1, 'предмет не тратится');
+  }));
+
+test('S8. 000133: useItem свиток — без Game.Spells: без исключения, ok:false «заклинания недоступны», предмет цел (000053)', () => {
+  const c = createCharacter();
+  c.primary.intelligence = 11;
+  const add = I.addItem(c, 'fireball_scroll', 1);
+  assert.equal(add.ok, true, 'выдача свитка (red: неизвестный предмет)');
+  let res = null;
+  let threw = false;
+  withGame000133({}, () => { // Game без Spells — деградация
+    try {
+      res = I.useItem(c, 'fireball_scroll');
+    } catch (e) { threw = true; }
+  });
+  assert.equal(threw, false, 'без исключения (000053: игра не падает)');
+  assert.equal(res.ok, false,
+    'ok:false (red: свиток молча тратится — ok:true)');
+  assert.equal(res.reason, 'заклинания недоступны',
+    'причина деградации (контракт §2.4); факт: ' + res.reason);
+  assert.ok(!c.spells.includes('fireball'), 'заклинание не изучено');
+  assert.equal(I.totalQty(c, 'fireball_scroll'), 1, 'предмет цел');
 });

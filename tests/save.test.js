@@ -1412,3 +1412,87 @@ test('000118: e2e — флаг первой встречи: бой с Эфиро
     'легальный false: warn об efir_met нет (значение валидно): '
     + h5.warns.join('; '));
 });
+
+// --- Задача 000133: E2 — свиток (source «scroll») — изученный в игре
+// персонаж: giveItem → useItem → смена дня → сейв → второй boot ---
+//
+// КРАСНЫЙ: fireball_scroll нет в каталоге → g.actions.giveItem
+// «неизвестный предмет» (items.js addItem :317); ветка useItem
+// spell_scroll не реализована. На зелёной стадии: полный цикл
+// «выучено в игре → saveNow (onDay) → restore» — hero.spells —
+// единственный источник книги (контракт UX §6: книга БЕЗ ПРАВОК).
+// state.hero — снапшот main.js: ЖИВЫЕ ссылки spells/inventory.slots,
+// НО без primary/secondary/mp → useItem (vm) получает «мост»:
+// первичные атрибуты из посеянного сейва + живые spells/inventory.
+
+test('E2. 000133: свиток — learned in game → saveNow (смена дня) → restore на втором boot', async () => {
+  // (a) Контроль (регрессия 000045): книга из сейва восстанавливается.
+  const stC = makeStorage();
+  const hC = bootWithSave(stC, { spells: ['spark', 'mend', 'fireball'] });
+  for (let i = 0; i < 5; i++) await hC.drain();
+  assert.equal(hC.errors.length, 0,
+    'контроль: ошибок загрузки нет');
+  // host() — JSON-раундтрип: массив живёт в vm-реалме (чужой
+  // Array.prototype) — deepStrictEqual сравнивает прототипы строго.
+  assert.deepEqual(host(hC.sandbox.__game.state.hero.spells),
+    ['spark', 'mend', 'fireball'],
+    'контроль: hero.spells из сейва (000045)');
+  // (b) Живое изучение: INT 11 (Знаток — fireball tier 2), свиток
+  //     через giveItem (debug-действие main.js).
+  const st = makeStorage();
+  const h = bootWithSave(st, {
+    primary: {
+      strength: 2, dexterity: 1, constitution: 1,
+      intelligence: 11, wisdom: 1, charisma: 1,
+    },
+    spells: ['spark', 'mend'],
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const g = h.sandbox.__game;
+  const give = g.actions.giveItem('fireball_scroll', 1);
+  assert.equal(give.ok, true,
+    'свиток выдан (red: неизвестный предмет): ' + JSON.stringify(give));
+  // useItem в vm (Game-реалм) — «мост»: живые spells/inventory +
+  // первичные атрибуты (снапшоту state.hero их нет).
+  // state.hero.inventory — ЖИВОЙ МАССИВ slots (getter main.js
+  // `hero.inventory.slots`), а НЕ объект инвентаря — оборачиваем в
+  // форму {slots}, которую ждут useItem/totalQty (items.js
+  // ensureInventory).
+  const liveSlots = g.state.hero.inventory;
+  const bridge = {
+    level: g.state.hero.level,
+    hp: g.state.hero.hp,
+    primary: {
+      strength: 2, dexterity: 1, constitution: 1,
+      intelligence: 11, wisdom: 1, charisma: 1,
+    },
+    secondary: {},
+    spells: g.state.hero.spells, // ЖИВАЯ ссылка (снапшот main.js)
+    inventory: { slots: liveSlots, quick: [] }, // ЖИВОЙ массив slots
+  };
+  const res = h.sandbox.Game.useItem(bridge, 'fireball_scroll');
+  assert.equal(res.ok, true,
+    'useItem ok (red: ветка spell_scroll не реализована): '
+    + JSON.stringify(res));
+  assert.ok(g.state.hero.spells.includes('fireball'),
+    'ЖИВОЙ hero.spells += fireball (мост — те же ссылки)');
+  assert.equal(h.sandbox.Game.totalQty(bridge, 'fireball_scroll'), 0,
+    'свиток потрачен (живой инвентарь)');
+  // (c) Смена дня: rest → onDay → saveNow — fireball в сейве.
+  g.actions.setDay(2);
+  const parsed = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.ok(Array.isArray(parsed.data.hero.spells)
+    && parsed.data.hero.spells.includes('fireball'),
+    'сейв: hero.spells содержит fireball (saveNow при смене дня); '
+    + 'факт: ' + JSON.stringify(parsed.data.hero.spells));
+  // (d) Второй boot с новым сейвом: книга восстанавливается.
+  const h2 = bootWithSave(makeStorage(), null, parsed.data);
+  for (let i = 0; i < 5; i++) await h2.drain();
+  assert.equal(h2.errors.length, 0,
+    'второй boot: ошибок нет: ' + h2.errors.join('; '));
+  assert.deepEqual(host(h2.sandbox.__game.state.hero.spells),
+    ['spark', 'mend', 'fireball'],
+    'второй boot: hero.spells — книга из сейва');
+});

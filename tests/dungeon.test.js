@@ -767,3 +767,48 @@ test('000070 golden: CAVE (37, −12) — закреплённые wallObjs', ()
     { x: 22, y: 19, obj: 'stalactite_1' }
   ]);
 });
+
+// --- Задача 000133: свитки заклинаний в подземельных пулах (S3) ---
+//
+// КРАСНЫЙ: пулы без свитков (контракт memory/000133-spell-scrolls-
+// runes.md §2.3). Распределение (решение ТЗ): каждый свиток РОВНО
+// в одном пуле; порядок — свитки ПРИЛОЖЕНЫ к концу массива
+// «предметы» (золотые значения DUNGEON_ITEMS ре-пинятся на стадии
+// ЗЕЛЁНОЙ — §5, здесь фиксируется целевой состав).
+
+test('S3. 000133: пулы подземелий — 8 свитков, каждый ровно в одном', () => {
+  // Целевые пулы (текущий состав + приложенные свитки).
+  const EXPECTED = {
+    '000001.json': ['iron_sword', 'healing_potion', 'sulfur',
+      'stone_fist_grimoire', 'frost_bolt_scroll'],
+    '000002.json': ['alchemy_manual', 'chainmail', 'mana_potion',
+      'meditation_scroll', 'chill_scroll', 'light_heal_scroll'],
+    '000003.json': ['steel_sword', 'knight_plate', 'war_hammer',
+      'iron_hide_tome', 'fireball_scroll', 'vine_scroll'],
+    '000004.json': ['mana_elixir', 'hunting_bow', 'moonstone',
+      'nature_scroll', 'magic_shield_scroll'],
+    '000005.json': ['war_hammer', 'phoenix_feather', 'greater_healing',
+      'heavy_tome', 'fire_spellbook', 'flame_burst_scroll',
+      'blizzard_scroll'],
+  };
+  const SCROLL_IDS = new Set([
+    'fireball_scroll', 'flame_burst_scroll', 'frost_bolt_scroll',
+    'blizzard_scroll', 'chill_scroll', 'light_heal_scroll',
+    'magic_shield_scroll', 'vine_scroll',
+  ]);
+  const cat = loadDungeonCatalog();
+  assert.equal(cat.length, 5, '5 подземелий (регрессия)');
+  const seen = new Map();
+  for (const { file, data } of cat) {
+    assert.deepEqual(data.предметы, EXPECTED[file],
+      file + ': предметы (red: свитков нет в пуле); факт: '
+      + JSON.stringify(data.предметы));
+    for (const id of data.предметы) {
+      if (SCROLL_IDS.has(id)) seen.set(id, (seen.get(id) || 0) + 1);
+    }
+  }
+  for (const id of SCROLL_IDS) {
+    assert.equal(seen.get(id) || 0, 1,
+      id + ': свиток РОВНО в одном пуле (red: свитка нет ни в одном)');
+  }
+});

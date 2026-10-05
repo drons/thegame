@@ -990,3 +990,261 @@ test('castSpell: союзник как цель — отказ «нет цели
   const allyV = cVine.units.find((u) => u.side === 'ally');
   assert.equal(castSpell(cVine, 'vine', allyV.id).reason, 'нет цели');
 });
+
+// --- Задача 000133: E1 — e2e через ВЕСЬ index.html в vm ---
+//
+// КРАСНЫЙ: assets/items/000043.json (fireball_scroll) НЕ СУЩЕСТВУЕТ →
+// G.addItem «неизвестный предмет»; ветка useItem spell_scroll
+// (source «scroll», memory/000133-spell-scrolls-runes.md §2.4)
+// не реализована в items.js. На зелёной стадии: свиток из каталога,
+// useItem учит через G.Spells (ленивый Game), предмет тратится;
+// изученное заклинание КАСТИРУЕТСЯ в бою (формула 000045, пул INT,
+// мана) — hero.spells — единственный источник (контракт UX §6).
+// Песочница — паттерн tests/building-effects.test.js (секция B):
+// DOM/WebGL-стабы, map.png ВСЕГДА onerror → детерминированный
+// generateSeedPixels, performance.now заморожен.
+
+const vm = require('node:vm');
+
+const E1_ROOT = path.join(__dirname, '..');
+const E1_CHAIN = Array.from(
+  fs.readFileSync(path.join(E1_ROOT, 'index.html'), 'utf8')
+    .matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1])
+  .map((p) => p.replace(/^src\//, ''));
+const E1_NOW = 1000;
+
+function e1Gl() {
+  const noop = () => {};
+  const gl = {
+    VERTEX_SHADER: 35633, FRAGMENT_SHADER: 35632,
+    COMPILE_STATUS: 35713, LINK_STATUS: 35714,
+    ARRAY_BUFFER: 34962, DYNAMIC_DRAW: 35048, FLOAT: 5126,
+    COLOR_BUFFER_BIT: 1024, TRIANGLES: 4,
+  };
+  gl.createShader = () => ({});
+  gl.shaderSource = noop;
+  gl.compileShader = noop;
+  gl.getShaderParameter = () => true;
+  gl.getShaderInfoLog = () => '';
+  gl.createProgram = () => ({});
+  gl.attachShader = noop;
+  gl.linkProgram = noop;
+  gl.getProgramParameter = () => true;
+  gl.getProgramInfoLog = () => '';
+  gl.useProgram = noop;
+  let attrib = 0;
+  gl.getAttribLocation = () => attrib++;
+  gl.getUniformLocation = () => ({});
+  gl.enableVertexAttribArray = noop;
+  gl.createBuffer = () => ({});
+  gl.bindBuffer = noop;
+  gl.bufferData = noop;
+  gl.vertexAttribPointer = noop;
+  gl.viewport = noop;
+  gl.clearColor = noop;
+  gl.clear = noop;
+  gl.uniformMatrix4fv = noop;
+  gl.drawArrays = noop;
+  return gl;
+}
+
+function e1Context2d(el) {
+  const calls = el.drawCalls = [];
+  return new Proxy({}, {
+    get: (t, k) => (k in t ? t[k] : (...args) => { calls.push([k, args]); }),
+    set: (t, k, v) => { t[k] = v; return true; },
+  });
+}
+
+function e1El(tag) {
+  const target = {
+    tagName: tag,
+    className: '',
+    _text: '',
+    title: '',
+    disabled: false,
+    style: {},
+    dataset: {},
+    children: [],
+    parent: null,
+    listeners: {},
+    appendChild(ch) {
+      const raw = ch && ch.__raw ? ch.__raw : ch;
+      if (raw.parent) {
+        raw.parent.children.splice(raw.parent.children.indexOf(raw), 1);
+      }
+      raw.parent = target;
+      target.children.push(raw);
+      return ch;
+    },
+    remove() {
+      if (!target.parent) return;
+      const i = target.parent.children.indexOf(target);
+      if (i >= 0) target.parent.children.splice(i, 1);
+      target.parent = null;
+    },
+    addEventListener(type, fn) {
+      (target.listeners[type] || (target.listeners[type] = [])).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const a = target.listeners[type];
+      if (!a) return;
+      const i = a.indexOf(fn);
+      if (i >= 0) a.splice(i, 1);
+    },
+    setAttribute(name, value) {
+      if (name.startsWith('data-')) {
+        target.dataset[name.slice(5)] = value;
+      }
+    },
+    getContext(kind) {
+      if (tag !== 'canvas') return null;
+      return kind === 'webgl' ? e1Gl() : e1Context2d(target);
+    },
+    getBoundingClientRect() { return { left: 0, top: 0 }; },
+    blur() {},
+  };
+  Object.defineProperty(target, 'textContent', {
+    get() { return this._text; },
+    set(v) {
+      this._text = String(v);
+      for (const ch of target.children) ch.parent = null;
+      target.children.length = 0;
+    },
+  });
+  target.__raw = target;
+  return new Proxy(target, {
+    get(t, k) {
+      if (k in t) return t[k];
+      return () => undefined;
+    },
+    set(t, k, v) { t[k] = v; return true; },
+  });
+}
+
+// Промывка микротасков (Image-load + loadMapPixels().then).
+const e1Drain = () => new Promise((r) => setImmediate(r));
+
+async function e1Boot() {
+  const errors = [];
+  const gameCanvas = e1El('canvas');
+  const spriteCanvas = e1El('canvas');
+  const hud = e1El('div');
+  gameCanvas.getContext = (kind) => (kind === 'webgl'
+    ? e1Gl() : e1Context2d(gameCanvas));
+  spriteCanvas.getContext = (kind) => (kind === '2d'
+    ? e1Context2d(spriteCanvas) : null);
+  const storage = new Map();
+  const body = e1El('body');
+  const document = {
+    createElement: (tag) => e1El(tag),
+    getElementById: (id) => (
+      id === 'game' ? gameCanvas
+        : id === 'sprites' ? spriteCanvas
+          : id === 'hud' ? hud
+            : null),
+    body,
+    addEventListener() {},
+    removeEventListener() {},
+    querySelector: () => null,
+    hidden: false,
+  };
+  const window = {
+    innerWidth: 1280,
+    innerHeight: 720,
+    location: { search: '' },
+    localStorage: {
+      getItem: (k) => (storage.has(k) ? storage.get(k) : null),
+      setItem: (k, v) => { storage.set(k, String(v)); },
+      removeItem: (k) => { storage.delete(k); },
+    },
+    confirm: () => false,
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  function Image() {
+    const self = this;
+    self.naturalWidth = 0;
+    self.naturalHeight = 0;
+    Object.defineProperty(self, 'src', {
+      configurable: true,
+      get() { return self.__src; },
+      set(v) {
+        self.__src = v;
+        Promise.resolve().then(() => {
+          if (v === 'assets/map.png') {
+            if (typeof self.onerror === 'function') self.onerror();
+          } else if (typeof self.onload === 'function') {
+            self.onload();
+          }
+        });
+      },
+    });
+  }
+  const sandbox = {
+    console: {
+      warn: () => {},
+      error: (m) => errors.push(String(m)),
+      log: () => {},
+    },
+    document,
+    window,
+    Image,
+    performance: { now: () => E1_NOW },
+    requestAnimationFrame: () => 0,
+    setTimeout: () => 0,
+    clearTimeout: () => {},
+  };
+  vm.createContext(sandbox);
+  for (const f of E1_CHAIN) {
+    vm.runInContext(
+      fs.readFileSync(path.join(E1_ROOT, 'src', f), 'utf8'), sandbox,
+      { filename: f });
+  }
+  for (let i = 0; i < 5; i++) await e1Drain();
+  return { sandbox, errors, hud };
+}
+
+test('E1. 000133: e2e — свиток: addItem → useItem «Изучено» → каст в бою (формула/мана/пул)', async () => {
+  const h = await e1Boot();
+  const G = h.sandbox.Game;
+  assert.ok(G, 'Game-глобал собран цепочкой index.html');
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  // Герой: Интеллект 11 (Знаток — fireball tier 2 открыт), мана 30.
+  const p = G.createCharacter();
+  p.primary.intelligence = 11;
+  p.mp = 30;
+  // (a) Выдача свитка — КРАСНАЯ точка: файла 000043.json нет.
+  const add = G.addItem(p, 'fireball_scroll', 1);
+  assert.equal(add.ok, true,
+    'выдача свитка (red: неизвестный предмет): ' + JSON.stringify(add));
+  // (b) useItem — ветка spell_scroll (source «scroll»).
+  const res = G.useItem(p, 'fireball_scroll');
+  assert.equal(res.ok, true,
+    'useItem ok (red: ветка spell_scroll не реализована): '
+    + JSON.stringify(res));
+  assert.ok(p.spells.includes('fireball'),
+    'заклинание изучено (hero.spells — единственный источник)');
+  assert.equal(G.totalQty(p, 'fireball_scroll'), 0, 'свиток тратится');
+  assert.match(res.message, /Изучено/i, 'message: ' + res.message);
+  // (c) Бой: изученное заклинание КАСТИРУЕТСЯ (000045).
+  // Моб — Пещерный медведь (ур 2: maxHP 26, броня 1): hp ≥ dmg,
+  // ПОТОМУ полные 10 ложатся на hp (волк maxHP 6 < 10 — кап 0,
+  // assert «броня игнорируется» был бы неопределён); броня 1 —
+  // проверка ignoreArmor (было бы 9, а не 10).
+  const c = G.createCombat({ player: p, mobs: ['cave_bear'], mobLevel: 2,
+    seed: 5 });
+  const w = c.units[0];
+  w.x = c.px;
+  w.y = c.py - 1;
+  const pool0 = c.ps.spellInt;
+  const hp0 = w.hp;
+  const r = G.Spells.castSpell(c, 'fireball', w.id);
+  assert.equal(r.ok, true, 'каст ok: ' + JSON.stringify(r));
+  assert.equal(r.dmg, Math.round(4 + 0.5 * 11),
+    'формула round((4+0.5·11)·1·1) = 10 (степень 1, бонусов нет)');
+  assert.equal(p.mp, 30 - 6, 'мана −6 (мани fireball)');
+  assert.equal(c.ps.spellInt, pool0 - 1, 'пул Интеллекта −1');
+  assert.equal(hp0 - w.hp, r.dmg, 'броня моба игнорируется');
+});

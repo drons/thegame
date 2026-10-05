@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000042.json);
+  // Предметы (assets/items/000001.json … 000050.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -435,6 +435,86 @@
       weight: 0.3,
       value: 12,
       desc: "Каменный резец: грубый, но точит всё, что мягче камня.",
+    },
+    // 000043.json
+    {
+      id: "fireball_scroll",
+      name: "Свиток: Огненный шар",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      desc: "Свиток: изучает «Огненный шар» (нужен ранг школы).",
+      effect: { kind: "spell", spell: "fireball" },
+    },
+    // 000044.json
+    {
+      id: "flame_burst_scroll",
+      name: "Свиток: Пламенный взрыв",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 120,
+      desc: "Свиток: изучает «Пламенный взрыв» (нужны ранг школы и «Огненный шар»).",
+      effect: { kind: "spell", spell: "flame_burst" },
+    },
+    // 000045.json
+    {
+      id: "frost_bolt_scroll",
+      name: "Свиток: Морозная стрела",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      desc: "Свиток: изучает «Морозную стрелу» (нужен ранг школы).",
+      effect: { kind: "spell", spell: "frost_bolt" },
+    },
+    // 000046.json
+    {
+      id: "blizzard_scroll",
+      name: "Свиток: Метель",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 110,
+      desc: "Свиток: изучает «Метель» (нужны ранг школы и «Морозная стрела»).",
+      effect: { kind: "spell", spell: "blizzard" },
+    },
+    // 000047.json
+    {
+      id: "chill_scroll",
+      name: "Свиток: Хлад",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      desc: "Свиток: изучает «Хлад» (нужен ранг школы).",
+      effect: { kind: "spell", spell: "chill" },
+    },
+    // 000048.json
+    {
+      id: "light_heal_scroll",
+      name: "Свиток: Свет исцеления",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 70,
+      desc: "Свиток: изучает «Свет исцеления» (нужен ранг школы).",
+      effect: { kind: "spell", spell: "light_heal" },
+    },
+    // 000049.json
+    {
+      id: "magic_shield_scroll",
+      name: "Свиток: Магический щит",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      desc: "Свиток: изучает «Магический щит» (нужен ранг школы).",
+      effect: { kind: "spell", spell: "magic_shield" },
+    },
+    // 000050.json
+    {
+      id: "vine_scroll",
+      name: "Свиток: Плетень",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 50,
+      desc: "Свиток: изучает «Плетень» (нужен ранг школы).",
+      effect: { kind: "spell", spell: "vine" },
     },
   ];
 

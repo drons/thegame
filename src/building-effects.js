@@ -243,6 +243,15 @@
   const WELL_ROLL_SEED = 0x57454c4c;   // 'WELL' — ролл предмета (колодец 45)
   const WELL_ITEM_SEED = 0x5749544d;   // 'WITM' — предмет на дне (колодец 45)
 
+  // Сид выбора заклинания «Расшифровки (заклинание)» 000133
+  // (Рунический камень 40 / Обелиск 42): СВОЯ ASCII-константа, НЕ
+  // GLOBAL_SEED (паттерн STONE_ROLL_SEED — боевой/мировой RNG не
+  // пересекается). Формула: cands = пул каталога ∩ canLearn('rune');
+  //   spellId = cands[hash2(x, y, RUNE_SPELL_SEED ^ day) % cands.length]
+  // (tile, day)-детерминизм, learn() — в спец-модуле (000128 §2.3).
+  // Экспорт — для golden-пинов (R2/R4/R5/R6).
+  const RUNE_SPELL_SEED = 0x52554e45;  // 'RUNE' — выбор заклинания рун
+
   // Раздел сейва teleports (имя зафиксировано 000072): чтение
   // записи СНИМКА по ключу 'x,y' — прототип-безопасно, с лёгкой
   // проверкой формы (fail-open, 000029): раздела нет / не объект /
@@ -387,6 +396,23 @@
   EFFECTS['42'] = {
     имя: 'Прикоснуться',
     apply: (st) => applyObelisk(st),
+  };
+  // --- Задача 000133: «Расшифровка (заклинание)» — камень (40) /
+  // обелиск (42), source 'rune' ---
+  // ЧИСТОЕ apply на ОБА id (пул — из каталога, 000053); learn() —
+  // спец-модуль src/building-effect-runes.js (000128 §2.3,
+  // саморегистрация '40_spell'/'42_spell'). разВДень в записях НЕ
+  // ставится: верхнеуровневый флаг каталога раз_в_день действует на
+  // ВСЕ effectId (hasDailyLimit boolean-ветка) — per-effectId ключи
+  // 'x,y:40'/'x,y:40_spell' (каждое действие по разу в день,
+  // независимо). Контракт — memory/000133-spell-scrolls-runes.md §3.
+  EFFECTS['40_spell'] = {
+    имя: 'Расшифровка (заклинание)',
+    apply: (st) => applyRuneSpell(st),
+  };
+  EFFECTS['42_spell'] = {
+    имя: 'Расшифровка (заклинание)',
+    apply: (st) => applyRuneSpell(st),
   };
 
   // --- Задача 000093: смотровая башня (id 46, подтип слота 12 —
@@ -879,6 +905,91 @@
       xp,
       fragment,
       message: 'Расшифровка: успех (+' + xp + ' оп.). «' + fragment + '»',
+    };
+  }
+
+  // --- Задача 000133: «Расшифровка (заклинание)» — камень (40) /
+  // обелиск (42), source 'rune' ---
+  // Чистый apply (000071): hero только ЧИТАЕТ (canLearn read-only);
+  // learn() — МИР-«сторона», в спец-модуле src/building-effect-runes.js
+  // (000128 §2.3: саморегистрация '40_spell'/'42_spell'). Пул — ИЗ
+  // КАТАЛОГА (000053: каталог-драйвен, ОДНО apply на оба id; пул
+  // РАЗНЫЙ у камня/обелиска). Детерминизм — (tile, day)-сид
+  // RUNE_SPELL_SEED (ленивый G.hash2 в момент apply; Math.random/Date
+  // НЕТ). Контракт — memory/000133-spell-scrolls-runes.md §3.2.
+
+  /**
+   * Пул заклинаний постройки: st.catalog.особые_параметры.
+   * эффект.заклинания — массив строк (прототип-безопасно, 000029);
+   * не массив / пусто / хотя бы один элемент не строка → null
+   * (деградация «недоступно»). Чистый.
+   * @returns {string[]|null}
+   */
+  function runeSpellPool(st) {
+    const eff = catalogEffect(st);
+    if (!eff) return null;
+    const pool = eff.заклинания;
+    if (!Array.isArray(pool) || pool.length === 0) return null;
+    for (const id of pool) {
+      if (typeof id !== 'string' || !id) return null;
+    }
+    return pool;
+  }
+
+  /**
+   * «Расшифровка (заклинание)» (камень 40 / обелиск 42): один раз в
+   * день на ДЕЙСТВИЕ (верхнеуровневый флаг каталога раз_в_день →
+   * per-effectId ключи 'x,y:40' / 'x,y:40_spell', 000072 — каждое
+   * действие независимо). Выбор детерминирован: кандидаты — пул
+   * КАТАЛОГА, прошедшие canLearn(hero, id, 'rune') (порядок пула;
+   * Рунопись ≥ уровень, ранг школы, базовое, «не изучено» — УЖЕ в
+   * canLearn, spells.js:147-176);
+   *   idx = G.hash2(x, y, RUNE_SPELL_SEED ^ day) % cands.length.
+   * УСПЕХ → { ok, success, spellId, message } (learn — спец-модуль).
+   * ПУСТЫЕ кандидаты → { ok:false, message } — ОТКАЗ БЕЗ марки (день
+   * не сгорает, повтор доступен): ОСОЗНАННОЕ отличие от XP-'40'
+   * (там провал ролла = ok:true, попытка сгорела, 000074 R3) — разные
+   * записи, «40» НЕ меняется (зафиксировано, ревью не «чинить»).
+   * Недневной отказ (нет G.hash2/G.Spells.canLearn, мусор каталога,
+   * не-объект hero) — { ok:false, message:'недоступно' }.
+   * @returns {{ok: boolean, success?: boolean, spellId?: string,
+   *            message?: string}}
+   */
+  function applyRuneSpell(st) {
+    const G = lazyGame();
+    if (!G || typeof G.hash2 !== 'function' ||
+        !G.Spells || typeof G.Spells.canLearn !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const eff = catalogEffect(st);
+    const pool = runeSpellPool(st);
+    const hero = st && st.hero;
+    if (!eff || !pool ||
+        !hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const tile = st.tile || { x: 0, y: 0 };
+    const x = tile.x, y = tile.y, day = st.day;
+    // КАНДИДАТЫ — пул ∩ canLearn('rune') (интерпретация «из
+    // доступных», ТЗ дословно: filter→pick; canLearn — ЧИСТОЕ чтение).
+    const cands = pool.filter(
+      (id) => G.Spells.canLearn(hero, id, 'rune').ok);
+    if (cands.length === 0) {
+      return {
+        ok: false,
+        message: 'нет заклинаний, доступных для расшифровки '
+          + '(Рунопись/ранг школы)',
+      };
+    }
+    const idx = G.hash2(x, y, RUNE_SPELL_SEED ^ day) % cands.length;
+    const spellId = cands[idx];
+    const sp = (typeof G.Spells.getSpell === 'function')
+      ? G.Spells.getSpell(spellId) : null;
+    return {
+      ok: true,
+      success: true,
+      spellId,
+      message: 'Расшифровано: «' + (sp ? sp.название : spellId) + '»',
     };
   }
 
@@ -2500,6 +2611,10 @@
     questIdForTile, readBuildingQuestEntry,
     serializeBuildingQuests, restoreBuildingQuests,
     STONE_ROLL_SEED, STONE_TEXT_SEED, OBELISK_TEXT_SEED,
+    // Задача 000133: «Расшифровка (заклинание)» (40_spell/42_spell) —
+    // чистый apply + пул каталога, свой (tile, day)-сид; learn() —
+    // спец-модуль src/building-effect-runes.js.
+    applyRuneSpell, runeSpellPool, RUNE_SPELL_SEED,
     // Задача 000093: смотровая башня (46) — explored: чистые
     // markExplored/exploredCount + ser/de раздела сейва (контракт —
     // memory/000093-explored-tower.md §2.2).

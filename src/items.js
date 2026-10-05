@@ -35,9 +35,13 @@
   const ITEM_KINDS = {
     WEAPON: 'weapon', ARMOR: 'armor', POTION: 'potion',
     FOOD: 'food', SKILL_BOOK: 'skill_book', REAGENT: 'reagent',
+    SPELL_SCROLL: 'spell_scroll',
   };
   const WEAPON_SUBTYPES = { SWORD: 'sword', BOW: 'bow', HEAVY: 'heavy' };
-  const EFFECT_KINDS = { HEAL: 'heal', MP: 'mp', EAT: 'eat', SKILL_XP: 'skill_xp' };
+  const EFFECT_KINDS = {
+    HEAL: 'heal', MP: 'mp', EAT: 'eat', SKILL_XP: 'skill_xp',
+    SPELL: 'spell',
+  };
 
   // Параметры инвентаря и веса.
   const INVENTORY_SLOTS = 20;   // слоты инвентаря
@@ -81,6 +85,18 @@
       }
     }
     if (it.kind === 'reagent' && it.effect) throw new Error(it.id + ': у реагента не бывает effect');
+    // Свиток заклинания (задача 000133): ЕДИНСТВЕННЫЙ эффект —
+    // { kind: 'spell', spell: <id> } (ФОРМА id только: каталог spells
+    // в браузере грузится ПОЗЖЕ items.js — каталожность id проверяют
+    // тесты (S1) и canLearn при применении, memory §2.4/R5).
+    if (it.kind === 'spell_scroll') {
+      const e = it.effect;
+      if (!e || e.kind !== 'spell') throw new Error(it.id + ': свиток — только effect.kind «spell»');
+      if (typeof e.spell !== 'string' ||
+          !/^[a-z][a-z0-9_]*$/.test(e.spell)) {
+        throw new Error(it.id + ': свиток — неверный id заклинания: ' + e.spell);
+      }
+    }
   }
 
   const catalog = new Map();
@@ -488,6 +504,37 @@
       return { ok: false, reason: it.kind === 'weapon' ? 'оружие — экипируется' : 'броня — экипируется' };
     }
     if (it.kind === 'reagent') return { ok: false, reason: 'реагент нельзя применить (торговый товар)' };
+
+    // Свиток заклинания (задача 000133, source 'scroll'): применение —
+    // ИЗУЧЕНИЕ через G.Spells (ленивый Game в момент ВЫЗОВА, паттерн
+    // G.Craft :533-539). Ключевое: ОТКАЗ (canLearn !ok) — return ДО
+    // безусловного removeItem ниже: предмет НЕ тратится, в ответе
+    // причина (ранг школы/базовое заклинание/«уже изучено»). Успех —
+    // learn + removeItem РОВНО 1 шт. (свиток нестаккуемый, qty>1
+    // невозможен из UI — ветка защитная, API публичный).
+    // «чтение — Интеллект» (SPEC) — гейт рангом школы по spell.атрибут
+    // УЖЕ в canLearn (spells.js:151-160) — нового кода нет.
+    // console.error НЕ ставится (прецедент G.Craft — тихий no-op;
+    // причина видна игроку во flash; 000053 — игра не падает).
+    if (it.kind === 'spell_scroll') {
+      if (qty > 1) return { ok: false, reason: 'свиток: по одному' };
+      const G = (typeof globalThis !== 'undefined' &&
+                 typeof globalThis.Game === 'object')
+        ? globalThis.Game : null;
+      const S = G && G.Spells;
+      if (!S || typeof S.canLearn !== 'function') {
+        return { ok: false, reason: 'заклинания недоступны' };
+      }
+      const chk = S.canLearn(c, it.effect.spell, 'scroll');
+      if (!chk.ok) return { ok: false, reason: chk.reason };
+      S.learn(c, it.effect.spell, 'scroll');
+      removeItem(c, it.id, 1, true); // бонусFirst — паттерн :551
+      const sp = S.getSpell(it.effect.spell);
+      return {
+        ok: true, name: it.name, spell: it.effect.spell,
+        message: 'Изучено: «' + (sp ? sp.название : it.effect.spell) + '»',
+      };
+    }
 
     const d = P.derived(c);
     // Бонус качества (задача 000046): бонусный экземпляр тратится

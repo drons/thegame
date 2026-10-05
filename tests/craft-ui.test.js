@@ -842,3 +842,107 @@ test('CU-7. деградация: craft-ui.js грузится чисто без
       + JSON.stringify(rows));
   }
 });
+
+// --- Задача 000133: E3 — свиток (source «scroll») и пикер зачарования ---
+//
+// КРАСНЫЙ: fireball_scroll нет в каталоге → G.addItem «неизвестный
+// предмет»; ветка useItem spell_scroll не реализована. На зелёной
+// стадии: заклинание, выученное СВИТКОМ, сразу появляется в пикере
+// зачарования (hero.spells — единственный источник, CU-6(v):
+// пикер = recipe.заклинания ∩ hero.spells), крафт списывает ману
+// ВЫБРАННОГО заклинания, бонус = качество + степень (CU-6(b)).
+// Синтетический рецепт — паттерн CU-6(v) (в pushing/popping
+// G.Craft.CRAFT): реальный рецепт hunting_bow знает только
+// frost_bolt.
+
+test('E3. 000133: свиток → fireball в пикере зачарования: мана −6, бонус 2; контроль — без изучения пикера нет', async () => {
+  const h = await boot();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки цепочки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const b18 = G.getBuilding(18);
+  const fake = {
+    id: 'zz_000133_fb',
+    название: 'Тест: зачарование огнём',
+    тип: 'зачарование',
+    результат: { предмет: 'hunting_bow', количество: 1 },
+    исходники: [{ предмет: 'short_bow', количество: 1 }],
+    навыки: ['archer'],
+    здания: [18],
+    заклинания: ['frost_bolt', 'fireball'],
+    уровень: 1,
+    описание: 'тест',
+  };
+  G.Craft.CRAFT.push(fake);
+  // CRAFT_BY_ID — индекс, собранный при загрузке craft-data.js (ссылки
+  // на те же объекты): canCraft ищет рецепт ТОЛЬКО там (craft.js
+  // evalCraft) — синтетический рецепт регистрируем и в индексе.
+  G.Craft.CRAFT_BY_ID[fake.id] = fake;
+  try {
+    // (a) fireball выучен СВИТКОМ (КРАСНАЯ точка: предмета нет).
+    const c = G.createCharacter();
+    c.primary.intelligence = 11; // Знаток — fireball (tier 2) открыт
+    c.craft = { зачарование: 5 };
+    c.secondary.runes = 3;
+    c.spells = [];
+    const add = G.addItem(c, 'fireball_scroll', 1);
+    assert.equal(add.ok, true,
+      'свиток выдан (red: неизвестный предмет): '
+      + JSON.stringify(add));
+    const res = G.useItem(c, 'fireball_scroll');
+    assert.equal(res.ok, true,
+      'useItem ok (red: ветка spell_scroll не реализована): '
+      + JSON.stringify(res));
+    assert.ok(c.spells.includes('fireball'), 'fireball изучено');
+    assert.equal(G.totalQty(c, 'fireball_scroll'), 0, 'свиток тратится');
+    G.addItem(c, 'short_bow', 1);
+    G.craftUI.open({ building: b18, hero: c });
+    const ov = findCraftOverlay(h);
+    const { row, btn } = recipeRow(ov, 'zz_000133_fb');
+    assert.ok(row, 'синтетический рецепт на экране');
+    const fb = findAll(row, '[data-spell="fireball"]')[0];
+    assert.ok(fb,
+      'пикер: кнопка fireball (изучено из свитка — hero.spells)');
+    assert.ok(/Огненный шар/.test(textOf(row)),
+      'пикер: имя заклинания: ' + textOf(row).replace(/\n/g, ' '));
+    assert.ok(/6/.test(textOf(fb)),
+      'пикер: мана fireball (6); факт: '
+      + textOf(fb).replace(/\n/g, ' '));
+    assert.equal(findAll(row, '[data-spell="frost_bolt"]').length, 0,
+      'пикер: frost_bolt НЕ изучено → отсутствует');
+    assert.ok(btn && !btn.disabled, 'крафт доступен');
+    resetSeq(h, [0.001, 0.999]); // качество да, выход нет
+    const mp0 = c.mp;
+    ov.listeners.click[0]({ target: btn });
+    assert.equal(G.totalQty(c, 'hunting_bow'), 1, 'результат в инвентаре');
+    assert.equal(c.mp, mp0 - 6, 'мана выбранного заклинания списана (−6)');
+    const bonusSlot = (c.inventory.slots || [])
+      .find((s) => s.id === 'hunting_bow' && s.bonus);
+    assert.ok(bonusSlot, 'слот результата с бонусом');
+    assert.equal(bonusSlot.bonus.damage, 2,
+      'бонус = качество (1, mult 1) + заклинание (урон, степень 1) = 2');
+    G.craftUI.close();
+    // (b) Контроль (регрессия 000126/CU-6(a)): заклинание НЕ изучено
+    //     — пикера нет, кнопка disabled, исходники не тратятся.
+    const c2 = G.createCharacter();
+    c2.craft = { зачарование: 5 };
+    c2.spells = [];
+    G.addItem(c2, 'short_bow', 1);
+    G.craftUI.open({ building: b18, hero: c2 });
+    const ov2 = findCraftOverlay(h);
+    const { row: row2, btn: btn2 } = recipeRow(ov2, 'zz_000133_fb');
+    assert.equal(findAll(row2, '[data-spell]').length, 0,
+      'контроль: пикера НЕТ (заклинания не изучены)');
+    assert.ok(btn2 && btn2.disabled, 'контроль: disabled');
+    assert.ok(/заклинание не изучено/.test(btn2.title),
+      'контроль: причина в title: ' + btn2.title);
+    ov2.listeners.click[0]({ target: btn2 });
+    assert.equal(G.totalQty(c2, 'hunting_bow'), 0, 'контроль: результата нет');
+    assert.equal(G.totalQty(c2, 'short_bow'), 1,
+      'контроль: исходники не потрачены');
+    G.craftUI.close();
+  } finally {
+    G.Craft.CRAFT.pop(); // возврат каталога (общая песочница)
+    delete G.Craft.CRAFT_BY_ID[fake.id]; // и индекса (см. выше)
+  }
+});

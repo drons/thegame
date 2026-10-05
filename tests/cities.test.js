@@ -1366,6 +1366,9 @@ const SHOP_GOLDEN = {
   '100,-40,2,2,44,2': { seed: 7804926, stock: {
     healing_potion: 3, greater_healing: 3, mana_potion: 4,
     bread: 4, honey_cake: 2 } },
+  // Ре-пин 000133: универсам (wealth 3, пул allItems) — свитки
+  // заклинаний (000043-000050) добавлены КОНЦОМ каталога → существующие
+  // стоки не сдвинулись, += 8 свитков (rng-хвост каталога).
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
@@ -1376,7 +1379,10 @@ const SHOP_GOLDEN = {
     iron_hide_tome: 3, fire_spellbook: 2, ice_spellbook: 2,
     heavy_tome: 4, meditation_scroll: 3, nature_scroll: 1, iron_ore: 1,
     copper_ore: 1, wood_log: 1, stone_chunk: 3, hide: 5, herb_healing: 3,
-    herb_mana: 2, herb_bitter: 5, stone_chisel: 5 } },
+    herb_mana: 2, herb_bitter: 5, stone_chisel: 5, fireball_scroll: 1,
+    flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 2,
+    chill_scroll: 1, light_heal_scroll: 2, magic_shield_scroll: 2,
+    vine_scroll: 2 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1 } },

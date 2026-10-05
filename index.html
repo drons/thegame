@@ -864,6 +864,16 @@
   <!-- Спец-модуль 000092: фонтан (49) — после 48, порядок id
        по возрастанию (слот спец-модулей 000128). -->
   <script src="src/building-effect-49.js"></script>
+  <!-- «Расшифровка (заклинание)» (задача 000133: Рунический камень
+       40 / Обелиск 42): спец-модуль (000128 §2.3) — learn() source
+       «rune» (мир-сторона ЧИСТОГО applyRuneSpell); саморегистрация
+       ОДНОГО хендлера на ОБА id ('40_spell'/'42_spell') в
+       Game.buildingActions.specials в момент загрузки. ПОСЛЕ
+       building-actions.js (registerSpecial) и spells.js (Game.Spells),
+       ДО main.js (UMD-ловушка 000038: main.js снимает Game один раз —
+       тег после main.js ушёл бы в НОВЫЙ объект, регистрация молча
+       мертва). Пин порядка — tests/index-order.test.js. -->
+  <script src="src/building-effect-runes.js"></script>
   <!-- HUD (задача 000129, разбиение main.js 3/4): строки мира/
        подземелья/города. После building-actions.js (доменная группа
        серии 000127→000130), ДО main.js (UMD-ловушка 000038: main.js

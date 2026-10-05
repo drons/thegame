@@ -52,6 +52,8 @@ test('index.html: нужные модули подключены', () => {
     'src/building-effect-48.js',
     'src/building-effect-camp.js',
     'src/building-effect-49.js',
+    // 000133: слот спец-модулей (после 49, до hud.js).
+    'src/building-effect-runes.js',
     'src/hud.js',
     // Слот спец-модулей 000128 (после hud.js, до visuals-data.js);
     // добавлено на зелёной стадии (план красной — см. коммит
@@ -512,7 +514,8 @@ test('dungeon.js БЕЗ dungeons-data.js: гард деградирует до f
     ['skeleton', 'ant', 'crawling_bones', 'giant_larva'],
     'fallback: DUNGEON_MOBS[0]');
   assert.deepEqual([...sandbox.Game.DUNGEON_ITEMS[4]],
-    ['war_hammer', 'phoenix_feather', 'greater_healing', 'heavy_tome', 'fire_spellbook'],
+    ['war_hammer', 'phoenix_feather', 'greater_healing', 'heavy_tome',
+      'fire_spellbook', 'flame_burst_scroll', 'blizzard_scroll'],
     'fallback: DUNGEON_ITEMS[4]');
   assert.equal(sandbox.Game.DUNGEON_SIZE[2], 31, 'fallback: DUNGEON_SIZE[2]');
   // Генерация работает и во fallback-ветке.
@@ -818,6 +821,34 @@ test('index.html: building-effect-48.js подключён ПОСЛЕ building-a
     'src/building-effect-48.js должен быть раньше src/main.js ' +
     '(UMD-ловушка 000038: main.js снимает Game один раз)');
 
+});
+
+// --- Задача 000133: спец-модуль «Расшифровка (заклинание)» ---
+//
+// learn() source «rune» — мир-сторона ЧИСТОГО applyRuneSpell
+// (000128 §2.3): саморегистрация ОДНОГО хендлера на ОБА id
+// ('40_spell'/'42_spell') в Game.buildingActions.specials в момент
+// загрузки. Тег — в слоте спец-модулей ПОСЛЕ building-actions.js
+// (реестр specials обязан существовать), ПОСЛЕ spells.js (Game.Spells
+// — при вызове; в корректной цепочке — на месте), ДО hud.js и ДО
+// main.js (UMD-ловушка 000038: снапшот Game — если тег УЙТИ в main.js,
+// регистрация попадёт в НОВЫЙ объект Game и действие молча мертво).
+
+test('index.html: building-effect-runes.js подключён ПОСЛЕ building-actions.js и spells.js, ДО hud.js и main.js (задача 000133)', () => {
+  assert.notEqual(pos('src/building-effect-runes.js'), -1,
+    'src/building-effect-runes.js не подключён в index.html (задача 000133)');
+  assert.ok(pos('src/building-actions.js') < pos('src/building-effect-runes.js'),
+    'src/building-actions.js должен быть раньше src/building-effect-runes.js ' +
+    '(саморегистрация требует Game.buildingActions, задача 000133)');
+  assert.ok(pos('src/spells.js') < pos('src/building-effect-runes.js'),
+    'src/spells.js должен быть раньше src/building-effect-runes.js ' +
+    '(Game.Spells — learn source «rune», задача 000133)');
+  assert.ok(pos('src/building-effect-runes.js') < pos('src/hud.js'),
+    'src/building-effect-runes.js — слот спец-модулей: раньше src/hud.js ' +
+    '(задача 000133)');
+  assert.ok(pos('src/building-effect-runes.js') < pos('src/main.js'),
+    'src/building-effect-runes.js должен быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: main.js снимает Game один раз)');
 });
 
 // --- Задача 000130: вкладки панели — саморегистрирующиеся модули ---

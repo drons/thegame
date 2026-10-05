@@ -344,3 +344,27 @@ test('buildings 000048 (000094): запись проходит schema.json + п�
     && op.эффект.тексты.length === 8,
     '48: тексты — 8 фрагментов');
 });
+
+// --- Задача 000133: schema.json (items) — kind spell_scroll + effect spell ---
+//
+// КРАСНЫЙ: enum вида не содержит 'spell_scroll', effect.kind —
+// 'spell', effect.properties.spell отсутствует (контракт
+// memory/000133-spell-scrolls-runes.md §2.1). До каталожного
+// коммита: validateItem items.js:54 — «неизвестный kind» на
+// загрузке; новые 8 файлов — «лишние поля».
+
+test('items schema (000133): spell_scroll / effect spell зафиксированы', () => {
+  const s = loadSchema('items');
+  const kindEnum = s.properties.kind.enum;
+  assert.ok(kindEnum.includes('spell_scroll'),
+    'properties.kind.enum содержит spell_scroll (red: enum без kind); '
+    + JSON.stringify(kindEnum));
+  const fkEnum = s.properties.effect.properties.kind.enum;
+  assert.ok(fkEnum.includes('spell'),
+    'effect.properties.kind.enum содержит spell (red: enum без «spell»); '
+    + JSON.stringify(fkEnum));
+  assert.deepEqual(s.properties.effect.properties.spell,
+    { type: 'string', pattern: '^[a-z][a-z0-9_]*$' },
+    'effect.properties.spell — string, pattern id заклинания '
+    + '(аналог skill у skill_book; red: поля нет)');
+});
