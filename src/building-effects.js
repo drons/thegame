@@ -619,8 +619,16 @@
    * Четыре стороны идут через ЭТУ строку: mark (onBuildingAction),
    * read (buildingActions), available (performAvailable), re-check в
    * apply (applyTavernPerform). tile.cityAnchor — непустая строка →
-   * якорь; иначе/мусор — клетка (деградация согласована на обеих
-   * сторонах — игра не падает).
+   * якорь; иначе/мусор — клетка. Деградация cityAnchor=null
+   * (город; ревью 2026-10-05 — осознанный допуск): mark/read/
+   * available — ключ по КЛЕТКЕ ГОРОДА одинаково (согласованно —
+   * лимит держит read, игра не падает); re-check в apply получает
+   * apply-state.tile — тайл героя (пин BA2(b): в городе это
+   * МИРОВОЙ тайл входа), клетка города из apply-state
+   * невосстановима → деградирует на его ключ, марку (по клетке)
+   * НЕ видит. Недостижимо в production (worldKey всегда
+   * «целое,целое» — locations.js:292; buildingAnchor — map.js:978;
+   * см. memory/000137-tavern-perform-city-daily.md §3).
    * @param {{x: number, y: number, cityAnchor?: string|null}} tile
    * @param {string} effectId id эффекта (без ':'/','/пробелов)
    * @returns {string} ключ buildingOncePerDay
@@ -1702,7 +1710,13 @@
    * отказом { ok:false, message:'выступал сегодня' } на ВСЕХ путях
    * (роутер: flash, БЕЗ марки/saveNow/render). Ключ — dailyKeyFor
    * (город — st.cityAnchor отдельным полем apply-state, мир —
-   * тайл). Гарды — отказ «недоступно»: нет G/G.skillLevel/
+   * тайл). Деградация cityAnchor=null (город; ревью 2026-10-05 —
+   * осознанный допуск, недостижимо в production): ключ = st.tile —
+   * МИРОВОЙ тайл входа (пин BA2(b); клетка города из apply-state
+   * невосстановима) ≠ ключ марки (по клетке) → марку re-check НЕ
+   * ВИДИТ; лимит на этом пути держит read-сторона (строка
+   * disabled). См. memory/000137-tavern-perform-city-daily.md §3.
+   * Гарды — отказ «недоступно»: нет G/G.skillLevel/
    * G.derived; каталог-мусор (выступление не объект / база/шаг
    * не-finite / навык не строка); нет hero. apply ЧИСТО: снимок не
    * мутирует.

@@ -46,6 +46,12 @@ income = Math.round( Math.round(база + шаг × L) × mult )   // ЦЕЛО�
   строка → `cityAnchor + ':' + id`; иначе `tile.x + ',' + tile.y +
   ':' + id`) — mark (onBuildingAction), read (buildingActions),
   performAvailable, re-check в apply — ВСЕ через него.
+* Деградация cityAnchor=null (город, недостижимо в production):
+  mark/read/available — ключ по КЛЕТКЕ города одинаково; re-check в
+  apply — по МИРОВОМУ тайлу входа (apply-state.tile пин BA2(b)) —
+  марку не видит (осознанный допуск, ревью 2026-10-05; лимит
+  держит read — строка disabled). Подробно — полный контракт §3 +
+  «Ревью».
 * Почему без клетки: `<ax>,<ay>:<tx>,<ty>:<effectId>` не проходит
   DAY_MAP_KEY_RE (day.js:203, одно двоеточие) → restoreDayMap молча
   сбрасывал бы марку; day.js не трогаем. Семантика — per-(город,
