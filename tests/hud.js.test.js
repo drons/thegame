@@ -486,6 +486,69 @@ test('HU4. buildLine(ctx) — побайтовый снимок строки HUD
     'в городе на магазинном тайле — setShop(null) (1:1)');
 });
 
+// --- Z4 (задача 000135): раннее предупреждение боя в зоне группы ---
+//
+// Контракт: memory/000135-mob-group-zones.md §1 (ветка hud.js) / §7
+// (Z4a-d). `zoneGroup` — 17-е ОПЦИОНАЛЬНОЕ поле ctx (ЗНАЧЕНИЕ — тип
+// группы 0..6, null/undefined вне зоны; main.js ставит его только
+// для триггерящих групп ВНЕ тайла группы — см. findZoneCombat).
+// Формулировка строки (решение D6): «Осторожно: <группа> — зона»
+// (тире с пробелами, без «!»). Приоритет цепи (детерминированно,
+// решение D7): dungeonState > hasBuilding > hasMobGroup > zoneGroup
+// > flash. Существующие пины HU4 (h)/(i) — побайтово, НЕ трогаем.
+
+test('Z4a. buildLine: в зоне триггерящей группы (вне её тайла) — «Осторожно: <группа> — зона» побайтово (задача 000135)', () => {
+  const hud = require('../src/hud.js');
+  assert.equal(hud.buildLine(makeCtx({
+    zoneGroup: 4,
+    game: { mobGroupName: (id) => (id === 4 ? 'паучье гнездо' : '—') },
+  })),
+    TOP_BASE + '[I] персонаж\n' +
+    'Осторожно: паучье гнездо — зона',
+    'зона-строка побайтово (тире с пробелами, без «!»)');
+});
+
+test('Z4b. buildLine: на тайле группы + zoneGroup — СТАРАЯ строка (приоритет hasMobGroup) (задача 000135)', () => {
+  const hud = require('../src/hud.js');
+  assert.equal(hud.buildLine(makeCtx({
+    tile: { terrain: 3, hasBuilding: false, buildingId: null,
+      hasMobGroup: true, mobGroup: 4 },
+    zoneGroup: 5,
+    game: {
+      mobGroupName: (id) => (id === 4 ? 'паучье гнездо'
+        : 'круг стихийников'),
+    },
+  })),
+    TOP_BASE + '[I] персонаж\n' +
+    'Осторожно: паучье гнездо!',
+    'на тайле — старая строка побайтово (пин HU4 h), зона-строки нет');
+});
+
+test('Z4c. buildLine: без поля zoneGroup — строки «— зона» нет, текущие строки без изменений (задача 000135)', () => {
+  const hud = require('../src/hud.js');
+  const line = hud.buildLine(makeCtx());
+  assert.ok(!line.includes('— зона'),
+    'поле zoneGroup нет (текущий ctx) — зона-строки нет');
+  assert.equal(line, TOP_BASE + '[I] персонаж',
+    'базовая строка без изменений (ветка мертва — паттерн 000129)');
+});
+
+test('Z4d. buildLine: dungeonState + zoneGroup — строка локации (цепь: подземелье > зона) (задача 000135)', () => {
+  const hud = require('../src/hud.js');
+  assert.equal(hud.buildLine(makeCtx({
+    dungeonState: {
+      kind: 'city', name: 'Старый город', x: 10, y: 12,
+      dg: { exit: { x: 10, y: 14 } },
+    },
+    zoneGroup: 5,
+    game: { mobGroupName: () => 'круг стихийников' },
+  })),
+    TOP_BASE + '[I] персонаж\n' +
+    '--- Старый город (10, 12) ---\n' +
+    'До выхода: ~2 клеток',
+    'подземелье/город — строка локации, зона-строки нет');
+});
+
 // --- HU5: vm-песочница — вся цепочка index.html (паттерн
 // bootSandbox tests/building-actions.test.js: DOM/WebGL/localStorage-
 // стабы, performance.now заморожен на NOW, мир детерминированный —
