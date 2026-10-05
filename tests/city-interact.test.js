@@ -77,13 +77,17 @@
 //     двигает героя (гейт cityOnMove — паритет с миром).
 //   * CI-V8 — содержимое на входе: __game.dungeon.buildings deepEqual
 //     generateCityContents(layout(якорь), …) (recompute); на
-//     entrance/exit постройки НЕТ; все buildingId ∈ {1, 7, 10, 25, 44}.
+//     entrance/exit постройки НЕТ; все buildingId ∈ {1, 5, 7, 10, 25, 44}
+//     (000134: Лавка странника — легитимный городской тип).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+// 000134: CI-134B — ключ мок-хранилища для ДВОЙНОГО boot (сейв →
+// лоад); SAVE_KEY — единственный экспорт src/save.js, который нужен.
+const { SAVE_KEY } = require('../src/save.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -581,7 +585,10 @@ function makeStorage() {
 }
 
 // --- Песочница: вся цепочка index.html ---
-function bootSandbox() {
+// 000134 (CI-134B): existingStorage — ОБЩЕЕ мок-хранилище для
+// ДВОЙНОГО boot (сейв в первом → лоад во втором); по умолчанию —
+// новое (поведение ВСЕХ прежних вызовов без изменений).
+function bootSandbox(existingStorage) {
   const winListeners = {};
   const raf = [];
   const errors = [];
@@ -592,7 +599,7 @@ function bootSandbox() {
     ? makeGl() : makeContext2d(gameCanvas));
   spriteCanvas.getContext = (kind) => (kind === '2d'
     ? makeContext2d(spriteCanvas) : null);
-  const storage = makeStorage();
+  const storage = existingStorage || makeStorage();
   const body = makeEl('body');
   const document = {
     createElement: (tag) => makeEl(tag),
@@ -672,8 +679,10 @@ function bootSandbox() {
 // Промывка микротасков (Image + loadMapPixels().then: карта, спавн, rAF).
 const drain = () => new Promise((r) => setImmediate(r));
 
-async function bootChain() {
-  const h = bootSandbox();
+// 000134 (CI-134B): existingStorage пробрасывается в bootSandbox
+// (двойной boot на ОДНОМ хранилище: сейв → лоад).
+async function bootChain(existingStorage) {
+  const h = bootSandbox(existingStorage);
   await drain();
   await drain();
   await drain();
@@ -1199,8 +1208,8 @@ test('CI-V8. содержимое на входе: __game.dungeon.buildings = ge
   // production на входе: layout(якорь), wealth якоря).
   const expected = found.contents.buildings;
   for (const b of expected) {
-    assert.ok([1, 7, 10, 25, 44].includes(b.buildingId),
-      'buildingId из городского пула: ' + b.buildingId);
+    assert.ok([1, 5, 7, 10, 25, 44].includes(b.buildingId),
+      'buildingId из городского пула (000134: + Лавка 5): ' + b.buildingId);
     assert.ok(!(b.x === dg.entrance.x && b.y === dg.entrance.y),
       'на entrance постройка не стоит (000106)');
     assert.ok(!(b.x === dg.exit.x && b.y === dg.exit.y),
@@ -1208,4 +1217,190 @@ test('CI-V8. содержимое на входе: __game.dungeon.buildings = ge
   }
   assert.deepEqual(dg.buildings, expected,
     'RED: __game.dungeon.buildings — содержимое города в рантайме');
+});
+
+// ============================================================
+// 000134: Лавка странника в городе — Хольд достижим
+// ============================================================
+// Контракт: memory/000134-city-wanderer-shop.md (D2/D4/D7),
+// данные: memory/000134-wanderer-shop.md.
+//
+// Е2Е-ФИКСТУРА (D4): ПЕРВЫЙ город с Лавкой в BFS-700 от спавна
+// (0,0) — деревня 52 @ якорь (38,−12), wealth 3, тайл входа
+// (39,−11), 50 шагов; layout 4x4, вход (1,3): таверна (2,1),
+// Лавка (2,2) — 2 шага от входа. 50 > steps_per_day (40) — день
+// сменится в пути: НЕ пины (npcStocks без day-респауна, 000109 —
+// сток города, а не NPC-сток).
+//
+// Красные причины (осмысленные — нет функциональности, не
+// синтаксис):
+//   (1) города с Лавкой нет: id 5 отсутствует во ВСЕХ долях_типов
+//       → findCityFor → null → assert.ok(found);
+//   (2) слой 2 (если бы доли были, а shopFor-фикса нет): клетка
+//       Лавки без cityShops-записи (makeCityShop → null, map_index
+//       нет — SPEC L349-350) → shopFor → null → renderTradeTab
+//       создаёт ОДНОРАЗОВЫЙ сток G.createNpcShop(npc) в оверлее:
+//       npcStocks пуст (покупка сгорает при close), повторный
+//       диалог «Бревно (ост. 5)», в сейве раздела нет → падают
+//       ассерты npcStocks/повторного диалога/сейва (D2).
+
+// beforeunload → saveNow (main.js:627): dispatch захваченного
+// window-слушателя (паттерн save-restore.test.js).
+function fireBeforeUnload(h) {
+  const fns = h.winListeners['beforeunload'];
+  assert.ok(fns && fns.length, 'слушатель beforeunload зарегистрирован');
+  for (const fn of fns) fn({});
+}
+
+// Ход до Лавки + диалог с Хольдом (общая часть CI-134A/B):
+// findCityFor(предмет 5) → walkTiles → авто-вход → walkCity →
+// [E] → buildingUI → Digit1 «Диалог» → npcUI. existingStorage —
+// только для CI-134B (двойной boot). Возврат:
+// { h, G, g, found, npc, ov, b5 }.
+async function walkToShopAndDialog(existingStorage) {
+  const h = await bootChain(existingStorage);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findCityFor(G, myMap, g.state.player,
+    (c) => c.fp >= 2 &&
+    c.contents.buildings.some((b) => b.buildingId === 5));
+  assert.ok(found,
+    'RED: сценарий — город с Лавкой (id 5) достижим (id 5 отсутствует во всех долях_типов)');
+  walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе (авто-вход)');
+  const b5 = found.contents.buildings.find((b) => b.buildingId === 5);
+  assert.ok(b5, 'сценарий: Лавка в содержимом города');
+  walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, b5.x, b5.y));
+  const npc = G.npcForBuilding(G.NpcData.NPCS, 5);
+  assert.ok(npc && npc.id === 'wanderer_merchant' && npc.имя === 'Хольд',
+    'NPC Лавки — Хольд (assets/npc/000011.json, постройки [5])');
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] — buildingUI (Лавка)');
+  const ovb = buildingOverlayOf(h);
+  assert.ok(ovb && textOf(ovb).includes('лавка'),
+    'title buildingUI — «лавка странника» (каталог): ' +
+      (ovb ? textOf(ovb).slice(0, 120) : 'нет оверлея'));
+  key(h, 'Digit1');
+  assert.equal(G.npcUI.isActive(), true, '«Диалог» → npcUI (Хольд)');
+  const ov = npcOverlayOf(h);
+  assert.ok(ov, 'оверлей npcUI');
+  assert.ok(textOf(ov).includes('Хольд'), 'диалог — Хольд');
+  clickTab(h, ov, 'trade');
+  return { h, G, g, found, npc, ov, b5 };
+}
+
+test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог» → торговля Хольда (6 позиций 000011.json); покупка wood_log — ГЛОБАЛЬНЫЙ сток npcStocks (ключ npcId); городская запись стока у Лавки НЕТ (SPEC L349-350); повторный диалог — сток живой', async () => {
+  const { h, G, g, found, npc, ov, b5 } = await walkToShopAndDialog();
+  const trade = textOf(ov);
+  // 6 позиций Хольда: «имя (ост. N)» (N — начальное количество) +
+  // «покупка P з / продажа S з» (динамические G.npcBuyPrice/
+  // npcSellPrice — НЕ хардкод; свежий персонаж = герой спавна:
+  // buyPriceMult = sellPriceMult = 1 — у обоих «Торговца» нет).
+  assert.ok(npc.торговля && Array.isArray(npc.торговля.предметы));
+  assert.equal(npc.торговля.предметы.length, 6,
+    'Хольд — ровно 6 позиций сырья (000011.json)');
+  const c0 = G.createCharacter();
+  for (const p of npc.торговля.предметы) {
+    const it = G.getItem(p.предмет);
+    assert.ok(
+      trade.includes(it.name + ' (ост. ' + p.количество + ')'),
+      'строка «' + it.name + ' (ост. ' + p.количество + '）»: ' +
+        trade.slice(0, 300));
+    assert.ok(
+      trade.includes('покупка ' +
+        G.npcBuyPrice({ npc, stock: {} }, p.предмет, c0) + ' з / ' +
+        'продажа ' +
+        G.npcSellPrice({ npc, stock: {} }, p.предмет, c0) + ' з'),
+      'цены «покупка P з / продажа S з» для ' + p.предмет);
+  }
+  // Покупка wood_log: сток — ГЛОБАЛЬНЫЙ npcStocks (ключ — npcId,
+  // НЕ (город, клетка)): «что привёз — тем и торгует» — все Лавки
+  // всех городов — ОДИН сток Хольда (ТЗ :37-39).
+  const buyBtn = findAll(ov, 'button[data-npcact="buy"]')
+    .find((b) => b.dataset.item === 'wood_log');
+  assert.ok(buyBtn, 'кнопка «купить» у wood_log');
+  const goldBefore = g.state.hero.gold;
+  const buyPrice = G.npcBuyPrice({ npc, stock: {} }, 'wood_log', c0);
+  ov.listeners.click[0]({ target: buyBtn });
+  const st = g.npcStocks;
+  assert.ok(st.wanderer_merchant,
+    'RED: npcStocks.wanderer_merchant создан (ключ — npcId)');
+  assert.equal(st.wanderer_merchant.wood_log, 4,
+    'RED: npcStocks wood_log 5 → 4 (покупка мутирует ГЛОБАЛЬНЫЙ сток)');
+  assert.equal(g.state.hero.gold, goldBefore - buyPrice,
+    'золото − цена (dyn)');
+  const invW = g.state.hero.inventory
+    .reduce((s, e) => s + (e.id === 'wood_log' ? e.qty : 0), 0);
+  assert.equal(invW, 1, 'инвентарь: +1 wood_log');
+  // Городского канала (cityShops) у Лавки НЕТ (map_index нет —
+  // SPEC L349-350, makeCityShop → null): в стоке города (ключ —
+  // ЯКОРЬ) нет клетки Лавки; таверна — ЕСТЬ.
+  const cityRec = g.cities[found.ax + ',' + found.ay];
+  assert.ok(cityRec && cityRec.stock,
+    'сценарий: город в cityStates (000109, ключ — якорь)');
+  const b44 = found.contents.buildings.find((b) => b.buildingId === 44);
+  assert.ok(b44, 'сценарий: таверна в городе (минимум 1)');
+  assert.ok(cityRec.stock[b44.x + ',' + b44.y],
+    'таверна — в городском стоке (makeCityShop работает)');
+  assert.equal(cityRec.stock[b5.x + ',' + b5.y], undefined,
+    'клетка Лавки — НЕ в городском стоке (канала НЕТ — SPEC L349-350)');
+  // Сток НЕ «воскрешает» при повторном диалоге (фиксатор разрыва
+  // D2: без shopFor-fallback одноразовый сток → «ост. 5»).
+  key(h, 'Escape');
+  assert.equal(G.npcUI.isActive(), false, 'диалог закрыт (Esc)');
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, 'повторный [E] — buildingUI');
+  key(h, 'Digit1');
+  assert.equal(G.npcUI.isActive(), true, 'повторный «Диалог»');
+  const ov2 = npcOverlayOf(h);
+  clickTab(h, ov2, 'trade');
+  assert.ok(textOf(ov2).includes('Бревно (ост. 4)'),
+    'RED: повторный диалог: «Бревно (ост. 4)» — сток живой (не одноразовый): ' +
+      textOf(ov2).slice(0, 300));
+});
+
+test('CI-134B. сейв/лоад: npcStocks сериализуется (data.npcStocks, ключ npcId); закупленный у Хольда сток НЕ «воскресает» после лоада (restoreNpcStocks) — ДВА boot на ОДНОМ хранилище', async () => {
+  const storage = makeStorage();
+  const { h, G, g, npc } = await walkToShopAndDialog(storage);
+  const ov = npcOverlayOf(h);
+  clickTab(h, ov, 'trade');
+  const buyBtn = findAll(ov, 'button[data-npcact="buy"]')
+    .find((b) => b.dataset.item === 'wood_log');
+  assert.ok(buyBtn, 'кнопка «купить» у wood_log');
+  ov.listeners.click[0]({ target: buyBtn });
+  assert.equal(g.npcStocks.wanderer_merchant.wood_log, 4,
+    'RED: покупка — npcStocks мутирован (5 → 4)');
+  // beforeunload → saveNow (main.js:627): раздел data.npcStocks.
+  fireBeforeUnload(h);
+  const saved = JSON.parse(storage.getItem(SAVE_KEY));
+  assert.ok(saved, 'сейв записан в хранилище');
+  assert.equal(saved.version, 1, 'оболочка v1 (неломкое расширение)');
+  assert.ok(saved.data && saved.data.npcStocks,
+    'RED: раздел data.npcStocks в сейве (serializeNpcStocks)');
+  assert.equal(saved.data.npcStocks.wanderer_merchant.wood_log, 4,
+    'RED: сейв: wood_log = 4 (закупленный сток сохранён)');
+  for (const p of npc.торговля.предметы) {
+    if (p.предмет === 'wood_log') continue;
+    assert.equal(
+      saved.data.npcStocks.wanderer_merchant[p.предмет],
+      p.количество, 'сейв: ' + p.предмет + ' — начальное');
+  }
+  // Второй boot на том же хранилище: restoreFromSave при boot —
+  // сток Хольда восстановлен из сейва (catalog-first, qty ≤ нач.).
+  const h2 = await bootChain(storage);
+  const g2 = h2.sandbox.__game;
+  assert.ok(g2.state.save && g2.state.save.version === 1,
+    'boot 2: сейв прочитан (не «вакуумный»)');
+  const st2 = g2.npcStocks;
+  assert.ok(st2.wanderer_merchant,
+    'RED: после лоада сток Хольда восстановлен (npcId-ключ)');
+  assert.equal(st2.wanderer_merchant.wood_log, 4,
+    'RED: лоад: wood_log = 4, НЕ 5 — закупленный сток НЕ «воскресает»');
+  for (const p of npc.торговля.предметы) {
+    if (p.предмет === 'wood_log') continue;
+    assert.equal(st2.wanderer_merchant[p.предмет], p.количество,
+      'лоад: ' + p.предмет + ' — как в сейве');
+  }
 });
