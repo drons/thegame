@@ -16,6 +16,9 @@
     "hp": 1.5,
     "armor": 3,
     "skills": ["heavy"],
-    "spells": []
+    "spells": [],
+    "базовые_характеристики": { "strength": 2, "dexterity": 1,
+      "constitution": 3, "intelligence": 1, "wisdom": 1, "charisma": 1 },
+    "начальные_навыки": { "heavy": 2 }
   }
 }

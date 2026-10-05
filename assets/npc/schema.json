@@ -177,7 +177,22 @@
         "spells": {
           "type": "array",
           "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
-        }
+        },
+        "базовые_характеристики": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strength", "dexterity", "constitution",
+                       "intelligence", "wisdom", "charisma"],
+          "properties": {
+            "strength": { "type": "integer", "minimum": 1, "maximum": 10 },
+            "dexterity": { "type": "integer", "minimum": 1, "maximum": 10 },
+            "constitution": { "type": "integer", "minimum": 1, "maximum": 10 },
+            "intelligence": { "type": "integer", "minimum": 1, "maximum": 10 },
+            "wisdom": { "type": "integer", "minimum": 1, "maximum": 10 },
+            "charisma": { "type": "integer", "minimum": 1, "maximum": 10 }
+          }
+        },
+        "начальные_навыки": { "type": "object" }
       }
     }
   }

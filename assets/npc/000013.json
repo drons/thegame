@@ -15,6 +15,9 @@
     "dmg": 1.0,
     "hp": 0.9,
     "skills": ["archer", "accuracy"],
-    "spells": []
+    "spells": [],
+    "базовые_характеристики": { "strength": 1, "dexterity": 3,
+      "constitution": 1, "intelligence": 1, "wisdom": 1, "charisma": 1 },
+    "начальные_навыки": { "archer": 2, "accuracy": 1 }
   }
 }
