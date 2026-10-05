@@ -753,6 +753,13 @@
        (000091: «Отдых» таверны, саморегистрация в момент загрузки). -->
   <script src="src/building-actions.js"></script>
   <script src="src/building-effect-44_rest.js"></script>
+  <!-- Таверна «Выступление» (задача 000137): спец-модуль 44_perform
+       (шаблон 44_rest, 000091/000128 §2.3) — саморегистрация в момент
+       загрузки: ПОСЛЕ building-actions.js (нужен registerSpecial),
+       рядом с 44_rest (слот спец-модулей таверны), ДО main.js
+       (UMD-ловушка 000038: main.js снимает Game один раз). Пин
+       порядка — tests/index-order.test.js (IO1). -->
+  <script src="src/building-effect-44_perform.js"></script>
   <!-- Ежедневный контент (задача 000077: круг 43 / храм 39):
        спец-модуль (000128 §2.3) — саморегистрация хендлера на ОБА id
        в момент загрузки: ПОСЛЕ building-actions.js (нужен

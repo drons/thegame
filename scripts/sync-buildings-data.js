@@ -69,13 +69,27 @@ for (const f of files) {
 
 // --- Генерация JS ---
 
+// Ключ объекта: валидный JS-идентификатор (включая кириллицу) или
+// чистый числовой литерал — как есть, иначе — в кавычках (задача
+// 000137: ключ per-эффектного раз_в_день «44_perform» — цифра впереди
+// НЕ идентификатор: без кавычек `44_perform: true` — синтаксическая
+// ошибка «numeric separator», JS-модуль не загружался).
+const JS_IDENT_RE = /^\p{ID_Start}\p{ID_Continue}*$/u;
+function jsKey(k) {
+  if (JS_IDENT_RE.test(k) || /^[+-]?\d+$/.test(k)) {
+    return k;
+  }
+  return JSON.stringify(k);
+}
+
 // Форматирует значение JS-литералом (JSON-совместимо).
 function jsValue(v) {
   if (v === null) return 'null';
   if (Array.isArray(v)) return '[' + v.map(jsValue).join(', ') + ']';
   if (typeof v === 'object') {
     return '{ ' +
-      Object.keys(v).map((k) => k + ': ' + jsValue(v[k])).join(', ') + ' }';
+      Object.keys(v).map((k) => jsKey(k) + ': ' + jsValue(v[k])).join(', ') +
+      ' }';
   }
   return JSON.stringify(v);
 }
@@ -85,7 +99,7 @@ function jsObjectAt(data, col) {
   const pad = ' '.repeat(col);
   const inner = ' '.repeat(col + 2);
   const lines = Object.keys(data)
-    .map((k) => `${inner}${k}: ${jsValue(data[k])},`);
+    .map((k) => `${inner}${jsKey(k)}: ${jsValue(data[k])},`);
   return pad + '{\n' + lines.join('\n') + '\n' + pad + '}';
 }
 

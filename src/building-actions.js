@@ -133,8 +133,13 @@
   // Действие эффекта из оверлея (задача 000071) + спец-действие
   // (задача 000128): «Диалог» — fallback на npcUI; эффект —
   // entry.apply(state) → при ok: спец-хендлер (если зарегистрирован),
-  // маркировка раз-в-день buildingOncePerDay.set('x,y:effectId',
-  // clock.day) (только если hasDailyLimit — хук 000092) + saveNow()
+  // маркировка раз-в-день buildingOncePerDay.set(BE.dailyKeyFor(t,
+  // id), clock.day) (только если hasDailyLimit — хук 000092).
+  // Формат ключа (задача 000137, ЕДИНАЯ точка — dailyKeyFor): ВСЕГДА
+  // '<X>,<Y>:<effectId>' — мир: тайл постройки (t.x/t.y), город:
+  // ЯКОРЬ ГОРОДА (t.cityAnchor — buildingAnchor входного тайла,
+  // резолв в interactCity; ловушка 000107 — локальные координаты).
+  // + saveNow()
   // СРАЗУ (не ждать beforeunload — паттерн 000029/000072, прецедент
   // _lastUnkillDay) + flash(message). При НЕ-ok: message (если есть)
   // тоже в flash — отказ apply не гаснет молча (ревью раунда 2);
@@ -188,6 +193,11 @@
         // читает параметры ТОЛЬКО из state.catalog.особые_параметры
         // (принцип 000053: код каталог-драйвен, ничего не хардкодит).
         catalog: b,
+        // Задача 000137: якорь города (ОТДЕЛЬНОЕ поле, не внутри
+        // tile — пин BA2(b): state.tile = { x, y } дословно) —
+        // re-check марки раз-в-день в apply (город — якорь, мир —
+        // null → ключ по тайлу; dailyKeyFor).
+        cityAnchor: t && t.cityAnchor || null,
       });
       if (!r || !r.ok) {
         // Отказ apply: видимый отказ (message → flash), без
@@ -339,8 +349,15 @@
     // buildingEffects (деградация 000053; в корректной цепочке BE
     // всегда на месте, в apply-ветке он гарантирован entry).
     if (BE && BE.hasDailyLimit(b, action.id)) {
+      // Задача 000137: ключ — dailyKeyFor (ЕДИНАЯ точка): мир —
+      // 'x,y:effectId' (t.x/t.y — тайл постройки; в мире === player,
+      // behavior-preserving), город — 'ax,ay:effectId' (t.cityAnchor
+      // — якорь; ловушка 000107 — координаты player/клетки города
+      // спорили и не совпадали с чтением).
       deps.buildingOncePerDay.set(
-        deps.player.x + ',' + deps.player.y + ':' + action.id,
+        BE.dailyKeyFor
+          ? BE.dailyKeyFor(t, action.id)
+          : deps.player.x + ',' + deps.player.y + ':' + action.id,
         deps.clock.day);
     }
     deps.saveNow();
@@ -429,7 +446,11 @@
       // Задача 000107 (D4): клетка тайла t, а не deps.player — в городе
       // это клетка города (мир-якорь входа был бы неверен); в мире
       // map.tileAt возвращает { x, y } = запрос (behavior-preserving).
-      tile: { x: t.x, y: t.y },
+      // Задача 000137: cityAnchor — якорь города (строка 'ax,ay' из
+      // interactCity; мир — null) — строки available/лимит читают
+      // ключ раз-в-день через dailyKeyFor (город — по якорю, мир —
+      // по клетке).
+      tile: { x: t.x, y: t.y, cityAnchor: t.cityAnchor || null },
       hero: deps.hero,
       // СНИМОК (000071) + map — READ-ONLY ссылка (000076, см.
       // onBuildingAction): available?(state) эффектов получает то же
@@ -609,9 +630,47 @@
     }
     const npc = deps.game.npcForBuilding
       ? deps.game.npcForBuilding(deps.npcs, b.id) : null;
+    // Задача 000137: ЯКОРЬ ГОРОДА для ключа раз-в-день (единственная
+    // точка резолва; зеркало prepareCityState main.js:1726-1745, НЕ
+    // ссылка): ds.worldKey ('ex,ey') → map.tileAt(ex,ey) →
+    // buildingAnchor. Гарды: worldKey отсутствует / не
+    // 'целое,целое' — ТИХО null (fake ds тестов CI-U не имеют
+    // worldKey — без console.error шума; worldKey проверяется ДО
+    // Number() — ловушка Number('') === 0); map/tileAt/buildingAnchor
+    // отсутствуют — console.error + null (wiring-сбой 000053 — в
+    // production недостижимо: cityContents генерируются только из
+    // якоря). null — ОБЕ стороны (mark + read) деградируют на ключ
+    // по клетке ОДИНАКОВО (dailyKeyFor) — согласованно, игра не
+    // падает.
+    let cityAnchor = null;
+    const wk = ds.worldKey;
+    if (typeof wk === 'string') {
+      const wkParts = wk.split(',');
+      const ex = wkParts.length === 2 ? Number(wkParts[0]) : NaN;
+      const ey = wkParts.length === 2 ? Number(wkParts[1]) : NaN;
+      if (Number.isInteger(ex) && Number.isInteger(ey)) {
+        const map = deps.getMap();
+        let wt = null;
+        if (map && typeof map.tileAt === 'function') {
+          try { wt = map.tileAt(ex, ey); } catch (err) { wt = null; }
+        }
+        if (wt && Array.isArray(wt.buildingAnchor) &&
+            wt.buildingAnchor.length === 2 &&
+            Number.isInteger(wt.buildingAnchor[0]) &&
+            Number.isInteger(wt.buildingAnchor[1])) {
+          cityAnchor = wt.buildingAnchor[0] + ',' +
+            wt.buildingAnchor[1];
+        } else {
+          console.error('building-actions.js: interactCity — ' +
+            'входной тайл города без buildingAnchor — ключ ' +
+            'раз-в-день по клетке (000137)');
+        }
+      }
+    }
     // Синтетический tile (контракт 000107 §3): координаты КЛЕТКИ
     // ГОРОДА; building — map_index записи (как мировой t.building);
     // buildingWealth — богатство якоря (ds.cityWealth).
+    // Задача 000137: cityAnchor — якорь города ('ax,ay' | null).
     const t = {
       x: cell.x, y: cell.y,
       buildingId: cell.buildingId,
@@ -619,6 +678,7 @@
         b.особые_параметры.map_index != null
           ? b.особые_параметры.map_index : null,
       buildingWealth: ds.cityWealth,
+      cityAnchor,
     };
     // СУЩЕСТВУЮЩАЯ точка: buildingUI.open + actions (городские
     // записи БЕЗ эффектов → ровно «Диалог», если npc != null;
