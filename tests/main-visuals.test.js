@@ -1555,13 +1555,19 @@ function zoneTilesAt(G, myMap, x, y) {
 // Мир: BFS от start к ближайшему ТАЙЛУ ЗОНЫ ГРУППЫ (000135): тайлу
 // группы (нейтральные/трусливые — как до) ИЛИ краю 5×5-зоны
 // триггерящей группы (агрессивные/территориальные — бой на шаге
-// ВХОДА В ЗОНУ, не на тайле). findZoneCombat с пустым defeatedAt —
-// консервативно: первый такой тайл — ЦЕЛЬ (шаг на него = бой), путь
-// его НЕ пересекает (BFS возвращается на первой найденной).
+// ВХОДА В ЗОНУ, не на тайле). findZoneCombat с defeatedAt (параметр
+// defeated, ревью 000135): первый такой тайл — ЦЕЛЬ (шаг на него =
+// бой), путь его НЕ пересекает (BFS возвращается на первой найден-
+// ной). Маршрут ДО боя — defeatedAt пуст (дефолт); маршрут ПОСЛЕ
+// боя — передать ключи поверженных тайлов групп: поверженная группа
+// не триггерит, с пустым map BFS мог бы остановиться в ЕЁ зоне
+// (шаг туда — без боя → ложный ассерт; латентная хрупкость CB-8,
+// ревью 000135 — мир детерминирован, но фикс не зависит от мира).
 // Входы пещер и городов — непроходимы: enterLocation откроет
 // оверлей и заморозит мир (guard ходьбы зависнет). Прочие входы
 // построек — безопасны (паттерн walkToMulti).
-function worldGroupRoute(G, myMap, start) {
+function worldGroupRoute(G, myMap, start, defeated) {
+  const defeatedMap = defeated || new Map();
   const startKey = start.x + ',' + start.y;
   const visited = new Set([startKey]);
   const prev = new Map();
@@ -1586,10 +1592,11 @@ function worldGroupRoute(G, myMap, start) {
         // 000135: стоп на тайле группы (любой класс, dist 0) ИЛИ на
         // тайле 5×5-зоны триггерящей группы (dist ≤ radius) — там
         // шаг вызывает бой (findZoneCombat — та же логика, что в
-        // main.js). defeatedAt — пустой: маршрут строится ДО боя
-        // (консервативно; поверженные группы в игре не триггерят).
+        // main.js). defeated — ключи поверженных тайлов групп
+        // (ревью 000135): поверженные не триггерят; пустой map —
+        // маршрут ДО боя (маршрут 1).
         if (G.findZoneCombat(nx, ny, zoneTilesAt(G, myMap, nx, ny),
-            new Map()) !== null) {
+            defeatedMap) !== null) {
           const steps = [];
           let kk = k;
           while (kk !== startKey) {
@@ -1829,6 +1836,17 @@ test('000112 CB-8: W1 (мир) — ходьба на тайл группы → m
   // Бой 1: ближайшая по BFS группа — тайл группы ИЛИ край её 5×5-
   // зоны (000135: нейтральная/трусливая — тайл, как до;
   // агрессивная/территориальная — вход в зону).
+  // Ревью 000135: spy startCombat — ключ тайла ГРУППЫ боя 1
+  // (opts.tile = тайл группы, D8; main.js читает G.combatUI
+  // динамически — паттерн tests/mob-zones-e2e.test.js): маршрут 2
+  // строится ПОСЛЕ победы — с живым defeatedAt, иначе BFS мог бы
+  // остановиться в зоне уже поверженной группы (шаг туда — без боя
+  // → ложный ассерт «бой 2»).
+  const origStart1 = G.combatUI.startCombat;
+  const cap1 = { opts: null };
+  G.combatUI = Object.assign({}, G.combatUI, {
+    startCombat: (o) => { cap1.opts = o; return origStart1(o); },
+  });
   const r1 = worldGroupRoute(G, myMap, spawn);
   assert.ok(r1, 'сценарий: найдена достижимая группа');
   walkWorldRoute(h, r1.steps);
@@ -1843,8 +1861,15 @@ test('000112 CB-8: W1 (мир) — ходьба на тайл группы → m
   // BFS стартует С НЕГО — он в visited и целью не может быть).
   // 000135: цель — тайл группы ИЛИ край 5×5-зоны (spider_nest —
   // territorial — бой на шаге ВХОДА В ЗОНУ, не на тайле).
+  // Ревью 000135: defeated1 — ключ тайла группы боя 1 (spy; в мире
+  // фолбэка пустой/живой map дают одну цель — (1,1) — но маршруты
+  // должны быть корректны при ЛЮБОМ детерминированном мире).
   const from2 = { x: g.state.player.x, y: g.state.player.y };
-  const r2 = worldGroupRoute(G, myMap, from2);
+  const defeated1 = new Map();
+  if (cap1.opts) {
+    defeated1.set(cap1.opts.tile.x + ',' + cap1.opts.tile.y, 1);
+  }
+  const r2 = worldGroupRoute(G, myMap, from2, defeated1);
   assert.ok(r2, 'сценарий: найдена вторая группа');
   assert.notEqual(r2.key, r1.key, 'второй бой — на другом тайле');
   walkWorldRoute(h, r2.steps);

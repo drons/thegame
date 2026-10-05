@@ -517,3 +517,88 @@ test('Z7. e2e: спавн (0,0) — бут без боя; Game.findZoneCombat(с
   assert.equal(G.findZoneCombat(px, py, tiles, new Map()), null,
     'спавн — зона-боя НЕТ (neutral 3×3 без триггера, не на тайле)');
 });
+
+// --- Z8. Ревью 000135: поверженный СВОЙ тайл ВНУТРИ зоны живой
+// триггерящей группы — бой на шаге НА этот тайл (зона), а не пропуск
+// (старая проводка: pt.hasMobGroup → t = pt → общий guard гасил,
+// зона не рассматривалась; HUD при этом предупреждал «— зона»).
+//
+// Сценарий НЕ КОНСТРУИРУЕТСЯ в фолбэк-мире без мутации: пары тайлов
+// групп в Чебышёве ≤ 2 есть только в дальней части мира (83 пары,
+// вычислено), тестовые маршруты туда не ходят. ТЕСТ-МУТАЦИЯ
+// tileCache-объекта (1,1): зона-логика (nearbyGroupTiles/
+// zoneCombatTile) читает ИМЕННО кэш (main.js: G.createTileCache),
+// map.tileAt (проходимость tryMove, HUD-тайл) — свежие объекты, не
+// трогается. main.js читает G.createTileCache ДИНАМИЧЕСКИ (тот же
+// паттерн, что spy startCombat).
+//
+// Маршрут: (0,0)→(1,0) бой на тайле (логово, defeatedAt '1,0') →
+// (1,1) бой на тайле «второго логова» (мьютированный тайл, defeatedAt
+// '1,1'; (1,1) — в зоне паучьего d=2) → (1,0) без боя ('1,0'
+// повержено, пауки d=3) → (1,1) — ЦЕЛЕВОЙ шаг: поверженный тайл в
+// зоне ЖИВЫХ пауков → zone-бой с паучьим (seed/tile — от (2,3)).
+
+test('Z8. e2e: шаг на поверженный тайл группы ВНУТРИ зоны живой группы — zone-бой на шаге (ревью 000135)', async () => {
+  const h = bootSandbox(null);
+  // tileCache, который создаст main.js (до первого drain — старт
+  // идёт в микротасках loadMapPixels().then).
+  const origCTC = h.sandbox.Game.createTileCache;
+  const tcCap = {};
+  h.sandbox.Game.createTileCache = (m) => {
+    tcCap.tc = origCTC(m);
+    return tcCap.tc;
+  };
+  await drain();
+  await drain();
+  await drain();
+  assert.ok(tcCap.tc, 'сценарий: tileCache создан (старт main.js)');
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(myMap.tileAt(2, 3).mobGroup, 4,
+    'сценарий: паучье гнездо (2,3) — 5×5 (живая триггерящая)');
+  assert.equal(myMap.tileAt(1, 0).mobGroup, 2,
+    'сценарий: логово скелетов (1,0) — neutral');
+  assert.ok(myMap.tileAt(1, 0).passable
+    && myMap.tileAt(1, 1).passable,
+    'сценарий: (1,0)/(1,1) проходимы');
+  assert.ok(!myMap.tileAt(1, 1).hasMobGroup,
+    'сценарий: (1,1) — НЕ тайл группы (фолбэк; d=2 от паучьего)');
+  // Тест-мутация: «второе логово» (neutral, 3×3 без триггера) на
+  // (1,1) — тайл, который станет «поверженным в зоне» целевого шага.
+  const t11 = tcCap.tc.tile(1, 1);
+  t11.hasMobGroup = true;
+  t11.mobGroup = 2;
+  const cap = spyStartCombat(G);
+  const walk = makeWalker(h);
+  walk(1, 0); // бой 1: на тайле (логово) → defeatedAt '1,0'
+  assert.equal(G.combatUI.isActive(), true, 'бой 1 — начался на тайле');
+  assert.equal(G.combatUI.current().groupType, 2, 'бой 1 — логово');
+  resolveCombatVictory(G, G.combatUI.current(), 'бой 1');
+  walk(1, 1); // бой 2: на «тайле второго логова» → defeatedAt '1,1'
+  assert.equal(G.combatUI.isActive(), true, 'бой 2 — начался на тайле');
+  assert.equal(G.combatUI.current().groupType, 2,
+    'бой 2 — логово на (1,1) (мутация)');
+  resolveCombatVictory(G, G.combatUI.current(), 'бой 2');
+  walk(1, 0); // возврат: без боя ('1,0' повержено; пауки d=3 — вне)
+  assert.equal(G.combatUI.isActive(), false,
+    'поверженный тайл без живой зоны — без боя (общий guard)');
+  // ЦЕЛЕВОЙ шаг: (1,1) — поверженный СВОЙ тайл ВНУТРИ зоны живой
+  // триггерящей группы (пауки, d=2) → бой на шаге входа (ТЗ).
+  // ДО фикса: общий guard гасил, боя не было (зона — только на
+  // следующем шаге в зоне, либо не была вовсе).
+  walk(1, 1);
+  assert.equal(G.combatUI.isActive(), true,
+    'поверженный тайл в живой зоне — zone-бой на шаге (ревью 000135)');
+  const c = G.combatUI.current();
+  assert.equal(c.groupType, 4,
+    'бой — с ЖИВОЙ зонной группой (пауки), не со своей поверженной');
+  assert.equal(cap.opts.seed, G.hash2(2, 3, SALT),
+    'seed — от тайла ГРУППЫ (2,3) (D8)');
+  assert.equal(cap.opts.tile.x, 2, 'opts.tile — тайл группы (x)');
+  assert.equal(cap.opts.tile.y, 3, 'opts.tile — тайл группы (y)');
+  assert.equal(cap.calls, 3, 'сценарий: боя РОВНО 3 (тайл, тайл, зона)');
+  resolveCombatVictory(G, c, 'zone-бой (ревью)');
+});
