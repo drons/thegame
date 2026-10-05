@@ -713,6 +713,37 @@ test('000138-SW-E5b: после полного подтверждения before
   assert.equal(h.reloadCalls.length, 1, 'reload — по-прежнему ровно 1×');
 });
 
+// SW-E5c: (ревью 000138) двойной клик по финальному «Да»: после
+// полного прохода state — 'confirmed', confirm-панель НЕ скрыта
+// (страница должна уйти на reload — в vm это spy). Второй клик
+// физического двойного клика может прийти до начала навигации:
+// он НЕ обязан бросать необработанную ошибку в клик-обработчике
+// (гард reply(): state !== 'pending' → no-op) и не трогает
+// хранилище/reload. Красный до фикса: reply('yes') →
+// flow.answer('yes') в состоянии 'confirmed' → throw.
+test('000138-SW-E5c: повторный клик «Да» после полного подтверждения — не бросает, хранилище и reload не меняются', async () => {
+  const h = await boot(SEED);
+  const sw = winOf(h);
+  clickRestart(h);
+  clickYes(h);
+  clickNo(h);
+  clickYes(h);
+  assert.equal(h.storage.getItem(SAVE_KEY), null, 'данные удалены');
+  assert.equal(h.reloadCalls.length, 1,
+    'reload 1× после подтверждения');
+  assert.equal(sw.dom.confirm.style.display, 'flex',
+    'confirm-панель НЕ скрыта после подтверждения (страница на '
+    + 'reload) — именно поэтому возможен повторный клик');
+  // Двойной клик: второй клик по «Да» при state === 'confirmed'.
+  assert.doesNotThrow(() => clickYes(h),
+    'второй клик «Да» не бросает необработанную ошибку '
+    + '(гард reply: state !== pending — no-op)');
+  assert.equal(h.storage.getItem(SAVE_KEY), null,
+    'хранилище не изменилось (данные уже удалены)');
+  assert.equal(h.reloadCalls.length, 1,
+    'reload НЕ повторился (по-прежнему ровно 1×)');
+});
+
 // SW-E6: повторная загрузка — окно показывается снова: НОВЫЙ
 // независимый sandbox, ПУСТОЕ хранилище → окно активно, та же
 // структура, сейва нет, день 1.
