@@ -2000,11 +2000,14 @@
   // иначе TypeError в ui.js renderTradeTab: у Берты таверны 44
   // записи в cityShops ЕСТЬ, а торговля НЕТ). Мир — как было
   // (npcShopFor, 000029) — КЛЮЧЕВОЙ путь не тронут.
+  // 000134: клетка города БЕЗ cityShops-записи — Лавка (id 5): нет
+  // map_index (SPEC L349-350) → стока постройки нет → NPC-канал
+  // (npcStocks по npcId) как в мире — ЖИВОЙ глобальный сток Хольда.
   function shopFor(npc, t) {
     const ds = dungeonState;
     if (ds && ds.kind === 'city' && ds.cityShops && t) {
       const s = ds.cityShops[t.x + ',' + t.y];
-      if (!s) return null;
+      if (!s) return npc ? npcShopFor(npc.id) : null; // 000134
       if (!npc || !npc.торговля || !Array.isArray(npc.торговля.предметы)) {
         return null;
       }
