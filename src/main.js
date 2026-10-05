@@ -447,6 +447,56 @@
     }
     return xpLines.concat(deadLines);
   }
+  // Задача 000132: лут с мобов при победе (SPEC.md «Лут» L217-221;
+  // контракт — memory/000132-mob-loot.md) — ОДИН хелпер выдачи для
+  // ВСЕХ 3 мест победы (onEnd: startCombatAt/maybeStartCombat/
+  // startDungeonCombat): c.result.items [{id, qty}] → G.addItem в
+  // инвентарь героя (плоский API items.js, прецедент сундука; G.*
+  // читается ЛЕНИВО в момент вызова — 000038/000053). При ЛЮБОМ
+  // отказе addItem (лимит веса/слоты) предмет НЕ теряется —
+  // авто-золото по value предмета (базовая цена каталога, НЕ
+  // sellPrice лавки: в бою лавки нет) + ОДНА агрегированная строка
+  // «не влезло: +N золота». no-op guard ОБЯЗАТЕЛЕН: результат БЕЗ
+  // items (мутационные e2e, 'fled'/'dead') — [] (байт-в-байт
+  // HUD-пины 000087 не тронуты). НОЛЬ rng — выдача чистая функция
+  // от res.items. Возврат — строки (hudFlash join('\n') / ds.log по
+  // одной на push).
+  let lootWarned = false;
+  function combatEndLoot(res) {
+    const isVictory = res && res.outcome === 'victory';
+    if (!isVictory || !Array.isArray(res.items) || res.items.length === 0)
+      return [];
+    if (typeof G.addItem !== 'function' || typeof G.getItem !== 'function') {
+      if (!lootWarned) {
+        lootWarned = true;
+        console.error('000132: G.addItem/G.getItem недоступны — '
+          + 'предметный лут не выдан');
+      }
+      return [];
+    }
+    const names = [];
+    let overflow = 0;
+    for (const rec of res.items) {
+      if (!rec || typeof rec.id !== 'string') continue;
+      const it = G.getItem(rec.id);
+      if (!it) continue; // неизвестный id — тихий skip (деградация)
+      let qty = rec.qty;
+      if (!Number.isInteger(qty) || qty < 1) qty = 1;
+      const add = G.addItem(hero, rec.id, qty);
+      if (add && add.ok) {
+        names.push(qty > 1 ? it.name + ' ×' + qty : it.name);
+      } else {
+        overflow += (typeof it.value === 'number' ? it.value : 0) * qty;
+      }
+    }
+    const lines = [];
+    if (names.length) lines.push('Лут: ' + names.join(', ') + '.');
+    if (overflow > 0) {
+      hero.gold += overflow; // live-ссылка (паттерн спец-хендлеров)
+      lines.push('не влезло: +' + overflow + ' золота');
+    }
+    return lines;
+  }
   // Задача 000093: смотровая башня — «исследованные» окрестности:
   // 'x,y' башни → Set<'x,y'> тайлов окна Чебышёва (граница
   // включительно) — раздел сейва `explored` (имя зафиксировано
@@ -1332,6 +1382,11 @@
           // поле боя.
           if (mover) mover.teleport(player.x, player.y);
         }
+        // Задача 000132: предметный лут — строки ПОСЛЕ базовой
+        // флэш-строки, ДО отряда (мультистрочность работает — compLines).
+        const lootLines = combatEndLoot(res);
+        if (lootLines.length)
+          hudFlash = hudFlash + '\n' + lootLines.join('\n');
         // Задача 000087: отряд — xp/уровни/гибель (до saveNow, D8);
         // строки — ПОСЛЕ базовой флэш-строки (база не тронута).
         const compLines = combatEndCompanions(res, combat);
@@ -1662,6 +1717,11 @@
           // поле боя.
           if (mover) mover.teleport(player.x, player.y);
         }
+        // Задача 000132: предметный лут — строки ПОСЛЕ базовой
+        // флэш-строки, ДО отряда (мультистрочность работает — compLines).
+        const lootLines = combatEndLoot(res);
+        if (lootLines.length)
+          hudFlash = hudFlash + '\n' + lootLines.join('\n');
         // Задача 000087: отряд — xp/уровни/гибель (до saveNow, D8);
         // строки — ПОСЛЕ базовой флэш-строки (база не тронута).
         const compLines = combatEndCompanions(res, combat);
@@ -1919,6 +1979,10 @@
             ds.log.push('Вы очнулись. −20% золота.');
           }
         }
+        // Задача 000132: предметный лут в журнал (паттерн 000066 —
+        // ПО ОДНОЙ строке на push, НЕ join('\n')): порядок — строка
+        // «…повержена. +N опыта.» → лут → отряд.
+        for (const l of combatEndLoot(res)) ds.log.push(l);
         // Задача 000087: отряд — xp/уровни/гибель в журнал подземелья
         // (до saveNow, D8). Канал — ds.log, НЕ hudFlash: строка =
         // событие (паттерн 000066 — ПО ОДНОЙ на push, не join('\n'));

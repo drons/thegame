@@ -6,6 +6,10 @@ const {
   hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
   MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT, PRACTICE_XP, reachableCells,
   makeAlly,
+  // 000132: пулы лута — данные модуля (красные тесты: экспорт пока
+  // отсутствует — undefined, падение осмысленное, не load-ошибка).
+  LOOT_BASE_POOL, LOOT_RARE_POOL,
+  combatInternals,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
@@ -4594,4 +4598,229 @@ test('000119 BAL-3: бой с Эфиром не тривиален — зафи�
   assert.ok(minHpFrac <= EFIR_BAL119.minHpFracCeil,
     `минимальное HP героя после боя ${minHpFrac.toFixed(3)} > `
     + `${EFIR_BAL119.minHpFracCeil} — нет боя, где герой реально ранен`);
+});
+
+// =====================================================================
+// 000132. Лут с мобов при победе (контракт —
+// memory/000132-mob-loot.md; SPEC.md «Лут» L217-221; ТЗ —
+// tasks/pending/000132.md).
+//
+// Закреплены контракты (TDD: функциональности в combat.js пока НЕТ —
+// N1-N4/N6 красные, N5 — зелёный защитный пин gold-потока):
+//   * c.result.items — массив {id, qty} ТОЛЬКО в outcome 'victory'
+//     ('fled'/'dead' — поля НЕТ — шаблон allyXp 000082); повторяющиеся
+//     id — слиты (qty), порядок — первого появления;
+//   * per-mob таблица u.loot: НЕЗАВИСИМЫЙ ролл на запись
+//     (c._rng() < chance), порядок = порядок таблицы; поле читается
+//     ЖИВЬЁМ (мутация до ролла действует); пустая таблица (orc_mad,
+//     centipede) — без краша, базовый/редкий роллятся;
+//   * базовый пул — 1 ролл (шанс 0.25) на каждого поверженного моба;
+//     редкий — 1 ОБЩИЙ ролл на бой (0.05 + 0.01 × maxLevel);
+//     выбор — pool[floor(c._rng() * len)];
+//   * пулы — ДАННЫЕ МОДУЛЯ: LOOT_BASE_POOL (8: ВСЕ food/potion) и
+//     LOOT_RARE_POOL (18: ВСЕ skill_book + weapon/armor value > 35),
+//     порядок файлов каталога; целостность — в одну сторону (id ∈
+//     каталогу, kind/value границы);
+//   * порядок c._rng в checkVictory: лут-роллы СТРОГО ПОСЛЕ gold-роллов
+//     → поток xp/gold бит-в-бит (N5); детерминизм по сиду (N1).
+//
+// Сценарий — паттерн winWithAllies (000082): strongHero, мобы в
+// верху (3+i, 2), игрок — standNextTo, добивание. killBy 'dealDamage'
+// — combatInternals.dealDamageToMob (НОЛЬ c._rng) — для константы 0.99,
+// при которой удары игрока гарантированно промах (hitChance ≤ 0.95).
+// =====================================================================
+
+function winLoot({ mobs = ['wolf'], mobLevel = 2, seed = 5,
+                  rng = null, killBy = 'attack', mutateUnit } = {}) {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs, mobLevel, seed });
+  c.obstacles.clear();
+  const mobsU = c.units.filter((u) => u.side === 'mob');
+  mobsU.forEach((u, i) => { u.x = 3 + i; u.y = 2; });
+  if (mutateUnit) mobsU.forEach((u) => mutateUnit(u));
+  standNextTo(c, mobsU[0]);
+  if (rng) c._rng = rng;
+  let n = 0;
+  while (!c.result && n++ < 60) {
+    if (killBy === 'dealDamage') {
+      const t = c.units.find((u) => u.side === 'mob' && u.alive);
+      if (!t) break;
+      combatInternals.dealDamageToMob(c, t, 9999);
+      continue;
+    }
+    c.ps.attack = 99;
+    const t = c.units.find((u) => u.side === 'mob' && u.alive
+      && uDist(c, u) <= 1)
+      || c.units.find((u) => u.side === 'mob' && u.alive);
+    c.attack(t.id);
+    c.endTurn();
+  }
+  assert.ok(c.result, 'бой завершился');
+  assert.equal(c.result.outcome, 'victory', 'игрок побеждает');
+  return { c, p };
+}
+
+test('000132-N1: детерминизм — сиды 5..10, два прогона → идентичный c.result.items', () => {
+  for (const seed of [5, 6, 7, 8, 9, 10]) {
+    const run = () => {
+      const { c } = winLoot({ mobLevel: 2, seed });
+      // GUARD ДО сравнения: без поля deepEqual(undefined, undefined)
+      // ложно прошёл бы.
+      assert.ok(Array.isArray(c.result.items),
+        `seed ${seed}: victory — c.result.items обязан быть массивом `
+        + `(fакт: ${typeof c.result.items})`);
+      return JSON.stringify(c.result.items);
+    };
+    assert.equal(run(), run(),
+      `seed ${seed}: тот же сид → тот же состав лута`);
+  }
+});
+
+test('000132-N2: точные составы — rng→0 (таблица+база+редкий), rng→0.99 (мимо), 100%-таблица, слияние qty, порядок таблицы', () => {
+  // (а) rng→0, 2×волк L2: ВСЕ роллы попадают. Таблица волка
+  // leather_armor (каждый) → qty 2; база — BASE_POOL[0] = minor_healing
+  // (каждый) → qty 2; редкий — RARE_POOL[0] = iron_sword (ОДИН на бой).
+  // Порядок — первого появления. xp 2×(8+4·2) = 32; gold —
+  // 2×round(3+4+0·2) = 14 (gold-роллы ДО лут-роллов).
+  {
+    const { c } = winLoot({ mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 5,
+      rng: () => 0, killBy: 'attack' });
+    assert.equal(c.result.xp, 32, 'xp — 2×(8+4·2), без изменений');
+    assert.equal(c.result.gold, 14, 'gold — 2×round(3+4+0·2)');
+    assert.deepEqual(c.result.items, [
+      { id: 'leather_armor', qty: 2 },
+      { id: 'minor_healing', qty: 2 },
+      { id: 'iron_sword', qty: 1 },
+    ], 'rng→0: таблица (per-mob) + базовый + редкий (одна на бой)');
+  }
+  // (б) rng→0.99, 2×волк L2: ВСЕ роллы мимо (0.99 > 0.1 / 0.25 /
+  // 0.05+0.01·2) → items []. (Убийство — dealDamage: при константе
+  // 0.99 удары игрока гарантированно промах, hitChance ≤ 0.95.)
+  {
+    const { c } = winLoot({ mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 5,
+      rng: () => 0.99, killBy: 'dealDamage' });
+    assert.deepEqual(c.result.items, [], 'rng→0.99 — все роллы мимо');
+  }
+  // (в) 100%-таблица — гарантированный дроп даже при промахах пулов
+  // (поле u.loot читается ЖИВЬЁМ: мутация ДО ролла действует).
+  {
+    const { c } = winLoot({
+      rng: () => 0.99, killBy: 'dealDamage',
+      mutateUnit: (u) => { u.loot = [{ item: 'meat', chance: 1 }]; },
+    });
+    assert.deepEqual(c.result.items, [{ id: 'meat', qty: 1 }],
+      '100%-шанс в таблице — гарантированный дроп');
+  }
+  // (г) слияние qty: 2 волка × 100% meat — ОДНА запись qty 2.
+  {
+    const { c } = winLoot({ mobs: ['wolf', 'wolf'],
+      rng: () => 0.99, killBy: 'dealDamage',
+      mutateUnit: (u) => { u.loot = [{ item: 'meat', chance: 1 }]; },
+    });
+    assert.deepEqual(c.result.items, [{ id: 'meat', qty: 2 }],
+      'повторяющиеся id слиты в одну запись (qty)');
+  }
+  // (д) таблица из 2 записей — порядок дропа = порядок таблицы.
+  {
+    const { c } = winLoot({
+      rng: () => 0.99, killBy: 'dealDamage',
+      mutateUnit: (u) => { u.loot = [
+        { item: 'sulfur', chance: 1 }, { item: 'meat', chance: 1 }]; },
+    });
+    assert.deepEqual(c.result.items, [
+      { id: 'sulfur', qty: 1 }, { id: 'meat', qty: 1 },
+    ], 'порядок = порядок записей таблицы');
+  }
+});
+
+test('000132-N3: пустые per-mob таблицы (orc_mad, centipede) — без краша, items — массив (базовый/редкий роллятся)', () => {
+  for (const [mob, lvl] of [['orc_mad', 3], ['centipede', 2]]) {
+    const { c } = winLoot({ mobs: [mob], mobLevel: lvl, seed: 5 });
+    assert.equal(c.result.outcome, 'victory', `${mob}: победа`);
+    assert.ok(Array.isArray(c.result.items),
+      `${mob}: items — массив (может быть пустым — роллы мимо) `
+      + `(факт: ${typeof c.result.items})`);
+  }
+});
+
+test('000132-N4: «fled»/«dead» — поля items НЕТ; «victory» — items ЕСТЬ (шаблон allyXp 000082)', () => {
+  // (а) victory: поле ЕСТЬ, массив.
+  const c1 = winLoot({ mobLevel: 2, seed: 5 }).c;
+  assert.equal(c1.result.outcome, 'victory');
+  assert.ok('items' in c1.result, '«victory» — поле items ЕСТЬ');
+  assert.ok(Array.isArray(c1.result.items), '«victory» — items массив');
+
+  // (б) все сбежали (пугливая фея у верхней стены, hp < 30%) —
+  // «fled»: поля items НЕТ (лута нет — лог-комментарий checkVictory).
+  const c2 = createCombat({ player: strongHero(), mobs: ['fairy'],
+    mobLevel: 10, seed: 5 });
+  c2.obstacles.clear();
+  const w2 = c2.units.find((u) => u.id === 'm0');
+  w2.y = 0; // верхняя стена — «уходят из боя»
+  w2.hp = Math.max(1, Math.floor(w2.maxHP * 0.1)); // < 30% — бегство
+  c2.endTurn();
+  assert.equal(c2.result.outcome, 'fled', c2.log.join(' | '));
+  assert.ok(!('items' in c2.result), '«fled» — поля items нет');
+
+  // (в) игрок погиб — «dead»: поля items нет.
+  const c3 = createCombat({ player: createCharacter(), groupType: 6, seed: 8 });
+  if (c3.obstacles) c3.obstacles.clear();
+  c3._rng = () => 0.01; // мобы точно попадают
+  let n = 0;
+  while (!c3.result && n++ < 60) c3.endTurn();
+  assert.equal(c3.result.outcome, 'dead');
+  assert.ok(!('items' in c3.result), '«dead» — поля items нет');
+});
+
+test('000132-N5: gold-поток БЕЗ ИЗМЕНЕНИЙ — лут-роллы строго после gold-роллов (пин базлайна; зелёный с red-фазы)', () => {
+  // Значения сверены на мастере 375c0f4 (сценарий winLoot, 2026-10-05).
+  // Ловит реализацию, поставившую лут-роллы ДО/ВМЕСТО gold-ролла —
+  // поток c._rng сдвинется, gold станет другим.
+  const pin = (mobs, mobLevel, seed) => winLoot({ mobs, mobLevel, seed }).c.result;
+  assert.equal(pin(['wolf'], 2, 5).xp, 16, 'волк L2: xp = 8 + 4·2');
+  assert.equal(pin(['wolf'], 2, 5).gold, 8, 'волк L2, seed 5: gold 8');
+  assert.equal(pin(['wolf'], 2, 7).gold, 7, 'волк L2, seed 7: gold 7');
+  assert.equal(pin(['wolf'], 2, 9).gold, 9, 'волк L2, seed 9: gold 9');
+  assert.equal(pin(['orc_mad'], 3, 5).xp, 20, 'orc_mad L3: xp = 8 + 4·3');
+  assert.equal(pin(['orc_mad'], 3, 5).gold, 10, 'orc_mad L3, seed 5: gold 10');
+});
+
+test('000132-N6: пулы — данные модуля: точные списки (порядок файлов каталога) + целостность в одну сторону', () => {
+  assert.ok(Array.isArray(LOOT_BASE_POOL),
+    'combat.js: экспорт LOOT_BASE_POOL (данные пула — не вывод в рантайме)');
+  assert.ok(Array.isArray(LOOT_RARE_POOL),
+    'combat.js: экспорт LOOT_RARE_POOL');
+  assert.equal(LOOT_BASE_POOL.length, 8, 'базовый пул — 8 id');
+  assert.equal(LOOT_RARE_POOL.length, 18, 'редкий пул — 18 id');
+  // Порядок = порядок файлов каталога (000011..000018; 000002..000032).
+  assert.deepEqual(LOOT_BASE_POOL, [
+    'minor_healing', 'healing_potion', 'greater_healing', 'mana_potion',
+    'mana_elixir', 'bread', 'meat', 'honey_cake',
+  ], 'базовый пул: ВСЕ food/potion каталога, порядок файлов каталога');
+  assert.deepEqual(LOOT_RARE_POOL, [
+    'iron_sword', 'steel_sword', 'hunting_bow', 'battle_axe', 'war_hammer',
+    'chainmail', 'knight_plate',
+    'alchemy_manual', 'sword_treatise', 'archery_manual',
+    'stone_fist_grimoire', 'iron_hide_tome', 'fire_spellbook',
+    'ice_spellbook', 'heavy_tome', 'archer_scroll', 'meditation_scroll',
+    'nature_scroll',
+  ], 'редкий пул: 11 skill_book + weapon/armor value > 35 (СТРОГО), '
+    + 'порядок файлов каталога (leather_armor 35 — ВНЕ)');
+  // Целостность — В ОДНУ СТОРОНУ (000133 растит каталог: фиксированные
+  // пулы не обязаны за ним следить; обратный set-equality — нет).
+  const byId = new Map(I.allItems().map((it) => [it.id, it]));
+  for (const id of LOOT_BASE_POOL) {
+    const it = byId.get(id);
+    assert.ok(it, 'базовый пул: id есть в каталоге: ' + id);
+    assert.ok(it.kind === 'food' || it.kind === 'potion',
+      'базовый пул: kind food/potion: ' + id + ' (' + it.kind + ')');
+  }
+  for (const id of LOOT_RARE_POOL) {
+    const it = byId.get(id);
+    assert.ok(it, 'редкий пул: id есть в каталоге: ' + id);
+    assert.ok(it.kind === 'skill_book'
+      || ((it.kind === 'weapon' || it.kind === 'armor') && it.value > 35),
+      'редкий пул: skill_book либо weapon/armor с value > 35: ' + id
+      + ' (' + it.kind + ', value ' + it.value + ')');
+  }
 });
