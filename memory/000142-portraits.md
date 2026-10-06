@@ -146,16 +146,18 @@ svg.test.js). Лёгкая схема (viewBox "0 0 128 128", width/height 128,
 ## 5. Позиция тега в index.html
 
 ОДИН тег (с комментом), после тега `src/mob-groups-data.js` (L755),
-перед тега `src/map.js` (L756) — конец блока данных:
+перед тега `src/map.js` (L756) — конец ведущей группы данных
+(до map.js; остальные *-data.js — ниже, у своих потребителей):
 ```html
   <!-- Портреты партии (задача 000142): данные каталога
-       assets/portraits (фолбэк file://). ПОСЛЕ блока данных
-       (mob-groups-data.js), ДО map.js и ui.js (потребитель —
-       вкладка «Персонаж», 000145; UMD-ловушка 000038). -->
+       assets/portraits (фолбэк file://). Конец ведущей группы
+       данных (до map.js); порядок по ТЗ: «после данных, до ui.js»
+       (потребитель — вкладка «Персонаж», 000145; UMD-ловушка 000038). -->
   <script src="src/portraits-data.js"></script>
 ```
-«После данных, до ui.js» (ТЗ) — выполнено: конец блока *-data.js;
-ui.js — L817, main.js — L904 (тег строго до них — запинено).
+«После данных, до ui.js» (ТЗ) — выполнено: конец ведущей группы
+*-data.js (до map.js); ui.js — L817, main.js — L904 (тег строго до
+них — запинено).
 Пин — tests/index-order.test.js, тест P7:
 pos(mob-groups-data) < pos(portraits-data) < pos(map.js),
 pos(portraits-data) < pos(ui.js) (не-смежный/union — совместим с
