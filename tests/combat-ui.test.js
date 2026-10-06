@@ -508,10 +508,7 @@ test('боевой UI: спрайт героя — drawImage по центру �
   const di = findCanvas(body).drawCalls
     .find((x) => x[0] === 'drawImage' && x[1][0] === fake);
   assert.ok(di, 'спрайт героя нарисован (drawImage)');
-  // 55.2 = 48 × 1.15 — ТОЧНОЕ double: прямое `48 * 1.15` даёт плавающий
-  // шум 55.199999999999996; код (000151) и пин R2 фиксируют 55.2
-  // (техническая правка пина, значение то же).
-  const size = 55.2;
+  const size = 48 * 1.15;
   const cx = (c.px + 0.5) * 48, cy = (c.py + 0.5) * 48;
   assert.equal(di[1][1], cx - size / 2, 'x — по центру клетки (px,py)');
   assert.equal(di[1][2], cy - size / 2, 'y — по центру клетки');
@@ -2175,7 +2172,7 @@ test('боевой UI: 000151 R1 — displaySize 672 (rect ×2) → бэкинг
     'бэкинг = отображение 672; факт: ' + canvas.height);
 });
 
-test('боевой UI: 000151 R2 — e2e размера отрисованного спрайта ×2: setTransform до fillRect, фон 336 логический → device 672, герой 55.2 логический → device 110.4', () => {
+test('боевой UI: 000151 R2 — e2e размера отрисованного спрайта ×2: setTransform до fillRect, фон 336 логический → device 672, герой CELL·1.15 логический (≈55.2) → device ≈110.4', () => {
   // Ядро красного ТЗ: «vm-e2e-проверка размера отрисованного спрайта»
   // — текстуры (фон, Флогистон) рисуются в ЛОГИЧЕСКИХ координатах,
   // трансформ ×2 растит всё до device 672: резкость на больших
@@ -2228,22 +2225,29 @@ test('боевой UI: 000151 R2 — e2e размера отрисованног
   assert.deepEqual(calls[iBase][1], [0, 0, 336, 336],
     'база fillRect(0, 0, 336, 336) — логические W/H: '
     + JSON.stringify(calls[iBase][1]));
-  // (d) герой: drawImage в ЛОГИЧЕСКИХ (hx−27.6, hy−27.6, 55.2, 55.2)
-  // → device-размер 55.2·2 = 110.4 (цель ТЗ: «не мыльные»).
+  // (d) герой: drawImage в ЛОГИЧЕСКИХ (hx−size/2, hy−size/2, size,
+  // size), size = CELL·1.15 (48·1.15 = 55.199999999999996 — double,
+  // ≈55.2; ревью-правок 000151: код — `CELL * 1.15` как до задачи,
+  // допуск вместо строгого 55.2) → device-размер ≈55.2·2 = 110.4
+  // (цель ТЗ: «не мыльные»).
   const heroDi = calls.find((x) => x[0] === 'drawImage'
     && x[1][0] === fakeHero);
   assert.ok(heroDi, 'спрайт героя отрисован (drawImage)');
   const hx = (c.px + 0.5) * 48, hy = (c.py + 0.5) * 48;
-  assert.equal(heroDi[1][1], hx - 27.6,
-    'герой: x — ЛОГИЧЕСКИЙ (центр клетки − 27.6); факт: ' + heroDi[1][1]);
-  assert.equal(heroDi[1][2], hy - 27.6,
+  const hsize = 48 * 1.15; // то же выражение, что в коде (CELL·1.15)
+  assert.equal(heroDi[1][1], hx - hsize / 2,
+    'герой: x — ЛОГИЧЕСКИЙ (центр клетки − size/2); факт: '
+    + heroDi[1][1]);
+  assert.equal(heroDi[1][2], hy - hsize / 2,
     'герой: y — ЛОГИЧЕСКИЙ; факт: ' + heroDi[1][2]);
-  assert.equal(heroDi[1][3], 55.2,
-    'герой: ширина — ЛОГИЧЕСКАЯ 55.2 (не device 110.4); '
+  assert.ok(Math.abs(heroDi[1][3] - 55.2) < 1e-9,
+    'герой: ширина — ЛОГИЧЕСКАЯ ≈55.2 (не device 110.4); '
     + 'факт: ' + heroDi[1][3]);
-  assert.equal(heroDi[1][4], 55.2, 'герой: высота — ЛОГИЧЕСКАЯ 55.2');
-  assert.equal(heroDi[1][3] * 2, 110.4,
-    'герой: device-размер = 55.2 × 2 = 110.4 (резкость на ×2)');
+  assert.ok(Math.abs(heroDi[1][4] - 55.2) < 1e-9,
+    'герой: высота — ЛОГИЧЕСКАЯ ≈55.2; факт: ' + heroDi[1][4]);
+  assert.ok(Math.abs(heroDi[1][3] * 2 - 110.4) < 1e-9,
+    'герой: device-размер = ≈55.2 × 2 ≈ 110.4 (резкость на ×2); '
+    + 'факт: ' + heroDi[1][3] * 2);
 });
 
 test('боевой UI: 000151 R3 — window «resize» в бою: canvas переизмерен под новый размер отображения + перерисован', () => {
@@ -2339,4 +2343,36 @@ test('боевой UI: 000151 A3 — якорь фолбэка: lenient rect (б
   assert.equal(canvas.width, 336, 'фолбэк: бэкинг = база 336');
   assert.equal(canvas.height, 336, 'фолбэк: бэкинг = база 336');
   assert.ok(canvas.drawCalls.length > 0, 'render отрисовал слои');
+});
+
+test('боевой UI: 000151 A4 — якорь dpr: displaySize 336 + devicePixelRatio 2 → бэкинг 672×672, setTransform(2, 0, 0, 2, 0, 0)', () => {
+  // Страховка D2 (dpr в формуле): Retina-экран с отображением 336 CSS
+  // px — бэкинг = 336·2 = 672 (1:1 в device-пикселях, «не мыльные» на
+  // основной аудитории ТЗ), трансформ ×2 растит логические координаты.
+  // e2e-проверка vm-стаба opts.devicePixelRatio (D13(b), ранее
+  // не использовалась; ревью-правки 000151): window.devicePixelRatio
+  // в песочнице → measureBacking → computeBacking(…, dpr 2).
+  const { G, body } = loadCombatUi(true, {
+    displaySize: 336, devicePixelRatio: 2,
+  });
+  G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const canvas = findCanvas(body);
+  assert.equal(canvas.width, 672,
+    'бэкинг = 336·2 = 672 (dpr в формуле); факт: ' + canvas.width);
+  assert.equal(canvas.height, 672,
+    'бэкинг = 336·2 = 672 по высоте; факт: ' + canvas.height);
+  const iST = canvas.drawCalls.findIndex(
+    (x) => x[0] === 'setTransform'
+    && x[1].length === 6 && x[1][0] === 2 && x[1][1] === 0
+    && x[1][2] === 0 && x[1][3] === 2 && x[1][4] === 0 && x[1][5] === 0);
+  assert.ok(iST >= 0,
+    'setTransform(2, 0, 0, 2, 0, 0) в drawCalls (dpr-масштаб ×2); '
+    + 'факт: '
+    + JSON.stringify(canvas.drawCalls.map((x) => x[0]).slice(0, 4)));
+  const iBase = canvas.drawCalls.findIndex((x) => x[0] === 'fillRect');
+  assert.ok(iST < iBase,
+    'setTransform — ДО первого fillRect (ядро R2); iST ' + iST
+    + ' vs iBase ' + iBase);
 });
