@@ -419,7 +419,11 @@ function makeEl(tag) {
 // dataExtra (000085): ДОПОЛНИТЕЛЬНЫЕ поля data (companions/efir/
 // dead_mercs) — ОПЦИОНАЛЬНЫЙ 3-й аргумент (additive: Object.assign
 // игнорирует undefined) — существующие вызовы без правок.
-function bootWithSave(storage, heroExtra, dataExtra) {
+// chainFilter (000161 T9): ОПЦИОНАЛЬНЫЙ 4-й аргумент — функция,
+// сужающая цепочку script-тегов (срезанная цепочка — без
+// src/companions.js — canRevive-деградация restore в vm; в игре
+// недостижимо: companions.js в index.html ДО main.js).
+function bootWithSave(storage, heroExtra, dataExtra, chainFilter) {
   // Сейв записывается ДО запуска цепочки: main.js снимает
   // window.localStorage и читает его при ЗАГРУЗКЕ (restoreFromSave).
   const hero = Object.assign({
@@ -443,7 +447,8 @@ function bootWithSave(storage, heroExtra, dataExtra) {
 
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const chain = Array.from(
-    html.matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1]);
+    html.matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1])
+    .filter((f) => typeof chainFilter !== 'function' || chainFilter(f));
   const winListeners = {};
   const raf = [];
   const warns = [];
@@ -1157,6 +1162,57 @@ test('000161 T8: round-trip СТАРОГО формата — голый npcId �
   assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
   assert.deepEqual(saved.data.dead_mercs, [expected],
     'сейв после restore — запись (НЕ строка)');
+});
+
+// 000161 T9: canRevive-деградация restore (memory/000161-dead-mercs-
+// record.md §2/§3) — пин РЕГРЕССИИ ДЕГРАДАЦИИ (паттерн 000083,
+// tests/npc-hire.test.js «CHAIN без companions.js»). В игре ветвь
+// недостижима (companions.js в index.html строго ДО main.js,
+// L772 → L914), но ветвь ЖИВЁТ в коде (ленивые typeof-гварды,
+// 000038/000053): регрессия (удаление гварды/порча legacy-пути)
+// должна падать здесь.
+test('000161 T9: canRevive-деградация (срезанная цепочка — без companions.js): legacy-строка бит-в-бит, запись → bad+warn, краха нет', async () => {
+  const st = makeStorage();
+  // Запись в форме сейва (валидный лист из каталога): БЕЗ модуля
+  // её НЕЧЕМ восстановить (reviveEntryFromRecord отсутствует) —
+  // bad + warn (000029/000085), НЕ починка значения.
+  const seedRec = {
+    npcId: 'merc_rena',
+    sheet: backfilledEntry({ npcId: 'merc_rena', level: 2, xp: 30,
+      loyalty: 77, hiredDay: 3 }).sheet,
+    loyalty: 77,
+    hiredDay: 3,
+  };
+  const h = bootWithSave(st, null, {
+    day: 7,
+    dead_mercs: ['merc_baldor', seedRec],
+  }, (f) => f !== 'src/companions.js');
+  for (let i = 0; i < 5; i++) await h.drain();
+  const g = h.sandbox.__game;
+  assert.ok(g, 'boot завершён (__game) — краха нет на срезанной цепочке');
+  // Деградация 000038/000053: ОДИН console.error про Game.companions
+  // (main.js, при boot) — и НИЧЕГО БОЛЬШЕ.
+  assert.equal(h.errors.length, 1,
+    'ровно 1 console.error (деградация boot): ' + h.errors.join('; '));
+  assert.ok(h.errors[0].includes('Game.companions'),
+    'ошибка про Game.companions: ' + h.errors[0]);
+  // legacy-строка — БИТ-В-БИТ (backfill НЕЛЬЗЯ — модуля нет).
+  assert.deepEqual(host(g.state.deadMercs), ['merc_baldor'],
+    'canRevive-деградация: legacy-строка бит-в-бит (без backfill)');
+  // Запись без экспортов — bad + warn (000029/000085).
+  assert.ok(h.warns.some((m) => m.includes('dead_mercs')
+    && m.includes('merc_rena')),
+    'warn: запись отброшена (merc_rena): ' + h.warns.join('; '));
+  assert.ok(!h.warns.some((m) => m.includes(
+    'не удалось восстановить dead_mercs')),
+    'try/catch-страховка НЕ сработала (ветвь обычная)');
+  // Round-trip: сейв пишет legacy-строку (НЕ запись) — деградация
+  // бит-в-бит до конца; версия не меняется.
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
+  assert.deepEqual(saved.data.dead_mercs, ['merc_baldor'],
+    'сейв — legacy-строка (без backfill: модуля нет)');
 });
 
 // --- 000109: раздел cities — сейв и респаун состояния города ---
