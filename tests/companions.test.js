@@ -163,11 +163,17 @@ const BROWSER_CHAIN = [
 // memory/000085-save-party-efir.md (D2/D3).
 // Ре-пин 000086 (ТЕХНИЧЕСКИЙ): + rosterSummary — чистая сводка отряда
 // для панели «Отряд» (контракт memory/000086-squad-panel.md §4).
+// Ре-пин 000161 (ТЕХНИЧЕСКИЙ): + serializeDeadRecord /
+// reviveEntryFromRecord — фундамент воскрешения: запись о погибшем
+// {npcId, sheet, loyalty, hiredDay} вместо голого npcId (D1 000156;
+// контракт memory/000161-dead-mercs-record.md).
 const API_KEYS = [
   'allyDataForEntry', 'applyCombatXp', 'canDismiss', 'canHire',
   'candidatesForTavern', 'createRoster', 'deserializeRoster', 'dismiss',
-  'eventSeed', 'hire', 'loyaltyTick', 'payWages', 'rosterSummary',
-  'serializeRoster', 'wagesTotal',
+  'eventSeed', 'hire', 'loyaltyTick', 'payWages',
+  'reviveEntryFromRecord', 'rosterSummary',
+  'serializeDeadRecord', 'serializeRoster',
+  'wagesTotal',
 ];
 
 // --- Модуль и API ---

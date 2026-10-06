@@ -378,7 +378,9 @@
   const hasCompanions = G.companions &&
     typeof G.companions.createRoster === 'function';
   const roster = hasCompanions ? G.companions.createRoster() : [];
-  const deadMercs = []; // [npcId] погибших — гибель 000087, сейв 000085
+  // записи {npcId, sheet, loyalty, hiredDay} погибших (000161, D1) —
+  // гибель 000087, сейв 000085
+  const deadMercs = [];
   if (!hasCompanions) {
     console.error('main.js: Game.companions отсутствует — ' +
       'src/companions.js обязан грузиться ДО src/main.js (000079) — ' +
@@ -413,9 +415,11 @@
   //   * victory + res.allyXp (combat.js 000082) — applyCombatXp в
   //     записи (xp/уровни; while — несколько уровней за бой);
   //   * ЛЮБОЙ исход — гибель из ЖИВОГО объекта боя (combat.units:
-  //     side 'ally', kind 'merc', !alive) → deadMercs (окончательно,
-  //     dedup) + splice записи. Эфир (kind 'efir') — НИКОГДА не
-  //     попадает в deadMercs (SPEC: не умирает навсегда).
+  //     side 'ally', kind 'merc', !alive) → deadMercs-запись
+  //     {npcId, sheet, loyalty, hiredDay} (окончательно, dedup по
+  //     npcId; serializeDeadRecord, 000161) + splice записи. Эфир
+  //     (kind 'efir') — НИКОГДА не попадает в deadMercs (SPEC: не
+  //     умирает навсегда).
   // Мутирует roster/deadMercs in place (000085: const-ссылки,
   // переприсваиваний НЕТ). Возврат — строки: xp/уровни, потом гибель.
   function combatEndCompanions(res, combat) {
@@ -438,8 +442,24 @@
     if (combat && Array.isArray(combat.units)) {
       for (const u of combat.units) {
         if (u.side === 'ally' && u.kind === 'merc' && !u.alive) {
-          if (deadMercs.indexOf(u.id) === -1) deadMercs.push(u.id);
           const i = roster.findIndex((e) => e && e.npcId === u.id);
+          // 000161 (D1): запись {npcId, sheet, loyalty, hiredDay}
+          // вместо голого id — serialize ПЕРЕД splice (entry обязан
+          // быть ещё в roster); дедуп — по npcId (string|record:
+          // транзиентный fallback), first-wins (000085); fallback на
+          // голый id — деградация бит-в-бит пре-000161 (entry без
+          // sheet — инвариант-нарушение, в игре недостижимо; backfill
+          // при restore, 000029).
+          if (!deadMercs.some((r) => (typeof r === 'string' ? r
+              : (r && typeof r === 'object' && !Array.isArray(r) &&
+                 typeof r.npcId === 'string') ? r.npcId : null)
+              === u.id)) {
+            let rec = (i !== -1 &&
+                typeof G.companions.serializeDeadRecord === 'function')
+              ? G.companions.serializeDeadRecord(roster[i]) : null;
+            if (rec == null) rec = u.id;
+            deadMercs.push(rec);
+          }
           if (i !== -1) roster.splice(i, 1);
           deadLines.push(npcName(u.id) + ' погиб в бою.');
         }
@@ -629,7 +649,8 @@
       // {npcId, sheet, loyalty, hiredDay}, 000143/000139 C3 —
       // level/xp ВНУТРИ sheet; старая 5-полевая форма 000079 —
       // backfill при восстановлении), Эфир (5 полей, 000111) и
-      // погибшие наёмники. Неломкое расширение v1 (000031): версию
+      // погибшие наёмники (записи той же 4-полевой формы, 000161).
+      // Неломкое расширение v1 (000031): версию
       // НЕ поднимаем, миграций нет — СТАРЫЙ сейв без этих полей
       // восстанавливается restoreFromSave с пустым отрядом и Эфиром
       // L1 (ЗАФИКСИРОВАНО ТЗ).
@@ -868,12 +889,21 @@
       console.warn('Сейв: не удалось восстановить Эфира:', err);
     }
 
-    // --- Погибшие наёмники (dead_mercs) (задача 000085) ---
-    // Плоский массив npcId — только merc (каталог + объект «найм» —
-    // критерий npcForEntry, СТРОЖЕ чистого членства: self-cleaning
-    // при правках каталога/демотации merc; консистентно с roster).
-    // Битый раздел/призрак/дубли — отброс + warn (000029, паттерн
-    // restoreNpcStocks). Старому сейву раздела нет → [].
+    // --- Погибшие наёмники (dead_mercs) (задача 000085; 000161) ---
+    // Массив записей {npcId, sheet, loyalty, hiredDay} (000161, D1)
+    // + legacy-строки (голый npcId — старые сейвы): только merc
+    // (каталог + объект «найм» — критерий, СТРОЖЕ чистого членства:
+    // self-cleaning при правках каталога; консистентно с roster).
+    // Пайплайн revive → serialize (G.companions, 000161): string —
+    // backfill (новый лист из каталога, loyalty 50, hiredDay 0 —
+    // тихий сброс 000029, задокументировано); record — sanitize
+    // (битое ядро/нет sheet/битые скаляры — сброс ЗАПИСИ, НЕ починка
+    // значения, 000085/000143 → bad). Битый раздел/призрак/дубли/
+    // подделка — отброс + warn (000029, паттерн restoreNpcStocks).
+    // canRevive-деградация (нет экспорта — в игре недостижимо,
+    // vm-тесты со срезанной цепочкой): string — legacy-путь
+    // бит-в-бит, record — bad+warn (не восстановить). Старому сейву
+    // раздела нет → [].
     try {
       const rawD = d.dead_mercs;
       if (rawD != null) {
@@ -881,17 +911,35 @@
           console.warn('Сейв: раздел dead_mercs некорректен — сбрасываю.');
           deadMercs.length = 0;
         } else {
-          const kept = [];
+          const canRevive = hasCompanions &&
+            typeof G.companions.reviveEntryFromRecord === 'function' &&
+            typeof G.companions.serializeDeadRecord === 'function';
+          const kept = [];      // записи 4 полей (деградация: строки)
           const bad = [];
-          for (const id of rawD) {
-            if (typeof id !== 'string') continue; // тихий skip
+          const keptIds = new Set();
+          for (const it of rawD) {
+            const id = typeof it === 'string' ? it
+              : (it && typeof it === 'object' && !Array.isArray(it) &&
+                 typeof it.npcId === 'string') ? it.npcId : null;
+            if (id == null) continue; // мусор — тихий skip
             const npc = NPCS.find((n) => n && n.id === id &&
               n.найм && typeof n.найм === 'object');
-            if (!npc || kept.includes(id)) { bad.push(id); continue; }
-            kept.push(id);
+            if (!npc || keptIds.has(id)) { bad.push(id); continue; }
+            let rec = null;
+            if (canRevive) {
+              const e = G.companions.reviveEntryFromRecord(NPCS, it);
+              rec = e ? G.companions.serializeDeadRecord(e) : null;
+              if (rec == null) { bad.push(id); continue; } // подделка
+            } else if (typeof it === 'string') {
+              rec = it; // деградация (нет экспорта): legacy бит-в-бит
+            } else {
+              bad.push(id); continue; // record без модуля — нет
+            }
+            keptIds.add(id);
+            kept.push(rec);
           }
           deadMercs.length = 0;
-          for (const id of kept) deadMercs.push(id);
+          for (const rec of kept) deadMercs.push(rec);
           if (bad.length) {
             console.warn('Сейв: dead_mercs — неизвестные/дубли npcId: ' +
               bad.join(', '));
@@ -1483,7 +1531,7 @@
       teleports, // live Map 'x,y' → { pair, dest, active } (000075)
       buildingQuests, // live Map 'x,y' → { questId, day, status } (000074)
       roster, // live Array (000083/000085): отряд — npcUI.open
-      deadMercs, // live Array [npcId] (000083/000085)
+      deadMercs, // live Array записей (000083/000085/000161)
       explored, // live Map 'x,y' → Set<'x,y'> (000093)
       buildingContent, // live Map 'x,y' → { day, type } (000077)
       playerRender,
@@ -2555,8 +2603,9 @@
         // level/xp внутри sheet) — точка smoke-теста для
         // 000086/000087 (читать, не менять — 000079).
         roster,
-        // Погибшие наёмники (000085): live-массив npcId — точка
-        // smoke-теста для 000086/000087.
+        // Погибшие наёмники (000085; 000161): live-массив записей
+        // {npcId, sheet, loyalty, hiredDay} — точка smoke-теста для
+        // 000086/000087.
         deadMercs,
         map: map ? { width: map.width, height: map.height, fromPng: map.fromPng } : null,
         npcs: NPCS.map((n) => n.id),

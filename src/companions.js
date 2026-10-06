@@ -20,14 +20,22 @@
 // {npcId, sheet, level, xp, loyalty, hiredDay}, где sheet — единый
 // лист наёмника (kind 'merc', 000140), а level/xp — ПЛОСКИЕ ЗЕРКАЛА
 // sheet.level/sheet.xp (читатели — ui.js/rosterSummary — не меняем).
-// Зеркала синхронизируются ровно в 3 точках: hire, applyCombatXp
-// (после Sheet.addXp), deserializeRoster (backfill/sanitize).
+// Зеркала синхронизируются ровно в 4 точках: hire, applyCombatXp
+// (после Sheet.addXp), deserializeRoster (backfill/sanitize),
+// reviveEntryFromRecord (запись о погибшем, 000161).
 // ФОРМА СЕЙВА — ровно 4 поля {npcId, sheet, loyalty, hiredDay}
 // (level/xp — ВНУТРИ sheet, зеркала не сейвятся). Старая 5-полевая
 // форма {npcId, level, xp, loyalty, hiredDay} (000082/000085) —
 // НЕЛОМАННЫЙ вход: backfill при восстановлении (sheet из каталога
-// найма, level/xp переносятся, totalXp = xp, points 0). Контракт —
-// memory/000143-merc-sheet.md.
+// найма, level/xp переносятся, totalXp = xp, points 0).
+// dead_mercs (000161, D1 000156 — фундамент воскрешения): ЗАПИСИ той
+// же 4-полевой формы {npcId, sheet, loyalty, hiredDay} (вместо голого
+// npcId) — запись несёт лист (000143), чтобы при воскрешении
+// восстановить уровень/опыт/лояльность (000162+). Старый формат
+// (голый npcId) — НЕЛОМАННЫЙ вход: backfill при восстановлении
+// (новый лист из каталога найма, loyalty 50, hiredDay 0 — тихий сброс
+// 000029, задокументировано). Контракт — memory/000143-merc-sheet.md
+// + memory/000161-dead-mercs-record.md.
 //
 // Опыт и уровни (задача 000082, SPEC.md «Спутники» → «Опыт и уровни»;
 // 000143: через единый лист): applyCombatXp — применяет
@@ -50,6 +58,17 @@
 // НЕТ): старая форма — backfill, новая — sanitizeMercSheet (битое
 // ядро → dropped, чистка полей — запись живёт). Контракт —
 // memory/000085-save-party-efir.md (D2/D3) + 000143 §2.5/§2.6.
+// 000161 (D1 000156 — фундамент воскрешения): serializeDeadRecord —
+// запись о погибшем {npcId, sheet, loyalty, hiredDay} (reuse
+// serializeRoster: форма = форма сейва, fresh-copy sheet);
+// reviveEntryFromRecord — ЕДИНАЯ точка «запись о погибшем →
+// runtime-запись отряда 6 ключей»: string (legacy, данные утрачены) —
+// backfill (новый лист из каталога найма, loyalty 50, hiredDay 0 —
+// тихий сброс 000029), record — sanitizeMercSheet (битое ЯДРО/нет
+// sheet → null) + скаляры (loyalty — finite → clamp 0..100;
+// hiredDay — finite ≥ 0 → floor; 0 — легитимный sentinel backfill).
+// Подделка/призрак/мусор → null (сброс ЗАПИСИ, 000085). Контракт —
+// memory/000161-dead-mercs-record.md.
 //
 // Зависимости: global-settings.js (max_companions, companion_loyalty,
 // companion_refusal — читаются ЖИВО при вызове, паттерн combat.js, не
@@ -396,10 +415,19 @@ function (settings, G) {
    * Кандидаты вкладки «найм» (стабильный API 000078, Npc.hireCandidates):
    * найм-данные, не нанят сейчас, не мёртв (deadMercs). Порядок =
    * порядок каталога, возвращаются ССЫЛКИ на записи каталога.
+   * 000161 (D1): deadMercs — ЗАПИСИ {npcId, sheet, loyalty, hiredDay}
+   * (legacy — голые строки): адаптер string|record → npcId — повторный
+   * найм после гибели НЕЛЬЗЯ в обоих форматах (возврат — только
+   * воскрешением, 000162); мусор (не string, объект без строки npcId)
+   * — тихий skip.
    */
   function candidatesForTavern(npcs, roster, deadMercs) {
     const hired = new Set((roster || []).map((e) => e.npcId));
-    const dead = new Set(deadMercs || []);
+    const dead = new Set((deadMercs || [])
+      .map((r) => (typeof r === 'string' ? r
+        : (r && typeof r === 'object' && !Array.isArray(r) &&
+           typeof r.npcId === 'string') ? r.npcId : null))
+      .filter((id) => typeof id === 'string'));
     return G.hireCandidates(npcs).filter(
       (n) => !hired.has(n.id) && !dead.has(n.id));
   }
@@ -413,8 +441,8 @@ function (settings, G) {
   // {kind:'merc', level, xp, totalXp, points, primary{6}, secondary{},
   // skillXp{}, spells[], npcId}. level/xp меняются ТОЛЬКО через
   // Sheet.addXp; запись дублирует их плоскими зеркалами e.level/e.xp
-  // (§2.1 — ровно 3 точки синхронизации: hire, applyCombatXp,
-  // deserializeRoster).
+  // (§2.1 — ровно 4 точки синхронизации: hire, applyCombatXp,
+  // deserializeRoster, reviveEntryFromRecord (000161)).
 
   /**
    * Лист при найме (000143 §2.4, 000141): primary — по ключам из
@@ -622,7 +650,7 @@ function (settings, G) {
         e.sheet.totalXp = e.xp;
       }
       const res = G.Sheet.addXp(e.sheet, g.xp);
-      e.level = e.sheet.level; // зеркала (§2.1: 3 точки синхронизации)
+      e.level = e.sheet.level; // зеркала (§2.1: 4 точки синхронизации)
       e.xp = e.sheet.xp;
       applied += 1;
       levelUps += res.levelsGained;
@@ -716,6 +744,25 @@ function (settings, G) {
       });
     }
     return snap;
+  }
+
+  /**
+   * Запись о погибшем наёмнике (задача 000161, D1 000156 — фундамент
+   * воскрешения): ЧИСТАЯ проекция ровно 4 полей {npcId, sheet,
+   * loyalty, hiredDay} — REUSE serializeRoster([entry])[0]: форма =
+   * форма сейва (000143), level/xp — ВНУТРИ sheet (зеркала не
+   * сейвятся), sheet — СВЕЖАЯ глубокая копия (fresh-copy-пин T1/CS-5
+   * наследуется). Запись несёт лист (000143) — при воскрешении
+   * (000162+) восстанавливаются уровень/опыт/лояльность (D1).
+   * entry не-объект / без строки npcId / БЕЗ sheet (инвариант-
+   * нарушение, в игре недостижимо) → null (тихий skip
+   * serializeRoster). Тихая (0 console).
+   * @param {object} entry RUNTIME-запись отряда (6 ключей).
+   * @returns {object|null} запись 4 полей | null (мусор/без sheet).
+   */
+  function serializeDeadRecord(entry) {
+    const s = serializeRoster([entry]);
+    return s.length ? s[0] : null;
   }
 
   /**
@@ -822,6 +869,77 @@ function (settings, G) {
     return { roster, dropped };
   }
 
+  /**
+   * Воскрешение записи о погибшем → RUNTIME-запись отряда (задача
+   * 000161, D1 000156 — фундамент воскрешения): ЕДИНАЯ точка
+   * нормализации «запись о погибшем (string|record) → запись отряда
+   * 6 ключей» {npcId, sheet, level, xp, loyalty, hiredDay} (зеркала
+   * level/xp — из sheet, §2.1 — 4-я легитимная точка их
+   * происхождения). Принимает ОБА формата (ТЗ п.3):
+   *   * string (legacy — данные УТРАЧЕНЫ до появления воскрешения):
+   *     BACKFILL — НОВЫЙ лист из каталога найма (createMercSheet:
+   *     level 1/xp 0/totalXp 0/points 0, primary/secondary/spells —
+   *     найм-каталог 000141) + задокументированные loyalty 50
+   *     (базовая лояльность найма) / hiredDay 0 («день неизвестен») —
+   *     тихий сброс (000029; SPEC «Спутники → Сейв»). Детерминизм:
+   *     каталог + константы, ноль новых RNG;
+   *   * record (объект): sheet — sanitizeMercSheet (битое ЯДРО/нет
+   *     sheet → null; чистка полей — запись живёт, 000143 §2.6);
+   *     loyalty — finite → clamp 0..100 БЕЗ округления (77.5
+   *     валиден, прецедент deserializeRoster), не-finite → null;
+   *     hiredDay — finite ≥ 0 (0 — легитимный sentinel backfill-
+   *     записи; гейт ≥ 1 из deserializeRoster НЕ переносится —
+   *     иначе каждый restore отбрасывал бы backfilled-запись —
+   *     тихая потеря прогрессии) → floor (2.7 → 2).
+   * deserializeRoster НЕЛЬЗЯ реюзить целиком (гейт hiredDay ≥ 1 —
+   * §2.4); реальный реюз: sanitizeMercSheet (sheet) + скалярные
+   * правила. «Призрак» (npcId не в каталоге с найм-данными —
+   * критерий npcForEntry) / подделка (битое ядро sheet / нет sheet /
+   * битые loyalty·hiredDay — сброс ЗАПИСИ, НЕ починка значения,
+   * 000085/000143) / мусор (null/число/массив/объект без строки
+   * npcId) → null. Тихая (0 console) — warn печатает main.js по
+   * bad-списку restore.
+   * @param {Array} npcs каталог NPC (src/npc-data.js).
+   * @param {*} raw запись о погибшем: string (legacy) | record.
+   * @returns {object|null} RUNTIME-запись отряда 6 ключей | null.
+   */
+  function reviveEntryFromRecord(npcs, raw) {
+    const id = (typeof raw === 'string') ? raw
+      : (raw && typeof raw === 'object' && !Array.isArray(raw) &&
+         typeof raw.npcId === 'string') ? raw.npcId : null;
+    if (id == null) return null; // мусор — тихий skip (как в restore)
+    const npc = npcForEntry(npcs, { npcId: id });
+    if (!npc) return null; // призрак — сброс записи
+    let sheet;
+    let loyalty;
+    let hiredDay;
+    if (typeof raw === 'string') {
+      // Legacy: данные утрачены до воскрешения — тихий сброс (000029).
+      sheet = createMercSheet(npc);
+      loyalty = 50;
+      hiredDay = 0;
+    } else {
+      sheet = sanitizeMercSheet(raw.sheet, id);
+      if (sheet === null) return null; // подделка/нет sheet — сброс
+      if (typeof raw.loyalty !== 'number' ||
+          !Number.isFinite(raw.loyalty)) return null;
+      if (typeof raw.hiredDay !== 'number' ||
+          !Number.isFinite(raw.hiredDay) || raw.hiredDay < 0) {
+        return null; // 000085: битое число — запись в dropped
+      }
+      loyalty = Math.min(100, Math.max(0, raw.loyalty));
+      hiredDay = Math.floor(raw.hiredDay); // 0 → 0 (sentinel)
+    }
+    return {
+      npcId: id,
+      sheet,
+      level: sheet.level, // зеркала (§2.1: 4 точки синхронизации)
+      xp: sheet.xp,
+      loyalty,
+      hiredDay,
+    };
+  }
+
   return {
     createRoster, canHire, hire, canDismiss, dismiss,
     wagesTotal, payWages, loyaltyTick, candidatesForTavern, eventSeed,
@@ -831,6 +949,10 @@ function (settings, G) {
     // Сериализация отряда для сейва (задача 000085; контракт
     // memory/000085-save-party-efir.md D2/D3).
     serializeRoster, deserializeRoster,
+    // Фундамент воскрешения (задача 000161, D1 000156): запись
+    // о погибшем наёмнике {npcId, sheet, loyalty, hiredDay}
+    // (вместо голого npcId) — память уровня/опыта/лояльности.
+    serializeDeadRecord, reviveEntryFromRecord,
     // Сводка отряда (задача 000086): чистая функция для панели
     // «Отряд» (src/ui.js) — состав + строка Эфира.
     rosterSummary,
