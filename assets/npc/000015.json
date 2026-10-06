@@ -15,6 +15,9 @@
     "dmg": 0.5,
     "hp": 0.8,
     "skills": ["meditation"],
-    "spells": ["mend", "light_heal"]
+    "spells": ["mend", "light_heal"],
+    "базовые_характеристики": { "strength": 1, "dexterity": 1,
+      "constitution": 1, "intelligence": 3, "wisdom": 2, "charisma": 1 },
+    "начальные_навыки": { "meditation": 2 }
   }
 }

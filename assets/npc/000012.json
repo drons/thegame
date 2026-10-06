@@ -15,6 +15,9 @@
     "dmg": 1.2,
     "hp": 1.1,
     "skills": ["swordsman"],
-    "spells": []
+    "spells": [],
+    "базовые_характеристики": { "strength": 3, "dexterity": 1,
+      "constitution": 2, "intelligence": 1, "wisdom": 1, "charisma": 1 },
+    "начальные_навыки": { "swordsman": 2 }
   }
 }
