@@ -1553,3 +1553,84 @@ test('E2. 000133: свиток — learned in game → saveNow (смена дн�
     ['spark', 'mend', 'fireball'],
     'второй boot: hero.spells — книга из сейва');
 });
+
+// --- Задача 000144: ES-7 — e2e (vm-песочница, полная цепочка
+// index.html): старое 5-полевое seed-JSON раздела efir → boot →
+// runtime-эфир = sheet (10 ключей, 000139) → beforeunload → раздел
+// сейва = sheet-лейаут (C3 000139: осознанный пере-пин пина
+// «ровно 5 полей» (выше, 000118) — в GREEN-коммите вместе с
+// реализацией); INVALID-seed → warn + fresh sheet (паттерн 000115 V1).
+//
+// КРАСНЫЙ: пока src/efir.js не на листе (000139): runtime-объект и
+// раздел сейва — 5 полей (level/xp/skillXp/skills/spells), а не 10
+// (kind/level/xp/totalXp/points/primary/secondary/skillXp/skills/
+// spells). Падение — deepStrictEqual на лейауте (функциональности
+// нет), не синтаксическое.
+//
+// Контракт: memory/000144-efir-sheet.md (backfill: primary —
+// старт-формула, кэш skills → secondary КАК ЕСТЬ + ОБЯЗАТЕЛЬНЫЙ
+// reprocess, points/totalXp = 0; INVALID → null → main.js warn +
+// createEfir() fresh). main.js НЕ трогается (000144 §4): restore —
+// Object.assign(efir, e) на живом листе.
+
+test('ES-7. 000144: e2e — старое 5-полевое seed → backfill → runtime и сейв: sheet (10 ключей); INVALID-seed → warn + fresh sheet', async () => {
+  // (1) Seed СТАРОГО формата (000115-лейаут, L5): банк 999 за
+  //     потолком, кэш firelord 3, книга L5. Backfill: primary —
+  //     старт-формула (cap = Int 3 × 2 = 6) → firelord 3 → 6, банк
+  //     999 − (60+75+90) = 774 (за потолком — overflow, Т7);
+  //     points/totalXp = 0 (истории нет); version НЕ поднимается.
+  const BACKFILL = {
+    kind: 'efir', level: 5, xp: 20, totalXp: 0, points: 0,
+    primary: { strength: 1, dexterity: 1, constitution: 3,
+      intelligence: 3, wisdom: 3, charisma: 1 },
+    secondary: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
+    skills: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
+    skillXp: { firelord: 774, icelord: 0, perception: 0, precog: 0 },
+    spells: ['spark', 'mend', 'light_heal'],
+  };
+  const st = makeStorage();
+  const h = bootWithSave(st, null, {
+    day: 7,
+    efir: { level: 5, xp: 20, skillXp: { firelord: 999 },
+      skills: { firelord: 3 }, spells: ['spark', 'mend', 'light_heal'] },
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const state = h.sandbox.__game.state;
+  assert.ok(state.efir, 'state.efir существует (live-объект)');
+  assert.deepEqual(host(state.efir), BACKFILL,
+    'backfill: runtime-эфир = sheet (10 ключей; reprocess при загрузке)');
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа — 000031)');
+  assert.deepEqual(saved.data.efir, BACKFILL,
+    'раздел сейва = sheet-лейаут (C3 000139; переживает сейв без потерь)');
+
+  // (2) INVALID-seed (чужие id — 000115 V1): раздел НЕвалиден →
+  //     null → main.js warn + fresh sheet (сброс ЗАПИСИ, не частичная
+  //     чистка); ошибок НЕТ (игра не падает).
+  const FRESH = {
+    kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0,
+    primary: { strength: 1, dexterity: 1, constitution: 3,
+      intelligence: 3, wisdom: 3, charisma: 1 },
+    secondary: { firelord: 1, icelord: 0, perception: 1, precog: 0 },
+    skills: { firelord: 1, icelord: 0, perception: 1, precog: 0 },
+    skillXp: {},
+    spells: ['spark', 'mend'],
+  };
+  const st2 = makeStorage();
+  const h2 = bootWithSave(st2, null, {
+    day: 5,
+    efir: { level: 2, xp: 0, skillXp: {}, skills: { nope: 1 },
+      spells: ['spark', 'nope'] },
+  });
+  for (let i = 0; i < 5; i++) await h2.drain();
+  assert.equal(h2.errors.length, 0,
+    'ошибок НЕТ (тихий сброс, игра не падает): ' + h2.errors.join('; '));
+  assert.ok(h2.warns.some((m) => m.includes('efir')),
+    'warn: раздел efir (текст main.js: «некорректен — сбрасываю»): '
+    + h2.warns.join('; '));
+  assert.deepEqual(host(h2.sandbox.__game.state.efir), FRESH,
+    'невалидная запись → fresh sheet (сброс ЗАПИСИ, 000115 V1)');
+});
