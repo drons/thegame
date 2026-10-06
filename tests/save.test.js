@@ -668,21 +668,63 @@ function quiet(fn) {
   }
 }
 
-test('000085 T1: serializeRoster — чистая копия ровно 5 полей, лишнее отброшено, fresh-copy; тихая', () => {
-  const volk = { npcId: 'merc_volk', level: 2, xp: 30, loyalty: 77, hiredDay: 3 };
+// 000143 (000139 C3): RUNTIME-запись после BACKFILL старого сейва:
+// sheet из каталога найма (базовые_характеристики/начальные_навыки/
+// spells — явные уровни, без ревалидации requires — 000141), level/xp
+// ПЕРЕНОСЯТСЯ (totalXp = xp — инвариант totalXp ≥ xp; points = 0: в
+// старой форме не копился) + плоские зеркала level/xp.
+function backfilledEntry(c) {
+  const npc = NPCS.find((n) => n.id === c.npcId);
+  const h = npc.найм;
+  const secondary = {};
+  for (const [id, lv] of Object.entries(h.начальные_навыки || {})) {
+    if (Number.isInteger(lv) && lv >= 1) secondary[id] = lv;
+  }
+  return {
+    npcId: c.npcId,
+    sheet: {
+      kind: 'merc', level: c.level, xp: c.xp, totalXp: c.xp, points: 0,
+      primary: h.базовые_характеристики, secondary,
+      skillXp: {}, spells: (h.spells || []).slice(), npcId: c.npcId,
+    },
+    level: c.level,
+    xp: c.xp,
+    loyalty: c.loyalty,
+    hiredDay: c.hiredDay,
+  };
+}
+
+test('000085 T1: serializeRoster — чистая копия ровно 4 полей {npcId, sheet, loyalty, hiredDay} (000143), без sheet — skip, fresh-copy; тихая', () => {
+  // 000139 C3: RUNTIME-запись — 6 ключей (sheet + плоские зеркала
+  // level/xp), СЕЙВ — ровно 4 поля (level/xp — ВНУТРИ sheet).
+  const sh = (npcId, level, xp) => ({
+    kind: 'merc', level, xp, totalXp: xp, points: 0,
+    primary: { strength: 1, dexterity: 1, constitution: 1,
+      intelligence: 1, wisdom: 1, charisma: 1 },
+    secondary: {}, skillXp: {}, spells: [], npcId,
+  });
+  const volk = { npcId: 'merc_volk', sheet: sh('merc_volk', 2, 30),
+    level: 2, xp: 30, loyalty: 77, hiredDay: 3 };
   const snap = C.serializeRoster([
     volk,
-    { npcId: 'merc_ashka', level: 1, xp: 0, loyalty: 50, hiredDay: 2, extra: 99 },
+    { npcId: 'merc_ashka', sheet: sh('merc_ashka', 1, 0),
+      level: 1, xp: 0, loyalty: 50, hiredDay: 2, extra: 99 },
+    // 000143: запись без sheet (инвариант-нарушение, в игре
+    // недостижимо — deserializeRoster всегда даёт sheet) — тихий skip.
+    { npcId: 'merc_mira', level: 1, xp: 0, loyalty: 50, hiredDay: 1 },
     'junk', 42, { level: 1, xp: 0 }, // не-объект / без строки npcId — skip
   ]);
   assert.deepEqual(snap, [
-    { npcId: 'merc_volk', level: 2, xp: 30, loyalty: 77, hiredDay: 3 },
-    { npcId: 'merc_ashka', level: 1, xp: 0, loyalty: 50, hiredDay: 2 },
-  ], 'ровно 5 полей (лишние отброшены), не-объект/без npcId — skip');
-  volk.level = 99; // fresh-copy: мутация входа не меняет снапшот
+    { npcId: 'merc_volk', sheet: sh('merc_volk', 2, 30),
+      loyalty: 77, hiredDay: 3 },
+    { npcId: 'merc_ashka', sheet: sh('merc_ashka', 1, 0),
+      loyalty: 50, hiredDay: 2 },
+  ], 'ровно 4 поля (лишние отброшены), без sheet/не-объект/без npcId — skip');
+  volk.sheet.xp = 99; // fresh-copy: мутация входа не меняет снапшот
   assert.deepEqual(snap[0],
-    { npcId: 'merc_volk', level: 2, xp: 30, loyalty: 77, hiredDay: 3 },
-    'fresh-copy — мутация input не меняет снапшот');
+    { npcId: 'merc_volk', sheet: sh('merc_volk', 2, 30),
+      loyalty: 77, hiredDay: 3 },
+    'fresh-copy — мутация input (sheet.xp) не меняет снапшот');
   assert.deepEqual(C.serializeRoster('junk'), [], 'не-массив → []');
   assert.deepEqual(C.serializeRoster(null), [], 'null → []');
   const q = quiet(() => C.serializeRoster([volk]));
@@ -716,7 +758,10 @@ test('000085 T2: deserializeRoster — призрак/дубли/лимит/чи
   // порядок валидных сохранён.
   const q1 = quiet(() => C.deserializeRoster(NPCS,
     [volk, mk('ghost_merc'), mk('merc_volk'), ashka, baldor, mira]));
-  assert.deepEqual(q1.res.roster, [volk, ashka, baldor],
+  // 000139 C3 (000143): старый формат — BACKFILL: запись 6 ключей
+  // (sheet из каталога, level/xp перенесены) + зеркала.
+  assert.deepEqual(q1.res.roster,
+    [backfilledEntry(volk), backfilledEntry(ashka), backfilledEntry(baldor)],
     'первый дубль живёт, призрак и 4-й сверх-лимита → dropped; порядок сохранён');
   assert.deepEqual(q1.res.dropped, ['ghost_merc', 'merc_volk', 'merc_mira'],
     'dropped — строки npcId');
@@ -726,7 +771,8 @@ test('000085 T2: deserializeRoster — призрак/дубли/лимит/чи
   // в dropped НЕ попадает.
   const q2 = quiet(() => C.deserializeRoster(NPCS,
     [{ npcId: 42, level: 1, xp: 0, loyalty: 50, hiredDay: 1 }, 'junk', 7, volk]));
-  assert.deepEqual(q2.res.roster, [volk], 'npcId не строка / не-объект — skip');
+  assert.deepEqual(q2.res.roster, [backfilledEntry(volk)],
+    'npcId не строка / не-объект — skip (000143: валидная — с backfill)');
   assert.deepEqual(q2.res.dropped, [], 'skip НЕ попадает в dropped');
   assert.equal(q2.n, 0);
 
@@ -860,8 +906,10 @@ test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs пережи�
   const state = h.sandbox.__game.state;
   // PITFALL (000082): host(undefined) БРОСАЕТ — сначала Array.isArray.
   assert.ok(Array.isArray(state.roster), 'state.roster — массив');
-  assert.deepEqual(host(state.roster), seed.companions,
-    'отряд восстановлен из сейва (5 полей на запись)');
+  // 000139 C3 (000143): старая 5-полевая форма — BACKFILL: runtime-
+  // запись 6 ключей (sheet из каталога, level/xp перенесены) + зеркала.
+  assert.deepEqual(host(state.roster), seed.companions.map(backfilledEntry),
+    'отряд восстановлен из сейва (000143: backfill → 6-ключевые записи)');
   assert.deepEqual(host(state.deadMercs), seed.dead_mercs,
     'dead_mercs восстановлены');
   assert.deepEqual(host(state.efir), seed.efir,
@@ -871,7 +919,12 @@ test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs пережи�
   h.winListeners['beforeunload'][0]();
   const saved = JSON.parse(st.getItem(S.SAVE_KEY));
   assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
-  assert.deepEqual(saved.data.companions, seed.companions, 'companions в сейве');
+  // 000139 C3: форма сейва — 4 поля {npcId, sheet, loyalty, hiredDay}
+  // (level/xp — внутри sheet).
+  assert.deepEqual(saved.data.companions, seed.companions.map((c) => ({
+    npcId: c.npcId, sheet: backfilledEntry(c).sheet,
+    loyalty: c.loyalty, hiredDay: c.hiredDay,
+  })), 'companions в сейве (000143: 4 поля)');
   assert.deepEqual(saved.data.efir, seed.efir, 'efir в сейве');
   assert.deepEqual(saved.data.dead_mercs, seed.dead_mercs, 'dead_mercs в сейве');
 });
@@ -921,8 +974,9 @@ test('000085 T6: битые разделы + призраки — 0 ошибок
   assert.ok(h.warns.some((m) => m.includes('dead_mercs') && m.includes('ghost_dead')),
     'warn: dead_mercs — призрак ghost_dead');
   const state = h.sandbox.__game.state;
-  assert.deepEqual(host(state.roster), [validVolk],
-    'roster: только валидная запись (skip не в составе)');
+  // 000139 C3 (000143): валидная старая запись — backfill (6 ключей).
+  assert.deepEqual(host(state.roster), [backfilledEntry(validVolk)],
+    'roster: только валидная запись (skip не в составе; 000143 — backfill)');
   assert.deepEqual(host(state.efir),
     { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
     'efir: тихий сброс на L1-дефолт');
@@ -932,8 +986,11 @@ test('000085 T6: битые разделы + призраки — 0 ошибок
   // (мусор не размножается).
   h.winListeners['beforeunload'][0]();
   const saved = JSON.parse(st.getItem(S.SAVE_KEY));
-  assert.deepEqual(saved.data.companions, [validVolk],
-    'companions — чистые (мусор не размножается)');
+  // 000139 C3: форма сейва — 4 поля {npcId, sheet, loyalty, hiredDay}.
+  assert.deepEqual(saved.data.companions,
+    [{ npcId: validVolk.npcId, sheet: backfilledEntry(validVolk).sheet,
+      loyalty: validVolk.loyalty, hiredDay: validVolk.hiredDay }],
+    'companions — чистые (мусор не размножается; 000143: 4 поля)');
   assert.deepEqual(saved.data.efir,
     { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
     'efir — чистый L1-дефолт (не «junk»)');

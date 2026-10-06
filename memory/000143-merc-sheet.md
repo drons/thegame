@@ -400,3 +400,27 @@ wagesTotal, dismiss, eventSeed, createRoster, npcForEntry, rosterSummary
   последняя `Co-Authored-By: Claude Code <noreply@anthropic.com>`;
   CHANGELOG — отдельным коммитом, дата 2026-10-06 (геймплей: источник
   боевых статов наёмников + очки).
+
+## 7. Решения реализации (заполнено в станции РЕАЛИЗАЦИЯ)
+
+- **applyCombatXp — ленивый backfill плоской записи** (запись без
+  sheet): sheet материализуется на месте
+  (`createSheet('merc', {npcId})`, level/xp переносятся, totalXp = e.xp,
+  points 0 — тот же приём, что в deserializeRoster), БЕЗ console
+  (тихий, прецедент 000082). Решение против «тихого skip» (§2.7):
+  плоская запись — ВАЛИДНЫЙ ВХОД (старые записи), пере-пин C3
+  (tests/companions.test.js) ожидает 6 ключей после applyCombatXp на
+  плоском фикстуре; красные тесты skip не пинали.
+- **deserializeRoster: проверки level/xp (000085) — только на СТАРУЮ
+  форму** (e.sheet == null): в новом формате плоских level/xp в сейве
+  НЕТ (они внутри sheet — канон; serializeRoster зеркала не пишет),
+  ядро листа валидирует sanitizeMercSheet. Красный CS-5 (round-trip)
+  пинует: 4-полевой снапшот не drop'ится. Loyalty/hiredDay-проверки —
+  без изменений на обе формы.
+- **main.js**: правки комментов — restore (L803+), state (L2523+) И
+  collectSaveData (коммент «ровно 5 полей» у companions-раздела) —
+  все три описывают форму сейва и становились бы ложными (ТЗ пункт 4
+  «формы сейва»).
+- Итог: 1717 (7 красных CS) → 1724 зелёных; детерминизм-тесты без
+  изменений (статы наёмников в бою не влияют на исходы зафиксированных
+  сценариев).

@@ -16,42 +16,63 @@
 // Повторная попытка найма в тот же день — тот же исход отказа
 // (воспроизводимость, НЕ баг; UI-лог учитывает это — 000083).
 //
-// Форма записи отряда ЗАФИКСИРОВАНА под сейв 000085: ровно
-// {npcId, level, xp, loyalty, hiredDay} (000082/000085 не меняют).
+// Форма записи отряда (000143, 000139 C3): RUNTIME — ровно 6 ключей
+// {npcId, sheet, level, xp, loyalty, hiredDay}, где sheet — единый
+// лист наёмника (kind 'merc', 000140), а level/xp — ПЛОСКИЕ ЗЕРКАЛА
+// sheet.level/sheet.xp (читатели — ui.js/rosterSummary — не меняем).
+// Зеркала синхронизируются ровно в 3 точках: hire, applyCombatXp
+// (после Sheet.addXp), deserializeRoster (backfill/sanitize).
+// ФОРМА СЕЙВА — ровно 4 поля {npcId, sheet, loyalty, hiredDay}
+// (level/xp — ВНУТРИ sheet, зеркала не сейвятся). Старая 5-полевая
+// форма {npcId, level, xp, loyalty, hiredDay} (000082/000085) —
+// НЕЛОМАННЫЙ вход: backfill при восстановлении (sheet из каталога
+// найма, level/xp переносятся, totalXp = xp, points 0). Контракт —
+// memory/000143-merc-sheet.md.
 //
-// Опыт и уровни (задача 000082, SPEC.md «Спутники» → «Опыт и уровни»):
-// applyCombatXp — применяет c.result.allyXp (доля боевого xp, combat.js)
-// к записям: xp += доля, повышение порогом xpForNext (while — один бой
-// может дать несколько уровней; остаток копится между боями); тихий
-// skip «призраков»/мусора; возврат {applied, levelUps, events}.
+// Опыт и уровни (задача 000082, SPEC.md «Спутники» → «Опыт и уровни»;
+// 000143: через единый лист): applyCombatXp — применяет
+// c.result.allyXp (доля боевого xp, combat.js) к записям через
+// Sheet.addXp (000140: порог 50/141/260 при xpMult 1, +2 очка за
+// уровень — тратятся в UI, 000145); тихий skip «призраков»/мусора;
+// возврат {applied, levelUps, events} без изменений.
 // allyDataForEntry — мост в бой (000087): данные makeAlly из записи +
-// каталога найма (id — npcId, level — из записи; рост статов
-// имплицитный — makeAlly пересчитывает из уровня; «призрак» → null).
-// Контракт — memory/000082-companion-xp.md.
+// каталога найма; боевые статы — maxHP/damage как OVERRIDES
+// data.maxHP/data.damage из Sheet.derived + merc-модификатор
+// (формулы makeAlly НЕ переписываются, явная damage × moraleMult —
+// combat.js, 000112 D6); навыки/spells — из sheet. «Призрак»/запись
+// без sheet → null. Контракт — memory/000082-companion-xp.md.
 //
-// Сериализация для сейва (задача 000085): serializeRoster — чистая
-// проекция ровно 5 полей (shape-guard, нормализации значений НЕТ —
-// runtime well-formed); deserializeRoster — «призрак» (000029):
-// {roster, dropped} | null, тихая (warn печатает main.js), каталог —
-// ПАРАМЕТР (новых require НЕТ). Контракт — memory/000085-
-// save-party-efir.md (D2/D3).
+// Сериализация для сейва (задача 000085; 000143 — 4 поля):
+// serializeRoster — чистая проекция {npcId, sheet, loyalty, hiredDay}
+// (свежая копия sheet; запись без sheet — тихий skip);
+// deserializeRoster — «призрак» (000029): {roster, dropped} | null,
+// тихая (warn печатает main.js), каталог — ПАРАМЕТР (новых require
+// НЕТ): старая форма — backfill, новая — sanitizeMercSheet (битое
+// ядро → dropped, чистка полей — запись живёт). Контракт —
+// memory/000085-save-party-efir.md (D2/D3) + 000143 §2.5/§2.6.
 //
 // Зависимости: global-settings.js (max_companions, companion_loyalty,
 // companion_refusal — читаются ЖИВО при вызове, паттерн combat.js, не
 // захват при загрузке), perlin.js (hash2/mulberry32),
 // npc.js (skillLevel/hireCandidates — стабильный API 000078),
-// player.js (xpForNext — порог уровня, 000082; в браузере — топовый
-// ключ Game.xpForNext, в node — require).
+// player.js (порядок загрузки — guard: xpForNext топовый ключ Game,
+// в node — require; порог уровня теперь — Sheet.addXp;
+// SECONDARY_SKILLS — каталог вторичных навыков для sanitize),
+// sheet.js (Game.Sheet — единый лист, 000140: createSheet/addXp/
+// derived; в браузере — Game.Sheet, в node — require; порядок
+// index.html: sheet.js → player.js → npc.js → companions.js).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     // Порядок merge = порядок index.html (player.js ДО npc.js): у обоих
     // общий ключ skillLevel — побеждает версия npc.js (читает primary
     // ПЕРЕД secondary — refusalChance/loyalty от Харизмы, 000079).
+    // sheet.js (000143): Game.Sheet — единый лист; циклов НЕТ (sheet.js
+    // требует только global-settings/skills-data).
     module.exports = factory(
       require('./global-settings.js'),
       Object.assign({}, require('./perlin.js'), require('./player.js'),
-        require('./npc.js')));
+        require('./npc.js'), { Sheet: require('./sheet.js') }));
   } else {
     const G0 = typeof root.Game === 'object' ? root.Game : {};
     root.Game = Object.assign({}, G0,
@@ -80,6 +101,22 @@ function (settings, G) {
     throw new Error('companions.js: не найден player.js — ' +
       'загрузите player.js до companions.js');
   }
+  // sheet.js (Game.Sheet — единый лист, 000140/000143): лист наёмника
+  // создаётся при найме, опыт — Sheet.addXp, боевые статы —
+  // Sheet.derived + merc-модификатор. Гвард СТОИТ ПОСЛЕ player.js:
+  // тест «без player.js» (tests/companions.test.js) не загружает ни
+  // player.js, ни sheet.js — срабатывать должен player-гвард.
+  if (!G.Sheet || typeof G.Sheet.createSheet !== 'function' ||
+      typeof G.Sheet.addXp !== 'function' ||
+      typeof G.Sheet.derived !== 'function') {
+    throw new Error('companions.js: не найден Game.Sheet — ' +
+      'загрузите sheet.js до companions.js (задача 000143)');
+  }
+
+  // Ключи базовых характеристик (000141: найм.базовые_характеристики)
+  // — тот же набор id, что у PRIMARY_SKILLS (контракт каталога).
+  const PRIMARY_IDS = ['strength', 'dexterity', 'constitution',
+    'intelligence', 'wisdom', 'charisma'];
 
   // Разные события — разные константы-сиды (3-й аргумент hash2).
   const SEED_REFUSE = 0x72656675; // 'refu' — отказ при найме
@@ -182,7 +219,12 @@ function (settings, G) {
     const loyalty = Math.min(100, Math.max(0,
       settings.SETTINGS.companion_loyalty.start
       + G.skillLevel(character, 'charisma')));
-    const entry = { npcId: npc.id, level: 1, xp: 0, loyalty, hiredDay: day };
+    // 000143 (000139 C3): запись — 6 ключей: sheet (канонический
+    // merc-лист из каталога найма, 000141) + плоские зеркала level/xp
+    // (1/0 при найме; читатели — ui.js/rosterSummary — не меняем).
+    const sheet = createMercSheet(npc);
+    const entry = { npcId: npc.id, sheet, level: 1, xp: 0, loyalty,
+      hiredDay: day };
     roster.push(entry);
     character.gold -= npc.найм.цена;
     return { ok: true, entry, loyalty };
@@ -214,9 +256,11 @@ function (settings, G) {
   /**
    * Сводка отряда для панели «Отряд» (задача 000086): состав —
    * имя/уровень/лояльность/жалованье по записям + строка Эфира.
-   * @param {Array|null} roster записи {npcId, level, xp, loyalty,
-   *   hiredDay} (форма зафиксирована под сейв 000085 — READ-ONLY,
-   *   функция не мутирует; не массив → тихий empty).
+   * @param {Array|null} roster записи {npcId, sheet, level, xp,
+   *   loyalty, hiredDay} (000143: 6 ключей; функция читает ТОЛЬКО
+   *   плоские поля level/loyalty — плоская форма 000082/000085
+   *   остаётся валидным входом) — READ-ONLY, функция не мутирует;
+   *   не массив → тихий empty.
    * @param {Array|null} npcs каталог (Game.NpcData.NPCS): источник
    *   имени (npc.имя) и жалованья (npc.найм.жалованье — НЕ из
    *   записи, прецедент wagesTotal).
@@ -360,33 +404,200 @@ function (settings, G) {
       (n) => !hired.has(n.id) && !dead.has(n.id));
   }
 
+  // --- Единый лист наёмника (задача 000143, родитель 000139) ---
+  // Контракт: memory/000143-merc-sheet.md (§2.4/§2.5/§2.6/§2.8),
+  // мердж с 000141: исходные данные — из каталога найма
+  // (базовые_характеристики / начальные_навыки / spells).
+  //
+  // Канонический merc-лист — 10 ключей createSheet('merc') (000140):
+  // {kind:'merc', level, xp, totalXp, points, primary{6}, secondary{},
+  // skillXp{}, spells[], npcId}. level/xp меняются ТОЛЬКО через
+  // Sheet.addXp; запись дублирует их плоскими зеркалами e.level/e.xp
+  // (§2.1 — ровно 3 точки синхронизации: hire, applyCombatXp,
+  // deserializeRoster).
+
+  /**
+   * Лист при найме (000143 §2.4, 000141): primary — по ключам из
+   * найм.базовые_характеристики (finite ≥ 1; иначе 1 + console.error
+   // ОДИН РАЗ за вызов — деградация 000038/000053; в игре недостижимо —
+   // 000141 гарантирует полноту); secondary — явные уровни из
+   // найм.начальные_навыки (только int ≥ 1); requires ПЕРЕПРОВЕРЯТЬСЯ
+   // НЕ ДОЛЖНЫ (решение А 000141: heavy/swordsman и archer/accuracy —
+   // намеренные). createSheet('merc', initial) НЕ читает initial.skills
+   // (000140) — secondary ставится ПОСЛЕ createSheet.
+   */
+  function createMercSheet(npc) {
+    const h = (npc && npc.найм && typeof npc.найм === 'object')
+      ? npc.найм : {};
+    const base = h.базовые_характеристики;
+    const primary = {};
+    let warned = false;
+    for (const k of PRIMARY_IDS) {
+      const v = (base && typeof base === 'object') ? base[k] : NaN;
+      if (typeof v === 'number' && Number.isFinite(v) && v >= 1) {
+        primary[k] = v;
+      } else {
+        primary[k] = 1;
+        if (!warned) {
+          warned = true;
+          console.error('companions.js: каталог найма ' + npc.id +
+            ' повреждён (базовые_характеристики) — деградация к 1 ' +
+            '(000038/000053; полнота гарантирована 000141)');
+        }
+      }
+    }
+    const sheet = G.Sheet.createSheet('merc',
+      { primary, spells: h.spells, npcId: npc.id });
+    const init = h.начальные_навыки;
+    if (init && typeof init === 'object') {
+      for (const [id, lv] of Object.entries(init)) {
+        if (Number.isInteger(lv) && lv >= 1) sheet.secondary[id] = lv;
+      }
+    }
+    return sheet;
+  }
+
+  // Свежая глубокая копия 10 ключей (сериализация — fresh-copy-пин
+  // T1/CS-5: мутация input не меняет снапшот).
+  function copyMercSheet(s) {
+    return {
+      kind: s.kind,
+      level: s.level,
+      xp: s.xp,
+      totalXp: s.totalXp,
+      points: s.points,
+      primary: Object.assign({}, s.primary),
+      secondary: Object.assign({}, s.secondary),
+      skillXp: Object.assign({}, s.skillXp),
+      spells: (Array.isArray(s.spells) ? s.spells : []).slice(),
+      npcId: s.npcId,
+    };
+  }
+
+  /**
+   * Санитизация листа из сейва (000143 §2.6; прецедент
+   * sanitizeSavedHero src/player.js):
+   *   * ЯДРО → null (запись уходит в dropped, значения НЕ чиним —
+   *     000085 «невалидная запись — тихий сброс»): не-объект/массив,
+   *     kind ≠ 'merc', npcId ≠ npcId записи (строка), level — int ≥ 1,
+   *     xp — finite ≥ 0, primary — ВСЕ 6 ключей finite ≥ 1;
+   *   * чистка ПОЛЕЙ (запись живёт): secondary/skillXp — только пары
+   *     с id из каталога вторичных навыков и int ≥ 0; spells — только
+   *     строки; totalXp — finite ≥ 0, иначе xp (инвариант
+   *     totalXp ≥ xp, 000140); points — int ≥ 0, иначе 0.
+   * @returns {object|null} канонические 10 ключей со свежими вложенными
+   *   объектами | null (ядро битое).
+   */
+  function sanitizeMercSheet(s, npcId) {
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
+    if (s.kind !== 'merc') return null;
+    if (typeof s.npcId !== 'string' || s.npcId !== npcId) return null;
+    if (!Number.isInteger(s.level) || s.level < 1) return null;
+    if (typeof s.xp !== 'number' || !Number.isFinite(s.xp) || s.xp < 0) {
+      return null;
+    }
+    const P = s.primary;
+    if (!P || typeof P !== 'object' || Array.isArray(P)) return null;
+    const primary = {};
+    for (const k of PRIMARY_IDS) {
+      const v = P[k];
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 1) {
+        return null;
+      }
+      primary[k] = v;
+    }
+    // Поля: G.SECONDARY_SKILLS — в node из merge, в браузере из
+    // разворота player.js в Game; не-объект (недостижимо: skills-data.js
+    // в index.html до player.js) — пустой каталог (строгая чистка).
+    const sk = (G.SECONDARY_SKILLS &&
+        typeof G.SECONDARY_SKILLS === 'object')
+      ? G.SECONDARY_SKILLS : {};
+    const secondary = {};
+    const skillXp = {};
+    for (const [id, lv] of Object.entries(s.secondary || {})) {
+      if (id in sk && Number.isInteger(lv) && lv >= 0) secondary[id] = lv;
+    }
+    for (const [id, bank] of Object.entries(s.skillXp || {})) {
+      if (id in sk && Number.isInteger(bank) && bank >= 0) skillXp[id] = bank;
+    }
+    const spells = Array.isArray(s.spells)
+      ? s.spells.filter((x) => typeof x === 'string') : [];
+    const totalXp = (typeof s.totalXp === 'number' &&
+        Number.isFinite(s.totalXp) && s.totalXp >= 0)
+      ? s.totalXp : s.xp;
+    const points = (Number.isInteger(s.points) && s.points >= 0)
+      ? s.points : 0;
+    return {
+      kind: 'merc',
+      level: s.level,
+      xp: s.xp,
+      totalXp,
+      points,
+      primary,
+      secondary,
+      skillXp,
+      spells,
+      npcId: s.npcId,
+    };
+  }
+
+  /**
+   * Модификатор kind для Sheet.derived (000140 S-4: hook возвращает
+   * ПОЛНЫЙ объект) — боевые статы наёмника из листа + каталог найма:
+   *   maxHP  = max(1, round(base.maxHP · hp · roleMult));
+   *   damage = max(1, round((2 + 0.7·ур) · dmg · (1 + бонусы кулаков/
+   *            тяжёлого/дальнего))).
+   * roleMult ОБЯЗАТЕЛЕН: override-ветка обходит формульную ветку
+   * makeAlly, где живёт hpRoleMult. Базовые бонусы (fist/heavy/
+   * ranged) — те же, что у героя (makeAlly, combat.js); каталожные
+   * кнопки dmg/hp — дифференциатор баланса (000141), level — формула
+   * makeAlly (2 + 0.7·ур) + вторичные навыки через base. maxHP наёмника
+   * без потраченных очков — ПЛОСКИЙ (рост — через 000145: очки).
+   */
+  function mercModifier(base, sheet, ctx) {
+    const h = (ctx && ctx.h) || {};
+    const roleMult = { support: 0.7, shield: 1.8 }[h.роль] || 1.0;
+    const maxHP = Math.max(1,
+      Math.round(base.maxHP * (h.hp || 1) * roleMult));
+    const damage = Math.max(1, Math.round(
+      (2 + 0.7 * sheet.level) * (h.dmg || 1)
+      * (1 + base.fistDamageBonus + base.heavyDamageBonus
+         + base.rangedDamageBonus)));
+    return Object.assign({}, base, { maxHP, damage });
+  }
+
   // --- Опыт и уровни (задача 000082) ---
 
   /**
    * Применяет долю боевого опыта к записям отряда (задача 000082,
-   * SPEC.md «Спутники» → «Опыт и уровни»).
-   * @param {Array} roster отряд (записи {npcId, level, xp, loyalty,
-   *   hiredDay}) — мутируется.
+   * SPEC.md «Спутники» → «Опыт и уровни»; 000143 — через единый лист).
+   * @param {Array} roster отряд (записи {npcId, sheet, level, xp,
+   *   loyalty, hiredDay}) — мутируется (sheet + зеркала).
    * @param {Array} gains c.result.allyXp = [{id, xp}] (000082: id —
    *   npcId, xp — доля каждого выжившего; «фолбэк-мусор» после
    *   сейва/UI допустим).
    * @returns {{applied:number, levelUps:number, events:object[]}}
-   *   ЧИСТАЯ функция (без rng/DOM, паттерн payWages):
-   *   * xp += доля; повышение уровня порогом xpForNext (src/player.js):
-   *     while-цикл — один бой может дать НЕСКОЛЬКО уровней; остаток xp
-   *     копится между боями (в записи). Потолка уровня в v1 нет (как у
-   *     игрока — SPEC);
+   *   ЧИСТАЯ функция (без rng/DOM/console, паттерн payWages):
+   *   * XP/LEVEL — ТОЛЬКО через Sheet.addXp(e.sheet, xp) (000140 S-3:
+   *     порог 50/141/260 при xpMult 1; +2 очка за уровень — тратятся
+   *     в UI, 000145; один бой может дать НЕСКОЛЬКО уровней —
+   *     while внутри addXp; остаток xp копится между боями). Зеркала
+   *     e.level/e.xp синхронизируются ПОСЛЕ addXp (§2.1);
+   *   * запись БЕЗ sheet (плоский тестовый фикстура / старый формат без
+   *     backfill — в игре недостижимо: deserializeRoster всегда даёт
+   *     sheet, 000139 C3) — sheet материализуется на месте (дефолтный
+   *     merc-лист + перенос level/xp, totalXp = xp) — тихое, без
+   *     console (прецедент 000082);
    *   * ТИХИЙ skip (без исключений, applied не считает): запись не
    *     найдена («призрак»/неизвестный id), xp ≤ 0, xp не число
    *     (NaN/«мусор»), gains не массив (null/строка/объект/undefined)
    *     → {applied:0, levelUps:0, events:[]}, roster без изменений;
    *   * events: [{type:'level_up', npcId, level}] — событие на каждое
-   *     повышение (level — НОВОЕ значение), в порядке записей roster.
-   *     Паттерн payWages.events: 000087 → hudFlash + saveNow.
-   *     Отдельных xp-событий нет («+N опыта» 000087 строит из
-   *     c.result.allyXp сам).
-   *   Форма записи НЕМЕНЯЕТСЯ (сейв 000085): новых полей нет, очков
-   *   навыков нет (v1).
+   *     повышение (level — НОВОЕ значение, по одному на уровень,
+   *     по возрастанию), в порядке записей roster. Паттерн
+   *     payWages.events: 000087 → hudFlash + saveNow. Отдельных
+   *     xp-событий нет («+N опыта» 000087 строит из c.result.allyXp
+   *     сам).
    */
   function applyCombatXp(roster, gains) {
     const events = [];
@@ -399,43 +610,73 @@ function (settings, G) {
           !Number.isFinite(g.xp) || g.xp <= 0) continue;
       const e = entries.find((x) => x && x.npcId === g.id);
       if (!e) continue;
-      e.xp += g.xp;
+      if (!e.sheet || typeof e.sheet !== 'object' ||
+          Array.isArray(e.sheet)) {
+        // Лазный backfill плоской записи (§2.1, 000139 C3): тот же
+        // приём, что в deserializeRoster (totalXp = xp — инвариант
+        // totalXp ≥ xp, 000140; points — 0: в плоской форме не
+        // копился).
+        e.sheet = G.Sheet.createSheet('merc', { npcId: e.npcId });
+        e.sheet.level = e.level;
+        e.sheet.xp = e.xp;
+        e.sheet.totalXp = e.xp;
+      }
+      const res = G.Sheet.addXp(e.sheet, g.xp);
+      e.level = e.sheet.level; // зеркала (§2.1: 3 точки синхронизации)
+      e.xp = e.sheet.xp;
       applied += 1;
-      while (e.xp >= G.xpForNext(e.level)) {
-        e.xp -= G.xpForNext(e.level);
-        e.level += 1;
-        levelUps += 1;
-        events.push({ type: 'level_up', npcId: e.npcId, level: e.level });
+      levelUps += res.levelsGained;
+      // Событие на каждое повышение (levelsGained может быть > 1):
+      // уровень — новое значение, по возрастанию, как в 000082.
+      const finalLevel = e.sheet.level;
+      for (let i = 1; i <= res.levelsGained; i++) {
+        events.push({
+          type: 'level_up',
+          npcId: e.npcId,
+          level: finalLevel - res.levelsGained + i,
+        });
       }
     }
     return { applied, levelUps, events };
   }
 
   /**
-   * Мост в бой (задача 000082, для 000087): данные makeAlly из записи
-   * отряда + каталога найма:
-   *   {id: npc.id (— npcId), name, role, level: entry.level, dmg, hp,
-   *   armor?, skills, spells, kind:'merc'}.
-   * Рост статов ИМПЛИЦИТНЫЙ: в запись статы не пишутся (форма
-   * зафиксирована) — makeAlly пересчитывает maxHP/damage/armor из
-   * нового уровня при следующем createCombat (формулы makeMob).
-   * «Призрак» (npc нет / найм-данных нет / entry.npcId ≠ npc.id) →
-   * null (тихий skip — 000087 не шлёт таких в бой).
+   * Мост в бой (задача 000082, для 000087; 000143 — статы из листа):
+   * данные makeAlly из записи отряда + каталога найма:
+   *   {id: npc.id (— npcId), name, role, level: entry.level, maxHP,
+   *   damage, armor?, skills, spells, kind:'merc'}.
+   * 000143 (000139 §6.5): боевые статы — maxHP/damage из
+   * Sheet.derived(entry.sheet, {modifier: mercModifier, h}) — как
+   * OVERRIDES data.maxHP/data.damage: makeAlly берёт их БЕЗ
+   * формульных пересчётов (ветки формул НЕ переписаны — Эфир/
+   * 000144/простые фикстуры идут через data без maxHP/damage).
+   * Кнопки dmg/hp из каталога (дифференциатор баланса, 000141) —
+   * ВНУТРИ mercModifier, в data отдельно НЕ уходят. skills — id-список
+   * из sheet.secondary, spells — из sheet.spells (в боях 000144+).
+   * «Призрак» (npc нет / найм-данных нет / entry.npcId ≠ npc.id /
+   * запись БЕЗ sheet — инвариант, в игре недостижимо) → null (тихий
+   * skip — 000087 не шлёт таких в бой).
    */
   function allyDataForEntry(entry, npc) {
     if (!entry || !npc || npc.id !== entry.npcId) return null;
     const h = npc.найм;
     if (!h || typeof h !== 'object') return null;
+    if (!entry.sheet || typeof entry.sheet !== 'object' ||
+        Array.isArray(entry.sheet)) return null;
+    const dd = G.Sheet.derived(entry.sheet,
+      { modifier: mercModifier, h });
+    if (!dd) return null; // деградация каталога (000140) — тихий skip
     return {
       id: npc.id,
       name: npc.имя,
       role: h.роль,
-      level: entry.level,
-      dmg: h.dmg,
-      hp: h.hp,
+      level: entry.level, // зеркало = sheet.level (§2.1)
+      maxHP: dd.maxHP,
+      damage: dd.damage,
       armor: h.armor,
-      skills: (h.skills || []).slice(),
-      spells: (h.spells || []).slice(),
+      skills: Object.keys(entry.sheet.secondary || {}),
+      spells: (Array.isArray(entry.sheet.spells)
+        ? entry.sheet.spells : []).slice(),
       kind: 'merc',
     };
   }
@@ -448,14 +689,16 @@ function (settings, G) {
 
   /**
    * Снапшот отряда для сейва (data.companions): ЧИСТАЯ проекция ровно
-   * {npcId, level, xp, loyalty, hiredDay} (форма ЗАФИКСИРОВАНА 000079;
-   * лишние поля записи отбрасываются). Нормализации значений НЕТ —
-   * runtime всегда well-formed (xp — целые, combat.js; loyalty —
-   * clamped 0..100, payWages; level/hiredDay — целые), единая точка
-   * ремонта — deserializeRoster. Тихая (0 console).
+   * {npcId, sheet, loyalty, hiredDay} (000143, 000139 C3: level/xp —
+   * ВНУТРИ sheet, плоские зеркала не сейвятся; лишние поля записи
+   * отбрасываются). sheet — СВЕЖАЯ глубокая копия (fresh-copy-пин T1).
+   * Нормализации значений НЕТ — runtime всегда well-formed (loyalty —
+   * clamped 0..100, payWages; hiredDay — целое), единая точка ремонта
+   * — deserializeRoster. Тихая (0 console).
    * @param {Array} roster отряд; не-массив → [].
-   * @returns {object[]} записи ровно 5 полей (свежие копии); запись
-   *   не-объект / без строки npcId — тихий skip (неидентифицируемо).
+   * @returns {object[]} записи ровно 4 полей; запись не-объект / без
+   *   строки npcId / БЕЗ sheet (инвариант-нарушение, в игре
+   *   недостижимо) — тихий skip (неидентифицируемо).
    */
   function serializeRoster(roster) {
     if (!Array.isArray(roster)) return [];
@@ -463,10 +706,11 @@ function (settings, G) {
     for (const e of roster) {
       if (!e || typeof e !== 'object' || Array.isArray(e) ||
           typeof e.npcId !== 'string') continue;
+      if (!e.sheet || typeof e.sheet !== 'object' ||
+          Array.isArray(e.sheet)) continue; // без sheet — skip
       snap.push({
         npcId: e.npcId,
-        level: e.level,
-        xp: e.xp,
+        sheet: copyMercSheet(e.sheet),
         loyalty: e.loyalty,
         hiredDay: e.hiredDay,
       });
@@ -491,15 +735,29 @@ function (settings, G) {
    *   * иначе — {roster (валидные, порядок сохранён), dropped
    *     (строки npcId)}: «призрак» / дубликат npcId / сверх
    *     max_companions (LIVE-чтение, guard int ≥ 1 иначе 3 — иначе
-   *     slice(0, NaN) → [] и отряд молча испарялся) / битое число
-   *     → запись в dropped.
+   *     slice(0, NaN) → [] и отряд молча испарялся) / битое число /
+   *     битое ядро sheet → запись в dropped.
    *   Числа (D3, сброс ЗАПИСИ, не починка значения — SPEC
    *   «невалидные записи — тихий сброс»): level — int ≥ 1 (forged
    *   2.5 НЕ floor'ится, прецедент hero.level); xp — finite ≥ 0 КАК
-   *   ЕСТЬ (дроби легитимны — прецедент hero.xp, 000082); loyalty —
-   *   finite → clamp 0..100 без округления (77.5 валиден), не-finite
-   *   → drop; hiredDay — finite ≥ 1 → floor (2.7 → 2). Не-объект /
-   *   npcId не строка — тихий skip (в dropped НЕ попадает).
+   *   ЕСТЬ (дроби легитимны — прецедент hero.xp, 000082) — ОБА только
+   *   для СТАРОЙ формы (e.sheet == null: в новом формате level/xp в
+   *   сейве НЕТ — они внутри sheet, валидирует sanitizeMercSheet);
+   *   loyalty — finite → clamp 0..100 без округления (77.5 валиден),
+   *   не-finite → drop; hiredDay — finite ≥ 1 → floor (2.7 → 2).
+   *   Не-объект / npcId не строка — тихий skip (в dropped НЕ попадает).
+   *   000143 (000139 C3 — НЕЛОМАННЫЙ сейв): после числовых проверок —
+   *   * e.sheet == null (СТАРАЯ форма 000082/000085: ровно
+   *     {npcId, level, xp, loyalty, hiredDay}) — BACKFILL: sheet из
+   *     каталога найма (createMercSheet), level/xp ПЕРЕНОСЯТСЯ в sheet
+   *     (sheet.level = e.level, sheet.xp = e.xp, sheet.totalXp = e.xp
+   *     — инвариант totalXp ≥ xp, НЕ 0; sheet.points = 0: в старой
+   *     форме не копился);
+   *   * e.sheet есть — sanitizeMercSheet: битое ЯДРО (kind/npcId/
+   *     level/xp/primary) → запись в dropped (сброс, БЕЗ fallback на
+   *     плоские поля — ТЗ), чистка полей (secondary/skillXp/spells/
+   *     totalXp/points) — запись живёт;
+   *   зеркальные e.level/e.xp записи — из sheet (sheet.level/sheet.xp).
    */
   function deserializeRoster(npcs, raw) {
     if (raw == null) return { roster: [], dropped: [] };
@@ -512,15 +770,23 @@ function (settings, G) {
     for (const e of raw) {
       if (!e || typeof e !== 'object' || Array.isArray(e) ||
           typeof e.npcId !== 'string') continue; // неидентифицируемо
-      if (!npcForEntry(npcs, e)) { dropped.push(e.npcId); continue; }
+      const npc = npcForEntry(npcs, e);
+      if (!npc) { dropped.push(e.npcId); continue; }
       if (seen.has(e.npcId)) { dropped.push(e.npcId); continue; }
       if (roster.length >= max) { dropped.push(e.npcId); continue; }
-      if (!Number.isInteger(e.level) || e.level < 1) {
-        dropped.push(e.npcId); continue;
-      }
-      if (typeof e.xp !== 'number' || !Number.isFinite(e.xp) ||
-          e.xp < 0) {
-        dropped.push(e.npcId); continue;
+      // 000143: плоские level/xp в СЕЙВЕ есть только в СТАРОМ формате
+      // (новый — {npcId, sheet, loyalty, hiredDay}: level/xp ВНУТРИ
+      // sheet, он канон; serializeRoster зеркала не пишет). Проверки
+      // level/xp (000085) действуют на старую форму; новый формат —
+      // level/xp валидирует sanitizeMercSheet (ядро).
+      if (e.sheet == null) {
+        if (!Number.isInteger(e.level) || e.level < 1) {
+          dropped.push(e.npcId); continue;
+        }
+        if (typeof e.xp !== 'number' || !Number.isFinite(e.xp) ||
+            e.xp < 0) {
+          dropped.push(e.npcId); continue;
+        }
       }
       if (typeof e.loyalty !== 'number' || !Number.isFinite(e.loyalty)) {
         dropped.push(e.npcId); continue;
@@ -529,11 +795,26 @@ function (settings, G) {
           e.hiredDay < 1) {
         dropped.push(e.npcId); continue;
       }
+      // 000143 (000139 C3): sheet — backfill (старая форма) или
+      // sanitize (новая); «warn» о проблемах — канал dropped[]
+      // (main.js печатает).
+      let sheet;
+      if (e.sheet == null) {
+        sheet = createMercSheet(npc);
+        sheet.level = e.level;
+        sheet.xp = e.xp;
+        sheet.totalXp = e.xp; // инвариант totalXp ≥ xp
+        sheet.points = 0;
+      } else {
+        sheet = sanitizeMercSheet(e.sheet, e.npcId);
+        if (sheet === null) { dropped.push(e.npcId); continue; }
+      }
       seen.add(e.npcId);
       roster.push({
         npcId: e.npcId,
-        level: e.level,
-        xp: e.xp,
+        sheet,
+        level: sheet.level, // зеркала (§2.1)
+        xp: sheet.xp,
         loyalty: Math.min(100, Math.max(0, e.loyalty)),
         hiredDay: Math.floor(e.hiredDay),
       });

@@ -862,8 +862,9 @@ test('BA7. [E]-wiring вынесен из main.js: onBuildingAction нет, пр
 // --- 000083: состояние отряда (roster/deadMercs) в проводке найма ---
 //
 // Kонтракт (memory/000083-hire-tab-ui.md §4/§7): main.js вводит
-// ЖИВЫЕ const-массивы roster (записи {npcId, level, xp, loyalty,
-// hiredDay}) и deadMercs ([npcId]); deps-бандл G.buildingActions.init
+// ЖИВЫЕ const-массивы roster (записи {npcId, sheet, level, xp,
+// loyalty, hiredDay} — 000143: 6 ключей, level/xp — плоские зеркала
+// sheet) и deadMercs ([npcId]); deps-бандл G.buildingActions.init
 // передаёт ТЕ ЖЕ ссылки в openNpcDialog → npcUI.open (контракт 000128
 // §2.2): мутация hire/dismiss (push/splice) видна на всех трёх
 // уровнях без переснабоксовки; 000085 восстановит in place
