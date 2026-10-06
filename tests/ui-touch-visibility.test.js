@@ -639,3 +639,37 @@ test('TV6: e2e — вход в здание [E]: кнопки и D-pad скры�
       'после закрытия оверлея — видимо: ' + e.className);
   }
 });
+
+// ---------------------------------------------------------------------------
+// TV7: ДЕГРАДАЦИЯ mixed-версий (правка по итогам ревью) — гард frame()
+// накрывает ОБА чужих экспорта: controls.js без touchControlsVisibility
+// (старая версия) + новые ui.js/main.js → frame() не падает (было:
+// TypeError «G.touchControlsVisibility is not a function» — смерть
+// rAF-лупа, проверено vm-песочницей), контролы остаются видимыми
+// (деградация = текущее поведение).
+// ---------------------------------------------------------------------------
+
+test('TV7: e2e — нет Game.touchControlsVisibility (mixed-версии) → frame() не падает, контролы видимы', async () => {
+  const h = await bootTouch();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  // Симуляция mixed-версий: старый controls.js (без нового экспорта)
+  // + новые ui.js/main.js. delete легален: браузерная UMD-ветка
+  // делает Object.assign({}, Game, factory()) — обычные свойства.
+  delete G.touchControlsVisibility;
+  assert.equal(typeof G.touchControlsVisibility, 'undefined',
+    'прекон: чистое ядро недоступно (controls.js без экспорта)');
+  assert.equal(typeof G.touchControls.applyVisibility, 'function',
+    'прекон: applyVisibility на месте (ui.js новый)');
+  assert.equal(h.raf.length, 1,
+    'сценарий: до первого кадра rAF — только frame main.js');
+  const { dpad, action, inventory } = touchDom(h.sandbox.document);
+  assert.doesNotThrow(() => { frameMain(h); },
+    'frame() не падает при отсутствии touchControlsVisibility');
+  // Деградация = текущее поведение: клей не применён — всё видимо.
+  for (const e of [dpad, action, inventory]) {
+    assert.notEqual(e.style.display, 'none',
+      'деградация: контролы видимы: ' + e.className);
+  }
+});

@@ -2433,8 +2433,12 @@
     // кнопки [I]/[E] — бой/инвентарь/вход; D-pad — инвентарь/вход
     // (в бою остаётся). Чистая touchControlsVisibility (controls.js)
     // от снимка кадра; applyVisibility идемпотентна (0 DOM-записей
-    // без смены состояния).
-    if (G.touchControls && typeof G.touchControls.applyVisibility === 'function') {
+    // без смены состояния). Гард — на ОБА чужих экспорта (mixed-
+    // версии «controls.js без touchControlsVisibility» → деградация
+    // в «всегда видимы», не TypeError в frame; пин TV7).
+    if (G.touchControls
+        && typeof G.touchControls.applyVisibility === 'function'
+        && typeof G.touchControlsVisibility === 'function') {
       G.touchControls.applyVisibility(G.touchControlsVisibility({
         combat: !!inCombat,
         inventory: !!(G.playerUI && G.playerUI.isOpen()),

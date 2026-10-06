@@ -137,7 +137,9 @@ touchControlsVisibility(screens) → { buttons: boolean, dpad: boolean }
     // (в бою остаётся). Чистая touchControlsVisibility (controls.js)
     // от снимка кадра; applyVisibility идемпотентна (0 DOM-записей
     // без смены состояния).
-    if (G.touchControls && typeof G.touchControls.applyVisibility === 'function') {
+    if (G.touchControls
+        && typeof G.touchControls.applyVisibility === 'function'
+        && typeof G.touchControlsVisibility === 'function') {
       G.touchControls.applyVisibility(G.touchControlsVisibility({
         combat: !!inCombat,
         inventory: !!(G.playerUI && G.playerUI.isOpen()),
@@ -154,7 +156,11 @@ touchControlsVisibility(screens) → { buttons: boolean, dpad: boolean }
   идемпотентный early return.
 * **Гард в frame — МОЛЧИТ** (решение): регрессия порядка загрузки уже
   логируется при загрузке (main.js L1672 console.error); спам в лупе не
-  нужен. Деградация = текущее поведение (контролы всегда видимы).
+  нужен. Деградация = текущее поведение (контролы всегда видимы). Гард
+  накрывает ОБА чужих экспорта — `touchControls.applyVisibility` И
+  `touchControlsVisibility` (правка по итогам ревью: mixed-версия
+  «controls.js без нового экспорта» раньше давала TypeError в frame() —
+  смерть rAF-лупа; проверено vm-песочницей; пин — TV7).
 * **`touchScreens()` (L1595) НЕ расширяется** (решение): её контракт 000121
   (роутинг) заперт тестами 8 комбинаций; снимок видимости собирается отдельно.
 
@@ -208,6 +214,13 @@ touchControlsVisibility(screens) → { buttons: boolean, dpad: boolean }
     кадре; ассерт до кадра невалиден). Преконы «экран открыт» — ОБЯЗАТЕЛЬНЫ
     до ассертов видимости (красное падает именно по видимости, не по
     «сценарий не собрался»). `errors.length === 0` (пин всех vm-тестов).
+* **TV7** (vm-e2e, полная цепочка; добавлен правкой по итогам ревью):
+  деградация mixed-версий — `delete Game.touchControlsVisibility` ДО
+  первого кадра (браузерная UMD-ветка controls.js —
+  `Object.assign({}, Game, factory())`, delete легален) → frame() НЕ
+  падает (typeof-гард на оба чужих экспорта), контролы остаются видимы
+  (деградация = текущее поведение). Без гарда — TypeError в frame()
+  (смерть rAF-лупа) — воспроизведено vm-песочницей.
 * **Красное:** 6/6 падают с осмысленными причинами (TV1/TV2 —
   `touchControlsVisibility` undefined; TV3 — `applyVisibility` undefined;
   TV4-TV6 — `display !== 'none'` при АКТИВНОМ экране). Не синтаксис: файл
@@ -226,8 +239,13 @@ touchControlsVisibility(screens) → { buttons: boolean, dpad: boolean }
   дочерних элементов; .cp-* DOM-контракт.
 * tests/hud.js.test.js — HUD-строки побайтово: хинты «[I] персонаж»/«[E] …» —
   ТЕКСТ HUD, не кнопки — НЕ меняются.
-* tests/city-screen.test.js — локационные экраны (город/подземелье) НЕ
-  скрывают контролы — регрессии-фиксатор «не больше, чем просит ТЗ».
+* tests/city-screen.test.js — фиксатор РЕГРЕССИИ городского экрана
+  (вход/выход/layout/HUD/saveNow — проходит без правок); видимость
+  контролов НЕ пинует (в файле нет touch/dpad/display-ассертов —
+  grep пуст). Пин «локационные экраны (город/подземелье/диалог) НЕ
+  скрывают контролы» держат TV2-кейсы {dungeon:true}/{dialog:true}
+  в tests/ui-touch-visibility.test.js (правка по итогам ревью:
+  город/подземелье — «не больше, чем просит ТЗ»).
 * tests/combat*/save*/loot*/companions* — детерминизм боя, сейвы, RNG —
   не затрагиваются (видимость — UI-state, в сейв не пишется; startCombat-
   сценарии не читают display контролов).
