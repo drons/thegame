@@ -152,9 +152,10 @@
   // D-XP в memory/000074-rune-obelisk.md): рунический камень даёт
   // готовую формулу stoneXp (своим runePowerMult), и штатный addXp
   // умножил бы её ещё на xpMult — двойное начисление. ТОЧНОЕ ЗЕРКАЛО
-  // addXp (player.js:317) БЕЗ xpMult — при изменении addXp
-  // синхронизировать (R1: дубль лупы уровней; totalXp ОБЯЗАН вестись,
-  // R4). player.js НЕ ТРОГАЕТСЯ (вне файлов ТЗ).
+  // addXp (src/sheet.js — Game.Sheet.addXp; player.js — делегирование)
+  // БЕЗ xpMult — при изменении addXp в sheet.js синхронизировать
+  // (R1: дубль лупы уровней; totalXp ОБЯЗАН вестись, R4). Сигнатуры
+  // flat-API player.js — без изменений.
   function grantXpRaw(c, amount) {
     if (!c || !c.alive || !Number.isFinite(amount) || amount <= 0) return;
     c.totalXp += amount;

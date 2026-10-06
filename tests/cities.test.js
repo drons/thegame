@@ -1537,7 +1537,7 @@ test('vm ПОЛНАЯ цепочка (global-settings → perlin → map → ski
   const C = loadCities();
   const sandbox = {};
   const chain = ['global-settings.js', 'perlin.js', 'map.js',
-    'skills-data.js', 'items-data.js', 'player.js', 'items.js',
+    'skills-data.js', 'items-data.js', 'sheet.js', 'player.js', 'items.js',
     'buildings.js', 'cities.js'];
   for (const f of chain)
     vm.runInNewContext(

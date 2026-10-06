@@ -144,7 +144,7 @@ function makeEl(tag) {
 const CHAIN = [
   'global-settings.js', 'perlin.js', 'mapseed.js',
   'skills-data.js', 'items-data.js', 'npc-data.js',
-  'map.js', 'player.js', 'day.js', 'items.js', 'buildings.js',
+  'map.js', 'sheet.js', 'player.js', 'day.js', 'items.js', 'buildings.js',
   'npc.js', 'combat.js', 'dungeon.js',
   'controls.js', 'combat-keys.js', 'ui.js',
 ];

@@ -232,7 +232,8 @@ function loadDungeonUi(opts = {}) {
   chain.push('map.js');
   if (!opts.withoutControls) chain.push('controls.js');
   if (opts.withCombat) {
-    chain.push('skills-data.js', 'items-data.js', 'player.js', 'items.js',
+    chain.push('skills-data.js', 'items-data.js', 'sheet.js',
+      'player.js', 'items.js',
       'combat.js', 'combat-keys.js', 'combat-ui.js');
   }
   chain.push('dungeon.js');

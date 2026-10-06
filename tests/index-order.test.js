@@ -33,7 +33,7 @@ const pos = (f) => scripts.indexOf(f);
 
 test('index.html: нужные модули подключены', () => {
   for (const f of [
-    'src/global-settings.js', 'src/day.js', 'src/player.js',
+    'src/global-settings.js', 'src/day.js', 'src/sheet.js', 'src/player.js',
     'src/items.js', 'src/controls.js', 'src/combat-keys.js',
     'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
     'src/dungeon.js', 'src/cities.js', 'src/locations.js',
@@ -372,8 +372,8 @@ test('motion.js (браузерная ветка UMD): даёт Game.createMover
 const CORE_SCRIPTS = [
   'src/global-settings.js', 'src/perlin.js', 'src/mapseed.js',
   'src/skills-data.js', 'src/items-data.js', 'src/npc-data.js',
-  'src/map.js', 'src/player.js', 'src/day.js', 'src/items.js',
-  'src/buildings.js', 'src/npc.js',
+  'src/map.js', 'src/sheet.js', 'src/player.js', 'src/day.js',
+  'src/items.js', 'src/buildings.js', 'src/npc.js',
 ];
 
 test('index.html: spells-data.js и spells.js подключены в правильном порядке', () => {
@@ -1266,4 +1266,21 @@ test('index.html: src/portraits-data.js подключён ПОСЛЕ src/mob-gr
     'src/portraits-data.js должен быть ДО src/map.js (задача 000142)');
   assert.ok(pos('src/portraits-data.js') < pos('src/ui.js'),
     'src/portraits-data.js должен быть ДО src/ui.js (задача 000142)');
+});
+
+// --- Задача 000140: единый «лист персонажа» (src/sheet.js) ---
+//
+// player.js (браузерная ветка, тонкий слой делегирования) читает
+// Game.Sheet при ЗАГРУЗКЕ (UMD-ловушка 000038, паттерн skills-data/
+// global-settings): src/sheet.js обязан быть в Game РАНЬШЕ, иначе
+// герой — ядро — не загрузится. Слот — регион ядра МЕЖДУ src/map.js
+// и src/player.js (до day.js). Чистая загрузка sheet.js — без
+// зависимостей (межимодульные чтения — лениво), поэтому порядок к
+// data-модулям не нужен; пин только sheet.js < player.js.
+
+test('index.html: src/sheet.js подключён и ДО src/player.js (задача 000140, UMD-ловушка 000038: player.js читает Game.Sheet при загрузке)', () => {
+  assert.notEqual(pos('src/sheet.js'), -1,
+    'src/sheet.js не подключён в index.html (задача 000140)');
+  assert.ok(pos('src/sheet.js') < pos('src/player.js'),
+    'src/sheet.js должен быть раньше src/player.js (задача 000140)');
 });

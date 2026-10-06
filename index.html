@@ -759,6 +759,11 @@
        (потребитель — вкладка «Персонаж», 000145; UMD-ловушка 000038). -->
   <script src="src/portraits-data.js"></script>
   <script src="src/map.js"></script>
+  <!-- Единый «лист персонажа» (задача 000140): модель прокачки
+       Game.Sheet — ДО player.js (player.js читает Game.Sheet при
+       загрузке: тонкий слой делегирования); UMD-ловушка 000038:
+       порядок закреплён tests/index-order.test.js. -->
+  <script src="src/sheet.js"></script>
   <script src="src/player.js"></script>
   <script src="src/day.js"></script>
   <script src="src/items.js"></script>

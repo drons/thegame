@@ -817,6 +817,7 @@ test('000099 RED: R3 — live: player.js addXp читает points_per_level в 
   const sandbox = {};
   loadInSandbox('global-settings.js', sandbox);
   loadInSandbox('skills-data.js', sandbox);
+  loadInSandbox('sheet.js', sandbox);
   loadInSandbox('player.js', sandbox);
   const c = sandbox.Game.createCharacter();
   sandbox.Game.GlobalSettings.SETTINGS.points_per_level = 5;
@@ -897,7 +898,7 @@ test('000099 RED: R7 — guard: битые points_per_level/level_delta_max/dung
   sandbox.Game.GlobalSettings.SETTINGS.level_delta_max = 5;
   sandbox.Game.GlobalSettings.SETTINGS.dungeon_memory_days = 9;
   for (const f of ['perlin.js', 'mapseed.js', 'map.js', 'skills-data.js',
-      'dungeons-data.js', 'player.js', 'dungeon.js']) {
+      'dungeons-data.js', 'sheet.js', 'player.js', 'dungeon.js']) {
     loadInSandbox(f, sandbox);
   }
   sandbox.Game.GlobalSettings.SETTINGS.points_per_level = 0;
@@ -953,7 +954,7 @@ test('000099 RED: R9 — guard: SETTINGS = null/undefined ЦЕЛИКОМ (объ
   const sandbox = {};
   for (const f of ['global-settings.js', 'perlin.js', 'mapseed.js',
       'map.js', 'skills-data.js', 'dungeons-data.js', 'day.js',
-      'player.js', 'dungeon.js']) {
+      'sheet.js', 'player.js', 'dungeon.js']) {
     loadInSandbox(f, sandbox);
   }
   sandbox.Game.GlobalSettings.SETTINGS = null;
