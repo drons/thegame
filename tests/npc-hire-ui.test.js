@@ -509,6 +509,41 @@ test('000083 U3: фильтрация списка — нанятый (roster) �
     'остальные — в порядке каталога (контракт candidatesForTavern)');
 });
 
+// --- U10: 000161 — deadMercs ЗАПИСЯМИ (D1) ---
+//
+// КРАСНОЕ: deadMercs — записи {npcId, sheet, loyalty, hiredDay}
+// (новая форма live-массива, 000161): candidatesForTavern
+// «new Set(deadMercs)» держит ОБЪЕКТЫ — «dead.has(n.id)» false →
+// мёртвый наёмник В списке найма (повторный найм после гибели —
+// должен быть невозможен, D1). Зелёное — адаптер двух форматов
+// (record.npcId + legacy-строки, U3 — без правок).
+
+test('000161 U10: deadMercs — запись {npcId, sheet, loyalty, hiredDay}: мёртвый НЕ в списке найма (повторный найм после гибели — НЕЛЬЗЯ); остальные — порядок каталога', () => {
+  const env = loadHireUi();
+  const cands = candidatesOf(env.G);
+  const rena = npcById(env, 'merc_rena');
+  // Запись погибшего — форма сейва (ровно 4 поля, 000143/000161):
+  // sheet — merc-лист (песочница — Game.Sheet, 000140).
+  const sh = env.G.Sheet.createSheet('merc', { npcId: 'merc_rena' });
+  const rec = { npcId: 'merc_rena', sheet: sh, loyalty: 77, hiredDay: 3 };
+  const npc = firstPlainHireNpc(env);
+  const { overlay } = openDialog(env, npc, {
+    roster: [entry('merc_volk')],
+    deadMercs: [rec],
+    day: 7, onChange: () => {},
+  });
+  clickHireTab(overlay);
+  const expected = Array.from(
+    cands.filter((n) => n.id !== 'merc_volk' && n.id !== 'merc_rena'),
+    (n) => n.имя);
+  assert.deepEqual(names(overlay), expected,
+    'мёртвый в ЗАПИСИ (merc_rena) исключён — повторный найм после ' +
+    'гибели НЕЛЬЗЯ (D1); остальные — в порядке каталога');
+  assert.equal(rowByName(overlay, rena.имя), null,
+    'строки «' + rena.имя + '» в списке найма НЕТ (кнопка «нанять» ' +
+    'не создаётся)');
+});
+
 // --- U4: canHire в рендере — disabled + title; stale-кнопка ---
 
 test('000083 U4: disabled+title по canHire (отряд полный / мало золота / stale-дубль — re-check в клике / gold=300 → активна)', () => {

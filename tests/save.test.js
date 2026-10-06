@@ -1062,6 +1062,93 @@ test('000085 T6: битые разделы + призраки — 0 ошибок
   assert.deepEqual(saved.data.dead_mercs, ['merc_rena'], 'dead_mercs — чистые');
 });
 
+// =====================================================================
+// Задача 000161 (родитель 000156): dead_mercs — запись
+// {npcId, sheet, loyalty, hiredDay} вместо голого npcId (контракт D1,
+// memory/000156-resurrection-design.md §3.D1/§5/§9.5; форма записи —
+// serializeRoster, 000143; контракт — memory/000161-dead-mercs-record.md).
+//
+// КРАСНЫЕ, пока нет: reviveEntryFromRecord/serializeDeadRecord
+// (companions.js) + restore ОБОХ форматов в main.js:
+//   T7 — запись в сейве ТИХО БРОСАЕТСЯ restore (typeof id !== 'string')
+//        → deadMercs [] → ассерт «восстановлена» падает;
+//   T8 — строка ХРАНИТСЯ голой (backfill не существует) → ассерт
+//        «backfill-запись (sheet из каталога, loyalty 50, hiredDay 0)»
+//        падает.
+// Версия сейва НЕ меняется (v1, 000031 — неломкое расширение).
+// =====================================================================
+
+// 000161: запись погибшего (4 поля — форма сейва/live deadMercs):
+// проекция runtime-записи backfilledEntry (sheet из каталога найма).
+// c — {npcId, level, xp, loyalty, hiredDay}.
+function backfilledDead(c) {
+  return {
+    npcId: c.npcId,
+    sheet: backfilledEntry(c).sheet,
+    loyalty: 50,
+    hiredDay: 0,
+  };
+}
+
+test('000161 T7: round-trip НОВОГО формата — запись dead_mercs переживает сейв (restore → sanitize → сейв; version 1)', async () => {
+  const st = makeStorage();
+  // Запись в форме сейва: канонический лист из каталога (level/xp —
+  // ВНУТРИ sheet — уровень/опыт переживают сейв, D1) + loyalty/hiredDay.
+  const seedRec = {
+    npcId: 'merc_baldor',
+    sheet: backfilledEntry({ npcId: 'merc_baldor', level: 2, xp: 30,
+      loyalty: 77, hiredDay: 3 }).sheet,
+    loyalty: 77,
+    hiredDay: 3,
+  };
+  const h = bootWithSave(st, null, {
+    day: 7,
+    dead_mercs: [seedRec],
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const state = h.sandbox.__game.state;
+  assert.ok(Array.isArray(state.deadMercs), 'state.deadMercs — массив');
+  assert.deepEqual(host(state.deadMercs), [seedRec],
+    'запись восстановлена (sanitize — без потерь; level/xp — внутри sheet)');
+  // Round-trip: beforeunload → saveNow → ТА ЖЕ запись в сейве,
+  // CURRENT_VERSION НЕ бампится (000031).
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
+  assert.deepEqual(saved.data.dead_mercs, [seedRec],
+    'запись переживает сейв (форма — 4 поля, без потерь)');
+});
+
+test('000161 T8: round-trip СТАРОГО формата — голый npcId → backfill-запись (sheet из каталога, loyalty 50, hiredDay 0 — тихий сброс 000029) → сейв записью (version 1)', async () => {
+  const st = makeStorage();
+  // Ожидание — backfill-запись: НОВЫЙ лист из каталога найма
+  // (level 1/xp 0/totalXp 0/points 0) + задокументированные 50/0
+  // (данные утрачены до появления воскрешения, SPEC «Спутники → Сейв»).
+  const expected = backfilledDead({ npcId: 'merc_baldor', level: 1,
+    xp: 0, loyalty: 0, hiredDay: 0 });
+  const h = bootWithSave(st, null, {
+    day: 7,
+    dead_mercs: ['merc_baldor'],
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const state = h.sandbox.__game.state;
+  assert.ok(Array.isArray(state.deadMercs), 'state.deadMercs — массив');
+  assert.deepEqual(host(state.deadMercs), [expected],
+    'строка backfillится: лист из каталога, loyalty 50, hiredDay 0 ' +
+    '(тихий сброс, 000029 — задокументировано)');
+  // После restore первый сейв пишет ЗАПИСЬ (не строку) — непрерывность
+  // (паттерн 000143): обратного пути нет, версия 1.
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
+  assert.deepEqual(saved.data.dead_mercs, [expected],
+    'сейв после restore — запись (НЕ строка)');
+});
+
 // --- 000109: раздел cities — сейв и респаун состояния города ---
 //
 // Контракты (memory/000109-city-save-respawn.md):
