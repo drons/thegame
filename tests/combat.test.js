@@ -4889,14 +4889,16 @@ test('A* (000155) R1: melee доходит — волк (3,3)+камень (3,4)
   c.obstacles.add('3,4');    // камень прямо между волком и игроком
   c._rng = () => 0.99;
   const ds = [];
+  let first = null;
   for (let i = 1; i <= 4; i++) {
     c.endTurn();
+    if (i === 1) first = [w.x, w.y];
     for (const [x, y] of unitRect(w)) {
       assert.ok(!c.obstacles.has(x + ',' + y), `ход ${i}: моб не «внутри» камня`);
     }
     ds.push(uDist(c, w));
   }
-  assert.equal(w.x, 2); assert.equal(w.y, 3,
+  assert.deepEqual(first, [2, 3],
     'первый шаг (2,3) — обход, а не «стоит» у стены');
   assert.deepEqual(ds, [4, 3, 2, 1],
     'd строго убывает: моб обходит камень и подходит к игроку');
@@ -4927,9 +4929,14 @@ test('A* (000155) R2: ranged держит дистанцию — орк-лучн
   assert.ok(ds.every((d) => d >= 2), 'd никогда ≤1 — «подхода вплотную» нет');
   assert.deepEqual(trail, [[2, 0], [2, 1], [2, 2], [2, 3]],
     'траектория обхода стены камней');
+  // Пин атаки — по УРОНУ ИГРОКУ (как существующие тесты, например
+  // «в следующем раунде моб бьёт»): mobAttack строку «… бьёт …» НЕ
+  // логирует (логирует только «промахивается»); rng 0.01 < hitChance —
+  // атака точно попадает.
+  const hpBefore = c.player.hp;
   c.endTurn();
-  assert.ok(c.log.some((l) => l.startsWith('Орк-лучник бьёт')),
-    '5-й ход: атака в радиусе выстрела (d≤4)');
+  assert.ok(c.player.hp < hpBefore,
+    '5-й ход: атака в радиусе выстрела (d≤4) — урон игроку');
 });
 
 test('A* (000155) R3: детерминизм — 2 прогона сценариев R1 (melee) и R2 (ranged): deepEqual позиций и лога, в каждом прогоне есть атака', () => {
@@ -4955,8 +4962,11 @@ test('A* (000155) R3: детерминизм — 2 прогона сценари
     a.x = 3; a.y = 0;
     c.obstacles.add('3,1'); c.obstacles.add('3,2'); c.obstacles.add('3,3');
     c._rng = () => 0.01;
+    const hp0 = c.player.hp;
     for (let i = 0; i < 5; i++) c.endTurn();
-    return { pos: [a.x, a.y], log: c.log.slice() };
+    // rng 0.01 — попадание: пин атаки по урону (mobAttack попадание
+    // НЕ логирует — строка «бьёт» в бою у мобов отсутствует).
+    return { pos: [a.x, a.y], log: c.log.slice(), hit: c.player.hp < hp0 };
   };
   const m1 = runMelee(); const m2 = runMelee();
   const r1 = runRanged(); const r2 = runRanged();
@@ -4964,8 +4974,8 @@ test('A* (000155) R3: детерминизм — 2 прогона сценари
   assert.deepEqual(r1, r2, 'ranged: детерминизм позиций и лога (2 прогона)');
   assert.ok(m1.log.some((l) => /^Волк (бьёт|промахивается)/.test(l)),
     'melee-прогон: строка атаки есть (моб дошёл)');
-  assert.ok(r1.log.some((l) => l.startsWith('Орк-лучник бьёт')),
-    'ranged-прогон: строка атаки есть (моб дошёл до полосы выстрела)');
+  assert.ok(r1.hit,
+    'ranged-прогон: атака есть (моб дошёл до полосы выстрела)');
 });
 
 test('A* (000155) R4: unit — pathStepFrom ретрит: лучник (2,6), камень (2,5), игрок (3,6) → true, (1,6); повторный вызов → d≥2', () => {
@@ -5009,6 +5019,10 @@ test('A* (000155) R6: многоклеточный 2×2 (troll-размер) з�
   c.obstacles.clear();
   t.x = 2; t.y = 2;          // тролл 2×2; жадный шаг (0,+1) в камень (2,4)
   c.obstacles.add('2,4');
+  // rng 0.99 — промах на 4-м ходу: строка «Тролль промахивается.» ЕСТЬ
+  // в логе (попадание mobAttack НЕ логирует — пин по строке атаки
+  // работает только через гарантированный промах).
+  c._rng = () => 0.99;
   const rectFree = (u) => unitRect(u).every(([x, y]) =>
     x >= 0 && y >= 0 && x < c.width && y < c.height
     && !c.obstacles.has(x + ',' + y)
