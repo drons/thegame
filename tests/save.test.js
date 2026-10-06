@@ -939,6 +939,10 @@ test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs пережи�
     },
     dead_mercs: ['merc_baldor'],
   };
+  // 000161: legacy-строка → backfill-запись (новый лист из каталога,
+  // loyalty 50, hiredDay 0 — тихий сброс 000029).
+  const baldorDead = backfilledDead({ npcId: 'merc_baldor', level: 1,
+    xp: 0, loyalty: 50, hiredDay: 0 });
   const h = bootWithSave(st, null, seed);
   for (let i = 0; i < 5; i++) await h.drain();
   assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
@@ -949,8 +953,8 @@ test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs пережи�
   // запись 6 ключей (sheet из каталога, level/xp перенесены) + зеркала.
   assert.deepEqual(host(state.roster), seed.companions.map(backfilledEntry),
     'отряд восстановлен из сейва (000143: backfill → 6-ключевые записи)');
-  assert.deepEqual(host(state.deadMercs), seed.dead_mercs,
-    'dead_mercs восстановлены');
+  assert.deepEqual(host(state.deadMercs), [baldorDead],
+    'dead_mercs восстановлены (000161: legacy-строка → backfill-запись)');
   // 000139 (000144): seed — старый 5-полевой формат → BACKFILL в лист
   // (10 ключей): primary — старт-формула, кэш skills → secondary как
   // есть (+ reprocess — неподвижная точка: 2.5 < 30, icelord 0/0).
@@ -976,7 +980,8 @@ test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs пережи�
     loyalty: c.loyalty, hiredDay: c.hiredDay,
   })), 'companions в сейве (000143: 4 поля)');
   assert.deepEqual(saved.data.efir, EXPECT_EFIR, 'efir в сейве (000139: лист)');
-  assert.deepEqual(saved.data.dead_mercs, seed.dead_mercs, 'dead_mercs в сейве');
+  assert.deepEqual(saved.data.dead_mercs, [baldorDead],
+    'dead_mercs в сейве (000161: запись 4 полей, не строка)');
 });
 
 test('000085 T5: СТАРЫЙ сейв (без companions/efir/dead_mercs) — отряд [], Эфир L1, version 1', async () => {
@@ -1012,6 +1017,9 @@ test('000085 T5: СТАРЫЙ сейв (без companions/efir/dead_mercs) — �
 test('000085 T6: битые разделы + призраки — 0 ошибок, warns с именами разделов, чистый сейв', async () => {
   const st = makeStorage();
   const validVolk = { npcId: 'merc_volk', level: 1, xp: 0, loyalty: 50, hiredDay: 1 };
+  // 000161: legacy-строка → backfill-запись (50/0, тихий сброс 000029).
+  const renaDead = backfilledDead({ npcId: 'merc_rena', level: 1,
+    xp: 0, loyalty: 50, hiredDay: 0 });
   const h = bootWithSave(st, null, {
     day: 5,
     companions: [
@@ -1046,8 +1054,9 @@ test('000085 T6: битые разделы + призраки — 0 ошибок
   };
   assert.deepEqual(host(state.efir), FRESH_EFIR,
     'efir: тихий сброс на L1-дефолт (000139: лист)');
-  assert.deepEqual(host(state.deadMercs), ['merc_rena'],
-    'deadMercs: дубль/призрак/число отброшены, порядок сохранён');
+  assert.deepEqual(host(state.deadMercs), [renaDead],
+    'deadMercs: дубль/призрак/число отброшены, порядок сохранён ' +
+    '(000161: запись)');
   // Битое вычищено за 1 цикл: повторный сейв — ЧИСТЫЕ разделы
   // (мусор не размножается).
   h.winListeners['beforeunload'][0]();
@@ -1059,7 +1068,8 @@ test('000085 T6: битые разделы + призраки — 0 ошибок
     'companions — чистые (мусор не размножается; 000143: 4 поля)');
   assert.deepEqual(saved.data.efir, FRESH_EFIR,
     'efir — чистый L1-дефолт (не «junk») (000139: лист)');
-  assert.deepEqual(saved.data.dead_mercs, ['merc_rena'], 'dead_mercs — чистые');
+  assert.deepEqual(saved.data.dead_mercs, [renaDead],
+    'dead_mercs — чистые (000161: запись)');
 });
 
 // =====================================================================

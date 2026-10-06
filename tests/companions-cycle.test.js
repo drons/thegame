@@ -755,13 +755,21 @@ test('V5: гибель в бою — dead_mercs (окончательно) + spl
   c.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1, allyXp: [] };
   G.combatUI.handleCode('Escape');
   assert.equal(G.combatUI.isActive(), false, 'бой закрыт (finish → onEnd)');
-  // Гибель: deadMercs + splice (D2 — живой объект боя, ЛЮБОЙ исход).
+  // Гибель: deadMercs-запись {npcId, sheet, loyalty, hiredDay}
+  // (000161: sheet — каталог-лист L1/xp0, loyalty/hiredDay — из
+  // seed-записи отряда) + splice (D2 — живой объект боя, ЛЮБОЙ исход).
+  const volkRec = {
+    npcId: 'merc_volk',
+    sheet: backfilledEntry({ npcId: 'merc_volk', level: 1, xp: 0,
+      loyalty: 65, hiredDay: 2 }).sheet,
+    loyalty: 65, hiredDay: 2,
+  };
   assert.ok(Array.isArray(g.state.deadMercs));
-  assert.deepEqual(host(g.state.deadMercs), ['merc_volk'],
-    'deadMercs: «merc_volk» (окончательно — 000085)');
+  assert.deepEqual(host(g.state.deadMercs), [volkRec],
+    'deadMercs: запись (окончательно — 000085/000161)');
   assert.ok(Array.isArray(g.state.roster));
   assert.equal(host(g.state.roster).length, 0, 'roster: запись удалена (splice)');
-  assert.ok(!host(g.state.deadMercs).includes('efir'),
+  assert.ok(!host(g.state.deadMercs).some((d) => d.npcId === 'efir'),
     'Эфир — никогда в dead_mercs (SPEC: не умирает навсегда)');
   mainFrameAt(h);
   const hud = String(h.hud.textContent);
@@ -769,9 +777,9 @@ test('V5: гибель в бою — dead_mercs (окончательно) + spl
     'hud: «<имя> погиб в бою.» (D9): ' + hud);
   assert.ok(!hud.includes('Спутники:'),
     'hud: xp-строк нет (victory, allyXp [] — спутник погиб)');
-  // Сейв (onEnd → saveNow): dead_mercs + пустой отряд.
+  // Сейв (onEnd → saveNow): dead_mercs (запись, 000161) + пустой отряд.
   const saved = readSave(h);
-  assert.deepEqual(saved.data.dead_mercs, ['merc_volk'], 'сейв: dead_mercs');
+  assert.deepEqual(saved.data.dead_mercs, [volkRec], 'сейв: dead_mercs — запись (000161)');
   assert.deepEqual(saved.data.companions, [], 'сейв: companions []');
   // Повторный найм ПОСЛЕ ГИБЕЛИ — НЕЛЬЗЯ (контракт G2): deadMercs
   // отфильтрован навсегда (candidatesForTavern — live-ссылки).
