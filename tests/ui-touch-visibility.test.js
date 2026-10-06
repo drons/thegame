@@ -11,7 +11,7 @@
 // методу/поведению (НЕ синтаксису): файл парсится, цепочка
 // index.html грузится в vm-песочницах без ошибок (errors.length === 0).
 //
-// Закреплённые контракты (дизайн — memory/000154-hud-screen-hide.md;
+// Закреплённые контракты (дизайн — memory/000150-hud-screen-hide.md;
 // карта тестов — /tmp/thegame-wf-000154/a3-tests.md §6):
 //   * src/controls.js — ЧИСТАЯ touchControlsVisibility(screens)
 //     → {buttons, dpad}: кнопки [I]/[E] скрываются на всех трёх
