@@ -450,6 +450,7 @@ const EXPECTED_SVG_BY_DIR = {
   'ui': 10,                           // иконки действий боя (задача 000124)
                                       // + icon_action/icon_inventory —
                                       // кнопки [E]/[I] (задача 000123)
+  portraits: 8,                       // портреты партии (задача 000142)
   logo: 1,                            // assets/logo.svg
 };
 

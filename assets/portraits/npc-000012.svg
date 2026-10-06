@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>Вольк — портрет партии</title>
+  <defs>
+    <linearGradient id="m12_ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0d284"/>
+      <stop offset="100%" stop-color="#8a5f1d"/>
+    </linearGradient>
+    <clipPath id="m12_clip"><circle cx="64" cy="64" r="50"/></clipPath>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="14" fill="#0b0a1a" stroke="#241f4a" stroke-width="2"/>
+  <circle cx="64" cy="64" r="54" fill="none" stroke="url(#m12_ring)" stroke-width="2"/>
+  <circle cx="64" cy="64" r="51" fill="none" stroke="#caa24a" stroke-width="1" opacity="0.8"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(26,26) scale(0.6)" fill="#d9a63a"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(102,26) scale(0.6)" fill="#d9a63a"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(26,102) scale(0.6)" fill="#cfd8ff"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(102,102) scale(0.6)" fill="#cfd8ff"/>
+  <g clip-path="url(#m12_clip)">
+    <path d="M28,118 C30,95 44,85 64,85 C84,85 98,95 100,118 Z" fill="#3a3468"/>
+    <path d="M52,85 Q64,94 76,85 L71,92 Q64,98 57,92 Z" fill="#2e2957"/>
+    <rect x="58" y="72" width="12" height="14" fill="#d99b72"/>
+    <circle cx="64" cy="57" r="16" fill="#f0c49e"/>
+    <path d="M48,55 C48,41 55,35 64,35 C73,35 80,41 80,55 C77,47 72,43 64,43 C56,43 51,47 48,55 Z" fill="#b0562e"/>
+    <path d="M48,55 L48,64 L53,59 Z" fill="#b0562e"/>
+    <path d="M80,55 L80,64 L75,59 Z" fill="#b0562e"/>
+    <circle cx="58" cy="57" r="1.8" fill="#2c3550"/>
+    <circle cx="70" cy="57" r="1.8" fill="#2c3550"/>
+    <path d="M54,52 L61,51.5" stroke="#8a4a3a" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M67,51.5 L74,52" stroke="#8a4a3a" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M61,66 L67,66" stroke="#8a5c4a" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M54,63 L50,70" stroke="#8a4a3a" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="44" y1="112" x2="92" y2="58" stroke="#8f97a3" stroke-width="5" stroke-linecap="round"/>
+    <line x1="42" y1="110" x2="90" y2="56" stroke="#cfd6dd" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="92" y1="58" x2="99" y2="51" stroke="#6b4f33" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="101" cy="49" r="3" fill="#d9a63a"/>
+    <line x1="86" y1="53" x2="98" y2="63" stroke="#d9a63a" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <circle cx="64" cy="64" r="50" fill="none" stroke="#241f4a" stroke-width="2"/>
+</svg>

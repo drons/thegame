@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>Бальдор — портрет партии</title>
+  <defs>
+    <linearGradient id="m14_ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0d284"/>
+      <stop offset="100%" stop-color="#8a5f1d"/>
+    </linearGradient>
+    <clipPath id="m14_clip"><circle cx="64" cy="64" r="50"/></clipPath>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="14" fill="#0b0a1a" stroke="#241f4a" stroke-width="2"/>
+  <circle cx="64" cy="64" r="54" fill="none" stroke="url(#m14_ring)" stroke-width="2"/>
+  <circle cx="64" cy="64" r="51" fill="none" stroke="#caa24a" stroke-width="1" opacity="0.8"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(26,26) scale(0.6)" fill="#d9a63a"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(102,26) scale(0.6)" fill="#d9a63a"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(26,102) scale(0.6)" fill="#cfd8ff"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(102,102) scale(0.6)" fill="#cfd8ff"/>
+  <g clip-path="url(#m14_clip)">
+    <path d="M26,118 C28,94 42,84 64,84 C86,84 100,94 102,118 Z" fill="#6b4f33"/>
+    <line x1="52" y1="88" x2="76" y2="102" stroke="#5a3f28" stroke-width="2.5"/>
+    <rect x="57" y="70" width="14" height="15" fill="#c98a6a"/>
+    <circle cx="64" cy="54" r="17" fill="#e8b98a"/>
+    <circle cx="47" cy="55" r="3" fill="#d99b72"/>
+    <circle cx="81" cy="55" r="3" fill="#d99b72"/>
+    <path d="M49,56 C49,76 55,84 64,84 C73,84 79,76 79,56 C75,65 69,69 64,69 C59,69 53,65 49,56 Z" fill="#6b4f33"/>
+    <line x1="58" y1="74" x2="60" y2="80" stroke="#5a3f28" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="64" y1="76" x2="64" y2="82" stroke="#5a3f28" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="70" y1="74" x2="68" y2="80" stroke="#5a3f28" stroke-width="1.2" stroke-linecap="round"/>
+    <path d="M56,66 C60,62 68,62 72,66 C68,68.5 60,68.5 56,66 Z" fill="#7a5a3a"/>
+    <line x1="53" y1="46" x2="61" y2="45" stroke="#6b4f33" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="67" y1="45" x2="75" y2="46" stroke="#6b4f33" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="57.5" cy="51" r="1.8" fill="#2c3550"/>
+    <circle cx="70.5" cy="51" r="1.8" fill="#2c3550"/>
+    <path d="M64,53 L64,59" stroke="#c98a6a" stroke-width="1.3" stroke-linecap="round"/>
+    <circle cx="42" cy="90" r="21" fill="#cfd6dd" stroke="#d9a63a" stroke-width="3"/>
+    <circle cx="42" cy="90" r="13" fill="none" stroke="#8f97a3" stroke-width="1.5"/>
+    <circle cx="42" cy="74.5" r="1.6" fill="#8a5f1d"/>
+    <circle cx="57.5" cy="90" r="1.6" fill="#8a5f1d"/>
+    <circle cx="42" cy="105.5" r="1.6" fill="#8a5f1d"/>
+    <circle cx="26.5" cy="90" r="1.6" fill="#8a5f1d"/>
+    <circle cx="42" cy="90" r="5.5" fill="#d9a63a" stroke="#8a5f1d" stroke-width="1"/>
+  </g>
+  <circle cx="64" cy="64" r="50" fill="none" stroke="#241f4a" stroke-width="2"/>
+</svg>

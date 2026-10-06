@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>Мира — портрет партии</title>
+  <defs>
+    <linearGradient id="m15_ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0d284"/>
+      <stop offset="100%" stop-color="#8a5f1d"/>
+    </linearGradient>
+    <radialGradient id="m15_glow">
+      <stop offset="0%" stop-color="#a5e86b" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#a5e86b" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="m15_clip"><circle cx="64" cy="64" r="50"/></clipPath>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="14" fill="#0b0a1a" stroke="#241f4a" stroke-width="2"/>
+  <circle cx="64" cy="64" r="54" fill="none" stroke="url(#m15_ring)" stroke-width="2"/>
+  <circle cx="64" cy="64" r="51" fill="none" stroke="#caa24a" stroke-width="1" opacity="0.8"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(26,26) scale(0.6)" fill="#d9a63a"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(102,26) scale(0.6)" fill="#d9a63a"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(26,102) scale(0.6)" fill="#cfd8ff"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(102,102) scale(0.6)" fill="#cfd8ff"/>
+  <g clip-path="url(#m15_clip)">
+    <path d="M28,118 C30,96 44,86 64,86 C84,86 98,96 100,118 Z" fill="#5a626e"/>
+    <path d="M52,86 Q64,95 76,86 L71,93 Q64,99 57,93 Z" fill="#4a525e"/>
+    <rect x="58" y="72" width="12" height="14" fill="#d99b72"/>
+    <circle cx="64" cy="57" r="16" fill="#f0c49e"/>
+    <path d="M48,56 C48,42 55,35 64,35 C73,35 80,42 80,56 C76,47 71,44 64,44 C57,44 52,47 48,56 Z" fill="#c9a06a"/>
+    <path d="M78,52 C86,62 88,76 82,90" stroke="#c9a06a" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+    <circle cx="81.5" cy="60" r="4.2" fill="#c9a06a"/>
+    <circle cx="85.5" cy="68" r="4.2" fill="#c9a06a"/>
+    <circle cx="85" cy="77" r="4.2" fill="#c9a06a"/>
+    <circle cx="82.5" cy="86" r="4.2" fill="#c9a06a"/>
+    <circle cx="81" cy="92" r="2.4" fill="#d9a63a"/>
+    <circle cx="58" cy="57" r="1.7" fill="#2c3550"/>
+    <circle cx="70" cy="57" r="1.7" fill="#2c3550"/>
+    <path d="M54,52.5 Q58,51 62,52.5" stroke="#c9a06a" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M66,52.5 Q70,51 74,52.5" stroke="#c9a06a" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M60,66 Q64,69 68,66" stroke="#8a5c4a" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <ellipse cx="53.5" cy="62" rx="2.6" ry="1.4" fill="#e8a585" opacity="0.5"/>
+    <ellipse cx="74.5" cy="62" rx="2.6" ry="1.4" fill="#e8a585" opacity="0.5"/>
+    <circle cx="52" cy="50" r="11" fill="url(#m15_glow)"/>
+    <path d="M34,96 C36,84 40,74 46,66" stroke="#3a4a3f" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M46,66 C44,58 48,52 54,50 C54,58 50,64 46,66 Z" fill="#a5e86b"/>
+    <path d="M40,82 C36,76 36,70 40,64 C44,70 44,76 40,82 Z" fill="#3a4a3f"/>
+    <path d="M52,46 L53.4,51 L58,52 L53.4,53 L52,58 L50.6,53 L46,52 L50.6,51 Z" fill="#a5e86b" opacity="0.9"/>
+  </g>
+  <circle cx="64" cy="64" r="50" fill="none" stroke="#241f4a" stroke-width="2"/>
+</svg>

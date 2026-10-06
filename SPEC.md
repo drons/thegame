@@ -289,10 +289,10 @@
    синк-скриптами не являются.
  * «Сборка» в CI — это sync-скрипты + дрейф-гейт, а не бандлер: в
    JS-бандлы попадают только каталоги, имеющие JS-зеркало под file://
-   (npc, skills, затем buildings, spells, items, visuals); mobs/craft —
-   данные живут в коде, зеркал не имеют, в сборку не участвуют.
-   (spells — зеркало `src/spells-data.js`, задача 000045; items/visuals
-   — задача 000059.)
+   (npc, skills, затем buildings, spells, items, visuals, portraits);
+   mobs/craft — данные живут в коде, зеркал не имеют, в сборку не
+   участвуют. (spells — зеркало `src/spells-data.js`, задача 000045;
+   items/visuals — задача 000059; portraits — задача 000142.)
  * Дрейф-чек ограничен `git status --porcelain -- src/` (конвенция
    «выход — src/<имя>-data.js» обязательна). Незакоммиченные локальные
    правки в src/ тоже краснят `sync:check` — это подсказка, а не ошибка

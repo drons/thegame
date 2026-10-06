@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>Ашка — портрет партии</title>
+  <defs>
+    <linearGradient id="m13_ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0d284"/>
+      <stop offset="100%" stop-color="#8a5f1d"/>
+    </linearGradient>
+    <clipPath id="m13_clip"><circle cx="64" cy="64" r="50"/></clipPath>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="14" fill="#0b0a1a" stroke="#241f4a" stroke-width="2"/>
+  <circle cx="64" cy="64" r="54" fill="none" stroke="url(#m13_ring)" stroke-width="2"/>
+  <circle cx="64" cy="64" r="51" fill="none" stroke="#caa24a" stroke-width="1" opacity="0.8"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(26,26) scale(0.6)" fill="#d9a63a"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(102,26) scale(0.6)" fill="#d9a63a"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(26,102) scale(0.6)" fill="#cfd8ff"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(102,102) scale(0.6)" fill="#cfd8ff"/>
+  <g clip-path="url(#m13_clip)">
+    <path d="M28,118 C30,96 44,86 64,86 C84,86 98,96 100,118 Z" fill="#3a4a3f"/>
+    <path d="M54,86 L64,98 L74,86 Z" fill="#2e3b32"/>
+    <circle cx="64" cy="94" r="2.6" fill="#d9a63a"/>
+    <path d="M42,62 C42,38 51,28 64,28 C77,28 86,38 86,62 C86,72 82,78 78,80 L50,80 C46,78 42,72 42,62 Z" fill="#3a4a3f"/>
+    <path d="M50,80 C47,72 46,66 47,58 C48,44 55,36 64,36 C73,36 80,44 81,58 C82,66 81,72 78,80 Z" fill="#2e3b32"/>
+    <ellipse cx="64" cy="60" rx="11.5" ry="14" fill="#e8b98a"/>
+    <path d="M52,58 C51,64 51,70 53,76 L56.5,71 C54.5,67 54,62 55,57 Z" fill="#d9d3bf"/>
+    <path d="M76,58 C77,64 77,70 75,76 L71.5,71 C73.5,67 74,62 73,57 Z" fill="#d9d3bf"/>
+    <circle cx="59.5" cy="58" r="1.8" fill="#2c3550"/>
+    <circle cx="68.5" cy="58" r="1.8" fill="#2c3550"/>
+    <path d="M56,53.5 Q59.5,52 63,53.5" stroke="#b0a58e" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <path d="M65,53.5 Q68.5,52 72,53.5" stroke="#b0a58e" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <path d="M64,62 L64,65" stroke="#c98a6a" stroke-width="1.1" stroke-linecap="round"/>
+    <path d="M61,69 L67,69" stroke="#8a5c4a" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M86,98 C102,82 102,56 90,40" stroke="#6b4f33" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <line x1="86" y1="98" x2="90" y2="40" stroke="#d8d3c5" stroke-width="1.2"/>
+    <line x1="80" y1="69" x2="92" y2="66" stroke="#8a5c33" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M78,69.5 L83,67.4 L83,71 Z" fill="#cfd6dd"/>
+    <path d="M92,66 L96.5,63.8 L96.5,68 Z" fill="#e8c56a"/>
+  </g>
+  <circle cx="64" cy="64" r="50" fill="none" stroke="#241f4a" stroke-width="2"/>
+</svg>

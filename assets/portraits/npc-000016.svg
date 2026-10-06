@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>Торга — портрет партии</title>
+  <defs>
+    <linearGradient id="m16_ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0d284"/>
+      <stop offset="100%" stop-color="#8a5f1d"/>
+    </linearGradient>
+    <clipPath id="m16_clip"><circle cx="64" cy="64" r="50"/></clipPath>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="14" fill="#0b0a1a" stroke="#241f4a" stroke-width="2"/>
+  <circle cx="64" cy="64" r="54" fill="none" stroke="url(#m16_ring)" stroke-width="2"/>
+  <circle cx="64" cy="64" r="51" fill="none" stroke="#caa24a" stroke-width="1" opacity="0.8"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(26,26) scale(0.6)" fill="#d9a63a"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(102,26) scale(0.6)" fill="#d9a63a"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(26,102) scale(0.6)" fill="#cfd8ff"/>
+  <path d="M0,-7 L7,0 L0,7 L-7,0 Z" transform="translate(102,102) scale(0.6)" fill="#cfd8ff"/>
+  <g clip-path="url(#m16_clip)">
+    <path d="M24,118 C26,92 42,82 64,82 C86,82 102,92 104,118 Z" fill="#6b4f33"/>
+    <line x1="52" y1="86" x2="78" y2="102" stroke="#5a3f28" stroke-width="2.5"/>
+    <line x1="76" y1="86" x2="50" y2="102" stroke="#5a3f28" stroke-width="2.5"/>
+    <rect x="57" y="68" width="14" height="15" fill="#c98a6a"/>
+    <circle cx="64" cy="52" r="17" fill="#e0b088"/>
+    <circle cx="47" cy="53" r="3" fill="#cf9a72"/>
+    <circle cx="81" cy="53" r="3" fill="#cf9a72"/>
+    <path d="M47,48 Q64,40 81,48 L81,57 Q64,49 47,57 Z" fill="#6b4f33"/>
+    <rect x="59" y="46.5" width="10" height="10" rx="1.5" fill="#d9a63a" stroke="#8a5f1d" stroke-width="1"/>
+    <line x1="53" y1="58" x2="61" y2="56.5" stroke="#4a3020" stroke-width="2.8" stroke-linecap="round"/>
+    <line x1="67" y1="56.5" x2="75" y2="58" stroke="#4a3020" stroke-width="2.8" stroke-linecap="round"/>
+    <circle cx="57.5" cy="60" r="1.8" fill="#2c3550"/>
+    <circle cx="70.5" cy="60" r="1.8" fill="#2c3550"/>
+    <path d="M64,62 L64,68" stroke="#c98a6a" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M59,72 Q64,70 69,72" stroke="#8a5c4a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M28,82 C28,74 33,69 40,69 L48,69 C54,69 57,74 57,80 L57,88 C57,94 53,98 47,98 L36,98 C31,98 28,94 28,88 Z" fill="#e0b088" stroke="#6b4f33" stroke-width="2"/>
+    <path d="M57,80 C61,80 63,84 61,88 C59,91 55,91 54,88 Z" fill="#e0b088" stroke="#6b4f33" stroke-width="1.5"/>
+    <line x1="36" y1="70" x2="36" y2="78" stroke="#6b4f33" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="43" y1="70" x2="43" y2="78" stroke="#6b4f33" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="50" y1="70" x2="50" y2="78" stroke="#6b4f33" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+  <circle cx="64" cy="64" r="50" fill="none" stroke="#241f4a" stroke-width="2"/>
+</svg>

@@ -292,8 +292,11 @@ test('SPEC: в сборку — каталоги с зеркалом (spells —
   assert.ok(i !== -1, 'SPEC.md: нет раздела «CI и публикация на GitHub Pages»');
   const j = spec.indexOf('\n# ', i + 1);
   const sec = spec.slice(i, j === -1 ? spec.length : j);
-  assert.match(sec, /npc, skills, затем buildings, spells, items, visuals/,
-    'SPEC: список каталогов с JS-зеркалом обязан включать spells (000045)');
+  assert.match(
+    sec,
+    /npc, skills, затем buildings, spells, items, visuals, portraits/,
+    'SPEC: список каталогов с JS-зеркалом обязан включать spells (000045) ' +
+    'и portraits (000142)');
   assert.ok(!/mobs\/spells\/craft/.test(sec),
     'SPEC: spells ИМЕЕТ зеркало (000045) — не может числиться «без зеркал»');
 });
