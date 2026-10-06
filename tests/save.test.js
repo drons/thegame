@@ -809,44 +809,83 @@ test('000085 T2: deserializeRoster — призрак/дубли/лимит/чи
     'round-trip serialize(deserialize(x)) === deserialize(x)');
 });
 
-test('000085 T3: serializeEfir/deserializeEfir — round-trip 5 полей; 3-полевая legacy; сломанные → null', () => {
+// 000139 (000144): единый лист Эфира — старт-значения (src/efir.js):
+// primary — старт-формула, secondary/skills — начальный список.
+const EFIR_START_PRIMARY = {
+  strength: 1, dexterity: 1, constitution: 3,
+  intelligence: 3, wisdom: 3, charisma: 1,
+};
+const EFIR_INIT_LIST = {
+  firelord: 1, icelord: 0, perception: 1, precog: 0,
+};
+const EFIR_SHEET_KEYS = ['kind', 'level', 'points', 'primary',
+  'secondary', 'skillXp', 'skills', 'spells', 'totalXp', 'xp'];
+
+test('000085 T3: serializeEfir/deserializeEfir — round-trip 10 полей (лист; 000139: осознанный пере-пин 5→10); 3-полевая legacy; сломанные → null', () => {
   // 000115 D4 (техническая фиксация под ОБЯЗАТЕЛЬНЫЙ reprocessEfirSkills
   // ВНУТРИ deserialize, канон 000111 §9): ВЫХОД deserialize — ПЛОТНЫЙ
   // (ВСЕ 4 id пула материализованы); round-trip-идентичность — на
   // post-reprocess (неподвижной) форме. Фикс-точки: skillXp 2.5 <
   // efirSkillXpForNext(1) = 30; icelord — requires firelord ≥ 5 не
   // выполнен → 0/0; xp 10 < xpForNext(2) = 141 (reprocess level не
-  // трогает).
+  // трогает). 000139 (000144): состояние — лист (10 ключей, без
+  // npcId): старый 5-полевой JSON → BACKFILL (primary — старт-
+  // формула, кэш skills → secondary как есть, points/totalXp 0);
+  // serialize «голого» (без primary) → null (runtime — ВСЕГДА лист).
   const afterBattle = {
     level: 2, xp: 10,
     skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
     skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
     spells: ['spark', 'mend', 'light_heal'],
   };
+  const afterSheet = {
+    kind: 'efir', level: 2, xp: 10, totalXp: 0, points: 0,
+    primary: EFIR_START_PRIMARY,
+    secondary: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
+    skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
+    skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
+    spells: ['spark', 'mend', 'light_heal'],
+  };
   const fresh = E.createEfir();
   assert.deepEqual(E.deserializeEfir(E.serializeEfir(fresh)), {
-    level: 1, xp: 0,
+    kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0,
+    primary: EFIR_START_PRIMARY,
+    secondary: EFIR_INIT_LIST,
     skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
-    skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
+    skills: EFIR_INIT_LIST,
     spells: ['spark', 'mend'],
-  }, 'round-trip: свежий createEfir() (5 полей; reprocess → плотный 4×0)');
-  assert.deepEqual(E.deserializeEfir(E.serializeEfir(afterBattle)), afterBattle,
-    'round-trip: «после боя» (дроби skillXp, порядок spells) — неподвижная точка');
+  }, 'round-trip: свежий createEfir() (000139: лист; reprocess → '
+    + 'плотный skillXp 4×0)');
+  assert.equal(E.serializeEfir(afterBattle), null,
+    'serialize: «голый» 5-полевой (без primary) → null (000139: '
+    + 'runtime — ВСЕГДА лист)');
+  assert.deepEqual(E.deserializeEfir(afterBattle), afterSheet,
+    'старый 5-полевой JSON → backfill в лист (000139)');
+  assert.deepEqual(
+    E.deserializeEfir(E.serializeEfir(afterSheet)), afterSheet,
+    'round-trip: «после боя» (дроби skillXp, порядок spells) — '
+    + 'неподвижная точка');
 
   // 3-полевая legacy-форма (до 000111): дефолты skillXp→{}, spells→старт
-  // (+ reprocess 000115 → плотный 4×0).
+  // (+ reprocess 000115 → плотный 4×0; 000139 → лист).
   assert.deepEqual(E.deserializeEfir({ level: 2, xp: 5, skills: {} }),
-    { level: 2, xp: 5,
+    { kind: 'efir', level: 2, xp: 5, totalXp: 0, points: 0,
+      primary: EFIR_START_PRIMARY,
+      secondary: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       spells: ['spark', 'mend'] },
-    '3-полевая legacy → 5 полей (000111 §9; reprocess → плотный 4×0)');
+    '3-полевая legacy → лист (000111 §9; reprocess → плотный 4×0) '
+    + '(000139)');
   assert.deepEqual(E.deserializeEfir({ level: 1, xp: 0, spells: [] }),
-    { level: 1, xp: 0,
+    { kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0,
+      primary: EFIR_START_PRIMARY,
+      secondary: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       spells: ['spark', 'mend'] },
-    'пустые spells → EFIR_SPELL_START (НЕ выводить из уровня, 000115; reprocess → плотный 4×0)');
+    'пустые spells → EFIR_SPELL_START (НЕ выводить из уровня, 000115; '
+    + 'reprocess → плотный 4×0) (000139)');
 
   // Сломанные → null (main.js: warn + тихий сброс на createEfir()).
   const broken = [
@@ -912,8 +951,19 @@ test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs пережи�
     'отряд восстановлен из сейва (000143: backfill → 6-ключевые записи)');
   assert.deepEqual(host(state.deadMercs), seed.dead_mercs,
     'dead_mercs восстановлены');
-  assert.deepEqual(host(state.efir), seed.efir,
-    'Эфир восстановлен (5 полей, форма 000111)');
+  // 000139 (000144): seed — старый 5-полевой формат → BACKFILL в лист
+  // (10 ключей): primary — старт-формула, кэш skills → secondary как
+  // есть (+ reprocess — неподвижная точка: 2.5 < 30, icelord 0/0).
+  const EXPECT_EFIR = {
+    kind: 'efir', level: 5, xp: 5, totalXp: 0, points: 0,
+    primary: EFIR_START_PRIMARY,
+    secondary: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
+    skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
+    skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
+    spells: ['spark', 'mend', 'light_heal'],
+  };
+  assert.deepEqual(host(state.efir), EXPECT_EFIR,
+    'Эфир восстановлен (000139: backfill старого формата в лист)');
   // Round-trip: beforeunload → saveNow → те же разделы в сейве,
   // CURRENT_VERSION НЕ бампится (000031).
   h.winListeners['beforeunload'][0]();
@@ -925,7 +975,7 @@ test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs пережи�
     npcId: c.npcId, sheet: backfilledEntry(c).sheet,
     loyalty: c.loyalty, hiredDay: c.hiredDay,
   })), 'companions в сейве (000143: 4 поля)');
-  assert.deepEqual(saved.data.efir, seed.efir, 'efir в сейве');
+  assert.deepEqual(saved.data.efir, EXPECT_EFIR, 'efir в сейве (000139: лист)');
   assert.deepEqual(saved.data.dead_mercs, seed.dead_mercs, 'dead_mercs в сейве');
 });
 
@@ -938,17 +988,25 @@ test('000085 T5: СТАРЫЙ сейв (без companions/efir/dead_mercs) — �
   assert.ok(Array.isArray(state.roster), 'state.roster — массив');
   assert.deepEqual(host(state.roster), [], 'старый сейв: ПУСТОЙ отряд (ЗАФИКСИРОВАНО)');
   assert.deepEqual(host(state.deadMercs), [], 'старый сейв: deadMercs []');
-  assert.deepEqual(host(state.efir),
-    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
-    'старый сейв: Эфир L1-дефолт, 5 полей (ЗАФИКСИРОВАНО)');
+  // 000139 (000144): L1-дефолт — лист (10 ключей; skillXp {} —
+  // createEfir как есть, main.js не репроцессит на старте).
+  const FRESH_EFIR = {
+    kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0,
+    primary: EFIR_START_PRIMARY,
+    secondary: EFIR_INIT_LIST,
+    skillXp: {},
+    skills: EFIR_INIT_LIST,
+    spells: ['spark', 'mend'],
+  };
+  assert.deepEqual(host(state.efir), FRESH_EFIR,
+    'старый сейв: Эфир L1-дефолт, лист (000139: осознанный пере-пин)');
   h.winListeners['beforeunload'][0]();
   const saved = JSON.parse(st.getItem(S.SAVE_KEY));
   assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
   assert.deepEqual(saved.data.companions, [], 'companions [] в сейве');
   assert.deepEqual(saved.data.dead_mercs, [], 'dead_mercs [] в сейве');
-  assert.deepEqual(saved.data.efir,
-    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
-    'efir L1-дефолт в сейве (5 полей)');
+  assert.deepEqual(saved.data.efir, FRESH_EFIR,
+    'efir L1-дефолт в сейве (000139: лист)');
 });
 
 test('000085 T6: битые разделы + призраки — 0 ошибок, warns с именами разделов, чистый сейв', async () => {
@@ -977,9 +1035,17 @@ test('000085 T6: битые разделы + призраки — 0 ошибок
   // 000139 C3 (000143): валидная старая запись — backfill (6 ключей).
   assert.deepEqual(host(state.roster), [backfilledEntry(validVolk)],
     'roster: только валидная запись (skip не в составе; 000143 — backfill)');
-  assert.deepEqual(host(state.efir),
-    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
-    'efir: тихий сброс на L1-дефолт');
+  // 000139 (000144): L1-дефолт — лист (10 ключей; skillXp {}).
+  const FRESH_EFIR = {
+    kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0,
+    primary: EFIR_START_PRIMARY,
+    secondary: EFIR_INIT_LIST,
+    skillXp: {},
+    skills: EFIR_INIT_LIST,
+    spells: ['spark', 'mend'],
+  };
+  assert.deepEqual(host(state.efir), FRESH_EFIR,
+    'efir: тихий сброс на L1-дефолт (000139: лист)');
   assert.deepEqual(host(state.deadMercs), ['merc_rena'],
     'deadMercs: дубль/призрак/число отброшены, порядок сохранён');
   // Битое вычищено за 1 цикл: повторный сейв — ЧИСТЫЕ разделы
@@ -991,9 +1057,8 @@ test('000085 T6: битые разделы + призраки — 0 ошибок
     [{ npcId: validVolk.npcId, sheet: backfilledEntry(validVolk).sheet,
       loyalty: validVolk.loyalty, hiredDay: validVolk.hiredDay }],
     'companions — чистые (мусор не размножается; 000143: 4 поля)');
-  assert.deepEqual(saved.data.efir,
-    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
-    'efir — чистый L1-дефолт (не «junk»)');
+  assert.deepEqual(saved.data.efir, FRESH_EFIR,
+    'efir — чистый L1-дефолт (не «junk») (000139: лист)');
   assert.deepEqual(saved.data.dead_mercs, ['merc_rena'], 'dead_mercs — чистые');
 });
 
@@ -1219,11 +1284,14 @@ test('000115 N1: deserializeEfir — id-валидация по каталога
   }, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG));
   assert.ok(q.res !== null, 'каталогически-валидные id — приняты');
   assert.deepEqual(q.res, {
-    level: 5, xp: 0,
+    kind: 'efir', level: 5, xp: 0, totalXp: 0, points: 0,
+    primary: EFIR_START_PRIMARY,
+    secondary: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
     skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
     skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
     spells: ['spark', 'mend', 'light_heal'],
-  }, 'валидные id → состояние (плотная форма после reprocess, неподвижная точка)');
+  }, 'валидные id → лист (плотная форма после reprocess, неподвижная '
+    + 'точка) (000139: backfill)');
 
   // Каталогический id ВНЕ пула (strength / flame_burst) — ПРОХОДИТ и
   // персистит (D2-последствие: ИНЕРТЕН — reprocess пишет только 4 id
@@ -1259,39 +1327,48 @@ test('000115 N1: deserializeEfir — id-валидация по каталога
 
 test('000115 N2: deserializeEfir — ОБЯЗАТЕЛЬНЫЙ reprocess при загрузке (банк → уровни, cap, overflow; плотная форма 4 id пула); round-trip идентично на канонической форме; 3-полевая legacy → плотная', () => {
   // Банк-оверфлоу: L1 cap = 3·2 = 6; 999 − (15+30+45+60+75+90) = 684
-  // (фикс-точка 000111 T5).
+  // (фикс-точка 000111 T5; кэш {} → старт firelord 0; 000139: лист).
   assert.deepEqual(
     E.deserializeEfir({ level: 1, xp: 0, skillXp: { firelord: 999 }, skills: {}, spells: ['spark', 'mend'] },
       EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG),
-    { level: 1, xp: 0,
+    { kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0,
+      primary: EFIR_START_PRIMARY,
+      secondary: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
       skillXp: { firelord: 684, icelord: 0, perception: 0, precog: 0 },
       skills: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
       spells: ['spark', 'mend'] },
-    'банк-оверфлоу → cap + overflow, материализованы ВСЕ 4 id пула');
+    'банк-оверфлоу → cap + overflow, материализованы ВСЕ 4 id пула '
+    + '(000139: лист)');
 
-  // Round-trip на КАНОНИЧЕСКОЙ (post-reprocess) форме — идентично
+  // Round-trip на КАНОНИЧЕСКОЙ (post-backfill) форме — идентично
   // (дроби skillXp 2.5, порядок spells [spark, mend, light_heal] — ТЗ).
   // Неподвижная точка: 2.5 < 30; reprocess не пишет level/xp/spells.
+  // 000139: serialize — лист, не «голый» → round-trip через xb.
   const x = {
     level: 2, xp: 10,
     skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
     skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
     spells: ['spark', 'mend', 'light_heal'],
   };
-  assert.deepEqual(E.deserializeEfir(E.serializeEfir(x),
-    EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG), x,
-    'round-trip идентично на канонической форме (дроби + порядок)');
+  const xb = E.deserializeEfir(x, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG);
+  assert.deepEqual(
+    E.deserializeEfir(E.serializeEfir(xb),
+      EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG), xb,
+    'round-trip идентично на канонической форме (дроби + порядок) '
+    + '(000139)');
 
-  // 3-полевая legacy (до 000111) → 5-полевая ПЛОТНАЯ
-  // (нормализация 000085 + reprocess 000115).
+  // 3-полевая legacy (до 000111) → ПЛОТНАЯ (нормализация 000085 +
+  // reprocess 000115; 000139: лист).
   assert.deepEqual(
     E.deserializeEfir({ level: 2, xp: 5, skills: {} },
       EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG),
-    { level: 2, xp: 5,
+    { kind: 'efir', level: 2, xp: 5, totalXp: 0, points: 0,
+      primary: EFIR_START_PRIMARY,
+      secondary: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       spells: ['spark', 'mend'] },
-    '3-полевая legacy → плотная 4×0 + [spark, mend]');
+    '3-полевая legacy → плотная 4×0 + [spark, mend] (000139: лист)');
 
   // Идемпотентность: повторный deserialize того же raw → идентично.
   const raw = { level: 1, xp: 0, skillXp: { firelord: 999 }, skills: {}, spells: ['spark', 'mend'] };
@@ -1314,16 +1391,20 @@ test('000115 N4: D5 level-guard — level > 1e6 → null (сброс ЗАПИС�
   assert.equal(q.n, 0, 'тихая: сброс БЕЗ warn (warn печатает main.js)');
 
   // Граница ВКЛЮЧИТЕЛЬНА: level = 1e6 проходит. Банк пуст → цикл
-  // reprocess не крутится (0 < cost(0) = 15) — выход: плотный 4×0.
+  // reprocess не крутится (0 < cost(0) = 15) — выход: плотный 4×0
+  // (000139: лист).
   assert.deepEqual(
     E.deserializeEfir({
       level: 1000000, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'],
     }, EFIR_SKILL_CATALOG, EFIR_SPELL_CATALOG),
-    { level: 1000000, xp: 0,
+    { kind: 'efir', level: 1000000, xp: 0, totalXp: 0, points: 0,
+      primary: EFIR_START_PRIMARY,
+      secondary: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       spells: ['spark', 'mend'] },
-    'level = 1e6 → состояние (граница включена; кэп не введён; плотный 4×0)');
+    'level = 1e6 → состояние (граница включена; кэп не введён; плотный 4×0; '
+    + '000139: лист)');
 });
 
 test('000115 N3: версия НЕ поднята — CURRENT_VERSION = 1, MIGRATIONS пуст (re-pin 000072, ТЗ явно в списке «Тесты»)', () => {
@@ -1345,20 +1426,36 @@ test('000115 V1: e2e — чужие id в разделе efir: 0 ошибок, w
     'warn: раздел efir (текст main.js:570)');
   const state = h.sandbox.__game.state;
   assert.ok(state.efir, 'state.efir существует');
+  // 000139: L1-дефолт — лист (10 ключей; skillXp {} — main.js не
+  // репроцессит на старте).
   assert.deepEqual(host(state.efir),
-    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
-    'чужой id → L1-дефолт: сброс ЗАПИСИ (не частичная чистка, не материализованный пул)');
+    { kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0,
+      primary: EFIR_START_PRIMARY,
+      secondary: EFIR_INIT_LIST,
+      skillXp: {},
+      skills: EFIR_INIT_LIST,
+      spells: ['spark', 'mend'] },
+    'чужой id → L1-дефолт: сброс ЗАПИСИ (не частичная чистка, не материализованный пул; 000139: лист)');
   h.winListeners['beforeunload'][0]();
   const saved = JSON.parse(st.getItem(S.SAVE_KEY));
   assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
   assert.deepEqual(saved.data.efir,
-    { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] },
-    'мусор не размножается (000029) — повторный сейв чистый');
+    { kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0,
+      primary: EFIR_START_PRIMARY,
+      secondary: EFIR_INIT_LIST,
+      skillXp: {},
+      skills: EFIR_INIT_LIST,
+      spells: ['spark', 'mend'] },
+    'мусор не размножается (000029) — повторный сейв чистый (000139: лист)');
 });
 
 test('000115 V2: e2e — reprocess при загрузке (банк-оверфлоу): state.efir = ПЛОТНАЯ форма (cap + overflow), beforeunload → ТА ЖЕ форма в сейве (идентичность, дроби не теряются), version 1', async () => {
+  // 000139: лист (10 ключей; цифры 684/6 — фикс-точки 000111,
+  // кэш {} → старт firelord 0).
   const DENSE = {
-    level: 1, xp: 0,
+    kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0,
+    primary: EFIR_START_PRIMARY,
+    secondary: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
     skillXp: { firelord: 684, icelord: 0, perception: 0, precog: 0 },
     skills: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
     spells: ['spark', 'mend'],
@@ -1416,9 +1513,11 @@ test('000118: e2e — флаг первой встречи: бой с Эфиро
     'CURRENT_VERSION = 1 (неломкое расширение v1 — без бампа)');
   assert.equal(saved.data.efir_met, true,
     'efir_met = true в сейве (ТОП-УРОВЕНЬ, вне раздела efir)');
+  // 000139 (000144): осознанный пере-пин (000085→000115→000144):
+  // раздел efir — единый лист, 10 ключей.
   assert.deepEqual(Object.keys(saved.data.efir).sort(),
-    ['level', 'skillXp', 'skills', 'spells', 'xp'],
-    'раздел efir — ровно 5 полей (000115 — не трогается)');
+    EFIR_SHEET_KEYS,
+    'раздел efir — ровно 10 ключей листа (000139)');
 
   // (2) Reload из этого сейва: флаг восстановлен → строки НЕТ,
   //     даже в СВЕЖЕЙ песочнице (модульный one-shot там цел!).
@@ -1552,4 +1651,85 @@ test('E2. 000133: свиток — learned in game → saveNow (смена дн�
   assert.deepEqual(host(h2.sandbox.__game.state.hero.spells),
     ['spark', 'mend', 'fireball'],
     'второй boot: hero.spells — книга из сейва');
+});
+
+// --- Задача 000144: ES-7 — e2e (vm-песочница, полная цепочка
+// index.html): старое 5-полевое seed-JSON раздела efir → boot →
+// runtime-эфир = sheet (10 ключей, 000139) → beforeunload → раздел
+// сейва = sheet-лейаут (C3 000139: осознанный пере-пин пина
+// «ровно 5 полей» (выше, 000118) — в GREEN-коммите вместе с
+// реализацией); INVALID-seed → warn + fresh sheet (паттерн 000115 V1).
+//
+// КРАСНЫЙ: пока src/efir.js не на листе (000139): runtime-объект и
+// раздел сейва — 5 полей (level/xp/skillXp/skills/spells), а не 10
+// (kind/level/xp/totalXp/points/primary/secondary/skillXp/skills/
+// spells). Падение — deepStrictEqual на лейауте (функциональности
+// нет), не синтаксическое.
+//
+// Контракт: memory/000144-efir-sheet.md (backfill: primary —
+// старт-формула, кэш skills → secondary КАК ЕСТЬ + ОБЯЗАТЕЛЬНЫЙ
+// reprocess, points/totalXp = 0; INVALID → null → main.js warn +
+// createEfir() fresh). main.js НЕ трогается (000144 §4): restore —
+// Object.assign(efir, e) на живом листе.
+
+test('ES-7. 000144: e2e — старое 5-полевое seed → backfill → runtime и сейв: sheet (10 ключей); INVALID-seed → warn + fresh sheet', async () => {
+  // (1) Seed СТАРОГО формата (000115-лейаут, L5): банк 999 за
+  //     потолком, кэш firelord 3, книга L5. Backfill: primary —
+  //     старт-формула (cap = Int 3 × 2 = 6) → firelord 3 → 6, банк
+  //     999 − (60+75+90) = 774 (за потолком — overflow, Т7);
+  //     points/totalXp = 0 (истории нет); version НЕ поднимается.
+  const BACKFILL = {
+    kind: 'efir', level: 5, xp: 20, totalXp: 0, points: 0,
+    primary: { strength: 1, dexterity: 1, constitution: 3,
+      intelligence: 3, wisdom: 3, charisma: 1 },
+    secondary: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
+    skills: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
+    skillXp: { firelord: 774, icelord: 0, perception: 0, precog: 0 },
+    spells: ['spark', 'mend', 'light_heal'],
+  };
+  const st = makeStorage();
+  const h = bootWithSave(st, null, {
+    day: 7,
+    efir: { level: 5, xp: 20, skillXp: { firelord: 999 },
+      skills: { firelord: 3 }, spells: ['spark', 'mend', 'light_heal'] },
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const state = h.sandbox.__game.state;
+  assert.ok(state.efir, 'state.efir существует (live-объект)');
+  assert.deepEqual(host(state.efir), BACKFILL,
+    'backfill: runtime-эфир = sheet (10 ключей; reprocess при загрузке)');
+  h.winListeners['beforeunload'][0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа — 000031)');
+  assert.deepEqual(saved.data.efir, BACKFILL,
+    'раздел сейва = sheet-лейаут (C3 000139; переживает сейв без потерь)');
+
+  // (2) INVALID-seed (чужие id — 000115 V1): раздел НЕвалиден →
+  //     null → main.js warn + fresh sheet (сброс ЗАПИСИ, не частичная
+  //     чистка); ошибок НЕТ (игра не падает).
+  const FRESH = {
+    kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0,
+    primary: { strength: 1, dexterity: 1, constitution: 3,
+      intelligence: 3, wisdom: 3, charisma: 1 },
+    secondary: { firelord: 1, icelord: 0, perception: 1, precog: 0 },
+    skills: { firelord: 1, icelord: 0, perception: 1, precog: 0 },
+    skillXp: {},
+    spells: ['spark', 'mend'],
+  };
+  const st2 = makeStorage();
+  const h2 = bootWithSave(st2, null, {
+    day: 5,
+    efir: { level: 2, xp: 0, skillXp: {}, skills: { nope: 1 },
+      spells: ['spark', 'nope'] },
+  });
+  for (let i = 0; i < 5; i++) await h2.drain();
+  assert.equal(h2.errors.length, 0,
+    'ошибок НЕТ (тихий сброс, игра не падает): ' + h2.errors.join('; '));
+  assert.ok(h2.warns.some((m) => m.includes('efir')),
+    'warn: раздел efir (текст main.js: «некорректен — сбрасываю»): '
+    + h2.warns.join('; '));
+  assert.deepEqual(host(h2.sandbox.__game.state.efir), FRESH,
+    'невалидная запись → fresh sheet (сброс ЗАПИСИ, 000115 V1)');
 });
