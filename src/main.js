@@ -1581,6 +1581,9 @@
   // на десктопе и наоборот).
   // 000123: кнопки [E] (действие) и [I] (инвентарь) видны в ОБЕИХ
   // схемах; D-pad — только в 'touch' (флаг dpad в touchControls.init).
+  // 000150: видимость on-screen-контролов по экранам — пересчёт в
+  // frame() от снимка (бой → кнопки скрыты, D-pad жив; инвентарь/
+  // вход → кнопки + D-pad скрыты; чистая touchControlsVisibility).
   // 000121: ОДИН D-pad маршрутизируется в активный экран (клей без
   // состояния, снимок в момент события):
   //   бой        — тап = ОДНО действие handleCode(code), БЕЗ повтора
@@ -2426,6 +2429,18 @@
     const inNpc = G.npcUI && G.npcUI.isActive();
     const inBuilding = G.buildingUI && G.buildingUI.isActive(); // 000071
     const inCraft = G.craftUI && G.craftUI.isActive(); // 000126
+    // 000150: видимость on-screen-контролов по активным экранам:
+    // кнопки [I]/[E] — бой/инвентарь/вход; D-pad — инвентарь/вход
+    // (в бою остаётся). Чистая touchControlsVisibility (controls.js)
+    // от снимка кадра; applyVisibility идемпотентна (0 DOM-записей
+    // без смены состояния).
+    if (G.touchControls && typeof G.touchControls.applyVisibility === 'function') {
+      G.touchControls.applyVisibility(G.touchControlsVisibility({
+        combat: !!inCombat,
+        inventory: !!(G.playerUI && G.playerUI.isOpen()),
+        building: !!inBuilding,
+      }));
+    }
     // Интервал шага (задача 000033 + 000063): база — из глобальных
     // настроек (420 мс), навык «Ловкий шаг» укорачивает, нижний кламп —
     // G.MIN_MOVE_INTERVAL_MS. Одно значение для шага и окна walk/idle.
