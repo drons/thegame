@@ -114,7 +114,8 @@ const hero = (charisma, gold = 1000, artist = 0) => {
 const BROWSER_CHAIN = [
   'src/global-settings.js', 'src/perlin.js', 'src/mapseed.js',
   'src/skills-data.js', 'src/items-data.js', 'src/npc-data.js',
-  'src/map.js', 'src/player.js', 'src/day.js', 'src/items.js',
+  'src/map.js', 'src/sheet.js', 'src/player.js', 'src/day.js',
+  'src/items.js',
   'src/buildings.js', 'src/npc.js', 'src/companions.js',
 ];
 

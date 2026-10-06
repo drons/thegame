@@ -917,7 +917,7 @@ function loadInSandbox(file, sandbox) {
 const fromVm = (v) => JSON.parse(JSON.stringify(v));
 const ITEMS_CHAIN = [
   'global-settings.js', 'perlin.js', 'map.js',
-  'skills-data.js', 'items-data.js', 'player.js', 'items.js',
+  'skills-data.js', 'items-data.js', 'sheet.js', 'player.js', 'items.js',
 ];
 
 test('vm-песочница: items.js без каталога — фолбэк-таблица, поведение идентично (000060)', () => {

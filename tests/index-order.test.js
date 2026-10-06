@@ -33,7 +33,7 @@ const pos = (f) => scripts.indexOf(f);
 
 test('index.html: нужные модули подключены', () => {
   for (const f of [
-    'src/global-settings.js', 'src/day.js', 'src/player.js',
+    'src/global-settings.js', 'src/day.js', 'src/sheet.js', 'src/player.js',
     'src/items.js', 'src/controls.js', 'src/combat-keys.js',
     'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
     'src/dungeon.js', 'src/cities.js', 'src/locations.js',
@@ -372,8 +372,8 @@ test('motion.js (браузерная ветка UMD): даёт Game.createMover
 const CORE_SCRIPTS = [
   'src/global-settings.js', 'src/perlin.js', 'src/mapseed.js',
   'src/skills-data.js', 'src/items-data.js', 'src/npc-data.js',
-  'src/map.js', 'src/player.js', 'src/day.js', 'src/items.js',
-  'src/buildings.js', 'src/npc.js',
+  'src/map.js', 'src/sheet.js', 'src/player.js', 'src/day.js',
+  'src/items.js', 'src/buildings.js', 'src/npc.js',
 ];
 
 test('index.html: spells-data.js и spells.js подключены в правильном порядке', () => {

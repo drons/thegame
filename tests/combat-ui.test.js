@@ -133,7 +133,7 @@ function loadCombatUi(withSprites = true, opts = {}) {
   for (const f of [
     'global-settings.js', 'perlin.js', 'map.js',
     'skills-data.js', 'items-data.js',
-    'player.js',
+    'sheet.js', 'player.js',
   ]) {
     vm.runInContext(src(f), sandbox, { filename: f });
   }
