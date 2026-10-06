@@ -262,15 +262,19 @@ test('skillPractice: опыт копится, уровень растёт, ос�
   assert.equal(c.secondary.swordsman, 2);
 });
 
-test('skillPractice: на потолке практикой опыт не начисляется', () => {
+test('skillPractice: на потолке практикой опыт копится в банке (000140, C1)', () => {
+  // Осознанный перепин (контракт 000139 C1): бросок на cap заменён
+  // bank-переливом (эталон reprocessEfirSkills, src/efir.js) — опыт
+  // принят в копилку, уровень не растёт, конвертация — при росте
+  // потолка (тест ниже). reason остаётся «потолок практикой».
   const c = createCharacter();
   c.secondary.swordsman = 2; // потолок = сила 1 * 2
   const r = skillPractice(c, 'swordsman', 10);
   assert.equal(r.ok, true);
-  assert.equal(r.applied, 0, 'опыт не принят');
+  assert.equal(r.applied, 10, 'опыт принят в банк (C1)');
   assert.match(r.reason, /потолок/);
   assert.equal(c.secondary.swordsman, 2, 'уровень не вырос');
-  assert.equal(c.skillXp.swordsman, 0, 'в копилку ничего не попало');
+  assert.equal(c.skillXp.swordsman, 10, 'опыт копится в банке (C1)');
 });
 
 test('skillPractice: опыт выше порога потолка застревает в копилке', () => {

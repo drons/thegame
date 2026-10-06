@@ -988,7 +988,10 @@ test('практика: каст огня — «Повелитель огня»,
   assert.equal(p.skillXp.meditation, PRACTICE_XP.spell);
 });
 
-test('практика: на потолке (основной * 2) попадание опыт не даёт', () => {
+test('практика: на потолке (основной * 2) попадание копится в банке (000140, C1)', () => {
+  // Осознанный перепин (контракт 000139 C1 — второй пин броска на cap,
+  // тот же путь: combat.js → P.skillPractice): опыт попадания больше не
+  // бросается, а копится в p.skillXp; уровень и reason — без изменений.
   const p = strongHero(); // сила 1 → потолок «Мечника» 2
   I.addItem(p, 'iron_sword');
   I.equip(p, 'iron_sword');
@@ -998,10 +1001,10 @@ test('практика: на потолке (основной * 2) попада�
   standNextTo(c, c.units[0]);
   const r = c.attack(c.units[0].id);
   assert.equal(r.hit, true);
-  assert.equal(r.practice.applied, 0, 'на потолке опыт не начисляется');
+  assert.equal(r.practice.applied, PRACTICE_XP.hit, 'опыт принят в банк (C1)');
   assert.equal(r.practice.level, 2);
   assert.equal(p.secondary.swordsman, 2, 'уровень не вырос');
-  assert.equal(p.skillXp.swordsman, 0, 'в копилку ничего не попало');
+  assert.equal(p.skillXp.swordsman, PRACTICE_XP.hit, 'опыт копится в банке (C1)');
 });
 
 // --- Размер мобов на боевом поле (задача 000040) ---

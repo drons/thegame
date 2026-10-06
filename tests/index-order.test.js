@@ -1267,3 +1267,20 @@ test('index.html: src/portraits-data.js подключён ПОСЛЕ src/mob-gr
   assert.ok(pos('src/portraits-data.js') < pos('src/ui.js'),
     'src/portraits-data.js должен быть ДО src/ui.js (задача 000142)');
 });
+
+// --- Задача 000140: единый «лист персонажа» (src/sheet.js) ---
+//
+// player.js (браузерная ветка, тонкий слой делегирования) читает
+// Game.Sheet при ЗАГРУЗКЕ (UMD-ловушка 000038, паттерн skills-data/
+// global-settings): src/sheet.js обязан быть в Game РАНЬШЕ, иначе
+// герой — ядро — не загрузится. Слот — регион ядра МЕЖДУ src/map.js
+// и src/player.js (до day.js). Чистая загрузка sheet.js — без
+// зависимостей (межимодульные чтения — лениво), поэтому порядок к
+// data-модулям не нужен; пин только sheet.js < player.js.
+
+test('index.html: src/sheet.js подключён и ДО src/player.js (задача 000140, UMD-ловушка 000038: player.js читает Game.Sheet при загрузке)', () => {
+  assert.notEqual(pos('src/sheet.js'), -1,
+    'src/sheet.js не подключён в index.html (задача 000140)');
+  assert.ok(pos('src/sheet.js') < pos('src/player.js'),
+    'src/sheet.js должен быть раньше src/player.js (задача 000140)');
+});
