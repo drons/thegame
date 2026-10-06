@@ -167,7 +167,7 @@ L612-614) и панель навыков (bank виден на cap) — част
      'src/player.js' (используется vm-тестом «Game.Spells…»).
   4. Чужие пины не трогать (000133 L837-852 building-effect-runes.js —
      свой регион, 000138, ui-tabs, …).
-* Технические вставки 'sheet.js' перед 'player.js' (14 файлов / 15 точек):
+* Технические вставки 'sheet.js' перед 'player.js' (14 файлов / 16 точек):
   ui-skills L132, ui-panel L267, npc-hire L147, npc-hire-ui L202,
   squad-panel L166, combat-ui L136, items L920, cities L1540, dungeon-ui
   L235, dungeon-vision L179, map L873, global-settings L820/L900/L956,
