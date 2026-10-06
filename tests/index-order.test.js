@@ -64,6 +64,9 @@ test('index.html: нужные модули подключены', () => {
     // main.js (UMD-ловушка 000038: main.js снимает Game один раз —
     // Game.startWindow обязан быть в снапшоте; пин SW-O1 ниже).
     'src/start-window.js',
+    // Портреты партии (задача 000142): зеркало assets/portraits
+    // (конец блока данных — после mob-groups-data.js, до map.js).
+    'src/portraits-data.js',
     'src/main.js',
   ]) {
     assert.notEqual(pos(f), -1, f + ' не подключён в index.html');

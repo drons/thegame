@@ -42,6 +42,16 @@ const SYNC = path.join(ROOT, 'scripts', 'sync-portraits.js');
 const { listSyncScripts, gitStatusSrc } = require(
   path.join(ROOT, 'scripts', 'sync-all.js'));
 
+// Комментарий в TAP без влияния на результат. t.comment — node:test
+// Node 20+ (CI — 22); на локальном Node 18 — t.diagnostic.
+function note(t, msg) {
+  if (typeof t.comment === 'function') {
+    t.comment(msg);
+  } else if (typeof t.diagnostic === 'function') {
+    t.diagnostic(msg);
+  }
+}
+
 // Канонический порядок каталога (зеркало генерируется в НЁМ, не по
 // readdir): герой, дух, 6 наёмных — номера NPC-каталога 000012..17.
 const CANON_FILES = [
@@ -250,11 +260,12 @@ test('портреты: sync — scripts/sync-portraits.js (write-atomic), ре�
     'listSyncScripts: sync-portraits.js подхватывается конвенцией ' +
     'sync-*.js');
   // CI-гейт. --check по конструкции exit 1 на незакоммиченных src/
-  // (dev-состояние до коммита) — подпункт честно пропущен (t.comment);
-  // реальная проверка — после коммита и в CI (D10).
+  // (dev-состояние до коммита) — подпункт честно пропущен (note/t.comment,
+  // TAP-комментарий без влияния на результат); реальная проверка —
+  // после коммита и в CI (D10).
   const dirty = gitStatusSrc(ROOT);
   if (Array.isArray(dirty) && dirty.length > 0) {
-    t.comment('sync-all --check: в src/ есть незакоммиченные изменения ' +
+    note(t, 'sync-all --check: в src/ есть незакоммиченные изменения ' +
       '(dev-состояние) — подпункт честно пропущен');
   } else {
     const c = spawnSync(process.execPath,
