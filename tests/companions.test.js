@@ -947,7 +947,9 @@ test('000082: allyDataForEntry — данные makeAlly из записи + к�
   // con 2: base maxHP 20+2·5 = 30; ×hp 1.1 ×melee 1.0 → 33.
   assert.equal(d.maxHP, 33,
     'maxHP — из sheet: round(30·1.1·1.0) (000143)');
-  // round((2+0.7·5)·dmg 1.2·(1+swordsman 2·0.05)) = round(7.26) = 7.
+  // round((2+0.7·5)·dmg 1.2) = round(6.6) = 7 (swordsman — бонус
+  // попадания, в урон наёмника не входит — 000143 §2.8: урон — только
+  // fist/heavy/ranged).
   assert.equal(d.damage, 7, 'damage — из sheet: уровень + каталог + навыки');
   assert.equal(d.armor, undefined,
     'у Волька найм.armor нет (только у Бальдора — 3)');
@@ -986,9 +988,9 @@ test('000082: рост статов — makeAlly с новым уровнем (0
   const volk = NPCS.find((n) => n.id === 'merc_volk');
   // 000143: maxHP — из sheet: round((20+con·5)·hp·роль) — уровня в
   // формуле НЕТ (maxHP плоский до 000145; рост — через очки);
-  // damage — makeAlly-формула (2+0.7·ур) + каталожный dmg 1.2 +
-  // swordsman 2·0.05, мораль 1; armor = найм.armor + floor(ур/10) (как
-  // было).
+  // damage — makeAlly-формула (2+0.7·ур) + каталожный dmg 1.2, мораль
+  // 1 (swordsman — бонус попадания, в урон не входит — 000143 §2.8);
+  // armor = найм.armor + floor(ур/10) (как было).
   const at = (level) => makeAlly(
     C.allyDataForEntry(entryWithSheet(volk, { level }), volk), 0);
   const u1 = at(1), u5 = at(5), u10 = at(10);
