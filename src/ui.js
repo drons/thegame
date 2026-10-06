@@ -1277,6 +1277,10 @@
   // вертикальная пара. Содержимое кнопок — SVG-иконки assets/ui/
   // (000123, паттерн 000124: img + alt + aria-label), ТЕКСТОВЫХ букв
   // «E»/«I» на кнопках больше нет.
+  // 000150 (задача 000154): per-control видимость — applyVisibility(v)
+  // прячет/показывает кнопки [I]/[E] и D-pad по снимку активных
+  // экранов (клей main.js: бой/инвентарь/вход; контракт —
+  // memory/000150-hud-screen-hide.md).
   (function () {
     // controls.js ОБЯЗАН быть загружен раньше ui.js (см. index.html):
     // при отсутствии функций контролы не собираются — это ошибка порядка
@@ -1289,6 +1293,9 @@
     let root = null, dpadEl = null, actionEl = null, inventoryEl = null;
     const arrows = {}; // dir -> span (пусто, если D-pad не строится)
     let shown = false;
+    // 000150: последнее применённое per-control состояние видимости
+    // (идемпотентность applyVisibility: DOM-записи только при смене).
+    let parts = { buttons: true, dpad: true };
     let layout = null;
     let heldPointer = null; // pointerId, удерживающий D-pad (один)
     let heldDir = null;
@@ -1484,6 +1491,35 @@
       },
       isActive() { return shown; },
       releaseAll() { releasePointer(null); },
+      /**
+       * Применить per-control видимость (задача 000154 / ТЗ 000150):
+       * кнопки [I]/[E] — на бой/инвентарь/вход; D-pad — на
+       * инвентарь/вход (в бою остаётся — движение по полю). Вызов
+       * идемпотентен: DOM-записи только при смене состояния (клей
+       * main.js звонит каждый кадр). show()/hide()/isActive() —
+       * БЕЗ ИЗМЕНЕНИЙ (root-видимость независима от per-control).
+       * @param {{buttons?: boolean, dpad?: boolean}|null|undefined} v
+       *   Выход G.touchControlsVisibility (controls.js). Отсутствие/
+       *   мусор-значения → видимо (безопасное направление).
+       */
+      applyVisibility(v) {
+        if (!root) return; // pre-init — как show/hide
+        // Нормализация: отсутствует/мусор → видимо (безопасное
+        // направление); frame() всегда шлёт строгие boolean.
+        const buttons = !(v && v.buttons === false);
+        const dpad = !(v && v.dpad === false);
+        // Идемпотентность: в steady-state (каждый кадр) 0 DOM-записей.
+        if (buttons === parts.buttons && dpad === parts.dpad) return;
+        parts = { buttons, dpad };
+        // Инлайн display: restore — '' (снимает оверрайд, возвращает
+        // каскад: .tc-action — display:flex, .tc-dpad — block), НЕ
+        // 'block' (перебил бы flex-центрирование иконки).
+        actionEl.style.display = buttons ? '' : 'none';
+        inventoryEl.style.display = buttons ? '' : 'none';
+        // Схема 'keyboard': dpadEl === null — dpad-часть no-op, НЕ крах
+        // (кнопки работают в ОБЕИХ схемах — 000123).
+        if (dpadEl) dpadEl.style.display = dpad ? '' : 'none';
+      },
     };
   })();
 })();

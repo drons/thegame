@@ -323,10 +323,41 @@
     return 'map';
   }
 
+  /**
+   * Видимость on-screen-контролов по снимку активных экранов
+   * (ЧИСТАЯ функция: без Game/document, аргумент не мутирует).
+   * ТЗ 000150 (задача 000154):
+   *   Экран            | Кнопки [I]/[E] | D-pad
+   *   -----------------+-----------------+--------
+   *   бой              | СКРЫТЫ          | ОСТАЁТСЯ
+   *   инвентарь [I]    | СКРЫТЫ          | СКРЫТ
+   *   вход в здание [E]| СКРЫТЫ          | СКРЫТ
+   *   карта (ничего)   | видимы          | виден
+   * dungeon/dialog и прочие поля снимка — принимаются, но НЕ
+   * ПОТРЕБЛЯЮТСЯ (ТЗ их не упоминает — «не больше и не меньше»).
+   * Мусор/не-boolean (жёсткие === true, паттерн routeTouchScreen):
+   * всё видимо — безопасное направление (игрок не теряет контролы).
+   * @param {{combat?: boolean, inventory?: boolean,
+   *          building?: boolean}|null|undefined} screens
+   * @returns {{buttons: boolean, dpad: boolean}}
+   *   buttons — пара кнопок [I]/[E] одной единицей (ТЗ скрывает их
+   *   вместе), dpad — D-pad (в бою ДВИЖЕНИЕ по полю — 000121).
+   */
+  function touchControlsVisibility(screens) {
+    const combat = !!(screens && screens.combat === true);
+    const inventory = !!(screens && screens.inventory === true);
+    const building = !!(screens && screens.building === true);
+    return {
+      buttons: !(combat || inventory || building),
+      dpad: !(inventory || building),
+    };
+  }
+
   return { DIRS, DIR_DELTA, CODE_DIRS, KEY_DIRS,
     moveKeyForEvent, deltaForMoveKey, deltaForEvent,
     TOUCH_ACTIONS, TOUCH_DEADZONE,
     touchMoveKeyForAction, isTouchDevice, chooseControlsScheme,
     layoutTouchControls, touchActionAt,
-    TOUCH_KEY_CODES, touchKeyCode, routeTouchScreen };
+    TOUCH_KEY_CODES, touchKeyCode, routeTouchScreen,
+    touchControlsVisibility };
 });
