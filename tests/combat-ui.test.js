@@ -508,7 +508,10 @@ test('боевой UI: спрайт героя — drawImage по центру �
   const di = findCanvas(body).drawCalls
     .find((x) => x[0] === 'drawImage' && x[1][0] === fake);
   assert.ok(di, 'спрайт героя нарисован (drawImage)');
-  const size = 48 * 1.15;
+  // 55.2 = 48 × 1.15 — ТОЧНОЕ double: прямое `48 * 1.15` даёт плавающий
+  // шум 55.199999999999996; код (000151) и пин R2 фиксируют 55.2
+  // (техническая правка пина, значение то же).
+  const size = 55.2;
   const cx = (c.px + 0.5) * 48, cy = (c.py + 0.5) * 48;
   assert.equal(di[1][1], cx - size / 2, 'x — по центру клетки (px,py)');
   assert.equal(di[1][2], cy - size / 2, 'y — по центру клетки');

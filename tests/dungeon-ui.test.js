@@ -232,9 +232,13 @@ function loadDungeonUi(opts = {}) {
   chain.push('map.js');
   if (!opts.withoutControls) chain.push('controls.js');
   if (opts.withCombat) {
+    // 000151: combat-scale.js — ПЕРЕД combat-ui.js (та же пара, что в
+    // index.html; цепочка зеркалит браузер). Без него битый порядок →
+    // console.error-гард combat-ui.js → ассерты errors.length === 0
+    // падали бы (техническая правка проводки, ассерты без правок).
     chain.push('skills-data.js', 'items-data.js', 'sheet.js',
       'player.js', 'items.js',
-      'combat.js', 'combat-keys.js', 'combat-ui.js');
+      'combat.js', 'combat-keys.js', 'combat-scale.js', 'combat-ui.js');
   }
   chain.push('dungeon.js');
   // sprites.js — в index.html ДО dungeon-ui.js (379 vs 381); UMD-модуль

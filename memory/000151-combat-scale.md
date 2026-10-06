@@ -246,7 +246,11 @@ memory/000151-combat-texture-scale.md.
 * dispW/dispH: не-число/NaN/≤0/undefined → 1:1 на ЭТОЙ оси (w = baseW)
   — фолбэк lenient-стабов (rect без width/height) и нулевого rect
   (000124).
-* dpr: не-число/NaN/≤0/undefined → 1 (vm-песочница, патология).
+* dpr: не-число/NaN/≤0/undefined → 1:1 ЦЕЛИКОМ (безопасный фолбэк =
+  поведение ДО 000151; P6: computeBacking(336,336,672,672,undefined)
+  → {336,336,1,1}, НЕ «dpr→1 и формула дальше»). vm-песочница сюда НЕ
+  попадает: typeof-гард measureBacking передаёт 1 (число) → формула
+  с disp (R1: displaySize 672 без dpr → 672).
 * sx = min(MAX_SCALE, max(1, dispW·dpr / baseW)); sy симметрично.
   **НЕДАУНСКЕЙЛ (max от 1) ОБЯЗАТЕЛЕН** — маленькие экраны/мобайл не
   трогаем (ТЗ-контекст: «не ломать маленькие экраны/мобайл»):
