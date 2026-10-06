@@ -5086,3 +5086,48 @@ test('A* (000155) R4b: guard — замурованный ranged в панике
   assert.ok(!c.obstacles.has(a.x + ',' + a.y), 'моб не «внутри» камня');
   assert.ok(c.log.includes('Орк-лучник отступает.'), 'лог паники не меняется');
 });
+
+// --- Guards стадии ревью (2026-10-06): контракт path* за пределами
+// защищённых call-sites mobAct (красные R1–R8/R4b выше не покрывают). ---
+
+test('A* (000155) R9: guard — pathStepTo с d=1 (моб уже в reach, f0===0) → false, позиция неизменна; из d=2 шаг всё ещё до reach', () => {
+  // Ревью: без раннего `f0 === 0 → false` вызов из reach возвращал true
+  // и СДИВИГАЛ юнита ОТ цели (A*-ветка берёт соседа с min-полем):
+  // волк (3,5) при игроке (3,6) шёл на (3,4), повторный вызов — обратно
+  // (3,5) — осцилляция для незастрахованного `while (pathStepTo(...))`.
+  // Call-sites mobAct защищены (break/атака при d≤1), поэтому существующие
+  // пины не сдвигаются — это яма контракта экспортируемого API (обход
+  // союзников 000080 — будущий паттерн `allyStep… || pathStepTo`).
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 3, seed: 7 });
+  const w = c.units[0];
+  c.obstacles.clear();
+  w.x = 3; w.y = 5;          // d=1 до игрока (3,6) — уже в reach=1
+  const target = { x: c.px, y: c.py, w: 1, h: 1 };
+  assert.equal(pathStepTo(c, w, target, 1), false,
+    'f0===0 — цель уже достигнута: не шаг, стоим (контракт)');
+  assert.equal(w.x, 3); assert.equal(w.y, 5, 'позиция неизменна');
+  // Фикс не «переблокировал» подход: из d=2 шаг в reach существует.
+  w.x = 3; w.y = 4;
+  assert.equal(pathStepTo(c, w, target, 1), true, 'd=2 — шаг существует');
+  assert.equal(uDist(c, w), 1, 'шаг до reach (d=1)');
+});
+
+test('A* (000155) R10: guard — pathStepFrom: A*-шаг с тай-брейком PATH_DIRS (жадный проб в ретрите не используется)', () => {
+  // Ревью: жадный проб в pathStepFrom (шаг К цели, ось x первой при
+  // равенстве осей) МОГ БЫТЬ ПРИНЯТ «вето поля» (fg < f0) в карманных
+  // конфигурациях и нес юнита ближе к цели — против контракта ретрита.
+  // Удалён: выбор шага — только A* (первое направление PATH_DIRS с
+  // минимальным полем, строгий <). Чистый случай без камней: (0,0) →
+  // цель (1,1): жадный брал (1,0) (ось x), A* берёт (0,1) (↓ раньше →);
+  // оба d=1 — пин по координатам, не по d.
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['orc_archer'], mobLevel: 3, seed: 7 });
+  const a = c.units[0];
+  c.obstacles.clear();
+  a.x = 0; a.y = 0;          // цель (1,1): d0=2, обе оси равны
+  const target = { x: 1, y: 1, w: 1, h: 1 };
+  assert.equal(pathStepFrom(c, a, target), true, 'ретрит-шаг существует');
+  assert.equal(a.x, 0); assert.equal(a.y, 1,
+    'A*-шаг (0,1): ↓ раньше → (PATH_DIRS) — не жадная ось-x (1,0)');
+});
