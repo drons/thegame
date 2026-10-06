@@ -543,6 +543,20 @@ test('000145 B1: СВЕРХУ character-pane — ряд .cp-portraits: 3 ико�
     'активный (дефолт) — подсвечен');
   assert.ok(!String(btns[2].className).includes('cp-portrait-active'),
     'неактивный — НЕ подсвечен');
+  // Ловушка 000098 (пин ревью 000145): портрет НЕ .cp-btn — иначе
+  // делегированное ядро (e.target.closest('.cp-btn')) и render-итерация
+  // panel.querySelectorAll('.cp-btn') подхватили бы его с
+  // dataset.skill === undefined. Пин ТОЧНЫХ className + negative.
+  assert.equal(String(btns[0].className),
+    'cp-portrait cp-portrait-active',
+    'активный — точный className (контракт §3.2)');
+  assert.equal(String(btns[1].className), 'cp-portrait',
+    'неактивный (Эфир) — точный className');
+  assert.equal(String(btns[2].className), 'cp-portrait',
+    'неактивный (наёмный) — точный className');
+  for (const b of btns)
+    assert.ok(!String(b.className).includes('cp-btn'),
+      'портрет НЕ .cp-btn (ловушка 000098)');
   assert.equal(env.errors.length, 0, '0 ошибок: ' + env.errors.join('; '));
 });
 
