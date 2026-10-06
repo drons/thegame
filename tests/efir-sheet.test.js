@@ -436,3 +436,39 @@ test('000144 ES-6: serde — serializeEfir → sheet-лейаут (ровно 10
   assert.equal(E.serializeEfir(42), null, 'serialize: не plain → null');
   assert.equal(E.serializeEfir(null), null, 'serialize: null → null');
 });
+
+// --- Правки по итогам ревью (000144) ---
+
+test('000144 RF-1: 3-полевой legacy-сейв (до 000111, без spells) — боевой XP БЕЗ левелапа восстанавливает книгу до таблицы уровня (appendSpells безусловно — поведение master 000111)', () => {
+  withGame(gameWithXp(), () => {
+    const E = loadEfir();
+    // Лейаут, закреплённый пином 000085 (до 000111): поля spells
+    // нет → backfill spells = EFIR_SPELL_START [spark, mend]
+    // (НЕ из уровня, 000115).
+    const s = E.deserializeEfir(
+      { level: 10, xp: 0, skillXp: {}, skills: {} },
+      SKILL_CATALOG, SPELL_CATALOG);
+    assert.ok(s, '3-полевой legacy-лейаут — принят (backfill)');
+    assert.equal(s.level, 10, 'level — перенесён 1:1');
+    assert.deepEqual(s.spells, ['spark', 'mend'],
+      'backfill: spells нет → старт [spark, mend]');
+    // Боевой XP ниже порога (xpForNext(10) = 1581): n = 0.
+    // master 000111: levelUp БЕЗУСЛОВНО (даже при n = 0) дополнял
+    // книгу до таблицы уровня на каждом addEfirXp — книга
+    // восстанавливается при ПЕРВОМ боевом XP, а не на следующем
+    // левелапе (ревью 000144: регрессия «if (n > 0)»).
+    const n = E.addEfirXp(s, 16);
+    assert.equal(n, 0, '16 < xpForNext(10) — уровень не растёт');
+    assert.equal(s.level, 10, 'уровень не мутирован');
+    assert.deepEqual(s.spells, E.efirSpellsByLevel(10),
+      'n = 0 — книга восстановлена до таблицы L10 (master 000111)');
+    assert.deepEqual(s.spells,
+      ['spark', 'mend', 'light_heal', 'frost_bolt', 'fireball'],
+      'L10: старт + пороги 5/8/10');
+    // Повторный XP — дублей нет (append-only, идемпотентность).
+    E.addEfirXp(s, 100);
+    assert.deepEqual(s.spells,
+      ['spark', 'mend', 'light_heal', 'frost_bolt', 'fireball'],
+      'повторный XP — дублей в книге нет');
+  });
+});

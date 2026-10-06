@@ -301,7 +301,10 @@
    * боевого опыта; companion_xp_share НЕ применяется: доля — для
    * наёмников, 000082; бонус «Учёный» — через derived.xpMult, эффект
    * 0 до 000147). while-цикл ВНУТРИ addXp: один бой может дать
-   * НЕСКОЛЬКО уровней; остаток копится между боями. Тихие skip:
+   * НЕСКОЛЬКО уровней; остаток копится между боями. Книга —
+   * appendSpells БЕУСЛОВНО после addXp (даже при n = 0 —
+   * идемпотентен: self-restore книги 3-полевого legacy-сейва —
+   * поведение master 000111). Тихие skip:
    * state null, amount не число/≤0/NaN → 0, state не мутирован.
    * Деградация (Sheet недоступен ИЛИ state не лист — голий 5-полевой
    * объект): console.error ОДИН РАЗ + xp копится в state.xp, уровень
@@ -329,7 +332,10 @@
     }
     const r = S.addXp(state, amount);
     const n = (r && Number.isFinite(r.levelsGained)) ? r.levelsGained : 0;
-    if (n > 0) appendSpells(state);
+    // 000111: книга + переучёт — БЕУСЛОВНО (даже при n = 0 —
+    // appendSpells идемпотентен: self-restore книги 3-полевого
+    // legacy-сейва при боевом XP — поведение master).
+    appendSpells(state);
     reprocessEfirSkills(state);
     return n;
   }
@@ -882,7 +888,7 @@
    *   c.efirState — live-ссылка на state (000117: только практика
    *     — efirPractice combat.js; боевые формулы её НЕ читают);
    *   u.breath — СНАПШОТ данных «Вдоха Эфира» (000113, flat-
-   *     примитивы, свежий объект на бой; 000144: + used false):
+   *     примитивы, свежий объект на бой):
    *     боевой триггер combat.js читает данные С ЮНИТА (ноль
    *     require, ноль ленивых Game-чтений); heal ПРЕДВАРИТЕЛЬНО
    *     ВЫЧИСЛЕН от stats.wisdom — лист в бою не меняется (levelUp —
@@ -938,7 +944,6 @@
         + BREATH_INFO.healWisdom * stats.wisdom),
       weakenMult: BREATH_INFO.weakenMult,
       weakenTurns: BREATH_INFO.weakenTurns,
-      used: false,
     };
     c.efir = u;
     c.efirState = efir; // 000117: live state — только практика
