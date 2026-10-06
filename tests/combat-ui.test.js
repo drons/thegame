@@ -54,7 +54,7 @@ function makeContext2d(el) {
   });
 }
 
-function makeEl(tag, buttons) {
+function makeEl(tag, buttons, rect) {
   const el = {
     tagName: tag,
     className: '',
@@ -79,7 +79,14 @@ function makeEl(tag, buttons) {
     // т.е. 1:1 — семантика существующих тестов без изменений; новая
     // нормализация клика по фактическому размеру canvas читает
     // r.width/r.height, фолбэк — canvas.width/height).
+    // 000151: ТОЛЬКО техническое расширение (backward-compatible):
+    // если rect передан явно (opts.displaySize / opts.lenientRect в
+    // loadCombatUi) — возвращается ФИКСИРОВАННЫЙ rect сцены «отображение
+    // N CSS px» / lenient-rect без размеров (фолбэк 1:1); без параметра
+    // — ТЕКУЩЕЕ поведение (живой rect = this.width/this.height →
+    // s ≡ 1 во всех песочницах, существующие 54 теста бит-в-бит).
     getBoundingClientRect() {
+      if (rect !== undefined) return rect;
       return { left: 0, top: 0, width: this.width, height: this.height };
     },
   };
@@ -104,20 +111,53 @@ function makeEl(tag, buttons) {
 // opts.withEfir (000081, по умолчанию false) — efir.js в цепочку ПОСЛЕ
 // player.js (позиция из index.html): тесты проводки Эфира (wiring) и
 // деградации «opts.efir без efir.js». Без параметра — старая цепочка.
+// 000151 (ТОЛЬКО техническое расширение стаба — все существующие
+// вызовы/ассерты без правок, см. memory/000151-combat-scale.md D13):
+//  * opts.displaySize = N — canvas-стаб: getBoundingClientRect() →
+//    фиксированный { left: 0, top: 0, width: N, height: N } (сцены
+//    «отображение N CSS px»: R1/R2/A2); без параметра — текущее
+//    поведение (живой rect = this.width/this.height → s ≡ 1);
+//  * opts.lenientRect = true — rect БЕЗ width/height { left: 0, top: 0 }
+//    (A3: фолбэк build(); та же семантика, что у lenient-стабов
+//    main-visuals/companions-cycle/dungeon-vision);
+//  * opts.devicePixelRatio = n — window.devicePixelRatio (dpr-сцены);
+//    без параметра — свойство отсутствует → typeof-гард в коде → 1;
+//  * window-стаб собирает ВСЕ слушатели в winListeners (карта
+//    type → [fn]) — для R3 (вызов «resize»-слушателя, которого ещё
+//    нет); keydown-массив сохраняется КАК ЕСТЬ (совместимость);
+//    в существующих песочницах «resize» регистрируется (после зелёной)
+//    и НИГДЕ не вызывается → поведение бит-в-бит;
+//  * ЦЕПОЧКА: 'combat-scale.js' ПЕРЕД 'combat-ui.js' (та же пара, что
+//    в index.html; порядок закреплён tests/index-order.test.js) —
+//    С existsSync-ГАРДОМ (паттерн motion.js L25-27 index-order,
+//    000091): в красной фазе файла нет → чтение пропускается ТИХО
+//    (не ENOENT-краш всей песочницы, иначе 54+ существующих теста
+//    падали бы крахом, а не осмысленно); осмысленный красный «файл не
+//    существует» несёт tests/combat-scale.test.js (P1-P7).
 function loadCombatUi(withSprites = true, opts = {}) {
   const keydown = [];
+  const winListeners = {};
   const buttons = [];
+  const canvasRect = opts.displaySize !== undefined
+    ? { left: 0, top: 0, width: opts.displaySize, height: opts.displaySize }
+    : (opts.lenientRect ? { left: 0, top: 0 } : undefined);
   const document = {
     createElement: (tag) => {
-      const el = makeEl(tag, buttons);
+      const el = makeEl(tag, buttons, tag === 'canvas' ? canvasRect : undefined);
       if (tag === 'button') buttons.push(el);
       return el;
     },
     body: makeEl('body', buttons),
   };
   const window = {
-    addEventListener: (type, fn) => { if (type === 'keydown') keydown.push(fn); },
+    addEventListener: (type, fn) => {
+      (winListeners[type] || (winListeners[type] = [])).push(fn);
+      if (type === 'keydown') keydown.push(fn);
+    },
   };
+  if (opts.devicePixelRatio !== undefined) {
+    window.devicePixelRatio = opts.devicePixelRatio;
+  }
   const sandbox = { console, document, window };
   // Задача 000047: опциональное внедрение в песочницу (по умолчанию
   // ОТСУТСТВУЕТ — поведение существующих тестов не меняется):
@@ -156,8 +196,18 @@ function loadCombatUi(withSprites = true, opts = {}) {
   if (withSprites) {
     vm.runInContext(src('sprites.js'), sandbox, { filename: 'sprites.js' });
   }
+  // 000151: combat-scale.js — ПОСЛЕ sprites.js, ПЕРЕД combat-ui.js
+  // (позиция из index.html; UMD: combat-ui.js снимает Game один раз —
+  // G.combatScale обязан быть в снапшоте; ленивое чтение в момент
+  // вызова — гард деградирует, но порядок закреплен пином
+  // tests/index-order.test.js). Красная фаза: existsSync-гард (выше).
+  if (fs.existsSync(path.join(ROOT, 'src', 'combat-scale.js'))) {
+    vm.runInContext(src('combat-scale.js'), sandbox,
+      { filename: 'combat-scale.js' });
+  }
   vm.runInContext(src('combat-ui.js'), sandbox, { filename: 'combat-ui.js' });
-  return { G: sandbox.Game, keydown, buttons, body: document.body };
+  return { G: sandbox.Game, keydown, buttons, body: document.body,
+    winListeners };
 }
 
 // Элемент оверлея по className (оверлей подвешен к body песочницы).
@@ -2076,4 +2126,253 @@ test('боевой UI: 000118 — первая встреча (ГВАРД 000113
   assert.ok(c2, 'бой 2 (та же песочница — one-shot съеден)');
   assert.ok(!c2.log.includes(EFIR_LINE118),
     'бой 2: строки НЕТ (one-shot 000113): ' + c2.log.join(' | '));
+});
+
+// --- Рендер в текущем масштабе отображения (задача 000151) ---
+//
+// ТЗ: «Для экрана боя добавить рендер текстур персонажей и мобов в
+// соответствии с текущим масштабом отображения, сейчас Флогистон и
+// мобы выглядят мыльными на больших экранах (десктоп, планшет)».
+// Контракт (memory/000151-combat-scale.md, D1-D16) — бэкинг = размер
+// отображения × dpr (кап MAX_SCALE = 8), весь рендер — в логических
+// единицах (клетки × CELL) через g2.setTransform(sx, 0, 0, sy, 0, 0);
+// клик — по логическому baseW; resize — top-level слушатель рядом с
+// keydown; чистая функция — src/combat-scale.js (P1-P7 —
+// tests/combat-scale.test.js).
+//
+// КРАСНЫЕ (TDD, R1-R3): падают, потому что функциональности НЕТ в
+// неизменённом коде (осмысленная причина — отсутствие, не синтаксис):
+//  * R1: build() УСТАНОВЛЕННО ставит canvas.width/height = 336 и НЕ
+//    измеряет getBoundingClientRect (единственный rect-рид — клик) →
+//    «expected 672, actual 336»;
+//  * R2: setTransform/scale по src/ — ПУСТО (grep), bitmap-строки
+//    (база/фон/сетка) — в canvas.width/height, герой — 55.2 без
+//    трансформа → «setTransform(2,0,0,2,0,0) отсутствует ДО первого
+//    fillRect»;
+//  * R3: window.addEventListener в src/combat-ui.js — ТОЛЬКО 'keydown'
+//    → «resize-слушатель не зарегистрирован».
+// ЯКОРЯ (A1-A3): ЗЕЛЁНЫЕ с момента написания (страхуют бит-в-бит при
+// s = 1, D5-перебазу клика, фолбэк lenient-rect); в red-count НЕ
+// входят. vm-правила 000082: ассерты — примитивы/сигнатуры.
+
+test('боевой UI: 000151 R1 — displaySize 672 (rect ×2) → бэкинг canvas 672×672', () => {
+  // Ядро красного ТЗ: бэкинг следует за ТЕКУЩИМ масштабом
+  // отображения (rect·dpr, кап 8), а не фиксированный 336 (000124).
+  // displaySize 672, dpr отсутствует в песочнице (typeof-гард → 1):
+  // s = 672/336 = 2 → бэкинг = 336·2 = 672 ТОЧНО (кап не срабатывает).
+  const { G, body } = loadCombatUi(true, { displaySize: 672 });
+  G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const canvas = findCanvas(body);
+  assert.ok(canvas, 'canvas боевой мини-карты создан');
+  assert.equal(canvas.width, 672,
+    'бэкинг = отображение 672 (rect ×2); факт: ' + canvas.width);
+  assert.equal(canvas.height, 672,
+    'бэкинг = отображение 672; факт: ' + canvas.height);
+});
+
+test('боевой UI: 000151 R2 — e2e размера отрисованного спрайта ×2: setTransform до fillRect, фон 336 логический → device 672, герой CELL·1.15 логический (≈55.2) → device ≈110.4', () => {
+  // Ядро красного ТЗ: «vm-e2e-проверка размера отрисованного спрайта»
+  // — текстуры (фон, Флогистон) рисуются в ЛОГИЧЕСКИХ координатах,
+  // трансформ ×2 растит всё до device 672: резкость на больших
+  // экранах (движок растрит SVG в drawImage в целевом device-размере).
+  const NOW = 1000;
+  const { G, body } = loadCombatUi(true, {
+    displaySize: 672,
+    performance: { now: () => NOW },
+  });
+  const fakeBg = { __fake: 'bg-grass' }, fakeHero = { __fake: 'hero' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    terrain: G.TERRAIN.GRASS,
+    spriteLoader: {
+      image: (p) => {
+        if (p === 'assets/combat/bg/grass.svg') return fakeBg;
+        if (p.startsWith('assets/sprites/phlogiston/idle_')) return fakeHero;
+        return null;
+      },
+    },
+  });
+  const canvas = findCanvas(body);
+  assert.equal(canvas.width, 672, 'бэкинг 672 (R1)');
+  assert.equal(canvas.height, 672, 'бэкинг 672 (R1)');
+  const calls = canvas.drawCalls;
+  // (a) АБСОЛЮТНЫЙ трансформ ×2 — в НАЧАЛЕ render, ДО первого
+  // fillRect (после сброса контекста при resize — самовосстановление).
+  const iST = calls.findIndex((x) => x[0] === 'setTransform'
+    && x[1].length === 6 && x[1][0] === 2 && x[1][1] === 0
+    && x[1][2] === 0 && x[1][3] === 2 && x[1][4] === 0 && x[1][5] === 0);
+  const iBase = calls.findIndex((x) => x[0] === 'fillRect');
+  assert.ok(iST >= 0,
+    'setTransform(2, 0, 0, 2, 0, 0) в drawCalls (масштаб ×2) — '
+    + 'факт: ' + JSON.stringify(calls.map((x) => x[0]).slice(0, 4)));
+  assert.ok(iST < iBase,
+    'setTransform — ДО первого fillRect: iST ' + iST + ' vs iBase '
+    + iBase);
+  // (b) фон НЕ обрезан и не заложен в s² площади: destination —
+  // ЛОГИЧЕСКИЙ 336, × трансформ = device 672 = бэкинг. Ловит и
+  // «фон в device 672 под трансформом» (672·2 = 1344 ≠ 672), и
+  // «336 без трансформа» (бэкинг 336 ≠ 672).
+  const bgDi = calls.find((x) => x[0] === 'drawImage' && x[1][0] === fakeBg);
+  assert.ok(bgDi, 'фон отрисован (drawImage)');
+  assert.equal(bgDi[1][3], 336,
+    'фон: ширина — ЛОГИЧЕСКАЯ 336 (не device 672 под трансформом); '
+    + 'факт: ' + bgDi[1][3]);
+  assert.equal(bgDi[1][3] * 2, canvas.width,
+    'фон: логика 336 × 2 = device 672 = бэкинг (фон не обрезан)');
+  // (c) базовая заливка — логические W/H (336×336), не бэкинг.
+  assert.deepEqual(calls[iBase][1], [0, 0, 336, 336],
+    'база fillRect(0, 0, 336, 336) — логические W/H: '
+    + JSON.stringify(calls[iBase][1]));
+  // (d) герой: drawImage в ЛОГИЧЕСКИХ (hx−size/2, hy−size/2, size,
+  // size), size = CELL·1.15 (48·1.15 = 55.199999999999996 — double,
+  // ≈55.2; ревью-правок 000151: код — `CELL * 1.15` как до задачи,
+  // допуск вместо строгого 55.2) → device-размер ≈55.2·2 = 110.4
+  // (цель ТЗ: «не мыльные»).
+  const heroDi = calls.find((x) => x[0] === 'drawImage'
+    && x[1][0] === fakeHero);
+  assert.ok(heroDi, 'спрайт героя отрисован (drawImage)');
+  const hx = (c.px + 0.5) * 48, hy = (c.py + 0.5) * 48;
+  const hsize = 48 * 1.15; // то же выражение, что в коде (CELL·1.15)
+  assert.equal(heroDi[1][1], hx - hsize / 2,
+    'герой: x — ЛОГИЧЕСКИЙ (центр клетки − size/2); факт: '
+    + heroDi[1][1]);
+  assert.equal(heroDi[1][2], hy - hsize / 2,
+    'герой: y — ЛОГИЧЕСКИЙ; факт: ' + heroDi[1][2]);
+  assert.ok(Math.abs(heroDi[1][3] - 55.2) < 1e-9,
+    'герой: ширина — ЛОГИЧЕСКАЯ ≈55.2 (не device 110.4); '
+    + 'факт: ' + heroDi[1][3]);
+  assert.ok(Math.abs(heroDi[1][4] - 55.2) < 1e-9,
+    'герой: высота — ЛОГИЧЕСКАЯ ≈55.2; факт: ' + heroDi[1][4]);
+  assert.ok(Math.abs(heroDi[1][3] * 2 - 110.4) < 1e-9,
+    'герой: device-размер = ≈55.2 × 2 ≈ 110.4 (резкость на ×2); '
+    + 'факт: ' + heroDi[1][3] * 2);
+});
+
+test('боевой UI: 000151 R3 — window «resize» в бою: canvas переизмерен под новый размер отображения + перерисован', () => {
+  // ТЗ «с учётом ТЕКУЩЕГО масштаба отображения»: масштаб меняется
+  // ресайзом окна (CSS 000124 отвечает мгновенно) — слушатель рядом с
+  // keydown (паттерн: один раз при загрузке, guard isActive внутри,
+  // в finish() НЕ снимается). Прецедент поведения — dungeon-ui.js
+  // step() ресайзит canvas под вьюпорт.
+  const { G, body, winListeners } = loadCombatUi();
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c, 'бой создан');
+  const canvas = findCanvas(body);
+  assert.equal(canvas.width, 336, 'старт: дефолтный бэкинг 336 (rect 1:1)');
+  assert.ok(Array.isArray(winListeners.resize)
+    && winListeners.resize.length > 0,
+    'window «resize»-слушатель зарегистрирован (combat-ui.js)');
+  const n0 = canvas.drawCalls.length;
+  // Отображение выросло: rect 672 (CSS отвечает мгновенно).
+  canvas.getBoundingClientRect
+    = () => ({ left: 0, top: 0, width: 672, height: 672 });
+  winListeners.resize[0]();
+  assert.equal(canvas.width, 672,
+    'после resize бэкинг переизмерен до 672; факт: ' + canvas.width);
+  assert.equal(canvas.height, 672,
+    'после resize бэкинг переизмерен до 672; факт: ' + canvas.height);
+  assert.ok(canvas.drawCalls.length > n0,
+    'resize вызвал перерисовку (render)');
+  assert.equal(G.combatUI.isActive(), true,
+    'бой активен (оверлей не закрыт resize-обработчиком)');
+});
+
+test('боевой UI: 000151 A1 — якорь 1:1 (дефолтный стаб): бэкинг 336×336, трансформ-вызовов НЕТ, база fillRect(0, 0, 336, 336)', () => {
+  // Страховка D7: трансформ — ТОЛЬКО при sx≠1||sy≠1; при 1:1 вызова
+  // НЕТ → пины индексов drawCalls (calls[0]=fillRect, calls[1]=фон)
+  // всех 54 существующих тестов бит-в-бит (не добавлять в render()
+  // НИКАКИХ безусловных вызовов контекста).
+  const { G, body } = loadCombatUi();
+  G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const canvas = findCanvas(body);
+  assert.equal(canvas.width, 336, '1:1: бэкинг 336 (живой rect = 336)');
+  assert.equal(canvas.height, 336, '1:1: бэкинг 336');
+  const calls = canvas.drawCalls;
+  assert.ok(!calls.some((x) => x[0] === 'setTransform' || x[0] === 'scale'),
+    '1:1: setTransform/scale в drawCalls НЕТ (no-op-трансформ '
+    + 'пропускается); факт: '
+    + JSON.stringify(calls.map((x) => x[0]).slice(0, 4)));
+  assert.equal(calls[0][0], 'fillRect',
+    'первый вызов — базовый fillRect (индексы бит-в-бит)');
+  assert.deepEqual(calls[0][1], [0, 0, 336, 336],
+    'база fillRect(0, 0, 336, 336)');
+});
+
+test('боевой UI: 000151 A2 — якорь клика на УВЕЛИЧЕННОМ canvas: rect 672×672, клик (144, 240) → волк (1,2)', () => {
+  // Страховка D5 (КРИТИЧЕСКАЯ ПРАВКА): числитель нормализации —
+  // ЛОГИЧЕСКИЙ baseW (c.width·CELL), НЕ canvas.width. При бэкинге
+  // 672 старая формула (canvas.width/rw = 1) даст клетку 3 — промах
+  // на s клеток; новая (baseW/rw = 0.5) → (1,2). При s = 1: baseW ===
+  // canvas.width → бит-в-бит (3 клика-теста 000124 без правок).
+  const { G, body } = loadCombatUi(true, { displaySize: 672 });
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  wolf.x = 1; wolf.y = 2; // 1×1 в клетке (1,2)
+  // createCombat автоматически берёт ближайшего моба целью
+  // (combat.js) — снимаем, чтобы клик должен был ВЫБРАТЬ цель.
+  c.targetId = null;
+  assert.equal(c.targetId, null, 'до клика цели нет');
+  const canvas = findCanvas(body);
+  // Центр клетки (1,2) в экранных координатах (rect 672, 96 экранных
+  // px на клетку): (1.5·96, 2.5·96) = (144, 240).
+  canvas.listeners.click[0]({ clientX: 144, clientY: 240 });
+  assert.equal(c.targetId, wolf.id,
+    'клик (144,240) при rect 672×672 → волк (1,2) — независимо от '
+    + 'масштаба; факт: ' + c.targetId);
+});
+
+test('боевой UI: 000151 A3 — якорь фолбэка: lenient rect (без width/height) на build → 336×336, render без ошибок', () => {
+  // Страховка фолбэка build(): rect без размеров (lenient-стабы
+  // main-visuals/companions-cycle/dungeon-vision — {left:0, top:0},
+  // проверено; нулевой rect 000124) → r.width undefined → 1:1,
+  // бит-в-бит (s=1 — их поведение неизменно после 000151).
+  const { G, body } = loadCombatUi(true, { lenientRect: true });
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c, 'бой создан (lenient rect — без краха)');
+  const canvas = findCanvas(body);
+  assert.equal(canvas.width, 336, 'фолбэк: бэкинг = база 336');
+  assert.equal(canvas.height, 336, 'фолбэк: бэкинг = база 336');
+  assert.ok(canvas.drawCalls.length > 0, 'render отрисовал слои');
+});
+
+test('боевой UI: 000151 A4 — якорь dpr: displaySize 336 + devicePixelRatio 2 → бэкинг 672×672, setTransform(2, 0, 0, 2, 0, 0)', () => {
+  // Страховка D2 (dpr в формуле): Retina-экран с отображением 336 CSS
+  // px — бэкинг = 336·2 = 672 (1:1 в device-пикселях, «не мыльные» на
+  // основной аудитории ТЗ), трансформ ×2 растит логические координаты.
+  // e2e-проверка vm-стаба opts.devicePixelRatio (D13(b), ранее
+  // не использовалась; ревью-правки 000151): window.devicePixelRatio
+  // в песочнице → measureBacking → computeBacking(…, dpr 2).
+  const { G, body } = loadCombatUi(true, {
+    displaySize: 336, devicePixelRatio: 2,
+  });
+  G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const canvas = findCanvas(body);
+  assert.equal(canvas.width, 672,
+    'бэкинг = 336·2 = 672 (dpr в формуле); факт: ' + canvas.width);
+  assert.equal(canvas.height, 672,
+    'бэкинг = 336·2 = 672 по высоте; факт: ' + canvas.height);
+  const iST = canvas.drawCalls.findIndex(
+    (x) => x[0] === 'setTransform'
+    && x[1].length === 6 && x[1][0] === 2 && x[1][1] === 0
+    && x[1][2] === 0 && x[1][3] === 2 && x[1][4] === 0 && x[1][5] === 0);
+  assert.ok(iST >= 0,
+    'setTransform(2, 0, 0, 2, 0, 0) в drawCalls (dpr-масштаб ×2); '
+    + 'факт: '
+    + JSON.stringify(canvas.drawCalls.map((x) => x[0]).slice(0, 4)));
+  const iBase = canvas.drawCalls.findIndex((x) => x[0] === 'fillRect');
+  assert.ok(iST < iBase,
+    'setTransform — ДО первого fillRect (ядро R2); iST ' + iST
+    + ' vs iBase ' + iBase);
 });

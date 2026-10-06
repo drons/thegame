@@ -176,9 +176,14 @@ function loadDungeonUi(opts = {}) {
   vm.createContext(sandbox);
   const chain = ['global-settings.js', 'perlin.js', 'map.js', 'controls.js'];
   if (opts.withCombat) {
+    // 000151: combat-scale.js — ПЕРЕД combat-ui.js (та же пара, что в
+    // index.html; цепочка зеркалит браузер, зеркало tests/dungeon-ui.
+    // test.js). Без него console.error-гард combat-ui.js (деградация
+    // 1:1) → ассерты errors.length === 0 падали бы (техническая
+    // правка проводки, ассерты без правок).
     chain.push('skills-data.js', 'items-data.js', 'sheet.js',
       'player.js', 'items.js',
-      'combat.js', 'combat-keys.js', 'combat-ui.js');
+      'combat.js', 'combat-keys.js', 'combat-scale.js', 'combat-ui.js');
   }
   chain.push('dungeon.js');
   if (opts.withSprites) chain.push('sprites.js');

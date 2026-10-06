@@ -22,6 +22,11 @@
 // (контракт — memory/000124-combat-layout.md); canvas CSS-масштабируется
 // под доступную высоту, поэтому клик по клетке нормализуется по
 // фактическому размеру canvas (getBoundingClientRect).
+// Масштаб боя (задача 000151): бэкинг canvas = размер отображения
+// × dpr (кап Game.combatScale.MAX_SCALE, чистая функция —
+// src/combat-scale.js); весь рендер — в логических единицах
+// (клетки × CELL) через setTransform, клик — по логическому размеру
+// поля (контракт — memory/000151-combat-scale.md).
 // На русской раскладке: J=О, K=Л, U=Г (e.code — физическая клавиша,
 // задача 000028). Невозможное действие/шаг — причина в журнал
 // (canDoAction, задача 000037; раньше — тишина).
@@ -82,6 +87,10 @@
   let hpbarEl = null, hpbarFillEl = null, hpbarTextEl = null;
   let ended = false;
   let rafId = null; // id rAF-цикла анимации (задача 000047); null — нет rAF
+  // 000151: масштаб осей бэкинга (build()/onResize() перезаписывают на
+  // каждый бой; finish() НЕ сбрасывает — следующий build перезапишет).
+  let sx = 1, sy = 1;
+  let measureWarned = false; // console.error об отсутствующем combatScale — ОДИН раз
 
   function isActive() {
     return !!ctx && ctx.open;
@@ -89,6 +98,65 @@
 
   function current() {
     return ctx ? ctx.combat : null;
+  }
+
+  // --- Бэкинг и масштаб отображения (задача 000151) ---
+  //
+  // Бэкинг = размер отображения × dpr, кап Game.combatScale.MAX_SCALE
+  // (чистая функция — src/combat-scale.js; контракт —
+  // memory/000151-combat-scale.md). Измерение — ТОЛЬКО build() и
+  // onResize(); НИКОГДА в rAF-тике (rect на кадр — дорого; CSS 000124
+  // меняет размер только с вьюпортом).
+  // Деградация (УМД-ловушка 000038 — битый порядок загрузки):
+  // Game.combatScale отсутствует → console.error ОДИН раз
+  // (measureWarned — не на каждый resize) + 1:1 (бэкинг 336 —
+  // поведение ДО 000151, бой играбелен — паттерн 000081).
+  // getBoundingClientRect — try/catch → null → 1:1 (стабы/патология);
+  // lenient-стабы (rect без width/height) и нулевой rect → 1:1
+  // (фолбэки computeBacking).
+  function measureBacking() {
+    const c = ctx.combat;
+    const baseW = c.width * CELL;
+    const baseH = c.height * CELL;
+    let dispW = 0, dispH = 0;
+    try {
+      const r = canvas.getBoundingClientRect();
+      if (r) { dispW = r.width; dispH = r.height; }
+    } catch (e) {
+      dispW = 0; dispH = 0; // → 1:1 (фолбэк computeBacking)
+    }
+    const dpr = (typeof window !== 'undefined' &&
+      typeof window.devicePixelRatio === 'number')
+      ? window.devicePixelRatio : 1;
+    const cs = G.combatScale;
+    if (!cs || typeof cs.computeBacking !== 'function') {
+      if (!measureWarned) {
+        measureWarned = true;
+        console.error('combat-ui.js: Game.combatScale недоступен ' +
+          '(src/combat-scale.js обязан грузиться до src/combat-ui.js, ' +
+          'задача 000151) — 1:1 (бэкинг 336)');
+      }
+      return { w: baseW, h: baseH, sx: 1, sy: 1 };
+    }
+    return cs.computeBacking(baseW, baseH, dispW, dispH, dpr);
+  }
+
+  // window «resize» (задача 000151): переизмерить бэкинг под ТЕКУЩИЙ
+  // масштаб отображения (CSS 000124 отвечает на вьюпорт мгновенно).
+  // ТОЛЬКО при смене w/h: присвоение + sx/sy + render() (синхронная
+  // перерисовка; в vm rAF нет — событийный рендер). Сброс состояния
+  // контекста при смене canvas.width безвреден: трансформ ставится
+  // следующим render (D7).
+  function onResize() {
+    if (!isActive()) return;
+    const b = measureBacking();
+    if (b.w !== canvas.width || b.h !== canvas.height) {
+      canvas.width = b.w;
+      canvas.height = b.h;
+      sx = b.sx;
+      sy = b.sy;
+      render();
+    }
   }
 
   // --- Оверлей ---
@@ -110,7 +178,6 @@
     canvas.width = c.width * CELL;
     canvas.height = c.height * CELL;
     box.appendChild(canvas);
-    g2 = canvas.getContext('2d');
 
     const side = document.createElement('div');
     side.className = 'combat-side';
@@ -181,20 +248,39 @@
     overlay.appendChild(side);
     document.body.appendChild(overlay);
 
+    // Бэкинг = размер отображения × dpr (задача 000151): canvas уже в
+    // DOM — CSS-размер (000124) доступен для rect. getContext — ровно
+    // ОДИН раз на бой, ПОСЛЕ присваиваний canvas.width/height
+    // (присвоение сбрасывает состояние контекста; в DOM-стабе каждый
+    // getContext пересоздаёт drawCalls).
+    const b = measureBacking();
+    canvas.width = b.w;
+    canvas.height = b.h;
+    sx = b.sx;
+    sy = b.sy;
+    g2 = canvas.getContext('2d');
+
     canvas.addEventListener('click', (e) => {
       const r = canvas.getBoundingClientRect();
-      // Нормализация по ФАКТЧЕСКОМУ размеру canvas на экране
-      // (задача 000124): canvas CSS-масштабируется под вьюпорт
-      // (aspect-ratio 1/1, см. .combat-overlay--combat в index.html),
-      // поэтому экранные px ≠ внутренним (CELL=48): коэффициент =
-      // внутренний/экранный. Фолбэк r.width || canvas.width —
-      // нулевой/отсутствующий rect (DOM-стабы, патология) → 1:1.
-      // Border 2px входит в rect (border-box) — смещение < 0.1 клетки
-      // при масштабе ×2, не компенсируется (не усложняем).
-      const rw = r.width || canvas.width;
-      const rh = r.height || canvas.height;
-      const cx = Math.floor((e.clientX - r.left) * (canvas.width / rw) / CELL);
-      const cy = Math.floor((e.clientY - r.top) * (canvas.height / rh) / CELL);
+      // Нормализация по ЛОГИЧЕСКОМУ (базовому) размеру поля
+      // (задача 000151, D5; 000124 — по фактическому): canvas
+      // CSS-масштабируется под вьюпорт, а БЭКИНГ следует за
+      // отображением (b = rect·dpr, кап 8), поэтому коэффициент
+      // canvas.width/r.width включал бы масштаб бэкинга — клик
+      // попадал бы мимо на s клеток (s 2..8). Числитель — логическое
+      // поле baseW = c.width·CELL: коэффициент baseW/rw НЕ зависит от
+      // масштаба (s сокращается); при 1:1 baseW === canvas.width —
+      // бит-в-бит (3 клика-теста 000124 без правок).
+      // Фолбэк r.width || baseW — нулевой/отсутствующий rect
+      // (DOM-стабы, патология) → 1:1.
+      // Border 2px входит в rect (border-box) — смещение < 0.1 клетки,
+      // не компенсируется (конвенция 000124, не усложняем).
+      const baseW = c.width * CELL;
+      const baseH = c.height * CELL;
+      const rw = r.width || baseW;
+      const rh = r.height || baseH;
+      const cx = Math.floor((e.clientX - r.left) * (baseW / rw) / CELL);
+      const cy = Math.floor((e.clientY - r.top) * (baseH / rh) / CELL);
       // Клик в любую клетку прямоугольника моба (задача 000040).
       const u = c.units.find((x) => x.alive && !x.fled
         && cx >= x.x && cx < x.x + (x.size.w || 1)
@@ -364,6 +450,12 @@
       e.stopPropagation();
     }
   });
+  // Масштаб отображения (задача 000151): window «resize» — тот же
+  // паттерн, что keydown: слушатель ОДИН раз при загрузке, guard
+  // isActive() ВНУТРИ (onResize), в finish() НЕ снимается. CSS 000124
+  // меняет размер отображения мгновенно — бэкинг переизмеряется под
+  // него (canvas.width/height + sx/sy + render, только при смене b).
+  window.addEventListener('resize', onResize);
 
   // --- Отрисовка ---
 
@@ -669,9 +761,13 @@
           // 3–4px. Запас 2px — как у полосы мобов (py+2) и как
           // фолбэк-позиция полосы на верхнем ряду. На внутренних
           // клетках кламп не срабатывает — вид не меняется.
+          // Кламп в ЛОГИЧЕСКОЕ поле (задача 000151, D8): canvas.width
+          // — бэкинг (поле × масштаб); при активном трансформе старый
+          // кламп «выключался» (bэкинг >> поля). При s = 1 c.width·
+          // CELL === canvas.width — бит-в-бит.
           const bw = Math.round(size);
           const bx = Math.max(2,
-            Math.min(canvas.width - bw - 2, Math.round(hx - bw / 2)));
+            Math.min(c.width * CELL - bw - 2, Math.round(hx - bw / 2)));
           const by = Math.max(2, Math.round(hy - size / 2 - 8));
           g2.fillStyle = '#3a0d0d';
           g2.fillRect(bx, by, bw, 4);
@@ -794,8 +890,17 @@
     }
     ctx.breathedPrev = breathed;
 
+    // Масштаб отображения (задача 000151): АБСОЛЮТНЫЙ трансформ — в
+    // НАЧАЛЕ render, ТОЛЬКО при sx≠1||sy≠1 (условие ОБЯЗАТЕЛЬНО: при
+    // 1:1 вызова НЕТ — пины индексов drawCalls бит-в-бит, якорь A1).
+    // Идемпотентен и самовосстанавливается после сброса контекста
+    // при resize (присвоение canvas.width). Всё далее — в логических
+    // единицах (клетки × CELL): W/H — логическое поле (canvas.
+    // width/height — это БЕКИНГ = поле × масштаб, не поле — D8).
+    if (sx !== 1 || sy !== 1) g2.setTransform(sx, 0, 0, sy, 0, 0);
+    const W = c.width * CELL, H = c.height * CELL;
     g2.fillStyle = '#0d1117';
-    g2.fillRect(0, 0, canvas.width, canvas.height);
+    g2.fillRect(0, 0, W, H);
     // Фон поля боя (задача 000049): ПЕРВЫЙ слой поверх сплошной базы.
     // Картинку ищем в лоадере КАЖДЫЙ render (Map.get дёшев): фон,
     // загрузившийся ПОСЛЕ начала боя (async Image), подхватится без
@@ -806,7 +911,7 @@
     // падает (деградация, не поломка — паттерн hpBarColor).
     const bgImg = ctx.bgPath && ctx.spriteLoader
       ? ctx.spriteLoader.image(ctx.bgPath) : null;
-    if (bgImg) g2.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+    if (bgImg) g2.drawImage(bgImg, 0, 0, W, H);
     // Сетка — ПОВЕРХ фона. Цвет приглушён и полупрозрачный (задача
     // 000049): старый #2a3140 на светлом sand читался слишком резко,
     // а тёмная полупрозрачная линия (напр. rgba(18,22,30,0.55))
@@ -820,13 +925,13 @@
     for (let x = 0; x <= c.width; x++) {
       g2.beginPath();
       g2.moveTo(x * CELL + 0.5, 0);
-      g2.lineTo(x * CELL + 0.5, canvas.height);
+      g2.lineTo(x * CELL + 0.5, H);
       g2.stroke();
     }
     for (let y = 0; y <= c.height; y++) {
       g2.beginPath();
       g2.moveTo(0, y * CELL + 0.5);
-      g2.lineTo(canvas.width, y * CELL + 0.5);
+      g2.lineTo(W, y * CELL + 0.5);
       g2.stroke();
     }
 
