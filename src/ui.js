@@ -19,6 +19,13 @@
 
   let panel = null;
   let character = null;
+  // 000145: АКТИВНЫЙ персонаж партии (per-session — в сейв НЕ пишем,
+  // инвариант 000031; ТЗ: выбор переживает close/open и rebuild,
+  // перезагрузка страницы — сброс). null = дефолт = первый member
+  // (Флогистон — Party.active fallback). Установка: клик по
+  // button.cp-portrait (ниже) + toggle(force, tabId, charId).
+  // Чтение: ctx.activeCharId (live-getter) + getActiveCharId().
+  let activeCharId = null;
   let shop = null;      // текущий магазин (main.js передаёт стоящий тайл)
   let shopKey = '';
   let notice = null;
@@ -119,6 +126,10 @@
       itemRow,
       itemTipText,
       get character() { return character; },
+      // 000145: live-getter активного персонажа (паттерн ctx-
+      // состояний 000130 §4.3) — вкладка «Персонаж» разрешает
+      // member в момент render/вызова (Party.active).
+      get activeCharId() { return activeCharId; },
       get shop() { return shop; },
       get quests() { return { npcs: questNpcs, book: questBook }; },
     };
@@ -167,7 +178,17 @@
           render();
           return;
         }
-        const r = G.raiseSkill(character, btn.dataset.skill);
+        // 000145: raise — через record-поле вкладки «Персонаж»
+        // (ОДИН источник маршрутизации: активный персонаж + kind →
+        // G.raiseSkill / G.Sheet.raiseSkill). Гард `!character` —
+        // ВЫШЕ (без героя — no-op как ДО). Fallback — песочница без
+        // реестра (000130): старый путь дословно.
+        const reg = G.uiTabs;
+        const t = (reg && typeof reg.get === 'function')
+          ? reg.get('character') : null;
+        const r = (t && typeof t.raiseSkill === 'function')
+          ? t.raiseSkill(btn.dataset.skill, panelCtx)
+          : G.raiseSkill(character, btn.dataset.skill);
         render();
         if (!r.ok) {
           // Краткая обратная связь: причина неудачи в .cp-req на 1.5 с.
@@ -181,6 +202,17 @@
             setTimeout(render, 1500);
           }
         }
+        return;
+      }
+      // 000145: портрет партии — кнопка НЕ .cp-btn (ловушка 000098)
+      // и без data-skill — СВОЯ ветка (порядок: после .cp-btn, до
+      // row-tip — портреты вне таблиц/строк, пересечений нет):
+      // клик — переключение АКТИВНОГО персонажа (per-session;
+      // валидации НЕТ — stale id Party.active отразит при render).
+      const pt = e.target.closest('.cp-portrait');
+      if (pt) {
+        activeCharId = String(pt.dataset.memberid);
+        render();
         return;
       }
       // Строка (не кнопка): .cp-itemrow (предмет) или tr (навык).
@@ -355,7 +387,7 @@
     escHandler = null;
   }
 
-  function toggle(force, tabId) {
+  function toggle(force, tabId, charId) {
     if (!panel) buildPanel();
     if (!character) return;
     const show = force != null ? force : panel.style.display === 'none';
@@ -367,6 +399,13 @@
     // уходил на левый край.
     panel.style.display = show ? 'flex' : 'none';
     if (show) {
+      // 000145: 3-й аргумент — активный персонаж на открытии (ТЗ
+      // дословно: playerUI.toggle(true, 'character', activeId)).
+      // Обратная совместимость: ВСЕ существующие вызовы
+      // 2-аргументные (charId = undefined) — activeCharId не
+      // трогается (per-session). Валидации НЕТ: неизвестный/stale
+      // id — Party.active тихо отразит на первого.
+      if (charId != null) activeCharId = String(charId);
       // 000123: явная вкладка (тач-кнопка [I] → 'inventory').
       // Активируем ДО render(): render() тела перерисовывает, но
       // display паней меняет только rec.apply() (activateTab) —
@@ -415,6 +454,11 @@
       questDay = (o && o.day != null) ? o.day : null;
       if (panel) render();
     },
+    // 000145: публичный getter активного персонажа (контракт 000147:
+    // единое изучение заклинаний строит источники на него). null =
+    // дефолт (первый member — Флогистон). Публичного сеттера НЕТ —
+    // программное переключение — toggle(force, tabId, charId).
+    getActiveCharId() { return activeCharId; },
     toggle,
     render,
     isOpen,
@@ -1056,6 +1100,20 @@
       if (p && typeof p.toggle === 'function') p.toggle(true, 'efir');
     }
 
+    // Переход на страницу «Персонаж» (000145): клик по СТРОКЕ
+    // наёмного (не по кнопке) — закрыть «Отряд» (обе панели z-10 —
+    // полная замена поверхности; Esc-detach — внутри toggle(false))
+    // + открыть панель персонажа на странице ЭТОГО наёмного (3-й
+    // аргумент toggle — 000145). Копия gotoEfirTab (000116).
+    // Состояние НЕ мутировано — onChange НЕ вызывается.
+    function gotoCharacterTab(id) {
+      toggle(false);
+      const p = G.playerUI;
+      if (p && typeof p.toggle === 'function') {
+        p.toggle(true, 'character', id);
+      }
+    }
+
     function isOpen() {
       return !!panel && panel.style.display === 'flex';
     }
@@ -1091,17 +1149,32 @@
           return;
         }
         const btn = e.target.closest('button[data-squadact]');
-        if (!btn || !initialized) return;
-        const act = btn.dataset.squadact;
-        if (act !== 'dismiss') return;
-        const C = G.companions;
-        if (!C || typeof C.dismiss !== 'function' ||
-            !Array.isArray(roster)) return;
-        const r = C.dismiss(roster, btn.dataset.npcid);
-        if (r.ok) {
-          if (onChange) onChange(); // хук на изменение состояния (сейв в main.js)
+        if (btn && initialized) {
+          const act = btn.dataset.squadact;
+          if (act !== 'dismiss') return;
+          const C = G.companions;
+          if (!C || typeof C.dismiss !== 'function' ||
+              !Array.isArray(roster)) return;
+          const r = C.dismiss(roster, btn.dataset.npcid);
+          if (r.ok) {
+            if (onChange) onChange(); // хук на изменение состояния (сейв в main.js)
+          }
+          render(); // перерисовка (неудача — тихо: панель без .npc-log)
+          // 000145: ЯВНЫЙ return — кнопка ВНУТРИ строки с
+          // data-partytab: без return клик по «уволить» упал бы в
+          // ветку строки ниже (навигация вместо увольнения — P5).
+          return;
         }
-        render(); // перерисовка (неудача — тихо: панель без .npc-log)
+        if (!initialized) return;
+        // 000145: СТРОКА наёмного (клик не по кнопке) → его
+        // страница «Персонаж». data-partytab — ТОЛЬКО в основном
+        // ветке render (read-only деградация — атрибут не
+        // добавляется — навигации нет). Селектор с тегом (DOM-
+        // стабы: «тег[attr]»; голый [attr] не поддерживается).
+        const pr = e.target.closest('div[data-partytab]');
+        if (pr && pr.dataset.partytab) {
+          gotoCharacterTab(pr.dataset.partytab);
+        }
       });
 
       document.body.appendChild(panel);
@@ -1183,6 +1256,11 @@
         }
         for (const m of s.members) {
           const row = el('div', 'cp-itemrow');
+          // 000145: маркер навигации (клик по строке — страница
+          // «Персонаж» наёмного). ТОЛЬКО в основном ветке: read-
+          // only деградация (без core) — атрибут НЕ добавляется
+          // (деградация = read-only, навигации нет).
+          row.dataset.partytab = m.npcId;
           row.appendChild(el('span', 'cp-itemname', m.name));
           let meta = 'уровень ' + m.level + ' · лояльность ' + m.loyalty;
           if (m.wage != null) {
@@ -1264,6 +1342,16 @@
       toggle,
       render,
       isOpen,
+      // 000145: live-ссылки для вкладки «Персонаж» (ряд партии).
+      // В ИГРЕ вкладка читает `__game.state.{roster,efir}` (main.js
+      // выставил те же live-объекты) — это АДДЕТИВНЫЙ read-only
+      // фолбэк на случай, когда `__game` отсутствует (vm-песочница
+      // без main.js — тесты): вкладки навигации «Отряд» →
+      // «Персонаж» (B8) всё равно видят партию. Существующие
+      // init/toggle/render/isOpen — БЕЗ ИЗМЕНЕНИЙ (контракт §11).
+      liveState() {
+        return { roster, efir };
+      },
     };
   })();
 
