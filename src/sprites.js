@@ -117,6 +117,48 @@
     ],
   };
 
+  // Кадры наёмных NPC (задача 000152): у каждого нанимаемого — свой
+  // вид, соответствующий его классу (контракт memory/000152-merc-assets.md).
+  // Ключи — ровно 6 id каталога assets/npc/ (финален):
+  //   Вольк/Торга — melee (меч/кулаки), Ашка/Рена — ranged (лук),
+  //   Бальдор — shield (щит), Мира — support (ветка + свечение).
+  // Пути — assets/sprites/mercs/<npcId>_idle_<n>.svg (64×64, семья
+  // персонажных кадров; 2 кадра idle — паттерн всех боевых персонажей).
+  // v1 — только действие 'idle': значение таблицы — САМ СПИСОК КАДРОВ,
+  // свойство .idle — ссылка на него (mercFrames ищет по действию как в
+  // EFIR_FRAMES, а прямое итерирование списка даёт кадры).
+  const mercIdle = (paths) => {
+    const list = paths.slice();
+    list.idle = list;
+    return list;
+  };
+  const MERC_FRAMES = {
+    merc_volk: mercIdle([
+      'assets/sprites/mercs/merc_volk_idle_1.svg',
+      'assets/sprites/mercs/merc_volk_idle_2.svg',
+    ]),
+    merc_ashka: mercIdle([
+      'assets/sprites/mercs/merc_ashka_idle_1.svg',
+      'assets/sprites/mercs/merc_ashka_idle_2.svg',
+    ]),
+    merc_baldor: mercIdle([
+      'assets/sprites/mercs/merc_baldor_idle_1.svg',
+      'assets/sprites/mercs/merc_baldor_idle_2.svg',
+    ]),
+    merc_mira: mercIdle([
+      'assets/sprites/mercs/merc_mira_idle_1.svg',
+      'assets/sprites/mercs/merc_mira_idle_2.svg',
+    ]),
+    merc_torga: mercIdle([
+      'assets/sprites/mercs/merc_torga_idle_1.svg',
+      'assets/sprites/mercs/merc_torga_idle_2.svg',
+    ]),
+    merc_rena: mercIdle([
+      'assets/sprites/mercs/merc_rena_idle_1.svg',
+      'assets/sprites/mercs/merc_rena_idle_2.svg',
+    ]),
+  };
+
   // Группы мобов (map.js) → базовые типы мобов.
   // (дух бездны — отдельный силуэт, не стихийник).
   //
@@ -583,6 +625,18 @@
   }
 
   /**
+   * Кадры анимации наёмного NPC (задача 000152) для npcId
+   * (ключ MERC_FRAMES) и действия (v1: 'idle'). Чистая функция;
+   * неизвестный id/действие → [] (деградация, не crash — боевой
+   * рендерер фолбэкт на orc-архетип, пин 000084). Не зависит от
+   * факта загрузки (паттерн efirFrames).
+   */
+  function mercFrames(npcId, action) {
+    const frames = MERC_FRAMES[npcId];
+    return frames ? (frames[action] || []) : [];
+  }
+
+  /**
    * Декорации тайла (задача 000021): какие небольшие графические
    * объекты рисовать поверх текстуры тайла (tx, ty) террейна terrain.
    * Чистая функция: выбор и позиция — только от координат тайла и
@@ -692,6 +746,8 @@
     for (const frames of Object.values(PHLOGISTON_ACTIONS)) paths.push(...frames);
     // Эфир (задача 000034): 8 кадров (idle/walk/attack/cast × 2).
     for (const frames of Object.values(EFIR_FRAMES)) paths.push(...frames);
+    // Наёмные NPC (задача 000152): 12 кадров (6 нанимаемых × 2 idle).
+    for (const frames of Object.values(MERC_FRAMES)) paths.push(...frames);
     for (const frames of Object.values(MOB_FRAMES)) paths.push(...frames);
     // Персональный арт мобов (задача 000062): 36 × (move 2 + attack 2
     // + dead 1) = 180 файлов.
@@ -835,6 +891,7 @@
     TILE_BASE, TILE_FRAMES,
     PHLOGISTON_ACTIONS,
     EFIR_FRAMES,
+    MERC_FRAMES,
     MOB_KINDS, MOB_FRAMES,
     MOB_SPRITE_KINDS, mobSpriteKind,
     MOB_ART_DIR, MOB_ART_FRAME_COUNTS, MOB_ART_ACTIONS, mobArtFrames,
@@ -857,6 +914,7 @@
     tileFrames, mobKind, mobFrames, buildingSprite, citySprite, campSprite,
     phlogistonFrames,
     efirFrames,
+    mercFrames,
     tileVisuals, visualDrawRect,
     allAssetPaths,
     createSpriteLoader,

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<!-- Ашка (merc_ashka, ranged) — кадр idle_2: то же, что idle_1, но капюшон/плечи/лук на 0.8px выше (дыхание, D1) -->
+  <title>Ашка — дальний бой</title>
+  <ellipse cx="32" cy="61.5" rx="13" ry="2.2" fill="#0a0820" opacity="0.35"/>
+  <!-- Сапоги -->
+  <rect x="25" y="53" width="5.5" height="8.5" rx="2" fill="#3a3226"/>
+  <rect x="33.5" y="53" width="5.5" height="8.5" rx="2" fill="#3a3226"/>
+  <line x1="25" y1="55.6" x2="30.5" y2="55.6" stroke="#241f1a" stroke-width="1.1"/>
+  <line x1="33.5" y1="55.6" x2="39" y2="55.6" stroke="#241f1a" stroke-width="1.1"/>
+  <!-- Плащ -->
+  <path d="M32 28.5 C26 29 24 32 23.5 36 L22.5 52 L41.5 52 L40.5 36 C40 32 38 29 32 28.5 Z" fill="#3a4a3f"/>
+  <path d="M22.5 50 L41.5 50 L41.5 52 L22.5 52 Z" fill="#2e3b32"/>
+  <path d="M28 33 C27.2 38 26.8 44 26.6 49.5" stroke="#2e3b32" stroke-width="1" fill="none" opacity="0.9"/>
+  <path d="M36 33 C36.8 38 37.2 44 37.4 49.5" stroke="#2e3b32" stroke-width="1" fill="none" opacity="0.9"/>
+  <path d="M32 31 L32 49" stroke="#2e3b32" stroke-width="0.8" fill="none" opacity="0.6"/>
+  <!-- Пояс -->
+  <rect x="23.2" y="43.4" width="17.6" height="2.4" rx="0.8" fill="#6b4f33"/>
+  <circle cx="32" cy="44.6" r="1.2" fill="#d9a63a"/>
+  <circle cx="26" cy="38" r="0.8" fill="#2e3b32"/>
+  <circle cx="38" cy="38" r="0.8" fill="#2e3b32"/>
+  <circle cx="27.5" cy="47" r="0.8" fill="#2e3b32"/>
+  <circle cx="36.5" cy="47" r="0.8" fill="#2e3b32"/>
+  <!-- Верх (лук + капюшон + лицо + рука) — вдох -->
+  <g transform="translate(0,-0.8)">
+    <path d="M18.5 10.5 C10.5 23 12 38 24.5 47.5" stroke="#6b4f33" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <line x1="18.5" y1="10.5" x2="24.5" y2="47.5" stroke="#d8d3c5" stroke-width="0.8"/>
+    <circle cx="18.5" cy="10.5" r="1.2" fill="#4a3220"/>
+    <circle cx="24.5" cy="47.5" r="1.2" fill="#4a3220"/>
+    <path d="M38.5 32.5 C40.5 34 41.8 37 42.2 40.5 L40 41.2 C39.4 38 38.6 35.5 37.4 34 Z" fill="#3a4a3f"/>
+    <circle cx="41.4" cy="42.6" r="2" fill="#e8b98a"/>
+    <rect x="30.6" y="24" width="2.8" height="3" fill="#d9a878"/>
+    <circle cx="32" cy="20.2" r="4.6" fill="#e8b98a"/>
+    <path d="M32 12.6 C26.8 12.6 24.6 16.4 24.9 20.6 C25 23.4 26 26.4 28 28.2 L29.4 26.4 C27.8 24.6 27.2 22.4 27.4 20.4 C27.8 16.8 29.6 15.2 32 15.2 C34.4 15.2 36.2 16.8 36.6 20.4 C36.8 22.4 36.2 24.6 34.6 26.4 L36 28.2 C38 26.4 39 23.4 39.1 20.6 C39.4 16.4 37.2 12.6 32 12.6 Z" fill="#3a4a3f"/>
+    <path d="M27.4 20.4 C27.8 16.8 29.6 15.2 32 15.2 C34.4 15.2 36.2 16.8 36.6 20.4" stroke="#2e3b32" stroke-width="1.2" fill="none"/>
+    <path d="M28.4 19.5 C27.6 21.6 27.6 24 28.4 26.2 L29.4 26 C28.8 24 28.8 21.8 29.4 20 Z" fill="#d9d3bf"/>
+    <path d="M35.6 19.5 C36.4 21.6 36.4 24 35.6 26.2 L34.6 26 C35.2 24 35.2 21.8 34.6 20 Z" fill="#d9d3bf"/>
+    <circle cx="29.9" cy="20.6" r="0.75" fill="#2c3550"/>
+    <circle cx="34.1" cy="20.6" r="0.75" fill="#2c3550"/>
+    <circle cx="30.1" cy="20.4" r="0.25" fill="#ffffff"/>
+    <circle cx="34.3" cy="20.4" r="0.25" fill="#ffffff"/>
+    <path d="M28.8 19 Q29.9 18.6 31 19 M33 19 Q34.1 18.6 35.2 19" stroke="#2e3b32" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+    <path d="M30.8 23.2 L33.2 23.2" stroke="#8a5c33" stroke-width="0.7" fill="none" stroke-linecap="round"/>
+    <line x1="28.6" y1="26.8" x2="27.8" y2="30.4" stroke="#d8d3c5" stroke-width="0.7"/>
+    <line x1="35.4" y1="26.8" x2="36.2" y2="30.4" stroke="#d8d3c5" stroke-width="0.7"/>
+    <circle cx="27.7" cy="30.9" r="0.7" fill="#d8d3c5"/>
+    <circle cx="36.3" cy="30.9" r="0.7" fill="#d8d3c5"/>
+    <path d="M31 29 L33 29 L32.4 30.6 L31.6 30.6 Z" fill="#d9a63a"/>
+  </g>
+</svg>

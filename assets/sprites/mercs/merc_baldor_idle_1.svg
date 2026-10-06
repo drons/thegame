@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<!-- Бальдор (merc_baldor, shield) — кадр idle_1: бородач с большим круглым щитом перед грудью (контракт memory/000152-merc-assets.md §2) -->
+  <title>Бальдор — щит</title>
+  <ellipse cx="32" cy="61.5" rx="13.5" ry="2.2" fill="#0a0820" opacity="0.35"/>
+  <!-- Сапоги -->
+  <rect x="23.5" y="53" width="7" height="8.5" rx="2" fill="#2a1c14"/>
+  <rect x="33.5" y="53" width="7" height="8.5" rx="2" fill="#2a1c14"/>
+  <line x1="23.5" y1="55.8" x2="30.5" y2="55.8" stroke="#c8963a" stroke-width="1.2"/>
+  <line x1="33.5" y1="55.8" x2="40.5" y2="55.8" stroke="#c8963a" stroke-width="1.2"/>
+  <!-- Ноги -->
+  <path d="M24.5 44.5 L23.5 53.5 L30.5 53.5 L29.5 44.5 Z" fill="#4a4038"/>
+  <path d="M34.5 44.5 L33.5 53.5 L40.5 53.5 L39.5 44.5 Z" fill="#4a4038"/>
+  <!-- Туловище (кожаный доспех) -->
+  <path d="M32 28.5 C25.5 29 23 32 22.5 36.5 L22 45.5 L42 45.5 L41.5 36.5 C41 32 38.5 29 32 28.5 Z" fill="#6b5a42"/>
+  <path d="M27.5 33 C26.8 37 26.5 41 26.4 44.5" stroke="#4a3c2c" stroke-width="1" fill="none" opacity="0.85"/>
+  <path d="M36.5 33 C37.2 37 37.5 41 37.6 44.5" stroke="#4a3c2c" stroke-width="1" fill="none" opacity="0.85"/>
+  <!-- Пояс -->
+  <rect x="22.2" y="43.6" width="19.6" height="2.6" rx="0.9" fill="#4a3220"/>
+  <rect x="29.5" y="43.9" width="5" height="2" rx="0.5" fill="#d9a63a"/>
+  <!-- Наплечник (левый) -->
+  <circle cx="40.5" cy="31.5" r="3.6" fill="#8f97a3"/>
+  <circle cx="40.5" cy="31.5" r="1" fill="#6b6248"/>
+  <!-- Левая рука (вбок, под щитом) -->
+  <path d="M40 33 C41.8 35 42.8 38 43.2 41.5 L40.8 42.2 C40.4 38.8 39.6 36.2 38.4 34.4 Z" fill="#6b5a42"/>
+  <circle cx="42.2" cy="43.4" r="2.1" fill="#e8b98a"/>
+  <!-- Щит (перед грудью) -->
+  <circle cx="28" cy="37" r="10.5" fill="#cfd6dd" stroke="#8f97a3" stroke-width="1.5"/>
+  <circle cx="28" cy="37" r="7.2" fill="none" stroke="#a9b2bd" stroke-width="1"/>
+  <circle cx="28" cy="37" r="3.2" fill="#d9a63a"/>
+  <circle cx="27" cy="36" r="0.9" fill="#fbe69a"/>
+  <circle cx="28" cy="28.5" r="0.9" fill="#6b6248"/>
+  <circle cx="28" cy="45.5" r="0.9" fill="#6b6248"/>
+  <circle cx="19.5" cy="37" r="0.9" fill="#6b6248"/>
+  <circle cx="36.5" cy="37" r="0.9" fill="#6b6248"/>
+  <circle cx="21.9" cy="30.9" r="0.9" fill="#6b6248"/>
+  <circle cx="34.1" cy="43.1" r="0.9" fill="#6b6248"/>
+  <circle cx="34.1" cy="30.9" r="0.9" fill="#6b6248"/>
+  <circle cx="21.9" cy="43.1" r="0.9" fill="#6b6248"/>
+  <!-- Правая рука (держит край щита) -->
+  <path d="M25 32 C22.8 33.4 21 35.6 20 38.4 L22.2 39.6 C23 37 24 35 25.6 33.8 Z" fill="#6b5a42"/>
+  <circle cx="20.8" cy="40.4" r="2.1" fill="#e8b98a"/>
+  <!-- Голова и борода -->
+  <rect x="30.4" y="23.6" width="3.2" height="3.4" fill="#e8b98a"/>
+  <circle cx="32" cy="19.6" r="5.6" fill="#e8b98a"/>
+  <path d="M32 12.4 C27.6 12.4 25.6 15.4 25.8 18.6 L28 17.2 C28.8 14.6 30.2 13.8 32 13.8 C33.8 13.8 35.2 14.6 36 17.2 L38.2 18.6 C38.4 15.4 36.4 12.4 32 12.4 Z" fill="#6b4f33"/>
+  <path d="M26.6 20.4 C26.2 25 28 29 32 30.4 C36 29 37.8 25 37.4 20.4 C36 23.4 34.2 24.8 32 24.8 C29.8 24.8 28 23.4 26.6 20.4 Z" fill="#6b4f33"/>
+  <path d="M30 21.8 C30.8 22.8 31.6 23.2 32 23.2 C32.4 23.2 33.2 22.8 34 21.8 L34.4 23 C33.4 24 32.6 24.4 32 24.4 C31.4 24.4 30.6 24 29.6 23 Z" fill="#6b4f33"/>
+  <ellipse cx="29.6" cy="19.2" rx="1.1" ry="1.2" fill="#ffffff"/>
+  <ellipse cx="34.4" cy="19.2" rx="1.1" ry="1.2" fill="#ffffff"/>
+  <circle cx="29.7" cy="19.3" r="0.65" fill="#2c3550"/>
+  <circle cx="34.5" cy="19.3" r="0.65" fill="#2c3550"/>
+  <path d="M28.2 17.2 Q29.6 16.6 31 17.2" stroke="#6b4f33" stroke-width="1" fill="none" stroke-linecap="round"/>
+  <path d="M33 17.2 Q34.4 16.6 35.8 17.2" stroke="#6b4f33" stroke-width="1" fill="none" stroke-linecap="round"/>
+  <!-- Детали доспеха -->
+  <circle cx="38.5" cy="38" r="0.8" fill="#8f97a3"/>
+  <circle cx="39" cy="41.5" r="0.8" fill="#8f97a3"/>
+  <circle cx="37.5" cy="44.5" r="0.8" fill="#8f97a3"/>
+</svg>

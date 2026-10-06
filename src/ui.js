@@ -656,8 +656,15 @@
     // (нет ядра ИЛИ нет roster) — ровно рендер 000078: console.error
     // только про отсутствующее ядро; без ЖИВОГО массива найм пушил бы
     // запись в одноразовый [] (золото списано, запись потеряна).
-    // Строка кандидата (000078): имя → meta (роль/навыки/контракт/
-    // жалованье) → [кнопка «нанять» — 000083].
+    // Строка кандидата (000078): [иконка — 000152] → имя → meta
+    // (роль/навыки/контракт/жалованье) → [кнопка «нанять» — 000083].
+    //
+    // 000152: иконка кандидата — assets/sprites/mercs/<npcId>_idle_1.svg
+    // (боевой кадр 64×64, 22px в строке). Путь — СТРОЧНЫЙ ЛИТЕРАЛ из
+    // m.id, а НЕ G.mercFrames: UMD-ловушка 000038 — G снят при ЗАГРУЗКЕ
+    // ui.js (ДО sprites.js в index.html), G.mercFrames в ui.js навсегда
+    // undefined; литерал устойчив.
+    const MERC_ICON_DIR = 'assets/sprites/mercs/';
     function hireRowMeta(h) {
       const skills = (h.skills || []).map((id) => {
         const s = G.SECONDARY_SKILLS && G.SECONDARY_SKILLS[id];
@@ -711,6 +718,12 @@
       const list = C.candidatesForTavern(npcs(), roster, deadMercs || []);
       for (const m of list) {
         const row = el('div', 'cp-itemrow');
+        // 000152: иконка кандидата (боевой кадр 64×64 → 22px) — ПЕРВЫМ
+        // ребёнком строки, ДО имени; порядок имя → meta → кнопка жив (U2).
+        const icon = el('img', 'cp-itemicon');
+        icon.src = MERC_ICON_DIR + m.id + '_idle_1.svg';
+        icon.alt = '';
+        row.appendChild(icon);
         row.appendChild(el('span', 'cp-itemname', m.имя));
         row.appendChild(el('span', 'cp-itemmeta', hireRowMeta(m.найм)));
         const b = el('button', 'cp-btn', 'нанять');

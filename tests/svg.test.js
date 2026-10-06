@@ -446,6 +446,7 @@ const EXPECTED_SVG_BY_DIR = {
   'sprites/phlogiston': 8,
   'sprites/efir': 8,                  // дух Эфир (задача 000034: прежние
                                       // кадры героя перенесены сюда)
+  'sprites/mercs': 12,                // наёмные NPC (задача 000152: 6 × 2)
   'sprites/visuals': 13,
   'ui': 10,                           // иконки действий боя (задача 000124)
                                       // + icon_action/icon_inventory —
