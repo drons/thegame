@@ -374,9 +374,9 @@ test('000116 E3: «Атрибуты» — 5 строк = G.efir.efirStats(level)
 
 // --- E4: пул навыков ---
 
-test('000116 E4: «Навыки» — 4 строки по G.efir.EFIR_SKILLS; bank=0 → «0» БЕЗ скобок (skillXp = {}, 000117 нет — нормальная деградация); bank>0 → «lvl (bank/need)»; requires «Повелитель огня 5»/«Зоркость 5»', () => {
+test('000116 E4: «Навыки» — 4 строки по G.efir.EFIR_SKILLS; bank=0 → просто «lvl» БЕЗ скобок (skillXp = {}, 000117 нет — нормальная деградация); старт — начальный список (000139); bank>0 → «lvl (bank/need)»; requires «Повелитель огня 5»/«Зоркость 5»', () => {
   const env = loadEfirUi();
-  const e = env.G.efir.createEfir(); // skillXp = {}, skills = {}
+  const e = env.G.efir.createEfir(); // skillXp = {}, skills — начальный список (000139)
   env.sandbox.__game = { state: { efir: e } };
   efirRec(env);
   openPanel(env, env.G.createCharacter());
@@ -404,10 +404,12 @@ test('000116 E4: «Навыки» — 4 строки по G.efir.EFIR_SKILLS; ba
       env.G.SECONDARY_SKILLS[d.id].name,
       d.id + ' — имя из каталога G.SECONDARY_SKILLS');
   });
-  // skillXp = {} — все «0», без скобок (нормальная деградация).
+  // skillXp = {} — «lvl» без скобок (нормальная деградация);
+  // 000139: старт — начальный список (firelord 1, perception 1).
+  const EXPECT_LVL = { firelord: '1', icelord: '0', perception: '1', precog: '0' };
   for (const d of E.EFIR_SKILLS) {
-    assert.equal(rowOf[d.id].lv.textContent, '0',
-      d.id + ': bank 0 → просто «0», без «(0/15)» (паттерн 000041)');
+    assert.equal(rowOf[d.id].lv.textContent, EXPECT_LVL[d.id],
+      d.id + ': bank 0 → просто «' + EXPECT_LVL[d.id] + '», без скобок (паттерн 000041; начальный список, 000139)');
   }
   // requires-цепочки (lvl = 0): icelord/precog — текст требования;
   // без requires — пусто.

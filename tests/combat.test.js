@@ -3243,6 +3243,10 @@ test('C1. BUILDING_BOSS: рецепт босса (1–3 troll) + регресс�
 // +L30 nature_blessing.
 
 const PL = require('../src/player.js');
+// 000139 (000144): единый лист — levelUp через Game.Sheet; фейкам с
+// levelUp-циклом Sheet ОБЯЗАТЕЛЕН (иначе levelUp → 0 → бесконечный
+// цикл — осознанный пере-пин).
+const Sheet = require('../src/sheet.js');
 
 // ЛЕНИВЫЙ Game (прецедент tests/efir.test.js withGame): efir.js читает
 // globalThis.Game.xpForNext в момент ВЫЗОВА levelUp.
@@ -3271,7 +3275,9 @@ function hero112() {
 // Поднять state Эфира до уровня L (levelUp-цикл, без хардкода сумм) —
 // книга становится естественной (старт + пороги ≤ L).
 function raiseEfir112(E, state, L) {
-  withGame112({ xpForNext: PL.xpForNext }, () => {
+  // 000139 (000144): Sheet в фейке (единый лист; без него levelUp → 0
+  // → бесконечный цикл).
+  withGame112({ xpForNext: PL.xpForNext, Sheet }, () => {
     while (state.level < L) {
       state.xp = PL.xpForNext(state.level);
       E.levelUp(state);
@@ -3362,13 +3368,20 @@ test('000112 CB-1: приоритет (1) — лечение самого ран
     assert.ok(!r2.c.log.some((l) => l.includes('лечит')), 'нет лечения');
     assert.equal(r2.p.hp, 270);
 
-    // (c) L12 (статы 8/8/8, mp 21): игрок 148/270 (frac 0.548 — (1) да,
-    // (2) нет); естественная книга L12 → strongestKnown('лечение') =
+    // (c) L12 (статы 8/8/8 — по 5 очков Инт/Мудр/Тел, 000139: статы
+    // из листа, уровень их не растит; mp 21 — legacy-таблица):
+    // игрок 148/270 (frac 0.548 — (1) да, (2) нет); естественная
+    // книга L12 → strongestKnown('лечение') =
     // light_heal («мани» 6), НЕ mend (3); amount = round(3+0.5·8+12) = 19.
     const t3 = () => {
       const p = hero112();
       p.hp = Math.floor(270 * 0.55); // 148
       const state = raiseEfir112(E, E.createEfir(), 12);
+      // 000139: статы из листа (уровень не растит) — по 5 очков
+      // (3 → 8), как в старой таблице L12.
+      for (const k of ['intelligence', 'wisdom', 'constitution']) {
+        for (let i = 0; i < 5; i++) Sheet.raiseSkill(state, k);
+      }
       const { c, w, u } = board112(E, p, state);
       w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
       c._rng = () => 0.99;
@@ -3453,13 +3466,20 @@ test('000112 CB-3: приоритет (3) — «самое сильное» по
   C.combatInternals.allySpells =
     require('../src/spells-data.js').SPELLS_BY_ID;
   try {
-    // L15: статы 10/10/10 (mp 25), пул 2/2/1/3, естественная книга
+    // L15: статы 10/10/10 (по 7 очков Инт/Мудр/Тел, 000139: статы
+    // из листа, уровень их не растит; mp 25 — legacy-таблица),
+    // пул 2/2/1/3, естественная книга
     // (fireball — сильнейший урон по «мани» 6). Игрок 9999 — вне пула.
     // Волк (2,0): d 5 > 3 → движение к врагу (x первым; x равен — только
     // y): (2,4),(2,3),(2,2) → d 2 ≤ 4.
     const mk = (uMpPre) => {
       const p = strongHero();
       const state = raiseEfir112(E, E.createEfir(), 15);
+      // 000139: статы из листа — по 7 очков (3 → 10), как в старой
+      // таблице L15.
+      for (const k of ['intelligence', 'wisdom', 'constitution']) {
+        for (let i = 0; i < 7; i++) Sheet.raiseSkill(state, k);
+      }
       const { c, w, u } = board112(E, p, state);
       w.x = 2; w.y = 0; w.maxHP = 100; w.hp = 100; w.armor = 50;
       c._rng = () => 0.99;
@@ -3749,7 +3769,8 @@ test('000117 PC-1: прокачанный firelord — урон Эфира +5%·
   withGame112({ xpForNext: PL.xpForNext,
                 efir: { practiceEfir: E.practiceEfir } }, () => {
     try {
-      // L5 (Int 5): база = 3 + 0.5·5 = 5.5. Один волк (armor 50 —
+      // L5 (Int 5 — 2 очка на Интеллект, 000139: статы из листа):
+      // база = 3 + 0.5·5 = 5.5. Один волк (armor 50 —
       // заклинание игнорирует, hp 100, d 3 ≤ 4), seed 5 (board112),
       // rng 0.99 (волк — все промахи). ФОРМУЛА в тесте (паттерн CB-3,
       // без хардкода значений): round((3 + 0.5·Int)·(1 + 0.05·lord)).
@@ -3764,6 +3785,8 @@ test('000117 PC-1: прокачанный firelord — урон Эфира +5%·
         const p = hero112(); // 270/270 — (1)/(2) не срабатывают
         const state = E.createEfir();
         raiseEfir112(E, state, 5);
+        // 000139: Int 5 — 2 очка (3 → 5), статы из листа.
+        for (let i = 0; i < 2; i++) Sheet.raiseSkill(state, 'intelligence');
         if (firelordXp > 0) {
           E.practiceEfir(state, 'firelord', firelordXp);
         }
@@ -3816,9 +3839,14 @@ test('000117 PC-2: уклонение precog снижает попадания �
         const p = hero112(); // 270/270
         const state = E.createEfir();
         raiseEfir112(E, state, 3);
+        // 000139: статы из листа — по 1 очку (3 → 4, как в старой
+        // таблице L3; cap precog = Мудр 4×2 = 8).
+        for (const k of ['intelligence', 'wisdom', 'constitution']) {
+          Sheet.raiseSkill(state, k);
+        }
         if (withPrecog) {
           E.practiceEfir(state, 'perception', 225); // → 5 (requires)
-          E.practiceEfir(state, 'precog', 540);     // → 8 (cap L3 8)
+          E.practiceEfir(state, 'precog', 540);     // → 8 (cap = 4×2, 000139)
         }
         state.spells = ['mend'];
         const { c, w, u } = board112(E, p, state);

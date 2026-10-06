@@ -287,3 +287,15 @@ derived-модификатором в buildEfirUnit (level больше не в�
 10. **Читабельность сейва:** ключи serializeEfir в порядке
     kind, level, xp, totalXp, points, primary, secondary, skillXp, skills, spells
     (пины сортируют ключи — порядок не критичен, но держать единым).
+11. **tests/combat.test.js — ЛОВУШКА levelUp-цикла (найдена в зелёной
+    фазе, полный npm test):** helper `raiseEfir112` (L~3275) крутит
+    `while (state.level < L) { state.xp = PL.xpForNext(...); E.levelUp(state); }`
+    под фейком БЕЗ Game.Sheet → новый levelUp → 0 → БЕСКОНЕЧНЫЙ ЦИКЛ
+    (test-файл висит на 100% CPU; на мастере 0.7s, с 000144 — висло).
+    Ре-пин: фейк + `Sheet: require('../src/sheet.js')` (helper
+    raiseEfir112). Атрибутные пины уровня > 1 (статы из листа, уровень
+    не растит) — очки в mk()/t3 через `Sheet.raiseSkill` ДОБЫТЬ ВРУЧНУЮ:
+    CB-1(c) L12: +5×3 (8/8/8), CB-3 L15: +7×3 (10/10/10), PC-1 L5:
+    +2 Int (5), PC-2 L3: +1×3 (4/4/4, cap precog 4×2 = 8). 000119
+    BAL-1/2/3 — БЕЗ ПРАВКИ (полосы ±40%; начальный список
+    firelord/perception 1 укладывается в полосы).
