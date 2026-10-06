@@ -224,6 +224,24 @@ test('index.html: sprites.js ДО combat-ui.js (иначе Game.hpBarColor не 
     'src/sprites.js должен быть раньше src/combat-ui.js (задача 000038)');
 });
 
+test('index.html: src/combat-scale.js подключён и ДО src/combat-ui.js (задача 000151)', () => {
+  // UMD-ловушка (000038): combat-ui.js снимает const G =
+  // globalThis.Game один раз при загрузке и читает G.combatScale
+  // лениво (measureBacking) — через захваченный G функция из
+  // скрипта, загружающегося ПОЗЖЕ, недоступна НИКОГДА. Битый порядок
+  // не падает при загрузке: console.error ОДИН раз + деградация
+  // 1:1 (бэкинг 336, бой играбелен — паттерн 000081) — поэтому
+  // порядок закреплён здесь (паттерн пары sprites.js →
+  // combat-ui.js, задача 000038). Пин НЕ-смежный (union): не входит
+  // в общий список подключённых модулей выше — у бой-модулей свои
+  // пины.
+  assert.notEqual(pos('src/combat-scale.js'), -1,
+    'src/combat-scale.js не подключён в index.html (задача 000151)');
+  assert.ok(pos('src/combat-scale.js') < pos('src/combat-ui.js'),
+    'src/combat-scale.js должен быть раньше src/combat-ui.js '
+    + '(задача 000151)');
+});
+
 test('index.html: ui.js и controls.js ДО main.js', () => {
   // main.js использует Game.playerUI/npcUI/touchControls (ui.js) и
   // Game.chooseControlsScheme/moveKeyForEvent/deltaForMoveKey (controls.js).
