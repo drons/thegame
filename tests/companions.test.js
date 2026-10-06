@@ -7,8 +7,13 @@
 //   * ЧИСТЫЙ UMD-модуль без DOM/game-state (паттерн src/npc.js): node —
 //     require(), браузер — Game.companions (СТРОЧНОЕ имя — 000083/000087
 //     вызывают G.companions);
-//   * запись отряда ЗАФИКСИРОВАНА под сейв 000085: ровно
-//     {npcId, level, xp, loyalty, hiredDay} (000082/000085 не меняют);
+//   * запись отряда (000143, 000139 C3): RUNTIME — ровно 6 ключей
+//     {npcId, sheet, level, xp, loyalty, hiredDay} (sheet — единый
+//     лист наёмника, 000140; level/xp — плоские ЗЕРКАЛА sheet),
+//     СЕЙВ — 4 поля {npcId, sheet, loyalty, hiredDay}; старая
+//     5-полевая форма {npcId, level, xp, loyalty, hiredDay}
+//     (000082/000085) — неломаный вход: backfill при восстановлении
+//     (зафиксированный JSON — tests/companions-sheet.test.js CS-3);
 //   * результат найма: {ok:true, entry, loyalty} | {refused:true, …} |
 //     {ok:false, reason} — отказ (refused) отличен от сбоя canHire
 //     ({ok:false} для disabled-кнопок): 000083 по флагу `refused` пишет
@@ -97,9 +102,39 @@ const QUIT_STAY_DAY = 1;  // roll 0.91126… ≥ 0.5 → останется
 const merc = (id, price = 40, wage = 1) => (
   { id, постройки: [44], найм: { цена: price, жалованье: wage } });
 
-// Запись отряда в ЗАФИКСИРОВАННОЙ форме (сейв 000085).
+// Запись отряда в ЗАФИКСИРОВАННОЙ форме (сейв 000085; 000143 — старая
+// плоская форма: лист при десериализации/applyCombatXp — backfill).
 const entry = (id, loyalty = 50, day = 1) => (
   ({ npcId: id, level: 1, xp: 0, loyalty, hiredDay: day }));
+
+// 000143: канонический merc-лист (контракт мержа 000141):
+// createSheet('merc', {primary, spells, npcId}) + явные уровни из
+// найм.начальные_навыки (requires НЕ ревалидируются — решение А).
+// level/xp — параметры (totalXp = xp — инвариант 000140).
+const S = require('../src/sheet.js');
+function mercSheet(npc, { level = 1, xp = 0 } = {}) {
+  const s = S.createSheet('merc', {
+    primary: npc.найм.базовые_характеристики,
+    spells: npc.найм.spells,
+    npcId: npc.id,
+  });
+  for (const [id, lv] of Object.entries(npc.найм.начальные_навыки || {})) {
+    if (Number.isInteger(lv) && lv >= 1) s.secondary[id] = lv;
+  }
+  s.level = level;
+  s.xp = xp;
+  s.totalXp = xp;
+  return s;
+}
+
+// RUNTIME-запись С листом (000143 §2.1): 6 ключей, зеркала level/xp.
+function entryWithSheet(npc,
+    { level = 1, xp = 0, loyalty = 50, day = 1 } = {}) {
+  return {
+    npcId: npc.id, sheet: mercSheet(npc, { level, xp }),
+    level, xp, loyalty, hiredDay: day,
+  };
+}
 
 // Персонаж: Харизма (основной), золото, Артист (вторичный).
 const hero = (charisma, gold = 1000, artist = 0) => {
@@ -155,19 +190,38 @@ test('createRoster — пустой отряд; повторные вызовы 
   assert.notEqual(r1, r2, 'каждый вызов — новый объект');
 });
 
-test('запись отряда: ровно {npcId, level, xp, loyalty, hiredDay}', () => {
+test('запись отряда: ровно {npcId, sheet, level, xp, loyalty, hiredDay} (000143)', () => {
   const r = C.createRoster();
   const c = hero(15, 100);
   const res = C.hire(r, merc('merc_volk'), c, 7);
   assert.equal(res.ok, true);
+  // 000139 C3: форма — 6 ключей: sheet (канонический merc-лист) +
+  // плоские зеркала level/xp (читатели — ui.js — не меняем).
   assert.deepEqual(Object.keys(res.entry).sort(),
-    ['hiredDay', 'level', 'loyalty', 'npcId', 'xp'],
-    'форма записи зафиксирована под сейв 000085 — без денормализованных полей');
+    ['hiredDay', 'level', 'loyalty', 'npcId', 'sheet', 'xp'],
+    'форма записи (000143): 6 ключей — sheet + зеркала level/xp');
   assert.equal(res.entry.npcId, 'merc_volk');
-  assert.equal(res.entry.level, 1, 'hire создаёт level 1');
-  assert.equal(res.entry.xp, 0, 'hire создаёт xp 0 (000082 пишется сюда)');
+  assert.equal(res.entry.level, 1, 'hire создаёт level 1 (зеркало)');
+  assert.equal(res.entry.xp, 0, 'hire создаёт xp 0 (000082 → Sheet.addXp)');
   assert.equal(res.entry.hiredDay, 7);
   assert.equal(res.entry.loyalty, res.loyalty);
+  // Синтетический merc (без базовых_характеристики/начальных_навыки —
+  // console.error ОДИН раз, деградация 000038/000053): лист — 1-ки.
+  // В игре полнота каталога гарантирована 000141 (CS-1).
+  const sh = res.entry.sheet;
+  assert.equal(sh.kind, 'merc', 'sheet — kind merc (000143)');
+  assert.equal(sh.npcId, 'merc_volk');
+  assert.equal(sh.level, 1, 'зеркало: sheet.level');
+  assert.equal(sh.xp, 0, 'зеркало: sheet.xp');
+  assert.equal(sh.totalXp, 0);
+  assert.equal(sh.points, 0);
+  assert.deepEqual(sh.primary,
+    { strength: 1, dexterity: 1, constitution: 1, intelligence: 1,
+      wisdom: 1, charisma: 1 },
+    'синтетический merc — primary 1 (деградация; каталог — CS-1)');
+  assert.deepEqual(sh.secondary, {}, 'без начальных_навыки — пусто');
+  assert.deepEqual(sh.spells, [], 'без spells — пусто');
+  assert.deepEqual(sh.skillXp, {});
   assert.equal(r[0], res.entry, 'entry — та же ссылка, что в roster');
 });
 
@@ -716,16 +770,22 @@ test('браузер: без зависимостей — понятная ош�
 //     G.xpForNext (ТОПОВЫЙ ключ: player.js разворачивает экспорты прямо
 //     в Game, не в Game.Player); load-time guard (паттерн 000079).
 
-test('000082: applyCombatXp — xp += доля; форма записи НЕ меняется (нет полей/очков)', () => {
+test('000082: applyCombatXp — xp += доля; запись — 6 ключей (000139 C3)', () => {
   const roster = [Object.assign(entry('merc_volk'), { xp: 30 })];
   const res = C.applyCombatXp(roster, [{ id: 'merc_volk', xp: 10 }]);
   assert.equal(res.applied, 1, 'одна доля применена');
   assert.equal(res.levelUps, 0, '30 + 10 = 40 < 50 — повышения нет');
-  assert.equal(roster[0].xp, 40);
-  assert.equal(roster[0].level, 1);
+  assert.equal(roster[0].xp, 40, 'зеркало e.xp');
+  assert.equal(roster[0].level, 1, 'зеркало e.level');
+  // 000139 C3, осознанный пере-пин + backfill-тест на фиксированном
+  // JSON старого формата (tests/companions-sheet.test.js CS-3): запись
+  // 6 ключей — sheet (плоская запись материализуется на месте:
+  // level/xp переносятся) + плоские зеркала level/xp.
   assert.deepEqual(Object.keys(roster[0]).sort(),
-    ['hiredDay', 'level', 'loyalty', 'npcId', 'xp'],
-    'форма зафиксирована под сейв 000085: points/skillXp/новых полей НЕТ');
+    ['hiredDay', 'level', 'loyalty', 'npcId', 'sheet', 'xp'],
+    '000143: 6 ключей (sheet + зеркала); points — внутри sheet');
+  assert.equal(roster[0].sheet.xp, 40, 'sheet.xp — 40');
+  assert.equal(roster[0].sheet.level, 1, 'sheet.level — 1');
 });
 
 test('000082: applyCombatXp — повышение по порогу xpForNext (50/141/260)', () => {
@@ -871,31 +931,44 @@ test('000082: детерминизм — два прогона «найм → б
   assert.equal(a.events.length, 0, '8 < 50 — повышений уровня пока нет');
 });
 
-test('000082: allyDataForEntry — данные makeAlly из записи + каталога найма (id — npcId)', () => {
+test('000082: allyDataForEntry — данные makeAlly из записи + каталога найма (id — npcId; 000143 — статы из sheet)', () => {
   const volk = NPCS.find((n) => n.id === 'merc_volk');
-  const e = Object.assign(entry('merc_volk'), { level: 5 });
+  // 000143: запись С листом; боевые статы — из sheet (derived +
+  // merc-модификатор): maxHP/damage — явные (overrides), каталожные
+  // кнопки dmg/hp — внутри модификатора, в data не уходят.
+  const e = entryWithSheet(volk, { level: 5 });
   const d = C.allyDataForEntry(e, volk);
   assert.ok(d, 'данные есть');
   assert.equal(d.id, 'merc_volk',
     'id — npcId (000087 маппит c.result.allyXp → roster по нему)');
   assert.equal(d.name, 'Вольк');
   assert.equal(d.role, 'melee', 'роль — из каталога найма');
-  assert.equal(d.level, 5, 'уровень — из ЗАПИСИ roster (в каталоге его нет)');
-  assert.equal(d.dmg, 1.2);
-  assert.equal(d.hp, 1.1);
+  assert.equal(d.level, 5, 'уровень — из ЗАПИСИ roster (зеркало sheet.level)');
+  // con 2: base maxHP 20+2·5 = 30; ×hp 1.1 ×melee 1.0 → 33.
+  assert.equal(d.maxHP, 33,
+    'maxHP — из sheet: round(30·1.1·1.0) (000143)');
+  // round((2+0.7·5)·dmg 1.2) = round(6.6) = 7 (swordsman — бонус
+  // попадания, в урон наёмника не входит — 000143 §2.8: урон — только
+  // fist/heavy/ranged).
+  assert.equal(d.damage, 7, 'damage — из sheet: уровень + каталог + навыки');
   assert.equal(d.armor, undefined,
     'у Волька найм.armor нет (только у Бальдора — 3)');
-  assert.deepEqual(d.skills, ['swordsman']);
+  assert.deepEqual(d.skills, ['swordsman'],
+    'skills — id-список из sheet.secondary');
   assert.deepEqual(d.spells, []);
   assert.equal(d.kind, 'merc', 'маркер наёмника (фильтр доли, 000082)');
-  // Бальдор — armor 3 в каталоге:
+  // Бальдор — armor 3 в каталоге (shield: roleMult 1.8 в maxHP):
   const baldor = NPCS.find((n) => n.id === 'merc_baldor');
-  const db = C.allyDataForEntry(entry('merc_baldor'), baldor);
+  const db = C.allyDataForEntry(entryWithSheet(baldor, { level: 1 }), baldor);
+  assert.equal(db.maxHP, 95,
+    'maxHP — из sheet: round(35·1.5·1.8) = 94.5 → 95');
+  assert.equal(db.damage, 3,
+    'damage — round((2+0.7·1)·1.1·(1+heavy 2·0.05)) = round(3.267)');
   assert.equal(db.armor, 3, 'найм.armor передаётся (щит)');
   assert.equal(db.role, 'shield');
 });
 
-test('000082: allyDataForEntry — «призрак» (нет каталога/найм-данных/npcId ≠ id) → null', () => {
+test('000082: allyDataForEntry — «призрак» (нет каталога/найм-данных/npcId ≠ id/без sheet) → null', () => {
   const volk = NPCS.find((n) => n.id === 'merc_volk');
   assert.equal(C.allyDataForEntry(entry('ghost'), volk), null,
     'entry.npcId ≠ npc.id — null (несогласованное состояние)');
@@ -905,21 +978,26 @@ test('000082: allyDataForEntry — «призрак» (нет каталога/�
     C.allyDataForEntry(entry('merc_volk'),
       { id: 'merc_volk', постройки: [44] }),
     null, 'найм-данных нет — null (тихий skip)');
+  // 000143: запись БЕЗ sheet (инвариант-нарушение, в игре недостижимо —
+  // deserializeRoster/hire всегда дают sheet) — статов нет → тихий skip.
+  assert.equal(C.allyDataForEntry(entry('merc_volk'), volk), null,
+    'без sheet — null (000143: боевые статы только из листа)');
 });
 
-test('000082: рост статов — makeAlly с новым уровнем (формулы makeMob, мораль 1)', () => {
+test('000082: рост статов — makeAlly с новым уровнем (000143: maxHP из sheet, damage — уровень + каталог, мораль 1)', () => {
   const volk = NPCS.find((n) => n.id === 'merc_volk');
-  // dmg 1.2, hp 1.1, role melee (×1.0), armor 0;
-  // maxHP = max(1, round((8+4·ур)·hp·роль));
-  // damage = max(1, round((2+0.7·ур)·dmg·мораль));
-  // armor = найм.armor + floor(ур/10).
+  // 000143: maxHP — из sheet: round((20+con·5)·hp·роль) — уровня в
+  // формуле НЕТ (maxHP плоский до 000145; рост — через очки);
+  // damage — makeAlly-формула (2+0.7·ур) + каталожный dmg 1.2, мораль
+  // 1 (swordsman — бонус попадания, в урон не входит — 000143 §2.8);
+  // armor = найм.armor + floor(ур/10) (как было).
   const at = (level) => makeAlly(
-    C.allyDataForEntry(Object.assign(entry('merc_volk'), { level }), volk), 0);
+    C.allyDataForEntry(entryWithSheet(volk, { level }), volk), 0);
   const u1 = at(1), u5 = at(5), u10 = at(10);
-  assert.deepEqual([u1.maxHP, u1.damage, u1.armor], [13, 3, 0], 'уровень 1');
-  assert.deepEqual([u5.maxHP, u5.damage, u5.armor], [31, 7, 0], 'уровень 5');
-  assert.deepEqual([u10.maxHP, u10.damage, u10.armor], [53, 11, 1],
-    'уровень 10: armor 0 + floor(10/10) = 1');
+  assert.deepEqual([u1.maxHP, u1.damage, u1.armor], [33, 3, 0], 'уровень 1');
+  assert.deepEqual([u5.maxHP, u5.damage, u5.armor], [33, 7, 0], 'уровень 5');
+  assert.deepEqual([u10.maxHP, u10.damage, u10.armor], [33, 11, 1],
+    'уровень 10: maxHP плоский (sheet), armor 0 + floor(10/10) = 1');
 });
 
 test('000082 браузер: без player.js — понятная ошибка (новый guard, паттерн 000079)', () => {
@@ -962,14 +1040,23 @@ test('000082 браузер: applyCombatXp работает в браузерн�
   const Co = G.companions;
   // player.js разворачивает экспорты прямо в Game (НЕ Game.Player):
   assert.equal(typeof G.xpForNext, 'function', 'G.xpForNext — топовый ключ');
+  // 000143: запись С листом (браузерный realm: Game.Sheet — из цепочки
+  // BROWSER_CHAIN): xp 30 → sheet.xp 30/totalXp 30 + плоские зеркала.
+  const sh = G.Sheet.createSheet('merc', { npcId: 'merc_volk' });
+  sh.level = 1;
+  sh.xp = 30;
+  sh.totalXp = 30;
   const roster = [
-    { npcId: 'merc_volk', level: 1, xp: 30, loyalty: 50, hiredDay: 1 },
+    { npcId: 'merc_volk', sheet: sh, level: 1, xp: 30, loyalty: 50,
+      hiredDay: 1 },
   ];
   const res = Co.applyCombatXp(roster, [{ id: 'merc_volk', xp: 25 }]);
   assert.equal(res.applied, 1);
   assert.equal(res.levelUps, 1);
-  assert.equal(roster[0].level, 2, 'level-up в браузерном realm');
-  assert.equal(roster[0].xp, 5);
+  assert.equal(roster[0].level, 2, 'level-up в браузерном realm (зеркало)');
+  assert.equal(roster[0].xp, 5, 'зеркало e.xp');
+  assert.equal(roster[0].sheet.xp, 5, 'sheet.xp — 5 (30+25−50)');
+  assert.equal(roster[0].sheet.level, 2, 'sheet.level — 2');
   // События СОЗДАНЫ в VM-realm: deepStrictEqual отклоняет их
   // (прототип — Object.prototype песочницы, не хоста — кросс-realm
   // семантика, проверено). JSON-пин (паттерн day.test.js) фиксирует
@@ -1138,9 +1225,12 @@ test('000087 G1: ТЗ-золотой — найм день 2 (gold 40→0, ло�
     assert.equal(res.ok, true, 'день 2: найм (отказ 0%)');
     assert.equal(c.gold, 0, 'найм: gold 40 − 40 = 0');
     assert.equal(r.length, 1);
+    // 000143 (000139 C3): запись 6 ключей — sheet (канонический, из
+    // каталога найма) + плоские зеркала level/xp.
     assert.deepEqual(r[0], {
       npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2,
-    }, 'запись: лояльность 50 + Харизма 15 = 65, hiredDay = день найма');
+      sheet: mercSheet(NPC_VOLK),
+    }, 'запись: лояльность 50 + Харизма 15 = 65, hiredDay = день найма; 000143 — sheet + зеркала');
     // Неоплаченные дни 4/5/6 (gold 0 < жалованье 1).
     const d4 = C.payWages(r, NPCS, c, 4);
     assert.equal(d4.paid, false, 'день 4: не хватает');
@@ -1203,9 +1293,11 @@ test('000087 G3: после УВОЛЬНЕНИЯ — повторный найм
   assert.equal(C.hire(r, NPC_VOLK, c, 2).ok, true,
     'повторный найм тот же день (тот же сид — base 0 → 0% отказа)');
   assert.equal(c.gold, 20, 'цена контракта списана повторно');
+  // 000143: НОВАЯ запись — 6 ключей (sheet + зеркала).
   assert.deepEqual(r[0], {
     npcId: 'merc_volk', level: 1, xp: 0, loyalty: 50, hiredDay: 2,
-  }, 'НОВАЯ запись: hiredDay = день, лояльность = старт 50 + Харизма 0');
+    sheet: mercSheet(NPC_VOLK),
+  }, 'НОВАЯ запись: hiredDay = день, лояльность = старт 50 + Харизма 0; 000143 — sheet + зеркала');
 });
 
 test('000087 W3: баланс — ЛЮБОЕ трио реального каталога: Σ жалованье ≤ 10 з/день (20% от ~50)', () => {

@@ -208,6 +208,10 @@ function loadSquadUi() {
 // --- Хелперы (цепочка A) ---
 
 // Запись отряда в ЗАФИКСИРОВАННОЙ форме (сейв 000085, 000079).
+// 000143: runtime-запись — 6 ключей {npcId, sheet, level, xp,
+// loyalty, hiredDay}; панель «Отряд» (rosterSummary) читает ТОЛЬКО
+// плоские поля level/loyalty — плоская форма остаётся валидным
+// входом (FIXTURE-упрощение: sheet здесь не нужен).
 const entry = (npcId, level = 1, xp = 0, loyalty = 51, day = 1) =>
   ({ npcId, level, xp, loyalty, hiredDay: day });
 

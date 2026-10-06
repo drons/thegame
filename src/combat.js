@@ -298,6 +298,11 @@
   // P.derived(p); +5%/ур. Предводителя — НЕ вражеская роль 'leader'/
   // hasLeader); хранится на юните u.moraleMult для будущих урон-кастов
   // (Эфир, 000112/000113). Чистая функция — тестируется.
+  // 000143: явный damage (с листа наёмника) умножается на moraleMult
+  // ТАКЖЕ — инвариант «мораль × урон ВСЕХ союзников» (прецедент 000112
+  // D6: урон-каст Эфира). Явный damage приходит ГРАДЫРУЕМЫМ без морали:
+  // будущие потребители явного damage (Эфир-юниты, 000144) НЕ должны
+  // умножать morale заранее — makeAlly умножит сам.
   function makeAlly(data, idx, moraleMult = 1) {
     const level = data.level || 1;
     const hpRoleMult = { support: 0.7, shield: 1.8 }[data.role] || 1.0;
@@ -305,7 +310,7 @@
       ? data.maxHP
       : Math.max(1, Math.round((8 + 4 * level) * (data.hp || 1) * hpRoleMult));
     const damage = data.damage != null
-      ? data.damage
+      ? Math.max(1, Math.round(data.damage * moraleMult))
       : Math.max(1, Math.round((2 + 0.7 * level) * (data.dmg || 1) * moraleMult));
     return {
       // data.id — дискриминатор (Эфир 000081), иначе индексный 'aN'.

@@ -8,8 +8,10 @@
 //     cp-btn «нанять» (data-npcact='hire', data-npcid), disabled+title
 //     по G.companions.canHire (паттерн renderTrainTab);
 //   * блок «Отряд» (.cp-section ПОСЛЕ списка кандидатов): по записи
-//     {npcId, level, xp, loyalty, hiredDay} — строка имя/уровень/
-//     лояльность/жалованье + кнопка «уволить» (data-npcact='dismiss');
+//     {npcId, sheet, level, xp, loyalty, hiredDay} (000143: 6 ключей —
+//     sheet + плоские зеркала level/xp; UI читает только плоские поля)
+//     — строка имя/уровень/лояльность/жалованье + кнопка «уволить»
+//     (data-npcact='dismiss');
 //     пустой отряд — «Отряд пуст.» БЕЗ .cp-itemrow; «призрак»
 //     (npcId нет в каталоге) — голый id, тихо;
 //   * найм/увольнение — G.companions.hire/dismiss: лог .npc-log
@@ -648,21 +650,25 @@ test('000083 U5: найм-успех (base=0) — запись в live-roster, g
         volk.имя + ' (' + volk.найм.цена + ' ≤ ' + gold0 + ') — активна');
       overlayClick(overlay, b);
 
-      // live-roster: запись в ЗАФИКСИРОВАННОЙ форме (сейв 000085).
+      // live-roster: запись (000143: 6 ключей — sheet + плоские
+      // зеркала level/xp; читатели UI — не меняем).
       // По полям (не deepEqual): запись создана в vm-контексте —
       // другой prototype, строгое сравнение объектов ложится на нём
       // (см. примечание к U2).
       assert.equal(roster.length, 1, 'запись добавлена в live-roster');
       const e = roster[0];
       assert.equal(e.npcId, 'merc_volk', 'запись.npcId — id кандидата');
-      assert.equal(e.level, 1, 'запись.level — 1 (новичок)');
-      assert.equal(e.xp, 0, 'запись.xp — 0');
+      assert.equal(e.level, 1, 'запись.level — 1 (новичок, зеркало)');
+      assert.equal(e.xp, 0, 'запись.xp — 0 (зеркало)');
       assert.equal(e.loyalty, loyalty,
         'запись.loyalty — start+Харизма (из SETTINGS, не хардкод)');
       assert.equal(e.hiredDay, 7, 'запись.hiredDay — day из open');
+      assert.ok(e.sheet && typeof e.sheet === 'object',
+        'запись.sheet — лист (000143)');
+      assert.equal(e.sheet.kind, 'merc', 'sheet.kind — merc');
       assert.deepEqual(Object.keys(e).sort(),
-        ['hiredDay', 'level', 'loyalty', 'npcId', 'xp'],
-        'запись — ровно 5 полей (форма зафиксирована под сейв 000085)');
+        ['hiredDay', 'level', 'loyalty', 'npcId', 'sheet', 'xp'],
+        'запись — ровно 6 ключей (000143: sheet + зеркала level/xp)');
       assert.equal(c.gold, gold0 - volk.найм.цена,
         'gold −= цена контракта (' + gold0 + ' → ' +
         (gold0 - volk.найм.цена) + ')');

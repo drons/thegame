@@ -357,6 +357,29 @@ function readSave(h) {
 // проверяется ДО вызова — host(undefined) бросает).
 const host = (o) => JSON.parse(JSON.stringify(o));
 
+// 000143 (000139 C3): RUNTIME-запись после BACKFILL старого сейва:
+// sheet из каталога найма (базовые_характеристики/начальные_навыки/
+// spells — явные уровни, без ревалидации requires — 000141), level/xp
+// ПЕРЕНОСЯТСЯ (totalXp = xp; points 0) + плоские зеркала level/xp.
+const { NPCS } = require('../src/npc-data.js');
+const NPC_VOLK = NPCS.find((n) => n.id === 'merc_volk');
+function backfilledEntry(c) {
+  const h = NPCS.find((n) => n.id === c.npcId).найм;
+  const secondary = {};
+  for (const [id, lv] of Object.entries(h.начальные_навыки || {})) {
+    if (Number.isInteger(lv) && lv >= 1) secondary[id] = lv;
+  }
+  return {
+    npcId: c.npcId,
+    sheet: {
+      kind: 'merc', level: c.level, xp: c.xp, totalXp: c.xp, points: 0,
+      primary: h.базовые_характеристики, secondary,
+      skillXp: {}, spells: (h.spells || []).slice(), npcId: c.npcId,
+    },
+    level: c.level, xp: c.xp, loyalty: c.loyalty, hiredDay: c.hiredDay,
+  };
+}
+
 // Персонаж для досеянного сейва (форма sanitizeSavedHero: level/xp/
 // gold/hp finite + шесть основных ≥ 1; hp клампится до maxHP).
 function mkHero(over = {}) {
@@ -491,9 +514,12 @@ test('V1: день без золота — 65→45→25, уход на дне 4 
   assertRestored(h, 2);
   const g = h.sandbox.__game;
   assert.ok(Array.isArray(g.state.roster), 'roster — live-массив');
+  // 000139 C3 (000143): старая форма — BACKFILL (sheet из каталога,
+  // level/xp перенесены) + плоские зеркала.
   assert.deepEqual(host(g.state.roster),
-    [{ npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2 }],
-    'отряд восстановлен из сейва (000085)');
+    [backfilledEntry({ npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65,
+      hiredDay: 2 })],
+    'отряд восстановлен из сейва (000085; 000143 — backfill в sheet)');
   // День 3: 65 − 20 = 45 (45 > quit_high 40 — остаётся, ролла НЕТ).
   g.actions.setDay(3);
   assert.equal(g.state.day, 3);
@@ -629,10 +655,12 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
   G.combatUI.handleCode('Escape');
   assert.equal(G.combatUI.isActive(), false, 'бой закрыт (finish → onEnd)');
   // Доля в запись: xp 0 → 25 (25 < 50 — уровень пока не растёт).
+  // 000143: sheet.xp 25/totalXp 25 + плоское зеркало e.xp 25.
   assert.ok(Array.isArray(g.state.roster));
   assert.deepEqual(host(g.state.roster),
-    [{ npcId: 'merc_volk', level: 1, xp: 25, loyalty: 65, hiredDay: 2 }],
-    'roster: xp 0 → 25 (applyCombatXp, D3)');
+    [backfilledEntry({ npcId: 'merc_volk', level: 1, xp: 25,
+      loyalty: 65, hiredDay: 2 })],
+    'roster: xp 0 → 25 (applyCombatXp, D3; 000143 — sheet.xp + зеркало)');
   // Зелёные пины: герой — НЕ тронут; Эфир — ровно result.xp 1×
   // (0 + 50 ≥ 50 → level 2, xp 0; при 2× было бы level 2, xp 50).
   assert.equal(g.state.hero.xp, heroXp0,
@@ -647,9 +675,10 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
     'hud: «Спутники: +N опыта (Имя).» (D9, одна строка): ' + hud);
   assert.ok(hud.endsWith('Спутники: +25 опыта (Вольк).'),
     'hud: xp-строка — ПОСЛЕ базовой (D5): ' + hud);
-  // Сейв (onEnd → saveNow): xp в записи.
+  // Сейв (onEnd → saveNow): xp в записи (000143: форма сейва 4 поля —
+  // xp ВНУТРИ sheet).
   let saved = readSave(h);
-  assert.equal(saved.data.companions[0].xp, 25, 'сейв: xp 25');
+  assert.equal(saved.data.companions[0].sheet.xp, 25, 'сейв: sheet.xp 25 (000143)');
   assert.equal(saved.data.efir.level, 2, 'сейв: Эфир level 2');
   // Бой 2: xp 25 + 25 = 50 ≥ xpForNext(1) = 50 → level 2, xp 0 —
   // уровень растёт в onEnd этого боя (ниже). ДО боя запись — level 1
@@ -667,9 +696,16 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
   };
   G.combatUI.handleCode('Escape');
   assert.ok(Array.isArray(g.state.roster));
+  // 000143: level_up — sheet.level 2, xp 0, totalXp 50, points 2
+  // (2 очка за уровень, 000139 C3) + плоские зеркала.
   assert.deepEqual(host(g.state.roster),
-    [{ npcId: 'merc_volk', level: 2, xp: 0, loyalty: 65, hiredDay: 2 }],
-    'roster: level_up (while-цикл, 000082)');
+    [{ npcId: 'merc_volk', level: 2, xp: 0, loyalty: 65, hiredDay: 2,
+      sheet: { kind: 'merc', level: 2, xp: 0, totalXp: 50, points: 2,
+        primary: NPC_VOLK.найм.базовые_характеристики,
+        secondary: NPC_VOLK.найм.начальные_навыки,
+        skillXp: {}, spells: (NPC_VOLK.найм.spells || []).slice(),
+        npcId: 'merc_volk' } }],
+    'roster: level_up (while-цикл, 000082; 000143 — sheet + points 2)');
   assert.equal(g.state.hero.xp, heroXp0, 'hero.xp — по-прежнему не тронут');
   // Эфир: 0 + 50 < 141 (xpForNext(2)) → level 2, xp 50 — ровно 1×
   // result.xp (при 2× было бы level 3, xp 9 — порог 141 перекрыт).
@@ -684,8 +720,8 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
       < hud.indexOf('Спутники: +25 опыта (Вольк).'),
     'hud: порядок — level_up, потом «Спутники:» (D4: xpLines)');
   saved = readSave(h);
-  assert.equal(saved.data.companions[0].level, 2, 'сейв: level 2');
-  assert.equal(saved.data.companions[0].xp, 0, 'сейв: остаток xp 0');
+  assert.equal(saved.data.companions[0].sheet.level, 2, 'сейв: sheet.level 2 (000143)');
+  assert.equal(saved.data.companions[0].sheet.xp, 0, 'сейв: остаток sheet.xp 0 (000143)');
   assert.equal(saved.data.efir.level, 2, 'сейв: Эфир level 2');
   assert.equal(saved.data.efir.xp, 50, 'сейв: Эфир xp 50 (ровно 1×)');
 });
