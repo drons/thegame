@@ -129,9 +129,13 @@ function makeEl(tag) {
 const CHAIN = [
   'global-settings.js', 'perlin.js', 'mapseed.js',
   'skills-data.js', 'items-data.js', 'npc-data.js',
+  // 000142: каталог портретов (Game.PortraitsData) — позиции index.html.
+  'portraits-data.js',
   'map.js', 'sheet.js', 'player.js', 'day.js', 'items.js', 'buildings.js',
   'npc.js', 'combat.js', 'dungeon.js',
   'controls.js', 'combat-keys.js',
+  // 000145: Game.Party — ДО вкладочных модулей (снапшот 000038).
+  'party.js',
   'ui-tabs.js', 'ui-tab-skills.js', 'ui-tab-inventory.js',
   'ui-tab-settings.js', 'ui-tab-shop.js', 'ui-tab-quests.js',
   'ui.js',

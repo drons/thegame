@@ -264,9 +264,13 @@ function makeEl(tag) {
 const CHAIN = [
   'global-settings.js', 'perlin.js', 'mapseed.js',
   'skills-data.js', 'items-data.js', 'npc-data.js',
+  // 000142: каталог портретов (Game.PortraitsData) — позиции index.html.
+  'portraits-data.js',
   'map.js', 'sheet.js', 'player.js', 'day.js', 'items.js', 'buildings.js',
   'npc.js', 'combat.js', 'dungeon.js',
   'controls.js', 'combat-keys.js',
+  // 000145: Game.Party — ДО вкладочных модулей (снапшот 000038).
+  'party.js',
   'ui-tabs.js', 'ui-tab-skills.js', 'ui-tab-inventory.js',
   'ui-tab-settings.js', 'ui-tab-shop.js', 'ui-tab-quests.js',
   'ui.js',
@@ -1886,6 +1890,8 @@ test('000130 RED: node — require() каждого src/ui-tabs.js/ui-tab-*.js �
   // — self-registration + плоский spread game-экспорта на Game).
   const files = [
     'ui-tabs.js',
+    // 000145: Game.Party — чистый UMD (не вкладка — {list, active}).
+    'party.js',
     'ui-tab-quests.js',
     'ui-tab-skills.js',
     'ui-tab-inventory.js',
@@ -1900,6 +1906,13 @@ test('000130 RED: node — require() каждого src/ui-tabs.js/ui-tab-*.js �
       for (const k of ['register', 'get', 'list']) {
         assert.equal(typeof m[k], 'function', f + ': ' + k + '()');
       }
+      continue;
+    }
+    if (f === 'party.js') {
+      // 000145: определение {list, active} (ЧИСТЫЕ функции —
+      // тестируется отдельно, tests/ui-tab-skills-active.test.js A1-A8).
+      assert.equal(typeof m.list, 'function', f + ': list(src)');
+      assert.equal(typeof m.active, 'function', f + ': active(list, id)');
       continue;
     }
     assert.ok(m.tab && typeof m.tab === 'object', f + ': экспорт .tab');

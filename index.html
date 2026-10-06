@@ -734,6 +734,29 @@
     .start-window-btn--restart:hover {
       background: #e65f52;
     }
+    /* Партия: ряд иконок-портретов СВЕРХУ страницы «Персонаж»
+       (задача 000145; каталог ассетов — 000142). Кнопка НЕ .cp-btn
+       (делегирование ядра итерирует .cp-btn — ловушка 000098). */
+    .cp-portraits {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .cp-portrait {
+      padding: 3px;
+      border: 2px solid #4a4433;
+      border-radius: 8px;
+      background: rgba(28, 32, 42, 0.9);
+      cursor: pointer;
+    }
+    .cp-portrait:hover { border-color: #6b6248; }
+    .cp-portrait img {
+      display: block;
+      width: 48px;
+      height: 48px;
+    }
+    .cp-portrait-active { border-color: #d8c27a; }
   </style>
 </head>
 <body>
@@ -811,6 +834,13 @@
        main.js использует Game.playerUI/touchControls. -->
   <script src="src/controls.js"></script>
   <script src="src/combat-keys.js"></script>
+  <!-- Партия (задача 000145): Game.Party = {list, active} — ЧИСТЫЕ
+       функции списка партии + выбора активного персонажа. ДО
+       вкладочных модулей и ui.js (снапшот-ловушка 000038:
+       ui-tab-skills.js снимает Game один раз при загрузке —
+       Game.Party обязан быть в этом снапшоте; пин
+       tests/index-order.test.js). -->
+  <script src="src/party.js"></script>
   <!-- Вкладки панели персонажа (задача 000130): саморегистрирующиеся
        модули ДО ui.js. ui-tabs.js — ПЕРВЫЙ (реестр обязан существовать
        раньше первой вкладки); ПОЗИЦИЯ тега = позиция вкладки в

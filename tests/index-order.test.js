@@ -68,6 +68,10 @@ test('index.html: нужные модули подключены', () => {
     // (конец ведущей группы данных — после mob-groups-data.js,
     // до map.js).
     'src/portraits-data.js',
+    // Партия (задача 000145): Game.Party = {list, active} — ДО
+    // вкладочных модулей и ui.js (снапшот-ловушка 000038 —
+    // пин порядка ниже).
+    'src/party.js',
     'src/main.js',
   ]) {
     assert.notEqual(pos(f), -1, f + ' не подключён в index.html');
@@ -1283,4 +1287,30 @@ test('index.html: src/sheet.js подключён и ДО src/player.js (зад�
     'src/sheet.js не подключён в index.html (задача 000140)');
   assert.ok(pos('src/sheet.js') < pos('src/player.js'),
     'src/sheet.js должен быть раньше src/player.js (задача 000140)');
+});
+
+// --- Задача 000145: партия (src/party.js) ---
+//
+// Game.Party = {list, active} — ЧИСТЫЕ функции списка партии +
+// выбора активного персонажа (контракт memory/000145-active-
+// character.md §2). Вкладка «Персонаж» (src/ui-tab-skills.js)
+// снимает Game ОДИН раз при загрузке (снапшот-ловушка 000038) и
+// читает G.Party при ВЫЗОВЕ: тег обязан быть ДО вкладочных
+// модулей (иначе Game.Party вне снапшота — вкладка деградирует в
+// hero-only + console.error) и ДО src/ui.js. Слот — после
+// src/combat-keys.js, до comment-блока вкладок (позиции index.html
+// закреплены пин-блоком 000130). Пин НЕ-смежный (union): не
+// ломается, если параллельная задача вставит свой тег в те же
+// слоты — порядок party.js к обоим якорям держится.
+
+test('index.html: src/party.js подключён ПОСЛЕ src/combat-keys.js и ДО src/ui-tab-skills.js и ДО src/ui.js (задача 000145, снапшот-ловушка 000038)', () => {
+  assert.notEqual(pos('src/party.js'), -1,
+    'src/party.js не подключён в index.html (задача 000145)');
+  assert.ok(pos('src/combat-keys.js') < pos('src/party.js'),
+    'src/party.js должен быть ПОСЛЕ src/combat-keys.js (задача 000145)');
+  assert.ok(pos('src/party.js') < pos('src/ui-tab-skills.js'),
+    'src/party.js должен быть ДО src/ui-tab-skills.js (снапшот-' +
+    'ловушка 000038: вкладка снимает Game при загрузке)');
+  assert.ok(pos('src/party.js') < pos('src/ui.js'),
+    'src/party.js должен быть ДО src/ui.js (задача 000145)');
 });
