@@ -605,6 +605,152 @@
     return stepAwayRect(c, u, { x: c.px, y: c.py, w: 1, h: 1 });
   }
 
+  // --- A* — поиск пути мобов (задача 000155) ---
+  // Контракт: memory/000155-mob-pathfinding.md. BFS-поле расстояний +
+  // одношаговый спуск («A* или схожий» ТЗ): на равномерной 4-соседней
+  // сетке поле BFS = оптимальные пути. Детерминизм: значения поля
+  // ЕДИНСТВЕННЫ (не зависят от порядка обхода); ЕДИНСТВЕННАЯ точка
+  // выбора шага — первое направление PATH_DIRS с минимальным полем
+  // (строгий <). Запрещено: Math.random/c._rng здесь, итерация Map поля
+  // (только get по ключу) — иначе порядок вставки = скрытый тай-брейк.
+
+  // Канон порядка направлений (дословно stepAwayRect :591): ↑ ↓ ← →.
+  const PATH_DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+
+  // Поле расстояний (внутреннее, не экспортируется). Чистое (c не
+  // мутирует). Мульти-источниковый BFS: источники — ВСЕ проходимые
+  // клетки, где goalTest(x, y) истинен (dist 0); скан источников —
+  // фиксированный `for y { for x }`; очередь — массив + индекс (FIFO,
+  // паттерн reachableCells); соседи — 4 в порядке PATH_DIRS;
+  // проходимость — rectFree (ignore = сам перемещающийся юнит u;
+  // другие живые юниты, клетка игрока, c.obstacles — «стены»).
+  // Возврат: Map 'x,y' → dist (только достижимые клетки).
+  function pathField(c, u, goalTest) {
+    const w = u.size.w || 1, h = u.size.h || 1;
+    const f = new Map();
+    const q = [];
+    for (let y = 0; y < c.height; y++) {
+      for (let x = 0; x < c.width; x++) {
+        if (rectFree(c, x, y, w, h, u) && goalTest(x, y)) {
+          f.set(x + ',' + y, 0);
+          q.push([x, y]);
+        }
+      }
+    }
+    for (let i = 0; i < q.length; i++) {
+      const [x, y] = q[i];
+      const d = f.get(x + ',' + y);
+      for (const [dx, dy] of PATH_DIRS) {
+        const nx = x + dx, ny = y + dy;
+        const k = nx + ',' + ny;
+        if (f.has(k)) continue;
+        if (!rectFree(c, nx, ny, w, h, u)) continue;
+        f.set(k, d + 1);
+        q.push([nx, ny]);
+      }
+    }
+    return f;
+  }
+
+  // Чистый (БЕЗ мутации) 1:1-проб логики stepTowardRect: большая ось
+  // первой, при равенстве — x; первая rectFree-клетка. {x, y} | null.
+  // Используется ТОЛЬКО в pathStepTo (ревью 000155: в pathStepFrom
+  // жадный проб удалён — см. там).
+  function probeGreedyStep(c, u, r) {
+    const R = rectOf(r);
+    const w = u.size.w || 1, h = u.size.h || 1;
+    const x1 = u.x + w - 1, y1 = u.y + h - 1;
+    const sx = R.x < u.x ? -1 : (R.x + R.w - 1 > x1 ? 1 : 0);
+    const sy = R.y < u.y ? -1 : (R.y + R.h - 1 > y1 ? 1 : 0);
+    const adx = Math.abs(sx), ady = Math.abs(sy);
+    const tries = (adx >= ady ? [[sx, 0], [0, sy]] : [[0, sy], [sx, 0]])
+      .filter(([a, b]) => a !== 0 || b !== 0);
+    for (const [dx, dy] of tries) {
+      const nx = u.x + dx, ny = u.y + dy;
+      if (rectFree(c, nx, ny, w, h, u)) {
+        return { x: nx, y: ny };
+      }
+    }
+    return null;
+  }
+
+  // Один шаг К цели-прямоугольнику r с допущенным расстоянием reach.
+  // Поле → f0 = поле текущей клетки; f0 === undefined (цель
+  // недостижима/замурован) ИЛИ f0 === 0 (уже в reach — goalTest истинен
+  // на текущей клетке) → false, стоим (деградация как до задачи, без
+  // краша; ревью 000155: без f0===0→false незастрахованный вызов из
+  // reach возвращал «шаг» ОТ цели — осцилляция в цикле
+  // `while (pathStepTo(...))`; guard-тест R9). Жадный проб (1:1
+  // stepTowardRect) принимается ТОЛЬКО при СТРОГОМ улучшении поля
+  // f(g) < f0 («вето поля» — без него ливелок (3,3)↔(2,3), «Подводные
+  // камни» контракта); иначе A*-шаг: минимальное поле среди 4
+  // rectFree-соседей, тай-брейк — ПЕРВОЕ направление PATH_DIRS с
+  // минимальным (строгий <). Ни одного соседа в поле → false. Мутация
+  // u.x/u.y; true — шаг сделан.
+  function pathStepTo(c, u, r, reach) {
+    const f = pathField(c, u, (x, y) =>
+      rectDist({ x, y, size: u.size }, r) <= reach);
+    const f0 = f.get(u.x + ',' + u.y);
+    if (f0 === undefined) return false;
+    if (f0 === 0) return false; // уже в reach — ходить некуда (ревью)
+    const g = probeGreedyStep(c, u, r);
+    if (g) {
+      const fg = f.get(g.x + ',' + g.y);
+      if (fg !== undefined && fg < f0) {
+        u.x = g.x; u.y = g.y;
+        return true;
+      }
+    }
+    const w = u.size.w || 1, h = u.size.h || 1;
+    let best = null, bestD = null;
+    for (const [dx, dy] of PATH_DIRS) {
+      const nx = u.x + dx, ny = u.y + dy;
+      if (!rectFree(c, nx, ny, w, h, u)) continue;
+      const d = f.get(nx + ',' + ny);
+      if (d === undefined) continue;
+      if (bestD === null || d < bestD) {
+        best = { x: nx, y: ny };
+        bestD = d;
+      }
+    }
+    if (!best) return false;
+    u.x = best.x; u.y = best.y;
+    return true;
+  }
+
+  // Один шаг ОТ цели-прямоугольника r (ретрит: паника/TIMID-побег).
+  // Поле — клетки, где расстояние до цели СТРОГО БОЛЬШЕ текущего d0
+  // (goal = rectDist > d0); выбор шага — A* (минимальное поле, тай-брейк
+  // PATH_DIRS). Жадного проба НЕТ (ревью 000155: шаг К цели может быть
+  // принят «вето поля» в «карманных» конфигурациях — fg < f0 — и несёт
+  // юнита БЛИЖЕ к цели, против духа ретрита; на чистом поле при
+  // диагональной цели жадный (ось x первой) и A* (↓ раньше →) расходятся:
+  // (0,0)→цель(1,1) — жадный (1,0), A* (0,1); guard-тест R10). Шаг НЕ
+  // обязан сразу вырастить d (шаг К ближайшей «дальней» клетке);
+  // пинится d≥2 через пару ходов. Замурован → false. Мутация u.x/u.y.
+  function pathStepFrom(c, u, r) {
+    const d0 = rectDist(u, r);
+    const f = pathField(c, u, (x, y) =>
+      rectDist({ x, y, size: u.size }, r) > d0);
+    const f0 = f.get(u.x + ',' + u.y);
+    if (f0 === undefined) return false;
+    const w = u.size.w || 1, h = u.size.h || 1;
+    let best = null, bestD = null;
+    for (const [dx, dy] of PATH_DIRS) {
+      const nx = u.x + dx, ny = u.y + dy;
+      if (!rectFree(c, nx, ny, w, h, u)) continue;
+      const d = f.get(nx + ',' + ny);
+      if (d === undefined) continue;
+      if (bestD === null || d < bestD) {
+        best = { x: nx, y: ny };
+        bestD = d;
+      }
+    }
+    if (!best) return false;
+    u.x = best.x; u.y = best.y;
+    return true;
+  }
+
   // Шаг СОЮЗНИКА (1×1) к цели-прямоугольнику (задача 000080): сначала
   // ось x (если оси различаются), затем ось y; направление — к цели;
   // первая rectFree-клетка. Красные тесты фиксируют и «обход занятой
@@ -1332,8 +1478,18 @@
     // ≡ unitDist, шаги/атаки — бит-в-бит как до изменения.
     const target = nearestPlayerSide(c, u);
     const dToP = rectDist(u, target);
-    const stepToTarget = () => stepTowardRect(c, u, target);
-    const stepFromTarget = () => stepAwayRect(c, u, target);
+    // A* (задача 000155): шаг к цели = жадный шаг с «вето поля» + обход
+    // (pathStepTo); на чистом поле — бит-в-бит прежний stepTowardRect.
+    // reach: ближний — 1 (вплотную, граница атаки); ranged —
+    // RANGED_MAX_DIST ТОЛЬКО в ветке dToP > RANGED_MAX_DIST («слишком
+    // далеко»): доходит до полосы выстрела и ОСТАНАВЛИВАЕТСЯ (контракт
+    // memory/000155-mob-pathfinding.md). Ретрит: жадный stepAwayRect
+    // первым (только шаги с ростом d), обходной — при блоке.
+    const stepToTarget = () => pathStepTo(c, u, target,
+      u.role === MOB_ROLES.RANGED && dToP > RANGED_MAX_DIST
+        ? RANGED_MAX_DIST : 1);
+    const stepFromTarget = () => stepAwayRect(c, u, target)
+      || pathStepFrom(c, u, target);
     const attackTarget = () => (target.isPlayer
       ? mobAttack(c, u)
       : mobAttackAlly(c, u, target.unit));
@@ -2267,6 +2423,9 @@
     // Препятствия (задача 000050): достижимость клеток от игрока по
     // не-препятствиям — чистая функция для тестов.
     reachableCells,
+    // A* — поиск пути мобов (задача 000155): один шаг к/от цели с
+    // обходом препятствий (контракт memory/000155-mob-pathfinding.md).
+    pathStepTo, pathStepFrom,
     // Зоны (задача 000135): чистое ядро зоны группы (3×3/5×5 по
     // aggro mobs[0]) + чистый триггер (якорь — тайл группы).
     groupZoneInfo, findZoneCombat,
