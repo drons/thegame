@@ -9,6 +9,10 @@ const {
   // 000132: пулы лута — данные модуля (красные тесты: экспорт пока
   // отсутствует — undefined, падение осмысленное, не load-ошибка).
   LOOT_BASE_POOL, LOOT_RARE_POOL,
+  // 000155: A*-поиск пути мобов — экспорт пока отсутствует (красная
+  // стадия: имена undefined → осмысленный TypeError в unit-тестах,
+  // не load-ошибка; 000132-паттерн).
+  pathStepTo, pathStepFrom,
   combatInternals,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
@@ -1947,7 +1951,12 @@ test('препятствия: playerMove — «препятствие», обх�
   assert.equal(c.move(0, -1).reason, 'тут стоит моб');
 });
 
-test('препятствия: mob stepToward не встаёт на камень (моб за камнем стоит)', () => {
+test('препятствия: моб за камнем обходит (A*, задача 000155): волк (3,3)+камень (3,4), 1 endTurn → (2,3), не на камне, alive', () => {
+  // РЕ-ПИН (единственный семантический, предписан ТЗ 000155): раньше
+  // «моб за камнем стоит» (000050 фиксировал stuck как намеренное,
+  // «обход — отдельная работа по ИИ»); та работа — и есть задача
+  // 000155: первый шаг обхода — (2,3) (левее раньше правее, тай-брейк
+  // PATH_DIRS; контракт memory/000155-mob-pathfinding.md).
   const p = strongHero();
   const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 3, seed: 7 });
   const w = c.units[0];
@@ -1956,8 +1965,8 @@ test('препятствия: mob stepToward не встаёт на камень
   c.obstacles.add('3,4');    // камень прямо между волком и игроком
   c._rng = () => 0.99;       // (атаки не будет: дистанция 3)
   c.endTurn();
-  assert.equal(w.x, 3); assert.equal(w.y, 3,
-    'волк не прошёл камень — остался на месте (зафиксированное поведение)');
+  assert.equal(w.x, 2); assert.equal(w.y, 3,
+    'волк обошёл камень: первый шаг (2,3), не остался у стены');
   assert.equal(w.alive, true);
   for (const [x, y] of unitRect(w)) {
     assert.ok(!c.obstacles.has(x + ',' + y), 'моб не «внутри» камня');
@@ -4854,4 +4863,212 @@ test('000132-N6: пулы — данные модуля: точные списк
       'редкий пул: skill_book либо weapon/armor с value > 35: ' + id
       + ' (' + it.kind + ', value ' + it.value + ')');
   }
+});
+
+// --- A* — поиск пути мобов в бою (задача 000155) ---
+//
+// КРАСНЫЕ тесты (TDD): функциональности ещё нет в src/combat.js —
+// нет экспортов pathStepTo/pathStepFrom, mobAct ходит жадным
+// stepTowardRect: моб за препятствием «стоит» (000050) и не доходит.
+// Контракт: memory/000155-mob-pathfinding.md (BFS-поле расстояний +
+// «вето поля» на жадный шаг; тай-брейк PATH_DIRS [[0,-1],[0,1],[-1,0],[1,0]];
+// reach: melee = 1, ranged = 4 ТОЛЬКО при d>4; ретрит — pathStepFrom).
+// Пины — прибытие + СТРОГОЕ убывание d + первый шаг (а не полная
+// траектория): устойчиво к внутренним деталям фикса и ловит и текущий
+// stuck (d константа), и наивный livelock «жадный || A*» (d 3,4,3,4).
+// Ожидаемый исход станции: 8 красных (re-pin-1950 + R1…R6 + R8);
+// R7 и R4b — зелёные guard (бит-в-бит чистое поле / поведение
+// замурованного ranged не меняется).
+
+test('A* (000155) R1: melee доходит — волк (3,3)+камень (3,4): 4 endTurn → d строго [4,3,2,1], первый шаг (2,3), 5-й ход — атака', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 3, seed: 7 });
+  const w = c.units[0];
+  c.obstacles.clear();
+  w.x = 3; w.y = 3;          // игрок в (3,6), d0 = 3
+  c.obstacles.add('3,4');    // камень прямо между волком и игроком
+  c._rng = () => 0.99;
+  const ds = [];
+  for (let i = 1; i <= 4; i++) {
+    c.endTurn();
+    for (const [x, y] of unitRect(w)) {
+      assert.ok(!c.obstacles.has(x + ',' + y), `ход ${i}: моб не «внутри» камня`);
+    }
+    ds.push(uDist(c, w));
+  }
+  assert.equal(w.x, 2); assert.equal(w.y, 3,
+    'первый шаг (2,3) — обход, а не «стоит» у стены');
+  assert.deepEqual(ds, [4, 3, 2, 1],
+    'd строго убывает: моб обходит камень и подходит к игроку');
+  c.endTurn();
+  assert.ok(c.log.some((l) => /^Волк (бьёт|промахивается)/.test(l)),
+    '5-й ход: волк в радиусе удара (d≤1) — строка атаки в логе');
+});
+
+test('A* (000155) R2: ranged держит дистанцию — орк-лучник (3,0)+камни (3,1..3,3): d [7,6,5,4] (никогда ≤1), траектория (2,0),(2,1),(2,2),(2,3), 5-й ход — атака', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['orc_archer'], mobLevel: 3, seed: 7 });
+  const a = c.units[0];
+  c.obstacles.clear();
+  a.x = 3; a.y = 0;          // игрок в (3,6), d0 = 6 (> 4 — «слишком далеко»)
+  c.obstacles.add('3,1'); c.obstacles.add('3,2'); c.obstacles.add('3,3');
+  c._rng = () => 0.01;       // мобы точно попадают (атака на 5-м ходу)
+  const ds = []; const trail = [];
+  for (let i = 1; i <= 4; i++) {
+    c.endTurn();
+    for (const [x, y] of unitRect(a)) {
+      assert.ok(!c.obstacles.has(x + ',' + y), `ход ${i}: моб не «внутри» камня`);
+    }
+    ds.push(uDist(c, a));
+    trail.push([a.x, a.y]);
+  }
+  assert.deepEqual(ds, [7, 6, 5, 4],
+    'd строго убывает: дальнобойный доходит до полосы выстрела (d≤4) и ОСТАНАВЛИВАЕТСЯ');
+  assert.ok(ds.every((d) => d >= 2), 'd никогда ≤1 — «подхода вплотную» нет');
+  assert.deepEqual(trail, [[2, 0], [2, 1], [2, 2], [2, 3]],
+    'траектория обхода стены камней');
+  c.endTurn();
+  assert.ok(c.log.some((l) => l.startsWith('Орк-лучник бьёт')),
+    '5-й ход: атака в радиусе выстрела (d≤4)');
+});
+
+test('A* (000155) R3: детерминизм — 2 прогона сценариев R1 (melee) и R2 (ranged): deepEqual позиций и лога, в каждом прогоне есть атака', () => {
+  // Шаблон детерминизм-теста (контракт 000155): два прогона тем же
+  // сетапом → deepEqual позиций+лога. Ловит Math.random/c._rng и
+  // скрытые тай-брейки (итерация Map) в path*.
+  const runMelee = () => {
+    const p = strongHero();
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 3, seed: 7 });
+    const w = c.units[0];
+    c.obstacles.clear();
+    w.x = 3; w.y = 3;
+    c.obstacles.add('3,4');
+    c._rng = () => 0.99;
+    for (let i = 0; i < 5; i++) c.endTurn();
+    return { pos: [w.x, w.y], log: c.log.slice() };
+  };
+  const runRanged = () => {
+    const p = strongHero();
+    const c = createCombat({ player: p, mobs: ['orc_archer'], mobLevel: 3, seed: 7 });
+    const a = c.units[0];
+    c.obstacles.clear();
+    a.x = 3; a.y = 0;
+    c.obstacles.add('3,1'); c.obstacles.add('3,2'); c.obstacles.add('3,3');
+    c._rng = () => 0.01;
+    for (let i = 0; i < 5; i++) c.endTurn();
+    return { pos: [a.x, a.y], log: c.log.slice() };
+  };
+  const m1 = runMelee(); const m2 = runMelee();
+  const r1 = runRanged(); const r2 = runRanged();
+  assert.deepEqual(m1, m2, 'melee: детерминизм позиций и лога (2 прогона)');
+  assert.deepEqual(r1, r2, 'ranged: детерминизм позиций и лога (2 прогона)');
+  assert.ok(m1.log.some((l) => /^Волк (бьёт|промахивается)/.test(l)),
+    'melee-прогон: строка атаки есть (моб дошёл)');
+  assert.ok(r1.log.some((l) => l.startsWith('Орк-лучник бьёт')),
+    'ranged-прогон: строка атаки есть (моб дошёл до полосы выстрела)');
+});
+
+test('A* (000155) R4: unit — pathStepFrom ретрит: лучник (2,6), камень (2,5), игрок (3,6) → true, (1,6); повторный вызов → d≥2', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['orc_archer'], mobLevel: 3, seed: 7 });
+  const a = c.units[0];
+  c.obstacles.clear();
+  a.x = 2; a.y = 6;          // d0 = 1; жадный stepAwayRect блокнут: (2,5) камень
+  c.obstacles.add('2,5');
+  const target = { x: c.px, y: c.py, w: 1, h: 1 };
+  assert.equal(pathStepFrom(c, a, target), true, 'ретрит с обходом камня возможен');
+  assert.equal(a.x, 1); assert.equal(a.y, 6,
+    'первый ретрит-шаг (1,6) — вбок, обходя камень');
+  pathStepFrom(c, a, target);
+  assert.ok(uDist(c, a) >= 2,
+    'повторный ретрит: d≥2 (моб не возвращается ближе к цели)');
+});
+
+test('A* (000155) R5: unit — замурован (кольцо камней): pathStepTo/pathStepFrom → false, позиция неизменна, без краха', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['orc_archer'], mobLevel: 3, seed: 7 });
+  const a = c.units[0];
+  c.obstacles.clear();
+  a.x = 3; a.y = 3;
+  c.obstacles.add('2,3'); c.obstacles.add('4,3');
+  c.obstacles.add('3,2'); c.obstacles.add('3,4');
+  const target = { x: c.px, y: c.py, w: 1, h: 1 };
+  assert.equal(pathStepTo(c, a, target, 1), false,
+    'недостижимая цель — стоим (деградация как до задачи)');
+  assert.equal(a.x, 3); assert.equal(a.y, 3, 'позиция неизменна');
+  assert.equal(pathStepFrom(c, a, target), false,
+    'ретрит невозможен — стоим');
+  assert.equal(a.x, 3); assert.equal(a.y, 3, 'позиция неизменна');
+  assert.equal(a.alive, true, 'без краха');
+});
+
+test('A* (000155) R6: многоклеточный 2×2 (troll-размер) за камнем обходит: после КАЖДОГО endTurn весь 2×2 в rectFree, d [3,2,1], 4-й ход — атака', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['troll'], mobLevel: 3, seed: 7 });
+  const t = c.units[0];
+  c.obstacles.clear();
+  t.x = 2; t.y = 2;          // тролл 2×2; жадный шаг (0,+1) в камень (2,4)
+  c.obstacles.add('2,4');
+  const rectFree = (u) => unitRect(u).every(([x, y]) =>
+    x >= 0 && y >= 0 && x < c.width && y < c.height
+    && !c.obstacles.has(x + ',' + y)
+    && !(x === c.px && y === c.py));
+  const ds = [];
+  for (let i = 1; i <= 3; i++) {
+    c.endTurn();
+    assert.ok(rectFree(t), `endTurn ${i}: весь 2×2-прямоугольник в rectFree`);
+    ds.push(uDist(c, t));
+  }
+  assert.deepEqual(ds, [3, 2, 1], '2×2 доходит вплотную (d убывает)');
+  c.endTurn();
+  assert.ok(c.log.some((l) => /^Тролль (бьёт|промахивается)/.test(l)),
+    '4-й ход: тролль в радиусе удара (d≤1) — строка атаки в логе');
+});
+
+test('A* (000155) R8: unit — тай-брейк фиксирован: волк (3,3)+камень (3,4), pathStepTo(c,u,target,1) → true, первый шаг (2,3) (левее раньше правее)', () => {
+  // Поле BFS: f((3,3))=4, соседи: (3,2)=5, (3,4)=камень, (2,3)=3,
+  // (4,3)=3 → равенство минимумов решается ПЕРВЫМ направлением
+  // PATH_DIRS [[0,-1],[0,1],[-1,0],[1,0]] (строгой `<`): левее раньше
+  // правее. Детерминизм: единственная точка выбора (контракт 000155).
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 3, seed: 7 });
+  const w = c.units[0];
+  c.obstacles.clear();
+  w.x = 3; w.y = 3;
+  c.obstacles.add('3,4');
+  const target = { x: c.px, y: c.py, w: 1, h: 1 };
+  assert.equal(pathStepTo(c, w, target, 1), true, 'шаг существует — моб не застрял');
+  assert.equal(w.x, 2); assert.equal(w.y, 3,
+    'первый шаг (2,3): левее раньше правее (тай-брейк PATH_DIRS)');
+});
+
+test('A* (000155) R7: guard — жадный не тронут: чистое поле, волк (3,3) → (3,4), (3,5); 3-й ход — атака (бит-в-бит со старым stepTowardRect)', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 3, seed: 7 });
+  const w = c.units[0];
+  c.obstacles.clear();
+  w.x = 3; w.y = 3;
+  c._rng = () => 0.99;
+  c.endTurn();
+  assert.equal(w.x, 3); assert.equal(w.y, 4, 'шаг 1 — старый жадный шаг');
+  c.endTurn();
+  assert.equal(w.x, 3); assert.equal(w.y, 5, 'шаг 2 — старый жадный шаг');
+  c.endTurn();
+  assert.ok(c.log.some((l) => /^Волк (бьёт|промахивается)/.test(l)),
+    '3-й ход: атака (дошёл, d=1)');
+});
+
+test('A* (000155) R4b: guard — замурованный ranged в панике не крашится: стоит, alive, не на камне, в логе «отступает.» (поведение = текущее)', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['orc_archer'], mobLevel: 3, seed: 7 });
+  const a = c.units[0];
+  c.obstacles.clear();
+  a.x = 3; a.y = 5;          // d=1 до игрока (3,6) — паника; все выходы — камни
+  c.obstacles.add('2,5'); c.obstacles.add('4,5'); c.obstacles.add('3,4');
+  c._rng = () => 0.99;
+  c.endTurn();
+  assert.equal(a.x, 3); assert.equal(a.y, 5, 'некуда отступать — стоит на месте');
+  assert.equal(a.alive, true);
+  assert.ok(!c.obstacles.has(a.x + ',' + a.y), 'моб не «внутри» камня');
+  assert.ok(c.log.includes('Орк-лучник отступает.'), 'лог паники не меняется');
 });
