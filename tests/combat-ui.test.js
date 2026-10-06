@@ -2599,3 +2599,84 @@ test('боевой UI: 000152 G1 — деградация (без sprites.js): �
     && x[1][2] === 39 && x[1][3] === 39),
     'рамка «свой» без sprites.js');
 });
+
+// --- Задача 000167: Бой: инициатива (ядро) — КРАСНЫЕ ТЕСТЫ (UI) ---
+// Контракт: memory/000167-initiative-core.md. pre-roll в createCombat
+// (startCombat): паук (4) и волк (3) быстрее героя createCharacter (2) →
+// очередь отсортирована ['m0','m1','player'], turnIndex на игроке,
+// round не сдвинут. UI-контракт: слот УБИТОГО В РАУНДЕ — серый токен
+// (turn-token--dead) до конца раунда (очередь фиксируется на старт
+// раунда, D12), --current — всегда на слоте СВОЕЙ позиции действующего
+// (инвариант 000036), в следующем раунде мёртвый — вне очереди.
+
+test('боевой UI: 000167-TOKEN-1 — слот убитого в раунде: серый токен до конца раунда, --current на позиции действующего, в следующем раунде мёртвый вне очереди', () => {
+  const S = scene84({ mobs: ['spider', 'wolf'] });
+  const c = S.c;
+  const [sp, w] = c.units; // m0 паук (4), m1 волк (3); герой createCharacter (2)
+  c.player.hp = 9999; // сценарий: герой не гибнет от мобов
+  // Новый поток: pre-roll — паук (4) и волк (3) быстрее героя (2) → уже
+  // действовали (сдвинулись к игроку); очередь отсортирована, turnIndex —
+  // на СВОЕМ слоте игрока, раунд не сдвинут.
+  assert.deepEqual(c.turnOrder, ['m0', 'm1', 'player'],
+    'отсортированная очередь: паук 4 > волк 3 > герой 2');
+  assert.equal(c.turnIndex, 2,
+    'игрок — на СВОЕМ слоте в отсортированной очереди');
+  assert.equal(c.phase, 'player');
+  assert.equal(c.round, 1, 'pre-roll не сдвигает раунд');
+  // Игрок убивает волка в фазе игрока — слот мёртвого в (устаревшей)
+  // очереди сохраняется до конца раунда.
+  w.x = c.px; w.y = c.py - 1; // вплотную (белая коробка)
+  c._rng = () => 0.01; // попадание гарантировано
+  w.hp = 1;
+  const r = c.attack(w.id);
+  assert.equal(r.killed, true, 'волк повержен в фазе игрока');
+  tickSlice(S.canvas, S.rafStubs); // render → пересборка токенов
+  const el = findByClass(S.body, 'combat-turnorder');
+  // ЛОВУШКА стаба: textContent='' НЕ очищает children — читаем ХВОСТ
+  // (прецедент 000084).
+  const tail = el.children.slice(-c.turnOrder.length);
+  assert.equal(tail.length, 3, 'токены: паук, волк (мёртв), герой');
+  const [spTok, wTok, heroTok] = tail;
+  assert.ok(wTok.className.includes('turn-token--dead'),
+    'слот мёртвого моба в очереди — серый токен');
+  assert.ok(!wTok.className.includes('turn-token--current'),
+    'мёртвый слот не подсвечен');
+  assert.ok(heroTok.className.includes('turn-token--current'),
+    'герой — current на своём слоте');
+  assert.ok(spTok.className.includes('turn-token--acted'),
+    'паук (действовал в pre-roll) — уже ходил');
+  // Инвариант 000036 (белая коробка, паттерн 000084): действующий моб —
+  // --current на СВОЕЙ позиции, а не на слоте мёртвого.
+  c.phase = 'mob';
+  c.turnIndex = c.turnOrder.indexOf('m0');
+  tickSlice(S.canvas, S.rafStubs);
+  const tail2 = el.children.slice(-c.turnOrder.length);
+  const [spTok2, wTok2, heroTok2] = tail2;
+  assert.ok(spTok2.className.includes('turn-token--current'),
+    'действующий моб — current на своей позиции');
+  assert.equal(c.turnOrder[c.turnIndex], 'm0',
+    'turnOrder[turnIndex] — id действующего (не слот мёртвого)');
+  assert.ok(wTok2.className.includes('turn-token--dead'),
+    'слот мёртвого по-прежнему серый');
+  assert.ok(!wTok2.className.includes('turn-token--current'),
+    'мёртвый слот НЕ подсвечен даже «по индексу»');
+  assert.ok(!heroTok2.className.includes('turn-token--current'),
+    'у героя подсветки нет');
+  // Следующий раунд: мёртвый моб вне очереди. (Восстановить настоящее
+  // состояние — checkTurn гейтует endTurn по phase 'player'.)
+  c.phase = 'player';
+  c.turnIndex = 2;
+  c.endTurn();
+  assert.equal(c.round, 2, 'rollover: round++');
+  assert.equal(c.phase, 'player');
+  assert.deepEqual(c.turnOrder, ['m0', 'player'],
+    'свежая очередь: мёртвый волк исключён (паук 4 > герой 2)');
+  assert.equal(c.turnIndex, 1, 'turnIndex — снова на слоте игрока');
+  tickSlice(S.canvas, S.rafStubs);
+  const tail3 = el.children.slice(-c.turnOrder.length);
+  assert.equal(tail3.length, 2, 'в новом раунде 2 токена: паук, герой');
+  assert.ok(!tail3.some((t) => t.className.includes('turn-token--dead')),
+    'мёртвых токенов в новом раунде нет');
+  assert.ok(tail3[1].className.includes('turn-token--current'),
+    'герой — current');
+});

@@ -14,6 +14,10 @@ const {
   // не load-ошибка; 000132-паттерн).
   pathStepTo, pathStepFrom,
   combatInternals,
+  // 000167: инициатива (красные тесты: экспорт отсутствует — undefined;
+  // падение осмысленное: TypeError «not a function», не load-ошибка —
+  // прецедент 000132).
+  unitInitiative,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
@@ -5130,4 +5134,192 @@ test('A* (000155) R10: guard — pathStepFrom: A*-шаг с тай-брейко�
   assert.equal(pathStepFrom(c, a, target), true, 'ретрит-шаг существует');
   assert.equal(a.x, 0); assert.equal(a.y, 1,
     'A*-шаг (0,1): ↓ раньше → (PATH_DIRS) — не жадная ось-x (1,0)');
+});
+
+// --- Задача 000167: Бой: инициатива (ядро) — КРАСНЫЕ ТЕСТЫ ---
+// Контракт: memory/000167-initiative-core.md (D1–D8, D12, D13;
+// дизайн-контракт 000154). Инициатива = Ловкость + Интеллект:
+// unitInitiative (чистая, экспорт) → buildTurnOrder — стабильная
+// сортировка канонической базы ПО УБЫВАНИЮ (тай-брейк = прежний
+// порядок: игрок → союзники → мобы; внутри — порядок c.units) →
+// endTurn = продвижение очереди (интерлевинг); очередь исчерпана →
+// «новый раунд»: round++, refillPools, тики (щит Эфира, ослабление,
+// яд), рефилл c.efs, свежая отсортированная очередь, phase 'player'.
+// КЛЮЧЕВОЙ эффект — pre-roll: в createCombat юниты с инициативой выше
+// игрока действуют ДО первого действия игрока (раунд не сдвигается).
+// Красные: экспорт unitInitiative отсутствует (TypeError), сортировки
+// очереди и pre-roll нет, у мобов нет u.attrs (шов 1 — makeMob), тик
+// яда — в «новом раунде», а не сразу после укуса. 9 красных + 1 белый
+// гвард (ORDER-2 — тай-брейк D2; текущий фиксированный порядок совпадает
+// с семантикой тай-брейка — зелёный с первого запуска).
+// Значения мобов — таблица D8 (memory/000167 §6): shield 2, melee-база
+// 3, ranged/swarm/leader 4, маги 5, fast 6, wind_elemental 7.
+
+test('000167-INIT-1: unitInitiative: игрок — первичные атрибуты (midGameHero 4+1 = 5; strongHero 1+1 = 2)', () => {
+  const c1 = createCombat({ player: midGameHero(), mobs: ['wolf'], mobLevel: 1, seed: 7 });
+  assert.equal(unitInitiative(c1, c1.player), 5,
+    'midGameHero: dexterity 4 + intelligence 1 = 5');
+  const c2 = createCombat({ player: strongHero(), mobs: ['wolf'], mobLevel: 1, seed: 7 });
+  assert.equal(unitInitiative(c2, c2.player), 2,
+    'strongHero (primary 1×6): 1 + 1 = 2');
+});
+
+test('000167-INIT-2: unitInitiative: мобы каталога (таблица D8: orc_grunt 3, orc_rider 6, orc_shaman 5)', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['orc_grunt', 'orc_rider', 'orc_shaman'],
+    mobLevel: 1, seed: 7,
+  });
+  const [grunt, rider, shaman] = c.units;
+  assert.equal(unitInitiative(c, grunt), 3,
+    'orc_grunt: dex 2 + int 1 = 3 (melee-база D8)');
+  assert.equal(unitInitiative(c, rider), 6,
+    'orc_rider: dex 5 + int 1 = 6 (fast D8)');
+  assert.equal(unitInitiative(c, shaman), 5,
+    'orc_shaman: dex 1 + int 4 = 5 (маги D8)');
+});
+
+test('000167-INIT-3: unitInitiative: наёмник (attrs из данных) и деградация (без attrs = 0)', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['wolf'], mobLevel: 1, seed: 7,
+    allies: [{ name: 'Тест', role: 'melee', level: 1, dmg: 1, hp: 1,
+               attrs: { dexterity: 3, intelligence: 2 } }],
+  });
+  const merc = c.units.find((u) => u.side === 'ally');
+  assert.ok(merc, 'наёмник в бою (makeAlly пробрасывает attrs)');
+  assert.equal(unitInitiative(c, merc), 5, 'attrs: dex 3 + int 2 = 5');
+  const bare = makeAlly({ name: 'Без', role: 'melee', level: 1, dmg: 1, hp: 1 }, 5);
+  assert.equal(unitInitiative(c, bare), 0, 'без attrs — 0 (D1: || 0)');
+});
+
+test('000167-ORDER-1: buildTurnOrder: убывание по инициативе (fast 6 > маги 5 > melee 3 > hero 2)', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['orc_grunt', 'orc_rider', 'orc_shaman'],
+    mobLevel: 1, seed: 7,
+  });
+  // m0 orc_grunt (3), m1 orc_rider (6), m2 orc_shaman (5), strongHero (2).
+  assert.deepEqual(buildTurnOrder(c), ['m1', 'm2', 'm0', 'player'],
+    'убывание инициативы: 6, 5, 3, 2');
+  assert.deepEqual(c.turnOrder, ['m1', 'm2', 'm0', 'player'],
+    'очередь боя — отсортирована');
+  assert.equal(c.turnIndex, 3,
+    'pre-roll: все мобы быстрее героя — player в конце очереди');
+});
+
+test('000167-ORDER-2: buildTurnOrder: равенство инициатив — канонический порядок (игрок → союзники → мобы; внутри — c.units) (БЕЛЫЙ ГВАРД)', () => {
+  // ВСЕ с инициативой 2: strongHero (1+1), наёмник (attrs 1+1),
+  // stone_golem (1+1, shield-группа D8). Стабильная сортировка при
+  // равенстве не двигает никого: порядок канонической базы.
+  // Белый гвард: текущий фиксированный порядок совпадает с тай-брейком —
+  // зелёный с первого запуска; закрепляет D2 после появления сортировки.
+  const c = createCombat({
+    player: strongHero(),
+    mobs: ['stone_golem'], mobLevel: 1, seed: 7,
+    allies: [{ name: 'Тест', role: 'melee', level: 1, dmg: 1, hp: 1,
+               attrs: { dexterity: 1, intelligence: 1 } }],
+  });
+  assert.deepEqual(buildTurnOrder(c), ['player', 'a0', 'm0'],
+    'тай: игрок первым, затем союзник, затем моб (порядок базы)');
+  assert.equal(c.turnOrder[0], 'player',
+    'при равных инициативах — игрок ходит первым');
+  assert.equal(c.turnIndex, 0, 'pre-roll — no-op (никто быстрее игрока)');
+});
+
+test('000167-ORDER-3: buildTurnOrder: dead/fled исключены из ОТСОРТИРОВАННОЙ очереди', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['wolf', 'spider', 'troll'], mobLevel: 3, seed: 3,
+  });
+  c.units[0].alive = false; // wolf (3)
+  c.units[1].fled = true;   // spider (4)
+  assert.deepEqual(buildTurnOrder(c), ['m2', 'player'],
+    'troll (4) > strongHero (2): убывание');
+  c.units[2].alive = false;
+  assert.deepEqual(buildTurnOrder(c), ['player'], 'мобов не осталось');
+});
+
+test('000167-INTER-1: интерлевинг: fast-моб (инициатива 6) действует ДО первого действия игрока (pre-roll в createCombat)', () => {
+  const c = createCombat({ player: strongHero(), mobs: ['orc_rider'], mobLevel: 1, seed: 7 });
+  const rider = c.units[0];
+  assert.equal(c.round, 1, 'pre-roll не сдвигает round');
+  assert.equal(c.phase, 'player');
+  assert.deepEqual(c.turnOrder, ['m0', 'player'],
+    'отсортированная очередь: orc_rider (6) > strongHero (2)');
+  assert.equal(c.turnIndex, 1, 'turnIndex — на СЛОТЕ игрока');
+  assert.equal(c.targetId, 'm0', 'targetId — ближайший моб');
+  // Доказательство действия: наездник (fast: movePerTurn 2) со стартового
+  // (1,0) сдвинулся на 2 клетки к игроку (3,6) → (3,0). В текущем коде
+  // мобы НЕ действуют до первого действия игрока (игрок всегда первым).
+  assert.equal(rider.x, 3, 'rider уже действовал: x 1 → 3 (2 клетки, fast)');
+  assert.equal(rider.y, 0, 'rider уже действовал: y 0');
+  assert.equal(c.log.length, 1, 'действий игрока в стартовом лого НЕТ');
+});
+
+test('000167-ROUND-1: round-rollover: очередь исчерпана → round++, refillPools, рефилл c.efs, тик щита Эфира, свежая отсортированная очередь, turnIndex → игрок', () => {
+  const E = loadEfir000081();
+  const state = E.createEfir();
+  const p = strongHero();
+  const c = createCombat({
+    player: p, allies: [E.efirAllyData(state)], mobs: [], seed: 5,
+  });
+  E.buildEfirUnit(state, c); // боевой профиль (c.efs) — ПОСЛЕ createCombat
+  const d = derived(p);
+  // Снимок состояния: Эфир (dex 1 + int 3 = 4) > strongHero (2):
+  assert.equal(c.round, 1);
+  assert.equal(c.phase, 'player');
+  assert.deepEqual(c.turnOrder, ['efir', 'player'],
+    'отсортированная очередь: Эфир (4) > strongHero (2)');
+  assert.equal(c.turnIndex, 1, 'turnIndex — на слоте игрока');
+  // Исчерпание пулов (белая коробка) — восстановление в «новом раунде».
+  c.ps.moveLeft = 0; c.ps.attack = 0;
+  c.efs.spellInt = 0; c.efs.spellWis = 0; c.efs.touch = 0; c.efs.move = 0;
+  c.efirShield = { armor: 5, turns: 2 }; // тик — блок «начало раунда»
+  // Ход игрока (без действий) → endTurn: очередь исчерпана → НОВЫЙ РАУНД
+  // → pre-roll (Эфир; без мобов — без действий) → снова слот игрока.
+  c.endTurn();
+  assert.equal(c.round, 2, 'rollover: round++');
+  assert.equal(c.phase, 'player');
+  assert.equal(c.result, null);
+  assert.deepEqual(c.turnOrder, ['efir', 'player'],
+    'свежая ОТСОРТИРОВАННАЯ очередь');
+  assert.equal(c.turnIndex, 1, 'turnIndex — снова на слоте игрока');
+  // refillPools (игрок):
+  assert.equal(c.ps.moveLeft, d.moveCells, 'moveLeft — рефилл');
+  assert.equal(c.ps.attack, d.attackActions, 'attack — рефилл');
+  // Рефилл c.efs (профиль L1: 1/1/1/3):
+  assert.equal(c.efs.spellInt, 1, 'efs.spellInt — рефилл');
+  assert.equal(c.efs.spellWis, 1, 'efs.spellWis — рефилл');
+  assert.equal(c.efs.touch, 1, 'efs.touch — рефилл');
+  assert.equal(c.efs.move, 3, 'efs.move — рефилл');
+  // Тик щита Эфира — ровно 1 за раунд (2 → 1):
+  assert.equal(c.efirShield.turns, 1, 'щит Эфира: тик ровно 1 раз за раунд');
+});
+
+test('000167-ROUND-2: тики на старте раунда: яд убил на старте раунда → outcome "dead", phase "over", свежая отсортированная очередь', () => {
+  // Паук (4) > createCharacter (2): interleaving — укус в раунде 2
+  // (pre-roll раунда 2), ТИК яда добивает в начале раунда 3 (в СЛЕДУЮЩЕМ
+  // endTurn, а не в том же — как до 000167).
+  const p = createCharacter();
+  p.hp = 3; // 3 − 1 (укус) = 2, затем тик яда (−2) → смерть
+  const c = createCombat({ player: p, mobs: ['spider'], mobLevel: 3, seed: 41 });
+  const s = c.units[0];
+  standNextTo(c, s); // игрок вплотную к пауку (после pre-roll)
+  s.damage = 1;
+  c._rng = () => 0.05; // попадания (0.05 < hitChance) и шанс яда (0.05 < 0.3)
+  // Раунд 2: паук бьёт ПЕРВЫМ в раунде: укус 3→2 + «Вы отравлены!».
+  c.endTurn();
+  assert.equal(c.result, null, 'ещё жив: тик яда — в следующем раунде');
+  assert.equal(p.hp, 2, 'укус: 3 → 2');
+  assert.equal(c.ps.poison, 2, 'яд нанесён (POISON_TURNS = 2)');
+  assert.deepEqual(c.turnOrder, ['m0', 'player'],
+    'отсортированная очередь: паук (4) > hero (2)');
+  assert.equal(c.turnIndex, 1, 'turnIndex — на слоте игрока');
+  // Раунд 3: тик на старте раунда добивает: 2 − 2 = 0.
+  c.endTurn();
+  assert.ok(c.result, 'бой завершён');
+  assert.equal(c.result.outcome, 'dead', 'смерть от тика яда');
+  assert.equal(c.phase, 'over');
+  assert.ok(c.log.includes('Яд: −2 HP.'), 'строка тика яда');
+  assert.deepEqual(c.turnOrder, ['m0', 'player'],
+    'очередь — пересчитанная к фатальному раунду (паук жив)');
+  assert.equal(c.turnIndex, 0,
+    'тик — ПОСЛЕ пересчёта очереди (turnIndex = 0) — замирает на первом слоте');
 });
