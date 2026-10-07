@@ -1751,7 +1751,7 @@ test('000130 RED: Game.uiTabs — реестр: register/get/list', () => {
     'get(отсутствующий id) → null');
 });
 
-test('000130 RED: зарегистрированы ВСЕ 7 вкладок (id/label/column/порядок = текущие столбцы; 000116: +efir — 4-я в левом)', () => {
+test('000130 RED: зарегистрированы ВСЕ 6 вкладок (id/label/column/порядок = текущие столбцы; 000146: вкладка «Эфир» 000116 УБРАНА — секции на «Персонаже» (kind \'efir\'), 000145)', () => {
   const env = loadTabsUi();
   assert.equal(env.errors.length, 0,
     'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
@@ -1761,31 +1761,31 @@ test('000130 RED: зарегистрированы ВСЕ 7 вкладок (id/l
   const list = reg.list();
   assert.ok(Array.isArray(list), 'uiTabs.list() — массив записей');
   // Текущие столбцы 1:1 (побайтовые подписи — фиксаторы этого же
-  // файла). Левый: Персонаж/Инвентарь/Игровые настройки/Эфир
-  // (000116: Эфир — ПОСЛЕДНЯЯ (4-я)); правый: Снаряжение/Магазин/
+  // файла). Левый: Персонаж/Инвентарь/Игровые настройки (000146:
+  // вкладка «Эфир» 000116 УБРАНА — её секции живут на «Персонаже»
+  // как вид kind 'efir', 000145); правый: Снаряжение/Магазин/
   // Квесты. Порядок записей внутри столбца = порядок регистрации =
   // порядок script-тегов (пин index-order).
   const left = list.filter((t) => t.column === 0);
   const right = list.filter((t) => t.column === 1);
-  assert.equal(list.length, 7,
-    'реестр — ровно 7 записей: ' + list.map((t) => t.id).join(','));
-  assert.equal(left.length, 4, 'левый столбец — 4 записи');
+  assert.equal(list.length, 6,
+    'реестр — ровно 6 записей: ' + list.map((t) => t.id).join(','));
+  assert.equal(left.length, 3, 'левый столбец — 3 записи');
   assert.equal(right.length, 3, 'правый столбец — 3 записи');
   const expectLeft = [
     ['character', 'Персонаж'],
     ['inventory', 'Инвентарь'],
     ['settings', 'Игровые настройки'],
-    ['efir', 'Эфир'],
   ];
   const expectRight = [
     ['equipment', 'Снаряжение'],
     ['shop', 'Магазин'],
     ['quests', 'Квесты'],
   ];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 3; i++) {
     assert.equal(left[i].id, expectLeft[i][0], 'левый ' + i + ': id');
     assert.equal(left[i].label, expectLeft[i][1],
-      'левый ' + i + ': label (побайтово, 000096/000116)');
+      'левый ' + i + ': label (побайтово, 000096)');
     assert.equal(typeof left[i].build, 'function',
       left[i].id + ': build(pane, ctx) — функция');
   }
@@ -1796,6 +1796,10 @@ test('000130 RED: зарегистрированы ВСЕ 7 вкладок (id/l
     assert.equal(typeof right[i].build, 'function',
       right[i].id + ': build(pane, ctx) — функция');
   }
+  assert.equal(reg.get('efir'), null,
+    'id «efir» в реестре НЕТ (000146: вкладка «Эфир» убрана — файл ' +
+    'src/ui-tab-efir.js удалён; секции — на «Персонаже» (kind ' +
+    '\'efir\'), 000145; сейчас: запись ещё зарегистрирована)');
 });
 
 test('000130 RED: панель строится ИЗ реестра — DOM-вкладки = записи; рендер тот же', () => {
@@ -1897,7 +1901,9 @@ test('000130 RED: node — require() каждого src/ui-tabs.js/ui-tab-*.js �
     'ui-tab-inventory.js',
     'ui-tab-settings.js',
     'ui-tab-shop.js',
-    'ui-tab-efir.js',
+    // 000146: 'ui-tab-efir.js' УБРАН — файл удалён (вкладка «Эфир»
+    // убрана, секции — на «Персонаже» (kind 'efir'), 000145);
+    // require() удалённого файла упал бы с ENOENT.
   ];
   for (const f of files) {
     const m = require(path.join(ROOT, 'src', f));
