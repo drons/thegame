@@ -6132,3 +6132,65 @@ test('000164-UNKILL-1 (GUARD, зелёный с RED): «Несокрушимос
   assert.ok(!c.log.includes('Эфир возвращается…'), 'auto-возрождения нет');
   assert.ok(!c.log.includes('Возвращён в бой.'), 'каста нет');
 });
+
+test('000164-PRE-1 (GUARD, зелёный): pre-roll-смерть в createCombat (ДО buildEfirUnit) — ВСЕГДА partyLost: c.efs нет → гейт ложится на пуле (R-6, §2.5)', () => {
+  // Контракт R-6/§2.5 (закрытие висящей ссылки «пин W11» по итогам
+  // ревью): c.efs/c.efir существуют ТОЛЬКО после buildEfirUnit
+  // (combat-ui вызывает ПОСЛЕ createCombat) → pre-roll-смерть
+  // (моб с init выше игрока убил синхронно в createCombat) —
+  // структурно ВСЕГДА partyLost, даже при «готовом к спасению»
+  // Эфире (книга ['resurrect'] + reset-mp 21 ≥ 15): гейт шага 4
+  // (e && s && c.efs && …) ложен НА ПУЛЕ. Кода-дефекта нет (краша
+  // нет, auto-возрождение шага 3 harmless — бой окончен, §2.5);
+  // пин фиксирует принятую деградацию, чтобы «починка» (c.efs в
+  // createCombat) была осознанным решением, а не «исправлением».
+  // Геометрия (height 3: игрок (3,2)): скелет-лучник m1 (3,0) —
+  // d 2 ≤ 4 (RANGED_MAX_DIST) — бьёт в pre-roll (init 4 > 2 у
+  // игрока); orc_warrior m0 (1,0) init 2 = игрок — ТАЙ-брейк базы
+  // (игрок первым) — в pre-roll НЕ действует. Эфир (2,1) → шаг
+  // к m0 (тихий, allyStepToward x-first) → m1: тай-брейк
+  // nearestPlayerSide (игрок при равенстве, строгий <): игрок d 2 =
+  // Вольк (4,1) d 2 → цель ИГРОК. rng 0.01 — hit-ролл m1 попадает.
+  const p = createCharacter();
+  p.hp = 1; // единственный удар m1 добивает (броня 0, без экип.)
+  const state = E164.createEfir();
+  const efirData = E164.efirAllyData(state);
+  // «Готовый к спасению» Эфир — мутация ДАННЫХ ДО createCombat
+  // (pre-roll внутри createCombat; post-hoc мутации не успевают):
+  efirData.spells = ['resurrect'];
+  efirData.attrs = Object.assign({}, efirData.attrs, {
+    intelligence: 8, wisdom: 8 }); // reset-mp = 21 ≥ 15
+  const c = createCombat({
+    player: p,
+    allies: [efirData, ALLY_VOLK],
+    mobs: ['orc_warrior', 'skeleton_archer'], mobLevel: 2, seed: 9,
+    height: 3,
+    rng: () => 0.01, // hit-ролл m1 (0.01 < hitChance); препятствия —
+    // фиксированный (0,0) (единый кандидат floor(0.01·w/h)) — пины
+    // ниже на него не смотрят
+  });
+  // buildEfirUnit НЕ вызван (в игре — combat-ui ПОСЛЕ createCombat):
+  assert.equal(c.efs, undefined, 'до buildEfirUnit пула c.efs НЕТ — причина');
+  // Окно отработало ВНУТРИ createCombat (pre-roll), неспасение:
+  assert.ok(c.result, 'бой окончен в createCombat (pre-roll-смерть)');
+  assert.equal(c.result.outcome, 'dead');
+  assert.equal(c.result.partyLost, true,
+    'ВСЕГДА partyLost: гейт на c.efs (R-6) — спасения нет даже при ' +
+    'книге [' + JSON.stringify(efirData.spells) + '] и мане 21 ≥ 15');
+  assert.equal(c.phase, 'over');
+  assert.equal(p.alive, false);
+  // Каскад (шаг 2) и auto-возрождение (шаг 3) — сработали (юниты в
+  // c.units — поиск R-2 по полю, не c.efir):
+  const efir = c.units.find((u) => u.id === 'efir');
+  const volk = c.units.find((u) => u.id === 'a1');
+  assert.equal(volk.alive, false, 'Вольк — каскад (считается погибшим)');
+  assert.equal(volk.hp, 0);
+  assert.equal(efir.alive, true, 'Эфир — auto-возрождён (дух), НЕ мёртв');
+  assert.equal(efir.hp, efir.maxHP, 'reset полный: hp = maxHP');
+  assert.equal(efir.mp, 21, 'reset-mp = 5 + 8 + 8 (R-3) — каста не было');
+  // Лог: смерть + дух, БЕЗ каста (пула нет — «Возвращён в бой.» нет):
+  assert.ok(c.log.includes('Вы погибли...'), 'смертная строка в окне');
+  assert.ok(c.log.includes('Эфир возвращается…'), 'auto-возрождение (дух)');
+  assert.ok(!c.log.includes('Эфир: «Воскрешение».'), 'атрибуции каста нет');
+  assert.ok(!c.log.includes('Возвращён в бой.'), 'каста нет — пула нет');
+});

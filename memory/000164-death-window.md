@@ -1,14 +1,26 @@
 # 000164 — Гибель Флогистона: «окно смерти», каскад, auto-возрождение Эфира, спасение «Воскрешением»
 
-**СТАТУС: ПРОЕКТИРОВАНИЕ завершено (2026-10-07); Реализация/Ревью/Финализация
-впереди.** Контракт для станций Реализация/Ревью/Мерж. Worktree:
-`.worktrees/task-000164`, ветка `task/000164`, база = master `ec08e19`
-(000167 «инициатива» СМЕРЖЕН: тик яда — в startRound; endPlayerTurn →
-endTurn; pre-roll в createCombat; D6-гварды). Тест-базовая: **1851 pass /
-0 fail** (мерена ВНУТРИ worktree, `npm test`, 2026-10-07; первый
-фоновый прогон базовой показал 1 флейк (vm-e2e, детали утеряны
-обрезкой вывода) — контрольный прогон с полным выводом 1851/0, exit 0;
-флейк записать в отчёт, паттерн 000161 §5.8).
+**СТАТУС: РЕАЛИЗАЦИЯ + РЕВЬЮ + ПРАВКИ ПО ИТОГАМ РЕВЬЮ + ФИНАЛИЗАЦИЯ
+завершены (2026-10-07); задача перенесена в done; ЧТО ОСТАЛОСЬ —
+стадия мержа (см. §6 шаг 7): .merge-pending 164, REBASE на актуальный
+master ОБЯЗАТЕЛЕН (000168 могла смержиться — регион того же
+combat.js; в master уже смержены 000162/165/166/147 — их регионы
+дисъюнктивны), тестовый EOF-конфликт tests/combat.test.js —
+сохранить ОБА блока (наш 000164: CASC…RESCUE…RNG-1/UNKILL-1/
+PRE-1 + 000165 C1-C6 из master; порядок не важен), CHANGELOG —
+возможный conflict (master дописал секцию 2026-10-07 — пункт
+000164 + их пункты), полный npm test в worktree ДО мержа.**
+Контракт для станции Мерж. Worktree: `.worktrees/task-000164`,
+ветка `task/000164`, база = master `ec08e19` (000167 «инициатива»
+СМЕРЖЕН: тик яда — в startRound; endPlayerTurn → endTurn; pre-roll в
+createCombat; D6-гварды). Тест-базовая: **1851 pass / 0 fail**
+(мерена ВНУТРИ worktree, `npm test`, 2026-10-07; первый фоновый
+прогон базовой показал 1 флейк (vm-e2e, детали утеряны обрезкой
+вывода) — контрольный прогон с полным выводом 1851/0, exit 0; флейк
+записать в отчёт, паттерн 000161 §5.8). Финальный набор ветки
+(после правок по итогам ревью, + PRE-1): **1861 pass / 0 fail**
+(1860 ветка + 1 guard; цифры — tasks/result/000164.md; master
+12c8d57 отдельно — 1895/0, зелёный).
 
 ТЗ (source of truth): `tasks/pending/000164.md` (родитель 000156).
 Контракты: `memory/000156-resurrection-design.md` §3.D4 (ЯДРО)/§5/§9.1-3;
@@ -30,7 +42,7 @@ a1↔a2 разрешены в пользу §3 ниже).
 |---|---|
 | src/combat.js | НОВЫЙ внутренний `onPlayerDeath(c)` (вставка ПОСЛЕ `dealDamageToPlayer` L911, ПЕРЕД `dealDamageToAlly` L918 — рядом с точками; function declarations — хоisting, порядок безопасен); ЗАМЕНА двух блоков `!alive` (dealDamageToPlayer-хвост L896-909 → Несокрушимость-ветка + `onPlayerDeath(c)`; яд-блок startRound L2080-2085 → `onPlayerDeath(c); if (c.result) return;`); ИЗМЕНЕНИЕ контракта возврата `dealDamageToPlayer`: число → `{ dmg, deathWindow }` (единственный вызов — mobAttack L1508, проверено grep; в combatInternals НЕ экспортирован) + строка обработки в `mobAttack` (D4 §3.2) |
 | src/main.js | `combatEndCompanions` (L425-469): ВЕТКА `res.partyLost` (roster-цикл) — if/else-if НАД существующим !alive-циклом (тот — БИТ-В-БИТ); 3 onEnd (L1453/L1855/L2150) — БЕЗ ИЗМЕНЕНИЙ (подъём 000008 + вызов хелпера уже на месте) |
-| tests/combat.test.js | 3 осознанных семантических репина (DP-1 L464-477, DP-2 L1613-1634, DP-3 L1636-1657: + partyLost-ассерты, обоснование в коммент-блоке) + 8 новых node-тестов (CASC-1, EFIR-1, RESCUE-1, RESCUE-2, RESCUE-3, RNG-1, UNKILL-1-guard) — в хвост файла (паттерн 000167-ROUND-2) |
+| tests/combat.test.js | 3 осознанных семантических репина (DP-1 L464-477, DP-2 L1613-1634, DP-3 L1636-1657: + partyLost-ассерты, обоснование в коммент-блоке) + 8 новых node-тестов (CASC-1, EFIR-1, RESCUE-1, RESCUE-2, RESCUE-3, RNG-1, UNKILL-1-guard) — в хвост файла (паттерн 000167-ROUND-2); +1 guard PRE-1 (правки по итогам ревью, пин R-6/§2.5) |
 | tests/companions-cycle.test.js | 1 новый vm-тест PC-1 (partyLost e2e, паттерн V5) |
 | tests/save.test.js | 1 новый vm-тест SV-1 (partyLost — поле result, не сейва; паттерн 000118-теста: bootWithSave + actions.startCombat + handleCode/beforeunload) |
 | CHANGELOG.md | 1 упоминание (игровой процесс) в СУЩЕСТВУЮЩИЙ раздел «## 2026-10-07 → ### Игровой процесс» (дата = сегодня = день мержа; формат — по записям; программная часть не перечисляется); ОТДЕЛЬНЫЙ коммит |
@@ -212,7 +224,9 @@ if (u.traits.lifesteal) { u.hp = Math.min(u.maxHP, u.hp + hit.dmg); … }
   шага 3 СРАБАТЫВАЕТ (юнит есть в c.units) → на момент
   buildEfirUnit у Эфира u.alive === true → профиль строится (hp/mp
   полные, c.efs) — НЕВИДИМО (бой окончен, onEnd читает hero/roster,
-  не профиль) — проверено, без последствий (зафиксировано).
+  не профиль) — проверено, без последствий. Pre-roll-путь
+  (partyLost + каскад + auto-возрождение + без каста) — пин
+  000164-PRE-1 (правки по итогам ревью).
 
 ### 2.6 partyLost — кто читает
 
@@ -332,7 +346,9 @@ if (res && res.outcome === 'dead' && res.partyLost) {
 * **R-6. Pre-roll-смерть = ВСЕГДА partyLost** (нет c.efs до
   buildEfirUnit). Почему: структурное следствие ТЗ-гейта
   («пул c.efs.spellWis»); принять деградацию (ТЗ написано до
-  000167); пин W11.
+  000167). Пин 000164-PRE-1 (tests/combat.test.js, GUARD-зелёный,
+  добавлен правками по итогам ревью: закрывает висячую ссылку
+  «W11» — W-серия в tests/building-actions.test.js чужая, по 000083).
 * **R-7. Откат каскада — прямая мутация ВСЕХ merc-юнитов, без
   логов.** Почему: ТЗ — «все merc-юниты alive = true, hp =
   round(maxHP/2)» (буквально, включая умерших раньше — пин
@@ -403,7 +419,9 @@ expectedRedCount = **11** (упадут в RED-коммите); UNKILL-1 — gua
 зелёный с RED-коммита, не считается. Все фикстуры — существующие
 паттерны combat.test.js (dealDamageToPlayer/яд/Эфир из 000167-
 серии); новых require/модулей НЕТ. Именование — префикс 000164-
-(паттерн 000167-ROUND-2).
+(паттерн 000167-ROUND-2). PRE-1 — guard, зелёный (добавлен правками
+по итогам ревью: пин R-6/§2.5, закрывает висячую ссылку «W11»);
+в expectedRedCount не входит, в RED-коммите отсутствовал.
 
 **ERRATA-164 (красная станция, 2026-10-07):** §2.1 порядок
 (3. reset `e.mp = 5+int+wis` → 4. гейт `e.mp >= mana`) — ИСТИНА;
@@ -438,8 +456,9 @@ Ashka (4,5) d 1 → «отступает» (тихо); роллы = ТОЛЬКО
 | RESCUE-1 | 2 скелета (init 3, БЕЗ трейтов), m0 (4,6) d=30, m1 (3,7) d=3 (мутации); Эфир L1: buildEfirUnit ПОСЛЕ createCombat, затем мутации: u.spells = ['resurrect'], **u.attrs {intelligence: 8, wisdom: 8}** (ERRATA-164: reset-mp = 21 ≥ 15); a1 «погибший до окна» (a1.alive=false, a1.hp=0 — мутация ПОСЛЕ createCombat); 1× `c.endTurn()` → tail (a0 шаг, a1 серый) → round 2: Эфир-ноуп → m0 убивает → окно: reset (mp 21) → гейт (21 ≥ 15, spellWis 1, ['resurrect']) → каст → откат → m1 ДЕЙСТВУЕТ в том же раунде. Ассерты: c.efs.spellWis 0, efir.mp 6 (21−15), p.alive, p.hp = round(derived(p).maxHP/2) − 3 = 10 (13 − m1-удар: m1-удар = доказательство «оставшиеся мобы раунда действуют»), a0 alive hp = round(13/2) = 7, a1 alive hp = round(11/2) = 6 («не успели» — погиб до окна), c.result NULL, phase 'player', turnIndex 3, c.round 2, turnOrder 5 записей ['efir','m0','m1','player','a0'] (a1 вне — мёртв на старт round 2; НЕ пересчитан ПОСЛЕ окна: добор со следующего buildTurnOrder, §2.4), лог-порядок §2.1 (indexOf-цепочка + ровно один «Возвращён в бой.») | rescue-ветки нет: result {outcome:'dead'} сразу, m1 не действует (p.hp 0), каскад/откат/расхода нет |
 | RESCUE-2 | неспасение: Эфир L1 ЕСТЕСТВЕННАЯ книга [spark, mend] (без мутаций; 'воскрешение' null); 1 скелет d=50; round 2: Эфир кастует spark (spellInt 1→0, mp 11→8, m0 6→1) → m0 убивает → окно: reset (mp 8 → **11** — полный, не 8), каста нет. Ассерты: outcome 'dead' + partyLost, мерсы мёртвы, Эфир alive hp 16 mp 11, c.efs.spellWis 1 (нетронут — spark жертовал spellInt), m0.hp === 1 (spark ДОСТУПИЛ — естественная книга жива), лог БЕЗ «Возвращён в бой.», С «Эфир возвращается…» | partyLost/каскада нет |
 | RESCUE-3 | гейт — ЧАСТИЧНОГО расхода нет (ERRATA-164): (a) mp-гейт: Эфир L1 ['resurrect'], spellWis 1, attrs дефолт → reset-mp 11 < 15 → без каста: efir.mp === 11 (reset-значение; НЕ 11−15), spellWis 1 нетронут; (b) pool-гейт: attrs {intelligence: 20, wisdom: −10} → reset-mp 15 (проходит), refill spellWis 0 (падает) → без каста: efir.mp === 15 (НЕ 0), spellWis 0. Оба: partyLost, каскад полный, «Эфир возвращается…» есть, «Возвращён в бой.» НЕТ | гейта нет: расхода/ветки нет (partyLost — undefined) |
-| RNG-1 | ноль новых c._rng: counting-wrapper (паттерн L1401-1403), сценарий RESCUE-1 но на 2 `c.endTurn()` (m0 d=12 → ПЕРЕМЕНА m0.d=30 → 2-й endTurn; убийство в round 3) → счётчик === ТОЧНО 4 (round 2: m0, m1; round 3: m0, m1 — только hit-роллы мобов; tail-альянсы 0 (шаг/отступление тихие), Эфир-ноуп 0 (книга ['resurrect']), окно/каскад/reset/каст — 0; скелеты без трейтов → трейт-роллов 0) + deepEqual снимка 2 независимых прогонa {result, round, phase, turnIndex, p.{alive,hp}, efir.mp, efs, turnOrder, units[{id,x,y,hp,alive}], log} (детерминизм D4). Итог: round 3, phase 'player', turnIndex 3, turnOrder 6 записей (round-3-ребилд: a1 воскрес → в очереди), p.hp 11 (13−2) | сейчас бой кончается В МОМЕНТ смерти: m1 round-3 не действует → счёт 3 + снимок иной (result {dead} без partyLost, p.alive false, turnOrder 5) |
+| RNG-1 | ноль новых c._rng: counting-wrapper (паттерн L1401-1403), сценарий RESCUE-1 но на 2 `c.endTurn()` (m0 d=12 → ПЕРЕМЕНА m0.d=30 → 2-й endTurn; убийство в round 3) → счётчик === ТОЧНО 4 (round 2: m0, m1; round 3: m0, m1 — только hit-роллы мобов; tail-альянсы 0 (шаг/отступление тихие), Эфир-ноуп 0 (книга ['resurrect']), окно/каскад/reset/каст — 0; скелеты без трейтов → трейт-роллов 0) + deepEqual снимка 2 независимых прогонa {result, round, phase, turnIndex, p.{alive,hp}, efir.mp, efs, turnOrder, units[{id,x,y,hp,alive}], log} (детерминизм D4). Итог: round 3, phase 'player', turnIndex 3, turnOrder 5 записей ['efir','m0','m1','player','a0'] (a1 мёртв на старте round 3 — вне buildTurnOrder; добор — round 4; ERRATA-164: строка «6 записей» в старых заметках неверна), p.hp 11 (13−2) | сейчас бой кончается В МОМЕНТ смерти: m1 round-3 не действует → счёт 3 + снимок иной (result {dead} без partyLost, p.alive false, turnOrder 5) |
 | UNKILL-1 (GUARD, зелёный с RED) | Несокрушимость + СОЮЗНИКИ: p.secondary {unkill: 50} (survivalChance 0.5, ДО createCombat), p.hp = 1, 1 скелет (4,6) d=25, `_rng 0.01`, мерсы + «готовый к спасению» Эфир (['resurrect'], attrs 8/8, **mp 18** — < 20: Вдох НЕ срабатывает при frac 0.04 ≤ 0.4) → round 2: hit 1−25 → Несокрушимость (0.01 < 0.5 → hp 1) → окно НЕ ОТКРЫВАЕТСЯ. Ассерты: p.alive, hp 1, result NULL, phase 'player', мерсы ЖИВЫ полные (каскада нет), efir.mp 18 (reset/спасения не было), лог БЕЗ «Вы погибли...»/«Эфир возвращается…»/«Возвращён в бой.»; 1 МОБ (Несокрушимость 1/день — 2-й удар добил бы) | НЕ красный: защита от ошибочного размещения хендлера РАНЬШЕ survivalChance (ТЗ п.1); зелёный и в RED, и в GREEN |
+| PRE-1 (GUARD, зелёный; правки по итогам ревью) | Pre-roll-смерть в createCombat (ДО buildEfirUnit): height 3 (игрок (3,2)), мобы [orc_warrior (1,0) init 2, skeleton_archer (3,0) init 4, d 2 ≤ 4], p.hp = 1, rng 0.01; allies [Эфир (данные мутации ДО createCombat: ['resurrect'], attrs 8/8 → reset-mp 21 ≥ 15), Вольк] → pre-roll: Эфир-шаг (тихий) → лучник (тай-брейк nearestPlayerSide — игрок при d 2 = Вольк d 2) убивает ИГРОКА в createCombat. Ассерты: c.efs undefined, c.result {outcome 'dead', partyLost: true} ВНУТРИ createCombat, phase 'over', p.alive false, Вольк каскад (hp 0), Эфир alive hp=maxHP mp 21, лог С «Вы погибли...»/«Эфир возвращается…», БЕЗ «Возвращён в бой.» (R-6/§2.5: гейт на c.efs — ВСЕГДА partyLost; заменяет висячую «W11») | НЕ красный: пин принятой структурной деградации (краша нет); «починка» (c.efs в createCombat) — осмысленное падение |
 
 FIXTURE-ПРАВИЛА (решение по риску a3 #2 «mend-интерференция»):
 * В rescue/не-спасение-фикстурах книга Эфира = ровно ['resurrect']
@@ -507,10 +526,10 @@ regression-пин без правок** (victory + мерс мёртв → то�
 4. **maxMP Эфира** — пере-деривация из attrs (R-3): пин в EFIR-1
    через фактические значения (L1: 11); НЕ читать u.maxMP (поля
    нет); НЕ править efir.js.
-5. **pre-roll-смерть** (R-6): c.efs нет → partyLost всегда;
-   buildEfirUnit после — harmless (профиль строится у живого
-   после auto-reset — невидимо, §2.5). Не «чинить» — деградация по
-   ТЗ-гейту.
+5. **pre-roll-смерть** (R-6): c.efs нет → partyLost всегда (пин
+   000164-PRE-1); buildEfirUnit после — harmless (профиль строится
+   у живого после auto-reset — невидимо, §2.5). Не «чинить» —
+   деградация по ТЗ-гейту.
 6. **РNG-поток** (RNG-1): счётчик === 4 в RESCUE-1 (2+2 hit-ролла;
    окно 0; скелеты без трейтов). Если реализация добавит роулл —
    падение осмысленное. Несокрушимость-ролл — единственный ДО окна
