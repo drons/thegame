@@ -4,11 +4,19 @@
 // Управление в бою — единая таблица src/combat-keys.js (задача 000048;
 // aria-label кнопок и keydown строятся из неё же, хардкода нет):
 //   стрелки / WASD / ЦФЫВ — шаг (те же e.code, что в мире — controls.js),
-//   J — удар (K — дубль),  Q — огненная стрела,  R — исцеление,
+//   J — удар (K — дубль),  Q/R — книга заклинаний,
 //   B — блок,  E — быстрый предмет,  T — предмет (U — дубль),
 //   F — побег,  Space — конец хода,
 //   клик по мобо — выбор цели,
 //   Esc / Space / Enter — закрыть оверлей (только после боя).
+// «Книга заклинаний» (задача 000149): пара кнопок «Огонь»/«Исцел.»
+// объединена в одну — .combat-spellbook (между .combat-actions и
+// .combat-log): строки 1:1 с книгой активного персонажа (пока —
+// герой, c.player; «активная единица» — 000167), каст —
+// G.Spells.castSpell (движок 000045), предпросмотр строки —
+// G.Spells.canCastSpell (причина — title + класс -off), строка —
+// div, не <button> (R9). Иконки строк — assets/spell-icons/<id>.svg
+// (поле icon в JSON каталога assets/spells; prompt — icon_prompt).
 // Союзники (задача 000084): на мини-карте — спрайт (Эфир —
 // efirFrames 000034, наёмник — MOB_FRAMES orc), полоса HP
 // (hpBarColor, паттерн 000038), маркер «свой», индикатор хода;
@@ -85,6 +93,11 @@
   let overlay = null, canvas = null, g2 = null;
   let stateEl = null, logEl = null, bannerEl = null, turnorderEl = null;
   let hpbarEl = null, hpbarFillEl = null, hpbarTextEl = null;
+  // «Книга заклинаний» (задача 000149): контейнер .combat-spellbook
+  // и флаг открытости (toggle — кнопка/KeyQ/KeyR; строки — renderBook).
+  let bookBox = null;
+  let bookOpen = false;
+  let spellBookWarned = false; // деградация без G.SpellBook — 1 console.error
   let ended = false;
   let rafId = null; // id rAF-цикла анимации (задача 000047); null — нет rAF
   // 000151: масштаб осей бэкинга (build()/onResize() перезаписывают на
@@ -234,6 +247,16 @@
     }
     side.appendChild(actions);
 
+    // «Книга заклинаний» (задача 000149): контейнер строк — МЕЖДУ
+    // .combat-actions и .combat-log (контракт R11). Строки (div, не
+    // <button> — R9) строит renderBook в render(); скрыта по
+    // умолчанию, открытие — toggleBook (кнопка/KeyQ/KeyR).
+    bookBox = document.createElement('div');
+    bookBox.className = 'combat-spellbook';
+    bookBox.style.display = 'none';
+    bookOpen = false;
+    side.appendChild(bookBox);
+
     logEl = document.createElement('div');
     logEl.className = 'combat-log';
     side.appendChild(logEl);
@@ -358,10 +381,20 @@
     // заклинания + блок + предмет + побег + endTurn), пользуясь лишь
     // результатом нужного — бой мог завершиться побегом от одного
     // нажатия. Фикс: thunk'и — вызываются только нужные.
+    // 000149: fire/heal из таблицы убраны — их заменило действие
+    // 'spellbook' (toggle книги; каст — клик по строке, castRow).
     const run = {
       attack: () => c.attack(c.targetId),
-      fire: () => c.spell('fire', c.targetId),
-      heal: () => c.spell('heal'),
+      spellbook: () => {
+        // «Книга заклинаний» — действие UI, не ядра: предпроверка —
+        // canDoAction (книга не пуста; по клавише она уже пройдена в
+        // handleCode, здесь она нужна для клика по кнопке). Отказ —
+        // причину logRejection запишет в c.log ниже; книга не
+        // открывается.
+        const r = G.canDoAction(c, 'spellbook', { targetId: c.targetId });
+        if (r.ok) toggleBook();
+        return r;
+      },
       block: () => c.block(),
       quickItem: () => c.quickItem(),
       invItem: () => c.invItem(),
@@ -383,16 +416,15 @@
     logRejection(c, r);
     // Анимация героя (задача 000047): UI-состояние ТОЛЬКО в UI-слое —
     // поле c._fx (ядро combat.js его не читает; там есть только c._rng).
-    // Пишется после УСПЕШНОГО действия (r.ok): атака — 'attack',
-    // заклинание (fire/heal) — 'cast', на ~300 мс. Невыполненное
-    // действие (ok:false — отклонено ядром) анимации не даёт.
-    // Промасх (ok:true, hit:false) — действие потрачено, анимация
-    // уместна (удар есть, цель не задета).
+    // Пишется после УСПЕШНОГО действия (r.ok): атака — 'attack', на
+    // ~300 мс. Невыполненное действие (ok:false — отклонено ядром)
+    // анимации не даёт. Промасх (ok:true, hit:false) — действие
+    // потрачено, анимация уместна (удар есть, цель не задета).
+    // 000149: 'cast'-анимация — в castRow (успешный каст из строки
+    // книги); ветка fire/heal удалена (действий больше нет).
     if (r && r.ok) {
       if (action === 'attack') {
         c._fx = { action: 'attack', until: nowMs() + FX_MS };
-      } else if (action === 'fire' || action === 'heal') {
-        c._fx = { action: 'cast', until: nowMs() + FX_MS };
       }
     }
   }
@@ -1052,6 +1084,8 @@
 
     // Кнопки: неактивны вне очереди игрока или когда действие невозможно
     // (canDoAction, задача 000037); причина — в title (tooltip).
+    // Кнопка «Книга заклинаний» (act=spellbook) — в том же цикле:
+    // disabled/title из ветки canDoAction 'spellbook' (000149).
     if (overlay) {
       overlay.querySelectorAll('.combat-actions button').forEach((b) => {
         const r = G.canDoAction(c, b.dataset.act, { targetId: c.targetId });
@@ -1059,6 +1093,11 @@
         b.title = r.ok ? '' : r.reason;
       });
     }
+
+    // «Книга заклинаний» (задача 000149): display из bookOpen; при
+    // открытии — строки 1:1 с книгой (перестроение на каждый render,
+    // как stateEl/logEl — единый путь обновления DOM боя).
+    renderBook(c);
 
     // Баннер результата.
     if (c.result) {
@@ -1070,6 +1109,142 @@
       };
       bannerEl.textContent = texts[r.outcome] || r.outcome;
       bannerEl.style.display = 'block';
+    }
+  }
+
+  // --- «Книга заклинаний» (задача 000149) ---
+
+  // Активный персонаж книги — ЕДИНАЯ точка замены под «активную
+  // единицу» очереди ходов (задача 000167): пока очереди нет —
+  // всегда герой (c.player).
+  function unitOf(c) {
+    return c.player;
+  }
+
+  // Открыть/закрыть книгу. Строки строит renderBook в render() —
+  // тот же путь обновления, что остальной DOM боя (нет отдельных
+  // слушателей/таймеров).
+  function toggleBook() {
+    bookOpen = !bookOpen;
+  }
+
+  // Строки книги — Game.SpellBook.entriesFor (src/spellbook.js):
+  // 1:1 с книгой активного персонажа + данные каталога (имя/описание/
+  // мана/атрибут/иконка). Деградация при битом порядке загрузки
+  // (UMD-ловушка 000038): G.SpellBook нет (spellbook.js ПЕРЕД
+  // combat-ui.js — пин index-order) → ОДИН console.error + строки с
+  // голым id из листа (книга не падает, как ui-tab-skills.js);
+  // G.SpellsData нет → entriesFor сам даёт [] (каталог = данные строк).
+  function bookRows(c) {
+    const unit = unitOf(c);
+    const catalog = G.SpellsData ? G.SpellsData.SPELLS_BY_ID : null;
+    if (G.SpellBook) {
+      return G.SpellBook.entriesFor(unit, catalog);
+    }
+    if (!spellBookWarned) {
+      spellBookWarned = true;
+      console.error('combat-ui.js: не найдена Game.SpellBook — ' +
+        'загрузите src/spellbook.js ДО src/combat-ui.js (задача 000149);' +
+        ' строки книги — без данных каталога');
+    }
+    const spells = (unit && Array.isArray(unit.spells)) ? unit.spells : [];
+    return spells.map((id) => ({
+      id: id, name: String(id), desc: '',
+      mana: 0, poolKey: null, poolName: null, icon: null,
+    }));
+  }
+
+  // Строка книги: div (НЕ <button> — R9: DOM-счётчики кнопок в
+  // тестах; div и без :disabled). Доступность — canCastSpell
+  // (зеркало castSpell, 000037/000045): отказ — класс
+  // .combat-spellrow-off + reason в title (tooltip); клик по строке —
+  // castRow (клинк по off-строке тоже даёт reason в журнал — не тишина).
+  // G.Spells нет (спелл-движок не загружен — битый порядок) — все
+  // строки off с запасной причиной (деградация, не крах).
+  function buildSpellRow(c, row) {
+    const el = document.createElement('div');
+    el.className = 'combat-spellrow';
+    el.dataset.spell = row.id;
+    const chk = (G.Spells && typeof G.Spells.canCastSpell === 'function')
+      ? G.Spells.canCastSpell(c, row.id, { targetId: c.targetId })
+      : { ok: false, reason: 'Заклинания недоступны' };
+    if (!chk || !chk.ok) {
+      el.className += ' combat-spellrow-off';
+      el.title = (chk && chk.reason) || 'Заклинание недоступно';
+    }
+    if (row.icon) {
+      const img = document.createElement('img');
+      img.className = 'combat-spellicon';
+      img.src = row.icon;
+      img.alt = row.name;
+      el.appendChild(img);
+    }
+    const body = document.createElement('div');
+    body.className = 'combat-spellrow-body';
+    const top = document.createElement('div');
+    top.className = 'combat-spellrow-top';
+    const name = document.createElement('span');
+    name.className = 'combat-spellname';
+    name.textContent = row.name;
+    const meta = document.createElement('span');
+    meta.className = 'combat-spellmeta';
+    meta.textContent = 'Мана ' + row.mana + ' · Заклинание ('
+      + (row.poolName || '—') + ')';
+    top.appendChild(name);
+    top.appendChild(meta);
+    const desc = document.createElement('div');
+    desc.className = 'combat-spellrow-desc';
+    desc.textContent = row.desc;
+    body.appendChild(top);
+    body.appendChild(desc);
+    el.appendChild(body);
+    el.addEventListener('click', () => castRow(c, row.id));
+    return el;
+  }
+
+  // Клик по строке (задача 000149): каст через движок 000045 —
+  // G.Spells.castSpell (зеркало предпросмотра canCastSpell строки).
+  // Успех — 'cast'-FX 300 мс (паттерн 000047, то же поле c._fx, что
+  // у атаки) + книга закрывается (действие сделано). Отказ — причину
+  // в журнал (logRejection), книга остаётся ОТКРЫТОЙ (игрок видит
+  // причину и может поправить: цель/ману/очередь).
+  function castRow(c, spellId) {
+    const r = (G.Spells && typeof G.Spells.castSpell === 'function')
+      ? G.Spells.castSpell(c, spellId, c.targetId)
+      : { ok: false, reason: 'Заклинания недоступны' };
+    if (r && r.ok) {
+      c._fx = { action: 'cast', until: nowMs() + FX_MS };
+      bookOpen = false;
+    } else {
+      logRejection(c, r);
+    }
+    render();
+  }
+
+  // Рендер книги (вызывается из render()): display = bookOpen; при
+  // открытии строки перестраиваются (append; textContent='' в DOM-
+  // стабе тестов НЕ чистит children, поэтому «чистим» только в
+  // реальном DOM — и там append после чистки, в стабе читают хвост
+  // children.slice(-N)).
+  function renderBook(c) {
+    if (!bookBox) return;
+    bookBox.style.display = bookOpen ? '' : 'none';
+    if (!bookOpen) return;
+    if (typeof document !== 'undefined'
+        && typeof bookBox.innerHTML === 'string') {
+      bookBox.innerHTML = ''; // реальное DOM: чистим до перестроения
+    }
+    const rows = bookRows(c);
+    if (rows.length === 0) {
+      // Пустая книга — одна строка «—» (паттерн 000145).
+      const empty = document.createElement('div');
+      empty.className = 'combat-spellrow';
+      empty.textContent = '—';
+      bookBox.appendChild(empty);
+      return;
+    }
+    for (const row of rows) {
+      bookBox.appendChild(buildSpellRow(c, row));
     }
   }
 
@@ -1108,6 +1283,8 @@
     if (overlay) overlay.remove();
     overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl = null;
     hpbarEl = hpbarFillEl = hpbarTextEl = null;
+    bookBox = null;
+    bookOpen = false;
     ctx = null;
     ended = false;
     onEnd && onEnd(result);

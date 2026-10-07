@@ -16,7 +16,9 @@
 // инвариант «одна таблица направлений» структурный, а не тестовый.
 // WASD/ЦФЫВ в бою двигают ПОЛНОСТЬЮ (KeyA/Ф — влево, как в мире);
 // «Удар» перенесён с KeyA на KeyJ (правая рука, «джойстик» у Space),
-// дубли: KeyK (Л) → attack, KeyU (Г) → invItem. Каждая клавиша —
+// дубли: KeyK (Л) → attack, KeyU (Г) → invItem. KeyQ/R — «Книга
+// заклинаний» (задача 000149: действия fire/heal объединены в одно
+// действие spellbook; KeyQ — primary, KeyR — дубль). Каждая клавиша —
 // ровно одно назначение.
 //
 // resolveCombatKey(code, state) — ЧИСТАЯ функция: state — снимок окружения
@@ -55,8 +57,7 @@
   // Русские имена действий (подписи кнопок; порядок — незначащий).
   const ACTION_LABELS = {
     attack: 'Удар',
-    fire: 'Огонь',
-    heal: 'Исцел.',
+    spellbook: 'Книга заклинаний',
     block: 'Блок',
     quickItem: 'Быстрый предмет',
     invItem: 'Предмет',
@@ -79,13 +80,14 @@
   }
 
   // Действия. primary — первичная клавиша для подписи кнопки; дубли
-  // (KeyK, KeyU) — новые физические клавиши для русской раскладки
-  // (на KeyJ — «О», на KeyK — «Л»; на KeyT — «Т», на KeyU — «Г»).
+  // (KeyK, KeyQ, KeyU) — новые физические клавиши для русской раскладки
+  // (на KeyJ — «О», на KeyK — «Л»; на KeyQ — «Й», на KeyR — «К»;
+  // на KeyT — «Т», на KeyU — «Г»).
   for (const [code, action, primary] of [
     ['KeyJ', 'attack', true],
     ['KeyK', 'attack', false],
-    ['KeyQ', 'fire', false],
-    ['KeyR', 'heal', false],
+    ['KeyQ', 'spellbook', true],
+    ['KeyR', 'spellbook', false],
     ['KeyB', 'block', false],
     ['KeyE', 'quickItem', false],
     ['KeyT', 'invItem', true],

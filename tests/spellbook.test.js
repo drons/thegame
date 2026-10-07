@@ -293,6 +293,12 @@ test('SB2: книга скрыта; клик/KeyQ/KeyR — toggle; строки 
 test('SB3: строки = книга (порядок/имя/meta/описание); пустая — строка «—» (000149)', () => {
   const { S, r } = bookScene();
   const c = startWolfCombat(S);
+  // В упор (техническая правка 000149): волк спавнится на дистанции 8
+  // (> дальности каталога 4) — «Искра» была бы disabled-строкой
+  // «цель слишком далеко». Проверяются содержимое строк, а не
+  // дальность.
+  const m0 = c.units[0];
+  m0.x = c.px; m0.y = c.py - 1;
   const bookBtn = S.buttons.find((b) => b.dataset.act === 'spellbook');
   assert.ok(bookBtn, 'кнопка «Книга заклинаний» не найдена (задача 000149)');
   bookBtn.listeners.click[0]();
@@ -300,7 +306,12 @@ test('SB3: строки = книга (порядок/имя/meta/описани�
   assert.ok(bookBox, 'книга (.combat-spellbook) не найдена (задача 000149)');
   const cat = S.G.SpellsData.SPELLS_BY_ID;
   assert.ok(cat && cat.spark && cat.mend, 'прекондиция: каталог в песочнице');
-  assert.deepEqual(c.player.spells, ['spark', 'mend'],
+  // [...c.player.spells] — хост-копия (техническая правка 000149):
+  // c.player создан в vm-песочнице, а deepStrictEqual сравнивает
+  // прототипы — vm-массив «не равен» host-литералу даже по структуре
+  // (cross-realm-ловушка; смысл проверки не меняется: точный порядок
+  // и значения).
+  assert.deepEqual([...c.player.spells], ['spark', 'mend'],
     'прекондиция: стартовая книга героя (sheet.js)');
   const rows = bookBox.children.slice(-2);
   assert.equal(rows.length, 2, 'строк = заклинаний в книге (2)');
@@ -361,6 +372,12 @@ test('SB4: клик строки — каст (урон/пул/мана/лог/c
   const c = startWolfCombat(S);
   const m0 = c.units[0];
   m0.x = c.px; m0.y = c.py - 1; // в упор (дальность каталога 4)
+  // Тест-буфер HP (техническая правка 000149): волк ур. 1 при средней
+  // сложности (diff.hp 0.45) имеет maxHP 4, а «Искра» бьёт 5 —
+  // единственный моб умер бы и бой бы закончился, не дав проверить
+  // «ход не сгорел» (проверяется экономика хода каста, не убийство).
+  // +6 → maxHP 10 — число из формулы без множителя сложности.
+  m0.maxHP += 6; m0.hp += 6;
   c.selectTarget(m0.id);
   c._rng = () => 0.99;
   const p = c.player;
@@ -632,7 +649,10 @@ test('SB11: 17 SVG (16 иконок + кнопка) существуют и пр
     assert.ok(fs.existsSync(abs),
       rel + ': файл не существует (задача 000149: иконка ещё не сгенерирована)');
     const errs = checkSvg(fs.readFileSync(abs, 'utf8'));
-    assert.deepEqual(errs, [],
+    // [...errs] — хост-копия (техническая правка 000149): checkSvg
+    // живёт в vm-песочнице, её возвращаемый [] — другой realm
+    // (cross-realm-ловушка deepStrictEqual; см. SB3).
+    assert.deepEqual([...errs], [],
       rel + ': checkSvg — 0 ошибок, факт: ' + JSON.stringify(errs));
   }
 });

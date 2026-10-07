@@ -12,7 +12,9 @@
     "мани",
     "действие",
     "здания",
-    "описание"
+    "описание",
+    "icon",
+    "icon_prompt"
   ],
   "properties": {
     "id": {
@@ -73,6 +75,14 @@
       }
     },
     "описание": {
+      "type": "string",
+      "pattern": "^\\S(.*\\S)?$"
+    },
+    "icon": {
+      "type": "string",
+      "pattern": "^assets/[a-z0-9_-]+/[a-z][a-z0-9_]*\\.svg$"
+    },
+    "icon_prompt": {
       "type": "string",
       "pattern": "^\\S(.*\\S)?$"
     }

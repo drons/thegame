@@ -1332,6 +1332,22 @@
       if (p.hp >= P.derived(p).maxHP) return { ok: false, reason: 'здоровье полное' };
       return { ok: true };
     }
+    if (action === 'spellbook') {
+      // Задача 000149: кнопка «Книга заклинаний» (место fire/heal)
+      // доступна, когда книга активного персонажа (p.spells) не пуста;
+      // детализация по каждому заклинанию (мана/пул/дальность/цель) —
+      // в canCastSpell (src/spells.js, 000045) на строке в книге.
+      // Пулы/ману НЕ проверяем — у разных заклинаний разные пулы.
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      const blocked = checkBlocked(c);
+      if (blocked) return blocked;
+      const book = p.spells;
+      if (!Array.isArray(book) || book.length === 0) {
+        return { ok: false, reason: 'заклинаний нет' };
+      }
+      return { ok: true };
+    }
     if (action === 'block') {
       // checkBlocked НЕ проверяется: playerBlock в ядре его не вызывает —
       // блок и есть последнее действие (задача 000027).
