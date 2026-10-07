@@ -709,7 +709,7 @@ test('000145 B6: Эфир-вид на странице: «Вдох Эфира» 
   clickPanel(env, efirBtn);
   assert.equal(breathSec.style.display, '', 'для «Эфира» — видна');
   const breath = breathSec.querySelector('.cp-stats');
-  assert.ok(breath, 'тело «Вдоха» (.cp-stats — паттерн ui-tab-efir)');
+  assert.ok(breath, 'тело «Вдоха» (.cp-stats — паттерн вкладки 000116)');
   const bt = breath.textContent;
   for (const s of ['1 раз за бой', '40%', '20 маны',
       'round(10 + 0.8 * Мудрость)', '×0.8', '2 хода']) {
@@ -785,7 +785,7 @@ test('000145 B7: книга заклинаний — для АКТИВНОГО �
 
 // --- B8: навигация из «Отряда» ---
 
-test('000145 B8: «Отряд» — навигация: клик по СТРОКЕ наёмного (не по кнопке) → «Отряд» закрывается + панель персонажа ОТКРЫТА на странице этого наёмного (playerUI.toggle(true, «character», id)); «уволить» — БЕЗ ИЗМЕНЕНИЙ (roster −1, onChange ×1, без навигации); строка Эфира — БЕЗ ИЗМЕНЕНИЙ (вкладка «Эфир», E9)', () => {
+test('000145 B8: «Отряд» — навигация: клик по СТРОКЕ наёмного (не по кнопке) → «Отряд» закрывается + панель персонажа ОТКРЫТА на странице этого наёмного (playerUI.toggle(true, «character», id)); «уволить» — БЕЗ ИЗМЕНЕНИЙ (roster −1, onChange ×1, без навигации); строка Эфира (000146): клик → «Персонаж» с Эфиром активным (вкладка «Эфир» убрана — секции на «Персонаже» (kind \'efir\'), 000145; строка побайтово, onChange ×0 на редирект)', () => {
   const env = loadEnv();
   assert.equal(env.errors.length, 0,
     'загрузка: 0 ошибок: ' + env.errors.join('; '));
@@ -834,18 +834,38 @@ test('000145 B8: «Отряд» — навигация: клик по СТРОК
   squadClick(btn);
   assert.equal(roster.length, 0, '«уволить»: live-roster −1 (как ДО)');
   assert.equal(saves, 1, 'onChange ровно ×1 (точка сейва — как ДО)');
-  // (3) строка Эфира — БЕЗ ИЗМЕНЕНИЙ (E9: клик → вкладка «Эфир»)
+  // (3) строка Эфира (000146: вкладка «Эфир» УБРАНА — клик
+  // открывает «Персонаж» с Эфиром активным, toggle(true,
+  // «character», «efir»); строка сама — БЕЗ ИЗМЕНЕНИЙ, P3).
+  // __game-инжект (D9): efirMet читается ТОЛЬКО из __game.state
+  // (partySource, ui-tab-skills.js) — без него Эфира нет в партии
+  // и активный fallback на Флогистона. На этот момент roster ПУСТ
+  // (Вольк уволен в части (2)) — live-ссылки те же, что init.
+  env.sandbox.__game = { state: { efir, efirMet: true, roster } };
   env.G.squadUI.toggle(true);
   panel = squadPanel();
   const rowE = rowByName(panel, 'Эфир');
   assert.ok(rowE, 'строка «Эфир» (после увольнения — осталась)');
+  assert.equal(rowE.querySelector('.cp-itemmeta').textContent,
+    'уровень 1 · HP 16/16 · всегда со мной',
+    'строка Эфира побайтово (P3: строка не переделана)');
   squadClick(rowE);
+  assert.equal(env.errors.length, 0,
+    'клик: 0 ошибок: ' + env.errors.join('; '));
+  assert.equal(env.G.squadUI.isOpen(), false, '«Отряд» закрыт');
   const col0 = findAll(env.body, '.cp-column')[0];
   const panes = findAll(col0, '.cp-tabpane');
-  assert.equal(panes[panes.length - 1].style.display, '',
-    'клик по строке Эфира — вкладка «Эфир» (4-я в левом, E9)');
-  assert.equal(panes[0].style.display, 'none',
-    '«Персонаж» не активна (E9-поведение строки Эфира сохранено)');
+  assert.equal(panes.length, 3,
+    'левый столбец — 3 pane (000146: pane вкладки «Эфир» удалена; ' +
+    'сейчас 4 — вкладка ещё существует)');
+  assert.equal(panes[0].style.display, '',
+    'клик по строке Эфира — «Персонаж» активна (panes[0], 000146)');
+  assert.equal(pane.querySelector('.cp-title').textContent, 'Эфир',
+    'активный = Эфир (вид kind \'efir\' на «Персонаже», 000145)');
+  assert.equal(env.G.playerUI.getActiveCharId(), 'efir',
+    'активный = Эфир (redirect toggle(true, «character», «efir»))');
+  assert.equal(saves, 1,
+    'onChange ×0 на редирект (счётчик — только «уволить» части (2))');
 });
 
 // --- B9: toggle(force, tabId, charId) + getActiveCharId() ---

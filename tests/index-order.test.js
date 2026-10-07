@@ -898,9 +898,11 @@ test('index.html: ui-tabs.js + ui-tab-*.js ДО ui.js (000130)', () => {
   assert.notEqual(pos('src/ui-tabs.js'), -1,
     'src/ui-tabs.js не подключён в index.html (задача 000130)');
   // Полная цепочка блока: порядок тегов = порядок вкладок в
-  // столбцах (левый: character→inventory→settings→efir (000116),
-  // правый: equipment→shop→quests; 'equipment' регистрируется из
-  // ui-tab-inventory.js — ДВЕ вкладки в одном файле).
+  // столбцах (левый: character→inventory→settings (000146: вкладка
+  // «Эфир» 000116 УБРАНА — секции на «Персонаже» (kind 'efir'),
+  // 000145), правый: equipment→shop→quests; 'equipment'
+  // регистрируется из ui-tab-inventory.js — ДВЕ вкладки в одном
+  // файле).
   const chain = [
     'src/ui-tabs.js',
     'src/ui-tab-skills.js',
@@ -908,7 +910,6 @@ test('index.html: ui-tabs.js + ui-tab-*.js ДО ui.js (000130)', () => {
     'src/ui-tab-settings.js',
     'src/ui-tab-shop.js',
     'src/ui-tab-quests.js',
-    'src/ui-tab-efir.js',
     'src/ui.js',
   ];
   for (let i = 0; i < chain.length - 1; i++) {
@@ -934,7 +935,7 @@ test('index.html: ui-tabs.js + ui-tab-*.js ДО ui.js (000130)', () => {
   }
 });
 
-test('000130: vm — цепочка index.html (до ui.js) → реестр = 7 вкладок в порядке тегов (000116: +efir) + Game.buildActiveQuestRow', () => {
+test('000130: vm — цепочка index.html (до ui.js) → реестр = 6 вкладок в порядке тегов (000146: −efir — вкладка «Эфир» убрана, секции на «Персонаже» (kind «efir»), 000145) + Game.buildActiveQuestRow', () => {
   // Полный «браузерный» путь без DOM: ВСЕ модули цепи чисты при
   // загрузке (НОЛЬ DOM — 000053), поэтому песочница { console }
   // достаточна. Порядок тегов index.html = порядок РЕГИСТРАЦИИ =
@@ -967,13 +968,20 @@ test('000130: vm — цепочка index.html (до ui.js) → реестр = 7
   // прототипы; спред даёт массив host-realm с теми же id.
   assert.deepEqual([...reg.list().map((t) => t.id)],
     ['character', 'inventory', 'equipment', 'settings', 'shop',
-     'quests', 'efir'],
-    'порядок реестра = порядок script-тегов index.html');
+     'quests'],
+    'порядок реестра = порядок script-тегов index.html ' +
+    '(000146: без «efir» — вкладка «Эфир» убрана)');
   assert.equal(typeof sandbox.Game.buildActiveQuestRow, 'function',
     'Game.buildActiveQuestRow — плоский game-экспорт ui-tab-quests.js');
   assert.equal(typeof sandbox.Game.findQuestInCatalog, 'function',
     'Game.findQuestInCatalog — плоский game-экспорт ui-tab-quests.js');
   assert.ok(sandbox.Game.playerUI, 'ui.js загружен (Game.playerUI)');
+});
+
+test('index.html: тега src/ui-tab-efir.js НЕТ (задача 000146: вкладка «Эфир» убрана — секции на «Персонаже» (kind \'efir\'), 000145)', () => {
+  assert.equal(pos('src/ui-tab-efir.js'), -1,
+    'src/ui-tab-efir.js не подключён в index.html (000146: файл ' +
+    'удалён, саморегистрации «efir» не существует)');
 });
 
 // --- Задача 000081: efir.js (Эфир — постоянный союзник) ---
