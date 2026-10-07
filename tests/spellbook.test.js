@@ -140,6 +140,10 @@ function loadBookUi(opts = {}) {
   if (opts.requestAnimationFrame) sandbox.requestAnimationFrame = opts.requestAnimationFrame;
   if (opts.cancelAnimationFrame) sandbox.cancelAnimationFrame = opts.cancelAnimationFrame;
   vm.createContext(sandbox);
+  // opts.skip (правки ревью 000149, SB13/SB14): файлы, НЕ загружаемые
+  // в цепочку (деградационные пути: модуль отсутствует — битый
+  // порядок загрузки).
+  const SKIP = new Set(opts.skip || []);
   for (const f of [
     'global-settings.js', 'perlin.js', 'map.js',
     'skills-data.js', 'items-data.js',
@@ -151,13 +155,15 @@ function loadBookUi(opts = {}) {
     'spells-data.js', 'spells.js',
     'combat-keys.js',
   ]) {
+    if (SKIP.has(f)) continue;
     vm.runInContext(src(f), sandbox, { filename: f });
   }
   // spellbook.js ДО combat-ui.js (снапшот-ловушка 000038: combat-ui
   // снимает Game при загрузке). Красная фаза: файла нет — тихий
   // пропуск (existsSync-гард): осмысленный красный несёт этот файл
   // (ассерты на отсутствующую книгу), а не ENOENT-крах цепочки.
-  if (fs.existsSync(path.join(ROOT, 'src', 'spellbook.js'))) {
+  if (fs.existsSync(path.join(ROOT, 'src', 'spellbook.js'))
+      && !SKIP.has('spellbook.js')) {
     vm.runInContext(src('spellbook.js'), sandbox, { filename: 'spellbook.js' });
   }
   vm.runInContext(src('combat-ui.js'), sandbox, { filename: 'combat-ui.js' });
@@ -358,6 +364,9 @@ test('SB3: строки = книга (порядок/имя/meta/описани�
     'пустая книга — строка «—», факт: ' + JSON.stringify(textOf(tail[0])));
   assert.ok(!tail[0].children.some((ch) => ch.tagName === 'img'),
     'у строки «—» нет иконки');
+  assert.ok(tail[0].className.includes('combat-spellrow-off'),
+    'строка «—» НЕ кликабельна — класс -off (без pointer-курсора, ' +
+    'правки ревью 000149), класс: ' + tail[0].className);
 });
 
 // ---------------------------------------------------------------------------
@@ -655,4 +664,154 @@ test('SB11: 17 SVG (16 иконок + кнопка) существуют и пр
     assert.deepEqual([...errs], [],
       rel + ': checkSvg — 0 ошибок, факт: ' + JSON.stringify(errs));
   }
+});
+
+// ---------------------------------------------------------------------------
+// SB12: rAF-цикл (реальный браузер): идентичность элементов строк между
+//       кадрами + клик по строке после тика (правки ревью 000149).
+//
+// ФОН: в браузере rAF-цикл (000047) вызывает render() каждый кадр, а
+// строки — ЕДИНСТВЕННАЯ точка применения заклинания (KeyQ/KeyR лишь
+// открывают/закрывают книгу). Если пересборка строк (innerHTML='' +
+// append) идёт на каждый кадр, любое человеческое нажатие (>= 50 мс)
+// перекрывает границу кадра: элемент, на котором начался mousedown,
+// заменён до mouseup, и click по спецификации HTML приземляется на
+// ближайший общий предок (.combat-spellbook, 0 слушателей) — каст
+// теряется. vm-тесты этому слепы без стаба requestAnimationFrame
+// (в песочнице без стаба гвард typeof → raf = null → цикла нет).
+// ---------------------------------------------------------------------------
+
+test('SB12: rAF-тик при неизменном состоянии НЕ заменяет элементы строк; клик по строке после тика — каст (000149, ревью)', () => {
+  const { S, r } = bookScene();
+  const c = startWolfCombat(S);
+  const m0 = c.units[0];
+  m0.x = c.px; m0.y = c.py - 1; // в упор (дальность каталога 4)
+  m0.maxHP += 6; m0.hp += 6; // тест-буфер (SB4): каст не убивает
+  // единственный моб — проверяем экономику хода, не убийство.
+  c.selectTarget(m0.id);
+  c._rng = () => 0.99;
+  const p = c.player;
+  const mpBefore = p.mp;
+  assert.ok(mpBefore >= 3, 'прекондиция: мана есть');
+  const bookBtn = S.buttons.find((b) => b.dataset.act === 'spellbook');
+  assert.ok(bookBtn, 'кнопка «Книга заклинаний» не найдена');
+  bookBtn.listeners.click[0](); // открыть (синхронный render: строки
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.ok(bookBox, 'книга (.combat-spellbook) не найдена');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта');
+  const rowA = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(rowA, 'строка «Искра» построена');
+  // (a) кадр rAF при неизменном состоянии: элемент строки НЕ
+  // заменяется (клик в реальном DOM переживёт границу кадра).
+  tick(r);
+  const rowB = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(rowB, 'строка «Искра» есть после тика');
+  assert.equal(rowB, rowA,
+    'элемент строки заменён между кадрами при неизменном состоянии — ' +
+    'клик по строке теряется в браузере (правки ревью 000149)');
+  // (b) клик по строке ПОСЛЕ тика — каст идёт.
+  assert.equal(c._fx, undefined, 'c._fx не записано до клика');
+  rowB.listeners.click[0]();
+  assert.equal(c._fx && c._fx.action, 'cast',
+    'клик по строке после тика — каст (c._fx = cast)');
+  assert.ok(c._fx.until > 1000, 'c._fx.until > now');
+  assert.equal(p.mp, mpBefore - 3,
+    'мана −3 (spark кастован), факт: ' + p.mp);
+  assert.equal(bookBox.style.display, 'none', 'книга закрыта после каста');
+});
+
+// ---------------------------------------------------------------------------
+// SB13: деградация без G.SpellBook (spellbook.js не в цепочке — битый
+//       порядок загрузки): книга открывается, строки — с голым id,
+//       console.error — ровно 1 раз за все рендеры (правки ревью 000149:
+//       гарды задокументированы в memory §5 — покрываем тестом).
+// ---------------------------------------------------------------------------
+
+test('SB13: без G.SpellBook — 1× console.error, строки с голым id (name=id, без иконки), книга открывается, без краха (000149, ревью)', () => {
+  const S = loadBookUi({ skip: ['spellbook.js'] });
+  assert.equal(S.G.SpellBook, undefined, 'прекондиция: G.SpellBook отсутствует');
+  const c = startWolfCombat(S);
+  assert.ok(c, 'бой создан (деградация, не крах)');
+  const bookBtn = S.buttons.find((b) => b.dataset.act === 'spellbook');
+  assert.ok(bookBtn, 'кнопка «Книга заклинаний» не найдена');
+  const errors = [];
+  const realError = console.error;
+  console.error = (m) => errors.push(String(m));
+  try {
+    bookBtn.listeners.click[0](); // открыть (render строк)
+    press(S.keydown, 'KeyQ'); // закрыть
+    press(S.keydown, 'KeyR'); // открыть снова (повторный render строк)
+  } finally {
+    console.error = realError;
+  }
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.ok(bookBox, 'книга (.combat-spellbook) не найдена');
+  assert.notEqual(bookBox.style.display, 'none',
+    'книга открывается (деградация, не крах)');
+  const rows = bookBox.children.slice(-2);
+  assert.equal(rows.length, 2,
+    'строки = заклинаний в листе (2), факт: ' + rows.length);
+  assert.deepEqual(rows.map((rw) => rw.dataset.spell), ['spark', 'mend'],
+    'порядок строк = порядок c.player.spells');
+  for (const [row, id] of [[rows[0], 'spark'], [rows[1], 'mend']]) {
+    const nameSpan = findByClass(row, 'combat-spellname');
+    assert.ok(nameSpan, id + ': имя (.combat-spellname) есть');
+    assert.equal(nameSpan.textContent, id,
+      id + ': деградация — name = голый id, факт: ' + nameSpan.textContent);
+    assert.ok(!row.children.some((ch) => ch.tagName === 'img'),
+      id + ': иконки нет (icon = null)');
+  }
+  assert.equal(errors.length, 1,
+    'console.error ровно 1 раз (повторные рендеры не пишут), факт: '
+      + errors.length);
+  assert.match(errors[0], /Game\.SpellBook/,
+    'текст ошибки — про Game.SpellBook, факт: ' + JSON.stringify(errors[0]));
+});
+
+// ---------------------------------------------------------------------------
+// SB14: деградация без G.Spells (spells.js не в цепочке — спелл-движок
+//       не загружен): строки рисуются (данные из каталога, G.SpellBook
+//       на месте), ВСЕ -off с title «Заклинания недоступны»; клик по
+//       строке — причина в журнал, без расхода, без краха (правки ревью
+//       000149: гард memory §5 — покрываем тестом).
+// ---------------------------------------------------------------------------
+
+test('SB14: без G.Spells — строки -off «Заклинания недоступны»; клик — reason в журнал, без расхода/краха, книга открыта (000149, ревью)', () => {
+  const S = loadBookUi({ skip: ['spells.js'] });
+  assert.equal(S.G.Spells, undefined, 'прекондиция: G.Spells отсутствует');
+  assert.ok(S.G.SpellBook, 'прекондиция: G.SpellBook на месте');
+  const c = startWolfCombat(S);
+  assert.ok(c, 'бой создан (деградация, не крах)');
+  const bookBtn = S.buttons.find((b) => b.dataset.act === 'spellbook');
+  assert.ok(bookBtn, 'кнопка «Книга заклинаний» не найдена');
+  bookBtn.listeners.click[0](); // открыть
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.ok(bookBox, 'книга (.combat-spellbook) не найдена');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открывается');
+  const rows = bookBox.children.slice(-2);
+  assert.equal(rows.length, 2,
+    'строки построены (2), факт: ' + rows.length);
+  const cat = S.G.SpellsData.SPELLS_BY_ID;
+  for (const [row, id] of [[rows[0], 'spark'], [rows[1], 'mend']]) {
+    assert.ok(row.className.includes('combat-spellrow-off'),
+      id + ': строка -off (G.Spells нет), класс: ' + row.className);
+    assert.equal(row.title, 'Заклинания недоступны',
+      id + ': title = запасной reason, факт: ' + row.title);
+    const nameSpan = findByClass(row, 'combat-spellname');
+    assert.equal(nameSpan.textContent, cat[id].название,
+      id + ': имя — из каталога (данные есть), факт: ' + nameSpan.textContent);
+  }
+  const p = c.player;
+  const mpBefore = p.mp;
+  const n0 = c.log.length;
+  rows[0].listeners.click[0](); // клик по off-строке
+  assert.equal(c.log.length, n0 + 1, 'клик — причина в журнал (не тишина)');
+  assert.equal(Array.from(c.log).slice(-1)[0], 'Заклинания недоступны',
+    'reason отказа в журнале');
+  assert.equal(p.mp, mpBefore, 'без расхода маны (каста нет)');
+  assert.equal(c._fx, undefined, 'c._fx не записано (каста не было)');
+  assert.notEqual(bookBox.style.display, 'none',
+    'после отказа книга открыта');
 });

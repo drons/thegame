@@ -98,6 +98,9 @@
   let bookBox = null;
   let bookOpen = false;
   let spellBookWarned = false; // деградация без G.SpellBook — 1 console.error
+  // Сигнатура строк (правки ревью 000149): перестроение книги — ТОЛЬКО
+  // при её изменении (см. renderBook); null — перестроить при открытии.
+  let bookSig = null;
   let ended = false;
   let rafId = null; // id rAF-цикла анимации (задача 000047); null — нет rAF
   // 000151: масштаб осей бэкинга (build()/onResize() перезаписывают на
@@ -255,6 +258,7 @@
     bookBox.className = 'combat-spellbook';
     bookBox.style.display = 'none';
     bookOpen = false;
+    bookSig = null;
     side.appendChild(bookBox);
 
     logEl = document.createElement('div');
@@ -1095,8 +1099,8 @@
     }
 
     // «Книга заклинаний» (задача 000149): display из bookOpen; при
-    // открытии — строки 1:1 с книгой (перестроение на каждый render,
-    // как stateEl/logEl — единый путь обновления DOM боя).
+    // открытии — строки 1:1 с книгой (перестроение — только при
+    // изменении сигнатуры, renderBook — единый путь обновления).
     renderBook(c);
 
     // Баннер результата.
@@ -1154,20 +1158,27 @@
     }));
   }
 
+  // canCastSpell (движок 000045) — чистый предпросмотр строки
+  // (без побочных эффектов — зеркало castSpell, 000037/000045).
+  // G.Spells нет (спелл-движок не загружен — битый порядок) —
+  // запасной отказ: все строки off (деградация, не крах). Вызывается
+  // renderBook: ОДИН раз на строку на рендер (и для сигнатуры, и для
+  // строки — пары не дублируются).
+  function rowChk(c, row) {
+    return (G.Spells && typeof G.Spells.canCastSpell === 'function')
+      ? G.Spells.canCastSpell(c, row.id, { targetId: c.targetId })
+      : { ok: false, reason: 'Заклинания недоступны' };
+  }
+
   // Строка книги: div (НЕ <button> — R9: DOM-счётчики кнопок в
-  // тестах; div и без :disabled). Доступность — canCastSpell
-  // (зеркало castSpell, 000037/000045): отказ — класс
-  // .combat-spellrow-off + reason в title (tooltip); клик по строке —
-  // castRow (клинк по off-строке тоже даёт reason в журнал — не тишина).
-  // G.Spells нет (спелл-движок не загружен — битый порядок) — все
-  // строки off с запасной причиной (деградация, не крах).
-  function buildSpellRow(c, row) {
+  // тестах; div и без :disabled). Доступность — chk (аргумент,
+  // rowChk): отказ — класс .combat-spellrow-off + reason в title
+  // (tooltip); клик по строке — castRow (клик по off-строке тоже даёт
+  // reason в журнал — не тишина).
+  function buildSpellRow(c, row, chk) {
     const el = document.createElement('div');
     el.className = 'combat-spellrow';
     el.dataset.spell = row.id;
-    const chk = (G.Spells && typeof G.Spells.canCastSpell === 'function')
-      ? G.Spells.canCastSpell(c, row.id, { targetId: c.targetId })
-      : { ok: false, reason: 'Заклинания недоступны' };
     if (!chk || !chk.ok) {
       el.className += ' combat-spellrow-off';
       el.title = (chk && chk.reason) || 'Заклинание недоступно';
@@ -1221,30 +1232,51 @@
     render();
   }
 
-  // Рендер книги (вызывается из render()): display = bookOpen; при
-  // открытии строки перестраиваются (append; textContent='' в DOM-
-  // стабе тестов НЕ чистит children, поэтому «чистим» только в
-  // реальном DOM — и там append после чистки, в стабе читают хвост
-  // children.slice(-N)).
+  // Рендер книги (вызывается из render()): display = bookOpen.
+  // Идентичность DOM-элементов строк между рендерами (правки ревью
+  // 000149): rAF-цикл (000047) в браузере рендерит КАЖДЫЙ кадр;
+  // прежняя пересборка строк на каждый кадр (innerHTML='' + append)
+  // убивала клик по строке: по спецификации HTML click срабатывает на
+  // ближайшем общем предке целей mousedown/mouseup, и если элемент
+  // строки, на котором началось нажатие, заменён до mouseup, click
+  // приземляется на .combat-spellbook, у которого слушателей НЕТ —
+  // каст терялся (строки — единственная точка применения
+  // заклинания). Перестроение — ТОЛЬКО при изменении сигнатуры:
+  // поля строк (id/name/desc/mana/poolName/icon) + ok/reason
+  // canCastSpell каждой (цель/фаза/мана/пулы — через canCastSpell).
+  // Стаб-ловушка та же, что была: в vm-песочнице innerHTML/textContent
+  // НЕ чистят children — при перестроении строки ДОБАВЛЯЮТСЯ, тесты
+  // читают хвост children.slice(-N).
   function renderBook(c) {
     if (!bookBox) return;
     bookBox.style.display = bookOpen ? '' : 'none';
     if (!bookOpen) return;
+    const rows = bookRows(c);
+    const pairs = rows.map((row) => [row, rowChk(c, row)]);
+    const sig = rows.length
+      ? pairs.map(([row, chk]) => [
+          row.id, row.name, row.desc, row.mana, row.poolName, row.icon,
+          chk ? !!chk.ok : false, (chk && chk.reason) || '',
+        ].join('¦')).join('§')
+      : 'empty';
+    if (sig === bookSig) return; // steady-state: элементы строк не трогаем
+    bookSig = sig;
     if (typeof document !== 'undefined'
         && typeof bookBox.innerHTML === 'string') {
       bookBox.innerHTML = ''; // реальное DOM: чистим до перестроения
     }
-    const rows = bookRows(c);
     if (rows.length === 0) {
-      // Пустая книга — одна строка «—» (паттерн 000145).
+      // Пустая книга — одна строка «—» (паттерн 000145). Класс -off:
+      // строка НЕ кликабельна (слушателей нет) — без pointer-курсора
+      // (ревью 000149: «одно действие — одно поведение», 000037).
       const empty = document.createElement('div');
-      empty.className = 'combat-spellrow';
+      empty.className = 'combat-spellrow combat-spellrow-off';
       empty.textContent = '—';
       bookBox.appendChild(empty);
       return;
     }
-    for (const row of rows) {
-      bookBox.appendChild(buildSpellRow(c, row));
+    for (const [row, chk] of pairs) {
+      bookBox.appendChild(buildSpellRow(c, row, chk));
     }
   }
 
@@ -1285,6 +1317,7 @@
     hpbarEl = hpbarFillEl = hpbarTextEl = null;
     bookBox = null;
     bookOpen = false;
+    bookSig = null;
     ctx = null;
     ended = false;
     onEnd && onEnd(result);
