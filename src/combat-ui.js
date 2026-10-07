@@ -38,6 +38,21 @@
 // На русской раскладке: J=О, K=Л, U=Г (e.code — физическая клавиша,
 // задача 000028). Невозможное действие/шаг — причина в журнал
 // (canDoAction, задача 000037; раньше — тишина).
+// «Воскрешение» в бою (задача 000166): выбор цели — мёртвый союзник
+// (клетка/подсветка). ГЕЙТ canResurrect(c) (носитель знает 'resurrect'
+// через unitOf — следует за будущим 000168): без него сцена бит-в-байт.
+// Маркеры — ранний проход drawUnits (ПОД всеми юнитами): подложка
+// ALLY_MARKER_UNDERLAY на клетке каждого мёртвого союзника/мёртвого
+// героя; кольцо #ffe27a (геометрия подсветки цели моба) — на выбранной
+// (союзник: u.id === c.targetId; герой: c.targetId === null — автоцель).
+// Клик по клетке мёртвого союзника — c.targetId = u.id (прямой write:
+// ядро selectTarget союзников отклоняет 000080, а resurrection-ветка
+// evalSpell 000163 мёртвого союзника принимает; все остальные читатели
+// c.targetId самовалидируют); клик по клетке мёртвого героя —
+// c.targetId = null (автоцель: игрок приоритетно, он НЕ в c.units).
+// Строка «Воскрешение» в книге и каст — data-driven 000149 (0 строк).
+// Контракты — memory/000166-combat-resurrect-ui.md /
+// memory/000166-player-cast-ui.md.
 
 (function () {
   'use strict';
@@ -315,6 +330,28 @@
       if (u) {
         c.selectTarget(u.id);
         render();
+      } else if (canResurrect(c)) {
+        // «Воскрешение» (задача 000166): ДВЕ ветки ПОСЛЕ живой (порядок
+        // определён: живой > мёртвый союзник > клетка мёртвого героя).
+        // Мёртвый СОЮЗНИК в прямоугольнике (та же формула rect, что у
+        // живой ветки) — прямой write c.targetId (ядро selectTarget
+        // союзников отклоняет 000080; resurrection-ветка evalSpell
+        // 000163 мёртвого союзника ПРИНИМАЕТ; остальные читатели
+        // c.targetId самовалидируют — атака/огонь/спеллы на мёртвом →
+        // «нет цели»). Выбор — не действие: лог НЕ растёт.
+        const d = c.units.find((x) => x.side === 'ally' && !x.alive
+          && !x.fled && cx >= x.x && cx < x.x + (x.size.w || 1)
+          && cy >= x.y && cy < x.y + (x.size.h || 1));
+        if (d) {
+          c.targetId = d.id;
+          render();
+        } else if (!c.player.alive && cx === c.px && cy === c.py) {
+          // Мёртвый ИГРОК: снять явную цель → автоцель (evalSpell
+          // 000163: мёртвый игрок приоритетно; игрок НЕ в c.units —
+          // поля id нет, адресоваться может только null).
+          c.targetId = null;
+          render();
+        }
       }
     });
   }
@@ -626,6 +663,46 @@
       // lastAlly − 1; вставка на lastAlly ставит героя РОВНО ПОСЛЕ
       // него.
       list.splice(lastAlly, 0, hero);
+    }
+
+    // Маркеры «Воскрешения» (задача 000166): РАННИЙ проход — маркеры
+    // рисуются ПОД всеми юнитами (z-порядок «подложка — первая», как у
+    // живых союзников). ГЕЙТ canResurrect(c) — ПЕРВАЯ строка: без него
+    // (все существующие сцены: createCharacter = ['spark','mend']) —
+    // бит-в-байт. Подложка ALLY_MARKER_UNDERLAY (геометрия подложки
+    // живого союзника: +2/inset, pw−4×ph−4) — на клетке КАЖДОГО мёртвого
+    // союзника (side 'ally', !alive, !fled) и мёртвого героя; кольцо
+    // #ffe27a lw2 (геометрия подсветки цели моба: +4.5/inset, pw−9×ph−9)
+    // — ТОЛЬКО на выбранной: союзник u.id === c.targetId; герой
+    // c.targetId === null (автоцель — «вы»). Мёртвые МОБЫ маркеров НЕ
+    // получают (только side 'ally'). Мутаций c в отрисовке НЕТ (только
+    // g2-вызовы), ноль c._rng.
+    if (canResurrect(c)) {
+      for (const u of c.units) {
+        if (u.side !== 'ally' || u.alive || u.fled) continue;
+        const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
+        const px = u.x * CELL, py = u.y * CELL;
+        const pw = w * CELL, ph = h * CELL;
+        g2.fillStyle = ALLY_MARKER_UNDERLAY;
+        g2.fillRect(px + 2, py + 2, pw - 4, ph - 4);
+        if (u.id === c.targetId) {
+          g2.strokeStyle = '#ffe27a';
+          g2.lineWidth = 2;
+          g2.strokeRect(px + 4.5, py + 4.5, pw - 9, ph - 9);
+        }
+      }
+      if (c.player && !c.player.alive) {
+        // Мёртвый игрок: подложка на клетке героя (всегда, в гейте);
+        // кольцо — при c.targetId === null (автоцель — игрок).
+        const hx = c.px * CELL, hy = c.py * CELL;
+        g2.fillStyle = ALLY_MARKER_UNDERLAY;
+        g2.fillRect(hx + 2, hy + 2, CELL - 4, CELL - 4);
+        if (c.targetId === null) {
+          g2.strokeStyle = '#ffe27a';
+          g2.lineWidth = 2;
+          g2.strokeRect(hx + 4.5, hy + 4.5, CELL - 9, CELL - 9);
+        }
+      }
     }
 
     // Спрайт моба цепочкой фолбэков (см. выше): персональный арт →
@@ -1045,6 +1122,15 @@
 
     // Панель состояния.
     const t = c.units.find((u) => u.id === c.targetId && u.alive && !u.fled);
+    // «Воскрешение» (задача 000166): выбранная МЁРТВАЯ цель — строка
+    // «— мёртв» (без неё у видимого кольца/подложки было бы «Цели нет»).
+    // Приоритет: живой t (существующий, без правок) → td (мёртвый
+    // союзник = c.targetId) → tHero (мёртвый игрок + targetId === null
+    // — автоцель «вы») → «Цели нет».
+    const td = t ? null : c.units.find((u) => u.id === c.targetId
+      && u.side === 'ally' && !u.alive && !u.fled);
+    const tHero = (!t && !td && c.player && !c.player.alive
+      && c.targetId === null) ? c.player : null;
     // Подсказка состава отряда (000118): строка «Отряд: <имя (роль), …»
     // между «Шаги:…» и строкой цели — минимальное аддитивное
     // расширение HUD (stateEl, .combat-state: white-space:pre-line,
@@ -1067,7 +1153,9 @@
       `Шаги: ${c.ps.moveLeft}  |  Удар: ${c.ps.attack}  |  Огонь: ${c.ps.spellInt}  |  Леч: ${c.ps.spellWis}\n` +
       roster +
       (c.ps.blocked ? 'БЛОК  ' : '') + (c.ps.poison > 0 ? `ЯД ${c.ps.poison}  ` : '') +
-      (t ? `Цель: ${t.name} (ур. ${t.level}, HP ${t.hp}/${t.maxHP})` : 'Цели нет');
+      (t ? `Цель: ${t.name} (ур. ${t.level}, HP ${t.hp}/${t.maxHP})`
+        : td ? `Цель: ${td.name} (ур. ${td.level}) — мёртв`
+        : tHero ? `Цель: ${tHero.name} (вы) — мёртв` : 'Цели нет');
 
     // Строка очерёдности хода (задача 000036).
     renderTurnOrder(c);
@@ -1123,6 +1211,21 @@
   // всегда герой (c.player).
   function unitOf(c) {
     return c.player;
+  }
+
+  // «Воскрешение» (задача 000166): ГЕЙТ всей новой функциональности —
+  // маркеры/клик-выбор мёртвой цели работают ТОЛЬКО когда носитель
+  // знает 'resurrect' (каталожный id 000017 — стабилен). Чистое чтение
+  // unitOf(c).spells — НЕТ Game-чтений (G.Spells не требуется — работает
+  // в песочницах без withSpells), мутаций, console, c._rng. Через
+  // unitOf(c) (НЕ c.player хардкод) — после 000168 гейт автоматически
+  // про активного юнита. Без гейта: (а) маркеры не рисуются, (б) клик
+  // по мёртвому союзнику/герою — no-op (цель не меняется, лог не
+  // растёт) → все существующие сцены бит-в-байт.
+  function canResurrect(c) {
+    const u = unitOf(c);
+    return !!(u && Array.isArray(u.spells)
+      && u.spells.indexOf('resurrect') >= 0);
   }
 
   // Открыть/закрыть книгу. Строки строит renderBook в render() —
