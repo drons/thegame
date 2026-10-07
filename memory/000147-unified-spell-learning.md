@@ -594,38 +594,89 @@ index.html) — без правок лоадеров.
 
 ## §7 Карта мержа (параллельные задачи)
 
-* **master dd9c0e8 (000163) — РЕБЕЙЗ ПЕРЕД МЕРЖЕМ ОБЯЗАТЕЛЕН**
-  (см. §1). Пересечения с нашим диффом: 0 файлов. После ребейза:
-  каталог 17 заклинаний (resurrect — в avail-строках НЕ появляется:
-  источников у него нет — нет ни свитка-предмета, ни пула), книга
-  Эфира 11 строк (B6/R3 пере-пинены 000163 В ИХ ВЕТКЕ — наш код
-  data-driven, наш дифф их файлы НЕ трогает).
-* **000162 (В РАБОТЕ, red-фаза)** — прямое пересечение:
-  * assets/buildings/000038.json — ОБА правим: они `эффекты +=
-    'resurrect'` + `раз_в_день` per-эффектный (ключ resurrect); мы
-    `эффекты: ["38","38_mentor"]` + `наставник` + `раз_в_день: {"38":
-    true}` → union: `эффекты: ["38","38_mentor","resurrect"]`,
-    `раз_в_день: {"38": true, "resurrect": …}`, `наставник` — наш.
+ОБНОВЛЕНО на станции правок по итогам ревью (master = **9f84149**):
+ВСЕ ПЯТЬ параллельных задач СМЕРЖЕНЫ — dd9c0e8 000163, 88a1253
+000149, ec08e19 000167, 9768efe 000162, 9f84149 000165. РЕБЕЙЗ
+ПЕРЕД МЕРЖЕМ ОБЯЗАТЕЛЕН; точки ниже СВЕРЕНЫ с фактическим кодом
+master (не с red-фазами).
+
+* **master 9f84149** — 5 мержей (30 коммитов) сверху базы 7306ca3.
+  000163: каталог 17 заклинаний (+resurrect), EFIR_SPELL_UNLOCKS
+  8→9 (+[22,'resurrect']), B6/R3 пере-пинены 000163 В ИХ ВЕТКЕ
+  (11 строк) — наш код data-driven, их файлы не трогаем;
+  resurrect — в avail-строках НЕ появляется (ни свитка-предмета,
+  ни пула). 000149 (spellbook.js/combat-ui.js/assets/spell-
+  icons) и 000167 (combat.js очередь хода) — 0 пересечений с
+  нашим диффом (combat.js/spellbook не трогаем; боевой каст —
+  существующий механизм D4).
+* **000162 (СМЕРЖЕН 9768efe) — прямое пересечение, свёрено с
+  master:**
+  * assets/buildings/000038.json — они: `эффекты: ["38","resurrect"]`
+    + `воскрешение: {база:20, за_опыт:0.05}` + `раз_в_день:
+    {"38": true}`; мы: `эффекты: ["38","38_mentor"]` + `наставник`.
+    UNION: `эффекты: ["38","38_mentor","resurrect"]` (порядок =
+    порядок оверлея), `наставник` — наш, `воскрешение` — их,
+    `раз_в_день: {"38": true}` — ИДЕНТИЧЕН у обеих (у resurrect
+    лимита НЕТ — ключа нет, fail-open).
   * src/buildings.js — GENERATED: после union — `npm run sync:
     buildings` (регенерация закрывает текстовый конфликт).
-  * src/building-effects.js — их 'resurrect'-блок (новый регион +
-    EFFECTS['resurrect'] + экспорты) vs наш rune/mentor-регион —
-    не-смежные вставки; ВОЗМОЖЕН текстовый конфликт в return-блоке
+  * src/building-effects.js — их resurrect-регион (EFFECTS['resurrect']
+    L407, applyResurrect L2023, экспорты L2791 resurrectPrice/
+    resurrectList/resurrectAvailable/applyResurrect) vs наш rune/
+    mentor-регион — не-смежные вставки; конфликт — return-блок
     экспорта (оба добавляют) — механический union.
-  * index.html — оба добавляют тег в слот runes→hud (они building-
-    effect-resurrect.js) — соседние теги, порядок между ними
-    несущественный (оба ДО hud, после building-actions/spells);
-    пины index-order — relative-ассерты → union.
-  * tests/index-order.test.js, tests/building-effects.test.js —
-    union-ре-пины.
-  Стратегия: ребейз на master ПЕРЕД мержем; если 000162 смержится
-  первым — повторный ребейз (механический, по карте выше).
-* **000149** (combat-ui.js + иконки assets/spells) — 0 пересечений.
-* **000167** (combat.js очередь хода) — 0 пересечений (combat.js НЕ
-  трогаем; боевой каст наёмных — существующий механизм D4).
+  * index.html — их тег building-effect-resurrect.js ПОСЛЕ runes.js
+    (L986), ДО hud.js (L992); наш mentor-тег — тот же слот →
+    соседние теги, порядок между ними несущественный (оба ПОСЛЕ
+    building-actions/spells, ДО hud/main); пины index-order —
+    relative → union.
+  * tests/building-effects.test.js: A1 — master += 'resurrect'
+    (L169-177), мы += 5 NN_mentor (L170-180) → union массива;
+    B18 (38-оверлей) — master ['38','resurrect'] (L6121) ∪ наш
+    ['38','38_mentor'] (L6129) → ['38','38_mentor','resurrect']
+    (Digit1='38' intact); A33/B12 — ИДЕНТИЧНЫ у обеих ({'38':true})
+    → конфликта нет; НОВОЕ: их RES-A1 (L8534+) пинит
+    p38.эффекты/effectIds(b38) = ['38','resurrect'] — после
+    union-каталога пере-пин на ['38','38_mentor','resurrect']
+    (ТЕХНИЧЕСКИЙ, под union; семантика RES intact).
+  * tests/index-order.test.js — master: «нужные модули» +=
+    building-effect-resurrect.js (L59) + IO2 relative-пины
+    (L1384+); мы: += building-effect-mentor.js (L62) +
+    позиционный тест (L911+) → union списка + оба теста (порядок
+    mentor/resurrect между собой не зафиксирован).
+* **000165 (СМЕРЖЕН 9f84149) — ОДИН пересечённый файл:
+  src/items.js** (остальные файлы ветки — assets/items/000051.
+  json, assets/items/schema.json, assets/mobs/000036.json, src/
+  items-data.js, src/combat.js, tests/{assets-schemas,cities,
+  combat,items}.test.js, CHANGELOG, tasks, memory — с нашим
+  диффом 0):
+  * KINDS: они += RESURRECTION_SCROLL (master L39) — мы KINDS
+    не трогаем.
+  * useItem: ОНИ — signature (c, itemId, qty) + ветка
+    resurrection_scroll ПОСЛЕ spell_scroll (master L552); МЫ —
+    signature (c, itemId, qty, learnTarget = null) + правка
+    ВНУТРИ ветки spell_scroll (T = learnTarget || c). UNION:
+    наша signature (суперсет), наша spell_scroll-ветка, их
+    resurrection-ветка ЦЕЛИКОМ ПОСЛЕ (2-арг. семантика — без
+    4-го аргумента → герой — как и наш контракт боевого
+    quick-slot).
+  * usable/вес-проверка (master L104): их ветка — мы регион не
+    трогаем.
+  Ребейз: текстовый конфликт в useItem-регионе — механический
+  union; `npm run sync:buildings` НЕ нужен (000165 каталоги
+  зданий не правил — лут = моб 000036).
+* **CHANGELOG.md — НОВОЕ пересечение (после правок по ревью,
+  коммит 76881e8):** обе стороны добавляют буллеты в «## 2026-
+  10-07 / ### Игровой процесс»: master — 4 буллета (воскрешение
+  в храме, бой по инициативе, книга в бою, свиток воскрешения)
+  ПЕРЕД «Вся партия…», наши — 3 буллета ПОСЛЕ «Вкладка «Эфир»
+  убрана» → union буллетов (конфликт в одном регионе —
+  механический: чужие сверху, наши — после «Вкладка «Эфир»
+  убрана», как в ветке).
 * **ui-tab-skills.js** — общий с 000146 (смержен, в базе) — правка
-  только renderBook + avail-блок; контракт _book/_breath/_breathSec
-  стабилен (§3.6).
+  только renderBook + avail-блок (+ learned не-каноника Эфира —
+  ревью); контракт _book/_breath/_breathSec стабилен (§3.6);
+  000163 файл НЕ правил (только тесты B6/R3) — конфликта нет.
 
 ## §8 Подводные камни
 
