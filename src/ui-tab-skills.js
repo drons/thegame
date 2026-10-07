@@ -239,8 +239,10 @@ function (G0, rootRef) {
   //   (изучен — c.spells) / «откроется на N-м уровне» (порог) —
   //   «отметки авто-разблокировок» ТЗ; количество строк
   //   data-driven (база 7306ca3 — 10, после 000163 — 11: хардкода
-  //   НЕТ, контракт 000146 §8). G.efir/UNLOCKS отсутствуют —
-  //   тихий fallback на learned-only.
+  //   НЕТ, контракт 000146 §8); выученное НЕ-КАНОНИЧЕСКОЕ (через
+  //   обобщённые источники 000147) — строка «изучено» ПОСЛЕ
+  //   каноники (правки по итогам ревью). G.efir/UNLOCKS
+  //   отсутствуют — тихий fallback на learned-only.
   // 000147: ПОСЛЕ learned-строк — ОБЩИЙ avail-блок «Доступно к
   // изучению» (все kinds; Эфир — раннего return НЕТ, каноника в
   // avail не дублируется).
@@ -279,6 +281,21 @@ function (G0, rootRef) {
             learned.indexOf(en.id) >= 0
               ? 'уровень ' + en.level
               : 'откроется на ' + en.level + '-м уровне'));
+          book.appendChild(row);
+        }
+        // 000147 (правки по итогам ревью): выученное НЕ-КАНОНИ-
+        // ЧЕСКОЕ — через обобщённые источники (свиток/руна/
+        // наставник — learn на sheet Эфира, 000147) — строка ПОСЛЕ
+        // каноники, метка «изучено» (уровень авто-разблокировки у
+        // него нет). Без строки такое заклинание было НЕВИДИМО:
+        // каноника его не содержит, а avail-блок learned-строки
+        // пропускает (renderAvailBook). learn() дублей не создаёт
+        // (canLearn «уже изучено»).
+        for (const id of learned) {
+          if (typeof id !== 'string' || canon.includes(id)) continue;
+          const row = ctx.el('div', 'cp-itemrow');
+          row.appendChild(ctx.el('span', 'cp-itemname', spellName(id)));
+          row.appendChild(ctx.el('span', 'cp-itemmeta', 'изучено'));
           book.appendChild(row);
         }
         // 000147: раннего return НЕТ — управление переходит к

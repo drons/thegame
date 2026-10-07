@@ -58,6 +58,13 @@
 //   * AP-7  (vm)   — UI-путь: свиток «исп.» → АКТИВНОМУ наёмному
 //     (hero.spells не тронут, flash 000133 intact). RED: ui.js
 //     G.useItem(c, id) без 4-го аргумента → герой учится.
+// + 2 ЗЕЛЁНЫХ (правки по итогам ревью, добавлены на зелёном):
+//   * AP-6B (vm)   — выученное НЕ-КАНОНИЧЕСКОЕ Эфира (свиток/руна/
+//     наставник — learn на sheet) — строка «изучено» ПОСЛЕ каноники;
+//     не дублируется в avail (было: невидимо — ни там, ни там).
+//   * AP-M4 (vm)   — полная цепочка index.html до building-effect-
+//     mentor.js: саморегистрация specials['17_mentor'…'38_mentor']
+//     (интеграционный шов «нажатие строки → хендлер»).
 //
 // Механика: ЧАСТЬ A — node; ЧАСТЬ B — ДИНАМИЧЕСКАЯ vm-цепочка ВСЕ
 // <script src> index.html до ui.js включительно (паттерн tests/ui-
@@ -739,7 +746,9 @@ const CHAIN = (() => {
 })();
 
 // Загрузка цепочки в vm-песочницу → { G, body, errors, sandbox }.
-function loadEnv() {
+// chain — опционально (по умолчанию CHAIN — до ui.js); AP-M4
+// передаёт до building-effect-mentor.js (шов specials).
+function loadEnv(chain) {
   const errors = [];
   const document = {
     createElement: (tag) => makeEl(tag),
@@ -769,7 +778,9 @@ function loadEnv() {
     document, window, setTimeout, clearTimeout,
   };
   vm.createContext(sandbox);
-  for (const f of CHAIN) vm.runInContext(src(f), sandbox, { filename: f });
+  const list = Array.isArray(chain) ? chain : CHAIN;
+  for (const f of list) vm.runInContext(src(f), sandbox,
+    { filename: f });
   return { G: sandbox.Game, body: document.body, errors, sandbox };
 }
 
@@ -917,6 +928,66 @@ test('000147 AP-6: UI «Книга заклинаний» — learned-строк
   assert.equal(env.errors.length, 0, '0 ошибок: ' + env.errors.join('; '));
 });
 
+// --- AP-6B: (правки по итогам ревью) выученное НЕ-КАНОНИЧЕСКОЕ
+// Эфира — в книге (learned-строка), а не невидимо ---
+
+test('000147 AP-6B: UI — выученное НЕ-КАНОНИЧЕСКОЕ Эфира (learn на sheet через обобщённые источники 000147: свиток/руна/наставник) — строка .cp-itemrow ПОСЛЕ каноники, метка «изучено», без кнопки; НЕ дублируется в avail (learned — пропуск); каноника (data-driven) и метки «уровень N» intact', () => {
+  const env = makePartyEnv({});
+  // Активен Эфир (INT 3 — Ученик):
+  env.G.playerUI.toggle(true, 'character', 'efir');
+  assert.equal(env.errors.length, 0,
+    'переключение на Эфир: 0 ошибок: ' + env.errors.join('; '));
+  const pane = characterPane(env);
+  const bookSec = sectionOf(pane, 'Книга заклинаний');
+  // (1) ДО изучения: «Хлад» — avail-строка (не каноника Эфира;
+  //     источники: руна 40 / наствник 19):
+  const byName = (rows, name) => rows.find((r) => {
+    const nm = r.querySelector('.cp-itemname');
+    return nm && nm.textContent === name;
+  });
+  const availBefore = findAll(bookSec, '.cp-availrow');
+  assert.ok(byName(availBefore, 'Хлад'),
+    '«Хлад» — avail-строка Эфира до изучения (не каноника, есть ' +
+    'источники)');
+  const rows0 = findAll(bookSec, '.cp-itemrow');
+  assert.equal(rows0.length, env.G.efir.efirSpellsByLevel(100).length,
+    'до изучения — только каноника (data-driven, хардкода нет)');
+  // (2) Изучение на live-лист Эфира — ТОТ ЖЕ мутирующий путь, что
+  //     у обобщённых источников (useItem 4-й аргумент / apply-
+  //     MentorSpell → S.learn(sheet, …)); chill t1, база null,
+  //     INT 3 (Ученик) — canLearn ok:
+  const lr = env.G.Spells.learn(env.efirSheet, 'chill', 'scroll');
+  assert.equal(lr.ok, true, 'chill: t1 + INT 3 (Ученик) — ok');
+  assert.ok([...env.efirSheet.spells].includes('chill'),
+    'learn — мутация live-листа Эфира');
+  // (3) Re-render (toggle — renderBook rebuild in place):
+  env.G.playerUI.toggle(true, 'character', 'efir');
+  assert.equal(env.errors.length, 0,
+    're-render: 0 ошибок: ' + env.errors.join('; '));
+  const rows = findAll(bookSec, '.cp-itemrow');
+  assert.equal(rows.length, env.G.efir.efirSpellsByLevel(100).length + 1,
+    'каноника (data-driven) + 1 строка выученного не-каноника');
+  const learnedChill = byName(rows, 'Хлад');
+  assert.ok(learnedChill,
+    'выученное не-каноническое «Хлад» — ВИДИМО в книге ' +
+    '(правка по ревью: было — ни в канонике, ни в avail)');
+  assert.equal(learnedChill.querySelector('.cp-itemmeta').textContent,
+    'изучено', 'метка — «изучено» (уровня авто-разблокировки нет)');
+  assert.equal(learnedChill.querySelector('button'), null,
+    'read-only: кнопок НЕТ (как у learned-строк)');
+  // (4) avail: «Хлад» УБРАН (learned — пропуск), остальные строки
+  //     на месте:
+  const availAfter = findAll(bookSec, '.cp-availrow');
+  assert.equal(byName(availAfter, 'Хлад'), undefined,
+    'выученное не дублируется в avail');
+  assert.ok(availAfter.length >= 1, 'остальные avail-строки есть');
+  // (5) Каноника intact: старт-стрка «Искра» — «уровень 1»:
+  const spark = byName(rows, 'Искра');
+  assert.ok(spark, 'каноническая строка «Искра» (старт)');
+  assert.equal(spark.querySelector('.cp-itemmeta').textContent,
+    'уровень 1', 'метка каноники «уровень N» intact');
+});
+
 // --- AP-7: UI-путь — свиток «исп.» → активному наёмному ---
 
 test('000147 AP-7: UI-путь — свиток «исп.» → АКТИВНОМУ наёмному (INT 11): mercSheet.spells += frost_bolt, hero.spells НЕ тронут, свиток −1 С ИНВЕНТАРЯ ГЕРОЯ, flash «Изучено: «Морозная стрела»» (000133 intact); RED: ui.js G.useItem(c, id) без 4-го аргумента → learn на героя → assert merc.spells падает', () => {
@@ -954,4 +1025,30 @@ test('000147 AP-7: UI-путь — свиток «исп.» → АКТИВНОМ
   const notice = panel.querySelector('.cp-notice');
   assert.equal(notice.textContent, 'Изучено: «Морозная стрела»',
     'flash-сообщение 000133 intact (строка items.js дословно)');
+});
+
+// --- AP-M4: (правки по итогам ревью) интеграционный шов — полная
+// цепочка до building-effect-mentor.js: specials['NN_mentor']
+// зарегистрированы саморегистрацией (нажатие строки оверлея →
+// specials → apply → learn+gold → flash) ---
+
+test('000147 AP-M4: цепочка index.html до building-effect-mentor.js (включая building-actions.js и ui.js, БЕЗ main.js) — саморегистрация: Game.buildingActions.specials[«17_mentor»…«38_mentor»] — function (5 id, ОДИН хендлер); 0 ошибок загрузки (UMD-ловушка 000038: тег ДО main.js)', () => {
+  const all = Array.from(
+    page().matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1])
+    .map((p) => p.replace(/^src\//, ''));
+  const iM = all.indexOf('building-effect-mentor.js');
+  assert.ok(iM >= 0, 'тег src/building-effect-mentor.js в index.html');
+  const env = loadEnv(all.slice(0, iM + 1));
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  const BA = env.G.buildingActions;
+  assert.ok(BA && typeof BA.registerSpecial === 'function',
+    'Game.buildingActions с registerSpecial (реестр specials — до ' +
+    'mentor-тега)');
+  for (const id of ['17_mentor', '18_mentor', '19_mentor',
+      '21_mentor', '38_mentor']) {
+    assert.equal(typeof BA.specials[id], 'function',
+      'specials[' + id + '] — function (саморегистрация при ' +
+      'загрузке; битый порядок тегов = «мёртвое действие» — пин)');
+  }
 });
