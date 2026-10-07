@@ -2376,3 +2376,189 @@ test('боевой UI: 000151 A4 — якорь dpr: displaySize 336 + devicePix
     'setTransform — ДО первого fillRect (ядро R2); iST ' + iST
     + ' vs iBase ' + iBase);
 });
+
+// --- Задача 000152: ассеты наёмных NPC (экран боя) ---
+//
+// ТЗ: вид наёмника УНИКАЛЬНЫЙ (per-персонажа, не архетип-заглушка) и
+// применяется на экране боя. Сейчас — ВСЕ наёмники (kind 'merc')
+// рисуются Г.MOB_FRAMES[ALLY_MERC_KIND] ('orc', 000084) вне
+// зависимости от npcId.
+//
+// Дизайн (контракт memory/000152-merc-assets.md §4): merc-ветка в
+// allyFrames — КЛЮЧ ВЫБОРА u.id (в игре u.id = npc.id:
+// companions.allyDataForEntry → makeAlly `id: data.id || 'a'+idx` —
+// проводка уже работает, combat.js НЕ правится):
+//   u.kind === 'merc' && u.id → G.mercFrames(u.id, action) (sprites.js,
+//   000152); пустой результат (тестовые наёмники без npcId, id 'a1',
+//   и неизвестные id) → orc-FALLBACK G.MOB_FRAMES[ALLY_MERC_KIND] —
+//   пин 000084 (ниже, «наёмник (kind «merc»): спрайт моба-архетипа»)
+//   и golden-детерминизм остаются зелёными БЕЗ ПРАВОК. Ветка efir —
+//   ПЕРВАЯ, не трогается.
+//
+// Стадия красных тестов: merc-ветки НЕТ — оба наёмника с npcId
+// запрашивают orc-путь (краснота = неверный спрайт, не crash).
+// Гард G1 — зелёный с первого дня (деградация без sprites.js).
+
+// Наёмник С npcId (id нисходит в makeAlly как есть, combat.js):
+// белая коробка, паттерн addMerc84.
+function addMerc152(c, G, x, y, npcId, role, name) {
+  const merc = G.makeAlly({ id: npcId, name, role, level: 2, dmg: 1, hp: 1 }, 1);
+  merc.x = x; merc.y = y;
+  c.units.push(merc);
+  c.turnOrder.push(merc.id);
+  return merc;
+}
+
+test('боевой UI: 000152 — наёмник с npcId (id «merc_volk») рисует СВОЙ спрайт assets/sprites/mercs/merc_volk_idle_*.svg; кадр = mercFrames(id, "idle")[frameIndex(NOW84, x, y, n)]; orc НЕ запрашивается; маркер «свой» как раньше', () => {
+  const S = scene84({ loader:
+    [['assets/sprites/mercs/', { __fake: 'merc' }]] });
+  const merc = addMerc152(S.c, S.G, 5, 2, 'merc_volk', 'melee', 'Вольк');
+  const t = tickSlice(S.canvas, S.rafStubs);
+  // КРАСНОЕ: запрашивается именно СВОЙ кадр <npcId>_idle_<n>.svg.
+  const mercRequested = S.requested.filter(
+    (p) => p.startsWith('assets/sprites/mercs/merc_volk_idle_'));
+  assert.ok(mercRequested.length >= 1,
+    'наёмник с npcId запрашивает СВОЙ спрайт '
+    + 'assets/sprites/mercs/merc_volk_idle_<n>.svg; запрошено: '
+    + JSON.stringify(S.requested));
+  // orc-архетип для НАЙМЕНОВАННОГО наёмника не запрашивается
+  // (fallback — только без/с неизвестным npcId, пин 000084 ниже).
+  assert.ok(!S.requested.some((p) => p.startsWith('assets/sprites/mobs/orc_')),
+    'orc-путь НЕ запрашивается у наёмника с npcId: '
+    + JSON.stringify(S.requested));
+  // drawImage своего спрайта на клетке (геометрия 000084: запас 8px,
+  // 32×32) — не фолбэк-прямоугольник.
+  const di = t.calls.find((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__fake === 'merc');
+  assert.ok(di, 'спрайт наёмника (drawImage) — не фолбэк-прямоугольник');
+  assert.equal(di[1][1], merc.x * 48 + 8, 'x — клетка наёмника + 8px');
+  assert.equal(di[1][2], merc.y * 48 + 8, 'y — клетка наёмника + 8px');
+  assert.equal(di[1][3], 32, '1×1: 32px');
+  assert.equal(di[1][4], 32, '1×1: 32px');
+  // Маркер «свой» — как раньше (пин 000084: подложка + рамка).
+  assert.ok(t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === merc.x * 48 + 2 && c[1][1] === merc.y * 48 + 2
+    && c[1][2] === 44 && c[1][3] === 44), 'подложка «свой»');
+  assert.ok(t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === merc.x * 48 + 4.5 && c[1][1] === merc.y * 48 + 4.5
+    && c[1][2] === 39 && c[1][3] === 39), 'рамка «свой»');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'fillStyle'
+    && s[1] === 'rgba(140, 242, 252, 0.25)').length, 1,
+    'подложка — ровно один раз');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 1, 'рамка — ровно один раз');
+  // Детерминизм кадра (зелёная фаза): запрошенный путь =
+  // mercFrames(id, "idle")[frameIndex(NOW84, x, y, n)] — now один на
+  // render (000047). Красной фазе проверка недоступна (G.mercFrames
+  // ещё нет) — краснота выше, на самом спрайте.
+  if (typeof S.G.mercFrames === 'function') {
+    const frames = S.G.mercFrames('merc_volk', 'idle');
+    assert.ok(frames.length >= 1, 'mercFrames("merc_volk","idle") — кадры');
+    const idx = S.G.frameIndex(NOW84, merc.x, merc.y, frames.length);
+    assert.equal(mercRequested[0], frames[idx],
+      'кадр = mercFrames(id, "idle")[frameIndex(NOW84, x, y, n)]');
+  }
+});
+
+test('боевой UI: 000152 — два наёмника с РАЗНЫМИ npcId рисуют РАЗНЫЕ спрайты (не «один штамп»); фикстура без npcId (id «a1») — orc-fallback (пин 000084 жив); ветка Эфира не тронута', () => {
+  const S = scene84({
+    efir: true,
+    loader: [
+      ['assets/sprites/mercs/', { __fake: 'merc' }],
+      ['assets/sprites/mobs/orc_', { __fake: 'orc' }],
+      ['assets/sprites/efir/', { __fake: 'efir' }],
+    ],
+  });
+  addMerc152(S.c, S.G, 3, 2, 'merc_volk', 'melee', 'Вольк');
+  addMerc152(S.c, S.G, 4, 2, 'merc_ashka', 'ranged', 'Ашка');
+  const noid = addMerc84(S.c, S.G, 5, 2, 'ranged'); // id «a1» — БЕЗ npcId
+  tickSlice(S.canvas, S.rafStubs);
+  // КРАСНОЕ: per-npcId спрайты — РАЗНЫЕ пути (уникальность ТЗ).
+  const volk = S.requested.filter(
+    (p) => p.startsWith('assets/sprites/mercs/merc_volk_idle_'));
+  const ashka = S.requested.filter(
+    (p) => p.startsWith('assets/sprites/mercs/merc_ashka_idle_'));
+  assert.ok(volk.length >= 1,
+    'merc_volk — свой спрайт запрошен: ' + JSON.stringify(S.requested));
+  assert.ok(ashka.length >= 1,
+    'merc_ashka — свой спрайт запрошен: ' + JSON.stringify(S.requested));
+  assert.equal(volk.filter((p) => ashka.includes(p)).length, 0,
+    'разные npcId — РАЗНЫЕ изображения (не один штамп): '
+    + JSON.stringify(volk) + ' vs ' + JSON.stringify(ashka));
+  // drawImage на обеих клетках — дистинктные объекты-картинки
+  // (лоадер-фак кэширует объект на путь).
+  const diV = S.canvas.drawCalls.find((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__path === volk[0]);
+  const diA = S.canvas.drawCalls.find((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__path === ashka[0]);
+  assert.ok(diV && diA, 'drawImage обоих наёмников');
+  assert.notEqual(diV[1][0], diA[1][0],
+    'изображения различаются (дистинктные объекты)');
+  // Fallback жив: наёмник БЕЗ npcId (id «a1», фикстура 000084) —
+  // orc-архетип (пин 000084 «спрайт моба-архетипа» — без правок).
+  const orcFrame = S.G.MOB_FRAMES['orc']
+    [S.G.frameIndex(NOW84, noid.x, noid.y, 2)];
+  assert.ok(S.requested.includes(orcFrame),
+    'a1 (без npcId) → MOB_FRAMES["orc"] (fallback): ' + orcFrame
+    + ' | ' + JSON.stringify(S.requested));
+  // Ветка Эфира не тронута: кадр = efirFrames("idle")[frameIndex]
+  // (существующий пин 000084 — здесь якорь «первой» ветки).
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  const eFrame = S.G.efirFrames('idle')
+    [S.G.frameIndex(NOW84, u.x, u.y, 2)];
+  assert.ok(S.requested.includes(eFrame),
+    'Эфир → efirFrames("idle") (ветка не тронута): ' + eFrame);
+});
+
+test('боевой UI: 000152 G1 — деградация (без sprites.js): наёмник с npcId — фолбэк + маркер «свой», drawImage нет, исключений/ошибок нет', () => {
+  // Гард (зелёный с первого дня): G.mercFrames/G.MOB_FRAMES оба
+  // undefined (в цепочке нет sprites.js) → allyFrames → null →
+  // фолбэк-прямоугольник по роли (паттерн G1-Эфира 000084),
+  // console.error = 0 (e2e main-visuals 000081 чувствителен).
+  const rafStubs = makeRafStubs();
+  const { G, body } = loadCombatUi(false, {
+    performance: { now: () => NOW84 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const errors = [];
+  const realError = console.error;
+  console.error = (m) => errors.push(String(m));
+  let c = null;
+  try {
+    c = G.combatUI.startCombat({
+      hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    });
+    const canvas = findCanvas(body);
+    assert.ok(canvas, 'оверлей на месте, render() не упал');
+    const merc = G.makeAlly({
+      id: 'merc_volk', name: 'Вольк', role: 'melee', level: 2, dmg: 1, hp: 1,
+    }, 1);
+    merc.x = 5; merc.y = 2;
+    c.units.push(merc);
+    c.turnOrder.push(merc.id);
+    rafStubs.scheduled[rafStubs.scheduled.length - 1](); // re-render
+  } finally {
+    console.error = realError;
+  }
+  assert.ok(c, 'бой создан (деградация, не крах)');
+  assert.equal(errors.length, 0, 'console.error = 0: ' + JSON.stringify(errors));
+  const ex = 5 * 48, ey = 2 * 48; // клетка наёмника (5, 2)
+  const calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((x) => x[0] === 'drawImage'),
+    'drawImage нет (в цепочке нет sprites.js)');
+  // Якорь: фолбэк-прямоугольник (геометрия ветки) на клетке наёмника.
+  assert.ok(calls.some((x) => x[0] === 'fillRect'
+    && x[1][0] === ex + 8 && x[1][1] === ey + 8
+    && x[1][2] === 32 && x[1][3] === 32),
+    'фолбэк-прямоугольник 32×32 на клетке наёмника');
+  // Маркер «свой» без спрайта.
+  assert.ok(calls.some((x) => x[0] === 'fillRect'
+    && x[1][0] === ex + 2 && x[1][1] === ey + 2
+    && x[1][2] === 44 && x[1][3] === 44),
+    'подложка «свой» без sprites.js');
+  assert.ok(calls.some((x) => x[0] === 'strokeRect'
+    && x[1][0] === ex + 4.5 && x[1][1] === ey + 4.5
+    && x[1][2] === 39 && x[1][3] === 39),
+    'рамка «свой» без sprites.js');
+});

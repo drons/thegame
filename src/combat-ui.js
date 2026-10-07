@@ -611,19 +611,30 @@
 
     // Спрайт союзника (задача 000084): Эфир — G.efirFrames (000034:
     // кадры Флогистона переданы Эфиру, каталог assets/sprites/efir/);
-    // наёмник — G.MOB_FRAMES[ALLY_MERC_KIND] (архетип-заглушка ВСЕХ
-    // ролей; per-role/per-NPC — расширение 000087/000114). Чистая
+    // наёмник С npcId — G.mercFrames(u.id, action) (задача 000152:
+    // у каждого нанимаемого NPC — свой вид, каталог
+    // assets/sprites/mercs/; u.id = npc.id — проводка makeAlly,
+    // combat.js не правится); наёмник без npcId (тестовые fix-наёмники,
+    // id 'a'+idx) и неизвестные id — G.MOB_FRAMES[ALLY_MERC_KIND]
+    // (orc-архетип-заглушка, пин 000084 — без правок). Чистая
     // селекция (аналог mobSprite): кадры → G.frameIndex(now, x, y, n)
     // (детерминизм, now — один на render) → spriteLoader.image()
     // (картинка, загрузившаяся ПОСЛЕ старта боя — подхватывается
     // следующим render, паттерн фона 000049). v1: action = 'idle'
-    // всегда (MOB_FRAMES действий не имеют; c._unitFx — player-
-    // центричная эвристика 000062, в ally-ветке НЕ читается — ложный
-    // 'attack'). Без кадров/лоадера — null → фолбэк-прямоугольник
+    // всегда (MOB_FRAMES/MERC_FRAMES действий не имеют; c._unitFx —
+    // player-центричная эвристика 000062, в ally-ветке НЕ читается —
+    // ложный 'attack'). Без кадров/лоадера — null → фолбэк-прямоугольник
     // по роли в вызывающей ветке (деградация, не падение).
     function allyFrames(u, now, action) {
       let frames = [];
       if (u.kind === 'efir') frames = G.efirFrames ? G.efirFrames(action) : [];
+      else if (u.kind === 'merc' && u.id) {
+        // 000152: per-npcId спрайт; пустой результат (id без npcId,
+        // например 'a1', или неизвестный id) — orc-fallback.
+        frames = G.mercFrames ? G.mercFrames(u.id, action) : [];
+        if (!frames.length)
+          frames = G.MOB_FRAMES ? (G.MOB_FRAMES[ALLY_MERC_KIND] || []) : [];
+      }
       else frames = G.MOB_FRAMES ? (G.MOB_FRAMES[ALLY_MERC_KIND] || []) : [];
       if (!frames.length || !ctx.spriteLoader) return null;
       const idx = (frames.length > 1 && G.frameIndex)

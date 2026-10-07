@@ -2171,3 +2171,111 @@ test('SP-47: спрайт лагеря — campSprite(47) → путь к сущ
   assert.ok(all.includes(CAMP_SVG_PATH),
     `путь не в allAssetPaths: ${CAMP_SVG_PATH}`);
 });
+
+// --- Задача 000152: ассеты наёмных NPC (экран боя + экран найма) ---
+//
+// ТЗ: у каждого нанятого NPC — УНИКАЛЬНЫЙ вид, соответствующий его
+// классу; ассеты применяются на экране боя и экране найма. Сейчас —
+// общий вид (в бою все наёмники — orc-архетип 000084, в найме —
+// текст без изображений).
+//
+// Дизайн (контракт memory/000152-merc-assets.md, решения D1–D8):
+// 1. assets/sprites/mercs/ — СЕМЕЙНАЯ папка (паттерн mobs/), 12 SVG
+//    64×64: <npcId>_idle_{1,2}.svg (6 нанимаемых × 2 кадра idle —
+//    стиль боевого арта: все персонажи 2-кадровые, D1).
+// 2. src/sprites.js (модуль НЕ нов): таблица-литерал MERC_FRAMES
+//    (вставка после EFIR_FRAMES) + чистая функция
+//    mercFrames(npcId, action) → MERC_FRAMES[npcId] ? [action] || []
+//    : [] (паттерн efirFrames; неизвестный id/действие → [] —
+//    деградация, не crash) + 12 путей в allAssetPaths() (main.js
+//    выставляет в spriteLoader ИМЕННО этот список) + 2 экспорта.
+//    UMD-подпись и require-список НЕ меняются.
+// 3. Бой (combat-ui.js allyFrames) и найм (ui.js renderHireTab) —
+//    tests/combat-ui.test.js (C1/C2/G1) и tests/npc-hire-ui.test.js
+//    (H1/G2); формат SVG — гейт 000120 (tests/svg.test.js, строка
+//    EXPECTED_SVG_BY_DIR «sprites/mercs» правится на стадии
+//    реализации) + чекер checkCharacterFrameErrors ниже (шаблон
+//    16 персонажных кадров 000034: 64×64, статично, без ссылок).
+//
+// 6 нанимаемых — каталог assets/npc/ ФИНАЛЕН (зеркало
+// src/npc-data.js, tests/npc-data.test.js): ровно эти id несут
+// найм-данные (id — ключ MERC_FRAMES и префикс имени файла; пути
+// литералы — паттерн EFIR_FRAMES, нового JSON-каталога НЕТ).
+//
+// Стадия красных тестов: экспортов MERC_FRAMES/mercFrames, записи
+// merc-семьи в allAssetPaths и каталога assets/sprites/mercs/ НЕТ —
+// оба теста ниже падают осмысленно (нет символа/пути/файла),
+// не синтаксически.
+
+const MERC_IDS = [
+  'merc_volk', 'merc_ashka', 'merc_baldor',
+  'merc_mira', 'merc_torga', 'merc_rena',
+];
+
+test('sprites: 000152 — MERC_FRAMES + mercFrames: 6 нанимаемых, уникальные idle-кадры 64×64 в assets/sprites/mercs/; файлы существуют; неизвестный id → []', () => {
+  assert.ok(S.MERC_FRAMES && typeof S.MERC_FRAMES === 'object',
+    'src/sprites.js: нет экспорта MERC_FRAMES (таблица-литерал, '
+    + 'вставка после EFIR_FRAMES)');
+  assert.equal(typeof S.mercFrames, 'function',
+    'src/sprites.js: нет экспорта mercFrames(npcId, action)');
+  assert.deepEqual(Object.keys(S.MERC_FRAMES).sort(),
+    [...MERC_IDS].sort(),
+    'ключи MERC_FRAMES — ровно 6 нанимаемых каталога assets/npc/');
+  const allPaths = [];
+  for (const id of MERC_IDS) {
+    const frames = S.MERC_FRAMES[id].idle;
+    assert.ok(Array.isArray(frames) && frames.length >= 1,
+      id + ': у каждого — idle-кадры (массив ≥ 1 пути)');
+    for (const p of frames) {
+      assert.match(p,
+        new RegExp('^assets/sprites/mercs/' + id + '_idle_\\d+\\.svg$'),
+        id + ': имя кадра assets/sprites/mercs/<npcId>_idle_<n>.svg: ' + p);
+      assert.ok(exists(p), `нет файла: ${p}`);
+      allPaths.push(p);
+    }
+  }
+  // 6 РАЗНЫХ путей — «не один штамп для всех» (паттерн SP-C2):
+  // ТЗ — вид УНИКАЛЬНЫЙ на персонажа.
+  assert.equal(new Set(allPaths).size, allPaths.length,
+    'у 6 наёмников — парно-разные спрайты (нет штампа)');
+  // mercFrames — чистая функция ≡ таблице, НЕ зависит от факта
+  // загрузки (паттерн efirFrames): повторный выбор — тот же.
+  const snap = MERC_IDS.map((id) => S.mercFrames(id, 'idle'));
+  for (let i = 0; i < MERC_IDS.length; i++) {
+    assert.deepEqual(snap[i], S.MERC_FRAMES[MERC_IDS[i]].idle,
+      MERC_IDS[i] + ': mercFrames(id, "idle") ≡ MERC_FRAMES[id].idle');
+  }
+  assert.deepEqual(MERC_IDS.map((id) => S.mercFrames(id, 'idle')), snap,
+    'повторный выбор — тот же (чистота)');
+  assert.deepEqual(S.mercFrames('no_such_npc', 'idle'), [],
+    'неизвестный id → [] (деградация, не crash)');
+  assert.deepEqual(S.mercFrames('merc_volk', 'нет-такого-действия'), [],
+    'неизвестное действие → [] (паттерн efirFrames)');
+  // Формат кадров — семья персонажных 64×64 (гейт 000120 + чекер
+  // 000034): viewBox "0 0 64 64", статичны, без NaN/запрещённых
+  // тегов/внешних ссылок, прозрачный фон (нет rect 64×64).
+  for (const p of allPaths) {
+    const errors = checkCharacterFrameErrors(p, svgText(p));
+    assert.deepEqual(errors, [], p + ': ' + errors.join('; '));
+  }
+});
+
+test('sprites: 000152 — allAssetPaths(): merc-кадры в очереди загрузчика, без дублей, все файлы существуют', () => {
+  assert.ok(S.MERC_FRAMES && typeof S.MERC_FRAMES === 'object',
+    'нет MERC_FRAMES');
+  const paths = S.allAssetPaths();
+  let n = 0;
+  for (const frames of Object.values(S.MERC_FRAMES)) {
+    for (const p of frames) {
+      assert.ok(paths.includes(p), `нет пути в allAssetPaths: ${p}`);
+      assert.ok(exists(p), `нет файла: ${p}`);
+      n += 1;
+    }
+  }
+  assert.ok(n >= 6, 'merc-семья в очереди (кадры 6 нанимаемых)');
+  // main.js выставляет в spriteLoader ИМЕННО список allAssetPaths()
+  // — кадр без записи в нём не загрузится в браузере; дублей быть
+  // не должно (инвариант существующего теста выше).
+  const set = new Set(paths);
+  assert.equal(set.size, paths.length, 'дубли в списке ассетов');
+});

@@ -935,3 +935,144 @@ test('000083 U9: open БЕЗ roster/deadMercs (модуль на месте) —
       && ch._text === 'Отряд пуст.'),
     'пустой отряд — «Отряд пуст.»');
 });
+
+// --- Задача 000152: ассеты наёмных NPC (экран найма) ---
+//
+// ТЗ: сгенерированные ассеты применяются на экране найма: у каждой
+// строки кандидата — изображение персонажа (сейчас строка — только
+// .cp-itemname + .cp-itemmeta + кнопка, изображений НЕТ).
+//
+// Дизайн (контракт memory/000152-merc-assets.md §5): `<img class="cp-itemicon">`
+// — ПЕРВЫМ ребёнком .cp-itemrow, ДО .cp-itemname:
+//   img.src = 'assets/sprites/mercs/' + m.id + '_idle_1.svg'
+// Путь — СТРОЧНЫЙ ЛИТЕРАЛ из m.id (локальная константа MERC_ICON_DIR):
+// UMD-ловушка 000038 — ui.js снимает `const G = globalThis.Game` при
+// ЗАГРУЗКЕ и грузится ДО sprites.js (index.html), G.mercFrames в ui.js
+// навсегда undefined; CHAIN этой песочницы (…npc.js, companions.js,
+// …, ui.js) sprites.js тоже не несёт → литерал устойчив к обоим.
+// `img.src` — СВОЙСТВО (продуктовый паттерн ui.js actionIcon), НЕ
+// setAttribute (стаб пишет setAttribute в dataset — src там не видно).
+// U2 (порядковый assert «имя → meta → кнопка») остаётся зелёным:
+// img ПЕРЕД именем — (0,1,2,3). Блок «Отряд» и readonly-список —
+// БЕЗ img (решения O2/O3).
+//
+// Стадия красных тестов: `<img>` в строке НЕТ (querySelector('img')
+// = null) — H1 падает осмысленно. Гард G2 (readonly-деградация) —
+// зелёный с первого дня.
+
+test('000152 H1: экран найма — у КАЖДОЙ из 6 строк кандидата есть <img> с уникальным src assets/sprites/mercs/<npcId>_idle_1.svg (файл существует); <img> — первым ребёнком; порядок имя → meta → кнопка (U2) жив', () => {
+  const env = loadHireUi();
+  const cands = candidatesOf(env.G);
+  assert.equal(cands.length, 6, 'ровно 6 нанимаемых в каталоге (финален)');
+  const npc = firstPlainHireNpc(env);
+  const { overlay } = openDialog(env, npc, {
+    roster: [], deadMercs: [], day: 7, onChange: () => {},
+  });
+  clickHireTab(overlay);
+  const srcs = [];
+  for (const m of cands) {
+    const row = rowByName(overlay, m.имя);
+    assert.ok(row, 'строка «' + m.имя + '» есть');
+    // КРАСНОЕ: изображение персонажа в строке кандидата.
+    const img = row.querySelector('img');
+    assert.ok(img, m.имя + ': в строке кандидата есть <img> (000152)');
+    assert.equal(img.src,
+      'assets/sprites/mercs/' + m.id + '_idle_1.svg',
+      m.имя + ': img.src = assets/sprites/mercs/<npcId>_idle_1.svg: '
+      + img.src);
+    assert.ok(fs.existsSync(path.join(ROOT, img.src)),
+      'нет файла: ' + img.src);
+    srcs.push(img.src);
+    // <img> — ПЕРВЫМ ребёнком строки (до .cp-itemname).
+    assert.equal(row.children[0], img,
+      m.имя + ': <img> — первый ребёнок .cp-itemrow');
+    // U2 жив: порядок имя → meta → кнопка (порядковый assert).
+    const nm = row.querySelector('.cp-itemname');
+    const metas = row.querySelectorAll('.cp-itemmeta');
+    const b = row.querySelector('button[data-npcact=hire]');
+    const idxName = row.children.indexOf(nm);
+    const idxMeta = row.children.indexOf(metas[0]);
+    const idxBtn = row.children.indexOf(b);
+    assert.ok(idxName >= 0 && idxMeta > idxName && idxBtn > idxMeta,
+      m.имя + ': порядок строки — имя → meta → кнопка «нанять» (U2)');
+  }
+  // 6 src парно-разных — «не один штамп» (уникальность ТЗ).
+  assert.equal(new Set(srcs).size, srcs.length,
+    'у 6 кандидатов — разные иконки: ' + JSON.stringify(srcs));
+  // Блок «Отряд» — БЕЗ img (решение O2: ТЗ — «которого МОЖНО нанять»).
+  const s = squadSection(overlay);
+  assert.ok(s, 'блок «Отряд» на месте');
+  assert.equal(findAll(s, 'img').length, 0,
+    'строки блока «Отряд» без <img> (O2)');
+});
+
+// G2: readonly-деградация (CHAIN БЕЗ companions.js — рендер 000078).
+// Дубль загрузчика с другим CHAIN (дублирование стабов принято в
+// проекте): строки intact (имя + meta), <img> в readonly НЕТ (O3 —
+// поверхность деградации не расширяется), новых console.error НЕТ
+// (допустим только зафиксированный «Game.companions» 000078/000083).
+const CHAIN_READONLY = CHAIN.filter((f) => f !== 'companions.js');
+
+function loadHireUiReadonly() {
+  const errors = [];
+  const document = {
+    createElement: (tag) => makeEl(tag),
+    body: makeEl('body'),
+    querySelector: () => null,
+    hidden: false,
+    listeners: {},
+    addEventListener(type, fn) {
+      (this.listeners[type] || (this.listeners[type] = [])).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const a = this.listeners[type];
+      if (!a) return;
+      const i = a.indexOf(fn);
+      if (i >= 0) a.splice(i, 1);
+    },
+  };
+  const window = {
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  };
+  const sandbox = {
+    console: {
+      log: () => {}, info: () => {}, warn: () => {},
+      error: (m) => errors.push(String(m)),
+    },
+    document, window, setTimeout, clearTimeout,
+  };
+  vm.createContext(sandbox);
+  for (const f of CHAIN_READONLY) {
+    vm.runInContext(src(f), sandbox, { filename: f });
+  }
+  return { G: sandbox.Game, body: document.body, errors };
+}
+
+test('000152 G2: readonly-деградация (CHAIN без companions.js) — строки кандидатов intact (имя + meta), <img> в readonly НЕТ (O3), НОВЫХ console.error нет', () => {
+  const env = loadHireUiReadonly();
+  const cands = candidatesOf(env.G);
+  assert.ok(cands.length >= 1, 'в каталоге есть наёмники (000078)');
+  const npc = firstPlainHireNpc(env);
+  const { overlay } = openDialog(env, npc, { day: 7 });
+  clickHireTab(overlay);
+  // Строки intact: читаемый список 000078, все кандидаты, имя + meta.
+  assert.deepEqual(names(overlay), Array.from(cands, (n) => n.имя),
+    'readonly: читаемый список — все кандидаты (000078)');
+  for (const m of cands) {
+    const row = rowByName(overlay, m.имя);
+    assert.ok(row, 'строка «' + m.имя + '» intact');
+    const metas = row.querySelectorAll('.cp-itemmeta');
+    assert.ok(metas.length >= 1, m.имя + ': .cp-itemmeta intact');
+    assert.ok(metas[0].textContent.includes(String(m.найм.роль)),
+      m.имя + ': meta несёт роль');
+    // O3: readonly-список — БЕЗ <img> (деградация 000078 не расширяется).
+    assert.equal(row.querySelector('img'), null,
+      m.имя + ': <img> в readonly-строке НЕТ (O3)');
+  }
+  // Консоль: кроме зафиксированного «Game.companions» (деградация
+  // 000078, регрессия tests/npc-hire.test.js) — НОВЫХ ошибок НЕТ.
+  const other = env.errors.filter((e) => !e.includes('Game.companions'));
+  assert.equal(other.length, 0,
+    'новых console.error нет: ' + JSON.stringify(env.errors));
+});
