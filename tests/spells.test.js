@@ -247,12 +247,12 @@ function loadSpellsData() { return require('../src/spells-data.js'); }
 
 // --- Модуль-зеркало src/spells-data.js ---
 
-test('spells-data.js: точное зеркало каталога JSON (16 заклинаний)', () => {
+test('spells-data.js: точное зеркало каталога JSON (17 заклинаний)', () => {
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
   const files = listSpellFiles();
-  assert.equal(files.length, 16, 'каталог: 16 файлов');
-  assert.equal(SPELLS.length, 16, 'SPELLS — 16 заклинаний');
-  assert.equal(Object.keys(SPELLS_BY_ID).length, 16, 'SPELLS_BY_ID — 16 id');
+  assert.equal(files.length, 17, 'каталог: 17 файлов');
+  assert.equal(SPELLS.length, 17, 'SPELLS — 17 заклинаний');
+  assert.equal(Object.keys(SPELLS_BY_ID).length, 17, 'SPELLS_BY_ID — 17 id');
   // Порядок SPELLS = порядок файлов каталога; данные — дословно.
   files.forEach((f, i) => {
     const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));

@@ -24,6 +24,13 @@
 //               ударом моба, combat.js).
 //   * контроль: u.bind = { turns: 1 } (моб пропускает одно действие,
 //               combat.js).
+//   * воскрешение (задача 000163): ядро combat.js resurrectAlly
+//               (export — combatInternals): t.alive = true,
+//               hp = round(maxHP/2), лог «Возвращён в бой.»; цель —
+//               мёртвый союзник c.units (явный targetId) ИЛИ автоцель
+//               (мёртвый игрок приоритетно, иначе первый мёртвый
+//               союзник); дальность НЕ ограничена (исключение из
+//               SPELL_MAX_DIST — спасательная механика).
 // Пул действий — c.ps.spellInt/spellWis по spell.атрибут, мана — spell.мани.
 // В бою действует только высшая ИЗВЕСТНАЯ степень цепочки «база».
 
@@ -62,7 +69,8 @@
       typeof internals.unitDist !== 'function' ||
       typeof internals.checkTurn !== 'function' ||
       typeof internals.checkBlocked !== 'function' ||
-      typeof internals.dealDamageToMob !== 'function') {
+      typeof internals.dealDamageToMob !== 'function' ||
+      typeof internals.resurrectAlly !== 'function') {
     console.error('spells.js: не найдены боевые internals — загрузите ' +
       'src/combat.js до src/spells.js (задача 000045)');
     return;
@@ -81,6 +89,9 @@
 
   const {
     log, nearestMob, unitDist, checkTurn, checkBlocked, dealDamageToMob,
+    // 000163: ядро воскрешения (combat.js; GUARD выше — деградация,
+    // не crash, паттерн 000038/000113).
+    resurrectAlly,
   } = internals;
 
   // --- Каталог (зеркало assets/spells, src/spells-data.js) ---
@@ -302,7 +313,7 @@
   // мутированного в памяти (ревью 000045, раунд 1): отказ обязан идти
   // ДО расхода пула/маны, и canCastSpell даёт ту же причину (000037).
   const KNOWN_ACTIONS = new Set(
-    ['урон', 'лечение', 'защита', 'ослабление', 'контроль']);
+    ['урон', 'лечение', 'защита', 'ослабление', 'контроль', 'воскрешение']);
 
   // Общие проверки каста (зеркало 000037: castSpell и canCastSpell
   // обязаны дать ОДНУ и ту же причину). Чисто: не тратит пулы/ману,
@@ -368,6 +379,28 @@
         return {
           fail: { ok: false, reason: 'цель слишком далеко (дальность 4)' },
         };
+      }
+    } else if (spell.действие === 'воскрешение') {
+      // Воскрешение (000163, контракты R-1/R-2): явный targetId —
+      // ТОЛЬКО мёртвый СОЮЗНИК c.units (side 'ally', !alive, !fled);
+      // targetId 'player'/чужой id/живой союзник/моб — «нет цели»
+      // (игрок НЕ в c.units — маркера 'player' нет). Без targetId —
+      // автоцель: мёртвый ИГРОК приоритетно (катастрофа выше), иначе
+      // первый мёртвый союзник в порядке c.units. Дальность НЕ
+      // ограничена (исключение из SPELL_MAX_DIST — спасательная
+      // механика D3): unitDist НЕ вызывается.
+      if (targetId) {
+        const u = c.units.find((x) => x.id === targetId);
+        if (!(u && u.side === 'ally' && !u.alive && !u.fled)) {
+          return { fail: { ok: false, reason: 'нет цели' } };
+        }
+        t = u;
+      } else if (!c.player.alive) {
+        t = c.player; // мёртвый игрок — приоритет автоцели
+      } else {
+        t = c.units.find((x) => x.side === 'ally' && !x.alive
+          && !x.fled) || null;
+        if (!t) return { fail: { ok: false, reason: 'нет цели' } };
       }
     }
     return { ok: true, spell, p, t, poolKey };
@@ -436,6 +469,13 @@
         t.bind = { turns: 1 };
         log(c, `${t.name} скован (${spell.название}).`);
         out.bound = t.id;
+        break;
+      }
+      case 'воскрешение': {
+        // 000163: ядро combat.js resurrectAlly (alive, hp=round(
+        // maxHP/2), лог «Возвращён в бой.»); цель — из evalSpell
+        // (мёртвый союзник c.units / мёртвый игрок; дальности нет).
+        out.hp = resurrectAlly(c, t);
         break;
       }
       default:

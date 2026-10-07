@@ -153,7 +153,7 @@ const SKILL_META = (() => {
 // --- Задача 000115: полные КАТАЛОГИ-ЗАПИСИ (id-валидация в
 // deserializeEfir по каталогам-параметрам, D2): массивы записей каталога
 // (объекты со строковым .id — не только id-набор). Зеркала assets:
-// skills — 37 записей, spells — 16 записей.
+// skills — 37 записей, spells — 17 записей.
 const SKILL_CATALOG = SKILL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
@@ -511,8 +511,9 @@ test('000111 T3: книга заклинаний — старт [spark, mend], �
     assert.deepEqual(d1.spells, ['spark', 'mend'], 'книга L1 в данных боя');
     assert.notEqual(d1.spells, d2.spells, 'spells — свежая копия на вызов');
     // Таблица открытий (ТЗ: 5 light_heal, 8 frost_bolt, 10 fireball,
-    // 12 magic_shield, 15 vine, 20 greater_heal, 25 ward, 30
-    // nature_blessing): L4 — открытий нет, L5/L8 — первые, L30 — все.
+    // 12 magic_shield, 15 vine, 20 greater_heal, 22 resurrect,
+    // 25 ward, 30 nature_blessing): L4 — открытий нет, L5/L8 —
+    // первые, L30 — все.
     assert.deepEqual(E.efirSpellsByLevel(4), ['spark', 'mend'], 'L4: без открытий');
     assert.deepEqual(E.efirSpellsByLevel(5),
       ['spark', 'mend', 'light_heal'], 'L5: + light_heal');
@@ -520,8 +521,9 @@ test('000111 T3: книга заклинаний — старт [spark, mend], �
       ['spark', 'mend', 'light_heal', 'frost_bolt'], 'L8: + frost_bolt');
     assert.deepEqual(E.efirSpellsByLevel(30),
       ['spark', 'mend', 'light_heal', 'frost_bolt', 'fireball',
-       'magic_shield', 'vine', 'greater_heal', 'ward', 'nature_blessing'],
-      'L30: все 10 в порядке таблицы (5/8/10/12/15/20/25/30)');
+       'magic_shield', 'vine', 'greater_heal', 'resurrect', 'ward',
+       'nature_blessing'],
+      'L30: все 11 в порядке таблицы (5/8/10/12/15/20/22/25/30)');
     // Монотонность: L4 ⊆ L5 ⊆ L8 (заклинания не удаляются).
     const l4 = E.efirSpellsByLevel(4);
     const l5 = E.efirSpellsByLevel(5);
@@ -815,7 +817,7 @@ test('000115: deserializeEfir — id-валидация по каталогам-
   // Каталоги — полные зеркала assets (записи, не только id-набор).
   assert.equal(SKILL_CATALOG.length, 37,
     'каталог skills: 37 записей (6 primary + 31 secondary)');
-  assert.equal(SPELL_CATALOG.length, 16, 'каталог spells: 16 записей');
+  assert.equal(SPELL_CATALOG.length, 17, 'каталог spells: 17 записей');
 
   // Чужой id (вне ЛЮБОГО каталога) → null — сброс ЗАПИСИ (000029).
   const base = { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] };

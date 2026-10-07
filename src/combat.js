@@ -893,6 +893,23 @@
     return unit.hp - before;
   }
 
+  // Воскрешение павшего союзника (задача 000163, «Воскрешение»;
+  // контракт memory/000163-resurrection-spell.md §3.2): ЧИСТАЯ
+  // мутация + log, НОЛЬ c._rng (детерминизм D3): t.alive = true,
+  // t.hp = round(maxHP/2). maxHP: игрок — P.derived (у ИГРОКА нет
+  // поля maxHP — только hp), юнит — t.maxHP. Строка лога закреплена:
+  // «Возвращён в бой.» (R-3). Возврат — новый hp (R-4). Clamp не
+  // нужен: maxHP ≥ 1 всегда (makeAlly: Math.max(1, …); игрок ≥ 20)
+  // → hp ≥ 1. Очередь хода НЕ пересчитывается: воскресший входит в
+  // turnOrder с начала следующего раунда (пересчёт buildTurnOrder).
+  function resurrectAlly(c, t) {
+    t.alive = true;
+    const maxHP = t === c.player ? P.derived(t).maxHP : t.maxHP;
+    t.hp = Math.round(maxHP / 2);
+    log(c, 'Возвращён в бой.');
+    return t.hp;
+  }
+
   // Ослабление ВСЕМ живым врагам (000113, «Вдох Эфира»; export —
   // combatInternals): статус u.weakened = {mult, turns} — ОТДЕЛЬНЫЙ
   // аддитивный статус (НЕ u.weaken из 000045 — тот тикает по
@@ -2409,6 +2426,10 @@
     // healAlly (лечение игрока/союзника, возврат факта) +
     // weakenAllEnemies (u.weakened на живых мобах).
     healAlly, weakenAllEnemies,
+    // 000163: «Воскрешение» (контракт
+    // memory/000163-resurrection-spell.md §3.2): t.alive=true,
+    // hp=round(maxHP/2), лог «Возвращён в бой.», возврат нового hp.
+    resurrectAlly,
   };
 
   return {
