@@ -368,3 +368,23 @@ test('items schema (000133): spell_scroll / effect spell зафиксирова�
     'effect.properties.spell — string, pattern id заклинания '
     + '(аналог skill у skill_book; red: поля нет)');
 });
+
+// --- Задача 000165: schema.json (items) — kind resurrection_scroll +
+// effect resurrect (контракт memory/000165-resurrection-scroll.md §3.2) ---
+//
+// КРАСНЫЙ: enum вида не содержит 'resurrection_scroll',
+// effect.kind — 'resurrect'. До каталожного коммита: validateItem
+// items.js:62 — «неизвестный тип» на загрузке 000051.json (I1,
+// tests/items.test.js). Прецедент — 000133 выше.
+
+test('items schema (000165): resurrection_scroll / effect resurrect зафиксированы', () => {
+  const s = loadSchema('items');
+  const kindEnum = s.properties.kind.enum;
+  assert.ok(kindEnum.includes('resurrection_scroll'),
+    'properties.kind.enum содержит resurrection_scroll (red: enum без kind); '
+    + JSON.stringify(kindEnum));
+  const fkEnum = s.properties.effect.properties.kind.enum;
+  assert.ok(fkEnum.includes('resurrect'),
+    'effect.properties.kind.enum содержит resurrect (red: enum без «resurrect»); '
+    + JSON.stringify(fkEnum));
+});
