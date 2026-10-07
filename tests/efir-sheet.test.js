@@ -27,8 +27,8 @@
 //   * ES-4 — боевые статки из primary (derived-модификатор, баланс
 //     SPEC L801-812: L1 16/11); УРОВЕНЬ атрибуты больше НЕ растит
 //     (рост — очками) — сейчас: таблица efirStats(level): L3 → 18/13;
-//   * ES-5 — авто-разблокировки EFIR_SPELL_UNLOCKS (8 шт., 5/8/10/12/
-//     15/20/25/30) накладываются на лист (append-only, без дублей),
+//   * ES-5 — авто-разблокировки EFIR_SPELL_UNLOCKS (9 шт., 5/8/10/12/
+//     15/20/22/25/30) накладываются на лист (append-only, без дублей),
 //     сосуществование с очками — сейчас: на состоянии нет sheet-
 //     лейаута/полей;
 //   * ES-6 — serde: serializeEfir → sheet-лейаут (ровно 10 ключей);
@@ -310,16 +310,16 @@ test('000144 ES-4: боевые статки — из primary (derived-моди�
   });
 });
 
-test('000144 ES-5: авто-разблокировки EFIR_SPELL_UNLOCKS (8 шт., 5/8/10/12/15/20/25/30) накладываются на лист: append-only, без дублей; сосуществование с очками (2/уровень); данные таблицы не меняются', () => {
+test('000144 ES-5: авто-разблокировки EFIR_SPELL_UNLOCKS (9 шт., 5/8/10/12/15/20/22/25/30) накладываются на лист: append-only, без дублей; сосуществование с очками (2/уровень); данные таблицы не меняются', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
-    // Данные — без изменений (фирменное, ТЗ: «СОХРАНЕНЫ»): 8 строк,
+    // Данные — без изменений (фирменное, ТЗ: «СОХРАНЕНЫ»): 9 строк,
     // канонический порядок порогов.
     assert.deepEqual(E.EFIR_SPELL_UNLOCKS, [
       [5, 'light_heal'], [8, 'frost_bolt'], [10, 'fireball'],
       [12, 'magic_shield'], [15, 'vine'], [20, 'greater_heal'],
-      [25, 'ward'], [30, 'nature_blessing'],
-    ], 'EFIR_SPELL_UNLOCKS — данные без изменений (8 шт.)');
+      [22, 'resurrect'], [25, 'ward'], [30, 'nature_blessing'],
+    ], 'EFIR_SPELL_UNLOCKS — данные без изменений (9 шт.)');
     const s = E.createEfir();
     const toLevel = (lv) => {
       while (s.level < lv) {
@@ -344,9 +344,9 @@ test('000144 ES-5: авто-разблокировки EFIR_SPELL_UNLOCKS (8 ш�
     toLevel(30);
     assert.deepEqual(s.spells,
       ['spark', 'mend', 'light_heal', 'frost_bolt', 'fireball',
-       'magic_shield', 'vine', 'greater_heal', 'ward',
+       'magic_shield', 'vine', 'greater_heal', 'resurrect', 'ward',
        'nature_blessing'],
-      'L30: все 10 (старт 2 + 8 разблокировок) в каноническом порядке');
+      'L30: все 11 (старт 2 + 9 разблокировок) в каноническом порядке');
     assert.equal(new Set(s.spells).size, s.spells.length,
       'append-only: дублей в книге нет');
     assert.equal(s.points, 58, 'L30: 29 уровней × 2 очка (механики вместе)');

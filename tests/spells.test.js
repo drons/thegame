@@ -247,12 +247,12 @@ function loadSpellsData() { return require('../src/spells-data.js'); }
 
 // --- Модуль-зеркало src/spells-data.js ---
 
-test('spells-data.js: точное зеркало каталога JSON (16 заклинаний)', () => {
+test('spells-data.js: точное зеркало каталога JSON (17 заклинаний)', () => {
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
   const files = listSpellFiles();
-  assert.equal(files.length, 16, 'каталог: 16 файлов');
-  assert.equal(SPELLS.length, 16, 'SPELLS — 16 заклинаний');
-  assert.equal(Object.keys(SPELLS_BY_ID).length, 16, 'SPELLS_BY_ID — 16 id');
+  assert.equal(files.length, 17, 'каталог: 17 файлов');
+  assert.equal(SPELLS.length, 17, 'SPELLS — 17 заклинаний');
+  assert.equal(Object.keys(SPELLS_BY_ID).length, 17, 'SPELLS_BY_ID — 17 id');
   // Порядок SPELLS = порядок файлов каталога; данные — дословно.
   files.forEach((f, i) => {
     const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
@@ -1247,4 +1247,431 @@ test('E1. 000133: e2e — свиток: addItem → useItem «Изучено» �
   assert.equal(p.mp, 30 - 6, 'мана −6 (мани fireball)');
   assert.equal(c.ps.spellInt, pool0 - 1, 'пул Интеллекта −1');
   assert.equal(hp0 - w.hp, r.dmg, 'броня моба игнорируется');
+});
+
+// --- Задача 000163: заклинание «Воскрешение» — КРАСНЫЕ тесты (TDD) ---
+//
+// Контракты: memory/000163-resurrection-spell.md (§3 — форма и
+// контракты, §4.1 — список), ТЗ tasks/pending/000163.md.
+// КРАСНЫЕ: падают, пока НЕТ:
+//  * assets/spells/000017.json (id 'resurrect', действие
+//    «воскрешение») + schema.json (новое значение enum) +
+//    регенерация src/spells-data.js (R1);
+//  * ядра combatInternals.resurrectAlly (src/combat.js): alive=true,
+//    hp=round(maxHP/2), лог «Возвращён в бой.», ноль c._rng (R2);
+//  * действия «воскрешение» в src/spells.js: KNOWN_ACTIONS,
+//    цель-правило evalSpell (мёртвый союзник c.units / мёртвый игрок,
+//    дальность НЕ ограничена), ветка castSpell → resurrectAlly
+//    (R3–R8);
+//  * гейта неизвестного действия для нового значения (пин 000045, R9).
+// Осмысленная краснота: ENOENT / undefined / «неизвестное заклинание»,
+// НЕ синтаксис. EFIR_SPELL_UNLOCKS [22,'resurrect'] — E1 в
+// tests/efir.test.js.
+
+const { combatInternals } = require('../src/combat.js');
+const { derived: derived163 } = require('../src/player.js');
+
+// Бой с живым союзником (фикстура 000080; паттерны spellHero/soloCombat).
+function allyCombat163(p) {
+  return createCombat({
+    player: p, mobs: ['wolf'], mobLevel: 2, seed: 5,
+    allies: [{ name: 'Вольк', role: 'melee', level: 1, dmg: 1.2,
+      hp: 1.1, skills: [], spells: [] }],
+  });
+}
+
+function ally163(c) {
+  const a = c.units.find((u) => u.side === 'ally');
+  assert.ok(a, 'союзник в c.units');
+  return a;
+}
+
+function mob163(c) {
+  const m = c.units.find((u) => u.side === 'mob');
+  assert.ok(m, 'моб в c.units');
+  return m;
+}
+
+// Мёртвый союзник — через ядро (000112, экспорт combatInternals):
+// hp 0, alive false, лог «…пал в бою!» (реальный путь гибели).
+function deadAlly163(c) {
+  const a = ally163(c);
+  combatInternals.dealDamageToAlly(c, a, 9999);
+  assert.equal(a.alive, false, 'фикстура: союзник мёртв');
+  assert.equal(a.hp, 0, 'фикстура: hp 0');
+  return a;
+}
+
+test('000163 R1: каталог 000017.json — 17-й файл, поля по ТЗ, схема (enum «воскрешение»), ссылки phoenix_feather/здания [21,36,37,38], зеркало SPELLS[16]/SPELLS_BY_ID.resurrect', () => {
+  // (a) Нумерация: 000017.json — 17-й файл (краснота: файла нет).
+  const files = listSpellFiles();
+  assert.equal(files[16], '000017.json',
+    'файл 000017.json — 17-й в каталоге (краснота: файла нет)');
+  const data = JSON.parse(
+    fs.readFileSync(path.join(DIR, '000017.json'), 'utf8'));
+  // (b) Поля по ТЗ (контракт §3.1 memory/000163).
+  assert.equal(data.id, 'resurrect');
+  assert.equal(data.название, 'Воскрешение');
+  assert.equal(data.школа, 'исцеление');
+  assert.equal(data.база, null, 'база null (цепочки совершенствования нет)');
+  assert.equal(data.степень, 1, 'база null ⇔ степень 1');
+  assert.equal(data.атрибут, 'wisdom', 'исцеление → Мудрость');
+  assert.equal(data.уровень, 3, 'уровень 3 — ранг «Мастер» исцеления');
+  assert.equal(data.мани, 15);
+  assert.equal(data.действие, 'воскрешение', 'НОВОЕ значение enum');
+  assert.deepEqual(data.предметы, ['phoenix_feather'],
+    'предмет: phoenix_feather (свиток НЕ здесь — 000165)');
+  assert.deepEqual(data.здания, [21, 36, 37, 38],
+    'здания: Храм исцеления (21) + храмы (36/37/38)');
+  assert.ok(typeof data.описание === 'string'
+    && data.описание.trim().length > 0, 'описание непустое');
+  // (c) Валиден по schema.json: enum «действие» обязан содержать
+  //     «воскрешение» (краснота: схемы ещё нет этого значения).
+  const errors = [];
+  validate(loadSchema(), data, '000017.json', errors);
+  assert.deepEqual(errors, [], 'схема: ' + errors.join('; '));
+  // (d) Ссылочная целостность (локально для 000017; дубль generic).
+  assert.ok(getItem('phoenix_feather') !== null,
+    'phoenix_feather — в каталоге assets/items');
+  for (const b of data.здания) {
+    assert.ok(getBuilding(b) !== null, 'здание ' + b + ' — в каталоге');
+  }
+  // (e) Зеркало src/spells-data.js (regen sync-spells-data.js).
+  const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
+  assert.equal(SPELLS.length, 17, 'зеркало: 17 заклинаний');
+  assert.deepEqual(SPELLS[16], data, 'SPELLS[16] — зеркало 000017.json');
+  assert.deepEqual(SPELLS_BY_ID.resurrect, data, 'SPELLS_BY_ID.resurrect');
+});
+
+test('000163 R2: ядро combatInternals.resurrectAlly — мёртвый союзник/игрок: alive, hp=round(maxHP/2), лог «Возвращён в бой.», ноль c._rng, возврат hp', () => {
+  // (a) КРАСНАЯ точка: экспорта ещё нет в combatInternals.
+  assert.equal(typeof combatInternals.resurrectAlly, 'function',
+    'resurrectAlly — в combatInternals (задача 000163)');
+  // (b) Мёртвый союзник: alive=true, hp=round(u.maxHP/2), лог, ноль
+  //     c._rng (детерминизм D3), мутации только alive/hp.
+  {
+    const p = spellHero({ spells: [], mp: 30 });
+    const c = allyCombat163(p);
+    const a = deadAlly163(c);
+    const maxHP = a.maxHP;
+    const keysBefore = Object.keys(a).sort();
+    let rngCalls = 0;
+    const origRng = c._rng;
+    c._rng = () => { rngCalls += 1; return origRng(); };
+    const r = combatInternals.resurrectAlly(c, a);
+    assert.equal(a.alive, true, 'союзник возвращён (alive)');
+    assert.equal(a.hp, Math.round(maxHP / 2), 'hp = round(maxHP/2)');
+    assert.ok(c.log.includes('Возвращён в бой.'),
+      'лог «Возвращён в бой.»: ' + c.log.join(' | '));
+    assert.equal(rngCalls, 0, 'c._rng() не вызывается (детерминизм D3)');
+    assert.equal(r, a.hp, 'возврат — новый hp (контракт R-4)');
+    assert.deepEqual(Object.keys(a).sort(), keysBefore,
+      'новых полей у юнита нет');
+    assert.equal(a.fled, false, 'воскрешён — а не «сбежавший»');
+    assert.equal(a.weaken, undefined, 'без нового статуса weaken');
+    assert.equal(a.bind, undefined, 'без нового статуса bind');
+  }
+  // (c) Мёртвый ИГРОК (симуляция предсмертного состояния, R-8):
+  //     maxHP — P.derived (у игрока поля maxHP НЕТ — только hp).
+  {
+    const p = spellHero({ spells: [], mp: 30 });
+    const c = allyCombat163(p);
+    p.alive = false;
+    p.hp = 0;
+    const maxHP = derived163(p).maxHP;
+    const keysBefore = Object.keys(p).sort();
+    let rngCalls = 0;
+    const origRng = c._rng;
+    c._rng = () => { rngCalls += 1; return origRng(); };
+    const r = combatInternals.resurrectAlly(c, c.player);
+    assert.equal(p.alive, true, 'игрок возвращён (alive)');
+    assert.equal(p.hp, Math.round(maxHP / 2),
+      'hp игрока = round(P.derived(p).maxHP/2)');
+    assert.ok(c.log.includes('Возвращён в бой.'),
+      'лог «Возвращён в бой.»: ' + c.log.join(' | '));
+    assert.equal(rngCalls, 0, 'c._rng() не вызывается (детерминизм D3)');
+    assert.equal(r, p.hp, 'возврат — новый hp');
+    assert.deepEqual(Object.keys(p).sort(), keysBefore,
+      'новых полей у игрока нет');
+  }
+});
+
+test('000163 R3: castSpell «resurrect» на мёртвого союзника — ok, hp=round(maxHP/2), пул spellWis −1, мана −15, лог, out.hp, практика meditation', () => {
+  const { castSpell } = loadSpells();
+  const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+  const c = allyCombat163(p);
+  const a = deadAlly163(c);
+  const maxHP = a.maxHP;
+  const poolBefore = c.ps.spellWis;
+  const r = castSpell(c, 'resurrect', a.id);
+  assert.equal(r.ok, true,
+    'каст ok (краснота: «неизвестное заклинание»): ' + (r.reason || ''));
+  assert.equal(a.alive, true, 'союзник возвращён');
+  assert.equal(a.hp, Math.round(maxHP / 2), 'hp = round(maxHP/2)');
+  assert.equal(c.ps.spellWis, poolBefore - 1,
+    'пул spellWis −1 (атрибут wisdom → ATTR_POOL)');
+  assert.equal(p.mp, 30 - 15, 'мана −15 (мани каталога)');
+  assert.ok(c.log.includes('Возвращён в бой.'),
+    'лог «Возвращён в бой.»: ' + c.log.join(' | '));
+  assert.equal(r.hp, a.hp, 'out.hp — новый hp (документированное поле)');
+  assert.ok(r.practice && r.practice.skill === 'meditation',
+    'практика по школе «исцеление» → meditation');
+  assert.equal(p.skillXp.meditation, PRACTICE_XP.spell,
+    'банк практики: +PRACTICE_XP.spell');
+});
+
+test('000163 R4: мёртвый ИГРОК через castSpell — автоцель-приоритет (без targetId); targetId союзника при мёртвом игроке — союзник', () => {
+  const { castSpell } = loadSpells();
+  // (a) Мёртвый игрок, союзники живы, без targetId → ИГРОК (приоритет).
+  {
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    p.alive = false;
+    p.hp = 0;
+    const maxHP = derived163(p).maxHP;
+    const r = castSpell(c, 'resurrect');
+    assert.equal(r.ok, true,
+      'каст на мёртвого игрока (краснота: «неизвестное заклинание»): '
+      + (r.reason || ''));
+    assert.equal(p.alive, true, 'игрок возвращён');
+    assert.equal(p.hp, Math.round(maxHP / 2),
+      'hp игрока = round(derived maxHP/2)');
+    assert.equal(r.hp, p.hp, 'out.hp');
+    const a = ally163(c);
+    assert.equal(a.alive, true, 'живой союзник не задет');
+  }
+  // (b) Игрок И союзник мертвы, без targetId → ИГРОК (приоритет).
+  {
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    p.alive = false;
+    p.hp = 0;
+    deadAlly163(c);
+    const r = castSpell(c, 'resurrect');
+    assert.equal(r.ok, true, r.reason || '');
+    assert.equal(p.alive, true, 'игрок — приоритет автоцели');
+    const a = ally163(c);
+    assert.equal(a.alive, false, 'союзник не воскрешён (игрок приоритетнее)');
+  }
+  // (c) Игрок мёртв + явный targetId союзника → СОЮЗНИК (явная цель).
+  {
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    p.alive = false;
+    p.hp = 0;
+    const a = deadAlly163(c);
+    const r = castSpell(c, 'resurrect', a.id);
+    assert.equal(r.ok, true, r.reason || '');
+    assert.equal(a.alive, true, 'явный targetId — воскрешён союзник');
+    assert.equal(p.alive, false, 'игрок НЕ воскрешён (явная цель)');
+  }
+});
+
+test('000163 R5: отказы «resurrect» — живой союзник, targetId «player», без мёртвых: «нет цели», без расхода, зеркало', () => {
+  const { castSpell, canCastSpell } = loadSpells();
+  // (a) Живой союзник как явная цель — «нет цели».
+  {
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    const a = ally163(c);
+    const pool = c.ps.spellWis, mp = p.mp, hp = a.hp;
+    const r = castSpell(c, 'resurrect', a.id);
+    assert.equal(r.ok, false, 'живой союзник — не цель');
+    assert.equal(r.reason, 'нет цели',
+      'краснота: пока «неизвестное заклинание»');
+    assert.equal(c.ps.spellWis, pool, 'пул не потрачен');
+    assert.equal(p.mp, mp, 'мана не потрачена');
+    assert.equal(a.alive, true, 'союзник жив');
+    assert.equal(a.hp, hp, 'союзник не задет');
+    assert.deepEqual(canCastSpell(c, 'resurrect', { targetId: a.id }),
+      { ok: false, reason: 'нет цели' }, 'зеркало (000037)');
+  }
+  // (b) targetId «player» — выдуманная адресация (контракт R-1): игрок
+  //     НЕ в c.units — «нет цели».
+  {
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    const pool = c.ps.spellWis, mp = p.mp;
+    const r = castSpell(c, 'resurrect', 'player');
+    assert.equal(r.ok, false, 'targetId «player» — не цель (R-1)');
+    assert.equal(r.reason, 'нет цели');
+    assert.equal(c.ps.spellWis, pool, 'пул не потрачен');
+    assert.equal(p.mp, mp, 'мана не потрачена');
+    assert.deepEqual(canCastSpell(c, 'resurrect', { targetId: 'player' }),
+      { ok: false, reason: 'нет цели' }, 'зеркало (R-1)');
+  }
+  // (c) Без targetId и без мёртвых (игрок и союзники живы) — «нет цели».
+  {
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    const pool = c.ps.spellWis, mp = p.mp;
+    const r = castSpell(c, 'resurrect');
+    assert.equal(r.ok, false, 'без мёртвых — нет цели');
+    assert.equal(r.reason, 'нет цели');
+    assert.equal(c.ps.spellWis, pool, 'пул не потрачен');
+    assert.equal(p.mp, mp, 'мана не потрачена');
+    assert.deepEqual(canCastSpell(c, 'resurrect'),
+      { ok: false, reason: 'нет цели' }, 'зеркало');
+  }
+});
+
+test('000163 R6: каст «resurrect» на МОБА (живого/мёртвого) — «нет цели», без расхода, зеркало', () => {
+  const { castSpell, canCastSpell } = loadSpells();
+  const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+  const c = allyCombat163(p);
+  const w = mob163(c);
+  const pool = c.ps.spellWis, mp = p.mp;
+  // (a) Живой моб — не цель (только своя сторона).
+  const r1 = castSpell(c, 'resurrect', w.id);
+  assert.equal(r1.ok, false, 'моб — не цель');
+  assert.equal(r1.reason, 'нет цели');
+  assert.deepEqual(canCastSpell(c, 'resurrect', { targetId: w.id }),
+    { ok: false, reason: 'нет цели' }, 'зеркало (живой моб)');
+  assert.equal(c.ps.spellWis, pool, 'пул не потрачен');
+  assert.equal(p.mp, mp, 'мана не потрачена');
+  // (b) Мёртвый моб — тоже не цель.
+  w.alive = false;
+  w.hp = 0;
+  const r2 = castSpell(c, 'resurrect', w.id);
+  assert.equal(r2.ok, false, 'мёртвый моб — не цель');
+  assert.equal(r2.reason, 'нет цели');
+  assert.deepEqual(canCastSpell(c, 'resurrect', { targetId: w.id }),
+    { ok: false, reason: 'нет цели' }, 'зеркало (мёртвый моб)');
+  assert.equal(c.ps.spellWis, pool, 'пул не потрачен');
+  assert.equal(p.mp, mp, 'мана не потрачена');
+  assert.equal(w.alive, false, 'моб не воскрешён');
+});
+
+test('000163 R7: дальность НЕ ограничена — мёртвый союзник на unitDist > 4 (SPELL_MAX_DIST) — валидная цель', () => {
+  const { castSpell, canCastSpell } = loadSpells();
+  const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+  const c = allyCombat163(p);
+  const a = deadAlly163(c);
+  // Игрок на (3,6) поля 7×7: клетка (0,0) → unitDist = 3 + 6 = 9 > 4.
+  a.x = 0;
+  a.y = 0;
+  assert.ok(combatInternals.unitDist(c, a) > 4,
+    'фикстура: дистанция > SPELL_MAX_DIST (4)');
+  assert.equal(canCastSpell(c, 'resurrect', { targetId: a.id }).ok, true,
+    'зеркало: дальности нет (краснота: «неизвестное заклинание»); '
+    + 'после каталога — «цель слишком далеко» без исключения');
+  const r = castSpell(c, 'resurrect', a.id);
+  assert.equal(r.ok, true,
+    'дальность для воскрешения не ограничена (спасательная механика, D3): '
+    + (r.reason || ''));
+  assert.equal(a.alive, true, 'союзник воскрешён');
+  assert.equal(a.hp, Math.round(a.maxHP / 2), 'hp = round(maxHP/2)');
+});
+
+test('000163 R8: зеркало canCast/evalSpell «resurrect» — одна причина на всех сценариях (000037); canCast — без побочных эффектов', () => {
+  const { castSpell, canCastSpell } = loadSpells();
+  // Сценарий: (маркер targetId, tweak, expectOk) → зеркало, затем ядро;
+  // ok и reason обязаны совпасть (паттерн зеркала 000037 этого файла),
+  // expectOk — пин ИСХОДА сценария (краснота: валидный сценарий
+  // отклоняется как «неизвестное заклинание»).
+  const check = (tid, tweak, expectOk) => {
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    const a = ally163(c);
+    const w = mob163(c);
+    if (tweak) tweak(c, p, a, w);
+    const id = tid === 'ally' ? a.id : (tid === 'mob' ? w.id : tid);
+    const mirror = canCastSpell(
+      c, 'resurrect', id != null ? { targetId: id } : undefined);
+    const core = castSpell(c, 'resurrect', id);
+    if (expectOk !== undefined) {
+      assert.equal(core.ok, expectOk,
+        'ожидалось ok=' + expectOk + ' (' + JSON.stringify(tid) + '): '
+        + (core.reason || 'ok'));
+    }
+    assert.equal(mirror.ok, core.ok,
+      'расхождение ok: ' + JSON.stringify(tid)
+      + ' (' + (core.reason || mirror.reason || 'ok') + ')');
+    if (!core.ok) {
+      assert.equal(mirror.reason, core.reason,
+        'расхождение reason: ' + JSON.stringify(tid));
+    }
+  };
+  check('ally', (c, p, a) => { a.alive = false; a.hp = 0; }, true);  // мёртвый союзник — оба ok
+  check(undefined, (c, p) => { p.alive = false; p.hp = 0; }, true);  // мёртвый игрок — оба ok
+  check('ally', (c, p, a) => { a.alive = false; a.hp = 0;
+    a.x = 0; a.y = 0; }, true);                                     // дальность > 4 — оба ok
+  check('ally', undefined, false);                                  // живой союзник — нет цели
+  check(undefined, undefined, false);                               // без мёртвых — нет цели
+  check('mob', undefined, false);                                   // живой моб — нет цели
+  check('mob', (c, p, a, w) => { w.alive = false; w.hp = 0; }, false); // мёртвый моб — нет цели
+  check('player', undefined, false);                                // targetId «player» — нет цели (R-1)
+  check('ally', (c, p, a) => { a.alive = false; a.hp = 0;
+    c.ps.spellWis = 0; }, false);                                   // пул 0
+  check('ally', (c, p, a) => { a.alive = false; a.hp = 0;
+    p.mp = 14; }, false);                                           // мана < 15
+  check('ally', (c, p, a) => { a.alive = false; a.hp = 0;
+    p.spells = []; }, false);                                       // не изучено
+  check('ally', (c, p, a) => { a.alive = false; a.hp = 0;
+    c.phase = 'mob'; }, false);                                     // не ваш ход
+  // canCast — без побочных эффектов: снимок состояния идентичен,
+  // c._rng — 0 (паттерн «без побочных эффектов» 000037).
+  {
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    const a = deadAlly163(c);
+    const w = mob163(c);
+    let rngCalls = 0;
+    const origRng = c._rng;
+    c._rng = () => { rngCalls += 1; return origRng(); };
+    const snap = () => JSON.stringify({
+      ps: c.ps, hp: p.hp, mp: p.mp, alive: p.alive,
+      log: c.log, targetId: c.targetId, spells: p.spells,
+      ally: { hp: a.hp, alive: a.alive, fled: a.fled },
+    });
+    const before = snap();
+    for (const args of [undefined, { targetId: a.id },
+      { targetId: 'player' }, { targetId: w.id }]) {
+      canCastSpell(c, 'resurrect', args);
+    }
+    assert.equal(rngCalls, 0, 'c._rng() не вызывается');
+    assert.equal(snap(), before, 'состояние боя и героя не изменилось');
+  }
+});
+
+test('000163 R9: гейт неизвестного действия — «воскрешение» проходит (пин 000045); регрессия: мутация «телепорт» — отказ ДО расхода', () => {
+  const { castSpell, canCastSpell } = loadSpells();
+  const { SPELLS_BY_ID } = loadSpellsData();
+  const spell = SPELLS_BY_ID.resurrect;
+  assert.ok(spell, 'краснота: 000017 нет в зеркале (файл/реген отсутствуют)');
+  // (a) «воскрешение» — известное действие: каст НЕ отвергается гейтом
+  //     «неизвестное действие» (отказы — только цель/пул/мана).
+  {
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    const a = deadAlly163(c);
+    const r = castSpell(c, 'resurrect', a.id);
+    assert.equal(r.ok, true, 'каст ok: ' + (r.reason || ''));
+    for (const line of c.log) {
+      assert.doesNotMatch(line, /неизвестное действие/,
+        'гейт «неизвестное действие» не сработал: ' + line);
+    }
+  }
+  // (b) РЕГРЕССИЯ пина 000045: мутация действия в памяти (finally —
+  //     возврат) → отказ «неизвестное действие: телепорт» у ОБЕИХ
+  //     точек ДО расхода пула/маны, одна причина (зеркало 000037).
+  const saved = spell.действие;
+  try {
+    spell.действие = 'телепорт';
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    const a = deadAlly163(c);
+    const poolBefore = c.ps.spellWis;
+    const mirror = canCastSpell(c, 'resurrect', { targetId: a.id });
+    const core = castSpell(c, 'resurrect', a.id);
+    assert.equal(core.ok, false, 'неизвестное действие — отказ');
+    assert.equal(mirror.ok, false, 'зеркало: тот же отказ');
+    assert.equal(mirror.reason, core.reason, 'зеркало: одна причина');
+    assert.equal(core.reason, 'неизвестное действие: телепорт');
+    assert.equal(c.ps.spellWis, poolBefore, 'пул при отказе не тратится');
+    assert.equal(p.mp, 30, 'мана при отказе не тратится');
+    assert.equal(a.alive, false, 'союзник не воскрешён');
+  } finally {
+    spell.действие = saved;
+  }
 });

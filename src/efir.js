@@ -46,8 +46,8 @@
 // (Sheet.raiseSkill — unified with hero, 000139);
 // reprocessEfirSkills — собственный движок практики (bank-overflow,
 // requires-«stay»: уровень НЕ нулится, банк не тронут), уровни — ИЗ
-// secondary (истина), зеркало skills; EFIR_SPELL_UNLOCKS (8
-// заклинаний, 5/8/10/12/15/20/25/30) — авто-разблокировки;
+// secondary (истина), зеркало skills; EFIR_SPELL_UNLOCKS (9
+// заклинаний, 5/8/10/12/15/20/22/25/30) — авто-разблокировки;
 // BREATH_INFO — «Вдох Эфира». Боевые статы — derived-модификатор
 // kind 'efir' (efirDerived — ВНУТРЕННИЙ) поверх БАЗЫ характеристик
 // sheet (БАЗА — primary; формулы SPEC сохранены: maxHP 10 + 2·Тел,
@@ -393,8 +393,10 @@
 
   // Таблица открытий по уровню [порог, id] (ТЗ: 5 light_heal, 8
   // frost_bolt, 10 fireball, 12 magic_shield, 15 vine, 20
-  // greater_heal, 25 ward, 30 nature_blessing). Порядок —
-  // канонический (возрастание порогов); заклинания не удаляются.
+  // greater_heal, 22 resurrect, 25 ward, 30 nature_blessing).
+  // Порядок — канонический (возрастание порогов); заклинания не
+  // удаляются. 000163: 22 resurrect — МЕЖДУ 20 greater_heal и
+  // 25 ward (append-only; книга — data-driven UI).
   const EFIR_SPELL_UNLOCKS = [
     [5, 'light_heal'],
     [8, 'frost_bolt'],
@@ -402,6 +404,7 @@
     [12, 'magic_shield'],
     [15, 'vine'],
     [20, 'greater_heal'],
+    [22, 'resurrect'],
     [25, 'ward'],
     [30, 'nature_blessing'],
   ];
