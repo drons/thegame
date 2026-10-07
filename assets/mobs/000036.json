@@ -6,6 +6,8 @@
   "aggro": "aggressive",
   "dmg": 1.7,
   "hp": 2.5,
+  "dexterity": 2,
+  "intelligence": 2,
   "size": {
     "w": 3,
     "h": 3

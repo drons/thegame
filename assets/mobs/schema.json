@@ -9,6 +9,8 @@
     "aggro": { "enum": ["aggressive", "neutral", "territorial", "timid"] },
     "dmg": { "type": "number", "minimum": 0.1, "maximum": 10 },
     "hp": { "type": "number", "minimum": 0.1, "maximum": 10 },
+    "dexterity": { "type": "integer", "minimum": 0, "maximum": 30 },
+    "intelligence": { "type": "integer", "minimum": 0, "maximum": 30 },
     "size": {
       "type": "object",
       "required": ["w", "h"],

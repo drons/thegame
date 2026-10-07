@@ -6,6 +6,8 @@
   "aggro": "territorial",
   "dmg": 0.8,
   "hp": 0.8,
+  "dexterity": 3,
+  "intelligence": 1,
   "traits": {
     "poison": true
   },

@@ -38,9 +38,10 @@
 // → урон-каст d≤4 → Касание d≤1) и движение-эскорт (цель ОДИН РАЗ,
 // x-ось первой). Щит — ОТДЕЛЬНЫЙ статус c.efirShield (аддитивный,
 // щит игрока c.ps.shield НЕ считается; тик + рефилл c.efs — в
-// endPlayerTurn). НОЛЬ новых вызовов c._rng; бои без Эфира —
-// бит-в-бит (поля c.efs/c.efir/c.efirShield существуют только после
-// buildEfirUnit/каста). Контракт — memory/000112-efir-combat.md.
+// startRound, блок «новый раунд» 000167). НОЛЬ новых вызовов
+// c._rng; бои без Эфира — бит-в-бит (поля c.efs/c.efir/c.efirShield
+// существуют только после buildEfirUnit/каста). Контракт —
+// memory/000112-efir-combat.md.
 //
 // «Вдох Эфира» (задача 000113): фирменное действие 1 раз за бой —
 // триггер ВВЕРХУ efirTurn (зарезервированная точка 000112, ДО
@@ -51,11 +52,36 @@
 // u.breath.heal (снапшот данных — efir.js) + ослабление ВСЕМ живым
 // врагам (weakenAllEnemies: u.weakened {mult 0.8, turns 2} — их
 // урон ×mult в mobAttack/mobAttackAlly, тик по раундам —
-// endPlayerTurn, паттерн щита 000112). НОЛЬ новых вызовов c._rng;
+// startRound, паттерн щита 000112). НОЛЬ новых вызовов c._rng;
 // бои без Эфира/Вдоха — бит-в-бит (u.weakened !== undefined — 1
 // проверка гарда в каждом месте). Первая встреча — createCombat
 // (строка из efir.js, ленивый one-shot; без Game.efir — тихо).
 // Контракт — memory/000113-efir-breath.md.
+//
+// Инициатива (задача 000167): порядок хода — ПО УБЫВАНИЮ
+// unitInitiative (Ловкость + Интеллект; D1 — чистая функция,
+// экспорт): игрок — c.player.primary, остальные — u.attrs (мобы —
+// каталог, наёмники — снапшот sheet.primary, Эфир — 4 ключа).
+// buildTurnOrder — СТАБИЛЬНАЯ сортировка канонической базы
+// (игрок → союзники → мобы, внутри — c.units); тай-брейк = порядок
+// базы (семантика до 000167). Очередь пересчитывается в createCombat
+// и в «новом раунде» (startRound); мёртвые/сбежавшие исключены,
+// слоты текущего раунда сохраняются (серый токен). endTurn (до
+// 000167 — endPlayerTurn) = checkTurn + turnIndex++ +
+// advanceQueue (интерлевинг):
+// активный моб — mobAct, союзник — allyAct (синхронно, инвариант
+// 000036 сохранён: turnIndex ДО действия); очередь исчерпана —
+// startRound (round++, refillPools, тики, рефилл c.efs, свежая
+// очередь, тик яда, targetId). КЛЮЧЕВОЕ следствие — pre-roll: в
+// createCombat юниты с инициативой ВЫШЕ игрока действуют ДО первого
+// действия игрока. Д6 — игрок-путь бит-в-бит: тела playerX без
+// изменений, диспатч — гварды публичных обёрток по
+// activeUnitId(c) === 'player' (в 000167 в покое активен только
+// игрок — гварды структурное резервирование под 000168);
+// c.endTurn — без гварды. Д5 — новых значений phase НЕТ
+// (checkTurn/canDoAction/читатели phase — без изменений). Д13 —
+// 0 новых c._rng в новом коде (порядок бросков AI — новая
+// механика). Контракт — memory/000167-initiative-core.md.
 //
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js (mulberry32), player.js (derived/takeDamage/heal/addXp),
@@ -108,47 +134,47 @@
   // loot — возможный лут: ссылки на assets/items.
   const MOB_TYPES = {
     // Орки
-    orc_grunt:      { id: 'orc_grunt', name: 'Орк-шестёрка', role: 'melee', aggro: 'aggressive', dmg: 1.0, hp: 1.0, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
-    orc_warrior:    { id: 'orc_warrior', name: 'Орк-воин', role: 'shield', aggro: 'aggressive', dmg: 1.1, hp: 1.4, armor: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['heavy'], spells: [], loot: [{ item: 'battle_axe', chance: 0.1 }, { item: 'sulfur', chance: 0.15 }] },
-    orc_archer:     { id: 'orc_archer', name: 'Орк-лучник', role: 'ranged', aggro: 'aggressive', dmg: 0.9, hp: 0.9, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['archer'], spells: [], loot: [{ item: 'short_bow', chance: 0.1 }] },
-    orc_shaman:     { id: 'orc_shaman', name: 'Орк-шаман', role: 'support', aggro: 'timid', dmg: 0.5, hp: 0.7, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['meditation'], spells: [], loot: [{ item: 'mana_potion', chance: 0.15 }] },
-    orc_rider:      { id: 'orc_rider', name: 'Орк-наездник на волке', role: 'melee', aggro: 'aggressive', dmg: 1.1, hp: 1.0, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [{ item: 'sulfur', chance: 0.1 }] },
-    orc_mad:        { id: 'orc_mad', name: 'Орк-бешеный', role: 'melee', aggro: 'aggressive', dmg: 1.4, hp: 0.7, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [] },
-    orc_captain:    { id: 'orc_captain', name: 'Орк-капитан', role: 'leader', aggro: 'aggressive', dmg: 1.3, hp: 1.5, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.1 }, { item: 'chainmail', chance: 0.1 }] },
-    orc_chief:      { id: 'orc_chief', name: 'Орк-вождь', role: 'leader', aggro: 'aggressive', dmg: 1.6, hp: 2.0, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }, { item: 'chainmail', chance: 0.15 }, { item: 'greater_healing', chance: 0.1 }] },
+    orc_grunt:      { id: 'orc_grunt', name: 'Орк-шестёрка', role: 'melee', aggro: 'aggressive', dmg: 1.0, hp: 1.0, dexterity: 2, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
+    orc_warrior:    { id: 'orc_warrior', name: 'Орк-воин', role: 'shield', aggro: 'aggressive', dmg: 1.1, hp: 1.4, dexterity: 1, intelligence: 1, armor: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['heavy'], spells: [], loot: [{ item: 'battle_axe', chance: 0.1 }, { item: 'sulfur', chance: 0.15 }] },
+    orc_archer:     { id: 'orc_archer', name: 'Орк-лучник', role: 'ranged', aggro: 'aggressive', dmg: 0.9, hp: 0.9, dexterity: 3, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['archer'], spells: [], loot: [{ item: 'short_bow', chance: 0.1 }] },
+    orc_shaman:     { id: 'orc_shaman', name: 'Орк-шаман', role: 'support', aggro: 'timid', dmg: 0.5, hp: 0.7, dexterity: 1, intelligence: 4, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['meditation'], spells: [], loot: [{ item: 'mana_potion', chance: 0.15 }] },
+    orc_rider:      { id: 'orc_rider', name: 'Орк-наездник на волке', role: 'melee', aggro: 'aggressive', dmg: 1.1, hp: 1.0, dexterity: 5, intelligence: 1, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [{ item: 'sulfur', chance: 0.1 }] },
+    orc_mad:        { id: 'orc_mad', name: 'Орк-бешеный', role: 'melee', aggro: 'aggressive', dmg: 1.4, hp: 0.7, dexterity: 2, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [] },
+    orc_captain:    { id: 'orc_captain', name: 'Орк-капитан', role: 'leader', aggro: 'aggressive', dmg: 1.3, hp: 1.5, dexterity: 2, intelligence: 2, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.1 }, { item: 'chainmail', chance: 0.1 }] },
+    orc_chief:      { id: 'orc_chief', name: 'Орк-вождь', role: 'leader', aggro: 'aggressive', dmg: 1.6, hp: 2.0, dexterity: 2, intelligence: 2, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }, { item: 'chainmail', chance: 0.15 }, { item: 'greater_healing', chance: 0.1 }] },
     // Нежить
-    skeleton:       { id: 'skeleton', name: 'Скелет', role: 'melee', aggro: 'neutral', dmg: 0.8, hp: 0.8, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.15 }] },
-    skeleton_archer:{ id: 'skeleton_archer', name: 'Скелет-лучник', role: 'ranged', aggro: 'aggressive', dmg: 0.8, hp: 0.8, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['archer'], spells: [], loot: [{ item: 'short_bow', chance: 0.1 }] },
-    crawling_bones: { id: 'crawling_bones', name: 'Ползучие кости', role: 'swarm', aggro: 'aggressive', dmg: 0.5, hp: 0.5, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.1 }] },
-    giant_larva:    { id: 'giant_larva', name: 'Личинка падальщика', role: 'melee', aggro: 'territorial', dmg: 1.0, hp: 1.0, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'meat', chance: 0.2 }] },
-    vampire:        { id: 'vampire', name: 'Вампир', role: 'melee', aggro: 'aggressive', dmg: 1.2, hp: 1.1, traits: { lifesteal: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['endurance'], spells: [], loot: [{ item: 'greater_healing', chance: 0.1 }, { item: 'mana_elixir', chance: 0.1 }] },
-    rot:            { id: 'rot', name: 'Гниль', role: 'melee', aggro: 'aggressive', dmg: 0.9, hp: 0.9, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
-    bone_coloss:    { id: 'bone_coloss', name: 'Костяной колосс', role: 'shield', aggro: 'territorial', dmg: 1.3, hp: 2.5, armor: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'knight_plate', chance: 0.1 }, { item: 'chainmail', chance: 0.1 }] },
+    skeleton:       { id: 'skeleton', name: 'Скелет', role: 'melee', aggro: 'neutral', dmg: 0.8, hp: 0.8, dexterity: 2, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.15 }] },
+    skeleton_archer:{ id: 'skeleton_archer', name: 'Скелет-лучник', role: 'ranged', aggro: 'aggressive', dmg: 0.8, hp: 0.8, dexterity: 3, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['archer'], spells: [], loot: [{ item: 'short_bow', chance: 0.1 }] },
+    crawling_bones: { id: 'crawling_bones', name: 'Ползучие кости', role: 'swarm', aggro: 'aggressive', dmg: 0.5, hp: 0.5, dexterity: 3, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.1 }] },
+    giant_larva:    { id: 'giant_larva', name: 'Личинка падальщика', role: 'melee', aggro: 'territorial', dmg: 1.0, hp: 1.0, dexterity: 2, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'meat', chance: 0.2 }] },
+    vampire:        { id: 'vampire', name: 'Вампир', role: 'melee', aggro: 'aggressive', dmg: 1.2, hp: 1.1, dexterity: 2, intelligence: 1, traits: { lifesteal: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['endurance'], spells: [], loot: [{ item: 'greater_healing', chance: 0.1 }, { item: 'mana_elixir', chance: 0.1 }] },
+    rot:            { id: 'rot', name: 'Гниль', role: 'melee', aggro: 'aggressive', dmg: 0.9, hp: 0.9, dexterity: 2, intelligence: 1, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
+    bone_coloss:    { id: 'bone_coloss', name: 'Костяной колосс', role: 'shield', aggro: 'territorial', dmg: 1.3, hp: 2.5, dexterity: 1, intelligence: 1, armor: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'knight_plate', chance: 0.1 }, { item: 'chainmail', chance: 0.1 }] },
     // Дикие звери
-    wolf:           { id: 'wolf', name: 'Волк', role: 'melee', aggro: 'neutral', dmg: 0.7, hp: 0.8, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'leather_armor', chance: 0.1 }] },
-    wolf_pack:      { id: 'wolf_pack', name: 'Волчья стая', role: 'swarm', aggro: 'territorial', dmg: 0.7, hp: 0.8, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'leather_armor', chance: 0.15 }] },
-    boar:           { id: 'boar', name: 'Казённый вепрь', role: 'melee', aggro: 'neutral', dmg: 1.0, hp: 1.5, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'meat', chance: 0.3 }] },
-    cave_bear:      { id: 'cave_bear', name: 'Пещерный медведь', role: 'shield', aggro: 'territorial', dmg: 1.3, hp: 2.0, armor: 1, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['endurance'], spells: [], loot: [{ item: 'meat', chance: 0.3 }, { item: 'honey_cake', chance: 0.1 }] },
-    spider:         { id: 'spider', name: 'Гигантский паук', role: 'swarm', aggro: 'territorial', dmg: 0.8, hp: 0.8, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
-    troll:          { id: 'troll', name: 'Тролль', role: 'leader', aggro: 'neutral', dmg: 1.5, hp: 2.5, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }] },
+    wolf:           { id: 'wolf', name: 'Волк', role: 'melee', aggro: 'neutral', dmg: 0.7, hp: 0.8, dexterity: 2, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'leather_armor', chance: 0.1 }] },
+    wolf_pack:      { id: 'wolf_pack', name: 'Волчья стая', role: 'swarm', aggro: 'territorial', dmg: 0.7, hp: 0.8, dexterity: 3, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'leather_armor', chance: 0.15 }] },
+    boar:           { id: 'boar', name: 'Казённый вепрь', role: 'melee', aggro: 'neutral', dmg: 1.0, hp: 1.5, dexterity: 2, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'meat', chance: 0.3 }] },
+    cave_bear:      { id: 'cave_bear', name: 'Пещерный медведь', role: 'shield', aggro: 'territorial', dmg: 1.3, hp: 2.0, dexterity: 1, intelligence: 1, armor: 1, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['endurance'], spells: [], loot: [{ item: 'meat', chance: 0.3 }, { item: 'honey_cake', chance: 0.1 }] },
+    spider:         { id: 'spider', name: 'Гигантский паук', role: 'swarm', aggro: 'territorial', dmg: 0.8, hp: 0.8, dexterity: 3, intelligence: 1, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
+    troll:          { id: 'troll', name: 'Тролль', role: 'leader', aggro: 'neutral', dmg: 1.5, hp: 2.5, dexterity: 2, intelligence: 2, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }] },
     // Насекомые
-    ant:            { id: 'ant', name: 'Пещерный муравей', role: 'swarm', aggro: 'territorial', dmg: 0.5, hp: 0.5, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'honey_cake', chance: 0.15 }] },
-    ant_queen:      { id: 'ant_queen', name: 'Матка', role: 'leader', aggro: 'territorial', dmg: 1.0, hp: 2.0, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'honey_cake', chance: 0.3 }] },
-    scorpion:       { id: 'scorpion', name: 'Скорпион', role: 'melee', aggro: 'neutral', dmg: 0.9, hp: 0.9, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
-    centipede:      { id: 'centipede', name: 'Многоножка', role: 'melee', aggro: 'aggressive', dmg: 1.0, hp: 0.9, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [] },
+    ant:            { id: 'ant', name: 'Пещерный муравей', role: 'swarm', aggro: 'territorial', dmg: 0.5, hp: 0.5, dexterity: 3, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'honey_cake', chance: 0.15 }] },
+    ant_queen:      { id: 'ant_queen', name: 'Матка', role: 'leader', aggro: 'territorial', dmg: 1.0, hp: 2.0, dexterity: 2, intelligence: 2, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'honey_cake', chance: 0.3 }] },
+    scorpion:       { id: 'scorpion', name: 'Скорпион', role: 'melee', aggro: 'neutral', dmg: 0.9, hp: 0.9, dexterity: 2, intelligence: 1, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
+    centipede:      { id: 'centipede', name: 'Многоножка', role: 'melee', aggro: 'aggressive', dmg: 1.0, hp: 0.9, dexterity: 5, intelligence: 1, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [] },
     // Стихийники и магия
-    fire_elemental: { id: 'fire_elemental', name: 'Огненный стихийник', role: 'melee', aggro: 'aggressive', dmg: 1.3, hp: 1.1, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.1 }] },
-    water_elemental:{ id: 'water_elemental', name: 'Водный стихийник', role: 'melee', aggro: 'neutral', dmg: 1.0, hp: 1.4, traits: { regen: true }, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['breath'], spells: [], loot: [{ item: 'mana_elixir', chance: 0.1 }] },
-    wind_elemental: { id: 'wind_elemental', name: 'Ветряной стихийник', role: 'ranged', aggro: 'neutral', dmg: 0.9, hp: 0.9, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [{ item: 'moonstone', chance: 0.1 }] },
-    earth_elemental:{ id: 'earth_elemental', name: 'Земляной стихийник', role: 'shield', aggro: 'neutral', dmg: 1.0, hp: 3.0, armor: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'moonstone', chance: 0.15 }] },
-    imp:            { id: 'imp', name: 'Имп', role: 'ranged', aggro: 'aggressive', dmg: 0.7, hp: 0.7, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['runes'], spells: [], loot: [{ item: 'sulfur', chance: 0.25 }] },
-    salamander:     { id: 'salamander', name: 'Саламандра', role: 'melee', aggro: 'territorial', dmg: 1.1, hp: 1.2, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.15 }] },
-    fairy:          { id: 'fairy', name: 'Фея', role: 'support', aggro: 'timid', dmg: 0.4, hp: 0.6, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['nature'], spells: [], loot: [{ item: 'moonstone', chance: 0.2 }] },
-    stone_golem:    { id: 'stone_golem', name: 'Каменный голем', role: 'shield', aggro: 'territorial', dmg: 1.2, hp: 2.5, armor: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'knight_plate', chance: 0.1 }] },
+    fire_elemental: { id: 'fire_elemental', name: 'Огненный стихийник', role: 'melee', aggro: 'aggressive', dmg: 1.3, hp: 1.1, dexterity: 2, intelligence: 1, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.1 }] },
+    water_elemental:{ id: 'water_elemental', name: 'Водный стихийник', role: 'melee', aggro: 'neutral', dmg: 1.0, hp: 1.4, dexterity: 2, intelligence: 1, traits: { regen: true }, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['breath'], spells: [], loot: [{ item: 'mana_elixir', chance: 0.1 }] },
+    wind_elemental: { id: 'wind_elemental', name: 'Ветряной стихийник', role: 'ranged', aggro: 'neutral', dmg: 0.9, hp: 0.9, dexterity: 5, intelligence: 2, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [{ item: 'moonstone', chance: 0.1 }] },
+    earth_elemental:{ id: 'earth_elemental', name: 'Земляной стихийник', role: 'shield', aggro: 'neutral', dmg: 1.0, hp: 3.0, dexterity: 1, intelligence: 1, armor: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'moonstone', chance: 0.15 }] },
+    imp:            { id: 'imp', name: 'Имп', role: 'ranged', aggro: 'aggressive', dmg: 0.7, hp: 0.7, dexterity: 3, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['runes'], spells: [], loot: [{ item: 'sulfur', chance: 0.25 }] },
+    salamander:     { id: 'salamander', name: 'Саламандра', role: 'melee', aggro: 'territorial', dmg: 1.1, hp: 1.2, dexterity: 2, intelligence: 1, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.15 }] },
+    fairy:          { id: 'fairy', name: 'Фея', role: 'support', aggro: 'timid', dmg: 0.4, hp: 0.6, dexterity: 1, intelligence: 4, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['nature'], spells: [], loot: [{ item: 'moonstone', chance: 0.2 }] },
+    stone_golem:    { id: 'stone_golem', name: 'Каменный голем', role: 'shield', aggro: 'territorial', dmg: 1.2, hp: 2.5, dexterity: 1, intelligence: 1, armor: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['golem'], spells: [], loot: [{ item: 'knight_plate', chance: 0.1 }] },
     // Бездна
-    lower_demon:    { id: 'lower_demon', name: 'Низший демон', role: 'melee', aggro: 'aggressive', dmg: 1.4, hp: 1.3, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'greater_healing', chance: 0.1 }, { item: 'sulfur', chance: 0.2 }] },
-    succubus:       { id: 'succubus', name: 'Суккуб', role: 'support', aggro: 'aggressive', dmg: 0.6, hp: 0.8, traits: { debuff: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['orator'], spells: [], loot: [{ item: 'mana_elixir', chance: 0.15 }] },
-    abomination:    { id: 'abomination', name: 'Уродство', role: 'leader', aggro: 'aggressive', dmg: 1.7, hp: 2.5, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.2 }, { item: 'greater_healing', chance: 0.15 }] },
+    lower_demon:    { id: 'lower_demon', name: 'Низший демон', role: 'melee', aggro: 'aggressive', dmg: 1.4, hp: 1.3, dexterity: 2, intelligence: 1, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'greater_healing', chance: 0.1 }, { item: 'sulfur', chance: 0.2 }] },
+    succubus:       { id: 'succubus', name: 'Суккуб', role: 'support', aggro: 'aggressive', dmg: 0.6, hp: 0.8, dexterity: 1, intelligence: 4, traits: { debuff: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['orator'], spells: [], loot: [{ item: 'mana_elixir', chance: 0.15 }] },
+    abomination:    { id: 'abomination', name: 'Уродство', role: 'leader', aggro: 'aggressive', dmg: 1.7, hp: 2.5, dexterity: 2, intelligence: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.2 }, { item: 'greater_healing', chance: 0.15 }] },
   };
 
   // Составы групп по типам из map.js (MOB_GROUP_TYPES: 0..6).
@@ -278,6 +304,10 @@
       xp: t.xp || { base: 8, perLevel: 4 },
       skills: t.skills || [],
       loot: t.loot || [],
+      // Инициатива (задача 000167): атрибуты из каталога (Д8: поля
+      // dexterity/intelligence, опциональные — || 0). Единый формат
+      // u.attrs для всех не-игроков (unitInitiative).
+      attrs: { dexterity: t.dexterity || 0, intelligence: t.intelligence || 0 },
     };
   }
 
@@ -537,14 +567,43 @@
     return best;
   }
 
-  // Очередь хода (задача 000036, расширено 000080): игрок первым, затем
-  // живые СОЮЗНИКИ (порядок c.units), затем живые МОБЫ (порядок c.units).
-  // Мёртвые (alive=false) и сбежавшие (fled) исключены. Чистая функция —
-  // тестируется в tests/combat.test.js.
+  // Инициатива юнита (задача 000167, D1): Ловкость + Интеллект.
+  // Игрок — первичные атрибуты (c.player.primary; игрок НЕ в c.units);
+  // остальные — u.attrs (мобы — {dexterity, intelligence} из каталога,
+  // makeMob; наёмники — снапшот sheet.primary (все 6), companions.js;
+  // Эфир — 4 ключа, efir.js). Деградация: юнит без attrs → 0 (|| 0).
+  // Чистая функция: 0 c._rng, 0 побочных эффектов. Экспорт.
+  function unitInitiative(c, u) {
+    if (u === c.player)
+      return c.player.primary.dexterity + c.player.primary.intelligence;
+    return ((u.attrs || {}).dexterity || 0) + ((u.attrs || {}).intelligence || 0);
+  }
+
+  // Очередь хода (задача 000036, расширено 000080, инициатива 000167):
+  // СТАБИЛЬНАЯ сортировка (Array.sort, ES2019+ — гарантированно
+  // детерминирован) канонической базы ['player', ...живые СОЮЗНИКИ,
+  // ...живые МОБЫ] (внутри — порядок c.units) ПО УБЫВАНИЮ
+  // unitInitiative; тай-брейк при равенстве = порядок базы (игрок →
+  // союзники → мобы) = семантика до 000167. Мёртвые (alive=false)
+  // и сбежавшие (fled) исключены. Чистая функция — тестируется в
+  // tests/combat.test.js.
   function buildTurnOrder(c) {
-    return ['player',
+    const base = ['player',
       ...livingAllies(c).map((u) => u.id),
       ...livingMobs(c).map((u) => u.id)];
+    const idUnit = (id) => (id === 'player') ? c.player
+      : c.units.find((u) => u.id === id);
+    return base.map((id) => [id, unitInitiative(c, idUnit(id))])
+      .sort((a, b) => b[1] - a[1])
+      .map((p) => p[0]);
+  }
+
+  // Активный юнит (задача 000167, D6): id по c.turnOrder[c.turnIndex].
+  // Defensive fallback 'player' (нет очереди/индекса — legacy-поведение:
+  // игрок действует; читатели не получают null). Экспорт — диспатч
+  // публичного API (гварды обёрток) и 000168 (управление спутниками).
+  function activeUnitId(c) {
+    return (c.turnOrder && c.turnOrder[c.turnIndex]) || 'player';
   }
 
   function log(c, msg) {
@@ -814,13 +873,13 @@
     const d = P.derived(p);
     let dmg = raw;
     // Магический щит (задача 000045): пока turns > 0, гасит shield.armor
-    // (поставляется/тикается src/spells.js и endPlayerTurn).
+    // (поставляется/тикается src/spells.js и startRound, 000167).
     const shield = c.ps.shield;
     if (shield && shield.turns > 0) {
       dmg = Math.max(0, dmg - shield.armor);
     }
     // Щит Эфира (задача 000112): ОТДЕЛЬНЫЙ аддитивный статус
-    // c.efirShield (каст Эфира, тик — endPlayerTurn) — плоское
+    // c.efirShield (каст Эфира, тик — startRound, 000167) — плоское
     // поглощение, как c.ps.shield; порядок коммутативен. Щит ИГРОКА
     // c.ps.shield НЕ считается для условия (2) ИИ — свой статус (D4).
     if (c.efirShield && c.efirShield.turns > 0) {
@@ -914,8 +973,8 @@
   // combatInternals): статус u.weakened = {mult, turns} — ОТДЕЛЬНЫЙ
   // аддитивный статус (НЕ u.weaken из 000045 — тот тикает по
   // ударам, ставится кастом игрока); при turns > 0 урон врага ×mult
-  // (mobAttack/mobAttackAlly), тик — endPlayerTurn (паттерн щита
-  // 000112). НЕ обновляется (1 раз за бой): присваивание, НЕ
+  // (mobAttack/mobAttackAlly), тик — startRound (000167; паттерн
+  // щита 000112). НЕ обновляется (1 раз за бой): присваивание, НЕ
   // накопление. Мёртвые/сбежавшие — НЕ получают статус.
   function weakenAllEnemies(c, mult, turns) {
     for (const m of livingMobs(c)) {
@@ -1212,7 +1271,7 @@
       return { ok: true, fled: true };
     }
     log(c, 'Сбежать не удалось!');
-    endPlayerTurn(c); // ход сгорает, мобы действуют
+    endTurn(c); // ход сгорает: очередь продвигается (000167)
     return { ok: true, fled: false };
   }
 
@@ -1272,7 +1331,7 @@
   // canDoAction (задача 000037): предпросмотр доступности действия БЕЗ
   // побочных эффектов — «зеркало» проверок ядра (playerAttack/
   // playerSpell/playerBlock/playerQuickItem/playerInvItem/playerFlee/
-  // endPlayerTurn). Одна причина — одно поведение: reason — теми же
+  // endTurn). Одна причина — одно поведение: reason — теми же
   // формулировками, что в ядре, поэтому UI (title/лог) и ядро согласованы.
   // Не тратит пулы/ману, не вызывает c._rng(), не мутирует c.ps, p.hp,
   // p.mp, c.log, c.targetId — дёшево, можно на каждом render.
@@ -1442,9 +1501,9 @@
       u.weaken.turns -= 1;
     }
     // Ослабление (000113, «Вдох Эфира»): отдельный статус u.weakened
-    // (тик по РАУНДАМ — endPlayerTurn, паттерн щита 000112) —
+    // (тик по РАУНДАМ — startRound, паттерн щита 000112) —
     // мультипликативно с u.weaken (000045, тик по ударам). Декремента
-    // при применении НЕТ (тик — в endPlayerTurn).
+    // при применении НЕТ (тик — в startRound).
     if (u.weakened && u.weakened.turns > 0) dmg *= u.weakened.mult;
     const dealt = dealDamageToPlayer(c, dmg);
     if (dealt <= 0 || c.result) return;
@@ -1489,7 +1548,7 @@
       u.weaken.turns -= 1;
     }
     // Ослабление (000113, «Вдох Эфира»): тот же отдельный статус
-    // u.weakened, что в mobAttack (тик по раундам — endPlayerTurn;
+    // u.weakened, что в mobAttack (тик по раундам — startRound;
     // дробь ×0.8 округляется Math.round ВНУТРИ dealDamageToAlly).
     if (u.weakened && u.weakened.turns > 0) dmg *= u.weakened.mult;
     dealDamageToAlly(c, t, dmg);
@@ -1613,8 +1672,10 @@
   // (действие «лечение»; тай-брейк — порядок списка). Цель — САМОГО
   // РАНЕНОГО пула [игрок, ...живые союзники] (порядок: игрок первым,
   // затем c.units): минимальная доля hp/maxHP; тай-брейк — порядок пула.
-  // Формула — формула лечения spells.js с attrs союзника (у наёмника
-  // attrs пуст → уровень): round((4 + 0.5·attr + ур)·(1 + 0.15·(степень−1))).
+  // Формула — формула лечения spells.js с attrs союзника (000167:
+  // у наёмника attrs — СВЕЖИЙ снапшот sheet.primary, allies →
+  // attrs {}-фикстуры тестов → уровень): round((4 + 0.5·attr +
+  // ур)·(1 + 0.15·(степень−1))).
   // Игрок лечится P.heal; союзник — прямой hp (без c.ps-эффектов).
   function allyHeal(c, u) {
     const catalog = combatInternals.allySpells;
@@ -1710,7 +1771,7 @@
   // НОЛЬ вызовов c._rng (Касание/касты — ВСЕГДА попадают, паттерн
   // каста игрока; отличие от allyAttack legacy — pин CB-4 при
   // c._rng 0.99). МанА — u.mp (своя, БЕЗ регена в бою — ТЗ), пулы —
-  // c.efs (рефилл — endPlayerTurn). Каталог заклинаний — ЛЕНИВО из
+  // c.efs (рефилл — startRound, 000167). Каталог заклинаний — ЛЕНИВО из
   // combatInternals.allySpells (паттерн allyHeal; нет каталога —
   // ветка пропускается тихо, console.error НЕТ). vine («контроль»)
   // — НЕ запрашивается (в ИИ v1 НЕ используется — отдельная задача).
@@ -1957,40 +2018,21 @@
     }
   }
 
-  function endPlayerTurn(c) {
-    const why = checkTurn(c);
-    if (why) return;
-    c.phase = 'mob';
-    // c.turnIndex = позиция действующего в c.turnOrder (задача 000036):
-    // 0 = игрок (уже ходил), 1..n = мобы. Фаза мобов идёт по УСТАРЕВШЕЙ
-    // очереди: пересчёт turnOrder происходит в начале раунда (конец
-    // прошлого endPlayerTurn), ТО ЕСТЬ ДО фазы игрока — поэтому моб,
-    // убитый игроком, числится в очереди до конца раунда. Позиции
-    // сохраняются: убитые/сбежавшие пропускаются, их слоты остаются
-    // (UI-токен серый). Инвариант (регрессионным тестом): в момент
-    // mobAct c.turnOrder[c.turnIndex] === id действующего моба. Мобы
-    // не убивают друг друга — «разваливание» очереди только до фазы
-    // мобов; побег пугливого моба — внутри собственного mobAct
-    // (после присвоения turnIndex).
-    for (let i = 1; i < (c.turnOrder || []).length; i++) {
-      const u = c.units.find((x) => x.id === c.turnOrder[i]);
-      if (!u || !u.alive || u.fled) continue; // слот пуст — токен серый
-      c.turnIndex = i;
-      // Союзник (000080) — allyAct, иначе mobAct; инвариант 000036
-      // сохранён: c.turnOrder[c.turnIndex] = id действующего.
-      if (u.side === 'ally') allyAct(c, u);
-      else mobAct(c, u);
-      // Бой закончился (игрок погиб) — turnIndex замирает на последнем
-      // действовавшем юните; очередь в phase 'over' не пересчитывается.
-      if (c.result) return;
-    }
-
-    // Новый ход игрока: пулы восстанавливаются от навыков.
+  // «Новый раунд» (задача 000167): БИТ-В-БИТ прежний round-блок
+  // endPlayerTurn (порядок выражений ТОТ ЖЕ): refillPools (игрок),
+  // тики (щит игрока → щит Эфира → ослабление мобов — «1 раз за
+  // раунд»), рефилл пулов Эфира c.efs, свежая отсортированная
+  // очередь (turnIndex = 0), тик яда (смерть → outcome 'dead'),
+  // свежий targetId. Вызывается ровно ОДИН раз между пересчётами
+  // очереди (advanceQueue) — тики не дублируются; в round 1 вызова
+  // НЕТ (pre-roll тиками не сопровождается — тик яда/щитов — только
+  // при исчерпании очереди).
+  function startRound(c) {
     c.round += 1;
     c.phase = 'player';
     c.ps.blocked = false;
     refillPools(c);
-    // Магический щит (задача 000045): тик в начале хода игрока (после
+    // Магический щит (задача 000045): тик в начале раунда (после
     // refillPools) — эффект держится ровно `turns` раундов, включая
     // раунд каста (защита в раунде каста — до этого тика).
     if (c.ps.shield && c.ps.shield.turns > 0) c.ps.shield.turns -= 1;
@@ -1999,9 +2041,16 @@
     // — «2 хода» именно 2; D5).
     if (c.efirShield && c.efirShield.turns > 0) c.efirShield.turns -= 1;
     // Ослабление врагов (000113, «Вдох Эфира»): тик по РАУНДАМ — тот
-    // же ритм, что c.efirShield (000112): «2 хода» = ровно 2 раунда
-    // вражеских атак, включая раунд триггера (алли-фаза всегда раньше
-    // моб-фазы в turnOrder — все мобы раунда R атакуют ослабленными).
+    // же ритм, что c.efirShield (000112): turns: 2, −1 за раунд.
+    // Интерлевинг (000167 D4): «2 хода» = 2 ослабленных удара для
+    // мобов с init ≤ инициативе Эфира (в раунде триггера они атакуют
+    // ПОСЛЕ хода Эфира — при равенстве союзник раньше моба); мобы с
+    // init ВЫШЕ инициативы Эфира (маги 5, fast 6, wind_elemental 7 —
+    // при L1-Эфире 4) в раунде триггера уже атаковали ДО хода Эфира —
+    // ослабление с СЛЕДУЮЩЕГО раунда, ровно 1 ослабленный удар.
+    // Вынужденное следствие D4 + тика в начале раунда (число тиков не
+    // менялось: turns: 2 / −1 за раунд) — зафиксировано пином
+    // 000167-WEAK-1 и memory/000167-initiative-core.md §14.
     // Тик живых мобов (livingMobs) — мёртвые не атакуют, их статус
     // не имеет значения.
     for (const m of livingMobs(c)) {
@@ -2018,11 +2067,12 @@
       c.efs.touch = 1;
       c.efs.move = 3;
     }
-    // Новый раунд — новая очередь (задача 000036): из очереди вышли
-    // мёртвые и сбежавшие мобы, turnIndex возвращается к игроку.
+    // Новый раунд — новая очередь (задачи 000036/000167): из очереди
+    // вышли мёртвые и сбежавшие, очередь отсортирована по инициативе,
+    // turnIndex — на первом слоте.
     c.turnOrder = buildTurnOrder(c);
     c.turnIndex = 0;
-    // Отравление тикает в начале хода игрока.
+    // Отравление тикает в начале раунда.
     if (c.ps.poison > 0) {
       c.ps.poison -= 1;
       P.takeDamage(c.player, POISON_TICK);
@@ -2035,6 +2085,64 @@
       }
     }
     c.targetId = (nearestMob(c) || {}).id || null;
+  }
+
+  // Продвижение очереди (задача 000167, интерлевинг D4): движение
+  // c.turnIndex ДО слота ИГРОКА (phase 'player') или c.result.
+  // Мёртвые/сбежавшие — серый слот (skip, Позиция сохраняется до
+  // конца раунда — очередь фиксируется на старт раунда, UI-токен
+  // серый). Очередь исчерпана — «новый раунд» (startRound) и
+  // продолжение. Инвариант 000036 сохранён: c.turnIndex присваивается
+  // ДО mobAct/allyAct — в момент действия c.turnOrder[c.turnIndex] =
+  // id действующего; при c.result turnIndex ЗАМИРАЕТ (как до 000167).
+  // Мобы не убивают друг друга — «разваливание» очереди только до
+  // следующего живого слота; побег пугливого моба — внутри
+  // собственного mobAct (после присвоения turnIndex).
+  // Вызывается из endTurn (после хода активного) и из createCombat
+  // (pre-roll: юниты с инициативой ВЫШЕ игрока действуют синхронно
+  // ДО первого действия игрока). 0 c._rng — только диспетчизация
+  // существующих ходов (RNG — внутри mobAct/allyAct, как и раньше).
+  function advanceQueue(c) {
+    for (;;) {
+      if (c.result) return;
+      if (c.turnIndex >= (c.turnOrder || []).length) {
+        startRound(c);
+        if (c.result) return;
+      }
+      const id = c.turnOrder[c.turnIndex];
+      if (id === 'player') {
+        // Свежая цель на входе игрока: pre-roll/чужие ходы могли
+        // убить или сдвинуть цель — бит-в-бит семантика «цель свежа,
+        // когда действует игрок».
+        c.targetId = (nearestMob(c) || {}).id || null;
+        c.phase = 'player';
+        return;
+      }
+      const u = c.units.find((x) => x.id === id);
+      if (!u || !u.alive || u.fled) { c.turnIndex += 1; continue; } // серый слот
+      c.phase = 'mob';
+      // Союзник (000080) — allyAct, иначе mobAct; инвариант 000036
+      // сохранён: c.turnOrder[c.turnIndex] = id действующего.
+      if (u.side === 'ally') allyAct(c, u);
+      else mobAct(c, u);
+      // Бой закончился (игрок погиб/победа) — turnIndex замирает на
+      // последнем действовавшем юните; очередь в phase 'over'
+      // не пересчитывается.
+      if (c.result) return;
+      c.turnIndex += 1;
+    }
+  }
+
+  // Конец хода АКТИВНОГО юнита (задача 000167: переименование
+  // endPlayerTurn — «конец хода активного», не «конец хода игрока»):
+  // гейт чужого хода + продвижение очереди. В 000167 в покое активен
+  // только игрок (advanceQueue останавливается на его слоте, phase
+  // 'player'); в 000168 — любой player-side юнит. Публичный c.endTurn —
+  // БЕЗ гварды активного (D6): действие активного юнита.
+  function endTurn(c) {
+    if (checkTurn(c)) return;
+    c.turnIndex += 1;
+    advanceQueue(c);
   }
 
   function refillPools(c) {
@@ -2344,12 +2452,15 @@
       round: 1,
       phase: 'player',
       result: null,
-      // Очередь хода (задача 000036, 000080):
-      // ['player', ...id живых союзников, ...id живых мобов];
-      // пересчитывается в начале каждого раунда (createCombat/endPlayerTurn).
+      // Очередь хода (задачи 000036/000080/000167): отсортирована по
+      // УБЫВАНИЮ инициативы (Ловкость + Интеллект; тай — канонический
+      // порядок игрок → союзники → мобы); пересчитывается в createCombat
+      // и в начале каждого нового раунда (startRound).
       turnOrder: null,
-      // Индекс действующего в turnOrder: 0 в phase 'player',
-      // 1..n в phase 'mob'; при c.result — замирает на последнем действовавшем.
+      // Индекс действующего в turnOrder: 000167 — ПОЗИЦИЯ активного в
+      // отсортированной очереди (в phase 'player' — слот игрока,
+      // в phase 'mob' — слот действующего моба/союзника); при c.result
+      // — замирает на последнем действовавшем.
       turnIndex: 0,
       log: [],
       targetId: null,
@@ -2409,21 +2520,60 @@
       }
     }
     c.targetId = (nearestMob(c) || {}).id || null;
-    // Начало боя: все мобы живы — очередь собрана, turnIndex указывает
-    // на игрока (игрок ходит первым).
+    // Начало боя (задача 000167): очередь собрана (отсортирована по
+    // инициативе), turnIndex — на первом слоте; pre-roll — advanceQueue:
+    // юниты с инициативой ВЫШЕ игрока (мобы/союзники) действуют
+    // синхронно ДО первого действия игрока (интерлевинг, D4). На
+    // возврате — либо phase 'player' (turnIndex = слот игрока), либо
+    // c.result (fast-моб убил игрока / союзник убил последнего моба —
+    // end-state показывается существующим путём render, buildEfirUnit
+    // null-safe). В бою, где игрок быстрее всех, pre-roll — no-op
+    // (бит-в-бит прежний старт).
     c.turnOrder = buildTurnOrder(c);
     c.turnIndex = 0;
+    advanceQueue(c);
+    if (!c.result) c.targetId = (nearestMob(c) || {}).id || null;
 
-    // Публичные действия.
-    c.attack = (targetId) => playerAttack(c, targetId);
-    c.spell = (school, targetId) => playerSpell(c, school, targetId);
-    c.block = () => playerBlock(c);
-    c.move = (dx, dy) => playerMove(c, dx, dy);
-    c.flee = () => playerFlee(c);
-    c.quickItem = (slot) => playerQuickItem(c, slot);
-    c.invItem = (itemId) => playerInvItem(c, itemId);
-    c.selectTarget = (targetId) => playerSelectTarget(c, targetId);
-    c.endTurn = () => endPlayerTurn(c);
+    // Публичные действия. 000167 (D6): диспатч по АКТИВНОМУ юниту —
+    // гварда activeUnitId(c) === 'player': в 000167 в покое активен
+    // ТОЛЬКО игрок (advanceQueue останавливается на его слоте), гварды
+    // никогда не срабатывают — структурное резервирование под 000168
+    // (управление спутниками: вместо return null — союзный путь).
+    // Тела playerX — БЕЗ ИЗМЕНЕНИЙ (игрок-путь бит-в-бит). c.endTurn —
+    // БЕЗ гварды: действие активного юнита (000168 — любой player-side).
+    c.attack = (targetId) => {
+      if (activeUnitId(c) !== 'player') return null;
+      return playerAttack(c, targetId);
+    };
+    c.spell = (school, targetId) => {
+      if (activeUnitId(c) !== 'player') return null;
+      return playerSpell(c, school, targetId);
+    };
+    c.block = () => {
+      if (activeUnitId(c) !== 'player') return null;
+      return playerBlock(c);
+    };
+    c.move = (dx, dy) => {
+      if (activeUnitId(c) !== 'player') return null;
+      return playerMove(c, dx, dy);
+    };
+    c.flee = () => {
+      if (activeUnitId(c) !== 'player') return null;
+      return playerFlee(c);
+    };
+    c.quickItem = (slot) => {
+      if (activeUnitId(c) !== 'player') return null;
+      return playerQuickItem(c, slot);
+    };
+    c.invItem = (itemId) => {
+      if (activeUnitId(c) !== 'player') return null;
+      return playerInvItem(c, itemId);
+    };
+    c.selectTarget = (targetId) => {
+      if (activeUnitId(c) !== 'player') return null;
+      return playerSelectTarget(c, targetId);
+    };
+    c.endTurn = () => endTurn(c);
     return c;
   }
 
@@ -2455,6 +2605,9 @@
     // Лут с мобов (задача 000132): пулы — данные модуля (пины N6).
     LOOT_BASE_POOL, LOOT_RARE_POOL,
     hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
+    // Инициатива (задача 000167): формула (Ловкость + Интеллект) и
+    // активный юнит по очереди — чистые функции (D1/D6, 0 c._rng).
+    unitInitiative, activeUnitId,
     // Союзники (задача 000080): союзный юнит 1×1 из данных.
     makeAlly,
     // Препятствия (задача 000050): достижимость клеток от игрока по

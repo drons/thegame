@@ -6,6 +6,8 @@
   "aggro": "territorial",
   "dmg": 1.2,
   "hp": 2.5,
+  "dexterity": 1,
+  "intelligence": 1,
   "armor": 2,
   "size": {
     "w": 3,

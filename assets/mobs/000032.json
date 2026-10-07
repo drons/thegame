@@ -6,6 +6,8 @@
   "aggro": "timid",
   "dmg": 0.4,
   "hp": 0.6,
+  "dexterity": 1,
+  "intelligence": 4,
   "size": {
     "w": 1,
     "h": 1

@@ -312,8 +312,8 @@ test('боевой UI: одно нажатие Space (endTurn) — одна во
   press(keydown, 'Space');
 
   const added = Array.from(c.log).slice(n0);
-  assert.deepEqual(added, ['Волк промахивается.', 'Гигантский паук промахивается.'],
-    'одна волна ходов мобов, по одной строке, в порядке units: '
+  assert.deepEqual(added, ['Гигантский паук промахивается.', 'Волк промахивается.'],
+    'одна волна ходов мобов, по одной строке, в порядке ИНИЦИАТИВЫ (000167: паук 4 > волк 3, pre-roll уже отстрелял их долю round 1): '
     + JSON.stringify(added));
   assert.equal(c.phase, 'player', 'новый ход игрока');
   assert.equal(c.round, 2, 'ход сгорел ровно ОДИН раз');
@@ -1227,8 +1227,12 @@ test('боевой UI: 000081 — startCombat ВСЕГДА добавляет Э
   assert.equal(u.side, 'ally');
   assert.equal(u.alive, true);
   assert.equal(u.hp, u.maxHP, 'старт с полным HP');
-  assert.equal(u.x, c.px - 1, 'первый якорь (px−1, py−1)');
-  assert.equal(u.y, c.py - 1);
+  // 000167: pre-roll — Эфир (инициатива 4) действует ДО игрока (2):
+  // 1 шаг к волку, ось x приоритетнее (000080 allyStepToward) →
+  // (px−1, py−1) → (px−2, py−1).
+  assert.equal(u.x, c.px - 2,
+    '000167: pre-roll шаг по x: якорь px−1 → px−2');
+  assert.equal(u.y, c.py - 1, 'y — якорь py−1 (шаг был по x)');
   // Имитация победы → finish(): 100% result.xp — в пул, ДО onEnd.
   c.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
     allyXp: [] };
@@ -1563,8 +1567,9 @@ test('боевой UI: 000084 — индикатор хода у союзник�
   assert.equal(t1.styleCalls.filter((s) => s[0] === 'strokeStyle'
     && s[1] === '#ffe27a').length, 1,
     'цвет кольца — ровно один раз (цели нет — без коллизии)');
-  // Не ход Эфира — кольца нет нигде.
-  S.c.turnIndex = 0;
+  // Не ход Эфира — кольца нет нигде. 000167: очередь по инициативе
+  // [Эфир, волк, герой] — «не Эфир» = слот героя (раньше индекс 0).
+  S.c.turnIndex = S.c.turnOrder.indexOf('player');
   const t2 = tickSlice(S.canvas, S.rafStubs);
   assert.ok(!t2.calls.some((c) => c[0] === 'strokeRect'
     && c[1][2] === 41 && c[1][3] === 41),
@@ -1794,20 +1799,25 @@ test('боевой UI: 000084 — ряд очереди: токен Эфира �
   // так не ведёт) — читаем ХВОСТ (первый тест в файле, читающий
   // этот элемент).
   const tail = el.children.slice(-S.c.turnOrder.length);
-  assert.equal(tail.length, 3, 'токены: герой, Эфир, волк');
-  const [heroTok, efirTok, mobTok] = tail;
+  // 000167: очередь по инициативе [Эфир, волк, герой] (раньше
+  // [герой, Эфир, волк]); ti=0 — Эфир current, волк и герой ещё
+  // не ходили В РАУНДЕ (i > turnIndex — без --acted).
+  assert.equal(tail.length, 3, 'токены: Эфир, волк, герой');
+  const [efirTok, mobTok, heroTok] = tail;
   assert.ok(heroTok.className.includes('turn-token--hero'),
     'токен героя');
   assert.ok(!heroTok.className.includes('turn-token--current'),
     'герой — не current (turnIndex на Эфире)');
-  assert.ok(heroTok.className.includes('turn-token--acted'),
-    'герой — уже ходил');
+  assert.ok(!heroTok.className.includes('turn-token--acted'),
+    '000167: герой (i 2 > ti 0) — ещё не ходил в раунде');
   assert.ok(efirTok.className.includes('turn-token--current'),
     'токен Эфира — current');
   assert.equal(efirTok.title, 'Эфир (ур. 1) — ходит',
     'title токена Эфира: ' + JSON.stringify(efirTok.title));
   assert.ok(!mobTok.className.includes('turn-token--current'),
     'волк — не current');
+  assert.ok(!mobTok.className.includes('turn-token--acted'),
+    '000167: волк (i 1 > ti 0) — ещё не ходил в раунде');
 });
 
 test('боевой UI: 000084 — клик по клетке союзника: цель не изменилась, лог не вырос (пин: ядро отклоняет)', () => {
@@ -2072,7 +2082,10 @@ test('боевой UI: 000118 — c.log: строки действий Эфир�
       const u = c.units.find((x) => x.kind === 'efir');
       const w = c.units.find((x) => x.side === 'mob');
       u.spells = []; // без каталога-кандидатов урона — каст невозможен
-      w.x = c.px; w.y = c.py - 1; // вплотную к Эфиру (px−1, py−1): d 1
+      // 000167: pre-roll сдвинул Эфира (px−1, py−1) →
+      // (px−2, py−1) (шаг по x к волку) — «вплотную к Эфиру» =
+      // (px−1, py−1): d 1.
+      w.x = c.px - 1; w.y = c.py - 1;
       c._rng = () => 0.99;
       press(L.keydown, 'Space');
       assert.ok(c.log.includes('Касание духа: 4.'),
@@ -2598,4 +2611,85 @@ test('боевой UI: 000152 G1 — деградация (без sprites.js): �
     && x[1][0] === ex + 4.5 && x[1][1] === ey + 4.5
     && x[1][2] === 39 && x[1][3] === 39),
     'рамка «свой» без sprites.js');
+});
+
+// --- Задача 000167: Бой: инициатива (ядро) — КРАСНЫЕ ТЕСТЫ (UI) ---
+// Контракт: memory/000167-initiative-core.md. pre-roll в createCombat
+// (startCombat): паук (4) и волк (3) быстрее героя createCharacter (2) →
+// очередь отсортирована ['m0','m1','player'], turnIndex на игроке,
+// round не сдвинут. UI-контракт: слот УБИТОГО В РАУНДЕ — серый токен
+// (turn-token--dead) до конца раунда (очередь фиксируется на старт
+// раунда, D12), --current — всегда на слоте СВОЕЙ позиции действующего
+// (инвариант 000036), в следующем раунде мёртвый — вне очереди.
+
+test('боевой UI: 000167-TOKEN-1 — слот убитого в раунде: серый токен до конца раунда, --current на позиции действующего, в следующем раунде мёртвый вне очереди', () => {
+  const S = scene84({ mobs: ['spider', 'wolf'] });
+  const c = S.c;
+  const [sp, w] = c.units; // m0 паук (4), m1 волк (3); герой createCharacter (2)
+  c.player.hp = 9999; // сценарий: герой не гибнет от мобов
+  // Новый поток: pre-roll — паук (4) и волк (3) быстрее героя (2) → уже
+  // действовали (сдвинулись к игроку); очередь отсортирована, turnIndex —
+  // на СВОЕМ слоте игрока, раунд не сдвинут.
+  assert.deepEqual([...c.turnOrder], ['m0', 'm1', 'player'],
+    'отсортированная очередь: паук 4 > волк 3 > герой 2');
+  assert.equal(c.turnIndex, 2,
+    'игрок — на СВОЕМ слоте в отсортированной очереди');
+  assert.equal(c.phase, 'player');
+  assert.equal(c.round, 1, 'pre-roll не сдвигает раунд');
+  // Игрок убивает волка в фазе игрока — слот мёртвого в (устаревшей)
+  // очереди сохраняется до конца раунда.
+  w.x = c.px; w.y = c.py - 1; // вплотную (белая коробка)
+  c._rng = () => 0.01; // попадание гарантировано
+  w.hp = 1;
+  const r = c.attack(w.id);
+  assert.equal(r.killed, true, 'волк повержен в фазе игрока');
+  tickSlice(S.canvas, S.rafStubs); // render → пересборка токенов
+  const el = findByClass(S.body, 'combat-turnorder');
+  // ЛОВУШКА стаба: textContent='' НЕ очищает children — читаем ХВОСТ
+  // (прецедент 000084).
+  const tail = el.children.slice(-c.turnOrder.length);
+  assert.equal(tail.length, 3, 'токены: паук, волк (мёртв), герой');
+  const [spTok, wTok, heroTok] = tail;
+  assert.ok(wTok.className.includes('turn-token--dead'),
+    'слот мёртвого моба в очереди — серый токен');
+  assert.ok(!wTok.className.includes('turn-token--current'),
+    'мёртвый слот не подсвечен');
+  assert.ok(heroTok.className.includes('turn-token--current'),
+    'герой — current на своём слоте');
+  assert.ok(spTok.className.includes('turn-token--acted'),
+    'паук (действовал в pre-roll) — уже ходил');
+  // Инвариант 000036 (белая коробка, паттерн 000084): действующий моб —
+  // --current на СВОЕЙ позиции, а не на слоте мёртвого.
+  c.phase = 'mob';
+  c.turnIndex = c.turnOrder.indexOf('m0');
+  tickSlice(S.canvas, S.rafStubs);
+  const tail2 = el.children.slice(-c.turnOrder.length);
+  const [spTok2, wTok2, heroTok2] = tail2;
+  assert.ok(spTok2.className.includes('turn-token--current'),
+    'действующий моб — current на своей позиции');
+  assert.equal(c.turnOrder[c.turnIndex], 'm0',
+    'turnOrder[turnIndex] — id действующего (не слот мёртвого)');
+  assert.ok(wTok2.className.includes('turn-token--dead'),
+    'слот мёртвого по-прежнему серый');
+  assert.ok(!wTok2.className.includes('turn-token--current'),
+    'мёртвый слот НЕ подсвечен даже «по индексу»');
+  assert.ok(!heroTok2.className.includes('turn-token--current'),
+    'у героя подсветки нет');
+  // Следующий раунд: мёртвый моб вне очереди. (Восстановить настоящее
+  // состояние — checkTurn гейтует endTurn по phase 'player'.)
+  c.phase = 'player';
+  c.turnIndex = 2;
+  c.endTurn();
+  assert.equal(c.round, 2, 'rollover: round++');
+  assert.equal(c.phase, 'player');
+  assert.deepEqual([...c.turnOrder], ['m0', 'player'],
+    'свежая очередь: мёртвый волк исключён (паук 4 > герой 2)');
+  assert.equal(c.turnIndex, 1, 'turnIndex — снова на слоте игрока');
+  tickSlice(S.canvas, S.rafStubs);
+  const tail3 = el.children.slice(-c.turnOrder.length);
+  assert.equal(tail3.length, 2, 'в новом раунде 2 токена: паук, герой');
+  assert.ok(!tail3.some((t) => t.className.includes('turn-token--dead')),
+    'мёртвых токенов в новом раунде нет');
+  assert.ok(tail3[1].className.includes('turn-token--current'),
+    'герой — current');
 });

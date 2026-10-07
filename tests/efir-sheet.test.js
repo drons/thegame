@@ -282,8 +282,8 @@ test('000144 ES-4: боевые статки — из primary (derived-моди�
     assert.equal(u1.hp, 16, 'hp = maxHP (100% на старте боя)');
     assert.equal(u1.mp, 11, 'L1: maxMP = 5 + 3 + 3 = 11 (своя мана)');
     assert.deepEqual(u1.attrs,
-      { intelligence: 3, wisdom: 3, constitution: 3 },
-      'attrs — 3 собственных атрибута из primary (L1)');
+      { intelligence: 3, wisdom: 3, constitution: 3, dexterity: 1 },
+      'attrs — 4 собственных атрибута из primary (L1) (000167: +dexterity 1 — инициатива)');
     // УРОВЕНЬ атрибуты больше НЕ растит (000139: рост — очками).
     assert.equal(E.addEfirXp(s1, 50 + 141), 2, 'L1 → L3 (без хардкода)');
     assert.equal(s1.level, 3);
@@ -292,8 +292,8 @@ test('000144 ES-4: боевые статки — из primary (derived-моди�
       'L3 (очки НЕ потрачены): атрибуты не выросли от уровня');
     assert.equal(u3.mp, 11, 'L3: мана не выросла от уровня');
     assert.deepEqual(u3.attrs,
-      { intelligence: 3, wisdom: 3, constitution: 3 },
-      'attrs L3 (без очков) = primary (3/3/3)');
+      { intelligence: 3, wisdom: 3, constitution: 3, dexterity: 1 },
+      'attrs L3 (без очков) = primary (3/3/3/1) (000167: +dexterity 1)');
     // ОЧКИ растят атрибуты: L3 — 4 очка.
     assert.equal(s1.points, 4, 'L3: 4 очка (2×2)');
     assert.equal(Sheet.raiseSkill(s1, 'wisdom').ok, true, 'wisdom +1');
@@ -303,8 +303,8 @@ test('000144 ES-4: боевые статки — из primary (derived-моди�
     assert.equal(u4.maxHP, 18, 'Con 4 → maxHP = 10 + 2·4 = 18');
     assert.equal(u4.mp, 12, 'Wis 4 → maxMP = 5 + 3 + 4 = 12');
     assert.deepEqual(u4.attrs,
-      { intelligence: 3, wisdom: 4, constitution: 4 },
-      'attrs — из primary (очки)');
+      { intelligence: 3, wisdom: 4, constitution: 4, dexterity: 1 },
+      'attrs — из primary (очки) (000167: +dexterity 1)');
     // «Касание духа» — от wisdom: round((2 + 0.5·4)·1) = 4.
     assert.equal(u4.damage, 4, 'Касание = max(1, round((2 + 0.5·4)·1)) = 4');
   });
