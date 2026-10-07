@@ -515,3 +515,28 @@ GREEN-критерий: `npm test` — весь набор зелёный (ба�
    G.SpellBook». Исправлено ДО этой станции — коммит 8df58da.
 
 Итог: npm test — 1802/1802 (было 1799; +3 SB12-SB14).
+
+## 14. Стадия мержа (2026-10-07): ребейз на master c 000163
+
+Ребейз на master (dd9c0e8) пересёкся с 000163 («Воскрешение»):
+в каталог assets/spells вошёл 000017.json (id 'resurrect',
+действие «воскрешение») БЕЗ icon/icon_prompt, тогда как схема
+(000149) требует оба поля. Конфликты текста — только в
+tests/combat-ui.test.js (доки loadCombatUi — сохранены ОБЕ:
+000151 + withSpells) и CHANGELOG.md (буллит 000149 — ПОСЛЕ записи
+000146, в «Игровой процесс»); остальное — чистый auto-merge
+(combat-ui.js/combat.js — разные регионы: combat-scale 000151 vs
+книга 000149, resurrectAlly vs canDoAction 'spellbook').
+Решение стадии мержа (без смены поведения):
+ * assets/spells/000017.json: +icon/icon_prompt (перо феникса —
+   предмет phoenix_feather, школа исцеление, степень 1);
+ * assets/spell-icons/resurrect.svg — 24×24, fill #e8dcc0,
+   единый силуэт (проверено checkSvg, инвариант 000120);
+ * src/spells-data.js — перегенерирован scripts/sync-spells-data.js
+   (зеркало byte-идентично повторному прогону; 17 записей);
+ * ре-пины: SB9 (16→17 JSON), SB11 (17→18 SVG),
+   tests/svg.test.js 'spell-icons': 16→17 (сумма таблицы —
+   334);
+ * 000167 (инициатива) на момент мержа НЕ в master — книга
+   остаётся для c.player (v1); подключение к активной единице —
+   000168 (см. §3).

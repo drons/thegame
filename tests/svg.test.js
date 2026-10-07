@@ -453,8 +453,9 @@ const EXPECTED_SVG_BY_DIR = {
                                       // кнопки [E]/[I] (задача 000123)
                                       // 000149: −combat_fire/−combat_heal
                                       // +combat_spellbook (книга)
-  'spell-icons': 16,                  // иконки заклинаний (задача 000149,
-                                      // по одной на JSON каталога)
+  'spell-icons': 17,                  // иконки заклинаний (задача 000149,
+                                      // по одной на JSON каталога; 000163:
+                                      // +resurrect)
   portraits: 8,                       // портреты партии (задача 000142)
   logo: 1,                            // assets/logo.svg
 };
