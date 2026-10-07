@@ -28,6 +28,10 @@
     {
       "item": "greater_healing",
       "chance": 0.15
+    },
+    {
+      "item": "resurrect_scroll",
+      "chance": 0.05
     }
   ],
   "art": {

@@ -36,11 +36,12 @@
     WEAPON: 'weapon', ARMOR: 'armor', POTION: 'potion',
     FOOD: 'food', SKILL_BOOK: 'skill_book', REAGENT: 'reagent',
     SPELL_SCROLL: 'spell_scroll',
+    RESURRECTION_SCROLL: 'resurrection_scroll',
   };
   const WEAPON_SUBTYPES = { SWORD: 'sword', BOW: 'bow', HEAVY: 'heavy' };
   const EFFECT_KINDS = {
     HEAL: 'heal', MP: 'mp', EAT: 'eat', SKILL_XP: 'skill_xp',
-    SPELL: 'spell',
+    SPELL: 'spell', RESURRECT: 'resurrect',
   };
 
   // Параметры инвентаря и веса.
@@ -96,6 +97,14 @@
           !/^[a-z][a-z0-9_]*$/.test(e.spell)) {
         throw new Error(it.id + ': свиток — неверный id заклинания: ' + e.spell);
       }
+    }
+    // Свиток воскрешения (задача 000165, контракт D6): ЕДИНСТВЕННЫЙ
+    // эффект — { kind: 'resurrect' } (полей нет: цель не выбирается,
+    // параметры — в ядре combat.js; применение — только в бою).
+    if (it.kind === 'resurrection_scroll') {
+      const e = it.effect;
+      if (!e || e.kind !== 'resurrect')
+        throw new Error(it.id + ': свиток воскрешения — только effect.kind «resurrect»');
     }
   }
 
@@ -534,6 +543,14 @@
         ok: true, name: it.name, spell: it.effect.spell,
         message: 'Изучено: «' + (sp ? sp.название : it.effect.spell) + '»',
       };
+    }
+
+    // Свиток воскрешения (задача 000165, контракт D6): v1 — только в
+    // бою (быстрый слот — combat.js playerQuickItem). Мирное средство
+    // воскрешения — храм (000162). Отказ ДО расхода, предмет не
+    // тратится (паттерн useItem).
+    if (it.kind === 'resurrection_scroll') {
+      return { ok: false, reason: 'Свиток воскрешения можно применить только в бою' };
     }
 
     const d = P.derived(c);
