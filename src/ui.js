@@ -238,13 +238,29 @@
     flashNotice._t = setTimeout(() => { notice.style.opacity = '0'; }, 2500);
   }
 
+  // 000147: «изучение — на активного» — лист для 4-го аргумента
+  // useItem: LearnTarget.activeSheet(c) (единая точка; тег
+  // learn-target.js РАНЬШЕ ui.js — в снапшоте G). Без LearnTarget
+  // (vm-песочницы с HARDCODED-цепочками до ui.js без него) — c
+  // (побайтово 000133).
+  function activeSheetFor(c) {
+    const LT = G.LearnTarget;
+    if (LT && typeof LT.activeSheet === 'function') {
+      const s = LT.activeSheet(c);
+      if (s && typeof s === 'object' && !Array.isArray(s)) return s;
+    }
+    return c;
+  }
+
   // Действия с предметами (кнопки dataset.act в секциях панели).
   function doItemAction(btn) {
     const c = character;
     const id = btn.dataset.item;
     let r = { ok: true };
     switch (btn.dataset.act) {
-      case 'use': r = G.useItem(c, id); break;
+      // 000147: свиток — изучение на АКТИВНОГО персонажа
+      // (000145); предмет — с инвентаря героя (c).
+      case 'use': r = G.useItem(c, id, 1, activeSheetFor(c)); break;
       case 'equip': r = G.equip(c, id); break;
       case 'unequip': r = G.unequip(c, btn.dataset.equipslot); break;
       case 'remove': r = G.removeItem(c, id, 1); break;

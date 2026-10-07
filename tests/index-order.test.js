@@ -34,6 +34,9 @@ const pos = (f) => scripts.indexOf(f);
 test('index.html: нужные модули подключены', () => {
   for (const f of [
     'src/global-settings.js', 'src/day.js', 'src/sheet.js', 'src/player.js',
+    // 000147: активная таблица партии (Game.LearnTarget.activeSheet) —
+    // между day.js и items.js (до потребителей: ui.js, specials).
+    'src/learn-target.js',
     'src/items.js', 'src/controls.js', 'src/combat-keys.js',
     'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
     'src/dungeon.js', 'src/cities.js', 'src/locations.js',
@@ -57,6 +60,9 @@ test('index.html: нужные модули подключены', () => {
     // 000162: слот спец-модулей (после runes.js, до hud.js) —
     // «Воскрешение» храмов 36/37/38 (интерактивный спец, R-3/R-7).
     'src/building-effect-resurrect.js',
+    // 000147: слот спец-модулей «Обучение (наставник)» — после
+    // runes (рядом, до hud.js; пин порядка ниже).
+    'src/building-effect-mentor.js',
     'src/hud.js',
     // Слот спец-модулей 000128 (после hud.js, до visuals-data.js);
     // добавлено на зелёной стадии (план красной — см. коммит
@@ -881,6 +887,48 @@ test('index.html: building-effect-runes.js подключён ПОСЛЕ buildin
     '(задача 000133)');
   assert.ok(pos('src/building-effect-runes.js') < pos('src/main.js'),
     'src/building-effect-runes.js должен быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+// --- Задача 000147: единое изучение заклинаний для всех членов партии ---
+//
+// learn-target.js — Game.LearnTarget.activeSheet(hero): ОДИН резолвер
+// активной таблицы (000145). Ленивые чтения (rootRef на вызове),
+// чист при загрузке — тегом фиксируем лишь то, что модуль живёт ДО
+// потребителей (items.js/ui.js) и ДО main.js (снапшот-ловушка 000038).
+// building-effect-mentor.js — спец-модуль «Обучение (наставник)»:
+// саморегистрация 5 школ (17/18/19/21/38) в Game.buildingActions
+// specials при загрузке — те же требования, что у runes (000133):
+// ПОСЛЕ building-actions.js и spells.js, ДО hud.js и main.js.
+
+test('index.html: learn-target.js подключён ПОСЛЕ day.js, ДО ui.js и main.js (задача 000147)', () => {
+  assert.notEqual(pos('src/learn-target.js'), -1,
+    'src/learn-target.js не подключён в index.html (задача 000147)');
+  assert.ok(pos('src/day.js') < pos('src/learn-target.js'),
+    'src/day.js должен быть раньше src/learn-target.js ' +
+    '(Группа данных/ядра: day → learn-target, задача 000147)');
+  assert.ok(pos('src/learn-target.js') < pos('src/ui.js'),
+    'src/learn-target.js должен быть раньше src/ui.js ' +
+    '(потребитель: use-item → LearnTarget.activeSheet, задача 000147)');
+  assert.ok(pos('src/learn-target.js') < pos('src/main.js'),
+    'src/learn-target.js должен быть раньше src/main.js ' +
+    '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+test('index.html: building-effect-mentor.js подключён ПОСЛЕ building-actions.js и spells.js, ДО hud.js и main.js (задача 000147)', () => {
+  assert.notEqual(pos('src/building-effect-mentor.js'), -1,
+    'src/building-effect-mentor.js не подключён в index.html (задача 000147)');
+  assert.ok(pos('src/building-actions.js') < pos('src/building-effect-mentor.js'),
+    'src/building-actions.js должен быть раньше src/building-effect-mentor.js ' +
+    '(саморегистрация требует Game.buildingActions, задача 000147)');
+  assert.ok(pos('src/spells.js') < pos('src/building-effect-mentor.js'),
+    'src/spells.js должен быть раньше src/building-effect-mentor.js ' +
+    '(Game.Spells — learn source «mentor», задача 000147)');
+  assert.ok(pos('src/building-effect-mentor.js') < pos('src/hud.js'),
+    'src/building-effect-mentor.js — слот спец-модулей: раньше src/hud.js ' +
+    '(задача 000147)');
+  assert.ok(pos('src/building-effect-mentor.js') < pos('src/main.js'),
+    'src/building-effect-mentor.js должен быть раньше src/main.js ' +
     '(UMD-ловушка 000038: main.js снимает Game один раз)');
 });
 
