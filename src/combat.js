@@ -867,7 +867,11 @@
   }
 
   // Урон по игроку (щит → блок → броня → «Железная кожа» через P.takeDamage).
-  // Возвращает фактический урон (для вампиризма).
+  // Возвращает { dmg, deathWindow } (задача 000164): dmg — фактический
+  // урон (для вампиризма), deathWindow — «окно смерти» закрыло удар
+  // (mobAttack: убивший удар больше ничто не производит — трейт-роллы
+  // пропускаются, ноль новых c._rng; живым игроком deathWindow false —
+  // бит-в-бит).
   function dealDamageToPlayer(c, raw) {
     const p = c.player;
     const d = P.derived(p);
@@ -896,18 +900,82 @@
     if (!p.alive) {
       // «Несокрушимость»: шанс выжить смертельный удар — 1 раз в игровой день
       // (SPEC.md). Счётчик живёт на персонаже — действует на все бои дня.
+      // Срабатывает РАНЬШЕ окна смерти (000164) — окно в её путь НЕ входит.
       if (d.survivalChance > 0 && p._lastUnkillDay !== c.day && c._rng() < d.survivalChance) {
         p.alive = true;
         p.hp = 1;
         p._lastUnkillDay = c.day;
         log(c, 'Несокрушимость! Смерть отказалась.');
       } else {
-        c.phase = 'over';
-        c.result = { outcome: 'dead' };
-        log(c, 'Вы погибли...');
+        // 000164 (точка 1): «окно смерти» — общий хендлер обеих точек
+        // гибели игрока (каскад/Эфир/спасение или partyLost).
+        onPlayerDeath(c);
+        return { dmg, deathWindow: true };
       }
     }
-    return dmg;
+    return { dmg, deathWindow: false };
+  }
+
+  // Гибель игрока — «окно смерти» (задача 000164, SPEC «Спутники →
+  // Бой» / «Спутники → Воскрешение» / «Дух Эфира»; контракт
+  // memory/000164-death-window.md §2.1): ЕДИНЫЙ хендлер ОБЕХ точек
+  // смерти (dealDamageToPlayer — удар; яд-тик startRound). Синхронное
+  // окно: НЕ меняет очередь/фазы до решения — спасение: фазовый
+  // контекст сохранён, бой продолжается (turnOrder не пересчитывается
+  // до конца раунда — инвариант 000036); неспасение: c.result =
+  // { outcome: 'dead', partyLost: true }. Детерминизм: НОЛЬ c._rng.
+  // Порядок операций фиксирован (пин 000164-RESCUE-1):
+  //   1) log «Вы погибли...» (переезжает в хендлер из обеих точек);
+  //   2) КАСКАД: все side 'ally' — alive false, hp 0 (все NPC «тоже
+  //      считаются погибшими», включая Эфира);
+  //   3) auto-возрождение Эфира (дух): alive, hp = maxHP,
+  //      mp = 5 + Инт + Муд (ПЕРЕ-ДЕРИВАЦИЯ из attrs — у юнита НЕТ
+  //      поля maxMP; efir.js не трогаем), log «Эфир возвращается…»
+  //      (дух НЕ в deadMercs — инвариант 000087: в main.js Эфира в
+  //      roster нет);
+  //   4) СПАСЕНИЕ: strongestKnown(e, 'воскрешение') (максимум «мани»,
+  //      тай-брейк id) + пул c.efs.spellWis > 0 + мана ≥ каталожного
+  //      s['мани'] → расход (СНАЧАЛА, атомарно) → атрибуция →
+  //      resurrectAlly(c, c.player) (000163 R-1: НЕ castSpell — тот
+  //      тратит пулы/ману ИГРОКА) → откат: все merc-юниты alive,
+  //      hp = round(maxHP/2) («не успели» умереть; молча) → return
+  //      (c.result/phase НЕ трогаются — бой идёт);
+  //   5) НЕСПАСЕНИЕ: phase 'over', c.result { outcome: 'dead',
+  //      partyLost: true } (partyLost — АДДИТИВНОЕ поле; существующие
+  //      читатели res.outcome/allyXp/items не трогать).
+  function onPlayerDeath(c) {
+    log(c, 'Вы погибли...');
+    for (const u of c.units) {
+      if (u.side === 'ally') { u.alive = false; u.hp = 0; }
+    }
+    // Поиск Эфира по c.units (НЕ c.efir — alias): работает и до
+    // buildEfirUnit (pre-roll-смерть: там c.efs нет → гейт шага 4
+    // ложится на пуле — структурное неспасение, контракт §2.5).
+    const e = c.units.find((u) => u.id === 'efir' && u.side === 'ally');
+    if (e) {
+      e.alive = true;
+      e.hp = e.maxHP;
+      e.mp = 5 + ((e.attrs && e.attrs.intelligence) || 0)
+             + ((e.attrs && e.attrs.wisdom) || 0);
+      log(c, 'Эфир возвращается…');
+    }
+    const s = e ? strongestKnown(e, 'воскрешение') : null;
+    if (e && s && c.efs && c.efs.spellWis > 0
+        && e.mp >= (Number(s['мани']) || 0)) {
+      c.efs.spellWis -= 1;
+      e.mp -= (Number(s['мани']) || 0);
+      log(c, `Эфир: «${s['название']}».`);
+      resurrectAlly(c, c.player);
+      for (const u of c.units) {
+        if (u.side === 'ally' && u.kind === 'merc') {
+          u.alive = true;
+          u.hp = Math.round(u.maxHP / 2);
+        }
+      }
+      return;
+    }
+    c.phase = 'over';
+    c.result = { outcome: 'dead', partyLost: true };
   }
 
   // Урон по СОЮЗНИКУ (задача 000080): броня, минимум 1. Без блока/щита/
@@ -1533,9 +1601,13 @@
     // при применении НЕТ (тик — в startRound).
     if (u.weakened && u.weakened.turns > 0) dmg *= u.weakened.mult;
     const dealt = dealDamageToPlayer(c, dmg);
-    if (dealt <= 0 || c.result) return;
+    // 000164: окно смерти ЗАКРЫЛО удар — убивший удар больше ничто не
+    // производит (трейт-блок пропускается; в спасённом кейсе c.result
+    // === null, поэтому удар закрывается флагом, не c.result).
+    if (dealt.deathWindow) return;
+    if (dealt.dmg <= 0 || c.result) return;
     if (u.traits.lifesteal) {
-      u.hp = Math.min(u.maxHP, u.hp + dealt);
+      u.hp = Math.min(u.maxHP, u.hp + dealt.dmg);
       log(c, `${u.name} высасывает здоровье.`);
     }
     if (u.traits.poison && c._rng() < POISON_CHANCE && c.ps.poison === 0) {
@@ -2105,10 +2177,14 @@
       P.takeDamage(c.player, POISON_TICK);
       log(c, `Яд: −${POISON_TICK} HP.`);
       if (!c.player.alive) {
-        c.phase = 'over';
-        c.result = { outcome: 'dead' };
-        log(c, 'Вы погибли...');
-        return;
+        // 000164 (точка 2): окно смерти — тот же хендлер. Здесь
+        // «Несокрушимости» НЕТ (как и до — только в
+        // dealDamageToPlayer). Неспасение — c.result стоит, return как
+        // до (turnIndex 0 замирает); спасение — игрок снова жив,
+        // раунд идёт с turnIndex 0 по свежей очереди (окно синхронное
+        // — после buildTurnOrder/turnIndex=0).
+        onPlayerDeath(c);
+        if (c.result) return;
       }
     }
     c.targetId = (nearestMob(c) || {}).id || null;

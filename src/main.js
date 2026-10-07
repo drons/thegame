@@ -439,7 +439,34 @@
           gained.map((g) => npcName(g.id)).join(', ') + ').');
     }
     const deadLines = [];
-    if (combat && Array.isArray(combat.units)) {
+    if (res && res.outcome === 'dead' && res.partyLost) {
+      // 000164 (D4): партия погибла с игроком — ВСЕ ЗАПИСИ roster
+      // (не только !alive-юниты: «призрак»-запись без юнита в c.units
+      // тоже записывается) → deadMercs (записи 000161) + splice +
+      // строки «X погиб в бою.» (SPEC). Эфира в roster нет (000087) —
+      // исключён структурно. Порядок строк = порядок roster. else-if:
+      // двойной проход дал бы дубль deadLines (дедуп ловит push, но не
+      // строку).
+      for (let i = 0; i < roster.length; i++) {
+        const e = roster[i];
+        if (!e || typeof e.npcId !== 'string') continue;
+        // Дедуп — по npcId (string|record, first-wins) — ТО ЖЕ
+        // выражение, что в !alive-цикле ниже (000161).
+        if (!deadMercs.some((r) => (typeof r === 'string' ? r
+            : (r && typeof r === 'object' && !Array.isArray(r) &&
+               typeof r.npcId === 'string') ? r.npcId : null)
+            === e.npcId)) {
+          let rec = (typeof G.companions.serializeDeadRecord
+              === 'function')
+            ? G.companions.serializeDeadRecord(e) : null;
+          if (rec == null) rec = e.npcId;
+          deadMercs.push(rec);
+        }
+        roster.splice(i, 1);
+        i -= 1;
+        deadLines.push(npcName(e.npcId) + ' погиб в бою.');
+      }
+    } else if (combat && Array.isArray(combat.units)) {
       for (const u of combat.units) {
         if (u.side === 'ally' && u.kind === 'merc' && !u.alive) {
           const i = roster.findIndex((e) => e && e.npcId === u.id);
