@@ -21,21 +21,26 @@
 // Сценарии:
 //   * RES-E1 — полный цикл: dead_mercs (Вольк, ур. 3/xp 100) → храм
 //     солнца (36) → [E] → «Воскрешение» → пикер → Enter →
-//     gold 100−25=75 (цена round(20+0.05×100), D2), live roster —
-//     1 запись 6 ключей (зеркала level/xp 3/100), live deadMercs —
-//     []; сейв: companions 1 (sheet.level 3, sheet.xp 100,
-//     loyalty 70, hiredDay 5), dead_mercs []; buildingOncePerDay —
-//     без ':resurrect' (R-4: услуга без дневного лимита); flash
-//     «Вольк снова в отряде.» (Q-4); пикер закрыт.
+//     gold БАЗА−25 (цена round(20+0.05×100), D2; БАЗА — gold после
+//     walk: zone-бой у спавна (000135) авто-решается в walkTo и
+//     детерминированно даёт лут — ассерты по ДЕЛЬТЕ от базы),
+//     live roster — 1 запись 6 ключей (зеркала level/xp 3/100),
+//     live deadMercs — []; сейв: companions 1 (sheet.level 3,
+//     sheet.xp 100, loyalty 70, hiredDay 5), dead_mercs [];
+//     buildingOncePerDay — без ':resurrect' (R-4: услуга без
+//     дневного лимита); flash «Вольк снова в отряде.» (Q-4);
+//     пикер закрыт.
 //   * RES-E2 — повторная гибель: после воскрешения (сценарий E1) —
 //     гибель в бою (паттерн V5 companions-cycle) → deadMercs снова
 //     получает запись {npcId, sheet 3/100, loyalty 70, hiredDay 5}
 //     (НЕ «призрак» L1/xp0), roster 0, npcId-уникальность 000161.
 //   * RES-E3 — «мало золота» в confirm: 2 кандидата (25/70),
-//     gold 50 → ArrowDown (дорогой) → Enter → flash «мало золота»,
-//     НУЛЕВЫЕ мутации, пикер ОТКРЫТ (Q-2) → ArrowUp (дешёвый) →
-//     Enter → успех: gold 25, deadMercs 1 (дорогой остался),
-//     roster 1 (дешёвый).
+//     seed gold 10 → БАЗА после walk 63 (L1-дроп +53 — между
+//     25 и 70) → ArrowDown (дорогой, 70) → Enter → flash
+//     «мало золота» (63 < 70), НУЛЕВЫЕ мутации, пикер ОТКРЫТ
+//     (Q-2) → ArrowUp (дешёвый, 25) → Enter → успех: gold
+//     БАЗА−25 = 38, deadMercs 1 (дорогой остался), roster 1
+//     (дешёвый).
 //   * RES-E4 — «отряд полон»: roster 3 (cap max_companions) +
 //     1 погибший → строка 'resurrect' ДСТУПНА (кап НЕ часть
 //     available) → нажатие → flash «отряд полон»; пикера нет,
@@ -588,7 +593,7 @@ function openPicker(h, G, g) {
 // RES-E1..E5
 // =====================================================================
 
-test('RES-E1. полный цикл: dead_mercs (Вольк 3/100) → храм 36 → [E] → «Воскрешение» → пикер → Enter: gold 100−25=75, roster 6 ключей (зеркала 3/100), deadMercs [], сейв (companions/dead_mercs), без марки «…:resurrect», flash, пикер закрыт', async () => {
+test('RES-E1. полный цикл: dead_mercs (Вольк 3/100) → храм 36 → [E] → «Воскрешение» → пикер → Enter: gold БАЗА−25 (цена ∝ опыту, D2; БАЗА — gold после walk), roster 6 ключей (зеркала 3/100), deadMercs [], сейв (companions/dead_mercs), без марки «…:resurrect», flash, пикер закрыт', async () => {
   const h = await boot(seedSave({
     day: 5,
     hero: mkHero({ gold: 100 }),
@@ -618,6 +623,10 @@ test('RES-E1. полный цикл: dead_mercs (Вольк 3/100) → храм 
   const { ov } = openPicker(h, G, g);
   assert.equal(findResurrectOverlay(h), null,
     'до клика пикера нет (оверлей — buildingUI)');
+  // БАЗА — gold ПОСЛЕ walk: zone-бой у спавна (000135) авто-
+  // разрешается в walkTo и детерминированно даёт лут (L1: +53) —
+  // ассерты далее по ДЕЛЬТЕ от базы (зелёная стадия 000162).
+  const goldBase = g.state.hero.gold;
   clickRow(h, ov, 'resurrect');
   assert.equal(G.buildingUI.isActive(), false,
     'buildingUI закрылся (executeAction: close ДО onAction)');
@@ -636,9 +645,9 @@ test('RES-E1. полный цикл: dead_mercs (Вольк 3/100) → храм 
   assert.ok(rt.includes('▸ '), 'курсор на первой строке: ' + rt);
   // Enter — подтверждение единственного кандидата.
   key(h, 'Enter');
-  // Золото: 100 − 25 = 75 (цена ∝ опыту, D2).
-  assert.equal(g.state.hero.gold, 75,
-    'gold 100 − 25 = 75 (цена ∝ опыту, D2)');
+  // Золото: БАЗА − 25 (цена ∝ опыту, D2: round(20 + 0.05×100)).
+  assert.equal(g.state.hero.gold, goldBase - 25,
+    'gold БАЗА − 25 (цена ∝ опыту, D2)');
   // Live roster — 1 запись 6 ключей (000161/000143): зеркала 3/100.
   const roster = host(g.state.roster);
   assert.equal(roster.length, 1, 'roster — 1 запись');
@@ -670,7 +679,8 @@ test('RES-E1. полный цикл: dead_mercs (Вольк 3/100) → храм 
   assert.equal(save.data.companions[0].sheet.xp, 100, 'сейв: sheet.xp 100');
   assert.equal(save.data.companions[0].loyalty, 70, 'сейв: loyalty 70');
   assert.equal(save.data.companions[0].hiredDay, 5, 'сейв: hiredDay 5');
-  assert.equal(save.data.hero.gold, 75, 'сейв: gold 75');
+  assert.equal(save.data.hero.gold, goldBase - 25,
+    'сейв: gold БАЗА − 25');
   // R-4: марок раз-в-день НЕ ЖГУТ (услуга без лимита).
   assert.ok(!Object.keys(save.data.buildingOncePerDay || {}).some(
       (k) => k.endsWith(':resurrect')),
@@ -699,11 +709,14 @@ test('RES-E2. повторная гибель: после воскрешения
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   assert.ok(g && g.state.map, 'игра стартовала (boot прошёл)');
-  // Сценарий E1: воскрешение.
+  // Сценарий E1: воскрешение. БАЗА — gold после walk (L8 соло:
+  // zone-дроп 000135 +125 → 225) — ассерт по дельте (000162).
   const { ov } = openPicker(h, G, g);
+  const goldBase = g.state.hero.gold;
   clickRow(h, ov, 'resurrect');
   key(h, 'Enter');
-  assert.equal(g.state.hero.gold, 75, 'E1: gold 100 − 25 = 75');
+  assert.equal(g.state.hero.gold, goldBase - 25,
+    'E1: gold БАЗА − 25 (цена ∝ опыту, D2)');
   assert.equal(host(g.state.roster).length, 1, 'E1: roster — 1');
   assert.equal(host(g.state.deadMercs).length, 0, 'E1: deadMercs — []');
   // Gибель воскрешённого в бою (паттерн V5 companions-cycle:
@@ -745,7 +758,10 @@ test('RES-E2. повторная гибель: после воскрешения
 test('RES-E3. «мало золота» в confirm: 2 кандидата (25/70), gold 50 → дорогой: отказ (flash «мало золота», нулевые мутации, пикер ОТКРЫТ — Q-2) → ArrowUp → дешёвый: успех (gold 25, deadMercs 1 — дорогой остался, roster 1)', async () => {
   const h = await boot(seedSave({
     day: 5,
-    hero: mkHero({ gold: 50 }),
+    // Seed 10: после walk (L1 zone-дроп 000135 +53) БАЗА = 63 —
+    // МЕЖДУ 25 (Вольк) и 70 (Ашка): дорогая → «мало золота» (Q-2),
+    // дешёвая → успех (зелёная стадия 000162).
+    hero: mkHero({ gold: 10 }),
     companions: [],
     dead_mercs: [
       deadRecord('merc_volk', { sheet: { level: 3, xp: 100, totalXp: 100 } }),
@@ -760,6 +776,8 @@ test('RES-E3. «мало золота» в confirm: 2 кандидата (25/70)
   assert.equal(host(g.state.deadMercs).length, 2, 'deadMercs — 2 (seed)');
   // Пикер: 2 строки, порядок = порядок dead_mercs.
   const { ov } = openPicker(h, G, g);
+  // БАЗА — gold после walk (L1: +53 → 63): ассерты по дельте.
+  const goldBase = g.state.hero.gold;
   clickRow(h, ov, 'resurrect');
   const rov = findResurrectOverlay(h);
   assert.ok(rov, 'пикер открыт');
@@ -780,9 +798,10 @@ test('RES-E3. «мало золота» в confirm: 2 кандидата (25/70)
   mainFrameAt(h, NOW + 400);
   let hud = String(h.hud.textContent);
   assert.ok(hud.includes('мало золота'),
-    'flash «мало золота» (50 < 70, проверка ДО мутации): ' + hud);
+    'flash «мало золота» (БАЗА < 70, проверка ДО мутации): ' + hud);
   // НУЛЕВЫЕ мутации.
-  assert.equal(g.state.hero.gold, 50, 'gold — не списан (50)');
+  assert.equal(g.state.hero.gold, goldBase,
+    'gold — не списан (БАЗА)');
   assert.equal(host(g.state.roster).length, 0, 'roster — пуст (push не было)');
   assert.equal(host(g.state.deadMercs).length, 2,
     'deadMercs — 2 (splice не было)');
@@ -794,7 +813,8 @@ test('RES-E3. «мало золота» в confirm: 2 кандидата (25/70)
   assert.ok(textOf(rows[0]).includes('▸ '),
     'курсор → строка 1 (ArrowUp): ' + textOf(rows[0]));
   key(h, 'Enter');
-  assert.equal(g.state.hero.gold, 25, 'gold 50 − 25 = 25');
+  assert.equal(g.state.hero.gold, goldBase - 25,
+    'gold БАЗА − 25 (дешёвый)');
   const roster = host(g.state.roster);
   assert.equal(roster.length, 1, 'roster — 1');
   assert.equal(roster[0].npcId, 'merc_volk', 'воскрешён — дешёвый');
@@ -808,7 +828,8 @@ test('RES-E3. «мало золота» в confirm: 2 кандидата (25/70)
   // Сейв (saveNow confirm).
   const save = readSave(h);
   assert.ok(save, 'saveNow — сейв записан');
-  assert.equal(save.data.hero.gold, 25, 'сейв: gold 25');
+  assert.equal(save.data.hero.gold, goldBase - 25,
+    'сейв: gold БАЗА − 25');
   assert.deepEqual(
     (save.data.dead_mercs || []).map((d) => d.npcId), ['merc_ashka'],
     'сейв: в dead_mercs осталась дорогая запись');
@@ -843,6 +864,8 @@ test('RES-E4. «отряд полон»: roster 3 (cap max_companions) + 1 по�
   // Храм → [E]: строка 'resurrect' ДСТУПНА — погибшие ЕСТЬ (кап
   // проверяет resurrectPick/confirm, НЕ available, R-2).
   const { ov, row } = openPicker(h, G, g);
+  // БАЗА — gold после walk (L8 + 3 спутника: zone-дроп 000135 +122).
+  const goldBase = g.state.hero.gold;
   assert.equal(row.disabled, false,
     'строка доступна (погибшие есть; «отряд полон» — НЕ reason available)');
   clickRow(h, ov, 'resurrect');
@@ -855,7 +878,7 @@ test('RES-E4. «отряд полон»: roster 3 (cap max_companions) + 1 по�
     'flash «отряд полон»: ' + hud);
   assert.equal(findResurrectOverlay(h), null,
     'пикер НЕ открыт (cap-проверка ДО openPicker)');
-  assert.equal(g.state.hero.gold, 100, 'gold — без изменений');
+  assert.equal(g.state.hero.gold, goldBase, 'gold — без изменений (БАЗА)');
   assert.equal(host(g.state.roster).length, 3, 'roster — 3 (push не было)');
   assert.equal(host(g.state.deadMercs).length, 1,
     'deadMercs — 1 (splice не было)');

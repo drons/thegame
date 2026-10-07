@@ -811,6 +811,16 @@
       opacity: 0.85;
       white-space: pre-line;
     }
+    /* 000162 — «Воскрешение» храма: пикер погибших (самодостаточный оверлей) */
+    .resurrect-overlay { position: fixed; inset: 0; z-index: 20;
+      display: flex; flex-direction: column; gap: 4px; padding: 24px;
+      box-sizing: border-box; background: rgba(16, 18, 24, 0.95);
+      color: #e8dcc0; font: 14px/1.4 "Courier New", monospace; }
+    .resurrect-row { display: flex; align-items: baseline; gap: 8px;
+      padding: 4px 8px; border: 1px solid #3a3f4a;
+      background: rgba(255, 255, 255, 0.03); }
+    .resurrect-price { margin-left: auto; color: #d8c27a; }
+    .resurrect-hint { margin-top: 8px; color: #9a9484; }
   </style>
 </head>
 <body>
@@ -972,6 +982,8 @@
        тег после main.js ушёл бы в НОВЫЙ объект, регистрация молча
        мертва). Пин порядка — tests/index-order.test.js. -->
   <script src="src/building-effect-runes.js"></script>
+  <!-- «Воскрешение» (задача 000162, храмы 36/37/38): спец-модуль — ПОСЛЕ building-actions.js (registerSpecial), ДО main.js (UMD-ловушка 000038: G.resurrectUI обязан быть в снапшоте). -->
+  <script src="src/building-effect-resurrect.js"></script>
   <!-- HUD (задача 000129, разбиение main.js 3/4): строки мира/
        подземелья/города. После building-actions.js (доменная группа
        серии 000127→000130), ДО main.js (UMD-ловушка 000038: main.js

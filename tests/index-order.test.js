@@ -54,6 +54,9 @@ test('index.html: нужные модули подключены', () => {
     'src/building-effect-49.js',
     // 000133: слот спец-модулей (после 49, до hud.js).
     'src/building-effect-runes.js',
+    // 000162: слот спец-модулей (после runes.js, до hud.js) —
+    // «Воскрешение» храмов 36/37/38 (интерактивный спец, R-3/R-7).
+    'src/building-effect-resurrect.js',
     'src/hud.js',
     // Слот спец-модулей 000128 (после hud.js, до visuals-data.js);
     // добавлено на зелёной стадии (план красной — см. коммит

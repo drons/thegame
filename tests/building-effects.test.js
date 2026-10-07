@@ -166,12 +166,15 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // '40_spell'/'42_spell' (000133, «Расшифровка (заклинание)» —
   // камень 40 / обелиск 42) — пин регенерирован по фактическому
   // коду.
+  // 000162: +'resurrect' (храмы 36/37/38 «Воскрешение» — общая
+  // услуга, не 1-к-1 по id; пин регенерирован по фактическому коду).
   const MERGED = ['36', '37', '38', '40', '41', '42', '45', '46', '48',
     '44_rest', '44_rumors', '44_perform', 'fire', 'market', 'coin',
     'heal', '40_spell', '42_spell'];
   const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '45',
     '46', '48', '44_rest', '44_rumors', '44_perform',
-    'fire', 'market', 'coin', 'heal', '40_spell', '42_spell'];
+    'fire', 'market', 'coin', 'heal', '40_spell', '42_spell',
+    'resurrect'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -969,13 +972,18 @@ test('A33. каталог (зеркало 000055): 36/38 — «эффект» + 
   const p37 = B.getBuilding(37).особые_параметры;
   const p38 = B.getBuilding(38).особые_параметры;
   // Солнце: +5% урона, 1 день, раз в день (паттерн 000043).
-  assert.equal(p36.раз_в_день, true, '36: раз_в_день — true');
+  // 000162: пер-эффектный объект { "36": true } — лимит только на
+  // Благословение (услуги «Воскрешение» лимит не покрывает, R-4).
+  assert.deepEqual(p36.раз_в_день, { '36': true },
+    '36: раз_в_день — per-эффект { "36": true } (000162)');
   assert.equal(typeof p36.эффект, 'string', '36: эффект — текст');
   assert.match(p36.эффект, /5%/i, '36: текст — +5%');
   assert.match(p36.эффект, /урон/i, '36: текст — урон');
   assert.match(p36.эффект, /1 день/i, '36: текст — 1 день');
   // Гора: +1 броня, 1 день, раз в день.
-  assert.equal(p38.раз_в_день, true, '38: раз_в_день — true');
+  // 000162: per-эффектный объект { "38": true } (как у 36, R-4).
+  assert.deepEqual(p38.раз_в_день, { '38': true },
+    '38: раз_в_день — per-эффект { "38": true } (000162)');
   assert.equal(typeof p38.эффект, 'string', '38: эффект — текст');
   assert.match(p38.эффект, /броня/i, '38: текст — броня');
   assert.match(p38.эффект, /1 день/i, '38: текст — 1 день');
@@ -5070,8 +5078,16 @@ function findBuildingNoDailyLimit(G, myMap, start) {
           const b = (t.buildingId != null && G.getBuilding(t.buildingId))
             || G.buildingForMapIndex(t.building);
           const npc = G.npcForBuilding(G.NpcData.NPCS, b.id);
-          const flag = !!(b.особые_параметры
-            && b.особые_параметры.раз_в_день === true);
+          // 000162: per-эффектный флаг (000092): храмы 36/38 получили
+          // раз_в_день ОБЪЕКТОМ {"36"/"38": true} — старый boolean-чек
+          // (=== true) лимит НЕ видел → храм 38 (55 шагов, без NPC)
+          // вытеснял башню 46 (57 шагов). Per-эффект: у 36/38
+          // hasDailyLimit(свой id)=true → исключаются, как ДО; башня
+          // 46 — бит-в-бит та же (флага нет, у эффекта в реестре нет
+          // разВДень). Контракт — memory/000162-temple-resurrection.md
+          // §8.
+          const flag = G.buildingEffects.effectIds(b).some(
+            (id) => G.buildingEffects.hasDailyLimit(b, id));
           if (!npc && !flag) {
             const steps = [];
             let kk = k;
@@ -6029,8 +6045,10 @@ test('B17. «Благословение» e2e: храм солнца (36) — «
   assert.ok(ov, 'оверлей подвешен к body');
   assert.deepEqual(
     findAll(ov, '[data-buid]').map((r) => r.dataset.buid),
-    ['dialog', '36'],
-    'строки: «Диалог» (Элдира) ПЕРВЫМ, затем «Благословение» (36)');
+    ['dialog', '36', 'resurrect'],
+    // 000162: порядок каталога — диалог, благословение, «Воскрешение».
+    'строки: «Диалог» (Элдира) ПЕРВЫМ, затем «Благословение» (36), ' +
+    'затем «Воскрешение» (000162)');
   // До действия — благословений в сейве нет.
   const saveBefore = readSave(h);
   assert.ok(saveBefore.data.buffs == null
@@ -6100,7 +6118,9 @@ test('B18. «Благословение» e2e: храм горы (38) — NPC н
   assert.ok(ov, 'оверлей подвешен к body');
   assert.deepEqual(
     findAll(ov, '[data-buid]').map((r) => r.dataset.buid),
-    ['38'], 'ровно ОДНА строка: «Благословение» (38), «Диалога» нет');
+    ['38', 'resurrect'],
+    // 000162: +услуга «Воскрешение» (порядок каталога); «Диалога» нет.
+    'строки: «Благословение» (38), «Воскрешение» (000162), «Диалога» нет');
   key(h, 'Digit1');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   frameAt(h, NOW + 400);
@@ -6141,7 +6161,9 @@ test('B19. «Сон» e2e: храм луны (37) — подсказка: бли
   assert.ok(ov, 'оверлей подвешен к body');
   assert.deepEqual(
     findAll(ov, '[data-buid]').map((r) => r.dataset.buid),
-    ['37'], 'ровно ОДНА строка: «Сон» (37)');
+    ['37', 'resurrect'],
+    // 000162: +услуга «Воскрешение» (порядок каталога).
+    'строки: «Сон» (37), «Воскрешение» (000162)');
   key(h, 'Digit1');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   frameAt(h, NOW + 400);
@@ -6188,7 +6210,9 @@ test('B20. регрессия храма солнца: «Диалог» с Эл�
   const ov = findOverlay(h);
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
-    ['dialog', '36'], '«Диалог» — ПЕРВАЯ строка');
+    // 000162: +«Воскрешение» (порядок каталога).
+    ['dialog', '36', 'resurrect'],
+    '«Диалог» — ПЕРВАЯ строка');
   assert.equal(rows[0].disabled, false, '«Диалог» доступен');
   key(h, 'Digit1'); // «Диалог»
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
