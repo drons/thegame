@@ -446,6 +446,38 @@
     имя: 'Расшифровка (заклинание)',
     apply: (st) => applyRuneSpell(st),
   };
+  // --- Задача 000147: «Обучение (наставник)» — 5 школ (17
+  // Лаборатория алхимика, 18 Башня мага, 19 Монастырь, 21 Храм
+  // исцеления, 38 Храм горы), source 'mentor' (SPEC L1074) ---
+  // ЧИСТОЕ apply на ВСЕ 5 id (пул/цена — из каталога
+  // особые_параметры.наставник, 000053); learn() + списание золота
+  // (С ГЕРОЯ, D5) — спец-модуль src/building-effect-mentor.js
+  // (000128 §2.3: саморегистрация NN_mentor, ОДИН хендлер на 5 id).
+  // БЕЗ daily-лимита (D5: оплата — ограничитель, SPEC «за золото»):
+  // 17/18/19/21 — флага раз_в_день в каталоге НЕТ вовсе; 38 —
+  // пер-эффектный объект { 38: true } БЕЗ ключа '38_mentor'
+  // (fail-open 000092: ключа нет = лимита нет). Контракт —
+  // memory/000147-unified-spell-learning.md §3.3.
+  EFFECTS['17_mentor'] = {
+    имя: 'Обучение (наставник)',
+    apply: (st) => applyMentorSpell(st),
+  };
+  EFFECTS['18_mentor'] = {
+    имя: 'Обучение (наставник)',
+    apply: (st) => applyMentorSpell(st),
+  };
+  EFFECTS['19_mentor'] = {
+    имя: 'Обучение (наставник)',
+    apply: (st) => applyMentorSpell(st),
+  };
+  EFFECTS['21_mentor'] = {
+    имя: 'Обучение (наставник)',
+    apply: (st) => applyMentorSpell(st),
+  };
+  EFFECTS['38_mentor'] = {
+    имя: 'Обучение (наставник)',
+    apply: (st) => applyMentorSpell(st),
+  };
 
   // --- Задача 000093: смотровая башня (id 46, подтип слота 12 —
   // 000073) — «Взглянуть» (разведка, без миникарты) ---
@@ -1002,10 +1034,17 @@
     }
     const tile = st.tile || { x: 0, y: 0 };
     const x = tile.x, y = tile.y, day = st.day;
+    // 000147: кандидаты ПО АКТИВНОМУ листу (единая точка —
+    // Game.LearnTarget; fallback — hero-носитель, D2). Ключевой
+    // шов: фильтр кандидатов и learn (спец-модуль) — ОДИН sheet
+    // → picked = learned. (tile, day)-сид НЕ тронут.
+    const LT = G.LearnTarget;
+    const learner = (LT && typeof LT.activeSheet === 'function')
+      ? LT.activeSheet(hero) : hero;
     // КАНДИДАТЫ — пул ∩ canLearn('rune') (интерпретация «из
     // доступных», ТЗ дословно: filter→pick; canLearn — ЧИСТОЕ чтение).
     const cands = pool.filter(
-      (id) => G.Spells.canLearn(hero, id, 'rune').ok);
+      (id) => G.Spells.canLearn(learner, id, 'rune').ok);
     if (cands.length === 0) {
       return {
         ok: false,
@@ -1022,6 +1061,100 @@
       success: true,
       spellId,
       message: 'Расшифровано: «' + (sp ? sp.название : spellId) + '»',
+    };
+  }
+
+  // --- Задача 000147: «Обучение (наставник)» — 5 школ (17/18/19/
+  // 21/38), source 'mentor' ---
+  // Чистый apply (000071): hero/лист только ЧИТАЮТ (canLearn
+  // read-only); learn() + списание золота (С ГЕРОЯ, D5) —
+  // МИР-«сторона», в спец-модуле src/building-effect-mentor.js
+  // (000128 §2.3: саморегистрация NN_mentor). Пул/цена — ИЗ
+  // КАТАЛОГА (особые_параметры.наставник, 000053; ОДНО apply на
+  // все 5 id — пул РАЗНЫЙ у школ). Выбор — детерминированный
+  // ПЕРВЫЙ learnable в порядке пула (pool.find — БЕЗ RNG/сидов,
+  // D6: наставник «учит следующее доступное» — предсказуемо).
+  // БЕЗ daily-лимита (D5): каталог решает (см. реестр NN_mentor).
+  // Контракт — memory/000147-unified-spell-learning.md §3.3.
+
+  /**
+   * Пул/цена наставника постройки: st.catalog.особые_параметры.
+   * наставник — { заклинания: string[], цена: number }
+   * (прототип-безопасно, 000029); не-объект / заклинания не-
+   * массив/пусто / элемент не-строка → null (деградация
+   * «недоступно»); цена не-число/отрицательная → 0. Чистый.
+   * @returns {{pool: string[], price: number}|null}
+   */
+  function mentorSpellPool(st) {
+    const c = st && st.catalog;
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return null;
+    const op = c.особые_параметры;
+    if (!op || typeof op !== 'object' || Array.isArray(op)) return null;
+    const m = op.наставник;
+    if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+    const pool = m.заклинания;
+    if (!Array.isArray(pool) || pool.length === 0) return null;
+    for (const id of pool) {
+      if (typeof id !== 'string' || !id) return null;
+    }
+    const price = (Number.isFinite(m.цена) && m.цена >= 0)
+      ? m.цена : 0;
+    return { pool, price };
+  }
+
+  /**
+   * «Обучение (наставник)» (17/18/19/21/38): ЧИСТОЕ apply (000071)
+   * — hero НЕ мутирует (gold — списывает спец-хендлер, learn —
+   * спец-модуль; apply ВЕРНЁТ success-описание). Активный лист —
+   * Game.LearnTarget.activeSheet(hero) (000147, единая точка;
+   * fallback — hero-носитель, D2: без LearnTarget / без __game —
+   * герой). ПУСТЫЕ кандидаты → { ok:false, message:'Наставник:
+   * новых заклинаний нет (ранг школы/базовое)' } — ОТКАЗ БЕЗ
+   * марки (день не сгорает, повтор доступен, D5);
+   * gold < цена → { ok:false, message:'недостаточно золота' } —
+   * БЕЗ марки (gold не тратится, повтор в тот же день).
+   * Недневной отказ (нет Game.Spells.canLearn, мусор каталога,
+   * не-объект hero) — { ok:false, message:'недоступно' }.
+   * @returns {{ok: boolean, success?: boolean, spellId?: string,
+   *            price?: number, message?: string}}
+   */
+  function applyMentorSpell(st) {
+    const G = lazyGame();
+    if (!G || !G.Spells || typeof G.Spells.canLearn !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const hero = st && st.hero;
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const info = mentorSpellPool(st);
+    if (!info) return { ok: false, message: 'недоступно' };
+    // 000147: кандидаты ПО АКТИВНОМУ (picked = learnable в
+    // хендлере — один носитель).
+    const LT = G.LearnTarget;
+    const learner = (LT && typeof LT.activeSheet === 'function')
+      ? LT.activeSheet(hero) : hero;
+    const picked = info.pool.find(
+      (id) => G.Spells.canLearn(learner, id, 'mentor').ok) || null;
+    if (!picked) {
+      return {
+        ok: false,
+        message: 'Наставник: новых заклинаний нет (ранг школы/базовое)',
+      };
+    }
+    // Золото — С ГЕРОЯ (общая казна партии, D5); ЧИСТО: здесь —
+    // только ПРОВЕРКА (списание — спец-хендлер).
+    if (typeof hero.gold !== 'number' || hero.gold < info.price) {
+      return { ok: false, message: 'недостаточно золота' };
+    }
+    const sp = (typeof G.Spells.getSpell === 'function')
+      ? G.Spells.getSpell(picked) : null;
+    return {
+      ok: true,
+      success: true,
+      spellId: picked,
+      price: info.price,
+      message: 'Наставник передал: «' + (sp ? sp.название : picked) + '»',
     };
   }
 
@@ -2754,6 +2887,11 @@
     // чистый apply + пул каталога, свой (tile, day)-сид; learn() —
     // спец-модуль src/building-effect-runes.js.
     applyRuneSpell, runeSpellPool, RUNE_SPELL_SEED,
+    // Задача 000147: «Обучение (наставник)» (NN_mentor, 5 школ) —
+    // чистый apply + пул/цена каталога (без RNG — первый learnable,
+    // D6); learn() + списание золота — спец-модуль
+    // src/building-effect-mentor.js.
+    applyMentorSpell, mentorSpellPool,
     // Задача 000093: смотровая башня (46) — explored: чистые
     // markExplored/exploredCount + ser/de раздела сейва (контракт —
     // memory/000093-explored-tower.md §2.2).

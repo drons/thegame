@@ -74,13 +74,21 @@
         message: (r && r.reason) || 'нет заклинания для расшифровки',
       };
     }
-    const S = ctx.world && ctx.world.game && ctx.world.game.Spells;
+    const game = ctx.world && ctx.world.game;
+    const S = game && game.Spells;
     if (!S || typeof S.learn !== 'function') {
       console.error('building-effect-runes.js: Game.Spells не найден — ' +
         'src/spells.js обязан грузиться до main.js (задача 000133)');
       return { ok: false, message: 'заклинания недоступны' };
     }
-    const res = S.learn(ctx.hero, r.spellId, 'rune'); // hero — ЖИВОЙ
+    // 000147: learn — на АКТИВНОГО (единая точка LearnTarget;
+    // picked = learned: applyRuneSpell фильтровал кандидаты по
+    // ТОМУ ЖЕ листу). Fallback — ctx.hero (live-ссылка, D3):
+    // без LearnTarget / без __game — герой (поведение 000133).
+    const LT = game && game.LearnTarget;
+    const sheet = (LT && typeof LT.activeSheet === 'function')
+      ? LT.activeSheet(ctx.hero) : ctx.hero; // live-лист
+    const res = S.learn(sheet, r.spellId, 'rune');
     if (!res || !res.ok) {
       return { ok: false, message: res && res.reason };
     }

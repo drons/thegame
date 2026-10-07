@@ -233,17 +233,25 @@ function (G0, rootRef) {
 
   // «Книга заклинаний» (render, rebuild in place):
   //   hero/merc — по c.spells (read-only: кнопок «+» у строк НЕТ);
-  //   efir — ВСЕГДА 10 строк (канонический порядок: старт сперва —
+  //   efir — каноническая книга (порядок: старт сперва —
   //   G.efir.efirSpellsByLevel(1), затем UNLOCKS по возрастанию
   //   порога — G.efir.EFIR_SPELL_UNLOCKS): отметка «уровень N»
   //   (изучен — c.spells) / «откроется на N-м уровне» (порог) —
-  //   «отметки авто-разблокировок» ТЗ. G.efir/UNLOCKS отсутствуют —
-  //   тихий fallback на learned-only.
+  //   «отметки авто-разблокировок» ТЗ; количество строк
+  //   data-driven (база 7306ca3 — 10, после 000163 — 11: хардкода
+  //   НЕТ, контракт 000146 §8); выученное НЕ-КАНОНИЧЕСКОЕ (через
+  //   обобщённые источники 000147) — строка «изучено» ПОСЛЕ
+  //   каноники (правки по итогам ревью). G.efir/UNLOCKS
+  //   отсутствуют — тихий fallback на learned-only.
+  // 000147: ПОСЛЕ learned-строк — ОБЩИЙ avail-блок «Доступно к
+  // изучению» (все kinds; Эфир — раннего return НЕТ, каноника в
+  // avail не дублируется).
   function renderBook(ctx, active) {
     const book = ctx.panel._book;
     if (!book) return;
     book.textContent = ''; // DOM-стаб: сброс детей (rebuild in place)
     const c = active.sheet;
+    let canon = null;
     if (active.kind === 'efir') {
       const E = G.efir;
       const start = (E && typeof E.efirSpellsByLevel === 'function')
@@ -251,13 +259,18 @@ function (G0, rootRef) {
       const un = (E && Array.isArray(E.EFIR_SPELL_UNLOCKS))
         ? E.EFIR_SPELL_UNLOCKS : null;
       if (Array.isArray(start) && un && un.length) {
+        canon = [];
         const learned = Array.isArray(c.spells) ? c.spells : [];
         const entries = [];
         for (const id of start) {
-          if (typeof id === 'string') entries.push({ id, level: 1 });
+          if (typeof id === 'string') {
+            canon.push(id);
+            entries.push({ id, level: 1 });
+          }
         }
         for (const u of un) {
           if (u && typeof u[1] === 'string') {
+            canon.push(u[1]);
             entries.push({ id: u[1], level: u[0] });
           }
         }
@@ -270,10 +283,122 @@ function (G0, rootRef) {
               : 'откроется на ' + en.level + '-м уровне'));
           book.appendChild(row);
         }
-        return;
+        // 000147 (правки по итогам ревью): выученное НЕ-КАНОНИ-
+        // ЧЕСКОЕ — через обобщённые источники (свиток/руна/
+        // наставник — learn на sheet Эфира, 000147) — строка ПОСЛЕ
+        // каноники, метка «изучено» (уровень авто-разблокировки у
+        // него нет). Без строки такое заклинание было НЕВИДИМО:
+        // каноника его не содержит, а avail-блок learned-строки
+        // пропускает (renderAvailBook). learn() дублей не создаёт
+        // (canLearn «уже изучено»).
+        for (const id of learned) {
+          if (typeof id !== 'string' || canon.includes(id)) continue;
+          const row = ctx.el('div', 'cp-itemrow');
+          row.appendChild(ctx.el('span', 'cp-itemname', spellName(id)));
+          row.appendChild(ctx.el('span', 'cp-itemmeta', 'изучено'));
+          book.appendChild(row);
+        }
+        // 000147: раннего return НЕТ — управление переходит к
+        // avail-блоку (общему для всех kinds).
+      } else {
+        renderLearnedBook(ctx, c, book);
+      }
+    } else {
+      renderLearnedBook(ctx, c, book);
+    }
+    renderAvailBook(ctx, c, canon, book);
+  }
+
+  // --- 000147: «Доступно к изучению» — avail-строки (НОВЫЙ класс
+  // .cp-availrow/.cp-avail-title — пины B6/B7/R3 на .cp-itemrow
+  // intact): display-only, БЕЗ кнопок (read-only, как learned;
+  // изучение — через предмет [I] / постройку [E]). Строка — для
+  // каждого НЕ ВЫУЧЕННОГО заклинания каталога (порядок
+  // G.SpellsData.SPELLS) с ≥1 источником (порядок фиксирован:
+  // свиток → руна → наставник). Meta: «<источник-первый>:
+  // <статус>»; статус — «доступно», если canLearn(c, id, key).ok у
+  // ЛЮБОГО существующего источника, иначе canLearn.reason ПЕРВОГО
+  // (для руны — «нужна Рунопись N»). canLearn — по ЛИСТУ АКТИВНОГО.
+  // Источники — каталог-драйвен (лениво в render, порядок тегов:
+  // ITEMS/BUILDINGS/SpellsData/Spells — ВСЕ до вкладки, снапшот G):
+  //   * свиток — ИНВЕНТАРЬ ГЕРОЯ (ctx.character — носитель
+  //     инвентаря ВСЕГДА герой, D4): G.ITEMS kind 'spell_scroll'
+  //     с effect.spell = id;
+  //   * руна — постройки с эффект.заклинания (каталог 40/42,
+  //     000133);
+  //   * наставник — постройки с наставник.заклинания (17/18/19/21/
+  //     38, 000147).
+  // Деградация (G.SpellsData/ITEMS/BUILDINGS/Spells отсутствуют) —
+  // тихий нет avail-строк (learned-книга intact). Вызовов сейва в
+  // этом модуле НЕТ (сейв — за вызывающим источником: useItem/
+  // роутер постройки) — сканнер save-литералов ui-panel.test.js
+  // зелёный.
+  function availSources(ctx, id) {
+    const out = [];
+    const hero = ctx.character;
+    const slots = (hero && hero.inventory &&
+        Array.isArray(hero.inventory.slots))
+      ? hero.inventory.slots : [];
+    if (Array.isArray(G.ITEMS)) {
+      for (const s of slots) {
+        const it = (s && typeof s.id === 'string')
+          ? G.ITEMS.find((x) => x && x.id === s.id) : null;
+        if (it && it.kind === 'spell_scroll' && it.effect &&
+            it.effect.spell === id) {
+          out.push(['свиток', 'scroll']);
+          break;
+        }
       }
     }
-    renderLearnedBook(ctx, c, book);
+    if (Array.isArray(G.BUILDINGS)) {
+      const b = G.BUILDINGS;
+      if (b.some((x) => {
+            const op = x && x.особые_параметры;
+            return op && typeof op === 'object' &&
+              op.эффект && typeof op.эффект === 'object' &&
+              Array.isArray(op.эффект.заклинания) &&
+              op.эффект.заклинания.includes(id);
+          })) out.push(['руна', 'rune']);
+      if (b.some((x) => {
+            const op = x && x.особые_параметры;
+            return op && typeof op === 'object' &&
+              op.наставник && typeof op.наставник === 'object' &&
+              Array.isArray(op.наставник.заклинания) &&
+              op.наставник.заклинания.includes(id);
+          })) out.push(['наставник', 'mentor']);
+    }
+    return out;
+  }
+
+  function renderAvailBook(ctx, c, canon, book) {
+    const SD = G.SpellsData;
+    const SP = G.Spells;
+    if (!SD || !Array.isArray(SD.SPELLS) ||
+        !SP || typeof SP.canLearn !== 'function') return;
+    const learned = Array.isArray(c.spells) ? c.spells : [];
+    const rows = [];
+    for (const spell of SD.SPELLS) {
+      const id = spell && spell.id;
+      if (typeof id !== 'string') continue;
+      if (learned.includes(id)) continue;
+      if (canon && canon.includes(id)) continue; // каноника Эфира
+      const sources = availSources(ctx, id);
+      if (sources.length === 0) continue; // не «доступное»
+      const first = sources[0];
+      const okAny = sources.some((s) => SP.canLearn(c, id, s[1]).ok);
+      const status = okAny ? 'доступно'
+        : (SP.canLearn(c, id, first[1]).reason || 'недоступно');
+      rows.push({ name: spellName(id), meta: first[0] + ': ' + status });
+    }
+    if (rows.length === 0) return; // заголовок — ТОЛЬКО при ≥1
+    book.appendChild(
+      ctx.el('div', 'cp-avail-title', 'Доступно к изучению:'));
+    for (const r of rows) {
+      const row = ctx.el('div', 'cp-availrow');
+      row.appendChild(ctx.el('span', 'cp-itemname', r.name));
+      row.appendChild(ctx.el('span', 'cp-itemmeta', r.meta));
+      book.appendChild(row);
+    }
   }
 
   // --- 000145: «Вдох Эфира» (КОПИЯ паттерна старой вкладки

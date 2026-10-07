@@ -168,13 +168,19 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // коду.
   // 000162: +'resurrect' (храмы 36/37/38 «Воскрешение» — общая
   // услуга, не 1-к-1 по id; пин регенерирован по фактическому коду).
+  // Ребейз 000147 на мастер (2026-10-07): MERGED/UNION +=
+  // '17_mentor'/'18_mentor'/'19_mentor'/'21_mentor'/'38_mentor'
+  // (000147, «Обучение (наставник)» — 5 школ 17/18/19/21/38) —
+  // пин регенерирован по фактическому коду.
   const MERGED = ['36', '37', '38', '40', '41', '42', '45', '46', '48',
     '44_rest', '44_rumors', '44_perform', 'fire', 'market', 'coin',
-    'heal', '40_spell', '42_spell'];
+    'heal', '40_spell', '42_spell',
+    '17_mentor', '18_mentor', '19_mentor', '21_mentor', '38_mentor'];
   const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '45',
     '46', '48', '44_rest', '44_rumors', '44_perform',
     'fire', 'market', 'coin', 'heal', '40_spell', '42_spell',
-    'resurrect'];
+    'resurrect',
+    '17_mentor', '18_mentor', '19_mentor', '21_mentor', '38_mentor'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -982,6 +988,8 @@ test('A33. каталог (зеркало 000055): 36/38 — «эффект» + 
   assert.match(p36.эффект, /1 день/i, '36: текст — 1 день');
   // Гора: +1 броня, 1 день, раз в день.
   // 000162: per-эффектный объект { "38": true } (как у 36, R-4).
+  // Ребейз 000147 (2026-10-07): технический ре-пин — семантика
+  // unchanged: у 38 есть лимит, у '38_mentor' — нет (fail-open).
   assert.deepEqual(p38.раз_в_день, { '38': true },
     '38: раз_в_день — per-эффект { "38": true } (000162)');
   assert.equal(typeof p38.эффект, 'string', '38: эффект — текст');
@@ -5086,6 +5094,10 @@ function findBuildingNoDailyLimit(G, myMap, start) {
           // 46 — бит-в-бит та же (флага нет, у эффекта в реестре нет
           // разВДень). Контракт — memory/000162-temple-resurrection.md
           // §8.
+          // Ребейз 000147 (2026-10-07): держим рантайм-API-вариант
+          // (master, 000162) — он пробит в hasDailyLimit напрямую;
+          // на смерженном каталоге 38 исключается по эффекту "38",
+          // '38_mentor'/'resurrect' — без лимита (fail-open).
           const flag = G.buildingEffects.effectIds(b).some(
             (id) => G.buildingEffects.hasDailyLimit(b, id));
           if (!npc && !flag) {
@@ -6116,11 +6128,22 @@ test('B18. «Благословение» e2e: храм горы (38) — NPC н
   assert.equal(G.npcUI.isActive(), false, 'npcUI не открывается');
   const ov = findOverlay(h);
   assert.ok(ov, 'оверлей подвешен к body');
+  // Ре-пин 000147 (2026-10-07): каталог 38 по ТЗ —
+  // эффекты ["38", "38_mentor"] → оверлей рисует строки по
+  // эффектам (технический ре-пин; e2e-контракт «Благословение»
+  // (kind armor, маркировка, buffMods) — без изменений, Digit1
+  // всё ещё первая строка '38').
+  // Ребейз на мастер (2026-10-07, 000162): +услуга «Воскрешение»
+  // → ТРИ строки ['38','38_mentor','resurrect'] (порядок каталога).
   assert.deepEqual(
     findAll(ov, '[data-buid]').map((r) => r.dataset.buid),
-    ['38', 'resurrect'],
-    // 000162: +услуга «Воскрешение» (порядок каталога); «Диалога» нет.
-    'строки: «Благословение» (38), «Воскрешение» (000162), «Диалога» нет');
+    ['38', '38_mentor', 'resurrect'],
+    // Ребейз 000147 на мастер (2026-10-07): union каталога 38 —
+    // ТРИ строки: «Благословение» (38) + «Обучение (наставник)»
+    // (38_mentor, 000147) + «Воскрешение» (000162, порядок каталога);
+    // «Диалога» нет.
+    'ТРИ строки: «Благословение» (38), «Обучение (наставник)» '
+    + '(38_mentor), «Воскрешение» (000162), «Диалога» нет');
   key(h, 'Digit1');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   frameAt(h, NOW + 400);
@@ -8531,7 +8554,7 @@ function deadRec(npcId, totalXp, over = {}) {
   }, over);
 }
 
-test('RES-A1. каталоги 36/37/38: эффекты-массивы ["<id>","resurrect"], воскрешение {база:20, за_опыт:0.05} у всех трёх, per-эффектный раз_в_день (36/38 — только свой эффект), effectIds в порядке каталога', () => {
+test('RES-A1. каталоги 36/37/38: эффекты-массивы ["<id>","resurrect"] (38: + "38_mentor", 000147), воскрешение {база:20, за_опыт:0.05} у всех трёх, per-эффектный раз_в_день (36/38 — только свой эффект), effectIds в порядке каталога', () => {
   const BE = loadBE();
   const B = require('../src/buildings.js');
   const b36 = B.getBuilding(36);
@@ -8548,8 +8571,10 @@ test('RES-A1. каталоги 36/37/38: эффекты-массивы ["<id>","
     'fallback 1-к-1 по id)');
   assert.deepEqual(p37.эффекты, ['37', 'resurrect'],
     '37: эффекты ["37","resurrect"]');
-  assert.deepEqual(p38.эффекты, ['38', 'resurrect'],
-    '38: эффекты ["38","resurrect"]');
+  // Ребейз 000147 на мастер (2026-10-07): union каталога 38 —
+  // ["38","38_mentor"] (000147) + "resurrect" (000162).
+  assert.deepEqual(p38.эффекты, ['38', '38_mentor', 'resurrect'],
+    '38: эффекты ["38","38_mentor","resurrect"] (union 000147+000162)');
   // Параметры цены — ИЗ КАТАЛОГА (принцип 000053: код читает
   // каталог, не хардкодит) — у всех трёх храмов.
   assert.deepEqual(p36.воскрешение, { база: 20, за_опыт: 0.05 },
@@ -8572,8 +8597,8 @@ test('RES-A1. каталоги 36/37/38: эффекты-массивы ["<id>","
     '36: effectIds (порядок каталога)');
   assert.deepEqual(BE.effectIds(b37), ['37', 'resurrect'],
     '37: effectIds (порядок каталога)');
-  assert.deepEqual(BE.effectIds(b38), ['38', 'resurrect'],
-    '38: effectIds (порядок каталога)');
+  assert.deepEqual(BE.effectIds(b38), ['38', '38_mentor', 'resurrect'],
+    '38: effectIds (порядок каталога, union 000147+000162)');
 });
 
 test('RES-A2. hasDailyLimit per-эффект: 36 — "36"→true/"resurrect"→false; 38 — "38"→true/"resurrect"→false; 37 — оба false (услуга без дневного лимита, R-4)', () => {

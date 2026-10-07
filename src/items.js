@@ -503,9 +503,17 @@
   /**
    * Использует предмет из инвентаря (зелья, еда, книги).
    * Зелья — «Алхимик» (+5%/ур.), еда — «Сердце природы» (+5%/ур.).
+   * 000147: learnTarget — 4-й ОПЦИОНАЛЬНЫЙ аргумент — лист, на
+   * КОТОРОГО изучение (свиток заклинания): панель «Персонаж»
+   * передаёт LearnTarget.activeSheet(c) (изучение — на активного);
+   * предмет ВСЕГДА расходуется из инвентаря c (c — носитель
+   * инвентаря; learnTarget — только лист для bookOf, НИКОГДА не
+   * владелец инвентаря — ensureInventory на чужом листе сломал бы
+   * save-layout). Без 4-го аргумента — c (побайтово 000133:
+   * боевой quick-slot и все существующие 2/3-арг. вызовы).
    * @returns {{ok:boolean, reason?:string, message?:string, hp?:number, mp?:number, skill?:object}}
    */
-  function useItem(c, itemId, qty = 1) {
+  function useItem(c, itemId, qty = 1, learnTarget = null) {
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     if (!hasItem(c, itemId, qty)) return { ok: false, reason: 'предмета нет в инвентаре' };
@@ -534,9 +542,15 @@
       if (!S || typeof S.canLearn !== 'function') {
         return { ok: false, reason: 'заклинания недоступны' };
       }
-      const chk = S.canLearn(c, it.effect.spell, 'scroll');
+      // 000147: изучение — на АКТИВНОГО (learnTarget — 4-й
+      // аргумент; панель ui.js: LearnTarget.activeSheet(c));
+      // предмет ВСЕГДА с c (носитель инвентаря — герой, D4).
+      // Без 4-го аргумента (мусор) — c — побайтово 000133.
+      const T = (learnTarget && typeof learnTarget === 'object' &&
+                 !Array.isArray(learnTarget)) ? learnTarget : c;
+      const chk = S.canLearn(T, it.effect.spell, 'scroll');
       if (!chk.ok) return { ok: false, reason: chk.reason };
-      S.learn(c, it.effect.spell, 'scroll');
+      S.learn(T, it.effect.spell, 'scroll');
       removeItem(c, it.id, 1, true); // бонусFirst — паттерн :551
       const sp = S.getSpell(it.effect.spell);
       return {
