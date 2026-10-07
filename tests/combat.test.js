@@ -1782,6 +1782,43 @@ test('щит: ровно 3 раунда защиты (включая раунд 
   assert.equal(round(), -2, 'раунд 4: щита больше нет');
 });
 
+test('щит против БОЛЕЕ БЫСТРОГО моба: ровно 2 раунда защиты после каста (000167: тик в startRound — ДО фазы моба того же раунда; до 000167 — 3)', () => {
+  // orc_grunt (init 3) > strongHero (2): в каждом раунде grunt бьёт
+  // ПЕРВЫМ (интерлевинг). Каст в round 1 (после pre-roll — pre-roll
+  // grunt сдвинулся на 1 клетку, не атаковал: спавн далеко); тик
+  // c.ps.shield — в НАЧАЛЕ раунда (startRound), т.е. ПЕРЕД фазой
+  // grunt того же раунда: каст в round 1 защиту в раунде каста НЕ даёт
+  // (до 000167 тик был в конце хода игрока — ПОСЛЕ фазы мобов: 3
+  // защищённых удара против любого моба).
+  // Против моба с init ≤ игрока (тай) — поведение не изменилось:
+  // пин «ровно 3 раунда» выше (orc_warrior init 2 = strongHero 2).
+  const { castSpell } = spells();
+  const p = strongHero();
+  p.primary.wisdom = 10;
+  p.spells = ['magic_shield'];
+  const c = createCombat({
+    player: p, mobs: ['orc_grunt'], mobLevel: 2, seed: 5 });
+  const g = c.units[0];
+  standNextTo(c, g);
+  g.damage = 2; // броня щита 2 — гасит полностью
+  c._rng = () => 0.01;
+  const r = castSpell(c, 'magic_shield');
+  assert.equal(r.ok, true, r.reason);
+  assert.deepEqual(c.ps.shield, { armor: 2, turns: 3 });
+  const round = () => {
+    const hp = p.hp;
+    c.endTurn();
+    return p.hp - hp; // полученный урон (0 или отрицательный)
+  };
+  assert.equal(round(), 0, 'раунд 2: щит действует (тик 3→2 до фазы моба)');
+  assert.equal(c.ps.shield.turns, 2, 'тик в startRound (начало раунда)');
+  assert.equal(round(), 0, 'раунд 3: щит действует (тик 2→1)');
+  assert.equal(c.ps.shield.turns, 1);
+  assert.equal(round(), -2, 'раунд 4: щит протикан (1→0) — полный урон');
+  assert.equal(c.ps.shield.turns, 0, 'эффект исчерпан');
+  assert.equal(round(), -2, 'раунд 5: щита нет');
+});
+
 test('u.bind: моб пропускает ровно одно действие (тик + лог «скован»)', () => {
   const { castSpell } = spells();
   const p = strongHero();
@@ -3294,8 +3331,8 @@ test('C1. BUILDING_BOSS: рецепт босса (1–3 troll) + регресс�
 //     (4) rectDist ≤ 1 И c.efs.touch > 0 → Касание (u.damage, ВСЕГДА
 //     попадает, броня игнорируется, c._rng НЕ вызывается);
 //     (5) break;
-//   * endPlayerTurn: refill c.efs от c.efir.attrs (зеркальная формула,
-//     u.mp НЕ трогается) + тик c.efirShield.turns (пока > 0);
+//   * startRound (000167): refill c.efs от c.efir.attrs (зеркальная
+//     формула, u.mp НЕ трогается) + тик c.efirShield.turns (пока > 0);
 //   * dealDamageToPlayer: поглощение c.efirShield (ПОСЛЕ c.ps.shield);
 //   * combatInternals + dealDamageToAlly.
 //
@@ -3794,7 +3831,7 @@ test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощае�
     const r3 = t3();
     assert.deepEqual(t3().snap, r3.snap, 'детерминизм (c)');
     assert.equal(r3.u.mp, 11, 'повторный каст не пошёл: мана не потрачена');
-    assert.equal(r3.c.efirShield.turns, 1, 'тик: 2 → 1 (endPlayerTurn)');
+    assert.equal(r3.c.efirShield.turns, 1, 'тик: 2 → 1 (startRound)');
     assert.equal(r3.c.efirShield.armor, 7);
 
     // (d) Щит ИГРОКА c.ps.shield (2) НЕ блокирует: c.efirShield стоит
@@ -3980,11 +4017,11 @@ test('000117 PC-2: уклонение precog снижает попадания �
 //     НЕ выполняются): лечение ВСЕМ союзным (c.player P.heal-путь +
 //     livingAllies — включая самого Эфира) по u.breath.heal +
 //     ослабление ВСЕМ живым врагам (u.weakened {mult 0.8, turns 2} —
-//     их урон ×0.8, тик по раундам в endPlayerTurn).
+//     их урон ×0.8, тик по раундам в startRound — 000167).
 //   * healAlly(c, unit, amount) / weakenAllEnemies(c, mult, turns) —
 //     новые internals (export combatInternals).
 //   * Множитель u.weakened — в mobAttack/mobAttackAlly (×mult пока
-//     turns > 0); тик — endPlayerTurn (паттерн щита 000112).
+//     turns > 0); тик — startRound (паттерн щита 000112; 000167).
 //   * Первая встреча — в createCombat: 1-й бой сессии с Эфиром в
 //     отряде — flavor-строка из efir.js (ленивый globalThis.Game.efir
 //     one-shot; без Game.efir — ТИХО).
@@ -5263,18 +5300,22 @@ test('000167-INIT-1: unitInitiative: игрок — первичные атри�
     'strongHero (primary 1×6): 1 + 1 = 2');
 });
 
-test('000167-INIT-2: unitInitiative: мобы каталога (таблица D8: orc_grunt 3, orc_rider 6, orc_shaman 5)', () => {
+test('000167-INIT-2: unitInitiative: мобы каталога (таблица D8: orc_grunt 3, orc_rider 6, orc_shaman 5, orc_chief 4)', () => {
   const c = createCombat({
-    player: strongHero(), mobs: ['orc_grunt', 'orc_rider', 'orc_shaman'],
+    player: strongHero(),
+    mobs: ['orc_grunt', 'orc_rider', 'orc_shaman', 'orc_chief'],
     mobLevel: 1, seed: 7,
   });
-  const [grunt, rider, shaman] = c.units;
+  const [grunt, rider, shaman, chief] = c.units;
   assert.equal(unitInitiative(c, grunt), 3,
     'orc_grunt: dex 2 + int 1 = 3 (melee-база D8)');
   assert.equal(unitInitiative(c, rider), 6,
     'orc_rider: dex 5 + int 1 = 6 (fast D8)');
   assert.equal(unitInitiative(c, shaman), 5,
     'orc_shaman: dex 1 + int 4 = 5 (маги D8)');
+  assert.equal(unitInitiative(c, chief), 4,
+    'orc_chief: dex 2 + int 2 = 4 (leader D8); пара «rider > chief» '
+    + 'таблицы D8: 6 > 4');
 });
 
 test('000167-INIT-3: unitInitiative: наёмник (attrs из данных) и деградация (без attrs = 0)', () => {
@@ -5421,4 +5462,63 @@ test('000167-ROUND-2: тики на старте раунда: яд убил н�
     'очередь — пересчитанная к фатальному раунду (паук жив)');
   assert.equal(c.turnIndex, 0,
     'тик — ПОСЛЕ пересчёта очереди (turnIndex = 0) — замирает на первом слоте');
+});
+
+test('000167-WEAK-1: «Вдох Эфира» против БОЛЕЕ БЫСТРОГО моба (init > init Эфира): ×0.8 ровно на 1 ударе (в раунде триггера моб атаковал ДО хода Эфира); медленный моб — 2 удара (BR-5(a))', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // orc_rider (fast, init 6) > Эфир L1 (4) > hero112 (2). Геометрия —
+    // по BR-5(a): наездник (3,5) вплотную к игроку (3,6), Эфир закреплён
+    // (2,4) (d до наездника 2 — Касания нет; dP 3 / dE 2 ≤ 3 — не
+    // двигается). c._rng 0.01 — все попадания.
+    //
+    // 000167 (интерлевинг D4 + тик в startRound): Вдох — r2 (round 1 —
+    // pre-roll, 000080-ветка, без c.efs); в round 2 наездник бьёт ПЕРВЫМ
+    // (init 6 > 4) — ПОЛНЫЙ урон (108−10, затем +12 Вдох → 110) → r3:
+    // тик 2→1, 110−8=102 (единственный ослабленный удар) → r4: тик 1→0,
+    // 102−10=92 (полный урон — «возвращается»). Контраст: BR-5(a) —
+    // волк (init 3, ПОСЛЕ Эфира) — [112, 104, 94]: ослаблен в раунде
+    // триггера И следующем (ровно 2 удара, «2 хода» SPEC).
+    const p = hero112(); // maxHP 270, броня 0
+    const state = E.createEfir();
+    state.spells = ['mend'];
+    const c = createCombat({
+      player: p, allies: [E.efirAllyData(state)], mobs: ['orc_rider'],
+      mobLevel: 1, seed: 5,
+    });
+    c.obstacles.clear();
+    const r = c.units.find((x) => x.id === 'm0');
+    r.x = 3; r.y = 5; r.maxHP = 100; r.hp = 100; r.damage = 10;
+    c._rng = () => 0.01;
+    E.buildEfirUnit(state, c);
+    const u = c.units.find((x) => x.id === 'efir');
+    u.x = 2; u.y = 4; // закреплён: без Касания (d 2) и без эскорта
+    u.mp = 20;
+    // 000167: pre-roll (000080-ветка) лечит раненого игрока —
+    // frac для Вдоха ставим после pre-roll.
+    p.hp = 108;
+    const hpAfter = [];
+    const turnsAfter = [];
+    for (let i = 0; i < 3; i++) {
+      c.endTurn();
+      hpAfter.push(p.hp);
+      turnsAfter.push(r.weakened ? r.weakened.turns : null);
+    }
+    assert.equal(c.efirBreathed, true, 'Вдох сработал (флаг)');
+    assert.ok(c.log.includes('Вдох Эфира!'), 'лог-строка: ' + c.log.join(' | '));
+    assert.deepEqual(hpAfter, [110, 102, 92],
+      'быстрый моб: раунд триггера — ПОЛНЫЙ урон (108−10+12=110), '
+      + '×0.8 ровно 1 удар (110−8=102), затем полный (102−10=92): '
+      + hpAfter.join(', '));
+    assert.deepEqual(turnsAfter, [2, 1, 0],
+      'тик по раундам (startRound): 2→1→0');
+    assert.equal(r.hp, 100,
+      'Эфир не действует (mp 0 — кастов нет, d 2 — Касания нет): 100');
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
 });

@@ -889,7 +889,7 @@
    *   u.damage — «Касание духа»: max(1, round((2 + 0.5·Мудрость)·
    *     (u.moraleMult || 1))) — мораль ВНУТРИ round (D6),
    *   c.efs — СВОИ пулы действий (паттерн refillPools, зеркальная
-   *     формула в endPlayerTurn combat.js — пин EF-1): spellInt =
+   *     формула в startRound combat.js — пин EF-1): spellInt =
    *     1 + floor(Интеллект/10), spellWis = 1 + floor(Мудрость/10),
    *     touch = 1, move = 3,
    *   u.efirSkills — СНАПШОТ пула лордов (ВСЕ ЧЕТЫРЕ id по
@@ -897,7 +897,7 @@
    *     D8: бой не зависит от мутаций state в полёте; 000117 читает
    *     как базу переучёта; НЕ путать с u.skills — списком id из
    *     данных makeAlly),
-   *   c.efir — ссылка на юнит (refill/тики в endPlayerTurn);
+   *   c.efir — ссылка на юнит (refill/тики в startRound combat.js);
    *   c.efirState — live-ссылка на state (000117: только практика
    *     — efirPractice combat.js; боевые формулы её НЕ читают);
    *   u.breath — СНАПШОТ данных «Вдоха Эфира» (000113, flat-
@@ -910,7 +910,8 @@
    * state (efir) — чтение + ПРАКТИКА 000117 мутирует skillXp/
    * secondary в полёте (practiceEfir); формулы боя читают СНАПШОТ
    * u.efirSkills — рост в следующий бой. Тихая деградация: юнита
-   * нет / c без units → null. 0 новых точек RNG (R-9).
+   * нет / c без units / юнит мёртв (гибель в pre-roll, 000167)
+   * → null. 0 новых точек RNG (R-9).
    * @returns {object|null} проапгрейденный юнит; null — деградация.
    */
   function buildEfirUnit(efir, c) {
@@ -918,6 +919,13 @@
       ? c.units.find((x) => x.id === 'efir' && x.side === 'ally')
       : null;
     if (!u) return null;
+    // 000167 (ревью): Эфир, погибший в pre-roll (000167: createCombat
+    // действует юнитами с init ВЫШЕ игрока ДО buildEfirUnit — combat-ui
+    // createCombat → buildEfirUnit) — НЕ «воскрешать» полным
+    // хп/мп (u.alive остался бы false: livingAllies отфильтрует,
+    // серый токен с полной полосой — аномалия, а не исход боя):
+    // та же тихая null-деградация, что «юнита нет».
+    if (!u.alive) return null;
     const G = lazyGame();
     const S = G && G.Sheet;
     const stats = (S && isEfirSheet(efir))

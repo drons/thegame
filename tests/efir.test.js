@@ -960,6 +960,35 @@ test('000112 EF-1: buildEfirUnit — профиль L1 (c.efs 1/1/1/3, hp=maxHP=
   });
 });
 
+test('000112 EF-G (000167-ревью): buildEfirUnit — мёртвый Эфир (гибель в pre-roll) → null, без «воскрешения» статами (alive остаётся false; hp/maxHP/mp не меняются; c.efs/c.efir не создаются)', () => {
+  withGame(gameWithXp(), () => {
+    const E = loadEfir();
+    const state = E.createEfir();
+    const p = hero112();
+    const c = createCombat({
+      player: p, allies: [E.efirAllyData(state)],
+      mobs: ['wolf'], mobLevel: 2, seed: 5,
+    });
+    c.obstacles.clear();
+    const u = c.units.find((x) => x.id === 'efir');
+    const maxHPBefore = u.maxHP;
+    const mpBefore = u.mp;
+    // 000167: pre-roll в createCombat (юниты с init выше игрока
+    // действуют ДО buildEfirUnit — путь combat-ui createCombat →
+    // buildEfirUnit) теоретически может убить Эфира.
+    u.alive = false;
+    u.hp = 0;
+    assert.equal(E.buildEfirUnit(state, c), null,
+      'мёртвый Эфир → null (та же деградация, что «юнита нет»)');
+    assert.equal(u.alive, false, 'без «воскрешения»: alive остаётся false');
+    assert.equal(u.hp, 0, 'без «воскрешения»: hp не заполнен статами');
+    assert.equal(u.maxHP, maxHPBefore, 'maxHP не меняется');
+    assert.equal(u.mp, mpBefore, 'mp не меняется');
+    assert.equal(c.efs, undefined, 'c.efs НЕ создаётся');
+    assert.equal(c.efir, undefined, 'ссылка c.efir не выставляется');
+  });
+});
+
 test('000112 EF-2: buildEfirUnit — рост L15 (levelUp-цикл, без хардкода сумм): c.efs 2/2/1/3, maxHP 30, mp 25, Касание 7', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
