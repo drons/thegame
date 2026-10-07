@@ -6,6 +6,8 @@
   "aggro": "aggressive",
   "dmg": 0.6,
   "hp": 0.8,
+  "dexterity": 1,
+  "intelligence": 4,
   "traits": {
     "debuff": true
   },

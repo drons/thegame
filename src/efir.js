@@ -173,12 +173,16 @@
   }
 
   /**
-   * Три боевых атрибута Эфира (000144): из sheet.primary (истина),
-   * по ключу — floor-integer ≥ 1 (мусор/<1 → 1). Деградация (не
-   * лист / null) — legacy-таблица по уровню (старое поведение:
-   * efirAllyData/efirSkillCap/reprocess на «голых» объектах).
+   * Четыре боевых атрибута Эфира (000144; 000167 + dexterity): из
+   * sheet.primary (истина), по ключу — floor-integer ≥ 1 (мусор/<1 → 1).
+   * Деградация (не лист / null) — legacy-таблица по уровню +
+   * dexterity 1 (SPEC «Дух Эфира»: остальные характеристики = 1;
+   * старое поведение: efirAllyData/efirSkillCap/reprocess на «голых»
+   * объектах). 000167: dexterity — инициатива в бою (unitInitiative,
+   * combat.js); потребители вне боёв читают intelligence/wisdom —
+   * аддитивно, без изменений.
    * @returns {{intelligence: number, wisdom: number,
-   *   constitution: number}}
+   *   constitution: number, dexterity: number}}
    */
   function efirAttrs(state) {
     if (isEfirSheet(state)) {
@@ -189,12 +193,15 @@
         intelligence: num(p.intelligence),
         wisdom: num(p.wisdom),
         constitution: num(p.constitution),
+        dexterity: num(p.dexterity),
       };
     }
     const level = (state && typeof state === 'object'
       && Number.isFinite(state.level) && state.level >= 1)
       ? state.level : 1;
-    return efirStats(level); // legacy-таблица (есть все 3 ключа)
+    // legacy-таблица (есть все 3 ключа) + dexterity 1 (SPEC «Дух
+    // Эфира»); efirStats сам НЕ трогается (замороженная таблица).
+    return Object.assign({}, efirStats(level), { dexterity: 1 });
   }
 
   /**
@@ -341,19 +348,21 @@
   }
 
   /**
-   * Данные makeAlly (контракт 000081 §3, 000111 D2/D3): id 'efir'
-   * (дискриминатор), kind строго 'efir' (НЕ 'ether'), name 'Эфир',
-   * role 'support', level — из состояния. attrs — 3 БОЕВЫХ атрибута
-   * из sheet.primary (000144; fallback — legacy-таблица уровня):
-   * allyHeal (000080) читает u.attrs[spell['атрибут']] — лечение
-   * масштабируется от Мудрости. Явных maxHP/damage НЕТ (D2:
-   * формульный путь makeAlly — маркер морали действует ЧЕРЕЗ формулу;
-   * явные боевые статы — 000112 buildEfirUnit). spells — книга
-   * СОСТОЯНИЯ (свежая копия); деградация на старую форму (без
-   * spells) — таблица уровня. skills: [] (проекция пула в боевой
-   * юнит — 000112; НЕ путать с state.skills — зеркалом).
-   * @returns {object} данные makeAlly: {id, name, role, level, attrs,
-   *   spells (свежая копия), skills: [], kind}.
+   * Данные makeAlly (контракт 000081 §3, 000111 D2/D3; 000167 +
+   * dexterity): id 'efir' (дискриминатор), kind строго 'efir' (НЕ
+   * 'ether'), name 'Эфир', role 'support', level — из состояния.
+   * attrs — 4 БОЕВЫХ атрибута из sheet.primary (000144; fallback —
+   * legacy-таблица уровня + dexterity 1): allyHeal (000080) читает
+   * u.attrs[spell['атрибут']] — лечение масштабируется от Мудрости;
+   * dexterity — инициатива в бою (unitInitiative, 000167). Явных
+   * maxHP/damage НЕТ (D2: формульный путь makeAlly — маркер морали
+   * действует ЧЕРЕЗ формулу; явные боевые статы — 000112
+   * buildEfirUnit). spells — книга СОСТОЯНИЯ (свежая копия);
+   * деградация на старую форму (без spells) — таблица уровня.
+   * skills: [] (проекция пула в боевой юнит — 000112; НЕ путать с
+   * state.skills — зеркалом).
+   * @returns {object} данные makeAlly: {id, name, role, level, attrs
+   *   (4 ключа), spells (свежая копия), skills: [], kind}.
    */
   function efirAllyData(state) {
     const level = (state && typeof state === 'object'
@@ -371,6 +380,7 @@
         intelligence: a.intelligence,
         wisdom: a.wisdom,
         constitution: a.constitution,
+        dexterity: a.dexterity,
       },
       spells: book.slice(),
       skills: [],

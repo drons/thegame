@@ -6,6 +6,8 @@
   "aggro": "aggressive",
   "dmg": 0.9,
   "hp": 0.9,
+  "dexterity": 2,
+  "intelligence": 1,
   "traits": {
     "poison": true
   },

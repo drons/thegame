@@ -283,8 +283,9 @@ test('000081 R2: createEfir() — лист (10 ключей, без npcId; 00013
     assert.equal(d1.role, 'support');
     assert.equal(d1.level, 1);
     assert.deepEqual(d1.attrs,
-      { intelligence: 3, wisdom: 3, constitution: 3 },
-      'attrs — 3 собственных атрибута (L1: таблица 3 + floor((1−1)/2))');
+      { intelligence: 3, wisdom: 3, constitution: 3, dexterity: 1 },
+      'attrs — 4 собственных атрибута (000167: +dexterity 1 — '
+      + 'инициатива; L1: таблица 3 + floor((1−1)/2))');
     assert.deepEqual(d1.skills, []);
     // Стартовая книга (ТЗ 000111: старт [spark, mend] — «скромный
     // пул: огонь/исцеление» 000081): данные МОДУЛЯ; СВЕЖАЯ КОПИЯ на
@@ -464,9 +465,9 @@ test('000111 T1: таблица атрибутов по уровням — то�
   const s = E.createEfir();
   s.level = 5;
   assert.deepEqual(E.efirAllyData(s).attrs,
-    { intelligence: 3, wisdom: 3, constitution: 3 },
+    { intelligence: 3, wisdom: 3, constitution: 3, dexterity: 1 },
     'efirAllyData().attrs — из primary (старт 3/3/3; attrs из ' +
-    'primary, уровень не растит) (000139)');
+    'primary, уровень не растит) (000139) (000167: +dexterity 1)');
 });
 
 test('000111 T2: детерминизм — одинаковый уровень → одинаковая таблица/книга/потолок; разные пути xp до L8 → тот же результат', () => {
@@ -789,8 +790,9 @@ test('000111 T9: боевая проекция — лечение от собс�
         + c2.log.join(' | '));
       const u = c2.units.find((x) => x.id === 'efir');
       assert.deepEqual(u.attrs,
-        { intelligence: 3, wisdom: 12, constitution: 3 },
-        'u.attrs — из primary (L20: мудрость 12 — 9 очков) (000139)');
+        { intelligence: 3, wisdom: 12, constitution: 3, dexterity: 1 },
+        'u.attrs — из primary (L20: мудрость 12 — 9 очков) (000139) '
+        + '(000167: +dexterity 1)');
       // Явных maxHP/damage в данных makeAlly НЕТ (D2: формульный путь
       // до 000112; регрессия смысла R7).
       const d = E.efirAllyData(s2);
@@ -907,7 +909,7 @@ function hero112() {
   return p;
 }
 
-test('000112 EF-1: buildEfirUnit — профиль L1 (c.efs 1/1/1/3, hp=maxHP=16, mp=11, c.efir); после endTurn с потраченными пулами — c.efs РЕФИЛЛ 1/1/1/3, u.mp БЕЗ РЕГЕНА (11→8)', () => {
+test('000112 EF-1: buildEfirUnit — профиль L1 (c.efs 1/1/1/3, hp=maxHP=16, mp=11, c.efir); 000167: рефилл c.efs — в startRound, в раунде эскорт сжигает move; u.mp БЕЗ РЕГЕНА (11 — D-10: pre-roll allyHeal поднял игрока выше порога 0.7, mend в round 2 не кастится)', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
     const C = require('../src/combat.js');
@@ -939,15 +941,19 @@ test('000112 EF-1: buildEfirUnit — профиль L1 (c.efs 1/1/1/3, hp=maxHP=
       assert.equal(u.hp, 16, 'hp = maxHP (100% на старте боя)');
       assert.equal(u.mp, 11, 'mp = 5 + 3 + 3 = 11 (своя мана)');
       assert.equal(c.efir, u, 'c.efir — ссылка на юнит (refill/тики)');
-      // Полный endTurn: Эфир лечит игрока (mend: spellWis 1 + 3 маны).
+      // Полный endTurn (000167: round 2 — pre-roll уже отработал).
       c.endTurn();
-      // Рефилл c.efs (D5 — зеркальная формула efir.js ↔ combat.js):
-      assert.equal(c.efs.spellInt, 1, 'рефилл spellInt');
-      assert.equal(c.efs.spellWis, 1, 'рефилл spellWis (потрачен → восстановлен)');
-      assert.equal(c.efs.touch, 1, 'рефилл touch');
-      assert.equal(c.efs.move, 3, 'рефилл move');
-      // Мана — БЕЗ РЕГЕНА: 11 − 3 = 8 (endPlayerTurn u.mp не трогает).
-      assert.equal(u.mp, 8, 'u.mp — без регена в бою (11 − 3 = 8)');
+      // Пулы (000167: рефилл — startRound, Д5 — зеркальная формула
+      // efir.js ↔ combat.js): кастов НЕТ (D-10: pre-roll, 000080-ветка,
+      // маной-бесплатный allyHeal mend +7 поднял игрока 188 → 195,
+      // frac 0.72 > 0.7) → spellInt/spellWis/touch не потрачены; move —
+      // эскорт: d до волка (6,0) 9 > 3 → 3 шага (2,5)→(5,5), бюджет 0.
+      assert.equal(c.efs.spellInt, 1, 'spellInt не потрачен (кастов нет — D-10)');
+      assert.equal(c.efs.spellWis, 1, 'spellWis не потрачен (mend не кастится — D-10)');
+      assert.equal(c.efs.touch, 1, 'touch не потрачен (волк d 5 > 1)');
+      assert.equal(c.efs.move, 0, '000167: move 3 → 0 (эскорт-шаги в раунде; рефилл — в след. startRound)');
+      // Мана — БЕЗ РЕГЕНА: 11 (mend не кастится — D-10).
+      assert.equal(u.mp, 11, '000167 D-10: u.mp без регена — 11 (mend не кастится: pre-roll allyHeal +7, frac 0.72 > 0.7)');
     } finally {
       C.combatInternals.allySpells = saveCatalog;
     }
@@ -1008,16 +1014,18 @@ test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГ
         const u = E.buildEfirUnit(state, c);
         const w = c.units.find((x) => x.id === 'm0');
         w.x = 2; w.y = 4; w.armor = 50; w.maxHP = 100; w.hp = 100;
-        // (2,4): d до Эфира (2,5) = 1; броня 50 (Касание игнорирует).
+        // 000167: pre-roll (000080-ветка) сдвинул Эфир (2,5)→(2,4) —
+        // d до волка 0 (≤ 1); броня 50 (Касание игнорирует).
         u.mp = 0;                        // маны нет — только Касание
         c._rng = () => 0.99;             // обычные атаки — все промахи
         const hp0 = w.hp;
         c.endTurn();
         assert.equal(w.hp, hp0 - 4,
-          'Касание = 4 (bроня 50 игнор, ВСЕГДА попадает при _rng 0.99): '
+          'Касание = 4 (броня 50 игнор, ВСЕГДА попадает при _rng 0.99): '
           + c.log.join(' | '));
         assert.equal(u.mp, 0, 'Касание не тратит ману');
-        assert.equal(c.efs.touch, 1, 'touch после endTurn рефиллен (1→потрачен→1)');
+        assert.equal(c.efs.touch, 0,
+          '000167: touch потрачен (1→0); рефилл — в след. startRound');
       }
       // (B) spark 5: d≤4, броня моба 50 (игнор), mp 11→8.
       {
@@ -1085,10 +1093,12 @@ test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГ
         assert.ok(c.efirShield, 'c.efirShield создан (аддитивный статус, D4)');
         assert.equal(c.efirShield.armor, 7,
           'щит = round(5 + 0.5·3) = 7 (Math.round: 6.5→7)');
-        assert.equal(c.efirShield.turns, 1,
-          'turns: 2 (каст) − 1 (тик endPlayerTurn) = 1');
+        assert.equal(c.efirShield.turns, 2,
+          '000167: каст в round 2, тик — startRound (следующий раунд) '
+          + '→ после одного endTurn turns 2');
         assert.equal(u.mp, 6, 'mp 11 − 5 («мани» magic_shield) = 6');
-        assert.equal(c.efs.spellWis, 1, 'spellWis рефиллен (1 потрачен → 1)');
+        assert.equal(c.efs.spellWis, 0,
+          '000167: spellWis потрачен (1→0); рефилл — в след. startRound');
       }
     } finally {
       C.combatInternals.allySpells = saveCatalog;

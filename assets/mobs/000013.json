@@ -6,6 +6,8 @@
   "aggro": "aggressive",
   "dmg": 1.2,
   "hp": 1.1,
+  "dexterity": 2,
+  "intelligence": 1,
   "traits": {
     "lifesteal": true
   },

@@ -672,7 +672,7 @@ function (settings, G) {
    * Мост в бой (задача 000082, для 000087; 000143 — статы из листа):
    * данные makeAlly из записи отряда + каталога найма:
    *   {id: npc.id (— npcId), name, role, level: entry.level, maxHP,
-   *   damage, armor?, skills, spells, kind:'merc'}.
+   *   damage, armor?, skills, spells, attrs, kind:'merc'}.
    * 000143 (000139 §6.5): боевые статы — maxHP/damage из
    * Sheet.derived(entry.sheet, {modifier: mercModifier, h}) — как
    * OVERRIDES data.maxHP/data.damage: makeAlly берёт их БЕЗ
@@ -681,6 +681,11 @@ function (settings, G) {
    * Кнопки dmg/hp из каталога (дифференциатор баланса, 000141) —
    * ВНУТРИ mercModifier, в data отдельно НЕ уходят. skills — id-список
    * из sheet.secondary, spells — из sheet.spells (в боях 000144+).
+   * 000167 (D7.2): attrs — СВЕЖИЙ снапшот entry.sheet.primary (все 6
+   * характеристик, КОПИЯ — не ссылка на лист): инициатива в бою
+   * (unitInitiative, combat.js) + формула allyHeal (лечение
+   * масштабируется от характеристик). Деградация (нет primary —
+   * в игре недостижимо: createSheet всегда строит primary) → {}.
    * «Призрак» (npc нет / найм-данных нет / entry.npcId ≠ npc.id /
    * запись БЕЗ sheet — инвариант, в игре недостижимо) → null (тихий
    * skip — 000087 не шлёт таких в бой).
@@ -705,6 +710,8 @@ function (settings, G) {
       skills: Object.keys(entry.sheet.secondary || {}),
       spells: (Array.isArray(entry.sheet.spells)
         ? entry.sheet.spells : []).slice(),
+      // 000167: все 6 характеристик листа (КОПИЯ; деградация — {}).
+      attrs: Object.assign({}, entry.sheet.primary || {}),
       kind: 'merc',
     };
   }
