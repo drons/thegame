@@ -117,6 +117,21 @@
 //   * Сиды COIN_ROLL/WELL_ROLL/WELL_ITEM — свои ASCII-константы;
 //     детерминизм — (tile, day), Math.random/Date НЕТ.
 //
+// Задача 000162 (храмы 36/37/38 — «Воскрешение», ПЛАТНАЯ услуга):
+//   * EFFECTS['resurrect'] — имя «Воскрешение»: available — только
+//     «нет погибших» (золото НЕ гасит строку — R-2); apply — ЧИСТОЕ:
+//     кандидаты {record, цена} из снимка save.dead_mercs (порядок
+//     списка, record — ссылка на запись снимка), цена =
+//     round(база + за_опыт × sheet.totalXp), параметры — ИЗ КАТАЛОГА
+//     (особые_параметры.воскрешение {база, за_опыт}, 000053);
+//     успех — БЕЗ message (flash — в confirm пикера, R-1);
+//     gold < min(цена) — {ok:false, message:'мало золота'}.
+//     Дневного лимита НЕТ (R-4): в реестре разВДень не ставится, в
+//     каталоге per-эффектном объекте ключа "resurrect" нет.
+//     Мир-сторона (DOM-пикер + мутации live-мира) — спец-модуль
+//     src/building-effect-resurrect.js (000128; контракт —
+//     memory/000162-temple-resurrection.md).
+//
 // Контракты (зафиксированы tests/building-effects.test.js):
 //   * РЕЕСТР EFFECTS — id → { имя, разВДень?, available?(state),
 //     apply?(state) → { ok, message?, buffs? } }. Задача 000071 —
@@ -376,6 +391,23 @@
     имя: 'Благословение (гора)',
     apply: (st) => applyBlessing(
       st, 'armor', 'Благословение горы: +1 броня на 1 день.'),
+  };
+
+  // --- Задача 000162: храмы 36/37/38 — «Воскрешение» ---
+  // Платная услуга, дневного лимита НЕТ (R-4): per-эффектный объект
+  // раз_в_день каталога без ключа "resurrect" → hasDailyLimit false
+  // (fail-open); в реестре разВДень НЕ ставится. available — только
+  // «нет погибших» (R-2: золото строку НЕ гасит). apply — ЧИСТОЕ:
+  // кандидаты {record, цена} из снимка save.dead_mercs (record —
+  // ссылка на запись снимка, копий нет), цена = round(база + за_опыт
+  // × sheet.totalXp) из каталога (000053); успех — БЕЗ message
+  // (R-1: flash — в confirm пикера). Мутации live-мира — спец-модуль
+  // src/building-effect-resurrect.js (000128; контракт —
+  // memory/000162-temple-resurrection.md §3–4).
+  EFFECTS['resurrect'] = {
+    имя: 'Воскрешение',
+    available: resurrectAvailable,
+    apply: applyResurrect,
   };
 
   // --- Группа 000074: рунический камень (40) и обелиск (42) ---
@@ -1899,6 +1931,113 @@
     return true;
   }
 
+  // --- Задача 000162: «Воскрешение» храмов 36/37/38 — ЧИСТОЕ ядро ---
+  // Цена = round(база + за_опыт × totalXp); параметры — ТОЛЬКО из
+  // каталога (особые_параметры.воскрешение {база, за_опыт}, принцип
+  // 000053 — код читает каталог, не хардкодит). Детерминизм: 0
+  // Math.random/Date (цена — только Math.round). Контракт —
+  // memory/000162-temple-resurrection.md §3.
+
+  /**
+   * Цена «Воскрешения»: round(база + за_опыт × totalXp).
+   * база/за_опыт не-finite → 0 (деградация 000029); totalXp
+   * не-finite / отрицательный → 0. Чистая: те же аргументы — тот же
+   * результат (детерминизм).
+   * @returns {number} золото (целое ≥ 0)
+   */
+  function resurrectPrice(totalXp, params) {
+    const base = params && params.база;
+    const step = params && params.за_опыт;
+    if (!Number.isFinite(base) || !Number.isFinite(step)) return 0;
+    const xp = (Number.isFinite(totalXp) && totalXp >= 0) ? totalXp : 0;
+    return Math.round(base + step * xp);
+  }
+
+  /**
+   * Параметры цены «воскрешение» из СНИМКА каталога
+   * (ст.catalog.особые_параметры.воскрешение); отсутствует/мусор —
+   * {} (деградация 000029). Прототип-безопасно.
+   * @returns {object} {база?, за_опыт?}
+   */
+  function resurrectParams(st) {
+    const c = st && st.catalog;
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return {};
+    const op = c.особые_параметры;
+    if (!op || typeof op !== 'object' || Array.isArray(op)) return {};
+    const r = op.воскрешение;
+    return (r && typeof r === 'object' && !Array.isArray(r)) ? r : {};
+  }
+
+  /**
+   * Список кандидатов «Воскрешение» из СНИМКА сейва: save.dead_mercs
+   * (массив записей {npcId, sheet, loyalty, hiredDay}, 000161) →
+   * [{ record, цена }] В ПОРЯДКЕ СПИСКА; record — ссылка на запись
+   * снимка (копий нет — чистота, RES-A4); цена — из sheet.totalXp
+   * (sheet не-объект / totalXp мусор/отрицательный → 0).
+   * Не-массив / мусорный элемент — пропуск (fail-open 000029).
+   * Чистая: снимок не мутирует.
+   * @returns {Array<{record: object, цена: number}>}
+   */
+  function resurrectList(st) {
+    const save = st && st.save;
+    const dead = save && save.dead_mercs;
+    if (!Array.isArray(dead)) return [];
+    const params = resurrectParams(st);
+    const out = [];
+    for (let i = 0; i < dead.length; i++) {
+      const rec = dead[i];
+      if (!rec || typeof rec !== 'object' || Array.isArray(rec)) continue;
+      const sheet = rec.sheet;
+      let xp = 0;
+      if (sheet && typeof sheet === 'object' && !Array.isArray(sheet)) {
+        const tx = sheet.totalXp;
+        if (Number.isFinite(tx) && tx >= 0) xp = tx;
+      }
+      out.push({ record: rec, цена: resurrectPrice(xp, params) });
+    }
+    return out;
+  }
+
+  /**
+   * available?(state) «Воскрешение»: без погибших — reason-строка
+   * «нет погибших» (строка buildingUI disabled); с погибшими — true.
+   * ЗОЛОТО НЕ ЧИТАЕТСЯ (R-2: строка не гаснет от нехватки золота —
+   * золото ловят apply (min-цена) и confirm пикера). Чистая.
+   * @returns {true|string} true — доступно; строка — reason
+   */
+  function resurrectAvailable(st) {
+    return resurrectList(st).length > 0 ? true : 'нет погибших';
+  }
+
+  /**
+   * apply(state) «Воскрешение» — ЧИСТОЕ: dead_mercs пуст →
+   * {ok:false, message:'нет погибших'}; hero.gold < min(цена) →
+   * {ok:false, message:'мало золота'} (candidates нет); иначе
+   * {ok:true, candidates:[{record, цена}]} — успех БЕЗ message
+   * (R-1: flash — в confirm пикера, спец-модуль
+   * src/building-effect-resurrect.js). Снимок НЕ мутирует; hero
+   * отсутствует / gold не-finite → 0 (деградация 000029).
+   * @returns {{ok: boolean, message?: string,
+   *            candidates?: Array<{record: object, цена: number}>}}
+   */
+  function applyResurrect(st) {
+    const candidates = resurrectList(st);
+    if (candidates.length === 0) {
+      return { ok: false, message: 'нет погибших' };
+    }
+    let min = Infinity;
+    for (let i = 0; i < candidates.length; i++) {
+      if (candidates[i].цена < min) min = candidates[i].цена;
+    }
+    const hero = st && st.hero;
+    const gold = (hero && typeof hero === 'object' &&
+                  Number.isFinite(hero.gold)) ? hero.gold : 0;
+    if (gold < min) {
+      return { ok: false, message: 'мало золота' };
+    }
+    return { ok: true, candidates };
+  }
+
   /**
    * «Сон» (задача 000076): ЧИСТАЯ подсказка о ближайшем входе в
    * пещеру и типе подземелья.
@@ -2644,5 +2783,11 @@
     // performGold + apply/available + ЕДИНАЯ точка ключа dailyKeyFor
     // (город — якорь, мир — тайл; §1–2 контракта).
     performGold, applyTavernPerform, performAvailable, dailyKeyFor,
+    // Задача 000162: храмы 36/37/38 «Воскрешение» — ЧИСТОЕ ядро
+    // (цена round(база + за_опыт × totalXp) из каталога, список
+    // кандидатов, available/apply); мир-сторона — спец-модуль
+    // src/building-effect-resurrect.js (контракт —
+    // memory/000162-temple-resurrection.md §3–4).
+    resurrectPrice, resurrectList, resurrectAvailable, applyResurrect,
   };
 });

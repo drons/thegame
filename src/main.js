@@ -1563,6 +1563,10 @@
   const moveKey = (e) => G.moveKeyForEvent(e);
 
   window.addEventListener('keydown', (e) => {
+    // 000162: пикер «Воскрешение» открыт — ввод у него (гейт R-3:
+    // KeyI/KeyC/KeyE/движение блокированы; [E] под пикером —
+    // buildingUI НЕ открывается — нет двойного оверлея).
+    if (G.resurrectUI && G.resurrectUI.isActive()) return; // 000162
     if (e.code === 'KeyI' && G.playerUI) { // I (Ш) — панель персонажа
       G.playerUI.toggle();
       return;
@@ -2477,6 +2481,7 @@
     const inNpc = G.npcUI && G.npcUI.isActive();
     const inBuilding = G.buildingUI && G.buildingUI.isActive(); // 000071
     const inCraft = G.craftUI && G.craftUI.isActive(); // 000126
+    const inResurrect = !!(G.resurrectUI && G.resurrectUI.isActive()); // 000162
     // 000150: видимость on-screen-контролов по активным экранам:
     // кнопки [I]/[E] — бой/инвентарь/вход; D-pad — инвентарь/вход
     // (в бою остаётся). Чистая touchControlsVisibility (controls.js)
@@ -2490,7 +2495,10 @@
       G.touchControls.applyVisibility(G.touchControlsVisibility({
         combat: !!inCombat,
         inventory: !!(G.playerUI && G.playerUI.isOpen()),
-        building: !!inBuilding,
+        // 000162: пикер «Воскрешение» — мапим в существующее поле
+        // building (controls.js читает только combat/inventory/
+        // building, R-5).
+        building: !!inBuilding || !!inResurrect,
       }));
     }
     // Интервал шага (задача 000033 + 000063): база — из глобальных
@@ -2498,6 +2506,7 @@
     // G.MIN_MOVE_INTERVAL_MS. Одно значение для шага и окна walk/idle.
     const stepMs = stepIntervalMs();
     if (!inCombat && !inDungeon && !inNpc && !inBuilding && !inCraft
+        && !inResurrect
         && now - lastMove >= stepMs) {
       if (keys.size && tryMove()) {
         lastMove = now;
