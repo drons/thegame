@@ -134,6 +134,10 @@ function makeEl(tag, buttons, rect) {
 //    (не ENOENT-краш всей песочницы, иначе 54+ существующих теста
 //    падали бы крахом, а не осмысленно); осмысленный красный «файл не
 //    существует» несёт tests/combat-scale.test.js (P1-P7).
+// opts.withSpells (000149, по умолчанию false) — spells-data.js +
+// spells.js в цепочку ПОСЛЕ combat.js (позиции index.html L807-809):
+// тесты книги заклинаний. Без параметра — старая цепочка бит-в-бит
+// (000118: ИИ Эфира без каталога — melee-фолбэк, см. CU118-LOG).
 function loadCombatUi(withSprites = true, opts = {}) {
   const keydown = [];
   const winListeners = {};
@@ -190,8 +194,25 @@ function loadCombatUi(withSprites = true, opts = {}) {
     }
     vm.runInContext(efirCode, sandbox, { filename: 'efir.js' });
   }
-  for (const f of ['items.js', 'controls.js', 'combat.js', 'combat-keys.js']) {
+  for (const f of ['items.js', 'controls.js', 'combat.js']) {
     vm.runInContext(src(f), sandbox, { filename: f });
+  }
+  if (opts.withSpells) {
+    // 000149: каталожная магия — ПОСЛЕ combat.js (позиции index.html
+    // L807-809): строки книги читают Game.SpellsData и кастуют через
+    // Game.Spells (движок 000045). Существующие тесты флаг НЕ
+    // передают → старая цепочка бит-в-бит (000118).
+    for (const f of ['spells-data.js', 'spells.js']) {
+      vm.runInContext(src(f), sandbox, { filename: f });
+    }
+  }
+  vm.runInContext(src('combat-keys.js'), sandbox, { filename: 'combat-keys.js' });
+  // 000149: spellbook.js — ДО combat-ui.js (снапшот-ловушка 000038).
+  // Красная фаза: файла нет — тихий пропуск (existsSync-гард, паттерн
+  // withEfir 000081): осмысленный красный несёт tests/spellbook.test.js,
+  // а не ENOENT-крах всех тестов этого файла.
+  if (fs.existsSync(path.join(ROOT, 'src', 'spellbook.js'))) {
+    vm.runInContext(src('spellbook.js'), sandbox, { filename: 'spellbook.js' });
   }
   if (withSprites) {
     vm.runInContext(src('sprites.js'), sandbox, { filename: 'sprites.js' });
@@ -236,7 +257,7 @@ function press(keydown, code) {
   for (const fn of keydown) fn(e);
 }
 
-test('боевой UI: кнопки панели действий собраны из таблицы (8 штук)', () => {
+test('боевой UI: кнопки панели действий собраны из таблицы (7 штук)', () => {
   const { G, keydown, buttons } = loadCombatUi();
   assert.ok(G.combatUI, 'Game.combatUI создан (загрузка в правильном порядке)');
   assert.equal(keydown.length, 1, 'keydown-обработчик зарегистрирован');
@@ -244,10 +265,13 @@ test('боевой UI: кнопки панели действий собраны
   G.combatUI.startCombat({
     hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
   });
-  assert.equal(buttons.length, 8, 'кнопок действий = 8 (таблица combat-keys.js)');
+  // 000149: «Огонь» + «Исцел.» сдвинуты в одну кнопку «Книга
+  // заклинаний» — действий 8 → 7.
+  assert.equal(buttons.length, 7,
+    'кнопок действий = 7 (таблица combat-keys.js, задача 000149)');
   const acts = buttons.map((b) => b.dataset.act).sort();
   assert.deepEqual(acts, [
-    'attack', 'block', 'endTurn', 'fire', 'flee', 'heal', 'invItem', 'quickItem',
+    'attack', 'block', 'endTurn', 'flee', 'invItem', 'quickItem', 'spellbook',
   ]);
 });
 
@@ -622,9 +646,13 @@ test('боевой UI: c._fx — attack после успешной атаки; 
     'кадр атаки не рисуется после истечения');
 });
 
-test('боевой UI: c._fx — cast после успешного заклинания (fire)', () => {
+test('боевой UI: c._fx — cast после успешного заклинания из книги (spark) (000149)', () => {
   const NOW = 1000;
-  const { G, keydown } = loadCombatUi(true, { performance: { now: () => NOW } });
+  // 000149: KeyQ больше не кастует «огонь» напрямую — он открывает
+  // книгу заклинаний; каст — кликом по строке.
+  const { G, keydown, body } = loadCombatUi(true, {
+    performance: { now: () => NOW }, withSpells: true,
+  });
   const c = G.combatUI.startCombat({
     hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
   });
@@ -633,7 +661,15 @@ test('боевой UI: c._fx — cast после успешного заклин
   c._rng = () => 0.99;
   c.selectTarget(m0.id);
   assert.equal(c._fx, undefined, 'c._fx не записано до заклинания');
-  press(keydown, 'KeyQ'); // огненная стрела — всегда попадает
+  press(keydown, 'KeyQ'); // книга заклинаний (000149) — открылась
+  const bookBox = findByClass(body, 'combat-spellbook');
+  assert.ok(bookBox,
+    'книга заклинаний (.combat-spellbook) не найдена в .combat-side (задача 000149)');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  const sparkRow = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(sparkRow, 'строка «Искра» не найдена в книге (задача 000149)');
+  sparkRow.listeners.click[0](); // каст — кликом по строке
   assert.equal(c._fx && c._fx.action, 'cast', 'c._fx.action = cast');
   assert.ok(c._fx.until > NOW, 'until > now');
 });
@@ -1055,7 +1091,8 @@ test('боевой UI: кнопки .combat-actions — иконка (img assets
   G.combatUI.startCombat({
     hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
   });
-  assert.equal(buttons.length, 8, 'кнопок действий = 8 (таблица combat-keys.js)');
+  assert.equal(buttons.length, 7,
+    'кнопок действий = 7 (таблица combat-keys.js, задача 000149)');
   const byAction = {};
   for (const it of G.CombatKeys.describeCombatKeys()) byAction[it.action] = it;
   for (const b of buttons) {
