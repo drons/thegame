@@ -72,6 +72,10 @@ test('index.html: нужные модули подключены', () => {
     // вкладочных модулей и ui.js (снапшот-ловушка 000038 —
     // пин порядка ниже).
     'src/party.js',
+    // Книга заклинаний (задача 000149): Game.SpellBook = {entriesFor}
+    // — ПОСЛЕ spells.js (каталог/движок), ДО combat-ui.js
+    // (снапшот-ловушка 000038 — пин порядка ниже).
+    'src/spellbook.js',
     'src/main.js',
   ]) {
     assert.notEqual(pos(f), -1, f + ' не подключён в index.html');
@@ -1339,4 +1343,26 @@ test('index.html: src/party.js подключён ПОСЛЕ src/combat-keys.js 
     'ловушка 000038: вкладка снимает Game при загрузке)');
   assert.ok(pos('src/party.js') < pos('src/ui.js'),
     'src/party.js должен быть ДО src/ui.js (задача 000145)');
+});
+
+// --- Задача 000149: книга заклинаний (src/spellbook.js) ---
+//
+// Game.SpellBook = {entriesFor} — ЧИСТЫЕ строки книги (контракт
+// memory/000149-combat-spellbook.md §3). Боевой UI (src/combat-ui.js)
+// снимает Game ОДИН раз при загрузке (снапшот-ловушка 000038) и
+// читает G.SpellBook при ВЫЗОВЕ: тег обязан быть ДО src/combat-ui.js.
+// Строки читают каталог/движок магии — тег ДО src/spellbook.js,
+// ПОСЛЕ src/spells.js. Пин НЕ-смежный (union): не ломается, если
+// параллельная задача вставит свой тег в те же слоты — порядок
+// spellbook.js к обоим якорям держится.
+
+test('index.html: src/spellbook.js подключён ПОСЛЕ src/spells.js и ДО src/combat-ui.js (задача 000149, снапшот-ловушка 000038)', () => {
+  assert.notEqual(pos('src/spellbook.js'), -1,
+    'src/spellbook.js не подключён в index.html (задача 000149)');
+  assert.ok(pos('src/spells.js') < pos('src/spellbook.js'),
+    'src/spellbook.js должен быть ПОСЛЕ src/spells.js (каталог/движок ' +
+    'магии, задача 000149)');
+  assert.ok(pos('src/spellbook.js') < pos('src/combat-ui.js'),
+    'src/spellbook.js должен быть ДО src/combat-ui.js (снапшот-' +
+    'ловушка 000038: combat-ui снимает Game при загрузке)');
 });

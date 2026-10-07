@@ -24,7 +24,9 @@ const {
 const Controls = require('../src/controls.js');
 
 const ROOT = path.join(__dirname, '..');
-const ACTIONS = ['attack', 'fire', 'heal', 'block',
+// 000149: fire/heal сдвинуты в одно действие «spellbook» (книга
+// заклинаний) — действий 8 → 7.
+const ACTIONS = ['attack', 'spellbook', 'block',
   'quickItem', 'invItem', 'flee', 'endTurn'];
 const DEAD_CODES = ['KeyЦ', 'KeyЫ', 'KeyФ', 'KeyВ'];
 
@@ -102,10 +104,15 @@ test('KeyA — влево и KeyD — вправо (решение 000048: ка�
   assert.deepEqual(COMBAT_KEYS.KeyD, { type: 'move', dx: 1, dy: 0 });
 });
 
-test('дубли: KeyK — то же действие, что KeyJ; KeyU — то же, что KeyT', () => {
+test('дубли: KeyK — то же, что KeyJ; KeyQ/KeyR — spellbook; KeyU — то же, что KeyT', () => {
   assert.equal(COMBAT_KEYS.KeyJ.action, 'attack');
   assert.equal(COMBAT_KEYS.KeyK.action, 'attack');
   assert.equal(COMBAT_KEYS.KeyK.action, COMBAT_KEYS.KeyJ.action);
+  // 000149: «Книга заклинаний» — на месте пары fire/heal: KeyQ +
+  // дубль KeyR (прецедент KeyJ/KeyK, KeyT/KeyU).
+  assert.equal(COMBAT_KEYS.KeyQ.action, 'spellbook');
+  assert.equal(COMBAT_KEYS.KeyR.action, 'spellbook');
+  assert.equal(COMBAT_KEYS.KeyR.action, COMBAT_KEYS.KeyQ.action);
   assert.equal(COMBAT_KEYS.KeyT.action, 'invItem');
   assert.equal(COMBAT_KEYS.KeyU.action, 'invItem');
   assert.equal(COMBAT_KEYS.KeyU.action, COMBAT_KEYS.KeyT.action);
@@ -121,13 +128,21 @@ test('primary: ровно одна первичная клавиша у дейс
   }
   assert.equal(primaryCount.attack, 1, 'attack: ровно одна primary');
   assert.equal(primaryCount.invItem, 1, 'invItem: ровно одна primary');
-  for (const a of ['fire', 'heal', 'block', 'quickItem', 'flee', 'endTurn']) {
+  // 000149: «Книга заклинаний» — два физических ключа (KeyQ + дубль
+  // KeyR), ровно один — primary. fire/heal — больше не действия.
+  assert.equal(primaryCount.spellbook, 1, 'spellbook: ровно одна primary');
+  for (const a of ['block', 'quickItem', 'flee', 'endTurn']) {
     assert.equal(primaryCount[a], undefined,
       a + ': одиночная клавиша без флага primary');
   }
+  assert.equal(primaryCount.fire, undefined, 'fire — больше не действие');
+  assert.equal(primaryCount.heal, undefined, 'heal — больше не действие');
   assert.equal(COMBAT_KEYS.KeyJ.primary, true, 'KeyJ — первичный «Удар»');
   assert.equal(COMBAT_KEYS.KeyT.primary, true, 'KeyT — первичный «Предмет»');
+  assert.equal(COMBAT_KEYS.KeyQ.primary, true,
+    'KeyQ — первичный «Книга заклинаний»');
   assert.equal(COMBAT_KEYS.KeyK.primary, undefined);
+  assert.equal(COMBAT_KEYS.KeyR.primary, undefined);
   assert.equal(COMBAT_KEYS.KeyU.primary, undefined);
 });
 
@@ -168,15 +183,17 @@ test('resolveCombatKey: фаза не игрока — действие с пр�
     resolveCombatKey('KeyJ',
       { phase: 'mob', canDo: { ok: false, reason: 'не ваш ход' } }),
     { kind: 'action', action: 'attack', reason: 'не ваш ход' });
+  // 000149: KeyQ — «Книга заклинаний» (не «Огонь»): reason пустой
+  // книги — «заклинаний нет».
   assert.deepEqual(
     resolveCombatKey('KeyQ',
       { phase: 'player',
-        canDo: { ok: false, reason: 'не хватает маны (3)' } }),
-    { kind: 'action', action: 'fire', reason: 'не хватает маны (3)' });
+        canDo: { ok: false, reason: 'заклинаний нет' } }),
+    { kind: 'action', action: 'spellbook', reason: 'заклинаний нет' });
   // ok:false без reason — запасная формулировка.
   assert.deepEqual(
     resolveCombatKey('KeyQ', { phase: 'player', canDo: { ok: false } }),
-    { kind: 'action', action: 'fire', reason: 'сейчас нельзя' });
+    { kind: 'action', action: 'spellbook', reason: 'сейчас нельзя' });
 });
 
 test('resolveCombatKey: canDo отсутствует — fail-safe, не молча', () => {
@@ -215,16 +232,16 @@ test('resolveCombatKey: движение при фазе mobа — всё рав
 // describeCombatKeys
 // ---------------------------------------------------------------------------
 
-test('describeCombatKeys: 8 строк в порядке кнопок', () => {
+test('describeCombatKeys: 7 строк в порядке кнопок', () => {
+  // 000149: fire/heal сдвинуты в одно действие «spellbook» (KeyQ +
+  // дубль KeyR) — на позиции «Огня» (2-я).
   const items = describeCombatKeys();
-  assert.equal(items.length, 8, 'ровно 8 действий');
+  assert.equal(items.length, 7, 'ровно 7 действий');
   assert.deepEqual(items, [
     { action: 'attack', label: 'Удар',
       primaryKey: 'KeyJ', keys: ['KeyJ', 'KeyK'] },
-    { action: 'fire', label: 'Огонь',
-      primaryKey: 'KeyQ', keys: ['KeyQ'] },
-    { action: 'heal', label: 'Исцел.',
-      primaryKey: 'KeyR', keys: ['KeyR'] },
+    { action: 'spellbook', label: 'Книга заклинаний',
+      primaryKey: 'KeyQ', keys: ['KeyQ', 'KeyR'] },
     { action: 'block', label: 'Блок',
       primaryKey: 'KeyB', keys: ['KeyB'] },
     { action: 'quickItem', label: 'Быстрый предмет',
@@ -243,8 +260,9 @@ test('describeCombatKeys: подписи кнопок — имя + клавиш�
   // («Удар» перенесён с KeyA на KeyJ, задача 000048); остальные — те же.
   const labels = describeCombatKeys()
     .map((i) => i.label + ' [' + keyLabel(i.primaryKey) + ']');
+  // 000149: «Огонь [Q]»/«Исцел. [R]» → «Книга заклинаний [Q]».
   assert.deepEqual(labels, [
-    'Удар [J]', 'Огонь [Q]', 'Исцел. [R]', 'Блок [B]',
+    'Удар [J]', 'Книга заклинаний [Q]', 'Блок [B]',
     'Быстрый предмет [E]', 'Предмет [T]', 'Побег [F]', 'Конец хода [Space]',
   ]);
 });

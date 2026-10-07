@@ -448,9 +448,14 @@ const EXPECTED_SVG_BY_DIR = {
                                       // кадры героя перенесены сюда)
   'sprites/mercs': 12,                // наёмные NPC (задача 000152: 6 × 2)
   'sprites/visuals': 13,
-  'ui': 10,                           // иконки действий боя (задача 000124)
+  'ui': 9,                            // иконки действий боя (задача 000124)
                                       // + icon_action/icon_inventory —
                                       // кнопки [E]/[I] (задача 000123)
+                                      // 000149: −combat_fire/−combat_heal
+                                      // +combat_spellbook (книга)
+  'spell-icons': 17,                  // иконки заклинаний (задача 000149,
+                                      // по одной на JSON каталога; 000163:
+                                      // +resurrect)
   portraits: 8,                       // портреты партии (задача 000142)
   logo: 1,                            // assets/logo.svg
 };

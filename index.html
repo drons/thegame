@@ -758,6 +758,59 @@
       height: 48px;
     }
     .cp-portrait-active { border-color: #d8c27a; }
+    /* «Книга заклинаний» (задача 000149): контейнер книги активного
+       персонажа вместо пары кнопок «Огонь»/«Исцел.» — в .combat-side
+       между .combat-actions и .combat-log. ВСЕ правила в скоупе
+       .combat-overlay--combat (000124), базовые классы не трогаем;
+       новых цветов не вводим (наследование + opacity + font-size):
+       контейнер без рамки, -off строка — opacity (у div нет
+       :disabled), иконка строки 20px (силуэты 000124 при 20px). */
+    .combat-overlay--combat .combat-spellbook {
+      flex: 0 1 auto;
+      min-height: 0;
+      max-height: 40%;
+      overflow-y: auto;
+      margin: 4px 0;
+      padding: 2px 0;
+    }
+    .combat-overlay--combat .combat-spellrow {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 4px 6px;
+      cursor: pointer;
+    }
+    .combat-overlay--combat .combat-spellrow-off {
+      opacity: 0.4;
+      cursor: default;
+    }
+    .combat-overlay--combat .combat-spellicon {
+      flex: 0 0 auto;
+      width: 20px;
+      height: 20px;
+    }
+    .combat-overlay--combat .combat-spellrow-body {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .combat-overlay--combat .combat-spellrow-top {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .combat-overlay--combat .combat-spellname {
+      font-weight: bold;
+    }
+    .combat-overlay--combat .combat-spellmeta {
+      font-size: 11px;
+      opacity: 0.75;
+      white-space: nowrap;
+    }
+    .combat-overlay--combat .combat-spellrow-desc {
+      font-size: 11px;
+      opacity: 0.85;
+      white-space: pre-line;
+    }
   </style>
 </head>
 <body>
@@ -808,6 +861,11 @@
   <script src="src/combat.js"></script>
   <script src="src/spells-data.js"></script>
   <script src="src/spells.js"></script>
+  <!-- Строки «Книги заклинаний» (задача 000149): ПОСЛЕ spells-data.js
+       (каталог) и spells.js (движок), ПЕРЕД combat-ui.js (UMD-ловушка
+       000038: combat-ui снимает Game один раз при загрузке). Чистый
+       модуль — без require и чтений Game на загрузке. -->
+  <script src="src/spellbook.js"></script>
   <script src="src/dungeons-data.js"></script>
   <script src="src/craft-data.js"></script>
   <script src="src/craft.js"></script>
