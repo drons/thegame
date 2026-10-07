@@ -1129,8 +1129,11 @@
     // — автоцель «вы») → «Цели нет».
     const td = t ? null : c.units.find((u) => u.id === c.targetId
       && u.side === 'ally' && !u.alive && !u.fled);
-    const tHero = (!t && !td && c.player && !c.player.alive
-      && c.targetId === null) ? c.player : null;
+    // tHero — внутри гейта canResurrect(c) (инвариант D2: без гейта —
+    // бит-в-бит): без «Воскрешения» — ни кольца на герое, ни строки
+    // «цель» для заклинания, которого нет в книге.
+    const tHero = (!t && !td && canResurrect(c) && c.player
+      && !c.player.alive && c.targetId === null) ? c.player : null;
     // Подсказка состава отряда (000118): строка «Отряд: <имя (роль), …»
     // между «Шаги:…» и строкой цели — минимальное аддитивное
     // расширение HUD (stateEl, .combat-state: white-space:pre-line,
