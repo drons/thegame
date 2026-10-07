@@ -1886,3 +1886,62 @@ test('ES-7. 000144: e2e — старое 5-полевое seed → backfill → 
   assert.deepEqual(host(h2.sandbox.__game.state.efir), FRESH,
     'невалидная запись → fresh sheet (сброс ЗАПИСИ, 000115 V1)');
 });
+
+// =====================================================================
+// SV-1 (000164): partyLost — ПОЛЕ c.result, НЕ сейва: схема v1 не
+// расширяется, CURRENT_VERSION не бампится; результат roster-ветки
+// (dead_mercs-запись + companions []) — в сейве (onEnd → saveNow).
+// Паттерн — bootWithSave (000085) + actions.startCombat + handleCode
+// (паттерн companion-cycle V5: мутация живого объекта боя).
+// =====================================================================
+
+test('000164 SV-1: partyLost — в сейве НЕТ (схема v1 не расширена); dead_mercs-запись + companions [] — в сейве', async () => {
+  const st = makeStorage();
+  const h = bootWithSave(st, null, {
+    day: 1,
+    companions: [
+      { npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 1 },
+    ],
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const c = g.actions.startCombat(0);
+  assert.ok(c, 'бой начался');
+  const u = (c.units || []).find((x) => x && x.kind === 'merc');
+  assert.ok(u && u.id === 'merc_volk', 'volk в c.units (жив)');
+  // Мутация: погиб ТОЛЬКО игрок; merc-юнит ЖИВ в c.units:
+  c.player.alive = false;
+  c.player.hp = 0;
+  assert.equal(u.alive, true, 'volk-юнит жив (не !alive)');
+  c.phase = 'over';
+  c.result = { outcome: 'dead', partyLost: true };
+  G.combatUI.handleCode('Escape');
+  assert.equal(G.combatUI.isActive(), false, 'бой закрыт (finish → onEnd)');
+  // Сейв (onEnd → saveNow):
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1, 'CURRENT_VERSION = 1 (без бампа)');
+  // partyLost — поле c.result, не сейва:
+  assert.ok(!('partyLost' in saved.data), 'схема v1: data.partyLost НЕТ');
+  assert.ok(!JSON.stringify(saved).includes('partyLost'),
+    'partyLost НЕ сериализован НИГДЕ в сейве (схема не расширена)');
+  // Roster-ветка: volk → dead_mercs (запись 4 поля, 000161),
+  // companions []:
+  const volkRec = {
+    npcId: 'merc_volk',
+    sheet: backfilledEntry({ npcId: 'merc_volk', level: 1, xp: 0,
+      loyalty: 65, hiredDay: 1 }).sheet,
+    loyalty: 65, hiredDay: 1,
+  };
+  assert.deepEqual(saved.data.dead_mercs, [volkRec],
+    'сейв: dead_mercs — запись (partyLost: весь roster)');
+  assert.deepEqual(saved.data.companions, [], 'сейв: companions []');
+  // Подъём игрока (000008) — БЕЗ ИЗМЕНЕНИЙ:
+  const PL = require('../src/player.js');
+  assert.equal(saved.data.hero.alive, true, 'hero жив (подъём)');
+  assert.equal(saved.data.hero.hp,
+    Math.max(1, Math.round(PL.derived(saved.data.hero).maxHP / 2)),
+    'hp — половина maxHP (без изменений)');
+  assert.equal(saved.data.hero.gold, 40, 'gold 50 − 20% = 40 (без изменений)');
+});

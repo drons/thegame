@@ -790,3 +790,97 @@ test('V5: гибель в бою — dead_mercs (окончательно) + spl
   assert.ok(cands.some((n) => n.id === 'merc_ashka'),
     'остальные наёмники — кандидаты (фильтры независимы)');
 });
+
+// =====================================================================
+// PC-1 (000164): partyLost — партия погибла с игроком: ВСЕ записи
+// roster (не только !alive-юниты) → deadMercs + splice + строки
+// «X погиб в бою.» (SPEC) — ветка res.partyLost в combatEndCompanions
+// (контракт 000164 §2.7/R-9). Ключевое отличие от V5: мерсы-юниты
+// ЖИВЫ в c.units — мутация ТОЛЬКО игрока (roster-ветка, а не
+// !alive-фильтр). «Без partyLost — бит-в-бит» — V5 выше (регрессия,
+// без правок). Паттерн — V5 (мутация живого объекта боя).
+// =====================================================================
+
+test('PC-1 (000164): partyLost — ВСЕ записи roster (не только !alive-юниты) → dead_mercs: splice + hud + сейв; подъём игрока без изменений', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({ level: 8, hp: 200, gold: 200 }),
+    companions: [
+      { npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2 },
+      { npcId: 'merc_ashka', level: 1, xp: 0, loyalty: 40, hiredDay: 1 },
+    ],
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  assertRestored(h, 2);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const c = g.actions.startCombat(0);
+  assert.ok(c, 'бой начался');
+  // Мерсы в c.units (rosterData дошёл до боя):
+  const uVolk = (c.units || []).find((u) => u && u.kind === 'merc' && u.id === 'merc_volk');
+  const uAshka = (c.units || []).find((u) => u && u.kind === 'merc' && u.id === 'merc_ashka');
+  assert.ok(uVolk && uAshka, 'volk и ashka в c.units');
+  // Мутация: ПОГИБ ТОЛЬКО игрок; мерсы-юниты ЖИВЫ в c.units
+  // (000164-ключевое: roster-ветка, а не !alive-юниты):
+  c.player.alive = false;
+  c.player.hp = 0;
+  assert.equal(uVolk.alive, true, 'volk-юнит ЖИВ (не !alive)');
+  assert.equal(uAshka.alive, true, 'ashka-юнит ЖИВА (не !alive)');
+  c.phase = 'over';
+  c.result = { outcome: 'dead', partyLost: true };
+  G.combatUI.handleCode('Escape');
+  assert.equal(G.combatUI.isActive(), false, 'бой закрыт (finish → onEnd)');
+  // Подъём игрока (000008) — БЕЗ ИЗМЕНЕНИЙ. hero — ЖИВОЙ объект боя
+  // (c.player === hero из main.js; g.state.hero — это ДЕБАГ-зеркало,
+  // пересобираемое КАЖДЫЙ кадр без primary/secondary — derived() по
+  // нему падает; паттерн B25 building-effects: hero = c.player +
+  // G.derived):
+  const hero = c.player;
+  assert.equal(hero.alive, true, 'игрок жив (подъём 000008)');
+  assert.equal(hero.hp,
+    Math.max(1, Math.round(G.derived(hero).maxHP / 2)),
+    'hp = max(1, round(maxHP/2)) — без изменений');
+  assert.equal(hero.gold, 160, 'gold 200 − 20% = 160 — без изменений');
+  // 000164: ВСЕ записи roster → deadMercs (запись 4 поля,
+  // serialize из roster; 000161) + splice; порядок = порядок roster:
+  const volkRec = {
+    npcId: 'merc_volk',
+    sheet: backfilledEntry({ npcId: 'merc_volk', level: 1, xp: 0,
+      loyalty: 65, hiredDay: 2 }).sheet,
+    loyalty: 65, hiredDay: 2,
+  };
+  const ashkaRec = {
+    npcId: 'merc_ashka',
+    sheet: backfilledEntry({ npcId: 'merc_ashka', level: 1, xp: 0,
+      loyalty: 40, hiredDay: 1 }).sheet,
+    loyalty: 40, hiredDay: 1,
+  };
+  assert.ok(Array.isArray(g.state.deadMercs));
+  assert.deepEqual(host(g.state.deadMercs), [volkRec, ashkaRec],
+    'deadMercs: ДВЕ записи (partyLost — весь roster, не только !alive-юниты)');
+  assert.ok(Array.isArray(g.state.roster));
+  assert.equal(host(g.state.roster).length, 0,
+    'roster: обе записи удалены (splice)');
+  assert.ok(!host(g.state.deadMercs).some((d) => d.npcId === 'efir'),
+    'Эфир — никогда в dead_mercs (структурно: не в roster — 000087)');
+  mainFrameAt(h);
+  const hud = String(h.hud.textContent);
+  assert.ok(hud.includes('Вы очнулись. −20% золота.'),
+    'hud: базовая строка подъёма НЕ тронута: ' + hud);
+  assert.ok(hud.includes('Вольк погиб в бою.'),
+    'hud: «Вольк погиб в бою.»: ' + hud);
+  assert.ok(hud.includes('Ашка погиб в бою.'),
+    'hud: «Ашка погиб в бою.»: ' + hud);
+  assert.ok(hud.indexOf('Вольк погиб в бою.') < hud.indexOf('Ашка погиб в бою.'),
+    'hud: порядок строк = порядок roster (compLines ПОСЛЕ базовой)');
+  // Сейв (onEnd → saveNow): dead_mercs (две записи) + пустой отряд:
+  const saved = readSave(h);
+  assert.deepEqual(saved.data.dead_mercs, [volkRec, ashkaRec],
+    'сейв: dead_mercs — две записи (000161)');
+  assert.deepEqual(saved.data.companions, [], 'сейв: companions []');
+  // Повторный найм ПОСЛЕ partyLost — НЕЛЬЗЯ (контракт G2):
+  const cands = G.companions.candidatesForTavern(
+    G.NpcData.NPCS, g.state.roster, g.state.deadMercs);
+  assert.ok(!cands.some((n) => n.id === 'merc_volk'), 'volk — не кандидат');
+  assert.ok(!cands.some((n) => n.id === 'merc_ashka'), 'ashka — не кандидат');
+});

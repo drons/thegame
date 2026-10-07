@@ -462,6 +462,13 @@ test('победа: весь лут, опыт и золото начислены
 });
 
 test('смерть: слабый герой против бездны', () => {
+  // 000164 (ОСОЗНАННЫЙ СЕМАНТИЧЕСКИЙ РЕПИН, ТЗ «Тесты (красные)»):
+  // пре-000164 — немедленный { outcome: 'dead' } = конец боя.
+  // С 000164 — гибель игрока открывает «окно смерти» (onPlayerDeath):
+  // каскад на союзников → auto-возрождение Эфира → попытка спасения.
+  // Фикстура БЕЗ СОЮЗНИКОВ И ЭФИРА — спасение структурно невозможно
+  // (нет Эфира, нет пула c.efs) → исход как ДО + аддитивное
+  // partyLost: true (контракт 000164 §2.1 шаг 5 / §2.6; ТЗ п.5).
   const p = createCharacter(); // уровень 1, 25 HP
   const c = createCombat({ player: p, groupType: 6, seed: 8 });
   // Задача 000050: мобы обязаны ДОЙТИ до героя (stepToward не обходит
@@ -473,6 +480,8 @@ test('смерть: слабый герой против бездны', () => {
   while (!c.result && n++ < 60) c.endTurn(); // герой только терпит
   assert.ok(c.result, 'бой должен завершиться');
   assert.equal(c.result.outcome, 'dead');
+  assert.equal(c.result.partyLost, true,
+    '000164: без Эфира/союзников окно неспасённое — partyLost: true');
   assert.equal(p.alive, false);
 });
 
@@ -1611,6 +1620,12 @@ test('turnIndex: в phase "mob" ходит по очереди — снимок 
 });
 
 test('turnIndex: конец боя в цикле мобов — замирает на последнем действовавшем', () => {
+  // 000164 (ОСОЗНАННЫЙ СЕМАНТИЧЕСКИЙ РЕПИН, ТЗ «Тесты (красные)»):
+  // пре-000164 — добивающий удар сразу ставил { outcome: 'dead' }.
+  // С 000164 — окно смерти в mob-фазе: фикстура БЕЗ СОЮЗНИКОВ/ЭФИРА →
+  // неспасение → исход как ДО + аддитивное partyLost: true;
+  // фаза-контекст сохранён (turnIndex застыл, очередь НЕ пересчитана —
+  // инвариант 000036/000167; контракт 000164 §2.1 шаг 5).
   const p = createCharacter(); // 25 HP, без «Несокрушимости»
   const c = createCombat({ player: p, mobs: ['skeleton', 'skeleton'], mobLevel: 2, seed: 9 });
   const [m0, m1] = c.units;
@@ -1627,6 +1642,8 @@ test('turnIndex: конец боя в цикле мобов — замирает
   c.endTurn(); // round 2: m0 бьёт 10 (25→15), m1 добивает
   assert.ok(c.result, 'бой должен завершиться');
   assert.equal(c.result.outcome, 'dead');
+  assert.equal(c.result.partyLost, true,
+    '000164: окно в mob-фазе неспасённое (нет Эфира) — partyLost: true');
   assert.equal(c.phase, 'over');
   assert.equal(c.turnIndex, 1, 'turnIndex застыл на последнем действовавшем (добившем)');
   assert.deepEqual(c.turnOrder, ['m0', 'm1', 'player'],
@@ -1638,6 +1655,12 @@ test('turnIndex: смерть от яда в начале раунда — оч�
   // очереди и turnIndex = 0, поэтому при смерти turnIndex = 0, а не
   // индекс паучка. Паук (4) быстрее игрока (2): round 1 (pre-roll) —
   // шаг; round 2 — удар + яд (2); round 3 — тик 2 → 1, −2 HP → смерть.
+  // 000164 (ОСОЗНАННЫЙ СЕМАНТИЧЕСКИЙ РЕПИН, ТЗ «Тесты (красные)»):
+  // гибель от тика яда — ВТОРАЯ точка окна смерти (startRound):
+  // фикстура БЕЗ СОЮЗНИКОВ/ЭФИРА → неспасение → исход как ДО +
+  // аддитивное partyLost: true; очередь к моменту окна уже
+  // ПЕРЕСЧИТАНА (дельта 000167 — turnIndex 0; контракт 000164 §2.2
+  // точка 2 / §2.1 шаг 5).
   const p = createCharacter(); // 25 HP
   p.hp = 3; // 3 − 1 (удар) = 1, затем яд −2 → смерть
   const c = createCombat({ player: p, mobs: ['spider'], mobLevel: 3, seed: 41 });
@@ -1649,6 +1672,8 @@ test('turnIndex: смерть от яда в начале раунда — оч�
   while (!c.result && n++ < 60) c.endTurn();
   assert.ok(c.result, 'бой должен завершиться');
   assert.equal(c.result.outcome, 'dead');
+  assert.equal(c.result.partyLost, true,
+    '000164: окно от яда неспасённое (нет Эфира) — partyLost: true');
   assert.equal(c.phase, 'over');
   assert.equal(c.turnIndex, 0, 'тик убил после пересчёта — очередь у игрока');
   assert.deepEqual(c.turnOrder, ['m0', 'player'],
@@ -5730,4 +5755,373 @@ test('000165 C6: доступность (ТЗ п.4) — лут Уродства 
     { id: 'minor_healing', qty: 1 },
     { id: 'iron_sword', qty: 1 },
   ], 'rng→0.01: таблица Уродства + базовый + редкий (краснота: свитка в дропе нет)');
+});
+
+// =====================================================================
+// Задача 000164: гибель Флогистона — «окно смерти» (onPlayerDeath):
+// каскад «все союзники погибли» → auto-возрождение Эфира (дух) →
+// спасение «Воскрешением» (бой продолжается) либо partyLost.
+// Контракт: memory/000164-death-window.md (§2 — порядок операций;
+// §4 — этот список; ERRATA-164 — цифры фикстур). КРАСНЫЕ: поведения
+// нет (onPlayerDeath приватный, c.result без partyLost, каскад/
+// reset/спасение отсутствуют). Фикстуры — существующие паттерны
+// 000167-серии; каталог заклинаний — шапка require('../src/spells.js')
+// (combatInternals.allySpells); buildEfirUnit — ПОСЛЕ createCombat
+// (паттерн 000112, L5403).
+//
+// Роллы-эмпирика (scratch, base ec08e19): в геометрии m0 (4,6)/
+// m1 (3,7) альянсы НЕ роллят — Volk (2,5) d 3 → шаг (тихий), Ashka
+// (4,5) d 1 → «отступает» (тихий); роллы = ТОЛЬКО hit-роллы мобов
+// (skeleton — без трейтов: трейт-роллов 0; pre-roll — шаги, 0).
+// =====================================================================
+
+const E164 = loadEfir000081();
+
+// Общая геометрия 2 скелетов (seed 9, L2, без трейтов): игрок (3,6)
+// 25 HP; скелеты закреплены вплотную (m0 (4,6), m1 (3,7)) — бьют с
+// round 2 (d 1: без шага/отступления); Эфир закреплён (2,5) — d 1
+// до игрока (Касания/эскорта нет), d 3 до мобов (спелл урона по
+// книге ['resurrect'] — null). Ожидание очереди round 2:
+// ['efir', 'm0', 'm1', 'player', 'a0'(, 'a1')] (a1 — при живости).
+function build164() {
+  const p = createCharacter(); // уровень 1, 25 HP
+  const state = E164.createEfir();
+  const c = createCombat({
+    player: p,
+    allies: [ALLY_VOLK, ALLY_ASHKA, E164.efirAllyData(state)],
+    mobs: ['skeleton', 'skeleton'], mobLevel: 2, seed: 9,
+  });
+  const m0 = c.units.find((u) => u.id === 'm0');
+  const m1 = c.units.find((u) => u.id === 'm1');
+  const efir = c.units.find((u) => u.id === 'efir');
+  const a0 = c.units.find((u) => u.id === 'a0');
+  const a1 = c.units.find((u) => u.id === 'a1');
+  m0.x = 4; m0.y = 6;
+  m1.x = 3; m1.y = 7;
+  efir.x = 2; efir.y = 5;
+  return { p, state, c, m0, m1, efir, a0, a1 };
+}
+
+// Та же, но 1 моб (CASC/EFIR/RESCUE-2/3): убийца m0 (4,6) d 50.
+function build164One() {
+  const p = createCharacter(); // уровень 1, 25 HP
+  const state = E164.createEfir();
+  const c = createCombat({
+    player: p,
+    allies: [ALLY_VOLK, ALLY_ASHKA, E164.efirAllyData(state)],
+    mobs: ['skeleton'], mobLevel: 2, seed: 9,
+  });
+  const m0 = c.units.find((u) => u.id === 'm0');
+  const efir = c.units.find((u) => u.id === 'efir');
+  const a0 = c.units.find((u) => u.id === 'a0');
+  const a1 = c.units.find((u) => u.id === 'a1');
+  m0.x = 4; m0.y = 6;
+  efir.x = 2; efir.y = 5;
+  return { p, state, c, m0, efir, a0, a1 };
+}
+
+test('000164-CASC-1: окно — каскад: ВСЕ союзники поля считаются погибшими; Эфир — после auto-возрождения жив', () => {
+  const { p, state, c, m0, efir, a0, a1 } = build164One();
+  m0.damage = 50; // добивает: 25 − 50
+  c._rng = () => 0.01; // попадания гарантированы
+  E164.buildEfirUnit(state, c);
+  // Книга = ровно ['resurrect'] (fixture-правило): Эфир-ход — no-op
+  // ('лечение'/'защита'/'урон' → null), 0 rng. Неспасение здесь по
+  // мане: reset-mp L1 = 5+3+3 = 11 < 15 («мани» каталога).
+  efir.spells = ['resurrect'];
+  c.endTurn(); // tail (Volk шаг, Ashka «отступает») → round 2:
+               // Эфир no-op → m0 убивает → ОКНО
+  assert.ok(c.result, 'бой завершён (не спасено)');
+  assert.equal(c.result.outcome, 'dead');
+  assert.equal(c.result.partyLost, true,
+    'не спасение — АДДИТИВНОЕ partyLost: true (ТЗ п.5)');
+  assert.equal(c.phase, 'over');
+  // Каскад (ТЗ п.2 / R-10): ВСЕ side 'ally' — alive false, hp 0;
+  // Эфир — ПОСЛЕ auto-возрождения — жив (промежуточное «все мертвы»
+  // синхронно ненаблюдаемо, контракт §2.4/OQ-3):
+  assert.equal(p.alive, false);
+  assert.equal(a0.alive, false, 'Вольк — считается погибшим');
+  assert.equal(a0.hp, 0, 'hp 0 — каноническая семантика гибели (R-10)');
+  assert.equal(a1.alive, false, 'Ашка — считается погибшим');
+  assert.equal(a1.hp, 0);
+  assert.equal(efir.alive, true, 'Эфир — auto-возрождён (дух), НЕ мёртв');
+});
+
+test('000164-EFIR-1: окно — auto-возрождение Эфира (дух): hp = maxHP, mp = 5+int+wis (ПЕРЕ-ДЕРИВАЦИЯ из attrs), лог-строка', () => {
+  const { p, state, c, m0, efir } = build164One();
+  m0.damage = 50;
+  c._rng = () => 0.01;
+  E164.buildEfirUnit(state, c);
+  efir.spells = ['resurrect'];
+  // «Пораненный» дух ДО окна: reset обязан быть ПОЛНЫМ
+  // (не частичное лечение):
+  efir.hp = 5;
+  efir.mp = 8;
+  c.endTurn();
+  assert.ok(c.result && c.result.outcome === 'dead', 'не спасено (mp 11 < 15)');
+  assert.equal(c.result.partyLost, true);
+  const expMp = 5 + ((efir.attrs && efir.attrs.intelligence) || 0)
+              + ((efir.attrs && efir.attrs.wisdom) || 0);
+  assert.equal(efir.alive, true, 'дух жив');
+  assert.equal(efir.hp, efir.maxHP,
+    'hp = maxHP — ПОЛНЫЙ reset (5 → ' + efir.maxHP + ', не частичный)');
+  assert.equal(efir.mp, expMp,
+    'mp = 5 + int + wis — пере-деривация из attrs (R-3; было 8 — '
+    + 'полный reset, не «8 без расхода»): ' + expMp);
+  assert.ok(c.log.includes('Эфир возвращается…'),
+    'лог-строка (U+2026): ' + c.log.join(' | '));
+});
+
+test('000164-RESCUE-1: окно — спасение: Эфир кастует «Воскрешение» на игрока, каскад отменён, бой продолжается, оставшиеся мобы раунда действуют', () => {
+  const { p, state, c, m0, m1, efir, a0, a1 } = build164();
+  m0.damage = 30; // убийца: 25 − 30 → смерть
+  m1.damage = 3;  // «оставшийся моб раунда» — действует ПОСЛЕ спасения
+  // «Погибший до окна» мерс (контракт §2.4/R-7): откат обязан
+  // поднять и его («не успели» умереть) — мутация ПОСЛЕ createCombat:
+  a1.alive = false;
+  a1.hp = 0;
+  c._rng = () => 0.01;
+  E164.buildEfirUnit(state, c);
+  // Книга = ровно ['resurrect'] → Эфир-ход no-op (0 rng).
+  // ERRATA-164: attrs 8/8 (мутация ПОСЛЕ buildEfirUnit — startRound
+  // рефиллит c.efs из c.efir.attrs live, reset читает e.attrs live):
+  // reset-mp = 5+8+8 = 21 ≥ 15 («мани» каталога) → гейт проходит;
+  // spellWis = 1 + floor(8/10) = 1 (пул есть).
+  efir.spells = ['resurrect'];
+  efir.attrs = Object.assign({}, efir.attrs, {
+    intelligence: 8, wisdom: 8 });
+  c.endTurn(); // tail (a0 шаг, a1 серый) → round 2: Эфир no-op →
+               // m0 убивает → ОКНО: reset (mp 21) → гейт → каст →
+               // откат → m1 ДЕЙСТВУЕТ в том же раунде → очередь у
+               // игрока
+  // Бой ПРОДОЛЖАЕТСЯ (окно закрыто спасением, ТЗ п.4):
+  assert.equal(c.result, null, 'спасение — c.result НЕ ставится');
+  assert.equal(c.phase, 'player', 'фазовый контекст сохранён: очередь у игрока');
+  assert.equal(c.round, 2);
+  assert.equal(c.turnIndex, 3, 'после m1 (ti 2) — слот игрока');
+  // Очередь НЕ пересчитана ПОСЛЕ окна (контракт §2.4): a1 мёртв на
+  // СТАРTE round 2 → вне buildTurnOrder; добор — со СЛЕДУЮЩЕГО
+  // (turnOrder НЕ 6 записей):
+  assert.deepEqual(c.turnOrder, ['efir', 'm0', 'm1', 'player', 'a0']);
+  // Каст: пул −1, мана −15 (от reset-значения 21):
+  assert.equal(c.efs.spellWis, 0, 'пул spellWis 1 − 1');
+  assert.equal(efir.mp, 6, 'мана 21 (5+8+8) − 15 (каталожное «мани»)');
+  // Игрок: alive, 50% HP − удар оставшегося m1 (13 − 3 = 10):
+  assert.equal(p.alive, true, 'resurrectAlly: alive = true');
+  const half = Math.round(derived(p).maxHP / 2);
+  assert.equal(half, 13, 'round(25/2) = 13');
+  assert.equal(p.hp, half - m1.damage,
+    'm1 ДЕЙСТВОВАЛ в том же раунде ПОСЛЕ спасения (13 − 3 = 10)');
+  // Откат каскада (R-7): ВСЕ merc-юниты — alive, round(maxHP/2),
+  // молча (без логов), включая a1 «не успели»:
+  assert.equal(a0.alive, true, 'a0 — откат каскада');
+  assert.equal(a0.hp, Math.round(a0.maxHP / 2), 'a0: 13 → ' + Math.round(13 / 2));
+  assert.equal(a1.alive, true, 'a1 «погиб до окна» — откат («не успели»)');
+  assert.equal(a1.hp, Math.round(a1.maxHP / 2), 'a1: 11 → ' + Math.round(11 / 2));
+  // Лог-порядок §2.1: «Вы погибли...» → «Эфир возвращается…» →
+  // «Эфир: «Воскрешение».» → «Возвращён в бой.» (ровно ОДИН —
+  // игрока; merc-откат молчалив):
+  const i1 = c.log.indexOf('Вы погибли...');
+  const i2 = c.log.indexOf('Эфир возвращается…');
+  const i3 = c.log.indexOf('Эфир: «Воскрешение».');
+  const i4 = c.log.indexOf('Возвращён в бой.');
+  assert.ok(i1 >= 0 && i2 > i1 && i3 > i2 && i4 > i3,
+    'лог-порядок rescue-трейла: ' + c.log.join(' | '));
+  assert.equal(c.log.filter((l) => l === 'Возвращён в бой.').length, 1,
+    'ровно один «Возвращён в бой.» (игрок; merc-откат молчалив)');
+});
+
+test('000164-RESCUE-2: неспасение — естественная книга L1 [spark, mend]: spark ДОСТУПИЛ до окна, reset полный, каста «Воскрешения» нет', () => {
+  const { p, state, c, m0, efir, a0, a1 } = build164One();
+  m0.damage = 50;
+  c._rng = () => 0.01;
+  E164.buildEfirUnit(state, c);
+  // Книга — естественная L1 (БЕЗ мутаций): Эфир-ход round 2 —
+  // spark (d 3 ≤ 4; «лечение»/«защита» — player frac 1.0 → null);
+  // окно: strongestKnown('воскрешение') → null → не спасение.
+  assert.deepEqual(efir.spells, ['spark', 'mend'], 'естественная L1-книга');
+  c.endTurn();
+  assert.ok(c.result && c.result.outcome === 'dead', 'бой завершён');
+  assert.equal(c.result.partyLost, true, 'не спасение — partyLost');
+  // Каскад + полный reset (spark забрал 3 ДО окна: mp 11 → 8 →
+  // reset → 11 — НЕ «8 − 15»):
+  assert.equal(a0.alive, false);
+  assert.equal(a0.hp, 0);
+  assert.equal(a1.alive, false);
+  assert.equal(a1.hp, 0);
+  assert.equal(efir.alive, true, 'дух auto-возрождён');
+  assert.equal(efir.hp, efir.maxHP);
+  const expMp = 5 + ((efir.attrs && efir.attrs.intelligence) || 0)
+              + ((efir.attrs && efir.attrs.wisdom) || 0);
+  assert.equal(efir.mp, expMp,
+    'mp — ПОЛНЫЙ reset (11 → 8 от spark → ' + expMp + ')');
+  assert.equal(c.efs.spellInt, 0, 'spark ЗАБРАЛ spellInt (каст был ДО окна)');
+  assert.equal(c.efs.spellWis, 1, 'пул spellWis нетронут (не «Воскрешение»)');
+  assert.equal(m0.hp, 1, 'spark ДОСТИГ m0 (6 − 5 = 1) — книга жива');
+  assert.ok(c.log.includes('Эфир возвращается…'), 'auto-возрождение — есть');
+  assert.ok(!c.log.includes('Эфир: «Воскрешение».'), 'каст атрибуции НЕТ');
+  assert.ok(!c.log.includes('Возвращён в бой.'), 'воскрешения НЕТ');
+});
+
+test('000164-RESCUE-3: гейт — без каста и БЕЗ ЧАСТИЧНОГО расхода: (a) mp-гейт (11 < 15); (b) pool-гейт (spellWis 0)', () => {
+  // (a) mp-гейт: attrs L1 (3/3) → reset-mp 11 < 15 → каста нет:
+  // mp === 11 (reset-значение; НЕ 11 − 15), spellWis 1 нетронут.
+  {
+    const { state, c, m0, efir, a0, a1 } = build164One();
+    m0.damage = 50;
+    c._rng = () => 0.01;
+    E164.buildEfirUnit(state, c);
+    efir.spells = ['resurrect'];
+    c.endTurn();
+    assert.ok(c.result && c.result.outcome === 'dead');
+    assert.equal(c.result.partyLost, true, '(a): не спасение — partyLost');
+    assert.equal(efir.alive, true);
+    assert.equal(efir.hp, efir.maxHP, '(a): auto-reset');
+    const expMp = 5 + ((efir.attrs && efir.attrs.intelligence) || 0)
+                + ((efir.attrs && efir.attrs.wisdom) || 0);
+    assert.equal(expMp, 11, '(a): reset-mp L1 = 11');
+    assert.equal(efir.mp, expMp, '(a): mp — reset-значение (каста нет: не 11 − 15)');
+    assert.equal(c.efs.spellWis, 1, '(a): пул нетронут (частиц расхода НЕТ)');
+    assert.equal(a0.alive, false, '(a): каскад полный');
+    assert.equal(a1.alive, false, '(a): каскад полный');
+    assert.ok(c.log.includes('Эфир возвращается…'), '(a): reset-лог есть');
+    assert.ok(!c.log.includes('Возвращён в бой.'), '(a): каста НЕТ');
+    assert.ok(!c.log.includes('Эфир: «Воскрешение».'), '(a): атрибуции НЕТ');
+  }
+  // (b) pool-гейт: attrs {intelligence: 20, wisdom: −10} →
+  // reset-mp 15 (гейт ПРОХОДИТ) но refill spellWis = 1 +
+  // floor(−10/10) = 0 (гейт падает на пуле — единственный путь на
+  // spellWis 0: формула миним. 1 при attrs ≥ 0) → каста нет:
+  // mp 15 (НЕ 0), spellWis 0.
+  {
+    const { state, c, m0, efir, a0, a1 } = build164One();
+    m0.damage = 50;
+    c._rng = () => 0.01;
+    E164.buildEfirUnit(state, c);
+    efir.spells = ['resurrect'];
+    efir.attrs = Object.assign({}, efir.attrs, {
+      intelligence: 20, wisdom: -10 });
+    c.endTurn();
+    assert.ok(c.result && c.result.outcome === 'dead');
+    assert.equal(c.result.partyLost, true, '(b): не спасение — partyLost');
+    assert.equal(efir.alive, true);
+    const expMp = 5 + (efir.attrs.intelligence || 0)
+                + (efir.attrs.wisdom || 0);
+    assert.equal(expMp, 15, '(b): reset-mp 15 — mp-гейт ПРОШЁЛ');
+    assert.equal(efir.mp, expMp, '(b): mp 15 — нетронут (каста нет: не 15 − 15 = 0)');
+    assert.equal(c.efs.spellWis, 0, '(b): пул 0 (refill из attrs) — гейт на пуле');
+    assert.equal(a0.alive, false, '(b): каскад полный');
+    assert.equal(a1.alive, false, '(b): каскад полный');
+    assert.ok(c.log.includes('Эфир возвращается…'), '(b): reset-лог есть');
+    assert.ok(!c.log.includes('Возвращён в бой.'), '(b): каста НЕТ');
+  }
+});
+
+test('000164-RNG-1: ноль новых c._rng в окне — счётчик === 4 (2+2 hit-ролла мобов) + детерминизм: 2 независимых прогона идентичны', () => {
+  // Сценарий RESCUE-1 на 2 `c.endTurn()`: round 2 — m0 (12: 25→13),
+  // m1 (2: 13→11); round 3 — m0 (30: 11→СМЕРТЬ → окно → rescue,
+  // 0 rng), m1 (2: 13→11). Роллы: ТОЛЬКО hit-роллы мобов — tail:
+  // Volk шаг/Ашка серый-слот-«отступление» (0), Эфир no-op
+  // (книга ['resurrect'] — 0), окно/каскад/reset/каст (0, D4),
+  // скелеты без трейтов (0). Итого ТОЧНО 4.
+  const run164 = () => {
+    const { p, state, c, m0, m1, efir } = build164();
+    m0.damage = 12;
+    m1.damage = 2;
+    const a1 = c.units.find((u) => u.id === 'a1');
+    a1.alive = false; // «погибший до окна» (как в RESCUE-1)
+    a1.hp = 0;
+    E164.buildEfirUnit(state, c);
+    efir.spells = ['resurrect'];
+    efir.attrs = Object.assign({}, efir.attrs, {
+      intelligence: 8, wisdom: 8 });
+    let n = 0;
+    c._rng = () => { n += 1; return 0.01; };
+    c.endTurn(); // round 2: m0 [1], m1 [2]
+    m0.damage = 30;
+    c.endTurn(); // round 3: m0 [3] → окно (0) → m1 [4]
+    return {
+      n,
+      snap: {
+        result: c.result ? { outcome: c.result.outcome,
+          partyLost: c.result.partyLost } : null,
+        round: c.round,
+        phase: c.phase,
+        turnIndex: c.turnIndex,
+        player: { alive: p.alive, hp: p.hp },
+        efirMp: efir.mp,
+        efs: { spellInt: c.efs.spellInt, spellWis: c.efs.spellWis,
+          touch: c.efs.touch, move: c.efs.move },
+        turnOrder: c.turnOrder.slice(),
+        units: c.units.map((u) => ({
+          id: u.id, x: u.x, y: u.y, hp: u.hp, alive: u.alive })),
+        log: c.log.slice(),
+      },
+    };
+  };
+  const A = run164();
+  const B = run164();
+  assert.equal(A.n, 4,
+    'счётчик === 4 (2 hit-ролла/раунд × 2 раунда): окно НЕ добавляет');
+  assert.deepEqual(B.snap, A.snap, 'детерминизм D4: 2 прогона идентичны');
+  // Состояние в конце round 3 (спасён — бой идёт):
+  assert.equal(A.snap.result, null, 'round 3: бой продолжается');
+  assert.equal(A.snap.round, 3);
+  assert.equal(A.snap.phase, 'player');
+  assert.equal(A.snap.turnIndex, 3);
+  assert.equal(A.snap.player.alive, true);
+  assert.equal(A.snap.player.hp, 11, '13 (спасение) − 2 (m1)');
+  assert.equal(A.snap.efirMp, 6, '21 (5+8+8) − 15');
+  assert.equal(A.snap.efs.spellWis, 0);
+  assert.equal(A.snap.turnOrder.length, 6,
+    'round-3-ребилд: a1 (воскресший откатом) В очереди (6 записей)');
+});
+
+test('000164-UNKILL-1 (GUARD, зелёный с RED): «Несокрушимость» срабатывает РАНЬШЕ окна — 1 HP, бой продолжается, каскада НЕТ', () => {
+  // Пин РАЗМЕЩЕНИЯ хендлера (ТЗ п.1): «Несокрушимость»
+  // (survivalChance = min(1, 0.01 × unkill), 1/день) срабатывает
+  // РАНЬШЕ onPlayerDeath — окно в её путь НЕ входит (защита 1 HP).
+  // Зелёный в RED и после реализации: хендлер, размещённый РАНЬШЕ
+  // survival-проверки, дал бы каскад/partyLost/спасение → red.
+  const p = createCharacter();
+  p.secondary = { unkill: 50 }; // survivalChance 0.5 (0.01 × 50)
+  p.hp = 1; // 1 − 25 → 0 → «Несокрушимость» (0.01 < 0.5) → hp 1
+  const state = E164.createEfir();
+  const c = createCombat({
+    player: p,
+    allies: [ALLY_VOLK, ALLY_ASHKA, E164.efirAllyData(state)],
+    mobs: ['skeleton'], mobLevel: 2, seed: 9, // 1 МОБ: Несокрушимость
+    // 1/день — второй удар добил бы (день один — боя больше нет)
+  });
+  const m0 = c.units.find((u) => u.id === 'm0');
+  const efir = c.units.find((u) => u.id === 'efir');
+  const a0 = c.units.find((u) => u.id === 'a0');
+  const a1 = c.units.find((u) => u.id === 'a1');
+  m0.x = 4; m0.y = 6;
+  m0.damage = 25;
+  efir.x = 2; efir.y = 5;
+  c._rng = () => 0.01; // hit-ролл (0.01 < hitChance) И survival (0.01 < 0.5)
+  E164.buildEfirUnit(state, c);
+  // «Готовый к спасению» Эфир: если хендлер misplaced (раньше
+  // survival-проверки), он бы кастнул (reset-mp 21 ≥ 15, пул 1) —
+  // тест поймал бы это (p.hp 13 / каскад / строки).
+  efir.spells = ['resurrect'];
+  efir.attrs = Object.assign({}, efir.attrs, {
+    intelligence: 8, wisdom: 8 });
+  efir.mp = 18; // < 20: «Вдох Эфира» НЕ сработает (frac 0.04 ≤ 0.4,
+                // но mp < mpCost 20) — ход Эфира no-op
+  c.endTurn(); // tail (a0 шаг, a1 «отступает») → round 2: Эфир no-op
+               // → m0: 1 − 25 → Несокрушимость → hp 1 → бой дальше
+  assert.equal(p.alive, true, '«Несокрушимость» — выжил');
+  assert.equal(p.hp, 1, '1 HP — окно в её путь не входит');
+  assert.equal(c.result, null, 'бой продолжается');
+  assert.equal(c.phase, 'player');
+  assert.equal(a0.alive, true, 'каскада НЕТ: Вольк жив');
+  assert.equal(a0.hp, a0.maxHP, 'каскада НЕТ: Вольк полный');
+  assert.equal(a1.alive, true, 'каскада НЕТ: Ашка жива');
+  assert.equal(a1.hp, a1.maxHP);
+  assert.equal(efir.mp, 18, 'reset/спасения не было — mp нетронут');
+  assert.ok(!c.log.includes('Вы погибли...'), 'смертной строки нет');
+  assert.ok(!c.log.includes('Эфир возвращается…'), 'auto-возрождения нет');
+  assert.ok(!c.log.includes('Возвращён в бой.'), 'каста нет');
 });
