@@ -8554,7 +8554,7 @@ function deadRec(npcId, totalXp, over = {}) {
   }, over);
 }
 
-test('RES-A1. каталоги 36/37/38: эффекты-массивы ["<id>","resurrect"], воскрешение {база:20, за_опыт:0.05} у всех трёх, per-эффектный раз_в_день (36/38 — только свой эффект), effectIds в порядке каталога', () => {
+test('RES-A1. каталоги 36/37/38: эффекты-массивы ["<id>","resurrect"] (38: + "38_mentor", 000147), воскрешение {база:20, за_опыт:0.05} у всех трёх, per-эффектный раз_в_день (36/38 — только свой эффект), effectIds в порядке каталога', () => {
   const BE = loadBE();
   const B = require('../src/buildings.js');
   const b36 = B.getBuilding(36);
@@ -8571,8 +8571,10 @@ test('RES-A1. каталоги 36/37/38: эффекты-массивы ["<id>","
     'fallback 1-к-1 по id)');
   assert.deepEqual(p37.эффекты, ['37', 'resurrect'],
     '37: эффекты ["37","resurrect"]');
-  assert.deepEqual(p38.эффекты, ['38', 'resurrect'],
-    '38: эффекты ["38","resurrect"]');
+  // Ребейз 000147 на мастер (2026-10-07): union каталога 38 —
+  // ["38","38_mentor"] (000147) + "resurrect" (000162).
+  assert.deepEqual(p38.эффекты, ['38', '38_mentor', 'resurrect'],
+    '38: эффекты ["38","38_mentor","resurrect"] (union 000147+000162)');
   // Параметры цены — ИЗ КАТАЛОГА (принцип 000053: код читает
   // каталог, не хардкодит) — у всех трёх храмов.
   assert.deepEqual(p36.воскрешение, { база: 20, за_опыт: 0.05 },
@@ -8595,8 +8597,8 @@ test('RES-A1. каталоги 36/37/38: эффекты-массивы ["<id>","
     '36: effectIds (порядок каталога)');
   assert.deepEqual(BE.effectIds(b37), ['37', 'resurrect'],
     '37: effectIds (порядок каталога)');
-  assert.deepEqual(BE.effectIds(b38), ['38', 'resurrect'],
-    '38: effectIds (порядок каталога)');
+  assert.deepEqual(BE.effectIds(b38), ['38', '38_mentor', 'resurrect'],
+    '38: effectIds (порядок каталога, union 000147+000162)');
 });
 
 test('RES-A2. hasDailyLimit per-эффект: 36 — "36"→true/"resurrect"→false; 38 — "38"→true/"resurrect"→false; 37 — оба false (услуга без дневного лимита, R-4)', () => {

@@ -456,7 +456,7 @@ const buildingJson = (id) =>
 
 // --- AP-M1: каталоги + реестр + зеркало ---
 
-test('000147 AP-M1: каталоги 17/18/19/21/38 — наставник.заклинания (пулы D12) + цена 50 + эффекты NN_mentor (38: ["38","38_mentor"] + раз_в_день-ОБЪЕКТ {38:true}); реестр EFFECTS[NN_mentor] {имя «Обучение (наставник)», apply}; hasDailyLimit: 38→true, 38_mentor→false, 17_mentor→false; зеркало buildings.js deepEqual JSON; RED: каталожного ключа/реестровых записей нет', () => {
+test('000147 AP-M1: каталоги 17/18/19/21/38 — наставник.заклинания (пулы D12) + цена 50 + эффекты NN_mentor (38: ["38","38_mentor","resurrect"], union с 000162 + раз_в_день-ОБЪЕКТ {38:true}); реестр EFFECTS[NN_mentor] {имя «Обучение (наставник)», apply}; hasDailyLimit: 38→true, 38_mentor→false, 17_mentor→false; зеркало buildings.js deepEqual JSON; RED: каталожного ключа/реестровых записей нет', () => {
   for (const [id, pool] of Object.entries(MENTOR_POOLS)) {
     const j = buildingJson(Number(id));
     const mentor = j.особые_параметры && j.особые_параметры.наставник;
@@ -470,9 +470,11 @@ test('000147 AP-M1: каталоги 17/18/19/21/38 — наставник.за�
   // 38: явный эффекты-массив (благословение ПЕРВОЙ) + раз_в_день
   // boolean→ОБЪЕКТ (благословение побайтово; '38_mentor' — нет):
   const j38 = buildingJson(38);
+  // Ребейз на мастер 4feb564 (000162): union каталога 38 —
+  // ["38","38_mentor"] (000147) + "resurrect" (000162).
   assert.deepEqual(j38.особые_параметры.эффекты,
-    ['38', '38_mentor'],
-    'каталог 38: эффекты ["38","38_mentor"] (порядок оверлея)');
+    ['38', '38_mentor', 'resurrect'],
+    'каталог 38: эффекты ["38","38_mentor","resurrect"] (union, порядок оверлея)');
   assert.deepEqual(j38.особые_параметры.раз_в_день, { 38: true },
     'каталог 38: раз_в_день boolean→пер-эффектный объект (000092)');
   // Реестр + лимиты:
@@ -486,7 +488,8 @@ test('000147 AP-M1: каталоги 17/18/19/21/38 — наставник.за�
   assert.deepEqual(BE.effectIds(B.getBuilding(17)), ['17_mentor'],
     'effectIds(17) — из каталожного эффектов');
   assert.deepEqual(BE.effectIds(B.getBuilding(38)),
-    ['38', '38_mentor'], 'effectIds(38) — оба, каталожный порядок');
+    ['38', '38_mentor', 'resurrect'],
+    'effectIds(38) — все три, каталожный порядок (union 000147+000162)');
   assert.equal(BE.hasDailyLimit(B.getBuilding(38), '38'), true,
     'благословение 38 — раз в день (побайтово, объект-ветка)');
   assert.equal(BE.hasDailyLimit(B.getBuilding(38), '38_mentor'), false,
