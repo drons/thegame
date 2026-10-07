@@ -709,7 +709,7 @@ test('000145 B6: Эфир-вид на странице: «Вдох Эфира» 
   clickPanel(env, efirBtn);
   assert.equal(breathSec.style.display, '', 'для «Эфира» — видна');
   const breath = breathSec.querySelector('.cp-stats');
-  assert.ok(breath, 'тело «Вдоха» (.cp-stats — паттерн ui-tab-efir)');
+  assert.ok(breath, 'тело «Вдоха» (.cp-stats — паттерн вкладки 000116)');
   const bt = breath.textContent;
   for (const s of ['1 раз за бой', '40%', '20 маны',
       'round(10 + 0.8 * Мудрость)', '×0.8', '2 хода']) {

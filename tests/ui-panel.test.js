@@ -2191,11 +2191,12 @@ function getByPath(obj, p) {
 }
 
 // Pane вкладки «Игровые настройки» (левый столбец, 3-я вкладка —
-// реестр 000130; 000116: «Эфир» — 4-я, индексы 0-2 не сдвигаются).
+// реестр 000130; 000146: «Эфир» убрана — левый столбец 3 pane,
+// индексы 0-2 не сдвигаются).
 function settingsPane(env, panel) {
   const cols = colsOf(panel);
   const panes = panesOf(cols[0]);
-  assert.equal(panes.length, 4, 'левый столбец — 4 pane');
+  assert.equal(panes.length, 3, 'левый столбец — 3 pane (000146)');
   clickTab(panel, cols[0], 2);
   return panes[2];
 }
