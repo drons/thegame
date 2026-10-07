@@ -688,8 +688,11 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // заклинаний (000043-000050) добавлены КОНЦОМ каталога →
     // существующие стоки не сдвинулись, += свитки, вытянутые rng-хвостом
     // (chill/magic_shield в этом (x,y) не выпали — и в золотом их нет).
+    // Ре-пин 000165: свиток воскрешения (000051) — КОНЕЦ каталога
+    // (rng-хвост пула allItems) → += resurrect_scroll: 5, остальные
+    // ключи стока не сдвинулись (симуляция: seed/сток byte-identical).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
-      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3 } },
+      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1176,4 +1179,96 @@ test('S8. 000133: useItem свиток — без Game.Spells: без исклю
     'причина деградации (контракт §2.4); факт: ' + res.reason);
   assert.ok(!c.spells.includes('fireball'), 'заклинание не изучено');
   assert.equal(I.totalQty(c, 'fireball_scroll'), 1, 'предмет цел');
+});
+
+// --- Задача 000165: Свиток воскрешения (kind resurrection_scroll,
+// effect {kind:'resurrect'}) ---
+//
+// КРАСНЫЕ тесты (TDD): написаны ДО реализации, падают на текущем
+// (неизменённом) коде:
+//   * assets/items/000051.json отсутствует (I1: файл, schema.json,
+//     зеркало items-data.js, нестаккуемость — «неизвестный предмет»);
+//   * enum'ы schema.json без 'resurrection_scroll' / 'resurrect'
+//     (I3 — tests/assets-schemas.test.js, прецедент 000133);
+//   * ветка useItem (мир) для нового kind отсутствует (I2: в красной
+//     стадии предмета нет в каталоге вовсе — «неизвестный предмет»;
+//     зелёная — отказ ДО расхода, предмет не тратится).
+// Контракты — memory/000165-resurrection-scroll.md (§3.1 форма 000051,
+// §3.5 строки, Р-1..Р-12). Тех-ре-пин makeShop golden (универсам:
+// += resurrect_scroll) — стадия ЗЕЛЁНАЯ (паттерн 000133): в красной
+// фазе каталог не меняется — golden не падает.
+
+const { validate: validateSchema165 } = require('./json-schema.js');
+
+test('000165 I1: каталог 000051.json — 51-й файл, поля по ТЗ, schema.json, зеркало items-data.js, нестаккуемый', () => {
+  // (a) Нумерация: 000051.json — 51-й файл, следующий свободный слот
+  //     (краснота: файла нет).
+  const files = fs.readdirSync(ITEMS_DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  assert.equal(files.length, 51,
+    'каталог — 51 файл (краснота: ' + files.length + ')');
+  assert.equal(files[50], '000051.json',
+    '000051.json — 51-й файл (краснота: файла нет)');
+  const j = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, '000051.json'), 'utf8'));
+  // (b) Поля по ТЗ (контракт §3.1): id/name/kind/weight/value/desc/
+  //     effect. kind 'resurrection_scroll' — НОВЫЙ (не spell_scroll:
+  //     тот = свиток-обучалка 000133); effect — ТОЛЬКО
+  //     { kind: 'resurrect' } (полей нет: цель не выбирается,
+  //     параметры — в ядре combat.js).
+  assert.equal(j.id, 'resurrect_scroll');
+  assert.equal(j.name, 'Свиток воскрешения');
+  assert.equal(j.kind, 'resurrection_scroll',
+    'НОВЫЙ kind (краснота: kind неизвестен)');
+  assert.equal(j.weight, 0.5);
+  assert.equal(j.value, 150);
+  assert.equal(j.desc,
+    'В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). Цель не выбирается.',
+    'desc закреплён (контракт Р-8, тон = SPEC L1500)');
+  assert.deepEqual(j.effect, { kind: 'resurrect' },
+    'effect — { kind: resurrect } ТОЛЬКО (НОВЫЙ effect-kind)');
+  // (c) Валиден по schema.json (enum'ы расширены — краснота: enum'ы
+  //     не содержат новых значений).
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  const errors = [];
+  validateSchema165(schema, j, '000051.json', errors);
+  assert.deepEqual(errors, [], 'схема: ' + errors.join('; '));
+  // (d) Зеркало src/items-data.js (реген npm run sync:items):
+  //     getItem ≡ JSON, каталог — 51 предмет (краснота: записи нет).
+  const it = I.getItem('resurrect_scroll');
+  assert.ok(it, 'зеркало items-data.js: resurrect_scroll '
+    + '(краснота: записи нет)');
+  assert.deepEqual(it, j, 'зеркало ≡ JSON');
+  assert.equal(I.allItems().length, 51, 'allItems — 51 предмет');
+  // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
+  //     addItem ×2 → 2 слота qty 1 (не стопка).
+  const c = createCharacter();
+  assert.equal(I.addItem(c, 'resurrect_scroll').ok, true,
+    'выдача свитка (краснота: неизвестный предмет)');
+  assert.equal(I.addItem(c, 'resurrect_scroll').ok, true,
+    'второй свиток (краснота: неизвестный предмет)');
+  const slots = c.inventory.slots
+    .filter((e) => e.id === 'resurrect_scroll');
+  assert.equal(slots.length, 2, '2 слота (нестаккуемый, паттерн 000133)');
+  for (const e of slots) assert.equal(e.qty, 1, 'qty 1 (не стопка)');
+  assert.equal(I.totalQty(c, 'resurrect_scroll'), 2, 'всего 2 шт');
+});
+
+test('000165 I2: useItem в мире — отказ «Свиток воскрешения можно применить только в бою», предмет не тратится', () => {
+  const c = createCharacter();
+  const add = I.addItem(c, 'resurrect_scroll');
+  assert.equal(add.ok, true,
+    'выдача свитка (краснота: неизвестный предмет): ' + JSON.stringify(add));
+  const hp0 = c.hp, mp0 = c.mp;
+  const res = I.useItem(c, 'resurrect_scroll');
+  assert.equal(res.ok, false,
+    'отказ: только в бою (краснота: ветки useItem для kind нет): '
+    + JSON.stringify(res));
+  assert.equal(res.reason, 'Свиток воскрешения можно применить только в бою',
+    'строка отказа дословно из ТЗ (контракт §3.5); факт: ' + res.reason);
+  assert.equal(I.totalQty(c, 'resurrect_scroll'), 1,
+    'предмет НЕ тратится (отказ — не расход)');
+  assert.equal(c.hp, hp0, 'hp не мутирует');
+  assert.equal(c.mp, mp0, 'mp не мутирует');
 });

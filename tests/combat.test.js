@@ -5522,3 +5522,212 @@ test('000167-WEAK-1: «Вдох Эфира» против БОЛЕЕ БЫСТР�
     C.combatInternals.allySpells = saveCatalog;
   }
 });
+
+// =====================================================================
+// Задача 000165. Свиток воскрешения — применение в бою (быстрый слот).
+//
+// КРАСНЫЕ тесты (TDD): написаны ДО реализации, падают на текущем
+// (неизменённом) коде:
+//   * предмета resurrect_scroll нет в каталоге (I1/I2 —
+//     tests/items.test.js): addItem «неизвестный предмет» — здесь
+//     setQuick/invItem/canDoAction падают на этом же отсутствии;
+//   * ветки воскрешения в playerQuickItem НЕТ (C1/C3: краснота —
+//     «быстрый слот 1 пуст», т.к. setQuick отказал без предмета);
+//   * зеркала canDoAction 'quickItem' НЕТ (C5: краснота —
+//     «быстрые слоты пусты» / «неизвестный предмет» / ok:true);
+//   * playerInvItem намеренно НЕ расширен (C4 — v1-граница, ТЗ;
+//     отказ — из I.useItem «только в бою», пул не сгорает);
+//   * свитка в луте Уродства НЕТ (C6: deepEqual таблиц JSON+зеркало +
+//     детерминированный дроп, паттерн N2).
+// Контракты — memory/000165-resurrection-scroll.md (§3.4 код веток,
+// §3.5 строки, Р-1..Р-12). Ядро — resurrectAlly (000163: alive,
+// hp = round(maxHP/2), лог «Возвращён в бой.», НОЛЬ c._rng).
+// Порядок — ВСТРОЕН В C1 (C2-отдельного нет): убиваются ОБА
+// союзника, B ПЕРВЫМ — «первый в c.units» (A) ≠ «умерший первым» (B);
+// воскресает A, B остаётся мёртв. Очередь хода при воскрешении НЕ
+// пересчитывается (инвариант 000163 §3.2 / 000167).
+// =====================================================================
+
+// Бой с союзниками (фикстура 000080; паттерн allyCombat163, 000163):
+// волк + союзники В ПОРЯДКЕ массива (c.units: [wolf, a0, a1, ...]).
+function scrollCombat165(p, allies) {
+  return createCombat({
+    player: p, mobs: ['wolf'], mobLevel: 2, seed: 5,
+    allies,
+  });
+}
+const ALLY_A_165 = { name: 'Алли', role: 'melee', level: 1,
+  dmg: 1.2, hp: 1.1, skills: [], spells: [] };
+const ALLY_B_165 = { name: 'Борис', role: 'melee', level: 1,
+  dmg: 1.2, hp: 1.1, skills: [], spells: [] };
+
+test('000165 C1: quick-слот — воскресает ПЕРВЫЙ мёртвый союзник в порядке c.units (50% HP), свиток сгорает, ноль c._rng, очередь не пересчитывается', () => {
+  const p = strongHero();
+  const c = scrollCombat165(p, [ALLY_A_165, ALLY_B_165]);
+  const alliesU = c.units.filter((u) => u.side === 'ally');
+  assert.equal(alliesU.length, 2, 'два союзника в c.units');
+  const aA = alliesU[0], aB = alliesU[1]; // c.units: [wolf, A, B]
+  // Убиваем ОБА (реальный путь гибели — ядро 000112, ноль c._rng);
+  // B ПЕРВЫМ — чтобы «первый в c.units» (A) ≠ «умерший первым» (B).
+  combatInternals.dealDamageToAlly(c, aB, 9999);
+  assert.equal(aB.alive, false, 'фикстура: B мёртв');
+  combatInternals.dealDamageToAlly(c, aA, 9999);
+  assert.equal(aA.alive, false, 'фикстура: A мёртв');
+
+  assert.equal(I.addItem(p, 'resurrect_scroll').ok, true,
+    'выдача свитка (краснота: неизвестный предмет)');
+  assert.equal(I.setQuick(p, 0, 'resurrect_scroll').ok, true,
+    'закрепление в quick-слот 0 (краснота: предмета нет)');
+  const pool0 = c.ps.quickItem;
+  // Обёртка-счётчик c._rng (паттерн R2 000163): ветка — ноль rng.
+  let rngCalls = 0;
+  const origRng = c._rng;
+  c._rng = () => { rngCalls += 1; return origRng(); };
+  const turnOrder0 = c.turnOrder.slice();
+
+  const r = c.quickItem(0);
+  assert.equal(r.ok, true,
+    'quickItem: ok (краснота: ветки нет — отказ): ' + JSON.stringify(r));
+  assert.equal(r.slot, 0, 'применён слот 0');
+  // A — ПЕРВЫЙ мёртвый союзник в порядке c.units — воскрешён
+  // (D6: цель игроком НЕ выбирается; игрок вне c.units — не цель, v1).
+  assert.equal(aA.alive, true, 'A (первый в c.units) возвращён в бой');
+  assert.equal(aA.hp, Math.round(aA.maxHP / 2),
+    'hp = round(maxHP/2) (контракт D6, resurrectAlly 000163)');
+  assert.equal(aA.fled, false, 'воскрешён — а не «сбежавший»');
+  // B — ВТОРОЙ мёртвый союзник — остаётся мёртв (цель — одна).
+  assert.equal(aB.alive, false, 'B остаётся мёртв (цель — один)');
+  assert.equal(aB.hp, 0, 'B: hp 0');
+  // Расход: ровно 1 шт.; пул −1 (СНАЧАЛА, как в текущем коде — ТЗ);
+  // quick-слот очищен (qty → 0, removeItem items.js).
+  assert.equal(I.totalQty(p, 'resurrect_scroll'), 0,
+    'свиток сгорел (ровно 1 шт.)');
+  assert.equal(c.ps.quickItem, pool0 - 1, 'пул quickItem −1');
+  assert.equal(p.inventory.quick[0], null,
+    'quick-слот 0 очищен (removeItem, qty → 0)');
+  // Лог — ЕДИНСТВЕННАЯ строка ядра 000163 (R-3), дописок нет.
+  assert.ok(c.log.includes('Возвращён в бой.'),
+    'лог «Возвращён в бой.»: ' + c.log.join(' | '));
+  // Детерминизм (D3 000163): ноль c._rng на ветке (ветка +
+  // resurrectAlly + removeItem — без rng).
+  assert.equal(rngCalls, 0, 'c._rng() не вызывается на ветке свитка');
+  // Очередь хода НЕ пересчитывается веткой (buildTurnOrder в ветке
+  // нет — инвариант 000163 §3.2 / 000167): до/после — deepEqual.
+  assert.deepEqual(c.turnOrder, turnOrder0,
+    'turnOrder до/после — без пересчёта (ветка чистая)');
+  // После endTurn: воскресший входит в turnOrder с начала
+  // СЛЕДУЮЩЕГО раунда (существующий buildTurnOrder, 000036).
+  c.endTurn();
+  assert.ok(c.turnOrder.includes(aA.id),
+    'после endTurn — A в turnOrder (с начала следующего раунда): '
+    + JSON.stringify(c.turnOrder));
+});
+
+test('000165 C3: quick-слот, живых только — отказ «нет погибших союзников», действие НЕ сгорает, предмет цел', () => {
+  const p = strongHero();
+  const c = scrollCombat165(p, [ALLY_A_165]);
+  const aA = c.units.find((u) => u.side === 'ally');
+  assert.ok(aA, 'союзник в c.units');
+  assert.equal(I.addItem(p, 'resurrect_scroll').ok, true,
+    'выдача свитка (краснота: неизвестный предмет)');
+  assert.equal(I.setQuick(p, 0, 'resurrect_scroll').ok, true,
+    'закрепление в quick-слот 0 (краснота: предмета нет)');
+  const pool0 = c.ps.quickItem;
+  const hp0 = aA.hp;
+  const r = c.quickItem(0);
+  assert.equal(r.ok, false,
+    'отказ: мёртвых нет (краснота: ветки нет): ' + JSON.stringify(r));
+  assert.equal(r.reason, 'нет погибших союзников',
+    'строка отказа закреплена (контракт Р-2/§3.5); факт: ' + r.reason);
+  assert.equal(c.ps.quickItem, pool0,
+    'действие НЕ сгорело (паттерн playerQuickItem: отказ — return ДО пула)');
+  assert.equal(I.totalQty(p, 'resurrect_scroll'), 1, 'предмет цел');
+  assert.equal(aA.alive, true, 'союзник не мутирован (alive)');
+  assert.equal(aA.hp, hp0, 'союзник не мутирован (hp)');
+});
+
+test('000165 C4: inv-слот — ВЕТКИ НЕТ (v1): свиток из инвентаря → отказ I.useItem «только в бою», союзник мёртв, пул не сгорел, предмет цел', () => {
+  const p = strongHero();
+  const c = scrollCombat165(p, [ALLY_A_165]);
+  const aA = c.units.find((u) => u.side === 'ally');
+  assert.ok(aA, 'союзник в c.units');
+  assert.equal(I.addItem(p, 'resurrect_scroll').ok, true,
+    'выдача свитка (краснота: неизвестный предмет)');
+  // Свиток в ИНВЕНТАРЕ (не в quick); союзник МЁРТВ — боевой путь
+  // был бы успехом, но playerInvItem по ТЗ НЕ расширяется (v1).
+  combatInternals.dealDamageToAlly(c, aA, 9999);
+  assert.equal(aA.alive, false, 'фикстура: союзник мёртв');
+  const pool0 = c.ps.invItem;
+  const r = c.invItem('resurrect_scroll');
+  assert.equal(r.ok, false,
+    'отказ (краснота: предмета нет — «предмета нет в инвентаре»): '
+    + JSON.stringify(r));
+  assert.equal(r.reason, 'Свиток воскрешения можно применить только в бою',
+    'отвечает I.useItem (мир), а не боевая ветка; факт: ' + r.reason);
+  assert.equal(aA.alive, false, 'союзник ОСТАЁТСЯ мёртв (inv-ветки нет)');
+  assert.equal(c.ps.invItem, pool0,
+    'пул invItem вернут (отказ — действие не сгорает, L1252-1256)');
+  assert.equal(I.totalQty(p, 'resurrect_scroll'), 1, 'предмет цел');
+});
+
+test('000165 C5: canDoAction «quickItem» — зеркало (000037): живых только — отказ той же строкой; после гибели — ok:true; чистое чтение', () => {
+  const p = strongHero();
+  const c = scrollCombat165(p, [ALLY_A_165]);
+  const aA = c.units.find((u) => u.side === 'ally');
+  assert.ok(aA, 'союзник в c.units');
+  assert.equal(I.addItem(p, 'resurrect_scroll').ok, true,
+    'выдача свитка (краснота: неизвестный предмет)');
+  assert.equal(I.setQuick(p, 0, 'resurrect_scroll').ok, true,
+    'закрепление в quick-слот (краснота: предмета нет)');
+  const pool0 = c.ps.quickItem;
+  // Живых только — отказ ТОЙ ЖЕ строкой, что в ядре (000037: одна
+  // причина — одно поведение; краснота: зеркала нет — «быстрые
+  // слоты пусты» / «неизвестный предмет» / ok:true).
+  const r0 = canDoAction(c, 'quickItem');
+  assert.deepEqual(r0, { ok: false, reason: 'нет погибших союзников' },
+    'живых только — отказ «нет погибших союзников»; факт: '
+    + JSON.stringify(r0));
+  // canDoAction — ЧИСТОЕ ЧТЕНИЕ (000037): пулы и предмет не тронуты.
+  assert.equal(c.ps.quickItem, pool0, 'пул quickItem не мутирован');
+  assert.equal(I.totalQty(p, 'resurrect_scroll'), 1, 'предмет цел');
+  // После гибели союзника — действие доступно (тот же предикат).
+  combatInternals.dealDamageToAlly(c, aA, 9999);
+  assert.equal(aA.alive, false, 'фикстура: союзник мёртв');
+  const r1 = canDoAction(c, 'quickItem');
+  assert.equal(r1.ok, true,
+    'после гибели — ok:true (одна причина — одно поведение); факт: '
+    + JSON.stringify(r1));
+});
+
+test('000165 C6: доступность (ТЗ п.4) — лут Уродства (000036.json + зеркало MOB_TYPES), свиток КОНЦОМ таблицы; дет-дроп rng→0.01: таблица + база + редкий', () => {
+  // (a) Каталог (source of truth): loot Уродства — 3 записи, свиток
+  //     КОНЦОМ (Р-1: порядок дропа = порядок таблицы; тематика —
+  //     склеенный труп уже дропает phoenix_feather/greater_healing).
+  const j36 = JSON.parse(
+    fs.readFileSync(path.join(MOBS_DIR, '000036.json'), 'utf8'));
+  const LOOT_ABO_165 = [
+    { item: 'phoenix_feather', chance: 0.2 },
+    { item: 'greater_healing', chance: 0.15 },
+    { item: 'resurrect_scroll', chance: 0.05 },
+  ];
+  assert.deepEqual(j36.loot, LOOT_ABO_165,
+    '000036.json loot: свиток 0.05 концом таблицы (краснота: записи нет)');
+  // Зеркало combat.js MOB_TYPES (runtime; консистентность JSON↔
+  // зеркало — общий тест «assets/mobs: зеркало…» выше, ОДИН коммит).
+  assert.deepEqual(MOB_TYPES.abomination.loot, LOOT_ABO_165,
+    'MOB_TYPES.abomination.loot (краснота: зеркала без свитка)');
+  // (b) Детерминированный дроп (паттерн N2): rng→0.01 — ВСЕ пороги
+  //     выше 0.01 (0.2 / 0.15 / 0.05 / 0.25 / 0.05+0.01·2=0.07):
+  //     таблица (3) + базовый BASE_POOL[0] + редкий RARE_POOL[0].
+  //     Порядок: таблица → база → редкий (N2). +1 c._rng за Уродство
+  //     (цикл по таблице, Р-1) — потоки без Уродства не сдвигаются.
+  const { c } = winLoot({ mobs: ['abomination'], mobLevel: 2, seed: 5,
+    rng: () => 0.01, killBy: 'dealDamage' });
+  assert.deepEqual(c.result.items, [
+    { id: 'phoenix_feather', qty: 1 },
+    { id: 'greater_healing', qty: 1 },
+    { id: 'resurrect_scroll', qty: 1 },
+    { id: 'minor_healing', qty: 1 },
+    { id: 'iron_sword', qty: 1 },
+  ], 'rng→0.01: таблица Уродства + базовый + редкий (краснота: свитка в дропе нет)');
+});

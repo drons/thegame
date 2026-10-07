@@ -174,7 +174,7 @@
     // Бездна
     lower_demon:    { id: 'lower_demon', name: 'Низший демон', role: 'melee', aggro: 'aggressive', dmg: 1.4, hp: 1.3, dexterity: 2, intelligence: 1, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['firelord'], spells: [], loot: [{ item: 'greater_healing', chance: 0.1 }, { item: 'sulfur', chance: 0.2 }] },
     succubus:       { id: 'succubus', name: 'Суккуб', role: 'support', aggro: 'aggressive', dmg: 0.6, hp: 0.8, dexterity: 1, intelligence: 4, traits: { debuff: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['orator'], spells: [], loot: [{ item: 'mana_elixir', chance: 0.15 }] },
-    abomination:    { id: 'abomination', name: 'Уродство', role: 'leader', aggro: 'aggressive', dmg: 1.7, hp: 2.5, dexterity: 2, intelligence: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.2 }, { item: 'greater_healing', chance: 0.15 }] },
+    abomination:    { id: 'abomination', name: 'Уродство', role: 'leader', aggro: 'aggressive', dmg: 1.7, hp: 2.5, dexterity: 2, intelligence: 2, size: { w: 3, h: 3 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'phoenix_feather', chance: 0.2 }, { item: 'greater_healing', chance: 0.15 }, { item: 'resurrect_scroll', chance: 0.05 }] },
   };
 
   // Составы групп по типам из map.js (MOB_GROUP_TYPES: 0..6).
@@ -1288,6 +1288,26 @@
     if (s == null) return { ok: false, reason: 'быстрые слоты пусты' };
     const itemId = I.quickItem(p, s);
     if (!itemId) return { ok: false, reason: 'быстрый слот ' + (s + 1) + ' пуст' };
+    // Свиток воскрешения (задача 000165, контракт D6): быстрый слот
+    // воскрешает ПЕРВОГО мёртвого СОЮЗНИКА в порядке c.units
+    // (side==='ally' && !alive && !fled — предикат выбора цели 000163;
+    // игрок вне c.units — не цель; цель не выбирается — v1). Ядро —
+    // resurrectAlly (000163): 50% HP + лог «Возвращён в бой.» (R-3).
+    // Очередь хода НЕ пересчитывается: воскресший входит в turnOrder
+    // с начала следующего раунда (buildTurnOrder, 000036). Отказ —
+    // return ДО сброса пула: действие НЕ сгорает (паттерн).
+    const it = I.getItem(itemId);
+    if (it && it.kind === 'resurrection_scroll') {
+      if (!I.hasItem(p, it.id))
+        return { ok: false, reason: 'предмета нет в инвентаре' };
+      const t = c.units.find((u) => u.side === 'ally' && !u.alive && !u.fled);
+      if (!t) return { ok: false, reason: 'нет погибших союзников' };
+      c.ps.quickItem -= 1; // СНАЧАЛА — как в текущем коде (ТЗ)
+      resurrectAlly(c, t); // лог «Возвращён в бой.» (R-3, 000163)
+      I.removeItem(p, it.id, 1, true); // bonusFirst (000046, паттерн :531);
+      // при qty→0 removeItem сам очищает quick-слот (items.js)
+      return { ok: true, slot: s, item: it.name };
+    }
     c.ps.quickItem -= 1;
     const r = I.useItem(p, itemId);
     if (!r.ok) {
@@ -1447,6 +1467,13 @@
       if (it.kind === 'weapon') return { ok: false, reason: 'оружие — экипируется' };
       if (it.kind === 'armor') return { ok: false, reason: 'броня — экипируется' };
       if (it.kind === 'reagent') return { ok: false, reason: 'реагент нельзя применить (торговый товар)' };
+      // Свиток воскрешения (000165): применим, только если есть погибший
+      // союзник — тот же предикат и та же причина, что в ядре (000037:
+      // одна причина — одно поведение; зеркало проверок playerQuickItem).
+      if (it.kind === 'resurrection_scroll'
+          && !c.units.some((u) => u.side === 'ally' && !u.alive && !u.fled)) {
+        return { ok: false, reason: 'нет погибших союзников' };
+      }
       return { ok: true };
     }
     if (action === 'invItem') {

@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000050.json);
+  // Предметы (assets/items/000001.json … 000051.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -515,6 +515,16 @@
       value: 50,
       desc: "Свиток: изучает «Плетень» (нужен ранг школы).",
       effect: { kind: "spell", spell: "vine" },
+    },
+    // 000051.json
+    {
+      id: "resurrect_scroll",
+      name: "Свиток воскрешения",
+      kind: "resurrection_scroll",
+      weight: 0.5,
+      value: 150,
+      desc: "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). Цель не выбирается.",
+      effect: { kind: "resurrect" },
     },
   ];
 
