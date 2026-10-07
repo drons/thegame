@@ -1681,3 +1681,66 @@ test('000113 BR-1: breathInfo {name, desc, firstEncounter} + алиас EFIR_BRE
     }
   });
 });
+
+// --- Задача 000163: заклинание «Воскрешение» — книга Эфира (22+) ---
+//
+// Контракт: memory/000163-resurrection-spell.md §3.4 —
+// EFIR_SPELL_UNLOCKS + [22, 'resurrect'] МЕЖДУ [20,'greater_heal'] и
+// [25,'ward'] (append-only, возрастание порогов; efirSpellsByLevel/
+// levelUp — без правок, читают таблицу).
+// КРАСНЫЙ: таблица (8 строк) без строки [22,'resurrect'] и
+// 000017.json нет в каталоге assets/spells. Осмысленная краснота —
+// нет строки/нет id в каталоге, не синтаксис.
+
+test('000163 E1: EFIR_SPELL_UNLOCKS — [22, «resurrect»] между 20 и 25: 9 строк, пороги строго растут; book(21) без / (22) после greater_heal / (30) с; append-only levelUp 21→22; id ∈ каталогу', () => {
+  withGame(gameWithXp(), () => {
+    const E = loadEfir();
+    const U = E.EFIR_SPELL_UNLOCKS;
+    assert.ok(Array.isArray(U), 'EFIR_SPELL_UNLOCKS — массив данных');
+    // (a) Строка [22,'resurrect'] — МЕЖДУ [20,'greater_heal'] и
+    //     [25,'ward']; всего 9 строк; пороги строго возрастают.
+    const i20 = U.findIndex(([lv]) => lv === 20);
+    const i25 = U.findIndex(([lv]) => lv === 25);
+    const iR = U.findIndex(([, id]) => id === 'resurrect');
+    assert.ok(iR >= 0, 'краснота: строки «resurrect» нет в таблице');
+    assert.deepEqual(U[iR], [22, 'resurrect'], 'строка — [22, «resurrect»]');
+    assert.ok(i20 >= 0 && i25 >= 0, 'соседи 20/25 — в таблице');
+    assert.ok(iR > i20 && iR < i25,
+      'позиция — между 20 (greater_heal) и 25 (ward)');
+    assert.equal(U.length, 9, 'таблица — 9 строк');
+    for (let i = 1; i < U.length; i += 1) {
+      assert.ok(U[i][0] > U[i - 1][0],
+        'пороги строго возрастают (строка ' + i + ')');
+    }
+    // (b) Книги по уровню: L21 — без, L22 — после greater_heal,
+    //     L30 — с.
+    const b21 = E.efirSpellsByLevel(21);
+    assert.ok(!b21.includes('resurrect'), 'L21: без resurrect');
+    const b22 = E.efirSpellsByLevel(22);
+    const gi = b22.indexOf('greater_heal');
+    assert.ok(gi >= 0, 'L22: greater_heal — в книге');
+    assert.equal(b22[gi + 1], 'resurrect',
+      'L22: resurrect после greater_heal (канонический порядок)');
+    assert.ok(E.efirSpellsByLevel(30).includes('resurrect'),
+      'L30: resurrect — в книге');
+    // (c) Append-only через levelUp 21→22 (порог xpForNext, без
+    //     хардкода суммы): книга = book(22), дублей нет.
+    const s = E.createEfir();
+    while (s.level < 21) {
+      s.xp = P.xpForNext(s.level);
+      E.levelUp(s);
+    }
+    assert.equal(s.level, 21, 'поднято до L21');
+    assert.deepEqual(s.spells, E.efirSpellsByLevel(21),
+      'книга L21 = таблица (без resurrect)');
+    s.xp = P.xpForNext(21);
+    assert.equal(E.levelUp(s), 1, 'L21 → L22 (1 уровень)');
+    assert.deepEqual(s.spells, E.efirSpellsByLevel(22),
+      'append-only: книга = book(22)');
+    assert.equal(s.spells.filter((x) => x === 'resurrect').length, 1,
+      'дублей resurrect нет');
+    // (d) Целостность: id — в каталоге assets/spells (паттерн T4).
+    assert.ok(SPELL_IDS.has('resurrect'),
+      'resurrect — в каталоге assets/spells (краснота: файла 000017 нет)');
+  });
+});
