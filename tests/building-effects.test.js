@@ -8474,3 +8474,203 @@ test('PF4. 000137: e2e «Выступление»: таверна (41,2) — [E]
   key(h, 'Escape');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрыт');
 });
+
+// =====================================================================
+// 000162 (красная стадия). «Воскрешение в храме»: услуга постройки +
+// цена ∝ опыту + пикер погибших. Контракт —
+// memory/000162-temple-resurrection.md (§2 каталоги, §3 чистое ядро,
+// §8 RES-A1..A6).
+//
+// Причины красных (master 0c47f71):
+//   * каталоги 36/37/38 — НЕТ массива особых_параметры.эффекты, НЕТ
+//     параметров воскрешение, 36/38 — раз_в_день ещё BOOLEAN;
+//   * реестр — НЕТ записи EFFECTS['resurrect'];
+//   * hasDailyLimit 36/38 по 'resurrect' — boolean-ветка → true
+//     (нужен per-эффектный объект БЕЗ ключа 'resurrect' — fail-open).
+// Протокол: красные = ТОЛЬКО 14 новых, остальной свита — зелёный.
+// =====================================================================
+
+// Запись о погибшем (000161): {npcId, sheet, loyalty, hiredDay}.
+// Чистая секция читает ТОЛЬКО sheet.totalXp (цена) — sheet
+// минимальный, но валидной формы (kind/npcId/level/xp/primary).
+function deadRec(npcId, totalXp, over = {}) {
+  return Object.assign({
+    npcId,
+    sheet: {
+      kind: 'merc', npcId, level: 1, xp: 0, totalXp, points: 0,
+      primary: { strength: 3, dexterity: 1, constitution: 2,
+        intelligence: 1, wisdom: 1, charisma: 1 },
+      secondary: {}, skillXp: {}, spells: [],
+    },
+    loyalty: 50,
+    hiredDay: 1,
+  }, over);
+}
+
+test('RES-A1. каталоги 36/37/38: эффекты-массивы ["<id>","resurrect"], воскрешение {база:20, за_опыт:0.05} у всех трёх, per-эффектный раз_в_день (36/38 — только свой эффект), effectIds в порядке каталога', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const b36 = B.getBuilding(36);
+  const b37 = B.getBuilding(37);
+  const b38 = B.getBuilding(38);
+  const p36 = b36.особые_параметры;
+  const p37 = b37.особые_параметры;
+  const p38 = b38.особые_параметры;
+  // Массив эффектов (фильтр effectIds): ОБА id — ключи EFFECTS,
+  // порядок = порядок строк buildingUI («Благословение» →
+  // «Воскрешение»).
+  assert.deepEqual(p36.эффекты, ['36', 'resurrect'],
+    '36: эффекты ["36","resurrect"] (красный: массива нет — ' +
+    'fallback 1-к-1 по id)');
+  assert.deepEqual(p37.эффекты, ['37', 'resurrect'],
+    '37: эффекты ["37","resurrect"]');
+  assert.deepEqual(p38.эффекты, ['38', 'resurrect'],
+    '38: эффекты ["38","resurrect"]');
+  // Параметры цены — ИЗ КАТАЛОГА (принцип 000053: код читает
+  // каталог, не хардкодит) — у всех трёх храмов.
+  assert.deepEqual(p36.воскрешение, { база: 20, за_опыт: 0.05 },
+    '36: воскрешение {база:20, за_опыт:0.05}');
+  assert.deepEqual(p37.воскрешение, { база: 20, за_опыт: 0.05 },
+    '37: воскрешение {база:20, за_опыт:0.05}');
+  assert.deepEqual(p38.воскрешение, { база: 20, за_опыт: 0.05 },
+    '38: воскрешение {база:20, за_опыт:0.05}');
+  // Per-эффектный флаг (000092): 36/38 — лимит ТОЛЬКО на свой
+  // эффект; ключа "resurrect" НЕТ = лимита нет (fail-open, R-4).
+  // deepEqual фиксирует и состав, и значения (чужих ключей нет).
+  assert.deepEqual(p36.раз_в_день, { '36': true },
+    '36: раз_в_день per-эффект {"36":true} (красный: сейчас boolean)');
+  assert.deepEqual(p38.раз_в_день, { '38': true },
+    '38: раз_в_день per-эффект {"38":true} (красный: сейчас boolean)');
+  assert.ok(!p37.раз_в_день,
+    '37: флага НЕТ (не трогать — «Сон» без лимита)');
+  // effectIds — из массива (порядок каталога), не 1-к-1.
+  assert.deepEqual(BE.effectIds(b36), ['36', 'resurrect'],
+    '36: effectIds (порядок каталога)');
+  assert.deepEqual(BE.effectIds(b37), ['37', 'resurrect'],
+    '37: effectIds (порядок каталога)');
+  assert.deepEqual(BE.effectIds(b38), ['38', 'resurrect'],
+    '38: effectIds (порядок каталога)');
+});
+
+test('RES-A2. hasDailyLimit per-эффект: 36 — "36"→true/"resurrect"→false; 38 — "38"→true/"resurrect"→false; 37 — оба false (услуга без дневного лимита, R-4)', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const b36 = B.getBuilding(36);
+  const b37 = B.getBuilding(37);
+  const b38 = B.getBuilding(38);
+  // Благословения 36/38 — лимит СОХРАНЯЕТСЯ (ключ "36"/"38": true).
+  assert.equal(BE.hasDailyLimit(b36, '36'), true,
+    '36: "36" — лимит есть (благословение раз в день)');
+  assert.equal(BE.hasDailyLimit(b38, '38'), true,
+    '38: "38" — лимит есть (благословение раз в день)');
+  // «Воскрешение» — лимита НЕТ: per-эффектный объект без ключа
+  // "resurrect" → fail-open false (красный: boolean-ветка → true).
+  assert.equal(BE.hasDailyLimit(b36, 'resurrect'), false,
+    '36: "resurrect" — лимита НЕТ (key absent → fail-open, R-4)');
+  assert.equal(BE.hasDailyLimit(b38, 'resurrect'), false,
+    '38: "resurrect" — лимита НЕТ (key absent → fail-open, R-4)');
+  // 37 — флага нет вообще (реестр без разВДень → false).
+  assert.equal(BE.hasDailyLimit(b37, '37'), false,
+    '37: "37" — лимита нет («Сон» бесплатен)');
+  assert.equal(BE.hasDailyLimit(b37, 'resurrect'), false,
+    '37: "resurrect" — лимита нет');
+});
+
+test('RES-A3. реестр: EFFECTS["resurrect"] — имя «Воскрешение», apply/available — функции, разВДень в реестре НЕ ставится (услуга не ограничена, R-4)', () => {
+  const BE = loadBE();
+  const e = BE.EFFECTS['resurrect'];
+  assert.ok(e,
+    'запись "resurrect" в реестре (красный: нет до реализации)');
+  assert.equal(e.имя, 'Воскрешение', 'имя по ТЗ');
+  assert.equal(typeof e.apply, 'function',
+    'apply(state) — ЧИСТОЕ (список {record, цена})');
+  assert.equal(typeof e.available, 'function',
+    'available(state) — доступность/reason строки buildingUI');
+  assert.notEqual(e.разВДень, true,
+    'разВДень в реестре НЕ ставится (совместно с каталогом → ' +
+    'услуга всегда доступна, R-4)');
+});
+
+test('RES-A4. applyResurrect ЧИСТОЕ: 2 записи dead_mercs (totalXp 100/0), gold 500 → {ok:true, candidates:[{record, цена:25}, {record, цена:20}]}; без message (R-1); стейт не мутирован; детерминизм (два вызова — deepEqual)', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const recA = deadRec('merc_volk', 100, { loyalty: 70, hiredDay: 5 });
+  const recB = deadRec('merc_ashka', 0);
+  const st = makeState({
+    hero: { hp: 10, gold: 500 },
+    save: { dead_mercs: [recA, recB] },
+    catalog: B.getBuilding(36),
+  });
+  const s0 = JSON.parse(JSON.stringify(st));
+  const e = BE.EFFECTS['resurrect'];
+  assert.ok(e && typeof e.apply === 'function',
+    'запись "resurrect" с apply (красный: нет до реализации)');
+  const r = e.apply(st);
+  assert.equal(r.ok, true, 'ok:true');
+  assert.equal(r.message, undefined,
+    'успех БЕЗ message (flash — из confirm пикера, R-1)');
+  assert.ok(Array.isArray(r.candidates), 'candidates — массив');
+  assert.equal(r.candidates.length, 2,
+    'candidates — 2 (порядок dead_mercs)');
+  assert.equal(r.candidates[0].record, st.save.dead_mercs[0],
+    'record — ссылка на запись снимка (копий нет)');
+  assert.equal(r.candidates[0].цена, 25,
+    'цена totalXp 100 → 25 (round(20 + 0.05×100), D2)');
+  assert.equal(r.candidates[1].record, st.save.dead_mercs[1],
+    'record 2 — ссылка на запись снимка');
+  assert.equal(r.candidates[1].цена, 20,
+    'цена totalXp 0 → 20 (база)');
+  assert.deepEqual(st, s0, 'state (hero/save) не мутирован');
+  // Детерминизм: второй вызов — тот же результат (0 RNG).
+  const r2 = e.apply(st);
+  assert.deepEqual(r2, r, 'два вызова — deepEqual (детерминизм)');
+});
+
+test('RES-A5. resurrectAvailable: без погибших → «нет погибших»; с погибшими → true ДАЖЕ при hero.gold 0 (R-2: золото НЕ в available); стейт не мутирован', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const e = BE.EFFECTS['resurrect'];
+  assert.ok(e && typeof e.available === 'function',
+    'запись "resurrect" с available (красный: нет до реализации)');
+  // Без погибших — reason-строка (строка buildingUI disabled).
+  const s0 = makeState({
+    save: { dead_mercs: [] },
+    catalog: B.getBuilding(36),
+  });
+  const s0snap = JSON.parse(JSON.stringify(s0));
+  assert.equal(e.available(s0), 'нет погибших',
+    'нет погибших → reason «нет погибших»');
+  assert.deepEqual(s0, s0snap, 'available не мутирует state');
+  // С погибшими — true, ДАЖЕ при gold 0 (R-2: строка не гаснет от
+  // нехватки золота — золото ловят apply и confirm).
+  const st = makeState({
+    hero: { hp: 10, gold: 0 },
+    save: { dead_mercs: [deadRec('merc_volk', 100, {
+      loyalty: 70, hiredDay: 5 })] },
+    catalog: B.getBuilding(36),
+  });
+  const s1 = JSON.parse(JSON.stringify(st));
+  assert.equal(e.available(st), true,
+    'погибшие есть → true ДАЖЕ при hero.gold 0 (R-2)');
+  assert.deepEqual(st, s1, 'available не мутирует state');
+});
+
+test('RES-A6. applyResurrect: gold 10 < min(цена) 20 → {ok:false, message:"мало золота"}; candidates нет; стейт не мутирован', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const rec = deadRec('merc_volk', 0, { loyalty: 70, hiredDay: 5 });
+  const st = makeState({
+    hero: { hp: 10, gold: 10 },
+    save: { dead_mercs: [rec] },
+    catalog: B.getBuilding(36),
+  });
+  const s0 = JSON.parse(JSON.stringify(st));
+  const e = BE.EFFECTS['resurrect'];
+  assert.ok(e && typeof e.apply === 'function',
+    'запись "resurrect" с apply (красный: нет до реализации)');
+  const r = e.apply(st);
+  assert.equal(r.ok, false, 'ok:false');
+  assert.equal(r.message, 'мало золота', 'message «мало золота»');
+  assert.equal(r.candidates, undefined, 'отказ — без candidates');
+  assert.deepEqual(st, s0, 'state не мутирован');
+});

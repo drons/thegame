@@ -1366,3 +1366,98 @@ test('index.html: src/spellbook.js подключён ПОСЛЕ src/spells.js �
     'src/spellbook.js должен быть ДО src/combat-ui.js (снапшот-' +
     'ловушка 000038: combat-ui снимает Game при загрузке)');
 });
+
+// --- Задача 000162: building-effect-resurrect.js (спец-модуль
+// «Воскрешение» храма 36/37/38) ---
+//
+// Первый ИНТЕРАКТИВНЫЙ спец-модуль (пикер — свой DOM-оверлей,
+// паттерн camp/49/45, а не 44_perform): саморегистрация
+// 'resurrect' в МОМЕНТ ЗАГРУЗКИ (registerSpecial) — тег обязан
+// стоять ПОСЛЕ building-actions.js (registerSpecial должен
+// существовать) и building-effects.js (EFFECTS['resurrect']),
+// в слоте спец-модулей (ПосЛЕ runes — порядок слота) и ДО main.js
+// (UMD-ловушка 000038: main.js снимает Game один раз — G.resurrectUI
+// обязан быть в снапшоте; гейты main.js читают G.resurrectUI).
+// Контракт — memory/000162-temple-resurrection.md §5 (RES-IO1).
+// Красный: тег отсутствует (pos === -1) + файла модуля нет
+// (readFileSync — ENOENT).
+
+test('IO2. 000162: спец-модуль «Воскрешение» — тег src/building-effect-resurrect.js в index.html (ПОСЛЕ building-actions.js/building-effects.js/runes.js, ДО hud.js и main.js) + UMD-гарды (standalone тихо / без buildingActions — console.error + без регистрации / с — specials[resurrect])', () => {
+  // (a) Порядок тега (красный: тег отсутствует — pos === -1).
+  assert.notEqual(pos('src/building-effect-resurrect.js'), -1,
+    'src/building-effect-resurrect.js не подключён в index.html ' +
+    '(задача 000162)');
+  assert.ok(pos('src/building-actions.js')
+    < pos('src/building-effect-resurrect.js'),
+    'src/building-actions.js должен быть раньше '
+    + 'src/building-effect-resurrect.js (registerSpecial обязан '
+    + 'существовать, задача 000128)');
+  assert.ok(pos('src/building-effects.js')
+    < pos('src/building-effect-resurrect.js'),
+    'src/building-effects.js должен быть раньше '
+    + 'src/building-effect-resurrect.js (EFFECTS["resurrect"] '
+    + 'обязан быть в реестре, задача 000162)');
+  assert.ok(pos('src/building-effect-runes.js')
+    < pos('src/building-effect-resurrect.js'),
+    'src/building-effect-resurrect.js — в слоте спец-модулей '
+    + '(ПОСЛЕ runes.js, задача 000162)');
+  assert.ok(pos('src/building-effect-resurrect.js') < pos('src/hud.js'),
+    'src/building-effect-resurrect.js должен быть ДО src/hud.js '
+    + '(слот спец-модулей, задача 000162)');
+  assert.ok(pos('src/building-effect-resurrect.js') < pos('src/main.js'),
+    'src/building-effect-resurrect.js должен быть ДО src/main.js '
+    + '(UMD-ловушка 000038: main.js снимает Game один раз — '
+    + 'G.resurrectUI обязан быть в снапшоте)');
+  // (b) vm-load (ленивое чтение: до зелёной стадии файла нет —
+  // readFileSync падает ENOENT — осмысленный красный, паттерн IO1).
+  const moduleCode = fs.readFileSync(
+    path.join(ROOT, 'src', 'building-effect-resurrect.js'), 'utf8');
+  const actionsCode = fs.readFileSync(
+    path.join(ROOT, 'src', 'building-actions.js'), 'utf8');
+  const mkConsole = (sink) => ({
+    log: () => {}, info: () => {}, warn: () => {},
+    error: (m) => sink.push(String(m)),
+  });
+  // (b1) standalone (без Game) — тихий выход: 0 console.error,
+  // 0 краха.
+  const errorsA = [];
+  const sandboxA = { console: mkConsole(errorsA) };
+  vm.createContext(sandboxA);
+  assert.doesNotThrow(() => vm.runInContext(
+    moduleCode, sandboxA,
+    { filename: 'building-effect-resurrect.js' }),
+    'standalone (без Game) — без краха');
+  assert.equal(errorsA.length, 0,
+    'standalone (без Game) — 0 console.error: ' + errorsA.join('; '));
+  // (b2) Game БЕЗ buildingActions — console.error (фиксированный
+  // текст), без регистрации (деградация 000053: игра не роняется).
+  const errorsB = [];
+  const sandboxB = { Game: {}, console: mkConsole(errorsB) };
+  vm.createContext(sandboxB);
+  assert.doesNotThrow(() => vm.runInContext(
+    moduleCode, sandboxB,
+    { filename: 'building-effect-resurrect.js' }),
+    'без buildingActions — без краха (деградация 000053)');
+  assert.ok(errorsB.length >= 1, 'без buildingActions — console.error');
+  assert.ok(
+    String(errorsB[0]).includes('Game.buildingActions отсутствует'),
+    'текст ошибки — про порядок: ' + errorsB[0]);
+  // (b3) с buildingActions (building-actions.js загружен ПЕРВЫМ) —
+  // self-registration: specials['resurrect'] — функция.
+  const errorsC = [];
+  const sandboxC = { Game: {}, console: mkConsole(errorsC) };
+  vm.createContext(sandboxC);
+  vm.runInContext(actionsCode, sandboxC,
+    { filename: 'building-actions.js' });
+  vm.runInContext(moduleCode, sandboxC,
+    { filename: 'building-effect-resurrect.js' });
+  assert.equal(errorsC.length, 0,
+    'с buildingActions — без ошибок: ' + errorsC.join('; '));
+  assert.ok(sandboxC.Game.buildingActions,
+    'buildingActions есть (building-actions.js загружен)');
+  assert.equal(
+    typeof sandboxC.Game.buildingActions.specials['resurrect'],
+    'function',
+    'specials[resurrect] зарегистрирован (self-registration при '
+    + 'загрузке, без правок main.js)');
+});

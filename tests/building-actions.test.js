@@ -1055,3 +1055,75 @@ test('DK1. 000137: городской daily-ключ: два города, та�
   assert.equal(rowB.доступен, true,
     'город B — доступно (якорь другой — лимиты не спорят)');
 });
+
+// =====================================================================
+// 000162 (красная стадия). Спец-модуль src/building-effect-
+// resurrect.js («Воскрешение» храма, паттерн 44_rest/000128):
+// саморегистрация 'resurrect' в МОМЕНТ ЗАГРУЗКИ. Контракт —
+// memory/000162-temple-resurrection.md §4/§5/§8 (RES-BA1/BA2).
+// Красная причина: файла src/building-effect-resurrect.js ещё нет
+// (readFileSync — ENOENT: модуль отсутствует, не синтаксис/окружение).
+// =====================================================================
+
+test('RES-BA1. спец-модуль building-effect-resurrect.js: деградация — (b1) standalone в {console} — без краха, 0 ошибок; (b2) {Game:{}, console} — console.error «Game.buildingActions отсутствует», без регистрации, краха нет (000053)', () => {
+  // Ленивое чтение: до зелёной стадии файла нет — ENOENT
+  // осмысленный красный (модуль 000162 не создан).
+  const moduleCode = fs.readFileSync(
+    path.join(ROOT, 'src', 'building-effect-resurrect.js'), 'utf8');
+  const mkConsole = (sink) => ({
+    log: () => {}, info: () => {}, warn: () => {},
+    error: (m) => sink.push(String(m)),
+  });
+  // (b1) standalone (без Game) — тихий выход: 0 console.error,
+  // 0 краха.
+  const errorsA = [];
+  const sandboxA = { console: mkConsole(errorsA) };
+  vm.createContext(sandboxA);
+  assert.doesNotThrow(() => vm.runInContext(
+    moduleCode, sandboxA,
+    { filename: 'building-effect-resurrect.js' }),
+    'standalone (без Game) — без краха');
+  assert.equal(errorsA.length, 0,
+    'standalone (без Game) — 0 console.error: ' + errorsA.join('; '));
+  // (b2) Game БЕЗ buildingActions — console.error (фиксированный
+  // текст про порядок загрузки), без регистрации (деградация
+  // 000053: игра не роняется).
+  const errorsB = [];
+  const sandboxB = { Game: {}, console: mkConsole(errorsB) };
+  vm.createContext(sandboxB);
+  assert.doesNotThrow(() => vm.runInContext(
+    moduleCode, sandboxB,
+    { filename: 'building-effect-resurrect.js' }),
+    'без buildingActions — без краха (деградация 000053)');
+  assert.ok(errorsB.length >= 1,
+    'без buildingActions — console.error');
+  assert.ok(
+    String(errorsB[0]).includes('Game.buildingActions отсутствует'),
+    'текст ошибки — про порядок: ' + errorsB[0]);
+});
+
+test('RES-BA2. спец-модуль + building-actions: песочница (actionsCode + moduleCode) — 0 ошибок, Game.buildingActions.specials["resurrect"] — function (саморегистрация при загрузке)', () => {
+  const moduleCode = fs.readFileSync(
+    path.join(ROOT, 'src', 'building-effect-resurrect.js'), 'utf8');
+  const actionsCode = MOD_CODE();
+  const mkConsole = (sink) => ({
+    log: () => {}, info: () => {}, warn: () => {},
+    error: (m) => sink.push(String(m)),
+  });
+  const errorsC = [];
+  const sandboxC = { Game: {}, console: mkConsole(errorsC) };
+  vm.createContext(sandboxC);
+  vm.runInContext(actionsCode, sandboxC,
+    { filename: 'building-actions.js' });
+  vm.runInContext(moduleCode, sandboxC,
+    { filename: 'building-effect-resurrect.js' });
+  assert.equal(errorsC.length, 0,
+    'с buildingActions — без ошибок: ' + errorsC.join('; '));
+  assert.ok(sandboxC.Game.buildingActions,
+    'buildingActions есть (building-actions.js загружен)');
+  assert.equal(
+    typeof sandboxC.Game.buildingActions.specials['resurrect'],
+    'function',
+    'specials["resurrect"] зарегистрирован (self-registration при ' +
+    'загрузке, без правок main.js)');
+});
