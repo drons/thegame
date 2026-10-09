@@ -1751,11 +1751,31 @@
     // далеко»): доходит до полосы выстрела и ОСТАНАВЛИВАЕТСЯ (контракт
     // memory/000155-mob-pathfinding.md). Ретрит: жадный stepAwayRect
     // первым (только шаги с ростом d), обходной — при блоке.
-    const stepToTarget = () => pathStepTo(c, u, target,
-      u.role === MOB_ROLES.RANGED && dToP > RANGED_MAX_DIST
-        ? RANGED_MAX_DIST : 1);
-    const stepFromTarget = () => stepAwayRect(c, u, target)
-      || pathStepFrom(c, u, target);
+    // 000174: запись принятого «to»-тайла в c._uiMoves (UI-канал
+    // анимации передвижения) — ЧЕРЕЗ ЭТИ замыкания идут ВСЕ движения
+    // мобов (melee-цикл, ranged-подход/ретрит, TIMID-побег). Запись
+    // — ПОСЛЕ успешного тайл-шага и ТОЛЬКО если позиция изменилась
+    // (зажатый шаг — pathStepTo f0===0 / stepFromTarget зажат →
+    // false — записи нет: «пустые» шаги ломали бы полилинию).
+    // 0 c._rng, 0 строк лога; возвратные значения сохранены.
+    const stepToTarget = () => {
+      const bx = u.x, by = u.y;
+      const r = pathStepTo(c, u, target,
+        u.role === MOB_ROLES.RANGED && dToP > RANGED_MAX_DIST
+          ? RANGED_MAX_DIST : 1);
+      if (u.x !== bx || u.y !== by)
+        (c._uiMoves || (c._uiMoves = [])).push(
+          { id: u.id, x: u.x, y: u.y });
+      return r;
+    };
+    const stepFromTarget = () => {
+      const bx = u.x, by = u.y;
+      const r = stepAwayRect(c, u, target) || pathStepFrom(c, u, target);
+      if (u.x !== bx || u.y !== by)
+        (c._uiMoves || (c._uiMoves = [])).push(
+          { id: u.id, x: u.x, y: u.y });
+      return r;
+    };
     const attackTarget = () => (target.isPlayer
       ? mobAttack(c, u)
       : mobAttackAlly(c, u, target.unit));
@@ -2596,6 +2616,10 @@
   // БЕЗ гварды активного (D6): действие активного юнита.
   function endTurn(c) {
     if (checkTurn(c)) return;
+    // 000174: свежая запись на каждую фазу (до волны мобов): после
+    // возврата c.endTurn() поле содержит ТОЛЬКО шаги этого вызова
+    // (null — если мобы не двигались).
+    c._uiMoves = null;
     c.turnIndex += 1;
     advanceQueue(c);
   }
@@ -2933,6 +2957,12 @@
       // не поле персонажа (derived не трогается). Дефолт ×1/−0 —
       // бит-в-бит как без 000076.
       buffMods: normalizeBuffMods(opts.buffMods),
+      // 000174: UI-канал «ядро → боевой UI»: принятые «to»-тайлы
+      // волны (плоский массив в порядке исполнения), null — нет.
+      // Пишет ТОЛЬКО замыкания mobAct (после РЕАЛЬНОГО тайл-шага);
+      // читает ТОЛЬКО UI-тханк endTurn (drain → null). Ядро поле не
+      // читает. 0 c._rng, 0 строк лога — бой бит-в-бит.
+      _uiMoves: null,
     };
     // Мобы — в верхней части, игрок — в центре нижнего края.
     placeUnits(c, mobs);
@@ -2987,6 +3017,11 @@
     c.turnOrder = buildTurnOrder(c);
     c.turnIndex = 0;
     advanceQueue(c);
+    // 000174: pre-roll (юниты с инициативой выше игрока действуют ДО
+    // первого кадра) НЕ анимируется — его шаги выброшены (решение C):
+    // первый render рисует пост-pre-roll тайл, первый Space анимирует
+    // первую реальную волну (координатные пины первого кадра).
+    c._uiMoves = null;
     if (!c.result) c.targetId = (nearestMob(c) || {}).id || null;
 
     // Публичные действия. 000167 (D6) + 000168 (D9): диспатч по

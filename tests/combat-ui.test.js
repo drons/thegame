@@ -227,6 +227,15 @@ function loadCombatUi(withSprites = true, opts = {}) {
       { filename: 'combat-scale.js' });
   }
   vm.runInContext(src('combat-ui.js'), sandbox, { filename: 'combat-ui.js' });
+  // 000174 (ТОЛЬКО техническая проводка, зеркало index.html 1035/1039):
+  // motion.js — ПОСЛЕ combat-ui.js (UMD-ловушка 000038: combat-ui.js
+  // снимает Game один раз при загрузке — G.motion в снапшоте отсутствует
+  // ВСЕГДА; чтение — только лениво в момент вызова, liveGame()). Чистый
+  // UMD без зависимостей — загрузка в песочнице чистая (прецедент
+  // цепочки tests/dungeon-ui.test.js: motion.js в конце, порядок
+  // index.html). Аудит фиксаторов: ни один существующий тест не зависит
+  // от отсутствия Game.motion в песочнице.
+  vm.runInContext(src('motion.js'), sandbox, { filename: 'motion.js' });
   return { G: sandbox.Game, keydown, buttons, body: document.body,
     winListeners };
 }
@@ -3439,3 +3448,356 @@ test('боевой UI: 000175 A175-1 (якорь) — 0 штрихов при ta
   }
 });
 
+
+// =====================================================================
+// Задача 000174. Бой: анимация передвижения мобов по пути A* (вместо
+// телепортации). КРАСНЫЕ тесты (TDD), vm-песочница (паттерн
+// scene84/makeRafStubs/press — НО с ИЗМЕНЯЕМОЙ T: let T + performance
+// { now: () => T }; без opts.performance nowMs() = Date.now() — реальное
+// время, пинить нельзя). Контракт — memory/000174-mob-move-anim.md
+// («Механизм анимации»): endTurn-тханк drain'ит c._uiMoves (ядро
+// записывает принятые «to»-тайлы волны) → moveAnims; drawUnits рисует
+// моба по ДРОБНОМУ якорю mobAnchor(u, now): 300 мс на сегмент,
+// ПООТРЕЗОЧНЫЙ smoothstep (каждый сегмент — свой глейд); tAll >= 1 —
+// якорь = модель, entry self-cleaned. Новых rAF НЕТ (пин :725) —
+// playback на существующем tick-цикле 000047. Pre-roll НЕ анимируется
+// (решение C — пины :518/:568/:2656).
+//
+// Краснота (осмысленная): mob не анимируется — первый же ассерт
+// позиции падает «факт: финальная клетка, ожидание: промежуточная»
+// (c._uiMoves — undefined → существование); не крах.
+//
+// expectedRedCount (этот файл) = 2 (R5, R6); G2 — зелёный guard
+// (pre-roll не анимируется: первый рендер = пост-pre-roll тайл;
+// rAF-цикл не задет).
+// =====================================================================
+
+// drawImage-якорь конкретного фэйк-изображения в срезе drawCalls
+// (один рендер = один вызов на моба — сигнатура по объекту-метке,
+// паттерн :568/:901).
+const diOf = (calls, img) => calls
+  .find((x) => x[0] === 'drawImage' && x[1][0] === img);
+
+test('боевой UI: 000174-R5 — fast-волк (movePerTurn=2): якорь спрайта едет ПО ПОСЛЕДОВАТЕЛЬНОСТИ тайлов A* (старт → дробная середина → финиш), не телепорт; rAF-цикл не задет', () => {
+  let T = 0;
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body } = loadCombatUi(true, {
+    performance: { now: () => T },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const fakeMove = { __fake: 'move' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => (p.includes('_move_') ? fakeMove : null),
+    },
+  });
+  const canvas = findCanvas(body);
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  // pre-roll (seed 42: волк (1,0)→(1,1)) не анимируется — ядро выбрасывает
+  // шаги pre-roll (решение C): поле null, а не «волна, которую ещё нет».
+  assert.equal(c._uiMoves, null,
+    'pre-roll выброшен: c._uiMoves === null (краснота: поле отсутствует)');
+  // Явная геометрия: волк (3,3), игрок (3,6), камней нет — волна =
+  // 2 шага (3,4),(3,5) (fast: movePerTurn=2, test-only override).
+  wolf.x = c.px; wolf.y = c.py - 3;
+  c.obstacles.clear();
+  wolf.movePerTurn = 2;
+  c._rng = () => 0.99;
+  const pin = (tx, ty, what) => {
+    const di = diOf(calls, fakeMove);
+    assert.ok(di, what + ': спрайт волка нарисован (move-кадр, регрессия 000062)');
+    assert.equal(di[1][1], tx * 48 + 8, what + ': x — дробный якорь + запас 8px');
+    assert.equal(di[1][2], ty * 48 + 8, what + ': y — дробный якорь + запас 8px');
+  };
+  // Волна + синхронный render handleCode (T=0): якорь = СТАРТОВЫЙ тайл
+  // (3,3). Краснота: модель уже (3,5) — спрайт на (152,248), «телепорт».
+  let n0 = canvas.drawCalls.length;
+  press(keydown, 'Space');
+  let calls = canvas.drawCalls.slice(n0);
+  assert.equal(rafStubs.scheduled.length, 1,
+    'анимация НЕ шлёт новых rAF (только цикл 000047)');
+  assert.equal(c._uiMoves, null, 'UI забрал данные (drain → null)');
+  pin(3, 3, 'T=0: стартовый тайл (3,3)');
+  // Глейд: 300 мс на СЕГМЕНТ (2 сегмента = 600 мс), поотрезочный
+  // smoothstep: T=150 → (3,3.5); T=300 → граница сегмента (3,4);
+  // T=450 → (3,4.5); T=600 → (3,5) = модель.
+  for (const [dT, fx, fy, what] of [
+    [150, 3, 3.5, 'T=150: дробная середина сегмента (3,3.5)'],
+    [150, 3, 4, 'T=300: граница сегмента (3,4)'],
+    [150, 3, 4.5, 'T=450: (3,4.5)'],
+    [150, 3, 5, 'T=600: (3,5) — финальный тайл = модель'],
+  ]) {
+    T += dT;
+    n0 = canvas.drawCalls.length;
+    rafStubs.scheduled[rafStubs.scheduled.length - 1](); // tick → render
+    calls = canvas.drawCalls.slice(n0);
+    pin(fx, fy, what);
+  }
+  assert.equal(c._uiMoves, null, 'после глейда поле по-прежнему null');
+  // Повторный render при том же now (self-cleaning идемпотентен, пин
+  // :1618): entry удалён при tAll >= 1 — якорь = модель, те же координаты.
+  n0 = canvas.drawCalls.length;
+  rafStubs.scheduled[rafStubs.scheduled.length - 1]();
+  calls = canvas.drawCalls.slice(n0);
+  pin(3, 5, 'повторный render: те же координаты (entry self-cleaned)');
+  // rAF-регрессия: N тиков → N+1 scheduled (цикл один, новых НЕТ).
+  assert.equal(rafStubs.scheduled.length, 6,
+    '5 тиков → 6 scheduled (1 startCombat + 5, новых циклов нет)');
+});
+
+test('боевой UI: 000174-R6 — два fast-моба (orc_rider + centipede): каждый глейдит СВОЙ путь A* (у centipede излом у камней), не «один штамп»; прямой лерп старт→финал срезал бы излом', () => {
+  let T = 0;
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body } = loadCombatUi(true, {
+    performance: { now: () => T },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const fakeRider = { __fake: 'rider' }, fakeCentip = { __fake: 'centip' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(),
+    mobs: ['orc_rider', 'centipede'], mobLevel: 1, seed: 7,
+    spriteLoader: {
+      image: (p) => {
+        if (!p.includes('_move_')) return null;
+        if (p.startsWith('assets/sprites/mobs/orc_rider_')) return fakeRider;
+        if (p.startsWith('assets/sprites/mobs/centipede_')) return fakeCentip;
+        return null;
+      },
+    },
+  });
+  const canvas = findCanvas(body);
+  const rider = c.units.find((u) => u.mobId === 'orc_rider');
+  const centip = c.units.find((u) => u.mobId === 'centipede');
+  // pre-roll (оба инициативы 6) не анимируется (решение C).
+  // Явная геометрия: райдер (0,0), centipede (6,0), камни (5,0) и (6,2),
+  // игрок (3,6). Волна (оба fast, movePerTurn=2): райдер — прямая
+  // (1,0),(2,0); centipede — ИЗЛОМ (6,1),(5,1) (жадный шаг x-first:
+  // (5,0) закрыт → вниз, затем влево). Пины проверены прогоном
+  // (memory/000174-mob-move-anim.md, «Как проверяли»).
+  c.obstacles.clear();
+  rider.x = 0; rider.y = 0;
+  centip.x = 6; centip.y = 0;
+  c.obstacles.add('5,0'); c.obstacles.add('6,2');
+  c._rng = () => 0.99;
+  let n0;
+  const pinPair = (rx, ry, kx, ky, what) => {
+    const calls = canvas.drawCalls.slice(n0);
+    const dr = diOf(calls, fakeRider);
+    assert.ok(dr, what + ': райдер нарисован (move-кадр)');
+    assert.equal(dr[1][1], rx * 48 + 8, what + ': райдер x — СВОЙ якорь');
+    assert.equal(dr[1][2], ry * 48 + 8, what + ': райдер y — СВОЙ якорь');
+    const dk = diOf(calls, fakeCentip);
+    assert.ok(dk, what + ': centipede нарисована (move-кадр)');
+    assert.equal(dk[1][1], kx * 48 + 8, what + ': centipede x — СВОЙ якорь');
+    assert.equal(dk[1][2], ky * 48 + 8, what + ': centipede y — СВОЙ якорь');
+  };
+  n0 = canvas.drawCalls.length;
+  press(keydown, 'Space'); // T=0: волна + синхронный render
+  pinPair(0, 0, 6, 0, 'T=0: стартовые тайлы');
+  // Т-150: райдер (0.5,0) → (32,8); centipede (6,0.5) → (296,32).
+  // КОНТРФАКТ: прямой лерп старт→финал ((6,0)→(5,1), tAll=0.25) дал бы
+  // (5.75,0.25) → (284,20) — ДРУГАЯ точка: анимация идёт по записанной
+  // A*-полилинии (излом), а не срезает его.
+  for (const [dT, rx, ry, kx, ky, what] of [
+    [150, 0.5, 0, 6, 0.5, 'T=150: середина сегмента (излом centipede)'],
+    [150, 1, 0, 6, 1, 'T=300: граница сегмента (centipede на (6,1) — излом)'],
+    [300, 2, 0, 5, 1, 'T=600: финал — каждый на СВОЁМ тайле'],
+  ]) {
+    T += dT;
+    n0 = canvas.drawCalls.length;
+    rafStubs.scheduled[rafStubs.scheduled.length - 1](); // tick → render
+    pinPair(rx, ry, kx, ky, what);
+    if (T === 150) {
+      const dk = diOf(canvas.drawCalls.slice(n0), fakeCentip);
+      assert.ok(!(dk[1][1] === 284 && dk[1][2] === 20),
+        'T=150: НЕ «прямой лерп» старт→финал (284,20) — излом сохраняется');
+    }
+  }
+  assert.equal(rafStubs.scheduled.length, 4,
+    '3 тика → 4 scheduled (новых циклов нет)');
+});
+
+test('боевой UI: 000174-G2 (guard) — pre-roll не анимируется: первый рендер = пост-pre-roll тайл; rAF-цикл не задет (ровно 1 tick)', () => {
+  const rafStubs = makeRafStubs();
+  const { G, body } = loadCombatUi(true, {
+    performance: { now: () => 1000 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const fakeWolf = { __fake: 'wolf' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) =>
+        (p.startsWith('assets/sprites/mobs/wolf_') ? fakeWolf : null),
+    },
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  // pre-roll (seed 42) сдвинул волка (1,0)→(1,1) ДО первого кадра: первый
+  // рендер рисует пост-pre-roll тайл (формализация пина :568 под 000174 —
+  // первый кадр НЕ «доигрывает» pre-roll-глейд при фиксированном now).
+  const di = diOf(findCanvas(body).drawCalls, fakeWolf);
+  assert.ok(di, 'спрайт волка нарисован');
+  assert.equal(di[1][1], wolf.x * 48 + 8,
+    'x = пост-pre-roll тайл (' + wolf.x + '*48+8), не спавн (1,0)');
+  assert.equal(di[1][2], wolf.y * 48 + 8,
+    'y = пост-pre-roll тайл (' + wolf.y + '*48+8)');
+  assert.equal(rafStubs.scheduled.length, 1,
+    'rAF-цикл не задет: ровно 1 tick после startCombat');
+});
+
+// Регрессии ревью 000174 (правки по итогам ревью): «истёкший без
+// рендера» entry в moveAnims + новая волна того же моба. Окно — между
+// концом глейда и следующим тиком (в браузере ~1 rAF-фрейм): Space в
+// момент, когда моб «доехал». До фикса: (R7) TypeError в handleCode
+// (mobAnchor self-cleaning-обнулял moveAnims, moveAnims.set на null);
+// (R8) reverse-глейд — from = НОВАЯ модель (новый финал), а не старый
+// финальный тайл. Краснота: R7 — краш при press; R8 — якорь на новом
+// финале вместо старого (координаты).
+
+test('боевой UI: 000174-R7 — истёкший без рендера глейд + новая волна того же моба: Space НЕ крашит, якорь = СТАРЫЙ финальный тайл, глейд продолжается (регрессия ревью: TypeError в startMoveAnims)', () => {
+  let T = 0;
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body } = loadCombatUi(true, {
+    performance: { now: () => T },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const fakeMove = { __fake: 'move' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => (p.includes('_move_') ? fakeMove : null),
+    },
+  });
+  const canvas = findCanvas(body);
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  // Явная геометрия: волк (3,1), игрок (3,6) — d=5: обе волны — ЧИСТО
+  // движение (атака — только после финиша 2-й волны), камней нет.
+  // fast-волк (2 сегмента = 600 мс глейда): волна 1 (3,1)→(3,2)→(3,3);
+  // волна 2 (3,3)→(3,4)→(3,5).
+  wolf.x = c.px; wolf.y = c.py - 5;
+  c.obstacles.clear();
+  wolf.movePerTurn = 2;
+  c._rng = () => 0.99;
+  let n0;
+  const pin = (tx, ty, what) => {
+    const di = diOf(canvas.drawCalls.slice(n0), fakeMove);
+    assert.ok(di, what + ': спрайт волка нарисован (move-кадр)');
+    assert.equal(di[1][1], tx * 48 + 8, what + ': x-якорь');
+    assert.equal(di[1][2], ty * 48 + 8, what + ': y-якорь');
+  };
+  // Волна 1 (T=0) + синхронный render: якорь = стартовый тайл (3,1).
+  n0 = canvas.drawCalls.length;
+  press(keydown, 'Space');
+  assert.equal(c._uiMoves, null, 'волна 1: UI забрал данные (drain)');
+  pin(3, 1, 'T=0: стартовый тайл (3,1)');
+  // Кадры в пределах глейда (тот же паттерн, что R5): 150/300/450/585 —
+  // глейд жив до T=600. ПОСЛЕДНИЙ кадр — T=585 (tAll=0.975); рендера
+  // ПОСЛЕ истечения (T≥600) НЕ БЫЛО — entry в moveAnims, окно «до
+  // следующего тика» (браузер: ~1 rAF-фрейм; быстрое Space попадает в
+  // него).
+  for (const dT of [150, 150, 150, 135]) {
+    T += dT;
+    n0 = canvas.drawCalls.length;
+    rafStubs.scheduled[rafStubs.scheduled.length - 1](); // tick → render
+  }
+  assert.equal(rafStubs.scheduled.length, 5,
+    'startCombat + 4 тика = 5 scheduled (новых циклов нет)');
+  // T=600: Space БЕЗ промежуточного тика. Волна 2 двигает ТОГО ЖЕ
+  // волка; старый entry истёк (tAll = 600/600 = 1) и не был
+  // self-cleaned. До фикса: mobAnchor(истёкший) обнулял moveAnims
+  // (единственный entry) → moveAnims.set → TypeError в handleCode.
+  T = 600;
+  n0 = canvas.drawCalls.length;
+  assert.doesNotThrow(() => press(keydown, 'Space'), TypeError,
+    'Space в момент истечения старого глейда — без TypeError');
+  assert.equal(c._uiMoves, null, 'волна 2: UI забрал данные (drain)');
+  // Якорь волны 2 = СТАРЫЙ финальный тайл (3,3) (beforePos), а НЕ новый
+  // финал (3,5) (модель) и не «телепорт» на него.
+  pin(3, 3, 'T=600: якорь волны 2 = старый финал (3,3), не новый (3,5)');
+  // Глейд продолжается от старого финала: T=750 → (3,3.5).
+  T += 150;
+  n0 = canvas.drawCalls.length;
+  rafStubs.scheduled[rafStubs.scheduled.length - 1](); // tick → render
+  pin(3, 3.5, 'T=750: глейд волны 2 от (3,3): середина (3,3.5)');
+  assert.equal(rafStubs.scheduled.length, 6,
+    '5 + 1 тик = 6 scheduled (анимация новых rAF не шлёт)');
+});
+
+test('боевой UI: 000174-R8 — два моба разной скорости: истёкший entry НЕ последний в Map — краша нет, якорь медленного моба = СТАРЫЙ финал (не reverse-глейд от новой модели) (регрессия ревью)', () => {
+  let T = 0;
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body } = loadCombatUi(true, {
+    performance: { now: () => T },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const fakeRider = { __fake: 'rider' }, fakeWolf = { __fake: 'wolf' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(),
+    mobs: ['orc_rider', 'wolf'], mobLevel: 1, seed: 7,
+    spriteLoader: {
+      image: (p) => {
+        if (!p.includes('_move_')) return null;
+        if (p.startsWith('assets/sprites/mobs/orc_rider_')) return fakeRider;
+        if (p.startsWith('assets/sprites/mobs/wolf_')) return fakeWolf;
+        return null;
+      },
+    },
+  });
+  const canvas = findCanvas(body);
+  const rider = c.units.find((u) => u.mobId === 'orc_rider');
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  // Явная геометрия: райдер (0,0) — fast (2 тайла, 600 мс глейда),
+  // волк (3,3) — 1 тайл (300 мс), игрок (3,6), камней нет.
+  // Волна 1: райдер (1,0),(2,0); волк (3,4). Волна 2 (T=550): райдер
+  // (3,0),(3,1) (глейд ЖИВ: 550 < 600); волк (3,5) (глейд ИСТЁК:
+  // 550 ≥ 300, рендера после T=150 не было).
+  rider.x = 0; rider.y = 0;
+  wolf.x = c.px; wolf.y = c.py - 3;
+  c.obstacles.clear();
+  rider.movePerTurn = 2;
+  wolf.movePerTurn = 1;
+  c._rng = () => 0.99;
+  let n0;
+  const pinWolf = (tx, ty, what) => {
+    const dw = diOf(canvas.drawCalls.slice(n0), fakeWolf);
+    assert.ok(dw, what + ': спрайт волка нарисован (move-кадр)');
+    assert.equal(dw[1][1], tx * 48 + 8, what + ': волк x-якорь');
+    assert.equal(dw[1][2], ty * 48 + 8, what + ': волк y-якорь');
+  };
+  n0 = canvas.drawCalls.length;
+  press(keydown, 'Space'); // T=0: волна 1 + синхронный render
+  const dr0 = diOf(canvas.drawCalls.slice(n0), fakeRider);
+  assert.ok(dr0, 'T=0: райдер нарисован');
+  assert.equal(dr0[1][1], 0 * 48 + 8, 'T=0: райдер на старте (0,0)');
+  assert.equal(dr0[1][2], 0 * 48 + 8, 'T=0: райдер y-якорь');
+  pinWolf(3, 3, 'T=0: волк на старте (3,3)');
+  // Единственный кадр в пределах глейдов (T=150: райдер 0.25, волк
+  // 0.5 — оба живы, entry НЕ self-cleaned).
+  T = 150;
+  n0 = canvas.drawCalls.length;
+  rafStubs.scheduled[rafStubs.scheduled.length - 1](); // tick → render
+  // T=550: Space БЕЗ тика между 150 и 550. Волк: entry истёк, но НЕ
+  // последний в Map (райдер жив) — до фикса краша не было, НО
+  // from = новая модель (3,5) → reverse-глейд/телепорт на новый
+  // финал. Райдер: entry жив — re-timing (поведение не меняется).
+  T = 550;
+  n0 = canvas.drawCalls.length;
+  assert.doesNotThrow(() => press(keydown, 'Space'), TypeError,
+    'Space при истёкшем entry одного из двух мобов — без TypeError');
+  pinWolf(3, 4, 'T=550: волк — старый финал (3,4), не новый (3,5)');
+  const dr1 = diOf(canvas.drawCalls.slice(n0), fakeRider);
+  assert.ok(dr1, 'T=550: райдер нарисован (re-timing живого глейда)');
+  // Глейд волка продолжается от СТАРОГО финала: T=700 → (3,4.5).
+  T += 150;
+  n0 = canvas.drawCalls.length;
+  rafStubs.scheduled[rafStubs.scheduled.length - 1](); // tick → render
+  pinWolf(3, 4.5, 'T=700: глейд волка от (3,4): середина (3,4.5)');
+  assert.equal(rafStubs.scheduled.length, 3,
+    'startCombat + 2 тика = 3 scheduled (новых циклов нет)');
+});

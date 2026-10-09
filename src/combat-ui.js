@@ -66,6 +66,16 @@
     return;
   }
 
+  // Живой Game в момент вызова (UMD-ловушка 000038 выше): motion.js
+  // (ядро глейда 000174 — lerpPos/easeInOut/stepProgress)
+  // доигрывается ПОСЛЕ нашей загрузки (index.html: combat-ui.js →
+  // motion.js); снапшот G снят один раз — в нём motion-функций
+  // НЕТ (UMD подмешивает их в НОВЫЙ объект Game), читать только
+  // лениво в момент вызова. Коп dungeon-ui.js (задача 000033).
+  function liveGame() {
+    return (typeof globalThis !== 'undefined' && globalThis.Game) || G;
+  }
+
   const CELL = 48;
   const ROLE_COLORS = {
     melee: '#d9483b', ranged: '#e08a3c', support: '#5cb85c',
@@ -110,6 +120,10 @@
   // (2×FX_MS — эффект «всей команды» дольше герой-кадра; пин
   // tests/combat-ui.test.js CU118-FX).
   const BREATH_FX_MS = 600;
+  // 000174: длительность глейда передвижения моба на СЕГМЕНТ
+  // (1 тайл), мс (порядок FX_MS 000062): волна fast-моба (2 тайла) —
+  // 600 мс. Поотрезочный smoothstep — «шаг по клеткам» (000033).
+  const MOB_MOVE_MS = 300;
 
   let ctx = null; // { combat, hero, onEnd, open, bgPath, spriteLoader }
   let overlay = null, canvas = null, g2 = null;
@@ -125,6 +139,11 @@
   let bookSig = null;
   let ended = false;
   let rafId = null; // id rAF-цикла анимации (задача 000047); null — нет rAF
+  // 000174: глейд передвижения мобов — null | Map id → { path, at }:
+  // path — полилиния [якорь старта, … «to»-тайлы], at — время drain
+  // (nowMs). null — анимаций нет (steady-state: якорь = модель,
+  // px/py бит-в-бит, 0 новых draw-вызовов — golden-пины держатся).
+  let moveAnims = null;
   // 000151: масштаб осей бэкинга (build()/onResize() перезаписывают на
   // каждый бой; finish() НЕ сбрасывает — следующий build перезапишет).
   let sx = 1, sy = 1;
@@ -421,6 +440,117 @@
     c._unitFx = fx;
   }
 
+  // --- Анимация передвижения мобов по пути A* (задача 000174) ---
+  //
+  // Фаза мобов синхронная (combat.js) — раньше рендер читал финальный
+  // тайл и «телепортировал» моба. Теперь ядро ЗАПИСЫВАЕТ принятые
+  // «to»-тайлы волны (c._uiMoves — пишут замыкания mobAct, ядро поле
+  // не читает), UI drain'ит их в endTurn-тханке (startMoveAnims) и
+  // рисует ИМЕННО эту последовательность тайлов: глейд 300 мс на
+  // сегмент, поотрезочный smoothstep (motion.js 000033). НОВЫХ rAF
+  // НЕТ — playback на существующем tick-цикле 000047 (якорь —
+  // функция (состояние, now); в vm — событийный синхронный рендер).
+  // Pre-roll не анимируется (ядро выбрасывает его шаги — решение C).
+  //
+  // API motion.js (lerpPos/easeInOut/stepProgress) — НАПРЯМУЮ на
+  // объекте Game (UMD: Object.assign — прецеденты G.cameraStep/
+  // G.createMover main.js, live.cameraStep dungeon-ui.js), НЕ в
+  // именованном неймспейсе. Деградация: motion.js не загружен
+  // (битый порядок / vm без motion.js в цепочке) — ТИХИЙ фолбэк в
+  // модельный тайл (= поведение до 000174, играбельно); БЕЗ
+  // console.error (пины console.error = 0, паттерн «fallback, если
+  // motion.js не загрузился» main.js).
+
+  // Визуальный якорь моба в момент now: {x, y} — ДРОБНЫЙ (в глейде)
+  // или модельный тайл. Чистый по (u, moveAnims, now) кроме
+  // self-cleaning: завершённый entry удаляется (мутация в render —
+  // прецедент ctx.breathedPrev 000118; идемпотентно при том же now —
+  // golden-пин :1618). Мультиклеточные мобы — якорь верхний-левый
+  // (u.x, u.y), весь прямоугольник движется как одно.
+  function mobAnchor(u, now) {
+    const entry = moveAnims && moveAnims.get(u.id);
+    if (!u.alive || !entry) return { x: u.x, y: u.y };
+    const motion = liveGame();
+    const segs = entry.path.length - 1;
+    if (!motion || typeof motion.stepProgress !== 'function'
+        || segs <= 0) {
+      moveAnims.delete(u.id);
+      if (!moveAnims.size) moveAnims = null;
+      return { x: u.x, y: u.y };
+    }
+    const tAll = motion.stepProgress(now, entry.at, segs * MOB_MOVE_MS);
+    if (tAll >= 1) {
+      moveAnims.delete(u.id);
+      if (!moveAnims.size) moveAnims = null;
+      return { x: u.x, y: u.y };
+    }
+    const raw = tAll * segs;
+    const i = Math.max(0, Math.min(segs - 1, Math.floor(raw)));
+    return motion.lerpPos(entry.path[i], entry.path[i + 1],
+      motion.easeInOut(raw - i));
+  }
+
+  // Drain записи ядра (после фазы endTurn): c._uiMoves → moveAnims.
+  // По каждому мобы: path = [from, … «to»-тайлы в порядке записей],
+  // at = now. `from` — ТЕКУЩИЙ визуальный якорь (моб ещё глейдит
+  // предыдущую фазу — re-timing от текущей точки: непрерывность без
+  // snap-back при быстром Space; прецедент createMover 000033) либо
+  // снимок beforePos (до фазы). Истёкший БЕЗ рендера глейд (окно до
+  // следующего тика — Space в момент, когда моб «доехал») — тоже
+  // beforePos (старый финальный тайл), а НЕ mobAnchor: тот при tAll≥1
+  // self-cleaning-обнуляет moveAnims (moveAnims.set ниже — TypeError)
+  // и вернул бы НОВУЮ модель — reverse-глейд от нового финала
+  // (регрессии R7/R8, правки по итогам ревью). ЗАМЕНА entry (не
+  // накопление). ТОЛЬКО мобы: союзники/герой — ввод игрока, дискретно
+  // (фильтр side). Prune: юнит исчез/мёртв/сбежал — entry удалён
+  // (труп — на модели).
+  function startMoveAnims(c, beforePos, now) {
+    const moves = c._uiMoves;
+    c._uiMoves = null;
+    if (!moves || !moves.length) return;
+    if (moveAnims) {
+      for (const id of Array.from(moveAnims.keys())) {
+        const u = c.units.find((x) => x.id === id);
+        if (!u || !u.alive || u.fled) moveAnims.delete(id);
+      }
+      if (!moveAnims.size) moveAnims = null;
+    }
+    const seen = new Set();
+    for (const m of moves) {
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      const u = c.units.find((x) => x.id === m.id);
+      if (!u || u.side !== 'mob' || !u.alive || u.fled) continue;
+      // Старый entry — «живой» (тот же now, та же формула, что в
+      // mobAnchor: tAll < 1, сегменты есть, motion-ядро на месте),
+      // только тогда from = mobAnchor (re-timing от дробного якоря).
+      // Истёкший без рендера — завершённый: from = beforePos. mobAnchor
+      // при tAll≥1 self-cleaning-обнуляет moveAnims — звать его здесь
+      // нельзя (moveAnims.set ниже упёрся бы в null; TypeError в
+      // handleCode — регрессия R7), и он вернул бы НОВУЮ модель —
+      // reverse-глейд (R8).
+      const oldEntry = moveAnims ? moveAnims.get(u.id) : null;
+      let oldAlive = false;
+      if (oldEntry) {
+        const segs0 = oldEntry.path.length - 1;
+        const m0 = liveGame();
+        oldAlive = segs0 > 0
+          && !!m0 && typeof m0.stepProgress === 'function'
+          && m0.stepProgress(now, oldEntry.at, segs0 * MOB_MOVE_MS) < 1;
+      }
+      const from = oldAlive
+        ? mobAnchor(u, now)
+        : (beforePos.get(u.id) || { x: u.x, y: u.y });
+      // Перенесено СЮДА — ПОСЛЕ вычисления from (мог вызваться
+      // mobAnchor, чей self-cleaning обнуляет map; R7).
+      if (!moveAnims) moveAnims = new Map();
+      const path = [{ x: from.x, y: from.y }];
+      for (const mm of moves)
+        if (mm.id === u.id) path.push({ x: mm.x, y: mm.y });
+      moveAnims.set(u.id, { path, at: now });
+    }
+  }
+
   // Диспетчер действия (клавиша и клик по кнопке): вызов ядра + причина
   // в журнал при отклонении (задача 000037). Предпроверку canDoAction
   // делает keydown — снимком state для resolveCombatKey (задача 000048;
@@ -465,6 +595,9 @@
         const hpBefore = c.player ? c.player.hp : 0;
         const r = c.endTurn();
         unitFxAfterMobPhase(c, beforePos, hpBefore);
+        // 000174: drain записи принятых шагов — глейд мобов по
+        // A*-полилинии (вместо телепортации); beforePos — «до».
+        startMoveAnims(c, beforePos, nowMs());
         return r;
       },
     }[action];
@@ -847,7 +980,12 @@
       } else if (item.kind === 'mob') {
         const u = item.u;
         const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
-        const px = u.x * CELL, py = u.y * CELL;
+        // 000174: ОДИН визуальный якорь для всех слоёв моба (спрайт,
+        // HP-полоса, уровень, подсветка цели, труп): дробный в глейде,
+        // иначе модель (у !u.alive — модель; steady-state бит-в-бит).
+        // z-порядок — по финальной модели (сортировка list выше).
+        const ap = mobAnchor(u, now);
+        const px = ap.x * CELL, py = ap.y * CELL;
         const pw = w * CELL, ph = h * CELL;
         if (!u.alive) {
           // Труп (задача 000062): одиночный dead-кадр; без HP-полосы,
@@ -1544,6 +1682,7 @@
     bookBox = null;
     bookOpen = false;
     bookSig = null;
+    moveAnims = null;
     ctx = null;
     ended = false;
     onEnd && onEnd(result);
@@ -1577,6 +1716,7 @@
     startCombat(opts) {
       if (isActive()) return null;
       ended = false;
+      moveAnims = null;
       // Эфир (задача 000081): постоянный союзник — opts.efir
       // (состояние {level, xp, skills} из main.js); данные makeAlly —
       // G.efir.efirAllyData. Эфир ПЕРВЫМ в allies — первый якорь

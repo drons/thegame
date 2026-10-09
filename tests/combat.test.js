@@ -6922,3 +6922,145 @@ test('достигнутые клетки моба (задача 000175, R8): ч
   }
 });
 
+// Задача 000174. Бой: анимация передвижения мобов по пути A* (вместо
+// телепортации). КРАСНЫЕ тесты (TDD), node (чистое ядро combat.js).
+// Контракт — memory/000174-mob-move-anim.md («Канал c._uiMoves»):
+// ядро ЗАПИСЫВАЕТ принятые «to»-тайлы волны — плоский массив в
+// ПОРЯДКЕ ИСПОЛНЕНИЯ: null | [{id, x, y}, …]; пишущий — замыкания
+// mobAct (после РЕАЛЬНОГО тайл-шага), читающий — только UI-тханк
+// endTurn (drain → null). 0 c._rng, 0 новых строк лога — движение
+// бит-в-бит (пины 000155 R1–R10 не тронуты).
+//
+// Краснота (осмысленная): c._uiMoves — undefined (поля в ядре НЕТ) →
+// падение на existence/content-ассертах (deepEqual(undefined, массив),
+// assert.equal(undefined, null), Array.isArray(undefined)) — не
+// синтаксис/load-ошибка: новых экспортов/файлов НЕТ (поле объекта c;
+// шапка require без правок).
+//
+// expectedRedCount (этот файл) = 4 (R1–R4); G1 — зелёный guard
+// (нет движения → нет записи; `== null` корректен и для «поля нет»,
+// и для «null» — ловит «пустые» шаги).
+// =====================================================================
+
+test('000174 R1: fast-моб (orc_rider) — волна = 2 шага A*: c._uiMoves — последовательность «to»-тайлов (старт → средняя → финиш), не один прыжок на финал', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['orc_rider'], mobLevel: 1, seed: 7 });
+  const r = c.units.find((u) => u.mobId === 'orc_rider');
+  // pre-roll: райдер (инициатива 6) действовал ДО первого кадра — его
+  // шаг ВЫБРОШЕН (решение C: pre-roll не анимируется): поле null.
+  assert.equal(c._uiMoves, null,
+    'pre-roll выброшен: c._uiMoves === null (краснота: поле отсутствует)');
+  c.obstacles.clear();
+  r.x = 3; r.y = 0;           // стена камней 3,1..3,3 — обход через (2,*)
+  c.obstacles.add('3,1'); c.obstacles.add('3,2'); c.obstacles.add('3,3');
+  c._rng = () => 0.99;
+  c.endTurn();
+  // fast-моб (movePerTurn=2): (3,0)→(2,0)→(2,1) — ровно ДВЕ записи,
+  // каждая 4-соседняя предыдущему якорю, последняя = модель.
+  assert.deepEqual(c._uiMoves,
+    [{ id: 'm0', x: 2, y: 0 }, { id: 'm0', x: 2, y: 1 }],
+    'последовательность принятых «to»-тайлов (не один прыжок на (2,1))');
+  const is4 = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+  const anchors = [[3, 0]]
+    .concat((c._uiMoves || []).map((m) => [m.x, m.y]));
+  for (let i = 1; i < anchors.length; i++) {
+    assert.ok(is4(anchors[i - 1], anchors[i]),
+      `якорь ${i} 4-соседний предыдущему: ${JSON.stringify(anchors)}`);
+  }
+  assert.deepEqual([r.x, r.y], [2, 1], 'финальная модель = последний якорь');
+  // 0 новых строк (startRound логов не пишет — проверено прогоном):
+  // запись шагов не логгирует.
+  assert.deepEqual(c.log, ['Бой: блуждающая группа (уровень 1, мобы 1).'],
+    'лог НЕ вырос (запись шагов — 0 строк)');
+});
+
+test('000174 R2: обход препятствия — средняя позиция = A*-шаг, а не «прямиком»: волк (3,3)+камень (3,4), movePerTurn=2 → [(2,3),(2,4)]', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 1, seed: 7 });
+  const w = c.units[0];
+  c.obstacles.clear();
+  w.x = 3; w.y = 3;
+  c.obstacles.add('3,4');     // «прямиком» к игроку — НА камне
+  w.movePerTurn = 2;          // test-only override (каталог ДАННЫХ не менять)
+  c._rng = () => 0.99;
+  c.endTurn();
+  // (3,4) — камень: «прямиком» упёрся бы в препятствие; A*-шаг (тай-
+  // брейк 000155 R8 «левее раньше правее») — (2,3) ТОЧНО, затем (2,4).
+  assert.deepEqual(c._uiMoves,
+    [{ id: 'm0', x: 2, y: 3 }, { id: 'm0', x: 2, y: 4 }],
+    'средняя = (2,3) — A*-обход, не лерп «старт→финал» (краснота: запись отсутствует)');
+  for (const m of c._uiMoves) {
+    assert.ok(!c.obstacles.has(m.x + ',' + m.y),
+      'якорь не «внутри» камня: ' + m.x + ',' + m.y);
+  }
+  assert.deepEqual([w.x, w.y], [2, 4], 'финальная модель = последний якорь');
+});
+
+test('000174 R3: ретрит ranged (d=1) — отступной шаг тоже порождает последовательность: лучник (2,6) → (2,5), d 1→2', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['orc_archer'], mobLevel: 1, seed: 7 });
+  const a = c.units[0];
+  c.obstacles.clear();
+  a.x = 2; a.y = 6;           // d = 1 — паника: stepFromTarget
+  c._rng = () => 0.99;
+  c.endTurn();
+  // stepAwayRect (порядок ↑ ↓ ← →): первая клетка с ростом d — (2,5).
+  assert.deepEqual(c._uiMoves, [{ id: 'm0', x: 2, y: 5 }],
+    'ретрит: ровно 1 шаг (2,6)→(2,5) (краснота: запись отсутствует)');
+  assert.ok(uDist(c, a) >= 2, 'd вырос: 1 → ≥2');
+  assert.ok(c.log.includes('Орк-лучник отступает.'),
+    'существующая строка лога (без правок): ' + c.log.join(' | '));
+});
+
+test('000174 R4: детерминизм записи — 2 прогона сценариев R1+R2: deepEqual (последовательности, лог, финальные позиции)', () => {
+  // Запись шагов не сдвигает поток RNG и не добавляет строк (инвариант
+  // детерминизма боя, 0 c._rng) — два прогона тем же сетапом
+  // идентичны (шаблон 000155 R3).
+  const runRider = () => {
+    const p = strongHero();
+    const c = createCombat({ player: p, mobs: ['orc_rider'], mobLevel: 1, seed: 7 });
+    const r = c.units.find((u) => u.mobId === 'orc_rider');
+    c.obstacles.clear();
+    r.x = 3; r.y = 0;
+    c.obstacles.add('3,1'); c.obstacles.add('3,2'); c.obstacles.add('3,3');
+    c._rng = () => 0.99;
+    c.endTurn();
+    return { moves: c._uiMoves, log: c.log.slice(), pos: [r.x, r.y] };
+  };
+  const runWolf = () => {
+    const p = strongHero();
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 1, seed: 7 });
+    const w = c.units[0];
+    c.obstacles.clear();
+    w.x = 3; w.y = 3;
+    c.obstacles.add('3,4');
+    w.movePerTurn = 2;
+    c._rng = () => 0.99;
+    c.endTurn();
+    return { moves: c._uiMoves, log: c.log.slice(), pos: [w.x, w.y] };
+  };
+  const a1 = runRider(); const a2 = runRider();
+  const b1 = runWolf(); const b2 = runWolf();
+  assert.ok(Array.isArray(a1.moves),
+    'rider: запись определена (краснота: c._uiMoves отсутствует)');
+  assert.ok(Array.isArray(b1.moves),
+    'wolf: запись определена (краснота: c._uiMoves отсутствует)');
+  assert.deepEqual(a1, a2, 'rider: запись детерминирована (2 прогона)');
+  assert.deepEqual(b1, b2, 'wolf: запись детерминирована (2 прогона)');
+});
+
+test('000174 G1 (guard): нет движения — нет записи: волк d=1 (промах, атака без движения) → c._uiMoves null/отсутствует', () => {
+  const p = strongHero();
+  const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 1, seed: 7 });
+  const w = c.units[0];
+  c.obstacles.clear();
+  w.x = 3; w.y = 5;           // d = 1 — атака, шагов НЕТ
+  c._rng = () => 0.99;        // промах
+  c.endTurn();
+  // `== null` покрывает и «поле отсутствует» (красная фаза — undefined),
+  // и «записи нет» (зелёная фаза — null): ловит «пустые» шаги
+  // (зажатый ретрит / f0===0 должны давать null, а не []-помойку).
+  assert.ok(c._uiMoves == null,
+    'атака без движения — без записи: ' + JSON.stringify(c._uiMoves));
+  assert.deepEqual([w.x, w.y], [3, 5], 'позиция не изменилась');
+});
