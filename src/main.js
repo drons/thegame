@@ -351,6 +351,25 @@
     return { x: player.x, y: player.y };
   }
 
+  // Задача 000173: РЫВОК атакованной группы мобов к игроку на
+  // глобальной карте (render-only, ТЗ): шаг-атака запускает мир-бой
+  // (maybeStartCombat) — в ТОМ ЖЕ кадре спрайт группы глейдит к тайлу
+  // игрока за MOB_CHARGE_MS (easeInOut — тот же createMover, что у
+  // героя, 000033). Бой НЕ откладывается: опции startCombat бит-в-бит
+  // (D2), логический тайл группы/seed/terrain/сейвы/RNG — без
+  // изменений. Оба слоя рендера (проход 3 drawSprites и маркер
+  // MOB_COLOR в buildFrame) рисуют ОДНУ дробную точку кадра
+  // (принцип 000033). Сессионное состояние, сознательно ВНЕ сейва
+  // (как defeatedAt — визуальное, 000122); цель заряда ЗАМОРОЖЕНА на
+  // момент атаки (D4); очистка — ПЕРВАЯ строка onEnd (victory/fled/
+  // dead).
+  const MOB_CHARGE_MS = 1500;
+  let mobCharge = null; // null | { key, from, to, mover }
+  // now последнего кадра — только для debug-поля
+  // state.mobCharge.pos (в vm performance.now() заморожен; время
+  // анимации — ТОЛЬКО аргумент кадра frame(now), D-RNG-1).
+  let lastFrameNow = 0;
+
   // Игровое время (SPEC.md «Игровое время», src/day.js).
   const clock = G.createClock();
   // Журнал квестов (000100): read-only зеркало во вкладке «Квесты»
@@ -1844,7 +1863,9 @@
   // изменений). Тайл боя = тайл ГРУППЫ (key/seed/terrain/quest —
   // ВСЁ от него); на тайле — тайл игрока (бит-в-бит, как до).
   // Возврат: true — бой начался (приоритет над входом в локацию).
-  function maybeStartCombat(scanZones) {
+  // nowMs — время кадра атаки (frame передаёт now; бут — undefined →
+  // performance.now(); на практике from==to → заряда нет, 000173).
+  function maybeStartCombat(scanZones, nowMs) {
     if (G.combatUI && G.combatUI.isActive()) return false;
     // Полноэкранная панель накроет карту в бою — закрываем (000096).
     // KeyI в бою по-прежнему переключает (коммент ниже), но это осознанный
@@ -1871,6 +1892,36 @@
     if (!t) return false;
     const key = t.x + ',' + t.y; // 000135: ключ ТАЙЛА ГРУППЫ
     if (defeatedAt.has(key)) return false; // общий guard (зона и тайл)
+    // Задача 000173 (D4/D8): заряд рывка группы — ПОСЛЕ всех guard'ов
+    // и выбора t, ПЕРЕД startCombat: guard'ы и return-значения не
+    // меняются (бой стартует бит-в-бит, D2; пины 000135). Цель
+    // ЗАМОРОЖЕНА на момент атаки (игрок в бою заморожен — не
+    // «уплывает»): атака НА тайле группы (t === pt) — prevPos (тайл,
+    // с которого шагнул; от него дистанция 1 — иначе from==to и самый
+    // частый случай «шаг на видимого моба» не анимировался бы);
+    // атака в зоне — тайл игрока (player.x/y уже после tryMove).
+    // Цель == тайл группы (спавн/сейв на группе — prevPos снапнут) →
+    // заряда НЕТ (глейд-нуль, рендер бит-в-бит как до). Деградация
+    // (D8): createMover отсутствует — заряда нет, тихий guard по
+    // образцу мувера героя (выше). Канонические тайлы (nz):
+    // findSpawn может дать −0 для спавн-тайла (`dx = −r` при r=0 —
+    // существующее поведение, player.x/prevPos; чужие пины читают
+    // `=== 0`); это тот же тайл, но Object.is/deepStrictEqual
+    // различают −0 и 0 — состояние заряда хранит канонический +0.
+    const nz = (v) => (v === 0 ? 0 : v);
+    const chargeTo = (t === pt)
+      ? { x: nz(prevPos.x), y: nz(prevPos.y) }
+      : { x: nz(player.x), y: nz(player.y) };
+    if (G.createMover
+        && (chargeTo.x !== t.x || chargeTo.y !== t.y)) {
+      const chFrom = { x: nz(t.x), y: nz(t.y) };
+      const chTo = { x: chargeTo.x, y: chargeTo.y };
+      mobCharge = { key, from: chFrom, to: chTo,
+        mover: G.createMover({ x: t.x, y: t.y,
+          intervalMs: MOB_CHARGE_MS }) };
+      mobCharge.mover.step(chFrom, chTo,
+        nowMs != null ? nowMs : performance.now(), MOB_CHARGE_MS);
+    }
     // Задача 000087: `const combat` — onEnd читает ЖИВОЙ объект боя
     // ПОЗЖЕ (гибель — по combat.units, D2); guard isActive — выше.
     const combat = G.combatUI.startCombat({
@@ -1896,6 +1947,10 @@
       // Задача 000076: активные благословения — во ВСЕХ боях дня.
       buffMods: currentBuffMods(),
       onEnd: (res) => {
+        // 000173: конец боя (victory/fled/dead) — заряд сброшен;
+        // спрайт группы либо скрыт (defeatedAt, 000122), либо снова
+        // на якоря тайла (без «залипшего» смещения).
+        mobCharge = null;
         if (res.outcome === 'victory') {
           defeatedAt.set(key, clock.day);
           let flash = `Победа! +${res.xp} опыта, +${res.gold} золота.`;
@@ -2362,6 +2417,8 @@
              entrance: [ax, ay], wealth: 0 };
   }
 
+  // now — время кадра: заряд группы (000173) спрашивает у мувера
+  // дробную точку от него (время — только аргумент кадра, D-RNG-1).
   function buildFrame(rp, now) {
     const verts = quadVerts;
     verts.length = 0;
@@ -2414,7 +2471,15 @@
           const visible = !G.groupVisible
             || G.groupVisible(defeatedAt, t.x, t.y);
           if (visible && !mobFrameImg(t, now)) {
-            pushQuad(verts, tx + 0.30, ty + 0.30, tx + 0.70, ty + 0.70, MOB_COLOR);
+            // 000173: заряжающаяся группа — ДРОБНАЯ точка глейда
+            // (принцип 000033: оба слоя — одна точка кадра, иначе при
+            // WebGL-фолбэке фича невидима); без заряда — целые тайловые
+            // координаты (бит-в-бит как до).
+            const mch = (mobCharge && mobCharge.key === t.x + ',' + t.y)
+              ? mobCharge.mover.position(now) : null;
+            const mx = mch ? mch.x : tx, my = mch ? mch.y : ty;
+            pushQuad(verts, mx + 0.30, my + 0.30, mx + 0.70, my + 0.70,
+              MOB_COLOR);
           }
         }
       }
@@ -2581,7 +2646,14 @@
     for (const t of frameTiles) {
       if (!t.hasMobGroup) continue;
       if (G.groupVisible && !G.groupVisible(defeatedAt, t.x, t.y)) continue;
-      const p = toPt(t.x, t.y);
+      // 000173: заряжающаяся группа — ДРОБНАЯ точка глейда (принцип
+      // 000033: оба слоя — одна точка кадра, как мувер героя);
+      // frameIndex — по ЦЕЛОМУ тайлу (стабильный выбор кадра спрайта,
+      // не «прыгает» по пути рывка); формула drawImage/порядок/число
+      // draw — БЕЗ ИЗМЕНЕНИЙ (пины 000122/000039).
+      const ch = (mobCharge && mobCharge.key === (t.x + ',' + t.y))
+        ? mobCharge.mover.position(now) : null;
+      const p = toPt(ch ? ch.x : t.x, ch ? ch.y : t.y);
       const sx = p.x, sy = p.y;
       // 000176: селектор кадра — общий с гейтом legacy-маркера
       // (buildFrame): groupVisible-паритет — в обоих местах.
@@ -2634,6 +2706,9 @@
   // --- Цикл ---
   let lastMove = 0;
   function frame(now) {
+    // 000173: время кадра — источник времени заряда (debug-поле
+    // state.mobCharge.pos; в vm performance.now() заморожен).
+    lastFrameNow = now;
     const inCombat = G.combatUI && G.combatUI.isActive();
     const inDungeon = dungeonState !== null;
     const inNpc = G.npcUI && G.npcUI.isActive();
@@ -2683,7 +2758,7 @@
         // уводит с него → вход на возвратном шаге туда-обратно
         // (ревью 000135; побег/смерть — возврат на prevPos, вход
         // не начинается).
-        if (!maybeStartCombat(true))
+        if (!maybeStartCombat(true, now))
           enterLocation(); // 000127: домен — src/locations.js
         saveNow();
       }
@@ -2729,6 +2804,20 @@
         // ДРОБНАЯ позиция рендера (задача 000033): между шагами может
         // не совпадать с player — для ручной/смоук-проверки плавности.
         playerRender: renderPos(performance.now()),
+        // Задача 000173: заряд рывка атакованной группы (render-only,
+        // ВНЕ сейва, D5/D6): null | { key, from, to, pos } — pos —
+        // дробная точка ТАЙЛОВЫХ координат на lastFrameNow (в vm
+        // performance.now() заморожен — иначе поле всегда отдавало бы
+        // старт; время — только аргумент кадра). Читаемое зеркало
+        // состояния main.js — мутации запрещены.
+        mobCharge: mobCharge
+          ? {
+              key: mobCharge.key,
+              from: { x: mobCharge.from.x, y: mobCharge.from.y },
+              to: { x: mobCharge.to.x, y: mobCharge.to.y },
+              pos: mobCharge.mover.position(lastFrameNow),
+            }
+          : null,
         cam: { x: cam.x, y: cam.y },
         zoom,
         day: clock.day,
