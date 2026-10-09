@@ -3163,3 +3163,279 @@ test('боевой UI: 000168-UI-2 — кнопки на ходу спутник
   }
 });
 
+// =====================================================================
+// Задача 000175. Штриховка клеток, до которых выбранный моб доходит
+// за один ход. КРАСНЫЕ тесты (TDD), vm-песочница (паттерн 000084/
+// 000166: loadCombatUi/makeRafStubs/fakeLoader84/tickSlice/
+// styledCalls/addMerc84). Контракт —
+// memory/000175-mob-reach-hatch.md §3 (UI).
+//
+// Штриховка — canvas-слой МЕЖДУ сеткой и препятствиями (z-порядок);
+// на тайл — ОДНА диагональ 45°, inset 8px (конвенция спрайта юнита):
+// beginPath → moveTo(px+8, py+40) → lineTo(px+40, py+8) → stroke
+// (px = x·48, py = y·48, CELL = 48). strokeStyle/lineWidth — ОДИН раз
+// до цикла. ГЕЙТ: c.targetId → ЖИВОЙ не-fled юнит side === 'mob'
+// (то же условие, что жёлтое кольцо цели). Цвет — производное
+// подсветки цели #ffe27a (семья «выделенный моб»):
+// 'rgba(255, 226, 122, 0.35)' (D9). Рендер чистый: 0 log-push,
+// 0 drawImage (штриховка — stroke-only).
+//
+// Краснота (осмысленная): слоя штриховки в render() НЕТ — 0
+// штрих-вызовов в drawCalls (AssertionError); G.mobReachCells —
+// undefined (экспорт ядра отсутствует) — TypeError. Песочница
+// стартует, бой создаётся (не load-ошибка, не SyntaxError).
+// =====================================================================
+
+const HATCH175 = 'rgba(255, 226, 122, 0.35)'; // D9: производное #ffe27a
+const NOW175 = 1000;
+
+// H175: сцена — фикс. now + rAF-стабы + опц. sprite-лоадер (паттерн
+// scene84/scene166); dungeonType — только путь фона (H6).
+function scene175(opts = {}) {
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body } = loadCombatUi(true, {
+    performance: { now: () => NOW175 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const requested = [];
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(),
+    mobs: opts.mobs || ['wolf'], mobLevel: 1, seed: 42,
+    ...(opts.dungeonType !== undefined
+      ? { dungeonType: opts.dungeonType } : {}),
+    spriteLoader: fakeLoader84(requested, opts.loader || []),
+  });
+  return { G, c, canvas: findCanvas(body), body, keydown, rafStubs,
+    requested };
+}
+
+// H175: декод штриховки из среза рендера (tickSlice): для каждого
+// 'stroke' с действовавшим strokeStyle === HATCH175 пара
+// (moveTo m, lineTo l) — клетка = (trunc((l[0] − 40)/48),
+// trunc((m[1] − 40)/48)) (40 = CELL − 8, inset-конвенция). Нарушение
+// сигнатуры (не moveTo/lineTo, геометрия не 8px-inset) — ассерт-
+// ошибка (пин геометрии D8).
+function hatchTiles175(slice) {
+  const sc = styledCalls(slice.events);
+  const tiles = [];
+  for (let i = 0; i < sc.length; i++) {
+    const ev = sc[i];
+    if (ev.name !== 'stroke' || ev.strokeStyle !== HATCH175) continue;
+    const lt = sc[i - 1], mv = sc[i - 2];
+    assert.ok(mv && mv.name === 'moveTo' && lt && lt.name === 'lineTo',
+      'сигнатура штриха: … → moveTo → lineTo → stroke');
+    const x = Math.trunc((lt.args[0] - 40) / 48);
+    const y = Math.trunc((mv.args[1] - 40) / 48);
+    assert.equal(mv.args[0], x * 48 + 8, 'moveTo x — клетка + 8px (inset)');
+    assert.equal(mv.args[1], y * 48 + 40, 'moveTo y — клетка + 40px (inset)');
+    assert.equal(lt.args[0], x * 48 + 40, 'lineTo x — клетка + 40px (inset)');
+    assert.equal(lt.args[1], y * 48 + 8, 'lineTo y — клетка + 8px (inset)');
+    tiles.push(x + ',' + y);
+  }
+  return tiles;
+}
+
+// H175: индексы штрих-'stroke' в массиве slice.calls (пин z-порядка):
+// ci — число вызовов, предшествующих событию.
+function hatchCallIdx175(slice) {
+  const idx = [];
+  let strokeStyle = null;
+  let ci = 0;
+  for (const ev of slice.events) {
+    if (ev.s) {
+      if (ev.s[0] === 'strokeStyle') strokeStyle = ev.s[1];
+    } else {
+      if (ev.c[0] === 'stroke' && strokeStyle === HATCH175) idx.push(ci);
+      ci++;
+    }
+  }
+  return idx;
+}
+
+test('боевой UI: 000175 H1 — выделение живого моба: штриховка на ТОЧНОМ наборе (== G.mobReachCells), одна 8px-inset диагональ на клетку, z-порядок: сетка < штриховка < препятствия < моб', () => {
+  const S = scene175({
+    loader: [
+      ['assets/combat/obstacles/', { __fake: 'obs' }],
+      ['assets/sprites/mobs/wolf_', { __fake: 'wolf' }],
+    ],
+  });
+  const { G, c, canvas, rafStubs } = S;
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  assert.equal(c.targetId, wolf.id, 'авто-цель — волк (единственный моб)');
+  const t = tickSlice(canvas, rafStubs);
+  const tiles = hatchTiles175(t);
+  assert.ok(tiles.length > 0,
+    'штриховка в рендере (краснота: слой не реализован — 0 штрихов)');
+  // Ключевой пин: НАРИСОВАННЫЙ набор == НАБОР ЯДРА (G.mobReachCells).
+  const expected = G.mobReachCells(c, wolf);
+  assert.equal(tiles.length, expected.size,
+    'число штрихов == число клеток (' + tiles.length + ' vs '
+    + expected.size + ')');
+  assert.deepEqual(tiles.slice().sort(), [...expected].sort(),
+    'декодированный набор == G.mobReachCells(c, wolf) (правильный набор И нарисован)');
+  // z-порядок: последний stroke сетки < первый штрих < первое
+  // препятствие < спрайт волка.
+  const calls = t.calls;
+  const firstHatch = hatchCallIdx175(t)[0];
+  let lastGrid = -1;
+  for (let i = 0; i < firstHatch; i++)
+    if (calls[i][0] === 'stroke') lastGrid = i;
+  assert.ok(lastGrid >= 0, 'сетка ДО штриховки (есть stroke-сетки)');
+  const firstObs = calls.findIndex(
+    (x) => x[0] === 'drawImage' && x[1][0] && x[1][0].__fake === 'obs');
+  const iWolf = calls.findIndex(
+    (x) => x[0] === 'drawImage' && x[1][0] && x[1][0].__fake === 'wolf');
+  assert.ok(firstObs >= 0 && iWolf >= 0,
+    'препятствия и волк нарисованы (sprite-лоадер, паттерн 000050)');
+  assert.ok(lastGrid < firstHatch,
+    `штриховка ПОСЛЕ сетки (${lastGrid} < ${firstHatch})`);
+  assert.ok(firstHatch < firstObs,
+    `штриховка ПЕРЕД препятствиями (${firstHatch} < ${firstObs})`);
+  assert.ok(firstObs < iWolf,
+    `препятствия ПЕРЕД мобом (${firstObs} < ${iWolf})`);
+  // Чистый рендер: лог не вырос (D7 — сейвы/детерминизм).
+  const n0 = c.log.length;
+  tickSlice(canvas, rafStubs);
+  assert.equal(c.log.length, n0, 'рендер не растит c.log');
+});
+
+test('боевой UI: 000175 H2 — перецеливание: штриховка следует за выбором (2 моба: авто-centipede → wolf), тайлы прежнего моба исчезают', () => {
+  const S = scene175({ mobs: ['wolf', 'centipede'] });
+  const { G, c, canvas, rafStubs } = S;
+  const wolf = c.units.find((u) => u.mobId === 'wolf');       // m0 (1,1)
+  const cent = c.units.find((u) => u.mobId === 'centipede');  // m1 (3,0), fast
+  assert.equal(c.targetId, cent.id, 'авто-цель — ближайшая (многоножка)');
+  // (a) Авто-цель (fast, movePerTurn=2) — штриховка = ЕЁ набор
+  //     (радиус-2 с учётом препятствий — пин fast-моба в UI).
+  let t = tickSlice(canvas, rafStubs);
+  let tiles = hatchTiles175(t);
+  assert.ok(tiles.length > 0, 'краснота: штриховки нет (слой не реализован)');
+  assert.deepEqual(tiles.slice().sort(), [...G.mobReachCells(c, cent)].sort(),
+    'набор == G.mobReachCells(многоножка)');
+  // (b) Перетаргет — волк: набор пересчитан, тайлы многоножки
+  //     больше не штрихуются (селективный пересчёт).
+  c.targetId = wolf.id;
+  t = tickSlice(canvas, rafStubs);
+  tiles = hatchTiles175(t);
+  assert.deepEqual(tiles.slice().sort(), [...G.mobReachCells(c, wolf)].sort(),
+    'набор == G.mobReachCells(волк)');
+  assert.ok(!tiles.includes('2,0'),
+    'тайл многоножки (2,0) больше не штрихован (селективный пересчёт)');
+});
+
+test('боевой UI: 000175 H3 — цель убитая (alive=false, hp=0; targetId не трогаем) — штриховка исчезает', () => {
+  const S = scene175();
+  const { c, canvas, rafStubs } = S;
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  assert.equal(c.targetId, wolf.id, 'авто-цель — волк');
+  assert.ok(hatchTiles175(tickSlice(canvas, rafStubs)).length > 0,
+    'живая цель — штриховка есть (краснота: слой не реализован)');
+  // Цель убита (прямой write — белая коробка, паттерн 000166).
+  wolf.alive = false; wolf.hp = 0;
+  assert.equal(c.targetId, wolf.id, 'targetId не тронут');
+  assert.equal(hatchTiles175(tickSlice(canvas, rafStubs)).length, 0,
+    'мёртвая цель — 0 штрихов (гейт: живой моб)');
+});
+
+test('боевой UI: 000175 H4 — c.targetId = null (автоцель — игрок) — штриховка исчезает', () => {
+  const S = scene175();
+  const { c, canvas, rafStubs } = S;
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  assert.equal(c.targetId, wolf.id, 'авто-цель — волк');
+  assert.ok(hatchTiles175(tickSlice(canvas, rafStubs)).length > 0,
+    'краснота: штриховки нет (слой не реализован)');
+  c.targetId = null;
+  assert.equal(hatchTiles175(tickSlice(canvas, rafStubs)).length, 0,
+    'targetId = null — 0 штрихов (автоцель — игрок, не моб)');
+});
+
+test('боевой UI: 000175 H5 — c.targetId = мёртвый СОЮЗНИК (прямой write, паттерн 000166) — 0 штрихов (гейт side «mob»)', () => {
+  const S = scene175();
+  const { G, c, canvas, rafStubs } = S;
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  assert.equal(c.targetId, wolf.id, 'авто-цель — волк');
+  assert.ok(hatchTiles175(tickSlice(canvas, rafStubs)).length > 0,
+    'краснота: штриховки нет (слой не реализован)');
+  const merc = addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+  merc.alive = false; merc.hp = 0;
+  c.targetId = merc.id; // прямой write (ядро отклоняет союзников, 000080)
+  assert.equal(hatchTiles175(tickSlice(canvas, rafStubs)).length, 0,
+    'цель — союзник (side «ally») — 0 штрихов (гейт: только side «mob»)');
+});
+
+test('боевой UI: 000175 H6 — регрессия сцены H1: calls[0] = базовый fillRect, calls[1] = фон; #ffe27a = 1 (кольцо цели цело); число drawImage не изменилось (штриховка — stroke, не drawImage)', () => {
+  const S = scene175({
+    dungeonType: 4, // abyss → 'assets/combat/bg/abyss.svg'
+    loader: [
+      ['assets/combat/bg/', { __fake: 'bg' }],
+      ['assets/combat/obstacles/', { __fake: 'obs' }],
+      ['assets/sprites/mobs/wolf_', { __fake: 'wolf' }],
+    ],
+  });
+  const { G, c, canvas, rafStubs } = S;
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  const t = tickSlice(canvas, rafStubs);
+  const tiles = hatchTiles175(t);
+  assert.ok(tiles.length > 0, 'краснота: штриховки нет (слой не реализован)');
+  assert.equal(tiles.length, G.mobReachCells(c, wolf).size,
+    'число штрихов == число клеток');
+  // (a) Ранние индексы НЕ сдвинулись: calls[0] — базовый fillRect,
+  //     calls[1] — фон (сетка — после, пин 000049 держится).
+  assert.equal(t.calls[0][0], 'fillRect', 'calls[0] — базовая заливка');
+  assert.deepEqual(t.calls[0][1], [0, 0, 336, 336],
+    'calls[0] — всё поле 7×7 (336×336)');
+  assert.equal(t.calls[1][0], 'drawImage',
+    'calls[1] — фон (до сетки, пин 000049)');
+  // (b) #ffe27a — ровно ОДИН раз: кольцо выбранной цели цело
+  //     (штриховка — другой цвет, пин 000084 не задет).
+  const gold = t.styleCalls
+    .filter((s) => s[0] === 'strokeStyle' && s[1] === '#ffe27a');
+  assert.equal(gold.length, 1,
+    'ровно одно #ffe27a — кольцо цели (штриховка — свой цвет)');
+  // (c) Число drawImage НЕ изменилось: фон + препятствия + волк —
+  //     штриховка не добавляет drawImage (только stroke).
+  const diCount = t.calls.filter((x) => x[0] === 'drawImage').length;
+  assert.equal(diCount, c.obstacles.size + 2,
+    'drawImage = фон + препятствия + волк (штриховка не добавляет)');
+});
+
+// Якорь A175-1 (зелёный с момента написания, в red-count НЕ входит):
+// 0 штрихов при targetId=null / мёртвом мобе / мёртвом союзнике /
+// fled-мобе — страхует гейт (D6) и дефолтный рендер «вы»; смежные
+// 000166/000168 не ломаются.
+test('боевой UI: 000175 A175-1 (якорь) — 0 штрихов при targetId=null / мёртвом мобе / мёртвом союзнике / fled-мобе', () => {
+  // (a) targetId = null (автоцель — игрок).
+  {
+    const S = scene175();
+    S.c.targetId = null;
+    assert.equal(hatchTiles175(tickSlice(S.canvas, S.rafStubs)).length, 0,
+      'targetId = null — штриховки нет');
+  }
+  // (b) Мёртвый моб (прямой write; targetId не трогаем).
+  {
+    const S = scene175();
+    const wolf = S.c.units.find((u) => u.mobId === 'wolf');
+    wolf.alive = false; wolf.hp = 0;
+    assert.equal(hatchTiles175(tickSlice(S.canvas, S.rafStubs)).length, 0,
+      'мёртвый моб — штриховки нет');
+  }
+  // (c) Мёртвый союзник (прямой write c.targetId — паттерн 000166).
+  {
+    const S = scene175();
+    const merc = addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+    merc.alive = false; merc.hp = 0;
+    S.c.targetId = merc.id;
+    assert.equal(hatchTiles175(tickSlice(S.canvas, S.rafStubs)).length, 0,
+      'мёртвый союзник (side «ally») — штриховки нет');
+  }
+  // (d) Fled-моб (fled = true, alive).
+  {
+    const S = scene175();
+    const wolf = S.c.units.find((u) => u.mobId === 'wolf');
+    wolf.fled = true;
+    assert.equal(hatchTiles175(tickSlice(S.canvas, S.rafStubs)).length, 0,
+      'fled-моб — штриховки нет');
+  }
+});
+

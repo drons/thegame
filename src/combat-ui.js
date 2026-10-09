@@ -80,6 +80,13 @@
   const ALLY_MERC_KIND = 'orc';
   const ALLY_MARKER = '#8cf2fc';
   const ALLY_MARKER_UNDERLAY = 'rgba(140, 242, 252, 0.25)';
+  // Штриховка зоны досягаемости выбранного моба (задача 000175):
+  // производное подсветки цели #ffe27a (семья «выделенный моб» — как
+  // жёлтое кольцо) + низкая альфа, «новых цветов не вводим» (паттерн
+  // 000038/000084 ALLY_MARKER_UNDERLAY). Строка УНИКАЛЬНА — не
+  // совпадает ни с одним закреплённым styleCalls-значением (контракт
+  // memory/000175-mob-reach-hatch.md D9).
+  const MOB_REACH_HATCH = 'rgba(255, 226, 122, 0.35)';
 
   // --- Время и кадры анимации (задача 000047) ---
   //
@@ -122,6 +129,9 @@
   // каждый бой; finish() НЕ сбрасывает — следующий build перезапишет).
   let sx = 1, sy = 1;
   let measureWarned = false; // console.error об отсутствующем combatScale — ОДИН раз
+  // 000175: console.error об отсутствующем Game.mobReachCells — ОДИН раз
+  // (УМД-ловушка 000038: битый порядок загрузки).
+  let reachWarned = false;
 
   function isActive() {
     return !!ctx && ctx.open;
@@ -1020,6 +1030,51 @@
     }
   }
 
+  // Штриховка клеток, до которых выбранный моб доходит за один ход
+  // (задача 000175): ядро — G.mobReachCells (BFS по u.movePerTurn;
+  // контракт memory/000175-mob-reach-hatch.md §2).
+  // ГЕЙТ (D6): c.targetId → ЖИВОЙ не-fled юнит side === 'mob' —
+  // ТО ЖЕ условие, что жёлтое кольцо цели в drawUnits: штриховка
+  // появляется и исчезает ровно тогда, когда кольцо. Фазовых и
+  // result-гейтов НЕТ. z-порядок — слой МЕЖДУ сеткой и препятствиями
+  // (вызов в render() — после сетки, до «Состояние героя»/препятствий).
+  // Геометрия (D8): ОДНА диагональ 45° на клетку, inset 8px (конвенция
+  // спрайта юнита 000084): moveTo(px+8, py+40) → lineTo(px+40, py+8).
+  // Стиль — ОДИН раз до цикла (MOB_REACH_HATCH + lineWidth 1).
+  // Итерация по Set (порядок вставки BFS — детерминирован, паттерн
+  // итерации по c.obstacles). Рендер ЧИСТЫЙ: 0 log-push, 0 drawImage
+  // (штриховка — stroke-only), 0 мутаций c (G.mobReachCells чистая).
+  // Деградация (D10, УМД-ловушка 000038): G.mobReachCells отсутствует
+  // в снапшоте (битый порядок загрузки) → console.error ОДИН раз
+  // (reachWarned) + штриховка не рисуется, рендер не падает.
+  function drawMobReachHatch(c) {
+    const u = c.targetId
+      ? c.units.find((x) => x.id === c.targetId) : null;
+    if (!u || u.side !== 'mob' || !u.alive || u.fled) return;
+    if (typeof G.mobReachCells !== 'function') {
+      if (!reachWarned) {
+        reachWarned = true;
+        console.error('combat-ui.js: Game.mobReachCells недоступен ' +
+          '(src/combat.js обязан грузиться ДО src/combat-ui.js, ' +
+          'задача 000175) — без штриховки зоны досягаемости');
+      }
+      return;
+    }
+    const cells = G.mobReachCells(c, u);
+    if (!cells.size) return;
+    g2.strokeStyle = MOB_REACH_HATCH;
+    g2.lineWidth = 1;
+    for (const key of cells) {
+      const sep = key.indexOf(',');
+      const px = Number(key.slice(0, sep)) * CELL;
+      const py = Number(key.slice(sep + 1)) * CELL;
+      g2.beginPath();
+      g2.moveTo(px + 8, py + 40);
+      g2.lineTo(px + 40, py + 8);
+      g2.stroke();
+    }
+  }
+
   function render() {
     if (!ctx || !ctx.open) return;
     const c = ctx.combat;
@@ -1086,6 +1141,13 @@
       g2.lineTo(W, y * CELL + 0.5);
       g2.stroke();
     }
+
+    // Штриховка зоны досягаемости выбранного моба (задача 000175):
+    // слой строго МЕЖДУ сеткой и препятствиями (z-порядок: фон → сетка
+    // → ШТРИХОВКА → препятствия → юниты → эффекты). Пин 000050
+    // «iObs > последний 'stroke' всего render'а» держится без правок:
+    // штриховка — stroke и рисуется ДО препятствий.
+    drawMobReachHatch(c);
 
     // Состояние героя (задачи 000038/000047): ОДИН расчёт
     // p/d/hpFrac/hpColor на render на троих потребителей —

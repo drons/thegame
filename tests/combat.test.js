@@ -21,6 +21,11 @@ const {
   // 000167: активный юнит по очереди (000168 — диспатч по нему; экспорт
   // существует с 000167 — техническое добавление в список require).
   activeUnitId,
+  // 000175: клетки, до которых выбранный моб доходит за один ход
+  // (красные тесты: экспорт отсутствует — undefined → осмысленный
+  // TypeError «not a function», не load-ошибка; прецедент
+  // 000132/000155/000167).
+  mobReachCells,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
@@ -6742,6 +6747,178 @@ test('000168-BREATH-1: «Вдох Эфира» — авто-триггер в Н
     }
   } finally {
     C.combatInternals.allySpells = saveCatalog;
+  }
+});
+
+// =====================================================================
+// Задача 000175. Клетки, до которых выбранный моб доходит за один ход.
+// КРАСНЫЕ тесты (TDD). Контракт — memory/000175-mob-reach-hatch.md §2.
+//
+// mobReachCells(c, u) — ЧИСТАЯ функция ядра: BFS от якоря (u.x, u.y),
+// глубина ≤ u.movePerTurn || 1 (бюджет ОДНОГО хода моба: 1, у fast — 2),
+// соседи — 4 в каноническом порядке PATH_DIRS (↑ ↓ ← →), проходимость —
+// rectFree (стены: границы поля, клетка игрока (c.px, c.py), c.obstacles,
+// другие живые не-fled юниты; САМОГО моба игнор — тот же набор «стен»,
+// что у реального шага моба). Возврат — Set<'x,y'> достижимых якорей;
+// СТАРТОВЫЙ якорь НЕ включён (моб уже там; штриховка — тайлы, куда
+// МОЖЕТ дойти). Мультиклеточные мобы (w×h) — объединение ВСЕХ клеток
+// прямоугольника на каждом достижимом якоре. Чистота: 0 c._rng,
+// 0 мутаций c/u, 0 новых полей c (детерминизм боя/сейвы не трогать).
+//
+// Краснота (осмысленная): экспорт отсутствует (src/combat.js) —
+// mobReachCells = undefined → TypeError «not a function» (не
+// load-ошибка и не SyntaxError; паттерн 000132/000155/000167).
+// =====================================================================
+
+// Сцена: бой 1×1-мобом на ЧИСТОМ поле (обstacles сняты — геометрия
+// препятствий проверяется отдельно, R3/R7); герой — strongHero (не
+// умирает); позиция героя — канон createCombat (3,6).
+function reachScene175(mobs = ['wolf']) {
+  const c = createCombat({ player: strongHero(), mobs, mobLevel: 1, seed: 42 });
+  c.obstacles.clear();
+  return c;
+}
+
+test('достигнутые клетки моба (задача 000175, R1): 1×1 открытое поле, movePerTurn=1 → ровно 4 ортогональных соседа, старт не в наборе, возврат Set «x,y»', () => {
+  const c = reachScene175();
+  const w = c.units[0]; // wolf 1×1
+  w.x = 3; w.y = 3; // центр поля 7×7
+  const s = mobReachCells(c, w);
+  assert.ok(s instanceof Set, 'возврат — Set');
+  assert.deepEqual([...s].sort(), ['2,3', '3,2', '3,4', '4,3'],
+    'ровно 4 ортогональных соседа (манхэттен 1), факт: ' + [...s].sort());
+  assert.ok(!s.has('3,3'), 'стартовое положение НЕ в наборе (D4)');
+});
+
+test('достигнутые клетки моба (задача 000175, R2): fast (movePerTurn=2) → 12 клеток манхэттен ≤2; у стены — обрезка границей', () => {
+  const c = reachScene175();
+  const w = c.units[0];
+  w.movePerTurn = 2; // fast (makeMob: t.fast → 2)
+  w.x = 3; w.y = 3;
+  const s = mobReachCells(c, w);
+  assert.equal(s.size, 12, '12 клеток (D4: старт не считается)');
+  assert.deepEqual([...s].sort(), [
+    '1,3', '2,2', '2,3', '2,4', '3,1', '3,2',
+    '3,4', '3,5', '4,2', '4,3', '4,4', '5,3',
+  ], 'манхэттен ≤ 2 без старта, факт: ' + [...s].sort());
+  // У стены: угол (0,0) — манхэттен ≤ 2 внутри поля = 5 клеток.
+  w.x = 0; w.y = 0;
+  const corner = mobReachCells(c, w);
+  assert.deepEqual([...corner].sort(), ['0,1', '0,2', '1,0', '1,1', '2,0'],
+    'угол: обрезка границей поля, факт: ' + [...corner].sort());
+});
+
+test('достигнутые клетки моба (задача 000175, R3): препятствие — само и клетка за ним не в наборе; лимит ШАГОВ — манхэттен-2 при steps=1 не в наборе (не просто радиус)', () => {
+  const c = reachScene175();
+  const w = c.units[0];
+  w.x = 3; w.y = 3;
+  c.obstacles.add('3,2'); // камень прямо над мобом
+  const s1 = mobReachCells(c, w);
+  assert.deepEqual([...s1].sort(), ['2,3', '3,4', '4,3'],
+    'steps=1: 4 соседа − блок (3,2) = 3, факт: ' + [...s1].sort());
+  assert.ok(!s1.has('3,1'),
+    'клетка за камнем (манхэттен 2) не в наборе при steps=1 — лимит шагов, а не радиус');
+  // steps=2: клетка ЗА препятствием недостижима (BFS не проходит
+  // через камень), хотя манхэттен = 2.
+  w.movePerTurn = 2;
+  const s2 = mobReachCells(c, w);
+  assert.ok(!s2.has('3,2'), 'само препятствие не в наборе');
+  assert.ok(!s2.has('3,1'),
+    'клетка ЗА препятствием не в наборе (BFS не проходит через камень)');
+  assert.equal(s2.size, 10,
+    '12 (манхэттен ≤2) − (3,2) − (3,1) = 10, факт: ' + s2.size);
+});
+
+test('достигнутые клетки моба (задача 000175, R4): стены из юнитов — живой моб/союзник/клетка игрока блокируют; мёртвый/fled — не блокируют; себя игнор', () => {
+  const c = reachScene175(['wolf', 'boar']);
+  const w = c.units[0], boar = c.units[1]; // boar 1×1
+  w.x = 3; w.y = 3;
+  boar.x = 4; boar.y = 3; // живой моб — стена
+  const ally = makeAlly({ name: 'Вольк', role: 'melee', level: 1, dmg: 1, hp: 1 }, 1);
+  ally.x = 2; ally.y = 3; // союзник — стена
+  c.units.push(ally);
+  c.px = 3; c.py = 2; // клетка игрока — стена
+  const s = mobReachCells(c, w);
+  assert.deepEqual([...s].sort(), ['3,4'],
+    'все соседи заблокированы (моб/союзник/игрок), факт: ' + [...s].sort());
+  // Мёртвый/fled — НЕ блокируют (клетка освобождена).
+  ally.alive = false; ally.hp = 0;
+  boar.fled = true;
+  const s2 = mobReachCells(c, w);
+  assert.deepEqual([...s2].sort(), ['2,3', '3,4', '4,3'],
+    'мёртвый союзник и fled-моб не блокируют, факт: ' + [...s2].sort());
+  // Себя игнор: 2×2-якорь, пересекающий собственный старт-прямоугольник,
+  // свободен — пины по клеткам, достижимым ТОЛЬКО таким якорем.
+  const c2 = reachScene175(['cave_bear']);
+  const bear = c2.units[0];
+  bear.x = 1; bear.y = 1; // 2×2: (1,1),(2,1),(1,2),(2,2)
+  const s3 = mobReachCells(c2, bear);
+  assert.ok(s3.has('3,1') && s3.has('3,2'),
+    'якорь (2,1) — пересекает собственный старт-прямоугольник — свободен (себя игнор)');
+});
+
+test('достигнутые клетки моба (задача 000175, R5): 2×2 в углу поля (steps=1) — объединение якорей (0,1) и (1,0) → ровно 7 клеток; старт-2×2 исключён', () => {
+  const c = reachScene175(['cave_bear']);
+  const bear = c.units[0];
+  bear.x = 0; bear.y = 0; // 2×2 в углу: (0,0),(1,0),(0,1),(1,1)
+  const s = mobReachCells(c, bear);
+  // Якорь (0,1): клетки (0,1),(1,1),(0,2),(1,2); якорь (1,0):
+  // (1,0),(2,0),(1,1),(2,1). Объединение — 7 клеток (D5).
+  assert.deepEqual([...s].sort(), ['0,1', '0,2', '1,0', '1,1', '1,2', '2,0', '2,1'],
+    'ровно 7 клеток (объединение якорных прямоугольников), факт: ' + [...s].sort());
+  assert.ok(!s.has('0,0'), 'старт-клетка (0,0) не в наборе');
+});
+
+test('достигнутые клетки моба (задача 000175, R6): 1×1 в углу поля (0,0), steps=1 → ровно 2 клетки (границы)', () => {
+  const c = reachScene175();
+  const w = c.units[0];
+  w.x = 0; w.y = 0;
+  const s = mobReachCells(c, w);
+  assert.deepEqual([...s].sort(), ['0,1', '1,0'],
+    'угол: 2 клетки (границы поля), факт: ' + [...s].sort());
+});
+
+test('достигнутые клетки моба (задача 000175, R7): тупик — все соседи заняты → пустой Set', () => {
+  const c = reachScene175();
+  const w = c.units[0];
+  w.x = 3; w.y = 3;
+  for (const k of ['3,2', '3,4', '2,3', '4,3']) c.obstacles.add(k);
+  const s = mobReachCells(c, w);
+  assert.ok(s instanceof Set, 'возврат — Set');
+  assert.equal(s.size, 0, 'все 4 соседа заняты — пустой набор');
+});
+
+test('достигнутые клетки моба (задача 000175, R8): чистота + детерминизм — c/u не мутируют, 0 вызовов c._rng, два вызова → идентичный набор', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['wolf', 'centipede'], mobLevel: 1, seed: 42,
+  });
+  const w = c.units[0]; // wolf (1,1); препятствия seed 42 НЕ сняты
+  const snap = () => JSON.stringify({
+    px: c.px, py: c.py,
+    log: c.log,
+    turnOrder: c.turnOrder, turnIndex: c.turnIndex,
+    targetId: c.targetId, phase: c.phase, round: c.round,
+    obstacles: [...c.obstacles].sort(),
+    units: c.units.map((u) => ({
+      id: u.id, x: u.x, y: u.y, hp: u.hp, maxHP: u.maxHP,
+      alive: u.alive, fled: u.fled, movePerTurn: u.movePerTurn, size: u.size,
+    })),
+    player: { hp: c.player.hp, mp: c.player.mp },
+  });
+  const before = snap();
+  // c._rng-шпион: подсчёт вызовов (восстановление в finally).
+  let rngCalls = 0;
+  const origRng = c._rng;
+  c._rng = () => { rngCalls++; return origRng(); };
+  try {
+    const s1 = mobReachCells(c, w);
+    const s2 = mobReachCells(c, w);
+    assert.equal(rngCalls, 0, '0 вызовов c._rng (чистота — детерминизм/сейвы)');
+    assert.equal(snap(), before, 'c не мутирован (структурный снапшот идентичен)');
+    assert.deepEqual([...s1].sort(), [...s2].sort(),
+      'два вызова → идентичный отсортированный набор (детерминизм)');
+  } finally {
+    c._rng = origRng;
   }
 });
 
