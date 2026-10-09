@@ -609,7 +609,8 @@ function (G0, rootRef) {
           }
           // Устаревшие узлы (member больше не в партии — уволен /
           // Эфир «не встречен»): убрать из ряда.
-          for (const ch of row.children.slice()) {
+          // 000169: row.children — HTMLCollection (нет .slice) — копия через Array.from (итерируемый).
+          for (const ch of Array.from(row.children)) {
             const id = ch.dataset && ch.dataset.memberid;
             if (!id || !party.members.some((m) => m.id === id)) {
               ch.remove();
