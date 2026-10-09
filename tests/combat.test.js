@@ -18,6 +18,9 @@ const {
   // падение осмысленное: TypeError «not a function», не load-ошибка —
   // прецедент 000132).
   unitInitiative,
+  // 000167: активный юнит по очереди (000168 — диспатч по нему; экспорт
+  // существует с 000167 — техническое добавление в список require).
+  activeUnitId,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
@@ -2324,8 +2327,9 @@ test('buildTurnOrder: мёртвые и fled союзники исключены
 
 test('turnIndex: союзник действует в фазе мобов — turnOrder[turnIndex] = id союзника (инвариант 000036)', () => {
   // 000167: союзник (init 0) — в хвосте очереди; wolf (3) и spider (4)
-  // уже действовали в pre-roll (round 1). endTurn: союзник действует
-  // на СВОЕМ слоте (3) устаревшей очереди, затем новый раунд.
+  // уже действовали в pre-roll (round 1).
+  // 000168: endTurn — остановка на слоте союзника (ввод игрока);
+  // удар — c.attack (ИИ-путь удалён); затем новый раунд.
   const p = strongHero();
   const c = createCombat({
     player: p,
@@ -2347,11 +2351,15 @@ test('turnIndex: союзник действует в фазе мобов — tu
     events.push([msg, c.turnIndex, c.turnOrder.slice()]);
     return origPush(msg);
   };
+  // 000168: endTurn — остановка на слоте союзника (ввод); удар —
+  // c.attack (ИИ-путь удалён); затем endTurn → новый раунд (мобы).
+  c.endTurn();
+  c.attack(w.id);
   c.endTurn();
 
   // Союзник — на своём слоте (3) очереди round 1 (ПОСЛЕ игрока).
   const aEv = events.find(([m]) => m === 'Вольк бьёт Волк: 3.');
-  assert.ok(aEv, `нет действия союзника в phase "mob": ${c.log.join(' | ')}`);
+  assert.ok(aEv, `нет действия союзника: ${c.log.join(' | ')}`);
   assert.equal(aEv[1], 3, 'союзник действует на слоте 3 (хвост очереди)');
   assert.equal(aEv[2][3], 'a0', 'turnOrder[turnIndex] — id действующего союзника');
   assert.ok(c.log.includes('Вольк бьёт Волк: 3.'),
@@ -2382,7 +2390,9 @@ test('союзник: ход/атака детерминированы по си
     w.hp = 5;
     let i = 0; const rolls = [0.01, 0.99, 0.99, 0.99, 0.99];
     c._rng = () => rolls[i++ % rolls.length];
+    // 000168: endTurn → ввод-стоп на слоте союзника; c.attack — удар.
     c.endTurn();
+    c.attack(w.id);
     return {
       log: c.log.slice(),
       units: c.units.map((u) => [u.id, u.x, u.y, u.hp, u.alive, u.fled]),
@@ -2429,42 +2439,46 @@ test('ranged-союзник: d≤1 — отступление, 1<d≤4 — ат�
       allies: [ALLY_ASHKA],
       mobs: ['wolf'], mobLevel: 2, seed: 5,
     });
-    c.obstacles.clear(); // сценарий проверяет ИИ, не навигацию (паттерн 000050)
+    c.obstacles.clear(); // 000168: сценарий — ВВОД ИГРОКА (c.move/c.attack)
     const a0 = c.units.find((u) => u.id === 'a0');
     const w = c.units.find((u) => u.id === 'm0');
     let i = 0; const rolls = [0.01, 0.99, 0.99, 0.99];
     c._rng = () => rolls[i++ % rolls.length];
     return { c, a0, w };
   };
-  // d = 1 — отступление: дистанция до врага выросла, лог «отступает».
+  // d = 1 — «отступление» — ВВОД ИГРОКА (000168: ИИ-отступление
+  // удалено): c.move — шаг ОТ врага, дистанция выросла, атаки нет.
   {
     const { c, a0, w } = mk();
     w.x = 3; w.y = 4; a0.x = 3; a0.y = 5;
     const d0 = Math.abs(a0.x - w.x) + Math.abs(a0.y - w.y);
-    c.endTurn();
+    c.endTurn(); // остановка на слоте Ашки (ввод)
+    c.move(1, 0); // (3,5) → (4,5) — шаг в сторону от врага
     const d1 = Math.abs(a0.x - w.x) + Math.abs(a0.y - w.y);
     assert.ok(d1 > d0, `d=1: отступил (d ${d0} → ${d1}, позиция ${a0.x},${a0.y})`);
-    assert.ok(c.log.some((l) => l.includes('отступает')),
-      'лог отступления: ' + c.log.join(' | '));
+    assert.ok(!c.log.some((l) => l.includes('бьёт Волк')),
+      'атаки нет (ввод — движение): ' + c.log.join(' | '));
   }
-  // 1 < d ≤ 4 — атака в даль, позиция НЕ меняется.
+  // 1 < d ≤ 4 — атака в даль (ввод c.attack), позиция НЕ меняется.
   {
     const { c, a0, w } = mk();
     w.x = 3; w.y = 0; a0.x = 3; a0.y = 3; // d = 3
     const hp0 = w.hp;
     c.endTurn();
+    c.attack(w.id);
     assert.deepEqual([a0.x, a0.y], [3, 3], 'стрелок не сближается');
     assert.equal(w.hp, hp0 - 3, 'урон в даль: round(2.7×1.0) = 3');
     assert.ok(c.log.includes('Ашка бьёт Волк: 3.'), 'пин: ' + c.log.join(' | '));
   }
-  // d > 4 — кайтинг (держит дистанцию): ОДИН шаг ОТ врага. allyStepAway
-  // пробует направления по порядку →, ↑, ↓, ← и берёт первую
-  // rectFree-клетку, где расстояние выросло: из (5,4) к волку (0,0) —
-  // в (6,4), d 9 → 10 (memory/000080-ally-framework.md: «кайтинг»).
+  // d > 4 — «кайтинг» — ВВОД ИГРОКА (000168: ИИ-кайтинг удалён):
+  // c.move — ОДИН шаг ОТ врага. c.move(1,0) из (5,4) к волку (0,0) —
+  // в (6,4), d 9 → 10 (паттерн «кайтинг» 000080 — теперь выбором
+  // игрока, не ИИ).
   {
     const { c, a0, w } = mk();
     w.x = 0; w.y = 0; a0.x = 5; a0.y = 4; // d = 9
     c.endTurn();
+    c.move(1, 0);
     assert.deepEqual([a0.x, a0.y], [6, 4], 'кайтинг: шаг ОТ врага (6,4), d 9 → 10');
     assert.ok(!c.log.some((l) => l.includes('бьёт Волк')), 'в даль не достаёт — не бьёт');
   }
@@ -2484,30 +2498,36 @@ test('shield-союзник: подход через rectFree (не сквозь
     c._rng = () => rolls[i++ % rolls.length];
     return { c, a0, w };
   };
-  // Камень прямо на пути — щит стоит (как моб, паттерн 000050), не «внутри».
+  // Камень на клетке шага — 000168: ввод c.move → rectFree-отказ
+  // «препятствие», позиция неизменна (старый ИИ-подход удалён).
   {
     const { c, a0, w } = mk([ALLY_BALDOR]);
     w.x = 3; w.y = 2; a0.x = 3; a0.y = 5;
     c.obstacles.add('3,4');
-    c.endTurn();
-    assert.deepEqual([a0.x, a0.y], [3, 5], 'за камнем стоит (зафиксировано)');
+    c.endTurn(); // остановка на слоте Бальдора (ввод)
+    const r = c.move(0, -1);
+    assert.equal(r.ok, false, 'камень на пути — шаг невозможен');
+    assert.equal(r.reason, 'препятствие', 'reason — точная строка');
+    assert.deepEqual([a0.x, a0.y], [3, 5], 'за камнем стоит (позиция неизменна)');
     assert.ok(!c.obstacles.has(a0.x + ',' + a0.y), 'не «внутри» камня');
   }
-  // Клетка на пути занята ЧУЖИМ союзником — шаг по другой оси.
+  // Клетка на пути занята ЧУЖИМ союзником — ввод c.move по другой оси.
   {
     const { c, a0, w } = mk([ALLY_BALDOR, ALLY_ASHKA]);
     const a1 = c.units.find((u) => u.id === 'a1');
     w.x = 2; w.y = 2; a0.x = 3; a0.y = 5; a1.x = 2; a1.y = 5; // (2,5) — занято
     c.endTurn();
+    c.move(0, -1); // (3,5) → (3,4) — по оси y (x-клетка (2,5) занята)
     assert.deepEqual([a0.x, a0.y], [3, 4], 'обход занятой клетки (другая ось)');
     assert.notDeepEqual([a0.x, a0.y], [a1.x, a1.y], 'не на клетке союзника');
   }
-  // Вплотную — атака: пин урона round(2.7×1.1) = 3.
+  // Вплотную — атака (ввод c.attack): пин урона round(2.7×1.1) = 3.
   {
     const { c, a0, w } = mk([ALLY_BALDOR]);
     w.x = 3; w.y = 4; a0.x = 3; a0.y = 5; // d = 1
     const hp0 = w.hp;
     c.endTurn();
+    c.attack(w.id);
     assert.equal(w.hp, hp0 - 3, 'урон щита 3');
     assert.ok(c.log.includes('Бальдор бьёт Волк: 3.'), 'пин: ' + c.log.join(' | '));
   }
@@ -2530,10 +2550,12 @@ test('support-союзник: лечит САМОГО РАНЕНОГО (мини
     return { c, a0, a1 };
   };
   // Раненый СОЮЗНИК (3/13 ≈ 23% — минимум) при полном игроке — лечится он.
+  // 000168: endTurn → ввод-стоп на слоте Миров; c.heal — лечение.
   {
     const { c, a0, a1 } = mk(['mend']);
     a1.hp = 3;
     c.endTurn();
+    c.heal();
     assert.equal(a1.hp, 8, 'Вольк 3 + 5 = 8 (round((4+0+1)×1) = 5)');
     assert.ok(c.log.includes('Мира лечит Вольк (+5).'),
       'пин лечения союзника: ' + c.log.join(' | '));
@@ -2545,6 +2567,7 @@ test('support-союзник: лечит САМОГО РАНЕНОГО (мини
     const { c, a1 } = mk(['mend', 'greater_heal']);
     a1.hp = 3;
     c.endTurn();
+    c.heal();
     assert.equal(a1.hp, 9, 'greater_heal: 3 + 6 = 9');
     assert.ok(c.log.includes('Мира лечит Вольк (+6).'),
       'пин сильнейшей степени: ' + c.log.join(' | '));
@@ -2564,14 +2587,16 @@ test('support-союзник: лечит ИГРОКА (игрок — в пул�
   a0.x = 0; a0.y = 6; a1.x = 1; a1.y = 6;
   c.player.hp = 108;
   c._rng = () => 0.99;
+  // 000168: endTurn → ввод-стоп на слоте Миров; c.heal — лечение.
   c.endTurn();
+  c.heal();
   assert.equal(c.player.hp, 113, 'игрок 108 + 5 через P.heal');
   assert.ok(c.log.includes('Мира лечит Флогистон (+5).'),
     'пин лечения игрока: ' + c.log.join(' | '));
   assert.equal(a1.hp, a1.maxHP, 'целый союзник не лечится');
 });
 
-test('support-союзник без лечебных заклинаний и без раненых — melee (не падает, не лечит)', () => {
+test('support-союзник без лечебных заклинаний и без раненых — деградация (не падает, не лечит; 000168: без авто-шага ИИ)', () => {
   const mk = () => {
     const c = createCombat({
       player: strongHero(),
@@ -2584,15 +2609,23 @@ test('support-союзник без лечебных заклинаний и б�
     c._rng = () => 0.99;
     return { c, a0, w };
   };
-  // spells: [] — нет лечебных заклинаний: melee-ветка (шаг к врагу).
+  // spells: [] — нет лечебных заклинаний: раненый ЕСТЬ (игрок 108/270)
+  // → c.heal доходит до проверки каталога → отказ «нет лечения»;
+  // 000168: авто-шага ИИ НЕТ (ввод игрока — позиция неизменна).
   {
     const { c, a0, w } = mk();
     w.x = 3; w.y = 2; a0.x = 3; a0.y = 5; // d = 3
-    c.endTurn();
+    c.player.hp = 108; // раненый — чтобы уперлись именно в «нет лечения»
+    c.endTurn(); // ввод-стоп на слоте Миров
+    const h = c.heal();
+    assert.equal(h.ok, false, 'без заклинаний — лечение отказано');
+    assert.equal(h.reason, 'нет лечения', 'reason — «нет лечения»');
+    assert.equal(c.player.hp, 108, 'игрок не леча (HP не меняется)');
     assert.ok(!c.log.some((l) => l.includes('лечит')), 'без заклинаний не лечит');
-    assert.deepEqual([a0.x, a0.y], [3, 4], 'шаг к врагу (melee-ветка)');
+    assert.deepEqual([a0.x, a0.y], [3, 5], '000168: авто-шага нет (ввод)');
   }
-  // Заклинания есть, но НИКТО не ранен (все полные) — тоже melee.
+  // Заклинания есть, но НИКТО не ранен (все полные) — отказ
+  // «нет раненых» (проверка раненых — ПЕРЕД каталогом).
   {
     const c2 = createCombat({
       player: strongHero(),
@@ -2605,9 +2638,12 @@ test('support-союзник без лечебных заклинаний и б�
     w.x = 3; w.y = 2; a0.x = 3; a0.y = 5;
     c2._rng = () => 0.99;
     c2.endTurn();
+    const h2 = c2.heal();
+    assert.equal(h2.ok, false, 'все полные — лечение отказано');
+    assert.equal(h2.reason, 'нет раненых', 'reason — «нет раненых»');
     assert.ok(!c2.log.some((l) => l.includes('лечит')),
       'все полные — лечения нет');
-    assert.deepEqual([a0.x, a0.y], [3, 4], 'melee-ветка (шаг)');
+    assert.deepEqual([a0.x, a0.y], [3, 5], '000168: авто-шага нет (ввод)');
   }
 });
 
@@ -2627,6 +2663,15 @@ test('гибель союзника ≠ поражение: моб бьёт бл
   w.x = 3; w.y = 3;
   w.damage = 20; // добивает слабого союзника (13 HP) одним ударом
   c._rng = () => 0.01; // все попадания
+  // 000168: ИИ-шага/удара Волька нет (ввод): e1 — стоп на слоте
+  // Волька (r1); e2 — r2: волк (слот 0) шаг (3,3)→(3,4), стоп — игрок;
+  // e3 — стоп на слоте Волька (r2); e4 — r3: волк бьёт Волька
+  // (d 1, 20 урона) → гибель; стоп — игрок. (Ранее: ИИ-шаг Волька
+  // (3,5)→(3,4) в r1, волк убивал в r2 — на один раунд позже гибель
+  // тем же путём; пины очереди ниже без изменений.)
+  c.endTurn();
+  c.endTurn();
+  c.endTurn();
   c.endTurn();
   assert.equal(a0.alive, false, 'союзник погиб в бою');
   assert.ok(c.log.includes('Вольк пал в бою!'),
@@ -2710,17 +2755,25 @@ test('ленивый каталог: без combatInternals.allySpells support �
     a0.x = 0; a0.y = 6; a1.x = 5; a1.y = 6;
     a1.hp = 3; // раненый союзник — цель лечения
     c._rng = () => 0.99;
+    // 000168: endTurn — ввод-стоп на слоте Миров (ИИ-фолбэк удалён);
+    // лечение — явный c.heal() ниже.
     c.endTurn();
     return c;
   };
   C2.combatInternals.allySpells = undefined; // каталог «ещё не загружен»
   const c1 = scenario(5);
+  const h1 = c1.heal();
+  assert.equal(h1.ok, false, 'без каталога — лечение невозможно');
+  assert.equal(h1.reason, 'нет лечения', 'reason — «нет лечения» (деградация)');
   assert.ok(!c1.log.some((l) => l.includes('лечит')), 'без каталога — нет лечения');
   const a0 = c1.units.find((u) => u.id === 'a0');
-  assert.deepEqual([a0.x, a0.y], [1, 6], 'melee-фолбэк: шаг к врагу (без падений)');
+  assert.deepEqual([a0.x, a0.y], [0, 6],
+    '000168: авто-шага melee-фолбэка нет (ввод) — позиция якорная');
   // Каталог на месте (src/spells-data.js) — лечит по формуле.
   C2.combatInternals.allySpells = require('../src/spells-data.js').SPELLS_BY_ID;
   const c2 = scenario(5);
+  const h2 = c2.heal();
+  assert.equal(h2.ok, true, 'с каталогом — лечение');
   const b1 = c2.units.find((u) => u.id === 'a1');
   assert.equal(b1.hp, 8, 'с каталогом — лечение +5');
   assert.ok(c2.log.includes('Мира лечит Вольк (+5).'), 'пин: ' + c2.log.join(' | '));
@@ -2866,6 +2919,15 @@ test('000082: погибший в бою спутник — не в allyXp (до
   w.x = 3; w.y = 3;
   w.damage = 20; // добивает слабого союзника (13 HP) одним ударом
   c._rng = () => 0.01; // все попадания
+  // 000168: ИИ-шага Волька нет (ввод). Очередь ['m0','player','a0','a1']:
+  // e1 — стоп a0 (r1); e2 — стоп a1 (r1); e3 — r2: волк ШАГ (3,3)→(3,4)
+  //   (d2→d1), стоп — игрок; e4 — стоп a0 (r2); e5 — стоп a1 (r2);
+  // e6 — r3: волк бьёт Волька (d1, 20 урона) → гибель.
+  c.endTurn();
+  c.endTurn();
+  c.endTurn();
+  c.endTurn();
+  c.endTurn();
   c.endTurn();
   assert.equal(a0.alive, false, 'Вольк погиб в бою');
   assert.equal(c.result, null, 'гибель союзника — НЕ поражение');
@@ -2977,8 +3039,13 @@ test('000082: практика НЕ начисляется спутникам �
   w.x = 3; w.y = 2;
   a0.x = 3; a0.y = 3; // Вольк вплотную к волку — добивает его САМ
   c._rng = () => 0.01; // все попадания
+  // 000168: ИИ-удара Волька нет — ВВОД игрока: на слоте Волька
+  // c.attack (добивает волка); игрок только endTurn (не действует).
   let n = 0;
-  while (!c.result && n++ < 30) c.endTurn();
+  while (!c.result && n++ < 30) {
+    if (activeUnitId(c) === 'a0') c.attack(w.id);
+    c.endTurn();
+  }
   assert.equal(c.result.outcome, 'victory', 'Вольк добивает волка без игрока');
   assert.deepEqual(p.skillXp, {},
     'игрок не действовал; атака союзника НЕ вызывает P.skillPractice (v1)');
@@ -3033,11 +3100,13 @@ test('000081: Эфир в allies — юнит id/kind "efir", side "ally", по�
   assert.equal(u.maxHP, Math.max(1, Math.round((8 + 4 * 1) * 0.7)),
     'L1 support: maxHP = 8 (формула makeAlly)');
   assert.deepEqual(u.size, { w: 1, h: 1 }, 'союзник всегда 1×1');
-  // 000167: очередь по инициативе — Эфир (4) → волк (3) → игрок (2);
-  // pre-roll отработал, очередь у игрока.
+  // 000167: очередь по инициативе — Эфир (4) → волк (3) → игрок (2).
+  // 000168: Эфир — союзник; pre-roll останавливается на ПЕРВОМ союзном
+  // слоте (ввод игрока) — Эфир быстрее всех, очередь на нём (turnIndex 0).
   assert.deepEqual(c.turnOrder, ['efir', 'm0', 'player'],
     'очередь: Эфир (4) → волк (3) → игрок (2)');
-  assert.equal(c.turnIndex, 2, 'очередь у игрока (pre-roll)');
+  assert.equal(c.turnIndex, 0,
+    '000168: pre-roll остановился на вводе — слот Эфира (быстрее всех)');
   assert.equal(c.phase, 'player');
   // Якорь размещения 000080/000081 — проверяется ДО pre-roll (D-9):
   // игрок быстрее Эфира (6 > 4) → Эфир в pre-roll не действует,
@@ -3474,16 +3543,14 @@ test('000112 CB-1: приоритет (1) — лечение самого ран
     const r1 = t1();
     assert.deepEqual(t1().snap, r1.snap,
       'детерминизм (a): 2 прогона → идентичный снимок');
-    assert.equal(r1.u.hp, 11,
-      'само-лечение: 5 + 6 (round(3+0.5·3+1)) = 11');
-    // 000167: pre-roll (round 1, ДО buildEfirUnit — 000080-ветка) —
-    // allyHeal маной-бесплатно лечит игрока mend +7 (162 → 169);
-    // efirTurn (round 2) — самое раненое = Эфир (0.31 < 0.62) → игрок
-    // вторым НЕ лечен.
-    assert.equal(r1.p.hp, 169, 'игрок не лечен efirTurn — Эфир раненее');
-    assert.equal(r1.u.mp, 8, 'mp 11 − 3 («мани» mend) = 8');
-    assert.ok(r1.c.log.includes('Эфир исцеляет Эфир (+6).'),
-      'лог-строка: ' + r1.c.log.join(' | '));
+    // 000168: ИИ-лечение Эфира удалено (ввод) — endTurn на слоте Эфира
+    // ничего не делает: Эфир не лечит себя, игрок не тронут, мана цела.
+    assert.equal(r1.u.hp, 5,
+      '000168: Эфир не лечит себя (ввод) — hp 5');
+    assert.equal(r1.p.hp, 162, 'игрок не лечен (ИИ-лечения нет)');
+    assert.equal(r1.u.mp, 11, 'мана не потрачена (нет каста)');
+    assert.ok(!r1.c.log.some((l) => l.includes('исцеляет')),
+      'нет само-лечения: ' + r1.c.log.join(' | '));
 
     // (b) Все целы (frac = 1 — исключаются): не лечит, каста нет
     // (d 6 > 4), Касания нет (d 6 > 1) — мана цела.
@@ -3527,15 +3594,14 @@ test('000112 CB-1: приоритет (1) — лечение самого ран
     };
     const r3 = t3();
     assert.deepEqual(t3().snap, r3.snap, 'детерминизм (c)');
-    // 000167: pre-roll (round 1, ДО buildEfirUnit — 000080-ветка) лечит
-    // игрока самым сильным лечебным light_heal +20 (148 → 168); efirTurn
-    // (round 2) — (1) light_heal +19 (round(3+0.5·8+12)) → 187.
-    assert.equal(r3.p.hp, 187,
-      '000167: pre-roll light_heal +20 → 168; (1) light_heal +19 → 187');
-    assert.equal(r3.u.mp, 15,
-      'mp 21 − 6 (light_heal) = 15 — а не 18 (mend «мани» 3)');
-    assert.ok(r3.c.log.includes('Эфир исцеляет Флогистон (+19).'),
-      'лог-строка: ' + r3.c.log.join(' | '));
+    // 000168: ИИ-лечение Эфира удалено (ввод) — игрок не лечен, мана цела
+    // (самое сильное лечебное light_heal не кастится само).
+    assert.equal(r3.p.hp, 148,
+      '000168: игрок не лечен (ИИ-лечения нет) — hp 148');
+    assert.equal(r3.u.mp, 21,
+      'mp 21 не потрачена (нет каста)');
+    assert.ok(!r3.c.log.some((l) => l.includes('исцеляет')),
+      'нет лечения: ' + r3.c.log.join(' | '));
   } finally { C.combatInternals.allySpells = saveCatalog; }
 });
 
@@ -3563,17 +3629,15 @@ test('000112 CB-2: приоритет (2) — игрок ≤ 50% и щита н�
     };
     const r1 = t1();
     assert.deepEqual(t1().snap, r1.snap, 'детерминизм (a)');
-    assert.ok(r1.c.efirShield, 'c.efirShield создан (приоритет 2)');
-    assert.equal(r1.c.efirShield.armor, 7,
-      'armor = round(5+0.5·3) = 7');
-    assert.equal(r1.c.efirShield.turns, 2,
-      '000167: каст в r2, тик — startRound (следующий раунд) → '
-      + 'после одного endTurn turns 2 (не 2−1)');
-    assert.equal(r1.u.mp, 6, 'mp 11 − 5 (magic_shield «мани») = 6');
+    // 000168: ИИ-щит Эфира удалён (ввод) — c.cast кастует ТОЛЬКО урон-
+    // заклинания; magic_shield (защита) не кастится сам: щита нет,
+    // мана цела, игрок не тронут.
+    assert.equal(r1.c.efirShield, undefined,
+      '000168: щита нет (ИИ-щит удалён, ввод)');
+    assert.equal(r1.u.mp, 11, 'мана не потрачена (нет каста)');
     assert.equal(r1.p.hp, 100, 'игрок не лечен (книга без лечебных)');
-    assert.ok(
-      r1.c.log.includes('Эфир: «Магический щит»: +7 брони на 2 раунда.'),
-      'лог-строка: ' + r1.c.log.join(' | '));
+    assert.ok(!r1.c.log.some((l) => l.includes('Магический щит')),
+      'нет щита: ' + r1.c.log.join(' | '));
 
     // (b) Книга [spark, mend]: (1) лечит игрока mend (+6 → 106);
     // (2) frac 106/270 ≤ 0.5 НО защитных в книге нет → пропуск;
@@ -3592,13 +3656,13 @@ test('000112 CB-2: приоритет (2) — игрок ≤ 50% и щита н�
     };
     const r2 = t2();
     assert.deepEqual(t2().snap, r2.snap, 'детерминизм (b)');
-    // 000167: pre-roll (round 1, ДО buildEfirUnit — 000080-ветка) mend
-    // +7 (100 → 107); efirTurn (round 2) — (1) mend +6 → 113.
-    assert.equal(r2.p.hp, 113,
-      '000167: pre-roll mend +7 → 107; (1) mend +6 → 113');
-    assert.equal(r2.u.mp, 8, 'mp 11 − 3 (mend) = 8');
+    // 000168: ИИ-лечение Эфира удалено (ввод) — mend не кастится сам:
+    // игрок не тронут, мана цела, щита нет.
+    assert.equal(r2.p.hp, 100,
+      '000168: игрок не лечен (ИИ-лечения нет) — hp 100');
+    assert.equal(r2.u.mp, 11, 'mp 11 не потрачена (нет каста)');
     assert.equal(r2.c.efirShield, undefined,
-      '(2) пропущен: в книге нет защитных → щита нет');
+      'щита нет (защитных в книге нет, и ввод кастует только урон)');
   } finally { C.combatInternals.allySpells = saveCatalog; }
 });
 
@@ -3629,17 +3693,20 @@ test('000112 CB-3: приоритет (3) — «самое сильное» по
       c._rng = () => 0.99;
       E.buildEfirUnit(state, c);
       if (uMpPre != null) u.mp = uMpPre;
-      c.endTurn();
+      // 000168: ввод — игрок двигает Эфира (3 шага (0,-1), к d 2) и
+      // кастует сильнейшее урон-заклинание (fireball) ×2 (2-й — по мане).
+      for (let i = 0; i < 3; i++) c.move(0, -1);
+      c.cast(w.id);
+      c.cast(w.id);
       return { snap: snap112(c, u, p), u, w, p, c };
     };
     // (a) mp 25: пул spellInt 2 → 2 каста fireball
-    // (dmg = round((3+0.5·10)·(1+0.05·0)) = 8, броня 50 игнорируется)
-    // + Касание 7 (pre-roll сдвинул Эфира до d 1).
+    // (dmg = round((3+0.5·10)·(1+0.05·0)) = 8, броня 50 игнорируется).
     const r1 = mk(null);
     assert.deepEqual(mk(null).snap, r1.snap, 'детерминизм (a)');
-    assert.deepEqual([r1.u.x, r1.u.y], [2, 1],
-      'движение: pre-roll 1 шаг + 3 шага к врагу (d 1)');
-    assert.equal(r1.w.hp, 77, '2 × fireball (16) + Касание (7): 100 − 23 = 77');
+    assert.deepEqual([r1.u.x, r1.u.y], [2, 2],
+      '000168: ввод — 3 шага (0,-1): (2,5) → (2,2), d 2 ≤ 4');
+    assert.equal(r1.w.hp, 84, '2 × fireball (16): 100 − 16 = 84');
     assert.equal(r1.u.mp, 13, 'mp 25 − 2·6 = 13');
     assert.equal(
       r1.c.log.filter((l) => l.includes('Огненный шар')).length, 2,
@@ -3648,7 +3715,7 @@ test('000112 CB-3: приоритет (3) — «самое сильное» по
     // (b) mp 6: ровно ОДИН fireball (второй неплатёжен по мане).
     const r2 = mk(6);
     assert.deepEqual(mk(6).snap, r2.snap, 'детерминизм (b)');
-    assert.equal(r2.w.hp, 85, '1 × fireball (8) + Касание (7): 100 − 15 = 85');
+    assert.equal(r2.w.hp, 92, '1 × fireball (8): 100 − 8 = 92');
     assert.equal(r2.u.mp, 0, 'mp 6 − 6 = 0');
     assert.equal(
       r2.c.log.filter((l) => l.includes('Огненный шар')).length, 1);
@@ -3672,7 +3739,8 @@ test('000112 CB-4: приоритет (4) — Касание: d ≤ 1, пул to
       c._rng = () => 0.99; // Касание не бросает: при 0.99 — всё равно бьёт
       E.buildEfirUnit(state, c);
       u.mp = 0; // (3) неплатёжен → доходим до (4)
-      c.endTurn();
+      // 000168: ввод — c.attack на слоте Эфира = «Касание духа» (d 1).
+      c.attack(w.id);
       return { snap: snap112(c, u, p), u, w, p, c };
     };
     // (a) Без «Предводителя»: Касание = max(1, round((2+0.5·3)·1)) = 4.
@@ -3702,7 +3770,9 @@ test('000112 CB-5: движение-эскорт (D13): dP > 3 → 3 клетк�
   C.combatInternals.allySpells =
     require('../src/spells-data.js').SPELLS_BY_ID;
   try {
-    const mk = (efirAt, wolfAt, book) => {
+    // 000168: ввод — Эфир НЕ движется сам; игрок задаёт шаги (moves)
+    // через c.move (бюджет c.efs.move = 3).
+    const mk = (efirAt, wolfAt, book, moves) => {
       const p = strongHero();
       const state = E.createEfir();
       if (book) state.spells = book.slice();
@@ -3711,31 +3781,36 @@ test('000112 CB-5: движение-эскорт (D13): dP > 3 → 3 клетк�
       w.x = wolfAt[0]; w.y = wolfAt[1]; w.maxHP = 100; w.hp = 100;
       c._rng = () => 0.99;
       E.buildEfirUnit(state, c);
-      c.endTurn();
+      for (const [dx, dy] of (moves || [])) c.move(dx, dy);
       return { snap: snap112(c, u, p), u, w, p, c };
     };
-    // (a) dP 9 > 3 → цель игрок (выбрана ОДИН раз); x первым:
-    // (0,0) → (1,0) → (2,0) → (3,0). (3) d 5 > 4 — каста нет.
-    const r1 = mk([0, 0], [6, 2]);
-    assert.deepEqual(mk([0, 0], [6, 2]).snap, r1.snap, 'детерминизм (a)');
+    // (a) (0,0) → 3 шага (1,0) к игроку (3,6): (1,0)→(2,0)→(3,0).
+    // d 5 > 4 — каста нет. Бюджет move = 3 → 0.
+    const mvA = [[1, 0], [1, 0], [1, 0]];
+    const r1 = mk([0, 0], [6, 2], null, mvA);
+    assert.deepEqual(mk([0, 0], [6, 2], null, mvA).snap, r1.snap, 'детерминизм (a)');
     assert.deepEqual([r1.u.x, r1.u.y], [3, 0],
-      'ось x первой: y не сдвинулась');
+      '000168: ввод — 3 шага (1,0): ось x, y не сдвинулась');
     assert.equal(r1.c.efs.move, 0,
-      'бюджет move потрачен в ходе (3 шага) — рефилл в начале нового раунда (000167)');
-    // (b) dP 3 ≤ 3, dE 8 > 3 → цель враг: 000167 pre-roll (000080-ветка)
-    // сдвинул Эфира (2,5)→(2,4); round 2: (2,4) → (3,4) → (4,4) → (5,4).
-    // После хода d 5 > 4 — каста/Касания нет.
-    const r2 = mk(null, [6, 0]);
-    assert.deepEqual(mk(null, [6, 0]).snap, r2.snap, 'детерминизм (b)');
-    assert.deepEqual([r2.u.x, r2.u.y], [5, 4]);
-    assert.equal(r2.u.mp, 11, 'каста нет (d 5 > 4), Касания нет (d 5 > 1)');
-    // (c) dP 3 ≤ 3, dE 2 ≤ 3 → стоим (000167: pre-roll уже сдвинул
-    // Эфира (2,5)→(2,4), «место» — от pre-roll позиции); книга ['mend']
-    // → (3) без «урон»-спеллов — пропускается, Касания нет (d 2 > 1).
-    const r3 = mk(null, [4, 4], ['mend']);
-    assert.deepEqual(mk(null, [4, 4], ['mend']).snap, r3.snap,
+      'бюджет move потрачен (3 шага) — рефилл в начале нового раунда');
+    // 000168: 4-й шаг — отказ (бюджет 0).
+    const m4 = r1.c.move(1, 0);
+    assert.equal(m4.ok, false, '000168: 4-й шаг — бюджет исчерпан');
+    assert.equal(m4.reason, 'шаги на ход исчерпаны');
+    // (b) (2,5) → 3 шага (1,0) к врагу (6,0): (3,5)→(4,5)→(5,5).
+    // d 6 > 4 — каста/Касания нет.
+    const mvB = [[1, 0], [1, 0], [1, 0]];
+    const r2 = mk(null, [6, 0], null, mvB);
+    assert.deepEqual(mk(null, [6, 0], null, mvB).snap, r2.snap, 'детерминизм (b)');
+    assert.deepEqual([r2.u.x, r2.u.y], [5, 5],
+      '000168: ввод — 3 шага (1,0): (2,5) → (5,5)');
+    assert.equal(r2.u.mp, 11, 'каста нет (d > 4), Касания нет (d > 1)');
+    // (c) оба ≤ 3 — стоим на месте (якорь 2,5); книга ['mend'] без
+    // «урон»-спеллов.
+    const r3 = mk(null, [4, 4], ['mend'], []);
+    assert.deepEqual(mk(null, [4, 4], ['mend'], []).snap, r3.snap,
       'детерминизм (c)');
-    assert.deepEqual([r3.u.x, r3.u.y], [2, 4], 'стоим на месте');
+    assert.deepEqual([r3.u.x, r3.u.y], [2, 5], '000168: стоим на месте (якорь)');
     assert.equal(r3.u.mp, 11);
     assert.ok(!r3.c.log.some((l) => l.includes('Эфир:')),
       'действий нет: ' + r3.c.log.join(' | '));
@@ -3765,13 +3840,14 @@ test('000112 CB-6: «самое сильное» — тай-брейк по id (
       w.x = 4; w.y = 4; w.maxHP = 100; w.hp = 100; w.armor = 50;
       c._rng = () => 0.99;
       E.buildEfirUnit(state, c);
-      c.endTurn();
+      // 000168: ввод — c.cast на слоте Эфира (d 3 ≤ 4).
+      c.cast(w.id);
       return { snap: snap112(c, u, p), u, w, p, c };
     };
     const r1 = mk();
     assert.deepEqual(mk().snap, r1.snap, 'детерминизм');
     assert.ok(r1.c.log.includes('Эфир: «Альфа» — Волк: 5.'),
-      'побеждает меньшее id: ' + r1.c.log.join(' | '));
+      '000168: ввод c.cast — побеждает меньшее id: ' + r1.c.log.join(' | '));
     assert.ok(!r1.c.log.some((l) => l.includes('Дзета')),
       '«Дзета» не кастуется (тай-брейк — id, не порядок книги)');
     assert.equal(r1.u.mp, 6, 'mp 11 − 5 = 6');
@@ -3779,16 +3855,20 @@ test('000112 CB-6: «самое сильное» — тай-брейк по id (
   } finally { C.combatInternals.allySpells = saveCatalog; }
 });
 
-test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощает в раунд каста и следующий, 3-й удар — полный урон); повторный каст — ОБНОВЛЕНИЕ {7, 2} (не 3 хода, не сумма); щит стоит (turns > 0) → повторный каст НЕ идёт (мана цела, тик идёт); щит ИГРОКА c.ps.shield (2) НЕ блокирует — оба щита действуют (урон − armor обоих)', () => {
+test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощает 2 удара, потом полный; 000168: ввод — щит пред-задан, ИИ-каст удалён); щит ИГРОКА c.ps.shield НЕ блокирует — оба щита действуют (урон − armor обоих)', () => {
   const E = loadEfir000081();
   const C = require('../src/combat.js');
   const saveCatalog = C.combatInternals.allySpells;
   C.combatInternals.allySpells =
     require('../src/spells-data.js').SPELLS_BY_ID;
   try {
+    // 000168: Эфир НЕ кастует щит сам (ввод) — механика c.efirShield
+    // (поглощение + тик в startRound) проверяется на ПРЕДВАРИТЕЛЬНО
+    // установленном c.efirShield. (b)/(c) (повторный каст/обновление)
+    // удалены: ИИ-каст щита больше нет.
     // (a) Pre-set {7, 2}, волк (4,6, d 1 к игроку) бьёт по 10
-    // (все попадания): 000167 — тик в startRound: r2: тик 2→1, удар
-    // 10−7 = 3; r3: тик 1→0, удар 10; r4: удар 10 (щита нет).
+    // (все попадания): r1 — поглощение 10−7 = 3; r2 (тик 2→1) — 10−7 = 3;
+    // r3 (тик 1→0) — полный 10.
     const t1 = () => {
       const p = hero112(); // 270/270 — повторного каста не будет
       const state = E.createEfir();
@@ -3799,7 +3879,7 @@ test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощае�
       E.buildEfirUnit(state, c);
       c.efirShield = { armor: 7, turns: 2 }; // «уже кастован»
       const hpAfter = [p.hp];
-      for (let i = 0; i < 3 && !c.result; i++) {
+      for (let i = 0; i < 5 && !c.result; i++) {
         c.endTurn();
         hpAfter.push(p.hp);
       }
@@ -3807,61 +3887,16 @@ test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощае�
     };
     const r1 = t1();
     assert.deepEqual(t1().snap, r1.snap, 'детерминизм (a)');
-    assert.deepEqual(r1.snap.hpAfter, [270, 267, 257, 247],
-      '000167: тик в startRound — поглощение в r2 (2→1: 10−7=3), '
-      + 'r3 (1→0: 10), r4 (10)');
+    assert.deepEqual(r1.snap.hpAfter, [270, 267, 267, 264, 264, 254],
+      '000168: ввод — поглощение r1 (10−7=3) и r2 (тик 2→1: 10−7=3), '
+      + 'r3 (тик 1→0) — полный 10: 267, 267, 264, 264, 254');
     assert.equal(r1.c.efirShield.turns, 0,
-      '000167: щит истёк после двух тиков (startRound)');
+      '000168: щит истёк после двух тиков (startRound r2, r3)');
 
-    // (b) Повторный каст — обновление: pre-set {armor: 3, turns: 1} →
-    // раунд 1: (2) НЕ кастует (turns 1 > 0), тик 1→0; раунд 2: каст →
-    // {7, 2}, тик 2→1.
-    const t2 = () => {
-      const p = hero112();
-      p.hp = 100; // frac 0.37 ≤ 0.5
-      const state = E.createEfir();
-      state.spells = ['magic_shield'];
-      const { c, w, u } = board112(E, p, state);
-      w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
-      c._rng = () => 0.99;
-      E.buildEfirUnit(state, c);
-      c.efirShield = { armor: 3, turns: 1 };
-      c.endTurn();
-      c.endTurn();
-      return { snap: snap112(c, u, p), u, p, c };
-    };
-    const r2 = t2();
-    assert.deepEqual(t2().snap, r2.snap, 'детерминизм (b)');
-    assert.equal(r2.c.efirShield.armor, 7,
-      'обновление: round(5+0.5·3) = 7 — не 3 и не 3+7');
-    assert.equal(r2.c.efirShield.turns, 1,
-      'не 3 хода: {7, 2} − тик конца 2-го раунда = 1');
-    assert.equal(r2.u.mp, 6, 'ровно ОДИН каст: mp 11 − 5 = 6');
-
-    // (c) Щит стоит (turns 2 > 0) → повторный каст НЕ идёт: мана цела,
-    // тик всё равно идёт (turns 2 → 1) — red-дискриминатор тика.
-    const t3 = () => {
-      const p = hero112();
-      p.hp = 100;
-      const state = E.createEfir();
-      state.spells = ['spark', 'magic_shield'];
-      const { c, w, u } = board112(E, p, state);
-      w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
-      c._rng = () => 0.99;
-      E.buildEfirUnit(state, c);
-      c.efirShield = { armor: 7, turns: 2 };
-      c.endTurn();
-      return { snap: snap112(c, u, p), u, p, c };
-    };
-    const r3 = t3();
-    assert.deepEqual(t3().snap, r3.snap, 'детерминизм (c)');
-    assert.equal(r3.u.mp, 11, 'повторный каст не пошёл: мана не потрачена');
-    assert.equal(r3.c.efirShield.turns, 1, 'тик: 2 → 1 (startRound)');
-    assert.equal(r3.c.efirShield.armor, 7);
-
-    // (d) Щит ИГРОКА c.ps.shield (2) НЕ блокирует: c.efirShield стоит
-    // несмотря на него; Оба щита поглощают: 10 − 1 (игрок) − 7 (Эфир)
-    // = 2. (3) — spark по волку (d 3 ≤ 4): mp 11 − 5 − 3 = 3.
+    // (d) Щит ИГРОКА c.ps.shield (1) НЕ блокирует: c.efirShield стоит
+    // несмотря на него; оба щита поглощают в r1: 10 − 1 (игрок) − 7
+    // (Эфир) = 2. Ввод: c.move ×2 к (4,5) (d 1), c.cast spark (5),
+    // c.attack Касание (4).
     const t4 = () => {
       const p = hero112();
       p.hp = 100;
@@ -3872,24 +3907,21 @@ test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощае�
       c._rng = () => 0.01; // волк попадает
       E.buildEfirUnit(state, c);
       c.ps.shield = { armor: 1, turns: 1 }; // СВОЙ щит игрока
+      c.efirShield = { armor: 7, turns: 2 }; // «уже кастован»
+      c.move(1, 0); c.move(1, 0); // (2,5) → (4,5) d 1
+      c.cast(w.id);   // spark 5
+      c.attack(w.id); // Касание 4
       c.endTurn();
       return { snap: snap112(c, u, p), u, w, p, c };
     };
     const r4 = t4();
     assert.deepEqual(t4().snap, r4.snap, 'детерминизм (d)');
-    assert.ok(r4.c.efirShield,
-      '(2) кастуется: щит игрока c.ps.shield НЕ считается (D4)');
     assert.equal(r4.c.efirShield.armor, 7);
-    assert.equal(r4.c.efirShield.turns, 2,
-      '000167: каст в r2, тик — startRound (следующий раунд) → '
-      + 'после одного endTurn turns 2 (не 2−1)');
-    assert.equal(r4.p.hp, 97,
-      '000167: щит игрока протикан в r2 (1→0) до удара → '
-      + '100 − (10 − 7) = 97');
-    assert.equal(r4.u.mp, 3, 'mp 11 − 5 (щит) − 3 (spark) = 3');
-    assert.equal(r4.w.hp, 91,
-      '000167: spark 5 + Касание 4 (Эфир в d 1: pre-roll (2,5)→(2,4) '
-      + '+ 3 шага эскорта): 100 − 9 = 91');
+    assert.equal(r4.c.efirShield.turns, 2, 'r1: тик в startRound ещё не шёл');
+    assert.equal(r4.p.hp, 98,
+      '000168: оба щита (r1): 100 − (10 − 1 − 7) = 98');
+    assert.equal(r4.u.mp, 8, 'mp 11 − 3 (spark) = 8 (щит — пред-задан)');
+    assert.equal(r4.w.hp, 91, 'spark 5 + Касание 4: 100 − 9 = 91');
   } finally { C.combatInternals.allySpells = saveCatalog; }
 });
 
@@ -3949,7 +3981,8 @@ test('000117 PC-1: прокачанный firelord — урон Эфира +5%·
         w.x = 3; w.y = 3; w.armor = 50; w.maxHP = 100; w.hp = 100;
         c._rng = () => 0.99;
         E.buildEfirUnit(state, c);
-        c.endTurn();
+        // 000168: ввод — c.cast (d 3 ≤ 4); ИИ-каст удалён.
+        c.cast(w.id);
         return { snap: snap112(c, u, p), dmg: dmgFromLog(c), c, u, p };
       };
       // A — firelord 0: round(5.5·1) = 6.
@@ -4095,22 +4128,26 @@ test('000113 BR-2: границы триггера (41%—нет/40%—да; mp 
       E.buildEfirUnit(state, c);
       u.x = 0; u.y = 0;
       u.mp = uMp;
-      // 000167: pre-roll (000080-ветка, мана-бесплатно) лечит РАНЕНОГО
-      // игрока mend +7 ДО buildEfirUnit — границы 40%/41% ставим ПОСЛЕ
-      // pre-roll, чтобы триггер-дискриминатор не сдвинулся.
+      // 000168: pre-roll = слот Эфира (ввод; u.breath ставится ПОСЛЕ
+      // createCombat → Вдох в pre-roll НЕВОЗМОЖЕН — B undefined). Вдох —
+      // авто-триггер на СЛЕДУЮЩЕМ входе в слот Эфира (round 2, после
+      // оборота очереди). 2× endTurn: (1) Эфир(ввод) → волк → игрок;
+      // (2) игрок → оборот очереди → слот Эфира (Вдох при frac ≤ 0.4 И
+      // mp ≥ 20). Границы 40%/41% ставим ПОСЛЕ pre-roll.
       p.hp = pHp;
+      c.endTurn();
       c.endTurn();
       return { p, w, u, c };
     };
-    // (a) 110/270 = 0.4074 > 0.4 → НЕТ: обычный ход (mend + движение),
-    //     флага/ослабления нет. (Текущее поведение — «нет»-случай.)
+    // (a) 110/270 = 0.4074 > 0.4 → НЕТ: ввод (Эфир НЕ действует),
+    //     флага/ослабления нет, mp нетронут.
     {
       const { p, w, u, c } = run(110, 20);
       assert.equal(c.efirBreathed, undefined,
         '(a) 41%: флага c.efirBreathed НЕТ (frac > 0.4)');
       assert.equal(w.weakened, undefined, '(a) 41%: волк НЕ ослаблен');
-      assert.equal(u.mp, 17, '(a) 41%: обычный ход — mend (mp 20 − 3 = 17)');
-      assert.equal(p.hp, 116, '(a) 41%: игрок 110 + 6 (mend) = 116');
+      assert.equal(u.mp, 20, '(a) 41%: ввод — Эфир НЕ действовал (mp нетронут)');
+      assert.equal(p.hp, 110, '(a) 41%: игрок 110 (лечения нет — ввод, не ИИ)');
       assert.ok(!c.log.includes('Вдох Эфира!'),
         '(a) 41%: лог БЕЗ «Вдох Эфира!»: ' + c.log.join(' | '));
     }
@@ -4125,8 +4162,8 @@ test('000113 BR-2: границы триггера (41%—нет/40%—да; mp 
       assert.equal(u.mp, 0, '(b) mp 20 − 20 = 0');
       assert.equal(p.hp, 120, '(b) игрок 108 + 12 (round(10+0.8·3)) = 120');
       assert.deepEqual(w.weakened, { mult: 0.8, turns: 2 },
-        '(b) волк ослаблен {0.8, 2}: 000167 — тик в startRound '
-        + '(следующий раунд), после одного endTurn тик ещё не шёл');
+        '(b) волк ослаблен {0.8, 2}: Вдох в r2 (ПОСЛЕ startRound r2) — '
+        + 'тик в startRound r3 ещё не шёл');
       assert.equal(u.x, 0, '(b) «весь ход»: Эфир НЕ сдвинулся по x (на (0,0))');
       assert.equal(u.y, 0, '(b) «весь ход»: Эфир НЕ сдвинулся по y');
       assert.ok(!c.log.some((l) => l.includes('Эфир исцеляет')
@@ -4137,14 +4174,15 @@ test('000113 BR-2: границы триггера (41%—нет/40%—да; mp 
         ['Бой: блуждающая группа (уровень 2, мобы 1).', 'Вдох Эфира!'],
         '(b) лог ровно [бой, «Вдох Эфира!»] (ни движения, ни кастов, ни атак)');
     }
-    // (c) 108/270 И mp 19 < 20 → НЕТ (мана недобор): обычный ход.
+    // (c) 108/270 И mp 19 < 20 → НЕТ (мана недобор): ввод (Эфир НЕ
+    //     действует), флага нет, mp нетронут.
     {
       const { p, w, u, c } = run(108, 19);
       assert.equal(c.efirBreathed, undefined,
         '(c) mp 19: флага НЕТ (mp < 20)');
       assert.equal(w.weakened, undefined, '(c) mp 19: волк НЕ ослаблен');
-      assert.equal(u.mp, 16, '(c) mp 19: обычный ход — mend (mp 19 − 3 = 16)');
-      assert.equal(p.hp, 114, '(c) mp 19: игрок 108 + 6 (mend) = 114');
+      assert.equal(u.mp, 19, '(c) mp 19: ввод — Эфир НЕ действовал (mp нетронут)');
+      assert.equal(p.hp, 108, '(c) mp 19: игрок 108 (Вдоха нет: mp < 20)');
     }
     // (d) 108/270 И mp 20 → ДА (граница маны): Вдох сработал.
     {
@@ -4159,7 +4197,7 @@ test('000113 BR-2: границы триггера (41%—нет/40%—да; mp 
   }
 });
 
-test('000113 BR-3: разовость — Вдох РОВНО ОДИН раз за бой (флаг c.efirBreathed); mp НЕ тратится повторно; ослабление НЕ обновляется (естественный тик 2→1→0); 3-й раунд — полный урон', () => {
+test('000113 BR-3: разовость — Вдох РОВНО ОДИН раз за бой (флаг c.efirBreathed); mp НЕ тратится повторно; ослабление НЕ обновляется (естественный тик 2→1→0); полный урон после исчерпания окна', () => {
   const E = loadEfir000081();
   const C = require('../src/combat.js');
   const saveCatalog = C.combatInternals.allySpells;
@@ -4168,8 +4206,9 @@ test('000113 BR-3: разовость — Вдох РОВНО ОДИН раз з
   try {
     // Геометрия: волк m0 на (3,5) (д 1 к игроку (3,6) — бьёт каждый
     // раунд, урон 10, все попадания). Книга [] — ИЗОЛЯЦИЯ ФЛАГА (никаких
-    // кастов, чтобы mp НЕ тратился повторно). Эфир на якорь (2,5) — д 1
-    // к волку (Касание 4 в раундах 2–3).
+    // кастов, чтобы mp НЕ тратился повторно). Эфир на якорь (2,5) — ввод
+    // (Касания нет). 000168: pre-roll = слот Эфира (ввод, без Вдоха —
+    // u.breath ставится ПОСЛЕ createCombat). Вдох — в round 2.
     const p = hero112();
     p.hp = 108;
     const state = E.createEfir();
@@ -4179,20 +4218,22 @@ test('000113 BR-3: разовость — Вдох РОВНО ОДИН раз з
     c._rng = () => 0.01;
     E.buildEfirUnit(state, c);
     u.mp = 20;
-    c.endTurn();        // r1: Вдох (108→120), волк ×0.8 = 8 → 112, тик 2→1
-    u.mp = 20;          // ручная подкачка (регена в бою НЕТ — изоляция флага)
-    p.hp = 108;
-    c.endTurn();        // r2: ВДОХА НЕТ (флаг) — Касание, волк ×0.8
-    c.endTurn();        // r3: тик исчерпан — полный урон
+    c.endTurn();        // r1: волк полный (108→98); Эфир — ввод (без Вдоха)
+    c.endTurn();        // r2: Вдох (98→110, mp 20→0), волк ×0.8 (110→102)
+    u.mp = 20;          // ручная подкачка ПОСЛЕ Вдоха (регена в бою НЕТ —
+    p.hp = 108;         // тест: Вдох НЕ повторится; подстройка для цикла тика)
+    c.endTurn();        // r3: тик 2→1 (слот Эфира — ввод, волк ещё не бил)
+    c.endTurn();        // r3: волк ×0.8 (108→100)
+    c.endTurn();        // r4: тик 1→0 (слот Эфира — ввод)
+    c.endTurn();        // r4: волк ПОЛНЫЙ (100→90)
     assert.equal(c.log.filter((l) => l === 'Вдох Эфира!').length, 1,
       'ровно ОДНА строка «Вдох Эфира!» (1 раз за бой): ' + c.log.join(' | '));
-    assert.equal(c.efirBreathed, true, 'флаг c.efirBreathed = true (после r1)');
-    assert.equal(u.mp, 20, 'mp НЕ потрачена повторно (Вдох не пошёл в r2)');
+    assert.equal(c.efirBreathed, true, 'флаг c.efirBreathed = true (после r2)');
+    assert.equal(u.mp, 20, 'mp НЕ потрачена повторно (Вдох не повторился)');
     assert.equal(p.hp, 90,
-      'p.hp: 120−8(r1 ×0.8) → 108(подстройка) −8(r2 ×0.8) −10(r3 ПОЛНЫЙ) = 90');
+      'p.hp: 108(подстройка) −8(r3 ×0.8) −10(r4 ПОЛНЫЙ) = 90');
     assert.equal(w.hp, 100,
-      '000167: pre-roll (книга пуста — 000080-ветка) сдвинул Эфир '
-      + '(2,5)→(2,4), d до волка 2 → Касания нет: 100');
+      '000168: Эфир — ввод (Касания нет): волк 100');
     assert.equal(w.weakened.turns, 0,
       'ослабление НЕ обновлено: естественный тик 2→1→0 (не сброс в 2)');
   } finally {
@@ -4227,10 +4268,13 @@ test('000113 BR-4: формула — лечение ВСЕМ союзным (и
     const merc = c.units.find((x) => x.id === 'a1');
     u.hp = 4;     // maxHP 16 − 12
     merc.hp = 1;  // maxHP 13 − 12
-    // 000167: pre-roll (000080-ветка) лечит раненого игрока ДО
-    // buildEfirUnit — frac ≤ 0.4 для Вдоха ставим после pre-roll.
+    // 000168: pre-roll = слот Эфира (ввод; Вдох в pre-roll НЕВОЗМОЖЕН —
+    // u.breath ПОСЛЕ createCombat). Вдох — в round 2. Очередь [efir, m0,
+    // player, a1] (4 слота): 3× endTurn до входа в слот Эфира r2.
     p.hp = 108;
-    c.endTurn();
+    c.endTurn();  // r1: Эфир(ввод) → волк(промах) → игрок
+    c.endTurn();  // r1: игрок → наёмник(ввод)
+    c.endTurn();  // r2: оборот → слот Эфира → Вдох → волк(промах) → игрок
     assert.equal(c.efirBreathed, true, 'флаг c.efirBreathed = true (Вдох)');
     assert.equal(p.hp, 120, 'игрок 108 + 12 (P.heal-путь) = 120');
     assert.equal(merc.hp, 13, 'наёмник 1 + 12 = 13 (факт 12, кап maxHP 13)');
@@ -4251,9 +4295,12 @@ test('000113 BR-5: окно ослабления — урон врага ×0.8 �
     require('../src/spells-data.js').SPELLS_BY_ID;
   try {
     // (a) mobAttack: волк (3,5) д 1 к игроку, урон 10, броня hero112 = 0,
-    // c._rng 0.01. 000167 (pre-roll + тик в startRound): Вдох r2
-    // (108→120) → r2: 120−8=112 (тик 2→1 в r3); r3: 112−8=104
-    // (тик 1→0 в r4); r4: 104−10=94 (полный урон — «возвращается»).
+    // c._rng 0.01. 000168: pre-roll = слот Эфира (ввод). Волк бьёт
+    // каждый раунд; фиксируем ТОЛЬКО ходы, завершившиеся на слоте игрока
+    // (волк ударил) — слот Эфира (ввод) идёт между раундами. Вдох — r2.
+    // r1: полный (108→98, до Вдоха); r2: Вдох (98→110) + ×0.8 (110→102,
+    // тик 2→1 в r3); r3: ×0.8 (102→94, тик 1→0 в r4); r4: полный
+    // (94→84 — «возвращается»).
     {
       const p = hero112();
       const state = E.createEfir();
@@ -4263,26 +4310,26 @@ test('000113 BR-5: окно ослабления — урон врага ×0.8 �
       c._rng = () => 0.01;
       E.buildEfirUnit(state, c);
       u.mp = 20;
-      // 000167: pre-roll (000080-ветка) лечит раненого игрока —
-      // frac для Вдоха ставим после pre-roll.
       p.hp = 108;
       const hpAfter = [];
       const turnsAfter = [];
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 6; i++) {
         c.endTurn();
-        hpAfter.push(p.hp);
-        turnsAfter.push(w.weakened ? w.weakened.turns : null);
+        if (c.turnOrder[c.turnIndex] === 'player') {
+          hpAfter.push(p.hp);
+          turnsAfter.push(w.weakened ? w.weakened.turns : null);
+        }
       }
-      assert.deepEqual(hpAfter, [112, 104, 94],
-        '×0.8 ровно 2 раунда, потом полный урон: ' + hpAfter.join(', '));
-      assert.deepEqual(turnsAfter, [2, 1, 0],
-        '000167: тик по раундам (startRound): 2→1→0');
+      assert.deepEqual(hpAfter, [98, 102, 94, 84],
+        '×0.8 ровно 2 удара (r2, r3), потом полный (r4): ' + hpAfter.join(', '));
+      assert.deepEqual(turnsAfter, [null, 2, 1, 0],
+        'тик по раундам (startRound): null → 2 (Вдох r2) → 1 → 0');
       assert.equal(w.hp, 100,
-        '000167: pre-roll (000080-ветка) сдвинул Эфир (2,5)→(2,4), '
-        + 'd до волка 2 → Касания нет: 100');
+        '000168: Эфир — ввод (Касания нет): волк 100');
     }
     // (b) mobAttackAlly: наёмник (4,5) 13/13 д 1; волк (4,4) бьёт
-    // НАЁМНИКА (ближайшая цель): 10·0.8 = 8 → 13 − 8 = 5.
+    // НАЁМНИКА (ближайшая цель). 000168: r1 — волк полный (13→3);
+    // r2 — Вдох лечит наёмника (3→13) и ослабляет: ×0.8 = 8 → 13 − 8 = 5.
     {
       const p = hero112();
       const state = E.createEfir();
@@ -4298,13 +4345,13 @@ test('000113 BR-5: окно ослабления — урон врага ×0.8 �
       const u = E.buildEfirUnit(state, c);
       u.mp = 20;
       const merc = c.units.find((x) => x.id === 'a1');
-      // 000167: pre-roll (000080-ветка) лечит раненого игрока —
-      // frac для Вдоха ставим после pre-roll.
       p.hp = 108;
-      c.endTurn();
+      c.endTurn();  // r1: Эфир(ввод) → волк(полный, наёмник 13→3) → игрок
+      c.endTurn();  // r1: игрок → наёмник(ввод)
+      c.endTurn();  // r2: Вдох (наёмник 3→13, волк ×0.8 13→5) → игрок
       assert.equal(c.efirBreathed, true, '(b) Вдох сработал (флаг)');
       assert.equal(merc.hp, 5,
-        '(b) mobAttackAlly: 10·0.8 = 8 → 13 − 8 = 5 (без ослабления — 3)');
+        '(b) Вдох лечит (3→13), затем ×0.8: 13 − 8 = 5 (без ослабления — 13−10 = 3)');
       assert.equal(p.hp, 120,
         '(b) игрок 108 + 12 (Вдох) = 120 (волк бьёт наёмника, не игрока)');
       assert.ok(c.log.includes('Вдох Эфира!'), 'лог: ' + c.log.join(' | '));
@@ -4335,19 +4382,20 @@ test('000113 BR-6: не переносится в следующий бой — 
         u.mp = 20;
         return { w, u };
       };
-      // Бой 1: Вдох (лог, флаг true, ослабление {0.8, 2} — тик только
-      // в следующем startRound, 000167).
+      // Бой 1: Вдох (лог, флаг true, ослабление {0.8, 2}). 000168: pre-roll
+      // = слот Эфира (ввод) → 2× endTurn до Вдоха в round 2.
       const c1 = createCombat({
         player: p, allies: [E.efirAllyData(state)],
         mobs: ['wolf'], mobLevel: 2, seed: 5,
       });
       const s1 = setup(c1);
-      c1.endTurn();
+      c1.endTurn();  // r1: Эфир(ввод) → волк(полный) → игрок
+      c1.endTurn();  // r2: Вдох → волк(×0.8) → игрок
       assert.equal(c1.efirBreathed, true, 'бой 1: флаг c.efirBreathed = true');
       assert.ok(c1.log.includes('Вдох Эфира!'), 'бой 1: лог-строка');
       assert.deepEqual(s1.w.weakened, { mult: 0.8, turns: 2 },
-        'бой 1: 000167 — ослабление {0.8, 2} (тик в startRound, '
-        + 'следующий раунд; после одного endTurn тик не шёл)');
+        'бой 1: ослабление {0.8, 2} (Вдох r2 — ПОСЛЕ startRound r2, '
+        + 'тик в startRound r3 ещё не шёл)');
       // Бой 2 (тот же persistent state/игрок): состояние ЧИСТОЕ.
       p.hp = 108;
       const c2 = createCombat({
@@ -4359,14 +4407,15 @@ test('000113 BR-6: не переносится в следующий бой — 
         'бой 2: c.efirBreathed НЕТ (состояние боя, не сейв)');
       assert.equal(s2.w.weakened, undefined,
         'бой 2: u.weakened НЕТ (не переносится между боями)');
-      // Повторная настройка → Вдох СРАБАТЫВАЕТ СНОВА.
-      c2.endTurn();
+      // Повторная настройка → Вдох СРАБАТЫВАЕТ СНОВА (2× endTurn → r2).
+      c2.endTurn();  // r1: Эфир(ввод) → волк(полный, 108→98) → игрок
+      c2.endTurn();  // r2: Вдох (98→110) → волк(×0.8, 110→102) → игрок
       assert.equal(c2.efirBreathed, true, 'бой 2: Вдох снова (на БОЙ)');
       assert.equal(c2.log.filter((l) => l === 'Вдох Эфира!').length, 1,
         'бой 2: ровно одна строка (свежий бой): ' + c2.log.join(' | '));
       assert.equal(s2.u.mp, 0, 'бой 2: mp 20 − 20 = 0');
-      assert.equal(p.hp, 112,
-        'бой 2: p.hp 108 + 12 (Вдох) − 8 (×0.8) = 112');
+      assert.equal(p.hp, 102,
+        'бой 2: p.hp 98 (r1 волк) + 12 (Вдох) − 8 (×0.8) = 102');
     } finally {
       C.combatInternals.allySpells = saveCatalog;
     }
@@ -4571,6 +4620,17 @@ test('000113 BR-8: internals healAlly/weakenAllEnemies (export combatInternals) 
 //       (танкует удары на 16 HP, но hardest-группы ранят сильнее) — НЕ
 //       тривиализация;
 //   (b) hard + пассив: 35/35 'dead' (смерть R12–R72, avg 34.7).
+// ПЕРЕЧИСЛЕНИЕ 2026-10-07 (ревью 000168; ИИ Эфира заменён вводом —
+// бот autoPlay119 БЕЗ ПРАВОК: на ходу Эфира его c.attack/c.move
+// раскатываются диспатчем по активному, решения бота — по дистанции
+// ИГРОКА до цели, поэтому Эфир в свипе ДВИЖЕТСЯ, но «Касания духа»
+// не выполняет (0) и не кастует (c.cast бот не вызывает); зависаний
+// НЕТ — все бои завершаются):
+//   (a) medium: 35/35 victory; avg 9.686 раунда (min 4, orc_raid/
+//       spider_nest); avg HP героя после 0.9138 (min 0.5968,
+//       abyss_spirit); hardest-группа (6) — per-combat hpFrac < 1.0;
+//   (b) hard + пассив: 35/35 'dead' (смерть R13–R41, avg 22.0).
+// Интервальные пины EFIR_BAL119 удерживаются с запасом (см. ниже).
 
 // ЧИСЛОВЫЕ ключи GROUP_RECIPES — 7 каталожных стандартных групп
 // ('BUILDING_BOSS' — строковый ключ, исключён; фильтр 000077).
@@ -4702,8 +4762,12 @@ function battle119({ type, seed, difficulty, passive }) {
 // ребейзе (пин детерминирован сидами). Зафиксированные значения —
 // tasks/result/000119.md (симуляция 2026-10-04, сиды 1..5):
 // avg rounds = 8.40, avg hpFrac = 0.944, min hpFrac = 0.694.
+// Пересчёт 2026-10-07 (ревью 000168 — ИИ Эфира заменён вводом, см.
+// баннер 000119): avg rounds = 9.686 (min 4), avg hpFrac = 0.9138,
+// min hpFrac = 0.5968 — интервалы ниже удерживаются с запасом.
 const EFIR_BAL119 = {
-  // per-combat (a): rounds ≥ 2 — бой не «мгновенный» (зафиксирован min 3).
+  // per-combat (a): rounds ≥ 2 — бой не «мгновенный» (зафиксирован min 3;
+  // пересчёт 2026-10-07 после 000168: min 4).
   minRounds: 2,
   // свип (a): avg rounds ∈ [5, 12] — нижняя — ТЗ «не мгновенно»,
   // верхняя — страховка от дрейфа (soft-lock/осада).
@@ -4778,6 +4842,9 @@ test('000119 BAL-3: бой с Эфиром не тривиален — зафи�
   // Зафиксированные значения (симуляция 2026-10-04; per-group таблицы —
   // tasks/result/000119.md): avg rounds = 8.40 (min 3), avg hpFrac =
   // 0.944, min hpFrac = 0.694 (abyss_spirit).
+  // Пересчёт 2026-10-07 (ревью 000168 — ИИ Эфира заменён вводом, бот
+  // без правок): avg rounds = 9.686 (min 4), avg hpFrac = 0.9138,
+  // min hpFrac = 0.5968 (abyss_spirit) — интервальные пины держатся.
   const rows = [];
   for (const type of numericGroups119()) {
     for (const seed of [1, 2, 3, 4, 5]) {
@@ -5418,7 +5485,7 @@ test('000167-INTER-1: интерлевинг: fast-моб (инициатива 
   assert.equal(c.log.length, 1, 'действий игрока в стартовом лого НЕТ');
 });
 
-test('000167-ROUND-1: round-rollover: очередь исчерпана → round++, refillPools, рефилл c.efs, тик щита Эфира, свежая отсортированная очередь, turnIndex → игрок', () => {
+test('000167-ROUND-1: round-rollover: очередь исчерпана → round++, refillPools, рефилл c.efs, тик щита Эфира, свежая отсортированная очередь, turnIndex → слот Эфира (ввод, 000168)', () => {
   const E = loadEfir000081();
   const state = E.createEfir();
   const p = strongHero();
@@ -5432,20 +5499,23 @@ test('000167-ROUND-1: round-rollover: очередь исчерпана → roun
   assert.equal(c.phase, 'player');
   assert.deepEqual(c.turnOrder, ['efir', 'player'],
     'отсортированная очередь: Эфир (4) > strongHero (2)');
-  assert.equal(c.turnIndex, 1, 'turnIndex — на слоте игрока');
+  assert.equal(c.turnIndex, 0, '000168: pre-roll — на слоте Эфира (ввод)');
   // Исчерпание пулов (белая коробка) — восстановление в «новом раунде».
   c.ps.moveLeft = 0; c.ps.attack = 0;
   c.efs.spellInt = 0; c.efs.spellWis = 0; c.efs.touch = 0; c.efs.move = 0;
   c.efirShield = { armor: 5, turns: 2 }; // тик — блок «начало раунда»
-  // Ход игрока (без действий) → endTurn: очередь исчерпана → НОВЫЙ РАУНД
-  // → pre-roll (Эфир; без мобов — без действий) → снова слот игрока.
+  // 000168: pre-roll остановился на слоте Эфира (ввод). 2× endTurn:
+  // (1) Эфир(ввод) → игрок (очередь не исчерпана); (2) игрок → очередь
+  // исчерпана → НОВЫЙ РАУНД (refillPools, рефилл c.efs, тик щита) →
+  // слот Эфира (ввод, без мобов — без действий).
+  c.endTurn();
   c.endTurn();
   assert.equal(c.round, 2, 'rollover: round++');
   assert.equal(c.phase, 'player');
   assert.equal(c.result, null);
   assert.deepEqual(c.turnOrder, ['efir', 'player'],
     'свежая ОТСОРТИРОВАННАЯ очередь');
-  assert.equal(c.turnIndex, 1, 'turnIndex — снова на слоте игрока');
+  assert.equal(c.turnIndex, 0, '000168: снова на слоте Эфира (ввод)');
   // refillPools (игрок):
   assert.equal(c.ps.moveLeft, d.moveCells, 'moveLeft — рефилл');
   assert.equal(c.ps.attack, d.attackActions, 'attack — рефилл');
@@ -5501,12 +5571,13 @@ test('000167-WEAK-1: «Вдох Эфира» против БОЛЕЕ БЫСТР�
     // (2,4) (d до наездника 2 — Касания нет; dP 3 / dE 2 ≤ 3 — не
     // двигается). c._rng 0.01 — все попадания.
     //
-    // 000167 (интерлевинг D4 + тик в startRound): Вдох — r2 (round 1 —
-    // pre-roll, 000080-ветка, без c.efs); в round 2 наездник бьёт ПЕРВЫМ
-    // (init 6 > 4) — ПОЛНЫЙ урон (108−10, затем +12 Вдох → 110) → r3:
-    // тик 2→1, 110−8=102 (единственный ослабленный удар) → r4: тик 1→0,
+    // 000168 (интерлевинг D4 + тик в startRound + ввод): Вдох — r2
+    // (r1 — pre-roll = слот Эфира, ввод, без Вдоха: u.breath ставится
+    // ПОСЛЕ createCombat). В round 2 наездник бьёт ПЕРВЫМ (init 6 > 4) —
+    // ПОЛНЫЙ урон (108−10, затем +12 Вдох → 110) → r3: тик 2→1,
+    // 110−8=102 (единственный ослабленный удар) → r4: тик 1→0,
     // 102−10=92 (полный урон — «возвращается»). Контраст: BR-5(a) —
-    // волк (init 3, ПОСЛЕ Эфира) — [112, 104, 94]: ослаблен в раунде
+    // волк (init 3, ПОСЛЕ Эфира) — [98, 102, 94, 84]: ослаблен в раунде
     // триггера И следующем (ровно 2 удара, «2 хода» SPEC).
     const p = hero112(); // maxHP 270, броня 0
     const state = E.createEfir();
@@ -5523,15 +5594,22 @@ test('000167-WEAK-1: «Вдох Эфира» против БОЛЕЕ БЫСТР�
     const u = c.units.find((x) => x.id === 'efir');
     u.x = 2; u.y = 4; // закреплён: без Касания (d 2) и без эскорта
     u.mp = 20;
-    // 000167: pre-roll (000080-ветка) лечит раненого игрока —
-    // frac для Вдоха ставим после pre-roll.
+    // 000168: pre-roll = слот Эфира (ввод); frac для Вдоха ставим
+    // после pre-roll (после buildEfirUnit — у pre-roll u.breath нет).
     p.hp = 108;
     const hpAfter = [];
     const turnsAfter = [];
-    for (let i = 0; i < 3; i++) {
+    let lastRound = c.round;
+    for (let i = 0; i < 5; i++) {
       c.endTurn();
-      hpAfter.push(p.hp);
-      turnsAfter.push(r.weakened ? r.weakened.turns : null);
+      // 000168: слот Эфира — ввод (остановка); раунд продвигается ТОЛЬКО
+      // endTurn-ом с оборотом очереди → фиксируем удары наездника по
+      // «round++» (r2, r3, r4).
+      if (c.round !== lastRound) {
+        hpAfter.push(p.hp);
+        turnsAfter.push(r.weakened ? r.weakened.turns : null);
+        lastRound = c.round;
+      }
     }
     assert.equal(c.efirBreathed, true, 'Вдох сработал (флаг)');
     assert.ok(c.log.includes('Вдох Эфира!'), 'лог-строка: ' + c.log.join(' | '));
@@ -5769,20 +5847,33 @@ test('000165 C6: доступность (ТЗ п.4) — лут Уродства 
 // (combatInternals.allySpells); buildEfirUnit — ПОСЛЕ createCombat
 // (паттерн 000112, L5403).
 //
-// Роллы-эмпирика (scratch, base ec08e19): в геометрии m0 (4,6)/
-// m1 (3,7) альянсы НЕ роллят — Volk (2,5) d 3 → шаг (тихий), Ashka
-// (4,5) d 1 → «отступает» (тихий); роллы = ТОЛЬКО hit-роллы мобов
-// (skeleton — без трейтов: трейт-роллов 0; pre-roll — шаги, 0).
+// Роллы-эмпирика (000168-ре-деривация, base ab6c08d+): в геометрии
+// m0 (4,6)/m1 (3,7) союзники НЕ роллят — тест НЕ действует на их
+// ходах (движение/удар — ввод игрока, D9): ходы a0/a1 — тихий
+// endTurn, 0 роллов; Эфир no-op (книга ['resurrect'] — 0). Pre-roll
+// (000168 D9/P1) ОСТАНОВИЛСЯ на первом player-side юните (Эфир,
+// init 4) — роллов 0 (мобы в pre-roll не действуют). Роллы =
+// ТОЛЬКО hit-роллы мобов (skeleton — без трейтов: трейт-роллов 0).
+//
+// ТАЙМИНГ 000168 (D9/P1): союзники — ввод игрока. После createCombat
+// очередь — на первом player-side слоте (Эфир, ti 0); один endTurn —
+// один юнит. turnOrder round 1 (build164):
+// ['efir', 'm0', 'm1', 'player', 'a0', 'a1']; (build164One):
+// ['efir', 'm0', 'player', 'a0', 'a1']. Окно смерти открывается в
+// ROUND 1 на первом endTurn (ход m0) — в build164 m1 «оставшийся
+// моб раунда» действует ПОСЛЕ спасения в том же раунде.
 // =====================================================================
 
 const E164 = loadEfir000081();
 
 // Общая геометрия 2 скелетов (seed 9, L2, без трейтов): игрок (3,6)
 // 25 HP; скелеты закреплены вплотную (m0 (4,6), m1 (3,7)) — бьют с
-// round 2 (d 1: без шага/отступления); Эфир закреплён (2,5) — d 1
-// до игрока (Касания/эскорта нет), d 3 до мобов (спелл урона по
-// книге ['resurrect'] — null). Ожидание очереди round 2:
-// ['efir', 'm0', 'm1', 'player', 'a0'(, 'a1')] (a1 — при живости).
+// round 1 (d 1: без шага/отступления; 000168: pre-roll мобы не
+// играет — остановка на Эфире); Эфир закреплён (2,5) — d 1 до
+// игрока (Касания/эскорта нет), d 3 до мобов (спелл урона по книге
+// ['resurrect'] — null). 000168 D9/P1: очередь round 1:
+// ['efir', 'm0', 'm1', 'player', 'a0', 'a1'] (a1 — при живости на
+// момент build; гибель ПОСЛЕ createCombat → серый слот, 6 записей).
 function build164() {
   const p = createCharacter(); // уровень 1, 25 HP
   const state = E164.createEfir();
@@ -5882,27 +5973,33 @@ test('000164-RESCUE-1: окно — спасение: Эфир кастует «
   a1.hp = 0;
   c._rng = () => 0.01;
   E164.buildEfirUnit(state, c);
-  // Книга = ровно ['resurrect'] → Эфир-ход no-op (0 rng).
-  // ERRATA-164: attrs 8/8 (мутация ПОСЛЕ buildEfirUnit — startRound
-  // рефиллит c.efs из c.efir.attrs live, reset читает e.attrs live):
-  // reset-mp = 5+8+8 = 21 ≥ 15 («мани» каталога) → гейт проходит;
-  // spellWis = 1 + floor(8/10) = 1 (пул есть).
+  // Книга = ровно ['resurrect'] → Эфир-ход no-op (ввод, 0 rng).
+  // ERRATA-164: attrs 8/8 (мутация ПОСЛЕ buildEfirUnit — reset
+  // читает e.attrs live): reset-mp = 5+8+8 = 21 ≥ 15 («мани»
+  // каталога) → гейт проходит; c.efs.spellWis = 1 + floor(8/10) = 1
+  // (пул есть; 000168: окно — в round 1, до startRound-рефилла —
+  // значение c.efs уже верное от buildEfirUnit).
   efir.spells = ['resurrect'];
   efir.attrs = Object.assign({}, efir.attrs, {
     intelligence: 8, wisdom: 8 });
-  c.endTurn(); // tail (a0 шаг, a1 серый) → round 2: Эфир no-op →
-               // m0 убивает → ОКНО: reset (mp 21) → гейт → каст →
-               // откат → m1 ДЕЙСТВУЕТ в том же раунде → очередь у
-               // игрока
+  // 000168 D9/P1: pre-roll остановился на Эфире (ввод) — окно
+  // открывается в ROUND 1 (старое: m0 добивал в round 2 после
+  // ИИ-tail; теперь мобы не играли до первого endTurn).
+  c.endTurn(); // ход Эфира (no-op: книга ['resurrect']) → m0 убивает
+               // → ОКНО: reset (mp 21) → гейт → каст → откат → m1
+               // ДЕЙСТВУЕТ в том же раунде → очередь у игрока
   // Бой ПРОДОЛЖАЕТСЯ (окно закрыто спасением, ТЗ п.4):
   assert.equal(c.result, null, 'спасение — c.result НЕ ставится');
   assert.equal(c.phase, 'player', 'фазовый контекст сохранён: очередь у игрока');
-  assert.equal(c.round, 2);
+  assert.equal(c.round, 1, '000168 D9/P1: окно — в round 1 (pre-roll '
+    + 'больше не играет ходы до player-side остановки)');
   assert.equal(c.turnIndex, 3, 'после m1 (ti 2) — слот игрока');
-  // Очередь НЕ пересчитана ПОСЛЕ окна (контракт §2.4): a1 мёртв на
-  // СТАРTE round 2 → вне buildTurnOrder; добор — со СЛЕДУЮЩЕГО
-  // (turnOrder НЕ 6 записей):
-  assert.deepEqual(c.turnOrder, ['efir', 'm0', 'm1', 'player', 'a0']);
+  // Очередь НЕ пересчитана ПОСЛЕ окна (контракт §2.4): a1 погиб
+  // ПОСЛЕ buildTurnOrder round 1 → в очереди СЕРЫЙ слот (6 записей,
+  // в отличие от round 2+ — там он исключается); откат (воскрешение
+  // a1) СЕРЕДИНЕ round 1 — очередь НЕ пересчитывается: a1 действует
+  // в round 1 — слот ti 5 (после игрока и a0):
+  assert.deepEqual(c.turnOrder, ['efir', 'm0', 'm1', 'player', 'a0', 'a1']);
   // Каст: пул −1, мана −15 (от reset-значения 21):
   assert.equal(c.efs.spellWis, 0, 'пул spellWis 1 − 1');
   assert.equal(efir.mp, 6, 'мана 21 (5+8+8) − 15 (каталожное «мани»)');
@@ -5936,11 +6033,14 @@ test('000164-RESCUE-2: неспасение — естественная кни�
   m0.damage = 50;
   c._rng = () => 0.01;
   E164.buildEfirUnit(state, c);
-  // Книга — естественная L1 (БЕЗ мутаций): Эфир-ход round 2 —
-  // spark (d 3 ≤ 4; «лечение»/«защита» — player frac 1.0 → null);
-  // окно: strongestKnown('воскрешение') → null → не спасение.
+  // Книга — естественная L1 (БЕЗ мутаций). 000168 D9/P1: Эфир-ход —
+  // ввод ИГРОКА (старое: ИИ кастовал spark сам): тест кастует
+  // сильнейшее известное «урон» из книги — c.cast → spark (d 3 ≤ 4,
+  // spellInt −1, mp 11 → 8); окно: strongestKnown('воскрешение') →
+  // null → не спасение.
   assert.deepEqual(efir.spells, ['spark', 'mend'], 'естественная L1-книга');
-  c.endTurn();
+  c.cast(c.targetId); // Эфир-ход (ввод): spark на m0 (цель = nearestEnemy)
+  c.endTurn();        // → m0 убивает → ОКНО (round 1) — не спасение
   assert.ok(c.result && c.result.outcome === 'dead', 'бой завершён');
   assert.equal(c.result.partyLost, true, 'не спасение — partyLost');
   // Каскад + полный reset (spark забрал 3 ДО окна: mp 11 → 8 →
@@ -5972,6 +6072,8 @@ test('000164-RESCUE-3: гейт — без каста и БЕЗ ЧАСТИЧНО
     c._rng = () => 0.01;
     E164.buildEfirUnit(state, c);
     efir.spells = ['resurrect'];
+    // 000168 D9/P1: окно — round 1: Эфир-ход — ввод (no-op: в книге
+    // нет «урон» — кастовать нечего), далее m0 убивает.
     c.endTurn();
     assert.ok(c.result && c.result.outcome === 'dead');
     assert.equal(c.result.partyLost, true, '(a): не спасение — partyLost');
@@ -5992,16 +6094,25 @@ test('000164-RESCUE-3: гейт — без каста и БЕЗ ЧАСТИЧНО
   // reset-mp 15 (гейт ПРОХОДИТ) но refill spellWis = 1 +
   // floor(−10/10) = 0 (гейт падает на пуле — единственный путь на
   // spellWis 0: формула миним. 1 при attrs ≥ 0) → каста нет:
-  // mp 15 (НЕ 0), spellWis 0.
+  // mp 15 (НЕ 0), spellWis 0. 000168 D9/P1: окно обязано открыться
+  // ПОСЛЕ refill round 2 (startRound) — в round 1 m0 НЕ убивает
+  // (5: 25→20); ходы союзников — тихий ввод (по endTurn на слот).
   {
     const { state, c, m0, efir, a0, a1 } = build164One();
-    m0.damage = 50;
+    m0.damage = 5;
     c._rng = () => 0.01;
     E164.buildEfirUnit(state, c);
     efir.spells = ['resurrect'];
     efir.attrs = Object.assign({}, efir.attrs, {
       intelligence: 20, wisdom: -10 });
-    c.endTurn();
+    c.endTurn(); // 1: Эфир (ввод) → m0 (5: 25→20) → очередь у игрока
+    m0.damage = 50;
+    c.endTurn(); // 2: игрок → 000168: ОСТАНОВКА на a0 (ввод)
+    c.endTurn(); // 3: a0 → ОСТАНОВКА на a1 (ввод)
+    c.endTurn(); // 4: a1 → round 2: refill c.efs из attrs (spellWis
+                 // 1 + floor(−10/10) = 0) → ОСТАНОВКА на Эфире
+    c.endTurn(); // 5: Эфир (ввод) → m0 (50) убивает → ОКНО: mp 15 ≥
+                 // 15, пул 0 → partyLost
     assert.ok(c.result && c.result.outcome === 'dead');
     assert.equal(c.result.partyLost, true, '(b): не спасение — partyLost');
     assert.equal(efir.alive, true);
@@ -6018,11 +6129,14 @@ test('000164-RESCUE-3: гейт — без каста и БЕЗ ЧАСТИЧНО
 });
 
 test('000164-RNG-1: ноль новых c._rng в окне — счётчик === 4 (2+2 hit-ролла мобов) + детерминизм: 2 независимых прогона идентичны', () => {
-  // Сценарий RESCUE-1 на 2 `c.endTurn()`: round 2 — m0 (12: 25→13),
-  // m1 (2: 13→11); round 3 — m0 (30: 11→СМЕРТЬ → окно → rescue,
-  // 0 rng), m1 (2: 13→11). Роллы: ТОЛЬКО hit-роллы мобов — tail:
-  // Volk шаг/Ашка серый-слот-«отступление» (0), Эфир no-op
-  // (книга ['resurrect'] — 0), окно/каскад/reset/каст (0, D4),
+  // Сценарий RESCUE-1 на 4 `c.endTurn()` (000168 D9/P1: союзники —
+  // ввод, один endTurn на слот; старое: 2 endTurn — ИИ-tail
+  // «доедал» раунд сам): #1 (Эфир no-op) → round 1: m0 (12: 25→13),
+  // m1 (2: 13→11); #2 (игрок) → ОСТАНОВКА на a0 (ввод); #3 (a0) →
+  // a1 серый → round 2, ОСТАНОВКА на Эфире; #4 (Эфир no-op) →
+  // m0 (30: 11→СМЕРТЬ → окно → rescue, 0 rng), m1 (2: 13→11).
+  // Роллы: ТОЛЬКО hit-роллы мобов — ходы a0/a1 тихие (0), Эфир
+  // no-op (книга ['resurrect'] — 0), окно/каскад/reset/каст (0, D4),
   // скелеты без трейтов (0). Итого ТОЧНО 4.
   const run164 = () => {
     const { p, state, c, m0, m1, efir } = build164();
@@ -6037,9 +6151,11 @@ test('000164-RNG-1: ноль новых c._rng в окне — счётчик ==
       intelligence: 8, wisdom: 8 });
     let n = 0;
     c._rng = () => { n += 1; return 0.01; };
-    c.endTurn(); // round 2: m0 [1], m1 [2]
+    c.endTurn(); // 1: ход Эфира (no-op) → round 1: m0 [1], m1 [2]
     m0.damage = 30;
-    c.endTurn(); // round 3: m0 [3] → окно (0) → m1 [4]
+    c.endTurn(); // 2: ход игрока → ОСТАНОВКА на a0 (ввод, 0 роллов)
+    c.endTurn(); // 3: a0 → a1 серый → round 2: ОСТАНОВКА на Эфире
+    c.endTurn(); // 4: Эфир (no-op) → m0 [3] → окно (0) → m1 [4]
     return {
       n,
       snap: {
@@ -6064,23 +6180,26 @@ test('000164-RNG-1: ноль новых c._rng в окне — счётчик ==
   assert.equal(A.n, 4,
     'счётчик === 4 (2 hit-ролла/раунд × 2 раунда): окно НЕ добавляет');
   assert.deepEqual(B.snap, A.snap, 'детерминизм D4: 2 прогона идентичны');
-  // Состояние в конце round 3 (спасён — бой идёт):
-  assert.equal(A.snap.result, null, 'round 3: бой продолжается');
-  assert.equal(A.snap.round, 3);
+  // Состояние в конце round 2 (спасён — бой идёт). 000168 D9/P1:
+  // окно сместилось на раунд РАНЬШЕ (round 2 вместо 3) — pre-roll
+  // больше не «съедает» ИИ-tail round 1, окно открывается в
+  // round 2 на 4-м endTurn (старое — round 3 на 2-м):
+  assert.equal(A.snap.result, null, 'round 2: бой продолжается');
+  assert.equal(A.snap.round, 2);
   assert.equal(A.snap.phase, 'player');
   assert.equal(A.snap.turnIndex, 3);
   assert.equal(A.snap.player.alive, true);
   assert.equal(A.snap.player.hp, 11, '13 (спасение) − 2 (m1)');
   assert.equal(A.snap.efirMp, 6, '21 (5+8+8) − 15');
   assert.equal(A.snap.efs.spellWis, 0);
-  // a1 «погибший до окна» МЁРТВ на СТАРТЕ round 3 → вне этого
-  // buildTurnOrder; откат (его воскрешение) — СЕРЕДИНЕ round 3, ПОСЛЕ
+  // a1 «погибший до окна» МЁРТВ на СТАРТЕ round 2 → вне этого
+  // buildTurnOrder; откат (его воскрешение) — СЕРЕДИНЕ round 2, ПОСЛЕ
   // ребилда — очередь НЕ пересчитывается до конца раунда (000036,
   // контракт 000164 §2.4; ERRATA-164 — то же, что и для RESCUE-1:
   // 5 записей, «6 записей» в старых заметках неверно). a1 — в очереди
   // со СЛЕДУЮЩЕГО раунда:
   assert.equal(A.snap.turnOrder.length, 5,
-    'round-3-очередь: a1 (воскресший откатом СЕРЕДИНЕ раунда) — вне; добор — round 4');
+    'round-2-очередь: a1 (воскресший откатом СЕРЕДИНЕ раунда) — вне; добор — round 3');
   assert.deepEqual(A.snap.turnOrder, ['efir', 'm0', 'm1', 'player', 'a0']);
 });
 
@@ -6137,29 +6256,37 @@ test('000164-PRE-1 (GUARD, зелёный): pre-roll-смерть в createComba
   // Контракт R-6/§2.5 (закрытие висящей ссылки «пин W11» по итогам
   // ревью): c.efs/c.efir существуют ТОЛЬКО после buildEfirUnit
   // (combat-ui вызывает ПОСЛЕ createCombat) → pre-roll-смерть
-  // (моб с init выше игрока убил синхронно в createCombat) —
+  // (моб с init ВЫШЕ ВСЕХ убил синхронно в createCombat) —
   // структурно ВСЕГДА partyLost, даже при «готовом к спасению»
-  // Эфире (книга ['resurrect'] + reset-mp 21 ≥ 15): гейт шага 4
+  // Эфире (книга ['resurrect'] + reset-mp 18 ≥ 15): гейт шага 4
   // (e && s && c.efs && …) ложен НА ПУЛЕ. Кода-дефекта нет (краша
   // нет, auto-возрождение шага 3 harmless — бой окончен, §2.5);
   // пин фиксирует принятую деградацию, чтобы «починка» (c.efs в
   // createCombat) была осознанным решением, а не «исправлением».
   // Геометрия (height 3: игрок (3,2)): скелет-лучник m1 (3,0) —
-  // d 2 ≤ 4 (RANGED_MAX_DIST) — бьёт в pre-roll (init 4 > 2 у
-  // игрока); orc_warrior m0 (1,0) init 2 = игрок — ТАЙ-брейк базы
-  // (игрок первым) — в pre-roll НЕ действует. Эфир (2,1) → шаг
-  // к m0 (тихий, allyStepToward x-first) → m1: тай-брейк
-  // nearestPlayerSide (игрок при равенстве, строгий <): игрок d 2 =
-  // Вольк (4,1) d 2 → цель ИГРОК. rng 0.01 — hit-ролл m1 попадает.
+  // d 2 ≤ 4 (RANGED_MAX_DIST) — бьёт в pre-roll. 000168 D9/P1:
+  // pre-roll ОСТАНАВЛИВАЕТСЯ на первом player-side юните (союзники
+  // — ввод) — убийца обязан быть СТРОГО самым быстрым (старое:
+  // хватило «выше игрока» — союзники играли ИИ дальше): init m1 4
+  // СТРОГО максимум — attrs Эфира {int 3, wis 10, dex 0}: init 3
+  // (< 4; «готовность к спасению» не требует int 8 — mp = 5+3+10 =
+  // 18 ≥ 15; старые attrs 8/8 дали бы init 9 > 4 → стоп на Эфире,
+  // pre-roll-смерть недостижима); игрок init 2, orc_warrior m0
+  // (1,0) init 2 = игрок — ТАЙ-брейк базы (игрок первым), Volk
+  // (a1, 4,1) init 0 — все < 4. m1: тай-брейк nearestPlayerSide
+  // (игрок при равенстве, строгий <): игрок d 2 = Эфир (2,1) d 2 =
+  // Вольк d 2 → цель ИГРОК. rng 0.01 — hit-ролл m1 попадает.
   const p = createCharacter();
   p.hp = 1; // единственный удар m1 добивает (броня 0, без экип.)
   const state = E164.createEfir();
   const efirData = E164.efirAllyData(state);
   // «Готовый к спасению» Эфир — мутация ДАННЫХ ДО createCombat
   // (pre-roll внутри createCombat; post-hoc мутации не успевают):
+  // dex 0 — init 3 < 4 (m1 СТРОГО первым, см. геометрию); mp 18
+  // ≥ 15 — mp-гейт шага 4 ПРОШЁЛ бы (гейт падает именно на c.efs):
   efirData.spells = ['resurrect'];
   efirData.attrs = Object.assign({}, efirData.attrs, {
-    intelligence: 8, wisdom: 8 }); // reset-mp = 21 ≥ 15
+    intelligence: 3, wisdom: 10, dexterity: 0 }); // reset-mp = 18 ≥ 15
   const c = createCombat({
     player: p,
     allies: [efirData, ALLY_VOLK],
@@ -6176,7 +6303,7 @@ test('000164-PRE-1 (GUARD, зелёный): pre-roll-смерть в createComba
   assert.equal(c.result.outcome, 'dead');
   assert.equal(c.result.partyLost, true,
     'ВСЕГДА partyLost: гейт на c.efs (R-6) — спасения нет даже при ' +
-    'книге [' + JSON.stringify(efirData.spells) + '] и мане 21 ≥ 15');
+    'книге [' + JSON.stringify(efirData.spells) + '] и мане 18 ≥ 15');
   assert.equal(c.phase, 'over');
   assert.equal(p.alive, false);
   // Каскад (шаг 2) и auto-возрождение (шаг 3) — сработали (юниты в
@@ -6187,10 +6314,434 @@ test('000164-PRE-1 (GUARD, зелёный): pre-roll-смерть в createComba
   assert.equal(volk.hp, 0);
   assert.equal(efir.alive, true, 'Эфир — auto-возрождён (дух), НЕ мёртв');
   assert.equal(efir.hp, efir.maxHP, 'reset полный: hp = maxHP');
-  assert.equal(efir.mp, 21, 'reset-mp = 5 + 8 + 8 (R-3) — каста не было');
+  assert.equal(efir.mp, 18, 'reset-mp = 5 + 3 + 10 (R-3) — каста не было');
   // Лог: смерть + дух, БЕЗ каста (пула нет — «Возвращён в бой.» нет):
   assert.ok(c.log.includes('Вы погибли...'), 'смертная строка в окне');
   assert.ok(c.log.includes('Эфир возвращается…'), 'auto-возрождение (дух)');
   assert.ok(!c.log.includes('Эфир: «Воскрешение».'), 'атрибуции каста нет');
   assert.ok(!c.log.includes('Возвращён в бой.'), 'каста нет — пула нет');
 });
+
+// =====================================================================
+// Задача 000168. Бой: игрок управляет Эфиром и нанятыми NPC
+// (ход спутника — ввод).
+//
+// КРАСНЫЕ тесты (TDD): написаны ДО реализации, падают на текущем
+// (неизменённом) коде — базис 000167:
+//   * хода союзника НЕТ — advanceQueue проходит союзников через ИИ
+//     (allyAct/efirTurn), очередь останавливается только на 'player':
+//     activeUnitId после createCombat/endTurn = 'player'
+//     (краснота: 'a0'/'efir');
+//   * пулы союзника НЕ СУЩЕСТВУЮТ (u.moveLeft/u.attackLeft — undefined;
+//     makeAlly — фиксированный список полей); c.move/c.attack —
+//     D6-гварда 000167 (→ null, если активен не игрок) либо игрок-путь
+//     (не тот диспатч);
+//   * c.cast/c.heal — НЕ СУЩЕСТВУЮТ (осмысленный TypeError «c.heal is
+//     not a function» — прецедент 000132/000155: функция отсутствует,
+//     не load-ошибка);
+//   * canDoAction БЕЗ контекста союзника: 'move'/'cast' —
+//     «неизвестное действие», player-only действия на ходу союзника —
+//     legacy-ответы (ok / другие причины вместо дословного
+//     «недоступно активному персонажу»);
+//   * «Вдох Эфира» — АВТО-ТРИГГЕР (SPEC): субкейс-триггер ЗЕЛЁНЫЙ на
+//     старом коде (семантика сохранена — 000167-WEAK-1); краснота
+//     теста — за счёт non-trigger (после endTurn Эфир АКТИВЕН,
+//     phase 'player', AI-строк в логе НЕТ — старый код: heal/каст/
+//     Касание/движение + активен 'player').
+// Контракты — memory/000168-companion-control.md (§3.3/§3.4/§3.5/§3.6,
+// §12). Геометрия: поле 7×7, игрок (3,6); позиции — белая коробка
+// (паттерн board112/000167-WEAK-1). НОВЫХ c._rng в тестовых сценариях
+// 0 (c._rng = фикс; подсчёт вызовов — только в heal-субкейсе).
+// =====================================================================
+
+// Наёмник с инициативой ВЫШЕ игрока (attrs 4+4 = 8 > волк 3 > игрок 2):
+// в отсортированной очереди ['a0','m0','player'] pre-roll доходит до
+// его слота ПЕРВЫМ (000167: там — ИИ; 000168: там — остановка).
+const ALLY_VOLK_168 = Object.assign({}, ALLY_VOLK,
+  { attrs: { dexterity: 4, intelligence: 4 } });
+const ALLY_ASHKA_168 = Object.assign({}, ALLY_ASHKA,
+  { attrs: { dexterity: 4, intelligence: 4 } });
+const ALLY_MIRA_168 = Object.assign({}, ALLY_MIRA,
+  { attrs: { dexterity: 4, intelligence: 4 } });
+
+test('000168-ALLY-1: pre-roll ОСТАНОВИЛСЯ на наёмнике (activeUnitId/phase), c.move тратит u.moveLeft (НЕ c.ps), повтор — «шаги на ход исчерпаны», round-rollover возвращает пул', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['wolf'], mobLevel: 1, seed: 5,
+    allies: [ALLY_VOLK_168],
+  });
+  // Краснота (000167): pre-roll проходит наёмника через ИИ и встаёт
+  // на 'player'; 000168: c.phase 'player' на слоте наёмника (D9).
+  assert.equal(c.turnOrder[0], 'a0', 'очередь по инициативе (8>3>2)');
+  assert.equal(activeUnitId(c), 'a0',
+    'pre-roll остановился на наёмнике (краснота: '
+    + activeUnitId(c) + ')');
+  assert.equal(c.phase, 'player', 'ход союзника — phase «player» (D9)');
+  // Пулы — makeAlly (1/1). Краснота: поля не существуют (undefined).
+  const a0 = c.units.find((x) => x.id === 'a0');
+  assert.equal(a0.moveLeft, 1, 'u.moveLeft = 1 (краснота: undefined)');
+  assert.equal(a0.attackLeft, 1, 'u.attackLeft = 1 (краснота: undefined)');
+  // Движение: белая коробка (паттерн board112).
+  c.obstacles.clear();
+  a0.x = 3; a0.y = 5;
+  const w = c.units.find((x) => x.id === 'm0');
+  w.x = 0; w.y = 0;
+  const psMoveBefore = c.ps.moveLeft;
+  const r = c.move(0, -1);
+  assert.ok(r && r.ok === true,
+    'c.move на ходу наёмника — союзный путь (краснота: '
+    + JSON.stringify(r) + ')');
+  assert.equal(a0.y, 4, 'наёмник (3,5)→(3,4)');
+  assert.equal(a0.moveLeft, 0, 'u.moveLeft 1→0 (краснота: undefined)');
+  assert.equal(c.ps.moveLeft, psMoveBefore, 'c.ps — не тронут');
+  const r2 = c.move(0, -1);
+  assert.ok(r2 && r2.ok === false, 'второе движение — отказ');
+  assert.equal(r2.reason, 'шаги на ход исчерпаны',
+    'причина дословно (краснота: ' + (r2 && r2.reason) + ')');
+  // Round-rollover: endTurn (волк → игрок) + endTurn (round 2 —
+  // очередь СНОВА останавливается на «a0»), u.moveLeft = 1.
+  c.endTurn();
+  c.endTurn();
+  assert.equal(c.round, 2, 'round 2 (краснота: 3 — старая очередь не стоит)');
+  assert.equal(activeUnitId(c), 'a0',
+    'round 2 — снова наёмник (краснота: ' + activeUnitId(c) + ')');
+  assert.equal(a0.moveLeft, 1, 'round-rollover: u.moveLeft = 1 (краснота: undefined)');
+});
+
+test('000168-ALLY-2: c.attack на ходу наёмника — allyStrike (бросок allyAttack, u.attackLeft, дальность по роли); support — c.heal() → allyHeal (самый раненый, 0 c._rng)', () => {
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    const mk = (data) => {
+      const c = createCombat({
+        player: strongHero(), mobs: ['wolf'], mobLevel: 1, seed: 5,
+        allies: [data],
+      });
+      c.obstacles.clear();
+      const a = c.units.find((x) => x.id === 'a0');
+      const w = c.units.find((x) => x.id === 'm0');
+      w.maxHP = 30; w.hp = 30;
+      c._rng = () => 0.01;
+      return { c, a, w };
+    };
+    // (1) melee d≤1 — попадание (бросок allyAttack тот же, hitChance 0.55),
+    //     пул 1→0; повтор — «действий «Удар» больше нет».
+    {
+      const { c, a, w } = mk(ALLY_VOLK_168);
+      a.x = 3; a.y = 4; w.x = 3; w.y = 3; // d 1
+      const atkBefore = c.ps.attack;
+      const r = c.attack(w.id);
+      assert.ok(r && r.ok === true,
+        'c.attack на ходу наёмника (краснота: игрок-путь d 3 → '
+        + JSON.stringify(r) + ')');
+      assert.equal(w.hp, 27, 'волк −3 (dmg Вольк L1 = round(2.7·1.2))');
+      assert.equal(a.attackLeft, 0, 'u.attackLeft 1→0 (краснота: undefined)');
+      assert.equal(c.ps.attack, atkBefore, 'c.ps.attack — не тронут');
+      assert.ok(c.log.includes('Вольк бьёт Волк: 3.'),
+        'лог — строка allyAttack: ' + c.log.join(' | '));
+      const r2 = c.attack(w.id);
+      assert.ok(r2 && r2.ok === false, 'второй удар — отказ');
+      assert.equal(r2.reason, 'действий «Удар» больше нет',
+        'причина дословно (краснота: ' + (r2 && r2.reason) + ')');
+    }
+    // (2) melee d 2 — вне дальности; пул НЕ расходуется.
+    {
+      const { c, a, w } = mk(ALLY_VOLK_168);
+      a.x = 3; a.y = 4; w.x = 3; w.y = 2; // d 2
+      const r = c.attack(w.id);
+      assert.ok(r && r.ok === false, 'вне дальности — отказ');
+      assert.equal(r.reason, 'цель слишком далеко (ближний бой)');
+      assert.equal(a.attackLeft, 1, 'пул не расходуется (краснота: undefined)');
+    }
+    // (3) ranged: d 4 — попадание; d 6 — «цель слишком далеко (даль 4)».
+    {
+      const { c, a, w } = mk(ALLY_ASHKA_168);
+      a.x = 3; a.y = 4; w.x = 1; w.y = 2; // d 4
+      const r = c.attack(w.id);
+      assert.ok(r && r.ok === true,
+        'ranged d 4 — попадание (краснота: игрок d 6 → '
+        + JSON.stringify(r) + ')');
+      assert.equal(w.hp, 27, 'волк −3 (dmg Ашка L1 = round(2.7·1.0))');
+      assert.equal(a.attackLeft, 0, 'u.attackLeft 1→0');
+    }
+    {
+      const { c, a, w } = mk(ALLY_ASHKA_168);
+      a.x = 3; a.y = 4; w.x = 0; w.y = 1; // d 6
+      const r = c.attack(w.id);
+      assert.ok(r && r.ok === false, 'ranged d 6 — отказ');
+      assert.equal(r.reason, 'цель слишком далеко (даль 4)',
+        'причина ranged-дальности (краснота: ' + (r && r.reason) + ')');
+      assert.equal(a.attackLeft, 1, 'пул не расходуется');
+    }
+    // (4) support — c.heal(): allyHeal (самый раненый пула [игрок,
+    //     живые союзники]), 0 c._rng — расход сида нет.
+    {
+      const { c, a, w } = mk(ALLY_MIRA_168);
+      a.x = 3; a.y = 4; w.x = 0; w.y = 0;
+      c.player.hp = 108; // 108/270 = 0.4 — самый раненый
+      let rngCalls = 0;
+      c._rng = () => { rngCalls += 1; return 0.01; };
+      const r = c.heal();
+      assert.ok(r && r.ok === true,
+        'c.heal на ходу поддержки (краснота: c.heal отсутствует — '
+        + 'TypeError)');
+      assert.equal(c.player.hp, 113, 'игрок +5 (round((4+0.5·0+1)·1))');
+      assert.ok(c.log.includes('Мира лечит Флогистон (+5).'),
+        'лог — строка allyHeal: ' + c.log.join(' | '));
+      assert.equal(rngCalls, 0, '0 c._rng (детерминированное правило, ТЗ)');
+      assert.equal(a.attackLeft, 0, 'лечение занимает слот действия');
+    }
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});
+
+test('000168-CANDO-1: canDoAction-контекст — на ходу наёмника attack/move/endTurn — ok; player-only (fire/block/quickItem/invItem/flee) — «недоступно активному персонажу»', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['wolf'], mobLevel: 1, seed: 5,
+    allies: [ALLY_VOLK_168],
+  });
+  c.obstacles.clear();
+  const a = c.units.find((x) => x.id === 'a0');
+  const w = c.units.find((x) => x.id === 'm0');
+  a.x = 3; a.y = 4; w.x = 3; w.y = 3; // d 1
+  assert.equal(activeUnitId(c), 'a0', 'активен наёмник (краснота: player)');
+  const atk = canDoAction(c, 'attack', { targetId: w.id });
+  assert.equal(atk.ok, true,
+    'attack — ok (краснота: игрок d 3 → ' + JSON.stringify(atk) + ')');
+  const mv = canDoAction(c, 'move');
+  assert.equal(mv.ok, true,
+    'move — ok (краснота: «неизвестное действие: move»): '
+    + JSON.stringify(mv));
+  assert.equal(canDoAction(c, 'endTurn').ok, true, 'endTurn — ok');
+  for (const act of ['fire', 'block', 'quickItem', 'invItem', 'flee']) {
+    const r = canDoAction(c, act);
+    assert.equal(r.ok, false, act + ' — недоступно');
+    assert.equal(r.reason, 'недоступно активному персонажу',
+      act + ' — причина дословно (краснота: ' + r.reason + ')');
+  }
+});
+
+test('000168-CANDO-2: canDoAction-контекст — на ходу Эфира attack (Касание: c.efs.touch, d≤1) и cast (spell+pool+mana+d≤4); player-only — «недоступно активному персонажу»', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    const p = hero112(); // maxHP 270, init 2 < Эфир 4
+    const state = E.createEfir();
+    const c = createCombat({
+      player: p, allies: [E.efirAllyData(state)],
+      mobs: ['wolf'], mobLevel: 1, seed: 5,
+    });
+    c.obstacles.clear();
+    const u = c.units.find((x) => x.id === 'efir');
+    const w = c.units.find((x) => x.id === 'm0');
+    w.maxHP = 100; w.hp = 100;
+    u.x = 2; u.y = 5;
+    assert.equal(activeUnitId(c), 'efir',
+      'активен Эфир (краснота: pre-roll прошёл через ИИ → '
+      + activeUnitId(c) + ')');
+    E.buildEfirUnit(state, c);
+    assert.ok(c.efs, 'c.efs — боевой профиль (buildEfirUnit)');
+    // (a) attack = «Касание духа» (c.efs.touch, d≤1).
+    w.x = 2; w.y = 4; // d 1
+    let r = canDoAction(c, 'attack', { targetId: w.id });
+    assert.equal(r.ok, true,
+      'Касание d 1 — ok (краснота: игрок d 3 → ' + JSON.stringify(r) + ')');
+    w.y = 3; // d 2
+    r = canDoAction(c, 'attack', { targetId: w.id });
+    assert.equal(r.ok, false, 'Касание d 2 — отказ');
+    assert.equal(r.reason, 'цель слишком далеко (ближний бой)');
+    c.efs.touch = 0; w.y = 4;
+    r = canDoAction(c, 'attack', { targetId: w.id });
+    assert.equal(r.ok, false, 'пул touch пуст — отказ');
+    assert.equal(r.reason, 'действий «Касание духа» больше нет',
+      'причина (краснота: ' + r.reason + ')');
+    c.efs.touch = 1;
+    // (b) cast = сильнейшее известное урон-заклинание (pool+mana+d≤4).
+    r = canDoAction(c, 'cast', { targetId: w.id }); // d 1 ≤ 4
+    assert.equal(r.ok, true,
+      'cast d 1 — ok (краснота: «неизвестное действие: cast»): '
+      + JSON.stringify(r));
+    w.x = 0; w.y = 0; // d 7
+    r = canDoAction(c, 'cast', { targetId: w.id });
+    assert.equal(r.ok, false, 'd 7 — вне дальности');
+    assert.equal(r.reason, 'цель слишком далеко (дальность 4)',
+      'причина (краснота: ' + r.reason + ')');
+    w.x = 2; w.y = 4; w.alive = false;
+    r = canDoAction(c, 'cast', { targetId: w.id });
+    assert.equal(r.ok, false, 'врагов нет — «нет цели»');
+    assert.equal(r.reason, 'нет цели', 'причина (краснота: ' + r.reason + ')');
+    w.alive = true;
+    // (c) player-only — единообразная причина.
+    for (const act of ['fire', 'block', 'quickItem', 'invItem', 'flee', 'spellbook']) {
+      const rr = canDoAction(c, act);
+      assert.equal(rr.ok, false, act + ' — недоступно');
+      assert.equal(rr.reason, 'недоступно активному персонажу',
+        act + ' — причина (краснота: ' + rr.reason + ')');
+    }
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});
+
+test('000168-CANDO-3: canDoAction(«heal») — зеркало allyHealAction 1:1 (ревью 000168): слот действия → раненые → каталог; причина canDo = причина ядра в каждом отказе', () => {
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  // Мира — support с ментами; attrs 4+4 = 8 > волк 3 > игрок 2 →
+  // pre-roll ОСТАНОВИЛСЯ на её слоте (активен наёмник).
+  const mk = (mercData) => {
+    const c = createCombat({
+      player: strongHero(), mobs: ['wolf'], mobLevel: 1, seed: 5,
+      allies: [mercData],
+    });
+    c.obstacles.clear();
+    const a = c.units.find((x) => x.id === 'a0');
+    c._rng = () => 0.99;
+    return { c, a };
+  };
+  try {
+    // (1) Слот действия потрачен (удар/лечение ДО), раненый ЕСТЬ,
+    //     спелл ЕСТЬ — оба зеркала: «действий «Удар» больше нет»
+    //     (ПЕРЕД проверками раненых/каталога — порядок ядра).
+    {
+      const { c, a } = mk(ALLY_MIRA_168);
+      assert.equal(activeUnitId(c), 'a0', 'активна Мира (pre-roll-стоп)');
+      a.attackLeft = 0;
+      c.player.hp = 108; // 108/270 = 0.4 — самый раненый
+      const can = canDoAction(c, 'heal');
+      const core = c.heal();
+      assert.equal(can.ok, false, 'без слота — canDo-отказ');
+      assert.equal(can.reason, 'действий «Удар» больше нет',
+        'canDo: причина ядра (ревью 000168: ' + can.reason + ')');
+      assert.equal(core.ok, false, 'ядро — отказ');
+      assert.equal(core.reason, can.reason, 'зеркало 1:1 — причина ядра');
+      assert.equal(c.player.hp, 108, 'HP не изменился');
+    }
+    // (2) Слот есть, НО никто не ранен и спелла НЕТ — «нет раненых»
+    //     (раненые ПЕРЕД каталогом — порядок ядра; до ревью 000168
+    //     зеркало отвечало бы «нет лечения»).
+    {
+      const { c } = mk(Object.assign({}, ALLY_MIRA_168, { spells: [] }));
+      const can = canDoAction(c, 'heal');
+      const core = c.heal();
+      assert.equal(can.ok, false, 'без раненых — canDo-отказ');
+      assert.equal(can.reason, 'нет раненых',
+        'раненые ПЕРЕД каталогом (ревью 000168: ' + can.reason + ')');
+      assert.equal(core.reason, can.reason, 'зеркало 1:1 — причина ядра');
+    }
+    // (3) Слот есть, раненый ЕСТЬ, спелла НЕТ — «нет лечения»
+    //     (каталог — последняя проверка).
+    {
+      const { c } = mk(Object.assign({}, ALLY_MIRA_168, { spells: [] }));
+      c.player.hp = 108;
+      const can = canDoAction(c, 'heal');
+      const core = c.heal();
+      assert.equal(can.ok, false, 'без спелла — canDo-отказ');
+      assert.equal(can.reason, 'нет лечения',
+        'каталог — последняя проверка: ' + can.reason);
+      assert.equal(core.reason, can.reason, 'зеркало 1:1 — причина ядра');
+    }
+    // (4) Слот есть, раненый есть, спелл есть — оба зеркала ok
+    //     (инвариант «ок ⇒ ядро не отклонит» — путь положительный).
+    {
+      const { c, a } = mk(ALLY_MIRA_168);
+      c.player.hp = 108;
+      const can = canDoAction(c, 'heal');
+      assert.deepEqual(can, { ok: true }, 'canDo — ok');
+      const core = c.heal();
+      assert.equal(core.ok, true, 'ядро — ok (canDo.ok ⇒ не отклонит)');
+      assert.equal(c.player.hp, 113, 'игрок 108 + 5 (round((4+0+1)·1))');
+      assert.equal(a.attackLeft, 0, 'лечение заняло слот действия');
+    }
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});
+
+test('000168-BREATH-1: «Вдох Эфира» — авто-триггер в НАЧАЛЕ хода Эфира (ход сгорает, очередь продвигается, позиция без изменений); non-trigger — Эфир активен (ввод), AI-строк в логе НЕТ', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  // Эфир ПЕРВЫЙ в очереди (init 4 > волк 3 > игрок 2). Триггер — в
+  // начале ЕГО хода (round 2: pre-roll round 1 — u.breath ещё не
+  // поставлен buildEfirUnit; паттерн 000167-WEAK-1).
+  const mk = (pHp) => {
+    const p = hero112();
+    const state = E.createEfir();
+    const c = createCombat({
+      player: p, allies: [E.efirAllyData(state)],
+      mobs: ['wolf'], mobLevel: 1, seed: 5,
+    });
+    c.obstacles.clear();
+    const u = c.units.find((x) => x.id === 'efir');
+    const w = c.units.find((x) => x.id === 'm0');
+    w.x = 0; w.y = 0; w.maxHP = 100; w.hp = 100; // d 6+ — волк не достанет
+    c._rng = () => 0.01;
+    E.buildEfirUnit(state, c);
+    u.x = 2; u.y = 4; // закреплён (паттерн 000167-WEAK-1)
+    u.mp = 20;
+    p.hp = pHp;
+    const pos = [u.x, u.y];
+    // Ход Эфира (слот, где проверяется триггер) — довести endTurn'ами:
+    // старый код — 1 (pre-roll прошёл Эфира через ИИ; round 2 — слот
+    // Эфира после endTurn игрока); новый — 2 (round 1: pre-roll стоит
+    // на Эфире → endTurn: волк → игрок; round 2: слот Эфира).
+    let guard = 0;
+    while (!c.efirBreathed && guard++ < 4) c.endTurn();
+    return { c, p, u, w, pos };
+  };
+  const NO_AI = ['Эфир исцеляет', 'Касание духа', 'Эфир бьёт', 'Эфир: «'];
+  try {
+    // (a) ТРИГГЕР: игрок 108/270 = 0.4 ≤ 0.4, mp 20 ≥ 20 — ход СГОРАЕТ:
+    //     очередь продвинулась ЧЕРЕЗ 'efir', c.efirBreathed, mp −20,
+    //     игрок +12, моб ×0.8 на 2 хода, лог, позиция не изменилась,
+    //     ИИ-действий нет. Семантика СОХРАНЕНА (000167-WEAK-1) —
+    //     субкейс зелёный и на старом коде.
+    {
+      const { c, p, u, w, pos } = mk(108);
+      assert.notEqual(activeUnitId(c), 'efir', 'ход Эфира сгорел');
+      assert.equal(c.efirBreathed, true, 'флаг (состояние боя)');
+      assert.equal(u.mp, 0, 'mp −20 (mpCost)');
+      assert.equal(p.hp, 120, 'игрок +12 (round(10+0.8·3))');
+      assert.deepEqual(w.weakened, { mult: 0.8, turns: 2 },
+        'ослабление ×0.8 на 2 хода');
+      assert.ok(c.log.includes('Вдох Эфира!'),
+        'лог-строка (B.logLine): ' + c.log.join(' | '));
+      assert.deepEqual([u.x, u.y], pos, 'позиция не изменилась (ВЕСЬ ход)');
+      for (const line of NO_AI) {
+        assert.ok(!c.log.some((l) => l.includes(line)),
+          'ИИ-действий нет: ' + line + ': ' + c.log.join(' | '));
+      }
+    }
+    // (b) NON-TRIGGER: игрок 110/270 > 0.4 — Эфир АКТИВЕН (ввод игрока):
+    //     phase 'player', флаг не стоит, mp/HP/позиция не тронуты,
+    //     AI-строк в логе НЕТ. Краснота (000167): старый код —
+    //     heal «Эфир исцеляет… (+6)» / каст / Касание / движение
+    //     (c.efs.move 3) + активен 'player'.
+    {
+      const { c, p, u, pos } = mk(110);
+      assert.equal(activeUnitId(c), 'efir',
+        'non-trigger — Эфир активен (краснота: ' + activeUnitId(c) + ')');
+      assert.equal(c.phase, 'player', 'phase «player» (D9)');
+      assert.ok(!c.efirBreathed, 'флаг не выставлен');
+      assert.equal(u.mp, 20, 'mp не расходуется (краснота: ИИ расходовал)');
+      assert.equal(p.hp, 110, 'игрок не лечен (краснота: ИИ-лечение)');
+      assert.deepEqual([u.x, u.y], pos, 'позиция не сдвинута (краснота: ИИ-движение)');
+      for (const line of NO_AI) {
+        assert.ok(!c.log.some((l) => l.includes(line)),
+          'AI-строк в логе нет: ' + line + ': ' + c.log.join(' | '));
+      }
+    }
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});
+

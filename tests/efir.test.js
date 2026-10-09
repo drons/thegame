@@ -742,7 +742,7 @@ test('000111 T8: levelUp-интеграция — один вызов: уров�
   });
 });
 
-test('000111 T9: боевая проекция — лечение от собственных attrs (L1: mend +7; L20: greater_heal +35), u.attrs 3×12; явных maxHP/damage в данных НЕТ', () => {
+test('000111 T9: боевая проекция — u.attrs из primary (L20: мудрость 12 — 9 очков), u.attrs 3×12; явных maxHP/damage в данных НЕТ; 000168 (D12): лечение/щит у Эфира в бою НЕТ', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
     const C = require('../src/combat.js');
@@ -754,7 +754,7 @@ test('000111 T9: боевая проекция — лечение от собс�
       const scenario = (state) => {
         const p = P.createCharacter();
         p.primary.constitution = 50;
-        p.hp = 1; // раненый игрок — цель лечения (пул [игрок, союзники])
+        p.hp = 1; // 000168: Эфир НЕ лечит (D12) — прогон очереди, цель не важна
         const c = createCombat({
           player: p,
           allies: [E.efirAllyData(state)],
@@ -764,17 +764,11 @@ test('000111 T9: боевая проекция — лечение от собс�
         const w = c.units.find((x) => x.id === 'm0');
         w.x = 0; w.y = 0; // далеко — раунд не дотянется
         c._rng = () => 0.99; // (страховка) все атаки промах
-        c.endTurn(); // игрок (не действует) → Эфир (support) → волк
+        c.endTurn(); // 000168: Эфир — ввод (не действует); очередь отработала
         return c;
       };
-      // L1: mend (степень 1, мудрость 3):
-      // round((4 + 0.5·3 + 1)·1) = 7 — attrs в формуле allyHeal (000080).
-      const c1 = scenario(E.createEfir());
-      assert.ok(c1.log.includes('Эфир лечит Флогистон (+7).'),
-        'L1: лог «Эфир лечит … (+7)» (attrs.wisdom в формуле): '
-        + c1.log.join(' | '));
-      // L20: greater_heal (степень 2, мудрость 12):
-      // round((4 + 0.5·12 + 20)·1.15) = 35 — сильнейшая степень книги.
+      // L20: мудрость 12 = старт 3 + 9 очков (000139: уровень атрибуты
+      // НЕ растит; рост — очками единого дерева).
       const s2 = E.createEfir();
       while (s2.level < 20) {
         s2.xp = P.xpForNext(s2.level);
@@ -785,9 +779,6 @@ test('000111 T9: боевая проекция — лечение от собс�
       for (let i = 0; i < 9; i++) Sheet.raiseSkill(s2, 'wisdom');
       assert.equal(s2.level, 20, 'поднято до L20 (без хардкода суммы)');
       const c2 = scenario(s2);
-      assert.ok(c2.log.includes('Эфир лечит Флогистон (+35).'),
-        'L20: лог «Эфир лечит … (+35)» (greater_heal, степень 2): '
-        + c2.log.join(' | '));
       const u = c2.units.find((x) => x.id === 'efir');
       assert.deepEqual(u.attrs,
         { intelligence: 3, wisdom: 12, constitution: 3, dexterity: 1 },
@@ -800,6 +791,10 @@ test('000111 T9: боевая проекция — лечение от собс�
         'явного maxHP в данных НЕТ (формульный путь)');
       assert.ok(!('damage' in d),
         'явного damage в данных НЕТ (формульный путь)');
+      // 000168 (D12): лечения/щита у Эфира в бою НЕТ — строк «Эфир лечит …»
+      // в логе нет (сценарий отработал: бой запущен, очередь продвинулась).
+      assert.ok(!c2.log.some((l) => l.includes('Эфир лечит')),
+        '000168 (D12): Эфир не лечит в бою (строк лечения в логе нет)');
     } finally {
       C.combatInternals.allySpells = saveCatalog;
     }
@@ -909,7 +904,7 @@ function hero112() {
   return p;
 }
 
-test('000112 EF-1: buildEfirUnit — профиль L1 (c.efs 1/1/1/3, hp=maxHP=16, mp=11, c.efir); 000167: рефилл c.efs — в startRound, в раунде эскорт сжигает move; u.mp БЕЗ РЕГЕНА (11 — D-10: pre-roll allyHeal поднял игрока выше порога 0.7, mend в round 2 не кастится)', () => {
+test('000112 EF-1: buildEfirUnit — профиль L1 (c.efs 1/1/1/3, hp=maxHP=16, mp=11, c.efir); 000168: Эфир — ввод, эскорта/кастов нет → move/маны не тратятся', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
     const C = require('../src/combat.js');
@@ -941,19 +936,18 @@ test('000112 EF-1: buildEfirUnit — профиль L1 (c.efs 1/1/1/3, hp=maxHP=
       assert.equal(u.hp, 16, 'hp = maxHP (100% на старте боя)');
       assert.equal(u.mp, 11, 'mp = 5 + 3 + 3 = 11 (своя мана)');
       assert.equal(c.efir, u, 'c.efir — ссылка на юнит (refill/тики)');
-      // Полный endTurn (000167: round 2 — pre-roll уже отработал).
+      // 000168: pre-roll остановился на слоте Эфира (ввод); endTurn — Эфир
+      // не действует (ИИ-эскорт/касты убраны) → пулы и мана не тратятся.
       c.endTurn();
-      // Пулы (000167: рефилл — startRound, Д5 — зеркальная формула
-      // efir.js ↔ combat.js): кастов НЕТ (D-10: pre-roll, 000080-ветка,
-      // маной-бесплатный allyHeal mend +7 поднял игрока 188 → 195,
-      // frac 0.72 > 0.7) → spellInt/spellWis/touch не потрачены; move —
-      // эскорт: d до волка (6,0) 9 > 3 → 3 шага (2,5)→(5,5), бюджет 0.
-      assert.equal(c.efs.spellInt, 1, 'spellInt не потрачен (кастов нет — D-10)');
-      assert.equal(c.efs.spellWis, 1, 'spellWis не потрачен (mend не кастится — D-10)');
-      assert.equal(c.efs.touch, 1, 'touch не потрачен (волк d 5 > 1)');
-      assert.equal(c.efs.move, 0, '000167: move 3 → 0 (эскорт-шаги в раунде; рефилл — в след. startRound)');
-      // Мана — БЕЗ РЕГЕНА: 11 (mend не кастится — D-10).
-      assert.equal(u.mp, 11, '000167 D-10: u.mp без регена — 11 (mend не кастится: pre-roll allyHeal +7, frac 0.72 > 0.7)');
+      // Пулы (рефилл — startRound, формула efir.js ↔ combat.js): кастов и
+      // эскорта НЕТ (000168: ввод) → spellInt/spellWis/touch/move не
+      // потрачены; мана — без регена.
+      assert.equal(c.efs.spellInt, 1, 'spellInt не потрачен (кастов нет — 000168: ввод)');
+      assert.equal(c.efs.spellWis, 1, 'spellWis не потрачен (mend не кастится — 000168: ввод)');
+      assert.equal(c.efs.touch, 1, 'touch не потрачен (Касания нет — 000168: ввод)');
+      assert.equal(c.efs.move, 3, '000168: move 3 — без изменений (ИИ-эскорт убран; рефилл — startRound)');
+      // Мана — БЕЗ РЕГЕНА: 11 (Эфир не кастит — ввод).
+      assert.equal(u.mp, 11, '000168: u.mp без регена — 11 (Эфир не кастит: ввод)');
     } finally {
       C.combatInternals.allySpells = saveCatalog;
     }
@@ -1022,7 +1016,7 @@ test('000112 EF-2: buildEfirUnit — рост L15 (levelUp-цикл, без ха
   });
 });
 
-test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГДА попадает, броня игнор); spark 5 (d≤4, броня 50 игнор, mp 11→8); mend 6 (факт, p.mp не тронулся); щит 7 (книга БЕЗ лечения, c.efirShield {7,2}, mp 11→6)', () => {
+test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГДА попадает, броня игнор); spark 5 (d≤4, броня 50 игнор, mp 11→8); 000168: ввод (c.attack/c.cast), лечение/щит у Эфира в бою НЕТ (D12)', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
     const C = require('../src/combat.js');
@@ -1030,10 +1024,12 @@ test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГ
     C.combatInternals.allySpells = require('../src/spells-data.js').SPELLS_BY_ID;
     try {
       // (A) Касание 4: mp 0 (касты неплатёжны), моб d≤1 с бронёй 50,
-      // _rng 0.99 — ВСЕГДА попадает (hitChance не читается).
+      // _rng 0.99 — ВСЕГДА попадает (hitChance не читается). 000168:
+      // ввод (c.attack) — ИИ-Касание убрано; Эфир на спавне (2,5),
+      // d до волка (2,4) = 1 ≤ 1.
       {
         const p = hero112();
-        p.hp = P.derived(p).maxHP;      // полный — лечение не сработает
+        p.hp = P.derived(p).maxHP;      // полный — (D12) лечения и так нет
         const state = E.createEfir(); state.spells = ['spark'];
         const c = createCombat({
           player: p, allies: [E.efirAllyData(state)],
@@ -1043,20 +1039,21 @@ test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГ
         const u = E.buildEfirUnit(state, c);
         const w = c.units.find((x) => x.id === 'm0');
         w.x = 2; w.y = 4; w.armor = 50; w.maxHP = 100; w.hp = 100;
-        // 000167: pre-roll (000080-ветка) сдвинул Эфир (2,5)→(2,4) —
-        // d до волка 0 (≤ 1); броня 50 (Касание игнорирует).
         u.mp = 0;                        // маны нет — только Касание
         c._rng = () => 0.99;             // обычные атаки — все промахи
         const hp0 = w.hp;
-        c.endTurn();
+        const res = c.attack(w.id);      // 000168: ввод (ИИ-Касание убрано)
+        assert.ok(res.ok, 'c.attack — Касание доступно: ' + c.log.join(' | '));
         assert.equal(w.hp, hp0 - 4,
           'Касание = 4 (броня 50 игнор, ВСЕГДА попадает при _rng 0.99): '
           + c.log.join(' | '));
         assert.equal(u.mp, 0, 'Касание не тратит ману');
         assert.equal(c.efs.touch, 0,
-          '000167: touch потрачен (1→0); рефилл — в след. startRound');
+          'touch потрачен (1→0); рефилл — в след. startRound');
       }
-      // (B) spark 5: d≤4, броня моба 50 (игнор), mp 11→8.
+      // (B) spark 5: d≤4, броня моба 50 (игнор), mp 11→8. 000168: ввод
+      // (c.cast) — ИИ-каст убран; Эфир на спавне (2,5), d до волка (3,3)
+      // = 3 ≤ 4.
       {
         const p = hero112();
         p.hp = P.derived(p).maxHP;
@@ -1069,73 +1066,28 @@ test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГ
         const u = E.buildEfirUnit(state, c);
         const w = c.units.find((x) => x.id === 'm0');
         w.x = 3; w.y = 3; w.armor = 50; w.maxHP = 100; w.hp = 100;
-        // (3,3): d до Эфира (2,5) = 1+2 = 3 ≤ 4 — каст без движения.
+        // (3,3): d до Эфира (2,5) = 3 ≤ 4 — каст без движения.
         c._rng = () => 0.99;
         const hp0 = w.hp;
-        c.endTurn();
+        const res = c.cast(w.id);        // 000168: ввод (ИИ-каст убран)
+        assert.ok(res.ok, 'c.cast — каст доступен: ' + c.log.join(' | '));
         assert.equal(w.hp, hp0 - 5,
           'spark = round((3 + 0.5·3)·(1 + 0.05·0)) = 5 (броня игнор): '
           + c.log.join(' | '));
         assert.equal(u.mp, 8, 'mp 11 − 3 («мани» spark) = 8');
       }
-      // (C) mend 6: факт лечения, p.mp не тронулся (мана своя).
-      {
-        const p = hero112();
-        const d = P.derived(p);
-        p.hp = Math.floor(d.maxHP * 0.4);   // frac 0.4 ≤ 0.7; факт = 6
-        const pMp0 = p.mp;
-        const state = E.createEfir(); state.spells = ['mend'];
-        const c = createCombat({
-          player: p, allies: [E.efirAllyData(state)],
-          mobs: ['wolf'], mobLevel: 2, seed: 5,
-        });
-        c.obstacles.clear();
-        const w = c.units.find((x) => x.id === 'm0');
-        w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;  // далеко
-        c._rng = () => 0.99;
-        const u = E.buildEfirUnit(state, c);
-        const hp0 = p.hp;
-        c.endTurn();
-        assert.equal(p.hp, hp0 + 6,
-          'mend = round(3 + 0.5·3 + 1) = 6 (факт): ' + c.log.join(' | '));
-        assert.equal(p.mp, pMp0, 'мана ИГРОКА не тронулась (у Эфира своя)');
-        assert.equal(u.mp, 8, 'u.mp 11 − 3 («мани» mend) = 8');
-      }
-      // (D) щит 7: книга БЕЗ лечения [spark, magic_shield] (иначе (1)
-      // первым тратит ЕДИНСТВЕННЫЙ spellWis L1), игрок ≤ 50%.
-      {
-        const p = hero112();
-        const d = P.derived(p);
-        p.hp = Math.floor(d.maxHP * 0.4);   // frac 0.4 ≤ 0.5
-        const state = E.createEfir();
-        state.spells = ['spark', 'magic_shield'];
-        const c = createCombat({
-          player: p, allies: [E.efirAllyData(state)],
-          mobs: ['wolf'], mobLevel: 2, seed: 5,
-        });
-        c.obstacles.clear();
-        const w = c.units.find((x) => x.id === 'm0');
-        w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;  // далеко — (3) мимо
-        c._rng = () => 0.99;
-        const u = E.buildEfirUnit(state, c);
-        c.endTurn();
-        assert.ok(c.efirShield, 'c.efirShield создан (аддитивный статус, D4)');
-        assert.equal(c.efirShield.armor, 7,
-          'щит = round(5 + 0.5·3) = 7 (Math.round: 6.5→7)');
-        assert.equal(c.efirShield.turns, 2,
-          '000167: каст в round 2, тик — startRound (следующий раунд) '
-          + '→ после одного endTurn turns 2');
-        assert.equal(u.mp, 6, 'mp 11 − 5 («мани» magic_shield) = 6');
-        assert.equal(c.efs.spellWis, 0,
-          '000167: spellWis потрачен (1→0); рефилл — в след. startRound');
-      }
+      // 000168 (D12): лечения и щита у Эфира в бою НЕТ — сценарии
+      // (C) mend и (D) щит убраны (не наблюдаемы: Эфир — ввод, kind
+      // 'efir' не проходит в allyHealAction; c.efirShield в v1 не
+      // ставится). Формулы лечения/щита покрыты тестами 000080/000113
+      // (allyHeal/efirBreath) и сценариями наёмника-support.
     } finally {
       C.combatInternals.allySpells = saveCatalog;
     }
   });
 });
 
-test('000112 EF-4: мана — СВОЯ: p.mp ДО/ПОСЛЕ одинаков; u.mp списывается по «мани»; refillPools mp НЕ пополняет', () => {
+test('000112 EF-4: мана — СВОЯ: p.mp ДО/ПОСЛЕ одинаков; u.mp списывается по «мани» (000168: c.cast); refillPools mp НЕ пополняет', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
     const C = require('../src/combat.js');
@@ -1143,23 +1095,22 @@ test('000112 EF-4: мана — СВОЯ: p.mp ДО/ПОСЛЕ одинаков;
     C.combatInternals.allySpells = require('../src/spells-data.js').SPELLS_BY_ID;
     try {
       const p = hero112();
-      const d = P.derived(p);
-      p.hp = Math.floor(d.maxHP * 0.4);   // ранен → Эфир отлечит (mend)
       const pMp0 = p.mp;
-      const state = E.createEfir(); state.spells = ['mend'];
+      const state = E.createEfir(); state.spells = ['spark']; // 000168: урон-каст (ввод)
       const c = createCombat({
         player: p, allies: [E.efirAllyData(state)],
         mobs: ['wolf'], mobLevel: 2, seed: 5,
       });
       c.obstacles.clear();
       const w = c.units.find((x) => x.id === 'm0');
-      w.x = 6; w.y = 0; w.maxHP = 100; w.hp = 100;
+      w.x = 3; w.y = 3; w.armor = 50; w.maxHP = 100; w.hp = 100; // d≤4 — каст без движения
       c._rng = () => 0.99;
       const u = E.buildEfirUnit(state, c);
       assert.equal(u.mp, 11, 'своя мана: u.mp = 11 (L1), отдельно от p.mp');
-      c.endTurn();  // Эфир: mend (−3 u.mp); игрок — не действует
+      const res = c.cast(w.id); // 000168: ввод (ИИ-mend убран — D12)
+      assert.ok(res.ok, 'c.cast — каст доступен: ' + c.log.join(' | '));
       assert.equal(p.mp, pMp0, 'p.mp — без изменений (каст Эфира НЕ трогает ману игрока)');
-      assert.equal(u.mp, 8, 'u.mp 11 − 3 («мани» mend) = 8 — refillPools mp не пополняет');
+      assert.equal(u.mp, 8, 'u.mp 11 − 3 («мани» spark) = 8 — refillPools mp не пополняет');
     } finally {
       C.combatInternals.allySpells = saveCatalog;
     }
@@ -1216,9 +1167,10 @@ test('000117 PR-1: практика — в ЕГО пул (skillXp); player.skill
         'skills — все 4 id');
     }
     // (b) Боевой: L1, книга ['spark'], волк d 3 (armor 50 — заклинание
-    // игнорирует), rng 0.99 (волк — все промахи) → Эфир кастует →
-    // хук: firelord +3 (PRACTICE_XP.spell); игрок не действует — его
-    // skillXp/secondary бит-в-бит (практика — только от его действий).
+    // игнорирует), rng 0.99 (волк — все промахи) → 000168: c.cast (ввод;
+    // ИИ-каст убран) → хук: firelord +3 (PRACTICE_XP.spell); игрок не
+    // действует — его skillXp/secondary бит-в-бит (практика — только от
+    // его действий).
     {
       const C = require('../src/combat.js');
       const saveCatalog = C.combatInternals.allySpells;
@@ -1239,7 +1191,8 @@ test('000117 PR-1: практика — в ЕГО пул (skillXp); player.skill
         const pXp0 = JSON.parse(JSON.stringify(p.skillXp));
         const pSec0 = JSON.parse(JSON.stringify(p.secondary));
         E.buildEfirUnit(state, c);
-        c.endTurn();
+        const res = c.cast(w.id); // 000168: ввод
+        assert.ok(res.ok, 'c.cast — каст доступен: ' + c.log.join(' | '));
         assert.equal(state.skillXp.firelord, 3,
           'каст огня (spark) → firelord +3 (PRACTICE_XP.spell): '
           + c.log.join(' | '));
@@ -1332,7 +1285,7 @@ test('000117 PR-4: переучёт при load: дроби (без floor) + req
   });
 });
 
-test('000117 PR-5: маппинг действий → навыки: огонь → firelord (3), лёд → icelord (3), уклонение → precog (2), сопротивление → perception (2); лечение/щит/Касание — практики НЕ дают', () => {
+test('000117 PR-5: маппинг действий → навыки: огонь → firelord (3), лёд → icelord (3), уклонение → precog (2), сопротивление → perception (2); лечение/щит/Касание — практики НЕ дают (000168: ввод c.cast/c.attack)', () => {
   const E = loadEfir();
   const C = require('../src/combat.js');
   const saveCatalog = C.combatInternals.allySpells;
@@ -1345,8 +1298,9 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
   withGame({ xpForNext: P.xpForNext,
              efir: { practiceEfir: E.practiceEfir }, Sheet }, () => {
     try {
-      // (a) Огонь: L1, книга ['spark'] → каст → skillXp.firelord === 3
-      // (PRACTICE_XP.spell), icelord не тронут.
+      // (a) Огонь: L1, книга ['spark'] → 000168: c.cast (ввод; ИИ-каст
+      // убран) → skillXp.firelord === 3 (PRACTICE_XP.spell), icelord
+      // не тронут.
       {
         const p = heroFull117();
         const state = E.createEfir();
@@ -1360,15 +1314,16 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
         w.x = 3; w.y = 3; w.armor = 50; w.maxHP = 100; w.hp = 100;
         c._rng = () => 0.99;
         E.buildEfirUnit(state, c);
-        c.endTurn();
+        const res = c.cast(w.id); // 000168: ввод
+        assert.ok(res.ok, 'c.cast — каст доступен: ' + c.log.join(' | '));
         assert.equal(state.skillXp.firelord, 3,
           'огонь-каст (spark) → firelord 3: ' + c.log.join(' | '));
         assert.equal(state.skillXp.icelord || 0, 0, 'icelord не тронут');
       }
       // (b) Лёд: L8 (attrs 3/3/3 — из primary, mp 11; 000139:
       // уровень атрибуты не растит), книга ['frost_bolt']
-      // (4 маны) → каст → skillXp.icelord === 3, firelord НЕ
-      // изменился (огненных кастов нет).
+      // (4 маны) → 000168: c.cast (ввод) → skillXp.icelord === 3,
+      // firelord НЕ изменился (огненных кастов нет).
       {
         const p = heroFull117();
         const state = E.createEfir();
@@ -1386,7 +1341,8 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
         w.x = 3; w.y = 3; w.armor = 50; w.maxHP = 100; w.hp = 100;
         c._rng = () => 0.99;
         E.buildEfirUnit(state, c);
-        c.endTurn();
+        const res = c.cast(w.id); // 000168: ввод
+        assert.ok(res.ok, 'c.cast — каст доступен: ' + c.log.join(' | '));
         assert.equal(state.skillXp.icelord, 3,
           'лёд-каст (frost_bolt) → icelord 3: ' + c.log.join(' | '));
         assert.equal(state.skillXp.firelord || 0, 0,
@@ -1518,7 +1474,8 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
       // (e) ОТРИЦАТЕЛЬНЫЙ: лечение/щит/«Касание духа» — практики НЕ
       // дают (соответствующих навыков в пуле нет).
       {
-        // (e1) Лечение (mend): игрок 40% → Эфир лечит.
+        // (e1) Лечение: 000168 (D12) — лечения у Эфира в бою НЕТ (ввод;
+        // kind 'efir' не проходит в allyHealAction). Пул пуст, игрок не тронут.
         const p = hero112();
         p.hp = Math.floor(P.derived(p).maxHP * 0.4);
         const state = E.createEfir();
@@ -1535,8 +1492,9 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
         const pSec0 = JSON.parse(JSON.stringify(p.secondary));
         const hp0 = p.hp;
         E.buildEfirUnit(state, c);
-        c.endTurn();
-        assert.ok(p.hp > hp0, 'лечение сработало (сценарий жив): '
+        c.endTurn(); // 000168: Эфир — ввод (не действует)
+        assert.equal(p.hp, hp0,
+          '000168 (D12): Эфир не лечит в бою — p.hp не изменился: '
           + c.log.join(' | '));
         for (const id of ['firelord', 'icelord', 'perception', 'precog']) {
           assert.equal(state.skillXp[id] || 0, 0,
@@ -1546,8 +1504,8 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
         assert.deepEqual(p.secondary, pSec0, 'player.secondary — не тронут');
       }
       {
-        // (e2) Щит: книга БЕЗ лечения ['spark', 'magic_shield'], игрок
-        // frac 0.4 ≤ 0.5 → (2) кастует щит.
+        // (e2) Щит: 000168 (D12) — щита у Эфира в бою НЕТ (ввод;
+        // c.efirShield в v1 не ставится). Пул пуст, игрок не тронут.
         const p = hero112();
         p.hp = Math.floor(P.derived(p).maxHP * 0.4);
         const state = E.createEfir();
@@ -1563,8 +1521,9 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
         const pXp0 = JSON.parse(JSON.stringify(p.skillXp));
         const pSec0 = JSON.parse(JSON.stringify(p.secondary));
         E.buildEfirUnit(state, c);
-        c.endTurn();
-        assert.ok(c.efirShield, 'щит кастован (сценарий жив): '
+        c.endTurn(); // 000168: Эфир — ввод (не действует)
+        assert.ok(!c.efirShield,
+          '000168 (D12): Эфир не кастует щит — c.efirShield нет: '
           + c.log.join(' | '));
         for (const id of ['firelord', 'icelord', 'perception', 'precog']) {
           assert.equal(state.skillXp[id] || 0, 0,
@@ -1574,9 +1533,8 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
         assert.deepEqual(p.secondary, pSec0, 'player.secondary — не тронут');
       }
       {
-        // (e3) «Касание духа»: mp 0 ((3) spark не кастует), волк d 1 →
-        // Касание 4. Волк ПОПАДАЕТ (rng 0.01 < 0.58) — не промах →
-        // precog-практики нет.
+        // (e3) «Касание духа»: mp 0, волк d 1 → 000168: c.attack (ввод;
+        // ИИ-Касание убрано) → Касание 4. Касание — практики НЕ даёт.
         const p = heroFull117();
         const state = E.createEfir();
         state.spells = ['spark'];
@@ -1593,8 +1551,9 @@ test('000117 PR-5: маппинг действий → навыки: огонь 
         const u = E.buildEfirUnit(state, c);
         u.mp = 0;
         const wHp0 = w.hp;
-        c.endTurn();
-        assert.ok(w.hp < wHp0, 'Касание сработало (сценарий жив): '
+        const res = c.attack(w.id); // 000168: ввод
+        assert.ok(res.ok, 'c.attack — Касание доступно: ' + c.log.join(' | '));
+        assert.ok(w.hp < wHp0, 'Касание сработало (dmg 4): '
           + c.log.join(' | '));
         for (const id of ['firelord', 'icelord', 'perception', 'precog']) {
           assert.equal(state.skillXp[id] || 0, 0,

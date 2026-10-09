@@ -424,8 +424,13 @@
     // нажатия. Фикс: thunk'и — вызываются только нужные.
     // 000149: fire/heal из таблицы убраны — их заменило действие
     // 'spellbook' (toggle книги; каст — клик по строке, castRow).
+    // 000168: thunk'и cast (Эфир — K, handleCode-remap) и heal
+    // (support — KeyH-ветка); attack — БЕЗ ИЗМЕНЕНИЙ (Эфир-Касание
+    // раскатывается диспатчем ядра c.attack).
     const run = {
       attack: () => c.attack(c.targetId),
+      cast: () => c.cast(c.targetId),
+      heal: () => c.heal(),
       spellbook: () => {
         // «Книга заклинаний» — действие UI, не ядра: предпроверка —
         // canDoAction (книга не пуста; по клавише она уже пройдена в
@@ -464,7 +469,10 @@
     // 000149: 'cast'-анимация — в castRow (успешный каст из строки
     // книги); ветка fire/heal удалена (действий больше нет).
     if (r && r.ok) {
-      if (action === 'attack') {
+      // 000168 (P11/R15): hero-анимация — ТОЛЬКО на ударе игрока;
+      // на ударе наёмника/Касании Эфира герой не анимируется
+      // (активен союзник — activeUnit ≠ null).
+      if (action === 'attack' && !activeUnit(c)) {
         c._fx = { action: 'attack', until: nowMs() + FX_MS };
       }
     }
@@ -489,25 +497,45 @@
       // main.js всё равно ранним return'ит, пока оверлей открыт.
       if (code === 'Space' || code === 'Enter') finish();
       else consumed = false;
+    } else if (code === 'KeyH' && c.phase === 'player' && !c.result
+        && activeUnit(c)) {
+      // 000168 (D9/P4): лечение АКТИВНОГО support-наёмника — отдельная
+      // ветка ДО lookup таблицы (KeyH в застывшей таблице
+      // combat-keys.js НЕТ — «кнопок новых НЕТ», D10): предпроверка —
+      // canDoAction 'heal' (зеркало; причина в журнал при отказе,
+      // паттерн r.reason ниже). На ходу ИГРОКА ветка не срабатывает —
+      // фоллбук в таблицу, где KeyH отсутствует (бит-в-бит).
+      const hr = G.canDoAction(c, 'heal', { targetId: c.targetId });
+      if (hr.ok) logRejection(c, c.heal());
+      else c.log.push(hr.reason);
     } else {
       // Единая таблица (src/combat-keys.js, задача 000048): движение и
       // действия. Снимок для resolveCombatKey: canDo — результат
       // canDoAction именно для действия этой клавиши (000037).
       const entry = G.CombatKeys.COMBAT_KEYS[code];
       const st = { phase: c.phase, result: c.result };
+      // 000168 (D9/P3): на ходу Эфира KeyK — КАСТ (сильнейшее
+      // урон-заклинание; в застывшей таблице KeyK → 'attack').
+      // st.canDo и runAction получают ПЕРЕМАПНУТОЕ имя; на ходу
+      // игрока — бит-в-бит.
+      let action = entry ? entry.action : null;
+      if (code === 'KeyK' && action === 'attack' && activeIsEfir(c)) {
+        action = 'cast';
+      }
       if (entry && entry.type === 'action') {
-        st.canDo = G.canDoAction(c, entry.action, { targetId: c.targetId });
+        st.canDo = G.canDoAction(c, action, { targetId: c.targetId });
       }
       const r = G.CombatKeys.resolveCombatKey(code, st);
       if (r.kind === 'move') {
-        // playerMove само проверяет ход/блок/шаги/стену/моба и
-        // возвращает reason — в журнал, а не тишина (задача 000048).
+        // playerMove/allyMove само проверяет ход/шаги/стену/моба и
+        // возвращает reason — в журнал, а не тишина (задача 000048;
+        // 000168: c.move стал контекстным — диспатч по активному).
         logRejection(c, c.move(r.dx, r.dy));
       } else if (r.kind === 'action') {
         if (r.reason) {
           c.log.push(r.reason); // действие невозможно — причина в журнал
         } else {
-          runAction(c, r.action);
+          runAction(c, action);
         }
       } else {
         consumed = false;
@@ -1150,10 +1178,26 @@
       ? 'Отряд: ' + allies.map(
         (u) => `${u.name} (${RN[u.role] || u.role})`).join(', ') + '\n'
       : '';
+    // 000168 (D10): строка «Ход: <имя активного>» (первая; игрок —
+    // «Вы») + строка характеристик АКТИВНОГО СОЮЗНИКА сразу после
+    // строки «Шаги: …» игрока (наёмник — HP/шаги/удары, Эфир —
+    // HP/мана/шаги/Касание; без c.efs — fallback-цифры 0, строка
+    // рисуется). Базовые строки — без изменений.
+    const au = activeUnit(c);
+    const allyLine = au
+      ? (au.kind === 'efir'
+        ? `${au.name}: HP ${au.hp}/${au.maxHP}  |  Мана: ${au.mp}  |  `
+          + `Шаги: ${c.efs ? c.efs.move : 0}  |  `
+          + `Касание: ${c.efs ? c.efs.touch : 0}\n`
+        : `${au.name}: HP ${au.hp}/${au.maxHP}  |  `
+          + `Шаги: ${au.moveLeft}  |  Удар: ${au.attackLeft}\n`)
+      : '';
     stateEl.textContent =
+      `Ход: ${au ? au.name : 'Вы'}\n` +
       `${c.groupName}, раунд ${c.round}\n` +
       `HP ${p.hp}/${d.maxHP}  |  MP ${p.mp}/${d.maxMP}\n` +
       `Шаги: ${c.ps.moveLeft}  |  Удар: ${c.ps.attack}  |  Огонь: ${c.ps.spellInt}  |  Леч: ${c.ps.spellWis}\n` +
+      allyLine +
       roster +
       (c.ps.blocked ? 'БЛОК  ' : '') + (c.ps.poison > 0 ? `ЯД ${c.ps.poison}  ` : '') +
       (t ? `Цель: ${t.name} (ур. ${t.level}, HP ${t.hp}/${t.maxHP})`
@@ -1229,6 +1273,20 @@
     const u = unitOf(c);
     return !!(u && Array.isArray(u.spells)
       && u.spells.indexOf('resurrect') >= 0);
+  }
+
+  // 000168 (D10): активный СОЮЗНИК (наёмник/Эфир — ход игрока) по
+  // очереди (G.activeUnitId — экспорт 000167; typeof-guard — фолбэк
+  // до 000167: «Вы»). Игрок/моб — null.
+  function activeUnit(c) {
+    const id = (typeof G.activeUnitId === 'function')
+      ? G.activeUnitId(c) : null;
+    if (!id || id === 'player') return null;
+    return c.units.find((x) => x.id === id && x.side === 'ally') || null;
+  }
+  function activeIsEfir(c) {
+    const u = activeUnit(c);
+    return !!(u && u.kind === 'efir');
   }
 
   // Открыть/закрыть книгу. Строки строит renderBook в render() —
@@ -1552,3 +1610,4 @@
     handleCode,
   };
 })();
+

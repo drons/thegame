@@ -1227,12 +1227,13 @@ test('боевой UI: 000081 — startCombat ВСЕГДА добавляет Э
   assert.equal(u.side, 'ally');
   assert.equal(u.alive, true);
   assert.equal(u.hp, u.maxHP, 'старт с полным HP');
-  // 000167: pre-roll — Эфир (инициатива 4) действует ДО игрока (2):
-  // 1 шаг к волку, ось x приоритетнее (000080 allyStepToward) →
-  // (px−1, py−1) → (px−2, py−1).
-  assert.equal(u.x, c.px - 2,
-    '000167: pre-roll шаг по x: якорь px−1 → px−2');
-  assert.equal(u.y, c.py - 1, 'y — якорь py−1 (шаг был по x)');
+  // 000168: pre-roll — Эфир (инициатива 4) быстрее всех → pre-roll
+  // ОСТАНОВИЛСЯ НА ЕГО СЛОТЕ (ввод игрока, phase 'player') — шага
+  // НЕТ (старый ИИ-шаг 000167 удалён): Эфир стоит на якорном
+  // (px−1, py−1).
+  assert.equal(u.x, c.px - 1,
+    '000168: шаг pre-roll НЕТ — якорь px−1 (ввод-стоп)');
+  assert.equal(u.y, c.py - 1, 'y — якорь py−1');
   // Имитация победы → finish(): 100% result.xp — в пул, ДО onEnd.
   c.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
     allyXp: [] };
@@ -1407,6 +1408,11 @@ function scene84(opts = {}) {
   const rafStubs = makeRafStubs();
   const { G, keydown, body } = loadCombatUi(true, {
     withEfir: !!opts.efir,
+    // 000168: каталог заклинаний (spells.js в цепочке, withSpells
+    // 000149) — каст Эфира (c.cast → strongestKnown читает
+    // combatInternals.allySpells). Без параметра — старая цепочка
+    // бит-в-бит (по умолчанию false).
+    withSpells: !!opts.spells,
     performance: { now: () => NOW84 },
     requestAnimationFrame: rafStubs.requestAnimationFrame,
     cancelAnimationFrame: rafStubs.cancelAnimationFrame,
@@ -1639,7 +1645,8 @@ test('боевой UI: 000084 — детерминизм отрисовки (gol
   assert.deepEqual(A.calls.map(norm), B.calls.map(norm),
     'тот же now/seed/state → та же последовательность вызовов');
   // Golden: порядок слоёв в клетке Эфира: подложка → спрайт → трек →
-  // заполнение → уровень → рамка (кольца нет: turnIndex = 0).
+  // заполнение → уровень → рамка → кольцо активного хода (000168:
+  // pre-roll остановился на слоте Эфира — он активный, turnIndex 0).
   // Вызовы героя (спрайт 55.2px вылезает за клетку; миниполоса 55×4
   // может попасть в диапазон клетки) исключаются по сигнатуре.
   const ex = u.x * 48, ey = u.y * 48;
@@ -1659,6 +1666,7 @@ test('боевой UI: 000084 — детерминизм отрисовки (gol
     ['fillRect', [ex + 8, ey + 2, 32, 4]],             // HP-fill (полный)
     ['fillText', [String(u.level), ex + 24, ey + 28]], // уровень
     ['strokeRect', [ex + 4.5, ey + 4.5, 39, 39]],      // рамка «свой»
+    ['strokeRect', [ex + 2.5, ey + 2.5, 41, 41]],      // кольцо активного хода (000168: Эфир на своём слоте, turnIndex 0)
   ];
   assert.deepEqual(cell, golden,
     'клетка Эфира — golden-порядок слоёв: ' + JSON.stringify(cell));
@@ -1939,11 +1947,16 @@ test('боевой UI: 000118 — «Вдох Эфира»: c._fx.breath — за
   // Триггер (ядро 000113 — НЕ ТРОГАЕТСЯ): HP игрока 40% (10/25 = 0.4
   // ТОЧНО), мана Эфира 20 (buildEfirUnit переписал u.mp — L1: 11),
   // волк далеко, c._rng — промахи (изоляция).
+  // 000168: pre-roll остановился на СЛОТЕ ЭФИРА (ввод) — «Вдох»
+  // проверяется на СЛЕДУЮЩЕМ слоте Эфира (round 2): 1-й Space —
+  // волк делает шаг (изоляция: d 9 > 1, атаки нет); 2-й Space —
+  // round 2, слот Эфира → «Вдох» (ВЕСЬ ход).
   c.player.hp = 10;
   u.mp = 20;
   wolf.x = 0; wolf.y = 0;
   c._rng = () => 0.99;
-  press(S.keydown, 'Space'); // endTurn → алли-фаза → «Вдох» (ВЕСЬ ход)
+  press(S.keydown, 'Space'); // endTurn: волк — шаг к игроку (тихо)
+  press(S.keydown, 'Space'); // endTurn: round 2 → слот Эфира → «Вдох»
 
   // Ядро 000113 (зелёные пины — механика без изменений):
   assert.equal(c.efirBreathed, true, 'ядро: c.efirBreathed (000113)');
@@ -2001,6 +2014,10 @@ test('боевой UI: 000118 — «Вдох Эфира»: c._fx.breath — за
     const nu = nc.units.find((x) => x.kind === 'efir');
     const nw = nc.units.find((x) => x.side === 'mob');
     setup(nc, nu, nw);
+    // 000168: ДВА endTurn — 1-й: волк-шаг (изоляция 0.99), 2-й:
+    // round 2 → слот Эфира (проверка триггера); без триггера —
+    // остановка на вводе, fx/флагов нет.
+    press(N.keydown, 'Space');
     press(N.keydown, 'Space');
     const tn = tickSlice(N.canvas, N.rafStubs);
     assert.equal(nc.efirBreathed, undefined,
@@ -2039,42 +2056,54 @@ test('боевой UI: 000118 — c.log: строки действий Эфир�
   };
   const savedCats = [];
   try {
-    // (1) heal — игрок 17/25 (frac 0.68 ≤ 0.7), волк ДАЛЕКО
-    //     (d 9 > SPELL_MAX_DIST 4): приоритет (1) — самое сильное
-    //     известное лечебное (mend, L1: round(3 + 0.5·3 + 1) = 6):
-    //     «Эфир исцеляет Флогистон (+6).»
+    // 000168: pre-roll остановился на слоте Эфира (ввод игрока) —
+    // под-сценарии (2)/(3) драйвятся прямой клавишей на ХОДУ ЭФИРА
+    // (без Space); (4) — «Вдох» на 2-м слоте Эфира (round 2); (1) —
+    // v1: лечения у Эфира в бою НЕТ (KeyH → отказ в журнал).
+    // (1) heal — 000168 v1: «лечения и щита у Эфира в бою нет»
+    //     (контракт §3.3): KeyH на ходу Эфира → предпроверка
+    //     canDoAction 'heal' → «недоступно активному персонажу»
+    //     (в журнал, как любой отказ); мана и HP не меняются.
     {
       const { L, saved } = mkLogScene();
       savedCats.push([L.G, saved]);
       const c = L.c;
+      const u = c.units.find((x) => x.kind === 'efir');
       const w = c.units.find((x) => x.side === 'mob');
       w.x = 0; w.y = 0;
       c.player.hp = 17;
       c._rng = () => 0.99;
-      press(L.keydown, 'Space');
-      assert.ok(c.log.includes('Эфир исцеляет Флогистон (+6).'),
-        'heal — паттерн ТЗ «Эфир исцеляет <имя> (+N).»: '
+      press(L.keydown, 'KeyH');
+      assert.ok(c.log.includes('недоступно активному персонажу'),
+        '000168 v1: KeyH у Эфира — отказ в журнал (лечения нет): '
         + c.log.join(' | '));
+      assert.ok(!c.log.some((s) => s.includes('исцеляет')),
+        'строки «Эфир исцеляет …» в логе нет (v1): ' + c.log.join(' | '));
+      assert.equal(u.mp, 11, 'мана не потрачена (лечения нет)');
+      assert.equal(c.player.hp, 17, 'игрок не лечен (HP не меняется)');
     }
-    // (2) cast — игрок ПОЛНЫЙ HP (лечения нет), волк d 2 (≤ 4):
-    //     приоритет (3) — урон-каст (spark, L1: round((3 + 0.5·3)·
-    //     (1 + 0.05·0)) = 5, ВСЕГДА попадает, игнор брони):
+    // (2) cast — Эфир АКТИВЕН с pre-roll-стопа (phase 'player'),
+    //     волк d 2 (≤ 4): KeyK (на ходу Эфира — каст, 000168) →
+    //     сильнейшее урон-заклинание (spark: 3 маны, урон 5 —
+    //     round((3+0.5·3)·1), ВСЕГДА попадает, игнор брони):
     //     «Эфир: «Искра» — Волк: 5.» (em-dash U+2014).
     {
       const { L, saved } = mkLogScene();
       savedCats.push([L.G, saved]);
       const c = L.c;
       const w = c.units.find((x) => x.side === 'mob');
-      w.x = c.px; w.y = c.py - 2; // d 2 от игрока; d 2 от Эфира (px−1,py−1)
+      w.x = c.px; w.y = c.py - 2; // d 2 от Эфира (якорь px−1, py−1)
       c._rng = () => 0.99;
-      press(L.keydown, 'Space');
+      press(L.keydown, 'KeyK');
       assert.ok(c.log.includes('Эфир: «Искра» — Волк: 5.'),
         'cast — паттерн ТЗ «Эфир: «<заклинание>» — <имя>: N.»: '
         + c.log.join(' | '));
     }
     // (3) touch — волк d 1 от Эфира, книга [] (урон-каста НЕТ):
-    //     приоритет (4) — «Касание духа» (u.damage, L1: max(1,
+    //     KeyJ — «Касание духа» (u.damage, L1: max(1,
     //     round((2 + 0.5·3)·1)) = 4): «Касание духа: 4.»
+    //     000168: Эфир НЕ сдвигается pre-roll'ом — якорь (px−1, py−1)
+    //     на месте; «вплотную к Эфиру» = (px, py−1): d 1.
     {
       const { L, saved } = mkLogScene();
       savedCats.push([L.G, saved]);
@@ -2082,17 +2111,18 @@ test('боевой UI: 000118 — c.log: строки действий Эфир�
       const u = c.units.find((x) => x.kind === 'efir');
       const w = c.units.find((x) => x.side === 'mob');
       u.spells = []; // без каталога-кандидатов урона — каст невозможен
-      // 000167: pre-roll сдвинул Эфира (px−1, py−1) →
-      // (px−2, py−1) (шаг по x к волку) — «вплотную к Эфиру» =
-      // (px−1, py−1): d 1.
-      w.x = c.px - 1; w.y = c.py - 1;
+      w.x = c.px; w.y = c.py - 1;
       c._rng = () => 0.99;
-      press(L.keydown, 'Space');
+      press(L.keydown, 'KeyJ');
       assert.ok(c.log.includes('Касание духа: 4.'),
         'touch — паттерн ТЗ «Касание духа: N.»: ' + c.log.join(' | '));
     }
     // (4) «Вдох Эфира!» (000113, ЗЕЛЁНЫЙ якорь — строка уже в
-    //     efir.js u.breath.logLine; краснота теста — за счёт (1)–(3)).
+    //     efir.js u.breath.logLine). 000168: «Вдох» — авто-триггер
+    //     НАЧАЛА хода Эфира; pre-roll остановился на вводе (mana
+    //     проверилась бы только на СЛЕДУЮЩЕМ слоте Эфира) →
+    //     2 Space: 1-й — волк-шаг (изоляция 0.99), 2-й — round 2,
+    //     слот Эфира: 10/25 = 0.4 (playerFrac), mp 20 → «Вдох».
     {
       const { L, saved } = mkLogScene();
       savedCats.push([L.G, saved]);
@@ -2103,6 +2133,7 @@ test('боевой UI: 000118 — c.log: строки действий Эфир�
       c.player.hp = 10; // 10/25 = 0.4 (playerFrac)
       u.mp = 20;        // mpCost
       c._rng = () => 0.99;
+      press(L.keydown, 'Space');
       press(L.keydown, 'Space');
       assert.ok(c.log.includes('Вдох Эфира!'),
         '«Вдох Эфира!» (000113 — строка уже в master): '
@@ -3014,3 +3045,121 @@ test('боевой UI: 000166 — герой БЕЗ «Воскрешения»: 
   assert.equal(c.targetId, t0, 'клик по мёртвому герою — цель не изменилась');
   assert.equal(c.log.length, n0, 'лог не вырос');
 });
+
+// =====================================================================
+// Задача 000168. Бой: игрок управляет Эфиром и нанятыми NPC
+// (ход спутника — ввод). КРАСНЫЕ тесты (TDD), vm-песочница
+// (паттерн 000084/000118: scene84/addMerc84/press/tickSlice/
+// findByClass). Контракты — memory/000168-companion-control.md
+// (§4 UI-контракт, §3.3–3.5), §12 (000168-UI-1/2).
+//
+// Краснота (базис 000167):
+//   * stateEl БЕЗ строки «Ход: …» и БЕЗ строки активного
+//     спутника (старый render — только базовые строки);
+//   * на ходу спутника очередь НЕ стоит (после Space — активен
+//     'player', round уже откатился) → состояние кнопок —
+//     игрок-путь (attack «цель слишком далеко» / block ok и т.п.);
+//   * на ходу Эфира J/K — игрок-путь (отказ в журнал, Касания/
+//     каста нет), c.efs/u.mp не меняются.
+// Старый пин «Эфир pre-roll-шаг (px−1,py−1)→(px−2,py−1)»
+// (000081-wiring) — re-pin — в коммите GREEN-фазы (§15),
+// не в этом коммите.
+// =====================================================================
+
+test('боевой UI: 000168-UI-1 — stateEl: строка «Ход: <имя>» + строка активного спутника (HP/шаги/удары); на ходу игрока — «Вы»', () => {
+  // (a) Ход наёмника: очередь ['m0','player','a1'] (а1 — push'ом
+  //     в конец) — Space (конец хода игрока) → остановка на «a1».
+  const S = scene84();
+  addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+  const w = S.c.units.find((x) => x.id === 'm0');
+  w.x = 3; w.y = 4;
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.G.activeUnitId(S.c), 'a1',
+    'очередь остановилась на наёмнике (краснота: '
+    + S.G.activeUnitId(S.c) + ')');
+  const state = findByClass(S.body, 'combat-state');
+  const text = state.textContent;
+  assert.ok(text.includes('Ход: Вольк'),
+    'строка «Ход: Вольк» (краснота: строки нет): ' + JSON.stringify(text));
+  assert.ok(text.includes('Вольк: HP 16/16  |  Шаги: 1  |  Удар: 1'),
+    'строка активного спутника: имя/HP/шаги/удары (ур. 2, пулы 1/1): '
+    + JSON.stringify(text));
+  assert.ok(text.includes('Отряд:'), 'базовая строка «Отряд:» (roster): '
+    + JSON.stringify(text));
+  // (b) Ход игрока — «Вы»; без спутников строки «Отряд:» нет.
+  const P = scene84();
+  tickSlice(P.canvas, P.rafStubs);
+  const st2 = findByClass(P.body, 'combat-state');
+  assert.ok(st2.textContent.includes('Ход: Вы'),
+    'на ходу игрока — «Ход: Вы» (краснота: строки нет): '
+    + JSON.stringify(st2.textContent));
+  assert.ok(!st2.textContent.includes('Отряд:'),
+    'без спутников — строки «Отряд:» нет');
+});
+
+test('боевой UI: 000168-UI-2 — кнопки на ходу спутника: attack/«Конец хода» включены, player-only — «недоступно активному персонажу»; Эфир — J/K (Касание/сильнейшее урон-заклинание)', () => {
+  // (a) Наёмник: attack активен (d 1); block/quickItem/invItem/
+  //     flee/spellbook — disabled с дословным title.
+  const S = scene84();
+  addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+  const w = S.c.units.find((x) => x.id === 'm0');
+  w.x = 3; w.y = 4; // d 1 от наёмника (3,5)
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.G.activeUnitId(S.c), 'a1',
+    'активен наёмник (краснота: ' + S.G.activeUnitId(S.c) + ')');
+  const byAct = {};
+  for (const b of S.body.querySelectorAll('.combat-actions button'))
+    byAct[b.dataset.act] = b;
+  assert.equal(byAct.attack.disabled, false,
+    'attack — включён (краснота: игрок-путь — «'
+    + byAct.attack.title + '»)');
+  assert.equal(byAct.endTurn.disabled, false, '«Конец хода» — включён');
+  for (const act of ['block', 'quickItem', 'invItem', 'flee', 'spellbook']) {
+    assert.equal(byAct[act].disabled, true, act + ' — запрещён');
+    assert.equal(byAct[act].title, 'недоступно активному персонажу',
+      act + ' — title дословно (краснота: «' + byAct[act].title + '»)');
+  }
+  // (b) Эфир: очередь остановилась на его слоте; J — «Касание духа»
+  //     (c.efs.touch, u.damage = 4, всегда попадает), K — сильнейшее
+  //     урон-заклинание (Искра: c.efs.spellInt, 3 маны, урон 5 —
+  //     round((3+0.5·3)·(1+0.05·1))); player-only кнопки — запрещены.
+  // 000168: spells — каталог в цепочке (strongestKnown читает
+  // combatInternals.allySpells — без него каст «заклинаний нет»).
+  const E = scene84({ efir: true, spells: true });
+  tickSlice(E.canvas, E.rafStubs);
+  assert.equal(E.G.activeUnitId(E.c), 'efir',
+    'активен Эфир (краснота: pre-roll прошёл через ИИ → '
+    + E.G.activeUnitId(E.c) + ')');
+  const u = E.c.units.find((x) => x.kind === 'efir');
+  const w2 = E.c.units.find((x) => x.id === 'm0');
+  u.x = 3; u.y = 5;
+  w2.x = 3; w2.y = 4; // d 1
+  w2.maxHP = 100; w2.hp = 100; // запас по HP (Касание + каст)
+  tickSlice(E.canvas, E.rafStubs);
+  press(E.keydown, 'KeyJ');
+  tickSlice(E.canvas, E.rafStubs);
+  assert.ok(E.c.log.includes('Касание духа: 4.'),
+    'J — «Касание духа» (u.damage = 4; краснота: игрок-путь — строки '
+    + 'нет): ' + E.c.log.join(' | '));
+  assert.equal(E.c.efs.touch, 0, 'c.efs.touch 1→0');
+  assert.equal(w2.hp, 96, 'волк −4');
+  press(E.keydown, 'KeyK');
+  tickSlice(E.canvas, E.rafStubs);
+  assert.ok(E.c.log.includes('Эфир: «Искра» — Волк: 5.'),
+    'K — сильнейшее урон-заклинание (краснота: ' + E.c.log.join(' | ')
+    + ')');
+  assert.equal(E.c.efs.spellInt, 0, 'c.efs.spellInt 1→0');
+  assert.equal(u.mp, 8, 'мана 11−3 (краснота: 11 — ИИ не тратит)');
+  assert.equal(w2.hp, 91, 'волк −5 (round((3+0.5·3)·1.05))');
+  const byActE = {};
+  for (const b of E.body.querySelectorAll('.combat-actions button'))
+    byActE[b.dataset.act] = b;
+  for (const act of ['block', 'quickItem', 'invItem', 'flee', 'spellbook']) {
+    assert.equal(byActE[act].disabled, true, act + ' — запрещён');
+    assert.equal(byActE[act].title, 'недоступно активному персонажу',
+      act + ' — title дословно (краснота: «' + byActE[act].title + '»)');
+  }
+});
+

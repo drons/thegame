@@ -360,6 +360,13 @@
       damageTakenMult: 1,
       moraleMult,
       movePerTurn: 1,
+      // 000168 (D9): пулы ввода игрока на ходу союзника — движение
+      // (1 клетка за c.move) и слот действия (удар ИЛИ лечение, 1 за
+      // ход); round-rollover — startRound (все живые). У Эфира —
+      // fallback (в браузере затмевается c.efs — buildEfirUnit;
+      // node-фикстуры без c.efs ведут себя как melee-наёмник).
+      moveLeft: 1,
+      attackLeft: 1,
       size: { w: 1, h: 1 },
       x: 0,
       y: 0,
@@ -1427,6 +1434,15 @@
   // args — ближайший живой моб, как в ядре).
   function canDoAction(c, action, args) {
     const a = args || {};
+    // 000168 (D9): активен СОЮЗНИК (наёмник/Эфир — ход игрока) —
+    // контекстная таблица allyCanDo (§3.5); игровые ветки ниже —
+    // БИТ-В-БИТ. Сигнатура (c, action, args) без изменений.
+    const aid = activeUnitId(c);
+    const au = (aid && aid !== 'player')
+      ? c.units.find((x) => x.id === aid
+          && x.side === 'ally' && x.alive && !x.fled)
+      : null;
+    if (au) return allyCanDo(c, au, action, a);
     const p = c.player;
     if (action === 'attack') {
       const why = checkTurn(c);
@@ -1466,6 +1482,23 @@
       }
       if (unitDist(c, t) > SPELL_MAX_DIST) return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
       return { ok: true };
+    }
+    if (action === 'move') {
+      // 000168: аддитивная ветка (зеркало пула playerMove; UI её не
+      // использует — движение идёт через c.move + logRejection).
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      const blocked = checkBlocked(c);
+      if (blocked) return blocked;
+      if (c.ps.moveLeft <= 0) return { ok: false, reason: 'шаги на ход исчерпаны' };
+      return { ok: true };
+    }
+    if (action === 'cast') {
+      // 000168: defensive (UI каст игрока ведёт через книгу 000149 —
+      // 'spellbook' + castRow; ветка закреплена для полноты таблицы).
+      const why = checkTurn(c);
+      if (why) return { ok: false, reason: why };
+      return { ok: false, reason: 'используйте книгу заклинаний' };
     }
     if (action === 'heal') {
       const why = checkTurn(c);
@@ -1810,6 +1843,280 @@
     return true;
   }
 
+  // --- Ввод игрока на ходу союзника (задача 000168, D9) ---
+  //
+  // На ходу ЛЮБОГО союзника активным становится игрок
+  // (c.phase='player', новых phase НЕТ): движение (стрелки/WASD/D-pad),
+  // удар (J), каст Эфира (K), лечение support (H), конец хода (Space).
+  // ИИ (allyAct/efirTurn) из advanceQueue НЕ вызывается. Контракт —
+  // memory/000168-companion-control.md §3.3–§3.5. НОЛЬ новых c._rng:
+  // единственный бросок — существующий allyAttack (hitChance).
+
+  // «Вдох Эфира» (000113) — АВТО-ТРИГГЕР в НАЧАЛЕ хода Эфира (SPEC):
+  // вынесен VERBATIM из блока (0) efirTurn — ОДНА точка истины.
+  // Проверяется в союзной ветке advanceQueue (u.kind 'efir'); true —
+  // ход СГОРАЕТ (c.turnIndex += 1, continue — остановки нет).
+  // Порядок операций детерминирован (0 c._rng): флаг → mp −mpCost →
+  // healAlly игрока → healAlly живых союзников (порядок c.units,
+  // включая Эфира) → weakenAllEnemies → log. Без снапшота u.breath
+  // (node-фикстуры без buildEfirUnit) — false (бит-в-бит 000113).
+  function efirBreath(c, u) {
+    const B = u.breath;
+    if (B && !c.efirBreathed) {
+      const pMax = P.derived(c.player).maxHP;
+      if (c.player.hp / pMax <= B.playerFrac && u.mp >= B.mpCost) {
+        c.efirBreathed = true;
+        u.mp -= B.mpCost;
+        healAlly(c, c.player, B.heal);
+        for (const a of livingAllies(c)) healAlly(c, a, B.heal);
+        weakenAllEnemies(c, B.weakenMult, B.weakenTurns);
+        log(c, B.logLine);
+        return true; // весь ход — движение и действия не выполняются
+      }
+    }
+    return false;
+  }
+
+  // Движение союзника (зеркало playerMove, 000168): пул — hasEfs ?
+  // c.efs.move (Эфир, 3 клетки) : u.moveLeft (1); причины — те же
+  // формулировки, что в playerMove (зеркало ядра 000037). НОВАЯ
+  // проверка: клетка игрока (игрок НЕ в c.units — unitAt его не видит).
+  // 0 c._rng.
+  function allyMove(c, u, dx, dy) {
+    const why = checkTurn(c);
+    if (why) return { ok: false, reason: why };
+    const hasEfs = u.kind === 'efir' && c.efs;
+    const pool = hasEfs ? c.efs.move : u.moveLeft;
+    if (pool <= 0) return { ok: false, reason: 'шаги на ход исчерпаны' };
+    const nx = u.x + dx, ny = u.y + dy;
+    if (!inBounds(c, nx, ny)) return { ok: false, reason: 'стена' };
+    if (c.obstacles && c.obstacles.has(nx + ',' + ny)) {
+      return { ok: false, reason: 'препятствие' };
+    }
+    const blocker = unitAt(c, nx, ny);
+    if (blocker) {
+      return {
+        ok: false,
+        reason: blocker.side === 'ally' ? 'тут стоит союзник' : 'тут стоит моб',
+      };
+    }
+    if (nx === c.px && ny === c.py) {
+      return { ok: false, reason: 'тут стоит игрок' };
+    }
+    u.x = nx; u.y = ny;
+    if (hasEfs) c.efs.move -= 1; else u.moveLeft -= 1;
+    return { ok: true };
+  }
+
+  // Удар союзника (000168): цель = nearestEnemy(c, u) (targetId
+  // игнорируется v1 — детерминированно, как в ИИ; ОQ1). Эфир (hasEfs) —
+  // «Касание духа» (всегда попадает, игнор брони, пул c.efs.touch);
+  // наёмник/Эфир-fallback — бросок allyAttack (ТОТ ЖЕ вызов c._rng,
+  // что в ИИ; строки лога allyAttack), дальность по роли
+  // (melee/shield/swarm d≤1; ranged d≤4), пул u.attackLeft.
+  function allyStrike(c, u, targetId) {
+    const why = checkTurn(c);
+    if (why) return { ok: false, reason: why };
+    const t = nearestEnemy(c, u);
+    if (!t) return { ok: false, reason: 'нет цели' };
+    const hasEfs = u.kind === 'efir' && c.efs;
+    if (hasEfs) {
+      if (c.efs.touch <= 0) {
+        return { ok: false, reason: 'действий «Касание духа» больше нет' };
+      }
+      if (rectDist(u, t) > 1) {
+        return { ok: false, reason: 'цель слишком далеко (ближний бой)' };
+      }
+      c.efs.touch -= 1;
+      const r = dealDamageToMob(c, t, u.damage, true);
+      // 000118: паттерн ТЗ «Касание духа: N.» (без имени).
+      log(c, `Касание духа: ${r.dmg}.`);
+      return { ok: true, dmg: r.dmg, killed: r.killed };
+    }
+    if (u.attackLeft <= 0) {
+      return { ok: false, reason: 'действий «Удар» больше нет' };
+    }
+    const maxDist = u.role === MOB_ROLES.RANGED ? 4 : 1;
+    if (rectDist(u, t) > maxDist) {
+      return {
+        ok: false,
+        reason: 'цель слишком далеко ('
+          + (maxDist === 1 ? 'ближний бой' : 'даль 4') + ')',
+      };
+    }
+    u.attackLeft -= 1;
+    const hpBefore = t.hp;
+    const aliveBefore = t.alive;
+    allyAttack(c, u, t);
+    return {
+      ok: true,
+      hit: t.hp < hpBefore,
+      dmg: hpBefore - t.hp,
+      killed: aliveBefore && !t.alive,
+    };
+  }
+
+  // Лечение support-наёмника (000168): существующий allyHeal («самый
+  // раненый» пула [игрок, живые союзники], 0 c._rng) — БЕЗ выбора
+  // цели (детерминированное правило, как в ИИ). Лечение ЗАНИМАЕТ слот
+  // действия (u.attackLeft — паттерн ИИ: heal вместо attack; ТЗ молчит
+  // — решение Проектирования P8).
+  function allyHealAction(c, u) {
+    const why = checkTurn(c);
+    if (why) return { ok: false, reason: why };
+    if (u.role !== MOB_ROLES.SUPPORT || u.kind !== 'merc') {
+      return { ok: false, reason: 'недоступно активному персонажу' };
+    }
+    if (u.attackLeft <= 0) {
+      return { ok: false, reason: 'действий «Удар» больше нет' };
+    }
+    if (!mostWounded(c, 1)) return { ok: false, reason: 'нет раненых' };
+    if (!allyHeal(c, u)) return { ok: false, reason: 'нет лечения' };
+    u.attackLeft -= 1;
+    return { ok: true };
+  }
+
+  // Урон-каст Эфира (000168): ТЕЛО приоритета (3) efirTurn VERBATIM —
+  // сильнейшее известное урон-заклинание (strongestKnown), пул по
+  // «атрибуту» каталога (efirPool), мана, дальность SPELL_MAX_DIST,
+  // лорд-множитель (снапшот u.efirSkills), всегда попадает, игнор
+  // брони, практика (000117). 0 c._rng.
+  function efirCastAction(c, u, targetId) {
+    const why = checkTurn(c);
+    if (why) return { ok: false, reason: why };
+    // Defensive (деградация node-фикстур без buildEfirUnit; в браузере
+    // c.efs есть ДО первого ввода — startCombat).
+    if (!c.efs) return { ok: false, reason: 'недоступно активному персонажу' };
+    const s = strongestKnown(u, 'урон');
+    if (!s) return { ok: false, reason: 'заклинаний нет' };
+    const pool = efirPool(s);
+    if (c.efs[pool] <= 0) {
+      return {
+        ok: false,
+        reason: 'действий «Заклинание» ('
+          + (pool === 'spellInt' ? 'Интеллект' : 'Мудрость') + ') больше нет',
+      };
+    }
+    const mana = Number(s['мани']) || 0;
+    if (u.mp < mana) return { ok: false, reason: 'не хватает маны (' + mana + ')' };
+    const t = nearestEnemy(c, u);
+    if (!t) return { ok: false, reason: 'нет цели' };
+    if (rectDist(u, t) > SPELL_MAX_DIST) {
+      return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
+    }
+    c.efs[pool] -= 1;
+    u.mp -= mana;
+    const lord = (u.efirSkills
+      && u.efirSkills[s['школа'] === 'лёд' ? 'icelord' : 'firelord'])
+      || 0;
+    const dmg = Math.round(
+      (3 + 0.5 * ((u.attrs && u.attrs.intelligence) || 0))
+      * (1 + 0.05 * lord));
+    const r = dealDamageToMob(c, t, dmg, true);
+    // 000118: паттерн ТЗ «Эфир: «<заклинание>» — <имя>: N.» (em-dash).
+    log(c, `Эфир: «${s['название']}» — ${t.name}: ${r.dmg}.`);
+    // 000117: практика урон-каста (те же школа/лорд, PRACTICE_XP.spell).
+    efirPractice(c, (s['школа'] === 'лёд') ? 'icelord' : 'firelord',
+      PRACTICE_XP.spell);
+    return { ok: true, dmg: r.dmg, killed: r.killed };
+  }
+
+  // Зеркало canDoAction для АКТИВНОГО СОЮЗНИКА (000168, §3.5): одна
+  // причина — одно поведение (причины 1:1 с ядром allyMove/allyStrike/
+  // allyHealAction/efirCastAction; порядок проверок — как в ядре).
+  // player-only действия — единообразно «недоступно активному
+  // персонажу» (disabled + tooltip). Без побочных эффектов.
+  function allyCanDo(c, u, action, a) {
+    const why = checkTurn(c);
+    if (why) return { ok: false, reason: why };
+    const hasEfs = u.kind === 'efir' && c.efs;
+    if (action === 'endTurn') return { ok: true };
+    if (action === 'move') {
+      const pool = hasEfs ? c.efs.move : u.moveLeft;
+      if (pool <= 0) return { ok: false, reason: 'шаги на ход исчерпаны' };
+      return { ok: true };
+    }
+    if (action === 'attack') {
+      const t = nearestEnemy(c, u);
+      if (!t) return { ok: false, reason: 'нет цели' };
+      if (hasEfs) {
+        if (c.efs.touch <= 0) {
+          return { ok: false, reason: 'действий «Касание духа» больше нет' };
+        }
+        if (rectDist(u, t) > 1) {
+          return { ok: false, reason: 'цель слишком далеко (ближний бой)' };
+        }
+        return { ok: true };
+      }
+      if (u.attackLeft <= 0) {
+        return { ok: false, reason: 'действий «Удар» больше нет' };
+      }
+      const maxDist = u.role === MOB_ROLES.RANGED ? 4 : 1;
+      if (rectDist(u, t) > maxDist) {
+        return {
+          ok: false,
+          reason: 'цель слишком далеко ('
+            + (maxDist === 1 ? 'ближний бой' : 'даль 4') + ')',
+        };
+      }
+      return { ok: true };
+    }
+    if (action === 'cast') {
+      if (hasEfs) {
+        const s = strongestKnown(u, 'урон');
+        if (!s) return { ok: false, reason: 'заклинаний нет' };
+        const pool = efirPool(s);
+        if (c.efs[pool] <= 0) {
+          return {
+            ok: false,
+            reason: 'действий «Заклинание» ('
+              + (pool === 'spellInt' ? 'Интеллект' : 'Мудрость')
+              + ') больше нет',
+          };
+        }
+        const mana = Number(s['мани']) || 0;
+        if (u.mp < mana) {
+          return { ok: false, reason: 'не хватает маны (' + mana + ')' };
+        }
+        const t = nearestEnemy(c, u);
+        if (!t) return { ok: false, reason: 'нет цели' };
+        if (rectDist(u, t) > SPELL_MAX_DIST) {
+          return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
+        }
+        return { ok: true };
+      }
+      return { ok: false, reason: 'недоступно активному персонажу' };
+    }
+    if (action === 'heal') {
+      // Зеркало allyHealAction 1:1 (паттерн 000037, правка по ревью
+      // 000168): ПОРЯДОК — как в ядре: слот действия (u.attackLeft) →
+      // раненые (mostWounded) → каталог/спелл (условия allyHeal).
+      // Чтение каталога — чистое.
+      if (u.role === MOB_ROLES.SUPPORT && u.kind === 'merc') {
+        if (u.attackLeft <= 0) {
+          return { ok: false, reason: 'действий «Удар» больше нет' };
+        }
+        if (!mostWounded(c, 1)) return { ok: false, reason: 'нет раненых' };
+        const catalog = combatInternals.allySpells;
+        let hasSpell = false;
+        if (catalog) {
+          for (const id of (u.spells || [])) {
+            const s = catalog[id];
+            if (s && s['действие'] === 'лечение') { hasSpell = true; break; }
+          }
+        }
+        if (!hasSpell) return { ok: false, reason: 'нет лечения' };
+        return { ok: true };
+      }
+      return { ok: false, reason: 'недоступно активному персонажу' };
+    }
+    if (action === 'fire' || action === 'block' || action === 'quickItem'
+        || action === 'invItem' || action === 'flee' || action === 'spellbook') {
+      return { ok: false, reason: 'недоступно активному персонажу' };
+    }
+    return { ok: false, reason: 'неизвестное действие: ' + action };
+  }
+
   // ИИ союзника (аналог mobAct на нашей стороне, задача 000080):
   // цель — nearestEnemy (ближайший живой МОБ); роли:
   //  * melee/shield/swarm — шаг к цели (allyStepToward, movePerTurn)
@@ -1987,30 +2294,12 @@
   }
 
   function efirTurn(c, u) {
-    // (0) «Вдох Эфира» (000113): 1 раз за бой, на ЕГО ходу, ПЕРЕД
-    // прочими действиями (движение ТОЖЕ не выполняется — ВЕСЬ ход).
-    // Триггер: HP игрока ≤ 40% maxHP (u.breath.playerFrac) И u.mp ≥
-    // 20 (u.breath.mpCost) И ещё не сработал в этом бою (c.efirBreathed
-    // — флаг в СОСТОЯНИИ БОЯ, не сейв; выставляется ТОЛЬКО при успехе —
-    // провал триггера не «сжигает» действие). Данные — СНАПШОТ
-    // u.breath (buildEfirUnit, efir.js): без снапшота (000080-ветка)
-    // триггер недостижим — B undefined, бит-в-бит. Порядок операций
-    // детерминирован (НУЛЬ c._rng): флаг → mp −20 → heal игрока →
-    // heal живых союзников (порядок c.units — включая Эфира) →
-    // weakenAllEnemies → log → return.
-    const B = u.breath;
-    if (B && !c.efirBreathed) {
-      const pMax = P.derived(c.player).maxHP;
-      if (c.player.hp / pMax <= B.playerFrac && u.mp >= B.mpCost) {
-        c.efirBreathed = true;
-        u.mp -= B.mpCost;
-        healAlly(c, c.player, B.heal);
-        for (const a of livingAllies(c)) healAlly(c, a, B.heal);
-        weakenAllEnemies(c, B.weakenMult, B.weakenTurns);
-        log(c, B.logLine);
-        return; // весь ход — движение и приоритеты не выполняются (ТЗ)
-      }
-    }
+    // 000168: ИИ заменён вводом игрока (D9); функции allyAct/efirTurn
+    // сохранены для регрессии, из advanceQueue НЕ вызываются.
+    // «Вдох Эфира» (000113) — ОДНА точка истины efirBreath: авто-
+    // триггер в НАЧАЛЕ хода Эфира (союзная ветка advanceQueue) — при
+    // срабатывании ход СГОРАЕТ (движение и приоритеты не выполняются).
+    if (efirBreath(c, u)) return;
     // --- Движение (D13) ---
     const pCell = { x: c.px, y: c.py, w: 1, h: 1 };
     let target = null;
@@ -2166,6 +2455,15 @@
       c.efs.touch = 1;
       c.efs.move = 3;
     }
+    // 000168 (D9): round-rollover живых союзников (ввод игрока):
+    // пул движения (u.moveLeft — movePerTurn; у Эфира в браузере
+    // движение — c.efs, тут fallback) и слот действия (u.attackLeft —
+    // 1: удар ИЛИ лечение). makeAlly — та же инициализация для
+    // round 1. (Не рядом с poison-тиком — ханка 000164.)
+    for (const a of livingAllies(c)) {
+      a.moveLeft = a.movePerTurn || 1;
+      a.attackLeft = 1;
+    }
     // Новый раунд — новая очередь (задачи 000036/000167): из очереди
     // вышли мёртвые и сбежавшие, очередь отсортирована по инициативе,
     // turnIndex — на первом слоте.
@@ -2223,11 +2521,23 @@
       }
       const u = c.units.find((x) => x.id === id);
       if (!u || !u.alive || u.fled) { c.turnIndex += 1; continue; } // серый слот
+      // 000168 (D9): союзник — ход ИГРОКА (единая ветка для pre-roll
+      // и endTurn): «Вдох Эфира» — авто-триггер в НАЧАЛЕ хода Эфира
+      // (SPEC 000113/000168); сработал — ход СГОРАЕТ (очередь
+      // продвигается, остановки нет); иначе — ввод игрока, ОСТАНОВКА.
+      // ИИ-путь (allyAct) отключён (000168: ИИ заменён вводом).
+      // Инвариант 000036 сохранён: c.turnOrder[c.turnIndex] = id
+      // активного (союзник) в момент остановки.
+      if (u.side === 'ally') {
+        if (u.kind === 'efir' && efirBreath(c, u)) {
+          c.turnIndex += 1; continue;
+        }
+        c.targetId = (nearestEnemy(c, u) || {}).id || null;
+        c.phase = 'player';
+        return;
+      }
       c.phase = 'mob';
-      // Союзник (000080) — allyAct, иначе mobAct; инвариант 000036
-      // сохранён: c.turnOrder[c.turnIndex] = id действующего.
-      if (u.side === 'ally') allyAct(c, u);
-      else mobAct(c, u);
+      mobAct(c, u);
       // Бой закончился (игрок погиб/победа) — turnIndex замирает на
       // последнем действовавшем юните; очередь в phase 'over'
       // не пересчитывается.
@@ -2637,16 +2947,30 @@
     advanceQueue(c);
     if (!c.result) c.targetId = (nearestMob(c) || {}).id || null;
 
-    // Публичные действия. 000167 (D6): диспатч по АКТИВНОМУ юниту —
-    // гварда activeUnitId(c) === 'player': в 000167 в покое активен
-    // ТОЛЬКО игрок (advanceQueue останавливается на его слоте), гварды
-    // никогда не срабатывают — структурное резервирование под 000168
-    // (управление спутниками: вместо return null — союзный путь).
-    // Тела playerX — БЕЗ ИЗМЕНЕНИЙ (игрок-путь бит-в-бит). c.endTurn —
-    // БЕЗ гварды: действие активного юнита (000168 — любой player-side).
+    // Публичные действия. 000167 (D6) + 000168 (D9): диспатч по
+    // АКТИВНОМУ юниту. c.attack/c.move — ДИСПАТЧ: 'player' →
+    // playerX (бodies БЕЗ ИЗМЕНЕНИЙ, игрок-путь бит-в-бит), живой
+    // союзник → союзный путь (allyStrike/allyMove; у Эфира hasEfs —
+    // c.efs-пулы, Касание духа), иначе null (defensive — нет живого
+    // союзника на активном слоте, напр. phase 'mob'). НОВЫЕ обёртки
+    // c.cast/c.heal (000168): Эфир — урон-каст (strongestKnown),
+    // support-наёмник — allyHeal; игрок — defensive-отказы (книга —
+    // 000149). Прочие гварды (spell/block/flee/quickItem/invItem/
+    // selectTarget) — БЕЗ ИЗМЕНЕНИЙ (D6: activeUnitId !== 'player' →
+    // null; UI их на ходу союзника не вызывает — canDoAction
+    // disabled). c.endTurn — БЕЗ гварды: действие ЛЮБОГО активного
+    // player-side юнита.
+    const activeAlly = () => {
+      const aid = activeUnitId(c);
+      if (aid === 'player') return null;
+      return c.units.find((x) => x.id === aid
+        && x.side === 'ally' && x.alive && !x.fled) || null;
+    };
     c.attack = (targetId) => {
-      if (activeUnitId(c) !== 'player') return null;
-      return playerAttack(c, targetId);
+      if (activeUnitId(c) === 'player') return playerAttack(c, targetId);
+      const u = activeAlly();
+      if (!u) return null;
+      return allyStrike(c, u, targetId);
     };
     c.spell = (school, targetId) => {
       if (activeUnitId(c) !== 'player') return null;
@@ -2657,8 +2981,10 @@
       return playerBlock(c);
     };
     c.move = (dx, dy) => {
-      if (activeUnitId(c) !== 'player') return null;
-      return playerMove(c, dx, dy);
+      if (activeUnitId(c) === 'player') return playerMove(c, dx, dy);
+      const u = activeAlly();
+      if (!u) return null;
+      return allyMove(c, u, dx, dy);
     };
     c.flee = () => {
       if (activeUnitId(c) !== 'player') return null;
@@ -2675,6 +3001,36 @@
     c.selectTarget = (targetId) => {
       if (activeUnitId(c) !== 'player') return null;
       return playerSelectTarget(c, targetId);
+    };
+    // 000168: урон-каст Эфира (K) — сильнейшее известное
+    // урон-заклинание (пулы c.efs, мана u.mp). Игрок — defensive
+    // (каст игрока — книга 000149; UI на ходу игрока c.cast не
+    // вызывает). Союзник не-Эфир — «недоступно».
+    c.cast = (targetId) => {
+      if (activeUnitId(c) === 'player') {
+        return { ok: false, reason: 'используйте книгу заклинаний' };
+      }
+      const u = activeAlly();
+      if (!u) return null;
+      if (u.kind !== 'efir' || !c.efs) {
+        return { ok: false, reason: 'недоступно активному персонажу' };
+      }
+      return efirCastAction(c, u, targetId);
+    };
+    // 000168: лечение support-наёмника (H) — «самый раненый» пула
+    // [игрок, живые союзники] (0 c._rng), занимает слот действия.
+    // Игрок — defensive (лечение игрока — книга 000149); Эфир и
+    // не-support — «недоступно» (у Эфира heal-действия v1 НЕТ).
+    c.heal = () => {
+      if (activeUnitId(c) === 'player') {
+        return { ok: false, reason: 'используйте книгу заклинаний' };
+      }
+      const u = activeAlly();
+      if (!u) return null;
+      if (u.role !== MOB_ROLES.SUPPORT || u.kind !== 'merc') {
+        return { ok: false, reason: 'недоступно активному персонажу' };
+      }
+      return allyHealAction(c, u);
     };
     c.endTurn = () => endTurn(c);
     return c;
@@ -2699,6 +3055,13 @@
     // memory/000163-resurrection-spell.md §3.2): t.alive=true,
     // hp=round(maxHP/2), лог «Возвращён в бой.», возврат нового hp.
     resurrectAlly,
+    // 000168: ввод игрока на ходу союзника (D9; контракт
+    // memory/000168-companion-control.md §3.4): союзные действия
+    // (движение/удар/лечение/каст Эфира/Касание) + авто-триггер
+    // «Вдох Эфира» (efirBreath) + контекстное зеркало allyCanDo.
+    // module-exports — БЕЗ ИЗМЕНЕНИЙ (P14).
+    efirBreath, allyMove, allyStrike, allyHealAction,
+    efirCastAction, allyCanDo,
   };
 
   return {
