@@ -747,6 +747,10 @@
   // недопустим); падений/confirm НЕТ (confirm — только
   // migration_failed/corrupt при загрузке).
   let saveWarned = false;
+  // 000170 (D7): исключение в collectSaveData (раздел dead_mercs
+  // 000161, новые DOM-снимки 10-07) — logged once, сейв пропущен
+  // (G.save/save.js уже ловит setItem — второй try не нужен).
+  let saveDataErrLogged = false;
   // 000138: флаг подавления re-сейва после ПОДТВЕРЖДЁННОГО
   // «Начать заново»: location.reload() fire'ит beforeunload →
   // saveNow() перезаписал бы (восстановленный) СТАРЫЙ сейв сразу
@@ -758,7 +762,22 @@
   function saveNow() {
     if (resetPending) return; // 000138: не перезаписывать после сброса
     if (!saveStorage || !G.save) return;
-    if (G.save(saveStorage, collectSaveData()) === false
+    // 000170 (D7): try/catch ТОЛЬКО вокруг collectSaveData —
+    // исключение в сборе сейва НЕ может ронять вызывающие точки
+    // (каждый мировой шаг, onDay, onEnd, exitLocation, beforeunload)
+    // — этот сейв потерян, logged once; следующий шаг сейвится снова.
+    let data;
+    try {
+      data = collectSaveData();
+    } catch (err) {
+      if (!saveDataErrLogged) {
+        saveDataErrLogged = true;
+        console.error('main.js: исключение в collectSaveData — сейв ' +
+          'не записан (повторные предупреждения подавлены).', err);
+      }
+      return;
+    }
+    if (G.save(saveStorage, data) === false
         && !saveWarned) {
       saveWarned = true;
       console.warn('Сейв: квота localStorage исчерпана — сохранение ' +
@@ -1347,51 +1366,68 @@
   const dungeonMemory = new Map();
 
   // Смена дня: восстановление, респауны групп (SPEC.md «Игровое время»).
+  // 000170 (D8): watchdog ОКРУЖАЕТ ВЕСЬ ТЕЛО listener'а — максимальная
+  // 10-07 исключительная поверхность (playerUI/squadUI — DOM-партии,
+  // saveNow) НЕ может рвать день-цепь (clock.event), в т.ч. в выходе
+  // из подземелья (D6-finally — страховка). Все МУТАЦИИ тела идут ДО
+  // DOM-вызовов → throw в render теряет только flash-строку/сейв.
+  let onDayErrLogged = false;
   clock.onDay(({ day }) => {
-    G.restoreDay(hero); // часть HP/MP по формулам навыков
-    const due = G.dueForRespawn(defeatedAt, day);
-    for (const k of due) defeatedAt.delete(k);
-    // Задача 000072: истёкшие благословения — абсолютные дни
-    // (buff.day < day; легитимное благословение — 1 день).
-    for (let i = buffs.length - 1; i >= 0; i--) {
-      if (buffs[i].day < day) buffs.splice(i, 1);
-    }
-    // Задача 000087: жалованье отряда (000079) — МЕЖДУ buff-cleanup и
-    // render, ДО saveNow (D1/D8): payWages мутирует hero.gold/roster in
-    // place — существующий saveNow в конце фиксирует итог. day — НОВЫЙ
-    // день (аргумент колбэка): сид ухода (day, npcId) детерминирован.
-    // Пустой отряд: total = 0 → events: [] (контракт ядра) →
-    // compLines пусто → flash БАЙТ-В-БАЙТ как до 000087 (тест V3).
-    // «Уход» — splice ВНУТРИ payWages (000079); main.js строит только
-    // строки.
-    let compLines = [];
-    if (hasCompanions && typeof G.companions.payWages === 'function') {
-      const wr = G.companions.payWages(roster, NPCS, hero, day);
-      if (wr && Array.isArray(wr.events)) {
-        for (const ev of wr.events) {
-          if (ev.type === 'wages_paid') {
-            compLines.push('Жалованье выплачено.');
-          } else if (ev.type === 'wages_unpaid') {
-            compLines.push('Не хватает денег на жалованье — лояльность падает.');
-          } else if (ev.type === 'left') {
-            compLines.push(npcName(ev.npcId) + ' покинул отряд.');
+    try {
+      G.restoreDay(hero); // часть HP/MP по формулам навыков
+      const due = G.dueForRespawn(defeatedAt, day);
+      for (const k of due) defeatedAt.delete(k);
+      // Задача 000072: истёкшие благословения — абсолютные дни
+      // (buff.day < day; легитимное благословение — 1 день).
+      for (let i = buffs.length - 1; i >= 0; i--) {
+        if (buffs[i].day < day) buffs.splice(i, 1);
+      }
+      // Задача 000087: жалованье отряда (000079) — МЕЖДУ buff-cleanup
+      // и render, ДО saveNow (D1/D8): payWages мутирует
+      // hero.gold/roster in place — существующий saveNow в конце
+      // фиксирует итог. day — НОВЫЙ день (аргумент колбэка): сид
+      // ухода (day, npcId) детерминирован.
+      // Пустой отряд: total = 0 → events: [] (контракт ядра) →
+      // compLines пусто → flash БАЙТ-В-БАЙТ как до 000087 (тест V3).
+      // «Уход» — splice ВНУТРИ payWages (000079); main.js строит
+      // только строки.
+      let compLines = [];
+      if (hasCompanions
+          && typeof G.companions.payWages === 'function') {
+        const wr = G.companions.payWages(roster, NPCS, hero, day);
+        if (wr && Array.isArray(wr.events)) {
+          for (const ev of wr.events) {
+            if (ev.type === 'wages_paid') {
+              compLines.push('Жалованье выплачено.');
+            } else if (ev.type === 'wages_unpaid') {
+              compLines.push('Не хватает денег на жалованье — лояльность падает.');
+            } else if (ev.type === 'left') {
+              compLines.push(npcName(ev.npcId) + ' покинул отряд.');
+            }
           }
         }
       }
+      // Ревью 000087: панель «Отряд» (000086) держит live-ссылку на
+      // roster — после payWages (лояльность/уход) открытая панель
+      // перерисовывается. Guard — no-op до 000086 (G.squadUI нет);
+      // паттерн тот же, что в 3 точках старта боя (там — закрытие).
+      if (G.squadUI && G.squadUI.isOpen()) G.squadUI.render();
+      G.playerUI && G.playerUI.render();
+      // Порядок строк (D1): «Мобилизуются…» → строки отряда
+      // → «День N.» (день — ПОСЛЕДНЯЯ строка, как до 000087).
+      hudFlash = (due.length ? 'Мобилизуются новые группы мобов.\n' : '')
+        + (compLines.length ? compLines.join('\n') + '\n' : '')
+        + 'День ' + day + '.';
+      hudFlashUntil = performance.now() + 5000;
+      saveNow();
+    } catch (err) {
+      if (!onDayErrLogged) {
+        onDayErrLogged = true;
+        console.error('main.js: исключение при смене дня (день '
+          + day + ') — остаток дня не обработан (повторные '
+          + 'предупреждения подавлены).', err);
+      }
     }
-    // Ревью 000087: панель «Отряд» (000086) держит live-ссылку на
-    // roster — после payWages (лояльность/уход) открытая панель
-    // перерисовывается. Guard — no-op до 000086 (G.squadUI нет);
-    // паттерн тот же, что в 3 точках старта боя (там — закрытие).
-    if (G.squadUI && G.squadUI.isOpen()) G.squadUI.render();
-    G.playerUI && G.playerUI.render();
-    // Порядок строк (D1): «Мобилизуются…» → строки отряда → «День N.»
-    // (день — ПОСЛЕДНЯЯ строка, как до 000087).
-    hudFlash = (due.length ? 'Мобилизуются новые группы мобов.\n' : '')
-      + (compLines.length ? compLines.join('\n') + '\n' : '')
-      + 'День ' + day + '.';
-    hudFlashUntil = performance.now() + 5000;
-    saveNow();
   });
 
   function findSpawn() {
@@ -2127,13 +2163,31 @@
       },
     });
   }
+  // 000170 (D6): исключение в день-цепи (exitDungeon → clock.event
+  // → onDay) НЕ может пропустить очистку — finally — страховка:
+  // dungeonState=null + dungeonUI.close() + saveNow() выполняются
+  // при ЛЮБОМ исходе. Без неё герой застревал бы в подземельи на
+  // выходной клетке (каждая повторная попытка снова {type:'exit'} —
+  // дни уходят, позиция не сдвигается). dungeonUI.close() уже
+  // exception-safe; saveNow — тоже (D7).
+  let exitErrLogged = false;
   function exitLocation(ds) {
-    if (ds.kind === 'city') G.locations.exitCity(ds);
-    else G.locations.exitDungeon(ds, { day: clock.day,
-      memory: dungeonMemory, clock });
-    dungeonState = null;
-    G.dungeonUI.close();
-    saveNow();
+    try {
+      if (ds.kind === 'city') G.locations.exitCity(ds);
+      else G.locations.exitDungeon(ds, { day: clock.day,
+        memory: dungeonMemory, clock });
+    } catch (err) {
+      if (!exitErrLogged) {
+        exitErrLogged = true;
+        console.error('main.js: исключение при выходе из локации — ' +
+          'состояние подземелья будет снято в любом случае ' +
+          '(повторные предупреждения подавлены).', err);
+      }
+    } finally {
+      dungeonState = null;
+      G.dungeonUI.close();
+      saveNow();
+    }
   }
   function dungeonOnMove(dx, dy) {
     const ds = dungeonState;
@@ -2705,95 +2759,115 @@
 
   // --- Цикл ---
   let lastMove = 0;
+  // 000170 (D3): watchdog — исключение в ЛЮБОЙ точке кадра (saveNow,
+  // maybeStartCombat→startCombat, enterLocation, onDay через
+  // clock.addStep, drawSprites, renderHud, applyVisibility) НЕ убивает
+  // rAF-цепь навсегда: reschedule — в finally, исключение logged once.
+  // Listener'ы keydown при живом цикле продолжают потреблять keys —
+  // «игра не реагирует на нажатия» исключено. keys.clear() в catch НЕ
+  // делаем: заклинившая клавиша повторится при следующем keydown, а
+  // сброс потерял бы удержание. Частичный кадр само-исцеляется:
+  // canvas.width/height пересет каждый кадр (сбрасывает контекст).
+  let frameErrLogged = false;
   function frame(now) {
-    // 000173: время кадра — источник времени заряда (debug-поле
-    // state.mobCharge.pos; в vm performance.now() заморожен).
-    lastFrameNow = now;
-    const inCombat = G.combatUI && G.combatUI.isActive();
-    const inDungeon = dungeonState !== null;
-    const inNpc = G.npcUI && G.npcUI.isActive();
-    const inBuilding = G.buildingUI && G.buildingUI.isActive(); // 000071
-    const inCraft = G.craftUI && G.craftUI.isActive(); // 000126
-    const inResurrect = !!(G.resurrectUI && G.resurrectUI.isActive()); // 000162
-    // 000150: видимость on-screen-контролов по активным экранам:
-    // кнопки [I]/[E] — бой/инвентарь/вход; D-pad — инвентарь/вход
-    // (в бою остаётся). Чистая touchControlsVisibility (controls.js)
-    // от снимка кадра; applyVisibility идемпотентна (0 DOM-записей
-    // без смены состояния). Гард — на ОБА чужих экспорта (mixed-
-    // версии «controls.js без touchControlsVisibility» → деградация
-    // в «всегда видимы», не TypeError в frame; пин TV7).
-    if (G.touchControls
-        && typeof G.touchControls.applyVisibility === 'function'
-        && typeof G.touchControlsVisibility === 'function') {
-      G.touchControls.applyVisibility(G.touchControlsVisibility({
-        combat: !!inCombat,
-        inventory: !!(G.playerUI && G.playerUI.isOpen()),
-        // 000162: пикер «Воскрешение» — мапим в существующее поле
-        // building (controls.js читает только combat/inventory/
-        // building, R-5).
-        building: !!inBuilding || !!inResurrect,
-      }));
-    }
-    // Интервал шага (задача 000033 + 000063): база — из глобальных
-    // настроек (420 мс), навык «Ловкий шаг» укорачивает, нижний кламп —
-    // G.MIN_MOVE_INTERVAL_MS. Одно значение для шага и окна walk/idle.
-    const stepMs = stepIntervalMs();
-    if (!inCombat && !inDungeon && !inNpc && !inBuilding && !inCraft
-        && !inResurrect
-        && now - lastMove >= stepMs) {
-      if (keys.size && tryMove()) {
-        lastMove = now;
-        // Глейд prev→next (задача 000033): рендер скользит между тайлами
-        // за время шага, а не прыгает. interval — на шаг (динамическая
-        // скорость).
-        if (mover) mover.step({ x: prevPos.x, y: prevPos.y },
-          { x: player.x, y: player.y }, now, stepMs);
-        lastStepAt = now; // Флогистон переключается на анимацию ходьбы
-        clock.addStep(1); // шаги мира тикают игровой день
-        // 000135: скан зон — ТОЛЬКО на успешном шаге (ТЗ); бой >
-        // вход в локацию (два оверлея в одном кадре — сломанное
-        // состояние). Вход откладывается на ПЕРВЫЙ успешный шаг
-        // ПОСЛЕ боя, приходящийся на тайл входа: zone-бой НА тайле
-        // входа — после победы герой стоит на нём, следующий шаг
-        // уводит с него → вход на возвратном шаге туда-обратно
-        // (ревью 000135; побег/смерть — возврат на prevPos, вход
-        // не начинается).
-        if (!maybeStartCombat(true, now))
-          enterLocation(); // 000127: домен — src/locations.js
-        saveNow();
+    try {
+      // 000173: время кадра — источник времени заряда (debug-поле
+      // state.mobCharge.pos; в vm performance.now() заморожен).
+      lastFrameNow = now;
+      const inCombat = G.combatUI && G.combatUI.isActive();
+      const inDungeon = dungeonState !== null;
+      const inNpc = G.npcUI && G.npcUI.isActive();
+      const inBuilding = G.buildingUI && G.buildingUI.isActive(); // 000071
+      const inCraft = G.craftUI && G.craftUI.isActive(); // 000126
+      const inResurrect = !!(G.resurrectUI && G.resurrectUI.isActive()); // 000162
+      // 000150: видимость on-screen-контролов по активным экранам:
+      // кнопки [I]/[E] — бой/инвентарь/вход; D-pad — инвентарь/вход
+      // (в бою остаётся). Чистая touchControlsVisibility (controls.js)
+      // от снимка кадра; applyVisibility идемпотентна (0 DOM-записей
+      // без смены состояния). Гард — на ОБА чужих экспорта (mixed-
+      // версии «controls.js без touchControlsVisibility» → деградация
+      // в «всегда видимы», не TypeError в frame; пин TV7).
+      if (G.touchControls
+          && typeof G.touchControls.applyVisibility === 'function'
+          && typeof G.touchControlsVisibility === 'function') {
+        G.touchControls.applyVisibility(G.touchControlsVisibility({
+          combat: !!inCombat,
+          inventory: !!(G.playerUI && G.playerUI.isOpen()),
+          // 000162: пикер «Воскрешение» — мапим в существующее поле
+          // building (controls.js читает только combat/inventory/
+          // building, R-5).
+          building: !!inBuilding || !!inResurrect,
+        }));
       }
+      // Интервал шага (задача 000033 + 000063): база — из глобальных
+      // настроек (420 мс), навык «Ловкий шаг» укорачивает, нижний
+      // кламп — G.MIN_MOVE_INTERVAL_MS. Одно значение для шага и окна
+      // walk/idle.
+      const stepMs = stepIntervalMs();
+      if (!inCombat && !inDungeon && !inNpc && !inBuilding && !inCraft
+          && !inResurrect
+          && now - lastMove >= stepMs) {
+        if (keys.size && tryMove()) {
+          lastMove = now;
+          // Глейд prev→next (задача 000033): рендер скользит между
+          // тайлами за время шага, а не прыгает. interval — на шаг
+          // (динамическая скорость).
+          if (mover) mover.step({ x: prevPos.x, y: prevPos.y },
+            { x: player.x, y: player.y }, now, stepMs);
+          lastStepAt = now; // Флогистон переключается на анимацию ходьбы
+          clock.addStep(1); // шаги мира тикают игровой день
+          // 000135: скан зон — ТОЛЬКО на успешном шаге (ТЗ); бой >
+          // вход в локацию (два оверлея в одном кадре — сломанное
+          // состояние). Вход откладывается на ПЕРВЫЙ успешный шаг
+          // ПОСЛЕ боя, приходящийся на тайл входа: zone-бой НА тайле
+          // входа — после победы герой стоит на нём, следующий шаг
+          // уводит с него → вход на возвратном шаге туда-обратно
+          // (ревью 000135; побег/смерть — возврат на prevPos, вход
+          // не начинается).
+          if (!maybeStartCombat(true, now))
+            enterLocation(); // 000127: домен — src/locations.js
+          saveNow();
+        }
+      }
+      updateCamera(now);
+      // Одна точка рендера на кадр для обоих слоёв (задача 000033).
+      const rp = renderPos(now);
+
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0.06, 0.08, 0.10, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      // WebGL-слой — через G.orthoMatrix (map.js, задача 000061);
+      // fallback — legacyOrtho с теми же знаками (см. выше).
+      gl.uniformMatrix4fv(uProj, false,
+        G.orthoMatrix
+          ? G.orthoMatrix(zoom, cam.x, cam.y, canvas.width, canvas.height)
+          : legacyOrtho(zoom, cam.x, cam.y, canvas.width, canvas.height));
+      // 000176: `now` — тот же кадр, что и у drawSprites: гейт
+      // legacy-вершин и проходы спрайтов видят одну и ту же
+      // готовность (XOR-контракт; ready-состояние — 0 вершин).
+      const verts = buildFrame(rp, now);
+      gl.drawArrays(gl.TRIANGLES, 0, verts.length / 6);
+
+      // Слой спрайтов поверх тайлов (пустой, пока ассеты не загрузились).
+      if (spriteCanvas) {
+        spriteCanvas.width = window.innerWidth;
+        spriteCanvas.height = window.innerHeight;
+      }
+      drawSprites(now, rp);
+
+      renderHud();
+    } catch (err) {
+      if (!frameErrLogged) {
+        frameErrLogged = true;
+        console.error('main.js: исключение в кадре — главный цикл ' +
+          'продолжается (повторные предупреждения подавлены).', err);
+      }
+    } finally {
+      requestAnimationFrame(frame);
     }
-    updateCamera(now);
-    // Одна точка рендера на кадр для обоих слоёв (задача 000033).
-    const rp = renderPos(now);
-
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.06, 0.08, 0.10, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-
-    // WebGL-слой — через G.orthoMatrix (map.js, задача 000061);
-    // fallback — legacyOrtho с теми же знаками (см. выше).
-    gl.uniformMatrix4fv(uProj, false,
-      G.orthoMatrix
-        ? G.orthoMatrix(zoom, cam.x, cam.y, canvas.width, canvas.height)
-        : legacyOrtho(zoom, cam.x, cam.y, canvas.width, canvas.height));
-    // 000176: `now` — тот же кадр, что и у drawSprites: гейт legacy-
-    // вершин и проходы спрайтов видят одну и ту же готовность
-    // (XOR-контракт; ready-состояние — 0 вершин).
-    const verts = buildFrame(rp, now);
-    gl.drawArrays(gl.TRIANGLES, 0, verts.length / 6);
-
-    // Слой спрайтов поверх тайлов (пустой, пока ассеты не загрузились).
-    if (spriteCanvas) {
-      spriteCanvas.width = window.innerWidth;
-      spriteCanvas.height = window.innerHeight;
-    }
-    drawSprites(now, rp);
-
-    renderHud();
-    requestAnimationFrame(frame);
   }
 
   // Отладочный крючок (используется смоук-тестами и ручной проверкой).

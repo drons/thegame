@@ -81,6 +81,9 @@
   let overlay = null;
   let rows = [];
   let onKey = null;
+  // 000170 (D9): console.error об исключении в завершении confirm —
+  // ОДИН раз за сессию (паттерн saveWarned main.js).
+  let confirmErrLogged = false;
 
   /**
    * Лимит отряда (зеркало src/companions.js deserializeRoster:
@@ -210,9 +213,23 @@
     dead.splice(i, 1);
     roster.push(entry);
     // Завершение: saveNow/flash/playerRender — ТОЛЬКО здесь (R-1).
-    w.saveNow();
-    w.flash(nameOf(w, record) + ' снова в отряде.');
-    w.playerRender();
+    // 000170 (D9): watchdog завершения — исключение в saveNow/
+    // flash/playerRender НЕ должно оставлять пикер открытым вечно
+    // (ввод гейтится в isActive — движение мёртво). close() —
+    // СНАРУЖИ try, ВСЕГДА.
+    try {
+      w.saveNow();
+      w.flash(nameOf(w, record) + ' снова в отряде.');
+      w.playerRender();
+    } catch (err) {
+      if (!confirmErrLogged) {
+        confirmErrLogged = true;
+        console.error('building-effect-resurrect.js: исключение в ' +
+          'завершении confirm (saveNow/flash/playerRender) — пикер ' +
+          'закроется в любом случае (повторные предупреждения ' +
+          'подавлены).', err);
+      }
+    }
     close();
     return { ok: true };
   }
@@ -276,6 +293,18 @@
     hint.className = 'resurrect-hint';
     hint.textContent = '↑↓ — выбор · Enter — подтвердить · Esc — отмена';
     overlay.appendChild(hint);
+    // 000170 (D1/D2): тач-кнопка закрытия — ЕДИНСТВЕННЫЙ тач-путь
+    // снять заморозку на ?controls=touch (D-pad/кнопки скрыты:
+    // resurrect → building; frame-гейт inResurrect). div (НЕ
+    // <button>) — единый DOM-стиль игры (строки buildingUI — div'ы
+    // с кликами); close() идемпотентен → двойное закрытие
+    // (Esc + клик) безопасно. Последний ребёнок оверлея —
+    // thumb-friendly (align-self:flex-end в CSS).
+    const closeBtn = document.createElement('div');
+    closeBtn.className = 'resurrect-close';
+    closeBtn.textContent = '✕ Отмена';
+    closeBtn.addEventListener('click', () => close());
+    overlay.appendChild(closeBtn);
     document.body.appendChild(overlay);
     onKey = (e) => {
       if (!active) return;

@@ -143,6 +143,11 @@
   let bookBox = null;
   let bookOpen = false;
   let spellBookWarned = false; // деградация без G.SpellBook — 1 console.error
+  // 000170 (D4/D5): console.error ОДИН раз — исключение в
+  // startCombat (build/render), в addEfirXp/onEnd (finish).
+  let startCombatErrLogged = false;
+  let xpErrLogged = false;
+  let onEndErrLogged = false;
   // Сигнатура строк (правки ревью 000149): перестроение книги — ТОЛЬКО
   // при её изменении (см. renderBook); null — перестроить при открытии.
   let bookSig = null;
@@ -1788,7 +1793,21 @@
     // погиб в бою — опыт всё равно в пул). ctx.efir != null только
     // когда G.efir был доступен на startCombat — снапшот G неизменен.
     if (ctx.efir && result.outcome === 'victory' && result.xp > 0) {
-      G.efir.addEfirXp(ctx.efir, result.xp);
+      // 000170 (D5a): исключение в addEfirXp (abnormal sheet —
+      // S.addXp/appendSpells/reprocessEfirSkills) НЕ роняет finish:
+      // xp-начисление пропущено (logged once), оверлей снят, ctx
+      // обнулён, onEnd применён (награды/подъём/dead-mercs не
+      // потеряны). Порядок happy path не меняется.
+      try {
+        G.efir.addEfirXp(ctx.efir, result.xp);
+      } catch (err) {
+        if (!xpErrLogged) {
+          xpErrLogged = true;
+          console.error('combat-ui.js: исключение в addEfirXp — опыт ' +
+            'Эфира не начислен (повторные предупреждения ' +
+            'подавлены).', err);
+        }
+      }
     }
     if (overlay) overlay.remove();
     overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl = null;
@@ -1799,7 +1818,22 @@
     moveAnims = null;
     ctx = null;
     ended = false;
-    onEnd && onEnd(result);
+    // 000170 (D5b): исключение в onEnd (side effects — награды/
+    // подъём/dead-mercs-записи 000161) НЕ улетает вызывателю
+    // (keydown/frame): боевое состояние уже снято чисто (оверлей,
+    // ctx, ended), onEnd-эффекты потеряны (logged once).
+    if (onEnd) {
+      try {
+        onEnd(result);
+      } catch (err) {
+        if (!onEndErrLogged) {
+          onEndErrLogged = true;
+          console.error('combat-ui.js: исключение в onEnd — побочные ' +
+            'эффекты конца боя потеряны (повторные предупреждения ' +
+            'подавлены).', err);
+        }
+      }
+    }
   }
 
   G.combatUI = {
@@ -1912,11 +1946,48 @@
         // ctx → false; one-shot ядра — один раз за бой).
         breathedPrev: false,
       };
-      build();
-      render();
-      // Цикл анимации (задача 000047): rAF-тики пока оверлей открыт.
-      // Без rAF (vm-песочница) — null, событийный синхронный рендер.
-      if (raf) rafId = raf(tick);
+      try {
+        build();
+        render();
+        // Цикл анимации (задача 000047): rAF-тики пока оверлей
+        // открыт. Без rAF (vm-песочница) — null, событийный
+        // синхронный рендер.
+        if (raf) rafId = raf(tick);
+      } catch (err) {
+        // 000170 (D4): исключение build/render (DOM/canvas в
+        // реальном браузере: null-элементы, canvas-context,
+        // combat-scale getBoundingClientRect) — САМОИСЦЕЛЕНИЕ:
+        // исключение не улетает вызывателю, активного состояния
+        // НЕ остаётся (иначе isActive()===true вечно гейтит
+        // мир/подземелье/exit-тайл — все 4 пути ввода мёртвы).
+        // Пост-состояние — зеркало finish(): ended=false, ctx=null,
+        // оверлей снят, DOM-ссылки обнулены → следующий startCombat
+        // стартует норм (забытый ended=true отравил бы finish()
+        // следующего боя). Вызывающие в main.js null-safe
+        // (noteEfirCombat, maybeStartCombat: true → enterLocation
+        // откладывается на следующий кадр, гейт открыт — безопасная
+        // деградация).
+        if (rafId != null && caf) { caf(rafId); rafId = null; }
+        if (overlay && typeof overlay.remove === 'function') {
+          try { overlay.remove(); } catch (e2) {
+            // снятие обломка — косметика: состояния очищены ниже
+          }
+        }
+        overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl = null;
+        hpbarEl = hpbarFillEl = hpbarTextEl = null;
+        bookBox = null;
+        bookOpen = false;
+        bookSig = null;
+        moveAnims = null;
+        ctx = null;
+        ended = false;
+        if (!startCombatErrLogged) {
+          startCombatErrLogged = true;
+          console.error('combat-ui.js: исключение в build/render — бой ' +
+            'не начался (повторные предупреждения подавлены).', err);
+        }
+        return null;
+      }
       return combat;
     },
     isActive,
