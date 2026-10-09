@@ -50,6 +50,13 @@
   const BUILDING_COLOR = [0.98, 0.83, 0.30]; // золотой маркер
   const MOB_COLOR = [0.85, 0.30, 0.25];      // красный маркер
   const PLAYER_COLOR = [0.55, 0.95, 1.0];    // светящийся Флогистон
+  // Задача 000172: окружность радиуса агрессии на глобальной карте —
+  // тонкая красная пунктирная полупрозрачная (4 прилагательных ТЗ):
+  // alpha < 1 — не заслоняет карту; lineWidth 1 экр. px — «тонкая»
+  // при любом зуме; dash — в пикселях экрана (не зависит от зума).
+  // Радиус НЕ здесь: из G.groupZoneInfo (combat.js, 000135) на кадр.
+  const AGGRO_CIRCLE_STYLE = 'rgba(255, 64, 56, 0.4)';
+  const AGGRO_CIRCLE_DASH = [6, 6];
   // Базовый интервал шага по глобальной карте (задача 000063) — из
   // глобальных настроек (единый источник, паттерн 000020): 140 * 3 =
   // 420 мс, базовая скорость передвижения уменьшена в три раза.
@@ -2428,6 +2435,35 @@
       if (!img) continue;
       const p = toPt(rec.x, rec.y);
       s2.drawImage(img, p.x, p.y, rec.w * zoom, rec.h * zoom);
+    }
+
+    // Проход 2.5 (задача 000172): окружность радиуса агрессии — тонкая
+    // красная пунктирная полупрозрачная (AGGRO_CIRCLE_*, lineWidth 1).
+    // Радиус агрессии = дистанция триггера боя (000135, ЕДИНЫЙ источник
+    // G.groupZoneInfo): triggers=true (aggressive/territorial) — круг
+    // радиуса info.radius*zoom по центру тайла группы; neutral/timid
+    // бой ведут ТОЛЬКО на своём тайле (SPEC L162 «может пройти мимо») —
+    // радиус агрессии 0, окружности нет. Видимость — тот же фильтр, что
+    // Проход 3: поверженная сегодня группа (defeatedAt) не аггрит.
+    // Z-порядок (000042): тайлы/декорации < постройки < агро-окружности
+    // < мобы < Флогистон — под спрайтами, не заслоняет карту и героя.
+    // Тихий гард: экспорта нет (регрессия порядка загрузки) — прохода
+    // нет (load-time console.error уже есть, L1790-1795 — не дублируем).
+    if (typeof G.groupZoneInfo === 'function') {
+      for (const t of frameTiles) {
+        if (!t.hasMobGroup) continue;
+        if (G.groupVisible && !G.groupVisible(defeatedAt, t.x, t.y)) continue;
+        const info = G.groupZoneInfo(t.mobGroup);
+        if (!info || !info.triggers || !(info.radius > 0)) continue;
+        const c = toPt(t.x + 0.5, t.y + 0.5);
+        s2.beginPath();
+        s2.setLineDash(AGGRO_CIRCLE_DASH);
+        s2.strokeStyle = AGGRO_CIRCLE_STYLE;
+        s2.lineWidth = 1;
+        s2.arc(c.x, c.y, info.radius * zoom, 0, Math.PI * 2);
+        s2.stroke();
+        s2.setLineDash([]); // гигиена: не оставлять dash-состояние в s2
+      }
     }
 
     // Проход 3: спрайты групп мобов — поверх построек (мобы в
