@@ -1,5 +1,8 @@
-// Входная точка игры (SPEC.md): WebGL-рендер процедурной карты мира
-// и перемещение Флогистона по тайлам.
+// Входная точка игры (SPEC.md): процедурная карта мира — WebGL-подложка
+// (фолбэк: цветные тайлы/маркеры/ромб) под спрайт-слоем (#sprites) —
+// и перемещение Флогистона по тайлам. Каждый элемент мира в кадре
+// рисуется ровно одним из слоёв (000176, XOR-контракт:
+// memory/000176-global-map-single-pass.md).
 //
 // Браузерный скрипт (обычный <script>, не модуль — чтобы игра
 // открывалась двойным кликом по index.html без локального сервера).
@@ -15,8 +18,10 @@
   const canvas = document.getElementById('game');
   const hud = document.getElementById('hud');
   // Слой спрайтов (2D-canvas поверх WebGL): текстуры тайлов, постройки,
-  // мобы, Флогистон. Не загрузилось — рисуем ничего и остаётся
-  // прежний цветной рендер (фолбэк, игра не ломается).
+  // мобы, Флогистон. Элемент без готового кадра спрайта рисует свою
+  // legacy-фигуру WebGL-подложка (фолбэк 000011 — игра не ломается);
+  // поэлементный гейт — buildFrame (000176, те же селекторы
+  // готовности, что и проходы drawSprites).
   const spriteCanvas = document.getElementById('sprites');
   const s2 = spriteCanvas ? spriteCanvas.getContext('2d') : null;
 
@@ -2255,47 +2260,182 @@
     }
   }
 
-  const frameTiles = []; // видимые тайлы кадра (общие для WebGL и слоя спрайтов)
+  // Видимые тайлы кадра (общие для обоих слоёв: WebGL-подложка/фолбэк
+  // и слой спрайтов). 000176: наполнение одно, legacy-вершины — только
+  // под элементами, которые спрайт-слой не рисует (поэлементный гейт).
+  const frameTiles = [];
 
-  function buildFrame(rp) {
+  // --- 000176: селекторы готовности элементов — ОДИН источник для
+  // ОБОИХ слоёв (WebGL-подложка/фолбэк и слой спрайтов) ---
+  //
+  // XOR-контракт (memory/000176-global-map-single-pass.md): каждый
+  // элемент мира (тайл / постройка / группа мобов / Флогистон) в кадре
+  // рисуется РОВНО ОДИН раз — спрайтом (#sprites) ИЛИ legacy-фигурой
+  // (#game), не оба; кадр спрайта не готов → legacy-фигура (контракт
+  // фолбэка 000011). Селекторы вынесены из инлайна проходов в ОБЩИЕ
+  // хелперы: гейт buildFrame и проходы drawSprites читают одну и ту же
+  // готовность — инлайн frameIndex/asset-выражений в buildFrame
+  // запрещён (дрейф = дубль или пропажа). Возврат null — «спрайт
+  // нарисовать не может» (нет лоадера / кадр не загрузился).
+  //
+  // Тайлы — по ТЕКУЩЕМУ кадру анимации (G.frameIndex): иначе вода
+  // «мерцала» бы цветным при смене кадра.
+  function tileFrameImg(t, now) {
+    if (!spriteLoader) return null;
+    const frames = G.tileFrames(t.terrain);
+    if (!frames.length) return null;
+    const idx = frames.length > 1
+      ? G.frameIndex(now, t.x, t.y, frames.length) : 0;
+    return spriteLoader.image(frames[idx]) || null;
+  }
+
+  function mobFrameImg(t, now) {
+    if (!spriteLoader) return null;
+    const mf = G.mobFrames(t.mobGroup);
+    if (!mf.length) return null;
+    const idx = mf.length > 1
+      ? G.frameIndex(now, t.x, t.y, mf.length) : 0;
+    return spriteLoader.image(mf[idx]) || null;
+  }
+
+  // Кадр героя: тот же выбор action, что и в проходе Флогистона
+  // (idle/walk по движению, attack/cast — отладочная animAction). Окно
+  // walk/idle (задача 000063) — через G.walkWindowMs от интервала шага
+  // (motion.js), а не фикс 260 мс: фикс подобран под старый интервал
+  // 140 мс и при базовых 420 мс давал замирание 160 мс в idle за цикл
+  // — рваную ходьбу. Без walkWindowMs — старое окно 260.
+  function heroFrameImg(now) {
+    if (!spriteLoader) return null;
+    const action = now < animUntil ? animAction
+      : (now - lastStepAt < (G.walkWindowMs
+        ? G.walkWindowMs(stepIntervalMs())
+        : 260) ? 'walk' : 'idle');
+    const pf = G.phlogistonFrames(action);
+    if (!pf.length) return null;
+    const idx = pf.length > 1 ? (Math.floor(now / 240) % pf.length) : 0;
+    return spriteLoader.image(pf[idx]) || null;
+  }
+
+  // Спрайт постройки: слотовая ветка — первична (побайтово как раньше);
+  // город (задача 000110) и лагерь (задача 000131) — НЕ слоты, спрайт
+  // по каталожному buildingId. typeof-гарды — из исходного выражения
+  // прохода 2 (старый sprites.js без citySprite/campSprite — тихая
+  // деградация, игра не падает). spriteLoader === null (нет sprites.js
+  // в цепочке — G.buildingSprite определён ТОЛЬКО там) — null, как у
+  // остальных селекторов (контракт §4: legacy-сцена рисуется ПОЛНОСТЬЮ,
+  // игра не падает; до правки по ревью 000176 здесь краш ПЕРВОГО кадра:
+  // TypeError в buildFrame → frame, rAF-цикл умирал).
+  function buildingAsset(rec) {
+    if (!spriteLoader) return null;
+    return G.buildingSprite(rec.type) ||
+      (rec.buildingId != null && typeof G.citySprite === 'function'
+       ? G.citySprite(rec.buildingId) : null) ||
+      (rec.buildingId != null && typeof G.campSprite === 'function'
+       ? G.campSprite(rec.buildingId) : null) || null;
+  }
+
+  // Запись постройки по якорю (перенос из drawSprites; 000042):
+  // source of truth — та, что раскладывала её в мире, ОДИН источник
+  // геометрии. typeof-гард: устаревший map.js без buildingAt —
+  // фолбэк-скан прямоугольника вправо/вниз по tileCache, НО с ПРОВЕРКОЙ
+  // РАВЕНСТВА buildingAnchor (одного inBuilding мало: чужая соседняя
+  // постройка зальёт скан и даст ложные 2x1/1x2). Якоря нет — 1x1.
+  function buildingRec(ax, ay) {
+    if (map && typeof map.buildingAt === 'function') {
+      return map.buildingAt(ax, ay);
+    }
+    const t0 = tileCache.tile(ax, ay);
+    if (!t0.inBuilding) return null;
+    const same = (t) => t.inBuilding && t.buildingAnchor &&
+      t.buildingAnchor[0] === ax && t.buildingAnchor[1] === ay;
+    let w = 1, hgt = 1;
+    // Окно фолбэк-скана — по текущему максимуму footprint'а
+    // (000055: константы стали функциями buildMaxW()/buildMaxH();
+    // города — до 7×7, 000103). memory/000042: `undefined || 3`
+    // совпадало случайно — правка обязательна.
+    while (w < (G.buildMaxW ? G.buildMaxW() : (G.BUILD_MAX_W || 3))
+         && same(tileCache.tile(ax + w, ay))) w++;
+    while (hgt < (G.buildMaxH ? G.buildMaxH() : (G.BUILD_MAX_H || 3))
+         && same(tileCache.tile(ax, ay + hgt))) hgt++;
+    return { anchor: [ax, ay], type: t0.building,
+             x: ax, y: ay, w, h: hgt,
+             entrance: [ax, ay], wealth: 0 };
+  }
+
+  function buildFrame(rp, now) {
     const verts = quadVerts;
     verts.length = 0;
     frameTiles.length = 0;
 
     // Отрисовываем только видимую область + запас (000019); тайлы
     // берём из кэша — шум пересчитывается лишь для новых тайлов.
+    // 000176: legacy-вершины (цветные квады/маркеры/ромб) — ТОЛЬКО
+    // для элементов, которые спрайт-слой нарисовать НЕ МОЖЕТ (кадр
+    // спрайта не готов) — поэлементный гейт через ОБЩИЕ селекторы
+    // (tileFrameImg/mobFrameImg/heroFrameImg/buildingAsset — те же,
+    // что проходы drawSprites; XOR-контракт). Штатное состояние (все
+    // ассеты ready) — 0 вершин: drawArrays(gl.TRIANGLES, 0, 0);
+    // bufferData на кадр — с пустой нагрузкой (вызов остаётся:
+    // DYNAMIC_DRAW-семантика фолбэка), пересборка Float32Array с
+    // данными и шум brightness() убраны (нагрузка из 000176).
     const range = G.visibleTileRange(cam.x, cam.y, canvas.width, canvas.height, zoom);
     for (let ty = range.y0; ty <= range.y1; ty++) {
       for (let tx = range.x0; tx <= range.x1; tx++) {
         const t = tileCache.tile(tx, ty);
         frameTiles.push(t); // {x, y, terrain, passable, hasBuilding, building, hasMobGroup, mobGroup}
-        const base = TILE_COLORS[t.terrain];
-        // Небольшое вариативное освещение, чтобы тайлы не были «кляксами».
-        const b = map.brightness(tx, ty);
-        const c = [base[0] + b * 0.05, base[1] + b * 0.05, base[2] + b * 0.05];
-        pushQuad(verts, tx, ty, tx + 1, ty + 1, c);
+        if (!tileFrameImg(t, now)) {
+          const base = TILE_COLORS[t.terrain];
+          // Небольшое вариативное освещение, чтобы тайлы не были
+          // «кляксами» (шум — только для рисуемых legacy-тайлов).
+          const b = map.brightness(tx, ty);
+          const c = [base[0] + b * 0.05, base[1] + b * 0.05, base[2] + b * 0.05];
+          pushQuad(verts, tx, ty, tx + 1, ty + 1, c);
+        }
 
         // Маркеры на тайле.
         if (t.hasBuilding) {
-          pushQuad(verts, tx + 0.30, ty + 0.30, tx + 0.70, ty + 0.70, BUILDING_COLOR);
+          // Якорь — из тайла (проход 2 собирает якоря так же:
+          // t.buildingAnchor): вход НЕ всегда якорь (3x3 школа/храм,
+          // 2x2/5x5/7x7 города — «вход» каталога смещён),
+          // buildingAt(вход) дало бы null — и маркер «пролил» бы
+          // под готовым спрайтом (000176).
+          const a = t.buildingAnchor;
+          const rec = a ? buildingRec(a[0], a[1]) : buildingRec(t.x, t.y);
+          const asset = rec ? buildingAsset(rec) : null;
+          const bimg = (spriteLoader && asset)
+            ? spriteLoader.image(asset) : null;
+          if (!bimg) {
+            pushQuad(verts, tx + 0.30, ty + 0.30, tx + 0.70, ty + 0.70, BUILDING_COLOR);
+          }
         } else if (t.hasMobGroup) {
-          pushQuad(verts, tx + 0.30, ty + 0.30, tx + 0.70, ty + 0.70, MOB_COLOR);
+          // Паритет groupVisible с проходом 3 (000122): поверженная
+          // группа скрыта В ОБОИХ слоях — после победы красного
+          // квадрата нет (фикс «прола», 000176).
+          const visible = !G.groupVisible
+            || G.groupVisible(defeatedAt, t.x, t.y);
+          if (visible && !mobFrameImg(t, now)) {
+            pushQuad(verts, tx + 0.30, ty + 0.30, tx + 0.70, ty + 0.70, MOB_COLOR);
+          }
         }
       }
     }
 
-    // Флогистон: светящийся ромб в ТЕКУЩЕЙ позиции (задача 000033).
+    // Флогистон: светящийся ромб в ТЕКУЩЕЙ позиции (задача 000033) —
+    // фолбэк, только пока кадр спрайта героя не готов (000176 XOR:
+    // герой в кадре ровно 1× — спрайт ИЛИ ромб).
     // rp — ДРОБНАЯ точка рендера (глейд prev→next), одна для обоих
     // слоёв; +0.5 — центр тайла.
-    const px = rp.x + 0.5, py = rp.y + 0.5, s = 0.28;
-    verts.push(
-      px, py - s, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
-      px + s, py, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
-      px, py + s, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
-      px, py - s, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
-      px + s, py, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
-      px - s, py, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
-    );
+    if (!heroFrameImg(now)) {
+      const px = rp.x + 0.5, py = rp.y + 0.5, s = 0.28;
+      verts.push(
+        px, py - s, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
+        px + s, py, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
+        px, py + s, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
+        px, py - s, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
+        px + s, py, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
+        px - s, py, PLAYER_COLOR[0], PLAYER_COLOR[1], PLAYER_COLOR[2], 1,
+      );
+    }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.DYNAMIC_DRAW);
@@ -2311,8 +2451,10 @@
   // (WebGL-матрица G.orthoMatrix рисует то же) — y растёт ВНИЗ,
   // южный тайл НИЖЕ центра экрана (до фикса спрайт-слой зеркалил ось
   // y, и «вниз» двигало вверх).
-  // Если ни один ассет не загрузился — выходим без рисования,
-  // под слоем остаются цветные тайлы/маркеры WebGL (фолбэк).
+  // Фолбэк ПОЭЛЕМЕНТНЫЙ (000176): элемент без готового кадра спрайта
+  // рисует свою legacy-фигуру WebGL-подложка (гейт — buildFrame, те же
+  // селекторы готовности); ни один ассет не загрузился — выходим без
+  // рисования, под слоем полная цветная сцена (контракт 000011).
   function drawSprites(now, rp) {
     if (!s2 || !spriteLoader) return;
     const w = spriteCanvas.width, h = spriteCanvas.height;
@@ -2342,33 +2484,8 @@
     // мир одним проходом, постройки — отдельным (один раз на якорь),
     // мобы — третьим.
     //
-    // Запись постройки по якорю (source of truth — та, что раскладывала
-    // её в мире, ОДИН источник геометрии). typeof-гард: устаревший
-    // map.js без buildingAt — фолбэк-скан прямоугольника вправо/вниз по
-    // tileCache, НО с ПРОВЕРКОЙ РАВЕНСТВА buildingAnchor (одного
-    // inBuilding мало: чужая соседняя постройка зальёт скан и даст
-    // ложные 2x1/1x2). Якоря нет — 1x1.
-    function buildingRec(ax, ay) {
-      if (map && typeof map.buildingAt === 'function') {
-        return map.buildingAt(ax, ay);
-      }
-      const t0 = tileCache.tile(ax, ay);
-      if (!t0.inBuilding) return null;
-      const same = (t) => t.inBuilding && t.buildingAnchor &&
-        t.buildingAnchor[0] === ax && t.buildingAnchor[1] === ay;
-      let w = 1, hgt = 1;
-      // Окно фолбэк-скана — по текущему максимуму footprint'а
-      // (000055: константы стали функциями buildMaxW()/buildMaxH();
-      // города — до 7×7, 000103). memory/000042: `undefined || 3`
-      // совпадало случайно — правка обязательна.
-      while (w < (G.buildMaxW ? G.buildMaxW() : (G.BUILD_MAX_W || 3))
-           && same(tileCache.tile(ax + w, ay))) w++;
-      while (hgt < (G.buildMaxH ? G.buildMaxH() : (G.BUILD_MAX_H || 3))
-           && same(tileCache.tile(ax, ay + hgt))) hgt++;
-      return { anchor: [ax, ay], type: t0.building,
-               x: ax, y: ay, w, h: hgt,
-               entrance: [ax, ay], wealth: 0 };
-    }
+    // Запись постройки по якорю — buildingRec (IIFE-уровень, 000176):
+    // source of truth и фолбэк-скан — см. там.
 
     // Проход 1: текстура тайла (вода/глубокая вода — кадр анимации по
     // чистому селектору frameIndex) + декорации (задача 000039).
@@ -2381,12 +2498,11 @@
     for (const t of frameTiles) {
       const p = toPt(t.x, t.y);
       const sx = p.x, sy = p.y;
-      const frames = G.tileFrames(t.terrain);
-      if (frames.length) {
-        const idx = frames.length > 1 ? G.frameIndex(now, t.x, t.y, frames.length) : 0;
-        const img = spriteLoader.image(frames[idx]);
-        if (img) s2.drawImage(img, sx, sy, zoom, zoom);
-      }
+      // 000176: селектор кадра — общий с гейтом legacy-тайла
+      // (buildFrame); не загрузившийся кадр — null, элемент
+      // рисуется фолбэком там.
+      const img = tileFrameImg(t, now);
+      if (img) s2.drawImage(img, sx, sy, zoom, zoom);
       if (showVisuals && !(t.inBuilding && !t.isEntrance)) {
         for (const e of G.tileVisuals(t.x, t.y, t.terrain)) {
           if (!spriteLoader.isReady(e.sprite)) continue;
@@ -2415,22 +2531,11 @@
       const ay = Number(key.slice(sep + 1));
       const rec = buildingRec(ax, ay);
       if (!rec) continue;
-      // Спрайт: слотовая ветка — первична (побайтово как раньше).
-      // Город (задача 000110) — НЕ слот: у него type = NONE
-      // (buildingSprite → null), спрайт — по каталожному buildingId
-      // (CITY_SPRITES, канал 000103). Лагерь (задача 000131) — тоже
-      // НЕ слот (type = NONE, buildingId 47, канал 000131): городская
-      // ветка его не наденет (citySprite(47) → null, таблица 51..54),
-      // спрайт — CAMP_SPRITES. typeof-гард: старый sprites.js без
-      // citySprite/campSprite — город/лагерь не рисуются (тихая
-      // деградация, игра не падает); слотовые якоря 8..12 в
-      // деградации городским/лагерным спрайтом не наденут
-      // (citySprite/campSprite(подтип) → null).
-      const asset = G.buildingSprite(rec.type) ||
-        (rec.buildingId != null && typeof G.citySprite === 'function'
-         ? G.citySprite(rec.buildingId) : null) ||
-        (rec.buildingId != null && typeof G.campSprite === 'function'
-         ? G.campSprite(rec.buildingId) : null);
+      // Спрайт: слотовая ветка — первична, город/лагерь — по
+      // каталожному buildingId (000176: выражение вынесено в
+      // buildingAsset — ОБЩИЙ селектор с гейтом legacy-маркера в
+      // buildFrame; семантика веток — там).
+      const asset = buildingAsset(rec);
       const img = spriteLoader.image(asset);
       if (!img) continue;
       const p = toPt(rec.x, rec.y);
@@ -2478,33 +2583,23 @@
       if (G.groupVisible && !G.groupVisible(defeatedAt, t.x, t.y)) continue;
       const p = toPt(t.x, t.y);
       const sx = p.x, sy = p.y;
-      const mf = G.mobFrames(t.mobGroup);
-      const idx = mf.length > 1 ? G.frameIndex(now, t.x, t.y, mf.length) : 0;
-      const m = mf.length ? spriteLoader.image(mf[idx]) : null;
+      // 000176: селектор кадра — общий с гейтом legacy-маркера
+      // (buildFrame): groupVisible-паритет — в обоих местах.
+      const m = mobFrameImg(t, now);
       if (m) s2.drawImage(m, sx - zoom * 0.1, sy - zoom * 0.15, zoom * 1.2, zoom * 1.2);
     }
 
-    // Флогистон: idle/walk по движению, attack/cast — отладочная animAction.
-    // Окно walk/idle (задача 000063) — через G.walkWindowMs от интервала
-    // шага (motion.js), а не фикс 260 мс: фикс подобран под старый
-    // интервал 140 мс и при базовых 420 мс давал замирание 160 мс в
-    // idle за цикл — рваную ходьбу. Без walkWindowMs — старое окно 260.
-    const action = now < animUntil ? animAction
-      : (now - lastStepAt < (G.walkWindowMs
-        ? G.walkWindowMs(stepIntervalMs())
-        : 260) ? 'walk' : 'idle');
-    const pf = G.phlogistonFrames(action);
-    if (pf.length) {
-      const idx = pf.length > 1 ? (Math.floor(now / 240) % pf.length) : 0;
-      const pi = spriteLoader.image(pf[idx]);
-      if (pi) {
-        const size = zoom * 1.15;
-        // Та же ДРОБНАЯ точка, что и WebGL-ромб (задача 000033):
-        // фолбэк-слой и спрайт не должны расходиться.
-        const pp = toPt(rp.x + 0.5, rp.y + 0.5);
-        const px = pp.x, py = pp.y;
-        s2.drawImage(pi, px - size / 2, py - size / 2, size, size);
-      }
+    // Флогистон: idle/walk по движению, attack/cast — отладочная
+    // animAction (000176: выбор кадра — heroFrameImg, ОБЩИЙ селектор с
+    // гейтом legacy-ромба в buildFrame — герой в кадре ровно 1×, XOR).
+    const pi = heroFrameImg(now);
+    if (pi) {
+      const size = zoom * 1.15;
+      // Та же ДРОБНАЯ точка, что и WebGL-ромб (задача 000033):
+      // фолбэк-слой и спрайт не должны расходиться.
+      const pp = toPt(rp.x + 0.5, rp.y + 0.5);
+      const px = pp.x, py = pp.y;
+      s2.drawImage(pi, px - size / 2, py - size / 2, size, size);
     }
   }
 
@@ -2609,7 +2704,10 @@
       G.orthoMatrix
         ? G.orthoMatrix(zoom, cam.x, cam.y, canvas.width, canvas.height)
         : legacyOrtho(zoom, cam.x, cam.y, canvas.width, canvas.height));
-    const verts = buildFrame(rp);
+    // 000176: `now` — тот же кадр, что и у drawSprites: гейт legacy-
+    // вершин и проходы спрайтов видят одну и ту же готовность
+    // (XOR-контракт; ready-состояние — 0 вершин).
+    const verts = buildFrame(rp, now);
     gl.drawArrays(gl.TRIANGLES, 0, verts.length / 6);
 
     // Слой спрайтов поверх тайлов (пустой, пока ассеты не загрузились).
