@@ -1427,8 +1427,14 @@ function scene84(opts = {}) {
     cancelAnimationFrame: rafStubs.cancelAnimationFrame,
   });
   const requested = [];
+  // 000171: hero знает «Воскрешение» (кнопка в панели — гейт
+  // canResurrect) — ДО startCombat (build() идёт в нём). Аддитивная
+  // опция: существующие вызовы не передают → дефолтный герой бит-в-бит
+  // (паттерн 000168 withSpells).
+  const hero = G.createCharacter();
+  if (opts.resurrect) hero.spells = ['resurrect'];
   const c = G.combatUI.startCombat({
-    hero: G.createCharacter(),
+    hero,
     mobs: opts.mobs || ['wolf'], mobLevel: 1, seed: 42,
     ...(opts.efir ? { efir: G.efir.createEfir() } : {}),
     ...(opts.loader
@@ -2764,7 +2770,10 @@ const ALLY_UNDERLAY166 = 'rgba(140, 242, 252, 0.25)'; // 000084: ALLY_MARKER_UND
 function scene166(opts = {}) {
   const { resurrect = true, deadAllies = 0, deadPlayer = false } = opts;
   const rafStubs = makeRafStubs();
-  const { G, keydown, body } = loadCombatUi(true, {
+  // 000171: buttons — ВСЕ кнопки песочницы (стаб пушит каждый
+  // createElement('button')); аддитивный return — существующие вызовы
+  // поле не читают (бит-в-байт).
+  const { G, keydown, body, buttons } = loadCombatUi(true, {
     withSpells: true,
     performance: { now: () => NOW166 },
     requestAnimationFrame: rafStubs.requestAnimationFrame,
@@ -2782,8 +2791,17 @@ function scene166(opts = {}) {
   for (let i = 0; i < deadAllies; i++)
     G.combatInternals.dealDamageToAlly(c, allies[i], 9999);
   if (deadPlayer) { c.player.alive = false; c.player.hp = 0; }
+  // 000171 (техническое аддитивное расширение): после симуляции смерти
+  // — один tick rAF-цикла (в браузере кадр-цикл отрендерил бы новое
+  // состояние: гашение кнопок/HUD — из ТЕКУЩЕГО состояния боя, а не
+  // из startCombat). Существующие CU166-тесты не задеты: дельты
+  // tickSlice / собственные рендеры (render идемпотентен, состояние
+  // боя для render read-only); сцена без мутаций ({}) — бит-в-байт.
+  if (deadAllies || deadPlayer) {
+    rafStubs.scheduled[rafStubs.scheduled.length - 1]();
+  }
   return { G, c, canvas: findCanvas(body), body, keydown, rafStubs,
-    hero, ally: allies[0] || null,
+    hero, ally: allies[0] || null, buttons,
     wolf: c.units.find((u) => u.side === 'mob') };
 }
 
@@ -3800,4 +3818,281 @@ test('боевой UI: 000174-R8 — два моба разной скорост
   pinWolf(3, 4.5, 'T=700: глейд волка от (3,4): середина (3,4.5)');
   assert.equal(rafStubs.scheduled.length, 3,
     'startCombat + 2 тика = 3 scheduled (новых циклов нет)');
+});
+
+// --- Задача 000171: кнопка «Воскрешение» в панели действий (клик/тач).
+// Контракты: memory/000171-combat-resurrect-button.md (кнопка/гашение/
+// автоцель/каст), memory/000171-touch-buttons.md (общий принцип ТЗ:
+// каждое действие UI — видимый элемент, нажимаемый мышкой или тачем).
+//
+// КРАСНЫЕ (кнопки ещё нет — build() строит ТОЛЬКО 7 табличных кнопок из
+// COMBAT_KEYS): CU171-BTN, CU171-CAST, CU171-AUTO, CU171-OFF. Падения —
+// осмысленные (assert.ok(b): кнопки с dataset.act=resurrect не
+// существует), не крахи: цепочка index.html в песочнице грузится без
+// изменений (файлов нет, существующие не тронуты).
+// ЗЕЛЁНЫЙ guard: CU171-GATE — гейт canResurrect (дефолтный герой без
+// 'resurrect' — кнопки нет; защита пинов «7 штук»/000124/000168-UI-2).
+//
+// Сцены — scene166 (hero.mp=50, hero.spells=['resurrect'], Вольк, волк,
+// NOW166, withSpells, rAF-стабы). Кнопка — S.buttons.find(dataset.act
+// === 'resurrect') (стаб пушит каждый createElement('button')); клик —
+// b.listeners.click[0]() (стаб-клик работает и на disabled — пин
+// предпроверки: стаб-клик/смена состояния → отказ в журнал, каста нет).
+//
+// ПОСЛЕ ОБЯЗАТЕЛЬНОГО РЕБЕЙЗА (000168) в этот же блок добавляются
+// CU171-ALLY/CU171-EFIR (ходы наёмника/Эфира: disabled «недоступно
+// активному персонажу», стаб-клик — без каста/трат): их состояния
+// (activeUnitId, phase 'player' на ходу союзника) существуют ТОЛЬКО
+// после 000168 — до ребейза писать нельзя (были бы красными «не по
+// причине»).
+
+test('боевой UI: 000171 — кнопка «Воскрешение» в .combat-actions: иконка/aria-label/без подписи, активна при мёртвом союзнике БЕЗ тапа по клетке (CU171-BTN)', () => {
+  const S = scene166({ deadAllies: 1 });
+  const { c, ally, wolf } = S;
+  assert.ok(!ally.alive && ally.hp === 0, 'фикстура: союзник мёртв');
+  const b = S.buttons.find((x) => x.dataset.act === 'resurrect');
+  assert.ok(b, 'кнопка «Воскрешение» существует (dataset.act=resurrect)');
+  const actions = findByClass(S.body, 'combat-actions');
+  assert.ok(actions.children.includes(b), 'кнопка — в панели .combat-actions');
+  assert.equal(b.ariaLabel, 'Воскрешение', 'aria-label — имя действия');
+  assert.equal(b.textContent, '', 'текстовой подписи нет (000124)');
+  assert.equal(b.children.length, 1, 'ровно ОДИН дочерний элемент');
+  const img = b.children[0];
+  assert.equal(img.tagName, 'img', 'иконка — <img>');
+  assert.equal(img.src, 'assets/spell-icons/resurrect.svg',
+    'иконка 000017 (та же, что в строке книги; НОВЫХ ассетов нет)');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/spell-icons/resurrect.svg')),
+    'файл иконки существует в каталоге');
+  assert.equal(img.alt, '', 'alt="" (иконка презентационная)');
+  assert.equal(c.targetId, wolf.id,
+    'цель НЕ тапалась (авто-цель начала хода — волк)');
+  assert.equal(b.disabled, false,
+    'мёртвый союзник = автоцель: кнопка активна БЕЗ тапа по клетке');
+});
+
+test('боевой UI: 000171 — тап кнопки «Воскрешение» с выбранным мёртвым союзником: один тап = воскрешение, ход не сгорел, 0 новых c._rng (CU171-CAST)', () => {
+  const S = scene166({ deadAllies: 1 });
+  const { c, ally, wolf } = S;
+  assert.ok(!ally.alive, 'фикстура: союзник мёртв');
+  // 1. Выбор цели — клик по клетке мёртвого союзника (000166; кнопка
+  // работает и без него — CU171-AUTO).
+  S.canvas.listeners.click[0]({
+    clientX: (ally.x + 0.5) * 48, clientY: (ally.y + 0.5) * 48,
+  });
+  assert.equal(c.targetId, ally.id, 'клик — мёртвый союзник выбран');
+  // 2. Состояние ПЕРЕД кастом (D11: «до-значения»).
+  const mp0 = c.player.mp;
+  const wis0 = c.ps.spellWis;
+  const round0 = c.round;
+  assert.equal(c.phase, 'player', 'ход игрока');
+  const realRng = c._rng;
+  let rngCalls = 0;
+  c._rng = () => (rngCalls++, realRng());
+  // 3. Тап кнопки (мобильный путь: книга НЕ открывается).
+  const b = S.buttons.find((x) => x.dataset.act === 'resurrect');
+  assert.ok(b, 'кнопка «Воскрешение» существует');
+  b.listeners.click[0]();
+  // 4. Результат ОДНОГО тапа.
+  assert.equal(ally.alive, true, 'союзник возвращён в бой');
+  assert.equal(ally.hp, Math.round(ally.maxHP / 2),
+    'hp = round(maxHP/2) (формула 000163, не хардкод)');
+  assert.equal(c.player.mp, mp0 - 15, 'мана −15');
+  assert.equal(c.ps.spellWis, wis0 - 1, 'пул «Заклинание» (Мудрость) −1');
+  assert.ok(c.log.some((s) => s === 'Возвращён в бой.'),
+    'лог «Возвращён в бой.»');
+  assert.equal(c._fx && c._fx.action, 'cast', 'c._fx — cast (паттерн castRow)');
+  assert.ok(c._fx && c._fx.until > NOW166, 'c._fx.until > now');
+  assert.equal(c.phase, 'player', 'ход НЕ сгорел (каст ≠ endTurn)');
+  assert.equal(c.round, round0, 'раунд не сдвинулся');
+  assert.equal(rngCalls, 0,
+    'новых вызовов c._rng — ноль (воскрешение без RNG, 000163)');
+});
+
+test('боевой UI: 000171 — АВТО-ЦЕЛЬ (мобильный кейс): цель не выбрана (c.targetId — волк), ОДИН тап — первый мёртвый союзник; саб: мёртвый игрок приоритетно (CU171-AUTO)', () => {
+  // (a) Игрок НЕ тапал клетку канваса (не обнаруживаемый трюк 000166):
+  // кнопка сама берёт валидную мёртвую цель (resurrectTargetId → null →
+  // авто-правило ядра 000163 R-1/R-2).
+  const S = scene166({ deadAllies: 1 });
+  const { c, ally, wolf } = S;
+  assert.ok(!ally.alive, 'фикстура: союзник мёртв');
+  assert.equal(c.targetId, wolf.id,
+    'цель не тапалась: волк (авто-цель начала хода)');
+  const mp0 = c.player.mp;
+  const b = S.buttons.find((x) => x.dataset.act === 'resurrect');
+  assert.ok(b, 'кнопка «Воскрешение» существует');
+  b.listeners.click[0]();
+  assert.equal(ally.alive, true, 'один тап — союзник воскрешён (автоцель)');
+  assert.equal(ally.hp, Math.round(ally.maxHP / 2), 'hp = round(maxHP/2)');
+  assert.equal(c.player.mp, mp0 - 15, 'мана −15');
+  assert.ok(c.log.some((s) => s === 'Возвращён в бой.'),
+    'лог «Возвращён в бой.»');
+  // (b) Саб: мёртвый ИГРОК — приоритет автоцели (000163 R-1): воскрешён
+  // игрок, союзник остался мёртв.
+  const S2 = scene166({ deadAllies: 1, deadPlayer: true });
+  const { G: G2, c: c2, ally: ally2 } = S2;
+  assert.ok(!c2.player.alive && !ally2.alive,
+    'фикстура: мертвы и игрок, и союзник');
+  const mp1 = c2.player.mp;
+  const b2 = S2.buttons.find((x) => x.dataset.act === 'resurrect');
+  assert.ok(b2, 'кнопка существует (есть мёртвые: игрок и союзник)');
+  b2.listeners.click[0]();
+  assert.equal(c2.player.alive, true, 'авто: игрок воскрешён (приоритет)');
+  assert.equal(c2.player.hp, Math.round(G2.derived(c2.player).maxHP / 2),
+    'игрок — 50% derived maxHP');
+  assert.equal(ally2.alive, false, 'союзник мёртв (авто взяла игрока)');
+  assert.equal(c2.player.mp, mp1 - 15, 'мана −15');
+  assert.ok(!c2.result, 'c.result не появился');
+});
+
+test('боевой UI: 000171 — гейты кнопки «Воскрешение»: disabled + title ДОСЛОВНО; стаб-клик — причина в журнал, трат нет, мёртвые остаются мёртвы (CU171-OFF)', () => {
+  const cases = [
+    // (a) мёртвых нет → «нет цели» (сцена без deadAllies — единственный
+    // кейс, где отсутствие цели — единственная причина).
+    { opts: {}, title: 'нет цели' },
+    // (b) мёртвый союзник ЕСТЬ, маны нет → «не хватает маны (15)».
+    { opts: { deadAllies: 1 }, title: 'не хватает маны (15)',
+      mut: (S) => { S.c.player.mp = 0; } },
+    // (c) пул Мудрости 0 → существующая формулировка evalSpell.
+    { opts: { deadAllies: 1 },
+      title: 'действий «Заклинание» (Мудрость) больше нет',
+      mut: (S) => { S.c.ps.spellWis = 0; } },
+    // (d) не ход игрока → «не ваш ход» (порядок гейтов: ПЕРЕД целью).
+    { opts: { deadAllies: 1 }, title: 'не ваш ход',
+      mut: (S) => { S.c.phase = 'mob'; } },
+    // (e) бой закончен → «бой закончен» (порядок гейтов: ПЕРВЫЙ).
+    { opts: { deadAllies: 1 }, title: 'бой закончен',
+      mut: (S) => { S.c.result = { outcome: 'victory', xp: 0, gold: 0 }; } },
+  ];
+  for (const { opts, title, mut } of cases) {
+    const S = scene166(opts);
+    const { c, ally } = S;
+    if (mut) mut(S);
+    tickSlice(S.canvas, S.rafStubs);
+    // (ре-рендер: состояние кнопки — из нового состояния боя)
+    const b = S.buttons.find((x) => x.dataset.act === 'resurrect');
+    assert.ok(b, 'кнопка «Воскрешение» существует: ' + title);
+    assert.equal(b.disabled, true, 'disabled: ' + title);
+    assert.equal(b.title, title, 'title — причина ДОСЛОВНО: ' + title);
+    const mp0 = c.player.mp, wis0 = c.ps.spellWis, n0 = c.log.length;
+    b.listeners.click[0](); // стаб-клик: работает и на disabled
+    const added = Array.from(c.log).slice(n0);
+    assert.deepEqual(added, [title],
+      'ровно ОДНА строка — причина в журнал: ' + JSON.stringify(added));
+    assert.equal(c.player.mp, mp0, 'мана не потрачена: ' + title);
+    assert.equal(c.ps.spellWis, wis0, 'пул не потрачен: ' + title);
+    const wasAlive = !!ally.alive;
+    assert.equal(ally.alive, wasAlive, 'мёртвые остаются мёртвы: ' + title);
+  }
+});
+
+test('боевой UI: 000171 — гейт canResurrect: дефолтный герой (без «Воскрешения») — кнопки НЕТ, панель 7 кнопок (CU171-GATE)', () => {
+  // Зелёный guard: кнопка создаётся ТОЛЬКО под гейтом canResurrect
+  // (носитель знает 'resurrect'); дефолтный герой (sheet.js:
+  // ['spark','mend']) — панели бит-в-байт: пины «7 штук»/000124/
+  // 000168-UI-2 остаются зелёными БЕЗ ре-пина (спящий пин, паттерн
+  // 000166).
+  const S = scene166({ resurrect: false, deadAllies: 1 });
+  const { c, ally } = S;
+  assert.ok(!c.player.spells.includes('resurrect'),
+    'герой НЕ знает «Воскрешение» (дефолт)');
+  assert.ok(!ally.alive,
+    'фикстура: союзник мёртв (гейт — знание, а не «мёртвых нет»)');
+  assert.equal(S.buttons.length, 7,
+    'панель — 7 кнопок (кнопки «Воскрешение» нет)');
+  assert.ok(!S.buttons.some((x) => x.dataset.act === 'resurrect'),
+    'dataset.act=resurrect отсутствует');
+});
+
+// --- Задача 000171 (ДОБАВЛЕНО ПОСЛЕ РЕБЕЙЗА НА 000168): ходы
+// СОЮЗНИКОВ. Контракт — memory/000171-combat-resurrect-button.md
+// §3.2/§3.4 (гейт 3 + предпроверка): с 000168 на ходу СОЮЗНИКА
+// c.phase === 'player' — checkTurn evalSpell его от хода игрока НЕ
+// отличает; без гейта activeUnitId клик кнопки кастовал 'resurrect'
+// ИГРОКА за ману/пул игрока (000163: castSpell тратит c.ps/p.mp).
+// Пин: на ходах союзников кнопка disabled с дословной строкой 000168
+// «недоступно активному персонажу», стаб-клик — отказ в лог,
+// каста/трат НЕТ (от имени игрока НЕ кастуется).
+// Фикстура — scene84 + аддитивная опция opts.resurrect (hero знает
+// 'resurrect' ДО startCombat); addMerc84 (a1) + ручной makeAlly idx 2
+// (a2): МЁРТВЫЙ a1 = автоцель (кнопка активна на ходу игрока),
+// ЖИВОЙ a2 = стоп очереди (advanceQueue мёртвый слот ПРОПУСКАЕТ —
+// «серый слот», 000167/000168 — единственный merc мёртвым до Space
+// не остановил бы очередь).
+
+test('боевой UI: 000171 — ход НАЁМНИКА: кнопка «Воскрешение» disabled «недоступно активному персонажу»; стаб-клик — без каста/трат от имени игрока (CU171-ALLY)', () => {
+  // (000168-UI-2(a)-паттерн: очередь [m0, player, a1, a2]; pre-roll —
+  // волк (m0) ДО игрока; Space — конец хода игрока → a1 (мёртв)
+  // пропущен, стоп на ЖИВОМ a2 — activeUnitId 'a2'.)
+  // spells: true — каталог/движок заклинаний в цепочке (withSpells
+  // 000149/000168): без G.Spells кнопка гасла бы «Заклинания
+  // недоступны» (деградация) — а не по гейтам 000171.
+  const S = scene84({ resurrect: true, spells: true });
+  const a1 = addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+  const a2 = S.G.makeAlly({ name: 'Гарик', role: 'melee', level: 2,
+    dmg: 1, hp: 1 }, 2);
+  a2.x = 4; a2.y = 5;
+  S.c.units.push(a2);
+  S.c.turnOrder.push(a2.id);
+  S.G.combatInternals.dealDamageToAlly(S.c, a1, 9999); // мёртвый = автоцель
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.G.activeUnitId(S.c), 'player', 'ход игрока');
+  const byAct = {};
+  for (const b of S.body.querySelectorAll('.combat-actions button'))
+    byAct[b.dataset.act] = b;
+  assert.ok(byAct.resurrect, 'кнопка «Воскрешение» существует (hero знает)');
+  assert.equal(byAct.resurrect.disabled, false,
+    'на ходу ИГРОКА с мёртвым союзником — активна (автоцель a1)');
+  // Конец хода игрока → очередь остановилась на живом наёмнике a2.
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.G.activeUnitId(S.c), 'a2',
+    'активен наёмник a2 (a1 мёртв — серый слот пропущен)');
+  assert.equal(byAct.resurrect.disabled, true,
+    'на ходу НАЁМНИКА — disabled (гейт activeUnitId)');
+  assert.equal(byAct.resurrect.title, 'недоступно активному персонажу',
+    'title дословно (строка 000168 allyCanDo)');
+  // Стаб-клик (работает и на disabled): ПИН ПРЕДПРОВЕРКИ — без гейта 3
+  // каст прошёл бы checkTurn (phase 'player' на ходу союзника) и
+  // воскресил a1 ЗА МАНУ/ПУЛ ИГРОКА.
+  const mp0 = S.c.player.mp, wis0 = S.c.ps.spellWis, n0 = S.c.log.length;
+  byAct.resurrect.listeners.click[0]();
+  const added = Array.from(S.c.log).slice(n0);
+  assert.deepEqual(added, ['недоступно активному персонажу'],
+    'отказ в лог (ровно ОДНА строка): ' + JSON.stringify(added));
+  assert.equal(S.c.player.mp, mp0, 'мана игрока НЕ потрачена');
+  assert.equal(S.c.ps.spellWis, wis0, 'пул игрока НЕ потрачен');
+  assert.equal(a1.alive, false, 'мёртвый наёмник остался мёртв');
+  assert.ok(!S.c._fx || S.c._fx.action !== 'cast', 'cast-FX нет');
+  assert.equal(S.G.activeUnitId(S.c), 'a2', 'очередь не сдвинулась');
+});
+
+test('боевой UI: 000171 — ход ЭФИРА: кнопка «Воскрешение» disabled «недоступно активному персонажу»; стаб-клик — без трат (Эфир-носитель — не v1) (CU171-EFIR)', () => {
+  // (000168-UI-2(b)-паттерн: pre-roll остановился на слоте Эфира —
+  // activeUnitId 'efir' СРАЗУ после startCombat; волк (m0) ещё НЕ
+  // действовал. Мёртвый наёмник a1 — без гейта 3 кнопка была бы
+  // активна (phase 'player' + автоцель есть).)
+  const E = scene84({ efir: true, spells: true, resurrect: true });
+  const a1 = addMerc84(E.c, E.G, 3, 5, 'melee', 'Вольк');
+  E.G.combatInternals.dealDamageToAlly(E.c, a1, 9999); // мёртвый = автоцель
+  tickSlice(E.canvas, E.rafStubs);
+  assert.equal(E.G.activeUnitId(E.c), 'efir',
+    'активен Эфир (pre-roll стоп на его слоте)');
+  const byAct = {};
+  for (const b of E.body.querySelectorAll('.combat-actions button'))
+    byAct[b.dataset.act] = b;
+  assert.ok(byAct.resurrect, 'кнопка «Воскрешение» существует (hero знает)');
+  assert.equal(byAct.resurrect.disabled, true,
+    'на ходу Эфира — disabled (гейт activeUnitId)');
+  assert.equal(byAct.resurrect.title, 'недоступно активному персонажу',
+    'title дословно (строка 000168 allyCanDo)');
+  const mp0 = E.c.player.mp, wis0 = E.c.ps.spellWis, n0 = E.c.log.length;
+  byAct.resurrect.listeners.click[0]();
+  const added = Array.from(E.c.log).slice(n0);
+  assert.deepEqual(added, ['недоступно активному персонажу'],
+    'отказ в лог (ровно ОДНА строка): ' + JSON.stringify(added));
+  assert.equal(E.c.player.mp, mp0, 'мана игрока НЕ потрачена');
+  assert.equal(E.c.ps.spellWis, wis0, 'пул игрока НЕ потрачен');
+  assert.equal(a1.alive, false, 'мёртвый наёмник остался мёртв');
+  assert.ok(!E.c._fx || E.c._fx.action !== 'cast', 'cast-FX нет');
+  assert.equal(E.G.activeUnitId(E.c), 'efir', 'очередь не сдвинулась');
 });

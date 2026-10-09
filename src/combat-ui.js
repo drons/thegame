@@ -53,6 +53,15 @@
 // Строка «Воскрешение» в книге и каст — data-driven 000149 (0 строк).
 // Контракты — memory/000166-combat-resurrect-ui.md /
 // memory/000166-player-cast-ui.md.
+// «Воскрешение» (задача 000171): выделенная кнопка в панели действий
+// (.combat-actions, 8-я клетка) — мобильный путь БЕЗ книги (тап =
+// нативный click, как у 7 табличных кнопок; новых pointer-обработчиков
+// нет). ГЕЙТ canResurrect — кнопка создаётся только у носителя
+// 'resurrect'; гашение — спец-кейс resurrectChk в цикле render
+// (canDoAction ядро 'resurrect' не знает — «неизвестное действие»),
+// каст — resurrectCast (предпроверка + цель resurrectTargetId).
+// Контракты — memory/000171-combat-resurrect-button.md /
+// memory/000171-touch-buttons.md.
 
 (function () {
   'use strict';
@@ -291,6 +300,30 @@
         render();
       });
       actions.appendChild(b);
+    }
+    // «Воскрешение» (задача 000171): выделенная кнопка панели —
+    // мобильный путь БЕЗ книги (цепочка «книга → строка → клетка» на
+    // таче не discoverable). ГЕЙТ canResurrect (000166, бит-в-байт):
+    // создаётся ТОЛЬКО если носитель знает 'resurrect'; дефолтный
+    // герой (['spark','mend']) — панель 7 табличных кнопок бит-в-байт
+    // (пины «7 штук»/000124/000168-UI-2 — без ре-пина). Позиция —
+    // 8-я клетка сетки (CSS index.html: «8 кнопок = 2 ряда», grid
+    // 4×2); геометрия/:disabled — правила .combat-actions button.
+    // Тап = нативный click (как у 7 кнопок; pointerdown НЕ добавлять
+    // — двойное срабатывание). Гашение — спец-кейс resurrectChk
+    // (render): canDoAction 'resurrect' = «неизвестное действие» —
+    // вечный disabled с неверным title. Контракт —
+    // memory/000171-combat-resurrect-button.md.
+    if (canResurrect(c)) {
+      const rb = document.createElement('button');
+      const icon = document.createElement('img');
+      icon.src = 'assets/spell-icons/resurrect.svg';
+      icon.alt = '';
+      rb.appendChild(icon);
+      rb.ariaLabel = 'Воскрешение';
+      rb.dataset.act = 'resurrect';
+      rb.addEventListener('click', () => resurrectCast(c));
+      actions.appendChild(rb);
     }
     side.appendChild(actions);
 
@@ -1425,9 +1458,16 @@
     // (canDoAction, задача 000037); причина — в title (tooltip).
     // Кнопка «Книга заклинаний» (act=spellbook) — в том же цикле:
     // disabled/title из ветки canDoAction 'spellbook' (000149).
+    // Кнопка «Воскрешение» (act=resurrect, 000171) — спец-кейс:
+    // resurrectChk (canDoAction ядро 'resurrect' не знает — «неизвестное
+    // действие» — вечный disabled с неверным title); строки
+    // disabled/title ниже — без изменений (для resurrect гаснут через
+    // resurrectChk, прочие кнопки — бит-в-байт).
     if (overlay) {
       overlay.querySelectorAll('.combat-actions button').forEach((b) => {
-        const r = G.canDoAction(c, b.dataset.act, { targetId: c.targetId });
+        const r = b.dataset.act === 'resurrect'
+          ? resurrectChk(c)
+          : G.canDoAction(c, b.dataset.act, { targetId: c.targetId });
         b.disabled = c.phase !== 'player' || !!c.result || !r.ok;
         b.title = r.ok ? '' : r.reason;
       });
@@ -1586,6 +1626,80 @@
   function castRow(c, spellId) {
     const r = (G.Spells && typeof G.Spells.castSpell === 'function')
       ? G.Spells.castSpell(c, spellId, c.targetId)
+      : { ok: false, reason: 'Заклинания недоступны' };
+    if (r && r.ok) {
+      c._fx = { action: 'cast', until: nowMs() + FX_MS };
+      bookOpen = false;
+    } else {
+      logRejection(c, r);
+    }
+    render();
+  }
+
+  // --- «Воскрешение» — кнопка панели (задача 000171) ---
+  //
+  // Контракт — memory/000171-combat-resurrect-button.md: кнопка —
+  // единственный путь «один тап = воскрешение» (мобильный сценарий
+  // без книги/тапа по клетке). Вставка ПОСЛЕ castRow (не после
+  // canResurrect — там hunk 000168: rebase-конфликт).
+  // resurrectChk — поряДОК ПРОВЕРОК ФИКСИРОВАН (result → phase →
+  // activeUnitId → canCastSpell): перестановка 3/4 даст «недоступно
+  // активному персонажу» на ходу моба (неверный tooltip).
+  function resurrectChk(c) {
+    if (c.result) return { ok: false, reason: 'бой закончен' };
+    if (c.phase !== 'player') return { ok: false, reason: 'не ваш ход' };
+    // Гейт 3 (с 000168 на ходу СОЮЗНИКА c.phase === 'player'):
+    // каст 'resurrect' тратит ману/пул ИГРОКА (000163) — на ходу
+    // наёмника/Эфира кнопка гаснет (та же строка, что allyCanDo
+    // 000168). До 000168 — мёртвая ветка (activeUnitId === 'player'
+    // всегда на ходу игрока) → ноль изменения поведения. typeof-guard
+    // (экс-порт 000167, ДО combat-ui.js — пин index-order): фолбэк
+    // 'player' — поведение до 000167 (гейт не срабатывает).
+    const id = (typeof G.activeUnitId === 'function')
+      ? G.activeUnitId(c) : 'player';
+    if (id !== 'player') {
+      return { ok: false, reason: 'недоступно активному персонажу' };
+    }
+    // canCastSpell — ТО ЖЕ resurrectTargetId (не сырой c.targetId:
+    // начальная авто-цель хода — живой моб; иначе кнопка была бы
+    // disabled «нет цели» до тапа по клетке, хотя цель есть).
+    // G.Spells нет — строка-фолбэк rowChk (000149).
+    return (G.Spells && typeof G.Spells.canCastSpell === 'function')
+      ? G.Spells.canCastSpell(c, 'resurrect',
+          { targetId: resurrectTargetId(c) })
+      : { ok: false, reason: 'Заклинания недоступны' };
+  }
+
+  // Эффективная цель (000171): явный выбор 000166 (клик по клетке
+  // мёртвого СОЮЗНИКА) уважается; любая другая цель (живой моб —
+  // начальная авто-цель, чужой id) → null → автоцель ядра 000163
+  // R-1/R-2 (мёртвый ИГРОК приоритетно, иначе первый мёртвый союзник
+  // в порядке c.units; дальности нет).
+  function resurrectTargetId(c) {
+    const t = c.targetId;
+    if (!t) return null;
+    const u = c.units.find((x) => x.id === t);
+    return u && u.side === 'ally' && !u.alive && !u.fled ? t : null;
+  }
+
+  // Тап кнопки (000171): ЗЕРКАЛО castRow, НО (а) цель —
+  // resurrectTargetId (не сырой c.targetId — «нет цели» на одном
+  // тапе), (б) предпроверка ПЕРВОЙ строкой (стаб-клик/смена состояния
+  // между рендером и кликом → причина в журнал, КАСТА НЕТ, трат НЕТ —
+  // зеркало 'spellbook'-thunk runAction). Ход НЕ сгорает (каст ≠
+  // endTurn — паттерн книги 000149/000166). bookOpen=false — только
+  // при успехе (зеркало castRow; при отказе игрок видит причину).
+  // 0 новых c._rng (воскрешение без RNG, 000163), 0 новых полей c
+  // (c._fx/c.targetId — runtime-only; формат сейва не тронут).
+  function resurrectCast(c) {
+    const chk = resurrectChk(c);
+    if (!chk.ok) {
+      logRejection(c, chk);
+      render();
+      return;
+    }
+    const r = (G.Spells && typeof G.Spells.castSpell === 'function')
+      ? G.Spells.castSpell(c, 'resurrect', resurrectTargetId(c))
       : { ok: false, reason: 'Заклинания недоступны' };
     if (r && r.ok) {
       c._fx = { action: 'cast', until: nowMs() + FX_MS };
