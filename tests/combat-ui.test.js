@@ -38,6 +38,15 @@ function makeContext2d(el) {
   //    перебора «цвет, действовавший в момент вызова» (styledCalls).
   const styleCalls = el.styleCalls = [];
   const events = el.events = [];
+  // 000182 (CU182-LW) — ТЕХНИЧЕСКОЕ дополнение (все существующие
+  // журналы НЕ тронуты): lineWidthSets — журнал присвоений lineWidth
+  // [value, evIdx] (evIdx — индекс в events, где присвоение
+  // «происходит» = events.length в момент set; стиль действует на
+  // события с индексом ≥ evIdx). ОТДЕЛЬНЫЙ массив, НЕ в events/
+  // styleCalls: иначе styledCalls/hatchCallIdx175 сочли бы присвоение
+  // strokeStyle и ВСЕ z-порядок-пины (000050 lastGridStroke, H1/H6,
+  // R5-слайсы) сдвинулись бы.
+  const lineWidthSets = el.lineWidthSets = [];
   return new Proxy({}, {
     get: (t, k) => (k in t ? t[k] : (...args) => {
       calls.push([k, args]);
@@ -48,6 +57,9 @@ function makeContext2d(el) {
       if (k === 'fillStyle' || k === 'strokeStyle') {
         styleCalls.push([k, v]);
         events.push({ s: [k, v] });
+      }
+      if (k === 'lineWidth') {
+        lineWidthSets.push([v, events.length]);
       }
       return true;
     },
@@ -226,6 +238,13 @@ function loadCombatUi(withSprites = true, opts = {}) {
     vm.runInContext(src('combat-scale.js'), sandbox,
       { filename: 'combat-scale.js' });
   }
+  // 000182 (CU182-D10, ТОЛЬКО техническая опция): UMD-ловушка 000038 —
+  // combat-ui.js снимает Game ОДИН раз при загрузке (const G =
+  // globalThis.Game): «отсутствие» G.mobReachCells видно ему ТОЛЬКО
+  // при load-time удалении (до runInContext combat-ui.js); post-boot
+  // delete бесполезен (снапшот уже снят). Дефолт (опция не передана) —
+  // цепочка бит-в-бит.
+  if (opts.withoutMobReach) delete sandbox.Game.mobReachCells;
   vm.runInContext(src('combat-ui.js'), sandbox, { filename: 'combat-ui.js' });
   // 000174 (ТОЛЬКО техническая проводка, зеркало index.html 1035/1039):
   // motion.js — ПОСЛЕ combat-ui.js (UMD-ловушка 000038: combat-ui.js
@@ -235,7 +254,14 @@ function loadCombatUi(withSprites = true, opts = {}) {
   // цепочки tests/dungeon-ui.test.js: motion.js в конце, порядок
   // index.html). Аудит фиксаторов: ни один существующий тест не зависит
   // от отсутствия Game.motion в песочнице.
-  vm.runInContext(src('motion.js'), sandbox, { filename: 'motion.js' });
+  // 000182 (CU182-NOMOTION, ТОЛЬКО техническая опция): пропуск
+  // motion.js — песочница без ленивого модуля: liveGame() его не
+  // найдёт → оба фолбэка combat-ui.js (mobAnchor — модельный тайл
+  // self-clean; startMoveAnims — from = beforePos). Дефолт (опция не
+  // передана) — цепочка бит-в-бит.
+  if (!opts.withoutMotion) {
+    vm.runInContext(src('motion.js'), sandbox, { filename: 'motion.js' });
+  }
   return { G: sandbox.Game, keydown, buttons, body: document.body,
     winListeners };
 }
@@ -970,9 +996,14 @@ test('боевой UI: endTurn — _unitFx: сдвинулся = move, атак�
 
 // --- Слой препятствий (задача 000050) ---
 //
-// z-порядок: фон → сетка (stroke) → препятствия → юниты → эффекты.
-// Сетка — единственные g2.stroke() в render (подсветка цели —
-// strokeRect), поэтому «последний stroke сетки» — последний 'stroke'.
+// z-порядок: фон → сетка (stroke) → [штриховка 000175] → препятствия
+// → юниты → эффекты. «Последний stroke сетки» — последний 'stroke'
+// СЕТИ (grid-секция: lineWidth L1368, strokes L1373/L1379); с 000175
+// после сетки идут ДОПОЛНИТЕЛЬНЫЕ 'stroke' — штрихи штриховки зоны
+// досягаемости выбранного моба (рисуется МЕЖДУ сеткой и
+// препятствиями) → общий последний 'stroke' сцены может быть
+// штрихом штриховки. Пин iObs > lastGridStroke валиден без правок:
+// штриховка идёт ДО препятствий.
 // Картинка — из spriteLoader КАЖДЫЙ render (паттерн фона 000049);
 // без лоадера/ассетов — фолбэк-квадрат fillRect(CELL-6) (42×42).
 // Спрайт — G.obstacleSprite(x, y) (sprites.js ДО combat-ui.js —
@@ -2768,13 +2799,18 @@ const ALLY_UNDERLAY166 = 'rgba(140, 242, 252, 0.25)'; // 000084: ALLY_MARKER_UND
 // dealDamageToAlly(c, u, 9999) (alive=false, hp=0, юнит остаётся в
 // c.units, лог «… пал в бою!»); deadPlayer — R-8 (c.result НЕ возникает).
 function scene166(opts = {}) {
-  const { resurrect = true, deadAllies = 0, deadPlayer = false } = opts;
+  // 000182 (CU182-NOSP): spells (по умолчанию true — бит-в-байт) —
+  // withSpells-опция loadCombatUi: scene166({spells:false}) — песочница
+  // БЕЗ G.Spells/G.SpellsData (спелл-движок не загружен — битый
+  // порядок), spellbook.js при этом на месте (G.SpellBook есть).
+  const { resurrect = true, deadAllies = 0, deadPlayer = false,
+    spells = true } = opts;
   const rafStubs = makeRafStubs();
   // 000171: buttons — ВСЕ кнопки песочницы (стаб пушит каждый
   // createElement('button')); аддитивный return — существующие вызовы
   // поле не читают (бит-в-байт).
   const { G, keydown, body, buttons } = loadCombatUi(true, {
-    withSpells: true,
+    withSpells: spells,
     performance: { now: () => NOW166 },
     requestAnimationFrame: rafStubs.requestAnimationFrame,
     cancelAnimationFrame: rafStubs.cancelAnimationFrame,
@@ -4303,7 +4339,8 @@ test('боевой UI: 000179 — книга на ходу ЭФИРА: стро�
 test('боевой UI: 000180 — stateEl: строка активного Эфира «Эфир: HP 16/16  |  Мана: 11  |  Шаги: 3  |  Касание: 1» (Д10 000168) побайтово + fallback без c.efs «Шаги: 0  |  Касание: 0» (CU180-EFIR-ROW)', () => {
   // 000168-UI-2(b)-паттерн: scene84({efir:true, spells:true}) —
   // pre-roll остановился на слоте Эфира СРАЗУ после startCombat
-  // (инициатива Эфира 6 > волк 3 > игрок 2); волк (m0) ещё НЕ
+  // (инициатива Эфира 4 — dexterity 1 + intelligence 3,
+  // EFIR_START_PRIMARY — > волк 3 > игрок 2); волк (m0) ещё НЕ
   // действовал; игрок полный → «Вдох Эфира» НЕ срабатывает
   // (frac 1.0 > 0.4) — L1-значения нетронуты.
   const S = scene84({ efir: true, spells: true });
@@ -4400,6 +4437,12 @@ function scene178(opts = {}) {
   });
   const requested = [];
   const hero = G.createCharacter();
+  // 000182 (CU182-ORDER): hero знает «Воскрешение» → кнопка resurrect
+  // в панели (гейт canResurrect — чистое чтение у.spells). Паттерн
+  // scene84 (assignment, не push: hero — свежий createCharacter,
+  // дефолтный spells перезаписан целиком). Дефолт (опция не передана)
+  // — бит-в-байт.
+  if (opts.resurrect) hero.spells = ['resurrect'];
   const c = G.combatUI.startCombat({
     hero,
     mobs: opts.mobs || ['wolf'], mobLevel: 1, seed: 42,
@@ -4739,4 +4782,627 @@ test('боевой UI: 000178 — гейты build(): без Эфира/support-
     'dataset.act=cast отсутствует (Вольк — не Эфир)');
   assert.ok(!M.buttons.some((b) => b.dataset.act === 'heal'),
     'dataset.act=heal отсутствует (Вольк — не support)');
+});
+
+// =====================================================================
+// Задача 000182. Пины задекларированных гардов: боевая область
+// (ретро-20261010) — ТОЛЬКО ТЕСТЫ (pin/restore, без смены поведения).
+//
+// expectedRedCount = 0: все 18 целевых гардов УЖЕ существуют в src
+// (проверено построчно, 14d2cd6) → все новые тесты ЗЕЛЁНЫЕ на
+// master. «Краснота» каждого пина = пробел покрытия (гард не был
+// закреплён тестом), доказуемая УДАЛЕНИЕМ соответствующего guard'а
+// в src (карта «что краснеет» — memory/000182-combat-test-pins.md §3).
+// Контракты — memory/000182-combat-guard-pins.md.
+//
+// Группы ТЗ: 000175 (D10/LW/H1-2X2), 000171 (BOOK/BTN8/NOSP),
+// 000174 (NOMOTION/PRUNE/FRAC/UIMOVES/2X2), 000178 (VIS-MOB/ORDER),
+// 000179 (GATE-ORDER). e2e-пины 000170 (D5B/D7/ONCE) —
+// tests/movement-freeze-e2e.test.js (MF182-*); формула лечения
+// 000180 — tests/efir.test.js (субкейсы (c)/(d) HEAL-1).
+//
+// Инъекции — ТОЛЬКО через свойства объектов-экспортов (UMD-ловушка
+// 000038) + whitebox-мутации c (прецеденты файла); новые RNG-броски
+// НЕТ (c._rng = () => 0.99 — страховка, не вызов).
+// =====================================================================
+
+test('боевой UI: 000182 — без G.mobReachCells: деградация Д10 — ровно 1 console.error /mobReachCells/ на первый render, 0 штрихов, render жив, 2-й render — предупреждений всё ещё 1 (reachWarned) (CU182-D10)', () => {
+  const rafStubs = makeRafStubs();
+  const { G, body } = loadCombatUi(true, {
+    withoutMobReach: true,
+    performance: { now: () => NOW175 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  assert.equal(G.mobReachCells, undefined,
+    'фикстура: снапшот G без mobReachCells (удаление ДО загрузки '
+    + 'combat-ui.js — UMD-ловушка 000038)');
+  const origErr = console.error;
+  const errs = [];
+  console.error = (...a) => { errs.push(a.join(' ')); };
+  // Обёртка ДО startCombat: синхронный render внутри startCombat
+  // (build(); render();) — ПЕРВЫЙ render → предупреждение fires здесь
+  // (reachWarned=true), не на первом tickSlice.
+  const requested = [];
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(),
+    mobs: ['wolf'], mobLevel: 1, seed: 42,
+    spriteLoader: fakeLoader84(requested,
+      [['assets/sprites/mobs/wolf_', { __fake: 'wolf' }]]),
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  assert.equal(c.targetId, wolf.id, 'фикстура: авто-цель — живой волк');
+  const canvas = findCanvas(body);
+  try {
+    const t1 = tickSlice(canvas, rafStubs);
+    assert.equal(errs.length, 1,
+      'первый render: ровно 1 console.error (logged once): '
+      + JSON.stringify(errs));
+    assert.match(errs[0], /mobReachCells/,
+      'сообщение о Game.mobReachCells: ' + errs[0]);
+    assert.equal(hatchTiles175(t1).length, 0,
+      '0 штрихов (штриховки нет, падения нет)');
+    assert.ok(!t1.styleCalls.some(
+      (x) => x[0] === 'strokeStyle' && x[1] === HATCH175),
+      'strokeStyle HATCH175 в стиле нет (слой не рисовался)');
+    assert.ok(t1.calls.length > 0,
+      'render жив: сетка/юниты нарисованы (не упал в штриховке)');
+    tickSlice(canvas, rafStubs);
+    assert.equal(errs.length, 1,
+      'второй render: предупреждений всё ещё 1 (reachWarned): '
+      + JSON.stringify(errs));
+  } finally {
+    console.error = origErr;
+  }
+});
+
+test('боевой UI: 000182 — штриховка: lineWidth === 1 на КАЖДОМ штрихе (стиль ОДИН раз до цикла — 000175; декодер lineWidthSets) (CU182-LW)', () => {
+  const S = scene175({
+    loader: [['assets/sprites/mobs/wolf_', { __fake: 'wolf' }]],
+  });
+  const t = tickSlice(S.canvas, S.rafStubs);
+  // ОБЛАСТЬ ПИНА (правка по ревью 2026-10-10): пин — ЭФФЕКТИВНАЯ
+  // толщина в момент КАЖДОГО hatch-stroke, а НЕ строка
+  // `g2.lineWidth = 1;` в drawMobReachHatch (combat-ui.js L1303)
+  // изолированно: в текущем z-порядке сетка (render, L1368) выставляет
+  // lineWidth=1 ДО штриховки (L1387), поэтому удаление ТОЛЬКО строки
+  // L1303 поведение не меняет и красноты НЕ даёт. Пин краснеет при
+  // ЛЮБОМ изменении эффективной толщины (напр., сетка/слой до
+  // штриховки станет 2px, сброс lineWidth внутри цикла).
+  // Декодер: действовавшее lineWidth на каждом hatch-'stroke'.
+  // lineWidthSets — [value, evIdx] в полных events; срез tickSlice —
+  // events[e0..]: присвоение с evIdx действует на события с индексом
+  // ≥ evIdx; внутри среза — с индексом ≥ evIdx − e0.
+  const e0 = S.canvas.events.length - t.events.length;
+  let lw = 1; // canvas-дефолт
+  for (const [v, evIdx] of S.canvas.lineWidthSets)
+    if (evIdx <= e0) lw = v;
+  const inSlice = S.canvas.lineWidthSets
+    .filter(([v, evIdx]) => evIdx > e0)
+    .map(([v, evIdx]) => [v, evIdx - e0])
+    .sort((a, b) => a[1] - b[1]);
+  let strokeStyle = null;
+  const lws = [];
+  for (let i = 0; i < t.events.length; i++) {
+    const ev = t.events[i];
+    if (ev.s) {
+      if (ev.s[0] === 'strokeStyle') strokeStyle = ev.s[1];
+    } else {
+      while (inSlice.length && inSlice[0][1] <= i) lw = inSlice.shift()[0];
+      if (ev.c[0] === 'stroke' && strokeStyle === HATCH175) lws.push(lw);
+    }
+  }
+  assert.ok(lws.length > 0, 'штрихи штриховки в рендере (декод)');
+  for (const v of lws)
+    assert.equal(v, 1, 'lineWidth === 1 на каждом штрихе штриховки');
+});
+
+test('боевой UI: 000182 — H1 «нарисовано == ядро» для 2×2-моба (cave_bear): набор штрихов == G.mobReachCells(c, bear) (CU182-H1-2X2)', () => {
+  const S = scene175({
+    mobs: ['cave_bear'],
+    loader: [['assets/sprites/mobs/cave_bear_', { __fake: 'bear' }]],
+  });
+  const { G, c, rafStubs } = S;
+  const bear = c.units.find((u) => u.mobId === 'cave_bear');
+  assert.equal(c.targetId, bear.id, 'фикстура: авто-цель — медведь');
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const tiles = hatchTiles175(t);
+  const expected = G.mobReachCells(c, bear);
+  assert.equal(tiles.length, expected.size,
+    'число штрихов == число клеток (2×2-якорь: диагональ на клетку): '
+    + tiles.length + ' vs ' + expected.size);
+  assert.deepEqual(tiles.slice().sort(), [...expected].sort(),
+    'декодированный набор == G.mobReachCells(c, bear)');
+});
+
+test('боевой UI: 000182 — книга: закрывается при УСПЕШНОМ тапе (bookOpen=false только при успехе castRow/resurrectCast), при отказе остаётся ОТКРЫТОЙ (CU182-BOOK)', () => {
+  // (a) Успех: мёртвый союзник выбран → книга открыта → каст → закрыта.
+  const S = scene166({ deadAllies: 1 });
+  const { c, ally } = S;
+  assert.ok(!ally.alive, 'фикстура: союзник мёртв');
+  c.targetId = ally.id; // выбор цели (паттерн CU166: whitebox)
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.equal(bookBox.style.display, '', 'книга открыта (KeyQ)');
+  const byAct = {};
+  for (const b of S.body.querySelectorAll('.combat-actions button'))
+    byAct[b.dataset.act] = b;
+  const mp0 = c.player.mp;
+  byAct.resurrect.listeners.click[0]();
+  assert.ok(ally.alive && ally.hp === Math.round(ally.maxHP / 2),
+    'каст успешен (50% HP): ' + ally.hp);
+  assert.equal(c.player.mp, mp0 - 15, 'каст: мана −15');
+  assert.equal(bookBox.style.display, 'none',
+    'книга ЗАКРЫТА при успешном тапе (bookOpen=false при успехе)');
+  // (b) Отказ: СВЕЖАЯ сцена, мана 0 → ровно 1 строка причины, трат
+  // НЕТ, союзник мёртв, книга ОСТАЛАСЬ открыта.
+  const B = scene166({ deadAllies: 1 });
+  B.c.player.mp = 0;
+  B.c.targetId = B.ally.id;
+  press(B.keydown, 'KeyQ');
+  const bookBox2 = findByClass(B.body, 'combat-spellbook');
+  assert.equal(bookBox2.style.display, '', 'фикстура: книга открыта');
+  const byAct2 = {};
+  for (const b of B.body.querySelectorAll('.combat-actions button'))
+    byAct2[b.dataset.act] = b;
+  const n0 = B.c.log.length;
+  const mp0b = B.c.player.mp;
+  byAct2.resurrect.listeners.click[0]();
+  const added = Array.from(B.c.log).slice(n0);
+  assert.equal(added.length, 1,
+    'ровно ОДНА строка причины отказа: ' + JSON.stringify(added));
+  assert.equal(B.c.player.mp, mp0b, 'трат НЕТ (мана неизменна)');
+  assert.ok(!B.ally.alive, 'союзник остаётся мёртв (каста не было)');
+  assert.equal(bookBox2.style.display, '',
+    'книга ОСТАЛАСЬ открыта при отказе (игрок видит причину)');
+});
+
+test('боевой UI: 000182 — герой знает «Воскрешение» (без Эфира/medica): ровно 8 кнопок; порядок 7 табличных (first-appearance COMBAT_KEYS) + resurrect (CU182-BTN8)', () => {
+  const S = scene166();
+  assert.equal(S.buttons.length, 8,
+    'кнопок 8 (7 табличных + resurrect; гейты: cast нет — Эфира нет, '
+    + 'heal нет — support-наёмника нет)');
+  assert.deepEqual(S.buttons.map((b) => b.dataset.act),
+    ['attack', 'spellbook', 'block', 'quickItem', 'invItem', 'flee',
+      'endTurn', 'resurrect'],
+    'порядок build(): таблица + resurrect (после cast/heal-блоков)');
+});
+
+test('боевой UI: 000182 — без G.Spells (битый порядок): resurrect-кнопка ЕСТЬ (canResurrect — чистое чтение u.spells), disabled + «Заклинания недоступны», стаб-клик → 1 строка, трат НЕТ, книга пустая «—» (CU182-NOSP)', () => {
+  const S = scene166({ deadAllies: 1, spells: false });
+  const { G, c, ally } = S;
+  assert.equal(G.Spells, undefined, 'фикстура: G.Spells отсутствует');
+  assert.ok(G.SpellBook, 'G.SpellBook на месте (книга строится; '
+    + 'spellBookWarned — только при отсутствии SpellBook)');
+  const byAct = {};
+  for (const b of S.body.querySelectorAll('.combat-actions button'))
+    byAct[b.dataset.act] = b;
+  assert.ok(byAct.resurrect,
+    'кнопка resurrect построена (canResurrect — чистое чтение)');
+  assert.equal(byAct.resurrect.disabled, true,
+    'disabled (canCastSpell — движок не загружен)');
+  assert.equal(byAct.resurrect.title, 'Заклинания недоступны',
+    'title дословно (rowChk-фолбэк): ' + byAct.resurrect.title);
+  const n0 = c.log.length;
+  const mp0 = c.player.mp;
+  byAct.resurrect.listeners.click[0](); // стаб-клик (disabled не помеха)
+  const added = Array.from(c.log).slice(n0);
+  assert.deepEqual(added, ['Заклинания недоступны'],
+    'стаб-клик: ровно ОДНА строка в журнал: ' + JSON.stringify(added));
+  assert.equal(c.player.mp, mp0, 'трат НЕТ (мана)');
+  assert.ok(!ally.alive, 'союзник остаётся мёртв (каста нет)');
+  // Книга: entriesFor(unit, null) → [] → пустая книга — строка «—».
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.equal(bookBox.style.display, '', 'книга открывается');
+  assert.equal(bookBox.children.length, 1,
+    'пустая книга — ОДНА строка: ' + bookBox.children.length);
+  assert.equal(bookBox.children[0].textContent, '—',
+    'строка «—» (паттерн 000145)');
+});
+
+test('боевой UI: 000182 — без motion.js: тихий фолбэк — якорь = МОДЕЛЬНЫЙ тайл («телепорт»), 2 Space без TypeError, c._uiMoves drained, 0 console.error (контракт тишины) (CU182-NOMOTION)', () => {
+  let T = 0;
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body } = loadCombatUi(true, {
+    withoutMotion: true,
+    performance: { now: () => T },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const fakeWolf = { __fake: 'wolf' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => (p.startsWith('assets/sprites/mobs/wolf_')
+        ? fakeWolf : null),
+    },
+  });
+  const canvas = findCanvas(body);
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  // R5-геометрия: волк (3,3), fast (movePerTurn 2), игрок (3,6),
+  // камней нет: волна 1 — (3,4),(3,5) (модель после волны).
+  wolf.x = c.px; wolf.y = c.py - 3;
+  c.obstacles.clear();
+  wolf.movePerTurn = 2;
+  c._rng = () => 0.99;
+  const origErr = console.error;
+  const errs = [];
+  console.error = (...a) => { errs.push(a.join(' ')); };
+  let n0;
+  try {
+    n0 = canvas.drawCalls.length;
+    assert.doesNotThrow(() => press(keydown, 'Space'),
+      'Space (волна 1) без TypeError (фолбэк без motion.js)');
+    const dw = diOf(canvas.drawCalls.slice(n0), fakeWolf);
+    assert.ok(dw, 'спрайт волка нарисован');
+    assert.equal(dw[1][1], 3 * 48 + 8,
+      'x = МОДЕЛЬ (3,5) — «телепорт»-фолбэк (документировано), '
+      + 'не дробный: ' + dw[1][1]);
+    assert.equal(dw[1][2], 5 * 48 + 8, 'y = МОДЕЛЬ (3,5)');
+    assert.equal(c._uiMoves, null, 'drain: c._uiMoves = null');
+    T = 150;
+    n0 = canvas.drawCalls.length;
+    rafStubs.scheduled[rafStubs.scheduled.length - 1](); // tick
+    const dw2 = diOf(canvas.drawCalls.slice(n0), fakeWolf);
+    assert.equal(dw2[1][1], 3 * 48 + 8, 'T=150: всё ещё модель (нет lerp)');
+    assert.equal(dw2[1][2], 5 * 48 + 8, 'T=150: всё ещё модель (нет lerp)');
+    assert.doesNotThrow(() => press(keydown, 'Space'),
+      '2-й Space без TypeError (волна 2 — атака, d=1)');
+  } finally {
+    console.error = origErr;
+  }
+  assert.equal(errs.length, 0,
+    'тихий фолбэк: 0 console.error (в ветке фолбэка логов НЕТ): '
+    + JSON.stringify(errs));
+});
+
+test('боевой UI: 000182 — prune мёртвого/сбежавшего юнита (startMoveAnims) + якорь трупа (mobAnchor !u.alive → модель): труп dead-кадр РОВНО на модели, сбежавший НЕ рисуется, 2-й Space без TypeError (CU182-PRUNE)', () => {
+  const runCase = (fled) => {
+    let T = 0;
+    const rafStubs = makeRafStubs();
+    const { G, keydown, body } = loadCombatUi(true, {
+      performance: { now: () => T },
+      requestAnimationFrame: rafStubs.requestAnimationFrame,
+      cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+    });
+    const fakeRider = { __fake: 'rider' }, fakeWolf = { __fake: 'wolf' },
+      fakeWolfDead = { __fake: 'wolf_dead' };
+    const c = G.combatUI.startCombat({
+      hero: G.createCharacter(),
+      mobs: ['orc_rider', 'wolf'], mobLevel: 1, seed: 7,
+      spriteLoader: {
+        image: (p) => {
+          // dead-кадр — отдельный объект ('_dead_'): пин трупа —
+          // drawImage только при наличии картинки из лоадера.
+          if (p.startsWith('assets/sprites/mobs/orc_rider_'))
+            return fakeRider;
+          if (p.startsWith('assets/sprites/mobs/wolf_dead_'))
+            return fakeWolfDead;
+          if (p.startsWith('assets/sprites/mobs/wolf_')) return fakeWolf;
+          return null;
+        },
+      },
+    });
+    const canvas = findCanvas(body);
+    const rider = c.units.find((u) => u.mobId === 'orc_rider');
+    const wolf = c.units.find((u) => u.mobId === 'wolf');
+    // R8-геометрия (буквальная): райдер (0,0) fast (2 сегмента =
+    // 600 мс), волк (3,3) (1 сегмент = 300 мс), игрок (3,6), камней
+    // нет. Волна 1: райдер (1,0),(2,0); волк (3,4).
+    rider.x = 0; rider.y = 0;
+    wolf.x = c.px; wolf.y = c.py - 3;
+    c.obstacles.clear();
+    rider.movePerTurn = 2;
+    wolf.movePerTurn = 1;
+    c._rng = () => 0.99;
+    let n0 = canvas.drawCalls.length;
+    press(keydown, 'Space'); // T=0: волна 1 + синхронный render
+    T = 150;
+    n0 = canvas.drawCalls.length;
+    rafStubs.scheduled[rafStubs.scheduled.length - 1](); // sanity-тик
+    if (fled) {
+      wolf.fled = true; // сбежавший — НЕ рисуется вообще (drawUnits)
+    } else {
+      G.combatInternals.dealDamageToMob(c, wolf, 9999); // труп
+      assert.ok(!wolf.alive, 'фикстура: волк мёртв');
+      assert.equal(c.result, null,
+        'фикстура: бой жив (райдер не мёртв — checkVictory нет)');
+    }
+    T = 300;
+    n0 = canvas.drawCalls.length;
+    rafStubs.scheduled[rafStubs.scheduled.length - 1](); // tick
+    const calls = canvas.drawCalls.slice(n0);
+    if (fled) {
+      assert.ok(!calls.some((x) => x[0] === 'drawImage'
+        && (x[1][0] === fakeWolf || x[1][0] === fakeWolfDead)),
+        'fled: волка НЕ нарисовано ВООБЩЕ (drawUnits: if (u.fled) '
+        + 'continue — даже труп)');
+    } else {
+      const dw = diOf(calls, fakeWolfDead);
+      assert.ok(dw, 'труп: dead-кадр нарисован (лоадер _dead_)');
+      assert.equal(dw[1][1], 3 * 48 + 8,
+        'труп РОВНО на модели x=3 (mobAnchor !u.alive → {x:u.x,y:u.y})');
+      assert.equal(dw[1][2], 4 * 48 + 8, 'труп РОВНО на модели y=4');
+      assert.equal(dw[1][3], 32, '1×1: 32px');
+      assert.equal(dw[1][4], 32, '1×1: 32px');
+      assert.ok(!calls.some((x) => x[0] === 'drawImage'
+        && x[1][0] === fakeWolf),
+        'у трупа move-кадра НЕТ (только dead)');
+    }
+    // Райдер при T=300 — середина глейда ((1,0) — сегмент 2,
+    // easeInOut(0) = 0 → граница (1,0)).
+    const dr = diOf(calls, fakeRider);
+    assert.ok(dr, 'райдер нарисован (глейд жив)');
+    assert.equal(dr[1][1], 1 * 48 + 8, 'T=300: райдер (1,0)');
+    // 2-й Space (волна 2) — prune entry + re-timing райдера.
+    T = 450;
+    n0 = canvas.drawCalls.length;
+    assert.doesNotThrow(() => press(keydown, 'Space'),
+      '2-й Space без TypeError (prune '
+      + (fled ? 'fled' : 'мёртвого') + ' entry)');
+    const dr2 = diOf(canvas.drawCalls.slice(n0), fakeRider);
+    assert.ok(dr2, 'райдер нарисован после волны 2');
+    assert.equal(dr2[1][1], 1.5 * 48 + 8,
+      'райдер re-timed от дробного якоря (1.5,0) (80)');
+    assert.equal(dr2[1][2], 8, 'райдер y — 8 (ряд 0)');
+  };
+  runCase(false); // (a) труп
+  runCase(true);  // (b) fled
+});
+
+test('боевой UI: 000182 — Space внутри живого глейда: from = ТЕКУЩИЙ ДРОБНЫЙ якорь (re-timing, startMoveAnims) — райдер x = 8 + 48·(52/27) ≈ 100.4444 (не beforePos (0,0), не модель (2,0)); волк = СТАРЫЙ финал (3,4) (CU182-FRAC)', () => {
+  let T = 0;
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body } = loadCombatUi(true, {
+    performance: { now: () => T },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const fakeRider = { __fake: 'rider' }, fakeWolf = { __fake: 'wolf' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(),
+    mobs: ['orc_rider', 'wolf'], mobLevel: 1, seed: 7,
+    spriteLoader: {
+      image: (p) => {
+        if (!p.includes('_move_')) return null;
+        if (p.startsWith('assets/sprites/mobs/orc_rider_')) return fakeRider;
+        if (p.startsWith('assets/sprites/mobs/wolf_')) return fakeWolf;
+        return null;
+      },
+    },
+  });
+  const canvas = findCanvas(body);
+  const rider = c.units.find((u) => u.mobId === 'orc_rider');
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  // R8-геометрия (буквальная): райдер (0,0) fast (2 сегмента =
+  // 600 мс), волк (3,3) (1 сегмент = 300 мс), игрок (3,6), камней
+  // нет. Волна 1: райдер (1,0),(2,0); волк (3,4).
+  rider.x = 0; rider.y = 0;
+  wolf.x = c.px; wolf.y = c.py - 3;
+  c.obstacles.clear();
+  rider.movePerTurn = 2;
+  wolf.movePerTurn = 1;
+  c._rng = () => 0.99;
+  let n0 = canvas.drawCalls.length;
+  press(keydown, 'Space'); // T=0: волна 1 + синхронный render
+  T = 150;
+  n0 = canvas.drawCalls.length;
+  rafStubs.scheduled[rafStubs.scheduled.length - 1](); // единственный
+  // кадр в пределах глейдов (райдер 0.25, волк 0.5 — оба живы)
+  // T=550: Space БЕЗ тика между 150 и 550.
+  T = 550;
+  n0 = canvas.drawCalls.length;
+  assert.doesNotThrow(() => press(keydown, 'Space'), TypeError,
+    'Space внутри живого глейда — без TypeError');
+  const calls = canvas.drawCalls.slice(n0);
+  // Волк: entry истёк (300 ≤ 550, рендера не было) → from = beforePos
+  // (3,4) — старый финал (не reverse-глейд от новой модели (3,5)).
+  const dw = diOf(calls, fakeWolf);
+  assert.ok(dw, 'волк нарисован');
+  assert.equal(dw[1][1], 3 * 48 + 8, 'волк x — СТАРЫЙ финал (3,4)');
+  assert.equal(dw[1][2], 4 * 48 + 8, 'волк y — СТАРЫЙ финал (3,4)');
+  // Райдер: entry жив (550 < 600) → from = mobAnchor(rider, 550):
+  // tAll = 550/600 = 11/12; raw = 11/12·2 = 11/6; i = 1;
+  // easeInOut(5/6) = (25/36)·(4/3) = 25/27;
+  // from = lerpPos((1,0),(2,0), 25/27) = (52/27, 0).
+  const dr = diOf(calls, fakeRider);
+  assert.ok(dr, 'райдер нарисован (re-timing живого глейда)');
+  const expectX = 8 + 48 * (52 / 27); // ≈ 100.4444
+  assert.ok(Math.abs(dr[1][1] - expectX) < 1e-9,
+    'райдер x = 8 + 48·(52/27) ≈ 100.4444 (ДРОБНЫЙ якорь): '
+    + dr[1][1] + ' vs ' + expectX);
+  assert.equal(dr[1][2], 8, 'райдер y = 8 (ряд 0)');
+  assert.ok(Math.abs(dr[1][1] - 8) > 1,
+    'НЕ from = beforePos (0,0) (x=8)');
+  assert.ok(Math.abs(dr[1][1] - (8 + 48 * 2)) > 1,
+    'НЕ from = модель (2,0) (x=104)');
+});
+
+test('боевой UI: 000182 — инвариант c._uiMoves: после КАЖДОЙ endTurn поле содержит ТОЛЬКО шаги текущего вызова (null — если мобы не двигались); после startCombat — null (pre-roll не анимируется, решение C 000174) (CU182-UIMOVES)', () => {
+  const { G } = loadCombatUi(true, {});
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  const wolf = c.units.find((u) => u.mobId === 'wolf');
+  // Геометрия: волк (3,2), fast (movePerTurn 2), игрок (3,6), d=4,
+  // камней нет: волна 1 — 2 шага (3,3),(3,4); волна 2 — 1 шаг (3,5)
+  // (d=1 → дальше атака, не шаг); волна 3 — атака (движения нет).
+  wolf.x = c.px; wolf.y = c.py - 4;
+  c.obstacles.clear();
+  wolf.movePerTurn = 2;
+  c._rng = () => 0.99;
+  assert.equal(c._uiMoves, null,
+    'startCombat: pre-roll сброшен c._uiMoves = null (решение C)');
+  // VM-кросс-риалм: записи созданы в контексте песочницы →
+  // deepStrictEqual (проверка прототипов) не годится; JSON-норма —
+  // те же поля/порядок.
+  c.endTurn(); // волна 1
+  assert.deepEqual(JSON.parse(JSON.stringify(c._uiMoves)),
+    [{ id: 'm0', x: 3, y: 3 }, { id: 'm0', x: 3, y: 4 }],
+    'волна 1: только to-tiles текущего вызова (форма {id,x,y}): '
+    + JSON.stringify(c._uiMoves));
+  c.endTurn(); // волна 2
+  assert.deepEqual(JSON.parse(JSON.stringify(c._uiMoves)),
+    [{ id: 'm0', x: 3, y: 5 }],
+    'волна 2: СТАРЫХ записей НЕТ (сброс null до advanceQueue): '
+    + JSON.stringify(c._uiMoves));
+  c.endTurn(); // волна 3 — атака (d=1), движения нет
+  assert.equal(c._uiMoves, null,
+    'волна 3 (атака): null (НЕ пустой массив, не чужие шаги): '
+    + JSON.stringify(c._uiMoves));
+});
+
+test('боевой UI: 000182 — глейд 2×2-моба (cave_bear): ВЕСЬ прямоугольник движется как ОДИН (якорь верхний-левый, mobAnchor); РОВНО ОДИН drawImage 80×80 за кадр (CU182-2X2)', () => {
+  let T = 0;
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body } = loadCombatUi(true, {
+    performance: { now: () => T },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const fakeBear = { __fake: 'bear' };
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['cave_bear'], mobLevel: 1, seed: 42,
+    spriteLoader: {
+      image: (p) => (p.startsWith('assets/sprites/mobs/cave_bear_')
+        ? fakeBear : null),
+    },
+  });
+  const canvas = findCanvas(body);
+  const bear = c.units.find((u) => u.mobId === 'cave_bear');
+  assert.equal(bear.size.w, 2, 'фикстура: медведь 2×2 (w)');
+  assert.equal(bear.size.h, 2, 'фикстура: медведь 2×2 (h)');
+  // Геометрия ПОСЛЕ startCombat (паттерн R5): медведь (1,3), игрок
+  // (3,6), камней нет. Медведь НЕ fast (movePerTurn 1), инициатива
+  // 2 = игрок 2 (тай → очередь: игрок первым → pre-roll медведя нет).
+  // stepTowardRect: sx=1, sy=1, adx=ady → TIE → x-first → шаг (2,3).
+  bear.x = 1; bear.y = 3;
+  c.obstacles.clear();
+  c._rng = () => 0.99;
+  const countDi = (slice, img) => slice
+    .filter((x) => x[0] === 'drawImage' && x[1][0] === img).length;
+  const pinBear = (slice, x, y, what) => {
+    const di = diOf(slice, fakeBear);
+    assert.ok(di, what + ': медведь нарисован (move-кадр)');
+    assert.equal(di[1][1], x, what + ': x — якорь (верхний-левый)');
+    assert.equal(di[1][2], y, what + ': y — якорь');
+    assert.equal(di[1][3], 80, what + ': 2×CELL − 16 = 80 (ширина)');
+    assert.equal(di[1][4], 80, what + ': 2×CELL − 16 = 80 (высота)');
+    assert.equal(countDi(slice, fakeBear), 1,
+      what + ': РОВНО ОДИН drawImage (весь прямоугольник как одно)');
+  };
+  let n0 = canvas.drawCalls.length;
+  press(keydown, 'Space'); // T=0: волна (1 шаг (1,3)→(2,3))
+  pinBear(canvas.drawCalls.slice(n0), 1 * 48 + 8, 3 * 48 + 8,
+    'T=0: стартовый якорь (1,3)');
+  T = 150;
+  n0 = canvas.drawCalls.length;
+  rafStubs.scheduled[rafStubs.scheduled.length - 1]();
+  // tAll = 0.5 → easeInOut(0.5) = 0.5 → якорь (1.5, 3) — ДРОБНЫЙ x.
+  pinBear(canvas.drawCalls.slice(n0), 1.5 * 48 + 8, 3 * 48 + 8,
+    'T=150: дробный якорь (1.5,3)');
+  T = 300;
+  n0 = canvas.drawCalls.length;
+  rafStubs.scheduled[rafStubs.scheduled.length - 1]();
+  pinBear(canvas.drawCalls.slice(n0), 2 * 48 + 8, 3 * 48 + 8,
+    'T=300: финальный тайл (2,3) (self-clean, модель)');
+});
+
+test('боевой UI: 000182 — активный юнит = МОБ (m0): ОБЕ кнопки «Каст»/«Лечение» display none (activeUnit — find(side===\'ally\') моба не находит → null; castHealVis) (CU182-VIS-MOB)', () => {
+  const S = scene178({ efir: true, spells: true, roster: ROSTER_MEDIC });
+  const c = S.c;
+  tickSlice(S.canvas, S.rafStubs);
+  // Whitebox (чистое чтение, без shared-инъекции): активный — волк.
+  // activeUnitId — ЧИСТОЕ чтение c.turnOrder[c.turnIndex] (без
+  // phase-гейта) → на ходу моба activeUnit() → null.
+  c.turnIndex = c.turnOrder.indexOf('m0');
+  assert.equal(S.G.activeUnitId(c), 'm0', 'фикстура: активен волк (m0)');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.equal(byAct.cast.style.display, 'none',
+    'активен МОБ — «Каст» скрыта (не только на ходу Эфира)');
+  assert.equal(byAct.heal.style.display, 'none',
+    'активен МОБ — «Лечение» скрыта (не только на ходу наёмника)');
+});
+
+test('боевой UI: 000182 — DOM-порядок .combat-actions: [attack, spellbook, block, quickItem, invItem, flee, endTurn, cast, heal, resurrect] (build(): таблица first-appearance → cast (Эфир) → heal (support-merc) → resurrect (canResurrect)) (CU182-ORDER)', () => {
+  const S = scene178({ efir: true, spells: true, roster: ROSTER_MEDIC,
+    resurrect: true });
+  assert.equal(S.buttons.length, 10,
+    'кнопок 10 (7 табличных + cast + heal + resurrect)');
+  assert.deepEqual(S.buttons.map((b) => b.dataset.act),
+    ['attack', 'spellbook', 'block', 'quickItem', 'invItem', 'flee',
+      'endTurn', 'cast', 'heal', 'resurrect'],
+    'порядок = дотягиваемость тапа (memory/000178 §3.3): новые '
+    + 'кнопки — ПОСЛЕ resurrect');
+});
+
+test('боевой UI: 000182 — spellbookUnitGate: фиксированный ПОРЯДОК (result → «бой закончен» ПЕРВЫМ; phase → «не ваш ход» вторым; активный персонаж — третьим) — зеркало resurrectChk (000171), закреплённое у CU171 (CU182-GATE-ORDER)', () => {
+  // (a) result: ВСЕ строки -off, title «бой закончен», стаб-клик →
+  // ровно 1 строка, трат НЕТ.
+  {
+    const S = scene84({ spells: true });
+    const { c, keydown } = S;
+    press(keydown, 'KeyQ'); // книга открыта ДО мутаций (R9)
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.equal(bookBox.style.display, '', 'фикстура: книга открыта');
+    c.result = { outcome: 'victory', xp: 0, gold: 0, defeated: 0,
+      allyXp: [] };
+    tickSlice(S.canvas, S.rafStubs);
+    // Строки ВСЕГДА append в хвост (VM-стаб: innerHTML='' — no-op) →
+    // СВЕЖИЕ строки (после мутации c.result — sig изменился,
+    // перестроение) — ПОСЛЕДНИЕ дети с dataset.spell; старые (до
+    // мутации, chk ok) остаются в children — проверяем ПОСЛЕДНЮЮ.
+    const rows = bookBox.children.filter((x) => x.dataset.spell);
+    assert.ok(rows.length > 0, 'строки книги есть');
+    const last = rows[rows.length - 1];
+    assert.ok(last.className.includes('combat-spellrow-off'),
+      'свежая строка -off (гейт result): ' + last.dataset.spell);
+    assert.equal(last.title, 'бой закончен',
+      'title «бой закончен» (гейт result): ' + last.title);
+    const n0 = c.log.length;
+    const mp0 = c.player.mp;
+    last.listeners.click[0]();
+    const added = Array.from(c.log).slice(n0);
+    assert.deepEqual(added, ['бой закончен'],
+      'стаб-клик: ровно ОДНА строка в журнал: ' + JSON.stringify(added));
+    assert.equal(c.player.mp, mp0, 'трат НЕТ (мана)');
+  }
+  // (b) phase (без result): «не ваш ход».
+  {
+    const S = scene84({ spells: true });
+    const { c, keydown } = S;
+    press(keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.equal(bookBox.style.display, '', 'фикстура: книга открыта');
+    c.phase = 'mob';
+    tickSlice(S.canvas, S.rafStubs);
+    const rows = bookBox.children.filter((x) => x.dataset.spell);
+    const last = rows[rows.length - 1];
+    assert.equal(last.title, 'не ваш ход',
+      'title «не ваш ход» (гейт phase): ' + last.title);
+    const n0 = c.log.length;
+    last.listeners.click[0]();
+    const added = Array.from(c.log).slice(n0);
+    assert.deepEqual(added, ['не ваш ход'],
+      'стаб-клик: ровно ОДНА строка: ' + JSON.stringify(added));
+  }
+  // (c) ПОРЯДОК: ОБА (result + phase='mob') → «бой закончен»
+  // (result проверяется ПЕРВЫМ — не «не ваш ход»).
+  {
+    const S = scene84({ spells: true });
+    const { c, keydown } = S;
+    press(keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    c.result = { outcome: 'victory', xp: 0, gold: 0, defeated: 0,
+      allyXp: [] };
+    c.phase = 'mob';
+    tickSlice(S.canvas, S.rafStubs);
+    const rows = bookBox.children.filter((x) => x.dataset.spell);
+    const last = rows[rows.length - 1];
+    assert.equal(last.title, 'бой закончен',
+      'ПОРЯДОК: result ПЕРЕД phase («бой закончен», не «не ваш ход»): '
+      + last.title);
+  }
 });

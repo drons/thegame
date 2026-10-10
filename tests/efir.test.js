@@ -1102,6 +1102,12 @@ test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГ
 //     (ре-пин 000168 перепинил на attrs{}: +5/+6) — support-наёмник
 //     с ненулевым атрибутом → mend «+7»; якорь attrs {} → «+5»
 //     (защита от дегенеративного фикса «формула = хардкод 7»).
+//     000182: субкейсы (c)/(d) — множитель степени
+//     (1 + 0.15·(степень−1)) как ЧАСТЬ ПРОИЗВЕДЕНИЯ формулы:
+//     greater_heal (степень 2) attrs {wisdom:4, dexterity:4,
+//     intelligence:4} → «+8» (round(8.05)); якорь attrs {} → «+6»
+//     (round(5.75)) — ловит «множитель = сложение» и «множитель
+//     только с ненулевыми attrs».
 //   * MOVE-1 — minor ретро 000168: проверка allyMove «тут стоит
 //     игрок» (добавлена в 000168; игрок НЕ в c.units — unitAt его не
 //     видит) не покрыта (grep tests/ → 0): c.move наёмника на клетку
@@ -1199,6 +1205,79 @@ test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] форму
         + c.log.join(' | '));
       assert.ok(c.log.includes('Мира лечит Вольк (+5).'),
         'лог побайтово (якорь attrs {}): ' + c.log.join(' | '));
+    }
+    // (c) 000182: множитель степени (1 + 0.15·(степень − 1)) — ЧАСТЬ
+    // ПРОИЗВЕДЕНИЯ формулы allyHeal (src/combat.js): Мира
+    // spells ['greater_heal'] (степень 2, атрибут wisdom, действие
+    // «лечение»; allyHeal берёт сильнейшую степень из u.spells) →
+    // round((4 + 0.5·4 + 1) · 1.15) = round(8.05) = 8. Ловит фиксы
+    // «степень игнорируется» (осталось бы «+7») и «множитель =
+    // сложение 0.15·(степень−1)» (round(7.15) = 7). Инициатива та же
+    // 8 > волк 3 > игрок 2 > Вольк 0 → pre-roll стоп на a0, c.heal()
+    // напрямую (ноль бросков).
+    {
+      const p = hero112();
+      p.hp = P.derived(p).maxHP;  // полный — вне пула «самый раненый»
+      const c = createCombat({
+        player: p,
+        allies: [Object.assign({}, MIRA_180, { spells: ['greater_heal'] }), VOLK_180],
+        mobs: ['wolf'], mobLevel: 2, seed: 5,
+      });
+      c.obstacles.clear();
+      const a0 = c.units.find((x) => x.id === 'a0'); // Мира (support)
+      const a1 = c.units.find((x) => x.id === 'a1'); // Вольк (melee, 13 HP)
+      a1.hp = 3;  // frac 3/13 — самый раненый пула
+      c._rng = () => 0.99;  // страховка: на пути бросков нет
+      assert.equal(C.activeUnitId(c), 'a0',
+        'pre-roll стоп на слоте Миров (инициатива 8): '
+        + C.activeUnitId(c));
+      const res = c.heal();
+      assert.deepEqual(res, { ok: true },
+        'c.heal — greater_heal: ' + c.log.join(' | '));
+      assert.equal(a1.hp, 11,
+        'Вольк 3 + 8 = 11 (round(7 · 1.15) = 8; степень 2): '
+        + c.log.join(' | '));
+      assert.ok(c.log.includes('Мира лечит Вольк (+8).'),
+        'лог побайтово (множитель степени как произведение): '
+        + c.log.join(' | '));
+      assert.equal(p.hp, P.derived(p).maxHP,
+        'полный игрок не лечится (frac 1 — вне пула)');
+      assert.equal(a0.attackLeft, 0,
+        'лечение заняло слот действия');
+    }
+    // (d) 000182: якорь (c) без attrs: Мира attrs {} + greater_heal
+    // (инициатива 0) → очередь ['m0','player','a0','a1'] → pre-roll
+    // стоп на игроке → endTurn → a0: round((4 + 0 + 1) · 1.15) =
+    // round(5.75) = 6. Ловит «множитель = сложение» при attrs {}
+    // (round(5.15) = 5) и «множитель применяется только с ненулевыми
+    // attrs» (было бы «+5» — совпало бы с якорем (b) mend).
+    {
+      const p = hero112();
+      p.hp = P.derived(p).maxHP;
+      const c = createCombat({
+        player: p,
+        allies: [Object.assign({}, MIRA_180,
+          { attrs: {}, spells: ['greater_heal'] }), VOLK_180],
+        mobs: ['wolf'], mobLevel: 2, seed: 5,
+      });
+      c.obstacles.clear();
+      const a1 = c.units.find((x) => x.id === 'a1');
+      a1.hp = 3;
+      c._rng = () => 0.99;
+      assert.equal(C.activeUnitId(c), 'player',
+        'Мира attrs {} (инициатива 0) — pre-roll стоп на ИГРОКЕ: '
+        + C.activeUnitId(c));
+      c.endTurn();  // → a0
+      assert.equal(C.activeUnitId(c), 'a0', 'endTurn → слот Миров');
+      const res = c.heal();
+      assert.deepEqual(res, { ok: true },
+        'c.heal — greater_heal, attrs {}: ' + c.log.join(' | '));
+      assert.equal(a1.hp, 9,
+        'Вольк 3 + 6 = 9 (round(5 · 1.15) = 6; степень 2, attrs {}): '
+        + c.log.join(' | '));
+      assert.ok(c.log.includes('Мира лечит Вольк (+6).'),
+        'лог побайтово (якорь attrs {} + степень 2): '
+        + c.log.join(' | '));
     }
   } finally {
     C.combatInternals.allySpells = saveCatalog;

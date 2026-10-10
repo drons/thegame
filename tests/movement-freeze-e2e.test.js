@@ -1258,3 +1258,174 @@ test('T10. пин: окно смерти (000164) — после гибели (p
   assert.ok(r.moved,
     'движение возобновилось после окна смерти (боевой гейт снят)');
 });
+
+// =====================================================================
+// MF182 (задача 000182, ретро-20261010): пины защитных гвард 000170
+// в vm-e2e (main.js в полной цепи). expectedRedCount = 0 — поведения
+// существуют в master; краснота = coverage gap (карта —
+// memory/000182-combat-test-pins.md §3).
+// =====================================================================
+
+// =====================================================================
+// MF182-D5B. finish(): исключение в onEnd (G.playerUI.render) — бой
+//     закрыт чисто (оверлей/ctx), logged ONCE, onEnd-эффекты ПОСЛЕ
+//     точки броска потеряны (hudFlashUntil/saveNow не достигнуты),
+//     мир не замёрз (пин 000170 D5b)
+// =====================================================================
+
+test('MF182-D5B. finish: исключение в onEnd (playerUI.render) — оверлей снят, ctx обнулён, logged ONCE, пост-боевой сейв потерян, движение мира живо', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const c = g.actions.startCombat(6);
+  assert.ok(c, 'боевой оверлей открыт (startCombat(6))');
+  assert.equal(G.combatUI.isActive(), true, 'бой активен');
+  c.phase = 'over';
+  c.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
+    allyXp: [] };
+  // Инъекция: G.playerUI.render бросает — на victory-пути onEnd
+  // (main.js) он вызывается Л1584, ПОСЛЕ hudFlash «Победа! +N опыта…»
+  // (L1554) и loot/companions. G.playerUI — общий объект-экспорт,
+  // виден снапшоту main.js (паттерн T5).
+  const origRender = G.playerUI.render;
+  G.playerUI.render = () => { throw new Error('MF182-D5B-inject'); };
+  let threw = null;
+  try {
+    G.combatUI.handleCode('Escape');
+  } catch (err) {
+    threw = err;
+  }
+  G.playerUI.render = origRender;
+  assert.equal(threw, null,
+    'исключение onEnd НЕ улетело вызывателю (D5b: finish ловит; '
+    + 'на master: throw из onEnd пробился через finish/handleCode '
+    + 'наверх — listener-цепь мёртва)');
+  assert.equal(G.combatUI.isActive(), false, 'боевой гейт открыт');
+  assert.equal(G.combatUI.current(), null, 'ctx обнулён');
+  assert.equal(findAll(h.body, '.combat-overlay--combat').length, 0,
+    'боевой оверлей снят из DOM');
+  assert.equal(h.errors.length, 1,
+    'D5b logged ONCE (один warning на скомпрометированный onEnd): '
+    + h.errors.join(' | '));
+  assert.ok(h.errors[0].includes('исключение в onEnd'),
+    'текст D5b-предупреждения: ' + h.errors[0]);
+  // onEnd применён ЧАСТИЧНО: hudFlash-СТРОКА (L1554) и loot/отряд
+  // (L1577-1583) — ДО playerUI.render (L1584); НО hudFlashUntil
+  // (L1585) и saveNow (L1586) — ПОСЛЕ точки броска → ПОТЕРЯНЫ:
+  // (a) флэш «Победа!» на HUD не виден (hud.js: performance.now() <
+  //     flashUntil; flashUntil = 0 — не обновлён),
+  mainFrameAt(h, NOW + 600);
+  const hud = String(h.hud.textContent);
+  assert.ok(!hud.includes('Победа! +50 опыта'),
+    'hudFlashUntil не обновлён (throw ДО L1585) — флэш победы '
+    + 'потерян (допустимая деградация D5b): ' + hud);
+  // (b) пост-боевой saveNow (L1586) не достигнут: свежий старт,
+  //     до боя сейвов не было → в storage сейва НЕТ (на чистом onEnd
+  //     saveNow записал бы SAVE_KEY).
+  assert.equal(h.storage.getItem(SAVE_KEY), null,
+    'пост-боевой saveNow потерян (throw ДО L1586 — D5b: onEnd-эффекты '
+    + 'после броска не доходят)');
+  // Мир не замёрз: гейты открыты, клавиша → шаг.
+  const dir = passableDir(G, myMap, g.state.player.x, g.state.player.y);
+  assert.ok(dir, 'сценарий: проходной сосед от спавна');
+  const r = holdUntilStep(h, keydownFor(dir[0], dir[1]), NOW + 600);
+  assert.ok(r.moved,
+    'мировое движение живо после скомпрометированного onEnd '
+    + '(боевые гейты сняты чисто)');
+});
+
+// =====================================================================
+// MF182-D7. saveNow(): исключение в collectSaveData (G.serializeBuffs)
+//     — сейв пропущен (logged ONCE), вызывающие точки (мировой шаг,
+//     onDay) не рвёт, день+1 прошёл, следующий шаг сейвится
+//     (пин 000170 D7)
+// =====================================================================
+
+test('MF182-D7. saveNow: исключение в collectSaveData (serializeBuffs) — logged ONCE, день+1 прошёл, следующий шаг сейвится', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const day0 = g.state.day;
+  assert.equal(g.state.stepsToday, 0, 'свежий старт: 0 шагов в дне');
+  // Инъекция: G.serializeBuffs бросает (collectSaveData — единственный
+  // потребитель; G — общий объект-экспорт, виден снапшоту main.js).
+  // perDay 40 → 2 (SETTINGS — LIVE-объект, addStep читает на каждый
+  // вызов, 000099): смена дня — детерминированно на 2-м шаге.
+  const hadSerialize = 'serializeBuffs' in G;
+  const origSerialize = G.serializeBuffs;
+  const origPerDay = G.GlobalSettings.SETTINGS.steps_per_day;
+  G.serializeBuffs = () => { throw new Error('MF182-D7-inject'); };
+  G.GlobalSettings.SETTINGS.steps_per_day = 2;
+  let t = NOW;
+  try {
+    const dir1 = passableDir(G, myMap, g.state.player.x, g.state.player.y);
+    assert.ok(dir1, 'сценарий: проходной сосед от спавна');
+    const r1 = holdUntilStep(h, keydownFor(dir1[0], dir1[1]), t);
+    t = r1.now;
+    assert.ok(r1.moved, 'шаг 1 прошёл (D7 не рвёт кадр)');
+    assert.equal(h.errors.length, 1,
+      'D7 logged ONCE на первом скомпрометированном сейве: '
+      + h.errors.join(' | '));
+    assert.ok(h.errors[0].includes('исключение в collectSaveData'),
+      'текст D7-предупреждения: ' + h.errors[0]);
+    const dir2 = passableDir(G, myMap, g.state.player.x, g.state.player.y);
+    assert.ok(dir2, 'сценарий: проходной сосед после шага 1');
+    const r2 = holdUntilStep(h, keydownFor(dir2[0], dir2[1]), t);
+    t = r2.now;
+    assert.ok(r2.moved, 'шаг 2 прошёл (onDay-цепь цела)');
+    assert.equal(g.state.day, day0 + 1,
+      'шаг 2 (perDay=2) → смена дня: saveNow в onDay не рванул '
+      + 'день-цепь (D7 — внутри saveNow, не в onDay)');
+    assert.equal(h.errors.length, 1,
+      'повторные D7-предупреждения подавлены (флаг saveDataErrLogged, '
+      + 'в т.ч. сейв в onDay): ' + h.errors.join(' | '));
+  } finally {
+    if (hadSerialize) G.serializeBuffs = origSerialize;
+    else delete G.serializeBuffs;
+    G.GlobalSettings.SETTINGS.steps_per_day = origPerDay;
+  }
+  // (c) Восстановление: следующий шаг сейвится реально, ошибок нет.
+  const dir3 = passableDir(G, myMap, g.state.player.x, g.state.player.y);
+  assert.ok(dir3, 'сценарий: проходной сосед после шага 2');
+  const r3 = holdUntilStep(h, keydownFor(dir3[0], dir3[1]), t);
+  assert.ok(r3.moved, 'шаг 3 прошёл (реальный collectSaveData)');
+  assert.equal(h.errors.length, 1,
+    'реальный сейв шага 3 — без новых предупреждений: '
+    + h.errors.join(' | '));
+});
+
+// =====================================================================
+// MF182-ONCE. watchdog frame: исключение в кадре (G.hud.update) —
+//     logged ONCE за 3 кадра (флаг frameErrLogged), rAF-цепь жива
+//     каждый кадр (пин 000170 frame-watchdog; T2 покрывает 1-й кадр,
+//     пин — «повторные предупреждения подавлены»)
+// =====================================================================
+
+test('MF182-ONCE. watchdog frame: исключение в кадре (hud.update) — logged ONCE за 3 кадра, rAF-цепь жива', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  // Инъекция: G.hud.update бросает КАЖДЫЙ кадр (renderHud →
+  // G.hud.update; G.hud — общий объект-экспорт, паттерн T2).
+  const origUpdate = G.hud.update;
+  G.hud.update = () => { throw new Error('MF182-ONCE-inject'); };
+  try {
+    for (let i = 1; i <= 3; i++) {
+      const rafBefore = h.raf.length;
+      const err = tryMainFrameAt(h, NOW + 200 * (i + 1));
+      assert.equal(err, null,
+        'кадр ' + i + ': исключение не улетает вызывателю (watchdog)');
+      assert.ok(h.raf.length > rafBefore,
+        'кадр ' + i + ': rAF-цепь жива (reschedule в finally): '
+        + rafBefore + ' → ' + h.raf.length);
+    }
+  } finally {
+    G.hud.update = origUpdate;
+  }
+  assert.equal(h.errors.length, 1,
+    'logged ONCE: 3 кадра с исключением — ОДНО предупреждение '
+    + '(флаг frameErrLogged): ' + h.errors.join(' | '));
+  assert.ok(h.errors[0].includes('исключение в кадре'),
+    'текст frame-watchdog-предупреждения: ' + h.errors[0]);
+});
