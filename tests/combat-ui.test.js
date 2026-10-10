@@ -4276,3 +4276,64 @@ test('боевой UI: 000179 — книга на ходу ЭФИРА: стро�
   assert.notEqual(bookBox.style.display, 'none',
     'книга остаётся ОТКРЫТОЙ (UX 000149: игрок видит причину)');
 });
+
+// =====================================================================
+// Задача 000180: восстановление ослабленных/пропущенных тестовых
+// пинов (ретро 000168/000169) — ТОЛЬКО тесты, src не меняется.
+// Контракты — memory/000180-test-pins-restored.md §1.4/§2.
+//
+// CU180-EFIR-ROW — stateEl: строка АКТИВНОГО Эфира (Д10 000168; minor
+// ретро 000168: grep «Мана:» tests/combat-ui.test.js → 0 — строка не
+// была закреплена ни одним тестом; 000168-UI-1 пинит только строку
+// НАЁМНИКА — Д10-пара теперь полная). Пинится ТЕКУЩИЙ фактический
+// текст src/combat-ui.js (область stateEl менялась 000171/000173/
+// 000174/000176 ПОСЛЕ ретро — пином является поведение, а не номер
+// строки): побайтово «Эфир: HP 16/16  |  Мана: 11  |  Шаги: 3  |
+// Касание: 1» (L1-профиль: maxHP=hp=16, mp=11 — EF-1; c.efs
+// {spellInt:1, spellWis:1, touch:1, move:3} — 000112; имя «Эфир» —
+// src/efir.js; разделитель «  |  ») + fallback c.efs=null → «Шаги: 0
+//  |  Касание: 0» (документированная защитная ветка: «без c.efs —
+// fallback-цифры 0, строка рисуется»).
+//
+// «Краснота» ретро = сам пробел покрытия: на текущем master пин
+// зелёный (поведение на месте); при откате Д10 (000168) — красный
+// (строки Эфира нет в stateEl).
+// =====================================================================
+
+test('боевой UI: 000180 — stateEl: строка активного Эфира «Эфир: HP 16/16  |  Мана: 11  |  Шаги: 3  |  Касание: 1» (Д10 000168) побайтово + fallback без c.efs «Шаги: 0  |  Касание: 0» (CU180-EFIR-ROW)', () => {
+  // 000168-UI-2(b)-паттерн: scene84({efir:true, spells:true}) —
+  // pre-roll остановился на слоте Эфира СРАЗУ после startCombat
+  // (инициатива Эфира 6 > волк 3 > игрок 2); волк (m0) ещё НЕ
+  // действовал; игрок полный → «Вдох Эфира» НЕ срабатывает
+  // (frac 1.0 > 0.4) — L1-значения нетронуты.
+  const S = scene84({ efir: true, spells: true });
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.G.activeUnitId(S.c), 'efir',
+    'активен Эфир (pre-roll стоп на его слоте)');
+  const u = S.c.units.find((x) => x.id === 'efir');
+  assert.equal(u.hp, 16, 'L1-профиль: hp = 16 (EF-1)');
+  assert.equal(u.maxHP, 16, 'L1-профиль: maxHP = 16 (EF-1)');
+  assert.equal(u.mp, 11, 'L1-профиль: mp = 11 — своя мана (EF-1)');
+  assert.equal(S.c.efs.move, 3, 'c.efs.move = 3 (000112)');
+  assert.equal(S.c.efs.touch, 1, 'c.efs.touch = 1 (000112)');
+  const state = findByClass(S.body, 'combat-state');
+  const text = state.textContent;
+  assert.ok(text.includes('Ход: Эфир'),
+    'первая строка — «Ход: Эфир» (Д10): ' + JSON.stringify(text));
+  assert.ok(text.includes(
+    'Эфир: HP 16/16  |  Мана: 11  |  Шаги: 3  |  Касание: 1'),
+    'строка активного Эфира ПОБАЙТОВО (Д10 000168; c.efs 1/1/1/3 → '
+    + 'move 3, touch 1): ' + JSON.stringify(text));
+  // (b) Fallback: white-box c.efs = null + re-render (rAF-tick) →
+  // документированная защитная ветка (combat-ui.js: «без c.efs —
+  // fallback-цифры 0, строка рисуется»): строка остаётся, цифры 0.
+  // c.efs на render-пути читается только в этой строке (null-guard) —
+  // re-render без краха.
+  S.c.efs = null;
+  tickSlice(S.canvas, S.rafStubs);
+  const text2 = findByClass(S.body, 'combat-state').textContent;
+  assert.ok(text2.includes(
+    'Эфир: HP 16/16  |  Мана: 11  |  Шаги: 0  |  Касание: 0'),
+    'fallback без c.efs: «Шаги: 0  |  Касание: 0» (строка рисуется): '
+    + JSON.stringify(text2));
+});

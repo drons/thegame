@@ -38,7 +38,9 @@
 // sweep-цикл не доходит до конца / выброс; блокирует дегенератный
 // фикс «выбросить sweep-цикл», который сломал бы фичу 000145).
 // ЗЕЛЁНЫЕ: R0 (чистота цепочки + верность стаба), R6 (статика
-// «Настроек» не счищается — фикс не должен ломать build-контент).
+// «Настроек» не счищается — фикс не должен ломать build-контент),
+// R8 (000180: закрытие панели по [Esc] — пин фикса 000169 под
+// HTMLCollection-семантикой; plain-Array-стабы слепы к классу бага).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -485,4 +487,41 @@ test('000169 R7: sweep устаревших портретов — ПОД РЕА
   assert.ok(stats.textContent.includes('Золото:'),
     '4-строчный шаблон героя (у наёмного поля нет): ' +
     JSON.stringify(stats.textContent));
+});
+
+test('000169 R8 (000180): [Esc] — закрытие панели через document-слушатель (000169: attachEsc ПОСЛЕ render) под HTMLCollection-семантикой: openPanel → isOpen()===true, ровно 1 keydown-слушатель → dispatch {code:"Escape"} → isOpen()===false, слушатель снят (0)', () => {
+  // Пин фикса 000169 (major ретро 000169): закрытие панели по [Esc]
+  // восстановлено и обещано в CHANGELOG, но не было покрыто —
+  // единственный Esc-пин (tests/ui-panel.test.js) работает на
+  // plain-Array-стабе (children: []), где render() НЕ бросает →
+  // пин был зелёным на баговом базлайне (классовая слепота стаба).
+  // Суть порядка: toggle(true) → render() → attachEsc() (ui.js) —
+  // на баге pre-000169 render() вкладки «Персонаж» бросал ДО
+  // attachEsc → слушатель не вешался.
+  const env = makePartyEnv();
+  // Первый ассерт — openPanel (toggle(true) БЕЗ выброса): пин самого
+  // фикса 000169 (render() «Персонаж» доходит до конца под
+  // HTMLCollection-стабом).
+  openPanel(env);
+  assert.equal(env.G.playerUI.isOpen(), true,
+    'панель открыта (isOpen: display flex)');
+  // Гарды escHandler пусты в песочнице — Esc доходит до toggle(false):
+  assert.equal(env.G.npcUI.isActive(), false,
+    'диалог NPC не открыт (npcUI.isActive() — !!overlay)');
+  assert.equal(env.G.combatUI, undefined,
+    'combatUI вне CHAIN (combat-ui.js ПОСЛЕ ui.js в index.html) — '
+    + 'typeof-гард пропущен');
+  const kd = env.sandbox.document.listeners.keydown;
+  assert.ok(Array.isArray(kd), 'document-слушатели keydown есть');
+  assert.equal(kd.length, 1,
+    'ровно ОДИН document-keydown-слушатель — attachEsc ПОСЛЕ render '
+    + '(toggle: render() → attachEsc(), ui.js); в CHAIN на document '
+    + 'вешает только playerUI (npcUI-attachEsc — на window)');
+  // Dispatch как в DOM: по КОПИИ слушателей (слушатель может сняться
+  // в процессе диспатча); гард escHandler — по e.code, НЕ e.key.
+  for (const fn of kd.slice()) fn({ code: 'Escape' });
+  assert.equal(env.G.playerUI.isOpen(), false,
+    '[Esc] закрыл панель (escHandler: e.code === "Escape" → toggle(false))');
+  assert.equal(env.sandbox.document.listeners.keydown.length, 0,
+    'detachEsc — слушатель снят на close (живёт только пока панель открыта)');
 });

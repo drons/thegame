@@ -1079,12 +1079,177 @@ test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГ
       // 000168 (D12): лечения и щита у Эфира в бою НЕТ — сценарии
       // (C) mend и (D) щит убраны (не наблюдаемы: Эфир — ввод, kind
       // 'efir' не проходит в allyHealAction; c.efirShield в v1 не
-      // ставится). Формулы лечения/щита покрыты тестами 000080/000113
-      // (allyHeal/efirBreath) и сценариями наёмника-support.
+      // ставится). Формула allyHeal (наёмник-support) закреплена
+      // тестами 000113 (tests/combat.test.js: «support-союзник: лечит
+      // САМОГО РАНЕНОГО…» — attrs {}, +5/+6) и «000180 HEAL-1» ниже
+      // (ненулевой атрибут — член 0.5·attrs формулы, +7); формула
+      // «Вдоха Эфира» (efirBreath) — блоком 000113 (tests/combat.
+      // test.js). 000180: прежняя ссылка «покрыто тестами 000080/
+      // 000113» недостоверна — 000080 пинит каталог allySpells/guard
+      // каста (tests/spells.test.js), НЕ формулу allyHeal.
     } finally {
       C.combatInternals.allySpells = saveCatalog;
     }
   });
+});
+
+// --- Задача 000180: восстановление ослабленных/пропущенных тестовых
+// пинов (ретро 000168/000169) — ТОЛЬКО тесты, src не меняется.
+// Контракты — memory/000180-test-pins-restored.md, карта пинов —
+// memory/000180-test-pins.md.
+//   * HEAL-1 — major ретро 000168: член 0.5·attrs[атрибут] формулы
+//     allyHeal (src/combat.js) потерял ВСЕ пины с ненулевым атрибутом
+//     (ре-пин 000168 перепинил на attrs{}: +5/+6) — support-наёмник
+//     с ненулевым атрибутом → mend «+7»; якорь attrs {} → «+5»
+//     (защита от дегенеративного фикса «формула = хардкод 7»).
+//   * MOVE-1 — minor ретро 000168: проверка allyMove «тут стоит
+//     игрок» (добавлена в 000168; игрок НЕ в c.units — unitAt его не
+//     видит) не покрыта (grep tests/ → 0): c.move наёмника на клетку
+//     игрока → ok:false, позиция/moveLeft неизменны.
+// Пинов «красноты» НЕТ (expectedRedCount = 0): оба поведения
+// существуют в master — задача ВОССТАНОВЛЕНИЯ регрессионных пинов;
+// byte-exact-ассерты падают при откате соответствующего поведения.
+
+// 000180-фикстуры (локальные: ALLY_MIRA/ALLY_VOLK живут в
+// tests/combat.test.js, в этом файле их НЕТ). attrs НЕ {wisdom:4}
+// один (пример ретро): инициатива = dex+int (unitInitiative) обязана
+// быть выше инициативы игрока (2) — иначе pre-roll встанет на
+// ИГРОКЕ и c.heal()
+// уйдёт в player-defensive («используйте книгу заклинаний»). Сумма
+// лечения зависит ТОЛЬКО от атрибута СПЕЛЛА (wisdom,
+// assets/spells/000009.json) — «+7» не зависит от dex/int.
+const MIRA_180 = {
+  name: 'Мира', role: 'support', level: 1, dmg: 0.5, hp: 0.8,
+  skills: [], spells: ['mend'],
+  attrs: { wisdom: 4, dexterity: 4, intelligence: 4 },
+};
+const VOLK_180 = {
+  name: 'Вольк', role: 'melee', level: 1, dmg: 1.2, hp: 1.1,
+  skills: ['swordsman'], spells: [],
+};
+
+test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] формулы: support-наёмник с ненулевым атрибутом (Мира attrs {wisdom:4, dexterity:4, intelligence:4}) → mend «Мира лечит Вольк (+7).» побайтово; якорь attrs {} → «+5» (защита от хардкода формулы в 7)', () => {
+  const C = require('../src/combat.js');
+  // Каталог — ленивый (паттерн EF-1/EF-3: save/set/restore); без него
+  // allyHeal тихо вернёт false (melee-фолбэк, «без каталога»).
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells = require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    // (a) Ненулевой атрибут: Мира attrs {wisdom:4, dexterity:4,
+    // intelligence:4} → mend (степень 1, атрибут wisdom):
+    // round((4 + 0.5·4 + 1)·1) = 7 (без члена 0.5·attrs — 5).
+    // Инициатива 8 > волк 3 > игрок 2 > Вольк 0 → очередь
+    // ['a0','m0','player','a1'], pre-roll СРАЗУ стоп на a0 (000168
+    // D9: ввод) — endTurn не нужен, волк не действует (0 бросков).
+    {
+      const p = hero112();
+      p.hp = P.derived(p).maxHP;  // полный (270) — вне пула «самый раненый»
+      const c = createCombat({
+        player: p, allies: [MIRA_180, VOLK_180],
+        mobs: ['wolf'], mobLevel: 2, seed: 5,
+      });
+      c.obstacles.clear();
+      const a0 = c.units.find((x) => x.id === 'a0'); // Мира (support)
+      const a1 = c.units.find((x) => x.id === 'a1'); // Вольк (melee, 13 HP)
+      a1.hp = 3;  // frac 3/13 ≈ 0.23 — самый раненый пула
+      c._rng = () => 0.99;  // страховка: на пути бросков нет
+      assert.equal(C.activeUnitId(c), 'a0',
+        'pre-roll стоп на слоте Миров (инициатива 8; ввод 000168): '
+        + C.activeUnitId(c));
+      const res = c.heal();
+      assert.deepEqual(res, { ok: true },
+        'c.heal — лечение support: ' + c.log.join(' | '));
+      assert.equal(a1.hp, 10,
+        'Вольк 3 + 7 = 10 (ЧЛЕН 0.5·attrs[wisdom] = +2; без него 5): '
+        + c.log.join(' | '));
+      assert.ok(c.log.includes('Мира лечит Вольк (+7).'),
+        'лог побайтово (член 0.5·attrs): ' + c.log.join(' | '));
+      assert.equal(p.hp, P.derived(p).maxHP,
+        'полный игрок не лечится (frac 1 — вне пула)');
+      assert.equal(a0.attackLeft, 0,
+        'лечение заняло слот действия (000168 P8)');
+    }
+    // (b) Якорь: та же сцена, Мира БЕЗ attrs (инициатива 0) → очередь
+    // ['m0','player','a0','a1'] → pre-roll стоп на игроке → endTurn
+    // → a0 (паттерн tests/combat.test.js 000113): round((4 + 0 + 1)·1)
+    // = 5. Защита от фикса «заменить формулу на хардкод 7»: (a)
+    // остался бы зелёным.
+    {
+      const p = hero112();
+      p.hp = P.derived(p).maxHP;
+      const c = createCombat({
+        player: p,
+        allies: [Object.assign({}, MIRA_180, { attrs: {} }), VOLK_180],
+        mobs: ['wolf'], mobLevel: 2, seed: 5,
+      });
+      c.obstacles.clear();
+      const a1 = c.units.find((x) => x.id === 'a1');
+      a1.hp = 3;
+      c._rng = () => 0.99;
+      assert.equal(C.activeUnitId(c), 'player',
+        'Мира без attrs (инициатива 0) — pre-roll стоп на ИГРОКЕ: '
+        + C.activeUnitId(c));
+      c.endTurn();  // → a0
+      assert.equal(C.activeUnitId(c), 'a0', 'endTurn → слот Миров');
+      const res = c.heal();
+      assert.deepEqual(res, { ok: true },
+        'c.heal — attrs {}: ' + c.log.join(' | '));
+      assert.equal(a1.hp, 8,
+        'Вольк 3 + 5 = 8 (без attrs член = 0; НЕ 7 — нет хардкода): '
+        + c.log.join(' | '));
+      assert.ok(c.log.includes('Мира лечит Вольк (+5).'),
+        'лог побайтово (якорь attrs {}): ' + c.log.join(' | '));
+    }
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});
+
+test('000180 MOVE-1: allyMove — клетка игрока: c.move наёмника на клетку игрока → {ok:false, reason:«тут стоит игрок»} (побайтово), позиция и moveLeft неизменны; контроль-шаг на свободную клетку — ok (блок именно по игроку, не по unitAt/стене)', () => {
+  // Единственный наёмник attrs {dexterity:4, intelligence:4}
+  // (инициатива 8 > волк 3 > игрок 2) → очередь ['a0','m0','player'],
+  // pre-roll СРАЗУ стоп на a0 (паттерн 000168-ALLY-1, ввод 000168).
+  // Проверка «тут стоит игрок» (000168) — ПОСЛЕ inBounds/obstacles/
+  // unitAt (игрок НЕ в c.units — unitAt его не видит) и ДО записи
+  // позиции/списания moveLeft. Каталог заклинаний не нужен (c.move
+  // spells не читает) — withGame/efir.js не участвуют.
+  const C = require('../src/combat.js');
+  const p = hero112();
+  const c = createCombat({
+    player: p,
+    allies: [{
+      name: 'Вольк', role: 'melee', level: 1, dmg: 1.2, hp: 1.1,
+      skills: ['swordsman'], spells: [],
+      attrs: { dexterity: 4, intelligence: 4 },
+    }],
+    mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  c.obstacles.clear();
+  const a0 = c.units.find((x) => x.id === 'a0');
+  const w = c.units.find((x) => x.id === 'm0');
+  w.x = 0; w.y = 0;              // волк — далеко (чистый контроль-ход)
+  a0.x = c.px; a0.y = c.py - 1;  // вплотную над игроком: (3,5), игрок (3,6)
+  c._rng = () => 0.99;
+  assert.equal(C.activeUnitId(c), 'a0',
+    'pre-roll стоп на наёмнике (инициатива 8; ввод 000168): '
+    + C.activeUnitId(c));
+  assert.deepEqual([a0.x, a0.y], [c.px, c.py - 1],
+    'наёмник вплотную над игроком (до хода)');
+  const res = c.move(0, 1);
+  assert.deepEqual(res, { ok: false, reason: 'тут стоит игрок' },
+    'клетка игрока НЕ видна unitAt (игрок вне c.units) — отдельная '
+    + 'проверка 000168 (reason побайтово)');
+  assert.deepEqual([a0.x, a0.y], [c.px, c.py - 1],
+    'позиция неизменна (проверка ДО записи позиции)');
+  assert.equal(a0.moveLeft, 1, 'moveLeft не потрачен при отказе');
+  // Контроль: свободная клетка — блок именно по игроку, а не
+  // по unitAt/стене/препятствию.
+  const res2 = c.move(0, -1);
+  assert.deepEqual(res2, { ok: true },
+    'контроль-шаг: свободная клетка проходима: ' + c.log.join(' | '));
+  assert.deepEqual([a0.x, a0.y], [c.px, c.py - 2],
+    'клетка (3,4) — наёмник переместился');
+  assert.equal(a0.moveLeft, 0, 'шаг потрачен (1→0)');
 });
 
 test('000112 EF-4: мана — СВОЯ: p.mp ДО/ПОСЛЕ одинаков; u.mp списывается по «мани» (000168: c.cast); refillPools mp НЕ пополняет', () => {
