@@ -4337,3 +4337,406 @@ test('боевой UI: 000180 — stateEl: строка активного Эф�
     'fallback без c.efs: «Шаги: 0  |  Касание: 0» (строка рисуется): '
     + JSON.stringify(text2));
 });
+
+// =====================================================================
+// Задача 000178. Тач-кнопки «Каст» (K, Эфир) и «Лечение» (H,
+// support-наёмник) в панели боя (клик/тач). ТЗ — tasks/pending/
+// 000178.md; контракты — memory/000178-combat-cast-heal-buttons.md;
+// план тестов — a3. Паттерн — кнопка «Воскрешение» 000171 (memory/
+// 000171-combat-resurrect-button.md; общий принцип — memory/000171-
+// touch-buttons.md: каждое действие UI — видимый элемент, нажимаемый
+// мышкой или тачем).
+//
+// КРАСНЫЕ (кнопок нет — build() строит 7 табличных + resurrect под
+// своим гейтом): CU178-VIS / CU178-CAST / CU178-CAST-OFF / CU178-HEAL /
+// CU178-HEAL-OFF. Каждое падает на ПЕРВОМ assert.ok(byAct.cast|heal) —
+// осмысленная краснота «нет кнопки» (функциональности ТЗ ещё нет),
+// не синтаксис/окружение: сцена178 — локальная копия scene84 +
+// rosterData (существующий параметр startCombat, 000087) — сцена
+// собирается штатно.
+// ЗЕЛЁНЫЙ guard (не входит в red-count): CU178-GATE — гейты build()
+// по составу партии: без Эфира «Каст» нет, без support-наёмника
+// «Лечение» нет; дефолтный бой и melee-отряд — панель бит-в-байт 7
+// (спящий пин «7 штук»/000124/CU171-GATE/SB1, паттерн 000166/000171).
+//
+// Ключевое отличие от 000171: ветки 'cast'/'heal' ЕСТЬ в
+// canDoAction/allyCanDo (000168) — гашение = СТАНДАРТНЫЙ canDoAction
+// (без собственного chk-хелпера; строки причины — 1:1 с клавишами
+// K/H), спец-кейс в цикле render — только ВИДИМОСТЬ (display) по
+// активному юниту. Клик — allyBtn (предпроверка + runAction) —
+// зеркало клавиши: стаб-клик disabled → ровно ОДНА строка причины в
+// лог, ДЕЙСТВИЯ НЕТ, трат нет (пин предпроверки).
+//
+// Детерминизм (seed 42; совпадает с эмпирикой 000168-UI-2): hero
+// maxHP 25/maxMP 16; геометрия Эфира u(3,5), волк(3,4) — d 1, волк
+// 100/100: каст → лог ровно «Эфир: «Искра» — Волк: 5.», efs.spellInt
+// 1→0, u.mp 11→8, волк 100→95, 0 новых c._rng, очередь не сдвинулась.
+// Лечение (roster-сцена, player.hp 15): лог ровно «Медик лечит
+// Флогистон (+6).», hp 15→21, attackLeft 1→0, очередь не сдвинулась.
+// Очереди: VIS (efir+roster) turnOrder ['efir','m0','player','a1'],
+// pre-roll стоп на 'efir'; HEAL (roster) ['m0','player','a0'],
+// pre-roll: волк сам (игрок цел), стоп на 'player'; Space — шаг.
+// =====================================================================
+
+// Сцена 000178 — КОПИЯ scene84 (L1416) + аддитивная прокидка
+// opts.roster → rosterData startCombat (000087): отряд ДО build() —
+// статический гейт build() читает c.units (addMerc84-ПОСЛЕ build не
+// проходит гейт — gap, анализ a2). scene84 в mid-file НЕ правим:
+// 000179/000180 добавляют блоки в этот же конец файла — self-
+// contained блок сводит площадь add/add-конфликта к одному append
+// (CONVENTION: при склейке хвоста ВСЕ блоки сохраняются, CU178 —
+// последний).
+function scene178(opts = {}) {
+  const rafStubs = makeRafStubs();
+  // 000178: buttons — ВСЕ кнопки песочницы (стаб пушит каждый
+  // createElement('button'), паттерн scene166/000171): count-ассерты
+  // гейтов build() и «ровно ОДНА кнопка на действие».
+  const { G, keydown, body, buttons } = loadCombatUi(true, {
+    withEfir: !!opts.efir,
+    withSpells: !!opts.spells,
+    performance: { now: () => NOW84 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const requested = [];
+  const hero = G.createCharacter();
+  const c = G.combatUI.startCombat({
+    hero,
+    mobs: opts.mobs || ['wolf'], mobLevel: 1, seed: 42,
+    ...(opts.efir ? { efir: G.efir.createEfir() } : {}),
+    ...(opts.roster ? { rosterData: opts.roster } : {}),
+    ...(opts.loader
+      ? { spriteLoader: fakeLoader84(requested, opts.loader) } : {}),
+  });
+  return { G, c, canvas: findCanvas(body), body, keydown, rafStubs,
+    buttons, requested };
+}
+
+// Медик — support-наёмник (role 'support', kind 'merc' по умолчанию
+// makeAlly) с 'mend' — единственное/высшее лечение (ур. 2: +6);
+// attackLeft 1 (пул 000168). Ищется ПО РОЛИ, не по id (Эфир
+// забирает индекс 0: с Эфиром медик 'a1', без — 'a0').
+const ROSTER_MEDIC = [{ name: 'Медик', role: 'support', level: 2,
+  dmg: 1, hp: 1, spells: ['mend'] }];
+
+// Кнопки панели в byAct (стаб querySelectorAll отдаёт ВСЕ кнопки
+// песочницы — спец-кейсы пишем строго по dataset.act, паттерн
+// 000168-UI-2/CU171).
+const byActOf178 = (S) => {
+  const byAct = {};
+  for (const b of S.body.querySelectorAll('.combat-actions button'))
+    byAct[b.dataset.act] = b;
+  return byAct;
+};
+
+test('боевой UI: 000178 — кнопки «Каст»/«Лечение»: видимость по ходу активного юнита, гейт build() по составу партии (CU178-VIS)', () => {
+  // (a) VIS-сцена (efir + roster): turnOrder ['efir','m0','player',
+  // 'a1']; pre-roll — стоп на 'efir' (волк ещё НЕ действовал — игрок
+  // цел). display переключается по активному юниту на ПЕРСИСТЕНТНОМ
+  // элементе (создан один раз в build() под статическим гейтом).
+  const S = scene178({ efir: true, spells: true, roster: ROSTER_MEDIC });
+  const c = S.c;
+  const medic = c.units.find((x) => x.side === 'ally'
+    && x.role === 'support' && x.kind === 'merc');
+  assert.ok(medic, 'фикстура: support-наёмник в партии (гейт «Лечения»)');
+  assert.equal(Array.from(c.turnOrder).join(','), 'efir,m0,player,a1',
+    'фикстура: очередь (Эфир первым, медик a1)');
+  assert.equal(S.G.activeUnitId(c), 'efir', 'pre-roll — стоп на ходу Эфира');
+  assert.equal(c.player.hp, 25, 'фикстура: игрок цел (волк ещё не действовал)');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.ok(byAct.cast, 'кнопка «Каст» построена (гейт: Эфир в партии)');
+  assert.ok(byAct.heal,
+    'кнопка «Лечение» построена (гейт: support-наёмник в партии)');
+  assert.equal(S.buttons.filter((b) => b.dataset.act === 'cast').length, 1,
+    'ровно ОДНА кнопка «Каст»');
+  assert.equal(S.buttons.filter((b) => b.dataset.act === 'heal').length, 1,
+    'ровно ОДНА кнопка «Лечение»');
+  assert.equal(byAct.cast.ariaLabel, 'Каст', 'aria-label «Каст»');
+  assert.equal(byAct.heal.ariaLabel, 'Лечение', 'aria-label «Лечение»');
+  const castImg = byAct.cast.children[0];
+  assert.equal(castImg.tagName, 'img', '«Каст»: иконка — <img>');
+  assert.equal(castImg.src, 'assets/ui/combat_cast.svg',
+    '«Каст»: иконка assets/ui/combat_cast.svg (конвенция 000124)');
+  const healImg = byAct.heal.children[0];
+  assert.equal(healImg.tagName, 'img', '«Лечение»: иконка — <img>');
+  assert.equal(healImg.src, 'assets/ui/combat_heal.svg',
+    '«Лечение»: иконка assets/ui/combat_heal.svg (конвенция 000124)');
+  // Ход ЭФИРА: «Каст» видима; «Лечение» скрыта И disabled (пин kind-
+  // гейта: У ЭФИРА role 'support' ТОЖЕ — без kind==='merc' кнопка
+  // светилась бы на ходу Эфира).
+  assert.equal(byAct.cast.style.display, '',
+    'ход Эфира — «Каст» видима (display "")');
+  assert.equal(byAct.heal.style.display, 'none',
+    'ход Эфира — «Лечение» скрыта (только на ходу support-наёмника)');
+  assert.equal(byAct.heal.disabled, true,
+    '«Лечение» на ходу Эфира — disabled (canDoAction)');
+  assert.equal(byAct.heal.title, 'недоступно активному персонажу',
+    'пин kind-гейта: title дословно (Эфир — НЕ support-наёмник)');
+  // Space → 'player' (волк m0 действует сам — игрок цел, hp 25).
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.G.activeUnitId(c), 'player',
+    'волк (m0) авто → стоп на ходу игрока');
+  assert.equal(c.player.hp, 25, 'волк не достал игрока');
+  assert.equal(byAct.cast.style.display, 'none',
+    'ход игрока — «Каст» скрыта (кнопка = тач-путь Эфира)');
+  assert.equal(byAct.heal.style.display, 'none',
+    'ход игрока — «Лечение» скрыта (кнопка = тач-путь наёмника)');
+  // Space → 'a1' (медик): «Лечение» видима; «Каст» скрыта и disabled.
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.G.activeUnitId(c), 'a1', 'ход support-наёмника (a1)');
+  assert.equal(byAct.heal.style.display, '',
+    'ход support-наёмника — «Лечение» видима (display "")');
+  assert.equal(byAct.cast.style.display, 'none',
+    'ход support-наёмника — «Каст» скрыта (только на ходу Эфира)');
+  assert.equal(byAct.cast.disabled, true, '«Каст» на ходу наёмника — disabled');
+  assert.equal(byAct.cast.title, 'недоступно активному персонажу',
+    '«Каст» на ходу наёмника: title дословно (строка ядра 000168)');
+  // (b) efir-only (без roster): гейт «Лечения» ложен — кнопка НЕ
+  // построена вовсе (статический гейт состава, не display).
+  const E = scene178({ efir: true, spells: true });
+  const byActE = byActOf178(E);
+  assert.equal(S.G.activeUnitId(E.c), 'efir',
+    'efir-only: pre-roll — стоп на ходу Эфира');
+  assert.ok(byActE.cast, 'efir-only: «Каст» построена (Эфир в партии)');
+  assert.equal(byActE.heal, undefined,
+    'efir-only: «Лечение» НЕ построена (support-наёмника нет — гейт build)');
+  assert.equal(byActE.cast.style.display, '',
+    'efir-only: «Каст» видима на ходу Эфира');
+});
+
+test('боевой UI: 000178 — тап «Каст» на ходу Эфира = клавиша K: урон/мана/пул/лог, ход не сгорел, 0 новых c._rng (CU178-CAST)', () => {
+  const S = scene178({ efir: true, spells: true });
+  const c = S.c;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  assert.equal(S.G.activeUnitId(c), 'efir', 'pre-roll — стоп на ходу Эфира');
+  // Геометрия фикстуры (000168-UI-2): u(3,5), волк(3,4) — d 1;
+  // волк 100/100 (запас по HP под каст).
+  u.x = 3; u.y = 5;
+  wolf.x = 3; wolf.y = 4;
+  wolf.maxHP = 100; wolf.hp = 100;
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.ok(byAct.cast, 'кнопка «Каст» построена (гейт: Эфир в партии)');
+  assert.equal(byAct.cast.style.display, '', 'видима на ходу Эфира');
+  assert.equal(byAct.cast.disabled, false,
+    'canDoAction ok (d 1, мана 11, пул Интеллект 1) — активна');
+  assert.equal(byAct.cast.title, '', 'без причины — title пусто');
+  assert.equal(byAct.cast.ariaLabel, 'Каст', 'aria-label «Каст»');
+  assert.equal(byAct.cast.textContent, '', 'текстовой подписи нет (000124)');
+  assert.equal(byAct.cast.children.length, 1, 'ровно ОДИН дочерний элемент');
+  const img = byAct.cast.children[0];
+  assert.equal(img.tagName, 'img', 'иконка — <img>');
+  assert.equal(img.src, 'assets/ui/combat_cast.svg',
+    'иконка — assets/ui/combat_cast.svg (конвенция 000124)');
+  assert.equal(img.alt, '', 'alt="" (иконка презентационная)');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/ui/combat_cast.svg')),
+    'файл иконки существует в каталоге');
+  // Снапшот ДО каста («до-значения»).
+  assert.equal(u.mp, 11, 'фикстура: мана 11');
+  assert.equal(c.efs.spellInt, 1, 'фикстура: пул Интеллект 1');
+  assert.equal(wolf.hp, 100, 'фикстура: волк 100');
+  const n0 = c.log.length;
+  const realRng = c._rng;
+  let rngCalls = 0;
+  c._rng = () => (rngCalls++, realRng());
+  // Тап кнопки (нативный click — стаб-клик).
+  byAct.cast.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  // Результат ОДНОГО тапа (= KeyK): сильнейшее урон-заклинание.
+  // Строку строит ЯДРО (efirCastAction) — UI свою строку не ведёт.
+  const added = Array.from(c.log).slice(n0);
+  assert.deepEqual(added, ['Эфир: «Искра» — Волк: 5.'],
+    'лог — ровно ОДНА строка ядра: ' + JSON.stringify(added));
+  assert.equal(c.efs.spellInt, 0, 'пул «Заклинание» (Интеллект) 1→0');
+  assert.equal(u.mp, 8, 'мана 11→8 (Искра: 3 маны)');
+  assert.equal(wolf.hp, 95, 'волк 100→95 (round((3+0.5·3)·1.05))');
+  assert.equal(S.G.activeUnitId(c), 'efir', 'ход НЕ сгорел (каст ≠ endTurn)');
+  assert.equal(rngCalls, 0,
+    'новых вызовов c._rng — ноль (каст Эфира детерминирован)');
+  // После каста — то же, что и клавише K: пул исчерпан.
+  const after = S.G.canDoAction(c, 'cast', { targetId: c.targetId });
+  assert.equal(after.ok, false, 'после каста — недоступно (пул исчерпан)');
+  assert.equal(after.reason, 'действий «Заклинание» (Интеллект) больше нет',
+    'причина дословно (та же, что дала бы клавиша)');
+});
+
+test('боевой UI: 000178 — «Каст» disabled с дословными title (гейты canDoAction 000168); стаб-клик — ровно одна строка в лог, трат НЕТ (CU178-CAST-OFF)', () => {
+  const cases = [
+    // (a) Маны нет → «не хватает маны (3)» (Искра: 3 маны).
+    { title: 'не хватает маны (3)',
+      mut: (S, u) => { u.mp = 0; } },
+    // (b) Пул исчерпан → «действий «Заклинание» (Интеллект) больше нет».
+    { title: 'действий «Заклинание» (Интеллект) больше нет',
+      mut: (S) => { S.c.efs.spellInt = 0; } },
+    // (c) Дистанция 5 > 4 → «цель слишком далеко (дальность 4)».
+    { title: 'цель слишком далеко (дальность 4)',
+      mut: (S, u, wolf) => { wolf.y = 0; } },
+  ];
+  for (const { title, mut } of cases) {
+    const S = scene178({ efir: true, spells: true });
+    const c = S.c;
+    const u = c.units.find((x) => x.kind === 'efir');
+    const wolf = c.units.find((x) => x.id === 'm0');
+    u.x = 3; u.y = 5;
+    wolf.x = 3; wolf.y = 4;
+    wolf.maxHP = 100; wolf.hp = 100;
+    mut(S, u, wolf);
+    tickSlice(S.canvas, S.rafStubs);
+    // (ре-рендер: состояние кнопки — из нового состояния боя)
+    const byAct = byActOf178(S);
+    assert.ok(byAct.cast, 'кнопка «Каст» построена: ' + title);
+    assert.equal(byAct.cast.style.display, '',
+      'видима на ходу Эфира (видимость — по активному юниту): ' + title);
+    assert.equal(byAct.cast.disabled, true, 'disabled: ' + title);
+    assert.equal(byAct.cast.title, title, 'title — причина ДОСЛОВНО: ' + title);
+    // Стаб-клик (работает и на disabled): ПИН ПРЕДПРОВЕРКИ — без неё
+    // в деградационном состоянии действия не было бы БЕЗ строки в
+    // лог (тишина); с ней — ровно одна строка, трат нет.
+    const mp0 = u.mp, int0 = c.efs.spellInt, whp0 = wolf.hp, n0 = c.log.length;
+    byAct.cast.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const added = Array.from(c.log).slice(n0);
+    assert.deepEqual(added, [title],
+      'ровно ОДНА строка — причина в журнал: ' + JSON.stringify(added));
+    assert.equal(u.mp, mp0, 'мана не потрачена: ' + title);
+    assert.equal(c.efs.spellInt, int0, 'пул не потрачен: ' + title);
+    assert.equal(wolf.hp, whp0, 'волк не задет: ' + title);
+    assert.equal(S.G.activeUnitId(c), 'efir', 'очередь не сдвинулась: ' + title);
+  }
+});
+
+test('боевой UI: 000178 — тап «Лечение» на ходу support-наёмника = клавиша H: +HP/attackLeft/лог, ход не сгорел (CU178-HEAL)', () => {
+  // HEAL-сцена (roster-only): turnOrder ['m0','player','a0'];
+  // pre-roll: волк m0 действует сам (переместился, НЕ достал игрока),
+  // стоп на 'player'; Space → 'a0' (медик, attackLeft 1).
+  const S = scene178({ spells: true, roster: ROSTER_MEDIC });
+  const c = S.c;
+  const medic = c.units.find((x) => x.side === 'ally'
+    && x.role === 'support' && x.kind === 'merc');
+  assert.ok(medic, 'фикстура: support-наёмник в партии');
+  assert.equal(medic.id, 'a0', 'фикстура: медик — a0 (Эфира в бою нет)');
+  assert.equal(Array.from(c.turnOrder).join(','), 'm0,player,a0',
+    'фикстура: очередь');
+  assert.equal(S.G.activeUnitId(c), 'player',
+    'pre-roll: волк сам → стоп на ходу игрока');
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.G.activeUnitId(c), 'a0', 'Space → ход support-наёмника');
+  // Раненый игрок (ядро само выбирает цель: mostWounded).
+  assert.equal(S.G.derived(c.player).maxHP, 25, 'фикстура: maxHP 25');
+  c.player.hp = 15;
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.ok(byAct.heal,
+    'кнопка «Лечение» построена (гейт: support-наёмник в партии)');
+  assert.equal(byAct.cast, undefined,
+    '«Каст» ОТСУТСТВУЕТ (Эфира в бою нет — гейт build ложен)');
+  assert.equal(byAct.heal.style.display, '',
+    'видима на ходу support-наёмника (display "")');
+  assert.equal(byAct.heal.disabled, false,
+    'canDoAction ok (слот 1, раненый есть, mend) — активна');
+  assert.equal(byAct.heal.title, '', 'без причины — title пусто');
+  assert.equal(byAct.heal.ariaLabel, 'Лечение', 'aria-label «Лечение»');
+  assert.equal(byAct.heal.textContent, '', 'текстовой подписи нет (000124)');
+  assert.equal(byAct.heal.children.length, 1, 'ровно ОДИН дочерний элемент');
+  const img = byAct.heal.children[0];
+  assert.equal(img.tagName, 'img', 'иконка — <img>');
+  assert.equal(img.src, 'assets/ui/combat_heal.svg',
+    'иконка — assets/ui/combat_heal.svg (конвенция 000124)');
+  assert.equal(img.alt, '', 'alt="" (иконка презентационная)');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/ui/combat_heal.svg')),
+    'файл иконки существует в каталоге');
+  // Снапшот ДО лечения («до-значения»).
+  assert.equal(c.player.hp, 15, 'фикстура: игрок ранен 15/25');
+  assert.equal(medic.attackLeft, 1, 'фикстура: слот действия 1');
+  const n0 = c.log.length;
+  // Тап кнопки (нативный click — стаб-клик).
+  byAct.heal.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  // Результат ОДНОГО тапа (= KeyH): высшая степень лечения u.spells
+  // (mend ур. 2: +6). Строку строит ЯДРО (allyHeal) — UI свою не ведёт.
+  const added = Array.from(c.log).slice(n0);
+  assert.deepEqual(added, ['Медик лечит Флогистон (+6).'],
+    'лог — ровно ОДНА строка ядра: ' + JSON.stringify(added));
+  assert.equal(c.player.hp, 21, 'игрок 15→21 (mend: +6)');
+  assert.equal(medic.attackLeft, 0, 'слот действия 1→0');
+  assert.equal(S.G.activeUnitId(c), 'a0', 'ход НЕ сгорел (лечение ≠ endTurn)');
+  // После лечения — то же, что и клавише H: слот исчерпан.
+  const after = S.G.canDoAction(c, 'heal', { targetId: c.targetId });
+  assert.equal(after.ok, false, 'после — недоступно (слот исчерпан)');
+  assert.equal(after.reason, 'действий «Удар» больше нет',
+    'причина дословно (та же, что дала бы клавиша)');
+});
+
+test('боевой UI: 000178 — «Лечение» disabled с дословными title (гейты allyCanDo); стаб-клик — ровно одна строка в лог, трат НЕТ (CU178-HEAL-OFF)', () => {
+  const cases = [
+    // (a) Слот исчерпан → «действий «Удар» больше нет» (порядок
+    // ядра: слот ПЕРВЫМ — раненый есть, но слота нет).
+    { title: 'действий «Удар» больше нет',
+      mut: (S, medic) => { medic.attackLeft = 0; S.c.player.hp = 15; } },
+    // (b) Никто не ранен (игрок 25/25, медик цел) → «нет раненых».
+    { title: 'нет раненых', mut: null },
+    // (c) В у.спells нет лечения → «нет лечения» (порядок ядра:
+    // слот → раненые → каталог).
+    { title: 'нет лечения',
+      roster: [{ name: 'Медик', role: 'support', level: 2, dmg: 1, hp: 1,
+        spells: [] }],
+      mut: (S) => { S.c.player.hp = 15; } },
+  ];
+  for (const { title, mut, roster } of cases) {
+    const S = scene178({ spells: true, roster: roster || ROSTER_MEDIC });
+    const c = S.c;
+    press(S.keydown, 'Space'); // ход игрока → a0 (медик)
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(c), 'a0', 'ход support-наёмника: ' + title);
+    const medic = c.units.find((x) => x.side === 'ally'
+      && x.role === 'support' && x.kind === 'merc');
+    if (mut) mut(S, medic);
+    tickSlice(S.canvas, S.rafStubs);
+    // (ре-рендер: состояние кнопки — из нового состояния боя)
+    const byAct = byActOf178(S);
+    assert.ok(byAct.heal, 'кнопка «Лечение» построена: ' + title);
+    assert.equal(byAct.heal.style.display, '',
+      'видима на ходу наёмника (видимость — по активному юниту): ' + title);
+    assert.equal(byAct.heal.disabled, true, 'disabled: ' + title);
+    assert.equal(byAct.heal.title, title, 'title — причина ДОСЛОВНО: ' + title);
+    // Стаб-клик (работает и на disabled): причина в журнал, трат НЕТ.
+    const hp0 = c.player.hp, al0 = medic.attackLeft, n0 = c.log.length;
+    byAct.heal.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const added = Array.from(c.log).slice(n0);
+    assert.deepEqual(added, [title],
+      'ровно ОДНА строка — причина в журнал: ' + JSON.stringify(added));
+    assert.equal(c.player.hp, hp0, 'HP не изменился: ' + title);
+    assert.equal(medic.attackLeft, al0, 'слот не потрачен: ' + title);
+    assert.equal(S.G.activeUnitId(c), 'a0', 'очередь не сдвинулась: ' + title);
+  }
+});
+
+test('боевой UI: 000178 — гейты build(): без Эфира/support-наёмника кнопок НЕТ, панель бит-в-байт 7 (CU178-GATE)', () => {
+  // ЗЕЛЁНЫЙ guard (зелёный и до, и после фикса): кнопки создаются
+  // ТОЛЬКО под статическими гейтами состава партии (c.units в
+  // build()): «Каст» — Эфир в партии; «Лечение» — support-наёмник
+  // (role 'support' && kind 'merc'). Дефолтный бой и melee-отряд
+  // (Вольк — не Эфир и не support) — 7 табличных кнопок бит-в-байт:
+  // пины «7 штук»/000124/CU171-GATE/SB1 — без ре-пина (спящий пин,
+  // паттерн 000166/000171: защита от «кнопок без гейта»).
+  const D = scene178({});
+  assert.equal(D.buttons.length, 7, 'дефолтный бой — 7 кнопок');
+  assert.ok(!D.buttons.some((b) => b.dataset.act === 'cast'),
+    'dataset.act=cast отсутствует (Эфира нет)');
+  assert.ok(!D.buttons.some((b) => b.dataset.act === 'heal'),
+    'dataset.act=heal отсутствует (support-наёмника нет)');
+  const M = scene178({ roster: [{ name: 'Вольк', role: 'melee', level: 2,
+    dmg: 1, hp: 1 }] });
+  assert.equal(M.buttons.length, 7,
+    'melee-отряд (Вольк) — 7 кнопок (союзник есть, но НЕ под гейты)');
+  assert.ok(!M.buttons.some((b) => b.dataset.act === 'cast'),
+    'dataset.act=cast отсутствует (Вольк — не Эфир)');
+  assert.ok(!M.buttons.some((b) => b.dataset.act === 'heal'),
+    'dataset.act=heal отсутствует (Вольк — не support)');
+});

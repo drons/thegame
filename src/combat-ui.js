@@ -62,6 +62,18 @@
 // каст — resurrectCast (предпроверка + цель resurrectTargetId).
 // Контракты — memory/000171-combat-resurrect-button.md /
 // memory/000171-touch-buttons.md.
+// «Каст»/«Лечение» (задача 000178): ДВЕ выделенные кнопки панели —
+// тач-пути для клавиш K (каст Эфира) и H (лечение support-наёмника,
+// 000168). ГЕЙТ — состав партии в build() (Эфир в c.units /
+// support-наёмник role 'support' && kind 'merc' — условие ядра
+// allyCanDo ДОСЛОВНО); видимость — по активному юниту в цикле render
+// (display ''/'none' на персистентном элементе — «появляется только
+// на ходу X»); гашение — СТАНДАРТНЫЙ canDoAction (ветки 'cast'/'heal'
+// в ядре 000168 — строки причины 1:1 с клавишами); клик — allyBtn
+// (предпроверка + runAction — зеркало клавиши; стаб-клик — причина в
+// журнал, трат нет). Иконки — assets/ui/combat_cast.svg /
+// combat_heal.svg. Контракты — memory/000178-combat-cast-heal-
+// buttons.md.
 
 (function () {
   'use strict';
@@ -306,14 +318,63 @@
       });
       actions.appendChild(b);
     }
+    // «Каст» (задача 000178): тач-путь для клавиши K (каст Эфира,
+    // 000168) — выделенная кнопка панели, паттерн 000171 (тап =
+    // нативный click; геометрия/:disabled — правила .combat-actions
+    // button). ГЕЙТ build() — Эфир в партии: c.units до build —
+    // production-путь 000087 (allies = [efir, ...rosterData] ДО
+    // startCombat; в бою состав не меняется — статический гейт
+    // честен). Видимость — по активному юниту (castHealVis в render:
+    // «появляется только на ходу Эфира»); гашение — СТАНДАРТНЫЙ
+    // canDoAction (ветка 000168 — строки 1:1 с клавишей); клик —
+    // allyBtn. Позиция — ПЕРЕД «Воскрешением»: включённая кнопка —
+    // 8-я видимая клетка (row 2 col 4; row 3 col 1 закрыта D-падом —
+    // memory/000178-combat-cast-heal-buttons.md §3.3).
+    if (c.units.some((u) => u.side === 'ally' && u.kind === 'efir')) {
+      const cb = document.createElement('button');
+      const icon = document.createElement('img');
+      icon.src = 'assets/ui/combat_cast.svg';
+      icon.alt = '';
+      cb.appendChild(icon);
+      cb.ariaLabel = 'Каст';
+      cb.dataset.act = 'cast';
+      cb.addEventListener('click', () => allyBtn(c, 'cast'));
+      // Начальное значение — display 'none': первый render
+      // синхронен в startCombat (build(); render();), видимость —
+      // castHealVis; защищает гипотетический build без render.
+      cb.style.display = 'none';
+      actions.appendChild(cb);
+    }
+    // «Лечение» (задача 000178): тач-путь для клавиши H (лечение
+    // support-наёмника, 000168) — паттерн 000171. ГЕЙТ build() —
+    // support-наёмник в партии (условие ядра allyCanDo 'heal'
+    // ДОСЛОВНО; КРИТИЧНО kind==='merc' — у Эфира role 'support'
+    // ТОЖЕ). Остальное — как у «Каста» выше.
+    if (c.units.some((u) => u.side === 'ally' && u.role === 'support'
+        && u.kind === 'merc')) {
+      const hb = document.createElement('button');
+      const icon = document.createElement('img');
+      icon.src = 'assets/ui/combat_heal.svg';
+      icon.alt = '';
+      hb.appendChild(icon);
+      hb.ariaLabel = 'Лечение';
+      hb.dataset.act = 'heal';
+      hb.addEventListener('click', () => allyBtn(c, 'heal'));
+      hb.style.display = 'none'; // видимость — render (castHealVis)
+      actions.appendChild(hb);
+    }
     // «Воскрешение» (задача 000171): выделенная кнопка панели —
     // мобильный путь БЕЗ книги (цепочка «книга → строка → клетка» на
     // таче не discoverable). ГЕЙТ canResurrect (000166, бит-в-байт):
     // создаётся ТОЛЬКО если носитель знает 'resurrect'; дефолтный
     // герой (['spark','mend']) — панель 7 табличных кнопок бит-в-байт
     // (пины «7 штук»/000124/000168-UI-2 — без ре-пина). Позиция —
-    // 8-я клетка сетки (CSS index.html: «8 кнопок = 2 ряда», grid
-    // 4×2); геометрия/:disabled — правила .combat-actions button.
+    // 8-я клетка сетки НА ХОДУ ИГРОКА (CSS index.html: «8 кнопок =
+    // 2 ряда», grid 4×2); с 000178 — УСЛОВНО: включённые
+    // «Каст»/«Лечение» стоят ПЕРЕД этим блоком (8-я видимая на ходу
+    // союзника), здесь resurrect — 9-я видимая (row 3 col 1) —
+    // memory/000178-combat-cast-heal-buttons.md §3.3.
+    // Геометрия/:disabled — правила .combat-actions button.
     // Тап = нативный click (как у 7 кнопок; pointerdown НЕ добавлять
     // — двойное срабатывание). Гашение — спец-кейс resurrectChk
     // (render): canDoAction 'resurrect' = «неизвестное действие» —
@@ -1468,6 +1529,12 @@
     // действие» — вечный disabled с неверным title); строки
     // disabled/title ниже — без изменений (для resurrect гаснут через
     // resurrectChk, прочие кнопки — бит-в-байт).
+    // Кнопки «Каст»/«Лечение» (act=cast/heal, 000178) — спец-кейс
+    // ТОЛЬКО ВИДИМОСТИ: display ''/'none' по активному юниту на
+    // ПЕРСИСТЕНТНОМ элементе (создан один раз в build(); пересоздание
+    // в render убивает клик — урок 000149). Гашение — стандартный
+    // canDoAction выше (ветки 000168 — 1:1 с клавишами K/H); строки
+    // disabled/title для них — без изменений.
     if (overlay) {
       overlay.querySelectorAll('.combat-actions button').forEach((b) => {
         const r = b.dataset.act === 'resurrect'
@@ -1475,6 +1542,9 @@
           : G.canDoAction(c, b.dataset.act, { targetId: c.targetId });
         b.disabled = c.phase !== 'player' || !!c.result || !r.ok;
         b.title = r.ok ? '' : r.reason;
+        if (b.dataset.act === 'cast' || b.dataset.act === 'heal') {
+          b.style.display = castHealVis(c, b.dataset.act) ? '' : 'none';
+        }
       });
     }
 
@@ -1753,6 +1823,53 @@
     } else {
       logRejection(c, r);
     }
+    render();
+  }
+
+  // --- «Каст»/«Лечение» — кнопки панели (задача 000178) ---
+  //
+  // Контракт — memory/000178-combat-cast-heal-buttons.md: кнопки —
+  // тач-пути для клавиш K (каст Эфира) / H (лечение support-наёмника;
+  // 000168). КЛЮЧЕВОЕ ОТЛИЧИЕ от 000171: ветки 'cast'/'heal' ЕСТЬ в
+  // canDoAction/allyCanDo — гашение = СТАНДАРТНЫЙ canDoAction (строки
+  // причины 1:1 с клавишами, БЕЗ собственного chk-хелпера), спец-кейс
+  // в цикле render — только ВИДИМОСТЬ (castHealVis). Вставка ПОСЛЕ
+  // resurrectCast (НЕ после canResurrect — там hunk 000168
+  // activeUnit/activeIsEfir: rebase-конфликт, урок 000171 §8.2).
+  // activeUnit — существующий typeof-guard (фолбэк null → скрыта —
+  // безопасная деградация).
+  function activeIsSupportMerc(c) {
+    const u = activeUnit(c);
+    return !!(u && u.role === 'support' && u.kind === 'merc');
+  }
+  // Видимость «Каст»/«Лечение» — по активному СОЮЗНИКУ: «Каст» —
+  // только на ходу Эфира, «Лечение» — только на ходу support-наёмника
+  // (условие ядра allyCanDo 'heal' ДОСЛОВНО; у Эфира role 'support'
+  // ТОЖЕ — kind-гейт обязателен). Игрок/моб/конец боя — activeUnit
+  // null → скрыта.
+  function castHealVis(c, act) {
+    return act === 'cast' ? activeIsEfir(c) : activeIsSupportMerc(c);
+  }
+  // Тап кнопки (000178): ЗЕРКАЛО клавиши — handleCode: KeyH
+  // предпроверяет canDoAction ДО c.heal; KeyK — reason из
+  // resolveCombatKey — + домовой паттерн предпроверок (resurrectCast
+  // 000171, 'spellbook'-thunk runAction): предпроверка ПЕРВОЙ строкой
+  // — стаб-клик / смена состояния между рендером и кликом → ровно
+  // ОДНА строка причины в журнал, ДЕЙСТВИЯ НЕТ, трат НЕТ (ядро
+  // c.cast/c.heal ПЕРЕПРОВЕРЯЕТ всё — двойная защита; в деградационном
+  // состоянии без предпроверки лог-строки не было — «тишина»).
+  // Ход НЕ сгорает (действие ≠ endTurn). 0 новых c._fx: строку лога
+  // строит ЯДРО (efirCastAction «Эфир: «<зак>» — <имя>: N.» /
+  // allyHeal «<имя> лечит <имя> (+N).») — свою строку/FX НЕ вводить
+  // (дубль строк; runAction анимирует только 'attack').
+  function allyBtn(c, act) {
+    const chk = G.canDoAction(c, act, { targetId: c.targetId });
+    if (!chk.ok) {
+      logRejection(c, chk);
+      render();
+      return;
+    }
+    runAction(c, act);
     render();
   }
 
