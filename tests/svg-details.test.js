@@ -1,5 +1,5 @@
 // Задача 000062: счётчик «деталей» SVG-ассетов мобов
-// (scripts/count-svg-details.js). Правила — MOBS.md:
+// (scripts/count-svg-details.js). Правила — spec/MOBS.md:
 // деталь = контурный элемент (path, circle, ellipse, polygon, rect, line)
 // в теле SVG; внутри <defs>, <clipPath>, <mask> и тег <use> — в счёт
 // не идут; комментарии не считаются.

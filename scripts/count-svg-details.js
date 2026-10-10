@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/count-svg-details.js — счётчик «деталей» SVG-ассетов мобов.
-// Правила — MOBS.md (задача 000062).
+// Правила — spec/MOBS.md (задача 000062).
 //
 // Деталь = один контурный элемент в теле SVG:
 //   path, circle, ellipse, polygon, rect, line
@@ -61,7 +61,7 @@ function extractTags(svgText) {
   return tags;
 }
 
-// Считает «детали» (см. правила в MOBS.md) в тексте SVG.
+// Считает «детали» (см. правила в spec/MOBS.md) в тексте SVG.
 function countDetails(svgText) {
   let count = 0;
   let excluded = 0; // вложенность внутри defs/clipPath/mask

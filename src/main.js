@@ -370,7 +370,7 @@
   // анимации — ТОЛЬКО аргумент кадра frame(now), D-RNG-1).
   let lastFrameNow = 0;
 
-  // Игровое время (SPEC.md «Игровое время», src/day.js).
+  // Игровое время (spec/game-time.md, src/day.js).
   const clock = G.createClock();
   // Журнал квестов (000100): read-only зеркало во вкладке «Квесты»
   // панели персонажа. ВАЖНО: проводка ПОСЛЕ `const clock` (TDZ:
@@ -525,7 +525,7 @@
     }
     return xpLines.concat(deadLines);
   }
-  // Задача 000132: лут с мобов при победе (SPEC.md «Лут» L217-221;
+  // Задача 000132: лут с мобов при победе (spec/mob-groups-storage.md «Лут»;
   // контракт — memory/000132-mob-loot.md) — ОДИН хелпер выдачи для
   // ВСЕХ 3 мест победы (onEnd: startCombatAt/maybeStartCombat/
   // startDungeonCombat): c.result.items [{id, qty}] → G.addItem в
@@ -1365,7 +1365,7 @@
   let dungeonState = null;
   const dungeonMemory = new Map();
 
-  // Смена дня: восстановление, респауны групп (SPEC.md «Игровое время»).
+  // Смена дня: восстановление, респауны групп (spec/game-time.md).
   // 000170 (D8): watchdog ОКРУЖАЕТ ВЕСЬ ТЕЛО listener'а — максимальная
   // 10-07 исключительная поверхность (playerUI/squadUI — DOM-партии,
   // saveNow) НЕ может рвать день-цепь (clock.event), в т.ч. в выходе
@@ -2265,7 +2265,7 @@
   // записи в cityShops ЕСТЬ, а торговля НЕТ). Мир — как было
   // (npcShopFor, 000029) — КЛЮЧЕВОЙ путь не тронут.
   // 000134: клетка города БЕЗ cityShops-записи — Лавка (id 5): нет
-  // map_index (SPEC L349-350) → стока постройки нет → NPC-канал
+  // map_index (spec/buildings.md «Магазины») → стока постройки нет → NPC-канал
   // (npcStocks по npcId) как в мире — ЖИВОЙ глобальный сток Хольда.
   function shopFor(npc, t) {
     const ds = dungeonState;
@@ -2680,7 +2680,7 @@
     // Радиус агрессии = дистанция триггера боя (000135, ЕДИНЫЙ источник
     // G.groupZoneInfo): triggers=true (aggressive/territorial) — круг
     // радиуса info.radius*zoom по центру тайла группы; neutral/timid
-    // бой ведут ТОЛЬКО на своём тайле (SPEC L162 «может пройти мимо») —
+    // бой ведут ТОЛЬКО на своём тайле (spec/mobs.md «Состав групп» «может пройти мимо») —
     // радиус агрессии 0, окружности нет. Видимость — тот же фильтр, что
     // Проход 3: поверженная сегодня группа (defeatedAt) не аггрит.
     // Z-порядок (000042): тайлы/декорации < постройки < агро-окружности

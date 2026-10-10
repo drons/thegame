@@ -523,7 +523,7 @@
   }
 
   function restoreDay(sheet) {
-    // Восстановление за игровой день (SPEC.md: между днями).
+    // Восстановление за игровой день (spec/game-time.md: «При смене дня»).
     const d = derived(sheet);
     if (!d) return { hp: sheet.hp, mp: sheet.mp };
     sheet.hp = Math.min(d.maxHP, sheet.hp + Math.round(d.maxHP * d.hpRegenMult));

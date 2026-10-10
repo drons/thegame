@@ -5,7 +5,7 @@
 //    Силуэт, Цветовая схема (HEX-палитра 5–8 цветов), Арт-дирекшн
 //    (движение/удар/гибель);
 //  * «art» — move 2–3 кадра, attack 2–3, dead ровно 1; пути — плоский
-//    паттерн assets/sprites/mobs/<mob_id>_<state>_<n>.svg (MOBS.md),
+//    паттерн assets/sprites/mobs/<mob_id>_<state>_<n>.svg (spec/MOBS.md),
 //    файлы существуют;
 //  * каждый кадр — структурно корректный SVG: viewBox 100·w × 100·h,
 //    без запрещённых тегов (script/text/image/SMIL/foreignObject),
@@ -78,9 +78,9 @@ function checkMobSvgErrors(file, text, mobId, size) {
   const noXmlns = text.replace(/xmlns="[^"]*"/g, '');
   if (/https?:\/\//.test(noXmlns)) errors.push('внешняя http(s)-ссылка');
   if (/xlink|href\s*=/i.test(noXmlns)) errors.push('атрибут-ссылка href/xlink');
-  // Тень-эллипс rgba(0,0,0,0.2x) (MOBS.md: 0.25–0.3).
+  // Тень-эллипс rgba(0,0,0,0.2x) (spec/MOBS.md: 0.25–0.3).
   if (!/rgba\(0,\s*0,\s*0,\s*0\.2[5-9]\)/.test(text)) errors.push('нет тени rgba(0,0,0,0.2x)');
-  // id в defs — с префиксом <mob_id>_ (MOBS.md).
+  // id в defs — с префиксом <mob_id>_ (spec/MOBS.md).
   const defs = text.match(/<defs[^>]*>[\s\S]*?<\/defs>/);
   if (defs) {
     for (const idm of defs[0].matchAll(/id="([^"]+)"/g)) {

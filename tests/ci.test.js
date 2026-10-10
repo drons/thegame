@@ -287,7 +287,8 @@ test('SPEC: в сборку — каталоги с зеркалом (spells —
   // «mobs/spells/craft — зеркал не имеют» стало ошибкой: 000045 создал
   // src/spells-data.js + scripts/sync-spells-data.js (sync-all подхватил
   // автоматически). Фиксируем верный список, чтобы не откатить.
-  const spec = fs.readFileSync(path.join(ROOT, 'SPEC.md'), 'utf8');
+  // 000159: SPEC.md разбит на spec/*.md — раздел в spec/ci-github-pages.md.
+  const spec = fs.readFileSync(path.join(ROOT, 'spec', 'ci-github-pages.md'), 'utf8');
   const i = spec.indexOf('# CI и публикация на GitHub Pages');
   assert.ok(i !== -1, 'SPEC.md: нет раздела «CI и публикация на GitHub Pages»');
   const j = spec.indexOf('\n# ', i + 1);

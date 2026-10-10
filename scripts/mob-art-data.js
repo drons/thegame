@@ -3,13 +3,13 @@
 //
 // Используется генератором scripts/gen-mob-art.js (SVG-кадры) и
 // scripts/mobs-json-add-art.js (поля «описание»/«art» в JSON).
-// Описания — source of truth для арт-QA (MOBS.md, «JSON-поля моба»):
+// Описания — source of truth для арт-QA (spec/MOBS.md, «JSON-поля моба»):
 // палитра HEX в описании = палитра, которой рисует генератор
 // (тест tests/mob-art.test.js сверяет все HEX файла с описанием).
 //
 // Палитры — развитие языков семейств из WIP-мастеров
 // (wip/task-000047-mobart, референс стиля) и базовых 64×64 спрайтов
-// assets/sprites/mobs/*_{1,2}.svg. 5–8 цветов на моба (MOBS.md).
+// assets/sprites/mobs/*_{1,2}.svg. 5–8 цветов на моба (spec/MOBS.md).
 
 'use strict';
 
@@ -821,7 +821,7 @@ const MOBS_ART = [
   },
 ];
 
-// --- Сборка полного поля «описание» (MOBS.md, «JSON-поля моба») ---
+// --- Сборка полного поля «описание» (spec/MOBS.md, «JSON-поля моба») ---
 
 function buildDescription(m) {
   const lines = [];

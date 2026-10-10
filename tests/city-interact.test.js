@@ -100,12 +100,12 @@ const ROOT = path.join(__dirname, '..');
 
 // Городские записи каталога (срез нужных полей; map_index — из
 // 000001/000044: оружейная 0, таверна 11; лавка странника 5 —
-// map_index НЕТ: SPEC L349-350, 000134 — канал только NPC-торговля).
+// map_index НЕТ: spec/buildings.md «Магазины», 000134 — канал только NPC-торговля).
 const CITY_RECS = {
   1: { id: 1, название: 'Оружейная', категория: 'здание',
     особые_параметры: { map_index: 0, виды: ['weapon'] } },
   5: { id: 5, название: 'Лавка странника', категория: 'здание',
-    особые_параметры: { виды: [] } }, // map_index нет (SPEC L349-350)
+    особые_параметры: { виды: [] } }, // map_index нет (spec/buildings.md «Магазины»)
   7: { id: 7, название: 'Арена', категория: 'здание',
     особые_параметры: { map_index: 2, виды: ['training'] } },
   44: { id: 44, название: 'Таверна', категория: 'здание',
@@ -221,7 +221,7 @@ function makeDeps(over = {}) {
         const s = d.cityShops[t.x + ',' + t.y];
         // 000134 (зеркало D2): клетка города С cityShops-записью →
         // городской сток; БЕЗ записи (Лавка 5 — нет map_index,
-        // SPEC L349-350) → NPC-канал npcStocks как в мире.
+        // spec/buildings.md «Магазины») → NPC-канал npcStocks как в мире.
         if (!s) return npc ? deps.npcShopFor(npc.id) : null;
         if (!npc || !npc.торговля || !Array.isArray(npc.торговля.предметы)) {
           return null; // таверна: Берта без торговля — гасим ДО npcUI
@@ -407,7 +407,7 @@ test('CI-U10. деградация: Game.buildingUI отсутствует → n
     'console.error «обход запрещён»: ' + JSON.stringify(errs));
 });
 
-test('CI-U11. 000134: клетка города БЕЗ cityShops-записи (Лавка id 5 — нет map_index, SPEC L349-350) → shopFor — fallback npcShopFor (живой NPC-сток), не null (D2, юнит-пин; e2e — CI-134A)', () => {
+test('CI-U11. 000134: клетка города БЕЗ cityShops-записи (Лавка id 5 — нет map_index, spec/buildings.md «Магазины») → shopFor — fallback npcShopFor (живой NPC-сток), не null (D2, юнит-пин; e2e — CI-134A)', () => {
   // ds = {kind: 'city', cityShops: {}} — записи городской стока НЕТ
   // (makeCityShop → null у Лавки — guard !map_index, cities.js:453);
   // NPC постройки 5 — Бренн (фейковый торговец; реальный — Хольд,
@@ -430,7 +430,7 @@ test('CI-U11. 000134: клетка города БЕЗ cityShops-записи (�
   assert.deepEqual(n.shop, { npc: NPC_WREN, stock: { world_item: 1 } },
     'RED: shop — NPC-канал (живой сток npcStocks), НЕ null/одноразовый');
   assert.equal(n.tile.building, null,
-    'tile.building — null (map_index нет — SPEC L349-350)');
+    'tile.building — null (map_index нет — spec/buildings.md «Магазины»)');
 });
 
 // ============================================================
@@ -1338,7 +1338,7 @@ test('CI-V8. содержимое на входе: __game.dungeon.buildings = ge
 //       → findCityFor → null → assert.ok(found);
 //   (2) слой 2 (если бы доли были, а shopFor-фикса нет): клетка
 //       Лавки без cityShops-записи (makeCityShop → null, map_index
-//       нет — SPEC L349-350) → shopFor → null → renderTradeTab
+//       нет — spec/buildings.md «Магазины») → shopFor → null → renderTradeTab
 //       создаёт ОДНОРАЗОВЫЙ сток G.createNpcShop(npc) в оверлее:
 //       npcStocks пуст (покупка сгорает при close), повторный
 //       диалог «Бревно (ост. 5)», в сейве раздела нет → падают
@@ -1391,7 +1391,7 @@ async function walkToShopAndDialog(existingStorage) {
   return { h, G, g, found, npc, ov, b5 };
 }
 
-test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог» → торговля Хольда (6 позиций 000011.json); покупка wood_log — ГЛОБАЛЬНЫЙ сток npcStocks (ключ npcId); городская запись стока у Лавки НЕТ (SPEC L349-350); повторный диалог — сток живой', async () => {
+test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог» → торговля Хольда (6 позиций 000011.json); покупка wood_log — ГЛОБАЛЬНЫЙ сток npcStocks (ключ npcId); городская запись стока у Лавки НЕТ (spec/buildings.md «Магазины»); повторный диалог — сток живой', async () => {
   const { h, G, g, found, npc, ov, b5 } = await walkToShopAndDialog();
   const trade = textOf(ov);
   // 6 позиций Хольда: «имя (ост. N)» (N — начальное количество) +
@@ -1435,7 +1435,7 @@ test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог
     .reduce((s, e) => s + (e.id === 'wood_log' ? e.qty : 0), 0);
   assert.equal(invW, 1, 'инвентарь: +1 wood_log');
   // Городского канала (cityShops) у Лавки НЕТ (map_index нет —
-  // SPEC L349-350, makeCityShop → null): в стоке города (ключ —
+  // spec/buildings.md «Магазины», makeCityShop → null): в стоке города (ключ —
   // ЯКОРЬ) нет клетки Лавки; таверна — ЕСТЬ.
   const cityRec = g.cities[found.ax + ',' + found.ay];
   assert.ok(cityRec && cityRec.stock,
@@ -1445,7 +1445,7 @@ test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог
   assert.ok(cityRec.stock[b44.x + ',' + b44.y],
     'таверна — в городском стоке (makeCityShop работает)');
   assert.equal(cityRec.stock[b5.x + ',' + b5.y], undefined,
-    'клетка Лавки — НЕ в городском стоке (канала НЕТ — SPEC L349-350)');
+    'клетка Лавки — НЕ в городском стоке (канала НЕТ — spec/buildings.md «Магазины»)');
   // Сток НЕ «воскрешает» при повторном диалоге (фиксатор разрыва
   // D2: без shopFor-fallback одноразовый сток → «ост. 5»).
   key(h, 'Escape');

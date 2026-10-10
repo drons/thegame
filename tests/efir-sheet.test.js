@@ -25,7 +25,7 @@
 //     каталога 31: swordsman); requires-гейт (icelord ← firelord 5);
 //     каскад reprocessSkillXp — сейчас: sheet не существует;
 //   * ES-4 — боевые статки из primary (derived-модификатор, баланс
-//     SPEC L801-812: L1 16/11); УРОВЕНЬ атрибуты больше НЕ растит
+//     spec/efir-spirit.md «Бой»: L1 16/11); УРОВЕНЬ атрибуты больше НЕ растит
 //     (рост — очками) — сейчас: таблица efirStats(level): L3 → 18/13;
 //   * ES-5 — авто-разблокировки EFIR_SPELL_UNLOCKS (9 шт., 5/8/10/12/
 //     15/20/22/25/30) накладываются на лист (append-only, без дублей),
@@ -261,7 +261,7 @@ test('000144 ES-3: очки тратятся Game.Sheet на лист Эфира
   });
 });
 
-test('000144 ES-4: боевые статки — из primary (derived-модификатор, баланс SPEC L801-812: L1 maxHP 16 / maxMP 11); УРОВЕНЬ атрибуты не растит (рост — очками: raiseSkill primary)', () => {
+test('000144 ES-4: боевые статки — из primary (derived-модификатор, баланс spec/efir-spirit.md «Бой»: L1 maxHP 16 / maxMP 11); УРОВЕНЬ атрибуты не растит (рост — очками: raiseSkill primary)', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
     // Профиль боя (паттерн EF-2: buildEfirUnit — только числа).

@@ -3,7 +3,7 @@
 //
 // КРАСНЫЕ тесты (TDD): падают, пока src/companions.js не реализован.
 //
-// Контракт (SPEC.md «Спутники», заключение аналитика):
+// Контракт (spec/companions.md, заключение аналитика):
 //   * ЧИСТЫЙ UMD-модуль без DOM/game-state (паттерн src/npc.js): node —
 //     require(), браузер — Game.companions (СТРОЧНОЕ имя — 000083/000087
 //     вызывают G.companions);
@@ -752,7 +752,7 @@ test('браузер: без зависимостей — понятная ош�
 // КРАСНЫЕ тесты (TDD): падают, пока src/companions.js не экспортирует
 // applyCombatXp / allyDataForEntry.
 //
-// Контракт (SPEC.md «Спутники» → «Опыт и уровни»,
+// Контракт (spec/companions.md «Опыт и уровни»,
 // memory/000082-companion-xp.md):
 //   * applyCombatXp(roster, gains) — ЧИСТАЯ функция (без rng/DOM):
 //     gains = c.result.allyXp = [{id, xp}]; xp += доля, повышение

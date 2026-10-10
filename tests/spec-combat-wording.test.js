@@ -9,11 +9,12 @@
 // Контракты: memory/000181-spec-wording.md (§3 — код-основания),
 // memory/000181-spec-cleanup.md (ФИНАЛЬНОЕ слово 3 буллетов, дословно).
 //
-// Красные «отсутствием»: нового слова в SPEC.md ещё нет, старые
+// Красные «отсутствием»: нового слова в разделах SPEC ещё нет
+// (spec/companions.md + spec/efir-spirit.md — разбивка 000159), старые
 // противоречащие формулы ещё на месте (база — master 9bccd6c). Причина
 // падения — отсутствие зафиксированного текста, а не модуль/синтаксис.
 // Прецедент SPEC-ассертов — tests/spec-resurrection.test.js
-// (readFileSync SPEC.md + срез h1/h2). Нормализация белых — осознанная:
+// (readFileSync spec/*.md + срез h1/h2). Нормализация белых — осознанная:
 // SPEC переносит строки ~64 кол., фразы ломаются по словам.
 
 const { test } = require('node:test');
@@ -22,7 +23,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const SPEC = fs.readFileSync(path.join(ROOT, 'SPEC.md'), 'utf8');
+// 000159: SPEC.md разбит на spec/*.md — единый текст = нужные подфайлы
+// в исходном относительном порядке (join('\n')).
+const SPEC = ['spec/companions.md', 'spec/efir-spirit.md']
+  .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8'))
+  .join('\n');
 
 function esc(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -11,9 +11,10 @@
 // Контракты: memory/000156-resurrection-design.md (D1–D7, OQ, §6 —
 // коррекции SPEC, §5 — подзадачи 000161–000166).
 //
-// Красные «отсутствием»: раздел/строки SPEC.md и файлы подзадач ещё не
-// созданы (база — master 3c0e1b4). Прецедент SPEC-ассертов —
-// tests/ci.test.js (readFileSync SPEC.md + срез раздела).
+// Красные «отсутствием»: раздел/строки SPEC (подфайлы spec/*.md —
+// разбивка 000159) и файлы подзадач ещё не созданы (база — master 3c0e1b4).
+// Прецедент SPEC-ассертов — tests/ci.test.js (readFileSync spec/*.md
+// + срез раздела).
 //
 // Подзадачи 000161–000166 ищут в tasks/pending ИЛИ tasks/done: тесты
 // стабильны через весь жизненный цикл (дети переезжают в done по
@@ -25,7 +26,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const SPEC = fs.readFileSync(path.join(ROOT, 'SPEC.md'), 'utf8');
+// 000159: SPEC.md разбит на spec/*.md — единый текст = нужные подфайлы
+// в исходном относительном порядке (join('\n')).
+const SPEC = ['spec/buildings.md', 'spec/companions.md', 'spec/efir-spirit.md',
+  'spec/spells.md', 'spec/items.md']
+  .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8'))
+  .join('\n');
 
 function esc(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

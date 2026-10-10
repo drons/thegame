@@ -1,4 +1,4 @@
-// Персонаж: статы, навыки, опыт и уровни (SPEC.md, раздел «Навыки»).
+// Персонаж: статы, навыки, опыт и уровни (spec/skills.md).
 //
 // Чистое ядро без DOM — тестируется в node (tests/player.test.js).
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
@@ -56,7 +56,7 @@
   // effect: { stat, perLevel } — доля эффекта за уровень (0.05 = 5%)
   const SECONDARY_SKILLS = skills.SECONDARY_SKILLS;
 
-  // --- Ранги навыков (SPEC.md, раздел «Навыки») ---
+  // --- Ранги навыков (spec/skills.md) ---
   const RANKS = [
     { min: 1, max: 10, name: 'Новичок' },
     { min: 11, max: 25, name: 'Ученик' },
@@ -67,7 +67,7 @@
   ];
 
   const MAX_SKILL_LEVEL = sheet.MAX_SKILL_LEVEL;
-  // Глобальная настройка (src/global-settings.js, SPEC.md «Навыки»).
+  // Глобальная настройка (src/global-settings.js, spec/skills.md).
   // СНЯПШОТ МОМЕНТА ЗАГРУЗКИ — экспорт НЕ убирать: grantXpRaw
   // (src/building-actions.js) читает deps.game.POINTS_PER_LEVEL (иначе
   // points → NaN); live-перевод зеркала — known gap (000099), вне

@@ -16,10 +16,12 @@
 // решения D-1…D-7), memory/000184-spec-rules-docs.md (§2 — дословное
 // ФИНАЛЬНОЕ слово 6 правок, §3 — пины).
 //
-// Красные «отсутствием»: нового слова в SPEC.md ещё нет, старые
-// формулировки ещё на месте (база — master 14d2cd6). Причина падения —
-// отсутствие/присутствие зафиксированного текста, а не модуль/синтаксис
-// (тест — node-only: readFileSync SPEC.md + срез h1/h2). Прецедент —
+// Красные «отсутствием»: нового слова в разделах SPEC ещё нет
+// (spec/mobs.md + spec/companions.md + spec/efir-spirit.md — разбивка
+// 000159), старые формулировки ещё на месте (база — master 14d2cd6).
+// Причина падения — отсутствие/присутствие зафиксированного текста, а не
+// модуль/синтаксис (тест — node-only: readFileSync spec/*.md + срез
+// h1/h2). Прецедент —
 // tests/spec-combat-wording.test.js (000181): хелперы esc/h1/h2/norm
 // скопированы 1:1; нормализация белых обязательна — SPEC переносит
 // строки ~64 кол., фразы ломаются по словам.
@@ -36,7 +38,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const SPEC = fs.readFileSync(path.join(ROOT, 'SPEC.md'), 'utf8');
+// 000159: SPEC.md разбит на spec/*.md — единый текст = нужные подфайлы
+// в исходном относительном порядке (join('\n')).
+const SPEC = ['spec/mobs.md', 'spec/companions.md', 'spec/efir-spirit.md']
+  .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8'))
+  .join('\n');
 
 function esc(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

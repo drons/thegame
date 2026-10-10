@@ -1,0 +1,184 @@
+// Задача 000159 (SPEC.md разбит на spec/ подфайлы по H1 + MOBS.md → spec/)
+// — RED-тесты (docs only; код игры и существующие тесты НЕ меняются).
+//
+// ТЗ (tasks/pending/000159.md, задача-барьер): разделить SPEC.md на
+// подфайлы по заголовкам уровня '#' (каталог spec/), в SPEC.md оставить
+// только оглавление (TOC) и ссылки, MOBS.md переместить в spec/ и дать
+// на него ссылку в SPEC.md. Рефакторинг без смены поведения: весь набор
+// тестов остаётся зелёным; запинные фразы 4 SPEC-пинов — дословно (их
+// переадресация на подфайлы — стадия реализации, этим файлом не трогается).
+//
+// Контракты: memory/000159-spec-split.md: §2 — карта раздел → spec/<file>
+// (латиница, kebab-case), §3.1 — формат подфайла (H1 дословно на строке 1),
+// §3.5 — R1–R6, §6 — подводные камни (items.md без trailing-\n, «Лут» —
+// в mob-groups-storage.md, TOC-метки без «#»).
+// Константы (23 файла, 22 H1, 50 H2 + 39 H3, 199 строк MOBS.md) извлечены
+// ПРОГРАММНО из SPEC.md (master 222a8a1) скриптом
+// /tmp/thegame-wf-000159/extract-spec-constants.js — не руками.
+//
+// Красные «отсутствием» (осмысленно — разбивки ещё нет, не синтаксис):
+// каталог spec/ не существует (R1/R2/R6 — ENOENT), корневой SPEC.md всё
+// ещё содержит 22 H1-раздела и не содержит TOC/ссылок (R3/R4), MOBS.md
+// всё ещё в корне (R5). База: npm test — 2054/2054 зелёных (лог
+// /tmp/thegame-wf-000159/baseline-npm-test.log); с этим файлом — ровно 6
+// красных (R1–R6) + 2054 зелёных = 2060.
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const ROOT = path.join(__dirname, '..');
+const SPEC_DIR = path.join(ROOT, 'spec');
+const SPEC_ROOT = path.join(ROOT, 'SPEC.md');
+
+/* Константы извлечены ПРОГРАММНО из SPEC.md (master 222a8a1) —
+ * /tmp/thegame-wf-000159/extract-spec-constants.js, 2026-10-10. */
+const SPEC_FILES = ["overview.md", "story.md", "graphics.md", "world-map.md", "mobs.md", "mob-groups-storage.md", "game-time.md", "run-and-tests.md", "ci-github-pages.md", "buildings.md", "combat.md", "companions.md", "efir-spirit.md", "skills.md", "spells.md", "craft.md", "npc.md", "skills-storage.md", "buildings-storage.md", "dungeons-storage.md", "npc-storage.md", "items.md"];
+
+const SPEC_SECTIONS = [
+  { file: "overview.md", h1: "# Игра: Приключения Флогистона", h2: ["## Жанр: Пошаговая одиночная ролевая игра в стиле фэнтази с открытым процедурно генерируемым миром", "## Програмный стек: WebGL+JS+HTML", "## Структура проекта"], h3: [] },
+  { file: "story.md", h1: "# История", h2: [], h3: [] },
+  { file: "graphics.md", h1: "# Графика", h2: [], h3: [] },
+  { file: "world-map.md", h1: "# Карта мира", h2: [], h3: [] },
+  { file: "mobs.md", h1: "# Мобы", h2: ["## Общие правила", "## Роли моба (боевая функция)", "## Агрессивность", "## Типы мобов", "## Состав групп"], h3: ["### Орки (набегатели, основной враг)", "### Нежить (кратеры, склепы, поля битв)", "### Дикие звери (нейтральные, основная карта)", "### Насекомые (пещеры, болота)", "### Стихийники и магические существа (магические зоны, руины)", "### Бездна (глубокие подземелья)"] },
+  { file: "mob-groups-storage.md", h1: "# Архитектура хранения групп мобов", h2: ["## Лут"], h3: [] },
+  { file: "game-time.md", h1: "# Игровое время", h2: [], h3: [] },
+  { file: "run-and-tests.md", h1: "# Запуск и тесты", h2: [], h3: [] },
+  { file: "ci-github-pages.md", h1: "# CI и публикация на GitHub Pages", h2: [], h3: [] },
+  { file: "buildings.md", h1: "# Постройки", h2: ["## Генерация", "## Типы построек", "## Эффекты построек", "## Города и деревни"], h3: ["### Магазины", "### Школы навыков (постройки для прокачки вторичных навыков)", "### Дома NPC", "### Входы в пещеры (подземелья)", "### Храмы", "### Магические знаки", "### Прочие", "### Модель взаимодействия", "### «Раз в день»", "### Благословения (храмы)", "### Рунический камень и обелиск", "### Телепорт-круг", "### Храмы", "### Магический круг и заброшенный храм — «ежедневный контент»", "### Таверна", "### Фонтан и колодец", "### Смотровая башня", "### Развалины", "### Лагерь", "### Мост / ворота", "### Расширение карты — подтипы слотов", "### Что такое город", "### Размещение на глобальной карте", "### Вход и внутреннее пространство", "### Содержимое города", "### Состояние, сейв, респаун", "### Порядок приоритетов (зафиксирован)"] },
+  { file: "combat.md", h1: "# Боевая система", h2: [], h3: [] },
+  { file: "companions.md", h1: "# Спутники", h2: ["## Кто и где нанимается", "## Контракт и жалованье", "## Лояльность", "## Бой", "## Опыт и уровни", "## Эфир (явное решение)", "## Сейв", "## UI", "## Воскрешение"], h3: [] },
+  { file: "efir-spirit.md", h1: "# Дух Эфира", h2: ["## Характер", "## Облик", "## Механика (сводка)", "## Бой", "## Сейв", "## Данные и ассеты (решение по 000053)", "## UI"], h3: [] },
+  { file: "skills.md", h1: "# Навыки", h2: ["## Основные навыки", "## Рост навыков", "## Ранги и переименование", "## Вторичные навыки", "## Повышение вторичных навыков"], h3: ["### Сила", "### Ловкость", "### Телосложение", "### Интеллект", "### Мудрость", "### Харизма"] },
+  { file: "spells.md", h1: "# Заклинания", h2: ["## Школы магии", "## Книга заклинаний", "## Ранги в школе (продвижение)", "## Совершенствования (варианты заклинаний)", "## Архитектура хранения (каталог assets/spells)"], h3: [] },
+  { file: "craft.md", h1: "# Крафт", h2: ["## Виды крафта", "## Навыки крафта и их совершенствование", "## Рецепты", "## Совершенствование способов изготовления (особый вид крафта)", "## Архитектура хранения (каталог assets/craft)"], h3: [] },
+  { file: "npc.md", h1: "# NPC", h2: [], h3: [] },
+  { file: "skills-storage.md", h1: "# Архитектура хранения навыков", h2: [], h3: [] },
+  { file: "buildings-storage.md", h1: "# Архитектура хранения типов зданий", h2: [], h3: [] },
+  { file: "dungeons-storage.md", h1: "# Архитектура хранения подземелий", h2: [], h3: [] },
+  { file: "npc-storage.md", h1: "# Архитектура хранения NPC", h2: [], h3: [] },
+  { file: "items.md", h1: "# Предметы", h2: ["## Типы предметов", "## Архитектура хранения (каталог assets/items)", "## Архитектура хранения (каталог assets/visuals)", "## Инвентарь", "## Снаряжение", "## Торговля"], h3: [] },
+];
+
+const MOBS_H1 = "# MOBS.md — правила создания SVG-ассетов мобов";
+const MOBS_LINES = 199;
+
+function esc(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// R1: каталог spec/ — ровно 23 .md-файла: 22 раздела §2 + MOBS.md, ничего лишнего.
+test('SPEC 000159: каталог spec/ — ровно 23 .md-файла: 22 раздела (карта H1 → файл) + MOBS.md, ничего лишнего', () => {
+  const entries = fs.readdirSync(SPEC_DIR); // до разбивки — ENOENT: spec/ не существует
+  const expected = SPEC_FILES.concat(['MOBS.md']).sort();
+  assert.deepEqual(entries.slice().sort(), expected,
+    'spec/ обязан содержать ровно 23 файла (22 раздела + MOBS.md), без лишнего; ' +
+    'факт: [' + entries.join(', ') + ']');
+});
+
+// R2: перенос 1:1 — строка 1 подфайла == H1 раздела дословно + все H2/H3 раздела на месте.
+test('SPEC 000159: перенос 1:1 — строка 1 каждого подфайла = H1 раздела дословно, все H2/H3 раздела присутствуют (50 H2 + 39 H3)', () => {
+  let nH2 = 0;
+  let nH3 = 0;
+  for (const s of SPEC_SECTIONS) {
+    const text = fs.readFileSync(path.join(SPEC_DIR, s.file), 'utf8'); // до разбивки — ENOENT
+    const lines = text.split('\n');
+    assert.equal(lines[0], s.h1,
+      'spec/' + s.file + ': строка 1 обязана быть H1 «' + s.h1 + '» дословно ' +
+      '(без шапки/пустых строк перед ним); факт: ' + JSON.stringify(lines[0]));
+    for (const h of s.h2) {
+      assert.ok(lines.includes(h),
+        'spec/' + s.file + ': H2 «' + h + '» потеряно при переносе');
+      nH2 += 1;
+    }
+    for (const h of s.h3) {
+      assert.ok(lines.includes(h),
+        'spec/' + s.file + ': H3 «' + h + '» потеряно при переносе');
+      nH3 += 1;
+    }
+  }
+  assert.equal(nH2, 50, 'всего H2 в разделах — 50');
+  assert.equal(nH3, 39, 'всего H3 в разделах — 39');
+});
+
+// R3: корневой SPEC.md — только оглавление: ровно 1 H1 (титул) + «## Содержание»;
+// ни один из 22 H1-разделов не является заголовком корня.
+test('SPEC 000159: корневой SPEC.md — только оглавление: ровно 1 H1 (титул) + «## Содержание», H1 22 разделов не заголовки корня', () => {
+  const text = fs.readFileSync(SPEC_ROOT, 'utf8');
+  const h1lines = text.match(/^# [^\n]*$/gm) || [];
+  assert.equal(h1lines.length, 1,
+    'в корневом SPEC.md ровно 1 H1 (титул оглавления); сейчас ' + h1lines.length +
+    ' — разделы ещё не перенесены в spec/');
+  assert.equal(h1lines[0], '# SPEC — Приключения Флогистона',
+    'титул оглавления: «# SPEC — Приключения Флогистона»');
+  assert.ok(text.split('\n').includes('## Содержание'),
+    'в корневом SPEC.md обязан быть раздел «## Содержание» (TOC)');
+  for (const s of SPEC_SECTIONS) {
+    assert.ok(!new RegExp('^' + esc(s.h1) + '$', 'm').test(text),
+      'H1 «' + s.h1 + '» не должен оставаться заголовком корневого SPEC.md ' +
+      '(раздел переехал в spec/' + s.file + ')');
+  }
+});
+
+// R4: TOC — ровно 23 ссылки ](spec/<file>.md) на ВСЕ подфайлы; порядок ссылок ==
+// порядок H1 §2 + MOBS.md последним; каждая ссылка резолвится; в метке нет «#».
+test('SPEC 000159: TOC — 23 ссылки ](spec/<file>.md): порядок = порядок H1 + MOBS.md последним, все резолвятся, в метках нет «#»', () => {
+  const text = fs.readFileSync(SPEC_ROOT, 'utf8');
+  const expected = SPEC_FILES.concat(['MOBS.md']);
+  const links = text.match(/\[[^\]]*\]\(spec\/[^)\s]+\)/g) || [];
+  assert.equal(links.length, 23,
+    'в SPEC.md ровно 23 ссылки на spec/<file>.md (22 раздела + MOBS.md); найдено ' + links.length);
+  const targets = links.map((l) => l.match(/\]\((spec\/[^)]+)\)/)[1]).sort();
+  assert.deepEqual(targets, expected.map((f) => 'spec/' + f).sort(),
+    'набор ссылок обязан быть ровно 23 подфайлами (без дублей и пропусков); ' +
+    'факт: [' + targets.join(', ') + ']');
+  let pos = -1;
+  for (const f of expected) {
+    const i = text.indexOf('](spec/' + f + ')');
+    assert.ok(i !== -1, 'ссылка на spec/' + f + ' отсутствует в TOC');
+    assert.ok(i > pos, 'порядок TOC нарушен: spec/' + f +
+      ' обязан идти после предыдущих в порядке H1 (§2), MOBS.md — последним');
+    pos = i;
+  }
+  for (const l of links) {
+    const rel = l.match(/\]\((spec\/[^)]+)\)/)[1];
+    assert.ok(fs.existsSync(path.join(ROOT, rel)), 'ссылка «' + l + '» не резолвится');
+  }
+  const labelRe = /\[([^\]]*)\]\(spec\/[^)]*\)/g;
+  let m;
+  while ((m = labelRe.exec(text)) !== null) {
+    assert.ok(!m[1].includes('#'),
+      'в метке ссылки «' + m[0] + '» нет «#» (иначе ложно матчат h1-хелперы ' +
+      'и indexOf-срезы SPEC-пинов)');
+  }
+});
+
+// R5: MOBS.md перенесён — корневой MOBS.md отсутствует, spec/MOBS.md — 1:1
+// (199 строк, H1 на строке 1; файл кончается \n).
+test('SPEC 000159: MOBS.md перенесён — корневой MOBS.md отсутствует, spec/MOBS.md 1:1 (199 строк, H1 на строке 1)', () => {
+  assert.ok(!fs.existsSync(path.join(ROOT, 'MOBS.md')),
+    'корневой MOBS.md должен быть перемещён в spec/ (git mv), а не удалён');
+  const text = fs.readFileSync(path.join(SPEC_DIR, 'MOBS.md'), 'utf8');
+  const lines = text.split('\n');
+  if (lines[lines.length - 1] === '') lines.pop(); // файл кончается \n — хвостовой пустой элемент
+  assert.equal(lines.length, MOBS_LINES,
+    'spec/MOBS.md обязан быть 1:1-переносом — ' + MOBS_LINES + ' строк; факт: ' + lines.length);
+  assert.equal(lines[0], MOBS_H1, 'строка 1 spec/MOBS.md: «' + MOBS_H1 + '»');
+});
+
+// R6: каждый из 22 H1 встречается как строка ДОСЛОВО ровно в ОДНОМ файле spec/
+// (никаких дублей-остатков).
+test('SPEC 000159: каждый из 22 H1 — строка ДОСЛОВО ровно в ОДНОМ файле spec/ (дублей-остатков нет)', () => {
+  const files = fs.readdirSync(SPEC_DIR).filter((f) => f.endsWith('.md')); // до разбивки — ENOENT
+  const texts = files.map((f) => fs.readFileSync(path.join(SPEC_DIR, f), 'utf8'));
+  for (const s of SPEC_SECTIONS) {
+    const owners = [];
+    files.forEach((f, i) => {
+      if (texts[i].split('\n').includes(s.h1)) owners.push(f);
+    });
+    assert.deepEqual(owners, [s.file],
+      'H1 «' + s.h1 + '» обязан быть строкой ровно в одном файле spec/ — ' +
+      'spec/' + s.file + '; найдено: [' + owners.join(', ') + ']');
+  }
+});

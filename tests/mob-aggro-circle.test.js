@@ -10,7 +10,7 @@
 //     G.groupZoneInfo(groupType) (combat.js, 000135):
 //     aggressive/territorial → {radius: 2, triggers: true},
 //     neutral/timid → {radius: 1, triggers: false} — бой ТОЛЬКО на
-//     тайле группы (SPEC L162 «может пройти мимо»);
+//     тайле группы (spec/mobs.md «Состав групп» «может пройти мимо»);
 //   * окружность — ТОЛЬКО для triggers=true групп; центр = центр тайла
 //     worldToScreen(x + 0.5, y + 0.5), r = info.radius * zoom (радиус
 //     читается на кадр из groupZoneInfo — НЕ хардкодится);
@@ -452,8 +452,8 @@ test('M2: окружность — не-триггерящие группы (D1)
   const expected = expectedAgroCircles(G, myMap, st.cam, st.zoom);
   const arcs = arcsOf(calls);
   // (a) D1: neutral/timid группы — бой ТОЛЬКО на своём тайле
-  // (SPEC L162 «может пройти мимо») → радиус агрессии 0 → окружности
-  // НЕТ (ни с каким радиусом). Сценарий: (1,0) g2 skeleton_den,
+  // (spec/mobs.md «Состав групп» «может пройти мимо») → радиус агрессии
+  // 0 → окружности НЕТ (ни с каким радиусом). Сценарий: (1,0) g2 skeleton_den,
   // (−2,−4) g2, (−7,0) g3 wolf_pack.
   const range = G.visibleTileRange(st.cam.x, st.cam.y, VIEW_W, VIEW_H,
     st.zoom);

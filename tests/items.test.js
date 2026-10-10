@@ -1224,7 +1224,7 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   assert.equal(j.value, 150);
   assert.equal(j.desc,
     'В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). Цель не выбирается.',
-    'desc закреплён (контракт Р-8, тон = SPEC L1500)');
+    'desc закреплён (контракт Р-8, тон = spec/items.md «Типы предметов»)');
   assert.deepEqual(j.effect, { kind: 'resurrect' },
     'effect — { kind: resurrect } ТОЛЬКО (НОВЫЙ effect-kind)');
   // (c) Валиден по schema.json (enum'ы расширены — краснота: enum'ы

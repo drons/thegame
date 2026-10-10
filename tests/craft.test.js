@@ -30,7 +30,7 @@ const SPELLS_DIR = path.join(__dirname, '..', 'assets', 'spells');
 // tests/json-schema.js (допустимые ключи — ALLOWED_SCHEMA_KEYS).
 const { validate, ALLOWED_SCHEMA_KEYS } = require('./json-schema.js');
 
-// Виды крафта (SPEC.md «Крафт» → «Виды крафта»).
+// Виды крафта (spec/craft.md «Виды крафта»).
 const CRAFT_TYPES = new Set([
   'кузнечное_дело', 'алхимия', 'резьба_по_камню',
   'столярное_дело', 'зачарование', 'рунопись',
