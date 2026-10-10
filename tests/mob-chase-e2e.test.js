@@ -86,8 +86,11 @@ const STEP_MS = 50;
 const SAMPLES = 14;
 
 // --- WebGL-стаб (main.js: compile/link/буферы) ---
+// 000183 (MC9): опциональная запись bufferData (Float32Array вершин
+// buildFrame) и drawArrays (count) в glCalls — анализ WebGL-фолбэк-
+// слоя по вершинам (паттерн tests/global-map-draw.test.js).
 
-function makeGl() {
+function makeGl(glCalls) {
   const noop = () => {};
   const gl = {
     VERTEX_SHADER: 35633, FRAGMENT_SHADER: 35632,
@@ -112,13 +115,17 @@ function makeGl() {
   gl.enableVertexAttribArray = noop;
   gl.createBuffer = () => ({});
   gl.bindBuffer = noop;
-  gl.bufferData = noop;
+  gl.bufferData = (target, data, usage) => {
+    if (glCalls) glCalls.push({ fn: 'bufferData', data });
+  };
   gl.vertexAttribPointer = noop;
   gl.viewport = noop;
   gl.clearColor = noop;
   gl.clear = noop;
   gl.uniformMatrix4fv = noop;
-  gl.drawArrays = noop;
+  gl.drawArrays = (mode, first, count) => {
+    if (glCalls) glCalls.push({ fn: 'drawArrays', count });
+  };
   return gl;
 }
 
@@ -187,17 +194,20 @@ function makeStorage(seed) {
 
 // --- Песочница: вся цепочка index.html (браузерная ветка UMD) ---
 
-function bootSandbox(seed) {
+function bootSandbox(seed, reject) {
   const winListeners = {};
   const raf = [];
   const errors = [];
+  // 000183 (MC9): вершинные вызовы WebGL-стаба (bufferData/drawArrays)
+  // — анализ фолбэк-слоя buildFrame (паттерн global-map-draw).
+  const glCalls = [];
   const gameCanvas = makeEl('canvas');
   const spriteCanvas = makeEl('canvas');
   const hud = makeEl('div');
   // #game — WebGL (без него main.js уходит в фолбэк-ветку);
   // #sprites — 2d со спаем.
   gameCanvas.getContext = (kind) => (kind === 'webgl'
-    ? makeGl() : makeContext2d(gameCanvas));
+    ? makeGl(glCalls) : makeContext2d(gameCanvas));
   spriteCanvas.getContext = (kind) => (kind === '2d'
     ? makeContext2d(spriteCanvas) : null);
   const storage = makeStorage(seed);
@@ -235,7 +245,8 @@ function bootSandbox(seed) {
   };
   // Image-стаб: assets/map.png ВСЕГДА onerror (детерминированный
   // фолбэк G.generateSeedPixels), остальные пути — onload; загрузка —
-  // микротаск.
+  // микротаск. 000183 (MC9): reject(path) — предикат «падающих»
+  // ассетов (пер-элементный фолбэк-сценарий).
   function Image() {
     const self = this;
     self.naturalWidth = 0;
@@ -247,7 +258,9 @@ function bootSandbox(seed) {
         self.__src = v;
         self.__asset = v;
         Promise.resolve().then(() => {
-          if (v === 'assets/map.png') {
+          const failed = v === 'assets/map.png'
+            || (reject != null && reject(v));
+          if (failed) {
             if (typeof self.onerror === 'function') self.onerror();
           } else if (typeof self.onload === 'function') {
             self.onload();
@@ -277,15 +290,16 @@ function bootSandbox(seed) {
       fs.readFileSync(path.join(ROOT, 'src', f), 'utf8'), sandbox,
       { filename: f });
   }
-  return { sandbox, winListeners, raf, errors, storage, hud, spriteCanvas };
+  return { sandbox, winListeners, raf, errors, storage, hud,
+    spriteCanvas, glCalls };
 }
 
 // Промывка микротасков (загрузки Image + loadMapPixels().then: карта,
 // спавн/restore, requestAnimationFrame).
 const drain = () => new Promise((r) => setImmediate(r));
 
-async function boot(seed) {
-  const h = bootSandbox(seed);
+async function boot(seed, reject) {
+  const h = bootSandbox(seed, reject);
   await drain();
   await drain();
   await drain();
@@ -943,4 +957,359 @@ test('MC6. e2e: детерминизм — два boot, одна последо�
         + runs[1][k][j] + ') — детерминизм (ноль RNG, время — аргумент кадра)');
     }
   }
+});
+
+// =====================================================================
+// 000183: пины задекларированных гардов (ретро-20261010) —
+// memory/000183-guard-pins-abyss-boss.md (§MC7-MC12).
+// =====================================================================
+
+// --- WebGL-фолбэк-слой (MC9): вершины buildFrame из glCalls ---
+// bufferData — Float32Array [x, y, r, g, b, a] × N вершин.
+const MOB_COLOR = [0.85, 0.30, 0.25]; // fallback-палитра src/main.js
+
+function glVerts(h) {
+  for (const c of h.glCalls) {
+    if (c.fn !== 'bufferData') continue;
+    const d = c.data;
+    if (!d || d.length === 0) return [];
+    const out = [];
+    for (let i = 0; i < d.length; i += 6) {
+      out.push([d[i], d[i + 1], d[i + 2], d[i + 3], d[i + 4], d[i + 5]]);
+    }
+    return out;
+  }
+  return [];
+}
+
+function glColorVerts(h, color) {
+  return glVerts(h).filter((v) =>
+    Math.abs(v[2] - color[0]) < 1e-6
+    && Math.abs(v[3] - color[1]) < 1e-6
+    && Math.abs(v[4] - color[2]) < 1e-6);
+}
+
+// --- MC7 (GUARD, деградация D8). G.createMover отсутствует: бой
+// стартует бит-в-бит, заряда НЕТ, спрайт группы на якорях (рендер
+// бит-в-бит как до фичи) ---
+
+test('MC7. e2e: деградация — нет G.createMover: бой бит-в-бит, заряда нет, спрайт на якорях (задача 000183)', async () => {
+  const h = await boot(null);
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.ok(g.state.player.x === 0 && g.state.player.y === 0,
+    'сценарий: спавн (0,0)');
+  assert.equal(myMap.tileAt(2, 3).mobGroup, 4,
+    'сценарий: паучье гнездо (2,3)');
+  const worldFn = captureWorldFn(h);
+  const cap = spyStartCombat(G);
+  const walk = makeWalker(h, worldFn);
+  // D8: мувер заряда недоступен (мувер героя создан при загрузке —
+  // движение персонажа не страдает).
+  delete G.createMover;
+  const { now: T, calls } = walk.walk(0, 1);
+  assert.equal(G.combatUI.isActive(), true,
+    'деградация: бой начался (бит-в-бит)');
+  assert.equal(cap.calls, 1, 'бой начат РОВНО 1× за шаг');
+  assert.equal(cap.opts.seed, G.hash2(2, 3, SALT),
+    'seed — бит-в-бит (D2: деградация не меняет параметры боя)');
+  assert.equal(cap.opts.tile.x, 2, 'opts.tile (x) — бит-в-бит');
+  assert.equal(cap.opts.tile.y, 3, 'opts.tile (y) — бит-в-бит');
+  assert.equal(cap.opts.terrain, myMap.tileAt(2, 3).terrain,
+    'terrain — бит-в-бит (D2)');
+  assert.ok(g.state.mobCharge == null,
+    'деградация: заряда нет (тихий guard по G.createMover)');
+  const spPrefix = mobPrefix(G, 4);
+  let st = g.state;
+  const a0 = screenAnchor(G, 2, 3, st.cam, st.zoom);
+  const d0 = findOne(calls, spPrefix, 'кадр атаки');
+  assert.ok(Math.abs(d0[1][1] - a0.x) < EPS
+    && Math.abs(d0[1][2] - a0.y) < EPS,
+    'кадр атаки: спрайт на якоря тайла (рендер бит-в-бит)');
+  for (let k = 1; k <= SAMPLES; k++) {
+    const c = pump(h, worldFn, T + STEP_MS * k);
+    st = g.state;
+    assert.ok(g.state.mobCharge == null,
+      'окно кадр ' + k + ': заряда нет (деградация D8)');
+    const a = screenAnchor(G, 2, 3, st.cam, st.zoom);
+    const d = findOne(c, spPrefix, 'окно кадр ' + k);
+    assert.ok(Math.abs(d[1][1] - a.x) < EPS
+      && Math.abs(d[1][2] - a.y) < EPS,
+      'окно кадр ' + k + ': спрайт на якорях (глейда нет)');
+    assertGroupsAtAnchors(G, myMap, c, st.cam, st.zoom,
+      'окно кадр ' + k);
+  }
+  resolveCombatVictory(G, G.combatUI.current(), 'zone-бой (деградация)');
+  assert.ok(g.state.mobCharge == null, 'после onEnd: заряда нет');
+});
+
+// --- MC8 (GUARD, D4 from == to). Спавн/сейв на тайле группы: цель
+// заряда == тайл группы (prevPos снапнут на позицию сейва) → заряда
+// НЕТ, рендер бит-в-бит, бой стартует (спавн-бой 000033/000135) ---
+
+test('MC8. e2e: сейв-позиция на тайле группы (from == to): бой стартует, заряда нет, рендер бит-в-бит (задача 000183)', async () => {
+  const save = {
+    version: 1,
+    savedAt: new Date(0).toISOString(),
+    data: { day: 1, position: { x: 2, y: 3 } },
+  };
+  const h = bootSandbox(save);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  // Спай ДО промывки: спавн-бой стартует в boot-микротасках
+  // (loadMapPixels().then → restoreFromSave → maybeStartCombat).
+  const cap = spyStartCombat(G);
+  await drain();
+  await drain();
+  await drain();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.ok(g.state.player.x === 2 && g.state.player.y === 3,
+    'сценарий: игрок на тайле группы (2,3) (позиция сейва)');
+  assert.equal(G.combatUI.isActive(), true,
+    'бой стартует на boot (спавн на тайле живой группы)');
+  assert.equal(cap.calls, 1, 'бой начат РОВНО 1×');
+  assert.equal(cap.opts.seed, G.hash2(2, 3, SALT),
+    'seed — от тайла группы (бит-в-бит)');
+  assert.equal(cap.opts.tile.x, 2, 'opts.tile (x)');
+  assert.equal(cap.opts.tile.y, 3, 'opts.tile (y)');
+  // D4: chargeTo == тайл (prevPos снапнут на позицию сейва) →
+  // глейд-нуль → заряда НЕТ.
+  assert.ok(g.state.mobCharge == null,
+    'from == to: заряда нет (глейд-нуль)');
+  // Д-ПРОТОКОЛ: очередь rAF = [combatTick, worldFrame] — мировой
+  // frame НЕ «последний» (combat-ui саморекурсия), берём по индексу.
+  assert.equal(h.raf.length, 2,
+    'протокол: combat-tick + мировой frame в rAF-очереди');
+  const worldFn = h.raf[1];
+  const myMap = G.createMap(G.generateSeedPixels());
+  const calls = pump(h, worldFn, NOW + 200);
+  const st = g.state;
+  const spPrefix = mobPrefix(G, 4);
+  const d = findOne(calls, spPrefix, 'boot-кадр');
+  const a = screenAnchor(G, 2, 3, st.cam, st.zoom);
+  assert.ok(Math.abs(d[1][1] - a.x) < EPS
+    && Math.abs(d[1][2] - a.y) < EPS,
+    'boot-кадр: спрайт на якоря тайла (рендер бит-в-бит)');
+  assertGroupsAtAnchors(G, myMap, calls, st.cam, st.zoom, 'boot-кадр');
+  assert.ok(g.state.mobCharge == null, 'boot-кадр: заряда нет');
+  resolveCombatVictory(G, G.combatUI.current(), 'boot-бой');
+  assert.ok(g.state.mobCharge == null, 'после onEnd: заряда нет');
+  const calls2 = pump(h, worldFn, NOW + 400);
+  const st2 = g.state;
+  assert.equal(mobDraws(calls2).filter((c) => c[1][0].__asset.startsWith(spPrefix)).length,
+    0, 'после победы спрайт группы скрыт (000122)');
+  assertGroupsAtAnchors(G, myMap, calls2, st2.cam, st2.zoom,
+    'после победы', { hidden: ['2,3'] });
+});
+
+// --- MC9 (GUARD). WebGL-фолбэк-слой: дробный маркер MOB_COLOR в
+// ТОЙ ЖЕ точке, что state.mobCharge.pos (контракт «оба слоя — одна
+// точка» полный); 2d-слой БЕЗ спрайта упавшего ассета, остальные
+// группы — на своих местах; после победы — 0 вершин ---
+
+test('MC9. e2e: WebGL-фолбэк — дробный маркер MOB_COLOR в точке state.mobCharge.pos; 2d без упавшего спрайта (задача 000183)', async () => {
+  // Префикс паучьих ассетов — из эталонного boot (без хардкода).
+  const h0 = await boot(null);
+  const spPrefix = mobPrefix(h0.sandbox.Game, 4);
+  const h = await boot(null, (v) => v.indexOf(spPrefix) === 0);
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.ok(g.state.player.x === 0 && g.state.player.y === 0,
+    'сценарий: спавн (0,0)');
+  assert.equal(myMap.tileAt(2, 3).mobGroup, 4,
+    'сценарий: паучье гнездо (2,3)');
+  const worldFn = captureWorldFn(h);
+  const cap = spyStartCombat(G);
+  const walk = makeWalker(h, worldFn);
+  const { now: T } = walk.walk(0, 1);
+  assert.equal(G.combatUI.isActive(), true, 'бой начался');
+  assert.equal(cap.calls, 1, 'бой РОВНО 1×');
+  assert.ok(g.state.mobCharge && g.state.mobCharge.pos,
+    'заряд активен (спрайт упал, но механика заряда не зависит от него)');
+  let prevX = null;
+  for (let k = 1; k <= SAMPLES; k++) {
+    const now = T + STEP_MS * k;
+    h.glCalls.length = 0; // «вершины КАДРА» — сброс до pumped-кадра
+    const calls = pump(h, worldFn, now);
+    const st = g.state;
+    const mc = st.mobCharge;
+    assert.ok(mc && mc.pos, 'кадр ' + k + ': заряд активен');
+    // 2d-слой: спрайт паучьего НЕТ (ассет упал), прочие 4 группы —
+    // на своих якорях (пер-элементный фолбэк не трогает остальное).
+    const mobs = mobDraws(calls);
+    assert.equal(mobs.filter((c) => c[1][0].__asset.startsWith(spPrefix)).length,
+      0, 'кадр ' + k + ': спрайта упавшего ассета нет в 2d-слое');
+    // Прочие группы: число draw = видимые группы минус упавшая,
+    // каждая — ровно на якоря своего тайла (локальная версия
+    // assertGroupsAtAnchors — тот же, что и у helper, минус
+    // «все группы нарисованы»).
+    const tiles = visibleGroupTiles(G, myMap, st.cam, st.zoom);
+    assert.equal(mobs.length, tiles.length - 1,
+      'кадр ' + k + ': прочие группы нарисованы (фолбэк пер-элементный, '
+      + mobs.length + ' vs ' + (tiles.length - 1) + ')');
+    for (const t of tiles) {
+      if (t.x + ',' + t.y === mc.key) continue;
+      const aa = screenAnchor(G, t.x, t.y, st.cam, st.zoom);
+      const hit = mobs.filter((cc) =>
+        Math.abs(cc[1][1] - aa.x) < EPS
+        && Math.abs(cc[1][2] - aa.y) < EPS);
+      assert.equal(hit.length, 1,
+        'кадр ' + k + ': группа (' + t.x + ',' + t.y + ') на якоря тайла');
+    }
+    // WebGL-слой: ровно ОДИН квад MOB_COLOR (6 вершин) — фолбэк-
+    // маркер заряжающейся группы (гейт !mobFrameImg сработал).
+    const mv = glColorVerts(h, MOB_COLOR);
+    assert.equal(mv.length, 6,
+      'кадр ' + k + ': маркер — ровно один квад (6 вершин), '
+      + 'на деле ' + mv.length);
+    const px = mc.pos.x, py = mc.pos.y;
+    assert.ok(!Number.isInteger(px) && !Number.isInteger(py),
+      'кадр ' + k + ': маркер в ДРОБНОЙ точке глейда '
+      + '(' + px.toFixed(4) + ',' + py.toFixed(4) + '), а не на тайле');
+    for (const v of mv) {
+      // 1e-6 — float32-квантизация bufferData (Float32Array: ulp ≈ 2.4e-7
+      // при координатах ~2); точка — та же, что state.mobCharge.pos
+      // (float64), до погрешности упаковки.
+      assert.ok(v[0] >= px + 0.30 - 1e-6 && v[0] <= px + 0.70 + 1e-6
+        && v[1] >= py + 0.30 - 1e-6 && v[1] <= py + 0.70 + 1e-6,
+        'кадр ' + k + ': квад маркера = [pos+0.30, pos+0.70]^2 — '
+        + 'та же точка, что state.mobCharge.pos («оба слоя — одна '
+        + 'точка», 000033)');
+    }
+    if (prevX != null) {
+      assert.ok(mv[0][0] < prevX,
+        'кадр ' + k + ': маркер движется по кадрам (глейд анимируется '
+        + 'в WebGL-слое)');
+    }
+    prevX = mv[0][0];
+  }
+  // Очистка: победа → groupVisible-паритет — маркера нет, прочие
+  // элементы ready → буфер ПУСТ.
+  resolveCombatVictory(G, G.combatUI.current(), 'zone-бой (фолбэк)');
+  h.glCalls.length = 0;
+  pump(h, worldFn, T + STEP_MS * (SAMPLES + 1));
+  assert.equal(glVerts(h).length, 0,
+    'после победы: 0 вершин в WebGL-буфере (маркер скрыт паритетом '
+    + 'groupVisible, 000176)');
+});
+
+// --- MC10 (GUARD). Длительность заряда 1500 мс (MOB_CHARGE_MS):
+// окно сэмплирования ПРОДЛЕНО за 700 мс — p<1 на T+1450 (остаток >
+// EPS_POS), ровно на цели на T+1500, далее КОНСТАНТНА (кламп, без
+// перелёта/осцилляции) до onEnd ---
+
+test('MC10. e2e: заряд 1500 мс — остаток > 0 на T+1450, кламп на цели на T+1500 и далее константа (задача 000183)', async () => {
+  const { h, G, g, worldFn, T } = await scenarioZoneAttack();
+  assert.ok(g.state.mobCharge && g.state.mobCharge.pos,
+    'заряд активен');
+  // T+1450: p = 1450/1500 < 1 — глейд ещё идёт (остаток ≈ 0.009
+  // тайла > EPS_POS = 1e-3).
+  pump(h, worldFn, T + 1450);
+  const p1450 = g.state.mobCharge.pos;
+  const off1450 = Math.hypot(p1450.x - 0, p1450.y - 1);
+  assert.ok(off1450 > EPS_POS,
+    'T+1450: НЕ на цели (остаток ' + off1450.toFixed(5)
+    + ' > ' + EPS_POS + ' — длительность заряда 1500 мс)');
+  // T+1500: p = 1 — ровно на цели (кламп); спрайт — на якоря тайла
+  // цели (два слоя — одна точка, теперь уже целая).
+  const calls1500 = pump(h, worldFn, T + 1500);
+  assert.deepEqual(hostPt(g.state.mobCharge.pos), { x: 0, y: 1 },
+    'T+1500: position() — ровно на цели (кламп p >= 1)');
+  const st = g.state;
+  const spPrefix = mobPrefix(G, 4);
+  const d = findOne(calls1500, spPrefix, 'T+1500');
+  const a = screenAnchor(G, 0, 1, st.cam, st.zoom);
+  assert.ok(Math.abs(d[1][1] - a.x) < EPS
+    && Math.abs(d[1][2] - a.y) < EPS,
+    'T+1500: спрайт на якоря тайла цели (0,1)');
+  // T+1550..T+1650: КОНСТАНТНА на цели (ни перелёта, ни осцилляции).
+  for (const dt of [1550, 1600, 1650]) {
+    pump(h, worldFn, T + dt);
+    assert.deepEqual(hostPt(g.state.mobCharge.pos), { x: 0, y: 1 },
+      'T+' + dt + ': позиция константна на цели');
+  }
+  resolveCombatVictory(G, G.combatUI.current(), 'zone-бой');
+  assert.ok(g.state.mobCharge == null, 'onEnd: заряд сброшен');
+});
+
+// --- MC11 (GUARD, D5-контракт). Исход боя 'dead': герой возрождён
+// (половина max HP, −20% золота), игрок — на prevPos, группа ЖИВА
+// (спрайт на якоря), заряда нет, flash-строка смерти ---
+
+test('MC11. e2e: исход "dead" — герой возрождён (−20% золота), игрок на prevPos, группа жива, заряда нет (задача 000183)', async () => {
+  const { h, G, g, worldFn, T } = await scenarioZoneAttack();
+  const c = G.combatUI.current();
+  const hero = c.player; // createCombat: player: opts.hero — ЖИВОЙ hero
+  const maxHP = G.derived(hero).maxHP;
+  const gold0 = hero.gold;
+  // Тест-мутация (паттерн B25): результат 'dead' задаётся напрямую —
+  // dealDamageToPlayer не экспортируется; гейты finish() (ctx.combat.
+  // result) проходят, геймплейные механизмы не трогаются.
+  c.result = { outcome: 'dead', partyLost: true };
+  G.combatUI.handleCode('Space');
+  assert.equal(G.combatUI.isActive(), false,
+    'панель закрыта (Space → finish → onEnd)');
+  assert.ok(g.state.mobCharge == null, 'onEnd: заряд сброшен');
+  assert.ok(g.state.player.x === 0 && g.state.player.y === 0,
+    'игрок возвращён на prevPos (0,0)');
+  assert.equal(hero.alive, true, 'герой возрождён (alive === true)');
+  assert.equal(hero.hp, Math.max(1, Math.round(maxHP / 2)),
+    'HP — половина max (' + maxHP + ' → '
+    + Math.max(1, Math.round(maxHP / 2)) + ')');
+  assert.equal(hero.gold, Math.floor(gold0 * 0.8),
+    'золото −20% (' + gold0 + ' → ' + Math.floor(gold0 * 0.8) + ')');
+  // Flash-строка (свежая игра: без лута/отряда — строка ТОЧНАЯ;
+  // hud.js: flash — последняя строка).
+  const calls = pump(h, worldFn, T + 200);
+  assert.ok(h.hud.textContent.endsWith('Вы очнулись. −20% золота.'),
+    'flash: «Вы очнулись. −20% золота.» (получено: «'
+    + h.hud.textContent + '»)');
+  // Группа ЖИВА: спрайт на якоря (2,3) — defeatAt не записан при
+  // смерти, заряд не «залип».
+  const st = g.state;
+  const spPrefix = mobPrefix(G, 4);
+  const dd = findOne(calls, spPrefix, 'после смерти');
+  const aa = screenAnchor(G, 2, 3, st.cam, st.zoom);
+  assert.ok(Math.abs(dd[1][1] - aa.x) < EPS
+    && Math.abs(dd[1][2] - aa.y) < EPS,
+    'группа жива: спрайт на якоря (2,3) (нет defeatedAt)');
+  assertGroupsAtAnchors(G, G.createMap(G.generateSeedPixels()),
+    calls, st.cam, st.zoom, 'после смерти');
+});
+
+// --- MC12 (GUARD). frameIndex спрайта заряжающегося — по ЦЕЛОМУ
+// тайлу: суффикс кадра drawImage переучивается на каждый кадр по
+// времени (не «прыгает» по дробной траектории рывка) ---
+
+test('MC12. e2e: frameIndex спрайта заряжающегося — по целому тайлу; кадры переучиваются по времени (задача 000183)', async () => {
+  const { h, G, g, myMap, worldFn, T } = await scenarioZoneAttack();
+  const frames = G.mobFrames(4);
+  assert.equal(frames.length, 2, 'сценарий: паучий — 2 кадра спрайта');
+  const spPrefix = mobPrefix(G, 4);
+  const seen = new Set();
+  for (let k = 1; k <= SAMPLES; k++) {
+    const now = T + STEP_MS * k;
+    const calls = pump(h, worldFn, now);
+    const d = findOne(calls, spPrefix, 'кадр ' + k);
+    // Селектор кадра — тот же, что в проходe 3 (mobFrameImg):
+    // G.frameIndex(now, tx, ty, n) по ЦЕЛОМУ тайлу группы.
+    const idx = G.frameIndex(now, 2, 3, frames.length);
+    assert.equal(d[1][0].__asset, frames[idx],
+      'кадр ' + k + ': кадр спрайта — по целому тайлу (2,3): '
+      + d[1][0].__asset + ' vs ' + frames[idx]);
+    seen.add(d[1][0].__asset);
+  }
+  // Анти-вакуум: окно 700 мс > периода FRAME_MS (480 мс) — хотя бы
+  // 2 различных кадра спрайта в окне (выбор кадра идёт по ВРЕМЕНИ).
+  assert.ok(seen.size >= 2,
+    'анти-вакуум: в окне ≥ 2 различных кадра спрайта (' + seen.size
+    + ') — frameIndex идёт по времени, а не застыл');
+  resolveCombatVictory(G, G.combatUI.current(), 'zone-бой');
 });

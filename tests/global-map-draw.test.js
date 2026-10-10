@@ -698,3 +698,177 @@ test('RM-8: деградация: цепочка БЕЗ sprites.js (spriteLoader
   assert.ok(countColor(h.glCalls, MOB_COLOR) > 0,
     'маркеры групп в кадре (спавн-мир содержит группы, см. RM-7)');
 });
+
+// --- RM-9 (ГАУАРД, 000183): смешанное частичное состояние загрузки
+// — ПЕР-ЭЛЕМЕНТНЫЙ фолбэк (XOR-контракт 000176 на уровне ЭЛЕМЕНТА,
+// а не «всё/ничего»): отсутствующий ассет → его legacy-фигура в
+// WebGL-буфере, ОСТАЛЬНЫЙ кадр интактен (спрайт-слой рисует всё
+// готовое). Расширяет RM-4 (all-failed) и RM-5 (только герой):
+// три субфазы — тайл / моб / постройка. Числа не хардкодим —
+// эталонный boot даёт baseline-счёты того же детерминированного
+// спавн-кадра. ---
+
+test('RM-9: смешанное частичное состояние загрузки: пер-элементный фолбэк (тайл/моб/постройка) — упавший ассет → его WebGL-фигура, остальное кадра интактно (000176/000183)', async () => {
+  // (0) Эталонный boot — baseline-счёты спавн-кадра.
+  const hb = await boot();
+  assertReady(hb);
+  const fb = frameAt(hb, NOW + 200);
+  const G = hb.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const buildingDraws = (draw) => drawImages(draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const N_tile = tileDraws(fb.draw).length;
+  const N_mob = mobDraws(fb.draw).length;
+  const N_bld = buildingDraws(fb.draw).length;
+  assert.ok(N_tile > 0 && N_mob >= 1 && N_bld >= 1,
+    'сценарий: спавн-кадр с тайлами/мобами/постройками');
+  const stb = hb.sandbox.__game.state;
+
+  // (a) ТАЙЛ: упала текстура с максимальным числом draw.
+  {
+    const paths = {};
+    for (const c of tileDraws(fb.draw)) {
+      const p = assetOf(c);
+      paths[p] = (paths[p] || 0) + 1;
+    }
+    let pMax = null;
+    for (const [p, n] of Object.entries(paths))
+      if (pMax === null || n > paths[pMax]) pMax = p;
+    const nMax = paths[pMax];
+    const h = await boot((v) => v === pMax);
+    const f = frameAt(h, NOW + 200);
+    assert.equal(tileDraws(f.draw).length, N_tile - nMax,
+      '(a) тайл: нет только упавшей текстуры (' + (N_tile - nMax)
+      + ' из ' + N_tile + ')');
+    assert.ok(tileVerts(h.glCalls) > 0,
+      '(a) тайл: упавший тайл → legacy-квад (цвет TERRAIN) в WebGL-кадре');
+    assert.equal(countColor(h.glCalls, MOB_COLOR), 0,
+      '(a) моб: спрайты ready → маркеров MOB_COLOR нет (XOR)');
+    assert.equal(countColor(h.glCalls, BUILDING_COLOR), 0,
+      '(a) постройка: спрайты ready → маркеров BUILDING_COLOR нет (XOR)');
+    assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
+      '(a) герой: спрайт ready → legacy-ромба нет (XOR)');
+    assert.equal(heroDraws(f.draw).length, 1, '(a) герой: 1×');
+    assert.equal(mobDraws(f.draw).length, N_mob, '(a) моб: интактен');
+    assert.equal(buildingDraws(f.draw).length, N_bld, '(a) постройка: интактна');
+  }
+
+  // (b) МОБ: упал спрайт группы на тайле (2,3) (g4 — единственный
+  // тайл этого вида в видимом диапазоне, пин сценарного мира).
+  {
+    assert.equal(myMap.tileAt(2, 3).mobGroup, 4,
+      'сценарий: (2,3) — паучье гнездо (g4)');
+    const p = G.worldToScreen(2, 3, stb.cam.x, stb.cam.y, stb.zoom,
+      VIEW_W, VIEW_H);
+    const ax = p.x - stb.zoom * 0.1, ay = p.y - stb.zoom * 0.15;
+    const ds = mobDraws(fb.draw).filter((c) =>
+      Math.abs(c[1][1] - ax) < 1e-6 && Math.abs(c[1][2] - ay) < 1e-6);
+    assert.equal(ds.length, 1, 'сценарий: группа (2,3) в baseline-кадре');
+    const prefix = assetOf(ds[0]).replace(/_\d+\.svg$/, '_');
+    assert.equal(mobDraws(fb.draw).filter((c) => assetOf(c).startsWith(prefix)).length,
+      1, 'сценарий: вид группы (2,3) уникален в видимом диапазоне');
+    const h = await boot((v) => v.indexOf(prefix) === 0);
+    const f = frameAt(h, NOW + 200);
+    assert.equal(mobDraws(f.draw).length, N_mob - 1,
+      '(b) моб: нет только упавшего спрайта (' + (N_mob - 1)
+      + ' из ' + N_mob + ')');
+    assert.equal(countColor(h.glCalls, MOB_COLOR), 6,
+      '(b) моб: упавшая группа → ровно ОДИН legacy-квад (6 вершин)');
+    assert.equal(markerVerts(h.glCalls, MOB_COLOR, 2, 3), 6,
+      '(b) моб: маркер — на тайле группы (2,3)');
+    assert.equal(tileDraws(f.draw).length, N_tile, '(b) тайл: интактен');
+    assert.equal(buildingDraws(f.draw).length, N_bld, '(b) постройка: интактна');
+    assert.equal(heroDraws(f.draw).length, 1, '(b) герой: 1×');
+    assert.equal(tileVerts(h.glCalls), 0,
+      '(b) тайл: все ready → 0 тайл-квадов');
+    assert.equal(countColor(h.glCalls, BUILDING_COLOR), 0,
+      '(b) постройка: ready → маркеров нет (XOR)');
+  }
+
+  // (c) ПОСТРОЙКА: упал спрайт первой постройки кадра (якорь —
+  // обратная проекция drawImage-аргумента; сценарий требует 1×1 —
+  // маркерный квад ровно один).
+  {
+    const bds = buildingDraws(fb.draw);
+    const bd = bds[0];
+    const wx = stb.cam.x + (bd[1][1] - VIEW_W / 2) / stb.zoom;
+    const wy = stb.cam.y + (bd[1][2] - VIEW_H / 2) / stb.zoom;
+    const ax = Math.round(wx), ay = Math.round(wy);
+    assert.ok(Math.abs(wx - ax) + Math.abs(wy - ay) < 1e-3,
+      'сценарий: якорь постройки — целочисленный тайл');
+    // Footprint — из myMap (маркер на КАЖДЫЙ тайл footprint'а;
+    // 1×1 → ровно 6 вершин).
+    let foot = 0;
+    const range = G.visibleTileRange(stb.cam.x, stb.cam.y, VIEW_W, VIEW_H, stb.zoom);
+    for (let ty = range.y0; ty <= range.y1; ty++) {
+      for (let tx = range.x0; tx <= range.x1; tx++) {
+        const t = myMap.tileAt(tx, ty);
+        if (t.inBuilding && t.buildingAnchor
+            && t.buildingAnchor[0] === ax && t.buildingAnchor[1] === ay) foot++;
+      }
+    }
+    assert.equal(foot, 1,
+      'сценарий: выбранная постройка 1×1 (один маркерный квад)');
+    const pFile = assetOf(bd);
+    assert.equal(bds.filter((c) => assetOf(c) === pFile).length, 1,
+      'сценарий: ассет постройки уникален в кадре');
+    const h = await boot((v) => v === pFile);
+    const f = frameAt(h, NOW + 200);
+    assert.equal(buildingDraws(f.draw).length, N_bld - 1,
+      '(c) постройка: нет только упавшего спрайта (' + (N_bld - 1)
+      + ' из ' + N_bld + ')');
+    assert.equal(countColor(h.glCalls, BUILDING_COLOR), 6,
+      '(c) постройка: упавшая постройка → ровно ОДИН legacy-квад (6 вершин)');
+    assert.equal(markerVerts(h.glCalls, BUILDING_COLOR, ax, ay), 6,
+      '(c) постройка: маркер — на якоря (' + ax + ',' + ay + ')');
+    assert.equal(tileDraws(f.draw).length, N_tile, '(c) тайл: интактен');
+    assert.equal(mobDraws(f.draw).length, N_mob, '(c) моб: интактен');
+    assert.equal(heroDraws(f.draw).length, 1, '(c) герой: 1×');
+    assert.equal(tileVerts(h.glCalls), 0,
+      '(c) тайл: все ready → 0 тайл-квадов');
+    assert.equal(countColor(h.glCalls, MOB_COLOR), 0,
+      '(c) моб: ready → маркеров нет (XOR)');
+  }
+});
+
+// --- RM-10 (ГАУАРД, 000183): перфоманс-заявка ТЗ при обзорном зуме
+// (худший случай постмортема 000176: ~358k вершин при ZOOM_MIN на
+// до-фикс коде): на ZOOM_MIN WebGL-буфер ПУСТ (0 вершин, проход
+// выполнен: 1 bufferData + 1 drawArrays count 0), 2d-проход
+// интактен (тайлов нарисовано БОЛЬШЕ, чем при спавн-зуме) ---
+
+test('RM-10: обзорный зум (ZOOM_MIN): WebGL-буфер пуст (0 вершин, проход выполнен), 2d-проход интактен (000176/000183)', async () => {
+  const h = await boot();
+  assertReady(h);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const f0 = frameAt(h, NOW + 200);
+  const N_tile = tileDraws(f0.draw).length;
+  assert.ok(N_tile > 0, 'сценарий: спавн-кадр с тайлами');
+  assert.equal(g.state.zoom, G.ZOOM_START, 'сценарий: старт на ZOOM_START');
+  // 22 wheel-outs: zoom = ZOOM_START · (1/1.2)^22 — клэмпа в
+  // ZOOM_MIN (main.js: Math.max(G.ZOOM_MIN, …)).
+  const wheel = (h.gameCanvas.listeners['wheel'] || [])[0];
+  assert.ok(typeof wheel === 'function',
+    'сценарий: wheel-обработчик на #game');
+  for (let i = 0; i < 22; i++) wheel({ deltaY: 100, preventDefault() {} });
+  assert.equal(g.state.zoom, G.ZOOM_MIN,
+    'зум заклампирован в ZOOM_MIN (обзорный зум, худший случай постмортема)');
+  // Кадр при обзорном зуме: WebGL-проход выполнен, но ПУСТ (steady
+  // state: все спрайты ready при ЛЮБОМ зуме — гейты по готовности,
+  // не по зуму); 2d-проход рисует весь видимый мир.
+  const f = frameAt(h, NOW + 400);
+  assert.equal(totalVerts(h.glCalls), 0,
+    'ZOOM_MIN: 0 вершин в WebGL-буфере (нет дубля при обзорном зуме)');
+  const bds = bufferDataOf(h.glCalls);
+  assert.equal(bds.length, 1,
+    'ZOOM_MIN: ровно 1 bufferData на кадр (проход выполнен, не пропущен)');
+  assert.equal(bds[0].length, 0, 'ZOOM_MIN: буфер пуст (0 floats)');
+  const da = h.glCalls.filter((c) => c.fn === 'drawArrays');
+  assert.equal(da.length, 1, 'ZOOM_MIN: ровно 1 drawArrays на кадр');
+  assert.equal(da[0].count, 0, 'ZOOM_MIN: drawArrays count = 0');
+  assert.ok(tileDraws(f.draw).length > N_tile,
+    '2d-проход интактен: тайлов при обзорном зуме БОЛЬШЕ ('
+    + tileDraws(f.draw).length + ' > ' + N_tile + ')');
+  assert.equal(heroDraws(f.draw).length, 1, 'герой: 1× (спрайт-слой)');
+});

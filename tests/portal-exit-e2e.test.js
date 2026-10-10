@@ -933,3 +933,200 @@ test('PE-5: 000170 finally через [E]: throw в onDay (playerUI.render) — 
     'движение мира возобновилось после [E]-выхода (T5-смысл для '
     + 'нового пути)');
 });
+
+// ============================================================
+// 000183: пины задекларированных гардов (ретро-20261010) —
+// memory/000183-guard-pins-abyss-boss.md (§PE-6..PE-9).
+// ============================================================
+
+test('PE-6: город: [E]-выход → HUD-flash «Вы вышли из {имя города}.» (рендер в следующем кадре, flash 5 с) (000177/000183)', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findNearest(G, myMap, g.state.player,
+    (t) => isCity(G, t)
+      && G.getBuilding(t.buildingId).размер.ширина >= 2);
+  assert.ok(found, 'сценарий: достижимый многотайловый город');
+  const now0 = walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе');
+  const name = dg.name;
+  assert.ok(typeof name === 'string' && name.length > 0,
+    'сценарий: у города есть имя (поле проекции)');
+  const e = press(h, 'KeyE');
+  release(h, e);
+  assert.equal(g.dungeon, null, '[E] — выход (состояние снято)');
+  assert.equal(G.dungeonUI.isActive(), false, 'dungeonUI закрыт');
+  // Flash живёт 5000 мс; performance.now() заморожен на NOW=1000:
+  // flashUntil = 6000 > 1000 — виден в каждом следующем кадре.
+  h.frameFn(now0 + 200);
+  assert.ok(String(h.hud.textContent).endsWith('Вы вышли из ' + name + '.'),
+    'HUD-flash «Вы вышли из ' + name + '.» (locationOnInteract → '
+    + 'renderHud; flash-строка — ПОСЛЕДНЯЯ строка HUD, hud.js)');
+});
+
+test('PE-7: подземелье: [E]-выход → HUD-flash «Вы вышли из {имя подземелья}.» (имя из D.DUNGEON_NAMES[type]) (000177/000183)', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findNearest(G, myMap, g.state.player, (t) => isCave(G, t));
+  assert.ok(found, 'сценарий: пещера достижима пешком от спавна');
+  const now0 = walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'dungeon', 'в подземелье');
+  assert.ok(D.DUNGEON_NAMES[dg.type], 'сценарий: тип имеет имя');
+  assert.equal(dg.name, D.DUNGEON_NAMES[dg.type],
+    'имя проекции = D.DUNGEON_NAMES[type] (источник имени)');
+  const dayBefore = g.state.day;
+  const e = press(h, 'KeyE');
+  release(h, e);
+  assert.equal(g.dungeon, null, '[E] — выход');
+  assert.equal(g.state.day, dayBefore + 1, 'на выходе ДЕНЬ проходит');
+  // Flash устанавливается ПОСЛЕ exitLocation (цепочка exitDungeon →
+  // clock.event → onDay прошла; затем locationOnInteract пишет
+  // hudFlash) — следующий кадр рендерит его последней строкой.
+  h.frameFn(now0 + 200);
+  assert.ok(
+    String(h.hud.textContent).endsWith(
+      'Вы вышли из ' + D.DUNGEON_NAMES[dg.type] + '.'),
+    'HUD-flash «Вы вышли из ' + D.DUNGEON_NAMES[dg.type] + '.»');
+});
+
+test('PE-8: тач-кнопка [E]: подземелье — шаг в сторону no-op / шаг на тайл — выход (день+1, flash); город — тап на двери — выход (день не идёт, flash) (000177/000183)', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  // #touch-controls — на document.body при INIT (ui.js: build →
+  // document.body.appendChild(root); main.js — init при загрузке,
+  // схема 'keyboard' в vm-среде: D-pad не строится, 2 кнопки).
+  const body = h.sandbox.document.body;
+  const root = (body.children || []).find((ch) => ch.id === 'touch-controls');
+  assert.ok(root, 'сценарий: #touch-controls на document.body');
+  const btns = root.children.filter((ch) =>
+    String(ch.className).includes('tc-action'));
+  assert.equal(btns.length, 2, 'кнопки [E] и [I] (tc-action): 2');
+  // Тап = pointerdown-слушатель кнопки: e.preventDefault();
+  // onInteract(); blur() (ui.js L1529-1534) — тот же onInteract,
+  // что и клавиша [E] (main.js: routeTouchScreen → dungeon →
+  // locationOnInteract — единый код, 000177).
+  const tap = (b) => {
+    const fns = b.listeners['pointerdown'] || [];
+    assert.equal(fns.length, 1, 'у кнопки ровно 1 pointerdown-слушатель');
+    let prevented = false;
+    fns[0]({ preventDefault() { prevented = true; } });
+    assert.ok(prevented, 'тап: preventDefault (контракт слушателя)');
+  };
+  // --- Подземелье ---
+  const found = findNearest(G, myMap, g.state.player, (t) => isCave(G, t));
+  assert.ok(found, 'сценарий: пещера достижима пешком от спавна');
+  let now = walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'dungeon', 'в подземелье');
+  const day0 = g.state.day;
+  // Шаг в сторону: FLOOR-сосед spawn'а, не тайл выхода (паттерн PE-3b).
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  let dir = null;
+  for (const cand of DIRS) {
+    const nx = dg.x + cand[0], ny = dg.y + cand[1];
+    if (nx < 0 || ny < 0 || nx >= dg.width || ny >= dg.height) continue;
+    if (dg.cells[ny * dg.width + nx] !== G.CELL_FLOOR) continue;
+    if (nx === dg.exit.x && ny === dg.exit.y) continue;
+    dir = cand;
+    break;
+  }
+  assert.ok(dir, 'сценарий: валидный сосед у spawn');
+  {
+    const e = press(h, keydownFor(dir[0], dir[1]));
+    release(h, e);
+  }
+  assert.ok(g.dungeon, 'шаг в сторону — ещё внутри');
+  // Тап [E] ВНЕ двери — НИЧЕГО (interactExit → null, no-op 000121).
+  tap(btns[0]);
+  assert.ok(g.dungeon, 'тап вне двери — выход НЕ случился');
+  assert.equal(g.dungeon.x, dg.entrance.x + dir[0], 'позиция не сдвинулась: x');
+  assert.equal(g.dungeon.y, dg.entrance.y + dir[1], 'позиция не сдвинулась: y');
+  assert.equal(g.state.day, day0, 'день не сдвинулся (no-op)');
+  // Шаг обратно на дверь (единый тайл: entrance == exit).
+  {
+    const e = press(h, keydownFor(-dir[0], -dir[1]));
+    release(h, e);
+  }
+  // Тап [E] НА двери — выход (тот же locationOnInteract, что клавиша).
+  tap(btns[0]);
+  assert.equal(g.dungeon, null, 'тап на двери — выход');
+  assert.equal(G.dungeonUI.isActive(), false, 'dungeonUI закрыт');
+  assert.equal(g.state.day, day0 + 1, 'на выходе ДЕНЬ проходит');
+  assert.deepEqual({ x: g.state.player.x, y: g.state.player.y },
+    found.target, 'герой — на мировом тайле пещеры');
+  h.frameFn(now + 200);
+  assert.ok(
+    String(h.hud.textContent).endsWith(
+      'Вы вышли из ' + D.DUNGEON_NAMES[dg.type] + '.'),
+    'flash после Тач-выхода из подземелья (имя из D.DUNGEON_NAMES)');
+  // --- Город ---
+  const foundC = findNearest(G, myMap, g.state.player,
+    (t) => isCity(G, t)
+      && G.getBuilding(t.buildingId).размер.ширина >= 2);
+  assert.ok(foundC, 'сценарий: город достижим (от тайла пещеры)');
+  now = walkTiles(h, now, foundC.steps);
+  const dgc = g.dungeon;
+  assert.ok(dgc && dgc.kind === 'city', 'в городе');
+  const dayC = g.state.day;
+  // Тап [E] на двери — выход из города.
+  tap(btns[0]);
+  assert.equal(g.dungeon, null, 'тап на двери — выход из города');
+  assert.equal(G.dungeonUI.isActive(), false, 'dungeonUI закрыт');
+  assert.equal(g.state.day, dayC, 'выход из города ДЕНЬ НЕ проходит (000105)');
+  assert.deepEqual({ x: g.state.player.x, y: g.state.player.y },
+    foundC.target, 'герой — на мировом тайле города');
+  h.frameFn(now + 200);
+  assert.ok(String(h.hud.textContent).endsWith(
+      'Вы вышли из ' + dgc.name + '.'),
+    'flash после Тач-выхода из города (имя города)');
+});
+
+test('PE-9: g.actions.enterDungeon() — подземелье из spawn-тайла: единый тайл (exit deepEqual entrance, герой на нём); [E] → выход (день+1, герой на (0,0), flash) (000177/000183)', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  // === (не deepEqual): позиция спавна может быть −0 — −0 === 0, а
+  // strictEqual различает знаки нуля.
+  assert.ok(g.state.player.x === 0 && g.state.player.y === 0,
+    'сценарий: герой на спавне (0,0)');
+  const day0 = g.state.day;
+  const ds = g.actions.enterDungeon();
+  assert.ok(ds, 'enterDungeon() — dungeonState создан (debug-вход)');
+  assert.equal(G.dungeonUI.isActive(), true, 'dungeonUI открыт (оверлей)');
+  // g.dungeon — ПРОЕКЦИЯ (свежий объект при каждом доступе): пин по
+  // ПОЛЯМ, а не по identity (identity ds не гарантируется).
+  const dg = g.dungeon;
+  assert.ok(dg, 'g.dungeon — проекция состояния');
+  assert.equal(dg.kind, 'dungeon', 'kind: dungeon');
+  assert.ok(D.DUNGEON_NAMES[dg.type], 'сценарий: тип подземелья именуется');
+  assert.equal(dg.name, D.DUNGEON_NAMES[dg.type],
+    'имя проекции = D.DUNGEON_NAMES[type]');
+  assert.deepEqual({ x: dg.exit.x, y: dg.exit.y },
+    { x: dg.entrance.x, y: dg.entrance.y },
+    'единый тайл: exit deepEqual entrance');
+  assert.deepEqual({ x: dg.x, y: dg.y },
+    { x: dg.entrance.x, y: dg.entrance.y },
+    'герой НА едином тайле (spawn debug-входа)');
+  // Мировой герой не сдвигается внутри подземелья (debug-вход).
+  assert.ok(g.state.player.x === 0 && g.state.player.y === 0,
+    'мировая позиция не сдвинулась (0,0)');
+  // [E] — выход (тот же locationOnInteract).
+  const e = press(h, 'KeyE');
+  release(h, e);
+  assert.equal(g.dungeon, null, '[E] — выход');
+  assert.equal(G.dungeonUI.isActive(), false, 'dungeonUI закрыт');
+  assert.equal(g.state.day, day0 + 1, 'на выходе ДЕНЬ проходит');
+  assert.ok(g.state.player.x === 0 && g.state.player.y === 0,
+    'герой — обратно на спавне (0,0)');
+  h.frameFn(NOW + 200);
+  assert.ok(String(h.hud.textContent).endsWith(
+      'Вы вышли из ' + D.DUNGEON_NAMES[ds.dg.type] + '.'),
+    'flash (имя из D.DUNGEON_NAMES[type] ds.dg)');
+});

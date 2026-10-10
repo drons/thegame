@@ -816,3 +816,139 @@ test('S3. 000133: пулы подземелий — 8 свитков, кажды
       id + ': свиток РОВНО в одном пуле (red: свитка нет ни в одном)');
   }
 });
+
+// ====================================================================
+// 000183: KРАСНЫЙ тест (D-BOSS-1) — инвариант босс-клетки ABYSS:
+// клетка дальней комнаты (босс) НИКОГДА не занята wander-группой или
+// сундуком. Контракт: memory/000183-guard-pins-abyss-boss.md §D-BOSS-1.
+//
+// На master гарда НЕТ: generateDungeonContents занимает клетки
+// takeSpot(), но клетка босса в `occupied` не добавляется →
+// коллизии (пробное сканирование: 69/99/137 коллизий за xp 1..3000
+// на трёх формах ниже; первые нарушения: (11,3) xp=18 сундук c3;
+// (-25,-20) xp=45 моб g2; (-15,-20) xp=9 сундук c2). После фикса
+// (occupied.add(клетка босса) до первого takeSpot) тест зелёный —
+// инвариант на всём сценарном диапазоне xp.
+// ====================================================================
+
+test('D-BOSS-1: ABYSS — клетка босса (дальняя комната) НИКОГДА не занята wander-группой или сундуком (свип xp 1..3000, 3 формы) (000183, RED)', () => {
+  const shapes = [[11, 3], [-25, -20], [-15, -20]];
+  const MAX_XP = 3000;
+  for (const [ex, ey] of shapes) {
+    const d = D.createDungeon(ex, ey, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN);
+    assert.equal(d.type, D.DUNGEON_TYPES.ABYSS,
+      '(' + ex + ',' + ey + '): MOUNTAIN + пиксель alpha 10 → ABYSS '
+      + '(сценарий)');
+    const far = d.rooms[d.rooms.length - 1];
+    const bx = far.cx, by = far.cy;
+    assert.equal(d.cells[by * d.width + bx], D.CELL_FLOOR,
+      '(' + ex + ',' + ey + '): босс-клетка (центр rooms[last]) — floor');
+    assert.ok(!(bx === d.entrance.x && by === d.entrance.y),
+      '(' + ex + ',' + ey + '): босс-клетка ≠ вход (инвариант '
+      + 'нетривиален; 000177: exit deepEqual entrance)');
+    for (let xp = 1; xp <= MAX_XP; xp++) {
+      const c = D.generateDungeonContents(d, heroAt(xp));
+      const boss = c.mobs.find((m) => m.boss);
+      assert.ok(boss,
+        '(' + ex + ',' + ey + ') xp=' + xp + ': босс присутствует');
+      assert.deepEqual({ x: boss.x, y: boss.y }, { x: bx, y: by },
+        '(' + ex + ',' + ey + ') xp=' + xp + ': босс — на клетке '
+        + 'дальней комнаты');
+      const who = [];
+      for (const m of c.mobs)
+        if (!m.boss && m.x === bx && m.y === by) who.push('моб ' + m.id);
+      for (const ch of c.chests)
+        if (ch.x === bx && ch.y === by) who.push('сундук ' + ch.id);
+      assert.equal(who.length, 0,
+        '(' + ex + ',' + ey + ') xp=' + xp + ': босс-клетка свободна — '
+        + 'коллизия: ' + who.join(', '));
+    }
+  }
+});
+
+// ====================================================================
+// 000183: D-BOSS-2 — РЕ-ПИН post-fix контента (зелёный с рождения):
+// полный {seed, mobs, chests, createdAtXp} трёх ABYSS-подземелий после
+// фикса (occupied.add(клетка босса) до первого takeSpot). Значения
+// ПЕРЕПРОВЕРЕНЫ против реальной исправленной generateDungeonContents
+// (node-пробой) перед захардкоживанием; контракт: memory/000183-
+// guard-pins-abyss-boss.md §C2.
+//
+// (11,3)/xp=18 — случай, где на мастере была коллизия: сундук c3
+// (14,6) НА клетке босса; после фикса c3 — (11,12). Case A/B — другие
+// формы подземелья (анти-ваккуум: фикс не «случайно» чистит только
+// золотую решётку). Золотой пин (11,3)/xp=2000 (тест «golden:
+// детерминизм») ПОСЛЕ фикса бит-в-бит тот же — репин не требовался.
+// ====================================================================
+
+test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземелий, босс-клетка чиста (000183)', () => {
+  const PINS = [
+    {
+      name: '(11,3) xp=18', args: [11, 3], xp: 18,
+      dseed: 2941640529, cseed: 4033219701,
+      mobs: [
+        { id: 'g0', mobIds: ['lower_demon', 'abomination', 'succubus'], x: 5, y: 23, level: 4, defeated: false },
+        { id: 'g1', mobIds: ['lower_demon', 'lower_demon'], x: 3, y: 13, level: 1, defeated: false },
+        { id: 'g2', mobIds: ['lower_demon'], x: 7, y: 5, level: 3, defeated: false },
+        { id: 'g3', mobIds: ['abomination', 'abomination'], x: 13, y: 7, level: 1, defeated: false },
+        { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 14, y: 6, level: 4, defeated: false, boss: true },
+      ],
+      chests: [
+        { id: 'c0', x: 17, y: 23, opened: false, gold: 20, item: null },
+        { id: 'c1', x: 13, y: 11, opened: false, gold: 12, item: 'war_hammer' },
+        { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'blizzard_scroll' },
+        { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'blizzard_scroll' },
+      ],
+    },
+    {
+      name: 'Case A (−25,−20) xp=100', args: [-25, -20], xp: 100,
+      dseed: 3164924960, cseed: 3522625240,
+      mobs: [
+        { id: 'g0', mobIds: ['succubus', 'lower_demon', 'lower_demon'], x: 27, y: 26, level: 1, defeated: false },
+        { id: 'g1', mobIds: ['lower_demon', 'succubus'], x: 24, y: 28, level: 1, defeated: false },
+        { id: 'g2', mobIds: ['abomination', 'succubus', 'abomination'], x: 16, y: 7, level: 1, defeated: false },
+        { id: 'g3', mobIds: ['lower_demon', 'lower_demon', 'lower_demon'], x: 16, y: 8, level: 2, defeated: false },
+        { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 24, y: 24, level: 4, defeated: false, boss: true },
+      ],
+      chests: [
+        { id: 'c0', x: 22, y: 24, opened: false, gold: 21, item: 'heavy_tome' },
+        { id: 'c1', x: 14, y: 13, opened: false, gold: 27, item: null },
+        { id: 'c2', x: 20, y: 8, opened: false, gold: 28, item: null },
+        { id: 'c3', x: 10, y: 10, opened: false, gold: 11, item: null },
+        { id: 'c4', x: 17, y: 7, opened: false, gold: 20, item: 'greater_healing' },
+      ],
+    },
+    {
+      name: 'Case B (−15,−20) xp=321', args: [-15, -20], xp: 321,
+      dseed: 2383094398, cseed: 1222898703,
+      mobs: [
+        { id: 'g0', mobIds: ['abomination', 'lower_demon'], x: 14, y: 25, level: 1, defeated: false },
+        { id: 'g1', mobIds: ['abomination', 'lower_demon'], x: 21, y: 26, level: 4, defeated: false },
+        { id: 'g2', mobIds: ['abomination'], x: 18, y: 30, level: 1, defeated: false },
+        { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 21, y: 29, level: 4, defeated: false, boss: true },
+      ],
+      chests: [
+        { id: 'c0', x: 20, y: 29, opened: false, gold: 15, item: null },
+        { id: 'c1', x: 14, y: 26, opened: false, gold: 25, item: null },
+      ],
+    },
+  ];
+  for (const p of PINS) {
+    const d = D.createDungeon(p.args[0], p.args[1], PX_ABYSS_000070, M.TERRAIN.MOUNTAIN);
+    assert.equal(d.type, D.DUNGEON_TYPES.ABYSS, p.name + ': ABYSS (сценарий)');
+    assert.equal(d.seed, p.dseed, p.name + ': сид подземелья (решётка)');
+    const c = D.generateDungeonContents(d, heroAt(p.xp));
+    assert.equal(c.seed, p.cseed, p.name + ': сид контента');
+    assert.deepEqual(c.mobs, p.mobs, p.name + ': mobs (полный deepEqual)');
+    assert.deepEqual(c.chests, p.chests, p.name + ': chests (полный deepEqual)');
+    assert.equal(c.createdAtXp, p.xp, p.name + ': createdAtXp');
+    // Инвариант D-BOSS-1 на закреплённом контенте.
+    const far = d.rooms[d.rooms.length - 1];
+    for (const m of c.mobs)
+      assert.ok(m.boss || (m.x !== far.cx || m.y !== far.cy),
+        p.name + ': моб ' + m.id + ' на клетке босса (' + far.cx + ',' + far.cy + ')');
+    for (const ch of c.chests)
+      assert.ok(ch.x !== far.cx || ch.y !== far.cy,
+        p.name + ': сундук ' + ch.id + ' на клетке босса (' + far.cx + ',' + far.cy + ')');
+  }
+});

@@ -386,6 +386,9 @@
     // Входная комната остаётся безопасной (000177: выход — тот же
     // тайл, что вход: Set дедуплицирует две одинаковые точки →
     // ОДИН 5×5-блок; цикл не меняется — форма safe не изменилась).
+    // 000183: клетка босса (ABYSS, дальняя комната) дополнительно
+    // исключена из спавна через occupied — см. ниже (регрессия 000177:
+    // safe-зона переехала из дальней комнаты с боссом в комнаты входа).
     const safe = new Set();
     for (const [cx, cy] of [[d.entrance.x, d.entrance.y], [d.exit.x, d.exit.y]]) {
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) safe.add((cx + dx) + ',' + (cy + dy));
@@ -406,6 +409,17 @@
     };
     const mobLevel = () => Math.max(1, player.level + Math.floor(rng() * (2 * delta + 1)) - delta);
 
+    // 000183: клетка босса ABYSS — не точка спавна для блуждающих групп и
+    // сундуков (wanderStep уже не пускает группы на занятую клетку босса —
+    // taken-сет; асимметрия генерации — регрессия 000177, когда safe-зона
+    // 5×5 переехала из дальней комнаты с боссом в комнаты входа-выхода).
+    // До первого takeSpot: 1 Set.add, 0 новых вызовов rng; guard по типу
+    // — все не-ABYSS подземелья бит-в-бит неизменны.
+    const far = d.rooms[d.rooms.length - 1];
+    if (d.type === DUNGEON_TYPES.ABYSS) {
+      occupied.add(far.cx + ',' + far.cy);
+    }
+
     // Блуждающие группы: 3-6, по 1-3 моба (SPEC: «мобы подземелий — блуждающие»).
     const mobs = [];
     const nGroups = 3 + Math.floor(rng() * 4);
@@ -420,7 +434,6 @@
 
     // Бездна: босс в дальней комнате (SPEC: «Бездна — мобы бездны, босс»).
     if (d.type === DUNGEON_TYPES.ABYSS) {
-      const far = d.rooms[d.rooms.length - 1];
       const s = [far.cx, far.cy];
       mobs.push({
         id: 'boss',

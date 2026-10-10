@@ -623,3 +623,225 @@ test('M5: детерминизм — два идентичных кадра (ф�
   assert.equal(a2.length, expected.length,
     'кадр 2: число окружностей = ожидаемых');
 });
+
+// =====================================================================
+// 000183: пины задекларированных гардов (ретро-20261010) —
+// memory/000183-guard-pins-abyss-boss.md (§M6-M10).
+// =====================================================================
+
+// Подписи окружностей (мультимножественное сравнение; округление
+// 1e-6 px — паттерн M5).
+const sigArcs = (as) => as
+  .map((a) => [Math.round(a.cx * 1e6), Math.round(a.cy * 1e6),
+               Math.round(a.r * 1e6)])
+  .sort((p, q) => (p[0] - q[0]) || (p[1] - q[1]) || (p[2] - q[2]));
+
+// --- M6 (GUARD, 000172-пин): groupVisible-фильтр агро-прохода —
+// поверженная СЕГОДНЯ группа (запись в defeatedAt) → окружности
+// НЕТ; через RESPAWN_DAYS (dueForRespawn в onDay) → запись
+// удалена, окружность ВОЗВРАЩАЕТСЯ (тот же фильтр, что Проход 3) ---
+
+test('M6: groupVisible-фильтр — поверженная сегодня группа: окружности нет; через RESPAWN_DAYS — окружность вернулась (000172/000183)', async () => {
+  const { h, g, st, calls, G, myMap } = await scene();
+  const expected = expectedAgroCircles(G, myMap, st.cam, st.zoom);
+  assert.ok(expected.length >= 2,
+    'сценарий: >= 2 триггерящих группы в кадре');
+  const t23 = myMap.tileAt(2, 3);
+  assert.ok(t23.hasMobGroup, 'сценарий: группа на тайле (2,3)');
+  assert.ok(G.groupZoneInfo(t23.mobGroup).triggers,
+    'сценарий: (2,3) — триггерящая группа');
+  const c23 = G.worldToScreen(2.5, 3.5, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const arcs0 = arcsOf(calls);
+  assert.ok(arcs0.some((a) =>
+      Math.abs(a.cx - c23.x) < EPS && Math.abs(a.cy - c23.y) < EPS),
+    'кадр 1: окружность (2,3) в кадре');
+  // Спай groupVisible: ЗАХВАТ live-defeatedAt (первый аргумент
+  // вызовов «defeatedAt, x, y» — Проходы 2.5/3).
+  let defeatedAt = null;
+  const origVisible = G.groupVisible;
+  G.groupVisible = (m, x, y) => { defeatedAt = m; return origVisible(m, x, y); };
+  frameOnce(h); // кадр, в котором фильтр реально вызывается
+  G.groupVisible = origVisible;
+  assert.ok(defeatedAt && typeof defeatedAt.set === 'function'
+    && typeof defeatedAt.has === 'function',
+    'сценарий: захвачен live-defeatedAt (Map) из groupVisible');
+  // «Повержена сегодня»: запись ключа '2,3' (формат main.js).
+  defeatedAt.set('2,3', st.day);
+  const c2 = frameOnce(h);
+  const a2 = arcsOf(c2);
+  assert.ok(!a2.some((a) =>
+      Math.abs(a.cx - c23.x) < EPS && Math.abs(a.cy - c23.y) < EPS),
+    'повержена сегодня: окружности (2,3) НЕТ (groupVisible-фильтр)');
+  const expectedMinus = expected.filter((e) => !(e.x === 2 && e.y === 3));
+  assert.equal(a2.length, expectedMinus.length,
+    'прочие окружности интактны: ' + a2.length + ' vs '
+    + expectedMinus.length);
+  assert.deepEqual(sigArcs(a2), sigArcs(expectedMinus),
+    'набор окружностей = ожидаемый минус (2,3) — фильтр точечный');
+  // Респаун: +RESPAWN_DAYS → dueForRespawn (onDay) удаляет запись.
+  assert.ok(typeof G.RESPAWN_DAYS === 'number' && G.RESPAWN_DAYS >= 1,
+    'сценарий: G.RESPAWN_DAYS экспортирован');
+  const day = g.actions.setDay(st.day + G.RESPAWN_DAYS);
+  assert.equal(day, st.day + G.RESPAWN_DAYS, 'день доведён до цели');
+  assert.equal(h.errors.length, 0, 'onDay прошёл тихо (респауны)');
+  assert.ok(!defeatedAt.has('2,3'),
+    'запись «2,3» удалена из defeatedAt (dueForRespawn, onDay)');
+  const c3 = frameOnce(h);
+  const a3 = arcsOf(c3);
+  assert.ok(a3.some((a) =>
+      Math.abs(a.cx - c23.x) < EPS && Math.abs(a.cy - c23.y) < EPS),
+    'через RESPAWN_DAYS: окружность (2,3) ВОЗВРАТИЛАСЬ');
+  assert.deepEqual(sigArcs(a3), sigArcs(expected),
+    'набор окружностей = исходный (группа снова активна)');
+});
+
+// --- M7 (GUARD, 000172-пин): радиус масштабируется зумом —
+// r = info.radius * zoom при зуме ≠ ZOOM_START (wheel-out ×1.2,
+// кадр пересчитан при новом зуме; wheel-back — обратно) ---
+
+test('M7: радиус масштабируется зумом — r = radius·zoom (wheel-out к ×1.2: r изменился; wheel-back: исходный набор) (000172/000183)', async () => {
+  const { h, g, st, calls, G, myMap } = await scene();
+  const expected0 = expectedAgroCircles(G, myMap, st.cam, st.zoom);
+  assert.ok(expected0.length >= 1, 'сценарий: окружности в кадре');
+  assert.equal(st.zoom, G.ZOOM_START, 'сценарий: старт на ZOOM_START');
+  const wheel = (h.gameCanvas.listeners['wheel'] || [])[0];
+  assert.ok(typeof wheel === 'function', 'сценарий: wheel на #game');
+  // Один wheel-out: zoom = ZOOM_START * 1.2 (операция main.js —
+  // бит-в-бит: 80*1.2 = 96.00000000000001).
+  wheel({ deltaY: -1, preventDefault() {} });
+  assert.equal(g.state.zoom, G.ZOOM_START * 1.2,
+    'zoom = ZOOM_START * 1.2 (бит-в-бит, main.js: zoom * 1.2)');
+  const c2 = frameOnce(h);
+  const st2 = g.state;
+  const expected2 = expectedAgroCircles(G, myMap, st2.cam, st2.zoom);
+  const a2 = arcsOf(c2);
+  assert.deepEqual(sigArcs(a2), sigArcs(expected2),
+    'кадр при zoom×1.2: окружности = пересчёт при НОВОМ зуме');
+  // ЯВНО (2,3): r = radius * НОВЫЙ zoom — и НЕ стартовый радиус.
+  const t23 = myMap.tileAt(2, 3);
+  const info23 = G.groupZoneInfo(t23.mobGroup);
+  const c23b = G.worldToScreen(2.5, 3.5, st2.cam.x, st2.cam.y, st2.zoom,
+    VIEW_W, VIEW_H);
+  const hit = a2.find((a) =>
+    Math.abs(a.cx - c23b.x) < EPS && Math.abs(a.cy - c23b.y) < EPS);
+  assert.ok(hit, '(2,3): окружность в кадре при новом зуме');
+  assert.ok(Math.abs(hit.r - info23.radius * st2.zoom) < EPS,
+    '(2,3): r = groupZoneInfo.radius * zoom (новый зум)');
+  assert.notEqual(hit.r, info23.radius * G.ZOOM_START,
+    '(2,3): радиус НЕ стартовый (масштабируется зумом)');
+  // Wheel-back: zoom / 1.2 → ZOOM_START (float — допуск 1e-9).
+  wheel({ deltaY: 100, preventDefault() {} });
+  assert.ok(Math.abs(g.state.zoom - G.ZOOM_START) < 1e-9,
+    'zoom вернулся к ZOOM_START (float-допуск 1e-9)');
+  const c3 = frameOnce(h);
+  assert.deepEqual(sigArcs(arcsOf(c3)), sigArcs(expected0),
+    'зум вернулся: набор окружностей = исходный');
+});
+
+// --- M8 (GUARD, 000172-пин): мусорные groupZoneInfo — тихо
+// пропускаются (гард «!info || !info.triggers || !(info.radius > 0)»):
+// {triggers:true, radius:0} / null / {radius} без triggers → НИКАКОЙ
+// окружности, НИКАКОГО падения, прочие окружности интактны ---
+
+test('M8: мусорные groupZoneInfo (radius 0 / null / без triggers) — окружности нет, падения нет, прочий кадр интактен (000172/000183)', async () => {
+  const { h, st, calls, G, myMap } = await scene();
+  const expected = expectedAgroCircles(G, myMap, st.cam, st.zoom);
+  const t23 = myMap.tileAt(2, 3);
+  const GID = t23.mobGroup;
+  assert.ok(G.groupZoneInfo(GID).triggers,
+    'сценарий: (2,3) — триггерящая группа');
+  const c23 = G.worldToScreen(2.5, 3.5, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const has23 = (as) => as.some((a) =>
+    Math.abs(a.cx - c23.x) < EPS && Math.abs(a.cy - c23.y) < EPS);
+  const expectedMinus = expected.filter((e) => !(e.x === 2 && e.y === 3));
+  const orig = G.groupZoneInfo;
+  let injecting = false;
+  let injected = null;
+  // Инъекция — ТОЛЬКО для целевого gid (остальные группы —
+  // реальный groupZoneInfo: прочий кадр интактен). Флаг injecting:
+  // значение может быть null (нельзя использовать `!= null`).
+  G.groupZoneInfo = (gid) => (injecting && gid === GID)
+    ? injected : orig(gid);
+  try {
+    for (const [label, value] of [
+      ['{triggers:true, radius:0}', { triggers: true, radius: 0 }],
+      ['null', null],
+      ['{radius} без triggers', { radius: 2 }],
+    ]) {
+      injecting = true;
+      injected = value;
+      const c = frameOnce(h);
+      const as = arcsOf(c);
+      assert.equal(h.errors.length, 0,
+        label + ': кадр без падения/ошибок (тихий гард)');
+      assert.ok(!has23(as), label + ': окружности (2,3) НЕТ');
+      assert.deepEqual(sigArcs(as), sigArcs(expectedMinus),
+        label + ': прочие окружности интактны (влияние точечное)');
+    }
+  } finally {
+    G.groupZoneInfo = orig;
+  }
+  // Восстановление: окружность (2,3) вернулась.
+  const c4 = frameOnce(h);
+  const a4 = arcsOf(c4);
+  assert.ok(has23(a4), 'после восстановления: окружность (2,3)');
+  assert.deepEqual(sigArcs(a4), sigArcs(expected),
+    'после восстановления: набор окружностей = исходный');
+});
+
+// --- M9 (GUARD, 000172-пин): «без fill» ТЗ — в кадре 0 вызовов
+// fill()/fillRect() (агро-проход — только arc + stroke) ---
+
+test('M9: «без fill» — 0 вызовов fill()/fillRect() в кадре (агро-проход: только arc+stroke) (000172/000183)', async () => {
+  const { calls } = await scene();
+  // Пресуппозиция (анти-вакуум): в кадре ЕСТЬ агро-arc — иначе
+  // «0 fill в пустом кадре» было бы тривиально-зелёным.
+  const arcs = arcsOf(calls);
+  assert.ok(arcs.length >= 1,
+    'пресуппозиция: в кадре есть агро-arc (найдено ' + arcs.length + ')');
+  const fills = calls.filter((c) => c[0] === 'fill' || c[0] === 'fillRect');
+  assert.equal(fills.length, 0,
+    '«без fill, без анимации» (ТЗ): 0 вызовов fill()/fillRect(), '
+    + 'найдено ' + fills.length
+    + (fills.length ? ' (первый: ' + fills[0][0] + ')' : ''));
+});
+
+// --- M10 (GUARD, 000172-пин): тихий гард по экспорту —
+// typeof G.groupZoneInfo === 'function' ложь → агро-проход
+// ПРОПУЩЕН тихо (0 arc, 0 ошибок), остальной кадр интактен ---
+
+test('M10: тихий гард — G.groupZoneInfo отсутствует: агро-проход пропущен (0 arc, 0 ошибок), кадр интактен (000172/000183)', async () => {
+  const { h, st, calls, G, myMap } = await scene();
+  const expected = expectedAgroCircles(G, myMap, st.cam, st.zoom);
+  assert.ok(expected.length >= 1, 'сценарий: окружности в кадре');
+  // Число видимых групп (мобы интактны после деградации).
+  const range = G.visibleTileRange(st.cam.x, st.cam.y, VIEW_W, VIEW_H,
+    st.zoom);
+  let groups = 0;
+  for (let ty = range.y0; ty <= range.y1; ty++) {
+    for (let tx = range.x0; tx <= range.x1; tx++) {
+      if (myMap.tileAt(tx, ty).hasMobGroup) groups++;
+    }
+  }
+  const mobDrawsOf = (cs) => cs.filter((c) => c[0] === 'drawImage'
+    && c[1][0] && typeof c[1][0].__asset === 'string'
+    && c[1][0].__asset.startsWith('assets/sprites/mobs/')).length;
+  assert.equal(mobDrawsOf(calls), groups,
+    'сценарий: спрайты групп нарисованы (видимые группы)');
+  const orig = G.groupZoneInfo;
+  delete G.groupZoneInfo;
+  try {
+    const c2 = frameOnce(h);
+    assert.equal(h.errors.length, 0,
+      'деградация тихая: 0 ошибок (гард typeof … === "function")');
+    assert.equal(arcsOf(c2).length, 0,
+      'агро-проход пропущен: 0 arc-вызовов в кадре');
+    assert.ok(tileDraws(c2).length > 0, 'слой тайлов интактен');
+    assert.equal(mobDrawsOf(c2), groups,
+      'спрайты групп интактны (деградация — только агро-проход)');
+  } finally {
+    G.groupZoneInfo = orig;
+  }
+});
