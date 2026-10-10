@@ -4096,3 +4096,183 @@ test('боевой UI: 000171 — ход ЭФИРА: кнопка «Воскре
   assert.ok(!E.c._fx || E.c._fx.action !== 'cast', 'cast-FX нет');
   assert.equal(E.G.activeUnitId(E.c), 'efir', 'очередь не сдвинулась');
 });
+
+// --- Задача 000179 (регрессия 000168, ретро-анализ finding 1 major):
+// СТРОКИ ОТКРЫТОЙ книги на ходу СОЮЗНИКА. Контракт —
+// memory/000179-book-active-unit-gate.md (суть бага/почему —
+// memory/000179-spellbook-ally-turn-gate.md): с 000168 ход спутника —
+// интерактивный c.phase === 'player', a rowChk = canCastSpell (движок
+// 000045 проверяет лишь checkTurn) → на ходу спутника строки книги
+// рисуются АКТИВНЫМИ, а клик по строке (castRow → G.Spells.castSpell)
+// кастует заклинание ИГРОКА: пул/мана — из пула/маны игрока, эффект
+// (включая убийство моба → победа) — вне его хода. Контракт 000168
+// «книга — только игрок» соблюдён для КНОПКИ (canDoAction → allyCanDo,
+// пин 000168-UI-2), но не для строк открытой книги; bookOpen не
+// сбрасывается endTurn (решение 000179 §2.1: фикс — гейт по активному
+// юниту, книга остаётся ОТКРЫТОЙ — строки видимы, -off + tooltip).
+// Краснота ДО фикса осмысленная (behavioral AssertionError, не краш):
+// без гейта строки БЕЗ -off (падает пункт «-off на ходу спутника»),
+// клик → каст: mp 16→13, spellInt 1→0, волк убит, ПОБЕДА (падает
+// deepEqual «ровно одна строка отказа»). После фикса: оба зелёные,
+// все пины «книга на ходу игрока работает как прежде» (000149/CU166/
+// SB4) — без репина (на ходу игрока гейт null → бит-в-бит).
+// Фикстуры — СУЩЕСТВУЮЩИЕ хелперы (scene84 с опциями spells/efir,
+// addMerc84, tickSlice, press, findByClass) — новых фикстур/модулей/
+// require-путей нет; префикс CU179 — уникальный.
+
+test('боевой UI: 000179 — книга на ходу НАЁМНИКА: строки -off «недоступно активному персонажу» (rowChk); стаб-клик — отказ в лог, КАСТА/трат НЕТ (castRow); на возврате хода игрока гейт снимается (CU179-ROW)', () => {
+  // (000168-UI-2(a)-паттерн: очередь [m0, player, a1]; pre-roll — волк
+  // (m0) ДО игрока → стоп на 'player'; Space — конец хода игрока →
+  // стоп на ЖИВОМ наёмнике a1 — activeUnitId 'a1'.)
+  const S = scene84({ spells: true });
+  const { G, c } = S;
+  addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  wolf.x = c.px; wolf.y = c.py - 1; // в упор игрока (d 1 — в радиусе)
+  c.selectTarget(wolf.id);
+  c._rng = () => 0.99; // все удары волка — промахи (паттерн 000149)
+  // (1) АНКЕР (ход игрока, «книга работает как прежде»): строки spark/
+  // mend БЕЗ -off, tooltip пуст (пины 000149/CU166-ROW/SB4 — бит-в-бит).
+  assert.equal(G.activeUnitId(c), 'player', 'ход игрока (pre-roll)');
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.ok(bookBox, 'книга (.combat-spellbook) существует');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  let rows = bookBox.children.slice(-2); // хвост (vm-стаб-ловушка 000149 §10)
+  for (const id of ['spark', 'mend']) {
+    const r = rows.find((x) => x.dataset.spell === id);
+    assert.ok(r, 'строка «' + id + '» есть в книге');
+    assert.ok(!r.className.includes('combat-spellrow-off'),
+      'строка ' + id + ' на ходу ИГРОКА — без -off (как прежде)');
+    assert.equal(r.title, '', 'строка ' + id + ' на ходу ИГРОКА — tooltip пуст');
+  }
+  // (2) Конец хода игрока → стоп на наёмнике a1 (волк уже действовал
+  // в pre-roll). Книга НЕ закрывается endTurn (решение 000179 §2.1);
+  // строки ПЕРЕСТРОЕНЫ (sig включает chk.reason): обе -off + title
+  // ДОСЛОВНО (rowChk-гейт по активному юниту).
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(G.activeUnitId(c), 'a1', 'активен наёмник a1');
+  assert.equal(c.phase, 'player', 'ход спутника — phase player (000168)');
+  assert.notEqual(bookBox.style.display, 'none',
+    'книга ЕЩЁ ОТКРЫТА (endTurn её не закрывает)');
+  rows = bookBox.children.slice(-2);
+  for (const id of ['spark', 'mend']) {
+    const r = rows.find((x) => x.dataset.spell === id);
+    assert.ok(r, 'строка «' + id + '» (после перестроения)');
+    assert.ok(r.className.includes('combat-spellrow-off'),
+      'строка ' + id + ' на ходу НАЁМНИКА — -off (rowChk-гейт)');
+    assert.equal(r.title, 'недоступно активному персонажу',
+      'строка ' + id + ' — tooltip ДОСЛОВНО (строка 000168 allyCanDo)');
+  }
+  // (3) Стаб-клик по строке «Искра» (работает и на -off строке — div,
+  // нет :disabled; паттерн CU171-OFF): ПИН ПРЕДПРОВЕРКИ castRow —
+  // без гейта каст прошёл бы checkTurn (phase 'player' на ходу
+  // союзника): mp 16→13, spellInt 1→0, волк убит, ПОБЕДА.
+  const n0 = c.log.length;
+  const mp0 = c.player.mp, int0 = c.ps.spellInt, wolfHp0 = wolf.hp;
+  rows.find((x) => x.dataset.spell === 'spark').listeners.click[0]();
+  assert.deepEqual(Array.from(c.log).slice(n0),
+    ['недоступно активному персонажу'],
+    'ровно ОДНА строка отказа в лог (logRejection): '
+    + JSON.stringify(Array.from(c.log).slice(n0)));
+  assert.equal(c.player.mp, mp0, 'мана игрока НЕ потрачена');
+  assert.equal(c.ps.spellInt, int0, 'пул «Заклинание» (Интеллект) НЕ потрачен');
+  assert.equal(wolf.hp, wolfHp0, 'волк не задет (эффекта НЕТ)');
+  assert.ok(!c.log.some((s) => s.includes('Искра')),
+    'в логе нет «Искра…» — КАСТА НЕТ');
+  assert.ok(!c.result, 'бой не завершён (нет «Волк повержен!»/«Победа!»)');
+  assert.ok(!c._fx || c._fx.action !== 'cast', 'cast-FX нет (только при успехе)');
+  assert.equal(G.activeUnitId(c), 'a1', 'очередь не сдвинулась');
+  assert.notEqual(bookBox.style.display, 'none',
+    'книга остаётся ОТКРЫТОЙ (UX 000149: игрок видит причину)');
+  // (4) RESTORE: конец хода наёмника → round 2 (рефилл) → волк
+  // (промах, _rng 0.99) → стоп на 'player': гейт СНИМАЕТСЯ (нет
+  // sticky-состояния), строки снова активны, книга всё ещё открыта.
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(G.activeUnitId(c), 'player', 'ход игрока вернулся');
+  rows = bookBox.children.slice(-2);
+  const spark = rows.find((x) => x.dataset.spell === 'spark');
+  assert.ok(spark, 'строка «Искра» (перестроение на ходу игрока)');
+  assert.ok(!spark.className.includes('combat-spellrow-off'),
+    'строка «Искра» на ходу ИГРОКА — снова без -off (гейт не sticky)');
+  assert.equal(spark.title, '', 'tooltip снова пуст');
+  assert.notEqual(bookBox.style.display, 'none', 'книга всё ещё открыта');
+});
+
+test('боевой UI: 000179 — книга на ходу ЭФИРА: строки -off «недоступно активному персонажу» (rowChk); стаб-клик — отказ в лог, КАСТА/трат НЕТ (castRow) (CU179-EFIR)', () => {
+  // (000168-UI-2(b)-паттерн: очередь [efir, m0, player], pre-roll —
+  // стоп на слоте Эфира СРАЗУ после startCombat; u.mp = 11 (естественное
+  // maxMP createEfir, < 20) — «Вдох Эфира» (гейт u.mp >= B.mpCost) НЕ
+  // сработает → стоп на 'efir' детерминирован; round-2-стоп — после
+  // хода волка.)
+  const E = scene84({ efir: true, spells: true });
+  const { G, c } = E;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  c._rng = () => 0.99; // все удары волка — промахи (паттерн 000149)
+  assert.equal(G.activeUnitId(c), 'efir',
+    'активен Эфир (pre-roll стоп на его слоте)');
+  assert.equal(u.mp, 11, 'фикстура: mp 11 < 20 — «Вдох» не сработает');
+  // (1) Конец хода Эфира → волк (промах) → стоп на игроке.
+  press(E.keydown, 'Space');
+  tickSlice(E.canvas, E.rafStubs);
+  assert.equal(G.activeUnitId(c), 'player', 'ход игрока');
+  wolf.x = c.px; wolf.y = c.py - 1; // в упор игрока (d 1 — в радиусе)
+  c.selectTarget(wolf.id);
+  // (2) АНКЕР (ход игрока): строки spark/mend БЕЗ -off (как прежде).
+  press(E.keydown, 'KeyQ');
+  const bookBox = findByClass(E.body, 'combat-spellbook');
+  assert.ok(bookBox, 'книга (.combat-spellbook) существует');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  let rows = bookBox.children.slice(-2); // хвост (vm-стаб-ловушка 000149 §10)
+  for (const id of ['spark', 'mend']) {
+    const r = rows.find((x) => x.dataset.spell === id);
+    assert.ok(r, 'строка «' + id + '» есть в книге');
+    assert.ok(!r.className.includes('combat-spellrow-off'),
+      'строка ' + id + ' на ходу ИГРОКА — без -off (как прежде)');
+    assert.equal(r.title, '', 'строка ' + id + ' на ходу ИГРОКА — tooltip пуст');
+  }
+  // (3) Конец хода игрока → волк (промах) → startRound (round 2,
+  // рефилл) → стоп на 'efir' («Вдох» не сработал: mp 15 < 20). Книга
+  // ЕЩЁ ОТКРЫТА; строки ПЕРЕСТРОЕНЫ: -off + title ДОСЛОВНО.
+  press(E.keydown, 'Space');
+  tickSlice(E.canvas, E.rafStubs);
+  assert.equal(G.activeUnitId(c), 'efir', 'активен Эфир (round 2)');
+  assert.equal(c.phase, 'player', 'ход спутника — phase player (000168)');
+  assert.equal(c.round, 2, 'round 2 (рефилл на стопе)');
+  assert.equal(u.mp, 11, '«Вдох» не сработал (mp 11 < 20)');
+  assert.notEqual(bookBox.style.display, 'none',
+    'книга ЕЩЁ ОТКРЫТА (endTurn её не закрывает)');
+  rows = bookBox.children.slice(-2);
+  for (const id of ['spark', 'mend']) {
+    const r = rows.find((x) => x.dataset.spell === id);
+    assert.ok(r, 'строка «' + id + '» (после перестроения)');
+    assert.ok(r.className.includes('combat-spellrow-off'),
+      'строка ' + id + ' на ходу ЭФИРА — -off (rowChk-гейт)');
+    assert.equal(r.title, 'недоступно активному персонажу',
+      'строка ' + id + ' — tooltip ДОСЛОВНО (строка 000168 allyCanDo)');
+  }
+  // (4) Стаб-клик по строке «Искра»: ПИН ПРЕДПРОВЕРКИ castRow —
+  // до-значения — ПОСЛЕ стопа (рефилл startRound; паттерн D11 000166).
+  // Без гейта каст прошёл бы checkTurn: mp 16→13, spellInt 1→0,
+  // волк убит, ПОБЕДА на ходу Эфира.
+  const n0 = c.log.length;
+  const mp0 = c.player.mp, int0 = c.ps.spellInt, wolfHp0 = wolf.hp;
+  rows.find((x) => x.dataset.spell === 'spark').listeners.click[0]();
+  assert.deepEqual(Array.from(c.log).slice(n0),
+    ['недоступно активному персонажу'],
+    'ровно ОДНА строка отказа в лог (logRejection): '
+    + JSON.stringify(Array.from(c.log).slice(n0)));
+  assert.equal(c.player.mp, mp0, 'мана игрока НЕ потрачена');
+  assert.equal(c.ps.spellInt, int0, 'пул «Заклинание» (Интеллект) НЕ потрачен');
+  assert.equal(wolf.hp, wolfHp0, 'волк не задет (эффекта НЕТ)');
+  assert.ok(!c.log.some((s) => s.includes('Искра')),
+    'в логе нет «Искра…» — КАСТА НЕТ');
+  assert.ok(!c.result, 'бой не завершён (нет «Волк повержен!»/«Победа!»)');
+  assert.ok(!c._fx || c._fx.action !== 'cast', 'cast-FX нет (только при успехе)');
+  assert.equal(G.activeUnitId(c), 'efir', 'очередь не сдвинулась');
+  assert.notEqual(bookBox.style.display, 'none',
+    'книга остаётся ОТКРЫТОЙ (UX 000149: игрок видит причину)');
+});

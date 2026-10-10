@@ -1567,13 +1567,42 @@
     }));
   }
 
+  // 000179 (регрессия 000168): гейт СТРОК книги по АКТИВНОМУ юниту —
+  // зеркало resurrectChk (000171), порядок проверок ФИКСИРОВАН
+  // (result → phase → activeUnitId): с 000168 ход СОЮЗНИКА —
+  // c.phase === 'player', и canCastSpell движка 000045 (checkTurn)
+  // пропустит каст игрока на ходу спутника (пул/мана игрока, эффект
+  // вне его хода). 'не ваш ход' ПЕРЕД activeUnitId: на ходу МОБА
+  // активен id МОБА — иначе tooltip был бы неверный (комментарь 000171
+  // к порядку resurrectChk). Строка «недоступно активному персонажу» —
+  // ДОСЛОВНО из allyCanDo('spellbook') (000168) и resurrectChk:
+  // «одна строка — одна причина». typeof-guard с фолбэком 'player'
+  // (G.activeUnitId — экспорт 000167): до 000167 гейт — мёртвая ветка,
+  // ноль изменения. Возврат { ok:false, reason } | null (null —
+  // проход к canCastSpell/касту — поведение на ходу игрока бит-в-бит).
+  function spellbookUnitGate(c) {
+    if (c.result) return { ok: false, reason: 'бой закончен' };
+    if (c.phase !== 'player') return { ok: false, reason: 'не ваш ход' };
+    const id = (typeof G.activeUnitId === 'function')
+      ? G.activeUnitId(c) : 'player';
+    if (id !== 'player') {
+      return { ok: false, reason: 'недоступно активному персонажу' };
+    }
+    return null;
+  }
+
   // canCastSpell (движок 000045) — чистый предпросмотр строки
-  // (без побочных эффектов — зеркало castSpell, 000037/000045).
+  // (без побочных эффектов — зеркало castSpell, 000037/000045) —
+  // ПОСЛЕ гейта spellbookUnitGate (000179): на ходу СОЮЗНИКА причина
+  // — гейтовая (осмысленнее деградации); на ходу игрока гейт null →
+  // бит-в-бит (пин SB14: 'Заклинания недоступны' при битом порядке).
   // G.Spells нет (спелл-движок не загружен — битый порядок) —
   // запасной отказ: все строки off (деградация, не крах). Вызывается
   // renderBook: ОДИН раз на строку на рендер (и для сигнатуры, и для
   // строки — пары не дублируются).
   function rowChk(c, row) {
+    const g = spellbookUnitGate(c);
+    if (g) return g;
     return (G.Spells && typeof G.Spells.canCastSpell === 'function')
       ? G.Spells.canCastSpell(c, row.id, { targetId: c.targetId })
       : { ok: false, reason: 'Заклинания недоступны' };
@@ -1628,7 +1657,19 @@
   // у атаки) + книга закрывается (действие сделано). Отказ — причину
   // в журнал (logRejection), книга остаётся ОТКРЫТОЙ (игрок видит
   // причину и может поправить: цель/ману/очередь).
+  // 000179: предпроверка ПЕРВОЙ строкой — гейт spellbookUnitGate
+  // (стаб-клик на ходу СОЮЗНИКА: причина в лог — ровно одна строка,
+  // КАСТА НЕТ, трат НЕТ, c._fx не пишется, очередь не сдвигается —
+  // зеркало раннего return resurrectCast; движок 000045 не знает про
+  // activeUnitId — без гейта checkTurn (phase='player' на ходу
+  // спутника) каст игрока пропустил бы).
   function castRow(c, spellId) {
+    const g = spellbookUnitGate(c);
+    if (g) {
+      logRejection(c, g);
+      render();
+      return;
+    }
     const r = (G.Spells && typeof G.Spells.castSpell === 'function')
       ? G.Spells.castSpell(c, spellId, c.targetId)
       : { ok: false, reason: 'Заклинания недоступны' };
