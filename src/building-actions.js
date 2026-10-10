@@ -584,7 +584,8 @@
   // (бой выше по стеку) → стек buildingUI/npcUI (повторный [E]
   // закрывает) → клетка без постройки = НИЧЕГО. Гард
   // dungeonUI.isActive в toggle() СОХРАНЁН (в городе toggle не
-  // вызывается — [E] идёт через dungeon-ui → cityOnInteract → сюда).
+  // вызывается — [E] идёт через dungeon-ui → locationOnInteract
+  // (main.js, 000177) → сюда).
   // Небывалые ситуации — console.error + no-op, игра не падает
   // (UMD-деградация 000053).
   function interactCity() {

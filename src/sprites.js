@@ -435,6 +435,18 @@
   // tests/svg.test.js).
   const DUNGEON_CHEST = 'assets/dungeon/chest.svg';
 
+  // Маркеры тайла входа-выхода (задача 000177): ОДИН тайл = вход и
+  // выход (дверь/лестница/пещера); вид по kind: city → door, dungeon
+  // → cave_mouth; stairs — РЕЗЕРВ (системы этажей в игре нет — точки
+  // отрисовки нет). 64×64, прозрачный фон, в стиле chest.svg;
+  // dungeon-ui.js рисует drawImage(целая клетка) или фолбэк-квадрат с
+  // 'E' (изображение не готово).
+  const DUNGEON_PORTAL = {
+    door: 'assets/dungeon/door.svg',
+    stairs: 'assets/dungeon/stairs.svg',
+    cave_mouth: 'assets/dungeon/cave_mouth.svg',
+  };
+
   // --- Препятствия поля боя (задача 000050) ---
   //
   // 3 статичных универсальных SVG в assets/combat/obstacles/ (камень,
@@ -778,6 +790,8 @@
     }
     // Сундук подземелья (задача 000067): 1 SVG.
     paths.push(DUNGEON_CHEST);
+    // Маркеры входа-выхода (задача 000177): 3 SVG.
+    for (const p of Object.values(DUNGEON_PORTAL)) paths.push(p);
     // Препятствия боя (задача 000050): 3 универсальных спрайта.
     for (const p of OBSTACLE_SPRITES) {
       paths.push(p);
@@ -905,6 +919,7 @@
     dungeonFloorFrame,
     DUNGEON_WALL_FRAMES,
     DUNGEON_CHEST,
+    DUNGEON_PORTAL,
     HP_BAR_COLORS, hpBarColor,
     VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE, VISUALS_MIN_ZOOM,
     FRAME_MS,

@@ -80,11 +80,13 @@ function (perlin, items, buildings, rootRef) {
    *
    * Периметр — CELL_WALL; внутренность — сплошное CELL_FLOOR
    * (открытое пространство; «улицы/кварталы» не делаются).
-   * entrance — южный периметр (y = height−1), exit — северный
-   * (y = 0); x — из rng(mulberry32(seed)) по колоннам 1..width−2
-   * (порядок вызовов rng: СНАЧАЛА entrance.x, затем exit.x —
-   * golden-пин; при width=2 оба x=0 — клетки смежные, BFS
-   * проходит). Layout СТАТИЧЕН: один якорь → один layout навсегда.
+   * 000177: ОДИН тайл = вход и выход — ДВЕРЬ на южном периметре
+   * (y = height−1, сторона спавна): entrance = exit (deepEqual-
+   * инвариант); x — из rng(mulberry32(seed)) по колоннам 1..width−2
+   * (ОДИН вызов col() — golden-пин; при width=2 x=0). Старая
+   * северная клетка выхода больше не проставляется FLOOR —
+   * остаётся WALL (периметр). Layout СТАТИЧЕН: один якорь →
+   * один layout навсегда.
    * @param {number} cityX координата якоря на основной карте
    * @param {number} cityY координата якоря на основной карте
    * @param {number} footprint сторона квадрата типа города (каталог
@@ -101,15 +103,15 @@ function (perlin, items, buildings, rootRef) {
     for (let y = 1; y < H - 1; y++) {
       for (let x = 1; x < W - 1; x++) cells[y * W + x] = CELL_FLOOR;
     }
-    // Колонны входа/выхода: 1..W−2 (при W=2 — 0; клетки (0,H−1) и
-    // (0,0) смежны по вертикали через край, BFS проходит).
+    // Дверь (000177: единый тайл входа-выхода): колонна 1..W−2
+    // (при W=2 — 0), южный периметр. ОДИН вызов col() — rng-поток
+    // layout короче на один вызов, чем до 000177 (ТЗ-принуждение;
+    // entrance — ПЕРВЫЙ вызов, позиция двери не меняется).
     const col = () => (W >= 3 ? 1 + Math.floor(rng() * (W - 2)) : 0);
-    const entrance = { x: col(), y: H - 1 };
-    const exit = { x: col(), y: 0 };
-    cells[entrance.y * W + entrance.x] = CELL_FLOOR;
-    cells[exit.y * W + exit.x] = CELL_FLOOR;
-    return { width: W, height: H, cells, entrance, exit, seed,
-      kind: 'city' };
+    const door = { x: col(), y: H - 1 };
+    cells[door.y * W + door.x] = CELL_FLOOR;
+    return { width: W, height: H, cells, entrance: door, exit: door,
+      seed, kind: 'city' };
   }
 
   // ============================================================
@@ -137,7 +139,8 @@ function (perlin, items, buildings, rootRef) {
   //    провалов — детерминированный y→x скан (БЕЗ rng); валидных
   //    мест нет — GRACEFUL-стоп (buildings.length < count — норма:
   //    достижимость > минимум);
-  //  * хутор (fp1): FLOOR только entrance/exit → buildings: []
+  //  * хутор (fp1): FLOOR только единый тайл (000177: вход =
+  //    выход = дверь) → мест нет → buildings: []
   //    (задокументированное исключение, 000102/000104);
   //  * result — plain {buildings, seed} (сериализуемо — сейв
   //    000109); layout НЕ мутируется (своя копия cells);
@@ -288,7 +291,7 @@ function (perlin, items, buildings, rootRef) {
             (x === exit.x && y === exit.y)) continue;
         spots.push([x, y]);
       }
-    // Хутор (fp1): FLOOR только entrance/exit → мест нет →
+    // Хутор (fp1): FLOOR только единый тайл (000177) → мест нет →
     // buildings: [] (задокументированное исключение, 000102/000104).
     if (!spots.length) return { buildings: [], seed };
 

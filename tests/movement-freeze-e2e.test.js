@@ -49,8 +49,10 @@
 //
 // Защитные пины (GREEN до и после — фикс не должен их сломать):
 //   T7 — карта: клавиша → шаг (канал клавиш жив).
-//   T8 — подземелье: путь клавишами к exit-клетке → выход, день+1,
-//        главный цикл жив (ТЧ ТЗ «входит на выходную клетку»).
+//   T8 — подземелье: спавн на совмещённом тайле (000177: вход =
+//        выход), [E] → выход, день+1, главный цикл жив (ТЧ ТЗ
+//        «входит на выходную клетку» — с 000177 герой СПАВНИТСЯ
+//        на выходной клетке).
 //   T9 — пикер (десктоп): пока открыт — клавиши НЕ в keys, движения нет
 //        (модал-семантика НЕ деградирует: тач-кнопка не разблокирует
 //        клавиши при открытом пикере); Esc → движение возобновилось.
@@ -745,105 +747,10 @@ function touchStep(h, dx, dy, now) {
   };
 }
 
-// --- Подземелье: реконструкция + time-expanded BFS к exit-клетке ---
-// (паттерн city-screen.test.js / probes PV-4: чистые детерминированные
-// функции, те же аргументы, что main.js: тайл, пиксели фолбэка, новый
-// герой с totalXp = 0 — свежий старт без seed не даёт zone-xp до входа).
-
-const MAXS = 400;
-
-function dungeonExitPath(G, g, caveTile) {
-  const dg = g.dungeon;
-  assert.ok(dg, 'в подземелье (dungeonState)');
-  const px = g.state.player.x, py = g.state.player.y;
-  const d3 = G.createDungeon(px, py, G.generateSeedPixels(),
-    caveTile.terrain);
-  assert.equal(d3.width, dg.width, 'реконструкция: width');
-  assert.equal(d3.height, dg.height, 'реконструкция: height');
-  for (let i = 0; i < d3.cells.length; i++) {
-    assert.equal(d3.cells[i], dg.cells[i],
-      'реконструкция: cells[' + i + ']');
-  }
-  const c3 = G.generateDungeonContents(d3, G.createCharacter('Флогистон'));
-  // Блуждание (G.wanderStep) — ЧИСТАЯ функция номера шага
-  // (rng от (step, seed, 0x7777)): таблица занятости предвычисляется.
-  const occ = [];
-  for (let s = 0; s < MAXS; s++) {
-    occ.push(new Set(c3.mobs.filter((m) => !m.defeated)
-      .map((m) => m.x + ',' + m.y)));
-    G.wanderStep(c3, d3);
-  }
-  // Time-expanded BFS: состояние (клетка, с) — с шагов сделано;
-  // переход (А, с) → (В, с+1): В — FLOOR и (В ≠ exit и в В нет моба
-  // ДО шага с+1).
-  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  const startK = d3.entrance.x + ',' + d3.entrance.y + ':0';
-  const seen = new Set([startK]);
-  const par = new Map();
-  const q = [[d3.entrance.x, d3.entrance.y, 0]];
-  let exitAt = null;
-  while (q.length && exitAt == null) {
-    const [x, y, s] = q.shift();
-    if (s >= MAXS) continue;
-    if (x === d3.exit.x && y === d3.exit.y) { exitAt = s; break; }
-    for (const [dx, dy] of DIRS) {
-      const nx = x + dx, ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= d3.width || ny >= d3.height) continue;
-      if (d3.cells[ny * d3.width + nx] !== G.CELL_FLOOR) continue;
-      if (!(nx === d3.exit.x && ny === d3.exit.y)
-          && occ[s].has(nx + ',' + ny)) continue;
-      const k = nx + ',' + ny + ':' + (s + 1);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      par.set(k, x + ',' + y + ':' + s);
-      q.push([nx, ny, s + 1]);
-    }
-  }
-  assert.ok(exitAt != null, 'сценарий: путь к exit с учётом блуждания есть');
-  const pathKeys = [];
-  let kk = d3.exit.x + ',' + d3.exit.y + ':' + exitAt;
-  while (kk != null) {
-    pathKeys.unshift(kk);
-    kk = par.get(kk);
-  }
-  return pathKeys;
-}
-
-// Ход по подземелью по пути BFS (клавиши dungeon-ui; мобы обойдены —
-// боев нет). Возврат { err, now } — err — исключение, улетевшее с
-// какого-то шага (на master: throw из onDay на выходной клетке).
-// now0 — продолжение monotonичного harness-времени (по умолчанию NOW):
-// вызывающий передаёт `now` после walkTo — иначе час регрессирует и
-// мировой шаг-гейт (now − lastMove ≥ stepMs) не откроется в
-// последующих ассертах движения (T5).
-function walkDungeonExit(h, pathKeys, now0 = NOW) {
-  const g = h.sandbox.__game;
-  const G = h.sandbox.Game;
-  let now = now0;
-  let err = null;
-  for (let i = 1; i < pathKeys.length && !err; i++) {
-    const pc = pathKeys[i - 1].split(':')[0];
-    const cc = pathKeys[i].split(':')[0];
-    const [ax, ay] = pc.split(',').map(Number);
-    const [bx, by] = cc.split(',').map(Number);
-    const code = keydownFor(bx - ax, by - ay);
-    try {
-      key(h, code);
-      keyup(h, code);
-    } catch (e) {
-      err = e;
-      continue;
-    }
-    assert.equal(G.combatUI.isActive(), false,
-      'боев нет (мобы обойдены)');
-    if (g.dungeon) {
-      assert.equal(g.dungeon.x, bx, 'шаг: x');
-      assert.equal(g.dungeon.y, by, 'шаг: y');
-    }
-    now += 200;
-  }
-  return { err, now };
-}
+// --- Подземелье: выход (000177) ---
+// Вход = выход — ЕДИНЫЙ тайл (000177): герой спавнится НА выходной
+// клетке, выход — [E] стоя на ней (BFS-путь к exit-клетке упразднён:
+// layout больше не содержит отдельного exit-тайла).
 
 // =====================================================================
 // T1. пикер «Воскрешение» (тач): клик .resurrect-close → пикер
@@ -1083,16 +990,23 @@ test('T5. exit-тайл: исключение в onDay при выходе — d
   let now = walkTo(h, cave.steps);
   const dg = g.dungeon;
   assert.ok(dg, 'вход в подземелье');
+  // 000177: вход = выход — единый тайл: герой спавнится НА выходной
+  // клетке, выход — [E] стоя на ней.
+  assert.deepEqual({ x: dg.x, y: dg.y }, { x: dg.exit.x, y: dg.exit.y },
+    '000177: спавн на едином тайле (exit = entrance)');
   const dayBefore = g.state.day;
   // Инъекция: исключение в G.playerUI.render (onDay — ЛЮБАЯ смена
   // дня: G.playerUI.render — новая DOM-поверхность 000145/146/152;
   // G.playerUI — общий объект-экспорт, виден снапшоту main.js).
   const origRender = G.playerUI.render;
   G.playerUI.render = () => { throw new Error('T5-inject: playerUI.render'); };
-  // Путь клавишами к выходной клетке (мобы обойдены).
-  const pathKeys = dungeonExitPath(G, g, cave.tile);
-  const { err, now: nowExit } = walkDungeonExit(h, pathKeys, now);
-  now = nowExit;
+  // Выход (000177): [E] на едином тайле (синхронно, кадров нет).
+  let err = null;
+  try {
+    key(h, 'KeyE');
+  } catch (e) {
+    err = e;
+  }
   G.playerUI.render = origRender;
   assert.equal(err, null,
     'исключение попытки выхода НЕ улетело вызывателю (exitLocation '
@@ -1212,11 +1126,12 @@ test('T7. пин: клавиша перемещения → шаг на глоб
 });
 
 // =====================================================================
-// T8. защитный пин: подземелье — вход → путь к exit-клетке → выход,
-//     день+1 (ТЧ ТЗ «персонаж входит на выходную клетку»)
+// T8. защитный пин: подземелье — спавн на совмещённом тайле (000177)
+//     → [E] → выход, день+1 (ТЧ ТЗ «персонаж входит на выходную
+//     клетку» — с 000177 герой спавнится прямо на ней)
 // =====================================================================
 
-test('T8. пин: подземелье — персонаж заходит на тайл выхода (выход, день+1, цикл жив)', async () => {
+test('T8. пин: подземелье — персонаж на совмещённом тайле, [E] (выход, день+1, цикл жив)', async () => {
   const h = await boot();
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
@@ -1227,17 +1142,18 @@ test('T8. пин: подземелье — персонаж заходит на 
   const dg = g.dungeon;
   assert.ok(dg, 'вход в подземелье');
   assert.equal(G.dungeonUI.isActive(), true, 'dungeonUI активен');
-  const pathKeys = dungeonExitPath(G, g, cave.tile);
+  // 000177: единый тайл — персонаж спавнится НА выходной клетке.
+  assert.deepEqual({ x: dg.x, y: dg.y }, { x: dg.exit.x, y: dg.exit.y },
+    '000177: спавн на совмещённом тайле (exit = entrance)');
   const dayBefore = g.state.day;
-  const { err, now: nowAfter } = walkDungeonExit(h, pathKeys, now);
-  assert.equal(err, null, 'исключений на пути к выходу нет');
+  key(h, 'KeyE'); // 000177: [E] на едином тайле → exitLocation
   assert.equal(g.dungeon, null, 'exit-тайл: состояние снято');
   assert.equal(G.dungeonUI.isActive(), false, 'dungeonUI закрыт');
   assert.equal(g.state.day, dayBefore + 1,
     'на выходе из подземелья день проходит');
   // Главный цикл жив после выхода.
   const rafBefore = h.raf.length;
-  mainFrameAt(h, nowAfter + 200);
+  mainFrameAt(h, now + 200);
   assert.ok(h.raf.length > rafBefore, 'rAF-цепь frame жива после выхода');
   // Герой на тайле пещеры в мире; движение не сломано.
   const t = myMap.tileAt(g.state.player.x, g.state.player.y);

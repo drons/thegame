@@ -2,7 +2,7 @@
 // «состояние и переходы подземелья/города». КРАСНЫЕ тесты TDD-стадии.
 //
 // Контракт: memory/000127-locations-module.md (§4 API, §8 инварианты).
-// API (9 функций, события возврата — чистые функции, решение D3):
+// API (10 функций, события возврата — чистые функции, решение D3):
 //   L = require('../src/locations.js')        // браузер: Game.locations
 //   L.makeDungeonState(d, contents, worldKey, env) → ds
 //   L.makeCityState(layout, buildingRec, worldKey, env) → ds
@@ -11,6 +11,7 @@
 //   L.exitCity(ds) → void                      // без дня, без памяти
 //   L.dungeonMove(ds, dx, dy, now, { inCombat }) → null | event
 //   L.cityMove(ds, dx, dy, now, { inCombat })  → null | event
+//   L.interactExit(ds) → null | { type: 'exit', name }   // 000177: [E]
 //   L.debugEnterDungeon(ctx, terrain) → ds | null
 // Форма ds — поле-в-поле как dungeonState main.js (инвариант сейва/HUD):
 //   { dg, contents, kind: 'dungeon'|'city', name (город), x, y,
@@ -107,7 +108,8 @@ function makeFakeGame() {
 }
 
 // 5×5: периметр — стены, внутренность (1..3)×(1..3) — пол.
-// entrance (1,1), exit (3,3) — обе клетки-пол.
+// 000177: ЕДИНЫЙ тайл входа-выхода — entrance (1,1) = exit (1,1)
+// (инвариант: exit deepEqual entrance; спавн героя — на нём).
 function makeDungeon() {
   const W = 5;
   const cells = new Array(W * W).fill(D.CELL_WALL);
@@ -117,13 +119,13 @@ function makeDungeon() {
     type: D.DUNGEON_TYPES.CAVE,
     width: W, height: W, cells,
     entrance: { x: 1, y: 1 },
-    exit: { x: 3, y: 3 },
+    exit: { x: 1, y: 1 },
     seed: 777,
   };
 }
 
 // Layout города той же формы (createCityLayout — периметр/пол/
-// entrance/exit; kind 'city').
+// entrance/exit; kind 'city'). 000177: единый тайл — дверь (1,1).
 function makeCityLike() {
   const W = 5;
   const cells = new Array(W * W).fill(D.CELL_WALL);
@@ -133,7 +135,7 @@ function makeCityLike() {
     kind: 'city',
     width: W, height: W, cells,
     entrance: { x: 1, y: 1 },
-    exit: { x: 3, y: 3 },
+    exit: { x: 1, y: 1 },
     seed: 888,
   };
 }
@@ -341,13 +343,14 @@ function bootFullChain() {
 // NODE-тесты (чистая часть модуля)
 // ============================================================
 
-test('LOC-1: модуль существует — node API: 9 функций (require)', () => {
+test('LOC-1: модуль существует — node API: 10 функций (require)', () => {
   const L = loadLocations();
   for (const fn of [
     'makeDungeonState', 'makeCityState',
     'maybeEnterDungeon', 'maybeEnterCity',
     'exitDungeon', 'exitCity',
     'dungeonMove', 'cityMove',
+    'interactExit',
     'debugEnterDungeon',
   ]) {
     assert.equal(typeof L[fn], 'function', 'L.' + fn + ' — функция');
@@ -488,23 +491,18 @@ test('LOC-6: dungeonMove: стена/граница/inCombat/!ds — шаг за
   });
 });
 
-test('LOC-7: dungeonMove: выходная клетка — {type: \'exit\', name}; exitDungeon: memory.set + clock.event(\'dungeon\')', () => {
+test('LOC-7: exitDungeon: memory.set + clock.event(\'dungeon\') (exit-событие из шага удалено, 000177)', () => {
   const L = loadLocations();
-  const { G, moverCalls } = makeFakeGame();
-  const d = makeDungeon(); // exit (3,3)
+  const { G } = makeFakeGame();
+  const d = makeDungeon(); // единый тайл (1,1) = entrance = exit
   const contents = makeContents([], []);
   const ds = makeDs(L, G, d, contents, '7,3', 'dungeon');
   withGame(G, () => {
-    ds.x = 2; ds.y = 3; ds.prevX = 2; ds.prevY = 3;
-    const ev = L.dungeonMove(ds, 1, 0, NOW, { inCombat: false });
-    assert.equal(ev.type, 'exit');
-    assert.equal(ev.name, D.DUNGEON_NAMES[d.type],
-      'name — DUNGEON_NAMES[type] (строка hudFlash проводки)');
-    // Позиция НЕ сдвинута, мувер НЕ вызывался (ранний return, как main.js).
-    assert.equal(ds.x, 2); assert.equal(ds.y, 3);
-    assert.equal(moverCalls.steps.length, 0);
     // exitDungeon — доменная семантика (D5): подземелье тратит ДЕНЬ
-    // и пишет память содержимого.
+    // и пишет память содержимого. (000177: событие {type: \'exit\'}
+    // из dungeonMove удалено — шаг на единый тайл = обычный
+    // {type: \'moved\'} (LOC-14); само событие выхода — только через
+    // L.interactExit (LOC-13); проводка exitLocation — PE-2/PE-5.)
     const memory = new Map();
     const events = [];
     const clock = { day: 5, event: (k) => events.push(k) };
@@ -570,10 +568,10 @@ test('LOC-8: dungeonMove: моб → {type: \'combat\', group} без wanderStep
   });
 });
 
-test('LOC-9: cityMove: стена/граница/inCombat/exit/moved — БЕЗ мобов/сундуков/wanderStep; kind-гард', () => {
+test('LOC-9: cityMove: стена/граница/inCombat/moved — БЕЗ мобов/сундуков/wanderStep; kind-гард', () => {
   const L = loadLocations();
   const { G, log, moverCalls } = makeFakeGame();
-  const layout = makeCityLike(); // exit (3,3)
+  const layout = makeCityLike(); // единый тайл (1,1) = entrance = exit
   const ds = makeDs(L, G, layout, null, '9,4', 'city');
   withGame(G, () => {
     ds.x = 1; ds.y = 1; ds.prevX = 1; ds.prevY = 1;
@@ -590,17 +588,14 @@ test('LOC-9: cityMove: стена/граница/inCombat/exit/moved — БЕЗ 
     dd.x = 1; dd.y = 1; dd.prevX = 1; dd.prevY = 1;
     assert.equal(L.cityMove(dd, 1, 0, NOW, { inCombat: false }), null,
       'kind-гард: ds.kind !== \'city\' — null');
-    // Выход: {type: \'exit\', name: ds.name}, позиция не сдвинута.
-    ds.x = 2; ds.y = 3; ds.prevX = 2; ds.prevY = 3;
-    const evX = L.cityMove(ds, 1, 0, NOW, { inCombat: false });
-    assert.equal(evX.type, 'exit');
-    assert.equal(evX.name, 'Городок');
-    assert.equal(ds.x, 2); assert.equal(ds.y, 3);
     // Свободный шаг: {type: \'moved\'}, contents: null — без падений,
     // мобов/сундуков/wanderStep в городе НЕТ (пусто до 000106).
-    const evS = L.cityMove(ds, 0, -1, NOW, { inCombat: false });
+    // (000177: exit-событие из cityMove удалено — шаг на единый тайл
+    // = обычный шаг, LOC-14; событие выхода — только L.interactExit,
+    // LOC-13; проводка — exitLocation, PE-1/PE-5.)
+    const evS = L.cityMove(ds, 1, 0, NOW, { inCombat: false });
     assert.equal(evS.type, 'moved');
-    assert.equal(ds.x, 2); assert.equal(ds.y, 2);
+    assert.equal(ds.x, 2); assert.equal(ds.y, 1);
     assert.ok(!log.includes('wanderStep'), 'город: wanderStep не вызывается');
     assert.ok(!log.includes('openChest'), 'город: сундуков нет');
   });
@@ -621,6 +616,75 @@ test('LOC-10: exitCity: ДЕНЬ не проходит, memory НЕ примен
     'запись по worldKey города — нет (город — без памяти)');
   assert.deepEqual(events, [],
     'clock.event НЕ вызывается (город — локация поверх мира)');
+});
+
+test('LOC-13: L.interactExit — API и семантика: на тайле → {type: \'exit\', name}; в сторону / !ds → null (000177)', () => {
+  const L = loadLocations();
+  assert.equal(typeof L.interactExit, 'function',
+    'L.interactExit — функция (10-й экспорт, 000177 D2: выход — ТОЛЬКО '
+    + 'через [E] на едином тайле, не через шаг)');
+  const { G } = makeFakeGame();
+  withGame(G, () => {
+    // Город: spawn = единый тайл (дверь) → { type: 'exit', name: ds.name }.
+    const layout = makeCityLike();
+    const dsC = makeDs(L, G, layout, null, '9,4', 'city');
+    assert.deepEqual(L.interactExit(dsC),
+      { type: 'exit', name: 'Городок' },
+      'город: герой на двери (spawn = единый тайл) → { type: \'exit\', '
+      + 'name: ds.name }');
+    // Шаг в сторону (с двери) → null.
+    L.cityMove(dsC, 1, 0, NOW, { inCombat: false });
+    assert.equal(L.interactExit(dsC), null, 'город: в стороне от двери → null');
+    // Подземелье: spawn = единый тайл → { type: 'exit', name: DUNGEON_NAMES }.
+    const d = makeDungeon();
+    const dsD = makeDs(L, G, d, makeContents([], []), '7,3', 'dungeon');
+    assert.deepEqual(L.interactExit(dsD),
+      { type: 'exit', name: D.DUNGEON_NAMES[d.type] },
+      'подземелье: герой на тайле → { type: \'exit\', name: '
+      + 'DUNGEON_NAMES[type] }');
+    // Шаг в сторону (с тайла) → null.
+    L.dungeonMove(dsD, 1, 0, NOW, { inCombat: false });
+    assert.equal(L.interactExit(dsD), null,
+      'подземелье: в стороне от тайла → null');
+    // !ds → null (гард).
+    assert.equal(L.interactExit(null), null, '!ds (null) → null');
+    assert.equal(L.interactExit(undefined), null,
+      '!ds (undefined) → null');
+  });
+});
+
+test('LOC-14: шаг НА единый тайл = {type: \'moved\'}, позиция обновлена, exit-события НЕТ (000177)', () => {
+  const L = loadLocations();
+  // (а) Подземелье: герой на (2,1) → шаг на (1,1) — единый тайл
+  // (entrance == exit): обычный шаг, а не выход.
+  const A = makeFakeGame();
+  const d = makeDungeon();
+  const ds = makeDs(L, A.G, d, makeContents([], []), '7,3', 'dungeon');
+  withGame(A.G, () => {
+    ds.x = 2; ds.y = 1; ds.prevX = 2; ds.prevY = 1;
+    const ev = L.dungeonMove(ds, -1, 0, NOW, { inCombat: false });
+    assert.equal(ev.type, 'moved',
+      'шаг на единый тайл — обычный шаг (exit-событие из шага '
+      + 'удалено, 000177 D2; выход — только [E], LOC-13)');
+    assert.equal(ev.chest, null);
+    assert.equal(ds.x, 1); assert.equal(ds.y, 1, 'позиция обновлена');
+    assert.equal(ds.prevX, 2); assert.equal(ds.prevY, 1);
+    assert.equal(A.moverCalls.steps.length, 1, 'mover.step — глейд');
+  });
+  // (б) Город: герой на (2,1) → шаг на (1,1) — дверь: тоже обычный
+  // шаг (выход из города — только [E] на двери, PE-1).
+  const B = makeFakeGame();
+  const layout = makeCityLike();
+  const dsC = makeDs(L, B.G, layout, null, '9,4', 'city');
+  withGame(B.G, () => {
+    dsC.x = 2; dsC.y = 1; dsC.prevX = 2; dsC.prevY = 1;
+    const evC = L.cityMove(dsC, -1, 0, NOW, { inCombat: false });
+    assert.equal(evC.type, 'moved',
+      'город: шаг на дверь — обычный шаг (exit-событие из шага '
+      + 'удалено, 000177 D2)');
+    assert.equal(dsC.x, 1); assert.equal(dsC.y, 1, 'позиция обновлена');
+    assert.equal(B.moverCalls.steps.length, 1, 'mover.step — глейд');
+  });
 });
 
 // ============================================================
@@ -704,7 +768,7 @@ test('LOC-12: vm ПОЛНАЯ цепочка index.html грузится с loca
     'main.js — иначе проводка main.js его не увидит)');
   for (const fn of ['makeDungeonState', 'makeCityState',
     'maybeEnterDungeon', 'maybeEnterCity', 'exitDungeon', 'exitCity',
-    'dungeonMove', 'cityMove', 'debugEnterDungeon']) {
+    'dungeonMove', 'cityMove', 'interactExit', 'debugEnterDungeon']) {
     assert.equal(typeof G.locations[fn], 'function', 'locations.' + fn);
   }
 });

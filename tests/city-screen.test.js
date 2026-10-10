@@ -13,13 +13,13 @@
 //     динамически — многотайловый город, у которого layout от якоря
 //     ОТЛИЧАЕТСЯ от layout от входного тайла (иначе сценарий
 //     неразличим);
-//   * exitCity: шаги ВНУТРИ города (BFS по layout.cells) на
-//     layout.exit → состояние снято, герой на входном тайле города,
-//     saveNow вызван (localStorage-стаб), ДЕНЬ НЕ проходит
+//   * exitCity: [E] на ЕДИНОМ тайле-двери (000177: вход = выход,
+//     спавн на двери) → состояние снято, герой на входном тайле
+//     города, saveNow вызван (localStorage-стаб), ДЕНЬ НЕ проходит
 //     (регрессия-фиксатор против переноса clock.event('dungeon'));
 //   * подземелье (РЕГРЕССИЯ): kind 'dungeon', имя — DUNGEON_NAMES,
-//     на выходе ДЕНЬ ПРОХОДИТ (существующее поведение — взаимный
-//     фиксатор с городом);
+//     выход — [E] на едином тайле (000177), ДЕНЬ ПРОХОДИТ
+//     (существующее поведение — взаимный фиксатор с городом);
 //   * кадры main.js ПОСЛЕ входа в город не падают (hudUpdate —
 //     city-ветка; contents у города null) — HUD показывает
 //     заголовок города.
@@ -33,9 +33,9 @@
 // городов как промежуточных узлов), чтобы пережить будущие
 // ре-пины; радиус BFS 600 с явным ассертом-ошибкой сценария.
 // Ход безопасен: BFS исключает тайлы групп мобов (startCombat
-// остановил бы мир) и входов пещер/городов (авто-вход); внутри
-// подземелья путь к выходу выбирается с учётом блуждающих мобов
-// (time-expanded BFS — блуждание чистая функция номера шага).
+// остановил бы мир) и входов пещер/городов (авто-вход). Выход из
+// города/подземелья (000177) — [E] на ЕДИНОМ тайле-двери (спавн
+// сразу на нём), шагов ВНУТРИ layout к layout.exit нет.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -444,43 +444,6 @@ function isDistinguishableCity(G, t) {
       !== JSON.stringify(G.Cities.createCityLayout(t.x, t.y, fp));
 }
 
-// BFS внутри города (layout): путь от текущей клетки к layout.exit.
-function cityExitPath(dg, from) {
-  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  const startKey = from.x + ',' + from.y;
-  const visited = new Set([startKey]);
-  let frontier = [from];
-  const prev = new Map();
-  while (frontier.length) {
-    const next = [];
-    for (const cur of frontier) {
-      for (const [dx, dy] of DIRS) {
-        const nx = cur.x + dx, ny = cur.y + dy;
-        if (nx < 0 || ny < 0 || nx >= dg.width || ny >= dg.height) continue;
-        if (dg.cells[ny * dg.width + nx] !== G_CELL_FLOOR) continue;
-        const k = nx + ',' + ny;
-        if (visited.has(k)) continue;
-        visited.add(k);
-        prev.set(k, cur.x + ',' + cur.y);
-        if (nx === dg.exit.x && ny === dg.exit.y) {
-          const steps = [];
-          let kk = k;
-          while (kk !== startKey) {
-            const [px, py] = kk.split(',').map(Number);
-            steps.unshift([px, py]);
-            kk = prev.get(kk);
-          }
-          return steps;
-        }
-        next.push({ x: nx, y: ny });
-      }
-    }
-    frontier = next;
-  }
-  return null;
-}
-const G_CELL_FLOOR = 1; // значение CELL_FLOOR (dungeon.js/cities.js)
-
 // --- Тесты ---
 
 test('город 000105: вход — шаг на входной тайл (категория «город») → kind city, имя — название_карты, герой на входном тайле', async () => {
@@ -549,13 +512,14 @@ test('город 000105: layout — от createCityLayout(якорь, footprint)
     'width = cityLayoutSize(размер.ширина)');
 });
 
-test('город 000105: выход — шаг на layout.exit → состояние снято, герой на входном тайле, saveNow, ДЕНЬ НЕ проходит', async () => {
+test('город 000105: выход — [E] на едином тайле (000177) → состояние снято, герой на входном тайле, saveNow, ДЕНЬ НЕ проходит', async () => {
   const h = await boot();
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
   const myMap = G.createMap(G.generateSeedPixels());
-  // Многотайловый город: внутри — реальный путь к выходу (BFS),
-  // а не один шаг вырожденного хутора.
+  // Многотайловый город: спавн — НА едином тайле-двери (000177:
+  // вход = выход), выход — [E] стоя на нём (шагов ВНУТРИ города
+  // нет — BFS-путь к layout.exit упразднён).
   const found = findNearest(G, myMap, g.state.player, (t) => isCity(G, t)
     && G.getBuilding(t.buildingId).размер.ширина >= 2);
   assert.ok(found, 'сценарий: достижимый многотайловый город');
@@ -569,25 +533,25 @@ test('город 000105: выход — шаг на layout.exit → состоя
   const dg = g.dungeon;
   assert.ok(dg, 'в городе');
   assert.equal(dg.kind, 'city');
+  // 000177: единый тайл — layout.exit = layout.entrance, герой
+  // спавнится НА двери.
+  assert.deepEqual({ x: dg.exit.x, y: dg.exit.y },
+    { x: dg.entrance.x, y: dg.entrance.y },
+    '000177: exit = entrance (layout)');
+  assert.deepEqual({ x: dg.x, y: dg.y },
+    { x: dg.exit.x, y: dg.exit.y },
+    '000177: спавн на едином тайле');
   // saveNow: входной мировой шаг уже записал сейв — УДАЛЯЕМ его.
   // Внутри города saveNow не вызывает НИКАКОЙ другой путь (frame
   // сейвит только при мировом шаге, а внутри города мировых шагов
   // нет): если запись появится после выхода — это exitCity.
   delete h.storage.store['phlogiston.save'];
-  // Шаги ВНУТРИ города — keydown'ами (dungeon-ui onMove → cityMove,
-  // синхронно; мировой listener гасится гардом dungeonUI.isActive).
-  const exitPath = cityExitPath(dg, { x: dg.x, y: dg.y });
-  assert.ok(exitPath && exitPath.length > 0,
-    'город: путь от входа к layout.exit существует (BFS по cells)');
-  for (const [tx, ty] of exitPath) {
-    const e = press(h, keydownFor(tx - g.dungeon.x, ty - g.dungeon.y));
-    release(h, e);
-    if (g.dungeon) {
-      assert.equal(g.dungeon.x, tx, 'шаг внутри города: x');
-      assert.equal(g.dungeon.y, ty, 'шаг внутри города: y');
-    }
-  }
-  assert.equal(g.dungeon, null, 'после шага на exit — состояние снято');
+  // Выход (000177): [E] на едином тайле → dungeon-ui keydown →
+  // ctx.onInteract → locationOnInteract → interactExit → exitCity
+  // (синхронно; мировой listener гасится гардом dungeonUI.isActive).
+  const e = press(h, 'KeyE');
+  release(h, e);
+  assert.equal(g.dungeon, null, 'после [E] на едином тайле — состояние снято');
   assert.equal(G.dungeonUI.isActive(), false, 'dungeonUI закрыт');
   assert.deepEqual({ x: g.state.player.x, y: g.state.player.y },
     found.target, 'герой — на входном тайле города (как при выходе из пещеры)');
@@ -663,10 +627,18 @@ test('подземелье 000105 (регрессия): kind dungeon, имя —
   assert.equal(G.dungeonUI.isActive(), true, 'dungeonUI активен');
   assert.deepEqual({ x: g.state.player.x, y: g.state.player.y },
     found.target, 'герой — на тайле пещеры');
-  // Реконструкция подземелья и содержимого (чистые детерминированные
-  // функции; те же аргументы, что main.js: тайл, пиксели фолбэка,
-  // новый герой с totalXp = 0) — чтобы учесть блуждающих мобов при
-  // выборе пути к выходу.
+  // 000177: вход = выход — единый тайл (рота): герой спавнится НА
+  // нём, выход — [E] стоя на нём (BFS-путь в обход мобов
+  // упразднён).
+  assert.deepEqual({ x: dg.exit.x, y: dg.exit.y },
+    { x: dg.entrance.x, y: dg.entrance.y },
+    '000177: exit = entrance (подземелье)');
+  assert.deepEqual({ x: dg.x, y: dg.y },
+    { x: dg.exit.x, y: dg.exit.y },
+    '000177: спавн на едином тайле');
+  // Реконструкция подземелья (чистая детерминированная функция;
+  // те же аргументы, что main.js: тайл, пиксели фолбэка) —
+  // сверка с реальным dungeonState.
   const d2 = G.createDungeon(found.target.x, found.target.y,
     G.generateSeedPixels(), found.t.terrain);
   assert.equal(d2.width, dg.width, 'реконструкция: width');
@@ -677,67 +649,15 @@ test('подземелье 000105 (регрессия): kind dungeon, имя —
   }
   assert.deepEqual({ x: d2.entrance.x, y: d2.entrance.y },
     { x: dg.entrance.x, y: dg.entrance.y }, 'реконструкция: entrance');
-  const c2 = G.generateDungeonContents(d2, G.createCharacter('Флогистон'));
-  // Блуждание (G.wanderStep) — ЧИСТАЯ функция номера шага
-  // (rng от (step, seed, 0x7777)): таблица занятости предвычисляется.
-  // Time-expanded BFS: состояние (клетка, с) — с шагов сделано;
-  // переход (А, с) → (В, с+1): В — FLOOR и (В ≠ exit и в В нет
-  // моба ДО шага с+1).
-  const MAXS = 400;
-  const occ = [];
-  for (let s = 0; s < MAXS; s++) {
-    occ.push(new Set(c2.mobs.filter((m) => !m.defeated)
-      .map((m) => m.x + ',' + m.y)));
-    G.wanderStep(c2, d2);
-  }
-  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-  const startKey = d2.entrance.x + ',' + d2.entrance.y + ':0';
-  const seen = new Set([startKey]);
-  const par = new Map();
-  const q = [[d2.entrance.x, d2.entrance.y, 0]];
-  let exitAt = null;
-  while (q.length && exitAt == null) {
-    const [x, y, s] = q.shift();
-    if (s >= MAXS) continue;
-    if (x === d2.exit.x && y === d2.exit.y) { exitAt = s; break; }
-    for (const [dx, dy] of DIRS) {
-      const nx = x + dx, ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= d2.width || ny >= d2.height) continue;
-      if (d2.cells[ny * d2.width + nx] !== G_CELL_FLOOR) continue;
-      if (!(nx === d2.exit.x && ny === d2.exit.y)
-          && occ[s].has(nx + ',' + ny)) continue;
-      const k = nx + ',' + ny + ':' + (s + 1);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      par.set(k, x + ',' + y + ':' + s);
-      q.push([nx, ny, s + 1]);
-    }
-  }
-  assert.ok(exitAt != null,
-    'подземелье: путь от входа к выходу в обход блуждающих мобов есть');
-  const pathKeys = [];
-  let kk = d2.exit.x + ',' + d2.exit.y + ':' + exitAt;
-  while (kk != null) {
-    pathKeys.unshift(kk);
-    kk = par.get(kk);
-  }
+  assert.deepEqual({ x: d2.exit.x, y: d2.exit.y },
+    { x: dg.exit.x, y: dg.exit.y }, 'реконструкция: exit (000177)');
   const dayBefore = g.state.day;
-  for (let i = 1; i < pathKeys.length; i++) {
-    const [pc, sc] = pathKeys[i - 1].split(':');
-    const [cc, cs] = pathKeys[i].split(':');
-    void sc; void cs;
-    const [px, py] = pc.split(',').map(Number);
-    const [cx, cy] = cc.split(',').map(Number);
-    const e = press(h, keydownFor(cx - px, cy - py));
-    release(h, e);
-    assert.equal(G.combatUI.isActive(), false,
-      'боев на пути нет (мобы обойдены): шаг ' + i);
-    if (g.dungeon) {
-      assert.equal(g.dungeon.x, cx, 'шаг в подземелье: x');
-      assert.equal(g.dungeon.y, cy, 'шаг в подземелье: y');
-    }
-  }
-  assert.equal(g.dungeon, null, 'после шага на exit — состояние снято');
+  // Выход (000177): [E] на едином тайле → dungeon-ui keydown →
+  // ctx.onInteract → locationOnInteract → interactExit →
+  // exitLocation (синхронно).
+  const e = press(h, 'KeyE');
+  release(h, e);
+  assert.equal(g.dungeon, null, 'после [E] на едином тайле — состояние снято');
   assert.equal(G.dungeonUI.isActive(), false, 'dungeonUI закрыт');
   assert.equal(g.state.day, dayBefore + 1,
     'подземелье: на выходе ДЕНЬ проходит (clock.event — существующее)');
@@ -941,8 +861,12 @@ test('000109 R10a: вход через city_respawn_days после визита
   const { g, G, dg, found } = await enterVillage109(h);
   assert.equal(dg.entrance.x, 1, 'фикстура: layout 4x4, entrance (1,3)');
   assert.equal(dg.entrance.y, 3, 'фикстура: layout 4x4, entrance (1,3)');
-  // Фреш-сток — детерминированный (якорь, клетка): трактир 44,
-  // (2,2), wealth 1. Чужой realm — JSON-рондтрип (паттерн host()).
+  // Фреш-сток — детерминированный (якорь, клетка): wealth 1. Чужой
+  // realm — JSON-рондтрип (паттерн host()). 000177: layout 4x4 с
+  // единым тайл-дверью — 4 placeable-клетки, и эта деревня ставит
+  // ТРИ постройки (до задачи — одна): (2,2) трактир 44 (ячейка
+  // стока из сейва — DEPLETED_STOCK), (2,1) оружейная 1,
+  // (1,1) трактир 44 — их стоков в сейве НЕТ → все свежие.
   const [ax, ay] = found.t.buildingAnchor;
   const fresh = G.Cities.makeCityShop(ax, ay, 2, 2, 44, V109.wealth).stock;
   const freshHost = JSON.parse(JSON.stringify(fresh));
@@ -950,13 +874,19 @@ test('000109 R10a: вход через city_respawn_days после визита
     'фикстура: fresh-сток трактира непуст');
   assert.notDeepEqual(freshHost, DEPLETED_STOCK,
     'сценарий: fresh ≠ истощённый сток (тест различим)');
+  const fresh21 = JSON.parse(JSON.stringify(
+    G.Cities.makeCityShop(ax, ay, 2, 1, 1, V109.wealth).stock));
+  const fresh11 = JSON.parse(JSON.stringify(
+    G.Cities.makeCityShop(ax, ay, 1, 1, 44, V109.wealth).stock));
   // Сейв входного шага (frame: enterLocation → saveNow) — состояние
   // города уже в localStorage, выходить из города не нужно.
   const saveText = h.storage.store['phlogiston.save'];
   assert.ok(saveText, 'входной шаг: saveNow вызван (сейв записан)');
   const saved = JSON.parse(saveText);
   assert.deepEqual(saved.data.cities, {
-    '20,-16': { lastVisitDay: V109.day, stock: { '2,2': freshHost } },
+    '20,-16': { lastVisitDay: V109.day, stock: {
+      '2,2': freshHost, '2,1': fresh21, '1,1': fresh11,
+    } },
   }, '20 − 17 = 3 >= city_respawn_days: сток ПЕРЕГЕНЕРИРОВАН '
     + '(fresh, а не истощённый), lastVisitDay = day');
   // __game.cities (контракт 000107): getter — поверхностная копия
@@ -983,13 +913,23 @@ test('000109 R10b: вход через день после визита (20 − 
   const fresh = G.Cities.makeCityShop(ax, ay, 2, 2, 44, V109.wealth).stock;
   assert.notDeepEqual(JSON.parse(JSON.stringify(fresh)), DEPLETED_STOCK,
     'сценарий: fresh ≠ истощённый сток (тест различим)');
+  // 000177: в сейве стока есть ТОЛЬКО (2,2) (трактир 44) — он
+  // ВОССТАНОВЛЕН (истощённый, не перегенерирован). Остальные
+  // постройки деревни — (2,1) оружейная 1 и (1,1) трактир 44 — в
+  // сейве НЕТ → их стоки свежие (как у R10a).
+  const fresh21 = JSON.parse(JSON.stringify(
+    G.Cities.makeCityShop(ax, ay, 2, 1, 1, V109.wealth).stock));
+  const fresh11 = JSON.parse(JSON.stringify(
+    G.Cities.makeCityShop(ax, ay, 1, 1, 44, V109.wealth).stock));
   const saveText = h.storage.store['phlogiston.save'];
   assert.ok(saveText, 'входной шаг: saveNow вызван (сейв записан)');
   const saved = JSON.parse(saveText);
   assert.deepEqual(saved.data.cities, {
-    '20,-16': { lastVisitDay: V109.day, stock: { '2,2': DEPLETED_STOCK } },
-  }, '20 − 19 = 1 < city_respawn_days: сток ВОССТАНОВЛЕН из сейва '
-    + '(НЕ перегенерирован), lastVisitDay обновлён до дня входа');
+    '20,-16': { lastVisitDay: V109.day, stock: {
+      '2,2': DEPLETED_STOCK, '2,1': fresh21, '1,1': fresh11,
+    } },
+  }, '20 − 19 = 1 < city_respawn_days: сток (2,2) ВОССТАНОВЛЕН из '
+    + 'сейва (НЕ перегенерирован), lastVisitDay обновлён до дня входа');
   // __game.cities (контракт 000107): getter — поверхностная копия
   // записей; значения — LIVE-объекты (cityStates Map), не копии;
   // мутация через getter → cityStates → следующий сейв.

@@ -65,12 +65,15 @@
 //     вкладка «торговля» — строки «имя (ост. N)» со стоком
 //     makeCityShop(якорь, клетка, wealth); у Берты (44) — «Этот NPC не
 //     торгует.»; вкладка «найм» (000083) не падает.
-//   * CI-V3 — hint города содержит «[E] — постройки.» (3 строки); hint
-//     подземелья БЕЗ ИЗМЕНЕНИЙ («Сундук и мобы…», без «[E]»).
-//   * CI-V4 — [ЗЕЛЁНЫЙ ПИН] [E] на клетке без постройки (entrance —
-//     построек там нет, 000106) → ничего, без ошибок.
-//   * CI-V5 — [ЗЕЛЁНЫЙ ПИН] KeyE в настоящем подземелье → no-op
-//     (000121: ветка мёртвая — onInteract передаётся только городу).
+//   * CI-V3 — hint города содержит «[E] — постройки.» (3 строки;
+//     строка 2 — единый тайл-дверь, 000177); hint подземелья —
+//     «Вход в пещеру — вход и выход…» + «Сундук и мобы…».
+//   * CI-V4 — [ЗЕЛЁНЫЙ ПИН] 000177: спавн — на двери ([E] там =
+//     выход); [E] на ДРУГОЙ клетке без постройки → ничего, без
+//     ошибок.
+//   * CI-V5 — [ЗЕЛЁНЫЙ ПИН] KeyE в настоящем подземелье ВНЕ единого
+//     тайла → no-op (000121/000177: спавн на тайле — шаг С тайла,
+//     затем [E] ничего).
 //   * CI-V6 — повторный [E] закрывает buildingUI; [E] при открытом
 //     npcUI закрывает npcUI (стек-семантика).
 //   * CI-V7 — с открытым buildingUI/npcUI движение (стрелки/WASD) НЕ
@@ -885,6 +888,41 @@ function findCityFor(G, myMap, start, pred, radius = 700) {
   return r ? Object.assign({ tile: r.tile, steps: r.steps }, info) : null;
 }
 
+// Свободная ВНУТРЕННЯЯ FLOOR-клетка (≠ дверь, без постройки) — для
+// CI-V4 (000177: спавн — на двери, [E] там = выход). null — мест нет.
+function freeCityCell(info) {
+  const d = info.layout;
+  const occupied = new Set(
+    (info.contents ? info.contents.buildings : [])
+      .map((b) => b.x + ',' + b.y));
+  for (let y = 1; y < d.height - 1; y++) {
+    for (let x = 1; x < d.width - 1; x++) {
+      if (x === d.entrance.x && y === d.entrance.y) continue;
+      if (d.cells[y * d.width + x] !== G_CELL_FLOOR) continue;
+      if (occupied.has(x + ',' + y)) continue;
+      return { x, y };
+    }
+  }
+  return null;
+}
+
+// Безопасный ОДИН шаг из спавна (единого тайла, 000177) в
+// подземелье: floor, ≠ выход, без живого моба (5×5 безопасная зона
+// у входа гарантирует отсутствие сундука на расстоянии 1).
+// null — шага нет.
+function safeDungeonStep(dg) {
+  const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+  for (const [dx, dy] of DIRS) {
+    const nx = dg.x + dx, ny = dg.y + dy;
+    if (nx < 0 || ny < 0 || nx >= dg.width || ny >= dg.height) continue;
+    if (dg.cells[ny * dg.width + nx] !== G_CELL_FLOOR) continue;
+    if (nx === dg.exit.x && ny === dg.exit.y) continue;
+    if (dg.mobs && dg.mobs.some((m) => m.x === nx && m.y === ny)) continue;
+    return [dx, dy];
+  }
+  return null;
+}
+
 // --- Ходьба ВНУТРИ города: синхронная (keydown → ctx.onMove →
 // cityMove; кадры не нужны). Layout города: периметр WALL, вся
 // внутренность (1..W−2)² — FLOOR (000104); постройки (000106) НЕ
@@ -1097,7 +1135,9 @@ test('CI-V3. HUD: hint города — строка «[E] — постройк�
   assert.ok(hint.includes('[E] — постройки.'),
     'RED: hint города: «[E] — постройки.»: ' + JSON.stringify(hint));
   assert.ok(hint.includes('Стрелки/WASD — шаг.'), 'строка 1 без изменений');
-  assert.ok(hint.includes('Жёлтая клетка «X» — выход.'), 'строка 2 без изменений');
+  // 000177: строка 2 — единый тайл-дверь (вход и выход).
+  assert.ok(hint.includes('Дверь — вход и выход: встаньте на неё и нажмите [E].'),
+    'строка 2: единый тайл-дверь (000177): ' + JSON.stringify(hint));
   assert.ok(!hint.includes('Сундук и мобы'),
     'в городе — без подземной строки (000105)');
 
@@ -1123,19 +1163,28 @@ test('CI-V4. [зелёный пин] клетка без постройки → 
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   const myMap = G.createMap(G.generateSeedPixels());
-  const found = findCityFor(G, myMap, g.state.player, (c) => c.fp >= 2);
-  assert.ok(found, 'сценарий: город (fp>=2)');
+  // 000177: spawn = единый тайл-дверь (exit) — [E] на нём ВЫВОДИТ из
+  // города. Клетка без постройки — любая ВНУТРЕННЯЯ FLOOR (≠ дверь),
+  // где постройка не стоит (000106: spots = FLOOR минус дверь);
+  // сценарий требует таковой (fp>=2 + свободная клетка).
+  const found = findCityFor(G, myMap, g.state.player,
+    (c) => c.fp >= 2 && freeCityCell(c) != null);
+  assert.ok(found, 'сценарий: город (fp>=2) со свободной клеткой');
   walkTiles(h, NOW, found.steps);
   const dg = g.dungeon;
   assert.ok(dg && dg.kind === 'city', 'в городе');
-  // Герой на entrance — построек там нет (000106: spots = FLOOR минус
-  // entrance/exit).
+  // Спавн — на двери (000177) и постройка там не стоит.
+  assert.ok(dg.x === dg.entrance.x && dg.y === dg.entrance.y,
+    'сценарий: спавн на едином тайле (000177)');
   assert.ok(!found.contents.buildings.some((b) =>
     b.x === dg.entrance.x && b.y === dg.entrance.y),
-    'сценарий: на entrance постройка не стоит');
-  const before = { x: dg.x, y: dg.y, day: dg.day };
+    'сценарий: на двери постройка не стоит');
+  const target = freeCityCell(found);
+  walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, target.x, target.y));
+  const before = { x: g.dungeon.x, y: g.dungeon.y, day: g.dungeon.day };
   const errsBefore = h.errors.length;
   key(h, 'KeyE');
+  assert.ok(g.dungeon, 'не вышел (клетка без постройки ≠ дверь)');
   assert.ok(!G.buildingUI.isActive(), 'buildingUI не открыт');
   assert.ok(!G.npcUI.isActive(), 'npcUI не открыт');
   assert.equal(g.dungeon.x, before.x, 'позиция не изменилась');
@@ -1145,7 +1194,7 @@ test('CI-V4. [зелёный пин] клетка без постройки → 
     'без console.error: ' + h.errors.slice(errsBefore).join('; '));
 });
 
-test('CI-V5. [зелёный пин] KeyE в настоящем подземелье → no-op (000121)', async () => {
+test('CI-V5. [зелёный пин] KeyE в настоящем подземелье (вне единого тайла) → no-op (000121/000177)', async () => {
   const h = await bootChain();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -1155,9 +1204,23 @@ test('CI-V5. [зелёный пин] KeyE в настоящем подземел
   walkTiles(h, NOW, cave.steps);
   const dg = g.dungeon;
   assert.ok(dg && dg.kind === 'dungeon', 'в подземелье');
-  const before = { x: dg.x, y: dg.y };
+  // 000177: спавн — на едином тайле (там [E] = ВЫХОД).
+  assert.ok(dg.x === dg.exit.x && dg.y === dg.exit.y,
+    'сценарий: спавн на едином тайле (000177)');
+  // Шаг С тайла (floor, без моба — безопасная зона входа).
+  const step = safeDungeonStep(dg);
+  assert.ok(step, 'сценарий: существует безопасный шаг');
+  const code = keydownFor(step[0], step[1]);
+  press(h, code);
+  release(h, code);
+  const after = g.dungeon;
+  assert.ok(after, 'в подземелье (шаг не вызвал выхода)');
+  assert.ok(after.x !== after.exit.x || after.y !== after.exit.y,
+    'герой не на едином тайле');
+  const before = { x: after.x, y: after.y };
   const errsBefore = h.errors.length;
-  key(h, 'KeyE'); // 000121: ветка мёртвая (onInteract — только городу)
+  key(h, 'KeyE'); // 000121/000177: вне совмещённого тайла → no-op
+  assert.ok(g.dungeon, 'не вышел (KeyE вне единого тайла)');
   assert.ok(!G.buildingUI.isActive(), 'buildingUI не открыт');
   assert.ok(!G.npcUI.isActive(), 'npcUI не открыт');
   assert.equal(g.dungeon.x, before.x, 'позиция не изменилась');

@@ -264,7 +264,8 @@ test('golden: детерминизм — закреплённые значени
     { x: 15, y: 2, w: 6, h: 7, cx: 18, cy: 5 },
   ]);
   assert.deepEqual(d.entrance, { x: 18, y: 14 });
-  assert.deepEqual(d.exit, { x: 18, y: 5 });
+  // 000177: выход = вход — единый тайл (rooms[0]), ранее rooms[last].
+  assert.deepEqual(d.exit, { x: 18, y: 14 });
   assert.equal(
     d.cells.join(''),
     '00000000000000000000000000000000000000000000000000' +
@@ -288,15 +289,18 @@ test('golden: детерминизм — закреплённые значени
   assert.equal(d2.width, 35);
   const c2 = D.generateDungeonContents(d2, heroAt(2000, 10));
   assert.equal(c2.seed, 3935780563);
+  // РЕ-ПИН 000177: выход = вход (rooms[0]) → safe-зона — ОДИН 5×5
+  // блок (ранее два: вход + rooms[last]) → spots длиннее → позиции
+  // мобов/сундуков сдвинуты (mobIds/level/seed/gold/item — те же).
   assert.deepEqual(c2.mobs, [
-    { id: 'g0', mobIds: ['lower_demon', 'lower_demon'], x: 7, y: 5, level: 12, defeated: false },
-    { id: 'g1', mobIds: ['lower_demon', 'succubus', 'lower_demon'], x: 8, y: 6, level: 7, defeated: false },
-    { id: 'g2', mobIds: ['abomination', 'succubus'], x: 16, y: 10, level: 7, defeated: false },
+    { id: 'g0', mobIds: ['lower_demon', 'lower_demon'], x: 15, y: 4, level: 12, defeated: false },
+    { id: 'g1', mobIds: ['lower_demon', 'succubus', 'lower_demon'], x: 11, y: 5, level: 7, defeated: false },
+    { id: 'g2', mobIds: ['abomination', 'succubus'], x: 13, y: 9, level: 7, defeated: false },
     { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 14, y: 6, level: 13, defeated: false, boss: true },
   ]);
   assert.deepEqual(c2.chests, [
-    { id: 'c0', x: 15, y: 12, opened: false, gold: 63, item: null },
-    { id: 'c1', x: 14, y: 9, opened: false, gold: 58, item: 'phoenix_feather' },
+    { id: 'c0', x: 20, y: 11, opened: false, gold: 63, item: null },
+    { id: 'c1', x: 7, y: 8, opened: false, gold: 58, item: 'phoenix_feather' },
   ]);
 });
 

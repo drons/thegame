@@ -6,12 +6,16 @@
 // в каталоге: 25 — невалидный XML, 4 — NaN в атрибутах.
 //
 // Что проверяет этот тест (ноль npm-зависимостей, как весь проект):
-//  * обход ВСЕХ assets/**/*.svg (297 файлов: tiles 12, combat/bg 11,
+//  * обход ВСЕХ assets/**/*.svg (339 файлов: tiles 12, combat/bg 11,
 //    combat/obstacles 3 (задача 000050),
-//    dungeon 22 (floor 15 + walls 6 + chest 1 — 000067), sprites 238
-//    (buildings 13, cities 4 (задача 000110), mobs 192, phlogiston 8,
+//    dungeon 25 (floor 15 + walls 6 + chest 1 — 000067 + маркеры
+//    входа-выхода 3 — 000177), sprites 251
+//    (buildings 14 (задача 000131: +camp), cities 4 (задача 000110),
+//    mercs 12 (задача 000152), mobs 192, phlogiston 8,
 //    efir 8 — 000034, visuals 13),
-//    ui 10 (задачи 000124 + 000123), logo.svg 1);
+//    ui 11 (задачи 000124 + 000123; 000178: +combat_cast/
+//    +combat_heal), spell-icons 17 (задача 000149), portraits 8
+//    (задача 000142), logo.svg 1);
 //  * XML well-formedness — минимальный парсер ограниченного
 //    SVG-подмножества, реально встречающегося в ассетах: теги с
 //    атрибутами name="value" (двойные ИЛИ одинарные кавычки; значение
@@ -439,7 +443,9 @@ const EXPECTED_SVG_BY_DIR = {
   'combat/obstacles': 3,              // препятствия боя (задача 000050)
   'dungeon/floor': 15,                // полы подземелья (задача 000069)
   'dungeon/walls': 6,                 // «непроходимые» стены (задача 000070)
-  'dungeon': 1,                       // сундук assets/dungeon/chest.svg (задача 000067)
+  'dungeon': 4,                       // сундук chest.svg (000067) + маркеры
+                                      // входа-выхода door/cave_mouth/stairs
+                                      // (задача 000177)
   'sprites/buildings': 14,            // + лагерь (задача 000131: camp.svg)
   'sprites/cities': 4,                // спрайты городов (задача 000110: 4 типа)
   'sprites/mobs': 192,

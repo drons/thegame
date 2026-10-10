@@ -311,8 +311,13 @@
       height: H,
       cells,
       rooms,
+      // 000177: ОДИН тайл = вход и выход (центр ПЕРВОЙ комнаты;
+      // deepEqual-инвариант d.exit === d.entrance — потребители:
+      // __game.dungeon, HUD «До выхода», [E]-контракт). Форма
+      // подземелья от этого НЕ зависит: 0 новых вызовов rng —
+      // cells/rooms бит-в-бит как до 000177.
       entrance: { x: rooms[0].cx, y: rooms[0].cy },
-      exit: { x: rooms[rooms.length - 1].cx, y: rooms[rooms.length - 1].cy },
+      exit: { x: rooms[0].cx, y: rooms[0].cy },
       seed,
     };
 
@@ -378,7 +383,9 @@
     // меняется — замена константы на локальную переменную).
     const delta = liveLevelDeltaMax();
 
-    // Входная комната остаётся безопасной; выход — тоже.
+    // Входная комната остаётся безопасной (000177: выход — тот же
+    // тайл, что вход: Set дедуплицирует две одинаковые точки →
+    // ОДИН 5×5-блок; цикл не меняется — форма safe не изменилась).
     const safe = new Set();
     for (const [cx, cy] of [[d.entrance.x, d.entrance.y], [d.exit.x, d.exit.y]]) {
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) safe.add((cx + dx) + ',' + (cy + dy));

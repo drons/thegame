@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="stsh">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g>
+    <ellipse cx="32" cy="59" rx="24" ry="3.5" fill="url(#stsh)"/>
+    <rect x="8" y="6" width="48" height="50" rx="3" fill="#574e44"/>
+    <rect x="8" y="6" width="48" height="50" rx="3" fill="url(#stsh)"/>
+    <rect x="13" y="11" width="38" height="41" fill="#171310"/>
+    <rect x="13" y="44" width="38" height="8" fill="#6e655a"/>
+    <path d="M13 44 L51 44" stroke="#362f29" stroke-width="1" fill="none" opacity="0.5"/>
+    <rect x="16" y="36" width="32" height="8" fill="#62594e"/>
+    <path d="M16 36 L48 36" stroke="#362f29" stroke-width="1" fill="none" opacity="0.5"/>
+    <rect x="19" y="28" width="26" height="8" fill="#574e44"/>
+    <path d="M19 28 L45 28" stroke="#362f29" stroke-width="1" fill="none" opacity="0.5"/>
+    <rect x="22" y="20" width="20" height="8" fill="#4b443b"/>
+    <path d="M22 20 L42 20" stroke="#362f29" stroke-width="1" fill="none" opacity="0.5"/>
+    <rect x="25" y="13" width="14" height="7" fill="#3a342e"/>
+  </g>
+</svg>

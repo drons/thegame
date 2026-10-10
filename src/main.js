@@ -1673,11 +1673,14 @@
       return;
     }
     if (e.code === 'KeyE' && G.npcUI) { // E (У) — диалог NPC
-      // Задача 000107: в городе реальный путь [E] — dungeon-ui →
-      // cityOnInteract → buildingActions.interactCity (dungeon-ui
-      // регистрируется ДО main.js — срабатывает первым); здесь гард
-      // toggle() dungeonUI.isActive гасит дубль. В мире/подземелье —
-      // обычный toggle() (подземелье — гард, no-op).
+      // 000107/000177: в локации реальный путь [E] — dungeon-ui →
+      // locationOnInteract (выход на совмещённом тайле / в городе —
+      // buildingActions.interactCity; dungeon-ui регистрируется ДО
+      // main.js — срабатывает первым); дубль toggle() гасят гарды
+      // активных оверлеев ВНУТРИ buildingActions.toggle (dungeonUI/
+      // buildingUI/npcUI — после выхода dungeonUI закрыт, а на
+      // пещерных/городских тайлах openBuildingUI без действий
+      // ложится в no-op). В мире — обычный toggle().
       if (G.buildingActions) G.buildingActions.toggle();
       return;
     }
@@ -1795,15 +1798,17 @@
         }
         keys.delete('touch:' + dir);
       },
-      // [E] по экранам (000121): бой → quickItem (KeyE — та же ветка,
-      // что клавиша), подземелье → no-op, карта → как 000123.
+      // [E] по экранам (000121/000177): бой → quickItem (KeyE — та же
+      // ветка, что клавиша), локация (подземелье/город) →
+      // locationOnInteract (те же семантики, что клавиша: выход на
+      // совмещённом тайле / постройки / no-op), карта → как 000123.
       onInteract: () => {
         const screen = G.routeTouchScreen(touchScreens());
         if (screen === 'combat') {
           const code = G.touchKeyCode('interact'); // 'KeyE'
           if (code && G.combatUI) G.combatUI.handleCode(code);
         } else if (screen === 'dungeon') {
-          // В подземелье действий нет — no-op (кнопка не скрывается).
+          locationOnInteract();
         } else {
           G.buildingActions && G.buildingActions.toggle();
         }
@@ -2058,12 +2063,13 @@
       // Задача 000109: вход в город — состояние (сток/lastVisitDay)
       // до UI (контент перегенерация + сток из сейва при в-окне).
       if (ds.kind === 'city') prepareCityState(ds);
-      // Задача 000107: onInteract — ТОЛЬКО для города ([E] — путь
-      // buildingUI); в подземелье undefined → ветка KeyE dungeon-ui
-      // мёртвая (000121: [E] в подземелье — no-op).
+      // 000177: onInteract — ОДИН обработчик на оба kind: [E] на
+      // совмещённом тайле входа-выхода = ВЫХОД (locationOnInteract →
+      // interactExit → exitLocation); вне тайла: город → постройки
+      // (000107), подземелье → no-op (000121).
       startLocationUI(
         ds.kind === 'city' ? cityOnMove : dungeonOnMove,
-        ds.kind === 'city' ? cityOnInteract : undefined);
+        locationOnInteract);
     }
   }
 
@@ -2140,7 +2146,7 @@
     G.dungeonUI.start({
       get state() { return dungeonState; },
       onMove,
-      onInteract, // 000107: город — [E] → cityOnInteract (undefined — мёртвая ветка)
+      onInteract, // 000177: [E] → locationOnInteract (выход на тайле / постройки)
       // ОДИН общий zoom (задача 000066): колесо поверх оверлея меняет
       // тот же zoom, что мир (мировой слушатель на #game накрыт) —
       // renderHud/Game.hud («Масштаб: Xpx») остаётся корректным
@@ -2195,12 +2201,8 @@
     const ev = G.locations.dungeonMove(ds, dx, dy, performance.now(),
       { inCombat: !!(G.combatUI && G.combatUI.isActive()) });
     if (!ev) return;
-    if (ev.type === 'exit') {
-      exitLocation(ds);
-      hudFlash = 'Вы вышли из ' + ev.name + '.';
-      hudFlashUntil = performance.now() + 5000;
-      return;
-    }
+    // 000177: exit-события из шага НЕТ (выход — [E],
+    // locationOnInteract); шаг на совмещённый тайл = обычный moved.
     if (ev.type === 'combat') { startDungeonCombat(ev.group); return; }
     const chest = ev.chest;
     if (chest) {
@@ -2230,18 +2232,30 @@
     // (touchMove → onMove).
     if ((G.buildingUI && G.buildingUI.isActive()) ||
         (G.npcUI && G.npcUI.isActive())) return;
-    const ev = G.locations.cityMove(ds, dx, dy, performance.now(),
+    // 000177: exit-события из шага НЕТ — шаг на дверь = обычный
+    // moved; выход — ТОЛЬКО [E] (locationOnInteract).
+    G.locations.cityMove(ds, dx, dy, performance.now(),
       { inCombat: !!(G.combatUI && G.combatUI.isActive()) });
-    if (!ev || ev.type !== 'exit') return;
-    exitLocation(ds);
-    hudFlash = 'Вы вышли из ' + ev.name + '.';
-    hudFlashUntil = performance.now() + 5000;
   }
-  // Задача 000107: [E] в городе — ЕДИНЫЙ путь buildingUI (000071) →
-  // «Диалог» → npcUI (обход запрещён — в building-actions.interactCity).
-  // Вызывается dungeon-ui по KeyE (onInteract — только для города).
-  function cityOnInteract() {
-    if (G.buildingActions) G.buildingActions.interactCity();
+  // 000177: [E] в локации — ЕДИНЫЙ путь (клавиша dungeon-ui / тач-
+  // кнопка main.js / debug — три канала, один код): interactExit →
+  // выход ЧЕРЕЗ exitLocation (контракт 000170: try/catch/finally) +
+  // flash «Вы вышли из <name>.» (слово в слово, 5 сек); вне
+  // совмещённого тайла: город → buildingActions.interactCity
+  // (000107/000071: buildingUI → «Диалог» → npcUI), подземелье →
+  // no-op (000121).
+  function locationOnInteract() {
+    const ds = dungeonState;
+    if (!ds) return;
+    const ev = G.locations.interactExit(ds);
+    if (ev) {
+      exitLocation(ds);
+      hudFlash = 'Вы вышли из ' + ev.name + '.';
+      hudFlashUntil = performance.now() + 5000;
+      return;
+    }
+    if (ds.kind === 'city' && G.buildingActions)
+      G.buildingActions.interactCity();
   }
   // Задача 000107 (D4): ЕДИНСТВЕННЫЙ решатель shop-формата {npc,
   // stock} для npcUI (deps.shopFor building-actions). Город (000108):
@@ -3000,6 +3014,9 @@
         cells: ds.dg.cells,
         entrance: { x: ds.dg.entrance.x, y: ds.dg.entrance.y },
         x: ds.x, y: ds.y,
+        // 000177: prevX/prevY — проекция для контракта спавна
+        // (спавн = единый тайл: x/y/prevX/prevY/мувер на нём).
+        prevX: ds.prevX, prevY: ds.prevY,
         exit: { x: ds.dg.exit.x, y: ds.dg.exit.y },
         mobs: ds.contents
           ? ds.contents.mobs.filter((m) => !m.defeated)
@@ -3054,7 +3071,8 @@
           terrain);
         if (!ds) return null;
         dungeonState = ds;
-        startLocationUI(dungeonOnMove);
+        // 000177: [E]-контракт тот же, что в игре (locationOnInteract).
+        startLocationUI(dungeonOnMove, locationOnInteract);
         return ds;   // = dungeonState (как раньше)
       },
       // Отладка времени: довести часы до дня n (день = отдых).

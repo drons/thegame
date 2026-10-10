@@ -1781,8 +1781,9 @@ function encounterCombat(h, G, g, ds, window) {
 
 // Подземелье: путь к выходу (BFS по floor-клеткам; группы НЕ
 // препятствия — бой по пути резолвится и ход продолжается;
-// выходная клетка — цель: шаг на неё закрывает подземелье
-// (exitLocation), позиция игрока не сдвигается).
+// 000177: единый тайл входа-выхода — цель пути; шаг на него —
+// обычный moved, ВЫХОД — [E] стоя на нём (interactExit →
+// exitLocation; g.dungeon снимается в finally, 000170).
 function walkDungeonToExit(h, G, g, ds) {
   const d = ds.dg;
   const start = { x: g.dungeon.x, y: g.dungeon.y };
@@ -1821,8 +1822,14 @@ function walkDungeonToExit(h, G, g, ds) {
         'подземелье: бой по пути к выходу');
     }
   }
+  // 000177: выход — ТОЛЬКО [E] на едином тайле (locationOnInteract
+  // → interactExit → exitLocation); шаг на тайл — обычный moved,
+  // g.dungeon до [E] живо (exit-ветки из dungeonMove нет).
+  const e = { code: 'KeyE', key: 'KeyE', preventDefault() {},
+    stopPropagation() {} };
+  for (const fn of h.winListeners['keydown'] || []) fn(e);
   assert.equal(g.dungeon, null,
-    'выход: подземелье закрыто (exitLocation)');
+    'выход: [E] на едином тайле — подземелье закрыто (exitLocation)');
 }
 
 test('000112 CB-8: W1 (мир) — ходьба на тайл группы → maybeStartCombat: Эфир 100% HP/MP, c.efs (1/1/1/3); гибель через dealDamageToAlly; победа — Space, 100% xp в Эфир; второй бой — снова 100% HP/MP (текущий уровень)', async () => {

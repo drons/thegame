@@ -25,6 +25,7 @@
 //   L.exitCity(ds) → void                      // без дня, без памяти
 //   L.dungeonMove(ds, dx, dy, now, { inCombat }) → null | event
 //   L.cityMove(ds, dx, dy, now, { inCombat })  → null | event
+//   L.interactExit(ds) → null | { type: 'exit', name }   // 000177: [E]
 //   L.debugEnterDungeon(ctx, terrain) → ds | null
 // Форма ds — поле-в-поле как dungeonState main.js (инвариант
 // сейва/HUD/«__game.dungeon»).
@@ -300,10 +301,11 @@
   // Шаг внутри лабиринта (вызывается dungeon-ui по клавише). Чистая:
   // ds — АРГУМЕНТ, не замыкание; события возврата применяет проводка
   // main.js. null — !ds / inCombat / за границы / стена (mover.step НЕ
-  // вызывается); { type: 'exit', name } — выходная клетка (позиция НЕ
-  // сдвинута); { type: 'combat', group } — группа (wanderStep НЕ
+  // вызывается); { type: 'combat', group } — группа (wanderStep НЕ
   // вызывается — ранний return); { type: 'moved', chest: null |
-  // { gold, item } }.
+  // { gold, item } }. 000177: шага «на выход» НЕТ — шаг на единый
+  // тайл входа-выхода = обычный moved; выход — ТОЛЬКО [E]
+  // (interactExit, проводка exitLocation main.js).
   function dungeonMove(ds, dx, dy, now, opts) {
     if (!ds) return null;
     if ((opts || {}).inCombat) return null; // гард — как первый в main.js
@@ -318,15 +320,11 @@
       return null;
     }
     if (d.cells[ny * d.width + nx] !== G.CELL_FLOOR) return null; // стена
-    if (nx === d.exit.x && ny === d.exit.y) {
-      // Выход: позиция НЕ сдвинута; exitDungeon + flash — проводка.
-      return { type: 'exit', name: dungeonName(d) };
-    }
     ds.prevX = ds.x; ds.prevY = ds.y;
     ds.x = nx; ds.y = ny;
     // Глейд prev→next (000068, паттерн мира 000033): ставится ДО
     // проверок моб/сундук — бой начинается с клетки, к которой игрок
-    // ДОХОДИТ глейдом. Заблокированные шаги (стена/граница/выход) —
+    // ДОХОДИТ глейдом. Заблокированные шаги (стена/граница) —
     // ранний return выше, мувер не вызывается.
     if (ds.mover) {
       ds.mover.step({ x: ds.prevX, y: ds.prevY }, { x: nx, y: ny }, now);
@@ -366,7 +364,9 @@
 
   // Шаг внутри города (вызывается dungeon-ui по клавише). Город пуст
   // (до 000106): мобов/сундуков/wanderStep нет. Чистая: ds — АРГУМЕНТ,
-  // события возврата — как dungeonMove (exit/moved).
+  // события возврата — как dungeonMove (moved). 000177: шага «на
+  // выход» НЕТ — шаг на дверь = обычный moved; выход — ТОЛЬКО [E]
+  // (interactExit, проводка exitLocation main.js).
   function cityMove(ds, dx, dy, now, opts) {
     if (!ds) return null;
     if (ds.kind !== 'city') return null; // kind-гард — как в main.js
@@ -382,10 +382,6 @@
       return null;
     }
     if (d.cells[ny * d.width + nx] !== G.CELL_FLOOR) return null; // стена
-    if (nx === d.exit.x && ny === d.exit.y) {
-      // Выход: позиция НЕ сдвинута; exitCity + flash — проводка.
-      return { type: 'exit', name: ds.name };
-    }
     ds.prevX = ds.x; ds.prevY = ds.y;
     ds.x = nx; ds.y = ny;
     // Глейд prev→next (000068, паттерн dungeonMove): шаг ДО конца.
@@ -393,6 +389,23 @@
       ds.mover.step({ x: ds.prevX, y: ds.prevY }, { x: nx, y: ny }, now);
     }
     return { type: 'moved' };
+  }
+
+  // 000177: ЕДИНСТВЕННЫЙ доменный путь события «выход» — [E] на
+  // совмещённом тайле входа-выхода (шаг на тайл — обычный moved).
+  // Чистая: без мутаций, без RNG, без мувер'ов; null — !ds / !ds.dg /
+  // kind вне {city, dungeon} / герой НЕ на тайле; name: город —
+  // ds.name, подземелье — DUNGEON_NAMES[type] (та же строка, что в
+  // flash). exitLocation/flash — проводка main.js. Механизм
+  // уровень-независим («между этажами — аналогично»: этажей нет,
+  // добавится новый layout-уровень — функция не меняется).
+  function interactExit(ds) {
+    if (!ds || !ds.dg) return null;
+    if (ds.kind !== 'city' && ds.kind !== 'dungeon') return null;
+    const d = ds.dg;
+    if (ds.x !== d.exit.x || ds.y !== d.exit.y) return null;
+    return { type: 'exit', name: ds.kind === 'city'
+      ? ds.name : dungeonName(d) };
   }
 
   // Выход из подземелья: доменная семантика (D5) — подземелье тратит
@@ -451,6 +464,7 @@
     maybeEnterDungeon, maybeEnterCity,
     exitDungeon, exitCity,
     dungeonMove, cityMove,
+    interactExit,
     debugEnterDungeon,
   };
 });

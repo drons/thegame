@@ -210,6 +210,26 @@ test('SP-C2: городские спрайты — 4 РАЗНЫХ пути в as
   }
 });
 
+test('SP-177: DUNGEON_PORTAL (000177) — маркеры единого тайла входа-выхода: 3 РАЗНЫХ assets/dungeon/*.svg, файлы существуют, все в allAssetPaths', () => {
+  assert.ok(S.DUNGEON_PORTAL && typeof S.DUNGEON_PORTAL === 'object',
+    'src/sprites.js: нет таблицы DUNGEON_PORTAL');
+  // kind → путь: door — город, cave_mouth — подземелье, stairs —
+  // РЕЗЕРВ (системы этажей нет — точек отрисовки).
+  assert.deepEqual(S.DUNGEON_PORTAL, {
+    door: 'assets/dungeon/door.svg',
+    stairs: 'assets/dungeon/stairs.svg',
+    cave_mouth: 'assets/dungeon/cave_mouth.svg',
+  }, 'DUNGEON_PORTAL: kind → путь');
+  const paths = Object.values(S.DUNGEON_PORTAL);
+  assert.equal(new Set(paths).size, 3,
+    '3 вида → 3 РАЗНЫХ файла (не «один штамп для всех»)');
+  for (const p of paths) {
+    assert.ok(exists(p), 'файл отсутствует: ' + p);
+    assert.ok(S.allAssetPaths().includes(p),
+      'путь не в allAssetPaths: ' + p);
+  }
+});
+
 // --- Детерминизм выбора (не зависит от загрузки) ---
 
 test('выбор спрайтов детерминирован и не зависит от факта загрузки', () => {

@@ -1,7 +1,10 @@
 // Подземелье (HTML-оверлей): карта лабиринта, состояние, журнал.
 // Браузерный модуль (ядро — src/dungeon.js, тестируется в node).
 //
-// Управление: стрелки / WASD / ЦФЫВ — шаг. Выход — клетка «X».
+// Управление: стрелки / WASD / ЦФЫВ — шаг. Выход — [E] на
+// совмещённом тайле входа-выхода (000177: один тайл = вход и выход —
+// город: дверь, подземелье: вход в пещеру; спрайт DUNGEON_PORTAL,
+// реестр sprites.js).
 // Маппинг клавиш — единый, из src/controls.js (задачи 000028/000043):
 // e.code (физическая клавиша: стрелки, WASD — на русской раскладке это
 // и есть ЦФЫВ) с фолбэком по e.key (ц/ф/ы/в, без учёта регистра) для
@@ -31,15 +34,17 @@
 // спрайта/ромба игрока, и для цели камеры; когда pos ≠ (s.x, s.y)
 // (глейд) — действие кадра 'walk'.
 //
-// Город (задачи 000105/000107): режим по state.kind === 'city' — тот же
-// движок вьюпорта/камеры/зума и те же маркеры входа/выхода; СВОИ
-// тайлы (палитра + чистая функция выбора варианта по (x, y, seed),
-// стены периметра рисуются); stateEl — имя города, без строк
-// групп/сундуков (contents у города null — 000106); hint — без
-// строк про сундуки/мобы (000105) и с «[E] — постройки» (000107:
-// [E] → ctx.onInteract → buildingUI, только для города). Оверлей
-// НЕ создаёт layout города — layout и мувер создаются в main.js
-// (UMD-ловушка).
+// Город (задачи 000105/000107/000177): режим по state.kind ===
+// 'city' — тот же движок вьюпорта/камеры/зума и ОДИН маркер
+// совмещённого тайла входа-выхода (вид по kind: дверь/вход в
+// пещеру); СВОИ тайлы (палитра + чистая функция выбора варианта по
+// (x, y, seed), стены периметра рисуются); stateEl — имя города, без
+// строк групп/сундуков (contents у города null — 000106); hint — без
+// строк про сундуки/мобы (000105) и с «[E] — постройки» (000107).
+// [E] → ctx.onInteract → locationOnInteract main.js (000177: выход
+// на совмещённом тайле для обоих kind; вне тайла — город: постройки,
+// подземелье: no-op 000121). Оверлей НЕ создаёт layout города —
+// layout и мувер создаются в main.js (UMD-ловушка).
 //
 // Спрайты (задача 000067): игрок — кадры G.phlogistonFrames(действие
 // playerAction: 'walk' во время глейда, pos(now) ≠ (s.x, s.y), —
@@ -55,7 +60,9 @@
 // юнита (legacy-группа без mobIds — полный групповой фолбэк),
 // остальные — спрайты. Boss — #b06ad4-прямоугольник bounding box
 // юнитов (± половина спрайта 0.6 клетки), рисуется ПЕРЕД спрайтами
-// юнитов. Выход «X» и вход остаются текстовыми/цветовыми (решение).
+// юнитов. 000177: ОДИН маркер совмещённого тайла — спрайт
+// G.DUNGEON_PORTAL (city: door, dungeon: cave_mouth), целая клетка;
+// фолбэк (loader/изображение не готово) — квадрат #d4b45a + 'E'.
 //
 // Туман войны (задача 000136): подземелье не видно целиком — радиус
 // видимости вокруг героя: база 5 клеток (метрика Чебышёва — квадрат) ×
@@ -269,13 +276,12 @@
   window.addEventListener('keydown', (e) => {
     if (!isActive()) return;
     if (G.combatUI && G.combatUI.isActive()) return; // бой выше по стеку
-    // Задача 000107: [E] в городе — единый путь buildingUI (000071).
-    // onInteract передаётся ТОЛЬКО для города (main.js); в подземелье
-    // и тестовых хостах ветка мёртвая (000121: [E] в подземелье —
-    // no-op, byte-в-точности: без preventDefault/stopPropagation).
-    // stopPropagation на window НЕ гасит слушатель main.js (KeyE →
-    // toggle() → гард dungeonUI.isActive → return) — дубль гасит
-    // гард, не propagation (контракт 000107 §8).
+    // 000107/000177: [E] — единый путь locationOnInteract (main.js;
+    // оба kind: выход на совмещённом тайле / город — buildingUI
+    // (000071) / подземелье — no-op 000121). stopPropagation на
+    // window НЕ гасит слушатель main.js (KeyE → toggle() → гард
+    // dungeonUI.isActive → return) — дубль гасит гард, не
+    // propagation (контракт 000107 §8).
     if (e.code === 'KeyE' && typeof ctx.onInteract === 'function') {
       e.preventDefault();
       e.stopPropagation();
@@ -395,8 +401,8 @@
     // Подземелье — прежний текст (без kind — dungeon).
     const s0 = state();
     hint.textContent = (s0 && s0.kind === 'city')
-      ? 'Стрелки/WASD — шаг.\nЖёлтая клетка «X» — выход.\n[E] — постройки.'
-      : 'Стрелки/WASD — шаг.\nЖёлтая клетка «X» — выход.\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).';
+      ? 'Стрелки/WASD — шаг.\nДверь — вход и выход: встаньте на неё и нажмите [E].\n[E] — постройки.'
+      : 'Стрелки/WASD — шаг.\nВход в пещеру — вход и выход: встаньте на него и нажмите [E].\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).';
     side.appendChild(hint);
 
     overlay.appendChild(side);
@@ -517,24 +523,35 @@
       }
     }
 
-    // Выход «X» и вход — ОСТАЮТСЯ текстовыми/цветовыми маркерами
-    // (решение 000067: читаемость; спрайт-изация — за рамками).
-    // Размер и проекция — мировые. 000136: маркеры следуют за КЛЕТКОЙ
-    // (исследованной либо видимой) — исключений ТЗ нет; город — всегда.
+    // 000177: ОДИН маркер совмещённого тайла входа-выхода (d.exit ===
+    // d.entrance) на d.exit: город → DUNGEON_PORTAL.door, подземелье →
+    // DUNGEON_PORTAL.cave_mouth (реестр sprites.js; stairs — резерв,
+    // этажей нет). Размер и проекция — мировые (целая клетка).
+    // Изображение готово → drawImage; иначе фолбэк: квадрат #d4b45a
+    // (inset 2) + буква 'E' #101418 (как была 'X'). 000136: маркер
+    // следует за КЛЕТКОЙ (исследованной либо видимой) — исключений
+    // ТЗ нет; город — всегда.
     if (isCity || mask[d.exit.y * d.width + d.exit.x] !== 0) {
       const ex = proj(d.exit.x, d.exit.y);
-      g2.fillStyle = '#d4b45a';
-      g2.fillRect(ex.x + 2, ex.y + 2, zoom - 4, zoom - 4);
-      g2.fillStyle = '#101418';
-      g2.font = 'bold ' + (zoom - 8) + 'px ui-monospace, monospace';
-      g2.textAlign = 'center';
-      g2.fillText('X', ex.x + zoom / 2, ex.y + zoom - 5);
-    }
-    // Вход (откуда зашли).
-    if (isCity || mask[d.entrance.y * d.width + d.entrance.x] !== 0) {
-      const en = proj(d.entrance.x, d.entrance.y);
-      g2.fillStyle = '#3f9d55';
-      g2.fillRect(en.x + 4, en.y + 4, zoom - 8, zoom - 8);
+      const portal = (live.DUNGEON_PORTAL &&
+        typeof live.DUNGEON_PORTAL === 'object')
+        ? live.DUNGEON_PORTAL : null;
+      const kind = isCity ? 'door' : 'cave_mouth';
+      const ppath = portal ? portal[kind] : null;
+      const img = (ppath && loader && typeof loader.image === 'function')
+        ? ((typeof loader.isReady === 'function'
+            ? loader.isReady(ppath) : true) && loader.image(ppath))
+        : null;
+      if (img) {
+        g2.drawImage(img, ex.x, ex.y, zoom, zoom);
+      } else {
+        g2.fillStyle = '#d4b45a';
+        g2.fillRect(ex.x + 2, ex.y + 2, zoom - 4, zoom - 4);
+        g2.fillStyle = '#101418';
+        g2.font = 'bold ' + (zoom - 8) + 'px ui-monospace, monospace';
+        g2.textAlign = 'center';
+        g2.fillText('E', ex.x + zoom / 2, ex.y + zoom - 5);
+      }
     }
 
     // Сундуки (000067): спрайт G.DUNGEON_CHEST (zoom*0.8, центр

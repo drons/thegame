@@ -363,8 +363,9 @@ function makeState(opts = {}) {
     type: opts.type != null ? opts.type : 0, // DUNGEON_TYPES
     width: w, height: h,
     cells,
+    // 000177: единый тайл — exit = entrance (инвариант createDungeon).
     entrance: { x: 1, y: 1 },
-    exit: { x: w - 2, y: h - 2 },
+    exit: { x: 1, y: 1 },
   };
   if (opts.wallObjs) dg.wallObjs = opts.wallObjs;
   const s = {
@@ -1529,15 +1530,18 @@ test('подземелье UI 000067: без лоадера (spriteLoader=null) 
     'сундук — золотой квадрат #e0b13c');
   assert.ok(fillRectAt(calls, '#7a5c16', pCh.x + 3, pCh.y + 23, 42, 2),
     'сундук — тёмная полоса #7a5c16');
-  // Выход/вход — текстовые/цветовые маркеры (решение задачи).
-  const pEx = G.worldToScreen(3, 3, 2.5, 2.5, 48, VW, VH);
+  // 000177: единый тайл (exit = entrance = (1,1)) — ОДИН маркер:
+  // жёлтый квадрат + «E» (фолбэк без лоадера). Старых «X»/#3f9d55
+  // маркеров нет.
+  const pEx = G.worldToScreen(1, 1, 2.5, 2.5, 48, VW, VH);
   assert.ok(fillRectAt(calls, '#d4b45a', pEx.x + 2, pEx.y + 2, 44, 44),
-    'выход — жёлтый квадрат #d4b45a');
-  assert.ok(calls.some((c) => c[0] === 'fillText' && c[1][0] === 'X'
-    && c[2] === '#101418'), 'выход — буква «X»');
-  const pEn = G.worldToScreen(1, 1, 2.5, 2.5, 48, VW, VH);
-  assert.ok(fillRectAt(calls, '#3f9d55', pEn.x + 4, pEn.y + 4, 40, 40),
-    'вход — зелёный квадрат #3f9d55');
+    'единый тайл — жёлтый квадрат #d4b45a');
+  assert.ok(fillTextNear(calls, 'E', '#101418', pEx.x + 24, pEx.y + 43, 4),
+    'единый тайл — буква «E»');
+  assert.ok(!calls.some((c) => c[0] === 'fillText' && c[1][0] === 'X'),
+    'старый маркер «X» — нет (000177: единый тайл)');
+  assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#3f9d55'),
+    'старый вход-квадрат #3f9d55 — нет (000177: единый тайл)');
 });
 
 test('подземелье UI 000067: фолбэк ПЕР-ЮНИТ (вид не готов — квадрат только для этого юнита)', () => {
@@ -1905,13 +1909,15 @@ test('подземелье UI 000068: структурный — dungeon-ui.js �
 // Состояние города — форма main.js enterCity (000105): dungeonState
 // с полем kind: 'city', dg = layout из G.Cities.createCityLayout
 // (000104; форма { width, height, cells, entrance, exit, seed, kind }
-// — БЕЗ type/rooms/wallObjs), contents = null (содержимое — 000106),
+// — БЕЗ type/rooms/wallObjs; 000177: exit = entrance — единый
+// тайл-дверь), contents = null (содержимое — 000106),
 // name = название_карты каталога. Экран: заголовок — имя города,
 // СВОИ тайлы пола/стен (детерминированный выбор варианта по
-// (x, y, seed); палитра ограничена: пол ≤3, стена ≤2), маркеры
-// выхода/входа — те же, что подземелье, hint — без «Сундук и мобы»
-// (город пуст) и без «[E] — постройки» (взаимодействие — 000107),
-// глейд/зум/камера — общий движок 000066/000068 (без изменений).
+// (x, y, seed); палитра ограничена: пол ≤3, стена ≤2), маркер
+// единого тайла — тот же, что маркер подземелья (000177),
+// hint — без «Сундук и мобы» (город пуст) и с «[E] — постройки»
+// (взаимодействие — 000107), глейд/зум/камера — общий движок
+// 000066/000068 (без изменений).
 //
 // Состояние подземелья (без kind) — БЕЗ ИЗМЕНЕНИЙ: пол #182029,
 // прежний hint, маркеры.
@@ -2029,10 +2035,10 @@ test('город UI 000105: СВОИ тайлы — 2x2 хутор: пол/ст�
         ? floorKeys : wallKeys).push(x + ',' + y);
     }
   }
-  assert.deepEqual(floorKeys.sort(), ['0,0', '0,1'],
-    '2x2: пол — вход (0,1) и выход (0,0)');
-  assert.deepEqual(wallKeys.sort(), ['1,0', '1,1'],
-    '2x2: стены — остальные две клетки');
+  assert.deepEqual(floorKeys.sort(), ['0,1'],
+    '2x2: пол — единый тайл-дверь (0,1) (000177)');
+  assert.deepEqual(wallKeys.sort(), ['0,0', '1,0', '1,1'],
+    '2x2: стены — остальные три клетки');
   for (const k of floorKeys) {
     assert.ok(colors[k], 'город: пол (' + k + ') нарисован');
     assert.notEqual(colors[k], '#182029',
@@ -2191,21 +2197,22 @@ test('город UI 000105 (GOLDEN-ПИН): CITY_TILE_SEED = 0x43495459 и па�
   }
 });
 
-test('город UI 000105 (регрессия маркеров): выход «X»/вход — те же маркеры, что подземелье', () => {
+test('город UI 000105 (регрессия маркеров): единый тайл-дверь (000177) — ОДИН маркер, те же, что подземелье', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
   const s = makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' });
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
   const calls = findCanvas(loaded.body).drawCalls;
-  // 2x2 @ 40, cam (1,1): выход (0,0), вход (0,1) — layout 000104.
-  const ex = G.worldToScreen(0, 0, 1, 1, 40, VW, VH);
+  // 2x2 @ 40, cam (1,1): единый тайл (0,1) — layout 000177.
   const en = G.worldToScreen(0, 1, 1, 1, 40, VW, VH);
-  assert.ok(fillRectAt(calls, '#d4b45a', ex.x + 2, ex.y + 2, 36, 36),
-    'выход: жёлтый квадрат (zoom−4)');
-  assert.ok(fillTextNear(calls, 'X', '#101418', ex.x + 20, ex.y + 35, 2),
-    'выход: буква «X»');
-  assert.ok(fillRectAt(calls, '#3f9d55', en.x + 4, en.y + 4, 32, 32),
-    'вход: зелёный квадрат (zoom−8)');
+  assert.ok(fillRectAt(calls, '#d4b45a', en.x + 2, en.y + 2, 36, 36),
+    'единый тайл: жёлтый квадрат (zoom−4)');
+  assert.ok(fillTextNear(calls, 'E', '#101418', en.x + 20, en.y + 35, 2),
+    'единый тайл: буква «E»');
+  assert.ok(!calls.some((c) => c[0] === 'fillText' && c[1][0] === 'X'),
+    'старый маркер «X» — нет (000177: единый тайл)');
+  assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#3f9d55'),
+    'старый вход-квадрат #3f9d55 — нет (000177: единый тайл)');
 });
 
 test('город UI 000105/000107: contents: null — без сундуков/мобов, рендер не падает; hint — без «Сундук и мобы» и С «[E] — постройки»', () => {
@@ -2223,20 +2230,23 @@ test('город UI 000105/000107: contents: null — без сундуков/м
     'город: boss-подсветка #b06ad4 нет');
   const states = allByClass(loaded.body, 'combat-state');
   const hint = states[1].textContent;
-  assert.ok(hint.includes('Жёлтая клетка «X» — выход.'),
-    'hint: указание на выход: ' + JSON.stringify(hint));
+  assert.ok(hint.includes('Дверь — вход и выход: встаньте на неё и нажмите [E].'),
+    'hint: единый тайл-дверь (000177): ' + JSON.stringify(hint));
   assert.ok(!hint.includes('Сундук'),
     'hint: без «Сундук и мобы» (город пуст; содержимое — 000106): '
     + JSON.stringify(hint));
   assert.ok(hint.includes('[E] — постройки.'),
     'hint: «[E] — постройки.» (взаимодействие — 000107): '
     + JSON.stringify(hint));
-  // Регрессия: у ПОДЗЕМЕЛЬЯ hint не меняется.
+  // Регрессия: у ПОДЗЕМЕЛЬЯ hint — «Вход в пещеру» + «Сундук и мобы».
   const D = loadDungeonUi({ performance: { now: () => 1000 } });
   D.G.dungeonUI.start({ state: makeState(), onMove() {}, zoom: 48 });
   const dHint = allByClass(D.body, 'combat-state')[1].textContent;
+  assert.ok(dHint.includes('Вход в пещеру — вход и выход'),
+    'подземелье: hint — единый тайл-вход (000177): '
+    + JSON.stringify(dHint));
   assert.ok(dHint.includes('Сундук и мобы'),
-    'подземелье: hint — прежний текст («Сундук и мобы»)');
+    'подземелье: hint — «Сундук и мобы» сохранён');
 });
 
 test('город UI 000105 (регрессия глейда): общий движок 000066/000068 — pos-хук, walk-кадр, дробная точка', () => {
