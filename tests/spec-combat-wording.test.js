@@ -23,10 +23,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-// 000159: SPEC.md разбит на spec/*.md — единый текст = нужные подфайлы
-// в исходном относительном порядке (join('\n')).
-const SPEC = ['spec/companions.md', 'spec/efir-spirit.md']
-  .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf8'))
+// 000159: SPEC.md разбит на spec/*.md — единый текст = подфайлы (join('\n')).
+// 000187 (ретро-20261011): область счётчика «(v1)» и 4 негативных фраз —
+// ВСЕ spec/*.md (readdirSync + sort — как до разбивки, монолитный SPEC.md;
+// supersede memory/000159-spec-split.md §3.4 «Осознанное сужение» —
+// зафиксировано memory/000187-spec-structural-pins.md §2.3). readdirSync+
+// sort, а не хардкод имён: область автоматически расширяется на будущие
+// файлы spec/ (R1 пинит точный набор). Ложных срабатываний при расширении
+// нет (проверено на 4156dcb): «(v1)» — ровно 1 (efir-spirit.md), 4
+// негатива — 0 во всех файлах. Ассерты/хелперы — без правок.
+const SPEC = fs.readdirSync(path.join(ROOT, 'spec'))
+  .filter((f) => f.endsWith('.md'))
+  .sort()
+  .map((f) => fs.readFileSync(path.join(ROOT, 'spec', f), 'utf8'))
   .join('\n');
 
 function esc(s) {
@@ -108,7 +117,7 @@ test('SPEC 000181: «Дух Эфира → Бой» — в v1 нет ручно�
     'противоречащая формула «лечения и щита у Эфира в бою нет» не удалена ' +
       '(рядом — формулы леч/щит-спеллов и «Вдох Эфира», лечащий ВСЕМ союзным)');
   assert.equal((SPEC.match(/\(v1\)/g) || []).length, 1,
-    'маркер «(v1)» в SPEC.md — ровно 1 вхождение (буллет управления Эфиром)');
+    'маркер «(v1)» во всех spec/*.md — ровно 1 вхождение (буллет управления Эфиром)');
 });
 
 test('SPEC 000181: «Дух Эфира → Бой» — определение «Сильнейшее» восстановлено (ТЗ п.3)', () => {

@@ -1,5 +1,7 @@
 // Задача 000159 (SPEC.md разбит на spec/ подфайлы по H1 + MOBS.md → spec/)
-// — RED-тесты (docs only; код игры и существующие тесты НЕ меняются).
+// — RED-тесты (docs only; код игры и существующие тесты НЕ меняются на
+//   красной стадии; техническая переадресация 4 тест-чтителей — стадия
+//   реализации (memory/000159-spec-split.md §3.4)).
 //
 // ТЗ (tasks/pending/000159.md, задача-барьер): разделить SPEC.md на
 // подфайлы по заголовкам уровня '#' (каталог spec/), в SPEC.md оставить
@@ -25,6 +27,10 @@
 // +1 H2 (items.md: «Руды, минералы и самоцветы») — 000157.01: константа
 // и счётчик nH2 обновлены в том же коммите (протокол
 // memory/000159-spec-split.md §5.1).
+// R7 (000187, ретро-20261011): SPEC_FILE_LINES — точное число строк каждого
+// из 22 файлов spec/*.md (конвенция R5; MOBS.md — у R5=199). Значения —
+// ПРОГРАММНО от факта; любое изменение числа строк тела spec/<file>.md →
+// пересчёт В ТОМ ЖЕ коммите (протокол memory/000159-spec-split.md §5.1).
 //
 // Красные «отсутствием» (осмысленно — разбивки ещё нет, не синтаксис):
 // каталог spec/ не существует (R1/R2/R6 — ENOENT), корневой SPEC.md всё
@@ -73,6 +79,45 @@ const SPEC_SECTIONS = [
 
 const MOBS_H1 = "# MOBS.md — правила создания SVG-ассетов мобов";
 const MOBS_LINES = 199;
+
+// R7 (000187, ретро-20261011): точное число строк каждого из 22 файлов
+// spec/*.md. Семантика счёта — РОВО как R5: split('\n') + pop хвостового
+// '', если есть (НЕ wc -l: items.md без trailing-\n = 145 строк,
+// wc -l скажет 144). Порядок записей = порядок SPEC_FILES; MOBS.md не
+// входит (закреплён R5, MOBS_LINES). Значения — ПРОГРАММНО от факта,
+// СНАПШОТ ПОСЛЕ док-правок 000187 (game-time +3, combat +2 от снапшота
+// 4156dcb); любое изменение числа строк тела spec/<file>.md → пересчёт
+// В ТОМ ЖЕ коммите (протокол memory/000159-spec-split.md §5.1).
+const SPEC_FILE_LINES = {
+  "overview.md": 12,
+  "story.md": 5,
+  "graphics.md": 8,
+  "world-map.md": 52,
+  "mobs.md": 118,
+  "mob-groups-storage.md": 60,
+  "game-time.md": 20,
+  "run-and-tests.md": 18,
+  "ci-github-pages.md": 63,
+  "buildings.md": 458,
+  "combat.md": 24,
+  "companions.md": 108,
+  "efir-spirit.md": 136,
+  "skills.md": 100,
+  "spells.md": 98,
+  "craft.md": 116,
+  "npc.md": 7,
+  "skills-storage.md": 38,
+  "buildings-storage.md": 44,
+  "dungeons-storage.md": 72,
+  "npc-storage.md": 72,
+  "items.md": 145
+};
+
+// R3 (000187): число строк корневого SPEC.md (конвенция R5; 4156dcb — 30,
+// +1 строка после правки 000187 L3-4 — 31). Правка, меняющая число строк
+// корня, — пересчёт в том же коммите (протокол
+// memory/000159-spec-split.md §5.1).
+const SPEC_ROOT_LINES = 31;
 
 function esc(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -129,6 +174,18 @@ test('SPEC 000159: корневой SPEC.md — только оглавлени�
       'H1 «' + s.h1 + '» не должен оставаться заголовком корневого SPEC.md ' +
       '(раздел переехал в spec/' + s.file + ')');
   }
+  // 000187: полный набор H2 корневого SPEC.md — ровно [«## Содержание»]
+  // (новый H2-раздел с телом в корне — потеря 1:1 — станет красным).
+  const rootH2 = text.match(/^## [^\n]*$/gm) || [];
+  assert.deepEqual(rootH2, ['## Содержание'],
+    'полный набор H2 корневого SPEC.md обязан быть ровно [«## Содержание»]; ' +
+    'факт: [' + rootH2.join(', ') + ']');
+  // 000187: число строк корня закреплено (конвенция R5).
+  const rootLines = text.split('\n');
+  if (rootLines[rootLines.length - 1] === '') rootLines.pop();
+  assert.equal(rootLines.length, SPEC_ROOT_LINES,
+    'корневой SPEC.md обязан быть ' + SPEC_ROOT_LINES + ' строк (конвенция R5); ' +
+    'факт: ' + rootLines.length + ' — пересчёт SPEC_ROOT_LINES — в том же коммите');
 });
 
 // R4: TOC — ровно 23 ссылки ](spec/<file>.md) на ВСЕ подфайлы; порядок ссылок ==
@@ -191,4 +248,56 @@ test('SPEC 000159: каждый из 22 H1 — строка ДОСЛОВО ро�
       'H1 «' + s.h1 + '» обязан быть строкой ровно в одном файле spec/ — ' +
       'spec/' + s.file + '; найдено: [' + owners.join(', ') + ']');
   }
+});
+
+// Число строк файла по конвенции R5: split('\n') + pop хвостового '',
+// если есть (НЕ wc -l — items.md без trailing-\n).
+function specLines(f) {
+  const lines = fs.readFileSync(path.join(SPEC_DIR, f), 'utf8').split('\n');
+  if (lines[lines.length - 1] === '') lines.pop();
+  return lines.length;
+}
+
+// R7 (000187, ретро-20261011): точное число строк каждого из 22 файлов
+// spec/*.md — тела разделов закреплены (прецедент R5: 199 строк MOBS.md).
+// Зелёный с момента создания — пин текущего состояния (ТЗ «Тесты»);
+// красный при будущей потере/вставке строк тела БЕЗ пересчёта
+// SPEC_FILE_LINES в том же коммите (протокол memory/000159-spec-split.md
+// §5.1). MOBS.md не входит — закреплён R5 (MOBS_LINES = 199).
+test('SPEC 000187: R7 — точное число строк каждого из 22 файлов spec/*.md (тело закреплено; прецедент R5)', () => {
+  for (const s of SPEC_SECTIONS) {
+    assert.equal(specLines(s.file), SPEC_FILE_LINES[s.file],
+      'spec/' + s.file + ': число строк тела изменилось — потеря/вставка ' +
+      'строк запрещена без пересчёта SPEC_FILE_LINES в том же коммите ' +
+      '(протокол memory/000159-spec-split.md §5.1)');
+  }
+});
+
+// SPEC-453-GONE (000187, ретро-20261011): старая линейная цитата на
+// монолитный SPEC.md в формате «SPEC ###» БЕЗ «L»/«SPEC.md» (щель, через
+// которую прошла «SPEC-453» — протокол 000159 §3.6.2 ловил только
+// «SPEC.md»/«SPEC L###») переадресована — точная строка отсутствует в
+// tests/ и src/. Строка поиска собирается из ЧАСТЕЙ: сам этот файл
+// обязан не содержать литерал (скан читает его же). tests/ и src/ —
+// плоские каталоги (скан readdirSync без рекурсии; guard isFile() —
+// устойчивость к будущим подкаталогам, не-рекурсивность сохранена).
+// НЕ regex
+// «SPEC [0-9]+» — тот ложно бьёт по именам тестов («SPEC 000184:»,
+// «SPEC 000156:», «SPEC 000187:»).
+test('SPEC 000187: старая линейная цитата «SPEC-453» переадресована — точная строка отсутствует в tests/ и src/', () => {
+  const needle = 'SPEC ' + '453';
+  const offenders = [];
+  for (const dir of ['tests', 'src']) {
+    const d = path.join(ROOT, dir);
+    for (const f of fs.readdirSync(d)) {
+      if (!fs.statSync(path.join(d, f)).isFile()) continue; // подкаталоги
+      if (fs.readFileSync(path.join(d, f), 'utf8').includes(needle)) {
+        offenders.push(dir + '/' + f);
+      }
+    }
+  }
+  assert.deepEqual(offenders, [],
+    'старая линейная цитата «SPEC-453» найдена в: ' + offenders.join(', ') +
+    ' — переадресовать на spec/<file>.md «раздел» (задача 000187, ' +
+    'ретро-20261011; протокол 000159 §3.6.2)');
 });
