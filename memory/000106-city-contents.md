@@ -16,6 +16,18 @@ npm test (980 тестов, база 0460b5b — 959) зелёный.
 > вызовов — БЕЗ изменений (D10); хутор — [] как был. Текст ниже —
 > история 000106 (цифры мест 4/64/144 в нём — устарели).
 
+> **ОБНОВЛЕНО 000148.03 (2026-10-11):** generateCityContents НЕ
+> МЕНЯЕТСЯ (базовый набор, сид, rng-порядок — D10; GOLDEN_CONTENT —
+> те же литералы 000148.01). src/cities.js + 8 ЧИСТЫХ экспортов
+> (buildableBuildingIds, buildCost, buildingCells, cityOccupied,
+> canBuildAt, placeBuilding, demolishCity, demolishReturn) — ядро
+> строительства: постройки игрока появляются в
+> ds.cityContents.buildings ПЕР-КЛЕТКАМИ {x, y, buildingId,
+> player: true} ([E]-поиск и рендер 000148.02 — без изменений;
+> cap D4 считает их через cityOccupied), запись cityStates
+> получает `built` (ANCHOR-записи; in-memory — персистентность
+> 000148.05). Контракт — memory/000148.03-city-building-core.md.
+
 ## Зафиксированные решения (пины в tests/cities.test.js,
 раздел «Содержимое города (задача 000106)»)
 

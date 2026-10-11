@@ -1819,3 +1819,238 @@ test('000109 R3: ОБРЕЗКА при сейве И при восстановл
   assert.equal(C.restoreCityStates(many, day, r).size, 5,
     'restore: истёкшие отброшены и при загрузке');
 });
+
+// ============================================================
+// 000148.03 — Строительство в городе: ядро (красные тесты R1–R7)
+// ============================================================
+// ТЗ: tasks/pending/000148.03.md. Контракт: memory/000148.03-city-
+// building-core.md (D3-набор, D4-лимит, canBuildAt-контракт, built).
+//
+// КРАСНЫЕ (TDD): функциональности нет — экспорты buildableBuildingIds/
+// buildCost/buildingCells/cityOccupied/canBuildAt/placeBuilding/
+// demolishCity/demolishReturn отсутствуют в return-блоке src/cities.js,
+// поле особых_параметры.стройка.золото отсутствует в каталоге.
+// Падение — осмысленное (typeof/TypeError на конкретном экспорте),
+// НЕ синтаксическое. Реализация НЕ добавляет require (require-пин
+// выше: ровно perlin+items+buildings) — каталог читается лениво
+// через buildingsRef().
+//
+// Правила (контракт §2/§4):
+//  * набор D3 — ДАННЫЕ каталога: (map_index != null) ИЛИ
+//    (размещение.слот — число) И .стройка.золото — int > 0;
+//    исключения (31-35 пещеры, 41 телепорт, 47 лагерь, 50 мост,
+//    51-54 города) — ОТСУТСТВИЕ поля .стройка (без хардкода id);
+//  * cap D4 — ВКЛЮЧАЮЩИЙ: occupiedInterior + w·h ≤ floor(интерьер/2)
+//    (деревня 6×6: интерьер 16, потолок 8 — 8-я клетка ОК, 9-я отказ);
+//  * anchor — ВЕРХНИЙ-ЛЕВЫЙ угол footprint (конвенция placeBuilding
+//    buildings.js:808); порядок проверок: space → cap → reach
+//    (reachOK с blocked = footprint НОВОЙ постройки только — герой
+//    ходит ПО постройкам, занятые клетки чужих построек проходимы);
+//  * built — ANCHOR-записи {x, y, buildingId, player: true} в записи
+//    cityStates (per-cell view — ds.cityContents.buildings, 000107/
+//    000148.02); placeBuilding/demolishCity — ЧИСТЫЕ (копии);
+//  * разборка — floor(золото × 3 / 10) ЦЕЛОЧИСЛЕННО (10 → 3).
+//
+// 000109 R1–R3 (выше) — НЕ ТРОГАТЬ: built пока — В-ПАМЯТИ поле записи
+// cityStates (персистентность — 000148.05), validateCityState не
+// расширяется (built отсекается — граница задач).
+
+// Набор D3 (ровно 21; верифицирован по всем 54 JSON — a1-анализ):
+// map_index: 1,2,3,4,7,8,10,11,25,36,40,44 (минус 31 — пещеры) +
+// размещение.слот: 37,38,39,42,43,45,46,48,49 (минус 41 — телепорт).
+const D3_IDS = [1, 2, 3, 4, 7, 8, 10, 11, 25, 36, 37, 38, 39, 40, 42,
+  43, 44, 45, 46, 48, 49];
+
+test('000148.03 R1: buildableBuildingIds — функция; возвращает ровно 21 id набора D3 (дословно, в id-порядке; каждый id ∈ каталогу)', () => {
+  const C = loadCities();
+  assert.equal(typeof C.buildableBuildingIds, 'function',
+    'RED: экспорт buildableBuildingIds() — нет в return-блоке cities.js');
+  const ids = C.buildableBuildingIds();
+  assert.ok(Array.isArray(ids), 'возврат — массив');
+  assert.deepEqual(ids, D3_IDS,
+    'набор D3 дословно (id-порядок BUILDINGS): ' + JSON.stringify(ids));
+  for (const id of ids) {
+    assert.ok(B.getBuilding(id),
+      'id ' + id + ' ∈ каталогу (правило данных, не хардкод)');
+  }
+});
+
+test('000148.03 R2: buildCost — {золото} у всех 21: целое > 0; gold(3×3) > gold(1×1) попарно; фикс. каталожная запись — фикс. цена', () => {
+  const C = loadCities();
+  assert.equal(typeof C.buildCost, 'function',
+    'RED: экспорт buildCost(id) — нет в cities.js; поле '
+    + 'особые_параметры.стройка.золото отсутствует в каталоге');
+  const prices = {};
+  for (const id of D3_IDS) {
+    const c = C.buildCost(id);
+    assert.ok(c && typeof c === 'object' && !Array.isArray(c),
+      'buildCost(' + id + ') — объект {золото} (форма 000148.04-совместима)');
+    assert.ok(Number.isInteger(c.золото) && c.золото > 0,
+      id + ' ' + B.getBuilding(id).название + ': .стройка.золото — целое > 0 (получено '
+      + JSON.stringify(c.золото) + ')');
+    prices[id] = c.золото;
+  }
+  // 3×3 (Арена 7, Храм солнца 36) ДОРОЖЕ любого 1×1 (масштаб от
+  // стартовых 100 золота, sheet.js:120; min 3×3 > max 1×1).
+  for (const big of [7, 36])
+    for (const small of D3_IDS)
+      if (![7, 36].includes(small))
+        assert.ok(prices[big] > prices[small],
+          'gold(' + big + ', 3×3) = ' + prices[big]
+          + ' > gold(' + small + ', 1×1) = ' + prices[small]);
+  // Фиксированные каталожные записи — фиксированные цены (таблица
+  // контракта §3: крайние точки масштаба).
+  assert.equal(prices[48], 30, 'id 48 Развалины (1×1, мин.) — 30 з.');
+  assert.equal(prices[45], 35, 'id 45 Колодец (1×1) — 35 з.');
+  assert.equal(prices[7], 400, 'id 7 Арена (3×3, мин. 3×3) — 400 з.');
+  assert.equal(prices[36], 500, 'id 36 Храм солнца (3×3) — 500 з.');
+  // Детерминизм (D10): данные каталога, не rng — два вызова deepEqual.
+  assert.deepEqual(C.buildCost(48), C.buildCost(48),
+    'buildCost детерминирован');
+});
+
+test('000148.03 R3: canBuildAt — cap D4 (деревня 6×6, интерьер 16, потолок 8): 8-я занятая клетка ДОПУСТИМА, 9-я — ОТКАЗ reason «cap» (граница включающая)', () => {
+  const C = loadCities();
+  assert.equal(typeof C.canBuildAt, 'function',
+    'RED: экспорт canBuildAt(layout, anchor, id, occupied) — нет в cities.js');
+  const layout = C.createCityLayout(-114, -119, 2); // деревня 6×6, дверь (3,5)
+  // 1×1 — id 48 (Развалины). Интерьер [1..4]×[1..4] (16 FLOOR), дверь —
+  // периметр (не интерьер, не блокируется).
+  const occ7 = new Set(['1,1', '2,1', '3,1', '4,1', '1,2', '2,2', '3,2']);
+  const r8 = C.canBuildAt(layout, { x: 4, y: 2 }, 48, occ7);
+  assert.equal(r8.ok, true,
+    'RED: 8-я из 8 интерьерных клеток — ДОПУСТИМА (≤ включающий: 7+1 = 8 ≤ 8)');
+  const occ8 = new Set([...occ7, '4,2']);
+  const r9 = C.canBuildAt(layout, { x: 1, y: 3 }, 48, occ8);
+  assert.equal(r9.ok, false, '9-я клетка — ОТКАЗ (8+1 = 9 > 8)');
+  assert.equal(r9.reason, 'cap',
+    'RED: reason — «cap» (лимит 50% интерьера, D4)');
+});
+
+test('000148.03 R4: canBuildAt — хутор (интерьер 0) — отказ; деревня 3×3 (9 клеток > потолка 8) — «cap» даже при ПУСТОМ occupied', () => {
+  const C = loadCities();
+  // Хутор 2×2: ВСЕ 4 клетки — периметр (единственная FLOOR — дверь
+  // (0,1)); интерьер 0 → любое размещение «space» (interior пуст).
+  const hamlet = C.createCityLayout(-119, -104, 1);
+  const rH1 = C.canBuildAt(hamlet, { x: 0, y: 0 }, 48, new Set());
+  assert.equal(rH1.ok, false, 'хутор: клетка периметра — отказ');
+  assert.equal(rH1.reason, 'space', 'хутор: нет интерьерных FLOOR');
+  const rH2 = C.canBuildAt(hamlet, { x: 0, y: 1 }, 48, new Set());
+  assert.equal(rH2.ok, false, 'хутор: ДВЕРЬ (периметр) — тоже «space»');
+  assert.equal(rH2.reason, 'space', 'дверь не является интерьером (floor(0/2) = 0)');
+  // Деревня: 3×3 (Арена 7, 9 клеток) — space проходит (9 клеток
+  // ⊆ интерьеру), но cap: 0 + 9 > 8 → «cap». Зафиксировано ТЗ:
+  // «деревня 3×3 — не влезает под лимит».
+  const village = C.createCityLayout(-114, -119, 2);
+  const r3 = C.canBuildAt(village, { x: 1, y: 1 }, 7, new Set());
+  assert.equal(r3.ok, false,
+    'RED: 3×3 (9 клеток) в деревне (потолок 8) — не влезает');
+  assert.equal(r3.reason, 'cap', 'порядок space→cap: space ОК, cap 9 > 8');
+});
+
+test('000148.03 R5: canBuildAt — space (дверь/периметр/стена/перекрытие → «space»); 3×3 в городе (потолок 128) влезает (true); reach — footprint замуровывает дверь → «reach»', () => {
+  const C = loadCities();
+  const village = C.createCityLayout(-114, -119, 2);
+  // (a) ДВЕРЬ (3,5) — периметр: постройка НЕ ставится на дверь
+  // (защитный комментарий реализации: дверь — периметр, интерьер
+  // [1..W−2]×[1..H−2]).
+  const rd = C.canBuildAt(village, { x: 3, y: 5 }, 48, new Set());
+  assert.equal(rd.ok, false, 'anchor на двери — отказ');
+  assert.equal(rd.reason, 'space', 'дверь — не интерьерная FLOOR');
+  // (b) Стена (0,0) — периметр.
+  const rw = C.canBuildAt(village, { x: 0, y: 0 }, 48, new Set());
+  assert.equal(rw.ok, false, 'anchor на стене — отказ');
+  assert.equal(rw.reason, 'space', 'стена — не FLOOR');
+  // (c) Перекрытие занятой клетки — «space» (без перекрытий).
+  const ro = C.canBuildAt(village, { x: 1, y: 1 }, 48, new Set(['1,1']));
+  assert.equal(ro.ok, false, 'перекрытие occupied — отказ');
+  assert.equal(ro.reason, 'space', 'occupied — занят (постройка/запись)');
+  // (d) Город 18×18 (анкер 100,−40): 3×3 (Арена 7) на чистом поле —
+  // true (space ОК, cap 9 ≤ 128, reach ОК).
+  const city = C.createCityLayout(100, -40, 5);
+  const rc = C.canBuildAt(city, { x: 1, y: 1 }, 7, new Set());
+  assert.equal(rc.ok, true,
+    'RED: 3×3 в городе (18×18, потолок 128) — допустимо');
+  // (e) reach (BFS reachOK, blocked = footprint НОВОЙ постройки):
+  // дверь деревни (3,5) — единственный путь в интерьер через (3,4)
+  // (соседи (2,5)/(4,5) — WALL). 1×1 на (3,4) замуровывает дверь →
+  // дверь недостижима → «reach».
+  const rr = C.canBuildAt(village, { x: 3, y: 4 }, 48, new Set());
+  assert.equal(rr.ok, false,
+    'RED: footprint на (door.x, H−2) — дверь замурована');
+  assert.equal(rr.reason, 'reach', 'BFS-достижимость (reachOK) — «reach»');
+});
+
+test('000148.03 R6: placeBuilding/demolishCity — чистые операции над built записи cityStates (ANCHOR-записи); входы НЕ мутируются; ошибки — throw; не-player/absent → null', () => {
+  const C = loadCities();
+  assert.equal(typeof C.placeBuilding, 'function',
+    'RED: экспорт placeBuilding(record, x, y, id) — нет в cities.js '
+    + '(НЕ путать с buildings.placeBuilding — МИРОВОЙ пайплайн, 000026)');
+  assert.equal(typeof C.demolishCity, 'function',
+    'RED: экспорт demolishCity(record, x, y) — нет в cities.js');
+  const rec0 = { lastVisitDay: 5, stock: {} };
+  const r1 = C.placeBuilding(rec0, 1, 2, 48);
+  assert.notEqual(r1, rec0, 'новый record (копия)');
+  assert.deepEqual(rec0, { lastVisitDay: 5, stock: {} },
+    'вход НЕ мутирован (000109 R2-паттерн)');
+  assert.deepEqual(r1.built,
+    [{ x: 1, y: 2, buildingId: 48, player: true }],
+    'RED: built + ANCHOR-запись {x, y, buildingId, player: true}');
+  // Повторное размещение — обе записи (предыдущая не мутирована).
+  const r2 = C.placeBuilding(r1, 3, 2, 7);
+  assert.equal(r2.built.length, 2, 'built — 2 записи');
+  assert.deepEqual(r2.built[1], { x: 3, y: 2, buildingId: 7, player: true });
+  assert.deepEqual(r1.built,
+    [{ x: 1, y: 2, buildingId: 48, player: true }],
+    'предыдущий record не мутирован');
+  // Ошибки вызывающего — throw (геометрия — зона canBuildAt).
+  assert.throws(() => C.placeBuilding(rec0, 1.5, 2, 48), /cities\.js/,
+    'не-целые координаты — throw');
+  assert.throws(() => C.placeBuilding(rec0, 1, 2, 999), /cities\.js/,
+    'id вне каталога — throw');
+  // demolishCity — запись built с player === true, чей footprint
+  // накрывает (x, y) (с конца массива).
+  const d1 = C.demolishCity(r2, 3, 2);
+  assert.ok(d1, 'RED: запись найдена (анкер (3,2))');
+  assert.equal(d1.buildingId, 7, 'buildingId — 7 (Арена)');
+  assert.equal(d1.x, 3, 'x — анкер удалённой записи');
+  assert.equal(d1.y, 2, 'y — анкер удалённой записи');
+  assert.equal(d1.refund, 120,
+    'refund = floor(400 × 3/10) = 120 (id 7: цена 400)');
+  assert.equal(d1.record.built.length, 1, 'record — без удалённой записи');
+  assert.deepEqual(d1.record.built[0],
+    { x: 1, y: 2, buildingId: 48, player: true });
+  // 3×3: разборка с ЛЮБОЙ клетки footprint (анкер (3,2) → (5,4)).
+  const d2 = C.demolishCity(r2, 5, 4);
+  assert.ok(d2 && d2.buildingId === 7,
+    'RED: footprint 3×3 накрывает (5,4) — запись найдена');
+  // НЕ-player (базовая) / без built — null (без броска).
+  const baseRec = { lastVisitDay: 1, stock: {},
+    built: [{ x: 1, y: 1, buildingId: 44 }] }; // player отсутствует
+  assert.equal(C.demolishCity(baseRec, 1, 1), null,
+    'не-player (базовая) → null (базовые не разбираются: затрачено = 0)');
+  assert.equal(C.demolishCity(rec0, 1, 1), null, 'built нет → null');
+});
+
+test('000148.03 R7: разборка — возврат 30% floor ЗОЛОТА ЦЕЛОЧИСЛЕННО: 10 → 3 (фикс. каталожная запись: refund = floor(цена × 3/10))', () => {
+  const C = loadCities();
+  assert.equal(typeof C.demolishReturn, 'function',
+    'RED: экспорт demolishReturn(gold) — нет в cities.js');
+  assert.equal(C.demolishReturn(10), 3, 'RED: 10 → 3 (floor, ТЗ)');
+  assert.equal(C.demolishReturn(100), 30, '100 → 30');
+  assert.equal(C.demolishReturn(99), 29,
+    '99 → 29 (целочисленно: (99×3)/10 = 29.7 → 29; НЕ gold×0.3)');
+  assert.equal(C.demolishReturn(35), 10, '35 → 10');
+  assert.equal(C.demolishReturn(400), 120, '400 → 120');
+  assert.throws(() => C.demolishReturn('x'), /cities\.js/,
+    'не-число — throw (ошибка вызывающего)');
+  // Фиксированная каталожная запись: id 48 (Развалины) цена 30 →
+  // возврат 9; demolishCity.refund — та же формула.
+  assert.equal(C.demolishReturn(C.buildCost(48).золото), 9,
+    'id 48: .стройка.золото 30 → возврат 9');
+  const rec = C.placeBuilding({ lastVisitDay: 1, stock: {} }, 1, 1, 48);
+  const res = C.demolishCity(rec, 1, 1);
+  assert.ok(res, 'запись найдена');
+  assert.equal(res.refund, 9,
+    'demolishCity.refund = floor(buildCost(48).золото × 3/10) = 9');
+});

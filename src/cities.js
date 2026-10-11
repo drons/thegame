@@ -585,6 +585,311 @@ function (perlin, items, buildings, rootRef) {
     return out;
   }
 
+  // ============================================================
+  // Строительство в городе: ядро (задача 000148.03) — ЧИСТЫЕ функции
+  // ============================================================
+  //
+  // Решения зафиксированы в memory/000148.03-city-building-core.md:
+  //  * набор D3 — ДАННЫЕ каталога (000053): map_index ИЛИ
+  //    размещение.слот И .стройка.золото int>0; исключения (31-35
+  //    пещеры — dungeon-система, 41 телепорт-круг — пары на карте
+  //    мира, 47 лагерь — мировая механика, 50 мост — резерв 000064,
+  //    51-54 города — само-вложение) — ОТСУТСТВИЕ поля .стройка;
+  //  * cap D4 — ВКЛЮЧАЮЩИЙ: занятые интерьерные клетки ВСЕМИ
+  //    постройками ≤ floor(интерьер/2) (деревня 6×6: интерьер 16,
+  //    потолок 8 — 8-я клетка ОК, 9-я отказ);
+  //  * порядок проверок canBuildAt: space → cap → reach (reachOK —
+  //    СУЩЕСТВУЮЩИЙ, blocked = footprint НОВОЙ постройки ТОЛЬКО:
+  //    городские постройки НЕ блокируют движение — герой ходит ПО
+  //    ним для [E], locations.js cityMove);
+  //  * built — ANCHOR-записи {x, y, buildingId, player: true} в
+  //    записи cityStates (per-cell view — ds.cityContents.buildings,
+  //    000107/000148.02); placeBuilding/demolishCity — ЧИСТЫЕ
+  //    (копии, вход не мутируется);
+  //  * разборка — 30% floor золота ЦЕЛОЧИСЛЕННО: floor((золото×3)/10)
+  //    (10 → 3; НЕ золото×0.3 — float-края).
+  // НОЛЬ новых require (require-пин tests/cities.test.js: строго
+  // perlin+items+buildings): каталог — лениво через buildingsRef().
+  // НОЛЬ вызовов RNG (D10): размещение — ввод игрока;
+  // generateCityContents/createCityLayout/cityLayoutSeed НЕ ТРОГАЮТСЯ.
+
+  /**
+   * Набор buildable-типов (D3): id из каталога в порядке BUILDINGS
+   * (id-порядок). Правило ДАННЫХ, без хардкода исключений: запись
+   * входит ⇔ (особые_параметры.map_index != null) ИЛИ (особые_
+   * параметры.размещение — объект с числовым .слот) И особые_
+   * параметры.стройка.золото — целое > 0. Новые типы — поле .стройка
+   * в JSON + regen зеркала (код не меняется).
+   * @returns {number[]}
+   */
+  function buildableBuildingIds() {
+    const B = buildingsRef();
+    const out = [];
+    for (const b of B.BUILDINGS) {
+      if (!b || !Number.isInteger(b.id)) continue;
+      const pp = b.особые_параметры;
+      if (!pp || typeof pp !== 'object' || Array.isArray(pp)) continue;
+      const hasMapIndex = pp.map_index != null;
+      const razm = pp.размещение;
+      const hasSlot = razm && typeof razm === 'object' &&
+        !Array.isArray(razm) && Number.isFinite(razm.слот);
+      if (!hasMapIndex && !hasSlot) continue;
+      const s = pp.стройка;
+      const gold = s && s.золото;
+      if (!(Number.isInteger(gold) && gold > 0)) continue; // исключение
+      out.push(b.id);
+    }
+    return out;
+  }
+
+  /**
+   * Цена постройки (каталожное ДАННОЕ, 000053): .стройка.золото.
+   * @returns {{ золото: number }} — поле нет → { золото: 0 } (форма
+   *   совместима с 000148.04 { золото, исходники }); id вне каталога —
+   *   throw (ошибка вызывающего: меню отдаёт только buildable id).
+   */
+  function buildCost(id) {
+    if (!Number.isInteger(id))
+      throw new Error('cities.js: buildCost — id — целое (получено ' +
+        String(id) + ')');
+    const B = buildingsRef();
+    const b = B.getBuilding ? B.getBuilding(id) : null;
+    if (!b)
+      throw new Error('cities.js: buildCost — id ' + id +
+        ' — нет в каталоге построек (ошибка вызывающего)');
+    const pp = b.особые_параметры;
+    const s = pp && typeof pp === 'object' ? pp.стройка : null;
+    const gold = s && s.золото;
+    if (!(Number.isInteger(gold) && gold > 0)) return { золото: 0 };
+    return { золото: gold };
+  }
+
+  /**
+   * Клетки footprint (ВЕРХНИЙ-ЛЕВЫЙ угол — (x, y), row-major — порядок
+   * tiles placeBuilding buildings.js:823-824).
+   * @returns {[number, number][]} — id ∉ каталогу / не-целые — throw.
+   */
+  function buildingCells(buildingId, x, y) {
+    if (!Number.isInteger(buildingId) || !Number.isInteger(x) ||
+        !Number.isInteger(y)) {
+      throw new Error('cities.js: buildingCells — buildingId/x/y — ' +
+        'целые (получено ' + buildingId + ',' + x + ',' + y + ')');
+    }
+    const B = buildingsRef();
+    const b = B.getBuilding ? B.getBuilding(buildingId) : null;
+    if (!b)
+      throw new Error('cities.js: buildingCells — id ' + buildingId +
+        ' — нет в каталоге построек (ошибка вызывающего)');
+    const size = B.buildingSize
+      ? B.buildingSize(b) : { width: 1, height: 1 };
+    const { width, height } = size;
+    const out = [];
+    for (let dy = 0; dy < height; dy++)
+      for (let dx = 0; dx < width; dx++) out.push([x + dx, y + dy]);
+    return out;
+  }
+
+  /**
+   * Занятые клетки города (Set 'x,y'): объединение клеток всех записей
+   * (базовые 000106 — 1×1; per-cell записи игрока 000148.03 — каждая
+   * клетка footprint своей записью). Записи без целых координат или
+   * с buildingId ∉ каталогу — пропускаются (fail-open, 000029).
+   * @returns {Set<string>}
+   */
+  function cityOccupied(buildings) {
+    const out = new Set();
+    if (!Array.isArray(buildings)) return out;
+    const B = buildingsRef();
+    for (const p of buildings) {
+      if (!p || typeof p !== 'object' || Array.isArray(p)) continue;
+      if (!Number.isInteger(p.x) || !Number.isInteger(p.y) ||
+          !Number.isInteger(p.buildingId)) continue;
+      const b = B.getBuilding ? B.getBuilding(p.buildingId) : null;
+      if (!b) continue; // запись без каталожной buildingId — мимо
+      out.add(p.x + ',' + p.y);
+    }
+    return out;
+  }
+
+  /**
+   * Допустимо ли поставить постройку id ANCHOR (верхний-левый угол) в
+   * (anchor.x, anchor.y). Порядок проверок: space → cap → reach.
+   *  (1) space — все w×h клеток footprint в интерьерных FLOOR-клетках
+   *      [1, W−2]×[1, H−2] и не в occupied. ДВЕРЬ (периметр, y=H−1)
+   *      интерьером НЕ ЯВЛЯЕТСЯ — заблокировать её нельзя (защитный
+   *      диапазон ниже);
+   *  (2) cap D4 — занятое интерьерное + w·h ≤ floor(интерьер/2)
+   *      ВКЛЮЧАЮЩИЙ (потолок достигнут — допустимо);
+   *  (3) reach — reachOK(cells, W, H, entrance, blocked=footprint
+   *      НОВОЙ постройки): ВСЕ непрохожие FLOOR (улицы + клетки всех
+   *      существующих построек + дверь) достижимы от двери. Занятые
+   *      клетки ЧУЖИХ построек НЕ блокируют (герой ходит по
+   *      постройкам, cityMove).
+   * @param {object} layout createCityLayout(...) (width/height/
+   *        cells/entrance; форма — throw, ошибка вызывающего)
+   * @param {{x: number, y: number}} anchor верхний-левый угол
+   * @param {number} id id каталога (∉ — throw)
+   * @param {Set<string>|Array} occupied cityOccupied(...) | массив
+   *        ключей (нормализуется в Set)
+   * @returns {{ok: true}|{ok: false, reason: 'space'|'cap'|'reach'}}
+   */
+  function canBuildAt(layout, anchor, buildingId, occupied) {
+    if (!layout || typeof layout !== 'object')
+      throw new Error('cities.js: canBuildAt — layout — объект ' +
+        'createCityLayout');
+    if (!Number.isInteger(layout.width) || layout.width < 1 ||
+        !Number.isInteger(layout.height) || layout.height < 1)
+      throw new Error('cities.js: canBuildAt — layout.width/height — ' +
+        'целые ≥ 1');
+    if (!Array.isArray(layout.cells) ||
+        layout.cells.length !== layout.width * layout.height)
+      throw new Error('cities.js: canBuildAt — layout.cells — массив ' +
+        'width×height');
+    if (layout.entrance === null || typeof layout.entrance !== 'object' ||
+        !Number.isInteger(layout.entrance.x) ||
+        !Number.isInteger(layout.entrance.y) ||
+        layout.entrance.x < 0 ||
+        layout.entrance.x >= layout.width ||
+        layout.entrance.y < 0 ||
+        layout.entrance.y >= layout.height)
+      throw new Error('cities.js: canBuildAt — layout.entrance — {x, y} ' +
+        'в пределах layout');
+    if (!anchor || typeof anchor !== 'object' ||
+        !Number.isInteger(anchor.x) || !Number.isInteger(anchor.y))
+      throw new Error('cities.js: canBuildAt — anchor — {x, y} целые');
+    const B = buildingsRef();
+    const b = B.getBuilding ? B.getBuilding(buildingId) : null;
+    if (!b)
+      throw new Error('cities.js: canBuildAt — id ' + buildingId +
+        ' — нет в каталоге построек (ошибка вызывающего)');
+    const { width: w, height: h } = B.buildingSize
+      ? B.buildingSize(b) : { width: 1, height: 1 };
+    const W = layout.width, H = layout.height;
+    const cells = layout.cells;
+    const occ = new Set(occupied instanceof Set
+      ? occupied : (Array.isArray(occupied) ? occupied : []));
+    // (1) space: footprint ⊆ интерьерным FLOOR, без перекрытий.
+    // Дверь — периметр (y = H−1) — НЕ интерьер: диапазон [1, W−2]×
+    // [1, H−2] ниже её исключает автоматически (дверь «заблокировать»
+    // постройкой невозможно; достижимость двери проверяет reach).
+    for (let dy = 0; dy < h; dy++)
+      for (let dx = 0; dx < w; dx++) {
+        const cx = anchor.x + dx, cy = anchor.y + dy;
+        if (cx < 1 || cx >= W - 1 || cy < 1 || cy >= H - 1)
+          return { ok: false, reason: 'space' };
+        if (cells[cy * W + cx] !== CELL_FLOOR)
+          return { ok: false, reason: 'space' };
+        if (occ.has(cx + ',' + cy))
+          return { ok: false, reason: 'space' };
+      }
+    // (2) cap D4: занятое интерьерное + w·h ≤ floor(интерьер/2).
+    let interiorCount = 0, occInterior = 0;
+    for (let y = 1; y < H - 1; y++)
+      for (let x = 1; x < W - 1; x++)
+        if (cells[y * W + x] === CELL_FLOOR) interiorCount++;
+    for (const k of occ) {
+      const i = k.indexOf(',');
+      const ox = Number(k.slice(0, i)), oy = Number(k.slice(i + 1));
+      if (!Number.isInteger(ox) || !Number.isInteger(oy)) continue;
+      if (ox < 1 || ox >= W - 1 || oy < 1 || oy >= H - 1) continue;
+      if (cells[oy * W + ox] === CELL_FLOOR) occInterior++;
+    }
+    if (occInterior + w * h > Math.floor(interiorCount / 2))
+      return { ok: false, reason: 'cap' };
+    // (3) reach: footprint НОВОЙ постройки — стены; всё остальное
+    // FLOOR (включая дверь) достижимо от двери.
+    const blocked = new Set();
+    for (let dy = 0; dy < h; dy++)
+      for (let dx = 0; dx < w; dx++)
+        blocked.add((anchor.x + dx) + ',' + (anchor.y + dy));
+    if (!reachOK(cells, W, H, layout.entrance, blocked))
+      return { ok: false, reason: 'reach' };
+    return { ok: true };
+  }
+
+  /**
+   * Разместить постройку в записи города: НОВЫЙ record (копия, вход не
+   * мутируется) + ANCHOR-запись {x, y, buildingId, player: true} в
+   * built. ГЕОМЕТРИИ НЕТ (зона canBuildAt — caller).
+   * НЕ ПУТАТЬ с placeBuilding src/buildings.js (МИРОВОЙ пайплайн карты
+   * мира: sizeChain/validateSize/isFree) — другой модуль, другое имя.
+   * @returns {object} новый record; record не-объект / не-целые x/y /
+   *   id ∉ каталогу — throw 'cities.js: …' (ошибка вызывающего).
+   */
+  function placeBuilding(record, x, y, buildingId) {
+    if (!record || typeof record !== 'object' || Array.isArray(record))
+      throw new Error('cities.js: placeBuilding — record — запись ' +
+        'города (объект)');
+    if (!Number.isInteger(x) || !Number.isInteger(y))
+      throw new Error('cities.js: placeBuilding — x/y — целые ' +
+        '(получено ' + x + ',' + y + ')');
+    if (!Number.isInteger(buildingId))
+      throw new Error('cities.js: placeBuilding — buildingId — целое');
+    const B = buildingsRef();
+    const b = B.getBuilding ? B.getBuilding(buildingId) : null;
+    if (!b)
+      throw new Error('cities.js: placeBuilding — id ' + buildingId +
+        ' — нет в каталоге построек (ошибка вызывающего)');
+    const built = Array.isArray(record.built) ? record.built.slice() : [];
+    built.push({ x, y, buildingId, player: true });
+    return Object.assign({}, record, { built });
+  }
+
+  /**
+   * Разобрать постройку ИГРОКА (built, player === true), чей footprint
+   * накрывает (x, y) (поиск С КОНЦА массива — верхняя постройка).
+   * @returns {null|{record, buildingId, x, y, refund}} — record —
+   *   НОВЫЙ record без удалённой записи; x/y — АНКЕР удалённой записи;
+   *   refund = demolishReturn(buildCost(buildingId).золото). null —
+   *   не-player (базовая: затрачено = 0, не разбирается) / без built
+   *   / (x, y) не покрыт (без броска — отказ UI).
+   */
+  function demolishCity(record, x, y) {
+    if (!record || typeof record !== 'object' || Array.isArray(record))
+      return null;
+    if (!Number.isInteger(x) || !Number.isInteger(y)) return null;
+    const built = record.built;
+    if (!Array.isArray(built)) return null;
+    const B = buildingsRef();
+    for (let i = built.length - 1; i >= 0; i--) {
+      const e = built[i];
+      if (!e || typeof e !== 'object' || e.player !== true) continue;
+      if (!Number.isInteger(e.x) || !Number.isInteger(e.y) ||
+          !Number.isInteger(e.buildingId)) continue;
+      const b = B.getBuilding ? B.getBuilding(e.buildingId) : null;
+      if (!b) continue; // мусор — fail-open (000029)
+      const { width, height } = B.buildingSize
+        ? B.buildingSize(b) : { width: 1, height: 1 };
+      let covers = false;
+      for (let dy = 0; dy < height && !covers; dy++)
+        for (let dx = 0; dx < width; dx++)
+          if (e.x + dx === x && e.y + dy === y) { covers = true; break; }
+      if (!covers) continue;
+      return {
+        record: Object.assign({}, record,
+          { built: built.filter((_, j) => j !== i) }),
+        buildingId: e.buildingId,
+        x: e.x,
+        y: e.y,
+        refund: demolishReturn(buildCost(e.buildingId).золото),
+      };
+    }
+    return null;
+  }
+
+  /**
+   * Возврат при разборке: 30% floor золота, ЦЕЛОЧИСЛЕННАЯ арифметика
+   * floor((золото × 3) / 10) (10 → 3, 30 → 9, 35 → 10, 400 → 120;
+   * НЕ золото × 0.3 — float-края). Предметы — 000148.04.
+   * @returns {number} — не-число — throw (ошибка вызывающего).
+   */
+  function demolishReturn(gold) {
+    if (typeof gold !== 'number' || !Number.isFinite(gold))
+      throw new Error('cities.js: demolishReturn — число (получено ' +
+        String(gold) + ')');
+    return Math.floor((gold * 3) / 10);
+  }
+
   return {
     CELL_WALL, CELL_FLOOR,
     CITY_LAYOUT_CONST,
@@ -597,5 +902,13 @@ function (perlin, items, buildings, rootRef) {
     validateCityStock,
     serializeCityStates,
     restoreCityStates,
+    buildableBuildingIds,
+    buildCost,
+    buildingCells,
+    cityOccupied,
+    canBuildAt,
+    placeBuilding,
+    demolishCity,
+    demolishReturn,
   };
 });

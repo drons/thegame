@@ -2,11 +2,15 @@
 //
 // [E] внутри города — ЕДИНЫЙ путь: клетка с внутренней постройкой (000106)
 // → Game.buildingUI (000071) → «Диалог» → Game.npcUI (торговля/школа/
-// квесты/найм). Обход buildingUI ЗАПРЕЩЁН (даже при деградации —
-// console.error + no-op); клетка без постройки → [E] ничего; HUD hint
-// города получает строку «[E] — постройки.»; найм (000078/000083) — НЕ
-// зависимый, код найма не трогаем. Контракт: memory/000107-city-
-// interact.md.
+// квесты/найм); для постройки ИГРОКА (000148.03) меню строки эффектов
+// расширяется строкой «Разобрать (возврат N з.)» — special 'demolish'.
+// Обход buildingUI ЗАПРЕЩЁН (даже при деградации —
+// console.error + no-op); клетка БЕЗ постройки → [E] → меню
+// «Строительство» (buildingUI, 21 строка набора D3, 000148.03);
+// HUD hint города получает строку «[E] — постройки.»; найм
+// (000078/000083) — НЕ зависимый, код найма не трогаем. Контракты:
+// memory/000107-city-interact.md, memory/000148.03-city-building-
+// core.md.
 //
 // КРАСНЫЕ тесты (TDD): написаны ДО реализации. Причины падения на
 // текущем коде — отсутствие функциональности (не синтаксис):
@@ -24,7 +28,8 @@
 //     рантайме).
 // Зелёные пины (регрессия, проходят с первой стадии): CI-U9 (гард
 // toggle() dungeonUI.isActive — 000128, НЕ ПЕРЕНОСИТЬ), CI-V4 (клетка
-// без постройки → [E] ничего), CI-V5 (KeyE в настоящем подземелье →
+// без постройки → [E] → меню «Строительство», 21 строка; повторный [E]
+// — закрыть; репин 000148.03), CI-V5 (KeyE в настоящем подземелье →
 // no-op, 000121).
 //
 // Контракты, зафиксированные здесь:
@@ -38,7 +43,9 @@
 //     shopFor — fake npcShopFor НЕ вызывается), onChange: saveNow,
 //     day: clock.day}. Сравнение ПОЛЕ-В-ПОЛЕ (payload расширяет
 //     000083: roster/deadMercs — пин тестов 000083).
-//   * CI-U2 — клетка без постройки → ничего (ни buildingUI, ни npcUI).
+//   * CI-U2 — клетка без постройки → [E] → buildingUI-меню
+//     «Строительство» (21 строка, набор D3; npcUI не открывается) —
+//     репин 000148.03 (ранее: «ничего»).
 //   * CI-U3 — ds.cityContents: null (генерация не сработала) → ничего.
 //   * CI-U4 — стек (паритет с миром): buildingUI.isActive → [E]
 //     закрывает buildingUI (npcUI не открывает); npcUI.isActive → [E]
@@ -68,9 +75,9 @@
 //   * CI-V3 — hint города содержит «[E] — постройки.» (3 строки;
 //     строка 2 — единый тайл-дверь, 000177); hint подземелья —
 //     «Вход в пещеру — вход и выход…» + «Сундук и мобы…».
-//   * CI-V4 — [ЗЕЛЁНЫЙ ПИН] 000177: спавн — на двери ([E] там =
-//     выход); [E] на ДРУГОЙ клетке без постройки → ничего, без
-//     ошибок.
+//   * CI-V4 — [ПИН] 000177: спавн — на двери ([E] там = выход); [E] на
+//     ДРУГОЙ клетке без постройки → меню «Строительство» (21 строка,
+//     000148.03), повторный [E] — закрыть оверлей; без ошибок.
 //   * CI-V5 — [ЗЕЛЁНЫЙ ПИН] KeyE в настоящем подземелье ВНЕ единого
 //     тайла → no-op (000121/000177: спавн на тайле — шаг С тайла,
 //     затем [E] ничего).
@@ -91,6 +98,10 @@ const vm = require('node:vm');
 // 000134: CI-134B — ключ мок-хранилища для ДВОЙНОГО boot (сейв →
 // лоад); SAVE_KEY — единственный экспорт src/save.js, который нужен.
 const { SAVE_KEY } = require('../src/save.js');
+// 000148.03 (CI-U12+): реальный каталог построек (названия/размеры/
+// .стройка для меню «Строительство») — чистый в node (тесты
+// buildings.test.js), циклического require cities.js нет.
+const B = require('../src/buildings.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -254,6 +265,50 @@ function initCity(over) {
   return Object.assign({ BA }, env);
 }
 
+// 000148.03 (CI-U12..U15): fake для МЕНЮ СТРОИТЕЛЬСТВА и действий
+// build/demolish — поверх makeDeps: РЕАЛЬНЫЙ layout (createCityLayout —
+// canBuildAt — чистая функция cities.js, dg.cells === null дефолта
+// makeCityDs была бы throw), реальный каталог (названия строк) и
+// Game.Cities (реальный cities.js — buildableBuildingIds/buildCost/
+// canBuildAt), teleportCharge — зеркало building-effects.js:2486-2491
+// (чистый: {ok, gold, message}; отказ — «недостаточно золота» — НЕ
+// используется buildCityAt, отказ строит «мало золота (нужно N)»).
+// over.fp: 1 — хутор (−119,−104, 2×2), 2 — деревня (−114,−119, 6×6),
+// 5 — город (100,−40, 18×18); default — 5.
+function initCityBuild(over) {
+  const env = makeDeps(Object.assign({}, over, {
+    cityContents: over.cityContents === undefined ? [] : over.cityContents,
+    cityShops: over.cityShops === undefined ? {} : over.cityShops,
+  }));
+  const C = require('../src/cities.js');
+  const fp = over.fp === undefined ? 5 : over.fp;
+  const anchor = fp === 1 ? [-119, -104] : fp === 2 ? [-114, -119]
+    : [100, -40];
+  env.ds.dg = C.createCityLayout(anchor[0], anchor[1], fp);
+  env.deps.game.getBuilding = (id) => B.getBuilding(id);
+  env.deps.game.Cities = C;
+  env.deps.game.buildingEffects.teleportCharge = (hero, active, cost) => {
+    const gold = hero && Number.isFinite(hero.gold) ? hero.gold : 0;
+    const c = Number.isFinite(cost) ? cost : 0;
+    if (active) return { ok: true, gold }; // повтор — бесплатно
+    if (gold >= c) return { ok: true, gold: gold - c };
+    return { ok: false, message: 'недостаточно золота', gold };
+  };
+  const BA = require('../src/building-actions.js');
+  BA.init(env.deps); // re-init — присвоение бандла (паттерн BA-тестов)
+  return Object.assign({ BA }, env);
+}
+
+// 000148.03: якорь города в fake (worldKey + buildingAnchor) — чтобы
+// interactCity резолвил cityAnchor ('ax,ay') для cityStates-ключей
+// (дефолтный fake ds без worldKey — тихий null, :647-671).
+function wireCityAnchor(env, ax, ay) {
+  env.ds.worldKey = ax + ',' + ay;
+  env.deps.getMap = () => (
+    ({ tileAt: () => ({ buildingAnchor: [ax, ay] }) }));
+  return env;
+}
+
 test('CI-U1. [E] на клетке с постройкой → buildingUI.open ×1; «Диалог» → npcUI.open (D4: tile/shop из клетки, не из player)', () => {
   const { BA, o, npcShopForCalls, hero, book, saveNow } = initCity();
   assert.equal(typeof BA.interactCity, 'function',
@@ -290,14 +345,25 @@ test('CI-U1. [E] на клетке с постройкой → buildingUI.open �
     'city-ветка shopFor — мирный npcShopFor НЕ вызывается');
 });
 
-test('CI-U2. клетка без постройки → [E] ничего (ни buildingUI, ни npcUI)', () => {
-  const { BA, o } = initCity({
-    cityContents: [{ x: 9, y: 9, buildingId: 1 }], cityShops: {},
+// 000148.03 (репин): клетка без постройки — больше НЕ no-op: [E] →
+// buildingUI-меню «Строительство» (21 строка buildable-типа, набор
+// D3). Фейк — initCityBuild (реальный layout + реальный каталог +
+// Game.Cities — pre-check canBuildAt; дефолт makeCityDs dg.cells ===
+// null была бы throw).
+test('CI-U2. клетка без постройки → [E] → меню «Строительство» (21 строка); npcUI — нет (000148.03)', () => {
+  const t = initCityBuild({
+    cityContents: [{ x: 9, y: 9, buildingId: 48 }], cityShops: {},
   });
-  BA.interactCity();
-  assert.equal(o.calls.buildingOpen.length, 0, 'buildingUI — нет');
-  assert.equal(o.calls.npcOpen.length, 0, 'npcUI — нет');
-  assert.equal(o.calls.buildingClose + o.calls.npcClose, 0, 'ничего не закрыто');
+  t.BA.interactCity();
+  assert.equal(t.o.calls.buildingOpen.length, 1,
+    'buildingUI — меню «Строительство»');
+  assert.equal(t.o.calls.buildingOpen[0].title, 'Строительство',
+    'заголовок «Строительство»');
+  assert.equal(t.o.calls.buildingOpen[0].actions.length, 21,
+    'ровно 21 строка (набор D3)');
+  assert.equal(t.o.calls.npcOpen.length, 0, 'npcUI — нет');
+  assert.equal(t.o.calls.buildingClose + t.o.calls.npcClose, 0,
+    'ничего не закрыто');
 });
 
 test('CI-U3. cityContents: null (генерация не сработала) → [E] ничего', () => {
@@ -431,6 +497,244 @@ test('CI-U11. 000134: клетка города БЕЗ cityShops-записи (�
     'RED: shop — NPC-канал (живой сток npcStocks), НЕ null/одноразовый');
   assert.equal(n.tile.building, null,
     'tile.building — null (map_index нет — spec/buildings.md «Магазины»)');
+});
+
+// ============================================================
+// 000148.03: строительство в городе — ядро (красные, CI-U12..U15)
+// ============================================================
+// ТЗ: tasks/pending/000148.03.md; контракт: memory/000148.03-city-
+// building-core.md. Красные причины (осмысленные, не синтаксис):
+//  * CI-U12 — building-actions.js:616 `if (!cell) return;` (клетка
+//    без постройки — НИЧЕГО): buildingUI.open НЕ вызывается;
+//  * CI-U13 — «Разобрать»-действий нет нигде (grep «разобрать» src/
+//    = 0); interactCity не знает о built;
+//  * CI-U14 — build-пути (buildCityAt) нет;
+//  * CI-U15 — pre-check строк (доступен/reason) нет.
+// Меню — ТОЛЬКО через buildingUI (000107): гард «обход запрещён»
+// (CI-U10) сохраняется и дублируется в пустой ветке (не репинится).
+
+// Набор D3 (ровно 21) — id-строки меню (id 'build-<id>', порядок
+// BUILDINGS = id-порядок).
+const D3_IDS_03 = [1, 2, 3, 4, 7, 8, 10, 11, 25, 36, 37, 38, 39, 40,
+  42, 43, 44, 45, 46, 48, 49];
+
+test('CI-U12. 000148.03: [E] на пустой клетке города → buildingUI «Строительство»: ровно 21 строка «Построить: <название> — N з.» (набор D3, цены каталога, id build-<id>); npcUI напрямую НЕ открывается', () => {
+  // Город 18×18 (fp5): интерьер 256, потолок 128 — при пустом
+  // occupied ВСЕ 21 строка доступны (в т.ч. 3×3 на (1,1)).
+  const t = initCityBuild({ x: 1, y: 1 });
+  t.BA.interactCity();
+  assert.equal(t.o.calls.buildingOpen.length, 1,
+    'RED: buildingUI.open — ровно 1 (сейчас no-op, :616)');
+  const p = t.o.calls.buildingOpen[0];
+  assert.equal(p.title, 'Строительство', 'RED: заголовок меню «Строительство»');
+  assert.equal(p.actions.length, 21,
+    'RED: ровно 21 строка (набор D3), получено ' + p.actions.length);
+  assert.deepEqual(p.actions.map((a) => a.id),
+    D3_IDS_03.map((id) => 'build-' + id),
+    'строки — id build-<id>, порядок каталога (id-порядок)');
+  const row48 = p.actions.find((a) => a.id === 'build-48');
+  assert.equal(row48.имя, 'Построить: Развалины — 30 з.',
+    'RED: формат строки «Построить: <название> — <N> з.» (каталог + цена)');
+  const row1 = p.actions.find((a) => a.id === 'build-1');
+  assert.equal(row1.имя, 'Построить: Оружейная — 50 з.', 'строка id 1 (50 з.)');
+  const row7 = p.actions.find((a) => a.id === 'build-7');
+  assert.equal(row7.имя, 'Построить: Арена — 400 з.',
+    '3×3 — 400 з. (существенно дороже 1×1)');
+  for (const a of p.actions) {
+    assert.equal(a.доступен, true,
+      'пустая клетка, пустой occupied — строка ' + a.id + ' доступна');
+    assert.equal(a.reason, undefined, 'доступная строка — без reason');
+  }
+  assert.equal(t.o.calls.npcOpen.length, 0,
+    'npcUI напрямую НЕ открывается (ТОЛЬКО через buildingUI, 000107)');
+  assert.equal(t.o.calls.buildingClose + t.o.calls.npcClose, 0,
+    'ничего не закрыто');
+});
+
+test('CI-U13. 000148.03: [E] на постройке ИГРОКА (per-cell player:true) → строка «Разобрать (возврат 9 з.)» → onAction: built очищен, золото +9, saveNow, flash, per-cell удалён; базовая постройка — строки НЕТ', () => {
+  // (a) Постройка игрока: клетка ∈ built (per-cell запись player:true).
+  const t = initCityBuild({
+    x: 1, y: 1,
+    cityContents: [{ x: 1, y: 1, buildingId: 48, player: true }],
+    npcs: [],
+  });
+  wireCityAnchor(t, 100, -40);
+  const cs = new Map([['100,-40', { lastVisitDay: 5, stock: {},
+    built: [{ x: 1, y: 1, buildingId: 48, player: true }] }]]);
+  t.deps.cityStates = cs;
+  const flashes = [];
+  t.deps.flash = (m) => flashes.push(m);
+  let saves = 0;
+  t.deps.saveNow = () => { saves += 1; };
+  t.BA.interactCity();
+  assert.equal(t.o.calls.buildingOpen.length, 1,
+    'RED: buildingUI — меню постройки игрока (с строкой «Разобрать»)');
+  const p = t.o.calls.buildingOpen[0];
+  const dem = p.actions.find((a) => a.id === 'demolish');
+  assert.ok(dem, 'RED: строка «Разобрать» (id «demolish») в действиях');
+  assert.equal(dem.имя, 'Разобрать (возврат 9 з.)',
+    'RED: текст строки — возврат 30% floor (id 48: 30 → 9)');
+  assert.equal(dem.доступен, true, '«Разобрать» доступна (повторная разборка невозможна конструктивно)');
+  p.onAction({ id: 'demolish' });
+  const rec = cs.get('100,-40');
+  assert.deepEqual(rec.built, [],
+    'RED: built — запись удалена (record заменён копией)');
+  assert.equal(t.hero.gold, 109, 'RED: золото +9 (100 → 109)');
+  assert.ok(!t.ds.cityContents.buildings
+    .some((b) => b.x === 1 && b.y === 1),
+    'per-cell запись удалена из cityContents.buildings');
+  assert.ok(flashes.includes('Разобрано: Развалины (+9 з.)'),
+    'RED: flash «Разобрано: <имя> (+N з.)»: ' + JSON.stringify(flashes));
+  assert.equal(saves, 1, 'saveNow — 1 (успех)');
+  // (b) Базовая постройка (∉ built): затрачено = 0 — строки НЕТ.
+  const t2 = initCityBuild({
+    x: 1, y: 1,
+    cityContents: [{ x: 1, y: 1, buildingId: 44 }], // без player
+    npcs: [NPC_BERTA],
+  });
+  t2.BA.interactCity();
+  assert.equal(t2.o.calls.buildingOpen.length, 1,
+    'базовая с NPC — меню (текущее поведение, CI-U1)');
+  assert.ok(!t2.o.calls.buildingOpen[0].actions
+    .some((a) => a.id === 'demolish'),
+    'RED: базовая постройка — БЕЗ строки «Разобрать»');
+});
+
+test('CI-U14. 000148.03: build из меню — списание 100 → 70 (id 48: 30 з.) + built + per-cell + saveNow + flash «Построено: … (−30 з.)»; отказ при 20 з.: «мало золота (нужно 30)» — без saveNow/built/списания', () => {
+  // (a) Успех.
+  const t = initCityBuild({ x: 1, y: 1 });
+  wireCityAnchor(t, 100, -40);
+  const cs = new Map([['100,-40', { lastVisitDay: 5, stock: {} }]]);
+  t.deps.cityStates = cs;
+  t.hero.gold = 100;
+  const flashes = [];
+  t.deps.flash = (m) => flashes.push(m);
+  let saves = 0, renders = 0;
+  t.deps.saveNow = () => { saves += 1; };
+  t.deps.playerRender = () => { renders += 1; };
+  t.BA.interactCity();
+  assert.equal(t.o.calls.buildingOpen.length, 1, 'меню «Строительство»');
+  t.o.calls.buildingOpen[0].onAction({ id: 'build-48' });
+  const rec = cs.get('100,-40');
+  assert.deepEqual(rec.built,
+    [{ x: 1, y: 1, buildingId: 48, player: true }],
+    'RED: built — ANCHOR-запись (cityStates)');
+  assert.equal(t.hero.gold, 70, 'RED: золото 100 → 70 (списание 30 з.)');
+  assert.ok(t.ds.cityContents.buildings.some(
+    (b) => b.x === 1 && b.y === 1 && b.buildingId === 48
+      && b.player === true),
+    'per-cell запись player:true в cityContents.buildings ([E]-поиск/рендер)');
+  assert.equal(saves, 1, 'saveNow — 1 (успех)');
+  assert.equal(renders, 1, 'playerRender — 1');
+  assert.ok(flashes.includes('Построено: Развалины (−30 з.)'),
+    'RED: flash «Построено: <имя> (−N з.)»: ' + JSON.stringify(flashes));
+  // (b) Отказ — мало золота (проверяется ТОЛЬКО в момент действия;
+  // строка меню геометрическая — доступна).
+  const t2 = initCityBuild({ x: 1, y: 1 });
+  wireCityAnchor(t2, 100, -40);
+  const cs2 = new Map([['100,-40', { lastVisitDay: 5, stock: {} }]]);
+  t2.deps.cityStates = cs2;
+  t2.hero.gold = 20;
+  const flashes2 = [];
+  t2.deps.flash = (m) => flashes2.push(m);
+  let saves2 = 0;
+  t2.deps.saveNow = () => { saves2 += 1; };
+  t2.BA.interactCity();
+  assert.equal(t2.o.calls.buildingOpen.length, 1, 'меню (геометрия — не золото)');
+  const row48b = t2.o.calls.buildingOpen[0]
+    .actions.find((a) => a.id === 'build-48');
+  assert.equal(row48b.доступен, true, 'pre-check геометрический: строка доступна');
+  t2.o.calls.buildingOpen[0].onAction({ id: 'build-48' });
+  assert.equal(t2.hero.gold, 20, 'RED: отказ — золото не изменилось');
+  assert.ok(!cs2.get('100,-40').built
+    || cs2.get('100,-40').built.length === 0, 'built — нет записи');
+  assert.ok(!t2.ds.cityContents.buildings.some(
+    (b) => b.x === 1 && b.y === 1),
+    'per-cell — не добавлен');
+  assert.equal(saves2, 0, 'RED: отказ — БЕЗ saveNow (семантика 000128 §2.6)');
+  assert.ok(flashes2.includes('мало золота (нужно 30)'),
+    'RED: отказ — flash «мало золота (нужно N)» (паттерн items.js:859): '
+    + JSON.stringify(flashes2));
+});
+
+test('CI-U15. 000148.03: pre-disabled строки с reason: деревня при cap (8/8) — 1×1 «лимит 50%», 3×3 «нет места» (space ПЕРВЫЙ); хутор (интерьер 0) — все «нет места»', () => {
+  // (a) Деревня (6×6, интерьер 16, потолок 8): 8 занятых клеток
+  // (per-cell player-записи) = cap достигнут. Герой на СВОБОДНОЙ
+  // (1,1). 1×1 на (1,1): space ОК → cap 8+1 > 8 → «cap». 3×3 на
+  // (1,1): footprint перекрывает occupied → «space» ПЕРВЫМ
+  // (порядок space→cap→reach).
+  const occupied = [[1, 2], [1, 3], [1, 4], [2, 1], [2, 2],
+    [2, 3], [2, 4], [3, 1]];
+  const contents = occupied.map(([x, y]) =>
+    ({ x, y, buildingId: 48, player: true }));
+  const t = initCityBuild({ x: 1, y: 1, fp: 2, cityContents: contents });
+  t.BA.interactCity();
+  assert.equal(t.o.calls.buildingOpen.length, 1,
+    'меню открывается (pre-check — доступность строк, не открытие)');
+  const p = t.o.calls.buildingOpen[0];
+  assert.equal(p.actions.length, 21, 'все 21 строка присутствуют');
+  for (const a of p.actions) {
+    assert.equal(a.доступен, false,
+      'RED: при cap строка ' + a.id + ' pre-disabled');
+    if ([7, 36].includes(Number(String(a.id).slice(6)))) {
+      assert.equal(a.reason, 'нет места',
+        '3×3: перекрытие occupied → «space» → «нет места» (порядок проверок)');
+    } else {
+      assert.equal(a.reason, 'лимит 50%',
+        'RED: 1×1: cap 8+1 > 8 → «cap» → «лимит 50%»');
+    }
+  }
+  // (b) Хутор (2×2, интерьер 0): ЛЮБОЕ размещение — «space».
+  const t2 = initCityBuild({ x: 0, y: 1, fp: 1, cityContents: [] });
+  t2.BA.interactCity();
+  assert.equal(t2.o.calls.buildingOpen.length, 1, 'меню открывается');
+  for (const a of t2.o.calls.buildingOpen[0].actions) {
+    assert.equal(a.доступен, false, 'хутор — строка ' + a.id + ' pre-disabled');
+    assert.equal(a.reason, 'нет места', 'хутор: интерьер 0 → «space» → «нет места»');
+  }
+});
+
+test('CI-U16. 000148.03: pre-check reason «reach»: 1×1 на (3,4) деревни замуровывает дверь (3,5) → строки 1×1 «закроет доступ к постройкам» (space/cap — ОК); 3×3 — «нет места» (space первым, R5(e))', () => {
+  // Конфигурация R5(e) (tests/cities.test.js): дверь деревни (3,5) —
+  // единственный путь в интерьер через (3,4) (соседи (2,5)/(4,5) —
+  // WALL). 1×1 на (3,4): space ОК (интерьерная FLOOR), cap ОК (1 ≤ 8)
+  // → reach: blocked = footprint НОВОЙ постройки → «reach».
+  const t = initCityBuild({ x: 3, y: 4, fp: 2, cityContents: [] });
+  t.BA.interactCity();
+  assert.equal(t.o.calls.buildingOpen.length, 1, 'меню открывается');
+  const p = t.o.calls.buildingOpen[0];
+  assert.equal(p.actions.length, 21, 'все 21 строка присутствуют');
+  for (const a of p.actions) {
+    assert.equal(a.доступен, false,
+      'RED: строка ' + a.id + ' pre-disabled (дверь замурована)');
+    if ([7, 36].includes(Number(String(a.id).slice(6)))) {
+      assert.equal(a.reason, 'нет места',
+        '3×3: footprint (3..5, 4..6) за интерьером → «space» ПЕРВЫМ');
+    } else {
+      assert.equal(a.reason, 'закроет доступ к постройкам',
+        'RED: 1×1: reach → «закроет доступ к постройкам» (R5(e))');
+    }
+  }
+});
+
+test('CI-U17. деградация: пустая клетка + Game.buildingUI отсутствует → no-op + console.error «обход запрещён», ничего не открывается (дубль гарда 000107 в пустой ветке)', () => {
+  // Пустая ветка (клетка без постройки) — гард «обход запрещён»
+  // (ТЗ 000107) дублирует ветку с постройкой (CI-U10): без buildingUI
+  // [E] НИЧЕГО не делает — ни меню, ни NPC.
+  const t = initCityBuild({ noBuildingUI: true, cityContents: [] });
+  const errs = [];
+  const orig = console.error;
+  console.error = (...a) => { errs.push(a.join(' ')); };
+  try {
+    t.BA.interactCity();
+  } finally {
+    console.error = orig;
+  }
+  assert.equal(t.o.calls.buildingOpen.length, 0,
+    'buildingUI.open — не вызван (нет buildingUI)');
+  assert.equal(t.o.calls.npcOpen.length, 0, 'npcUI.open — не вызван');
+  assert.ok(errs.some((m) => m.includes('обход запрещён')),
+    'console.error «обход запрещён»: ' + JSON.stringify(errs));
 });
 
 // ============================================================
@@ -906,6 +1210,22 @@ function freeCityCell(info) {
   return null;
 }
 
+// Безопасный ОДИН шаг в МИРЕ от тайла входа (000148.03 CI-V14/V15:
+// выход из города → герой на входном тайле; повторный вход требует
+// шага С тайла и обратно — авто-вход срабатывает на шаге).
+// passable, без группы мобов (шаг = бой), без постройки (пещера/
+// город/лестница — авто-вход сломает протокол). null — нет такого
+// соседа (сценарий — другой город).
+function safeWorldNeighbor(G, myMap, from) {
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (const [dx, dy] of DIRS) {
+    const t = myMap.tileAt(from.x + dx, from.y + dy);
+    if (!t.passable || t.hasMobGroup || t.hasBuilding) continue;
+    return [from.x + dx, from.y + dy];
+  }
+  return null;
+}
+
 // Безопасный ОДИН шаг из спавна (единого тайла, 000177) в
 // подземелье: floor, ≠ выход, без живого моба (5×5 безопасная зона
 // у входа гарантирует отсутствие сундука на расстоянии 1).
@@ -1158,7 +1478,10 @@ test('CI-V3. HUD: hint города — строка «[E] — постройк�
     'hint подземелья: без городской строки');
 });
 
-test('CI-V4. [зелёный пин] клетка без постройки → [E] ничего, без ошибок', async () => {
+// 000148.03 (репин): клетка без постройки — больше НЕ no-op: [E] →
+// buildingUI-меню «Строительство» (21 строка, набор D3); повторный
+// [E] — закрыть оверлей (стек, как было).
+test('CI-V4. [пин] клетка без постройки → [E] → меню «Строительство» (21 строка); повторный [E] — закрыть; без ошибок (000148.03)', async () => {
   const h = await bootChain();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -1185,8 +1508,17 @@ test('CI-V4. [зелёный пин] клетка без постройки → 
   const errsBefore = h.errors.length;
   key(h, 'KeyE');
   assert.ok(g.dungeon, 'не вышел (клетка без постройки ≠ дверь)');
-  assert.ok(!G.buildingUI.isActive(), 'buildingUI не открыт');
+  assert.ok(G.buildingUI.isActive(),
+    'buildingUI открыт — меню «Строительство» (000148.03)');
+  const ov = buildingOverlayOf(h);
+  assert.ok(ov && textOf(ov).includes('Строительство'),
+    'заголовок «Строительство»: ' + (ov ? textOf(ov).slice(0, 200) : 'нет оверлея'));
+  assert.equal(findAll(ov, '[data-buid]').length, 21,
+    'ровно 21 строка (набор D3)');
   assert.ok(!G.npcUI.isActive(), 'npcUI не открыт');
+  // Повторный [E] — закрыть оверлей (стек, паритет с 000107).
+  key(h, 'KeyE');
+  assert.ok(!G.buildingUI.isActive(), 'повторный [E] — оверлей закрыт');
   assert.equal(g.dungeon.x, before.x, 'позиция не изменилась');
   assert.equal(g.dungeon.y, before.y, 'позиция не изменилась');
   assert.equal(g.dungeon.day, before.day, 'день не изменился');
@@ -1317,6 +1649,326 @@ test('CI-V8. содержимое на входе: __game.dungeon.buildings = ge
   }
   assert.deepEqual(dg.buildings, expected,
     'RED: __game.dungeon.buildings — содержимое города в рантайме');
+});
+
+// ============================================================
+// 000148.03: строительство в городе — vm e2e (красные, CI-V12..V13)
+// ============================================================
+// Контракт: memory/000148.03-city-building-core.md §6–8. Красная
+// причина (осмысленная, не синтаксис): building-actions.js:616
+// `if (!cell) return;` — пустая клетка = НИЧЕГО → buildingUI НЕ
+// открывается (CI-V12 падает на isActive; CI-V13 — на первом [E]).
+// Клик строкой — делегированный обработчик оверлея
+// (ov.listeners.click[0]({ target: row }), паттерн 000134).
+
+test('CI-V12. 000148.03: [E] на пустой клетке города (vm e2e) → buildingUI «Строительство»: 21 строка «Построить: <название> — N з.»; повторный [E] — закрыть оверлей (стек); позиция/день не изменены', async () => {
+  const h = await bootChain();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findCityFor(G, myMap, g.state.player,
+    (c) => c.fp >= 2 && freeCityCell(c) !== null);
+  assert.ok(found,
+    'сценарий: город (fp>=2) со свободной внутренней клеткой достижим');
+  walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе (авто-вход)');
+  const target = freeCityCell(found);
+  walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, target.x, target.y));
+  const before = { x: g.dungeon.x, y: g.dungeon.y, day: g.dungeon.day };
+  const errsBefore = h.errors.length;
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true,
+    'RED: [E] на пустой клетке — buildingUI (сейчас no-op, :616)');
+  const ov = buildingOverlayOf(h);
+  assert.ok(ov, 'оверлей buildingUI прикреплён к body');
+  assert.ok(textOf(ov).includes('Строительство'),
+    'RED: заголовок меню «Строительство»: ' + textOf(ov).slice(0, 200));
+  assert.equal(findAll(ov, '[data-buid]').length, 21,
+    'RED: ровно 21 строка (набор D3)');
+  assert.ok(textOf(ov).includes('Построить: Развалины — 30 з.'),
+    'RED: строка «Построить: <название> — <N> з.» (id 48: 30 з.)');
+  // Повторный [E] — закрыть оверлей (стек, :601-604 — не трогать).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), false,
+    'повторный [E] — оверлей закрыт (стек)');
+  assert.equal(g.dungeon.x, before.x, 'позиция не изменена: x');
+  assert.equal(g.dungeon.y, before.y, 'позиция не изменена: y');
+  assert.equal(g.dungeon.day, before.day, 'день не изменён');
+  assert.equal(h.errors.length, errsBefore,
+    'без console.error: ' + h.errors.slice(errsBefore).join('; '));
+});
+
+test('CI-V13. 000148.03: vm e2e цикл: [E] → «Построить: Развалины» (−30 з.) → built + per-cell + золото; [E] на постройке → «Разобрать (возврат 9 з.)» → клетка очищена, золото +9; позиция/день не изменены', async () => {
+  const h = await bootChain();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findCityFor(G, myMap, g.state.player,
+    (c) => c.fp >= 2 && freeCityCell(c) !== null);
+  assert.ok(found,
+    'сценарий: город (fp>=2) со свободной внутренней клеткой достижим');
+  walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе');
+  const target = freeCityCell(found);
+  walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, target.x, target.y));
+  const gold0 = g.state.hero.gold;
+  assert.ok(gold0 >= 30,
+    'сценарий: золото ≥ 30 (цена id 48; стартовое 100, sheet.js:120)');
+  const day0 = g.dungeon.day;
+  const errsBefore = h.errors.length;
+  // (a) Строительство.
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true,
+    'RED: [E] на пустой клетке — buildingUI (сейчас no-op, :616)');
+  const ov = buildingOverlayOf(h);
+  const row48 = findRow(ov, 'build-48');
+  assert.ok(row48, 'RED: строка build-48 (id 48, 30 з.) в меню');
+  assert.equal(row48.disabled, false,
+    'свободная клетка, пустой occupied — строка доступна');
+  ov.listeners.click[0]({ target: row48 });
+  assert.equal(G.buildingUI.isActive(), false,
+    'оверлей закрыт действием (executeAction, 000071)');
+  assert.equal(g.state.hero.gold, gold0 - 30,
+    'RED: золото −30 (каталожная цена id 48)');
+  const cs = g.cities[found.ax + ',' + found.ay];
+  assert.ok(cs, 'сценарий: запись города в cityStates (ключ — якорь)');
+  // JSON-мост: vm-реалм (createContext) — другой Object.prototype,
+  // assert/strict deepEqual = deepStrictEqual (референс-пин); мост
+  // сохраняет структуру (репин 000148.03, интент без изменений).
+  assert.deepEqual(JSON.parse(JSON.stringify(cs.built)),
+    [{ x: target.x, y: target.y, buildingId: 48, player: true }],
+    'RED: built — ANCHOR-запись (cityStates, 000148.03 §5)');
+  assert.ok(g.dungeon.buildings.some(
+    (b) => b.x === target.x && b.y === target.y && b.buildingId === 48
+      && b.player === true),
+    'RED: per-cell запись player:true в dungeon.buildings');
+  // (b) Разборка.
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true,
+    'RED: [E] на постройке игрока — меню (со строкой «Разобрать»)');
+  const ov2 = buildingOverlayOf(h);
+  const rowDem = findRow(ov2, 'demolish');
+  assert.ok(rowDem, 'RED: строка «Разобрать» (id «demolish») в меню');
+  assert.ok(textOf(ov2).includes('Разобрать (возврат 9 з.)'),
+    'RED: текст «Разобрать (возврат <refund> з.)» (30 → floor 30% = 9): '
+    + textOf(ov2).slice(0, 300));
+  ov2.listeners.click[0]({ target: rowDem });
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрыт действием');
+  assert.equal(g.state.hero.gold, gold0 - 30 + 9,
+    'RED: золото +9 (возврат floor(30·3/10))');
+  const cs2 = g.cities[found.ax + ',' + found.ay];
+  assert.deepEqual(JSON.parse(JSON.stringify(cs2.built)), [],
+    'RED: built очищен');
+  assert.ok(!g.dungeon.buildings.some(
+    (b) => b.x === target.x && b.y === target.y && b.player === true),
+    'per-cell запись удалена из dungeon.buildings');
+  assert.equal(g.dungeon.x, target.x, 'позиция не изменена: x');
+  assert.equal(g.dungeon.y, target.y, 'позиция не изменена: y');
+  assert.equal(g.dungeon.day, day0, 'день не изменён');
+  assert.equal(h.errors.length, errsBefore,
+    'без console.error: ' + h.errors.slice(errsBefore).join('; '));
+});
+
+// ============================================================
+// 000148.03: правки по итогам ревью (2026-10-11) — vm e2e
+// ============================================================
+// Ревью (blocker): built-merge в prepareCityState мутировал только
+// СВЕЖИЙ contents (generateCityContents), а не live-вид
+// ds.cityContents.buildings — после выхода/повторного входа клетка
+// игрока «пустеет»: [E] открывает «Строительство» вместо меню
+// постройки (разборка недостижима, double-build, обход лимита).
+// Ревью (major): торговля на ИГРОКОВСКОЙ постройке обслуживалась из
+// МИРСКОГО npcStocks (shopFor-fallback 000134) вместо городского
+// стока; покупка в городском стоке НЕ персистилась в record.stock.
+
+test('CI-V14. 000148.03 (ревью blocker): построить id 48 → [E] выход на двери → шаг в мир и обратно → повторный вход: live-вид (dungeon.buildings) И built (cityStates) содержат запись player:true; [E] на клетке — меню постройки со строкой «Разобрать (возврат 9 з.)», НЕ «Строительство»', async () => {
+  const h = await bootChain();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findCityFor(G, myMap, g.state.player,
+    (c) => c.fp >= 2 && freeCityCell(c) !== null &&
+      safeWorldNeighbor(G, myMap, c.tile) !== null);
+  assert.ok(found,
+    'сценарий: город (fp>=2) со свободной клеткой и безопасным ' +
+    'мировым соседом входного тайла (выход/повторный вход)');
+  let now = walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе (авто-вход)');
+  const target = freeCityCell(found);
+  walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, target.x, target.y));
+  const gold0 = g.state.hero.gold;
+  const errsBefore = h.errors.length;
+  // (a) Строительство id 48 (30 з.).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] — меню «Строительство»');
+  const ov = buildingOverlayOf(h);
+  const row48 = findRow(ov, 'build-48');
+  assert.ok(row48, 'строка build-48 в меню');
+  ov.listeners.click[0]({ target: row48 });
+  assert.equal(g.state.hero.gold, gold0 - 30, 'золото −30 (цена id 48)');
+  // (b) Выход: [E] на едином тайле-двери (000177).
+  const door = { x: dg.entrance.x, y: dg.entrance.y };
+  walkCity(h, cityStepsTo({ x: g.dungeon.x, y: g.dungeon.y },
+    door.x, door.y));
+  key(h, 'KeyE');
+  assert.equal(g.dungeon, null, '[E] на двери — выход из города');
+  assert.equal(g.state.player.x, found.tile.x,
+    'герой на входном тайле мира: x');
+  assert.equal(g.state.player.y, found.tile.y,
+    'герой на входном тайле мира: y');
+  // (c) Повторный вход: шаг С входного тайла и обратно (авто-вход).
+  const away = safeWorldNeighbor(G, myMap, found.tile);
+  assert.ok(away, 'сценарий: безопасный сосед входного тайла');
+  now = walkTiles(h, now, [away, [found.tile.x, found.tile.y]]);
+  const dg2 = g.dungeon;
+  assert.ok(dg2 && dg2.kind === 'city', 'повторный вход (авто-вход)');
+  // Ревью-правка (blocker): live-вид содержит player-запись.
+  assert.ok(dg2.buildings.some((b) => b.x === target.x
+      && b.y === target.y && b.buildingId === 48 && b.player === true),
+    'REVIEW: per-cell запись player:true в dungeon.buildings ' +
+    'ПОСЛЕ повторного входа (live-вид = ds.cityContents.buildings): ' +
+    JSON.stringify(dg2.buildings));
+  // built (cityStates) — переживает повторный вход (spread).
+  assert.deepEqual(JSON.parse(JSON.stringify(
+      g.cities[found.ax + ',' + found.ay].built)),
+    [{ x: target.x, y: target.y, buildingId: 48, player: true }],
+    'built — ANCHOR-запись player:true в cityStates (в-памяти)');
+  // (d) [E] на клетке игрока — меню ПОСТРОЙКИ (не «Строительство»)
+  // со строкой «Разобрать (возврат 9 з.)».
+  walkCity(h, cityStepsTo({ x: dg2.x, y: dg2.y }, target.x, target.y));
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] — buildingUI');
+  const ov2 = buildingOverlayOf(h);
+  assert.ok(!textOf(ov2).includes('Построить: '),
+    'НЕ меню «Строительство» (нет строк «Построить: …»): ' +
+    textOf(ov2).slice(0, 240));
+  const rowDem = findRow(ov2, 'demolish');
+  assert.ok(rowDem, 'строка «Разобрать» (id «demolish») в меню');
+  assert.ok(textOf(ov2).includes('Разобрать (возврат 9 з.)'),
+    'текст «Разобрать (возврат 9 з.)»: ' + textOf(ov2).slice(0, 300));
+  assert.equal(h.errors.length, errsBefore,
+    'без console.error: ' + h.errors.slice(errsBefore).join('; '));
+});
+
+test('CI-V15. 000148.03 (ревью major): торговля на ИГРОКОВСКОЙ Оружейной (id 1) — ГОРОДСКОЙ сток (makeCityShop по (город, клетка)), НЕ мирской npcStocks; покупка мутирует record.stock (cityStates → сейв, 000109); базовый сток — тоже через record.stock', async () => {
+  const h = await bootChain();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findCityFor(G, myMap, g.state.player,
+    (c) => c.fp >= 2 && freeCityCell(c) !== null);
+  assert.ok(found, 'сценарий: город (fp>=2) со свободной клеткой');
+  let now = walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе (авто-вход)');
+  const target = freeCityCell(found);
+  walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, target.x, target.y));
+  const gold0 = g.state.hero.gold;
+  assert.ok(gold0 >= 50 + 42,
+    'сценарий: золото ≥ 92 (стройка id 1 — 50 з. + покупка ≤ 42 з.; ' +
+    'стартовое 100, sheet.js:120)');
+  const errsBefore = h.errors.length;
+  // (a) Строим Оружейную (id 1, 50 з., map_index — лавка).
+  key(h, 'KeyE');
+  const ov = buildingOverlayOf(h);
+  const row1 = findRow(ov, 'build-1');
+  assert.ok(row1, 'строка build-1 (Оружейная) в меню');
+  ov.listeners.click[0]({ target: row1 });
+  assert.equal(g.state.hero.gold, gold0 - 50, 'золото −50 (цена id 1)');
+  // (b) [E] → «Диалог» → npcUI (Бренн) → торговля.
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] — меню постройки');
+  const ovB = buildingOverlayOf(h);
+  const rowDlg = findRow(ovB, 'dialog');
+  assert.ok(rowDlg, 'строка «Диалог» (NPC Оружейной — Бренн)');
+  ovB.listeners.click[0]({ target: rowDlg });
+  assert.equal(G.npcUI.isActive(), true, '«Диалог» → npcUI');
+  const ovN = npcOverlayOf(h);
+  const npc1 = G.npcForBuilding(G.NpcData.NPCS, 1);
+  assert.ok(npc1 && npc1.торговля, 'NPC Оружейной — Бренн (торговля)');
+  clickTab(h, ovN, 'trade');
+  // ГОРОДСКОЙ сток ИГРОКОВСКОЙ клетки (makeCityShop — детерминирован):
+  // строки «<имя> (ост. N)» — количества стока (cx,cy), НЕ мирского
+  // defaults (npcStocks). До ревью-правки fallback 000134 давал
+  // мирской сток (wood_sword «ост. 2» = assets-количество).
+  const fresh = G.Cities.makeCityShop(found.ax, found.ay,
+    target.x, target.y, 1, found.wealth);
+  assert.ok(fresh && fresh.stock, 'сценарий: makeCityShop — сток (id 1)');
+  const tradeTxt = textOf(npcOverlayOf(h));
+  const buyable = npc1.торговля.предметы
+    .map((p) => p.предмет)
+    .find((id) => (fresh.stock[id] || 0) > 0 &&
+      (gold0 - 50) >= G.npcBuyPrice({ npc: npc1, stock: {} }, id,
+        G.createCharacter()));
+  assert.ok(buyable,
+    'сценарий: в городском стоке ИГРОКОВСКОЙ клетки есть ' +
+    'доступный (≤ оставшегося золота) предмет Бренна: ' +
+    JSON.stringify(fresh.stock));
+  const it = G.getItem(buyable);
+  assert.ok(tradeTxt.includes(it.name + ' (ост. ' +
+      fresh.stock[buyable] + ')'),
+    'строка «' + it.name + ' (ост. ' + fresh.stock[buyable] + ')» — ' +
+    'ГОРОДСКОЙ сток игровьской клетки (cityShops), не мирской: ' +
+    tradeTxt.slice(0, 300));
+  // Мирской канал НЕ задет: npcStocks.weapons_merchant НЕ создан.
+  assert.equal(g.npcStocks.weapons_merchant, undefined,
+    'REVIEW: мирской npcStocks (ключ npcId) — НЕ создан (городской ' +
+    'сток, не fallback 000134)');
+  // (c) Покупка мутирует ГОРОДСКОЙ сток → record.stock (cityStates).
+  const nov = npcOverlayOf(h);
+  const buyBtn = findAll(nov, 'button[data-npcact="buy"]')
+    .find((b) => b.dataset.item === buyable);
+  assert.ok(buyBtn, 'кнопка «купить» у ' + buyable);
+  const goldBefore = g.state.hero.gold;
+  const price = G.npcBuyPrice({ npc: npc1, stock: {} }, buyable,
+    G.createCharacter());
+  nov.listeners.click[0]({ target: buyBtn });
+  assert.equal(g.state.hero.gold, goldBefore - price, 'золото − цена');
+  const rec = g.cities[found.ax + ',' + found.ay];
+  const cellStock = rec && rec.stock
+    ? rec.stock[target.x + ',' + target.y] : null;
+  assert.ok(cellStock,
+    'REVIEW: record.stock ИМЕЕТ клетку ИГРОКОВСКОЙ постройки ' +
+    '(F2b: buildCityAt кладёт магазин в record.stock)');
+  assert.equal(cellStock[buyable], fresh.stock[buyable] - 1,
+    'REVIEW: покупка мутирует record.stock (fresh − 1) — ' +
+    'персистентность 000109: ' + JSON.stringify(cellStock));
+  assert.equal(g.npcStocks.weapons_merchant, undefined,
+    'мировой npcStocks — НЕ создан даже после покупки');
+  // (d) Повторный вход — сток игровьской клетки живой (не «свежий»).
+  key(h, 'Escape');
+  assert.equal(G.npcUI.isActive(), false, 'диалог закрыт (Esc)');
+  const door = { x: dg.entrance.x, y: dg.entrance.y };
+  walkCity(h, cityStepsTo({ x: g.dungeon.x, y: g.dungeon.y },
+    door.x, door.y));
+  key(h, 'KeyE');
+  assert.equal(g.dungeon, null, '[E] на двери — выход');
+  const away = safeWorldNeighbor(G, myMap, found.tile);
+  assert.ok(away, 'сценарий: безопасный сосед входного тайла');
+  now = walkTiles(h, now, [away, [found.tile.x, found.tile.y]]);
+  const dg2 = g.dungeon;
+  assert.ok(dg2 && dg2.kind === 'city', 'повторный вход');
+  assert.ok(dg2.buildings.some((b) => b.x === target.x
+      && b.y === target.y && b.buildingId === 1 && b.player === true),
+    'live-вид: Оружейная игрока после повторного входа (F1)');
+  walkCity(h, cityStepsTo({ x: dg2.x, y: dg2.y }, target.x, target.y));
+  key(h, 'KeyE');
+  const ovB2 = buildingOverlayOf(h);
+  ovB2.listeners.click[0]({ target: findRow(ovB2, 'dialog') });
+  assert.equal(G.npcUI.isActive(), true, '«Диалог» → npcUI');
+  const ovN2 = npcOverlayOf(h);
+  clickTab(h, ovN2, 'trade');
+  const tradeTxt2 = textOf(npcOverlayOf(h));
+  assert.ok(tradeTxt2.includes(it.name + ' (ост. ' +
+      (fresh.stock[buyable] - 1) + ')'),
+    'REVIEW: после повторного входа сток живой: «' + it.name +
+    ' (ост. ' + (fresh.stock[buyable] - 1) + ')» (не «свежий» ' +
+    fresh.stock[buyable] + '): ' + tradeTxt2.slice(0, 300));
+  assert.equal(h.errors.length, errsBefore,
+    'без console.error: ' + h.errors.slice(errsBefore).join('; '));
 });
 
 // ============================================================

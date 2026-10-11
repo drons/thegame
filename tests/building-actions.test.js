@@ -1127,3 +1127,88 @@ test('RES-BA2. спец-модуль + building-actions: песочница (act
     'specials["resurrect"] зарегистрирован (self-registration при ' +
     'загрузке, без правок main.js)');
 });
+
+// ============================================================
+// 000148.03: правки по итогам ревью (2026-10-11)
+// ============================================================
+// Ревью (minor): daily-хвост пайплайна писал марк buildingOncePerDay
+// при ЛЮБОМ action.id, если у постройки каталожный раз_в_день: true
+// (id 48 «Развалины» — boolean-флаг). EFFECTS['demolish'] отсутствует,
+// строка «Разобрать» ВСЕГДА доступна, читателя марка 'ax,ay:demolish'
+// нет — джанк. Прочие действия — без изменений (BA4(e): special-only
+// действие марк пишет).
+
+test('REVIEW-03. demolish — daily-марк НЕ пишется даже при hasDailyLimit → true (id 48, boolean раз_в_день); успех — стандартный хвост (saveNow/flash/render, +refund); чистка built/per-cell/стоек; прочие спец-действия марк пишем (BA4(e) сохраняется)', () => {
+  const C = require('../src/cities.js');
+  const anchor = '0,0';
+  const record = { lastVisitDay: 5, stock: { '2,3': { gold: 2 } },
+    built: [{ x: 2, y: 3, buildingId: 48, player: true }] };
+  const ds = {
+    kind: 'city',
+    cityContents: { buildings: [
+      { x: 2, y: 3, buildingId: 48, player: true } ] },
+    cityShops: { '2,3': { x: 2, y: 3, buildingType: 48, wealth: 1,
+      stock: { gold: 2 }, seed: 1 } },
+  };
+  const e = initMod({
+    // id 48 (Развалины) — раз_в_день: true (boolean) в каталоге →
+    // hasDailyLimit TRUE на любой id действия (включая 'demolish').
+    game: {
+      buildingEffects: { EFFECTS: {}, hasDailyLimit: () => true },
+      npcUI: { open: () => {} },
+      Cities: { demolishCity: C.demolishCity,
+        buildingCells: C.buildingCells },
+      getBuilding: (id) => ({ id, название: 'Тест-Развалины' }),
+    },
+  });
+  e.deps.cityStates = new Map([[anchor, record]]);
+  e.deps.cityState = () => ds;
+  const gold0 = e.deps.hero.gold;
+  e.BA.onBuildingAction(
+    { id: 'demolish', имя: 'Разобрать', доступен: true },
+    { x: 2, y: 3, cityAnchor: anchor },
+    { id: 48, название: 'Развалины' },
+    null);
+  // Успех: стандартный хвост (refund floor(30·3/10) = 9).
+  assert.equal(e.calls.saveNow, 1, 'успех: saveNow — 1');
+  assert.equal(e.calls.playerRender, 1, 'успех: playerRender — 1');
+  assert.equal(e.deps.hero.gold, gold0 + 9,
+    'золото +9 (возврат floor(30·3/10), live hero)');
+  assert.deepEqual(e.calls.flash, ['Разобрано: Тест-Развалины (+9 з.)'],
+    'flash «Разобрано: <имя> (+N з.)»');
+  // Ревью-правка: марк 'demolish' НЕ написан (до правки — записан,
+  // т.к. hasDailyLimit true).
+  assert.equal(e.deps.buildingOncePerDay.size, 0,
+    'REVIEW: buildingOncePerDay ПУСТ (марка demolish не пишется): ' +
+    [...e.deps.buildingOncePerDay.keys()].join('; '));
+  // Чистка (REVIEW-02 гигиена + существующее): built/per-cell/стоек.
+  assert.deepEqual(e.deps.cityStates.get(anchor).built, [],
+    'built — запись удалена (record заменён)');
+  assert.deepEqual(ds.cityContents.buildings, [],
+    'per-cell запись удалена из cityContents.buildings');
+  assert.equal(ds.cityShops['2,3'], undefined,
+    'REVIEW: магазин разобранной клетки — удалён из ds.cityShops');
+  assert.equal(e.deps.cityStates.get(anchor).stock['2,3'], undefined,
+    'REVIEW: сток разобранной клетки — удалён из record.stock');
+  // Контроль: НЕ-demolish спец-действие при hasDailyLimit → true
+  // марк ВСЁ РАВНО пишется (BA4(e) — семантика сохранена).
+  e.BA.registerSpecial('rev_ctrl',
+    () => ({ ok: true, message: 'ok' }));
+  try {
+    e.calls.saveNow = 0;
+    e.calls.flash.length = 0;
+    e.calls.playerRender = 0;
+    e.BA.onBuildingAction(
+      { id: 'rev_ctrl', имя: 'Контроль', доступен: true },
+      { x: 5, y: 7 },
+      { id: 48, название: 'Развалины' },
+      null);
+    assert.equal(e.deps.buildingOncePerDay.size, 1,
+      'контроль: марк НЕ-demolish действия — написан');
+    assert.equal(e.deps.buildingOncePerDay.get('5,7:rev_ctrl'), 5,
+      'контроль: ключ — player.x,player.y:id (fallback без ' +
+      'dailyKeyFor), значение — clock.day');
+  } finally {
+    delete e.BA.specials['rev_ctrl'];
+  }
+});

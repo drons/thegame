@@ -1698,6 +1698,11 @@
       // (city: сток cityShops по (город, клетка), 000108; мир —
       // npcShopFor, 000029).
       cityState: () => dungeonState,
+      // Задача 000148.03: состояние городов (live Map 'ax,ay' →
+      // {lastVisitDay, stock, built}; built — В-ПАМЯТИ запись
+      // построек игрока, персистентность — 000148.05): build/
+      // demolish идут через building-actions (world.cityStates).
+      cityStates,
       shopFor, // (npc, t) → { npc, stock } | null
       campShopFor, // (x, y, tile) → wrap | null (000095: сток
       // барахолки по тайлу лагеря; респаун по clock.day)
@@ -2207,6 +2212,56 @@
       return;
     }
     const saved = cityStates.get(anchorKey);
+    // Задача 000148.03: постройки игрока (built — В-ПАМЯТИ запись
+    // cityStates, per-cell view; персистентность — 000148.05):
+    // merge в contents ДО stock-цикла — player-клетки ПОПАДАЮТ в
+    // stock-цикл (сток/NPC/эффекты — как у базовых, SPEC «эффекты
+    // постройки — как у базовых»). ЛОВУШКА-ЗАМЕНА (ниже): record
+    // перезаписывается при каждом входе — built сохраняем
+    // (спред), иначе каждый повторный вход терял постройки.
+    // Мусорные записи — fail-open отброс (000029): целые
+    // x/y/buildingId, id ∈ каталогу, footprint ⊆ интерьерным FLOOR.
+    if (saved && Array.isArray(saved.built) &&
+        typeof C.buildingCells === 'function') {
+      const W = ds.dg.width, H = ds.dg.height;
+      for (const e of saved.built) {
+        if (!e || typeof e !== 'object' || Array.isArray(e) ||
+            !Number.isInteger(e.x) || !Number.isInteger(e.y) ||
+            !Number.isInteger(e.buildingId)) continue;
+        const recB = G.getBuilding
+          ? G.getBuilding(e.buildingId) : null;
+        if (!recB) continue; // id ∉ каталогу — отброс
+        let foot = null;
+        try {
+          foot = C.buildingCells(e.buildingId, e.x, e.y);
+        } catch (err) { foot = null; }
+        if (!Array.isArray(foot)) continue;
+        let inside = true;
+        for (const [cx, cy] of foot) {
+          // footprint ⊆ интерьер [1, W−2]×[1, H−2] на FLOOR (дверь —
+          // периметр — интерьером не является, 000148.03 D-E).
+          if (cx < 1 || cx >= W - 1 || cy < 1 || cy >= H - 1 ||
+              ds.dg.cells[cy * W + cx] !== C.CELL_FLOOR) {
+            inside = false;
+            break;
+          }
+        }
+        if (!inside) continue; // вне интерьера — отброс
+        for (const [cx, cy] of foot) {
+          contents.buildings.push(
+            { x: cx, y: cy, buildingId: e.buildingId, player: true });
+          // Ревью-правка (blocker): live-вид ds.cityContents.buildings
+          // обязан отражать постройки игрока — иначе после выхода/
+          // повторного входа [E] на клетке видит «пусто» и открывает
+          // меню «Строительство» вместо меню постройки (разборка
+          // недостижима, double-build и обход лимита 50%).
+          if (ds.cityContents && Array.isArray(ds.cityContents.buildings)) {
+            ds.cityContents.buildings.push(
+              { x: cx, y: cy, buildingId: e.buildingId, player: true });
+          }
+        }
+      }
+    }
     const fresh = !saved
       || clock.day - saved.lastVisitDay >= cityRespawnDays();
     const stock = {};
@@ -2223,8 +2278,22 @@
         shop.stock = saved.stock[cellKey]; // LIVE-ссылка
       }
       stock[cellKey] = shop.stock;
+      // Ревью-правка (major): shopFor (ниже) обслуживает ТОРГОВЛЮ из
+      // ds.cityShops (объекты из maybeEnterCity), а сейв/restore — из
+      // record.stock (объекты этого цикла). Синхронизируем ССЫЛКУ:
+      // объект магазина cellKey === record.stock cellKey → мутации
+      // при покупке попадают в cityStates (контракт 000109: сток
+      // переживает визит) и ИГРОКОВЫЕ клетки (player-постройки)
+      // получают магазин автоматически (merge выше — до цикла).
+      if (ds.cityShops && typeof ds.cityShops === 'object') {
+        ds.cityShops[cellKey] = shop;
+      }
     }
-    cityStates.set(anchorKey, { lastVisitDay: clock.day, stock });
+    // 000148.03: built — сохраняем (спред) — record перезаписывается
+    // при каждом входе (000109: lastVisitDay/stock свежие).
+    cityStates.set(anchorKey, { lastVisitDay: clock.day, stock,
+      ...(saved && Array.isArray(saved.built)
+        ? { built: saved.built } : {}) });
   }
   function startLocationUI(onMove, onInteract) {
     G.dungeonUI.start({
@@ -3076,9 +3145,10 @@
       return Object.assign({}, npcStocks);
     },
     // Состояние городов (задача 000109): якорь 'cx,cy' →
-    // { lastVisitDay, stock }. Поверхностная копия записей —
-    // значения LIVE-объекты (контракт 000107: мутация стока
-    // попадает в cityStates → в сейв).
+    // { lastVisitDay, stock, built? }. built — 000148.03: постройки
+    // игрока (ANCHOR-записи, В-ПАМЯТИ; персистентность — 000148.05).
+    // Поверхностная копия записей — значения LIVE-объекты (контракт
+    // 000107: мутация стока попадает в cityStates → в сейв).
     get cities() {
       const out = {};
       for (const [k, v] of cityStates) out[k] = v;

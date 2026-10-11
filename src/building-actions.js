@@ -76,6 +76,18 @@
     specials[id] = fn;
   }
 
+  // --- Строительство в городе (задача 000148.03) ---
+  //
+  // canBuildAt → {ok} | {ok:false, reason} — ОДИН источник текстов:
+  // pre-disabled строки меню «Строительство» и flash-отказы (пин —
+  // tests/city-interact.test.js CI-U15/CI-U14). Контракт — memory/
+  // 000148.03-city-building-core.md §4/§7.
+  const BUILD_REASON_TEXT = {
+    space: 'нет места',
+    cap: 'лимит 50%',
+    reach: 'закроет доступ к постройкам',
+  };
+
   // --- Проводка (main.js, load-time, один раз) ---
   //
   // Бандл явных ссылок на мир (§2.2 memory). Живые ссылки безопасны:
@@ -83,7 +95,8 @@
   // clear+set, Array length=0+push, Object.assign) — ссылки не
   // устаревают. Единственный перезаписываемый let — map → getter.
   // Повторный init допустим (тесты); в игре main.js вызывает один
-  // раз при загрузке.
+  // раз при загрузке. 000148.03: + cityStates (live Map 'ax,ay' →
+  // {lastVisitDay, stock, built} — персистентность built — 000148.05).
   let deps = null;
 
   function init(d) {
@@ -349,7 +362,13 @@
     // обеих веток (apply и/или спец-а). Гард BE — спец-а БЕЗ записи
     // buildingEffects (деградация 000053; в корректной цепочке BE
     // всегда на месте, в apply-ветке он гарантирован entry).
-    if (BE && BE.hasDailyLimit(b, action.id)) {
+    // Ревью-правка (minor): 'demolish' — марк НЕ пишем. hasDailyLimit
+    // отвечает каталожным флажом раз_в_день на ЛЮБОЙ id действия —
+    // у id 48 (раз_в_день: true) строка «Разобрать» всегда доступна,
+    // EFFECTS['demolish'] отсутствует, читателя марка 'ax,ay:demolish'
+    // нет — чистый джанк в buildingOncePerDay. Остальные действия —
+    // как было (BA4(e): special-only действие марк пишет).
+    if (action.id !== 'demolish' && BE && BE.hasDailyLimit(b, action.id)) {
       // Задача 000137: ключ — dailyKeyFor (ЕДИНАЯ точка): мир —
       // 'x,y:effectId' (t.x/t.y — тайл постройки; в мире === player,
       // behavior-preserving), город — 'ax,ay:effectId' (t.cityAnchor
@@ -434,7 +453,12 @@
   // Открыть оверлей «действия постройки» (задача 000071): список —
   // buildingActions (чистый модуль, src/building-effects.js). Пустой
   // список (нет NPC и нет эффектов) — ничего (как сейчас).
-  function openBuildingUI(t, b, npc) {
+  // 000148.03: extraActions — строки ПОСЛЕ строк эффектов (паттерн
+  // 'craft' 000126 building-effects.js:2340+): постройка игрока —
+  // «Разобрать» (идёт КОНЦОМ списка; базовые — [] — behavior-
+  // preserving для всех существующих вызовов, CI-U6: базовая без
+  // npc → no-op остаётся).
+  function openBuildingUI(t, b, npc, extraActions) {
     if (!needDeps()) return false;
     if (!deps.game.buildingEffects) return false;
     // Задача 000075: телепорт-круг — скан пары при ПЕРВОМ подходе
@@ -463,7 +487,13 @@
       // (принцип 000053: код каталог-драйвен, ничего не хардкодит).
       catalog: b,
     });
-    if (!actions.length) return false;
+    // 000148.03: строки эффектов + доп.строки ПОСТРОЙКИ ИГРОКА
+    // («Разобрать», extraActions — конец списка). Проверка
+    // пустоты ПОСЛЕ spread: игро-постройка без эффектов/NPC открывает
+    // меню с единственной строкой «Разобрать».
+    const all = actions.concat(Array.isArray(extraActions)
+      ? extraActions : []);
+    if (!all.length) return false;
     // Заголовок — имя РЕШЁННОЙ записи (000075 RESOLVE-БУГ, 000073):
     // у подтипов слотов 8..12 — своё название (b.id 41 → «телепорт-
     // круг», а не базовое имя слота 10 «рунический камень»);
@@ -480,11 +510,299 @@
     }
     deps.game.buildingUI.open({
       title,
-      actions,
+      actions: all,
       onAction: (a) => onBuildingAction(a, t, b, npc),
     });
     return true;
   }
+
+  // Строка «Разобрать» (000148.03): постройка ИГРОКА (per-cell запись
+  // player:true). Возврат — 30% floor золота (cities.demolishReturn —
+  // каталожная цена .стройка.золото); доступен: true всегда —
+  // повторная разборка невозможна конструктивно (после неё per-cell
+  // записи нет, строки тоже). Базовые — строки НЕТ (затрачено = 0).
+  function demolishActionRow(cell) {
+    const C = deps.game.Cities;
+    const b = deps.game.getBuilding
+      ? deps.game.getBuilding(cell.buildingId) : null;
+    const name = b && b.название ? b.название : String(cell.buildingId);
+    let refund = 0;
+    if (C && typeof C.buildCost === 'function' &&
+        typeof C.demolishReturn === 'function') {
+      refund = C.demolishReturn(C.buildCost(cell.buildingId).золото);
+    }
+    return { id: 'demolish',
+      имя: 'Разобрать (возврат ' + refund + ' з.)',
+      доступен: true };
+  }
+
+  // Меню «Строительство» (000148.03): пустая клетка города →
+  // buildingUI-оверлей с 21 строкой buildable-типа (набор D3 —
+  // ДАННЫЕ каталога, cities.buildableBuildingIds). Строка —
+  // «Построить: <название> — <N> з.» (id 'build-<id>'), pre-check
+  // cities.canBuildAt (GEOMETRIЯ ТОЛЬКО: золото проверяется в момент
+  // действия, buildCityAt) → доступен + reason (BUILD_REASON_TEXT).
+  // ТОЛЬКО через buildingUI (000107): guard «обход запрещён» — как в
+  // ветке с постройкой. Повторный [E] — закрыть (стек, не трогать).
+  function openCityBuildMenu(t) {
+    if (!needDeps()) return false;
+    if (!deps.game.buildingUI) {
+      // Обход запрещён (TZ 000107): в городе [E] — ТОЛЬКО через
+      // buildingUI. Деградация — no-op (как в ветке с постройкой).
+      console.error('building-actions.js: [E] в городе, но ' +
+        'Game.buildingUI отсутствует — обход запрещён (000107), ' +
+        '[E] ничего не делает');
+      return false;
+    }
+    const C = deps.game.Cities;
+    if (!C || typeof C.buildableBuildingIds !== 'function' ||
+        typeof C.buildCost !== 'function' ||
+        typeof C.canBuildAt !== 'function' ||
+        typeof C.cityOccupied !== 'function') {
+      console.error('building-actions.js: Game.Cities (src/cities.js) ' +
+        'отсутствует/нецелая — меню «Строительство» недоступно ' +
+        '(000148.03)');
+      return false;
+    }
+    const ds = deps.cityState ? deps.cityState() : null;
+    if (!ds || ds.kind !== 'city' || !ds.dg ||
+        !Array.isArray(ds.dg.cells)) {
+      // В production ds.dg всегда есть (000105); без layout
+      // pre-check невозможен — деградация (000053).
+      console.error('building-actions.js: layout города (ds.dg) ' +
+        'отсутствует — меню «Строительство» недоступно (000148.03)');
+      return false;
+    }
+    const occupied = C.cityOccupied(ds.cityContents &&
+      Array.isArray(ds.cityContents.buildings)
+        ? ds.cityContents.buildings : []);
+    const actions = [];
+    for (const id of C.buildableBuildingIds()) {
+      const rec = deps.game.getBuilding
+        ? deps.game.getBuilding(id) : null;
+      const name = rec && rec.название ? rec.название : String(id);
+      const cost = C.buildCost(id);
+      const check = C.canBuildAt(ds.dg, { x: t.x, y: t.y }, id, occupied);
+      const a = { id: 'build-' + id,
+        имя: 'Построить: ' + name + ' — ' + cost.золото + ' з.',
+        доступен: check.ok === true };
+      if (check.ok !== true)
+        a.reason = BUILD_REASON_TEXT[check.reason] || String(check.reason);
+      actions.push(a);
+    }
+    deps.game.buildingUI.open({
+      title: 'Строительство',
+      actions,
+      // Строка получает a.id 'build-<id>' — id = Number(хвост).
+      onAction: (a) => buildCityAt(t, Number(String(a.id).slice(6))),
+    });
+    return true;
+  }
+
+  // Постройка из меню (000148.03): re-check геометрии (защита от
+  // дрейфа между открытием меню и нажатием) → списание золота по
+  // прецеденту teleportCharge (building-effects.js:2486-2491:
+  // active=false → списание cost) → cities.placeBuilding (ANCHOR-
+  // запись в cityStates) → per-cell player:true в ds.cityContents.
+  // buildings ([E]-поиск/рендер 000107/000148.02) → saveNow + flash +
+  // playerRender ТОЛЬКО при успехе; отказы — flash БЕЗ saveNow
+  // (семантика 000128 §2.6).
+  function buildCityAt(t, buildingId) {
+    if (!needDeps()) return;
+    const C = deps.game.Cities;
+    if (!C || typeof C.canBuildAt !== 'function' ||
+        typeof C.buildCost !== 'function' ||
+        typeof C.placeBuilding !== 'function' ||
+        typeof C.buildingCells !== 'function' ||
+        typeof C.cityOccupied !== 'function') {
+      console.error('building-actions.js: Game.Cities (src/cities.js) ' +
+        'отсутствует/нецелая — строительство недоступно (000148.03)');
+      return;
+    }
+    if (!t || !t.cityAnchor) {
+      // R7: якорь не решён (в production недостижимо по 000137) —
+      // видимый отказ (игрок видит причину), НЕ console.error+no-op.
+      deps.flash('Город не найден (якорь не решён) — постройка ' +
+        'невозможна');
+      return;
+    }
+    if (!deps.cityStates ||
+        typeof deps.cityStates.get !== 'function' ||
+        typeof deps.cityStates.set !== 'function') {
+      console.error('building-actions.js: cityStates (состояние ' +
+        'городов, 000109) отсутствует в проводке main.js — ' +
+        'строительство недоступно (000148.03)');
+      deps.flash('Состояние города недоступно — постройка невозможна');
+      return;
+    }
+    const record = deps.cityStates.get(t.cityAnchor);
+    if (!record) {
+      console.error('building-actions.js: запись города «' + t.cityAnchor
+        + '» отсутствует в cityStates — строительство недоступно ' +
+        '(000148.03)');
+      deps.flash('Состояние города недоступно — постройка невозможна');
+      return;
+    }
+    const ds = deps.cityState ? deps.cityState() : null;
+    if (!ds || ds.kind !== 'city' || !ds.dg ||
+        !Array.isArray(ds.dg.cells)) {
+      console.error('building-actions.js: layout города (ds.dg) ' +
+        'отсутствует — строительство недоступно (000148.03)');
+      return;
+    }
+    // Re-check (R3): геометрия МОГЛА измениться (клетка занята).
+    const occupied = C.cityOccupied(ds.cityContents &&
+      Array.isArray(ds.cityContents.buildings)
+        ? ds.cityContents.buildings : []);
+    const check = C.canBuildAt(ds.dg, { x: t.x, y: t.y }, buildingId,
+      occupied);
+    if (check.ok !== true) {
+      // Отказ — flash по reason (один источник текстов, R2), без
+      // saveNow (000128 §2.6).
+      deps.flash(BUILD_REASON_TEXT[check.reason] || String(check.reason));
+      return;
+    }
+    const cost = C.buildCost(buildingId);
+    const BE = deps.game.buildingEffects;
+    if (!BE || typeof BE.teleportCharge !== 'function') {
+      console.error('building-actions.js: buildingEffects.' +
+        'teleportCharge отсутствует — списание золота невозможно ' +
+        '(000148.03)');
+      return;
+    }
+    // Списание по прецеденту 000075 (active=false → списание cost);
+    // НЕ items.addItem/removeItem — предметы приходят в 000148.04.
+    const ch = BE.teleportCharge(deps.hero, false, cost.золото);
+    if (!ch || !ch.ok) {
+      // Отказ — золото НЕ списано, без saveNow; текст — паттерн
+      // items.js:859 («мало золота (нужно N)»); ch.message
+      // («недостаточно золота») — НЕ используется (ТЗ).
+      deps.flash('мало золота (нужно ' + cost.золото + ')');
+      return;
+    }
+    deps.hero.gold = ch.gold; // live-ссылка (паттерн 000075)
+    const rec2 = C.placeBuilding(record, t.x, t.y, buildingId);
+    deps.cityStates.set(t.cityAnchor, rec2);
+    // per-cell view (D-B): каждая клетка footprint — отдельная запись
+    // {x, y, buildingId, player: true} — [E]-поиск и рендер как у
+    // базовых (000148.02).
+    if (ds.cityContents && Array.isArray(ds.cityContents.buildings)) {
+      for (const [cx, cy] of C.buildingCells(buildingId, t.x, t.y)) {
+        ds.cityContents.buildings.push(
+          { x: cx, y: cy, buildingId, player: true });
+      }
+    }
+    // Ревью-правка (major): магазин ИГРОКОВСКОЙ клетки — как у
+    // базовых (SPEC «эффекты постройки — как у базовые», 000148.02):
+    // ТОТ ЖЕ объект магазина кладём в ds.cityShops (shopFor —
+    // торговля) и record.stock (cityStates → сейв, 000109) —
+    // идентично stock-циклу prepareCityState. makeCityShop → null
+    // (нет map_index, напр. Развалины) — магазина нет, и это
+    // нормально (строки меню не обещают торговлю).
+    {
+      const cellKeys = C.buildingCells(buildingId, t.x, t.y);
+      const recStock = rec2 && rec2.stock && typeof rec2.stock === 'object'
+        ? rec2.stock : null;
+      const parts = String(t.cityAnchor).split(',');
+      const pax = Number(parts[0]), pay = Number(parts[1]);
+      if (Number.isInteger(pax) && Number.isInteger(pay) &&
+          typeof C.makeCityShop === 'function') {
+        for (const [cx, cy] of cellKeys) {
+          const cellKey = cx + ',' + cy;
+          let shop = null;
+          try {
+            shop = C.makeCityShop(pax, pay, cx, cy, buildingId,
+              ds.cityWealth);
+          } catch (err) { shop = null; } // нет каталога/видов — мимо
+          if (!shop) continue;
+          if (ds.cityShops && typeof ds.cityShops === 'object') {
+            ds.cityShops[cellKey] = shop;
+          }
+          if (recStock) recStock[cellKey] = shop.stock;
+        }
+      }
+    }
+    const b = deps.game.getBuilding
+      ? deps.game.getBuilding(buildingId) : null;
+    const name = b && b.название ? b.название : String(buildingId);
+    deps.saveNow();
+    // «−» — U+2212 (формат flash, пин CI-U14/CI-V13).
+    deps.flash('Построено: ' + name + ' (−' + cost.золото + ' з.)');
+    deps.playerRender();
+  }
+
+  // «Разобрать» — спец-действие (000128), саморегистрация в момент
+  // загрузки (registerSpecial ДО init — реестр модульное поле).
+  // ТОЛЬКО построенные игроком (built, player === true); возврат
+  // 30% floor золота (cities.demolishReturn). ctx.t — СИНТЕТИЧЕСКИЙ
+  // tile города (координаты КЛЕТКИ; ctx.tile — мир-координаты
+  // player — НЕ подходит в городе, 000107); ctx.world — deps-бандл
+  // (escape-hatch: cityStates/cityState/game/hero).
+  registerSpecial('demolish', (ctx) => {
+    const t = ctx && ctx.t;
+    const w = ctx && ctx.world;
+    if (!t || !Number.isInteger(t.x) || !Number.isInteger(t.y) ||
+        !t.cityAnchor) {
+      return { ok: false,
+        message: 'Город не найден (якорь не решён) — разборка ' +
+          'невозможна' };
+    }
+    if (!w || !w.cityStates ||
+        typeof w.cityStates.get !== 'function' ||
+        typeof w.cityStates.set !== 'function') {
+      return { ok: false,
+        message: 'Состояние города недоступно — разборка невозможна' };
+    }
+    const C = w.game && w.game.Cities;
+    if (!C || typeof C.demolishCity !== 'function' ||
+        typeof C.buildingCells !== 'function') {
+      return { ok: false,
+        message: 'Каталог построек недоступен — разборка невозможна' };
+    }
+    const record = w.cityStates.get(t.cityAnchor);
+    if (!record) {
+      return { ok: false, message: 'Запись города отсутствует' };
+    }
+    const res = C.demolishCity(record, t.x, t.y);
+    if (!res) {
+      // Базовая (player отсутствует) / не покрыто footprint —
+      // отказ (строка «Разобрать» существует только для player).
+      return { ok: false, message: 'Не постройка игрока' };
+    }
+    w.cityStates.set(t.cityAnchor, res.record);
+    // per-cell view: удалить записи в footprint (in-place — тот же
+    // массив ds.cityContents.buildings, рендер/__game.dungeon читают
+    // live).
+    const ds = typeof w.cityState === 'function' ? w.cityState() : null;
+    if (ds && ds.cityContents &&
+        Array.isArray(ds.cityContents.buildings)) {
+      const foot = new Set(C.buildingCells(res.buildingId, res.x, res.y)
+        .map(([cx, cy]) => cx + ',' + cy));
+      const list = ds.cityContents.buildings;
+      for (let i = list.length - 1; i >= 0; i--)
+        if (foot.has(list[i].x + ',' + list[i].y)) list.splice(i, 1);
+      // Ревью-правка (major, гигиена паритета): магазин разобранный —
+      // убрать из ds.cityShops (shopFor) и res.record.stock
+      // (cityStates → сейв), как пер-cell-записи выше.
+      if (ds.cityShops && typeof ds.cityShops === 'object') {
+        for (const k of foot) delete ds.cityShops[k];
+      }
+      if (res.record && res.record.stock &&
+          typeof res.record.stock === 'object') {
+        for (const k of foot) delete res.record.stock[k];
+      }
+    }
+    // Возврат золота (live hero, паттерн 000075).
+    if (ctx.hero && Number.isFinite(ctx.hero.gold))
+      ctx.hero.gold += res.refund;
+    const b = w.game && w.game.getBuilding
+      ? w.game.getBuilding(res.buildingId) : null;
+    const name = b && b.название ? b.название : String(res.buildingId);
+    // Успех → стандартный хвост пайплайна onBuildingAction
+    // (daily-марк + saveNow + flash + playerRender).
+    return { ok: true,
+      message: 'Разобрано: ' + name + ' (+' + res.refund + ' з.)' };
+  });
 
   // Каталожная запись тайла (задача 000076, подтипы 000073):
   // ПОДТИП (t.buildingId — id каталожной записи 36..39 и пр.)
@@ -573,19 +891,23 @@
     }
   }
 
-  // [E] в городе (задача 000107): ЕДИНЫЙ путь — buildingUI (000071) →
-  // «Диалог» → npcUI. Без аргументов: состояние — через deps (как
+  // [E] в городе (задача 000107, расширение 000148.03): ЕДИНЫЙ путь —
+  // buildingUI (000071). Без аргументов: состояние — через deps (как
   // toggle): deps.cityState() — текущее dungeonState города.
+  // Клетка с постройкой (базовая 000106 или per-cell игрока
+  // player:true, 000148.03) → строки эффектов + «Диалог» (npcUI) +
+  // «Разобрать» (только постройка игрока, возврат 30% floor).
+  // Клетка без постройки → меню «Строительство» (21 строка
+  // buildable-типа + цены, pre-check cap/space/reach, 000148.03).
   // ОБХОД ЗАПРЕЩЁН (TZ): прямого npcUI.open из города НЕТ НИГДЕ —
   // даже при деградации без Game.buildingUI: console.error + no-op
   // (намеренная АСИММЕТРИЯ с деградацией toggle(), где прямой
   // openNpcDialog допустим — в городе он не строится).
   // Гарды/стек — паритет с toggle(): needDeps → !npcUI → combatUI
   // (бой выше по стеку) → стек buildingUI/npcUI (повторный [E]
-  // закрывает) → клетка без постройки = НИЧЕГО. Гард
-  // dungeonUI.isActive в toggle() СОХРАНЁН (в городе toggle не
-  // вызывается — [E] идёт через dungeon-ui → locationOnInteract
-  // (main.js, 000177) → сюда).
+  // закрывает). Гард dungeonUI.isActive в toggle() СОХРАНЁН (в городе
+  // toggle не вызывается — [E] идёт через dungeon-ui →
+  // locationOnInteract (main.js, 000177) → сюда).
   // Небывалые ситуации — console.error + no-op, игра не падает
   // (UMD-деградация 000053).
   function interactCity() {
@@ -607,43 +929,19 @@
         return;
       }
     }
-    // Клетка под героем (целочисленные ds.x/ds.y — логическая
-    // позиция после шага; НЕ ds.pos — glide-рендер 000105).
-    const cell = ds.cityContents && Array.isArray(ds.cityContents.buildings)
-      ? ds.cityContents.buildings.find(
-          (p) => p.x === ds.x && p.y === ds.y)
-      : null;
-    if (!cell) return; // клетка без постройки — НИЧЕГО (TZ)
-    const b = deps.game.getBuilding
-      ? deps.game.getBuilding(cell.buildingId) : null;
-    if (!b) {
-      console.error('building-actions.js: interactCity — постройка ' +
-        cell.buildingId + ' не найдена в каталоге (getBuilding) — ' +
-        '[E] ничего не делает');
-      return;
-    }
-    if (!deps.game.buildingUI) {
-      // Обход запрещён (TZ 000107): в городе [E] — ТОЛЬКО через
-      // buildingUI. Деградация — no-op (в отличие от toggle()).
-      console.error('building-actions.js: [E] в городе, но ' +
-        'Game.buildingUI отсутствует — обход запрещён (000107), ' +
-        '[E] ничего не делает');
-      return;
-    }
-    const npc = deps.game.npcForBuilding
-      ? deps.game.npcForBuilding(deps.npcs, b.id) : null;
-    // Задача 000137: ЯКОРЬ ГОРОДА для ключа раз-в-день (единственная
-    // точка резолва; зеркало prepareCityState main.js:1726-1745, НЕ
-    // ссылка): ds.worldKey ('ex,ey') → map.tileAt(ex,ey) →
-    // buildingAnchor. Гарды: worldKey отсутствует / не
-    // 'целое,целое' — ТИХО null (fake ds тестов CI-U не имеют
-    // worldKey — без console.error шума; worldKey проверяется ДО
-    // Number() — ловушка Number('') === 0); map/tileAt/buildingAnchor
-    // отсутствуют — console.error + null (wiring-сбой 000053 — в
-    // production недостижимо: cityContents генерируются только из
-    // якоря). null — ОБЕ стороны (mark + read) деградируют на ключ
-    // по клетке ОДИНАКОВО (dailyKeyFor) — согласованно, игра не
-    // падает.
+    // Задача 000137: ЯКОРЬ ГОРОДА (единственная точка резолва;
+    // 000148.03: ОБЩАЯ для обеих веток — с постройкой и пустой):
+    // зеркало prepareCityState main.js, НЕ ссылка: ds.worldKey
+    // ('ex,ey') → map.tileAt(ex,ey) → buildingAnchor. Гарды: worldKey
+    // отсутствует / не 'целое,целое' — ТИХО null (fake ds тестов
+    // CI-U не имеют worldKey — без console.error шума; worldKey
+    // проверяется ДО Number() — ловушка Number('') === 0);
+    // map/tileAt/buildingAnchor отсутствуют — console.error + null
+    // (wiring-сбой 000053 — в production недостижимо: cityContents
+    // генерируются только из якоря). null — ОБЕ стороны (mark + read)
+    // деградируют на ключ по клетке ОДИНАКОВО (dailyKeyFor) —
+    // согласованно, игра не падает; build/demolish (000148.03) —
+    // flash-отказ с видимым текстом (R7).
     let cityAnchor = null;
     const wk = ds.worldKey;
     if (typeof wk === 'string') {
@@ -669,6 +967,45 @@
         }
       }
     }
+    // Клетка под героем (целочисленные ds.x/ds.y — логическая
+    // позиция после шага; НЕ ds.pos — glide-рендер 000105).
+    // 000148.03: per-cell записи игрока player:true — та же форма
+    // записи (x/y/buildingId) — поиск byte-идентичен (D-B).
+    const cell = ds.cityContents && Array.isArray(ds.cityContents.buildings)
+      ? ds.cityContents.buildings.find(
+          (p) => p.x === ds.x && p.y === ds.y)
+      : null;
+    if (!cell) {
+      // Пустая клетка (000148.03): ТОЛЬКО через buildingUI (000107)
+      // — меню «Строительство» (21 строка + цены, pre-check).
+      if (!deps.game.buildingUI) {
+        // Обход запрещён (TZ 000107): дубль гарда ветки с постройкой.
+        console.error('building-actions.js: [E] в городе, но ' +
+          'Game.buildingUI отсутствует — обход запрещён (000107), ' +
+          '[E] ничего не делает');
+        return;
+      }
+      openCityBuildMenu({ x: ds.x, y: ds.y, cityAnchor });
+      return;
+    }
+    const b = deps.game.getBuilding
+      ? deps.game.getBuilding(cell.buildingId) : null;
+    if (!b) {
+      console.error('building-actions.js: interactCity — постройка ' +
+        cell.buildingId + ' не найдена в каталоге (getBuilding) — ' +
+        '[E] ничего не делает');
+      return;
+    }
+    if (!deps.game.buildingUI) {
+      // Обход запрещён (TZ 000107): в городе [E] — ТОЛЬКО через
+      // buildingUI. Деградация — no-op (в отличие от toggle()).
+      console.error('building-actions.js: [E] в городе, но ' +
+        'Game.buildingUI отсутствует — обход запрещён (000107), ' +
+        '[E] ничего не делает');
+      return;
+    }
+    const npc = deps.game.npcForBuilding
+      ? deps.game.npcForBuilding(deps.npcs, b.id) : null;
     // Синтетический tile (контракт 000107 §3): координаты КЛЕТКИ
     // ГОРОДА; building — map_index записи (как мировой t.building);
     // buildingWealth — богатство якоря (ds.cityWealth).
@@ -682,10 +1019,15 @@
       buildingWealth: ds.cityWealth,
       cityAnchor,
     };
+    // 000148.03: постройка игрока (per-cell player:true) — строка
+    // «Разобрать» (возврат 30% floor) ПОСЛЕ строк эффектов; базовая
+    // — без строки (затрачено = 0).
+    const extraActions = cell.player === true
+      ? [demolishActionRow(cell)] : [];
     // СУЩЕСТВУЮЩАЯ точка: buildingUI.open + actions (городские
     // записи БЕЗ эффектов → ровно «Диалог», если npc != null;
     // пустой список — openBuildingUI false → [E] ничего).
-    openBuildingUI(t, b, npc);
+    openBuildingUI(t, b, npc, extraActions);
   }
 
   return {
