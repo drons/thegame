@@ -953,6 +953,63 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
   }
 });
 
+// ====================================================================
+// Ретро-20261011 (000183): blast-radius границы — НЕ-ABYSS содержимое
+// бит-в-бит.
+//
+// Finding (minor, tasks/result/000183-retro-20261011.md): свойство
+// фикса 000183 «все не-ABYSS подземелья бит-в-бит неизменны» (guard
+// `d.type === ABYSS` перед occupied.add(клетка босса)) задекларировано
+// и «проверено пробой», но не закреплено тестом — абсолютных
+// content-пинов были только ABYSS (golden (11,3)/xp=2000, D-BOSS-2);
+// golden CAVE (37,−12) пинит только решётку. D-BOSS-3 — полный
+// deepEqual-пин generateDungeonContents для НЕ-ABYSS входа; вместе с
+// D-BOSS-1/2 закрывает blast-radius фикса с обеих сторон.
+//
+// Сценарий: CAVE (37,−12) — каноническая точка файла (golden L254,
+// DEP-1); xp=32 — ПЕРВЫЙ чувствительный к обобщению гарда (свип
+// xp 1..3000: 132/3000; xp=1000 из примера ТЗ НЕ чувствителен — на
+// нём пин не покраснел бы при регрессии «обобщат гард»): при xp=32
+// сундук c3 стоит ровно на (18,5) = клетка дальней комнаты, обобщение
+// гарда блокирует её → сдвиг. Значения — ПО ФАКТУ master 3ce98ad
+// (node-пробой, детерминизм перепроверен). Контракт:
+// memory/000189-non-abyss-contents-pin.md.
+// ====================================================================
+
+test('D-BOSS-3: НЕ-ABYSS — полный deepEqual-пин содержимого CAVE (37,−12) xp=32: blast-radius границы фикса 000183 (Ретро-20261011)', () => {
+  const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  assert.equal(d.type, D.DUNGEON_TYPES.CAVE,
+    'CAVE (сценарий; якорь — пин не «тихо дрейфует» при смене формы)');
+  assert.equal(d.seed, 2658571374,
+    'сид решётки (golden L254 / DEP-1 — бит-в-бит)');
+  const c = D.generateDungeonContents(d, heroAt(32));
+  assert.equal(c.seed, 664152848, 'сид контента');
+  // Полный объект: ВСЕ поля (seed/mobs/chests/createdAtXp/step) —
+  // node:assert/strict deepEqual === deepStrictEqual: пинит и набор
+  // собственных ключей (новое/удалённое поле результата → красный →
+  // осознанный ре-пин от факта), чего не делают существующие goldens.
+  assert.deepEqual(c, {
+    seed: 664152848,
+    mobs: [
+      { id: 'g0', mobIds: ['skeleton'], x: 7, y: 7, level: 2, defeated: false },
+      { id: 'g1', mobIds: ['giant_larva', 'crawling_bones', 'giant_larva'], x: 11, y: 13, level: 3, defeated: false },
+      { id: 'g2', mobIds: ['crawling_bones', 'giant_larva', 'crawling_bones'], x: 11, y: 14, level: 1, defeated: false },
+      { id: 'g3', mobIds: ['skeleton', 'giant_larva', 'ant'], x: 17, y: 7, level: 2, defeated: false },
+      { id: 'g4', mobIds: ['crawling_bones', 'giant_larva', 'crawling_bones'], x: 6, y: 12, level: 1, defeated: false },
+      { id: 'g5', mobIds: ['giant_larva', 'crawling_bones', 'giant_larva'], x: 8, y: 11, level: 1, defeated: false },
+    ],
+    chests: [
+      { id: 'c0', x: 18, y: 18, opened: false, gold: 31, item: null },
+      { id: 'c1', x: 6, y: 13, opened: false, gold: 24, item: null },
+      { id: 'c2', x: 13, y: 10, opened: false, gold: 31, item: 'healing_potion' },
+      { id: 'c3', x: 18, y: 5, opened: false, gold: 27, item: 'stone_fist_grimoire' },
+      { id: 'c4', x: 15, y: 18, opened: false, gold: 26, item: null },
+    ],
+    createdAtXp: 32,
+    step: 0,
+  }, 'полный объект generateDungeonContents: ВСЕ поля бит-в-бит');
+});
+
 // --- Задача 000153.01: модель глубины подземелья (КРАСНЫЕ, §6) ---
 // d.depth (int ≥ 1, первый этаж = 1), сид формы per-глубина
 // (depth=1 — бит-в-бит существующие goldens; depth>1 — формула
