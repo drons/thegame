@@ -388,3 +388,27 @@ test('items schema (000165): resurrection_scroll / effect resurrect зафикс
     'effect.properties.kind.enum содержит resurrect (red: enum без «resurrect»); '
     + JSON.stringify(fkEnum));
 });
+
+// --- Задача 000157.01: schema.json (items) — опциональное поле tier ---
+//
+// КРАСНЫЙ: свойства tier нет (контракт
+// memory/000157.01-ores-minerals-gems.md §2/§3.1 R2). tier —
+// ОПЦИОНАЛЬНОЕ (integer 1..4, absence = 1): required, kind-enum
+// (8 видов) и additionalProperties — БЕЗ ИЗМЕНЕНИЙ (ТЗ: enum не
+// расширять). Прецедент — 000133/000165 выше.
+
+test('items schema (000157.01): опциональное поле tier (integer 1..4, не в required, additionalProperties false)', () => {
+  const s = loadSchema('items');
+  assert.deepEqual(s.properties.tier,
+    { type: 'integer', minimum: 1, maximum: 4 },
+    'properties.tier — integer 1..4 (краснота: свойства tier нет); '
+    + JSON.stringify(s.properties.tier));
+  assert.ok(!s.required.includes('tier'),
+    'tier НЕ в required (absence = 1); факт: ' + JSON.stringify(s.required));
+  assert.equal(s.additionalProperties, false,
+    'additionalProperties остаётся false (tier — именованное поле схемы)');
+  assert.deepEqual(s.properties.kind.enum,
+    ['weapon', 'armor', 'potion', 'food', 'skill_book', 'reagent',
+     'spell_scroll', 'resurrection_scroll'],
+    'kind-enum — текущие 8 видов без изменений (ТЗ: не расширять)');
+});

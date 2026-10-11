@@ -70,8 +70,8 @@ for (const f of files) {
 }
 
 // Канонический порядок ключей (схема assets/items/schema.json).
-const KEYS = ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'desc',
-  'stats', 'effect'];
+const KEYS = ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'tier',
+  'desc', 'stats', 'effect'];
 
 // --- Генерация JS ---
 const range = `${files[0]} … ${files[files.length - 1]}`;

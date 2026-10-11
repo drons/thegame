@@ -680,8 +680,12 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
       stock: { chainmail: 4, knight_plate: 3 } },
     { x: 10, y: 20, type: B.APOTHECARY, w: 2, seed: 3248047079,
       stock: { minor_healing: 3, greater_healing: 4, mana_potion: 3, mana_elixir: 3, bread: 1, meat: 2 } },
+    // Ре-пин 000157.01: руды/минералы/самоцветы (000052-000062) — КОНЕЦ
+    // каталога, rng-хвост пула [reagent, skill_book] → += 6 новых
+    // reagent, остальные ключи стока не сдвинулись (симуляция:
+    // seed/старые стоки byte-identical).
     { x: 30, y: 40, type: B.MAGIC_SHOP, w: 0, seed: 3346526316,
-      stock: { sulfur: 2, moonstone: 2, phoenix_feather: 1, stone_fist_grimoire: 2, iron_hide_tome: 1, archer_scroll: 2, hide: 1, coal: 1, herb_healing: 2, stone_chisel: 2 } },
+      stock: { sulfur: 2, moonstone: 2, phoenix_feather: 1, stone_fist_grimoire: 2, iron_hide_tome: 1, archer_scroll: 2, hide: 1, coal: 1, herb_healing: 2, stone_chisel: 2, silver_ore: 2, gold_ore: 1, mithril_ore: 1, quartz: 1, ruby: 1, amethyst: 1 } },
     { x: 5, y: 7, type: B.TAVERN, w: 0, seed: 766909004,
       stock: { healing_potion: 2, greater_healing: 2, mana_potion: 2, mana_elixir: 1, bread: 1, meat: 2 } },
     // Ре-пин 000133: универсам (wealth 3, пул allItems) — свитки
@@ -691,8 +695,12 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // Ре-пин 000165: свиток воскрешения (000051) — КОНЕЦ каталога
     // (rng-хвост пула allItems) → += resurrect_scroll: 5, остальные
     // ключи стока не сдвинулись (симуляция: seed/сток byte-identical).
+    // Ре-пин 000157.01: руды/минералы/самоцветы (000052-000062) —
+    // КОНЕЦ каталога, rng-хвост пула allItems → += 10 новых reagent
+    // (diamond в этом (x,y) не выпал), остальные ключи стока не
+    // сдвинулись (симуляция: seed/старые стоки byte-identical).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
-      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5 } },
+      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5, gold_ore: 4, mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3, ruby: 3, sapphire: 5, emerald: 3, amethyst: 5 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1205,8 +1213,12 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   //     (краснота: файла нет).
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)).sort();
-  assert.equal(files.length, 51,
-    'каталог — 51 файл (краснота: ' + files.length + ')');
+  // Ре-пин 000157.01 (Р0): каталог растёт 51 → 62 (добавляются
+  // 000052-000062 — руды/минералы/самоцветы); 000051.json остаётся
+  // 51-м файлом (append-only, слоты не сдвигаются).
+  assert.equal(files.length, 62,
+    'каталог — 62 файла (краснота: ' + files.length
+    + ' — каталог ещё не расширен, 000157.01)');
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
@@ -1235,12 +1247,15 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   validateSchema165(schema, j, '000051.json', errors);
   assert.deepEqual(errors, [], 'схема: ' + errors.join('; '));
   // (d) Зеркало src/items-data.js (реген npm run sync:items):
-  //     getItem ≡ JSON, каталог — 51 предмет (краснота: записи нет).
+  //     getItem ≡ JSON, каталог — 62 предмета (краснота: записи нет).
+  //     Ре-пин 000157.01 (Р0): 51 → 62 (конец каталога).
   const it = I.getItem('resurrect_scroll');
   assert.ok(it, 'зеркало items-data.js: resurrect_scroll '
     + '(краснота: записи нет)');
   assert.deepEqual(it, j, 'зеркало ≡ JSON');
-  assert.equal(I.allItems().length, 51, 'allItems — 51 предмет');
+  assert.equal(I.allItems().length, 62,
+    'allItems — 62 предмета (краснота: ' + I.allItems().length
+    + ' — зеркало не регенерировано, 000157.01)');
   // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
   //     addItem ×2 → 2 слота qty 1 (не стопка).
   const c = createCharacter();
@@ -1271,4 +1286,103 @@ test('000165 I2: useItem в мире — отказ «Свиток воскре�
     'предмет НЕ тратится (отказ — не расход)');
   assert.equal(c.hp, hp0, 'hp не мутирует');
   assert.equal(c.mp, mp0, 'mp не мутирует');
+});
+
+// --- Задача 000157.01: каталог — 11 reagent (руды, минералы, самоцветы) ---
+//
+// КРАСНЫЕ (R1/R3/R5; Р0 — ре-пин «000165 I1» выше, 51 → 62):
+// файлов assets/items/000052.json … 000062.json НЕТ (ENOENT), в зеркале
+// src/items-data.js записей нет, в схемах поля tier нет (R2 —
+// tests/assets-schemas.test.js). Контракт —
+// memory/000157.01-ores-minerals-gems.md (§2 таблица, §3.1 тесты,
+// §7 tier = it.tier || 1). Порядок ключей JSON = канонический sync KEYS
+// id,name,kind,weight,value,tier,desc (Q7). Без effect (reagent-контракт
+// src/items.js L88). id append-only: следующий свободный слот = 000063.
+
+const ORES_015701 = [
+  { file: '000052.json', id: 'silver_ore', tier: 2, weight: 1, value: 15 },
+  { file: '000053.json', id: 'gold_ore', tier: 3, weight: 1, value: 30 },
+  { file: '000054.json', id: 'mithril_ore', tier: 4, weight: 0.5, value: 80 },
+  { file: '000055.json', id: 'quartz', tier: 2, weight: 0.2, value: 12 },
+  { file: '000056.json', id: 'obsidian', tier: 2, weight: 0.5, value: 18 },
+  { file: '000057.json', id: 'phosphorite', tier: 3, weight: 0.3, value: 25 },
+  { file: '000058.json', id: 'ruby', tier: 3, weight: 0.1, value: 40 },
+  { file: '000059.json', id: 'sapphire', tier: 3, weight: 0.1, value: 40 },
+  { file: '000060.json', id: 'emerald', tier: 3, weight: 0.1, value: 40 },
+  { file: '000061.json', id: 'amethyst', tier: 2, weight: 0.1, value: 30 },
+  { file: '000062.json', id: 'diamond', tier: 4, weight: 0.05, value: 100 },
+];
+
+// R1: fix-состав 11 файлов (таблица ТЗ/memory §2) + конец каталога 62.
+test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/value/tier, без effect, зеркало ≡ JSON)', () => {
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  const ids = new Set();
+  for (const o of ORES_015701) {
+    const p = path.join(ITEMS_DIR, o.file);
+    assert.ok(fs.existsSync(p),
+      o.file + ' существует (краснота: ENOENT — файла нет, каталог не расширен)');
+    const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+    assert.equal(j.id, o.id, o.file + ': id (таблица ТЗ)');
+    assert.equal(j.kind, 'reagent', o.id + ': kind — reagent');
+    assert.equal(j.effect, undefined,
+      o.id + ': у реагента не бывает effect (src/items.js L88)');
+    assert.equal(j.weight, o.weight,
+      o.id + ': weight ' + o.weight + ' (таблица ТЗ; краснота: файла нет)');
+    assert.equal(j.value, o.value,
+      o.id + ': value ' + o.value + ' (таблица ТЗ)');
+    assert.equal(j.tier, o.tier,
+      o.id + ': tier ' + o.tier + ' (таблица ТЗ; краснота: поля tier нет)');
+    assert.ok(typeof j.name === 'string' && j.name.length > 0,
+      o.id + ': name непусто');
+    assert.ok(typeof j.desc === 'string' && j.desc.length > 0,
+      o.id + ': desc непусто (тон каталога «<Имя>: <строка>»)');
+    assert.ok(!ids.has(j.id), 'дубликат id: ' + j.id);
+    ids.add(j.id);
+    const errors = [];
+    validateSchema165(schema, j, o.file, errors);
+    assert.deepEqual(errors, [],
+      o.file + ': валиден по schema.json (краснота: лишнее поле tier): '
+      + errors.join('; '));
+    const it = I.getItem(j.id);
+    assert.ok(it, 'зеркало items-data.js: ' + j.id +
+      ' (краснота: записи нет — зеркало не регенерировано)');
+    assert.deepEqual(it, j, o.id + ': зеркало ≡ JSON (mirror-пин)');
+  }
+  assert.equal(ids.size, 11, 'id 11 предметов уникальны');
+  const files = fs.readdirSync(ITEMS_DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  assert.equal(files.length, 62,
+    'каталог — 62 файла (краснота: ' + files.length + ')');
+  assert.equal(files[61], '000062.json',
+    '000062.json — 62-й файл (краснота: файла нет)');
+  assert.equal(I.allItems().length, 62,
+    'allItems — 62 предмета (краснота: ' + I.allItems().length + ')');
+});
+
+// R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
+test('000157.01 R3: магазины — новые reagent авто-подхватываются (пул [reagent, skill_book] / allItems)', () => {
+  // Магазин магии: пул [reagent, skill_book] (SHOP_KINDS_FALLBACK,
+  // src/items.js:787-788) — filter по kind; универсам (wealth 3):
+  // allItems() (makeShop L825). Новые предметы — в витринах САМИ;
+  // членство в itemsOfKind('reagent') ⟹ и в allItems() тоже.
+  const reagents = I.itemsOfKind('reagent');
+  for (const o of ORES_015701) {
+    assert.ok(reagents.some((it) => it.id === o.id),
+      'id «' + o.id + '» ∈ itemsOfKind("reagent") — попадает в витрины '
+      + '(краснота: предмета нет в каталоге)');
+  }
+});
+
+// R5: шкала редкости — тиры 1..4 представлены reagent-каталогом.
+test('000157.01 R5: шкала редкости — каждый тир 1..4 представлен хотя бы одним reagent-предметом каталога (tier = it.tier || 1)', () => {
+  // «Набор» = ВСЕ reagent каталога (13 старых — отсутствие tier = 1
+  // + 11 новых T2×4/T3×5/T4×2; среди 11 новых T1 НЕТ — интерпретация
+  // зафиксирована memory §9/Q5). absence = 1 (memory §7).
+  const tiers = Array.from(new Set(
+    I.itemsOfKind('reagent').map((it) => it.tier || 1))).sort();
+  assert.deepEqual(tiers, [1, 2, 3, 4],
+    'тиры 1..4 представлены reagent-каталогом; факт: ['
+    + tiers.join(', ') + ' (краснота: тиры 2/3/4 не представлены — '
+    + 'новых 11 reagent нет)');
 });

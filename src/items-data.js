@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000051.json);
+  // Предметы (assets/items/000001.json … 000062.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -525,6 +525,116 @@
       value: 150,
       desc: "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). Цель не выбирается.",
       effect: { kind: "resurrect" },
+    },
+    // 000052.json
+    {
+      id: "silver_ore",
+      name: "Серебряная руда",
+      kind: "reagent",
+      weight: 1,
+      value: 15,
+      tier: 2,
+      desc: "Серебряная руда: серо-белый камень с яркой серебристой прожилкой.",
+    },
+    // 000053.json
+    {
+      id: "gold_ore",
+      name: "Золотая руда",
+      kind: "reagent",
+      weight: 1,
+      value: 30,
+      tier: 3,
+      desc: "Золотая руда: камень с тёмной коркой и золотистыми зернами.",
+    },
+    // 000054.json
+    {
+      id: "mithril_ore",
+      name: "Мифриловая руда",
+      kind: "reagent",
+      weight: 0.5,
+      value: 80,
+      tier: 4,
+      desc: "Мифриловая руда: лёгкий серебристый камень, почти невесомый.",
+    },
+    // 000055.json
+    {
+      id: "quartz",
+      name: "Кварц",
+      kind: "reagent",
+      weight: 0.2,
+      value: 12,
+      tier: 2,
+      desc: "Кварц: полупрозрачный кристалл с белёсым блеском.",
+    },
+    // 000056.json
+    {
+      id: "obsidian",
+      name: "Обсидиан",
+      kind: "reagent",
+      weight: 0.5,
+      value: 18,
+      tier: 2,
+      desc: "Обсидиан: чёрное вулканическое стекло.",
+    },
+    // 000057.json
+    {
+      id: "phosphorite",
+      name: "Фосфорит",
+      kind: "reagent",
+      weight: 0.3,
+      value: 25,
+      tier: 3,
+      desc: "Фосфорит: серо-зелёный камень с мерцающим светом.",
+    },
+    // 000058.json
+    {
+      id: "ruby",
+      name: "Рубин",
+      kind: "reagent",
+      weight: 0.1,
+      value: 40,
+      tier: 3,
+      desc: "Рубин: красный самоцвет с тёплым внутренним светом.",
+    },
+    // 000059.json
+    {
+      id: "sapphire",
+      name: "Сапфир",
+      kind: "reagent",
+      weight: 0.1,
+      value: 40,
+      tier: 3,
+      desc: "Сапфир: синий самоцвет, глубокий, как ночное небо.",
+    },
+    // 000060.json
+    {
+      id: "emerald",
+      name: "Изумруд",
+      kind: "reagent",
+      weight: 0.1,
+      value: 40,
+      tier: 3,
+      desc: "Изумруд: зелёный самоцвет с ясным внутренним огнём.",
+    },
+    // 000061.json
+    {
+      id: "amethyst",
+      name: "Аметист",
+      kind: "reagent",
+      weight: 0.1,
+      value: 30,
+      tier: 2,
+      desc: "Аметист: фиолетовый самоцвет, холодит на ощупь.",
+    },
+    // 000062.json
+    {
+      id: "diamond",
+      name: "Алмаз",
+      kind: "reagent",
+      weight: 0.05,
+      value: 100,
+      tier: 4,
+      desc: "Алмаз: бесцветный самоцвет, самый твёрдый из камней.",
     },
   ];
 
