@@ -217,6 +217,16 @@ function loadCombatUi(withSprites = true, opts = {}) {
     for (const f of ['spells-data.js', 'spells.js']) {
       vm.runInContext(src(f), sandbox, { filename: f });
     }
+  } else if (opts.spellsDataOnly) {
+    // 000188 (CU188-ROWCHK, M5): каталог ТОЛЬКО (spells-data.js) —
+    // та же позиция цепи, что и withSpells (ПОСЛЕ combat.js, ДО
+    // spellbook.js и снапшота combat-ui.js — UMD-ловушка 000038):
+    // в снапшоте есть G.SpellsData, НЕТ G.Spells (spells.js
+    // пропущен) — ровно состояние rowChk (src/combat-ui.js
+    // L1673-1679). Приоритет: withSpells (пара файлов) первым;
+    // дефолт (опция не передана) — цепочка бит-в-бит.
+    vm.runInContext(src('spells-data.js'), sandbox,
+      { filename: 'spells-data.js' });
   }
   vm.runInContext(src('combat-keys.js'), sandbox, { filename: 'combat-keys.js' });
   // 000149: spellbook.js — ДО combat-ui.js (снапшот-ловушка 000038).
@@ -2803,14 +2813,17 @@ function scene166(opts = {}) {
   // withSpells-опция loadCombatUi: scene166({spells:false}) — песочница
   // БЕЗ G.Spells/G.SpellsData (спелл-движок не загружен — битый
   // порядок), spellbook.js при этом на месте (G.SpellBook есть).
+  // 000188 (CU188-ROWCHK): spellsDataOnly (по умолчанию false —
+  // бит-в-байт) — каталог ЕСТЬ, движка НЕТ (rowChk-состояние).
   const { resurrect = true, deadAllies = 0, deadPlayer = false,
-    spells = true } = opts;
+    spells = true, spellsDataOnly = false } = opts;
   const rafStubs = makeRafStubs();
   // 000171: buttons — ВСЕ кнопки песочницы (стаб пушит каждый
   // createElement('button')); аддитивный return — существующие вызовы
   // поле не читают (бит-в-байт).
   const { G, keydown, body, buttons } = loadCombatUi(true, {
     withSpells: spells,
+    spellsDataOnly: spellsDataOnly,
     performance: { now: () => NOW166 },
     requestAnimationFrame: rafStubs.requestAnimationFrame,
     cancelAnimationFrame: rafStubs.cancelAnimationFrame,
@@ -4908,6 +4921,11 @@ test('боевой UI: 000182 — H1 «нарисовано == ядро» для
   const t = tickSlice(S.canvas, S.rafStubs);
   const tiles = hatchTiles175(t);
   const expected = G.mobReachCells(c, bear);
+  // 000188 (M7, ретро-20261011): анти-вакуум паритета (паттерн
+  // CU182-LW `lws.length > 0`): без ассерта непустоты НАБОРА ЯДРА
+  // деградация mobReachCells до ∅ проходила бы как 0===0 +
+  // deepEqual(∅, ∅) — пустое равенство.
+  assert.ok(expected.size > 0, 'ядро: набор достижимости медведя не пуст');
   assert.equal(tiles.length, expected.size,
     'число штрихов == число клеток (2×2-якорь: диагональ на клетку): '
     + tiles.length + ' vs ' + expected.size);
@@ -5405,4 +5423,59 @@ test('боевой UI: 000182 — spellbookUnitGate: фиксированный 
       'ПОРЯДОК: result ПЕРЕД phase («бой закончен», не «не ваш ход»): '
       + last.title);
   }
+});
+
+test('боевой UI: 000188 — rowChk: нет G.Spells (движок), G.SpellsData НА МЕСТЕ — ЖИВАЯ строка книги: title «Заклинания недоступны» + клик → ровно 1 строка, трат нет, союзник мёртв, книга открыта (CU188-ROWCHK)', () => {
+  // 000188 (M5, ретро-20261011): ЗЕРКАЛО CU182-NOSP на строках книги
+  // (кнопка → строки). CU182-NOSP (spells:false) удаляет И G.Spells,
+  // И G.SpellsData → entriesFor → [] → строк нет → rowChk-ветка была
+  // недосягаема (finding ретро-20261011). Load-time опция
+  // spellsDataOnly (GREEN-стадия) грузит spells-data.js в той же
+  // позиции цепи, что с withSpells (ПОСЛЕ combat.js, ДО снапшота
+  // combat-ui.js — UMD-ловушка 000038), но ПРОПУСКАЕТ spells.js:
+  // каталог живой, движок нет — ровно состояние rowChk.
+  // КРАСНАЯ фаза (этот коммит): опции в harness НЕТ → каталог не
+  // загружен → фикстура-ассерт G.SpellsData падает осмысленно
+  // (нет данных каталога — недостающий символ — опция; движка
+  // тоже нет — маппинг spells:false), не синтаксисом.
+  const S = scene166({ deadAllies: 1, spells: false, spellsDataOnly: true });
+  const { G, c } = S;
+  assert.equal(G.Spells, undefined, 'фикстура: движок G.Spells отсутствует');
+  assert.ok(G.SpellsData && G.SpellsData.SPELLS_BY_ID,
+    'фикстура: каталог G.SpellsData.SPELLS_BY_ID на месте '
+    + '(spellsDataOnly: spells-data.js в цепи, spells.js пропущен)');
+  assert.ok(G.SpellBook, 'G.SpellBook на месте (книга строится)');
+  assert.ok(!S.ally.alive, 'фикстура: союзник мёртв (ассерт «каста нет» осмысленен)');
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.equal(bookBox.style.display, '', 'книга открыта (KeyQ)');
+  // СВЕЖАЯ сцена, ПЕРВОЕ KeyQ: children bookBox = ровно построенные
+  // строки (перестроений не было — bookSig=null → один проход).
+  const rows = bookBox.children.filter((x) => x.dataset.spell);
+  assert.equal(rows.length, 1,
+    'ровно ОДНА живая строка (каталог на месте, hero.spells=[resurrect]): '
+    + rows.length);
+  const row = rows[0];
+  assert.equal(row.dataset.spell, 'resurrect', 'строка — спелл героя');
+  assert.ok(row.className.includes('combat-spellrow-off'),
+    'строка -off (rowChk-фолбэк: движок не загружен)');
+  assert.equal(row.title, 'Заклинания недоступны',
+    'title ДОСЛОВНО (rowChk-фолбэк combat-ui.js L1676-1678): '
+    + row.title);
+  // «Живость» строки: имя из каталога (НЕ голый id) — DOM buildSpellRow:
+  // children = [img, body]; body: [top, desc]; top: [name, meta].
+  assert.equal(row.children[1].children[0].children[0].textContent,
+    'Воскрешение',
+    'строка живая: имя из каталога (не голый id)');
+  const n0 = c.log.length;
+  const mp0 = c.player.mp;
+  row.listeners.click[0](); // стаб-клик по off-строке
+  const added = Array.from(c.log).slice(n0);
+  assert.deepEqual(added, ['Заклинания недоступны'],
+    'стаб-клик: ровно ОДНА строка в журнал (castRow-фолбэк L1743-1745 '
+    + '+ logRejection): ' + JSON.stringify(added));
+  assert.equal(c.player.mp, mp0, 'трат НЕТ (мана неизменна)');
+  assert.ok(!S.ally.alive, 'союзник остаётся мёртв (каста не было)');
+  assert.equal(bookBox.style.display, '',
+    'книга ОСТАЛАСЬ открыта при отказе (игрок видит причину)');
 });

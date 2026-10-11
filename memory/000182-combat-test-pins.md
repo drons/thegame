@@ -22,6 +22,13 @@ findings «Тесты» — coverage gap, а не отсутствие гард�
 - **Краснота:** удалить try/catch L1984-1994 → исключение из onEnd (инъекция
   G.playerUI.render) улетает из `handleCode('Escape')` наружу (threw != null) →
   тест краснеет на первом ассерте.
+- **000188 (M6, ретро-20261011): «logged once» закреплён НА СЕССИЮ** —
+  отдельный тест **MF182-D5B-ONCE** (блок после MF182-D5B): второй бой в той
+  же e2e-сессии с повторной инъекцией `G.playerUI.render=throw` до restore →
+  `h.errors.length===1` (второе исключение подавлено `onEndErrLogged` — флаг
+  на МОДУЛЬ, finish() его не сбрасывает); без флага здесь было бы 2 ошибки →
+  пин красный (продемонстрировано временным удалением условия
+  `if (!onEndErrLogged)` combat-ui.js L1987 с возвратом).
 
 ### MF182-D7 — try/catch collectSaveData в saveNow()
 - **Гард:** src/main.js L770-781 (`try { …collectSaveData()… } catch` + флаг
@@ -44,6 +51,20 @@ findings «Тесты» — coverage gap, а не отсутствие гард�
   сообщения сам обещает «повторные предупреждения подавлены») не закреплён.
 - **Краснота:** убрать флаг (console.error без условия) → 3 ошибки на 3 кадра →
   `h.errors.length===1` краснеет.
+
+### T1 (расширение, 000188 M11) — подпись «✕ Отмена» + close-идемпотентность
+- **Гард:** src/building-effect-resurrect.js L305 (подпись `'✕ Отмена'`) +
+  L241-243 (`close()`: `if (!active) return;` — повторный проход no-op, 0
+  побочек).
+- **Почему не был запинен:** ТЗ 000170 п.5 задокументировал подпись и «close
+  идемпотентна» как doc-контракт (doc-пин 000184 —
+  tests/spec-mobs-companions-efir-wording.test.js); ПОВЕДЕНЧЕСКОГО пина не
+  было (finding ретро-20261011 по 000184; ТЗ 000188 п.4).
+- **Краснота:** (a) дрифт подписи → `assert.equal(closeEl.textContent,
+  '✕ Отмена')` красный (byte-exact, ДО первого закрытия — кнопка в DOM);
+  (b) removal/слом idempotency-guard'а (бросок или повторное открытие при
+  двойном close) → `doesNotThrow` (повторный клик по сохранённому
+  обработчику) / `isActive()===false` красные.
 
 ## 2. tests/combat-ui.test.js, блок CU182 (loadCombatUi, VM)
 
@@ -83,6 +104,12 @@ findings «Тесты» — coverage gap, а не отсутствие гард�
 - **Краснота:** перестроить mobReachCells для мультиклеточных (не объединять
   прямоугольник) ИЛИ рисовать штриховку по первому тайлу → tiles ≠ ядро →
   deepEqual краснеет.
+- **000188 (M7): анти-вакуум** — добавлен `assert.ok(expected.size > 0)`
+  (паттерн CU182-LW `lws.length > 0`) ПОСЛЕ `const expected =
+  G.mobReachCells(c, bear);`, ПЕРЕД сравнением: без него деградация
+  mobReachCells до ∅ проходила бы как 0===0 + deepEqual(∅, ∅) — пустое
+  равенство. Текущая сцена: size = 4 (probe 000188: bear 2×2, player (3,6),
+  seed 42, obstacles.clear()).
 
 ### CU182-BOOK — книга: закрытие при успехе, открыта при отказе
 - **Гард:** src/combat-ui.js castRow L1736-1755 (успех → `bookOpen=false` L1748;
@@ -117,6 +144,38 @@ findings «Тесты» — coverage gap, а не отсутствие гард�
 - **Краснота:** убрать `G.Spells &&`-фолбэк в resurrectChk/resurrectCast →
   `G.Spells[sp]` = TypeError / каст «проходит» без каталога → title-ассерт и
   «ровно 1 строка лога, трат нет» краснеют.
+- **000188 (M5): rowChk-зеркало на живой строке ПИНЕНО (CU188-ROWCHK)** —
+  load-time опция loadCombatUi `spellsDataOnly` (spells-data.js грузится,
+  spells.js пропущен ДО снапшота combat-ui.js — UMD-ловушка 000038; опция
+  достижима в harness, src НЕ трогался; «недосягаемо»-вариант finding не
+  применим). Запрос: `scene166({ spells: false, spellsDataOnly: true })`.
+
+### CU188-ROWCHK — rowChk: каталог живой, движок НЕТ (000188, M5)
+- **Гард:** src/combat-ui.js rowChk L1673-1679 (фолбэк `{ok:false,
+  reason:'Заклинания недоступны'}` L1676-1678 при отсутствии G.Spells) +
+  castRow L1743-1745 (тот же фолбэк на клике) — на ЖИВОЙ строке книги
+  (bookRows L1621-1640 + entriesFor spellbook.js L35-57 при SPELLS_BY_ID).
+- **Почему не был запинен:** опция CU182-NOSP `spells:false` удаляет И
+  G.Spells, И G.SpellsData → entriesFor → [] → строки нет → rowChk-ветка
+  была недосягаема (finding ретро-20261011). Достигнута load-time опцией
+  harness `spellsDataOnly` (loadCombatUi: `else if` после withSpells —
+  spells-data.js в той же позиции цепи, spells.js пропущен; scene166
+  passthrough `spellsDataOnly`, дефолт бит-в-бит) — БЕЗ правки src.
+- **Пин:** сцена `scene166({ deadAllies: 1, spells: false,
+  spellsDataOnly: true })` (deadAllies — ассерт «каста нет» осмысленен,
+  прецедент CU182-NOSP) → ровно ОДНА живая строка
+  (hero.spells=['resurrect'] + каталог): `dataset.spell==='resurrect'`,
+  класс `-off`, title ДОСЛОВНО «Заклинания недоступны», имя из каталога
+  «Воскрешение» (не голый id — «живость» строки); стаб-клик → ровно 1
+  строка лога, трат НЕТ (mp), союзник мёртв, книга открыта.
+- **Краснота:** сломать rowChk-фолбэк (L1676-1678 → условный canCastSpell /
+  другой reason) → title ≠ «Заклинания недоступны» (общий
+  'Заклинание недоступно' buildSpellRow L1692 / TypeError на render) →
+  title-ассерт красный; сломать castRow-фолбэк (L1743-1745) → клик без
+  строки (logRejection L494-496 no-op) → deepEqual `['Заклинания
+  недоступны']` красный. Структурный RED фазы: фикстура-ассерты
+  (`G.Spells === undefined` И `G.SpellsData.SPELLS_BY_ID`) падают
+  осмысленно до добавления опции.
 
 ### CU182-NOMOTION — тихий фолбэк без motion.js
 - **Гард:** src/combat-ui.js mobAnchor L576-581 (`if (!motion || typeof
@@ -236,7 +295,8 @@ findings «Тесты» — coverage gap, а не отсутствие гард�
    mobReachCells; NOSP — нет G.Spells; NOMOTION — нет motion.js): loadCombatUi
    строит ПОЛНУЮ цепочку, ветки «битый порядок загрузки» требуют load-time
    опций (withoutMobReach/withoutMotion, scene166 spells:false) — до 000182 их
-   не было.
+   не было. 000188: субветка rowChk в NOSP запинена (CU188-ROWCHK, опция
+   `spellsDataOnly` — каталог БЕЗ движка; до 000188 недосягаема).
 2. **Координатные пины вместо «наличия»** (FRAC): R8 ассертировал факт
    перерисовки, а не ТОЧКУ — пин «какая точка from» требует вычисления
    дробной координаты (52/27), что не делалось.

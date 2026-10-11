@@ -798,10 +798,27 @@ test('T1. пикер (тач): клик .resurrect-close закрывает пи
   const closeClickers = closeEl.listeners.click || [];
   assert.ok(closeClickers.length >= 1,
     'у .resurrect-close есть click-обработчик (close)');
+  // 000188 (M11, ретро-20261011): подпись тач-кнопки ДОСЛОВНО
+  // (doc-пин 000170/000184 — spec-mobs-companions-efir-wording →
+  // поведенческий пин; ДО первого закрытия — кнопка в DOM).
+  assert.equal(closeEl.textContent, '✕ Отмена',
+    'подпись тач-кнопки закрытия ДОСЛОВНО «✕ Отмена»: '
+    + closeEl.textContent);
   closeClickers[0]({ target: closeEl });
   assert.equal(G.resurrectUI.isActive(), false,
     'пикер закрыт тачем (клик .resurrect-close → close)');
   assert.equal(findResurrectOverlay(h), null, 'DOM пикера снят');
+  // 000188 (M11): close() идемпотентна — ВТОРОЙ клик (сохранённый
+  // обработчик; оверлей уже снят из DOM) не бросает и не имеет
+  // побочек (гард `if (!active) return;`,
+  // building-effect-resurrect.js L241-242: регрессия null-гардов
+  // onKey/overlay → бросок на повторном проходе).
+  assert.doesNotThrow(() => closeClickers[0]({ target: closeEl }),
+    'повторный клик по сохранённому обработчику — без броска '
+    + '(close идемпотентна)');
+  assert.equal(G.resurrectUI.isActive(), false,
+    'после двойного закрытия: пикер закрыт (isActive false, '
+    + 'повторного открытия нет)');
   // (c) Движение тачем возобновилось: тап D-pad → 'touch:<dir>' в
   //     keys → frame-гейт открыт → tryMove → шаг.
   const r = touchStep(h, dir[0], dir[1], now);
@@ -1333,6 +1350,85 @@ test('MF182-D5B. finish: исключение в onEnd (playerUI.render) — о�
   assert.ok(r.moved,
     'мировое движение живо после скомпрометированного onEnd '
     + '(боевые гейты сняты чисто)');
+});
+
+// =====================================================================
+// MF182-D5B-ONCE. onEndErrLogged: «logged once» — НА СЕССИЮ: второй
+//     бой в той же e2e-сессии — повторное исключение в onEnd
+//     ПОДАВЛЕНО (флаг-замыкание combat-ui.js не сбрасывается в
+//     finish()) (пин ретро-20261011 M6: без второго боя флаг
+//     незакреплён — удаление подавления оставило бы ===1 зелёным)
+// =====================================================================
+
+test('MF182-D5B-ONCE. onEndErrLogged: ВТОРОЙ бой в той же e2e-сессии — повторное исключение в onEnd (G.playerUI.render=throw) ПОДАВЛЕНО: h.errors.length===1', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  // Г.1 — бой 1 (паттерн MF182-D5B): whitebox-победа + инъекция
+  // G.playerUI.render=throw (объект-экспорт — общий для снапшота
+  // main.js) → finish ловит исключение onEnd → ровно 1 console.error
+  // (флаг onEndErrLogged установлен).
+  const c1 = g.actions.startCombat(6);
+  assert.ok(c1, 'бой 1: оверлей открыт (startCombat(6))');
+  c1.phase = 'over';
+  c1.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
+    allyXp: [] };
+  const origRender = G.playerUI.render;
+  G.playerUI.render = () => {
+    throw new Error('MF182-D5B-ONCE-inject');
+  };
+  let threw = null;
+  try {
+    G.combatUI.handleCode('Escape');
+  } catch (err) {
+    threw = err;
+  }
+  G.playerUI.render = origRender;
+  assert.equal(threw, null,
+    'бой 1: исключение onEnd НЕ улетело вызывателю (finish ловит)');
+  assert.equal(G.combatUI.isActive(), false, 'бой 1: боевой гейт открыт');
+  assert.equal(G.combatUI.current(), null, 'бой 1: ctx обнулён');
+  assert.equal(h.errors.length, 1,
+    'бой 1: D5b logged ONCE: ' + h.errors.join(' | '));
+  assert.ok(h.errors[0].includes('исключение в onEnd'),
+    'бой 1: текст D5b-предупреждения: ' + h.errors[0]);
+  // Г.2 — бой 2 в ТОЙ ЖЕ vm-сессии (один boot): флаг onEndErrLogged —
+  // замыкание МОДУЛЯ combat-ui.js (не свойство G), его жизнь = жизнь
+  // песочницы; finish() флаги НЕ сбрасывает. Чистый finish() self-
+  // heal'ит состояние (паттерн T3: повторный бой стартует) → тот же
+  // startCombat(6) (синтетический tile, детерминированный seed) +
+  // та же whitebox-победа + повторная инъекция ДО restore.
+  const c2 = g.actions.startCombat(6);
+  assert.ok(c2, 'бой 2: повторный бой стартует (self-heal finish)');
+  assert.notEqual(c2, c1, 'бой 2: новый контекст боя');
+  c2.phase = 'over';
+  c2.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
+    allyXp: [] };
+  G.playerUI.render = () => {
+    throw new Error('MF182-D5B-ONCE-inject2');
+  };
+  threw = null;
+  try {
+    G.combatUI.handleCode('Escape');
+  } catch (err) {
+    threw = err;
+  }
+  G.playerUI.render = origRender;
+  assert.equal(threw, null,
+    'бой 2: исключение onEnd НЕ улетело вызывателю (finish ловит)');
+  assert.equal(G.combatUI.isActive(), false, 'бой 2: боевой гейт открыт');
+  assert.equal(G.combatUI.current(), null, 'бой 2: ctx обнулён');
+  assert.equal(findAll(h.body, '.combat-overlay--combat').length, 0,
+    'бой 2: боевой оверлей снят из DOM');
+  // M6: «logged once» — на СЕССИЮ, не на инстанс боя: второе
+  // исключение в onEnd ПОДАВЛЕНО. Удаление флага/условия
+  // `if (!onEndErrLogged)` (combat-ui.js L1987) → 2 ошибки →
+  // ассерт красный (продемонстрировано временным удалением в
+  // песочном прогоне с возвратом, см. tasks/result/000188.md).
+  assert.equal(h.errors.length, 1,
+    'M6: «logged once» НА СЕССИЮ — повторное исключение в onEnd '
+    + 'подавлено (флаг onEndErrLogged; finish() его не сбрасывает): '
+    + h.errors.join(' | '));
 });
 
 // =====================================================================

@@ -21,18 +21,21 @@ tests/movement-freeze-e2e.test.js, если 000183 добавит туда те�
 
 ## 1. Что добавлено (18 новых тестов + 2 коммент-правки + 5 аддитивных строк хелперов)
 
-### 1.1 tests/movement-freeze-e2e.test.js — 3 теста В КОНЕЦ (после T10, L1222; EOF = L1260)
+### 1.1 tests/movement-freeze-e2e.test.js — 3 теста В КОНЕЦ (после T10,
+сейчас L1239-1277; раскладка 000188: D5B L1293-1353, ONCE L1355-1432,
+D7 L1441-1527 = EOF)
 
 | id | гард | что пинит |
 |---|---|---|
 | MF182-D5B | D5b try/catch вокруг `onEnd` в `finish()` (combat-ui.js L1938-1995, catch L1983-1994, флаг `onEndErrLogged` L162) | инъекция `G.playerUI.render = throw` → `handleCode('Escape')` НЕ бросает наружу, оверлей снят, `current()===null`, `isActive()===false`, `h.errors.length===1` (`/исключение в onEnd/`), мир идёт дальше |
-| MF182-D7 | D7 try/catch `collectSaveData` в `saveNow()` (main.js L762-786, catch L773-781, флаг `saveDataErrLogged` L753) | инъекция `G.serializeBuffs = throw` (шов main.js L681) + `G.GlobalSettings.SETTINGS.steps_per_day = 2` → движение и смена дня работают, `h.errors.length===1` (`/collectSaveData/`), после restore новые ошибки не появляются |
-| MF182-ONCE | контракт «logged once» (флаг `frameErrLogged` main.js L2785, catch frame L2877-2883) | `G.hud.update = throw`, 3 кадра (`tryMainFrameAt`) → исключение не улетает ни из одного, rAF-цепь жива, `h.errors.length===1` (`/исключение в кадре/`) — ровно 1 на 3 кадра (без флага было бы 3) |
+| MF182-D7 | D7 try/catch `collectSaveData` в `saveNow()` (main.js: saveNow L790-814, try/catch L798-807, флаг `saveDataErrLogged` L781) | инъекция `G.serializeBuffs = throw` (шов main.js L696) + `G.GlobalSettings.SETTINGS.steps_per_day = 2` → движение и смена дня работают, `h.errors.length===1` (`/collectSaveData/`), после restore новые ошибки не появляются |
+| MF182-ONCE | контракт «logged once» (флаг `frameErrLogged` main.js L2876, catch frame L2967-2972) | `G.hud.update = throw`, 3 кадра (`tryMainFrameAt`) → исключение не улетает ни из одного, rAF-цепь жива, `h.errors.length===1` (`/исключение в кадре/`) — ровно 1 на 3 кадра (без флага было бы 3) |
 
 Инъекции — ТОЛЬКО через свойства ОБЪЕКТОВ-ЭКСПОРТОВ на `h.sandbox.Game` (правило
 файла L79-83, UMD-ловушка 000038), restore ПЕРЕД ассертами состояния (паттерн T2/T4/T5).
 
-### 1.2 tests/combat-ui.test.js — блок CU182 В КОНЕЦ файла (после CU178-GATE, EOF = L4742)
+### 1.2 tests/combat-ui.test.js — блок CU182 В КОНЕЦ файла (после CU178-GATE;
+раскладка 000188: GATE-ORDER L5359, CU188-ROWCHK L5428, EOF L5481)
 
 Уникальный префикс `CU182-`. 14 тестов:
 
@@ -43,7 +46,7 @@ tests/movement-freeze-e2e.test.js, если 000183 добавит туда те�
 | CU182-H1-2X2 | 000175 | H1 «нарисовано == ядро» для 2×2 (cave_bear): `hatchTiles175` == `G.mobReachCells(c, bear)` |
 | CU182-BOOK | 000171 | книга закрывается при успешном тапе (`bookOpen=false` только при успехе castRow L1748 / resurrectCast L1822), остаётся открытой при отказе |
 | CU182-BTN8 | 000171 | положительный счётчик: герой со знанием «Воскрешение» → ровно 8 кнопок (7 табличных + resurrect) — зеркало CU171-GATE (отрицательное 7) |
-| CU182-NOSP | 000171 | деградация без `G.Spells`: кнопка resurrect ЕСТЬ (canResurrect — чистое чтение знаний), disabled, title/строка «Заклинания недоступны» (resurrectChk L1784-1786), стаб-клик → 1 строка лога, трат НЕТ, книга «—» (entriesFor(unit, null) → []) |
+| CU182-NOSP | 000171 | деградация без `G.Spells`: кнопка resurrect ЕСТЬ (canResurrect — чистое чтение знаний), disabled, title/строка «Заклинания недоступны» (resurrectChk L1764-1787, fallback-строка L1787), стаб-клик → 1 строка лога, трат НЕТ, книга «—» (entriesFor(unit, null) → []) |
 | CU182-NOMOTION | 000174 | тихий фолбэк без motion.js: якорь = модельный тайл, 2 Space без TypeError, `c._uiMoves===null`, **0** console.error (контракт тишины) |
 | CU182-PRUNE | 000174 | prune entry мёртвого/сбежавшего юнита (startMoveAnims L610-616) + якорь трупа `!u.alive → {x:u.x,y:u.y}` (mobAnchor L571): труп dead-кадр ровно на модели, сбежавший НЕ рисуется вообще, 2-й Space без TypeError |
 | CU182-FRAC | 000174 | Space внутри живого глейда: `from = текущий ДРОБНЫЙ якорь` (startMoveAnims L636-649) — ассерт по КООРДИНАТЕ спрайта (дробной), не только по наличию |
@@ -56,8 +59,9 @@ tests/movement-freeze-e2e.test.js, если 000183 добавит туда те�
 ### 1.3 tests/efir.test.js — 1 тест (группа 000180)
 
 **000182-HEAL** — АДДИТИВНЫЕ субкейсы (c) и (d) ВНУТРИ существующего try-блока
-теста «000180 HEAL-1» (L1131-1206; вставка после закрывающего `}` субкейса (b) L1202,
-до `} finally {` L1203). Ни одна существующая строка не меняется; каталог
+теста «000180 HEAL-1» (сейчас L1137-1283; вставка 000182 — после закрывающего
+`}` субкейса (b), до `} finally {` L1282). Ни одна существующая строка не
+меняется; каталог
 `C.combatInternals.allySpells = SPELLS_BY_ID` уже save/set/restored в этом try.
 
 Формула (combat.js allyHeal L1894-1896):
@@ -71,7 +75,7 @@ tests/movement-freeze-e2e.test.js, если 000183 добавит туда те�
   `round(7 · 1.15) = round(8.05) = 8` → «Мира лечит Вольк (+8).» побайтово, a1.hp = 11.
   (Сложение: round(7.15) = 7 ≠ 8 — ловит.)
 - (d) тот же greater_heal, `attrs:{}` (инициатива 0 → стоп на ИГРОКЕ → `c.endTurn()` → a0,
-  паттерн субкейса (b) L1189-1193): `round(5 · 1.15) = round(5.75) = 6` → «+6.», a1.hp = 9.
+  паттерн субкейса (b) L1195-1200): `round(5 · 1.15) = round(5.75) = 6` → «+6.», a1.hp = 9.
   (Сложение: round(5.15) = 5 ≠ 6 — ловит.)
 - MP-вобокса НЕ НУЖНО: `allyHeal` НЕ проверяет ману (код L1874-1903 — только
   каталог/спелл/пул раненых) — проверено; `greater_heal.мани=11` ядром не читается.
@@ -79,20 +83,20 @@ tests/movement-freeze-e2e.test.js, если 000183 добавит туда те�
 
 ### 1.4 Правки ТОЛЬКО комментариев (ассерты не трогать — ТЗ «правки НЕПРАВДИВЫХ КОММЕНТАРИЕВ»)
 
-1. **000050-пин** (combat-ui.test.js L973-976): «Сетка — единственные g2.stroke() в
+1. **000050-пин** (combat-ui.test.js L1010-1016): «Сетка — единственные g2.stroke() в
    render» — ЛОЖЬ с 000175: `drawMobReachHatch` вызывается в render ПОСЛЕ сетки
-   (L1387) и добавляет 'stroke' при targetId → живой non-fled моб (авто-таргет).
-   Замена (смысл сохранить): «последний 'stroke' СЕТИ (grid-секция: lineWidth L1367,
-   strokes L1373/L1379); после
+   (src L1387) и добавляет 'stroke' при targetId → живой non-fled моб (авто-таргет).
+   Замена (смысл сохранить): «последний 'stroke' СЕТИ (grid-секция src: lineWidth
+   L1368, strokes L1373/L1379); после
    сетки идут штрихи штриховки досягаемости (000175) — общий последний 'stroke' сцены
    может быть штрихом штриховки; пин `iObs > lastGridStroke` валиден: штриховка идёт
-   МЕЖДУ сеткой и препятствиями». Тест L982-1022 остаётся зелёным без правок
-   (hatch-stroke < obstacles-drawImage). Имя переменной `lastGridStroke` (L1002)
+   МЕЖДУ сеткой и препятствиями». Тест L1023-1062 остаётся зелёным без правок
+   (hatch-stroke < obstacles-drawImage). Имя переменной `lastGridStroke` (L1043)
    сохраняется.
-2. **CU180-EFIR-ROW** (combat-ui.test.js L4306-4307): «(инициатива Эфира 6 > волк 3 >
+2. **CU180-EFIR-ROW** (combat-ui.test.js L4355-4356): «(инициатива Эфира 6 > волк 3 >
    игрок 2)» — 6 НЕВЕРНО: `EFIR_START_PRIMARY` (efir.js L150-157) dexterity 1 +
    intelligence 3, `unitInitiative` = dex + int (combat.js) → **4**. Замена:
-   «инициатива Эфира 4 > волк 3 > игрок 2». Тест byte-exact (L4303) зелёный и без правки.
+   «инициатива Эфира 4 > волк 3 > игрок 2». Тест byte-exact (L4373-4374) зелёный и без правки.
 
 ## 2. Контракты и границы
 
@@ -113,31 +117,35 @@ tests/movement-freeze-e2e.test.js, если 000183 добавит туда те�
     → инъекция через свойства ОБЪЕКТОВ на финальном `sandbox.Game` (e2e: `h.sandbox.Game`)
     + ОБЯЗАТЕЛЬНЫЙ restore.
 - **Whitebox-мутации** боевого объекта `c` (c.phase/c.result/c.turnIndex/u.alive/
-  u.fled) и вызов `c.endTurn()`/`c.heal()` — легитимный путь (прецеденты
-  combat-ui.test.js L1582/2710/2728; efir.test.js L1192), не требует shared-инъекции.
+  u.fled) и вызов `c.endTurn()`/`c.heal()` — легитимный путь (прецеденты:
+  c.targetId — 000084 combat-ui.test.js L1592; c.player.hp/w.x/w.hp/c.attack —
+  000167-TOKEN-1 L2716-2731; c.phase/c.result/c.endTurn() —
+  CU182-UIMOVES/GATE-ORDER L5258-5268/L5368-5418; c.endTurn()/c.heal() —
+  efir.test.js 000180 HEAL-1 L1198-1200), не требует shared-инъекции.
 
-### 2.2 loadCombatUi (L141-245) — 2 новые аддитивные опции (дефолт бит-в-бит)
+### 2.2 loadCombatUi (L153-277) — 2 новые аддитивные опции (дефолт бит-в-бит)
 
 - **`withoutMobReach: true`** — `delete sandbox.Game.mobReachCells;` ПОСЛЕ загрузки
-  combat.js (экспорт mobReachCells, combat.js L430) и ДО загрузки combat-ui.js
-  (L229). combat-ui.js снимет снапшот G БЕЗ mobReachCells → `drawMobReachHatch`
+  combat.js (экспорт mobReachCells, combat.js L430) и ДО снапшота combat-ui.js
+  (delete L257, снапшот L258). combat-ui.js снимет снапшот G БЕЗ mobReachCells → `drawMobReachHatch`
   (L1287-1313) пойдёт в D10-ветку `typeof G.mobReachCells !== 'function'`.
   ПЕРЕ load-time опцией host-удаление бесполезно (снапшот уже снят).
 - **`withoutMotion: true`** — пропуск последней строки
-  `vm.runInContext(src('motion.js'), …)` (L238, сейчас БЕУСЛОВНЫЙ). liveGame()
+  `vm.runInContext(src('motion.js'), …)` (сейчас L272-274, под
+  `if (!opts.withoutMotion)`). liveGame()
   не найдёт motion → оба фолбэка: `mobAnchor` (L576-581: `!motion || typeof
   motion.stepProgress !== 'function' || segs<=0` → SELF-CLEAN delete entry →
   модельный тайл) и `startMoveAnims` (L636-649: `oldAlive ? mobAnchor : beforePos`,
   oldAlive — false при self-clean).
 
-Прочие опции loadCombatUi: withEfir/withSpells/performance/rAF-стабы (L141-245).
+Прочие опции loadCombatUi: withEfir/withSpells/performance/rAF-стабы (L153-277).
 
 ### 2.3 makeContext2d (L28-55) — lineWidth: ОТДЕЛЬНЫЙ массив (критично)
 
 Стаб НЕ записывает lineWidth (set-trap логирует только fillStyle/strokeStyle).
 Решение: `el.lineWidthSets = []` — push `[value, evIdx]` при `k === 'lineWidth'`.
-**НЕ в `events` и НЕ в `styleCalls`** — иначе `styledCalls` (L1463-1477, else-ветка
-`else strokeStyle = ev.s[1]`) сочтёт его strokeStyle, `hatchCallIdx175` (L3268)
+**НЕ в `events` и НЕ в `styleCalls`** — иначе `styledCalls` (L1504-1517, else-ветка
+`else strokeStyle = ev.s[1]`) сочтёт его strokeStyle, `hatchCallIdx175` (L3317-3330)
 сошлёт его вызовом → сдвинут ВСЕ существующие z-порядок-пины (000050 lastGridStroke,
 H1/H6, R5-слайсы). Декодер CU182-LW читает из `lineWidthSets` действовавшее
 lineWidth на каждом hatch-stroke-индексе (стиль ставится ОДИН раз до цикла —
@@ -146,17 +154,17 @@ combat-ui.js L1298-1303: strokeStyle HATCH175 + lineWidth 1; штрих = moveTo
 
 ### 2.4 Аддитивные опции сцен (по 1 строке, дефолт бит-в-бит)
 
-- **scene166** (L2770): `spells = true` → `{ withSpells: spells }` (сейчас хардкод
+- **scene166** (L2811-2855): `spells = true` → `{ withSpells: spells }` (сейчас хардкод
   `withSpells: true`). Для CU182-NOSP: `scene166({deadAllies:1, spells:false})`.
   Без withSpells: spellbook.js грузится ВСЕГДА (existsSync) → G.SpellBook ЕСТЬ,
   G.Spells/G.SpellsData НЕТ → `entriesFor(unit, null)` → `[]` (пустая книга «—»,
   БЕЗ console.error — `spellBookWarned` L157 срабатывает только при отсутствии
   G.SpellBook); кнопка resurrect ВСЁ ЕЩЁ строится (canResurrect — чистое чтение
   unitOf(c).spells).
-- **scene178** (L4389): `if (opts.resurrect) hero.spells = ['resurrect'];` (до
-  build) — прецедент scene84 L1431 (assignment, не push: hero — свежий
+- **scene178** (L4439): `if (opts.resurrect) hero.spells = ['resurrect'];` (до
+  build) — прецедент scene84 L1457 (assignment, не push: hero — свежий
   G.createCharacter(), дефолтный spells перезаписан целиком). Для CU182-ORDER.
-- **ROSTER_MEDIC** (L4419) — уже есть (support-наёмник для heal).
+- **ROSTER_MEDIC** (L4475) — уже есть (support-наёмник для heal).
 - scene166(): hero.spells=['resurrect'] (по прецеденту opts.resurrect=true),
   hero.mp=50, rosterData = Volk melee L1 (хардкод), БЕЗ efir → gates: cast НЕТ
   (нет efir), heal НЕТ (нет merc), resurrect ЕСТЬ → **8 кнопок** (CU182-BTN8).
@@ -164,19 +172,21 @@ combat-ui.js L1298-1303: strokeStyle HATCH175 + lineWidth 1; штрих = moveTo
 ### 2.5 e2e-инъекции (messages дословно, restore обязателен)
 
 - `G.playerUI.render = () => { throw new Error('MF182-D5B-inject') }` — onEnd
-  (main.js L1547-1587) вызывает `G.playerUI.render()` L1584 ПОСЛЕ hudFlash
+  (main.js L1631-1670) вызывает `G.playerUI.render()` L1668 ПОСЛЕ hudFlash
   («Победа! +50 опыта, +1 золота.» вычислен ДО броска) и ПОСЛЕ combatEndLoot/
   combatEndCompanions (они отработают нормально) → catch D5b.
   Сообщение гарда дословно (combat-ui.js L1989):
   `«combat-ui.js: исключение в onEnd — побочные эффекты конца боя потеряны (повторные предупреждения подавлены).»`
 - `G.serializeBuffs = () => { throw new Error('MF182-D7-inject') }` — collectSaveData
-  main.js L681: `buffs: G.serializeBuffs ? G.serializeBuffs(buffs) : []` → catch D7.
-  Сообщение (main.js L775-776):
+  (main.js L674): `buffs: G.serializeBuffs ? G.serializeBuffs(buffs) : []` (шов
+  L696) → catch D7. Сообщение (main.js L803-804):
   `«main.js: исключение в collectSaveData — сейв не записан (повторные предупреждения подавлены).»`
-  saveNow — ТОЛЬКО на успешном шаге (frame L2833-2843: `if (keys.size && tryMove())`
-  → … → `saveNow()`), НЕ каждый кадр → ошибка ровно на первом мирном шаге.
-- **T12-последовательность** (шаги = кадры с зажатым 'ArrowLeft',
-  holdUntilStep): шаг 1 → clock.addStep(1): steps 1<2, дня нет, saveNow →
+  saveNow — ТОЛЬКО на успешном шаге (frame: `if (keys.size && tryMove())`
+  L2915 → … → `saveNow()` L2934), НЕ каждый кадр → ошибка ровно на первом мирном шаге.
+- **T12-последовательность** (шаги = кадры с зажатым ПРОХОДНЫМ направлением:
+  passableDir + keydownFor + holdUntilStep — АКТУАЛИЗИРОВАНО 000188:
+  финальные тесты берут dir динамически, см. буллет «Мировое движение в
+  MF182-D5B/D7»): шаг 1 → clock.addStep(1): steps 1<2, дня нет, saveNow →
   ошибка #1; шаг 2 → steps 2≥2 → advanceDay('steps') (day.js L82-88: while
   steps≥perDay — избыток переходит) → onDay (day 2): restoreDay/payWages/
   G.playerUI.render (реальный)/hudFlash «День 2.»/saveNow → подавлен
@@ -185,7 +195,7 @@ combat-ui.js L1298-1303: strokeStyle HATCH175 + lineWidth 1; штрих = moveTo
   saveNow реально, ошибок не добавилось (=== 1 суммарно).
   addStep-семантика проверена: perDay читается per-call (liveStepsPerDay).
 - `G.hud.update = () => { throw new Error('MF182-ONCE-inject') }` — renderHud каждый
-  кадр → catch frame-watchdog. Сообщение (main.js L2879):
+  кадр → catch frame-watchdog. Сообщение (main.js L2970-2971):
   `«main.js: исключение в кадре — главный цикл продолжает (повторные предупреждения подавлены).»`
 - **Смена дня в MF182-D7:** `G.GlobalSettings.SETTINGS.steps_per_day = 2` — экспорт
   `G.GlobalSettings` (global-settings.js L61: `{ GlobalSettings: factory() }`),
@@ -193,24 +203,33 @@ combat-ui.js L1298-1303: strokeStyle HATCH175 + lineWidth 1; штрих = moveTo
   `day.js liveStepsPerDay()` ЧИТАЕТ `settings.SETTINGS.steps_per_day` В МОМЕНТ
   ВЫЗОВА (контракт 000099, «изменение действует без перезагрузки») → мутация
   после boot() видна следующему `clock.addStep`. steps_per_day=2 → смена дня на
-  2-м шаге (onDay L1375-1432: restoreDay → payWages → G.playerUI.render →
+  2-м шаге (onDay L1459-1515: restoreDay → payWages → G.playerUI.render →
   hudFlash «День N.» → saveNow — подавлен тем же флагом D7, НЕ 2-я ошибка).
-- e2e-бой ВСЕГДА включает Эфир (main.js L1537-1545 «постоянный союзник — ВСЕГДА,
+- e2e-бой ВСЕГДА включает Эфир (main.js L1602-1603 «постоянный союзник — ВСЕГДА,
   включая отладочный бой») → в MF182-D5B ctx.efir != null → D5a (addEfirXp)
   отработает нормально ДО D5b (мы туда не инжектим) → ошибок ровно 1.
-- **Мировое движение в MF182-D5B/D7:** `holdUntilStep` (L659) с
-  **dir (−1,0) = 'ArrowLeft' ЗАДАЁТСЯ ЯВНО** (не passableDir): SPAWN = (−0,−0)
-  (findSpawn — спираль от (0,0)); (−1,0) проверено ДИНАМИЧЕСКИ (реальное
-  holdUntilStep ×3: moved=true, combatUI.isActive()=false, день не сдвинулся —
-  16.10.2026, seed-карта детерминирована). Zone-бой 000135 (5×5-зона живой
-  группы) passableDir НЕ ВИДИТ (фильтрует только hasMobGroup целевого тайла) —
-  поэтому «чисто» = проверено ходом, а не статикой.
+- **Мировое движение в MF182-D5B/D7** (АКТУАЛИЗИРОВАНО 000188,
+  ретро-20261011): dir = `passableDir(G, myMap, g.state.player.x,
+  g.state.player.y)` (helper файла L648-655: первый проходной из
+  [E,W,S,N] — `t.passable && !t.hasMobGroup`) + `keydownFor` (L513) +
+  `holdUntilStep` (L659) — НЕ захардкоженный 'ArrowLeft' (старая
+  формулировка устарела: финальные тесты используют passableDir — вызовы
+  e2e L789 (T1), L1347 (MF182-D5B), L1459/L1469/L1486 (MF182-D7)).
+  Осознанное отклонение от исходного контракта, зафиксировано в
+  tasks/result/000182.md §Отклонения (в memory не переносили — закрыто
+  000188). DIRS-приоритет [[1,0],[−1,0],[0,1],[0,−1]]: от SPAWN (0,0)
+  возвращается (−1,0)='ArrowLeft' — то же направление, которое анализ 000182
+  проверял ДИНАМИЧЕСКИ: (1,0) — hasMobGroup → зональный бой 000135 (5×5-зона
+  живой группы) — passableDir НЕ ВИДИТ зону (фильтрует hasMobGroup только
+  ЦЕЛЕВОГО тайла). «Чистота» направления закреплена ДИНАМИЧЕСКИ: ассерт
+  `r.moved` на каждом holdUntilStep (критерий контракта: «проверено ходом,
+  а не статикой»).
 - MF182-D5B whitebox: `c.phase='over'; c.result={outcome:'victory',xp:50,gold:1,
-  defeated:1,allyXp:[]}` → `handleCode('Escape')` (паттерн T4 L935-981).
+  defeated:1,allyXp:[]}` → `handleCode('Escape')` (паттерн T4 L952-993).
 
 ### 2.6 Дробные якоря re-timing (CU182-FRAC) — математика (детерминированно)
 
-Геометрия R8 (tests/combat-ui.test.js L3749-3822 — БУКВАЛЬНАЯ, не из анализа):
+Геометрия R8 (tests/combat-ui.test.js L3798-3870 — БУКВАЛЬНАЯ, не из анализа):
 rider (0,0) orc_rider FAST (movePerTurn 2), wolf (3,3) movePerTurn 1, player
 (3,6), obstacles.clear(), `c._rng=()=>0.99`, mutable `let T` +
 `performance.now: () => T`. Волна 1 (Space T=0): rider path [(0,0),(1,0),(2,0)]
@@ -237,7 +256,7 @@ lerp(a,b,t) = a+(b−a)·t.
 - **wolf** (entry истёк: stepProgress(550, 0, 300) = 1 → oldAlive=false; entry
   НЕ self-cleaned — рендера после T=150 не было, mobAnchor на волка не зовётся;
   startMoveAnims entry ЗАМЕНЯЕТ, не добавляет) → `from = beforePos.get('wolf')`
-  = (3,4) (финал волны 1) → спрайт (152, 200) — зеркало пина R8 L3811.
+  = (3,4) (финал волны 1) → спрайт (152, 200) — зеркало пина R8 L3860.
 - Окно: T строго < 600 для rider (иначе tAll≥1 → self-clean, окно R7).
 
 ### 2.7 Whitebox-паттерны (чистые чтения, не shared-инъекция)
@@ -332,8 +351,8 @@ lerp(a,b,t) = a+(b−a)·t.
   ставится spells.js), `dealDamageToMob`, `mobReachCells` (чистая BFS L430),
   `activeUnitId` — пины ядра идут через них (efir.test.js: save/set/restore).
 - **Флаги «logged once»** (все — по 1 console.error на сессию/контекст):
-  `onEndErrLogged` (combat-ui.js L162, D5b), `saveDataErrLogged` (main.js L753, D7),
-  `frameErrLogged` (main.js L2785, frame), `reachWarned` (combat-ui.js L179, D10),
+  `onEndErrLogged` (combat-ui.js L162, D5b), `saveDataErrLogged` (main.js L781, D7),
+  `frameErrLogged` (main.js L2876, frame), `reachWarned` (combat-ui.js L179, D10),
   `spellBookWarned` (combat-ui.js L157 — только отсутствие G.SpellBook).
 - **G.GlobalSettings.SETTINGS** — живой объект; day.js читает live (000099);
   mутации в e2e видны без перезагрузки (T12).
@@ -369,12 +388,16 @@ lerp(a,b,t) = a+(b−a)·t.
    `el.lineWidthSets`. Проверить после правки: 000050 lastGridStroke, H1/H6,
    R5-слайсы зелёные без изменений.
 2. **UMD-снапшот** (R2): post-boot `delete G.mobReachCells` бесполезен; только
-   load-time опция ДО L229.
-3. **host console в loadCombatUi** (L165): D10/NOMOTION-пины — wrap/restore
+   load-time опция ДО L257 (снапшот L258).
+3. **host console в loadCombatUi** (L176): D10/NOMOTION-пины — wrap/restore
    try/finally в КАЖДОМ тесте; node --test — файлы в отдельных процессах, внутри
    файла последовательно → утечка исключена при корректном finally.
-4. **T12 dir**: (1,0) от SPAWN (0,0) — mobGroup → зональный бой; только 'ArrowLeft'
-   (проверено 3 шага).
+4. **MF182-D5B/D7 dir (T12-последовательность)** (АКТУАЛИЗИРОВАНО 000188):
+   направление мира — `passableDir()` (helper L648-655), а не захардкоженный
+   'ArrowLeft' (отклонение зафиксировано в tasks/result/000182.md
+   §Отклонения): от SPAWN (0,0) это (−1,0)='ArrowLeft' ((1,0) — hasMobGroup
+   → зональный бой 000135; 5×5-зону passableDir НЕ ВИДИТ); «чистота» каждого
+   шага — ассерт `r.moved`.
 5. **T12 steps_per_day=2** сработает restoreDay (respawn/лоот) — детерминировано
    (MAP_PNG_SEED), но не трогать ассерты позиции на чётных шагах.
 6. **Ридер-волна 2** (CU182-FRAC/PRUNE): путь (3,0),(3,1) — time-independent
