@@ -6,10 +6,10 @@
 // в каталоге: 25 — невалидный XML, 4 — NaN в атрибутах.
 //
 // Что проверяет этот тест (ноль npm-зависимостей, как весь проект):
-//  * обход ВСЕХ assets/**/*.svg (339 файлов: tiles 12, combat/bg 11,
+//  * обход ВСЕХ assets/**/*.svg (342 файла: tiles 12, combat/bg 11,
 //    combat/obstacles 3 (задача 000050),
-//    dungeon 25 (floor 15 + walls 6 + chest 1 — 000067 + маркеры
-//    входа-выхода 3 — 000177), sprites 251
+//    dungeon 28 (floor 15 + walls 6 + chest 1 — 000067 + маркеры
+//    входа-выхода 3 — 000177 + залежи 3 — 000157.02), sprites 251
 //    (buildings 14 (задача 000131: +camp), cities 4 (задача 000110),
 //    mercs 12 (задача 000152), mobs 192, phlogiston 8,
 //    efir 8 — 000034, visuals 13),
@@ -443,9 +443,11 @@ const EXPECTED_SVG_BY_DIR = {
   'combat/obstacles': 3,              // препятствия боя (задача 000050)
   'dungeon/floor': 15,                // полы подземелья (задача 000069)
   'dungeon/walls': 6,                 // «непроходимые» стены (задача 000070)
-  'dungeon': 4,                       // сундук chest.svg (000067) + маркеры
+  'dungeon': 7,                       // сундук chest.svg (000067) + маркеры
                                       // входа-выхода door/cave_mouth/stairs
-                                      // (задача 000177)
+                                      // (задача 000177) + залежи
+                                      // deposit_ore/deposit_mineral/
+                                      // deposit_gem (задача 000157.02)
   'sprites/buildings': 14,            // + лагерь (задача 000131: camp.svg)
   'sprites/cities': 4,                // спрайты городов (задача 000110: 4 типа)
   'sprites/mobs': 192,

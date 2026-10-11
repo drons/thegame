@@ -1512,3 +1512,61 @@ test('IO2. 000162: спец-модуль «Воскрешение» — тег s
     'specials[resurrect] зарегистрирован (self-registration при '
     + 'загрузке, без правок main.js)');
 });
+
+// ====================================================================
+// 000157.02: КРАСНЫЕ тесты IO-DEP-1/2 — DUNGEON_ORES из каталога
+// («руда») в обоих режимах загрузки dungeon.js. Контракт:
+// memory/000157.02-dungeon-deposits.md §4.1.
+// ====================================================================
+
+test('IO-DEP-1: dungeon.js БЕЗ dungeons-data.js — fallback DUNGEON_ORES «руда» ≡ каталогу (000157.02, RED)', () => {
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of DUNGEON_CORE.concat('src/dungeon.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  const ddir = path.join(ROOT, 'assets', 'dungeons');
+  for (const f of ['000001.json', '000005.json']) {
+    const data = JSON.parse(fs.readFileSync(path.join(ddir, f), 'utf8'));
+    assert.ok(Array.isArray(data.руда),
+      f + ': в каталоге — поле «руда» (массив)');
+    assert.ok(sandbox.Game.DUNGEON_ORES
+        && sandbox.Game.DUNGEON_ORES[data.id]
+        && sandbox.Game.DUNGEON_ORES[data.id].length > 0,
+      'fallback: Game.DUNGEON_ORES[' + data.id + '] (' + f + ')');
+    // vm-realm: нормализуем объекты в node-прототип (cross-realm
+    // deepEqual падает на прототипах).
+    const ores = [...sandbox.Game.DUNGEON_ORES[data.id]]
+      .map((o) => ({ предмет: o.предмет, вид: o.вид }));
+    assert.deepEqual(ores, data.руда,
+      'fallback: DUNGEON_ORES[' + data.id + '] (' + f + ') ≡ каталогу '
+      + '(1:1, порядок как в JSON)');
+  }
+});
+
+test('IO-DEP-2: порядок core → dungeons-data.js → dungeon.js — DUNGEON_ORES[t] ≡ «руда» каталога (browser-ветка) (000157.02, RED)', () => {
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of DUNGEON_CORE
+    .concat('src/dungeons-data.js', 'src/dungeon.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+  }
+  const ddir = path.join(ROOT, 'assets', 'dungeons');
+  const dfiles = fs.readdirSync(ddir)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  for (const f of dfiles) {
+    const data = JSON.parse(fs.readFileSync(path.join(ddir, f), 'utf8'));
+    const t = data.id;
+    assert.ok(sandbox.Game.DUNGEON_ORES && sandbox.Game.DUNGEON_ORES[t],
+      'Game.DUNGEON_ORES[' + t + '] (' + f + ') — browser-ветка');
+    const ores = [...sandbox.Game.DUNGEON_ORES[t]]
+      .map((o) => ({ предмет: o.предмет, вид: o.вид }));
+    assert.deepEqual(ores, data.руда,
+      'DUNGEON_ORES[' + t + '] (' + f + ') — browser-ветка 1:1 с «руда» '
+      + 'каталога');
+  }
+});

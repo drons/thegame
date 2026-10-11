@@ -45,6 +45,25 @@
         "type": "string",
         "enum": ["rock", "column", "stalactite"]
       }
+    },
+    "руда": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["предмет", "вид"],
+        "properties": {
+          "предмет": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "вид": {
+            "type": "string",
+            "enum": ["руда", "минерал", "самоцвет"]
+          }
+        }
+      }
     }
   }
 }

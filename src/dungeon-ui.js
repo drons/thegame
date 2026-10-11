@@ -106,6 +106,17 @@
   // 000067): группа «встает» вокруг своей клетки.
   const MOB_UNIT_OFF = [[0, 0], [-0.35, 0.15], [0.35, 0.15]];
 
+  // 000157.02: фолбэк-цвета ЗАЛЕЖЕЙ (спрайт не готов) — ЦВЕТОМ ПО
+  // ВИДУ (таблица вида — sprites.js DUNGEON_DEPOSIT полная по enum;
+  // guard «вид не найден» → 'минерал'). Не коллизия: сундук
+  // #e0b13c/#7a5c16, босс #b06ad4, моб #d9483b, пол #182029,
+  // игрок #8cf2fc, выход-тайл #d4b45a (000177).
+  const DEPOSIT_FALLBACK_COLORS = {
+    'руда': ['#b5722f', '#6e4218'],     // ржаво-бурый
+    'минерал': ['#7f8ea3', '#46525f'],  // стальной
+    'самоцвет': ['#2fa06b', '#175c3c'], // изумрудный
+  };
+
   // --- Город (задача 000105): режим по state.kind === 'city' ---
   // СВОИ тайлы (не 5 типов подземелий): палитра — данные, выбор
   // варианта — чистая функция от (x, y, seed) по паттерну
@@ -400,9 +411,11 @@
     // С «[E] — постройки» (взаимодействие [E] — 000107, buildingUI).
     // Подземелье — прежний текст (без kind — dungeon).
     const s0 = state();
+    // 000157.02: + 4-я строка про залежи (подземелье; город НЕ
+    // трогается — залежей в городе нет, пин UI-DEP-3).
     hint.textContent = (s0 && s0.kind === 'city')
       ? 'Стрелки/WASD — шаг.\nДверь — вход и выход: встаньте на неё и нажмите [E].\n[E] — постройки.'
-      : 'Стрелки/WASD — шаг.\nВход в пещеру — вход и выход: встаньте на него и нажмите [E].\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).';
+      : 'Стрелки/WASD — шаг.\nВход в пещеру — вход и выход: встаньте на него и нажмите [E].\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).\nЗалежи — графические спрайты руды, минералов и самоцветов (цветной квадрат — фолбэк-метка).';
     side.appendChild(hint);
 
     overlay.appendChild(side);
@@ -439,7 +452,9 @@
     if (!ctx || !ctx.open) return;
     const s = state();
     if (!s || !s.dg) return;
-    const d = s.dg, c = s.contents || { chests: [], mobs: [] };
+    // 000157.02: default +deposits — e2e-цепи и vm-тесты строят
+    // contents-литералы без ключа deposits — guard (c.deposits || []).
+    const d = s.dg, c = s.contents || { chests: [], mobs: [], deposits: [] };
     const w = canvas.width, h = canvas.height;
     const live = liveGame();
     // now — время кадра (rAF-цикл); из событий (keydown) — текущее.
@@ -636,6 +651,44 @@
         g2.fillRect(p.x + 3, p.y + zoom / 2 - 1, zoom - 6, 2);
       }
     }
+    // Залежи (000157.02): спрайт live.DUNGEON_DEPOSIT[«вид»]
+    // (zoom*0.8, центр клетки — паттерн сундука); «вид» — из пула
+    // live.DUNGEON_ORES[d.type] по предмету (уникальность предмета в
+    // пуле — вид однозначен; guard: запись не найдена → 'минерал').
+    // СОБРАННЫЕ (gathered) — НЕ рисуются (паттерн открытого сундука).
+    // Изображение не готово — квадрат + полоса ЦВЕТОМ ПО ВИДУ
+    // (DEPOSIT_FALLBACK_COLORS). 000136: туман-маска — скрытая
+    // клетка не рисуется. Слои: пол/выход/стены/сундуки/ЗАЛЕЖИ/мобы/
+    // босс/игрок.
+    const depositTable = (live.DUNGEON_DEPOSIT
+      && typeof live.DUNGEON_DEPOSIT === 'object')
+      ? live.DUNGEON_DEPOSIT : null;
+    const orePool = Array.isArray(live.DUNGEON_ORES[d.type])
+      ? live.DUNGEON_ORES[d.type] : [];
+    for (const dep of (c.deposits || [])) {
+      if (dep.gathered) continue;
+      if (!isCity && mask[dep.y * d.width + dep.x] === 0) continue; // 000136
+      const oreRec = orePool.find((o) => o && o.предмет === dep.item);
+      const oreKind = (oreRec && DEPOSIT_FALLBACK_COLORS[oreRec.вид])
+        ? oreRec.вид : 'минерал';
+      const dpath = depositTable ? depositTable[oreKind] : null;
+      const img = (dpath && loader && typeof loader.image === 'function')
+        ? ((typeof loader.isReady === 'function' ? loader.isReady(dpath) : true)
+          && loader.image(dpath)) || null
+        : null;
+      if (img) {
+        const ds = zoom * 0.8;
+        const pc = proj(dep.x + 0.5, dep.y + 0.5);
+        g2.drawImage(img, pc.x - ds / 2, pc.y - ds / 2, ds, ds);
+      } else {
+        const fb = DEPOSIT_FALLBACK_COLORS[oreKind];
+        const p = proj(dep.x, dep.y);
+        g2.fillStyle = fb[0];
+        g2.fillRect(p.x + 3, p.y + 3, zoom - 6, zoom - 6);
+        g2.fillStyle = fb[1];
+        g2.fillRect(p.x + 3, p.y + zoom / 2 - 1, zoom - 6, 2);
+      }
+    }
     // Мобы (блуждающие группы). 000067: каждый mobId группы — СВОЙ
     // спрайт (мир-паттерн «одна группа = один спрайт» неприменим):
     // mobSpriteKind → MOB_FRAMES → кадр Math.floor(frameIndex(now,
@@ -776,11 +829,15 @@
         s.name + '  (' + s.x + ', ' + s.y + ')\n' +
         'До выхода: ' + dist + ' клеток (на глаз)';
     } else {
+      // 000157.02: + «| Залежи: N» (N — нерасчищенные, !gathered;
+      // guard (c.deposits || []) — contents-литералы без ключа).
       stateEl.textContent =
         G.DUNGEON_NAMES[d.type] + '  (' + s.x + ', ' + s.y + ')\n' +
         'До выхода: ' + dist + ' клеток (на глаз)\n' +
         'Группы: ' + c.mobs.filter((m) => !m.defeated).length +
-        '  |  Сундуки: ' + c.chests.filter((x) => !x.opened).length;
+        '  |  Сундуки: ' + c.chests.filter((x) => !x.opened).length +
+        '  |  Залежи: '
+        + (c.deposits || []).filter((x) => !x.gathered).length;
     }
     logEl.textContent = (s.log || []).slice(-8).join('\n');
   }

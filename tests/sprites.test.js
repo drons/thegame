@@ -234,6 +234,24 @@ test('SP-177: DUNGEON_PORTAL (000177) — маркеры единого тайл
   }
 });
 
+test('SP-DEP-1: DUNGEON_DEPOSIT (000157.02) — 3 РАЗНЫХ assets/dungeon/deposit_*.svg по виду, файлы существуют, все в allAssetPaths', () => {
+  assert.ok(S.DUNGEON_DEPOSIT && typeof S.DUNGEON_DEPOSIT === 'object',
+    'src/sprites.js: нет таблицы DUNGEON_DEPOSIT (вид → путь спрайта)');
+  assert.deepEqual(S.DUNGEON_DEPOSIT, {
+    'руда': 'assets/dungeon/deposit_ore.svg',
+    'минерал': 'assets/dungeon/deposit_mineral.svg',
+    'самоцвет': 'assets/dungeon/deposit_gem.svg',
+  }, 'DUNGEON_DEPOSIT: вид → путь');
+  const paths = Object.values(S.DUNGEON_DEPOSIT);
+  assert.equal(new Set(paths).size, 3,
+    '3 вида → 3 РАЗНЫХ файла (не «один штамп для всех»)');
+  for (const p of paths) {
+    assert.ok(exists(p), 'файл отсутствует: ' + p);
+    assert.ok(S.allAssetPaths().includes(p),
+      'путь не в allAssetPaths: ' + p);
+  }
+});
+
 // --- Детерминизм выбора (не зависит от загрузки) ---
 
 test('выбор спрайтов детерминирован и не зависит от факта загрузки', () => {

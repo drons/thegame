@@ -351,6 +351,7 @@ test('таблицы dungeon.js (node-ветка) выведены из ката
     assert.equal(D.DUNGEON_NAMES[t], data.название, `DUNGEON_NAMES[${t}] (${file})`);
     assert.deepEqual(D.DUNGEON_MOBS[t], data.мобы, `DUNGEON_MOBS[${t}] (${file})`);
     assert.deepEqual(D.DUNGEON_ITEMS[t], data.предметы, `DUNGEON_ITEMS[${t}] (${file})`);
+    assert.deepEqual(D.DUNGEON_ORES[t], data.руда, `DUNGEON_ORES[${t}] (${file})`);
     assert.equal(D.DUNGEON_SIZE[t], data.размер, `DUNGEON_SIZE[${t}] (${file})`);
   }
   // DUNGEON_TYPES — без изменений (перенумерации нет, 000049).
@@ -974,6 +975,13 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
 // гарда блокирует её → сдвиг. Значения — ПО ФАКТУ master 3ce98ad
 // (node-пробой, детерминизм перепроверен). Контракт:
 // memory/000189-non-abyss-contents-pin.md.
+//
+// ОСОЗНАННЫЙ РЕ-ПИН 000157.02 (правки по итогам ревью, master ffe12ac):
+// generateDungeonContents вернула новое поле `deposits` (залежи, свой
+// rng-поток ПОСЛЕ цикла сундуков) → deepStrictEqual-пин набора ключей
+// покраснел. Значение — ПО ФАКТУ (node-пробой): d.seed 2658571374 /
+// c.seed 664152848 и mobs/chests НЕ ИЗМЕНЕНЫ (бит-в-бит); добавлен
+// только deposits (CAVE, depth 1: nDeposits=1, T=1 → coal T1).
 // ====================================================================
 
 test('D-BOSS-3: НЕ-ABYSS — полный deepEqual-пин содержимого CAVE (37,−12) xp=32: blast-radius границы фикса 000183 (Ретро-20261011)', () => {
@@ -984,10 +992,11 @@ test('D-BOSS-3: НЕ-ABYSS — полный deepEqual-пин содержимо�
     'сид решётки (golden L254 / DEP-1 — бит-в-бит)');
   const c = D.generateDungeonContents(d, heroAt(32));
   assert.equal(c.seed, 664152848, 'сид контента');
-  // Полный объект: ВСЕ поля (seed/mobs/chests/createdAtXp/step) —
-  // node:assert/strict deepEqual === deepStrictEqual: пинит и набор
-  // собственных ключей (новое/удалённое поле результата → красный →
-  // осознанный ре-пин от факта), чего не делают существующие goldens.
+  // Полный объект: ВСЕ поля (seed/mobs/chests/deposits/createdAtXp/
+  // step) — node:assert/strict deepEqual === deepStrictEqual: пинит и
+  // набор собственных ключей (новое/удалённое поле результата →
+  // красный → осознанный ре-пин от факта), чего не делают
+  // существующие goldens.
   assert.deepEqual(c, {
     seed: 664152848,
     mobs: [
@@ -1004,6 +1013,11 @@ test('D-BOSS-3: НЕ-ABYSS — полный deepEqual-пин содержимо�
       { id: 'c2', x: 13, y: 10, opened: false, gold: 31, item: 'healing_potion' },
       { id: 'c3', x: 18, y: 5, opened: false, gold: 27, item: 'stone_fist_grimoire' },
       { id: 'c4', x: 15, y: 18, opened: false, gold: 26, item: null },
+    ],
+    // 000157.02 (ре-пин): свои залежи — СВОЙ rng-поток (соль 0x0DE5)
+    // ПОСЛЕ цикла сундуков: mobs/chests/seed не тронуты.
+    deposits: [
+      { id: 'd0', x: 4, y: 12, item: 'coal', amount: 1, gathered: false },
     ],
     createdAtXp: 32,
     step: 0,
@@ -1772,4 +1786,258 @@ test('ST-4: stairs-down depth=1: размещение валидно, конте
     { id: 'c0', x: 20, y: 11, opened: false, gold: 63, item: null },
     { id: 'c1', x: 7, y: 8, opened: false, gold: 58, item: 'phoenix_feather' },
   ], 'ABYSS d1 chests = существующий golden (бит-в-бит)');
+});
+
+// ====================================================================
+// 000157.02: КРАСНЫЕ тесты ORE-1..ORE-8 — залежи в подземельях:
+// поле «руда» в каталоге + DUNGEON_ORES + генерация по глубине
+// (sopts.depth, отдельный rng-поток ПОСЛЕ цикла сундуков).
+// Контракт: memory/000157.02-dungeon-deposits.md §3–§5.
+//
+// Имена ORE-* (не DEP-*): DEP-1..4 принадлежат 000153.01 (модель
+// глубины) — коллизия имён запрещена (memory §8).
+//
+// Инвариант §4.2: главный rng НЕ делает новых вызовов после цикла
+// сундуков → существующие золотые (seed/mobs/chests, тесты L250-305
+// и D-BOSS-2) — бит-в-бит, перепин значений НЕ производится. Залежи —
+// свой поток: mulberry32(hash2(seed, depth, 0x0DE5) >>> 0),
+// seed = c.seed (сид контента).
+// ====================================================================
+
+// T(D) — формула контракта: T = min(1 + floor((D−1)/2), 4)
+// → D1-2: T1, D3-4: T2, D5-6: T3, D7+: T4.
+const TIER_OF_DEPTH = (depth) => Math.min(1 + Math.floor((depth - 1) / 2), 4);
+
+test('ORE-1: залежи — глубина 1 (по умолчанию) → ровно 1 залежь во ВСЕХ 5 типах (каждый пул ≥1 T1, вкл. ABYSS) (000157.02, RED)', () => {
+  for (const t of WALL_ENTRIES) {
+    const d = D.createDungeon(t.args[0], t.args[1], t.args[2], t.args[3]);
+    assert.equal(d.type, D.DUNGEON_TYPES[t.name], t.name + ' (сценарий)');
+    const c = D.generateDungeonContents(d, heroAt(500));
+    assert.ok(Array.isArray(c.deposits),
+      t.name + ': c.deposits — массив (opts.depth по умолчанию = 1)');
+    assert.equal(c.deposits.length, 1,
+      t.name + ': depth 1 → ровно 1 залежь (nDeposits = 1 + min(3, '
+      + 'floor(depth/3)) = 1)');
+  }
+});
+
+test('ORE-2: залежь — предмет из пула типа (DUNGEON_ORES[type]), существует в assets/items, tier ≤ T(depth) (000157.02, RED)', () => {
+  const I = require('../src/items.js');
+  assert.ok(D.DUNGEON_ORES && typeof D.DUNGEON_ORES === 'object',
+    'dungeon.js: нет экспорта DUNGEON_ORES (тип → пул залежей)');
+  for (const t of WALL_ENTRIES) {
+    const d = D.createDungeon(t.args[0], t.args[1], t.args[2], t.args[3]);
+    for (const xp of [1, 123, 2000, 9999]) {
+      for (const depth of [1, 3, 7]) {
+        const c = D.generateDungeonContents(d, heroAt(xp), { depth });
+        assert.ok(Array.isArray(c.deposits),
+          t.name + ' xp=' + xp + ' depth=' + depth + ': c.deposits — массив');
+        assert.ok(c.deposits.length >= 1,
+          t.name + ': залежь есть (в пуле T1)');
+        for (const dep of c.deposits) {
+          const pool = D.DUNGEON_ORES[d.type] || [];
+          const rec = pool.find((o) => o && o.предмет === dep.item);
+          assert.ok(rec,
+            t.name + ': предмет «' + dep.item + '» из пула типа '
+            + '(DUNGEON_ORES[' + d.type + '])');
+          const it = I.getItem(dep.item);
+          assert.ok(it,
+            t.name + ': предмет «' + dep.item + '» существует в '
+            + 'assets/items (getItem)');
+          assert.ok((it.tier || 1) <= TIER_OF_DEPTH(depth),
+            t.name + ': tier(«' + dep.item + ')=' + (it.tier || 1)
+            + ' ≤ T(' + depth + ')=' + TIER_OF_DEPTH(depth));
+        }
+      }
+    }
+  }
+});
+
+test('ORE-3: залежь — amount ∈ 1..4 (5 недостижимо) (000157.02, RED)', () => {
+  for (const t of WALL_ENTRIES) {
+    const d = D.createDungeon(t.args[0], t.args[1], t.args[2], t.args[3]);
+    for (const xp of [1, 45, 1234]) {
+      for (const depth of [1, 4, 9]) {
+        const c = D.generateDungeonContents(d, heroAt(xp), { depth });
+        assert.ok(Array.isArray(c.deposits),
+          t.name + ' xp=' + xp + ' depth=' + depth + ': c.deposits — массив');
+        for (const dep of c.deposits) {
+          assert.ok(dep.amount >= 1 && dep.amount <= 4,
+            t.name + ' depth=' + depth + ': amount ∈ 1..4 '
+            + '(1 + floor(rng*2) + min(2, floor(depth/4))); факт: '
+            + dep.amount);
+        }
+      }
+    }
+  }
+});
+
+test('ORE-4: залежи — взаимоисключение: не на клетке босса/безопасной зоне/моба/сундука; две залежи не делят клетку (sweep xp 1..3000 × 3 ABYSS-формы + CAVE 1..300) (000157.02, RED)', () => {
+  const checkDungeon = (d, label, xpFrom, xpTo) => {
+    for (let xp = xpFrom; xp <= xpTo; xp++) {
+      const c = D.generateDungeonContents(d, heroAt(xp));
+      assert.ok(Array.isArray(c.deposits),
+        label + ' xp=' + xp + ': c.deposits — массив');
+      const seen = new Set();
+      for (const dep of c.deposits) {
+        const k = dep.x + ',' + dep.y;
+        assert.ok(!seen.has(k),
+          label + ' xp=' + xp + ': две залежи на одной клетке ' + k);
+        seen.add(k);
+        assert.equal(d.cells[dep.y * d.width + dep.x], D.CELL_FLOOR,
+          label + ' xp=' + xp + ': клетка залежи ' + k + ' — пол');
+        for (const [ex, ey, what] of [
+          [d.entrance.x, d.entrance.y, 'входа'],
+          [d.exit.x, d.exit.y, 'выхода'],
+        ]) {
+          assert.ok(
+            !(Math.abs(dep.x - ex) <= 2 && Math.abs(dep.y - ey) <= 2),
+            label + ' xp=' + xp + ': залежь ' + k
+            + ' в безопасной зоне (5×5) ' + what);
+        }
+        for (const m of c.mobs) {
+          assert.ok(!(m.x === dep.x && m.y === dep.y),
+            label + ' xp=' + xp + ': залежь на клетке моба ' + m.id
+            + ' (' + k + ')');
+        }
+        for (const ch of c.chests) {
+          assert.ok(!(ch.x === dep.x && ch.y === dep.y),
+            label + ' xp=' + xp + ': залежь на клетке сундука ' + ch.id
+            + ' (' + k + ')');
+        }
+        if (d.type === D.DUNGEON_TYPES.ABYSS) {
+          const far = d.rooms[d.rooms.length - 1];
+          assert.ok(!(dep.x === far.cx && dep.y === far.cy),
+            label + ' xp=' + xp + ': залежь на клетке босса ' + k);
+        }
+      }
+    }
+  };
+  for (const [ex, ey] of [[11, 3], [-25, -20], [-15, -20]]) {
+    const d = D.createDungeon(ex, ey, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN);
+    assert.equal(d.type, D.DUNGEON_TYPES.ABYSS,
+      '(' + ex + ',' + ey + '): MOUNTAIN + пикс. alpha 10 → ABYSS '
+      + '(сценарий)');
+    checkDungeon(d, '(' + ex + ',' + ey + ')', 1, 3000);
+  }
+  const dCave = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  assert.equal(dCave.type, D.DUNGEON_TYPES.CAVE, 'CAVE (сценарий)');
+  checkDungeon(dCave, 'CAVE (37,−12)', 1, 300);
+});
+
+test('ORE-5: T(D) — тир растёт с глубиной: D1 → только T1 (ABYSS: stone_chunk), D8 → появляется T4 (mithril_ore/diamond) (000157.02, RED)', () => {
+  const I = require('../src/items.js');
+  assert.ok(TIER_OF_DEPTH(1) < TIER_OF_DEPTH(8),
+    'T(D1)=1 < T(D8)=4 (формула T = min(1+floor((D-1)/2), 4))');
+  const d = D.createDungeon(11, 3, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN);
+  assert.equal(d.type, D.DUNGEON_TYPES.ABYSS, 'ABYSS (сценарий)');
+  const tierOf = (id) => ((I.getItem(id) || {}).tier || 1);
+  // D1: elig = T1 → в пуле ABYSS единственный T1 — stone_chunk.
+  for (const xp of [1, 7, 100, 2000]) {
+    const c = D.generateDungeonContents(d, heroAt(xp), { depth: 1 });
+    assert.ok(Array.isArray(c.deposits) && c.deposits.length >= 1,
+      'xp=' + xp + ' depth=1: залежь есть');
+    for (const dep of c.deposits) {
+      assert.equal(tierOf(dep.item), 1,
+        'D1: только T1 (предмет «' + dep.item + '» tier='
+        + tierOf(dep.item) + ')');
+    }
+  }
+  // D8: T4 (mithril_ore/diamond) за sweep xp 1..200: elig = 8 предметов
+  // пула ABYSS, T4 — 2; p(T4 нет в одной залежи) ≈ 0.42 → p(не было в
+  // 3 залежах × 200 подземелий) ≈ 0.
+  let t4 = 0;
+  for (let xp = 1; xp <= 200; xp++) {
+    const c = D.generateDungeonContents(d, heroAt(xp), { depth: 8 });
+    assert.ok(Array.isArray(c.deposits),
+      'xp=' + xp + ' depth=8: c.deposits — массив');
+    for (const dep of c.deposits) {
+      assert.ok(tierOf(dep.item) <= TIER_OF_DEPTH(8),
+        'D8: tier ≤ 4 (предмет «' + dep.item + '»)');
+      if (tierOf(dep.item) === 4) t4++;
+    }
+  }
+  assert.ok(t4 >= 1,
+    'D8: T4-предметы (mithril_ore/diamond) встречаются (факт: ' + t4 + ')');
+});
+
+test('ORE-6: залежи — детерминизм: повторный вызов идентичен; разные depth → разные потоки; mobs/chests НЕ зависят от depth (000157.02, RED)', () => {
+  const mk = (xp, depth) => D.generateDungeonContents(
+    D.createDungeon(11, 3, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN),
+    heroAt(xp), { depth });
+  const a = mk(777, 5);
+  const b = mk(777, 5);
+  assert.ok(Array.isArray(a.deposits), 'a.deposits — массив');
+  assert.deepEqual(a.deposits, b.deposits,
+    'повторный вызов — идентичные залежи (детерминизм)');
+  // opts.depth не трогает главный поток: seed/mobs/chests — те же.
+  const c = mk(777, 6);
+  assert.ok(Array.isArray(c.deposits), 'c.deposits — массив');
+  assert.equal(a.seed, c.seed, 'seed не зависит от depth');
+  assert.deepEqual(a.mobs, c.mobs, 'mobs не зависят от depth');
+  assert.deepEqual(a.chests, c.chests, 'chests не зависят от depth');
+  assert.notDeepEqual(a.deposits, c.deposits,
+    'разные depth → разные потоки залежей (D5: 2 залежи, D6: 3 залежи)');
+});
+
+test('ORE-7: соль 0x0DE5 — золотая заливка потока залежей: ABYSS (11,3), xp 2000, level 10, depth 8 (000157.02, RED)', () => {
+  const d = D.createDungeon(11, 3, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN);
+  assert.equal(d.seed, 2941640529, 'сид подземелья (закреплён золотым)');
+  const c = D.generateDungeonContents(d, heroAt(2000, 10));
+  assert.equal(c.seed, 3935780563,
+    'сид контента (закреплён золотым; главный поток — бит-в-бит)');
+  const g = D.generateDungeonContents(d, heroAt(2000, 10), { depth: 8 });
+  assert.ok(Array.isArray(g.deposits), 'c.deposits — массив (depth 8)');
+  // Поток = mulberry32(hash2(seed, depth, 0x0DE5) >>> 0), seed = c.seed;
+  // порядок вызовов на залежь: предмет → amount → клетка (takeSpotDep
+  // по общему occupied = клетки мобов ∪ сундуков, босс pre-add).
+  // Значения рассчитаны ПО КОНТРАКТУ (memory §4.1/§4.2) на пулах
+  // (memory §3): смена соли/порядка/пула рушит пин.
+  assert.deepEqual(g.deposits, [
+    { id: 'd0', x: 15, y: 11, item: 'obsidian', amount: 3, gathered: false },
+    { id: 'd1', x: 15, y: 10, item: 'gold_ore', amount: 3, gathered: false },
+    { id: 'd2', x: 23, y: 12, item: 'amethyst', amount: 3, gathered: false },
+  ], 'золотые залежи (соль 0x0DE5, D8: 3 залежи, T=4)');
+  // Текстовый пин литерала соли в src/dungeon.js.
+  const text = fs.readFileSync(path.join(ROOT, 'src', 'dungeon.js'), 'utf8');
+  assert.ok(text.includes('0x0DE5'),
+    'соль 0x0DE5 — литерал в src/dungeon.js (смена = репин всей '
+    + 'зоны генерации)');
+});
+
+test('ORE-8: DUNGEON_ORES 1:1 с каталогом («руда»), предметы уникальны в пуле и существуют в assets/items, ≥1 T1 в пуле; вид из enum (000157.02, RED)', () => {
+  const I = require('../src/items.js');
+  assert.ok(D.DUNGEON_ORES && typeof D.DUNGEON_ORES === 'object',
+    'dungeon.js: нет экспорта DUNGEON_ORES (тип → пул залежей)');
+  for (const { file, data } of loadDungeonCatalog()) {
+    const t = data.id;
+    assert.ok(Array.isArray(data.руда),
+      file + ': в каталоге — поле «руда» (массив)');
+    assert.ok(data.руда.length >= 1, file + ': «руда» — minItems 1');
+    assert.deepEqual(D.DUNGEON_ORES[t], data.руда,
+      'DUNGEON_ORES[' + t + '] (' + file + ') ≠ каталогу (порядок как в '
+      + 'JSON)');
+    const seen = new Set();
+    for (const o of data.руда) {
+      assert.ok(o && typeof o === 'object' && !Array.isArray(o),
+        file + ': запись залежи — объект {предмет, вид}');
+      assert.ok(typeof o.предмет === 'string' && o.предмет.length > 0,
+        file + ': запись — «предмет» (ненулевая строка)');
+      assert.ok(o.вид === 'руда' || o.вид === 'минерал'
+          || o.вид === 'самоцвет',
+        file + ': «вид» «' + o.вид + '» из enum');
+      assert.ok(!seen.has(o.предмет),
+        file + ': предмет «' + o.предмет + '» дублируется в пуле '
+        + '(вид неоднозначен)');
+      seen.add(o.предмет);
+      const it = I.getItem(o.предмет);
+      assert.ok(it,
+        file + ': предмет «' + o.предмет + '» отсутствует в assets/items');
+    }
+    // Каждый пул ≥1 T1: глубина 1 даёт добычу во всех 5 типах.
+    const t1 = data.руда.filter(
+      (o) => ((I.getItem(o.предмет) || {}).tier || 1) === 1);
+    assert.ok(t1.length >= 1,
+      file + ': в пуле ≥1 T1-предмет (глубина 1 даёт добычу)');
+  }
 });

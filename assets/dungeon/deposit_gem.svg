@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="gtop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5fd398"/>
+      <stop offset="1" stop-color="#2fa06b"/>
+    </linearGradient>
+    <linearGradient id="gside" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#27915e"/>
+      <stop offset="1" stop-color="#175c3c"/>
+    </linearGradient>
+    <radialGradient id="gsh">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g>
+    <ellipse cx="32" cy="52" rx="20" ry="4" fill="url(#gsh)"/>
+    <path d="M18 26 L26 16 L38 16 L46 26 L46 38 L32 50 L18 38 Z" fill="url(#gside)" stroke="#12492f" stroke-width="1" stroke-linejoin="round"/>
+    <path d="M18 26 L26 16 L38 16 L46 26 L32 30 Z" fill="url(#gtop)"/>
+    <path d="M26 16 L32 30 L38 16 Z" fill="#7fe0b0" opacity="0.55"/>
+    <path d="M18 26 L32 30 L26 44 Z" fill="#1f7a4f" opacity="0.5"/>
+    <path d="M46 26 L32 30 L38 44 Z" fill="#3dbd7f" opacity="0.4"/>
+    <path d="M32 30 L26 44 L32 50 L38 44 Z" fill="#1c6b45" opacity="0.55"/>
+    <path d="M24 20 L29 17.5 L27 22 Z" fill="#eafff4" opacity="0.85"/>
+    <circle cx="36" cy="21" r="1.2" fill="#eafff4" opacity="0.6"/>
+  </g>
+</svg>

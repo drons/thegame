@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="mbase" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6a7078"/>
+      <stop offset="1" stop-color="#454a52"/>
+    </linearGradient>
+    <linearGradient id="mcr" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a8b4c4"/>
+      <stop offset="1" stop-color="#5d6b7d"/>
+    </linearGradient>
+    <linearGradient id="mcr2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8e9cb0"/>
+      <stop offset="1" stop-color="#4a5563"/>
+    </linearGradient>
+    <radialGradient id="msh">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g>
+    <ellipse cx="32" cy="53" rx="23" ry="4.5" fill="url(#msh)"/>
+    <path d="M12 50 L16 40 L26 37 L40 37 L50 42 L52 50 Z" fill="url(#mbase)" stroke="#383d44" stroke-width="1" stroke-linejoin="round"/>
+    <path d="M17 42 L20 28 L23 31 L22 42 Z" fill="url(#mcr2)" stroke="#3f4854" stroke-width="0.8" stroke-linejoin="round"/>
+    <path d="M22 40 L26 14 L31 15 L29 40 Z" fill="url(#mcr)" stroke="#3f4854" stroke-width="0.8" stroke-linejoin="round"/>
+    <path d="M33 40 L38 8 L43 12 L41 40 Z" fill="url(#mcr)" stroke="#3f4854" stroke-width="0.8" stroke-linejoin="round"/>
+    <path d="M43 41 L49 22 L52 26 L49 42 Z" fill="url(#mcr2)" stroke="#3f4854" stroke-width="0.8" stroke-linejoin="round"/>
+    <path d="M26 14 L31 15 L29.5 24 L26.5 23 Z" fill="#cfd9e4" opacity="0.5"/>
+    <path d="M38 8 L43 12 L41.5 20 L38.5 16 Z" fill="#cfd9e4" opacity="0.45"/>
+  </g>
+</svg>

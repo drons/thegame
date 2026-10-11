@@ -18,26 +18,44 @@
 // Зависимости: perlin.js, map.js, global-settings.js
 // (dungeon_memory_days, level_delta_max), dungeons-data.js (каталог
 // assets/dungeons — source of truth таблиц, задача 000058; без data-модуля
-// гард деградирует до fallback-литералов, см. ниже).
+// гард деградирует до fallback-литералов, см. ниже), items-data.js
+// (каталог предметов — tier записей «руда», 000157.02; без data-модуля
+// мягкий путь: «предмет» не валидируется, tier = 1, без console.*).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(require('./perlin.js'), require('./map.js'),
-      require('./global-settings.js'), require('./dungeons-data.js'));
+      require('./global-settings.js'), require('./dungeons-data.js'),
+      require('./items-data.js').ITEMS);
   } else {
     root.Game = Object.assign({}, root.Game,
       factory(typeof root.Game === 'object' ? root.Game : {}, root.Game,
         root.Game && root.Game.GlobalSettings,
-        root.Game && root.Game.DungeonsData));
+        root.Game && root.Game.DungeonsData,
+        root.Game && root.Game.ITEMS));
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self,
-  function (perlin, mapmod, settings, dungeonsData) {
+  function (perlin, mapmod, settings, dungeonsData, itemsData) {
 
   const mulberry32 = perlin.mulberry32;
   const hash2 = perlin.hash2;
   const createPerlin2D = perlin.createPerlin2D;
   const GLOBAL_SEED = mapmod.GLOBAL_SEED;
   const TERRAIN = mapmod.TERRAIN;
+
+  // 000157.02: редкость записей «руда» — tier предмета из каталога
+  // assets/items (000157.01; отсутствие tier = 1). node —
+  // require('./items-data.js').ITEMS (массив), browser — Game.ITEMS
+  // (items-data.js в index.html ДО dungeon.js). Без каталога (vm-
+  // песочницы без items-data) — HAVE_ITEMS = false: «предмет» записей
+  // НЕ валидируется (soft), tier любого предмета = 1 (depth-1 даёт
+  // добычу). НИКАКИХ console.* на load — в песочницах без console
+  // это ReferenceError (LOC-11).
+  const HAVE_ITEMS = Array.isArray(itemsData) && itemsData.length > 0;
+  const ITEM_TIER = {};
+  for (const it of (HAVE_ITEMS ? itemsData : [])) {
+    if (it && typeof it.id === 'string') ITEM_TIER[it.id] = it.tier || 1;
+  }
 
   const CELL_WALL = 0;
   const CELL_FLOOR = 1;
@@ -69,6 +87,17 @@
       размер: 25,
       постройка: 31,
       предметы_стен: ['rock', 'stalactite'],
+      руда: [
+        { предмет: 'iron_ore', вид: 'руда' },
+        { предмет: 'copper_ore', вид: 'руда' },
+        { предмет: 'coal', вид: 'минерал' },
+        { предмет: 'stone_chunk', вид: 'минерал' },
+        { предмет: 'silver_ore', вид: 'руда' },
+        { предмет: 'quartz', вид: 'минерал' },
+        { предмет: 'obsidian', вид: 'минерал' },
+        { предмет: 'gold_ore', вид: 'руда' },
+        { предмет: 'phosphorite', вид: 'минерал' },
+      ],
     },
     {
       id: DUNGEON_TYPES.CRYPT,
@@ -79,6 +108,14 @@
       размер: 27,
       постройка: 32,
       предметы_стен: ['column', 'rock'],
+      руда: [
+        { предмет: 'stone_chunk', вид: 'минерал' },
+        { предмет: 'quartz', вид: 'минерал' },
+        { предмет: 'obsidian', вид: 'минерал' },
+        { предмет: 'amethyst', вид: 'самоцвет' },
+        { предмет: 'phosphorite', вид: 'минерал' },
+        { предмет: 'sapphire', вид: 'самоцвет' },
+      ],
     },
     {
       id: DUNGEON_TYPES.RUINS,
@@ -89,6 +126,15 @@
       размер: 31,
       постройка: 33,
       предметы_стен: ['column'],
+      руда: [
+        { предмет: 'iron_ore', вид: 'руда' },
+        { предмет: 'copper_ore', вид: 'руда' },
+        { предмет: 'coal', вид: 'минерал' },
+        { предмет: 'silver_ore', вид: 'руда' },
+        { предмет: 'quartz', вид: 'минерал' },
+        { предмет: 'gold_ore', вид: 'руда' },
+        { предмет: 'ruby', вид: 'самоцвет' },
+      ],
     },
     {
       id: DUNGEON_TYPES.DROWNED,
@@ -99,6 +145,15 @@
       размер: 27,
       постройка: 34,
       предметы_стен: ['rock'],
+      руда: [
+        { предмет: 'sulfur', вид: 'минерал' },
+        { предмет: 'stone_chunk', вид: 'минерал' },
+        { предмет: 'quartz', вид: 'минерал' },
+        { предмет: 'silver_ore', вид: 'руда' },
+        { предмет: 'emerald', вид: 'самоцвет' },
+        { предмет: 'sapphire', вид: 'самоцвет' },
+        { предмет: 'phosphorite', вид: 'минерал' },
+      ],
     },
     {
       id: DUNGEON_TYPES.ABYSS,
@@ -110,10 +165,26 @@
       размер: 35,
       постройка: 35,
       предметы_стен: ['stalactite', 'rock'],
+      руда: [
+        { предмет: 'stone_chunk', вид: 'минерал' },
+        { предмет: 'obsidian', вид: 'минерал' },
+        { предмет: 'amethyst', вид: 'самоцвет' },
+        { предмет: 'ruby', вид: 'самоцвет' },
+        { предмет: 'gold_ore', вид: 'руда' },
+        { предмет: 'phosphorite', вид: 'минерал' },
+        { предмет: 'mithril_ore', вид: 'руда' },
+        { предмет: 'diamond', вид: 'самоцвет' },
+      ],
     },
   ];
 
-  /** Каталог валиден: 5 записей, id 0..4, строки/списки/целые на месте. */
+  /**
+   * Каталог валиден: 5 записей, id 0..4, строки/списки/целые на месте.
+   * 000157.02: + опциональное поле «руда» (minItems 1, запись
+   * {предмет, вид}; «вид» — enum всегда; «предмет» ∈ каталогу
+   * предметов — только при HAVE_ITEMS: vm-цепи без items-data
+   * остаются валидными).
+   */
   function validDungeonCatalog(d) {
     if (!d || !Array.isArray(d.DUNGEONS) || d.DUNGEONS.length !== 5) {
       return false;
@@ -126,7 +197,14 @@
       Number.isInteger(r.размер) && r.размер > 0 &&
       Number.isInteger(r.постройка) &&
       // Строки — по enum в схеме (tests/assets-schemas.test.js).
-      Array.isArray(r.предметы_стен) && r.предметы_стен.length > 0);
+      Array.isArray(r.предметы_стен) && r.предметы_стен.length > 0 &&
+      (r.руда === undefined || (Array.isArray(r.руда)
+        && r.руда.length >= 1 && r.руда.every((o) =>
+          o && typeof o === 'object'
+          && typeof o.предмет === 'string' && o.предмет.length > 0
+          && (o.вид === 'руда' || o.вид === 'минерал'
+            || o.вид === 'самоцвет')
+          && (!HAVE_ITEMS || ITEM_TIER[o.предмет] !== undefined)))));
   }
 
   const CATALOG = validDungeonCatalog(dungeonsData)
@@ -150,12 +228,18 @@
   // типа (задача 000070): rock/column/stalactite, назначение на
   // клетки — wallObjFor (сид ФОРМЫ, не содержимое).
   const DUNGEON_WALL_KINDS = {};
+  // DUNGEON_ORES — пул залежей типа (000157.02): записи {предмет,
+  // вид} из поля «руда» каталога (порядок = JSON). Поверхностный
+  // slice: записи НЕ мутируются (рендер dungeon-ui.js читает «вид»
+  // по предмету — уникальность предмета в пуле закреплена тестом).
+  const DUNGEON_ORES = {};
   for (const rec of CATALOG) {
     DUNGEON_NAMES[rec.id] = rec.название;
     DUNGEON_MOBS[rec.id] = rec.мобы.slice();
     DUNGEON_ITEMS[rec.id] = rec.предметы.slice();
     DUNGEON_SIZE[rec.id] = rec.размер;
     DUNGEON_WALL_KINDS[rec.id] = rec.предметы_стен.slice();
+    DUNGEON_ORES[rec.id] = (rec.руда || []).slice();
   }
 
   // 000153.02: потолок стороны этажа. = максимум схемы «размер» 5..63
@@ -537,15 +621,24 @@
    * Генерирует содержимое подземелья.
    * @param {object} d результат createDungeon
    * @param {object} player персонаж (totalXp — сид, level — сложность)
+   * @param {object} [opts]
+   * @param {number} [opts.depth] глубина этажа (000153; default 1 —
+   *   КОДОВОЙ зависимости от 000153 НЕТ: подключение реального
+   *   d.depth — в точке вызова locations.js)
    * @returns {{
    *   seed:number,
    *   mobs:{id:string, mobIds:string[], x:number, y:number, level:number, defeated:boolean}[],
    *   chests:{id:string, x:number, y:number, opened:boolean, gold:number, item:string|null}[],
+   *   deposits:{id:string, x:number, y:number, item:string, amount:number, gathered:boolean}[],
    *   createdAtXp:number,
    * }}
    * `chests[].item` — id предмета из каталога assets/items (или null).
+   * `deposits` (000157.02) — залежи руды/минералов/самоцветов: пул
+   * DUNGEON_ORES[d.type], свой rng-поток ПОСЛЕ цикла сундуков
+   * (главный rng — ноль новых вызовов — goldens бит-в-бит).
    */
-  function generateDungeonContents(d, player) {
+  function generateDungeonContents(d, player, opts = {}) {
+    const depth = Math.max(1, opts.depth | 0);
     const seed = (hash2(player.totalXp, d.seed, 0x5e11) ^ (player.totalXp * 2654435761)) >>> 0;
     const rng = mulberry32(seed);
     const table = DUNGEON_MOBS[d.type];
@@ -647,10 +740,62 @@
       chests.push({ id: 'c' + i, x: s[0], y: s[1], opened: false, gold, item });
     }
 
+    // Залежи (000157.02): СТРОГО ПОСЛЕ цикла сундуков. Главный rng —
+    // НОЛЬ новых вызовов (существующие goldens seed/mobs/chests —
+    // бит-в-бит). СВОЙ поток: mulberry32(hash2(seed, depth, 0x0DE5))
+    // — соль 0x0DE5 ЗАПИНЕНА (ORE-7: смена = репин всей зоны). Клетка
+    // — СОБСТВЕННЫЙ takeSpot-клёшер на rng_dep + ОБЩИЙ occupied:
+    // взаимоисключение с мобами/сундуками/босс-клеткой БЕСПЛАТНО
+    // (паттерн 000183); безопасная зона 5×5 недоступна (spots уже
+    // без неё). Guard: нет «руда» ИЛИ нет записей с tier ≤ T →
+    // deposits = [] (защитный путь; с текущими данными не
+    // срабатывает — у каждого пула T1).
+    // Формулы (числа — здесь и в тестах, в SPEC — только связки):
+    //   nDeposits = 1 + min(3, floor(depth/3))  → D1-2:1, D3-5:2,
+    //     D6-8:3, D9+:4;
+    //   T = min(1 + floor((depth-1)/2), 4)      → D1-2:T1, D3-4:T2,
+    //     D5-6:T3, D7+:T4 (шкала 000153 «+1 уровень за глубину»,
+    //     tier растёт вдвое медленнее — осознанный дизайн);
+    //   amount = 1 + floor(rng_dep()*2) + min(2, floor(depth/4))
+    //     → 1..4 (5 недостижимо).
+    const deposits = [];
+    {
+      const pool = DUNGEON_ORES[d.type] || [];
+      const T = Math.min(1 + Math.floor((depth - 1) / 2), 4);
+      const elig = pool.filter(o => (ITEM_TIER[o.предмет] || 1) <= T);
+      if (pool.length > 0 && elig.length > 0) {
+        const rng_dep = mulberry32(hash2(seed, depth, 0x0DE5) >>> 0);
+        const takeSpotDep = () => {
+          for (let i = 0; i < 200; i++) {
+            const [x, y] = spots[Math.floor(rng_dep() * spots.length)];
+            const k = x + ',' + y;
+            if (!occupied.has(k)) { occupied.add(k); return [x, y]; }
+          }
+          return null;
+        };
+        const nDeposits = 1 + Math.min(3, Math.floor(depth / 3));
+        for (let i = 0; i < nDeposits; i++) {
+          // Порядок вызовов rng_dep НА ЗАЛЕЖЬ: предмет → количество
+          // → клетка (takeSpotDep ≥1 вызов, при успехе ровно 1) —
+          // ЗАПИНЕН (ORE-7).
+          const rec = elig[Math.floor(rng_dep() * elig.length)];
+          const amt = 1 + Math.floor(rng_dep() * 2)
+            + Math.min(2, Math.floor(depth / 4));
+          const s = takeSpotDep();
+          if (!s) break;
+          deposits.push({
+            id: 'd' + i, x: s[0], y: s[1],
+            item: rec.предмет, amount: amt, gathered: false,
+          });
+        }
+      }
+    }
+
     return {
       seed,
       mobs,
       chests,
+      deposits,
       createdAtXp: player.totalXp,
       step: 0,
     };
@@ -894,7 +1039,7 @@
 
   return {
     DUNGEON_TYPES, DUNGEON_NAMES, DUNGEON_MOBS, DUNGEON_ITEMS, DUNGEON_SIZE,
-    DUNGEON_WALL_KINDS,
+    DUNGEON_WALL_KINDS, DUNGEON_ORES,
     DUNGEON_MEMORY_DAYS, LEVEL_DELTA_MAX,
     CELL_WALL, CELL_FLOOR,
     dungeonTypeFor, createDungeon, generateDungeonContents, wallObjFor,

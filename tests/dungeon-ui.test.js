@@ -378,7 +378,10 @@ function makeState(opts = {}) {
   if (opts.wallObjs) dg.wallObjs = opts.wallObjs;
   const s = {
     dg,
-    contents: { chests: opts.chests || [], mobs: opts.mobs || [] },
+    // 000157.02: +deposits (красные UI-DEP-*; рендер/состояние — зелёная
+    // фаза). По умолчанию пустой массив — существующие тесты не тронуты.
+    contents: { chests: opts.chests || [], mobs: opts.mobs || [],
+      deposits: opts.deposits || [] },
     x: opts.px != null ? opts.px : 1,
     y: opts.py != null ? opts.py : 1,
     log: ['простая пещера: вход.'],
@@ -2907,4 +2910,209 @@ test('подземелье UI: touchHold — интервал повтора: li
     assert.equal(errors.length, 0,
       'без console.error (деградация, не крах): ' + JSON.stringify(errors));
   }
+});
+
+// =====================================================================
+// 000157.02: КРАСНЫЕ тесты UI-DEP-1..3 — рендер/состояние/hint
+// залежей. Контракт: memory/000157.02-dungeon-deposits.md §4.4.
+// =====================================================================
+
+test('подземелье UI 000157.02: залежи — спрайт G.DUNGEON_DEPOSIT по виду (zoom*0.8, центр клетки); gathered — не рисуется; fog-маска 000136; фолбэк-цвета по виду (UI-DEP-1, RED)', () => {
+  const ORE = 'assets/dungeon/deposit_ore.svg';
+  const MINERAL = 'assets/dungeon/deposit_mineral.svg';
+  const GEM = 'assets/dungeon/deposit_gem.svg';
+  const FB = {
+    'руда': ['#b5722f', '#6e4218'],
+    'минерал': ['#7f8ea3', '#46525f'],
+    'самоцвет': ['#2fa06b', '#175c3c'],
+  };
+  const allColors = Object.values(FB).flat();
+  // (a) Спрайт по виду: CAVE (type 0) — iron_ore (руда), quartz
+  // (минерал); RUINS (type 2) — ruby (самоцвет). Вид — из
+  // DUNGEON_ORES[type] по предмету (vm-цепь без dungeons-data —
+  // fallback-таблица; цепь loadSpriteDungeon НЕ включает каталог).
+  let { G, body } = loadSpriteDungeon();
+  assert.ok(G.DUNGEON_DEPOSIT && typeof G.DUNGEON_DEPOSIT === 'object',
+    'sprites.js: G.DUNGEON_DEPOSIT — таблица вид → путь спрайта');
+  assert.equal(G.DUNGEON_DEPOSIT['руда'], ORE,
+    'DUNGEON_DEPOSIT.руда — ' + ORE);
+  assert.equal(G.DUNGEON_DEPOSIT['минерал'], MINERAL,
+    'DUNGEON_DEPOSIT.минерал — ' + MINERAL);
+  assert.equal(G.DUNGEON_DEPOSIT['самоцвет'], GEM,
+    'DUNGEON_DEPOSIT.самоцвет — ' + GEM);
+  let loader = makeSpriteLoader([ORE, MINERAL, GEM]);
+  G.dungeonUI.start({
+    state: makeState({ deposits: [
+      { id: 'd0', x: 1, y: 3, item: 'iron_ore', amount: 2,
+        gathered: false },
+      { id: 'd1', x: 3, y: 1, item: 'quartz', amount: 1,
+        gathered: false },
+    ] }),
+    onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  let calls = findCanvas(body).drawCalls;
+  const s = 48 * 0.8;
+  let c1 = G.worldToScreen(1.5, 3.5, 2.5, 2.5, 48, VW, VH);
+  assert.ok(drawImageAt(calls, c1.x - s / 2, c1.y - s / 2, s)
+    .some((im) => im[1][0] && im[1][0].__img === ORE),
+    'залежь (1,3) iron_ore (руда) — drawImage ' + ORE + ' (zoom*0.8, '
+    + 'центр клетки)');
+  let c2 = G.worldToScreen(3.5, 1.5, 2.5, 2.5, 48, VW, VH);
+  assert.ok(drawImageAt(calls, c2.x - s / 2, c2.y - s / 2, s)
+    .some((im) => im[1][0] && im[1][0].__img === MINERAL),
+    'залежь (3,1) quartz (минерал) — drawImage ' + MINERAL);
+  for (const col of allColors) {
+    assert.ok(!calls.some((im) => im[2] === col),
+      'фолбэк-квадрата ' + col + ' нет (спрайт заменил цвет)');
+  }
+  // Самоцвет — пул RUINS (type 2: ruby).
+  ({ G, body } = loadSpriteDungeon());
+  loader = makeSpriteLoader([ORE, MINERAL, GEM]);
+  G.dungeonUI.start({
+    state: makeState({ type: 2, deposits: [
+      { id: 'd0', x: 1, y: 3, item: 'ruby', amount: 3, gathered: false },
+    ] }),
+    onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  calls = findCanvas(body).drawCalls;
+  const c3 = G.worldToScreen(1.5, 3.5, 2.5, 2.5, 48, VW, VH);
+  assert.ok(drawImageAt(calls, c3.x - s / 2, c3.y - s / 2, s)
+    .some((im) => im[1][0] && im[1][0].__img === GEM),
+    'залежь (1,3) ruby (самоцвет) — drawImage ' + GEM);
+  // (b) gathered — не рисуется вообще (паттерн открытого сундука).
+  ({ G, body } = loadSpriteDungeon());
+  loader = makeSpriteLoader([ORE, MINERAL, GEM]);
+  G.dungeonUI.start({
+    state: makeState({ deposits: [
+      { id: 'd0', x: 1, y: 3, item: 'iron_ore', amount: 2,
+        gathered: true },
+      { id: 'd1', x: 3, y: 1, item: 'quartz', amount: 1,
+        gathered: true },
+    ] }),
+    onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((im) => im[0] === 'drawImage'
+      && im[1][0] && (im[1][0].__img === ORE
+        || im[1][0].__img === MINERAL || im[1][0].__img === GEM)),
+    'gathered-залежи не рисуются (drawImage deposit_*.svg нет)');
+  for (const col of allColors) {
+    assert.ok(!calls.some((im) => im[2] === col),
+      'gathered-залежи — и фолбэк ' + col + ' нет');
+  }
+  // (c) Fog-маска 000136: 25×25, игрок (1,1), R = radiusFor(1) = 5
+  // (Chebyshev). Залежь (3,3) — видима (drawn); (8,4) — вне радиуса,
+  // НО внутри вьюпорта → не рисуется (маска 0).
+  ({ G, body } = loadSpriteDungeon());
+  loader = makeSpriteLoader([ORE, MINERAL, GEM]);
+  G.dungeonUI.start({
+    state: makeState({
+      width: 25, height: 25,
+      deposits: [
+        { id: 'd0', x: 3, y: 3, item: 'iron_ore', amount: 2,
+          gathered: false },
+        { id: 'd1', x: 8, y: 4, item: 'coal', amount: 1,
+          gathered: false },
+      ],
+    }),
+    onMove() {}, zoom: 48, spriteLoader: loader,
+  });
+  calls = findCanvas(body).drawCalls;
+  const camX = Math.min(Math.max(1.5, VW / 2 / 48), 25 - VW / 2 / 48);
+  const camY = Math.min(Math.max(1.5, VH / 2 / 48), 25 - VH / 2 / 48);
+  const pNear = G.worldToScreen(3.5, 3.5, camX, camY, 48, VW, VH);
+  assert.ok(drawImageAt(calls, pNear.x - s / 2, pNear.y - s / 2, s)
+    .some((im) => im[1][0] && im[1][0].__img === ORE),
+    'залежь (3,3) в радиусе видимости — рисуется');
+  const pFar = G.worldToScreen(8.5, 4.5, camX, camY, 48, VW, VH);
+  assert.ok(!drawImageAt(calls, pFar.x - s / 2, pFar.y - s / 2, s)
+    .some((im) => im[1][0] && (im[1][0].__img === ORE
+      || im[1][0].__img === MINERAL)),
+    'залежь (8,4) вне радиуса видимости (fog) — не рисуется');
+  // (d) Фолбэк (изображения нет): квадрат + полоса, цвета ПО ВИДУ.
+  // type 2 (RUINS-пул): iron_ore — руда, quartz — минерал,
+  // ruby — самоцвет.
+  ({ G, body } = loadSpriteDungeon());
+  G.dungeonUI.start({
+    state: makeState({ type: 2, deposits: [
+      { id: 'd0', x: 1, y: 3, item: 'iron_ore', amount: 2,
+        gathered: false },
+      { id: 'd1', x: 3, y: 1, item: 'quartz', amount: 1,
+        gathered: false },
+      { id: 'd2', x: 3, y: 3, item: 'ruby', amount: 3,
+        gathered: false },
+    ] }),
+    onMove() {}, zoom: 48, spriteLoader: makeSpriteLoader([]),
+  });
+  calls = findCanvas(body).drawCalls;
+  assert.ok(!calls.some((im) => im[0] === 'drawImage'),
+    'изображений нет — drawImage не вызывается');
+  const pc1 = G.worldToScreen(1, 3, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, FB['руда'][0], pc1.x + 3, pc1.y + 3, 42, 42),
+    'фолбэк «руда» (iron_ore) — квадрат ' + FB['руда'][0]);
+  assert.ok(fillRectAt(calls, FB['руда'][1], pc1.x + 3, pc1.y + 23, 42, 2),
+    'фолбэк «руда» — полоса ' + FB['руда'][1]);
+  const pc2 = G.worldToScreen(3, 1, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, FB['минерал'][0], pc2.x + 3, pc2.y + 3, 42, 42),
+    'фолбэк «минерал» (quartz) — квадрат ' + FB['минерал'][0]);
+  assert.ok(fillRectAt(calls, FB['минерал'][1], pc2.x + 3, pc2.y + 23, 42, 2),
+    'фолбэк «минерал» — полоса ' + FB['минерал'][1]);
+  const pc3 = G.worldToScreen(3, 3, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, FB['самоцвет'][0], pc3.x + 3, pc3.y + 3, 42, 42),
+    'фолбэк «самоцвет» (ruby) — квадрат ' + FB['самоцвет'][0]);
+  assert.ok(fillRectAt(calls, FB['самоцвет'][1], pc3.x + 3, pc3.y + 23, 42, 2),
+    'фолбэк «самоцвет» — полоса ' + FB['самоцвет'][1]);
+});
+
+test('подземелье UI 000157.02: stateEl — «Группы: N | Сундуки: N | Залежи: N» (N — залежи БЕЗ gathered) (UI-DEP-2, RED)', () => {
+  const { G, body } = loadDungeonUi({ performance: { now: () => 1000 } });
+  const s = makeState({
+    mobs: [{ x: 2, y: 2, level: 3, defeated: false }],
+    chests: [{ x: 1, y: 3, opened: false }],
+    deposits: [
+      { id: 'd0', x: 1, y: 3, item: 'iron_ore', amount: 2,
+        gathered: false },
+      { id: 'd1', x: 2, y: 1, item: 'quartz', amount: 1,
+        gathered: false },
+      { id: 'd2', x: 3, y: 2, item: 'coal', amount: 3, gathered: true },
+    ],
+  });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48 });
+  const states = allByClass(body, 'combat-state');
+  assert.ok(states.length >= 2,
+    'оверлей: stateEl + hint (combat-state, ≥2 элемента)');
+  const text = states[0].textContent;
+  assert.ok(text.includes('Группы: 1'),
+    'stateEl: «Группы: 1» (регрессия): ' + JSON.stringify(text));
+  assert.ok(text.includes('Сундуки: 1'),
+    'stateEl: «Сундуки: 1» (регрессия): ' + JSON.stringify(text));
+  assert.ok(text.includes('Залежи: 2'),
+    'stateEl: «Залежи: 2» (gathered не считается): '
+    + JSON.stringify(text));
+  assert.ok(!text.includes('undefined'),
+    'stateEl: без «undefined»: ' + JSON.stringify(text));
+});
+
+test('подземелье UI 000157.02: hint — строка про залежи (подземелье; строки 1–3 дословно сохранены); город — без «Залежи» (UI-DEP-3, RED)', () => {
+  const D = loadDungeonUi({ performance: { now: () => 1000 } });
+  D.G.dungeonUI.start({ state: makeState(), onMove() {}, zoom: 48 });
+  const dHint = allByClass(D.body, 'combat-state')[1].textContent;
+  assert.ok(dHint.includes('Вход в пещеру — вход и выход'),
+    'подземелье: hint — строка 1 дословно (регрессия): '
+    + JSON.stringify(dHint));
+  assert.ok(dHint.includes('Сундук и мобы'),
+    'подземелье: hint — строка про сундук/мобы (регрессия): '
+    + JSON.stringify(dHint));
+  assert.ok(dHint.includes('Залежи'),
+    'подземелье: hint — строка про залежи (спрайт/фолбэк): '
+    + JSON.stringify(dHint));
+  const C = loadDungeonUi({ performance: { now: () => 1000 } });
+  C.G.dungeonUI.start({
+    state: makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня' }),
+    onMove() {}, zoom: 48,
+  });
+  const cHint = allByClass(C.body, 'combat-state')[1].textContent;
+  assert.ok(!cHint.includes('Залежи'),
+    'город: hint — без «Залежи» (залежи — только подземелье): '
+    + JSON.stringify(cHint));
 });

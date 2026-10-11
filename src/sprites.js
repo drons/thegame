@@ -447,6 +447,18 @@
     cave_mouth: 'assets/dungeon/cave_mouth.svg',
   };
 
+  // Спрайты залежей (задача 000157.02): 3 статичных SVG 64×64
+  // (assets/dungeon/deposit_*.svg, прозрачный фон, в стиле chest.svg),
+  // ОДИН на ВИД залежи: руда (руда), минерал, самоцвет. dungeon-ui.js
+  // рисует спрайт zoom*0.8 (центр клетки); «вид» — из DUNGEON_ORES
+  // (dungeon.js) по предмету залежи. Собранные (gathered) не рисуются;
+  // изображение не готово — фолбэк-квадрат ЦВЕТОМ ПО ВИДУ (dungeon-ui).
+  const DUNGEON_DEPOSIT = {
+    'руда': 'assets/dungeon/deposit_ore.svg',
+    'минерал': 'assets/dungeon/deposit_mineral.svg',
+    'самоцвет': 'assets/dungeon/deposit_gem.svg',
+  };
+
   // --- Препятствия поля боя (задача 000050) ---
   //
   // 3 статичных универсальных SVG в assets/combat/obstacles/ (камень,
@@ -792,6 +804,8 @@
     paths.push(DUNGEON_CHEST);
     // Маркеры входа-выхода (задача 000177): 3 SVG.
     for (const p of Object.values(DUNGEON_PORTAL)) paths.push(p);
+    // Залежи (задача 000157.02): 3 SVG (по виду).
+    for (const p of Object.values(DUNGEON_DEPOSIT)) paths.push(p);
     // Препятствия боя (задача 000050): 3 универсальных спрайта.
     for (const p of OBSTACLE_SPRITES) {
       paths.push(p);
@@ -920,6 +934,7 @@
     DUNGEON_WALL_FRAMES,
     DUNGEON_CHEST,
     DUNGEON_PORTAL,
+    DUNGEON_DEPOSIT,
     HP_BAR_COLORS, hpBarColor,
     VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE, VISUALS_MIN_ZOOM,
     FRAME_MS,

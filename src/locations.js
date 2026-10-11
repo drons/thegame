@@ -222,7 +222,13 @@
     }
     if (!contents) {
       if (typeof G.generateDungeonContents === 'function') {
-        contents = G.generateDungeonContents(d, ctx.hero);
+        // 000157.02: реальная глубина этажа — d.depth (000153.01):
+        // формулы залежей nDeposits/T/amount работают от неё (до
+        // 000153.03 глубина всегда 1 — поведение не меняется).
+        // debugEnterDungeon (000151) — БЕЗ opts (depth=1 по
+        // умолчанию, debug-контент не зависит от глубины).
+        contents = G.generateDungeonContents(d, ctx.hero,
+          { depth: d.depth });
       } else {
         console.error('locations.js: Game.generateDungeonContents ' +
           'отсутствует (src/dungeon.js должен грузиться ДО ' +

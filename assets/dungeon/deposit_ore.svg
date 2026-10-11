@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="orb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8d9199"/>
+      <stop offset="1" stop-color="#5c616a"/>
+    </linearGradient>
+    <linearGradient id="oin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d08a3e"/>
+      <stop offset="1" stop-color="#8a4f1c"/>
+    </linearGradient>
+    <radialGradient id="osh">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g>
+    <ellipse cx="32" cy="53" rx="23" ry="4.5" fill="url(#osh)"/>
+    <path d="M14 44 L10 30 L18 18 L32 12 L46 17 L54 30 L50 44 L38 50 L22 49 Z" fill="url(#orb)" stroke="#42464e" stroke-width="1" stroke-linejoin="round"/>
+    <path d="M18 18 L32 30 L18 40 Z" fill="#767b85" opacity="0.55"/>
+    <path d="M46 17 L32 30 L48 38 Z" fill="#9aa0a9" opacity="0.4"/>
+    <path d="M24 26 L30 24 L33 29 L27 32 Z" fill="url(#oin)" stroke="#6e4218" stroke-width="0.8" stroke-linejoin="round"/>
+    <circle cx="40" cy="36" r="3" fill="url(#oin)" stroke="#6e4218" stroke-width="0.8"/>
+    <circle cx="27" cy="42" r="2.2" fill="url(#oin)"/>
+    <circle cx="38" cy="22" r="1.8" fill="url(#oin)"/>
+    <circle cx="45" cy="44" r="1.6" fill="url(#oin)"/>
+    <ellipse cx="30" cy="16" rx="9" ry="1.8" fill="#c8cdd4" opacity="0.3"/>
+  </g>
+</svg>
