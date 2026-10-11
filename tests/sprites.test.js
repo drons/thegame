@@ -12,6 +12,10 @@ const {
   buildingCount, BUILDING_TYPES,
   MOB_GROUP_TYPES, mobGroupCount,
   createMap, syntheticPixels,
+  // Задача 000158.06: пин читаемости глифов декораций — через реальную
+  // стартовую константу зума (не литерал 80), чтобы пин честно
+  // пересчитался при её изменении.
+  ZOOM_START,
 } = require('../src/map.js');
 const S = require('../src/sprites.js');
 const { countDetails } = require('../scripts/count-svg-details.js');
@@ -535,6 +539,34 @@ test('visuals: спрайт-файлы существуют и лежат в ass
     const rel = path.basename(v.спрайт);
     assert.ok(exists(v.спрайт), `нет файла: ${v.спрайт}`);
     assert.ok(fs.existsSync(path.join(VSPR, rel)), `${rel} не в assets/sprites/visuals`);
+  }
+});
+
+// --- Задача 000158.06: буст видимости декораций (тюнинг данных + пины) ---
+//
+// Вывод аудита 000158 (tasks/result/000158.md §2,
+// memory/000158-world-loot.md §4.4): функционального бага 000021 НЕТ —
+// «не видно» из-за малого `размер` (0.10–0.14 → глиф 8–11 px при
+// ZOOM_START=80) и того, что SVG-контент занимал лишь 30–50% 64×64
+// viewBox. Задача — ТЮНИНГ ДАННЫХ: `размер` 0.10–0.14 → 0.18–0.22
+// (каталог assets/visuals + регенерация src/visuals-data.js), SVG-контент
+// → 70–80% viewBox. Ниже — пины результата тюнинга: красные до
+// реализации (данные не удовлетворяют новому контракту), зелёные после.
+// Контракты: memory/000158.06-visuals-size-pins.md.
+// VISUALS_MIN_ZOOM = 24 — пин уже есть выше (000039), не трогать.
+
+test('visuals 000158.06: min("размер") по каталогу ≥ 0.18 (буст видимости: старые 0.10–0.14 нечитаемы при стартовом зуме)', () => {
+  const sizes = visualCatalog().map((v) => v.размер);
+  const min = Math.min(...sizes);
+  assert.ok(min >= 0.18,
+    `min("размер") = ${min} < 0.18: мелкие декорации нечитаемы при стартовом зуме (000158.06)`);
+});
+
+test('visuals 000158.06: эффективный глиф при ZOOM_START — для каждого элемента размер×ZOOM_START ≥ 14 px', () => {
+  for (const v of visualCatalog()) {
+    const px = v.размер * ZOOM_START;
+    assert.ok(px >= 14,
+      `${v.id} «${v.название}»: глиф ${v.размер}×${ZOOM_START} = ${px} px < 14 px при стартовом зуме (000158.06)`);
   }
 });
 

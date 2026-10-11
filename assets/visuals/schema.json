@@ -46,7 +46,7 @@
     },
     "размер": {
       "type": "number",
-      "minimum": 0.05,
+      "minimum": 0.18,
       "maximum": 0.5
     }
   }
