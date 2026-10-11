@@ -369,6 +369,12 @@ spec-coverage-audit.md, a3-audit-000153.md §5 (якоря file:line
    W = round(base·1.1^(depth−1)) + cap; mob level = player.level +
    (depth−1) ± δ; boss = player.level + δ + (depth−1);
    gold = round(10 + rng·20·(1 + 0.2·(player.level+(depth−1)))).
+   ФИНАЛИЗИРОВАНО .02 (2026-10-11): cap = 63 (DUNGEON_SIZE_CAP, = max
+   схемы 5..63 — дизайн-решение, не перформанс: W=63 → 3.0 мс);
+   сундуки = 2+floor(rng·4)+(depth−1); stairsDown = max-BFS-дистанция
+   от entrance ∖ 5×5 safe ∖ босс ABYSS, соль 0x53d10d53, без rng,
+   поле ФОРМЫ d.stairsDown (есть на depth=1; контент depth>1 вне
+   5×5 вокруг спуска). Итог: memory/000153.02-floor-generation.md.
 3. **Секция сейва подземелий** — ОДНА, создаётся .01: топ-уровень,
    неломко (версия 1, миграций нет), floor + контент + обрезка по
    dungeon_memory_days. Не создавать параллельных разделов.
@@ -500,6 +506,16 @@ dungeon* — §1.5). Дубли внутри набора НЕТ; дубли с 
   +floor(L/10) — combat.js:272-291 ✓; XP base+perLevel·L —
   combat.js:1179, gold 3+2L+rng·L — :1180 ✓.
 - Симуляции L20–50 НЕТ (см. фикс-1 §8.2) → требование .02 живо ✓.
+- [2026-10-11, .02 ПРОЕКТИРОВАНИЕ ЗАВЕРШЕНО]: решения финальны —
+  cap 63 (DUNGEON_SIZE_CAP), сундуки 2+floor(rng·4)+(d−1),
+  stairsDown = max-BFS ∖ 5×5 safe ∖ босс ABYSS (соль 0x53d10d53,
+  без rng, поле ФОРМЫ на всех depth≥1); safe-зона :440-443
+  расширяется на 5×5 вокруг stairsDown ТОЛЬКО depth>1 (D6);
+  баланс-гейт L20–50 = PASS (наблюдение F2 — пресуществующее,
+  кандидат на балансовую задачу после .05); тесты: 12 RED +
+  guard SZ-3 + тех-ре-пин DEP-2 (25×25→28×28 — единственный
+  ре-пин; seed 3912048804 и rooms.length 7 — не меняются).
+  Контракт: memory/000153.02-floor-generation.md.
 
 **000153.03 (переходы) — ПРИНЯТО:**
 - interactExit — locations.js:402-409 (герой на d.exit →

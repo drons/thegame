@@ -1040,35 +1040,39 @@ test('DEP-1: d.depth = 1 (дефолт), depth=1 БИТ-В-БИТ, fail-open cla
   }
 });
 
-// cells depth=2 CAVE(37,−12) 25×25 — предвычислено репликой
-// createDungeon (дизайн §2.1, сверка реплики с depth=1 golden —
-// побайтово). Зафиксировано на красной стадии.
+// cells depth=2 CAVE(37,−12) 28×28 — снято с рабочего кода
+// (000153.02, зелёная стадия; node-ре-верификация).
+// РЕ-ПИН 000153.02: W(depth) — сторона ×1.1/этаж (depth=2 CAVE:
+// 25→28); seed/число комнат — те же (сид и nRooms — до W).
 const D2_CELLS =
-  '0000000000000000000000000' +
-  '0000000000000000000000000' +
-  '0000000000000000000000000' +
-  '0000000000000000000000000' +
-  '0000000000000000000000000' +
-  '0000000000000000000000000' +
-  '0000000000001111111000000' +
-  '0000000000001111111100000' +
-  '0000000000011111111100000' +
-  '0000000000011111111100000' +
-  '0000000000011111111100000' +
-  '0000000000011111111100000' +
-  '0000000000011111111100000' +
-  '0000000111111111100000000' +
-  '0000000111111111100000000' +
-  '0000000111111111111000000' +
-  '0000000111111111111000000' +
-  '0000000001111111111000000' +
-  '0000000001111111111000000' +
-  '0000000001111111111000000' +
-  '0000000001111111111000000' +
-  '0000000000011111111000000' +
-  '0000000000000000000000000' +
-  '0000000000000000000000000' +
-  '0000000000000000000000000';
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000001111111000000' +
+  '0000000000000001111111000000' +
+  '0000000000000011111111000000' +
+  '0000000000000011111111000000' +
+  '0000000000001111111111000000' +
+  '0000000000001011111111000000' +
+  '0000000000001011111111000000' +
+  '0000000000001000111000000000' +
+  '0000000001111111111000000000' +
+  '0000000001111111111000000000' +
+  '0000000001111111111000000000' +
+  '0000000001111111111110000000' +
+  '0000000000111111111110000000' +
+  '0000000000111111111110000000' +
+  '0000000000111111111110000000' +
+  '0000000000111111111110000000' +
+  '0000000000111111111110000000' +
+  '0000000000000111111110000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000';
 
 test('DEP-2: depth=2 — d.depth = 2, сид/форма детерминированы (пinned)', () => {
   const a = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 2);
@@ -1082,13 +1086,14 @@ test('DEP-2: depth=2 — d.depth = 2, сид/форма детерминиров
   assert.deepEqual(a.entrance, b.entrance, 'детерминизм: entrance');
   assert.deepEqual(a.exit, b.exit, 'детерминизм: exit');
   assert.deepEqual(a.wallObjs, b.wallObjs, 'детерминизм: wallObjs');
-  // Фиксированная форма depth=2 (красная стадия, §2.1): 25×25,
-  // entrance (11,15), 7 комнат, 66 wallObjs.
-  assert.equal(a.width, 25, 'depth2 W');
-  assert.equal(a.height, 25, 'depth2 H');
-  assert.deepEqual(a.entrance, { x: 11, y: 15 }, 'depth2 entrance');
+  // Фиксированная форма depth=2 (РЕ-ПИН 000153.02: W(depth) — сторона
+  // ×1.1/этаж, CAVE depth=2: 25→28; seed/число комнат — те же, т.к.
+  // сид и nRooms — до W): 28×28, entrance (13,17), 7 комнат, 75 wallObjs.
+  assert.equal(a.width, 28, 'depth2 W');
+  assert.equal(a.height, 28, 'depth2 H');
+  assert.deepEqual(a.entrance, { x: 13, y: 17 }, 'depth2 entrance');
   assert.equal(a.rooms.length, 7, 'depth2 rooms');
-  assert.equal(a.wallObjs.length, 66, 'depth2 wallObjs');
+  assert.equal(a.wallObjs.length, 75, 'depth2 wallObjs');
   assert.equal(a.cells.join(''), D2_CELLS, 'depth2 cells-стринг (пinned)');
 });
 
@@ -1238,4 +1243,533 @@ test('DEP-4: новые экспорты dungeon.js (seed/key/regex/сериал
     assert.equal(D.restoreDungeonMemory(junk, 7, 3).size, 0,
       'non-object ' + String(junk) + ' → пустой Map, без исключений');
   }
+});
+
+// ====================================================================
+// 000153.02: генерация этажа — W(depth), уровни мобов, лут,
+// stairs-down (12 RED + 1 guard).
+// Контракты: memory/000153.02-floor-generation.md §2 (D1–D14),
+// тестовая карта — §6. depth>1: W = min(63, round(base·1.1^(depth−1)))
+// (СТОРОНА ×1.1/этаж), уровни групп = player.level + (depth−1) ± δ
+// (босс ABYSS = +δ+(depth−1)), сундуки +1/этаж, gold — по эффективному
+// уровню, stairs-down — детерминированное размещение БЕЗ rng (поле
+// ФОРМЫ из createDungeon; читает 000153.03). depth=1 — БИТ-В-БИТ:
+// формулы свёрнуты при (depth−1)=0, существующие goldens проходят
+// без правок (ST-4 — гард контракта).
+// Протокол красной стадии: падают ТОЧНО 12 (SZ-1/2, LV-1/2, LT-1/2,
+// G2-1/2, ST-1..4) — осмысленные assertion-fail (нет
+// DUNGEON_SIZE_CAP/dungeonSizeFor/STAIRS_SALT/stairsDownFor, W не
+// растёт, уровни/лут без сдвига, d.stairsDown undefined). SZ-3 —
+// guard перформанса на cap, зелёный с рождения.
+// Contents G2-1/G2-2 — значения снимают с рабочего кода на стадии
+// реализации (практика 000058/000070) + re-verify node; chest-
+// контент — перезахват (формула D3). Shape-пины предвычислены
+// репликой createDungeon+W(depth) (/tmp/thegame-wf-000153.02/
+// replica.js — сверена с depth=1 goldens master побайтово, fails: 0).
+// ====================================================================
+
+// cells CAVE (37,−12) depth=2 28×28 — предвычислено репликой
+// (W(d2)=round(25·1.1)=28; seed 3912048804 — пин 000153.01).
+const G2_CELLS =
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000001111111000000' +
+  '0000000000000001111111000000' +
+  '0000000000000011111111000000' +
+  '0000000000000011111111000000' +
+  '0000000000001111111111000000' +
+  '0000000000001011111111000000' +
+  '0000000000001011111111000000' +
+  '0000000000001000111000000000' +
+  '0000000001111111111000000000' +
+  '0000000001111111111000000000' +
+  '0000000001111111111000000000' +
+  '0000000001111111111110000000' +
+  '0000000000111111111110000000' +
+  '0000000000111111111110000000' +
+  '0000000000111111111110000000' +
+  '0000000000111111111110000000' +
+  '0000000000111111111110000000' +
+  '0000000000000111111110000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000' +
+  '0000000000000000000000000000';
+
+// cells ABYSS (11,3) depth=2 39×39 — предвычислено репликой
+// (W(d2)=round(35·1.1)=39; seed 792410970 — пин 000153.01).
+const G22_CELLS =
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000011111100000000000' +
+  '000000000000000011111111111100000000000' +
+  '000000000000000011111111111100000000000' +
+  '000000000000000011111111111100000000000' +
+  '000000000000000011111111010000000000000' +
+  '000000000000000000001000010000000000000' +
+  '000001111100000000001000010000000000000' +
+  '000001111111111100001000010000000000000' +
+  '000001111111111100001000010011111111000' +
+  '000001111111111111111100010011111111000' +
+  '000001111111111111111100010011111111000' +
+  '000001111100011111111100010011111111000' +
+  '000000011111111111111111111111111111000' +
+  '000000011111111111111100000011111111000' +
+  '000000000000011111111100000011111111000' +
+  '000000000000011111111100000011111111000' +
+  '000000000000011111111100000011111111000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000' +
+  '000000000000000000000000000000000000000';
+
+// W-таблицы (CAP=63), depth 1..12 — фиксация FP-окружения
+// Math.round(base·1.1^(depth−1)) (half-up: 25·1.1=27.500…004→28,
+// 35·1.1=38.5→39). Если V8 когда-либо поменяет FP-окружение —
+// SZ-1 поймает (решение D1).
+const W_TABLE = {
+  [D.DUNGEON_TYPES.CAVE]: [25, 28, 30, 33, 37, 40, 44, 49, 54, 59, 63, 63],
+  [D.DUNGEON_TYPES.CRYPT]: [27, 30, 33, 36, 40, 43, 48, 53, 58, 63, 63, 63],
+  [D.DUNGEON_TYPES.RUINS]: [31, 34, 38, 41, 45, 50, 55, 60, 63, 63, 63, 63],
+  [D.DUNGEON_TYPES.DROWNED]: [27, 30, 33, 36, 40, 43, 48, 53, 58, 63, 63, 63],
+  [D.DUNGEON_TYPES.ABYSS]: [35, 39, 42, 47, 51, 56, 62, 63, 63, 63, 63, 63],
+};
+
+// Фиксированные входы по типам (те же, что в «размер лабиринта
+// зависит от типа»): terrain/alpha → dungeonTypeFor.
+const SIZE_ENTRIES = [
+  [M.TERRAIN.GRASS, 255, D.DUNGEON_TYPES.CAVE],
+  [M.TERRAIN.SWAMP, 255, D.DUNGEON_TYPES.DROWNED],
+  [M.TERRAIN.FOREST, 255, D.DUNGEON_TYPES.CRYPT],
+  [M.TERRAIN.HILL, 255, D.DUNGEON_TYPES.RUINS],
+  [M.TERRAIN.HILL, 10, D.DUNGEON_TYPES.ABYSS],
+];
+
+test('SZ-1: W(depth) = min(CAP, round(base·1.1^(depth−1))) — 5 типов × depth 1..12 (000153.02, RED)', () => {
+  assert.equal(D.DUNGEON_SIZE_CAP, 63,
+    'DUNGEON_SIZE_CAP = 63 (максимум схемы «размер» 5..63; рост ТОЛЬКО в коде)');
+  assert.equal(typeof D.dungeonSizeFor, 'function',
+    'экспорт dungeonSizeFor(base, depth)');
+  // dungeonSizeFor — чистая функция; depth=1 → base бит-в-бит.
+  for (let depth = 1; depth <= 12; depth++) {
+    assert.equal(D.dungeonSizeFor(25, depth),
+      Math.min(Math.round(25 * Math.pow(1.1, depth - 1)), D.DUNGEON_SIZE_CAP),
+      'dungeonSizeFor(25, ' + depth + ')');
+  }
+  // createDungeon: width = height = W(depth) — W-таблицы.
+  for (const [terrain, alpha, type] of SIZE_ENTRIES) {
+    const px = M.syntheticPixels(8, 8, 128, 128, 128, alpha);
+    for (let depth = 1; depth <= 12; depth++) {
+      const d = D.createDungeon(5, 5, px, terrain, depth);
+      assert.equal(d.width, W_TABLE[type][depth - 1],
+        type + ' d' + depth + ': W (таблица)');
+      assert.equal(d.width,
+        Math.min(Math.round(D.DUNGEON_SIZE[type] * Math.pow(1.1, depth - 1)),
+          D.DUNGEON_SIZE_CAP),
+        type + ' d' + depth + ': W (формула)');
+      assert.equal(d.height, d.width, type + ' d' + depth + ': H = W');
+    }
+  }
+});
+
+test('SZ-2: W — рост ≈1.1×/этаж, W ≤ CAP (depth 1..40), плато на cap (000153.02, RED)', () => {
+  const CAP = D.DUNGEON_SIZE_CAP;
+  assert.ok(Number.isInteger(CAP) && CAP >= 63, 'DUNGEON_SIZE_CAP (целое, ≥ 63)');
+  for (const [terrain, alpha, type] of SIZE_ENTRIES) {
+    const px = M.syntheticPixels(8, 8, 128, 128, 128, alpha);
+    let prev = 0;
+    for (let depth = 1; depth <= 40; depth++) {
+      const w = D.createDungeon(5, 5, px, terrain, depth).width;
+      assert.ok(w <= CAP, type + ' d' + depth + ': W=' + w + ' ≤ CAP');
+      if (depth > 1 && prev < CAP && w < CAP) {
+        // До срабатывания cap: W(d) = round(base·1.1^(d−1)) →
+        // рост ≈1.1× (шум округления ≤ 1 к round(prev·1.1)).
+        assert.ok(w >= prev, type + ' d' + depth + ': W неубывает');
+        assert.ok(Math.abs(w - Math.round(prev * 1.1)) <= 1,
+          type + ' d' + depth + ': W=' + w +
+          ' vs round(prev·1.1)=' + Math.round(prev * 1.1) + ' (рост ≈1.1×)');
+      }
+      prev = w;
+    }
+  }
+  // Плато на cap (W-таблицы): ABYSS d8..d10 = 63, RUINS d9..d11 = 63.
+  for (let depth = 8; depth <= 10; depth++) {
+    assert.equal(
+      D.createDungeon(5, 5, M.syntheticPixels(8, 8, 128, 128, 128, 10),
+        M.TERRAIN.HILL, depth).width,
+      CAP, 'ABYSS d' + depth + ' = CAP');
+  }
+  for (let depth = 9; depth <= 11; depth++) {
+    assert.equal(
+      D.createDungeon(5, 5, M.syntheticPixels(8, 8, 128, 128, 128, 255),
+        M.TERRAIN.HILL, depth).width,
+      CAP, 'RUINS d' + depth + ' = CAP');
+  }
+});
+
+test('SZ-3: перформанс: генерация на cap (ABYSS d8, W=63) в бюджете < 5000 мс (000153.02, guard)', () => {
+  // Паттерн map.test.js (тёплый прогон, бюджет 5000 мс): замерено
+  // ~3 мс/генерацию на W=63 (N=30) — запас >5×; флейк-риск под
+  // нагрузкой — перепуск, не дефект.
+  const px = M.syntheticPixels(8, 8, 40, 40, 40, 10);
+  const warm = D.createDungeon(11, 3, px, M.TERRAIN.MOUNTAIN, 8);
+  D.generateDungeonContents(warm, heroAt(2000, 10));
+  D.reachableFrom(warm, warm.entrance.x, warm.entrance.y); // прогрев
+  const t0 = Date.now();
+  const d = D.createDungeon(11, 3, px, M.TERRAIN.MOUNTAIN, 8);
+  D.generateDungeonContents(d, heroAt(2000, 10));
+  D.reachableFrom(d, d.entrance.x, d.entrance.y);
+  const ms = Date.now() - t0;
+  assert.ok(ms < 5000,
+    'ABYSS d8 (W на cap) за ' + ms + ' мс — превышен бюджет 5000 мс');
+});
+
+test('LV-1: уровни групп depth>1 = player.level + (depth−1) ± δ (000153.02, RED)', () => {
+  // depth=8: новый интервал [lvl+4, lvl+10] НЕ СЕКРЕЩИВАЕТСЯ со
+  // старым [lvl−3, lvl+3] (δ=3, d−1=7) — свойство не-ваккуумно.
+  const depth = 8;
+  for (const lvl of [5, 20, 40]) {
+    const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, depth);
+    const c = D.generateDungeonContents(d, heroAt(500 * lvl, lvl));
+    const lo = lvl + (depth - 1) - D.LEVEL_DELTA_MAX;
+    const hi = lvl + (depth - 1) + D.LEVEL_DELTA_MAX;
+    for (const m of c.mobs) {
+      assert.ok(m.level >= lo && m.level <= hi,
+        'd' + depth + ' lvl' + lvl + ': m.level ' + m.level
+        + ' вне [' + lo + ',' + hi + ']');
+    }
+  }
+});
+
+test('LV-2: босс ABYSS depth>1 = max(1, player.level + δ + (depth−1)) — точно (000153.02, RED)', () => {
+  const px = M.syntheticPixels(8, 8, 40, 40, 40, 10);
+  for (const depth of [2, 10]) {
+    const d = D.createDungeon(11, 3, px, M.TERRAIN.MOUNTAIN, depth);
+    assert.equal(d.type, D.DUNGEON_TYPES.ABYSS, 'ABYSS');
+    for (const lvl of [1, 10, 25]) {
+      const c = D.generateDungeonContents(d, heroAt(500 * lvl, lvl));
+      const boss = c.mobs.find((m) => m.boss);
+      assert.ok(boss, 'ABYSS: нет босса');
+      assert.equal(boss.level, Math.max(1, lvl + D.LEVEL_DELTA_MAX + (depth - 1)),
+        'd' + depth + ' lvl' + lvl + ': boss.level');
+    }
+  }
+});
+
+test('LT-1: кол-во сундуков растёт с глубиной: ≥ depth=1, монотонно (000153.02, RED)', () => {
+  // (a) per-instance диапазон d=1..5 (D3: 2+floor(rng·4)+(d−1) →
+  //     [d+1, d+4] ⊂ [2, 5+(d−1)]).
+  for (let depth = 1; depth <= 5; depth++) {
+    const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, depth);
+    for (const xp of [1, 777, 4321]) {
+      const c = D.generateDungeonContents(d, heroAt(xp));
+      assert.ok(c.chests.length >= 2,
+        'd' + depth + ' xp' + xp + ': сундуки ≥ 2');
+      assert.ok(c.chests.length <= 5 + (depth - 1),
+        'd' + depth + ' xp' + xp + ': сундуки ≤ ' + (5 + depth - 1));
+    }
+  }
+  // (b) РОСТ: свип xp 1..1000 на d=5 → observed max ≥ 6
+  //     (max старой формулы = 5 — красный сигнал).
+  const d5 = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 5);
+  let maxD5 = 0;
+  for (let xp = 1; xp <= 1000; xp++) {
+    const n = D.generateDungeonContents(d5, heroAt(xp)).chests.length;
+    if (n > maxD5) maxD5 = n;
+  }
+  assert.ok(maxD5 >= 6,
+    'd5 свип xp1..1000: observed max ' + maxD5 + ' ≥ 6 (старый max = 5)');
+  // (c) d=1: старая формула бит-в-бит → observed max = 5 (регрессия).
+  const d1 = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  let maxD1 = 0;
+  for (let xp = 1; xp <= 1000; xp++) {
+    const n = D.generateDungeonContents(d1, heroAt(xp)).chests.length;
+    if (n > maxD1) maxD1 = n;
+  }
+  assert.equal(maxD1, 5,
+    'd1 свип xp1..1000: observed max = 5 (старая формула, бит-в-бит)');
+});
+
+test('LT-2: gold depth>1 = round(10 + rng·20·(1 + 0.2·(lvl+(depth−1)))): диапазон + рост (000153.02, RED)', () => {
+  // (a) per-instance: 10 ≤ gold ≤ round(30·(1 + 0.2·effLevel))
+  //     (верх формулы 10+20·(1+0.2·eff) ≤ 30·(1+0.2·eff)); d=1 —
+  //     старый диапазон бит-в-бит.
+  for (const [depth, lvl] of [[1, 1], [3, 5], [10, 1]]) {
+    const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, depth);
+    for (const xp of [1, 777, 4321]) {
+      const c = D.generateDungeonContents(d, heroAt(xp, lvl));
+      const gmax = Math.round(30 * (1 + 0.2 * (lvl + depth - 1)));
+      for (const ch of c.chests) {
+        assert.ok(ch.gold >= 10 && ch.gold <= gmax,
+          'd' + depth + ' lvl' + lvl + ' xp' + xp + ': gold '
+          + ch.gold + ' вне [10,' + gmax + ']');
+      }
+    }
+  }
+  // (b) РОСТ: свип (lvl=1, d=10) xp 1..1000 → observed max > 34
+  //     (старый max при lvl=1 = round(10+20·1.2) = 34 — красный сигнал).
+  const d10 = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 10);
+  let maxGold = 0;
+  for (let xp = 1; xp <= 1000; xp++) {
+    for (const ch of D.generateDungeonContents(d10, heroAt(xp, 1)).chests)
+      if (ch.gold > maxGold) maxGold = ch.gold;
+  }
+  assert.ok(maxGold > 34,
+    'd10 lvl1 свип xp1..1000: observed max ' + maxGold
+    + ' > 34 (старый max = 34)');
+});
+
+test('G2-1: golden: CAVE (37,−12) depth=2 — полный детерминированный снапшот (000153.02, RED)', () => {
+  const a = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 2);
+  const b = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 2);
+  assert.equal(a.depth, 2, 'd.depth = 2');
+  assert.equal(a.seed, 3912048804,
+    'depth2 seed (пин 000153.01 — формула сида .02 НЕ меняет)');
+  assert.equal(a.seed, b.seed, 'детерминизм: seed');
+  // W(depth): CAVE d2 = round(25·1.1) = 28 (сторона ×1.1/этаж).
+  assert.equal(a.width, 28, 'depth2 W (25→28)');
+  assert.equal(a.height, 28, 'depth2 H');
+  assert.deepEqual(a.rooms, [
+    { x: 9, y: 15, w: 9, h: 4, cx: 13, cy: 17 },
+    { x: 15, y: 18, w: 6, h: 7, cx: 18, cy: 21 },
+    { x: 14, y: 9, w: 7, h: 5, cx: 17, cy: 11 },
+    { x: 13, y: 19, w: 6, h: 6, cx: 16, cy: 22 },
+    { x: 15, y: 8, w: 7, h: 6, cx: 18, cy: 11 },
+    { x: 10, y: 19, w: 4, h: 5, cx: 12, cy: 21 },
+    { x: 15, y: 7, w: 7, h: 7, cx: 18, cy: 10 },
+  ], 'depth2 rooms (7)');
+  assert.deepEqual(a.entrance, { x: 13, y: 17 }, 'depth2 entrance');
+  assert.deepEqual(a.exit, a.entrance, 'exit = entrance (000177)');
+  assert.equal(a.cells.join(''), G2_CELLS,
+    'depth2 cells-стринг (784 симв., pinned)');
+  assert.equal(a.wallObjs.length, 75, 'depth2 wallObjs');
+  assert.deepEqual(
+    D.reachableFrom(a, a.entrance.x, a.entrance.y), floorSet(a),
+    'все напольные клетки достижимы от входа');
+  // stairs-down — поле ФОРМЫ (createDungeon), детерминировано.
+  assert.deepEqual(a.stairsDown, { x: 21, y: 7 }, 'depth2 stairsDown (pinned)');
+  assert.deepEqual(a.stairsDown, b.stairsDown, 'детерминизм: stairsDown');
+  // Contents: heroAt(1234, 10) — ПО-ПОЛЕВОМУ deepEqual (устойчивость
+  // к аддитивным полям других задач, напр. deposits от 000157.02).
+  const c = D.generateDungeonContents(a, heroAt(1234, 10));
+  assert.equal(c.seed, 3649620488, 'contents seed (pinned)');
+  // heroAt(1234, 10): effLevel = 10 + (2−1) = 11; группы ∈ [11−3, 11+3];
+  // сундуки: 2+floor(rng·4)+(2−1) ∈ [3, 6]; снято с рабочего кода
+  // (зелёная стадия, node-ре-верификация; chest-контент — D3).
+  assert.deepEqual(c.mobs, [
+    { id: 'g0', mobIds: ['ant', 'giant_larva', 'ant'], x: 17, y: 17, level: 13, defeated: false },
+    { id: 'g1', mobIds: ['ant', 'crawling_bones'], x: 16, y: 13, level: 13, defeated: false },
+    { id: 'g2', mobIds: ['ant', 'ant', 'skeleton'], x: 10, y: 17, level: 10, defeated: false },
+    { id: 'g3', mobIds: ['crawling_bones'], x: 19, y: 12, level: 13, defeated: false },
+  ], 'depth2 mobs (по-полевой пин)');
+  assert.deepEqual(c.chests, [
+    { id: 'c0', x: 17, y: 11, opened: false, gold: 51, item: null },
+    { id: 'c1', x: 20, y: 13, opened: false, gold: 28, item: null },
+    { id: 'c2', x: 14, y: 13, opened: false, gold: 12, item: 'stone_fist_grimoire' },
+    { id: 'c3', x: 16, y: 12, opened: false, gold: 63, item: 'iron_sword' },
+  ], 'depth2 chests (по-полевой пин)');
+});
+
+test('G2-2: golden: ABYSS (11,3) depth=2 — полный детерминированный снапшот + босс (000153.02, RED)', () => {
+  const px = M.syntheticPixels(8, 8, 40, 40, 40, 10);
+  const a = D.createDungeon(11, 3, px, M.TERRAIN.MOUNTAIN, 2);
+  const b = D.createDungeon(11, 3, px, M.TERRAIN.MOUNTAIN, 2);
+  assert.equal(a.depth, 2, 'd.depth = 2');
+  assert.equal(a.seed, 792410970,
+    'ABYSS depth2 seed (пин 000153.01 — формула сида .02 НЕ меняет)');
+  assert.equal(a.seed, b.seed, 'детерминизм: seed');
+  assert.equal(a.width, 39, 'depth2 W (35→39)');
+  assert.equal(a.height, 39, 'depth2 H');
+  assert.deepEqual(a.rooms, [
+    { x: 13, y: 22, w: 9, h: 8, cx: 17, cy: 26 },
+    { x: 5, y: 19, w: 5, h: 6, cx: 7, cy: 22 },
+    { x: 28, y: 21, w: 8, h: 9, cx: 32, cy: 25 },
+    { x: 22, y: 13, w: 6, h: 4, cx: 25, cy: 15 },
+    { x: 16, y: 14, w: 8, h: 4, cx: 20, cy: 16 },
+    { x: 10, y: 20, w: 6, h: 4, cx: 13, cy: 22 },
+  ], 'depth2 rooms (6)');
+  assert.deepEqual(a.entrance, { x: 17, y: 26 }, 'depth2 entrance');
+  assert.equal(a.cells.join(''), G22_CELLS,
+    'depth2 cells-стринг (1521 симв., pinned)');
+  assert.equal(a.wallObjs.length, 156, 'depth2 wallObjs');
+  assert.deepEqual(
+    D.reachableFrom(a, a.entrance.x, a.entrance.y), floorSet(a),
+    'все напольные клетки достижимы от входа');
+  const far = a.rooms[a.rooms.length - 1];
+  assert.deepEqual({ x: far.cx, y: far.cy }, { x: 13, y: 22 },
+    'босс-клетка = rooms[last] (000183)');
+  assert.deepEqual(a.stairsDown, { x: 35, y: 21 }, 'depth2 stairsDown (pinned)');
+  assert.ok(a.stairsDown.x !== far.cx || a.stairsDown.y !== far.cy,
+    'stairsDown ≠ босс-клетка');
+  // Contents: heroAt(1234, 10): босс = 10 + δ + (2−1) = 14.
+  const c = D.generateDungeonContents(a, heroAt(1234, 10));
+  assert.equal(c.seed, 1514336718, 'contents seed (pinned)');
+  const boss = c.mobs.find((m) => m.boss);
+  assert.ok(boss, 'ABYSS: нет босса');
+  assert.equal(boss.level, 14, 'boss.level = 10 + δ + (2−1) = 14');
+  assert.equal(boss.x, far.cx, 'босс на rooms[last]');
+  assert.equal(boss.y, far.cy, 'босс на rooms[last]');
+  // heroAt(1234, 10): effLevel = 10 + (2−1) = 11; группы ∈ [11−3, 11+3];
+  // босс = 11 + 3 = 14; сундуки: 2+floor(rng·4)+(2−1) ∈ [3, 6]; снято
+  // с рабочего кода (зелёная стадия, node-ре-верификация; chest-контент
+  // — D3).
+  assert.deepEqual(c.mobs, [
+    { id: 'g0', mobIds: ['succubus'], x: 6, y: 24, level: 11, defeated: false },
+    { id: 'g1', mobIds: ['succubus', 'lower_demon', 'abomination'], x: 5, y: 24, level: 14, defeated: false },
+    { id: 'g2', mobIds: ['succubus'], x: 33, y: 29, level: 14, defeated: false },
+    { id: 'g3', mobIds: ['lower_demon'], x: 29, y: 26, level: 12, defeated: false },
+    { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 13, y: 22, level: 14, defeated: false, boss: true },
+  ], 'depth2 mobs (по-полевой пин)');
+  assert.deepEqual(c.chests, [
+    { id: 'c0', x: 11, y: 20, opened: false, gold: 68, item: null },
+    { id: 'c1', x: 10, y: 21, opened: false, gold: 43, item: null },
+    { id: 'c2', x: 20, y: 23, opened: false, gold: 64, item: null },
+    { id: 'c3', x: 21, y: 29, opened: false, gold: 61, item: 'flame_burst_scroll' },
+    { id: 'c4', x: 35, y: 28, opened: false, gold: 24, item: null },
+  ], 'depth2 chests (по-полевой пин)');
+});
+
+test('ST-1: stairs-down: поле {x,y}, FLOOR, достижима, вне safe-зоны, детерминирована (000153.02, RED)', () => {
+  assert.equal(D.STAIRS_SALT, 0x53d10d53, 'пин STAIRS_SALT = 0x53d10d53');
+  // Уникальность соли: без коллизий с существующими (форма/глубина/
+  // контент/wander/стены) и с in-flight 0x0DE5 (депозиты 000157.02).
+  assert.ok(![0xd0d6b5e5, 0xd337b153, 0x5e11, 0x7777, 0x5e11c3a7,
+    0x0c9f4b2d, 0x0DE5].includes(D.STAIRS_SALT),
+    'STAIRS_SALT коллидирует с существующей солью');
+  assert.equal(typeof D.stairsDownFor, 'function', 'экспорт stairsDownFor(d)');
+  const px = M.syntheticPixels(8, 8, 40, 40, 40, 10);
+  for (const [x, y, p, t] of [
+    [37, -12, PX, M.TERRAIN.GRASS],
+    [11, 3, px, M.TERRAIN.MOUNTAIN],
+  ]) {
+    for (const depth of [2, 5]) {
+      const d = D.createDungeon(x, y, p, t, depth);
+      const s = d.stairsDown;
+      assert.ok(s && Number.isInteger(s.x) && Number.isInteger(s.y),
+        '(' + x + ',' + y + ') d' + depth + ': d.stairsDown {x,y}');
+      assert.equal(d.cells[s.y * d.width + s.x], D.CELL_FLOOR,
+        '(' + x + ',' + y + ') d' + depth + ': stairsDown на FLOOR');
+      const reach = D.reachableFrom(d, d.entrance.x, d.entrance.y);
+      assert.ok(reach.has(s.x + ',' + s.y),
+        '(' + x + ',' + y + ') d' + depth + ': stairsDown достижима от входа');
+      // Вне 5×5 safe-зоны (entrance = exit — одна зона, 000177).
+      assert.ok(Math.abs(s.x - d.entrance.x) > 2 || Math.abs(s.y - d.entrance.y) > 2,
+        '(' + x + ',' + y + ') d' + depth + ': stairsDown вне 5×5 safe-зоны');
+      const e = D.createDungeon(x, y, p, t, depth);
+      assert.deepEqual(e.stairsDown, s,
+        '(' + x + ',' + y + ') d' + depth + ': детерминизм: stairsDown');
+    }
+  }
+});
+
+test('ST-2: stairs-down ABYSS: НЕ на клетке босса (rooms[last]) — свип d2..6 (000153.02, RED)', () => {
+  // Анти-ваккуум (паттерн D-BOSS-1): инвариант сверяется на всём
+  // контенте этажа, хотя размещение — поле ФОРМЫ (0 rng в
+  // createDungeon) — гард против регрессии к placement, зависящей
+  // от контента.
+  const px = M.syntheticPixels(8, 8, 40, 40, 40, 10);
+  for (let depth = 2; depth <= 6; depth++) {
+    const d = D.createDungeon(11, 3, px, M.TERRAIN.MOUNTAIN, depth);
+    assert.equal(d.type, D.DUNGEON_TYPES.ABYSS, 'ABYSS');
+    assert.ok(d.stairsDown, 'd' + depth + ': нет d.stairsDown');
+    const far = d.rooms[d.rooms.length - 1];
+    for (let xp = 1; xp <= 200; xp++) {
+      const c = D.generateDungeonContents(d, heroAt(xp));
+      const boss = c.mobs.find((m) => m.boss);
+      assert.ok(boss, 'd' + depth + ' xp' + xp + ': босс присутствует');
+      assert.deepEqual({ x: boss.x, y: boss.y }, { x: far.cx, y: far.cy },
+        'd' + depth + ' xp' + xp + ': босс — на клетке дальней комнаты');
+      assert.ok(d.stairsDown.x !== boss.x || d.stairsDown.y !== boss.y,
+        'd' + depth + ' xp' + xp + ': stairsDown на клетке босса');
+    }
+  }
+});
+
+test('ST-3: stairs-down: контент depth>1 НЕ на клетке спуска (safe расширен на 5×5) — свип (000153.02, RED)', () => {
+  const px = M.syntheticPixels(8, 8, 40, 40, 40, 10);
+  for (const [x, y, p, t] of [
+    [37, -12, PX, M.TERRAIN.GRASS],
+    [11, 3, px, M.TERRAIN.MOUNTAIN],
+  ]) {
+    for (let depth = 2; depth <= 4; depth++) {
+      const d = D.createDungeon(x, y, p, t, depth);
+      const s = d.stairsDown;
+      assert.ok(s, '(' + x + ',' + y + ') d' + depth + ': нет d.stairsDown');
+      for (let xp = 1; xp <= 300; xp++) {
+        const c = D.generateDungeonContents(d, heroAt(xp));
+        for (const m of c.mobs) {
+          if (m.boss) continue; // босс-клетка — как есть (000183: occupied)
+          assert.ok(Math.abs(m.x - s.x) > 2 || Math.abs(m.y - s.y) > 2,
+            '(' + x + ',' + y + ') d' + depth + ' xp' + xp
+            + ': группа ' + m.id + ' в 5×5 вокруг клетки спуска');
+        }
+        for (const ch of c.chests) {
+          assert.ok(Math.abs(ch.x - s.x) > 2 || Math.abs(ch.y - s.y) > 2,
+            '(' + x + ',' + y + ') d' + depth + ' xp' + xp
+            + ': сундук ' + ch.id + ' в 5×5 вокруг клетки спуска');
+        }
+      }
+    }
+  }
+});
+
+test('ST-4: stairs-down depth=1: размещение валидно, контент depth=1 НЕ сдвинут (000153.02, RED)', () => {
+  // Поле ЕСТЬ на depth=1 (решение D5: 000153.03 читает d.stairsDown
+  // на всех глубинах). Размещение — те же инварианты; РАСШИРЕНИЕ
+  // safe на stairsDown — ТОЛЬКО depth>1 (if d.depth > 1) → контент
+  // depth=1 БИТ-В-БИТ (ниже — явный deepEqual против golden :295-304 —
+  // КЛЮЧЕВАЯ защита контракта).
+  const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  const s = d.stairsDown;
+  assert.ok(s && Number.isInteger(s.x) && Number.isInteger(s.y),
+    'CAVE d1: d.stairsDown {x,y}');
+  assert.equal(d.cells[s.y * d.width + s.x], D.CELL_FLOOR, 'CAVE d1: FLOOR');
+  assert.ok(D.reachableFrom(d, d.entrance.x, d.entrance.y).has(s.x + ',' + s.y),
+    'CAVE d1: достижима от входа');
+  assert.ok(Math.abs(s.x - d.entrance.x) > 2 || Math.abs(s.y - d.entrance.y) > 2,
+    'CAVE d1: вне 5×5 safe-зоны');
+  const px = M.syntheticPixels(8, 8, 40, 40, 40, 10);
+  const a = D.createDungeon(11, 3, px, M.TERRAIN.MOUNTAIN);
+  const sa = a.stairsDown;
+  assert.ok(sa && Number.isInteger(sa.x) && Number.isInteger(sa.y),
+    'ABYSS d1: d.stairsDown {x,y}');
+  assert.equal(a.cells[sa.y * a.width + sa.x], D.CELL_FLOOR, 'ABYSS d1: FLOOR');
+  assert.ok(D.reachableFrom(a, a.entrance.x, a.entrance.y).has(sa.x + ',' + sa.y),
+    'ABYSS d1: достижима от входа');
+  assert.ok(Math.abs(sa.x - a.entrance.x) > 2 || Math.abs(sa.y - a.entrance.y) > 2,
+    'ABYSS d1: вне 5×5 safe-зоны');
+  const far = a.rooms[a.rooms.length - 1];
+  assert.ok(sa.x !== far.cx || sa.y !== far.cy,
+    'ABYSS d1: ≠ босс-клетка (' + far.cx + ',' + far.cy + ')');
+  const c = D.generateDungeonContents(a, heroAt(2000, 10));
+  assert.deepEqual(c.mobs, [
+    { id: 'g0', mobIds: ['lower_demon', 'lower_demon'], x: 15, y: 4, level: 12, defeated: false },
+    { id: 'g1', mobIds: ['lower_demon', 'succubus', 'lower_demon'], x: 11, y: 5, level: 7, defeated: false },
+    { id: 'g2', mobIds: ['abomination', 'succubus'], x: 13, y: 9, level: 7, defeated: false },
+    { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 14, y: 6, level: 13, defeated: false, boss: true },
+  ], 'ABYSS d1 mobs = существующий golden (бит-в-бит)');
+  assert.deepEqual(c.chests, [
+    { id: 'c0', x: 20, y: 11, opened: false, gold: 63, item: null },
+    { id: 'c1', x: 7, y: 8, opened: false, gold: 58, item: 'phoenix_feather' },
+  ], 'ABYSS d1 chests = существующий golden (бит-в-бит)');
 });

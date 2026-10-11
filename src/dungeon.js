@@ -158,6 +158,30 @@
     DUNGEON_WALL_KINDS[rec.id] = rec.предметы_стен.slice();
   }
 
+  // 000153.02: потолок стороны этажа. = максимум схемы «размер» 5..63
+  // (assets/dungeons/schema.json) — задокументированный диапазон БАЗЫ
+  // остаётся истинным; JSON не трогаем, рост глубины — ТОЛЬКО в коде
+  // (dungeonSizeFor). Перформанс cap не вынуждает (измерено: W=63 →
+  // ~3 мс/генерацию, W=128 → ~2.6 мс; memory/000153.02 §5) — cap =
+  // дизайн-решение (согласованность со схемой).
+  const DUNGEON_SIZE_CAP = 63;
+
+  /**
+   * Размер стороны этажа глубины `depth`: min(CAP, round(base·1.1^(depth−1))).
+   * Чистая числовая функция (каталог-lookup — на вызове): СТОРОНА ×1.1/
+   * этаж (ПЛОЩАДЬ ×1.21). depth=1 → round(base·1) = base — БИТ-В-БИТ
+   * (base — целое из каталога). Math.round — half-up: 25·1.1 =
+   * 27.500…0004 → 28, 35·1.1 = 38.5 → 39 (зафиксировано W-таблицей
+   * tests/dungeon.test.js SZ-1).
+   * @param {number} base базовый размер стороны (DUNGEON_SIZE[type], 5..63)
+   * @param {number} depth целое ≥ 1 (гард createDungeon — до вызова)
+   * @returns {number} сторона этажа (integer 5..DUNGEON_SIZE_CAP)
+   */
+  function dungeonSizeFor(base, depth) {
+    const w = Math.round(base * Math.pow(1.1, depth - 1));
+    return w > DUNGEON_SIZE_CAP ? DUNGEON_SIZE_CAP : w;
+  }
+
   if (!settings || typeof settings.SETTINGS !== 'object') {
     throw new Error(
       'dungeon.js: не найдены глобальные настройки — загрузите global-settings.js до dungeon.js');
@@ -283,6 +307,93 @@
     return kind + '_' + variant;
   }
 
+  // 000153.02: stairs-down — детерминированное размещение клетки спуска
+  // БЕЗ rng (паттерн wallObjFor: hash2 + соль; «один вход — один вид»).
+  // Соль 0x53d10d53 — без коллизий с существующими (0xd0d6b5e5 форма,
+  // 0xd337b153 глубина, 0x5e11 контент, 0x7777 wander, 0x5e11c3a7 /
+  // 0x0c9f4b2d стены) и с in-flight 0x0DE5 (депозиты 000157.02) —
+  // закреплено tests/dungeon.test.js ST-1.
+  const STAIRS_SALT = 0x53d10d53;
+
+  /**
+   * BFS-дистанции (4-соседство) от (sx, sy) по FLOOR-клеткам.
+   * ВНУТРЕННИЙ хелпер (не экспортируется): порядок обхода
+   * [[1,0],[-1,0],[0,1],[0,-1]] — ТОТ ЖЕ, что в reachableFrom
+   * (не Чебышёв). @returns {Map<string, number>} 'x,y' → дистанция
+   */
+  function bfsDistances(d, sx, sy) {
+    const dist = new Map();
+    if (d.cells[idx(d, sx, sy)] !== CELL_FLOOR) return dist;
+    dist.set(sx + ',' + sy, 0);
+    const queue = [[sx, sy]];
+    while (queue.length) {
+      const [x, y] = queue.shift();
+      const dd = dist.get(x + ',' + y);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy;
+        const k = nx + ',' + ny;
+        if (!inGrid(d, nx, ny) || dist.has(k)) continue;
+        if (d.cells[idx(d, nx, ny)] !== CELL_FLOOR) continue;
+        dist.set(k, dd + 1);
+        queue.push([nx, ny]);
+      }
+    }
+    return dist;
+  }
+
+  /**
+   * Клетка stairs-down (спуск на этажи ниже) — чистая функция от ФОРМЫ
+   * (d.cells/rooms/entrance/exit/type/seed), БЕЗ вызовов rng. Правило:
+   * среди достижимых от entrance FLOOR-клеток, исключая 5×5 safe-блоки
+   * entrance/exit и клетку босса ABYSS (rooms[last], 000183), выбирается
+   * МАКСИМАЛЬНО ДАЛЬНЯЯ (BFS-дистанция) — спуск в «конце» этажа; тай —
+   * min hash2(x, y, STAIRS_SALT ^ d.seed); финальный тай — min (y·W+x).
+   * Fail-open: кандидатов нет (все достижимые клетки в safe/босс) →
+   * все достижимые FLOOR; всё равно нет → null. В реальных формах
+   * (5–8 комнат 4×4 + коридоры ≫ 25 safe-клеток + 1 босс-клетка)
+   * null недостижим; ПОТРЕБИТЕЛИ (000153.03) всё равно гвардят null.
+   * @param {object} d результат createDungeon (до wallObjs достаточно)
+   * @returns {{x:number, y:number}|null}
+   */
+  function stairsDownFor(d) {
+    const dist = bfsDistances(d, d.entrance.x, d.entrance.y);
+    const safeCells = new Set();
+    for (const [cx, cy] of [[d.entrance.x, d.entrance.y], [d.exit.x, d.exit.y]]) {
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        safeCells.add((cx + dx) + ',' + (cy + dy));
+      }
+    }
+    const far = d.rooms[d.rooms.length - 1];
+    const bossKey = (d.type === DUNGEON_TYPES.ABYSS)
+      ? far.cx + ',' + far.cy : null;
+    let best = null;
+    const consider = (x, y, k) => {
+      const cand = {
+        x, y,
+        dist: dist.get(k),
+        h: hash2(x, y, STAIRS_SALT ^ d.seed),
+        i: y * d.width + x,
+      };
+      if (!best) { best = cand; return; }
+      if (cand.dist !== best.dist) { if (cand.dist > best.dist) best = cand; return; }
+      if (cand.h !== best.h) { if (cand.h < best.h) best = cand; return; }
+      if (cand.i < best.i) best = cand;
+    };
+    for (const k of dist.keys()) {
+      if (safeCells.has(k)) continue;
+      if (bossKey && k === bossKey) continue;
+      const [x, y] = k.split(',').map(Number);
+      consider(x, y, k);
+    }
+    if (!best) {
+      for (const k of dist.keys()) {
+        const [x, y] = k.split(',').map(Number);
+        consider(x, y, k);
+      }
+    }
+    return best ? { x: best.x, y: best.y } : null;
+  }
+
   /**
    * Генерирует лабиринт по точке входа.
    * @param {number} x координата входа на основной карте
@@ -298,11 +409,17 @@
    *   cells:number[], rooms:{x,y,w,h,cx,cy}[],
    *   entrance:{x,y}, exit:{x,y}, seed:number,
    *   wallObjs:{x:number, y:number, obj:string}[],
+   *   stairsDown:{x:number, y:number}|null,
    * }}
    * `wallObjs` (задача 000070) — предметы стен ТОЛЬКО на wall-клетках
    * «фасада» (у стены есть floor-сосед по 8-соседству Чебышёва 1):
    * ровно один {x, y, obj} на клетку, obj — 'rock_1'|…|'stalactite_2'
    * из набора типа (wallObjFor); floor/entrance/exit — без объектов.
+   * `stairsDown` (000153.02) — клетка спуска на нижний этаж, ПОЛЕ
+   * ФОРМЫ (stairsDownFor: детерминировано, 0 rng): на FLOOR,
+   * достижима от entrance, вне 5×5 safe-зон entrance/exit; ABYSS —
+   * ≠ клетка босса (rooms[last]). null — только дегенеративные формы
+   * (fail-open; потребители 000153.03 гвардят).
    */
   function createDungeon(x, y, pixels, terrain, depth = 1) {
     // 000153.01: fail-open-гард (не throw — см. JSDoc). Ядро не
@@ -316,7 +433,10 @@
     const seed = depth === 1 ? baseSeed : dungeonDepthSeed(baseSeed, depth);
     const rng = mulberry32(seed);
 
-    const W = DUNGEON_SIZE[type];
+    // 000153.02: сторона растёт с глубиной (dungeonSizeFor: base·1.1^(depth−1),
+    // cap DUNGEON_SIZE_CAP). depth=1 → round(base·1) = base — БИТ-В-БИТ
+    // (существующие goldens без правок; число вызовов rng не меняется).
+    const W = dungeonSizeFor(DUNGEON_SIZE[type], depth);
     const H = W;
     const cells = new Array(W * H).fill(CELL_WALL);
     const carve = (cx, cy) => { if (inGrid({ width: W, height: H }, cx, cy)) cells[idx({ width: W, height: H }, cx, cy)] = CELL_FLOOR; };
@@ -392,6 +512,10 @@
       }
     }
     d.wallObjs = wallObjs;
+    // 000153.02: stairs-down — поле ФОРМЫ (детерминировано, 0 rng —
+    // rng-потоки createDungeon/generateDungeonContents не сдвинуты).
+    // Контент depth=1 от поля не зависит (additive).
+    d.stairsDown = stairsDownFor(d);
     return d;
   }
 
@@ -430,6 +554,10 @@
     // значимость и для мобов, и для босса; порядок вызовов rng() не
     // меняется — замена константы на локальную переменную).
     const delta = liveLevelDeltaMax();
+    // 000153.02: сдвиг БАЗЫ уровня на глубину (константа, 0 rng;
+    // depth=1: player.level + 0 === player.level — тождество, формулы
+    // свёрнуты бит-в-бит).
+    const effLevel = player.level + (d.depth - 1);
 
     // Входная комната остаётся безопасной (000177: выход — тот же
     // тайл, что вход: Set дедуплицирует две одинаковые точки →
@@ -440,6 +568,15 @@
     const safe = new Set();
     for (const [cx, cy] of [[d.entrance.x, d.entrance.y], [d.exit.x, d.exit.y]]) {
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) safe.add((cx + dx) + ',' + (cy + dy));
+    }
+    // 000153.02: depth>1 — safe-зона расширяется на 5×5 вокруг
+    // stairs-down (клетка спуска свободна от мобов/сундуков — тот же
+    // паттерн 5×5, что entrance/exit). ТОЛЬКО depth>1: на depth=1
+    // расширение сдвинуло бы takeSpot → сломало бы бит-в-бит goldens.
+    if (d.depth > 1 && d.stairsDown) {
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        safe.add((d.stairsDown.x + dx) + ',' + (d.stairsDown.y + dy));
+      }
     }
     const spots = floorCells(d, safe);
 
@@ -455,7 +592,9 @@
       }
       return null;
     };
-    const mobLevel = () => Math.max(1, player.level + Math.floor(rng() * (2 * delta + 1)) - delta);
+    // 000153.02: уровни групп = effLevel ± δ (сдвиг БАЗЫ; depth=1 —
+    // старая формула бит-в-бит; число вызовов rng не меняется).
+    const mobLevel = () => Math.max(1, effLevel + Math.floor(rng() * (2 * delta + 1)) - delta);
 
     // 000183: клетка босса ABYSS — не точка спавна для блуждающих групп и
     // сундуков (wanderStep уже не пускает группы на занятую клетку босса —
@@ -487,19 +626,23 @@
         id: 'boss',
         mobIds: ['abomination', 'lower_demon', 'lower_demon'],
         x: s[0], y: s[1],
-        level: Math.max(1, player.level + delta),
+        // 000153.02: босс = effLevel + δ (сдвиг БАЗЫ; depth=1 — старая
+        // формула бит-в-бит, 000183 D-BOSS).
+        level: Math.max(1, effLevel + delta),
         defeated: false,
         boss: true,
       });
     }
 
-    // Сундуки: 2-5, золото растёт с уровнем, шанс предмета.
+    // Сундуки: 2-5 (+1/этаж, 000153.02: + (depth−1) — лут растёт с
+    // глубиной; depth=1 — старая формула бит-в-бит), золото растёт с
+    // эффективным уровнем, шанс предмета.
     const chests = [];
-    const nChests = 2 + Math.floor(rng() * 4);
+    const nChests = 2 + Math.floor(rng() * 4) + (d.depth - 1);
     for (let i = 0; i < nChests; i++) {
       const s = takeSpot();
       if (!s) break;
-      const gold = Math.round(10 + rng() * 20 * (1 + player.level * 0.2));
+      const gold = Math.round(10 + rng() * 20 * (1 + effLevel * 0.2));
       const item = rng() < CHEST_ITEM_CHANCE ? items[Math.floor(rng() * items.length)] : null;
       chests.push({ id: 'c' + i, x: s[0], y: s[1], opened: false, gold, item });
     }
@@ -760,5 +903,8 @@
     // dungeonMemory (additive — существующие экспорты не тронуты).
     dungeonDepthSeed, dungeonMemoryKey, DUNGEON_MEMORY_KEY_RE,
     validateDungeonContents, serializeDungeonMemory, restoreDungeonMemory,
+    // 000153.02: генерация этажа — размер per-глубина + stairs-down
+    // (additive; bfsDistances — внутренний хелпер, НЕ экспортируется).
+    DUNGEON_SIZE_CAP, dungeonSizeFor, STAIRS_SALT, stairsDownFor,
   };
 });

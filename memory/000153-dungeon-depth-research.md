@@ -18,11 +18,11 @@ spec-coverage.md, отчёт — tasks/result/000153.md. Игровой код �
 
 | величина | формула (зафиксировать .05) |
 |---|---|
-| размер стороны | `W = round(base · 1.1^(depth−1))` + CAP (решение .02) |
-| уровень моба группы | `max(1, player.level + (depth−1) + floor(rng·(2δ+1)) − δ)` — сдвиг БАЗЫ |
-| уровень босса ABYSS | `max(1, player.level + δ + (depth−1))` |
-| gold сундука | `round(10 + rng·20·(1 + 0.2·(player.level + (depth−1))))` |
-| кол-во сундуков | растёт с глубиной (база 2+floor(rng·4); формула — .02) |
+| размер стороны | `W = min(63, round(base · 1.1^(depth−1)))` — cap 63 ФИНАЛИЗИРОВАН .02 (2026-10-11; = max схемы, дизайн-решение, не перформанс; перформанс W=63 → 3.0 мс) |
+| уровень моба группы | `max(1, player.level + (depth−1) + floor(rng·(2δ+1)) − δ)` — сдвиг БАЗЫ (ФИНАЛЬНО, .02) |
+| уровень босса ABYSS | `max(1, player.level + δ + (depth−1))` (ФИНАЛЬНО, .02) |
+| gold сундука | `round(10 + rng·20·(1 + 0.2·(player.level + (depth−1))))` (ФИНАЛЬНО, .02) |
+| кол-во сундуков | `2 + floor(rng·4) + (depth−1)` — ФИНАЛЬНО .02 (+1 сундук/этаж; диапазон [d+1, d+4]) |
 
   δ = level_delta_max (default 3, global-settings.js:75). «Площадь
   ~1.1×» ТЗ п.5 = **сторона ×1.1 → площадь ×1.21/этаж** (решение по
@@ -30,6 +30,11 @@ spec-coverage.md, отчёт — tasks/result/000153.md. Игровой код �
   «размер» (dungeon.js:275; CAVE 25 / CRYPT 27 / RUINS 31 / DROWNED 27
   / ABYSS 35); schema 5..63 — для БАЗЫ; рост ТОЛЬКО в коде (ABYSS
   35·1.1⁷≈68 > 63), cap — решение .02 + перформанс-тест W>63.
+  [2026-10-11, .02 ПРОЕКТИРОВАНИЕ: cap = 63 (DUNGEON_SIZE_CAP),
+  dungeonSizeFor(base, depth); stairsDown = max-BFS-дистанция от
+  entrance ∖ 5×5 safe ∖ босс ABYSS, соль 0x53d10d53, без rng, поле
+  ФОРМЫ d.stairsDown на всех depth≥1; stairs есть и на depth=1.
+  Итог — memory/000153.02-floor-generation.md §2-§3.]
 
 ## 2. Сиды (ТЗ п.6)
 
