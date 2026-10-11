@@ -655,11 +655,6 @@
         g2.fillStyle = m.boss ? '#b06ad4' : '#d9483b';
         g2.fillRect(p.x + 3, p.y + 3, zoom - 6, zoom - 6);
       }
-      // Номер уровня группы (как раньше, центр клетки группы).
-      const pn = proj(m.x, m.y);
-      g2.fillStyle = '#fff';
-      g2.font = (zoom - 10) + 'px ui-monospace, monospace';
-      g2.fillText(String(m.level), pn.x + zoom / 2, pn.y + zoom / 2 + 3);
     }
 
     // Затемнение исследованных клеток вне радиуса (000136): ОДИН проход

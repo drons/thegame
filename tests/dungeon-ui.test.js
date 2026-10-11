@@ -1367,8 +1367,8 @@ test('подземелье UI 000067: мобы — по числу mobIds, zoom*
   assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#d9483b'),
     'красных квадратов #d9483b нет: вся группа — спрайты');
   const c = G.worldToScreen(2.5, 2.5, 2.5, 2.5, 48, VW, VH);
-  assert.ok(fillTextNear(calls, '5', '#fff', c.x, c.y, 4),
-    'белый номер уровня группы сохранён');
+  assert.ok(!fillTextNear(calls, '5', '#fff', c.x, c.y, 4),
+    'белый номер уровня группы НЕ рисуется (000153.04)');
   // Слои (memory/000070): мобы ПОД игроком. Игрок здесь — ромб (idle
   // не в ready-наборе) — последний path-вызов (moveTo).
   const playerIdx = calls.findIndex((c) => c[0] === 'moveTo');
@@ -1379,7 +1379,7 @@ test('подземелье UI 000067: мобы — по числу mobIds, zoom*
   }
 });
 
-test('подземелье UI 000067: босс — N спрайтов юнитов + ОДИН #b06ad4-прямоугольник группы + номер; без босса — подсветки нет', () => {
+test('подземелье UI 000067: босс — N спрайтов юнитов + ОДИН #b06ad4-прямоугольник группы; без босса — подсветки нет', () => {
   // Босс Бездны — 3 юнита (abomination + 2 lower_demon, все 'abyss'):
   // 3 drawImage (число вызовов, а не distinct-путей — фаза кадра
   // различается по юнитам) + ОДИН #b06ad4-прямоугольник (bounding box
@@ -1431,11 +1431,11 @@ test('подземелье UI 000067: босс — N спрайтов юнито
     assert.ok(calls.indexOf(hit) > bossRectIdx,
       'boss-подсветка рисуется ДО спрайтов юнитов (под ними)');
   }
-  assert.ok(fillTextNear(calls, '7', '#fff', bc.x, bc.y, 4),
-    'белый номер уровня босса «7» сохранён');
+  assert.ok(!fillTextNear(calls, '7', '#fff', bc.x, bc.y, 4),
+    'белый номер уровня босса «7» НЕ рисуется (000153.04)');
   const rc = G.worldToScreen(3.5, 1.5, 2.5, 2.5, 48, VW, VH);
-  assert.ok(fillTextNear(calls, '5', '#fff', rc.x, rc.y, 4),
-    'номер обычной группы «5» сохранён');
+  assert.ok(!fillTextNear(calls, '5', '#fff', rc.x, rc.y, 4),
+    'номер обычной группы «5» НЕ рисуется (000153.04)');
   // (б) не-босс группа одна — подсветки нет совсем.
   ({ G, body } = loadSpriteDungeon());
   loader = makeSpriteLoader(allMobFramePaths(G));
@@ -1520,10 +1520,10 @@ test('подземелье UI 000067: без лоадера (spriteLoader=null) 
   const pBoss = G.worldToScreen(3, 1, 2.5, 2.5, 48, VW, VH);
   assert.ok(fillRectAt(calls, '#b06ad4', pBoss.x + 3, pBoss.y + 3, 42, 42),
     'босс — фиолетовый квадрат #b06ad4');
-  assert.ok(fillTextNear(calls, '5', '#fff', pMob.x + 24, pMob.y + 24, 4),
-    'номер группы «5» сохранён');
-  assert.ok(fillTextNear(calls, '7', '#fff', pBoss.x + 24, pBoss.y + 24, 4),
-    'номер босса «7» сохранён');
+  assert.ok(!fillTextNear(calls, '5', '#fff', pMob.x + 24, pMob.y + 24, 4),
+    'номер группы «5» НЕ рисуется (000153.04)');
+  assert.ok(!fillTextNear(calls, '7', '#fff', pBoss.x + 24, pBoss.y + 24, 4),
+    'номер босса «7» НЕ рисуется (000153.04)');
   // Сундук — прежний золотой квадрат + полоса.
   const pCh = G.worldToScreen(1, 3, 2.5, 2.5, 48, VW, VH);
   assert.ok(fillRectAt(calls, '#e0b13c', pCh.x + 3, pCh.y + 3, 42, 42),
@@ -1569,15 +1569,15 @@ test('подземелье UI 000067: фолбэк ПЕР-ЮНИТ (вид не 
   assert.ok(fillRectAt(calls, '#d9483b', pUnit1.x + 3, pUnit1.y + 3, 42, 42),
     'юнит 1 (ant, смещение [−0.35, +0.15]) — прежний квадрат #d9483b');
   const c = G.worldToScreen(2.5, 2.5, 2.5, 2.5, 48, VW, VH);
-  assert.ok(fillTextNear(calls, '5', '#fff', c.x, c.y, 4),
-    'номер уровня группы сохранён');
+  assert.ok(!fillTextNear(calls, '5', '#fff', c.x, c.y, 4),
+    'номер уровня группы НЕ рисуется (000153.04)');
 });
 
 test('подземелье UI 000067: legacy-группа БЕЗ mobIds + ready-лоадер — фолбэк, не падение (регрессия)', () => {
   // Группа {x, y, level, defeated} без mobIds (формат существующих
-  // тестов стен): полная группа-фолбэк — квадрат + номер, drawImage по
-  // этой группе нет, падения на for..of undefined нет. Зелёный с
-  // первого запуска.
+  // тестов стен): полная группа-фолбэк — квадрат (номер уровня не
+  // рисуется — 000153.04), drawImage по этой группе нет, падения на
+  // for..of undefined нет. Зелёный с первого запуска.
   const { G, body } = loadSpriteDungeon();
   const loader = makeSpriteLoader(allMobFramePaths(G)); // всё готово
   G.dungeonUI.start({
@@ -1590,8 +1590,8 @@ test('подземелье UI 000067: legacy-группа БЕЗ mobIds + ready-
   const p = G.worldToScreen(2, 2, 2.5, 2.5, 48, VW, VH);
   assert.ok(fillRectAt(calls, '#d9483b', p.x + 3, p.y + 3, 42, 42),
     'группа — прежний квадрат #d9483b');
-  assert.ok(fillTextNear(calls, '5', '#fff', p.x + 24, p.y + 24, 4),
-    'номер «5» сохранён');
+  assert.ok(!fillTextNear(calls, '5', '#fff', p.x + 24, p.y + 24, 4),
+    'номер «5» НЕ рисуется (000153.04)');
 });
 
 test('подземелье UI 000067: сундук — спрайт при !opened (zoom*0.8, центр клетки), НЕ рисуется при opened', () => {
