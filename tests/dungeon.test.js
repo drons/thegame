@@ -952,3 +952,233 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
         p.name + ': сундук ' + ch.id + ' на клетке босса (' + far.cx + ',' + far.cy + ')');
   }
 });
+
+// --- Задача 000153.01: модель глубины подземелья (КРАСНЫЕ, §6) ---
+// d.depth (int ≥ 1, первый этаж = 1), сид формы per-глубина
+// (depth=1 — бит-в-бит существующие goldens; depth>1 — формула
+// dungeonDepthSeed, без rng), ключ памяти 'x,y:depth', сериализатор
+// раздела сейва dungeonMemory (паттерн cities.js). Пины —
+// memory/000153.01-dungeon-depth-save.md §2.1/§2.2 (предвычислено
+// реальным hash2: CAVE(37,−12) base 2658571374 → d2 3912048804,
+// d3 4212266649, d10 1597152373; ABYSS(11,3) base 2941640529 →
+// d2 792410970).
+
+test('DEP-1: d.depth = 1 (дефолт), depth=1 БИТ-В-БИТ, fail-open clamp', () => {
+  const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  assert.equal(d.depth, 1, 'd.depth — целое 1 (дефолт, первый этаж)');
+  assert.ok(Number.isInteger(d.depth) && d.depth >= 1,
+    'd.depth — целое ≥ 1');
+  assert.equal(d.seed, 2658571374,
+    'depth=1: seed БИТ-В-БИТ (существующий golden)');
+  const a = D.createDungeon(11, 3, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN);
+  assert.equal(a.depth, 1, 'ABYSS: d.depth = 1');
+  assert.equal(a.seed, 2941640529,
+    'ABYSS depth=1: seed БИТ-В-БИТ (существующий golden)');
+  // fail-open clamp: невалидный depth → 1 (молча), форма depth=1.
+  for (const bad of [0, 0.5, NaN, -3, '2']) {
+    const z = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, bad);
+    assert.equal(z.depth, 1, 'clamp depth=' + String(bad) + ' → 1');
+    assert.equal(z.seed, 2658571374,
+      'clamp depth=' + String(bad) + ': seed depth=1 (fail-open)');
+  }
+});
+
+// cells depth=2 CAVE(37,−12) 25×25 — предвычислено репликой
+// createDungeon (дизайн §2.1, сверка реплики с depth=1 golden —
+// побайтово). Зафиксировано на красной стадии.
+const D2_CELLS =
+  '0000000000000000000000000' +
+  '0000000000000000000000000' +
+  '0000000000000000000000000' +
+  '0000000000000000000000000' +
+  '0000000000000000000000000' +
+  '0000000000000000000000000' +
+  '0000000000001111111000000' +
+  '0000000000001111111100000' +
+  '0000000000011111111100000' +
+  '0000000000011111111100000' +
+  '0000000000011111111100000' +
+  '0000000000011111111100000' +
+  '0000000000011111111100000' +
+  '0000000111111111100000000' +
+  '0000000111111111100000000' +
+  '0000000111111111111000000' +
+  '0000000111111111111000000' +
+  '0000000001111111111000000' +
+  '0000000001111111111000000' +
+  '0000000001111111111000000' +
+  '0000000001111111111000000' +
+  '0000000000011111111000000' +
+  '0000000000000000000000000' +
+  '0000000000000000000000000' +
+  '0000000000000000000000000';
+
+test('DEP-2: depth=2 — d.depth = 2, сид/форма детерминированы (пinned)', () => {
+  const a = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 2);
+  const b = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 2);
+  assert.equal(a.depth, 2, 'd.depth = 2');
+  assert.equal(a.seed, 3912048804,
+    'depth2 seed = dungeonDepthSeed(base, 2) (дизайн-пин)');
+  assert.equal(a.seed, b.seed, 'детерминизм: та же глубина — тот же сид');
+  assert.deepEqual(a.cells, b.cells, 'детерминизм: cells');
+  assert.deepEqual(a.rooms, b.rooms, 'детерминизм: rooms');
+  assert.deepEqual(a.entrance, b.entrance, 'детерминизм: entrance');
+  assert.deepEqual(a.exit, b.exit, 'детерминизм: exit');
+  assert.deepEqual(a.wallObjs, b.wallObjs, 'детерминизм: wallObjs');
+  // Фиксированная форма depth=2 (красная стадия, §2.1): 25×25,
+  // entrance (11,15), 7 комнат, 66 wallObjs.
+  assert.equal(a.width, 25, 'depth2 W');
+  assert.equal(a.height, 25, 'depth2 H');
+  assert.deepEqual(a.entrance, { x: 11, y: 15 }, 'depth2 entrance');
+  assert.equal(a.rooms.length, 7, 'depth2 rooms');
+  assert.equal(a.wallObjs.length, 66, 'depth2 wallObjs');
+  assert.equal(a.cells.join(''), D2_CELLS, 'depth2 cells-стринг (пinned)');
+});
+
+test('DEP-3: depth>1 — сид per-глубина (≠ depth=1), 2..12 попарно различны', () => {
+  const d1 = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  const d2 = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 2);
+  assert.notEqual(d2.seed, d1.seed, 'depth2 seed ≠ depth1 seed');
+  assert.notDeepEqual(d2.cells, d1.cells, 'depth2 форма ≠ depth1 форма');
+  // Конкретные пины формулы (дизайн §2.1).
+  assert.equal(D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 3).seed,
+    4212266649, 'depth3 seed (дизайн-пин)');
+  assert.equal(D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 10).seed,
+    1597152373, 'depth10 seed (дизайн-пин)');
+  assert.equal(
+    D.createDungeon(11, 3, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN, 2).seed,
+    792410970, 'ABYSS depth2 seed (дизайн-пин)');
+  const seen = new Set([d1.seed]);
+  for (let dep = 2; dep <= 12; dep++) {
+    const s = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, dep).seed;
+    assert.ok(!seen.has(s), 'depth ' + dep + ' seed попарно различен');
+    seen.add(s);
+  }
+});
+
+test('DEP-4: новые экспорты dungeon.js (seed/key/regex/сериализатор)', () => {
+  // Экспорт (additive, :539-546 → +6) — в красной стадии отсутствует.
+  assert.equal(typeof D.dungeonDepthSeed, 'function', 'dungeonDepthSeed');
+  assert.equal(typeof D.dungeonMemoryKey, 'function', 'dungeonMemoryKey');
+  assert.equal(typeof D.validateDungeonContents, 'function',
+    'validateDungeonContents');
+  assert.equal(typeof D.serializeDungeonMemory, 'function',
+    'serializeDungeonMemory');
+  assert.equal(typeof D.restoreDungeonMemory, 'function',
+    'restoreDungeonMemory');
+  assert.ok(D.DUNGEON_MEMORY_KEY_RE instanceof RegExp,
+    'DUNGEON_MEMORY_KEY_RE (RegExp)');
+
+  // dungeonDepthSeed — формула (дизайн §2.1), ноль rng.
+  assert.equal(D.dungeonDepthSeed(2658571374, 2), 3912048804);
+  assert.equal(D.dungeonDepthSeed(2658571374, 3), 4212266649);
+  assert.equal(D.dungeonDepthSeed(2941640529, 2), 792410970);
+
+  // Ключ (дизайн §2.2).
+  assert.equal(D.dungeonMemoryKey('18,14', 1), '18,14:1');
+  assert.equal(D.dungeonMemoryKey('-5,-12', 3), '-5,-12:3');
+  assert.ok(D.DUNGEON_MEMORY_KEY_RE.test('18,14:1'));
+  assert.ok(D.DUNGEON_MEMORY_KEY_RE.test('-5,-12:3'));
+  assert.ok(!D.DUNGEON_MEMORY_KEY_RE.test('18,14'),
+    'старый формат «x,y» (без depth) — отклонён');
+  assert.ok(!D.DUNGEON_MEMORY_KEY_RE.test('18:14'), '«18:14» — отклонён');
+  assert.ok(!D.DUNGEON_MEMORY_KEY_RE.test('18,14:'), '«18,14:» — отклонён');
+  assert.ok(!D.DUNGEON_MEMORY_KEY_RE.test(''), 'пустота — отклонён');
+
+  // validateDungeonContents — глубокая копия / null (дизайн §2.3).
+  const goodContents = {
+    seed: 12345, createdAtXp: 0, step: 3,
+    mobs: [{ id: 'g0', mobIds: ['ant', 'ant'], x: 3, y: 4, level: 1,
+      defeated: true }],
+    chests: [{ id: 'c0', x: 2, y: 3, opened: true, gold: 10,
+      item: 'iron_sword' }],
+  };
+  const v = D.validateDungeonContents(goodContents);
+  assert.deepEqual(v, goodContents, 'валидный contents — глубокая копия');
+  assert.notStrictEqual(v, goodContents, 'копия — новый объект');
+  assert.notStrictEqual(v.mobs, goodContents.mobs, 'массивы — новые');
+  assert.notStrictEqual(v.chests, goodContents.chests, 'массивы — новые');
+  assert.notStrictEqual(v.mobs[0], goodContents.mobs[0], 'элементы — новые');
+  assert.equal(D.validateDungeonContents(null), null, 'null → null');
+  assert.equal(D.validateDungeonContents('junk'), null, 'строка → null');
+  assert.equal(D.validateDungeonContents([1, 2]), null, 'массив → null');
+  assert.equal(
+    D.validateDungeonContents({ ...goodContents, step: -1 }), null,
+    'step < 0 → null');
+  assert.equal(
+    D.validateDungeonContents({ ...goodContents, mobs: 'junk' }), null,
+    'mobs не массив → null');
+  assert.equal(
+    D.validateDungeonContents({
+      seed: 1, createdAtXp: 0, step: 0,
+      mobs: [{ id: 42, mobIds: ['ant'], x: 1, y: 1, level: 1,
+        defeated: false }],
+      chests: [],
+    }), null, 'mobs[0].id не строка → null');
+  assert.equal(
+    D.validateDungeonContents({
+      seed: 1, createdAtXp: 0, step: 0, mobs: [],
+      chests: [{ id: 'c0', x: 1, y: 1, opened: false, gold: -5,
+        item: null }],
+    }), null, 'chests[0].gold < 0 → null');
+
+  // serializeDungeonMemory (дизайн §2.3): двусторонняя обрезка +
+  // activeRec merge «активный поверх». День 7, окно 3.
+  const rec = (last, contents, pos) => ({
+    contents, lastVisitDay: last, ...(pos ? { pos } : {}),
+  });
+  const mem = {
+    '18,14:1': rec(5, goodContents), // 7−5=2 ≤ 3 → kept
+    '20,10:1': rec(1, goodContents), // 7−1=6 > 3 → expired → dropped
+    '21,10:1': rec(9, goodContents), // 9 > 7 → future → dropped
+    '7,7': rec(5, goodContents), // старый формат → dropped
+    '30,10:2': rec(5, { ...goodContents, step: -5 }), // битый → dropped
+  };
+  const out = D.serializeDungeonMemory(mem, 7, 3, null);
+  assert.deepEqual(Object.keys(out).sort(), ['18,14:1'],
+    'обрезка: осталась только валидная запись');
+  assert.equal(out['18,14:1'].lastVisitDay, 5);
+  assert.deepEqual(out['18,14:1'].contents, goodContents);
+  // activeRec — merge «активный поверх» (своя key перезаписана;
+  // step/pos — из активного).
+  const activeContents = { ...goodContents, step: 42 };
+  const activeRec = {
+    key: '18,14:1', contents: activeContents, lastVisitDay: 7,
+    pos: { x: 6, y: 15 },
+  };
+  const out2 = D.serializeDungeonMemory(mem, 7, 3, activeRec);
+  assert.deepEqual(out2['18,14:1'].contents, activeContents,
+    'merge: contents — активного');
+  assert.equal(out2['18,14:1'].lastVisitDay, 7, 'merge: lastVisitDay — 7');
+  assert.deepEqual(out2['18,14:1'].pos, { x: 6, y: 15 },
+    'merge: pos — из activeRec');
+  // activeRec с ключом, отсутствующим в memory — пишется.
+  const out3 = D.serializeDungeonMemory({}, 7, 3, {
+    key: '1,2:1', contents: goodContents, lastVisitDay: 7,
+    pos: { x: 0, y: 0 },
+  });
+  assert.deepEqual(Object.keys(out3), ['1,2:1'],
+    'merge: ключ activeRec создаётся');
+  // Map-вход (1:1 с runtime-Map main.js).
+  const out4 = D.serializeDungeonMemory(
+    new Map(Object.entries(mem)), 7, 3, null);
+  assert.deepEqual(Object.keys(out4).sort(), ['18,14:1'],
+    'Map-вход — та же обрезка');
+
+  // restoreDungeonMemory (дизайн §2.3): plain → Map; non-object →
+  // пустой Map молча; глубокая копия.
+  const m = D.restoreDungeonMemory({ '18,14:1': rec(5, goodContents) }, 7, 3);
+  assert.ok(m instanceof Map, 'restore → Map');
+  assert.equal(m.size, 1, 'restore: валидная запись');
+  const got = m.get('18,14:1');
+  assert.equal(got.lastVisitDay, 5);
+  assert.deepEqual(got.contents, goodContents);
+  assert.notStrictEqual(got.contents, goodContents, 'restore: глубокая копия');
+  const mAll = D.restoreDungeonMemory(mem, 7, 3);
+  assert.deepEqual([...mAll.keys()].sort(), ['18,14:1'],
+    'restore: та же двусторонняя обрезка');
+  for (const junk of ['junk', 42, null, undefined, [1, 2]]) {
+    assert.equal(D.restoreDungeonMemory(junk, 7, 3).size, 0,
+      'non-object ' + String(junk) + ' → пустой Map, без исключений');
+  }
+});

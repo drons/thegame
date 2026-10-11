@@ -328,6 +328,16 @@ createDungeon/createCityLayout + generate*Contents на master).
   один боевой/сейв-модуль не правится).
 - Сейвы: dungeonState НЕ персистится; cities — layout НЕ персистится
   (генерится из якоря → exit==entrance автоматически); **МИГРАЦИЙ НЕТ**.
+  **ПОПРАВКА 000153.01 (2026-10-11):** dungeonState (текущий выезд)
+  ВСЁ ЕЩЁ не персистируется (после reload герой на мирском пещерном
+  тайле; вход — world-step'ом через maybeEnterDungeon), НО содержимое
+  этажа теперь персистится: НОВЫЙ неломный топ-раздел сейва
+  `dungeonMemory` (map `'x,y:depth'` → {contents, lastVisitDay, pos?},
+  версия 1, миграций нет) закрывает re-loot-эксплойт (источник —
+  как раз «dungeonState/dungeonMemory не персистятся» + мирские
+  defeatedAt В сейве, main.js:673-674). Контракт:
+  memory/000153.01-dungeon-depth-save.md §2.3-2.5. exitLocation /
+  finally-инвариант 000170 / PE-пины — БЕЗ ИЗМЕНЕНИЙ.
 
 ## 3. Ленивые ссылки и guards (UMD-ловушки 000038/000053)
 

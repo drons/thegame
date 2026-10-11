@@ -37,8 +37,10 @@ spec-coverage.md, отчёт — tasks/result/000153.md. Игровой код �
   (dungeonShapeSeed dungeon.js:209-216: hash2(x,y,0xd0d6b5e5) ^
   |round(perlin(x·0.137+11.3, y·0.211+7.7)·1e6)| ^ пиксель). depth>1 —
   детерминированная функция от (сид формы depth=1, depth, соль) БЕЗ
-  новых вызовов rng (конкретная соль/хэш — решение .01; паттерн
-  wallObjFor dungeon.js:244-250 — hash2 с солью).
+  новых вызовов rng. **ЗАФИКСИРОВАНО В .01** (memory/000153.01-dungeon-
+  depth-save.md §2.1): `dungeonDepthSeed(base, depth) = (hash2(base,
+  depth, 0xd337b153) ^ ((depth * 0x9e3779b9) >>> 0)) >>> 0` — детерм.,
+  ≠ base, depths 2..12 различны; golden CAVE(37,−12) depth2 = 3912048804.
 * **Сид содержимого — БЕЗ ИЗМЕНЕНИЙ** (dungeon.js:377: hash2(totalXp,
   d.seed, 0x5e11) ^ totalXp·2654435761): глубина наследуется через
   d.seed → «координаты + глубина» выполняется и для формы, и для
@@ -97,6 +99,12 @@ spec-coverage.md, отчёт — tasks/result/000153.md. Игровой код �
   (defeated/opened/позиции/step) + ОБРЕЗКА записей старше
   dungeon_memory_days (прецедент serializeCityStates main.js:726-729,
   квота localStorage). Параллельных разделов НЕ создавать.
+  **ЗАФИКСИРОВАНО В .01** (memory/000153.01-dungeon-depth-save.md
+  §2.3): имя `dungeonMemory`, формат map `'x,y:depth'` → {contents,
+  lastVisitDay, pos?}, multiple records (по этажам-входам), пишется
+  всегда (даже {}), activeRec-merge «активный поверх» (in-flight),
+  pos-restore в maybeEnterDungeon (FLOOR-валидация, fallback
+  entrance).
 * **Re-loot-эксплойт чинится ВНУТРИ .01**: сейчас collectSaveData
   (main.js:659-743) без dungeon* — релоад + повторный вход = «свежие»
   сундуки (opened:false, dungeon.js:456) и мобы (defeated:false,
@@ -105,6 +113,9 @@ spec-coverage.md, отчёт — tasks/result/000153.md. Игровой код �
   reload → re-enter → сундук открыт, gold не удвоился, моб не ожив.
 * Ключ dungeonMemory: worldKey → **worldKey+глубина** (main.js:1366,
   :2059, :2184) — контент этажа N не перетекает на N+1.
+  **ЗАФИКСИРОВАНО В .01**: формат `worldKey + ':' + depth` (например
+  '18,14:1'), единый источник — dungeon.js `dungeonMemoryKey` +
+  `DUNGEON_MEMORY_KEY_RE` (memory/000153.01-dungeon-depth-save.md §2.2).
 * ВНИМАНИЕ: текст «контент подземелья персистентен (dungeon_memory)»
   в tasks/result/000183.md:91 / memory/000183-*.md — НЕВЕРНО до .01
   (см. R17, memory/000153-spec-coverage.md §5).

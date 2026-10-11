@@ -10,11 +10,12 @@
 // БЕЗ снапшота Game в момент загрузки (000038 — строже, чем «один
 // раз»): все Game-функции читаются ЛЕНИВО в момент ВЫЗОВА (rootRef,
 // прецедент building-effects 000071): createMover, DUNGEON_NAMES,
-// CELL_FLOOR, BUILDING_TYPES, createDungeon, contentValid,
-// generateDungeonContents, openChest, wanderStep, getBuilding,
-// Cities.createCityLayout. Нет зависимости — console.error +
-// деградация, игра НЕ падает (все недостижимы в браузере — пины
-// index-order). Загрузка чистая: 0 исключений, 0 console.error.
+// CELL_FLOOR, BUILDING_TYPES, createDungeon, dungeonMemoryKey,
+// contentValid, generateDungeonContents, openChest, wanderStep,
+// getBuilding, Cities.createCityLayout. Нет зависимости —
+// console.error + деградация, игра НЕ падает (все недостижимы в
+// браузере — пины index-order). Загрузка чистая: 0 исключений,
+// 0 console.error.
 //
 // Движение — ВОЗВРАТ СОБЫТИЙ (чистые функции, решение D3): UI/состояние
 // (dungeonUI, saveNow, hudFlash, hero, бой) — тонкая проводка main.js.
@@ -194,8 +195,18 @@
       return null;
     }
     const worldKey = player.x + ',' + player.y;
-    const d = G.createDungeon(player.x, player.y, ctx.mapPixels, t.terrain);
-    const saved = memory.get(worldKey);
+    // 000153.01: единственный этаж — ПЕРВАЯ глубина (000153.03 введёт
+    // depth+1 через тот же 5-й аргумент createDungeon).
+    const depth = 1;
+    const d = G.createDungeon(player.x, player.y, ctx.mapPixels,
+      t.terrain, depth);
+    // Ключ памяти — вход + глубина (000153.01): единый источник —
+    // dungeon.js; инлайн-fallback строкой (без реинжениринга формы
+    // ключа — LOC-2: ноль RNG/require в source).
+    const memKey = G.dungeonMemoryKey
+      ? G.dungeonMemoryKey(worldKey, depth)
+      : worldKey + ':' + depth;
+    const saved = memory.get(memKey);
     // Содержимое живёт, пока внутри + dungeon_memory_days (SPEC).
     let contents = null;
     if (saved) {
@@ -222,6 +233,20 @@
     const ds = makeDungeonState(d, contents, worldKey,
       { intervalMs: ctx.intervalMs });
     if (saved) saved.lastVisitDay = ctx.day; // продлить память
+    // 000153.01: восстановление СПАВНА из сохранённой позиции
+    // (пишется ТОЛЬКО in-flight-сейвом, «активный поверх»): FLOOR-
+    // проверка (бит/за границей/не FLOOR/нет pos — молча entrance,
+    // ядро не логирует) + mover.teleport (глейд dungeon-ui).
+    // FLOOR-клетка достижима по построению (карта выкапывается от
+    // entrance; reachableFrom пинит связность) — BFS не нужен.
+    const p = saved && saved.pos;
+    if (p && Number.isInteger(p.x) && Number.isInteger(p.y) &&
+        p.x >= 0 && p.y >= 0 && p.x < d.width && p.y < d.height &&
+        G.CELL_FLOOR !== undefined &&
+        d.cells[p.y * d.width + p.x] === G.CELL_FLOOR) {
+      ds.x = ds.prevX = p.x; ds.y = ds.prevY = p.y;
+      if (ds.mover) ds.mover.teleport(p.x, p.y);
+    }
     return ds;
   }
 
@@ -414,8 +439,24 @@
   // (exitLocation в main.js).
   function exitDungeon(ds, opts) {
     const o = opts || {};
-    o.memory.set(ds.worldKey,
-      { contents: ds.contents, lastVisitDay: o.day });
+    // 000153.01: ключ памяти — вход + глубина (ТОТ ЖЕ источник, что
+    // maybeEnterDungeon: dungeonMemoryKey + инлайн-fallback).
+    // ds.dg.depth — поле createDungeon (debug-вход — дефолт 1).
+    const G = lazyGame();
+    const depth = ds.dg && Number.isInteger(ds.dg.depth) && ds.dg.depth >= 1
+      ? ds.dg.depth : 1;
+    const memKey = G && typeof G.dungeonMemoryKey === 'function'
+      ? G.dungeonMemoryKey(ds.worldKey, depth)
+      : ds.worldKey + ':' + depth;
+    // Ревью 000153.01: debug-вход с вынужденным terrain ≠ тайла —
+    // память НЕ пишется (memoryBanned, debugEnterDungeon): запись
+    // под мирским ключом переживёт перезагрузку (секция
+    // dungeonMemory) и сломает мирской вход на тот же тайл. ДЕНЬ
+    // проходит в любом случае (D5 — проводка не меняется).
+    if (!ds.memoryBanned) {
+      o.memory.set(memKey,
+        { contents: ds.contents, lastVisitDay: o.day });
+    }
     o.clock.event('dungeon'); // вылазка забирает день (SPEC «Игровое время»)
   }
 
@@ -456,6 +497,16 @@
     const ds = makeDungeonState(
       d, G.generateDungeonContents(d, ctx.hero),
       player.x + ',' + player.y, { intervalMs: ctx.intervalMs });
+    // Ревью 000153.01: вынужденный terrain ≠ terrain тайла →
+    // подземелье ЧУЖОЙ формы/типа (DUNGEON_SIZE/type другие), а ключ
+    // памяти — мирской 'x,y:depth': такая запись переживёт
+    // перезагрузку (секция dungeonMemory), и мирской вход на тайл
+    // прочитает контент вне своей сетки (позиции > width/height).
+    // memoryBanned — exitDungeon (ниже) и activeDungeonMemoryRec
+    // (main.js, in-flight-сейв) запись пропускают. Без аргумента /
+    // при совпадении — флага НЕТ: контент = как у мирского входа
+    // (§5.3, CB-9) — запись остаётся допустимой.
+    if (terrain != null && terrain !== t.terrain) ds.memoryBanned = true;
     return ds;
   }
 

@@ -7,6 +7,12 @@
 // (totalXp) — при повторном входе с новым опытом генерация иная.
 // Содержимое живёт: пока персонаж внутри + dungeon_memory_days дней.
 //
+// Глубина (000153.01): d.depth — целое ≥ 1, ПЕРВЫЙ ЭТАЖ = 1. Форма
+// depth=1 — БИТ-В-БИТ старой формуле (golden'ы); depth>1 — сид формы
+// per-глубина (dungeonDepthSeed, без rng). Ключ памяти 'x,y:depth'
+// (dungeonMemoryKey) + сериализатор раздела сейва dungeonMemory
+// (паттерн cities.js).
+//
 // Чистое ядро без DOM — тестируется в node (tests/dungeon.test.js).
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js, map.js, global-settings.js
@@ -215,6 +221,34 @@
       ^ (r + (g << 8) + (b << 16) + (a << 24))) >>> 0;
   }
 
+  // 000153.01: сид формы depth > 1 — детерминированная функция от
+  // (сид формы depth=1, depth, соль), БЕЗ rng (hash2 — чистый
+  // finalizer; паттерн wallObjFor — hash2 с солью). depth=1 формула
+  // НЕ ТРОНУТА (бит-в-бит; формула ниже существует только в ветке
+  // depth>1 createDungeon). Соль 0xd337b153 — без коллизий с
+  // существующими (0xd0d6b5e5, 0x5e11, 0x7777, 0x5e11c3a7,
+  // 0x0c9f4b2d); 0x9e3779b9 — штатная константа кодовой базы
+  // (mapseed.js, perlin.js).
+  const DEPTH_SALT = 0xd337b153;
+
+  function dungeonDepthSeed(baseSeed, depth) {
+    return (hash2(baseSeed, depth, DEPTH_SALT)
+      ^ ((depth * 0x9e3779b9) >>> 0)) >>> 0;
+  }
+
+  // 000153.01: ключ dungeonMemory — worldKey ('x,y') + глубина →
+  // 'x,y:depth'. Разделитель ':' — прецедент 'x,y:effectId'
+  // (buildingOncePerDay); ',' сделал бы ключ неоднозначным (worldKey
+  // уже содержит запятую). Единый источник формы ключа: regex —
+  // охрана от битых данных в serialize/restore (старый формат 'x,y'
+  // без глубины молча отбрасывается — в старых версиях раздела сейва
+  // не было вовсе; миграции НЕТ).
+  const DUNGEON_MEMORY_KEY_RE = /^-?\d+,-?\d+:\d+$/;
+
+  function dungeonMemoryKey(worldKey, depth) {
+    return worldKey + ':' + depth;
+  }
+
   const idx = (d, x, y) => y * d.width + x;
   const inGrid = (d, x, y) => x >= 0 && y >= 0 && x < d.width && y < d.height;
 
@@ -256,8 +290,11 @@
    * @param {{width:number, height:number, data:ArrayBuffer|Uint8Array}} pixels
    *   пиксели assets/map.png (та же затравка, что и у карты мира)
    * @param {number} terrain тип местности тайла входа (TERRAIN из map.js)
+   * @param {number} [depth=1] глубина (000153.01): целое ≥ 1, ПЕРВЫЙ
+   *   ЭТАЖ = 1; невалидное — fail-open-кламп к 1 (молча: enterLocation
+   *   не обёрнут в try/catch — throw упал бы на игрока, 000029)
    * @returns {{
-   *   type:number, width:number, height:number,
+   *   type:number, width:number, height:number, depth:number,
    *   cells:number[], rooms:{x,y,w,h,cx,cy}[],
    *   entrance:{x,y}, exit:{x,y}, seed:number,
    *   wallObjs:{x:number, y:number, obj:string}[],
@@ -267,9 +304,16 @@
    * ровно один {x, y, obj} на клетку, obj — 'rock_1'|…|'stalactite_2'
    * из набора типа (wallObjFor); floor/entrance/exit — без объектов.
    */
-  function createDungeon(x, y, pixels, terrain) {
+  function createDungeon(x, y, pixels, terrain, depth = 1) {
+    // 000153.01: fail-open-гард (не throw — см. JSDoc). Ядро не
+    // логирует: невалидное значение просто становится первым этажом.
+    if (!Number.isInteger(depth) || depth < 1) depth = 1;
     const type = dungeonTypeFor(terrain, pixelAt(pixels, x, y)[3]);
-    const seed = dungeonShapeSeed(x, y, pixels);
+    // dungeonShapeSeed — ровно ОДИН вызов (число вызовов не меняется):
+    // depth=1 — старая формула БИТ-В-БИТ; depth>1 — сид per-глубина
+    // (dungeonDepthSeed, без новых вызовов rng).
+    const baseSeed = dungeonShapeSeed(x, y, pixels);
+    const seed = depth === 1 ? baseSeed : dungeonDepthSeed(baseSeed, depth);
     const rng = mulberry32(seed);
 
     const W = DUNGEON_SIZE[type];
@@ -319,6 +363,10 @@
       entrance: { x: rooms[0].cx, y: rooms[0].cy },
       exit: { x: rooms[0].cx, y: rooms[0].cy },
       seed,
+      // 000153.01: текущая глубина (целое ≥ 1, первый этаж = 1).
+      // Additive: контент depth=1 от поля не зависит (0 новых вызовов
+      // rng в createDungeon/generateDungeonContents).
+      depth,
     };
 
     // Предметы стен (задача 000070): ТОЛЬКО wall-клетки «фасада» —
@@ -478,6 +526,171 @@
     return currentDay <= lastVisitDay + memoryDays;
   }
 
+  // --- Сериализация памяти подземелий (задача 000153.01) ---
+  //
+  // Неломный топ-раздел сейва dungeonMemory: ключ 'x,y:depth' →
+  // { contents, lastVisitDay, pos? }. Чистые функции (без доступа к
+  // Game) — паттерн serialize/restoreCityStates (cities.js): доступны
+  // из node-тестов напрямую; main.js — тонкая проводка + guards.
+  // Валидаторы возвращают ГЛУБОКИЕ КОПИИ (паттерн validateCityState)
+  // — после restore мутации live-контента не касаются объекта сейва.
+
+  /**
+   * Валидация содержимого этажа: ЧИСТАЯ глубокая копия результата
+   * generateDungeonContents. Поля — ровно те, что генерирует ядро
+   * (лишних ключей в копии НЕТ — golden deepEqual-контракт).
+   * Нарушение (не-объект/массив, битые числа, не-строки id, gold < 0)
+   * → null (запись отбрасывается тихо — ядро не логирует).
+   * @returns {{seed:number, createdAtXp:number, step:number,
+   *   mobs:object[], chests:object[]}|null}
+   */
+  function validateDungeonContents(contents) {
+    if (!contents || typeof contents !== 'object' || Array.isArray(contents)) {
+      return null;
+    }
+    const { seed, createdAtXp, step, mobs, chests } = contents;
+    if (!Number.isInteger(seed) || seed < 0) return null;
+    if (!Number.isInteger(createdAtXp) || createdAtXp < 0) return null;
+    if (!Number.isInteger(step) || step < 0) return null;
+    if (!Array.isArray(mobs) || !Array.isArray(chests)) return null;
+    const mobsOut = [];
+    for (const m of mobs) {
+      if (!m || typeof m !== 'object' || Array.isArray(m)) return null;
+      if (typeof m.id !== 'string' || !Array.isArray(m.mobIds)) return null;
+      if (!m.mobIds.every((x) => typeof x === 'string')) return null;
+      if (!Number.isInteger(m.x) || !Number.isInteger(m.y)) return null;
+      if (!Number.isInteger(m.level) || m.level < 1) return null;
+      if (typeof m.defeated !== 'boolean') return null;
+      const mo = {
+        id: m.id, mobIds: m.mobIds.slice(), x: m.x, y: m.y,
+        level: m.level, defeated: m.defeated,
+      };
+      // boss — опциональное поле (ABYSS): присутствие/отсутствие
+      // сохраняется как есть (лишних ключей — не создавать).
+      if (m.boss !== undefined) {
+        if (typeof m.boss !== 'boolean') return null;
+        mo.boss = m.boss;
+      }
+      mobsOut.push(mo);
+    }
+    const chestsOut = [];
+    for (const c of chests) {
+      if (!c || typeof c !== 'object' || Array.isArray(c)) return null;
+      if (typeof c.id !== 'string') return null;
+      if (!Number.isInteger(c.x) || !Number.isInteger(c.y)) return null;
+      if (typeof c.opened !== 'boolean') return null;
+      if (!Number.isInteger(c.gold) || c.gold < 0) return null;
+      if (c.item !== null && typeof c.item !== 'string') return null;
+      chestsOut.push({
+        id: c.id, x: c.x, y: c.y,
+        opened: c.opened, gold: c.gold, item: c.item,
+      });
+    }
+    return { seed, createdAtXp, step, mobs: mobsOut, chests: chestsOut };
+  }
+
+  // Запись раздела: { contents (валидный), lastVisitDay: int ≥ 1,
+  // pos? {x,y: int ≥ 0} } в окне памяти: lastVisitDay ≤ day (будущее
+  // — отброс) И contentValid (day − last ≤ memoryDays — валидно).
+  // СЕМАНТИКА ОКНА НЕ ПУТАТЬ с cities.js (там day − last ≥ respawnDays
+  // → отброс — респаун, а не память). pos без проверки границ
+  // (размер подземелья на стороне re-anchor). Чистая копия; null —
+  // запись отбрасывается.
+  function validateDungeonMemoryRec(rec, day, memoryDays) {
+    if (!rec || typeof rec !== 'object' || Array.isArray(rec)) return null;
+    const last = rec.lastVisitDay;
+    if (!Number.isInteger(last) || last < 1) return null;
+    if (last > day) return null;
+    if (!contentValid(last, day, memoryDays)) return null;
+    const contents = validateDungeonContents(rec.contents);
+    if (!contents) return null;
+    const out = { contents, lastVisitDay: last };
+    const p = rec.pos;
+    if (p && typeof p === 'object' && !Array.isArray(p) &&
+        Number.isInteger(p.x) && Number.isInteger(p.y) &&
+        p.x >= 0 && p.y >= 0) {
+      out.pos = { x: p.x, y: p.y };
+    }
+    return out;
+  }
+
+  /**
+   * Живое состояние (Map) или plain-объект → JSON-объект раздела
+   * (копии; НЕ мутирует вход). Принимает Map (main.js) и plain-объект
+   * (roundtrip-тесты); не-объект/массив → {}.
+   * ОБРЕЗКА: ключ не по DUNGEON_MEMORY_KEY_RE, lastVisitDay вне
+   * [1, day] и вне окна contentValid, битый contents — отброс
+   * (тихо). activeRec (не null) — merge «активный поверх»: своя key
+   * пишется/перезаписывается (in-flight-содержимое первого входа —
+   * запись в Map ещё не создана, fix re-loot).
+   * @param {Map|object} memory
+   * @param {number} day текущий день мира
+   * @param {number} memoryDays dungeon_memory_days
+   * @param {?{key:string, contents:object, lastVisitDay:number,
+   *   pos?:{x:number, y:number}}} activeRec запись активного этажа
+   * @returns {object}
+   */
+  function serializeDungeonMemory(memory, day, memoryDays, activeRec) {
+    const out = {};
+    if (memory && typeof memory === 'object' && !Array.isArray(memory)) {
+      const entries = (typeof memory.entries === 'function')
+        ? memory.entries() : Object.entries(memory);
+      for (const [k, rec] of entries) {
+        if (typeof k !== 'string' || !DUNGEON_MEMORY_KEY_RE.test(k)) {
+          continue;
+        }
+        const rec2 = validateDungeonMemoryRec(rec, day, memoryDays);
+        if (rec2) out[k] = rec2;
+      }
+    }
+    if (activeRec && typeof activeRec === 'object' &&
+        typeof activeRec.key === 'string' &&
+        DUNGEON_MEMORY_KEY_RE.test(activeRec.key)) {
+      const last = activeRec.lastVisitDay;
+      const contents = validateDungeonContents(activeRec.contents);
+      if (contents && Number.isInteger(last) && last >= 1 &&
+          last <= day && contentValid(last, day, memoryDays)) {
+        const rec2 = { contents, lastVisitDay: last };
+        const p = activeRec.pos;
+        if (p && typeof p === 'object' && !Array.isArray(p) &&
+            Number.isInteger(p.x) && Number.isInteger(p.y) &&
+            p.x >= 0 && p.y >= 0) {
+          rec2.pos = { x: p.x, y: p.y };
+        }
+        out[activeRec.key] = rec2;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * JSON-объект раздела → Map (паттерн restoreCityStates, cities.js).
+   * Не-объект/массив → пустой Map (ТИХО — старому сейву раздела нет,
+   * warn печатает проводка main.js только на явно битый раздел);
+   * невалидные ключи/записи и ОБРЕЗКА — те же, что serialize:
+   * fastForward без слушателей — onDay-очистка не пройдёт, restore
+   * сам отбрасывает. Вход не мутируется (копии).
+   * @param {object} saved
+   * @param {number} day текущий день мира
+   * @param {number} memoryDays dungeon_memory_days
+   * @returns {Map<string, {contents:object, lastVisitDay:number,
+   *   pos?:{x:number, y:number}}>}
+   */
+  function restoreDungeonMemory(saved, day, memoryDays) {
+    const out = new Map();
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
+      return out;
+    }
+    for (const [k, rec] of Object.entries(saved)) {
+      if (typeof k !== 'string' || !DUNGEON_MEMORY_KEY_RE.test(k)) {
+        continue;
+      }
+      const rec2 = validateDungeonMemoryRec(rec, day, memoryDays);
+      if (rec2) out.set(k, rec2);
+    }
+    return out;
+  }
+
   // --- Открытие сундуков и блуждание мобов ---
 
   /** Открывает сундук (только один раз). @returns {{ok:boolean, gold?:number, item?:string|null, reason?:string}} */
@@ -543,5 +756,9 @@
     CELL_WALL, CELL_FLOOR,
     dungeonTypeFor, createDungeon, generateDungeonContents, wallObjFor,
     contentValid, openChest, wanderStep, reachableFrom,
+    // 000153.01: модель глубины + сериализатор раздела сейва
+    // dungeonMemory (additive — существующие экспорты не тронуты).
+    dungeonDepthSeed, dungeonMemoryKey, DUNGEON_MEMORY_KEY_RE,
+    validateDungeonContents, serializeDungeonMemory, restoreDungeonMemory,
   };
 });

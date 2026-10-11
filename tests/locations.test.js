@@ -121,6 +121,9 @@ function makeDungeon() {
     entrance: { x: 1, y: 1 },
     exit: { x: 1, y: 1 },
     seed: 777,
+    // 000153.01: глубина (первый этаж) — поле createDungeon; ключ
+    // dungeonMemory = worldKey + ':' + depth (LOC-7).
+    depth: 1,
   };
 }
 
@@ -507,9 +510,12 @@ test('LOC-7: exitDungeon: memory.set + clock.event(\'dungeon\') (exit-событ
     const events = [];
     const clock = { day: 5, event: (k) => events.push(k) };
     L.exitDungeon(ds, { day: 5, memory, clock });
-    assert.deepEqual(memory.get(ds.worldKey),
+    // 000153.01 (тех-репин): ключ памяти = worldKey + ':' + глубина
+    // (единый источник dungeonMemoryKey; fake G без него — инлайн-
+    // fallback, та же строка).
+    assert.deepEqual(memory.get(ds.worldKey + ':' + ds.dg.depth),
       { contents: ds.contents, lastVisitDay: 5 },
-      'memory.set(worldKey, { contents, lastVisitDay })');
+      'memory.set(worldKey+\":depth\", { contents, lastVisitDay })');
     assert.deepEqual(events, ['dungeon'],
       'clock.event(\'dungeon\') — вылазка забирает день');
   });
@@ -770,5 +776,67 @@ test('LOC-12: vm ПОЛНАЯ цепочка index.html грузится с loca
     'maybeEnterDungeon', 'maybeEnterCity', 'exitDungeon', 'exitCity',
     'dungeonMove', 'cityMove', 'interactExit', 'debugEnterDungeon']) {
     assert.equal(typeof G.locations[fn], 'function', 'locations.' + fn);
+  }
+});
+
+// Ревью 000153.01: debug-вход с вынужденным terrain ≠ terrain тайла
+// создаёт подземелье чужой формы/типа под МИРСКИМ ключом памяти
+// 'x,y:depth' — с секцией dungeonMemory такая запись переживает
+// перезагрузку и мирской вход на тайл читает контент вне своей
+// сетки. Поправка: ds.memoryBanned — exitDungeon запись в память
+// пропускает (день проходит — D5 проводка не меняется). Без
+// аргумента / при совпадении terrain — флага нет, запись пишется
+// (поведение master / §5.3 сохранено).
+test('LOC-15: debugEnterDungeon: вынужденный terrain ≠ тайла — ds.memoryBanned, exitDungeon НЕ пишет память (ревью 000153.01)', () => {
+  const L = loadLocations();
+  // createDungeon/generateDungeonContents-стабы (debug-путь), форма
+  // — реальные makeDungeon/makeContents; createMover — шпион.
+  const { G: baseG } = makeFakeGame();
+  const G = Object.assign({}, baseG, {
+    createDungeon: () => makeDungeon(),
+    generateDungeonContents: () => makeContents([], []),
+  });
+  const ctx = {
+    map: { tileAt: () => ({ terrain: 3 }) }, // 3 = TERRAIN.GRASS
+    mapPixels: null,
+    player: { x: 1, y: 2 },
+    hero: {},
+    intervalMs: 420,
+  };
+  // (а) Вынужденный terrain 4 (FOREST) ≠ 3 (тайл): memoryBanned;
+  //     exit — память НЕ трогается, ДЕНЬ проходит (D5).
+  withGame(G, () => {
+    const ds = L.debugEnterDungeon(ctx, 4);
+    assert.ok(ds, 'debug-вход — ds');
+    assert.equal(ds.memoryBanned, true,
+      'terrain 4 ≠ 3 (тайла) — memoryBanned (контент чужой формы)');
+    const memory = new Map();
+    const events = [];
+    L.exitDungeon(ds, {
+      day: 5, memory, clock: { event: (k) => events.push(k) },
+    });
+    assert.equal(memory.size, 0,
+      'memoryBanned — запись в память НЕ пишется ' +
+      '(иначе переживёт перезагрузку, секция dungeonMemory)');
+    assert.deepEqual(events, ['dungeon'],
+      'clock.event(\'dungeon\') — день проходит (D5)');
+  });
+  // (б) Без аргумента (terrain = тайла) и с совпадающим — флага НЕТ,
+  //     запись памяти пишется (master-поведение / §5.3).
+  for (const forced of [undefined, 3]) {
+    withGame(G, () => {
+      const ds = L.debugEnterDungeon(ctx, forced);
+      assert.ok(ds, 'debug-вход — ds');
+      assert.ok(!ds.memoryBanned,
+        'terrain = тайлу (без аргумента / 3) — без memoryBanned ' +
+        '(контент = как у мирского входа)');
+      const memory = new Map();
+      L.exitDungeon(ds, {
+        day: 5, memory, clock: { event: () => {} },
+      });
+      assert.deepEqual(memory.get('1,2:1'),
+        { contents: ds.contents, lastVisitDay: 5 },
+        'запись памяти пишется (мирской ключ + \':depth\')');
+    });
   }
 });

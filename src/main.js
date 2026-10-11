@@ -85,6 +85,21 @@
       : 3;
   }
 
+  // Память подземелий (задача 000153.01): дней, в течение которых
+  // содержимое посещённого этажа переживает выход (SPEC
+  // «dungeon_memory_days»). Глобальная настройка — 000099 live-
+  // паттерн: читается в момент ВЫЗОВА (сейв/восстановление), а не
+  // кэшем; файла нет / значение некорректно — 3 (дефолт SETTINGS
+  // dungeons-data/global-settings, симметрия liveMemoryDays
+  // dungeon.js / cityRespawnDays).
+  function dungeonMemoryDays() {
+    const gs = G.GlobalSettings && G.GlobalSettings.SETTINGS;
+    return (gs && Number.isInteger(gs.dungeon_memory_days)
+      && gs.dungeon_memory_days >= 1)
+      ? gs.dungeon_memory_days
+      : 3;
+  }
+
   // Текущий интервал шага с учётом «Ловкого шага» (задача 000033;
   // SPEC: Ловкость → «Скорость перемещения по карте»): база — из
   // глобальных настроек (задача 000063), чем выше навык, тем короче
@@ -727,6 +742,19 @@
         ? G.Cities.serializeCityStates(cityStates, clock.day,
             cityRespawnDays())
         : {},
+      // Задача 000153.01: память этажей подземелий (содержимое
+      // посещённых входов-глубин: открытые сундуки/побеждённые группы/
+      // step/позиция) — ОДИН неломный топ-раздел (версию НЕ поднимаем,
+      // миграций нет; старый сейв → пусто, без warn). Пишется ВСЕГДА
+      // (даже {}). ОБРЕЗКА записей старше dungeon_memory_days — внутри
+      // serializeDungeonMemory (мир БЕСКОНЕЧЕН — квота localStorage,
+      // прецедент 000109). ACTIVE-MERGE (activeDungeonMemoryRec) —
+      // фикс re-loot-эксплойта на первом же входе (записи в Map ещё
+      // нет — только in-flight).
+      dungeonMemory: G.serializeDungeonMemory
+        ? G.serializeDungeonMemory(dungeonMemory, clock.day,
+            dungeonMemoryDays(), activeDungeonMemoryRec())
+        : {},
       // Задача 000095: барахолка лагеря — стоки стойок 'x,y' →
       // { day, stock } (seed НЕ сериализуется — перегенерируется
       // из x,y,day при восстановлении). Неломкое расширение v1
@@ -1255,6 +1283,38 @@
       console.warn('Сейв: не удалось восстановить cities:', err);
     }
 
+    // --- Память этажей подземелий (dungeonMemory) (задача 000153.01) ---
+    // 'x,y:depth' (вход + глубина) → { contents, lastVisitDay, pos? }.
+    // restoreDungeonMemory сам отбрасывает невалидные ключи/записи и
+    // ОБРЕЗАЕТ истёкшие/«будущие» (те же правила, что serialize).
+    // ОТСУТСТВУЮЩИЙ раздел (raw == null — старый сейв) — молча пусто
+    // (000115: без warn); явно битый раздел (non-object) — warn +
+    // сброс (паттерн 000072/000109); ключи есть, но валидных 0 — warn.
+    // День мира восстановлен выше (clock.fastForward) — restore
+    // сверяет с ним.
+    try {
+      const rawDM = d.dungeonMemory;
+      if (rawDM != null) {
+        if (typeof rawDM !== 'object' || Array.isArray(rawDM)) {
+          console.warn('Сейв: раздел dungeonMemory некорректен — сбрасываю.');
+          dungeonMemory.clear();
+        } else if (G.restoreDungeonMemory) {
+          const mDM = G.restoreDungeonMemory(rawDM, clock.day,
+            dungeonMemoryDays());
+          for (const [k, v] of mDM) dungeonMemory.set(k, v);
+          if (mDM.size === 0 && Object.keys(rawDM).length > 0) {
+            console.warn(
+              'Сейв: dungeonMemory — валидных записей нет — сбрасываю.');
+          }
+        } else {
+          console.warn(
+            'Сейв: раздел dungeonMemory — restore недоступен — сбрасываю.');
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить dungeonMemory:', err);
+    }
+
     // --- Барахолка лагеря (задача 000095): стоки стойок 'x,y' ---
     // Битый раздел — warn + ПУСТО (fail-open 000029/000072); старые
     // сейвы БЕЗ секции — rawCamp null → без действия. День мира
@@ -1357,13 +1417,37 @@
   let hudFlashUntil = 0;
 
   // Подземелье/город (000105): текущая вылазка и память содержимого
-  // по входам. dungeonMemory: 'x,y' входа → { contents, lastVisitDay }
-  // (для ГОРОДА не применяется — персистентность сейва, 000109).
+  // по входам. dungeonMemory: 'x,y:depth' входа+глубины →
+  // { contents, lastVisitDay, pos? } (pos — только in-flight-сейв,
+  // 000153.01; для ГОРОДА не применяется — персистентность сейва,
+  // 000109).
   // { dg, contents, kind: 'dungeon'|'city', name (город), x, y,
   //   prevX, prevY, worldKey, log, mover, pos }
   // (mover/pos — 000068: мувер motion.js + дробная позиция рендера)
   let dungeonState = null;
   const dungeonMemory = new Map();
+
+  // 000153.01: запись АКТИВНОГО этажа для раздела dungeonMemory
+  // (merge «активный поверх» в serializeDungeonMemory, collectSaveData):
+  // при ПЕРВОМ входе содержимое ещё НЕ в Map (запись появляется только
+  // в exitDungeon) — in-flight-сэйв без активного рекорда = пустой
+  // раздел = re-loot-эксплойт снова. null — вне подземелья (город /
+  // мир — не влияют; kind-гард — паттерн __game.dungeon).
+  function activeDungeonMemoryRec() {
+    if (!dungeonState || dungeonState.kind !== 'dungeon') return null;
+    const ds = dungeonState;
+    // Ревью 000153.01: debug-вход с вынужденным terrain ≠ тайла —
+    // чужой контент (форма/тип) НЕ мержится в раздел под мирским
+    // ключом (memoryBanned — locations.js debugEnterDungeon).
+    if (ds.memoryBanned) return null;
+    const depth = ds.dg && Number.isInteger(ds.dg.depth) && ds.dg.depth >= 1
+      ? ds.dg.depth : 1;
+    const key = G.dungeonMemoryKey
+      ? G.dungeonMemoryKey(ds.worldKey, depth)
+      : ds.worldKey + ':' + depth;
+    return { key, contents: ds.contents, lastVisitDay: clock.day,
+      pos: { x: ds.x, y: ds.y } };
+  }
 
   // Смена дня: восстановление, респауны групп (spec/game-time.md).
   // 000170 (D8): watchdog ОКРУЖАЕТ ВЕСЬ ТЕЛО listener'а — максимальная
@@ -2211,10 +2295,17 @@
       let itemMsg = '';
       if (chest.item) {
         const it = G.getItem(chest.item);
-        const add = G.addItem(hero, chest.item);
-        itemMsg = add.ok
-          ? ', ' + it.name
-          : ' (инвентарь полон: ' + it.name + ' потерян)';
+        // Ревью 000153.01: призрак-предмет (id удалён из каталога
+        // МЕЖДУ сборками — содержимое сундуков теперь персистируется
+        // в сейве) — G.getItem → null: предмет не начисляется,
+        // сообщения нет, падения НЕТ (паттерн buyItem, items.js:
+        // !it → ok:false без обращения к it.name).
+        if (it) {
+          const add = G.addItem(hero, chest.item);
+          itemMsg = add.ok
+            ? ', ' + it.name
+            : ' (инвентарь полон: ' + it.name + ' потерян)';
+        }
       }
       const msg = 'Сундук: +' + chest.gold + ' золота' + itemMsg;
       ds.log.push(msg);
@@ -3009,6 +3100,9 @@
         // undefined JSON-сериализация тихо drop'ит, null —
         // явный «типа нет» как у mobs/chests.
         type: ds.kind === 'city' ? null : ds.dg.type,
+        // 000153.01: текущая глубина (целое ≥ 1). null — город/
+        // вне локации (паттерн type → null).
+        depth: ds.kind === 'dungeon' ? ds.dg.depth : null,
         name: ds.kind === 'city' ? ds.name : G.DUNGEON_NAMES[ds.dg.type],
         width: ds.dg.width, height: ds.dg.height,
         cells: ds.dg.cells,

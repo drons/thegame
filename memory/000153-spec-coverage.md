@@ -182,6 +182,15 @@ src/dungeon-ui.js + tests/dungeon-ui.test.js — РАЗНЫЕ ханки: .04
 .04) → **.05** (последним, после .01+.02+.03).
 
 ### 000153.01 — Модель глубины: состояние, сид, сейв (P1)
+**СТАТУС: ВЫПОЛНЕНО (2026-10-11)** — ветка task/000153.01 (база
+4094ecf; коммиты 2bafe5e красные тесты, defe3a3 реализация, 9ac1739
+CHANGELOG, c6ee7ed правки ревью + финализация): depth=1 БИТ-В-БИТ
+(goldens БЕЗ репина, R7), 8 красных → зелёные + правки ревью
+LOC-15/RD-5/RD-6, npm test 2071/2071. Отчёт tasks/result/000153.01.md;
+детали memory/000153.01-dungeon-depth-save.md. Мерж: ПЕРВЫМ в блоке
+(до .02/.03); rebase на свежий master + полный npm test перед мержем
+(ожидаемые конфликты — CHANGELOG.md и этот файл: сохранить обе
+аннотации .01/.04; src/tests с master не пересекаются).
 **Зависимости:** нет (старт сразу, параллельно .04).
 **Суть:** ввести глубину как первоклассную сущность. `d.depth` (целое
 ≥1, первый этаж = 1) — поле объекта подземелья; каноническое имя —
@@ -200,8 +209,15 @@ dungeon_memory_days (прецедент serializeCityStates — квота
 localStorage). Фикс re-loot эксплойта (§3): красный vm-e2e — открыть
 сундук → save → reload → re-enter → сундук открыт, gold не удвоился,
 моб не ожив.
+**ДИЗАЙН ЗАФИКСИРОВАН (2026-10-11):** контрактный файл
+memory/000153.01-dungeon-depth-save.md — формула depth-сида
+(salt 0xd337b153), ключ `'x,y:depth'`, секция `dungeonMemory`
+(multiple records, activeRec-merge), re-anchor pos, тесты DEP-1..4 /
+RD-1..4, дельта по файлам.
 **Ожидаемые файлы:** src/dungeon.js, src/main.js,
-tests/dungeon.test.js, tests/save-restore.test.js.
+tests/dungeon.test.js, tests/save-restore.test.js (+ реально:
+src/locations.js, tests/locations.test.js — ключ в 2 точках +
+re-anchor; дельта в отчёте).
 **P-обоснование P1:** фундамент — без depth не работают .02/.03;
 плюс баг, влияющий на игрока (re-loot).
 
@@ -342,7 +358,11 @@ spec-coverage-audit.md, a3-audit-000153.md §5 (якоря file:line
    / mobs 12/7/7 + boss 13 @(14,6) / chests 63;58 phoenix_feather),
    :89 (сид = опыт), :103 (уровни ±3), :661+ (wallObjs 000070). Новые
    поля (depth, stairsDown) — без влияния на cells/rooms/mobs/chests
-   при depth=1.
+   при depth=1. ЗАФИКСИРОВАНО .01 (memory/000153.01-dungeon-depth-
+   save.md §2.1): depth>1 — `dungeonDepthSeed(base, depth) =
+   (hash2(base, depth, 0xd337b153) ^ ((depth*0x9e3779b9)>>>0))>>>0`;
+   golden CAVE(37,−12) depth2 = 3912048804 (предвычислено реальным
+   hash2); РЕПИНОВ НЕТ (R7) — формула живёт только в ветке depth>1.
 2. **Шкала «глубина»** — каноническое имя (целое ≥1, первый этаж = 1,
    код d.depth). 000157 (руда) ссылается «растёт с глубиной
    (000153)». Формулы (зафиксировать в .02, дописать в .05):
@@ -352,6 +372,13 @@ spec-coverage-audit.md, a3-audit-000153.md §5 (якоря file:line
 3. **Секция сейва подземелий** — ОДНА, создаётся .01: топ-уровень,
    неломко (версия 1, миграций нет), floor + контент + обрезка по
    dungeon_memory_days. Не создавать параллельных разделов.
+   ЗАФИКСИРОВАНО .01 (memory/000153.01-dungeon-depth-save.md §2.3):
+   имя `dungeonMemory`, формат map `'x,y:depth'` → {contents,
+   lastVisitDay, pos?}, multiple records (по этажам-входам), пишется
+   всегда (даже {}), activeRec-merge «активный поверх» (in-flight),
+   pos-restore в maybeEnterDungeon (FLOOR-валидация, fallback
+   entrance), serилизатор — чистые функции dungeon.js (cities.js-
+   паттерн).
 4. **Выход/переходы — ТОЛЬКО через locationOnInteract + finally-
    инвариант 000170** (exitLocation-паттерн). PE-пины
    (portal-exit-e2e 9 шт.), T5/T7/T8, CI-V3/V4/V5 — не ломать.
@@ -419,6 +446,11 @@ dungeon* — §1.5). Дубли внутри набора НЕТ; дубли с 
 ### 8.1 Доказательства по подзадачам (якоря пере-открыты)
 
 **000153.01 (модель глубины+сейв) — ПРИНЯТО:**
+- Контрактный файл дизайна (2026-10-11): memory/000153.01-dungeon-
+  depth-save.md — формула depth-сида + salt 0xd337b153 + golden
+  depth2 3912048804, ключ `'x,y:depth'`, секция `dungeonMemory`
+  (multiple records + activeRec-merge), re-anchor pos, тесты
+  DEP-1..4 / RD-1..4.
 - createDungeon(x,y,pixels,terrain) — dungeon.js:270, глубины нет;
   система этажей в коде НЕТ (grep: только комментарии «этажей нет»
   locations.js:400, dungeon-ui.js:529) ✓.
