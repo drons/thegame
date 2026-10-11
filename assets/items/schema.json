@@ -28,6 +28,23 @@
         "spell": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
       },
       "additionalProperties": false
+    },
+    "loot": {
+      "type": "object",
+      "required": ["terrains"],
+      "properties": {
+        "terrains": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": ["глубокая вода", "вода", "песок", "трава", "лес",
+                     "холмы", "горы", "болото"]
+          }
+        },
+        "near_mountains": { "type": "boolean" },
+        "frequency": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

@@ -684,8 +684,13 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // каталога, rng-хвост пула [reagent, skill_book] → += 6 новых
     // reagent, остальные ключи стока не сдвинулись (симуляция:
     // seed/старые стоки byte-identical).
+    // Ре-пин 000158.02: природные ингредиенты (000063-000076) — КОНЕЦ
+    // каталога, rng-хвост пула [reagent, skill_book] → += 8 новых
+    // reagent (berry_red/root_moon/fruit_apple/fruit_plum/fruit_quince/
+    // mushroom_glow в этом (x,y) не выпали), остальные ключи стока не
+    // сдвинулись (симуляция: seed/старые стоки byte-identical).
     { x: 30, y: 40, type: B.MAGIC_SHOP, w: 0, seed: 3346526316,
-      stock: { sulfur: 2, moonstone: 2, phoenix_feather: 1, stone_fist_grimoire: 2, iron_hide_tome: 1, archer_scroll: 2, hide: 1, coal: 1, herb_healing: 2, stone_chisel: 2, silver_ore: 2, gold_ore: 1, mithril_ore: 1, quartz: 1, ruby: 1, amethyst: 1 } },
+      stock: { sulfur: 2, moonstone: 2, phoenix_feather: 1, stone_fist_grimoire: 2, iron_hide_tome: 1, archer_scroll: 2, hide: 1, coal: 1, herb_healing: 2, stone_chisel: 2, silver_ore: 2, gold_ore: 1, mithril_ore: 1, quartz: 1, ruby: 1, amethyst: 1, berry_blue: 2, berry_wild: 2, herb_sun: 1, herb_wind: 2, root_ember: 2, root_rock: 1, mushroom_grey: 1, mushroom_ink: 1 } },
     { x: 5, y: 7, type: B.TAVERN, w: 0, seed: 766909004,
       stock: { healing_potion: 2, greater_healing: 2, mana_potion: 2, mana_elixir: 1, bread: 1, meat: 2 } },
     // Ре-пин 000133: универсам (wealth 3, пул allItems) — свитки
@@ -699,8 +704,13 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // КОНЕЦ каталога, rng-хвост пула allItems → += 10 новых reagent
     // (diamond в этом (x,y) не выпал), остальные ключи стока не
     // сдвинулись (симуляция: seed/старые стоки byte-identical).
+    // Ре-пин 000158.02: природные ингредиенты (000063-000076) —
+    // КОНЕЦ каталога, rng-хвост пула allItems → += 12 новых reagent
+    // (fruit_plum/mushroom_ink в этом (x,y) не выпали), остальные
+    // ключи стока не сдвинулись (симуляция: seed/старые стоки
+    // byte-identical).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
-      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5, gold_ore: 4, mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3, ruby: 3, sapphire: 5, emerald: 3, amethyst: 5 } },
+      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5, gold_ore: 4, mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3, ruby: 3, sapphire: 5, emerald: 3, amethyst: 5, berry_red: 3, berry_blue: 5, berry_wild: 3, herb_sun: 3, herb_wind: 4, root_moon: 1, root_ember: 3, root_rock: 3, fruit_apple: 1, fruit_quince: 1, mushroom_grey: 4, mushroom_glow: 3 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1216,9 +1226,11 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // Ре-пин 000157.01 (Р0): каталог растёт 51 → 62 (добавляются
   // 000052-000062 — руды/минералы/самоцветы); 000051.json остаётся
   // 51-м файлом (append-only, слоты не сдвигаются).
-  assert.equal(files.length, 62,
-    'каталог — 62 файла (краснота: ' + files.length
-    + ' — каталог ещё не расширен, 000157.01)');
+  // Ре-пин 000158.02: каталог растёт 62 → 76 (добавляются
+  // 000063-000076 — природные ингредиенты); слоты не сдвигаются.
+  assert.equal(files.length, 76,
+    'каталог — 76 файлов (краснота: ' + files.length
+    + ' — каталог ещё не расширен, 000158.02)');
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
@@ -1247,15 +1259,16 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   validateSchema165(schema, j, '000051.json', errors);
   assert.deepEqual(errors, [], 'схема: ' + errors.join('; '));
   // (d) Зеркало src/items-data.js (реген npm run sync:items):
-  //     getItem ≡ JSON, каталог — 62 предмета (краснота: записи нет).
+  //     getItem ≡ JSON, каталог — 76 предметов (краснота: записи нет).
   //     Ре-пин 000157.01 (Р0): 51 → 62 (конец каталога).
+  //     Ре-пин 000158.02: 62 → 76 (конец каталога).
   const it = I.getItem('resurrect_scroll');
   assert.ok(it, 'зеркало items-data.js: resurrect_scroll '
     + '(краснота: записи нет)');
   assert.deepEqual(it, j, 'зеркало ≡ JSON');
-  assert.equal(I.allItems().length, 62,
-    'allItems — 62 предмета (краснота: ' + I.allItems().length
-    + ' — зеркало не регенерировано, 000157.01)');
+  assert.equal(I.allItems().length, 76,
+    'allItems — 76 предметов (краснота: ' + I.allItems().length
+    + ' — зеркало не регенерировано, 000158.02)');
   // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
   //     addItem ×2 → 2 слота qty 1 (не стопка).
   const c = createCharacter();
@@ -1352,12 +1365,15 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
   assert.equal(ids.size, 11, 'id 11 предметов уникальны');
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)).sort();
-  assert.equal(files.length, 62,
-    'каталог — 62 файла (краснота: ' + files.length + ')');
+  // Ре-пин 000158.02: каталог растёт 62 → 76 (добавляются
+  // 000063-000076 — природные ингредиенты); 000062.json остаётся
+  // 62-м файлом (append-only, слоты не сдвигаются).
+  assert.equal(files.length, 76,
+    'каталог — 76 файлов (краснота: ' + files.length + ')');
   assert.equal(files[61], '000062.json',
     '000062.json — 62-й файл (краснота: файла нет)');
-  assert.equal(I.allItems().length, 62,
-    'allItems — 62 предмета (краснота: ' + I.allItems().length + ')');
+  assert.equal(I.allItems().length, 76,
+    'allItems — 76 предметов (краснота: ' + I.allItems().length + ')');
 });
 
 // R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
@@ -1385,4 +1401,389 @@ test('000157.01 R5: шкала редкости — каждый тир 1..4 п�
     'тиры 1..4 представлены reagent-каталогом; факт: ['
     + tiers.join(', ') + ' (краснота: тиры 2/3/4 не представлены — '
     + 'новых 11 reagent нет)');
+});
+
+// --- Задача 000158.02: каталог — природные ингредиенты + поле `loot` ---
+//
+// КРАСНЫЕ (L1/L2/L3/L5/L6/L7a/L7b/L7c) — падают на текущем
+// (неизменённом) коде:
+//   * файлов assets/items/000063.json … 000076.json НЕТ (L1/L2 —
+//     ENOENT/записи нет; L3 — у 14 СУЩЕСТВУЮЩИХ руд/самоцветов поля
+//     `loot` нет);
+//   * в assets/items/schema.json свойства `loot` НЕТ (L5/L6 —
+//     properties.loot undefined);
+//   * в items.js ветки валидации `loot` при загрузке НЕТ (L7a–c —
+//     Missing expected exception: load-time-валидация не бросает).
+// ГАРДЫ (L4/L8/L9) — зелёные с первого запуска (паттерн пинов
+// 000157.01): анти-дубль nugget_*, happy-path без избыточной
+// валидации, деградация без map.js (000053).
+// Контракт — memory/000158.02-natural-ingredients-loot.md:
+// §2.1 таблица 14 природных reagent (слоты 000063-000076),
+// §2.2 пул самородков (14 СУЩЕСТВУЮЩИХ id, частота по тиру),
+// §3.1 точная форма свойства `loot` в schema.json, §3.3 validateLoot
+// (TERRAIN_NAMES — из mapmod-аргумента, деградация console.error).
+// 6-й класс лута (руда-самоцвет) — БЕЗ новых предметов: лут
+// песка/гор = существующие id (L3); анти-дубль — префикса `nugget_`
+// нет (L4; SPEC: «отдельных "самородок"-предметов нет»).
+// Тех-ре-пины счёта «62» → «76» («000165 I1» / «000157.01 R1») —
+// выше, с комментариями «Ре-пин 000158.02» (паттерн 000157.01 Р0).
+// Goldens (MAGIC_SHOP/универсам/cities) — стадия ЗЕЛЁНАЯ (§5
+// контракта: значения только после каталога + симуляции).
+
+// Фикс-состав (контракт §2.1, ФИНАЛ): file/id/cls/weight/value/
+// terrains/freq (freq null = ОПУЩЕНА, default 0.1 — дефолт пути, D7).
+// Тех-фикс 000158.02 (зелёная фаза): в закоммиченном красном фиксе не
+// было weight/value, а L1 сравнивает их с фиксом И валидирует JSON по
+// схеме (weight/value — required) → фикс дополнен значениями таблицы
+// §2.1 (без них L1 не мог стать зелёным; семантика L1 не меняется).
+const LOOT_00015802 = [
+  { file: '000063.json', id: 'berry_red', cls: 'berry',
+    weight: 0.05, value: 2,
+    terrains: ['трава', 'болото', 'лес'], freq: 0.04 },
+  { file: '000064.json', id: 'berry_blue', cls: 'berry',
+    weight: 0.05, value: 3,
+    terrains: ['болото', 'лес'], freq: 0.03 },
+  { file: '000065.json', id: 'berry_wild', cls: 'berry',
+    weight: 0.05, value: 2,
+    terrains: ['трава', 'лес'], freq: null },
+  { file: '000066.json', id: 'herb_sun', cls: 'herb',
+    weight: 0.1, value: 4,
+    terrains: ['трава', 'лес'], freq: 0.03 },
+  { file: '000067.json', id: 'herb_wind', cls: 'herb',
+    weight: 0.1, value: 4,
+    terrains: ['трава', 'болото', 'лес'], freq: 0.03 },
+  { file: '000068.json', id: 'root_moon', cls: 'root',
+    weight: 0.2, value: 6,
+    terrains: ['лес', 'болото'], freq: 0.02 },
+  { file: '000069.json', id: 'root_ember', cls: 'root',
+    weight: 0.2, value: 5,
+    terrains: ['трава', 'лес'], freq: 0.03 },
+  { file: '000070.json', id: 'root_rock', cls: 'root',
+    weight: 0.3, value: 4,
+    terrains: ['трава', 'болото'], freq: 0.03 },
+  { file: '000071.json', id: 'fruit_apple', cls: 'fruit',
+    weight: 0.1, value: 2,
+    terrains: ['трава', 'лес'], freq: 0.04 },
+  { file: '000072.json', id: 'fruit_plum', cls: 'fruit',
+    weight: 0.1, value: 3,
+    terrains: ['лес'], freq: 0.03 },
+  { file: '000073.json', id: 'fruit_quince', cls: 'fruit',
+    weight: 0.1, value: 4,
+    terrains: ['трава', 'лес'], freq: 0.02 },
+  { file: '000074.json', id: 'mushroom_grey', cls: 'mushroom',
+    weight: 0.05, value: 2,
+    terrains: ['лес'], freq: 0.04 },
+  { file: '000075.json', id: 'mushroom_glow', cls: 'mushroom',
+    weight: 0.05, value: 4,
+    terrains: ['лес'], freq: 0.02 },
+  { file: '000076.json', id: 'mushroom_ink', cls: 'mushroom',
+    weight: 0.05, value: 3,
+    terrains: ['лес'], freq: 0.03 },
+];
+// Пул самородков (контракт §2.2): id → tier → frequency. 14
+// СУЩЕСТВУЮЩИХ файлов: moonstone/iron_ore/copper_ore (T1, tier-
+// absence) + 000052-000062 (000157.01: T2×4/T3×5/T4×2).
+const NUGGETS_00015802 = [
+  ['moonstone', 1], ['iron_ore', 1], ['copper_ore', 1],
+  ['silver_ore', 2], ['quartz', 2], ['obsidian', 2], ['amethyst', 2],
+  ['gold_ore', 3], ['phosphorite', 3], ['ruby', 3], ['sapphire', 3],
+  ['emerald', 3], ['mithril_ore', 4], ['diamond', 4],
+];
+const NUGGET_FREQ = { 1: 0.04, 2: 0.025, 3: 0.015, 4: 0.005 };
+
+test('000158.02 L1: каталог — 14 природных reagent 000063-000076 (fix-состав: id/kind/weight/value/loot.terrains/frequency ≡ таблице, near_mountains и frequency-000065 ОПУЩЕНЫ, без effect/tier, schema-валиден, зеркало ≡ JSON)', () => {
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  const byFile = new Map();
+  for (const f of fs.readdirSync(ITEMS_DIR)
+      .filter((x) => /^\d{6}\.json$/.test(x))) {
+    byFile.set(f, JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  }
+  for (const e of LOOT_00015802) {
+    const j = byFile.get(e.file);
+    assert.ok(j, e.file + ': файл в assets/items (краснота: ENOENT — '
+      + 'каталог не расширен)');
+    assert.equal(j.id, e.id, e.file + ': id (таблица контракта §2.1)');
+    assert.equal(j.kind, 'reagent', e.id + ': kind — reagent');
+    assert.equal(j.weight, e.weight,
+      e.id + ': weight ' + e.weight + ' (таблица §2.1)');
+    assert.equal(j.value, e.value,
+      e.id + ': value ' + e.value + ' (таблица §2.1)');
+    assert.ok(typeof j.name === 'string' && j.name.length > 0,
+      e.id + ': name непусто');
+    assert.ok(typeof j.desc === 'string' && j.desc.length > 0,
+      e.id + ': desc непусто (тон каталога «<Имя>: <строка>»)');
+    assert.equal(j.effect, undefined,
+      e.id + ': у реагента не бывает effect (src/items.js)');
+    assert.equal(j.tier, undefined,
+      e.id + ': tier ОПУЩЕН (absence = 1, паттерн 13 старых reagent)');
+    // loot (краснота: поля нет):
+    assert.ok(j.loot && typeof j.loot === 'object'
+      && !Array.isArray(j.loot),
+      e.id + ': loot — объект (краснота: поля loot нет)');
+    assert.deepEqual(j.loot.terrains, e.terrains,
+      e.id + ': loot.terrains (таблица §2.1, порядок — канон)');
+    if (e.freq === null) {
+      assert.equal(j.loot.frequency, undefined,
+        e.id + ': loot.frequency ОПУЩЕНА (default 0.1 — дефолт пути)');
+    } else {
+      assert.equal(j.loot.frequency, e.freq,
+        e.id + ': loot.frequency ' + e.freq + ' (таблица §2.1)');
+    }
+    assert.equal(j.loot.near_mountains, undefined,
+      e.id + ': near_mountains ОПУЩЕНА (только для самородков, D6/D7)');
+    const errors = [];
+    validateSchema165(schema, j, e.file, errors);
+    assert.deepEqual(errors, [],
+      e.file + ': валиден по schema.json: ' + errors.join('; '));
+    const it = I.getItem(j.id);
+    assert.ok(it, 'зеркало items-data.js: ' + e.id +
+      ' (краснота: записи нет — зеркало не регенерировано)');
+    assert.deepEqual(it, j, e.id + ': зеркало ≡ JSON');
+  }
+});
+
+test('000158.02 L2: loot-инварианты новых 14 — terrains непусто ⊆ 8 имён TERRAIN_NAMES, frequency ∈ [0,1], near_mountains bool/отс., class→terrain (SPEC: ягоды/травы/коренья/плоды ⊆ {трава, болото, лес}, грибы ⊆ {лес})', () => {
+  const NAMES = Object.values(M.TERRAIN_NAMES);
+  const byId = new Map(I.allItems().map((it) => [it.id, it]));
+  for (const e of LOOT_00015802) {
+    const it = byId.get(e.id);
+    assert.ok(it, 'каталог: ' + e.id + ' (краснота: предмета нет)');
+    assert.ok(it.loot && typeof it.loot === 'object'
+      && !Array.isArray(it.loot),
+      e.id + ': loot — объект (краснота: поля loot нет)');
+    const t = it.loot.terrains;
+    assert.ok(Array.isArray(t) && t.length > 0,
+      e.id + ': loot.terrains — непустой массив');
+    for (const x of t) {
+      assert.ok(NAMES.includes(x),
+        e.id + ': террейн «' + x + '» ∈ 8 имён TERRAIN_NAMES');
+    }
+    if (it.loot.frequency !== undefined) {
+      assert.equal(typeof it.loot.frequency, 'number',
+        e.id + ': loot.frequency — число');
+      assert.ok(it.loot.frequency >= 0 && it.loot.frequency <= 1,
+        e.id + ': loot.frequency ∈ [0,1]');
+    }
+    if (it.loot.near_mountains !== undefined) {
+      assert.equal(typeof it.loot.near_mountains, 'boolean',
+        e.id + ': near_mountains — boolean');
+    }
+    // class→terrain (SPEC world-map «Контент тайла»):
+    const allowed = (e.cls === 'mushroom')
+      ? ['лес'] : ['трава', 'болото', 'лес'];
+    for (const x of t) {
+      assert.ok(allowed.includes(x),
+        e.id + ': «' + x + '» вне допустимых для класса «' + e.cls
+        + '» (' + allowed.join('/') + ') — SPEC');
+    }
+  }
+});
+
+test('000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 48 предметов — loot undefined (пин «не тронуто»)', () => {
+  const byId = new Map(I.allItems().map((it) => [it.id, it]));
+  const newIds = new Set(LOOT_00015802.map((e) => e.id));
+  const nuggetIdSet = new Set(NUGGETS_00015802.map(([id]) => id));
+  for (const [id, tier] of NUGGETS_00015802) {
+    const it = byId.get(id);
+    assert.ok(it, 'каталог: ' + id + ' (существующий предмет)');
+    assert.deepEqual(it.loot, { terrains: ['песок'],
+      near_mountains: true, frequency: NUGGET_FREQ[tier] },
+      id + ': loot самородка (краснота: поля нет; tier ' + tier
+      + ' → frequency ' + NUGGET_FREQ[tier] + ')');
+  }
+  // ВСЕ ПРОЧИЕ предметы (48 = каталог − 14 самородков − 14 новых):
+  // loot ОТСУТСТВУЕТ — пин «остальные файлы не тронуты».
+  let others = 0;
+  for (const it of I.allItems()) {
+    if (nuggetIdSet.has(it.id) || newIds.has(it.id)) continue;
+    assert.equal(it.loot, undefined,
+      it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
+    others++;
+  }
+  assert.equal(others, 48, 'прочих предметов — ровно 48');
+});
+
+test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
+  const NAMES = Object.values(M.TERRAIN_NAMES);
+  for (const it of I.allItems()) {
+    assert.ok(!it.id.startsWith('nugget_'),
+      it.id + ': анти-дубль — предметов с префиксом nugget_* нет '
+      + '(SPEC: «отдельных "самородок"-предметов нет» — лут = '
+      + 'сами руды/самоцветы)');
+    if (it.loot === undefined) continue;
+    assert.equal(it.kind, 'reagent',
+      it.id + ': loot — только у reagent');
+    assert.ok(it.loot && typeof it.loot === 'object'
+      && !Array.isArray(it.loot), it.id + ': loot — объект');
+    const t = it.loot.terrains;
+    assert.ok(Array.isArray(t) && t.length > 0,
+      it.id + ': loot.terrains — непустой массив');
+    for (const x of t) {
+      assert.equal(typeof x, 'string',
+        it.id + ': loot.terrains: не строка: ' + x);
+      assert.ok(NAMES.includes(x),
+        it.id + ': террейн «' + x + '» ∈ 8 имён TERRAIN_NAMES');
+    }
+    if (it.loot.frequency !== undefined) {
+      assert.equal(typeof it.loot.frequency, 'number',
+        it.id + ': loot.frequency — число');
+      assert.ok(it.loot.frequency >= 0 && it.loot.frequency <= 1,
+        it.id + ': loot.frequency ∈ [0,1]');
+    }
+    if (it.loot.near_mountains !== undefined) {
+      assert.equal(typeof it.loot.near_mountains, 'boolean',
+        it.id + ': near_mountains — boolean');
+    }
+  }
+});
+
+test('000158.02 L5: schema.json — ОПЦИОНАЛЬНОЕ свойство loot (точная форма контракта §3.1), «loot» НЕ в required, additionalProperties верхнего уровня false', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(s.properties.loot, {
+    type: 'object',
+    required: ['terrains'],
+    properties: {
+      terrains: {
+        type: 'array',
+        minItems: 1,
+        items: {
+          enum: ['глубокая вода', 'вода', 'песок', 'трава', 'лес',
+                 'холмы', 'горы', 'болото'],
+        },
+      },
+      near_mountains: { type: 'boolean' },
+      frequency: { type: 'number', minimum: 0, maximum: 1 },
+    },
+    additionalProperties: false,
+  }, 'properties.loot — объект {terrains, near_mountains, frequency} '
+    + '(краснота: свойства loot в схеме нет); факт: '
+    + JSON.stringify(s.properties.loot));
+  assert.ok(!s.required.includes('loot'),
+    'loot НЕ в required (старые предметы валидны без изменений); '
+    + 'факт: ' + JSON.stringify(s.required));
+  assert.equal(s.additionalProperties, false,
+    'верхний additionalProperties остаётся false');
+});
+
+test('000158.02 L6: СВЯЗКА — sorted(enum loot.terrains.items) ≡ sorted(Object.values(M.TERRAIN_NAMES)) + minItems 1 + additionalProperties под-схемы loot false (падает при рассинхроне)', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  const loot = s.properties.loot;
+  assert.ok(loot && typeof loot === 'object' && !Array.isArray(loot),
+    'properties.loot существует (краснота: свойства loot в схеме нет)');
+  const sorted = (a) => Array.from(a).sort();
+  assert.deepEqual(
+    sorted(loot.properties.terrains.items.enum),
+    sorted(Object.values(M.TERRAIN_NAMES)),
+    'enum loot.terrains.items ≡ 8 именам TERRAIN_NAMES (связка: '
+    + 'прецедент tests/sprites.test.js «enum террейны ≡ единой таблице»); '
+    + 'факт: [' + JSON.stringify(loot.properties.terrains.items.enum)
+    + '] vs [' + JSON.stringify(Object.values(M.TERRAIN_NAMES)) + ']');
+  assert.equal(loot.properties.terrains.minItems, 1,
+    'loot.terrains — minItems 1 (непусто)');
+  assert.equal(loot.additionalProperties, false,
+    'под-схема loot — закрытая (additionalProperties false)');
+});
+
+// L7a–L9 — механика (house-паттерн: цепочка ITEMS_CHAIN минус
+// items.js; «браузерная» ветка UMD items.js читает G0.ITEMS при
+// ЗАГРУЗКЕ → каталог подменяем синтетическим ДО loadInSandbox).
+// sandbox-console — перехват ошибок деградации (000053).
+const VM_ITEMS_CHAIN_NO_ITEMS = ['global-settings.js', 'perlin.js',
+  'map.js', 'skills-data.js', 'items-data.js', 'sheet.js', 'player.js'];
+function makeVmSandboxWithConsole() {
+  const errors = [];
+  const sandbox = {
+    console: { log() {}, warn() {}, error: (m) => errors.push(String(m)) },
+  };
+  return { sandbox, errors };
+}
+function loadItemsVmChain(sandbox) {
+  for (const f of VM_ITEMS_CHAIN_NO_ITEMS) loadInSandbox(f, sandbox);
+}
+// Синтетический reagent: проходит ВСЮ текущую валидацию
+// validateItem (id/name/kind/weight/value, reagent без effect) —
+// краснота L7a–c = ТОЛЬКО отсутствие ветки валидации loot.
+function synthReagent(loot) {
+  return { id: 'x_test', name: 'Тестовый реагент', kind: 'reagent',
+    weight: 0.1, value: 1, desc: 'т', loot };
+}
+
+test('000158.02 L7a (vm): items.js при ЗАГРУЗКЕ — loot.terrains содержит имя вне TERRAIN_NAMES → Error (краснота: ветки валидации нет — Missing expected exception)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [synthReagent({ terrains: ['трава', 'марс'] })];
+  assert.throws(
+    () => loadInSandbox('items.js', sandbox),
+    /террейн|TERRAIN_NAMES/i,
+    'load-time-валидация бросает на неизвестном терреине (краснота: '
+    + 'валидации loot в items.js нет)');
+});
+
+test('000158.02 L7b (vm): items.js при ЗАГРУЗКЕ — loot.frequency вне [0,1] (1.5 / -0.1 / «0.5») → Error', () => {
+  for (const f of [1.5, -0.1, '0.5']) {
+    const { sandbox } = makeVmSandboxWithConsole();
+    loadItemsVmChain(sandbox);
+    sandbox.Game.ITEMS = [synthReagent(
+      { terrains: ['трава'], frequency: f })];
+    assert.throws(
+      () => loadInSandbox('items.js', sandbox),
+      /frequency/i,
+      'load-time-валидация бросает на frequency ' + f
+      + ' (краснота: валидации loot в items.js нет)');
+  }
+});
+
+test('000158.02 L7c (vm): items.js при ЗАГРУЗКЕ — loot.near_mountains без terrains → Error («near_mountains только с terrains»)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [synthReagent({ near_mountains: true })];
+  assert.throws(
+    () => loadInSandbox('items.js', sandbox),
+    /terrains/i,
+    'load-time-валидация бросает: near_mountains без непустых terrains '
+    + '(краснота: валидации loot в items.js нет)');
+});
+
+test('000158.02 L8 (ГАРД, vm): ВАЛИДНЫЙ loot — загрузка без броска и без console.error, loot сохранён предмету (deepEqual) — гард от избыточно-жёсткой валидации', () => {
+  const { sandbox, errors } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  const loot = { terrains: ['трава', 'болото'],
+    near_mountains: false, frequency: 0.2 };
+  sandbox.Game.ITEMS = [synthReagent(loot)];
+  assert.doesNotThrow(() => loadInSandbox('items.js', sandbox),
+    'валидный loot — без броска (гард от избыточной валидации)');
+  assert.deepEqual(fromVm(sandbox.Game.getItem('x_test').loot), loot,
+    'loot сохранён предмету (валидация не мутирует/не отбрасывает)');
+  assert.equal(errors.length, 0,
+    'console.error на валидном каталоге нет; факт: '
+    + JSON.stringify(errors));
+});
+
+test('000158.02 L9 (ГАРД, vm): цепочка БЕЗ map.js — загрузка без краха, enum-проверка террейнов пропущена (terrains [«марс»] НЕ бросает), loot сохранён; console перехвачен в sandbox (деградация 000053: отсутствие mapmod.TERRAIN_NAMES — guard typeof === object, игра не падает)', () => {
+  const errors = [];
+  const sandbox = {
+    console: { log() {}, warn() {}, error: (m) => errors.push(String(m)) },
+  };
+  // Цепочка = ITEMS_CHAIN минус map.js (global-settings ОБЯЗАТЕЛЕН:
+  // player.js бросает без Game.GlobalSettings; TERRAIN* sheet/player
+  // не требуют — проверено). Условие деградации: mapmod без
+  // TERRAIN_NAMES.
+  for (const f of ['global-settings.js', 'perlin.js', 'skills-data.js',
+      'items-data.js', 'sheet.js', 'player.js']) {
+    loadInSandbox(f, sandbox);
+  }
+  assert.equal(sandbox.Game.TERRAIN_NAMES, undefined,
+    'map.js в цепочке нет (TERRAIN_NAMES недоступен — условие гарда)');
+  sandbox.Game.ITEMS = [synthReagent(
+    { terrains: ['марс'], frequency: 0.1 })];
+  assert.doesNotThrow(() => loadInSandbox('items.js', sandbox),
+    'без map.js — краха при загрузке нет (деградация 000053; гард '
+    + 'ловит безусловное чтение mapmod.TERRAIN_NAMES)');
+  const it = fromVm(sandbox.Game.getItem('x_test'));
+  assert.deepEqual(it.loot.terrains, ['марс'],
+    'enum-проверка пропущена — loot сохранён как есть (деградация)');
 });

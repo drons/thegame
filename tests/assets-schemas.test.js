@@ -412,3 +412,43 @@ test('items schema (000157.01): опциональное поле tier (integer 
      'spell_scroll', 'resurrection_scroll'],
     'kind-enum — текущие 8 видов без изменений (ТЗ: не расширять)');
 });
+
+// --- Задача 000158.02: schema.json (items) — опциональное поле loot ---
+//
+// КРАСНЫЙ: свойства loot нет (контракт
+// memory/000158.02-natural-ingredients-loot.md §3.1). loot —
+// ОПЦИОНАЛЬНОЕ (объект {terrains (required, minItems 1, enum =
+// 8 имён TERRAIN_NAMES), near_mountains (bool), frequency (number
+// 0..1)}, additionalProperties false): required верхнего уровня,
+// kind-enum (8 видов) и additionalProperties — БЕЗ ИЗМЕНЕНИЙ
+// (старые предметы валидны без изменений). Дубль L5 —
+// tests/items.test.js (блок «Задача 000158.02»). Прецедент —
+// 000157.01 (tier) выше.
+
+test('items schema (000158.02): опциональное поле loot (terrains/near_mountains/frequency; не в required; additionalProperties false)', () => {
+  const s = loadSchema('items');
+  assert.deepEqual(s.properties.loot, {
+    type: 'object',
+    required: ['terrains'],
+    properties: {
+      terrains: {
+        type: 'array',
+        minItems: 1,
+        items: {
+          enum: ['глубокая вода', 'вода', 'песок', 'трава', 'лес',
+                 'холмы', 'горы', 'болото'],
+        },
+      },
+      near_mountains: { type: 'boolean' },
+      frequency: { type: 'number', minimum: 0, maximum: 1 },
+    },
+    additionalProperties: false,
+  }, 'properties.loot — объект {terrains, near_mountains, frequency} '
+    + '(краснота: свойства loot в схеме нет); факт: '
+    + JSON.stringify(s.properties.loot));
+  assert.ok(!s.required.includes('loot'),
+    'loot НЕ в required (опциональное — старые предметы без изменений); '
+    + 'факт: ' + JSON.stringify(s.required));
+  assert.equal(s.additionalProperties, false,
+    'additionalProperties остаётся false (loot — именованное поле схемы)');
+});

@@ -232,6 +232,11 @@ cover (постройка)      → loot=null, mob=null   (как сейчас)
 * HUD: на тайле с видимым лутом — «[E] Собрать: <имя>» (hud.js
   world-строка, паттерн L193 «Местность: …»); после сбора — флеш
   «Собрано: <имя>».
+* Источник данных лута (зафиксировано 000158.02, 2026-10-11):
+  `t.loot.item` — id предмета ИЗ каталога (items-data.js), все
+  лут-свойства (terrains/near_mountains/frequency) — в поле
+  `loot` ПРЕДМЕТОВ (конечная таблица — §4.3 addendum); в коде
+  000158.03/04 пулы id НЕ хардкодируются.
 
 ### 4.3 items-каталог (000158.02)
 * Новые kind `reagent`: ягоды (3), новые травы (1–2; herb_healing/
@@ -257,6 +262,38 @@ cover (постройка)      → loot=null, mob=null   (как сейчас)
   `const TERRAIN_NAMES = deps.TERRAIN_NAMES`; связка-тест «enum schema
   items === TERRAIN_NAMES» (паттерн tests/sprites.test.js:555).
 * sync: npm sync:items → src/items-data.js (GENERATED, идемпотентно).
+* **ДИЗАЙН ЗАФИКСИРОВАН (000158.02, станция Проектирование,
+  2026-10-11)** — полный контракт:
+  memory/000158.02-natural-ingredients-loot.md. Кратко:
+  * Каталог на момент дизайна = **62 предмета** (000052–000062 —
+    11 руд/самоцветов 000157.01, смержены master 324b759 до старта
+    workflow; снимок «51» выше — исторический, до 000157.01).
+    После 000158.02 = **76** (слоты 000063–000076 — 14 природных
+    reagent: 3 ягоды / 2 травы / 3 коренья / 3 плода / 3 гриба;
+    id berry_red/berry_blue/berry_wild, herb_sun/herb_wind,
+    root_moon/root_ember/root_rock, fruit_apple/fruit_plum/
+    fruit_quince («Айва»), mushroom_grey/mushroom_glow/
+    mushroom_ink; weight/value/terrains/frequency — таблица
+    memory/000158.02-natural-ingredients-loot.md §2.1).
+  * «Самородки» — loot-поле у 14 СУЩЕСТВУЮЩИХ файлов (000023
+    moonstone, 000033 iron_ore, 000034 copper_ore + 000052–000062
+    из 000157.01), у всех `{ terrains: ['песок'],
+    near_mountains: true, frequency: 0.04/0.025/0.015/0.005 по тиру
+    (T1/T2/T3/T4) }` — строго аддитивно, существующие поля
+    byte-identical, tier-absence старых трёх сохранён.
+  * schema: `loot` — объект, required ['terrains'] (minItems 1,
+    enum = 8 имён TERRAIN_NAMES), near_mountains bool, frequency
+    number 0..1, additionalProperties false; дефолты (0.1/false) —
+    на стороне чтения (ядро 000158.03).
+  * Σfrequency (ФОРМАЛЬНО, ядро не перебалансировать): трава 0.32
+    (~28% тайлов), болото 0.15 (~14%), лес 0.48 (~38%), песок
+    0.305 (~27%) — «находимый, но не ковёр» (базово пусто ~97%, §6).
+  * items.js: TERRAIN_NAMES — load-time const из СУЩЕСТВУЮЩЕГО
+    mapmod-аргумента UMD (не deps! mapmod — 4-й аргумент
+    factory, node require map.js L22 / браузер G0) + validateLoot
+    (экспорт) + деградация console.error (000053).
+  * sync KEYS += 'loot' (ТЗ-предположение «скорее нет» — неверно:
+    KEYS — белый список, exit 1 на ключ вне списка).
 
 ### 4.4 Проверка 000021 — ВЫВОД (000158.06)
 Функционального бага НЕТ: pipeline полон и закреплён (000021 данные+
@@ -469,6 +506,47 @@ schema.json `размер` minimum 0.05→0.18 (текущий 0.05/0.5 — пе
   VISUALS_MIN_ZOOM sprites.js L343, ZOOM_START map.js L1020,
   showVisuals main.js L2607-2608, проход декораций L2633-2646,
   tileVisuals L665-688, visualDrawRect L702-709 — как в снимке выше.
+* **000158.02 ДИЗАЙН (2026-10-11; работа в worktree на базе master
+  4156dcb)**: якоря, критичные для 000158.02, пере-проверены по
+  коду @ 4156dcb: UMD-сигнатура items.js L29 `function (perlin, P,
+  DATA, mapmod, bld, rootRef)` (mapmod — СУЩЕСТВУЮЩИЙ 4-й аргумент;
+  node-ветка L18-23 требует map.js L22 — сегодня НЕ читается);
+  validateItem L59-109 (reagent-effect L88); каталог-цикл L111-116;
+  makeShop L820-833 (seed = hash2(x,y,0x154075)^(type+1));
+  экспорт-объект L1038-1056. map.js: TERRAIN_NAMES L261, экспорт
+  L1152 (без изменений с снимка). sprites.js L39 (прецедент
+  инъекции). sync-items-data.js: KEYS L73-74, exit-1-гейт L96-100,
+  jsValue-рекурсия L80-88. index.html: items-data L846 / map L858 /
+  sheet L863 / player L864 / items L874 / buildings L875 →
+  TERRAIN_NAMES в G0 ДО items.js во ВСЕХ цепочках. Тесты:
+  GOLDEN[3]/[5] items.test.js (seed 3346526316/3346526313),
+  «000165 I1» files.length 62 (L1219/L1256), «000157.01 R1» 62
+  (L1355/L1359), ORES_015701 L1302-1315, ITEMS_CHAIN L929-932.
+  Каталог @ 4156dcb = **62 JSON** (000052–000062 — 000157.01);
+  свободный слот = 000063; npm test = 2066/2066 (уточнение к
+  снимку «2060»: 000157.01 добавили +6 тестов).
+* **MASTER УШЁЛ @ 2026-10-11 (на момент дизайна)**: 4156dcb →
+  **3ce98ad** (3bd25ee = 000148.01 «Город: внутренняя площадь ×4»:
+  src/cities.js, tests/cities.test.js ±357, city-interact/
+  city-screen/dungeon-ui, CHANGELOG +8; 3ce98ad = 000153.01 «Модель
+  глубины»: src/dungeon.js/locations.js/main.js + тесты). Пересечения
+  с нашей зоной: НЕТ, кроме tests/cities.test.js (hot-регион — наш
+  SHOP_GOLDEN-ключ '100,-40,7,5,44,3' жив на L1445 @ 3ce98ad) и
+  CHANGELOG.md («## 2026-10-11»/«### Игровой процесс» — теперь 3
+  буллета: 000157.01/000148.01/000153.01; наш — APPEND после всех).
+  Ребейз на master ≥ 3ce98ad ОБЯЗАТЕЛЕН на стадии мержа.
+* **MASTER УШЁЛ ДАЛЬШЕ @ финализации 2026-10-11**: master =
+  **636d92b** — к 3ce98ad добавились f2e7ad1 (000187 — spec/пины),
+  59af9ce (000157.04 — assets/craft + npc/000011, НО CHANGELOG +6),
+  e251c99 (000186 — CHANGELOG +6), 6580837 (000189), 636d92b
+  (000188) — параллельные workflow смержились прямо в процессе;
+  ни один из них зоны 000158 не трогает. Итог ребейз-сверки
+  (diff-статы ВСЕХ 7 коммитов master поверх базы против нашего
+  диффа): конфликт — ТОЛЬКО CHANGELOG.md (UNION — все буллеты);
+  tests/cities.test.js — hot-файл, но наш hunk-регион golden
+  '100,-40,7,5,44,3' byte-identical 4156dcb↔636d92b (чистый
+  apply ожидаем; якоря — §11 memory/000158.02-...). Подробности —
+  memory/000158.02-natural-ingredients-loot.md §11.
 
 ## 8. Исправления артефактов ПЕРЕД коммитом (делает Finalize)
 

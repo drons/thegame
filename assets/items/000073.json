@@ -1,0 +1,15 @@
+{
+  "id": "fruit_quince",
+  "name": "Айва",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 4,
+  "desc": "Айва: ароматный терпкий плод, с острым привкусом.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "лес"
+    ],
+    "frequency": 0.02
+  }
+}

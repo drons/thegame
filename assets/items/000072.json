@@ -1,0 +1,14 @@
+{
+  "id": "fruit_plum",
+  "name": "Слива",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 3,
+  "desc": "Слива: тёмная, сочная, с тонкой светлой кожицей.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.03
+  }
+}

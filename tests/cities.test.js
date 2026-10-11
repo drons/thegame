@@ -1442,6 +1442,10 @@ const SHOP_GOLDEN = {
   // КОНЕЦ каталога, rng-хвост пула allItems → += 9 новых reagent
   // (obsidian/emerald на этой клетке не выпали), остальные ключи
   // стока не сдвинулись (симуляция: seed/старые стоки byte-identical).
+  // Ре-пин 000158.02: природные ингредиенты (000063-000076) —
+  // КОНЕЦ каталога, rng-хвост пула allItems → += 12 новых reagent
+  // (berry_red/fruit_apple на этой клетке не выпали), остальные ключи
+  // стока не сдвинулись (симуляция: seed/старые стоки byte-identical).
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
@@ -1457,7 +1461,10 @@ const SHOP_GOLDEN = {
     chill_scroll: 1, light_heal_scroll: 2, magic_shield_scroll: 2,
     vine_scroll: 2, resurrect_scroll: 5, silver_ore: 5, gold_ore: 5,
     mithril_ore: 4, quartz: 1, phosphorite: 1, ruby: 4, sapphire: 1,
-    amethyst: 5, diamond: 3 } },
+    amethyst: 5, diamond: 3, berry_blue: 2, berry_wild: 1, herb_sun: 2,
+    herb_wind: 1, root_moon: 1, root_ember: 2, root_rock: 2,
+    fruit_plum: 3, fruit_quince: 2, mushroom_grey: 3, mushroom_glow: 4,
+    mushroom_ink: 2 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1 } },

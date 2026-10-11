@@ -1,0 +1,14 @@
+{
+  "id": "mushroom_ink",
+  "name": "Чернопряд",
+  "kind": "reagent",
+  "weight": 0.05,
+  "value": 3,
+  "desc": "Чернопряд: чёрный гриб, сочится чернильной жидкостью.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.03
+  }
+}

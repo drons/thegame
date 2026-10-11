@@ -12,6 +12,13 @@
 // (каталог построек — источник видов ассортимента магазинов, 000060;
 // в браузере грузится ПОСЛЕ items.js — доступ ленивый, см.
 // buildingsCatalogRef).
+//
+// loot-поле (000158.02): TERRAIN_NAMES — из mapmod-аргумента (node —
+// require('./map.js'); браузер/vm — G0-снапшот: map.js грузится ДО
+// items.js — index.html L858/L874; все vm-цепочки — то же); прецедент
+// инъекции — sprites.js L39; guard + деградация (000053) — отсутствие
+// таблицы отключает валидацию имён loot.terrains (console.error), игра
+// не падает.
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -30,6 +37,25 @@
 
   const hash2 = perlin.hash2;
   const mulberry32 = perlin.mulberry32;
+
+  // Имена террейнов (000158.02) — из mapmod (node — require('./map.js'),
+  // браузер/vm — G0-снапшот; map.js всегда ДО items.js — index.html
+  // L858/L874, все vm-цепочки). Снапшот ОДИН раз при загрузке (G0,
+  // 000038) — константа map.js не мутируется (прецедент const-при-
+  // загрузке — sprites.js L39). Деградация (000053): нет таблицы —
+  // валидация ИМЁН loot.terrains отключена (остальные проверки loot
+  // работают), console.error, игра не падает.
+  const TERRAIN_NAMES = (mapmod &&
+      mapmod.TERRAIN_NAMES !== null &&
+      typeof mapmod.TERRAIN_NAMES === 'object' &&
+      !Array.isArray(mapmod.TERRAIN_NAMES))
+    ? mapmod.TERRAIN_NAMES : null;
+  const TERRAIN_NAME_SET = TERRAIN_NAMES
+    ? new Set(Object.values(TERRAIN_NAMES)) : null;
+  if (!TERRAIN_NAMES) {
+    console.error('items.js: нет TERRAIN_NAMES (map.js?) — валидация ' +
+      'имён loot.terrains отключена (000158.02)');
+  }
 
   // --- Типы предметов (spec/items.md) ---
   const ITEM_KINDS = {
@@ -55,6 +81,44 @@
 
   // --- Каталог: семантическая валидация при загрузке модуля ---
   // (структурная валидация по schema.json — задача 000015).
+
+  // loot-поле (000158.02): где предмет встречается на глобальной карте.
+  // Форма — schema.json (опциональное свойство loot; terrains —
+  // непустой массив имён из TERRAIN_NAMES; near_mountains/frequency —
+  // опциональные, дефолты false/0.1 применяет ЧТЕНИЕ — ядро 000158.03).
+  // Поле — ТОЛЬКО у reagent (собираемые ингредиенты; «самородки» —
+  // существующие руды/самоцветы). Структуру schema.json items.js не
+  // читает — это браузерная/node/vm защита (браузерный путь защищён
+  // только здесь). Чистая функция — экспорт для тестов негативных
+  // путей (прецедент campStockDueRefresh/serializeCampStocks).
+  function validateLoot(it) {
+    if (it.loot === undefined) return;
+    if (it.kind !== 'reagent')
+      throw new Error(it.id + ': loot — только у reagent');
+    const L = it.loot;
+    if (!L || typeof L !== 'object' || Array.isArray(L))
+      throw new Error(it.id + ': loot — объект');
+    const terrains = L.terrains;
+    if (!Array.isArray(terrains) || terrains.length === 0)
+      throw new Error(it.id + ': loot.terrains — непустой массив');
+    for (const t of terrains) {
+      if (typeof t !== 'string')
+        throw new Error(it.id + ': loot.terrains: не строка: ' + t);
+      if (TERRAIN_NAME_SET && !TERRAIN_NAME_SET.has(t))
+        throw new Error(it.id + ': loot.terrains: неизвестный террейн: ' + t);
+    }
+    if (L.frequency !== undefined &&
+        (typeof L.frequency !== 'number' ||
+         L.frequency < 0 || L.frequency > 1)) {
+      throw new Error(it.id + ': loot.frequency — число 0..1');
+    }
+    if (L.near_mountains !== undefined &&
+        typeof L.near_mountains !== 'boolean') {
+      throw new Error(it.id + ': loot.near_mountains — boolean');
+    }
+    // «near_mountains только с terrains» (ТЗ) — обеспечено
+    // обязательным непустым terrains выше.
+  }
 
   function validateItem(it) {
     const idOk = typeof it.id === 'string' && /^[a-z][a-z0-9_]*$/.test(it.id);
@@ -86,6 +150,8 @@
       }
     }
     if (it.kind === 'reagent' && it.effect) throw new Error(it.id + ': у реагента не бывает effect');
+    // loot (000158.02): семантическая валидация (см. validateLoot).
+    validateLoot(it);
     // Свиток заклинания (задача 000133): ЕДИНСТВЕННЫЙ эффект —
     // { kind: 'spell', spell: <id> } (ФОРМА id только: каталог spells
     // в браузере грузится ПОЗЖЕ items.js — каталожность id проверяют
@@ -1039,6 +1105,8 @@
     ITEM_KINDS, WEAPON_SUBTYPES, EFFECT_KINDS,
     INVENTORY_SLOTS, QUICK_SLOTS, MAX_STACK, BASE_CARRY_WEIGHT,
     BUY_WEALTH_MULT, SELL_WEALTH_MULT,
+    // 000158.02: экспорт для тестов (негативные пути validateLoot).
+    validateLoot,
     getItem, allItems, itemsOfKind,
     createInventory, ensureInventory, ensureEquipment,
     ensureEquipmentBonus,

@@ -1,0 +1,15 @@
+{
+  "id": "fruit_apple",
+  "name": "Яблоко",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 2,
+  "desc": "Яблоко: кислое, с дерева у старой дороги.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "лес"
+    ],
+    "frequency": 0.04
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "mushroom_grey",
+  "name": "Рядовка",
+  "kind": "reagent",
+  "weight": 0.05,
+  "value": 2,
+  "desc": "Рядовка: серый шляпный гриб, тихий и сытный.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.04
+  }
+}
