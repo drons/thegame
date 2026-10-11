@@ -2302,9 +2302,16 @@
         // !it → ok:false без обращения к it.name).
         if (it) {
           const add = G.addItem(hero, chest.item);
-          itemMsg = add.ok
-            ? ', ' + it.name
-            : ' (инвентарь полон: ' + it.name + ' потерян)';
+          if (add.ok) {
+            itemMsg = ', ' + it.name;
+          } else {
+            // 000186: overflow → авто-золото по каталожному value
+            // (семантика 000132, combatEndLoot) — предмет НЕ теряется
+            // (один предмет, qty = 1).
+            const overflow = typeof it.value === 'number' ? it.value : 0;
+            hero.gold += overflow;
+            itemMsg = ' (не влезло: +' + overflow + ' золота)';
+          }
         }
       }
       const msg = 'Сундук: +' + chest.gold + ' золота' + itemMsg;
@@ -2407,7 +2414,7 @@
       onEnd: (res) => {
         if (res.outcome === 'victory') {
           g.defeated = true;
-          ds.log.push((g.boss ? 'Босс' : 'Группа') + ' повержена. +' + res.xp + ' опыта.');
+          ds.log.push((g.boss ? 'Босс' : 'Группа') + ' повержена. +' + res.xp + ' опыта, +' + res.gold + ' золота.');
         } else {
           // Побег и смерть: назад на клетку, с которой зашёл в бой.
           ds.x = ds.prevX; ds.y = ds.prevY;
