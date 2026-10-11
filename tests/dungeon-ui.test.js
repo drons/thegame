@@ -2060,15 +2060,17 @@ test('город UI 000105: СВОИ тайлы — 2x2 хутор: пол/ст�
     'городская стена: ≤2 варианта (сейчас ' + wallPalette.size + ')');
 });
 
-test('город UI 000105: СВОИ тайлы — 14x14 столица: все клетки; ≥2 варианта пола по (x,y,seed); без фолбэка #182029', () => {
+test('город UI 000105: СВОИ тайлы — 26x26 столица: все клетки; ≥2 варианта пола по (x,y,seed); без фолбэка #182029', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
   const s = makeCityState({ fp: 7, cx: -37, cy: 21, name: 'Столица' });
-  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
-  assert.ok(14 * 40 <= VW && 14 * 40 <= VH,
-    '14x14 @ 40 — вьюпорт больше layout → cam центрирован (7,7)');
+  // 000148.01 (layout 4f−2): 14x14 → 26x26; zoom 40 → 20, чтобы весь
+  // layout влез в вьюпорт (26*20 = 520 ≤ 600) — full-coverage-ассерты.
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 20 });
+  assert.ok(26 * 20 <= VW && 26 * 20 <= VH,
+    '26x26 @ 20 — вьюпорт больше layout → cam центрирован (13,13)');
   const colors = cityCellColors(findCanvas(loaded.body).drawCalls,
-    G, s, 40, 7, 7);
+    G, s, 20, 13, 13);
   const d = s.dg;
   let undrawn = 0;
   const floorPalette = new Set();
@@ -2082,7 +2084,7 @@ test('город UI 000105: СВОИ тайлы — 14x14 столица: все
     }
   }
   assert.equal(undrawn, 0,
-    '14x14: все 196 клеток layout нарисованы fillRect' +
+    '26x26: все 676 клеток layout нарисованы fillRect' +
     (undrawn ? ' (не нарисовано: ' + undrawn + ')' : ''));
   assert.ok(floorPalette.size >= 2,
     'город: ≥2 варианта пола (детерминированный выбор по (x,y,seed), '
@@ -2100,27 +2102,29 @@ test('город UI 000105: СВОИ тайлы — 14x14 столица: все
 test('город UI 000105: детерминированность тайлов — два рендера одного города идентичны; разные якоря (seed) — раскраска различается', () => {
   // (а) Два рендера ОДНОГО города (seed, layout) — одинаковая
   // раскраска: вариант клетки — чистая функция (x, y, seed).
+  // 000148.01 (layout 4f−2): fp5 — 18x18; zoom 40 → 30, cam (5,5) →
+  // (9,9): 18*30 = 540 ≤ 600 → layout целиком в вьюпорте.
   const A = loadDungeonUi({ performance: { now: () => 1000 } });
   const sA = makeCityState({ fp: 5, cx: 100, cy: -40, name: 'Город' });
-  A.G.dungeonUI.start({ state: sA, onMove() {}, zoom: 40 });
+  A.G.dungeonUI.start({ state: sA, onMove() {}, zoom: 30 });
   const canvasA = findCanvas(A.body);
   const n0 = canvasA.drawCalls.length;
   A.G.dungeonUI.render(1000); // тот же now — второй рендер
   const mStart = cityCellColors(canvasA.drawCalls.slice(0, n0),
-    A.G, sA, 40, 5, 5);
+    A.G, sA, 30, 9, 9);
   const mSecond = cityCellColors(canvasA.drawCalls.slice(n0),
-    A.G, sA, 40, 5, 5);
+    A.G, sA, 30, 9, 9);
   assert.equal(JSON.stringify(mStart), JSON.stringify(mSecond),
     'два рендера одного города — идентичная раскраска (чистая функция)');
   // (б) Разные якоря → разные seed → раскраска хотя бы одной
   // клетки различается (seed 3580905026 vs 2388422751, 000104).
   const B = loadDungeonUi({ performance: { now: () => 1000 } });
   const sB = makeCityState({ fp: 5, cx: 101, cy: -40, name: 'Город' });
-  B.G.dungeonUI.start({ state: sB, onMove() {}, zoom: 40 });
+  B.G.dungeonUI.start({ state: sB, onMove() {}, zoom: 30 });
   assert.notEqual(sA.dg.seed, sB.dg.seed,
     'предусловие: layout от разных якорей — разные seed');
-  const mB = cityCellColors(findCanvas(B.body).drawCalls, B.G, sB, 40, 5, 5);
-  const mAs = cityCellColors(findCanvas(A.body).drawCalls, A.G, sA, 40, 5, 5);
+  const mB = cityCellColors(findCanvas(B.body).drawCalls, B.G, sB, 30, 9, 9);
+  const mAs = cityCellColors(findCanvas(A.body).drawCalls, A.G, sA, 30, 9, 9);
   assert.notEqual(JSON.stringify(mAs), JSON.stringify(mB),
     'разные seed → раскраска хотя бы одной клетки различается');
 });
@@ -2136,15 +2140,17 @@ test('город UI 000105 (фолбэк без perlin): без Game.hash2 ва�
     performance: { now: () => 1000 } });
   assert.equal(typeof A.G.hash2, 'undefined',
     'предусловие: perlin.js не в цепочке — Game.hash2 нет (fallback)');
+  // 000148.01 (layout 4f−2): fp5 — 18x18; zoom 30, cam (9,9)
+  // (18*30 = 540 ≤ 600 — layout целиком в вьюпорте).
   const sA = makeCityState({ fp: 5, cx: 100, cy: -40, name: 'Город' });
-  A.G.dungeonUI.start({ state: sA, onMove() {}, zoom: 40 });
+  A.G.dungeonUI.start({ state: sA, onMove() {}, zoom: 30 });
   const canvasA = findCanvas(A.body);
   const n0 = canvasA.drawCalls.length;
   A.G.dungeonUI.render(1000); // второй рендер того же города
   const mFirst = cityCellColors(canvasA.drawCalls.slice(0, n0),
-    A.G, sA, 40, 5, 5);
+    A.G, sA, 30, 9, 9);
   const mSecond = cityCellColors(canvasA.drawCalls.slice(n0),
-    A.G, sA, 40, 5, 5);
+    A.G, sA, 30, 9, 9);
   assert.equal(JSON.stringify(mFirst), JSON.stringify(mSecond),
     'фолбэк: два рендера одного города — идентичны (чистая функция)');
   const B = loadDungeonUi({ withoutPerlin: true,
@@ -2160,8 +2166,8 @@ test('город UI 000105 (фолбэк без perlin): без Game.hash2 ва�
     'предусловие: layout один (cells совпадают)');
   assert.notEqual(sB.dg.seed, sA.dg.seed,
     'предусловие: seed другой');
-  B.G.dungeonUI.start({ state: sB, onMove() {}, zoom: 40 });
-  const mB = cityCellColors(findCanvas(B.body).drawCalls, B.G, sB, 40, 5, 5);
+  B.G.dungeonUI.start({ state: sB, onMove() {}, zoom: 30 });
+  const mB = cityCellColors(findCanvas(B.body).drawCalls, B.G, sB, 30, 9, 9);
   assert.notEqual(JSON.stringify(mFirst), JSON.stringify(mB),
     'фолбэк: seed НЕ игнорируется — раскраска различается');
 });
@@ -2179,10 +2185,12 @@ test('город UI 000105 (GOLDEN-ПИН): CITY_TILE_SEED = 0x43495459 и па�
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
   const s = makeCityState({ fp: 5, cx: 100, cy: -40, name: 'Город' });
-  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
+  // 000148.01 (layout 4f−2): fp5 — 18x18; zoom 30, cam (9,9): цикл
+  // по ВСЕМ 324 клеткам требует full coverage (18*30 = 540 ≤ 600).
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 30 });
   G.dungeonUI.render(1000);
   const colors = cityCellColors(findCanvas(loaded.body).drawCalls,
-    G, s, 40, 5, 5);
+    G, s, 30, 9, 9);
   const d = s.dg;
   for (let y = 0; y < d.height; y++) {
     for (let x = 0; x < d.width; x++) {
@@ -2258,31 +2266,33 @@ test('город UI 000105 (регрессия глейда): общий дви�
   const interval = (settings && Number.isFinite(settings.move_interval_ms)
     && settings.move_interval_ms > 0)
     ? settings.move_interval_ms : 420;
-  // 14x14 (fp7, −37,21): вход (9,13); шаг на север (9,12) — FLOOR.
-  const mover = G.createMover({ x: 9, y: 13, intervalMs: interval });
+  // 26x26 (fp7, −37,21): вход (18,25); шаг на север (18,24) — FLOOR.
+  // 000148.01 (layout 4f−2): 14x14 → 26x26, вход (9,13) → (18,25);
+  // zoom 40 → 20 (26*20 = 520 ≤ 600 — layout целиком в вьюпорте).
+  const mover = G.createMover({ x: 18, y: 25, intervalMs: interval });
   const s = makeCityState({
     fp: 7, cx: -37, cy: 21, name: 'Столица',
     pos: (now) => mover.position(now),
   });
-  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40, spriteLoader: loader });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 20, spriteLoader: loader });
   const canvas = findCanvas(body);
-  // 14x14 @ 40 → 560 ≤ 800/600 → cam центрирован (7,7).
-  // Шаг (9,13) → (9,12) в t = 1000 — симуляция main.js cityMove:
+  // 26x26 @ 20 → 520 ≤ 800/600 → cam центрирован (13,13).
+  // Шаг (18,25) → (18,24) в t = 1000 — симуляция main.js cityMove:
   // s.x/s.y обновляются ДО глейда (паттерн dungeonMove, 000068).
   T.t = 1000;
-  s.x = 9;
-  s.y = 12;
-  mover.step({ x: 9, y: 13 }, { x: 9, y: 12 }, 1000);
+  s.x = 18;
+  s.y = 24;
+  mover.step({ x: 18, y: 25 }, { x: 18, y: 24 }, 1000);
   const mid = 1000 + interval / 2;
   const n0 = canvas.drawCalls.length;
   G.dungeonUI.render(mid);
   const seg = canvas.drawCalls.slice(n0);
   const pos = mover.position(mid);
-  assert.equal(pos.x, 9, 'x не меняется (шаг на север)');
-  assert.ok(pos.y > 12 && pos.y < 13,
+  assert.equal(pos.x, 18, 'x не меняется (шаг на север)');
+  assert.ok(pos.y > 24 && pos.y < 25,
     'предусловие: дробная точка строго между клетками: ' + JSON.stringify(pos));
-  const p = G.worldToScreen(pos.x + 0.5, pos.y + 0.5, 7, 7, 40, VW, VH);
-  const sz = 40 * 1.15; // формула Флогистона (zoom*1.15)
+  const p = G.worldToScreen(pos.x + 0.5, pos.y + 0.5, 13, 13, 20, VW, VH);
+  const sz = 20 * 1.15; // формула Флогистона (zoom*1.15)
   const imgs = seg.filter((c) => c[0] === 'drawImage'
     && Math.abs(c[1][1] - (p.x - sz / 2)) <= 1e-9
     && Math.abs(c[1][2] - (p.y - sz / 2)) <= 1e-9

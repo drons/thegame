@@ -56,14 +56,15 @@ function (perlin, items, buildings, rootRef) {
   // дублировать его литерал в константе нельзя (аудит 000053).
   const CITY_LAYOUT_CONST = 0x4c41594f;
 
-  /** Внутренний размер layout: footprint × 2 УНИФОРМНО (1→2x2, 2→4x4,
-   *  5→10x10, 7→14x14; хутор fp1 — вырожденный 2x2). */
+  /** Внутренний размер layout: 4×footprint − 2 (1→2x2, 2→6x6,
+   *  5→18x18, 7→26x26; хутор fp1 — вырожденный 2x2; интерьер ровно
+   *  ×4 при f≥2 — 000148.01). */
   function cityLayoutSize(footprint) {
     if (!Number.isInteger(footprint) || footprint < 1) {
       throw new Error(
         'cities.js: footprint — целое ≥ 1 (получено ' + String(footprint) + ')');
     }
-    return footprint * 2;
+    return 4 * footprint - 2;
   }
 
   /** Сид layout от ПОЗИЦИИ города (не totalXp, не террейн). */
@@ -378,7 +379,8 @@ function (perlin, items, buildings, rootRef) {
 
   // Базис инъективной кодировки (город, клетка) → координаты
   // makeShop: x′ = cityX*256+tx, y′ = cityY*256+ty. 256 > любого
-  // layout (2×footprint−1 ≤ 14): две РАЗНЫЕ пары (город, клетка)
+  // layout (4×footprint−1 ≤ 27, tx ≤ 25 < 256 — 000148.01): две
+  // РАЗНЫЕ пары (город, клетка)
   // никогда не дают общие координаты — ВКЛЮЧАЯ СОСЕДНИЕ якоря
   // (наивная сумма cityX+tx дала бы коллизию (100,−40)+tx=1 и
   // (101,−40)+tx=0 — оба x′=101 → общий сток). GOLDEN-ПИН: смена

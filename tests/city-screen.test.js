@@ -791,8 +791,12 @@ test('город 000105: кадры main.js после входа не пада�
 // Фикстура (детерминированный мир, фикс. сид generateSeedPixels):
 // деревня 52, ЯКОРЬ (20, −16), вход (21, −15) — единственный
 // проходимый тайл footprint'а, wealth 1, 36 шагов от спавна (0,0)
-// (< steps_per_day = 40 — вход НЕ сдвигает день). Содержимое: одна
-// лавочная клетка (2,2) — трактир 44 (map_index 11).
+// (< steps_per_day = 40 — вход НЕ сдвигает день). Содержимое: 3
+// постройки: (4,4) трактир 44, (2,3) оружейная 1, (2,2) трактир 44;
+// в сейве-фикстуре сток клетки (2,2) (000148.01: layout 6×6;
+// таверна (2,2) СОХРАНИЛАСЬ — фикстура cell: '2,2' без изменений);
+// в R10b — плюс мёртвая клетка (2,1) (орфан — НЕ постройка 6×6;
+// должен отброситься при входе, D8/R13 — см. DEAD_CELL_STOCK).
 //
 // Контракт (memory/000109-city-save-respawn.md): при входе
 // `day − lastVisitDay >= city_respawn_days` → ПЕРЕГЕНЕРАЦИЯ стока
@@ -811,6 +815,14 @@ const V109 = {
   day: 20,
 };
 const DEPLETED_STOCK = { bread: 0, healing_potion: 0, minor_healing: 0 };
+// Ревью 000148.01 (ТЗ п.4, D8/R13): сток МЁРТВОЙ клетки (2,1) — НЕ
+// постройка в layout 6×6 (постройки: (4,4), (2,3), (2,2)).
+// Входит в сейв-фикстуру R10b, чья запись ЖИВА (в окне респауна):
+// после входа ключ НЕ должен сохраниться — prepareCityState строит
+// карту стока строго по текущим contents.buildings (орфаны
+// отбрасываются; маппинг клеток НЕ делается). deepEqual-ассерт
+// R10b (точный набор ключей {2,2, 2,3, 4,4}) фиксирует отсутствие.
+const DEAD_CELL_STOCK = { bread: 7, healing_potion: 7, minor_healing: 7 };
 const HERO109 = {
   name: 'Смоук', level: 2, xp: 10, totalXp: 100, gold: 50,
   hp: 20, mp: 10, points: 1,
@@ -859,14 +871,15 @@ test('000109 R10a: вход через city_respawn_days после визита
     cities: { '20,-16': { lastVisitDay: 17, stock: { '2,2': DEPLETED_STOCK } } },
   });
   const { g, G, dg, found } = await enterVillage109(h);
-  assert.equal(dg.entrance.x, 1, 'фикстура: layout 4x4, entrance (1,3)');
-  assert.equal(dg.entrance.y, 3, 'фикстура: layout 4x4, entrance (1,3)');
+  assert.equal(dg.entrance.x, 1, 'фикстура: layout 6x6, entrance (1,5)');
+  assert.equal(dg.entrance.y, 5, 'фикстура: layout 6x6, entrance (1,5)');
   // Фреш-сток — детерминированный (якорь, клетка): wealth 1. Чужой
-  // realm — JSON-рондтрип (паттерн host()). 000177: layout 4x4 с
-  // единым тайл-дверью — 4 placeable-клетки, и эта деревня ставит
-  // ТРИ постройки (до задачи — одна): (2,2) трактир 44 (ячейка
-  // стока из сейва — DEPLETED_STOCK), (2,1) оружейная 1,
-  // (1,1) трактир 44 — их стоков в сейве НЕТ → все свежие.
+  // realm — JSON-рондтрип (паттерн host()). 000177 + 000148.01:
+  // layout 6x6 (4f−2) — 16 placeable-клеток, и эта деревня ставит
+  // ТРИ постройки: (4,4) трактир 44, (2,3) оружейная 1,
+  // (2,2) трактир 44 (в сейве-фикстуре сток только клетки (2,2) —
+  // DEPLETED_STOCK) → все свежие (000148.01: layout сменился —
+  // стоки на мёртвых клетках — осознанный сброс).
   const [ax, ay] = found.t.buildingAnchor;
   const fresh = G.Cities.makeCityShop(ax, ay, 2, 2, 44, V109.wealth).stock;
   const freshHost = JSON.parse(JSON.stringify(fresh));
@@ -874,10 +887,10 @@ test('000109 R10a: вход через city_respawn_days после визита
     'фикстура: fresh-сток трактира непуст');
   assert.notDeepEqual(freshHost, DEPLETED_STOCK,
     'сценарий: fresh ≠ истощённый сток (тест различим)');
-  const fresh21 = JSON.parse(JSON.stringify(
-    G.Cities.makeCityShop(ax, ay, 2, 1, 1, V109.wealth).stock));
-  const fresh11 = JSON.parse(JSON.stringify(
-    G.Cities.makeCityShop(ax, ay, 1, 1, 44, V109.wealth).stock));
+  const fresh23 = JSON.parse(JSON.stringify(
+    G.Cities.makeCityShop(ax, ay, 2, 3, 1, V109.wealth).stock));
+  const fresh44 = JSON.parse(JSON.stringify(
+    G.Cities.makeCityShop(ax, ay, 4, 4, 44, V109.wealth).stock));
   // Сейв входного шага (frame: enterLocation → saveNow) — состояние
   // города уже в localStorage, выходить из города не нужно.
   const saveText = h.storage.store['phlogiston.save'];
@@ -885,7 +898,7 @@ test('000109 R10a: вход через city_respawn_days после визита
   const saved = JSON.parse(saveText);
   assert.deepEqual(saved.data.cities, {
     '20,-16': { lastVisitDay: V109.day, stock: {
-      '2,2': freshHost, '2,1': fresh21, '1,1': fresh11,
+      '2,2': freshHost, '2,3': fresh23, '4,4': fresh44,
     } },
   }, '20 − 17 = 3 >= city_respawn_days: сток ПЕРЕГЕНЕРИРОВАН '
     + '(fresh, а не истощённый), lastVisitDay = day');
@@ -903,33 +916,41 @@ test('000109 R10a: вход через city_respawn_days после визита
     'LIVE: сток — тот же объект сессии (не копия)');
 });
 
-test('000109 R10b: вход через день после визита (20 − 19 = 1 < 3) — сток ВОССТАНОВЛЕН из сейва (НЕ перегенерирован), lastVisitDay = day', async () => {
+test('000109 R10b: вход через день после визита (20 − 19 = 1 < 3) — сток ВОССТАНОВЛЕН из сейва (НЕ перегенерирован), lastVisitDay = day; орфан мёртвой клетки (2,1) отброшен', async () => {
   const h = await bootSeeded({
     day: V109.day, steps: 0, hero: HERO109,
-    cities: { '20,-16': { lastVisitDay: 19, stock: { '2,2': DEPLETED_STOCK } } },
+    cities: { '20,-16': { lastVisitDay: 19, stock: {
+      '2,2': DEPLETED_STOCK, '2,1': DEAD_CELL_STOCK,
+    } } },
   });
   const { g, G, dg, found } = await enterVillage109(h);
   const [ax, ay] = found.t.buildingAnchor;
   const fresh = G.Cities.makeCityShop(ax, ay, 2, 2, 44, V109.wealth).stock;
   assert.notDeepEqual(JSON.parse(JSON.stringify(fresh)), DEPLETED_STOCK,
     'сценарий: fresh ≠ истощённый сток (тест различим)');
-  // 000177: в сейве стока есть ТОЛЬКО (2,2) (трактир 44) — он
-  // ВОССТАНОВЛЕН (истощённый, не перегенерирован). Остальные
-  // постройки деревни — (2,1) оружейная 1 и (1,1) трактир 44 — в
-  // сейве НЕТ → их стоки свежие (как у R10a).
-  const fresh21 = JSON.parse(JSON.stringify(
-    G.Cities.makeCityShop(ax, ay, 2, 1, 1, V109.wealth).stock));
-  const fresh11 = JSON.parse(JSON.stringify(
-    G.Cities.makeCityShop(ax, ay, 1, 1, 44, V109.wealth).stock));
+  // 000177 + 000148.01: в сейве стока (2,2) (трактир 44) — он
+  // ВОССТАНОВЛЕН (истощённый, не перегенерирован) — и мёртвая
+  // клетка (2,1) (НЕ постройка 6×6; ревью 000148.01, D8/R13):
+  // запись сейва ЖИВА (в окне респауна), значит орфан отбрасывает
+  // именно prepareCityState-пересборка строго по текущим
+  // contents.buildings (маппинг клеток НЕ делается) — deepEqual
+  // ниже фиксирует отсутствие '2,1'. Остальные постройки деревни —
+  // (2,3) оружейная 1 и (4,4) трактир 44 — в сейве НЕТ → их стоки
+  // свежие (как у R10a).
+  const fresh23 = JSON.parse(JSON.stringify(
+    G.Cities.makeCityShop(ax, ay, 2, 3, 1, V109.wealth).stock));
+  const fresh44 = JSON.parse(JSON.stringify(
+    G.Cities.makeCityShop(ax, ay, 4, 4, 44, V109.wealth).stock));
   const saveText = h.storage.store['phlogiston.save'];
   assert.ok(saveText, 'входной шаг: saveNow вызван (сейв записан)');
   const saved = JSON.parse(saveText);
   assert.deepEqual(saved.data.cities, {
     '20,-16': { lastVisitDay: V109.day, stock: {
-      '2,2': DEPLETED_STOCK, '2,1': fresh21, '1,1': fresh11,
+      '2,2': DEPLETED_STOCK, '2,3': fresh23, '4,4': fresh44,
     } },
   }, '20 − 19 = 1 < city_respawn_days: сток (2,2) ВОССТАНОВЛЕН из '
-    + 'сейва (НЕ перегенерирован), lastVisitDay обновлён до дня входа');
+    + 'сейва (НЕ перегенерирован), орфан (2,1) отброшен (D8), '
+    + 'lastVisitDay обновлён до дня входа');
   // __game.cities (контракт 000107): getter — поверхностная копия
   // записей; значения — LIVE-объекты (cityStates Map), не копии;
   // мутация через getter → cityStates → следующий сейв.
