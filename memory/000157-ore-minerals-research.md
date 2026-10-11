@@ -73,7 +73,10 @@ dungeons-storage.md + второй репин с 000153 (§5); инвариан�
    000011.json «торговля»: wood_log/stone_chunk/hide/coal/iron_ore 8g/
    copper_ore 6g); магазин магии = [reagent, skill_book] и универсам
    (wealth 3) автоматически продают ВСЕ reagent по value (src/items.js:787,
-   818-850 — НОВЫЙ reagent появится в витринах сам, баланс = value);
+   818-850 — НОВЫЙ reagent появится в витринах сам, баланс = value).
+   ПО 000157.04 (2026-10-11): сток Хольда — 8 позиций (+silver_ore
+   15/8, +quartz 12/6 — ранний T2 без глубин; 6 старых — не сдвинулись;
+   сток-якоря — memory/000157.04-craft-ore-recipes.md §5/§7).
    колодец (assets/buildings/000045.json) и руины (000048.json) — ежедневный
    лут с copper_ore/iron_ore; сундуки подземелий — только sulfur (CAVE) и
    moonstone (DROWNED) (assets/dungeons/000001/000004.json «предметы»);
@@ -86,7 +89,10 @@ dungeons-storage.md + второй репин с 000153 (§5); инвариан�
    0 (rc=1, проверено). Продаётся (6g), в ни одном из 19 рецептов не
    используется (assets/craft/000001-000019.json). Дыра 000044
    (memory/000044-craft-raw.md «рецепт на медь — отдельная задача»).
-   Закрывается 000157.04.
+   ЗАКРЫТО 000157.04 (2026-10-11): war_hammer_copper (assets/craft/
+   000021.json, исходник copper_ore ×2, база war_hammer) + регресс-пин
+   «copper_ore ≥ 1 рецепт» (tests/craft.test.js); детали — memory/
+   000157.04-craft-ore-recipes.md.
 7. **Каталог предметов: 51 файл** (assets/items/000001-000051.json +
    schema.json; пин tests/items.test.js:1208 `files.length === 51`,
    000165 «конец каталога» — 000051, id `resurrect_scroll`, kind
@@ -473,6 +479,17 @@ script-теги index.html — НЕТ (63 тегов); stairs.svg — НЕ тр�
 - Файлы: assets/craft/000020+ (10-12 новых), src/craft-data.js (regen),
   assets/npc/000011.json, tests/craft.test.js (+ craft-core при наличии
   счётчиков), spec/craft.md, CHANGELOG.md, memory/000157.04-*.md.
+- **ФИНАЛ 000157.04 (станция Проектирование, 2026-10-11):** 12 рецептов
+  000020–000031 (таблица и правила — memory/000157.04-craft-ore-recipes.
+  md §2). 3 отклонения от предложения выше: (1) quartz_chisel — БЕЗ
+  stone_chisel в исходниках (правило «исходник ≠ результат»: результат
+  = stone_chisel, исходник stone_chunk 2 + quartz 1); (2) +gold_ore 1 в
+  mana_elixir_rare (цель «11 из 11 предметов ≥ 1 рецепт»); (3)
+  emerald_cut — исходники как у ruby/sapphire_cut (ТЗ дало только L6).
+  Плюс: steel_sword_ore → результат iron_sword (правило «тот же
+  результат у базы»); здания war_hammer-цепочки [8] (наследуют базу).
+  copper_ore — закрыт (war_hammer_copper, регресс-пин); тех-репины
+  CU-4 (6→9) и CI-134A (6→8) — в .04-памяти.
 
 ## 5. КООРДИНАЦИЯ С В ПОЛЁТЕ (000148 / 000153 / 000158)
 

@@ -361,3 +361,154 @@ test('sync-craft-data.js: генератор существует, пересб�
   assert.equal(fs.readFileSync(out, 'utf8'), before,
     'пересборка меняет закоммиченный src/craft-data.js — перегенерируйте');
 });
+
+// --- Задача 000157.04: рецепты на руды, минералы и самоцветы (TDD) ---
+//
+// Data-only (memory/000157.04-craft-ore-recipes.md §2): 12 новых
+// рецептов 000020–000031 (кузнечное/резьба/алхимия/зачарование/
+// рунопись), закрытие дыры 000044 (copper_ore — ≥1 рецепт), каждый
+// из 11 предметов 000157.01 — в ≥1 рецепте (исходник или результат),
+// буллет в spec/craft.md H2 «Рецепты». На текущем каталоге (19
+// файлов) все тесты ниже падают: id/файлы/строки отсутствуют.
+
+// Итоговый набор (контракт §2, финал стадии Проектирования):
+// [id, тип, результат, «база» (undefined — без «база»)].
+const RECIPES_015704 = [
+  ['steel_sword_ore', 'кузнечное_дело', 'iron_sword', 'iron_sword_ore'],
+  ['war_hammer_copper', 'кузнечное_дело', 'war_hammer', 'war_hammer'],
+  ['war_hammer_mithril', 'кузнечное_дело', 'war_hammer', 'war_hammer_copper'],
+  ['quartz_chisel', 'резьба_по_камню', 'stone_chisel', 'stone_chisel'],
+  ['ruby_cut', 'резьба_по_камню', 'ruby', undefined],
+  ['sapphire_cut', 'резьба_по_камню', 'sapphire', undefined],
+  ['emerald_cut', 'резьба_по_камню', 'emerald', undefined],
+  ['diamond_cut', 'резьба_по_камню', 'diamond', undefined],
+  ['mana_elixir_rare', 'алхимия', 'mana_elixir', 'mana_elixir'],
+  ['knight_plate_ruby', 'зачарование', 'knight_plate', 'knight_plate'],
+  ['hunting_bow_sapphire', 'зачарование', 'hunting_bow', 'hunting_bow'],
+  ['amethyst_moonstone', 'рунопись', 'moonstone', 'moonstone_runes'],
+];
+
+// 11 предметов задачи 000157.01 (assets/items 000052–000062).
+const ORES_015701 = ['silver_ore', 'gold_ore', 'mithril_ore', 'quartz',
+  'obsidian', 'phosphorite', 'ruby', 'sapphire', 'emerald', 'amethyst',
+  'diamond'];
+
+test('000157.04 R1: каталог — ровно 31 файл 000001..000031 подряд (12 новых 000020+)', () => {
+  const files = listCraftFiles();
+  assert.equal(files.length, 31,
+    'ровно 31 рецепт (19 старых + 12 новых 000020–000031), '
+    + 'а есть: ' + files.length);
+  files.forEach((f, i) => {
+    assert.equal(f, String(i + 1).padStart(6, '0') + '.json',
+      `пробел в нумерации на позиции ${i + 1}: ${f}`);
+  });
+  for (const n of [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]) {
+    assert.ok(fs.existsSync(path.join(DIR, String(n).padStart(6, '0') + '.json')),
+      `файл 0000${n}.json существует (краснота: ENOENT — новые рецепты не созданы)`);
+  }
+});
+
+test('000157.04 R2: 12 именованных рецептов (id/тип/результат; огранки без «база»)', () => {
+  const { byId } = loadCatalog();
+  for (const [id, type, result, base] of RECIPES_015704) {
+    const r = byId.get(id);
+    assert.ok(r,
+      `рецепт "${id}" в каталоге (краснота: id не создан — данные не добавлены)`);
+    assert.equal(r.data.тип, type, `${id}: тип «${type}» (контракт §2)`);
+    assert.equal(r.data.результат.предмет, result,
+      `${id}: результат — существующий предмет "${result}"`);
+    assert.equal(r.data.результат.количество, 1, `${id}: результат ×1`);
+    if (base === undefined) {
+      assert.equal(r.data.база, undefined,
+        `${id}: без «база» (огранка «с нуля» — базового рецепта на самоцветы нет)`);
+    } else {
+      assert.equal(r.data.база, base,
+        `${id}: «база» — "${base}"`);
+    }
+  }
+});
+
+test('000157.04 R3: copper_ore — ≥1 рецепт (регресс-пин закрытия дыры 000044)', () => {
+  const { byId } = loadCatalog();
+  let n = 0;
+  for (const { data } of byId.values()) {
+    if (data.результат.предмет === 'copper_ore') n += 1;
+    for (const i of data.исходники) if (i.предмет === 'copper_ore') n += 1;
+  }
+  assert.ok(n >= 1,
+    'copper_ore — исходник или результат ≥1 рецепта (закрытие дыры 000044), '
+    + 'а рецептов: ' + n);
+});
+
+test('000157.04 R4: каждый из 11 предметов 000157.01 — ≥1 рецепт (исходник или результат)', () => {
+  const { byId } = loadCatalog();
+  for (const id of ORES_015701) {
+    const hit = [...byId.values()].some(({ data }) =>
+      data.результат.предмет === id ||
+      data.исходники.some((i) => i.предмет === id));
+    assert.ok(hit,
+      `предмет "${id}" (000157.01) — исходник или результат ≥1 рецепта`);
+  }
+});
+
+test('000157.04 R5: 8 цепочек «база» (тот же тип/результат, уровень ≥, исходники ⊇, ациклично)', () => {
+  const { byId } = loadCatalog();
+  const CHAINS = [
+    ['steel_sword_ore', 'iron_sword_ore'],
+    ['war_hammer_copper', 'war_hammer'],
+    ['war_hammer_mithril', 'war_hammer_copper'],
+    ['quartz_chisel', 'stone_chisel'],
+    ['mana_elixir_rare', 'mana_elixir'],
+    ['knight_plate_ruby', 'knight_plate'],
+    ['hunting_bow_sapphire', 'hunting_bow'],
+    ['amethyst_moonstone', 'moonstone_runes'],
+  ];
+  for (const [childId, baseId] of CHAINS) {
+    const child = byId.get(childId);
+    assert.ok(child, `рецепт "${childId}" в каталоге`);
+    const base = byId.get(baseId);
+    assert.ok(base, `базовый рецепт "${baseId}" в каталоге`);
+    const c = child.data;
+    const b = base.data;
+    assert.equal(c.база, baseId, `${childId}: «база» — "${baseId}"`);
+    assert.equal(c.тип, b.тип, `${childId}: тот же тип, что у базы`);
+    assert.equal(c.результат.предмет, b.результат.предмет,
+      `${childId}: тот же предмет-результат, что у базы`);
+    assert.ok(c.уровень >= b.уровень,
+      `${childId}: уровень ${c.уровень} не ниже уровня базы (${b.уровень})`);
+    // Исходники улучшенного способа покрывают исходники базы (по количеству).
+    const baseQty = new Map(b.исходники.map((i) => [i.предмет, i.количество]));
+    for (const [item, n] of baseQty) {
+      const have = c.исходники
+        .filter((i) => i.предмет === item)
+        .reduce((s, i) => s + i.количество, 0);
+      assert.ok(have >= n,
+        `${childId}: исходник "${item}" (${have}) покрывает базовых (${n})`);
+    }
+    // Обход цепочки «база» завершается (циклов нет).
+    const seen = new Set();
+    let cur = c;
+    let guard = 0;
+    while (cur && cur.база !== undefined) {
+      assert.ok(++guard <= byId.size, `${childId}: цикл в цепочке «база»`);
+      assert.ok(!seen.has(cur.id), `${childId}: цикл на "${cur.id}"`);
+      seen.add(cur.id);
+      cur = byId.get(cur.база).data;
+    }
+  }
+});
+
+test('000157.04 R9: spec/craft.md H2 «Рецепты» — буллет про редкие руды (000157.04)', () => {
+  // Нормализация белых (прецедент tests/spec-combat-wording.test.js):
+  // строки SPEC ломаются переносом (~64 символа).
+  const spec = fs.readFileSync(
+    path.join(__dirname, '..', 'spec', 'craft.md'), 'utf8');
+  const norm = (s) => s.replace(/\s+/g, ' ');
+  const section = norm(spec.slice(spec.indexOf('\n## Рецепты')));
+  assert.ok(section.length > 0, 'spec/craft.md: H2 «Рецепты» найден');
+  assert.ok(
+    section.includes(
+      'Улучшенные способы могут потреблять редкие руды, минералы и самоцветы (000157.04)'),
+    'H2 «Рецепты»: буллет «Улучшенные способы могут потреблять редкие '
+    + 'руды, минералы и самоцветы (000157.04)» (текст ТЗ дословно)');
+});

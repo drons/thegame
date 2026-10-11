@@ -458,10 +458,11 @@ test('CU-4. состав экрана: виды с уровнем, рецепт�
     'ошибок загрузки цепочки нет: ' + h.errors.join('; '));
   const G = h.sandbox.Game;
   const b8 = G.getBuilding(8);
-  // Кузница: ровно 6 рецептов, все — кузнечное_дело.
+  // Кузница: ровно 9 рецептов, все — кузнечное_дело (6 старых + 3 новые
+  // 000157.04: steel_sword_ore/war_hammer_copper/war_hammer_mithril).
   const here = G.Craft.CRAFT
     .filter((r) => Array.isArray(r.здания) && r.здания.includes(8));
-  assert.equal(here.length, 6, 'у здания 8 — 6 рецептов (каталог)');
+  assert.equal(here.length, 9, 'у здания 8 — 9 рецептов (каталог)');
   const c = G.createCharacter();
   c.craft = { кузнечное_дело: 3 };
   assert.ok(G.craftUI && typeof G.craftUI.open === 'function',
@@ -477,7 +478,7 @@ test('CU-4. состав экрана: виды с уровнем, рецепт�
   assert.ok(/уровень\s*3/.test(all),
     'уровень виду L = craftLevel(hero, вид) = 3; факт: '
     + (all.match(/[^\n]*уровень[^\n]*/g) || []).join(' | '));
-  // Все 6 рецептов здания — на экране (чужие — нет).
+  // Все 9 рецептов здания — на экране (чужие — нет).
   for (const r of here) {
     assert.ok(all.includes(r.название),
       'рецепт на экране: ' + r.название);
@@ -490,7 +491,7 @@ test('CU-4. состав экрана: виды с уровнем, рецепт�
   }
   // Кнопки «изготовить»: data-craftact='craft' data-recipe=<id>.
   const btns = findAll(ov, 'button[data-craftact="craft"]');
-  assert.equal(btns.length, 6, 'кнопка на каждый рецепт здания');
+  assert.equal(btns.length, 9, 'кнопка на каждый рецепт здания');
   const ids = Array.from(btns.map((b) => b.dataset.recipe).sort());
   assert.deepEqual(ids, Array.from(here.map((r) => r.id).sort()),
     'data-recipe — id рецепта');

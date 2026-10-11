@@ -1206,3 +1206,114 @@ test('sanitizeEquipmentBonus/sanitizeInventory: bonus в сейве — чист
     { id: 'healing_potion', qty: 2, bonus: { amount: 1 } },
   ], quick: [null, null, null] }, 'bonus-слот не сливается со стопкой');
 });
+
+// --- Задача 000157.04: рецепты на руды/минералы/самоцветы (TDD) ---
+//
+// Зеркало canCraft/craft с новыми реагентами (scripted-rng;
+// memory/000157.04-craft-ore-recipes.md §3.1). На текущем зеркале
+// (19 рецептов) оба теста падают с «неизвестный рецепт».
+
+test('000157.04 R6: war_hammer_copper — «база» war_hammer: нехватка copper_ore + атомарность; успех — качество+выход гарантированы (2 слота, бонус у одного)', () => {
+  const C = loadCraft();
+  // Нехватка: руды 1 (рецепт требует 2) — причина первого
+  // нехватившегося исходника, canCraft — зеркало, атомарность.
+  const p = createCharacter();
+  p.craft = { 'кузнечное_дело': 7 };
+  give(p, 'iron_sword', 1);
+  give(p, 'battle_axe', 1);
+  give(p, 'sulfur', 1);
+  give(p, 'copper_ore', 1);
+  give(p, 'coal', 1);
+  const before = JSON.stringify(p.inventory);
+  const r = C.craft(p, 'war_hammer_copper', { building: 8, rng: NO_ROLLS });
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'не хватает: ' + I.getItem('copper_ore').name);
+  assert.equal(C.canCraft(p, 'war_hammer_copper', { building: 8 }).reason,
+    'не хватает: ' + I.getItem('copper_ore').name,
+    'зеркало: canCraft даёт ту же причину');
+  assert.equal(JSON.stringify(p.inventory), before,
+    'инвентарь не тронут (атомарность)');
+  // Успех (кузнечное_дело 7, Кузница): «база» → качество И выход
+  // гарантированы (NO_ROLLS — rng неважен); оружие — 2 слота
+  // (bonus-копия + extra-копия), бонус {damage: 1} (forge 0).
+  const p2 = createCharacter();
+  p2.craft = { 'кузнечное_дело': 7 };
+  give(p2, 'iron_sword', 1);
+  give(p2, 'battle_axe', 1);
+  give(p2, 'sulfur', 1);
+  give(p2, 'copper_ore', 2);
+  give(p2, 'coal', 1);
+  let rngCalls = 0;
+  const snap = JSON.stringify(p2.inventory);
+  const cc = C.canCraft(p2, 'war_hammer_copper', {
+    building: 8, rng: () => { rngCalls += 1; return 0.999; },
+  });
+  assert.equal(cc.ok, true, cc.reason);
+  assert.equal(rngCalls, 0, 'canCraft не вызывает rng');
+  assert.equal(JSON.stringify(p2.inventory), snap,
+    'canCraft без побочных эффектов');
+  const r2 = C.craft(p2, 'war_hammer_copper', { building: 8, rng: NO_ROLLS });
+  assert.equal(r2.ok, true, r2.reason);
+  assert.equal(r2.item, 'war_hammer', 'результат — предмет базы');
+  assert.equal(r2.quality, true, '«база»: качество гарантировано (rng неважен)');
+  assert.equal(r2.extra, true, '«база»: выход гарантирован (rng неважен)');
+  const slots = p2.inventory.slots.filter((s) => s.id === 'war_hammer');
+  assert.equal(slots.length, 2, 'bonus-копия + extra-копия (оружие не складывается)');
+  assert.equal(slots.filter((s) => s.bonus).length, 1, 'бонус у одного слота');
+  assert.equal(slots.find((s) => s.bonus).bonus.damage, 1,
+    'weapon → {damage}, forge 0 → +1');
+  assert.equal(I.totalQty(p2, 'iron_sword'), 0, 'исходники сняты');
+  assert.equal(I.totalQty(p2, 'copper_ore'), 0, 'исходники сняты');
+});
+
+test('000157.04 R7: diamond_cut — огранка «с нуля» в поле: нехватка + атомарность; успех (резьба_по_камню 8) — diamond ×1, без «база» (качество/выход — обычные, реагент без бонуса)', () => {
+  const C = loadCraft();
+  // Нехватка: кварца 2 (рецепт требует 3) — причина + атомарность +
+  // зеркало canCraft (в поле, building null).
+  const p = createCharacter();
+  p.craft = { 'резьба_по_камню': 8 };
+  give(p, 'stone_chunk', 5);
+  give(p, 'quartz', 2);
+  give(p, 'amethyst', 1);
+  give(p, 'stone_chisel', 1);
+  const before = JSON.stringify(p.inventory);
+  const r = C.craft(p, 'diamond_cut', { building: null, rng: NO_ROLLS });
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'не хватает: ' + I.getItem('quartz').name);
+  assert.equal(C.canCraft(p, 'diamond_cut', { building: null }).reason,
+    'не хватает: ' + I.getItem('quartz').name,
+    'зеркало: canCraft даёт ту же причину');
+  assert.equal(JSON.stringify(p.inventory), before,
+    'инвентарь не тронут (атомарность)');
+  // Успех (в поле, building null, NO_ROLLS): без «база» — гарантии
+  // НЕТ: качество 0 (поле) и выход не выпал; результат — реагент
+  // без бонуса.
+  const p2 = createCharacter();
+  p2.craft = { 'резьба_по_камню': 8 };
+  give(p2, 'stone_chunk', 5);
+  give(p2, 'quartz', 3);
+  give(p2, 'amethyst', 1);
+  give(p2, 'stone_chisel', 1);
+  let rngCalls = 0;
+  const snapBefore = JSON.stringify(p2.inventory);
+  const cc = C.canCraft(p2, 'diamond_cut', {
+    building: null, rng: () => { rngCalls += 1; return 0.999; },
+  });
+  assert.equal(cc.ok, true, cc.reason);
+  assert.equal(rngCalls, 0, 'canCraft не вызывает rng');
+  assert.equal(JSON.stringify(p2.inventory), snapBefore,
+    'canCraft без побочных эффектов');
+  const r2 = C.craft(p2, 'diamond_cut',
+    { building: null, rng: () => { rngCalls += 1; return 0.999; } });
+  assert.equal(r2.ok, true, r2.reason);
+  assert.equal(r2.item, 'diamond', 'результат — самоцвет (существующий предмет)');
+  assert.equal(r2.qty, 1);
+  assert.equal(r2.quality, false, 'без «база»: в поле качества нет (NO_ROLLS)');
+  assert.equal(r2.extra, false, 'без «база»: выход не выпал (NO_ROLLS)');
+  assert.equal(I.totalQty(p2, 'diamond'), 1, 'результат в инвентаре');
+  const slot = p2.inventory.slots.find((s) => s.id === 'diamond');
+  assert.ok(slot, 'слот результата');
+  assert.equal(slot.bonus, undefined,
+    'у реагента нет бонуса качества (resultStatKey null)');
+  assert.equal(I.totalQty(p2, 'stone_chisel'), 0, 'исходники сняты');
+});

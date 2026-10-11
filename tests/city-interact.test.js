@@ -1392,16 +1392,17 @@ async function walkToShopAndDialog(existingStorage) {
   return { h, G, g, found, npc, ov, b5 };
 }
 
-test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог» → торговля Хольда (6 позиций 000011.json); покупка wood_log — ГЛОБАЛЬНЫЙ сток npcStocks (ключ npcId); городская запись стока у Лавки НЕТ (spec/buildings.md «Магазины»); повторный диалог — сток живой', async () => {
+test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог» → торговля Хольда (8 позиций 000011.json); покупка wood_log — ГЛОБАЛЬНЫЙ сток npcStocks (ключ npcId); городская запись стока у Лавки НЕТ (spec/buildings.md «Магазины»); повторный диалог — сток живой', async () => {
   const { h, G, g, found, npc, ov, b5 } = await walkToShopAndDialog();
   const trade = textOf(ov);
-  // 6 позиций Хольда: «имя (ост. N)» (N — начальное количество) +
+  // 8 позиций Хольда (6 старых + silver_ore/quartz — 000157.04):
+  // «имя (ост. N)» (N — начальное количество) +
   // «покупка P з / продажа S з» (динамические G.npcBuyPrice/
   // npcSellPrice — НЕ хардкод; свежий персонаж = герой спавна:
   // buyPriceMult = sellPriceMult = 1 — у обоих «Торговца» нет).
   assert.ok(npc.торговля && Array.isArray(npc.торговля.предметы));
-  assert.equal(npc.торговля.предметы.length, 6,
-    'Хольд — ровно 6 позиций сырья (000011.json)');
+  assert.equal(npc.торговля.предметы.length, 8,
+    'Хольд — ровно 8 позиций сырья (000011.json)');
   const c0 = G.createCharacter();
   for (const p of npc.торговля.предметы) {
     const it = G.getItem(p.предмет);

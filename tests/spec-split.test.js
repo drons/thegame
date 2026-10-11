@@ -104,7 +104,7 @@ const SPEC_FILE_LINES = {
   "efir-spirit.md": 136,
   "skills.md": 100,
   "spells.md": 98,
-  "craft.md": 116,
+  "craft.md": 117, // 000157.04: +1 (буллет «Улучшенные способы…», H2 «Рецепты»)
   "npc.md": 7,
   "skills-storage.md": 38,
   "buildings-storage.md": 44,
