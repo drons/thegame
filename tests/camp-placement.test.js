@@ -201,12 +201,18 @@ function bfsCamps(map, start, radius) {
 // Ближайший лагерь (−18,−12): terrain 3 (трава), wealth 1;
 // второй ближайший (8,22): terrain 3, wealth 2; оба 30 шагов.
 // BFS-70 (e2e-семантика) — ровно 11 лагерей: (x, y) → steps.
+// РЕ-ПИН 000158 (тех: новое поле loot — контент пустого тайла,
+// tests/map-loot.test.js): оба тайла — ВХОД лагеря (inBuilding →
+// постройка) → loot: null гарантированно исключением (приоритет
+// строительство > лут), остальные поля byte-в-те же. Без поля
+// CP-4 (deepEqual полного объекта) падает.
 const CAMP_GOLDEN_TILE_A = {
   x: -18, y: -12, terrain: 3, passable: true,
   hasBuilding: true, building: -1, buildingWealth: 1,
   hasMobGroup: false, mobGroup: -1,
   inBuilding: true, isEntrance: true,
   buildingAnchor: [-18, -12], buildingId: 47,
+  loot: null,
 };
 const CAMP_GOLDEN_REC_A = {
   anchor: [-18, -12], type: -1, x: -18, y: -12, w: 1, h: 1,
@@ -218,6 +224,7 @@ const CAMP_GOLDEN_TILE_B = {
   hasMobGroup: false, mobGroup: -1,
   inBuilding: true, isEntrance: true,
   buildingAnchor: [8, 22], buildingId: 47,
+  loot: null, // РЕ-ПИН 000158 (вход лагеря — постройка → null)
 };
 const CAMP_GOLDEN_REC_B = {
   anchor: [8, 22], type: -1, x: 8, y: 22, w: 1, h: 1,

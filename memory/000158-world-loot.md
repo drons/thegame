@@ -547,6 +547,45 @@ schema.json `размер` minimum 0.05→0.18 (текущий 0.05/0.5 — пе
   '100,-40,7,5,44,3' byte-identical 4156dcb↔636d92b (чистый
   apply ожидаем; якоря — §11 memory/000158.02-...). Подробности —
   memory/000158.02-natural-ingredients-loot.md §11.
+* **000158.03 ДИЗАЙН (2026-10-11; работа в worktree на базе master
+  ffe12ac, где 000158.02 уже смержен)**: дизайн ЗАФИКСИРОВАН —
+  memory/000158.03-world-loot-core.md (контракты, код, D1-D13).
+  ОДИН кодовый файл src/map.js: 6-й UMD-аргумент items-data.js
+  (node-require; чистые данные — цикла нет), ленивое
+  lootItemsRef/lootCandidates (live Game.ITEMS), LOOT_SEED =
+  GLOBAL_SEED ^ 0x4C4F4F54 (экспорт + пин MLS), per-map
+  nearMountain (8-окрестность Чебышёв-1, terrainAt той же карты,
+  nmCache 65536/clear — fpCache-прецедент) + lootCore +
+  self-contained публичная lootAt; поле tileAt `loot:
+  {item}|null` ТОЛЬКО в ветке `passable && !cover && !hasMobGroup`
+  (старые 13 полей byte-в-те же). itemId-ключ хэша = позиция в
+  ITEMS (0-based, append-only). Ролл — старшие 24 бита
+  hash2/16777216 < frequency; победитель — макс roll/frequency,
+  строгий > (ранее в каталоге). Деградация БЕЗ items-data —
+  МОЛЧА (loot null, ноль console.*). Тесты: НОВЫЙ
+  tests/map-loot.test.js (ML1-ML8 + ML7b), map.test.js (GOLDEN_
+  TILES ×48 ре-пин + MNM nearMountain + MLS сид-пин + vm-цепь L433
+  += items-data.js), camp-placement (тех-ре-пин
+  CAMP_GOLDEN_TILE_A/B loot:null — CP-4 deepEqual). Базелин
+  2106/2106 (факт @ ffe12ac); финал 2117/2117; RED — ровно 13
+  красных. Σf: трава 0.32 / болото 0.15 / лес 0.46 (В ЭТОМ ФАЙЛЕ
+  §4.3/§7 написано 0.48 — арифметическая ошибка документа, факт
+  суммы каталога = 0.46; ядро НЕ перебалансировано) / песок
+  0.305. CHANGELOG — НЕ трогать (игроку невидимо до 000158.04/05;
+  прецедент 000158.02 D12). Rebase на master ≥ ffe12ac ОБЯЗАТЕЛЕН
+  (в-flight 000157.02/000148.02/.03/000153.02 map.js не трогают).
+* **000158.03 РЕШЕНО (2026-10-11, станция РЕАЛИЗАЦИЯ)**:
+  src/map.js по зафиксированному дизайну (контракты/код —
+  memory/000158.03-world-loot-core.md §1-§3, статус §11). npm
+  test: RED 2104/13 → **GREEN 2117/2117**. Факты D11: GOLDEN
+  48 — старые 13 полей byte-в-те же; лут у 2 из 6 «сухих»
+  травяных: (−58,−1) berry_red, (−58,1) herb_wind (остальные
+  46 — null исключением). MNM/ML6/ML3/MLS-пины — как в RED-
+  симуляции (подтверждено кодом). Тех-правка: у
+  CAMP_GOLDEN_TILE_B в RED-коммите `loot: null` не было (CP-4
+  deepEqual) — добавлено. Блокирующие 000158.04/05 разблокированы:
+  контракт — `t.loot` ({item}|null) + публичные map.lootAt /
+  map.nearMountain.
 
 ## 8. Исправления артефактов ПЕРЕД коммитом (делает Finalize)
 

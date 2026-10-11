@@ -14,16 +14,19 @@
   if (typeof module === 'object' && module.exports) {
     // SETTINGS (5-й аргумент) — параметры городского канала (задача
     // 000103); global-settings.js не имеет зависимостей — цикла
-    // require нет.
+    // require нет. itemsData (6-й аргумент) — каталог лута (задача
+    // 000158): items-data.js — чистые данные БЕЗ require — цикла
+    // require нет; items.js НЕ требовать — он требует map.js (цикл).
     module.exports = factory(require('./perlin.js'), require('./buildings.js'),
       require('./mob-groups-data.js'), undefined,
-      require('./global-settings.js').SETTINGS);
+      require('./global-settings.js').SETTINGS,
+      require('./items-data.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
       factory(typeof root.Game === 'object' ? root.Game : {}, null, null, root,
-        null));
+        null, null));
   }
-})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, catalog, mobGroups, root, settings) {
+})(typeof globalThis !== 'undefined' ? globalThis : self, function (perlin, catalog, mobGroups, root, settings, itemsData) {
 
   const createPerlin2D = perlin.createPerlin2D;
   const hash2 = perlin.hash2;
@@ -193,6 +196,17 @@
   // hash2-пины + GOLDEN_TILES).
   const SUBTYPE_SEED_CONST = GLOBAL_SEED ^ 0x53554254;
 
+  // Сид канала лута (задача 000158): ЗАФИКСИРОВАН —
+  // GLOBAL_SEED ^ 0x4C4F4F54 (ASCII «LOOT»; прецеденты
+  // CITY_SEED_CONST = …^0x43495459 «CITY», SUBTYPE_SEED_CONST =
+  // …^0x53554254 «SUBT»). Свой сид — НЕ GLOBAL_SEED (слотовой
+  // hash), НЕ сиды городов/подтипов/мобов (…^0xabcdef), НЕ
+  // VISUALS_SEED (sprites.js): лут детерминированно зависит только
+  // от позиции тайла и каталога. Смена константы = смена карты лута
+  // — недопустима без перепина (tests/map.test.js: MLS-пин,
+  // GOLDEN_TILES поле loot).
+  const LOOT_SEED = GLOBAL_SEED ^ 0x4C4F4F54;
+
   const TERRAIN = {
     DEEP_WATER: 0,
     WATER: 1,
@@ -356,6 +370,53 @@
       names,
     };
     return _mobGroupDerived;
+  }
+
+  // --- Каталог лута (задача 000158) ---
+  //
+  // Предметы с полем loot (items-data.js). В node приходит через
+  // require (6-й UMD-аргумент); в браузере/vm — ЛЕНИВО из живого
+  // Game.ITEMS в момент вызова (плоское поле, items-data.js;
+  // паттерн mobGroupsRef — функции, не константы: переживает
+  // Object.assign-ловушку 000038/000055). Кэш ПУСТОГО вывода
+  // запрещён (000055): items-data.js может подхватиться позже в
+  // тот же sandbox — следующий вызов обязан дать каталог.
+  // Деградация МОЛЧА (ни одного console.*) — домовой паттерн
+  // каналов map.js (buildingDerived/cityDerived/campDerived/…).
+  let _lootCandidates = null;
+
+  // Каталог (инъекция node / Game.ITEMS в момент вызова) или null.
+  function lootItemsRef() {
+    if (itemsData && Array.isArray(itemsData.ITEMS)) return itemsData.ITEMS;
+    const g = root && root.Game;
+    return g && Array.isArray(g.ITEMS) ? g.ITEMS : null;
+  }
+
+  // Кандидаты: вывод из каталога (таблица {id, index, terrains,
+  // nearMountains, frequency}) или null. index — ПОЗИЦИЯ предмета
+  // в ITEMS (0-based; append-only-инвариант каталога — ключ лут-
+  // хэша). Дефолты ЧТЕНИЯ: frequency 0.1, near_mountains false
+  // (000158.02 §4.3).
+  function lootCandidates() {
+    if (_lootCandidates) return _lootCandidates;
+    const items = lootItemsRef();
+    if (!items) return null;
+    const out = [];
+    items.forEach((it, i) => {
+      const L = it && it.loot;
+      if (!L || typeof L !== 'object' || !Array.isArray(L.terrains) ||
+          L.terrains.length === 0 || typeof it.id !== 'string') return;
+      out.push({
+        id: it.id,
+        index: i,
+        terrains: L.terrains,
+        nearMountains: L.near_mountains === true,
+        frequency: typeof L.frequency === 'number' ? L.frequency : 0.1,
+      });
+    });
+    if (out.length === 0) return null;
+    _lootCandidates = out;
+    return out;
   }
 
   /** Число стационарных групп (7, пока каталог не подхвачен — фолбэк). */
@@ -920,6 +981,79 @@
       return null;
     }
 
+    // --- Лут (задача 000158): единая точка контента тайла ---
+    // Чистые функции инстанса: пиксели/террейн — от этой карты.
+    // Кэш nearMountain — чистая мемоизация (fpCache-прецедент):
+    // без кэша perf-тест (160k tileAt, бюджет 5000 мс) уходит в
+    // load-флейк; с кэшем — в норме.
+    const nmCache = new Map();
+
+    // Гора в 8-окрестности (Чебышёв-1, центр НЕ считается) — чистый
+    // предикат по terrainAt той же карты (НЕ через tileAt — perf).
+    // SPEC: «проходимые тайлы в 8-окрестности гор». Обход —
+    // фиксированный порядок (детерминизм), early-exit на первой горе.
+    function nearMountain(x, y) {
+      const key = x + ',' + y;
+      const hit = nmCache.get(key);
+      if (hit !== undefined) return hit;
+      let found = false;
+      for (let dy = -1; dy <= 1 && !found; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          if (terrainAt(x + dx, y + dy).terrain === TERRAIN.MOUNTAIN) {
+            found = true;
+            break;
+          }
+        }
+      }
+      if (nmCache.size > 65536) nmCache.clear(); // fpCache-прецедент
+      nmCache.set(key, found);
+      return found;
+    }
+
+    // Ядро выбора лута: тайл УЖЕ проверен вызывающим (passable,
+    // !cover, !mob). Чистая: hash2 + nearMountain + terrain.
+    // Кандидат — terrains ⊇ террейн тайла ИЛИ (near_mountains &&
+    // гора в 8-окрестности). Ролл — паттерн tileVisuals (старшие
+    // 24 бита hash2); победитель — МАКС roll/frequency, строгий >
+    // (равный score — ранее в каталоге); ровно ОДИН предмет.
+    function lootCore(x, y, terrain) {
+      const cands = lootCandidates();
+      if (!cands) return null; // каталога нет → пусто (тихо)
+      const name = TERRAIN_NAMES[terrain];
+      let needMountain = false;
+      for (const c of cands)
+        if (c.nearMountains && !c.terrains.includes(name)) {
+          needMountain = true;
+          break;
+        }
+      const nm = needMountain ? nearMountain(x, y) : false; // лениво
+      let best = null, bestScore = -1;
+      for (const c of cands) {
+        if (!c.terrains.includes(name) && !(c.nearMountains && nm)) continue;
+        const roll = (hash2(x, y, LOOT_SEED + c.index * 0x9e3779b9) >>> 8)
+          / 16777216;
+        if (roll >= c.frequency) continue;
+        const score = roll / c.frequency; // < 1
+        if (score > bestScore) { best = c; bestScore = score; }
+      }
+      return best ? { item: best.id } : null;
+    }
+
+    // Публичная (тесты/000158.04): САМОДОСТАТОЧНАЯ — свои проверки
+    // (passable → footprint → mob-канал ЧТЕНИЕМ → lootCore).
+    // Формула mob-канала дублируется чтением (те же офсеты/порог —
+    // канал byte-в-те же, пины не трогаются).
+    function lootAt(x, y) {
+      const { terrain, passable } = terrainAt(x, y);
+      if (!passable) return null; // вода/горы — никогда
+      if (coveringFootprint(x, y)) return null; // любой тайл footprint
+      const fm = features.fbm(
+        x * FEATURE_SCALE + 903.7, y * FEATURE_SCALE + 903.7, 3);
+      if (fm > 0.31 + 0.14 * (1 - pixelAt(x, y)[3] / 255)) return null;
+      return lootCore(x, y, terrain); // моб приоритетнее
+    }
+
     /**
      * Состояние тайла в целочисленных координатах (x, y).
      * buildingId (задачи 000103/000073): id каталожной записи,
@@ -935,6 +1069,7 @@
      *   inBuilding:boolean, isEntrance:boolean,
      *   buildingAnchor:[number,number]|null,
      *   buildingId:number|null,
+     *   loot:{item:string}|null,
      * }}
      */
     function tileAt(x, y) {
@@ -963,6 +1098,15 @@
       // 000057): без каталога — фолбэк 7, генерация не меняется.
       const mobGroup = hasMobGroup ? hash2(x, y, GLOBAL_SEED ^ 0xabcdef) % mobGroupCount() : MOB_GROUP_TYPES.NONE;
 
+      // Задача 000158: лут — взаимоисключающий контент ТОЛЬКО где
+      // раньше было пусто: постройка (любой тайл footprint, включая
+      // вход) > моб > лут > пусто. passable — сырая террейнная
+      // (см. выше): вода/горы не доходят до lootCore («вода —
+      // никогда» — структурно, не только по каталогу); nearMountain
+      // на непроходимых тайлах не вызывается (perf).
+      const loot = (passable && !cover && !hasMobGroup)
+        ? lootCore(x, y, terrain) : null;
+
       return {
         x, y, terrain,
         passable: walkable,
@@ -980,6 +1124,9 @@
         // (51..54 у городов; подтипы слотов 8..12; null иначе —
         // см. JSDoc tileAt).
         buildingId: cover ? cover.buildingId : null,
+        // Задача 000158: контент ПУСТОГО тайла (взаимоисключающий:
+        // строительство > моб > лут > пусто) — {item: id} | null.
+        loot,
       };
     }
 
@@ -994,6 +1141,9 @@
       pixelAt,
       tileAt,
       buildingAt, // запись постройки по якорю (read-only, 000042)
+      // read-only/чистые функции инстанса (000158): лут тайла и
+      // предикат «рядом с горой» (8-окрестность).
+      lootAt, nearMountain,
       brightness,
     };
   }
@@ -1148,6 +1298,7 @@
     GLOBAL_SEED,
     CITY_SEED_CONST, // сид городского канала (задача 000103) — golden-пины
     SUBTYPE_SEED_CONST, // сид подтипов слотов 8..12 (задача 000073)
+    LOOT_SEED, // сид канала лута (задача 000158) — golden-пины
     subtypeFor, // подтип слотового якоря (000073): id записи или null
     TERRAIN, TERRAIN_NAMES, TERRAIN_DATA,
     BUILDING_TYPES,
