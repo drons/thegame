@@ -192,6 +192,11 @@ function findCanvas(el) {
 //     index.html, 000067). OPT-IN: цепочка по умолчанию без sprites.js
 //     НЕ меняется (тест пола предусловием проверяет
 //     G.dungeonFloorFrame === undefined).
+//   withBuildings — buildings.js в цепочке ПОСЛЕ map.js (порядок
+//     index.html 858<875, 000148.02). OPT-IN: цепочка по умолчанию
+//     БЕЗ buildings.js НЕ меняется (существующие 53 теста её не
+//     читают). buildings.js самодостаточен (чист на загрузке,
+//     console.error не генерирует).
 // window-стаб — с innerWidth/innerHeight (числа, меняемы тестом =
 // симуляция ресайза; canvas обязан подгоняться в rAF-цикле).
 function loadDungeonUi(opts = {}) {
@@ -230,6 +235,9 @@ function loadDungeonUi(opts = {}) {
   // (x, y, seed) без perlin).
   if (!opts.withoutPerlin) chain.push('perlin.js');
   chain.push('map.js');
+  // 000148.02: buildings.js ПОСЛЕ map.js (порядок index.html 858<875) —
+  // каталог для резолва каталожного id → слот (getBuilding).
+  if (opts.withBuildings) chain.push('buildings.js');
   if (!opts.withoutControls) chain.push('controls.js');
   if (opts.withCombat) {
     // 000151: combat-scale.js — ПЕРЕД combat-ui.js (та же пара, что в
@@ -1934,6 +1942,10 @@ const CITIES = require('../src/cities.js');
 // Состояние города — форма main.js enterCity (000105): dg = layout
 // (createCityLayout), contents = null (000106), kind = 'city',
 // name = название_карты, первая клетка — layout.entrance.
+// 000148.02: cityContents — ТОЧНАЯ production-форма (locations.js:
+// ds.cityContents = {buildings, seed} | null); ПО УМОЛЧАНИЮ null
+// (аддитивно — существующие тесты его не читают). opts.cityContents —
+// прокидывание (имя = поле состояния).
 function makeCityState(opts = {}) {
   const fp = opts.fp != null ? opts.fp : 1;
   const cx = opts.cx != null ? opts.cx : -119;
@@ -1950,10 +1962,12 @@ function makeCityState(opts = {}) {
     prevX: d.entrance.x,
     prevY: d.entrance.y,
     log: [name + ': вход.'],
+    cityContents: null, // 000148.02: {buildings:[{x,y,buildingId}], seed} | null
   };
   if (opts.px != null) s.x = opts.px;
   if (opts.py != null) s.y = opts.py;
   if (opts.pos) s.pos = opts.pos;
+  if (opts.cityContents !== undefined) s.cityContents = opts.cityContents;
   return s;
 }
 
@@ -2368,6 +2382,328 @@ test('город UI 000105: структурный — dungeon-ui.js НЕ соз
   assert.ok(!text.includes('createCityLayout'),
     'dungeon-ui.js не ссылается на createCityLayout '
     + '(layout создаётся в main.js)');
+});
+
+// =====================================================================
+// Задача 000148.02: рендер построек внутри города (слой СПРАЙТОВ
+// cityContents.buildings поверх пола, finding G1 аудита 000148).
+// =====================================================================
+//
+// Контракт: memory/000148.02-city-building-sprites.md. Внутренний
+// экран города остаётся hex-палитрой (000110/R10) — добавляется слой
+// СПРАЙТОВ (drawImage), а не SVG-из-экрана. Спрайты — ОБЩИЙ набор с
+// картой мира (G.buildingSprite, assets/sprites/buildings/). buildingSprite
+// КЛЮЧИРОВАН ПО СЛОТУ (BUILDING_TYPES 0..12), cityContents.buildings —
+// КАТАЛОЖНЫЕ id → резолв через каталог (getBuilding): базовые —
+// особых_параметры.map_index, субтипы — особых_параметры.размещение.слот.
+// НОВЫХ RNG НЕТ (D10) — рендер чистая функция. ds.contents у города
+// null — слой читает ТОЛЬКО s.cityContents (000109).
+//
+// КРАСНЫЕ (падают ДО реализации — слоя в dungeon-ui.js нет):
+//   * базовая постройка (id 44, map_index) → drawImage спрайта СЛОТА,
+//     позиция = клетка (worldToScreen), размер zoom×zoom, hex-пол сохранён;
+//   * субтип (размещение.слот, без map_index) + несколько построек;
+//   * базовые id (1/25/36/44) + неизвестный id (999) — skip;
+//   * viewport-клип (18×18 @ 40, cam clamp (9,10.5)): клетка (0,0)
+//     урезана, (9,9) нарисована.
+// ЗЕЛЁНЫЕ (регрессия-фиксация, зелёные с первого запуска):
+//   * свободные клетки / buildings: [] / cityContents: null — спрайтов нет;
+//   * деградация (цепочка без sprites.js/buildings.js) — краха нет;
+//   * изображение не готово (loader без путей) — skip;
+//   * детерминизм (D10) — два рендера идентичны.
+//
+// Песочница: loadDungeonUi({ withSprites: true, withBuildings: true }) —
+// sprites.js (G.buildingSprite) и buildings.js (G.getBuilding) в цепочке
+// ДО dungeon-ui.js (порядок index.html). УМД-ловушка учтена: слой читает
+// getBuilding/buildingSprite через liveGame() в момент вызова.
+
+// 000148.02: каталожный id → путь спрайта СЛОТА (зеркало резолва из
+// ТЗ/контракта: map_index | размещение.слот → G.buildingSprite).
+// Тестируем резолв ОТСУТСТВИЕМ/НАЛИЧИЕМ drawImage, а не этим хелпером —
+// хелпер — независимая реконструкция ожидаемого пути (как worldToScreen).
+function buildingSpritePath(G, id) {
+  const rec = typeof G.getBuilding === 'function' ? G.getBuilding(id) : null;
+  if (!rec) return null;
+  const op = rec.особые_параметры || {};
+  const slot = Number.isInteger(op.map_index)
+    ? op.map_index
+    : (op.размещение && Number.isInteger(op.размещение.слот)
+       ? op.размещение.слот : null);
+  return slot == null ? null : G.buildingSprite(slot);
+}
+
+// 000148.02: drawImage-вызовы СПРАЙТОВ ПОСТРОЕК (префикс
+// assets/sprites/buildings/ — не пересекается с door.svg (assets/
+// dungeon/) и игроком (assets/sprites/phlogiston/)).
+function buildingDrawCalls(calls) {
+  return calls.filter((c) => c[0] === 'drawImage'
+    && c[1][0] && typeof c[1][0].__img === 'string'
+    && c[1][0].__img.indexOf('assets/sprites/buildings/') === 0);
+}
+
+test('город UI 000148.02 (RED): базовая постройка (id 44, map_index) → drawImage спрайта СЛОТА на клетке, zoom×zoom, hex-пол сохранён', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  const path = buildingSpritePath(G, 44); // id 44 «Таверна» → слот 11 → tavern.svg
+  assert.ok(path && path.indexOf('assets/sprites/buildings/') === 0,
+    'предусловие: каталожный id 44 резолвится в путь спрайта СЛОТА: ' + path);
+  // Ревью 000148.02: ЛИТЕРАЛЬНЫЙ якорь резолва (44 → map_index 11 →
+  // tavern.svg) — защита от общего дефекта зеркального резолва (тест
+  // и реализация считают путь одним выражением; префикс-пин этого
+  // не видит).
+  assert.equal(path, 'assets/sprites/buildings/tavern.svg',
+    'предусловие: id 44 — литеральный путь tavern.svg (якорь резолва)');
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: { buildings: [{ x: 2, y: 2, buildingId: 44 }], seed: 0 } });
+  // 6x6 @ 48 → 288 ≤ 600 → cam центрирован (3,3). Позиция = угол клетки.
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([path]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  const p = G.worldToScreen(2, 2, 3, 3, 48, VW, VH);
+  const hit = calls.find((c) => c[0] === 'drawImage'
+    && Math.abs(c[1][1] - p.x) <= 1e-9
+    && Math.abs(c[1][2] - p.y) <= 1e-9
+    && c[1][3] === 48 && c[1][4] === 48
+    && c[1][0] && c[1][0].__img === path);
+  assert.ok(hit,
+    'базовая постройка (2,2) id 44 — drawImage спрайта СЛОТА (' + path + ') '
+    + 'на угле клетки, zoom×zoom (worldToScreen(2,2,3,3,48)); '
+    + 'сейчас building-спрайтов: ' + buildingDrawCalls(calls).length);
+  // hex-палитра сохранена (R10): пол (2,2) — fillRect городского цвета
+  // (спрайт лежит НА поле, НЕ заменяет его).
+  const colors = cityCellColors(calls, G, s, 48, 3, 3);
+  assert.ok(colors['2,2'], 'пол (2,2) нарисован fillRect (под постройкой)');
+  assert.notEqual(colors['2,2'], '#182029',
+    'пол (2,2) — не фолбэк-пол подземелья (hex сохранён)');
+  assert.notEqual(colors['2,2'], '#0a0d12', 'пол (2,2) — не фон «за пределами»');
+  assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
+});
+
+test('город UI 000148.02 (RED): субтип (размещение.слот, без map_index) + несколько построек', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  // id 45 «Колодец» — СУБТИП без map_index (размещение.слот 11 → tavern.svg);
+  // id 37 «Храм луны» — СУБТИП (размещение.слот 8 → temple.svg). ЕДИНСТВЕННЫЙ
+  // тест ветки размещения.слот (без map_index).
+  const p45 = buildingSpritePath(G, 45);
+  const p37 = buildingSpritePath(G, 37);
+  assert.ok(p45 && p45.indexOf('assets/sprites/buildings/') === 0,
+    'предусловие: субтип id 45 резолвится через размещение.слот: ' + p45);
+  assert.ok(p37 && p37.indexOf('assets/sprites/buildings/') === 0,
+    'предусловие: субтип id 37 резолвится через размещение.слот: ' + p37);
+  const rec45 = G.getBuilding(45);
+  assert.ok(!Number.isInteger((rec45.особые_параметры || {}).map_index),
+    'предусловие: у id 45 НЕТ map_index (ветка размещения.слот)');
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: { buildings: [
+      { x: 2, y: 2, buildingId: 45 },
+      { x: 4, y: 4, buildingId: 37 },
+    ], seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([p45, p37]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  const bdc = buildingDrawCalls(calls);
+  assert.equal(bdc.length, 2,
+    'две постройки — ровно 2 building-спрайта (сейчас: ' + bdc.length + ')');
+  const at = (id, x, y) => {
+    const pp = G.worldToScreen(x, y, 3, 3, 48, VW, VH);
+    const exp = buildingSpritePath(G, id);
+    return bdc.some((c) => Math.abs(c[1][1] - pp.x) <= 1e-9
+      && Math.abs(c[1][2] - pp.y) <= 1e-9
+      && c[1][3] === 48 && c[1][4] === 48
+      && c[1][0] && c[1][0].__img === exp);
+  };
+  assert.ok(at(45, 2, 2),
+    'субтип id 45 — спрайт ' + p45 + ' на клетке (2,2) (размещение.слот)');
+  assert.ok(at(37, 4, 4),
+    'субтип id 37 — спрайт ' + p37 + ' на клетке (4,4) (размещение.слот)');
+  assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
+});
+
+test('город UI 000148.02: свободные клетки / buildings: [] / cityContents: null — спрайтов постройки нет, пол как раньше', () => {
+  // (а) buildings: [] — по построению нет спрайтов, пол/стены как раньше.
+  {
+    const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+      withSprites: true, withBuildings: true });
+    const G = loaded.G;
+    const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+      cityContents: { buildings: [], seed: 0 } });
+    G.dungeonUI.start({ state: s, onMove() {}, zoom: 48 });
+    const calls = findCanvas(loaded.body).drawCalls;
+    assert.equal(buildingDrawCalls(calls).length, 0,
+      'buildings: [] — building-спрайтов нет');
+    const colors = cityCellColors(calls, G, s, 48, 3, 3);
+    assert.ok(colors['2,2'], 'пол (2,2) нарисован (как раньше)');
+    assert.notEqual(colors['2,2'], '#182029', 'пол — hex (не фолбэк)');
+    assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
+  }
+  // (б) cityContents: null (дефолт makeCityState) — гард skip.
+  {
+    const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+      withSprites: true, withBuildings: true });
+    const G = loaded.G;
+    const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня' });
+    assert.equal(s.cityContents, null,
+      'предусловие: makeCityState по умолчанию — cityContents: null');
+    G.dungeonUI.start({ state: s, onMove() {}, zoom: 48 });
+    const calls = findCanvas(loaded.body).drawCalls;
+    assert.ok(calls.length > 0, 'render при cityContents: null — без падения');
+    assert.equal(buildingDrawCalls(calls).length, 0,
+      'cityContents: null — building-спрайтов нет (гард skip)');
+    const colors = cityCellColors(calls, G, s, 48, 3, 3);
+    assert.ok(colors['2,2'], 'пол (2,2) нарисован (как раньше)');
+    assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
+  }
+});
+
+test('город UI 000148.02 (деградация): цепочка без sprites.js/buildings.js + buildings в state — drawImage нет, краха нет, errors 0', () => {
+  // Дефолтный loadDungeonUi — БЕЗ sprites.js (нет G.buildingSprite) и
+  // БЕЗ buildings.js (нет G.getBuilding). Гарды слоя обязаны тихо
+  // skipнуть (без console.error) — клетка остаётся полом.
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  assert.equal(typeof G.getBuilding, 'undefined',
+    'предусловие: buildings.js не в цепочке — G.getBuilding нет');
+  assert.equal(typeof G.buildingSprite, 'undefined',
+    'предусловие: sprites.js не в цепочке — G.buildingSprite нет');
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: { buildings: [{ x: 2, y: 2, buildingId: 44 }], seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48 });
+  const calls = findCanvas(loaded.body).drawCalls;
+  assert.ok(calls.length > 0, 'render — без краха (нет каталога/спрайтов)');
+  assert.equal(buildingDrawCalls(calls).length, 0,
+    'нет getBuilding/buildingSprite — building-спрайтов нет (тихий skip)');
+  const colors = cityCellColors(calls, G, s, 48, 3, 3);
+  assert.ok(colors['2,2'], 'пол (2,2) нарисован (клетка осталась полом)');
+  assert.equal(loaded.errors.length, 0,
+    'тихая деградация — без console.error: ' + loaded.errors.join('; '));
+});
+
+test('город UI 000148.02 (деградация): изображение не готово (loader без путей) — drawImage нет, errors 0, пол как раньше', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: { buildings: [{ x: 2, y: 2, buildingId: 44 }], seed: 0 } });
+  // Loader без готовых путей — isReady → false, image → null.
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  assert.equal(buildingDrawCalls(calls).length, 0,
+    'изображение не готово — building-спрайт skip');
+  const colors = cityCellColors(calls, G, s, 48, 3, 3);
+  assert.ok(colors['2,2'], 'пол (2,2) нарисован (как раньше)');
+  assert.notEqual(colors['2,2'], '#182029', 'пол — hex (не фолбэк)');
+  assert.equal(loaded.errors.length, 0,
+    'тихая деградация — без console.error: ' + loaded.errors.join('; '));
+});
+
+test('город UI 000148.02 (RED): базовые id (1/25/36/44) + неизвестный id (999) — спрайты по слотам, 999 skip', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  // Базовые id: 1 «Оружейная»(слот 0), 25 «Дом кузнеца»(12),
+  // 36 «Храм солнца»(8, каталог 3×3 → город 1×1), 44 «Таверна»(11).
+  const cells = [
+    [1, 1, 1], [25, 2, 1], [36, 3, 1], [44, 4, 1],
+  ];
+  const paths = cells.map(([id]) => buildingSpritePath(G, id));
+  cells.forEach(([id], i) => {
+    assert.ok(paths[i] && paths[i].indexOf('assets/sprites/buildings/') === 0,
+      'предусловие: id ' + id + ' резолвится в спрайт СЛОТА: ' + paths[i]);
+  });
+  assert.equal(buildingSpritePath(G, 999), null,
+    'предусловие: id 999 — нет каталожной записи (null)');
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: { buildings: [
+      { x: 1, y: 1, buildingId: 1 },
+      { x: 2, y: 1, buildingId: 25 },
+      { x: 3, y: 1, buildingId: 36 },
+      { x: 4, y: 1, buildingId: 44 },
+      { x: 1, y: 2, buildingId: 999 }, // неизвестный — skip
+    ], seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader(paths) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  const bdc = buildingDrawCalls(calls);
+  assert.equal(bdc.length, 4,
+    '4 известные постройки — ровно 4 спрайта; id 999 — skip '
+    + '(сейчас: ' + bdc.length + ')');
+  cells.forEach(([id, x, y]) => {
+    const pp = G.worldToScreen(x, y, 3, 3, 48, VW, VH);
+    const exp = buildingSpritePath(G, id);
+    assert.ok(bdc.some((c) => Math.abs(c[1][1] - pp.x) <= 1e-9
+        && Math.abs(c[1][2] - pp.y) <= 1e-9
+        && c[1][3] === 48 && c[1][4] === 48
+        && c[1][0] && c[1][0].__img === exp),
+      'id ' + id + ' — спрайт ' + exp + ' на клетке (' + x + ',' + y + ')');
+  });
+  // id 999 — клетки (1,2) building-спрайта НЕТ.
+  const p999 = G.worldToScreen(1, 2, 3, 3, 48, VW, VH);
+  assert.ok(!bdc.some((c) => Math.abs(c[1][1] - p999.x) <= 1e-9
+    && Math.abs(c[1][2] - p999.y) <= 1e-9),
+    'id 999 (1,2) — спрайта нет (тихий skip)');
+  assert.equal(loaded.errors.length, 0,
+    'неизвестный id — без console.error: ' + loaded.errors.join('; '));
+});
+
+test('город UI 000148.02 (RED): viewport-клип — 18×18 @ 40 (cam clamp (9,10.5)): (0,0) урезана, (9,9) нарисована', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  const path = buildingSpritePath(G, 44);
+  assert.ok(path && path.indexOf('assets/sprites/buildings/') === 0,
+    'предусловие: id 44 резолвится в спрайт СЛОТА: ' + path);
+  // 18x18 @ 40: по X 18*40=720 ≤ 800 → cam.x=9; по Y 720 > 600 →
+  // cam.y = clamp(вход (14,17)+0.5) = 10.5. visibleTileRange (margin 2)
+  // → y [2,17]: клетка (0,0) УРЕЗАНА, (9,9) в вьюпорте.
+  const s = makeCityState({ fp: 5, cx: 100, cy: -40, name: 'Город',
+    cityContents: { buildings: [
+      { x: 0, y: 0, buildingId: 44 }, // за вьюпортом (y=0 < y0=2)
+      { x: 9, y: 9, buildingId: 44 }, // в вьюпорте
+    ], seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40,
+    spriteLoader: makeSpriteLoader([path]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  const bdc = buildingDrawCalls(calls);
+  assert.equal(bdc.length, 1,
+    'viewport-клип: нарисована ТОЛЬКО (9,9), (0,0) урезана '
+    + '(сейчас: ' + bdc.length + ')');
+  const p99 = G.worldToScreen(9, 9, 9, 10.5, 40, VW, VH);
+  assert.ok(bdc.some((c) => Math.abs(c[1][1] - p99.x) <= 1e-9
+    && Math.abs(c[1][2] - p99.y) <= 1e-9
+    && c[1][3] === 40 && c[1][4] === 40
+    && c[1][0] && c[1][0].__img === path),
+    '(9,9) — спрайт ' + path + ' на угле клетки, zoom×zoom (cam (9,10.5))');
+  assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
+});
+
+test('город UI 000148.02: детерминизм (D10) — два рендера одного города с постройками идентичны', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: { buildings: [
+      { x: 2, y: 2, buildingId: 44 },
+      { x: 4, y: 4, buildingId: 1 },
+    ], seed: 0 } });
+  const paths = [44, 1].map((id) => buildingSpritePath(G, id));
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader(paths) });
+  const canvas = findCanvas(loaded.body);
+  const n0 = canvas.drawCalls.length;
+  G.dungeonUI.render(1000); // тот же now — второй рендер
+  const sig = (seg) => buildingDrawCalls(seg)
+    .map((c) => JSON.stringify([c[1][0].__img, c[1][1], c[1][2], c[1][3], c[1][4]]))
+    .sort();
+  const first = sig(canvas.drawCalls.slice(0, n0));
+  const second = sig(canvas.drawCalls.slice(n0));
+  assert.deepEqual(first, second,
+    'два рендера одного города с постройками — идентичная последовательность '
+    + 'building-спрайтов (D10: в рендере НЕТ RNG)');
+  assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
 });
 
 // --- Тач-D-pad: touchHold/touchRelease (задача 000121) ---

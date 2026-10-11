@@ -223,6 +223,10 @@ tests/locations.test.js, tests/city-screen.test.js, tests/dungeon-ui.test.js,
 tests/city-interact.test.js, tests/portal-exit-e2e.test.js; memory/result.
 
 ### 000148.02 — «Рендер построек внутри города» — P1
+Статус (2026-10-11): в работе — worktree `task-000148.02` (база master
+3bd25ee, после мержа .01); контракт слоя (точка вставки, резолв
+id→слот + таблица, 1×1-правило, тихая деградация, камеры/zoom тестов,
+built-контракт .03) — memory/000148.02-city-building-sprites.md.
 Суть: src/dungeon-ui.js — слой отрисовки cityContents.buildings (спрайты
 G.buildingSprite — assets/sprites/buildings/* существуют; на карте мира
 используются main.js:2453) — и базовые, и (после .03) построенные.
@@ -428,6 +432,9 @@ md (изменение игрового процесса — запись доб
 6. **Спрайты построек в городе** (000148.02) рисуются из
    assets/sprites/buildings/ (общий с картой мира G.buildingSprite) —
    внутренний экран города остаётся hex-палитрой (000110; SVG — R10).
+   Контракт слоя (резолв id→слот: map_index | размещение.слот;
+   1×1-правило; тихая деградация; built .03 — каталожный w×h через
+   G.buildingSize) — memory/000148.02-city-building-sprites.md.
 7. **000001-§4.2/4.3/4.23 (школы/контент городов) — СЕРИЯ ПОСЛЕ 000148**
    (один re-pin cities golden за раз); 000001-§4.4 (родной город) строится
    на 000148.05 (rename-механика + persistent name уже есть).

@@ -262,7 +262,26 @@ function bootSandbox(seedData) {
   return {
     sandbox, winListeners, raf, warns, errors,
     gameCanvas, spriteCanvas, hud, storage,
+    // 000148.02: body — для поиска динамического canvas оверлея
+    // dungeon-ui (build() → document.body.appendChild(overlay));
+    // аддитивно — ни один существующий тест его не читает.
+    body: document.body,
   };
+}
+
+// 000148.02: ПОСЛЕДНИЙ canvas в порядке документа в поддереве el.
+// Оверлей dungeon-ui создаётся динамически (build) и добавляется в
+// body ПОСЛЕДНИМ; боевой оверлей (canvas) при close() «удаляется»
+// (remove() — no-op в стабе, но оверлей города создаётся позже),
+// поэтому последний canvas в дереве body — canvas города. Мир-канвасы
+// (#game/#sprites) НЕ в дереве body (getElementById) — изоляция.
+function findLastCanvas(el) {
+  let last = null;
+  (function walk(n) {
+    if (n && n.tagName === 'canvas') last = n;
+    for (const ch of (n && n.children) || []) walk(ch);
+  })(el);
+  return last;
 }
 
 // Промывка микротасков (загрузки Image + loadMapPixels().then:
@@ -972,4 +991,106 @@ test('000109 R10b: вход через день после визита (20 − 
   assert.deepEqual(saved2.data.cities['20,-16'].stock['2,2'],
     { ...DEPLETED_STOCK, sentinel000109: 1 },
     'LIVE: мутация стока через getter попала в сейв (000107)');
+});
+
+// --- 000148.02 (G1): рендер построек внутри города (e2e) ---
+//
+// ТЗ: «город с buildings ≥1 в layout → ≥1 drawImage-вызов со спрайтом
+// постройки; свободная клетка — спрайтов постройки нет. Красный ДО:
+// drawCalls-спрайты на экране города = 0 (grep cityContents в
+// dungeon-ui.js = 0)». Фикстура — деревня 52 (V109): 6×6, cam (3,3)
+// (6*80=480 ≤ 720 → центрирован), zoom = ZOOM_START 80, 3 постройки:
+// (4,4) таверна 44, (2,3) оружейная 1, (2,2) таверна 44.
+//
+// Изоляция: мир (canvas #sprites) ТОЖЕ рисует assets/sprites/buildings/
+// (карта мира) — ассерты берут drawCalls canvas ОВЕРЛЕЯ (findLastCanvas
+// по body), НЕ spriteCanvas. Префикс-фильтр 'assets/sprites/buildings/'
+// не пересекается с door.svg (assets/dungeon/) и игроком
+// (assets/sprites/phlogiston/).
+//
+// КАДР = ровно ОДИН render из start() (вход синхронный); frame() main.js
+// оверлей НЕ рендерит (dungeonUI.render — только в onEnd боя). После
+// входа НЕ ходить (onMove → новый render → drawCalls кумулируются).
+
+test('город 000148.02 G1 (e2e): постройки деревни РЕНДЕРЯТСЯ — ровно 3 спрайта (2×tavern + 1×weapons_shop), свободные клетки/дверь — без спрайтов, hex-пол сохранён', async () => {
+  // Засеянный старт Р10a (day = V109.day, steps = 0): enterVillage109
+  // широким контрактом требует day === V109.day ПОСЛЕ входа (36 < 40
+  // шагов → день НЕ сдвигается); обычный boot() стартует с day 1.
+  // Раздел cities в сейве НЕ нужен — сток перегенерируется fresh
+  // (тест не ассертит сток).
+  const h = await bootSeeded({ day: V109.day, steps: 0, hero: HERO109 });
+  const { g, G, dg } = await enterVillage109(h);
+  // Фикстура 000148.01 (защита от дрейфа генерации): 3 постройки.
+  // JSON-раундтрип: dg.buildings — массив realm-песочницы (прототипы
+  // чужие → deepStrictEqual падал бы даже на равных данных); паттерн
+  // R10a — сравнение host-разобранных объектов.
+  assert.deepEqual(JSON.parse(JSON.stringify(dg.buildings)), [
+    { x: 4, y: 4, buildingId: 44 },
+    { x: 2, y: 3, buildingId: 1 },
+    { x: 2, y: 2, buildingId: 44 },
+  ], 'фикстура: деревня 52 — 3 постройки (2×таверна + 1×оружейная)');
+  const canvas = findLastCanvas(h.body);
+  assert.ok(canvas && Array.isArray(canvas.drawCalls),
+    'оверлей dungeon-ui: canvas в дереве body (drawCalls)');
+  const calls = canvas.drawCalls;
+  // buildingCalls — спрайты построек (префикс assets/sprites/buildings/).
+  const buildingCalls = calls.filter((c) =>
+    c[0] === 'drawImage'
+    && c[1][0] && typeof c[1][0].__src === 'string'
+    && c[1][0].__src.indexOf('assets/sprites/buildings/') === 0);
+  assert.equal(buildingCalls.length, 3,
+    'ровно 3 building-спрайта (2×tavern + 1×weapons_shop); сейчас: '
+    + buildingCalls.length);
+  // Множество путей = ТЕМ ЖЕ резолвом, что код (getBuilding →
+  // map_index/размещение.слот → G.buildingSprite), без хардкода имён.
+  const resolve = (id) => {
+    const rec = G.getBuilding(id);
+    const op = (rec && rec.особые_параметры) || {};
+    const slot = Number.isInteger(op.map_index) ? op.map_index
+      : (op.размещение && Number.isInteger(op.размещение.слот)
+         ? op.размещение.слот : null);
+    return slot == null ? null : G.buildingSprite(slot);
+  };
+  const expectedPaths = JSON.parse(JSON.stringify(
+    dg.buildings.map((b) => resolve(b.buildingId)))).sort();
+  const actualPaths = buildingCalls.map((c) => c[1][0].__src).sort();
+  assert.deepEqual(actualPaths, expectedPaths,
+    'множество путей спрайтов = резолв id→слот (2×tavern + 1×weapons_shop): '
+    + JSON.stringify(actualPaths));
+  // 6×6 @ ZOOM_START (80): 6*80 = 480 ≤ 720 → cam центрирован (3,3).
+  const CAM = 3, ZOOM = 80;
+  const cellPos = (x, y) => G.worldToScreen(x, y, CAM, CAM, ZOOM, VIEW_W, VIEW_H);
+  // Каждая постройка: спрайт на позиции/размере floor-fillRect ЕГО клетки
+  // (сам-пин: спрайт лежит НА поле своей клетки) И на позиции worldToScreen.
+  for (const b of dg.buildings) {
+    const p = cellPos(b.x, b.y);
+    const floorHere = calls.some((c) => c[0] === 'fillRect'
+      && Math.abs(c[1][0] - p.x) <= 1e-9
+      && Math.abs(c[1][1] - p.y) <= 1e-9
+      && c[1][2] === ZOOM && c[1][3] === ZOOM);
+    assert.ok(floorHere,
+      'клетка (' + b.x + ',' + b.y + '): floor-fillRect на позиции worldToScreen');
+    const here = buildingCalls.some((c) =>
+      Math.abs(c[1][1] - p.x) <= 1e-9
+      && Math.abs(c[1][2] - p.y) <= 1e-9
+      && c[1][3] === ZOOM && c[1][4] === ZOOM);
+    assert.ok(here,
+      'постройка (' + b.x + ',' + b.y + ') id ' + b.buildingId
+      + ' — спрайт на позиции пола своей клетки, ' + ZOOM + '×' + ZOOM);
+  }
+  // Свободная клетка (1,1) и дверь (1,5) — БЕЗ спрайта постройки.
+  const noSpriteAt = (x, y) => !buildingCalls.some((c) =>
+    Math.abs(c[1][1] - cellPos(x, y).x) <= 1e-9
+    && Math.abs(c[1][2] - cellPos(x, y).y) <= 1e-9);
+  assert.ok(noSpriteAt(1, 1), 'свободная клетка (1,1) — без спрайта постройки');
+  assert.ok(noSpriteAt(1, 5), 'дверь (1,5) — без спрайта постройки');
+  // Hex-палитра (R10): пол — fillStyle из CITY_FLOOR_VARIANTS; фолбэк
+  // подземелья #182029 — нет.
+  const CITY_FLOOR = ['#b3a284', '#a5947a', '#c0b090']; // CITY_FLOOR_VARIANTS
+  assert.ok(calls.some((c) => c[0] === 'fillRect'
+    && CITY_FLOOR.indexOf(c[2]) !== -1),
+    'hex-пол: fillRect с fillStyle из CITY_FLOOR_VARIANTS (R10)');
+  assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#182029'),
+    'hex-пол: нет фолбэк-пола подземелья #182029 (R10)');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
 });

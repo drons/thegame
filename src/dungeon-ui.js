@@ -411,6 +411,29 @@
     overlay.addEventListener('wheel', onWheel, { passive: false });
   }
 
+  // 000148.02: каталожный id постройки города → путь спрайта СЛОТА
+  // (общий набор с картой мира, assets/sprites/buildings/). buildingSprite
+  // ключируется ПО СЛОТУ (BUILDING_TYPES 0..12), cityContents.buildings —
+  // каталожные id: резолв через каталог (getBuilding): базовые типы —
+  // особых_параметры.map_index, субтипы — особых_параметры.размещение.слот
+  // (прецедент 1:1 — building-actions.js). live — Game в момент вызова
+  // (UMD-ловушка 000038: buildings.js/sprites.js могут быть НЕ в цепочке).
+  // Нет каталога/спрайтов/слота — null (тихий skip слоя; id 5 «Лавка
+  // странника» — город-специфичный тип БЕЗ map-слота — нормальный skip,
+  // не ошибка). Не экспортируется — поверхность G.dungeonUI стабильна.
+  function cityBuildingPath(live, buildingId) {
+    if (!live || typeof live.getBuilding !== 'function'
+        || typeof live.buildingSprite !== 'function') return null;
+    const rec = live.getBuilding(buildingId);
+    if (!rec) return null;
+    const op = rec.особые_параметры || {};
+    const slot = Number.isInteger(op.map_index)
+      ? op.map_index
+      : (op.размещение && Number.isInteger(op.размещение.слот)
+         ? op.размещение.слот : null);
+    return slot == null ? null : live.buildingSprite(slot);
+  }
+
   // now — время кадра (rAF-цикл); из событий (keydown) — текущее.
   function render(now) {
     if (!ctx || !ctx.open) return;
@@ -500,6 +523,39 @@
         } else {
           g2.fillStyle = '#182029';
           g2.fillRect(p.x, p.y, zoom, zoom);
+        }
+      }
+    }
+
+    // 000148.02 (G1): постройки внутри города — слой СПРАЙТОВ поверх
+    // пола (z-порядок: пол → ПОСТРОЙКИ → стена-слой → дверь → игрок).
+    // Hex-палитра НЕ меняется (000110/R10): ТОЛЬКО drawImage, никаких
+    // fillRect/fillText. Спрайты — ОБЩИЙ набор с картой мира
+    // (G.buildingSprite, assets/sprites/buildings/). buildingSprite
+    // ключируется ПО СЛОТУ, cityContents.buildings — каталожные id →
+    // cityBuildingPath (map_index | размещение.слот). Гарды тихие
+    // (без console.error — городские тесты без sprites.js утверждают
+    // errors.length === 0): нет loader/getBuilding/buildingSprite/
+    // cityContents/слота/изображения — клетка остаётся полом.
+    // НОВЫХ RNG НЕТ (D10): слой — чистая функция (layout, cityContents,
+    // каталог, loader, cam/zoom, now). ds.contents у города null —
+    // НЕ читать (000109). 1×1-клетка (000106): каталожный размер НЕ
+    // уважается (built w×h — контракт 000148.03, тот же слой).
+    if (isCity && loader) {
+      const bld = (s.cityContents &&
+        Array.isArray(s.cityContents.buildings))
+        ? s.cityContents.buildings : null;
+      if (bld && bld.length) {
+        for (let i = 0; i < bld.length; i++) {
+          const b = bld[i];
+          if (!b || b.x < x0 || b.x > x1 || b.y < y0 || b.y > y1) continue;
+          const path = cityBuildingPath(live, b.buildingId);
+          if (!path) continue;
+          const img = (typeof loader.isReady === 'function'
+            ? loader.isReady(path) : true) && loader.image(path);
+          if (!img) continue;
+          const p = proj(b.x, b.y);
+          g2.drawImage(img, p.x, p.y, zoom, zoom);
         }
       }
     }
