@@ -171,3 +171,51 @@ test('index.html: баннер результата — ровно размер�
   assert.equal(pb['height'], pcv['width'],
     'баннер (portrait) квадратен, та же формула; факт: ' + pb['height']);
 });
+
+// --- 000199: компактный верхний инфоблок боя (MP-полоска +
+// счётчики действий) ---
+//
+// Новые CSS-правила — ТОЛЬКО в скоупе .combat-overlay--combat
+// (контракт memory/000199-combat-info-block.md D6: базовые правила
+// .combat-state/.combat-hpbar*/.combat-actions button переиспользуют
+// подземелье/NPC/города — контракт 000124, правок НЕТ). Краснота —
+// осмысленная: правил .combat-mpbar*/.combat-actcount в index.html
+// ещё нет (cssRule — assert «правило не найдено»).
+
+test('index.html: 000199 — MP-полоска и счётчики действий: новые правила в скоупе .combat-overlay--combat; база .combat-hpbar/.combat-state НЕ ИЗМЕНЕНА (CU199-CSS-MPBAR)', () => {
+  // MP-полоска — зеркало .combat-hpbar (16px); дорожка #12262e —
+  // пара .turn-token--hero («новых цветов не вводим», паттерн 000038).
+  const track = cssRule('.combat-overlay--combat .combat-mpbar');
+  assert.equal(track['height'], '16px',
+    '000199: .combat-mpbar — 16px (зеркало HP-полоски), '
+    + 'факт: ' + track['height']);
+  assert.equal(track['background'], '#12262e',
+    '000199: дорожка — #12262e (пара .turn-token--hero), '
+    + 'факт: ' + track['background']);
+  // Fill — ФИКСИРОВАННЫЙ #8cf2fc (пороговой функции для маны НЕ
+  // вводится — D5).
+  const fill = cssRule('.combat-overlay--combat .combat-mpbar-fill');
+  assert.equal(fill['background'], '#8cf2fc',
+    '000199: fill — #8cf2fc (фиксированный), '
+    + 'факт: ' + fill['background']);
+  // Бейдж счётчика — absolute top-right кнопки, #ffe27a
+  // (highlight .turn-token--current).
+  const badge = cssRule('.combat-overlay--combat .combat-actcount');
+  assert.equal(badge['position'], 'absolute',
+    '000199: .combat-actcount — absolute (top-right кнопки), '
+    + 'факт: ' + badge['position']);
+  assert.equal(badge['color'], '#ffe27a',
+    '000199: цвет бейджа — #ffe27a (highlight), '
+    + 'факт: ' + badge['color']);
+  // СТРАЖИ: базовые правила (общие с подземельем/NPC/городами —
+  // контракт 000124) НЕ ИЗМЕНЕНЫ.
+  const hp = cssRule('.combat-hpbar');
+  assert.equal(hp['height'], '16px',
+    'стража: база .combat-hpbar — 16px');
+  assert.equal(hp['background'], '#3a0d0d',
+    'стража: дорожка .combat-hpbar — #3a0d0d');
+  const st = cssRule('.combat-state');
+  assert.equal(st['white-space'], 'pre-line',
+    'стража: .combat-state — white-space: pre-line (фикс. высота '
+    + 'по 2 строкам)');
+});

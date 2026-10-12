@@ -884,6 +884,10 @@
    *   u.maxHP = u.hp = stats.maxHP (100% на старте боя; возврат
    *     после гибели — СТРУКТУРНО: каждый бой — новый makeAlly +
    *     buildEfirUnit),
+   *   u.maxMP = stats.maxMP — СНАПШОТ максимума (зеркало u.maxHP;
+   *     000199-ревью: полоска MP combat-ui читает знаменатель с
+   *     ЮНИТА, не из замороженной legacy-таблицы efirStats(level) —
+   *     Sheet-истина 5+Int+Wis растёт очками, таблица — нет),
    *   u.mp = stats.maxMP — мана СОБСТВЕННАЯ, полная, БЕЗ регена
    *     в бою (зафиксировано ТЗ),
    *   u.damage — «Касание духа»: max(1, round((2 + 0.5·Мудрость)·
@@ -933,6 +937,13 @@
       : efirStats(u.level);
     u.maxHP = stats.maxHP;
     u.hp = stats.maxHP;
+    // 000199 (ревью): СНАПШОТ истинного максимума маны — зеркало
+    // u.maxHP. Полоска MP (combat-ui) читает знаменатель с юнита
+    // (Sheet-истина 5+Int+Wis), а НЕ замороженную legacy-таблицу
+    // efirStats(u.level) — та расходится с фактом после роста
+    // primary (000144) / level-up. Юнит транзиентный (сейв — только
+    // лист Эфира, serializeEfir) — форма сейва не меняется.
+    u.maxMP = stats.maxMP;
     u.mp = stats.maxMP;
     u.damage = Math.max(1, Math.round(
       (2 + 0.5 * stats.wisdom) * (u.moraleMult || 1)));

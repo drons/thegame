@@ -161,6 +161,12 @@
   let overlay = null, canvas = null, g2 = null;
   let stateEl = null, logEl = null, bannerEl = null, turnorderEl = null;
   let hpbarEl = null, hpbarFillEl = null, hpbarTextEl = null;
+  // 000199: полоска MP (третий элемент .combat-side — под HP) и
+  // счётчики действий на кнопках «Удар»/«Книга заклинаний»
+  // (countEls — персистентные span, key = действие; обнуление —
+  // build()/finish()/catch startCombat, паттерн hpbarEl 000038).
+  let mpbarEl = null, mpbarFillEl = null, mpbarTextEl = null;
+  let countEls = {};
   // «Книга заклинаний» (задача 000149): контейнер .combat-spellbook
   // и флаг открытости (toggle — кнопка/KeyQ/KeyR; строки — renderBook).
   let bookBox = null;
@@ -259,6 +265,7 @@
   // --- Оверлей ---
 
   function build() {
+    countEls = {}; // 000199: пересборка — карта бейджей свежая
     overlay = document.createElement('div');
     // Скоуп-класс (задача 000124): вся геометрия боевого layout живёт
     // в CSS .combat-overlay--combat; базовые .combat-overlay,
@@ -299,6 +306,21 @@
     hpbarEl.appendChild(hpbarTextEl);
     side.appendChild(hpbarEl);
 
+    // Полоска MP (задача 000199): ТРЕТИЙ элемент .combat-side —
+    // сразу ПОСЛЕ .combat-hpbar, ПЕРЕД .combat-state. Геометрия 1-в-1
+    // с .combat-hpbar* (16px, CSS .combat-overlay--combat); ширина
+    // заполнения и текст «MP x/y» (наёмник — «MP —», D5) — из render(),
+    // несёт активного персонажа (barUnit, как HP-полоса 000199).
+    mpbarEl = document.createElement('div');
+    mpbarEl.className = 'combat-mpbar';
+    mpbarFillEl = document.createElement('div');
+    mpbarFillEl.className = 'combat-mpbar-fill';
+    mpbarTextEl = document.createElement('span');
+    mpbarTextEl.className = 'combat-mpbar-text';
+    mpbarEl.appendChild(mpbarFillEl);
+    mpbarEl.appendChild(mpbarTextEl);
+    side.appendChild(mpbarEl);
+
     stateEl = document.createElement('div');
     stateEl.className = 'combat-state';
     side.appendChild(stateEl);
@@ -327,6 +349,21 @@
         runAction(c, item.action);
         render();
       });
+      // Счётчик действий (задача 000199): персистентный
+      // <span class="combat-actcount"> ТОЛЬКО на «Удар»/«Книга
+      // заклинаний» (ТЗ: количество действий — числом на кнопке).
+      // Создаётся ОДИН раз здесь, как кнопки (урок 000149:
+      // пересоздание в render убивает клик); render обновляет только
+      // textContent/display. Прочие 5 кнопок — БЕЗ бейджа (пины
+      // 000124/CU171/CU178); текст «Шаги» НЕ выводится (D4: кнопки
+      // движения нет — остаток шагов на canvas + в журнале).
+      if (item.action === 'attack' || item.action === 'spellbook') {
+        const cnt = document.createElement('span');
+        cnt.className = 'combat-actcount';
+        cnt.textContent = '';
+        b.appendChild(cnt);
+        countEls[item.action] = cnt;
+      }
       actions.appendChild(b);
     }
     // «Каст» (задача 000178): тач-путь для клавиши K (каст Эфира,
@@ -1482,44 +1519,20 @@
     // «цель» для заклинания, которого нет в книге.
     const tHero = (!t && !td && canResurrect(c) && c.player
       && !c.player.alive && c.targetId === null) ? c.player : null;
-    // Подсказка состава отряда (000118): строка «Отряд: <имя (роль), …»
-    // между «Шаги:…» и строкой цели — минимальное аддитивное
-    // расширение HUD (stateEl, .combat-state: white-space:pre-line,
-    // фиксированной высоты НЕТ — лишняя строка безопасна). Состав =
-    // ТОЛЬКО side 'ally' в c.units (герой НЕ в c.units — его там нет
-    // автоматически); порядок = c.units (Эфир первым); мёртвые
-    // союзники ВКЛЮЧЕНЫ (состав стабилен — ТЗ молчит). Роль — через
-    // G.ROLE_NAMES (экспорт combat.js) с fallback raw role (деградация
-    // без краха). Пустой отряд → строки НЕТ (существующий вывод
-    // бит-в-бит).
-    const RN = G.ROLE_NAMES || {};
-    const allies = c.units.filter((u) => u.side === 'ally');
-    const roster = allies.length
-      ? 'Отряд: ' + allies.map(
-        (u) => `${u.name} (${RN[u.role] || u.role})`).join(', ') + '\n'
-      : '';
-    // 000168 (D10): строка «Ход: <имя активного>» (первая; игрок —
-    // «Вы») + строка характеристик АКТИВНОГО СОЮЗНИКА сразу после
-    // строки «Шаги: …» игрока (наёмник — HP/шаги/удары, Эфир —
-    // HP/мана/шаги/Касание; без c.efs — fallback-цифры 0, строка
-    // рисуется). Базовые строки — без изменений.
-    const au = activeUnit(c);
-    const allyLine = au
-      ? (au.kind === 'efir'
-        ? `${au.name}: HP ${au.hp}/${au.maxHP}  |  Мана: ${au.mp}  |  `
-          + `Шаги: ${c.efs ? c.efs.move : 0}  |  `
-          + `Касание: ${c.efs ? c.efs.touch : 0}\n`
-        : `${au.name}: HP ${au.hp}/${au.maxHP}  |  `
-          + `Шаги: ${au.moveLeft}  |  Удар: ${au.attackLeft}\n`)
-      : '';
+    // 000199: stateEl — ровно ДВЕ фиксированные строки (обе
+    // БЕУСЛОВНЫ — «Цели нет» — fallback, поэтому white-space:
+    // pre-line даёт фикс. высоту и кнопки НЕ прыгают):
+    //   строка 1 — с кем бьёмся + номер раунда;
+    //   строка 2 — выбранная цель (побайтово как до 000199: живой t
+    //     / td «— мёртв» / tHero «(вы) — мёртв» / «Цели нет»).
+    // Убрано (ТЗ 000199, D1/D2): «Ход: …» (чей ход — рамка 000197,
+    // подсветка .turn-token--current остаётся), «HP x/y | MP x/y»
+    // (значения — на полосках, следуют за активным), «Шаги|Удар|
+    // Огонь|Леч» (счётчики — бейджи кнопок), строка активного
+    // союзника и «Отряд: …» (состав не дублируется), префиксы
+    // «БЛОК»/«ЯД» (статус — title кнопки «Блок»/журнал).
     stateEl.textContent =
-      `Ход: ${au ? au.name : 'Вы'}\n` +
       `${c.groupName}, раунд ${c.round}\n` +
-      `HP ${p.hp}/${d.maxHP}  |  MP ${p.mp}/${d.maxMP}\n` +
-      `Шаги: ${c.ps.moveLeft}  |  Удар: ${c.ps.attack}  |  Огонь: ${c.ps.spellInt}  |  Леч: ${c.ps.spellWis}\n` +
-      allyLine +
-      roster +
-      (c.ps.blocked ? 'БЛОК  ' : '') + (c.ps.poison > 0 ? `ЯД ${c.ps.poison}  ` : '') +
       (t ? `Цель: ${t.name} (ур. ${t.level}, HP ${t.hp}/${t.maxHP})`
         : td ? `Цель: ${td.name} (ур. ${td.level}) — мёртв`
         : tHero ? `Цель: ${tHero.name} (вы) — мёртв` : 'Цели нет');
@@ -1527,15 +1540,66 @@
     // Строка очерёдности хода (задача 000036).
     renderTurnOrder(c);
 
-    // DOM-полоса HP героя (задача 000038): единственный путь
+    // DOM-полосы HP/MP (000038 / 000199): единственный путь
     // обновления — render() (как строка очереди и stateEl), отдельных
-    // слушателей/timers нет; rAF-цикл (000047) обновит её тем же
+    // слушателей/timers нет; rAF-цикл (000047) обновит их тем же
     // render() — без дублей логики.
+    // 000199 (D3): полосы следуют за АКТИВНЫМ персонажем:
+    // barUnit = activeUnit(c) || c.player (рамка 000197 — своя
+    // формула токенов 000036 + alive/fled-гарды, не общий источник —
+    // эквивалентны, пока advanceQueue пропускает мёртвых/сбежавших;
+    // игрок и фаза мобов — герой: полоса исторически наша сторона).
+    // На герое — те же p/d/hpFrac/hpColor (общие с
+    // canvas-миниполосой — она ОСТАЁТСЯ геройской, drawUnits бит-в-
+    // бит); на союзнике — свои hp/maxHP (Эфир и наёмник) и мана:
+    // Эфир — u.mp / u.maxMP (снапшот stats.maxMP в buildEfirUnit,
+    // 000199-ревью; fallback — legacy efirStats для юнитов без поля),
+    // наёмник — маны в модели НЕТ (D5: fill 0%, «MP —»).
+    // Гвард G.efir: юнит Эфира существует только если efir.js
+    // загружен. Цвет MP — фиксированный #8cf2fc (CSS; пороговой
+    // функции для маны нет — 000038).
+    const barUnit = activeUnit(c) || p;
+    let barHP, barMaxHP, barFrac, barColor;
+    if (barUnit === p) {
+      barHP = p.hp; barMaxHP = d.maxHP;
+      barFrac = hpFrac; barColor = hpColor;
+    } else {
+      barHP = barUnit.hp; barMaxHP = barUnit.maxHP;
+      barFrac = barMaxHP > 0 ? barHP / barMaxHP : 0;
+      barColor = (G.hpBarColor ? G.hpBarColor(barFrac) : '#6fdc6f');
+    }
+    let mpVal, mpMax;
+    if (barUnit === p) {
+      mpVal = p.mp; mpMax = d.maxMP;
+    } else if (barUnit.kind === 'efir') {
+      // 000199 (ревью): знаменатель — СНАПШОТ с юнита (buildEfirUnit:
+      // u.maxMP = stats.maxMP — Sheet-истина 5+Int+Wis, растёт
+      // ОЧКАМИ 000144), НЕ замороженная legacy-таблица
+      // efirStats(level) — та расходится с фактом после level-up/
+      // роста primary (L3 без очков: полные 11 маны, а таблица
+      // скажет «/13»). Fallback — legacy (юнит без поля, деградация
+      // buildEfirUnit / юнит, собранный до апгрейда).
+      const snap = (typeof barUnit.maxMP === 'number'
+        && Number.isFinite(barUnit.maxMP)) ? barUnit.maxMP : null;
+      const est = (G.efir && typeof G.efir.efirStats === 'function')
+        ? G.efir.efirStats(barUnit.level) : null;
+      mpVal = barUnit.mp; mpMax = (snap != null) ? snap
+        : (est ? est.maxMP : 0);
+    } else {
+      mpVal = 0; mpMax = 0; // наёмник: маны нет (D5)
+    }
+    const mpFrac = mpMax > 0
+      ? Math.min(1, Math.max(0, mpVal / mpMax)) : 0;
     if (hpbarFillEl) {
       hpbarFillEl.style.width =
-        (Math.min(1, Math.max(0, hpFrac)) * 100).toFixed(1) + '%';
-      hpbarFillEl.style.background = hpColor;
-      hpbarTextEl.textContent = `HP ${p.hp}/${d.maxHP}`;
+        (Math.min(1, Math.max(0, barFrac)) * 100).toFixed(1) + '%';
+      hpbarFillEl.style.background = barColor;
+      hpbarTextEl.textContent = `HP ${barHP}/${barMaxHP}`;
+    }
+    if (mpbarFillEl) {
+      mpbarFillEl.style.width = (mpFrac * 100).toFixed(1) + '%';
+      mpbarTextEl.textContent = (mpMax > 0)
+        ? `MP ${mpVal}/${mpMax}` : 'MP —';
     }
 
     // Журнал: последние строки.
@@ -1557,6 +1621,10 @@
     // canDoAction выше (ветки 000168 — 1:1 с клавишами K/H); строки
     // disabled/title для них — без изменений.
     if (overlay) {
+      // 000199: значения счётчиков — ОДИН раз на render (actionCounts
+      // — чистое чтение c; бейджей только на attack/spellbook —
+      // countEls, остальные кнопки — undefined).
+      const actCnt = actionCounts(c);
       overlay.querySelectorAll('.combat-actions button').forEach((b) => {
         const r = b.dataset.act === 'resurrect'
           ? resurrectChk(c)
@@ -1565,6 +1633,26 @@
         b.title = r.ok ? '' : r.reason;
         if (b.dataset.act === 'cast' || b.dataset.act === 'heal') {
           b.style.display = castHealVis(c, b.dataset.act) ? '' : 'none';
+        }
+        // Счётчик действий (000199): персистентный span (build, урок
+        // 000149) — render обновляет ТОЛЬКО textContent/display.
+        // «Удар» — ВСЕГДА видим (включая 0, D3); «Книга заклинаний»
+        // — «int/wis» на ходу игрока и в фазе мобов, на ходу
+        // союзника скрыта (книга ему структурно недоступна —
+        // allyCanDo; «0» отклонено — смешивает «нет пула» и
+        // «недоступно»).
+        const cnt = countEls[b.dataset.act];
+        if (cnt) {
+          if (b.dataset.act === 'attack') {
+            cnt.style.display = '';
+            cnt.textContent = String(actCnt.attack);
+          } else if (actCnt.spell == null) {
+            cnt.style.display = 'none';
+            cnt.textContent = '';
+          } else {
+            cnt.style.display = '';
+            cnt.textContent = actCnt.spell;
+          }
         }
       });
     }
@@ -1623,6 +1711,30 @@
   function activeIsEfir(c) {
     const u = activeUnit(c);
     return !!(u && u.kind === 'efir');
+  }
+
+  // 000199: счётчики действий для бейджей кнопок — ОДИН чистый
+  // расчёт на render (чтения: c.ps/c.efs + activeUnit; мутаций,
+  // c._rng, Game-чтений сверх G.activeUnitId в activeUnit — нет):
+  //  * «Удар» (attack) — ВСЕГДА видим (включая 0, D3): игрок и фаза
+  //    мобов — c.ps.attack; наёмник — u.attackLeft; Эфир — c.efs.
+  //    touch (null-guard → 0, ветка 000180 fallback);
+  //  * «Книга заклинаний» (spellbook) — «int/wis» (c.ps.spellInt /
+  //    c.ps.spellWis — два пула отдельно, порядок как в убранной
+  //    строке «Огонь|Леч»; сумма отклонена — смешивает пулы) ТОЛЬКО
+  //    на ходу игрока и в фазе мобов; на ходу СОЮЗНИКА — null
+  //    (книга структурно недоступна — allyCanDo 'spellbook'; бейдж
+  //    «0» отклонён: смешивает «нет пула» с «недоступно»).
+  function actionCounts(c) {
+    const au = activeUnit(c);
+    if (au) {
+      if (au.kind === 'efir') {
+        return { attack: c.efs ? c.efs.touch : 0, spell: null };
+      }
+      return { attack: au.attackLeft, spell: null };
+    }
+    return { attack: c.ps.attack,
+             spell: c.ps.spellInt + '/' + c.ps.spellWis };
   }
 
   // Открыть/закрыть книгу. Строки строит renderBook в render() —
@@ -1991,6 +2103,8 @@
     if (overlay) overlay.remove();
     overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl = null;
     hpbarEl = hpbarFillEl = hpbarTextEl = null;
+    mpbarEl = mpbarFillEl = mpbarTextEl = null;
+    countEls = {}; // 000199: как hpbar-refs — обе точки (D5b 000170)
     bookBox = null;
     bookOpen = false;
     bookSig = null;
@@ -2154,6 +2268,8 @@
         }
         overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl = null;
         hpbarEl = hpbarFillEl = hpbarTextEl = null;
+        mpbarEl = mpbarFillEl = mpbarTextEl = null;
+        countEls = {}; // 000199: как hpbar-refs — обе точки (D5b 000170)
         bookBox = null;
         bookOpen = false;
         bookSig = null;

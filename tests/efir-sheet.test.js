@@ -281,6 +281,9 @@ test('000144 ES-4: боевые статки — из primary (derived-моди�
     assert.equal(u1.maxHP, 16, 'L1: maxHP = 10 + 2·3 = 16');
     assert.equal(u1.hp, 16, 'hp = maxHP (100% на старте боя)');
     assert.equal(u1.mp, 11, 'L1: maxMP = 5 + 3 + 3 = 11 (своя мана)');
+    assert.equal(u1.maxMP, 11,
+      'L1: снапшот u.maxMP = 11 (зеркало mp; 000199-ревью — знаменатель '
+      + 'полоски MP combat-ui — с юнита, не из legacy-таблицы)');
     assert.deepEqual(u1.attrs,
       { intelligence: 3, wisdom: 3, constitution: 3, dexterity: 1 },
       'attrs — 4 собственных атрибута из primary (L1) (000167: +dexterity 1 — инициатива)');
@@ -291,6 +294,9 @@ test('000144 ES-4: боевые статки — из primary (derived-моди�
     assert.equal(u3.maxHP, 16,
       'L3 (очки НЕ потрачены): атрибуты не выросли от уровня');
     assert.equal(u3.mp, 11, 'L3: мана не выросла от уровня');
+    assert.equal(u3.maxMP, 11,
+      'L3 (без очков): снапшот u.maxMP = 11 — из primary (3/3/3), НЕ из '
+      + 'legacy-таблицы (efirStats(3).maxMP = 13; 000199-ревью)');
     assert.deepEqual(u3.attrs,
       { intelligence: 3, wisdom: 3, constitution: 3, dexterity: 1 },
       'attrs L3 (без очков) = primary (3/3/3/1) (000167: +dexterity 1)');
@@ -302,6 +308,9 @@ test('000144 ES-4: боевые статки — из primary (derived-моди�
     const u4 = profile(s1);
     assert.equal(u4.maxHP, 18, 'Con 4 → maxHP = 10 + 2·4 = 18');
     assert.equal(u4.mp, 12, 'Wis 4 → maxMP = 5 + 3 + 4 = 12');
+    assert.equal(u4.maxMP, 12,
+      'снапшот u.maxMP = 5 + Int(3) + Wis(4) = 12 — рост ОЧКАМИ, legacy-таблица '
+      + 'на L3 дала бы 13 (000199-ревью)');
     assert.deepEqual(u4.attrs,
       { intelligence: 3, wisdom: 4, constitution: 4, dexterity: 1 },
       'attrs — из primary (очки) (000167: +dexterity 1)');

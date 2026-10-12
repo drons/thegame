@@ -1164,10 +1164,34 @@ test('боевой UI: кнопки .combat-actions — иконка (img assets
     assert.equal(b.ariaLabel, item.label,
       'кнопка ' + b.dataset.act + ': aria-label = «' + item.label
       + '», факт: ' + b.ariaLabel);
-    // Текстовой подписи (и клавиши-подсказки [J] и т.п.) НЕТ.
-    assert.equal(b.textContent, '',
-      'кнопка ' + b.dataset.act + ': текстовой подписи нет, '
-      + 'факт: ' + JSON.stringify(b.textContent));
+    // Текстовой (СЛОВЕСНОЙ) подписи (и клавиши-подсказки [J] и т.п.)
+    // НЕТ. Ре-пин 000199 (ТЗ: количество действий — ЧИСЛОМ на
+    // соотв. кнопке): единственное допущенное текстовое содержимое
+    // «Удара»/«Книги заклинаний» — числовой счётчик (бейдж
+    // .combat-actcount); на остальных 5 кнопках бейджа НЕТ и
+    // textContent '' (vm-стаб НЕ пересчитывает textContent кнопки из
+    // children — бейдж читается как child, ловушка spellbook.test.js
+    // L27; в реальном DOM button.textContent = текст бейджа).
+    const cntBadge = b.children
+      .find((ch) => ch.className === 'combat-actcount');
+    if (b.dataset.act === 'attack' || b.dataset.act === 'spellbook') {
+      assert.ok(cntBadge,
+        'кнопка ' + b.dataset.act + ': числовой счётчик (бейдж) есть, '
+        + 'факт: ' + JSON.stringify(
+          b.children.map((ch) => ch.className)));
+      assert.match(cntBadge.textContent, /^\d+(?:\/\d+)?$/,
+        'кнопка ' + b.dataset.act + ': счётчик ЧИСЛОВОЙ (словесной '
+        + 'подписи нет), факт: '
+        + JSON.stringify(cntBadge.textContent));
+    } else {
+      assert.ok(!cntBadge,
+        'кнопка ' + b.dataset.act + ': бейджа НЕТ (счётчики только на '
+        + '«Удар»/«Книга заклинаний», 000199): '
+        + JSON.stringify(b.children.map((ch) => ch.className)));
+      assert.equal(b.textContent, '',
+        'кнопка ' + b.dataset.act + ': текстовой подписи нет, '
+        + 'факт: ' + JSON.stringify(b.textContent));
+    }
   }
 });
 
@@ -2237,24 +2261,33 @@ test('боевой UI: 000118 — c.log: строки действий Эфир�
   }
 });
 
-test('боевой UI: 000118 — HUD: подсказка состава отряда в .combat-state (имя (роль) юнитов side «ally») (CU118-HUD)', () => {
+// Ре-пин 000199 (ТЗ: «Не отображать текстом информацию о составе
+// отряда»): строка «Отряд: …» ИЗ stateEl УДАЛЕНА — даже с союзниками;
+// stateEl — ровно 2 фиксированные строки (кто/раунд + цель).
+test('боевой UI: 000118 — HUD: строка состава отряда «Отряд: …» ИЗ .combat-state УБРАНА (000199), stateEl = ровно 2 строки (CU118-HUD)', () => {
   const S = scene84({ efir: true });
   addMerc84(S.c, S.G, 5, 2, 'ranged'); // Орк (дальний бой) — 000080
   tickSlice(S.canvas, S.rafStubs);
   const state = findByClass(S.body, 'combat-state');
   assert.ok(state, '.combat-state в оверлее');
   const text = state.textContent;
-  assert.ok(text.includes('Отряд:'),
-    'строка «Отряд:» в .combat-state: ' + JSON.stringify(text));
-  assert.ok(text.includes('Эфир (поддержка)'),
-    'Эфир: имя + роль (ROLE_NAMES.support): ' + JSON.stringify(text));
-  assert.ok(text.includes('Орк (дальний бой)'),
-    'наёмник: имя + роль (ROLE_NAMES.ranged): ' + JSON.stringify(text));
-  // Без союзников — строки НЕТ (существующий вывод бит-в-бит).
+  assert.ok(!text.includes('Отряд:'),
+    '000199: строки «Отряд:» НЕТ даже с союзниками (состав не '
+    + 'дублируется текстом): ' + JSON.stringify(text));
+  assert.ok(!text.includes('Эфир (поддержка)'),
+    '000199: «Эфир (поддержка)» в stateEl нет: ' + JSON.stringify(text));
+  assert.ok(!text.includes('Орк (дальний бой)'),
+    '000199: «Орк (дальний бой)» в stateEl нет: ' + JSON.stringify(text));
+  assert.equal(text.split('\n').length, 2,
+    '000199: stateEl — ровно ДВЕ строки: ' + JSON.stringify(text));
+  // Без союзников — строки тоже нет (вывод те же 2 строки).
   const P = scene84();
   const state2 = findByClass(P.body, 'combat-state');
   assert.ok(!state2.textContent.includes('Отряд:'),
     'без союзников — строки «Отряд:» нет: '
+    + JSON.stringify(state2.textContent));
+  assert.equal(state2.textContent.split('\n').length, 2,
+    '000199: без союзников — те же ДВЕ строки: '
     + JSON.stringify(state2.textContent));
 });
 
@@ -3215,7 +3248,11 @@ test('боевой UI: 000166 — герой БЕЗ «Воскрешения»: 
 // не в этом коммите.
 // =====================================================================
 
-test('боевой UI: 000168-UI-1 — stateEl: строка «Ход: <имя>» + строка активного спутника (HP/шаги/удары); на ходу игрока — «Вы»', () => {
+// Ре-пин 000199 (ТЗ: «не отображать текстом чей ход / HP и MP /
+// состав отряда»): строки «Ход: …», активного спутника и «Отряд:»
+// ИЗ stateEl УБРАНЫ — инфо активного персонажа перенесено на полосы
+// HP/MP (следуют за активным) и бейдж «Удара» (c-счётчики на кнопках).
+test('боевой UI: 000168-UI-1 — stateEl: строки «Ход: …»/спутника/«Отряд:» убраны (000199); полосы и бейдж «Удара» — значения активного персонажа', () => {
   // (a) Ход наёмника: очередь ['m0','player','a1'] (а1 — push'ом
   //     в конец) — Space (конец хода игрока) → остановка на «a1».
   const S = scene84();
@@ -3229,22 +3266,63 @@ test('боевой UI: 000168-UI-1 — stateEl: строка «Ход: <имя>�
     + S.G.activeUnitId(S.c) + ')');
   const state = findByClass(S.body, 'combat-state');
   const text = state.textContent;
-  assert.ok(text.includes('Ход: Вольк'),
-    'строка «Ход: Вольк» (краснота: строки нет): ' + JSON.stringify(text));
-  assert.ok(text.includes('Вольк: HP 16/16  |  Шаги: 1  |  Удар: 1'),
-    'строка активного спутника: имя/HP/шаги/удары (ур. 2, пулы 1/1): '
+  assert.ok(!text.includes('Ход:'),
+    '000199: строки «Ход: Вольк» нет (чей ход — рамка 000197): '
     + JSON.stringify(text));
-  assert.ok(text.includes('Отряд:'), 'базовая строка «Отряд:» (roster): '
-    + JSON.stringify(text));
-  // (b) Ход игрока — «Вы»; без спутников строки «Отряд:» нет.
+  assert.ok(!text.includes('Вольк: HP'),
+    '000199: строки активного спутника (HP/шаги/удары) нет — '
+    + 'инфо на полосках: ' + JSON.stringify(text));
+  assert.ok(!text.includes('Отряд:'),
+    '000199: строки «Отряд:» (roster) нет: ' + JSON.stringify(text));
+  assert.equal(text.split('\n').length, 2,
+    '000199: stateEl — ровно ДВЕ строки: ' + JSON.stringify(text));
+  // Полосы — активного Волька (16/16, а не раненого/полного игрока):
+  // HP 16/16, маны у наёмника в модели нет → «MP —» (D5); бейдж
+  // «Удара» — u.attackLeft (ур. 2 → пул 1).
+  const merc = S.c.units.find((x) => x.id === 'a1');
+  assert.equal(findByClass(S.body, 'combat-hpbar-text').textContent,
+    'HP ' + merc.hp + '/' + merc.maxHP,
+    'HP-полоса несёт активного Волька (16/16): '
+    + JSON.stringify(findByClass(S.body, 'combat-hpbar-text').textContent));
+  assert.equal(findByClass(S.body, 'combat-mpbar-text').textContent,
+    'MP —',
+    'MP-полоса — у наёмника маны нет (D5): '
+    + JSON.stringify(findByClass(S.body, 'combat-mpbar-text').textContent));
+  const atkBadge = S.body.querySelectorAll('.combat-actions button')
+    .find((b) => b.dataset.act === 'attack').children
+    .find((ch) => ch.className === 'combat-actcount');
+  assert.ok(atkBadge, 'бейдж «Удара» есть (счётчики на кнопках, 000199)');
+  assert.equal(atkBadge.textContent, String(merc.attackLeft),
+    'бейдж «Удара» = u.attackLeft (1): '
+    + JSON.stringify(atkBadge.textContent));
+  // (b) Ход игрока — полосы/бейдж несут значения ИГРОКА (25/25,
+  //     16/16, «1»); без спутников 2 строки, «Отряд:» нет.
   const P = scene84();
   tickSlice(P.canvas, P.rafStubs);
   const st2 = findByClass(P.body, 'combat-state');
-  assert.ok(st2.textContent.includes('Ход: Вы'),
-    'на ходу игрока — «Ход: Вы» (краснота: строки нет): '
+  assert.ok(!st2.textContent.includes('Ход:'),
+    '000199: на ходу игрока строки «Ход: Вы» нет: '
+    + JSON.stringify(st2.textContent));
+  assert.equal(st2.textContent.split('\n').length, 2,
+    '000199: на ходу игрока — ровно ДВЕ строки: '
     + JSON.stringify(st2.textContent));
   assert.ok(!st2.textContent.includes('Отряд:'),
     'без спутников — строки «Отряд:» нет');
+  const d2 = P.G.derived(P.c.player);
+  assert.equal(findByClass(P.body, 'combat-hpbar-text').textContent,
+    'HP ' + P.c.player.hp + '/' + d2.maxHP,
+    'на ходу игрока HP-полоса — значения игрока: '
+    + JSON.stringify(findByClass(P.body, 'combat-hpbar-text').textContent));
+  assert.equal(findByClass(P.body, 'combat-mpbar-text').textContent,
+    'MP ' + P.c.player.mp + '/' + d2.maxMP,
+    'на ходу игрока MP-полоса — значения игрока (16/16): '
+    + JSON.stringify(findByClass(P.body, 'combat-mpbar-text').textContent));
+  const atkBadgeP = P.body.querySelectorAll('.combat-actions button')
+    .find((b) => b.dataset.act === 'attack').children
+    .find((ch) => ch.className === 'combat-actcount');
+  assert.equal(atkBadgeP.textContent, String(P.c.ps.attack),
+    'на ходу игрока бейдж «Удара» = c.ps.attack: '
+    + JSON.stringify(atkBadgeP.textContent));
 });
 
 test('боевой UI: 000168-UI-2 — кнопки на ходу спутника: attack/«Конец хода» включены, player-only — «недоступно активному персонажу»; Эфир — J/K (Касание/сильнейшее урон-заклинание)', () => {
@@ -4422,7 +4500,15 @@ test('боевой UI: 000179 — книга на ходу ЭФИРА: стро�
 // (строки Эфира нет в stateEl).
 // =====================================================================
 
-test('боевой UI: 000180 — stateEl: строка активного Эфира «Эфир: HP 16/16  |  Мана: 11  |  Шаги: 3  |  Касание: 1» (Д10 000168) побайтово + fallback без c.efs «Шаги: 0  |  Касание: 0» (CU180-EFIR-ROW)', () => {
+// Ре-пин 000199 (ТЗ: HP/MP — на полосках, счётчики — на кнопках,
+// строки «Ход: …»/союзника — убраны): побайтовая строка Эфира и
+// «Ход: Эфир» ИЗ stateEl УБРАНЫ; инфо активного Эфира несут полосы
+// (HP 16/16; Мана 11/11 — u.mp / u.maxMP, снапшот stats.maxMP в
+// buildEfirUnit — ревью 000199; L1: = legacy-таблице) и бейдж
+// «Удара» (c.efs.touch). Fallback c.efs=null:
+// полосы НЕ зависят от c.efs (u.mp/u.maxMP — source), бейдж «0»
+// (null-guard), render без краха, stateEl — те же 2 строки.
+test('боевой UI: 000180 — строка активного Эфира ИЗ stateEl УБРАНА (000199); полосы несут Эфира (HP 16/16, MP 11/11), бейдж «Удара» — touch; fallback c.efs=null: бейдж «0», полосы не тронуты (CU180-EFIR-ROW)', () => {
   // 000168-UI-2(b)-паттерн: scene84({efir:true, spells:true}) —
   // pre-roll остановился на слоте Эфира СРАЗУ после startCombat
   // (инициатива Эфира 4 — dexterity 1 + intelligence 3,
@@ -4441,24 +4527,51 @@ test('боевой UI: 000180 — stateEl: строка активного Эф�
   assert.equal(S.c.efs.touch, 1, 'c.efs.touch = 1 (000112)');
   const state = findByClass(S.body, 'combat-state');
   const text = state.textContent;
-  assert.ok(text.includes('Ход: Эфир'),
-    'первая строка — «Ход: Эфир» (Д10): ' + JSON.stringify(text));
-  assert.ok(text.includes(
-    'Эфир: HP 16/16  |  Мана: 11  |  Шаги: 3  |  Касание: 1'),
-    'строка активного Эфира ПОБАЙТОВО (Д10 000168; c.efs 1/1/1/3 → '
-    + 'move 3, touch 1): ' + JSON.stringify(text));
+  assert.ok(!text.includes('Ход:'),
+    '000199: первой строки «Ход: Эфир» нет (рамка 000197): '
+    + JSON.stringify(text));
+  assert.ok(!text.includes('Мана:'),
+    '000199: строки активного Эфира (HP/Мана/Шаги/Касание) нет — '
+    + 'инфо на полосках/кнопках: ' + JSON.stringify(text));
+  assert.equal(text.split('\n').length, 2,
+    '000199: stateEl — ровно ДВЕ строки: ' + JSON.stringify(text));
+  // Полосы — активного Эфира (barUnit = activeUnit): HP 16/16;
+  // Мана — u.mp / u.maxMP = 11/11 (снапшот stats.maxMP в
+  // buildEfirUnit — ревью 000199; L1-профиль: = legacy-таблице).
+  assert.equal(u.maxMP, S.G.efir.efirStats(u.level).maxMP,
+    'L1-профиль: снапшот u.maxMP = legacy-значению (11)');
+  assert.equal(findByClass(S.body, 'combat-hpbar-text').textContent,
+    'HP ' + u.hp + '/' + u.maxHP,
+    'HP-полоса несёт Эфира (16/16): '
+    + JSON.stringify(findByClass(S.body, 'combat-hpbar-text').textContent));
+  assert.equal(findByClass(S.body, 'combat-mpbar-text').textContent,
+    'MP ' + u.mp + '/' + u.maxMP,
+    'MP-полоса — мана Эфира (11/11, u.mp/u.maxMP): '
+    + JSON.stringify(findByClass(S.body, 'combat-mpbar-text').textContent));
+  const atkBadge = S.body.querySelectorAll('.combat-actions button')
+    .find((b) => b.dataset.act === 'attack').children
+    .find((ch) => ch.className === 'combat-actcount');
+  assert.ok(atkBadge, 'бейдж «Удара» есть (счётчики на кнопках, 000199)');
+  assert.equal(atkBadge.textContent, String(S.c.efs.touch),
+    'бейдж «Удара» = c.efs.touch (1): '
+    + JSON.stringify(atkBadge.textContent));
   // (b) Fallback: white-box c.efs = null + re-render (rAF-tick) →
-  // документированная защитная ветка (combat-ui.js: «без c.efs —
-  // fallback-цифры 0, строка рисуется»): строка остаётся, цифры 0.
-  // c.efs на render-пути читается только в этой строке (null-guard) —
-  // re-render без краха.
+  // render не крашится; полосы НЕ зависят от c.efs (source — u.mp
+  // и u.maxMP, null-guard только в бейдже): MP-полоса 11/11,
+  // бейдж — «0».
   S.c.efs = null;
   tickSlice(S.canvas, S.rafStubs);
-  const text2 = findByClass(S.body, 'combat-state').textContent;
-  assert.ok(text2.includes(
-    'Эфир: HP 16/16  |  Мана: 11  |  Шаги: 0  |  Касание: 0'),
-    'fallback без c.efs: «Шаги: 0  |  Касание: 0» (строка рисуется): '
-    + JSON.stringify(text2));
+  assert.equal(findByClass(S.body, 'combat-mpbar-text').textContent,
+    'MP ' + u.mp + '/' + u.maxMP,
+    'fallback без c.efs: MP-полоса не тронута (u.mp/u.maxMP): '
+    + JSON.stringify(findByClass(S.body, 'combat-mpbar-text').textContent));
+  assert.equal(atkBadge.textContent, '0',
+    'fallback без c.efs: бейдж «0» (null-guard): '
+    + JSON.stringify(atkBadge.textContent));
+  assert.equal(findByClass(S.body, 'combat-state').textContent
+    .split('\n').length, 2,
+    'fallback: stateEl — те же ДВЕ строки: '
+    + JSON.stringify(findByClass(S.body, 'combat-state').textContent));
 });
 
 // =====================================================================
@@ -5952,4 +6065,484 @@ test('боевой UI: 000198-UI-3 — e2e Эфир: клик по пауку (d
   assert.equal(u.mp, 8, 'мана 11→8 (Искра: 3 маны)');
   assert.equal(rngCalls, 0, '0 c._rng (детерминированный каст)');
   assert.equal(G.activeUnitId(c), 'efir', 'слот не завершился (шаги 3)');
+});
+
+// =====================================================================
+// Задача 000199. БОЙ: компактный верхний инфоблок справа (2 фикс.
+// строки, полоска MP, счётчики действий на кнопках «Удар»/«Книга
+// заклинаний»). ТЗ — tasks/pending/000199.md; контракт —
+// memory/000199-combat-info-block.md (решения D1–D7), компакт —
+// memory/000199-combat-hud-compact.md; план тестов — a3.
+//
+// КРАСНЫЕ тесты (TDD, этот коммит): 8 vm (CU199-*). Каждый падает на
+// ТЕКУЩЕМ (неизменённом) коде — осмысленная краснота «функциональность
+// ТЗ ещё не существует»:
+//   * stateEl рендерится 5–7 строками («Ход:»/«HP x|MP y»/
+//     «Шаги|Удар|Огонь|Леч»/строка активного союзника/«Отряд:»/
+//     «БЛОК|ЯД» — render() combat-ui.js L1474–1504): 2-строчного
+//     формата нет;
+//   * .combat-mpbar — элемента нет в build() (L281–293: очередь →
+//     hpbar → state) и CSS-правил нет в index.html;
+//   * .combat-actcount — счётчик-бейджей на кнопках нет (у каждой
+//     кнопки ровно 1 img-ребёнок, textContent '');
+//   * DOM-полоса HP всегда несёт значения ИГРОКА (p.hp/d.maxHP —
+//     render() L1513–1518), а не активного персонажа.
+// Семантические ре-пины существующих тестов (CU118-HUD, 000168-UI-1,
+// CU180-EFIR-ROW, 000124-кнопки L1168) — на ЗЕЛЁНОЙ стадии ВМЕСТЕ с
+// кодом (ТЗ явно меняет вывод HUD — инвариант «существенных правок
+// нет» здесь отменён ТЗ).
+//
+// Фикстуры (проверено прогоном на master 7875568, 2026-10-12):
+//   * дефолт scene84(): герой 25/25, MP 16/16 (G.derived); волк (m0)
+//     4/4 ур. 1, c.targetId='m0' (автоцель); c.ps {moveLeft:3,
+//     attack:1, spellInt:1, spellWis:1, …}; activeUnitId='player';
+//     stateEl — 5 строк (Ход: Вы / группа, раунд 1 / HP|MP /
+//     Шаги…|Удар…|Огонь…|Леч… / Цель: Волк (ур. 1, HP 4/4)).
+//   * addMerc84('Вольк', melee) + Space — очередь остановилась на
+//     'a1'; Вольк 16/16, moveLeft/attackLeft = 1 (ур. 2).
+//   * scene84({efir:true}) — pre-roll стоп на 'efir' (инициатива 4):
+//     Эфир 16/16, mp 11 (u.maxMP = 11 — снапшот stats.maxMP в
+//     buildEfirUnit; L1: = efirStats(1).maxMP), c.efs
+//     {spellInt:1, spellWis:1, touch:1, move:3}.
+//   * DOM-стаб: у элементов НЕТ querySelector (только
+//     overlay.querySelectorAll); textContent кнопки НЕ
+//     пересчитывается из children (ловушка, тесты/spellbook.test.js
+//     L27) — бейдж читается как child .combat-actcount (контракт
+//     «Подводные камни» 1/2).
+// =====================================================================
+
+// 000199: бейдж счётчика действий — ПЕРСИСТЕНТНЫЙ child кнопки
+// (создаётся build() один раз, как кнопки — урок 000149; render
+// обновляет только textContent/display).
+const badgeOf199 = (b) =>
+  b.children.find((ch) => ch.className === 'combat-actcount');
+
+// 000199: контракт фикс. 2 строк stateEl — строка 1 =
+// «<groupName>, раунд N»; строка 2 = строка цели (побайтово, без
+// правок — т/td/tHero/«Цели нет»).
+const checkState199 = (S, label) => {
+  const text = findByClass(S.body, 'combat-state').textContent;
+  const lines = text.split('\n');
+  assert.equal(lines.length, 2,
+    '000199 ' + label + ': ровно ДВЕ строки, '
+    + 'факт: ' + JSON.stringify(text));
+  assert.equal(lines[0],
+    S.c.groupName + ', раунд ' + S.c.round,
+    '000199 ' + label + ': строка 1 — «<groupName>, раунд N», '
+    + 'факт: ' + JSON.stringify(lines[0]));
+};
+
+test('боевой UI: 000199 — stateEl: ровно ДВЕ строки «<groupName>, раунд N» + строка цели (побайтово в дефолтной сцене) (CU199-STATE-1)', () => {
+  const S = scene84();
+  const t = S.c.units.find((u) => u.id === S.c.targetId && u.alive
+    && !u.fled);
+  assert.ok(t, 'фикстура: автоцель (волк) жива');
+  const expected = S.c.groupName + ', раунд ' + S.c.round
+    + '\nЦель: ' + t.name + ' (ур. ' + t.level + ', HP '
+    + t.hp + '/' + t.maxHP + ')';
+  const state = findByClass(S.body, 'combat-state');
+  assert.equal(state.textContent, expected,
+    'stateEl побайтово = ровно 2 строки (краснота: render() '
+    + 'combat-ui.js L1494–1504 собирает 5 строк «Ход:/HP|MP/Шаги…»): '
+    + JSON.stringify(state.textContent));
+  assert.equal(state.textContent.split('\n').length, 2,
+    'число строк фиксированное = 2: '
+    + JSON.stringify(state.textContent));
+});
+
+test('боевой UI: 000199 — stateEl: нет «Ход:», «Отряд:», «HP x/y | MP x/y», «Шаги:|Удар:|Огонь:|Леч:», строки активного союзника, «БЛОК»/«ЯД» (CU199-STATE-2)', () => {
+  // Сцена: Вольк + Space (ход наёмника) + white-box blocked/poison —
+  // в ТЕКУЩЕМ render ВСЕ запрещённые строки присутствуют (краснота
+  // осмысленна по каждому ассерту).
+  const S = scene84();
+  addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+  const w = S.c.units.find((x) => x.id === 'm0');
+  w.x = 3; w.y = 4;
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.G.activeUnitId(S.c), 'a1',
+    'фикстура: очередь остановилась на наёмнике');
+  S.c.ps.blocked = true;
+  S.c.ps.poison = 2;
+  tickSlice(S.canvas, S.rafStubs);
+  const text = findByClass(S.body, 'combat-state').textContent;
+  assert.ok(!text.includes('Ход:'),
+    'нет строки «Ход:» (чей ход — рамка 000197), факт: '
+    + JSON.stringify(text));
+  assert.ok(!text.includes('Отряд:'),
+    'нет строки «Отряд:» (состав не дублируется), факт: '
+    + JSON.stringify(text));
+  assert.ok(!/HP \d+\/\d+  \|  MP \d+\/\d+/.test(text),
+    'нет строки «HP x/y | MP x/y» (значения — на полосках), факт: '
+    + JSON.stringify(text));
+  assert.ok(!/Шаги: \d+/.test(text),
+    'нет «Шаги:» (счётчик шагов НЕ выводится — D4), факт: '
+    + JSON.stringify(text));
+  assert.ok(!/Удар: \d+/.test(text),
+    'нет «Удар:» (счётчик — на кнопке «Удар»), факт: '
+    + JSON.stringify(text));
+  assert.ok(!/Огонь: \d+/.test(text),
+    'нет «Огонь:» (счётчик — на кнопке «Книга заклинаний»), факт: '
+    + JSON.stringify(text));
+  assert.ok(!/Леч: \d+/.test(text),
+    'нет «Леч:» (счётчик — на кнопке «Книга заклинаний»), факт: '
+    + JSON.stringify(text));
+  assert.ok(!/Вольк: HP/.test(text),
+    'нет строки активного союзника (инфо — на полосках), факт: '
+    + JSON.stringify(text));
+  assert.ok(!text.includes('БЛОК'),
+    'нет префикса «БЛОК» (D1: статус — title кнопки/журнал), факт: '
+    + JSON.stringify(text));
+  assert.ok(!text.includes('ЯД'),
+    'нет префикса «ЯД» (D1: статус — журнал), факт: '
+    + JSON.stringify(text));
+});
+
+test('боевой UI: 000199 — stateEl: ФИКСИРОВАННО ровно 2 строки во всех состояниях (с целью / без цели / БЛОК / ЯД / отряд / фаза мобов) (CU199-FIXED-2)', () => {
+  // (a) без цели — «Цели нет» (безусловная 2-я строка).
+  {
+    const S = scene84();
+    S.c.targetId = null;
+    tickSlice(S.canvas, S.rafStubs);
+    assert.ok(findByClass(S.body, 'combat-state').textContent
+      .includes('Цели нет'), 'фикстура: «Цели нет»');
+    checkState199(S, 'без цели');
+  }
+  // (b) с целью (дефолт).
+  {
+    const S = scene84();
+    tickSlice(S.canvas, S.rafStubs);
+    checkState199(S, 'с целью');
+  }
+  // (c) БЛОК (c.ps.blocked).
+  {
+    const S = scene84();
+    S.c.ps.blocked = true;
+    tickSlice(S.canvas, S.rafStubs);
+    checkState199(S, 'БЛОК');
+  }
+  // (d) ЯД (c.ps.poison).
+  {
+    const S = scene84();
+    S.c.ps.poison = 2;
+    tickSlice(S.canvas, S.rafStubs);
+    checkState199(S, 'ЯД');
+  }
+  // (e) отряд (Эфир + наёмник).
+  {
+    const S = scene84({ efir: true });
+    addMerc84(S.c, S.G, 5, 2, 'ranged');
+    tickSlice(S.canvas, S.rafStubs);
+    checkState199(S, 'отряд (эфир + наёмник)');
+  }
+  // (f) фаза мобов (white-box: turnIndex → m0, phase 'mob') —
+  // активных союзников нет: 2 строки те же.
+  {
+    const S = scene84();
+    S.c.turnIndex = S.c.turnOrder.indexOf('m0');
+    S.c.phase = 'mob';
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'm0', 'фикстура: фаза мобов');
+    checkState199(S, 'фаза мобов');
+  }
+});
+
+test('боевой UI: 000199 — полоса HP: на ходу СОЮЗНИКА показывает HP активного союзника (не игрока) (CU199-HPBAR-ALIAS)', () => {
+  // (a) Наёмник: игрок РАНЕН (7/25 — frac 0.28), но полоса несёт
+  //     значения активного Волька (16/16).
+  {
+    const S = scene84();
+    S.c.player.hp = 7;
+    addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+    const w = S.c.units.find((x) => x.id === 'm0');
+    w.x = 3; w.y = 4;
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'a1', 'фикстура: активен наёмник');
+    const merc = S.c.units.find((x) => x.id === 'a1');
+    const text = findByClass(S.body, 'combat-hpbar-text').textContent;
+    assert.equal(text, 'HP ' + merc.hp + '/' + merc.maxHP,
+      'на ходу союзника полоса несёт союзника (краснота: render() '
+      + 'combat-ui.js L1513–1518 ВСЕГДА пишет игрока p.hp/d.maxHP '
+      + '— «HP 7/25»): факт ' + JSON.stringify(text));
+    const fill = findByClass(S.body, 'combat-hpbar-fill');
+    assert.equal(fill.style.width, '100.0%',
+      'fill — доля HP союзника (16/16 = 100.0%), факт: '
+      + JSON.stringify(fill.style.width));
+  }
+  // (b) Эфир: pre-roll стоп на 'efir' — полоса несёт Эфира.
+  {
+    const S = scene84({ efir: true });
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'efir', 'фикстура: активен Эфир');
+    const u = S.c.units.find((x) => x.id === 'efir');
+    const text = findByClass(S.body, 'combat-hpbar-text').textContent;
+    assert.equal(text, 'HP ' + u.hp + '/' + u.maxHP,
+      'на ходу Эфира полоса несёт Эфира (краснота: игрок 25/25): '
+      + 'факт ' + JSON.stringify(text));
+  }
+});
+
+test('боевой UI: 000199 — полоска MP (.combat-mpbar) ПОД полосой HP: на ходу игрока — «MP x/y» (CU199-MPBAR-1)', () => {
+  const S = scene84();
+  assert.equal(S.G.activeUnitId(S.c), 'player', 'фикстура: ход игрока');
+  const mpbar = findByClass(S.body, 'combat-mpbar');
+  assert.ok(mpbar,
+    '000199: .combat-mpbar создана в оверлее (краснота: build() '
+    + 'combat-ui.js L281–293 строит только hpbar — полоски MP нет)');
+  const mpfill = findByClass(S.body, 'combat-mpbar-fill');
+  const mptext = findByClass(S.body, 'combat-mpbar-text');
+  assert.ok(mpfill && mptext,
+    '000199: .combat-mpbar-fill/-text созданы');
+  // Позиция: ТРЕТИЙ элемент .combat-side — сразу ПОСЛЕ .combat-hpbar,
+  // ПЕРЕД .combat-state.
+  const side = findByClass(S.body, 'combat-side');
+  assert.deepEqual(side.children.map((ch) => ch.className),
+    ['combat-turnorder', 'combat-hpbar', 'combat-mpbar', 'combat-state',
+      'combat-actions', 'combat-spellbook', 'combat-log'],
+    '000199: порядок .combat-side — mpbar третьим (краснота: 6 '
+    + 'элементов без mpbar): '
+    + JSON.stringify(side.children.map((ch) => ch.className)));
+  // Дефолт: игрок MP 16/16.
+  const d = S.G.derived(S.c.player);
+  assert.equal(mpfill.style.width, '100.0%',
+    '000199: fill = доля MP (16/16 = 100.0%)');
+  assert.equal(mptext.textContent, 'MP ' + S.c.player.mp + '/' + d.maxMP,
+    '000199: текст «MP x/y» (игрок 16/16)');
+  // Re-render после смены MP: 8/16 = 50.0% (render() — единственный
+  // путь обновления, контракт 000038/000047).
+  S.c.player.mp = 8;
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(mpfill.style.width, '50.0%',
+    '000199: fill обновляется в render (8/16 = 50.0%)');
+  assert.equal(mptext.textContent, 'MP ' + S.c.player.mp + '/' + d.maxMP,
+    '000199: текст обновляется в render («MP 8/16»)');
+});
+
+test('боевой UI: 000199 — полоска MP: на ходу Эфира — мана Эфира; на ходу наёмника — маны нет (fill 0%, «MP —») (CU199-MPBAR-ALIAS)', () => {
+  // (a) Эфир: u.mp = 11, u.maxMP = 11 (снапшот stats.maxMP в
+  //     buildEfirUnit; L1-дефолт: Sheet 5+Int+Wis = legacy-таблица —
+  //     знаменатель полоски — С ЮНИТА, ревью 000199).
+  {
+    const S = scene84({ efir: true });
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'efir', 'фикстура: активен Эфир');
+    const u = S.c.units.find((x) => x.id === 'efir');
+    assert.equal(u.maxMP, S.G.efir.efirStats(u.level).maxMP,
+      'фикстура: L1-дефолт — снапшот u.maxMP = legacy-значению (11)');
+    const mptext = findByClass(S.body, 'combat-mpbar-text');
+    assert.ok(mptext,
+      '000199: .combat-mpbar-text есть (краснота: полоски MP нет)');
+    assert.equal(mptext.textContent, 'MP ' + u.mp + '/' + u.maxMP,
+      'на ходу Эфира — мана Эфира («MP 11/11», u.mp/u.maxMP): факт '
+      + JSON.stringify(mptext && mptext.textContent));
+  }
+  // (b) Наёмник: маны в модели НЕТ — трек на месте (фикс. геометрия),
+  //     fill 0%, текст «MP —» (D5).
+  {
+    const S = scene84();
+    const merc = addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+    const w = S.c.units.find((x) => x.id === 'm0');
+    w.x = 3; w.y = 4;
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'a1', 'фикстура: активен наёмник');
+    assert.equal(merc.mp, undefined,
+      'фикстура: у наёмника маны в модели нет');
+    const mpfill = findByClass(S.body, 'combat-mpbar-fill');
+    const mptext = findByClass(S.body, 'combat-mpbar-text');
+    assert.ok(mpfill && mptext,
+      '000199: полоска MP есть на ходу наёмника (трек — фикс. '
+      + 'геометрия)');
+    assert.equal(mpfill.style.width, '0.0%',
+      '000199: fill наёмника = 0.0% (маны нет): факт '
+      + JSON.stringify(mpfill && mpfill.style.width));
+    assert.equal(mptext.textContent, 'MP —',
+      '000199: текст наёмника «MP —» (D5): факт '
+      + JSON.stringify(mptext && mptext.textContent));
+  }
+});
+
+test('боевой UI: 000199 — полоска MP Эфира: знаменатель — снапшот Sheet (u.maxMP = 5+Int+Wis), не legacy-таблица efirStats(level) (CU199-MPBAR-SHEET)', () => {
+  // Выращенный лист ДО БОЯ (снапшот снимает buildEfirUnit): L1 +
+  // 2 очка (white-box ef.points, без level-up — уровень остаётся 1)
+  // → Int 4, Wis 4 → stats.maxMP = 5+4+4 = 13 (Sheet-истина, 000144:
+  // primary растёт ОЧКАМИ). Legacy-таблица efirStats(1).maxMP = 11 —
+  // на старом коде полоска вела «MP 13/11» (знач. > знаменателя).
+  const rafStubs = makeRafStubs();
+  const { G, body } = loadCombatUi(true, {
+    withEfir: true,
+    performance: { now: () => NOW84 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const ef = G.efir.createEfir();
+  ef.points = 2; // white-box: очки без level-up (уровень 1)
+  assert.equal(G.Sheet.raiseSkill(ef, 'intelligence').ok, true,
+    'очко → Интеллект');
+  assert.equal(G.Sheet.raiseSkill(ef, 'wisdom').ok, true,
+    'очко → Мудрость');
+  assert.equal(ef.primary.intelligence, 4, 'фикстура: Int 3→4');
+  assert.equal(ef.primary.wisdom, 4, 'фикстура: Wis 3→4');
+  const hero = G.createCharacter();
+  const c = G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42, efir: ef,
+  });
+  tickSlice(findCanvas(body), rafStubs);
+  assert.equal(G.activeUnitId(c), 'efir', 'фикстура: активен Эфир');
+  const u = c.units.find((x) => x.id === 'efir');
+  assert.equal(u.maxMP, 13,
+    'снапшот: u.maxMP = 5+Int+Wis = 13 (Sheet-истина): факт '
+    + JSON.stringify(u.maxMP));
+  assert.equal(G.efir.efirStats(u.level).maxMP, 11,
+    'контраст: legacy-таблица L1 = 11 (НЕ источник полоски)');
+  assert.equal(u.mp, 13, 'u.mp = stats.maxMP = 13');
+  const mpfill = findByClass(body, 'combat-mpbar-fill');
+  const mptext = findByClass(body, 'combat-mpbar-text');
+  assert.ok(mpfill && mptext, '000199: полоска MP есть');
+  assert.equal(mpfill.style.width, '100.0%',
+    'fill = 13/13 = 100.0%: факт '
+    + JSON.stringify(mpfill.style.width));
+  assert.equal(mptext.textContent, 'MP 13/13',
+    'знаменатель — u.maxMP (13), не efirStats(1).maxMP (11); на '
+    + 'legacy-коде было «MP 13/11»: факт '
+    + JSON.stringify(mptext.textContent));
+});
+
+test('боевой UI: 000199 — кнопка «Удар»: счётчик действий (c.ps.attack / u.attackLeft / c.efs.touch), ВСЕГДА видим включая 0 (CU199-BTN-ATK)', () => {
+  // (a) Дефолт (ход игрока): c.ps.attack = 1 → «1».
+  {
+    const S = scene84();
+    assert.equal(S.G.activeUnitId(S.c), 'player', 'фикстура: ход игрока');
+    const byAct = {};
+    for (const b of S.body.querySelectorAll('.combat-actions button'))
+      byAct[b.dataset.act] = b;
+    const badge = badgeOf199(byAct.attack);
+    assert.ok(badge,
+      '000199: бейдж .combat-actcount есть на кнопке «Удар» '
+      + '(краснота: children кнопки = ровно 1 иконка, счётчика нет)');
+    assert.equal(badge.textContent, String(S.c.ps.attack),
+      'счётчик = c.ps.attack («1»)');
+    // White-box: пул ударов исчерпан → «0» (видим всегда — D3).
+    S.c.ps.attack = 0;
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(badge.textContent, '0',
+      'счётчик обновляется в render: пул 0 → «0»');
+  }
+  // (b) Ход наёмника: u.attackLeft.
+  {
+    const S = scene84();
+    const merc = addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+    const w = S.c.units.find((x) => x.id === 'm0');
+    w.x = 3; w.y = 4;
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'a1', 'фикстура: активен наёмник');
+    const badge = badgeOf199(
+      S.body.querySelectorAll('.combat-actions button')
+        .find((b) => b.dataset.act === 'attack'));
+    assert.ok(badge, '000199: бейдж есть на ходу наёмника');
+    assert.equal(badge.textContent, String(merc.attackLeft),
+      'счётчик = u.attackLeft наёмника');
+  }
+  // (c) Ход Эфира: c.efs.touch; c.efs=null → «0» (null-guard,
+  //     re-render не крашится).
+  {
+    const S = scene84({ efir: true });
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'efir', 'фикстура: активен Эфир');
+    const badge = badgeOf199(
+      S.body.querySelectorAll('.combat-actions button')
+        .find((b) => b.dataset.act === 'attack'));
+    assert.ok(badge, '000199: бейдж есть на ходу Эфира');
+    assert.equal(badge.textContent, String(S.c.efs.touch),
+      'счётчик = c.efs.touch («1»)');
+    S.c.efs = null;
+    tickSlice(S.canvas, S.rafStubs); // re-render без c.efs — краха нет
+    assert.equal(badge.textContent, '0',
+      'c.efs=null → «0» (null-guard)');
+  }
+});
+
+test('боевой UI: 000199 — кнопка «Книга заклинаний»: счётчик «int/wis»; скрыт на ходу союзника; БЕЗ бейджа на прочих кнопках (CU199-BTN-BOOK)', () => {
+  // (a) Дефолт (ход игрока): «int/wis» — Огонь/Леч, порядок как в
+  //     убранной строке (D2).
+  {
+    const S = scene84();
+    assert.equal(S.G.activeUnitId(S.c), 'player', 'фикстура: ход игрока');
+    const bookBtn = S.body.querySelectorAll('.combat-actions button')
+      .find((b) => b.dataset.act === 'spellbook');
+    const badge = badgeOf199(bookBtn);
+    assert.ok(badge,
+      '000199: бейдж .combat-actcount есть на «Книге заклинаний» '
+      + '(краснота: счётчика нет)');
+    assert.equal(badge.textContent,
+      S.c.ps.spellInt + '/' + S.c.ps.spellWis,
+      'счётчик = «int/wis» («1/1»)');
+    // White-box: пул Огня исчерпан → «0/1».
+    S.c.ps.spellInt = 0;
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(badge.textContent,
+      S.c.ps.spellInt + '/' + S.c.ps.spellWis,
+      'счётчик обновляется в render: «0/1»');
+  }
+  // (b) Ход СОЮЗНИКА (Вольк): книга структурно недоступна
+  //     (allyCanDo 'spellbook') — бейдж СКРЫТ (display none, text
+  //     ''; «0» отклонено — смешивает «нет пула» с «недоступно»).
+  {
+    const S = scene84();
+    addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+    const w = S.c.units.find((x) => x.id === 'm0');
+    w.x = 3; w.y = 4;
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'a1', 'фикстура: активен наёмник');
+    const badge = badgeOf199(
+      S.body.querySelectorAll('.combat-actions button')
+        .find((b) => b.dataset.act === 'spellbook'));
+    assert.ok(badge, '000199: бейдж есть на ходу союзника (скрыт)');
+    assert.equal(badge.style.display, 'none',
+      'на ходу союзника бейдж скрыт (display none)');
+    assert.equal(badge.textContent, '',
+      'скрытый бейдж — текст пуст');
+  }
+  // (c) Бейдж ЕСТЬ только на attack+spellbook: НЕ на
+  //     block/quickItem/invItem/flee/endTurn/cast/heal/resurrect.
+  {
+    const S = scene84();
+    for (const act of ['block', 'quickItem', 'invItem', 'flee',
+      'endTurn']) {
+      const b = S.body.querySelectorAll('.combat-actions button')
+        .find((x) => x.dataset.act === act);
+      assert.ok(b, 'фикстура: кнопка ' + act + ' есть');
+      assert.ok(!badgeOf199(b),
+        'бейджа НЕТ на кнопке «' + act + '»');
+    }
+    // Полная панель: Эфир + медик + «Воскрешение» (cast/heal/
+    // resurrect строятся гейтами build() — отряд ДО build через
+    // rosterData, 000087; addMerc84-после build гейт не проходит).
+    const { G, body } = loadCombatUi(true, { withEfir: true });
+    const hero = G.createCharacter();
+    hero.spells = ['resurrect'];
+    G.combatUI.startCombat({
+      hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+      efir: G.efir.createEfir(),
+      rosterData: [{ name: 'Медик', role: 'support', level: 2,
+        dmg: 1, hp: 1, spells: ['mend'] }],
+    });
+    const side = findByClass(body, 'combat-side');
+    const panelBtns = side.children
+      .find((x) => x.className === 'combat-actions').children;
+    const acts = panelBtns.map((b) => b.dataset.act);
+    assert.ok(acts.includes('cast') && acts.includes('heal')
+      && acts.includes('resurrect'),
+      'фикстура: полная панель (cast/heal/resurrect построены): '
+      + JSON.stringify(acts));
+    for (const b of panelBtns) {
+      if (b.dataset.act === 'attack' || b.dataset.act === 'spellbook')
+        continue;
+      assert.ok(!badgeOf199(b),
+        'бейджа НЕТ на кнопке «' + b.dataset.act + '»');
+    }
+  }
 });

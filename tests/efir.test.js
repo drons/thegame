@@ -935,6 +935,9 @@ test('000112 EF-1: buildEfirUnit — профиль L1 (c.efs 1/1/1/3, hp=maxHP=
       assert.equal(u.maxHP, 16, 'maxHP = 10 + 2·3 = 16');
       assert.equal(u.hp, 16, 'hp = maxHP (100% на старте боя)');
       assert.equal(u.mp, 11, 'mp = 5 + 3 + 3 = 11 (своя мана)');
+      assert.equal(u.maxMP, 11,
+        'maxMP = 11 — снапшот (зеркало mp; полоска MP combat-ui '
+        + 'читает знаменатель с юнита — 000199-ревью)');
       assert.equal(c.efir, u, 'c.efir — ссылка на юнит (refill/тики)');
       // 000168: pre-roll остановился на слоте Эфира (ввод); endTurn — Эфир
       // не действует (ИИ-эскорт/касты убраны) → пулы и мана не тратятся.

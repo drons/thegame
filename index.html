@@ -445,6 +445,57 @@
       width: min(100vh - 32px, 100vw - 304px);
       height: min(100vh - 32px, 100vw - 304px);
     }
+    /* Полоска MP (задача 000199): ТРЕТИЙ элемент .combat-side — под
+       .combat-hpbar, над .combat-state. Геометрия 1-в-1 с
+       .combat-hpbar (16px); цвета — СУЩЕСТВУЮЩАЯ пара класса
+       .turn-token--hero (дорожка #12262e / заполнение #8cf2fc —
+       фиксированный, пороговой функции для маны НЕТ, 000038;
+       «новых цветов не вводим»). Ширина заполнения и текст
+       «MP x/y» (наёмник — «MP —») — из render() (src/combat-ui.js),
+       полосы следуют за активным персонажем. ТОЛЬКО боевой скоуп:
+       базовые правила .combat-hpbar*/.combat-state/.combat-actions
+       переиспользуют подземелье/NPC/города (000124) — не трогаются. */
+    .combat-overlay--combat .combat-mpbar {
+      position: relative;
+      height: 16px;
+      margin-bottom: 10px;
+      background: #12262e;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .combat-overlay--combat .combat-mpbar-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 100%;
+      background: #8cf2fc;
+    }
+    .combat-overlay--combat .combat-mpbar-text {
+      position: relative;
+      display: block;
+      text-align: center;
+      line-height: 16px;
+      font: 700 11px ui-monospace, monospace;
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+    }
+    /* Счётчики действий (задача 000199): бейдж .combat-actcount —
+       число на кнопке «Удар»/«Книга заклинаний» (персистентный span
+       из build(), src/combat-ui.js); absolute top-right — кнопка
+       position: relative ОТДЕЛЬНЫМ скоуп-правилем (базовое
+       .combat-actions button общее — 000124, правок НЕТ). Цвет —
+       подсветка текущего хода .turn-token--current (#ffe27a). */
+    .combat-overlay--combat .combat-actions button {
+      position: relative;
+    }
+    .combat-overlay--combat .combat-actcount {
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      font: 700 11px ui-monospace, monospace;
+      color: #ffe27a;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+      pointer-events: none;
+    }
     /* Портретный мобильный (задача 000124): КОЛОНКА — поле по
        ШИРИНЕ (приоритет ТЗ: вписалось > полная высота), панель под
        ним во всю ширину, кнопки остаются в 4 колонки (крупнее —
