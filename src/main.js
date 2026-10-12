@@ -396,6 +396,10 @@
     && G.playerUI.setQuests({ npcs: NPCS, book: questBook, day: clock.day });
   // Побеждённые группы: 'x,y' → день поражения (респаун через respawn_days).
   const defeatedAt = new Map();
+  // Собранный природный лут (задача 000158.04): 'x,y' → день сбора
+  // (респаун через respawn_days, «как для мобов»); ОТДЕЛЬНЫЙ раздел
+  // от defeatedAt (не смешивать!).
+  const collectedLoot = new Map();
   // Состояние эффектов построек (задача 000072): «раз в день» по
   // ЭФФЕКТУ — ключ 'x,y:effectId' → день применения (счёт на эффект,
   // не на здание) — и временные благословения { source: 'x,y', day,
@@ -687,6 +691,12 @@
       // повторно в тот же день.
       defeatedAt: G.serializeDefeatedAt
         ? G.serializeDefeatedAt(defeatedAt) : {},
+      // Задача 000158.04: природный лут — 'x,y' → день сбора.
+      // ОТДЕЛЬНЫЙ раздел (НЕ смешивать с defeatedAt!); тот же
+      // сериализатор dayMap (000072); неломкое расширение v1
+      // (000031): версию НЕ поднимаем, миграций нет.
+      collectedLoot: G.serializeDayMap
+        ? G.serializeDayMap(collectedLoot) : {},
       // Задача 000072: эффекты построек — «раз в день» по эффекту
       // ('x,y:effectId' → день применения) и активные благословения
       // (абсолютные дни). Неломкое расширение v1 (000031): версию НЕ
@@ -1098,6 +1108,37 @@
       console.warn('Сейв: не удалось восстановить buildingOncePerDay:', err);
     }
 
+    // --- Природный лут: собранное (задача 000158.04) ---
+    // 'x,y' → день сбора. ОТДЕЛЬНЫЙ раздел (НЕ смешивать с
+    // defeatedAt). Старый сейв без поля — тихо (пустая карта,
+    // 000031); битый раздел — отброс + предупреждение (000029);
+    // «собрано в будущем» день (dd > clock.day) — отброс
+    // (подделка, 000031 — дни абсолютные).
+    try {
+      const raw = d.collectedLoot;
+      if (raw != null) {
+        if (typeof raw !== 'object' || Array.isArray(raw)) {
+          console.warn(
+            'Сейв: раздел collectedLoot некорректен — сбрасываю.');
+          collectedLoot.clear();
+        } else if (G.restoreDayMap) {
+          const m = G.restoreDayMap(raw);
+          for (const [k, dd] of m) {
+            if (dd > clock.day) m.delete(k);
+          }
+          collectedLoot.clear();
+          for (const [k, v] of m) collectedLoot.set(k, v);
+          if (m.size === 0 && Object.keys(raw).length > 0) {
+            console.warn(
+              'Сейв: collectedLoot — валидных записей нет — ' +
+              'сбрасываю.');
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить collectedLoot:', err);
+    }
+
     // --- Благословения (buffs) (задача 000072) ---
     // restoreBuffs сам отбрасывает и «будущие» (day > clock.day),
     // и истёкшие (day < clock.day): очистка в onDay не пройдёт —
@@ -1461,6 +1502,10 @@
       G.restoreDay(hero); // часть HP/MP по формулам навыков
       const due = G.dueForRespawn(defeatedAt, day);
       for (const k of due) defeatedAt.delete(k);
+      // 000158.04: респаун природного лута — ТОТ ЖЕ параметр
+      // respawn_days (live, 000099), «как для мобов».
+      const dueLoot = G.dueForRespawn(collectedLoot, day);
+      for (const k of dueLoot) collectedLoot.delete(k);
       // Задача 000072: истёкшие благословения — абсолютные дни
       // (buff.day < day; легитимное благословение — 1 день).
       for (let i = buffs.length - 1; i >= 0; i--) {
@@ -1710,6 +1755,9 @@
       saveNow, // () → запись в localStorage
       flash,
       buildingOncePerDay, // live Map 'x,y:effectId' → день (000072)
+      // 000158.04: live Map 'x,y' → день сбора природного лута
+      // (респаун через respawn_days, «как для мобов»).
+      collectedLoot,
       buffs, // live Array (000072/000076)
       teleports, // live Map 'x,y' → { pair, dest, active } (000075)
       buildingQuests, // live Map 'x,y' → { questId, day, status } (000074)
@@ -3054,7 +3102,9 @@
       tile: map.tileAt(player.x, player.y),
       map, player, hero,
       day: clock.day, zoom, spriteLoader,
-      dungeonState, defeatedAt, npcs: NPCS,
+      // 000158.04: сырой live Map 'x,y' → день сбора (hud.js сам
+      // через g.lootVisible; паттерн defeatedAt).
+      dungeonState, defeatedAt, collectedLoot, npcs: NPCS,
       flash: hudFlash, flashUntil: hudFlashUntil,
       exploredCount,
       campShopFor, // ОПЦИОНАЛЬНОЕ поле ctx (000095): лагерь
@@ -3286,6 +3336,14 @@
     // ГЛУБОКАЯ копия (stock-объекты общие с wrap-перами).
     get campStocks() {
       return JSON.parse(JSON.stringify(campStocks));
+    },
+    // Природный лут (задача 000158.04): 'x,y' → день сбора.
+    // Поверхностная копия объекта (паттерн getter cities);
+    // мутации копии не попадают в состояние.
+    get collectedLoot() {
+      const out = {};
+      for (const [k, v] of collectedLoot) out[k] = v;
+      return out;
     },
     // Отладочные действия (смоук-тесты, ручная проверка баланса).
     // Текущий бой (для смоук-тестов и отладки).

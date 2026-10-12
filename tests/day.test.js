@@ -434,3 +434,98 @@ test('браузер: day.js отдаёт groupVisible (vm-песочница)',
   assert.equal(typeof sandbox.Game.groupVisible, 'function',
     'groupVisible в browser-режиме (root.Game)');
 });
+
+// =====================================================================
+// Задача 000158.04: видимость природного лута на глобальной карте.
+//
+// lootVisible(collectedLoot, x, y) — ЧИСТАЯ функция-зеркало groupVisible
+// (000122): тайл с лутом ВИДИМ ⇔ ключа 'x,y' НЕТ в состоянии
+// collectedLoot (Map 'x,y' → день сбора). fail-open (000029): битое
+// состояние (null/строка/число/массив) → видим. Респаун — ТОТ ЖЕ
+// dueForRespawn + live respawn_days, что у мобов (000099): зачистка —
+// только в onDay (main.js). Контракт: memory/000158.04-loot-collect.md.
+// КРАСНЫЕ: day.js на 3a0b831 НЕ экспортирует lootVisible.
+// =====================================================================
+
+// Локальный require (существующий деструктор выше НЕ трогаем): RED —
+// lootVisible === undefined на неизменённом коде.
+const D04 = require('../src/day.js');
+
+test('000158.04 LD1: lootVisible — fail-open, Map И объект сейва, отрицательные координаты, вход не мутируется', () => {
+  assert.equal(typeof D04.lootVisible, 'function',
+    'day.js экспортирует lootVisible (красный: нет экспорта)');
+  const lootVisible = D04.lootVisible;
+  // Пустое состояние — всё видимо (зеркало groupVisible, 000122).
+  assert.equal(lootVisible(new Map(), 1, 1), true, 'пустой Map — виден');
+  assert.equal(lootVisible({}, 1, 1), true, 'пустой объект сейва — виден');
+  // Ключ 'x,y' (plain, без суффикса) — только СВОЙ тайл.
+  const m2 = new Map([['1,1', 3], ['9,9', 3]]);
+  assert.equal(lootVisible(m2, 1, 1), false, 'своя запись — скрыт');
+  assert.equal(lootVisible(m2, 9, 9), false, 'обе записи независимы');
+  assert.equal(lootVisible(m2, 2, 2), true, 'соседний тайл — виден');
+  assert.equal(lootVisible(m2, 1, 2), true, 'y отличается — другой тайл');
+  // Объект сейва (restoreDayMap возвращает Map, но serialize-формат —
+  // объект; функция должна принимать ОБА, как groupVisible).
+  assert.equal(lootVisible({ '1,1': 3 }, 1, 1), false, 'объект: запись есть');
+  assert.equal(lootVisible({ '1,1': 3 }, 5, 5), true, 'объект: чужой тайл');
+  assert.equal(lootVisible(Object.create(null), 1, 1), true,
+    'объект без прототипа — не падает, не врёт про запись');
+  // Отрицательные координаты (карта центрирована на 0,0): ключ '-1,-2'.
+  const m3 = new Map([['-1,-2', 4]]);
+  assert.equal(lootVisible(m3, -1, -2), false, 'ключ "-1,-2" найден');
+  assert.equal(lootVisible(m3, -1, -1), true, 'сосед — не затронут');
+  assert.equal(lootVisible(m3, 1, -2), true, 'смена знака — другой тайл');
+  assert.equal(lootVisible(m3, -12, 0), true,
+    '"-1,-2" ≠ "-12" (нет ложного слияния суффикса)');
+  assert.equal(lootVisible({ '-1,-2': 4 }, -1, -2), false, 'объект: минус');
+  // fail-open: мусорное состояние → ВИДИМ (000029), без исключений.
+  for (const bad of [null, undefined, 'мусор', 42, true,
+    [['1,1', 3]], ['1,1'], []]) {
+    assert.equal(lootVisible(bad, 1, 1), true,
+      'мусор ' + JSON.stringify(bad) + ' → fail-open видим');
+  }
+  // Вход НЕ мутируется (чистая функция).
+  const before = JSON.stringify([...m2]);
+  lootVisible(m2, 1, 1);
+  lootVisible(m2, 99, 99);
+  assert.equal(JSON.stringify([...m2]), before, 'Map не мутируется');
+  const obj = { '1,1': 3 };
+  lootVisible(obj, 1, 1);
+  assert.deepEqual(obj, { '1,1': 3 }, 'объект не мутируется');
+});
+
+test('000158.04 LD2: lootVisible + dueForRespawn — цикл «как у мобов»: собран → скрыт → respawn_days днів → onDay-зачистка → снова виден (live respawn_days)', () => {
+  assert.equal(typeof D04.lootVisible, 'function',
+    'day.js экспортирует lootVisible');
+  const lootVisible = D04.lootVisible;
+  // Сбор на 1-й день, ключ '2,-3' (отрицательный y — реальная карта).
+  const m = new Map([['2,-3', 1]]);
+  assert.equal(lootVisible(m, 2, -3), false, 'собран — невидим');
+  // Резпаун-цикл (дефолт live respawn_days = 3, 000099):
+  assert.deepEqual(dueForRespawn(m, 2), [], 'день 2: рано (2-1=1 < 3)');
+  assert.deepEqual(dueForRespawn(m, 3), [], 'день 3: рано (3-1=2 < 3)');
+  assert.equal(lootVisible(m, 2, -3), false, 'день 3: всё ещё скрыт');
+  assert.deepEqual(dueForRespawn(m, 4), ['2,-3'],
+    'день 4: пора (4-1=3 >= 3) — onDay удалит ключ');
+  for (const k of dueForRespawn(m, 4)) m.delete(k); // действие onDay
+  assert.equal(lootVisible(m, 2, -3), true,
+    'день 4: лут ВЕРНУЛСЯ ровно на день респауна (без доп. состояния)');
+  assert.deepEqual(dueForRespawn(m, 5), [], 'после зачистки — пусто');
+  // live respawn_days (global-settings, 000099): МУТАЦИЯ видна
+  // (тот же параметр, что у мобов — новых настроек НЕТ).
+  const gs = require('../src/global-settings.js');
+  const prev = gs.SETTINGS.respawn_days;
+  try {
+    gs.SETTINGS.respawn_days = 5;
+    const m2 = new Map([['0,0', 1]]);
+    assert.deepEqual(dueForRespawn(m2, 5), [],
+      'live 5: день 5 — рано (5-1=4 < 5)');
+    assert.deepEqual(dueForRespawn(m2, 6), ['0,0'],
+      'live 5: день 6 — пора (6-1=5 >= 5)');
+    gs.SETTINGS.respawn_days = 4;
+    assert.deepEqual(dueForRespawn(m2, 5), ['0,0'],
+      'live 4: сдвиг параметра немедленно виден (5-1=4 >= 4)');
+  } finally {
+    gs.SETTINGS.respawn_days = prev;
+  }
+});

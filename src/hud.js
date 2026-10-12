@@ -14,11 +14,19 @@
 // узкий per-call ctx, который main.js передаёт при каждом вызове
 // (контракт §3 memory/000129-hud-module.md):
 //   ctx = { hudEl, game, tile, map, player, hero, day, zoom,
-//           spriteLoader, dungeonState, defeatedAt, npcs, flash,
-//           flashUntil, exploredCount, campShopFor }
-// campShopFor — ОПЦИОНАЛЬНОЕ поле ctx (задача 000095, 16-е):
+//           spriteLoader, dungeonState, defeatedAt, collectedLoot,
+//           npcs, flash, flashUntil, exploredCount, campShopFor,
+//           zoneGroup }
+// campShopFor — ОПЦИОНАЛЬНОЕ поле ctx (задача 000095):
 // (x, y, tile) → wrap барахолки лагеря | null; нет поля — ветка
 // лагеря мертва (1:1 с цепочкой без лагеря, HU9c).
+// zoneGroup — ОПЦИОНАЛЬНОЕ поле ctx (задача 000135): тип группы
+// зоны-предупреждения ВНЕ тайла | null (раннее предупреждение;
+// в подземелье/городе — null, ветка мертва).
+// collectedLoot — ОПЦИОНАЛЬНОЕ поле ctx (задача 000158.04): сырой
+// live Map 'x,y' → день сбора природного лута (паттерн defeatedAt);
+// нет поля — подсказка «[E] Собрать: …» мертва тихо (байт-пины
+// HU4).
 // game — ЕДИНСТВЕННЫЙ снапшот main.js (const G = globalThis.Game,
 // 000038); tile — main.js считает map.tileAt ОДИН раз на кадр (в
 // модуле tileAt НЕ вызывается). СОСТОЯНИЕ flash
@@ -57,9 +65,10 @@
 // 000127): DUNGEON_NAMES отсутствует ИЛИ нет ключа типа —
 // console.error (1×/вызов) + fallback «подземелье»; в норме
 // недостижимо (dungeon.js пинан, DUNGEON_NAMES закрывает все типы).
-// В main.js остаётся тонкая проводка: обёртка renderHud (ctx 16
-// полей — exploredCount добавлен 000093, campShopFor — 000095,
-// опциональное) + load-time гард (000038).
+// В main.js остаётся тонкая проводка: обёртка renderHud (ctx 18
+// полей — exploredCount — 000093, campShopFor — 000095, zoneGroup
+// — 000135, collectedLoot — 000158.04; последние три —
+// опциональные) + load-time гард (000038).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -235,6 +244,20 @@
       // / null — ветка мертва (000129, паттерн campShopFor —
       // существующие строки побайтово).
       line += '\nОсторожно: ' + g.mobGroupName(ctx.zoneGroup) + ' — зона';
+    }
+    // 000158.04: подсказка на тайле с ВИДИМЫМ природным лутом —
+    // аддитивная строка ПОСЛЕ эксклюзивной цепи (лут-тайл не
+    // hasBuilding/hasMobGroup — контент взаимоисключающий,
+    // 000158.03). Гарды ТИХИЕ: t.loot отсутствует/null,
+    // ctx.collectedLoot нет, g.lootVisible нет — ветка мертва
+    // (старый map.js/main.js/day.js), исключений и console.error
+    // НЕТ (кадр не спамит; ошибка деградации — в building-actions
+    // при [E], 000053). ctx.collectedLoot — ОПЦИОНАЛЬНОЕ поле
+    // (сырой live Map, паттерн defeatedAt).
+    if (t.loot && ctx.collectedLoot && g.lootVisible
+        && g.lootVisible(ctx.collectedLoot, t.x, t.y)) {
+      const it = g.getItem ? g.getItem(t.loot.item) : null;
+      line += '\n[E] Собрать: ' + (it ? it.name : t.loot.item);
     }
     // flash: ЗНАЧЕНИЯ из ctx (состояние — main.js, §4 memory); часы —
     // в момент вызова (в песочницах заморожены — NOW).

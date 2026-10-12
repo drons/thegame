@@ -99,6 +99,14 @@
   // {lastVisitDay, stock, built} — персистентность built — 000148.05).
   let deps = null;
 
+  // 000158.04: деградация сбора природного лута (000053):
+  // console.error ОДИН раз за сессию (повторные [E] не спамят):
+  // lootFieldLogged — в тайле нет поля loot (map.js старше
+  // 000158.03); lootWiringLogged — нет проводки collectedLoot /
+  // Game.lootVisible / Game.addItem (старые main.js/day.js/items.js).
+  let lootFieldLogged = false;
+  let lootWiringLogged = false;
+
   function init(d) {
     deps = d;
   }
@@ -859,6 +867,38 @@
       const map = deps.getMap();
       if (map) {
         const t = map.tileAt(deps.player.x, deps.player.y);
+        // 000158.04: природный лут — [E] на тайле с ВИДИМЫМ лутом.
+        // Ветка ПОСЛЕ всех гардов-оверлеев и close-if-active, ДО
+        // hasBuilding: лут-тайл структурно !hasBuilding
+        // (контент взаимоисключающий, 000158.03). Деградация
+        // (000053): поле loot отсутствует (старая map.js) —
+        // console.error 1×; проводки нет (collectedLoot /
+        // Game.lootVisible / Game.addItem) — console.error 1×;
+        // t.loot === null — тихий fall-through (норма, обычный
+        // тайл). [E]-роутер остаётся ОДНИМ.
+        if (t.loot != null) {
+          if (!deps.collectedLoot
+              || typeof deps.game.lootVisible !== 'function'
+              || typeof deps.game.addItem !== 'function') {
+            if (!lootWiringLogged) {
+              lootWiringLogged = true;
+              console.error('main.js: природный лут (' + t.x + ','
+                + t.y + ') — сбор недоступен (deps.collectedLoot / '
+                + 'Game.lootVisible / Game.addItem отсутствуют, '
+                + '000158.04)');
+            }
+          } else if (deps.game.lootVisible(
+              deps.collectedLoot, t.x, t.y)) {
+            collectWorldLoot(t);
+            return;
+          }
+          // собран (невидим) / wiring-деградация — fall-through
+          // (структурно лут ⇒ !hasBuilding → далее no-op).
+        } else if (!('loot' in t) && !lootFieldLogged) {
+          lootFieldLogged = true;
+          console.error('main.js: тайл без поля loot — src/map.js '
+            + 'старше 000158.03 — сбор природного лута недоступен');
+        }
         if (t.hasBuilding) {
           const b = buildingRecForTile(t); // 000076: подтип слота 8..12
           if (b) {
@@ -889,6 +929,32 @@
         if (npc) openNpcDialog(npc, t);
       }
     }
+  }
+
+  // 000158.04: сбор природного лута на тайле (вызывается из
+  // toggle() при ВИДИМОМ t.loot). G.addItem(hero, id) — вес/стекки
+  // (items.js, паттерн дропа боя). Успех — порядок пайплайна
+  // (паттерн существующих действий файла): марк
+  // collectedLoot.set('x,y', день) → saveNow →
+  // flash('Собрано: <имя>') → playerRender; имя —
+  // Game.getItem(id).name (неизвестный id — raw-id, не молча).
+  // Отказ addItem ({ok:false, reason}: вес/слоты/неизвестный id) —
+  // flash(reason) БЕЗ марк/saveNow/render (000128 §2.6): предмет НЕ
+  // теряется (тайл не помечен — игрок освобождает вес/слоты и
+  // пробует снова).
+  function collectWorldLoot(t) {
+    const id = t.loot.item;
+    const it = deps.game.getItem ? deps.game.getItem(id) : null;
+    const r = deps.game.addItem
+      ? deps.game.addItem(deps.hero, id) : null;
+    if (!r || !r.ok) {
+      if (r && r.reason) deps.flash(r.reason);
+      return;
+    }
+    deps.collectedLoot.set(t.x + ',' + t.y, deps.clock.day);
+    deps.saveNow();
+    deps.flash('Собрано: ' + (it ? it.name : id));
+    deps.playerRender();
   }
 
   // [E] в городе (задача 000107, расширение 000148.03): ЕДИНЫЙ путь —

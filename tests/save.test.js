@@ -1945,3 +1945,97 @@ test('000164 SV-1: partyLost — в сейве НЕТ (схема v1 не рас
     'hp — половина maxHP (без изменений)');
   assert.equal(saved.data.hero.gold, 40, 'gold 50 − 20% = 40 (без изменений)');
 });
+
+// =====================================================================
+// Задача 000158.04: раздел сейва collectedLoot (собрано природный лут).
+//
+// Контракт: memory/000158.04-loot-collect.md §3.2/3.3:
+//   * const collectedLoot = new Map() рядом с defeatedAt (main.js);
+//   * collectSaveData: ОТДЕЛЬНАЯ секция collectedLoot:
+//     G.serializeDayMap(collectedLoot) (тот же сериализатор, 000072);
+//   * restoreFromSave: try/catch + typeof-guard + G.restoreDayMap +
+//     future-day-отброс; старый сейв (нет поля) → {} тихо;
+//   * onDay: зачистка G.dueForRespawn(collectedLoot, day) ПОСЛЕ
+//     defeatedAt-зачистки;
+//   * deps-бандл init: collectedLoot (live Map).
+// КРАСНЫЙ: на 3a0b831 main.js не знает про collectedLoot.
+// =====================================================================
+
+test('000158.04 LS1: проводка collectedLoot в main.js (структурно) — const рядом с defeatedAt, collectSaveData/restore/onDay/deps-бандл', () => {
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  // 1) Состояние: const collectedLoot = new Map() рядом с defeatedAt.
+  const iDef = src.indexOf('const defeatedAt = new Map()');
+  assert.ok(iDef >= 0, 'defeatedAt на месте (граница — не трогаем)');
+  const iLoot = src.indexOf('const collectedLoot = new Map()');
+  assert.ok(iLoot > iDef, 'const collectedLoot = new Map() (красный)');
+  assert.ok(iLoot - iDef < 400,
+    'рядом с defeatedAt (одна зона временного состояния)');
+  // 2) collectSaveData: ОТДЕЛЬНАЯ секция, тот же сериализатор (000072).
+  const iCollect = src.indexOf('function collectSaveData');
+  const iRestoreFn = src.indexOf('function restoreFromSave');
+  assert.ok(iCollect >= 0 && iRestoreFn > iCollect,
+    'collectSaveData → restoreFromSave (каркас не сломан)');
+  const collect = src.slice(iCollect, iRestoreFn);
+  const iCL = collect.indexOf('collectedLoot:');
+  assert.ok(iCL >= 0, 'collectSaveData: секция collectedLoot (красный)');
+  assert.ok(collect.slice(iCL, iCL + 120).includes('G.serializeDayMap(collectedLoot)'),
+    'секция через G.serializeDayMap (как defeatedAt/dayMap)');
+  // 3) restoreFromSave: отдельный блок (не смешан с defeatedAt).
+  const restore = src.slice(iRestoreFn);
+  const iRaw = restore.indexOf('d.collectedLoot');
+  assert.ok(iRaw >= 0, 'restoreFromSave читает d.collectedLoot (красный)');
+  const block = restore.slice(iRaw, iRaw + 900);
+  assert.ok(block.includes('!= null'),
+    'guard: нет поля (старый сейв) → тихо, без ошибок');
+  assert.ok(block.includes('G.restoreDayMap(raw)'),
+    'G.restoreDayMap: INVALID-ключи молча отброшены (000029)');
+  assert.ok(block.includes('> clock.day'),
+    'future-day-отброс: фальшивая запись (день в будущем) — отброшена');
+  assert.ok(block.includes('collectedLoot.clear()'),
+    'clear+set на месте (live Map, не пересоздание)');
+  assert.ok(block.includes('collectedLoot.set('), 'записи возвращены');
+  assert.ok(!block.includes('d.defeatedAt'),
+    'БЛОК НЕ СМЕШАН с defeatedAt-секцией (граница)');
+  // 4) onDay: зачистка ПОСЛЕ defeatedAt, тот же dueForRespawn.
+  const iOnDay = src.indexOf('clock.onDay');
+  assert.ok(iOnDay >= 0, 'clock.onDay на месте');
+  const onDay = src.slice(iOnDay, iOnDay + 1500);
+  const iDueDef = onDay.indexOf('G.dueForRespawn(defeatedAt, day)');
+  assert.ok(iDueDef >= 0, 'defeatedAt-зачистка на месте (граница)');
+  const iDueLoot = onDay.indexOf('G.dueForRespawn(collectedLoot, day)');
+  assert.ok(iDueLoot >= 0, 'onDay: dueForRespawn(collectedLoot, day) (красный)');
+  assert.ok(iDueLoot > iDueDef, 'зачистка лута ПОСЛЕ defeatedAt');
+  assert.ok(onDay.slice(iDueLoot, iDueLoot + 120).includes('collectedLoot.delete('),
+    'due-ключи удалены из Map');
+  // 5) deps-бандл: collectedLoot (live Map) в init building-actions.
+  const mInit = /G\.buildingActions\.init\(\{[\s\S]*?\}\);/.exec(src);
+  assert.ok(mInit, 'G.buildingActions.init({...}) на месте');
+  assert.ok(mInit[0].includes('collectedLoot'),
+    'бандл init несёт collectedLoot (красный)');
+  // 6) ctx renderHud: collectedLoot (сырой live Map) + __game-gettter.
+  const iHud = src.indexOf('G.hud.update({');
+  assert.ok(iHud >= 0, 'G.hud.update({…}) на месте');
+  assert.ok(src.slice(iHud, iHud + 600).includes('collectedLoot'),
+    'ctx HUD несёт collectedLoot (красный)');
+  assert.ok(src.includes('get collectedLoot()'),
+    '__game-gettter collectedLoot (копия; e2e-тесты LM*)');
+});
+
+test('000158.04: shell-рондтрип секции collectedLoot — save.js универсален (имя секции, версия 1 без миграций)', () => {
+  // Зелёный фиксатор: save.js НЕ знает про разделы — секция проходит
+  // save/load как чужое поле. Задаёт ИМЯ секции и отсутствие
+  // миграций (000031): будущие разделы не поднимают версию.
+  const st = makeStorage();
+  const data = { day: 7, position: { x: -1, y: 1 }, hero: { gold: 5 },
+    collectedLoot: { '-1,1': 1, '-2,-3': 5 } };
+  assert.equal(S.save(st, data, 222), true);
+  const res = S.load(st);
+  assert.equal(res.status, 'ok');
+  assert.equal(res.save.version, S.CURRENT_VERSION, 'версия не поднята (1)');
+  assert.deepEqual(res.save.data, data, 'секция проходит без потерь');
+  // Живая форма (чистая функция day.js — 000072):
+  const m = D.restoreDayMap(res.save.data.collectedLoot);
+  assert.equal(m.get('-1,1'), 1, 'ключ "-1,1" (minus) — int день');
+  assert.equal(m.get('-2,-3'), 5, 'второй ключ цел');
+});

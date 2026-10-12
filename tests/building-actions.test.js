@@ -124,6 +124,10 @@ function makeEnv(over = {}) {
   // (payload по полям) не трогаются.
   if (over.roster !== undefined) deps.roster = over.roster;
   if (over.deadMercs !== undefined) deps.deadMercs = over.deadMercs;
+  // 000158.04: лут — live Map 'x,y' → день сбора (бандл init, main.js);
+  // только если тест передаёт (по умолчанию — absent, как roster).
+  if (over.collectedLoot !== undefined) deps.collectedLoot =
+    over.collectedLoot;
   // 000137 (DK1): over.game — полный объект Game (реальные BE + каталог
   // + buildingUI); по умолчанию — фейк (поведение БЕЗ ИЗМЕНЕНИЙ).
   const game = over.game !== undefined ? over.game : {
@@ -144,11 +148,24 @@ function makeEnv(over = {}) {
 
 // require + init(deps) — каждый тест получает СВОЙ мир (re-init допустим:
 // init — присвоение бандла, main.js вызывает его один раз при загрузке).
+// ВНИМАНИЕ: «свой мир» — только deps/бандл; module-level состояние
+// (one-shot-флаги console.error, specials-таблица) живёт в require-
+// кэше и ПЕРЕЖИВАЕТ re-init — «ровно 1× console.error»-ассерты
+// обязаны брать initModFresh.
 function initMod(over) {
   const env = makeEnv(over);
   const BA = require('../src/building-actions.js'); // RED: MODULE_NOT_FOUND
   BA.init(env.deps);
   return Object.assign({ BA }, env);
+}
+
+// 000158.04 (правки по ревью): initMod на СВЕЖЕМ инстансе модуля —
+// one-shot-флаги lootFieldLogged/lootWiringLogged сброшены, ассерты
+// «ровно 1×» не зависят от порядка тестов в файле (прецедент CI-U8,
+// tests/city-interact.test.js L435-436).
+function initModFresh(over) {
+  delete require.cache[require.resolve('../src/building-actions.js')];
+  return initMod(over);
 }
 
 test('BA1. модуль на месте: UMD node-ветка + чистая одиночная загрузка, ноль зависимостей при загрузке (задача 000128)', () => {
@@ -1211,4 +1228,198 @@ test('REVIEW-03. demolish — daily-марк НЕ пишется даже при
   } finally {
     delete e.BA.specials['rev_ctrl'];
   }
+});
+
+// =====================================================================
+// Задача 000158.04: сбор природного лута — [E] на тайле с лутами.
+//
+// Контракт: memory/000158.04-loot-collect.md §3.3:
+//   * ветка t.loot в toggle() ПОСЛЕ всех гардов-оверлеев и
+//     close-if-active, ДО if (t.hasBuilding);
+//   * collectWorldLoot: G.addItem(hero, id) → успех:
+//     collectedLoot.set('x,y', clock.day) → saveNow → flash
+//     «Собрано: <имя>» → playerRender;
+//   * D5: отказ addItem {ok:false, reason} → flash(reason), БЕЗ
+//     марк/сейва/рендера (предмет остаётся на тайле);
+//   * 000053: однострочные console.error-флаги деградации
+//     (нет поля loot в тайле / нет Game.lootVisible-проводки),
+//     один раз за сессию;
+//   * loot: null — нормальное состояние, ТИХИЙ fall-through.
+// КРАСНЫЕ: toggle() на 3a0b831 не знает про t.loot — [E] no-op.
+//
+// lootVisible в stub — ЗЕРКАЛО контракта day.js (чистая функция
+// «ключ 'x,y' есть → false»); сам ядро пины LD1/LD2.
+// =====================================================================
+
+function lootVisibleStub(m, x, y) {
+  if (!m || typeof m !== 'object') return true;
+  const k = x + ',' + y;
+  if (typeof m.has === 'function') return !m.has(k);
+  return !Object.prototype.hasOwnProperty.call(m, k);
+}
+
+// Фейковый Game-снапшот для лут-ветки: buildingUI ОБЯЗАТЕЛЕН
+// (ветка лута живёт ВНУТРИ buildingUI-ветки toggle(), до hasBuilding).
+function lootGame(over = {}) {
+  return Object.assign({
+    lootVisible: lootVisibleStub,
+    getItem: (id) =>
+      (over.items && over.items[id]) ||
+      (id === 'stick' ? { name: 'Палка' } : null),
+    addItem: (hero, id) => {
+      over.onAddItem && over.onAddItem(id);
+      return over.addItemResult || { ok: true };
+    },
+    buildingUI: { isActive: () => false, close: () => {} },
+    npcUI: { open: () => {}, isActive: () => false, close: () => {} },
+  }, over.extraGame);
+}
+
+test('BA-LOOT1. 000158.04: [E] на тайле с ВИДИМЫМ лутом → addItem, collectedLoot["x,y"]=clock.day, saveNow 1×, flash «Собрано: <имя>», playerRender 1×', () => {
+  const collected = new Map();
+  const added = [];
+  const e = initMod({
+    map: { tileAt: (x, y) =>
+      ({ x, y, hasBuilding: false, loot: { item: 'stick' } }) },
+    game: lootGame({ onAddItem: (id) => added.push(id) }),
+    collectedLoot: collected,
+  });
+  e.BA.toggle();
+  assert.deepEqual(added, ['stick'],
+    'G.addItem(hero, id) ровно 1×, id — строка предмета (красный)');
+  assert.equal(e.calls.saveNow, 1, 'saveNow 1×');
+  assert.deepEqual(e.calls.flash, ['Собрано: Палка'],
+    'flash «Собрано: <имя из getItem>»');
+  assert.equal(e.calls.playerRender, 1, 'playerRender 1×');
+  assert.equal(collected.get('5,7'), 5,
+    'ключ "5,7" (player-позиция) → день сбора = clock.day (5)');
+  assert.deepEqual(e.log,
+    ['saveNow', 'flash:Собрано: Палка', 'render'],
+    'порядок: saveNow → flash → render (после set, contract §3.3)');
+});
+
+test('BA-LOOT2. 000158.04: лут УЖЕ собран (ключ в collectedLoot) — [E] no-op: ни addItem, ни saveNow, ни flash, ни render; день записи не тронут', () => {
+  const collected = new Map([['5,7', 2]]);
+  const e = initMod({
+    map: { tileAt: (x, y) =>
+      ({ x, y, hasBuilding: false, loot: { item: 'stick' } }) },
+    game: lootGame(),
+    collectedLoot: collected,
+  });
+  e.BA.toggle();
+  assert.equal(e.calls.saveNow, 0, 'no-op: без сейва');
+  assert.equal(e.calls.flash.length, 0, 'no-op: без флэша');
+  assert.equal(e.calls.playerRender, 0, 'no-op: без рендера');
+  assert.equal(collected.get('5,7'), 2, 'запись (день 2) не тронута');
+});
+
+test('BA-LOOT3. 000158.04: addItem ОТКАЗ (инвентарь полон) → flash(reason), БЕЗ марк/сейва/рендера — предмет НЕ теряется (D5)', () => {
+  const collected = new Map();
+  const e = initMod({
+    map: { tileAt: (x, y) =>
+      ({ x, y, hasBuilding: false, loot: { item: 'stick' } }) },
+    game: lootGame({ addItemResult: { ok: false, reason: 'нет места' } }),
+    collectedLoot: collected,
+  });
+  e.BA.toggle();
+  assert.equal(collected.size, 0, 'collectedLoot НЕ мутирован');
+  assert.equal(e.calls.saveNow, 0, 'без saveNow при отказе');
+  assert.deepEqual(e.calls.flash, ['нет места'], 'flash(reason)');
+  assert.equal(e.calls.playerRender, 0, 'без рендера при отказе');
+});
+
+test('BA-LOOT4. 000158.04: поле loot ОТСУТСТВУЕТ в тайле (старая map.js) — console.error РОВНО 1× (000053), [E] как раньше, без исключений; повторный [E] — второй ошибки нет', () => {
+  const errors = [];
+  const realError = console.error;
+  console.error = (m) => errors.push(String(m));
+  try {
+    const e = initModFresh({
+      map: { tileAt: (x, y) =>
+        ({ x, y, hasBuilding: false }) }, // НЕТ поля loot
+      game: lootGame(),
+      collectedLoot: new Map(),
+    });
+    e.BA.toggle();
+    assert.equal(e.calls.saveNow, 0, 'фолл-тру: без сейва');
+    assert.equal(e.calls.flash.length, 0, 'фолл-тру: без флэша');
+    assert.equal(errors.length, 1,
+      'console.error 1× (красный: гард-флаж отсутствует)');
+    assert.ok(errors[0].includes('loot'),
+      'ошибка про отсутствующее поле loot: «' + errors[0] + '»');
+    e.BA.toggle();
+    assert.equal(errors.length, 1,
+      'второй [E] — без второй ошибки (one-shot флаг)');
+  } finally {
+    console.error = realError;
+  }
+});
+
+test('BA-LOOT5. 000158.04: проводка — game БЕЗ lootVisible (старый day.js) → console.error 1× + без сбора; loot: null (норма) — тихо, ошибок нет', () => {
+  const errors = [];
+  const realError = console.error;
+  console.error = (m) => errors.push(String(m));
+  try {
+    // (a) нет lootVisible — тайл С лутами: ошибка проводки 1×
+    // (initModFresh — one-shot-флаг wiring гарантированно свежий).
+    const e = initModFresh({
+      map: { tileAt: (x, y) =>
+        ({ x, y, hasBuilding: false, loot: { item: 'stick' } }) },
+      game: lootGame({ extraGame: { lootVisible: undefined } }),
+      collectedLoot: new Map(),
+    });
+    e.BA.toggle();
+    assert.equal(e.calls.saveNow, 0, 'без проводки — без сейва');
+    assert.equal(e.calls.flash.length, 0, 'без проводки — без флэша');
+    assert.equal(errors.length, 1,
+      'ошибка проводки 1× (красный: гард-флаж отсутствует)');
+    e.BA.toggle();
+    assert.equal(errors.length, 1, 'повтор — one-shot');
+    // (b) loot: null — нормальная клетка: тихо, ошибки НЕ добавляет.
+    const e2 = initMod({
+      map: { tileAt: (x, y) =>
+        ({ x, y, hasBuilding: false, loot: null }) },
+      game: lootGame(),
+      collectedLoot: new Map(),
+    });
+    e2.BA.toggle();
+    assert.equal(e2.calls.saveNow, 0, 'loot:null — тихо (норма)');
+    assert.equal(errors.length, 1,
+      'loot:null НЕ логируется (ошибка ≠ норма)');
+  } finally {
+    console.error = realError;
+  }
+});
+
+test('BA-LOOT6. 000158.04 regression: тайл ПОСТРОЙКИ (loot: null, пустой collectedLoot) — openBuildingUI как раньше (лут-ветка не вмешивается)', () => {
+  const opened = [];
+  const e = initMod({
+    map: { tileAt: (x, y) =>
+      ({ x, y, hasBuilding: true, building: 10, buildingId: 30,
+        buildingWealth: 1, loot: null }) },
+    game: lootGame({
+      extraGame: {
+        getBuilding: (id) => (id === 30
+          ? { id: 30, название: 'Каменный дом' } : null),
+        npcForBuilding: () => null,
+        buildingEffects: {
+          buildingActions: () =>
+            [{ id: 'eff_x', имя: 'Эффект', доступен: true }],
+        },
+        buildingUI: {
+          open: (p) => opened.push(p),
+          isActive: () => false,
+          close: () => {},
+        },
+      },
+    }),
+    collectedLoot: new Map(),
+  });
+  e.BA.toggle();
+  assert.equal(opened.length, 1, 'buildingUI.open 1× (как раньше)');
+  assert.equal(opened[0].title, 'каменный дом',
+    'заголовок — имя РЕШЁННОЙ записи (000075)');
+  assert.equal(opened[0].actions.length, 1, 'строки эффектов как раньше');
+  assert.equal(e.calls.saveNow, 0, 'лут-ветка не сработала');
+  assert.equal(e.calls.flash.length, 0, 'без флэша');
+  assert.equal(e.calls.playerRender, 0, 'без рендера');
 });

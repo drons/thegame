@@ -154,6 +154,31 @@
     return !Object.prototype.hasOwnProperty.call(defeatedAt, key);
   }
 
+  /**
+   * Видим ли природный лут на тайле глобальной карты (задача
+   * 000158.04). false — в collectedLoot есть запись его тайла
+   * (собран, ждёт респауна); true — записи нет. Мусор вместо
+   * collectedLoot — fail-open (true, лут виден — старое
+   * поведение, игра не ломается; принцип 000029). Ключ — ТОЧНО
+   * формат main.js: `x + ',' + y` (целые, без пробелов,
+   * отрицательные возможны). Принимает и Map (рабочее состояние
+   * main.js), и обычный объект (сырой сейв / копия __game); для
+   * объекта — hasOwnProperty, а не `in` (прототип-безопасность).
+   * Чистая: вход не мутируется. Респаун — ТОТ ЖЕ dueForRespawn +
+   * live respawn_days, что у мобов (000099): зачистка — в onDay
+   * (main.js).
+   * @param {object|Map} collectedLoot {'x,y' → день сбора}
+   * @param {number} x координата тайла
+   * @param {number} y координата тайла
+   */
+  function lootVisible(collectedLoot, x, y) {
+    if (!collectedLoot || typeof collectedLoot !== 'object') return true;
+    const key = x + ',' + y;
+    if (typeof collectedLoot.has === 'function')
+      return !collectedLoot.has(key);
+    return !Object.prototype.hasOwnProperty.call(collectedLoot, key);
+  }
+
   /** «Раз в день»: можно ли применить эффект (фонтан, круг, …). */
   function canUseToday(lastUsedDay, day) {
     return lastUsedDay !== day;
@@ -334,7 +359,7 @@
   return {
     STEPS_PER_DAY, RESPAWN_DAYS,
     createClock, dueForRespawn, canUseToday,
-    serializeDefeatedAt, restoreDefeatedAt, groupVisible,
+    serializeDefeatedAt, restoreDefeatedAt, groupVisible, lootVisible,
     // Задача 000072: состояние эффектов построек.
     SUN_DAMAGE_MULT, MOUNTAIN_ARMOR,
     serializeDayMap, restoreDayMap,

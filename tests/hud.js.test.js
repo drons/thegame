@@ -1234,3 +1234,89 @@ test('HU9. update(): сток барахолки ротация по дню — 
       'wrap передан (без render — без падения)');
   }
 });
+
+// =====================================================================
+// Задача 000158.04: подсказка «[E] Собрать: <имя>» на тайле с
+// ВИДИМЫМ природным лутом.
+//
+// Контракт: memory/000158.04-loot-collect.md §3.4: АДДИТИВНАЯ строка
+// ПОСЛЕ эксклюзивной цепи buildLine (dungeonState > hasBuilding >
+// hasMobGroup > zoneGroup), ДО flash. Гарды ТИХИЕ (кадр: ни
+// исключений, ни логов — деградация-лог только в building-actions
+// при [E]): t.loot И ctx.collectedLoot И g.lootVisible И
+// g.lootVisible(ctx.collectedLoot, t.x, t.y). Ключ — plain 'x,y';
+// имя предмета — g.getItem(id).name (нет getItem — id как есть).
+// КРАСНЫЙ: строки нет на 3a0b831 (HUD не знает про t.loot).
+// =====================================================================
+
+test('LH1. 000158.04: строка «[E] Собрать: <имя>» — видимый лут: строка после цепи, до flash; собран/loot:null/нет полей — НЕТ строки, тихо (ни crash, ни log)', () => {
+  const hud = require('../src/hud.js');
+  const lootTile = (over = {}) => Object.assign({
+    x: 5, y: 7, terrain: 3, hasBuilding: false, buildingId: null,
+    hasMobGroup: false, loot: { item: 'root_rock' },
+  }, over);
+  const gLoot = {
+    lootVisible: (m, x, y) => {
+      if (!m || typeof m !== 'object') return true;
+      const k = x + ',' + y;
+      return typeof m.has === 'function' ? !m.has(k)
+        : !Object.prototype.hasOwnProperty.call(m, k);
+    },
+    getItem: (id) => (id === 'root_rock' ? { name: 'Каменный корень' }
+      : null),
+  };
+  const errors = [];
+  const realError = console.error;
+  console.error = (m) => errors.push(String(m));
+  try {
+    // (a) ВИДИМЫЙ лут: строка ПОСЛЕ «[I] персонаж», ДО flash.
+    const ctxA = makeCtx({
+      tile: lootTile(),
+      collectedLoot: new Map(), // пустой — «5,7» не собран
+      game: gLoot,
+      flash: 'FLASH', flashUntil: Number.POSITIVE_INFINITY,
+    });
+    assert.equal(hud.buildLine(ctxA),
+      TOP_BASE + '[I] персонаж\n[E] Собрать: Каменный корень\nFLASH',
+      '(a) строка после цепи, до flash (красный: строки нет)');
+    // без flash — чистый конец строки:
+    assert.equal(hud.buildLine(makeCtx({
+      tile: lootTile(), collectedLoot: new Map(), game: gLoot,
+    })), TOP_BASE + '[I] персонаж\n[E] Собрать: Каменный корень',
+      '(a2) без flash — строка в конце');
+    // (b) СОБРАН (ключ «5,7» в collectedLoot) — строки НЕТ.
+    assert.equal(hud.buildLine(makeCtx({
+      tile: lootTile(),
+      collectedLoot: new Map([['5,7', 2]]),
+      game: gLoot,
+    })), TOP_BASE + '[I] персонаж', '(b) собран — без строки');
+    // (c) loot: null (нормальная клетка) — без строки.
+    assert.equal(hud.buildLine(makeCtx({
+      tile: lootTile({ loot: null }),
+      collectedLoot: new Map(),
+      game: gLoot,
+    })), TOP_BASE + '[I] персонаж', '(c) loot:null — без строки');
+    // (d) ПОЛЯ НЕТ (старая map.js / старый ctx / старый Game) — тихо.
+    const ctxD = makeCtx(); // дефолтный tile — без loot; без
+    // collectedLoot/lootVisible/getItem — как до 000158.04.
+    assert.equal(hud.buildLine(ctxD), TOP_BASE + '[I] персонаж',
+      '(d) старая форма — без строки');
+    assert.equal(errors.length, 0,
+      '(d) гарды ТИХИЕ: ни console.error (кадр)');
+    // (e) loot ЕСТЬ, но ctx БЕЗ collectedLoot (старый main.js) — тихо.
+    assert.equal(hud.buildLine(makeCtx({
+      tile: lootTile(),
+      game: Object.assign({ lootVisible: gLoot.lootVisible }, gLoot),
+    })), TOP_BASE + '[I] персонаж', '(e) нет ctx.collectedLoot — тихо');
+    // (f) ctx БЕЗ lootVisible (старый day.js) — тихо.
+    assert.equal(hud.buildLine(makeCtx({
+      tile: lootTile(),
+      collectedLoot: new Map(),
+      game: { getItem: gLoot.getItem },
+    })), TOP_BASE + '[I] персонаж', '(f) нет g.lootVisible — тихо');
+    assert.equal(errors.length, 0,
+      '(d-f) во всех тихих ветках — ноль логов');
+  } finally {
+    console.error = realError;
+  }
+});
