@@ -1586,7 +1586,7 @@ test('боевой UI: 000084 — полоса HP у союзника: комп�
     'полный HP → «#6fdc6f» (hpBarColor)');
 });
 
-test('боевой UI: 000084 — маркер «свой»: синяя подложка 44×44 + рамка 39×39 (без лоадера — фолбэк + маркер)', () => {
+test('боевой UI: 000084/000197 — рамка «активный»: голубая подложка 44×44 + рамка 39×39 у активного Эфира (без лоадера — фолбэк + рамка; Эфир активен по дефолту)', () => {
   const S = scene84({ efir: true }); // без лоадера: фолбэк-прямоугольник
   const u = S.c.units.find((x) => x.kind === 'efir');
   S.c.targetId = null; // без подсветки цели (сигнатура 39×39)
@@ -1613,35 +1613,52 @@ test('боевой UI: 000084 — маркер «свой»: синяя подл
     'фолбэк-прямоугольник 32×32 (без лоадера)');
 });
 
-test('боевой UI: 000084 — индикатор хода у союзника: кольцо 41×41, когда turnOrder[turnIndex] = союзник; в остальное время — нет', () => {
+test('боевой UI: 000084/000197 — рамка «активный» у союзника: голубая 39×39 + подложка, когда turnOrder[turnIndex] = союзник (кольцо 41×41 удалено); в остальное время — без подложки/рамки/кольца', () => {
   const S = scene84({ efir: true });
   const u = S.c.units.find((x) => x.kind === 'efir');
   S.c.targetId = null; // без подсветки цели (цвет '#ffe27a')
   const ex = u.x * 48, ey = u.y * 48;
-  // Ход Эфира: канвас-индикатор в его клетке.
+  // Ход Эфира: голубая рамка + подложка в его клетке (ре-пин 000197:
+  // «чей ход» больше не кольцо 41×41 — рамка 000197, 000199 L4).
   S.c.phase = 'mob';
   S.c.turnIndex = S.c.turnOrder.indexOf('efir');
   const t1 = tickSlice(S.canvas, S.rafStubs);
   assert.ok(t1.calls.some((c) => c[0] === 'strokeRect'
-    && c[1][0] === ex + 2.5 && c[1][1] === ey + 2.5
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'голубая рамка 39×39 (px+4.5, py+4.5) — у активного (000197)');
+  assert.ok(t1.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложка 44×44 — у активного (000197)');
+  assert.ok(!t1.calls.some((c) => c[0] === 'strokeRect'
     && c[1][2] === 41 && c[1][3] === 41),
-    'кольцо хода 41×41 (px+2.5, py+2.5) — снаружи рамки «свой»');
+    'кольца хода 41×41 НЕТ — удалено (000199 L4: «чей ход» — рамка)');
   assert.equal(t1.styleCalls.filter((s) => s[0] === 'strokeStyle'
-    && s[1] === '#ffe27a').length, 1,
-    'цвет кольца — ровно один раз (цели нет — без коллизии)');
-  // Не ход Эфира — кольца нет нигде. 000167: очередь по инициативе
-  // [Эфир, волк, герой] — «не Эфир» = слот героя (раньше индекс 0).
+    && s[1] === '#ffe27a').length, 0,
+    '«#ffe27a» отсутствует (цели нет, кольца нет)');
+  // Не ход Эфира — подложки/рамки/кольца нет. 000167: очередь по
+  // инициативе [Эфир, волк, герой] — «не Эфир» = слот героя (раньше
+  // индекс 0).
   S.c.turnIndex = S.c.turnOrder.indexOf('player');
   const t2 = tickSlice(S.canvas, S.rafStubs);
   assert.ok(!t2.calls.some((c) => c[0] === 'strokeRect'
     && c[1][2] === 41 && c[1][3] === 41),
     'не ход союзника — кольца нет');
+  assert.ok(!t2.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'неактивный Эфир — рамки нет (000197: убрать постоянно горящую)');
+  assert.ok(!t2.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'неактивный Эфир — подложки нет (000197)');
   assert.equal(t2.styleCalls.filter((s) => s[0] === 'strokeStyle'
     && s[1] === '#ffe27a').length, 0,
     '«#ffe27a» отсутствует (цели нет, кольца нет)');
 });
 
-test('боевой UI: 000084 — наёмник (kind «merc»): спрайт моба-архетипа (MOB_FRAMES[«orc»]) + маркер «свой»', () => {
+test('боевой UI: 000084/000197 — наёмник (kind «merc»): спрайт моба-архетипа (MOB_FRAMES[«orc»]) + рамка «активный» (000197: рамка/подложка ТОЛЬКО у активного)', () => {
   const S = scene84({ loader:
     [['assets/sprites/mobs/orc_', { __fake: 'orc' }]] });
   const merc = addMerc84(S.c, S.G, 5, 2, 'ranged');
@@ -1657,17 +1674,36 @@ test('боевой UI: 000084 — наёмник (kind «merc»): спрайт �
   assert.ok(S.requested.includes(frame),
     'запрошенный путь = MOB_FRAMES["orc"][frameIndex]: ' + frame
     + ' | ' + JSON.stringify(S.requested));
-  // Маркер «свой» на клетке наёмника (сцена с ОДНИМ союзником).
-  assert.ok(t.calls.some((c) => c[0] === 'fillRect'
+  // Ре-пин 000197: наёмник НЕАКТИВЕН (turnIndex — герой, очередь
+  // ['m0','player','a1'] @1) — подложки/рамки на клетке НЕТ
+  // («постоянно горящая голубая» убрана).
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
     && c[1][0] === merc.x * 48 + 2 && c[1][1] === merc.y * 48 + 2
-    && c[1][2] === 44 && c[1][3] === 44), 'подложка на клетке наёмника');
-  assert.ok(t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложки НЕТ: наёмник неактивен (000197)');
+  assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
     && c[1][0] === merc.x * 48 + 4.5 && c[1][1] === merc.y * 48 + 4.5
-    && c[1][2] === 39 && c[1][3] === 39), 'рамка на клетке наёмника');
-  assert.equal(t.styleCalls.filter((s) => s[0] === 'fillStyle'
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамки НЕТ: наёмник неактивен (000197)');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 0,
+    'голубой stroke #8cf2fc за окно отсутствует (активного союзника нет)');
+  // АКТИВНЫЙ наёмник (turnIndex → его слот) — подложка + рамка
+  // вернулись на его клетку (сцена с ОДНИМ союзником).
+  S.c.turnIndex = S.c.turnOrder.indexOf(merc.id);
+  const t2 = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(t2.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === merc.x * 48 + 2 && c[1][1] === merc.y * 48 + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложка на клетке наёмника (активен)');
+  assert.ok(t2.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === merc.x * 48 + 4.5 && c[1][1] === merc.y * 48 + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамка на клетке наёмника (активен)');
+  assert.equal(t2.styleCalls.filter((s) => s[0] === 'fillStyle'
     && s[1] === 'rgba(140, 242, 252, 0.25)').length, 1,
     'подложка — ровно один раз');
-  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+  assert.equal(t2.styleCalls.filter((s) => s[0] === 'strokeStyle'
     && s[1] === '#8cf2fc').length, 1, 'рамка — ровно один раз');
 });
 
@@ -1701,8 +1737,10 @@ test('боевой UI: 000084 — детерминизм отрисовки (gol
   assert.deepEqual(A.calls.map(norm), B.calls.map(norm),
     'тот же now/seed/state → та же последовательность вызовов');
   // Golden: порядок слоёв в клетке Эфира: подложка → спрайт → трек →
-  // заполнение → уровень → рамка → кольцо активного хода (000168:
-  // pre-roll остановился на слоте Эфира — он активный, turnIndex 0).
+  // заполнение → уровень → рамка (000168: pre-roll остановился на
+  // слоте Эфира — он активный, turnIndex 0). Ре-пин 000197: строка
+  // «кольцо активного хода 41×41» УБРАНА — кольцо удалено, «чей ход»
+  // показывает голубая рамка 39×39 (000199 L4).
   // Вызовы героя (спрайт 55.2px вылезает за клетку; миниполоса 55×4
   // может попасть в диапазон клетки) исключаются по сигнатуре.
   const ex = u.x * 48, ey = u.y * 48;
@@ -1721,8 +1759,7 @@ test('боевой UI: 000084 — детерминизм отрисовки (gol
     ['fillRect', [ex + 8, ey + 2, 32, 4]],             // HP-трек
     ['fillRect', [ex + 8, ey + 2, 32, 4]],             // HP-fill (полный)
     ['fillText', [String(u.level), ex + 24, ey + 28]], // уровень
-    ['strokeRect', [ex + 4.5, ey + 4.5, 39, 39]],      // рамка «свой»
-    ['strokeRect', [ex + 2.5, ey + 2.5, 41, 41]],      // кольцо активного хода (000168: Эфир на своём слоте, turnIndex 0)
+    ['strokeRect', [ex + 4.5, ey + 4.5, 39, 39]],      // голубая рамка «активный» (000197; Эфир активен — turnIndex 0)
   ];
   assert.deepEqual(cell, golden,
     'клетка Эфира — golden-порядок слоёв: ' + JSON.stringify(cell));
@@ -1779,7 +1816,7 @@ test('боевой UI: 000084 — слои: союзники не перекры
     + Math.max(...allyIdx) + ' vs min hero ' + Math.min(...heroIdx));
 });
 
-test('боевой UI: 000084 — деградация (без sprites.js): Эфир — фолбэк + маркер, drawImage нет, исключений/ошибок нет', () => {
+test('боевой UI: 000084/000197 — деградация (без sprites.js): Эфир — фолбэк + рамка «активный» (Эфир активен по дефолту), drawImage нет, исключений/ошибок нет', () => {
   const rafStubs = makeRafStubs();
   const { G, body } = loadCombatUi(false, {
     withEfir: true,
@@ -1910,7 +1947,7 @@ test('боевой UI: 000084 — клик по клетке союзника: �
 // (hx−27.6, …, 55.2×55.2) — пересечения с клеткой (px+8, …, 32×32)
 // нет. Контракт — memory/000114-efir-combat-render.md (§2/§5).
 
-test('боевой UI: 000114 — союзник kind «efir»: кадры efirFrames (а не кадрами героя) + маркер «свой»', () => {
+test('боевой UI: 000114/000197 — союзник kind «efir»: кадры efirFrames (а не кадрами героя) + рамка «активный» (Эфир активен по дефолту)', () => {
   const S = scene84({ efir: true,
     loader: [['assets/sprites/efir/', { __fake: 'efir' }]] });
   const u = S.c.units.find((x) => x.kind === 'efir');
@@ -2546,7 +2583,7 @@ function addMerc152(c, G, x, y, npcId, role, name) {
   return merc;
 }
 
-test('боевой UI: 000152 — наёмник с npcId (id «merc_volk») рисует СВОЙ спрайт assets/sprites/mercs/merc_volk_idle_*.svg; кадр = mercFrames(id, "idle")[frameIndex(NOW84, x, y, n)]; orc НЕ запрашивается; маркер «свой» как раньше', () => {
+test('боевой UI: 000152 — наёмник с npcId (id «merc_volk») рисует СВОЙ спрайт assets/sprites/mercs/merc_volk_idle_*.svg; кадр = mercFrames(id, "idle")[frameIndex(NOW84, x, y, n)]; orc НЕ запрашивается; рамка «активный» — только у активного (ре-пин 000197)', () => {
   const S = scene84({ loader:
     [['assets/sprites/mercs/', { __fake: 'merc' }]] });
   const merc = addMerc152(S.c, S.G, 5, 2, 'merc_volk', 'melee', 'Вольк');
@@ -2572,17 +2609,36 @@ test('боевой UI: 000152 — наёмник с npcId (id «merc_volk») р�
   assert.equal(di[1][2], merc.y * 48 + 8, 'y — клетка наёмника + 8px');
   assert.equal(di[1][3], 32, '1×1: 32px');
   assert.equal(di[1][4], 32, '1×1: 32px');
-  // Маркер «свой» — как раньше (пин 000084: подложка + рамка).
-  assert.ok(t.calls.some((c) => c[0] === 'fillRect'
+  // Ре-пин 000197: рамка «активный» — ТОЛЬКО у активного. Наёмник
+  // по дефолту НЕАКТИВЕН (turnOrder ['m0','player','merc_volk'] @1
+  // — активен player) — подложки/рамки на клетке НЕТ.
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
     && c[1][0] === merc.x * 48 + 2 && c[1][1] === merc.y * 48 + 2
-    && c[1][2] === 44 && c[1][3] === 44), 'подложка «свой»');
-  assert.ok(t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложки НЕТ: наёмник неактивен (000197)');
+  assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
     && c[1][0] === merc.x * 48 + 4.5 && c[1][1] === merc.y * 48 + 4.5
-    && c[1][2] === 39 && c[1][3] === 39), 'рамка «свой»');
-  assert.equal(t.styleCalls.filter((s) => s[0] === 'fillStyle'
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамки НЕТ: наёмник неактивен (000197)');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 0,
+    'голубой stroke за окно отсутствует (активного союзника нет)');
+  // АКТИВНЫЙ наёмник (turnIndex → его слот) — подложка + рамка
+  // вернулись (пин 000084: подложка + рамка, теперь с гейтом).
+  S.c.turnIndex = S.c.turnOrder.indexOf('merc_volk');
+  const t2 = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(t2.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === merc.x * 48 + 2 && c[1][1] === merc.y * 48 + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложка «активный» (наёмник активен)');
+  assert.ok(t2.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === merc.x * 48 + 4.5 && c[1][1] === merc.y * 48 + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамка «активный» (наёмник активен)');
+  assert.equal(t2.styleCalls.filter((s) => s[0] === 'fillStyle'
     && s[1] === 'rgba(140, 242, 252, 0.25)').length, 1,
     'подложка — ровно один раз');
-  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+  assert.equal(t2.styleCalls.filter((s) => s[0] === 'strokeStyle'
     && s[1] === '#8cf2fc').length, 1, 'рамка — ровно один раз');
   // Детерминизм кадра (зелёная фаза): запрошенный путь =
   // mercFrames(id, "idle")[frameIndex(NOW84, x, y, n)] — now один на
@@ -2647,7 +2703,7 @@ test('боевой UI: 000152 — два наёмника с РАЗНЫМИ npcI
     'Эфир → efirFrames("idle") (ветка не тронута): ' + eFrame);
 });
 
-test('боевой UI: 000152 G1 — деградация (без sprites.js): наёмник с npcId — фолбэк + маркер «свой», drawImage нет, исключений/ошибок нет', () => {
+test('боевой UI: 000152 G1 — деградация (без sprites.js): наёмник с npcId — фолбэк; рамка «активный» — только у активного (ре-пин 000197), drawImage нет, исключений/ошибок нет', () => {
   // Гард (зелёный с первого дня): G.mercFrames/G.MOB_FRAMES оба
   // undefined (в цепочке нет sprites.js) → allyFrames → null →
   // фолбэк-прямоугольник по роли (паттерн G1-Эфира 000084),
@@ -2674,6 +2730,8 @@ test('боевой UI: 000152 G1 — деградация (без sprites.js): �
     merc.x = 5; merc.y = 2;
     c.units.push(merc);
     c.turnOrder.push(merc.id);
+    // Первый re-render — на НЕАКТИВНОМ наёмнике (turnIndex — player,
+    // очередь ['m0','player','merc_volk'] @1) — ре-пин 000197.
     rafStubs.scheduled[rafStubs.scheduled.length - 1](); // re-render
   } finally {
     console.error = realError;
@@ -2689,15 +2747,30 @@ test('боевой UI: 000152 G1 — деградация (без sprites.js): �
     && x[1][0] === ex + 8 && x[1][1] === ey + 8
     && x[1][2] === 32 && x[1][3] === 32),
     'фолбэк-прямоугольник 32×32 на клетке наёмника');
-  // Маркер «свой» без спрайта.
-  assert.ok(calls.some((x) => x[0] === 'fillRect'
+  // Ре-пин 000197: НЕАКТИВНЫЙ наёмник — подложки/рамки на клетке
+  // НЕТ (та же ветвь, что со спрайтами — рамки не зависят от них).
+  assert.ok(!calls.some((x) => x[0] === 'fillRect'
     && x[1][0] === ex + 2 && x[1][1] === ey + 2
     && x[1][2] === 44 && x[1][3] === 44),
-    'подложка «свой» без sprites.js');
-  assert.ok(calls.some((x) => x[0] === 'strokeRect'
+    'подложки НЕТ: наёмник неактивен (000197)');
+  assert.ok(!calls.some((x) => x[0] === 'strokeRect'
     && x[1][0] === ex + 4.5 && x[1][1] === ey + 4.5
     && x[1][2] === 39 && x[1][3] === 39),
-    'рамка «свой» без sprites.js');
+    'рамки НЕТ: наёмник неактивен (000197)');
+  // АКТИВНЫЙ наёмник (turnIndex → его слот): re-render через
+  // rafStubs — подложка + рамка без спрайта (деградация, не крах).
+  c.turnIndex = c.turnOrder.indexOf('merc_volk');
+  const n0 = findCanvas(body).drawCalls.length;
+  rafStubs.scheduled[rafStubs.scheduled.length - 1](); // re-render
+  const calls2 = findCanvas(body).drawCalls.slice(n0);
+  assert.ok(calls2.some((x) => x[0] === 'fillRect'
+    && x[1][0] === ex + 2 && x[1][1] === ey + 2
+    && x[1][2] === 44 && x[1][3] === 44),
+    'подложка «активный» без sprites.js (наёмник активен)');
+  assert.ok(calls2.some((x) => x[0] === 'strokeRect'
+    && x[1][0] === ex + 4.5 && x[1][1] === ey + 4.5
+    && x[1][2] === 39 && x[1][3] === 39),
+    'рамка «активный» без sprites.js (наёмник активен)');
 });
 
 // --- Задача 000167: Бой: инициатива (ядро) — КРАСНЫЕ ТЕСТЫ (UI) ---
@@ -5478,4 +5551,239 @@ test('боевой UI: 000188 — rowChk: нет G.Spells (движок), G.Spel
   assert.ok(!S.ally.alive, 'союзник остаётся мёртв (каста не было)');
   assert.equal(bookBox.style.display, '',
     'книга ОСТАЛАСЬ открыта при отказе (игрок видит причину)');
+});
+
+// =====================================================================
+// Задача 000197. БОЙ: рамки — убрать постоянно горящую голубую;
+// голубая = активный персонаж; жёлтая = выбранный/цель.
+// =====================================================================
+// Контракт: memory/000197-combat-frames.md. ТЗ (tasks/pending/000197.md):
+//   (1) убрать голубые рамки вокруг NPC и Эфира, горят постоянно;
+//   (2) голубая рамка — ТОЛЬКО если персонаж активен (его ход);
+//   (3) жёлтая рамка — у выбранных персонажей/мобов-целей удара.
+// (000199 L4: «чей ход» теперь показывает рамка 000197 — жёлтое
+// кольцо 41×41 активного союзника УБИРАЕТСЯ, роль индикатора хода
+// перенята голубой рамкой.)
+// Регион — ветвь ally в drawUnits (src/combat-ui.js): подложка 44×44
+// (px+2, inset 2), рамка 39×39 (px+4.5, inset 4.5, lw2, '#8cf2fc'),
+// кольцо хода 41×41 (px+2.5, inset 2.5, lw2, '#ffe27a'). НЕ тронуты:
+// ранний проход 000166 (гейт canResurrect — дефолтный герой без
+// «Воскрешения» → в сценах ниже не рисуется), mob-ветвь (жёлтая
+// подсветка цели 39×39 у c.targetId — ТЗ её сохраняет), hero-ветвь
+// (у героя рамок нет — ТЗ: «NPC и Эфир»; фолбэк-ромб героя —
+// fillStyle '#8cf2fc', НЕ stroke — счёт strokeStyle от него не
+// зависит), breath FX 000118 (арки, гейт c._fx.breath — в сценах
+// ниже не активен), штриховка 000175 (stroke-only, цвет
+// rgba(255,226,122,0.35) — ни '#ffe27a', ни strokeRect), ряд очереди
+// (DOM-токены).
+// Фикстуры — scene84/addMerc84/tickSlice/styledCalls, NOW84. Счёт
+// стилей — ЗА ОДИН рендер-окно (tickSlice): styleCalls
+// накапливается между рендерами.
+// Состояние очереди (000167/000168, проверено пробным прогоном):
+// сцены с Эфиром — ['efir','m0','player'], turnIndex 0 → Эфир
+// АКТИВЕН по дефолту; без Эфира — ['m0','player'], turnIndex 1 →
+// активен player; наёмник (addMerc84 — push в конец) — НЕАКТИВЕН.
+// RED-фаза (этот коммит): CU197-A/B/C — падают на ТЕКУЩЕМ коде
+// осмысленно (подложка/рамка рисуются БЕСУСЛОВНО у каждого живого
+// союзника; жёлтое кольцо рисуется на активном союзнике). Гварды
+// CU197-D/E/F/G — зелёные с первого дня (новое условие «активен» +
+// сохранённое поведение); после реализации они же ловят
+// «перечинку» (рамку бы выкинули во всех состояниях / убили
+// жёлтую цель). CU197-H (000166 бит-в-бит) — не дублируется:
+// уже покрыт CU166-HL (отдельный ранний проход, гейт canResurrect).
+// =====================================================================
+
+test('боевой UI: 000197 — НЕАКТИВНЫЙ наёмник: на клетке нет подложки, нет рамки, голубого strokeStyle #8cf2fc в окне нет (CU197-A)', () => {
+  // Сцена БЕЗ Эфира: turnOrder ['m0','player'], turnIndex 1 →
+  // активен player; наёмник (addMerc84 — push в конец очереди) —
+  // НЕАКТИВЕН. targetId = null — без жёлтой подсветки (нет
+  // коллизии цвета). Без лоадера — фолбэк-сцена: рамки НЕ зависят
+  // от спрайтов (контракт §2).
+  const S = scene84();
+  const merc = addMerc84(S.c, S.G, 5, 2, 'ranged');
+  S.c.targetId = null;
+  assert.equal(S.c.turnOrder[S.c.turnIndex], 'player',
+    'фикстура: активен player, наёмник НЕАКТИВЕН: '
+    + JSON.stringify(S.c.turnOrder) + ' @' + S.c.turnIndex);
+  const ex = merc.x * 48, ey = merc.y * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложки 44×44 на клетке НЕАКТИВНОГО наёмника НЕТ '
+    + '(ТЗ: убрать постоянно горящую голубую)');
+  assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамки 39×39 на клетке НЕАКТИВНОГО наёмника НЕТ');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 0,
+    'голубой stroke #8cf2fc за окно ОТСУТСТВУЕТ (активного '
+    + 'союзника нет)');
+});
+
+test('боевой UI: 000197 — НЕАКТИВНЫЙ Эфир (turnIndex → слот player): на клетке нет подложки, нет рамки, голубого stroke в окне нет (CU197-B)', () => {
+  // Дефолтная сцена с Эфиром — Эфир АКТИВЕН (turnIndex 0); сдвига-
+  // ем очередь на слот player → Эфир НЕАКТИВЕН. targetId = null.
+  const S = scene84({ efir: true });
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  S.c.targetId = null;
+  S.c.turnIndex = S.c.turnOrder.indexOf('player');
+  assert.equal(S.c.turnOrder[S.c.turnIndex], 'player',
+    'фикстура: активен player, Эфир НЕАКТИВЕН: '
+    + JSON.stringify(S.c.turnOrder) + ' @' + S.c.turnIndex);
+  const ex = u.x * 48, ey = u.y * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложки 44×44 на клетке НЕАКТИВНОГО Эфира НЕТ');
+  assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамки 39×39 на клетке НЕАКТИВНОГО Эфира НЕТ');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 0,
+    'голубой stroke #8cf2fc за окно ОТСУТСТВУЕТ (ромб героя — '
+    + 'fill, не stroke; активного союзника нет)');
+});
+
+test('боевой UI: 000197 — АКТИВНЫЙ союзник: жёлтого кольца 41×41 нет, #ffe27a за окно нет (Эфир по дефолту; наёмник — активный) (CU197-C)', () => {
+  // Жёлтая = ТОЛЬКО «выбранный/цель» (ТЗ п.3 + 000199 L4):
+  // «чей ход» больше не показывает жёлтое кольцо — его роль
+  // переняла голубая рамка (CU197-D/E). targetId = null — без
+  // подсветки цели (нет коллизии '#ffe27a').
+  const S = scene84({ efir: true });
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  S.c.targetId = null;
+  assert.equal(S.c.turnOrder[S.c.turnIndex], 'efir',
+    'фикстура: Эфир АКТИВЕН по дефолту (pre-roll 000168 на его слоте): '
+    + JSON.stringify(S.c.turnOrder) + ' @' + S.c.turnIndex);
+  const ex = u.x * 48, ey = u.y * 48;
+  // (а) Активный Эфир: кольца 41×41 на его клетке нет.
+  const t1 = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(!t1.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 2.5 && c[1][1] === ey + 2.5
+    && c[1][2] === 41 && c[1][3] === 41),
+    'кольца 41×41 на клетке АКТИВНОГО Эфира НЕТ (жёлтая — только '
+    + 'выбранный/цель)');
+  assert.equal(t1.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#ffe27a').length, 0,
+    '«#ffe27a» за окно отсутствует (цели нет, кольца нет)');
+  // (б) Активный НАЁМНИК (turnIndex → его слот): кольцо отсутствует
+  // у любого kind ally (рамка следует за активным — любой союзник).
+  const merc = addMerc84(S.c, S.G, 5, 2, 'ranged');
+  S.c.turnIndex = S.c.turnOrder.indexOf(merc.id);
+  const mx = merc.x * 48, my = merc.y * 48;
+  const t2 = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(!t2.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === mx + 2.5 && c[1][1] === my + 2.5
+    && c[1][2] === 41 && c[1][3] === 41),
+    'кольца 41×41 на клетке АКТИВНОГО наёмника НЕТ');
+  assert.equal(t2.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#ffe27a').length, 0,
+    '«#ffe27a» за окно отсутствует (наёмник активен, цели нет)');
+});
+
+test('боевой UI: 000197 — АКТИВНЫЙ Эфир (дефолт): голубая рамка 39×39 + подложка 44×44 на клетке, по одному разу за окно (CU197-D)', () => {
+  // Гвард нового условия (зелёный с первого дня: на текущем коде
+  // слои рисуются бесусловно; после реализации — только у
+  // активного; Эфир в сцене активен → слои на месте): голубая
+  // рамка ПОЯВЛЯЕТСЯ, когда персонаж активен (ТЗ п.2).
+  const S = scene84({ efir: true }); // без лоадера: фолбэк
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  S.c.targetId = null;
+  assert.equal(S.c.turnOrder[S.c.turnIndex], 'efir',
+    'фикстура: Эфир АКТИВЕН (чей ход — голубая рамка)');
+  const ex = u.x * 48, ey = u.y * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложка 44×44 на клетке АКТИВНОГО Эфира');
+  assert.ok(t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'голубая рамка 39×39 на клетке АКТИВНОГО Эфира');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'fillStyle'
+    && s[1] === 'rgba(140, 242, 252, 0.25)').length, 1,
+    'подложка — ровно один раз (одна союзная клетка)');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 1,
+    'голубая рамка — ровно один раз');
+});
+
+test('боевой UI: 000197 — наёмник становится активным (turnIndex → его слот): рамка + подложка на его клетке, по одному разу (CU197-E)', () => {
+  // Гвард: рамка следует за активным — любой kind ally (наёмник
+  // kind 'merc'). Без Эфира: по дефолту активен player, наёмник
+  // неактивен (CU197-A); сдвигаем очередь на его слот.
+  const S = scene84(); // без Эфира: фолбэк-сцена
+  const merc = addMerc84(S.c, S.G, 5, 2, 'ranged');
+  S.c.targetId = null;
+  S.c.turnIndex = S.c.turnOrder.indexOf(merc.id);
+  assert.equal(S.c.turnOrder[S.c.turnIndex], merc.id,
+    'фикстура: наёмник АКТИВЕН: ' + JSON.stringify(S.c.turnOrder)
+    + ' @' + S.c.turnIndex);
+  const ex = merc.x * 48, ey = merc.y * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложка 44×44 на клетке АКТИВНОГО наёмника');
+  assert.ok(t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'голубая рамка 39×39 на клетке АКТИВНОГО наёмника');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'fillStyle'
+    && s[1] === 'rgba(140, 242, 252, 0.25)').length, 1,
+    'подложка — ровно один раз');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 1,
+    'голубая рамка — ровно один раз');
+});
+
+test('боевой UI: 000197 — цель-моб: жёлтая рамка 39×39 #ffe27a на клетке моба СОХРАНЕНА; голубого stroke на клетке моба нет (CU197-F)', () => {
+  // Гвард сохранённого поведения (ТЗ п.3: жёлтая = цель): подсветка
+  // цели в mob-ветви (u.id === c.targetId → 39×39 '#ffe27a') —
+  // бит-в-бит, ветвь не трогается. Цвет — через styledCalls
+  // («цвет, действовавший в момент вызова»).
+  const S = scene84({ efir: true });
+  const wolf = S.c.units.find((x) => x.side === 'mob');
+  S.c.targetId = wolf.id; // явная цель (не авто)
+  const wx = wolf.x * 48, wy = wolf.y * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const styled = styledCalls(t.events);
+  const yellowFrame = styled.find((c) => c.name === 'strokeRect'
+    && c.args[0] === wx + 4.5 && c.args[1] === wy + 4.5
+    && c.args[2] === 39 && c.args[3] === 39
+    && c.strokeStyle === '#ffe27a');
+  assert.ok(yellowFrame,
+    'жёлтая рамка цели 39×39 #ffe27a на клетке моба (ТЗ: жёлтая = '
+    + 'цель — сохраняется)');
+  const blueOnMob = styled.filter((c) => c.name === 'strokeRect'
+    && c.strokeStyle === '#8cf2fc'
+    && c.args[0] >= wx && c.args[0] < wx + 48
+    && c.args[1] >= wy && c.args[1] < wy + 48);
+  assert.equal(blueOnMob.length, 0,
+    'голубого stroke #8cf2fc на клетке моба нет (голубая — только '
+    + 'у активного союзника; моб — не союзник)');
+});
+
+test('боевой UI: 000197 — герой вне скоупа: активный player — на клетке героя strokeRect-рамок нет (ни 39×39, ни 41×41) (CU197-G)', () => {
+  // Гвард «не больше, чем ТЗ»: ТЗ охватывает «NPC и Эфир» — hero-
+  // ветвь рамок НЕ получает (ромб героя — fill; «сходит игрок» —
+  // DOM-токен ряда очереди, 000167). Сцена без Эфира: активен
+  // player (дефолт) — рамки на клетке героя всё равно нет.
+  const S = scene84(); // без Эфира
+  S.c.targetId = null;
+  assert.equal(S.c.turnOrder[S.c.turnIndex], 'player',
+    'фикстура: активен player (его ход)');
+  const hx = S.c.px * 48, hy = S.c.py * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
+    && ((c[1][0] === hx + 4.5 && c[1][1] === hy + 4.5
+      && c[1][2] === 39 && c[1][3] === 39)
+     || (c[1][0] === hx + 2.5 && c[1][1] === hy + 2.5
+      && c[1][2] === 41 && c[1][3] === 41))),
+    'на клетке героя strokeRect-рамки нет (ни 39×39, ни 41×41)');
 });
