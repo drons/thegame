@@ -249,6 +249,11 @@ function loadDungeonUi(opts = {}) {
       'combat.js', 'combat-keys.js', 'combat-scale.js', 'combat-ui.js');
   }
   chain.push('dungeon.js');
+  // 000153.03: locations.js ПОСЛЕ dungeon.js (порядок index.html
+  // 908>900) — единый helper floorStatusLine (D5, finding G).
+  // load-pure (LOC-2: ноль require/RNG в source) → на существующие
+  // тесты файла влияния НЕТ (фикстуры без depth → строки нет).
+  chain.push('locations.js');
   // sprites.js — в index.html ДО dungeon-ui.js (379 vs 381); UMD-модуль
   // ЗАМЕНЯЕТ Game, поэтому dungeon-ui.js грузится ПОСЛЕ него (снапшот G
   // уже видит phlogistonFrames/MOB_FRAMES и т.д.).
@@ -376,6 +381,10 @@ function makeState(opts = {}) {
     exit: { x: 1, y: 1 },
   };
   if (opts.wallObjs) dg.wallObjs = opts.wallObjs;
+  // 000153.03: аддитивные opts (фабрика; существующие вызовы без
+  // правок — без opts глубина/лестница отсутствуют, рендер тот же).
+  if (opts.depth != null) dg.depth = opts.depth;
+  if (opts.stairsDown) dg.stairsDown = opts.stairsDown;
   const s = {
     dg,
     // 000157.02: +deposits (красные UI-DEP-*; рендер/состояние — зелёная
@@ -2023,8 +2032,11 @@ test('город UI 000105: stateEl — имя города, текущая кл
   assert.ok(text.includes('(0, 1)'),
     'stateEl: текущая клетка героя (0,1) — layout.entrance: '
     + JSON.stringify(text));
-  assert.ok(/До выхода: \d+ клеток/.test(text),
-    'stateEl: «До выхода: N клеток»: ' + JSON.stringify(text));
+  // 000153.03 (D5): ЕДИНЫЙ формат строки (helper floorStatusLine —
+  // locations.js в цепочке loadDungeonUi) — «~N клеток» (унификация
+  // на hud.js; «(на глаз)» — технический репин, ЕДИНСТВЕННЫЙ).
+  assert.ok(/До выхода: ~\d+ клеток/.test(text),
+    'stateEl: «До выхода: ~N клеток»: ' + JSON.stringify(text));
   assert.ok(!text.includes('undefined'),
     'stateEl: без «undefined» (у layout города нет DUNGEON_NAMES[type]): '
     + JSON.stringify(text));
@@ -3172,4 +3184,280 @@ test('000157.03: hint — «Залежь — [E]» при стоянии на н
   const cHint = allByClass(C.body, 'combat-state')[1].textContent;
   assert.ok(!cHint.includes('Залежь — [E]'),
     'hint: строки НЕТ (залежь уже собрана): ' + JSON.stringify(cHint));
+});
+// ============================================================
+// 000153.03: переходы этажей — HUD «Глубина: N» (единый helper),
+// depth-aware хинты, маркеры stairs-down + stairs-выход.
+// Контракт: memory/000153.03-floor-transitions.md (D5/D8/D11).
+// ============================================================
+
+// 9×9-фикстура с лестницей: герой в центре (4,4) — весь этаж в
+// радиусе тумана (R=5, Чебышёв ≤ 4) → mask 2 всюду. exit/entrance
+// (1,1), stairsDown (7,7) — РАЗНЫЕ клетки (FLOOR, interior).
+function makeStairsState(opts = {}) {
+  return makeState(Object.assign({
+    width: 9, height: 9, px: 4, py: 4,
+    stairsDown: { x: 7, y: 7 },
+  }, opts));
+}
+
+test('000153.03 (RED): stateEl — «Глубина: N» ТОЛЬКО depth>1 + «До выхода: ~N клеток» (единый формат, D5); город — без «Глубина»', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  // depth=2: helper floorStatusLine → «Глубина: 2» + «~N клеток».
+  const s = makeState({ depth: 2, px: 3, py: 3 });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
+  const states = allByClass(loaded.body, 'combat-state');
+  assert.ok(states.length >= 2, 'оверлей: stateEl + hint');
+  const text = states[0].textContent;
+  assert.ok(text.includes('Глубина: 2'),
+    'stateEl depth=2: строка «Глубина: 2» (finding G): '
+    + JSON.stringify(text));
+  assert.ok(text.includes('До выхода: ~4 клеток'),
+    'stateEl depth=2: «До выхода: ~4 клеток» (Манхэттен (3,3)→(1,1), '
+    + 'единый формат locationLine): ' + JSON.stringify(text));
+  assert.ok(text.includes('Группы: 0'),
+    'stateEl depth=2: строка «Группы» на месте: ' + JSON.stringify(text));
+  G.dungeonUI.close();
+  // City — БЕЗ «Глубина» (у layout города depth нет; бит-в-бит).
+  // Своя песочница на фазу (паттерн файла: DOM-стаб remove() — no-op,
+  // старый оверлей остался бы в body → allByClass[0] — чужой).
+  const loadedC = loadDungeonUi({ performance: { now: () => 1000 } });
+  const sC = makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' });
+  loadedC.G.dungeonUI.start({ state: sC, onMove() {}, zoom: 40 });
+  const textC = allByClass(loadedC.body, 'combat-state')[0].textContent;
+  assert.ok(!textC.includes('Глубина'),
+    'city: строки «Глубина» НЕТ (D5: только depth>1): '
+    + JSON.stringify(textC));
+});
+
+test('000153.03 (RED): hud.js locationLine — ОДИН helper (finding G): dungeon depth=2 — «Глубина: 2» + «~N клеток»; city — побайтово; структурный пин: символ floorStatusLine в src/hud.js И src/dungeon-ui.js', () => {
+  // Структурный пин finding G: ОДИН источник строки — helper из
+  // locations.js; оба потребителя читают ЕГО (не свой формат).
+  assert.ok(src('hud.js').includes('floorStatusLine'),
+    'src/hud.js — читает единый helper floorStatusLine (g.locations)');
+  assert.ok(src('dungeon-ui.js').includes('floorStatusLine'),
+    'src/dungeon-ui.js — читает единый helper floorStatusLine '
+    + '(live.locations)');
+  const hud = require('../src/hud.js');
+  const D = require('../src/dungeon.js');
+  const L = require('../src/locations.js');
+  const g = { DUNGEON_NAMES: D.DUNGEON_NAMES, locations: L };
+  // dungeon depth=2: helper-ветка — «Глубина: 2\nДо выхода: ~5 клеток»
+  // + приписка «  |  N групп(ы)» ПОСЛЕ (D5).
+  const ds = {
+    kind: 'dungeon',
+    dg: { type: 0, exit: { x: 0, y: 0 }, depth: 2 },
+    x: 2, y: 3,
+    contents: { mobs: [{ defeated: false }, { defeated: true }] },
+  };
+  const line = hud.locationLine(g, ds);
+  assert.ok(line.includes('--- ' + D.DUNGEON_NAMES[0] + ' (2, 3) ---'),
+    'шапка строки на месте: ' + JSON.stringify(line));
+  assert.ok(line.includes('Глубина: 2'),
+    'dungeon depth=2: «Глубина: 2» (helper): ' + JSON.stringify(line));
+  assert.ok(line.includes('До выхода: ~5 клеток'),
+    'dungeon depth=2: «До выхода: ~5 клеток» (Манхэттен (2,3)→(0,0)): '
+    + JSON.stringify(line));
+  assert.ok(line.includes('1 групп(ы)'),
+    'dungeon depth=2: приписка «  |  N групп(ы)» ПОСЛЕ строки: '
+    + JSON.stringify(line));
+  // city — ПОБАЙТОВО (pin (k) hud.js.test.js: exit (10,14) — dist 2):
+  // helper без «Глубина» даёт те же legacy-байты.
+  const dsC = {
+    kind: 'city',
+    dg: { exit: { x: 10, y: 14 } },
+    x: 10, y: 12, name: 'Старый город',
+  };
+  assert.equal(hud.locationLine(g, dsC),
+    '\n--- Старый город (10, 12) ---\nДо выхода: ~2 клеток',
+    'city — побайтово (helper = legacy-байты при depth-нет)');
+  // dungeon depth=1 — БЕЗ «Глубина» (legacy-байты pin (j) live).
+  const ds1 = {
+    kind: 'dungeon',
+    dg: { type: 0, exit: { x: 0, y: 0 }, depth: 1 },
+    x: 2, y: 3,
+    contents: { mobs: [{ defeated: false }, { defeated: false }] },
+  };
+  const line1 = hud.locationLine(g, ds1);
+  assert.equal(line1,
+    '\n--- ' + D.DUNGEON_NAMES[0] + ' (2, 3) ---'
+    + '\nДо выхода: ~5 клеток  |  2 групп(ы)',
+    'dungeon depth=1 — legacy-байты (пин (j) без правок): '
+    + JSON.stringify(line1));
+});
+
+test('000153.03 (RED): hint — depth-aware (D8): depth≤1 «Лестница вниз» + выживающие; depth=2 «Лестница вверх» + без «Вход в пещеру»; city — без «Лестница»', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
+  const G = loaded.G;
+  // Подземелье depth ≤ 1 (depth отсутствует — makeState-фикстура):
+  // выживающие строки бит-в-бит + НОВАЯ «Лестница вниз» ДО строки
+  // про сундуки.
+  G.dungeonUI.start({ state: makeState(), onMove() {}, zoom: 40 });
+  let hint = allByClass(loaded.body, 'combat-state')[1].textContent;
+  assert.ok(hint.includes('Стрелки/WASD — шаг.'),
+    'hint: выживающая строка 1: ' + JSON.stringify(hint));
+  assert.ok(hint.includes('Вход в пещеру — вход и выход'),
+    'hint depth≤1: выживающая «Вход в пещеру — вход и выход»: '
+    + JSON.stringify(hint));
+  assert.ok(hint.includes('Лестница вниз'),
+    'hint depth≤1: НОВАЯ строка «Лестница вниз»: ' + JSON.stringify(hint));
+  assert.ok(hint.includes('Сундук и мобы'),
+    'hint: выживающая «Сундук и мобы» (ДО неё — лестница): '
+    + JSON.stringify(hint));
+  G.dungeonUI.close();
+  // Подземелье depth=2: «Вход в пещеру» ЗАМЕНЕНА на «Лестница вверх»
+  // (при depth>1 тайл d.exit — лестница ВВЕРХ); «Лестница вниз» на
+  // месте. Своя песочница на фазу (паттерн файла: DOM-стаб
+  // remove() — no-op, старый оверлей остался бы в body).
+  const loaded2 = loadDungeonUi({ performance: { now: () => 1000 } });
+  loaded2.G.dungeonUI.start({ state: makeState({ depth: 2 }),
+    onMove() {}, zoom: 40 });
+  hint = allByClass(loaded2.body, 'combat-state')[1].textContent;
+  assert.ok(hint.includes('Лестница вверх'),
+    'hint depth=2: строка «Лестница вверх»: ' + JSON.stringify(hint));
+  assert.ok(hint.includes('Лестница вниз'),
+    'hint depth=2: «Лестница вниз» на месте: ' + JSON.stringify(hint));
+  assert.ok(!hint.includes('Вход в пещеру'),
+    'hint depth=2: строка «Вход в пещеру» заменена: '
+    + JSON.stringify(hint));
+  assert.ok(hint.includes('Сундук и мобы'),
+    'hint depth=2: «Сундук и мобы» на месте: ' + JSON.stringify(hint));
+  G.dungeonUI.close();
+  // Город — БИТ-В-БИТ (CI-V3): без «Лестница».
+  const C = loadDungeonUi({ performance: { now: () => 1000 } });
+  C.G.dungeonUI.start({
+    state: makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня' }),
+    onMove() {}, zoom: 48,
+  });
+  hint = allByClass(C.body, 'combat-state')[1].textContent;
+  assert.ok(hint.includes('Дверь — вход и выход'),
+    'city hint: выживающая «Дверь — вход и выход»: '
+    + JSON.stringify(hint));
+  assert.ok(!hint.includes('Лестница'),
+    'city hint: без «Лестница» (город — бит-в-бит, D8): '
+    + JSON.stringify(hint));
+});
+
+test('000153.03 (RED): маркер stairs-down — drawImage stairs.svg на proj(stairsDown) (D11): depth=1 — cave_mouth на exit + stairs на stairsDown (2 маркера, разные клетки); depth=2 — stairs на exit И stairs на stairsDown', () => {
+  let { G, body } = loadSpriteDungeon();
+  const stairs = G.DUNGEON_PORTAL.stairs;
+  const cave = G.DUNGEON_PORTAL.cave_mouth;
+  const loader = makeSpriteLoader([stairs, cave]);
+  // depth=1: exit (1,1) — cave_mouth; stairsDown (7,7) — stairs.
+  G.dungeonUI.start({ state: makeStairsState({ depth: 1 }), onMove() {},
+    zoom: 40, spriteLoader: loader });
+  let calls = findCanvas(body).drawCalls;
+  // 9×9 @ 40: вьюпорт (800/40=20 > 9) покрывает этаж → cam (4.5,4.5).
+  const pExit = G.worldToScreen(1, 1, 4.5, 4.5, 40, VW, VH);
+  const pStairs = G.worldToScreen(7, 7, 4.5, 4.5, 40, VW, VH);
+  const at = (img, x, y) => calls.filter((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__img === img
+    && Math.abs(c[1][1] - x) <= 1e-9
+    && Math.abs(c[1][2] - y) <= 1e-9
+    && Math.abs(c[1][3] - 40) <= 1e-9);
+  assert.equal(at(cave, pExit.x, pExit.y).length, 1,
+    'depth=1: cave_mouth на exit — 1 (без изменений)');
+  assert.equal(at(stairs, pStairs.x, pStairs.y).length, 1,
+    'depth=1: маркер stairs-down — drawImage stairs.svg ровно 1 на '
+    + 'proj(stairsDown)');
+  assert.equal(at(stairs, pExit.x, pExit.y).length, 0,
+    'depth=1: на exit — НЕ stairs (cave_mouth)');
+  G.dungeonUI.close();
+  // depth=2: exit — stairs (ВВЕРХ) + stairsDown — stairs (ВНИЗ) =
+  // 2 drawImage stairs.svg в РАЗНЫХ клетках.
+  // Своя песочница на фазу — DOM-стаб remove() no-op, findCanvas(body)
+  // вернул бы старый canvas из depth=1-фазы.
+  const loadedS2 = loadSpriteDungeon();
+  G = loadedS2.G;
+  body = loadedS2.body;
+  G.dungeonUI.start({ state: makeStairsState({ depth: 2 }), onMove() {},
+    zoom: 40, spriteLoader: loader });
+  calls = findCanvas(body).drawCalls;
+  assert.equal(at(stairs, pStairs.x, pStairs.y).length, 1,
+    'depth=2: маркер stairs-down — 1');
+  assert.equal(at(stairs, pExit.x, pExit.y).length, 1,
+    'depth=2: exit — stairs (ВВЕРХ, D11) — 1');
+  assert.equal(at(cave, pExit.x, pExit.y).length, 0,
+    'depth=2: на exit — НЕ cave_mouth');
+  const totalStairs = calls.filter((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__img === stairs).length;
+  assert.equal(totalStairs, 2,
+    'depth=2: всего 2 drawImage stairs.svg (разные клетки)');
+});
+
+test('000153.03 (RED): фолбэк stairs — квадрат #d4b45a (inset 2) + буква «L» #101418 (D11); «E» — только exit-тайл; «X» нигде', () => {
+  // Без loader — полные фолбэки (паттерн 000067 без-лоадер).
+  const { G, body } = loadSpriteDungeon();
+  G.dungeonUI.start({ state: makeStairsState({ depth: 2 }), onMove() {},
+    zoom: 40 });
+  const calls = findCanvas(body).drawCalls;
+  const pExit = G.worldToScreen(1, 1, 4.5, 4.5, 40, VW, VH);
+  const pStairs = G.worldToScreen(7, 7, 4.5, 4.5, 40, VW, VH);
+  assert.ok(fillRectAt(calls, '#d4b45a', pStairs.x + 2, pStairs.y + 2,
+      36, 36),
+    'фолбэк stairs: квадрат #d4b45a (inset 2, zoom−4) на proj'
+    + '(stairsDown)');
+  assert.ok(fillTextNear(calls, 'L', '#101418', pStairs.x + 20,
+      pStairs.y + 35, 2),
+    'фолбэк stairs: буква «L» (bold zoom−8, низ клетки) #101418');
+  assert.ok(fillTextNear(calls, 'E', '#101418', pExit.x + 20,
+      pExit.y + 35, 2),
+    'фолбэк exit: буква «E» на exit-тайле (без изменений)');
+  assert.ok(!calls.some((c) => c[0] === 'fillText' && c[1][0] === 'X'),
+    '«X» нигде (000177)');
+  const eCount = calls.filter((c) => c[0] === 'fillText'
+    && c[1][0] === 'E').length;
+  assert.equal(eCount, 1, '«E» — ровно 1 (только exit-тайл)');
+});
+
+test('000153.03 (guard): туман-gate stairs-down (D11/D13) — клетка stairsDown вне радиуса/не исследована → маркера НЕТ; exit-маркер без изменений', () => {
+  // 9×9, герой (1,1): до (7,7) Чебышёв 6 > R=5 → не видно, не
+  // исследовано (start(): explored пуст) → mask 0 → маркера нет.
+  const { G, body } = loadSpriteDungeon();
+  G.dungeonUI.start({
+    state: makeStairsState({ depth: 2, px: 1, py: 1 }), onMove() {},
+    zoom: 40,
+  });
+  const calls = findCanvas(body).drawCalls;
+  const pExit = G.worldToScreen(1, 1, 4.5, 4.5, 40, VW, VH);
+  const pStairs = G.worldToScreen(7, 7, 4.5, 4.5, 40, VW, VH);
+  assert.ok(!fillRectAt(calls, '#d4b45a', pStairs.x + 2, pStairs.y + 2,
+      36, 36),
+    'туман-gate: фолбэк stairs на НЕИССЛЕДОВАННОЙ клетке — нет');
+  assert.ok(!fillTextNear(calls, 'L', '#101418', pStairs.x + 20,
+      pStairs.y + 35, 2),
+    'туман-gate: буква «L» на НЕИССЛЕДОВАННОЙ клетке — нет');
+  assert.ok(!calls.some((c) => c[0] === 'drawImage'
+      && c[1][0]
+      && Math.abs(c[1][1] - pStairs.x) <= 1e-9
+      && Math.abs(c[1][2] - pStairs.y) <= 1e-9),
+    'туман-gate: drawImage на НЕИССЛЕДОВАННОЙ клетке — нет');
+  // Exit-маркер — на месте (клетка (1,1) видна, бит-в-бит).
+  assert.ok(fillTextNear(calls, 'E', '#101418', pExit.x + 20,
+      pExit.y + 35, 2),
+    'exit-маркер — без изменений (клетка видна)');
+});
+
+test('000153.03 (guard): город — drawImage stairs.svg — 0 (D11: !isCity); door — 1 на едином тайле', () => {
+  const { G, body } = loadSpriteDungeon();
+  const stairs = G.DUNGEON_PORTAL.stairs;
+  const door = G.DUNGEON_PORTAL.door;
+  const loader = makeSpriteLoader([stairs, door]);
+  G.dungeonUI.start({
+    state: makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' }),
+    onMove() {}, zoom: 40, spriteLoader: loader,
+  });
+  const calls = findCanvas(body).drawCalls;
+  const pDoor = G.worldToScreen(0, 1, 1, 1, 40, VW, VH);
+  const doorAt = calls.filter((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__img === door
+    && Math.abs(c[1][1] - pDoor.x) <= 1e-9
+    && Math.abs(c[1][2] - pDoor.y) <= 1e-9);
+  assert.equal(doorAt.length, 1,
+    'город: door — 1 на едином тайле (000177, без изменений)');
+  const stairsAt = calls.filter((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__img === stairs);
+  assert.equal(stairsAt.length, 0,
+    'город: drawImage stairs.svg — 0 (лестниц в городе нет)');
 });

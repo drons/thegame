@@ -1130,3 +1130,606 @@ test('PE-9: g.actions.enterDungeon() — подземелье из spawn-тай�
       'Вы вышли из ' + D.DUNGEON_NAMES[ds.dg.type] + '.'),
     'flash (имя из D.DUNGEON_NAMES[type] ds.dg)');
 });
+
+// ============================================================
+// 000153.03: переходы этажей — [E] вниз/вверх, спавн, память,
+// все-или-ничего, debug-изоляция, HUD «Глубина: N».
+// Контракт: memory/000153.03-floor-transitions.md (D1–D15).
+// ============================================================
+
+// Детерминированная «глобальная затравка» — тот же объект, что
+// G.generateSeedPixels() в песочнице (assets/map.png ВСЕГДА onerror
+// → loadMapPixels → generateSeedPixels; src/mapseed.js, фикс-сид).
+const S = require('../src/mapseed.js');
+
+// Бит-в-бит пере-генерация layout текущего/соседнего этажа (D2.3):
+// те же (wx, wy) тайла-пещеры, те же пиксели, terrain тайла, глубина.
+function floorAt(h, tx, ty, depth) {
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const t = myMap.tileAt(tx, ty);
+  return D.createDungeon(tx, ty, S.generateSeedPixels(), t.terrain, depth);
+}
+
+// Ходьба ВНУТРИ подземелья: 1 keydown = 1 синхронный шаг
+// (dungeon-ui keydown → onMove → dungeonOnMove → dungeonMove;
+// кадры НЕ нужны — в отличие от мира, где tryMove в frame).
+// Бой по маршруту — авторазрешение (паттерн walkTiles).
+// (tx, ty) — клетка текущего этажа; достижимость — по g.dungeon.
+function walkDungeonTo(h, tx, ty) {
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const d0 = g.dungeon;
+  const W = d0.width, H = d0.height;
+  const sx = d0.x, sy = d0.y;
+  if (sx === tx && sy === ty) return;
+  // BFS 4-соседство по FLOOR-клеткам (паттерн findNearest).
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const startKey = sx + ',' + sy;
+  const prev = new Map([[startKey, null]]);
+  let frontier = [{ x: sx, y: sy }];
+  let found = false;
+  outer:
+  for (let depth = 0; depth < W * H && !found; depth++) {
+    const next = [];
+    for (const cur of frontier) {
+      for (const [dx, dy] of DIRS) {
+        const nx = cur.x + dx, ny = cur.y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        if (d0.cells[ny * W + nx] !== D.CELL_FLOOR) continue;
+        const k = nx + ',' + ny;
+        if (prev.has(k)) continue;
+        prev.set(k, cur.x + ',' + cur.y);
+        if (nx === tx && ny === ty) { found = true; break outer; }
+        next.push({ x: nx, y: ny });
+      }
+    }
+    frontier = next;
+  }
+  assert.ok(found,
+    'walkDungeonTo: (' + tx + ',' + ty + ') недостижимо от (' + sx + ','
+    + sy + ') (сценарий)');
+  const path = [];
+  for (let k = tx + ',' + ty; k !== startKey; k = prev.get(k)) {
+    const [x, y] = k.split(',').map(Number);
+    path.unshift({ x, y });
+  }
+  for (const step of path) {
+    const before = g.dungeon;
+    const e = press(h, keydownFor(step.x - before.x, step.y - before.y));
+    release(h, e);
+    const after = g.dungeon;
+    assert.equal(after.x, step.x,
+      'walkDungeonTo: герой перешёл на (' + step.x + ',' + step.y + ') — x');
+    assert.equal(after.y, step.y,
+      'walkDungeonTo: герой перешёл на (' + step.x + ',' + step.y + ') — y');
+    // Шаг на клетку живой группы → бой; победа → герой остаётся
+    // на клетке (дungeonMove: позиция обновлена ДО боя).
+    if (G.combatUI.isActive()) {
+      const c = G.combatUI.current();
+      for (const m of c.units.filter((x) => x.side === 'mob'
+          && x.alive)) {
+        G.combatInternals.dealDamageToMob(c, m, 9999);
+      }
+      assert.ok(c.result && c.result.outcome === 'victory',
+        'walkDungeonTo: бой по маршруту — победа');
+      G.combatUI.handleCode('Space');
+      assert.equal(G.combatUI.isActive(), false,
+        'walkDungeonTo: бой закрыт (Space → finish)');
+    }
+  }
+}
+
+// Общий setup: boot → пешком до пещеры → авто-вход (depth=1) →
+// бит-в-бит layout первого этажа (floorAt).
+function bootInCave(h) {
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findNearest(G, myMap, g.state.player, (t) => isCave(G, t));
+  assert.ok(found, 'сценарий: пещера достижима пешком от спавна');
+  walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg, 'после шага на тайл пещеры — dungeonState (авто-вход)');
+  assert.equal(dg.kind, 'dungeon', 'dungeonState.kind === «dungeon»');
+  const d1 = floorAt(h, found.target.x, found.target.y, 1);
+  assert.deepEqual({ x: dg.exit.x, y: dg.exit.y },
+    { x: d1.exit.x, y: d1.exit.y },
+    'layout depth=1 — бит-в-бит (детерминированная пере-генерация)');
+  return { g, G, found, d1 };
+}
+
+test('PE-10: СПУСК — [E] на stairs-down: depth+1, герой на клетке-выходе нового этажа, ДЕНЬ не тратится, HUD «Глубина: 2» (000153.03)', async () => {
+  const h = await boot();
+  const { g, G, found, d1 } = bootInCave(h);
+  const d2 = floorAt(h, found.target.x, found.target.y, 2);
+  // D9: проекция __game.dungeon.stairsDown (копия, {x,y}).
+  assert.ok(g.dungeon.stairsDown,
+    'D9: g.dungeon.stairsDown — проекция клетки stairs-down ({x,y})');
+  assert.deepEqual({ x: g.dungeon.stairsDown.x, y: g.dungeon.stairsDown.y },
+    { x: d1.stairsDown.x, y: d1.stairsDown.y },
+    'D9: g.dungeon.stairsDown — проекция клетки stairs-down');
+  // Ходьба до stairs-down (бой по маршруту — авторазрешение).
+  walkDungeonTo(h, d1.stairsDown.x, d1.stairsDown.y);
+  assert.deepEqual({ x: g.dungeon.x, y: g.dungeon.y },
+    { x: d1.stairsDown.x, y: d1.stairsDown.y },
+    'герой НА stairs-down');
+  const dayBefore = g.state.day;
+  const errBefore = h.errors.length;
+  const e = press(h, 'KeyE');
+  release(h, e);
+  const dg2 = g.dungeon;
+  assert.ok(dg2, 'глубина не снята: герой ВЕЩЬ в подземелье (не в мир)');
+  assert.equal(dg2.depth, 2,
+    '[E] на stairs-down → СПУСК на depth+1 (на master: [E] вне '
+    + 'единого тайла = no-op — interactExit null)');
+  // Спавн — на клетке-выходе нового этажа (= entrance, 000177).
+  assert.deepEqual({ x: dg2.x, y: dg2.y },
+    { x: d2.exit.x, y: d2.exit.y },
+    'спавн — на клетке-выходе нового этажа (ТЗ п.1)');
+  assert.deepEqual({ x: dg2.entrance.x, y: dg2.entrance.y },
+    { x: d2.entrance.x, y: d2.entrance.y },
+    'новый этаж — бит-в-бит (пере-генерация depth=2)');
+  assert.equal(dg2.width, d2.width, 'новый этаж — тот же размер');
+  assert.equal(g.state.day, dayBefore,
+    'переход между этажами ДЕНЬ не тратит (ТЗ пп.1–2)');
+  assert.equal(G.dungeonUI.isActive(), true,
+    'оверлей жив (переход — не выход в мир)');
+  assert.equal(h.errors.length, errBefore,
+    'чистый переход — без console.error');
+  // HUD (renderHud → locationLine, единый helper — D5).
+  h.frameFn(NOW + 200);
+  const hudText = String(h.hud.textContent);
+  assert.ok(hudText.includes('Глубина: 2'),
+    'HUD: строка «Глубина: 2» (finding G — единый источник): '
+    + JSON.stringify(hudText));
+  assert.ok(hudText.includes('До выхода: ~'),
+    'HUD: «До выхода: ~N клеток» (формат locationLine): '
+    + JSON.stringify(hudText));
+  assert.ok(hudText.endsWith('Спуск: глубина 2.'),
+    'flash перехода (D7): «Спуск: глубина 2.»: '
+    + JSON.stringify(hudText));
+});
+
+test('PE-11: ПОДЪЁМ — [E] на d.exit, depth>1: depth−1, герой на stairs-down этажа depth−1 (гард D10: живой моб → entrance), ДЕНЬ не тратится, HUD без «Глубина» (000153.03)', async () => {
+  const h = await boot();
+  const { g, G, found, d1 } = bootInCave(h);
+  const d2 = floorAt(h, found.target.x, found.target.y, 2);
+  // Спуск (PE-10): герой → exit depth=2.
+  walkDungeonTo(h, d1.stairsDown.x, d1.stairsDown.y);
+  let e = press(h, 'KeyE');
+  release(h, e);
+  assert.equal(g.dungeon.depth, 2, 'setup: спуск');
+  assert.deepEqual({ x: g.dungeon.x, y: g.dungeon.y },
+    { x: d2.exit.x, y: d2.exit.y }, 'setup: герой на exit depth=2');
+  // Подъём: [E] на d.exit (depth>1) → этаж 1.
+  const dayBefore = g.state.day;
+  const errBefore = h.errors.length;
+  e = press(h, 'KeyE');
+  release(h, e);
+  const g1 = g.dungeon;
+  assert.ok(g1, 'глубина не снята: герой в подземелье (не в мир)');
+  assert.equal(g1.depth, 1,
+    '[E] на d.exit, depth>1 → ПОДЪЁМ на depth−1 (на master: '
+    + '[E] на exit = В МИР, день+1)');
+  assert.equal(g.state.day, dayBefore,
+    'переход между этажами ДЕНЬ не тратит (ТЗ пп.1–2)');
+  assert.equal(G.dungeonUI.isActive(), true,
+    'оверлей жив (подъём — не выход в мир)');
+  // Спавн — на stairs-down этажа 1 (бит-в-бит layout → d1.stairsDown);
+  // ГАРД D10: живой моб на клетке → entrance. Содержимое этажа 1 —
+  // LIVE-объект из dungeonMemory (D3), позиции мобов актуальны
+  // (wanderStep за всё время блуждания по этажу) → предсказание
+  // занятости — из проекции (тот же predicate, что в ascendFloor).
+  const mobOnStairs = g1.mobs.some(
+    (p) => p.x === d1.stairsDown.x && p.y === d1.stairsDown.y);
+  const expected = mobOnStairs ? d1.entrance : d1.stairsDown;
+  assert.deepEqual({ x: g1.x, y: g1.y }, expected,
+    'спавн — на stairs-down этажа depth−1'
+    + (mobOnStairs
+      ? ' (гард D10: живой моб на клетке → entrance)'
+      : ' (клетка свободна → строго stairs-down)')
+    + '; фактически mob на клетке stairsDown: ' + mobOnStairs);
+  assert.equal(h.errors.length, errBefore + (mobOnStairs ? 1 : 0),
+    'гард D10 — console.error ровно 1 (fallback) / чистый подъём — 0');
+  // HUD depth=1 — БЕЗ строки «Глубина» (D5: строка только depth>1).
+  h.frameFn(NOW + 200);
+  const hudText = String(h.hud.textContent);
+  assert.ok(!hudText.includes('Глубина'),
+    'HUD depth=1: строки «Глубина» нет (legacy-байты пинов): '
+    + JSON.stringify(hudText));
+  assert.ok(hudText.includes('До выхода: ~'),
+    'HUD depth=1: «До выхода: ~N клеток» на месте: '
+    + JSON.stringify(hudText));
+  assert.ok(hudText.endsWith('Подъём: глубина 1.'),
+    'flash перехода (D7): «Подъём: глубина 1.»: '
+    + JSON.stringify(hudText));
+});
+
+test('PE-12: ПАМЯТЬ этажа — открытый сундук переживает спуск/подъём (contents — live-объект из dungeonMemory, тот же день — contentValid) (000153.03)', async () => {
+  const h = await boot();
+  const { g, G, found, d1 } = bootInCave(h);
+  const d2 = floorAt(h, found.target.x, found.target.y, 2);
+  // Содержимое этажа 1 — детерминированно из сейва входа
+  // (hero на входе: totalXp/level — сид и сложность). Сейв —
+  // конверт {version, savedAt, data} (src/save.js).
+  const saveData = JSON.parse(h.storage.store['phlogiston.save']).data;
+  const saveHero = saveData.hero;
+  const c1 = D.generateDungeonContents(d1,
+    { totalXp: saveHero.totalXp, level: saveHero.level });
+  assert.equal(g.dungeon.chests, c1.chests.length,
+    'сундуки — детерминированы (тот же сид, что на входе)');
+  assert.ok(c1.chests.length >= 2,
+    'сценарий: на этаже ≥2 сундуков (формула 2+floor(rng*4))');
+  const chest = c1.chests[0];
+  // 1) Открыть сундук (шаг на клетку → dungeonMove → openChest).
+  const goldBefore = g.state.hero.gold;
+  walkDungeonTo(h, chest.x, chest.y);
+  assert.equal(g.dungeon.chests, c1.chests.length - 1,
+    'сундук открыт (счётчик −1)');
+  assert.ok(g.state.hero.gold >= goldBefore + chest.gold,
+    'золото из сундука (+возможный бой по маршруту)');
+  // 2) Спуск.
+  walkDungeonTo(h, d1.stairsDown.x, d1.stairsDown.y);
+  const dayBefore = g.state.day;
+  let e = press(h, 'KeyE');
+  release(h, e);
+  assert.equal(g.dungeon.depth, 2, 'спуск (PE-10)');
+  assert.equal(g.state.day, dayBefore, 'день не тратится');
+  // 3) Подъём.
+  e = press(h, 'KeyE');
+  release(h, e);
+  const g1 = g.dungeon;
+  assert.equal(g1.depth, 1, 'подъём (PE-11)');
+  assert.equal(g.state.day, dayBefore, 'день не тратится');
+  // 4) Сундук ЕЩЁ открыт: contents — live-объект из памяти (D3:
+  // writeFloorMemory ДО buildFloor; contentValid — тот же день).
+  // При перегенерации все сундуки были бы закрыты (count = c1).
+  assert.equal(g1.chests, c1.chests.length - 1,
+    'сундук открыт ПОСЛЕ подъёма: содержимое из dungeonMemory '
+    + '(не перегенерация)');
+  // 5) Память ОБОИХ этажей записана: in-flight-сейв (активный
+  // этаж поверх) — раздел dungeonMemory в сейве не пуст.
+  assert.ok(h.storage.store['phlogiston.save'],
+    'сейв после перехода (saveNow — D4, ПОСЛЕ свапа)');
+  const saveDM = JSON.parse(h.storage.store['phlogiston.save'])
+    .data.dungeonMemory;
+  assert.ok(saveDM && Object.keys(saveDM).length >= 2,
+    'dungeonMemory — записи ОБОИХ этажей (ключи worldKey:1 и :2): '
+    + JSON.stringify(saveDM && Object.keys(saveDM)));
+});
+
+test('PE-13: ИСКЛЮЧЕНИЕ при переходе — все-или-ничего (D6): состояние СОХРАНЯЕТСЯ (в отличие от PE-5/000170 — там снятие), день не жжётся, повтор [E] — errors не растут (suppressed) (000153.03)', async () => {
+  const h = await boot();
+  const { g, G, found, d1 } = bootInCave(h);
+  walkDungeonTo(h, d1.stairsDown.x, d1.stairsDown.y);
+  // Инъекция (паттерн PE-5): throw в доменной функции перехода.
+  const origDescend = G.locations.descendFloor;
+  G.locations.descendFloor = () => {
+    throw new Error('PE-13-inject: descendFloor');
+  };
+  try {
+    const errBefore = h.errors.length;
+    const posBefore = { x: g.dungeon.x, y: g.dungeon.y };
+    const dayBefore = g.state.day;
+    let e = press(h, 'KeyE');
+    release(h, e);
+    assert.ok(g.dungeon,
+      'ВСЕ-ИЛИ-НИЧЕГО: dungeonState СОХРАНЕН (герой на старом этаже; '
+      + 'на master: [E] = no-op — переход не начался)');
+    assert.equal(g.dungeon.depth, 1, 'глубина прежняя (не спустился)');
+    assert.deepEqual({ x: g.dungeon.x, y: g.dungeon.y }, posBefore,
+      'позиция прежняя (спавн нового этажа не начался)');
+    assert.equal(G.dungeonUI.isActive(), true,
+      'оверлей жив (не снят — в отличие от finally 000170)');
+    assert.equal(g.state.day, dayBefore,
+      'день НЕ жжётся (clock на переходном пути нет)');
+    assert.equal(h.errors.length, errBefore + 1,
+      'исключение — console.error +1 (logged)');
+    // Повторный [E] — ошибки НЕ +2 (подавлены, transErrLogged).
+    const errBefore2 = h.errors.length;
+    e = press(h, 'KeyE');
+    release(h, e);
+    assert.equal(h.errors.length, errBefore2,
+      'повторный [E] — повторные предупреждения подавлены');
+    assert.ok(g.dungeon, 'повторный [E] — состояние всё ещё живо');
+  } finally {
+    G.locations.descendFloor = origDescend;
+  }
+});
+
+test('PE-14: DEBUG-вход (terrain≠тайла) — memoryBanned: переходов НЕТ ([E] на stairs-down — ничего не происходит, состояние живо, день не тратится, errors +1) (D12, 000153.03)', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.ok(g.state.player.x === 0 && g.state.player.y === 0,
+    'сценарий: герой на спавне (0,0)');
+  const t0 = myMap.tileAt(0, 0);
+  // Вынужденный terrain ≠ terrain тайла → debugEnterDungeon ставит
+  // memoryBanned (000153.01) — контент не мержится в мировой раздел.
+  const otherTerrain = t0.terrain === M.TERRAIN.GRASS
+    ? M.TERRAIN.SAND : M.TERRAIN.GRASS;
+  const ds = g.actions.enterDungeon(otherTerrain);
+  assert.ok(ds, 'enterDungeon(terrain) — debug-вход');
+  assert.equal(G.dungeonUI.isActive(), true, 'дungeonUI открыт');
+  assert.equal(g.dungeon.depth, 1, 'debug-вход — depth=1');
+  // debugEnterDungeon: layout — от ВЫНУЖДЕННОГО terrain (000153.01),
+  // не от тайла → пере-генерация с otherTerrain (бит-в-бит).
+  const d1 = D.createDungeon(0, 0, S.generateSeedPixels(),
+    otherTerrain, 1);
+  assert.deepEqual({ x: g.dungeon.exit.x, y: g.dungeon.exit.y },
+    { x: d1.exit.x, y: d1.exit.y },
+    'layout — бит-в-бит (вынужденный terrain)');
+  walkDungeonTo(h, d1.stairsDown.x, d1.stairsDown.y);
+  const dayBefore = g.state.day;
+  const errBefore = h.errors.length;
+  const e = press(h, 'KeyE');
+  release(h, e);
+  assert.ok(g.dungeon,
+    'состояние живо: переход НЕ выполнен (memoryBanned → null)');
+  assert.equal(g.dungeon.depth, 1, 'глубина прежняя');
+  assert.deepEqual({ x: g.dungeon.x, y: g.dungeon.y },
+    { x: d1.stairsDown.x, y: d1.stairsDown.y },
+    'герой всё ещё на stairs-down (no-op)');
+  assert.equal(g.state.day, dayBefore,
+    'день не тратится (перехода не было)');
+  assert.equal(h.errors.length, errBefore + 1,
+    'memoryBanned → console.error (logged, D12)');
+});
+
+// --- node-среда переходов (N1–N4) ---
+// makeFloorGame: ядро makeNodeGame + API dungeon.js, которое
+// descendFloor/ascendFloor/floorStatusLine-потребители читают
+// через lazyGame() (G.createDungeon, G.dungeonMemoryKey,
+// G.contentValid, G.generateDungeonContents).
+
+function makeFloorGame() {
+  const G = makeNodeGame().G;
+  return Object.assign({}, G, {
+    createDungeon: D.createDungeon,
+    dungeonMemoryKey: D.dungeonMemoryKey,
+    contentValid: D.contentValid,
+    generateDungeonContents: D.generateDungeonContents,
+  });
+}
+
+test('N1: L.interactExit — расширение (D1): exit-тайл ПЕРВЫМ (бит-в-бит); stairsDown → {type:descend}; exit depth>1 → {type:ascend}; null — fail-open', () => {
+  const G = makeNodeGame().G;
+  const Gf = makeFloorGame();
+  const PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
+  const d1 = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 1);
+  const d2 = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS, 2);
+  assert.ok(d1.stairsDown && d2.stairsDown, 'сценарий: layout c лестницей');
+  assert.notDeepEqual(d1.stairsDown, d1.exit,
+    'stairsDown ≠ exit (макс. BFS-дистанция, 000153.02)');
+  const contents = { seed: 42, mobs: [], chests: [], createdAtXp: 0,
+    step: 0 };
+  const ds1 = withGame(Gf, () => L.makeDungeonState(d1, contents,
+    '37,-12', { intervalMs: 420 }));
+  withGame(Gf, () => {
+    // (а) Герой на exit, depth=1 → {type:'exit', name} — РЕГРЕССИЯ
+    // (PE-3a-контракт бит-в-бит).
+    assert.deepEqual(L.interactExit(ds1),
+      { type: 'exit', name: D.DUNGEON_NAMES[d1.type] },
+      'подземелье depth=1: на тайле → { type: \'exit\', name }');
+    // (б) Герой на stairsDown → {type:'descend'}.
+    ds1.x = d1.stairsDown.x; ds1.y = d1.stairsDown.y;
+    assert.deepEqual(L.interactExit(ds1), { type: 'descend' },
+      'на stairs-down → { type: \'descend\' } (000153.03)');
+    // (в) Шаг в сторону от stairsDown → null.
+    ds1.x = d1.entrance.x; ds1.y = d1.entrance.y;
+    const dir = asideDir(d1);
+    ds1.x += dir[0]; ds1.y += dir[1];
+    assert.equal(L.interactExit(ds1), null,
+      'вне обеих клеток → null (no-op 000121 сохранён)');
+  });
+  const ds2 = withGame(Gf, () => L.makeDungeonState(d2,
+    Object.assign({}, contents), '37,-12', { intervalMs: 420 }));
+  withGame(Gf, () => {
+    // (г) Герой на exit, depth=2 → {type:'ascend'} (НЕ exit).
+    assert.deepEqual(L.interactExit(ds2), { type: 'ascend' },
+      'подземелье depth=2: на тайле-выходе → { type: \'ascend\' }');
+  });
+  // (д) stairsDown = null (дегенеративная форма, fail-open) → null.
+  const dNull = Object.assign({}, d1, { stairsDown: null });
+  const dsN = withGame(Gf, () => L.makeDungeonState(dNull,
+    Object.assign({}, contents), '37,-12', { intervalMs: 420 }));
+  withGame(Gf, () => {
+    dsN.x = d1.stairsDown.x; dsN.y = d1.stairsDown.y;
+    assert.equal(L.interactExit(dsN), null,
+      'stairsDown null (fail-open 000153.02) → null');
+  });
+  // (е) Город — бит-в-бит: дверь → {type:'exit'}; шаг в сторону →
+  // null (у layout города stairsDown/depth — нет; kind-гард D1).
+  const lay = C.createCityLayout(100, -40, 5);
+  const dsC = withGame(Gf, () => L.makeCityState(lay,
+    { название: 'Тестгород', размер: { ширина: 5 } }, '100,-40',
+    { intervalMs: 420 }));
+  withGame(Gf, () => {
+    assert.deepEqual(L.interactExit(dsC),
+      { type: 'exit', name: 'Тестгород' },
+      'город: на двери → { type: \'exit\', name } (без изменений)');
+    L.cityMove(dsC, 0, -1, NOW, { inCombat: false });
+    assert.equal(L.interactExit(dsC), null,
+      'город: шаг в сторону → null (без изменений)');
+  });
+});
+
+test('N2: L.floorStatusLine — ОДИН источник строки состояния (D5, finding G): «Глубина: N» только depth>1; «До выхода: ~N клеток» — Манхэттен; тихий гард «»', () => {
+  assert.equal(typeof L.floorStatusLine, 'function',
+    'L.floorStatusLine — экспорт locations.js (finding G: один '
+    + 'helper для stateEl и locationLine)');
+  const d2 = { exit: { x: 10, y: 10 }, depth: 2 };
+  assert.equal(L.floorStatusLine(d2, 10, 10),
+    'Глубина: 2\nДо выхода: ~0 клеток',
+    'depth=2: «Глубина: 2» + «До выхода: ~0 клеток»');
+  assert.equal(L.floorStatusLine(d2, 13, 12),
+    'Глубина: 2\nДо выхода: ~5 клеток',
+    'depth=2: Манхэттен-дистанция (|13−10|+|12−10| = 5)');
+  const d1 = { exit: { x: 10, y: 10 }, depth: 1 };
+  assert.equal(L.floorStatusLine(d1, 10, 11),
+    'До выхода: ~1 клеток',
+    'depth=1: строки «Глубина» НЕТ (legacy-байты пинов)');
+  assert.equal(L.floorStatusLine({ exit: { x: 10, y: 10 } }, 9, 10),
+    'До выхода: ~1 клеток',
+    'depth отсутствует (город/legacy-фикстура): строки «Глубина» нет');
+  // Тихий гард (рендер-пути — без console.error, FOG-B1/B6):
+  assert.equal(L.floorStatusLine(null, 0, 0), '',
+    'd = null → «» (тихий гард)');
+  assert.equal(L.floorStatusLine({}, 0, 0), '',
+    'd.exit отсутствует → «» (тихий гард)');
+});
+
+test('N3: L.descendFloor — спуск (D2/D3): спавн на exit нового этажа; память СТАРОГО этажа записана ДО сборки; valid-память нового — reuse (тот же объект); expired — перегенерация; memoryBanned → null', () => {
+  const G = makeNodeGame().G;
+  const Gf = makeFloorGame();
+  const PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
+  const terrain = M.TERRAIN.GRASS;
+  const d1 = D.createDungeon(37, -12, PX, terrain, 1);
+  const d2 = D.createDungeon(37, -12, PX, terrain, 2);
+  const hero = { totalXp: 100, level: 3 };
+  const map = { tileAt: () => ({ terrain }) };
+  const player = { x: 37, y: -12 };
+  const baseCtx = { map, mapPixels: PX, player, hero, day: 10,
+    intervalMs: 420 };
+  const key1 = D.dungeonMemoryKey('37,-12', 1);
+  const key2 = D.dungeonMemoryKey('37,-12', 2);
+  // (а) Первый спуск: памяти нет — новый этаж генерируется.
+  const contents1 = D.generateDungeonContents(d1, hero);
+  const memory = new Map();
+  const ds = withGame(Gf, () => L.makeDungeonState(d1, contents1,
+    '37,-12', { intervalMs: 420 }));
+  const next = withGame(Gf, () =>
+    L.descendFloor(ds, Object.assign({ memory }, baseCtx)));
+  assert.ok(next, 'descendFloor → ds нового этажа');
+  assert.equal(next.dg.depth, 2, 'новый этаж — depth+1');
+  assert.deepEqual(next.dg, d2,
+    'layout нового этажа — бит-в-бит (createDungeon тот же вызов)');
+  assert.deepEqual({ x: next.x, y: next.y }, d2.exit,
+    'спавн — на клетке-выходе нового этажа (= entrance, ТЗ п.1)');
+  assert.deepEqual(next.mover.position(),
+    { x: d2.exit.x, y: d2.exit.y }, 'мувер — на клетке спавна');
+  assert.deepEqual(next.log, ['Спуск: глубина 2.'],
+    'log нового этажа — «Спуск: глубина 2.» (D2, не «: вход.»)');
+  // Память СТАРОГО этажа записана (ДО сборки нового, D3).
+  const rec1 = memory.get(key1);
+  assert.ok(rec1, 'ключ 37,-12:1 — память старого этажа');
+  assert.equal(rec1.contents, contents1,
+    'contents — LIVE-объект (не копия)');
+  assert.equal(rec1.lastVisitDay, 10, 'lastVisitDay = day');
+  assert.ok(next.contents, 'содержимое нового этажа сгенерировано');
+  // 000157.02: залежи нового этажа — по ЕГО реальной глубине (2):
+  // канонический вызов с { depth: 2 } (тот же, что maybeEnterDungeon).
+  // Review-фикс: без opts ЛЮБАЯ регенерация depth>=2 давала залежи
+  // depth=1 (другой rng_dep-поток, 1 залежь, T1-only) — пин
+  // переходного пути (первые 16 тестов депозит-ассертов не имели).
+  assert.deepEqual(next.contents.deposits,
+    D.generateDungeonContents(d2, hero, { depth: 2 }).deposits,
+    'залежи нового этажа — по глубине (шкала 000157.02)');
+  // (б) Valid-память нового этажа (тот же день) — REUSE того же
+  // объекта (не перегенерация).
+  const c2 = D.generateDungeonContents(d2, hero, { depth: 2 });
+  const memory2 = new Map();
+  memory2.set(key2, { contents: c2, lastVisitDay: 10 });
+  const ds1b = withGame(Gf, () => L.makeDungeonState(d1,
+    D.generateDungeonContents(d1, hero), '37,-12', { intervalMs: 420 }));
+  const next2 = withGame(Gf, () =>
+    L.descendFloor(ds1b, Object.assign({ memory: memory2 }, baseCtx)));
+  assert.equal(next2.contents, c2,
+    'valid-память depth=2 (тот же день, contentValid) — тот же объект');
+  assert.ok(memory2.get(key1),
+    'память старого этажа тоже записана (до сборки нового)');
+  // (в) Expired-память (day − lastVisitDay > dungeon_memory_days) —
+  // перегенерация (NOVЫЙ объект; детерминизм — deepEqual, но
+  // identity не та).
+  const memory3 = new Map();
+  memory3.set(key2, { contents: c2, lastVisitDay: 1 });
+  const ds1c = withGame(Gf, () => L.makeDungeonState(d1,
+    D.generateDungeonContents(d1, hero), '37,-12', { intervalMs: 420 }));
+  const next3 = withGame(Gf, () =>
+    L.descendFloor(ds1c, Object.assign({ memory: memory3 }, baseCtx)));
+  assert.notEqual(next3.contents, c2,
+    'expired-память (contentValid false) — перегенерация');
+  assert.deepEqual(next3.contents, c2,
+    'детерминизм: перегенерация бит-в-бит (тот же сид)');
+  // (г) memoryBanned (debug-вход, 000153.01) → null, память НЕ
+  // пишется (D12 — контаминация мирового раздела запрещена).
+  const dsB = withGame(Gf, () => L.makeDungeonState(d1,
+    D.generateDungeonContents(d1, hero), '37,-12', { intervalMs: 420 }));
+  dsB.memoryBanned = true;
+  const memoryB = new Map();
+  assert.equal(withGame(Gf, () =>
+    L.descendFloor(dsB, Object.assign({ memory: memoryB }, baseCtx))),
+    null, 'memoryBanned → null (D12)');
+  assert.equal(memoryB.size, 0,
+    'memoryBanned → память НЕ пишется (ни старый, ни новый этаж)');
+});
+
+test('N4: L.ascendFloor — подъём (D2/D10): спавн на stairsDown depth−1; живой моб на клетке → entrance (гард); память оставленного этажа записана; depth=1 → null', () => {
+  const G = makeNodeGame().G;
+  const Gf = makeFloorGame();
+  const PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
+  const terrain = M.TERRAIN.GRASS;
+  const d1 = D.createDungeon(37, -12, PX, terrain, 1);
+  const d2 = D.createDungeon(37, -12, PX, terrain, 2);
+  const sd = d1.stairsDown;
+  const hero = { totalXp: 7, level: 2 };
+  const map = { tileAt: () => ({ terrain }) };
+  const player = { x: 37, y: -12 };
+  const baseCtx = { map, mapPixels: PX, player, hero, day: 10,
+    intervalMs: 420 };
+  const key1 = D.dungeonMemoryKey('37,-12', 1);
+  const key2 = D.dungeonMemoryKey('37,-12', 2);
+  const ds2 = withGame(Gf, () => L.makeDungeonState(d2,
+    // 000157.02: { depth: 2 } — канонический вызов для depth=2
+    // (review-фикс; на содержимое этажа 2 пинов НЕТ — фикстура).
+    D.generateDungeonContents(d2, hero, { depth: 2 }),
+    '37,-12', { intervalMs: 420 }));
+  // (а) Клетка stairs-down СВОБОДНА → спавн строго на ней.
+  const cA = { seed: 123, mobs: [], chests: [], createdAtXp: 0,
+    step: 0 };
+  const memA = new Map();
+  memA.set(key1, { contents: cA, lastVisitDay: 10 });
+  const upA = withGame(Gf, () =>
+    L.ascendFloor(ds2, Object.assign({ memory: memA }, baseCtx)));
+  assert.ok(upA, 'ascendFloor → ds этажа depth−1');
+  assert.equal(upA.dg.depth, 1, 'новый этаж — depth−1');
+  assert.deepEqual(upA.dg, d1, 'layout этажа 1 — бит-в-бит');
+  assert.deepEqual({ x: upA.x, y: upA.y }, sd,
+    'спавн — на stairs-down этажа depth−1 (ТЗ п.2)');
+  assert.deepEqual(upA.mover.position(), { x: sd.x, y: sd.y },
+    'мувер — телепортирован на клетку спавна');
+  assert.equal(upA.contents, cA,
+    'содержимое этажа 1 — из памяти (тот же live-объект)');
+  assert.deepEqual(upA.log, ['Подъём: глубина 1.'],
+    'log нового этажа — «Подъём: глубина 1.» (D2)');
+  // Память оставленного этажа (2) записана ДО сборки.
+  const rec2 = memA.get(key2);
+  assert.ok(rec2, 'ключ 37,-12:2 — память оставленного этажа');
+  assert.equal(rec2.contents, ds2.contents,
+    'contents — LIVE-объект');
+  assert.equal(rec2.lastVisitDay, 10, 'lastVisitDay = day');
+  // (б) ЖИВОЙ МОБ на клетке stairs-down → спавн на entrance
+  // (гард D10; depth−1 = 1 — единственная такая ситуация).
+  const cB = { seed: 124,
+    mobs: [{ id: 'g0', mobIds: ['wolf'], x: sd.x, y: sd.y,
+      level: 1, defeated: false }],
+    chests: [], createdAtXp: 0, step: 0 };
+  const memB = new Map();
+  memB.set(key1, { contents: cB, lastVisitDay: 10 });
+  const upB = withGame(Gf, () =>
+    L.ascendFloor(ds2, Object.assign({ memory: memB }, baseCtx)));
+  assert.ok(upB, 'гард D10 — подъём состоялся (fallback, не крах)');
+  assert.equal(upB.dg.depth, 1, 'этаж 1');
+  assert.deepEqual({ x: upB.x, y: upB.y }, d1.entrance,
+    'гард D10: живой моб на клетке stairsDown → спавн на entrance');
+  assert.equal(upB.contents, cB, 'содержимое — та же память');
+  // (в) depth=1 → null (этажа выше нет — выход в мир, exit-ветка).
+  const ds1 = withGame(Gf, () => L.makeDungeonState(d1, cA, '37,-12',
+    { intervalMs: 420 }));
+  assert.equal(withGame(Gf, () =>
+    L.ascendFloor(ds1, Object.assign({ memory: new Map() }, baseCtx))),
+    null, 'depth=1 → null (подъём невозможен)');
+});

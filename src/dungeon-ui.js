@@ -415,11 +415,26 @@
     // С «[E] — постройки» (взаимодействие [E] — 000107, buildingUI).
     // Подземелье — прежний текст (без kind — dungeon).
     const s0 = state();
-    // 000157.02: + 4-я строка про залежи (подземелье; город НЕ
-    // трогается — залежей в городе нет, пин UI-DEP-3).
+    // 000153.03 (D8): хинт — depth-aware (перестраивается в build()
+    // при КАЖДОМ входе/переходе — start→build, start-time).
+    // Город — БИТ-В-БИТ (CI-V3). Подземелье: depth ≤ 1 (и нет поля —
+    // legacy-фикстуры) — строка 2 «Вход в пещеру…» (бит-в-бит) +
+    // НОВАЯ строка 3 «Лестница вниз» ДО строки про сундуки;
+    // depth > 1 — тайл d.exit — лестница ВВЕРХ: строка «Вход в
+    // пещеру» ЗАМЕНЕНА на «Лестница вверх».
+    // 000157.02: + строка про залежи (подземелье; город НЕ трогается
+    // — залежей в городе нет, пин UI-DEP-3).
+    const dDepth = s0 && s0.dg && Number.isInteger(s0.dg.depth)
+      ? s0.dg.depth : 1;
     hint.textContent = (s0 && s0.kind === 'city')
       ? 'Стрелки/WASD — шаг.\nДверь — вход и выход: встаньте на неё и нажмите [E].\n[E] — постройки.'
-      : 'Стрелки/WASD — шаг.\nВход в пещеру — вход и выход: встаньте на него и нажмите [E].\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).\nЗалежи — графические спрайты руды, минералов и самоцветов (цветной квадрат — фолбэк-метка).';
+      : 'Стрелки/WASD — шаг.\n' +
+        (dDepth > 1
+          ? 'Лестница вверх — этаж выше: встаньте на неё и нажмите [E].'
+          : 'Вход в пещеру — вход и выход: встаньте на него и нажмите [E].') +
+        '\nЛестница вниз — следующий этаж: встаньте на неё и нажмите [E].' +
+        '\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).' +
+        '\nЗалежи — графические спрайты руды, минералов и самоцветов (цветной квадрат — фолбэк-метка).';
     side.appendChild(hint);
     // 000157.03: базис контекстной строки «Залежь — [E]» — render()
     // дописывает строку на кадр (вне залежи — hintBase byte-в-бит).
@@ -602,20 +617,24 @@
       }
     }
 
-    // 000177: ОДИН маркер совмещённого тайла входа-выхода (d.exit ===
-    // d.entrance) на d.exit: город → DUNGEON_PORTAL.door, подземелье →
-    // DUNGEON_PORTAL.cave_mouth (реестр sprites.js; stairs — резерв,
-    // этажей нет). Размер и проекция — мировые (целая клетка).
-    // Изображение готово → drawImage; иначе фолбэк: квадрат #d4b45a
-    // (inset 2) + буква 'E' #101418 (как была 'X'). 000136: маркер
-    // следует за КЛЕТКОЙ (исследованной либо видимой) — исключений
-    // ТЗ нет; город — всегда.
+    // 000177/000153.03: ОДИН маркер совмещённого тайла входа-выхода
+    // (d.exit === d.entrance) на d.exit: город → DUNGEON_PORTAL.door,
+    // подземелье → cave_mouth (depth=1; бит-в-бит) / stairs
+    // (depth>1 — лестница ВВЕРХ, 000153.03 D11). Размер и проекция —
+    // мировые (целая клетка). Изображение готово → drawImage; иначе
+    // фолбэк: квадрат #d4b45a (inset 2) + буква 'E' #101418 (как была
+    // 'X' — действие на тайле всё равно [E]). 000136: маркер следует
+    // за КЛЕТКОЙ (исследованной либо видимой) — исключений ТЗ нет;
+    // город — всегда. `portal` — ВЫШЕ if (используют ОБА маркера:
+    // exit + stairs-down, D11; поведение exit-блока побайтово).
+    const portal = (live.DUNGEON_PORTAL &&
+      typeof live.DUNGEON_PORTAL === 'object')
+      ? live.DUNGEON_PORTAL : null;
     if (isCity || mask[d.exit.y * d.width + d.exit.x] !== 0) {
       const ex = proj(d.exit.x, d.exit.y);
-      const portal = (live.DUNGEON_PORTAL &&
-        typeof live.DUNGEON_PORTAL === 'object')
-        ? live.DUNGEON_PORTAL : null;
-      const kind = isCity ? 'door' : 'cave_mouth';
+      const kind = isCity ? 'door'
+        : (Number.isInteger(d.depth) && d.depth > 1
+           ? 'stairs' : 'cave_mouth');
       const ppath = portal ? portal[kind] : null;
       const img = (ppath && loader && typeof loader.image === 'function')
         ? ((typeof loader.isReady === 'function'
@@ -630,6 +649,37 @@
         g2.font = 'bold ' + (zoom - 8) + 'px ui-monospace, monospace';
         g2.textAlign = 'center';
         g2.fillText('E', ex.x + zoom / 2, ex.y + zoom - 5);
+      }
+    }
+
+    // 000153.03 (D11): маркер лестницы ВНИЗ — d.stairsDown (поле
+    // формы 000153.02; null — дегенеративная форма → маркера нет).
+    // Спрайт — DUNGEON_PORTAL.stairs (резерв 000177: файл/реестр/
+    // allAssetPaths УЖЕ пинаны PE-4d — новых ассетов НЕТ). Фолбэк —
+    // паттерн 000177: квадрат #d4b45a (inset 2) + буква 'L'
+    // (#101418, bold zoom−8, низ клетки) — «Л»естница. Туман-gate —
+    // ТОТ ЖЕ, что exit (000136/000177 §2.4: mask ≠ 0 — исследована
+    // ИЛИ видима); город — никогда. Порядок отрисовки (фиксировать):
+    // floor → wallObjs → exit-маркер → stairs-down-маркер → сундуки
+    // → мобы/босс → игрок (оба маркера — floor-level, ПОД
+    // контентом).
+    if (!isCity && d.stairsDown &&
+        mask[d.stairsDown.y * d.width + d.stairsDown.x] !== 0) {
+      const sp = proj(d.stairsDown.x, d.stairsDown.y);
+      const ppath = portal ? portal.stairs : null;
+      const simg = (ppath && loader && typeof loader.image === 'function')
+        ? ((typeof loader.isReady === 'function'
+            ? loader.isReady(ppath) : true) && loader.image(ppath))
+        : null;
+      if (simg) {
+        g2.drawImage(simg, sp.x, sp.y, zoom, zoom);
+      } else {
+        g2.fillStyle = '#d4b45a';
+        g2.fillRect(sp.x + 2, sp.y + 2, zoom - 4, zoom - 4);
+        g2.fillStyle = '#101418';
+        g2.font = 'bold ' + (zoom - 8) + 'px ui-monospace, monospace';
+        g2.textAlign = 'center';
+        g2.fillText('L', sp.x + zoom / 2, sp.y + zoom - 5);
       }
     }
 
@@ -828,20 +878,32 @@
     }
 
     const dist = Math.abs(s.x - d.exit.x) + Math.abs(s.y - d.exit.y);
+    // 000153.03 (D5, finding G): строка состояния — ЕДИНЫЙ helper
+    // live.locations.floorStatusLine (locations.js; live-чтение —
+    // locations.js ДО dungeon-ui.js в index.html, но по паттерну
+    // 000038 читаем в момент вызова): «Глубина: N» — ТОЛЬКО depth>1 +
+    // «До выхода: ~N клеток» (формат УНИФИЦИРОВАН на hud.js: «(на
+    // глаз)» — 1 технический репин dungeon-ui.test.js). Fallback
+    // (helper отсутствует — цепочки без locations.js) — legacy-
+    // строка. ТИХОЕ (рендер-пути — без console.error, FOG-B1/B6).
+    const fsLive = live.locations &&
+      typeof live.locations.floorStatusLine === 'function'
+      ? live.locations.floorStatusLine(d, s.x, s.y) : null;
+    const status = fsLive != null
+      ? fsLive : 'До выхода: ' + dist + ' клеток (на глаз)';
     if (isCity) {
       // Город (000105): заголовок — имя города (название_карты
       // каталога); БЕЗ строк групп/сундуков (contents у города null —
       // содержимое — 000106) и БЕЗ DUNGEON_NAMES[d.type] (у layout
       // города type нет).
       stateEl.textContent =
-        s.name + '  (' + s.x + ', ' + s.y + ')\n' +
-        'До выхода: ' + dist + ' клеток (на глаз)';
+        s.name + '  (' + s.x + ', ' + s.y + ')\n' + status;
     } else {
       // 000157.02: + «| Залежи: N» (N — нерасчищенные, !gathered;
       // guard (c.deposits || []) — contents-литералы без ключа).
       stateEl.textContent =
         G.DUNGEON_NAMES[d.type] + '  (' + s.x + ', ' + s.y + ')\n' +
-        'До выхода: ' + dist + ' клеток (на глаз)\n' +
+        status + '\n' +
         'Группы: ' + c.mobs.filter((m) => !m.defeated).length +
         '  |  Сундуки: ' + c.chests.filter((x) => !x.opened).length +
         '  |  Залежи: '

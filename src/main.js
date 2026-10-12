@@ -2361,6 +2361,67 @@
       saveNow();
     }
   }
+  // 000153.03 (D4/D6): переход МЕЖДУ этажами (descend/ascend из
+  // interactExit) — ТОЛЬКО через locationOnInteract (три канала,
+  // один код, 000177). Семантика ВСЕ-ИЛИ-НИЧЕГО: либо герой на
+  // НОВОМ этаже (порядок зафиксирован: close → state →
+  // startLocationUI → saveNow), либо при срыве домена/проведения —
+  // СОВЕРШЕННО НИЧЕГО НЕ МЕНЯЕТСЯ: состояние, UI, память, сейв,
+  // день (clock на переходном пути НЕТ — день НЕ тратится, ТЗ
+  // пп.1–2); повтор [E] безопасен. В отличие от 000170 (finally с
+  // ОБНУЛЕНИЕМ — страховка день-цепи exitDungeon→clock.event):
+  // буквенное обнуление здесь выкинуло бы героя в мир на пещерном
+  // тайле в глубине — последний резерв (state=null + close)
+  // срабатывает ТОЛЬКО если восстановление на старый этаж тоже
+  // упало (тот же last-resort, что 000170). saveNow — ПОСЛЕ свапа
+  // (контракт §9.3: activeRec сериализует НОВЫЙ этаж).
+  let transErrLogged = false;
+  function transitionFloor(ds, ev) {
+    const L = G.locations;
+    // Та же форма ctx, что maybeEnterDungeon (enterLocation :2143).
+    const ctx = { map, mapPixels, player, hero, day: clock.day,
+      memory: dungeonMemory, intervalMs: moveIntervalBase() };
+    let next = null;
+    try {
+      next = ev.type === 'descend'
+        ? L.descendFloor(ds, ctx)
+        : L.ascendFloor(ds, ctx);
+    } catch (err) {
+      if (!transErrLogged) {
+        transErrLogged = true;
+        console.error('main.js: исключение при переходе этажей — ' +
+          'герой остаётся на текущем этаже (повторные ' +
+          'предупреждения подавлены).', err);
+      }
+      return; // ВСЕ-ИЛИ-НИЧЕГО: состояние/UI/сейв/день не тронуты
+    }
+    if (!next) return; // домен вернул null (гард/деградация) — no-op
+    try {
+      G.dungeonUI.close(); // explored=null → start(): Set() (D13)
+      dungeonState = next; // activeDungeonMemoryRec auto-следит
+      startLocationUI(
+        next.kind === 'city' ? cityOnMove : dungeonOnMove,
+        locationOnInteract);
+      saveNow();
+    } catch (err) {
+      if (!transErrLogged) {
+        transErrLogged = true;
+        console.error('main.js: исключение при проведении перехода — ' +
+          'восстановление на старый этаж (повторные предупреждения ' +
+          'подавлены).', err);
+      }
+      try {
+        dungeonState = ds; // герой на СТАРОМ этаже
+        if (!G.dungeonUI.isActive())
+          startLocationUI(dungeonOnMove, locationOnInteract);
+      } catch (err2) {
+        // Резерв 000170 (last-resort): герой не теряется никогда.
+        dungeonState = null;
+        try { G.dungeonUI.close(); } catch (_) {}
+      }
+      try { saveNow(); } catch (_) {}
+    }
+  }
   function dungeonOnMove(dx, dy) {
     const ds = dungeonState;
     if (!ds) return;
@@ -2417,13 +2478,20 @@
     G.locations.cityMove(ds, dx, dy, performance.now(),
       { inCombat: !!(G.combatUI && G.combatUI.isActive()) });
   }
-  // 000177: [E] в локации — ЕДИНЫЙ путь (клавиша dungeon-ui / тач-
-  // кнопка main.js / debug — три канала, один код): interactExit →
-  // выход ЧЕРЕЗ exitLocation (контракт 000170: try/catch/finally) +
-  // flash «Вы вышли из <name>.» (слово в слово, 5 сек); вне
-  // совмещённого тайла: город → buildingActions.interactCity
-  // (000107/000071: buildingUI → «Диалог» → npcUI), подземелье на
-  // клетке залежи → сбор (000157.03), иначе no-op (000121).
+  // 000177/000153.03/000157.03: [E] в локации — ЕДИНЫЙ путь
+  // (клавиша dungeon-ui / тач-кнопка main.js / debug — три канала,
+  // один код): interactExit →
+  //   { type: 'exit' }   — выход ЧЕРЕЗ exitLocation (контракт 000170:
+  //      try/catch/finally) + flash «Вы вышли из <name>.» (слово в
+  //      слово, 5 сек; день+1 — exitDungeon) — БИТ-В-БИТ;
+  //   { type: 'descend' }/{ type: 'ascend' } — переход этажей
+  //      ЧЕРЕЗ transitionFloor (все-или-ничего, 000153.03 D4/D6) +
+  //      flash ОДНОЙ строкой «Спуск: глубина N.» / «Подъём:
+  //      глубина N.» (D7; день НЕ тратится; endsWith-пины 000183 —
+  //      exit-flash не затронут);
+  //   null — вне обеих клеток: город → buildingActions.interactCity
+  //      (000107/000071: buildingUI → «Диалог» → npcUI), подземелье
+  //      на клетке залежи → сбор (000157.03), иначе no-op (000121).
   // Приоритет [E] (000157.03): выход (000177) > город (000107) >
   // залежь (000157.03) > no-op; конфликт «выход vs залежь» исключён
   // по построению (залежь ≠ выходная клетка — свип LOC-18).
@@ -2432,9 +2500,23 @@
     if (!ds) return;
     const ev = G.locations.interactExit(ds);
     if (ev) {
-      exitLocation(ds);
-      hudFlash = 'Вы вышли из ' + ev.name + '.';
-      hudFlashUntil = performance.now() + 5000;
+      if (ev.type === 'exit') {
+        exitLocation(ds);
+        hudFlash = 'Вы вышли из ' + ev.name + '.';
+        hudFlashUntil = performance.now() + 5000;
+        return;
+      }
+      // 000153.03: переход этажей (descend/ascend) — день НЕ
+      // тратится. flash — при фактическом свапе (гард no-op:
+      // при срыве домена dungeonState — прежний объект), из
+      // ФАКТИЧЕСКОЙ глубины ПОСЛЕ свапа (D7: не арифметика).
+      transitionFloor(ds, ev);
+      if (dungeonState && dungeonState !== ds) {
+        hudFlash = ev.type === 'descend'
+          ? 'Спуск: глубина ' + dungeonState.dg.depth + '.'
+          : 'Подъём: глубина ' + dungeonState.dg.depth + '.';
+        hudFlashUntil = performance.now() + 5000;
+      }
       return;
     }
     if (ds.kind === 'city' && G.buildingActions)
@@ -3235,6 +3317,12 @@
         // (спавн = единый тайл: x/y/prevX/prevY/мувер на нём).
         prevX: ds.prevX, prevY: ds.prevY,
         exit: { x: ds.dg.exit.x, y: ds.dg.exit.y },
+        // 000153.03 (D9): клетка stairs-down (поле формы 000153.02)
+        // — навигация e2e/отладка. null — город/поля нет (fail-open,
+        // паттерн type/depth → null). КОПИЯ (не ссылка на layout).
+        stairsDown: ds.kind === 'dungeon' && ds.dg.stairsDown
+          ? { x: ds.dg.stairsDown.x, y: ds.dg.stairsDown.y }
+          : null,
         mobs: ds.contents
           ? ds.contents.mobs.filter((m) => !m.defeated)
             .map((m) => ({ x: m.x, y: m.y }))

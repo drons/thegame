@@ -136,16 +136,26 @@
   // ОДИН новый гард DUNGEON_NAMES, 000053, прецедент locations.js
   // 000127).
   function locationLine(g, ds) {
-    // dist — ДО ветки по kind: ds.dg.exit есть у ОБОИХ kind'ов
-    // (город — C5 city-screen).
+    // 000153.03 (D5, finding G): строка состояния — ЕДИНЫЙ helper
+    // g.locations.floorStatusLine (locations.js, тот же потребитель-
+    // формат, что stateEl dungeon-ui.js): «Глубина: N» — ТОЛЬКО
+    // depth>1 + «До выхода: ~N клеток». legacy-fallback (helper нет —
+    // node-фикстуры без .locations) = СТАРЫЕ байты. dist — ДО ветки
+    // по kind: ds.dg.exit есть у ОБОИХ kind'ов (город — C5
+    // city-screen).
     const dist = Math.abs(ds.x - ds.dg.exit.x)
       + Math.abs(ds.y - ds.dg.exit.y);
+    const fs = g.locations &&
+      typeof g.locations.floorStatusLine === 'function'
+      ? g.locations.floorStatusLine(ds.dg, ds.x, ds.y) : null;
+    const status = fs != null
+      ? fs : 'До выхода: ~' + dist + ' клеток';
     if (ds.kind === 'city') {
       // Город (000105): заголовок — имя города; contents null
       // (000106) — строк групп/сундуков нет (ds.contents.mobs
       // упадёт — ветка по kind обязательна).
       return '\n--- ' + ds.name + ' (' + ds.x + ', ' + ds.y + ') ---' +
-        '\nДо выхода: ~' + dist + ' клеток';
+        '\n' + status;
     }
     // Гард шире 1:1 (таблицы нет ИЛИ нет ключа типа — в 1:1 было бы
     // 'undefined' в строке): data-error-ветка, в норме недостижима
@@ -158,7 +168,7 @@
       name = 'подземелье';
     }
     return '\n--- ' + name + ' (' + ds.x + ', ' + ds.y + ') ---' +
-      '\nДо выхода: ~' + dist + ' клеток  |  ' +
+      '\n' + status + '  |  ' +
       (ds.contents.mobs.filter((m) => !m.defeated).length) +
       ' групп(ы)';
   }

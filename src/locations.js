@@ -26,7 +26,11 @@
 //   L.exitCity(ds) → void                      // без дня, без памяти
 //   L.dungeonMove(ds, dx, dy, now, { inCombat }) → null | event
 //   L.cityMove(ds, dx, dy, now, { inCombat })  → null | event
-//   L.interactExit(ds) → null | { type: 'exit', name }   // 000177: [E]
+//   L.interactExit(ds) → null | { type: 'exit', name } |
+//       { type: 'descend' } | { type: 'ascend' }  // 000177/000153.03
+//   L.descendFloor(ds, ctx) → ds | null          // 000153.03: спуск
+//   L.ascendFloor(ds, ctx) → ds | null           // 000153.03: подъём
+//   L.floorStatusLine(d, x, y) → string          // 000153.03: HUD (G)
 //   L.debugEnterDungeon(ctx, terrain) → ds | null
 // Форма ds — поле-в-поле как dungeonState main.js (инвариант
 // сейва/HUD/«__game.dungeon»).
@@ -422,21 +426,68 @@
     return { type: 'moved' };
   }
 
-  // 000177: ЕДИНСТВЕННЫЙ доменный путь события «выход» — [E] на
-  // совмещённом тайле входа-выхода (шаг на тайл — обычный moved).
-  // Чистая: без мутаций, без RNG, без мувер'ов; null — !ds / !ds.dg /
-  // kind вне {city, dungeon} / герой НЕ на тайле; name: город —
+  // 000177/000153.03: ЕДИНСТВЕННЫЙ доменный решатель «что делает [E]
+  // на этой клетке» (клавиша/тач/debug → locationOnInteract — три
+  // канала, один код). События (клетки взаимоисключаются —
+  // stairsDown ≠ exit по построению, 000153.02 — max BFS-дистанции):
+  //   { type: 'exit', name }  — на d.exit: город / подземелье
+  //                             depth=1 (БИТ-В-БИТ текущее
+  //                             поведение; exit-ПЕРВЫМ);
+  //   { type: 'ascend' }      — на d.exit, подземелье depth>1
+  //                             (подъём на depth−1, 000153.03);
+  //   { type: 'descend' }     — на d.stairsDown (только подземелье;
+  //                             спуск на depth+1, 000153.03);
+  //   null                    — !ds / !ds.dg / kind вне {city,
+  //                             dungeon} / герой вне обеих клеток /
+  //                             stairsDown null (fail-open 000153.02
+  //                             — дегенеративная форма без лестницы).
+  // Чистая: без мутаций, без RNG, без мувер'ов; name: город —
   // ds.name, подземелье — DUNGEON_NAMES[type] (та же строка, что в
-  // flash). exitLocation/flash — проводка main.js. Механизм
-  // уровень-независим («между этажами — аналогично»: этажей нет,
-  // добавится новый layout-уровень — функция не меняется).
+  // flash). Проводка (exitLocation/transitionFloor, день, UI, сейв) —
+  // main.js.
   function interactExit(ds) {
     if (!ds || !ds.dg) return null;
     if (ds.kind !== 'city' && ds.kind !== 'dungeon') return null;
     const d = ds.dg;
-    if (ds.x !== d.exit.x || ds.y !== d.exit.y) return null;
-    return { type: 'exit', name: ds.kind === 'city'
-      ? ds.name : dungeonName(d) };
+    if (ds.x === d.exit.x && ds.y === d.exit.y) {
+      const depth = (Number.isInteger(d.depth) && d.depth >= 1)
+        ? d.depth : 1;
+      if (ds.kind === 'dungeon' && depth > 1) return { type: 'ascend' };
+      return { type: 'exit', name: ds.kind === 'city'
+        ? ds.name : dungeonName(d) };
+    }
+    // 000153.03: лестница вниз (только подземелье; null — fail-open
+    // 000153.02 §4 — дегенеративная форма без лестницы). kind-гард
+    // обязателен: у layout города stairsDown/depth — нет, но
+    // тестовые/дегенеративные city-фикстуры могут нести чужие поля.
+    if (ds.kind === 'dungeon' && d.stairsDown &&
+        ds.x === d.stairsDown.x && ds.y === d.stairsDown.y) {
+      return { type: 'descend' };
+    }
+    return null;
+  }
+
+  // 000153.03 (D3): запись памяти этажа — ВЫНЕСЕНА из exitDungeon
+  // (поведение БИТ-В-БИТ: тот же ключ, та же форма записи, тот же
+  // обход memoryBanned). opts = { day, memory }.
+  // Ключ — вход + глубина (ТОТ ЖЕ источник, что maybeEnterDungeon:
+  // dungeonMemoryKey + инлайн-fallback). ds.dg.depth — поле
+  // createDungeon (debug-вход — дефолт 1).
+  // Ревью 000153.01: debug-вход с вынужденным terrain ≠ тайла —
+  // память НЕ пишется (memoryBanned, debugEnterDungeon): запись
+  // под мирским ключом переживёт перезагрузку (секция
+  // dungeonMemory) и сломает мирской вход на тот же тайл.
+  function writeFloorMemory(ds, opts) {
+    const G = lazyGame();
+    const depth = ds.dg && Number.isInteger(ds.dg.depth) && ds.dg.depth >= 1
+      ? ds.dg.depth : 1;
+    const memKey = G && typeof G.dungeonMemoryKey === 'function'
+      ? G.dungeonMemoryKey(ds.worldKey, depth)
+      : ds.worldKey + ':' + depth;
+    if (!ds.memoryBanned) {
+      opts.memory.set(memKey,
+        { contents: ds.contents, lastVisitDay: opts.day });
+    }
   }
 
   // 000157.03: [E] на залежи — доменное событие «собери» (чистая:
@@ -462,25 +513,198 @@
   // (exitLocation в main.js).
   function exitDungeon(ds, opts) {
     const o = opts || {};
-    // 000153.01: ключ памяти — вход + глубина (ТОТ ЖЕ источник, что
-    // maybeEnterDungeon: dungeonMemoryKey + инлайн-fallback).
-    // ds.dg.depth — поле createDungeon (debug-вход — дефолт 1).
-    const G = lazyGame();
-    const depth = ds.dg && Number.isInteger(ds.dg.depth) && ds.dg.depth >= 1
-      ? ds.dg.depth : 1;
-    const memKey = G && typeof G.dungeonMemoryKey === 'function'
-      ? G.dungeonMemoryKey(ds.worldKey, depth)
-      : ds.worldKey + ':' + depth;
-    // Ревью 000153.01: debug-вход с вынужденным terrain ≠ тайла —
-    // память НЕ пишется (memoryBanned, debugEnterDungeon): запись
-    // под мирским ключом переживёт перезагрузку (секция
-    // dungeonMemory) и сломает мирской вход на тот же тайл. ДЕНЬ
-    // проходит в любом случае (D5 — проводка не меняется).
-    if (!ds.memoryBanned) {
-      o.memory.set(memKey,
-        { contents: ds.contents, lastVisitDay: o.day });
-    }
+    // 000153.03 (D3): запись — writeFloorMemory (вынесена, бит-в-бит).
+    writeFloorMemory(ds, o);
     o.clock.event('dungeon'); // вылазка забирает день (SPEC «Игровое время»)
+  }
+
+  // 000153.03 (D2.3): сборка ОДНОГО этажа для ПЕРЕХОДОВ (спуск/
+  // подъём). maybeEnterDungeon НЕ рефакторится под этот помощник —
+  // мирской вход (визит из мира) — самое пинаное поведение проекта;
+  // 15 строк дублирования дешевле риска (контракт §D2.3).
+  // { wx, wy, terrain, depth, worldKey, ctx, logLine } → ds | null.
+  // layout — createDungeon (бит-в-бит по (wx, wy, пиксели, terrain,
+  // depth)); содержимое — из dungeonMemory (worldKey+глубина,
+  // 000153.01), иначе детерминированная регенерация; valid-память —
+  // REUSE того же live-объекта (+ продление lastVisitDay, как
+  // мирской вход). logLine — строка лога НОВОГО этажа («Спуск:
+  // глубина N.» / «Подъём: глубина N.», D2/D7 — НЕ «: вход.»).
+  // Ошибки — отсутствующие Game-API (console.error + null;
+  // деградация 000053; в браузере недостижимо — index-order).
+  function buildFloor(o) {
+    const G = lazyGame();
+    if (!G || typeof G.createDungeon !== 'function') {
+      console.error('locations.js: Game.createDungeon отсутствует ' +
+        '(src/dungeon.js должен грузиться ДО src/locations.js, ' +
+        '000127) — этаж не построен');
+      return null;
+    }
+    const d2 = G.createDungeon(o.wx, o.wy, o.ctx.mapPixels,
+      o.terrain, o.depth);
+    // Ключ памяти — вход + глубина (Тот же источник, что
+    // maybeEnterDungeon: dungeonMemoryKey + инлайн-fallback).
+    const memKey = G.dungeonMemoryKey
+      ? G.dungeonMemoryKey(o.worldKey, o.depth)
+      : o.worldKey + ':' + o.depth;
+    const saved = o.ctx.memory.get(memKey);
+    // Содержимое живёт, пока внутри + dungeon_memory_days (SPEC).
+    let contents = null;
+    if (saved) {
+      if (typeof G.contentValid === 'function') {
+        contents = G.contentValid(saved.lastVisitDay, o.ctx.day)
+          ? saved.contents : null;
+      } else {
+        console.error('locations.js: Game.contentValid отсутствует ' +
+          '(src/dungeon.js должен грузиться ДО src/locations.js, ' +
+          '000127) — содержимое будет пересоздано');
+      }
+    }
+    if (!contents) {
+      if (typeof G.generateDungeonContents === 'function') {
+        // 000157.02: реальная глубина этажа — d2.depth (КАНОНИЧЕСКИЙ
+        // вызов, тот же, что maybeEnterDungeon: формулы залежей
+        // nDeposits/T/amount работают от него). Review-фикс: без
+        // opts ЛЮБАЯ регенерация этажа depth>=2 (первый спуск,
+        // expired-память) давала залежи depth=1 (другой rng_dep-
+        // поток, T1-only, 1 залежь) — асимметрия с мирским входом.
+        contents = G.generateDungeonContents(d2, o.ctx.hero,
+          { depth: d2.depth });
+      } else {
+        console.error('locations.js: Game.generateDungeonContents ' +
+          'отсутствует (src/dungeon.js должен грузиться ДО ' +
+          'src/locations.js, 000127) — этаж не построен');
+        return null;
+      }
+    }
+    const ds2 = makeDungeonState(d2, contents, o.worldKey,
+      { intervalMs: o.ctx.intervalMs });
+    // Переход — не вход из мира: строка «…: вход.» makeDungeonState
+    // ЗАМЕНЯЕТСЯ (D2) — единая формулировка с flash (D7).
+    ds2.log = [o.logLine];
+    if (saved) saved.lastVisitDay = o.ctx.day; // продлить память
+    return ds2;
+  }
+
+  // 000153.03 (D2/D3): СПУСК — [E] на stairs-down: этаж depth+1.
+  // Спавн — на клетке-выходе НОВОГО этажа (= entrance, 000177;
+  // makeDungeonState САМ спавнит на entrance — re-anchor НЕ нужен;
+  // entrance гарантированно свободен: safe-зона 5×5, все глубины,
+  // 000153.02). terrain — тайла-пещеры (player в мире НЕ двигается
+  // во время вылазки → terrain детерминирован; определяет ТИП и
+  // РАЗМЕР этажа — dungeonTypeFor, dungeon.js). ДЕНЬ не тратится:
+  // clock НЕТУДАРСТВУЕТ (ТЗ пп.1–2; +1 день — только exitDungeon).
+  // ctx = { map, mapPixels, player, hero, day, memory, intervalMs }
+  // (ТОТА ЖЕ форма, что maybeEnterDungeon).
+  // null: memoryBanned (D12 — debug-вход: запись этажа под мирским
+  // ключом = контаминация dungeonMemory, прецедент CB-9 000153.01) /
+  // отсутствующие Game-API. Мутации при успехе: ТОЛЬКО запись памяти
+  // СТАРОГО этажа (ctx.memory) + продление saved.lastVisitDay.
+  function descendFloor(ds, ctx) {
+    if (!ds || ds.kind !== 'dungeon' || !ctx || !ctx.map ||
+        typeof ctx.map.tileAt !== 'function' || !ctx.player ||
+        !ctx.memory) return null;
+    if (ds.memoryBanned) {
+      console.error('locations.js: переход этажей из debug-входа ' +
+        '(memoryBanned, 000153.01) запрещён (000153.03 D12) — ' +
+        'запись под мирским ключом контаминирует dungeonMemory');
+      return null;
+    }
+    const d = ds.dg;
+    const depth = Number.isInteger(d.depth) && d.depth >= 1
+      ? d.depth : 1;
+    const parts = String(ds.worldKey).split(',');
+    const wx = Number(parts[0]), wy = Number(parts[1]);
+    const nextDepth = depth + 1;
+    // (а) память СТАРОГО этажа — ДО сборки нового (D3): сейв ПОСЛЕ
+    // перехода содержит ОБА этажа; инвариант «память этажа пишется
+    // при каждом уходе с него».
+    writeFloorMemory(ds, { day: ctx.day, memory: ctx.memory });
+    // (б) новый этаж — из памяти/детерминированная регенерация.
+    return buildFloor({
+      wx, wy,
+      terrain: ctx.map.tileAt(ctx.player.x, ctx.player.y).terrain,
+      depth: nextDepth,
+      worldKey: ds.worldKey,
+      ctx,
+      logLine: 'Спуск: глубина ' + nextDepth + '.',
+    });
+  }
+
+  // 000153.03 (D2/D10): ПОДЪЁМ — [E] на d.exit (depth>1): этаж
+  // depth−1. Спавн — на stairs-down этажа depth−1 (клетка
+  // детерминирована сидом — без сохранения позиции, 0 rng,
+  // 000153.02) re-anchor-паттерном 000153.01. ГВАРД (D10):
+  // stairsDown null / клетка не FLOOR / живой моб на клетке (возможен
+  // ТОЛЬКО при depth−1 = 1: content-safe-зона вокруг stairsDown —
+  // только depth>1) → console.error + спавн на entrance (fail-open,
+  // детерминированно). depth=1 → null (этажа выше нет — выход в
+  // мир, exit-ветка). ДЕНЬ не тратится. ctx — как descendFloor.
+  function ascendFloor(ds, ctx) {
+    if (!ds || ds.kind !== 'dungeon' || !ctx || !ctx.map ||
+        typeof ctx.map.tileAt !== 'function' || !ctx.player ||
+        !ctx.memory) return null;
+    const d = ds.dg;
+    const depth = Number.isInteger(d.depth) && d.depth >= 1
+      ? d.depth : 1;
+    if (depth <= 1) return null;
+    if (ds.memoryBanned) {
+      console.error('locations.js: переход этажей из debug-входа ' +
+        '(memoryBanned, 000153.01) запрещён (000153.03 D12) — ' +
+        'запись под мирским ключом контаминирует dungeonMemory');
+      return null;
+    }
+    const parts = String(ds.worldKey).split(',');
+    const wx = Number(parts[0]), wy = Number(parts[1]);
+    const prevDepth = depth - 1;
+    writeFloorMemory(ds, { day: ctx.day, memory: ctx.memory });
+    const ds2 = buildFloor({
+      wx, wy,
+      terrain: ctx.map.tileAt(ctx.player.x, ctx.player.y).terrain,
+      depth: prevDepth,
+      worldKey: ds.worldKey,
+      ctx,
+      logLine: 'Подъём: глубина ' + prevDepth + '.',
+    });
+    if (!ds2) return null;
+    // re-anchor (паттерн 000153.01 maybeEnterDungeon :242-249) +
+    // ГВАРД D10 (тот же predicate занятости, что projection-тесты).
+    const G = lazyGame();
+    const d2 = ds2.dg;
+    const sd = d2.stairsDown;
+    const free = sd &&
+      Number.isInteger(sd.x) && Number.isInteger(sd.y) &&
+      sd.x >= 0 && sd.y >= 0 && sd.x < d2.width && sd.y < d2.height &&
+      !!G && G.CELL_FLOOR !== undefined &&
+      d2.cells[sd.y * d2.width + sd.x] === G.CELL_FLOOR &&
+      !(ds2.contents && Array.isArray(ds2.contents.mobs)
+        && ds2.contents.mobs.some((m) => m && !m.defeated
+          && m.x === sd.x && m.y === sd.y));
+    if (free) {
+      ds2.x = ds2.prevX = sd.x; ds2.y = ds2.prevY = sd.y;
+      if (ds2.mover) ds2.mover.teleport(sd.x, sd.y);
+    } else {
+      console.error('locations.js: клетка stairs-down этажа ' +
+        prevDepth + ' недоступна для спавна (null / не FLOOR / ' +
+        'занята живым мобом, 000153.03 D10) — спавн на entrance');
+    }
+    return ds2;
+  }
+
+  // 000153.03 (D5, finding G): ОДИН источник строки состояния
+  // локации для ОБОИХ потребителей (stateEl dungeon-ui.js +
+  // locationLine hud.js). Чистая: (d, x, y) только. Формат:
+  //   (depth>1 ? «Глубина: N\n» : '') + «До выхода: ~M клеток»
+  // «Глубина» — ТОЛЬКО depth>1 (depth=1 / нет поля — города,
+  // legacy-фикстуры — строки НЕТ: legacy-байты пинов). Тихий гард
+  // (нет d / нет d.exit → ''): рендер-пути — без console.error
+  // (FOG-B1/B6 errors===0).
+  function floorStatusLine(d, x, y) {
+    if (!d || !d.exit) return '';
+    const dist = Math.abs(x - d.exit.x) + Math.abs(y - d.exit.y);
+    const depth = (Number.isInteger(d.depth) && d.depth > 1)
+      ? d.depth : 0;
+    return (depth ? 'Глубина: ' + depth + '\n' : '') +
+      'До выхода: ~' + dist + ' клеток';
   }
 
   // Выход из города: no-op маркер с инвариантами (D5/D6) — ДЕНЬ НЕ
@@ -539,6 +763,10 @@
     exitDungeon, exitCity,
     dungeonMove, cityMove,
     interactExit,
+    // 000153.03: переходы этажей (только подземелье) + единая
+    // строка состояния (finding G).
+    descendFloor, ascendFloor,
+    floorStatusLine,
     // 000157.03: 11-й экспорт — [E] на залежи (доменное событие).
     interactDeposit,
     debugEnterDungeon,
