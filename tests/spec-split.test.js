@@ -94,7 +94,7 @@ const SPEC_FILE_LINES = {
   "overview.md": 12,
   "story.md": 5,
   "graphics.md": 8,
-  "world-map.md": 52,
+  "world-map.md": 76, // 000153.05: +24 (глубина/формулы/сейв — буллет лабиринта)
   "mobs.md": 118,
   "mob-groups-storage.md": 60,
   "game-time.md": 20,
@@ -110,7 +110,7 @@ const SPEC_FILE_LINES = {
   "npc.md": 7,
   "skills-storage.md": 38,
   "buildings-storage.md": 44,
-  "dungeons-storage.md": 121, // 000157.02: +49 (H2 «## Залежи»)
+  "dungeons-storage.md": 144, // 000153.05: +23 (размер-база/сид этажа/сейв; H2 «## Залежи»)
   "npc-storage.md": 72,
   "items.md": 145
 };
