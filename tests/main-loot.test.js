@@ -34,6 +34,35 @@
 // не синтаксис): строка HUD-подсказки нет; [E] no-op (инвентарь/
 // collectedLoot/сейв не меняются); getter __game.collectedLoot нет;
 // раздел сейва нет; onDay-зачистки нет; console.error-гард нет.
+//
+// Задача 000158.05 (станция RED): рендер природного лута на глобальной
+// карте — РАСШИРЯЕМ файл (файл создан 000158.04, LM1–LM5 не трогаем):
+//   * LM6 — spawn-кадр: все видимые лут-тайлы нарисованы с ТОЧНОЙ
+//     геометрией (пересчёт из песочницы 1:1 с условием рендера:
+//     visibleTileRange → live tileAt → lootVisible → lootSprite →
+//     worldToScreen); контроль: (-1,1) root_rock в ожидаемом;
+//   * LM7 — [E] на (-1,1) → лут тайла НЕВИДИМ, остальные 51 — в
+//     точности; декорации — тот же мультимножество, число рисований
+//     текстур/построек/мобов/Флогистона неизменно;
+//   * LM8 — пороги зума (колесом): 16 ≤ zoom < 24 — лут ВИДИМ,
+//     декорации нет; zoom < 16 (LOOT_MIN_ZOOM) — лут нет;
+//     zoom ≥ 24 — лут + декорации;
+//   * LM9 — порядок слоёв: текстура < декорации < лут < постройка <
+//     моб < Флогистон (глобально + по-тайлово ≥ 3 лут-тайла с деко);
+//   * LM10 — стена постройки → лут не рисуется (skip 000042). На
+//     базе 1ca4904 ВСЕ постройки спавн-вида 1×1 — стеновых тайлов в
+//     видимой области НЕТ (структурно лут под постройкой невозможен,
+//     000158.03) → СИНТЕТИКА: форс inBuilding через G.__liveMap.
+//     tileAt ПЕРЕД первым кадром (tileCache кэширует первые тайлы) +
+//     положительный контроль (впрыск лута на соседний тайл рисуется);
+//   * LM11 — fallback: спрайт не загрузился (rejectSet) → тайл без
+//     иконки, остальные луты — в точности, 0 ошибок.
+// Краснота LM6–LM11 — отсутствие G.lootSprite / блока лута в
+// drawSprites / каталога assets/sprites/loot/ (осмысленно, не
+// синтаксис). Контракты: memory/000158.05-loot-render.md.
+// Техническое расширение инфраструктуры: Image-стаб получает
+// pre.rejectSet (Set путей → onerror, паттерн boot(rejectSet)
+// main-visuals); дефолт — пустой Set → LM1–LM5 байт-незатронуты.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -58,6 +87,10 @@ const nameOf = (id) => (ITEMS.find((i) => i.id === id) || { name: id }).name;
 const VIEW_W = 1280;
 const VIEW_H = 720;
 const NOW = 1000;
+// Допуск сравнения геометрии: формулы в тесте и в реализации — те же
+// операции; 1e-6 px ловит любой реальный сдвиг, но не ulp-шум
+// (паттерн EPS tests/main-visuals.test.js).
+const EPS = 1e-6;
 
 // --- WebGL-стаб (main.js: compile/link/буферы) ---
 
@@ -218,7 +251,11 @@ function bootSandbox(pre = {}) {
     removeEventListener() {},
   };
   // Image-стаб: assets/map.png ВСЕГДА onerror → детерминированный
-  // G.generateSeedPixels (≡ map.png побайтово); остальные — onload.
+  // G.generateSeedPixels (≡ map.png побайтово); остальные — onload,
+  // кроме pre.rejectSet (явный провал — тест фолбэка 000158.05 LM11;
+  // паттерн boot(rejectSet) tests/main-visuals.test.js). Дефолт —
+  // пустой Set → LM1–LM5 байт-незатронуты.
+  const rejectSet = pre.rejectSet || new Set();
   function Image() {
     const self = this;
     self.naturalWidth = 0;
@@ -230,7 +267,7 @@ function bootSandbox(pre = {}) {
         self.__src = v;
         self.__asset = v;
         Promise.resolve().then(() => {
-          if (v === 'assets/map.png') {
+          if (v === 'assets/map.png' || rejectSet.has(v)) {
             if (typeof self.onerror === 'function') self.onerror();
           } else if (typeof self.onload === 'function') {
             self.onload();
@@ -711,4 +748,471 @@ test('LM5. 000158.04 e2e: деградация — tileAt без поля loot: 
   assert.equal(h.errors.length - e0, 1,
     'loot:null — тихо (ошибка ≠ норма)');
   live.tileAt = orig;
+});
+
+// =====================================================================
+// Задача 000158.05: рендер природного лута на глобальной карте.
+// Общие рендер-помощные (паттерн tests/main-visuals.test.js).
+// =====================================================================
+
+// Кадр с заданным now: вызываем ПОСЛЕДНИЙ захваченный rAF-колбэк
+// (frame ре-регистрирует себя каждый кадр, finally requestAnimationFrame);
+// возвращаем ТОЛЬКО вызовы этого кадра.
+function frameAt(h, now) {
+  const n0 = h.spriteCanvas.drawCalls.length;
+  h.raf[h.raf.length - 1](now);
+  return h.spriteCanvas.drawCalls.slice(n0);
+}
+
+// Кадр с фиксированным NOW (spawn-сценарии: время не двигается).
+function frameOnce(h) {
+  return frameAt(h, NOW);
+}
+
+// drawImage-вызовы по префиксу ассета (по метке изображения __asset).
+function drawsOf(calls, prefix) {
+  return calls.filter((c) => c[0] === 'drawImage'
+    && c[1][0]
+    && typeof c[1][0].__asset === 'string'
+    && c[1][0].__asset.startsWith(prefix));
+}
+
+const lootDraws = (calls) => drawsOf(calls, 'assets/sprites/loot/');
+const decoDraws = (calls) => drawsOf(calls, 'assets/sprites/visuals/');
+const tileDraws = (calls) => drawsOf(calls, 'assets/tiles/');
+const buildingDraws = (calls) => drawsOf(calls, 'assets/sprites/buildings/');
+const mobDraws = (calls) => drawsOf(calls, 'assets/sprites/mobs/');
+const phlogistonDraws = (calls) => drawsOf(calls, 'assets/sprites/phlogiston/');
+
+// Колесо мыши на canvas #game (zoom: deltaY > 0 → ÷1.2, deltaY < 0 → ×1.2).
+function dispatchWheel(h, deltaY) {
+  const e = { deltaY, preventDefault() {} };
+  for (const fn of h.gameCanvas.listeners['wheel'] || []) fn(e);
+}
+
+// Ожидаемые loot-отрисовки кадра — пересчёт из песочницы 1:1 с
+// условием рендера (000158.05 D7): t.loot && lootVisible(collected,
+// x, y) && !(inBuilding && !isEntrance) → lootSprite(item, tx, ty)
+// → геометрия visualDrawRect (центр e.x/e.y, сторона s = size*zoom).
+// map — provider tileAt (G.__liveMap — та же карта, из которой игра
+// рисует; LM10 — тот же live-инстанс с патчем tileAt — пересчёт
+// видит форс-стены и форс-лут). collected — состояние collectedLoot
+// на момент кадра (копия getter __game.collectedLoot; lootVisible
+// принимает и Map, и объект).
+function expectedLoots(G, map, cam, zoom, collected) {
+  const range = G.visibleTileRange(cam.x, cam.y, VIEW_W, VIEW_H, zoom);
+  const out = [];
+  for (let ty = range.y0; ty <= range.y1; ty++) {
+    for (let tx = range.x0; tx <= range.x1; tx++) {
+      const t = map.tileAt(tx, ty);
+      if (!t.loot || (t.inBuilding && !t.isEntrance)) continue;
+      if (!G.lootVisible(collected, tx, ty)) continue;
+      const e = G.lootSprite(t.loot.item, tx, ty);
+      if (!e) continue;
+      const p = G.worldToScreen(tx, ty, cam.x, cam.y, zoom, VIEW_W, VIEW_H);
+      const s = e.size * zoom;
+      out.push({
+        sprite: e.sprite,
+        x: p.x + e.x * zoom - s / 2,
+        y: p.y + e.y * zoom - s / 2,
+        size: s,
+      });
+    }
+  }
+  return out;
+}
+
+// Мультимножественное равенство loot-отрисовок (спрайт, x, y, size)
+// с допуском EPS: каждый фактический — в ожидании (и наоборот).
+function assertLootsEqual(actual, expected, label) {
+  assert.equal(actual.length, expected.length,
+    label + ': число loot-отрисовок ' + actual.length
+    + ' ≠ ожидаемых ' + expected.length);
+  const pool = expected.slice();
+  for (const [, a] of actual) {
+    const i = pool.findIndex((e) => e.sprite === a[0].__asset
+      && Math.abs(e.x - a[1]) < EPS
+      && Math.abs(e.y - a[2]) < EPS
+      && Math.abs(e.size - a[3]) < EPS
+      && Math.abs(e.size - a[4]) < EPS);
+    assert.ok(i >= 0,
+      label + ': неожиданный вызов: ' + a[0].__asset
+      + ' @ (' + a[1] + ', ' + a[2] + ') размер ' + a[3]);
+    pool.splice(i, 1);
+  }
+  assert.equal(pool.length, 0,
+    label + ': не нарисованы: ' + JSON.stringify(pool.slice(0, 3)));
+}
+
+// Мультимножественное равенство двух списков drawImage-вызовов
+// (ассет, x, y, size) с допуском EPS (LM7: before/after по сборе).
+function assertDrawsEqual(actual, expected, label) {
+  assert.equal(actual.length, expected.length,
+    label + ': число вызовов ' + actual.length + ' ≠ ' + expected.length);
+  const pool = expected.slice();
+  for (const a of actual) {
+    const i = pool.findIndex((e) => a[1][0].__asset === e[1][0].__asset
+      && Math.abs(a[1][1] - e[1][1]) < EPS
+      && Math.abs(a[1][2] - e[1][2]) < EPS
+      && Math.abs(a[1][3] - e[1][3]) < EPS);
+    assert.ok(i >= 0, label + ': неожиданный вызов: ' + a[1][0].__asset
+      + ' @ (' + a[1][1] + ', ' + a[1][2] + ') размер ' + a[1][3]);
+    pool.splice(i, 1);
+  }
+  assert.equal(pool.length, 0,
+    label + ': не нарисованы: '
+    + JSON.stringify(pool.slice(0, 3).map((c) => c[1][0].__asset)));
+}
+
+// Число рисований по семействам (LM7: сбор не трогает другие слои).
+function familyCounts(calls) {
+  return {
+    tiles: tileDraws(calls).length,
+    buildings: buildingDraws(calls).length,
+    mobs: mobDraws(calls).length,
+    phlogiston: phlogistonDraws(calls).length,
+  };
+}
+
+// =====================================================================
+// LM6 — spawn-кадр (ZOOM_START = 80): каждый видимый лут-тайл
+// нарисован спрайтом предмета с ТОЧНОЙ геометрией (пересчёт 1:1).
+// =====================================================================
+
+test('LM6. 000158.05 e2e: тайл с видимым лутом → drawImage loot-спрайта с точной геометрией (size×zoom, позиция hash2); контроль (-1,1) root_rock', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(typeof G.lootSprite, 'function',
+    'контракт: экспорт G.lootSprite (красный: символа нет в sprites.js)');
+  assert.equal(typeof G.lootVisible, 'function',
+    'контракт: экспорт G.lootVisible (000158.04)');
+  const calls = frameOnce(h);
+  assert.ok(tileDraws(calls).length > 0,
+    'текстуры тайлов нарисованы (слой спрайтов не пустой)');
+  const st = g.state; // cam/zoom — из state (cam на спавне не дрейфует)
+  const expected = expectedLoots(G, G.__liveMap, st.cam, st.zoom,
+    g.collectedLoot || {});
+  assert.ok(expected.length >= 10,
+    'сценарий: лут-тайлов в spawn-виде достаточно (ожид. '
+    + expected.length + ')');
+  assert.ok(expected.some((e) => e.sprite === 'assets/sprites/loot/root_rock.svg'),
+    'сценарий: root_rock (ближайший лут (-1,1)) — в ожидаемом наборе');
+  assertLootsEqual(lootDraws(calls), expected,
+    'геометрия: центр (sx + e.x*zoom, sy + e.y*zoom), сторона e.size*zoom');
+});
+
+// =====================================================================
+// LM7 — собранный тайл [E] → лут НЕВИДИМ (только через lootVisible),
+// остальные луты — в точности; декорации — тот же мультимножество;
+// число рисований текстур/построек/мобов/Флогистона — неизменно.
+// =====================================================================
+
+test('LM7. 000158.05 e2e: [E] на (-1,1) → лут тайла невидим, остальные 51 в точности; декорации и другие слои не изменились', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(typeof G.lootSprite, 'function',
+    'контракт: экспорт G.lootSprite (красный: символа нет в sprites.js)');
+  const { now: n0, res } = walkToNearestLoot(h, NOW);
+  // Осадочные кадры: камера/мувер — экспоненциальное сглаживание
+  // (CAM_TAU_MS ≈ 74.7 мс); 12 кадров по +200 мс сходятся ниже
+  // float-разрешения → before/after-кадры при ОДНОМ cam/zoom
+  // (мультимножественные сравнения с точным EPS без терпимости).
+  let now = n0;
+  for (let i = 0; i < 12; i++) {
+    now += 200;
+    h.frameFn(now);
+  }
+  const st0 = g.state;
+  const before = frameAt(h, now);
+  const exp0 = expectedLoots(G, G.__liveMap, st0.cam, st0.zoom,
+    g.collectedLoot || {});
+  assertLootsEqual(lootDraws(before), exp0,
+    'до сбора: точная геометрия лута');
+  // Положительный контроль: root_rock на (-1,1) нарисован.
+  const ls0 = G.lootSprite('root_rock', res.target.x, res.target.y);
+  const p0 = G.worldToScreen(res.target.x, res.target.y,
+    st0.cam.x, st0.cam.y, st0.zoom, VIEW_W, VIEW_H);
+  const s0 = ls0.size * st0.zoom;
+  assert.ok(lootDraws(before).some(([, a]) => a[0].__asset === ls0.sprite
+    && Math.abs(a[1] - (p0.x + ls0.x * st0.zoom - s0 / 2)) < EPS
+    && Math.abs(a[2] - (p0.y + ls0.y * st0.zoom - s0 / 2)) < EPS),
+    'сценарий: root_rock на (-1,1) нарисован ДО сбора');
+  const decoBefore = decoDraws(before);
+  const countsBefore = familyCounts(before);
+  // [E] — сбор (сценарий LM1: подсказка → addItem + ключ).
+  key(h, 'KeyE');
+  now += 200;
+  const after = frameAt(h, now);
+  const st1 = g.state;
+  assert.equal((g.collectedLoot || {})[res.target.x + ',' + res.target.y], 1,
+    'сбор: ключ тайла → день 1 (механика 000158.04)');
+  // Лут: пересчёт видит collectedLoot → (-1,1) отсутствует; ровно 51.
+  const exp1 = expectedLoots(G, G.__liveMap, st1.cam, st1.zoom,
+    g.collectedLoot || {});
+  assertLootsEqual(lootDraws(after), exp1,
+    'после сбора: остальные луты — в точности');
+  assert.equal(exp1.length, exp0.length - 1,
+    'ровно ОДИН лут исчез (собраный тайл)');
+  // Декорации — тот же мультимножество (cam/zoom не изменились).
+  assertDrawsEqual(decoDraws(after), decoBefore,
+    'декорации не изменились по сбору');
+  // Остальные семейства — число рисований неизменно (спрайт-кадры
+  // анимации могут смениться — сравниваем ЧИСЛА, не ассеты).
+  assert.deepEqual(familyCounts(after), countsBefore,
+    'текстуры/постройки/мобы/Флогистон — число рисований неизменно');
+});
+
+// =====================================================================
+// LM8 — пороги зума: LOOT_MIN_ZOOM = 16 < VISUALS_MIN_ZOOM = 24 —
+// окно различимости 16 ≤ zoom < 24 (лут виден, декорации — нет).
+// Колесом (циклы до условия, guard 100 — не хардкод числа шагов).
+// =====================================================================
+
+test('LM8. 000158.05 e2e: zoom-пороги — 16 ≤ zoom < 24: лут виден, декорации нет; zoom < 16: лут нет; zoom ≥ 24: оба', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(typeof G.lootSprite, 'function',
+    'контракт: экспорт G.lootSprite (красный: символа нет в sprites.js)');
+  const st = () => g.state;
+  // Старт: ZOOM_START = 80 — и лут, и декорации.
+  let calls = frameOnce(h);
+  let expected = expectedLoots(G, G.__liveMap, st().cam, st().zoom,
+    g.collectedLoot || {});
+  assert.ok(expected.length >= 10,
+    'сценарий: лут-тайлы в spawn-виде (ожид. ' + expected.length + ')');
+  assertLootsEqual(lootDraws(calls), expected, 'zoom 80: точная геометрия');
+  assert.ok(decoDraws(calls).length > 0, 'zoom 80: декорации рисуются');
+  // Колесо (deltaY > 0 — отдалиться) до zoom < 24.
+  let guard = 0;
+  while (st().zoom >= 24 && guard++ < 100) dispatchWheel(h, 120);
+  assert.ok(st().zoom < 24, 'zoom ушёл ниже 24: ' + st().zoom);
+  calls = frameOnce(h);
+  expected = expectedLoots(G, G.__liveMap, st().cam, st().zoom,
+    g.collectedLoot || {});
+  assert.ok(expected.length > 0,
+    'окно 16 ≤ zoom < 24: лут ожидает нарисованным (' + expected.length + ')');
+  assertLootsEqual(lootDraws(calls), expected,
+    'окно 16 ≤ zoom < 24: лут ВИДИМ с точной геометрией');
+  assert.equal(decoDraws(calls).length, 0,
+    'zoom < 24: декорации НЕ рисуются (порог 000039)');
+  assert.ok(tileDraws(calls).length > 0,
+    'текстуры тайлов на месте (слой жив)');
+  // До zoom < 16 (LOOT_MIN_ZOOM): лут — нет.
+  guard = 0;
+  while (st().zoom >= 16 && guard++ < 100) dispatchWheel(h, 120);
+  assert.ok(st().zoom < 16, 'zoom ушёл ниже 16: ' + st().zoom);
+  calls = frameOnce(h);
+  assert.equal(lootDraws(calls).length, 0,
+    'zoom < LOOT_MIN_ZOOM (16): лут НЕ рисуется');
+  assert.equal(decoDraws(calls).length, 0,
+    'zoom < 16: декорации тоже нет');
+  assert.ok(tileDraws(calls).length > 0,
+    'текстуры тайлов на месте (мир не стал пустым)');
+  // Колесо (deltaY < 0 — приблизиться) до zoom >= 24: лут вернулся.
+  guard = 0;
+  while (st().zoom < 24 && guard++ < 100) dispatchWheel(h, -120);
+  assert.ok(st().zoom >= 24, 'zoom вернулся к >= 24: ' + st().zoom);
+  calls = frameOnce(h);
+  expected = expectedLoots(G, G.__liveMap, st().cam, st().zoom,
+    g.collectedLoot || {});
+  assert.ok(expected.length >= 10,
+    'сценарий: лут-тайлы в виде (ожид. ' + expected.length + ')');
+  assertLootsEqual(lootDraws(calls), expected,
+    'zoom ≥ 24: лут вернулся с точной геометрией');
+  assert.ok(decoDraws(calls).length > 0, 'zoom ≥ 24: декорации на месте');
+});
+
+// =====================================================================
+// LM9 — порядок слоёв: текстура < декорации < лут < постройка <
+// моб < Флогистон (глобально — проходы 1 < 2 < 3; по-тайлово —
+// лут ПОСЛЕ декораций того же тайла, крупный объект поверх травы).
+// =====================================================================
+
+test('LM9. 000158.05 e2e: порядок слоёв — текстура < декорации < лут < постройка < моб < Флогистон', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(typeof G.lootSprite, 'function',
+    'контракт: экспорт G.lootSprite (красный: символа нет в sprites.js)');
+  const calls = frameOnce(h);
+  const st = g.state;
+  const zoom = st.zoom;
+  const liveMap = G.__liveMap;
+  // Глобально: ВСЕ loot-отрисовки — ДО первой постройки/моба
+  // (проход 1 < проходы 2/3); постройка/моб — ДО Флогистона.
+  const iB = calls.findIndex((c) => c[0] === 'drawImage'
+    && c[1][0] && typeof c[1][0].__asset === 'string'
+    && c[1][0].__asset.startsWith('assets/sprites/buildings/'));
+  const iM = calls.findIndex((c) => c[0] === 'drawImage'
+    && c[1][0] && typeof c[1][0].__asset === 'string'
+    && c[1][0].__asset.startsWith('assets/sprites/mobs/'));
+  const iPh = calls.findIndex((c) => c[0] === 'drawImage'
+    && c[1][0] && typeof c[1][0].__asset === 'string'
+    && c[1][0].__asset.startsWith('assets/sprites/phlogiston/'));
+  assert.ok(iB >= 0, 'сценарий: постройка в кадре');
+  assert.ok(iM >= 0, 'сценарий: мобы в кадре');
+  assert.ok(iPh >= 0, 'Флогистон нарисован');
+  const lootIdx = [];
+  for (let i = 0; i < calls.length; i++) {
+    const c = calls[i];
+    if (c[0] === 'drawImage' && c[1][0]
+        && typeof c[1][0].__asset === 'string'
+        && c[1][0].__asset.startsWith('assets/sprites/loot/')) lootIdx.push(i);
+  }
+  assert.ok(lootIdx.length >= 10,
+    'сценарий: loot-отрисовки в кадре (красный: блока лута нет — найдено '
+    + lootIdx.length + ')');
+  const maxLoot = Math.max(...lootIdx);
+  assert.ok(maxLoot < Math.min(iB, iM),
+    'лут — ДО построек и мобов (проход 1 < проходы 2/3)');
+  assert.ok(Math.min(iB, iM) < iPh,
+    'Флогистон — ПОСЛЕ построек/мобов');
+  // По-тайлово: для ≥ 3 видимых лут-тайлов С декорациями —
+  // текстура < каждая декорация < лут того же тайла.
+  const range = G.visibleTileRange(st.cam.x, st.cam.y, VIEW_W, VIEW_H, zoom);
+  let checked = 0;
+  for (let ty = range.y0; ty <= range.y1 && checked < 3; ty++) {
+    for (let tx = range.x0; tx <= range.x1 && checked < 3; tx++) {
+      const t = liveMap.tileAt(tx, ty);
+      if (!t.loot || (t.inBuilding && !t.isEntrance)) continue;
+      const decos = G.tileVisuals(tx, ty, t.terrain);
+      if (!decos.length) continue;
+      checked++;
+      const p = G.worldToScreen(tx, ty, st.cam.x, st.cam.y, zoom, VIEW_W, VIEW_H);
+      const sx = p.x, sy = p.y;
+      // Текстура тайла: drawImage(img, sx, sy, zoom, zoom).
+      const iTile = calls.findIndex((c) => c[0] === 'drawImage'
+        && c[1][0] && c[1][0].__asset
+        && c[1][0].__asset.startsWith('assets/tiles/')
+        && Math.abs(c[1][1] - sx) < EPS
+        && Math.abs(c[1][2] - sy) < EPS
+        && Math.abs(c[1][3] - zoom) < EPS
+        && Math.abs(c[1][4] - zoom) < EPS);
+      assert.ok(iTile >= 0, `тайл (${tx},${ty}): текстура нарисована`);
+      // Лут тайла: точная геометрия lootSprite.
+      const e = G.lootSprite(t.loot.item, tx, ty);
+      const sL = e.size * zoom;
+      const iLoot = calls.findIndex((c) => c[0] === 'drawImage'
+        && c[1][0] && c[1][0].__asset === e.sprite
+        && Math.abs(c[1][1] - (sx + e.x * zoom - sL / 2)) < EPS
+        && Math.abs(c[1][2] - (sy + e.y * zoom - sL / 2)) < EPS);
+      assert.ok(iLoot >= 0,
+        `тайл (${tx},${ty}): лут нарисован (красный: не найден)`);
+      for (const d of decos) {
+        const sD = d.size * zoom;
+        const iDeco = calls.findIndex((c) => c[0] === 'drawImage'
+          && c[1][0] && c[1][0].__asset === d.sprite
+          && Math.abs(c[1][1] - (sx + d.x * zoom - sD / 2)) < EPS
+          && Math.abs(c[1][2] - (sy + d.y * zoom - sD / 2)) < EPS);
+        assert.ok(iDeco >= 0,
+          `тайл (${tx},${ty}): декорация нарисована`);
+        assert.ok(iTile < iDeco,
+          `тайл (${tx},${ty}): декорация — ПОСЛЕ текстуры тайла`);
+        assert.ok(iDeco < iLoot,
+          `тайл (${tx},${ty}): лут — ПОСЛЕ декораций (крупный объект '
+          + 'поверх травы, 000158.05)`);
+      }
+    }
+  }
+  assert.ok(checked >= 3,
+    'сценарий: ≥ 3 лут-тайлов с декорациями в кадре (найдено ' + checked + ')');
+});
+
+// =====================================================================
+// LM10 — стена постройки → лут не рисуется (skip 000042, защитный
+// код: структурно лут под постройкой невозможен, 000158.03). На
+// базе 1ca4904 ВСЕ постройки спавн-вида 1×1 — стеновых тайлов в
+// видимой области нет → СИНТЕТИКА через G.__liveMap.tileAt (паттерн
+// LM5): форс inBuilding на лут-тайле W = (-1,1) ДО первого кадра
+// (tileCache кэширует ПЕРВЫЕ тайлы — патч после кадров не действует)
+// + положительный контроль: форс-лут на W2 = (-1,0) рисуется.
+// =====================================================================
+
+test('LM10. 000158.05 e2e: стена постройки → лут не рисуется (skip 000042); форс-лут на соседнем тайле рисуется; остальные — в точности', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(typeof G.lootSprite, 'function',
+    'контракт: экспорт G.lootSprite (красный: символа нет в sprites.js)');
+  const live = G.__liveMap;
+  const orig = live.tileAt;
+  const W = { x: -1, y: 1 };   // реальный лут-тайл root_rock → «стена»
+  const W2 = { x: -1, y: 0 };  // норма без лута → контроль видимости форса
+  live.tileAt = (x, y) => {
+    const t = orig(x, y);
+    if (x === W.x && y === W.y) {
+      return { ...t, inBuilding: true, isEntrance: false,
+        loot: { item: 'root_rock' } };
+    }
+    if (x === W2.x && y === W2.y) {
+      return { ...t, loot: { item: 'root_ember' } };
+    }
+    return t;
+  };
+  const e0 = h.errors.length;
+  const calls = frameOnce(h);
+  const st = g.state;
+  // Положительный контроль: форс-лут W2 нарисован (инъекция видна).
+  const ls2 = G.lootSprite('root_ember', W2.x, W2.y);
+  const p2 = G.worldToScreen(W2.x, W2.y,
+    st.cam.x, st.cam.y, st.zoom, VIEW_W, VIEW_H);
+  const s2 = ls2.size * st.zoom;
+  assert.ok(lootDraws(calls).some(([, a]) => a[0].__asset === ls2.sprite
+    && Math.abs(a[1] - (p2.x + ls2.x * st.zoom - s2 / 2)) < EPS
+    && Math.abs(a[2] - (p2.y + ls2.y * st.zoom - s2 / 2)) < EPS),
+    'контроль: форс-лут W2 нарисован (инъекция tileAt видна рендеру)');
+  // «Стена» W: loot-отрисовки с его геометрией НЕТ (skip 000042).
+  const lsW = G.lootSprite('root_rock', W.x, W.y);
+  const pW = G.worldToScreen(W.x, W.y,
+    st.cam.x, st.cam.y, st.zoom, VIEW_W, VIEW_H);
+  const sW = lsW.size * st.zoom;
+  assert.ok(!calls.some((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__asset === lsW.sprite
+    && Math.abs(c[1][1] - (pW.x + lsW.x * st.zoom - sW / 2)) < EPS
+    && Math.abs(c[1][2] - (pW.y + lsW.y * st.zoom - sW / 2)) < EPS),
+    'стена постройки: лут НЕ нарисован (skip 000042)');
+  // Остальные — в точности по пересчёту с тем же (патченным) tileAt:
+  // W исключён (wall), W2 включён.
+  assertLootsEqual(lootDraws(calls),
+    expectedLoots(G, live, st.cam, st.zoom, g.collectedLoot || {}),
+    'остальные луты — ровно ожидаемый набор');
+  assert.equal(h.errors.length, e0, 'тихо (ошибок не добавлено)');
+});
+
+// =====================================================================
+// LM11 — fallback: спрайт лута не загрузился (rejectSet) → тайл без
+// иконки, остальные луты — в точности, 0 ошибок, игра не падает
+// (паттерн фолбэка декораций: spriteLoader.isReady false → skip).
+// =====================================================================
+
+test('LM11. 000158.05 e2e: не загрузившийся loot-спрайт — тайл без иконки, остальные в точности, 0 ошибок', async () => {
+  const REJECT = 'assets/sprites/loot/root_rock.svg';
+  const h = await boot({ rejectSet: new Set([REJECT]) });
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(typeof G.lootSprite, 'function',
+    'контракт: экспорт G.lootSprite (красный: символа нет в sprites.js)');
+  assert.equal(h.errors.length, 0,
+    'boot-инвариант: ошибок загрузки нет');
+  const st = g.state;
+  assert.equal(st.sprites.ready, st.sprites.total - 1,
+    'именно один ассет не загрузился');
+  const calls = frameOnce(h);
+  assert.ok(tileDraws(calls).length > 0,
+    'текстуры тайлов на месте (слой жив)');
+  const all = expectedLoots(G, G.__liveMap, st.cam, st.zoom,
+    g.collectedLoot || {});
+  const rejected = all.filter((e) => e.sprite === REJECT);
+  assert.ok(rejected.length >= 1,
+    'сценарий: ' + REJECT + ' присутствует в видимой области');
+  const expected = all.filter((e) => e.sprite !== REJECT);
+  assert.ok(!lootDraws(calls).some(([, a]) => a[0].__asset === REJECT),
+    'не загрузившийся спрайт НЕ рисуется (isReady false → пропуск)');
+  assertLootsEqual(lootDraws(calls), expected,
+    'остальные луты — точно ожидаемый набор');
+  assert.equal(h.errors.length, 0,
+    'тихий fallback (0 console.error — паттерн декораций)');
 });

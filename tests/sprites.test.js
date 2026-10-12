@@ -16,9 +16,26 @@ const {
   // стартовую константу зума (не литерал 80), чтобы пин честно
   // пересчитался при её изменении.
   ZOOM_START,
+  // Задача 000158.05: hash2 — пины золотых loot-хэшей (SP-LOOT-3);
+  // LOOT_SEED — сид КАНАЛА ГЕНЕРАЦИИ map.js: LOOT_VISUAL_SEED обязан
+  // отличаться (разные смыслы: «что лежит» vs «как/где иконка»).
+  hash2,
+  LOOT_SEED,
 } = require('../src/map.js');
 const S = require('../src/sprites.js');
 const { countDetails } = require('../scripts/count-svg-details.js');
+
+// Задача 000158.05: каталог природного лута — live-скан (источник
+// правды: items-data.js, поле loot) ТЕМ ЖЕ строгим фильтром, что
+// map.js lootCandidates (D8: объект loot + непустые terrains +
+// строковый id). Пин числа — в тесте (28).
+const { ITEMS } = require('../src/items-data.js');
+const LOOT_ITEM_IDS = ITEMS.filter((it) => {
+  const L = it && it.loot;
+  return L && typeof L === 'object'
+    && Array.isArray(L.terrains) && L.terrains.length > 0
+    && typeof it.id === 'string';
+}).map((it) => it.id);
 
 const VDIR = path.join(__dirname, '..', 'assets', 'visuals');
 const VSPR = path.join(__dirname, '..', 'assets', 'sprites', 'visuals');
@@ -586,6 +603,171 @@ test('visuals 000158.06: эффективный глиф при ZOOM_START — �
     assert.ok(px >= 14,
       `${v.id} «${v.название}»: глиф ${v.размер}×${ZOOM_START} = ${px} px < 14 px при стартовом зуме (000158.06)`);
   }
+});
+
+// --- Природный лут (задача 000158.05) ---
+//
+// Рендер-канал лута (КОНТРАКТ: memory/000158.05-loot-render.md):
+//   * S.lootSprite(itemId, tx, ty) → {sprite, x, y, size} | null —
+//     одна детерминированная точка на тайл, seed =
+//     LOOT_VISUAL_SEED + index*0x9e3779b9 (index — позиция предмета
+//     в ITEMS; ДАННЫЕ — items-data.js, лениво, без кэша);
+//   * S.LOOT_SIZE = 0.25 (единый размер; ТЗ-диапазон 0.20–0.30),
+//     S.LOOT_MIN_ZOOM = 16 (своя константа рендера),
+//     S.LOOT_VISUAL_SEED = 0x7f3a51c9 (свой 32-bit сид — НЕ
+//     VISUALS_SEED/DUNGEON_FLOOR_SEED/LOOT_SEED map.js);
+//   * каталог: assets/sprites/loot/<id>.svg — 1 на item-id, ровно 28
+//     (live-скан LOOT_ITEM_IDS), allAssetPaths обязан их включать.
+// Красные (RED-станция): S.lootSprite/LOOT_SIZE/LOOT_MIN_ZOOM/
+// LOOT_VISUAL_SEED отсутствуют в exports, файлов в assets/ нет —
+// каждый тест падает по отсутствию символа/файла (не синтаксис).
+
+test('SP-LOOT-1a 000158.05: lootSprite — чистая/детерминированная; sprite = assets/sprites/loot/<id>.svg; size = LOOT_SIZE ∈ [0.20, 0.30]; x, y ∈ [0.08, 0.92]; все 28 файлов существуют', () => {
+  assert.equal(typeof S.lootSprite, 'function',
+    'контракт: экспорт S.lootSprite (красный: символа нет в sprites.js)');
+  assert.equal(LOOT_ITEM_IDS.length, 28,
+    'пин каталога: 28 природных лут-предметов (live-скан)');
+  const SIZE = S.LOOT_SIZE;
+  assert.equal(typeof SIZE, 'number',
+    'контракт: экспорт S.LOOT_SIZE (красный: отсутствует)');
+  assert.ok(SIZE >= 0.20 && SIZE <= 0.30,
+    'LOOT_SIZE = ' + SIZE + ' вне контрактного диапазона [0.20, 0.30]');
+  // Детерминированная сетка (~32 точки), включая (-1,1), (0,0),
+  // (-9,-5) — spawn-район реального мира и (3,4) — точка пина.
+  const PTS = [];
+  for (let x = -9; x <= -2; x++)
+    for (let y = -5; y <= -2; y++) PTS.push([x, y]);
+  PTS.push([-1, 1], [0, 0], [3, 4]);
+  for (const id of LOOT_ITEM_IDS) {
+    assert.ok(exists('assets/sprites/loot/' + id + '.svg'),
+      'нет файла: assets/sprites/loot/' + id + '.svg');
+    for (const [tx, ty] of PTS) {
+      const a = S.lootSprite(id, tx, ty);
+      const b = S.lootSprite(id, tx, ty);
+      assert.deepEqual(a, b,
+        id + ' на (' + tx + ',' + ty + '): повторный вызов — другой набор');
+      assert.equal(a.sprite, 'assets/sprites/loot/' + id + '.svg',
+        'sprite = 1 файл на item-id (не «свой путь»)');
+      assert.equal(a.size, SIZE, 'size = единый LOOT_SIZE');
+      assert.ok(a.x >= 0.08 && a.x <= 0.92,
+        id + ' на (' + tx + ',' + ty + '): x = ' + a.x
+        + ' вне [0.08, 0.92] (иконка уезжает за край тайла)');
+      assert.ok(a.y >= 0.08 && a.y <= 0.92,
+        id + ' на (' + tx + ',' + ty + '): y = ' + a.y
+        + ' вне [0.08, 0.92] (иконка уезжает за край тайла)');
+    }
+  }
+});
+
+test('SP-LOOT-1b 000158.05: lootSprite — не «штамп» (2 id на тайле → разные позиции; 1 id на 200 тайлах → ≥50 уникальных); мусор → null', () => {
+  assert.equal(typeof S.lootSprite, 'function',
+    'контракт: экспорт S.lootSprite (красный: символа нет в sprites.js)');
+  // Разные предметы на ОДНОМ тайле → разные позиции (seed зависит
+  // от index — два id не должны «наложиться» в одну точку).
+  const [A, B] = LOOT_ITEM_IDS;
+  for (const [tx, ty] of [[-1, 1], [0, 0], [3, 4], [-9, -5], [17, -33]]) {
+    const ea = S.lootSprite(A, tx, ty);
+    const eb = S.lootSprite(B, tx, ty);
+    assert.ok(ea.x !== eb.x || ea.y !== eb.y,
+      '(' + tx + ',' + ty + '): «' + A + '» и «' + B
+      + '» — одна точка («штамп», index не участвует в seed)');
+  }
+  // Один предмет на 200 детерминированных тайлах → ≥50 уникальных
+  // (x,y): хэш реально размазывает, не «одна точка на всё».
+  const uniq = new Set();
+  for (let i = 0; i < 200; i++) {
+    const e = S.lootSprite(A, -100 + (i % 20), -100 + Math.floor(i / 20));
+    uniq.add(e.x + '|' + e.y);
+  }
+  assert.ok(uniq.size >= 50,
+    '200 тайлов → ' + uniq.size + ' уникальных позиций < 50 — «штамп»');
+  // Мусор: неизвестный id / не строка → null (тихо, D1: «нет
+  // каталога/неизвестный id → нет иконки»).
+  assert.equal(S.lootSprite('not_exist', 0, 0), null, 'неизвестный id → null');
+  assert.equal(S.lootSprite(null, 0, 0), null, 'null id → null');
+  assert.equal(S.lootSprite(42, 0, 0), null, 'числовой id → null');
+  assert.equal(S.lootSprite('', 0, 0), null, 'пустой id → null');
+});
+
+test('SP-LOOT-3 000158.05: LOOT_MIN_ZOOM = 16 (жёсткий пин); LOOT_VISUAL_SEED — свой 32-bit сид (коллизий нет); золотые hash2 фиксируют seed + схему index*0x9e3779b9', () => {
+  assert.equal(typeof S.lootSprite, 'function',
+    'контракт: экспорт S.lootSprite (красный: символа нет в sprites.js)');
+  assert.equal(S.LOOT_MIN_ZOOM, 16,
+    'жёсткий пин: LOOT_MIN_ZOOM = 16 (прецедент «VISUALS_MIN_ZOOM = '
+    + '24 (000039)»); лут крупнее декора → читается дальше');
+  const SEED = S.LOOT_VISUAL_SEED;
+  assert.ok(Number.isInteger(SEED) && SEED !== 0,
+    'LOOT_VISUAL_SEED — ненулевой целочисленный 32-bit сид');
+  assert.notEqual(SEED, S.VISUALS_SEED,
+    'свой сид — НЕ VISUALS_SEED (декорации)');
+  assert.notEqual(SEED, S.DUNGEON_FLOOR_SEED,
+    'свой сид — НЕ DUNGEON_FLOOR_SEED (подземелья)');
+  assert.notEqual(SEED, LOOT_SEED,
+    'свой сид — НЕ LOOT_SEED map.js (канал генерации «что лежит»)');
+  // Золотые hash2 (вычислены на 1ca4904; §2 D3): x — с офсетом +1,
+  // y — с офсетом +2 к seed; index: 22 = moonstone (первый
+  // лут-предмет каталога), 73 = mushroom_grey (последний).
+  assert.equal(hash2(-1, 1, SEED + 1), 779866397, 'golden x (index 0)');
+  assert.equal(hash2(-1, 1, SEED + 2), 666786471, 'golden y (index 0)');
+  assert.equal(hash2(3, 4, SEED + 22 * 0x9e3779b9 + 1), 462833820,
+    'golden x (index 22 = moonstone)');
+  assert.equal(hash2(3, 4, SEED + 73 * 0x9e3779b9 + 2), 3271630315,
+    'golden y (index 73 = mushroom_grey)');
+});
+
+test('SP-LOOT-2 000158.05: allAssetPaths ↔ каталог лута — ровно 28 путей assets/sprites/loot/<id>.svg, все существуют, чужих id нет', () => {
+  const paths = S.allAssetPaths();
+  const loot = paths.filter((p) => p.startsWith('assets/sprites/loot/'));
+  const uniq = new Set(loot);
+  assert.equal(uniq.size, 28,
+    'loot-путей в allAssetPaths: ' + uniq.size
+    + ' (ожидаем 28; красное: каталога assets/sprites/loot/ нет)');
+  for (const id of LOOT_ITEM_IDS) {
+    const p = 'assets/sprites/loot/' + id + '.svg';
+    assert.ok(uniq.has(p), 'allAssetPaths: нет пути ' + p);
+    assert.ok(exists(p), 'нет файла: ' + p);
+  }
+  // Обратное: каждый loot-путь — из каталога (чужих id нет).
+  for (const p of uniq) {
+    const id = path.basename(p).replace(/\.svg$/, '');
+    assert.ok(LOOT_ITEM_IDS.includes(id),
+      'loot-путь вне каталога предметов: ' + p);
+  }
+});
+
+test('SP-LOOT-5 000158.05: vm без items-data.js — гард: lootSprite → null, allAssetPaths без loot-путей, 0 warn/error (тихо)', () => {
+  // Реальный сценарий vm-песочниц (паттерн «vm: sprites.js БЕЗ
+  // visuals-data.js» выше): цепочка perlin + map + sprites БЕЗ
+  // data-модулей. Жёсткая зависимость от каталога предметов уронила
+  // бы их — гард обязан деградировать ТИХО: нет каталога → нет
+  // иконок (null) и нет loot-ассетов в allAssetPaths.
+  const warns = [];
+  const errors = [];
+  const sandbox = {
+    console: {
+      warn: (m) => warns.push(String(m)),
+      error: (m) => errors.push(String(m)),
+      log() {},
+    },
+  };
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  const w0 = warns.length, e0 = errors.length;
+  assert.doesNotThrow(() => loadInSandbox('sprites.js', sandbox),
+    'загрузка sprites.js без items-data.js не должна падать');
+  assert.equal(warns.length, w0, 'гард без каталога молчалив (warn)');
+  assert.equal(errors.length, e0, 'гард без каталога молчалив (error)');
+  const G = sandbox.Game;
+  assert.equal(typeof G.lootSprite, 'function',
+    'контракт: экспорт G.lootSprite (красный: символа нет в sprites.js)');
+  assert.equal(G.lootSprite('root_rock', 3, 4), null,
+    'нет каталога → null (тихо, краха нет; рендер лута не дойдёт — '
+    + 'map.js без каталога лут не генерирует)');
+  const paths = fromVm(G.allAssetPaths());
+  assert.ok(Array.isArray(paths) && paths.length > 0,
+    'allAssetPaths() работает без каталога');
+  assert.ok(paths.every((p) => !p.startsWith('assets/sprites/loot/')),
+    'без каталога предметов allAssetPaths без loot-путей');
 });
 
 test('tileVisuals: чистая функция, элементы валидны и с потолком', () => {

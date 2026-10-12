@@ -2949,6 +2949,16 @@
     // слой просто выключен (игра деградирует до вида 000021-минус-рендер).
     const showVisuals = typeof G.tileVisuals === 'function'
       && zoom >= (G.VISUALS_MIN_ZOOM || 0);
+    // Природный лут (задача 000158.05): крупнее декораций → виден
+    // чуть дальше (LOOT_MIN_ZOOM 16 < VISUALS_MIN_ZOOM 24).
+    // typeof-гарды: старый sprites.js (нет lootSprite) ИЛИ старый
+    // day.js (нет lootVisible) — слой просто выключен, тихо
+    // (000038/000053); рендер своё состояние НЕ хранит —
+    // невидимость после сбора — ТОЛЬКО через G.lootVisible
+    // (000158.04).
+    const showLoot = typeof G.lootSprite === 'function'
+      && typeof G.lootVisible === 'function'
+      && zoom >= (G.LOOT_MIN_ZOOM || 0);
 
     // Задача 000042: три прохода по frameTiles, ГЛОБАЛЬНО согласованный
     // порядок слоёв — текстура тайла + декорации < постройки < мобы <
@@ -2984,6 +2994,24 @@
           if (!spriteLoader.isReady(e.sprite)) continue;
           const r = G.visualDrawRect(e, sx, sy, zoom);
           s2.drawImage(spriteLoader.image(e.sprite),
+            r.x, r.y, r.size, r.size);
+        }
+      }
+      // Природный лут (задача 000158.05): СТРОГО ПОСЛЕ декораций
+      // (крупный объект поверх травы), ПЕРЕД постройками/мобами/
+      // Флогистоном (проходы 2/2.5/3). Видимость — ТОЛЬКО
+      // G.lootVisible (000158.04; ключ 'x,y', fail-open). Стены
+      // постройки — skip (000042; структурно лут под постройкой
+      // невозможен — 000158.03 — защитный код). Не загрузившийся
+      // спрайт — тайл без иконки, слой не падает (паттерн
+      // декораций: isReady false → пропуск).
+      if (showLoot && t.loot
+          && G.lootVisible(collectedLoot, t.x, t.y)
+          && !(t.inBuilding && !t.isEntrance)) {
+        const ls = G.lootSprite(t.loot.item, t.x, t.y);
+        if (ls && spriteLoader.isReady(ls.sprite)) {
+          const r = G.visualDrawRect(ls, sx, sy, zoom);
+          s2.drawImage(spriteLoader.image(ls.sprite),
             r.x, r.y, r.size, r.size);
         }
       }

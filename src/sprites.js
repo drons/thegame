@@ -9,7 +9,10 @@
 //   assets/sprites/mobs/<моб>_n.svg           — базовые типы мобов;
 //   assets/sprites/buildings/<постройка>.svg  — иконки построек;
 //   assets/sprites/visuals/<элемент>.svg      — декорации тайлов (000021),
-//     описания — assets/visuals/*.json + schema.json.
+//     описания — assets/visuals/*.json + schema.json;
+//   assets/sprites/loot/<item-id>.svg         — иконки природного
+//     лута (задача 000158.05): один на item-id, каталог —
+//     items-data.js (поле loot, live-скан в lootItemsRef).
 //
 // Ядро — чистые функции: выбор файла всегда определяется только типом
 // (террейн/моб/постройка) и координатами тайла, а НЕ фактом загрузки.
@@ -22,18 +25,28 @@
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
+    // root (4-й аргумент) — undefined в node: ленивый
+    // Game.ITEMS (lootItemsRef, задача 000158.05) не нужен —
+    // каталог приходит require (5-й аргумент; items-data.js —
+    // чистые данные, 0 require → циклов нет; НЕ items.js — он
+    // требует map.js).
     module.exports = factory(require('./map.js'),
       require('./mob-groups-data.js'),
-      require('./visuals-data.js'));
+      require('./visuals-data.js'),
+      undefined,
+      require('./items-data.js'));
   } else {
     // Браузер: модули данных грузятся ДО sprites.js (index.html) —
     // каталоги уже в Game (deps.MobGroupsData, deps.VisualsData),
-    // отдельные аргументы не нужны.
+    // отдельные аргументы не нужны. items-data.js (Game.ITEMS) —
+    // лениво в момент вызова (lootItemsRef, задача 000158.05),
+    // поэтому передаётся ЖИВОЙ root (паттерн map.js).
     root.Game = Object.assign({}, root.Game,
-      factory(typeof root.Game === 'object' ? root.Game : {}));
+      factory(typeof root.Game === 'object' ? root.Game : {},
+        null, null, root, null));
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self,
-  function (deps, mobGroups, visualsData) {
+  function (deps, mobGroups, visualsData, root, itemsData) {
 
   const TERRAIN = deps.TERRAIN;
   const TERRAIN_NAMES = deps.TERRAIN_NAMES;
@@ -341,6 +354,30 @@
   // при малом зуме число видимых тайлов explode, по-тайловый проход
   // дорог, а мелкие элементы и так не различимы.
   const VISUALS_MIN_ZOOM = 24;
+
+  // --- Природный лут (задача 000158.05) ---
+  //
+  // Слой #sprites, проход 1 drawSprites: пока лут НЕ собран, на тайле
+  // с t.loot рисуется ОДИН спрайт на item-id (крупнее декораций →
+  // лут должен читаться). Канал РЕНДЕРА «как/где иконка» — отдельный
+  // от КАНАЛА ГЕНЕРАЦИИ «что лежит на тайле» (LOOT_SEED в map.js):
+  // разные смыслы — разные сиды (НЕ смешивать; пины:
+  // tests/sprites.test.js SP-LOOT-3, MLS-пины map.test.js).
+  // Каталога спрайтов НЕТ в этом модуле — live-скан items-data.js
+  // (lootItemsRef, лениво, без кэша; паттерн map.js L389-393).
+  const LOOT_DIR = 'assets/sprites/loot/';
+  // Свой 32-bit сид рабочего канала рендера лута (НЕ VISUALS_SEED
+  // 0x51a11ce5, НЕ DUNGEON_FLOOR_SEED, НЕ LOOT_SEED map.js).
+  const LOOT_VISUAL_SEED = 0x7f3a51c9;
+  // Порог зума рендера лута (своя константа, ТЗ: «дефолт, тюнинг — в
+  // этой задаче»): лут крупнее декораций (LOOT_SIZE 0.25 > декора
+  // 0.18–0.22 после 000158.06) → виден чуть дальше (16 < 24).
+  // Перф: блок ВНУТРИ прохода 1 (frameTiles), лут-тайлы ~2–4%
+  // видимых → cost пренебрежимо.
+  const LOOT_MIN_ZOOM = 16;
+  // Единый размер иконки (доли тайла): СЕРЕДИНА ТЗ-диапазона
+  // 0.20–0.30; при ZOOM_START = 80 — rect 20 px (читаемость).
+  const LOOT_SIZE = 0.25;
 
   // Период кадра анимации (мс).
   const FRAME_MS = 480;
@@ -700,11 +737,14 @@
   }
 
   /**
-   * Прямоугольник drawImage элемента декорации (задача 000039).
-   * Чистая геометрия: e.x/e.y — ЦЕНТР элемента (доли тайла), поэтому
-   * прямоугольник начинается в (центр − s/2, центр − s/2). sx/sy —
-   * левый верхний угол тайла на экране, s = e.size * zoom.
+   * Прямоугольник drawImage элемента декорации (задача 000039)
+   * (или природного лута, задача 000158.05 — форма {x, y, size}
+   * совместима, код общий). Чистая геометрия: e.x/e.y — ЦЕНТР
+   * элемента (доли тайла), поэтому прямоугольник начинается в
+   * (центр − s/2, центр − s/2). sx/sy — левый верхний угол тайла
+   * на экране, s = e.size * zoom.
    * @param {{x:number, y:number, size:number}} e элемент tileVisuals
+   *   (или lootSprite)
    * @param {number} sx левый верхний x тайла на экране
    * @param {number} sy левый верхний y тайла на экране
    * @param {number} zoom пикселей на тайл
@@ -717,6 +757,62 @@
       x: sx + e.x * zoom - s / 2,
       y: sy + e.y * zoom - s / 2,
       size: s,
+    };
+  }
+
+  // Каталог предметов — лениво (задача 000158.05): node — 5-й
+  // UMD-аргумент (items-data.js — чистые данные, 0 require →
+  // циклов НЕТ; НЕ items.js — он требует map.js; 4-й — root =
+  // undefined в node), браузер/vm —
+  // живое Game.ITEMS в МОМЕНТ ВЫЗОВА (плоское поле; переживает
+  // Object.assign-ловушку 000038/000055; порядок тегов не
+  // критичен — items-data.js ДО sprites.js в index.html). БЕЗ
+  // кэша (в отличие от map.js lootCandidates): каталог 76
+  // записей, per-call скан ≤ 52 лут-тайлов/кадр — пренебрежимо,
+  // 0 риска stale-кэша при append (000055). Деградация МОЛЧА
+  // (0 console.*): без каталога → 0 loot-путей в allAssetPaths,
+  // lootSprite → null, map.js НЕ генерирует лут-тайлы → блок
+  // рендера в игре мёртв. 1:1 map.js L389-393.
+  function lootItemsRef() {
+    if (itemsData && Array.isArray(itemsData.ITEMS))
+      return itemsData.ITEMS;
+    const g = root && root.Game;
+    return g && Array.isArray(g.ITEMS) ? g.ITEMS : null;
+  }
+
+  /**
+   * Спрайт природного лута (задача 000158.05): одна детерминированная
+   * точка на тайле (НЕ 2–3, как у декораций — лут ОДИН на тайл).
+   * Чистая функция: только от item-id и координат тайла (seed =
+   * LOOT_VISUAL_SEED + index * 0x9e3779b9, index — позиция предмета
+   * в ITEMS — append-only-инвариант каталога (000157.01/000158.02)
+   * делает индекс стабильным → РАЗНЫЕ предметы на одном тайле →
+   * РАЗНЫЕ позиции). sprite — 1 файл на item-id:
+   * 'assets/sprites/loot/<id>.svg'. size = единый LOOT_SIZE
+   * (0.20–0.30 по ТЗ), x/y ∈ [0.08; 0.92] (формула tileVisuals —
+   * иконка не вылезает за край тайла). Неизвестный/мусорный id
+   * (не строка, пустая, нет в каталоге) и отсутствие каталога —
+   * null (тихо, D1: «нет иконки»; в игре null невозможен —
+   * map.js ставит только id из каталога).
+   * @param {string} itemId id предмета (t.loot.item)
+   * @param {number} tx координата тайла по X
+   * @param {number} ty координата тайла по Y
+   * @returns {{sprite:string, x:number, y:number, size:number}|null}
+   */
+  function lootSprite(itemId, tx, ty) {
+    if (typeof itemId !== 'string' || !itemId) return null;
+    const items = lootItemsRef();
+    if (!items) return null;
+    const index = items.findIndex((it) => it && it.id === itemId);
+    if (index < 0) return null; // неизвестный id → нет иконки (D1)
+    const seed = LOOT_VISUAL_SEED + index * 0x9e3779b9;
+    const hx = hash2(tx, ty, seed + 1);
+    const hy = hash2(tx, ty, seed + 2);
+    return {
+      sprite: LOOT_DIR + itemId + '.svg',
+      x: 0.08 + (hx / 4294967296) * 0.84,
+      y: 0.08 + (hy / 4294967296) * 0.84,
+      size: LOOT_SIZE,
     };
   }
 
@@ -784,6 +880,22 @@
     // Лагерь (задача 000131): 1 спрайт (отдельный канал, id 47).
     paths.push(...Object.values(CAMP_SPRITES));
     for (const v of VISUALS) paths.push(v.спрайт);
+    // Природный лут (задача 000158.05): 1 спрайт на item-id
+    // (каталог items-data; фильтр = map.js lootCandidates: объект
+    // loot + непустые terrains + строковый id). Инвариант «спрайт
+    // существует для ВСЕГО, что может родиться» — расхождение
+    // ловят пины (28 в tests/sprites.test.js + репин svg.test.js).
+    // Без каталога (vm-песочницы) — 0 путей, тихо (lootItemsRef).
+    const lootItems = lootItemsRef();
+    if (lootItems) {
+      for (const it of lootItems) {
+        const L = it && it.loot;
+        if (!L || typeof L !== 'object' || !Array.isArray(L.terrains)
+            || L.terrains.length === 0 || typeof it.id !== 'string')
+          continue;
+        paths.push(LOOT_DIR + it.id + '.svg');
+      }
+    }
     // Фоны боя (задача 000049): 11 файлов из двух карт + фолбэк.
     for (const k of Object.values(COMBAT_BG_TERRAIN)) {
       paths.push(COMBAT_BG_DIR + k + '.svg');
@@ -937,6 +1049,9 @@
     DUNGEON_DEPOSIT,
     HP_BAR_COLORS, hpBarColor,
     VISUALS, VISUALS_SEED, MAX_VISUALS_PER_TILE, VISUALS_MIN_ZOOM,
+    // Природный лут (задача 000158.05); lootItemsRef — внутренний.
+    LOOT_DIR, LOOT_VISUAL_SEED, LOOT_MIN_ZOOM, LOOT_SIZE,
+    lootSprite,
     FRAME_MS,
     WAVE_PERIOD_MS, WATER_FRAME_COUNT,
     wavePhase, waterTileFrame,
