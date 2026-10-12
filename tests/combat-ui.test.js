@@ -5787,3 +5787,169 @@ test('боевой UI: 000197 — герой вне скоупа: активны
       && c[1][2] === 41 && c[1][3] === 41))),
     'на клетке героя strokeRect-рамки нет (ни 39×39, ни 41×41)');
 });
+
+// Задача 000198. БОЙ: BUG — выбор цели для удара/заклинания у
+// NPC-союзников и Эфира. КРАСНЫЕ тесты UI-слоя (vm) — дополняют
+// ядро (tests/combat.test.js, блок «Задача 000198»): UI-клик —
+// ЕДИНСТВЕННЫЙ путь выбора цели в бою (кнопок/клавиш выбора цели
+// НЕТ), выбор бесплатен (лог не растёт), HUD-строка «Цель:»,
+// жёлтая рамка #ffe27a и штриховка 000175 — следуют за c.targetId
+// (0 правок UI). Паттерны — 000084/000168-UI-1/000175 (scene84/
+// tickSlice/styledCalls/hatchTiles175/addMerc84).
+//
+// Корень: c.selectTarget — D6-гварда «только игрок» (master
+// 7875568, L3078-3081): клик по мобо на ходу наёмника/Эфира
+// возвращает null → c.targetId НЕ меняется → действия бьют
+// nearestEnemy. Контракты — memory/000198-ally-target-select.md
+// (D3/D5/D6) и memory/000198-combat-target-selection.md.
+//
+// Сцена: scene84 + волк m0 (иниц. 3) + гигантский паук m1 (иниц. 4).
+// Наёмник (addMerc84 — push в конец очереди) — слот после Space
+// (паттерн 000168-UI-1a). Эфир — pre-roll сам остановился на его
+// слоте (паттерн 000168-UI-2b). c.player.hp = 9999 — pre-roll-
+// атаки мобы не убивают героя. Whitebox: союзник (3,5), m0 (3,4)
+// — d 1, m1 — (4,5) d 1 / (1,3) d 4. Краснота — поведенческая:
+// targetId не сместился после клика; лог-строка — с ЧУЖИМ мобом
+// (nearestEnemy), а не с выбранным.
+// =====================================================================
+
+test('боевой UI: 000198-UI-1 — клик по ЧУЖОМУ мобу на ходу наёмника: c.targetId сместился, лог не вырос (выбор — не действие), HUD «Цель:», жёлтая рамка 39×39 и штриховка 000175 — за выбранной', () => {
+  const S = scene84({ spells: true, mobs: ['wolf', 'spider'] });
+  const { G, c, canvas, rafStubs, body, keydown } = S;
+  c.player.hp = 9999; // pre-roll-фазы не убивают героя
+  addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+  const a = c.units.find((u) => u.id === 'a1');
+  const m0 = c.units.find((u) => u.id === 'm0'); // волк
+  const m1 = c.units.find((u) => u.id === 'm1'); // гигантский паук
+  press(keydown, 'Space'); tickSlice(canvas, rafStubs);
+  assert.equal(G.activeUnitId(c), 'a1',
+    'слот наёмника (очередь: мобы → игрок → a1): '
+    + G.activeUnitId(c));
+  a.x = 3; a.y = 5;
+  m0.x = 3; m0.y = 4; m0.maxHP = 100; m0.hp = 100; // d 1
+  m1.x = 4; m1.y = 5; m1.maxHP = 100; m1.hp = 100; // d 1
+  c.targetId = m0.id; // детерминированный дефолт (auto-приоритет)
+  tickSlice(canvas, rafStubs);
+  const n0 = c.log.length;
+  // (1) Клик по клетке ЧУЖОГО живого моба — c.targetId сместился
+  //     (краснота: D6-гварда selectTarget → null → targetId = m0).
+  canvas.listeners.click[0]({
+    clientX: (m1.x + 0.5) * 48, clientY: (m1.y + 0.5) * 48,
+  });
+  assert.equal(c.targetId, m1.id,
+    'клик по мобо на ходу наёмника — c.targetId = паук (краснота: '
+    + c.targetId + ' — selectTarget вернул null, D6 «только игрок»)');
+  assert.equal(c.log.length, n0,
+    'выбор цели — не действие: лог не вырос');
+  // Один тик — рендер ПОСЛЕ клика (stateEl/рамка/штриховка — в нём).
+  const t1 = tickSlice(canvas, rafStubs);
+  // (2) HUD-строка «Цель:» — за выбранной целью (контракт 000166).
+  const state = findByClass(body, 'combat-state');
+  assert.ok(
+    state.textContent.includes('Цель: Гигантский паук (ур. 1, HP 100/100)'),
+    'HUD: «Цель: Гигантский паук (ур. 1, HP 100/100)» (краснота: '
+    + JSON.stringify(state.textContent) + ')');
+  // (3) Жёлтая рамка цели (strokeStyle #ffe27a, strokeRect 39×39,
+  //     +4.5) — на клетке ВЫБРАННОЙ цели и НЕ на прежней.
+  const sc1 = styledCalls(t1.events);
+  const ringAt = (x, y) => sc1.some((e) =>
+    e.name === 'strokeRect' && e.strokeStyle === '#ffe27a'
+    && e.args[0] === x * 48 + 4.5 && e.args[1] === y * 48 + 4.5
+    && e.args[2] === 39 && e.args[3] === 39);
+  assert.ok(ringAt(m1.x, m1.y),
+    'жёлтая рамка — на клетке выбранной цели (паук)');
+  assert.ok(!ringAt(m0.x, m0.y),
+    'рамки НЕТ на прежней цели (волк)');
+  // (4) Штриховка дальности 000175 — за c.targetId (набор == ядро).
+  assert.deepEqual(
+    hatchTiles175(t1).sort(), [...G.mobReachCells(c, m1)].sort(),
+    'штриховка — клетки в радиусе ВЫБРАННОЙ цели (000175)');
+  // (5) Негатив: клик по СВОЕМУ союзнику — отказ, targetId
+  //     не сместился, лог не вырос.
+  canvas.listeners.click[0]({
+    clientX: (a.x + 0.5) * 48, clientY: (a.y + 0.5) * 48,
+  });
+  assert.equal(c.targetId, m1.id,
+    'клик по своему союзнику — targetId не сместился');
+  assert.equal(c.log.length, n0, 'тихий отказ: лог не вырос');
+});
+
+test('боевой UI: 000198-UI-2 — e2e наёмник: клик по пауку + KeyJ — удар в ВЫБРАННЫЙ моб (log «Вольк бьёт Гигантский паук: 3.»), c.ps не тронут, пул союзника 1→0', () => {
+  const S = scene84({ spells: true, mobs: ['wolf', 'spider'] });
+  const { G, c, canvas, rafStubs, keydown } = S;
+  c.player.hp = 9999;
+  c._rng = () => 0.01; // попадание (бросок allyAttack)
+  addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+  const a = c.units.find((u) => u.id === 'a1');
+  const m0 = c.units.find((u) => u.id === 'm0');
+  const m1 = c.units.find((u) => u.id === 'm1');
+  press(keydown, 'Space'); tickSlice(canvas, rafStubs);
+  assert.equal(G.activeUnitId(c), 'a1',
+    'слот наёмника: ' + G.activeUnitId(c));
+  a.x = 3; a.y = 5;
+  m0.x = 3; m0.y = 4; m0.maxHP = 100; m0.hp = 100; // d 1
+  m1.x = 4; m1.y = 5; m1.maxHP = 100; m1.hp = 100; // d 1
+  c.targetId = m0.id; // детерминированный дефолт
+  // Клик по пауку — выбор цели (краснота: targetId не сместится).
+  canvas.listeners.click[0]({
+    clientX: (m1.x + 0.5) * 48, clientY: (m1.y + 0.5) * 48,
+  });
+  assert.equal(c.targetId, m1.id, 'клик — c.targetId = паук');
+  const ps0 = c.ps.attack;
+  const n0 = c.log.length;
+  // KeyJ — «Удар» — по ВЫБРАННОЙ цели.
+  press(keydown, 'KeyJ'); tickSlice(canvas, rafStubs);
+  assert.deepEqual(Array.from(c.log).slice(n0),
+    ['Вольк бьёт Гигантский паук: 3.'],
+    'лог: удар по ВЫБРАННОМУ пауку (краснота: «Вольк бьёт Волк: 3.» — '
+    + 'nearestEnemy игнорирует c.targetId): '
+    + JSON.stringify(c.log.slice(n0)));
+  assert.equal(m1.hp, 97, 'паук −3 (dmg Вольк 2 ур.) (краснота: 100)');
+  assert.equal(m0.hp, 100, 'волк не задет (краснота: 97)');
+  assert.equal(a.attackLeft, 0, 'пул союзника 1→0 (000168 P1)');
+  assert.equal(c.ps.attack, ps0, 'c.ps.attack — не тронут (000168 P1)');
+  assert.equal(G.activeUnitId(c), 'a1', 'слот не завершился (шаги > 0)');
+  const can = G.canDoAction(c, 'attack');
+  assert.ok(can.ok === false, 'второй Удар невозможен');
+  assert.equal(can.reason, 'действий «Удар» больше нет',
+    'причина дословно (краснота: ' + can.reason + ')');
+});
+
+test('боевой UI: 000198-UI-3 — e2e Эфир: клик по пауку (d 4) + KeyK — «Искра» в ВЫБРАННЫЙ моб (0 c._rng, мана 11→8, spellInt 0); волк (d 1) не задет', () => {
+  const S = scene84({ efir: true, spells: true, mobs: ['wolf', 'spider'] });
+  const { G, c, canvas, rafStubs, keydown } = S;
+  c.player.hp = 9999;
+  const u = c.units.find((x) => x.id === 'efir');
+  const m0 = c.units.find((x) => x.id === 'm0'); // волк
+  const m1 = c.units.find((x) => x.id === 'm1'); // гигантский паук
+  assert.equal(G.activeUnitId(c), 'efir',
+    'pre-roll остановился на слоте Эфира (краснота: '
+    + G.activeUnitId(c) + ')');
+  u.x = 3; u.y = 5;
+  m0.x = 3; m0.y = 4; m0.maxHP = 100; m0.hp = 100; // d 1
+  m1.x = 1; m1.y = 3; m1.maxHP = 100; m1.hp = 100; // d 4
+  c.targetId = m0.id; // детерминированный дефолт
+  tickSlice(canvas, rafStubs);
+  // Клик по клетке паука — выбор цели (краснота: D6-гварда → null →
+  // targetId остаётся m0).
+  canvas.listeners.click[0]({ clientX: 72, clientY: 168 }); // (1.5·48, 3.5·48)
+  assert.equal(c.targetId, m1.id,
+    'клик по пауку на ходу Эфира — c.targetId = паук (краснота: '
+    + c.targetId + ' — selectTarget вернул null)');
+  let rngCalls = 0;
+  const realRng = c._rng;
+  c._rng = () => (rngCalls += 1, realRng());
+  const n0 = c.log.length;
+  // KeyK — каст (сильнейшее известное — «Искра») — по ВЫБРАННОЙ цели.
+  press(keydown, 'KeyK'); tickSlice(canvas, rafStubs);
+  assert.deepEqual(Array.from(c.log).slice(n0),
+    ['Эфир: «Искра» — Гигантский паук: 5.'],
+    'лог: «Искра» в ВЫБРАННЫЙ паук (краснота: «— Волк: 5.» — '
+    + 'nearestEnemy): ' + JSON.stringify(c.log.slice(n0)));
+  assert.equal(m1.hp, 95, 'паук −5 (краснота: 100)');
+  assert.equal(m0.hp, 100, 'волк не задет (краснота: 95)');
+  assert.equal(c.efs.spellInt, 0, 'spellInt 1→0');
+  assert.equal(u.mp, 8, 'мана 11→8 (Искра: 3 маны)');
+  assert.equal(rngCalls, 0, '0 c._rng (детерминированный каст)');
+  assert.equal(G.activeUnitId(c), 'efir', 'слот не завершился (шаги 3)');
+});

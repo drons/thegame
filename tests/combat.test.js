@@ -7064,3 +7064,442 @@ test('000174 G1 (guard): нет движения — нет записи: вол
     'атака без движения — без записи: ' + JSON.stringify(c._uiMoves));
   assert.deepEqual([w.x, w.y], [3, 5], 'позиция не изменилась');
 });
+
+// =====================================================================
+// Задача 000198. БОЙ: BUG — выбор цели для удара/заклинания у
+// NPC-союзников и Эфира. КРАСНЫЕ тесты (TDD): написаны ДО фикса,
+// падают на текущем (неизменённом) коде — базис 2256/2256.
+//
+// Корень бага (3 согласованные точки, master 7875568):
+//   * c.selectTarget — D6-гварда «только игрок»
+//     (activeUnitId !== 'player' → null): клик по мобо на ходу
+//     союзника не меняет c.targetId;
+//   * allyStrike/efirCastAction — targetId ИГНОРИРУЕТСЯ
+//     (nearestEnemy(c, u); 000168 OQ1 «v2»);
+//   * allyCanDo (ветки 'attack'/'cast') — a.targetId не читается:
+//     причины кнопок не отражают выбранную цель.
+//
+// Контракты (зафиксированы краснотой) —
+// memory/000198-ally-target-select.md (D1–D10) и
+// memory/000198-combat-target-selection.md:
+//   * c.selectTarget — игрок ИЛИ живой союзник: валидатор
+//     playerSelectTarget (живой не-fled МОБ — {ok:true} + c.targetId;
+//     союзник/мёртв/fled/unknown — {ok:false, reason:'недоступная
+//     цель'}, тихий отказ); слот моба — null (D6).
+//   * Резолв союзного действия: явная ВАЛИДНАЯ цель (живой, !fled,
+//     side 'mob') — приоритет; явная НЕВАЛИДНАЯ (мёртв/fled/союзник/
+//     unknown) — «нет цели» БЕЗ fallback на nearestEnemy
+//     (зеркало игрока, D1); без аргумента — nearestEnemy
+//     (v1-бит-в-бит). Пулы/мана — НЕ тратятся при отказе.
+//   * Причины дальности/пулов — дословно существующие; порядок
+//     проверок — без изменений (000037, 000168-CANDO).
+//
+// Краснота — поведенческая: null вместо {ok}; лог-строка с ЧУЖИМ
+// мобом; targetId не сместился; пул потрачен вместо отказа.
+//
+// Фикстуры — существующие: strongHero, hero112, ALLY_VOLK_168,
+// loadEfir000081 + buildEfirUnit, createCombat({mobs, allies});
+// whitebox-позиции после pre-roll (паттерн 000168-ALLY-2/CANDO-2).
+// Поле 7×7, игрок (3,6), c.obstacles.clear(). Волк m0 (иниц. 3),
+// Гигантский паук m1 (иниц. 4); урон Вольк L1 = 3, Эфир L1:
+// «Касание духа» = u.damage, «Искра» = 5 (3 маны — пины 000168).
+// =====================================================================
+
+test('000198-SEL-1: c.selectTarget на ходу наёмника — выбор цели работает (D6-гварда снята): чужой моб — {ok:true}+targetId, свой союзник/мёртв/unknown — «недоступная цель», на ходу игрока — бит-в-бит', () => {
+  const c = createCombat({
+    player: strongHero(), mobs: ['wolf', 'spider'], mobLevel: 1, seed: 5,
+    allies: [ALLY_VOLK_168],
+  });
+  c.obstacles.clear();
+  const a0 = c.units.find((x) => x.id === 'a0');
+  const m0 = c.units.find((x) => x.id === 'm0'); // волк
+  const m1 = c.units.find((x) => x.id === 'm1'); // гигантский паук
+  a0.x = 3; a0.y = 5;
+  m0.x = 3; m0.y = 4; m0.maxHP = 100; m0.hp = 100; // d 1
+  m1.x = 4; m1.y = 5; m1.maxHP = 100; m1.hp = 100; // d 1
+  assert.equal(activeUnitId(c), 'a0',
+    'pre-roll остановился на наёмнике (иниц. 8 > 4 > 3 > 2)');
+  // (1) Явная чужая цель — принята, c.targetId сместился.
+  let r = c.selectTarget(m1.id);
+  assert.deepEqual(r, { ok: true },
+    'selectTarget на ходу союзника — {ok:true} (краснота: null — '
+    + 'D6-гварда «только игрок»): ' + JSON.stringify(r));
+  assert.equal(c.targetId, m1.id,
+    'c.targetId — кликнутый моб (краснота: не сместился: '
+    + c.targetId + ')');
+  // (2) Свой союзник — «недоступная цель», targetId не сместился.
+  r = c.selectTarget(a0.id);
+  assert.ok(r && r.ok === false,
+    'свой союзник — не цель: ' + JSON.stringify(r));
+  assert.equal(r.reason, 'недоступная цель',
+    'причина дословно (краснота: ' + (r && r.reason) + ')');
+  assert.equal(c.targetId, m1.id, 'targetId не сместился при отказе');
+  // (3) Мёртвый моб — «недоступная цель».
+  m0.alive = false;
+  r = c.selectTarget(m0.id);
+  assert.ok(r && r.ok === false, 'мёртвый моб — отказ');
+  assert.equal(r.reason, 'недоступная цель',
+    'причина (краснота: ' + (r && r.reason) + ')');
+  assert.equal(c.targetId, m1.id, 'targetId не сместился');
+  // (4) Неизвестный id — «недоступная цель».
+  r = c.selectTarget('nope');
+  assert.ok(r && r.ok === false, 'unknown id — отказ');
+  assert.equal(r.reason, 'недоступная цель',
+    'причина (краснота: ' + (r && r.reason) + ')');
+  assert.equal(c.targetId, m1.id, 'targetId не сместился');
+  // (5) Якорь бит-в-бит: на ходу ИГРОКА — тот же валидатор.
+  const cP = createCombat({
+    player: strongHero(), mobs: ['wolf', 'spider'], mobLevel: 1, seed: 5,
+  });
+  cP.obstacles.clear();
+  const w = cP.units.find((x) => x.id === 'm0');
+  const sp = cP.units.find((x) => x.id === 'm1');
+  w.x = 3; w.y = 4; sp.x = 4; sp.y = 5;
+  assert.equal(activeUnitId(cP), 'player',
+    'pre-roll прошёл мобы → остановка на игроке');
+  r = cP.selectTarget(sp.id);
+  assert.deepEqual(r, { ok: true }, 'игрок: явная цель — ok (бит-в-бит)');
+  assert.equal(cP.targetId, sp.id, 'игрок: targetId сместился');
+  r = cP.selectTarget('nope');
+  assert.ok(r && r.ok === false && r.reason === 'недоступная цель',
+    'игрок: unknown — «недоступная цель» (бит-в-бит): '
+    + JSON.stringify(r));
+});
+
+test('000198-SEL-2: allyStrike уважает явную цель: бьёт выбранного моба (НЕ nearestEnemy), дальность — дословно без расхода пула, мёртвая явная — «нет цели» БЕЗ fallback, без аргумента — nearestEnemy (v1-бит-в-бит)', () => {
+  const mk = () => {
+    const c = createCombat({
+      player: strongHero(), mobs: ['wolf', 'spider'], mobLevel: 1, seed: 5,
+      allies: [ALLY_VOLK_168],
+    });
+    c.obstacles.clear();
+    c._rng = () => 0.01; // попадание (бросок allyAttack)
+    const a = c.units.find((x) => x.id === 'a0');
+    const m0 = c.units.find((x) => x.id === 'm0'); // волк
+    const m1 = c.units.find((x) => x.id === 'm1'); // гигантский паук
+    m0.maxHP = 100; m0.hp = 100;
+    m1.maxHP = 100; m1.hp = 100;
+    a.x = 3; a.y = 5;
+    return { c, a, m0, m1 };
+  };
+  // (1) Оба d 1 (m0 ПЕРВЫЙ в c.units — nearestEnemy-тайбрейк):
+  //     явная m1 → задет ПАЗУК, волк нет.
+  {
+    const { c, a, m0, m1 } = mk();
+    m0.x = 3; m0.y = 4; // d 1
+    m1.x = 4; m1.y = 5; // d 1
+    const ps = c.ps.attack;
+    const r = c.attack(m1.id);
+    assert.ok(r && r.ok === true,
+      'явная цель в дальности — ok: ' + JSON.stringify(r));
+    assert.equal(m1.hp, 97, 'паук −3 (dmg Вольк L1) (краснота: 100 — '
+      + 'задет волк: nearestEnemy игнорирует targetId)');
+    assert.equal(m0.hp, 100, 'волк не задет (краснота: 97)');
+    assert.ok(c.log.includes('Вольк бьёт Гигантский паук: 3.'),
+      'лог-строка — ВЫБРАННЫЙ моб: ' + c.log.join(' | '));
+    assert.equal(a.attackLeft, 0, 'u.attackLeft 1→0');
+    assert.equal(c.ps.attack, ps, 'c.ps.attack — не тронут');
+  }
+  // (2) Явная m1 d 2 (melee) — «цель слишком далеко (ближний бой)»:
+  //     пул не расходуется, fallback на m0 НЕ происходит.
+  {
+    const { c, a, m0, m1 } = mk();
+    m0.x = 3; m0.y = 4; // d 1
+    m1.x = 5; m1.y = 5; // d 2
+    const r = c.attack(m1.id);
+    assert.ok(r && r.ok === false,
+      'явная цель вне дальности — отказ (краснота: ok — удар по m0: '
+      + JSON.stringify(r) + ')');
+    assert.equal(r.reason, 'цель слишком далеко (ближний бой)',
+      'причина дословно (краснота: ' + (r && r.reason) + ')');
+    assert.equal(a.attackLeft, 1, 'пул не расходуется');
+    assert.equal(m0.hp, 100, 'fallback на ближайшего НЕТ (краснота: 97)');
+    assert.equal(m1.hp, 100, 'паук не задет');
+  }
+  // (3) Явная m1 МЁРТВА, m0 жив d 1 — «нет цели» (fallback на m0
+  //     НЕ происходит — семантика игрока, D1).
+  {
+    const { c, a, m0, m1 } = mk();
+    m0.x = 3; m0.y = 4; // d 1
+    m1.x = 4; m1.y = 5; m1.alive = false; // d 1, мёртв
+    const r = c.attack(m1.id);
+    assert.ok(r && r.ok === false,
+      'мёртвая явная цель — отказ (краснота: ok — удар по m0: '
+      + JSON.stringify(r) + ')');
+    assert.equal(r.reason, 'нет цели',
+      'причина дословно (краснота: ' + (r && r.reason) + ')');
+    assert.equal(a.attackLeft, 1, 'пул не расходуется');
+    assert.equal(m0.hp, 100, 'fallback на m0 НЕТ (краснота: 97)');
+  }
+  // (4) Без аргумента — nearestEnemy (v1-бит-в-бит): оба d 1 → m0.
+  {
+    const { c, a, m0, m1 } = mk();
+    m0.x = 3; m0.y = 4; // d 1
+    m1.x = 4; m1.y = 5; // d 1
+    const r = c.attack();
+    assert.ok(r && r.ok === true, 'без аргумента — ok');
+    assert.equal(m0.hp, 97, 'nearestEnemy — m0 (первый в c.units)');
+    assert.equal(m1.hp, 100, 'паук не задет');
+    assert.ok(c.log.includes('Вольк бьёт Волк: 3.'),
+      'лог — m0: ' + c.log.join(' | '));
+  }
+});
+
+test('000198-SEL-3: «Касание духа» Эфира уважает явную цель: m1 d 2 — отказ БЕЗ расхода touch, явная m0 d 1 — попадание', () => {
+  const E = loadEfir000081();
+  const p = hero112();
+  const state = E.createEfir();
+  const c = createCombat({
+    player: p, allies: [E.efirAllyData(state)],
+    mobs: ['wolf', 'spider'], mobLevel: 1, seed: 5,
+  });
+  c.obstacles.clear();
+  const u = c.units.find((x) => x.id === 'efir');
+  const m0 = c.units.find((x) => x.id === 'm0'); // волк
+  const m1 = c.units.find((x) => x.id === 'm1'); // гигантский паук
+  m0.maxHP = 100; m0.hp = 100;
+  m1.maxHP = 100; m1.hp = 100;
+  u.x = 3; u.y = 5;
+  m0.x = 3; m0.y = 4; // d 1
+  m1.x = 5; m1.y = 5; // d 2
+  assert.equal(activeUnitId(c), 'efir',
+    'pre-roll остановился на Эфире (иниц. 4 ≥ 4 > 3 > 2)');
+  E.buildEfirUnit(state, c);
+  assert.ok(c.efs, 'c.efs — боевой профиль (buildEfirUnit)');
+  // (1) Явная m1 d 2 — «цель слишком далеко (ближний бой)»: touch
+  //     НЕ потрачен, никто не задет, лог-строки действия НЕТ.
+  {
+    const n0 = c.log.length;
+    const r = c.attack(m1.id);
+    assert.ok(r && r.ok === false,
+      'Касание по явной цели d 2 — отказ (краснота: ok — Касание по '
+      + 'm0: ' + JSON.stringify(r) + ')');
+    assert.equal(r.reason, 'цель слишком далеко (ближний бой)',
+      'причина дословно (краснота: ' + (r && r.reason) + ')');
+    assert.equal(c.efs.touch, 1, 'touch НЕ потрачен (краснота: 0)');
+    assert.equal(m0.hp, 100, 'волк не задет (краснота: '
+      + (100 - u.damage) + ' — nearestEnemy)');
+    assert.equal(m1.hp, 100, 'паук не задет');
+    assert.equal(c.log.length, n0, 'отказ — без лог-строки действия');
+  }
+  // (2) Явная m0 d 1 — попадание (якорь: m0 == nearestEnemy).
+  {
+    const r = c.attack(m0.id);
+    assert.ok(r && r.ok === true, 'явная m0 d 1 — ok');
+    assert.ok(c.log.includes('Касание духа: ' + u.damage + '.'),
+      'лог-строка (паттерн 000118): ' + c.log.join(' | '));
+    assert.equal(m0.hp, 100 - u.damage,
+      'волк −u.damage (Касание: игнор брони, всегда попадает)');
+    assert.equal(c.efs.touch, 0, 'touch 1→0');
+    assert.equal(m1.hp, 100, 'паук не задет');
+  }
+});
+
+test('000198-SEL-4: efirCastAction уважает явную цель: кастит выбранного моба (лог/мана/пул, 0 c._rng), m1 d 5 — «цель слишком далеко (дальность 4)» БЕЗ трат, мёртвая явная — «нет цели» БЕЗ fallback', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    const mk = () => {
+      const p = hero112();
+      const state = E.createEfir();
+      const c = createCombat({
+        player: p, allies: [E.efirAllyData(state)],
+        mobs: ['wolf', 'spider'], mobLevel: 1, seed: 5,
+      });
+      c.obstacles.clear();
+      const u = c.units.find((x) => x.id === 'efir');
+      const m0 = c.units.find((x) => x.id === 'm0'); // волк
+      const m1 = c.units.find((x) => x.id === 'm1'); // гигантский паук
+      m0.maxHP = 100; m0.hp = 100;
+      m1.maxHP = 100; m1.hp = 100;
+      u.x = 3; u.y = 5;
+      assert.equal(activeUnitId(c), 'efir',
+        'pre-roll остановился на Эфире');
+      E.buildEfirUnit(state, c);
+      return { c, u, m0, m1 };
+    };
+    // (1) m0 d 1, m1 d 4 — явный каст по m1: задет ПАУК, волк нет,
+    //     пул/мана потрачены, 0 c._rng.
+    {
+      const { c, u, m0, m1 } = mk();
+      m0.x = 3; m0.y = 4; // d 1
+      m1.x = 1; m1.y = 3; // d 4
+      let rngCalls = 0;
+      c._rng = () => (rngCalls += 1, 0.01);
+      const r = c.cast(m1.id);
+      assert.ok(r && r.ok === true,
+        'явная цель в дальности — ok: ' + JSON.stringify(r));
+      assert.ok(c.log.includes('Эфир: «Искра» — Гигантский паук: 5.'),
+        'лог — ВЫБРАННЫЙ моб (краснота: «— Волк: 5.» — nearestEnemy): '
+        + c.log.join(' | '));
+      assert.equal(m1.hp, 95, 'паук −5 (краснота: 100 — кастит волка)');
+      assert.equal(m0.hp, 100, 'волк не задет (краснота: 95)');
+      assert.equal(c.efs.spellInt, 0, 'spellInt 1→0');
+      assert.equal(u.mp, 8, 'мана 11→8 (Искра: 3 маны)');
+      assert.equal(rngCalls, 0, '0 c._rng (детерминированный каст)');
+    }
+    // (2) m1 d 5 — «цель слишком далеко (дальность 4)»: трат НЕТ
+    //     (порядок: пул/мана — до цели), fallback на m0 НЕ происходит.
+    {
+      const { c, u, m0, m1 } = mk();
+      m0.x = 3; m0.y = 4; // d 1
+      m1.x = 1; m1.y = 2; // d 5
+      const r = c.cast(m1.id);
+      assert.ok(r && r.ok === false,
+        'явная цель d 5 — отказ (краснота: ok — каст по m0: '
+        + JSON.stringify(r) + ')');
+      assert.equal(r.reason, 'цель слишком далеко (дальность 4)',
+        'причина дословно (краснота: ' + (r && r.reason) + ')');
+      assert.equal(c.efs.spellInt, 1, 'пул НЕ потрачен (краснота: 0)');
+      assert.equal(u.mp, 11, 'мана НЕ потрачена (краснота: 8)');
+      assert.equal(m0.hp, 100, 'fallback на m0 НЕТ (краснота: 95)');
+      assert.equal(m1.hp, 100, 'паук не задет');
+    }
+    // (3) Явная m1 МЁРТВА (d 1), m0 жив (d 2) — «нет цели»
+    //     (fallback НЕ происходит — D1).
+    {
+      const { c, u, m0, m1 } = mk();
+      m0.x = 5; m0.y = 5; // d 2
+      m1.x = 3; m1.y = 4; // d 1, мёртв
+      m1.alive = false;
+      const r = c.cast(m1.id);
+      assert.ok(r && r.ok === false,
+        'мёртвая явная цель — отказ (краснота: ok — каст по m0: '
+        + JSON.stringify(r) + ')');
+      assert.equal(r.reason, 'нет цели',
+        'причина дословно (краснота: ' + (r && r.reason) + ')');
+      assert.equal(c.efs.spellInt, 1, 'пул НЕ потрачен');
+      assert.equal(u.mp, 11, 'мана НЕ потрачена');
+      assert.equal(m0.hp, 100, 'fallback на m0 НЕТ (краснота: 95)');
+    }
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});
+
+test('000198-SEL-5: allyCanDo-зеркало уважает targetId (000037): причина canDo = причина ядра в каждом отказе, canDo не тратит; наёмник (дальность/мёртвая/ok/без аргумента) + Эфир-каст (d 5/ok) + player-only-якорь', () => {
+  const E = loadEfir000081();
+  const C = require('../src/combat.js');
+  const saveCatalog = C.combatInternals.allySpells;
+  C.combatInternals.allySpells =
+    require('../src/spells-data.js').SPELLS_BY_ID;
+  try {
+    const mkMerc = () => {
+      const c = createCombat({
+        player: strongHero(), mobs: ['wolf', 'spider'], mobLevel: 1,
+        seed: 5, allies: [ALLY_VOLK_168],
+      });
+      c.obstacles.clear();
+      c._rng = () => 0.01;
+      const a = c.units.find((x) => x.id === 'a0');
+      const m0 = c.units.find((x) => x.id === 'm0'); // волк
+      const m1 = c.units.find((x) => x.id === 'm1'); // гигантский паук
+      a.x = 3; a.y = 5;
+      m0.maxHP = 100; m0.hp = 100;
+      m1.maxHP = 100; m1.hp = 100;
+      return { c, a, m0, m1 };
+    };
+    // (1) Наёмник, m0 d 1, m1 d 2: canDo {m1} — дальность;
+    //     зеркало 1:1 с ядром; пул не тратится.
+    {
+      const { c, a, m0, m1 } = mkMerc();
+      m0.x = 3; m0.y = 4; // d 1
+      m1.x = 5; m1.y = 5; // d 2
+      assert.equal(activeUnitId(c), 'a0',
+        'pre-roll остановился на наёмнике');
+      const can = canDoAction(c, 'attack', { targetId: m1.id });
+      assert.ok(can.ok === false,
+        'canDo: явная цель d 2 — отказ (краснота: ok — m0 в радиусе, '
+        + 'a.targetId не читается): ' + JSON.stringify(can));
+      assert.equal(can.reason, 'цель слишком далеко (ближний бой)',
+        'canDo: причина дословно (краснота: ' + (can.reason || null) + ')');
+      const core = c.attack(m1.id);
+      assert.equal(core.reason, can.reason,
+        'зеркало 1:1 — причина canDo = причина ядра');
+      assert.equal(a.attackLeft, 1, 'canDo не тратит пул (ядро — отказ)');
+    }
+    // (2) Явная m1 МЁРТВА (d 1), m0 жив (d 2) — «нет цели»;
+    //     зеркало 1:1; fallback на m0 НЕТ.
+    {
+      const { c, a, m0, m1 } = mkMerc();
+      m0.x = 5; m0.y = 5; // d 2
+      m1.x = 3; m1.y = 4; m1.alive = false; // d 1, мёртв
+      const can = canDoAction(c, 'attack', { targetId: m1.id });
+      assert.ok(can.ok === false,
+        'canDo: мёртвая явная — отказ: ' + JSON.stringify(can));
+      assert.equal(can.reason, 'нет цели',
+        'canDo: «нет цели» (краснота: «'
+        + (can.reason || '') + '» — nearestEnemy m0 d 2)');
+      assert.equal(c.attack(m1.id).reason, can.reason, 'зеркало 1:1');
+      assert.equal(a.attackLeft, 1, 'пул не тратится');
+      assert.equal(m0.hp, 100, 'fallback на m0 НЕТ');
+    }
+    // (3) Явная m0 d 1 (== nearestEnemy) — ok (якорь).
+    {
+      const { c, m0, m1 } = mkMerc();
+      m0.x = 3; m0.y = 4; // d 1
+      m1.x = 5; m1.y = 5; // d 2
+      const can = canDoAction(c, 'attack', { targetId: m0.id });
+      assert.deepEqual(can, { ok: true }, 'явная m0 d 1 — ok');
+    }
+    // (4) Без targetId — nearest-поведение (v1-бит-в-бит, якорь).
+    {
+      const { c, m0, m1 } = mkMerc();
+      m0.x = 3; m0.y = 4; // d 1
+      m1.x = 5; m1.y = 5; // d 2
+      const can = canDoAction(c, 'attack');
+      assert.deepEqual(can, { ok: true }, 'без targetId — nearest ok');
+    }
+    // (5) Эфир: m0 d 1, m1 d 5 — canDo cast {m1} — дальность 4;
+    //     зеркало 1:1; трат НЕТ. {m1 d 1} — ok (якорь).
+    {
+      const p = hero112();
+      const state = E.createEfir();
+      const c = createCombat({
+        player: p, allies: [E.efirAllyData(state)],
+        mobs: ['wolf', 'spider'], mobLevel: 1, seed: 5,
+      });
+      c.obstacles.clear();
+      const u = c.units.find((x) => x.id === 'efir');
+      const m0 = c.units.find((x) => x.id === 'm0');
+      const m1 = c.units.find((x) => x.id === 'm1');
+      u.x = 3; u.y = 5;
+      m0.maxHP = 100; m0.hp = 100; m0.x = 3; m0.y = 4; // d 1
+      m1.maxHP = 100; m1.hp = 100; m1.x = 1; m1.y = 2; // d 5
+      assert.equal(activeUnitId(c), 'efir',
+        'pre-roll остановился на Эфире');
+      E.buildEfirUnit(state, c);
+      const can = canDoAction(c, 'cast', { targetId: m1.id });
+      assert.ok(can.ok === false,
+        'canDo cast: явная цель d 5 — отказ (краснота: ok — m0 d 1, '
+        + 'a.targetId не читается): ' + JSON.stringify(can));
+      assert.equal(can.reason, 'цель слишком далеко (дальность 4)',
+        'canDo cast: причина дословно (краснота: '
+        + (can.reason || null) + ')');
+      assert.equal(c.cast(m1.id).reason, can.reason, 'зеркало 1:1');
+      assert.equal(c.efs.spellInt, 1, 'пул не тратится');
+      assert.equal(u.mp, 11, 'мана не тратится');
+      // (5b) Явная m1 d 1 — ok (якорь: m1 == nearestEnemy).
+      m0.x = 5; m0.y = 5; // d 2
+      m1.x = 3; m1.y = 4; // d 1
+      const canB = canDoAction(c, 'cast', { targetId: m1.id });
+      assert.deepEqual(canB, { ok: true }, 'canDo cast: явная m1 d 1 — ok');
+    }
+    // (6) player-only действия на ходу союзника — «недоступно активному
+    //     персонажу» (якорь без изменений).
+    {
+      const { c } = mkMerc();
+      for (const act of ['fire', 'block', 'flee', 'quickItem', 'invItem']) {
+        const can = canDoAction(c, act);
+        assert.equal(can.ok, false, act + ' — недоступно');
+        assert.equal(can.reason, 'недоступно активному персонажу',
+          act + ' — причина (краснота: ' + can.reason + ')');
+      }
+    }
+  } finally {
+    C.combatInternals.allySpells = saveCatalog;
+  }
+});

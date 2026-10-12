@@ -598,6 +598,19 @@
     return best;
   }
 
+  // 000198: цель СОЮЗНОГО действия — явная (targetId — выбор игрока,
+  // клик по мобо) или nearestEnemy. Явная НЕВАЛИДНАЯ (мёртв/fled/
+  // союзник/unknown) — null → «нет цели» (зеркало игрока,
+  // 000080/000037; БЕЗ fallback на nearestEnemy — D1). Без аргумента —
+  // nearestEnemy (v1-бит-в-бит). 0 c._rng, чистый поиск.
+  function allyTarget(c, u, targetId) {
+    const t = targetId
+      ? c.units.find((x) => x.id === targetId)
+      : nearestEnemy(c, u);
+    if (!t || !t.alive || t.fled || t.side === 'ally') return null;
+    return t;
+  }
+
   // Ближайшая цель СТОРОНЫ ИГРОКА от моба u (000080): игрок ИЛИ живой
   // союзник — расширение модели целей, без которого гибель союзника
   // недостижима. Тай-брейк — игрок (строгий <). При 0 союзников —
@@ -1970,8 +1983,11 @@
     return { ok: true };
   }
 
-  // Удар союзника (000168): цель = nearestEnemy(c, u) (targetId
-  // игнорируется v1 — детерминированно, как в ИИ; ОQ1). Эфир (hasEfs) —
+  // Удар союзника (000168; 000198): цель = явная targetId (выбор
+  // игрока, клик по мобо) через allyTarget; без аргумента —
+  // nearestEnemy(c, u) (v1-бит-в-бит); невалидная явная (мёртв/
+  // fled/союзник/unknown) — «нет цели» БЕЗ fallback (зеркало
+  // игрока, D1). Эфир (hasEfs) —
   // «Касание духа» (всегда попадает, игнор брони, пул c.efs.touch);
   // наёмник/Эфир-fallback — бросок allyAttack (ТОТ ЖЕ вызов c._rng,
   // что в ИИ; строки лога allyAttack), дальность по роли
@@ -1979,7 +1995,7 @@
   function allyStrike(c, u, targetId) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
-    const t = nearestEnemy(c, u);
+    const t = allyTarget(c, u, targetId);
     if (!t) return { ok: false, reason: 'нет цели' };
     const hasEfs = u.kind === 'efir' && c.efs;
     if (hasEfs) {
@@ -2061,7 +2077,7 @@
     }
     const mana = Number(s['мани']) || 0;
     if (u.mp < mana) return { ok: false, reason: 'не хватает маны (' + mana + ')' };
-    const t = nearestEnemy(c, u);
+    const t = allyTarget(c, u, targetId);
     if (!t) return { ok: false, reason: 'нет цели' };
     if (rectDist(u, t) > SPELL_MAX_DIST) {
       return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
@@ -2099,7 +2115,7 @@
       return { ok: true };
     }
     if (action === 'attack') {
-      const t = nearestEnemy(c, u);
+      const t = allyTarget(c, u, a.targetId);
       if (!t) return { ok: false, reason: 'нет цели' };
       if (hasEfs) {
         if (c.efs.touch <= 0) {
@@ -2140,7 +2156,7 @@
         if (u.mp < mana) {
           return { ok: false, reason: 'не хватает маны (' + mana + ')' };
         }
-        const t = nearestEnemy(c, u);
+        const t = allyTarget(c, u, a.targetId);
         if (!t) return { ok: false, reason: 'нет цели' };
         if (rectDist(u, t) > SPELL_MAX_DIST) {
           return { ok: false, reason: 'цель слишком далеко (дальность 4)' };
@@ -3032,10 +3048,11 @@
     // союзника на активном слоте, напр. phase 'mob'). НОВЫЕ обёртки
     // c.cast/c.heal (000168): Эфир — урон-каст (strongestKnown),
     // support-наёмник — allyHeal; игрок — defensive-отказы (книга —
-    // 000149). Прочие гварды (spell/block/flee/quickItem/invItem/
-    // selectTarget) — БЕЗ ИЗМЕНЕНИЙ (D6: activeUnitId !== 'player' →
-    // null; UI их на ходу союзника не вызывает — canDoAction
-    // disabled). c.endTurn — БЕЗ гварды: действие ЛЮБОГО активного
+    // 000149). Прочие гварды (spell/block/flee/quickItem/invItem) —
+    // БЕЗ ИЗМЕНЕНИЙ (D6: activeUnitId !== 'player' → null).
+    // c.selectTarget — ДИСПАТЧ (000198, D3): игрок ИЛИ живой союзник
+    // → playerSelectTarget (игрок-путь бит-в-бит), иначе null (D6:
+    // слот моба). c.endTurn — БЕЗ гварды: действие ЛЮБОГО активного
     // player-side юнита.
     const activeAlly = () => {
       const aid = activeUnitId(c);
@@ -3075,8 +3092,12 @@
       if (activeUnitId(c) !== 'player') return null;
       return playerInvItem(c, itemId);
     };
+    // 000198: ДИСПАТЧ (D3): игрок ИЛИ живой союзник (activeAlly) →
+    // playerSelectTarget (валидатор переиспользуется как есть);
+    // иначе null (D6: слот моба/defensive).
     c.selectTarget = (targetId) => {
-      if (activeUnitId(c) !== 'player') return null;
+      const aid = activeUnitId(c);
+      if (aid !== 'player' && !activeAlly()) return null;
       return playerSelectTarget(c, targetId);
     };
     // 000168: урон-каст Эфира (K) — сильнейшее известное
