@@ -100,7 +100,7 @@ const SPEC_FILE_LINES = {
   "game-time.md": 20,
   "run-and-tests.md": 18,
   "ci-github-pages.md": 63,
-  "buildings.md": 458,
+  "buildings.md": 464, // 000190: +6 (таверна/хутор-исключение + рендер 000148.02/.03)
   "combat.md": 24,
   "companions.md": 108,
   "efir-spirit.md": 136,

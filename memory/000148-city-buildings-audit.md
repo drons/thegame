@@ -449,8 +449,9 @@ md (изменение игрового процесса — запись доб
    assets/sprites/buildings/ (общий с картой мира G.buildingSprite) —
    внутренний экран города остаётся hex-палитрой (000110; SVG — R10).
    Контракт слоя (резолв id→слот: map_index | размещение.слот;
-   1×1-правило; тихая деградация; built .03 — каталожный w×h через
-   G.buildingSize) — memory/000148.02-city-building-sprites.md.
+   1×1-правило; тихая деградация; built .03 — per-cell 1×1, 3×3 = 9
+   спрайтов; D-B — memory/000148.03-city-building-core.md §5) —
+   memory/000148.02-city-building-sprites.md.
 7. **000001-§4.2/4.3/4.23 (школы/контент городов) — СЕРИЯ ПОСЛЕ 000148**
    (один re-pin cities golden за раз); 000001-§4.4 (родной город) строится
    на 000148.05 (rename-механика + persistent name уже есть).
