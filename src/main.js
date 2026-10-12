@@ -1811,6 +1811,13 @@
     // KeyI/KeyC/KeyE/движение блокированы; [E] под пикером —
     // buildingUI НЕ открывается — нет двойного оверлея).
     if (G.resurrectUI && G.resurrectUI.isActive()) return; // 000162
+    // 000148.05 (D-.05p): ввод имени города (renameInput) открыт —
+    // ввод У НЕГО: движение (KeyA = «Ф» на ЦФЫВ!), KeyI/KeyC/KeyE
+    // блокированы — гейт ДО всех гейтов (паттерн 000162 resurrectUI);
+    // фасад buildingActions.renameInputActive() (module-level фаза).
+    if (G.buildingActions &&
+        typeof G.buildingActions.renameInputActive === 'function'
+        && G.buildingActions.renameInputActive()) return; // 000148.05
     if (e.code === 'KeyI' && G.playerUI) { // I (Ш) — панель персонажа
       G.playerUI.toggle();
       return;
@@ -2206,7 +2213,11 @@
       return;
     }
     const ctx = { map, mapPixels, player, hero, day: clock.day,
-      memory: dungeonMemory, intervalMs: moveIntervalBase() };
+      memory: dungeonMemory, intervalMs: moveIntervalBase(),
+      // 000148.05 (D-.05h): cityStates — live-Map (000109) —
+      // maybeEnterCity читает saved-запись (name → ds.name, built →
+      // occupied для generateCityContents; без проводки — деградация).
+      cityStates };
     const ds = L.maybeEnterDungeon(ctx) || L.maybeEnterCity(ctx);
     if (ds) {
       dungeonState = ds;
@@ -2263,16 +2274,23 @@
     }
     const [ax, ay] = t.buildingAnchor;
     const anchorKey = ax + ',' + ay;
+    // 000148.05 (a): saved — ПЕРЕНОС ДО generateCityContents
+    // (occupied — 6-й аргумент, §3.5: обе точки генерации — ОДИН
+    // источник occupied, иначе рассинхрон/«фантомные» базовые).
+    const saved = cityStates.get(anchorKey);
+    // 000148.05 (b): occupied — клетки built (builtOccupied; null —
+    // БИТ-В-БИТ с 5-арг. вызовом: persistent-only/без built).
+    const occ = saved && typeof C.builtOccupied === 'function'
+      ? C.builtOccupied(saved) : null;
     let contents = null;
     try {
       contents = C.generateCityContents(ds.dg, ax, ay, rec,
-        t.buildingWealth);
+        t.buildingWealth, occ);
     } catch (err) {
       console.error('main.js: generateCityContents — ' + err +
         ' (000109) — сток не восстанавливается');
       return;
     }
-    const saved = cityStates.get(anchorKey);
     // Задача 000148.03: постройки игрока (built — В-ПАМЯТИ запись
     // cityStates, per-cell view; персистентность — 000148.05):
     // merge в contents ДО stock-цикла — player-клетки ПОПАДАЮТ в
@@ -2323,7 +2341,13 @@
         }
       }
     }
+    // 000148.05 (D-.05q): persistent-only запись (окно истекло —
+    // transient-пара отброшена validateCityState, name/built живы):
+    // saved.lastVisitDay ОТСУТСТВУЕТ → day − undefined = NaN,
+    // NaN >= N = false → fresh ложно (ловушка) — явный
+    // Number.isInteger-гард (persistent-only = всегда fresh-сток).
     const fresh = !saved
+      || !Number.isInteger(saved.lastVisitDay)
       || clock.day - saved.lastVisitDay >= cityRespawnDays();
     const stock = {};
     for (const b of contents.buildings) {
@@ -2352,9 +2376,13 @@
     }
     // 000148.03: built — сохраняем (спред) — record перезаписывается
     // при каждом входе (000109: lastVisitDay/stock свежие).
+    // 000148.05: + name (persistent) — БЕЗ name в spread rename
+    // теряется при повторном входе (in-memory; R-REPLACE1).
     cityStates.set(anchorKey, { lastVisitDay: clock.day, stock,
       ...(saved && Array.isArray(saved.built)
-        ? { built: saved.built } : {}) });
+        ? { built: saved.built } : {}),
+      ...(saved && typeof saved.name === 'string'
+        ? { name: saved.name } : {}) });
   }
   function startLocationUI(onMove, onInteract) {
     G.dungeonUI.start({
@@ -2521,6 +2549,17 @@
     // (touchMove → onMove).
     if ((G.buildingUI && G.buildingUI.isActive()) ||
         (G.npcUI && G.npcUI.isActive())) return;
+    // 000148.05 (ревью): ввод имени города (renameInput) открыт —
+    // движение блокировано. ГЕЙТ В ТОЧКЕ СХОДА НАКРЫВАЕТ ОБА КАНАЛА
+    // (keyboard: dungeon-ui window keydown ЦФЫВ → ctx.onMove; touch
+    // D-pad: touchHoldStep → ctx.onMove) — keydown-гейт main.js
+    // (D-.05p) свой обработчик не гасит для dungeon-ui (слушатель
+    // dungeon-ui зарегистрирован РАНЬШЕ, stopPropagation не гасит
+    // другие window-слушатели) — без гейта буквы Ц/Ф/Ы/В в имени
+    // сдвигали героя (регрессионный пин CI-V17).
+    if (G.buildingActions &&
+        typeof G.buildingActions.renameInputActive === 'function'
+        && G.buildingActions.renameInputActive()) return; // 000148.05
     // 000177: exit-события из шага НЕТ — шаг на дверь = обычный
     // moved; выход — ТОЛЬКО [E] (locationOnInteract).
     G.locations.cityMove(ds, dx, dy, performance.now(),
@@ -2546,6 +2585,20 @@
   function locationOnInteract() {
     const ds = dungeonState;
     if (!ds) return;
+    // 000148.05 (ревью, defense-in-depth): ввод имени города
+    // (renameInput) открыт — [E] в городе блокирован ВСЕМИ каналами
+    // (клавиша dungeon-ui / тач-кнопка / debug — один код). Без
+    // гейта [E] на двери-клетке с открытым вводом шло в interactExit
+    // → exitLocation (гард D-.05k — в interactCity, exit-путь не
+    // накрывал): герой выходил из города, input-оверлей оставался в
+    // DOM в мире. После гейта cityOnMove сценарий через UI
+    // недостижим (до двери не дойти, оверлей с двери не открыть) —
+    // контракт D-.05p «KeyE в городе — no-op» держится ГЕЙТОМ, а не
+    // недостижимостью (паритет 000162 resurrectUI).
+    if (ds.kind === 'city' &&
+        G.buildingActions &&
+        typeof G.buildingActions.renameInputActive === 'function'
+        && G.buildingActions.renameInputActive()) return; // 000148.05
     const ev = G.locations.interactExit(ds);
     if (ev) {
       if (ev.type === 'exit') {

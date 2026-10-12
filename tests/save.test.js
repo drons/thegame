@@ -1376,6 +1376,127 @@ test('000109 R11: save() → false (квота localStorage) — saveNow: без
 });
 
 // =====================================================================
+// Задача 000148.05: Имена городов + персистентность состава
+// (красные R27–R29, vm bootWithSave — раздел data.cities)
+// =====================================================================
+// Контракт: memory/000148.05-city-name-persistence.md §3.1/§3.6
+// (D6/D-.05i — ДВЕ природы полей: transient {lastVisitDay, stock}
+// all-or-nothing, ВНЕ окна (000109, city_respawn_days=3) отбрасывается;
+// persistent {name, built} — ЖИВЁТ вне окна и регенерации, пишется в
+// сейв только при наличии (D-.05b — без «подушки»).
+// КРАСНЫЕ (TDD): сейчас validateCityState (cities.js:527-535) при
+// истёкшем окне/отсутствии lastVisitDay отдаёт ВСЮ запись null, а
+// в-окне — ТОЛЬКО {lastVisitDay, stock}: persistent-поля теряются
+// и при boot, и при сейве.
+// 000109 R2/R5/R6/R7/R8/R9 — БЕЗ ПРАВКИ (D-.05i): их dirty-записи без
+// persistent-полей отбрасываются так же, как и раньше (запись живёт
+// только при ≥ 1 валидном поле).
+
+test('000148.05 R27: name+built переживают ≥3 дня (ВНЕ окна респауна): boot day=20, lastVisitDay=15 (diff 5 ≥ 3) → в cityStates и в сейве — ТОЛЬКО {name, built}; transient-пара отброшена; version 1', async () => {
+  const st = makeStorage();
+  const seedCities = {
+    '20,-16': {
+      lastVisitDay: 15,                                  // 20 − 15 = 5 ≥ 3
+      stock: { '2,2': { bread: 2 } },
+      name: 'Флогистонград',
+      built: [{ x: 2, y: 2, buildingId: 1, player: true }],
+    },
+  };
+  const h = bootWithSave(st, null, { day: 20, cities: seedCities });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  const g = h.sandbox.__game;
+  const ck = '20,-16';
+  assert.ok(g.cities[ck],
+    'RED: запись в cityStates (persistent-поля живут вне окна)');
+  assert.equal(g.cities[ck].name, 'Флогистонград',
+    'RED: name восстановлен из-за окна (сейчас: запись null)');
+  assert.equal(g.cities[ck].lastVisitDay, undefined,
+    'transient отброшен (окно истекло: 20 − 15 ≥ 3)');
+  assert.equal(g.cities[ck].stock, undefined,
+    'transient отброшен (окно истекло)');
+  const beforeUnload = h.winListeners['beforeunload'];
+  beforeUnload[0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.equal(saved.version, 1,
+    'version НЕ поднимается (v1, неломкое расширение — 000031)');
+  assert.deepEqual(saved.data.cities, {
+    '20,-16': {
+      name: 'Флогистонград',
+      built: [{ x: 2, y: 2, buildingId: 1, player: true }],
+    },
+  }, 'RED: name+built переживают ≥3 дня (сейчас: весь раздел {} — '
+    + 'запись убита окном)');
+  assert.equal(saved.data.cities['20,-16'].lastVisitDay, undefined,
+    'в сейве НЕТ lastVisitDay (transient отброшен)');
+  assert.equal(saved.data.cities['20,-16'].stock, undefined,
+    'в сейве НЕТ stock (transient отброшен)');
+});
+
+test('000148.05 R28: В-окне запись с name+built — roundtrip БЕЗ ПОТЕРЬ (расширение 000109 R6 на persistent-поля): day=20, last=18 (diff 2 < 3) → сейв = seedCities как есть; hero без cities/cityStates', async () => {
+  const st = makeStorage();
+  const seedCities = {
+    '20,-16': {
+      lastVisitDay: 18,                                  // 20 − 18 = 2 < 3
+      stock: { '2,2': { bread: 2, honey_cake: 1 } },
+      name: 'Флогистонград',
+      built: [{ x: 2, y: 2, buildingId: 1, player: true }],
+    },
+  };
+  const h = bootWithSave(st, null, { day: 20, cities: seedCities });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  const state = h.sandbox.__game.state;
+  assert.equal(state.day, 20, 'день восстановлен (fastForward)');
+  assert.ok(!('cities' in state.hero)
+    && !('cityStates' in state.hero),
+    'hero: полей cities/cityStates НЕТ (свой раздел data.cities)');
+  const beforeUnload = h.winListeners['beforeunload'];
+  beforeUnload[0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.deepEqual(saved.data.cities, seedCities,
+    'RED: в-окне roundtrip БЕЗ ПОТЕРЬ (сейчас: name/built теряются — '
+    + 'сейв = {lastVisitDay, stock})');
+});
+
+test('000148.05 R29: битые persistent-поля при boot → console.warn (msg содержит «cities») + отброс ПОЛЯ (transient цела — запись жива); без единого валидного поля — запись отброшена (держит 000109 R7-кейс: {} без правки)', async () => {
+  const cases = [
+    // (a) name: 42 → warn + поле отброшено, transient цела.
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } },
+      name: 42 } },
+    // (b) built: 'nope' (не-массив) → warn + поле отброшено.
+    { '20,-16': { lastVisitDay: 18, stock: {}, built: 'nope' } },
+    // (c) ВСЕ поля биты → валидных 0 → запись отброшена (кейс R7).
+    { '20,-16': { lastVisitDay: '18', name: 42, built: 'nope' } },
+  ];
+  const expected = [
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } } } },
+    { '20,-16': { lastVisitDay: 18, stock: {} } },
+    {},
+  ];
+  for (let i = 0; i < cases.length; i++) {
+    const st = makeStorage();
+    const h = bootWithSave(st, null, { day: 20, cities: cases[i] });
+    for (let k = 0; k < 5; k++) await h.drain();
+    assert.equal(h.errors.length, 0,
+      'ошибок НЕТ (игру не роняем) — кейс ' + i + ': '
+      + h.errors.join('; '));
+    assert.ok(h.warns.some((w) => /cities/i.test(w)),
+      'RED: warn о cities — кейс ' + i + ' (сейчас: полевого warn'
+      + ' нет — поля молча теряются). warns: '
+      + JSON.stringify(h.warns));
+    const beforeUnload = h.winListeners['beforeunload'];
+    beforeUnload[0]();
+    const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+    assert.deepEqual(saved.data.cities, expected[i],
+      'кейс ' + i + ': ' + JSON.stringify(cases[i]) + ' → '
+      + JSON.stringify(expected[i]));
+  }
+});
+
+// =====================================================================
 // Задача 000115: сейв Эфира — финальная форма (аудит 000085 + пробелы
 // ТЗ). 000085 уже закрыло базовую форму (5 полей, legacy-нормализация,
 // efir отсутствует → createEfir(), структурный мусор → null + warn,

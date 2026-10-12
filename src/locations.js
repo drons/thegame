@@ -132,10 +132,18 @@
   // __game.dungeon: mobs/chests по ds.contents); содержимое города —
   // ОТДЕЛЬНЫЕ поля cityContents/cityShops/cityWealth (заполняет
   // maybeEnterCity, 000106/000108; interaction [E] — 000107).
-  function makeCityState(layout, buildingRec, worldKey, env) {
-    const name = (buildingRec.особые_параметры &&
-      buildingRec.особые_параметры.название_карты)
-      || buildingRec.название;
+  function makeCityState(layout, buildingRec, worldKey, env, savedName) {
+    // 000148.05 (D-.05h): сохранённое имя города (persistent-поле
+    // data.cities) ПЕРЕБИВАЕТ каталог: saved > название_карты >
+    // название. whitespace/не-строка → default (typeof-проверки
+    // достаточны — LOC-2: новых require/зависимостей НЕТ). log — из
+    // ФИНАЛЬНОГО имени.
+    const name = (typeof savedName === 'string' &&
+      savedName.trim() !== '')
+      ? savedName
+      : ((buildingRec.особые_параметры &&
+        buildingRec.особые_параметры.название_карты)
+        || buildingRec.название);
     const ds = {
       dg: layout,
       contents: null, // ЛОВУШКА __game.dungeon: ОБЯЗАТЕЛЬНО null (000107)
@@ -293,6 +301,28 @@
     // Layout — от ЯКОРЯ, не от входного тайла (000104).
     const [ax, ay] = t.buildingAnchor;
     const layout = G.Cities.createCityLayout(ax, ay, rec.размер.ширина);
+    // 000148.05 (D6/D-.05h): сохранённая запись города (persistent-
+    // поля name/built) из ctx.cityStates (проводка main.js: live-Map,
+    // ключ — ЯКОРЬ; без проводки — savedRec null → default-имя + occ
+    // null — деградация как до .05). Двухуровневый поиск: якорь
+    // (production — всегда попадает) → входной тайл (worldKey —
+    // fallback, LOC-19).
+    const anchorKey = ax + ',' + ay;
+    let savedRec = null;
+    if (ctx.cityStates && typeof ctx.cityStates.get === 'function') {
+      savedRec = ctx.cityStates.get(anchorKey) || null;
+      if (!savedRec)
+        savedRec = ctx.cityStates.get(player.x + ',' + player.y) || null;
+    }
+    // occupied (клетки built) — ОДИН источник для обеих точек
+    // генерации (контракт §3.5): базовый набор НЕ занимает
+    // player-клетки. try/catch — деградация 000053 (в production
+    // недостижимо: getBuilding выше прошёл).
+    let occ = null;
+    if (savedRec && typeof G.Cities.builtOccupied === 'function') {
+      try { occ = G.Cities.builtOccupied(savedRec); }
+      catch (err) { occ = null; }
+    }
     // Задача 000107: содержимое (000106) + стоки лавок (000108) —
     // ЖЁСТКАЯ (eager) генерация при ВХОДЕ (не ленивая): 000109
     // (restore) подменит те же поля в той же точке. Порядок
@@ -305,8 +335,11 @@
     let cityContents = null, cityShops = null, cityWealth = null;
     if (Number.isInteger(wealth) && wealth >= 0 && wealth <= 3 &&
         typeof G.Cities.generateCityContents === 'function') {
+      // 000148.05 (D10/§3.5): occupied — 6-й аргумент (клетки built:
+      // базовый набор НЕ занимает player-клетки). absent/пусто —
+      // БИТ-В-БИТ с прежним вызовом (деградация как до .05).
       cityContents = G.Cities.generateCityContents(
-        layout, ax, ay, rec, wealth);
+        layout, ax, ay, rec, wealth, occ);
       cityWealth = wealth;
       cityShops = {};
       if (typeof G.Cities.makeCityShop === 'function') {
@@ -325,8 +358,12 @@
         '(000107: Game.Cities.generateCityContents отсутствует или ' +
         'wealth вне 0..3) — город без построек/лавок');
     }
+    // 000148.05 (D-.05h): сохранённое имя (persistent) — 5-й аргумент
+    // makeCityState; typeof-проверка (не-строка/absent → default).
+    const savedName = (savedRec && typeof savedRec.name === 'string')
+      ? savedRec.name : null;
     const ds = makeCityState(layout, rec, player.x + ',' + player.y,
-      { intervalMs: ctx.intervalMs });
+      { intervalMs: ctx.intervalMs }, savedName);
     ds.cityContents = cityContents;
     ds.cityShops = cityShops;
     ds.cityWealth = cityWealth;

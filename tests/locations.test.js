@@ -1006,3 +1006,112 @@ test('000157.03 LOC-18: свип «залежь ≠ выходная клетк�
   assert.equal(dgCave.type, D.DUNGEON_TYPES.CAVE, 'CAVE (37,−12) (сценарий)');
   checkDungeon(dgCave, 'CAVE (37,−12)', 1, 300);
 });
+
+// ============================================================
+// 000148.05 — Имена городов + персистентность состава (красный
+// LOC-19)
+// ============================================================
+// Контракт: memory/000148.05-city-name-persistence.md §3.5 (D-.05h:
+// makeCityState — 5-й optional-параметр savedName: saved >
+// название_карты > название; битое/пустое — default; log — из
+// ФИНАЛЬНОГО имени; maybeEnterCity — ctx.cityStates → savedRec →
+// builtOccupied → occupied 6-й аргумент generateCityContents +
+// savedRec.name 5-й аргумент makeCityState).
+// НОМЕР: LOC-19 — НЕ «LOC-13» (D-.05t: LOC-13/14/15 заняты
+// :631/:666/:794, 16/17/18 — 000157.03).
+// КРАСНЫЕ (TDD):
+//  * (b) — 5-го аргумента makeCityState НЕТ (locations.js:135 —
+//    ровно 4 параметра): saved-имя игнорируется → ds.name из
+//    каталога;
+//  * (c) — maybeEnterCity НЕ читает ctx.cityStates (:268-334):
+//    ds.name из каталога + occupied НЕ передаётся — базовый набор
+//    игнорирует built-клетки.
+// (a) — зелёный guard: 4-арг. default из каталога (инвариант LOC-5).
+
+test('LOC-19. 000148.05: (a) без сохранённого — default из каталога (LOC-5 инвариант); (b) makeCityState: 5-й optional savedName — priority saved > название_карты > название, whitespace/не-строка → default, log из ФИНАЛЬНОГО имени; (c) maybeEnterCity: ctx.cityStates-запись с name → ds.name = сохранённое; built → occupied → базовый набор НЕ занимает built-клетки (все spots occupied → buildings: [])', () => {
+  const L = loadLocations();
+  const C = require('../src/cities.js');
+  const B = require('../src/buildings.js');
+  // (a) Зелёный guard: без savedName — default из каталога (LOC-5).
+  {
+    const fake = makeFakeGame();
+    const layout = makeCityLike();
+    const recPlain = { название: 'Тестовград', размер: { ширина: 3 } };
+    const ds1 = withGame(fake.G, () =>
+      L.makeCityState(layout, recPlain, '9,4', { intervalMs: 420 }));
+    assert.equal(ds1.name, 'Тестовград',
+      'default: название (без savedName) — LOC-5 инвариант');
+  }
+  // (b) 5-й optional-параметр savedName (priority + деградация).
+  const recVillage = B.getBuilding(52);
+  assert.ok(recVillage && recVillage.категория === 'город',
+    'сценарий: каталог id 52 — «Деревня» (город)');
+  const layoutV = C.createCityLayout(-114, -119, recVillage.размер.ширина);
+  assert.equal(layoutV.width, 6, 'сценарий: деревня fp2 — 6×6 (4·fp−2)');
+  assert.equal(layoutV.height, 6, 'сценарий: деревня fp2 — 6×6 (4·fp−2)');
+  const fakeV = makeFakeGame();
+  // (b1) saved-имя ПЕРЕБИВАЕТ каталог; log — из ФИНАЛЬНОГО имени.
+  const ds2 = withGame(fakeV.G, () =>
+    L.makeCityState(layoutV, recVillage, '-114,-119',
+      { intervalMs: 420 }, 'Своё имя'));
+  assert.equal(ds2.name, 'Своё имя',
+    'RED: saved > название_карты (сейчас: 4 параметра — «Деревня»)');
+  assert.deepEqual(ds2.log, ['Своё имя: вход.'],
+    'RED: log — из ФИНАЛЬНОГО имени (saved): ' + JSON.stringify(ds2.log));
+  // (b2) saved > название_карты (особые_параметры) — явный приоритет.
+  const recSpecial = {
+    название: 'Тестовград',
+    размер: { ширина: 3 },
+    особые_параметры: { название_карты: 'Специальное имя' },
+  };
+  const ds3 = withGame(fakeV.G, () =>
+    L.makeCityState(layoutV, recSpecial, '-114,-119',
+      { intervalMs: 420 }, 'Своё имя'));
+  assert.equal(ds3.name, 'Своё имя',
+    'RED: saved > название_карты > название (сейчас: «Специальное имя»)');
+  // (b3) whitespace-«имя» → default из каталога (Деревня).
+  const ds4 = withGame(fakeV.G, () =>
+    L.makeCityState(layoutV, recVillage, '-114,-119',
+      { intervalMs: 420 }, '   '));
+  assert.equal(ds4.name, 'Деревня',
+    'whitespace-«имя» → default (название_карты/название каталога)');
+  // (c) maybeEnterCity — ctx.cityStates-запись (name + built).
+  const allInterior = [];
+  for (let y = 1; y <= 4; y++)
+    for (let x = 1; x <= 4; x++)
+      allInterior.push({ x: x, y: y, buildingId: 48, player: true });
+  const Gc = Object.assign({}, makeFakeGame().G, {
+    getBuilding: (id) => B.getBuilding(id),
+    Cities: C,
+  });
+  const cs = new Map([[
+    '5,5',
+    { name: 'Своё имя', built: allInterior },
+  ]]);
+  const ctx = {
+    map: {
+      tileAt: () => ({
+        hasBuilding: true,
+        buildingId: 52,
+        buildingAnchor: [-114, -119],
+        buildingWealth: 3,
+      }),
+    },
+    player: { x: 5, y: 5 },
+    intervalMs: 420,
+    cityStates: cs,
+  };
+  const ds = withGame(Gc, () => L.maybeEnterCity(ctx));
+  assert.ok(ds, 'город открыт (id 52, категория «город»)');
+  assert.equal(ds.name, 'Своё имя',
+    'RED: ds.name — сохранённое (ctx.cityStates → savedRec.name; '
+    + 'сейчас: «Деревня» — cityStates не читается)');
+  assert.deepEqual(ds.log, ['Своё имя: вход.'],
+    'RED: log — из сохранённого имени');
+  assert.ok(ds.cityContents && Array.isArray(ds.cityContents.buildings),
+    'содержимое сгенерировано (wealth 3)');
+  assert.equal(ds.cityContents.buildings.length, 0,
+    'RED: ВСЕ 16 spots occupied (built) → buildings: [] (сейчас: '
+    + ds.cityContents.buildings.length
+    + ' базовых — occupied не передаётся)');
+});

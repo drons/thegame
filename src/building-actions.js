@@ -639,11 +639,21 @@
         a.reason = BUILD_REASON_TEXT[check.reason] || String(check.reason);
       actions.push(a);
     }
+    // 000148.05 (D-.05d): 22-я строка «Переименовать город» — КОНЕЦ
+    // списка, ВСЕГДА доступна (отказ — в ядре после ввода: правила
+    // D7 применяются к ВВОДУ, не к видимости строки).
+    actions.push({ id: 'rename-city',
+      имя: 'Переименовать город',
+      доступен: true });
     deps.game.buildingUI.open({
       title: 'Строительство',
       actions,
-      // Строка получает a.id 'build-<id>' — id = Number(хвост).
-      onAction: (a) => buildCityAt(t, Number(String(a.id).slice(6))),
+      // Строка получает a.id 'build-<id>' — id = Number(хвост);
+      // 'rename-city' — ПУТЬ RENAMe (000148.05): НЕ buildCityAt
+      // (slice(6) от 'rename-city' — NaN, canBuildAt — throw).
+      onAction: (a) => (a.id === 'rename-city'
+        ? renameCityAt(t)
+        : buildCityAt(t, Number(String(a.id).slice(6)))),
     });
     return true;
   }
@@ -848,6 +858,263 @@
       deps.flash(msg);
     }
     deps.playerRender();
+  }
+
+  // ============================================================
+  // Имя города (задача 000148.05) — строка меню + input-транспорт
+  // ============================================================
+  //
+  // Контракт — memory/000148.05-city-name-persistence.md §3.8:
+  //  * строка D-.05d — {id: 'rename-city', имя: 'Переименовать
+  //    город', доступен: true} — 22-я (КОНЕЦ) меню «Строительство»;
+  //  * ядро Д7 — cities.validateCityName (ЧИСТАЯ, 1–32: буквы
+  //    кириллицы/латиницы, цифры, пробелы; trim; empty/вне charset —
+  //    null); применение — renameCity (фасад-экспорт, R31 без DOM);
+  //  * flash-строки (D-.05l): успех «Город переименован: <name>»
+  //    (ИМЯ БЕЗ КАВЫЧЕК — D-.05s), отказ «Некорректное имя города»,
+  //    якорь/проводка — зеркала buildCityAt; отказ — flash БЕЗ
+  //    saveNow (000128 §2.6); успех — мутация → saveNow → flash →
+  //    playerRender (паритет buildCityAt);
+  //  * input-транспорт (D-.05j) — СВОЙ оверлей (runtime DOM, ТОЛЬКО
+  //    существующие CSS-классы; building-ui.js НЕ ТРОГАЕТСЯ): символы
+  //    по e.key (КИРИЛЛИЦА — e.code layout-независим), управление по
+  //    e.code (Escape — тихая отмена; Enter/NumpadEnter — коммит;
+  //    Backspace — стереть); лимит 32 НА ВХОДЕ; draft — ПУСТОЙ старт;
+  //    ОДНОВРЕМЕННО ОДИН ввод (module-level renameInput);
+  //    node-деградация (нет window/document) — console.error + no-op.
+
+  // --- Transport state (module-level: один ввод одновременно) ---
+  let renameInput = null; // { t, draft, overlay, keyHandler, nameSpan }
+
+  // Фасад (000148.05 D-.05p): main.js keydown-гейт (после resurrectUI,
+  // до KeyI/KeyC/KeyE/движения) — фаза ввода гасит весь остальной ввод.
+  function renameInputActive() {
+    return renameInput !== null;
+  }
+
+  // Строка «Переименовать город» → ввод (гарды — ЗЕРКАЛО buildCityAt:
+  // needDeps → validateCityName-гард → якорь (видимый отказ) →
+  // cityStates get/set-гарды (flash-проводка) → record → ds).
+  function renameCityAt(t) {
+    if (!needDeps()) return;
+    const C = deps.game.Cities;
+    if (!C || typeof C.validateCityName !== 'function') {
+      console.error('building-actions.js: Game.Cities.validateCityName '
+        + 'отсутствует (src/cities.js, 000148.05) — переименование '
+        + 'недоступно');
+      return;
+    }
+    if (!t || !t.cityAnchor) {
+      // R7-зеркало: якорь не решён — ВИДИМЫЙ отказ (игрок видит
+      // причину), НЕ console.error+no-op.
+      deps.flash('Город не найден (якорь не решён) — переименование '
+        + 'невозможно');
+      return;
+    }
+    if (!deps.cityStates ||
+        typeof deps.cityStates.get !== 'function' ||
+        typeof deps.cityStates.set !== 'function') {
+      console.error('building-actions.js: cityStates (состояние ' +
+        'городов, 000109) отсутствует в проводке main.js — ' +
+        'переименование недоступно (000148.05)');
+      deps.flash('Состояние города недоступно — переименование '
+        + 'невозможно');
+      return;
+    }
+    const record = deps.cityStates.get(t.cityAnchor);
+    if (!record || typeof record !== 'object' || Array.isArray(record)) {
+      console.error('building-actions.js: запись города «' + t.cityAnchor
+        + '» отсутствует в cityStates — переименование недоступно '
+        + '(000148.05)');
+      deps.flash('Состояние города недоступно — переименование '
+        + 'невозможно');
+      return;
+    }
+    const ds = deps.cityState ? deps.cityState() : null;
+    if (!ds || ds.kind !== 'city') {
+      console.error('building-actions.js: городское состояние (ds) '
+        + 'отсутствует — переименование недоступно (000148.05)');
+      return;
+    }
+    openCityRenameInput(t, ds.name);
+  }
+
+  // ЯДРО переименования (D-.05g, экспорт фасада; R31 без DOM): те же
+  // гарды, что renameCityAt (кроме открытия ввода) →
+  // validateCityName (D7) → null: flash-отказ БЕЗ saveNow (000128
+  // §2.6), имя не изменено; name === ds.name → ТИХО (изменений нет —
+  // без saveNow/flash); успех: SHALLOW-копия записи (LIVE-ссылки
+  // stock сохраняются — 000109 «сток переживает визит»; built не
+  // тронут) → ds.name = name → saveNow → flash → playerRender
+  // (паритет buildCityAt).
+  function renameCity(t, raw) {
+    if (!needDeps()) return;
+    const C = deps.game.Cities;
+    if (!C || typeof C.validateCityName !== 'function') {
+      console.error('building-actions.js: Game.Cities.validateCityName '
+        + 'отсутствует (src/cities.js, 000148.05) — переименование '
+        + 'недоступно');
+      return;
+    }
+    if (!t || !t.cityAnchor) {
+      deps.flash('Город не найден (якорь не решён) — переименование '
+        + 'невозможно');
+      return;
+    }
+    if (!deps.cityStates ||
+        typeof deps.cityStates.get !== 'function' ||
+        typeof deps.cityStates.set !== 'function') {
+      console.error('building-actions.js: cityStates (состояние ' +
+        'городов, 000109) отсутствует в проводке main.js — '
+        + 'переименование недоступно (000148.05)');
+      deps.flash('Состояние города недоступно — переименование '
+        + 'невозможно');
+      return;
+    }
+    const record = deps.cityStates.get(t.cityAnchor);
+    if (!record || typeof record !== 'object' || Array.isArray(record)) {
+      console.error('building-actions.js: запись города «' + t.cityAnchor
+        + '» отсутствует в cityStates — переименование недоступно '
+        + '(000148.05)');
+      deps.flash('Состояние города недоступно — переименование '
+        + 'невозможно');
+      return;
+    }
+    const ds = deps.cityState ? deps.cityState() : null;
+    if (!ds || ds.kind !== 'city') {
+      console.error('building-actions.js: городское состояние (ds) '
+        + 'отсутствует — переименование недоступно (000148.05)');
+      return;
+    }
+    const name = C.validateCityName(raw);
+    if (name === null) {
+      // Отказ (D7: >32 / пусто после trim / вне charset) — flash
+      // БЕЗ saveNow (000128 §2.6); имя не изменено.
+      deps.flash('Некорректное имя города');
+      return;
+    }
+    if (name === ds.name) return; // изменений нет — ТИХО
+    deps.cityStates.set(t.cityAnchor,
+      Object.assign({}, record, { name }));
+    ds.name = name;
+    deps.saveNow();
+    // D-.05s: имя в flash БЕЗ КАВЫЧЕК.
+    deps.flash('Город переименован: ' + name);
+    deps.playerRender();
+  }
+
+  function closeRenameInput(commit) {
+    const inp = renameInput;
+    if (!inp) return;
+    renameInput = null;
+    if (inp.keyHandler && typeof window !== 'undefined') {
+      window.removeEventListener('keydown', inp.keyHandler);
+    }
+    if (inp.overlay && typeof inp.overlay.remove === 'function')
+      inp.overlay.remove();
+    if (commit) renameCity(inp.t, inp.draft);
+  }
+
+  // Input-транспорт (D-.05j): СВОЙ оверлей в building-actions.js
+  // (1:1 building-ui.js:184-232, ТОЛЬКО существующие CSS-классы —
+  // .combat-overlay/.combat-side/.cp-title/.cp-items/.cp-itemrow/
+  // .cp-btn/.cp-itemname/.cp-itemmeta; building-ui.js НЕ ТРОГАЕТСЯ).
+  // Заголовок «Имя города» (БЕЗ close-кнопки — ввод клавиатурный);
+  // строка-черновик (cp-itemname): draft ≠ '' → draft + '▌', иначе —
+  // «Введите имя (1–32: буквы, цифры, пробелы)»; подсказка
+  // (cp-itemmeta): «Enter — сохранить, Esc — отмена». window keydown
+  // (вешается на open, снимается на close — паттерн building-ui.js:
+  // 119-141/163-172): Escape → close + ТИХО (no-op: без
+  // flash/saveNow — picker-паттерн); Enter/NumpadEnter → close +
+  // renameCity(t, draft); Backspace → стереть; e.key.length === 1 &&
+  // charset Д7 && draft.length < 32 → append (лимит НА ВХОДЕ —
+  // символы сверх игнор); прочее — игнор; preventDefault на
+  // обработанных. draft — ПУСТОЙ старт (без pre-fill — R32).
+  // @param {object} t синтетический tile (cityAnchor — ключ записи)
+  // @param {string} current текущее ds.name — КОНТЕКСТ (draft —
+  //        ПУСТОЙ старт, без pre-fill — детерминизм R32); неиспользуется
+  //        в логике, но фиксирован в сигнатуре (§3.8)
+  function openCityRenameInput(t, current) {
+    if (renameInput) return; // один ввод одновременно
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      console.error('building-actions.js: window/document отсутствуют '
+        + '— переименование недоступно (000148.05)');
+      return;
+    }
+    void current; // контекст (см. @param) — draft стартует ПУСТЫМ
+    const overlay = document.createElement('div');
+    overlay.className = 'combat-overlay';
+    const side = document.createElement('div');
+    side.className = 'combat-side';
+    const title = document.createElement('div');
+    title.className = 'cp-title';
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = 'Имя города';
+    title.appendChild(titleSpan);
+    side.appendChild(title);
+    const list = document.createElement('div');
+    list.className = 'cp-items';
+    const row = document.createElement('div');
+    row.className = 'cp-itemrow';
+    const btn = document.createElement('span');
+    btn.className = 'cp-btn';
+    btn.textContent = '1';
+    row.appendChild(btn);
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'cp-itemname';
+    nameSpan.textContent = 'Введите имя (1–32: буквы, цифры, пробелы)';
+    row.appendChild(nameSpan);
+    list.appendChild(row);
+    side.appendChild(list);
+    const hint = document.createElement('div');
+    hint.className = 'cp-itemmeta';
+    hint.textContent = 'Enter — сохранить, Esc — отмена';
+    side.appendChild(hint);
+    overlay.appendChild(side);
+    document.body.appendChild(overlay);
+
+    const RE_NAME_CH = /^[А-Яа-яЁёA-Za-z0-9 ]$/; // D7-charset (символ)
+    // draft — ПУСТОЙ старт (без pre-fill — детерминизм R32); current —
+    // только контекст (см. @param).
+    const inp = { t, draft: '', overlay, keyHandler: null, nameSpan };
+    const nameLabel = () => (inp.draft !== ''
+      ? inp.draft + '▌'
+      : 'Введите имя (1–32: буквы, цифры, пробелы)');
+    const renderDraft = () => { nameSpan.textContent = nameLabel(); };
+
+    const onKeyDown = (e) => {
+      if (!renameInput) return;
+      const code = String(e && e.code || '');
+      if (code === 'Escape') {
+        e.preventDefault();
+        closeRenameInput(false); // тихая отмена (no-op)
+        return;
+      }
+      if (code === 'Enter' || code === 'NumpadEnter') {
+        e.preventDefault();
+        closeRenameInput(true); // коммит: renameCity(t, draft)
+        return;
+      }
+      if (code === 'Backspace') {
+        e.preventDefault();
+        inp.draft = inp.draft.slice(0, -1);
+        renderDraft();
+        return;
+      }
+      const ch = e && typeof e.key === 'string' ? e.key : '';
+      if (ch.length === 1 && RE_NAME_CH.test(ch)
+          && inp.draft.length < 32) {
+        e.preventDefault();
+        inp.draft += ch;
+        renderDraft();
+        return;
+      }
+      // прочее — игнор (не обработано — без preventDefault)
+    };
+    inp.keyHandler = onKeyDown;
+    renameInput = inp;
+    window.addEventListener('keydown', onKeyDown);
+    renderDraft();
   }
 
   // «Разобрать» — спец-действие (000128), саморегистрация в момент
@@ -1133,6 +1400,11 @@
     if (!needDeps()) return;
     if (!deps.game.npcUI) return; // без npcUI [E] инертен (как toggle)
     if (deps.game.combatUI && deps.game.combatUI.isActive()) return;
+    // 000148.05 (D-.05k): фаза ввода имени (renameInput) — [E]
+    // инертен: buildingUI ЗАКРЫТ (executeAction — close ДО onAction),
+    // без гарда открыл бы меню СВЕРХУ input-оверлея (двойной оверлей
+    // + Enter-дубль: коммит + строка меню).
+    if (renameInput) return;
     const ds = deps.cityState ? deps.cityState() : null;
     if (!ds || ds.kind !== 'city') return;
     if (deps.game.buildingUI) {
@@ -1260,5 +1532,8 @@
     scanTeleportPair,
     specials,
     registerSpecial,
+    // 000148.05: имя города — ядро (фасад, без DOM) + фасад фазы ввода.
+    renameCity,
+    renameInputActive,
   };
 });

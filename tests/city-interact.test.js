@@ -379,8 +379,8 @@ test('CI-U2. клетка без постройки → [E] → меню «Ст�
     'buildingUI — меню «Строительство»');
   assert.equal(t.o.calls.buildingOpen[0].title, 'Строительство',
     'заголовок «Строительство»');
-  assert.equal(t.o.calls.buildingOpen[0].actions.length, 21,
-    'ровно 21 строка (набор D3)');
+  assert.equal(t.o.calls.buildingOpen[0].actions.length, 22,
+    'ровно 22 строки (21 набор D3 + «Переименовать город», 000148.05)');
   assert.equal(t.o.calls.npcOpen.length, 0, 'npcUI — нет');
   assert.equal(t.o.calls.buildingClose + t.o.calls.npcClose, 0,
     'ничего не закрыто');
@@ -547,11 +547,13 @@ test('CI-U12. 000148.03: [E] на пустой клетке города → bui
     'RED: buildingUI.open — ровно 1 (сейчас no-op, :616)');
   const p = t.o.calls.buildingOpen[0];
   assert.equal(p.title, 'Строительство', 'RED: заголовок меню «Строительство»');
-  assert.equal(p.actions.length, 21,
-    'RED: ровно 21 строка (набор D3), получено ' + p.actions.length);
+  assert.equal(p.actions.length, 22,
+    'ровно 22 строки (21 набор D3 + «Переименовать город», 000148.05),'
+    + ' получено ' + p.actions.length);
   assert.deepEqual(p.actions.map((a) => a.id),
-    D3_IDS_03.map((id) => 'build-' + id),
-    'строки — id build-<id>, порядок каталога (id-порядок)');
+    D3_IDS_03.map((id) => 'build-' + id).concat(['rename-city']),
+    'строки — id build-<id> (порядок каталога, id-порядок) + «rename'
+    + '-city» КОНЦА (000148.05)');
   // 000148.04 (осознанный репин): строка = «Построить: <название> —
   // <N> з. (<имя> ×<Q>[, <имя> ×<Q>])» — скобки группируют ЦЕНУ
   // (золото + материалы, контракт R4); «×» — U+00D7.
@@ -705,8 +707,10 @@ test('CI-U15. 000148.03: pre-disabled строки с reason: деревня п�
   assert.equal(t.o.calls.buildingOpen.length, 1,
     'меню открывается (pre-check — доступность строк, не открытие)');
   const p = t.o.calls.buildingOpen[0];
-  assert.equal(p.actions.length, 21, 'все 21 строка присутствуют');
+  assert.equal(p.actions.length, 22,
+    'все 22 строки присутствуют (21 D3 + rename-city, 000148.05)');
   for (const a of p.actions) {
+    if (a.id === 'rename-city') continue; // строка переименования — всегда доступна (000148.05)
     assert.equal(a.доступен, false,
       'RED: при cap строка ' + a.id + ' pre-disabled');
     if ([7, 36].includes(Number(String(a.id).slice(6)))) {
@@ -722,6 +726,7 @@ test('CI-U15. 000148.03: pre-disabled строки с reason: деревня п�
   t2.BA.interactCity();
   assert.equal(t2.o.calls.buildingOpen.length, 1, 'меню открывается');
   for (const a of t2.o.calls.buildingOpen[0].actions) {
+    if (a.id === 'rename-city') continue; // строка переименования — всегда доступна (000148.05)
     assert.equal(a.доступен, false, 'хутор — строка ' + a.id + ' pre-disabled');
     assert.equal(a.reason, 'нет места', 'хутор: интерьер 0 → «space» → «нет места»');
   }
@@ -736,8 +741,10 @@ test('CI-U16. 000148.03: pre-check reason «reach»: 1×1 на (3,4) дерев�
   t.BA.interactCity();
   assert.equal(t.o.calls.buildingOpen.length, 1, 'меню открывается');
   const p = t.o.calls.buildingOpen[0];
-  assert.equal(p.actions.length, 21, 'все 21 строка присутствуют');
+  assert.equal(p.actions.length, 22,
+    'все 22 строки присутствуют (21 D3 + rename-city, 000148.05)');
   for (const a of p.actions) {
+    if (a.id === 'rename-city') continue; // строка переименования — всегда доступна (000148.05)
     assert.equal(a.доступен, false,
       'RED: строка ' + a.id + ' pre-disabled (дверь замурована)');
     if ([7, 36].includes(Number(String(a.id).slice(6)))) {
@@ -1632,8 +1639,8 @@ test('CI-V4. [пин] клетка без постройки → [E] → мен�
   const ov = buildingOverlayOf(h);
   assert.ok(ov && textOf(ov).includes('Строительство'),
     'заголовок «Строительство»: ' + (ov ? textOf(ov).slice(0, 200) : 'нет оверлея'));
-  assert.equal(findAll(ov, '[data-buid]').length, 21,
-    'ровно 21 строка (набор D3)');
+  assert.equal(findAll(ov, '[data-buid]').length, 22,
+    'ровно 22 строки (21 набор D3 + rename-city, 000148.05)');
   assert.ok(!G.npcUI.isActive(), 'npcUI не открыт');
   // Повторный [E] — закрыть оверлей (стек, паритет с 000107).
   key(h, 'KeyE');
@@ -1823,8 +1830,8 @@ test('CI-V12. 000148.03: [E] на пустой клетке города (vm e2e
   assert.ok(ov, 'оверлей buildingUI прикреплён к body');
   assert.ok(textOf(ov).includes('Строительство'),
     'RED: заголовок меню «Строительство»: ' + textOf(ov).slice(0, 200));
-  assert.equal(findAll(ov, '[data-buid]').length, 21,
-    'RED: ровно 21 строка (набор D3)');
+  assert.equal(findAll(ov, '[data-buid]').length, 22,
+    'ровно 22 строки (21 набор D3 + rename-city, 000148.05)');
   assert.ok(textOf(ov).includes(
     'Построить: Развалины — 30 з. (Каменный обломок ×1)'),
     'RED: строка «Построить: <название> — <N> з. (<имя> ×<Q>…)» (000148.04, id 48)');
@@ -2316,4 +2323,435 @@ test('CI-134B. сейв/лоад: npcStocks сериализуется (data.npc
     assert.equal(st2.wanderer_merchant[p.предмет], p.количество,
       'лоад: ' + p.предмет + ' — как в сейве');
   }
+});
+
+// ============================================================
+// 000148.05 — Имена городов + персистентность состава (красные
+// CI-U20 / CI-U21 / CI-V16)
+// ============================================================
+// Контракт: memory/000148.05-city-name-persistence.md §3.6–§3.8
+// (D-.05d — строка меню; D-.05l/D-.05s — flash-строки; D-.05e —
+// e.key-кириллица; D-.05g — renameCity-ядро; D-.05h — occupied;
+// D-.05j — input-оверлей; D-.05k — гард interactCity).
+// КРАСНЫЕ (TDD):
+//  * CI-U20 — в openCityBuildMenu (building-actions.js:588-649)
+//    ровно 21 строка build-<id>; строки 'rename-city' НЕТ;
+//  * CI-U21 — экспорт renameCity отсутствует (typeof undefined);
+//    onAction('rename-city') → buildCityAt(t, NaN) →
+//    canBuildAt — throw (диспетчера нет);
+//  * CI-V16 — строки «Переименовать город»/input-оверлея/
+//    persistent-имени нет — e2e падают на первой такой проверке.
+// 6× существующих 21-ассертов (CI-U2/U12/U15/U16/V4/V12) — БЕЗ
+// ПРАВКИ на красной стадии (техправка 21→22 — зелёная стадия,
+// контракт §7).
+
+test('CI-U20. 000148.05: [E] на пустой клетке → «Строительство»: 21 «Построить: …» (порядок D3) + 22-я строка {id: "rename-city", имя: «Переименовать город», доступен: true} КОНЦА; npcUI напрямую НЕ открывается (000107)', () => {
+  const t = initCityBuild({ x: 1, y: 1 });
+  t.BA.interactCity();
+  assert.equal(t.o.calls.buildingOpen.length, 1,
+    'buildingUI.open — ровно 1');
+  const p = t.o.calls.buildingOpen[0];
+  assert.equal(p.title, 'Строительство',
+    'RED: заголовок «Строительство» НЕ меняется (D-.05m)');
+  assert.equal(p.actions.length, 22,
+    'RED: 22 строки (21 build + rename-city; сейчас 21) — '
+    + p.actions.length);
+  assert.deepEqual(p.actions.slice(0, 21).map((a) => a.id),
+    D3_IDS_03.map((id) => 'build-' + id),
+    '21 build-строка — порядок каталога (id-порядок), НЕСДВИГНУТА');
+  const last = p.actions[21];
+  assert.equal(last.id, 'rename-city',
+    'RED: 22-я строка — id «rename-city» (конец списка)');
+  assert.equal(last.имя, 'Переименовать город',
+    'RED: текст строки «Переименовать город» (D-.05d)');
+  assert.equal(last.доступен, true,
+    'RED: «Переименовать город» — доступна (reason нет)');
+  assert.equal(last.reason, undefined, 'доступная строка — без reason');
+  assert.equal(t.o.calls.npcOpen.length, 0,
+    'npcUI напрямую НЕ открывается (ТОЛЬКО через buildingUI, 000107)');
+  assert.equal(t.o.calls.buildingClose + t.o.calls.npcClose, 0,
+    'ничего не закрыто');
+});
+
+test('CI-U21. 000148.05: renameCity-ядро — валидное (trim) → record.name + ds.name, saveNow=1, playerRender=1, flash «Город переименован: <name>», built/lastVisitDay НЕ тронуты, stock — LIVE-ссылка (shallow-копия, 000109 «сток переживает визит»); 33 символа/пустое после trim → flash-отказ БЕЗ saveNow, имя не изменено; name === current → тихо; onAction("rename-city") — диспетчер (node-деградация: console.error + no-op, без throw)', () => {
+  const probe = initCityBuild({ x: 1, y: 1 });
+  assert.equal(typeof probe.BA.renameCity, 'function',
+    'RED: экспорт BA.renameCity — нет в building-actions.js');
+  // Фикстура (паттерн CI-U14).
+  const t = initCityBuild({
+    x: 1, y: 1,
+    cityContents: [{ x: 1, y: 1, buildingId: 48, player: true }],
+  });
+  wireCityAnchor(t, 100, -40);
+  const stock = { '2,2': { bread: 1 } };
+  const built = [{ x: 1, y: 1, buildingId: 48, player: true }];
+  const cs = new Map([['100,-40', { lastVisitDay: 5, stock: stock,
+    built: built }]]);
+  t.deps.cityStates = cs;
+  const flashes = [];
+  t.deps.flash = (m) => flashes.push(m);
+  let saves = 0;
+  t.deps.saveNow = () => { saves += 1; };
+  let renders = 0;
+  t.deps.playerRender = () => { renders += 1; };
+  const tile = { x: 1, y: 1, cityAnchor: '100,-40' };
+  // (a) Успех (trim по D7).
+  t.BA.renameCity(tile, ' Флогистонград ');
+  const rec = cs.get('100,-40');
+  assert.equal(rec.name, 'Флогистонград',
+    'RED: record.name — trim (D7), запись заменена копией');
+  assert.equal(t.ds.name, 'Флогистонград',
+    'RED: ds.name обновлён (live-имя города)');
+  assert.equal(saves, 1, 'RED: saveNow — 1 (успех, мутация)');
+  assert.equal(renders, 1, 'RED: playerRender — 1 (паритет buildCityAt)');
+  assert.ok(flashes.includes('Город переименован: Флогистонград'),
+    'RED: flash «Город переименован: <name>» (ИМЯ БЕЗ КАВЫЧЕК, D-.05s): '
+    + JSON.stringify(flashes));
+  assert.equal(rec.stock, stock,
+    'LIVE-ссылка stock СОХРАНЕНА (shallow-копия записи — '
+    + '000109 «сток переживает визит»); глубокое копирование сломает 000109');
+  assert.equal(rec.built, built, 'built — НЕ тронут (ссылка)');
+  assert.equal(rec.lastVisitDay, 5, 'transient — НЕ тронут');
+  // (b) Отказ: 33 символа (D7) — flash БЕЗ saveNow (000128 §2.6).
+  t.BA.renameCity(tile, 'А'.repeat(33));
+  assert.equal(cs.get('100,-40').name, 'Флогистонград',
+    'RED: отказ — имя не изменено (33 символа)');
+  assert.equal(saves, 1, 'RED: отказ — saveNow НЕ вызывается');
+  assert.ok(flashes.includes('Некорректное имя города'),
+    'RED: flash-отказ «Некорректное имя города» (D-.05l): '
+    + JSON.stringify(flashes));
+  // (c) Отказ: пустое после trim.
+  t.BA.renameCity(tile, '   ');
+  assert.equal(cs.get('100,-40').name, 'Флогистонград',
+    'RED: отказ — имя не изменено (пустое после trim)');
+  assert.equal(saves, 1, 'RED: отказ — saveNow НЕ вызывается');
+  // (d) name === current → ТИХО (изменений нет — без saveNow/flash).
+  const flashesLen = flashes.length;
+  t.BA.renameCity(tile, 'Флогистонград');
+  assert.equal(cs.get('100,-40').name, 'Флогистонград', 'имя без изменений');
+  assert.equal(saves, 1, 'RED: no-op — saveNow НЕ вызывается');
+  assert.equal(flashes.length, flashesLen,
+    'RED: no-op — flash НЕ печатается');
+  // (e) Диспетчер: строка «Переименовать город» → onAction('rename-city')
+  //     — путь rename (НЕ buildCityAt). node-деградация транспорта
+  //     (window/document нет — D-.05j): console.error + no-op, без
+  //     throw и saveNow.
+  const t2 = initCityBuild({ x: 1, y: 1 });
+  wireCityAnchor(t2, 100, -40);
+  const cs2 = new Map([['100,-40', { lastVisitDay: 5, stock: {} }]]);
+  t2.deps.cityStates = cs2;
+  let saves2 = 0;
+  t2.deps.saveNow = () => { saves2 += 1; };
+  const errs = [];
+  const origErr = console.error;
+  console.error = (...a) => { errs.push(a.join(' ')); };
+  try {
+    t2.BA.interactCity();
+    assert.equal(t2.o.calls.buildingOpen.length, 1,
+      'меню «Строительство» открыто');
+    t2.o.calls.buildingOpen[0].onAction({ id: 'rename-city' });
+  } finally {
+    console.error = origErr;
+  }
+  assert.ok(errs.some((m) => m.includes('window/document')),
+    'RED: node-деградация транспорта — console.error «window/document» '
+    + '(сейчас: onAction → buildCityAt(t, NaN) → canBuildAt — throw): '
+    + JSON.stringify(errs));
+  assert.equal(saves2, 0, 'RED: диспетчер — saveNow НЕ вызывается (no-op)');
+  assert.equal(t2.ds.name, 'Деревня', 'RED: имя не изменено (no-op)');
+  assert.equal(t2.o.calls.npcOpen.length, 0,
+    'npcUI не открывается (000107)');
+});
+
+test('CI-V16. 000148.05: vm e2e (ДВА boot, одно хранилище): [E] пустая клетка → «Переименовать город» → input-оверлей (заголовок «Имя города», подсказка «Enter — сохранить, Esc — отмена») → keydown-кириллица (e.key, D-.05e) → Enter → ds.name = «Флогистонград» + flash в HUD; выход; save; день +3 (≥ city_respawn_days); 2-й boot → повторный вход: ds.name/record.name = кастомное, built в памяти (persistent), базовый набор НЕ занимает player-built клетку (e2e-пин 3.5)', async () => {
+  const storage = makeStorage();
+  const h = await bootChain(storage);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findCityFor(G, myMap, g.state.player,
+    (c) => c.fp >= 2 && freeCityCell(c) !== null
+      && safeWorldNeighbor(G, myMap, c.tile) !== null);
+  assert.ok(found,
+    'сценарий: город (fp>=2) со свободной клеткой и безопасным '
+    + 'мировым соседом входного тайла (выход/повторный вход)');
+  let now = walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе (авто-вход)');
+  // ДВЕ свободные внутренние клетки: build (target) + rename (free2).
+  const d = found.layout;
+  const occ = new Set(found.contents.buildings
+    .map((b) => b.x + ',' + b.y));
+  const frees = [];
+  for (let y = 1; y < d.height - 1; y++) {
+    for (let x = 1; x < d.width - 1; x++) {
+      if (x === d.entrance.x && y === d.entrance.y) continue;
+      if (d.cells[y * d.width + x] !== G_CELL_FLOOR) continue;
+      if (occ.has(x + ',' + y)) continue;
+      frees.push({ x, y });
+    }
+  }
+  assert.ok(frees.length >= 2,
+    'сценарий: ≥ 2 свободные внутренние клетки (получено '
+    + frees.length + ')');
+  const target = frees[0];
+  const free2 = frees[1];
+  const gold0 = g.state.hero.gold;
+  assert.ok(gold0 >= 30,
+    'сценарий: золото ≥ 30 (цена id 48; стартовое 100, sheet.js:120)');
+  seedSlot(g, 'stone_chunk', 1);
+  const errsBefore = h.errors.length;
+  // (a) Строительство id 48 на target (000148.03/04 — регрессия).
+  walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, target.x, target.y));
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true,
+    '[E] на пустой клетке — меню «Строительство»');
+  let ov = buildingOverlayOf(h);
+  const row48 = findRow(ov, 'build-48');
+  assert.ok(row48, 'строка build-48 в меню');
+  ov.listeners.click[0]({ target: row48 });
+  assert.equal(G.buildingUI.isActive(), false,
+    'оверлей закрыт действием (executeAction)');
+  assert.equal(g.state.hero.gold, gold0 - 30,
+    'золото −30 (build id 48)');
+  // (b) Rename на free2: [E] → «Переименовать город» → input-оверлей.
+  walkCity(h, cityStepsTo({ x: target.x, y: target.y },
+    free2.x, free2.y));
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true,
+    '[E] на пустой клетке — меню «Строительство»');
+  ov = buildingOverlayOf(h);
+  assert.ok(textOf(ov).includes('Переименовать город'),
+    'RED: меню содержит строку «Переименовать город»: '
+    + textOf(ov).slice(0, 300));
+  const rowRen = findRow(ov, 'rename-city');
+  assert.ok(rowRen, 'RED: строка rename-city (data-buid="rename-city")');
+  ov.listeners.click[0]({ target: rowRen });
+  assert.equal(G.buildingUI.isActive(), false,
+    'оверлей закрыт действием (executeAction: close ДО onAction)');
+  const ovIn = buildingOverlayOf(h);
+  assert.ok(ovIn,
+    'RED: input-оверлей (свой, building-actions.js — D-.05j)');
+  assert.ok(textOf(ovIn).includes('Имя города'),
+    'RED: заголовок «Имя города» (D-.05j): ' + textOf(ovIn).slice(0, 200));
+  assert.ok(textOf(ovIn).includes('Enter — сохранить, Esc — отмена'),
+    'RED: подсказка «Enter — сохранить, Esc — отмена» (D-.05j): '
+    + textOf(ovIn).slice(0, 200));
+  // (c) Ввод имени (D-.05e: символы по e.key — КИРИЛЛИЦА, не e.code)
+  //     + Enter (коммит).
+  for (const ch of 'Флогистонград') key(h, 'KeyA', { key: ch });
+  key(h, 'Enter');
+  assert.equal(g.dungeon.name, 'Флогистонград',
+    'RED: ds.name — кастомное (коммит по Enter)');
+  const ck = found.ax + ',' + found.ay;
+  assert.equal(g.cities[ck].name, 'Флогистонград',
+    'RED: record.name в cityStates (ключ — якорь)');
+  // Flash — в HUD (hud.js:264 — append при performance.now() <
+  // flashUntil; в песочнице now заморожен на NOW → flash видим).
+  h.frameFn(now + 200);
+  h.frameFn(now + 400);
+  now += 400;
+  const hudEl = h.sandbox.document.getElementById('hud');
+  assert.ok(textOf(hudEl).includes('Город переименован: Флогистонград'),
+    'RED: flash «Город переименован: <name>» (БЕЗ кавычек, D-.05s): '
+    + textOf(hudEl).slice(0, 300));
+  // (d) Выход: [E] на едином тайле-двери (000177).
+  // ТЕХПРАВКА (ревью 000148.05): cityStepsTo (вертикаль-ПЕРВЫМ) к
+  // двери (южный периметр, y=H−1) пересекает периметр-стену, если
+  // герой не в столбце двери. До фикса гейта ввода этот путь
+  // «работал» СЛУЧАЙНО: баг-движение во время ввода (11× KeyA —
+  // буква «Ф») сдвигал героя на клетку влево — ровно в столбец
+  // двери (сценарий: free2=(2,1), дверь=(1,5)). После фикса ввод
+  // не двигает героя — путь явный: горизонталь в ТЕКУЩЕЙ
+  // (внутренней, FLOOR) строке, затем вертикаль в СТОЛБЦЕ ДВЕРИ
+  // (внутренние FLOOR-строки + клетка двери — FLOOR). СЕМАНТИКА
+  // СЦЕНАРИЯ НЕ ИЗМЕНЕНА (выход с двери), ассерты — без правок.
+  const door = { x: dg.entrance.x, y: dg.entrance.y };
+  const stepsDoor = [];
+  const hxd = door.x < g.dungeon.x ? -1 : 1;
+  for (let x = g.dungeon.x + hxd; x !== door.x + hxd; x += hxd)
+    stepsDoor.push([x, g.dungeon.y]);
+  const vyd = door.y < g.dungeon.y ? -1 : 1;
+  for (let y = g.dungeon.y + vyd; y !== door.y + vyd; y += vyd)
+    stepsDoor.push([door.x, y]);
+  walkCity(h, stepsDoor);
+  key(h, 'KeyE');
+  assert.equal(g.dungeon, null, '[E] на двери — выход из города');
+  assert.equal(g.state.player.x, found.tile.x,
+    'герой на входном тайле мира: x');
+  assert.equal(g.state.player.y, found.tile.y,
+    'герой на входном тайле мира: y');
+  // (e) Save + день +3 (≥ city_respawn_days = 3 — persistent ВНЕ окна).
+  fireBeforeUnload(h);
+  const saved = JSON.parse(storage.getItem(SAVE_KEY));
+  assert.ok(saved, 'сейв записан в хранилище');
+  const recS = saved.data.cities[ck];
+  assert.ok(recS, 'RED: запись города в сейве (persistent — вне окна)');
+  assert.equal(recS.name, 'Флогистонград', 'RED: name в сейве');
+  assert.deepEqual(JSON.parse(JSON.stringify(recS.built)),
+    [{ x: target.x, y: target.y, buildingId: 48, player: true }],
+    'RED: built в сейве (состав — persistent)');
+  saved.data.day += 3;
+  storage.setItem(SAVE_KEY, JSON.stringify(saved));
+  // (f) 2-й boot (паттерн CI-134B): повторный вход — имя и состав
+  //     переживают окно; базовый набор НЕ занимает player-built
+  //     клетку (occupied → regeneration, e2e-пин 3.5).
+  const h2 = await bootChain(storage);
+  const g2 = h2.sandbox.__game;
+  const G2 = h2.sandbox.Game;
+  assert.ok(g2.state.save && g2.state.save.version === 1,
+    'boot 2: сейв прочитан (не «вакуумный»)');
+  const myMap2 = G2.createMap(G2.generateSeedPixels());
+  const away = safeWorldNeighbor(G2, myMap2,
+    { x: found.tile.x, y: found.tile.y });
+  assert.ok(away, 'сценарий: безопасный сосед входного тайла');
+  walkTiles(h2, NOW, [away, [found.tile.x, found.tile.y]]);
+  const dg2 = g2.dungeon;
+  assert.ok(dg2 && dg2.kind === 'city', 'повторный вход (авто-вход)');
+  assert.equal(dg2.name, 'Флогистонград',
+    'RED: ds.name — кастомное после повторного входа '
+    + '(переживает окно респауна — 000148.05)');
+  const rec2 = g2.cities[ck];
+  assert.equal(rec2.name, 'Флогистонград',
+    'RED: record.name в памяти (2-й boot, persistent)');
+  assert.deepEqual(JSON.parse(JSON.stringify(rec2.built)),
+    [{ x: target.x, y: target.y, buildingId: 48, player: true }],
+    'RED: built переживает окно (состав — persistent)');
+  assert.equal(rec2.lastVisitDay, g2.state.day,
+    'stock ПЕРЕГЕНЕРИРОВАН (свежий визит — lastVisitDay = день входа)');
+  assert.ok(!dg2.buildings.some((b) => b.x === target.x
+      && b.y === target.y && b.player !== true),
+    'RED: базовый набор НЕ занимает player-built клетку '
+    + '(occupied — фильтр spots, e2e-пин 3.5): '
+    + JSON.stringify(dg2.buildings.filter(
+      (b) => b.x === target.x && b.y === target.y)));
+  assert.equal(h2.errors.length, 0,
+    'boot 2: без console.error: ' + h2.errors.join('; '));
+  assert.equal(h.errors.length, errsBefore,
+    'boot 1: без console.error: '
+    + h.errors.slice(errsBefore).join('; '));
+});
+
+// ============================================================
+// 000148.05 (ревью) — гейт ввода: движение и [E] блокированы,
+// пока открыт input-оверлей переименования (CI-V17)
+// ============================================================
+// Findings ревью: (1) буквы Ц/Ф/Ы/В (игровая раскладка =
+// KeyW/KeyA/KeyS/KeyD) шли каналом dungeon-ui (window keydown,
+// зарегистрирован ДО main.js; stopPropagation НЕ гасит другие
+// window-слушатели) — герой двигался, пока шло имя; гейт main.js
+// keydown (D-.05p) этот канал не накрывал; тач-D-pad
+// (touchHoldStep) — тот же канал ctx.onMove. (2) [E] на двери с
+// открытым вводом — выход (гард D-.05k — в interactCity, путь
+// interactExit не накрыт). Правка: гейт renameInputActive в
+// cityOnMove (ОБА канала движения — клавиатура и тач) и в
+// locationOnInteract (ветка города). Сценарий гарантирует, что
+// без гейта движение ВОЗМОЖНО (свободная клетка со свободным
+// FLOOR-соседом справа + вводится ВСЕ ЧЕТЫРЕ буквы направлений —
+// честный красный; ловушка CI-V16: «11× KeyA в заблокированную
+// стену, позиция после ввода не ассертится»).
+
+// Свободная ВНУТРЕННЯЯ FLOOR-клетка со СВОБОДНОЙ ВНУТРЕННЕЙ
+// FLOOR-клеткой справа (≠ дверь, без построек) — сценарий
+// CI-V17: без гейта первый введённый символ-направление
+// (правый сосед свободен — 'в'/KeyD) гарантированно сдвинул бы
+// героя. null — мест нет.
+function freeCellWithFreeRightNeighbor(info) {
+  const d = info.layout;
+  const occupied = new Set(
+    (info.contents ? info.contents.buildings : [])
+      .map((b) => b.x + ',' + b.y));
+  for (let y = 1; y < d.height - 1; y++) {
+    for (let x = 1; x < d.width - 2; x++) {
+      if (x === d.entrance.x && y === d.entrance.y) continue;
+      if (d.cells[y * d.width + x] !== G_CELL_FLOOR) continue;
+      if (occupied.has(x + ',' + y)) continue;
+      const nx = x + 1;
+      if (nx === d.entrance.x && y === d.entrance.y) continue;
+      if (d.cells[y * d.width + nx] !== G_CELL_FLOOR) continue;
+      if (occupied.has(nx + ',' + y)) continue;
+      return { x, y };
+    }
+  }
+  return null;
+}
+
+test('CI-V17. 000148.05 (ревью): с открытым input-оверлеем переименования — (a) ввод букв Ц/Ф/Ы/В (клавиши движения игровой раскладки) НЕ двигает героя (канал dungeon-ui keydown → ctx.onMove → cityOnMove) и draft собирает ВСЕ символы; (b) [E] на пустой клетке во время ввода — no-op (нет выхода, нет buildingUI поверх — контракт D-.05p); (c) тач-D-pad (G.dungeonUI.touchHold) не двигает героя; Esc — тихая отмена, имя и позиция не изменены', async () => {
+  const storage = makeStorage();
+  const h = await bootChain(storage);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findCityFor(G, myMap, g.state.player,
+    (c) => c.fp >= 2 && freeCellWithFreeRightNeighbor(c) !== null);
+  assert.ok(found,
+    'сценарий: город (fp>=2) со свободной клеткой, у которой '
+    + 'свободный правый FLOOR-сосед');
+  walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе (авто-вход)');
+  const name0 = dg.name;
+  const free = freeCellWithFreeRightNeighbor(found);
+  assert.ok(free, 'сценарий: свободная клетка со свободным соседом');
+  const errsBefore = h.errors.length;
+  // Открытие input-оверлея: [E] на свободной клетке →
+  // «Переименовать город» (то же, что CI-V16(b)).
+  walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, free.x, free.y));
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true,
+    '[E] на пустой клетке — меню «Строительство»');
+  const ov = buildingOverlayOf(h);
+  const rowRen = findRow(ov, 'rename-city');
+  assert.ok(rowRen, 'строка «Переименовать город»');
+  ov.listeners.click[0]({ target: rowRen });
+  const ovIn = buildingOverlayOf(h);
+  assert.ok(ovIn && textOf(ovIn).includes('Имя города'),
+    'input-оверлей открыт: '
+    + (ovIn ? textOf(ovIn).slice(0, 200) : '—'));
+  const x0 = g.dungeon.x, y0 = g.dungeon.y;
+  // (a) Ввод ВСЕХ ЧЕТЫРЁХ букв-направлений игровой раскладки
+  //     (ц=KeyW, ф=KeyA, ы=KeyS, в=KeyD — e.code физический,
+  //     e.key — символ раскладки, D-.05e). БЕЗ гейта: каждый
+  //     символ шагал героя (dungeon-ui keydown → ctx.onMove →
+  //     cityOnMove; гейт main.js keydown (D-.05p) этот канал не
+  //     накрывает, а «в» — правый сосед свободен).
+  for (const [code, ch] of [['KeyW', 'ц'], ['KeyA', 'ф'],
+       ['KeyS', 'ы'], ['KeyD', 'в']]) key(h, code, { key: ch });
+  assert.equal(g.dungeon.x, x0,
+    'RED (ревью): герой НЕ сдвинулся во время ввода — x '
+    + '(буквы ЦФЫВ = клавиши движения)');
+  assert.equal(g.dungeon.y, y0,
+    'RED (ревью): герой НЕ сдвинулся во время ввода — y');
+  assert.ok(textOf(ovIn).includes('цфыв▌'),
+    'draft собрал ВСЕ 4 символа (гейт не ломает сам ввод): '
+    + textOf(ovIn).slice(0, 200));
+  // (b) [E] на пустой клетке во время ввода — no-op (контракт
+  //     D-.05p «KeyE блокирован»): выход НЕ случился, buildingUI
+  //     НЕ открылся поверх input-оверлея, имя не изменено.
+  key(h, 'KeyE');
+  assert.ok(g.dungeon,
+    'выхода во время ввода НЕТ (g.dungeon не null)');
+  assert.equal(G.buildingUI.isActive(), false,
+    'buildingUI не открылся поверх input-оверлея (000107/D-.05k)');
+  assert.equal(g.dungeon.name, name0,
+    'имя не изменено ([E] во время ввода — no-op)');
+  // (c) Тач-D-pad — тот же канал ctx.onMove (touchHoldStep →
+  //     cityOnMove): во время ввода — шага НЕТ.
+  for (const dir of ['right', 'left', 'up', 'down'])
+    G.dungeonUI.touchHold(dir);
+  assert.equal(g.dungeon.x, x0,
+    'RED (ревью): тач-D-pad не двигает героя — x');
+  assert.equal(g.dungeon.y, y0,
+    'RED (ревью): тач-D-pad не двигает героя — y');
+  // Esc — тихая отмена (picker-паттерн, D-.05e): оверлей снят,
+  // имя не изменено, saveNow не вызывался (имя = каталожное).
+  key(h, 'Escape');
+  assert.equal(buildingOverlayOf(h), null,
+    'Esc — input-оверлей снят из DOM');
+  assert.equal(g.dungeon.name, name0,
+    'Esc — имя не изменено (тихая отмена)');
+  assert.equal(g.dungeon.x, x0, 'позиция — не изменена (x)');
+  assert.equal(g.dungeon.y, y0, 'позиция — не изменена (y)');
+  assert.equal(h.errors.length, errsBefore,
+    'без console.error: ' + h.errors.slice(errsBefore).join('; '));
 });

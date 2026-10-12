@@ -646,12 +646,14 @@ function typesOf(res) {
 
 // --- API, константа, сид ---
 
-test('000106 API: generateCityContents — функция (ровно 5 параметров), CITY_CONTENT_CONST — число', () => {
+test('000106 API: generateCityContents — функция (ровно 6 параметров — 000148.05: +occupied), CITY_CONTENT_CONST — число', () => {
   const C = loadCities();
   assert.equal(typeof C.generateCityContents, 'function',
-    'generateCityContents(layout, cityX, cityY, cityRecord, wealth)');
-  assert.equal(C.generateCityContents.length, 5,
-    'ровно 5 параметров: totalXp-параметра НЕТ (город не меняется с опытом)');
+    'generateCityContents(layout, cityX, cityY, cityRecord, wealth,'
+    + ' occupied)');
+  assert.equal(C.generateCityContents.length, 6,
+    'ровно 6 параметров: totalXp-параметра НЕТ (город не меняется с '
+    + 'опытом); 6-й — occupied (000148.05, D10: клетки built)');
   assert.equal(typeof C.CITY_CONTENT_CONST, 'number',
     'CITY_CONTENT_CONST — зафиксированная соль содержимого');
 });
@@ -1851,9 +1853,10 @@ test('000109 R3: ОБРЕЗКА при сейве И при восстановл
 //    000148.02); placeBuilding/demolishCity — ЧИСТЫЕ (копии);
 //  * разборка — floor(золото × 3 / 10) ЦЕЛОЧИСЛЕННО (10 → 3).
 //
-// 000109 R1–R3 (выше) — НЕ ТРОГАТЬ: built пока — В-ПАМЯТИ поле записи
-// cityStates (персистентность — 000148.05), validateCityState не
-// расширяется (built отсекается — граница задач).
+// 000109 R1–R3 (выше) — БЕЗ ПРАВКИ (D-.05i): 000148.05 РАСШИРИЛО
+// validateCityState (persistent-поля name/built — ДВЕ природы полей,
+// D6) — но dirty-записи R1–R3 без persistent-полей отбрасываются так
+// же, как и раньше (запись живёт при ≥ 1 валидном поле).
 
 // Набор D3 (ровно 21; верифицирован по всем 54 JSON — a1-анализ):
 // map_index: 1,2,3,4,7,8,10,11,25,36,40,44 (минус 31 — пещеры) +
@@ -2204,4 +2207,253 @@ test('000148.04 R18: demolishCity — результат несёт refundItems 
     [{ предмет: 'hide', количество: 2 }],
     'RED: id 7 (Арена, hide ×8) → floor 30% = ×2');
   assert.deepEqual(rec7, before7, 'вход НЕ мутирован (id 7)');
+});
+
+// ============================================================
+// 000148.05 — Имена городов + персистентность состава (красные
+// R22–R26)
+// ============================================================
+// Контракт: memory/000148.05-city-name-persistence.md §3.1–§3.4
+// (D6/D-.05i — ДВЕ природы полей; D-.05a — warn битого persistent-
+// ПОЛЯ; D-.05g — validateCityName; D-.05c/D10 — occupied).
+// КРАСНЫЕ (TDD): функциональности нет —
+//  * R22/R23 — validateCityState (cities.js:527-535): истёкшее окно
+//    (day − last ≥ respawnDays) / отсутствие lastVisitDay → ВСЯ запись
+//    null; в-окне — return ТОЛЬКО {lastVisitDay, stock}: persistent-
+//    поля (name/built) теряются даже в-окне;
+//  * R24 — НОЛЬ console.warn в cities.js (полевого warn нет —
+//    persistent-поля отбрасываются молча);
+//  * R25 — экспорт validateCityName отсутствует (typeof undefined);
+//  * R26 — generateCityContents.length === 5 (6-го параметра occupied
+//    нет, пин :649 — расшиren на зелёной стадии).
+// 000109 R2/R3 (выше) — НЕ ТРОГАТЬ (D-.05i): все их dirty-записи без
+// persistent-полей → те же отбросы (запись живёт только при ≥ 1
+// валидном поле — битая пара {lastVisitDay, stock} всё ещё убивает
+// запись без persistent-полей).
+
+// Спай console.warn (канал D-.05a: сообщение содержит 'cities').
+function withWarns(fn) {
+  const orig = console.warn;
+  const warns = [];
+  console.warn = (...a) => { warns.push(a.join(' ')); };
+  try {
+    return { res: fn(), warns };
+  } finally {
+    console.warn = orig;
+  }
+}
+
+test('000148.05 R22: roundtrip — name+built ЖИВУТ при истёкшем окне stock (day=10, r=3, last=1): запись = {name, built}, lastVisitDay/stock отброшены; restore — то же (ТЗ «roundtrip … name+built живут при истёкшем окне»)', () => {
+  const C = loadCities();
+  const input = {
+    '20,-16': {
+      lastVisitDay: 1,                       // 10 − 1 = 9 ≥ 3 — истёк
+      stock: { '2,2': { bread: 1 } },
+      name: 'Флогистонград',
+      built: [{ x: 2, y: 2, buildingId: 1, player: true }],
+    },
+  };
+  const serialized = C.serializeCityStates(input, 10, 3);
+  assert.deepEqual(serialized, {
+    '20,-16': {
+      name: 'Флогистонград',
+      built: [{ x: 2, y: 2, buildingId: 1, player: true }],
+    },
+  }, 'RED: transient-пара (истёкшая) тихо отброшена, persistent '
+    + 'переживает (сейчас: запись целиком null → {})');
+  const restored = C.restoreCityStates(serialized, 10, 3);
+  assert.deepEqual(restored.get('20,-16'), {
+    name: 'Флогистонград',
+    built: [{ x: 2, y: 2, buildingId: 1, player: true }],
+  }, 'RED: restore — persistent-поля живут ВНЕ окна');
+  // Вход не мутируется (000109).
+  assert.deepEqual(input['20,-16'], {
+    lastVisitDay: 1, stock: { '2,2': { bread: 1 } },
+    name: 'Флогистонград',
+    built: [{ x: 2, y: 2, buildingId: 1, player: true }],
+  }, 'вход не мутирован');
+});
+
+test('000148.05 R23: persistent-only запись (БЕЗ transient: нет lastVisitDay/stock) живёт при ЛЮБОМ дне (окно не убивает persistent)', () => {
+  const C = loadCities();
+  const input = {
+    '30,0': {
+      name: 'Флогистонград',
+      built: [{ x: 2, y: 2, buildingId: 1, player: true }],
+    },
+  };
+  const serialized = C.serializeCityStates(input, 100, 3);
+  assert.deepEqual(serialized, input,
+    'RED: без lastVisitDay — окно не убивает запись (сейчас: '
+    + 'Number.isInteger(undefined) → null → {})');
+  const restored = C.restoreCityStates(serialized, 1, 3);
+  assert.ok(restored instanceof Map, 'restore — Map');
+  assert.deepEqual(restored.get('30,0'), input['30,0'],
+    'RED: restore при ЛЮБОМ дне (day=1) — запись жива');
+});
+
+test('000148.05 R24: битое persistent-ПОЛЕ → console.warn (msg содержит «cities») + отброс ПОЛЯ, запись жива; битый ВХОД built → warn + отброс входа (валидный без player — D-.05o: нормализация {x,y,buildingId,player:true}); без единого валидного поля → запись отброшена', () => {
+  const C = loadCities();
+  // (a) name: 42 — warn; transient-пара цела, запись жива.
+  let q = withWarns(() => C.serializeCityStates(
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } },
+      name: 42 } }, 20, 3));
+  assert.ok(q.warns.length >= 1 && /cities/i.test(q.warns[0]),
+    'RED: name: 42 — console.warn с «cities» (сейчас: warn'
+    + 'ов в cities.js НЕТ): ' + JSON.stringify(q.warns));
+  assert.deepEqual(q.res,
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } } } },
+    'запись жива — {lastVisitDay, stock} цела (поле отброшено)');
+  // (b) name: {a:1} — то же.
+  q = withWarns(() => C.serializeCityStates(
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } },
+      name: { a: 1 } } }, 20, 3));
+  assert.ok(q.warns.length >= 1 && /cities/i.test(q.warns[0]),
+    'RED: name: {a:1} — warn: ' + JSON.stringify(q.warns));
+  assert.deepEqual(q.res,
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } } } });
+  // (c) built: 'nope' (не-массив) — warn + отброс ПОЛЯ.
+  q = withWarns(() => C.serializeCityStates(
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } },
+      built: 'nope' } }, 20, 3));
+  assert.ok(q.warns.length >= 1 && /cities/i.test(q.warns[0]),
+    'RED: built: "nope" — warn: ' + JSON.stringify(q.warns));
+  assert.deepEqual(q.res,
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } } } },
+    'запись жива — built отброшено');
+  // (d) built: массив с мусорным входом — warn + отброс ВХОДА;
+  // валидный вход БЕЗ player (D-.05o) — нормализация.
+  q = withWarns(() => C.serializeCityStates(
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } },
+      built: [{ x: 2, y: 2, buildingId: 1 }, { x: '2', y: 2 }] } },
+    20, 3));
+  assert.ok(q.warns.length >= 1 && /cities/i.test(q.warns[0]),
+    'RED: мусорный вход built — warn: ' + JSON.stringify(q.warns));
+  assert.deepEqual(q.res, {
+    '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } },
+      built: [{ x: 2, y: 2, buildingId: 1, player: true }] },
+  }, 'RED: валидный вход (без player) — canonical {x,y,buildingId,'
+    + 'player:true}, мусор отброшен (сейчас: built молча теряется)');
+  // (e) {lastVisitDay: '18'} — валидных полей НЕТ → запись отброшена
+  // (держит R7-кейс save.test.js:1287 — {} без правки, D-.05i).
+  q = withWarns(() => C.serializeCityStates(
+    { '20,-16': { lastVisitDay: '18' } }, 20, 3));
+  assert.deepEqual(q.res, {},
+    'без единого валидного поля — запись отброшена');
+  // restore-сторона: name: 42 → warn + отброс поля, запись жива.
+  q = withWarns(() => C.restoreCityStates(
+    { '20,-16': { lastVisitDay: 18, stock: { '2,2': { bread: 2 } },
+      name: 42 } }, 20, 3));
+  assert.ok(q.warns.length >= 1 && /cities/i.test(q.warns[0]),
+    'RED: restore — warn на битое name: ' + JSON.stringify(q.warns));
+  assert.deepEqual(q.res.get('20,-16'),
+    { lastVisitDay: 18, stock: { '2,2': { bread: 2 } } },
+    'restore: запись жива без name');
+});
+
+test('000148.05 R25: validateCityName (ЧИСТАЯ, cities.js, export): 33 символа — отказ; 32 — ок; trim; пустое после trim — отказ; кириллица/латиница/цифры/пробелы — ок; посторонние символы — отказ; не-строка — отказ (D7)', () => {
+  const C = loadCities();
+  assert.equal(typeof C.validateCityName, 'function',
+    'RED: экспорт validateCityName(raw) — нет в return-блоке cities.js');
+  assert.equal(C.validateCityName('А'.repeat(32)), 'А'.repeat(32),
+    '32 символа — ок (граница Д7)');
+  assert.equal(C.validateCityName('А'.repeat(33)), null,
+    'RED: 33 символа — отказ');
+  assert.equal(C.validateCityName(' А1 '), 'А1', 'RED: trim');
+  assert.equal(C.validateCityName(''), null, 'пустая — отказ');
+  assert.equal(C.validateCityName('   '), null,
+    'RED: пустое после trim — отказ');
+  assert.equal(C.validateCityName('Флогистонград'), 'Флогистонград',
+    'кириллица — ок');
+  assert.equal(C.validateCityName('Flagonstad'), 'Flagonstad',
+    'латиница — ок');
+  assert.equal(C.validateCityName('Город 2'), 'Город 2',
+    'цифры + пробел — ок');
+  assert.equal(C.validateCityName('Ёлка ёлка'), 'Ёлка ёлка',
+    'Ё/ё — ок');
+  assert.equal(C.validateCityName('с-тире'), null,
+    'RED: дефис — отказ (вне charset Д7)');
+  assert.equal(C.validateCityName('с_подчёркиванием'), null,
+    'RED: подчёркивание — отказ');
+  assert.equal(C.validateCityName('с "кавычками"'), null,
+    'кавычки — отказ');
+  assert.equal(C.validateCityName(42), null, 'не-строка — отказ');
+  assert.equal(C.validateCityName(null), null, 'null — отказ');
+});
+
+// 000148.05: НОВЫЙ golden occupied-случая (осознанный ре-пин — ТЗ
+// «regeneration avoids built; contents golden re-pinned consciously»):
+// ключ 'id,x,y,wealth:occN' — occupied = ПЕРВЫЕ N клеток интерьера
+// деревни (−114,−119) в y→x-скане. seed зафиксирован (D10: фильтр в
+// spots-цикле — НОВЫХ rng-вызовов нет); литерал buildings — пиннётся
+// ПОСЛЕ ПЕРВОГО ЗЕЛЁНОГО (null — плейсхолдер, паттерн 000104/000106).
+const GOLDEN_CONTENT_OCC = {
+  // 000148.05 (осознанный ре-пин — первый зелёный): один свободный
+  // spot (4,4) → таверна 44 (постройка 0 — тип без rng); 2-я
+  // takeSpot — мест нет → break → 1 постройка.
+  '52,-114,-119,3:14': { seed: 4224836588,
+    buildings: [{ x: 4, y: 4, buildingId: 44 }] },
+};
+
+test('000148.05 R26: generateCityContents(…, occupied) — 6-й optional-параметр (Д10): absent/пусто → БИТ-В-БИТ с 5-арг. (GOLDEN_CONTENT); базовый набор НЕ занимает built-клетки; ВСЕ spots occupied → buildings: [] (graceful); новый golden — null-плейсхолдер', () => {
+  const C = loadCities();
+  assert.equal(C.generateCityContents.length, 6,
+    'RED: 6 параметров (occupied — 000148.05; сейчас ровно 5, пин :649)');
+  // (a) absent/пусто → БИТ-В-БИТ с 5-арг. по ВСЕМ GOLDEN_CONTENT (Д10:
+  // НОВЫХ rng-вызовов нет — seed и список не меняются).
+  for (const [key, g] of Object.entries(GOLDEN_CONTENT)) {
+    const [id, x, y, w] = key.split(',').map(Number);
+    const { res, L, rec } = genFor(C, id, x, y, w);
+    for (const occ of [undefined, null, []]) {
+      const r6 = C.generateCityContents(L, x, y, rec, w, occ);
+      assert.equal(r6.seed, g.seed,
+        'golden ' + key + ' occ=' + String(occ)
+        + ': seed без изменений (Д10)');
+      assert.deepEqual(r6.buildings, res.buildings,
+        'golden ' + key + ' occ=' + String(occ)
+        + ' — БИТ-В-БИТ с 5-арг.');
+    }
+  }
+  // (b) деревня (−114,−119) w3: occupied = 14 из 16 интерьерных
+  // (y→x; свободны (3,4)/(4,4)) → ВСЕ сгенерированные buildings вне
+  // occupied; seed без изменений (Д10).
+  const { res: base, L, rec } = genFor(C, 52, -114, -119, 3);
+  assert.equal(base.buildings.length, 5, 'сценарий: w3 → 5 построек');
+  const interior = [];
+  for (let y = 1; y <= 4; y++)
+    for (let x = 1; x <= 4; x++) interior.push([x, y]);
+  const occ14 = interior.slice(0, 14).map(([x, y]) => x + ',' + y);
+  const r14 = C.generateCityContents(L, -114, -119, rec, 3, occ14);
+  assert.equal(r14.seed, 4224836588,
+    'RED: occupied — seed без изменений (Д10: rng-поток не смещён)');
+  for (const b of r14.buildings) {
+    assert.ok(!occ14.includes(b.x + ',' + b.y),
+      'RED: постройка НЕ на built-клетке (occupied — фильтр spots): '
+      + JSON.stringify(b));
+  }
+  // (c) ВСЕ 16 spots occupied → buildings: [] (graceful-стоп — как
+  // хутор fp1; без throw и зацикливания).
+  const rAll = C.generateCityContents(
+    L, -114, -119, rec, 3,
+    interior.map(([x, y]) => x + ',' + y));
+  assert.deepEqual(rAll.buildings, [],
+    'RED: все spots occupied → buildings: [] (сейчас: occupied '
+    + 'игнорируется → 5 базовых)');
+  // (d) Новый golden occupied-случая (000148.05).
+  for (const [key, g] of Object.entries(GOLDEN_CONTENT_OCC)) {
+    const [key0, occN] = key.split(':');
+    const [id, x, y, w] = key0.split(',').map(Number);
+    const { L: Lg, rec: recg } = genFor(C, id, x, y, w);
+    const n = Number(occN);
+    const interiorG = [];
+    for (let yy = 1; yy <= 4; yy++)
+      for (let xx = 1; xx <= 4; xx++) interiorG.push([xx, yy]);
+    const occ = interiorG.slice(0, n).map(([xx, yy]) => xx + ',' + yy);
+    const r = C.generateCityContents(Lg, x, y, recg, w, occ);
+    assert.equal(r.seed, g.seed,
+      'RED: golden-occ ' + key + ': seed зафиксирован (Д10)');
+    if (g.buildings === null) continue; // пин — после первого зелёного
+    assert.deepEqual(r.buildings, g.buildings,
+      'golden-occ ' + key + ': buildings');
+  }
 });

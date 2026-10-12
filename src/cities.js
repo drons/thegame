@@ -264,13 +264,22 @@ function (perlin, items, buildings, rootRef) {
    * @param {object} cityRecord запись каталога города (000102):
    *        особые_параметры.мин_постройки / доли_типов (000053)
    * @param {number} wealth богатство якоря 0..3 (из tileAt, 000103)
+   * @param {Set<string>|Array<string>} [occupied] 000148.05 (D10):
+   *        ключи 'x,y' клеток, занятых ПОСТРОЙКАМИ ИГРОКА (built —
+   *        builtOccupied): базовый набор ИХ НЕ ЗАНИМАЕТ. Нормализуется
+   *        (D-.05c, паттерн canBuildAt: Set | массив ключей | absent;
+   *        прочее → пустой Set — fail-open). НОВЫХ rng-вызовов НЕТ:
+   *        фильтр ТОЛЬКО в spots-цикле — absent/пусто → БИТ-В-БИТ с
+   *        5-арг. вызовом (GOLDEN_CONTENT); занятые spots СМЕЩАЮТ
+   *        базовый состав (намеренно — осознанный ре-пин 000148.05).
    * @returns {{ buildings:{x:number, y:number, buildingId:number}[],
    *             seed:number }}
    *   seed — для стоков 000108 и сейва 000109. buildings.length <
    *   count — легитимно (GRACEFUL-стоп: валидных мест с сохранной
-   *   достижимостью меньше, чем count).
+   *   достижимостью меньше, чем count; ВСЕ spots occupied → []).
    */
-  function generateCityContents(layout, cityX, cityY, cityRecord, wealth) {
+  function generateCityContents(layout, cityX, cityY, cityRecord, wealth,
+                                occupied) {
     validateContentLayout(layout);
     validateWealth(wealth);
     const { min, shares } = validateCityRecord(cityRecord);
@@ -282,14 +291,21 @@ function (perlin, items, buildings, rootRef) {
     const cells = layout.cells.slice(); // своя копия — layout не мутируем
     const entrance = layout.entrance, exit = layout.exit;
 
-    // Кандидатные места: FLOOR минус entrance/exit, стабильный
-    // порядок y→x — считаем ОДИН раз (паттерн takeSpot).
+    // 000148.05 (D10/D-.05c): occupied — клетки ПОСТРОЕК ИГРОКА
+    // (built): базовый набор их НЕ занимает. Нормализация — дословно
+    // canBuildAt (Set | массив ключей | absent; прочее → пустой Set).
+    // absent/пусто → spots идентичен 5-арг. вызову — БИТ-В-БИТ.
+    const occSet = new Set(occupied instanceof Set
+      ? occupied : (Array.isArray(occupied) ? occupied : []));
+    // Кандидатные места: FLOOR минус entrance/exit минус occupied,
+    // стабильный порядок y→x — считаем ОДИН раз (паттерн takeSpot).
     const spots = [];
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
         if (cells[y * W + x] !== CELL_FLOOR) continue;
         if ((x === entrance.x && y === entrance.y) ||
             (x === exit.x && y === exit.y)) continue;
+        if (occSet.has(x + ',' + y)) continue; // 000148.05 (D10)
         spots.push([x, y]);
       }
     // Хутор (fp1): FLOOR только единый тайл (000177) → мест нет →
@@ -314,15 +330,18 @@ function (perlin, items, buildings, rootRef) {
       return active[active.length - 1].id; // r на границе суммы
     };
 
-    const occupied = new Set();
+    // taken — базовые постройки ТОЛЬКО (000148.05: параметр occupied
+    // — клетки ИГРОКА — в достижимости НЕ участвует: герой ходит по
+    // постройкам, .03; имя — параметр не затеняется).
+    const taken = new Set();
     const buildings = [];
     const count = min + wealth;
     const tavernInPool = shares.some((t) => t.id === TAV_ID);
 
     // Разместить на (x, y) не ломает ли достижимость: BFS,
-    // постройки (occupied ∪ {кандидат}) = стены.
+    // постройки (taken ∪ {кандидат}) = стены.
     const placeable = (x, y) => {
-      const blocked = new Set(occupied);
+      const blocked = new Set(taken);
       blocked.add(x + ',' + y);
       return reachOK(cells, W, H, entrance, blocked);
     };
@@ -334,16 +353,16 @@ function (perlin, items, buildings, rootRef) {
       for (let i = 0; i < PLACE_ATTEMPTS; i++) {
         const s = spots[Math.floor(rng() * spots.length)];
         const k = s[0] + ',' + s[1];
-        if (occupied.has(k)) continue;
+        if (taken.has(k)) continue;
         if (!placeable(s[0], s[1])) continue;
-        occupied.add(k);
+        taken.add(k);
         return { x: s[0], y: s[1] };
       }
       for (const s of spots) {
         const k = s[0] + ',' + s[1];
-        if (occupied.has(k)) continue;
+        if (taken.has(k)) continue;
         if (!placeable(s[0], s[1])) continue;
-        occupied.add(k);
+        taken.add(k);
         return { x: s[0], y: s[1] };
       }
       return null;
@@ -476,6 +495,11 @@ function (perlin, items, buildings, rootRef) {
   // Раздел сейва `cities` (имя зафиксировано 000072; формат —
   // контракт 000108, НЕ переименовывать):
   //   { 'cx,cy': { lastVisitDay: N, stock: { 'tx,ty': {itemId: qty} } } }
+  // 000148.05 (D6): + PERSISTENT-поля name (string, 1–32) / built
+  // ([{x, y, buildingId, player: true}]) — живут ВНЕ окна респауна и
+  // регенерации; пишутся в сейв ТОЛЬКО при наличии (absent = default,
+  // неломко v1 — версия НЕ поднимается, 000031); окно (3 дня) обрезает
+  // ТОЛЬКО transient-пару {lastVisitDay, stock} (D-.05i).
   // где 'cx,cy' — ЯКОРЬ города (buildingAnchor, НЕ тайл входа),
   // 'tx,ty' — локальная клетка лавки (x/y shop-объекта
   // makeCityShop), дни АБСОЛЮТНЫЕ (000031: fastForward при
@@ -520,18 +544,132 @@ function (perlin, items, buildings, rootRef) {
     return out;
   }
 
-  // Запись раздела: { lastVisitDay: int ≥ 1, stock: plain-объект } в
-  // окне респауна: lastVisitDay ≤ day И day − lastVisitDay <
-  // respawnDays («будущее»/истёкшее — отброс, формула — dueForRespawn
-  // day.js:96). Чистая копия; null — запись отбрасывается.
+  // 000148.05 (D7, D-.05g): ИМЯ ГОРОДА — единая точка правил: 1–32
+  // символа, буквы кириллицы/латиницы (Ё/ё — да), цифры, пробелы;
+  // ввод обрезается (trim); пустое после trim / >32 / посторонние
+  // символы / не-строка → null (отказ). ЧИСТАЯ; load-time-чистая
+  // (CITY_NAME_RE — константа без side-effect — 0 warn/error при
+  // загрузке, cities.test.js:1155). Применение (record/ds.name/
+  // flash/saveNow) — building-actions.js (D-.05g).
+  const CITY_NAME_RE = /^[А-Яа-яЁёA-Za-z0-9 ]+$/;
+
+  /**
+   * @param {*} raw введённое/сохранённое имя
+   * @returns {string|null} тримнутое имя (1–32, charset) | null
+   */
+  function validateCityName(raw) {
+    if (typeof raw !== 'string') return null;
+    const s = raw.trim();
+    if (s.length < 1 || s.length > 32) return null;
+    if (!CITY_NAME_RE.test(s)) return null;
+    return s;
+  }
+
+  /**
+   * Клетки built (ПОСТРОЙКИ ИГРОКА) записи города → Set<'x,y'>
+   * (000148.05, D10): occupied для generateCityContents — ОДИН
+   * источник для ОБЕИХ точек генерации (maybeEnterCity +
+   * prepareCityState — рассинхрон = «фантомные» базовые на
+   * player-клетках, §3.5 контракта).
+   * null — record не-объект/массив ИЛИ built не-массив (вызывающий
+   * → occupied absent = no-op, БИТ-В-БИТ с 5-арг.). Записи: не-
+   * объект/массив/не-целые x/y/buildingId → skip; player !== true →
+   * skip (в достижимых записях всегда true — placeBuilding /
+   * validateCityState-нормализация); id ∉ каталогу → skip (fail-open
+   * 000029; каталог ЛЕНИВ buildingsRef — только на вызове, load-time
+   * чистота сохраняется). footprint w×h (B.buildingSize, default 1×1)
+   * от ВЕРХНЕГО-ЛЕВОГО угла (D-C 000148.03). БЕЗ интерьерной
+   * проверки (spots — interior FLOOR по построению; чужие ключи в
+   * Set не влияют; интерьер-проверка — у merge-цикла main.js).
+   * Пустой Set — легитимен (built: []).
+   * @returns {Set<string>|null}
+   */
+  function builtOccupied(record) {
+    if (!record || typeof record !== 'object' || Array.isArray(record))
+      return null;
+    const built = record.built;
+    if (!Array.isArray(built)) return null;
+    const out = new Set();
+    const B = buildingsRef();
+    for (const e of built) {
+      if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
+      if (!Number.isInteger(e.x) || !Number.isInteger(e.y) ||
+          !Number.isInteger(e.buildingId)) continue;
+      if (e.player !== true) continue;
+      const b = B.getBuilding ? B.getBuilding(e.buildingId) : null;
+      if (!b) continue; // id ∉ каталогу — fail-open (000029)
+      const size = B.buildingSize
+        ? B.buildingSize(b) : { width: 1, height: 1 };
+      const { width, height } = size;
+      for (let dy = 0; dy < height; dy++)
+        for (let dx = 0; dx < width; dx++)
+          out.add((e.x + dx) + ',' + (e.y + dy));
+    }
+    return out;
+  }
+
+  // Запись раздела — ДВЕ ПРИРОДЫ ПОЛЕЙ (000109 + 000148.05, D6):
+  //  * TRANSIENT-пара {lastVisitDay, stock} — ВСЕ-ИЛИ-НИЧЕГО, ТЕКУЩИЕ
+  //    правила 000109 БЕЗ ИЗМЕНЕНИЙ (D-.05i): lastVisitDay целое ≥ 1,
+  //    last ≤ day, day − last < respawnDays («будущее»/истёкшее —
+  //    формула dueForRespawn day.js:96) И stock — plain-объект (не
+  //    null/массив) → пара пишется (stock — validateCityStock);
+  //    ИНАЧЕ — пара ТИХО отбрасывается («тихий отброс» 000109, без
+  //    warn).
+  //  * PERSISTENT-поля (000148.05): name (validateCityName) / built
+  //    (массив; по-входу — каноничная копия {x, y, buildingId,
+  //    player: true}, D-.05o — player НЕ требуется от входа; id по
+  //    каталогу НЕ проверяется — D-.05n, fail-open на стороне
+  //    потребления builtOccupied/merge-цикл main.js) — живут ВНЕ окна
+  //    респауна и регенерации. absent → поля нет (без warn, неломко
+  //    v1); битое ПОЛЕ → console.warn (msg содержит «cities», 000029)
+  //    + отброс ПОЛЯ, запись жива; мусорный ВХОД built → warn + отброс
+  //    входа; пустой результат built → поле omitted (D-.05f).
+  // Запись живёт, если ≥ 1 валидного поля; иначе → null (отброс).
+  // Чистая копия; вход не мутируется.
   function validateCityState(rec, day, respawnDays) {
     if (!rec || typeof rec !== 'object' || Array.isArray(rec)) return null;
+    const out = {};
+    // TRANSIENT-пара (000109, all-or-nothing, тихий отброс).
     const last = rec.lastVisitDay;
-    if (!Number.isInteger(last) || last < 1) return null;
-    if (last > day || day - last >= respawnDays) return null;
-    if (rec.stock === null || typeof rec.stock !== 'object' ||
-        Array.isArray(rec.stock)) return null;
-    return { lastVisitDay: last, stock: validateCityStock(rec.stock) };
+    const stockOk = rec.stock !== null && typeof rec.stock === 'object'
+      && !Array.isArray(rec.stock);
+    if (Number.isInteger(last) && last >= 1 && last <= day
+        && day - last < respawnDays && stockOk) {
+      out.lastVisitDay = last;
+      out.stock = validateCityStock(rec.stock);
+    }
+    // PERSISTENT: name (битое ПОЛЕ → warn + отброс ПОЛЯ, 000029).
+    if (rec.name !== undefined) {
+      const name = validateCityName(rec.name);
+      if (name !== null) out.name = name;
+      else console.warn('cities.js: города — name некорректно (1–32: '
+        + 'буквы, цифры, пробелы) — поле отброшено (000148.05): '
+        + JSON.stringify(rec.name));
+    }
+    // PERSISTENT: built (не-массив → warn + отброс ПОЛЯ; мусорный
+    // вход → warn + отброс входа; пустой результат → omitted).
+    if (rec.built !== undefined) {
+      if (!Array.isArray(rec.built)) {
+        console.warn('cities.js: города — built не массив — поле '
+          + 'отброшено (000148.05): ' + JSON.stringify(rec.built));
+      } else {
+        const built = [];
+        for (const e of rec.built) {
+          if (!e || typeof e !== 'object' || Array.isArray(e) ||
+              !Number.isInteger(e.x) || !Number.isInteger(e.y) ||
+              !Number.isInteger(e.buildingId)) {
+            console.warn('cities.js: города — мусорная запись built — '
+              + 'вход отброшен (000148.05): ' + JSON.stringify(e));
+            continue;
+          }
+          built.push({ x: e.x, y: e.y, buildingId: e.buildingId,
+            player: true });
+        }
+        if (built.length) out.built = built;
+      }
+    }
+    return Object.keys(out).length ? out : null;
   }
 
   /**
@@ -981,5 +1119,8 @@ function (perlin, items, buildings, rootRef) {
     demolishReturn,
     demolishItemReturn,
     refundItemsFor,
+    // 000148.05: имя города (правила D7) + occupied для перегенерации.
+    validateCityName,
+    builtOccupied,
   };
 });
