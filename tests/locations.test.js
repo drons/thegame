@@ -2,7 +2,7 @@
 // «состояние и переходы подземелья/города». КРАСНЫЕ тесты TDD-стадии.
 //
 // Контракт: memory/000127-locations-module.md (§4 API, §8 инварианты).
-// API (10 функций, события возврата — чистые функции, решение D3):
+// API (11 функций, события возврата — чистые функции, решение D3):
 //   L = require('../src/locations.js')        // браузер: Game.locations
 //   L.makeDungeonState(d, contents, worldKey, env) → ds
 //   L.makeCityState(layout, buildingRec, worldKey, env) → ds
@@ -346,7 +346,7 @@ function bootFullChain() {
 // NODE-тесты (чистая часть модуля)
 // ============================================================
 
-test('LOC-1: модуль существует — node API: 10 функций (require)', () => {
+test('LOC-1: модуль существует — node API: 11 функций (require)', () => {
   const L = loadLocations();
   for (const fn of [
     'makeDungeonState', 'makeCityState',
@@ -354,6 +354,10 @@ test('LOC-1: модуль существует — node API: 10 функций (
     'exitDungeon', 'exitCity',
     'dungeonMove', 'cityMove',
     'interactExit',
+    // 000157.03: 11-й экспорт (правки по итогам ревью: заголовок
+    // «11 функций» теперь соответствует телу; порядок — как в exports
+    // src/locations.js, ПОСЛЕ interactExit).
+    'interactDeposit',
     'debugEnterDungeon',
   ]) {
     assert.equal(typeof L[fn], 'function', 'L.' + fn + ' — функция');
@@ -839,4 +843,166 @@ test('LOC-15: debugEnterDungeon: вынужденный terrain ≠ тайла �
         'запись памяти пишется (мирской ключ + \':depth\')');
     });
   }
+});
+
+// =====================================================================
+// 000157.03: КРАСНЫЕ тесты LOC-16..18 — interactDeposit (11-й экспорт)
+// + развод [E] (выход > залежь; приоритет проводки — e2e DE-3) + свип
+// «залежь ≠ выходная клетка» по контенту генерации.
+// Контракт: memory/000157.03-deposit-gather.md §4/§5 (D5/D6, D15).
+//
+// На master f7b4d3c L.interactDeposit — НЕ СУЩЕСТВУЕТ (exports L519 —
+// 10 функций) → первый асерт каждого теста падает осмысленно
+// (assert.equal typeof, НЕ синтаксис). Зелёная фаза: interactDeposit
+// ПОСЛЕ interactExit (шаблон L433-440), экспорт +1, заголовок LOC-1
+// 10→11 (косметика — зелёная фаза, §12).
+// =====================================================================
+
+test('000157.03 LOC-16: L.interactDeposit — 11-й экспорт: на клетке залежи → {type: \'deposit\', id}; в стороне / !ds / !ds.dg / city / без deposits / уже собрана → null (RED)', () => {
+  const L = loadLocations();
+  assert.equal(typeof L.interactDeposit, 'function',
+    'L.interactDeposit — функция (11-й экспорт, 000157.03: ветка [E]-'
+    + 'сбора; шаблон interactExit L433: чистая функция, null вне тайла)');
+  const { G } = makeFakeGame();
+  const d = makeDungeon();
+  // Залежь на (2,1) — пол, сосед выходного тайла (1,1).
+  const withDep = {
+    seed: 42, createdAtXp: 0, step: 0, mobs: [], chests: [],
+    deposits: [{ id: 'd0', x: 2, y: 1, item: 'coal', amount: 2,
+      gathered: false }],
+  };
+  const ds = makeDs(L, G, d, withDep, '7,3', 'dungeon');
+  withGame(G, () => {
+    // Spawn = выходной тайл (1,1), НЕ клетка залежи → null.
+    assert.equal(L.interactDeposit(ds), null,
+      'герой на выходе (spawn), залежь на (2,1) → null');
+    // Посадка на клетку залежи (прецедент LOC-14: ds.x/ds.y напрямую)
+    // → { type: 'deposit', id }.
+    ds.x = 2; ds.y = 1;
+    assert.deepEqual(L.interactDeposit(ds),
+      { type: 'deposit', id: 'd0' },
+      'на клетке залежи → { type: \'deposit\', id }');
+    // В сторону от залежи → null.
+    ds.x = 3; ds.y = 1;
+    assert.equal(L.interactDeposit(ds), null, 'в стороне → null');
+  });
+  // Уже собрана (gathered: true) на клетке → null (ветка её не видит).
+  const withGathered = {
+    seed: 42, createdAtXp: 0, step: 0, mobs: [], chests: [],
+    deposits: [{ id: 'd0', x: 2, y: 1, item: 'coal', amount: 2,
+      gathered: true }],
+  };
+  const ds2 = makeDs(L, G, d, withGathered, '7,3', 'dungeon');
+  withGame(G, () => {
+    ds2.x = 2; ds2.y = 1;
+    assert.equal(L.interactDeposit(ds2), null,
+      'уже собрана (gathered: true) → null');
+  });
+  // Contents БЕЗ ключа deposits (старые сейвы / генерация до .02)
+  // → null без throw.
+  const ds3 = makeDs(L, G, d, makeContents([], []), '7,3', 'dungeon');
+  withGame(G, () => {
+    assert.equal(L.interactDeposit(ds3), null,
+      'contents без deposits → null (без throw)');
+  });
+  // Город (kind: 'city') → null (kind-гард).
+  const layout = makeCityLike();
+  const dsC = makeDs(L, G, layout, null, '9,4', 'city');
+  withGame(G, () => {
+    assert.equal(L.interactDeposit(dsC), null, 'city → null (kind-гард)');
+  });
+  // !ds / !ds.dg → null (гарды, шаблон interactExit).
+  assert.equal(L.interactDeposit(null), null, '!ds (null) → null');
+  assert.equal(L.interactDeposit(undefined), null,
+    '!ds (undefined) → null');
+  assert.equal(L.interactDeposit({ kind: 'dungeon' }), null,
+    '!ds.dg → null');
+});
+
+test('000157.03 LOC-17: развод [E] на доменном уровне: герой на выходном тайле + залежь на соседе → interactExit ВЫИГРЫВАЕТ, interactDeposit null; на клетке залежи → наоборот (функции независимы; приоритет проводки — e2e DE-3) (RED)', () => {
+  const L = loadLocations();
+  assert.equal(typeof L.interactDeposit, 'function',
+    'L.interactDeposit — функция (11-й экспорт, 000157.03)');
+  const { G } = makeFakeGame();
+  const d = makeDungeon();
+  const contents = {
+    seed: 42, createdAtXp: 0, step: 0, mobs: [], chests: [],
+    deposits: [{ id: 'd0', x: 2, y: 1, item: 'coal', amount: 2,
+      gathered: false }],
+  };
+  const ds = makeDs(L, G, d, contents, '7,3', 'dungeon');
+  withGame(G, () => {
+    // Герой на выходном тайле (1,1); залежь — на СОСЕДЕ (2,1).
+    // Выход — [E]-приоритет (000177): interactExit → { type: 'exit' };
+    // interactDeposit → null (герой НЕ на клетке залежи — функции
+    // независимы, конфликта по одной клетке нет по построению).
+    assert.deepEqual(L.interactExit(ds),
+      { type: 'exit', name: D.DUNGEON_NAMES[d.type] },
+      'на выходном тайле — interactExit (приоритет выхода, 000177)');
+    assert.equal(L.interactDeposit(ds), null,
+      'на выходном тайле — interactDeposit null (залежь на соседе)');
+    // Шаг на (2,1) — обычное движение (exit-события из шага нет,
+    // LOC-14): теперь interactDeposit → { type: 'deposit' },
+    // interactExit → null (не на выходном тайле).
+    const ev = L.dungeonMove(ds, 1, 0, NOW, { inCombat: false });
+    assert.equal(ev.type, 'moved', 'шаг — обычный (LOC-14)');
+    assert.deepEqual(L.interactDeposit(ds),
+      { type: 'deposit', id: 'd0' },
+      'на клетке залежи — interactDeposit');
+    assert.equal(L.interactExit(ds), null,
+      'на клетке залежи — interactExit null (не выходной тайл)');
+  });
+});
+
+test('000157.03 LOC-18: свип «залежь ≠ выходная клетка» по КОНТЕНТУ ГЕНЕРАЦИИ: hero на exit (spawn) → interactDeposit null ВСЕГДА; на клетке каждой залежи → {type: \'deposit\', id} (якоря ORE-4: ABYSS 3 формы xp 1..3000 + CAVE (37,−12) xp 1..300) (RED)', () => {
+  const L = loadLocations();
+  assert.equal(typeof L.interactDeposit, 'function',
+    'L.interactDeposit — функция (11-й экспорт, 000157.03)');
+  const M = require('../src/map.js');
+  const PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
+  const PX_ABYSS = M.syntheticPixels(8, 8, 40, 40, 40, 10);
+  const { G } = makeFakeGame();
+  const checkDungeon = (dg, label, xpFrom, xpTo) => {
+    for (let xp = xpFrom; xp <= xpTo; xp++) {
+      // Сид генерации = player.totalXp (000153.01/000157.02): generate
+      // читает ТОЛЬКО totalXp/level → простой объект (без createCharacter).
+      const c = D.generateDungeonContents(dg, { totalXp: xp, level: 1 });
+      assert.ok(Array.isArray(c.deposits),
+        label + ' xp=' + xp + ': c.deposits — массив');
+      // Инвариант-построение (ТЗ/§5, D15): ни одна залежь НЕ на
+      // (exit.x, exit.y) — иначе [E] на тайле выхода был бы неоднозначен.
+      for (const dep of c.deposits) {
+        assert.ok(!(dep.x === dg.exit.x && dep.y === dg.exit.y),
+          label + ' xp=' + xp + ': залежь ' + dep.id + ' НА выходной '
+          + 'клетке (' + dep.x + ',' + dep.y + ') — конфликт [E] '
+          + '(000177) — исключён по построению (safe-зона 5×5)');
+      }
+      const ds = makeDs(L, G, dg, c, '7,3', 'dungeon');
+      withGame(G, () => {
+        // Герой на exit (spawn = entrance = exit, 000177) →
+        // interactDeposit null ВСЕГДА (залежи там нет — выше).
+        assert.equal(L.interactDeposit(ds), null,
+          label + ' xp=' + xp + ': spawn (exit) → interactDeposit null');
+        // Посадка прямо на клетку каждой залежи (прецедент LOC-14)
+        // → { type: 'deposit', id: dep.id }.
+        for (const dep of c.deposits) {
+          ds.x = dep.x; ds.y = dep.y;
+          assert.deepEqual(L.interactDeposit(ds),
+            { type: 'deposit', id: dep.id },
+            label + ' xp=' + xp + ': клетка залежи ' + dep.x + ','
+            + dep.y + ' → { type: \'deposit\', id: ' + dep.id + ' }');
+        }
+      });
+    }
+  };
+  for (const [ex, ey] of [[11, 3], [-25, -20], [-15, -20]]) {
+    const dg = D.createDungeon(ex, ey, PX_ABYSS, M.TERRAIN.MOUNTAIN);
+    assert.equal(dg.type, D.DUNGEON_TYPES.ABYSS,
+      '(' + ex + ',' + ey + '): MOUNTAIN + пикс. alpha 10 → ABYSS '
+      + '(сценарий)');
+    checkDungeon(dg, '(' + ex + ',' + ey + ')', 1, 3000);
+  }
+  const dgCave = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  assert.equal(dgCave.type, D.DUNGEON_TYPES.CAVE, 'CAVE (37,−12) (сценарий)');
+  checkDungeon(dgCave, 'CAVE (37,−12)', 1, 300);
 });

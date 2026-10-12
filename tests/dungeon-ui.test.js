@@ -3116,3 +3116,60 @@ test('подземелье UI 000157.02: hint — строка про залеж
     'город: hint — без «Залежи» (залежи — только подземелье): '
     + JSON.stringify(cHint));
 });
+
+// =====================================================================
+// 000157.03: КРАСНЫЙ тест UI-GRD-1 — контекстная строка «Залежь — [E]»
+// (hint-элемент — ВТОРОЙ .combat-state; Д9). На master f7b4d3c
+// hint статичен в build() (4 строки, CI-V3) → строки НЕТ. Зелёная
+// фаза: render() дописывает строку при стоянии на не-собранной залежи
+// (hintEl/hintBase; вне залежи — hintBase byte-в-бит, см. §7 контракта).
+// =====================================================================
+
+test('000157.03: hint — «Залежь — [E]» при стоянии на не-собранной залежи; в другой клетке / уже собрана — строки НЕТ (hint = статичный базис) (UI-GRD-1, RED)', () => {
+  // (а) Герой на клетке не-собранной залежи (2,1) → контекстная строка
+  //     + статические строки на месте (CI-V3-регрессия).
+  const A = loadDungeonUi({ performance: { now: () => 1000 } });
+  A.G.dungeonUI.start({
+    state: makeState({
+      deposits: [{ id: 'd0', x: 2, y: 1, item: 'coal', amount: 2,
+        gathered: false }],
+      px: 2, py: 1,
+    }),
+    onMove() {}, zoom: 48,
+  });
+  const aHint = allByClass(A.body, 'combat-state')[1].textContent;
+  assert.ok(aHint.includes('Залежь — [E]'),
+    'hint: контекстная строка «Залежь — [E]» (стоя на не-собранной '
+    + 'залежи): ' + JSON.stringify(aHint));
+  assert.ok(aHint.includes('Вход в пещеру — вход и выход'),
+    'hint: статическая строка 1 на месте (CI-V3): ' + JSON.stringify(aHint));
+  assert.ok(aHint.includes('Залежи — графические спрайты'),
+    'hint: статическая строка про залежи (спрайт/фолбэк) на месте '
+    + '(CI-V3): ' + JSON.stringify(aHint));
+  // (б) Герой в другой клетке (3,1) → строки НЕТ (hint = базис).
+  const B = loadDungeonUi({ performance: { now: () => 1000 } });
+  B.G.dungeonUI.start({
+    state: makeState({
+      deposits: [{ id: 'd0', x: 2, y: 1, item: 'coal', amount: 2,
+        gathered: false }],
+      px: 3, py: 1,
+    }),
+    onMove() {}, zoom: 48,
+  });
+  const bHint = allByClass(B.body, 'combat-state')[1].textContent;
+  assert.ok(!bHint.includes('Залежь — [E]'),
+    'hint: строки НЕТ (герой не на клетке залежи): ' + JSON.stringify(bHint));
+  // (в) Уже собрана (gathered: true) → строки НЕТ.
+  const C = loadDungeonUi({ performance: { now: () => 1000 } });
+  C.G.dungeonUI.start({
+    state: makeState({
+      deposits: [{ id: 'd0', x: 2, y: 1, item: 'coal', amount: 2,
+        gathered: true }],
+      px: 2, py: 1,
+    }),
+    onMove() {}, zoom: 48,
+  });
+  const cHint = allByClass(C.body, 'combat-state')[1].textContent;
+  assert.ok(!cHint.includes('Залежь — [E]'),
+    'hint: строки НЕТ (залежь уже собрана): ' + JSON.stringify(cHint));
+});

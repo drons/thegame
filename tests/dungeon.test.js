@@ -2041,3 +2041,231 @@ test('ORE-8: DUNGEON_ORES 1:1 с каталогом («руда»), предме
       file + ': в пуле ≥1 T1-предмет (глубина 1 даёт добычу)');
   }
 });
+
+// =====================================================================
+// 000157.03: КРАСНЫЕ тесты GRD-1..4 — gatherDeposit (атомарный, БЕЗ
+// RNG) + validateDungeonContents deposits-опция (ПРАВО как opened).
+// Контракт: memory/000157.03-deposit-gather.md §3/§6 (D1..D4).
+//
+// На master f7b4d3c функциональности НЕТ: D.gatherDeposit — undefined
+// ( TypeError «not a function» — осмысленное падение, НЕ синтаксис),
+// валидатор копирует только {seed, createdAtXp, step, mobs, chests}
+// (deposits отбрасывается → deepEqual-ассерты падают). Зелёная фаза:
+// gatherDeposit ПОСЛЕ openChest + экспорт, валидатор +deposits-блок.
+// Существующие goldens (D-BOSS-3/ORE-*/DEP-*) — БЕЗ правок.
+// =====================================================================
+
+// Свежий contents с двумя залежами (inline-литерал; makeContents
+// НЕ трогаем — строго аддитивно). amount 2 — coal (0.5 кг/ед).
+function grdContents(gathered0 = false) {
+  return {
+    seed: 1, createdAtXp: 0, step: 0, mobs: [], chests: [],
+    deposits: [
+      { id: 'd0', x: 3, y: 2, item: 'coal', amount: 2,
+        gathered: gathered0 },
+      { id: 'd1', x: 4, y: 2, item: 'quartz', amount: 1,
+        gathered: false },
+    ],
+  };
+}
+
+test('000157.03 GRD-1: gatherDeposit — однократность + причины отказов: успех {ok:true,item,amount} + gathered:true (diff = ТОЛЬКО флаг); повтор/собрана с рождения → «уже собрана»; чужой id / нет deposits / null → «нет такой залежи» (без throw) (RED)', () => {
+  assert.equal(typeof D.gatherDeposit, 'function',
+    'dungeon.js: экспорт gatherDeposit (000157.03: [E]-сбор, атомарно '
+    + 'проверки → одна мутация, паттерн openChest)');
+  const c = grdContents();
+  const r = D.gatherDeposit(c, 'd0', () => true);
+  assert.deepEqual(r, { ok: true, item: 'coal', amount: 2 },
+    'успех: {ok:true, item, amount} (данные залежи)');
+  assert.equal(c.deposits[0].gathered, true, 'залежь отмечена gathered');
+  assert.deepEqual(
+    { id: c.deposits[0].id, x: c.deposits[0].x, y: c.deposits[0].y,
+      item: c.deposits[0].item, amount: c.deposits[0].amount },
+    { id: 'd0', x: 3, y: 2, item: 'coal', amount: 2 },
+    'остальные поля залежи — неизменны');
+  assert.deepEqual(c.deposits[1],
+    { id: 'd1', x: 4, y: 2, item: 'quartz', amount: 1, gathered: false },
+    'другая залежь — нитронута');
+  // Однократность: повтор → «уже собрана», состояние не меняется.
+  assert.deepEqual(D.gatherDeposit(c, 'd0', () => true),
+    { ok: false, reason: 'уже собрана' },
+    'повторный вызов → «уже собрана»');
+  assert.equal(c.deposits[0].gathered, true, 'состояние — без повторной мутации');
+  assert.deepEqual(D.gatherDeposit(grdContents(true), 'd0', () => true),
+    { ok: false, reason: 'уже собрана' },
+    'собрана с рождения → «уже собрана»');
+  // Причины отказов byte-в-точности (паттерн openChest-строк).
+  assert.deepEqual(D.gatherDeposit(c, 'dX', () => true),
+    { ok: false, reason: 'нет такой залежи' },
+    'чужой id → «нет такой залежи»');
+  assert.deepEqual(D.gatherDeposit(
+    { seed: 1, createdAtXp: 0, step: 0, mobs: [], chests: [] },
+    'd0', () => true),
+    { ok: false, reason: 'нет такой залежи' },
+    'contents без ключа deposits (старый сейв) → без throw');
+  assert.deepEqual(D.gatherDeposit(null, 'd0', () => true),
+    { ok: false, reason: 'нет такой залежи' }, 'null contents → без throw');
+});
+
+test('000157.03 GRD-2: «не влезает в инвентарь» — проверка ёмкости ДО отметки gathered: canFit false → отказ + ноль мутаций (deepEqual); canFit не-функция → тот же отказ; canFit вызывается с (item, amount); retry после освобождения → ok; под-кейс с РЕАЛЬНЫМ items.js (canAddItem dry-run 000046) (RED)', () => {
+  assert.equal(typeof D.gatherDeposit, 'function',
+    'dungeon.js: экспорт gatherDeposit (000157.03)');
+  // canFit false → отказ + ИММУТАБЕЛЬНОСТЬ: gathered НЕ ставится.
+  const c = grdContents();
+  const before = JSON.parse(JSON.stringify(c));
+  const r = D.gatherDeposit(c, 'd0', () => false);
+  assert.deepEqual(r, { ok: false, reason: 'не влезает в инвентарь' },
+    'canFit false → «не влезает в инвентарь»');
+  assert.deepEqual(c, before,
+    'отказ → НОЛЬ мутаций (deepEqual до/после; gathered не ставится)');
+  // Retry после освобождения → успех (залежь осталась).
+  assert.deepEqual(D.gatherDeposit(c, 'd0', () => true),
+    { ok: true, item: 'coal', amount: 2 },
+    'повтор после освобождения → ok (залежь не потеряна)');
+  assert.equal(c.deposits[0].gathered, true, 'retry: gathered: true');
+  // canFit не-функция → тот же отказ (fail-closed), мутаций нет.
+  const c2 = grdContents();
+  const before2 = JSON.parse(JSON.stringify(c2));
+  assert.deepEqual(D.gatherDeposit(c2, 'd0', null),
+    { ok: false, reason: 'не влезает в инвентарь' },
+    'canFit не-функция (null) → отказ');
+  assert.deepEqual(c2, before2, 'canFit не-функция → мутаций нет');
+  assert.deepEqual(D.gatherDeposit(grdContents(), 'd0', undefined),
+    { ok: false, reason: 'не влезает в инвентарь' },
+    'canFit undefined → отказ');
+  // canFit вызывается ОДИН раз с (item, amount) из залежи.
+  const calls = [];
+  D.gatherDeposit(grdContents(), 'd0', (it, n) => {
+    calls.push([it, n]); return false;
+  });
+  assert.deepEqual(calls, [['coal', 2]],
+    'canFit(item, amount) — ровно один вызов с данными залежи');
+  // Под-кейс: РЕАЛЬНЫЙ items.js (canAddItem — dry-run без побочных
+  // эффектов, 000046) в роли canFit.
+  const I = require('../src/items.js');
+  const free = createCharacter();
+  assert.equal(D.gatherDeposit(grdContents(), 'd0',
+    (it, n) => I.canAddItem(free, it, n).ok).ok, true,
+    'свободный инвентарь (реальный canAddItem) → ok');
+  const full = createCharacter();
+  full.inventory = {
+    slots: Array.from({ length: 20 }, () => ({ id: 'sulfur', qty: 99 })),
+    quick: [null, null, null],
+  };
+  assert.equal(I.canAddItem(full, 'coal', 2).ok, false,
+    'сценарий: полный инвентарь — canAddItem отказ');
+  const c3 = grdContents();
+  const r3 = D.gatherDeposit(c3, 'd0',
+    (it, n) => I.canAddItem(full, it, n).ok);
+  assert.deepEqual(r3, { ok: false, reason: 'не влезает в инвентарь' },
+    'полный инвентарь (реальный canAddItem) → «не влезает»');
+  assert.equal(c3.deposits[0].gathered, false,
+    'отказ по реальному canAddItem → gathered не ставится');
+});
+
+test('000157.03 GRD-3: gatherDeposit — БЕЗ RNG: две идентичные contents → идентичные результаты и мутации (deepEqual); diff = ТОЛЬКО флаг gathered (seed/step/mobs/chests/другие залежи нитронуты); идемпотентность (RED)', () => {
+  assert.equal(typeof D.gatherDeposit, 'function',
+    'dungeon.js: экспорт gatherDeposit (000157.03)');
+  const mk = () => JSON.parse(JSON.stringify({
+    seed: 99, createdAtXp: 7, step: 5,
+    mobs: [{ id: 'g0', mobIds: ['ant'], x: 1, y: 1, level: 1,
+      defeated: false }],
+    chests: [{ id: 'c0', x: 2, y: 2, opened: false, gold: 10,
+      item: null }],
+    deposits: [
+      { id: 'd0', x: 3, y: 2, item: 'coal', amount: 2,
+        gathered: false },
+      { id: 'd1', x: 4, y: 3, item: 'quartz', amount: 1,
+        gathered: false },
+    ],
+  }));
+  const a = mk(), b = mk();
+  const ra = D.gatherDeposit(a, 'd0', () => true);
+  const rb = D.gatherDeposit(b, 'd0', () => true);
+  assert.deepEqual(ra, rb, 'тот же canFit — тот же результат (нет ролла)');
+  assert.deepEqual(a, b, 'мутации — идентичны (детерминизм)');
+  const orig = mk();
+  assert.equal(a.seed, orig.seed, 'seed — нитронут');
+  assert.equal(a.step, orig.step, 'step — не прошёл (нет wanderStep)');
+  assert.deepEqual(a.mobs, orig.mobs, 'mobs — нитронуты');
+  assert.deepEqual(a.chests, orig.chests, 'chests — нитронуты');
+  assert.deepEqual(a.deposits[1], orig.deposits[1],
+    'другая залежь — нитронута');
+  assert.equal(a.deposits[0].gathered, true, 'diff = ТОЛЬКО флаг');
+  // Идемпотентность: второй вызов — «уже собрана», мутаций больше нет.
+  const snap = JSON.parse(JSON.stringify(a));
+  assert.deepEqual(D.gatherDeposit(a, 'd0', () => true),
+    { ok: false, reason: 'уже собрана' });
+  assert.deepEqual(a, snap, 'второй вызов — ноль дальнейших мутаций');
+});
+
+test('000157.03 GRD-4: validateDungeonContents — deposits: ОПЦИОНАЛЬНОЕ поле ПРАВО как opened: валидные → глубокая копия (флаги переживают, лишние ключи не копируются); ключа НЕТ → ключа нет (DEP-4/старые сейвы); битые → null (RED)', () => {
+  assert.equal(typeof D.validateDungeonContents, 'function',
+    'dungeon.js: validateDungeonContents (000153.01)');
+  // (a) Валидные (gathered true/false) → глубокая копия с флагами.
+  const withDep = {
+    seed: 7, createdAtXp: 0, step: 2, mobs: [], chests: [],
+    deposits: [
+      { id: 'd0', x: 3, y: 2, item: 'coal', amount: 2,
+        gathered: false },
+      { id: 'd1', x: 4, y: 3, item: 'quartz', amount: 1,
+        gathered: true },
+    ],
+  };
+  const v = D.validateDungeonContents(withDep);
+  assert.ok(v, 'валидные contents с deposits — не null');
+  assert.deepEqual(v.deposits, withDep.deposits,
+    'копия — deposits (поля и флаг gathered)');
+  assert.notStrictEqual(v.deposits, withDep.deposits, 'массив — новый');
+  assert.notStrictEqual(v.deposits[0], withDep.deposits[0], 'элемент — новый');
+  assert.equal(v.deposits[1].gathered, true,
+    'gathered:true переживает копию (персист в сейве)');
+  // Копия = РОВНО 6 полей: лишние ключи записи не уходят в сейв.
+  const extra = JSON.parse(JSON.stringify(withDep));
+  extra.deposits[0].extra = 'junk';
+  const vExtra = D.validateDungeonContents(extra);
+  assert.deepEqual(vExtra.deposits[0],
+    { id: 'd0', x: 3, y: 2, item: 'coal', amount: 2, gathered: false },
+    'копия записи = {id,x,y,item,amount,gathered} (лишнее — нет)');
+  // (b) БЕЗ ключа deposits → в копии ключа НЕТ (старые сейвы;
+  // регрессионный контроль DEP-4: always-present [] = красный).
+  const good = {
+    seed: 1, createdAtXp: 0, step: 0,
+    mobs: [{ id: 'g0', mobIds: ['ant'], x: 1, y: 1, level: 1,
+      defeated: false }],
+    chests: [],
+  };
+  const v2 = D.validateDungeonContents(good);
+  assert.ok(v2 && !('deposits' in v2),
+    'ключ deposits отсутствует → в копии ключа НЕТ');
+  assert.deepEqual(v2, good, 'без deposits — глубокая копия (DEP-4)');
+  // (c) Битые deposits → null (запись отбрасывается тихо — RD-паттерн;
+  // ядро не логирует).
+  const broken = (dep) => ({ ...good, deposits: dep });
+  for (const [label, dep] of [
+    ['deposits не массив', 'junk'],
+    ['entry null', [null]],
+    ['entry не объект', [42]],
+    ['entry-массив', [[1]]],
+    ['entry без id', [{ x: 1, y: 1, item: 'coal', amount: 1,
+      gathered: false }]],
+    ['id не строка', [{ id: 42, x: 1, y: 1, item: 'coal', amount: 1,
+      gathered: false }]],
+    ['x не целое', [{ id: 'd0', x: 1.5, y: 1, item: 'coal', amount: 1,
+      gathered: false }]],
+    ['x null',
+      [{ id: 'd0', x: null, y: 1, item: 'coal', amount: 1,
+        gathered: false }]],
+    ['item null', [{ id: 'd0', x: 1, y: 1, item: null, amount: 1,
+      gathered: false }]],
+    ['amount 0', [{ id: 'd0', x: 1, y: 1, item: 'coal', amount: 0,
+      gathered: false }]],
+    ['amount не целое', [{ id: 'd0', x: 1, y: 1, item: 'coal',
+      amount: 1.5, gathered: false }]],
+    ['gathered не boolean', [{ id: 'd0', x: 1, y: 1, item: 'coal',
+      amount: 1, gathered: 'x' }]],
+  ]) {
+    assert.equal(D.validateDungeonContents(broken(dep)), null,
+      label + ' → null');
+  }
+});

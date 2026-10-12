@@ -830,7 +830,7 @@
    * Нарушение (не-объект/массив, битые числа, не-строки id, gold < 0)
    * → null (запись отбрасывается тихо — ядро не логирует).
    * @returns {{seed:number, createdAtXp:number, step:number,
-   *   mobs:object[], chests:object[]}|null}
+   *   mobs:object[], chests:object[], deposits?:object[]}|null}
    */
   function validateDungeonContents(contents) {
     if (!contents || typeof contents !== 'object' || Array.isArray(contents)) {
@@ -874,7 +874,33 @@
         opened: c.opened, gold: c.gold, item: c.item,
       });
     }
-    return { seed, createdAtXp, step, mobs: mobsOut, chests: chestsOut };
+    // 000157.03: deposits — ОПЦИОНАЛЬНОЕ поле (паттерн boss в mobs):
+    // присутствие/отсутствие сохраняется как есть — в копии ключа НЕТ
+    // (старые записи/сейвы без залежей валидны; лишних ключей — не
+    // создавать). Глубокая копия {id, x, y, item, amount, gathered}:
+    // собранность персистирует ПРАВО как opened (SPEC dungeons-storage;
+    // версия сейва НЕ повышается). Битое поле → null (запись
+    // отбрасывается тихо).
+    let depositsOut = null;
+    if (contents.deposits !== undefined) {
+      if (!Array.isArray(contents.deposits)) return null;
+      depositsOut = [];
+      for (const dp of contents.deposits) {
+        if (!dp || typeof dp !== 'object' || Array.isArray(dp)) return null;
+        if (typeof dp.id !== 'string' || !dp.id) return null;
+        if (!Number.isInteger(dp.x) || !Number.isInteger(dp.y)) return null;
+        if (typeof dp.item !== 'string' || !dp.item) return null;
+        if (!Number.isInteger(dp.amount) || dp.amount < 1) return null;
+        if (typeof dp.gathered !== 'boolean') return null;
+        depositsOut.push({
+          id: dp.id, x: dp.x, y: dp.y,
+          item: dp.item, amount: dp.amount, gathered: dp.gathered,
+        });
+      }
+    }
+    const out = { seed, createdAtXp, step, mobs: mobsOut, chests: chestsOut };
+    if (depositsOut) out.deposits = depositsOut;
+    return out;
   }
 
   // Запись раздела: { contents (валидный), lastVisitDay: int ≥ 1,
@@ -990,6 +1016,27 @@
     return { ok: true, gold: c.gold, item: c.item };
   }
 
+  /** Собирает залежь (один раз, 000157.03: [E]-сбор). Атомарно:
+   *  проверки → одна мутация (паттерн openChest). БЕЗ RNG (golden-
+   *  контракт: детерминизм — вызов не двигает ни один rng-поток).
+   *  canFit(item, amount) → boolean — dry-run ёмкости героя (паттерн
+   *  000046: вызывающий передаёт предикат — ядро не видит items.js);
+   *  не-функция → отказ. Ёмкость проверяется ДО отметки gathered:
+   *  «не влезает» → ноль мутаций (залежь остаётся — повтор после
+   *  освобождения инвентаря).
+   *  @returns {{ok:boolean, item?:string, amount?:number, reason?:string}} */
+  function gatherDeposit(contents, depositId, canFit) {
+    const deps = (contents && Array.isArray(contents.deposits))
+      ? contents.deposits : [];
+    const dp = deps.find((x) => x && x.id === depositId);
+    if (!dp) return { ok: false, reason: 'нет такой залежи' };
+    if (dp.gathered) return { ok: false, reason: 'уже собрана' };
+    if (typeof canFit !== 'function' || !canFit(dp.item, dp.amount))
+      return { ok: false, reason: 'не влезает в инвентарь' };
+    dp.gathered = true;
+    return { ok: true, item: dp.item, amount: dp.amount };
+  }
+
   /**
    * Один шаг блуждания: каждая живая группа сдвигается на клетку.
    * Детерминированно: rng от номера шага и сида содержимого.
@@ -1043,7 +1090,10 @@
     DUNGEON_MEMORY_DAYS, LEVEL_DELTA_MAX,
     CELL_WALL, CELL_FLOOR,
     dungeonTypeFor, createDungeon, generateDungeonContents, wallObjFor,
-    contentValid, openChest, wanderStep, reachableFrom,
+    contentValid, openChest,
+    // 000157.03: [E]-сбор залежи (атомарно, БЕЗ RNG) — рядом с openChest.
+    gatherDeposit,
+    wanderStep, reachableFrom,
     // 000153.01: модель глубины + сериализатор раздела сейва
     // dungeonMemory (additive — существующие экспорты не тронуты).
     dungeonDepthSeed, dungeonMemoryKey, DUNGEON_MEMORY_KEY_RE,

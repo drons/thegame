@@ -225,6 +225,10 @@
 
   let ctx = null; // { get state, onMove, open, onZoom, spriteLoader }
   let overlay = null, canvas = null, g2 = null, stateEl = null, logEl = null;
+  // 000157.03: контекстная строка «Залежь — [E]» — hint-элемент
+  // (статичен в build()) + его базисный текст (вне залежи hint =
+  // hintBase byte-в-бит; пересчёт — на кадр в render()).
+  let hintEl = null, hintBase = '';
   let zoom = G.ZOOM_START; // общий с миром: px/клетку = px/тайл
   let cam = { x: 0.5, y: 0.5 }; // клетки (дробные) — центр камеры
   let lastT = null; // время предыдущего кадра (dt первого кадра = 0)
@@ -417,6 +421,10 @@
       ? 'Стрелки/WASD — шаг.\nДверь — вход и выход: встаньте на неё и нажмите [E].\n[E] — постройки.'
       : 'Стрелки/WASD — шаг.\nВход в пещеру — вход и выход: встаньте на него и нажмите [E].\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).\nЗалежи — графические спрайты руды, минералов и самоцветов (цветной квадрат — фолбэк-метка).';
     side.appendChild(hint);
+    // 000157.03: базис контекстной строки «Залежь — [E]» — render()
+    // дописывает строку на кадр (вне залежи — hintBase byte-в-бит).
+    hintEl = hint;
+    hintBase = hint.textContent;
 
     overlay.appendChild(side);
     document.body.appendChild(overlay);
@@ -839,6 +847,13 @@
         '  |  Залежи: '
         + (c.deposits || []).filter((x) => !x.gathered).length;
     }
+    // 000157.03: контекстная строка «Залежь — [E]» — стоя на
+    // не-собранной залежи (hint статичен в build() — пересчёт
+    // на кадр; вне залежи — hintBase byte-в-бит).
+    const onDeposit = !isCity && (c.deposits || []).some(
+      (x) => x && !x.gathered && x.x === s.x && x.y === s.y);
+    if (hintEl) hintEl.textContent = hintBase
+      + (onDeposit ? '\nЗалежь — [E]' : '');
     logEl.textContent = (s.log || []).slice(-8).join('\n');
   }
 
@@ -927,6 +942,8 @@
       if (rafId != null && caf) { caf(rafId); rafId = null; }
       if (overlay) overlay.remove();
       overlay = canvas = g2 = stateEl = logEl = null;
+      hintEl = null;
+      hintBase = '';
       ctx = null;
       lastT = null;
       // Тач-состояние (000121): сброс при выходе — повтор не переживёт

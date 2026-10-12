@@ -1726,6 +1726,19 @@
       'src/building-actions.js обязан грузиться ДО src/main.js');
   }
 
+  // 000157.03: [E]-залежь — Game.gatherDeposit (flat API dungeon.js,
+  // паттерн openChest) и Game.canAddItem (flat API items.js) обязаны
+  // грузиться ДО main.js (UMD-ловушка 000038: снапшот const G снят
+  // вверху). Ошибка — ОДИН раз при загрузке; call-time — тихий
+  // typeof-гард в ветке locationOnInteract (вне клетки — no-op молчит,
+  // 000121).
+  if (typeof G.gatherDeposit !== 'function'
+      || typeof G.canAddItem !== 'function') {
+    console.error('main.js: [E]-залежь (000157.03) — ' +
+      'Game.gatherDeposit/Game.canAddItem отсутствуют — src/dungeon.js ' +
+      'и src/items.js обязаны грузиться ДО src/main.js');
+  }
+
   // HUD (задача 000129): строки — src/hud.js (Game.hud). Модуль
   // обязан грузиться ДО main.js (UMD-ловушка 000038: снапшот const G
   // снят вверху) — иначе G.hud — undefined всегда и строки HUD молча
@@ -2409,8 +2422,11 @@
   // выход ЧЕРЕЗ exitLocation (контракт 000170: try/catch/finally) +
   // flash «Вы вышли из <name>.» (слово в слово, 5 сек); вне
   // совмещённого тайла: город → buildingActions.interactCity
-  // (000107/000071: buildingUI → «Диалог» → npcUI), подземелье →
-  // no-op (000121).
+  // (000107/000071: buildingUI → «Диалог» → npcUI), подземелье на
+  // клетке залежи → сбор (000157.03), иначе no-op (000121).
+  // Приоритет [E] (000157.03): выход (000177) > город (000107) >
+  // залежь (000157.03) > no-op; конфликт «выход vs залежь» исключён
+  // по построению (залежь ≠ выходная клетка — свип LOC-18).
   function locationOnInteract() {
     const ds = dungeonState;
     if (!ds) return;
@@ -2423,6 +2439,36 @@
     }
     if (ds.kind === 'city' && G.buildingActions)
       G.buildingActions.interactCity();
+    // 000157.03: [E]-залежь (dungeon) — отдельный if-блок ПОСЛЕ
+    // city (лёгкий текстовый мерж; ветки exit/city — не тронуты).
+    // Fail-closed-гарды (UMD 000038): load-time — wiring-секция.
+    if (ds.kind === 'dungeon'
+        && typeof G.gatherDeposit === 'function'
+        && typeof G.canAddItem === 'function') {
+      const dep = G.locations.interactDeposit(ds);
+      if (dep) {
+        const r = G.gatherDeposit(ds.contents, dep.id,
+          (it, n) => G.canAddItem(hero, it, n).ok);
+        if (!r.ok) {
+          // Единственный достижимый отказ — «не влезает»
+          // (interactDeposit возвращает только не-собранную залежь
+          // под ногами). Заложь ОСТАЁТСЯ — повтор после освобождения
+          // инвентаря: flash (5 с), БЕЗ строки в ds.log, БЕЗ
+          // авто-золота (D7 — предмет не теряется никогда).
+          hudFlash = 'Залежь: не влезает в инвентарь';
+          hudFlashUntil = performance.now() + 5000;
+          return;
+        }
+        // Награда по сундуку-шаблону (dungeonOnMove), без золота.
+        const it = G.getItem(r.item); // ghost-guard (000153.01)
+        if (it) G.addItem(hero, r.item, r.amount);
+        const msg = 'Залежь: +' + r.amount + ' ' + (it ? it.name : r.item);
+        ds.log.push(msg);
+        hudFlash = msg;
+        hudFlashUntil = performance.now() + 5000;
+        G.playerUI && G.playerUI.render();
+      }
+    }
   }
   // Задача 000107 (D4): ЕДИНСТВЕННЫЙ решатель shop-формата {npc,
   // stock} для npcUI (deps.shopFor building-actions). Город (000108):
@@ -3195,6 +3241,10 @@
           : null,
         chests: ds.contents
           ? ds.contents.chests.filter((c) => !c.opened).length : null,
+        // 000157.03: live-содержимое этажа (состояние залежей —
+        // gathered, 000157.02; тесты/отладка, паттерн mobs/chests).
+        // null — город (contents у города null).
+        contents: ds.kind === 'dungeon' ? ds.contents : null,
         // Задача 000107: содержимое города в рантайме (тесты/отладка;
         // хендофф 000109). null — подземелье и город без генерации.
         buildings: ds.cityContents

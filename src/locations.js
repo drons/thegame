@@ -439,6 +439,23 @@
       ? ds.name : dungeonName(d) };
   }
 
+  // 000157.03: [E] на залежи — доменное событие «собери» (чистая:
+  // без мутаций, без rng; null — !ds / !ds.dg / не-dungeon / нет
+  // НЕСобранной залежи под ногами). СОБРАННАЯ не рисуется (000157.02)
+  // → no-op, как «пустая клетка». Развод [E] (выход vs залежь) — НЕ
+  // на уровне функций (независимы; конфликт исключён по построению —
+  // залежь ≠ выходная клетка), а проводкой locationOnInteract (порядок
+  // if-веток: выход > город > залежь > no-op).
+  function interactDeposit(ds) {
+    if (!ds || !ds.dg || ds.kind !== 'dungeon') return null;
+    const deps = (ds.contents && Array.isArray(ds.contents.deposits))
+      ? ds.contents.deposits : [];
+    const dp = deps.find((x) => x && !x.gathered
+      && x.x === ds.x && x.y === ds.y);
+    if (!dp) return null;
+    return { type: 'deposit', id: dp.id };
+  }
+
   // Выход из подземелья: доменная семантика (D5) — подземелье тратит
   // ДЕНЬ (SPEC «Игровое время») и пишется память содержимого.
   // dungeonState=null / dungeonUI.close() / saveNow() — проводка
@@ -522,6 +539,8 @@
     exitDungeon, exitCity,
     dungeonMove, cityMove,
     interactExit,
+    // 000157.03: 11-й экспорт — [E] на залежи (доменное событие).
+    interactDeposit,
     debugEnterDungeon,
   };
 });
