@@ -524,11 +524,32 @@
     return true;
   }
 
+  // Имя предмета для строк/flash (000148.04, R14): каталожное
+  // items.js getItem(id).name (ЕДИНСТВЕННОЕ, что видит игрок —
+  // прецедент craft-ui.js:168 «имя ×N»). getItem отсутствует /
+  // предмет неизвестен → String(id) + console.error (деградация:
+  // строка строится, игра не падает — 000053). Ленивое чтение
+  // game.getItem в момент вызова (BA1: ноль require при загрузке).
+  function reagentName(game, itemId) {
+    const g = game && typeof game === 'object' ? game : {};
+    const it = typeof g.getItem === 'function' ? g.getItem(itemId) : null;
+    if (it && typeof it.name === 'string' && it.name !== '')
+      return it.name;
+    console.error('building-actions.js: reagentName — предмет «' +
+      itemId + '» не найден в каталоге (items.js getItem) — ' +
+      'использован id (000148.04)');
+    return String(itemId);
+  }
+
   // Строка «Разобрать» (000148.03): постройка ИГРОКА (per-cell запись
   // player:true). Возврат — 30% floor золота (cities.demolishReturn —
-  // каталожная цена .стройка.золото); доступен: true всегда —
-  // повторная разборка невозможна конструктивно (после неё per-cell
-  // записи нет, строки тоже). Базовые — строки НЕТ (затрачено = 0).
+  // каталожная цена .стройка.золото) + ПРЕДМЕТЫ (000148.04:
+  // cities.refundItemsFor — floor 30% по каждому .исходники, нули
+  // отброшены); доступен: true всегда — повторная разборка
+  // невозможна конструктивно (после неё per-cell записи нет, строки
+  // тоже). Пустой предметный список → СТАРАЯ форма строки дословно
+  // (id 48: stone_chunk ×1 → 0 — пины .03 без репинов). Базовые —
+  // строки НЕТ (затрачено = 0).
   function demolishActionRow(cell) {
     const C = deps.game.Cities;
     const b = deps.game.getBuilding
@@ -539,8 +560,20 @@
         typeof C.demolishReturn === 'function') {
       refund = C.demolishReturn(C.buildCost(cell.buildingId).золото);
     }
+    let items = [];
+    if (C && typeof C.refundItemsFor === 'function') {
+      items = C.refundItemsFor(cell.buildingId);
+    }
+    // «×» — U+00D7 (конвенция craft-ui.js:168); пустые исходники —
+    // строка БЕЗ скобок-хвоста (старая форма, R6).
+    let label = 'Разобрать (возврат ' + refund + ' з.';
+    if (Array.isArray(items) && items.length > 0)
+      label += ', ' + items.map((e) =>
+        reagentName(deps.game, e.предмет) + ' ×' + e.количество)
+        .join(', ');
+    label += ')';
     return { id: 'demolish',
-      имя: 'Разобрать (возврат ' + refund + ' з.)',
+      имя: label,
       доступен: true };
   }
 
@@ -591,8 +624,16 @@
       const name = rec && rec.название ? rec.название : String(id);
       const cost = C.buildCost(id);
       const check = C.canBuildAt(ds.dg, { x: t.x, y: t.y }, id, occupied);
+      // 000148.04 (R4): «Построить: <название> — <N> з. (<имя> ×<Q>[,
+      // <имя> ×<Q>])» — скобки группируют ЦЕНУ (золото + материалы);
+      // «×» — U+00D7 (craft-ui.js:168), «—» — U+2014 (существующее).
+      let label = 'Построить: ' + name + ' — ' + cost.золото + ' з.';
+      if (Array.isArray(cost.исходники) && cost.исходники.length > 0)
+        label += ' (' + cost.исходники.map((e) =>
+          reagentName(deps.game, e.предмет) + ' ×' + e.количество)
+          .join(', ') + ')';
       const a = { id: 'build-' + id,
-        имя: 'Построить: ' + name + ' — ' + cost.золото + ' з.',
+        имя: label,
         доступен: check.ok === true };
       if (check.ok !== true)
         a.reason = BUILD_REASON_TEXT[check.reason] || String(check.reason);
@@ -607,14 +648,19 @@
     return true;
   }
 
-  // Постройка из меню (000148.03): re-check геометрии (защита от
-  // дрейфа между открытием меню и нажатием) → списание золота по
-  // прецеденту teleportCharge (building-effects.js:2486-2491:
-  // active=false → списание cost) → cities.placeBuilding (ANCHOR-
-  // запись в cityStates) → per-cell player:true в ds.cityContents.
-  // buildings ([E]-поиск/рендер 000107/000148.02) → saveNow + flash +
-  // playerRender ТОЛЬКО при успехе; отказы — flash БЕЗ saveNow
-  // (семантика 000128 §2.6).
+  // Постройка из меню (000148.03 + 000148.04 — цена: золото +
+  // исходники): re-check геометрии (защита от дрейфа между открытием
+  // меню и нажатием) → ПРОВОЧКА ЗОЛОТА (gold-first: «мало золота
+  // (нужно N)» до проверок предметов) → гард items-API (деградация)
+  // → hasItem по ВСЕМ исходникам (нехватка — «мало: <имя>» ДО ЛЮБОГО
+  // списания) → списание золота по прецеденту teleportCharge
+  // (building-effects.js:2486-2491: active=false → списание cost) →
+  // removeItem по ВСЕМ исходникам (items.js, ДО присвоения
+  // hero.gold — защитный отказ ничего не мутирует) →
+  // cities.placeBuilding (ANCHOR-запись в cityStates) → per-cell
+  // player:true в ds.cityContents.buildings ([E]-поиск/рендер
+  // 000107/000148.02) → saveNow + flash + playerRender ТОЛЬКО при
+  // успехе; отказы — flash БЕЗ saveNow (семантика 000128 §2.6).
   function buildCityAt(t, buildingId) {
     if (!needDeps()) return;
     const C = deps.game.Cities;
@@ -671,6 +717,42 @@
       return;
     }
     const cost = C.buildCost(buildingId);
+    // 000148.04 (R8): ПРОВОЧКА ЗОЛОТА (gold-first) ДО проверок
+    // предметов: «мало золота (нужно N)» — и когда предмета нет
+    // (живой пин .03 CI-U14(b) — gold-first), и до любого списания.
+    // Ревью 000148.04: гард на deps.hero САМОМ — деградация
+    // проводки (000053) — видимый отказ, а не TypeError
+    // (в production проводка main.js всегда несёт hero).
+    if (!deps.hero || !Number.isFinite(deps.hero.gold) ||
+        deps.hero.gold < cost.золото) {
+      deps.flash('мало золота (нужно ' + cost.золото + ')');
+      return;
+    }
+    // 000148.04: гард items-API (flat на Game — в production
+    // ВСЕГДА на месте: items.js грузится ДО этого модуля; здесь —
+    // только проводочный сбой) — деградация (000053), ничего не
+    // мутировано.
+    if (typeof deps.game.hasItem !== 'function' ||
+        typeof deps.game.removeItem !== 'function') {
+      console.error('building-actions.js: flat-items API ' +
+        '(Game.hasItem/removeItem) отсутствует — списание ' +
+        'исходников невозможно (000148.04)');
+      deps.flash('Предметы недоступны — постройка невозможна');
+      return;
+    }
+    // 000148.04 (R9): нехватка ЛЮБОГО ингредиента — отказ ДО
+    // ЛЮБОГО списания; ПЕРВОЙ — первая недостающая позиция в
+    // порядке каталога; текст «мало: <имя>» — паттерн items.js:859
+    // («мало золота (нужно N)»).
+    {
+      const src = Array.isArray(cost.исходники) ? cost.исходники : [];
+      for (const e of src) {
+        if (!deps.game.hasItem(deps.hero, e.предмет, e.количество)) {
+          deps.flash('мало: ' + reagentName(deps.game, e.предмет));
+          return;
+        }
+      }
+    }
     const BE = deps.game.buildingEffects;
     if (!BE || typeof BE.teleportCharge !== 'function') {
       console.error('building-actions.js: buildingEffects.' +
@@ -678,15 +760,32 @@
         '(000148.03)');
       return;
     }
-    // Списание по прецеденту 000075 (active=false → списание cost);
-    // НЕ items.addItem/removeItem — предметы приходят в 000148.04.
+    // Списание золота по прецеденту 000075 (active=false → списание
+    // cost); отказ-ветка — ЗАЩИТНАЯ (провочка выше прошла): flash
+    // «мало золота (нужно N)», ничего не мутировано.
     const ch = BE.teleportCharge(deps.hero, false, cost.золото);
     if (!ch || !ch.ok) {
-      // Отказ — золото НЕ списано, без saveNow; текст — паттерн
-      // items.js:859 («мало золота (нужно N)»); ch.message
+      // Отказ — золото НЕ списано, без saveNow; ch.message
       // («недостаточно золота») — НЕ используется (ТЗ).
       deps.flash('мало золота (нужно ' + cost.золото + ')');
       return;
+    }
+    // 000148.04 (R8.8): списание ПРЕДМЕТОВ (removeItem items.js,
+    // «все или ничего») ДО присвоения hero.gold — защитный отказ НЕ
+    // мутирует НИЧЕГО (золото ещё не списано).
+    {
+      const src = Array.isArray(cost.исходники) ? cost.исходники : [];
+      for (const e of src) {
+        const rr = deps.game.removeItem(deps.hero, e.предмет,
+          e.количество);
+        if (!rr || !rr.ok) {
+          console.error('building-actions.js: removeItem(' +
+            e.предмет + ') unexpectedly failed: ' +
+            (rr && rr.reason ? rr.reason : 'неизвестная причина') +
+            ' (000148.04)');
+          return; // БЕЗ saveNow — состояние не мутировано
+        }
+      }
     }
     deps.hero.gold = ch.gold; // live-ссылка (паттерн 000075)
     const rec2 = C.placeBuilding(record, t.x, t.y, buildingId);
@@ -734,8 +833,20 @@
       ? deps.game.getBuilding(buildingId) : null;
     const name = b && b.название ? b.название : String(buildingId);
     deps.saveNow();
-    // «−» — U+2212 (формат flash, пин CI-U14/CI-V13).
-    deps.flash('Построено: ' + name + ' (−' + cost.золото + ' з.)');
+    // «−» — U+2212, «×» — U+00D7 (формат flash, пин CI-U14/CI-V13);
+    // 000148.04 (R5): перечислены СПИСАННЫЕ ингредиенты (игрок видит,
+    // что списали) — пустые исходники → старая форма (недостижимо для
+    // buildable — исходники всегда непусты).
+    {
+      const src = Array.isArray(cost.исходники) ? cost.исходники : [];
+      let msg = 'Построено: ' + name + ' (−' + cost.золото + ' з.';
+      if (src.length > 0)
+        msg += ', ' + src.map((e) =>
+          '−' + reagentName(deps.game, e.предмет) + ' ×' + e.количество)
+          .join(', ');
+      msg += ')';
+      deps.flash(msg);
+    }
     deps.playerRender();
   }
 
@@ -803,13 +914,55 @@
     // Возврат золота (live hero, паттерн 000075).
     if (ctx.hero && Number.isFinite(ctx.hero.gold))
       ctx.hero.gold += res.refund;
+    // 000148.04 (R10/R17): предметный возврат (cities.refundItemsFor —
+    // floor 30% по каждому исходнику, нули уже отброшены) ПОСЛЕ
+    // золота. Обращение к w.game.addItem — ТОЛЬКО при непустом списке
+    // (REVIEW-03: фейк без flat-items при пустом списке — ни ошибок,
+    // ни вызовов). Отказ addItem (слоты/вес) — console.error,
+    // предмет НЕ возвращается, остальные позиции продолжаются,
+    // разборка НЕ откатывается (золото возвращено — R10: разборка
+    // необратима по дизайну).
+    const items = Array.isArray(res.refundItems)
+      ? res.refundItems : [];
+    // Ревью 000148.04: flash строится из ФАКТИЧЕСКИ возвращённых
+    // предметов (got), а не из запланированного списка — при
+    // отказе addItem сообщение не обещает предмет, которого нет.
+    const got = [];
+    if (items.length > 0) {
+      if (!ctx.hero || typeof w.game.addItem !== 'function') {
+        console.error('building-actions.js: разборка — предметный ' +
+          'возврат невозможен (hero/addItem отсутствуют) ' +
+          '(000148.04)');
+      } else {
+        for (const e of items) {
+          const rr = w.game.addItem(ctx.hero, e.предмет, e.количество);
+          if (!rr || !rr.ok) {
+            console.error('building-actions.js: разборка — ' +
+              'addItem(' + e.предмет + ') не удался (' +
+              (rr && rr.reason ? rr.reason : 'неизвестная причина') +
+              ') — предмет не возвращается (000148.04)');
+          } else {
+            got.push(e);
+          }
+        }
+      }
+    }
     const b = w.game && w.game.getBuilding
       ? w.game.getBuilding(res.buildingId) : null;
     const name = b && b.название ? b.название : String(res.buildingId);
     // Успех → стандартный хвост пайплайна onBuildingAction
-    // (daily-марк + saveNow + flash + playerRender).
-    return { ok: true,
-      message: 'Разобрано: ' + name + ' (+' + res.refund + ' з.)' };
+    // (daily-марк + saveNow + flash + playerRender). 000148.04 (R7):
+    // «+» — приложения только при НЕПУСТОМ предметном возврате
+    // (пусто — СТАРАЯ форма дословно: пины id 48 .03 без репинов);
+    // ревью 000148.04: список — got (ФАКТИЧЕСКИ возвращённые),
+    // «×» — U+00D7.
+    let msg = 'Разобрано: ' + name + ' (+' + res.refund + ' з.';
+    if (got.length > 0)
+      msg += ', ' + got.map((e) =>
+        '+' + reagentName(w.game, e.предмет) + ' ×' + e.количество)
+        .join(', ');
+    msg += ')';
+    return { ok: true, message: msg };
   });
 
   // Каталожная запись тайла (задача 000076, подтипы 000073):

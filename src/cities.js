@@ -643,10 +643,21 @@ function (perlin, items, buildings, rootRef) {
   }
 
   /**
-   * Цена постройки (каталожное ДАННОЕ, 000053): .стройка.золото.
-   * @returns {{ золото: number }} — поле нет → { золото: 0 } (форма
-   *   совместима с 000148.04 { золото, исходники }); id вне каталога —
-   *   throw (ошибка вызывающего: меню отдаёт только buildable id).
+   * Цена постройки (каталожное ДАННОЕ, 000053): .стройка.золото +
+   * .стройка.исходники (000148.04: цена — золото + ингредиенты).
+   * @returns {{ золото: number, исходники: {предмет: string,
+   *   количество: number}[] }} — .исходники — НОРМАЛИЗОВАННАЯ КОПИЯ
+   *   каталожной (не-массив → []; запись принимается, если предмет —
+   *   непустая строка И количество — целое ≥ 1; мусор — пропуск,
+   *   fail-open 000029; ДУБЛИ одного предмета — агрегация по
+   *   количеству, порядок первого появления — ревью 000148.04:
+   *   атомарность проверки/списания; на уровне данных дубли
+   *   запрещает пин уникальности тест R13). Нет .стройки /
+   *   золото не int>0 →
+   *   { золото: 0, исходники: [] } (форма стабильна для ВСЕХ
+   *   потребителей — строки меню/flash/разборка, R12 000148.04).
+   *   id вне каталога — throw (ошибка вызывающего: меню отдаёт только
+   *   buildable id).
    */
   function buildCost(id) {
     if (!Number.isInteger(id))
@@ -660,8 +671,25 @@ function (perlin, items, buildings, rootRef) {
     const pp = b.особые_параметры;
     const s = pp && typeof pp === 'object' ? pp.стройка : null;
     const gold = s && s.золото;
-    if (!(Number.isInteger(gold) && gold > 0)) return { золото: 0 };
-    return { золото: gold };
+    if (!(Number.isInteger(gold) && gold > 0))
+      return { золото: 0, исходники: [] };
+    const agg = new Map();
+    const arr = s.исходники;
+    if (Array.isArray(arr)) {
+      for (const e of arr) {
+        if (e && typeof e === 'object' && !Array.isArray(e) &&
+            typeof e.предмет === 'string' && e.предмет.trim() !== '' &&
+            Number.isInteger(e.количество) && e.количество > 0) {
+          const id2 = e.предмет;
+          agg.set(id2, (agg.has(id2) ? agg.get(id2) : 0) +
+            e.количество);
+        }
+      }
+    }
+    const src = [];
+    for (const [предмет, количество] of agg)
+      src.push({ предмет, количество });
+    return { золото: gold, исходники: src };
   }
 
   /**
@@ -838,11 +866,14 @@ function (perlin, items, buildings, rootRef) {
   /**
    * Разобрать постройку ИГРОКА (built, player === true), чей footprint
    * накрывает (x, y) (поиск С КОНЦА массива — верхняя постройка).
-   * @returns {null|{record, buildingId, x, y, refund}} — record —
-   *   НОВЫЙ record без удалённой записи; x/y — АНКЕР удалённой записи;
-   *   refund = demolishReturn(buildCost(buildingId).золото). null —
-   *   не-player (базовая: затрачено = 0, не разбирается) / без built
-   *   / (x, y) не покрыт (без броска — отказ UI).
+   * @returns {null|{record, buildingId, x, y, refund, refundItems}} —
+   *   record — НОВЫЙ record без удалённой записи; x/y — АНКЕР удалённой
+   *   записи; refund = demolishReturn(buildCost(buildingId).золото);
+   *   refundItems = refundItemsFor(buildingId) (000148.04: возврат
+   *   30% floor ПРЕДМЕТОВ, каталожные данные; при отказе (null)
+   *   результата нет вовсе).
+   *   null — не-player (базовая: затрачено = 0, не разбирается) / без
+   *   built / (x, y) не покрыт (без броска — отказ UI).
    */
   function demolishCity(record, x, y) {
     if (!record || typeof record !== 'object' || Array.isArray(record))
@@ -872,6 +903,10 @@ function (perlin, items, buildings, rootRef) {
         x: e.x,
         y: e.y,
         refund: demolishReturn(buildCost(e.buildingId).золото),
+        // 000148.04: возврат 30% floor ПРЕДМЕТОВ (каталог .стройка.
+        // исходники; e.buildingId проверен каталогом выше — throw
+        // недостижим).
+        refundItems: refundItemsFor(e.buildingId),
       };
     }
     return null;
@@ -888,6 +923,40 @@ function (perlin, items, buildings, rootRef) {
       throw new Error('cities.js: demolishReturn — число (получено ' +
         String(gold) + ')');
     return Math.floor((gold * 3) / 10);
+  }
+
+  /**
+   * Возврат при разборке: 30% floor ОДНОГО КОЛИЧЕСТВА ПРЕДМЕТА,
+   * ЦЕЛОЧИСЛЕННАЯ арифметика floor((qty × 3) / 10) (1 → 0, 2 → 0,
+   * 4 → 1, 8 → 2, 10 → 3; НЕ qty × 0.3 — float-края). Зеркало
+   * demolishReturn (золото) на предметы (000148.04, TDD-фиксации
+   * 1→0, 2→0, 4→1, 10→3).
+   * @returns {number} — не-число — throw (ошибка вызывающего).
+   */
+  function demolishItemReturn(qty) {
+    if (typeof qty !== 'number' || !Number.isFinite(qty))
+      throw new Error('cities.js: demolishItemReturn — число (получено ' +
+        String(qty) + ')');
+    return Math.floor((qty * 3) / 10);
+  }
+
+  /**
+   * Каталожный список возврата ПРЕДМЕТОВ при разборке постройки
+   * (000148.04): floor 30% (demolishItemReturn) по КАЖДОМУ исходнику
+   * .стройка, нуль-количества ОТБРОШЕНЫ (addItem(qty<1) — INVALID,
+   * items.js; строки меню/flash не рендерят «×0»). Единая точка
+   * логики для demolishCity и строки «Разобрать».
+   * @returns {{предмет: string, количество: number}[]} — id ∉
+   *   каталогу — throw (через buildCost; ошибка вызывающего).
+   */
+  function refundItemsFor(buildingId) {
+    const src = buildCost(buildingId).исходники;
+    const out = [];
+    for (const e of src) {
+      const q = demolishItemReturn(e.количество);
+      if (q > 0) out.push({ предмет: e.предмет, количество: q });
+    }
+    return out;
   }
 
   return {
@@ -910,5 +979,7 @@ function (perlin, items, buildings, rootRef) {
     placeBuilding,
     demolishCity,
     demolishReturn,
+    demolishItemReturn,
+    refundItemsFor,
   };
 });

@@ -2054,3 +2054,154 @@ test('000148.03 R7: разборка — возврат 30% floor ЗОЛОТА �
   assert.equal(res.refund, 9,
     'demolishCity.refund = floor(buildCost(48).золото × 3/10) = 9');
 });
+
+// ============================================================
+// 000148.04: строительство — цена — ингредиенты (красные R15–R18)
+// ============================================================
+// Контракт: memory/000148.04-city-building-reagents.md §3.1 (cities.js)
+// + §8 (тест-план). Красные причины (осмысленные, не синтаксис):
+//  * R15 — buildCost возвращает {золото} (ключ .исходники undefined),
+//    поле .стройка.исходники отсутствует в каталоге;
+//  * R16/R17 — экспорты demolishItemReturn/refundItemsFor нет в
+//    return-блоке cities.js (typeof !== 'function');
+//  * R18 — результат demolishCity без поля refundItems (undefined).
+// НОЛЬ новых require (require-пин выше: ровно perlin+items+buildings) —
+// каталог — лениво через buildingsRef().
+
+test('000148.04 R15: buildCost(id) → {золото, исходники}: у всех 21 — исходники = каталожное .стройка.исходники (deepEqual, детерминизм двух вызовов); фикс. записи (8/7/36/48); id 31 (без .стройки) → {0, []}; id ∉ каталогу — throw', () => {
+  const C = loadCities();
+  assert.equal(typeof C.buildCost, 'function',
+    'export buildCost(id) (000148.03)');
+  for (const id of D3_IDS) {
+    const c = C.buildCost(id);
+    assert.ok(c && typeof c === 'object' && !Array.isArray(c),
+      'buildCost(' + id + ') — объект {золото, исходники}');
+    assert.ok(Number.isInteger(c.золото) && c.золото > 0,
+      id + ' ' + B.getBuilding(id).название + ': .стройка.золото — целое > 0'
+      + ' (получено ' + JSON.stringify(c.золото) + ')');
+    assert.ok(Array.isArray(c.исходники),
+      'RED: исходники — массив (id ' + id + '): ' + JSON.stringify(c));
+    assert.ok(c.исходники.length > 0,
+      'RED: исходники — непустые (id ' + id + '): ' + JSON.stringify(c));
+    // Форма = НОРМАЛИЗОВАННАЯ копия каталожного .стройка.исходники.
+    assert.deepEqual(c.исходники,
+      B.getBuilding(id).особые_параметры.стройка.исходники,
+      'RED: id ' + id + ': исходники = каталожное .стройка.исходники');
+    assert.deepEqual(C.buildCost(id), C.buildCost(id),
+      'buildCost детерминирован (id ' + id + ')');
+  }
+  // Фиксированные каталожные записи (таблица D5 — ДАННЫЕ, не проза).
+  assert.deepEqual(C.buildCost(8).исходники,
+    [{ предмет: 'iron_ore', количество: 2 }, { предмет: 'coal', количество: 2 }],
+    'RED: id 8 Кузница — iron_ore ×2 + coal ×2 (явная строка ТЗ)');
+  assert.deepEqual(C.buildCost(7).исходники,
+    [{ предмет: 'hide', количество: 8 }],
+    'RED: id 7 Арена (3×3) — hide ×8 (арена/стрельбище → hide)');
+  assert.deepEqual(C.buildCost(36).исходники,
+    [{ предмет: 'sulfur', количество: 10 }],
+    'RED: id 36 Храм солнца (3×3) — sulfur ×10 (храмы → herb_*/sulfur)');
+  assert.deepEqual(C.buildCost(48).исходники,
+    [{ предмет: 'stone_chunk', количество: 1 }],
+    'RED: id 48 Развалины — stone_chunk ×1 (развалины → stone_chunk)');
+  // id 31 (пещера, без .стройки) — нулевая цена + ПУСТЫЕ исходники
+  // (форма стабильна для всех потребителей, R12).
+  assert.deepEqual(C.buildCost(31), { золото: 0, исходники: [] },
+    'RED: id 31 (без .стройки) — {золото: 0, исходники: []}');
+  // id ∉ каталогу — throw (ошибка вызывающего; как в 000148.03).
+  assert.throws(() => C.buildCost(999), /cities\.js/,
+    'id ∉ каталогу — throw');
+});
+
+test('000148.04 R16: demolishItemReturn(qty) — 30% floor ПРЕДМЕТОВ, ЦЕЛОЧИСЛЕННО floor((qty×3)/10) (НЕ qty×0.3): фикс. записи ТЗ 1→0, 2→0, 4→1, 10→3; не-число — throw', () => {
+  const C = loadCities();
+  assert.equal(typeof C.demolishItemReturn, 'function',
+    'RED: экспорт demolishItemReturn(qty) — нет в cities.js '
+    + '(зеркало demolishReturn на ОДНО количество)');
+  assert.equal(C.demolishItemReturn(1), 0, 'RED: 1 → 0 (floor(3/10))');
+  assert.equal(C.demolishItemReturn(2), 0, 'RED: 2 → 0 (floor(6/10))');
+  assert.equal(C.demolishItemReturn(4), 1, 'RED: 4 → 1 (floor(12/10))');
+  assert.equal(C.demolishItemReturn(10), 3,
+    'RED: 10 → 3 (floor(30/10), фикс. запись ТЗ)');
+  assert.equal(C.demolishItemReturn(8), 2, '8 → 2 (Арена: hide ×8 → ×2)');
+  assert.equal(C.demolishItemReturn(35), 10,
+    '35 → 10 (целочисленно: (35×3)/10 = 10.5 → 10; НЕ qty×0.3)');
+  assert.throws(() => C.demolishItemReturn('x'), /cities\.js/,
+    'не-число — throw (ошибка вызывающего)');
+});
+
+test('000148.04 R17: refundItemsFor(buildingId) — каталожный список возврата (floor 30% по каждому предмету, нули ОТБРОШЕНЫ): 7 → hide ×2, 36 → sulfur ×3, 48 → []; id ∉ каталогу — throw', () => {
+  const C = loadCities();
+  assert.equal(typeof C.refundItemsFor, 'function',
+    'RED: экспорт refundItemsFor(buildingId) — нет в cities.js '
+    + '(единая точка логики для demolishCity и строки «Разобрать»)');
+  assert.deepEqual(C.refundItemsFor(7),
+    [{ предмет: 'hide', количество: 2 }],
+    'RED: Арена (hide ×8) → floor(8×3/10) = 2');
+  assert.deepEqual(C.refundItemsFor(36),
+    [{ предмет: 'sulfur', количество: 3 }],
+    'RED: Храм солнца (sulfur ×10) → floor(10×3/10) = 3');
+  assert.deepEqual(C.refundItemsFor(48), [],
+    'id 48 Развалины (stone_chunk ×1 → 0) — ПУСТО '
+    + '(нуль-количества отброшены: addItem(qty<1) — INVALID)');
+  assert.throws(() => C.refundItemsFor(999), /cities\.js/,
+    'id ∉ каталогу — throw (через buildCost)');
+});
+
+// Ревью 000148.04: латентная потеря предметов — дублирующиеся
+// позиции ОДНОГО предмета в .стройка.исходники (на текущих данных
+// недостижимо; каталог пинит уникальность — R13). Защита на уровне
+// кода: buildCost АГРЕГИРУЕТ дубли по количеству (порядок первого
+// появления) — проверка/списание по агрегированным позициям
+// атомарны; возврат — floor 30% от агрегата.
+test('000148.04 review-01: buildCost — дубли одного предмета агрегируются по количеству (порядок первого появления); refundItemsFor — floor 30% от агрегата', () => {
+  const C = loadCities();
+  const real = B.getBuilding;
+  try {
+    B.getBuilding = (id) => {
+      if (id !== 48) return real(id);
+      return { id: 48, название: 'Тест-дубли',
+        особые_параметры: {
+          стройка: { золото: 30, исходники: [
+            { предмет: 'sulfur', количество: 2 },
+            { предмет: 'iron_ore', количество: 1 },
+            { предмет: 'sulfur', количество: 3 },
+          ] },
+        } };
+    };
+    assert.deepEqual(C.buildCost(48).исходники,
+      [{ предмет: 'sulfur', количество: 5 },
+       { предмет: 'iron_ore', количество: 1 }],
+      'REVIEW: sulfur 2+3 → ОДНА позиция ×5 (порядок первого '
+      + 'появления); без агрегации hasItem/removeItem по позициям '
+      + 'теряли бы предметы');
+    assert.deepEqual(C.refundItemsFor(48),
+      [{ предмет: 'sulfur', количество: 1 }],
+      'REVIEW: возврат — floor 30% от АГРЕГАТА: floor(5×3/10)=1; '
+      + 'iron_ore ×1 → 0 отброшен');
+  } finally {
+    B.getBuilding = real;
+  }
+});
+
+test('000148.04 R18: demolishCity — результат несёт refundItems (sibling refund): id 48 → [] (refund 9), id 7 → hide ×2 (refund 120); вход НЕ мутирован', () => {
+  const C = loadCities();
+  const rec48 = C.placeBuilding({ lastVisitDay: 1, stock: {} }, 1, 1, 48);
+  const before48 = JSON.parse(JSON.stringify(rec48));
+  const r48 = C.demolishCity(rec48, 1, 1);
+  assert.ok(r48, 'запись id 48 найдена');
+  assert.equal(r48.refund, 9, 'refund (золото) — без изменений: 9');
+  assert.ok(Array.isArray(r48.refundItems),
+    'RED: поле refundItems — массив: ' + JSON.stringify(r48));
+  assert.deepEqual(r48.refundItems, [],
+    'RED: id 48 (stone_chunk ×1 → 0) — refundItems ПУСТО');
+  assert.deepEqual(rec48, before48, 'вход НЕ мутирован (id 48)');
+  const rec7 = C.placeBuilding({ lastVisitDay: 1, stock: {} }, 3, 2, 7);
+  const before7 = JSON.parse(JSON.stringify(rec7));
+  const r7 = C.demolishCity(rec7, 3, 2);
+  assert.ok(r7, 'запись id 7 найдена');
+  assert.equal(r7.refund, 120, 'refund (золото) — 120 (floor(400×3/10))');
+  assert.deepEqual(r7.refundItems,
+    [{ предмет: 'hide', количество: 2 }],
+    'RED: id 7 (Арена, hide ×8) → floor 30% = ×2');
+  assert.deepEqual(rec7, before7, 'вход НЕ мутирован (id 7)');
+});

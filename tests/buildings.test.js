@@ -947,3 +947,100 @@ test('каталог 000148.03: особые_параметры.стройка =
       `${b.id} ${b.название}: вне набора D3 — поля «стройка» НЕТ (строгий контур)`);
   }
 });
+
+// --- Задача 000148.04: строительство — цена — ингредиенты (красные) ---
+//
+// Контракт: memory/000148.04-city-building-reagents.md §2 (таблица D5)
+// + §8 (тест-план). Красная причина (осмысленная, не синтаксис): поле
+// особые_параметры.стройка.исходники ОТСУТСТВУЕТ во всех 21 JSON и в
+// GENERATED-зеркале src/buildings.js (undefined) — функциональность
+// задачи не реализована. Byte-идентичность JSON → зеркало закрывают
+// СУЩЕСТВУЮЩИЕ гейты (:94 «файлы assets/buildings … = JS-фолбэк»,
+// :498 sync-идемпотентность, sync-all.test.js) — новых тестов не
+// нужно (R18 контракта).
+// Исходники — ТОЛЬКО 13 reagent 000044 (ТЗ: «из них и только из них»;
+// пул ⊆ assets/items, kind reagent). Членство — hard-константа, НЕ
+// kind: в мастере kind=reagent уже 36+ (000157.02/000158.02 — регион
+// НЕ ТРОГАТЬ). Формат записи — как assets/craft/000001.json:
+// { "предмет": "<id>", "количество": N }.
+
+const REAGENTS_000044 = [
+  'sulfur', 'moonstone', 'phoenix_feather', 'iron_ore', 'copper_ore',
+  'wood_log', 'stone_chunk', 'hide', 'coal', 'herb_healing',
+  'herb_mana', 'herb_bitter', 'stone_chisel',
+];
+
+test('000148.04 R13: каталог: особые_параметры.стройка.исходники — непустой массив записей {предмет: непустая строка, количество: int>0} ровно у 21 buildable-типа (набор D3); у остальных 33 — .стройка НЕТ (строгий контур)', () => {
+  const withSrc = [];
+  for (const b of BUILDINGS) {
+    const pp = b.особые_параметры;
+    const s = pp && pp.стройка;
+    const arr = s && s.исходники;
+    if (!Array.isArray(arr) || arr.length === 0) continue;
+    withSrc.push(b);
+    const seen = new Set();
+    for (const e of arr) {
+      assert.ok(e && typeof e === 'object' && !Array.isArray(e),
+        `${b.id} ${b.название}: запись .исходники — объект: `
+        + JSON.stringify(e));
+      assert.equal(typeof e.предмет, 'string',
+        `${b.id}: предмет — строка (получено ${JSON.stringify(e.предмет)})`);
+      assert.notEqual(e.предмет.trim(), '',
+        `${b.id}: предмет — непустая строка`);
+      assert.ok(Number.isInteger(e.количество) && e.количество > 0,
+        `${b.id}: количество — int > 0 (получено ${JSON.stringify(e.количество)})`);
+      // Ревью 000148.04: УНИКАЛЬНОСТЬ предмета внутри .исходники
+      // ОДНОГО здания — дубли ломают атомарность списания
+      // (hasItem/removeItem по позициям); код агрегирует (buildCost),
+      // данные дублей НЕ допускает.
+      assert.ok(!seen.has(e.предмет),
+        `${b.id} ${b.название}: дублирующая позиция предмета «${e.предмет}» в .стройка.исходники — один предмет = одна запись`);
+      seen.add(e.предмет);
+    }
+  }
+  assert.deepEqual(withSrc.map((b) => b.id).sort((a, b) => a - b),
+    D3_IDS_03.slice().sort((a, b) => a - b),
+    'RED: ровно 21 запись с непустым .стройка.исходники (набор D3); '
+    + 'получено: ' + (withSrc.map((b) => b.id).join(', ') || 'НЕТ'));
+  // Строгий контур: у остальных 33 записей поля «стройка» НЕТ
+  // (дубль .03 :931 — исходники существуют только у buildable).
+  for (const b of BUILDINGS) {
+    if (D3_IDS_03.includes(b.id)) continue;
+    assert.equal(b.особые_параметры.стройка, undefined,
+      `${b.id} ${b.название}: вне набора D3 — поля «стройка» НЕТ (строгий контур)`);
+  }
+});
+
+test('000148.04 R14: ссылочная целостность: каждый предмет .стройка.исходники ∈ пулу 13 reagent 000044 (⊆ assets/items, kind reagent) — паттерн tests/assets-schemas.test.js', () => {
+  const ITEMS_DIR = path.join(__dirname, '..', 'assets', 'items');
+  const byId = {};
+  for (const f of fs.readdirSync(ITEMS_DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f))) {
+    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    byId[j.id] = j;
+  }
+  // Самопроверка пула: 13 id (000044) ∈ assets/items, kind reagent.
+  for (const id of REAGENTS_000044) {
+    assert.ok(byId[id], 'пул 13 (000044): ' + id + ' ∈ assets/items');
+    assert.equal(byId[id].kind, 'reagent',
+      'пул 13 (000044): ' + id + ' — kind reagent');
+  }
+  let n = 0;
+  for (const b of BUILDINGS) {
+    const s = b.особые_параметры && b.особые_параметры.стройка;
+    const arr = s && s.исходники;
+    if (!Array.isArray(arr)) continue;
+    for (const e of arr) {
+      n += 1;
+      assert.ok(REAGENTS_000044.includes(e.предмет),
+        `${b.id} ${b.название}: предмет «${e.предмет}» ∉ пулу 13 `
+        + 'reagent (ТЗ: «из них и только из них»)');
+      assert.ok(byId[e.предмет],
+        `${b.id} ${b.название}: предмет «${e.предмет}» ∈ assets/items`);
+      assert.equal(byId[e.предмет].kind, 'reagent',
+        `${b.id} ${b.название}: предмет «${e.предмет}» — kind reagent`);
+    }
+  }
+  assert.ok(n > 0,
+    'RED: минимум одна позиция .стройка.исходники (сейчас поля нет)');
+});

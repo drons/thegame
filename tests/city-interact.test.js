@@ -102,6 +102,14 @@ const { SAVE_KEY } = require('../src/save.js');
 // .стройка для меню «Строительство») — чистый в node (тесты
 // buildings.test.js), циклического require cities.js нет.
 const B = require('../src/buildings.js');
+// 000148.04 (CI-U18+): РЕАЛЬНЫЕ flat-items (items.js — чистый в node)
+// + createCharacter (player.js → sheet.js; gold 100 = стартовый,
+// sheet.js:120) — фикстура initCityBuild (контракт R15): addItem →
+// checkAdd → P.derived(c) — на «голом» объекте {id, name, gold}
+// ПАДАЕТ (sheet.secondary), bare-герой makeDeps не трогаем (CI-U1..U11
+// не ходят в предметы).
+const IT = require('../src/items.js');
+const PLR = require('../src/player.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -285,6 +293,18 @@ function initCityBuild(over) {
   const anchor = fp === 1 ? [-119, -104] : fp === 2 ? [-114, -119]
     : [100, -40];
   env.ds.dg = C.createCityLayout(anchor[0], anchor[1], fp);
+  // 000148.04 (контракт R15): hero = createCharacter (gold 100 =
+  // старый bare-дефолт — пины .03 держатся; addItem на bare-объекте
+  // падает в P.derived — createCharacter обязателен) + РЕАЛЬНЫЕ
+  // flat-items функции items.js на deps.game (в production — на Game;
+  // пин tests/craft-ui.test.js:534). makeDeps НЕ трогаем.
+  env.hero = PLR.createCharacter();
+  env.deps.hero = env.hero;
+  env.deps.game.getItem = IT.getItem;
+  env.deps.game.hasItem = IT.hasItem;
+  env.deps.game.removeItem = IT.removeItem;
+  env.deps.game.addItem = IT.addItem;
+  env.deps.game.totalQty = IT.totalQty;
   env.deps.game.getBuilding = (id) => B.getBuilding(id);
   env.deps.game.Cities = C;
   env.deps.game.buildingEffects.teleportCharge = (hero, active, cost) => {
@@ -518,7 +538,7 @@ test('CI-U11. 000134: клетка города БЕЗ cityShops-записи (�
 const D3_IDS_03 = [1, 2, 3, 4, 7, 8, 10, 11, 25, 36, 37, 38, 39, 40,
   42, 43, 44, 45, 46, 48, 49];
 
-test('CI-U12. 000148.03: [E] на пустой клетке города → buildingUI «Строительство»: ровно 21 строка «Построить: <название> — N з.» (набор D3, цены каталога, id build-<id>); npcUI напрямую НЕ открывается', () => {
+test('CI-U12. 000148.03: [E] на пустой клетке города → buildingUI «Строительство»: ровно 21 строка «Построить: <название> — N з. (…исходники…)» (набор D3, цены каталога, id build-<id>); npcUI напрямую НЕ открывается', () => {
   // Город 18×18 (fp5): интерьер 256, потолок 128 — при пустом
   // occupied ВСЕ 21 строка доступны (в т.ч. 3×3 на (1,1)).
   const t = initCityBuild({ x: 1, y: 1 });
@@ -532,14 +552,19 @@ test('CI-U12. 000148.03: [E] на пустой клетке города → bui
   assert.deepEqual(p.actions.map((a) => a.id),
     D3_IDS_03.map((id) => 'build-' + id),
     'строки — id build-<id>, порядок каталога (id-порядок)');
+  // 000148.04 (осознанный репин): строка = «Построить: <название> —
+  // <N> з. (<имя> ×<Q>[, <имя> ×<Q>])» — скобки группируют ЦЕНУ
+  // (золото + материалы, контракт R4); «×» — U+00D7.
   const row48 = p.actions.find((a) => a.id === 'build-48');
-  assert.equal(row48.имя, 'Построить: Развалины — 30 з.',
-    'RED: формат строки «Построить: <название> — <N> з.» (каталог + цена)');
+  assert.equal(row48.имя,
+    'Построить: Развалины — 30 з. (Каменный обломок ×1)',
+    'RED: формат строки с исходниками (каталог + цена + предмет)');
   const row1 = p.actions.find((a) => a.id === 'build-1');
-  assert.equal(row1.имя, 'Построить: Оружейная — 50 з.', 'строка id 1 (50 з.)');
+  assert.equal(row1.имя, 'Построить: Оружейная — 50 з. (Бревно ×2)',
+    'строка id 1 (50 з. + Бревно ×2)');
   const row7 = p.actions.find((a) => a.id === 'build-7');
-  assert.equal(row7.имя, 'Построить: Арена — 400 з.',
-    '3×3 — 400 з. (существенно дороже 1×1)');
+  assert.equal(row7.имя, 'Построить: Арена — 400 з. (Кожа ×8)',
+    '3×3 — 400 з. (существенно дороже 1×1) + Кожа ×8');
   for (const a of p.actions) {
     assert.equal(a.доступен, true,
       'пустая клетка, пустой occupied — строка ' + a.id + ' доступна');
@@ -600,13 +625,17 @@ test('CI-U13. 000148.03: [E] на постройке ИГРОКА (per-cell play
     'RED: базовая постройка — БЕЗ строки «Разобрать»');
 });
 
-test('CI-U14. 000148.03: build из меню — списание 100 → 70 (id 48: 30 з.) + built + per-cell + saveNow + flash «Построено: … (−30 з.)»; отказ при 20 з.: «мало золота (нужно 30)» — без saveNow/built/списания', () => {
-  // (a) Успех.
+test('CI-U14. 000148.03: build из меню — списание 100 → 70 (id 48: 30 з.) + списание исходников (000148.04) + built + per-cell + saveNow + flash «Построено: … (−30 з., −Каменный обломок ×1)»; отказ при 20 з.: «мало золота (нужно 30)» — без saveNow/built/списания', () => {
+  // (a) Успех. 000148.04 (осознанный репин): hero — createCharacter,
+  // сеидится stone_chunk ×1 (id 48: исходник stone_chunk ×1) — иначе
+  // отказ по нехватке, а не успех; список — ровно на количество.
   const t = initCityBuild({ x: 1, y: 1 });
   wireCityAnchor(t, 100, -40);
   const cs = new Map([['100,-40', { lastVisitDay: 5, stock: {} }]]);
   t.deps.cityStates = cs;
   t.hero.gold = 100;
+  const rseed = IT.addItem(t.hero, 'stone_chunk', 1);
+  assert.ok(rseed.ok, 'сид: stone_chunk ×1 (исходник id 48)');
   const flashes = [];
   t.deps.flash = (m) => flashes.push(m);
   let saves = 0, renders = 0;
@@ -620,14 +649,18 @@ test('CI-U14. 000148.03: build из меню — списание 100 → 70 (id
     [{ x: 1, y: 1, buildingId: 48, player: true }],
     'RED: built — ANCHOR-запись (cityStates)');
   assert.equal(t.hero.gold, 70, 'RED: золото 100 → 70 (списание 30 з.)');
+  assert.equal(IT.totalQty(t.hero, 'stone_chunk'), 0,
+    'RED: списание исходников — ровно на количество (×1 → 0)');
   assert.ok(t.ds.cityContents.buildings.some(
     (b) => b.x === 1 && b.y === 1 && b.buildingId === 48
       && b.player === true),
     'per-cell запись player:true в cityContents.buildings ([E]-поиск/рендер)');
   assert.equal(saves, 1, 'saveNow — 1 (успех)');
   assert.equal(renders, 1, 'playerRender — 1');
-  assert.ok(flashes.includes('Построено: Развалины (−30 з.)'),
-    'RED: flash «Построено: <имя> (−N з.)»: ' + JSON.stringify(flashes));
+  assert.ok(flashes.includes(
+    'Построено: Развалины (−30 з., −Каменный обломок ×1)'),
+    'RED: flash «Построено: <имя> (−N з., −<имя> ×<Q>)» (000148.04): '
+    + JSON.stringify(flashes));
   // (b) Отказ — мало золота (проверяется ТОЛЬКО в момент действия;
   // строка меню геометрическая — доступна).
   const t2 = initCityBuild({ x: 1, y: 1 });
@@ -735,6 +768,92 @@ test('CI-U17. деградация: пустая клетка + Game.buildingUI 
   assert.equal(t.o.calls.npcOpen.length, 0, 'npcUI.open — не вызван');
   assert.ok(errs.some((m) => m.includes('обход запрещён')),
     'console.error «обход запрещён»: ' + JSON.stringify(errs));
+});
+
+// ============================================================
+// 000148.04: цена — ингредиенты (красные, CI-U18..U19)
+// ============================================================
+// Контракт: memory/000148.04-city-building-reagents.md (R8/R9, R16-R17).
+// Красные причины (осмысленные, не синтаксис): buildCityAt НЕ знает о
+// предметах (списание/нехватки нет — старый успех там, где обязан быть
+// отказ), demolish НЕ возвращает предметы (flash/строка старой формы,
+// инвентарь не растёт).
+
+test('CI-U18. 000148.04: build при ДОСТАТОЧНОМ золоте, НО без исходников (stone_chunk ×0 < ×1) — отказ «мало: Каменный обломок» ДО ЛЮБОГО списания: золото 100 не тронуто, built/per-cell — нет, saveNow=0', () => {
+  const t = initCityBuild({ x: 1, y: 1 });
+  wireCityAnchor(t, 100, -40);
+  const cs = new Map([['100,-40', { lastVisitDay: 5, stock: {} }]]);
+  t.deps.cityStates = cs;
+  t.hero.gold = 100; // золото ДОСТАТОЧНО (30 з.) — срабатывает ПРОВЕРКА ПРЕДМЕТОВ
+  assert.equal(IT.totalQty(t.hero, 'stone_chunk'), 0, 'сид: пусто (stone_chunk ×0)');
+  const flashes = [];
+  t.deps.flash = (m) => flashes.push(m);
+  let saves = 0, renders = 0;
+  t.deps.saveNow = () => { saves += 1; };
+  t.deps.playerRender = () => { renders += 1; };
+  t.BA.interactCity();
+  assert.equal(t.o.calls.buildingOpen.length, 1, 'меню «Строительство»');
+  t.o.calls.buildingOpen[0].onAction({ id: 'build-48' });
+  assert.deepEqual(flashes, ['мало: Каменный обломок'],
+    'RED: отказ по нехватке — flash «мало: <имя предмета>» ' +
+    '(паттерн items.js «мало золота (нужно N)»): ' + JSON.stringify(flashes));
+  assert.equal(t.hero.gold, 100,
+    'RED: золото НЕ списано (отказ ДО списания; в старом коде — успех 70)');
+  assert.equal(IT.totalQty(t.hero, 'stone_chunk'), 0,
+    'инвентарь не тронут (списывать было нечего)');
+  const rec = cs.get('100,-40');
+  assert.ok(!rec.built || rec.built.length === 0,
+    'RED: built — нет записи (в старом коде — запись)');
+  assert.equal(t.ds.cityContents.buildings.length, 0,
+    'RED: per-cell — не добавлен (в старом коде — добавлен)');
+  assert.equal(saves, 0, 'RED: отказ — БЕЗ saveNow (в старом коде — 1)');
+  assert.equal(renders, 0, 'отказ — без playerRender');
+});
+
+test('CI-U19. 000148.04: demolish Арены (id 7, 3×3, hide ×8) — строка «Разобрать (возврат 120 з., Кожа ×2)» и возврат ПРЕДМЕТОВ в инвентарь РОВНО floor 30% (hide ×1 → ×3, +×2): золото 100 → 220, built/per-cell/stock — чистка, saveNow=1, flash «Разобрано: Арена (+120 з., +Кожа ×2)»', () => {
+  // 3×3 в деревню не ставится (cap 8 < 9) — fp5-город (18×18).
+  const cells = [];
+  for (let dy = 0; dy < 3; dy++)
+    for (let dx = 0; dx < 3; dx++)
+      cells.push({ x: 3 + dx, y: 2 + dy, buildingId: 7, player: true });
+  const t = initCityBuild({
+    x: 3, y: 2, cityContents: cells, npcs: [],
+  });
+  wireCityAnchor(t, 100, -40);
+  const cs = new Map([['100,-40', { lastVisitDay: 5, stock: {},
+    built: [{ x: 3, y: 2, buildingId: 7, player: true }] }]]);
+  t.deps.cityStates = cs;
+  const rseed = IT.addItem(t.hero, 'hide', 1);
+  assert.ok(rseed.ok, 'сид: hide ×1');
+  t.hero.gold = 100;
+  const flashes = [];
+  t.deps.flash = (m) => flashes.push(m);
+  let saves = 0, renders = 0;
+  t.deps.saveNow = () => { saves += 1; };
+  t.deps.playerRender = () => { renders += 1; };
+  t.BA.interactCity();
+  assert.equal(t.o.calls.buildingOpen.length, 1,
+    'меню постройки игрока (строка «Разобрать»)');
+  const p = t.o.calls.buildingOpen[0];
+  const dem = p.actions.find((a) => a.id === 'demolish');
+  assert.ok(dem, 'строка «Разобрать» (id «demolish»)');
+  assert.equal(dem.имя,
+    'Разобрать (возврат 120 з., Кожа ×2)',
+    'RED: строка с предметным возвратом (floor(8×3/10) = 2): ' + dem.имя);
+  p.onAction({ id: 'demolish' });
+  assert.equal(t.hero.gold, 220, 'золото +120 (floor(400×3/10))');
+  assert.equal(IT.totalQty(t.hero, 'hide'), 3,
+    'RED: предметный возврат — hide ×1 + ×2 (floor 30% от ×8) = ×3 ' +
+    '(в старом коде — ×1, предметов нет)');
+  const rec = cs.get('100,-40');
+  assert.deepEqual(rec.built, [], 'built — чистка (record заменён)');
+  assert.equal(t.ds.cityContents.buildings.length, 0,
+    'per-cell — 9 записей footprint удалено');
+  assert.equal(saves, 1, 'saveNow — 1 (успех)');
+  assert.equal(renders, 1, 'playerRender — 1');
+  assert.ok(flashes.includes('Разобрано: Арена (+120 з., +Кожа ×2)'),
+    'RED: flash нового формата (золото + предметы, U+2212 в строке): '
+    + JSON.stringify(flashes));
 });
 
 // ============================================================
@@ -1661,6 +1780,26 @@ test('CI-V8. содержимое на входе: __game.dungeon.buildings = ge
 // Клик строкой — делегированный обработчик оверлея
 // (ov.listeners.click[0]({ target: row }), паттерн 000134).
 
+// 000148.04 (vm-сеид исходников): g.state.hero — СНИМОК-проекция
+// (getter __game, main.js): G.addItem/G.totalQty на ней НЕЛЬЗЯ — у
+// проекции .inventory — САМ массив слотов, .slots у него нет
+// (checkAdd/totalQty → TypeError «inv.slots is not iterable»; паттерн
+// qtyOf — tests/building-effects.test.js). ЖИВОЙ инвентарь =
+// g.state.hero.inventory — сам hero.inventory.slots (debug-хук
+// main.js) — сеид в-place push, счётчик — локальный.
+function seedSlot(g, id, qty) {
+  const slots = g.state.hero.inventory;
+  assert.ok(Array.isArray(slots),
+    'инвентарь — живой массив слотов (debug-хук main.js)');
+  for (let i = 0; i < qty; i++) slots.push({ id, qty: 1 });
+  return slots;
+}
+function qtyOf(g, id) {
+  return (g.state.hero.inventory || [])
+    .filter((e) => e && e.id === id)
+    .reduce((s, e) => s + (e.qty || 0), 0);
+}
+
 test('CI-V12. 000148.03: [E] на пустой клетке города (vm e2e) → buildingUI «Строительство»: 21 строка «Построить: <название> — N з.»; повторный [E] — закрыть оверлей (стек); позиция/день не изменены', async () => {
   const h = await bootChain();
   const G = h.sandbox.Game;
@@ -1686,8 +1825,9 @@ test('CI-V12. 000148.03: [E] на пустой клетке города (vm e2e
     'RED: заголовок меню «Строительство»: ' + textOf(ov).slice(0, 200));
   assert.equal(findAll(ov, '[data-buid]').length, 21,
     'RED: ровно 21 строка (набор D3)');
-  assert.ok(textOf(ov).includes('Построить: Развалины — 30 з.'),
-    'RED: строка «Построить: <название> — <N> з.» (id 48: 30 з.)');
+  assert.ok(textOf(ov).includes(
+    'Построить: Развалины — 30 з. (Каменный обломок ×1)'),
+    'RED: строка «Построить: <название> — <N> з. (<имя> ×<Q>…)» (000148.04, id 48)');
   // Повторный [E] — закрыть оверлей (стек, :601-604 — не трогать).
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), false,
@@ -1716,6 +1856,10 @@ test('CI-V13. 000148.03: vm e2e цикл: [E] → «Построить: Разв
   const gold0 = g.state.hero.gold;
   assert.ok(gold0 >= 30,
     'сценарий: золото ≥ 30 (цена id 48; стартовое 100, sheet.js:120)');
+  // 000148.04 (осознанный репин): сеидим исходник id 48 (stone_chunk ×1)
+  // — без него зелёный buildCityAt отказал бы по нехватке ДО списаний.
+  seedSlot(g, 'stone_chunk', 1);
+  assert.equal(qtyOf(g, 'stone_chunk'), 1, 'сид: stone_chunk — ровно ×1');
   const day0 = g.dungeon.day;
   const errsBefore = h.errors.length;
   // (a) Строительство.
@@ -1744,6 +1888,8 @@ test('CI-V13. 000148.03: vm e2e цикл: [E] → «Построить: Разв
     (b) => b.x === target.x && b.y === target.y && b.buildingId === 48
       && b.player === true),
     'RED: per-cell запись player:true в dungeon.buildings');
+  assert.equal(qtyOf(g, 'stone_chunk'), 0,
+    'RED: 000148.04 — списание исходников при build: stone_chunk 1 → 0 (×1)');
   // (b) Разборка.
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), true,
@@ -1764,6 +1910,8 @@ test('CI-V13. 000148.03: vm e2e цикл: [E] → «Построить: Разв
   assert.ok(!g.dungeon.buildings.some(
     (b) => b.x === target.x && b.y === target.y && b.player === true),
     'per-cell запись удалена из dungeon.buildings');
+  assert.equal(qtyOf(g, 'stone_chunk'), 0,
+    '000148.04: возврат предметов при demolish id 48 = +0 (floor 30% от ×1 = 0)');
   assert.equal(g.dungeon.x, target.x, 'позиция не изменена: x');
   assert.equal(g.dungeon.y, target.y, 'позиция не изменена: y');
   assert.equal(g.dungeon.day, day0, 'день не изменён');
@@ -1800,8 +1948,12 @@ test('CI-V14. 000148.03 (ревью blocker): построить id 48 → [E] �
   const target = freeCityCell(found);
   walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, target.x, target.y));
   const gold0 = g.state.hero.gold;
+  // 000148.04 (осознанный репин): сеидим исходник id 48 (stone_chunk ×1)
+  // — без него buildCityAt откажет по нехватке ДО списаний (репин
+  // CI-V13; отрицательный пин !includes('Построить: ') не трогаем).
+  seedSlot(g, 'stone_chunk', 1);
   const errsBefore = h.errors.length;
-  // (a) Строительство id 48 (30 з.).
+  // (a) Строительство id 48 (30 з. + stone_chunk ×1).
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), true, '[E] — меню «Строительство»');
   const ov = buildingOverlayOf(h);
@@ -1870,8 +2022,15 @@ test('CI-V15. 000148.03 (ревью major): торговля на ИГРОКОВ
   assert.ok(gold0 >= 50 + 42,
     'сценарий: золото ≥ 92 (стройка id 1 — 50 з. + покупка ≤ 42 з.; ' +
     'стартовое 100, sheet.js:120)');
+  // 000148.04 (осознанный репин): строка id 1 теперь несёт исходники
+  // (wood_log ×2) — без сеида buildCityAt откажет «мало: Бревно»
+  // ДО списаний и дойдём до торговли не сможем. Сеид — в-place в живой
+  // массив слотов (G.addItem на g.state.hero-проекции падает — см.
+  // seedSlot; на текущем коде build-1 предмет не проверяет — сеид
+  // безвреден, на зелёном — расходится).
+  seedSlot(g, 'wood_log', 2);
   const errsBefore = h.errors.length;
-  // (a) Строим Оружейную (id 1, 50 з., map_index — лавка).
+  // (a) Строим Оружейную (id 1, 50 з. + wood_log ×2, map_index — лавка).
   key(h, 'KeyE');
   const ov = buildingOverlayOf(h);
   const row1 = findRow(ov, 'build-1');
