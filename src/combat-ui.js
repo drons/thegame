@@ -1130,11 +1130,11 @@
         g2.fillRect(px + 8, py + 2, pw - 16, 4);
         g2.fillStyle = (G.hpBarColor ? G.hpBarColor(afrac) : '#6fdc6f');
         g2.fillRect(px + 8, py + 2, Math.round((pw - 16) * afrac), 4);
-        // Уровень (центр прямоугольника) — как у мобов.
+        // Уровень (правый верхний угол, 6px, 000204) — как у мобов.
         g2.fillStyle = '#fff';
-        g2.font = '12px ui-monospace, monospace';
-        g2.textAlign = 'center';
-        g2.fillText(String(u.level), px + pw / 2, py + ph / 2 + 4);
+        g2.font = '6px ui-monospace, monospace';
+        g2.textAlign = 'right';
+        g2.fillText(String(u.level), px + pw - 4, py + 12);
         // Голубая рамка — ПОВЕРХ спрайта (паттерн подсветки цели),
         // ТОЛЬКО у активного союзника (задача 000197; жёлтое кольцо
         // хода 41×41 удалено — 000199 L4, «чей ход» показывает рамка).
@@ -1184,11 +1184,11 @@
         g2.fillRect(px + 8, py + 2, pw - 16, 4);
         g2.fillStyle = '#6fdc6f';
         g2.fillRect(px + 8, py + 2, Math.round((pw - 16) * frac), 4);
-        // Уровень (центр прямоугольника).
+        // Уровень (правый верхний угол, 6px, 000204).
         g2.fillStyle = '#fff';
-        g2.font = '12px ui-monospace, monospace';
-        g2.textAlign = 'center';
-        g2.fillText(String(u.level), px + pw / 2, py + ph / 2 + 4);
+        g2.font = '6px ui-monospace, monospace';
+        g2.textAlign = 'right';
+        g2.fillText(String(u.level), px + pw - 4, py + 12);
         // Подсветка цели (весь прямоугольник).
         if (u.id === c.targetId) {
           g2.strokeStyle = '#ffe27a';

@@ -47,6 +47,15 @@ function makeContext2d(el) {
   // strokeStyle и ВСЕ z-порядок-пины (000050 lastGridStroke, H1/H6,
   // R5-слайсы) сдвинулись бы.
   const lineWidthSets = el.lineWidthSets = [];
+  // 000204 (CU204-*) — ТЕХНИЧЕСКОЕ дополнение (все существующие
+  // журналы НЕ тронуты): textStyleSets — журнал присвоений font/textAlign
+  // [prop, value]. ОТДЕЛЬНЫЙ массив, НЕ в events/styleCalls/lineWidthSets:
+  // пуш в events сдвинул бы evIdx-пины 000175/000182 (H1/H6, R5-слайсы)
+  // и итерацию styledCalls (прецедент 000182: отдельный массив). Пины:
+  // '6px ui-monospace, monospace' + textAlign 'right' — уровень мобов/
+  // спутников в правом верхнем углу тайла (контракт
+  // memory/000204-combat-level-corner.md).
+  const textStyleSets = el.textStyleSets = [];
   return new Proxy({}, {
     get: (t, k) => (k in t ? t[k] : (...args) => {
       calls.push([k, args]);
@@ -60,6 +69,9 @@ function makeContext2d(el) {
       }
       if (k === 'lineWidth') {
         lineWidthSets.push([v, events.length]);
+      }
+      if (k === 'font' || k === 'textAlign') {
+        textStyleSets.push([k, v]);
       }
       return true;
     },
@@ -915,12 +927,12 @@ test('боевой UI: мёртвый моб — dead-кадр, без HP-пол
   assert.equal(diDead[1][1], dx, 'dead-кадр на месте трупа (x)');
   assert.equal(diDead[1][2], dy, 'dead-кадр на месте трупа (y)');
   // У трупа нет: HP-полосы (fillRect …, py+2, 32, 4), уровня
-  // (fillText в центре), подсветки цели (strokeRect).
+  // (fillText в углу тайла, 000204), подсветки цели (strokeRect).
   assert.ok(!calls.some((x) => x[0] === 'fillRect'
     && x[1][0] === wolf.x * 48 + 8 && x[1][1] === wolf.y * 48 + 2 && x[1][3] === 4),
     'у трупа нет HP-полосы');
   assert.ok(!calls.some((x) => x[0] === 'fillText'
-    && x[1][1] === wolf.x * 48 + 24 && x[1][2] === wolf.y * 48 + 28),
+    && x[1][1] === wolf.x * 48 + 44 && x[1][2] === wolf.y * 48 + 12),
     'у трупа нет уровня');
   assert.ok(!calls.some((x) => x[0] === 'strokeRect'
     && x[1][0] === wolf.x * 48 + 4.5 && x[1][1] === wolf.y * 48 + 4.5),
@@ -1531,11 +1543,16 @@ function tickSlice(canvas, rafStubs) {
   const n0 = canvas.drawCalls.length;
   const s0 = canvas.styleCalls.length;
   const e0 = canvas.events.length;
+  // 000204: textStyleSets из того же окна (журнал накапливается между
+  // рендерами — g2 один раз на бой; паттерн s0/e0, backward-compatible:
+  // существующие вызывающие читают именованные поля — без правок).
+  const ts0 = canvas.textStyleSets.length;
   rafStubs.scheduled[rafStubs.scheduled.length - 1]();
   return {
     calls: canvas.drawCalls.slice(n0),
     styleCalls: canvas.styleCalls.slice(s0),
     events: canvas.events.slice(e0),
+    textStyleSets: canvas.textStyleSets.slice(ts0),
   };
 }
 
@@ -1798,7 +1815,7 @@ test('боевой UI: 000084 — детерминизм отрисовки (gol
     ['drawImage', [frame, ex + 8, ey + 8, 32, 32]],    // спрайт
     ['fillRect', [ex + 8, ey + 2, 32, 4]],             // HP-трек
     ['fillRect', [ex + 8, ey + 2, 32, 4]],             // HP-fill (полный)
-    ['fillText', [String(u.level), ex + 24, ey + 28]], // уровень
+    ['fillText', [String(u.level), ex + 44, ey + 12]], // уровень (угол, 6px, 000204)
     ['strokeRect', [ex + 4.5, ey + 4.5, 39, 39]],      // голубая рамка «активный» (000197; Эфир активен — turnIndex 0)
   ];
   assert.deepEqual(cell, golden,
@@ -1923,7 +1940,7 @@ test('боевой UI: 000084 — мёртвый союзник — «ничег
     && c[1][0] === ex + 8 && c[1][1] === ey + 8
     && c[1][2] === 32 && c[1][3] === 32), 'без фолбэк-прямоугольника');
   assert.ok(!t.calls.some((c) => c[0] === 'fillText'
-    && c[1][1] === ex + 24 && c[1][2] === ey + 28), 'без уровня');
+    && c[1][1] === ex + 44 && c[1][2] === ey + 12), 'без уровня');
   assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
     && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5), 'без рамки «свой»');
   assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
@@ -7379,4 +7396,123 @@ test('боевой UI: 000196 — «Воскрешение» из книги-о�
   assert.equal(G.activeUnitId(c), 'efir', 'каст ≠ endTurn (очередь не сдвинулась)');
   assert.equal(rngCalls, 0,
     'новых вызовов c._rng — ноль (воскрешение без RNG, 000163)');
+});
+
+// 000204: уровень мобов/спутников — вдвое мельче (6px ui-monospace) и
+// в правом верхнем углу тайла (якорь fillText (px+pw−4, py+12),
+// textAlign 'right', fillStyle '#fff'). Контракт —
+// memory/000204-combat-level-corner.md (вытесняет «уровень (fillText,
+// центр +4)» контракта 000197 §2).
+const hasTextStyleSet = (list, k, v) =>
+  list.some(([p, val]) => p === k && val === v);
+
+test('боевой UI: 000204 — уровень ЖИВОГО МОБА: вдвое мельче (6px ui-monospace, monospace), в правом верхнем углу тайла (x*48+44, y*48+12), fillStyle \'#fff\' в момент вызова; на старом центре (x*48+24, y*48+28) — нет (CU204-MOB)', () => {
+  const S = scene84();
+  const u = S.c.units.find((x) => x.mobId === 'wolf');
+  assert.ok(u && u.alive, 'фикстура: живой волк 1×1');
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const texts = t.calls.filter((c) => c[0] === 'fillText');
+  assert.ok(texts.some((c) => c[1][0] === String(u.level)
+    && c[1][1] === u.x * 48 + 44 && c[1][2] === u.y * 48 + 12),
+    'fillText уровня — в правом верхнем углу тайла (x*48+44, y*48+12): '
+    + JSON.stringify(texts));
+  assert.ok(hasTextStyleSet(t.textStyleSets, 'font',
+    '6px ui-monospace, monospace'),
+    'font — 6px ui-monospace, monospace (в 2 раза мельче): '
+    + JSON.stringify(t.textStyleSets));
+  assert.ok(hasTextStyleSet(t.textStyleSets, 'textAlign', 'right'),
+    'textAlign — right (якорь — правая кромка текста): '
+    + JSON.stringify(t.textStyleSets));
+  assert.ok(!hasTextStyleSet(t.textStyleSets, 'font',
+    '12px ui-monospace, monospace'),
+    'старый font 12px не выставляется');
+  const styled = styledCalls(t.events).find((c) => c.name === 'fillText'
+    && c.args[0] === String(u.level));
+  assert.ok(styled, 'fillText уровня в едином логе');
+  assert.equal(styled.fillStyle, '#fff', 'fillStyle — #fff в момент вызова');
+  assert.ok(!texts.some((c) => c[1][1] === u.x * 48 + 24
+    && c[1][2] === u.y * 48 + 28),
+    'на старом центре тайла (x*48+24, y*48+28) — нет');
+});
+
+test('боевой UI: 000204 — уровень СПУТНИКА (ally-ветка: Эфир + наёмник, оба kind): вдвое мельче (6px), textAlign right, в правом верхнем углу тайла (x*48+44, y*48+12), fillStyle \'#fff\' в момент вызова; на старом центре — нет (CU204-ALLY)', () => {
+  const S = scene84({ efir: true });
+  addMerc84(S.c, S.G, 5, 2, 'ranged');
+  S.c.obstacles.clear();
+  const allies = S.c.units
+    .filter((x) => x.kind === 'efir' || x.kind === 'merc');
+  assert.equal(allies.length, 2, 'фикстура: Эфир + наёмник в бою');
+  assert.notDeepEqual(
+    [allies[0].x, allies[0].y], [allies[1].x, allies[1].y],
+    'фикстура: союзники на разных клетках');
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(hasTextStyleSet(t.textStyleSets, 'font',
+    '6px ui-monospace, monospace'),
+    'font — 6px ui-monospace, monospace (в 2 раза мельче): '
+    + JSON.stringify(t.textStyleSets));
+  assert.ok(hasTextStyleSet(t.textStyleSets, 'textAlign', 'right'),
+    'textAlign — right: ' + JSON.stringify(t.textStyleSets));
+  assert.ok(!hasTextStyleSet(t.textStyleSets, 'font',
+    '12px ui-monospace, monospace'),
+    'старый font 12px не выставляется');
+  const styled = styledCalls(t.events);
+  for (const u of allies) {
+    const ex = u.x * 48, ey = u.y * 48;
+    assert.ok(t.calls.some((c) => c[0] === 'fillText'
+      && c[1][0] === String(u.level)
+      && c[1][1] === ex + 44 && c[1][2] === ey + 12),
+      'fillText уровня ' + u.kind + ' — в правом верхнем углу ('
+      + (ex + 44) + ', ' + (ey + 12) + '): '
+      + JSON.stringify(t.calls.filter((c) => c[0] === 'fillText')));
+    const fc = styled.find((c) => c.name === 'fillText'
+      && c.args[0] === String(u.level)
+      && c.args[1] === ex + 44 && c.args[2] === ey + 12);
+    assert.ok(fc, 'fillText уровня ' + u.kind + ' в едином логе');
+    assert.equal(fc.fillStyle, '#fff',
+      'fillStyle — #fff в момент вызова (' + u.kind + ')');
+    assert.ok(!t.calls.some((c) => c[0] === 'fillText'
+      && c[1][1] === ex + 24 && c[1][2] === ey + 28),
+      'на старом центре тайла ' + u.kind + ' — нет');
+  }
+});
+
+test('боевой UI: 000204 — мультиклеточный моб 2×2 (cave_bear): уровень в правом верхнем углу ЦЕЛИКОВОГО прямоугольника (x*48+92, y*48+12; pw=96 → px+pw−4), не в центре (x*48+48, y*48+52); 6px (CU204-BIG)', () => {
+  const S = scene84({ mobs: ['cave_bear'] });
+  const u = S.c.units.find((x) => x.mobId === 'cave_bear');
+  assert.ok(u && u.alive, 'фикстура: cave_bear 2×2 в бою');
+  assert.equal(u.size.w, 2, 'фикстура: size.w = 2 (примитивы — vm-правило 000082)');
+  assert.equal(u.size.h, 2, 'фикстура: size.h = 2');
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const texts = t.calls.filter((c) => c[0] === 'fillText');
+  assert.ok(texts.some((c) => c[1][0] === String(u.level)
+    && c[1][1] === u.x * 48 + 92 && c[1][2] === u.y * 48 + 12),
+    'fillText — в правом верхнем углу прямоугольника 2×2 (x*48+92, y*48+12): '
+    + JSON.stringify(texts));
+  assert.ok(hasTextStyleSet(t.textStyleSets, 'font',
+    '6px ui-monospace, monospace'),
+    'font — 6px ui-monospace, monospace: '
+    + JSON.stringify(t.textStyleSets));
+  assert.ok(hasTextStyleSet(t.textStyleSets, 'textAlign', 'right'),
+    'textAlign — right: ' + JSON.stringify(t.textStyleSets));
+  assert.ok(!texts.some((c) => c[1][1] === u.x * 48 + 48
+    && c[1][2] === u.y * 48 + 52),
+    'в центре прямоугольника 2×2 (x*48+48, y*48+52) — нет');
+});
+
+test('боевой UI: 000204 — мёртвые моб/союзник: уровня НЕТ ни в новом углу (x*48+44, y*48+12), ни в центре (x*48+24, y*48+28) — пин против регрессии «уровень на трупе» (CU204-DEAD)', () => {
+  const S = scene84({ efir: true });
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  const wolf = S.c.units.find((x) => x.side === 'mob');
+  u.alive = false; u.hp = 0;
+  wolf.alive = false; wolf.hp = 0;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  for (const x of [u, wolf]) {
+    const ex = x.x * 48, ey = x.y * 48;
+    assert.ok(!t.calls.some((c) => c[0] === 'fillText'
+      && c[1][1] === ex + 44 && c[1][2] === ey + 12),
+      'у трупа (' + x.kind + ') нет уровня в новом углу');
+    assert.ok(!t.calls.some((c) => c[0] === 'fillText'
+      && c[1][1] === ex + 24 && c[1][2] === ey + 28),
+      'у трупа (' + x.kind + ') нет уровня в центре');
+  }
 });
