@@ -380,6 +380,7 @@
   // dead).
   const MOB_CHARGE_MS = 1500;
   let mobCharge = null; // null | { key, from, to, mover }
+  let lungeEndMs = 0;
   // now последнего кадра — только для debug-поля
   // state.mobCharge.pos (в vm performance.now() заморожен; время
   // анимации — ТОЛЬКО аргумент кадра frame(now), D-RNG-1).
@@ -2114,11 +2115,12 @@
         && (chargeTo.x !== t.x || chargeTo.y !== t.y)) {
       const chFrom = { x: nz(t.x), y: nz(t.y) };
       const chTo = { x: chargeTo.x, y: chargeTo.y };
+      const chNow = nowMs != null ? nowMs : performance.now();
       mobCharge = { key, from: chFrom, to: chTo,
         mover: G.createMover({ x: t.x, y: t.y,
           intervalMs: MOB_CHARGE_MS }) };
-      mobCharge.mover.step(chFrom, chTo,
-        nowMs != null ? nowMs : performance.now(), MOB_CHARGE_MS);
+      mobCharge.mover.step(chFrom, chTo, chNow, MOB_CHARGE_MS);
+      lungeEndMs = chNow + MOB_CHARGE_MS;
     }
     // Задача 000087: `const combat` — onEnd читает ЖИВОЙ объект боя
     // ПОЗЖЕ (гибель — по combat.units, D2); guard isActive — выше.
@@ -2131,6 +2133,7 @@
       // Задача 000087: отряд — данные makeAlly (000082), ПОСЛЕ Эфира.
       rosterData: companionAllies(),
       tile: t,
+      lungeGate: mobCharge != null,
       // Фон поля боя по типу местности (задача 000049): terrain тайла,
       // где начался бой. spriteLoader может быть null (нет s2/лоадера) —
       // combat-ui терпит: сплошной фолбэк-фон.
@@ -2149,6 +2152,10 @@
         // спрайт группы либо скрыт (defeatedAt, 000122), либо снова
         // на якоря тайла (без «залипшего» смещения).
         mobCharge = null;
+        lungeEndMs = 0;
+        if (G.combatUI && typeof G.combatUI.setLungeGate === 'function') {
+          G.combatUI.setLungeGate(false);
+        }
         if (res.outcome === 'victory') {
           defeatedAt.set(key, clock.day);
           let flash = `Победа! +${res.xp} опыта, +${res.gold} золота.`;
@@ -3214,6 +3221,13 @@
       // 000173: время кадра — источник времени заряда (debug-поле
       // state.mobCharge.pos; в vm performance.now() заморожен).
       lastFrameNow = now;
+      if (lungeEndMs && mobCharge && now >= lungeEndMs) {
+        lungeEndMs = 0;
+        if (G.combatUI
+            && typeof G.combatUI.setLungeGate === 'function') {
+          G.combatUI.setLungeGate(false);
+        }
+      }
       const inCombat = G.combatUI && G.combatUI.isActive();
       const inDungeon = dungeonState !== null;
       const inNpc = G.npcUI && G.npcUI.isActive();
@@ -3339,6 +3353,7 @@
               pos: mobCharge.mover.position(lastFrameNow),
             }
           : null,
+        lungeGate: lungeEndMs > 0 && mobCharge != null,
         cam: { x: cam.x, y: cam.y },
         zoom,
         day: clock.day,

@@ -469,6 +469,10 @@
     overlay.appendChild(box);
     overlay.appendChild(side);
     document.body.appendChild(overlay);
+    if (ctx.lungeGate) {
+      overlay.style.visibility = 'hidden';
+      overlay.style.pointerEvents = 'none';
+    }
 
     // Бэкинг = размер отображения × dpr (задача 000151): canvas уже в
     // DOM — CSS-размер (000124) доступен для rect. getContext — ровно
@@ -781,6 +785,7 @@
   function handleCode(code) {
     if (!isActive()) return false;
     const c = ctx.combat;
+    if (ctx.lungeGate && !c.result) return false;
     let consumed = true;
     if (code === 'Escape') {
       // Закрыть оверлей можно только когда бой закончен.
@@ -2299,6 +2304,7 @@
         // Вдох» на уровне боя (сброс на каждый startCombat: новый
         // ctx → false; one-shot ядра — один раз за бой).
         breathedPrev: false,
+        lungeGate: !!opts.lungeGate,
       };
       try {
         build();
@@ -2351,6 +2357,13 @@
     // Единый путь «code → действие боя» (задача 000121): клавиатура
     // (keydown выше) и тач-D-pad (main.js → touchKeyCode → handleCode).
     handleCode,
+    setLungeGate(on) {
+      if (!ctx || !overlay) return;
+      if (!!on === !!ctx.lungeGate) return;
+      overlay.style.visibility = on ? 'hidden' : '';
+      overlay.style.pointerEvents = on ? 'none' : '';
+      ctx.lungeGate = !!on;
+    },
   };
 })();
 
