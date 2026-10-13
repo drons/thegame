@@ -3294,7 +3294,8 @@ test('боевой UI: 000168-UI-1 — stateEl: строки «Ход: …»/с�
   assert.equal(text.split('\n').length, 2,
     '000199: stateEl — ровно ДВЕ строки: ' + JSON.stringify(text));
   // Полосы — активного Волька (16/16, а не раненого/полного игрока):
-  // HP 16/16, маны у наёмника в модели нет → «MP —» (D5); бейдж
+  // HP 16/16, мана наёмника — в модели (000193/000193.01: u.mp/u.maxMP
+  // = 5 → «MP 5/5»; D5 000199 — Superseded); бейдж
   // «Удара» — u.attackLeft (ур. 2 → пул 1).
   const merc = S.c.units.find((x) => x.id === 'a1');
   assert.equal(findByClass(S.body, 'combat-hpbar-text').textContent,
@@ -3302,8 +3303,9 @@ test('боевой UI: 000168-UI-1 — stateEl: строки «Ход: …»/с�
     'HP-полоса несёт активного Волька (16/16): '
     + JSON.stringify(findByClass(S.body, 'combat-hpbar-text').textContent));
   assert.equal(findByClass(S.body, 'combat-mpbar-text').textContent,
-    'MP —',
-    'MP-полоса — у наёмника маны нет (D5): '
+    'MP 5/5',
+    'MP-полоса — мана наёмника u.mp/u.maxMP (000193.01, D5 — '
+    + 'Superseded): '
     + JSON.stringify(findByClass(S.body, 'combat-mpbar-text').textContent));
   const atkBadge = S.body.querySelectorAll('.combat-actions button')
     .find((b) => b.dataset.act === 'attack').children
@@ -6515,7 +6517,7 @@ test('боевой UI: 000199 — полоска MP (.combat-mpbar) ПОД по�
     '000199: текст обновляется в render («MP 8/16»)');
 });
 
-test('боевой UI: 000199 — полоска MP: на ходу Эфира — мана Эфира; на ходу наёмника — маны нет (fill 0%, «MP —») (CU199-MPBAR-ALIAS)', () => {
+test('боевой UI: 000199/000193.01 — полоска MP: на ходу Эфира — мана Эфира; на ходу наёмника — мана МОДЕЛИ («MP 5/5», fill 100.0%) (CU199-MPBAR-ALIAS)', () => {
   // (a) Эфир: u.mp = 11, u.maxMP = 11 (снапшот stats.maxMP в
   //     buildEfirUnit; L1-дефолт: Sheet 5+Int+Wis = legacy-таблица —
   //     знаменатель полоски — С ЮНИТА, ревью 000199).
@@ -6533,10 +6535,10 @@ test('боевой UI: 000199 — полоска MP: на ходу Эфира �
       'на ходу Эфира — мана Эфира («MP 11/11», u.mp/u.maxMP): факт '
       + JSON.stringify(mptext && mptext.textContent));
   }
-  // (b) Наёмник: модель ДАЁТ ману (000193: mp = 5+Int+Wis), но HUD —
-  //     по KIND (D5 000199: полоса несёт только Эфира u.mp/u.maxMP;
-  //     у наёмника fill 0%, текст «MP —») — поведение HUD без
-  //     изменений.
+  // (b) Наёмник: модель ДАЁТ ману (000193: mp = 5+Int+Wis) и HUD её
+  //     ПОКАЗЫВАЕТ (000193.01: D5 000199 — Superseded: полоса несёт
+  //     u.mp/u.maxMP наёмника; снапшот makeAlly = стартовому mp;
+  //     юнит без поля maxMP — деградация «MP —»/0%).
   {
     const S = scene84();
     const merc = addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
@@ -6548,16 +6550,19 @@ test('боевой UI: 000199 — полоска MP: на ходу Эфира �
     assert.equal(merc.mp, 5,
       'фикстура: 000193 — у наёмника в модели мана 5 (5+Int+Wis, '
       + 'attrs {} у addMerc84)');
+    assert.equal(merc.maxMP, 5,
+      'фикстура: 000193.01 — снапшот maxMP = стартовому mp (5): факт '
+      + JSON.stringify(merc.maxMP));
     const mpfill = findByClass(S.body, 'combat-mpbar-fill');
     const mptext = findByClass(S.body, 'combat-mpbar-text');
     assert.ok(mpfill && mptext,
       '000199: полоска MP есть на ходу наёмника (трек — фикс. '
       + 'геометрия)');
-    assert.equal(mpfill.style.width, '0.0%',
-      '000199: fill наёмника = 0.0% (маны нет): факт '
+    assert.equal(mpfill.style.width, '100.0%',
+      '000193.01: fill наёмника = 100.0% (u.mp/u.maxMP 5/5): факт '
       + JSON.stringify(mpfill && mpfill.style.width));
-    assert.equal(mptext.textContent, 'MP —',
-      '000199: текст наёмника «MP —» (D5): факт '
+    assert.equal(mptext.textContent, 'MP 5/5',
+      '000193.01: текст наёмника «MP 5/5» (D5 000199 — Superseded): факт '
       + JSON.stringify(mptext && mptext.textContent));
   }
 });
@@ -6744,4 +6749,123 @@ test('боевой UI: 000199 — кнопка «Книга заклинаний
         'бейджа НЕТ на кнопке «' + b.dataset.act + '»');
     }
   }
+});
+
+// ===== 000193.01: MP-полоса наёмника — мана (u.mp/u.maxMP) =====
+
+test('боевой UI: 000193.01 — полоска MP наёмника: «MP 9/9» (u.mp/u.maxMP, attrs); после каста из книги (клик строки → castAllySpell) — «MP 3/9» (fill 33.3%) (CU193.01-MPBAR-MERC)', () => {
+  const S = scene84({ spells: true, allySpells: true });
+  const { G, c } = S;
+  const wolf = c.units.find((x) => x.id === 'm0');
+  wolf.x = 3; wolf.y = 4;
+  c._rng = () => 0.99; // удары волка — мимо (паттерн CU193-BOOK)
+  // Наёмник (паттерн addMerc193, CU193-BOOK): attrs (Dex 1 / Wis 4) →
+  // mp 5+0+4 = 9 (≥ 6 — light_heal), spellWis 1; 000193.01: снапшот
+  // maxMP в makeAlly = стартовому mp = 9 (регенации маны в бою нет).
+  const merc = G.makeAlly({
+    name: 'Мира', role: 'support', level: 1, dmg: 0.5, hp: 0.8,
+    skills: [], spells: ['light_heal'],
+    attrs: { dexterity: 1, wisdom: 4 }, maxHP: 40,
+  }, 1);
+  merc.x = 3; merc.y = 5;
+  c.units.push(merc);
+  c.turnOrder.push(merc.id);
+  assert.equal(merc.mp, 9,
+    'фикстура: 000193 — мана наёмника в модели 5+Wis = 9');
+  assert.equal(merc.maxMP, 9,
+    'фикстура: 000193.01 — снапшот maxMP = стартовому mp (9): факт '
+    + JSON.stringify(merc.maxMP));
+  assert.equal(G.activeUnitId(c), 'player', 'ход игрока (pre-roll)');
+  // Конец хода игрока → стоп на наёмнике a1 (очередь [m0, player, a1]).
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(G.activeUnitId(c), 'a1', 'фикстура: активен наёмник');
+  // Полоса — С ЮНИТА наёмника (краснота: hard-code D5 000199 —
+  // fill 0%, «MP —»): полные 9/9.
+  const mpfill = findByClass(S.body, 'combat-mpbar-fill');
+  const mptext = findByClass(S.body, 'combat-mpbar-text');
+  assert.ok(mpfill && mptext, '000193.01: полоска MP есть');
+  assert.equal(mpfill.style.width, '100.0%',
+    '000193.01: fill = 9/9 = 100.0%: факт '
+    + JSON.stringify(mpfill.style.width));
+  assert.equal(mptext.textContent, 'MP 9/9',
+    '000193.01: текст «MP 9/9» (u.mp/u.maxMP): факт '
+    + JSON.stringify(mptext.textContent));
+  // Книга на ходу наёмника: ровно одна строка — light_heal, без -off
+  // (mp 9 ≥ 6, spellWis 1); клик — каст наёмника (паттерн CU193-BOOK:
+  // снимок строк ДО KeyQ — рендер keydown-обработчика синхронный).
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.ok(bookBox, 'книга (.combat-spellbook) есть');
+  const m2 = bookBox.children.length;
+  press(S.keydown, 'KeyQ');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.notEqual(bookBox.style.display, 'none',
+    'книга открыта (KeyQ на ходу наёмника)');
+  const rows = bookBox.children.slice(m2);
+  assert.equal(rows.length, 1,
+    'ровно одна строка — книга наёмника [light_heal]; факт: '
+    + rows.map((x) => (x.dataset && x.dataset.spell) || '—').join(','));
+  const healRow = rows.find(
+    (x) => x.dataset && x.dataset.spell === 'light_heal');
+  assert.ok(healRow, 'строка «light_heal» (книга наёмника)');
+  assert.ok(!healRow.className.includes('combat-spellrow-off'),
+    'строка без -off (ресурса хватает: mp 9 ≥ 6, spellWis 1)');
+  assert.equal(healRow.title, '', 'подсказка пуста (canCast ok)');
+  const meta = findByClass(healRow, 'combat-spellmeta');
+  assert.ok(meta && meta.textContent.includes('Мана 6'),
+    'данные строки — из каталога: «Мана 6» (факт: '
+    + (meta ? meta.textContent : 'нет meta') + ')');
+  // Каст: self-heal +7, пул/мана НАЁМНИКА, игрок нетронут,
+  // книга закрыта.
+  const n0 = c.log.length;
+  const pMp0 = c.player.mp, pWis0 = c.ps.spellWis;
+  healRow.listeners.click[0]();
+  assert.deepEqual(Array.from(c.log).slice(n0),
+    ['Мира лечит себя (+7).'],
+    'лог — вычисленный (паттерн 000168): '
+    + JSON.stringify(Array.from(c.log).slice(n0)));
+  assert.equal(merc.mp, 3, 'мана наёмника 9−6 (light_heal) = 3');
+  assert.equal(merc.spellWis, 0, 'пул наёмника spellWis 1→0');
+  assert.equal(c.player.mp, pMp0, 'мана игрока не сожжена');
+  assert.equal(c.ps.spellWis, pWis0, 'пул игрока не сожжён');
+  assert.equal(bookBox.style.display, 'none',
+    'книга закрыта (действие совершено)');
+  // Re-render (render() — единственный путь обновления, контракт
+  // 000038/000047): полоса несёт остаток маны после каста.
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(mptext.textContent, 'MP 3/9',
+    '000193.01: после каста — «MP 3/9»: факт '
+    + JSON.stringify(mptext.textContent));
+  assert.equal(mpfill.style.width, '33.3%',
+    '000193.01: fill после каста = 3/9 = 33.3%: факт '
+    + JSON.stringify(mpfill.style.width));
+});
+
+test('боевой UI: 000193.01 — наёмник БЕЗ maxMP (white-box delete): деградация «MP —», fill 0.0%, краха нет (CU193.01-MPBAR-DEGR)', () => {
+  const S = scene84();
+  const merc = addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+  const w = S.c.units.find((x) => x.id === 'm0');
+  w.x = 3; w.y = 4;
+  assert.equal(merc.mp, 5,
+    'фикстура: 000193 — mp 5 (5+Int+Wis, attrs {} у addMerc84)');
+  assert.equal(merc.maxMP, 5,
+    'фикстура: 000193.01 — снапшот maxMP = стартовому mp (5): факт '
+    + JSON.stringify(merc.maxMP));
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.G.activeUnitId(S.c), 'a1', 'фикстура: активен наёмник');
+  const mpfill = findByClass(S.body, 'combat-mpbar-fill');
+  const mptext = findByClass(S.body, 'combat-mpbar-text');
+  assert.ok(mpfill && mptext, '000193.01: полоска MP есть');
+  // White-box «фикстура до апгрейда»: поля maxMP НЕТ → деградация
+  // (D5 000199 → 000193.01): mpMax 0 → fill 0.0%, «MP —»; mp не
+  // тронут (гарда даёт mpVal 0 — чтение только, мутаций нет).
+  delete merc.maxMP;
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(mptext.textContent, 'MP —',
+    'деградация: «MP —» (поля maxMP нет): факт '
+    + JSON.stringify(mptext.textContent));
+  assert.equal(mpfill.style.width, '0.0%',
+    'деградация: fill 0.0%: факт ' + JSON.stringify(mpfill.style.width));
+  assert.equal(merc.mp, 5, 'mp не тронут (гарда — только чтение)');
 });

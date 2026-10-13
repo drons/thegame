@@ -374,6 +374,14 @@
         + ((data.attrs && data.attrs.wisdom) || 0),
       spellInt: 1 + Math.floor(((data.attrs && data.attrs.intelligence) || 0) / 10),
       spellWis: 1 + Math.floor(((data.attrs && data.attrs.wisdom) || 0) / 10),
+      // 000193.01: снапшот maxMP — знаменатель MP-полосы (HUD 000199,
+      // ветка наёмника): равен СТАРТОВОМУ u.mp (5+Int+Wis); регенации
+      // маны в бою НЕТ (инвариант 000193 §2/§3: startRound рефиллит
+      // только пулы, u.mp не трогает). У Эфира buildEfirUnit (efir.js
+      // L946-947) ПЕРЕЗАПИСЫВАЕТ u.mp/u.maxMP = stats.maxMP — ветка
+      // Эфира не трогается.
+      maxMP: 5 + ((data.attrs && data.attrs.intelligence) || 0)
+        + ((data.attrs && data.attrs.wisdom) || 0),
       size: { w: 1, h: 1 },
       x: 0,
       y: 0,

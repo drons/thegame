@@ -7529,3 +7529,23 @@ test('000198-SEL-5: allyCanDo-зеркало уважает targetId (000037): �
     C.combatInternals.allySpells = saveCatalog;
   }
 });
+
+test('makeAlly: 000193.01 — снапшот maxMP (знаменатель MP-полосы наёмника): = стартовому mp (5+Int+Wis); регенации маны в бою нет (CU193.01-MAXMP)', () => {
+  // Без attrs: mp 5+0+0 = 5 → maxMP = 5 (по построению на старте
+  // maxMP === mp; за бой u.mp тратят касты, u.maxMP — никто).
+  const v = makeAlly(ALLY_VOLK, 0);
+  assert.equal(v.mp, 5, 'фикстура: 000193 — mp 5 (attrs нет)');
+  assert.equal(v.maxMP, 5,
+    '000193.01: maxMP = 5+Int+Wis = 5: факт ' + JSON.stringify(v.maxMP));
+  assert.equal(v.maxMP, v.mp, 'maxMP === mp на старте (по построению)');
+  // attrs Int 4 / Wis 4: mp 5+4+4 = 13 → maxMP = 13.
+  const m = makeAlly({
+    name: 'Мира', role: 'support', level: 1, dmg: 0.5, hp: 0.8,
+    skills: [], spells: ['light_heal'],
+    attrs: { intelligence: 4, wisdom: 4 }, maxHP: 40,
+  }, 2);
+  assert.equal(m.mp, 13, 'фикстура: 000193 — mp 5+4+4 = 13');
+  assert.equal(m.maxMP, 13,
+    '000193.01: maxMP = 5+4+4 = 13: факт ' + JSON.stringify(m.maxMP));
+  assert.equal(m.maxMP, m.mp, 'maxMP === mp на старте (по построению)');
+});

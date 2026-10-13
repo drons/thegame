@@ -53,14 +53,14 @@ buildEfirUnit (зеркало u.maxHP; форма сейва не меняетс
 |---|---|---|
 | игрок (`activeUnitId='player'`) | `p.hp / d.maxHP` (d = G.derived) | `p.mp / d.maxMP` |
 | Эфир | `u.hp / u.maxHP` | `u.mp / u.maxMP` |
-| наёмник | `u.hp / u.maxHP` | fill 0%, текст `MP —` (маны НЕТ в модели) |
+| наёмник | `u.hp / u.maxHP` | `u.mp / u.maxMP` (000193: мана в модели, снапшот maxMP в makeAlly — 000193.01; юнит без поля maxMP — деградация `MP —`/0%) |
 | фаза мобов / конец | герой (activeUnit null) | герой |
 
 - HP: width = clamp(frac)·100%, color = `hpBarColor(frac)` (те же пороги,
   единая окраска), текст `HP x/y`.
 - MP: width = clamp(mp/maxMP)·100% (maxMP 0 → 0%), color ФИКСИРОВАННЫЙ `#8cf2fc`
   (пороговой функции для маны НЕ вводим — memory/000038), текст `MP x/y`
-  или `MP —` (наёмник).
+  или `MP —` (юнит без maxMP — деградация, 000193.01).
 - Источник maxMP Эфира (ревью 000199, major): СНАПШОТ `u.maxMP` из
   buildEfirUnit (`= stats.maxMP` — Sheet-истина 5+Int+Wis, растёт
   ОЧКАМИ 000144), НЕ замороженная legacy-таблица efirStats(level) —
@@ -121,6 +121,11 @@ buildEfirUnit (зеркало u.maxHP; форма сейва не меняетс
   (actionCounts + список бейджей в build + 1 тест).
 - **D5. Наёмник без маны: текст `MP —`**, fill 0%, трек на месте
   (фикс. геометрия). «0/0» отклонено: читается как «ман есть 0 из 0».
+  **[SUPERSEDED 000193.01]** после 000193 у наёмника мана в модели
+  ЕСТЬ (u.mp = 5+Int+Wis) и снапшот u.maxMP (makeAlly) — полоса
+  рисует u.mp/u.maxMP; «MP —»/fill 0% — только деградация (юнит без
+  поля maxMP). Решение — memory/000193.01-merc-mpbar.md; контекст —
+  memory/000193-ally-spell-mechanics.md §15 (п.1).
 - **D6. Классы**: полоска `.combat-mpbar*` (зеркало hpbar), бейдж
   `.combat-actcount`. CSS-правила — 5 новых, ВСЕ в скоупе
   `.combat-overlay--combat` (вкл. `position: relative` на button — отдельным
@@ -135,7 +140,8 @@ buildEfirUnit (зеркало u.maxHP; форма сейва не меняетс
   Новый чистый хелпер `actionCounts(c)` рядом с `activeUnit` (L~1600).
 - Guards: `c.efs ? c.efs.touch : 0` (Эфир без c.efs — ветка 000180 fallback);
   `activeUnit` — существующий typeof-guard G.activeUnitId; деление mp/maxMP
-  только при max>0 (наёмник — 0). Никакого console.error (деградаций нет —
+  только при max>0 (юнит без maxMP — 0, 000193.01). Никакого
+  console.error (деградаций нет —
   зависимостей нет).
 - Модульные refs: `let mpbarEl/mpbarFillEl/mpbarTextEl = null` (рядом с
   hpbar-refs, L151–152) + `let countEls = {}` (key = action). Обнуление в
@@ -237,7 +243,8 @@ buildEfirUnit (зеркало u.maxHP; форма сейва не меняетс
 5. CU199-MPBAR-1 — .combat-mpbar есть; порядок .combat-side
    [turnorder, hpbar, mpbar, state, actions, spellbook, log]; дефолт
    '100.0%'/'MP 16/16'; hero.mp=8 → '50.0%'/'MP 8/16'.
-6. CU199-MPBAR-ALIAS — Эфир: 'MP 11/11'; наёмник: fill '0.0%', 'MP —'.
+6. CU199-MPBAR-ALIAS — Эфир: 'MP 11/11'; наёмник: 'MP 5/5',
+   fill '100.0%' (ре-пин 000193.01).
 7. CU199-BTN-ATK — attack-бейдж: дефолт '1'; c.ps.attack=0+tick → '0';
    ход Волька: u.attackLeft; ход Эфира: c.efs.touch ('1'); c.efs=null → '0'.
 8. CU199-BTN-BOOK — spellbook-бейдж: дефолт '1/1'; c.ps.spellInt=0 → '0/1';

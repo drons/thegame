@@ -312,7 +312,8 @@
     // Полоска MP (задача 000199): ТРЕТИЙ элемент .combat-side —
     // сразу ПОСЛЕ .combat-hpbar, ПЕРЕД .combat-state. Геометрия 1-в-1
     // с .combat-hpbar* (16px, CSS .combat-overlay--combat); ширина
-    // заполнения и текст «MP x/y» (наёмник — «MP —», D5) — из render(),
+    // заполнения и текст «MP x/y» (без maxMP — деградация «MP —»,
+    // 000199/000193.01) — из render(),
     // несёт активного персонажа (barUnit, как HP-полоса 000199).
     mpbarEl = document.createElement('div');
     mpbarEl.className = 'combat-mpbar';
@@ -1557,7 +1558,9 @@
     // бит); на союзнике — свои hp/maxHP (Эфир и наёмник) и мана:
     // Эфир — u.mp / u.maxMP (снапшот stats.maxMP в buildEfirUnit,
     // 000199-ревью; fallback — legacy efirStats для юнитов без поля),
-    // наёмник — маны в модели НЕТ (D5: fill 0%, «MP —»).
+    // наёмник — u.mp / u.maxMP (снапшот makeAlly 000193/000193.01;
+    // без поля maxMP — деградация fill 0%, «MP —», D5 000199 →
+    // Superseded).
     // Гвард G.efir: юнит Эфира существует только если efir.js
     // загружен. Цвет MP — фиксированный #8cf2fc (CSS; пороговой
     // функции для маны нет — 000038).
@@ -1588,8 +1591,20 @@
         ? G.efir.efirStats(barUnit.level) : null;
       mpVal = barUnit.mp; mpMax = (snap != null) ? snap
         : (est ? est.maxMP : 0);
+    } else if (barUnit.kind === 'merc') {
+      // 000193.01: мана наёмника — С ЮНИТА (снапшоты makeAlly
+      // 000193/000193.01: u.mp/u.maxMP = 5+Int+Wis; тратят касты из
+      // книги, регена в бою нет). Юнит БЕЗ поля maxMP (node-фикстура
+      // до апгрейда / white-box delete) — деградация D5 000199
+      // СОХРАНЕНА: mpMax 0 → «MP —», fill 0%; гарды зеркалят ветку
+      // Эфира (typeof/Number.isFinite) — NaN-краха нет.
+      mpVal = (typeof barUnit.mp === 'number'
+        && Number.isFinite(barUnit.mp)) ? barUnit.mp : 0;
+      mpMax = (typeof barUnit.maxMP === 'number'
+        && Number.isFinite(barUnit.maxMP)) ? barUnit.maxMP : 0;
     } else {
-      mpVal = 0; mpMax = 0; // наёмник: маны нет (D5)
+      mpVal = 0; mpMax = 0; // неизвестный kind союзника — маны нет
+      // (деградация D5 000199)
     }
     const mpFrac = mpMax > 0
       ? Math.min(1, Math.max(0, mpVal / mpMax)) : 0;
