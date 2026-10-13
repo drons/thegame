@@ -510,8 +510,9 @@
       if (u) {
         c.selectTarget(u.id);
         render();
-      } else if (canResurrect(c)) {
-        // «Воскрешение» (задача 000166): ДВЕ ветки ПОСЛЕ живой (порядок
+      } else if (canResurrectPick(c)) {
+        // «Воскрешение» (задача 000166; 000193.02: гейт canResurrectPick
+        // — игрок ИЛИ активный союзник-носитель): ДВЕ ветки ПОСЛЕ живой (порядок
         // определён: живой > мёртвый союзник > клетка мёртвого героя).
         // Мёртвый СОЮЗНИК в прямоугольнике (та же формула rect, что у
         // живой ветки) — прямой write c.targetId (ядро selectTarget
@@ -990,11 +991,13 @@
       list.splice(lastAlly, 0, hero);
     }
 
-    // Маркеры «Воскрешения» (задача 000166): РАННИЙ проход — маркеры
-    // рисуются ПОД всеми юнитами (z-порядок «подложка — первая», как у
-    // живых союзников). ГЕЙТ canResurrect(c) — ПЕРВАЯ строка: без него
-    // (все существующие сцены: createCharacter = ['spark','mend']) —
-    // бит-в-байт. Подложка ALLY_MARKER_UNDERLAY (геометрия подложки
+    // Маркеры «Воскрешения» (задача 000166; 000193.02: гейт
+    // canResurrectPick — игрок ИЛИ активный союзник-носитель): РАННИЙ
+    // проход — маркеры рисуются ПОД всеми юнитами (z-порядок
+    // «подложка — первая», как у живых союзников). ГЕЙТ canResurrectPick
+    // — ПЕРВАЯ строка: без него (все существующие сцены:
+    // createCharacter = ['spark','mend']) — бит-в-байт. Подложка
+    // ALLY_MARKER_UNDERLAY (геометрия подложки
     // живого союзника: +2/inset, pw−4×ph−4) — на клетке КАЖДОГО мёртвого
     // союзника (side 'ally', !alive, !fled) и мёртвого героя; кольцо
     // #ffe27a lw2 (геометрия подсветки цели моба: +4.5/inset, pw−9×ph−9)
@@ -1002,7 +1005,7 @@
     // c.targetId === null (автоцель — «вы»). Мёртвые МОБЫ маркеров НЕ
     // получают (только side 'ally'). Мутаций c в отрисовке НЕТ (только
     // g2-вызовы), ноль c._rng.
-    if (canResurrect(c)) {
+    if (canResurrectPick(c)) {
       for (const u of c.units) {
         if (u.side !== 'ally' || u.alive || u.fled) continue;
         const w = (u.size && u.size.w) || 1, h = (u.size && u.size.h) || 1;
@@ -1518,10 +1521,11 @@
     // — автоцель «вы») → «Цели нет».
     const td = t ? null : c.units.find((u) => u.id === c.targetId
       && u.side === 'ally' && !u.alive && !u.fled);
-    // tHero — внутри гейта canResurrect(c) (инвариант D2: без гейта —
-    // бит-в-бит): без «Воскрешения» — ни кольца на герое, ни строки
-    // «цель» для заклинания, которого нет в книге.
-    const tHero = (!t && !td && canResurrect(c) && c.player
+    // tHero — внутри гейта canResurrectPick (000193.02: игрок ИЛИ
+    // активный союзник-носитель; инвариант D2: без гейта — бит-в-бит):
+    // без «Воскрешения» — ни кольца на герое, ни строки «цель» для
+    // заклинания, которого нет в книге.
+    const tHero = (!t && !td && canResurrectPick(c) && c.player
       && !c.player.alive && c.targetId === null) ? c.player : null;
     // 000199: stateEl — ровно ДВЕ фиксированные строки (обе
     // БЕУСЛОВНЫ — «Цели нет» — fallback, поэтому white-space:
@@ -1720,6 +1724,13 @@
     const u = c.player;
     return !!(u && Array.isArray(u.spells)
       && u.spells.indexOf('resurrect') >= 0);
+  }
+
+  function canResurrectPick(c) {
+    if (canResurrect(c)) return true;
+    const a = activeUnit(c);
+    return !!(a && a.alive && !a.fled && Array.isArray(a.spells)
+      && a.spells.indexOf('resurrect') >= 0);
   }
 
   // 000168 (D10): активный СОЮЗНИК (наёмник/Эфир — ход игрока) по

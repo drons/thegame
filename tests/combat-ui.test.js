@@ -6869,3 +6869,279 @@ test('боевой UI: 000193.01 — наёмник БЕЗ maxMP (white-box dele
     'деградация: fill 0.0%: факт ' + JSON.stringify(mpfill.style.width));
   assert.equal(merc.mp, 5, 'mp не тронут (гарда — только чтение)');
 });
+
+test('боевой UI: 000193.02 — Эфир-носитель: строка «Воскрешение» без -off при c.targetId === null (автоцель — первый мёртвый союзник, пул/мана Эфира); саб: мёртвых нет — -off «нет цели» (CU193.02-ROW)', () => {
+  let S = scene84({ efir: true, spells: true, allySpells: true });
+  let { G, c } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const a1 = addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+  G.combatInternals.dealDamageToAlly(c, a1, 9999);
+  u.spells.push('resurrect');
+  u.mp = 20;
+  u.maxMP = 20;
+  assert.equal(G.activeUnitId(c), 'efir',
+    'фикстура: Эфир активен (pre-roll стоп на его слоте)');
+  assert.ok(!a1.alive && a1.hp === 0, 'фикстура: союзник мёртв');
+  assert.equal(c.player.alive, true, 'фикстура: игрок жив');
+  assert.equal(u.mp, 20, 'фикстура: мана 20 ≥ мани 15');
+  assert.equal(c.efs.spellWis, 1,
+    'фикстура-факт: пул Эфира spellWis 1 (startRound-рефилл)');
+  c.targetId = null;
+  tickSlice(S.canvas, S.rafStubs);
+  press(S.keydown, 'KeyQ');
+  tickSlice(S.canvas, S.rafStubs);
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта');
+  assert.deepEqual(
+    Array.from(bookBox.children).map((x) => x.dataset.spell),
+    ['spark', 'mend', 'resurrect'],
+    'книга Эфира — порядок строк [spark, mend, resurrect]');
+  const row = lastRow166(bookBox);
+  assert.equal(row.dataset.spell, 'resurrect', 'строка «Воскрешение»');
+  assert.ok(!row.className.includes('combat-spellrow-off'),
+    'строка без -off (автоцель — первый мёртвый союзник): '
+    + JSON.stringify(row.className));
+  assert.equal(row.title, '',
+    'подсказка пуста (canCastAllySpell ok: пул 1, мана 20 ≥ 15)');
+  // Саб: мёртвых нет (игрок жив, союзник жив) — -off «нет цели»
+  // (mirror CU166-NODEAD: защита от ложного ok без валидации цели).
+  S = scene84({ efir: true, spells: true, allySpells: true });
+  ({ c } = S);
+  const u2 = c.units.find((x) => x.kind === 'efir');
+  u2.spells.push('resurrect');
+  u2.mp = 20;
+  u2.maxMP = 20;
+  assert.ok(c.player.alive && c.units.every((x) => x.alive),
+    'фикстура саба: мёртвых нет');
+  press(S.keydown, 'KeyQ');
+  tickSlice(S.canvas, S.rafStubs);
+  const bookBox2 = findByClass(S.body, 'combat-spellbook');
+  const row2 = lastRow166(bookBox2);
+  assert.equal(row2.dataset.spell, 'resurrect', 'строка «Воскрешение»');
+  assert.ok(row2.className.includes('combat-spellrow-off'),
+    'саб: строка -off (мёртвой цели нет)');
+  assert.equal(row2.title, 'нет цели', 'саб: title — причина (mirror CU166-NODEAD)');
+});
+
+test('боевой UI: 000193.02 — Эфир-носитель: клик по мёртвому союзнику на канвасе — цель ставится (c.targetId), маркеры (подложка/кольцо), строка открытой книги перестроена, каст: союзник вернулся, расход пул/мана ЭФИРА, 0 новых c._rng (CU193.02-SEL)', () => {
+  const S = scene84({ efir: true, spells: true, allySpells: true });
+  const { G, c, body, keydown, canvas, rafStubs } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  const a1 = addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+  G.combatInternals.dealDamageToAlly(c, a1, 9999);
+  u.spells.push('resurrect');
+  u.mp = 20;
+  u.maxMP = 20;
+  assert.equal(G.activeUnitId(c), 'efir',
+    'фикстура: Эфир активен (pre-roll стоп на его слоте)');
+  assert.ok(!a1.alive && a1.hp === 0, 'фикстура: союзник мёртв');
+  assert.equal(a1.maxHP, 16, 'фикстура: наёмник level 2 — maxHP 16');
+  assert.equal(c.player.alive, true, 'фикстура: игрок жив');
+  assert.equal(c.targetId, wolf.id,
+    'фикстура: СТАЛОЕ targetId — живой волк (авто-цель начала хода)');
+  assert.equal(u.mp, 20, 'фикстура: мана 20 ≥ мани 15');
+  assert.equal(c.efs.spellWis, 1,
+    'фикстура-факт: пул Эфира spellWis 1 (startRound-рефилл)');
+  // (1) Книга: строка -off «нет цели» (stale-цель — живой волк;
+  // состояние-бага ДО выбора цели).
+  const bookBox = findByClass(body, 'combat-spellbook');
+  press(keydown, 'KeyQ');
+  tickSlice(canvas, rafStubs);
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта');
+  const row0 = lastRow166(bookBox);
+  assert.equal(row0.dataset.spell, 'resurrect', 'строка «Воскрешение»');
+  assert.ok(row0.className.includes('combat-spellrow-off'),
+    'строка -off (stale-цель — живой волк)');
+  assert.equal(row0.title, 'нет цели', 'title — причина');
+  // (2) Маркеры мёртвого союзника — расширенный гейт (носитель —
+  // активный СОЮЗНИК): подложка на клетке a1, кольца нет (не выбран),
+  // подложки на клетке моба нет.
+  const ax = a1.x * 48, ay = a1.y * 48;
+  const wx = wolf.x * 48, wy = wolf.y * 48;
+  let t = tickSlice(canvas, rafStubs);
+  assert.ok(underlayAt166(t.events, ax, ay),
+    'подложка на клетке мёртвого союзника (fillRect +2/+2, 44×44, '
+    + ALLY_UNDERLAY166 + ') — носитель воскрешения — активный союзник');
+  assert.ok(!ringAt166(t.events, ax, ay), 'до выбора — кольца нет');
+  assert.ok(!underlayAt166(t.events, wx, wy),
+    'на клетке моба подложки нет (цели воскрешения — только союзники)');
+  // (3) Клик по клетке мёртвого союзника — выбор цели (не действие).
+  const n0 = c.log.length;
+  canvas.listeners.click[0]({
+    clientX: (a1.x + 0.5) * 48, clientY: (a1.y + 0.5) * 48,
+  });
+  assert.equal(c.targetId, a1.id,
+    'клик по клетке мёртвого союзника — цель выбрана (прямой write c.targetId)');
+  assert.equal(c.log.length, n0, 'выбор — не действие: лог не вырос');
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(ringAt166(t.events, ax, ay),
+    'кольцо выбранной цели на мёртвом союзнике (strokeRect +4.5/+4.5, 39×39, #ffe27a)');
+  assert.ok(underlayAt166(t.events, ax, ay),
+    'подложка сохранена после выбора');
+  // (4) Строка открытой книги перестроена (клик → render → renderBook,
+  // сигнатура сменилась) — БЕЗ -off.
+  const row1 = lastRow166(bookBox);
+  assert.equal(row1.dataset.spell, 'resurrect', 'свежая строка — «Воскрешение»');
+  assert.ok(!row1.className.includes('combat-spellrow-off'),
+    'строка готова (явная цель — мёртвый союзник): '
+    + JSON.stringify(row1.className));
+  assert.equal(row1.title, '', 'подсказка пуста (canCastAllySpell ok)');
+  // (5) Каст — клик по строке: союзник вернулся, расход — пул/мана
+  // ЭФИРА, игрок нетронут, книга закрыта, ход не сгорел, 0 c._rng,
+  // efirState не мутирован.
+  const efirState0 = JSON.parse(JSON.stringify(c.efirState));
+  const pMp0 = c.player.mp, pInt0 = c.ps.spellInt, pWis0 = c.ps.spellWis;
+  const eInt0 = c.efs.spellInt, eWis0 = c.efs.spellWis;
+  const realRng = c._rng;
+  let rngCalls = 0;
+  c._rng = () => (rngCalls++, realRng());
+  row1.listeners.click[0]();
+  assert.deepEqual(Array.from(c.log).slice(n0), ['Возвращён в бой.'],
+    'лог — ровно ОДНА строка (ядро 000163 R-3): '
+    + JSON.stringify(Array.from(c.log).slice(n0)));
+  assert.equal(a1.alive, true, 'союзник возвращён в бой');
+  assert.equal(a1.hp, Math.round(a1.maxHP / 2),
+    'hp = round(maxHP/2) = 8 (формула 000163, не хардкод)');
+  assert.equal(c.efs.spellWis, eWis0 - 1,
+    'пул Эфира spellWis −1 (poolsOf: Эфир → c.efs)');
+  assert.equal(c.efs.spellInt, eInt0, 'пул Эфира spellInt не тронут');
+  assert.equal(u.mp, 5, 'мана Эфира 20−15 (мани resurrect) = 5');
+  assert.equal(c.player.mp, pMp0, 'мана игрока не сожжена');
+  assert.equal(c.ps.spellInt, pInt0, 'пул игрока spellInt не сожжён');
+  assert.equal(c.ps.spellWis, pWis0, 'пул игрока spellWis не сожжён');
+  assert.ok(c._fx && c._fx.action === 'cast', 'c._fx — cast');
+  assert.equal(bookBox.style.display, 'none',
+    'книга закрыта (действие совершено)');
+  assert.equal(G.activeUnitId(c), 'efir', 'каст ≠ endTurn (очередь не сдвинулась)');
+  assert.equal(rngCalls, 0,
+    'новых вызовов c._rng — ноль (воскрешение без RNG, 000163)');
+  // JSON-раундтрип обеих сторон — объекты vm-песочницы (чужой realm,
+  // deepStrictEqual — с прототипами), паттерн c.buffMods в этом файле.
+  assert.deepEqual(JSON.parse(JSON.stringify(c.efirState)), efirState0,
+    'efirState не мутирован');
+});
+
+test('боевой UI: 000193.02 — мёртвый игрок + СТАЛОЕ targetId (живой волк): клик по клетке мёртвого игрока — c.targetId = null (автоцель), строка/строка состояния/кольцо, каст: игрок возвращён (round(derived maxHP/2)), альянс-мёртвый остаётся мёртв, расход — ЭФИР (CU193.02-CLEAR)', () => {
+  const S = scene84({ efir: true, spells: true, allySpells: true });
+  const { G, c, body, keydown, canvas, rafStubs } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  const a1 = addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+  G.combatInternals.dealDamageToAlly(c, a1, 9999);
+  u.spells.push('resurrect');
+  u.mp = 20;
+  u.maxMP = 20;
+  c.player.alive = false;
+  c.player.hp = 0;
+  assert.equal(G.activeUnitId(c), 'efir',
+    'фикстура: Эфир активен (pre-roll стоп на его слоте)');
+  assert.ok(!c.player.alive && c.player.hp === 0,
+    'фикстура: игрок мёртв (симуляция 000163 R-8 — c.result не возникает)');
+  assert.ok(!a1.alive && a1.hp === 0, 'фикстура: союзник тоже мёртв');
+  assert.ok(!c.result, 'фикстура: c.result не появился (R-8)');
+  assert.equal(c.targetId, wolf.id,
+    'фикстура: СТАЛОЕ targetId — живой волк (авто-цель начала хода)');
+  // (1) Книга: строка -off «нет цели» (stale-цель — живой волк).
+  const bookBox = findByClass(body, 'combat-spellbook');
+  press(keydown, 'KeyQ');
+  tickSlice(canvas, rafStubs);
+  const row0 = lastRow166(bookBox);
+  assert.equal(row0.dataset.spell, 'resurrect', 'строка «Воскрешение»');
+  assert.ok(row0.className.includes('combat-spellrow-off'),
+    'строка -off (stale-цель — живой волк)');
+  assert.equal(row0.title, 'нет цели', 'title — причина');
+  // (2) Клик по клетке МЁРТВОГО игрока — снять устаревшую цель → null
+  // (автоцель — мёртвый игрок приоритетно).
+  const n0 = c.log.length;
+  canvas.listeners.click[0]({
+    clientX: (c.px + 0.5) * 48, clientY: (c.py + 0.5) * 48,
+  });
+  assert.equal(c.targetId, null,
+    'клик по клетке мёртвого игрока — цель снята (автоцель — игрок)');
+  assert.equal(c.log.length, n0, 'выбор — не действие: лог не вырос');
+  // (3) Строка перестроена БЕЗ -off (автоцель — мёртвый игрок).
+  const row1 = lastRow166(bookBox);
+  assert.equal(row1.dataset.spell, 'resurrect', 'свежая строка — «Воскрешение»');
+  assert.ok(!row1.className.includes('combat-spellrow-off'),
+    'строка готова (авто: мёртвый игрок приоритетно): '
+    + JSON.stringify(row1.className));
+  assert.equal(row1.title, '', 'подсказка пуста (canCastAllySpell ok)');
+  // (4) HUD-строка состояния «(вы) — мёртв» + подложка/кольцо на
+  // клетке героя (auto-цель «вы»).
+  const state = findByClass(body, 'combat-state');
+  assert.ok(state.textContent.includes('Цель: Флогистон (вы) — мёртв'),
+    'HUD-строка «(вы) — мёртв»: ' + JSON.stringify(state.textContent));
+  const hx = c.px * 48, hy = c.py * 48;
+  const t = tickSlice(canvas, rafStubs);
+  assert.ok(underlayAt166(t.events, hx, hy),
+    'подложка на клетке мёртвого героя');
+  assert.ok(ringAt166(t.events, hx, hy),
+    'кольцо на клетке героя (автоцель — «вы»)');
+  // (5) Каст — игрок возвращён, союзник остаётся мёртв (авто взяла
+  // игрока), расход — пул/мана ЭфиРА (mana игрока не тратится).
+  const pMp0 = c.player.mp, pInt0 = c.ps.spellInt, pWis0 = c.ps.spellWis;
+  const eInt0 = c.efs.spellInt, eWis0 = c.efs.spellWis;
+  const efirState0 = JSON.parse(JSON.stringify(c.efirState));
+  row1.listeners.click[0]();
+  assert.deepEqual(Array.from(c.log).slice(n0), ['Возвращён в бой.'],
+    'лог — ровно ОДНА строка (ядро 000163 R-3): '
+    + JSON.stringify(Array.from(c.log).slice(n0)));
+  assert.equal(c.player.alive, true, 'игрок возвращён');
+  assert.equal(c.player.hp, Math.round(G.derived(c.player).maxHP / 2),
+    'hp = round(derived maxHP/2) (у игрока НЕТ поля maxHP)');
+  assert.equal(a1.alive, false, 'союзник мёртв (автоцель взяла игрока)');
+  assert.equal(c.efs.spellWis, eWis0 - 1,
+    'пул Эфира spellWis −1 (poolsOf: Эфир → c.efs)');
+  assert.equal(c.efs.spellInt, eInt0, 'пул Эфира spellInt не тронут');
+  assert.equal(u.mp, 5, 'мана Эфира 20−15 (мани resurrect) = 5');
+  assert.equal(c.player.mp, pMp0, 'мана игрока НЕ тратится (каст — Эфира)');
+  assert.equal(c.ps.spellInt, pInt0, 'пул игрока spellInt не сожжён');
+  assert.equal(c.ps.spellWis, pWis0, 'пул игрока spellWis не сожжён');
+  assert.ok(!c.result, 'c.result не появился');
+  assert.ok(c._fx && c._fx.action === 'cast', 'c._fx — cast');
+  assert.equal(bookBox.style.display, 'none',
+    'книга закрыта (действие совершено)');
+  assert.equal(G.activeUnitId(c), 'efir', 'каст ≠ endTurn (очередь не сдвинулась)');
+  assert.deepEqual(JSON.parse(JSON.stringify(c.efirState)), efirState0,
+    'efirState не мутирован');
+});
+
+test('боевой UI: 000193.02 — ни игрок, ни Эфир НЕ знают «Воскрешение»: клик по мёртвому союзнику no-op (targetId/лог не изменились), маркеров нет — бит-в-байт 000166 НА ХОДУ СОЮЗНИКА (CU193.02-GATE)', () => {
+  const S = scene84({ efir: true, spells: true, allySpells: true });
+  const { G, c } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  const a1 = addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+  G.combatInternals.dealDamageToAlly(c, a1, 9999);
+  assert.equal(G.activeUnitId(c), 'efir',
+    'фикстура: Эфир активен (pre-roll стоп на его слоте)');
+  assert.ok(!a1.alive && a1.hp === 0, 'фикстура: союзник мёртв');
+  assert.equal(c.player.alive, true, 'фикстура: игрок жив');
+  assert.ok(!c.player.spells.includes('resurrect'),
+    'игрок НЕ знает «Воскрешение» (дефолт [spark, mend])');
+  assert.ok(!u.spells.includes('resurrect'),
+    'Эфир НЕ знает «Воскрешение» (дефолт [spark, mend])');
+  assert.equal(c.targetId, wolf.id,
+    'фикстура: СТАЛОЕ targetId — живой волк');
+  const ax = a1.x * 48, ay = a1.y * 48;
+  const hx = c.px * 48, hy = c.py * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(!underlayAt166(t.events, ax, ay),
+    'подложки на мёртвом союзнике нет (носителя нет)');
+  assert.ok(!ringAt166(t.events, ax, ay),
+    'кольца на мёртвом союзнике нет (носителя нет)');
+  assert.ok(!underlayAt166(t.events, hx, hy),
+    'подложки на клетке героя нет (игрок жив)');
+  assert.ok(!ringAt166(t.events, hx, hy),
+    'кольца на клетке героя нет (игрок жив)');
+  const n0 = c.log.length;
+  const t0 = c.targetId;
+  S.canvas.listeners.click[0]({
+    clientX: (a1.x + 0.5) * 48, clientY: (a1.y + 0.5) * 48,
+  });
+  assert.equal(c.targetId, t0,
+    'клик по мёртвому союзнику — цель не изменилась (no-op)');
+  assert.equal(c.log.length, n0, 'лог не вырос');
+  assert.ok(!c._fx || c._fx.action !== 'cast', 'cast-FX нет');
+});
