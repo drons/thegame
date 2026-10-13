@@ -219,3 +219,72 @@ test('index.html: 000199 — MP-полоска и счётчики действ�
     'стража: .combat-state — white-space: pre-line (фикс. высота '
     + 'по 2 строкам)');
 });
+
+test('index.html: 000196 — .combat-spellbook — оверлей поверх экрана боя: зеркало формулы canvas (row), фон баннера, pointer-events none (контейнер) / auto (строки) (CU196-CSS-OVERLAY)', () => {
+  const cv = cssRule('.combat-overlay--combat .combat-box canvas');
+  const bn = cssRule('.combat-banner');
+  const sb = cssRule('.combat-overlay--combat .combat-spellbook');
+  assert.equal(sb['position'], 'absolute',
+    '000196: книга — absolute в .combat-box (краснота: секция панели без '
+    + 'position): факт: ' + sb['position']);
+  assert.equal(sb['top'], '50%',
+    '000196: центрирование в .combat-box (центр box ≡ центр canvas); '
+    + 'факт: ' + sb['top']);
+  assert.equal(sb['left'], '50%',
+    '000196: центрирование: факт: ' + sb['left']);
+  assert.equal(sb['transform'], 'translate(-50%, -50%)',
+    '000196: баннерный transform центрирования; факт: ' + sb['transform']);
+  assert.equal(sb['box-sizing'], 'border-box',
+    '000196: box-sizing border-box (padding внутри размера поля); '
+    + 'факт: ' + sb['box-sizing']);
+  assert.equal(sb['width'], cv['width'],
+    '000196: ширина — зеркало формулы canvas (row), 1:1 с полем; '
+    + 'факт: ' + sb['width']);
+  assert.equal(sb['height'], cv['width'],
+    '000196: высота — квадрат, та же формула; факт: ' + sb['height']);
+  assert.equal(sb['overflow-y'], 'auto',
+    '000196: overflow-y auto (длинная книга скроллится); факт: '
+    + sb['overflow-y']);
+  assert.equal(sb['background'], bn['background'],
+    '000196: фон = фон .combat-banner (существующий цвет, новых не '
+    + 'вводим); факт: ' + sb['background']);
+  assert.equal(sb['background'], 'rgba(10, 12, 16, 0.85)',
+    '000196: фон rgba(10, 12, 16, 0.85) (поле и маркеры читаются '
+    + 'сквозь открытую книгу); факт: ' + sb['background']);
+  assert.equal(sb['pointer-events'], 'none',
+    '000196: контейнер — pointer-events none (клики мимо строк проходят '
+    + 'в canvas — выбор цели воскрешения при открытой книге); '
+    + 'факт: ' + sb['pointer-events']);
+  const rowRule = cssRule(
+    '.combat-overlay--combat .combat-spellbook .combat-spellrow');
+  assert.equal(rowRule['pointer-events'], 'auto',
+    '000196: строки — pointer-events auto (клик-каст по строке сохранён); '
+    + 'факт: ' + rowRule['pointer-events']);
+});
+
+test('index.html: 000196 — старая секционная геометрия книги убрана: в правиле НЕТ flex/max-height/margin/min-height (CU196-CSS-NOCAP)', () => {
+  const d = cssRule('.combat-overlay--combat .combat-spellbook');
+  assert.ok(!('flex' in d),
+    '000196: в правиле нет flex (секционная flex: 0 1 auto убрана — '
+    + 'замена, не заплатка): факт: ' + d['flex']);
+  assert.ok(!('max-height' in d),
+    '000196: в правиле нет max-height (кап 40% сжимал секцию): факт: '
+    + d['max-height']);
+  assert.ok(!('margin' in d),
+    '000196: в правиле нет margin (секционный margin: 4px 0): факт: '
+    + d['margin']);
+  assert.ok(!('min-height' in d),
+    '000196: в правиле нет min-height (секционный min-height: 0): факт: '
+    + d['min-height']);
+});
+
+test('index.html: 000196 — portrait: .combat-spellbook — зеркало формулы canvas (portrait), квадрат (CU196-CSS-PORTRAIT)', () => {
+  const pcv = portraitRule('.combat-overlay--combat .combat-box canvas');
+  const psb = portraitRule('.combat-overlay--combat .combat-spellbook');
+  assert.equal(psb['width'], pcv['width'],
+    '000196: portrait — ширина книги = ширине canvas (portrait); '
+    + 'факт: ' + psb['width']);
+  assert.equal(psb['height'], pcv['width'],
+    '000196: portrait — книга квадратная, та же формула; факт: '
+    + psb['height']);
+});

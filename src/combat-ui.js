@@ -445,20 +445,17 @@
     }
     side.appendChild(actions);
 
-    // «Книга заклинаний» (задача 000149): контейнер строк — МЕЖДУ
-    // .combat-actions и .combat-log (контракт R11). Строки (div, не
-    // <button> — R9) строит renderBook в render(); скрыта по
-    // умолчанию, открытие — toggleBook (кнопка/KeyQ/KeyR).
     bookBox = document.createElement('div');
     bookBox.className = 'combat-spellbook';
     bookBox.style.display = 'none';
     bookOpen = false;
     bookSig = null;
-    side.appendChild(bookBox);
 
     logEl = document.createElement('div');
     logEl.className = 'combat-log';
     side.appendChild(logEl);
+
+    box.appendChild(bookBox);
 
     bannerEl = document.createElement('div');
     bannerEl.className = 'combat-banner';

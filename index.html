@@ -445,6 +445,23 @@
       width: min(100vh - 32px, 100vw - 304px);
       height: min(100vh - 32px, 100vw - 304px);
     }
+    .combat-overlay--combat .combat-spellbook {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-sizing: border-box;
+      width: min(100vh - 32px, 100vw - 304px);
+      height: min(100vh - 32px, 100vw - 304px);
+      padding: 10px;
+      overflow-y: auto;
+      background: rgba(10, 12, 16, 0.85);
+      border-radius: 8px;
+      pointer-events: none;
+    }
+    .combat-overlay--combat .combat-spellbook .combat-spellrow {
+      pointer-events: auto;
+    }
     /* Полоска MP (задача 000199): ТРЕТИЙ элемент .combat-side — под
        .combat-hpbar, над .combat-state. Геометрия 1-в-1 с
        .combat-hpbar (16px); цвета — СУЩЕСТВУЮЩАЯ пара класса
@@ -537,6 +554,10 @@
         min-height: 0;
       }
       .combat-overlay--combat .combat-banner {
+        width: min(100vw - 16px, 100vh - 16px - 520px);
+        height: min(100vw - 16px, 100vh - 16px - 520px);
+      }
+      .combat-overlay--combat .combat-spellbook {
         width: min(100vw - 16px, 100vh - 16px - 520px);
         height: min(100vw - 16px, 100vh - 16px - 520px);
       }
@@ -816,21 +837,6 @@
       height: 48px;
     }
     .cp-portrait-active { border-color: #d8c27a; }
-    /* «Книга заклинаний» (задача 000149): контейнер книги активного
-       персонажа вместо пары кнопок «Огонь»/«Исцел.» — в .combat-side
-       между .combat-actions и .combat-log. ВСЕ правила в скоупе
-       .combat-overlay--combat (000124), базовые классы не трогаем;
-       новых цветов не вводим (наследование + opacity + font-size):
-       контейнер без рамки, -off строка — opacity (у div нет
-       :disabled), иконка строки 20px (силуэты 000124 при 20px). */
-    .combat-overlay--combat .combat-spellbook {
-      flex: 0 1 auto;
-      min-height: 0;
-      max-height: 40%;
-      overflow-y: auto;
-      margin: 4px 0;
-      padding: 2px 0;
-    }
     .combat-overlay--combat .combat-spellrow {
       display: flex;
       align-items: flex-start;

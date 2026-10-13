@@ -1491,7 +1491,7 @@ function fakeLoader84(requested, prefixes) {
 // спрайт-факов; без него spriteLoader = null (фолбэк-сцены).
 function scene84(opts = {}) {
   const rafStubs = makeRafStubs();
-  const { G, keydown, body } = loadCombatUi(true, {
+  const { G, keydown, body, buttons } = loadCombatUi(true, {
     withEfir: !!opts.efir,
     // 000168: каталог заклинаний (spells.js в цепочке, withSpells
     // 000149) — каст Эфира (c.cast → strongestKnown читает
@@ -1522,7 +1522,7 @@ function scene84(opts = {}) {
       ? { spriteLoader: fakeLoader84(requested, opts.loader) } : {}),
   });
   return { G, c, canvas: findCanvas(body), body, keydown, rafStubs,
-    requested };
+    requested, buttons };
 }
 
 // Re-render через rAF-tick: окно ПОСЛЕДНЕГО рендера (срезы drawCalls /
@@ -6497,9 +6497,9 @@ test('боевой UI: 000199 — полоска MP (.combat-mpbar) ПОД по�
   const side = findByClass(S.body, 'combat-side');
   assert.deepEqual(side.children.map((ch) => ch.className),
     ['combat-turnorder', 'combat-hpbar', 'combat-mpbar', 'combat-state',
-      'combat-actions', 'combat-spellbook', 'combat-log'],
-    '000199: порядок .combat-side — mpbar третьим (краснота: 6 '
-    + 'элементов без mpbar): '
+      'combat-actions', 'combat-log'],
+    '000199: порядок .combat-side — mpbar третьим (краснота: 5 '
+    + 'элементов без mpbar; книга — теперь в .combat-box (000196)): '
     + JSON.stringify(side.children.map((ch) => ch.className)));
   // Дефолт: игрок MP 16/16.
   const d = S.G.derived(S.c.player);
@@ -7144,4 +7144,239 @@ test('боевой UI: 000193.02 — ни игрок, ни Эфир НЕ зна�
     'клик по мёртвому союзнику — цель не изменилась (no-op)');
   assert.equal(c.log.length, n0, 'лог не вырос');
   assert.ok(!c._fx || c._fx.action !== 'cast', 'cast-FX нет');
+});
+
+test('боевой UI: 000196 — книга (.combat-spellbook) — в .combat-box ПОЛЕМ: [canvas, spellbook, banner]; .combat-side — 6 элементов без книги; кнопка/KeyQ/KeyR — toggle (CU196-POS)', () => {
+  const S = scene84();
+  const { c, body, keydown, buttons } = S;
+  assert.equal(S.G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  const box = findByClass(body, 'combat-box');
+  const side = findByClass(body, 'combat-side');
+  assert.ok(box && side, 'фикстура: .combat-box и .combat-side есть');
+  assert.deepEqual(side.children.map((ch) => ch.className),
+    ['combat-turnorder', 'combat-hpbar', 'combat-mpbar', 'combat-state',
+      'combat-actions', 'combat-log'],
+    '000196: .combat-side — 6 элементов, книги НЕТ (краснота: 7 элементов — '
+    + 'книга между .combat-actions и .combat-log): '
+    + JSON.stringify(side.children.map((ch) => ch.className)));
+  const canvas = findCanvas(body);
+  assert.equal(box.children.length, 3,
+    '000196: .combat-box — 3 ребёнка (canvas, книга, баннер); факт: '
+    + box.children.length);
+  assert.equal(box.children[0], canvas,
+    '000196: первый ребёнок .combat-box — боевой canvas');
+  assert.deepEqual(box.children.map((ch) => ch.className),
+    ['', 'combat-spellbook', 'combat-banner'],
+    '000196: .combat-box — [canvas, .combat-spellbook, .combat-banner] '
+    + '(краснота: [canvas, .combat-banner] — книга была в .combat-side): '
+    + JSON.stringify(box.children.map((ch) => ch.className)));
+  const bookBox = findByClass(body, 'combat-spellbook');
+  assert.ok(bookBox, 'фикстура: .combat-spellbook существует');
+  assert.equal(bookBox.style.display, 'none', 'книга скрыта по умолчанию');
+  const bookBtn = buttons.find((b) => b.dataset.act === 'spellbook');
+  assert.ok(bookBtn, 'кнопка «Книга заклинаний» (act=spellbook)');
+  bookBtn.listeners.click[0]();
+  assert.notEqual(bookBox.style.display, 'none',
+    'клик по кнопке — книга открыта поверх поля (000196)');
+  assert.equal(bookBox.children.length, 1,
+    'строки построены (сцена без каталога — одна строка «—»); факт: '
+    + bookBox.children.length);
+  assert.ok(bookBox.children[0].className.includes('combat-spellrow-off'),
+    'пустая книга — строка «—» с -off: ' + bookBox.children[0].className);
+  press(keydown, 'KeyQ');
+  assert.equal(bookBox.style.display, 'none', 'KeyQ — toggle (закрыла)');
+  press(keydown, 'KeyR');
+  assert.notEqual(bookBox.style.display, 'none', 'KeyR — toggle (открыла)');
+});
+
+test('боевой UI: 000196 — строки оверлея: 1:1 с книгой, desc/имя/meta/иконка — из каталога; пустая книга — «—» без dataset.spell (CU196-DESC)', () => {
+  const S = scene84({ spells: true });
+  const { G, c, body, buttons, canvas, rafStubs } = S;
+  const cat = G.SpellsData.SPELLS_BY_ID;
+  assert.ok(cat && cat.spark && cat.mend, 'фикстура: каталог в песочнице');
+  assert.deepEqual([...c.player.spells], ['spark', 'mend'],
+    'фикстура: стартовая книга героя (sheet.js)');
+  const bookBtn = buttons.find((b) => b.dataset.act === 'spellbook');
+  bookBtn.listeners.click[0]();
+  const bookBox = findByClass(body, 'combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (оверлей)');
+  const rows = bookBox.children.slice(-2);
+  assert.equal(rows.length, 2, 'строк = заклинаний в книге (2)');
+  assert.deepEqual(rows.map((r) => r.dataset.spell), ['spark', 'mend'],
+    'порядок строк = порядок c.player.spells');
+  for (const [row, id] of [[rows[0], 'spark'], [rows[1], 'mend']]) {
+    const img = row.children.find((ch) => ch.tagName === 'img');
+    assert.equal(img && img.src, 'assets/spell-icons/' + id + '.svg',
+      id + ': иконка src = icon каталога, факт: ' + (img && img.src));
+    const bodyDiv = row.children
+      .find((ch) => ch.className === 'combat-spellrow-body');
+    const top = bodyDiv.children
+      .find((ch) => ch.className === 'combat-spellrow-top');
+    const nameSpan = top.children
+      .find((ch) => ch.className === 'combat-spellname');
+    assert.equal(nameSpan.textContent, cat[id].название,
+      id + ': имя = название каталога, факт: ' + nameSpan.textContent);
+    const attrName = cat[id].атрибут === 'intelligence'
+      ? 'Интеллект' : 'Мудрость';
+    const metaSpan = top.children
+      .find((ch) => ch.className === 'combat-spellmeta');
+    assert.equal(metaSpan.textContent,
+      'Мана ' + cat[id].мани + ' · Заклинание (' + attrName + ')',
+      id + ': мета «Мана N · Заклинание (атрибут)» из данных каталога, '
+      + 'факт: ' + metaSpan.textContent);
+    const descDiv = bodyDiv.children
+      .find((ch) => ch.className === 'combat-spellrow-desc');
+    assert.equal(descDiv.textContent, cat[id].описание,
+      id + ': описание = описание каталога, факт: ' + descDiv.textContent);
+  }
+  c.player.spells = [];
+  tickSlice(canvas, rafStubs);
+  const empty = lastRow166(bookBox);
+  assert.equal(empty.textContent.trim(), '—',
+    'пустая книга — строка «—», факт: ' + JSON.stringify(empty.textContent));
+  assert.ok(empty.className.includes('combat-spellrow-off'),
+    'строка «—» — -off (не кликабельна): ' + empty.className);
+  assert.equal(empty.dataset.spell, undefined,
+    'строка «—» без dataset.spell');
+});
+
+test('боевой UI: 000196 — клик по строке оверлея — каст: лог/мана/пул/c._fx, книга закрыта, ход не сгорел; отказ — без расхода, книга открыта (CU196-CAST)', () => {
+  {
+    const S = scene84({ spells: true });
+    const { G, c, body, buttons } = S;
+    const m0 = c.units[0];
+    m0.x = c.px; m0.y = c.py - 1;
+    m0.maxHP += 6; m0.hp += 6;
+    c.selectTarget(m0.id);
+    c._rng = () => 0.99;
+    const p = c.player;
+    assert.equal(p.mp, 16, 'фикстура: мана дефолтного героя 16');
+    const intBefore = c.ps.spellInt;
+    assert.ok(intBefore > 0, 'фикстура: пул Интеллект есть');
+    const bookBtn = buttons.find((b) => b.dataset.act === 'spellbook');
+    bookBtn.listeners.click[0]();
+    const bookBox = findByClass(body, 'combat-spellbook');
+    assert.notEqual(bookBox.style.display, 'none', 'книга открыта (оверлей)');
+    const sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    assert.ok(sparkRow, 'строка «Искра» в оверлее');
+    assert.equal(c._fx, undefined, 'c._fx не записано до каста');
+    sparkRow.listeners.click[0]();
+    const lastLog = Array.from(c.log).slice(-1)[0];
+    assert.match(lastLog, /^Искра по Волк: \d+\.$/,
+      'строка лога каталога castSpell, факт: ' + JSON.stringify(lastLog));
+    assert.equal(c.ps.spellInt, intBefore - 1,
+      'пул «Заклинание» (Интеллект) −1, факт: ' + c.ps.spellInt);
+    assert.equal(p.mp, 13, 'мана 16−3 = 13, факт: ' + p.mp);
+    assert.equal(c._fx && c._fx.action, 'cast', 'c._fx.action = cast');
+    assert.equal(bookBox.style.display, 'none',
+      'книга закрыта после каста (действие совершено)');
+    assert.equal(c.phase, 'player', 'ход игрока не сгорел (каст — действие)');
+    assert.equal(G.activeUnitId(c), 'player', 'очередь не сдвинулась');
+    assert.equal(c.round, 1, 'раунд не наступил');
+  }
+  {
+    const S = scene84({ spells: true });
+    const { c, body, buttons } = S;
+    const m0 = c.units[0];
+    m0.x = c.px; m0.y = c.py - 1;
+    c.selectTarget(m0.id);
+    c.player.mp = 0;
+    const intBefore = c.ps.spellInt;
+    const bookBtn = buttons.find((b) => b.dataset.act === 'spellbook');
+    bookBtn.listeners.click[0]();
+    const bookBox = findByClass(body, 'combat-spellbook');
+    const sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    assert.ok(sparkRow, 'строка «Искра» (сценарий отказа)');
+    assert.ok(sparkRow.className.includes('combat-spellrow-off'),
+      '«Искра» без маны — disabled-строка: ' + sparkRow.className);
+    assert.equal(sparkRow.title, 'не хватает маны (3)',
+      'title = reason canCastSpell, факт: ' + sparkRow.title);
+    const n0 = c.log.length;
+    sparkRow.listeners.click[0]();
+    assert.equal(c.ps.spellInt, intBefore, 'без расхода пула');
+    assert.equal(c.player.mp, 0, 'без расхода маны');
+    assert.equal(Array.from(c.log).slice(-1)[0], 'не хватает маны (3)',
+      'reason отказа — последняя строка журнала, факт: '
+      + JSON.stringify(Array.from(c.log).slice(n0)));
+    assert.notEqual(bookBox.style.display, 'none',
+      'после отказа книга открыта (видна причина)');
+  }
+});
+
+test('боевой UI: 000196 — «Воскрешение» из книги-оверлея: при ОТКРЫТОЙ книге маркеры мёртвого союзника, canvas-клик — выбор цели (pass-through), строка перестроена без -off, каст — пул/мана Эфира, 0 новых c._rng (CU196-SEL)', () => {
+  const S = scene84({ efir: true, spells: true, allySpells: true });
+  const { G, c, body, keydown, canvas, rafStubs } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  const a1 = addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+  G.combatInternals.dealDamageToAlly(c, a1, 9999);
+  u.spells.push('resurrect');
+  u.mp = 20;
+  u.maxMP = 20;
+  assert.equal(G.activeUnitId(c), 'efir',
+    'фикстура: Эфир активен (pre-roll стоп на его слоте)');
+  assert.ok(!a1.alive && a1.hp === 0, 'фикстура: союзник мёртв');
+  assert.equal(a1.maxHP, 16, 'фикстура: наёмник level 2 — maxHP 16');
+  assert.equal(c.player.alive, true, 'фикстура: игрок жив');
+  assert.equal(c.efs.spellWis, 1,
+    'фикстура-факт: пул Эфира spellWis 1 (startRound-рефилл)');
+  assert.equal(c.targetId, wolf.id,
+    'фикстура: СТАЛОЕ targetId — живой волк (авто-цель начала хода)');
+  const bookBox = findByClass(body, 'combat-spellbook');
+  press(keydown, 'KeyQ');
+  tickSlice(canvas, rafStubs);
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (оверлей)');
+  const row0 = lastRow166(bookBox);
+  assert.equal(row0.dataset.spell, 'resurrect', 'строка «Воскрешение»');
+  assert.ok(row0.className.includes('combat-spellrow-off'),
+    'строка -off (stale-цель — живой волк)');
+  assert.equal(row0.title, 'нет цели', 'title — причина');
+  const n0 = c.log.length;
+  canvas.listeners.click[0]({
+    clientX: (a1.x + 0.5) * 48, clientY: (a1.y + 0.5) * 48,
+  });
+  assert.equal(c.targetId, a1.id,
+    'canvas-клик при ОТКРЫТОЙ книге — цель выбрана (pass-through: клики '
+    + 'мимо строк проходят в поле)');
+  assert.equal(c.log.length, n0, 'выбор — не действие: лог не вырос');
+  assert.notEqual(bookBox.style.display, 'none',
+    'книга осталась открыта после выбора цели');
+  const ax = a1.x * 48, ay = a1.y * 48;
+  const t = tickSlice(canvas, rafStubs);
+  assert.ok(ringAt166(t.events, ax, ay),
+    'кольцо выбранной цели на мёртвом союзнике (39×39, #ffe27a) — маркеры '
+    + '000193.02 не тронуты');
+  assert.ok(underlayAt166(t.events, ax, ay), 'подложка сохранена после выбора');
+  const row1 = lastRow166(bookBox);
+  assert.equal(row1.dataset.spell, 'resurrect', 'свежая строка — «Воскрешение»');
+  assert.ok(!row1.className.includes('combat-spellrow-off'),
+    'строка открытой книги перестроена БЕЗ -off: '
+    + JSON.stringify(row1.className));
+  assert.equal(row1.title, '', 'подсказка пуста (canCastAllySpell ok)');
+  const pMp0 = c.player.mp, pInt0 = c.ps.spellInt, pWis0 = c.ps.spellWis;
+  const eInt0 = c.efs.spellInt, eWis0 = c.efs.spellWis;
+  const realRng = c._rng;
+  let rngCalls = 0;
+  c._rng = () => (rngCalls++, realRng());
+  row1.listeners.click[0]();
+  assert.deepEqual(Array.from(c.log).slice(n0), ['Возвращён в бой.'],
+    'лог — ровно ОДНА строка (ядро 000163 R-3): '
+    + JSON.stringify(Array.from(c.log).slice(n0)));
+  assert.equal(a1.alive, true, 'союзник возвращён в бой');
+  assert.equal(a1.hp, 8, 'hp = round(maxHP/2) = 8 (формула 000163)');
+  assert.equal(c.efs.spellWis, 0,
+    'пул Эфира spellWis 1−1 = 0, факт: ' + c.efs.spellWis);
+  assert.equal(c.efs.spellInt, eInt0, 'пул Эфира spellInt не тронут');
+  assert.equal(u.mp, 5, 'мана Эфира 20−15 (мани resurrect) = 5');
+  assert.equal(c.player.mp, pMp0, 'мана игрока не сожжена');
+  assert.equal(c.ps.spellInt, pInt0, 'пул игрока spellInt не сожжён');
+  assert.equal(c.ps.spellWis, pWis0, 'пул игрока spellWis не сожжён');
+  assert.ok(c._fx && c._fx.action === 'cast', 'c._fx — cast');
+  assert.equal(bookBox.style.display, 'none',
+    'книга закрыта (действие совершено)');
+  assert.equal(G.activeUnitId(c), 'efir', 'каст ≠ endTurn (очередь не сдвинулась)');
+  assert.equal(rngCalls, 0,
+    'новых вызовов c._rng — ноль (воскрешение без RNG, 000163)');
 });
