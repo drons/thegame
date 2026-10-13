@@ -367,6 +367,13 @@
       // node-фикстуры без c.efs ведут себя как melee-наёмник).
       moveLeft: 1,
       attackLeft: 1,
+      // 000193: ресурсы книги заклинаний союзника (те же механики, что
+      // у игрока): мана u.mp + пулы заклинаний u.spellInt/spellWis
+      // (по атрибуту каталога); рефилл пулов — startRound (живые).
+      mp: 5 + ((data.attrs && data.attrs.intelligence) || 0)
+        + ((data.attrs && data.attrs.wisdom) || 0),
+      spellInt: 1 + Math.floor(((data.attrs && data.attrs.intelligence) || 0) / 10),
+      spellWis: 1 + Math.floor(((data.attrs && data.attrs.wisdom) || 0) / 10),
       size: { w: 1, h: 1 },
       x: 0,
       y: 0,
@@ -1057,7 +1064,14 @@
       log(c, `${t.name} сопротивляется магическому урону.`);
       efirPractice(c, 'perception', PRACTICE_XP.block);
     }
-    const dmg = Math.max(1, Math.round(raw) - (t.armor || 0));
+    let dmg = Math.max(1, Math.round(raw) - (t.armor || 0));
+    // 000193: щит союзника (щитовое заклинание из книги): плоское
+    // поглощение ДО 0 ПОСЛЕ магореза и брони (эффекты c.ps — только
+    // игрок, v1; это СОБСТВЕННЫЙ щит союзника u.shield, тик —
+    // startRound).
+    if (t.shield && t.shield.turns > 0) {
+      dmg = Math.max(0, dmg - t.shield.armor);
+    }
     t.hp -= dmg;
     if (t.hp <= 0) {
       t.hp = 0;
@@ -2034,24 +2048,51 @@
     };
   }
 
-  // Лечение support-наёмника (000168): существующий allyHeal («самый
-  // раненый» пула [игрок, живые союзники], 0 c._rng) — БЕЗ выбора
-  // цели (детерминированное правило, как в ИИ). Лечение ЗАНИМАЕТ слот
-  // действия (u.attackLeft — паттерн ИИ: heal вместо attack; ТЗ молчит
-  // — решение Проектирования P8).
+  // Лечение support-наёмника (000168; 000193 — механика заклинания):
+  // те же механики, что книга заклинаний — сильнейшее известное
+  // лечебное (strongestKnown) САМОМУ раненому пула [игрок, живые
+  // союзники] (mostWounded, 0 c._rng, без выбора цели), пул по
+  // «атрибуту» каталога (efirPool), мана, расход — пул/мана НАЁМНИКА
+  // (слот действия НЕ занимает: u.attackLeft не тратится).
+  // ПОРЯДОК проверок (Д-J): checkTurn → guard (SUPPORT+merc) →
+  // mostWounded → strongestKnown → пул → мана → расход → эффект.
+  // Лог «X лечит Y (+N).» — вычисленное значение (паттерн 000168;
+  // факт восстановления — в out.healed); игрок в логе — «Флогистон».
   function allyHealAction(c, u) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
     if (u.role !== MOB_ROLES.SUPPORT || u.kind !== 'merc') {
       return { ok: false, reason: 'недоступно активному персонажу' };
     }
-    if (u.attackLeft <= 0) {
-      return { ok: false, reason: 'действий «Удар» больше нет' };
+    const target = mostWounded(c, 1);
+    if (!target) return { ok: false, reason: 'нет раненых' };
+    const s = strongestKnown(u, 'лечение');
+    if (!s) return { ok: false, reason: 'нет лечения' };
+    const pool = efirPool(s);
+    if (u[pool] <= 0) {
+      return {
+        ok: false,
+        reason: 'действий «Заклинание» ('
+          + (pool === 'spellInt' ? 'Интеллект' : 'Мудрость') + ') больше нет',
+      };
     }
-    if (!mostWounded(c, 1)) return { ok: false, reason: 'нет раненых' };
-    if (!allyHeal(c, u)) return { ok: false, reason: 'нет лечения' };
-    u.attackLeft -= 1;
-    return { ok: true };
+    const mana = Number(s['мани']) || 0;
+    if (u.mp < mana) {
+      return { ok: false, reason: 'не хватает маны (' + mana + ')' };
+    }
+    u[pool] -= 1;
+    u.mp -= mana;
+    const t = target.player ? c.player : target.unit;
+    // Формула 1:1 с книгой (§2): вычисленное значение в лог
+    // (паттерн 000168; факт восстановления — в out.healed).
+    const amount = Math.round(
+      (4 + 0.5 * ((u.attrs && u.attrs[s['атрибут']]) || 0)
+        + (u.level || 0))
+      * (1 + 0.15 * ((Number(s['степень']) || 1) - 1)));
+    const healed = healAlly(c, t, amount);
+    const tName = (t === c.player) ? 'Флогистон' : t.name;
+    log(c, `${u.name} лечит ${tName} (+${amount}).`);
+    return { ok: true, healed, hp: t.hp };
   }
 
   // Урон-каст Эфира (000168): ТЕЛО приоритета (3) efirTurn VERBATIM —
@@ -2087,8 +2128,11 @@
     const lord = (u.efirSkills
       && u.efirSkills[s['школа'] === 'лёд' ? 'icelord' : 'firelord'])
       || 0;
+    // 000193 (Д-K): формула 1:1 с пайплайном книги (spells.js урон):
+    // база 4 + 0.5·атрибут, множитель степени, лорд-множитель школы.
     const dmg = Math.round(
-      (3 + 0.5 * ((u.attrs && u.attrs.intelligence) || 0))
+      (4 + 0.5 * ((u.attrs && u.attrs[s['атрибут']] || 0)))
+      * (1 + 0.15 * (s['степень'] - 1))
       * (1 + 0.05 * lord));
     const r = dealDamageToMob(c, t, dmg, true);
     // 000118: паттерн ТЗ «Эфир: «<заклинание>» — <имя>: N.» (em-dash).
@@ -2166,30 +2210,43 @@
       return { ok: false, reason: 'недоступно активному персонажу' };
     }
     if (action === 'heal') {
-      // Зеркало allyHealAction 1:1 (паттерн 000037, правка по ревью
-      // 000168): ПОРЯДОК — как в ядре: слот действия (u.attackLeft) →
-      // раненые (mostWounded) → каталог/спелл (условия allyHeal).
-      // Чтение каталога — чистое.
+      // Зеркало allyHealAction 1:1 (паттерн 000037; 000193 — механика
+      // заклинания): ПОРЯДОК — как в ядре: guard (SUPPORT+merc) →
+      // раненые (mostWounded) → каталог/спелл (strongestKnown) → пул
+      // (efirPool) → мана. Чтение каталога — чистое; слот действия
+      // НЕ проверяется (лечение не занимает его).
       if (u.role === MOB_ROLES.SUPPORT && u.kind === 'merc') {
-        if (u.attackLeft <= 0) {
-          return { ok: false, reason: 'действий «Удар» больше нет' };
-        }
         if (!mostWounded(c, 1)) return { ok: false, reason: 'нет раненых' };
-        const catalog = combatInternals.allySpells;
-        let hasSpell = false;
-        if (catalog) {
-          for (const id of (u.spells || [])) {
-            const s = catalog[id];
-            if (s && s['действие'] === 'лечение') { hasSpell = true; break; }
-          }
+        const s = strongestKnown(u, 'лечение');
+        if (!s) return { ok: false, reason: 'нет лечения' };
+        const pool = efirPool(s);
+        if (u[pool] <= 0) {
+          return {
+            ok: false,
+            reason: 'действий «Заклинание» ('
+              + (pool === 'spellInt' ? 'Интеллект' : 'Мудрость')
+              + ') больше нет',
+          };
         }
-        if (!hasSpell) return { ok: false, reason: 'нет лечения' };
+        const mana = Number(s['мани']) || 0;
+        if (u.mp < mana) {
+          return { ok: false, reason: 'не хватает маны (' + mana + ')' };
+        }
         return { ok: true };
       }
       return { ok: false, reason: 'недоступно активному персонажу' };
     }
+    if (action === 'spellbook') {
+      // 000193: книга заклинаний — АКТИВНЫЙ персонаж (гейт 000179
+      // снят): пустая книга — «заклинаний нет», иначе ok (детализация
+      // по строкам — canCastAllySpell/canCastSpell в UI).
+      if (!(Array.isArray(u.spells) && u.spells.length > 0)) {
+        return { ok: false, reason: 'заклинаний нет' };
+      }
+      return { ok: true };
+    }
     if (action === 'fire' || action === 'block' || action === 'quickItem'
-        || action === 'invItem' || action === 'flee' || action === 'spellbook') {
+        || action === 'invItem' || action === 'flee') {
       return { ok: false, reason: 'недоступно активному персонажу' };
     }
     return { ok: false, reason: 'неизвестное действие: ' + action };
@@ -2541,6 +2598,11 @@
     for (const a of livingAllies(c)) {
       a.moveLeft = a.movePerTurn || 1;
       a.attackLeft = 1;
+      // 000193: рефилл пулов заклинаний (та же формула, что c.efs) +
+      // тик щита союзника (3 раунда, ритм — как щит игрока c.ps.shield).
+      a.spellInt = 1 + Math.floor(((a.attrs && a.attrs.intelligence) || 0) / 10);
+      a.spellWis = 1 + Math.floor(((a.attrs && a.attrs.wisdom) || 0) / 10);
+      if (a.shield && a.shield.turns > 0) a.shield.turns -= 1;
     }
     // Новый раунд — новая очередь (задачи 000036/000167): из очереди
     // вышли мёртвые и сбежавшие, очередь отсортирована по инициативе,
@@ -3115,10 +3177,11 @@
       }
       return efirCastAction(c, u, targetId);
     };
-    // 000168: лечение support-наёмника (H) — «самый раненый» пула
-    // [игрок, живые союзники] (0 c._rng), занимает слот действия.
-    // Игрок — defensive (лечение игрока — книга 000149); Эфир и
-    // не-support — «недоступно» (у Эфира heal-действия v1 НЕТ).
+    // 000168; 000193: лечение support-наёмника (H) — «самый раненый»
+    // пула [игрок, живые союзники] (0 c._rng); заклинание: расход
+    // пул/мана наёмника, слот действия НЕ занимает. Игрок — defensive
+    // (лечение игрока — книга 000149); Эфир и не-support — «недоступно»
+    // (у Эфира heal-действия v1 НЕТ).
     c.heal = () => {
       if (activeUnitId(c) === 'player') {
         return { ok: false, reason: 'используйте книгу заклинаний' };

@@ -1019,7 +1019,7 @@ test('000112 EF-2: buildEfirUnit — рост L15 (levelUp-цикл, без ха
   });
 });
 
-test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГДА попадает, броня игнор); spark 5 (d≤4, броня 50 игнор, mp 11→8); 000168: ввод (c.attack/c.cast), лечение/щит у Эфира в бою НЕТ (D12)', () => {
+test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГДА попадает, броня игнор); spark 6 (формула 000193; d≤4, броня 50 игнор, mp 11→8); 000168: ввод (c.attack/c.cast), лечение/щит у Эфира в бою НЕТ (D12)', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
     const C = require('../src/combat.js');
@@ -1054,9 +1054,9 @@ test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГ
         assert.equal(c.efs.touch, 0,
           'touch потрачен (1→0); рефилл — в след. startRound');
       }
-      // (B) spark 5: d≤4, броня моба 50 (игнор), mp 11→8. 000168: ввод
-      // (c.cast) — ИИ-каст убран; Эфир на спавне (2,5), d до волка (3,3)
-      // = 3 ≤ 4.
+      // (B) spark 6 (формула 000193): d≤4, броня моба 50 (игнор),
+      // mp 11→8. 000168: ввод (c.cast) — ИИ-каст убран; Эфир на
+      // спавне (2,5), d до волка (3,3) = 3 ≤ 4.
       {
         const p = hero112();
         p.hp = P.derived(p).maxHP;
@@ -1074,9 +1074,9 @@ test('000112 EF-3: формулы L1 — Касание 4 (mp 0, d≤1, ВСЕГ
         const hp0 = w.hp;
         const res = c.cast(w.id);        // 000168: ввод (ИИ-каст убран)
         assert.ok(res.ok, 'c.cast — каст доступен: ' + c.log.join(' | '));
-        assert.equal(w.hp, hp0 - 5,
-          'spark = round((3 + 0.5·3)·(1 + 0.05·0)) = 5 (броня игнор): '
-          + c.log.join(' | '));
+        assert.equal(w.hp, hp0 - 6,
+          'spark = round((4 + 0.5·3)·(1 + 0.15·(1−1))·(1 + 0.05·0)) = 6 '
+          + '(формула 000193, броня игнор): ' + c.log.join(' | '));
         assert.equal(u.mp, 8, 'mp 11 − 3 («мани» spark) = 8');
       }
       // 000168 (D12): лечения и щита у Эфира в бою НЕТ — сценарии
@@ -1166,7 +1166,7 @@ test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] форму
         'pre-roll стоп на слоте Миров (инициатива 8; ввод 000168): '
         + C.activeUnitId(c));
       const res = c.heal();
-      assert.deepEqual(res, { ok: true },
+      assert.equal(res.ok, true,
         'c.heal — лечение support: ' + c.log.join(' | '));
       assert.equal(a1.hp, 10,
         'Вольк 3 + 7 = 10 (ЧЛЕН 0.5·attrs[wisdom] = +2; без него 5): '
@@ -1175,8 +1175,12 @@ test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] форму
         'лог побайтово (член 0.5·attrs): ' + c.log.join(' | '));
       assert.equal(p.hp, P.derived(p).maxHP,
         'полный игрок не лечится (frac 1 — вне пула)');
-      assert.equal(a0.attackLeft, 0,
-        'лечение заняло слот действия (000168 P8)');
+      assert.equal(a0.attackLeft, 1,
+        'лечение НЕ занимает слот действия (000193: слот 1→1)');
+      assert.equal(a0.mp, 10,
+        'мана 13→10 (mend: 3 маны; mp 5+Int4+Wis4=13; 000193): ' + a0.mp);
+      assert.equal(a0.spellWis, 0,
+        'пул Мудрости 1→0 (mend — атрибут wisdom; 000193)');
     }
     // (b) Якорь: та же сцена, Мира БЕЗ attrs (инициатива 0) → очередь
     // ['m0','player','a0','a1'] → pre-roll стоп на игроке → endTurn
@@ -1192,6 +1196,7 @@ test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] форму
         mobs: ['wolf'], mobLevel: 2, seed: 5,
       });
       c.obstacles.clear();
+      const a0 = c.units.find((x) => x.id === 'a0');
       const a1 = c.units.find((x) => x.id === 'a1');
       a1.hp = 3;
       c._rng = () => 0.99;
@@ -1201,13 +1206,19 @@ test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] форму
       c.endTurn();  // → a0
       assert.equal(C.activeUnitId(c), 'a0', 'endTurn → слот Миров');
       const res = c.heal();
-      assert.deepEqual(res, { ok: true },
+      assert.equal(res.ok, true,
         'c.heal — attrs {}: ' + c.log.join(' | '));
       assert.equal(a1.hp, 8,
         'Вольк 3 + 5 = 8 (без attrs член = 0; НЕ 7 — нет хардкода): '
         + c.log.join(' | '));
       assert.ok(c.log.includes('Мира лечит Вольк (+5).'),
         'лог побайтово (якорь attrs {}): ' + c.log.join(' | '));
+      assert.equal(a0.attackLeft, 1,
+        'лечение НЕ занимает слот действия (000193: слот 1→1)');
+      assert.equal(a0.mp, 2,
+        'мана 5→2 (mend: 3 маны; 000193: attrs {} → mp 5)');
+      assert.equal(a0.spellWis, 0,
+        'пул Мудрости 1→0 (mend — атрибут wisdom; 000193)');
     }
     // (c) 000182: множитель степени (1 + 0.15·(степень − 1)) — ЧАСТЬ
     // ПРОИЗВЕДЕНИЯ формулы allyHeal (src/combat.js): Мира
@@ -1235,7 +1246,7 @@ test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] форму
         'pre-roll стоп на слоте Миров (инициатива 8): '
         + C.activeUnitId(c));
       const res = c.heal();
-      assert.deepEqual(res, { ok: true },
+      assert.equal(res.ok, true,
         'c.heal — greater_heal: ' + c.log.join(' | '));
       assert.equal(a1.hp, 11,
         'Вольк 3 + 8 = 11 (round(7 · 1.15) = 8; степень 2): '
@@ -1245,8 +1256,12 @@ test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] форму
         + c.log.join(' | '));
       assert.equal(p.hp, P.derived(p).maxHP,
         'полный игрок не лечится (frac 1 — вне пула)');
-      assert.equal(a0.attackLeft, 0,
-        'лечение заняло слот действия');
+      assert.equal(a0.attackLeft, 1,
+        'лечение НЕ занимает слот действия (000193: слот 1→1)');
+      assert.equal(a0.mp, 2,
+        'мана 13→2 (greater_heal: 11 ман; mp 5+Int4+Wis4=13; 000193)');
+      assert.equal(a0.spellWis, 0,
+        'пул Мудрости 1→0 (greater_heal — атрибут wisdom; 000193)');
     }
     // (d) 000182: якорь (c) без attrs: Мира attrs {} + greater_heal
     // (инициатива 0) → очередь ['m0','player','a0','a1'] → pre-roll
@@ -1264,8 +1279,12 @@ test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] форму
         mobs: ['wolf'], mobLevel: 2, seed: 5,
       });
       c.obstacles.clear();
+      const a0 = c.units.find((x) => x.id === 'a0');
       const a1 = c.units.find((x) => x.id === 'a1');
       a1.hp = 3;
+      // 000193: attrs {} → mp 5 < 11 (greater_heal) — без инжекции
+      // лечения отклонится по мане; тест про множитель, не про мана.
+      a0.mp = 11;
       c._rng = () => 0.99;
       assert.equal(C.activeUnitId(c), 'player',
         'Мира attrs {} (инициатива 0) — pre-roll стоп на ИГРОКЕ: '
@@ -1273,7 +1292,7 @@ test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] форму
       c.endTurn();  // → a0
       assert.equal(C.activeUnitId(c), 'a0', 'endTurn → слот Миров');
       const res = c.heal();
-      assert.deepEqual(res, { ok: true },
+      assert.equal(res.ok, true,
         'c.heal — greater_heal, attrs {}: ' + c.log.join(' | '));
       assert.equal(a1.hp, 9,
         'Вольк 3 + 6 = 9 (round(5 · 1.15) = 6; степень 2, attrs {}): '
@@ -1281,6 +1300,12 @@ test('000180 HEAL-1: allyHeal — член 0.5·attrs[атрибут] форму
       assert.ok(c.log.includes('Мира лечит Вольк (+6).'),
         'лог побайтово (якорь attrs {} + степень 2): '
         + c.log.join(' | '));
+      assert.equal(a0.attackLeft, 1,
+        'лечение НЕ занимает слот действия (000193: слот 1→1)');
+      assert.equal(a0.mp, 0,
+        'мана 11→0 (greater_heal: 11 ман; 000193)');
+      assert.equal(a0.spellWis, 0,
+        'пул Мудрости 1→0 (greater_heal — атрибут wisdom; 000193)');
     }
   } finally {
     C.combatInternals.allySpells = saveCatalog;

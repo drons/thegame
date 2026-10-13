@@ -172,6 +172,9 @@
   let bookBox = null;
   let bookOpen = false;
   let spellBookWarned = false; // деградация без G.SpellBook — 1 console.error
+  // 000193: деградация без G.AllySpells (битый порядок загрузки) —
+  // 1 console.error на сессию (паттерн spellBookWarned, 000149).
+  let allySpellsWarned = false;
   // 000170 (D4/D5): console.error ОДИН раз — исключение в
   // startCombat (build/render), в addEfirXp/onEnd (finish).
   let startCombatErrLogged = false;
@@ -1677,11 +1680,12 @@
 
   // --- «Книга заклинаний» (задача 000149) ---
 
-  // Активный персонаж книги — ЕДИНАЯ точка замены под «активную
-  // единицу» очереди ходов (задача 000167): пока очереди нет —
-  // всегда герой (c.player).
+  // Активный персонаж книги — ЕДИНАЯ точка «активной единицы» очереди
+  // ходов: 000167 — очередь, 000193 — реализация: на ходу СОЮЗНИКА
+  // (наёмник/Эфир, c.phase === 'player' — 000168 D9) книга показывает
+  // ЕГО книгу (unitOf → activeUnit), на ходу игрока — c.player.
   function unitOf(c) {
-    return c.player;
+    return activeUnit(c) || c.player;
   }
 
   // «Воскрешение» (задача 000166): ГЕЙТ всей новой функциональности —
@@ -1694,7 +1698,11 @@
   // по мёртвому союзнику/герою — no-op (цель не меняется, лог не
   // растёт) → все существующие сцены бит-в-байт.
   function canResurrect(c) {
-    const u = unitOf(c);
+    // 000193 (Д-H): закреплён на c.player (НЕ unitOf — 000193 меняет
+    // unitOf на активного юнита): бит-в-байт 000166/000171 во всех
+    // фазах; resurrectChk своей activeUnitId-веткой уже гасит кнопку
+    // на ходу союзника (книга союзника в воскрешение не вливается).
+    const u = c.player;
     return !!(u && Array.isArray(u.spells)
       && u.spells.indexOf('resurrect') >= 0);
   }
@@ -1770,42 +1778,51 @@
     }));
   }
 
-  // 000179 (регрессия 000168): гейт СТРОК книги по АКТИВНОМУ юниту —
-  // зеркало resurrectChk (000171), порядок проверок ФИКСИРОВАН
-  // (result → phase → activeUnitId): с 000168 ход СОЮЗНИКА —
-  // c.phase === 'player', и canCastSpell движка 000045 (checkTurn)
-  // пропустит каст игрока на ходу спутника (пул/мана игрока, эффект
-  // вне его хода). 'не ваш ход' ПЕРЕД activeUnitId: на ходу МОБА
-  // активен id МОБА — иначе tooltip был бы неверный (комментарь 000171
-  // к порядку resurrectChk). Строка «недоступно активному персонажу» —
-  // ДОСЛОВНО из allyCanDo('spellbook') (000168) и resurrectChk:
-  // «одна строка — одна причина». typeof-guard с фолбэком 'player'
-  // (G.activeUnitId — экспорт 000167): до 000167 гейт — мёртвая ветка,
-  // ноль изменения. Возврат { ok:false, reason } | null (null —
-  // проход к canCastSpell/касту — поведение на ходу игрока бит-в-бит).
+  // ГЕЙТ СТРОК книги: порядок проверок ФИКСИРОВАН (result → phase).
+  // 000179-ветка (activeUnitId !== 'player' → «недоступно активному
+  // персонажу») СНЯТА 000193: книга — АКТИВНОГО персонажа (unitOf →
+  // activeUnit); на ходу СОЮЗНИКА строки и каст — через G.AllySpells
+  // (rowChk/castRow, ветка u !== c.player). 'не ваш ход' остаётся:
+  // на ходу МОБА книга по-прежнему закрыта/затемнена. Возврат
+  // { ok:false, reason } | null (null — проход к rowChk/касту).
   function spellbookUnitGate(c) {
     if (c.result) return { ok: false, reason: 'бой закончен' };
     if (c.phase !== 'player') return { ok: false, reason: 'не ваш ход' };
-    const id = (typeof G.activeUnitId === 'function')
-      ? G.activeUnitId(c) : 'player';
-    if (id !== 'player') {
-      return { ok: false, reason: 'недоступно активному персонажу' };
-    }
     return null;
   }
 
-  // canCastSpell (движок 000045) — чистый предпросмотр строки
-  // (без побочных эффектов — зеркало castSpell, 000037/000045) —
-  // ПОСЛЕ гейта spellbookUnitGate (000179): на ходу СОЮЗНИКА причина
-  // — гейтовая (осмысленнее деградации); на ходу игрока гейт null →
-  // бит-в-бит (пин SB14: 'Заклинания недоступны' при битом порядке).
-  // G.Spells нет (спелл-движок не загружен — битый порядок) —
-  // запасной отказ: все строки off (деградация, не крах). Вызывается
-  // renderBook: ОДИН раз на строку на рендер (и для сигнатуры, и для
-  // строки — пары не дублируются).
+  // canCast (чистый предпросмотр строки, без побочных эффектов —
+  // зеркало каста, 000037) — ПОСЛЕ гейта spellbookUnitGate. 000193:
+  // книга — АКТИВНОГО персонажа (unitOf): урон-путь зависит от того,
+  // ЧЬЯ книга на экране:
+  //  * u === c.player — G.Spells.canCastSpell (движок 000045) —
+  //    бит-в-байт (пин SB14: 'Заклинания недоступны' при битом
+  //    порядке);
+  //  * u — союзник (наёмник/Эфир) — G.AllySpells.canCastAllySpell
+  //    (src/ally-spells.js, 000193): те же механики, что у игрока
+  //    (пул/мана активного персонажа, 1 reason — 1 поведение).
+  //    G.AllySpells нет (битый порядок загрузки) — ОДИН
+  //    console.error (флаг allySpellsWarned, паттерн spellBookWarned)
+  //    + отказ «недоступно активному персонажу» (строка 000179 —
+  //    деградация, не крах). Вызывается renderBook: ОДИН раз на
+  //    строку на рендер (и для сигнатуры, и для строки — пары не
+  //    дублируются).
   function rowChk(c, row) {
     const g = spellbookUnitGate(c);
     if (g) return g;
+    const u = unitOf(c);
+    if (u !== c.player) {
+      if (G.AllySpells && typeof G.AllySpells.canCastAllySpell === 'function') {
+        return G.AllySpells.canCastAllySpell(c, u, row.id, c.targetId);
+      }
+      if (!allySpellsWarned) {
+        allySpellsWarned = true;
+        console.error('000193: Game.AllySpells не загружен — строки книги '
+          + 'союзника недоступны (загрузите src/ally-spells.js ДО '
+          + 'src/combat-ui.js)');
+      }
+      return { ok: false, reason: 'недоступно активному персонажу' };
+    }
     return (G.Spells && typeof G.Spells.canCastSpell === 'function')
       ? G.Spells.canCastSpell(c, row.id, { targetId: c.targetId })
       : { ok: false, reason: 'Заклинания недоступны' };
@@ -1854,18 +1871,20 @@
     return el;
   }
 
-  // Клик по строке (задача 000149): каст через движок 000045 —
-  // G.Spells.castSpell (зеркало предпросмотра canCastSpell строки).
-  // Успех — 'cast'-FX 300 мс (паттерн 000047, то же поле c._fx, что
-  // у атаки) + книга закрывается (действие сделано). Отказ — причину
-  // в журнал (logRejection), книга остаётся ОТКРЫТОЙ (игрок видит
-  // причину и может поправить: цель/ману/очередь).
-  // 000179: предпроверка ПЕРВОЙ строкой — гейт spellbookUnitGate
-  // (стаб-клик на ходу СОЮЗНИКА: причина в лог — ровно одна строка,
-  // КАСТА НЕТ, трат НЕТ, c._fx не пишется, очередь не сдвигается —
-  // зеркало раннего return resurrectCast; движок 000045 не знает про
-  // activeUnitId — без гейта checkTurn (phase='player' на ходу
-  // спутника) каст игрока пропустил бы).
+  // Клик по строке (задача 000149): каст ЧЕРЕЗ КНИГУ АКТИВНОГО
+  // персонажа (000193): u === c.player — G.Spells.castSpell (движок
+  // 000045, зеркало предпросмотра canCastSpell); u — союзник —
+  // G.AllySpells.castAllySpell (src/ally-spells.js: те же механики,
+  // расход — пул/мана союзника). Успех — ОБА пути: 'cast'-FX 300 мс
+  // (паттерн 000047, то же поле c._fx, что у атаки) + книга
+  // закрывается (действие сделано). Отказ — причину в журнал
+  // (logRejection), книга остаётся ОТКРЫТОЙ (видна причина, можно
+  // поправить: цель/ману/очередь). Предпроверка — гейт
+  // spellbookUnitGate (000193: только result/phase). G.AllySpells
+  // нет (битый порядок) — деградация: ОДИН console.error
+  // (allySpellsWarned) + отказ «недоступно активному персонажу»
+  // (ровно одна строка в лог, КАСТА НЕТ, трат НЕТ, c._fx не
+  // пишется — зеркало 000179-поведения).
   function castRow(c, spellId) {
     const g = spellbookUnitGate(c);
     if (g) {
@@ -1873,9 +1892,25 @@
       render();
       return;
     }
-    const r = (G.Spells && typeof G.Spells.castSpell === 'function')
-      ? G.Spells.castSpell(c, spellId, c.targetId)
-      : { ok: false, reason: 'Заклинания недоступны' };
+    const u = unitOf(c);
+    let r;
+    if (u !== c.player) {
+      if (G.AllySpells && typeof G.AllySpells.castAllySpell === 'function') {
+        r = G.AllySpells.castAllySpell(c, u, spellId, c.targetId);
+      } else {
+        if (!allySpellsWarned) {
+          allySpellsWarned = true;
+          console.error('000193: Game.AllySpells не загружен — строки книги '
+            + 'союзника недоступны (загрузите src/ally-spells.js ДО '
+            + 'src/combat-ui.js)');
+        }
+        r = { ok: false, reason: 'недоступно активному персонажу' };
+      }
+    } else {
+      r = (G.Spells && typeof G.Spells.castSpell === 'function')
+        ? G.Spells.castSpell(c, spellId, c.targetId)
+        : { ok: false, reason: 'Заклинания недоступны' };
+    }
     if (r && r.ok) {
       c._fx = { action: 'cast', until: nowMs() + FX_MS };
       bookOpen = false;

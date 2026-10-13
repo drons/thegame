@@ -85,6 +85,10 @@ test('index.html: нужные модули подключены', () => {
     // — ПОСЛЕ spells.js (каталог/движок), ДО combat-ui.js
     // (снапшот-ловушка 000038 — пин порядка ниже).
     'src/spellbook.js',
+    // Заклинания союзников в бою (задача 000193): Game.AllySpells =
+    // {castAllySpell, canCastAllySpell} — после spellbook.js, ДО
+    // combat-ui.js (G-снапшот 000038; пин порядка ниже).
+    'src/ally-spells.js',
     'src/main.js',
   ]) {
     assert.notEqual(pos(f), -1, f + ' не подключён в index.html');
@@ -1416,6 +1420,37 @@ test('index.html: src/spellbook.js подключён ПОСЛЕ src/spells.js �
   assert.ok(pos('src/spellbook.js') < pos('src/combat-ui.js'),
     'src/spellbook.js должен быть ДО src/combat-ui.js (снапшот-' +
     'ловушка 000038: combat-ui снимает Game при загрузке)');
+});
+
+// --- Задача 000193: заклинания союзников в бою (src/ally-spells.js) ---
+//
+// Game.AllySpells = {castAllySpell, canCastAllySpell} (UMD, паттерн
+// 000038/000149): в браузере — НОЛЬ load-time чтений Game (боевые
+// internals — лениво в момент ВЫЗОВА), но боевой UI (src/combat-ui.js)
+// снимает Game ОДИН раз при загрузке и вызывает G.AllySpells в
+// rowChk/castRow — тег обязан быть ДО src/combat-ui.js. Боевые
+// internals даёт combat.js (браузерная ветка читает
+// Game.combatInternals лениво; деградация при битом порядке —
+// console.error + отказ, паттерн 000038) — тег ПОСЛЕ combat.js;
+// каталог — ленивый combatInternals.allySpells (ставит spells.js
+// при загрузке) — тег ПОСЛЕ spells.js. Пин НЕ-смежный (union).
+
+test('index.html: src/ally-spells.js подключён ПОСЛЕ src/combat.js и src/spells.js, ДО src/combat-ui.js и src/main.js (задача 000193, снапшот-ловушка 000038)', () => {
+  assert.notEqual(pos('src/ally-spells.js'), -1,
+    'src/ally-spells.js не подключён в index.html (задача 000193)');
+  assert.ok(pos('src/combat.js') < pos('src/ally-spells.js'),
+    'src/ally-spells.js должен быть ПОСЛЕ src/combat.js (боевые '
+    + 'internals: Game.combatInternals, задача 000193)');
+  assert.ok(pos('src/spells.js') < pos('src/ally-spells.js'),
+    'src/ally-spells.js должен быть ПОСЛЕ src/spells.js (каталог '
+    + 'combatInternals.allySpells ставит spells.js, задача 000193)');
+  assert.ok(pos('src/ally-spells.js') < pos('src/combat-ui.js'),
+    'src/ally-spells.js должен быть ДО src/combat-ui.js (снапшот-' +
+    'ловушка 000038: combat-ui снимает Game при загрузке и вызывает '
+    + 'G.AllySpells в rowChk/castRow, задача 000193)');
+  assert.ok(pos('src/ally-spells.js') < pos('src/main.js'),
+    'src/ally-spells.js должен быть ДО src/main.js (снапшот-ловушка '
+    + '000038: main.js снимает Game один раз, задача 000193)');
 });
 
 // --- Задача 000162: building-effect-resurrect.js (спец-модуль

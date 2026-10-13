@@ -236,6 +236,17 @@ function loadCombatUi(withSprites = true, opts = {}) {
   if (fs.existsSync(path.join(ROOT, 'src', 'spellbook.js'))) {
     vm.runInContext(src('spellbook.js'), sandbox, { filename: 'spellbook.js' });
   }
+  if (opts.withAllySpells) {
+    // 000193: ally-spells.js — ПОСЛЕ spells/spellbook, ПЕРЕД combat-ui
+    // (G-снапшот — UMD-ловушка 000038; паттерн withSpells/withEfir).
+    // Старые тесты опцию НЕ передают → цепи бит-в-бит (модуль не
+    // грузится → деградация-ветки rowChk/castRow с тем же title, что
+    // давал гейт 000179). existsSync-гард (паттерн spellbook.js выше).
+    if (fs.existsSync(path.join(ROOT, 'src', 'ally-spells.js'))) {
+      vm.runInContext(src('ally-spells.js'), sandbox,
+        { filename: 'ally-spells.js' });
+    }
+  }
   if (withSprites) {
     vm.runInContext(src('sprites.js'), sandbox, { filename: 'sprites.js' });
   }
@@ -1487,6 +1498,11 @@ function scene84(opts = {}) {
     // combatInternals.allySpells). Без параметра — старая цепочка
     // бит-в-бит (по умолчанию false).
     withSpells: !!opts.spells,
+    // 000193: модуль заклинаний союзников (после spells.js, до
+    // combat-ui.js — G-снапшот, UMD-ловушка 000038). Без параметра —
+    // цепи бит-в-бит (деградация rowChk/castRow — тот же title, что
+    // давал гейт 000179).
+    withAllySpells: !!opts.allySpells,
     performance: { now: () => NOW84 },
     requestAnimationFrame: rafStubs.requestAnimationFrame,
     cancelAnimationFrame: rafStubs.cancelAnimationFrame,
@@ -2201,9 +2217,10 @@ test('боевой UI: 000118 — c.log: строки действий Эфир�
     }
     // (2) cast — Эфир АКТИВЕН с pre-roll-стопа (phase 'player'),
     //     волк d 2 (≤ 4): KeyK (на ходу Эфира — каст, 000168) →
-    //     сильнейшее урон-заклинание (spark: 3 маны, урон 5 —
-    //     round((3+0.5·3)·1), ВСЕГДА попадает, игнор брони):
-    //     «Эфир: «Искра» — Волк: 5.» (em-dash U+2014).
+    //     сильнейшее урон-заклинание (spark: 3 маны, урон 6 —
+    //     round((4+0.5·3)·(1+0.15·(1−1))·(1+0.05·lord)), ВСЕГДА
+    //     попадает, игнор брони; формула 000193, 1:1 с книгой):
+    //     «Эфир: «Искра» — Волк: 6.» (em-dash U+2014).
     {
       const { L, saved } = mkLogScene();
       savedCats.push([L.G, saved]);
@@ -2212,7 +2229,7 @@ test('боевой UI: 000118 — c.log: строки действий Эфир�
       w.x = c.px; w.y = c.py - 2; // d 2 от Эфира (якорь px−1, py−1)
       c._rng = () => 0.99;
       press(L.keydown, 'KeyK');
-      assert.ok(c.log.includes('Эфир: «Искра» — Волк: 5.'),
+      assert.ok(c.log.includes('Эфир: «Искра» — Волк: 6.'),
         'cast — паттерн ТЗ «Эфир: «<заклинание>» — <имя>: N.»: '
         + c.log.join(' | '));
     }
@@ -3327,7 +3344,9 @@ test('боевой UI: 000168-UI-1 — stateEl: строки «Ход: …»/с�
 
 test('боевой UI: 000168-UI-2 — кнопки на ходу спутника: attack/«Конец хода» включены, player-only — «недоступно активному персонажу»; Эфир — J/K (Касание/сильнейшее урон-заклинание)', () => {
   // (a) Наёмник: attack активен (d 1); block/quickItem/invItem/
-  //     flee/spellbook — disabled с дословным title.
+  //     flee — disabled с дословным title; 000193: spellbook больше
+  //     НЕ player-only — у melee-наёмника книга ПУСТАЯ → disabled с
+  //     title «заклинаний нет» (новая ветка allyCanDo).
   const S = scene84();
   addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
   const w = S.c.units.find((x) => x.id === 'm0');
@@ -3343,15 +3362,20 @@ test('боевой UI: 000168-UI-2 — кнопки на ходу спутник
     'attack — включён (краснота: игрок-путь — «'
     + byAct.attack.title + '»)');
   assert.equal(byAct.endTurn.disabled, false, '«Конец хода» — включён');
-  for (const act of ['block', 'quickItem', 'invItem', 'flee', 'spellbook']) {
+  for (const act of ['block', 'quickItem', 'invItem', 'flee']) {
     assert.equal(byAct[act].disabled, true, act + ' — запрещён');
     assert.equal(byAct[act].title, 'недоступно активному персонажу',
       act + ' — title дословно (краснота: «' + byAct[act].title + '»)');
   }
+  assert.equal(byAct.spellbook.disabled, true,
+    '000193: «Книга» на ходу melee-наёмника — запрещена (книга [])');
+  assert.equal(byAct.spellbook.title, 'заклинаний нет',
+    '000193: title дословно (краснота: «' + byAct.spellbook.title + '»)');
   // (b) Эфир: очередь остановилась на его слоте; J — «Касание духа»
   //     (c.efs.touch, u.damage = 4, всегда попадает), K — сильнейшее
-  //     урон-заклинание (Искра: c.efs.spellInt, 3 маны, урон 5 —
-  //     round((3+0.5·3)·(1+0.05·1))); player-only кнопки — запрещены.
+  //     урон-заклинание (Искра: c.efs.spellInt, 3 маны, урон 6 —
+  //     round((4+0.5·3)·(1+0.15·(1−1))·(1+0.05·1)); формула 000193);
+  //     player-only кнопки — запрещены.
   // 000168: spells — каталог в цепочке (strongestKnown читает
   // combatInternals.allySpells — без него каст «заклинаний нет»).
   const E = scene84({ efir: true, spells: true });
@@ -3374,20 +3398,26 @@ test('боевой UI: 000168-UI-2 — кнопки на ходу спутник
   assert.equal(w2.hp, 96, 'волк −4');
   press(E.keydown, 'KeyK');
   tickSlice(E.canvas, E.rafStubs);
-  assert.ok(E.c.log.includes('Эфир: «Искра» — Волк: 5.'),
+  assert.ok(E.c.log.includes('Эфир: «Искра» — Волк: 6.'),
     'K — сильнейшее урон-заклинание (краснота: ' + E.c.log.join(' | ')
     + ')');
   assert.equal(E.c.efs.spellInt, 0, 'c.efs.spellInt 1→0');
   assert.equal(u.mp, 8, 'мана 11−3 (краснота: 11 — ИИ не тратит)');
-  assert.equal(w2.hp, 91, 'волк −5 (round((3+0.5·3)·1.05))');
+  assert.equal(w2.hp, 90,
+    'волк −6 (round((4+0.5·3)·(1+0.15·(1−1))·(1+0.05·1)); 000193)');
   const byActE = {};
   for (const b of E.body.querySelectorAll('.combat-actions button'))
     byActE[b.dataset.act] = b;
-  for (const act of ['block', 'quickItem', 'invItem', 'flee', 'spellbook']) {
+  for (const act of ['block', 'quickItem', 'invItem', 'flee']) {
     assert.equal(byActE[act].disabled, true, act + ' — запрещён');
     assert.equal(byActE[act].title, 'недоступно активному персонажу',
       act + ' — title дословно (краснота: «' + byActE[act].title + '»)');
   }
+  assert.equal(byActE.spellbook.disabled, false,
+    '000193: «Книга» на ходу Эфира — ВКЛЮЧЕНА (книга [spark, mend] '
+    + 'непустая)');
+  assert.equal(byActE.spellbook.title, '',
+    '000193: title пусто (краснота: «' + byActE.spellbook.title + '»)');
 });
 
 // =====================================================================
@@ -4320,11 +4350,16 @@ test('боевой UI: 000171 — ход ЭФИРА: кнопка «Воскре
 // addMerc84, tickSlice, press, findByClass) — новых фикстур/модулей/
 // require-путей нет; префикс CU179 — уникальный.
 
-test('боевой UI: 000179 — книга на ходу НАЁМНИКА: строки -off «недоступно активному персонажу» (rowChk); стаб-клик — отказ в лог, КАСТА/трат НЕТ (castRow); на возврате хода игрока гейт снимается (CU179-ROW)', () => {
+test('боевой UI: 000193 — книга на ходу НАЁМНИКА: книга АКТИВНОГО персонажа (unitOf) — melee (книга []) → строка «—» (combat-spellrow-off, слушателей НЕТ, КАСТА невозможного); на возврате хода игрока — строки игрока (CU179-ROW, ре-пин 000193)', () => {
   // (000168-UI-2(a)-паттерн: очередь [m0, player, a1]; pre-roll — волк
   // (m0) ДО игрока → стоп на 'player'; Space — конец хода игрока →
-  // стоп на ЖИВОМ наёмнике a1 — activeUnitId 'a1'.)
-  const S = scene84({ spells: true });
+  // стоп на ЖИВОМ наёмнике a1 — activeUnitId 'a1'.
+  // 000193 (семантический ре-пин 000179): гейт «недоступно активному
+  // персонажу» СНЯТ — книга — АКТИВНОГО персонажа. У melee-наёмника
+  // a1 (Вольк) книга ПУСТАЯ (spells []) → renderBook строит ОДНУ
+  // строку «—» (паттерн 000145: -off, без dataset.spell, слушателей
+  // нет — строка не кликабельна).
+  const S = scene84({ spells: true, allySpells: true });
   const { G, c } = S;
   addMerc84(c, G, 3, 5, 'melee', 'Вольк');
   const wolf = c.units.find((x) => x.id === 'm0');
@@ -4348,47 +4383,52 @@ test('боевой UI: 000179 — книга на ходу НАЁМНИКА: с�
   }
   // (2) Конец хода игрока → стоп на наёмнике a1 (волк уже действовал
   // в pre-roll). Книга НЕ закрывается endTurn (решение 000179 §2.1);
-  // строки ПЕРЕСТРОЕНЫ (sig включает chk.reason): обе -off + title
-  // ДОСЛОВНО (rowChk-гейт по активному юниту).
+  // строки ПЕРЕСТРОЕНЫ (sig 'empty' ≠ sig строк игрока): книга a1
+  // ПУСТАЯ → одна строка «—»: -off, textContent «—», БЕЗ
+  // dataset.spell, слушателей НЕТ (строка не кликабельна).
   press(S.keydown, 'Space');
   tickSlice(S.canvas, S.rafStubs);
   assert.equal(G.activeUnitId(c), 'a1', 'активен наёмник a1');
   assert.equal(c.phase, 'player', 'ход спутника — phase player (000168)');
   assert.notEqual(bookBox.style.display, 'none',
     'книга ЕЩЁ ОТКРЫТА (endTurn её не закрывает)');
-  rows = bookBox.children.slice(-2);
-  for (const id of ['spark', 'mend']) {
-    const r = rows.find((x) => x.dataset.spell === id);
-    assert.ok(r, 'строка «' + id + '» (после перестроения)');
-    assert.ok(r.className.includes('combat-spellrow-off'),
-      'строка ' + id + ' на ходу НАЁМНИКА — -off (rowChk-гейт)');
-    assert.equal(r.title, 'недоступно активному персонажу',
-      'строка ' + id + ' — tooltip ДОСЛОВНО (строка 000168 allyCanDo)');
-  }
-  // (3) Стаб-клик по строке «Искра» (работает и на -off строке — div,
-  // нет :disabled; паттерн CU171-OFF): ПИН ПРЕДПРОВЕРКИ castRow —
-  // без гейта каст прошёл бы checkTurn (phase 'player' на ходу
-  // союзника): mp 16→13, spellInt 1→0, волк убит, ПОБЕДА.
+  rows = bookBox.children.slice(-1);
+  assert.equal(rows.length, 1, 'хвост — ровно ОДНА строка (перестроение)');
+  const dash = rows[0];
+  assert.equal(dash.textContent, '—',
+    'строка «—» (пустая книга наёмника, паттерн 000145)');
+  assert.ok(dash.className.includes('combat-spellrow-off'),
+    'строка «—» — класс -off');
+  assert.equal(dash.dataset.spell, undefined,
+    'строка «—» — БЕЗ dataset.spell (заклинания для каста нет)');
+  assert.equal(Object.keys(dash.listeners).length, 0,
+    'строка «—» — слушателей НЕТ (не кликабельна)');
+  // (3) Кликабельных строк НЕТ → КАСТА невозможного: лог/траты не
+  // растут, эффект НЕТ. Проверка — по ТЕКУЩИМ строкам книги (хвост:
+  // пустая книга наёмника = 1 строка «—»; vm-стаб-ловушка 000149 §10:
+  // в песочнице старые строки игрока из (1) остаются в children —
+  // читается хвост, паттерн slice(-N)).
   const n0 = c.log.length;
   const mp0 = c.player.mp, int0 = c.ps.spellInt, wolfHp0 = wolf.hp;
-  rows.find((x) => x.dataset.spell === 'spark').listeners.click[0]();
-  assert.deepEqual(Array.from(c.log).slice(n0),
-    ['недоступно активному персонажу'],
-    'ровно ОДНА строка отказа в лог (logRejection): '
-    + JSON.stringify(Array.from(c.log).slice(n0)));
+  const clickable = bookBox.children.slice(-1).filter(
+    (x) => x.dataset && x.dataset.spell !== undefined
+      && x.listeners && Object.keys(x.listeners).length > 0);
+  assert.equal(clickable.length, 0,
+    'кликабельных строк среди ТЕКУЩИХ строк книги нет: '
+    + JSON.stringify(bookBox.children.map((x) => x.textContent)));
+  assert.equal(c.log.length, n0, 'строк в логе не прибавилось (каста нет)');
   assert.equal(c.player.mp, mp0, 'мана игрока НЕ потрачена');
   assert.equal(c.ps.spellInt, int0, 'пул «Заклинание» (Интеллект) НЕ потрачен');
   assert.equal(wolf.hp, wolfHp0, 'волк не задет (эффекта НЕТ)');
-  assert.ok(!c.log.some((s) => s.includes('Искра')),
-    'в логе нет «Искра…» — КАСТА НЕТ');
   assert.ok(!c.result, 'бой не завершён (нет «Волк повержен!»/«Победа!»)');
   assert.ok(!c._fx || c._fx.action !== 'cast', 'cast-FX нет (только при успехе)');
   assert.equal(G.activeUnitId(c), 'a1', 'очередь не сдвинулась');
   assert.notEqual(bookBox.style.display, 'none',
     'книга остаётся ОТКРЫТОЙ (UX 000149: игрок видит причину)');
   // (4) RESTORE: конец хода наёмника → round 2 (рефилл) → волк
-  // (промах, _rng 0.99) → стоп на 'player': гейт СНИМАЕТСЯ (нет
-  // sticky-состояния), строки снова активны, книга всё ещё открыта.
+  // (промах, _rng 0.99) → стоп на 'player': книга СНОВА ИГРОКА —
+  // строки [spark, mend] активны (нет sticky-состояния), книга
+  // всё ещё открыта.
   press(S.keydown, 'Space');
   tickSlice(S.canvas, S.rafStubs);
   assert.equal(G.activeUnitId(c), 'player', 'ход игрока вернулся');
@@ -4396,21 +4436,26 @@ test('боевой UI: 000179 — книга на ходу НАЁМНИКА: с�
   const spark = rows.find((x) => x.dataset.spell === 'spark');
   assert.ok(spark, 'строка «Искра» (перестроение на ходу игрока)');
   assert.ok(!spark.className.includes('combat-spellrow-off'),
-    'строка «Искра» на ходу ИГРОКА — снова без -off (гейт не sticky)');
+    'строка «Искра» на ходу ИГРОКА — снова без -off (книга игрока)');
   assert.equal(spark.title, '', 'tooltip снова пуст');
   assert.notEqual(bookBox.style.display, 'none', 'книга всё ещё открыта');
 });
 
-test('боевой UI: 000179 — книга на ходу ЭФИРА: строки -off «недоступно активному персонажу» (rowChk); стаб-клик — отказ в лог, КАСТА/трат НЕТ (castRow) (CU179-EFIR)', () => {
+test('боевой UI: 000193 — книга на ходу ЭФИРА: строки = книга Эфира [spark, mend] БЕЗ -off; стаб-клик — castAllySpell (пул/мана ЭФИРА, лог ядра), игрок нетронут, книга закрыта; restore — книга игрока (CU179-EFIR, ре-пин 000193)', () => {
   // (000168-UI-2(b)-паттерн: очередь [efir, m0, player], pre-roll —
   // стоп на слоте Эфира СРАЗУ после startCombat; u.mp = 11 (естественное
   // maxMP createEfir, < 20) — «Вдох Эфира» (гейт u.mp >= B.mpCost) НЕ
   // сработает → стоп на 'efir' детерминирован; round-2-стоп — после
   // хода волка.)
-  const E = scene84({ efir: true, spells: true });
+  // 000193 (семантический ре-пин 000179): гейт «недоступно активному
+  // персонажу» СНЯТ — книга — АКТИВНОГО персонажа (unitOf). На ходу
+  // Эфира строки = ЕГО книга [spark, mend] (старт-книга createEfir),
+  // доступность — G.AllySpells.canCastAllySpell (ресурсы Эфира).
+  const E = scene84({ efir: true, spells: true, allySpells: true });
   const { G, c } = E;
   const u = c.units.find((x) => x.kind === 'efir');
   const wolf = c.units.find((x) => x.id === 'm0');
+  wolf.maxHP = 100; wolf.hp = 100; // запас по HP под каст (6 урона)
   c._rng = () => 0.99; // все удары волка — промахи (паттерн 000149)
   assert.equal(G.activeUnitId(c), 'efir',
     'активен Эфир (pre-roll стоп на его слоте)');
@@ -4419,7 +4464,7 @@ test('боевой UI: 000179 — книга на ходу ЭФИРА: стро�
   press(E.keydown, 'Space');
   tickSlice(E.canvas, E.rafStubs);
   assert.equal(G.activeUnitId(c), 'player', 'ход игрока');
-  wolf.x = c.px; wolf.y = c.py - 1; // в упор игрока (d 1 — в радиусе)
+  wolf.x = c.px; wolf.y = c.py - 1; // в упор игрока (d 1 от Эфира)
   c.selectTarget(wolf.id);
   // (2) АНКЕР (ход игрока): строки spark/mend БЕЗ -off (как прежде).
   press(E.keydown, 'KeyQ');
@@ -4435,46 +4480,188 @@ test('боевой UI: 000179 — книга на ходу ЭФИРА: стро�
     assert.equal(r.title, '', 'строка ' + id + ' на ходу ИГРОКА — tooltip пуст');
   }
   // (3) Конец хода игрока → волк (промах) → startRound (round 2,
-  // рефилл) → стоп на 'efir' («Вдох» не сработал: mp 15 < 20). Книга
-  // ЕЩЁ ОТКРЫТА; строки ПЕРЕСТРОЕНЫ: -off + title ДОСЛОВНО.
+  // рефилл) → стоп на 'efir' («Вдох» не сработал: mp 11 < 20). Книга
+  // ЕЩЁ ОТКРЫТА; строки ПЕРЕСТРОЕНЫ — теперь это книга ЭФИРА
+  // [spark, mend] БЕЗ -off: ресурсы полные (spellInt 1 после рефилла,
+  // мана 11, волк d 1 ≤ 4) — tooltip пуст (canCastAllySpell ok).
   press(E.keydown, 'Space');
   tickSlice(E.canvas, E.rafStubs);
   assert.equal(G.activeUnitId(c), 'efir', 'активен Эфир (round 2)');
   assert.equal(c.phase, 'player', 'ход спутника — phase player (000168)');
   assert.equal(c.round, 2, 'round 2 (рефилл на стопе)');
   assert.equal(u.mp, 11, '«Вдох» не сработал (mp 11 < 20)');
+  assert.equal(c.efs.spellInt, 1, 'пул «Заклинание» (Интеллект) 1 (рефилл)');
   assert.notEqual(bookBox.style.display, 'none',
     'книга ЕЩЁ ОТКРЫТА (endTurn её не закрывает)');
   rows = bookBox.children.slice(-2);
   for (const id of ['spark', 'mend']) {
     const r = rows.find((x) => x.dataset.spell === id);
-    assert.ok(r, 'строка «' + id + '» (после перестроения)');
-    assert.ok(r.className.includes('combat-spellrow-off'),
-      'строка ' + id + ' на ходу ЭФИРА — -off (rowChk-гейт)');
-    assert.equal(r.title, 'недоступно активному персонажу',
-      'строка ' + id + ' — tooltip ДОСЛОВНО (строка 000168 allyCanDo)');
+    assert.ok(r, 'строка «' + id + '» (книга Эфира, перестроение)');
+    assert.ok(!r.className.includes('combat-spellrow-off'),
+      'строка ' + id + ' на ходу ЭФИРА — БЕЗ -off (ресурсов хватает)');
+    assert.equal(r.title, '',
+      'строка ' + id + ' на ходу ЭФИРА — tooltip пуст (canCastAllySpell)');
   }
-  // (4) Стаб-клик по строке «Искра»: ПИН ПРЕДПРОВЕРКИ castRow —
-  // до-значения — ПОСЛЕ стопа (рефилл startRound; паттерн D11 000166).
-  // Без гейта каст прошёл бы checkTurn: mp 16→13, spellInt 1→0,
-  // волк убит, ПОБЕДА на ходу Эфира.
+  // (4) Стаб-клик по строке «Искра» — castAllySpell (000193): расход —
+  // пул/мана ЭФИРА (не игрока!); до-значения — ПОСЛЕ стопа
+  // (рефилл startRound; паттерн D11 000166). Лог — строка ЯДРА
+  // (verbatim 000118): «Эфир: «Искра» — Волк: 6.» (формула 000193:
+  // round((4+0.5·3)·(1+0.15·(1−1))·(1+0.05·lord))).
   const n0 = c.log.length;
-  const mp0 = c.player.mp, int0 = c.ps.spellInt, wolfHp0 = wolf.hp;
+  const pMp0 = c.player.mp, pInt0 = c.ps.spellInt;
   rows.find((x) => x.dataset.spell === 'spark').listeners.click[0]();
   assert.deepEqual(Array.from(c.log).slice(n0),
-    ['недоступно активному персонажу'],
-    'ровно ОДНА строка отказа в лог (logRejection): '
+    ['Эфир: «Искра» — Волк: 6.'],
+    'ровно ОДНА строка ядра в лог: '
     + JSON.stringify(Array.from(c.log).slice(n0)));
-  assert.equal(c.player.mp, mp0, 'мана игрока НЕ потрачена');
-  assert.equal(c.ps.spellInt, int0, 'пул «Заклинание» (Интеллект) НЕ потрачен');
-  assert.equal(wolf.hp, wolfHp0, 'волк не задет (эффекта НЕТ)');
-  assert.ok(!c.log.some((s) => s.includes('Искра')),
-    'в логе нет «Искра…» — КАСТА НЕТ');
-  assert.ok(!c.result, 'бой не завершён (нет «Волк повержен!»/«Победа!»)');
-  assert.ok(!c._fx || c._fx.action !== 'cast', 'cast-FX нет (только при успехе)');
-  assert.equal(G.activeUnitId(c), 'efir', 'очередь не сдвинулась');
-  assert.notEqual(bookBox.style.display, 'none',
-    'книга остаётся ОТКРЫТОЙ (UX 000149: игрок видит причину)');
+  assert.equal(c.efs.spellInt, 0, 'пул «Заклинание» (Интеллект) Эфира 1→0');
+  assert.equal(u.mp, 8, 'мана Эфира 11→8 (Искра: 3 маны)');
+  assert.equal(wolf.hp, 94, 'волк 100→94 (урон 6, формула 000193)');
+  assert.equal(c.player.mp, pMp0, 'мана ИГРОКА НЕ потрачена');
+  assert.equal(c.ps.spellInt, pInt0, 'пул «Заклинание» (Интеллект) ИГРОКА НЕ потрачен');
+  assert.ok(c._fx && c._fx.action === 'cast',
+    'cast-FX (только при успехе)');
+  assert.equal(G.activeUnitId(c), 'efir', 'очередь не сдвинулась (каст ≠ endTurn)');
+  assert.equal(bookBox.style.display, 'none',
+    'книга ЗАКРЫТА (действие сделано — UX 000149)');
+  assert.ok(!c.result, 'бой не завершён (волк жив: 94 HP)');
+  // (5) RESTORE: конец хода Эфира → волк (промах, _rng 0.99) → стоп на
+  // 'player': книга ИГРОКА — строки [spark, mend] снова активны.
+  press(E.keydown, 'Space');
+  tickSlice(E.canvas, E.rafStubs);
+  assert.equal(G.activeUnitId(c), 'player', 'ход игрока вернулся');
+  press(E.keydown, 'KeyQ');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  rows = bookBox.children.slice(-2);
+  for (const id of ['spark', 'mend']) {
+    const r = rows.find((x) => x.dataset.spell === id);
+    assert.ok(r, 'строка «' + id + '» (книга игрока, restore)');
+    assert.ok(!r.className.includes('combat-spellrow-off'),
+      'строка ' + id + ' — без -off (restore)');
+    assert.equal(r.title, '', 'tooltip пуст (restore)');
+  }
+});
+
+test('боевой UI: 000193 — деградация без G.AllySpells (битый порядок): на ходу наёмника строки -off + title «недоступно активному персонажу», стаб-клик — ровно 1 строка отказа, трат нет, книга открыта, console.error — 1 на сессию; restore — строки игрока (CU193-DEGR)', () => {
+  // 000193 (ревью — покрытие деградации): ветка rowChk/castRow
+  // «книга открыта на ходу союзника, но src/ally-spells.js не
+  // загружен» (битый порядок: тег ally-spells.js ДО combat-ui.js —
+  // пин index-order) не была покрыта коммит-тестом (все vm-тесты
+  // 000193 грузят модуль). Прецедент — CU182-NOSP (кнопка, G.Spells)
+  // и CU188-ROWCHK (строки, G.Spells): та же форма — битый порядок
+  // → строки/отказ без краха, 1 console.error (флаг на сессию),
+  // трат НЕТ. Песочница: scene84({spells:true}) БЕЗ allySpells —
+  // G.SpellBook/G.SpellsData/G.Spells на месте, G.AllySpells НЕТ.
+  // Наёмник — НЕНУСТАЯ книга (mend): allyCanDo('spellbook') ok
+  // (000193: гейт 000179 снят), строки перестраиваются на его ходу.
+  const S = scene84({ spells: true });
+  const { G, c } = S;
+  const merc = addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+  merc.spells = ['mend']; // непустая книга (строки есть, -off — из rowChk)
+  const wolf = c.units.find((x) => x.id === 'm0');
+  wolf.x = c.px; wolf.y = c.py - 1; // в упор игрока (d 1)
+  c.selectTarget(wolf.id);
+  c._rng = () => 0.99; // удары волка — мимо (паттерн 000149)
+  assert.equal(G.AllySpells, undefined,
+    'фикстура: G.AllySpells отсутствует (withAllySpells не передан)');
+  assert.ok(G.SpellBook && G.Spells,
+    'G.SpellBook/G.Spells на месте (книга ИГРОКА работает)');
+  assert.equal(merc.mp, 5, 'фикстура: 000193 — у наёмника мана 5');
+  // (1) АНКЕР (ход игрока): строки [spark, mend] БЕЗ -off (бит-в-бит
+  // 000149 — деградация НЕ влияет на путь игрока), 0 console.error.
+  assert.equal(G.activeUnitId(c), 'player', 'ход игрока (pre-roll)');
+  const origErr = console.error;
+  const errs = [];
+  console.error = (...a) => { errs.push(a.join(' ')); };
+  try {
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.ok(bookBox, 'книга (.combat-spellbook) существует');
+    assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+    let rows = bookBox.children.slice(-2);
+    for (const id of ['spark', 'mend']) {
+      const r = rows.find((x) => x.dataset.spell === id);
+      assert.ok(r, 'строка «' + id + '» на ходу игрока есть');
+      assert.ok(!r.className.includes('combat-spellrow-off'),
+        id + ' на ходу игрока — без -off (бит-в-бит)');
+      assert.equal(r.title, '', id + ' на ходу игрока — tooltip пуст');
+    }
+    assert.equal(errs.length, 0,
+      'на ходу игрока деградация НЕ срабатывает (0 console.error): '
+      + JSON.stringify(errs));
+    // (2) Конец хода игрока → стоп на наёмнике a1: книга ЕЩЁ ОТКРЫТА
+    // (endTurn не закрывает — 000179 §2.1), строки перестроены —
+    // книга НАЁМНИКА [mend]: -off + title ВЕРБАТИМ (деградация
+    // rowChk: G.AllySpells нет) — строка 000179, деградация, не
+    // крах; ровно ОДИН console.error (флаг allySpellsWarned).
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(G.activeUnitId(c), 'a1', 'активен наёмник a1');
+    assert.equal(c.phase, 'player', 'ход спутника — phase player');
+    assert.notEqual(bookBox.style.display, 'none',
+      'книга ЕЩЁ ОТКРЫТА на ходу наёмника (KeyQ работает: '
+      + 'allyCanDo «spellbook» ok — 000193)');
+    rows = bookBox.children.slice(-1);
+    assert.equal(rows.length, 1, 'хвост — ровно ОДНА строка');
+    const mendRow = rows[0];
+    assert.equal(mendRow.dataset.spell, 'mend',
+      'строка = книга НАЁМНИКА (unitOf — активный); факт: '
+      + JSON.stringify(mendRow.dataset && mendRow.dataset.spell));
+    assert.ok(mendRow.className.includes('combat-spellrow-off'),
+      'строка -off (деградация)');
+    assert.equal(mendRow.title, 'недоступно активному персонажу',
+      'title вербатим (строка 000179 — деградация, не крах): '
+      + mendRow.title);
+    assert.equal(errs.length, 1,
+      'ровно ОДИН console.error (флаг allySpellsWarned, 1/сессию): '
+      + JSON.stringify(errs));
+    assert.ok(errs[0].includes('AllySpells'),
+      'сообщение — про Game.AllySpells: ' + errs[0]);
+    // (3) Стаб-клик по off-строке — castRow (деградация): ровно ОДНА
+    // строка отказа в лог, КАСТА НЕТ, трат НЕТ (игрок И наёмник),
+    // c._fx нет, книга остаётся ОТКРЫТОЙ (UX 000149: видна причина),
+    // очередь не сдвинулась; console.error НЕ прибавился (флаг
+    // сессионный — не на каждое событие).
+    const n0 = c.log.length;
+    const pMp0 = c.player.mp, pInt0 = c.ps.spellInt;
+    const mercMp0 = merc.mp, mercWis0 = merc.spellWis, wolfHp0 = wolf.hp;
+    mendRow.listeners.click[0]();
+    assert.deepEqual(Array.from(c.log).slice(n0),
+      ['недоступно активному персонажу'],
+      'отказ в лог (ровно ОДНА строка): '
+      + JSON.stringify(Array.from(c.log).slice(n0)));
+    assert.equal(c.player.mp, pMp0, 'мана игрока НЕ потрачена');
+    assert.equal(c.ps.spellInt, pInt0, 'пул игрока НЕ потрачен');
+    assert.equal(merc.mp, mercMp0, 'мана наёмника НЕ потрачена');
+    assert.equal(merc.spellWis, mercWis0, 'пул наёмника НЕ потрачен');
+    assert.equal(wolf.hp, wolfHp0, 'волк не задет (каста нет)');
+    assert.ok(!c._fx || c._fx.action !== 'cast', 'cast-FX нет');
+    assert.notEqual(bookBox.style.display, 'none',
+      'книга остаётся ОТКРЫТОЙ (видна причина)');
+    assert.equal(G.activeUnitId(c), 'a1', 'очередь не сдвинулась');
+    assert.equal(errs.length, 1,
+      'console.error не прибавился (флаг на сессию): '
+      + JSON.stringify(errs));
+    // (4) RESTORE: конец хода наёмника → round 2 (рефилл) → волк
+    // (промах) → стоп на 'player': строки ИГРОКА [spark, mend] снова
+    // БЕЗ -off (деградация не sticky — путь игрока бит-в-бит),
+    // console.error не прибавился.
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(G.activeUnitId(c), 'player', 'ход игрока вернулся');
+    rows = bookBox.children.slice(-2);
+    for (const id of ['spark', 'mend']) {
+      const r = rows.find((x) => x.dataset.spell === id);
+      assert.ok(r, 'строка «' + id + '» (restore, книга игрока)');
+      assert.ok(!r.className.includes('combat-spellrow-off'),
+        id + ' на ходу игрока — без -off (restore)');
+      assert.equal(r.title, '', 'tooltip пуст (restore)');
+    }
+    assert.equal(errs.length, 1,
+      'restore не добавляет console.error: ' + JSON.stringify(errs));
+  } finally {
+    console.error = origErr;
+  }
 });
 
 // =====================================================================
@@ -4605,8 +4792,9 @@ test('боевой UI: 000180 — строка активного Эфира И�
 //
 // Детерминизм (seed 42; совпадает с эмпирикой 000168-UI-2): hero
 // maxHP 25/maxMP 16; геометрия Эфира u(3,5), волк(3,4) — d 1, волк
-// 100/100: каст → лог ровно «Эфир: «Искра» — Волк: 5.», efs.spellInt
-// 1→0, u.mp 11→8, волк 100→95, 0 новых c._rng, очередь не сдвинулась.
+// 100/100: каст → лог ровно «Эфир: «Искра» — Волк: 6.», efs.spellInt
+// 1→0, u.mp 11→8, волк 100→94 (формула 000193), 0 новых c._rng,
+// очередь не сдвинулась.
 // Лечение (roster-сцена, player.hp 15): лог ровно «Медик лечит
 // Флогистон (+6).», hp 15→21, attackLeft 1→0, очередь не сдвинулась.
 // Очереди: VIS (efir+roster) turnOrder ['efir','m0','player','a1'],
@@ -4791,11 +4979,12 @@ test('боевой UI: 000178 — тап «Каст» на ходу Эфира =
   // Результат ОДНОГО тапа (= KeyK): сильнейшее урон-заклинание.
   // Строку строит ЯДРО (efirCastAction) — UI свою строку не ведёт.
   const added = Array.from(c.log).slice(n0);
-  assert.deepEqual(added, ['Эфир: «Искра» — Волк: 5.'],
+  assert.deepEqual(added, ['Эфир: «Искра» — Волк: 6.'],
     'лог — ровно ОДНА строка ядра: ' + JSON.stringify(added));
   assert.equal(c.efs.spellInt, 0, 'пул «Заклинание» (Интеллект) 1→0');
   assert.equal(u.mp, 8, 'мана 11→8 (Искра: 3 маны)');
-  assert.equal(wolf.hp, 95, 'волк 100→95 (round((3+0.5·3)·1.05))');
+  assert.equal(wolf.hp, 94,
+    'волк 100→94 (round((4+0.5·3)·(1+0.15·(1−1))·(1+0.05·lord)); 000193)');
   assert.equal(S.G.activeUnitId(c), 'efir', 'ход НЕ сгорел (каст ≠ endTurn)');
   assert.equal(rngCalls, 0,
     'новых вызовов c._rng — ноль (каст Эфира детерминирован)');
@@ -4900,30 +5089,37 @@ test('боевой UI: 000178 — тап «Лечение» на ходу suppor
   byAct.heal.listeners.click[0]();
   tickSlice(S.canvas, S.rafStubs);
   // Результат ОДНОГО тапа (= KeyH): высшая степень лечения u.spells
-  // (mend ур. 2: +6). Строку строит ЯДРО (allyHeal) — UI свою не ведёт.
+  // (mend ур. 2: +6). Строку строит ЯДРО (allyHealAction — 000193:
+  // лечение — ЗАКЛИНАНИЕ: расход пул/мана наёмника, НЕ слот действия;
+  // UI свою строку не ведёт).
   const added = Array.from(c.log).slice(n0);
   assert.deepEqual(added, ['Медик лечит Флогистон (+6).'],
     'лог — ровно ОДНА строка ядра: ' + JSON.stringify(added));
   assert.equal(c.player.hp, 21, 'игрок 15→21 (mend: +6)');
-  assert.equal(medic.attackLeft, 0, 'слот действия 1→0');
+  assert.equal(medic.attackLeft, 1,
+    'лечение НЕ занимает слот действия (000193: слот 1→1)');
+  assert.equal(medic.mp, 2, 'мана 5→2 (mend: 3 маны; 000193: attrs {} → 5)');
+  assert.equal(medic.spellWis, 0, 'пул «Заклинание» (Мудрость) 1→0 (000193)');
   assert.equal(S.G.activeUnitId(c), 'a0', 'ход НЕ сгорел (лечение ≠ endTurn)');
-  // После лечения — то же, что и клавише H: слот исчерпан.
+  // После лечения — то же, что и клавише H: пул исчерпан (000193:
+  // порядок Д-J — раненые → каталог → пул → мана).
   const after = S.G.canDoAction(c, 'heal', { targetId: c.targetId });
-  assert.equal(after.ok, false, 'после — недоступно (слот исчерпан)');
-  assert.equal(after.reason, 'действий «Удар» больше нет',
-    'причина дословно (та же, что дала бы клавиша)');
+  assert.equal(after.ok, false, 'после — недоступно (пул исчерпан)');
+  assert.equal(after.reason, 'действий «Заклинание» (Мудрость) больше нет',
+    'причина дословно (та же, что дала бы клавиша; 000193)');
 });
 
 test('боевой UI: 000178 — «Лечение» disabled с дословными title (гейты allyCanDo); стаб-клик — ровно одна строка в лог, трат НЕТ (CU178-HEAL-OFF)', () => {
   const cases = [
-    // (a) Слот исчерпан → «действий «Удар» больше нет» (порядок
-    // ядра: слот ПЕРВЫМ — раненый есть, но слота нет).
-    { title: 'действий «Удар» больше нет',
-      mut: (S, medic) => { medic.attackLeft = 0; S.c.player.hp = 15; } },
+    // (a) Пул исчерпан → «действий «Заклинание» (Мудрость) больше
+    // нет» (порядок ядра 000193 Д-J: раненые → каталог → пул →
+    // мана: раненый есть, каталог есть, пула нет).
+    { title: 'действий «Заклинание» (Мудрость) больше нет',
+      mut: (S, medic) => { medic.spellWis = 0; S.c.player.hp = 15; } },
     // (b) Никто не ранен (игрок 25/25, медик цел) → «нет раненых».
     { title: 'нет раненых', mut: null },
-    // (c) В у.спells нет лечения → «нет лечения» (порядок ядра:
-    // слот → раненые → каталог).
+    // (c) В у.спells нет лечения → «нет лечения» (порядок ядра
+    // 000193: раненые → каталог).
     { title: 'нет лечения',
       roster: [{ name: 'Медик', role: 'support', level: 2, dmg: 1, hp: 1,
         spells: [] }],
@@ -6056,10 +6252,10 @@ test('боевой UI: 000198-UI-3 — e2e Эфир: клик по пауку (d
   // KeyK — каст (сильнейшее известное — «Искра») — по ВЫБРАННОЙ цели.
   press(keydown, 'KeyK'); tickSlice(canvas, rafStubs);
   assert.deepEqual(Array.from(c.log).slice(n0),
-    ['Эфир: «Искра» — Гигантский паук: 5.'],
-    'лог: «Искра» в ВЫБРАННЫЙ паук (краснота: «— Волк: 5.» — '
+    ['Эфир: «Искра» — Гигантский паук: 6.'],
+    'лог: «Искра» в ВЫБРАННЫЙ паук (краснота: «— Волк: 6.» — '
     + 'nearestEnemy): ' + JSON.stringify(c.log.slice(n0)));
-  assert.equal(m1.hp, 95, 'паук −5 (краснота: 100)');
+  assert.equal(m1.hp, 94, 'паук −6 (формула 000193; краснота: 100)');
   assert.equal(m0.hp, 100, 'волк не задет (краснота: 95)');
   assert.equal(c.efs.spellInt, 0, 'spellInt 1→0');
   assert.equal(u.mp, 8, 'мана 11→8 (Искра: 3 маны)');
@@ -6337,8 +6533,10 @@ test('боевой UI: 000199 — полоска MP: на ходу Эфира �
       'на ходу Эфира — мана Эфира («MP 11/11», u.mp/u.maxMP): факт '
       + JSON.stringify(mptext && mptext.textContent));
   }
-  // (b) Наёмник: маны в модели НЕТ — трек на месте (фикс. геометрия),
-  //     fill 0%, текст «MP —» (D5).
+  // (b) Наёмник: модель ДАЁТ ману (000193: mp = 5+Int+Wis), но HUD —
+  //     по KIND (D5 000199: полоса несёт только Эфира u.mp/u.maxMP;
+  //     у наёмника fill 0%, текст «MP —») — поведение HUD без
+  //     изменений.
   {
     const S = scene84();
     const merc = addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
@@ -6347,8 +6545,9 @@ test('боевой UI: 000199 — полоска MP: на ходу Эфира �
     press(S.keydown, 'Space');
     tickSlice(S.canvas, S.rafStubs);
     assert.equal(S.G.activeUnitId(S.c), 'a1', 'фикстура: активен наёмник');
-    assert.equal(merc.mp, undefined,
-      'фикстура: у наёмника маны в модели нет');
+    assert.equal(merc.mp, 5,
+      'фикстура: 000193 — у наёмника в модели мана 5 (5+Int+Wis, '
+      + 'attrs {} у addMerc84)');
     const mpfill = findByClass(S.body, 'combat-mpbar-fill');
     const mptext = findByClass(S.body, 'combat-mpbar-text');
     assert.ok(mpfill && mptext,

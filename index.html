@@ -945,6 +945,13 @@
        000038: combat-ui снимает Game один раз при загрузке). Чистый
        модуль — без require и чтений Game на загрузке. -->
   <script src="src/spellbook.js"></script>
+  <!-- Заклинания спутников в бою (задача 000193): ПОСЛЕ spellbook.js и
+       combat.js (UMD-ловушка 000038: combat-ui.js снимает снапшот Game
+       один раз при загрузке — G.AllySpells обязан быть в нём), ПЕРЕД
+       combat-ui.js. Чистый модуль — ноль load-time зависимостей
+       (боевые internals лениво; каталог — combatInternals.allySpells,
+       ставит spells.js). -->
+  <script src="src/ally-spells.js"></script>
   <script src="src/dungeons-data.js"></script>
   <script src="src/craft-data.js"></script>
   <script src="src/craft.js"></script>

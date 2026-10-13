@@ -2567,15 +2567,19 @@ test('support-союзник: лечит САМОГО РАНЕНОГО (мини
     assert.equal(c.player.hp, 9999, 'полный игрок не лечится');
   }
   // Сильнейшая степень: mend (степень 1) + greater_heal (степень 2)
-  // → round(5×1.15) = 6.
+  // → round(5×1.15) = 6. 000193: лечение — заклинание, расход маны
+  // Миров (mp 5 по модели < 11 у greater_heal) → долив a0.mp = 15.
   {
-    const { c, a1 } = mk(['mend', 'greater_heal']);
+    const { c, a0, a1 } = mk(['mend', 'greater_heal']);
+    a0.mp = 15;
     a1.hp = 3;
     c.endTurn();
     c.heal();
     assert.equal(a1.hp, 9, 'greater_heal: 3 + 6 = 9');
     assert.ok(c.log.includes('Мира лечит Вольк (+6).'),
       'пин сильнейшей степени: ' + c.log.join(' | '));
+    assert.equal(a0.mp, 4, '000193: мана Миров 15−11 (greater_heal)');
+    assert.equal(a0.spellWis, 0, '000193: пул «Заклинание» (Мудрость) 1→0');
   }
 });
 
@@ -3671,7 +3675,7 @@ test('000112 CB-2: приоритет (2) — игрок ≤ 50% и щита н�
   } finally { C.combatInternals.allySpells = saveCatalog; }
 });
 
-test('000112 CB-3: приоритет (3) — «самое сильное» по «мани» (L15: fireball 6, НЕ spark/frost_bolt), лорд по школе: враг d 5 → движение 3 (к d 2 ≤ 4) → каст; пул spellInt 2 → ДВА fireball (mp −12, урон 8 каждый); с маной 6 — ровно ОДИН', () => {
+test('000112 CB-3: приоритет (3) — «самое сильное» по «мани» (L15: fireball 6, НЕ spark/frost_bolt), лорд по школе: враг d 5 → движение 3 (к d 2 ≤ 4) → каст; пул spellInt 2 → ДВА fireball (mp −12, урон 9 каждый; формула 000193); с маной 6 — ровно ОДИН', () => {
   const E = loadEfir000081();
   const C = require('../src/combat.js');
   const saveCatalog = C.combatInternals.allySpells;
@@ -3706,12 +3710,13 @@ test('000112 CB-3: приоритет (3) — «самое сильное» по
       return { snap: snap112(c, u, p), u, w, p, c };
     };
     // (a) mp 25: пул spellInt 2 → 2 каста fireball
-    // (dmg = round((3+0.5·10)·(1+0.05·0)) = 8, броня 50 игнорируется).
+    // (dmg = round((4+0.5·10)·(1+0.15·(1−1))·(1+0.05·0)) = 9,
+    // формула 000193; броня 50 игнорируется).
     const r1 = mk(null);
     assert.deepEqual(mk(null).snap, r1.snap, 'детерминизм (a)');
     assert.deepEqual([r1.u.x, r1.u.y], [2, 2],
       '000168: ввод — 3 шага (0,-1): (2,5) → (2,2), d 2 ≤ 4');
-    assert.equal(r1.w.hp, 84, '2 × fireball (16): 100 − 16 = 84');
+    assert.equal(r1.w.hp, 82, '2 × fireball (18): 100 − 18 = 82');
     assert.equal(r1.u.mp, 13, 'mp 25 − 2·6 = 13');
     assert.equal(
       r1.c.log.filter((l) => l.includes('Огненный шар')).length, 2,
@@ -3720,7 +3725,7 @@ test('000112 CB-3: приоритет (3) — «самое сильное» по
     // (b) mp 6: ровно ОДИН fireball (второй неплатёжен по мане).
     const r2 = mk(6);
     assert.deepEqual(mk(6).snap, r2.snap, 'детерминизм (b)');
-    assert.equal(r2.w.hp, 92, '1 × fireball (8): 100 − 8 = 92');
+    assert.equal(r2.w.hp, 91, '1 × fireball (9): 100 − 9 = 91');
     assert.equal(r2.u.mp, 0, 'mp 6 − 6 = 0');
     assert.equal(
       r2.c.log.filter((l) => l.includes('Огненный шар')).length, 1);
@@ -3836,7 +3841,9 @@ test('000112 CB-6: «самое сильное» — тай-брейк по id (
   };
   try {
     // Волк (4,4): d 3 ≤ 4 (каст), d 3 > 1 (без Касания), dE ≤ 3
-    // (без движения). dmg = round((3+0.5·3)·(1+0.05·0)) = 5.
+    // (без движения). dmg = round((4+0.5·3)·(1+0.15·(1−1))·(1+0.05·0))
+    // = 6 (формула 000193; ИНЖЕКТИРОВАННЫЙ каталог — модуль читает
+    // combatInternals.allySpells, Д-I).
     const mk = () => {
       const p = strongHero();
       const state = E.createEfir();
@@ -3851,12 +3858,12 @@ test('000112 CB-6: «самое сильное» — тай-брейк по id (
     };
     const r1 = mk();
     assert.deepEqual(mk().snap, r1.snap, 'детерминизм');
-    assert.ok(r1.c.log.includes('Эфир: «Альфа» — Волк: 5.'),
+    assert.ok(r1.c.log.includes('Эфир: «Альфа» — Волк: 6.'),
       '000168: ввод c.cast — побеждает меньшее id: ' + r1.c.log.join(' | '));
     assert.ok(!r1.c.log.some((l) => l.includes('Дзета')),
       '«Дзета» не кастуется (тай-брейк — id, не порядок книги)');
     assert.equal(r1.u.mp, 6, 'mp 11 − 5 = 6');
-    assert.equal(r1.w.hp, 95, 'урон 5, броня игнорируется');
+    assert.equal(r1.w.hp, 94, 'урон 6 (формула 000193), броня игнорируется');
   } finally { C.combatInternals.allySpells = saveCatalog; }
 });
 
@@ -3900,8 +3907,8 @@ test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощае�
 
     // (d) Щит ИГРОКА c.ps.shield (1) НЕ блокирует: c.efirShield стоит
     // несмотря на него; оба щита поглощают в r1: 10 − 1 (игрок) − 7
-    // (Эфир) = 2. Ввод: c.move ×2 к (4,5) (d 1), c.cast spark (5),
-    // c.attack Касание (4).
+    // (Эфир) = 2. Ввод: c.move ×2 к (4,5) (d 1), c.cast spark (6;
+    // формула 000193), c.attack Касание (4).
     const t4 = () => {
       const p = hero112();
       p.hp = 100;
@@ -3914,7 +3921,7 @@ test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощае�
       c.ps.shield = { armor: 1, turns: 1 }; // СВОЙ щит игрока
       c.efirShield = { armor: 7, turns: 2 }; // «уже кастован»
       c.move(1, 0); c.move(1, 0); // (2,5) → (4,5) d 1
-      c.cast(w.id);   // spark 5
+      c.cast(w.id);   // spark 6 (000193)
       c.attack(w.id); // Касание 4
       c.endTurn();
       return { snap: snap112(c, u, p), u, w, p, c };
@@ -3926,7 +3933,7 @@ test('000112 CB-7: c.efirShield — ровно 2 раунда (поглощае�
     assert.equal(r4.p.hp, 98,
       '000168: оба щита (r1): 100 − (10 − 1 − 7) = 98');
     assert.equal(r4.u.mp, 8, 'mp 11 − 3 (spark) = 8 (щит — пред-задан)');
-    assert.equal(r4.w.hp, 91, 'spark 5 + Касание 4: 100 − 9 = 91');
+    assert.equal(r4.w.hp, 90, 'spark 6 + Касание 4: 100 − 10 = 90');
   } finally { C.combatInternals.allySpells = saveCatalog; }
 });
 
@@ -3961,17 +3968,18 @@ test('000117 PC-1: прокачанный firelord — урон Эфира +5%·
                 efir: { practiceEfir: E.practiceEfir } }, () => {
     try {
       // L5 (Int 5 — 2 очка на Интеллект, 000139: статы из листа):
-      // база = 3 + 0.5·5 = 5.5. Один волк (armor 50 —
+      // база = 4 + 0.5·5 = 6.5 (формула 000193). Один волк (armor 50 —
       // заклинание игнорирует, hp 100, d 3 ≤ 4), seed 5 (board112),
       // rng 0.99 (волк — все промахи). ФОРМУЛА в тесте (паттерн CB-3,
-      // без хардкода значений): round((3 + 0.5·Int)·(1 + 0.05·lord)).
+      // без хардкода значений): round((4 + 0.5·Int)·(1 + 0.15·(степень
+      // − 1))·(1 + 0.05·lord)) (spark — степень 1).
       const dmgFromLog = (c) => {
         const line = c.log.find((l) => l.includes('«Искра» —'));
         assert.ok(line, 'лог-строка каста: ' + c.log.join(' | '));
         return Number(line.slice(line.lastIndexOf(':') + 1));
       };
       const expectDmg = (lord) => Math.round(
-        (3 + 0.5 * 5) * (1 + 0.05 * lord));
+        (4 + 0.5 * 5) * (1 + 0.15 * (1 - 1)) * (1 + 0.05 * lord));
       const mk = (firelordXp) => {
         const p = hero112(); // 270/270 — (1)/(2) не срабатывают
         const state = E.createEfir();
@@ -3990,17 +3998,17 @@ test('000117 PC-1: прокачанный firelord — урон Эфира +5%·
         c.cast(w.id);
         return { snap: snap112(c, u, p), dmg: dmgFromLog(c), c, u, p };
       };
-      // A — firelord 0: round(5.5·1) = 6.
+      // A — firelord 0: round(6.5·1) = 7.
       const rA = mk(0);
       assert.deepEqual(mk(0).snap, rA.snap, 'детерминизм (A)');
       assert.equal(rA.dmg, expectDmg(0),
-        'A: firelord 0 → round(5.5·1) = 6: ' + rA.c.log.join(' | '));
-      // B — firelord 4 (15+30+45+60 = 150): round(5.5·1.2) =
-      // round(6.6) = 7.
+        'A: firelord 0 → round(6.5·1) = 7: ' + rA.c.log.join(' | '));
+      // B — firelord 4 (15+30+45+60 = 150): round(6.5·1.2) =
+      // round(7.8) = 8.
       const rB = mk(150);
       assert.deepEqual(mk(150).snap, rB.snap, 'детерминизм (B)');
       assert.equal(rB.dmg, expectDmg(4),
-        'B: firelord 4 → round(5.5·1.2) = round(6.6) = 7: '
+        'B: firelord 4 → round(6.5·1.2) = round(7.8) = 8: '
         + rB.c.log.join(' | '));
       assert.ok(rB.dmg > rA.dmg,
         'B > A: +5%·4 уровня firelord (детерминизм по сиду 5)');
@@ -6035,6 +6043,10 @@ test('000164-RESCUE-1: окно — спасение: Эфир кастует «
 
 test('000164-RESCUE-2: неспасение — естественная книга L1 [spark, mend]: spark ДОСТУПИЛ до окна, reset полный, каста «Воскрешения» нет', () => {
   const { p, state, c, m0, efir, a0, a1 } = build164One();
+  // 000193 (Д-P): новый урон spark 6 (round((4+0.5·3)·(1+0.15·(1−1))·
+  // (1+0.05·lord))) не убивает скелета — иначе ПОБЕДА вместо окна
+  // сценария: запас по HP (7).
+  m0.maxHP = 7; m0.hp = 7;
   m0.damage = 50;
   c._rng = () => 0.01;
   E164.buildEfirUnit(state, c);
@@ -6062,7 +6074,7 @@ test('000164-RESCUE-2: неспасение — естественная кни�
     'mp — ПОЛНЫЙ reset (11 → 8 от spark → ' + expMp + ')');
   assert.equal(c.efs.spellInt, 0, 'spark ЗАБРАЛ spellInt (каст был ДО окна)');
   assert.equal(c.efs.spellWis, 1, 'пул spellWis нетронут (не «Воскрешение»)');
-  assert.equal(m0.hp, 1, 'spark ДОСТИГ m0 (6 − 5 = 1) — книга жива');
+  assert.equal(m0.hp, 1, 'spark ДОСТИГ m0 (7 − 6 = 1; формула 000193) — книга жива');
   assert.ok(c.log.includes('Эфир возвращается…'), 'auto-возрождение — есть');
   assert.ok(!c.log.includes('Эфир: «Воскрешение».'), 'каст атрибуции НЕТ');
   assert.ok(!c.log.includes('Возвращён в бой.'), 'воскрешения НЕТ');
@@ -6495,7 +6507,12 @@ test('000168-ALLY-2: c.attack на ходу наёмника — allyStrike (б�
       assert.ok(c.log.includes('Мира лечит Флогистон (+5).'),
         'лог — строка allyHeal: ' + c.log.join(' | '));
       assert.equal(rngCalls, 0, '0 c._rng (детерминированное правило, ТЗ)');
-      assert.equal(a.attackLeft, 0, 'лечение занимает слот действия');
+      assert.equal(a.attackLeft, 1,
+        'лечение НЕ занимает слот действия (000193: слот 1→1)');
+      assert.equal(a.mp, 6,
+        '000193: мана 9→6 (mend: 3; attrs {int 4} → mp 5+4+0 = 9)');
+      assert.equal(a.spellWis, 0,
+        '000193: пул «Заклинание» (Мудрость) 1→0');
     }
   } finally {
     C.combatInternals.allySpells = saveCatalog;
@@ -6581,19 +6598,24 @@ test('000168-CANDO-2: canDoAction-контекст — на ходу Эфира 
     assert.equal(r.ok, false, 'врагов нет — «нет цели»');
     assert.equal(r.reason, 'нет цели', 'причина (краснота: ' + r.reason + ')');
     w.alive = true;
-    // (c) player-only — единообразная причина.
-    for (const act of ['fire', 'block', 'quickItem', 'invItem', 'flee', 'spellbook']) {
+    // (c) player-only — единообразная причина. 000193: 'spellbook'
+    // НЕ player-only — у Эфира книга [spark, mend] непустая → ok
+    // (новая ветка allyCanDo: «заклинаний нет» только при []).
+    for (const act of ['fire', 'block', 'quickItem', 'invItem', 'flee']) {
       const rr = canDoAction(c, act);
       assert.equal(rr.ok, false, act + ' — недоступно');
       assert.equal(rr.reason, 'недоступно активному персонажу',
         act + ' — причина (краснота: ' + rr.reason + ')');
     }
+    assert.deepEqual(canDoAction(c, 'spellbook'), { ok: true },
+      '000193: spellbook на ходу Эфира — ok (книга [spark, mend] '
+      + 'непустая)');
   } finally {
     C.combatInternals.allySpells = saveCatalog;
   }
 });
 
-test('000168-CANDO-3: canDoAction(«heal») — зеркало allyHealAction 1:1 (ревью 000168): слот действия → раненые → каталог; причина canDo = причина ядра в каждом отказе', () => {
+test('000168-CANDO-3: canDoAction(«heal») — зеркало allyHealAction 1:1 (ревью 000168; 000193: раненые → каталог → пул → мана, слот действия НЕ тратится); причина canDo = причина ядра в каждом отказе', () => {
   const C = require('../src/combat.js');
   const saveCatalog = C.combatInternals.allySpells;
   C.combatInternals.allySpells =
@@ -6611,26 +6633,27 @@ test('000168-CANDO-3: canDoAction(«heal») — зеркало allyHealAction 1:
     return { c, a };
   };
   try {
-    // (1) Слот действия потрачен (удар/лечение ДО), раненый ЕСТЬ,
-    //     спелл ЕСТЬ — оба зеркала: «действий «Удар» больше нет»
-    //     (ПЕРЕД проверками раненых/каталога — порядок ядра).
+    // (1) 000193: маны нет (a.mp = 0 < 3 у mend), раненый ЕСТЬ,
+    //     каталог ЕСТЬ, пул ЕСТЬ — оба зеркала: «не хватает маны (3)»
+    //     (порядок ядра: раненые → каталог → пул → мана).
     {
       const { c, a } = mk(ALLY_MIRA_168);
       assert.equal(activeUnitId(c), 'a0', 'активна Мира (pre-roll-стоп)');
-      a.attackLeft = 0;
+      a.mp = 0;
       c.player.hp = 108; // 108/270 = 0.4 — самый раненый
       const can = canDoAction(c, 'heal');
       const core = c.heal();
-      assert.equal(can.ok, false, 'без слота — canDo-отказ');
-      assert.equal(can.reason, 'действий «Удар» больше нет',
-        'canDo: причина ядра (ревью 000168: ' + can.reason + ')');
+      assert.equal(can.ok, false, 'без маны — canDo-отказ');
+      assert.equal(can.reason, 'не хватает маны (3)',
+        'canDo: причина ядра (000193: ' + can.reason + ')');
       assert.equal(core.ok, false, 'ядро — отказ');
       assert.equal(core.reason, can.reason, 'зеркало 1:1 — причина ядра');
       assert.equal(c.player.hp, 108, 'HP не изменился');
+      assert.equal(a.attackLeft, 1, '000193: слот действия не тратится');
     }
-    // (2) Слот есть, НО никто не ранен и спелла НЕТ — «нет раненых»
-    //     (раненые ПЕРЕД каталогом — порядок ядра; до ревью 000168
-    //     зеркало отвечало бы «нет лечения»).
+    // (2) Никто не ранен и спелла НЕТ — «нет раненых» (раненые
+    //     ПЕРЕД каталогом — порядок ядра; до ревью 000168 зеркало
+    //     отвечало бы «нет лечения»).
     {
       const { c } = mk(Object.assign({}, ALLY_MIRA_168, { spells: [] }));
       const can = canDoAction(c, 'heal');
@@ -6640,8 +6663,8 @@ test('000168-CANDO-3: canDoAction(«heal») — зеркало allyHealAction 1:
         'раненые ПЕРЕД каталогом (ревью 000168: ' + can.reason + ')');
       assert.equal(core.reason, can.reason, 'зеркало 1:1 — причина ядра');
     }
-    // (3) Слот есть, раненый ЕСТЬ, спелла НЕТ — «нет лечения»
-    //     (каталог — последняя проверка).
+    // (3) Раненый ЕСТЬ, спелла НЕТ — «нет лечения» (каталог —
+    //     проверка после раненых; 000193: до пула/маны).
     {
       const { c } = mk(Object.assign({}, ALLY_MIRA_168, { spells: [] }));
       c.player.hp = 108;
@@ -6652,7 +6675,7 @@ test('000168-CANDO-3: canDoAction(«heal») — зеркало allyHealAction 1:
         'каталог — последняя проверка: ' + can.reason);
       assert.equal(core.reason, can.reason, 'зеркало 1:1 — причина ядра');
     }
-    // (4) Слот есть, раненый есть, спелл есть — оба зеркала ok
+    // (4) Раненый есть, спелл есть, пул/мана полные — оба зеркала ok
     //     (инвариант «ок ⇒ ядро не отклонит» — путь положительный).
     {
       const { c, a } = mk(ALLY_MIRA_168);
@@ -6662,7 +6685,10 @@ test('000168-CANDO-3: canDoAction(«heal») — зеркало allyHealAction 1:
       const core = c.heal();
       assert.equal(core.ok, true, 'ядро — ok (canDo.ok ⇒ не отклонит)');
       assert.equal(c.player.hp, 113, 'игрок 108 + 5 (round((4+0+1)·1))');
-      assert.equal(a.attackLeft, 0, 'лечение заняло слот действия');
+      assert.equal(a.attackLeft, 1,
+        '000193: лечение НЕ заняло слот действия (слот 1→1)');
+      assert.equal(a.mp, 6, '000193: мана 9→6 (mend: 3 маны)');
+      assert.equal(a.spellWis, 0, '000193: пул «Заклинание» (Мудрость) 1→0');
     }
   } finally {
     C.combatInternals.allySpells = saveCatalog;
@@ -7332,11 +7358,11 @@ test('000198-SEL-4: efirCastAction уважает явную цель: каст�
       const r = c.cast(m1.id);
       assert.ok(r && r.ok === true,
         'явная цель в дальности — ok: ' + JSON.stringify(r));
-      assert.ok(c.log.includes('Эфир: «Искра» — Гигантский паук: 5.'),
-        'лог — ВЫБРАННЫЙ моб (краснота: «— Волк: 5.» — nearestEnemy): '
-        + c.log.join(' | '));
-      assert.equal(m1.hp, 95, 'паук −5 (краснота: 100 — кастит волка)');
-      assert.equal(m0.hp, 100, 'волк не задет (краснота: 95)');
+      assert.ok(c.log.includes('Эфир: «Искра» — Гигантский паук: 6.'),
+        'лог — ВЫБРАННЫЙ моб (краснота: «— Волк: 6.» — nearestEnemy; '
+        + 'формула 000193): ' + c.log.join(' | '));
+      assert.equal(m1.hp, 94, 'паук −6 (формула 000193; краснота: 100 — кастит волка)');
+      assert.equal(m0.hp, 100, 'волк не задет (краснота: 94)');
       assert.equal(c.efs.spellInt, 0, 'spellInt 1→0');
       assert.equal(u.mp, 8, 'мана 11→8 (Искра: 3 маны)');
       assert.equal(rngCalls, 0, '0 c._rng (детерминированный каст)');
