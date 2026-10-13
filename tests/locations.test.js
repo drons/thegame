@@ -1115,3 +1115,89 @@ test('LOC-19. 000148.05: (a) без сохранённого — default из к
     + ds.cityContents.buildings.length
     + ' базовых — occupied не передаётся)');
 });
+
+// 000191 — ретро-покрытие (retro-20261012): re-anchor fail-open
+// (src/locations.js, «восстановление СПАВНА из сохранённой позиции»)
+// зафиксирован только положительной веткой (RD-3) — битый pos.
+
+test('000191.10: re-anchor fail-open — сохранённый pos за границей ({x:999,y:0}) / на WALL-клетке (0,0) → спавн на entrance (1,1), 0 console.error (тихий fail-open); позитивный контроль: pos на интерьерном FLOOR (2,2) → спавн на pos (2 телепорта: защитный снап + re-anchor)', () => {
+  const L = loadLocations();
+  const M = require('../src/map.js');
+  const run = (pos) => {
+    const fake = makeFakeGame();
+    const G = Object.assign({}, fake.G, {
+      createDungeon: () => makeDungeon(),
+      contentValid: D.contentValid,
+      BUILDING_TYPES: M.BUILDING_TYPES,
+    });
+    // Ключ памяти = worldKey ('7,3') + ':1' (G.dungeonMemoryKey нет —
+    // инлайн-fallback; depth 1 — единственный этаж).
+    const memory = new Map([['7,3:1', {
+      contents: makeContents([], []),
+      lastVisitDay: 2, // window (contentValid, 2 арг. → 3 дня): 2 ≤ 2+3
+      pos,
+    }]]);
+    const ctx = {
+      map: {
+        tileAt: () => ({
+          hasBuilding: true,
+          building: M.BUILDING_TYPES.CAVE_ENTRANCE,
+          buildingId: null, // без каталога — fail-open, вход сохраняется
+          terrain: 3,
+        }),
+      },
+      mapPixels: null,
+      player: { x: 7, y: 3 },
+      hero: {},
+      day: 2,
+      memory,
+      intervalMs: 420,
+    };
+    const errs = [];
+    const origErr = console.error;
+    console.error = (...a) => { errs.push(a.join(' ')); };
+    let ds = null;
+    try {
+      ds = withGame(G, () => L.maybeEnterDungeon(ctx));
+    } finally {
+      console.error = origErr;
+    }
+    return { ds, fake, errs };
+  };
+  // (а) pos за границей — x: 999 ≥ width (5).
+  {
+    const { ds, fake, errs } = run({ x: 999, y: 0 });
+    assert.ok(ds, 'вход открыт (пещера)');
+    assert.deepEqual({ x: ds.x, y: ds.y }, { x: 1, y: 1 },
+      'fail-open: спавн на entrance (1,1)');
+    assert.deepEqual({ x: ds.prevX, y: ds.prevY }, { x: 1, y: 1 },
+      'fail-open: prevX/prevY — entrance (глейд от entrance)');
+    assert.equal(fake.moverCalls.teleports.length, 1,
+      'только защитный снап — re-anchor телепорта НЕТ');
+    assert.deepEqual(fake.moverCalls.teleports[0], { x: 1, y: 1 },
+      'защитный снап — entrance');
+    assert.deepEqual(errs, [], 'тихий fail-open — 0 console.error');
+  }
+  // (б) pos на WALL-клетке — (0,0) (периметр 5×5).
+  {
+    const { ds, fake, errs } = run({ x: 0, y: 0 });
+    assert.ok(ds, 'вход открыт (пещера)');
+    assert.deepEqual({ x: ds.x, y: ds.y }, { x: 1, y: 1 },
+      'fail-open: pos на WALL — спавн на entrance (1,1)');
+    assert.equal(fake.moverCalls.teleports.length, 1,
+      'только защитный снап — re-anchor телепорта НЕТ');
+    assert.deepEqual(errs, [], 'тихий fail-open — 0 console.error');
+  }
+  // (в) Позитивный контроль (контраст): pos на интерьерном FLOOR (2,2)
+  //     — re-anchor срабатывает (2 телепорта).
+  {
+    const { ds, fake } = run({ x: 2, y: 2 });
+    assert.ok(ds, 'вход открыт (пещера)');
+    assert.deepEqual({ x: ds.x, y: ds.y }, { x: 2, y: 2 },
+      'позитив: спавн на сохранённом pos (2,2)');
+    assert.equal(fake.moverCalls.teleports.length, 2,
+      'позитив: защитный снап + re-anchor телепорт');
+    assert.deepEqual(fake.moverCalls.teleports[1], { x: 2, y: 2 },
+      're-anchor телепорт — сохранённый pos');
+  }
+});

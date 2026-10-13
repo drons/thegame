@@ -2721,6 +2721,64 @@ test('город UI 000148.02: детерминизм (D10) — два ренд�
   assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
 });
 
+// 000191 — ретро-покрытие (retro-20261012): горячая ветка 000148.02
+// «каталожная запись есть, слота НЕТ» + z-порядок слоя построек.
+
+test('город UI 000191.5: каталожная запись есть, слота НЕТ (id 5 «Лавка странника») — горячая ветка cityBuildingPath → null: ТИХИЙ skip — building-drawImage на (2,2) НЕТ, пол (2,2) на месте, errors 0', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  // Предусловие: id 5 — в каталоге, но БЕЗ map_index/размещение.слот
+  // (городской тип — канал NPC-торговли, spec/buildings.md «Магазины»).
+  const rec5 = G.getBuilding(5);
+  assert.ok(rec5, 'предусловие: каталожная запись id 5 есть');
+  assert.equal(rec5.название, 'Лавка странника',
+    'предусловие: id 5 — «Лавка странника»');
+  assert.equal(buildingSpritePath(G, 5), null,
+    'предусловие: у id 5 нет слота (cityBuildingPath → null)');
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: { buildings: [{ x: 2, y: 2, buildingId: 5 }], seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  assert.equal(buildingDrawCalls(calls).length, 0,
+    'slot == null → тихий skip: спрайта постройки на (2,2) НЕТ');
+  // Клетка остаётся ПОЛЕМ: fillRect (2,2) нарисован (6x6 @ 48 → cam (3,3)).
+  const colors = cityCellColors(calls, G, s, 48, 3, 3);
+  assert.ok(colors['2,2'],
+    'пол (2,2) нарисован fillRect (клетка — пол, не пропала)');
+  assert.equal(loaded.errors.length, 0,
+    'тихий skip — без console.error: ' + loaded.errors.join('; '));
+});
+
+test('город UI 000191.6a: z-порядок слоя — building-drawImage (2,2) ПОСЛЕ floor-fillRect (2,2): index(building) > index(floor)', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  const path = buildingSpritePath(G, 44);
+  assert.ok(path, 'предусловие: id 44 резолвится в спрайт слота');
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: { buildings: [{ x: 2, y: 2, buildingId: 44 }], seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([path]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  const p = G.worldToScreen(2, 2, 3, 3, 48, VW, VH);
+  const floorIdx = calls.findIndex((c) => c[0] === 'fillRect'
+    && Math.abs(c[1][0] - p.x) <= 1e-9
+    && Math.abs(c[1][1] - p.y) <= 1e-9
+    && c[1][2] === 48 && c[1][3] === 48);
+  assert.ok(floorIdx !== -1,
+    'floor-fillRect (2,2) найден в последовательности draw-вызовов');
+  const bdc = buildingDrawCalls(calls);
+  assert.equal(bdc.length, 1, 'ровно 1 building-спрайт (id 44 на (2,2))');
+  const buildIdx = calls.indexOf(bdc[0]);
+  assert.ok(buildIdx !== -1 && buildIdx > floorIdx,
+    'z-порядок: спрайт постройки (idx ' + buildIdx + ') нарисован ПОСЛЕ '
+    + 'полосы пола (idx ' + floorIdx + ') — слой ПО ВЕРХУ');
+  assert.equal(loaded.errors.length, 0,
+    'ошибок нет: ' + loaded.errors.join('; '));
+});
+
 // --- Тач-D-pad: touchHold/touchRelease (задача 000121) ---
 //
 // КРАСНЫЕ (TDD): падают, пока G.dungeonUI.touchHold/touchRelease не

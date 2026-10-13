@@ -1348,8 +1348,8 @@ test('валидация: wealth — целое 0..3 (cities.js-конвенци
   for (const [tx, ty] of [[256, 0], [0, 256], [-1, 0], [0, -1], [257, 257]])
     assert.throws(() => C.makeCityShop(100, -40, tx, ty, 44, 1),
       /cities\.js/, `tx=${tx},ty=${ty} вне [0,256)`);
-  // Граница 255 — валидна (максимальный layout 14 — гард защищает
-  // кодировку, а не layout).
+  // Граница 255 — валидна (максимальный layout 26 (tx ≤ 25 < 256) —
+  // 000148.01; гард защищает кодировку, а не layout).
   assert.ok(C.makeCityShop(100, -40, 255, 255, 44, 1), 'tx=ty=255');
 });
 
@@ -2456,4 +2456,77 @@ test('000148.05 R26: generateCityContents(…, occupied) — 6-й optional-па�
     assert.deepEqual(r.buildings, g.buildings,
       'golden-occ ' + key + ': buildings');
   }
+});
+
+// ============================================================
+// 000191 — ретро-покрытие: cityOccupied (ничей) + Array-ветка
+// canBuildAt (контракт «Set и Array — одинаково» вывалился из
+// финальных тестов 000148.03 R3/R5)
+// ============================================================
+
+test('000191.1: cityOccupied — per-cell записи НЕ расширяются по footprint (3×3 Арена → ровно 9 клеток); дубликаты → dedup; мусор (не-целые x/y, id ∉ каталогу, не-объекты) → fail-open; не-массив → пустой Set', () => {
+  const C = loadCities();
+  assert.equal(typeof C.cityOccupied, 'function',
+    'экспорт cityOccupied(buildings) — cities.js');
+  // (a) 9 per-cell записей 3×3-Арены (анкор (1,1)) — ровно 9 клеток.
+  // КЛЮЧЕВАЯ ЛОВУШКА: per-cell записи (000148.03) — каждая клетка
+  // footprint своей записью; cityOccupied добавляет ТОЛЬКО x,y записи
+  // (НЕ расширяет по footprint — расширение только у builtOccupied).
+  const arena = [];
+  for (let y = 1; y <= 3; y++)
+    for (let x = 1; x <= 3; x++) arena.push({ x, y, buildingId: 7 });
+  const sA = C.cityOccupied(arena);
+  assert.ok(sA instanceof Set, 'возврат — Set «x,y»');
+  assert.equal(sA.size, 9,
+    '3×3 Арена (9 per-cell записей) → ровно 9 клеток (без расширения)');
+  assert.deepEqual([...sA].sort(),
+    ['1,1', '1,2', '1,3', '2,1', '2,2', '2,3', '3,1', '3,2', '3,3'],
+    'ключи — ровно свои клетки записей');
+  assert.ok(!sA.has('4,1') && !sA.has('0,1') && !sA.has('1,4')
+    && !sA.has('1,0'),
+    'расширения за границы записей НЕТ (footprint не применён)');
+  // (b) Одна запись 1×1 — ровно одна клетка.
+  const sB = C.cityOccupied([{ x: 2, y: 2, buildingId: 48 }]);
+  assert.equal(sB.size, 1, '1 запись 1×1 → 1 клетка');
+  assert.ok(sB.has('2,2'), 'ключ — «2,2»');
+  // (c) Дубликаты записей → dedup (Set).
+  const sC = C.cityOccupied([...arena, ...arena]);
+  assert.equal(sC.size, 9, 'дубликаты → dedup (18 записей → 9 клеток)');
+  // (d) Мусор → fail-open (пропуск без throw): не-целые x/y, id ∉
+  // каталогу, запись без buildingId, не-объекты.
+  const sD = C.cityOccupied([
+    { x: 1.5, y: 1, buildingId: 48 }, // x не целое
+    { x: 1, y: 1.5, buildingId: 48 }, // y не целое
+    { x: 1, y: 1, buildingId: 999 },  // id ∉ каталогу
+    { x: 1, y: 1 },                   // без buildingId
+    null, 'x', [1, 2],
+    { x: 2, y: 3, buildingId: 48 },   // единственная валидная
+  ]);
+  assert.equal(sD.size, 1, 'мусор → пропускается (fail-open, 000029)');
+  assert.ok(sD.has('2,3'), 'валидная запись — в итоге');
+  // (e) Не-массив → пустой Set (без throw).
+  for (const v of [null, undefined, 'x', 42, {}])
+    assert.deepEqual(C.cityOccupied(v), new Set(),
+      'не-массив → пустой Set (без throw): ' + String(v));
+});
+
+test('000191.2: canBuildAt — occupied в форме Array === форме Set (контракт R3/R5 000148.03 «Set и Array — одинаково»): тот же отказ reason «cap» и та же допустимость', () => {
+  const C = loadCities();
+  const layout = C.createCityLayout(-114, -119, 2); // деревня 6×6
+  // 8 занятых интерьерных клеток → 9-я (любая) — ОТКАЗ «cap»;
+  // Array-форма должна дать БИТ-В-БИТ результат с Set-формой.
+  const arr8 = ['1,1', '2,1', '3,1', '4,1', '1,2', '2,2', '3,2', '4,2'];
+  const rArr = C.canBuildAt(layout, { x: 1, y: 3 }, 48, arr8);
+  const rSet = C.canBuildAt(layout, { x: 1, y: 3 }, 48, new Set(arr8));
+  assert.deepEqual(rArr, rSet, 'Array-форма — БИТ-В-БИТ с Set-формой');
+  assert.equal(rArr.ok, false, '8 занятых + новая — ОТКАЗ');
+  assert.equal(rArr.reason, 'cap',
+    'reason — «cap» (тот же, что у Set-формы)');
+  // 7 занятых → 8-я ДОПУСТИМА (≤ включая) — тоже БИТ-В-БИТ.
+  const arr7 = arr8.slice(0, 7);
+  const rArr7 = C.canBuildAt(layout, { x: 4, y: 2 }, 48, arr7);
+  assert.deepEqual(rArr7,
+    C.canBuildAt(layout, { x: 4, y: 2 }, 48, new Set(arr7)),
+    'Array/Set — БИТ-В-БИТ (допустимость)');
+  assert.equal(rArr7.ok, true, '7 занятых — 8-я ДОПУСТИМА (≤ включая)');
 });

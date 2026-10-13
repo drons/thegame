@@ -556,3 +556,106 @@ test('000186-P1: паритет — dungeon-строка победы = мирс
   assert.equal(Number(m[1]), c.result.xp, 'число опыта в строке === c.result.xp');
   assert.equal(Number(m[2]), c.result.gold, 'число золота в строке === c.result.gold');
 });
+
+// =====================================================================
+// 000191 — ретро-покрытие (retro-20261012, findings по 000186)
+// =====================================================================
+
+// B1/A1/P1 пинят только «Группу» и только сундук-переполнение.
+// Параметризуем e2e-пин по префиксу «Группа»/«Босс» (main.js:2715 —
+// (g.boss ? 'Босс' : 'Группа')) и успешную ветку сундука
+// (add.ok → «, <name>», строка БЕЗ точки).
+
+test('000191.11: boss-вариант строки победы (g.boss = true) — «Босс повержена. +X опыта, +Y золота.» (те же res.xp/res.gold, побайтовый формат); контраст «Группа» — тот же формат с префиксом «Группа»', async () => {
+  const victoryLine = (ds, prefix, res) => {
+    const line = ds.log.find((l) => l.startsWith(prefix + ' повержена. +'));
+    assert.ok(line, 'victory-строка (' + prefix + ') в ds.log: '
+      + JSON.stringify(ds.log));
+    const m = line.match(new RegExp(
+      '^' + prefix + ' повержена\\. \\+(\\d+) опыта, \\+(\\d+) золота\\.$'));
+    assert.ok(m, 'формат: «' + prefix + ' повержена. +N опыта, +M золота.»: '
+      + line);
+    assert.equal(Number(m[1]), res.xp,
+      'опыт в строке === c.result.xp (' + prefix + ')');
+    assert.equal(Number(m[2]), res.gold,
+      'золото в строке === c.result.gold (' + prefix + ')');
+    return line;
+  };
+  // (а) Группа — базовый префикс (контраст к боссу; независимый boot).
+  {
+    const h = await boot(seedSave({ day: 2, hero: mkHero({ gold: 100 }) }));
+    assert.equal(h.errors.length, 0,
+      'ошибок загрузки нет: ' + h.errors.join('; '));
+    const G = h.sandbox.Game;
+    const g = h.sandbox.__game;
+    const ds = g.actions.enterDungeon();
+    assert.ok(ds, 'enterDungeon — состояние подземелья (отладочный вход)');
+    const cell = asideDir(G, ds.dg);
+    assert.ok(cell, 'FLOOR-клетка-сосед входа найдена');
+    ds.contents = {
+      mobs: [{ id: 'g0', mobIds: ['skeleton'], x: cell.x, y: cell.y, level: 1, defeated: false }],
+      chests: [],
+      seed: 1, step: 0,
+    };
+    stepTo(h, cell.x, cell.y);
+    const c = winDungeonCombat(h, G, g);
+    victoryLine(ds, 'Группа', c.result);
+    assert.ok(!ds.log.some((l) => l.startsWith('Босс повержена')),
+      'у «Группы» строки «Босс…» НЕТ');
+  }
+  // (б) Босс (ABYSS-форма: mobIds ×3 + boss: true) — префикс «Босс».
+  {
+    const h = await boot(seedSave({ day: 2, hero: mkHero({ gold: 100 }) }));
+    assert.equal(h.errors.length, 0,
+      'ошибок загрузки нет: ' + h.errors.join('; '));
+    const G = h.sandbox.Game;
+    const g = h.sandbox.__game;
+    const ds = g.actions.enterDungeon();
+    assert.ok(ds, 'enterDungeon — состояние подземелья (отладочный вход)');
+    const cell = asideDir(G, ds.dg);
+    assert.ok(cell, 'FLOOR-клетка-сосед входа найдена');
+    ds.contents = {
+      mobs: [{ id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: cell.x, y: cell.y, level: 1, boss: true, defeated: false }],
+      chests: [],
+      seed: 1, step: 0,
+    };
+    stepTo(h, cell.x, cell.y);
+    const c = winDungeonCombat(h, G, g);
+    victoryLine(ds, 'Босс', c.result);
+    assert.ok(!ds.log.some((l) => l.startsWith('Группа повержена')),
+      'у «Босса» строки «Группа…» НЕТ');
+  }
+});
+
+test('000191.12: успешная ветка сундука (add.ok → «, <name>») — сундук при СВОБОДНОМ инвентаре: строка «Сундук: +37 золота, <name>» побайтово (ТОЧКИ В КОНЦЕ НЕТ) + Δgold = 37 + предмет в hero.inventory (qty 1)', async () => {
+  const h = await boot(seedSave({ day: 2, hero: mkHero({ gold: 100 }) }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  // Предусловия: предмет в каталоге, инвентарь пуст (add.ok гарантирован
+  // — без rng-ролла: собственные gold/item, паттерн B1).
+  const it = G.getItem('knight_plate');
+  assert.ok(it, 'предусловие: knight_plate в каталоге');
+  assert.deepEqual(host(g.state.hero.inventory || []), [],
+    'предусловие: инвентарь пуст');
+  const ds = g.actions.enterDungeon();
+  assert.ok(ds, 'enterDungeon — состояние подземелья (отладочный вход)');
+  const cell = asideDir(G, ds.dg);
+  assert.ok(cell, 'FLOOR-клетка-сосед входа найдена');
+  ds.contents = {
+    mobs: [],
+    chests: [{ id: 'c1', x: cell.x, y: cell.y, opened: false, gold: 37, item: 'knight_plate' }],
+    seed: 1, step: 0,
+  };
+  const gold0 = g.state.hero.gold;
+  stepTo(h, cell.x, cell.y); // шаг на сундук → openChest → chest-ветка
+  const line = ds.log.find((l) => l.startsWith('Сундук: +'));
+  assert.ok(line, 'строка сундука в ds.log: ' + JSON.stringify(ds.log));
+  assert.equal(line, 'Сундук: +37 золота, ' + it.name,
+    'строка побайтово (add.ok → «, <name>»); ТОЧКИ В КОНЦЕ НЕТ: ' + line);
+  assert.equal(g.state.hero.gold, gold0 + 37,
+    'Δhero.gold = +37 (chest.gold; overflow-ветки НЕТ)');
+  assert.deepEqual(host(g.state.hero.inventory),
+    [{ id: 'knight_plate', qty: 1 }],
+    'предмет в инвентаре (add.ok — qty 1, не конвертирован)');
+});

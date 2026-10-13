@@ -1094,3 +1094,44 @@ test('город 000148.02 G1 (e2e): постройки деревни РЕНД�
     'hex-пол: нет фолбэк-пола подземелья #182029 (R10)');
   assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
 });
+
+// 000191 — ретро-покрытие (retro-20261012, find G2): z-порядок слоя
+// не закреплён ни одним тестом (dungeon-ui.js:569 — «пол → ПОСТРОЙКИ
+// → стена-слой → дверь → игрок»).
+
+test('город 000191.6b (e2e): z-порядок слоя — ВСЕ building-drawImage (2×tavern + 1×weapons_shop) ПЕРЕД door-drawImage (assets/dungeon/door.svg), door ПЕРЕД player-drawImage (assets/sprites/phlogiston/): index(building) < index(door) < index(player)', async () => {
+  const h = await bootSeeded({ day: V109.day, steps: 0, hero: HERO109 });
+  const { dg } = await enterVillage109(h);
+  assert.equal(dg.buildings.length, 3,
+    'фикстура: деревня 52 — 3 постройки (2×таверна + 1×оружейная)');
+  const canvas = findLastCanvas(h.body);
+  assert.ok(canvas && Array.isArray(canvas.drawCalls),
+    'оверлей dungeon-ui: canvas в дереве body (drawCalls)');
+  const calls = canvas.drawCalls;
+  const buildingIdx = [];
+  const doorIdx = [];
+  const playerIdx = [];
+  calls.forEach((c, i) => {
+    if (c[0] !== 'drawImage' || !c[1][0]) return;
+    const src = typeof c[1][0].__src === 'string' ? c[1][0].__src : null;
+    if (!src) return;
+    if (src.indexOf('assets/sprites/buildings/') === 0) buildingIdx.push(i);
+    else if (src === 'assets/dungeon/door.svg') doorIdx.push(i);
+    else if (src.indexOf('assets/sprites/phlogiston/') === 0)
+      playerIdx.push(i);
+  });
+  assert.equal(buildingIdx.length, 3,
+    '3 building-спрайта (один рендер): ' + buildingIdx.length);
+  assert.ok(doorIdx.length >= 1,
+    'дверь (assets/dungeon/door.svg) — нарисована drawImage');
+  assert.ok(playerIdx.length >= 1,
+    'игрок (assets/sprites/phlogiston/) — нарисован drawImage');
+  for (const bi of buildingIdx)
+    assert.ok(bi < doorIdx[0],
+      'z-порядок: постройка (idx ' + bi + ') — ПЕРЕД дверью '
+      + '(idx ' + doorIdx[0] + ') — слой ПО ВЕРХУ пола, ПОД дверью');
+  assert.ok(doorIdx[0] < playerIdx[0],
+    'z-порядок: дверь (idx ' + doorIdx[0] + ') — ПЕРЕД игроком '
+    + '(idx ' + playerIdx[0] + ')');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});

@@ -2755,3 +2755,82 @@ test('CI-V17. 000148.05 (ревью): с открытым input-оверлеем
   assert.equal(h.errors.length, errsBefore,
     'без console.error: ' + h.errors.slice(errsBefore).join('; '));
 });
+
+// ============================================================
+// 000191 — ретро-покрытие: fail-open-отбраковка мусорных built-
+// записей (retro-20261012, find #3): в prepareCityState зафиксирован
+// только happy-path (CI-V14) — мусорные built в сейве
+// ============================================================
+
+test('CI-V18. 000191.3: vm e2e (ДВА boot, одно хранилище): сейв cities.<якорь>.built = [мусор ×3 (не-целые x/y; id ∉ каталогу; периметр), валидная] → повторный вход: live-вид (dungeon.buildings) player-постройки РОВНО [валидная]; сток города: валидная (map_index 0) ЕСТЬ, периметра (0,2) НЕТ; 0 console.error (warn — допустим, fail-open 000029)', async () => {
+  const storage = makeStorage();
+  // Boot 1: находим город (fp>=2, есть свободная внутренняя клетка)
+  // и его якорь/шаги (детерминированный мир — boot 2 тот же).
+  const h1 = await bootChain(storage);
+  const G1 = h1.sandbox.Game;
+  const g1 = h1.sandbox.__game;
+  const myMap = G1.createMap(G1.generateSeedPixels());
+  const found = findCityFor(G1, myMap, g1.state.player,
+    (c) => c.fp >= 2 && freeCityCell(c) !== null);
+  assert.ok(found,
+    'сценарий: город (fp>=2) со свободной внутренней клеткой');
+  const target = freeCityCell(found);
+  const anchorKey = found.ax + ',' + found.ay;
+  // Сейв: built — мусор ×3 + одна валидная (id 1 Оружейная, 1×1,
+  // map_index 0 — в городском стоке будет).
+  storage.setItem(SAVE_KEY, JSON.stringify({
+    version: 1,
+    savedAt: new Date(0).toISOString(),
+    data: {
+      day: 1,
+      cities: {
+        [anchorKey]: {
+          built: [
+            { x: 1.5, y: 2, buildingId: 1 }, // не-целые → restore (warn)
+            { x: 2, y: 3, buildingId: 999 },  // id ∉ каталогу → merge
+            { x: 0, y: 2, buildingId: 1 },    // периметр → вне интерьера
+            { x: target.x, y: target.y, buildingId: 1, player: true },
+          ],
+        },
+      },
+    },
+  }));
+  // Boot 2: лоад + вход в город (авто-вход на шаге).
+  const h2 = await bootChain(storage);
+  const g2 = h2.sandbox.__game;
+  walkTiles(h2, NOW, found.steps);
+  const dg = g2.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе (авто-вход)');
+  // Live-вид: player-постройки РОВНО [валидная] — мусор отброшен
+  // (restore: не-целые; merge: каталог/интерьер — fail-open).
+  // JSON-roundtrip: объекты из vm-песочницы (чужой Object.prototype —
+  // deepStrictEqual сравнивает прототипы).
+  const playerBuilt = JSON.parse(
+    JSON.stringify(dg.buildings.filter((b) => b.player === true)));
+  assert.deepEqual(playerBuilt,
+    [{ x: target.x, y: target.y, buildingId: 1, player: true }],
+    'live-вид: РОВНО [валидная] (мусор ×3 не в городе)');
+  assert.ok(!dg.buildings.some((b) => b.buildingId === 999),
+    'id 999 (∉ каталогу) — не в городе (merge-отброс)');
+  assert.ok(!dg.buildings.some((b) => b.x === 0 && b.y === 2),
+    'периметр (0,2) — не в городе (footprint вне интерьера)');
+  // Сток города: валидная (Оружейная — map_index 0) ЕСТЬ;
+  // периметра (0,2) — НЕТ (базовые — только интерьер).
+  const rec = g2.cities[anchorKey];
+  assert.ok(rec && rec.stock, 'сценарий: город в cityStates (ключ — якорь)');
+  assert.ok(rec.stock[target.x + ',' + target.y],
+    'валидная постройка (map_index 0) — в городском стоке');
+  assert.equal(rec.stock['0,2'], undefined,
+    'периметр (0,2) — НЕ в городском стоке (не попала в merge)');
+  // persistent built (spread): не-целые отброшены restore-слоем;
+  // целые (999/периметр) — живы (restore каталог/интерьер не
+  // проверяет — D-.05n; отброс — на стороне merge-цикла).
+  assert.ok(Array.isArray(rec.built), 'built — persistent (spread)');
+  assert.ok(!rec.built.some((e) => e.x === 1.5),
+    'мусор (x:1.5) — отброшен validateCityState (restore)');
+  assert.equal(rec.built.filter((e) => e.buildingId === 999).length, 1,
+    'целая запись id 999 — жива в built (restore не проверяет каталог)');
+  assert.equal(h2.errors.length, 0,
+    '0 console.error (warn — допустим, fail-open 000029): '
+    + h2.errors.join('; '));
+});

@@ -721,6 +721,9 @@ test('RD-1: re-loot e2e — содержимое этажа переживает
   const G2 = h2.sandbox.Game;
   assert.equal(g2.state.hero.gold, saved.data.hero.gold,
     'золото НЕ удвоено после перезагрузки');
+  assert.equal(g2.state.hero.xp, saved.data.hero.xp,
+    'XP не удвоено после перезагрузки (000191.7: ТЗ описывает эксплойт '
+    + 'gold/item/XP, флагманский пин держал только золото)');
   let now2 = 1000;
   now2 = walkTiles(h2, now2, [[OUT_TILE.x, OUT_TILE.y]]);
   now2 = walkTiles(h2, now2, [[CAVE.x, CAVE.y]]);
@@ -913,4 +916,123 @@ test('RD-6: debug-вход с вынужденным terrain ≠ тайла — 
   // забирает день → lastVisitDay = day − 1.
   assert.equal(rec.lastVisitDay, g.state.day - 1,
     'lastVisitDay = день вылазки (перед тем, как выход забрал день)');
+});
+
+// 000191 — ретро-покрытие (retro-20261012): явно битый dungeonMemory
+// (контракт warn + сброс не покрыт) и live-чтение dungeon_memory_days
+// (зафиксировано только default 3).
+
+test('000191.8: явно битый dungeonMemory (non-object) — console.warn «dungeonMemory» + сброс; после сейва раздел {}; массив — то же; «ключи есть, валидных 0» — warn «валидных записей нет»', async () => {
+  // (а) Строка (non-object).
+  {
+    const h = await boot(seedSave({ day: 7, dungeonMemory: 'junk' }));
+    assert.equal(h.errors.length, 0,
+      'без console.error (fail-open): ' + h.errors.join('; '));
+    assert.ok(h.warns.some((m) => m.includes('dungeonMemory')),
+      'warn содержит «dungeonMemory»: ' + JSON.stringify(h.warns));
+    fireBeforeUnload(h);
+    assert.deepEqual(readSave(h).data.dungeonMemory, {},
+      'после save раздел {} (сброшенный Map пуст)');
+  }
+  // (б) Массив (Array.isArray — тоже non-object-ветка).
+  {
+    const h = await boot(seedSave({ day: 7, dungeonMemory: [1, 2] }));
+    assert.equal(h.errors.length, 0,
+      'без console.error (fail-open): ' + h.errors.join('; '));
+    assert.ok(h.warns.some((m) => m.includes('dungeonMemory')),
+      'warn содержит «dungeonMemory»: ' + JSON.stringify(h.warns));
+    fireBeforeUnload(h);
+    assert.deepEqual(readSave(h).data.dungeonMemory, {},
+      'после save раздел {}');
+  }
+  // (в) Ключи есть, валидных 0 (lastVisitDay не целое — запись
+  //     отбрасывается restoreDungeonMemory тихо; main.js печатает warn).
+  {
+    const h = await boot(seedSave({
+      day: 7,
+      dungeonMemory: {
+        [MEM_KEY]: {
+          contents: JSON.parse(JSON.stringify(REPLICA.contents)),
+          lastVisitDay: 'junk',
+        },
+      },
+    }));
+    assert.equal(h.errors.length, 0,
+      'без console.error (fail-open): ' + h.errors.join('; '));
+    assert.ok(h.warns.some((m) => m.includes('валидных записей нет')),
+      'warn «валидных записей нет»: ' + JSON.stringify(h.warns));
+    fireBeforeUnload(h);
+    assert.deepEqual(readSave(h).data.dungeonMemory, {},
+      'после save раздел {} (live-Map пуст после trim)');
+  }
+});
+
+test('000191.9: live-чтение dungeon_memory_days (SETTINGS — в момент вызова): (а) = 9 — запись (lastVisitDay = day − 4) валидна: содержимое ВОССТАНОВЛЕНО (не fresh) и в сейве (lastVisitDay = day); (б) = 2.5 (не integer) — fallback 3: запись истекла → warn «валидных записей нет», save {}', async () => {
+  // Контент записи: реплика с ОДНИМ открытым сундуком и ОДНОЙ
+  // побеждённой группой — fresh-подвал их НЕ даст (дискриминация
+  // «восстановлено vs перегенерировано»).
+  const modifiedContents = () => {
+    const c = JSON.parse(JSON.stringify(REPLICA.contents));
+    c.chests[0].opened = true;
+    c.mobs[0].defeated = true;
+    return c;
+  };
+  const seed = () => seedSave({
+    day: 7,
+    position: { x: CAVE.x, y: CAVE.y },
+    dungeonMemory: {
+      [MEM_KEY]: { contents: modifiedContents(), lastVisitDay: 3 },
+    },
+  });
+  // (а) SETTINGS.dungeon_memory_days = 9 (до drains — restore читает
+  //     live-объект в момент вызова; main.js G — тот же объект).
+  {
+    const h = bootSandbox(seed());
+    h.sandbox.Game.GlobalSettings.SETTINGS.dungeon_memory_days = 9;
+    await drain();
+    await drain();
+    await drain();
+    h.frameFn = h.raf[h.raf.length - 1];
+    assert.equal(h.errors.length, 0,
+      'без console.error: ' + h.errors.join('; '));
+    assertRestored(h, 7);
+    const g = h.sandbox.__game;
+    assert.ok(g.dungeon == null, 'до входа подземелья нет (вход — на шаге)');
+    let now = walkTiles(h, 1000, [[OUT_TILE.x, OUT_TILE.y]]);
+    now = walkTiles(h, now, [[CAVE.x, CAVE.y]]);
+    assert.ok(g.dungeon, 'авто-вход в пещеру (world-step)');
+    // 7 − 3 = 4 < 9 → запись валидна: ВОССТАНОВЛЕНО, не fresh.
+    assert.equal(g.dungeon.chests, N_CHESTS - 1,
+      'содержимое ВОССТАНОВЛЕНО (сундук в сейве — уже открыт); '
+      + 'fresh-подвал дал бы ' + N_CHESTS);
+    assert.equal(g.dungeon.mobs.length, N_GROUPS - 1,
+      'содержимое ВОССТАНОВЛЕНО (группа в сейве — уже побеждена)');
+    fireBeforeUnload(h);
+    const saved = readSave(h);
+    const rec = saved.data.dungeonMemory[MEM_KEY];
+    assert.ok(rec, 'запись в сейве (live-Map — не обрезана при 9 днях)');
+    assert.equal(rec.lastVisitDay, 7,
+      'lastVisitDay = день (продлён при входе)');
+    assert.equal(rec.contents.chests.filter((c) => c.opened).length, 1,
+      'содержимое сейва — восстановленное (сундук открыт)');
+  }
+  // (б) SETTINGS.dungeon_memory_days = 2.5 — Number, но не integer →
+  //     Number.isInteger-гард → fallback 3: 7 − 3 = 4 > 3 → обрезка.
+  {
+    const h = bootSandbox(seed());
+    h.sandbox.Game.GlobalSettings.SETTINGS.dungeon_memory_days = 2.5;
+    await drain();
+    await drain();
+    await drain();
+    h.frameFn = h.raf[h.raf.length - 1];
+    assert.equal(h.errors.length, 0,
+      'без console.error: ' + h.errors.join('; '));
+    assert.ok(h.warns.some((m) => m.includes('валидных записей нет')),
+      'fallback 3: запись истекла (4 > 3) → warn «валидных записей нет»: '
+      + JSON.stringify(h.warns));
+    // Без входа — запись НЕ создаётся заново: live-Map пуст.
+    fireBeforeUnload(h);
+    assert.deepEqual(readSave(h).data.dungeonMemory, {},
+      'save {} (live-Map пуст после trim; входа не было)');
+  }
 });

@@ -1787,3 +1787,58 @@ test('000158.02 L9 (ГАРД, vm): цепочка БЕЗ map.js — загруз
   assert.deepEqual(it.loot.terrains, ['марс'],
     'enum-проверка пропущена — loot сохранён как есть (деградация)');
 });
+
+// --- Задача 000191.13: load-time-гард «loot — только у reagent» +
+// мусор validateLoot (контракт — memory/000191-retro-20261012-coverage.md) ---
+
+test('000191.13a (vm): items.js при ЗАГРУЗКЕ — weapon с ВАЛИДНЫМ loot → Error «loot — только у reagent» (load-time-гард src/items.js: поле loot ТОЛЬКО у reagent)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  const weapon = { id: 'x_sword', name: 'Тестовый меч', kind: 'weapon',
+    subtype: 'sword', stats: { damage: 5 }, weight: 2, value: 10,
+    desc: 'т',
+    loot: { terrains: ['трава'], near_mountains: false, frequency: 0.2 } };
+  sandbox.Game.ITEMS = [weapon];
+  assert.throws(
+    () => loadInSandbox('items.js', sandbox),
+    /loot — только у reagent/,
+    'load-time-валидация бросает на weapon с loot (лоот-поле — '
+    + 'прерогатива reagent; остальные проверки validateItem weapon '
+    + 'проходят — падает именно на validateLoot)');
+  // Контроль (анти-вакуумность): weapon БЕЗ loot — загрузка без броска.
+  const { sandbox: s2, errors } = makeVmSandboxWithConsole();
+  loadItemsVmChain(s2);
+  s2.Game.ITEMS = [{ id: 'x_sword', name: 'Тестовый меч',
+    kind: 'weapon', subtype: 'sword', stats: { damage: 5 },
+    weight: 2, value: 10, desc: 'т' }];
+  assert.doesNotThrow(() => loadInSandbox('items.js', s2),
+    'weapon без loot — загрузка без броска (гард не избыточен)');
+  assert.equal(errors.length, 0, 'console.error нет; факт: '
+    + JSON.stringify(errors));
+  assert.equal(s2.Game.getItem('x_sword').loot, undefined,
+    'loot не появляется из ничего');
+});
+
+test('000191.13b (node): I.validateLoot — мусор (loot: строка/массив, terrains: [42], near_mountains: «yes») → точные сообщения', () => {
+  const exact = (msg) => (e) =>
+    e instanceof Error && e.message === msg;
+  assert.throws(
+    () => I.validateLoot({ id: 'x', kind: 'reagent', loot: 'x' }),
+    exact('x: loot — объект'),
+    'loot: строка — «loot — объект»');
+  assert.throws(
+    () => I.validateLoot({ id: 'x', kind: 'reagent', loot: [] }),
+    exact('x: loot — объект'),
+    'loot: массив — «loot — объект»');
+  assert.throws(
+    () => I.validateLoot({ id: 'x', kind: 'reagent',
+                           loot: { terrains: [42] } }),
+    exact('x: loot.terrains: не строка: 42'),
+    'terrains: [42] — «loot.terrains: не строка: 42»');
+  assert.throws(
+    () => I.validateLoot({ id: 'x', kind: 'reagent',
+                           loot: { terrains: ['трава'],
+                                   near_mountains: 'yes' } }),
+    exact('x: loot.near_mountains — boolean'),
+    'near_mountains: «yes» — «loot.near_mountains — boolean»');
+});
