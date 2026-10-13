@@ -443,6 +443,13 @@
     }
   }
 
+  const Z_OVER_LOCATION = 25;
+  function applyLayer(overLocation) {
+    if (!panel) return;
+    const z = (overLocation && isOpen()) ? String(Z_OVER_LOCATION) : '';
+    if (panel.style.zIndex !== z) panel.style.zIndex = z;
+  }
+
   G.playerUI = {
     setCharacter(c) {
       character = c;
@@ -478,6 +485,7 @@
     toggle,
     render,
     isOpen,
+    applyLayer,
   };
 
   // --- Диалог NPC (задача 000010) ---
