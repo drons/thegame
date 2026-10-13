@@ -261,7 +261,9 @@
     if (p && Number.isInteger(p.x) && Number.isInteger(p.y) &&
         p.x >= 0 && p.y >= 0 && p.x < d.width && p.y < d.height &&
         G.CELL_FLOOR !== undefined &&
-        d.cells[p.y * d.width + p.x] === G.CELL_FLOOR) {
+        d.cells[p.y * d.width + p.x] === G.CELL_FLOOR &&
+        !(contents && contents.mobs.some((m) => m && !m.defeated
+          && m.x === p.x && m.y === p.y))) {
       ds.x = ds.prevX = p.x; ds.y = ds.prevY = p.y;
       if (ds.mover) ds.mover.teleport(p.x, p.y);
     }
