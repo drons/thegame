@@ -625,6 +625,10 @@
   EFFECTS['market'] = {
     имя: 'Барахолка',
   };
+  EFFECTS['fullrest'] = {
+    имя: 'Полный отдых',
+    apply: applyFullRest,
+  };
 
   /**
    * Ids эффектов постройки — только те, что есть в реестре; порядок —
@@ -2171,6 +2175,46 @@
     return { ok: true, candidates };
   }
 
+  function fullRestPrice(st) {
+    const eff = catalogEffect(st);
+    const p = eff && eff.полный_отдых;
+    const price = p && p.цена;
+    return (typeof price === 'number' && Number.isFinite(price)
+      && price >= 0) ? price : null;
+  }
+
+  function applyFullRest(st) {
+    const G = lazyGame();
+    if (!G || typeof G.derived !== 'function') {
+      return { ok: false, message: 'недоступно' };
+    }
+    const price = fullRestPrice(st);
+    if (price === null) return { ok: false, message: 'недоступно' };
+    const hero = st && st.hero;
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    if (hero.alive === false) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const gold = Number.isFinite(hero.gold) ? hero.gold : 0;
+    if (gold < price) {
+      return { ok: false, message: 'мало золота (нужно ' + price + ')' };
+    }
+    const d = G.derived(hero);
+    if (!d || !Number.isFinite(d.maxHP) || !Number.isFinite(d.maxMP)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    return {
+      ok: true,
+      success: true,
+      цена: price,
+      maxHP: d.maxHP,
+      maxMP: d.maxMP,
+      message: 'Полный отдых: HP и MP восстановлены (−' + price + ' з.)',
+    };
+  }
+
   /**
    * «Сон» (задача 000076): ЧИСТАЯ подсказка о ближайшем входе в
    * пещеру и типе подземелья.
@@ -2927,5 +2971,6 @@
     // src/building-effect-resurrect.js (контракт —
     // memory/000162-temple-resurrection.md §3–4).
     resurrectPrice, resurrectList, resurrectAvailable, applyResurrect,
+    fullRestPrice, applyFullRest,
   };
 });

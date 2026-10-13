@@ -168,6 +168,9 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   // коду.
   // 000162: +'resurrect' (храмы 36/37/38 «Воскрешение» — общая
   // услуга, не 1-к-1 по id; пин регенерирован по фактическому коду).
+  // 000200: +'fullrest' (таверна 44 / лагерь 47 «Полный отдых» —
+  // общая услуга, не 1-к-1 по id; пин регенерирован по фактическому
+  // коду).
   // Ребейз 000147 на мастер (2026-10-07): MERGED/UNION +=
   // '17_mentor'/'18_mentor'/'19_mentor'/'21_mentor'/'38_mentor'
   // (000147, «Обучение (наставник)» — 5 школ 17/18/19/21/38) —
@@ -175,12 +178,14 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   const MERGED = ['36', '37', '38', '40', '41', '42', '45', '46', '48',
     '44_rest', '44_rumors', '44_perform', 'fire', 'market', 'coin',
     'heal', '40_spell', '42_spell',
-    '17_mentor', '18_mentor', '19_mentor', '21_mentor', '38_mentor'];
+    '17_mentor', '18_mentor', '19_mentor', '21_mentor', '38_mentor',
+    'fullrest'];
   const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '45',
     '46', '48', '44_rest', '44_rumors', '44_perform',
     'fire', 'market', 'coin', 'heal', '40_spell', '42_spell',
     'resurrect',
-    '17_mentor', '18_mentor', '19_mentor', '21_mentor', '38_mentor'];
+    '17_mentor', '18_mentor', '19_mentor', '21_mentor', '38_mentor',
+    'fullrest'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -3155,9 +3160,9 @@ test('A65. реестр + каталог 44: «Отдых» (44_rest, БЕЗ app
   const B = require('../src/buildings.js');
   const p44 = B.getBuilding(44).особые_параметры;
   assert.deepEqual(p44.эффекты,
-    ['44_rest', '44_rumors', '44_perform'],
-    'каталог 44: особые_параметры.эффекты — массив ТРЁХ действий '
-    + '(44_perform — аппенд 000137)');
+    ['44_rest', '44_rumors', '44_perform', 'fullrest'],
+    'каталог 44: особые_параметры.эффекты — массив ЧЕТЫРЁХ действий '
+    + '(44_perform — аппенд 000137; fullrest — аппенд 000200)');
   const texts = p44.эффект && p44.эффект.слухи && p44.эффект.слухи.тексты;
   assert.ok(Array.isArray(texts) && texts.length === 8,
     'каталог 44: эффект.слухи.тексты — ровно 8 строк (red: нет)');
@@ -3185,13 +3190,15 @@ test('A65. реестр + каталог 44: «Отдых» (44_rest, БЕЗ app
     'hasDailyLimit(44, 44_perform) — true (per-эффектный, 000137)');
   // Связка «постройка → эффекты» — через массив (1-к-1 НЕ покрывает два).
   assert.deepEqual(BE.effectIds(B.getBuilding(44)),
-    ['44_rest', '44_rumors', '44_perform'],
-    'effectIds(44) — из массива каталога (44_perform — 000137)');
+    ['44_rest', '44_rumors', '44_perform', 'fullrest'],
+    'effectIds(44) — из массива каталога (44_perform — 000137; '
+    + 'fullrest — 000200)');
   // Оверлей: «Диалог» (NPC Берта) ПЕРВЫМ, затем эффекты в порядке каталога.
   const res = BE.buildingActions(B.getBuilding(44), NPC(), makeState());
   assert.deepEqual(res.map((a) => a.id),
-    ['dialog', '44_rest', '44_rumors', '44_perform'],
-    'buildingActions(44, npc): dialog + эффекты (red: нет записей)');
+    ['dialog', '44_rest', '44_rumors', '44_perform', 'fullrest'],
+    'buildingActions(44, npc): dialog + эффекты (red: нет записей; '
+    + 'fullrest — аппенд 000200)');
   for (const a of res) {
     assert.equal(a.доступен, true, 'строка «' + a.id + '» — доступна');
   }
@@ -3530,22 +3537,28 @@ test('A55. «Лагерь» (47): EFFECTS «fire»/«market» — имена, Б
   const B = require('../src/buildings.js');
   const camp = B.getBuilding(47);
   assert.ok(camp, 'каталог: запись 47 «Лагерь»');
-  assert.deepEqual(BE.effectIds(camp), ['fire', 'market'],
-    'effectIds(47) — массив каталога (порядок = порядок строк)');
+  assert.deepEqual(BE.effectIds(camp), ['fire', 'market', 'fullrest'],
+    'effectIds(47) — массив каталога (порядок = порядок строк; '
+    + 'fullrest — аппенд 000200)');
   // buildingActions: «Диалог» ПЕРВЫМ (существующее правило),
   // затем эффекты в порядке каталога.
   const npc = { id: 'camp_wanderer', имя: 'Кочевник' };
   const withNpc = BE.buildingActions(camp, npc, makeState());
   assert.deepEqual(withNpc.map((a) => a.id),
-    ['dialog', 'fire', 'market'],
-    'с NPC — [«Диалог», «Костёр», «Барахолка»]');
+    ['dialog', 'fire', 'market', 'fullrest'],
+    'с NPC — [«Диалог», «Костёр», «Барахолка», «Полный отдых»] '
+    + '(fullrest — аппенд 000200)');
   assert.equal(withNpc[1].имя, 'Костёр', 'имя строки «Костёр»');
   assert.equal(withNpc[2].имя, 'Барахолка', 'имя строки «Барахолка»');
+  assert.equal(withNpc[3].имя, 'Полный отдых',
+    'имя строки «Полный отдых» (аппенд 000200)');
   assert.equal(withNpc[1].доступен, true, '«Костёр» — доступен');
   assert.equal(withNpc[2].доступен, true, '«Барахолка» — доступна');
+  assert.equal(withNpc[3].доступен, true,
+    '«Полный отдых» — доступен (золото строку не гасит, 000200)');
   const noNpc = BE.buildingActions(camp, null, makeState());
-  assert.deepEqual(noNpc.map((a) => a.id), ['fire', 'market'],
-    'без NPC — только эффекты (нет «Диалога»)');
+  assert.deepEqual(noNpc.map((a) => a.id), ['fire', 'market', 'fullrest'],
+    'без NPC — только эффекты (нет «Диалога»; fullrest — 000200)');
   // Лимита раз-в-день НЕТ: каталог без флага раз_в_день,
   // записи без разВДень → повторные действия в тот же день
   // ДОПУСТИМЫ (B25: второй «Костёр» — ещё +1 день).
@@ -3564,11 +3577,14 @@ test('A56. каталог 000047: эффекты/эффект + зеркало s
   const op = b47.особые_параметры;
   assert.equal(op.даёт, 'костёр, торговля на барахолке',
     '«даёт» — без изменений');
-  assert.deepEqual(op.эффекты, ['fire', 'market'],
-    'эффекты — массив (порядок = порядок строк оверлея)');
+  assert.deepEqual(op.эффекты, ['fire', 'market', 'fullrest'],
+    'эффекты — массив (порядок = порядок строк оверлея; '
+    + 'fullrest — аппенд 000200)');
   assert.deepEqual(op.эффект,
-    { respawn_days: 1, виды: ['food', 'potion', 'weapon', 'armor'] },
-    'эффект: respawn_days 1 (дневная ротация) + виды барахолки');
+    { respawn_days: 1, виды: ['food', 'potion', 'weapon', 'armor'],
+      полный_отдых: { цена: 10 } },
+    'эффект: respawn_days 1 (дневная ротация) + виды барахолки '
+    + '+ полный_отдых.цена 10 (000200, каталог-движок)');
   // Лагерь НЕ генерируется на карте (SPEC «Расширение карты»:
   // новый map_index перераспределил бы слоты): слотовых/входовых
   // параметров — НЕТ; лимита раз-в-день — НЕТ (костёр — как
@@ -7318,10 +7334,10 @@ test('B26. «Отдых» e2e: таверна (41,2) — HUD «([E] Берта, 
   assert.ok(ov, 'оверлей подвешен к body');
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
-    ['dialog', '44_rest', '44_rumors', '44_perform'],
+    ['dialog', '44_rest', '44_rumors', '44_perform', 'fullrest'],
     'строки: «Диалог» (Берта) ПЕРВЫМ + «Отдых» + «Слухи» '
-    + '+ «Выступление» (44_perform — аппенд 000137; '
-    + 'red: нет записей в реестре/каталоге)');
+    + '+ «Выступление» (44_perform — 000137) + «Полный отдых» '
+    + '(fullrest — аппенд 000200; red: нет записей в реестре/каталоге)');
   for (const r of rows) {
     assert.equal(r.disabled, false,
       'строка «' + r.dataset.buid + '» — доступна');
@@ -7377,9 +7393,9 @@ test('B27. «Слухи» e2e: таверна (41,2), день 1 — flash «С�
   assert.ok(ov, 'оверлей подвешен к body');
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
-    ['dialog', '44_rest', '44_rumors', '44_perform'],
-    'строки: dialog + 44_rest + 44_rumors + 44_perform (аппенд 000137; '
-    + 'red: нет записей)');
+    ['dialog', '44_rest', '44_rumors', '44_perform', 'fullrest'],
+    'строки: dialog + 44_rest + 44_rumors + 44_perform (000137) '
+    + '+ fullrest (аппенд 000200; red: нет записей)');
   const rowR = findRow(ov, '44_rumors');
   assert.ok(rowR, 'строка 44_rumors в оверлее (red: строки нет)');
   assert.equal(rowR.disabled, false, 'день 1 — доступно');
@@ -8449,16 +8465,18 @@ test('PF4. 000137: e2e «Выступление»: таверна (41,2) — [E]
   assert.equal(g.state.day, 1, 'день 1 (предзаполнен)');
   const t = myMap.tileAt(41, 2);
   assert.equal(t.buildingId, 44, 'тайл (41,2) — таверна');
-  // [E] → оверлей: 4 строки (44_perform — аппенд, Digit4).
+  // [E] → оверлей: 5 строк (44_perform — аппенд 000137, Digit4;
+  // fullrest — аппенд 000200, Digit5; позиции цифр не смещаются).
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
   const ov = findOverlay(h);
   assert.ok(ov, 'оверлей в body');
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
-    ['dialog', '44_rest', '44_rumors', '44_perform'],
+    ['dialog', '44_rest', '44_rumors', '44_perform', 'fullrest'],
     'строки: «Диалог» (Берта) первыми + «Отдых» + «Слухи» + '
-    + '«Выступление» (красный: нет записи/каталога)');
+    + '«Выступление» (000137) + «Полный отдых» (fullrest — 000200; '
+    + 'красный: нет записи/каталога)');
   const rowP = findRow(ov, '44_perform');
   assert.ok(rowP, 'строка 44_perform в оверлее');
   assert.ok(textOf(rowP).includes('Выступление'),
@@ -8722,4 +8740,532 @@ test('RES-A6. applyResurrect: gold 10 < min(цена) 20 → {ok:false, message:
   assert.equal(r.message, 'мало золота', 'message «мало золота»');
   assert.equal(r.candidates, undefined, 'отказ — без candidates');
   assert.deepEqual(st, s0, 'state не мутирован');
+});
+
+// =====================================================================
+// Задача 000200: «Полный отдых» (fullrest) — таверна 44 + лагерь 47.
+// ТЗ: tasks/pending/000200.md; контракты — memory/000200-fullrest.md
+// §3–§6 (красная стадия). КЛЮЧЕВЫЕ решения:
+//   * D1 — ОДИН общий id «fullrest» на оба здания (прецедент
+//     'resurrect' 000162); D2 — строка «Полный отдых»;
+//   * D3 — ДЕНЬ НЕ ПРОХОДИТ (clock не вызывается — отличие от
+//     бесплатного 44_rest/Костра);
+//   * D4 — полное восстановление hero hp/mp до АБСОЛЮТОВ derived
+//     (maxHP/maxMP) — hero-only;
+//   * D5 — цена 10 з. В ОБОИХ каталогах: эффект.полный_отдых =
+//     { "цена": 10 } (каталог-движок, 000053);
+//   * D6 — лимита раз-в-день НЕТ → марки buildingOncePerDay НЕТ;
+//   * D7 — available() НЕТ: золото строку НЕ гасит; отказ
+//     «мало золота (нужно N)» — в момент действия (flash БЕЗ
+//     saveNow/марки/render, 000128 §2.6);
+//   * D9 — чистое ядро applyFullRest/fullRestPrice в
+//     building-effects.js + тонкий спец-модуль
+//     src/building-effect-fullrest.js (UMD, self-registration).
+// Причины красного (НЕТ функционала, не синтаксис/окружение):
+//   * RG1 — нет EFFECTS['fullrest'] и каталожных полей (deepEqual
+//     состава/зеркала падает);
+//   * RG2/RG3 — applyFullRest не экспортирован (e.apply — undefined);
+//   * RG4/RG5 — файла src/building-effect-fullrest.js НЕТ
+//     (require — MODULE_NOT_FOUND, паттерн A66);
+//   * RG-E1/RG-E3 — строки fullrest в оверлее нет (4 строки вместо 5,
+//     findRow → null);
+//   * ре-пины A1/A65/A55/A56/B26/B27/PF4 (append строки/элемента).
+// =====================================================================
+
+test('RG1. 000200: реестр EFFECTS["fullrest"] {имя:"Полный отдых", apply: function, БЕЗ available/разВДень}; каталог 44 эффекты ["44_rest","44_rumors","44_perform","fullrest"] + эффект.полный_отдых {цена:10} (раз_в_день НЕ тронут); каталог 47 ["fire","market","fullrest"] + {цена:10}; зеркало buildings.js ≡ JSON; effectIds(44/47) несут fullrest; hasDailyLimit(44|47, "fullrest") === false', () => {
+  const BE = loadBE();
+  const e = BE.EFFECTS['fullrest'];
+  assert.ok(e,
+    'запись "fullrest" в реестре (красный: нет до реализации)');
+  assert.equal(e.имя, 'Полный отдых', 'имя по ТЗ (D2)');
+  assert.equal(typeof e.apply, 'function',
+    'apply(state) — ЧИСТОЕ ядро (D9: в building-effects.js)');
+  assert.notEqual(typeof e.available, 'function',
+    'available НЕ пишется (D7: золото строку не гасит — отказ «мало '
+    + 'золота» в момент действия, прецедент R-2 000162)');
+  assert.notEqual(e.разВДень, true,
+    'разВДень НЕ пишется (D6: лимита раз-в-день НЕТ)');
+  const B = require('../src/buildings.js');
+  const p44 = B.getBuilding(44).особые_параметры;
+  assert.deepEqual(p44.эффекты,
+    ['44_rest', '44_rumors', '44_perform', 'fullrest'],
+    'каталог 44: эффекты — append в КОНЕЦ (позиции цифр 2/3/4 не '
+    + 'сдвигаются, новая строка — 5-я; красный: 3 элемента)');
+  assert.deepEqual(p44.эффект && p44.эффект.полный_отдых,
+    { цена: 10 }, 'каталог 44: эффект.полный_отдых {цена:10} (D5)');
+  assert.deepEqual(p44.раз_в_день, { '44_perform': true },
+    'каталог 44: раз_в_день НЕ тронут (000137 — только 44_perform)');
+  const p47 = B.getBuilding(47).особые_параметры;
+  assert.deepEqual(p47.эффекты, ['fire', 'market', 'fullrest'],
+    'каталог 47: эффекты — append (строка 4-я; красный: 2 элемента)');
+  assert.deepEqual(p47.эффект && p47.эффект.полный_отдых,
+    { цена: 10 },
+    'каталог 47: эффект.полный_отдых {цена:10} (D5: ОБЕ цены 10)');
+  // Зеркало src/buildings.js — byte-пин (000053, sync:buildings):
+  // особые_параметры ≡ JSON-каталогу (обе записи).
+  const BDIR = path.join(ROOT, 'assets', 'buildings');
+  for (const [id, fname] of [[44, '000044.json'], [47, '000047.json']]) {
+    const json = JSON.parse(
+      fs.readFileSync(path.join(BDIR, fname), 'utf8'));
+    assert.deepEqual(B.getBuilding(id).особые_параметры,
+      json.особые_параметры,
+      'зеркало ' + id + ' == JSON-каталог (особые_параметры побайтово)');
+  }
+  assert.deepEqual(BE.effectIds(B.getBuilding(44)),
+    ['44_rest', '44_rumors', '44_perform', 'fullrest'],
+    'effectIds(44) — из массива каталога (fullrest — 000200)');
+  assert.deepEqual(BE.effectIds(B.getBuilding(47)),
+    ['fire', 'market', 'fullrest'],
+    'effectIds(47) — из массива каталога (fullrest — 000200)');
+  assert.equal(BE.hasDailyLimit(B.getBuilding(44), 'fullrest'), false,
+    'hasDailyLimit(44, fullrest) — false (D6: ключа нет → fail-open)');
+  assert.equal(BE.hasDailyLimit(B.getBuilding(47), 'fullrest'), false,
+    'hasDailyLimit(47, fullrest) — false (D6: ключа нет → fail-open)');
+});
+
+test('RG2. 000200: ЧИСТОЕ apply "fullrest" — ПОЛНОЕ восстановление (D4): hero {hp:1,mp:1,gold:500} + каталог 44 → {ok:true, success:true, цена:10, maxHP:25, maxMP:16, message "Полный отдых: HP и MP восстановлены (−10 з.)"}; каталог 47 — цена 10 (ОБЕ catalog-driven); gold в результат НЕ входит (списание делает хендлер); snapshot не мутирован; детерминизм (2 вызова deepEqual, 0 RNG)', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  for (const b of [B.getBuilding(44), B.getBuilding(47)]) {
+    withGame({ derived: P.derived, skillLevel: P.skillLevel }, () => {
+      const hero = mkHero({ hp: 1, mp: 1, gold: 500 });
+      const st = makeState({
+        day: 3, tile: { x: 5, y: 7 }, hero, save: {}, catalog: b,
+      });
+      const s0 = JSON.parse(JSON.stringify(st));
+      assert.ok(BE.EFFECTS['fullrest']
+        && typeof BE.EFFECTS['fullrest'].apply === 'function',
+        'запись "fullrest" с apply (красный: нет до реализации)');
+      const r = BE.EFFECTS['fullrest'].apply(st);
+      const d = P.derived(hero);
+      assert.equal(r.ok, true, 'ok:true: ' + JSON.stringify(r));
+      assert.equal(r.success, true,
+        'success:true (сигнал для спец-хендлера, 000137/000147)');
+      assert.equal(r.цена, 10,
+        'цена 10 ИЗ СНИМКА КАТАЛОГА (D5; хардкода нет)');
+      assert.equal(r.maxHP, d.maxHP, 'maxHP = derived.maxHP (level-1: 25)');
+      assert.equal(r.maxMP, d.maxMP, 'maxMP = derived.maxMP (level-1: 16)');
+      assert.equal(
+        r.message, 'Полный отдых: HP и MP восстановлены (−10 з.)',
+        'message — точная строка (U+2212, цена из каталога)');
+      assert.deepEqual(st, s0, 'snapshot не мутирован (чистота D9)');
+      // Детерминизм: второй вызов — deepEqual (0 Math.random/Date).
+      const r2 = BE.EFFECTS['fullrest'].apply(st);
+      assert.deepEqual(r2, r, 'два вызова — deepEqual (детерминизм)');
+    });
+  }
+});
+
+test('RG3. 000200: apply "fullrest" — отказы/деградации БЕЗ исключений: (a) gold 9 → "мало золота (нужно 10)"; (б) gold 10 → ok (граница — ровно хватает); (в) каталог-мусор (нет полный_отдых / цена не-число) → "недоступно" (fail-closed — не бесплатный отдых); (г) hero.alive===false / hero null → "недоступно"; (д) без Game → "недоступно" без throw; (е) во ВСЕХ отказах snapshot не мутирован', () => {
+  const BE = loadBE();
+  const B = require('../src/buildings.js');
+  const b44 = B.getBuilding(44);
+  assert.ok(BE.EFFECTS['fullrest']
+    && typeof BE.EFFECTS['fullrest'].apply === 'function',
+    'запись "fullrest" с apply (красный: нет до реализации)');
+  withGame({ derived: P.derived, skillLevel: P.skillLevel }, () => {
+    // (a) gold 9 < 10 — отказ БЕЗ списания.
+    const stA = makeState({
+      hero: mkHero({ hp: 1, mp: 1, gold: 9 }), save: {}, catalog: b44,
+    });
+    const sA = JSON.parse(JSON.stringify(stA));
+    const rA = BE.EFFECTS['fullrest'].apply(stA);
+    assert.equal(rA.ok, false, 'gold 9 → ok:false');
+    assert.equal(rA.message, 'мало золота (нужно 10)',
+      'message — строка ТЗ: ' + JSON.stringify(rA.message));
+    assert.deepEqual(stA, sA, '(a) snapshot не мутирован');
+    // (б) граница: gold 10 — ровно хватает.
+    const rB = BE.EFFECTS['fullrest'].apply(makeState({
+      hero: mkHero({ hp: 1, mp: 1, gold: 10 }), save: {}, catalog: b44,
+    }));
+    assert.ok(rB.ok && rB.success,
+      'gold 10 — ровно хватает (граница ≤ цены)');
+    // (в) каталог-мусор: нет полного_отдыха.
+    const junk1 = { id: 99, название: 'Мусор',
+      особые_параметры: { эффекты: ['fullrest'], эффект: {} } };
+    const rC1 = BE.EFFECTS['fullrest'].apply(makeState({
+      hero: mkHero({ hp: 1, mp: 1, gold: 500 }), save: {}, catalog: junk1,
+    }));
+    assert.equal(rC1.ok, false, 'нет полный_отдых → ok:false (fail-closed)');
+    assert.equal(rC1.message, 'недоступно',
+      'мусор → «недоступно»: ' + JSON.stringify(rC1.message));
+    // (в2) цена не-число.
+    const junk2 = { id: 99, название: 'Мусор',
+      особые_параметры: { эффекты: ['fullrest'],
+        эффект: { полный_отдых: { цена: 'десять' } } } };
+    const rC2 = BE.EFFECTS['fullrest'].apply(makeState({
+      hero: mkHero({ hp: 1, mp: 1, gold: 500 }), save: {}, catalog: junk2,
+    }));
+    assert.equal(rC2.ok, false, 'цена не-число → ok:false (fail-closed)');
+    assert.equal(rC2.message, 'недоступно', 'цена не-число → «недоступно»');
+    // (г) мёртвый герой — «недоступно» (отдых НЕ воскрешает —
+    // своя система 000156/000162; дефенсивный гард).
+    const stG = makeState({
+      hero: mkHero({ hp: 1, mp: 1, gold: 500, alive: false }),
+      save: {}, catalog: b44,
+    });
+    const sG = JSON.parse(JSON.stringify(stG));
+    const rG = BE.EFFECTS['fullrest'].apply(stG);
+    assert.equal(rG.ok, false, 'hero.alive===false → ok:false');
+    assert.equal(rG.message, 'недоступно', 'мёртвый → «недоступно»');
+    assert.deepEqual(stG, sG, '(г) snapshot не мутирован');
+    // (г2) hero null.
+    const rG2 = BE.EFFECTS['fullrest'].apply(makeState({
+      hero: null, save: {}, catalog: b44,
+    }));
+    assert.equal(rG2.ok, false, 'hero null → ok:false');
+    assert.equal(rG2.message, 'недоступно', 'hero null → «недоступно»');
+  });
+  // (д) нет Game → «недоступно» БЕЗ throw (деградация — игра не падает).
+  const stD = makeState({
+    hero: mkHero({ hp: 1, mp: 1, gold: 500 }), save: {}, catalog: b44,
+  });
+  const sD = JSON.parse(JSON.stringify(stD));
+  let rD;
+  withGame(null, () => {
+    // Node 18: assert.doesNotThrow НЕ возвращает результат fn —
+    // значение ловим переменной (тех. правка красной стадии).
+    assert.doesNotThrow(
+      () => { rD = BE.EFFECTS['fullrest'].apply(stD); },
+      'без Game — без throw (деградация 000053)');
+  });
+  assert.equal(rD.ok, false, 'без Game → ok:false');
+  assert.equal(rD.message, 'недоступно', 'без Game → «недоступно»');
+  assert.deepEqual(stD, sD, '(д) snapshot не мутирован');
+});
+
+test('RG4. 000200: спец-модуль src/building-effect-fullrest.js — UMD: (a) node require → {fullRest: function}; (б) fullRest(ctx) успех: gold 500→490, hp=25, mp=16, {ok:true}; (в) гарды (!r / r.ok!==true / success!==true / !hero) → "недоступно" БЕЗ мутаций; (в2) дефенсивный gold-ре-чек: gold NaN → "мало золота (нужно 10)" без мутаций (не уходит в минус, 000029); (г) standalone-песочница {console} → 0 ошибок, без краха; (д) building-actions.js + модуль → 0 ошибок, specials["fullrest"] — function (self-registration); (е) БЕЗ building-actions.js → console.error (фикс. текст §3.4), регистрация НЕ произошла', () => {
+  // (a) node-ветка UMD: module.exports = { fullRest } (формат 1:1
+  // building-effect-44_perform.js / mentor). КРАСНЫЙ: файла нет →
+  // MODULE_NOT_FOUND (модуль 000200 не создан — осмысленный красный,
+  // не синтаксис/окружение).
+  const mod = require('../src/building-effect-fullrest.js');
+  assert.equal(typeof mod.fullRest, 'function',
+    'спец-модуль экспортирует fullRest(ctx) (node-ветка)');
+  // (б) успех: МУТАЦИИ live-ссылки hero (в порядке §3.4: gold−,
+  // hp=, mp=) + {ok:true} (message — из r, роутер берёт r.message
+  // ПЕРВЫМ).
+  const heroOk = { hp: 1, mp: 1, gold: 500 };
+  const rOk = mod.fullRest({
+    r: { ok: true, success: true, цена: 10, maxHP: 25, maxMP: 16,
+      message: 'Полный отдых: HP и MP восстановлены (−10 з.)' },
+    hero: heroOk,
+  });
+  assert.deepEqual(rOk, { ok: true },
+    'успех → {ok:true} (message не дублируется — из r)');
+  assert.equal(heroOk.gold, 490, 'hero.gold 500→490 (списание в хендлере)');
+  assert.equal(heroOk.hp, 25, 'hero.hp = r.maxHP (25)');
+  assert.equal(heroOk.mp, 16, 'hero.mp = r.maxMP (16)');
+  // (в) гарды — {ok:false, message:'недоступно'} БЕЗ мутаций.
+  const guardCtx = [
+    ['без r', () => ({ hero: { hp: 1, mp: 1, gold: 500 } })],
+    ['r.ok!==true', () => ({
+      r: { ok: false }, hero: { hp: 1, mp: 1, gold: 500 } })],
+    ['r.success!==true', () => ({
+      r: { ok: true }, hero: { hp: 1, mp: 1, gold: 500 } })],
+    ['без hero', () => ({
+      r: { ok: true, success: true, цена: 10, maxHP: 25, maxMP: 16 } })],
+  ];
+  for (const [label, mk] of guardCtx) {
+    const rr = mod.fullRest(mk());
+    assert.equal(rr.ok, false, label + ' → ok:false');
+    assert.equal(rr.message, 'недоступно',
+      label + ' → «недоступно»: ' + JSON.stringify(rr.message));
+  }
+  // (в2) дефенсивный gold-ре-чек (apply уже проверял; защита от
+  // битого сейва, 000029): нормализованное gold (NaN → 0) < цена.
+  const hNan = { hp: 1, mp: 1, gold: NaN };
+  const rNan = mod.fullRest({
+    r: { ok: true, success: true, цена: 10, maxHP: 25, maxMP: 16 },
+    hero: hNan,
+  });
+  assert.equal(rNan.ok, false, 'gold NaN → ok:false');
+  assert.equal(rNan.message, 'мало золота (нужно 10)',
+    'gold NaN → «мало золота (нужно 10)»');
+  assert.ok(Number.isNaN(hNan.gold),
+    'gold NaN — НЕ мутирован (списания нет, не ушёл в минус)');
+  assert.equal(hNan.hp, 1, 'hp — НЕ мутирован');
+  assert.equal(hNan.mp, 1, 'mp — НЕ мутирован');
+  // vm-песочницы (UMD-гарды, паттерн RES-BA1/RES-BA2 000162).
+  // Ленивое чтение: до зелёной стадии файла нет — ENOENT.
+  const moduleCode = fs.readFileSync(
+    path.join(ROOT, 'src', 'building-effect-fullrest.js'), 'utf8');
+  const actionsCode = fs.readFileSync(
+    path.join(ROOT, 'src', 'building-actions.js'), 'utf8');
+  const mkConsole = (sink) => ({
+    log: () => {}, info: () => {}, warn: () => {},
+    error: (m) => sink.push(String(m)),
+  });
+  // (г) standalone (без Game) — тихий выход: 0 console.error,
+  // 0 краха.
+  const errorsA = [];
+  const sandboxA = { console: mkConsole(errorsA) };
+  vm.createContext(sandboxA);
+  assert.doesNotThrow(() => vm.runInContext(
+    moduleCode, sandboxA,
+    { filename: 'building-effect-fullrest.js' }),
+    'standalone (без Game) — без краха');
+  assert.equal(errorsA.length, 0,
+    'standalone (без Game) — 0 console.error: ' + errorsA.join('; '));
+  // (д) building-actions.js + модуль — 0 ошибок, self-registration.
+  const errorsC = [];
+  const sandboxC = { Game: {}, console: mkConsole(errorsC) };
+  vm.createContext(sandboxC);
+  vm.runInContext(actionsCode, sandboxC,
+    { filename: 'building-actions.js' });
+  vm.runInContext(moduleCode, sandboxC,
+    { filename: 'building-effect-fullrest.js' });
+  assert.equal(errorsC.length, 0,
+    'с buildingActions — без ошибок: ' + errorsC.join('; '));
+  assert.ok(sandboxC.Game.buildingActions,
+    'buildingActions есть (building-actions.js загружен)');
+  assert.equal(
+    typeof sandboxC.Game.buildingActions.specials['fullrest'],
+    'function',
+    'specials["fullrest"] — function (self-registration при '
+    + 'загрузке, без правок main.js)');
+  // (е) БЕЗ building-actions.js — console.error (ФИКСИРОВАННЫЙ
+  // текст §3.4), регистрация НЕ произошла, краха нет (000053).
+  const errorsB = [];
+  const sandboxB = { Game: {}, console: mkConsole(errorsB) };
+  vm.createContext(sandboxB);
+  assert.doesNotThrow(() => vm.runInContext(
+    moduleCode, sandboxB,
+    { filename: 'building-effect-fullrest.js' }),
+    'без buildingActions — без краха (деградация 000053)');
+  assert.ok(errorsB.length >= 1,
+    'без buildingActions — console.error');
+  assert.ok(
+    String(errorsB[0]).includes('Game.buildingActions отсутствует'),
+    'текст ошибки — про порядок загрузки: ' + errorsB[0]);
+  assert.ok(!sandboxB.Game.buildingActions,
+    'без buildingActions — регистрация НЕ произошла (000053)');
+});
+
+// 000200: deps-бандл для живого пути (onBuildingAction) — 1:1 по
+// makePerformDeps (000137), clock — со spy-методом rest (D3: день НЕ
+// проходит — rest обязан НЕ вызываться).
+function makeFullRestDeps(over = {}) {
+  const calls = { saveNow: 0, flash: [], playerRender: 0,
+    buildingOpen: [] };
+  const clock = { day: 5, restCalls: 0,
+    rest: function () { this.restCalls++; this.day++; } };
+  const deps = {
+    game: {
+      buildingEffects: loadBE(),
+      buildingUI: {
+        open: (p) => { calls.buildingOpen.push(p); },
+        isActive: () => false,
+        close: () => {},
+      },
+      npcUI: { open: () => {}, isActive: () => false, close: () => {} },
+    },
+    clock,
+    hero: over.hero,
+    player: { x: 5, y: 7 },
+    prevPos: { x: 5, y: 7 },
+    getMap: () => null,
+    mover: null,
+    npcs: [],
+    questBook: {},
+    npcShopFor: () => ({}),
+    collectSaveData: () => ({
+      day: clock.day,
+      buildingOncePerDay: Object.fromEntries(
+        deps.buildingOncePerDay.entries()),
+    }),
+    saveNow: () => { calls.saveNow++; },
+    flash: (m) => { calls.flash.push(m); },
+    buildingOncePerDay: new Map(),
+    buffs: [],
+    teleports: new Map(),
+    buildingQuests: new Map(),
+    playerRender: () => { calls.playerRender++; },
+    moveHero: () => {},
+    startCombat: () => {},
+  };
+  return { calls, deps, clock };
+}
+
+test('RG5. 000200: полный путь onBuildingAction (таверна 44) — успех: gold 500→490, hp=maxHP/mp=maxMP (D4), flash "Полный отдых: HP и MP восстановлены (−10 з.)", saveNow 1, playerRender 1, БЕЗ марки (D6), clock.rest НЕ вызван и день 5 не изменился (D3); повтор в тот же день → gold 480 (лимит НЕТ); ОТКАЗ: gold 0 → flash "мало золота (нужно 10)", saveNow/playerRender 0, герой не мутирован, БЕЗ марки', () => {
+  const B = require('../src/buildings.js');
+  const b44 = B.getBuilding(44);
+  const t44 = { x: 5, y: 7, hasBuilding: true, building: 11,
+    buildingId: 44 };
+  // Спец-модуль — ЖИВЫЕ (require в теле; ручная регистрация —
+  // паттерн PF1: в node Game нет, self-registration не сработала).
+  // КРАСНЫЙ: файла нет → MODULE_NOT_FOUND.
+  const mod = require('../src/building-effect-fullrest.js');
+  assert.equal(typeof mod.fullRest, 'function',
+    'спец-модуль экспортирует fullRest(ctx)');
+  const BA = require('../src/building-actions.js');
+  BA.registerSpecial('fullrest', (ctx) => mod.fullRest(ctx));
+  const action = { id: 'fullrest', имя: 'Полный отдых', доступен: true };
+  withGame({ derived: P.derived, skillLevel: P.skillLevel }, () => {
+    // Успех: apply (чистое, снимок) → спец-хендлер (мутации live).
+    const hero = mkHero({ hp: 1, mp: 1, gold: 500 });
+    const { calls, deps, clock } = makeFullRestDeps({ hero });
+    BA.init(deps);
+    BA.onBuildingAction(action, t44, b44, null);
+    const d = P.derived(hero);
+    assert.equal(hero.gold, 490,
+      'успех: hero.gold 500→490 (цена ИЗ КАТАЛОГА, списание хендлером)');
+    assert.equal(hero.hp, d.maxHP, 'hero.hp = maxHP (полное, D4)');
+    assert.equal(hero.mp, d.maxMP, 'hero.mp = maxMP (полное, D4)');
+    assert.deepEqual(calls.flash,
+      ['Полный отдых: HP и MP восстановлены (−10 з.)'],
+      'flash — message apply (r.message ПЕРВЫМ): '
+      + JSON.stringify(calls.flash));
+    assert.equal(calls.saveNow, 1, 'успех: saveNow');
+    assert.equal(calls.playerRender, 1, 'успех: playerRender');
+    assert.equal(deps.buildingOncePerDay.size, 0,
+      'БЕЗ марки buildingOncePerDay (D6: лимита раз-в-день нет)');
+    assert.equal(clock.restCalls, 0,
+      'clock.rest НЕ вызван (D3: ДЕНЬ НЕ ПРОХОДИТ)');
+    assert.equal(clock.day, 5, 'день не изменился (5)');
+    // Повтор в тот же день (лимит НЕТ — повтор разрешён): gold 480.
+    calls.saveNow = 0; calls.flash.length = 0; calls.playerRender = 0;
+    BA.onBuildingAction(action, t44, b44, null);
+    assert.equal(hero.gold, 480, 'повтор: hero.gold 490→480 (лимит НЕТ)');
+    assert.equal(clock.day, 5, 'повтор: день всё ещё 5');
+    assert.equal(clock.restCalls, 0, 'повтор: clock.rest по-прежнему 0');
+    assert.equal(deps.buildingOncePerDay.size, 0, 'повтор: без марки');
+  });
+  // Отказ: gold 0 — flash «мало золота (нужно 10)», БЕЗ
+  // saveNow/render/мутаций (семантика отказа 000128 §2.6).
+  withGame({ derived: P.derived, skillLevel: P.skillLevel }, () => {
+    const hero0 = mkHero({ hp: 1, mp: 1, gold: 0 });
+    const hp0 = hero0.hp;
+    const mp0 = hero0.mp;
+    const { calls, deps } = makeFullRestDeps({ hero: hero0 });
+    BA.init(deps);
+    BA.onBuildingAction(action, t44, b44, null);
+    assert.deepEqual(calls.flash, ['мало золота (нужно 10)'],
+      'отказ: flash «мало золота (нужно 10)» (строка ТЗ): '
+      + JSON.stringify(calls.flash));
+    assert.equal(calls.saveNow, 0, 'отказ: saveNow не вызван');
+    assert.equal(calls.playerRender, 0, 'отказ: playerRender не вызван');
+    assert.equal(hero0.gold, 0, 'отказ: gold не мутирован');
+    assert.equal(hero0.hp, hp0, 'отказ: hp не мутирован');
+    assert.equal(hero0.mp, mp0, 'отказ: mp не мутирован');
+    assert.equal(deps.buildingOncePerDay.size, 0, 'отказ: без марки');
+  });
+});
+
+test('RG-E1. 000200: e2e таверна (41,2) — [E] → 5 строк (…fullrest «Полный отдых», все доступны); Digit5 → день ОСТАЁТСЯ 1 (D3), stepsToday без изменений, hero hp полное (live) / mp полное (через сейв) / gold 500→490, flash — точная строка, save day 1 gold 490, БЕЗ "41,2:fullrest"; повтор [E]+Digit5 в тот же день → gold 480, день ЕЩЁ 1 (лимит НЕТ)', async () => {
+  // Позиция PRE-SEED'ом на таверне (паттерн B26/B27): 43 шага >
+  // steps_per_day 40 — ХОД сменил бы день; pre-seed держит день 1.
+  const hero0 = mkHero({ hp: 1, mp: 1, gold: 500 });
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 41, y: 2 },
+    hero: hero0,
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.player.x, 41, 'позиция сейва — таверна (x)');
+  assert.equal(g.state.player.y, 2, 'позиция сейва — таверна (y)');
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  const t = myMap.tileAt(41, 2);
+  assert.equal(t.buildingId, 44, 'тайл (41,2) — таверна');
+  // [E] → оверлей: 5 строк (fullrest — append 000200, Digit5;
+  // позиции цифр 1..4 не сдвигаются).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  const rows = findAll(ov, '[data-buid]');
+  assert.deepEqual(rows.map((r) => r.dataset.buid),
+    ['dialog', '44_rest', '44_rumors', '44_perform', 'fullrest'],
+    'строки: … + «Полный отдых» (fullrest — append 000200; '
+    + 'красный: 4 строки — deepEqual падает первым)');
+  const rowF = findRow(ov, 'fullrest');
+  assert.ok(rowF, 'строка fullrest в оверлее');
+  assert.ok(textOf(rowF).includes('Полный отдых'),
+    'имя строки «Полный отдых» (D2)');
+  for (const r of rows) {
+    assert.equal(r.disabled, false,
+      'строка «' + r.dataset.buid + '» — доступна (D7: gold не гасит)');
+  }
+  const stepsBefore = g.state.stepsToday;
+  // Digit5 — «Полный отдых» (1=dialog, 2=44_rest, 3=44_rumors,
+  // 4=44_perform, 5=fullrest).
+  key(h, 'Digit5');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  assert.equal(g.state.day, 1,
+    'день ОСТАЁТСЯ 1 (D3 — ключевое отличие от 44_rest)');
+  assert.equal(g.state.stepsToday, stepsBefore, 'stepsToday без изменений');
+  const d0 = P.derived(hero0);
+  assert.equal(g.state.hero.hp, d0.maxHP,
+    'hero hp — полное (live, 1 → ' + d0.maxHP + ')');
+  assert.equal(g.state.hero.gold, 490,
+    'hero gold 500→490 (live; цена 10 из каталога 000044)');
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('Полный отдых: HP и MP восстановлены (−10 з.)'),
+    'hudFlash — точная строка (U+2212): ' + hud1);
+  // saveNow: день 1, gold 490, hp/mp полные; БЕЗ марки.
+  const save = readSave(h);
+  assert.equal(save.data.day, 1, 'saveNow: data.day === 1 (день не прошёл)');
+  assert.equal(save.data.hero.gold, 490, 'save: gold 490');
+  assert.equal(save.data.hero.hp, d0.maxHP, 'save: hp полное');
+  assert.equal(save.data.hero.mp, d0.maxMP,
+    'save: mp полное (g.state.hero.mp отсутствует — через readSave)');
+  assert.ok(save.data.buildingOncePerDay['41,2:fullrest'] == null,
+    'НЕТ отметки «41,2:fullrest» (D6: лимитов нет)');
+  // Повтор в тот же день (лимит НЕТ): gold 480, день ЕЩЁ 1.
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается снова');
+  key(h, 'Digit5');
+  assert.equal(g.state.day, 1, 'повтор: день всё ещё 1 (лимит НЕТ)');
+  assert.equal(g.state.hero.gold, 480, 'повтор: gold 490→480');
+  key(h, 'Escape');
+  assert.equal(G.buildingUI.isActive(), false);
+});
+
+test('RG-E3. 000200: e2e таверна (41,2) — МАЛО ЗОЛОТА: hero gold 0 → [E] → строка fullrest ДОСТУПНА (D7) → Digit5 → flash «мало золота (нужно 10)», день 1, hero hp 1/mp 1/gold 0 не мутированы, save day 1, НИКАКОЙ новой записи buildingOncePerDay (отказ — flash БЕЗ saveNow, 000128 §2.6)', async () => {
+  const h = await boot(seedSave({
+    day: 1,
+    position: { x: 41, y: 2 },
+    hero: mkHero({ hp: 1, mp: 1, gold: 0 }),
+  }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  const rowF = findRow(ov, 'fullrest');
+  assert.ok(rowF,
+    'строка fullrest в оверлее (красный: строки нет — нет записи/каталога)');
+  assert.equal(rowF.disabled, false,
+    'строка доступна ДАЖЕ при gold 0 (D7: золото строку не гасит)');
+  const stepsBefore = g.state.stepsToday;
+  key(h, 'Digit5');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  frameAt(h, NOW + 400);
+  const hud1 = String(h.hud.textContent);
+  assert.ok(hud1.includes('мало золота (нужно 10)'),
+    'hudFlash — «мало золота (нужно 10)» (строка ТЗ): ' + hud1);
+  assert.equal(g.state.day, 1, 'день 1 (отказ: clock не тронут)');
+  assert.equal(g.state.stepsToday, stepsBefore, 'stepsToday без изменений');
+  assert.equal(g.state.hero.hp, 1, 'hero hp — не мутирован (1)');
+  assert.equal(g.state.hero.gold, 0, 'hero gold — не мутирован (0)');
+  const save = readSave(h);
+  assert.equal(save.data.day, 1,
+    'save day 1 (отказ: saveNow не вызван — pre-seed сейв)');
+  assert.equal(save.data.hero.gold, 0, 'save: gold 0');
+  assert.equal(save.data.hero.hp, 1, 'save: hp 1');
+  assert.equal(save.data.hero.mp, 1, 'save: mp 1 (через readSave)');
+  const marks = save.data.buildingOncePerDay || {};
+  for (const k of Object.keys(marks)) {
+    assert.ok(!k.endsWith(':fullrest'),
+      'НИКАКОЙ отметки fullrest в buildingOncePerDay: ' + k);
+  }
 });

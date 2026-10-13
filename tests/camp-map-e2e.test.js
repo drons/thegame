@@ -43,6 +43,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { SAVE_KEY } = require('../src/save.js');
+const P = require('../src/player.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -163,8 +165,12 @@ function makeEl(tag) {
 
 // --- localStorage-стаб (наблюдение saveNow) ---
 
-function makeStorage() {
+function makeStorage(seed) {
   const store = {};
+  // 000200: ДОСЕЯННЫЙ сейв (v1) ДО запуска цепочки — main.js читает
+  // его синхронно при загрузке (паттерн tests/save-restore.test.js):
+  // посеять после bootSandbox() поздно (restoreFromSave уже прошёл).
+  if (seed != null) store[SAVE_KEY] = JSON.stringify(seed);
   return {
     store,
     getItem: (k) => (Object.prototype.hasOwnProperty.call(store, k)
@@ -174,9 +180,14 @@ function makeStorage() {
   };
 }
 
+// Оболочка досеянного сейва актуальной версии (v1, 000200).
+function seedSave(data) {
+  return { version: 1, savedAt: new Date(0).toISOString(), data };
+}
+
 // --- Песочница: вся цепочка index.html (браузерная ветка UMD) ---
 
-function bootSandbox() {
+function bootSandbox(seed) {
   const winListeners = {};
   const raf = [];
   const warns = [];
@@ -190,7 +201,7 @@ function bootSandbox() {
     ? makeGl() : makeContext2d(gameCanvas));
   spriteCanvas.getContext = (kind) => (kind === '2d'
     ? makeContext2d(spriteCanvas) : null);
-  const storage = makeStorage();
+  const storage = makeStorage(seed);
   const document = {
     createElement: (tag) => makeEl(tag),
     getElementById: (id) => (
@@ -267,8 +278,8 @@ function bootSandbox() {
 // Промывка микротасков (загрузки Image + loadMapPixels().then).
 const drain = () => new Promise((r) => setImmediate(r));
 
-async function boot() {
-  const h = bootSandbox();
+async function boot(seed) {
+  const h = bootSandbox(seed);
   await drain();
   await drain();
   await drain();
@@ -462,9 +473,9 @@ function findRow(overlay, id) {
     .find((r) => r.dataset.buid === id) || null;
 }
 
-// Ходьба к ближайшему лагерю (общая часть CP-6..CP-10).
-async function bootAndWalkToCamp() {
-  const h = await boot();
+// Ходьба к ближайшему лагерю (общая часть CP-6..CP-11).
+async function bootAndWalkToCamp(seed) {
+  const h = await boot(seed);
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   const myMap = G.createMap(G.generateSeedPixels());
@@ -507,12 +518,14 @@ test('CP-6: пешком до лагеря — 30 шагов, день не пр
 
 // ====================================================================
 // CP-7: [E] на тайле лагеря — оверлей действий (единый путь 000071):
-// ровно 3 строки «Диалог»/«Костёр»/«Барахолка» (data-buid
-// dialog/fire/market; NPC 000018 + эффекты каталога 000047). Digit1
-// → npcUI с Кочевником (оверлей при этом ЗАКРЫТ — executeAction
-// закрывает ДО onAction, паттерн B4); Esc → диалог закрыт.
+// ровно 4 строки «Диалог»/«Костёр»/«Барахолка»/«Полный отдых»
+// (data-buid dialog/fire/market/fullrest; NPC 000018 + эффекты
+// каталога 000047; fullrest — append 000200, позиции цифр 1/2/3 не
+// сдвигаются). Digit1 → npcUI с Кочевником (оверлей при этом ЗАКРЫТ
+// — executeAction закрывает ДО onAction, паттерн B4); Esc → диалог
+// закрыт.
 // ====================================================================
-test('CP-7: [E] → оверлей (3 действия), Digit1 → Кочевник, Esc — стек', async () => {
+test('CP-7: [E] → оверлей (4 действия), Digit1 → Кочевник, Esc — стек', async () => {
   const { h, G } = await bootAndWalkToCamp();
   // [E] → оверлей (НЕ прямой npcUI).
   key(h, 'KeyE');
@@ -526,18 +539,21 @@ test('CP-7: [E] → оверлей (3 действия), Digit1 → Кочевн
   // первая буква нижним): «лагерь».
   assert.ok(textOf(ov).includes('лагерь'),
     'заголовок — «лагерь»: ' + textOf(ov));
-  // Ровно 3 строки: Диалог (NPC) + эффекты каталога (fire, market).
-  for (const id of ['dialog', 'fire', 'market']) {
+  // Ровно 4 строки: Диалог (NPC) + эффекты каталога
+  // (fire, market, fullrest — append 000200).
+  for (const id of ['dialog', 'fire', 'market', 'fullrest']) {
     assert.ok(findRow(ov, id), 'строка действия ' + id + ' в оверлее');
   }
-  assert.equal(findAll(ov, '[data-buid]').length, 3,
-    'ровно 3 действия (диалог + костёр + барахолка)');
+  assert.equal(findAll(ov, '[data-buid]').length, 4,
+    'ровно 4 действия (диалог + костёр + барахолка + полный отдых)');
   assert.ok(textOf(findRow(ov, 'dialog')).includes('Диалог'),
     'строка 1 — «Диалог»');
   assert.ok(textOf(findRow(ov, 'fire')).includes('Костёр'),
     'строка 2 — «Костёр»');
   assert.ok(textOf(findRow(ov, 'market')).includes('Барахолка'),
     'строка 3 — «Барахолка»');
+  assert.ok(textOf(findRow(ov, 'fullrest')).includes('Полный отдых'),
+    'строка 4 — «Полный отдых» (append 000200)');
   // Digit1 → диалог NPC; оверлей закрылся САМ (executeAction:
   // close() ДО onAction — паттерн B4/000071).
   key(h, 'Digit1');
@@ -683,4 +699,73 @@ test('CP-10: спрайт лагеря в кадре 1× — camp.svg на world
     `размер w = 1·zoom: ${a[3]} ≠ ${st.zoom}`);
   assert.ok(Math.abs(a[4] - st.zoom) < EPS,
     `размер h = 1·zoom: ${a[4]} ≠ ${st.zoom}`);
+});
+
+// ====================================================================
+// CP-11 (задача 000200): «Полный отдых» в лагере — e2e (МИРОВОЙ путь,
+// 30 шагов от спавна — день НЕ сдвигается): hero pre-seed {hp:1,
+// mp:1, gold:100}; [E] → оверлей 4 строки (dialog/fire/market/
+// fullrest); Digit4 → день НЕ прошёл (КЛЮЧЕВОЕ отличие от Костра —
+// CP-8-семантика НЕ переносится), stepsToday без изменений, hero hp
+// полный (live) / mp полный ЧЕРЕЗ сейв (g.state.hero.mp отсутствует),
+// gold 100→90, flash «Полный отдых: HP и MP восстановлены (−10 з.)»,
+// saveNow (день тот же), БЕЗ «-18,-12:fullrest» в
+// buildingOncePerDay (лимит раз-в-день НЕТ).
+// Красный: 3 строки (строки fullrest нет — каталогового поля и
+// реестровой записи нет).
+// ====================================================================
+test('CP-11: 000200 лагерь [E] → Digit4 («Полный отдых») — день НЕ прошёл, gold 100→90, hp/mp полные, БЕЗ марки', async () => {
+  const hero0 = Object.assign(P.createCharacter(),
+    { hp: 1, mp: 1, gold: 100 });
+  const { h, G, g, found } = await bootAndWalkToCamp(
+    seedSave({ day: 1, hero: hero0 }));
+  assert.deepEqual(found.target, { x: -18, y: -12 },
+    'nearest лагерь — (−18,−12) (тот же мир, golden)');
+  assert.equal(g.state.day, 1,
+    'день 1 (pre-seed; 30 шагов < steps_per_day)');
+  assert.equal(g.state.stepsToday, 30, '30 шагов за день');
+  const d0 = P.derived(hero0);
+  // [E] → оверлей: 4 строки (fullrest — 4-я, Digit4).
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей подвешен к body');
+  const rows = findAll(ov, '[data-buid]');
+  assert.deepEqual(rows.map((r) => r.dataset.buid),
+    ['dialog', 'fire', 'market', 'fullrest'],
+    'строки: dialog + fire + market + fullrest (append 000200; '
+    + 'красный: 3 строки — строки fullrest нет)');
+  const rowF = findRow(ov, 'fullrest');
+  assert.ok(rowF, 'строка fullrest в оверлее (красный: строки нет)');
+  assert.ok(textOf(rowF).includes('Полный отдых'),
+    'имя строки «Полный отдых»');
+  assert.equal(rowF.disabled, false,
+    'строка доступна (золото строку не гасит, 000200)');
+  key(h, 'Digit4');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  assert.equal(g.state.day, 1,
+    'день ОСТАЁТСЯ 1 (000200: ДЕНЬ НЕ ПРОХОДИТ — отличие от Костра)');
+  assert.equal(g.state.stepsToday, 30, 'stepsToday без изменений');
+  assert.equal(g.state.hero.hp, d0.maxHP,
+    'hero hp — полное (live, 1 → ' + d0.maxHP + ')');
+  assert.equal(g.state.hero.gold, 90,
+    'hero gold 100→90 (цена 10 из каталога 000047)');
+  h.frameFn(NOW + 200);
+  assert.ok(String(h.hud.textContent)
+    .includes('Полный отдых: HP и MP восстановлены (−10 з.)'),
+    'hudFlash — точная строка (U+2212): ' + h.hud.textContent);
+  // saveNow: день тот же, gold 90, hp/mp полные; БЕЗ марки.
+  const saveRaw = h.storage.getItem(SAVE_KEY);
+  assert.ok(saveRaw, 'сейв в localStorage (saveNow вызван)');
+  const save = JSON.parse(saveRaw);
+  assert.equal(save.data.day, 1, 'save: день 1 (день не прошёл)');
+  assert.equal(save.data.hero.gold, 90, 'save: gold 90');
+  assert.equal(save.data.hero.hp, d0.maxHP, 'save: hp полное');
+  assert.equal(save.data.hero.mp, d0.maxMP,
+    'save: mp полное (live g.state.hero.mp отсутствует — через сейв)');
+  const marks = save.data.buildingOncePerDay || {};
+  for (const k of Object.keys(marks)) {
+    assert.ok(!k.endsWith(':fullrest'),
+      'НЕТ отметки fullrest в buildingOncePerDay: ' + k);
+  }
 });

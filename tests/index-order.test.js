@@ -63,6 +63,9 @@ test('index.html: нужные модули подключены', () => {
     // 000147: слот спец-модулей «Обучение (наставник)» — после
     // runes (рядом, до hud.js; пин порядка ниже).
     'src/building-effect-mentor.js',
+    // 000200: слот спец-модулей «Полный отдых» (таверна 44 / лагерь
+    // 47 — общая услуга) — после mentor, до hud.js (пин порядка IO3).
+    'src/building-effect-fullrest.js',
     'src/hud.js',
     // Слот спец-модулей 000128 (после hud.js, до visuals-data.js);
     // добавлено на зелёной стадии (план красной — см. коммит
@@ -1546,6 +1549,35 @@ test('IO2. 000162: спец-модуль «Воскрешение» — тег s
     'function',
     'specials[resurrect] зарегистрирован (self-registration при '
     + 'загрузке, без правок main.js)');
+});
+
+// ====================================================================
+// 000200: спец-модуль src/building-effect-fullrest.js («Полный
+// отдых», таверна 44 / лагерь 47) — тег в слоте спец-модулей
+// (после mentor, до hud.js). Пин ТОЛЬКО порядка (pos) — UMD-гарды
+// покрыты RG4 (tests/building-effects.test.js). Красный: тега нет
+// (pos === -1). Имя IO3: IO1/IO2 заняты 000137/000162.
+// ====================================================================
+
+test('IO3. 000200: спец-модуль «Полный отдых» — тег src/building-effect-fullrest.js в index.html (ПОСЛЕ building-actions.js, ДО main.js; слот спец-модулей — после mentor, до hud.js)', () => {
+  assert.notEqual(pos('src/building-effect-fullrest.js'), -1,
+    'src/building-effect-fullrest.js не подключён в index.html '
+    + '(задача 000200)');
+  assert.ok(pos('src/building-actions.js')
+    < pos('src/building-effect-fullrest.js'),
+    'src/building-actions.js должен быть раньше '
+    + 'src/building-effect-fullrest.js (registerSpecial обязан '
+    + 'существовать, задача 000128)');
+  assert.ok(pos('src/building-effect-mentor.js')
+    < pos('src/building-effect-fullrest.js'),
+    'src/building-effect-fullrest.js — в слоте спец-модулей '
+    + '(ПОСЛЕ mentor.js, задача 000200)');
+  assert.ok(pos('src/building-effect-fullrest.js') < pos('src/hud.js'),
+    'src/building-effect-fullrest.js должен быть ДО src/hud.js '
+    + '(слот спец-модулей, задача 000200)');
+  assert.ok(pos('src/building-effect-fullrest.js') < pos('src/main.js'),
+    'src/building-effect-fullrest.js должен быть ДО src/main.js '
+    + '(UMD-ловушка 000038: main.js снимает Game один раз)');
 });
 
 // ====================================================================
