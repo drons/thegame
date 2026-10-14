@@ -874,7 +874,11 @@ test('подземелье UI: камера — снап к игроку, dt п�
     camY = G.cameraStep(camY, 13.5, 16, G.CAM_TAU_MS);
     tick(rafStubs);
     const p = G.worldToScreen(13, 13, camX, camY, 40, VW, VH);
-    assert.ok(floorRectAt(calls, p.x, p.y, 40),
+    // 000215: пол — снап-прямоугольник (позиция — Math.round(сырая
+    // проекция), тот же порядок операций, что worldToScreen; размер
+    // = zoom — целый зум). Камера дробная (mid-glide) — именно тот
+    // сценарий, где снап отличим от сырой проекции.
+    assert.ok(floorRectAt(calls, Math.round(p.x), Math.round(p.y), 40),
       'кадр при now=' + t + ': cam = cameraStep(prev, 13.5, 16, CAM_TAU_MS) по осям');
     const px = G.worldToScreen(13.5, 13.5, camX, camY, 40, VW, VH).x;
     const pm = lastPlayerMoveTo(calls);

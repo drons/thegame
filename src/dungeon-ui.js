@@ -506,6 +506,21 @@
     const x0 = Math.max(0, range.x0), x1 = Math.min(d.width - 1, range.x1);
     const y0 = Math.max(0, range.y0), y1 = Math.min(d.height - 1, range.y1);
     const loader = ctx.spriteLoader || null;
+    // 000215: снап-прямоугольник КЛЕТКИ (края — целые пиксели, общий
+    // с соседом → нет AA-шва/тёмных линий; формула — map.js, тот же
+    // порядок операций, что worldToScreen; контракты —
+    // memory/000215-tile-seam.md). live — ЖИВАЯ ссылка в момент
+    // вызова (не снапшот, 000038). Тихий fallback на сырое
+    // (p.x, p.y, zoom, zoom) — рендер-путь, без console.error (паттерн
+    // соседних live.*-гардов этой функции).
+    const cellRect = (cx, cy, p) => {
+      if (typeof live.snappedTileRect !== 'function') {
+        return { x: p.x, y: p.y, w: zoom, h: zoom };
+      }
+      const r = live.snappedTileRect(cx, cy, cam.x, cam.y, zoom, w, h);
+      if (Number.isNaN(r.x)) return { x: p.x, y: p.y, w: zoom, h: zoom };
+      return r;
+    };
 
     // Пол. Город (000105, s.kind === 'city') — СВОИ тайлы: вариант
     // — чистая функция (x, y, layout.seed); стена-клетки (периметр)
@@ -549,13 +564,14 @@
         if (!isCity && !isFloor) continue; // подземелье: стена-клетки нет
         if (!isCity && mask[y * d.width + x] === 0) continue; // 000136: скрыто
         const p = proj(x, y);
+        const cr = cellRect(x, y, p);
         if (isCity) {
           g2.fillStyle = isFloor
             ? CITY_FLOOR_VARIANTS[cityTileVariant(
                 CITY_FLOOR_VARIANTS.length, x, y, d.seed)]
             : CITY_WALL_VARIANTS[cityTileVariant(
                 CITY_WALL_VARIANTS.length, x, y, d.seed)];
-          g2.fillRect(p.x, p.y, zoom, zoom);
+          g2.fillRect(cr.x, cr.y, cr.w, cr.h);
           continue;
         }
         const path = live.dungeonFloorFrame
@@ -565,10 +581,10 @@
             && loader.image(path))
           : null;
         if (img) {
-          g2.drawImage(img, p.x, p.y, zoom, zoom);
+          g2.drawImage(img, cr.x, cr.y, cr.w, cr.h);
         } else {
           g2.fillStyle = '#182029';
-          g2.fillRect(p.x, p.y, zoom, zoom);
+          g2.fillRect(cr.x, cr.y, cr.w, cr.h);
         }
       }
     }
@@ -601,7 +617,8 @@
             ? loader.isReady(path) : true) && loader.image(path);
           if (!img) continue;
           const p = proj(b.x, b.y);
-          g2.drawImage(img, p.x, p.y, zoom, zoom);
+          const cr = cellRect(b.x, b.y, p);
+          g2.drawImage(img, cr.x, cr.y, cr.w, cr.h);
         }
       }
     }
@@ -621,7 +638,8 @@
           ? loader.isReady(path) : true) && loader.image(path);
         if (!img) continue;
         const p = proj(wo.x, wo.y);
-        g2.drawImage(img, p.x, p.y, zoom, zoom);
+        const cr = cellRect(wo.x, wo.y, p);
+        g2.drawImage(img, cr.x, cr.y, cr.w, cr.h);
       }
     }
 
@@ -640,6 +658,7 @@
       ? live.DUNGEON_PORTAL : null;
     if (isCity || mask[d.exit.y * d.width + d.exit.x] !== 0) {
       const ex = proj(d.exit.x, d.exit.y);
+      const er = cellRect(d.exit.x, d.exit.y, ex);
       const kind = isCity ? 'door'
         : (Number.isInteger(d.depth) && d.depth > 1
            ? 'stairs' : 'cave_mouth');
@@ -649,14 +668,14 @@
             ? loader.isReady(ppath) : true) && loader.image(ppath))
         : null;
       if (img) {
-        g2.drawImage(img, ex.x, ex.y, zoom, zoom);
+        g2.drawImage(img, er.x, er.y, er.w, er.h);
       } else {
         g2.fillStyle = '#d4b45a';
-        g2.fillRect(ex.x + 2, ex.y + 2, zoom - 4, zoom - 4);
+        g2.fillRect(er.x + 2, er.y + 2, er.w - 4, er.h - 4);
         g2.fillStyle = '#101418';
         g2.font = 'bold ' + (zoom - 8) + 'px ui-monospace, monospace';
         g2.textAlign = 'center';
-        g2.fillText('E', ex.x + zoom / 2, ex.y + zoom - 5);
+        g2.fillText('E', er.x + er.w / 2, er.y + er.h - 5);
       }
     }
 
@@ -674,20 +693,21 @@
     if (!isCity && d.stairsDown &&
         mask[d.stairsDown.y * d.width + d.stairsDown.x] !== 0) {
       const sp = proj(d.stairsDown.x, d.stairsDown.y);
+      const sr = cellRect(d.stairsDown.x, d.stairsDown.y, sp);
       const ppath = portal ? portal.stairs : null;
       const simg = (ppath && loader && typeof loader.image === 'function')
         ? ((typeof loader.isReady === 'function'
             ? loader.isReady(ppath) : true) && loader.image(ppath))
         : null;
       if (simg) {
-        g2.drawImage(simg, sp.x, sp.y, zoom, zoom);
+        g2.drawImage(simg, sr.x, sr.y, sr.w, sr.h);
       } else {
         g2.fillStyle = '#d4b45a';
-        g2.fillRect(sp.x + 2, sp.y + 2, zoom - 4, zoom - 4);
+        g2.fillRect(sr.x + 2, sr.y + 2, sr.w - 4, sr.h - 4);
         g2.fillStyle = '#101418';
         g2.font = 'bold ' + (zoom - 8) + 'px ui-monospace, monospace';
         g2.textAlign = 'center';
-        g2.fillText('L', sp.x + zoom / 2, sp.y + zoom - 5);
+        g2.fillText('L', sr.x + sr.w / 2, sr.y + sr.h - 5);
       }
     }
 
@@ -844,7 +864,8 @@
         for (let x = x0; x <= x1; x++) {
           if (mask[y * d.width + x] === 1) {
             const p = proj(x, y);
-            g2.fillRect(p.x, p.y, zoom, zoom);
+            const cr = cellRect(x, y, p);
+            g2.fillRect(cr.x, cr.y, cr.w, cr.h);
           }
         }
       }

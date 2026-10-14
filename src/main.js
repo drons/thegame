@@ -3075,6 +3075,32 @@
           x: w / 2 + (tx - cam.x) * zoom,
           y: h / 2 + (ty - cam.y) * zoom,
         });
+    // Снап сетки тайлов (задача 000215): текстуры тайлов — на ЦЕЛЫХ
+    // пикселях, у соседних клеток — ОДИН общий край (нет AA-шва →
+    // тёмных линий; формула — expr worldToScreen в Math.round,
+    // src/map.js; контракты — memory/000215-tile-seam.md). Сетка
+    // краёв — ОДИН раз на кадр (O(1) на тайл): диапазон ТОТ ЖЕ, что
+    // buildFrame (visibleTileRange — чистая, пересчёт бит-в-бит).
+    // Тихий fallback на (sx, sy, zoom, zoom) — паттерн toPt;
+    // дефенсивно (map.js всегда в цепочке ДО main.js).
+    const tileRange = (typeof G.visibleTileRange === 'function'
+      && typeof G.snappedTileEdges === 'function')
+      ? G.visibleTileRange(cam.x, cam.y, w, h, zoom)
+      : null;
+    const tileEdges = tileRange
+      ? G.snappedTileEdges(tileRange.x0, tileRange.y0, tileRange.x1,
+          tileRange.y1, cam.x, cam.y, zoom, w, h)
+      : null;
+    const snapTile = (tileEdges && !Number.isNaN(tileEdges.x[0]))
+      ? (tx, ty) => {
+          const ix = tx - tileRange.x0, iy = ty - tileRange.y0;
+          if (ix < 0 || iy < 0 || ix + 1 >= tileEdges.x.length
+              || iy + 1 >= tileEdges.y.length) return null;
+          const x = tileEdges.x[ix], y = tileEdges.y[iy];
+          return { x, y, w: tileEdges.x[ix + 1] - x,
+            h: tileEdges.y[iy + 1] - y };
+        }
+      : null;
     // Декорации тайлов (задача 000039): порог зума вычисляется один раз
     // на кадр — при малом зуме видимых тайлов explode и по-тайловый
     // проход дорог. typeof-гард: старый sprites.js без tileVisuals —
@@ -3120,7 +3146,14 @@
       // (buildFrame); не загрузившийся кадр — null, элемент
       // рисуется фолбэком там.
       const img = tileFrameImg(t, now);
-      if (img) s2.drawImage(img, sx, sy, zoom, zoom);
+      if (img) {
+        // 000215: снап-прямоугольник (целые края, общий с соседом);
+        // fallback — старые аргументы (устаревший map.js / клетка вне
+        // edge-сетки — гипотетически: frameTiles из того же range).
+        const r = snapTile ? snapTile(t.x, t.y) : null;
+        s2.drawImage(img, r ? r.x : sx, r ? r.y : sy,
+          r ? r.w : zoom, r ? r.h : zoom);
+      }
       if (showVisuals && !(t.inBuilding && !t.isEntrance)) {
         for (const e of G.tileVisuals(t.x, t.y, t.terrain)) {
           if (!spriteLoader.isReady(e.sprite)) continue;

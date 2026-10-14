@@ -1083,12 +1083,15 @@ test('LM9. 000158.05 e2e: порядок слоёв — текстура < де�
       checked++;
       const p = G.worldToScreen(tx, ty, st.cam.x, st.cam.y, zoom, VIEW_W, VIEW_H);
       const sx = p.x, sy = p.y;
-      // Текстура тайла: drawImage(img, sx, sy, zoom, zoom).
+      // Текстура тайла: drawImage(img, r.x, r.y, r.w, r.h) — 000215:
+      // снап-прямоугольник (позиция — Math.round(сырая проекция), тот
+      // же порядок операций, что worldToScreen; размер = zoom —
+      // целый зум, камера на целой/полуцелой сетке с точностью 1e-3 px).
       const iTile = calls.findIndex((c) => c[0] === 'drawImage'
         && c[1][0] && c[1][0].__asset
         && c[1][0].__asset.startsWith('assets/tiles/')
-        && Math.abs(c[1][1] - sx) < EPS
-        && Math.abs(c[1][2] - sy) < EPS
+        && Math.abs(c[1][1] - Math.round(sx)) < EPS
+        && Math.abs(c[1][2] - Math.round(sy)) < EPS
         && Math.abs(c[1][3] - zoom) < EPS
         && Math.abs(c[1][4] - zoom) < EPS);
       assert.ok(iTile >= 0, `тайл (${tx},${ty}): текстура нарисована`);

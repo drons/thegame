@@ -1262,6 +1262,101 @@
     };
   }
 
+  // --- Снап сетки тайлов в целые пиксели (задача 000215) ---
+  //
+  // Дробные стыки соседних тайлов (зум 80·1.2^k × глейд-камера ×
+  // viewW/2) дают частичное AA-покрытие шовного пикселя — под ним
+  // проступает тёмный фон (gl.clearColor под спрайт-слоем, #0a0d12
+  // под оверлеем подземелья/города) → «тёмные линии между тайлами».
+  // Формула — ОДИН источник: выражение worldToScreen в Math.round,
+  // тот же порядок операций (бит-идентично worldToScreen). Край —
+  // функция от ЦЕЛОГО индекса клетки → соседние клетки дают ОДИН и
+  // тот же общий край (нет дрейфа от поштучного round) — при целых
+  // краях AA-шов на стыке математически невозможен. ИДЕНТИЧНОСТЬ:
+  // при пиксельно-целых проекциях снап = identity побайтово (все
+  // существующие пины зелёные без правок). Контракты:
+  // memory/000215-tile-seam.md; пин формулы — tests/tile-seam.test.js
+  // TS-8 (анти-дрейф), TS-9 (identity-гауард).
+
+  /**
+   * Снап-края диапазона тайлов (задача 000215): x[i] — левый снап-
+   * край столбца x0+i (i = 0..x1−x0+1, последний — правый край
+   * последнего столбца), y[j] — верхний снап-край строки y0+j.
+   * Клетка (tx,ty) = {x: X[tx−x0], y: Y[ty−y0], w: X[tx−x0+1]−X[tx−x0],
+   * h: Y[ty−y0+1]−Y[ty−y0]} — сетка РАЗБИРАЕТ экран (сумма широт ряда
+   * = правый край − левый). O(countX+countY) на кадр — O(1) на тайл.
+   * @param {number} x0 левый столбец (целое)
+   * @param {number} y0 верхняя строка (целое, y растёт вниз)
+   * @param {number} x1 правый столбец (целое, включительно)
+   * @param {number} y1 нижняя строка (целое, включительно)
+   * @param {number} camX центр камеры X
+   * @param {number} camY центр камеры Y
+   * @param {number} zoom пикселей на тайл (>0)
+   * @param {number} viewW ширина окна, пиксели (>0)
+   * @param {number} viewH высота окна, пиксели (>0)
+   * @returns {{x:number[], y:number[]}} массивы снап-краёв;
+   *   невалидные аргументы (не-число/не-конечный, нецелочисленные
+   *   границы, x1 < x0, y1 < y0, zoom ≤ 0, view ≤ 0) →
+   *   {x: [NaN], y: [NaN]}, без исключения.
+   */
+  function snappedTileEdges(x0, y0, x1, y1, camX, camY, zoom, viewW, viewH) {
+    const args = [x0, y0, x1, y1, camX, camY, zoom, viewW, viewH];
+    for (let i = 0; i < args.length; i++) {
+      if (typeof args[i] !== 'number' || !Number.isFinite(args[i])) {
+        return { x: [NaN], y: [NaN] };
+      }
+    }
+    if (!Number.isInteger(x0) || !Number.isInteger(y0)
+        || !Number.isInteger(x1) || !Number.isInteger(y1)) {
+      return { x: [NaN], y: [NaN] };
+    }
+    if (x1 < x0 || y1 < y0) return { x: [NaN], y: [NaN] };
+    if (zoom <= 0 || viewW <= 0 || viewH <= 0) return { x: [NaN], y: [NaN] };
+    const ex = new Array(x1 - x0 + 2);
+    const ey = new Array(y1 - y0 + 2);
+    for (let i = 0; i < ex.length; i++) {
+      ex[i] = Math.round(viewW / 2 + (x0 + i - camX) * zoom);
+    }
+    for (let j = 0; j < ey.length; j++) {
+      ey[j] = Math.round(viewH / 2 + (y0 + j - camY) * zoom);
+    }
+    return { x: ex, y: ey };
+  }
+
+  /**
+   * Снап-прямоугольник ОДНОЙ клетки (задача 000215): тот же порядок
+   * аргументов, что у worldToScreen; {x, y} — левый/верхний снап-
+   * края, {w, h} — РАЗНОСТЬ снап-краёв (размер ∈ {⌊zoom⌋, ⌈zoom⌉}).
+   * Реализован через snappedTileEdges — одна формула в модуле.
+   * ИДЕНТИЧНОСТЬ: при пиксельно-целых проекциях (целый zoom ×
+   * целая/полунцелая камера × чётный вьюпорт) побайтово равно
+   * worldToScreen + zoom.
+   * @param {number} tx X мира (тайлах, целое)
+   * @param {number} ty Y мира (тайлах, растёт вниз, целое)
+   * @param {number} camX центр камеры X
+   * @param {number} camY центр камеры Y
+   * @param {number} zoom пикселей на тайл (>0)
+   * @param {number} viewW ширина окна, пиксели (>0)
+   * @param {number} viewH высота окна, пиксели (>0)
+   * @returns {{x:number, y:number, w:number, h:number}} пиксели;
+   *   невалидные аргументы (зеркало гардов worldToScreen +
+   *   нецелочисленные индексы) → {x: NaN, y: NaN, w: NaN, h: NaN},
+   *   без исключения.
+   */
+  function snappedTileRect(tx, ty, camX, camY, zoom, viewW, viewH) {
+    const e = snappedTileEdges(tx, ty, tx + 1, ty + 1,
+      camX, camY, zoom, viewW, viewH);
+    if (Number.isNaN(e.x[0])) {
+      return { x: NaN, y: NaN, w: NaN, h: NaN };
+    }
+    return {
+      x: e.x[0],
+      y: e.y[0],
+      w: e.x[1] - e.x[0],
+      h: e.y[1] - e.y[0],
+    };
+  }
+
   /**
    * Орто-матрица 4x4 (column-major, Float32Array) для WebGL-слоя:
    * ТО ЖЕ мир→экран, что и worldToScreen — тайл южнее камеры рисуется
@@ -1309,6 +1404,7 @@
     createMap, syntheticPixels,
     visibleTileRange, createTileCache,
     worldToScreen, orthoMatrix, // проекция мир→экран (задача 000061)
+    snappedTileEdges, snappedTileRect, // снап сетки тайлов (задача 000215)
     hash2, // детерминированный хэш (perlin.js) — нужен src/sprites.js
   };
 });
