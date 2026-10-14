@@ -14,56 +14,56 @@ dry-run validateData(assets/mobs/schema.json) по 36 mob-файлам; пров
 
 ## 1. Вердикт по набору: ПРИНЯТО 8 из 8, ОТКЛОНЕНО 0
 
-Каждая задача 000216-000223 проверена: (а) утверждения реальны (file:line),
+Каждая задача 000211.01-000211.08 проверена: (а) утверждения реальны (file:line),
 (б) НЕ сделано уже (git log, tasks/done, grep полей-признаков), (в) не дублирует
 другую задачу набора и существующие 000207/000208/000209.
 
 | № | Каталог | Вердикт | Ключевые доказательства (сверено 2026-10-14) |
 |---|---------|---------|----------------------------------------------|
-| 000216 | формат + общий тест + mobs в CATALOGS | ПРИНЯТО | CATALOGS = 7 каталогов (tests/assets-schemas.test.js:32); mobs-схема мёртвая (exists: assets/mobs/schema.json, 000022; в CATALOGS нет); dry-run 36/36 — 0 ошибок; битых межкаталожных ссылок 0; строк под якорным паттерном 0 (общий тест зелёный с первого коммита); scripts/lib/json-ref.js и tests/assets-refs.test.js отсутствуют; прецедент пути — assets/visuals/000001.json:7 |
-| 000217 | skills | ПРИНЯТО | 37 файлов = 6 primary + 31 secondary; primary у 31/31, requires (skill+level) у 14 (всего 45 ссылок); зеркало src/skills-data.js (id-форма, sync-skills-data.js); дерево закреплено tests/skills.test.js:117-121,155; пример id-ссылки: assets/skills/000009.json («fists», "primary": "strength") |
-| 000218 | mobs | ПРИНЯТО | 36 файлов; поля skills[]/spells[]/loot[].item есть (тест ссылок tests/combat.test.js:275); битых 0; MOB_TYPES — ручное зеркало src/combat.js:141; mirror-тест tests/combat.test.js:251; sync-mobs отсутствует (ls scripts/sync-*) |
-| 000219 | spells | ПРИНЯТО | 17 файлов; icon — svg-путь 17/17; базы: 12 null + 5 id (все резолвятся); здания[] у 17; range-ассерт 1..50 — tests/spells.test.js:211 (и tests/craft.test.js:189); каталог зданий — 54 (51-54 города); sync-spells-data.js + src/spells-data.js существуют |
-| 000220 | dungeons | ПРИНЯТО (с исправлением F1) | 5 файлов; постройка = 31..35 (биекция tests/dungeon.test.js:363); «предметы_стен» = wall-типы rock/stalactite/column (5 json, schema.json, src/dungeon.js:89,110,128,147,167 + :200 + DUNGEON_WALL_KINDS :230/:241); deepEqual-зеркало :347; id ≠ номер файла: assets/dungeons/000001.json — id 0 |
-| 000221 | items (28 лута → svg) | ПРИНЯТО | 76 предметов, 28 с `loot`, 28/28 svg в assets/sprites/loot/; поля `icon` в items НЕТ (grep — 0); lootSprite — src/sprites.js:802 (док :783-801), live-root lootItemsRef :776-781, factory :26-50 (000158.05); поборт src/main.js:3136 |
-| 000222 | buildings (18 спрайтов + «тренирует») | ПРИНЯТО (с исправлением F5) | 54 здания; 18 школ id 7-24; «тренирует» — имена: 34 вхождения (30 уникальных), все резолвятся в id навыков (0 нерезолвящихся); поля «спрайт»/«icon» в buildings НЕТ (grep — 0); литералы src/sprites.js :287-300/:311-316/:324-326; 13+4+1 svg на месте; cross-check tests/npc-data.test.js:271 (сравнение по именам через SECONDARY_SKILLS); map_index — см. F5; 21 здание с «стройка.исходники» — это 000207, не дублируем (tests/buildings.test.js:1014) |
-| 000223 | mob_groups | ПРИНЯТО | 7 файлов; состав.мобы 7/7 резолвятся; «спрайт» = 6 видов (orc×2, skeleton, wolf, spider, elemental, abyss); поля «кадры»/«icon» НЕТ (grep — 0); MOB_FRAMES :210-217, mobFrames :621-624, MOB_KINDS :198-209 (fallback :185), MOB_SPRITE_KINDS :229 (не трогаем); 12 group-svg на месте; sync-mob-groups-data.js существует |
+| 000211.01 | формат + общий тест + mobs в CATALOGS | ПРИНЯТО | CATALOGS = 7 каталогов (tests/assets-schemas.test.js:32); mobs-схема мёртвая (exists: assets/mobs/schema.json, 000022; в CATALOGS нет); dry-run 36/36 — 0 ошибок; битых межкаталожных ссылок 0; строк под якорным паттерном 0 (общий тест зелёный с первого коммита); scripts/lib/json-ref.js и tests/assets-refs.test.js отсутствуют; прецедент пути — assets/visuals/000001.json:7 |
+| 000211.02 | skills | ПРИНЯТО | 37 файлов = 6 primary + 31 secondary; primary у 31/31, requires (skill+level) у 14 (всего 45 ссылок); зеркало src/skills-data.js (id-форма, sync-skills-data.js); дерево закреплено tests/skills.test.js:117-121,155; пример id-ссылки: assets/skills/000009.json («fists», "primary": "strength") |
+| 000211.03 | mobs | ПРИНЯТО | 36 файлов; поля skills[]/spells[]/loot[].item есть (тест ссылок tests/combat.test.js:275); битых 0; MOB_TYPES — ручное зеркало src/combat.js:141; mirror-тест tests/combat.test.js:251; sync-mobs отсутствует (ls scripts/sync-*) |
+| 000211.04 | spells | ПРИНЯТО | 17 файлов; icon — svg-путь 17/17; базы: 12 null + 5 id (все резолвятся); здания[] у 17; range-ассерт 1..50 — tests/spells.test.js:211 (и tests/craft.test.js:189); каталог зданий — 54 (51-54 города); sync-spells-data.js + src/spells-data.js существуют |
+| 000211.05 | dungeons | ПРИНЯТО (с исправлением F1) | 5 файлов; постройка = 31..35 (биекция tests/dungeon.test.js:363); «предметы_стен» = wall-типы rock/stalactite/column (5 json, schema.json, src/dungeon.js:89,110,128,147,167 + :200 + DUNGEON_WALL_KINDS :230/:241); deepEqual-зеркало :347; id ≠ номер файла: assets/dungeons/000001.json — id 0 |
+| 000211.06 | items (28 лута → svg) | ПРИНЯТО | 76 предметов, 28 с `loot`, 28/28 svg в assets/sprites/loot/; поля `icon` в items НЕТ (grep — 0); lootSprite — src/sprites.js:802 (док :783-801), live-root lootItemsRef :776-781, factory :26-50 (000158.05); поборт src/main.js:3136 |
+| 000211.07 | buildings (18 спрайтов + «тренирует») | ПРИНЯТО (с исправлением F5) | 54 здания; 18 школ id 7-24; «тренирует» — имена: 34 вхождения (30 уникальных), все резолвятся в id навыков (0 нерезолвящихся); поля «спрайт»/«icon» в buildings НЕТ (grep — 0); литералы src/sprites.js :287-300/:311-316/:324-326; 13+4+1 svg на месте; cross-check tests/npc-data.test.js:271 (сравнение по именам через SECONDARY_SKILLS); map_index — см. F5; 21 здание с «стройка.исходники» — это 000207, не дублируем (tests/buildings.test.js:1014) |
+| 000211.08 | mob_groups | ПРИНЯТО | 7 файлов; состав.мобы 7/7 резолвятся; «спрайт» = 6 видов (orc×2, skeleton, wolf, spider, elemental, abyss); поля «кадры»/«icon» НЕТ (grep — 0); MOB_FRAMES :210-217, mobFrames :621-624, MOB_KINDS :198-209 (fallback :185), MOB_SPRITE_KINDS :229 (не трогаем); 12 group-svg на месте; sync-mob-groups-data.js существует |
 
 Не дублирование: 000207 (buildings исходники→items), 000208 (craft→
 items/skills/buildings), 000209 (npc→items/buildings) — области не пересекаются с
-набором, кроме ЯВНЫХ зависимостей: 000222 → после 000207 (общие buildings
-json/schema/sync) и после 000223 (общие src/sprites.js + tests/sprites.test.js);
-000223 → после 000221 (тот же общий файл); 000219 → после 000208 (ОБЩИЙ
+набором, кроме ЯВНЫХ зависимостей: 000211.07 → после 000207 (общие buildings
+json/schema/sync) и после 000211.08 (общие src/sprites.js + tests/sprites.test.js);
+000211.08 → после 000211.06 (тот же общий файл); 000211.04 → после 000208 (ОБЩИЙ
 tests/craft.test.js:177-191: 000208 мигрирует craft-предметы/навыки/здания
-на ссылки и переписывает тот же блок «ссылки»-теста, 000219 правит там же
-range-ассерт :188-189). Волна A: 000216, 000217, 000218, 000219 (ПОСЛЕ 000208
-либо rebase с адаптацией), 000220 (+207/208/209); волна B:
-000221 → 000223 → 000222.
+на ссылки и переписывает тот же блок «ссылки»-теста, 000211.04 правит там же
+range-ассерт :188-189). Волна A: 000211.01, 000211.02, 000211.03, 000211.04 (ПОСЛЕ 000208
+либо rebase с адаптацией), 000211.05 (+207/208/209); волна B:
+000211.06 → 000211.08 → 000211.07.
 
 Занятость: 000214/000215 — worktrees заняты (.worktrees/task-000214, task-000215,
-задачи в master-7f61aee); 000216-000223 — ни веток, ни worktrees, ни pending, ни
-done — номера свободны. 000216-000223 НЕ сделаны: признак-полей нет (icon в items —
+задачи в master-7f61aee); 000211.01-000211.08 — ни веток, ни worktrees, ни pending, ни
+done — номера свободны. 000211.01-000211.08 НЕ сделаны: признак-полей нет (icon в items —
 0, «спрайт» в buildings — 0, «кадры» в mob_groups — 0, assets-refs.test.js и
 json-ref.js отсутствуют, mobs не в CATALOGS).
 
 ## 2. ОТКЛОНЁННЫЕ/ИСПРАВЛЕННЫЕ утверждения контракта (5)
 
-F1. 000220: «∈-проверки мобы→mobs НЕТ, провисший id моба не ловится ни одним
+F1. 000211.05: «∈-проверки мобы→mobs НЕТ, провисший id моба не ловится ни одним
 тестом» — ЛОЖНО. Проверка существует с 000022 (commit ca5533f):
 tests/dungeon.test.js:146-153 «DUNGEON_MOBS: все id мобов описаны в каталоге»
 (каждый id ∈ C.MOB_TYPES) + tests/combat.test.js:251 (MOB_TYPES ≡ assets/mobs —
-двунаправленный mirror). Провисший id ловится транзитивно. Задача 000220 остаётся
+двунаправленный mirror). Провисший id ловится транзитивно. Задача 000211.05 остаётся
 в наборе (ссылки + переименование валидны по ТЗ 000211), обоснование исправлено в
-tasks/pending/000220.md: после миграции проверка резолвит ссылки → id перед
+tasks/pending/000211.05.md: после миграции проверка резолвит ссылки → id перед
 сравнением.
 
 F2. Skills: «26 secondary» — ЛОЖНО. Факт (2026-10-14): 37 = 6 primary + 31
 secondary; `primary` у 31/31, `requires` (skill + level) у 14 → 45 ссылок.
-Исправлено в tasks/pending/000217.md.
+Исправлено в tasks/pending/000211.02.md.
 
 F3. «тренирует»: «ВСЕ 31 имя» — счёт неточен. Факт: 34 вхождения (30 уникальных
 имён), все резолвятся в id каталога навыков (0 нерезолвящихся; таблица name→id —
-§3 контракта). Исправлено в tasks/pending/000222.md.
+§3 контракта). Исправлено в tasks/pending/000211.07.md.
 
 F4. НОМЕРА СТРОК (контракт → факт):
 * tests/combat.test.js:252 → :251 (декларация mirror-теста).
@@ -83,7 +83,7 @@ map.js:286; npc-data.test.js:271; buildings.test.js:1014; index.html :997/:1009/
 перенумеруются» на :20); memory/000015:24-25; tests/dungeon.test.js:347/:363;
 tests/index-order.test.js (104662 байт).
 
-F5. 000222: «slot i ↔ buildingId i+1 (остальное 1..13 закрепит задача)» —
+F5. 000211.07: «slot i ↔ buildingId i+1 (остальное 1..13 закрепит задача)» —
 УПРОЩЕНИЕ НЕВЕРНОЕ для части id. Факт (из данных, 2026-10-14): map_index есть
 ровно у 13 записей — представители ВСЕХ 13 slot-типов: 1→0, 2→1, 3→2, 4→3,
 7→4 (ARENA), 8→5 (BLACKSMITH), 10→6 (ARCHERY_RANGE), 11→7 (ACADEMY), 31→9
@@ -92,7 +92,7 @@ F5. 000222: «slot i ↔ buildingId i+1 (остальное 1..13 закрепи
 44 (TAVERN)→11; записи 5, 6, 9, 12, 13 map_index НЕ имеют (не размещаются в
 сетке города — см. cities.js:454-481). Слот — типу (BUILDING_TYPES,
 src/map.js:286-301), не id-1. Связь slot→id выводится из данных
-(map_index + типы), закреплена в tasks/pending/000222.md (a) и §3/§4
+(map_index + типы), закреплена в tasks/pending/000211.07.md (a) и §3/§4
 контракта.
 
 ## 3. Независимый ре-аудит (свой скрипт, 2026-10-14)
@@ -102,7 +102,7 @@ src/map.js:286-301), не id-1. Связь slot→id выводится из д�
   здания/заклинания/база; spells: база/предметы/здания; npc: постройки/торговля/
   обучение): БИТЫХ 0.
 * Строки под якорным паттерном `^assets/<каталог>/<file>.json$` (включая portraits
-  и visuals) во всех 11 каталогах: 0 → общий тест 000216 зелёный с первого коммита.
+  и visuals) во всех 11 каталогах: 0 → общий тест 000211.01 зелёный с первого коммита.
 * Dry-run mob-схемы: 36/36 валидны (validateData, tests/json-schema.js).
 * Loot-svg: 28/28 (assets/sprites/loot/); group-svg 12/12; building/city/camp svg
   13+4+1 на месте; portraits 8 именованных json без schema.json.
@@ -125,7 +125,7 @@ git status чистый, кроме 10 новых файлов): **2454/2454 pas
 
 ## 5. Материалы станции
 
-* Созданы tasks/pending/000216.md ... 000223.md (8 новых файлов — «набор задач
+* Созданы tasks/pending/000211.01.md ... 000211.08.md (8 новых файлов — «набор задач
   (ПРИНЯТЫ) — создать в tasks/pending», §4 контракта; содержание — по верифицированным
   фактам, с поправками F1-F5).
 * Контракт ПРОЕКТИРОВАНИЯ: memory/000211-spec-coverage-audit.md (входная, был
