@@ -51,6 +51,33 @@ function loadSchema() {
   return JSON.parse(fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
 }
 
+const REF_MAPS = {};
+for (const name of ['buildings', 'items']) {
+  const dir = path.join(__dirname, '..', 'assets', name);
+  const map = new Map();
+  for (const f of fs.readdirSync(dir)
+    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    map.set(`assets/${name}/${f}`,
+      JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')).id);
+  }
+  REF_MAPS[name] = map;
+}
+
+function resolveNpcRefs(fromFile) {
+  for (let i = 0; i < fromFile.постройки.length; i++)
+    fromFile.постройки[i] = REF_MAPS.buildings.get(fromFile.постройки[i]);
+  if (fromFile.торговля)
+    for (const p of fromFile.торговля.предметы)
+      p.предмет = REF_MAPS.items.get(p.предмет);
+  for (const q of fromFile.квесты || []) {
+    if (q.цель && q.цель.тип === 'bring_item')
+      q.цель.предмет = REF_MAPS.items.get(q.цель.предмет);
+    for (const r of (q.награда || {}).предметы || [])
+      r.предмет = REF_MAPS.items.get(r.предмет);
+  }
+  return fromFile;
+}
+
 // --- Нумерация и зеркало ---
 
 test('каталог: ровно N файлов 000001..N.json подряд, N = NPCS.length', () => {
@@ -81,7 +108,7 @@ test('зеркало: src/npc-data.js — точная копия каталог
       fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
     assert.ok(NPCS[i] && typeof NPCS[i] === 'object' && !Array.isArray(NPCS[i]),
       `NPCS[${i}] (${files[i]}): не объект`);
-    assert.deepEqual(NPCS[i], fromFile,
+    assert.deepEqual(NPCS[i], resolveNpcRefs(fromFile),
       `${files[i]}: зеркало совпадает с JSON (ключи и порядок)`);
   }
 });
@@ -151,7 +178,7 @@ test('схема: цель квеста требует поле по типу (o
     { goal: { тип: 'kill_group', количество: 1 }, ok: false },
     { goal: { тип: 'bring_item', количество: 2 }, ok: false },
     { goal: { тип: 'kill_group', группа: 2, количество: 1 }, ok: true },
-    { goal: { тип: 'bring_item', предмет: 'moonstone', количество: 2 }, ok: true },
+    { goal: { тип: 'bring_item', предмет: 'assets/items/000023.json', количество: 2 }, ok: true },
     // чужое поле типа — тоже мимо (additionalProperties false в варианте)
     { goal: { тип: 'kill_group', группа: 2, количество: 1,
               предмет: 'moonstone' }, ok: false },

@@ -48,6 +48,67 @@ for (const f of files) {
   npcs.push({ file: f, data });
 }
 
+function buildRefMap(name) {
+  const dir = path.join(ROOT, 'assets', name);
+  const map = new Map();
+  for (const f of fs.readdirSync(dir)
+    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    let data;
+    try {
+      data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+    } catch (e) {
+      console.error(`assets/${name}/${f}: не JSON`);
+      process.exit(1);
+    }
+    if (data === null || typeof data !== 'object' ||
+        data.id === undefined || data.id === null) {
+      console.error(`assets/${name}/${f}: нет id`);
+      process.exit(1);
+    }
+    map.set(`assets/${name}/${f}`, data.id);
+  }
+  return map;
+}
+
+function refId(map, value, file, field) {
+  if (typeof value !== 'string' || !map.has(value)) {
+    console.error(`${file}: ${field} = ${JSON.stringify(value)} — ` +
+      'ссылка не резолвится в id');
+    process.exit(1);
+  }
+  return map.get(value);
+}
+
+function applyNpcRefs(data, file, buildingRefs, itemRefs) {
+  for (let i = 0; i < data.постройки.length; i++) {
+    data.постройки[i] = refId(buildingRefs, data.постройки[i], file,
+      `постройки[${i}]`);
+  }
+  if (data.торговля) {
+    for (let i = 0; i < data.торговля.предметы.length; i++) {
+      data.торговля.предметы[i].предмет = refId(
+        itemRefs, data.торговля.предметы[i].предмет, file,
+        `торговля.предметы[${i}].предмет`);
+    }
+  }
+  for (const q of data.квесты || []) {
+    if (q.цель && q.цель.тип === 'bring_item') {
+      q.цель.предмет = refId(itemRefs, q.цель.предмет, file,
+        'квесты[].цель.предмет');
+    }
+    for (const r of ((q.награда || {}).предметы) || []) {
+      r.предмет = refId(itemRefs, r.предмет, file,
+        'квесты[].награда.предметы[].предмет');
+    }
+  }
+}
+
+const buildingRefs = buildRefMap('buildings');
+const itemRefs = buildRefMap('items');
+for (const { file, data } of npcs) {
+  applyNpcRefs(data, file, buildingRefs, itemRefs);
+}
+
 // --- Генерация JS ---
 const range = `${npcs[0].file} … ${npcs[npcs.length - 1].file}`;
 

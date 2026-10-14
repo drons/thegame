@@ -3861,8 +3861,8 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
   assert.equal(npc.имя, 'Кочевник', 'имя «Кочевник»');
   assert.equal(npc.роль, 'странствующий торговец',
     'роль «странствующий торговец»');
-  assert.deepEqual(npc.постройки, [47],
-    'постройки: [47] (связь с лагерем → npcForBuilding, 000071)');
+  assert.deepEqual(npc.постройки, ['assets/buildings/000047.json'],
+    'постройки: ссылка на 000047 (связь с лагерем → npcForBuilding, 000071)');
   assert.deepEqual(
     npc.диалог.map((d) => [d.id, d.действие]),
     [['prives', 'подсказка'], ['trade', 'торговля']],
@@ -3870,10 +3870,12 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
   // Витрина: СУЩЕСТВУЮЩИЕ предметы каталога; покупка дороже
   // продажи; количество 1..99 (schema.json).
   const I = require('../src/items.js');
+  const refToId = (ref) => JSON.parse(
+    fs.readFileSync(path.join(ROOT, ref), 'utf8')).id;
   const items = npc.торговля.предметы;
   assert.equal(items.length, 5, 'витрина — 5 позиций');
   for (const p of items) {
-    assert.ok(I.getItem(p.предмет),
+    assert.ok(I.getItem(refToId(p.предмет)),
       'предмет существует в каталоге: ' + p.предмет);
     assert.ok(p.цена_покупки > p.цена_продажи,
       p.предмет + ': покупка дороже продажи');
@@ -3899,7 +3901,7 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
   const shop = N.createNpcShop(inMirror);
   assert.ok(shop, 'createNpcShop — сток кочевника');
   assert.deepEqual(Object.keys(shop.stock).sort(),
-    items.map((p) => p.предмет).sort(),
+    inMirror.торговля.предметы.map((p) => p.предмет).sort(),
     'сток = витрина каталога');
 });
 // --- Задача 000092: фонтан (49) + колодец (45) ---
