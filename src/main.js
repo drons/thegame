@@ -250,6 +250,15 @@
   let mapPixels = null; // пиксели map.png — нужны для сида подземелий
   const hero = G.createCharacter('Флогистон'); // персонаж (src/player.js)
   G.playerUI && G.playerUI.setCharacter(hero);
+  // 000194: карта быстрых предметов союзников { memberId
+  // ('efir'|npcId) → [itemId|null]×3 } — ЛАЙВ-объект: [I]-панель
+  // (G.playerUI.setAllyQuick — live-ссылка) и старт боя (opts.allyQuick
+  // — снимок sanitizeAllyQuick) работают с ним; раздел сейва
+  // ally_quick восстанавливается in place (live-ссылка не меняется).
+  const allyQuick = {};
+  if (G.playerUI && typeof G.playerUI.setAllyQuick === 'function') {
+    G.playerUI.setAllyQuick(allyQuick);
+  }
   // Эфир (задача 000081): постоянный союзник — состояние
   // {level, xp, skillXp, skills, spells} — 5 полей (000111), форма
   // ЗАФИКСИРОВАНА под сейв (000085; до него — только память сессии).
@@ -459,6 +468,28 @@
       const npc = G.npcById ? G.npcById(NPCS, e.npcId) : null;
       const d = G.companions.allyDataForEntry(e, npc);
       if (d) out.push(d);
+    }
+    return out;
+  }
+  // 000194: снимок/санизация карты быстрых предметов союзников
+  // (collectSaveData/restoreFromSave/старт боя). Ключи: 'efir' —
+  // ВСЕГДА (постоянный союзник), остальные — только если в отряде
+  // (roster, npcId) — «призрак» тихо обрезается (self-cleaning при
+  // расформировании, паттерн dead_mercs). Значения: ровно 3 слота;
+  // слот — только id предмета из каталога (G.getItem), иначе null
+  // (подделка/редактирование каталога). Возврат — НОВЫЙ объект
+  // (live-карта не мутирует при снимке).
+  function sanitizeAllyQuick(map) {
+    const out = {};
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return out;
+    for (const k of Object.keys(map)) {
+      if (k !== 'efir' &&
+          !roster.some((e) => e && e.npcId === k)) continue;
+      const raw = map[k];
+      const arr = Array.isArray(raw) ? raw : [];
+      out[k] = [0, 1, 2].map((i) =>
+        (typeof arr[i] === 'string' && G.getItem(arr[i]))
+          ? arr[i] : null);
     }
     return out;
   }
@@ -744,6 +775,12 @@
       efir: (G.efir && typeof G.efir.serializeEfir === 'function')
         ? G.efir.serializeEfir(efir) : null,
       dead_mercs: deadMercs.slice(),
+      // 000194: быстрые предметы союзников { memberId →
+      // (string|null)×3 } — снимок sanitizeAllyQuick. Пишется ВСЕГДА
+      // (даже {}): неломкое расширение v1 (000031), версию НЕ
+      // поднимаем; старому сейву раздела нет — restore чисто (без
+      // warn, паттерн 000109 R5).
+      ally_quick: sanitizeAllyQuick(allyQuick),
       // Задача 000109: состояние городов (сток лавок, день последнего
       // визита). Пишется ВСЕГДА (пусто — {}); неломкое расширение v1
       // (000031): версию НЕ поднимаем, миграций нет. ОБРЕЗКА истёкших
@@ -1064,6 +1101,27 @@
       }
     } catch (err) {
       console.warn('Сейв: не удалось восстановить dead_mercs:', err);
+    }
+
+    // --- Быстрые предметы союзников (ally_quick) (задача 000194) ---
+    // { memberId → (string|null)×3 }: sanitizeAllyQuick ('efir' —
+    // всегда, остальные — только в-отряде, слоты — id каталога,
+    // иначе null). Старому сейву раздела нет (raw == null) — map
+    // остаётся ПУСТОЙ, без warn (паттерн 000109 R5). Восстановление
+    // — IN PLACE в live-объект (он же у G.playerUI — live-ссылка
+    // панели; замена объектом сломала бы ссылку).
+    try {
+      const rawQ = d.ally_quick;
+      if (rawQ != null) {
+        const clean = (typeof rawQ !== 'object' || Array.isArray(rawQ))
+          ? (console.warn(
+              'Сейв: раздел ally_quick некорректен — сбрасываю.'), {})
+          : sanitizeAllyQuick(rawQ);
+        for (const k of Object.keys(allyQuick)) delete allyQuick[k];
+        for (const k of Object.keys(clean)) allyQuick[k] = clean[k];
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить ally_quick:', err);
     }
 
     // --- Побеждённые группы (defeatedAt) ---
@@ -1654,6 +1712,9 @@
       // Задача 000087: отряд — данные makeAlly (000082), ПОСЛЕ Эфира
       // (companionAllies: снимок на старте боя, D5).
       rosterData: companionAllies(),
+      // 000194: быстрые предметы союзников — снимок live-карты
+      // (sanitizeAllyQuick: ключи/слоты только валидные).
+      allyQuick: sanitizeAllyQuick(allyQuick),
       tile: { mobGroup: groupType },
       // Бой «на текущем тайле»: передаём terrain реального тайла
       // (задача 000049) — согласованно с боем мира; без карты
@@ -2132,6 +2193,8 @@
       efirMet,
       // Задача 000087: отряд — данные makeAlly (000082), ПОСЛЕ Эфира.
       rosterData: companionAllies(),
+      // 000194: быстрые предметы союзников — снимок live-карты.
+      allyQuick: sanitizeAllyQuick(allyQuick),
       tile: t,
       lungeGate: mobCharge != null,
       // Фон поля боя по типу местности (задача 000049): terrain тайла,
@@ -2704,6 +2767,8 @@
       efirMet,
       // Задача 000087: отряд — данные makeAlly (000082), ПОСЛЕ Эфира.
       rosterData: companionAllies(),
+      // 000194: быстрые предметы союзников — снимок live-карты.
+      allyQuick: sanitizeAllyQuick(allyQuick),
       // Фон поля боя по типу подземелья (задача 000049): тайла мира в
       // подземелье нет, тип — DUNGEON_TYPES (ds.dg.type).
       dungeonType: ds.dg.type,

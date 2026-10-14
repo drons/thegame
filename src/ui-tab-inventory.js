@@ -133,10 +133,21 @@ function (G0, rootRef) {
         arm ? [['снять', 'unequip', { equipslot: 'armor' }]] : [],
         arm ? ctx.itemTipText(arm) : null));
 
-      // Быстрые слоты.
+      // Быстрые слоты (000194): запись АКТИВНОГО персонажа
+      // (ctx.activeCharId, 000145): Флогистон (дефолт,
+      // activeCharId == null) — hero.inventory.quick бит-в-бит;
+      // остальные ('efir'/npcId) — запись ОБЩЕЙ map ctx.allyQuick
+      // (G.playerUI.setAllyQuick, live-ссылка main.js); без записи —
+      // 3 «— пусто —» (раздать можно).
       panel._quickBody.textContent = '';
+      const mid = ctx.activeCharId == null
+        ? 'flogiston' : String(ctx.activeCharId);
+      const quick = mid === 'flogiston'
+        ? (inv.quick || [null, null, null])
+        : ((ctx.allyQuick && Array.isArray(ctx.allyQuick[mid]))
+           ? ctx.allyQuick[mid] : [null, null, null]);
       for (let i = 0; i < G.QUICK_SLOTS; i++) {
-        const qid = inv.quick[i];
+        const qid = quick[i];
         const q = qid ? G.getItem(qid) : null;
         panel._quickBody.appendChild(ctx.itemRow(
           'Слот ' + (i + 1) + ': ' + (q ? q.name : '— пусто —'),

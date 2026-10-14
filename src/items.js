@@ -577,9 +577,13 @@
    * владелец инвентаря — ensureInventory на чужом листе сломал бы
    * save-layout). Без 4-го аргумента — c (побайтово 000133:
    * боевой quick-slot и все существующие 2/3-арг. вызовы).
+   * 000194: effectTarget — 5-й ОПЦИОНАЛЬНЫЙ аргумент — боевой юнит
+   * союзника, НА КОТОРОГО применяется heal/mp/food-эффект (общий
+   * инвентарь: предмет ВСЕГДА расходуется с c; множители — с c);
+   * skill/свиток — на c (learnTarget) без изменений.
    * @returns {{ok:boolean, reason?:string, message?:string, hp?:number, mp?:number, skill?:object}}
    */
-  function useItem(c, itemId, qty = 1, learnTarget = null) {
+  function useItem(c, itemId, qty = 1, learnTarget = null, effectTarget = null) {
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     if (!hasItem(c, itemId, qty)) return { ok: false, reason: 'предмета нет в инвентаре' };
@@ -634,6 +638,12 @@
     }
 
     const d = P.derived(c);
+    // 000194: цель эффекта heal/mp/food (боевой юнит союзника);
+    // множители/расход — с НОСИТЕЛЯ c (общий инвентарь).
+    const T = (effectTarget && typeof effectTarget === 'object'
+      && !Array.isArray(effectTarget) && effectTarget !== c
+      && typeof effectTarget.hp === 'number'
+      && typeof effectTarget.maxHP === 'number') ? effectTarget : null;
     // Бонус качества (задача 000046): бонусный экземпляр тратится
     // первым, С КОНЦА группы бонусных слотов (removeItem bonusFirst
     // ниже — тот же порядок), и его бонус добавляется к эффекту за
@@ -658,17 +668,35 @@
       const bonus = (n < bonusUnits) ? bonusVal : 0;
       if (it.kind === 'potion' && e.kind === 'heal') {
         const amt = Math.round(e.amount * d.potionPowerMult) + bonus;
-        P.heal(c, amt);
-        hp += amt;
+        if (T) {
+          const b = T.hp;
+          T.hp = Math.min(T.maxHP, b + amt);
+          hp += T.hp - b;
+        } else {
+          P.heal(c, amt);
+          hp += amt;
+        }
       } else if (it.kind === 'potion' && e.kind === 'mp') {
         const amt = Math.round(e.amount * d.potionPowerMult) + bonus;
-        const before = c.mp;
-        c.mp = Math.min(d.maxMP, c.mp + amt);
-        mp += c.mp - before;
+        if (T) {
+          const b = T.mp;
+          T.mp = Math.min(T.maxMP, b + amt);
+          mp += T.mp - b;
+        } else {
+          const before = c.mp;
+          c.mp = Math.min(d.maxMP, c.mp + amt);
+          mp += c.mp - before;
+        }
       } else if (it.kind === 'food') {
         const amt = Math.round(e.amount * d.foodPowerMult) + bonus;
-        P.heal(c, amt);
-        hp += amt;
+        if (T) {
+          const b = T.hp;
+          T.hp = Math.min(T.maxHP, b + amt);
+          hp += T.hp - b;
+        } else {
+          P.heal(c, amt);
+          hp += amt;
+        }
       } else if (it.kind === 'skill_book') {
         skill = addSkillXp(c, e.skill, e.amount);
         // Хук крафта (задача 000046): книга даёт и опыт виду крафта

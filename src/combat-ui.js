@@ -183,6 +183,12 @@
   // Сигнатура строк (правки ревью 000149): перестроение книги — ТОЛЬКО
   // при её изменении (см. renderBook); null — перестроить при открытии.
   let bookSig = null;
+  // «Быстрый предмет» — список (задача 000194): контейнер
+  // .combat-quicklist, флаг открытости и сигнатура строк (паттерн
+  // bookBox/bookOpen/bookSig 000149).
+  let quickBox = null;
+  let quickOpen = false;
+  let quickSig = null;
   let ended = false;
   let rafId = null; // id rAF-цикла анимации (задача 000047); null — нет rAF
   // 000174: глейд передвижения мобов — null | Map id → { path, at }:
@@ -444,6 +450,17 @@
       actions.appendChild(rb);
     }
     side.appendChild(actions);
+
+    // «Быстрый предмет» — список (задача 000194): контейнер строк —
+    // МЕЖДУ .combat-actions и .combat-log. Строки (div, не
+    // <button> — R9-паттерн книги) строит renderQuickList в render();
+    // скрыт по умолчанию, открытие — toggleQuickList (кнопка/KeyE).
+    quickBox = document.createElement('div');
+    quickBox.className = 'combat-quicklist';
+    quickBox.style.display = 'none';
+    quickOpen = false;
+    quickSig = null;
+    side.appendChild(quickBox);
 
     bookBox = document.createElement('div');
     bookBox.className = 'combat-spellbook';
@@ -735,7 +752,24 @@
         return r;
       },
       block: () => c.block(),
-      quickItem: () => c.quickItem(),
+      quickItem: () => {
+        // 000194: «Быстрый предмет» — СПИСОК (контракт
+        // memory/000194-ally-quick-items.md §2.8): KeyE/клик кнопки —
+        // toggle списка ПОВЕРХ экрана боя; выбор предмета — кликом по
+        // строке (quickUseRow). canDoAction здесь — для клика кнопки
+        // (по клавише предпроверка уже в handleCode). quickOpenable —
+        // stale-слот (canDo «предмета нет в инвентаре»): список
+        // всё-таки ОТКРЫВАЕТСЯ (строка приглушена, причина — на
+        // строке и в журнале при клике, тест 194-QUI-REJ). Открытие
+        // НЕ тратит действие (возврат {ok:true} — logRejection
+        // молчит; пул/предмет тратятся только в quickUseRow).
+        const r = G.canDoAction(c, 'quickItem', { targetId: c.targetId });
+        if (r.ok || quickOpenable(c)) {
+          toggleQuickList();
+          return { ok: true };
+        }
+        return r;
+      },
       invItem: () => c.invItem(),
       flee: () => c.flee(),
       endTurn: () => {
@@ -821,6 +855,15 @@
       }
       if (entry && entry.type === 'action') {
         st.canDo = G.canDoAction(c, action, { targetId: c.targetId });
+      }
+      // 000194: «Быстрый предмет» — список: canDoAction смотрит ПЕРВЫЙ
+      // занятой слот — stale-слот (предмета нет в инвентаре) гасит бы
+      // список, хотя у активного персонажа есть остальные слоты.
+      // quickOpenable — занятый слот + пул: список ОТКРЫВАЕТСЯ,
+      // причина видна на приглушённой строке (тест 194-QUI-REJ).
+      if (action === 'quickItem' && st.canDo && !st.canDo.ok
+          && quickOpenable(c)) {
+        st.canDo = { ok: true };
       }
       const r = G.CombatKeys.resolveCombatKey(code, st);
       if (r.kind === 'move') {
@@ -1660,8 +1703,15 @@
         const r = b.dataset.act === 'resurrect'
           ? resurrectChk(c)
           : G.canDoAction(c, b.dataset.act, { targetId: c.targetId });
-        b.disabled = c.phase !== 'player' || !!c.result || !r.ok;
-        b.title = r.ok ? '' : r.reason;
+        // 000194 (правка по ревью): «Быстрый предмет» — тот же гейт,
+        // что и KeyE (quickOpenable): stale-слот не гасит кнопку
+        // (клик открывает список, причина — на строке); блок —
+        // quickOpenable false, кнопка disabled (причина в журнал).
+        const ok = b.dataset.act === 'quickItem'
+          ? (r.ok || quickOpenable(c))
+          : r.ok;
+        b.disabled = c.phase !== 'player' || !!c.result || !ok;
+        b.title = ok ? '' : r.reason;
         if (b.dataset.act === 'cast' || b.dataset.act === 'heal') {
           b.style.display = castHealVis(c, b.dataset.act) ? '' : 'none';
         }
@@ -1692,6 +1742,11 @@
     // открытии — строки 1:1 с книгой (перестроение — только при
     // изменении сигнатуры, renderBook — единый путь обновления).
     renderBook(c);
+
+    // «Быстрый предмет» — список (задача 000194): display из
+    // quickOpen; строки — слоты активного персонажа (перестроение —
+    // только при изменении сигнатуры, renderQuickList).
+    renderQuickList(c);
 
     // Баннер результата.
     if (c.result) {
@@ -2124,6 +2179,161 @@
     }
   }
 
+  // --- «Быстрый предмет» — список поверх экрана боя (задача 000194) ---
+  //
+  // Контракт — memory/000194-ally-quick-items.md. Список — три быстрых
+  // слота АКТИВНОГО персонажа (unitOf, паттерн книги 000193): герой —
+  // inventory.quick, союзник (наёмник/Эфир) — u.quick (свои слоты,
+  // makeAlly 000194). Предмет ВСЕГДА расходуется из ОБЩЕГО
+  // инвентаря (c.player) — ядро (c.quickItem — диспатч
+  // playerQuickItem/allyQuickItem). Строки — div (не <button>,
+  // R9-паттерн книги) с ИМЕНЕМ и ОПИСАНИЕМ предмета. Открытие
+  // (KeyE/кнопка «Быстрый предмет») НИЧЕГО не тратит: пул и предмет —
+  // только при клике по строке (quickUseRow, путь ядра).
+
+  // Можно ли открыть список: фаза игрока, нет результата, у активного
+  // персонажа есть пул И хотя бы один ЗАНЯТЫЙ слот. Stale-слот
+  // (предмета нет в инвентаре) открытие НЕ блокирует — причина на
+  // строке (тест 194-QUI-REJ). Блок — блокирует (книга-референс:
+  // в блоке список не открывается, причина в журнал). c.ps.blocked —
+  // флаг ИГРОКА: ветка героя гатится, ветка союзника — НЕТ (ядро
+  // союзника checkBlocked не вызывает, контракт §2.3). Чистые чтения,
+  // 0 мутаций, 0 c._rng.
+  function quickOpenable(c) {
+    if (c.phase !== 'player' || c.result) return false;
+    const u = unitOf(c);
+    if (!u) return false;
+    if (u === c.player) {
+      if (c.ps && c.ps.blocked) return false;
+      const quick = (c.player.inventory
+        && c.player.inventory.quick) || null;
+      return !!(c.ps && c.ps.quickItem > 0
+        && Array.isArray(quick)
+        && quick.some((x) => x != null));
+    }
+    return !!(u.quickItem > 0 && Array.isArray(u.quick)
+      && u.quick.some((x) => x != null));
+  }
+
+  function toggleQuickList() {
+    quickOpen = !quickOpen;
+  }
+
+  // Краткая подпись эффекта предмета (строка списка). Чистое чтение
+  // каталога — без Game-чтений, мутаций, console, c._rng.
+  function quickMeta(it) {
+    const ef = it && it.effect;
+    if (ef && typeof ef === 'object') {
+      if (ef.kind === 'heal') return 'Лечит +' + ef.amount;
+      if (ef.kind === 'mp') return 'Мана +' + ef.amount;
+      if (ef.kind === 'eat') return 'Еда +' + ef.amount;
+      if (ef.kind === 'resurrect') return 'Воскрешение';
+    }
+    return '';
+  }
+
+  // Строка списка (R9-паттерн buildSpellRow): div.combat-quickrow с
+  // ПРЯМЫМИ детьми (тесты читают row.children): .combat-quickname
+  // (имя + номер слота), .combat-quickmeta (подпись эффекта),
+  // .combat-quickrow-desc (ОПИСАНИЕ предмета дословно). canDoAction
+  // {slot} — предпросмотр применения (ok/reason — sig
+  // renderQuickList; отказ — класс -off + title + КЛИК ЕСТЬ: причина
+  // в журнал, список остаётся открыт, 194-QUI-REJ). Пустой слот:
+  // «— пусто —», -off, без слушателя (книга 000149).
+  function buildQuickRow(c, slot, itemId, chk) {
+    const el = document.createElement('div');
+    el.className = 'combat-quickrow';
+    el.dataset.slot = String(slot);
+    const name = document.createElement('span');
+    name.className = 'combat-quickname';
+    const it = itemId ? (G.getItem ? G.getItem(itemId) : null) : null;
+    if (!itemId || !it) {
+      // Пустой слот (или id, которого нет в каталоге — ядро отклонит
+      // «неизвестный предмет»): приглушён, НЕ кликабелен.
+      el.className += ' combat-quickrow-off';
+      name.textContent = '— пусто —';
+      el.appendChild(name);
+      return el;
+    }
+    if (!chk || !chk.ok) {
+      el.className += ' combat-quickrow-off';
+      el.title = (chk && chk.reason) || 'Предмет недоступен';
+    }
+    name.textContent = it.name + ' — слот ' + (slot + 1);
+    el.appendChild(name);
+    const meta = document.createElement('span');
+    meta.className = 'combat-quickmeta';
+    meta.textContent = quickMeta(it);
+    el.appendChild(meta);
+    const desc = document.createElement('div');
+    desc.className = 'combat-quickrow-desc';
+    desc.textContent = it.desc;
+    el.appendChild(desc);
+    el.addEventListener('click', () => quickUseRow(c, slot));
+    return el;
+  }
+
+  // Клик по строке (задача 000194): применение ПЕРЕДАННЫМ слотом через
+  // ДИСПАТЧ ядра (герой — playerQuickItem, союзник — allyQuickItem;
+  // расход — ОБЩИЙ инвентарь c.player). Успех — список ЗАКРЫВАЕТСЯ
+  // (действие сделано, паттерн книги castRow 000149); c._fx НЕ
+  // пишется (применение предмета — без каст-эвристики). Отказ —
+  // причина в журнал (logRejection), список остаётся ОТКРЫТЫМ (видна
+  // причина, можно поправить). Предпроверка — гейт
+  // spellbookUnitGate (000193: только result/phase).
+  function quickUseRow(c, slot) {
+    const g = spellbookUnitGate(c);
+    if (g) {
+      logRejection(c, g);
+      render();
+      return;
+    }
+    const r = c.quickItem(slot);
+    if (r && r.ok) {
+      quickOpen = false;
+    } else {
+      logRejection(c, r);
+    }
+    render();
+  }
+
+  // Рендер списка (вызывается из render()): display = quickOpen.
+  // Перестроение — ТОЛЬКО при изменении сигнатуры (паттерн
+  // renderBook 000149): активный юнит + 3 слота + ok/reason
+  // canDoAction {slot} каждой строки. Стаб-ловушка та же, что у
+  // книги: в vm-песочнице innerHTML='' НЕ чистит children — при
+  // перестроении строки ДОБАВЛЯЮТСЯ (тесты читают хвост).
+  function renderQuickList(c) {
+    if (!quickBox) return;
+    quickBox.style.display = quickOpen ? '' : 'none';
+    if (!quickOpen) return;
+    const u = unitOf(c);
+    const quick = (u && u !== c.player)
+      ? (Array.isArray(u.quick) ? u.quick : [null, null, null])
+      : ((c.player && c.player.inventory
+         && c.player.inventory.quick) || [null, null, null]);
+    const pairs = [0, 1, 2].map((i) => {
+      const itemId = quick[i] || null;
+      const chk = G.canDoAction(c, 'quickItem', {
+        targetId: c.targetId, slot: i,
+      });
+      return [i, itemId, chk];
+    });
+    const sig = (u && u !== c.player ? u.id : 'p') + '§'
+      + pairs.map(([i, itemId, chk]) => [
+          i, itemId, !!chk.ok, chk.reason || '',
+        ].join('¦')).join('§');
+    if (sig === quickSig) return;
+    quickSig = sig;
+    if (typeof document !== 'undefined'
+        && typeof quickBox.innerHTML === 'string') {
+      quickBox.innerHTML = '';
+    }
+    for (const [i, itemId, chk] of pairs) {
+      quickBox.appendChild(buildQuickRow(c, i, itemId, chk));
+    }
+  }
+
   // Цикл анимации (задача 000047): пока оверлей открыт — rAF-тики
   // (старт в startCombat, стоп в finish, включая время показа
   // баннера результата). render() — идемпотентен и дешёв; двойной
@@ -2180,6 +2390,9 @@
     bookBox = null;
     bookOpen = false;
     bookSig = null;
+    quickBox = null;
+    quickOpen = false;
+    quickSig = null;
     moveAnims = null;
     ctx = null;
     ended = false;
@@ -2225,6 +2438,11 @@
      *   из сейва main.js) — строка первой встречи в createCombat не
      *   показывается. Опционально: undefined/фальс — старое
      *   поведение (бит-в-бит; BR-8).
+     * @param {Object<string, (string|null)[]>} [opts.allyQuick]
+     *   быстрые предметы СОЮЗНИКОВ (задача 000194): ключ — id боевого
+     *   юнита ('efir' / npcId), значение — [3] id предметов ОБЩЕГО
+     *   инвентаря (null — пусто). Не передан / не-объект — бит-в-бит
+     *   (makeAlly сам валидирует: нестрока → null-слот).
      */
     startCombat(opts) {
       if (isActive()) return null;
@@ -2249,6 +2467,25 @@
             'combat-ui.js, задача 000081) — в бою нет Эфира');
         }
       }
+      // 000194: быстрые предметы СОЮЗНИКОВ — opts.allyQuick
+      // (map id боевого юнита 'efir'/npcId → [3] id предметов ОБЩЕГО
+      // инвентаря). Запись в данные makeAlly (a.quick) ПЕРЕД
+      // createCombat — makeAlly сам снапшотит и валидирует
+      // (нестрока → null-слот, ядро отклонит «неизвестный предмет»).
+      // Шаллоу-копия записи — данные main.js не мутируются; без
+      // записи в opts.allyQuick — запись бит-в-бит.
+      const alliesArr = (efirData ? [efirData] : []).concat(
+        Array.isArray(opts.rosterData) ? opts.rosterData : []);
+      if (opts.allyQuick && typeof opts.allyQuick === 'object'
+          && !Array.isArray(opts.allyQuick)) {
+        for (let i = 0; i < alliesArr.length; i++) {
+          const a = alliesArr[i];
+          const q = (a && a.id) ? opts.allyQuick[a.id] : null;
+          if (Array.isArray(q)) {
+            alliesArr[i] = Object.assign({}, a, { quick: q });
+          }
+        }
+      }
       const combat = G.createCombat({
         player: opts.hero,
         // opts.mobs — произвольный состав (подземелья); иначе группа тайла.
@@ -2266,8 +2503,8 @@
         // main.js companionAllies()) — ПОСЛЕ Эфира. Без rosterData —
         // allies БАЙТ-В-БАЙТ как раньше (якорь placeAllies: Эфир
         // ПЕРВЫМ, px−1, py−1).
-        allies: (efirData ? [efirData] : []).concat(
-          Array.isArray(opts.rosterData) ? opts.rosterData : []),
+        // 000194: a.quick — из opts.allyQuick (запись выше).
+        allies: alliesArr,
         // 000118 (вариант (a)): флаг «уже встречались» — из сейва
         // main.js (top-level efir_met) → ядро (шов первой встречи).
         // undefined → старое поведение (бит-в-бит; BR-8).
@@ -2346,6 +2583,9 @@
         bookBox = null;
         bookOpen = false;
         bookSig = null;
+        quickBox = null;
+        quickOpen = false;
+        quickSig = null;
         moveAnims = null;
         ctx = null;
         ended = false;

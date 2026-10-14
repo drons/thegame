@@ -380,6 +380,14 @@
         + ((data.attrs && data.attrs.wisdom) || 0),
       spellInt: 1 + Math.floor(((data.attrs && data.attrs.intelligence) || 0) / 10),
       spellWis: 1 + Math.floor(((data.attrs && data.attrs.wisdom) || 0) / 10),
+      // 000194: быстрые предметы СОЮЗНИКА — свои слоты (снапшот
+      // data.quick из ally_quick; невалидный id отклонит ядро) + пулы
+      // (quickItem — зеркало refillPools героя, invItem — зеркало
+      // c.ps.invItem); рефилл — startRound (живые).
+      quick: [0, 1, 2].map((i) => (data.quick
+        && typeof data.quick[i] === 'string') ? data.quick[i] : null),
+      quickItem: 1 + Math.floor(((data.attrs && data.attrs.dexterity) || 0) / 10),
+      invItem: 1,
       // 000193.01: снапшот maxMP — знаменатель MP-полосы (HUD 000199,
       // ветка наёмника): равен СТАРТОВОМУ u.mp (5+Int+Wis); регенации
       // маны в бою НЕТ (инвариант 000193 §2/§3: startRound рефиллит
@@ -1504,6 +1512,75 @@
     return { ok: true, item: r.name };
   }
 
+  // 000194: первый непустой быстрый слот союзника (u.quick — снапшот
+  // (string|null)[3]; прямое чтение — без I.*).
+  function firstAllyQuickSlot(u) {
+    for (let i = 0; i < 3; i++) if (u.quick && u.quick[i]) return i;
+    return null;
+  }
+
+  // 000194: «Быстрый предмет» СОЮЗНИКА — зеркало playerQuickItem 1:1
+  // (последовательность проверок и причины); предмет — из ОБЩЕГО
+  // инвентаря (c.player), эффект — на u (useItem effectTarget).
+  // checkBlocked НЕ вызывается (c.ps.blocked — флаг игрока; все
+  // существующие союзные ядра его не гоняют).
+  function allyQuickItem(c, u, slot) {
+    const why = checkTurn(c);
+    if (why) return { ok: false, reason: why };
+    if (u.quickItem <= 0) return { ok: false, reason: 'действий «Быстрый предмет» больше нет' };
+    const s = Number.isInteger(slot) ? slot : firstAllyQuickSlot(u);
+    if (s == null) return { ok: false, reason: 'быстрые слоты пусты' };
+    const itemId = (u.quick && u.quick[s]) || null;
+    if (!itemId) return { ok: false, reason: 'быстрый слот ' + (s + 1) + ' пуст' };
+    const it = I.getItem(itemId);
+    if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
+    if (!I.hasItem(c.player, it.id)) return { ok: false, reason: 'предмета нет в инвентаре' };
+    if (it.kind === 'resurrection_scroll') {
+      const t = c.units.find((x) => x.side === 'ally' && !x.alive && !x.fled);
+      if (!t) return { ok: false, reason: 'нет погибших союзников' };
+      u.quickItem -= 1;
+      resurrectAlly(c, t);
+      I.removeItem(c.player, it.id, 1, true);
+      return { ok: true, slot: s, item: it.name };
+    }
+    u.quickItem -= 1;
+    const r = I.useItem(c.player, it.id, 1, null, u);
+    if (!r.ok) {
+      u.quickItem += 1;
+      return { ok: false, reason: r.reason };
+    }
+    log(c, u.name + ': ' + r.message);
+    return { ok: true, slot: s, item: r.name };
+  }
+
+  // 000194: «Предмет из инвентаря» СОЮЗНИКА — зеркало playerInvItem 1:1;
+  // предмет — из ОБЩЕГО (c.player), эффект — на u.
+  function allyInvItem(c, u, itemId) {
+    const why = checkTurn(c);
+    if (why) return { ok: false, reason: why };
+    if (u.invItem <= 0) return { ok: false, reason: 'действий «Предмет из инвентаря» больше нет' };
+    if (!itemId) return { ok: false, reason: 'выберите предмет из инвентаря' };
+    const it = I.getItem(itemId);
+    if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
+    if (!I.hasItem(c.player, it.id)) return { ok: false, reason: 'предмета нет в инвентаре' };
+    if (it.kind === 'resurrection_scroll') {
+      const t = c.units.find((x) => x.side === 'ally' && !x.alive && !x.fled);
+      if (!t) return { ok: false, reason: 'нет погибших союзников' };
+      u.invItem -= 1;
+      resurrectAlly(c, t);
+      I.removeItem(c.player, it.id, 1, true);
+      return { ok: true, item: it.name };
+    }
+    u.invItem -= 1;
+    const r = I.useItem(c.player, it.id, 1, null, u);
+    if (!r.ok) {
+      u.invItem += 1;
+      return { ok: false, reason: r.reason };
+    }
+    log(c, u.name + ': ' + r.message);
+    return { ok: true, item: r.name };
+  }
+
   function playerSelectTarget(c, targetId) {
     const t = c.units.find((u) => u.id === targetId);
     // Союзник — не цель (000080): та же причина, что у мёртвого/сбежавшего.
@@ -1642,7 +1719,12 @@
       const quick = (inv && Array.isArray(inv.quick)) ? inv.quick : null;
       let s = null;
       let itemId = null;
-      if (quick) {
+      // 000194: a.slot (Integer) — явный слот (per-row предпросмотр
+      // оверлея); без a.slot — scan первого занятого (бит-в-бит).
+      if (Number.isInteger(a.slot)) {
+        s = a.slot;
+        itemId = (quick && quick[a.slot]) || null;
+      } else if (quick) {
         for (let i = 0; i < quick.length; i++) {
           if (quick[i]) { s = i; itemId = quick[i]; break; }
         }
@@ -2267,8 +2349,59 @@
       }
       return { ok: true };
     }
-    if (action === 'fire' || action === 'block' || action === 'quickItem'
-        || action === 'invItem' || action === 'flee') {
+    if (action === 'quickItem') {
+      // 000194: зеркало героической ветки canDoAction 1:1 по причинам;
+      // прямые чтения (u.quick / u.quickItem / p.inventory) — БЕЗ I.*
+      // (ensureInventory лениво создаёт инвентарь — 0 side effects).
+      if (u.quickItem <= 0) {
+        return { ok: false, reason: 'действий «Быстрый предмет» больше нет' };
+      }
+      const quick = Array.isArray(u.quick) ? u.quick : null;
+      let s = null;
+      let itemId = null;
+      if (Number.isInteger(a.slot)) {
+        s = a.slot;
+        itemId = (quick && quick[a.slot]) || null;
+      } else if (quick) {
+        for (let i = 0; i < quick.length; i++) {
+          if (quick[i]) { s = i; itemId = quick[i]; break; }
+        }
+      }
+      if (s == null) return { ok: false, reason: 'быстрые слоты пусты' };
+      if (!itemId) return { ok: false, reason: 'быстрый слот ' + (s + 1) + ' пуст' };
+      const it = I.getItem(itemId);
+      if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
+      const p = c.player;
+      const inv = p.inventory;
+      const has = !!(inv && Array.isArray(inv.slots)
+        && inv.slots.some((e) => e && e.id === itemId));
+      if (!has) return { ok: false, reason: 'предмета нет в инвентаре' };
+      if (it.kind === 'weapon') return { ok: false, reason: 'оружие — экипируется' };
+      if (it.kind === 'armor') return { ok: false, reason: 'броня — экипируется' };
+      if (it.kind === 'reagent') {
+        return { ok: false, reason: 'реагент нельзя применить (торговый товар)' };
+      }
+      if (it.kind === 'resurrection_scroll'
+          && !c.units.some((x) => x.side === 'ally' && !x.alive && !x.fled)) {
+        return { ok: false, reason: 'нет погибших союзников' };
+      }
+      return { ok: true };
+    }
+    if (action === 'invItem') {
+      // 000194: предмет из ОБЩЕГО инвентаря (те же kind, что у героя).
+      if (u.invItem <= 0) {
+        return { ok: false, reason: 'действий «Предмет из инвентаря» больше нет' };
+      }
+      const inv = c.player.inventory;
+      const has = !!(inv && Array.isArray(inv.slots) && inv.slots.some((e) => {
+        const it = I.getItem(e.id);
+        return !!it && (it.kind === 'potion' || it.kind === 'food'
+          || it.kind === 'skill_book');
+      }));
+      if (!has) return { ok: false, reason: 'нет применимых предметов в инвентаре' };
+      return { ok: true };
+    }
+    if (action === 'fire' || action === 'block' || action === 'flee') {
       return { ok: false, reason: 'недоступно активному персонажу' };
     }
     return { ok: false, reason: 'неизвестное действие: ' + action };
@@ -2624,6 +2757,10 @@
       // тик щита союзника (3 раунда, ритм — как щит игрока c.ps.shield).
       a.spellInt = 1 + Math.floor(((a.attrs && a.attrs.intelligence) || 0) / 10);
       a.spellWis = 1 + Math.floor(((a.attrs && a.attrs.wisdom) || 0) / 10);
+      // 000194: рефилл пулов быстрых предметов (та же формула, что
+      // makeAlly; u.mp — как и для 000193 — не пополняется).
+      a.quickItem = 1 + Math.floor(((a.attrs && a.attrs.dexterity) || 0) / 10);
+      a.invItem = 1;
       if (a.shield && a.shield.turns > 0) a.shield.turns -= 1;
     }
     // Новый раунд — новая очередь (задачи 000036/000167): из очереди
@@ -3168,13 +3305,20 @@
       if (activeUnitId(c) !== 'player') return null;
       return playerFlee(c);
     };
+    // 000194: ДИСПАТЧ по активному юниту (паттерн c.attack): игрок —
+    // player-путь бит-в-бит, живой союзник — свои слоты + общий
+    // инвентарь, иначе null (слот моба).
     c.quickItem = (slot) => {
-      if (activeUnitId(c) !== 'player') return null;
-      return playerQuickItem(c, slot);
+      if (activeUnitId(c) === 'player') return playerQuickItem(c, slot);
+      const u = activeAlly();
+      if (!u) return null;
+      return allyQuickItem(c, u, slot);
     };
     c.invItem = (itemId) => {
-      if (activeUnitId(c) !== 'player') return null;
-      return playerInvItem(c, itemId);
+      if (activeUnitId(c) === 'player') return playerInvItem(c, itemId);
+      const u = activeAlly();
+      if (!u) return null;
+      return allyInvItem(c, u, itemId);
     };
     // 000198: ДИСПАТЧ (D3): игрок ИЛИ живой союзник (activeAlly) →
     // playerSelectTarget (валидатор переиспользуется как есть);

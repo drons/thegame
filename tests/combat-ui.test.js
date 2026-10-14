@@ -3440,11 +3440,37 @@ test('боевой UI: 000168-UI-2 — кнопки на ходу спутник
     'attack — включён (краснота: игрок-путь — «'
     + byAct.attack.title + '»)');
   assert.equal(byAct.endTurn.disabled, false, '«Конец хода» — включён');
-  for (const act of ['block', 'quickItem', 'invItem', 'flee']) {
+  for (const act of ['block', 'flee']) {
     assert.equal(byAct[act].disabled, true, act + ' — запрещён');
     assert.equal(byAct[act].title, 'недоступно активному персонажу',
       act + ' — title дословно (краснота: «' + byAct[act].title + '»)');
   }
+  // 000194: quickItem/invItem — НЕ player-only: причина — по
+  // состоянию (слоты наёмника / ОБЩИЙ инвентарь героя), а не
+  // «недоступно активному персонажу».
+  assert.equal(byAct.quickItem.disabled, true,
+    '000194: quickItem — запрещён (слоты наёмника пусты)');
+  assert.equal(byAct.quickItem.title, 'быстрые слоты пусты',
+    '000194: title дословно (краснота: «' + byAct.quickItem.title + '»)');
+  assert.equal(byAct.invItem.disabled, true,
+    '000194: invItem — запрещён (общий инвентарь пуст)');
+  assert.equal(byAct.invItem.title, 'нет применимых предметов в инвентаре',
+    '000194: title дословно (краснота: «' + byAct.invItem.title + '»)');
+  // 000194: быстрый предмет НАЁМНИКА + зелье в ОБЩЕМ инвентаре —
+  // ОБА действия включены (слот свой, расход — общий).
+  const mercQ = S.c.units.find((x) => x.id === 'a1');
+  mercQ.quick = ['healing_potion', null, null];
+  S.G.addItem(S.c.player, 'healing_potion');
+  tickSlice(S.canvas, S.rafStubs);
+  const byActQ = {};
+  for (const b of S.body.querySelectorAll('.combat-actions button'))
+    byActQ[b.dataset.act] = b;
+  assert.equal(byActQ.quickItem.disabled, false,
+    '000194: quickItem — включён (слот наёмника + зелье в общем) '
+    + '(краснота: «' + byActQ.quickItem.title + '»)');
+  assert.equal(byActQ.invItem.disabled, false,
+    '000194: invItem — включён (зелье в общем инвентаре) '
+    + '(краснота: «' + byActQ.invItem.title + '»)');
   assert.equal(byAct.spellbook.disabled, true,
     '000193: «Книга» на ходу melee-наёмника — запрещена (книга [])');
   assert.equal(byAct.spellbook.title, 'заклинаний нет',
@@ -3486,11 +3512,21 @@ test('боевой UI: 000168-UI-2 — кнопки на ходу спутник
   const byActE = {};
   for (const b of E.body.querySelectorAll('.combat-actions button'))
     byActE[b.dataset.act] = b;
-  for (const act of ['block', 'quickItem', 'invItem', 'flee']) {
+  for (const act of ['block', 'flee']) {
     assert.equal(byActE[act].disabled, true, act + ' — запрещён');
     assert.equal(byActE[act].title, 'недоступно активному персонажу',
       act + ' — title дословно (краснота: «' + byActE[act].title + '»)');
   }
+  // 000194: quickItem/invItem — НЕ player-only: причина — по
+  // состоянию (слоты Эфира пусты, общий инвентарь пуст).
+  assert.equal(byActE.quickItem.disabled, true,
+    '000194: quickItem — запрещён (слоты Эфира пусты)');
+  assert.equal(byActE.quickItem.title, 'быстрые слоты пусты',
+    '000194: title дословно (краснота: «' + byActE.quickItem.title + '»)');
+  assert.equal(byActE.invItem.disabled, true,
+    '000194: invItem — запрещён (общий инвентарь пуст)');
+  assert.equal(byActE.invItem.title, 'нет применимых предметов в инвентаре',
+    '000194: title дословно (краснота: «' + byActE.invItem.title + '»)');
   assert.equal(byActE.spellbook.disabled, false,
     '000193: «Книга» на ходу Эфира — ВКЛЮЧЕНА (книга [spark, mend] '
     + 'непустая)');
@@ -6576,9 +6612,11 @@ test('боевой UI: 000199 — полоска MP (.combat-mpbar) ПОД по�
   const side = findByClass(S.body, 'combat-side');
   assert.deepEqual(side.children.map((ch) => ch.className),
     ['combat-turnorder', 'combat-hpbar', 'combat-mpbar', 'combat-state',
-      'combat-actions', 'combat-log'],
-    '000199: порядок .combat-side — mpbar третьим (краснота: 5 '
-    + 'элементов без mpbar; книга — теперь в .combat-box (000196)): '
+      'combat-actions', 'combat-quicklist', 'combat-log'],
+    '000199: порядок .combat-side — mpbar третьим; 000194: '
+    + 'quicklist между actions и log; 000196: книга — в .combat-box '
+    + '(краснота: ' + JSON.stringify(side.children.length)
+    + ' элементов): '
     + JSON.stringify(side.children.map((ch) => ch.className)));
   // Дефолт: игрок MP 16/16.
   const d = S.G.derived(S.c.player);
@@ -7225,7 +7263,7 @@ test('боевой UI: 000193.02 — ни игрок, ни Эфир НЕ зна�
   assert.ok(!c._fx || c._fx.action !== 'cast', 'cast-FX нет');
 });
 
-test('боевой UI: 000196 — книга (.combat-spellbook) — в .combat-box ПОЛЕМ: [canvas, spellbook, banner]; .combat-side — 6 элементов без книги; кнопка/KeyQ/KeyR — toggle (CU196-POS)', () => {
+test('боевой UI: 000196 — книга (.combat-spellbook) — в .combat-box ПОЛЕМ: [canvas, spellbook, banner]; .combat-side — 7 элементов без книги (000194: +quicklist); кнопка/KeyQ/KeyR — toggle (CU196-POS)', () => {
   const S = scene84();
   const { c, body, keydown, buttons } = S;
   assert.equal(S.G.activeUnitId(c), 'player', 'фикстура: ход игрока');
@@ -7234,8 +7272,8 @@ test('боевой UI: 000196 — книга (.combat-spellbook) — в .combat-
   assert.ok(box && side, 'фикстура: .combat-box и .combat-side есть');
   assert.deepEqual(side.children.map((ch) => ch.className),
     ['combat-turnorder', 'combat-hpbar', 'combat-mpbar', 'combat-state',
-      'combat-actions', 'combat-log'],
-    '000196: .combat-side — 6 элементов, книги НЕТ (краснота: 7 элементов — '
+      'combat-actions', 'combat-quicklist', 'combat-log'],
+    '000196: .combat-side — 7 элементов, книги НЕТ (краснота: 8 элементов — '
     + 'книга между .combat-actions и .combat-log): '
     + JSON.stringify(side.children.map((ch) => ch.className)));
   const canvas = findCanvas(body);

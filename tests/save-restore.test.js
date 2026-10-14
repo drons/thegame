@@ -1036,3 +1036,87 @@ test('000191.9: live-чтение dungeon_memory_days (SETTINGS — в моме�
       'save {} (live-Map пуст после trim; входа не было)');
   }
 });
+// =====================================================================
+// Задача 000194: быстрые предметы союзников — раздел сейва ally_quick
+// (memberId → (string|null)[3]). Красные (3): раздела нет в
+// collectSaveData/restoreFromSave (main.js).
+// =====================================================================
+
+test('194-SAVE-ROUNDTRIP: ally_quick (memberId → [string|null]×3) — round-trip; efir/в-отряде — сохраняются', async () => {
+  const h = await boot(seedSave({
+    day: 7,
+    companions: [{
+      npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2,
+    }],
+    ally_quick: {
+      efir: ['healing_potion', null, null],
+      merc_volk: ['mana_potion', 'mana_potion', null],
+    },
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.ok(!h.warns.some((m) => m.includes('ally_quick')),
+    'валидный раздел — без предупреждений: ' + h.warns.join(' | '));
+  assertRestored(h, 7);
+
+  fireBeforeUnload(h);
+  const saved = readSave(h);
+  assert.equal(saved.version, 1, 'версия НЕ повышена');
+  assert.deepEqual(saved.data.ally_quick, {
+    efir: ['healing_potion', null, null],
+    merc_volk: ['mana_potion', 'mana_potion', null],
+  }, 'раздел переживает перезагрузку (краснота: '
+    + JSON.stringify(saved.data.ally_quick) + ')');
+});
+
+test('194-SAVE-OLD: старый сейв БЕЗ ally_quick — восстановление чисто (без warn), новый сейв — ally_quick = {}', async () => {
+  const h = await boot(seedSave({ day: 7 }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  assert.ok(!h.warns.some((m) => m.includes('ally_quick')),
+    'старому сейву — БЕЗ предупреждения об отсутствии раздела: '
+    + h.warns.join(' | '));
+  assertRestored(h, 7);
+
+  fireBeforeUnload(h);
+  const saved = readSave(h);
+  assert.equal(saved.version, 1, 'версия НЕ повышена');
+  assert.deepEqual(saved.data.ally_quick, {},
+    'новый сейв — раздел пишется ВСЕГДА (даже {}); краснота: '
+    + JSON.stringify(saved.data.ally_quick));
+});
+
+test('194-SAVE-SANITIZE: битый ally_quick — игра не роняется (0 errors); неизвестные id/не-строки → null; призрак-npc — обрезан; efir — всегда', async () => {
+  // (a) Не-объект — тихо, раздел сбрасывается в {}.
+  {
+    const h = await boot(seedSave({ day: 7, ally_quick: 'junk' }));
+    assert.equal(h.errors.length, 0,
+      'не-объект — игра не роняется: ' + h.errors.join('; '));
+    assertRestored(h, 7);
+    fireBeforeUnload(h);
+    const saved = readSave(h);
+    assert.ok(saved.data.ally_quick && typeof saved.data.ally_quick
+        === 'object' && !Array.isArray(saved.data.ally_quick),
+      'новый сейв — валидный объект (краснота: '
+      + JSON.stringify(saved.data.ally_quick) + ')');
+  }
+  // (b) Призрак-npc (нет в отряде) — обрезан; битые слоты → null;
+  //     'efir' — всегда (даже с пустым отрядом).
+  {
+    const h = await boot(seedSave({
+      day: 7,
+      ally_quick: {
+        efir: ['nope_item', 'healing_potion', 42],
+        ghost_npc: ['healing_potion', null, null],
+      },
+    }));
+    assert.equal(h.errors.length, 0,
+      'битые слоты — игра не роняется: ' + h.errors.join('; '));
+    assertRestored(h, 7);
+    fireBeforeUnload(h);
+    const saved = readSave(h);
+    assert.deepEqual(saved.data.ally_quick,
+      { efir: [null, 'healing_potion', null] },
+      'санизация: неизвестный id → null, не-строка → null, призрак '
+      + 'обрезан, efir сохранён (краснота: '
+      + JSON.stringify(saved.data.ally_quick) + ')');
+  }
+});

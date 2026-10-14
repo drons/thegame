@@ -6656,12 +6656,34 @@ test('000168-CANDO-1: canDoAction-контекст — на ходу наёмн�
     'move — ok (краснота: «неизвестное действие: move»): '
     + JSON.stringify(mv));
   assert.equal(canDoAction(c, 'endTurn').ok, true, 'endTurn — ok');
-  for (const act of ['fire', 'block', 'quickItem', 'invItem', 'flee']) {
+  for (const act of ['fire', 'block', 'flee']) {
     const r = canDoAction(c, act);
     assert.equal(r.ok, false, act + ' — недоступно');
     assert.equal(r.reason, 'недоступно активному персонажу',
       act + ' — причина дословно (краснота: ' + r.reason + ')');
   }
+  // 000194: quickItem/invItem — НЕ player-only: причина — по
+  // состоянию (слоты наёмника пусты; ОБЩИЙ инвентарь strongHero
+  // пуст), а не «недоступно активному персонажу».
+  const q = canDoAction(c, 'quickItem');
+  assert.equal(q.ok, false, '000194: quickItem — недоступно');
+  assert.equal(q.reason, 'быстрые слоты пусты',
+    '000194: причина дословно (краснота: ' + q.reason + ')');
+  const v = canDoAction(c, 'invItem');
+  assert.equal(v.ok, false, '000194: invItem — недоступно');
+  assert.equal(v.reason, 'нет применимых предметов в инвентаре',
+    '000194: причина дословно (краснота: ' + v.reason + ')');
+  // 000194: у наёмника ЗАНЯТЫЙ быстрый слот и зелье в общем — ok.
+  a.quick = ['healing_potion', null, null];
+  I.addItem(c.player, 'healing_potion');
+  const q2 = canDoAction(c, 'quickItem');
+  assert.equal(q2.ok, true,
+    '000194: quickItem — ok (слот + зелье в общем; краснота: '
+    + JSON.stringify(q2) + ')');
+  const v2 = canDoAction(c, 'invItem');
+  assert.equal(v2.ok, true,
+    '000194: invItem — ok (зелье в общем; краснота: '
+    + JSON.stringify(v2) + ')');
 });
 
 test('000168-CANDO-2: canDoAction-контекст — на ходу Эфира attack (Касание: c.efs.touch, d≤1) и cast (spell+pool+mana+d≤4); player-only — «недоступно активному персонажу»', () => {
@@ -6720,12 +6742,22 @@ test('000168-CANDO-2: canDoAction-контекст — на ходу Эфира 
     // (c) player-only — единообразная причина. 000193: 'spellbook'
     // НЕ player-only — у Эфира книга [spark, mend] непустая → ok
     // (новая ветка allyCanDo: «заклинаний нет» только при []).
-    for (const act of ['fire', 'block', 'quickItem', 'invItem', 'flee']) {
+    for (const act of ['fire', 'block', 'flee']) {
       const rr = canDoAction(c, act);
       assert.equal(rr.ok, false, act + ' — недоступно');
       assert.equal(rr.reason, 'недоступно активному персонажу',
         act + ' — причина (краснота: ' + rr.reason + ')');
     }
+    // 000194: quickItem/invItem — НЕ player-only: причина — по
+    // состоянию (слоты Эфира пусты; общий инвентарь hero112 пуст).
+    const rq = canDoAction(c, 'quickItem');
+    assert.equal(rq.ok, false, '000194: quickItem — недоступно');
+    assert.equal(rq.reason, 'быстрые слоты пусты',
+      '000194: причина (краснота: ' + rq.reason + ')');
+    const rv = canDoAction(c, 'invItem');
+    assert.equal(rv.ok, false, '000194: invItem — недоступно');
+    assert.equal(rv.reason, 'нет применимых предметов в инвентаре',
+      '000194: причина (краснота: ' + rv.reason + ')');
     assert.deepEqual(canDoAction(c, 'spellbook'), { ok: true },
       '000193: spellbook на ходу Эфира — ok (книга [spark, mend] '
       + 'непустая)');
@@ -7634,15 +7666,32 @@ test('000198-SEL-5: allyCanDo-зеркало уважает targetId (000037): �
       assert.deepEqual(canB, { ok: true }, 'canDo cast: явная m1 d 1 — ok');
     }
     // (6) player-only действия на ходу союзника — «недоступно активному
-    //     персонажу» (якорь без изменений).
+    //     персонажу» (якорь). 000194: quickItem/invItem — НЕ
+    //     player-only: причина — по состоянию (слоты наёмника пусты;
+    //     общий инвентарь strongHero пуст).
     {
-      const { c } = mkMerc();
-      for (const act of ['fire', 'block', 'flee', 'quickItem', 'invItem']) {
+      const { c, a } = mkMerc();
+      for (const act of ['fire', 'block', 'flee']) {
         const can = canDoAction(c, act);
         assert.equal(can.ok, false, act + ' — недоступно');
         assert.equal(can.reason, 'недоступно активному персонажу',
           act + ' — причина (краснота: ' + can.reason + ')');
       }
+      const q = canDoAction(c, 'quickItem');
+      assert.equal(q.ok, false, '000194: quickItem — недоступно');
+      assert.equal(q.reason, 'быстрые слоты пусты',
+        '000194: причина (краснота: ' + q.reason + ')');
+      const v = canDoAction(c, 'invItem');
+      assert.equal(v.ok, false, '000194: invItem — недоступно');
+      assert.equal(v.reason, 'нет применимых предметов в инвентаре',
+        '000194: причина (краснота: ' + v.reason + ')');
+      // 000194: занятый слот наёмника + зелье в общем — ok.
+      a.quick = ['healing_potion', null, null];
+      I.addItem(c.player, 'healing_potion');
+      assert.deepEqual(canDoAction(c, 'quickItem'), { ok: true },
+        '000194: quickItem — ok (слот + зелье в общем)');
+      assert.deepEqual(canDoAction(c, 'invItem'), { ok: true },
+        '000194: invItem — ok (зелье в общем)');
     }
   } finally {
     C.combatInternals.allySpells = saveCatalog;

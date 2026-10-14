@@ -880,6 +880,43 @@
       opacity: 0.85;
       white-space: pre-line;
     }
+    /* 000194 — список быстрых предметов (союзник/Флогистон):
+       поверх экрана боя, между действиями и книгой заклинаний;
+       строка: имя+слот / эффект / описание предмета (вербатим). */
+    .combat-overlay--combat .combat-quicklist {
+      flex: 0 1 auto;
+      min-height: 0;
+      max-height: 40%;
+      overflow-y: auto;
+      margin: 4px 0;
+      padding: 2px 0;
+    }
+    .combat-overlay--combat .combat-quickrow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 6px;
+      padding: 4px 6px;
+      cursor: pointer;
+    }
+    .combat-overlay--combat .combat-quickrow-off {
+      opacity: 0.4;
+      cursor: default;
+    }
+    .combat-overlay--combat .combat-quickname {
+      font-weight: bold;
+    }
+    .combat-overlay--combat .combat-quickmeta {
+      font-size: 11px;
+      opacity: 0.75;
+      white-space: nowrap;
+    }
+    .combat-overlay--combat .combat-quickrow-desc {
+      flex: 1 1 100%;
+      font-size: 11px;
+      opacity: 0.85;
+      white-space: pre-line;
+    }
     /* 000162 — «Воскрешение» храма: пикер погибших (самодостаточный оверлей) */
     .resurrect-overlay { position: fixed; inset: 0; z-index: 20;
       display: flex; flex-direction: column; gap: 4px; padding: 24px;

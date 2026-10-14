@@ -26,6 +26,12 @@
   // button.cp-portrait (ниже) + toggle(force, tabId, charId).
   // Чтение: ctx.activeCharId (live-getter) + getActiveCharId().
   let activeCharId = null;
+  // 000194: ОБЩАЯ map быстрых предметов союзников:
+  // { 'efir'|npcId → [3] id предмета|null } — ЖИВАЯ ссылка main.js
+  // (G.playerUI.setAllyQuick, один раз); null — ничего не
+  // раздано. Флогистон (activeCharId == null) в map не хранится:
+  // его слоты — hero.inventory.quick бит-в-бит.
+  let allyQuickMap = null;
   let shop = null;      // текущий магазин (main.js передаёт стоящий тайл)
   let shopKey = '';
   let notice = null;
@@ -130,6 +136,10 @@
       // состояний 000130 §4.3) — вкладка «Персонаж» разрешает
       // member в момент render/вызова (Party.active).
       get activeCharId() { return activeCharId; },
+      // 000194: live-ссылка на ОБЩУЮ map быстрых предметов союзников
+      // (null — не раздано) — вкладка «Снаряжение» рисует запись
+      // активного персонажа.
+      get allyQuick() { return allyQuickMap; },
       get shop() { return shop; },
       get quests() { return { npcs: questNpcs, book: questBook }; },
     };
@@ -265,12 +275,53 @@
       case 'unequip': r = G.unequip(c, btn.dataset.equipslot); break;
       case 'remove': r = G.removeItem(c, id, 1); break;
       case 'quick': {
-        const s = G.freeQuickSlot(c);
-        r = s == null ? { ok: false, reason: 'все быстрые слоты заняты' }
-                      : G.setQuick(c, s, id);
+        // 000194: раздача — АКТИВНОМУ персонажу (000145):
+        // Флогистон (дефолт) — hero.inventory.quick бит-в-бит;
+        // остальные ('efir'/npcId) — ОБЩАЯ map (live-ссылка),
+        // ПЕРВЫЙ свободный слот (запись [null×3] создаётся при
+        // первой попытке, по контракту §2.10). Запись предмета
+        // в слот — только при успехе (отказ — до неё).
+        const mid = activeCharId == null
+          ? 'flogiston' : String(activeCharId);
+        if (mid === 'flogiston') {
+          const s = G.freeQuickSlot(c);
+          r = s == null
+            ? { ok: false, reason: 'все быстрые слоты заняты' }
+            : G.setQuick(c, s, id);
+        } else {
+          // Порядок как геройский (контракт memory/000194 §2.10,
+          // правка по ревью): СНАЧАЛА свободный слот, ПОТОМ hasItem —
+          // при двойном отказе причина «все быстрые слоты заняты»
+          // (паритет с hero-путём freeQuickSlot → setQuick).
+          if (!allyQuickMap || typeof allyQuickMap !== 'object'
+              || Array.isArray(allyQuickMap)) allyQuickMap = {};
+          let q = allyQuickMap[mid];
+          if (!Array.isArray(q)) {
+            q = [null, null, null];
+            allyQuickMap[mid] = q;
+          }
+          const s = q.findIndex((x) => x == null);
+          r = s === -1
+            ? { ok: false, reason: 'все быстрые слоты заняты' }
+            : (!G.hasItem(c, id)
+                ? { ok: false, reason: 'предмета нет в инвентаре' }
+                : (q[s] = id, { ok: true }));
+        }
         break;
       }
-      case 'quick-clear': r = G.clearQuick(c, Number(btn.dataset.slot)); break;
+      case 'quick-clear': {
+        // 000194: АКТИВНЫЙ персонаж: Флогистон —
+        // hero.inventory.quick бит-в-бит; остальные — null-слот в
+        // ОБЩЕЙ map (без записи — тихо, no-op).
+        const mid = activeCharId == null
+          ? 'flogiston' : String(activeCharId);
+        if (mid === 'flogiston') {
+          r = G.clearQuick(c, Number(btn.dataset.slot));
+        } else if (allyQuickMap && Array.isArray(allyQuickMap[mid])) {
+          allyQuickMap[mid][Number(btn.dataset.slot)] = null;
+        }
+        break;
+      }
       case 'buy': if (shop) r = G.buyItem(shop, c, id, 1); break;
       case 'sell': if (shop) r = G.sellItem(shop, c, id, 1); break;
     }
@@ -475,6 +526,16 @@
       questNpcs = (o && o.npcs) || null;
       questBook = (o && o.book) || null;
       questDay = (o && o.day != null) ? o.day : null;
+      if (panel) render();
+    },
+    // 000194: ОБЩАЯ map быстрых предметов союзников (main.js, один
+    // раз + после restore): ЖИВАЯ ссылка — мутация map (без
+    // повторного setAllyQuick) видна в следующем render().
+    // Не-объект — null (тихо, без ошибок; render деградирует на
+    // 3 «— пусто —»).
+    setAllyQuick(m) {
+      allyQuickMap = (m && typeof m === 'object' && !Array.isArray(m))
+        ? m : null;
       if (panel) render();
     },
     // 000145: публичный getter активного персонажа (контракт 000147:
