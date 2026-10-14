@@ -11,5 +11,6 @@
     ],
     "near_mountains": true,
     "frequency": 0.04
-  }
+  },
+  "icon": "assets/sprites/loot/copper_ore.svg"
 }

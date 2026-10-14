@@ -45,7 +45,8 @@
         "frequency": { "type": "number", "minimum": 0, "maximum": 1 }
       },
       "additionalProperties": false
-    }
+    },
+    "icon": { "type": "string", "pattern": "^assets/sprites/loot/[\\w_]+\\.svg$" }
   },
   "additionalProperties": false
 }

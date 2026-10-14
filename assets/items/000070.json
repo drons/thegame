@@ -11,5 +11,6 @@
       "болото"
     ],
     "frequency": 0.03
-  }
+  },
+  "icon": "assets/sprites/loot/root_rock.svg"
 }

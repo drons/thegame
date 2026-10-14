@@ -12,5 +12,6 @@
     ],
     "near_mountains": true,
     "frequency": 0.025
-  }
+  },
+  "icon": "assets/sprites/loot/amethyst.svg"
 }

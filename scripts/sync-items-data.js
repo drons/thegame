@@ -72,8 +72,9 @@ for (const f of files) {
 // Канонический порядок ключей (схема assets/items/schema.json).
 // 'loot' — 000158.02 (опциональное поле лута глобальной карты; конец —
 // позиция свойства в схеме, паттерн 'tier' 000157.01).
+// 'icon' — 000211.06 (опциональная ссылка на svg-иконку лута; конец).
 const KEYS = ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'tier',
-  'desc', 'stats', 'effect', 'loot'];
+  'desc', 'stats', 'effect', 'loot', 'icon'];
 
 // --- Генерация JS ---
 const range = `${files[0]} … ${files[files.length - 1]}`;

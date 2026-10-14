@@ -770,6 +770,127 @@ test('SP-LOOT-5 000158.05: vm без items-data.js — гард: lootSprite → 
     'без каталога предметов allAssetPaths без loot-путей');
 });
 
+// --- Задача 000211.06: "icon" — путь спрайта читается из данных ---
+//
+// Контракт — memory/000211.06-items-loot-icons.md §2.2 (RED-стадия):
+//   * lootSprite(itemId, tx, ty) → {sprite, x, y, size} | null —
+//     сигнатура/возврат БЕЗ ИЗМЕНЕНИЙ; sprite — `it.icon` из той же
+//     записи, что уже нашёл findIndex; при отсутствии icon (или
+//     не-непустая строка) — fallback на старую конвенцию
+//     LOOT_DIR + id + '.svg' (ДЕРЖАТЬ: vm-песочницы без data-модулей,
+//     000211 §7.8);
+//   * гарды (не-строковый/пустой id, нет каталога, неизвестный id →
+//     null) — БЕЗ ИЗМЕНЕНИЙ, на прежних местах, ТИХИЕ (0 console.*);
+//   * seed/x/y/size — ФОРМУЛЫ НЕ ТРОГАТЬ (детерминизм: index *
+//     0x9e3779b9; золотые SP-LOOT-3; append-only — поле, не файл).
+// Краснота осмысленная: lootSprite НЕ читает item.icon
+// (src/sprites.js — `sprite: LOOT_DIR + itemId + '.svg'`) →
+// дивергентный фейк не достигает вывода (node — мутация того же
+// require-экземпляра items-data.js, что жёстко подключён
+// UMD-обёрткой sprites.js; vm — мутация живого root.Game.ITEMS
+// ПОСЛЕ загрузки sprites.js — обёртка пересоздаёт Game, 000158.05).
+// Пинов (SP-IC3/SP-IC4) — зелёные с 1-го запуска: гард от «выбросить
+// fallback» и от «улучшения» null-гардов.
+
+test('SP-IC1 000211.06: lootSprite — при icon — sprite = item.icon (путь из данных, дивергентный фейк); x/y/size БЕЗ ИЗМЕНЕНИЙ (детерминизм: seed-схема не тронута)', () => {
+  const e0 = S.lootSprite('moonstone', 3, 4);
+  assert.ok(e0, 'baseline: moonstone (index 22) в каталоге');
+  try {
+    // node-UMD sprites.js жёстко привязан к require('../src/
+    // items-data.js') — ТОТ ЖЕ модульный экземпляр, что в тесте
+    // (единственный способ увидеть «из данных» node-тестом).
+    ITEMS[22].icon = 'assets/sprites/loot/divergent_ic.svg';
+    const e = S.lootSprite('moonstone', 3, 4);
+    assert.equal(e.sprite, 'assets/sprites/loot/divergent_ic.svg',
+      'sprite = item.icon — путь из данных (краснота: icon не '
+      + 'читается — конвенция assets/sprites/loot/moonstone.svg); '
+      + 'факт: ' + e.sprite);
+    assert.equal(e.x, e0.x,
+      'x без изменений (seed = LOOT_VISUAL_SEED + 22*0x9e3779b9)');
+    assert.equal(e.y, e0.y, 'y без изменений');
+    assert.equal(e.size, e0.size, 'size без изменений (LOOT_SIZE)');
+  } finally {
+    delete ITEMS[22].icon;
+  }
+});
+
+test('SP-IC2 000211.06: vm (perlin→map→items-data→sprites) — icon читается из live root.Game: до мутации — конвенция, после мутации sandbox.Game.ITEMS (ПОСЛЕ загрузки sprites.js) — путь из данных (live-root, прецедент 000158.05)', () => {
+  const sandbox = {
+    console: { log() {}, warn() {}, error() {} },
+  };
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('items-data.js', sandbox);
+  loadInSandbox('sprites.js', sandbox);
+  const G = sandbox.Game;
+  assert.ok(Array.isArray(G.ITEMS) && G.ITEMS.length > 0,
+    'items-data.js в vm ставит Game.ITEMS (плоское поле, 000059)');
+  const before = G.lootSprite('root_rock', 3, 4);
+  assert.ok(before, 'root_rock (index 69) в каталоге → запись есть');
+  assert.equal(before.sprite, 'assets/sprites/loot/root_rock.svg',
+    'до мутации — конвенция (icon в записи равен конвенции; '
+    + 'дивергенция видна только после инъекции)');
+  const rec = G.ITEMS.find((it) => it.id === 'root_rock');
+  assert.ok(rec, 'каталог: root_rock');
+  try {
+    rec.icon = 'assets/sprites/loot/divergent_vm.svg';
+    const after = G.lootSprite('root_rock', 3, 4);
+    assert.equal(after.sprite, 'assets/sprites/loot/divergent_vm.svg',
+      'live root.Game.ITEMS читается в МОМЕНТ ВЫЗОВА (краснота: '
+      + 'icon не читается — конвенция); факт: ' + after.sprite);
+    assert.equal(after.x, before.x, 'x без изменений');
+    assert.equal(after.y, before.y, 'y без изменений');
+    assert.equal(after.size, before.size, 'size без изменений');
+  } finally {
+    delete rec.icon;
+  }
+});
+
+test('SP-IC3 000211.06 (пин): fallback — запись БЕЗ icon → sprite = старая конвенция LOOT_DIR + id + .svg; icon не-непустая строка (null/42/«») → тоже конвенция, а не «null.svg»/мусор', () => {
+  const idx = ITEMS.findIndex((it) => it.id === 'moonstone');
+  assert.ok(idx >= 0, 'каталог: moonstone');
+  const had = ITEMS[idx].icon;
+  try {
+    delete ITEMS[idx].icon;
+    const e = S.lootSprite('moonstone', 3, 4);
+    assert.ok(e, 'moonstone в каталоге → запись есть');
+    assert.equal(e.sprite, 'assets/sprites/loot/moonstone.svg',
+      'без icon — fallback на старую конвенцию (fallback ДЕРЖАТЬ: '
+      + 'vm-песочницы без data-модулей, 000211 §7.8)');
+    for (const bad of [null, 42, '']) {
+      ITEMS[idx].icon = bad;
+      assert.equal(
+        S.lootSprite('moonstone', 3, 4).sprite,
+        'assets/sprites/loot/moonstone.svg',
+        'icon ' + JSON.stringify(bad) + ' (не непустая строка) → '
+        + 'fallback на конвенцию, а не строка из мусора');
+    }
+  } finally {
+    if (had !== undefined) ITEMS[idx].icon = had;
+    else delete ITEMS[idx].icon;
+  }
+});
+
+test('SP-IC4 000211.06 (пин): гарды БЕЗ ИЗМЕНЕНИЙ — неизвестный id → null (с/без icon), мусорный id (null/42/«») → null (семантика 1:1 SP-LOOT-1b; vm без каталога → null тихо — SP-LOOT-5)', () => {
+  const idx = ITEMS.findIndex((it) => it.id === 'moonstone');
+  assert.ok(idx >= 0, 'каталог: moonstone');
+  const had = ITEMS[idx].icon;
+  try {
+    assert.equal(S.lootSprite('not_exist', 0, 0), null,
+      'неизвестный id → null (в каталоге icon нет)');
+    ITEMS[idx].icon = 'assets/sprites/loot/divergent_guard.svg';
+    assert.equal(S.lootSprite('not_exist', 0, 0), null,
+      'неизвестный id → null (в каталоге icon есть — гард не '
+      + 'зависит от icon)');
+    assert.equal(S.lootSprite(null, 0, 0), null, 'null id → null');
+    assert.equal(S.lootSprite(42, 0, 0), null, 'числовой id → null');
+    assert.equal(S.lootSprite('', 0, 0), null, 'пустой id → null');
+  } finally {
+    if (had !== undefined) ITEMS[idx].icon = had;
+    else delete ITEMS[idx].icon;
+  }
+});
+
 test('tileVisuals: чистая функция, элементы валидны и с потолком', () => {
   const byId = new Map(S.VISUALS.map((v) => [v.id, v]));
   for (let i = 0; i < 300; i++) {

@@ -1842,3 +1842,84 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
     exact('x: loot.near_mountains — boolean'),
     'near_mountains: «yes» — «loot.near_mountains — boolean»');
 });
+
+// --- Задача 000211.06: 28 лут-предметов — "icon": ссылка на svg в json ---
+//
+// Контракт — memory/000211.06-items-loot-icons.md §2.1 (RED-стадия):
+//   * форма `"icon": "assets/sprites/loot/<id>.svg"` — КОНЕЦ JSON-
+//     объекта (после "loot"); source of truth — assets/items/*.json
+//     (зеркало src/items-data.js покрывается deepEqual :59);
+//   * ВСЕ 28 лут-предметов (live-скан: объект loot + непустые
+//     terrains + строковый id — тот же строгий фильтр, что map.js
+//     lootCandidates / LOOT_ITEM_IDS tests/sprites.test.js) — icon =
+//     конвенции, 28/28 svg существует;
+//   * прочие 48 предметов — icon НЕ задан (пин «не тронуто», L3-форма);
+//   * schema.json — icon ОПЦИОНАЛЬНОЕ свойство: точная форма
+//     {type, pattern} (паттерн — дословно ТЗ), НЕ в required, верхний
+//     additionalProperties false (000141: именованное поле — в том же
+//     коммите, иначе валидация краснеет молча).
+// Краснота осмысленная: поля icon нет ни в одном из 76 JSON
+// (grep '"icon"' = 0) и свойства icon нет в схеме
+// (properties.icon === undefined) — функциональность ТЗ ещё
+// не существует. svg-sweep «файл существует» — AR9 в
+// tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
+// memory §4.2), дублирующий sweep НЕ создаётся.
+
+test('000211.06 I1: 28 лут-предметов — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 48 — icon undefined (пин «не тронуто»)', () => {
+  const files = fs.readdirSync(ITEMS_DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .sort();
+  const byId = new Map();
+  for (const f of files) {
+    const j = JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    byId.set(j.id, j);
+  }
+  const lootIds = [...byId.values()]
+    .filter((it) => {
+      const L = it.loot;
+      return L && typeof L === 'object'
+        && Array.isArray(L.terrains) && L.terrains.length > 0
+        && typeof it.id === 'string';
+    })
+    .map((it) => it.id);
+  assert.equal(lootIds.length, 28,
+    'лут-предметов — ровно 28 (live-скан JSON-каталога, фильтр '
+    + 'map.js lootCandidates)');
+  for (const id of lootIds) {
+    const it = byId.get(id);
+    assert.equal(it.icon, 'assets/sprites/loot/' + id + '.svg',
+      id + ': icon = assets/sprites/loot/<id>.svg (краснота: '
+      + 'свойства icon в JSON-записи нет); факт: '
+      + JSON.stringify(it.icon));
+    assert.ok(fs.existsSync(path.join(__dirname, '..', it.icon)),
+      id + ': svg-файл существует по пути icon');
+  }
+  let others = 0;
+  for (const it of byId.values()) {
+    if (lootIds.includes(it.id)) continue;
+    assert.ok(!('icon' in it),
+      it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
+    others++;
+  }
+  assert.equal(others, 48, 'прочих предметов — ровно 48');
+  assert.equal(
+    [...byId.values()].filter((it) => 'icon' in it).length, 28,
+    'icon — ровно у 28 предметов (пин: ни больше, ни меньше)');
+});
+
+test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойство {type: string, pattern: ^assets/sprites/loot/[\\w_]+\\.svg$} (дословно ТЗ), «icon» НЕ в required, additionalProperties верхнего уровня false', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(s.properties.icon, {
+    type: 'string',
+    pattern: '^assets/sprites/loot/[\\w_]+\\.svg$',
+  }, 'properties.icon — точная форма {type, pattern} (краснота: '
+    + 'свойства icon в схеме нет); факт: '
+    + JSON.stringify(s.properties.icon));
+  assert.ok(!s.required.includes('icon'),
+    'icon НЕ в required (прочие 48 предметов остаются валидными); '
+    + 'факт: ' + JSON.stringify(s.required));
+  assert.equal(s.additionalProperties, false,
+    'верхний additionalProperties остаётся false (000141)');
+});

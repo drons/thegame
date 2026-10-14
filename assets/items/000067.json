@@ -12,5 +12,6 @@
       "лес"
     ],
     "frequency": 0.03
-  }
+  },
+  "icon": "assets/sprites/loot/herb_wind.svg"
 }

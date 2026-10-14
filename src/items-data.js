@@ -257,6 +257,7 @@
       value: 25,
       desc: "Лунный камень: слегка светится в темноте.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.04 },
+      icon: "assets/sprites/loot/moonstone.svg",
     },
     // 000024.json
     {
@@ -356,6 +357,7 @@
       value: 8,
       desc: "Железная руда: серый камень с тёмной металлической прожилкой.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.04 },
+      icon: "assets/sprites/loot/iron_ore.svg",
     },
     // 000034.json
     {
@@ -366,6 +368,7 @@
       value: 6,
       desc: "Медная руда: зеленоватый налёт — металл для мелких дел.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.04 },
+      icon: "assets/sprites/loot/copper_ore.svg",
     },
     // 000035.json
     {
@@ -539,6 +542,7 @@
       tier: 2,
       desc: "Серебряная руда: серо-белый камень с яркой серебристой прожилкой.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.025 },
+      icon: "assets/sprites/loot/silver_ore.svg",
     },
     // 000053.json
     {
@@ -550,6 +554,7 @@
       tier: 3,
       desc: "Золотая руда: камень с тёмной коркой и золотистыми зернами.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.015 },
+      icon: "assets/sprites/loot/gold_ore.svg",
     },
     // 000054.json
     {
@@ -561,6 +566,7 @@
       tier: 4,
       desc: "Мифриловая руда: лёгкий серебристый камень, почти невесомый.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.005 },
+      icon: "assets/sprites/loot/mithril_ore.svg",
     },
     // 000055.json
     {
@@ -572,6 +578,7 @@
       tier: 2,
       desc: "Кварц: полупрозрачный кристалл с белёсым блеском.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.025 },
+      icon: "assets/sprites/loot/quartz.svg",
     },
     // 000056.json
     {
@@ -583,6 +590,7 @@
       tier: 2,
       desc: "Обсидиан: чёрное вулканическое стекло.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.025 },
+      icon: "assets/sprites/loot/obsidian.svg",
     },
     // 000057.json
     {
@@ -594,6 +602,7 @@
       tier: 3,
       desc: "Фосфорит: серо-зелёный камень с мерцающим светом.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.015 },
+      icon: "assets/sprites/loot/phosphorite.svg",
     },
     // 000058.json
     {
@@ -605,6 +614,7 @@
       tier: 3,
       desc: "Рубин: красный самоцвет с тёплым внутренним светом.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.015 },
+      icon: "assets/sprites/loot/ruby.svg",
     },
     // 000059.json
     {
@@ -616,6 +626,7 @@
       tier: 3,
       desc: "Сапфир: синий самоцвет, глубокий, как ночное небо.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.015 },
+      icon: "assets/sprites/loot/sapphire.svg",
     },
     // 000060.json
     {
@@ -627,6 +638,7 @@
       tier: 3,
       desc: "Изумруд: зелёный самоцвет с ясным внутренним огнём.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.015 },
+      icon: "assets/sprites/loot/emerald.svg",
     },
     // 000061.json
     {
@@ -638,6 +650,7 @@
       tier: 2,
       desc: "Аметист: фиолетовый самоцвет, холодит на ощупь.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.025 },
+      icon: "assets/sprites/loot/amethyst.svg",
     },
     // 000062.json
     {
@@ -649,6 +662,7 @@
       tier: 4,
       desc: "Алмаз: бесцветный самоцвет, самый твёрдый из камней.",
       loot: { terrains: ["песок"], near_mountains: true, frequency: 0.005 },
+      icon: "assets/sprites/loot/diamond.svg",
     },
     // 000063.json
     {
@@ -659,6 +673,7 @@
       value: 2,
       desc: "Клубника: сладкая, с терпким привкусом лесной земли.",
       loot: { terrains: ["трава", "болото", "лес"], frequency: 0.04 },
+      icon: "assets/sprites/loot/berry_red.svg",
     },
     // 000064.json
     {
@@ -669,6 +684,7 @@
       value: 3,
       desc: "Черника: тёмная, кисловатая, хороша в варенье и в зельях.",
       loot: { terrains: ["болото", "лес"], frequency: 0.03 },
+      icon: "assets/sprites/loot/berry_blue.svg",
     },
     // 000065.json
     {
@@ -679,6 +695,7 @@
       value: 2,
       desc: "Дикая ягода: мелкая и терпкая, растёт где ни попади.",
       loot: { terrains: ["трава", "лес"] },
+      icon: "assets/sprites/loot/berry_wild.svg",
     },
     // 000066.json
     {
@@ -689,6 +706,7 @@
       value: 4,
       desc: "Солнечная трава: соцветие ловит свет и держит его до вечера.",
       loot: { terrains: ["трава", "лес"], frequency: 0.03 },
+      icon: "assets/sprites/loot/herb_sun.svg",
     },
     // 000067.json
     {
@@ -699,6 +717,7 @@
       value: 4,
       desc: "Ветряная трава: шелестит на ветру, как шёпот дальней дороги.",
       loot: { terrains: ["трава", "болото", "лес"], frequency: 0.03 },
+      icon: "assets/sprites/loot/herb_wind.svg",
     },
     // 000068.json
     {
@@ -709,6 +728,7 @@
       value: 6,
       desc: "Лунный корень: серебристый внутри, мерцает в сумерках.",
       loot: { terrains: ["лес", "болото"], frequency: 0.02 },
+      icon: "assets/sprites/loot/root_moon.svg",
     },
     // 000069.json
     {
@@ -719,6 +739,7 @@
       value: 5,
       desc: "Огненный корень: тёмно-красный, на срезе тёплый, как уголь.",
       loot: { terrains: ["трава", "лес"], frequency: 0.03 },
+      icon: "assets/sprites/loot/root_ember.svg",
     },
     // 000070.json
     {
@@ -729,6 +750,7 @@
       value: 4,
       desc: "Каменный корень: твёрдый, с песчаными вкраплениями, ногтем не сломаешь.",
       loot: { terrains: ["трава", "болото"], frequency: 0.03 },
+      icon: "assets/sprites/loot/root_rock.svg",
     },
     // 000071.json
     {
@@ -739,6 +761,7 @@
       value: 2,
       desc: "Яблоко: кислое, с дерева у старой дороги.",
       loot: { terrains: ["трава", "лес"], frequency: 0.04 },
+      icon: "assets/sprites/loot/fruit_apple.svg",
     },
     // 000072.json
     {
@@ -749,6 +772,7 @@
       value: 3,
       desc: "Слива: тёмная, сочная, с тонкой светлой кожицей.",
       loot: { terrains: ["лес"], frequency: 0.03 },
+      icon: "assets/sprites/loot/fruit_plum.svg",
     },
     // 000073.json
     {
@@ -759,6 +783,7 @@
       value: 4,
       desc: "Айва: ароматный терпкий плод, с острым привкусом.",
       loot: { terrains: ["трава", "лес"], frequency: 0.02 },
+      icon: "assets/sprites/loot/fruit_quince.svg",
     },
     // 000074.json
     {
@@ -769,6 +794,7 @@
       value: 2,
       desc: "Рядовка: серый шляпный гриб, тихий и сытный.",
       loot: { terrains: ["лес"], frequency: 0.04 },
+      icon: "assets/sprites/loot/mushroom_grey.svg",
     },
     // 000075.json
     {
@@ -779,6 +805,7 @@
       value: 4,
       desc: "Светящийся гриб: мягкий свет шляпки не гаснет даже ночью.",
       loot: { terrains: ["лес"], frequency: 0.02 },
+      icon: "assets/sprites/loot/mushroom_glow.svg",
     },
     // 000076.json
     {
@@ -789,6 +816,7 @@
       value: 3,
       desc: "Чернопряд: чёрный гриб, сочится чернильной жидкостью.",
       loot: { terrains: ["лес"], frequency: 0.03 },
+      icon: "assets/sprites/loot/mushroom_ink.svg",
     },
   ];
 

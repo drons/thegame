@@ -11,5 +11,6 @@
       "лес"
     ],
     "frequency": 0.03
-  }
+  },
+  "icon": "assets/sprites/loot/berry_blue.svg"
 }

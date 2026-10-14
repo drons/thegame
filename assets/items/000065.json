@@ -10,5 +10,6 @@
       "трава",
       "лес"
     ]
-  }
+  },
+  "icon": "assets/sprites/loot/berry_wild.svg"
 }

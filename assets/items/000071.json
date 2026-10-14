@@ -11,5 +11,6 @@
       "лес"
     ],
     "frequency": 0.04
-  }
+  },
+  "icon": "assets/sprites/loot/fruit_apple.svg"
 }

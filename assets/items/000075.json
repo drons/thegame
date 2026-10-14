@@ -10,5 +10,6 @@
       "лес"
     ],
     "frequency": 0.02
-  }
+  },
+  "icon": "assets/sprites/loot/mushroom_glow.svg"
 }

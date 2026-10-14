@@ -12,5 +12,6 @@
     ],
     "near_mountains": true,
     "frequency": 0.005
-  }
+  },
+  "icon": "assets/sprites/loot/diamond.svg"
 }

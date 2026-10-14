@@ -12,7 +12,8 @@
 //     описания — assets/visuals/*.json + schema.json;
 //   assets/sprites/loot/<item-id>.svg         — иконки природного
 //     лута (задача 000158.05): один на item-id, каталог —
-//     items-data.js (поле loot, live-скан в lootItemsRef).
+//     items-data.js (поле loot; icon — ссылка на svg, задача
+//     000211.06, live-скан в lootItemsRef).
 //
 // Ядро — чистые функции: выбор файла всегда определяется только типом
 // (террейн/моб/постройка) и координатами тайла, а НЕ фактом загрузки.
@@ -787,8 +788,10 @@
    * LOOT_VISUAL_SEED + index * 0x9e3779b9, index — позиция предмета
    * в ITEMS — append-only-инвариант каталога (000157.01/000158.02)
    * делает индекс стабильным → РАЗНЫЕ предметы на одном тайле →
-   * РАЗНЫЕ позиции). sprite — 1 файл на item-id:
-   * 'assets/sprites/loot/<id>.svg'. size = единый LOOT_SIZE
+   * РАЗНЫЕ позиции). sprite — одна иконка на item-id: icon из
+   * каталога (задача 000211.06, живое чтение записи через
+   * lootItemsRef), fallback — конвенция 'assets/sprites/loot/<id>.svg'.
+   * size = единый LOOT_SIZE
    * (0.20–0.30 по ТЗ), x/y ∈ [0.08; 0.92] (формула tileVisuals —
    * иконка не вылезает за край тайла). Неизвестный/мусорный id
    * (не строка, пустая, нет в каталоге) и отсутствие каталога —
@@ -805,11 +808,14 @@
     if (!items) return null;
     const index = items.findIndex((it) => it && it.id === itemId);
     if (index < 0) return null; // неизвестный id → нет иконки (D1)
+    const it = items[index];
     const seed = LOOT_VISUAL_SEED + index * 0x9e3779b9;
     const hx = hash2(tx, ty, seed + 1);
     const hy = hash2(tx, ty, seed + 2);
     return {
-      sprite: LOOT_DIR + itemId + '.svg',
+      sprite: (typeof it.icon === 'string' && it.icon)
+        ? it.icon
+        : LOOT_DIR + itemId + '.svg',
       x: 0.08 + (hx / 4294967296) * 0.84,
       y: 0.08 + (hy / 4294967296) * 0.84,
       size: LOOT_SIZE,
