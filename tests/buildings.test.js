@@ -20,6 +20,29 @@ const {
 const DIR = path.join(__dirname, '..', 'assets', 'buildings');
 const vm = require('node:vm');
 
+// Задача 000207: сырые JSON несут ссылки
+// .стройка.исходники[].предмет «assets/items/NNNNNN.json», зеркало
+// src/buildings.js — в id-форме (sync резолвит ссылки в id).
+// Mirror-тесты whole-record: резолв ссылок в id ПЕРЕД deepEqual
+// (контракт memory/000207-buildings-refs-items.md, D7).
+const ITEM_REF_RE = /^assets\/items\/\d{6}\.json$/;
+function resolveItemRefs(record) {
+  const out = JSON.parse(JSON.stringify(record));
+  const s = out.особые_параметры && out.особые_параметры.стройка;
+  if (!s || !Array.isArray(s.исходники)) return out;
+  for (const e of s.исходники) {
+    if (e && typeof e.предмет === 'string' && ITEM_REF_RE.test(e.предмет)) {
+      const t = JSON.parse(fs.readFileSync(
+        path.join(__dirname, '..', e.предмет), 'utf8'));
+      if (!t || typeof t.id !== 'string' || t.id === '') {
+        throw new Error('resolveItemRefs: «' + e.предмет + '» без id');
+      }
+      e.предмет = t.id;
+    }
+  }
+  return out;
+}
+
 // «Браузерный» путь UMD: исполняем файл в чистом контексте без module/exports
 // (паттерн tests/map.test.js / tests/global-settings.test.js).
 function loadInSandbox(file, sandbox) {
@@ -99,7 +122,8 @@ test('файлы assets/buildings: ровно 000001..000054.json, содерж�
     assert.equal(files[i], num + '.json', `файл ${files[i]} вместо ${num}.json`);
     const fromFile = JSON.parse(fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
     assert.equal(fromFile.id, i + 1, 'id = номер файла');
-    assert.deepEqual(fromFile, BUILDINGS[i], `${num}.json совпадает с JS-фолбэком`);
+    assert.deepEqual(resolveItemRefs(fromFile), BUILDINGS[i],
+      `${num}.json совпадает с JS-фолбэком (ссылки — в id-форме)`);
   }
   // schema.json на месте и разбирается.
   const schema = JSON.parse(fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
@@ -820,8 +844,8 @@ test('зеркало (000102): файлы 000001..000054.json, содержим�
     const fromFile = JSON.parse(
       fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
     assert.equal(fromFile.id, i + 1, 'id = номер файла');
-    assert.deepEqual(fromFile, BUILDINGS[i],
-      `${num}.json совпадает с JS-каталогом`);
+    assert.deepEqual(resolveItemRefs(fromFile), BUILDINGS[i],
+      `${num}.json совпадает с JS-каталогом (ссылки — в id-форме)`);
   }
 });
 
@@ -1043,4 +1067,297 @@ test('000148.04 R14: ссылочная целостность: каждый п�
   }
   assert.ok(n > 0,
     'RED: минимум одна позиция .стройка.исходники (сейчас поля нет)');
+});
+
+// --- Задача 000207: buildings: ресурсы постройки → buildings/*.json со
+// ссылками на items, js запекать из ссылок (рефакторинг без смены
+// поведения) ---
+//
+// Контракт: memory/000207-buildings-refs-items.md (D1–D12) +
+// memory/000211-spec-coverage-audit.md §2 (формат ссылки ЗАФИКСИРОВАН):
+// значение особые_параметры.стройка.исходники[].предмет — строка-путь
+// от корня "assets/items/NNNNNN.json", id файла-цели = прежнему значению
+// (голый id); зеркало src/buildings.js остаётся в id-форме — резолюция
+// ссылок ТОЛЬКО в scripts/sync-buildings-data.js (fail-closed);
+// schema.json закрепляет паттерн строгой под-схемой «стройка».
+// Тесты читают СЫРЫЙ JSON (DIR); зеркало — require в шапке файла.
+// КРАСНЫЕ (функциональность ещё не существует): ссылки в JSON — голые
+// id (0/22 под паттерн), файлы-цели не резолвятся (missing-file), в
+// скрипте нет резолюции (печатает ссылки как есть — 21 строка
+// "assets/items/" в блоке), под-схема «стройка» в схеме отсутствует
+// (схема свободная — голый id даёт 0 ошибок).
+
+const { validateData } = require('./json-schema.js');
+const BEG_000207 = '// BEGIN GENERATED (scripts/sync-buildings-data.js)';
+const END_000207 = '// END GENERATED';
+const SYNC_HEADER_000207 =
+  'GENERATED — не править руками, синхронизируется из assets/buildings '
+  + '(scripts/sync-buildings-data.js)';
+
+// Пин-таблица 000207: здание → [id предмета (прежнее значение),
+// количество, файл-цель в assets/items]. 22 позиции, 21 здание D3
+// (memory/000207-buildings-refs-items.md §0 — проверено 1:1).
+const REF_PIN_000207 = {
+  1: [['wood_log', 2, '000035']],
+  2: [['hide', 2, '000037']],
+  3: [['herb_healing', 2, '000039']],
+  4: [['sulfur', 2, '000022']],
+  7: [['hide', 8, '000037']],
+  8: [['iron_ore', 2, '000033'], ['coal', 2, '000038']],
+  10: [['hide', 2, '000037']],
+  11: [['wood_log', 2, '000035']],
+  25: [['wood_log', 3, '000035']],
+  36: [['sulfur', 10, '000022']],
+  37: [['herb_mana', 2, '000040']],
+  38: [['herb_bitter', 2, '000041']],
+  39: [['herb_bitter', 1, '000041']],
+  40: [['moonstone', 2, '000023']],
+  42: [['moonstone', 3, '000023']],
+  43: [['moonstone', 2, '000023']],
+  44: [['wood_log', 2, '000035']],
+  45: [['stone_chunk', 2, '000036']],
+  46: [['stone_chunk', 3, '000036']],
+  48: [['stone_chunk', 1, '000036']],
+  49: [['stone_chunk', 2, '000036']],
+};
+const REF_PIN_IDS_000207 = Object.keys(REF_PIN_000207).map(Number);
+const R4_NO_BUILD_000207 = [5, 31];
+
+function readBuildingRaw_000207(n) {
+  const f = String(n).padStart(6, '0') + '.json';
+  return JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+}
+
+test('000207 R1: assets/buildings: .стройка.исходники[].предмет — ссылка на файл items (паттерн ^assets/items/\\d{6}\\.json$); ровно 21 здание D3, 22 позиции; вне D3 — .стройка НЕТ (строгий контур)', () => {
+  const files = fs.readdirSync(DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  assert.equal(files.length, 54, 'каталог: ровно 54 файла 0000NN.json');
+  const raw = {};
+  for (const f of files) {
+    raw[parseInt(f, 10)] = JSON.parse(
+      fs.readFileSync(path.join(DIR, f), 'utf8'));
+  }
+  const withBuild = [];
+  let pos = 0;
+  for (const n of Object.keys(raw).map(Number).sort((a, b) => a - b)) {
+    const j = raw[n];
+    const s = j.особые_параметры && j.особые_параметры.стройка;
+    if (!s || !Array.isArray(s.исходники) || s.исходники.length === 0) continue;
+    withBuild.push(n);
+    for (const e of s.исходники) {
+      pos += 1;
+      assert.ok(ITEM_REF_RE.test(e.предмет),
+        `${n} ${j.название}: предмет «${e.предмет}» — ссылка на файл items `
+        + '(формат "assets/items/NNNNNN.json") ещё не существует (получен голый id)');
+    }
+  }
+  assert.deepEqual(withBuild.slice().sort((a, b) => a - b),
+    D3_IDS_03.slice().sort((a, b) => a - b),
+    'ровно 21 здание с .стройка.исходники (набор D3); получено: '
+    + (withBuild.join(', ') || 'НЕТ'));
+  assert.equal(pos, 22,
+    'позиций .стройка.исходники = 22 (получено ' + pos + ')');
+  for (const n of Object.keys(raw).map(Number).sort((a, b) => a - b)) {
+    if (D3_IDS_03.includes(n)) continue;
+    const j = raw[n];
+    assert.equal(j.особые_параметры.стройка, undefined,
+      `${n} ${j.название}: вне набора D3 — поля «стройка» НЕТ (строгий контур)`);
+  }
+});
+
+test('000207 R2: assets/buildings: целостность ссылок: каждая .стройка.исходники[].предмет резолвится — файл-цель assets/items существует, парсится, id (непустая строка) = ПРЕЖНЕМУ значению (пин-таблица), kind === "reagent", id ∈ пулу 13 reagent 000044; количество = пину', () => {
+  let pos = 0;
+  for (const bid of Object.keys(REF_PIN_000207)) {
+    const n = Number(bid);
+    const j = readBuildingRaw_000207(n);
+    const rows = REF_PIN_000207[n];
+    const s = j.особые_параметры && j.особые_параметры.стройка;
+    assert.ok(s && Array.isArray(s.исходники)
+      && s.исходники.length === rows.length,
+      `${n} ${j.название}: .стройка.исходники — массив из ${rows.length} `
+      + `(получено ${s && s.исходники ? s.исходники.length : 'НЕТ'})`);
+    for (let i = 0; i < rows.length; i++) {
+      const [itemId, kol, itemsFile] = rows[i];
+      const e = s.исходники[i];
+      pos += 1;
+      assert.equal(e.количество, kol,
+        `${n} ${j.название}: позиция ${i} — количество ${kol} (получено ${JSON.stringify(e.количество)})`);
+      const ref = e.предмет;
+      const target = path.join(__dirname, '..', ref);
+      assert.ok(fs.existsSync(target),
+        `${n} ${j.название}: ссылка «${ref}» — файл-цель отсутствует `
+        + `(путь от корня) — ссылки ещё не существуют (0/22 резолвится)`);
+      assert.equal(ref, 'assets/items/' + itemsFile + '.json',
+        `${n} ${j.название}: позиция ${i} — ссылка «assets/items/${itemsFile}.json» (пин-таблица 000207; получено «${ref}»)`);
+      const tj = JSON.parse(fs.readFileSync(target, 'utf8'));
+      assert.ok(tj && typeof tj.id === 'string' && tj.id !== '',
+        `${n}: файл-цель «${ref}» — id: непустая строка (получено ${JSON.stringify(tj && tj.id)})`);
+      assert.equal(tj.id, itemId,
+        `${n} ${j.название}: id цели «${tj.id}» ≠ прежнему значению «${itemId}» (пин-таблица 000207)`);
+      assert.equal(tj.kind, 'reagent',
+        `${n}: цель «${tj.id}» — kind reagent (получено ${JSON.stringify(tj.kind)})`);
+      assert.ok(REAGENTS_000044.includes(tj.id),
+        `${n}: id цели «${tj.id}» ∈ пулу 13 reagent 000044`);
+    }
+  }
+  assert.equal(pos, 22,
+    'позиций .стройка.исходники = 22 (получено ' + pos + ')');
+});
+
+test('000207 R3: запекание из ссылок: зеркало src/buildings.js — id-форма: для всех 22 позиций зеркальный .предмет === id файла-цели ссылки из JSON; в GENERATED-блоке НЕТ строк "assets/items/" (ссылки живут ТОЛЬКО в JSON)', () => {
+  let pos = 0;
+  for (const bid of Object.keys(REF_PIN_000207)) {
+    const n = Number(bid);
+    const j = readBuildingRaw_000207(n);
+    const rows = REF_PIN_000207[n];
+    const s = j.особые_параметры && j.особые_параметры.стройка;
+    const mb = getBuilding(n);
+    const ms = mb.особые_параметры && mb.особые_параметры.стройка;
+    assert.ok(ms && Array.isArray(ms.исходники)
+      && ms.исходники.length === rows.length,
+      `${n}: зеркало — .стройка.исходники из ${rows.length} позиций`);
+    for (let i = 0; i < rows.length; i++) {
+      const [itemId] = rows[i];
+      const ref = s.исходники[i].предмет;
+      pos += 1;
+      const target = path.join(__dirname, '..', ref);
+      assert.ok(fs.existsSync(target),
+        `${n} ${j.название}: ссылка «${ref}» — файл-цель отсутствует `
+        + '(резолв ссылки невозможен: 0/22)');
+      const tid = JSON.parse(fs.readFileSync(target, 'utf8')).id;
+      assert.equal(ms.исходники[i].предмет, tid,
+        `${n} ${j.название}: зеркальный .предмет «${ms.исходники[i].предмет}» ≠ id цели «${tid}» (зеркало = РЕЗОЛВ JSON)`);
+      assert.equal(ms.исходники[i].предмет, itemId,
+        `${n} ${j.название}: зеркальный .предмет «${ms.исходники[i].предмет}» ≠ прежнему значению «${itemId}» (byte-identical зеркало)`);
+    }
+  }
+  assert.equal(pos, 22,
+    'позиций .стройка.исходники = 22 (получено ' + pos + ')');
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'buildings.js'), 'utf8');
+  const bIdx = src.indexOf(BEG_000207);
+  const eIdx = src.indexOf(END_000207);
+  assert.ok(bIdx !== -1 && eIdx > bIdx,
+    'src/buildings.js: маркеры GENERATED на месте');
+  const block = src.slice(bIdx, eIdx);
+  assert.ok(!block.includes('assets/items/'),
+    'GENERATED-блок: НЕТ строк "assets/items/" (в зеркале — id-форма; ссылки — только в JSON)');
+});
+
+test('000207 R4: sync-buildings-data.js резолвит ссылки в id при запекании (функциональный: tmp-копия каталога со ссылочными JSON → перегенерированный блок в id-форме, без путей "assets/items/"); битая ссылка (файл-цель отсутствует) → exit ≠ 0 (fail-closed)', () => {
+  const os = require('node:os');
+  const ROOT = path.join(__dirname, '..');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '000207-r4-'));
+  try {
+    fs.mkdirSync(path.join(tmp, 'scripts', 'lib'), { recursive: true });
+    fs.mkdirSync(path.join(tmp, 'assets', 'buildings'), { recursive: true });
+    fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+    fs.cpSync(path.join(ROOT, 'assets', 'items'),
+      path.join(tmp, 'assets', 'items'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, 'scripts', 'sync-buildings-data.js'),
+      path.join(tmp, 'scripts', 'sync-buildings-data.js'));
+    for (const lf of fs.readdirSync(path.join(ROOT, 'scripts', 'lib'))) {
+      fs.copyFileSync(path.join(ROOT, 'scripts', 'lib', lf),
+        path.join(tmp, 'scripts', 'lib', lf));
+    }
+    // Фикстура — ПОСТ-миграционная форма данных (ссылки) + пара записей
+    // без .стройки (контур); файлы-цели — копия assets/items.
+    for (const n of REF_PIN_IDS_000207.concat(R4_NO_BUILD_000207)) {
+      const f = String(n).padStart(6, '0') + '.json';
+      const j = readBuildingRaw_000207(n);
+      const s = j.особые_параметры && j.особые_параметры.стройка;
+      if (s) {
+        const rows = REF_PIN_000207[n];
+        s.исходники.forEach((e, i) => {
+          e.предмет = 'assets/items/' + rows[i][2] + '.json';
+        });
+      }
+      fs.writeFileSync(path.join(tmp, 'assets', 'buildings', f),
+        JSON.stringify(j, null, 2));
+    }
+    fs.writeFileSync(path.join(tmp, 'src', 'buildings.js'),
+      '// ' + SYNC_HEADER_000207 + '\n'
+      + BEG_000207 + '\n' + END_000207 + '\n');
+    const script = path.join(tmp, 'scripts', 'sync-buildings-data.js');
+    const res = spawnSync(process.execPath, [script],
+      { cwd: tmp, encoding: 'utf8' });
+    assert.equal(res.status, 0,
+      'прогон 1 (все ссылки резолвятся): exit 0 (получено ' + res.status + '): '
+      + (res.stderr || res.stdout));
+    const out = fs.readFileSync(path.join(tmp, 'src', 'buildings.js'), 'utf8');
+    const bIdx = out.indexOf(BEG_000207);
+    const eIdx = out.indexOf(END_000207);
+    assert.ok(bIdx !== -1 && eIdx > bIdx,
+      'прогон 1: маркеры GENERATED на месте');
+    const block = out.slice(bIdx, eIdx);
+    assert.ok(!block.includes('assets/items/'),
+      'прогон 1: перегенерированный блок — id-форма (НЕТ строк "assets/items/" — ссылки резолвятся при запекании; сейчас скрипт печатает ссылки как есть)');
+    for (const bid of Object.keys(REF_PIN_000207)) {
+      for (const [itemId] of REF_PIN_000207[Number(bid)]) {
+        assert.ok(block.includes('предмет: "' + itemId + '"'),
+          'прогон 1: блок содержит запечённый id «' + itemId
+          + '» (здание ' + bid + ')');
+      }
+    }
+    const p1 = path.join(tmp, 'assets', 'buildings', '000001.json');
+    const j1 = JSON.parse(fs.readFileSync(p1, 'utf8'));
+    j1.особые_параметры.стройка.исходники[0].предмет = 'assets/items/999999.json';
+    fs.writeFileSync(p1, JSON.stringify(j1, null, 2));
+    const res2 = spawnSync(process.execPath, [script],
+      { cwd: tmp, encoding: 'utf8' });
+    assert.notEqual(res2.status, 0,
+      'прогон 2 (битая ссылка, файл-цель отсутствует): обязателен exit ≠ 0 (fail-closed); получен exit 0 — ссылка запекнулась бы молча');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('000207 R5: schema.json закрепляет ссылочный контур: под-схема особые_параметры.стройка — строгая (D2: предмет — pattern ^assets/items/\\d{6}\\.json$); отрицательный контроль: запись с ГОЛЫМ id предмета — ≥1 ошибка, со ссылкой — 0; особые_параметры остаётся свободным; все 54 файла каталога валидны', () => {
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
+  const rec = readBuildingRaw_000207(1);
+  const bare = JSON.parse(JSON.stringify(rec));
+  bare.особые_параметры.стройка.исходники[0].предмет = 'wood_log';
+  const errBare = validateData(schema, bare, '000001.json');
+  assert.ok(errBare.length >= 1,
+    'запись с голым id предмета — ошибка схемы обязательна (получено 0 ошибок — «особые_параметры» свободный объект, под-схема «стройка» не закреплена)');
+  assert.ok(errBare.some((e) => e.includes('assets/items')),
+    'ошибка — на pattern предмета (получено: ' + errBare.join(' | ') + ')');
+  const oschema = schema.properties && schema.properties['особые_параметры'];
+  const sub = oschema && oschema.properties && oschema.properties['стройка'];
+  assert.ok(sub,
+    'schema.json: под-схема особых_параметры.properties.стройка отсутствует');
+  assert.deepEqual(sub, {
+    type: 'object',
+    additionalProperties: false,
+    required: ['золото', 'исходники'],
+    properties: {
+      золото: { type: 'integer', minimum: 1 },
+      исходники: {
+        type: 'array',
+        minItems: 1,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['предмет', 'количество'],
+          properties: {
+            предмет: { type: 'string', pattern: '^assets/items/\\d{6}\\.json$' },
+            количество: { type: 'integer', minimum: 1 },
+          },
+        },
+      },
+    },
+  }, 'под-схема «стройка» — строгий контур (D2: предмет — ссылка на файл items)');
+  assert.notEqual(oschema.additionalProperties, false,
+    'особые_параметры остаётся СВОБОДНЫМ объектом (без additionalProperties:false)');
+  const refd = JSON.parse(JSON.stringify(rec));
+  refd.особые_параметры.стройка.исходники[0].предмет = 'assets/items/000035.json';
+  assert.deepEqual(validateData(schema, refd, '000001.json'), [],
+    'запись со ссылкой на файл items — валидна');
+  for (const f of fs.readdirSync(DIR)
+    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    const errs = validateData(
+      schema, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')), f);
+    assert.deepEqual(errs, [], f + ': ошибки схемы: ' + errs.join(' | '));
+  }
 });

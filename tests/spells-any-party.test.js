@@ -96,6 +96,29 @@ const ROOT = path.join(__dirname, '..');
 const src = (f) => fs.readFileSync(path.join(ROOT, 'src', f), 'utf8');
 const page = () => fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 
+// Задача 000207: сырые JSON несут ссылки
+// .стройка.исходники[].предмет «assets/items/NNNNNN.json», зеркало
+// src/buildings.js — в id-форме (sync резолвит ссылки в id).
+// Mirror-тесты whole-record: резолв ссылок в id ПЕРЕД deepEqual
+// (контракт memory/000207-buildings-refs-items.md, D7).
+const ITEM_REF_RE = /^assets\/items\/\d{6}\.json$/;
+function resolveItemRefs(record) {
+  const out = JSON.parse(JSON.stringify(record));
+  const s = out.особые_параметры && out.особые_параметры.стройка;
+  if (!s || !Array.isArray(s.исходники)) return out;
+  for (const e of s.исходники) {
+    if (e && typeof e.предмет === 'string' && ITEM_REF_RE.test(e.предмет)) {
+      const t = JSON.parse(fs.readFileSync(
+        path.join(ROOT, e.предмет), 'utf8'));
+      if (!t || typeof t.id !== 'string' || t.id === '') {
+        throw new Error('resolveItemRefs: «' + e.предмет + '» без id');
+      }
+      e.предмет = t.id;
+    }
+  }
+  return out;
+}
+
 // --- Сущности на базе (require — в теле теста или на верхнем уровне:
 // ВСЕ эти модули существуют на базе 7306ca3) ---
 const Party = require('../src/party.js');      // 000145 — на базе
@@ -463,8 +486,9 @@ test('000147 AP-M1: каталоги 17/18/19/21/38 — наставник.за�
     assert.deepEqual(mentor, { заклинания: pool, цена: MENTOR_PRICE },
       'каталог ' + id + ': наставник.заклинания (D12) + цена 50 ' +
       '(RED: ключа «наставник» в JSON нет)');
-    // Зеркало (GENERATED, npm run sync:buildings) — побайтово JSON:
-    assert.deepEqual(B.getBuilding(Number(id)), j,
+    // Зеркало (GENERATED, npm run sync:buildings) — побайтово JSON
+    // (ссылки .стройка — резолвятся в id, 000207):
+    assert.deepEqual(B.getBuilding(Number(id)), resolveItemRefs(j),
       'зеркало src/buildings.js ' + id + ' = JSON (sync)');
   }
   // 38: явный эффекты-массив (благословение ПЕРВОЙ) + раз_в_день

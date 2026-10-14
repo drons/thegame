@@ -68,7 +68,39 @@
       }
     },
     "особые_параметры": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "стройка": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["золото", "исходники"],
+          "properties": {
+            "золото": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "исходники": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["предмет", "количество"],
+                "properties": {
+                  "предмет": {
+                    "type": "string",
+                    "pattern": "^assets/items/\\d{6}\\.json$"
+                  },
+                  "количество": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

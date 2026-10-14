@@ -47,6 +47,37 @@ const REQUIRED = [
   'id', 'название', 'категория', 'функция',
   'типичный_npc', 'допустимые_тайлы', 'особые_параметры',
 ];
+
+// Задача 000207: .стройка.исходники[].предмет — ссылка на файл
+// «assets/items/NNNNNN.json» (контракт 000211 §2); при запекании
+// резолюция в id файла-цели — зеркало src/buildings.js остаётся
+// в id-форме (ссылки живут ТОЛЬКО в JSON). Fail-closed: значение
+// вне паттерна (включая голый id — дрейф), файл-цель отсутствует /
+// не JSON / без непустого строкового id → exit 1.
+const ITEM_REF_RE = /^assets\/items\/\d{6}\.json$/;
+function resolveItemRef(file, entry) {
+  const ref = entry.предмет;
+  if (typeof ref !== 'string' || !ITEM_REF_RE.test(ref)) {
+    console.error(
+      `${file}: .стройка.исходники.предмет «${ref}» — не ссылка `
+      + 'на файл items (формат "assets/items/NNNNNN.json")');
+    process.exit(1);
+  }
+  const target = path.join(ROOT, ref);
+  let tj;
+  try {
+    tj = JSON.parse(fs.readFileSync(target, 'utf8'));
+  } catch {
+    console.error(
+      `${file}: цель ссылки «${ref}» — файл отсутствует или не JSON`);
+    process.exit(1);
+  }
+  if (!tj || typeof tj.id !== 'string' || tj.id === '') {
+    console.error(`${file}: цель ссылки «${ref}» — id отсутствует`);
+    process.exit(1);
+  }
+  entry.предмет = tj.id;
+}
 const buildings = [];
 for (const f of files) {
   const n = parseInt(f, 10);
@@ -62,6 +93,14 @@ for (const f of files) {
     if (!(k in data)) {
       console.error(`${f}: нет обязательного поля «${k}»`);
       process.exit(1);
+    }
+  }
+  // Задача 000207: ссылки .стройка.исходники[].предмет → id цели
+  // (до генерации; зеркало — в id-форме).
+  const s = data.особые_параметры && data.особые_параметры.стройка;
+  if (s && Array.isArray(s.исходники)) {
+    for (const e of s.исходники) {
+      resolveItemRef(f, e);
     }
   }
   buildings.push({ file: f, data });

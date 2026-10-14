@@ -100,6 +100,29 @@ const { SAVE_KEY } = require('../src/save.js');
 
 const ROOT = path.join(__dirname, '..');
 
+// Задача 000207: сырые JSON несут ссылки
+// .стройка.исходники[].предмет «assets/items/NNNNNN.json», зеркало
+// src/buildings.js — в id-форме (sync резолвит ссылки в id).
+// Mirror-тесты whole-record: резолв ссылок в id ПЕРЕД deepEqual
+// (контракт memory/000207-buildings-refs-items.md, D7).
+const ITEM_REF_RE = /^assets\/items\/\d{6}\.json$/;
+function resolveItemRefs(record) {
+  const out = JSON.parse(JSON.stringify(record));
+  const s = out.особые_параметры && out.особые_параметры.стройка;
+  if (!s || !Array.isArray(s.исходники)) return out;
+  for (const e of s.исходники) {
+    if (e && typeof e.предмет === 'string' && ITEM_REF_RE.test(e.предмет)) {
+      const t = JSON.parse(fs.readFileSync(
+        path.join(ROOT, e.предмет), 'utf8'));
+      if (!t || typeof t.id !== 'string' || t.id === '') {
+        throw new Error('resolveItemRefs: «' + e.предмет + '» без id');
+      }
+      e.предмет = t.id;
+    }
+  }
+  return out;
+}
+
 // --- Чистая часть: node-require модуля ---
 //
 // Модуль создаётся на зелёной стадии; до неё require падает — каждый
@@ -1352,8 +1375,10 @@ test('A43. каталог 40/42: эффект — ОБЪЕКТ (параметр
     path.join(ROOT, 'assets', 'buildings', '000040.json'), 'utf8'));
   const j42 = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'buildings', '000042.json'), 'utf8'));
-  assert.deepEqual(B.getBuilding(40), j40, 'зеркало 40: buildings.js ≡ JSON');
-  assert.deepEqual(B.getBuilding(42), j42, 'зеркало 42: buildings.js ≡ JSON');
+  assert.deepEqual(B.getBuilding(40), resolveItemRefs(j40),
+    'зеркало 40: buildings.js ≡ JSON');
+  assert.deepEqual(B.getBuilding(42), resolveItemRefs(j42),
+    'зеркало 42: buildings.js ≡ JSON');
 });
 
 test('A44. камень: шанс min(1, 0.25 + 0.05·Рунопись) — таблица с капом 1.0', () => {
@@ -2212,7 +2237,8 @@ test('A62. каталог 46: эффект.радиус = 20 (раз_в_день
   // регенерация npm run sync:buildings; паттерн A43).
   const j46 = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'buildings', '000046.json'), 'utf8'));
-  assert.deepEqual(B.getBuilding(46), j46, 'зеркало 46: buildings.js ≡ JSON');
+  assert.deepEqual(B.getBuilding(46), resolveItemRefs(j46),
+    'зеркало 46: buildings.js ≡ JSON');
 });
 
 test('A63. apply(«46»): деградации — без эффекта/без карты → «недоступно»; радиус не-integer → фолбэк R=20', () => {
@@ -2423,8 +2449,10 @@ test('A58. 000077: каталог 39/43 — эффект-объект { доли
     '39: «даёт» сохранён (потребителей нет — не трогаем)');
   // Зеркало src/buildings.js — регенерация npm run sync:buildings
   // (паттерн A43: deepEqual с каталогом).
-  assert.deepEqual(B.getBuilding(39), j39, 'зеркало 39: buildings.js ≡ JSON');
-  assert.deepEqual(B.getBuilding(43), j43, 'зеркало 43: buildings.js ≡ JSON');
+  assert.deepEqual(B.getBuilding(39), resolveItemRefs(j39),
+    'зеркало 39: buildings.js ≡ JSON');
+  assert.deepEqual(B.getBuilding(43), resolveItemRefs(j43),
+    'зеркало 43: buildings.js ≡ JSON');
 });
 
 test('A59. 000077: реестр — записи «39» (Храм) и «43» (Круг); buildingActions — строки по каталогу', () => {
@@ -2782,7 +2810,8 @@ test('A56. каталог 000048: раз_в_день + эффект (доли 40
   // регенерация npm run sync:buildings).
   const j48 = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'buildings', '000048.json'), 'utf8'));
-  assert.deepEqual(B.getBuilding(48), j48, 'зеркало 48: buildings.js ≡ JSON');
+  assert.deepEqual(B.getBuilding(48), resolveItemRefs(j48),
+    'зеркало 48: buildings.js ≡ JSON');
 });
 
 test('A57. rollRuinsContent/ruinsLoot: доли 40/30/30 (N=10000), детерминизм (tile, day), сиды, мусор', () => {
@@ -3927,7 +3956,7 @@ test('A56. каталог 49 (фонтан): эффекты + раз_в_день
   // Зеркало src/buildings.js — тождественно каталогу (000055).
   const j49 = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'buildings', '000049.json'), 'utf8'));
-  assert.deepEqual(B.getBuilding(49), j49,
+  assert.deepEqual(B.getBuilding(49), resolveItemRefs(j49),
     'зеркало 49: buildings.js ≡ assets/buildings/000049.json');
 });
 
@@ -3953,7 +3982,7 @@ test('A57. каталог 45 (колодец): раз_в_день (boolean) + э
   }
   const j45 = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'buildings', '000045.json'), 'utf8'));
-  assert.deepEqual(B.getBuilding(45), j45,
+  assert.deepEqual(B.getBuilding(45), resolveItemRefs(j45),
     'зеркало 45: buildings.js ≡ assets/buildings/000045.json');
 });
 
@@ -8808,7 +8837,7 @@ test('RG1. 000200: реестр EFFECTS["fullrest"] {имя:"Полный отд
     const json = JSON.parse(
       fs.readFileSync(path.join(BDIR, fname), 'utf8'));
     assert.deepEqual(B.getBuilding(id).особые_параметры,
-      json.особые_параметры,
+      resolveItemRefs(json).особые_параметры,
       'зеркало ' + id + ' == JSON-каталог (особые_параметры побайтово)');
   }
   assert.deepEqual(BE.effectIds(B.getBuilding(44)),
