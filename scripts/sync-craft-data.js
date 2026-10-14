@@ -16,6 +16,12 @@
 // ДОВОЛЬНОЕ: выводятся ТОЛЬКО ключи, присутствующие в JSON, в каноническом
 // порядке (схемные ключи без дополнений) — иначе deepEqual каталога в
 // тестах не сойдётся.
+//
+// Задача 000208: значения-ссылки на файлы каталогов (результат/
+// исходники → assets/items, навыки → assets/skills, здания →
+// assets/buildings) резолвятся в id целевого файла при сборке —
+// зеркало и рантайм получают id-форму; битая ссылка — exit 1
+// (memory/000208-craft-refs.md).
 
 const fs = require('fs');
 const path = require('path');
@@ -34,6 +40,61 @@ if (files.length === 0) {
   process.exit(1);
 }
 
+// --- Задача 000208: резолв ссылок на файлы каталогов (id-форма) ---
+// Ссылка — строка-путь от корня репозитория; id целевого файла ===
+// прежнему ссылочному значению (items/skills — строка, buildings —
+// число). Кэш — файл цели читается 1 раз на уникальную ссылку.
+const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
+const REF_SKILLS = /^assets\/skills\/\d{6}\.json$/;
+const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
+const REF_CACHE = new Map();
+
+function refId(ref, re, where) {
+  if (typeof ref !== 'string' || !re.test(ref)) {
+    console.error(`${where}: ссылка "${ref}" не по формату`);
+    process.exit(1);
+  }
+  if (REF_CACHE.has(ref)) return REF_CACHE.get(ref);
+  const target = path.join(ROOT, ref);
+  if (!fs.existsSync(target)) {
+    console.error(`${where}: нет цели ссылки ${ref}`);
+    process.exit(1);
+  }
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(target, 'utf8'));
+  } catch (e) {
+    console.error(`${where}: цель ссылки ${ref} не JSON: ${e.message}`);
+    process.exit(1);
+  }
+  if (!data || data.id === undefined) {
+    console.error(`${where}: цель ссылки ${ref} без id`);
+    process.exit(1);
+  }
+  REF_CACHE.set(ref, data.id);
+  return data.id;
+}
+
+// Рецепт в id-форме (зеркало/рантайм): 4 группы полей-ссылок
+// резолвятся в id целевого файла; остальные поля — те же значения
+// (вход не мутируется).
+function resolveRecipeData(data, file) {
+  return {
+    ...data,
+    результат: { ...data.результат,
+      предмет: refId(data.результат.предмет, REF_ITEMS,
+        `${file}: результат.предмет`) },
+    исходники: data.исходники.map(
+      (i, n) => ({ ...i,
+        предмет: refId(i.предмет, REF_ITEMS,
+          `${file}: исходники[${n}].предмет`) })),
+    навыки: data.навыки.map(
+      (s, n) => refId(s, REF_SKILLS, `${file}: навыки[${n}]`)),
+    здания: data.здания.map(
+      (b, n) => refId(b, REF_BUILDINGS, `${file}: здания[${n}]`)),
+  };
+}
+
 const recipes = [];
 for (const f of files) {
   const data = JSON.parse(
@@ -42,7 +103,7 @@ for (const f of files) {
     console.error(`${f}: не найдено поле id — не файл рецепта`);
     process.exit(1);
   }
-  recipes.push({ file: f, data });
+  recipes.push({ file: f, data: resolveRecipeData(data, f) });
 }
 
 // Канонический порядок ключей (схема assets/craft/schema.json).

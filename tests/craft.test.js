@@ -68,6 +68,57 @@ function loadSpellIds() {
   return ids;
 }
 
+// --- Задача 000208: ссылки на файлы каталогов items/skills/buildings ---
+//
+// Формат ссылки — контракт 000211 §2 (memory/000211-spec-coverage-
+// audit.md): строка — путь к файлу от корня репозитория; id целевого
+// файла === прежнему ссылочному значению (items/skills — строка,
+// buildings — число). Хелперы локальные (НЕ scripts/lib/json-ref.js):
+// задача 000216 параллельна — жёсткая зависимость сломала бы мерж
+// (решение 000208, memory/000208-craft-refs.md §6.9).
+
+const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
+const REF_SKILLS = /^assets\/skills\/\d{6}\.json$/;
+const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
+const REF_CACHE = new Map(); // ссылка → id цели (файл читается 1 раз)
+
+// Ссылка → id целевого файла: ссылка по per-catalog паттерну, цель
+// существует, парсится и имеет id.
+function refId(ref, re, file) {
+  assert.match(ref, re,
+    `${file}: ссылка "${ref}" не по паттерну каталога`);
+  if (REF_CACHE.has(ref)) return REF_CACHE.get(ref);
+  const target = path.join(__dirname, '..', ref);
+  assert.ok(fs.existsSync(target),
+    `${file}: нет цели ссылки ${ref}`);
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(target, 'utf8'));
+  } catch (e) {
+    assert.fail(`${file}: цель ссылки ${ref} не JSON: ${e.message}`);
+  }
+  assert.ok(data && data.id !== undefined,
+    `${file}: цель ссылки ${ref} без id`);
+  REF_CACHE.set(ref, data.id);
+  return data.id;
+}
+
+// Рецепт в id-форме — та, что в зеркале src/craft-data.js и рантайме
+// (то же преобразование, что resolveRecipeData в sync-craft-data.js):
+// 4 группы полей-ссылок резолвятся в id целевого файла, остальные
+// поля — те же значения (вход не мутируется).
+function resolveRecipe(data, file) {
+  return {
+    ...data,
+    результат: { ...data.результат,
+      предмет: refId(data.результат.предмет, REF_ITEMS, file) },
+    исходники: data.исходники.map(
+      (i) => ({ ...i, предмет: refId(i.предмет, REF_ITEMS, file) })),
+    навыки: data.навыки.map((s) => refId(s, REF_SKILLS, file)),
+    здания: data.здания.map((b) => refId(b, REF_BUILDINGS, file)),
+  };
+}
+
 function loadSchema() {
   return JSON.parse(fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
 }
@@ -145,12 +196,13 @@ test('правила: уникальные id, тип из списка, исх�
     assert.ok(CRAFT_TYPES.has(data.тип),
       `${file}: неизвестный тип крафта "${data.тип}"`);
     types.add(data.тип);
-    assert.ok(getItem(data.результат.предмет) !== null,
+    assert.ok(getItem(refId(data.результат.предмет, REF_ITEMS, file))
+      !== null,
       `${file}: результат "${data.результат.предмет}" нет в items`);
     // Исходники: без дублей, исходник не совпадает с результатом.
     const inputs = new Set();
     for (const inp of data.исходники) {
-      assert.ok(getItem(inp.предмет) !== null,
+      assert.ok(getItem(refId(inp.предмет, REF_ITEMS, file)) !== null,
         `${file}: исходник "${inp.предмет}" нет в items`);
       assert.ok(!inputs.has(inp.предмет),
         `${file}: дубль исходника "${inp.предмет}"`);
@@ -175,21 +227,23 @@ test('правила: уникальные id, тип из списка, исх�
 
 // --- Ссылочная целостность ---
 
-test('ссылки: навыки → assets/skills, здания → assets/buildings', () => {
+test('ссылки: навыки → assets/skills, здания → assets/buildings (000208: ссылки на файлы каталогов)', () => {
   const { byId } = loadCatalog();
   const knownSkill = (id) =>
     SECONDARY_SKILLS[id] !== undefined ||
     PRIMARY_SKILLS.some((p) => p.id === id);
   for (const { file, data } of byId.values()) {
     for (const s of data.навыки) {
-      assert.ok(knownSkill(s),
-        `${file}: навык "${s}" нет в каталоге assets/skills`);
+      const id = refId(s, REF_SKILLS, file);
+      assert.ok(knownSkill(id),
+        `${file}: навык "${id}" нет в каталоге assets/skills`);
     }
     for (const b of data.здания) {
-      assert.ok(Number.isInteger(b) && b >= 1 && b <= 50,
-        `${file}: постройка ${b} вне диапазона 1..50 каталога`);
-      assert.ok(getBuilding(b) !== null,
-        `${file}: здание id=${b} нет в каталоге assets/buildings`);
+      const id = refId(b, REF_BUILDINGS, file);
+      assert.ok(Number.isInteger(id) && id >= 1 && id <= 50,
+        `${file}: постройка ${id} вне диапазона 1..50 каталога`);
+      assert.ok(getBuilding(id) !== null,
+        `${file}: здание id=${id} нет в каталоге assets/buildings`);
     }
   }
 });
@@ -248,7 +302,8 @@ test('с нуля: столяр, камнерез, кузнец и алхими�
   // готовые снаряжение/зелья. До задачи 000044 в каталоге были только
   // рецепты-улучшения, виды столярное_дело и резьба_по_камню пусты.
   const { byId } = loadCatalog();
-  const recipes = [...byId.values()].map((x) => x.data);
+  const recipes = [...byId.values()]
+    .map((x) => resolveRecipe(x.data, x.file));
   const hasInput = (r, id) =>
     r.исходники.some((i) => i.предмет === id);
   const find = (pred, what) => {
@@ -336,7 +391,8 @@ test('craft-data.js: точное зеркало каталога JSON (зада
   files.forEach((f, i) => {
     const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
     assert.equal(CRAFT[i].id, data.id, `позиция ${i}: порядок файлов`);
-    assert.deepEqual(CRAFT[i], data, `${f}: зеркало CRAFT не совпадает`);
+    assert.deepEqual(CRAFT[i], resolveRecipe(data, f),
+      `${f}: зеркало CRAFT не совпадает`);
     assert.equal(CRAFT_BY_ID[data.id], CRAFT[i],
       `${f}: CRAFT_BY_ID — те же объекты (идентичность)`);
   });
@@ -415,7 +471,7 @@ test('000157.04 R2: 12 именованных рецептов (id/тип/рез
     assert.ok(r,
       `рецепт "${id}" в каталоге (краснота: id не создан — данные не добавлены)`);
     assert.equal(r.data.тип, type, `${id}: тип «${type}» (контракт §2)`);
-    assert.equal(r.data.результат.предмет, result,
+    assert.equal(refId(r.data.результат.предмет, REF_ITEMS, r.file), result,
       `${id}: результат — существующий предмет "${result}"`);
     assert.equal(r.data.результат.количество, 1, `${id}: результат ×1`);
     if (base === undefined) {
@@ -431,9 +487,13 @@ test('000157.04 R2: 12 именованных рецептов (id/тип/рез
 test('000157.04 R3: copper_ore — ≥1 рецепт (регресс-пин закрытия дыры 000044)', () => {
   const { byId } = loadCatalog();
   let n = 0;
-  for (const { data } of byId.values()) {
-    if (data.результат.предмет === 'copper_ore') n += 1;
-    for (const i of data.исходники) if (i.предмет === 'copper_ore') n += 1;
+  for (const { file, data } of byId.values()) {
+    if (refId(data.результат.предмет, REF_ITEMS, file) === 'copper_ore') {
+      n += 1;
+    }
+    for (const i of data.исходники) {
+      if (refId(i.предмет, REF_ITEMS, file) === 'copper_ore') n += 1;
+    }
   }
   assert.ok(n >= 1,
     'copper_ore — исходник или результат ≥1 рецепта (закрытие дыры 000044), '
@@ -443,9 +503,9 @@ test('000157.04 R3: copper_ore — ≥1 рецепт (регресс-пин за
 test('000157.04 R4: каждый из 11 предметов 000157.01 — ≥1 рецепт (исходник или результат)', () => {
   const { byId } = loadCatalog();
   for (const id of ORES_015701) {
-    const hit = [...byId.values()].some(({ data }) =>
-      data.результат.предмет === id ||
-      data.исходники.some((i) => i.предмет === id));
+    const hit = [...byId.values()].some(({ file, data }) =>
+      refId(data.результат.предмет, REF_ITEMS, file) === id ||
+      data.исходники.some((i) => refId(i.предмет, REF_ITEMS, file) === id));
     assert.ok(hit,
       `предмет "${id}" (000157.01) — исходник или результат ≥1 рецепта`);
   }
@@ -536,6 +596,194 @@ test('000191.14: КАЖДЫЙ рецепт типа «зачарование» �
       assert.ok(spellIds.has(sp),
         e.data.id + ': заклинание «' + sp + '» есть в assets/spells '
         + '(ссылочная целостность инварианта)');
+    }
+  }
+});
+
+// --- Задача 000208: ссылки на файлы каталогов (TDD, красные тесты) ---
+//
+// Красная стадия: данные каталога ещё в id-форме, узлы schema.json —
+// в старой форме, sync-craft-data.js без резолвера ссылок и без
+// валидации ссылок — тесты ниже падают именно по этому. Синк-скрипт
+// запускается в tmp-«репозитории» (копия РЕАЛЬНОГО скрипта — ROOT он
+// резолвит из __dirname; паттерн — makeTmpRepo в tests/sync-all.
+// test.js, решение 000208 §6.6: CLI без root-аргумента).
+
+const { spawnSync } = require('node:child_process');
+const os = require('node:os');
+const SCRIPTS = path.join(__dirname, '..', 'scripts');
+
+const FIXTURE_TARGETS = {
+  items: {
+    '000001.json': '{"id": "wood_sword"}\n',
+    '000002.json': '{"id": "wood_log"}\n',
+  },
+  skills: { '000001.json': '{"id": "forge"}\n' },
+  buildings: { '000003.json': '{"id": 3}\n' },
+};
+
+const FIXTURE_RECIPE = {
+  id: 'test_recipe',
+  'название': 'Тестовый рецепт',
+  'тип': 'столярное_дело',
+  'результат': { 'предмет': 'assets/items/000001.json', 'количество': 1 },
+  'исходники': [{ 'предмет': 'assets/items/000002.json', 'количество': 3 }],
+  'навыки': ['assets/skills/000001.json'],
+  'здания': ['assets/buildings/000003.json'],
+  'уровень': 1,
+  'описание': 'Фикстура 000208: ссылки на файлы каталогов',
+};
+
+// tmp-«репозиторий»: копия реального sync-craft-data.js +
+// write-atomic.js + фикстура assets (рецепт в ссылочной форме).
+function makeTmpCraftRepo(craftFiles, targets) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'craft-000208-'));
+  for (const sub of ['scripts/lib', 'src', 'assets/craft',
+                     'assets/items', 'assets/skills', 'assets/buildings']) {
+    fs.mkdirSync(path.join(dir, sub), { recursive: true });
+  }
+  fs.copyFileSync(path.join(SCRIPTS, 'sync-craft-data.js'),
+    path.join(dir, 'scripts', 'sync-craft-data.js'));
+  fs.copyFileSync(path.join(SCRIPTS, 'lib', 'write-atomic.js'),
+    path.join(dir, 'scripts', 'lib', 'write-atomic.js'));
+  for (const [f, content] of Object.entries(craftFiles)) {
+    fs.writeFileSync(path.join(dir, 'assets', 'craft', f), content, 'utf8');
+  }
+  for (const [sub, files] of Object.entries(targets)) {
+    for (const [f, content] of Object.entries(files)) {
+      fs.writeFileSync(path.join(dir, 'assets', sub, f), content, 'utf8');
+    }
+  }
+  return dir;
+}
+
+test('000208 R1: schema.json — поля-ссылки зафиксированы per-catalog паттернами', () => {
+  const schema = loadSchema();
+  assert.deepEqual(schema.properties.результат.properties.предмет,
+    { type: 'string', pattern: '^assets/items/\\d{6}\\.json$' },
+    'результат.предмет — ссылка на файл assets/items');
+  assert.deepEqual(schema.properties.исходники.items.properties.предмет,
+    { type: 'string', pattern: '^assets/items/\\d{6}\\.json$' },
+    'исходники[].предмет — ссылка на файл assets/items');
+  assert.deepEqual(schema.properties.навыки.items,
+    { type: 'string', pattern: '^assets/skills/\\d{6}\\.json$' },
+    'навыки[] — ссылка на файл assets/skills');
+  assert.deepEqual(schema.properties.здания.items,
+    { type: 'string', pattern: '^assets/buildings/\\d{6}\\.json$' },
+    'здания[] — ссылка на файл assets/buildings (integer → string)');
+});
+
+test('000208 R2: все 31 рецепт — результат/исходники/навыки/здания — ссылки на файлы каталогов, резолв в id каталога', () => {
+  const { byId } = loadCatalog();
+  const knownSkill = (id) =>
+    SECONDARY_SKILLS[id] !== undefined ||
+    PRIMARY_SKILLS.some((p) => p.id === id);
+  let itemRefs = 0;
+  let skillRefs = 0;
+  let buildingRefs = 0;
+  for (const { file, data } of byId.values()) {
+    for (const ref of [data.результат.предмет,
+                       ...data.исходники.map((i) => i.предмет)]) {
+      itemRefs += 1;
+      const id = refId(ref, REF_ITEMS, file);
+      assert.ok(getItem(id) !== null,
+        `${file}: цель ссылки ${ref} (id "${id}") нет в assets/items`);
+    }
+    for (const ref of data.навыки) {
+      skillRefs += 1;
+      const id = refId(ref, REF_SKILLS, file);
+      assert.ok(knownSkill(id),
+        `${file}: цель ссылки ${ref} (id "${id}") нет в каталоге skills`);
+    }
+    for (const ref of data.здания) {
+      buildingRefs += 1;
+      const id = refId(ref, REF_BUILDINGS, file);
+      assert.ok(getBuilding(id) !== null,
+        `${file}: цель ссылки ${ref} (id ${id}) нет в assets/buildings`);
+    }
+  }
+  // Анти-вакуум: точные счётчики ссылок (контракт 000208 §1).
+  assert.equal(itemRefs, 114, 'анти-вакуум: 114 item-ссылок');
+  assert.equal(skillRefs, 44, 'анти-вакуум: 44 skill-ссылки');
+  assert.equal(buildingRefs, 54, 'анти-вакуум: 54 building-ссылки');
+});
+
+test('000208 R3: sync-craft-data.js запекает ссылки в id-форму (tmp-репозиторий)', () => {
+  const dir = makeTmpCraftRepo(
+    { '000001.json': JSON.stringify(FIXTURE_RECIPE) }, FIXTURE_TARGETS);
+  try {
+    const script = path.join(dir, 'scripts', 'sync-craft-data.js');
+    const run1 = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+    assert.equal(run1.status, 0,
+      'sync-craft-data.js на tmp-репозитории со ссылочными данными: ' +
+      (run1.stdout || '') + (run1.stderr || ''));
+    const out = path.join(dir, 'src', 'craft-data.js');
+    const text = fs.readFileSync(out, 'utf8');
+    // Данные модуля — РЕЗОЛВЕННАЯ id-форма: items/skills — строки,
+    // здание — ЧИСЛО (id целевого файла).
+    assert.match(text, /предмет: "wood_sword"/,
+      'результат — резолв-ид предмета');
+    assert.match(text, /предмет: "wood_log"/,
+      'исходник — резолв-ид предмета');
+    assert.match(text, /навыки: \["forge"\]/, 'навык — резолв-ид');
+    assert.match(text, /здания: \[3\]/, 'здание — резолв-ид (число)');
+    assert.doesNotMatch(text, /assets\/(items|skills|buildings)\//,
+      'в данных модуля нет сырых ссылок «assets/…»');
+    // Повторный запуск byte-identical.
+    const before = fs.readFileSync(out, 'utf8');
+    const run2 = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+    assert.equal(run2.status, 0,
+      'повторный запуск: ' + (run2.stdout || '') + (run2.stderr || ''));
+    assert.equal(fs.readFileSync(out, 'utf8'), before,
+      'повторный запуск byte-identical');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + имя ссылки в stderr', () => {
+  // 1. Нет цели ссылки.
+  {
+    const recipe = JSON.parse(JSON.stringify(FIXTURE_RECIPE));
+    recipe.результат.предмет = 'assets/items/000009.json';
+    const dir = makeTmpCraftRepo(
+      { '000001.json': JSON.stringify(recipe) }, FIXTURE_TARGETS);
+    try {
+      const r = spawnSync(process.execPath,
+        [path.join(dir, 'scripts', 'sync-craft-data.js')],
+        { encoding: 'utf8' });
+      assert.equal(r.status, 1,
+        'битая ссылка (нет цели) обязана дать exit 1: ' +
+        (r.stdout || '') + (r.stderr || ''));
+      assert.match(r.stderr || '', /assets\/items\/000009\.json/,
+        'в stderr — имя битой ссылки (нет цели)');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  // 2. Цель существует, но без id.
+  {
+    const targets = {
+      items: {
+        '000001.json': '{"name": "без id"}\n',
+        '000002.json': '{"id": "wood_log"}\n',
+      },
+      skills: { '000001.json': '{"id": "forge"}\n' },
+      buildings: { '000003.json': '{"id": 3}\n' },
+    };
+    const dir = makeTmpCraftRepo(
+      { '000001.json': JSON.stringify(FIXTURE_RECIPE) }, targets);
+    try {
+      const r = spawnSync(process.execPath,
+        [path.join(dir, 'scripts', 'sync-craft-data.js')],
+        { encoding: 'utf8' });
+      assert.equal(r.status, 1,
+        'цель без id обязана дать exit 1: ' +
+        (r.stdout || '') + (r.stderr || ''));
+      assert.match(r.stderr || '', /assets\/items\/000001\.json/,
+        'в stderr — имя ссылки на цель без id');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   }
 });
