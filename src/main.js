@@ -2574,6 +2574,8 @@
     const ev = G.locations.dungeonMove(ds, dx, dy, performance.now(),
       { inCombat: !!(G.combatUI && G.combatUI.isActive()) });
     if (!ev) return;
+    const dayBefore = clock.day;
+    clock.addStep(1);
     // 000177: exit-события из шага НЕТ (выход — [E],
     // locationOnInteract); шаг на совмещённый тайл = обычный moved.
     if (ev.type === 'combat') { startDungeonCombat(ev.group); return; }
@@ -2605,7 +2607,11 @@
       }
       const msg = 'Сундук: +' + chest.gold + ' золота' + itemMsg;
       ds.log.push(msg);
-      hudFlash = msg;
+      // 000214 (ревью): шаг, закрывающий день, на клетке с сундуком —
+      // onDay-флеш «…День N.» уже выставлен ДО этой ветки; перекрыв
+      // его, сделаем смену дня невидимой (в мире конкурента флешу нет
+      // — паритет): строка сундука ПРИБИРАЕТСЯ к полному флешу дня.
+      hudFlash = (clock.day !== dayBefore ? hudFlash + '\n' : '') + msg;
       hudFlashUntil = performance.now() + 5000;
       G.playerUI && G.playerUI.render();
     }
@@ -2632,8 +2638,9 @@
         && G.buildingActions.renameInputActive()) return; // 000148.05
     // 000177: exit-события из шага НЕТ — шаг на дверь = обычный
     // moved; выход — ТОЛЬКО [E] (locationOnInteract).
-    G.locations.cityMove(ds, dx, dy, performance.now(),
+    const ev = G.locations.cityMove(ds, dx, dy, performance.now(),
       { inCombat: !!(G.combatUI && G.combatUI.isActive()) });
+    if (ev) clock.addStep(1);
   }
   // 000177/000153.03/000157.03: [E] в локации — ЕДИНЫЙ путь
   // (клавиша dungeon-ui / тач-кнопка main.js / debug — три канала,
