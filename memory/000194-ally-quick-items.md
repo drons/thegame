@@ -83,7 +83,10 @@ Baseline на 0fc24f1: 2326/2326 зелёных.
     (нормализация string|null; data.quick — опциональный снимок; нет →
     [null,null,null]). Каталог в makeAlly НЕ валидируется: невалидный
     id отклонится ядром «неизвестный предмет: id» (как у героя через
-    useItem).
+    useItem). 000195: u.quick re-sync'ится с live-карты в бою
+    (combat-ui syncAllyQuickLive, opts.allyQuickLive — тот же объект,
+    что setAllyQuick) — назначение союзнику действует В ТЕКУЩЕМ бою;
+    save-контракт ally_quick не изменился (см. memory/000195).
   * `quickItem`: `1 + Math.floor(((data.attrs && data.attrs.dexterity) || 0) / 10)`
     — ЗЕРКАЛО refillPools героя (1 + floor(dex/10)).
   * `invItem`: 1 — зеркало c.ps.invItem.

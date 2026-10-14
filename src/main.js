@@ -1715,6 +1715,8 @@
       // 000194: быстрые предметы союзников — снимок live-карты
       // (sanitizeAllyQuick: ключи/слоты только валидные).
       allyQuick: sanitizeAllyQuick(allyQuick),
+      // 000195: та же live-карта — re-sync u.quick в бою (syncAllyQuickLive).
+      allyQuickLive: allyQuick,
       tile: { mobGroup: groupType },
       // Бой «на текущем тайле»: передаём terrain реального тайла
       // (задача 000049) — согласованно с боем мира; без карты
@@ -2195,6 +2197,8 @@
       rosterData: companionAllies(),
       // 000194: быстрые предметы союзников — снимок live-карты.
       allyQuick: sanitizeAllyQuick(allyQuick),
+      // 000195: та же live-карта — re-sync u.quick в бою (syncAllyQuickLive).
+      allyQuickLive: allyQuick,
       tile: t,
       lungeGate: mobCharge != null,
       // Фон поля боя по типу местности (задача 000049): terrain тайла,
@@ -2776,6 +2780,8 @@
       rosterData: companionAllies(),
       // 000194: быстрые предметы союзников — снимок live-карты.
       allyQuick: sanitizeAllyQuick(allyQuick),
+      // 000195: та же live-карта — re-sync u.quick в бою (syncAllyQuickLive).
+      allyQuickLive: allyQuick,
       // Фон поля боя по типу подземелья (задача 000049): тайла мира в
       // подземелье нет, тип — DUNGEON_TYPES (ds.dg.type).
       dungeonType: ds.dg.type,
@@ -3359,7 +3365,10 @@
         }));
       }
       if (G.playerUI && typeof G.playerUI.applyLayer === 'function') {
-        G.playerUI.applyLayer(!!inDungeon && !inCombat && !inNpc
+        // 000195: в бою панель ПОДНЯТА над боевым оверлеем (z-25 > z-20)
+        // — граница 000206 «бой — подъёма нет» снята (кнопка «Предмет
+        // [T]» открывает панель в бою). hudOver (000212) НЕ тронут.
+        G.playerUI.applyLayer(!!(inDungeon || inCombat) && !inNpc
           && !inBuilding && !inCraft && !inResurrect && !(
             G.buildingActions
             && typeof G.buildingActions.renameInputActive === 'function'

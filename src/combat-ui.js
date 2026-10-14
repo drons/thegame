@@ -800,7 +800,20 @@
         }
         return r;
       },
-      invItem: () => c.invItem(),
+      invItem: () => {
+        // 000195: «Предмет [T]» — [I]-панель на ТЕКУЩЕМ персонаже боя
+        // (активный юнит хода; игрок/моб — 'flogiston'); «быстр.»
+        // (000194) перекладывает предмет общего инвентаря. Открытие
+        // бесплатно: пул/ c._rng не тратятся (паттерн spellbook).
+        // Деградация (нет ui.js) — старый путь c.invItem() бит-в-бит
+        // (195-CUI-DEGRADE).
+        if (G.playerUI && typeof G.playerUI.toggle === 'function') {
+          const u = activeUnit(c);
+          G.playerUI.toggle(true, 'inventory', u ? u.id : 'flogiston');
+          return { ok: true };
+        }
+        return c.invItem();
+      },
       flee: () => {
         const r = G.canDoAction(c, 'flee', { targetId: c.targetId });
         if (r.ok && !fleeOpen) openFleeConfirm();
@@ -850,6 +863,9 @@
   function handleCode(code) {
     if (!isActive()) return false;
     const c = ctx.combat;
+    // 000195: sync ДО снимка st.canDo — иначе гейты (quickItem и пр.)
+    // после «быстр.» панели видели бы устаревший u.quick (снапшот).
+    syncAllyQuickLive(c);
     if (ctx.lungeGate && !c.result) return false;
     if (fleeOpen) return true;
     let consumed = true;
@@ -1467,6 +1483,9 @@
   function render() {
     if (!ctx || !ctx.open) return;
     const c = ctx.combat;
+    // 000195: свежие быстрые слоты союзников — состояние кнопок/
+    // quicklist/бейджей актуально между нажатиями (идемпотентно).
+    syncAllyQuickLive(c);
     // ОДНО время на весь render (задача 000047): чистые селекторы
     // кадров (G.frameIndex) получают его аргументом — весь кадр
     // выбирается детерминированно (тот же now → те же кадры).
@@ -1794,6 +1813,14 @@
       };
       bannerEl.textContent = texts[r.outcome] || r.outcome;
       bannerEl.style.display = 'block';
+      // 000195 (ревью): поднятая панель (z-25 > z-20) накрывает
+      // баннер результата; Esc в этой фазе панель НЕ закрывает
+      // (ui.js-гард cc.result) — закрываем, чтобы результат был
+      // виден. Идемпотентно (render — каждый кадр); нет ui.js — no-op.
+      if (G.playerUI && typeof G.playerUI.isOpen === 'function'
+          && G.playerUI.isOpen()) {
+        G.playerUI.toggle(false);
+      }
     }
   }
 
@@ -1841,6 +1868,24 @@
       ? G.activeUnitId(c) : null;
     if (!id || id === 'player') return null;
     return c.units.find((x) => x.id === id && x.side === 'ally') || null;
+  }
+  // 000195: live-sync быстрых слотов СОЮЗНИКОВ — с live-карты
+  // (opts.allyQuickLive = тот же объект, что G.playerUI.setAllyQuick)
+  // в u.quick: «быстр.» панели действует В ТЕКУЩЕМ бою (у ядра —
+  // снапшот createCombat). UI-only: ядро combat.js c._allyQuickLive
+  // не читает (паттерн c._fx); c._rng не вызывается. Валидация —
+  // зеркало makeAlly (нестрока → null-слот); id не в карте — skip.
+  function syncAllyQuickLive(c) {
+    const live = c._allyQuickLive;
+    if (!live || typeof live !== 'object') return;
+    const units = c.units;
+    for (let i = 0; i < units.length; i++) {
+      const u = units[i];
+      if (!u || u.side !== 'ally' || !u.id) continue;
+      const q = live[u.id];
+      if (!Array.isArray(q)) continue;
+      u.quick = [0, 1, 2].map((j) => (typeof q[j] === 'string') ? q[j] : null);
+    }
   }
   function activeIsEfir(c) {
     const u = activeUnit(c);
@@ -2504,6 +2549,12 @@
      *   юнита ('efir' / npcId), значение — [3] id предметов ОБЩЕГО
      *   инвентаря (null — пусто). Не передан / не-объект — бит-в-бит
      *   (makeAlly сам валидирует: нестрока → null-слот).
+     * @param {Object<string, (string|null)[]>} [opts.allyQuickLive]
+     *   000195: live-карта быстрых предметов союзников (тот же объект,
+     *   что G.playerUI.setAllyQuick, main.js) — combat-ui re-sync'ит
+     *   u.quick из неё в бою (syncAllyQuickLive): раздача на [I]-панели
+     *   действует В ТЕКУЩЕМ бою. UI-only: ядро combat.js не читает;
+     *   не передан / не-объект → null (снапшот createCombat, бит-в-бит).
      */
     startCombat(opts) {
       if (isActive()) return null;
@@ -2582,6 +2633,14 @@
       if (efirData && G.efir && typeof G.efir.buildEfirUnit === 'function') {
         G.efir.buildEfirUnit(opts.efir, combat);
       }
+      // 000195: live-карта быстрых слотов союзников (тот же объект, что
+      // G.playerUI.setAllyQuick, main.js) — syncAllyQuickLive re-sync'ит
+      // u.quick из неё (handleCode/render): раздача на [I]-панели
+      // действует в текущем бою. UI-only поле: ядро не читает;
+      // не передан → null (снапшот, бит-в-бит).
+      combat._allyQuickLive = (opts.allyQuickLive
+        && typeof opts.allyQuickLive === 'object'
+        && !Array.isArray(opts.allyQuickLive)) ? opts.allyQuickLive : null;
       // Путь фона (задача 000049) — ОДИН раз при старте. Guard
       // G.combatBackground — УМД-ловушка «G снимается один раз»
       // (как hpBarColor, задача 000038): sprites.js отсутствует

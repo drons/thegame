@@ -29,8 +29,9 @@
 // (CSS НЕ МЕНЯЕТСЯ — пин tests/ui-panel.test.js:487-519 зелёный без
 // правок) < .fs-btn 15 < оверлеи .combat-overlay/.dungeon-overlay/
 // .resurrect-overlay 20 < подъём (inline 25) < #touch-controls 30 <
-// .start-window 40. Мир/бой/диалог — БЕЗ подъёма (паритет 000096:
-// открытый позже оверлей — сверху; панель под диалогом z-20).
+// .start-window 40. Мир/диалог — БЕЗ подъёма (паритет 000096:
+// открытый позже оверлей — сверху; панель под диалогом z-20);
+// бой — С подъёмом «25» с 000195 (панель над боевым оверлеем).
 // index.html — БЕЗ ИЗМЕНЕНИЙ (нет новых <script>/CSS); тач-dead-end
 // (скрытая открытая панель прячет ВСЕ on-screen-контролы) устраняется
 // фиксом — панель видна, у неё своя кнопка закрытия.
@@ -70,11 +71,11 @@
 //     ЗАКРЫВАЕТ панель ПЕРВОЙ (000071: состояние
 //     «город+панель+buildingUI» недостижимо — пин ФАКТА закрытия) +
 //     buildingUI активен → кадр → подъёма нет.
-//   * CI-6 подземелье + бой (конъюнкт !inCombat) — enterDungeon →
-//     KeyI → debug-бой (закрыл панель, 000096) → KeyI (открыл снова —
-//     скрыт под боевым оверлеем, существ. поведение) → кадр → подъёма
-//     НЕТ; резолв (dealDamageToMob 9999 по живым + Space) — бой
-//     закрыт, локация цела.
+//   * CI-6 подземелье + бой — enterDungeon → KeyI → debug-бой
+//     (закрыл панель, 000096) → KeyI (открыл снова — 000195: панель
+//     над боевым оверлеем) → кадр → подъём «25» (репин 000195);
+//     KeyI (закрыть) → кадр → подъём снят; резолв (dealDamageToMob
+//     9999 по живым + Space) — бой закрыт, локация цела.
 //   * CI-7 мир + NPC-диалог — KeyI → кадр (подъёма нет) →
 //     npcUI.open → кадр → подъёма всё ещё нет (мир не изменился;
 //     приоритет Esc-стека не тронут).
@@ -812,7 +813,7 @@ test('000206 CI-5 (город, пин): панель + [E] на постройк
     'кадр: подъёма нет (buildingUI выше — конъюнкт !inBuilding)');
 });
 
-test('000206 CI-6 (подземелье+бой, пин): debug-бой → панели; кадр — подъёма НЕТ (!inCombat); резолв — локация цела', async () => {
+test('000206 CI-6 (подземелье+бой, пин; репин 000195): debug-бой → KeyI; кадр — подъём «25» (в бою панель над боем); закрытие — подъём снят; резолв — локация цела', async () => {
   const h = await boot();
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
@@ -828,14 +829,21 @@ test('000206 CI-6 (подземелье+бой, пин): debug-бой → пан
   assert.equal(G.combatUI.isActive(), true, 'боевой оверлей активен');
   assert.equal(G.playerUI.isOpen(), false,
     '000096: старт боя закрыл панель (существ. поведение)');
-  // KeyI выше ВСЕХ гейтов — панель переключается и в бою (скрыта под
-  // боевым оверлеем z-20 — существующее поведение, ТЗ бой не касается).
+  // KeyI выше ВСЕХ гейтов — панель переключается и в бою (000195:
+  // ВИДНА поверх боевого оверлея — граница 000206 «подъёма нет» снята).
   press(h, 'KeyI');
   assert.equal(G.playerUI.isOpen(), true,
-    'KeyI в бою: панель снова открыта (скрыта под боевым оверлеем)');
+    'KeyI в бою: панель снова открыта');
   h.frameFn(NOW + 16);
+  assert.equal(panel.style.zIndex, '25',
+    'кадр: подъём «25» (000195: панель над боевым оверлеем z-20)');
+  // Закрытие повторным [I] (в full-chain песочнице document-слушатели
+  // отброшены — Esc не работает; Esc-семантика — partial-chain).
+  press(h, 'KeyI');
+  assert.equal(G.playerUI.isOpen(), false, 'KeyI: панель закрыта');
+  h.frameFn(NOW + 32);
   assert.ok(!panel.style.zIndex,
-    'кадр: подъёма НЕТ (конъюнкт !inCombat — панель под боем, как раньше)');
+    'подъём снят после закрытия (zIndex falsy — базовый CSS z-10)');
   // Резолв (мобы 9999 → Space) — бой закрыт, локация цела.
   resolveCombat(G);
   assert.equal(g.dungeon.kind, 'dungeon', 'локация цела: kind dungeon');
@@ -931,4 +939,144 @@ test('000206 CI-8 (город, пин, правки по итогам ревью
   assert.equal(G.dungeonUI.isActive(), true,
     'локация цела: dungeonUI активен');
   assert.equal(g.dungeon.kind, 'city', 'локация цела: город');
+});
+
+test('000195 CI-9 (мир+бой, полный loop ТЗ): debug-бой → KeyT → панель на герое (вкладка «Инвентарь») + подъём «25» → «быстр.» — предмет в быстрый слот → [I] — панель закрыта, подъём снят', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(g.dungeon, null, 'мир (локации нет)');
+  const c = g.actions.startCombat();
+  assert.ok(c, 'startCombat — debug-бой на тайле');
+  assert.equal(G.combatUI.isActive(), true, 'боевой оверлей активен');
+  // Эфир — постоянный союзник ПЕРВЫЙ в очереди (main.js: efir
+  // ВСЕГДА, 000081) — сжигаем его ход (Space), чтобы тест шел на
+  // ходу ГЕРОЯ (ТЗ: «текущему персонажу» = активный юнит).
+  assert.equal(G.activeUnitId(c), 'efir', 'сценарий: ход Эфира (первый)');
+  press(h, 'Space');
+  assert.equal(G.activeUnitId(c), 'player', 'сценарий: ход героя');
+  G.addItem(c.player, 'healing_potion');
+  press(h, 'KeyT');
+  assert.equal(G.playerUI.isOpen(), true,
+    'KeyT: панель открыта (ТЗ: кнопка «Предмет» открывает панель)');
+  assert.equal(G.playerUI.getActiveCharId(), 'flogiston',
+    'текущий персонаж боя = герой (активный юнит)');
+  h.frameFn(NOW + 16);
+  const panel = panelOf(h);
+  assert.ok(panel && panel.style.display === 'flex', 'панель открыта');
+  assert.equal(panel.style.zIndex, '25',
+    'кадр: подъём «25» (000195: панель над боевым оверлеем в мире)');
+  assert.equal(c.ps.invItem, 1, 'открытие пул invItem не тратит');
+  // Вкладка «Инвентарь» активна (pane-тело — _invBody; rec.apply
+  // ставит активному pane display '', остальным 'none').
+  let pane = panel._invBody;
+  while (pane && !String(pane.className).includes('cp-tabpane')) {
+    pane = pane.parent;
+  }
+  assert.ok(pane, 'pane вкладки «Инвентарь» (предок _invBody)');
+  assert.equal(pane.style.display, '',
+    'вкладка «Инвентарь» активна');
+  // «быстр.» (000194): ОДИН предмет из общего инвентаря → ПЕРВЫЙ
+  // свободный быстрый слот героя (ТЗ: «переложить ... ОДИН предмет ...
+  // в быстрые предметы»).
+  const row = findAll(panel._invBody, '.cp-itemrow')
+    .find((r) => {
+      const name = r.querySelector('.cp-itemname');
+      return name && String(name.textContent).includes('Зелье лечения');
+    });
+  assert.ok(row, 'строка предмета «Зелье лечения» в инвентаре');
+  const qbtn = row.querySelectorAll('.cp-btn')
+    .find((b) => b.dataset.act === 'quick');
+  assert.ok(qbtn, 'кнопка «быстр.» (data-act=quick) у строки');
+  assert.ok(panel.listeners.click && panel.listeners.click.length,
+    'делегированный click-обработчик панели есть');
+  panel.listeners.click[0]({ target: qbtn });
+  assert.equal(c.player.inventory.quick[0], 'healing_potion',
+    'быстрый слот 0 героя = предмет (переложить)');
+  assert.equal(G.totalQty(c.player, 'healing_potion'), 1,
+    'переложить, а не использовать');
+  assert.equal(c.ps.invItem, 1, 'боевой пул переложением не тратится');
+  // Закрытие повторным [I] (full-chain песочница: document-слушатели
+  // отброшены — Esc не работает; Esc-семантика — partial-chain).
+  press(h, 'KeyI');
+  assert.equal(G.playerUI.isOpen(), false, '[I]: панель закрыта');
+  h.frameFn(NOW + 32);
+  assert.ok(!panel.style.zIndex, 'подъём снят после закрытия');
+  resolveCombat(G);
+  assert.equal(g.dungeon, null, 'локация цела: мир');
+});
+
+test('000195 CI-10 (мир+бой, гейт-якорь): пустой инвентарь — KeyT: панель НЕ открыта, гейт «нет применимых предметов в инвентаре», подъёма нет', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(g.dungeon, null, 'мир (локации нет)');
+  const c = g.actions.startCombat();
+  assert.ok(c, 'startCombat — debug-бой на тайле');
+  assert.ok(!c.player.inventory
+    || c.player.inventory.slots.length === 0,
+    'сценарий: инвентарь пуст');
+  press(h, 'KeyT');
+  assert.equal(G.playerUI.isOpen(), false,
+    'панель НЕ открыта (гейт: нет применимых предметов)');
+  assert.ok(c.log.some((l) =>
+    l.includes('нет применимых предметов в инвентаре')),
+    'причина гейта в журнале: ' + c.log.join(' | '));
+  assert.equal(c.ps.invItem, 1, 'пул не тронут (отказ до траты)');
+  h.frameFn(NOW + 16);
+  const panel = panelOf(h);
+  assert.ok(!panel || !panel.style.zIndex,
+    'подъёма нет (панель не построена/закрыта — isOpen-зависимость)');
+  resolveCombat(G);
+  assert.equal(g.dungeon, null, 'локация цела: мир');
+});
+
+// --- 000195 CI-11 (правки по итогам ревью) ---
+// Поднятая панель (z-25, 000195) не должна накрывать РЕЗУЛЬТАТ
+// боя: в фазе c.result панель закрывается (баннер — z-20; Esc в
+// этой фазе панель не закрывает — ui.js-гард cc.result). До фикса:
+// панель оставалась открытой — текст результата невидим.
+
+test('000195 CI-11 (мир+бой, пин; ревью): c.result — панель закрывается сама; баннер результата виден (перекрытия z-25 > z-20 нет)', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const rafBefore = h.raf.length;
+  const c = g.actions.startCombat();
+  assert.ok(c, 'startCombat — бой начат (отладочный)');
+  assert.equal(G.combatUI.isActive(), true, 'боевой оверлей активен');
+  // Боевой rAF-тик (000047) — ОДИН новый rAF-колбэк в startCombat
+  // (main.js-кадр уже в очереди с boot); баннер результата
+  // рисуется на нём (браузер — rAF-цикл; vm — прямой вызов).
+  assert.equal(h.raf.length, rafBefore + 1,
+    'startCombat поставил в очередь боевой rAF-тик');
+  const tick = h.raf[h.raf.length - 1];
+  press(h, 'KeyI');
+  assert.equal(G.playerUI.isOpen(), true, 'KeyI: панель открыта');
+  h.frameFn(NOW + 16);
+  const panel = panelOf(h);
+  assert.equal(panel.style.zIndex, '25',
+    'настройка: подъём «25» (панель над боевым оверлеем z-20)');
+  // Конец боя (победа) — c.result устанавливается синхронно.
+  for (const m of c.units.filter((x) => x.side === 'mob' && x.alive)) {
+    G.combatInternals.dealDamageToMob(c, m, 9999);
+  }
+  assert.ok(c.result && c.result.outcome === 'victory',
+    'победа (9999 по живым мобам)');
+  tick();
+  assert.equal(G.playerUI.isOpen(), false,
+    'правка ревью: панель ЗАКРЫТА в фазе c.result (краснота: '
+    + 'панель z-25 накрывает баннер z-20, Esc её не закрывает)');
+  const banner = findAll(h.body, '.combat-banner')[0];
+  assert.ok(banner, 'баннер результата подвешен к оверлею');
+  assert.equal(banner.style.display, 'block', 'баннер виден');
+  assert.ok(String(banner.textContent).includes('ПОБЕДА'),
+    'текст результата виден: ' + banner.textContent);
+  h.frameFn(NOW + 32);
+  assert.ok(!panel.style.zIndex,
+    'подъём снят после закрытия (zIndex falsy — базовый CSS z-10)');
+  press(h, 'Space');
+  assert.equal(G.combatUI.isActive(), false,
+    'бой закрыт (Space → finish)');
+  assert.equal(g.dungeon, null, 'локация цела: мир');
 });
