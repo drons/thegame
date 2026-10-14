@@ -288,3 +288,123 @@ test('index.html: 000196 — portrait: .combat-spellbook — зеркало фо
     '000196: portrait — книга квадратная, та же формула; факт: '
     + psb['height']);
 });
+
+// --- 000210: подтверждение побега (диалог .combat-flee-confirm) ---
+//
+// Контракт — memory/000210-flee-confirm.md §2.2/§4.2 (Д9): контейнер
+// — зеркало формулы canvas (row И portrait), absolute-центр в
+// .combat-box, фон баннера, pointer-events в правиле НЕТ (auto —
+// модал-подложка ест клики по canvas; противоположно pass-through
+// книги 000196); кнопки — палитра start-window (000138): «да» =
+// #d9483b/#fff (hover #e65f52, .start-window-btn--restart), «нет» =
+// #6fdc6f/#101418 (hover #8bf58b, .start-window-btn--continue).
+// vm не применяет CSS — ТЗ-цвета «красная/зелёная» закреплены ТОЛЬКО
+// здесь (статика). Краснота — осмысленная: правил в index.html нет
+// (cssRule/portraitRule — assert «правило не найдено»).
+
+test('index.html: 000210 — .combat-flee-confirm — зеркало формулы canvas (row), absolute-центр, фон баннера, БЕЗ pointer-events (модал-подложка) (CU210-CSS-OVERLAY)', () => {
+  const cv = cssRule('.combat-overlay--combat .combat-box canvas');
+  const bn = cssRule('.combat-banner');
+  const fc = cssRule('.combat-overlay--combat .combat-flee-confirm');
+  assert.equal(fc['position'], 'absolute',
+    '000210: контейнер — absolute в .combat-box (центр box ≡ центр '
+    + 'canvas); факт: ' + fc['position']);
+  assert.equal(fc['top'], '50%', '000210: центрирование; факт: ' + fc['top']);
+  assert.equal(fc['left'], '50%', '000210: центрирование; факт: ' + fc['left']);
+  assert.equal(fc['transform'], 'translate(-50%, -50%)',
+    '000210: баннерный transform; факт: ' + fc['transform']);
+  assert.equal(fc['box-sizing'], 'border-box',
+    '000210: box-sizing; факт: ' + fc['box-sizing']);
+  assert.equal(fc['width'], cv['width'],
+    '000210: ширина — зеркало формулы canvas (row), 1:1 с полем; '
+    + 'факт: ' + fc['width']);
+  assert.equal(fc['height'], cv['width'],
+    '000210: высота — квадрат, та же формула; факт: ' + fc['height']);
+  assert.equal(fc['display'], 'flex',
+    '000210: flex-column-center; факт: ' + fc['display']);
+  assert.equal(fc['flex-direction'], 'column',
+    '000210: flex-direction; факт: ' + fc['flex-direction']);
+  assert.equal(fc['align-items'], 'center',
+    '000210: align-items; факт: ' + fc['align-items']);
+  assert.equal(fc['justify-content'], 'center',
+    '000210: justify-content; факт: ' + fc['justify-content']);
+  assert.equal(fc['gap'], '18px',
+    '000210: вопрос → ответ 18px (1:1 .start-window-confirm); '
+    + 'факт: ' + fc['gap']);
+  assert.equal(fc['background'], bn['background'],
+    '000210: фон = фон .combat-banner (существующий цвет, новых не '
+    + 'вводим); факт: ' + fc['background']);
+  assert.equal(fc['background'], 'rgba(10, 12, 16, 0.85)',
+    '000210: фон rgba(10, 12, 16, 0.85); факт: ' + fc['background']);
+  assert.equal(fc['border-radius'], '8px',
+    '000210: radius 8px (баннер/книга); факт: ' + fc['border-radius']);
+  assert.ok(!('pointer-events' in fc),
+    '000210: в правиле НЕТ pointer-events — auto (модал-подложка ест '
+    + 'клики по canvas и строки открытой книги; отличие от pass-'
+    + 'through книги 000196): факт: ' + fc['pointer-events']);
+});
+
+test('index.html: 000210 — «да» — красная, «нет» — зелёная (палитра start-window 000138), геометрия кнопок, вопрос #e8dcc0 (CU210-CSS-BTN)', () => {
+  const yes = cssRule('.combat-overlay--combat .combat-flee-btn--yes');
+  const yesH = cssRule('.combat-overlay--combat .combat-flee-btn--yes:hover');
+  const no = cssRule('.combat-overlay--combat .combat-flee-btn--no');
+  const noH = cssRule('.combat-overlay--combat .combat-flee-btn--no:hover');
+  assert.equal(yes['background'], '#d9483b',
+    '000210: «да» — красная #d9483b (.start-window-btn--restart); '
+    + 'факт: ' + yes['background']);
+  assert.equal(yes['color'], '#fff',
+    '000210: «да» — текст #fff; факт: ' + yes['color']);
+  assert.equal(yesH['background'], '#e65f52',
+    '000210: «да» hover #e65f52; факт: ' + yesH['background']);
+  assert.equal(no['background'], '#6fdc6f',
+    '000210: «нет» — зелёная #6fdc6f (.start-window-btn--continue); '
+    + 'факт: ' + no['background']);
+  assert.equal(no['color'], '#101418',
+    '000210: «нет» — текст #101418; факт: ' + no['color']);
+  assert.equal(noH['background'], '#8bf58b',
+    '000210: «нет» hover #8bf58b; факт: ' + noH['background']);
+  const btn = cssRule('.combat-overlay--combat .combat-flee-btn');
+  assert.equal(btn['border'], '1px solid #6b6248',
+    '000210: рамка .start-window-btn; факт: ' + btn['border']);
+  assert.equal(btn['border-radius'], '10px',
+    '000210: radius 10px; факт: ' + btn['border-radius']);
+  assert.equal(btn['padding'], '12px 28px',
+    '000210: padding .start-window-btn; факт: ' + btn['padding']);
+  assert.equal(btn['cursor'], 'pointer',
+    '000210: cursor; факт: ' + btn['cursor']);
+  const fontOf = (d) => d['font']
+    || [d['font-weight'], d['font-size'], d['font-family']]
+      .filter(Boolean).join(' ');
+  assert.ok(String(btn['font'] || '').includes('ui-monospace'),
+    '000210: font кнопок ui-monospace (.start-window-btn); факт: '
+    + btn['font']);
+  assert.match(fontOf(btn), /16px/,
+    '000210: font кнопок 16px; факт: ' + fontOf(btn));
+  const q = cssRule('.combat-overlay--combat .combat-flee-question');
+  assert.equal(q['color'], '#e8dcc0',
+    '000210: текст вопроса #e8dcc0 (текст .combat-overlay); факт: '
+    + q['color']);
+  assert.ok(String(q['font'] || '').includes('ui-monospace'),
+    '000210: font вопроса ui-monospace; факт: ' + q['font']);
+  assert.match(fontOf(q), /700/,
+    '000210: weight вопроса 700; факт: ' + fontOf(q));
+  assert.match(fontOf(q), /18px/,
+    '000210: font вопроса 18px; факт: ' + fontOf(q));
+  const ans = cssRule('.combat-overlay--combat .combat-flee-ans');
+  assert.equal(ans['display'], 'flex',
+    '000210: ответ — flex; факт: ' + ans['display']);
+  assert.equal(ans['gap'], '24px',
+    '000210: между кнопками 24px (1:1 .start-window-ans); факт: '
+    + ans['gap']);
+});
+
+test('index.html: 000210 — portrait: .combat-flee-confirm — зеркало формулы canvas (portrait), квадрат (CU210-CSS-PORTRAIT)', () => {
+  const pcv = portraitRule('.combat-overlay--combat .combat-box canvas');
+  const pfc = portraitRule('.combat-overlay--combat .combat-flee-confirm');
+  assert.equal(pfc['width'], pcv['width'],
+    '000210: portrait — ширина диалога = ширине canvas (portrait); '
+    + 'факт: ' + pfc['width']);
+  assert.equal(pfc['height'], pcv['width'],
+    '000210: portrait — диалог квадратный, та же формула; факт: '
+    + pfc['height']);
+});

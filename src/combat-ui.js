@@ -171,6 +171,8 @@
   // и флаг открытости (toggle — кнопка/KeyQ/KeyR; строки — renderBook).
   let bookBox = null;
   let bookOpen = false;
+  let fleeBox = null;
+  let fleeOpen = false;
   let spellBookWarned = false; // деградация без G.SpellBook — 1 console.error
   // 000193: деградация без G.AllySpells (битый порядок загрузки) —
   // 1 console.error на сессию (паттерн spellBookWarned, 000149).
@@ -354,6 +356,7 @@
       b.ariaLabel = item.label;
       b.dataset.act = item.action;
       b.addEventListener('click', () => {
+        if (fleeOpen) return;
         // Как по клавише: зеркало ok, но ядро отклонило (сейчас 'invItem'
         // без itemId) — причину в журнал, а не тишина (задача 000037).
         runAction(c, item.action);
@@ -474,6 +477,32 @@
 
     box.appendChild(bookBox);
 
+    fleeBox = document.createElement('div');
+    fleeBox.className = 'combat-flee-confirm';
+    fleeBox.style.display = 'none';
+    fleeOpen = false;
+    const fleeQuestion = document.createElement('div');
+    fleeQuestion.className = 'combat-flee-question';
+    fleeQuestion.textContent = 'Вы точно хотите сбежать?';
+    const fleeAns = document.createElement('div');
+    fleeAns.className = 'combat-flee-ans';
+    const fleeYes = document.createElement('div');
+    fleeYes.className = 'combat-flee-btn combat-flee-btn--yes';
+    fleeYes.textContent = 'да';
+    fleeYes.addEventListener('click', () => confirmFlee(c));
+    const fleeNo = document.createElement('div');
+    fleeNo.className = 'combat-flee-btn combat-flee-btn--no';
+    fleeNo.textContent = 'нет';
+    fleeNo.addEventListener('click', () => {
+      closeFleeConfirm();
+      render();
+    });
+    fleeAns.appendChild(fleeYes);
+    fleeAns.appendChild(fleeNo);
+    fleeBox.appendChild(fleeQuestion);
+    fleeBox.appendChild(fleeAns);
+    box.appendChild(fleeBox);
+
     bannerEl = document.createElement('div');
     bannerEl.className = 'combat-banner';
     bannerEl.style.display = 'none';
@@ -501,6 +530,7 @@
     g2 = canvas.getContext('2d');
 
     canvas.addEventListener('click', (e) => {
+      if (fleeOpen) return;
       const r = canvas.getBoundingClientRect();
       // Нормализация по ЛОГИЧЕСКОМУ (базовому) размеру поля
       // (задача 000151, D5; 000124 — по фактическому): canvas
@@ -771,7 +801,11 @@
         return r;
       },
       invItem: () => c.invItem(),
-      flee: () => c.flee(),
+      flee: () => {
+        const r = G.canDoAction(c, 'flee', { targetId: c.targetId });
+        if (r.ok && !fleeOpen) openFleeConfirm();
+        return r;
+      },
       endTurn: () => {
         // Снимок ДО фазы мобов (задача 000062): позиции мобов и HP
         // игрока — для FX-эвристики после фазы (см.
@@ -817,6 +851,7 @@
     if (!isActive()) return false;
     const c = ctx.combat;
     if (ctx.lungeGate && !c.result) return false;
+    if (fleeOpen) return true;
     let consumed = true;
     if (code === 'Escape') {
       // Закрыть оверлей можно только когда бой закончен.
@@ -1742,6 +1777,7 @@
     // открытии — строки 1:1 с книгой (перестроение — только при
     // изменении сигнатуры, renderBook — единый путь обновления).
     renderBook(c);
+    if (fleeBox) fleeBox.style.display = (fleeOpen && !c.result) ? '' : 'none';
 
     // «Быстрый предмет» — список (задача 000194): display из
     // quickOpen; строки — слоты активного персонажа (перестроение —
@@ -1976,6 +2012,7 @@
   // (ровно одна строка в лог, КАСТА НЕТ, трат НЕТ, c._fx не
   // пишется — зеркало 000179-поведения).
   function castRow(c, spellId) {
+    if (fleeOpen) return;
     const g = spellbookUnitGate(c);
     if (g) {
       logRejection(c, g);
@@ -2066,6 +2103,7 @@
   // 0 новых c._rng (воскрешение без RNG, 000163), 0 новых полей c
   // (c._fx/c.targetId — runtime-only; формат сейва не тронут).
   function resurrectCast(c) {
+    if (fleeOpen) return;
     const chk = resurrectChk(c);
     if (!chk.ok) {
       logRejection(c, chk);
@@ -2121,6 +2159,7 @@
   // allyHeal «<имя> лечит <имя> (+N).») — свою строку/FX НЕ вводить
   // (дубль строк; runAction анимирует только 'attack').
   function allyBtn(c, act) {
+    if (fleeOpen) return;
     const chk = G.canDoAction(c, act, { targetId: c.targetId });
     if (!chk.ok) {
       logRejection(c, chk);
@@ -2128,6 +2167,26 @@
       return;
     }
     runAction(c, act);
+    render();
+  }
+
+  function openFleeConfirm() {
+    fleeOpen = true;
+  }
+
+  function closeFleeConfirm() {
+    fleeOpen = false;
+  }
+
+  function confirmFlee(c) {
+    closeFleeConfirm();
+    const chk = G.canDoAction(c, 'flee', { targetId: c.targetId });
+    if (!chk.ok) {
+      logRejection(c, chk);
+      render();
+      return;
+    }
+    logRejection(c, c.flee());
     render();
   }
 
@@ -2393,6 +2452,8 @@
     quickBox = null;
     quickOpen = false;
     quickSig = null;
+    fleeBox = null;
+    fleeOpen = false;
     moveAnims = null;
     ctx = null;
     ended = false;
@@ -2586,6 +2647,8 @@
         quickBox = null;
         quickOpen = false;
         quickSig = null;
+        fleeBox = null;
+        fleeOpen = false;
         moveAnims = null;
         ctx = null;
         ended = false;

@@ -7277,15 +7277,17 @@ test('боевой UI: 000196 — книга (.combat-spellbook) — в .combat-
     + 'книга между .combat-actions и .combat-log): '
     + JSON.stringify(side.children.map((ch) => ch.className)));
   const canvas = findCanvas(body);
-  assert.equal(box.children.length, 3,
-    '000196: .combat-box — 3 ребёнка (canvas, книга, баннер); факт: '
+  assert.equal(box.children.length, 4,
+    '000196: .combat-box — 4 ребёнка (canvas, книга, flee-confirm, '
+    + 'баннер; 000210 — технический ре-пин 3→4); факт: '
     + box.children.length);
   assert.equal(box.children[0], canvas,
     '000196: первый ребёнок .combat-box — боевой canvas');
   assert.deepEqual(box.children.map((ch) => ch.className),
-    ['', 'combat-spellbook', 'combat-banner'],
-    '000196: .combat-box — [canvas, .combat-spellbook, .combat-banner] '
-    + '(краснота: [canvas, .combat-banner] — книга была в .combat-side): '
+    ['', 'combat-spellbook', 'combat-flee-confirm', 'combat-banner'],
+    '000196: .combat-box — [canvas, .combat-spellbook, '
+    + '.combat-flee-confirm, .combat-banner] (краснота: [canvas, '
+    + '.combat-banner] — книга была в .combat-side): '
     + JSON.stringify(box.children.map((ch) => ch.className)));
   const bookBox = findByClass(body, 'combat-spellbook');
   assert.ok(bookBox, 'фикстура: .combat-spellbook существует');
@@ -7929,4 +7931,416 @@ test('боевой UI: 000213 — без sprites.js (loadCombatUi(false)): фо�
   assert.ok(!t.calls.some((cv) => cv[0] === 'strokeRect'
     && cv[1][2] === 41 && cv[1][3] === 41),
     'кольца 41×41 нигде (000199 L4)');
+});
+
+// Задача 000210. БОЙ: подтверждение побега — «Вы точно хотите
+// сбежать?» с красной «да» и зелёной «нет». ТЗ: tasks/pending/
+// 000210.md (2 строки). Контракт: memory/000210-flee-confirm.md
+// (D1-D15, решения станции Проектирования).
+//
+// Архитектура (контракт §1/§2): НОВОГО МОДУЛЯ/СКРИПТА НЕТ — всё в
+// src/combat-ui.js: панель .combat-flee-confirm — 3-й ребёнок
+// .combat-box [canvas, spellbook, flee-confirm, banner] (строится
+// ОДИН раз в build(), стабильный DOM), кнопки «да»/«нет» — DIV
+// (не <button> — кнопочные пины стаба, D3), состояние — closure
+// fleeBox/fleeOpen + ОДИН render-гейт (D10); ЕДИНАЯ точка входа —
+// thunk 'flee' в runAction: кнопка И [F] открывают confirm (D4,
+// зеркало); «да» — confirmFlee: предпроверка canDoAction → c.flee()
+// НАПРЯМУЮ (не через runAction — иначе thunk переоткроет, D5);
+// «нет» — тихое закрытие (0 ядра, 0 c._rng, D6); МОДАЛЬНОСТЬ, пока
+// диалог открыт: ветка handleCode после lungeGate-гарда + guard'ы
+// табличных кнопок (D7); Escape — без нового поведения (D8);
+// механика побега (шанс/1 бросок c._rng/сжигание хода/строки) —
+// БИТ-В-БИТ (ядро не тронуто, D1).
+//
+// RED (8 — падают на текущем коде ОСМЫСЛЕННО: нет панели/классов,
+// клик и [F] = мгновенный c.flee(); зеленеют после фикса):
+//   * CU210-POS — панель в .combat-box, вопрос дословно ТЗ, 2 div-
+//     кнопки «да»/«нет» (строчные, Д12), display 'none' по
+//     умолчанию, счётчик <button> стаба = 7 (div не растит пин).
+//   * CU210-OPEN — клик «Побег» и [F] — dialog открыт: 0 c._rng,
+//     round/log/phase/result нетронуты, активен player.
+//   * CU210-NO — «нет» — тихое закрытие: состояние бит-в-бит,
+//     0 c._rng.
+//   * CU210-YES-OK — «да» + c._rng 0.0: result 'fled', строка
+//     «Вы сбежали из боя.», баннер «Вы ушли из боя.», панель
+//     скрыта, Space — finish.
+//   * CU210-YES-FAIL — «да» + c._rng 0.99 (> макс. шанса 0.9):
+//     «Сбежать не удалось!», ровно 1 c._rng, round +1, бой
+//     продолжается, диалог не переоткрыт.
+//   * CU210-MODAL — под открытым диалогом Space/KeyQ/KeyJ/
+//     ArrowUp/KeyF/Escape глотаются (состояние бит-в-бит, 0 c._rng,
+//     книга не переключилась); после «нет» — ввод проходит.
+//   * CU210-GATE — (a) ход союзника: диалог не открывается —
+//     строка «недоступно активному персонажу» (до фикса — null-
+//     тишина c.flee()), 0 c._rng; (b) «да» после смены фазы —
+//     предпроверка «не ваш ход», ядро не вызвано; (c) phase 'over'
+//     — «бой закончен».
+//   * CU210-RESULT — render-гейт: c.result под открытым диалогом
+//     (white-box) — диалог скрыт, баннер виден (finish достижим).
+//
+// CSS-пины — tests/combat-layout.test.js (CU210-CSS-OVERLAY/BTN/
+// PORTRAIT): vm не применяет CSS — ТЗ-цвета «красная/зелёная»
+// закреплены там (палитра start-window 000138: #d9483b/#6fdc6f).
+//
+// Технический ре-пин CU196-POS (.combat-box: 3 → 4 ребёнка) — в
+// коммите фикса (контракт «Порядок работ»: красная фаза — baseline
+// 2386 зелёный, ре-пин идёт вместе с фиксом).
+// =====================================================================
+
+test('боевой UI: 000210 — панель .combat-flee-confirm в .combat-box: вопрос дословно ТЗ + 2 div-кнопки «да»/«нет» (строчные), скрыта по умолчанию, счётчик <button> стаба не вырос (CU210-POS)', () => {
+  const S = scene84();
+  const { c, body, buttons } = S;
+  assert.equal(S.G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  const fleeBox = findByClass(body, 'combat-flee-confirm');
+  assert.ok(fleeBox,
+    '000210: панель .combat-flee-confirm в DOM (краснота: панели нет — '
+    + 'клик = мгновенный c.flee())');
+  assert.equal(fleeBox.style.display, 'none',
+    'панель скрыта по умолчанию (открывается кнопкой «Побег»/[F])');
+  assert.equal(fleeBox.children.length, 2,
+    'панель: ровно 2 ребёнка (вопрос + ответ): ' + fleeBox.children.length);
+  const q = fleeBox.children[0];
+  const ans = fleeBox.children[1];
+  assert.ok(q.className.includes('combat-flee-question'),
+    'ребёнок[0] — .combat-flee-question: ' + q.className);
+  assert.equal(q.textContent, 'Вы точно хотите сбежать?',
+    'вопрос дословно из ТЗ: ' + JSON.stringify(q.textContent));
+  assert.ok(ans.className.includes('combat-flee-ans'),
+    'ребёнок[1] — .combat-flee-ans: ' + ans.className);
+  assert.equal(ans.children.length, 2,
+    'ответ: ровно 2 кнопки (да/нет): ' + ans.children.length);
+  const yes = ans.children[0];
+  const no = ans.children[1];
+  assert.equal(yes.tagName, 'div',
+    '«да» — DIV (не <button> — кнопочные пины стаба, Д3)');
+  assert.equal(no.tagName, 'div', '«нет» — DIV');
+  assert.ok(yes.className.includes('combat-flee-btn--yes'),
+    '«да» — .combat-flee-btn--yes (красная): ' + yes.className);
+  assert.ok(no.className.includes('combat-flee-btn--no'),
+    '«нет» — .combat-flee-btn--no (зелёная): ' + no.className);
+  assert.equal(yes.textContent, 'да', 'текст «да» — строчный, как в ТЗ');
+  assert.equal(no.textContent, 'нет', 'текст «нет» — строчный, как в ТЗ');
+  assert.equal(buttons.length, 7,
+    'счётчик <button> стаба = 7 (кнопки диалога — div, пин не вырос)');
+});
+
+test('боевой UI: 000210 — клик «Побег» и [F] — открывается confirmation-диалог, НЕ мгновенный побег: 0 c._rng, round/log/phase/result нетронуты, активен player (CU210-OPEN)', () => {
+  const S = scene84();
+  const { G, c, body, buttons } = S;
+  let rngCalls = 0;
+  c._rng = () => { rngCalls++; return 0.5; };
+  const n0 = c.log.length;
+  const round0 = c.round;
+  const fleeBtn = buttons.find((b) => b.dataset.act === 'flee');
+  assert.ok(fleeBtn, 'фикстура: кнопка «Побег» (act=flee)');
+  fleeBtn.listeners.click[0]();
+  const fleeBox = findByClass(body, 'combat-flee-confirm');
+  assert.ok(fleeBox,
+    '000210: клик — диалог открыт (краснота: мгновенный c.flee(): '
+    + JSON.stringify(c.log.slice(n0)) + ')');
+  assert.notEqual(fleeBox.style.display, 'none',
+    'диалог открыт (display != none)');
+  assert.equal(c.result, null, 'бой не закончился (побег не выполнялся)');
+  assert.equal(c.phase, 'player', 'фаза не изменилась');
+  assert.equal(c.round, round0, 'раунд не наступил (ход не сгорел)');
+  assert.equal(c.log.length, n0,
+    'лог не вырос (ни строки действия, ни отказа): '
+    + JSON.stringify(c.log.slice(n0)));
+  assert.equal(rngCalls, 0, '0 c._rng (броска до «да» нет)');
+  assert.equal(G.activeUnitId(c), 'player', 'активен player');
+  const S2 = scene84();
+  let rngCalls2 = 0;
+  S2.c._rng = () => { rngCalls2++; return 0.5; };
+  const n1 = S2.c.log.length;
+  const round1 = S2.c.round;
+  press(S2.keydown, 'KeyF');
+  const fb2 = findByClass(S2.body, 'combat-flee-confirm');
+  assert.ok(fb2,
+    '000210: [F] — тот же confirmation-диалог (краснота: мгновенный '
+    + 'побег: ' + JSON.stringify(S2.c.log.slice(n1)) + ')');
+  assert.notEqual(fb2.style.display, 'none', 'диалог открыт ([F])');
+  assert.equal(S2.c.result, null, '[F]: бой не закончился');
+  assert.equal(S2.c.phase, 'player', '[F]: фаза не изменилась');
+  assert.equal(S2.c.round, round1, '[F]: раунд не наступил');
+  assert.equal(S2.c.log.length, n1,
+    '[F]: лог не вырос: ' + JSON.stringify(S2.c.log.slice(n1)));
+  assert.equal(rngCalls2, 0, '[F]: 0 c._rng');
+  assert.equal(S2.G.activeUnitId(S2.c), 'player', '[F]: активен player');
+});
+
+test('боевой UI: 000210 — «нет» — тихое закрытие диалога: log/phase/round/targetId/hp бит-в-бит, 0 c._rng (CU210-NO)', () => {
+  const S = scene84();
+  const { c, body, buttons } = S;
+  let rngCalls = 0;
+  c._rng = () => { rngCalls++; return 0.5; };
+  buttons.find((b) => b.dataset.act === 'flee').listeners.click[0]();
+  const fleeBox = findByClass(body, 'combat-flee-confirm');
+  assert.ok(fleeBox, 'фикстура: панель (краснота: панели нет)');
+  assert.notEqual(fleeBox.style.display, 'none', 'фикстура: диалог открыт');
+  const snap = () => ({
+    logLen: c.log.length,
+    phase: c.phase,
+    round: c.round,
+    targetId: c.targetId,
+    hp: c.player.hp,
+    units: c.units.map((u) => [u.id, u.hp, u.x, u.y]),
+  });
+  const before = snap();
+  fleeBox.children[1].children[1].listeners.click[0]();
+  assert.equal(fleeBox.style.display, 'none', '«нет» — диалог закрыт');
+  assert.deepEqual(snap(), before,
+    'состояние бит-в-бит (log/phase/round/targetId/hp): '
+    + JSON.stringify(snap()));
+  assert.equal(c.result, null, 'бой не закончился');
+  assert.equal(rngCalls, 0, '0 c._rng (броска побега не было)');
+});
+
+test('боевой UI: 000210 — «да» + успешный бросок (c._rng 0.0): побег выполнен — result «fled», строка «Вы сбежали из боя.», баннер «Вы ушли из боя.», панель скрыта; Space — finish (CU210-YES-OK)', () => {
+  const S = scene84();
+  const { G, c, body, buttons } = S;
+  buttons.find((b) => b.dataset.act === 'flee').listeners.click[0]();
+  const fleeBox = findByClass(body, 'combat-flee-confirm');
+  assert.ok(fleeBox, 'фикстура: панель (краснота: панели нет)');
+  assert.notEqual(fleeBox.style.display, 'none', 'фикстура: диалог открыт');
+  c._rng = () => 0.0; // бросок < любого шанса (шанс ≤ 0.9) — детерминированный успех
+  const n0 = c.log.length;
+  fleeBox.children[1].children[0].listeners.click[0]();
+  assert.equal(fleeBox.style.display, 'none', 'панель скрыта после «да»');
+  assert.ok(c.result && c.result.outcome === 'fled',
+    'result.outcome «fled»: ' + JSON.stringify(c.result));
+  assert.equal(c.log.length, n0 + 1,
+    'лог — ровно ОДНА строка (ядро, без дублей): '
+    + JSON.stringify(c.log.slice(n0)));
+  assert.equal(c.log[c.log.length - 1], 'Вы сбежали из боя.',
+    'строка ядра дословно');
+  const banner = findByClass(body, 'combat-banner');
+  assert.equal(banner.style.display, 'block', 'баннер результата виден');
+  assert.equal(banner.textContent, 'Вы ушли из боя.',
+    'текст баннера outcome «fled»');
+  press(S.keydown, 'Space');
+  assert.equal(G.combatUI.isActive(), false,
+    'Space — finish (как после победы)');
+});
+
+test('боевой UI: 000210 — «да» + провал броска (c._rng 0.99 > макс. шанса 0.9): «Сбежать не удалось!», ровно 1 c._rng, round +1, бой продолжается, диалог не переоткрыт (CU210-YES-FAIL)', () => {
+  const S = scene84();
+  const { G, c, body, buttons } = S;
+  let rngCalls = 0;
+  c._rng = () => { rngCalls++; return 0.99; };
+  buttons.find((b) => b.dataset.act === 'flee').listeners.click[0]();
+  const fleeBox = findByClass(body, 'combat-flee-confirm');
+  assert.ok(fleeBox, 'фикстура: панель (краснота: панели нет)');
+  const n0 = c.log.length;
+  const round0 = c.round;
+  fleeBox.children[1].children[0].listeners.click[0]();
+  assert.equal(fleeBox.style.display, 'none', 'панель скрыта (закрыл «да»)');
+  assert.equal(c.result, null, 'бой продолжается (result null)');
+  assert.equal(c.log.length, n0 + 1,
+    'лог — ровно ОДНА строка «Сбежать не удалось!»: '
+    + JSON.stringify(c.log.slice(n0)));
+  assert.equal(c.log[c.log.length - 1], 'Сбежать не удалось!',
+    'строка ядра дословно');
+  assert.equal(c.round, round0 + 1, 'ход сгорел: round +1 (endTurn ядра)');
+  assert.equal(c.phase, 'player', 'очередь вернулась к игроку');
+  assert.equal(G.activeUnitId(c), 'player', 'активен player');
+  assert.equal(rngCalls, 1,
+    'ровно 1 c._rng (один бросок на весь побег — бит-в-бит)');
+});
+
+test('боевой UI: 000210 — модал под открытым диалогом: Space/KeyQ/KeyJ/ArrowUp/KeyF/Escape глотаются (состояние бит-в-бит, 0 c._rng, книга не переключилась); после «нет» — ввод проходит (CU210-MODAL)', () => {
+  const S = scene84();
+  const { c, body, buttons, keydown } = S;
+  let rngCalls = 0;
+  c._rng = () => { rngCalls++; return 0.5; };
+  buttons.find((b) => b.dataset.act === 'flee').listeners.click[0]();
+  const fleeBox = findByClass(body, 'combat-flee-confirm');
+  assert.ok(fleeBox, 'фикстура: панель (краснота: панели нет)');
+  assert.notEqual(fleeBox.style.display, 'none', 'фикстура: диалог открыт');
+  const bookBox = findByClass(body, 'combat-spellbook');
+  assert.ok(bookBox, 'фикстура: .combat-spellbook');
+  assert.equal(bookBox.style.display, 'none', 'фикстура: книга закрыта');
+  const snap = () => ({
+    logLen: c.log.length,
+    round: c.round,
+    targetId: c.targetId,
+    phase: c.phase,
+    ps: Object.assign({}, c.ps),
+    units: c.units.map((u) => [u.id, u.x, u.y, u.hp]),
+  });
+  const before = snap();
+  for (const code of ['Space', 'KeyQ', 'KeyJ', 'ArrowUp', 'KeyF', 'Escape']) {
+    press(keydown, code);
+    assert.notEqual(fleeBox.style.display, 'none',
+      code + ': диалог открыт (клавиша глотается)');
+    assert.deepEqual(snap(), before,
+      code + ': состояние бит-в-бит (log/round/targetId/phase/ps/'
+      + 'позиции): ' + JSON.stringify(snap()));
+    assert.equal(rngCalls, 0, code + ': 0 c._rng');
+  }
+  assert.equal(bookBox.style.display, 'none',
+    'книга не переключилась (KeyQ глотается): ' + bookBox.style.display);
+  fleeBox.children[1].children[1].listeners.click[0]();
+  assert.equal(fleeBox.style.display, 'none', 'диалог закрыт «нет»');
+  const roundBefore = c.round;
+  press(keydown, 'Space');
+  assert.equal(c.round, roundBefore + 1,
+    'после закрытия — ввод проходит (ход сгорел, краснота: Space '
+    + 'глотался/не глотался до фикса — диалога не было)');
+  assert.equal(c.phase, 'player', 'очередь вернулась к игроку');
+});
+
+test('боевой UI: 000210 — гейты: ход союзника — диалог НЕ открывается (строка причины в лог, ядро не вызвано); «да» после смены состояния — предпроверка блокирует c.flee (CU210-GATE)', () => {
+  {
+    const S = scene84();
+    const { G, c, body, buttons } = S;
+    addMerc84(c, G, 3, 5, 'melee', 'Вольк');
+    const w = c.units.find((x) => x.id === 'm0');
+    w.x = 3; w.y = 4;
+    press(S.keydown, 'Space');
+    assert.equal(G.activeUnitId(c), 'a1', 'фикстура: активен наёмник');
+    let rngCalls = 0;
+    c._rng = () => { rngCalls++; return 0.5; };
+    const n0 = c.log.length;
+    const round0 = c.round;
+    buttons.find((b) => b.dataset.act === 'flee').listeners.click[0]();
+    assert.equal(c.log.length, n0 + 1,
+      '(a) лог — ровно ОДНА строка причины (краснота: c.flee() → null — '
+      + 'тишина, лог не вырос): ' + JSON.stringify(c.log.slice(n0)));
+    assert.equal(c.log[c.log.length - 1], 'недоступно активному персонажу',
+      '(a) причина дословно (allyCanDo «flee»): '
+      + JSON.stringify(c.log.slice(n0)));
+    const fleeBox = findByClass(body, 'combat-flee-confirm');
+    assert.ok(fleeBox, '(a) панель построена в build()');
+    assert.equal(fleeBox.style.display, 'none',
+      '(a) диалог НЕ открыт (canDoAction !ok — Д4)');
+    assert.equal(c.round, round0, '(a) ход наёмника не сгорел');
+    assert.equal(rngCalls, 0, '(a) 0 c._rng (ядро не вызвано)');
+  }
+  {
+    const S = scene84();
+    const { c, body, buttons } = S;
+    let rngCalls = 0;
+    c._rng = () => { rngCalls++; return 0.5; };
+    buttons.find((b) => b.dataset.act === 'flee').listeners.click[0]();
+    const fleeBox = findByClass(body, 'combat-flee-confirm');
+    assert.ok(fleeBox, 'фикстура: панель (краснота: панели нет)');
+    assert.notEqual(fleeBox.style.display, 'none', 'фикстура: диалог открыт');
+    const n0 = c.log.length;
+    const round0 = c.round;
+    c.phase = 'mob'; // white-box: смена состояния между рендером и кликом
+    fleeBox.children[1].children[0].listeners.click[0]();
+    assert.equal(fleeBox.style.display, 'none', '(b) диалог закрыт');
+    assert.equal(c.log.length, n0 + 1,
+      '(b) ОДНА строка причины (Д5 — предпроверка, а не ядро): '
+      + JSON.stringify(c.log.slice(n0)));
+    assert.equal(c.log[c.log.length - 1], 'не ваш ход',
+      '(b) причина дословно (checkTurn)');
+    assert.equal(c.result, null, '(b) побег не выполнялся');
+    assert.equal(c.round, round0, '(b) round не сгорел (endTurn не вызван)');
+    assert.equal(rngCalls, 0, '(b) 0 c._rng (предпроверка блокирует c.flee)');
+  }
+  {
+    const S = scene84();
+    const { c, body, buttons } = S;
+    let rngCalls = 0;
+    c._rng = () => { rngCalls++; return 0.5; };
+    buttons.find((b) => b.dataset.act === 'flee').listeners.click[0]();
+    const fleeBox = findByClass(body, 'combat-flee-confirm');
+    assert.ok(fleeBox, 'фикстура: панель (краснота: панели нет)');
+    assert.notEqual(fleeBox.style.display, 'none', 'фикстура: диалог открыт');
+    const n0 = c.log.length;
+    const round0 = c.round;
+    c.phase = 'over';
+    fleeBox.children[1].children[0].listeners.click[0]();
+    assert.equal(fleeBox.style.display, 'none', '(c) диалог закрыт');
+    assert.equal(c.log.length, n0 + 1,
+      '(c) ОДНА строка причины: ' + JSON.stringify(c.log.slice(n0)));
+    assert.equal(c.log[c.log.length - 1], 'бой закончен',
+      '(c) причина дословно (checkTurn)');
+    assert.equal(c.result, null, '(c) result не записан (white-box)');
+    assert.equal(c.round, round0, '(c) round не сгорел');
+    assert.equal(rngCalls, 0, '(c) 0 c._rng');
+  }
+});
+
+test('боевой UI: 000210 — render-гейт: c.result под открытым диалогом (white-box) — диалог скрыт, баннер виден (finish достижим) (CU210-RESULT)', () => {
+  const S = scene84();
+  const { c, body, buttons, canvas, rafStubs } = S;
+  buttons.find((b) => b.dataset.act === 'flee').listeners.click[0]();
+  const fleeBox = findByClass(body, 'combat-flee-confirm');
+  assert.ok(fleeBox, 'фикстура: панель (краснота: панели нет)');
+  assert.notEqual(fleeBox.style.display, 'none', 'фикстура: диалог открыт');
+  c.phase = 'over';
+  c.result = { outcome: 'fled' };
+  tickSlice(canvas, rafStubs);
+  assert.equal(fleeBox.style.display, 'none',
+    'render-гейт: диалог скрыт (Д10)');
+  const banner = findByClass(body, 'combat-banner');
+  assert.equal(banner.style.display, 'block',
+    'баннер виден (finish достижим поверх диалога)');
+  assert.equal(banner.textContent, 'Вы ушли из боя.', 'текст баннера');
+});
+
+test('боевой UI: 000210 — правки ревью: JS-гарды модалности — под открытым диалогом клик по canvas, строка книги и кнопка «Каст» — тихий no-op: состояние бит-в-бит, 0 c._rng (CU210-MODAL-VM)', () => {
+  const S = scene84({ efir: true, spells: true, allySpells: true });
+  const { G, c, body, buttons, canvas, keydown, rafStubs } = S;
+  const wolf = c.units.find((x) => x.id === 'm0');
+  assert.ok(wolf, 'фикстура: волк');
+  wolf.maxHP = 100; wolf.hp = 100;
+  let rngCalls = 0;
+  c._rng = () => { rngCalls++; return 0.99; };
+  assert.equal(G.activeUnitId(c), 'efir',
+    'фикстура: активен Эфир (pre-roll стоп на его слоте)');
+  press(keydown, 'Space');
+  tickSlice(canvas, rafStubs);
+  assert.equal(G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  rngCalls = 0;
+  wolf.x = c.px; wolf.y = c.py - 1;
+  c.selectTarget(wolf.id);
+  press(keydown, 'KeyQ');
+  const bookBox = findByClass(body, 'combat-spellbook');
+  assert.ok(bookBox, 'фикстура: .combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none', 'фикстура: книга открыта');
+  const row = bookBox.children.find((ch) => ch.dataset
+    && ch.dataset.spell === 'spark');
+  assert.ok(row, 'фикстура: строка «spark»: '
+    + JSON.stringify(bookBox.children.map((ch) => ch.className)));
+  assert.ok(!row.className.includes('combat-spellrow-off'),
+    'фикстура: строка готова (цель — живой волк): ' + row.className
+    + ' | ' + row.title);
+  buttons.find((b) => b.dataset.act === 'flee').listeners.click[0]();
+  const fleeBox = findByClass(body, 'combat-flee-confirm');
+  assert.ok(fleeBox, 'фикстура: панель');
+  assert.notEqual(fleeBox.style.display, 'none',
+    'фикстура: диалог открыт (поверх книги)');
+  const castBtn = buttons.find((b) => b.dataset.act === 'cast');
+  assert.ok(castBtn, 'фикстура: кнопка «Каст» (Эфир в партии)');
+  c.targetId = null;
+  const snap = () => ({
+    logLen: c.log.length,
+    round: c.round,
+    targetId: c.targetId,
+    phase: c.phase,
+    mp: c.player.mp,
+    ps: Object.assign({}, c.ps),
+    book: bookBox.style.display,
+    flee: fleeBox.style.display,
+    units: c.units.map((u) => [u.id, u.x, u.y, u.hp]),
+  });
+  const before = snap();
+  canvas.listeners.click[0]({
+    clientX: (wolf.x + 0.5) * 48, clientY: (wolf.y + 0.5) * 48,
+  });
+  assert.deepEqual(snap(), before,
+    'canvas: клик глотается (targetId не сменился — гард ревью)');
+  castBtn.listeners.click[0]();
+  assert.deepEqual(snap(), before,
+    '«Каст»: клик глотается (каста нет, mp не потрачен — гард ревью)');
+  row.listeners.click[0]();
+  assert.deepEqual(snap(), before,
+    'строка книги: клик глотается (каста нет, книга открыта — гард ревью)');
+  assert.equal(rngCalls, 0, '0 c._rng');
+  fleeBox.children[1].children[1].listeners.click[0]();
+  assert.equal(fleeBox.style.display, 'none', 'диалог закрыт «нет»');
 });

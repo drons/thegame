@@ -467,6 +467,53 @@
     .combat-overlay--combat .combat-spellbook .combat-spellrow {
       pointer-events: auto;
     }
+    .combat-overlay--combat .combat-flee-confirm {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-sizing: border-box;
+      width: min(100vh - 32px, 100vw - 304px);
+      height: min(100vh - 32px, 100vw - 304px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      background: rgba(10, 12, 16, 0.85);
+      border-radius: 8px;
+    }
+    .combat-overlay--combat .combat-flee-question {
+      font: 700 18px ui-monospace, monospace;
+      color: #e8dcc0;
+      text-align: center;
+    }
+    .combat-overlay--combat .combat-flee-ans {
+      display: flex;
+      gap: 24px;
+    }
+    .combat-overlay--combat .combat-flee-btn {
+      min-width: 64px;
+      padding: 12px 28px;
+      border: 1px solid #6b6248;
+      border-radius: 10px;
+      font: 700 16px ui-monospace, monospace;
+      cursor: pointer;
+    }
+    .combat-overlay--combat .combat-flee-btn--yes {
+      background: #d9483b;
+      color: #fff;
+    }
+    .combat-overlay--combat .combat-flee-btn--yes:hover {
+      background: #e65f52;
+    }
+    .combat-overlay--combat .combat-flee-btn--no {
+      background: #6fdc6f;
+      color: #101418;
+    }
+    .combat-overlay--combat .combat-flee-btn--no:hover {
+      background: #8bf58b;
+    }
     /* Полоска MP (задача 000199): ТРЕТИЙ элемент .combat-side — под
        .combat-hpbar, над .combat-state. Геометрия 1-в-1 с
        .combat-hpbar (16px); цвета — СУЩЕСТВУЮЩАЯ пара класса
@@ -563,6 +610,10 @@
         height: min(100vw - 16px, 100vh - 16px - 520px);
       }
       .combat-overlay--combat .combat-spellbook {
+        width: min(100vw - 16px, 100vh - 16px - 520px);
+        height: min(100vw - 16px, 100vh - 16px - 520px);
+      }
+      .combat-overlay--combat .combat-flee-confirm {
         width: min(100vw - 16px, 100vh - 16px - 520px);
         height: min(100vw - 16px, 100vh - 16px - 520px);
       }
