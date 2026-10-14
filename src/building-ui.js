@@ -183,7 +183,8 @@
 
   function buildDom(o) {
     closeDom(); // повторное открытие — разбирать прежний оверлей
-    overlay = el('div', 'combat-overlay');
+    overlay = el('div', o.scroll
+      ? 'combat-overlay combat-overlay--build' : 'combat-overlay');
     const side = el('div', 'combat-side');
 
     const title = el('div', 'cp-title');
@@ -206,12 +207,21 @@
       const row = el('div', 'cp-itemrow');
       row.setAttribute('data-buid', String(a.id));
       row.disabled = !a.доступен;
-      if (!a.доступен) row.style.opacity = '0.3'; // как .cp-btn:disabled
-      row.appendChild(el('span', 'cp-btn', String(i + 1)));
+      if (!a.доступен && !o.reasonRed) row.style.opacity = '0.3';
+      if (typeof a.icon === 'string' && a.icon !== '') {
+        const icon = el('img', 'cp-itemicon');
+        icon.src = a.icon;
+        icon.alt = '';
+        row.appendChild(icon);
+      } else {
+        row.appendChild(el('span', 'cp-btn', String(i + 1)));
+      }
       const nameSpan = el('span', 'cp-itemname');
       row.appendChild(nameSpan);
       if (a.reason) {
-        row.appendChild(el('span', 'cp-itemmeta', ' — ' + a.reason));
+        row.appendChild(el('span',
+          o.reasonRed ? 'cp-itemmeta cp-itemreason' : 'cp-itemmeta',
+          ' — ' + a.reason));
       }
       rows.push({ row, nameSpan, action: a });
       list.appendChild(row);

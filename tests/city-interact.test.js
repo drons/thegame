@@ -538,10 +538,29 @@ test('CI-U11. 000134: клетка города БЕЗ cityShops-записи (�
 const D3_IDS_03 = [1, 2, 3, 4, 7, 8, 10, 11, 25, 36, 37, 38, 39, 40,
   42, 43, 44, 45, 46, 48, 49];
 
+// 000202 (репин CI-U12 + сиды CI-B): ВСЕ 10 реагентов в количестве
+// максимума, требуемого ценами (000148.04): сера 10 (id 36), кожа 8
+// (id 7), бревно 3 (id 25), лунный камень 3 (id 42), каменный обломок
+// 3 (id 46), остальные ≤2. Сумма 20.4 кг ≤ 30 кг (лимит веса
+// items.js — ×10 на каждый не влезает), 10 стаков ≤ 20 слотов.
+const REAGENT_SEED_202 = {
+  sulfur: 10, hide: 8, wood_log: 3, moonstone: 3, stone_chunk: 3,
+  herb_healing: 2, iron_ore: 2, coal: 2, herb_mana: 2, herb_bitter: 2,
+};
+
 test('CI-U12. 000148.03: [E] на пустой клетке города → buildingUI «Строительство»: ровно 21 строка «Построить: <название> — N з. (…исходники…)» (набор D3, цены каталога, id build-<id>); npcUI напрямую НЕ открывается', () => {
   // Город 18×18 (fp5): интерьер 256, потолок 128 — при пустом
   // occupied ВСЕ 21 строка доступны (в т.ч. 3×3 на (1,1)).
+  // 000202 (осознанный репин): pre-check = геометрия + золото +
+  // предметы (R1) — сиды В ТЕСТЕ (фикстура общая с .03-пинами):
+  // золото 1000 (макс. цена — 500, id 36) + все 10 реагентов в
+  // макс. количестве.
   const t = initCityBuild({ x: 1, y: 1 });
+  t.hero.gold = 1000;
+  for (const [rid, qty] of Object.entries(REAGENT_SEED_202)) {
+    assert.ok(IT.addItem(t.hero, rid, qty).ok,
+      'сид 000202: ' + rid + ' ×' + qty);
+  }
   t.BA.interactCity();
   assert.equal(t.o.calls.buildingOpen.length, 1,
     'RED: buildingUI.open — ровно 1 (сейчас no-op, :616)');
@@ -675,10 +694,19 @@ test('CI-U14. 000148.03: build из меню — списание 100 → 70 (id
   let saves2 = 0;
   t2.deps.saveNow = () => { saves2 += 1; };
   t2.BA.interactCity();
-  assert.equal(t2.o.calls.buildingOpen.length, 1, 'меню (геометрия — не золото)');
+  assert.equal(t2.o.calls.buildingOpen.length, 1, 'меню');
   const row48b = t2.o.calls.buildingOpen[0]
     .actions.find((a) => a.id === 'build-48');
-  assert.equal(row48b.доступен, true, 'pre-check геометрический: строка доступна');
+  // 000202 (осознанный репин): pre-check = геометрия + золото +
+  // предметы (R1): золото 20 < 30, stone_chunk 0 < 1 — строка
+  // недоступна, reason ЯВНЫЙ. Прямой onAction (обход оверлея) →
+  // повторная проверка buildCityAt — flash «мало золота (нужно 30)»
+  // сохраняется (пин ниже).
+  assert.equal(row48b.доступен, false,
+    'RED: строка недоступна — pre-check включает ресурсы (000202)');
+  assert.equal(row48b.reason, 'Не хватает 10 золота, 1 каменного обломка',
+    'RED: reason «Не хватает 10 золота, 1 каменного обломка» '
+    + '(золото первыми, запятая): ' + row48b.reason);
   t2.o.calls.buildingOpen[0].onAction({ id: 'build-48' });
   assert.equal(t2.hero.gold, 20, 'RED: отказ — золото не изменилось');
   assert.ok(!cs2.get('100,-40').built
@@ -714,11 +742,12 @@ test('CI-U15. 000148.03: pre-disabled строки с reason: деревня п�
     assert.equal(a.доступен, false,
       'RED: при cap строка ' + a.id + ' pre-disabled');
     if ([7, 36].includes(Number(String(a.id).slice(6)))) {
-      assert.equal(a.reason, 'нет места',
-        '3×3: перекрытие occupied → «space» → «нет места» (порядок проверок)');
+      assert.equal(a.reason, 'Нет места',
+        'RED: 3×3: перекрытие occupied → «space» → «Нет места» '
+        + '(000202: caps); порядок проверок сохранён');
     } else {
-      assert.equal(a.reason, 'лимит 50%',
-        'RED: 1×1: cap 8+1 > 8 → «cap» → «лимит 50%»');
+      assert.equal(a.reason, 'Лимит 50%',
+        'RED: 1×1: cap 8+1 > 8 → «cap» → «Лимит 50%» (000202: caps)');
     }
   }
   // (b) Хутор (2×2, интерьер 0): ЛЮБОЕ размещение — «space».
@@ -728,7 +757,8 @@ test('CI-U15. 000148.03: pre-disabled строки с reason: деревня п�
   for (const a of t2.o.calls.buildingOpen[0].actions) {
     if (a.id === 'rename-city') continue; // строка переименования — всегда доступна (000148.05)
     assert.equal(a.доступен, false, 'хутор — строка ' + a.id + ' pre-disabled');
-    assert.equal(a.reason, 'нет места', 'хутор: интерьер 0 → «space» → «нет места»');
+    assert.equal(a.reason, 'Нет места',
+      'RED: хутор: интерьер 0 → «space» → «Нет места» (000202: caps)');
   }
 });
 
@@ -748,11 +778,13 @@ test('CI-U16. 000148.03: pre-check reason «reach»: 1×1 на (3,4) дерев�
     assert.equal(a.доступен, false,
       'RED: строка ' + a.id + ' pre-disabled (дверь замурована)');
     if ([7, 36].includes(Number(String(a.id).slice(6)))) {
-      assert.equal(a.reason, 'нет места',
-        '3×3: footprint (3..5, 4..6) за интерьером → «space» ПЕРВЫМ');
+      assert.equal(a.reason, 'Нет места',
+        'RED: 3×3: footprint (3..5, 4..6) за интерьером → «space» ПЕРВЫМ '
+        + '(000202: caps)');
     } else {
-      assert.equal(a.reason, 'закроет доступ к постройкам',
-        'RED: 1×1: reach → «закроет доступ к постройкам» (R5(e))');
+      assert.equal(a.reason, 'Закроет доступ к постройкам',
+        'RED: 1×1: reach → «Закроет доступ к постройкам» '
+        + '(000202: caps; R5(e))');
     }
   }
 });
@@ -861,6 +893,185 @@ test('CI-U19. 000148.04: demolish Арены (id 7, 3×3, hide ×8) — стро
   assert.ok(flashes.includes('Разобрано: Арена (+120 з., +Кожа ×2)'),
     'RED: flash нового формата (золото + предметы, U+2212 в строке): '
     + JSON.stringify(flashes));
+});
+
+// ============================================================
+// 000202: UI списка зданий — скролл, иконки, недостающие ресурсы
+// красным (красные тесты pre-check/строки/иконки/open-опции)
+// ============================================================
+// ТЗ: tasks/pending/000202.md; контракт: memory/000202-building-menu-
+// ui.md (R1–R8). Причины красного (по функционалу, не синтаксису):
+// pre-check openCityBuildMenu — ТОЛЬКО геометрия (a.доступен =
+// canBuildAt, a.reason = BUILD_REASON_TEXT строчными); поле «icon»
+// в строках отсутствует; reason-тексты типа «Не хватает …»
+// отсутствуют; open() вызывается только с title/actions/onAction
+// (опций scroll/reasonRed нет).
+
+test('CI-B1. 000202: нехватка ТОЛЬКО золота — id 48 (30 з. + Каменный обломок ×1): обломок ×1 ЕСТЬ, золото 20 → доступен=false, reason «Не хватает 10 золота» (золото первыми, без предметов)', () => {
+  const t = initCityBuild({ x: 1, y: 1 });
+  t.hero.gold = 20; // < 30 (цена id 48)
+  assert.ok(IT.addItem(t.hero, 'stone_chunk', 1).ok,
+    'сид: Каменный обломок ×1 (предметов хватает — не хватает золота)');
+  t.BA.interactCity();
+  const row48 = t.o.calls.buildingOpen[0]
+    .actions.find((a) => a.id === 'build-48');
+  assert.equal(row48.доступен, false,
+    'RED: строка недоступна — pre-check включает золото (000202 R1)');
+  assert.equal(row48.reason, 'Не хватает 10 золота',
+    'RED: «Не хватает 10 золота» (золото первыми): ' + row48.reason);
+});
+
+test('CI-B2. 000202: нехватка ТОЛЬКО предметов (золото 1000 — всем хватает): id 48 (Каменный обломок ×1) ×0 → «Не хватает 1 каменного обломка»; id 45 (×2): ×0 → «Не хватает 2 каменных обломков», ×1 → «Не хватает 1 каменного обломка»', () => {
+  // (a) id 48: stone_chunk 0 < 1 (ед. число, пример ТЗ); id 45:
+  // 0 < 2 (мн. число).
+  const t = initCityBuild({ x: 1, y: 1 });
+  t.hero.gold = 1000;
+  t.BA.interactCity();
+  const p = t.o.calls.buildingOpen[0];
+  const row48 = p.actions.find((a) => a.id === 'build-48');
+  assert.equal(row48.доступен, false, 'RED: строка недоступна (предметы в pre-check)');
+  assert.equal(row48.reason, 'Не хватает 1 каменного обломка',
+    'RED: «Не хватает 1 каменного обломка» (ед. число при 1, пример ТЗ): '
+    + row48.reason);
+  const row45 = p.actions.find((a) => a.id === 'build-45');
+  assert.equal(row45.доступен, false, 'RED: строка недоступна');
+  assert.equal(row45.reason, 'Не хватает 2 каменных обломков',
+    'RED: id 45 (×2), ×0 — «Не хватает 2 каменных обломков» (мн. число): '
+    + row45.reason);
+  // (b) id 45 ×1 < ×2 (ед. число).
+  const t2 = initCityBuild({ x: 1, y: 1 });
+  t2.hero.gold = 1000;
+  assert.ok(IT.addItem(t2.hero, 'stone_chunk', 1).ok, 'сид: Каменный обломок ×1');
+  t2.BA.interactCity();
+  const row45b = t2.o.calls.buildingOpen[0]
+    .actions.find((a) => a.id === 'build-45');
+  assert.equal(row45b.доступен, false, 'RED: строка недоступна');
+  assert.equal(row45b.reason, 'Не хватает 1 каменного обломка',
+    'RED: id 45 ×1 < ×2 — «Не хватает 1 каменного обломка»: '
+    + row45b.reason);
+});
+
+test('CI-B3. 000202: нумерация в «Не хватает …» — ДЕФИЦИТ (число = стоимость − имеющееся, как у золота; ревью-репин) + склонение (R3): id 36 (Сера ×10, 500 з. — золото 1000 ОК): ×0 → «Не хватает 10 сер», ×5 → «Не хватает 5 сер»; id 25 (Бревно ×3): ×0 → «Не хватает 3 бревна» (НЕ «бревен»!), ×2 → «Не хватает 1 бревна» (3−2), ×1 → «Не хватает 2 бревна» (3−1)', () => {
+  const cases = [
+    [36, 'sulfur', 0, 'Не хватает 10 сер'],
+    [36, 'sulfur', 5, 'Не хватает 5 сер'],
+    [25, 'wood_log', 0, 'Не хватает 3 бревна'],
+    [25, 'wood_log', 2, 'Не хватает 1 бревна'],
+    [25, 'wood_log', 1, 'Не хватает 2 бревна'],
+  ];
+  for (const [id, item, have, expect] of cases) {
+    const t = initCityBuild({ x: 1, y: 1 });
+    t.hero.gold = 1000; // золото ОК (цены 500/70)
+    if (have > 0) {
+      assert.ok(IT.addItem(t.hero, item, have).ok,
+        'сид: ' + item + ' ×' + have);
+    }
+    t.BA.interactCity();
+    const row = t.o.calls.buildingOpen[0]
+      .actions.find((a) => a.id === 'build-' + id);
+    assert.equal(row.доступен, false,
+      'RED: строка build-' + id + ' недоступна');
+    assert.equal(row.reason, expect,
+      'RED: нумерация «' + expect + '»; факт: ' + row.reason);
+  }
+});
+
+test('CI-B4. 000202: приоритет геометрии — деревня при cap (8/8) и герой БЕЗ ресурсов (золото 0, предметов нет): 1×1 → «Лимит 50%» (НЕ «Не хватает …»), 3×3 (7/36) → «Нет места»', () => {
+  // Конфигурация CI-U15(a), но герой полностью пуст (gold 0):
+  // ресурсные тексты НЕ должны появляться — геометрия приоритетнее
+  // (R1: порядок = порядок проверок canBuildAt: space → cap → reach).
+  const occupied = [[1, 2], [1, 3], [1, 4], [2, 1], [2, 2],
+    [2, 3], [2, 4], [3, 1]];
+  const contents = occupied.map(([x, y]) =>
+    ({ x, y, buildingId: 48, player: true }));
+  const t = initCityBuild({ x: 1, y: 1, fp: 2, cityContents: contents });
+  t.hero.gold = 0;
+  t.BA.interactCity();
+  const p = t.o.calls.buildingOpen[0];
+  assert.equal(p.actions.length, 22, 'все 22 строки');
+  for (const a of p.actions) {
+    if (a.id === 'rename-city') continue;
+    assert.equal(a.доступен, false, 'строка ' + a.id + ' недоступна');
+    if ([7, 36].includes(Number(String(a.id).slice(6)))) {
+      assert.equal(a.reason, 'Нет места',
+        'RED: 3×3 — «Нет места» (space первым): ' + a.reason);
+    } else {
+      assert.equal(a.reason, 'Лимит 50%',
+        'RED: 1×1 при cap — «Лимит 50%», не «Не хватает …» '
+        + '(приоритет геометрии, золото 0): ' + a.reason);
+    }
+  }
+});
+
+test('CI-B5. 000202: icon = путь к спрайту слота (game.buildingSprite, 1:1 cityBuildingPath 000148.02): build-48 → cave_entrance.svg, build-36 → temple.svg, build-44 → tavern.svg, build-1 → weapons_shop.svg; ВСЕ 21 строка — icon (строка); rename-city — без icon; без buildingSprite (фикстура по умолчанию) — icon везде undefined и console.error нет (тихая деградация, R8)', () => {
+  // (a) Реальный buildingSprite (sprites.js — чистый в node).
+  const SP = require('../src/sprites.js');
+  const t = initCityBuild({ x: 1, y: 1 });
+  t.deps.game.buildingSprite = SP.buildingSprite;
+  t.BA.interactCity();
+  const p = t.o.calls.buildingOpen[0];
+  const pinIcon = (id, expected) => {
+    const row = p.actions.find((a) => a.id === 'build-' + id);
+    assert.equal(row.icon, expected,
+      'RED: icon строки build-' + id + ' — ' + expected
+      + '; факт: ' + row.icon);
+  };
+  pinIcon(48, 'assets/sprites/buildings/cave_entrance.svg');
+  pinIcon(36, 'assets/sprites/buildings/temple.svg');
+  pinIcon(44, 'assets/sprites/buildings/tavern.svg');
+  pinIcon(1, 'assets/sprites/buildings/weapons_shop.svg');
+  for (const a of p.actions) {
+    if (a.id === 'rename-city') {
+      assert.equal(a.icon, undefined,
+        'rename-city — без icon (нумерационный чип, 000148.05)');
+      continue;
+    }
+    assert.equal(typeof a.icon, 'string',
+      'RED: строка ' + a.id + ' — icon строкой-путём: ' + a.icon);
+  }
+  // (b) buildingSprite НЕТ (фикстура по умолчанию): тихая деградация —
+  // icon везде отсутствует, console.error нет (R8; пин «ошибок нет»
+  // в духе CI-V4).
+  const t2 = initCityBuild({ x: 1, y: 1 });
+  const errs = [];
+  const origErr = console.error;
+  console.error = (...a) => { errs.push(a.join(' ')); };
+  try {
+    t2.BA.interactCity();
+  } finally {
+    console.error = origErr;
+  }
+  const p2 = t2.o.calls.buildingOpen[0];
+  assert.equal(p2.actions.length, 22, 'меню открывается (деградация, не сбой)');
+  for (const a of p2.actions) {
+    assert.equal(a.icon, undefined,
+      'тихая деградация: строка ' + a.id + ' — icon отсутствует (нет buildingSprite)');
+  }
+  assert.equal(errs.length, 0,
+    'деградация без console.error: ' + JSON.stringify(errs));
+});
+
+test('CI-B6. 000202: open()-опции — «Строительство»: scroll:true И reasonRed:true; эффекты-меню (постройка с NPC, «Диалог»): обе undefined (другие вызывающие — байт-в-байт, R6)', () => {
+  // (a) Строительное меню (пустая клетка).
+  const t = initCityBuild({ x: 1, y: 1 });
+  t.BA.interactCity();
+  const p = t.o.calls.buildingOpen[0];
+  assert.equal(p.title, 'Строительство', 'меню «Строительство»');
+  assert.equal(p.scroll, true,
+    'RED: «Строительство» — scroll:true (ТЗ: вертикальный скролл)');
+  assert.equal(p.reasonRed, true,
+    'RED: «Строительство» — reasonRed:true (ТЗ: нехватка — явно красным)');
+  // (b) Эффекты-меню (постройка с NPC — фикстура CI-U1): опции НЕТ.
+  const t2 = initCity();
+  t2.BA.interactCity();
+  assert.equal(t2.o.calls.buildingOpen.length, 1,
+    'эффекты-меню (постройка с NPC, строка «Диалог»)');
+  const p2 = t2.o.calls.buildingOpen[0];
+  assert.equal(p2.title, 'оружейная', 'заголовок — из каталога');
+  assert.equal(p2.scroll, undefined,
+    'эффекты-меню — без scroll (байт-в-байт как раньше)');
+  assert.equal(p2.reasonRed, undefined,
+    'эффекты-меню — без reasonRed (байт-в-байт как раньше)');
 });
 
 // ============================================================

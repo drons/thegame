@@ -88,6 +88,12 @@
     reach: 'закроет доступ к постройкам',
   };
 
+  const BUILD_MENU_REASON_TEXT = {
+    space: 'Нет места',
+    cap: 'Лимит 50%',
+    reach: 'Закроет доступ к постройкам',
+  };
+
   // --- Проводка (main.js, load-time, один раз) ---
   //
   // Бандл явных ссылок на мир (§2.2 memory). Живые ссылки безопасны:
@@ -541,6 +547,104 @@
     return String(itemId);
   }
 
+  const REAGENT_FORMS = {
+    sulfur: ['серы', 'серы', 'сер'],
+    wood_log: ['бревна', 'бревна', 'бревен'],
+    hide: ['кожи', 'кож', 'кож'],
+    herb_healing: ['травы исцеления', 'травы исцеления',
+      'трав исцеления'],
+    iron_ore: ['железной руды', 'железной руды', 'железной руды'],
+    coal: ['угля', 'угля', 'угля'],
+    herb_mana: ['манной травы', 'манной травы', 'манной травы'],
+    herb_bitter: ['горечавки', 'горечавки', 'горечавок'],
+    moonstone: ['лунного камня', 'лунного камня', 'лунных камней'],
+    stone_chunk: ['каменного обломка', 'каменных обломков',
+      'каменных обломков'],
+  };
+  const REAGENT_FORM_WARNED = new Set();
+
+  function reagentForm(itemId, n) {
+    const forms = REAGENT_FORMS[itemId];
+    if (!forms) {
+      if (!REAGENT_FORM_WARNED.has(itemId)) {
+        REAGENT_FORM_WARNED.add(itemId);
+        console.error('building-actions.js: REAGENT_FORMS — реагент «' +
+          itemId + '» не в таблице (000202) — формат «имя ×N»');
+      }
+      return reagentName(deps.game, itemId) + ' ×' + n;
+    }
+    const h = n % 100;
+    let idx;
+    if (h >= 11 && h <= 14) {
+      idx = 2;
+    } else {
+      const d = n % 10;
+      if (d === 1) idx = 0;
+      else if (d >= 2 && d <= 4) idx = 1;
+      else idx = 2;
+    }
+    return forms[idx];
+  }
+
+  function buildIconPath(live, buildingId) {
+    if (!live || typeof live.getBuilding !== 'function'
+        || typeof live.buildingSprite !== 'function') return null;
+    const rec = live.getBuilding(buildingId);
+    if (!rec) return null;
+    const op = rec.особые_параметры || {};
+    const slot = Number.isInteger(op.map_index)
+      ? op.map_index
+      : (op.размещение && Number.isInteger(op.размещение.слот)
+         ? op.размещение.слот : null);
+    return slot == null ? null : live.buildingSprite(slot);
+  }
+
+  function buildShortageReason(hero, cost) {
+    const g = deps.game && typeof deps.game === 'object'
+      ? deps.game : {};
+    const hasItemFn = typeof g.hasItem === 'function' ? g.hasItem : null;
+    const totalQtyFn = typeof g.totalQty === 'function'
+      ? g.totalQty : null;
+    const heroOk = !!hero && typeof hero === 'object';
+    const needGold = Number.isFinite(cost.золото) ? cost.золото : 0;
+    const goldParts = [];
+    if (heroOk && Number.isFinite(hero.gold) && hero.gold < needGold) {
+      goldParts.push((needGold - hero.gold) + ' золота');
+    }
+    const itemParts = [];
+    if (heroOk && hasItemFn) {
+      const src = Array.isArray(cost.исходники) ? cost.исходники : [];
+      for (const e of src) {
+        if (!e || e.предмет == null
+            || !Number.isFinite(e.количество)) continue;
+        let have;
+        if (totalQtyFn) {
+          const q = totalQtyFn(hero, e.предмет);
+          have = Number.isFinite(q) ? q : 0;
+        } else {
+          have = hasItemFn(hero, e.предмет, e.количество)
+            ? e.количество : 0;
+        }
+        if (have >= e.количество) continue;
+        const n = e.количество - have;
+        itemParts.push(n + ' ' + reagentForm(e.предмет, n));
+      }
+    }
+    if (goldParts.length === 0 && itemParts.length === 0) return null;
+    const items = itemParts.length === 1
+      ? itemParts[0]
+      : itemParts.length === 2
+        ? itemParts[0] + ' и ' + itemParts[1]
+        : itemParts.slice(0, -1).join(', ')
+          + ' и ' + itemParts[itemParts.length - 1];
+    const body = itemParts.length === 0
+      ? goldParts.join(', ')
+      : goldParts.length === 0
+        ? items
+        : goldParts.join(', ') + ', ' + items;
+    return 'Не хватает ' + body;
+  }
+
   // Строка «Разобрать» (000148.03): постройка ИГРОКА (per-cell запись
   // player:true). Возврат — 30% floor золота (cities.demolishReturn —
   // каталожная цена .стройка.золото) + ПРЕДМЕТЫ (000148.04:
@@ -577,14 +681,16 @@
       доступен: true };
   }
 
-  // Меню «Строительство» (000148.03): пустая клетка города →
-  // buildingUI-оверлей с 21 строкой buildable-типа (набор D3 —
-  // ДАННЫЕ каталога, cities.buildableBuildingIds). Строка —
-  // «Построить: <название> — <N> з.» (id 'build-<id>'), pre-check
-  // cities.canBuildAt (GEOMETRIЯ ТОЛЬКО: золото проверяется в момент
-  // действия, buildCityAt) → доступен + reason (BUILD_REASON_TEXT).
-  // ТОЛЬКО через buildingUI (000107): guard «обход запрещён» — как в
-  // ветке с постройкой. Повторный [E] — закрыть (стек, не трогать).
+  // Меню «Строительство» (000148.03, pre-check 000202): пустая
+  // клетка города → buildingUI-оверлей с 21 строкой buildable-типа
+  // (набор D3 — ДАННЫЕ каталога, cities.buildableBuildingIds).
+  // Строка — «Построить: <название> — <N> з.» (id 'build-<id>') +
+  // icon (путь слот-спрайта), pre-check: cities.canBuildAt
+  // (геометрия, reason BUILD_MENU_REASON_TEXT) + read-only
+  // gold/предметы (reason «Не хватает …», списание — ТОЛЬКО
+  // buildCityAt с re-check) → доступен + reason. ТОЛЬКО через
+  // buildingUI (000107): guard «обход запрещён» — как в ветке с
+  // постройкой. Повторный [E] — закрыть (стек, не трогать).
   function openCityBuildMenu(t) {
     if (!needDeps()) return false;
     if (!deps.game.buildingUI) {
@@ -633,10 +739,18 @@
           reagentName(deps.game, e.предмет) + ' ×' + e.количество)
           .join(', ') + ')';
       const a = { id: 'build-' + id,
-        имя: label,
-        доступен: check.ok === true };
-      if (check.ok !== true)
-        a.reason = BUILD_REASON_TEXT[check.reason] || String(check.reason);
+        имя: label };
+      const icon = buildIconPath(deps.game, id);
+      if (typeof icon === 'string') a.icon = icon;
+      if (check.ok !== true) {
+        a.доступен = false;
+        a.reason = BUILD_MENU_REASON_TEXT[check.reason]
+          || String(check.reason);
+      } else {
+        const reason = buildShortageReason(deps.hero, cost);
+        a.доступен = reason === null;
+        if (reason !== null) a.reason = reason;
+      }
       actions.push(a);
     }
     // 000148.05 (D-.05d): 22-я строка «Переименовать город» — КОНЕЦ
@@ -654,6 +768,8 @@
       onAction: (a) => (a.id === 'rename-city'
         ? renameCityAt(t)
         : buildCityAt(t, Number(String(a.id).slice(6)))),
+      scroll: true,
+      reasonRed: true,
     });
     return true;
   }

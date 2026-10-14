@@ -9269,3 +9269,103 @@ test('RG-E3. 000200: e2e таверна (41,2) — МАЛО ЗОЛОТА: hero g
       'НИКАКОЙ отметки fullrest в buildingOncePerDay: ' + k);
   }
 });
+
+// ============================================================
+// 000202: buildingUI — иконка строки, reasonRed, scroll (красные)
+// ============================================================
+// ТЗ: tasks/pending/000202.md; контракт: memory/000202-building-menu-
+// ui.md (R5/R6). Причины красного (по функционалу, не синтаксису):
+// buildDom ВСЕГДА создаёт первым ребёнком строки span.cp-btn (чип
+// номера — img.cp-itemicon нет), класс reason всегда 'cp-itemmeta'
+// (no cp-itemreason) + dim opacity 0.3 для недоступных, и класс
+// оверлея всегда 'combat-overlay' (без модификатора
+// combat-overlay--build) — open() не поддерживает опции
+// reasonRed/scroll (open({title, actions, onAction})).
+
+test('M1. 000202: строка С icon — первый ребёнок IMG.cp-itemicon (src = a.icon); без icon — нумерационный чип SPAN.cp-btn (байт-в-байт, 000148.05)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const bui = G.buildingUI;
+  assert.ok(bui, 'Game.buildingUI в realm');
+  const a1 = { id: 'b1', имя: 'Развалины', доступен: true,
+    icon: 'assets/sprites/buildings/cave_entrance.svg' };
+  const a2 = { id: 'b2', имя: 'Переименовать город', доступен: true };
+  bui.open({ title: 'Строительство', actions: [a1, a2], onAction() {} });
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей в body');
+  const r1 = findRow(ov, 'b1');
+  const r2 = findRow(ov, 'b2');
+  assert.ok(r1 && r2, 'строки (data-buid)');
+  const i1 = r1.children[0];
+  assert.equal(String(i1.tagName).toLowerCase(), 'img',
+    'RED: строка с icon — первый ребёнок IMG (не чип): ' + i1.tagName);
+  assert.equal(String(i1.className), 'cp-itemicon',
+    'RED: класс cp-itemicon (существующий CSS 22×22): ' + i1.className);
+  assert.equal(String(i1.src),
+    'assets/sprites/buildings/cave_entrance.svg',
+    'RED: src — путь из a.icon: ' + i1.src);
+  const c2 = r2.children[0];
+  assert.equal(String(c2.tagName).toLowerCase(), 'span',
+    'строка без icon — SPAN-чип (байт-в-байт как раньше)');
+  assert.equal(String(c2.className), 'cp-btn', 'класс чипа cp-btn');
+  assert.equal(String(c2.textContent), '2', 'чип — номер строки (2)');
+  bui.close();
+  assert.equal(countOverlays(h), 0, 'оверлей снят');
+});
+
+test('M2. 000202: reasonRed — reason «cp-itemmeta cp-itemreason» + строка disabled БЕЗ opacity 0.3; без reasonRed — «cp-itemmeta» + opacity 0.3 (байт-в-байт, другие меню)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const bui = G.buildingUI;
+  const bad = { id: 'b3', имя: 'Арена', доступен: false, reason: 'Нет места' };
+  const good = { id: 'b4', имя: 'Развалины', доступен: true };
+  // (a) reasonRed: true (меню «Строительство», R6).
+  bui.open({ title: 'Строительство', actions: [bad, good], onAction() {},
+    reasonRed: true });
+  const ovA = findOverlay(h);
+  const rA = findRow(ovA, 'b3');
+  assert.equal(rA.disabled, true,
+    'недоступная строка — disabled (контракт 000071)');
+  assert.notEqual(String(rA.style.opacity), '0.3',
+    'RED: с reasonRed — БЕЗ dim (красный — явный маркер): '
+    + rA.style.opacity);
+  const reasonA = rA.children[rA.children.length - 1];
+  assert.equal(String(reasonA.className), 'cp-itemmeta cp-itemreason',
+    'RED: класс reason «cp-itemmeta cp-itemreason»: ' + reasonA.className);
+  assert.ok(String(reasonA.textContent).includes('Нет места'),
+    'текст reason виден (« — » + a.reason)');
+  bui.close();
+  // (b) без reasonRed — другие меню (эффекты/разобрать/диалог): старое.
+  bui.open({ title: 'Эффекты', actions: [bad, good], onAction() {} });
+  const ovB = findOverlay(h);
+  const rB = findRow(ovB, 'b3');
+  assert.equal(String(rB.style.opacity), '0.3',
+    'без reasonRed — dim opacity 0.3 (байт-в-байт как раньше)');
+  const reasonB = rB.children[rB.children.length - 1];
+  assert.equal(String(reasonB.className), 'cp-itemmeta',
+    'без reasonRed — класс «cp-itemmeta» (cp-itemreason нет): '
+    + reasonB.className);
+  bui.close();
+  assert.equal(countOverlays(h), 0, 'оверлей снят');
+});
+
+test('M3. 000202: scroll — класс оверлея «combat-overlay combat-overlay--build»; без scroll — «combat-overlay» (байт-в-байт, другие меню)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const bui = G.buildingUI;
+  const a = { id: 'b5', имя: 'Развалины', доступен: true };
+  bui.open({ title: 'Строительство', actions: [a], onAction() {},
+    scroll: true });
+  const ov = findOverlay(h);
+  assert.ok(ov, 'оверлей в body');
+  assert.ok(String(ov.className).includes('combat-overlay--build'),
+    'RED: scroll — класс combat-overlay--build '
+    + '(модификатор-конвенция, 000124): ' + ov.className);
+  bui.close();
+  bui.open({ title: 'Эффекты', actions: [a], onAction() {} });
+  const ov2 = findOverlay(h);
+  assert.ok(!String(ov2.className).includes('combat-overlay--build'),
+    'без scroll — БЕЗ --build (байт-в-байт как раньше): ' + ov2.className);
+  bui.close();
+  assert.equal(countOverlays(h), 0, 'оверлей снят');
+});

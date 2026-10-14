@@ -1135,3 +1135,134 @@ test('город 000191.6b (e2e): z-порядок слоя — ВСЕ building-
     + '(idx ' + playerIdx[0] + ')');
   assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
 });
+
+// --- 000202 (e2e): UI списка зданий — РЕАЛЬНЫЙ buildingUI в деревне ---
+//
+// ТЗ: tasks/pending/000202.md; контракт — memory/000202-building-menu-
+// ui.md. Фикстура — деревня 52 (V109): 6×6, вход (1,5), постройки
+// (4,4) таверна 44, (2,3) оружейная 1, (2,2) таверна 44; герой
+// HERO109 (золото 50, ПРЕДМЕТОВ НЕТ). Ходьба (1,5)→(1,4)→(1,3)→
+// (1,2)→(1,1) (все — интерьерный FLOOR) и [E] на СВОБОДНОЙ (1,1) →
+// buildingUI «Строительство»: 21 build-строка (набор D3) + rename.
+// Ходьба в городе — синхронная (keydown → ctx.onMove → cityMove,
+// кадры не нужны; позиция — g.dungeon.x/y, не g.state.player — в
+// городе player = мировой якорь входа). Красный: в текущем коде
+// pre-check геометрический (19 из 21 строк доступны, reason у 3×3
+// строчными «нет места»), icon нет, --build/cp-itemreason нет.
+
+const D3_202 = [1, 2, 3, 4, 7, 8, 10, 11, 25, 36, 37, 38, 39, 40, 42,
+  43, 44, 45, 46, 48, 49];
+
+function walkCity202(h, steps) {
+  const g = h.sandbox.__game;
+  for (const [tx, ty] of steps) {
+    const dx = tx - g.dungeon.x, dy = ty - g.dungeon.y;
+    assert.ok(Math.abs(dx) + Math.abs(dy) === 1,
+      'город: шаг по соседней клетке');
+    const e = press(h, keydownFor(dx, dy));
+    release(h, e);
+    assert.ok(g.dungeon, 'в городе (не вышел)');
+    assert.equal(g.dungeon.x, tx, 'город: шаг x (' + tx + ',' + ty + ')');
+    assert.equal(g.dungeon.y, ty, 'город: шаг y (' + tx + ',' + ty + ')');
+  }
+}
+
+test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕАЛЬНОЕ «Строительство»: оверлей combat-overlay--build; 21 строка с IMG.cp-itemicon (реальный путь G.buildingSprite) + чип rename; ВСЕ 21 строки disabled + reason cp-itemreason (без dim); 7/36 (3×3 перекрытие) — «Нет места», 1 — «Не хватает 2 бревна» (золото 50 ≥ 50), 48 — «Не хватает 1 каменного обломка» (золото 50 ≥ 30); без console.error; второй [E] — закрыть', async () => {
+  const h = await bootSeeded({ day: V109.day, steps: 0, hero: HERO109 });
+  const { g, G } = await enterVillage109(h);
+  walkCity202(h, [[1, 4], [1, 3], [1, 2], [1, 1]]);
+  assert.equal(g.dungeon.x, 1, 'герой на (1,1): x');
+  assert.equal(g.dungeon.y, 1, 'герой на (1,1): y');
+  press(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true,
+    '[E] на свободной клетке — buildingUI «Строительство»');
+  // Оверлей buildingUI в body: div.combat-overlay, НО не городской
+  // оверлей dungeon-ui (.combat-overlay.dungeon-overlay).
+  const findOverlayEl = (n) => {
+    for (const ch of n.children || []) {
+      const cls = String(ch.className || '');
+      if (cls.includes('combat-overlay')
+          && !cls.includes('dungeon-overlay')) return ch;
+      const r = findOverlayEl(ch);
+      if (r) return r;
+    }
+    return null;
+  };
+  const overlay = findOverlayEl(h.body);
+  assert.ok(overlay, 'RED: оверлей buildingUI в body');
+  assert.ok(String(overlay.className).includes('combat-overlay--build'),
+    'RED: scroll — класс combat-overlay--build (000202 R6/R7): '
+    + overlay.className);
+  const side = overlay.children[0];
+  const list = side.children.find((ch) =>
+    String(ch.className || '').includes('cp-items'));
+  assert.ok(list, '.cp-items в оверлее');
+  const rows = list.children;
+  assert.equal(rows.length, 22,
+    '22 строки (21 набор D3 + «Переименовать город», 000148.05); '
+    + 'факт: ' + rows.length);
+  // Иконка — реальный слот-спрайт (резолв 1:1 с тестом G1 000148.02:
+  // getBuilding → map_index/размещение.слот → G.buildingSprite).
+  const resolve = (id) => {
+    const rec = G.getBuilding(id);
+    const op = (rec && rec.особые_параметры) || {};
+    const slot = Number.isInteger(op.map_index) ? op.map_index
+      : (op.размещение && Number.isInteger(op.размещение.слот)
+         ? op.размещение.слот : null);
+    return slot == null ? null : G.buildingSprite(slot);
+  };
+  const lastChild = (row) => row.children[row.children.length - 1];
+  const reasonOf = (row) => String(lastChild(row).textContent || '');
+  for (let i = 0; i < 21; i += 1) {
+    const id = D3_202[i];
+    const row = rows[i];
+    assert.equal(row.disabled === true, true,
+      'RED: строка build-' + id + ' — disabled (герой без предметов, '
+      + 'золото 50): ' + row.disabled);
+    assert.notEqual(String(row.style.opacity), '0.3',
+      'RED: с reasonRed — без dim (красный — маркер): ' + row.style.opacity);
+    const icon = row.children[0];
+    assert.equal(String(icon.tagName).toLowerCase(), 'img',
+      'RED: строка build-' + id + ' — первый ребёнок IMG (не чип): '
+      + icon.tagName);
+    assert.equal(String(icon.className), 'cp-itemicon',
+      'RED: класс cp-itemicon (000202 R5): ' + icon.className);
+    assert.equal(String(icon.src), resolve(id),
+      'RED: иконка — реальный путь слот-спрайта (build-' + id + '): '
+      + icon.src);
+    assert.ok(String(lastChild(row).className).includes('cp-itemreason'),
+      'RED: reason строки build-' + id + ' — класс cp-itemreason: '
+      + lastChild(row).className);
+  }
+  // 22-я строка — «Переименовать город»: нумерационный чип (без
+  // иконки), доступна.
+  const rename = rows[21];
+  assert.equal(String(rename.children[0].className), 'cp-btn',
+    'rename-строка — нумерационный чип (без иконки)');
+  assert.equal(String(rename.children[0].textContent), '22',
+    'чип — номер 22');
+  assert.equal(rename.disabled === false, true,
+    'rename-строка — доступна (000148.05)');
+  // Reasons: геометрия приоритетнее (7/36 3×3 — перекрытие
+  // (2,2)/(2,3) → «Нет места»), затем «Не хватает …» — золото ОК
+  // (50 ≥ 50 / 50 ≥ 30), предметы — отсутствуют.
+  assert.ok(reasonOf(rows[D3_202.indexOf(7)]).includes('Нет места'),
+    'RED: строка 7 (3×3) — «Нет места» (приоритет геометрии): '
+    + reasonOf(rows[D3_202.indexOf(7)]));
+  assert.ok(reasonOf(rows[D3_202.indexOf(36)]).includes('Нет места'),
+    'RED: строка 36 (3×3) — «Нет места»: '
+    + reasonOf(rows[D3_202.indexOf(36)]));
+  assert.ok(reasonOf(rows[D3_202.indexOf(1)]).includes('Не хватает 2 бревна'),
+    'RED: строка 1 — «Не хватает 2 бревна» (золото 50 ≥ 50, бревно 0 < 2): '
+    + reasonOf(rows[0]));
+  assert.ok(reasonOf(rows[D3_202.indexOf(48)]).includes('Не хватает 1 каменного обломка'),
+    'RED: строка 48 — «Не хватает 1 каменного обломка» (золото 50 ≥ 30, '
+    + 'каменный обломок 0 < 1): '
+    + reasonOf(rows[D3_202.indexOf(48)]));
+  assert.equal(h.errors.length, 0,
+    'console.error нет (тихие гарды, R8): ' + h.errors.join('; '));
+  // Второй [E] — закрыть оверлей (стек, 000148.03).
+  press(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), false,
+    'второй [E] — оверлей закрыт');
+});
