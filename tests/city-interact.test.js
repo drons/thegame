@@ -1659,14 +1659,16 @@ function clickTab(h, overlay, tab) {
   clickers[0]({ target: btn });
 }
 
-// Hint dungeon-ui: ВТОРОЙ .combat-state внутри .dungeon-overlay
-// (первый — stateEl; паттерн dungeon-ui.test.js).
+// Hint dungeon-ui: ПОСЛЕДНИЙ .combat-state внутри .dungeon-overlay
+// (город: [stateEl, hint]; подземелье: [hint] — 000212: stateEl
+// только город; паттерн dungeon-ui.test.js).
 function hintOf(h) {
   const ov = findAll(h.body, '.dungeon-overlay')[0];
   assert.ok(ov, 'dungeon-ui оверлей активен');
   const states = findAll(ov, '.combat-state');
-  assert.ok(states.length >= 2, 'оверлей: stateEl + hint (combat-state)');
-  return textOf(states[1]);
+  assert.ok(states.length >= 1,
+    'оверлей: .combat-state (hint) присутствует');
+  return textOf(states[states.length - 1]);
 }
 
 // ============================================================

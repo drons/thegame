@@ -50,13 +50,16 @@
 //   * buildingNameHint(g, t) → { name, hint } — имя/хинт тайла
 //     постройки 1:1 (000073/000103/000105).
 //   * hereLine(g, t, npc, effects) → «\nЗдесь: …» — ветка целиком.
-//   * locationLine(g, ds) → «\n--- <имя> (x, y) ---\nДо выхода: ~N
-//     клеток» (+ «  |  M групп(ы)» — только подземелье; город — БЕЗ
-//     строк групп, 000106).
+//   * locationLine(g, ds) → город «\n--- <имя> (x, y) ---\n<статус>»
+//     (БЕЗ строк групп, 000106); подземелье (000212) — «\n<статус>»
+//     (рамы и счётчика «групп(ы)» НЕТ: имя — в 1-й строке buildLine,
+//     ТЗ — только подземелье/этажи/клетки до выхода).
 //   shopHint и mob-строка НЕ экспортируются (инлайн 1:1 — HU4
 //   покрывает; минимальная поверхность = меньше имён для
 //   расхождения, D2). Внутренний порядок определений: eHint →
-//   buildingNameHint → hereLine → locationLine → buildLine → update.
+//   buildingNameHint → hereLine → locationLine → dungeonName →
+//   buildLine → update. dungeonName — НЕ экспортируется (000212:
+//   имя подземелья в 1-й строке + гард DUNGEON_NAMES 1×/вызов).
 //
 // Перенос 1:1 (рефакторинг БЕЗ смены поведения: HUD побайтово —
 // фиксаторы city-screen C1–C5 / building-effects E1–E6 зелёные без
@@ -141,9 +144,11 @@
       + nh.hint;
   }
 
-  // Блок «--- <имя> (x, y) ---» (1:1 main.js база L1283–1296 +
-  // ОДИН новый гард DUNGEON_NAMES, 000053, прецедент locations.js
-  // 000127).
+  // Блок локации: город — рамка «--- <имя> (x, y) ---» (1:1 main.js
+  // база L1283–1296, НЕ МЕНЯЕТСЯ); подземелье (000212) — только
+  // статус: рамка УБРАНА (имя — в 1-й строке buildLine через
+  // dungeonName; клеточные координаты дублируют карту), счётчика
+  // «групп(ы)» НЕТ (ТЗ: подземелье/этажи/клетки до выхода).
   function locationLine(g, ds) {
     // 000153.03 (D5, finding G): строка состояния — ЕДИНЫЙ helper
     // g.locations.floorStatusLine (locations.js, тот же потребитель-
@@ -162,24 +167,32 @@
     if (ds.kind === 'city') {
       // Город (000105): заголовок — имя города; contents null
       // (000106) — строк групп/сундуков нет (ds.contents.mobs
-      // упадёт — ветка по kind обязательна).
+      // упадёт — ветка по kind обязательна). НЕ МЕНЯЕТСЯ (000212 —
+      // только подземелья/пещеры).
       return '\n--- ' + ds.name + ' (' + ds.x + ', ' + ds.y + ') ---' +
         '\n' + status;
     }
-    // Гард шире 1:1 (таблицы нет ИЛИ нет ключа типа — в 1:1 было бы
-    // 'undefined' в строке): data-error-ветка, в норме недостижима
-    // (dungeon.js пинан; DUNGEON_NAMES закрывает все типы —
-    // dungeon.test.js).
-    let name = g.DUNGEON_NAMES ? g.DUNGEON_NAMES[ds.dg.type] : null;
+    // 000212: подземелье — единое инфо-окно #hud: статус без рамки
+    // (имя — 1-я строка buildLine) и без счётчиков; DUNGEON_NAMES/
+    // contents.mobs здесь НЕ читаются.
+    return '\n' + status;
+  }
+
+  // 000212: имя подземелья для 1-й строки (ранее — в рамке
+  // locationLine). Гард DUNGEON_NAMES (000053, прецедент locations.js
+  // 000127) ПЕРЕНОСится сюда: таблицы нет ИЛИ нет ключа типа —
+  // console.error (1×/вызов, сообщение дословно) + fallback
+  // «подземелье»; в норме недостижимо (dungeon.js пинан;
+  // DUNGEON_NAMES закрывает все типы — dungeon.test.js).
+  function dungeonName(ctx) {
+    let name = ctx.game.DUNGEON_NAMES
+      ? ctx.game.DUNGEON_NAMES[ctx.dungeonState.dg.type] : null;
     if (!name) {
       console.error('hud.js: Game.DUNGEON_NAMES отсутствует (000129) ' +
         '— fallback «подземелье»');
       name = 'подземелье';
     }
-    return '\n--- ' + name + ' (' + ds.x + ', ' + ds.y + ') ---' +
-      '\n' + status + '  |  ' +
-      (ds.contents.mobs.filter((m) => !m.defeated).length) +
-      ' групп(ы)';
+    return name;
   }
 
   // Вся строка HUD (ЧИСТАЯ: DOM не трогает) — 1:1 main.js база
@@ -207,7 +220,12 @@
       && typeof g.buildingEffects.hasEffects === 'function'
       ? g.buildingEffects.hasEffects(bHere)
       : false;
-    let line = 'Флогистон, ур. ' + ctx.hero.level + '  (' + ctx.player.x + ', ' + ctx.player.y + ')\n' +
+    // 000212: 1-я строка — мир-координаты (мир/город) или ИМЯ
+    // подземелья (подземелье: мир-координаты героя заморожены на
+    // входе — по ТЗ вместо них информация про подземелье).
+    const where = (ctx.dungeonState && ctx.dungeonState.kind ===
+      'dungeon') ? dungeonName(ctx) : ctx.player.x + ', ' + ctx.player.y;
+    let line = 'Флогистон, ур. ' + ctx.hero.level + '  (' + where + ')\n' +
       'HP ' + ctx.hero.hp + '/' + d.maxHP + '  |  Золото: ' + ctx.hero.gold + '  |  Очки: ' + ctx.hero.points + '\n' +
       'Местность: ' + g.TERRAIN_NAMES[t.terrain] + '\n' +
       'День: ' + ctx.day + '  |  Масштаб: ' + ctx.zoom + 'px  |  карта: ' + ctx.map.width + 'x' + ctx.map.height +

@@ -1984,8 +1984,9 @@ function makeCityState(opts = {}) {
 }
 
 // Все элементы в дереве с className, содержащим cls (в порядке
-// обхода): у оверлея dungeon-ui «combat-state» — ДВА (stateEl и
-// hint — одноимённый класс по паттерну combat-ui).
+// обхода): у оверлея dungeon-ui «combat-state» — город: ДВА
+// (stateEl и hint — одноимённый класс по паттерну combat-ui),
+// подземелье: ОДИН (hint; 000212: stateEl — только город).
 function allByClass(el, cls) {
   const out = [];
   (function walk(n) {
@@ -2275,10 +2276,11 @@ test('город UI 000105/000107: contents: null — без сундуков/м
   assert.ok(hint.includes('[E] — постройки.'),
     'hint: «[E] — постройки.» (взаимодействие — 000107): '
     + JSON.stringify(hint));
-  // Регрессия: у ПОДЗЕМЕЛЬЯ hint — «Вход в пещеру» + «Сундук и мобы».
+  // Регрессия: у ПОДЗЕМЕЛЬЯ hint — «Вход в пещеру» + «Сундук и мобы»
+  // (000212: hint — ЕДИНСТВЕННЫЙ .combat-state → индекс [0]).
   const D = loadDungeonUi({ performance: { now: () => 1000 } });
   D.G.dungeonUI.start({ state: makeState(), onMove() {}, zoom: 48 });
-  const dHint = allByClass(D.body, 'combat-state')[1].textContent;
+  const dHint = allByClass(D.body, 'combat-state')[0].textContent;
   assert.ok(dHint.includes('Вход в пещеру — вход и выход'),
     'подземелье: hint — единый тайл-вход (000177): '
     + JSON.stringify(dHint));
@@ -3134,7 +3136,7 @@ test('подземелье UI 000157.02: залежи — спрайт G.DUNGEON
     'фолбэк «самоцвет» — полоса ' + FB['самоцвет'][1]);
 });
 
-test('подземелье UI 000157.02: stateEl — «Группы: N | Сундуки: N | Залежи: N» (N — залежи БЕЗ gathered) (UI-DEP-2, RED)', () => {
+test('подземелье UI 000212: инфо-stateEl УБРАН (окно — #hud): ровно 1 .combat-state (hint); счётчиков «Группы: /Сундуки: /Залежи: » в оверлее нет (UI-DEP-2 re-pin)', () => {
   const { G, body } = loadDungeonUi({ performance: { now: () => 1000 } });
   const s = makeState({
     mobs: [{ x: 2, y: 2, level: 3, defeated: false }],
@@ -3149,24 +3151,27 @@ test('подземелье UI 000157.02: stateEl — «Группы: N | Сун�
   });
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 48 });
   const states = allByClass(body, 'combat-state');
-  assert.ok(states.length >= 2,
-    'оверлей: stateEl + hint (combat-state, ≥2 элемента)');
+  assert.equal(states.length, 1,
+    'оверлей: ровно 1 .combat-state — hint (000212: stateEl — '
+    + 'только город, инфо — #hud)');
   const text = states[0].textContent;
-  assert.ok(text.includes('Группы: 1'),
-    'stateEl: «Группы: 1» (регрессия): ' + JSON.stringify(text));
-  assert.ok(text.includes('Сундуки: 1'),
-    'stateEl: «Сундуки: 1» (регрессия): ' + JSON.stringify(text));
-  assert.ok(text.includes('Залежи: 2'),
-    'stateEl: «Залежи: 2» (gathered не считается): '
-    + JSON.stringify(text));
+  assert.ok(text.includes('Стрелки/WASD — шаг.'),
+    'hint: строки управления сохранены: ' + JSON.stringify(text));
+  assert.ok(!text.includes('Группы: '),
+    'счётчик «Группы: » из панели удалён: ' + JSON.stringify(text));
+  assert.ok(!text.includes('Сундуки: '),
+    'счётчик «Сундуки: » из панели удалён: ' + JSON.stringify(text));
+  assert.ok(!text.includes('Залежи: '),
+    'счётчик «Залежи: » из панели удалён: ' + JSON.stringify(text));
   assert.ok(!text.includes('undefined'),
-    'stateEl: без «undefined»: ' + JSON.stringify(text));
+    'оверлей: без «undefined»: ' + JSON.stringify(text));
 });
 
 test('подземелье UI 000157.02: hint — строка про залежи (подземелье; строки 1–3 дословно сохранены); город — без «Залежи» (UI-DEP-3, RED)', () => {
   const D = loadDungeonUi({ performance: { now: () => 1000 } });
   D.G.dungeonUI.start({ state: makeState(), onMove() {}, zoom: 48 });
-  const dHint = allByClass(D.body, 'combat-state')[1].textContent;
+  // 000212: dungeon — hint ЕДИНСТВЕННЫЙ .combat-state → индекс [0].
+  const dHint = allByClass(D.body, 'combat-state')[0].textContent;
   assert.ok(dHint.includes('Вход в пещеру — вход и выход'),
     'подземелье: hint — строка 1 дословно (регрессия): '
     + JSON.stringify(dHint));
@@ -3189,7 +3194,8 @@ test('подземелье UI 000157.02: hint — строка про залеж
 
 // =====================================================================
 // 000157.03: КРАСНЫЙ тест UI-GRD-1 — контекстная строка «Залежь — [E]»
-// (hint-элемент — ВТОРОЙ .combat-state; Д9). На master f7b4d3c
+// (hint-элемент — .combat-state оверлея; 000212: в подземелье он
+// ЕДИНСТВЕННЫЙ → индекс [0]; город — [1]). На master f7b4d3c
 // hint статичен в build() (4 строки, CI-V3) → строки НЕТ. Зелёная
 // фаза: render() дописывает строку при стоянии на не-собранной залежи
 // (hintEl/hintBase; вне залежи — hintBase byte-в-бит, см. §7 контракта).
@@ -3207,7 +3213,7 @@ test('000157.03: hint — «Залежь — [E]» при стоянии на н
     }),
     onMove() {}, zoom: 48,
   });
-  const aHint = allByClass(A.body, 'combat-state')[1].textContent;
+  const aHint = allByClass(A.body, 'combat-state')[0].textContent;
   assert.ok(aHint.includes('Залежь — [E]'),
     'hint: контекстная строка «Залежь — [E]» (стоя на не-собранной '
     + 'залежи): ' + JSON.stringify(aHint));
@@ -3226,7 +3232,7 @@ test('000157.03: hint — «Залежь — [E]» при стоянии на н
     }),
     onMove() {}, zoom: 48,
   });
-  const bHint = allByClass(B.body, 'combat-state')[1].textContent;
+  const bHint = allByClass(B.body, 'combat-state')[0].textContent;
   assert.ok(!bHint.includes('Залежь — [E]'),
     'hint: строки НЕТ (герой не на клетке залежи): ' + JSON.stringify(bHint));
   // (в) Уже собрана (gathered: true) → строки НЕТ.
@@ -3239,7 +3245,7 @@ test('000157.03: hint — «Залежь — [E]» при стоянии на н
     }),
     onMove() {}, zoom: 48,
   });
-  const cHint = allByClass(C.body, 'combat-state')[1].textContent;
+  const cHint = allByClass(C.body, 'combat-state')[0].textContent;
   assert.ok(!cHint.includes('Залежь — [E]'),
     'hint: строки НЕТ (залежь уже собрана): ' + JSON.stringify(cHint));
 });
@@ -3262,20 +3268,23 @@ function makeStairsState(opts = {}) {
 test('000153.03 (RED): stateEl — «Глубина: N» ТОЛЬКО depth>1 + «До выхода: ~N клеток» (единый формат, D5); город — без «Глубина»', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
-  // depth=2: helper floorStatusLine → «Глубина: 2» + «~N клеток».
+  // 000212: подземелье — stateEl УБРАН (инфо-окно — #hud, единый
+  // helper floorStatusLine): в .combat-state (hint) НЕТ
+  // «Глубина»/«До выхода»/«Группы».
   const s = makeState({ depth: 2, px: 3, py: 3 });
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
   const states = allByClass(loaded.body, 'combat-state');
-  assert.ok(states.length >= 2, 'оверлей: stateEl + hint');
+  assert.equal(states.length, 1, 'оверлей: 1 .combat-state (hint)');
   const text = states[0].textContent;
-  assert.ok(text.includes('Глубина: 2'),
-    'stateEl depth=2: строка «Глубина: 2» (finding G): '
+  assert.ok(!text.includes('Глубина'),
+    'dungeon-панель: «Глубина» НЕТ (000212: инфо — #hud): '
     + JSON.stringify(text));
-  assert.ok(text.includes('До выхода: ~4 клеток'),
-    'stateEl depth=2: «До выхода: ~4 клеток» (Манхэттен (3,3)→(1,1), '
-    + 'единый формат locationLine): ' + JSON.stringify(text));
-  assert.ok(text.includes('Группы: 0'),
-    'stateEl depth=2: строка «Группы» на месте: ' + JSON.stringify(text));
+  assert.ok(!text.includes('До выхода'),
+    'dungeon-панель: «До выхода» НЕТ (000212: инфо — #hud): '
+    + JSON.stringify(text));
+  assert.ok(!text.includes('Группы'),
+    'dungeon-панель: счётчик «Группы» НЕТ (000212): '
+    + JSON.stringify(text));
   G.dungeonUI.close();
   // City — БЕЗ «Глубина» (у layout города depth нет; бит-в-бит).
   // Своя песочница на фазу (паттерн файла: DOM-стаб remove() — no-op,
@@ -3301,25 +3310,19 @@ test('000153.03 (RED): hud.js locationLine — ОДИН helper (finding G): dung
   const D = require('../src/dungeon.js');
   const L = require('../src/locations.js');
   const g = { DUNGEON_NAMES: D.DUNGEON_NAMES, locations: L };
-  // dungeon depth=2: helper-ветка — «Глубина: 2\nДо выхода: ~5 клеток»
-  // + приписка «  |  N групп(ы)» ПОСЛЕ (D5).
+  // dungeon depth=2: helper-ветка — «\nГлубина: 2\nДо выхода: ~5
+  // клеток» (D5; 000212: без рамки и «групп(ы)» — имя в 1-й строке
+  // buildLine).
   const ds = {
     kind: 'dungeon',
     dg: { type: 0, exit: { x: 0, y: 0 }, depth: 2 },
     x: 2, y: 3,
     contents: { mobs: [{ defeated: false }, { defeated: true }] },
   };
-  const line = hud.locationLine(g, ds);
-  assert.ok(line.includes('--- ' + D.DUNGEON_NAMES[0] + ' (2, 3) ---'),
-    'шапка строки на месте: ' + JSON.stringify(line));
-  assert.ok(line.includes('Глубина: 2'),
-    'dungeon depth=2: «Глубина: 2» (helper): ' + JSON.stringify(line));
-  assert.ok(line.includes('До выхода: ~5 клеток'),
-    'dungeon depth=2: «До выхода: ~5 клеток» (Манхэттен (2,3)→(0,0)): '
-    + JSON.stringify(line));
-  assert.ok(line.includes('1 групп(ы)'),
-    'dungeon depth=2: приписка «  |  N групп(ы)» ПОСЛЕ строки: '
-    + JSON.stringify(line));
+  assert.equal(hud.locationLine(g, ds),
+    '\nГлубина: 2\nДо выхода: ~5 клеток',
+    'dungeon depth=2 — побайтово (000212): '
+    + JSON.stringify(hud.locationLine(g, ds)));
   // city — ПОБАЙТОВО (pin (k) hud.js.test.js: exit (10,14) — dist 2):
   // helper без «Глубина» даёт те же legacy-байты.
   const dsC = {
@@ -3330,19 +3333,17 @@ test('000153.03 (RED): hud.js locationLine — ОДИН helper (finding G): dung
   assert.equal(hud.locationLine(g, dsC),
     '\n--- Старый город (10, 12) ---\nДо выхода: ~2 клеток',
     'city — побайтово (helper = legacy-байты при depth-нет)');
-  // dungeon depth=1 — БЕЗ «Глубина» (legacy-байты pin (j) live).
+  // dungeon depth=1 — БЕЗ «Глубина» (000212: рамка/счётчик — без).
   const ds1 = {
     kind: 'dungeon',
     dg: { type: 0, exit: { x: 0, y: 0 }, depth: 1 },
     x: 2, y: 3,
     contents: { mobs: [{ defeated: false }, { defeated: false }] },
   };
-  const line1 = hud.locationLine(g, ds1);
-  assert.equal(line1,
-    '\n--- ' + D.DUNGEON_NAMES[0] + ' (2, 3) ---'
-    + '\nДо выхода: ~5 клеток  |  2 групп(ы)',
-    'dungeon depth=1 — legacy-байты (пин (j) без правок): '
-    + JSON.stringify(line1));
+  assert.equal(hud.locationLine(g, ds1),
+    '\nДо выхода: ~5 клеток',
+    'dungeon depth=1 — побайтово (000212): '
+    + JSON.stringify(hud.locationLine(g, ds1)));
 });
 
 test('000153.03 (RED): hint — depth-aware (D8): depth≤1 «Лестница вниз» + выживающие; depth=2 «Лестница вверх» + без «Вход в пещеру»; city — без «Лестница»', () => {
@@ -3352,7 +3353,8 @@ test('000153.03 (RED): hint — depth-aware (D8): depth≤1 «Лестница �
   // выживающие строки бит-в-бит + НОВАЯ «Лестница вниз» ДО строки
   // про сундуки.
   G.dungeonUI.start({ state: makeState(), onMove() {}, zoom: 40 });
-  let hint = allByClass(loaded.body, 'combat-state')[1].textContent;
+  // 000212: dungeon — hint ЕДИНСТВЕННЫЙ .combat-state → индекс [0].
+  let hint = allByClass(loaded.body, 'combat-state')[0].textContent;
   assert.ok(hint.includes('Стрелки/WASD — шаг.'),
     'hint: выживающая строка 1: ' + JSON.stringify(hint));
   assert.ok(hint.includes('Вход в пещеру — вход и выход'),
@@ -3371,7 +3373,7 @@ test('000153.03 (RED): hint — depth-aware (D8): depth≤1 «Лестница �
   const loaded2 = loadDungeonUi({ performance: { now: () => 1000 } });
   loaded2.G.dungeonUI.start({ state: makeState({ depth: 2 }),
     onMove() {}, zoom: 40 });
-  hint = allByClass(loaded2.body, 'combat-state')[1].textContent;
+  hint = allByClass(loaded2.body, 'combat-state')[0].textContent;
   assert.ok(hint.includes('Лестница вверх'),
     'hint depth=2: строка «Лестница вверх»: ' + JSON.stringify(hint));
   assert.ok(hint.includes('Лестница вниз'),

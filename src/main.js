@@ -3260,6 +3260,17 @@
             && typeof G.buildingActions.renameInputActive === 'function'
             && G.buildingActions.renameInputActive()));
       }
+      // 000212: #hud — единое инфо-окно — в подземельях/пещерах
+      // ПОВЕРХ оверлея (frame-driven, идемпотентно; '25' — общий
+      // динамический слот 000206; в бою подъём снят — боевой оверлей
+      // над HUD, как раньше). Город — вне скоупа.
+      const hudOver = inDungeon && dungeonState.kind === 'dungeon'
+        && !inCombat && !inNpc && !inBuilding && !inCraft
+        && !inResurrect;
+      if (hud && hud.style) {
+        const z = hudOver ? '25' : '';
+        if (hud.style.zIndex !== z) hud.style.zIndex = z;
+      }
       // Интервал шага (задача 000033 + 000063): база — из глобальных
       // настроек (420 мс), навык «Ловкий шаг» укорачивает, нижний
       // кламп — G.MIN_MOVE_INTERVAL_MS. Одно значение для шага и окна

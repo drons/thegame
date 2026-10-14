@@ -39,7 +39,10 @@
 // совмещённого тайла входа-выхода (вид по kind: дверь/вход в
 // пещеру); СВОИ тайлы (палитра + чистая функция выбора варианта по
 // (x, y, seed), стены периметра рисуются); stateEl — имя города, без
-// строк групп/сундуков (contents у города null — 000106); hint — без
+// строк групп/сундуков (contents у города null — 000106);
+// 000212: stateEl — ГОРОД ТОЛЬКО (подземелье — единое инфо-окно
+// #hud, рисует main.js renderHud → hud.js buildLine; панель
+// подземелья хранит только log + hint); hint — без
 // строк про сундуки/мобы (000105) и с «[E] — постройки» (000107).
 // [E] → ctx.onInteract → locationOnInteract main.js (000177: выход
 // на совмещённом тайле для обоих kind; вне тайла — город: постройки,
@@ -401,11 +404,17 @@
     overlay.appendChild(canvas);
     g2 = canvas.getContext('2d');
 
+    const s0 = state();
     const side = document.createElement('div');
     side.className = 'combat-side';
-    stateEl = document.createElement('div');
-    stateEl.className = 'combat-state';
-    side.appendChild(stateEl);
+    // 000212: stateEl (инфо-строка) — ТОЛЬКО город: в подземелье
+    // инфо-окно унифицировано в #hud (один блок renderHud → buildLine,
+    // main.js) — панель хранит только log + hint.
+    if (s0 && s0.kind === 'city') {
+      stateEl = document.createElement('div');
+      stateEl.className = 'combat-state';
+      side.appendChild(stateEl);
+    }
     logEl = document.createElement('div');
     logEl.className = 'combat-log';
     side.appendChild(logEl);
@@ -414,7 +423,6 @@
     // Город (000105/000107) — без строк про сундуки/мобы (000105) и
     // С «[E] — постройки» (взаимодействие [E] — 000107, buildingUI).
     // Подземелье — прежний текст (без kind — dungeon).
-    const s0 = state();
     // 000153.03 (D8): хинт — depth-aware (перестраивается в build()
     // при КАЖДОМ входе/переходе — start→build, start-time).
     // Город — БИТ-В-БИТ (CI-V3). Подземелье: depth ≤ 1 (и нет поля —
@@ -891,23 +899,17 @@
       ? live.locations.floorStatusLine(d, s.x, s.y) : null;
     const status = fsLive != null
       ? fsLive : 'До выхода: ' + dist + ' клеток (на глаз)';
-    if (isCity) {
+    // 000212: stateEl — ТОЛЬКО город (build(): в подземелье элемент
+    // не создаётся — инфо-окно унифицировано в #hud, единый блок
+    // renderHud → buildLine). dungeon-ветка (счётчики
+    // «Группы: /Сундуки: /Залежи: ») УДАЛЕНА.
+    if (stateEl) {
       // Город (000105): заголовок — имя города (название_карты
       // каталога); БЕЗ строк групп/сундуков (contents у города null —
       // содержимое — 000106) и БЕЗ DUNGEON_NAMES[d.type] (у layout
       // города type нет).
       stateEl.textContent =
         s.name + '  (' + s.x + ', ' + s.y + ')\n' + status;
-    } else {
-      // 000157.02: + «| Залежи: N» (N — нерасчищенные, !gathered;
-      // guard (c.deposits || []) — contents-литералы без ключа).
-      stateEl.textContent =
-        G.DUNGEON_NAMES[d.type] + '  (' + s.x + ', ' + s.y + ')\n' +
-        status + '\n' +
-        'Группы: ' + c.mobs.filter((m) => !m.defeated).length +
-        '  |  Сундуки: ' + c.chests.filter((x) => !x.opened).length +
-        '  |  Залежи: '
-        + (c.deposits || []).filter((x) => !x.gathered).length;
     }
     // 000157.03: контекстная строка «Залежь — [E]» — стоя на
     // не-собранной залежи (hint статичен в build() — пересчёт

@@ -38,9 +38,11 @@
 //     (map.png|пересчёт) с/без spriteLoader; «[I] персонаж» + [E]-
 //     хинты 4 ветки; «Здесь:» + shopHint + eHint + hint; ветки
 //     группы мобов «Осторожно: …!» / «Группа … повержена.»;
-//     подземный блок «--- <имя> (x, y) ---» + «До выхода: ~N клеток»
-//     + «N групп(ы)»; городская ветка — БЕЗ строк групп (contents
-//     null, 000106); flash (now < until → «\n»+текст)). Закрывает
+//     подземный блок (000212): 1-я строка — ИМЯ подземелья, локация —
+//     «До выхода: ~N клеток» БЕЗ рамки/счётчика «групп(ы)»;
+//     городская ветка — рамка «--- <имя> (x, y) ---» + статус, БЕЗ
+//     строк групп (contents null, 000106); flash (now < until →
+//     «\n»+текст)). Закрывает
 //     зазор a3 §2 (топ-строка и mob-строки доселе БЕЗ фиксаторов).
 //     update(ctx): setShop РОВНО 1× (makeShop/null) и ДО записи
 //     ctx.hudEl.textContent (порядок 1:1 main.js L1350–1357);
@@ -372,9 +374,10 @@ test('HU4. buildLine(ctx) — побайтовый снимок строки HUD
     'Группа волчья стая повержена.',
     '«Группа <группа> повержена.» побайтово');
 
-  // (j) подземелье: «--- <имя> (x, y) ---» + «До выхода: ~N клеток»
-  // + «N групп(ы)» (dist — Манхэттен до выхода; не-поверженные
-  // группы; регресс E/LOC-цепочки).
+  // (j) подземелье (000212): 1-я строка — ИМЯ подземелья (не
+  // мир-координаты); локация — «До выхода: ~N клеток» БЕЗ рамки и
+  // счётчика «групп(ы)» (dist — Манхэттен до выхода; legacy-fallback
+  // без g.locations).
   assert.equal(hud.buildLine(makeCtx({
     dungeonState: {
       kind: 'dungeon', x: 2, y: 3,
@@ -383,10 +386,13 @@ test('HU4. buildLine(ctx) — побайтовый снимок строки HUD
         { defeated: false }] },
     },
   })),
-    TOP_BASE + '[I] персонаж\n' +
-    '--- простая пещера (2, 3) ---\n' +
-    'До выхода: ~5 клеток  |  2 групп(ы)',
-    'подземный блок побайтово');
+    'Флогистон, ур. 3  (простая пещера)\n' +
+    'HP 42/50  |  Золото: 100  |  Очки: 5\n' +
+    'Местность: трава\n' +
+    'День: 5  |  Масштаб: 28px  |  карта: 40x40 (пересчёт)\n' +
+    '[I] персонаж\n' +
+    'До выхода: ~5 клеток',
+    'подземный блок побайтово (000212)');
 
   // (k) город: «--- <имя> (x, y) ---» + «До выхода: ~N клеток» —
   // БЕЗ строк групп (contents null, 000106 — ветка по kind;
@@ -916,7 +922,8 @@ test('HU6. деградация: без [E]-зависимостей — стр�
   }
 
   // (b) подземелье БЕЗ Game.DUNGEON_NAMES: console.error (1×/вызов)
-  // + fallback «подземелье» (000053, прецедент locations.js 000127;
+  // + fallback «подземелье» В 1-й строке (000212: гард — в buildLine
+  // через dungeonName; 000053, прецедент locations.js 000127;
   // строка всё равно строится — игра не падает).
   let errs2 = [];
   console.error = (mm) => errs2.push(String(mm));
@@ -929,10 +936,14 @@ test('HU6. деградация: без [E]-зависимостей — стр�
         contents: { mobs: [{ defeated: false }] },
       },
     }));
-    assert.ok(line2.includes('--- подземелье (1, 1) ---'),
-      'fallback «подземелье» в строке: ' + JSON.stringify(line2));
-    assert.ok(line2.includes('До выхода: ~2 клеток  |  1 групп(ы)'),
-      'подземный блок цел: ' + JSON.stringify(line2));
+    assert.ok(line2.includes('(подземелье)'),
+      'fallback «подземелье» в 1-й строке: ' + JSON.stringify(line2));
+    assert.ok(!line2.includes('---'),
+      'рамки «--- …» НЕТ (000212): ' + JSON.stringify(line2));
+    assert.ok(line2.includes('До выхода: ~2 клеток'),
+      'блок локации цел: ' + JSON.stringify(line2));
+    assert.ok(!line2.includes('групп(ы)'),
+      'счётчика «групп(ы)» НЕТ (000212): ' + JSON.stringify(line2));
     assert.equal(errs2.length, 1, 'console.error — 1×/вызов');
     assert.ok(errs2[0].includes('DUNGEON_NAMES'),
       'сообщение — про DUNGEON_NAMES: ' + errs2[0]);
@@ -953,8 +964,11 @@ test('HU6. деградация: без [E]-зависимостей — стр�
         contents: { mobs: [{ defeated: false }] },
       },
     }));
-    assert.ok(line3.includes('--- подземелье (1, 1) ---'),
-      'нет ключа типа — fallback «подземелье»: ' + JSON.stringify(line3));
+    assert.ok(line3.includes('(подземелье)'),
+      'нет ключа типа — fallback «подземелье» в 1-й строке: '
+      + JSON.stringify(line3));
+    assert.ok(!line3.includes('---'),
+      'рамки «--- …» НЕТ (000212): ' + JSON.stringify(line3));
     assert.equal(errs3.length, 1, 'console.error — 1×/вызов');
   } finally {
     console.error = origErr;

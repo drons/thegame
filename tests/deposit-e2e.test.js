@@ -415,19 +415,13 @@ function pressE(h) {
   return e;
 }
 
-// Оверлей dungeon-ui: stateEl + hint — оба .combat-state (обход в
-// порядке дерева → [0] = stateEl, [1] = hint).
-function stateText(h) {
-  const states = findAll(h.body, '.combat-state');
-  assert.ok(states.length >= 2,
-    'оверлей: stateEl + hint (combat-state, ≥2 элемента)');
-  return String(states[0].textContent);
-}
+// Оверлей dungeon-ui (подземелье): hint — ЕДИНСТВЕННЫЙ .combat-state
+// (000212: stateEl — только город; инфо-окно подземелья — #hud).
 function hintText(h) {
   const states = findAll(h.body, '.combat-state');
-  assert.ok(states.length >= 2,
-    'оверлей: stateEl + hint (combat-state, ≥2 элемента)');
-  return String(states[1].textContent);
+  assert.ok(states.length >= 1,
+    'оверлей: hint (.combat-state, ≥1 элемента)');
+  return String(states[0].textContent);
 }
 
 // Сейв из localStorage (паттерн readSave loot-e2e).
@@ -489,10 +483,11 @@ function holdUntilStep(h, code, now) {
 
 // =====================================================================
 // DE-1. happy path: hint → [E] → +N + лог + flash + gathered; повтор
-//       [E] — no-op; шаг в сторону — hint-строки нет, «Залежи: 0»
+//       [E] — no-op; шаг в сторону — hint-строки нет (000212:
+//       счётчик «Залежи» из панели ушёл — инфо-окно #hud)
 // =====================================================================
 
-test('000157.03-DE-1: happy path: шаг на клетку залежи → hint «Залежь — [E]» → [E] → +2 в инвентаре + ds.log «Залежь: +2 <имя из каталога>» + hud-flash + gathered:true; повторный [E] — no-op; шаг в сторону — hint-строки НЕТ + «Залежи: 0» (RED)', async () => {
+test('000157.03-DE-1: happy path: шаг на клетку залежи → hint «Залежь — [E]» → [E] → +2 в инвентаре + ds.log «Залежь: +2 <имя из каталога>» + hud-flash + gathered:true; повторный [E] — no-op; шаг в сторону — hint-строки НЕТ (RED)', async () => {
   const h = await boot();
   assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
   const G = h.sandbox.Game;
@@ -543,13 +538,11 @@ test('000157.03-DE-1: happy path: шаг на клетку залежи → hint
   assert.equal(ds.log.length, logLen, 'повторный [E] — лог без прироста');
   assert.equal(h.errors.length, errs0,
     'повторный [E] — console.error не появились (no-op молчит)');
-  // Шаг в сторону: hint-строки НЕТ + stateEl «Залежи: 0».
+  // Шаг в сторону: hint-строки НЕТ (000212: счётчик «Залежи» из
+  // панели подземелья удалён — инфо-окно #hud).
   stepTo(h, ds.dg.entrance.x, ds.dg.entrance.y);
   assert.ok(!hintText(h).includes('Залежь — [E]'),
     'hint: строки НЕТ после ухода с клетки: ' + hintText(h));
-  assert.ok(stateText(h).includes('Залежи: 0'),
-    'stateEl «Залежи: 0» (собранная не считается, UI-DEP-2): '
-    + stateText(h));
 });
 
 // =====================================================================
