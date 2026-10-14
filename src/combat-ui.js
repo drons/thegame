@@ -940,7 +940,7 @@
   // 'attack' → кадры attack, иначе → move.
   // Слои юнита: спрайт/фолбэк → полоса HP → уровень → подсветка
   // цели (по всему прямоугольнику, как до спрайтов); у мёртвого —
-  // только кадр; у героя — миниполоса HP ПОСЛЕ спрайта. У союзника
+  // только кадр; у героя — миниполоса HP ПОСЛЕ спрайта, а на его ход — голубая рамка 39×39 на клетке (000213, без подложки). У союзника
   // (задачи 000084/000197): (активен: подложка 44×44) →
   // спрайт/фолбэк → полоса HP (трек + заполнение hpBarColor) →
   // уровень → (активен: голубая рамка 39×39) — подложка и рамка
@@ -1201,6 +1201,8 @@
         // (~300 мс после успешного действия, пишет runAction).
         // render c._fx ТОЛЬКО читает, не мутирует. Без
         // sprites.js/лоадера — прежний ромб (фолбэк, бой играбелен).
+        const heroCurrent = !c.result && c.turnOrder
+          && c.turnOrder[c.turnIndex] === 'player' && c.player && c.player.alive;
         const action = (c._fx && c._fx.action && now < c._fx.until)
           ? c._fx.action : 'idle';
         const pf = G.phlogistonFrames ? G.phlogistonFrames(action) : [];
@@ -1261,6 +1263,11 @@
           g2.fillStyle = hpColor;
           g2.fillRect(bx, by,
             Math.round(bw * Math.min(1, Math.max(0, hpFrac))), 4);
+        }
+        if (heroCurrent) {
+          g2.strokeStyle = ALLY_MARKER;
+          g2.lineWidth = 2;
+          g2.strokeRect(c.px * CELL + 4.5, c.py * CELL + 4.5, CELL - 9, CELL - 9);
         }
       }
     }

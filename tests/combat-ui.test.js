@@ -1743,8 +1743,8 @@ test('боевой UI: 000084/000197 — наёмник (kind «merc»): спр�
     && c[1][2] === 39 && c[1][3] === 39),
     'рамки НЕТ: наёмник неактивен (000197)');
   assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
-    && s[1] === '#8cf2fc').length, 0,
-    'голубой stroke #8cf2fc за окно отсутствует (активного союзника нет)');
+    && s[1] === '#8cf2fc').length, 1,
+    'голубой stroke #8cf2fc за окно — ровно 1: рамка активного героя (ре-пин 000213; активного союзника нет)');
   // АКТИВНЫЙ наёмник (turnIndex → его слот) — подложка + рамка
   // вернулись на его клетку (сцена с ОДНИМ союзником).
   S.c.turnIndex = S.c.turnOrder.indexOf(merc.id);
@@ -2688,8 +2688,8 @@ test('боевой UI: 000152 — наёмник с npcId (id «merc_volk») р�
     && c[1][2] === 39 && c[1][3] === 39),
     'рамки НЕТ: наёмник неактивен (000197)');
   assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
-    && s[1] === '#8cf2fc').length, 0,
-    'голубой stroke за окно отсутствует (активного союзника нет)');
+    && s[1] === '#8cf2fc').length, 1,
+    'голубой stroke за окно — ровно 1: рамка активного героя (ре-пин 000213; активного союзника нет)');
   // АКТИВНЫЙ наёмник (turnIndex → его слот) — подложка + рамка
   // вернулись (пин 000084: подложка + рамка, теперь с гейтом).
   S.c.turnIndex = S.c.turnOrder.indexOf('merc_volk');
@@ -5921,7 +5921,7 @@ test('боевой UI: 000188 — rowChk: нет G.Spells (движок), G.Spel
 // уже покрыт CU166-HL (отдельный ранний проход, гейт canResurrect).
 // =====================================================================
 
-test('боевой UI: 000197 — НЕАКТИВНЫЙ наёмник: на клетке нет подложки, нет рамки, голубого strokeStyle #8cf2fc в окне нет (CU197-A)', () => {
+test('боевой UI: 000197/000213 — НЕАКТИВНЫЙ наёмник: на клетке нет подложки, нет рамки; голубой strokeStyle #8cf2fc за окно ровно 1 — рамка активного героя (ре-пин 000213) (CU197-A)', () => {
   // Сцена БЕЗ Эфира: turnOrder ['m0','player'], turnIndex 1 →
   // активен player; наёмник (addMerc84 — push в конец очереди) —
   // НЕАКТИВЕН. targetId = null — без жёлтой подсветки (нет
@@ -5945,12 +5945,11 @@ test('боевой UI: 000197 — НЕАКТИВНЫЙ наёмник: на кл
     && c[1][2] === 39 && c[1][3] === 39),
     'рамки 39×39 на клетке НЕАКТИВНОГО наёмника НЕТ');
   assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
-    && s[1] === '#8cf2fc').length, 0,
-    'голубой stroke #8cf2fc за окно ОТСУТСТВУЕТ (активного '
-    + 'союзника нет)');
+    && s[1] === '#8cf2fc').length, 1,
+    'голубой stroke #8cf2fc за окно — ровно 1: рамка активного героя (ре-пин 000213; активного союзника нет)');
 });
 
-test('боевой UI: 000197 — НЕАКТИВНЫЙ Эфир (turnIndex → слот player): на клетке нет подложки, нет рамки, голубого stroke в окне нет (CU197-B)', () => {
+test('боевой UI: 000197/000213 — НЕАКТИВНЫЙ Эфир (turnIndex → слот player): на клетке нет подложки, нет рамки; голубой stroke за окно ровно 1 — рамка активного героя (ре-пин 000213) (CU197-B)', () => {
   // Дефолтная сцена с Эфиром — Эфир АКТИВЕН (turnIndex 0); сдвига-
   // ем очередь на слот player → Эфир НЕАКТИВЕН. targetId = null.
   const S = scene84({ efir: true });
@@ -5971,9 +5970,8 @@ test('боевой UI: 000197 — НЕАКТИВНЫЙ Эфир (turnIndex → �
     && c[1][2] === 39 && c[1][3] === 39),
     'рамки 39×39 на клетке НЕАКТИВНОГО Эфира НЕТ');
   assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
-    && s[1] === '#8cf2fc').length, 0,
-    'голубой stroke #8cf2fc за окно ОТСУТСТВУЕТ (ромб героя — '
-    + 'fill, не stroke; активного союзника нет)');
+    && s[1] === '#8cf2fc').length, 1,
+    'голубой stroke #8cf2fc за окно — ровно 1: рамка активного героя (ре-пин 000213; ромб героя — fill, не stroke)');
 });
 
 test('боевой UI: 000197 — АКТИВНЫЙ союзник: жёлтого кольца 41×41 нет, #ffe27a за окно нет (Эфир по дефолту; наёмник — активный) (CU197-C)', () => {
@@ -6097,23 +6095,28 @@ test('боевой UI: 000197 — цель-моб: жёлтая рамка 39×3
     + 'у активного союзника; моб — не союзник)');
 });
 
-test('боевой UI: 000197 — герой вне скоупа: активный player — на клетке героя strokeRect-рамок нет (ни 39×39, ни 41×41) (CU197-G)', () => {
-  // Гвард «не больше, чем ТЗ»: ТЗ охватывает «NPC и Эфир» — hero-
-  // ветвь рамок НЕ получает (ромб героя — fill; «сходит игрок» —
-  // DOM-токен ряда очереди, 000167). Сцена без Эфира: активен
-  // player (дефолт) — рамки на клетке героя всё равно нет.
+test('боевой UI: 000197/000213 — активный player: на клетке героя голубая рамка 39×39 ровно 1 (ре-пин 000213); кольца 41×41 нет (CU197-G)', () => {
+  // СЕМАНТИЧЕСКИЙ ре-пин 000213 (санкционирован ТЗ; прецедент —
+  // 000197 §3): «герой вне скоупа» — УСТАРЕЛО для состояния «его
+  // ход»: у героя теперь РАМКА 39×39 на его слоте в очереди
+  // (контракт memory/000213-hero-turn-frame.md; вытесняет 000197
+  // §2/§4). Кольцо 41×41 по-прежнему НИГДЕ (000199 L4: «чей ход»
+  // показывает голубая рамка; «сходит игрок» — DOM-токен ряда
+  // очереди, 000167). Сцена без Эфира: активен player (дефолт).
   const S = scene84(); // без Эфира
   S.c.targetId = null;
   assert.equal(S.c.turnOrder[S.c.turnIndex], 'player',
     'фикстура: активен player (его ход)');
   const hx = S.c.px * 48, hy = S.c.py * 48;
   const t = tickSlice(S.canvas, S.rafStubs);
+  assert.equal(t.calls.filter((c) => c[0] === 'strokeRect'
+    && c[1][0] === hx + 4.5 && c[1][1] === hy + 4.5
+    && c[1][2] === 39 && c[1][3] === 39).length, 1,
+    'на клетке героя голубая рамка 39×39 ровно 1 (000213: его ход = рамка)');
   assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
-    && ((c[1][0] === hx + 4.5 && c[1][1] === hy + 4.5
-      && c[1][2] === 39 && c[1][3] === 39)
-     || (c[1][0] === hx + 2.5 && c[1][1] === hy + 2.5
-      && c[1][2] === 41 && c[1][3] === 41))),
-    'на клетке героя strokeRect-рамки нет (ни 39×39, ни 41×41)');
+    && c[1][0] === hx + 2.5 && c[1][1] === hy + 2.5
+    && c[1][2] === 41 && c[1][3] === 41),
+    'кольца 41×41 на клетке героя НЕТ (000199 L4: «чей ход» — рамка)');
 });
 
 // Задача 000198. БОЙ: BUG — выбор цели для удара/заклинания у
@@ -7515,4 +7518,318 @@ test('боевой UI: 000204 — мёртвые моб/союзник: уров
       && c[1][1] === ex + 24 && c[1][2] === ey + 28),
       'у трупа (' + x.kind + ') нет уровня в центре');
   }
+});
+
+// =====================================================================
+// Задача 000213. БОЙ: голубая рамка вокруг Флогистона в его ход.
+// =====================================================================
+// ТЗ (tasks/pending/000213.md, одна строка): «На поле боя рисовать
+// голубую рамку вокруг Флогистона в случае его хода». Расширяет
+// «голубая = активный» (000197) с союзников на героя. Контракт —
+// memory/000213-hero-turn-frame.md (ВЫТЕСНЯЕТ 000197 §2 «у героя
+// рамок нет ни в каком состоянии — ТЗ: NPC и Эфир» и §4 «рамка у
+// героя — отдельная задача» для состояния «его ход»; старый файл НЕ
+// переписывается — 000197 закоммичена в master).
+//
+// Формула «его ход» — бит-в-бит зеркало isCurrent ally-ветви (000197):
+// !c.result && c.turnOrder && c.turnOrder[c.turnIndex] === 'player'
+// + c.player.alive (зеркало u.alive && !u.fled; white-box deadPlayer).
+// Геометрия — зеркало рамки активного союзника: strokeRect
+// (hx+4.5, hy+4.5, 39, 39), hx = px*48, lineWidth 2, strokeStyle
+// ALLY_MARKER '#8cf2fc' (НОВЫХ ЦВЕТОВ НЕТ). Слой — ПОСЛЕ
+// спрайта/фолбэка и миниполосы HP (поверх, паттерн ally-ветви).
+// Подложки 44×44 герою НЕТ (ТЗ: только «рамка» — «не больше, чем ТЗ»).
+// Единственная точка кода — hero-ветвь drawUnits (src/combat-ui.js);
+// ядро/модули/ассеты/index.html — без правок.
+//
+// RED-фаза (этот коммит): CU213-A/B падают на ТЕКУЩЕМ коде
+// осмысленно (в hero-ветви drawUnits strokeRect-рамки НЕТ: вызов не
+// найден, счёт strokeStyle '#8cf2fc' за окно = 0 — не крах/синтаксис).
+// Гварды CU213-C/D/E/F — зелёные с первого дня (не-ход, c.result,
+// мёртвый герой, без sprites.js); после реализации ловят «перечинку».
+// Фикстуры — scene84/scene166/addMerc84/tickSlice/styledCalls/
+// underlayAt166, NOW84. Счёт стилей — ЗА ОДИН рендер-окно
+// (tickSlice). Координаты героя — ДИНАМИЧЕСКИ (c.px/c.py — pre-roll
+// двигает, паттерн 000166); вершина фолбэк-ромба — moveTo
+// (центр клетки, −CELL·0.3) (сеточные moveTo не путать).
+// =====================================================================
+
+test('боевой UI: 000213 — ход Флогистона: голубая рамка 39×39 на клетке героя (hx+4.5, hy+4.5, lw 2, strokeStyle #8cf2fc ровно 1 за окно); подложки 44×44 герою НЕТ; 41×41 нигде; без лоадера — рамка поверх ромба (CU213-A)', () => {
+  // Сцена БЕЗ Эфира: turnOrder ['m0','player'], turnIndex 1 →
+  // активен player. targetId = null — без жёлтой цели (нет
+  // коллизии геометрии 39×39 на клетке моба).
+  const S = scene84();
+  S.c.targetId = null;
+  assert.equal(S.c.turnOrder[S.c.turnIndex], 'player',
+    'фикстура: активен player (его ход): '
+    + JSON.stringify(S.c.turnOrder) + ' @' + S.c.turnIndex);
+  assert.ok(S.c.player.alive, 'фикстура: герой жив');
+  assert.ok(!S.c.result, 'фикстура: бой не окончен');
+  const hx = S.c.px * 48, hy = S.c.py * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const iFrame = t.calls.findIndex((c) => c[0] === 'strokeRect'
+    && c[1][0] === hx + 4.5 && c[1][1] === hy + 4.5
+    && c[1][2] === 39 && c[1][3] === 39);
+  assert.ok(iFrame >= 0,
+    'голубая рамка 39×39 (hx+4.5, hy+4.5) на клетке героя — ЕСТЬ '
+    + '(000213): strokeRect окна '
+    + JSON.stringify(t.calls.filter((c) => c[0] === 'strokeRect')));
+  assert.equal(t.calls.filter((c) => c[0] === 'strokeRect'
+    && c[1][0] === hx + 4.5 && c[1][1] === hy + 4.5
+    && c[1][2] === 39 && c[1][3] === 39).length, 1,
+    'рамка 39×39 на клетке героя — ровно 1 (не дважды)');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 1,
+    'strokeStyle #8cf2fc за окно — ровно 1 (рамка героя)');
+  const styled = styledCalls(t.events);
+  const blue = styled.find((c) => c.name === 'strokeRect'
+    && c.args[0] === hx + 4.5 && c.args[1] === hy + 4.5
+    && c.args[2] === 39 && c.args[3] === 39);
+  assert.ok(blue, 'рамка в едином логе (цвет в момент вызова)');
+  assert.equal(blue.strokeStyle, '#8cf2fc',
+    'strokeStyle — #8cf2fc (ALLY_MARKER) в момент вызова');
+  // lineWidth 2 (декодер lineWidthSets, паттерн CU182-LW).
+  const e0 = S.canvas.events.length - t.events.length;
+  let lw = 1;
+  for (const [v, evIdx] of S.canvas.lineWidthSets)
+    if (evIdx <= e0) lw = v;
+  const inSlice = S.canvas.lineWidthSets
+    .filter(([v, evIdx]) => evIdx > e0)
+    .map(([v, evIdx]) => [v, evIdx - e0])
+    .sort((a, b) => a[1] - b[1]);
+  for (let i = 0; i < t.events.length; i++) {
+    const ev = t.events[i];
+    if (ev.s) continue;
+    while (inSlice.length && inSlice[0][1] <= i) lw = inSlice.shift()[0];
+    if (ev.c[0] === 'strokeRect'
+      && ev.c[1][0] === hx + 4.5 && ev.c[1][1] === hy + 4.5
+      && ev.c[1][2] === 39 && ev.c[1][3] === 39) {
+      assert.equal(lw, 2,
+        'lineWidth — 2 (зеркало рамки активного союзника)');
+    }
+  }
+  // «Не больше, чем ТЗ»: подложка 44×44 герою НЕ даётся (пара
+  // «подложка+рамка» 000197 — только у союзников).
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === hx + 2 && c[1][1] === hy + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложки 44×44 на клетке героя НЕТ (ТЗ: только рамка)');
+  assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][2] === 41 && c[1][3] === 41),
+    'кольца хода 41×41 нигде (000199 L4: «чей ход» — рамка)');
+  // Фолбэк-сцена (без лоадера): ромб героя на месте, рамка ПОВЕРХ
+  // (рамка не зависит от спрайтов — контракт §2).
+  const s = 48 * 0.3;
+  const iDiamond = t.calls.findIndex((c) => c[0] === 'moveTo'
+    && c[1][0] === (S.c.px + 0.5) * 48
+    && c[1][1] === (S.c.py + 0.5) * 48 - s);
+  assert.ok(iDiamond >= 0, 'фолбэк-ромб героя (верхняя вершина)');
+  assert.ok(iFrame > iDiamond,
+    'рамка ПОСЛЕ ромба (поверх, паттерн ally-ветви)');
+});
+
+test('боевой UI: 000213 — z-порядок: рамка — ПОСЛЕДНИЙ вызов героя (спрайт → миниполоса HP → рамка поверх) (CU213-B)', () => {
+  // Сцена со спрайтом героя (лоадер): player активен (дефолт).
+  // Золотая последовательность hero-ветви: drawImage-спрайт →
+  // миниполоса (трек + заполнение, bw×4) → strokeRect-рамка.
+  const S = scene84({
+    loader: [['assets/sprites/phlogiston/idle_', { __fake: 'hero' }]],
+  });
+  S.c.targetId = null;
+  assert.equal(S.c.turnOrder[S.c.turnIndex], 'player',
+    'фикстура: активен player: ' + JSON.stringify(S.c.turnOrder)
+    + ' @' + S.c.turnIndex);
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const iSprite = t.calls.findIndex((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__fake === 'hero');
+  assert.ok(iSprite >= 0, 'спрайт героя нарисован (drawImage)');
+  // Миниполоса спрайт-ветки: bw = round(CELL·1.15), кламп в
+  // ЛОГИЧЕСКОЕ поле (формула hero-ветви; ревью 000047/000151).
+  const size = 48 * 1.15;
+  const hx = (S.c.px + 0.5) * 48, hy = (S.c.py + 0.5) * 48;
+  const bw = Math.round(size);
+  const bx = Math.max(2, Math.min(S.c.width * 48 - bw - 2,
+    Math.round(hx - bw / 2)));
+  const by = Math.max(2, Math.round(hy - size / 2 - 8));
+  const barIdx = [];
+  t.calls.forEach(([n, a], i) => {
+    if (n === 'fillRect' && a[0] === bx && a[1] === by
+      && a[2] === bw && a[3] === 4) barIdx.push(i);
+  });
+  assert.equal(barIdx.length, 2,
+    'миниполоса героя: трек + заполнение (' + bx + ', ' + by + ', '
+    + bw + '×4)');
+  const iFrame = t.calls.findIndex((c) => c[0] === 'strokeRect'
+    && c[1][0] === S.c.px * 48 + 4.5 && c[1][1] === S.c.py * 48 + 4.5
+    && c[1][2] === 39 && c[1][3] === 39);
+  assert.ok(iFrame >= 0,
+    'рамка 39×39 на клетке героя (000213): strokeRect окна '
+    + JSON.stringify(t.calls.filter((c) => c[0] === 'strokeRect')));
+  assert.ok(iFrame > iSprite && iFrame > barIdx[0] && iFrame > barIdx[1],
+    'рамка ПОСЛЕ спрайта и миниполосы (поверх): iFrame ' + iFrame
+    + ' vs iSprite ' + iSprite + ', бары ' + JSON.stringify(barIdx));
+  // Рамка — ПОСЛЕДНИЙ слой героя: после неё герой-вызовов нет.
+  assert.ok(!t.calls.slice(iFrame + 1).some(([n, a]) => (n
+      === 'drawImage' && a[0] && a[0].__fake === 'hero')
+    || (n === 'fillRect' && a[0] === bx && a[1] === by
+      && a[2] === bw && a[3] === 4)),
+    'после рамки герой-вызовов нет (рамка — последний вызов ветви)');
+});
+
+test('боевой UI: 000213 — НЕ ход Флогистона: на клетке героя рамки нет — (а) активен Эфир (дефолт), (б) активен наёмник; 41×41 нигде (CU213-C)', () => {
+  // Гвард «слот, не фаза» (контракт §2): на ходу Эфира/наёмника
+  // (тоже c.phase === 'player') рамка — у активного СОЮЗНИКА
+  // (000197 бит-в-бит), у героя — нет.
+  const noFrameOnHero = (t, x, y) =>
+    !t.calls.some((c) => c[0] === 'strokeRect'
+      && c[1][0] === x + 4.5 && c[1][1] === y + 4.5
+      && c[1][2] === 39 && c[1][3] === 39)
+    && !t.calls.some((c) => c[0] === 'strokeRect'
+      && c[1][0] === x + 2.5 && c[1][1] === y + 2.5
+      && c[1][2] === 41 && c[1][3] === 41);
+  // (а) Активен Эфир (дефолт сцены с Эфиром: turnIndex 0).
+  let S = scene84({ efir: true });
+  S.c.targetId = null;
+  assert.equal(S.c.turnOrder[S.c.turnIndex], 'efir',
+    'фикстура: активен Эфир: ' + JSON.stringify(S.c.turnOrder)
+    + ' @' + S.c.turnIndex);
+  const t1 = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(noFrameOnHero(t1, S.c.px * 48, S.c.py * 48),
+    '(а) активен Эфир — на клетке героя рамок нет (ни 39×39, ни 41×41)');
+  assert.ok(!t1.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][2] === 41 && c[1][3] === 41),
+    '(а) кольца 41×41 нигде (000199 L4)');
+  // (б) Активен наёмник (turnIndex → его слот).
+  S = scene84();
+  const merc = addMerc84(S.c, S.G, 5, 2, 'ranged');
+  S.c.targetId = null;
+  S.c.turnIndex = S.c.turnOrder.indexOf(merc.id);
+  assert.equal(S.c.turnOrder[S.c.turnIndex], merc.id,
+    'фикстура: активен наёмник: ' + JSON.stringify(S.c.turnOrder)
+    + ' @' + S.c.turnIndex);
+  const t2 = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(noFrameOnHero(t2, S.c.px * 48, S.c.py * 48),
+    '(б) активен наёмник — на клетке героя рамок нет (ни 39×39, ни 41×41)');
+  assert.ok(!t2.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][2] === 41 && c[1][3] === 41),
+    '(б) кольца 41×41 нигде (000199 L4)');
+});
+
+test('боевой UI: 000213 — бой окончен (c.result; turnIndex застыл на слоте «player», герой жив): голубой рамки нет; подложки 44×44 на клетке героя НЕТ (CU213-D)', () => {
+  // Гвард !c.result (зеркало isCurrent ally: на result рамка гаснет,
+  // как у союзников). White-box c.result: слот 'player' активен
+  // (дефолт сцены без Эфира), герой жив — без гейта !c.result
+  // рамка бы горела на оконченном бою.
+  const S = scene84();
+  S.c.targetId = null;
+  assert.equal(S.c.turnOrder[S.c.turnIndex], 'player',
+    'фикстура: слот «player» активен (turnIndex): '
+    + JSON.stringify(S.c.turnOrder) + ' @' + S.c.turnIndex);
+  assert.ok(S.c.player.alive, 'фикстура: герой жив');
+  S.c.result = { outcome: 'victory' };
+  assert.ok(S.c.result, 'фикстура: бой окончен (white-box)');
+  const hx = S.c.px * 48, hy = S.c.py * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const styled = styledCalls(t.events);
+  const blueOnHero = styled.filter((c) => c.name === 'strokeRect'
+    && c.args[0] === hx + 4.5 && c.args[1] === hy + 4.5
+    && c.args[2] === 39 && c.args[3] === 39
+    && c.strokeStyle === '#8cf2fc');
+  assert.equal(blueOnHero.length, 0,
+    'c.result — голубой рамки героя нет (гейт !c.result, как у '
+    + 'союзников)');
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === hx + 2 && c[1][1] === hy + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложки 44×44 на клетке героя НЕТ (ТЗ: только рамка — «не '
+    + 'больше, чем ТЗ»)');
+});
+
+test('боевой UI: 000213 — мёртвый герой (scene166 deadPlayer, слот «player» активен): голубой рамки НЕТ (alive-гейт); ранний проход 000166 бит-в-бит (подложка 44×44 на месте) (CU213-E)', () => {
+  // Гвард c.player.alive (контракт §2): в white-box сцене c.result
+  // НЕ возникает, а слот 'player' активен — без alive-гейта рамка бы
+  // горела на трупе. Жёлтое кольцо 000166 ('#ffe27a') на клетке
+  // героя НЕ путать: ассерт color-aware (#8cf2fc).
+  const S = scene166({ deadPlayer: true });
+  assert.ok(!S.c.player.alive, 'фикстура: герой мёртв');
+  S.c.turnIndex = S.c.turnOrder.indexOf('player');
+  assert.equal(S.c.turnOrder[S.c.turnIndex], 'player',
+    'фикстура: слот «player» активен: ' + JSON.stringify(S.c.turnOrder)
+    + ' @' + S.c.turnIndex);
+  assert.ok(!S.c.result, 'фикстура: c.result не возникает (R-8)');
+  const hx = S.c.px * 48, hy = S.c.py * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const styled = styledCalls(t.events);
+  const blueOnHero = styled.filter((c) => c.name === 'strokeRect'
+    && c.args[0] === hx + 4.5 && c.args[1] === hy + 4.5
+    && c.args[2] === 39 && c.args[3] === 39
+    && c.strokeStyle === '#8cf2fc');
+  assert.equal(blueOnHero.length, 0,
+    'голубой рамки 39×39 на МЁРТВОМ герое НЕТ (гейт c.player.alive)');
+  assert.ok(underlayAt166(t.events, hx, hy),
+    'бит-в-бит: подложка раннего прохода 000166 на клетке мёртвого '
+    + 'героя на месте (рамка и ранний проход НЕ совмещаются)');
+});
+
+test('боевой UI: 000213 — без sprites.js (loadCombatUi(false)): фолбэк-ромб на ходу героя, рендер не падает, console.error = 0; голубые strokeRect в окне — только рамка героя 39×39 на его клетке (0 или 1); 41×41 нигде (CU213-F)', () => {
+  // Гвард деградации (контракт §3): рамка НЕ зависит от спрайтов —
+  // сцена БЕЗ sprites.js вовсе (G.phlogistonFrames отсутствует →
+  // фолбэк-ромб; G-снапшот без модуля — чистая деградация). Ассерт
+  // «0 или 1 на клетке героя» — зелёный с первого дня (сейчас 0)
+  // и после реализации (1 — на клетке героя, в другой клетке/форме
+  // — нет).
+  const rafStubs = makeRafStubs();
+  const { G, body } = loadCombatUi(false, {
+    performance: { now: () => NOW84 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const errors = [];
+  const realError = console.error;
+  console.error = (m) => errors.push(String(m));
+  let c = null;
+  try {
+    c = G.combatUI.startCombat({
+      hero: G.createCharacter(),
+      mobs: ['wolf'], mobLevel: 1, seed: 42,
+    });
+  } finally {
+    console.error = realError;
+  }
+  assert.ok(c, 'бой создан (деградация, не крах)');
+  console.error = (m) => errors.push(String(m));
+  let t = null;
+  try {
+    c.targetId = null;
+    assert.equal(c.turnOrder[c.turnIndex], 'player',
+      'фикстура: активен player: ' + JSON.stringify(c.turnOrder)
+      + ' @' + c.turnIndex);
+    t = tickSlice(findCanvas(body), rafStubs);
+  } finally {
+    console.error = realError;
+  }
+  assert.equal(errors.length, 0,
+    'console.error = 0 (рамка в лог ничего не пишет): '
+    + JSON.stringify(errors));
+  const hx = c.px * 48, hy = c.py * 48;
+  const s = 48 * 0.3;
+  assert.ok(t.calls.some((cv) => cv[0] === 'moveTo'
+    && cv[1][0] === (c.px + 0.5) * 48
+    && cv[1][1] === (c.py + 0.5) * 48 - s),
+    'фолбэк-ромб героя на месте (верхняя вершина, без sprites.js)');
+  const styled = styledCalls(t.events);
+  const blueRects = styled.filter((cv) => cv.name === 'strokeRect'
+    && cv.strokeStyle === '#8cf2fc');
+  assert.ok(blueRects.length <= 1,
+    'голубых strokeRect за окно — не больше 1 (рамка героя): '
+    + JSON.stringify(blueRects.map((x) => x.args)));
+  for (const cv of blueRects) {
+    assert.equal(cv.args[0], hx + 4.5, 'рамка — на клетке героя (x)');
+    assert.equal(cv.args[1], hy + 4.5, 'рамка — на клетке героя (y)');
+    assert.equal(cv.args[2], 39, 'рамка 39×39 (w)');
+    assert.equal(cv.args[3], 39, 'рамка 39×39 (h)');
+  }
+  assert.ok(!t.calls.some((cv) => cv[0] === 'strokeRect'
+    && cv[1][2] === 41 && cv[1][3] === 41),
+    'кольца 41×41 нигде (000199 L4)');
 });
