@@ -2146,21 +2146,23 @@
     ctx.open = false;
     const onEnd = ctx.onEnd;
     const result = ctx.combat.result;
-    // Эфир (задача 000081): 100% боевого опыта — в его пул ДО onEnd
-    // (следующий бой сразу видит новый уровень) и ДО ctx = null.
-    // Правило: ТОЛЬКО victory, ВЕСЬ result.xp (тот же, что 100%
-    // игроку, до бонуса «Учёный»), БЕЗ companion_xp_share (он — для
-    // наёмников, 000082), БЕЗ условия выживания Эфира (000035#11:
-    // погиб в бою — опыт всё равно в пул). ctx.efir != null только
-    // когда G.efir был доступен на startCombat — снапшот G неизменен.
-    if (ctx.efir && result.outcome === 'victory' && result.xp > 0) {
+    // Эфир (задачи 000081/000205): его равная доля боевого опыта —
+    // result.efirXp (base = floor(xp/N), считает checkVictory; 0, если
+    // юнита Эфира в бою нет) — в его пул ДО onEnd (следующий бой сразу
+    // видит новый уровень) и ДО ctx = null. Правило: ТОЛЬКО victory,
+    // ВЕСЬ result.efirXp, БЕЗ условия выживания Эфира (000035#11:
+    // погиб в бою — доля всё равно в пул). Ручной result БЕЗ поля
+    // efirXp (legacy-мутация) — guard false, тихий skip. ctx.efir
+    // != null только когда G.efir был доступен на startCombat —
+    // снапшот G неизменен.
+    if (ctx.efir && result.outcome === 'victory' && result.efirXp > 0) {
       // 000170 (D5a): исключение в addEfirXp (abnormal sheet —
       // S.addXp/appendSpells/reprocessEfirSkills) НЕ роняет finish:
       // xp-начисление пропущено (logged once), оверлей снят, ctx
       // обнулён, onEnd применён (награды/подъём/dead-mercs не
       // потеряны). Порядок happy path не меняется.
       try {
-        G.efir.addEfirXp(ctx.efir, result.xp);
+        G.efir.addEfirXp(ctx.efir, result.efirXp);
       } catch (err) {
         if (!xpErrLogged) {
           xpErrLogged = true;
@@ -2300,9 +2302,9 @@
         // opts.spriteLoader — из main.js, может быть null (нет s2 /
         // нет G.createSpriteLoader) — null-guard в render().
         spriteLoader: opts.spriteLoader || null,
-        // Эфир (задача 000081): состояние — finish() начисляет 100%
-        // боевого xp. null — Эфир НЕ участвует в бою (opts.efir нет
-        // или деградация — XP начислять нечего).
+        // Эфир (задачи 000081/000205): состояние — finish() начисляет
+        // равную долю result.efirXp (000205). null — Эфир НЕ участвует
+        // в бою (opts.efir нет или деградация — XP начислять нечего).
         efir: efirData ? opts.efir : null,
         // 000118: edge-detect c.efirBreathed в render() — «уже видел
         // Вдох» на уровне боя (сброс на каждый startCombat: новый

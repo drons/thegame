@@ -29,8 +29,8 @@ test('модуль: CommonJS-экспорт { SETTINGS } — все настра
   // Ре-пин пометка 000103: добавился ключ city_channel (параметры
   // городского канала src/map.js). Ре-пин 000079: добавились ключи
   // спутников (max_companions, companion_loyalty, companion_refusal).
-  // Ре-пин 000082: добавился companion_xp_share (доля боевого опыта
-  // выживших спутников, SPEC «Спутники» → «Опыт и уровни»).
+  // Ре-пин 000082: добавился companion_xp_share; 000205: УДАЛЁН
+  // (опыт делится поровну между всеми участниками — настройки нет).
   // Ре-пин 000109: добавился city_respawn_days (дней до
   // ПЕРЕГЕНЕРАЦИИ стока лавок города при входе, SPEC «Города и
   // деревни» → «Состояние, сейв, респаун»).
@@ -43,7 +43,7 @@ test('модуль: CommonJS-экспорт { SETTINGS } — все настра
     'combat_difficulties',
     'combat_difficulty', 'combat_obstacle_max_frac',
     'combat_obstacle_min_frac',
-    'companion_loyalty', 'companion_refusal', 'companion_xp_share',
+    'companion_loyalty', 'companion_refusal',
     'dungeon_memory_days',
     'level_delta_max', 'max_companions', 'move_interval_ms',
     'points_per_level', 'respawn_days', 'steps_per_day',
@@ -283,7 +283,7 @@ test('SETTINGS.camp_channel (000131): порог редкости лагеря �
 // 50 + Харизма, +2 за оплату, −20 за неоплату, пороги ухода 20/40 и
 // 50% посередине; шанс отказа 30% − 2%/ур. Харизма − 5%/ур. Артист.
 // Доли (не проценты) — как combat_difficulties. companion_xp_share
-// НЕ здесь — добавляет 000082.
+// УДАЛЕНА (000205: равное деление опыта — настройки нет).
 test('SETTINGS: ключи спутников (000079) — лимит, лояльность, отказ', () => {
   assert.equal(typeof SETTINGS.max_companions, 'number',
     'max_companions — число');
@@ -318,17 +318,6 @@ test('SETTINGS: ключи спутников (000079) — лимит, лоял�
   assert.ok(ref.base >= 0 && ref.base <= 1, 'база-доля в [0, 1]');
   assert.ok(ref.charisma_per_level > 0 && ref.artist_per_level > 0,
     'доли за уровень положительны');
-});
-
-test('SETTINGS: companion_xp_share (000082) — доля боевого опыта выживших спутников', () => {
-  // spec/companions.md «Опыт и уровни»: «каждый выживший спутник —
-  // долю companion_xp_share (по умолчанию 50%)». Доля (не процент) —
-  // как combat_difficulties.
-  assert.equal(typeof SETTINGS.companion_xp_share, 'number',
-    'companion_xp_share — число');
-  assert.ok(SETTINGS.companion_xp_share >= 0
-    && SETTINGS.companion_xp_share <= 1, 'доля в диапазоне [0, 1]');
-  assert.equal(SETTINGS.companion_xp_share, 0.5, 'по умолчанию — 50%');
 });
 
 test('единый источник: main.js читает move_interval_ms (структурный)', () => {
@@ -497,9 +486,7 @@ test('000098 RED: S2 — META: типы и границы корректны (in
         d + '.' + f + ' — positive (строго > 0: 0×HP ломает бой)');
     }
   }
-  // Доли [0,1]: generic min=1 СЛОМАЛ бы доли — явные записи (000082).
-  assert.equal(META.companion_xp_share.min, 0,
-    'companion_xp_share min 0 (доля [0,1]; 0 — «не получают»)');
+  // Доли [0,1]: generic min=1 СЛОМАЛ бы доли — явные записи.
   for (const k of ['combat_obstacle_min_frac', 'combat_obstacle_max_frac']) {
     assert.equal(META[k].min, 0, k + ': min 0');
     assert.equal(META[k].max, 1, k + ': max 1 (доля)');
@@ -630,7 +617,6 @@ test('000098 RED: S5 — resetKey/resetAll: DEFAULTS, вложенные цел�
   // «Сбросить всё»: Object.assign-семантика, ссылка не меняется.
   SETTINGS.steps_per_day = 7;
   SETTINGS.combat_difficulties.medium.hp = 0.77;
-  SETTINGS.companion_xp_share = 0.1;
   resetAll();
   assert.deepEqual(JSON.parse(JSON.stringify(SETTINGS)),
     JSON.parse(JSON.stringify(DEFAULTS)),

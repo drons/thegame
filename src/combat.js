@@ -21,14 +21,20 @@
 // для ИИ support читается ЛЕНИВО из combatInternals.allySpells (его ставит
 // spells.js — UMD-ловушка 000038; без каталога support — melee-фолбэк).
 //
-// Опыт спутников (задача 000082): при победе c.result.allyXp — каждому
-// ВЫЖИВШЕМУ союзнику kind 'merc' доля companion_xp_share от БАЗОВОГО
-// боевого xp (Math.round, не делится на число спутников; положительный
-// фильтр — Эфир 'efir' (000081) и неизвестные kind вне доли). Чистая
-// арифметика: НОЛЬ новых вызовов c._rng (gold-роллы — до) — бит-в-бит
-// при 0 союзников; игрок — 100% БЕЗ ИЗМЕНЕНИЙ; лог-строка победы —
-// без изменений. В 'fled'/'dead' поля allyXp нет (000087 гвардит
-// outcome === 'victory'). Контракт — memory/000082-companion-xp.md.
+// Боевой опыт делится поровну (задача 000205): при победе
+// c.result.allyXp + c.result.efirXp — участники N = 1 (Флогистон) + ВСЕ
+// союзники (c.units, side 'ally' — живые и погибшие в бою; ростер в бою
+// не пополняется — N детерминирован); base = floor(xp / N); Флогистону —
+// base + (xp mod N) (внутри P.addXp, «Учёный» — только к его доле);
+// каждому мерсу (kind 'merc', положительный фильтр — неизвестные kind
+// долю не получают) — base (в т.ч. погибшим в бою — доля сохраняется в
+// dead_mercs, 000087); Эфиру — СВОЙ канал c.result.efirXp = base
+// (никогда не в allyXp; finish — 000081). result.xp — остаётся СУММОЙ
+// добытой группы (отображение «Победа! +X»). Чистая арифметика: НОЛЬ
+// новых вызовов c._rng (gold-роллы — до) — бит-в-бит при N = 1
+// (соло); лог-строка победы — без изменений. В 'fled'/'dead' поля
+// allyXp/efirXp нет (000087 гвардит outcome === 'victory'). Контракт —
+// memory/000205-combat-xp-split.md.
 //
 // Ход Эфира (задача 000112): поддерживающий ИИ на фреймворке союзных
 // юнитов — диспетчеризация в allyAct (u.kind 'efir' + c.efs — маркер
@@ -86,7 +92,7 @@
 // Униформный модуль: в браузере — globalThis.Game, в node — require().
 // Зависимости: perlin.js (mulberry32), player.js (derived/takeDamage/heal/addXp),
 // global-settings.js (level_delta_max, combat_difficulty/combat_difficulties,
-// combat_obstacle_min_frac/combat_obstacle_max_frac, companion_xp_share).
+// combat_obstacle_min_frac/combat_obstacle_max_frac).
 
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -1214,32 +1220,40 @@
       (s, u) => s + Math.round(u.xp.base + u.xp.perLevel * u.level), 0);
     const gold = killed.reduce((s, u) => s + Math.round(3 + 2 * u.level + c._rng() * u.level), 0);
     if (killed.length > 0) {
-      P.addXp(c.player, xp);
-      c.player.gold += gold;
-      // Доля боевого опыта ВЫЖИВШИМ спутникам (задача 000082,
-      // spec/companions.md «Опыт и уровни», memory/000082-companion-xp.md):
-      // каждому живому союзнику kind 'merc' (ПОЛОЖИТЕЛЬНЫЙ фильтр —
-      // Эфир kind 'efir' (000081) и неизвестные kind вне доли:
-      // у Эфира свой пул, он растёт с 100% xp) — Math.round(базовый
-      // xp × companion_xp_share) НЕЗАВИСИМО (не делится на число
-      // спутников). Игрок — без изменений (100% + «Учёный» внутри
-      // P.addXp; «Учёный» спутникам НЕ идёт). Чистая арифметика —
-      // НОЛЬ новых вызовов c._rng (gold-роллы выше) — бит-в-бит
-      // поток RNG сохранён. Настройка читается ЖИВО: Number(...) || 0
-      // (мусор в настройках → 0, бой не падает). allyXp ВСЕГДА массив
-      // (может быть пустым); в 'fled'/'dead' поля нет — обработчик
-      // конца боя (000087) гвардит outcome === 'victory'.
+      // Опыт делится поровну между ВСЕМИ участниками (задача 000205,
+      // spec/companions.md «Опыт и уровни»,
+      // memory/000205-combat-xp-split.md): участники N = 1 (Флогистон)
+      // + ВСЕ союзники (side 'ally' — живые и погибшие в бою; ростер в
+      // бою не пополняется — N детерминирован). base = floor(xp / N);
+      // Флогистон — base + (xp mod N) (остаток — протагонисту;
+      // «Учёный» (xpMult) — внутри P.addXp, только к его доле), каждый
+      // прочий участник — base. Сумма долей = xp ТОЧНО. allyXp — та же
+      // форма [{id, xp}] по ВСЕМ kind 'merc' (ПОЛОЖИТЕЛЬНЫЙ фильтр —
+      // неизвестные kind долю не получают), порядок c.units; доля
+      // погибшего мерса — 000087 применит ДО dead-сплайса (сохранится
+      // в dead_mercs). Эфир — c.result.efirXp = base (свой канал,
+      // никогда не в allyXp; finish — 000081/000205). result.xp —
+      // СУММА добытой группы (отображение «Победа! +X»). Чистая
+      // арифметика — НОЛЬ новых вызовов c._rng (gold-роллы выше) —
+      // бит-в-бит при N = 1 (соло); поток RNG — без изменений. В
+      // 'fled'/'dead' поля нет — обработчик конца боя гвардит
+      // outcome === 'victory'.
       // Лог-строка победы — без изменений (сообщения о спутниках —
       // 000087).
-      const share = Number(settings.SETTINGS.companion_xp_share) || 0;
-      const allyXp = livingAllies(c)
+      const allies = c.units.filter((u) => u.side === 'ally');
+      const n = 1 + allies.length;
+      const base = Math.floor(xp / n);
+      P.addXp(c.player, base + (xp % n));
+      c.player.gold += gold;
+      const allyXp = allies
         .filter((u) => u.kind === 'merc')
-        .map((u) => ({ id: u.id, xp: Math.round(xp * share) }));
+        .map((u) => ({ id: u.id, xp: base }));
+      const efirXp = allies.some((u) => u.kind === 'efir') ? base : 0;
       // Лут с мобов (задача 000132): роллы ВНУТРИ victory-ветки,
       // СТРОГО ПОСЛЕ gold-роллов выше — поток createCombat/gold-пинов
       // бит-в-бит (N5). 'fled'/'dead' — поля items нет (шаблон allyXp).
       const items = rollVictoryLoot(c, killed);
-      c.result = { outcome: 'victory', xp, gold, defeated: killed.length, allyXp, items };
+      c.result = { outcome: 'victory', xp, gold, defeated: killed.length, allyXp, efirXp, items };
       log(c, `Победа! +${xp} опыта, +${gold} золота.`);
     } else {
       // Все сбежали — лута нет.

@@ -1473,8 +1473,8 @@ test('000110 MV-C2: деревня 2×2 и хутор 1×1 — footprint отр�
 // efirStats.maxMP, c.efs {spellInt, spellWis, touch: 1, move: 3}
 // и явный u.maxHP = efirStats.maxHP (buildEfirUnit — 12-й экспорт
 // src/efir.js, вызов в combat-ui startCombat); гибель — новый
-// combatInternals.dealDamageToAlly; победа — 100% боевого xp в
-// Эфир (finish → addEfirXp, 000081) и закрытие панели Space.
+// combatInternals.dealDamageToAlly; победа — равная доля result.efirXp в
+// Эфир (finish → addEfirXp, 000205) и закрытие панели Space.
 //
 // Корень RED: makeAlly (000080/000081) создаёт Эфира с hp = maxHP
 // (round((8+4·1)·0.7) = 8) БЕЗ своей маны u.mp (undefined) и без
@@ -1522,7 +1522,7 @@ function assertEfirCombat(G, g, c, label) {
 
 // Гибель Эфира (новый combatInternals.dealDamageToAlly) + победа
 // (мобы 9999 через dealDamageToMob → checkVictory) + Space →
-// finish (100% xp в Эфир, onEnd, панель закрыта).
+// finish (доля Эфира — result.efirXp, 000205; onEnd, панель закрыта).
 function resolveCombatVictory(G, c, label) {
   const u = c.units.find((x) => x.kind === 'efir');
   assert.ok(u, label + ': Эфир в бою');
@@ -1832,7 +1832,7 @@ function walkDungeonToExit(h, G, g, ds) {
     'выход: [E] на едином тайле — подземелье закрыто (exitLocation)');
 }
 
-test('000112 CB-8: W1 (мир) — ходьба на тайл группы → maybeStartCombat: Эфир 100% HP/MP, c.efs (1/1/1/3); гибель через dealDamageToAlly; победа — Space, 100% xp в Эфир; второй бой — снова 100% HP/MP (текущий уровень)', async () => {
+test('000112 CB-8: W1 (мир) — ходьба на тайл группы → maybeStartCombat: Эфир 100% HP/MP, c.efs (1/1/1/3); гибель через dealDamageToAlly; победа — Space, равная доля Эфиру (000205); второй бой — снова 100% HP/MP (текущий уровень)', async () => {
   const h = await boot(new Set());
   assert.equal(h.errors.length, 0,
     'ошибок загрузки нет: ' + h.errors.join('; '));
@@ -1862,10 +1862,16 @@ test('000112 CB-8: W1 (мир) — ходьба на тайл группы → m
   walkWorldRoute(h, r1.steps);
   assert.equal(G.combatUI.isActive(), true,
     'шаг на тайл группы / в зону — бой начался (maybeStartCombat)');
-  assertEfirCombat(G, g, G.combatUI.current(), 'бой 1');
-  resolveCombatVictory(G, G.combatUI.current(), 'бой 1');
-  assert.ok(g.state.efir.xp > 0,
-    'Эфир получил 100% боевого опыта (000081): ' + g.state.efir.xp);
+  const c1 = G.combatUI.current();
+  assertEfirCombat(G, g, c1, 'бой 1');
+  resolveCombatVictory(G, c1, 'бой 1');
+  // 000205: Эфиру — равная доля floor(xp/N), N = 2 (игрок + Эфир;
+  // roster пуст — boot(new Set())). Доля может ровно закрыть порог
+  // уровня (xpForNext(1) = 50 → уровень 2, остаток xp = 0) — пин —
+  // totalXp (сумма долей), НЕ остаток xp.
+  assert.equal(g.state.efir.totalXp, Math.floor(c1.result.xp / 2),
+    'Эфир получил равную долю floor(xp/2) (000205): '
+    + g.state.efir.totalXp);
 
   // Бой 2: другая группа (побеждённый тайл проходимо: defeatedAt;
   // BFS стартует С НЕГО — он в visited и целью не может быть).
@@ -1889,11 +1895,14 @@ test('000112 CB-8: W1 (мир) — ходьба на тайл группы → m
   // Уровень мог вырасти (xp боя 1: addEfirXp — ДО onEnd) — пины
   // по актуальному уровню (assertEfirCombat читает g.state.efir).
   assertEfirCombat(G, g, c2, 'бой 2');
+  const totalAfter1 = g.state.efir.totalXp;
   resolveCombatVictory(G, c2, 'бой 2');
-  assert.ok(g.state.efir.xp > 0, 'xp сохранён после второго боя');
+  assert.equal(g.state.efir.totalXp,
+    totalAfter1 + Math.floor(c2.result.xp / 2),
+    'доля второго боя добавлена (000205); рост боя 1 сохранён');
 });
 
-test('000112 CB-9: D1 (подземелье) — enterDungeon (отладочный вход) + ходьба к блуждающей группе → startDungeonCombat: Эфир 100% HP/MP, c.efs; гибель через dealDamageToAlly; победа — Space, 100% xp; второй бой — снова 100% HP/MP', async () => {
+test('000112 CB-9: D1 (подземелье) — enterDungeon (отладочный вход) + ходьба к блуждающей группе → startDungeonCombat: Эфир 100% HP/MP, c.efs; гибель через dealDamageToAlly; победа — Space, равная доля Эфиру (000205); второй бой — снова 100% HP/MP', async () => {
   const h = await boot(new Set());
   assert.equal(h.errors.length, 0,
     'ошибок загрузки нет: ' + h.errors.join('; '));
@@ -1912,8 +1921,9 @@ test('000112 CB-9: D1 (подземелье) — enterDungeon (отладочн�
     'бой начался (dungeonOnMove → startDungeonCombat)');
   assertEfirCombat(G, g, c1, 'бой 1');
   resolveCombatVictory(G, c1, 'бой 1');
-  assert.ok(g.state.efir.xp > 0,
-    'Эфир получил 100% боевого опыта (000081): ' + g.state.efir.xp);
+  assert.equal(g.state.efir.totalXp, Math.floor(c1.result.xp / 2),
+    'Эфир получил равную долю floor(xp/2) (000205): '
+    + g.state.efir.totalXp);
   assert.ok(g.dungeon,
     'подземелье активно после боя (onEnd не закрывает)');
 
@@ -1934,6 +1944,9 @@ test('000112 CB-9: D1 (подземелье) — enterDungeon (отладочн�
   }
   assert.equal(G.combatUI.isActive(), true, 'второй бой начался');
   assertEfirCombat(G, g, c2, 'бой 2');
+  const totalAfter1 = g.state.efir.totalXp;
   resolveCombatVictory(G, c2, 'бой 2');
-  assert.ok(g.state.efir.xp > 0, 'xp сохранён после второго боя');
+  assert.equal(g.state.efir.totalXp,
+    totalAfter1 + Math.floor(c2.result.xp / 2),
+    'доля второго боя добавлена (000205); рост боя 1 сохранён');
 });

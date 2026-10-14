@@ -602,7 +602,8 @@ function (settings, G) {
    * @param {Array} roster отряд (записи {npcId, sheet, level, xp,
    *   loyalty, hiredDay}) — мутируется (sheet + зеркала).
    * @param {Array} gains c.result.allyXp = [{id, xp}] (000082: id —
-   *   npcId, xp — доля каждого выжившего; «фолбэк-мусор» после
+   *   npcId; 000205: xp — равная доля base = floor(сумма/N) каждого
+   *   мерса-участника, в т.ч. погибшего в бою; «фолбэк-мусор» после
    *   сейва/UI допустим).
    * @returns {{applied:number, levelUps:number, events:object[]}}
    *   ЧИСТАЯ функция (без rng/DOM/console, паттерн payWages):

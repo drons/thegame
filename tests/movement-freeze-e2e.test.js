@@ -957,10 +957,14 @@ test('T4. finish: исключение addEfirXp — оверлей снят, ct
   assert.ok(c, 'боевой оверлей открыт (startCombat(6))');
   assert.equal(G.combatUI.isActive(), true, 'бой активен');
   c.phase = 'over';
+  // 000205: finish читает result.efirXp (доля) — фикстура несёт
+  // efirXp: 50 (> 0), чтобы инъекция ниже продолжала прогонять
+  // try/catch в finish (иначе guard (efirXp||0) > 0 станет
+  // мёртвым кодом). Ассерты теста — без изменений.
   c.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
-    allyXp: [] };
-  // Инъекция: исключение в Г.efir.addEfirXp (finish: 100% боевого
-  // опыта Эфиру — ДО onEnd; G.efir — общий объект-экспорт, виден
+    allyXp: [], efirXp: 50 };
+  // Инъекция: исключение в Г.efir.addEfirXp (finish: доля result.
+  // efirXp Эфиру — ДО onEnd; G.efir — общий объект-экспорт, виден
   // снапшоту combat-ui.js).
   const origAddXp = G.efir.addEfirXp;
   G.efir.addEfirXp = () => { throw new Error('T4-inject: addEfirXp'); };

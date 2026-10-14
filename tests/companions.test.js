@@ -926,15 +926,16 @@ test('000082: детерминизм — два прогона «найм → б
   const a = run();
   const b = run();
   assert.deepEqual(b, a, 'воспроизводимость: в цикле нет «мирового» rng');
-  // Полный цикл: каждому по round(16×0.5) = 8, id — npcId (маппинг).
+  // Полный цикл (000205): каждому base = floor(16/3) = 5, id —
+  // npcId (маппинг).
   assert.deepEqual(a.allyXp, [
-    { id: 'merc_volk', xp: 8 },
-    { id: 'merc_ashka', xp: 8 },
+    { id: 'merc_volk', xp: 5 },
+    { id: 'merc_ashka', xp: 5 },
   ]);
-  assert.equal(a.roster[0].xp, 8, 'Вольк: xp в записи');
-  assert.equal(a.roster[1].xp, 8, 'Ашка: xp в записи');
+  assert.equal(a.roster[0].xp, 5, 'Вольк: xp в записи');
+  assert.equal(a.roster[1].xp, 5, 'Ашка: xp в записи');
   assert.equal(a.roster[0].npcId, 'merc_volk');
-  assert.equal(a.events.length, 0, '8 < 50 — повышений уровня пока нет');
+  assert.equal(a.events.length, 0, '5 < 50 — повышений уровня пока нет');
 });
 
 test('000082: allyDataForEntry — данные makeAlly из записи + каталога найма (id — npcId; 000143 — статы из sheet)', () => {

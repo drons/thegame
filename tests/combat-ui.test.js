@@ -1293,18 +1293,19 @@ test('боевой UI: нулевой rect (width/height = 0) — фолбэк 1
 // КРАСНЫЕ тесты (TDD): падают, пока src/efir.js не существует и проводка
 // в startCombat/finish (src/combat-ui.js) не сделана.
 //
-// Контракт (memory/000081-efir.md): ОДИН воронка — startCombat +
-// finish() в combat-ui.js (main.js минимален: `efir,` в opts трёх
-// startCombat). finish(): после «const result = ctx.combat.result»,
-// ДО onEnd и ДО «ctx = null»:
-//   if (ctx.efir && result.outcome === 'victory' && result.xp > 0)
-//     G.efir.addEfirXp(ctx.efir, result.xp);
-// Правило 100%: только victory, ВЕСЬ result.xp, БЕЗ companion_xp_share,
+// Контракт (memory/000081-efir.md; 000205 — доля вместо 100%):
+// ОДИН воронка — startCombat + finish() в combat-ui.js (main.js
+// минимален: `efir,` в opts трёх startCombat). finish(): после
+// «const result = ctx.combat.result», ДО onEnd и ДО «ctx = null»:
+//   if (ctx.efir && result.outcome === 'victory' && result.efirXp > 0)
+//     G.efir.addEfirXp(ctx.efir, result.efirXp);
+// Правило (000205): только victory, ВЕСЬ result.efirXp (равная доля,
+// посчитанная в checkVictory; 0 без Эфира; поля нет — fallback 0),
 // БЕЗ условия выживания Эфира. vm-правила 000082: ассерты — только
 // примитивы (level/xp/alive) и наличие юнита (объекты чужого realm —
 // не deepStrictEqual/instanceof).
 
-test('боевой UI: 000081 — startCombat ВСЕГДА добавляет Эфир (wiring), finish: 100% result.xp → в пул (до onEnd)', () => {
+test('боевой UI: 000081 — startCombat ВСЕГДА добавляет Эфир (wiring), finish: ровно 1× result.efirXp → в пул (до onEnd) (000205)', () => {
   const { G, keydown } = loadCombatUi(true, { withEfir: true });
   const state = G.efir.createEfir();
   assert.ok(state, 'G.efir.createEfir (efir.js в цепочке)');
@@ -1331,15 +1332,73 @@ test('боевой UI: 000081 — startCombat ВСЕГДА добавляет Э
   assert.equal(u.x, c.px - 1,
     '000168: шаг pre-roll НЕТ — якорь px−1 (ввод-стоп)');
   assert.equal(u.y, c.py - 1, 'y — якорь py−1');
-  // Имитация победы → finish(): 100% result.xp — в пул, ДО onEnd.
+  // Имитация победы → finish(): ровно 1× result.efirXp — в пул,
+  // ДО onEnd (000205: доля, а не 100% result.xp). Фикстура:
+  // efirXp = 50 = xp — числа пинов совпадают с 000081.
   c.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
-    allyXp: [] };
+    allyXp: [], efirXp: 50 };
   press(keydown, 'Escape');
   assert.ok(ended, 'onEnd вызван (finish)');
   assert.equal(ended.outcome, 'victory');
   assert.equal(state.level, 2,
-    'xp 50 = xpForNext(1) → уровень 2 (100%, НЕ ×0.5)');
+    'xp 50 = xpForNext(1) → уровень 2 (ровно 1× result.efirXp)');
   assert.equal(state.xp, 0, 'остаток xp — 0');
+});
+
+// --- 000205: finish читает result.efirXp (равная доля, НЕ result.xp) ---
+//
+// КРАСНЫЕ тесты (TDD): падают, пока finish() не читает
+// result.efirXp. Сейчас finish() зовёт addEfirXp(ctx.efir,
+// result.xp) — 100% суммы. Контракт —
+// memory/000205-combat-xp-split.md.
+
+test('боевой UI: 000205-CU1 — finish: ровно result.efirXp (доля) → в пул Эфира, НЕ result.xp; до onEnd', () => {
+  const { G, keydown } = loadCombatUi(true, { withEfir: true });
+  const state = G.efir.createEfir();
+  assert.ok(state, 'G.efir.createEfir (efir.js в цепочке)');
+  let ended = null;
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(),
+    mobs: ['wolf'], mobLevel: 1, seed: 42,
+    efir: state,
+    onEnd: (r) => { ended = r; },
+  });
+  const u = c.units.find((x) => x.kind === 'efir');
+  assert.ok(u, 'Эфир в allies (wiring)');
+  // Мутация: доля 25 (реальный checkVictory дал бы floor(xp/N));
+  // result.xp = 50 — сумма группы (отображение).
+  c.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
+    allyXp: [], efirXp: 25 };
+  press(keydown, 'Escape');
+  assert.ok(ended, 'onEnd вызван (finish)');
+  assert.equal(state.xp, 25,
+    'ровно result.efirXp = 25 в пул (НЕ result.xp = 50)');
+  assert.equal(state.level, 1,
+    '25 < xpForNext(1) = 50 — уровень НЕ растёт (доля, не 100%)');
+});
+
+test('боевой UI: 000205-CU2 — finish: ручной result БЕЗ поля efirXp (legacy-мутация) → Эфиру 0 (fallback), бой закрыт без краха', () => {
+  const { G, keydown } = loadCombatUi(true, { withEfir: true });
+  const state = G.efir.createEfir();
+  assert.ok(state, 'G.efir.createEfir (efir.js в цепочке)');
+  let ended = null;
+  const c = G.combatUI.startCombat({
+    hero: G.createCharacter(),
+    mobs: ['wolf'], mobLevel: 1, seed: 42,
+    efir: state,
+    onEnd: (r) => { ended = r; },
+  });
+  const u = c.units.find((x) => x.kind === 'efir');
+  assert.ok(u, 'Эфир в allies (wiring)');
+  // Мутация СТАРОГО формата (поля efirXp нет): finish обязан
+  // деградировать в 0 (guard (efirXp || 0) > 0), а НЕ брать 100% xp.
+  c.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
+    allyXp: [] };
+  press(keydown, 'Escape');
+  assert.ok(ended, 'onEnd вызван (finish)');
+  assert.equal(state.level, 1,
+    'без поля efirXp — 0 в пул: уровень НЕ растёт (fallback, не 100%)');
+  assert.equal(state.xp, 0, 'xp Эфира не тронут (fallback 0)');
 });
 
 test('боевой UI: 000081 — деградация: opts.efir БЕЗ efir.js (старая цепочка) → console.error, бой создан без Эфира, без краха', () => {

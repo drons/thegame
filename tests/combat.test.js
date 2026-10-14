@@ -2803,31 +2803,30 @@ test('движение: зайти на клетку союзника нельз
   assert.equal(r.reason, 'тут стоит союзник', 'точная строка reason');
 });
 
-// --- Опыт и уровни спутников (задача 000082) ---
-//
-// КРАСНЫЕ тесты (TDD): падают, пока checkVictory не отдаёт c.result.allyXp.
+// --- Опыт и уровни спутников (задача 000082; ре-пин 000205) ---
 //
 // Контракт (spec/companions.md «Опыт и уровни»,
-// memory/000082-companion-xp.md):
+// memory/000205-combat-xp-split.md):
 //   * c.result.allyXp — ТОЛЬКО в outcome 'victory' с победами: массив
-//     {id, xp} по одному на каждого ВЫЖИВШЕГО союзника с kind 'merc'
+//     {id, xp} — по одному на КАЖДОГО союзника с kind 'merc'
 //     (ПОЛОЖИТЕЛЬНЫЙ фильтр — устойчив к spelling kind Эфира 'efir'
 //     (SPEC/memory 000035) vs 'ether' (memory/000080)); порядок — c.units.
-//     В 'fled'/'dead' поля НЕТ — 000087 гвардит outcome === 'victory'.
-//   * xp = Math.round(базовый боевой xp × companion_xp_share) (Math.round,
-//     не floor: 16×0.3 = 4.8 → 5; паттерн gold-формулы). Базовый xp —
-//     сумма опыта поверженных мобов — ТОЧНО то число, что уходит игроку
-//     ДО бонуса «Учёный» (xpMult в P.addXp спутникам НЕ идёт).
-//   * Доля — КАЖДОМУ выжившему независимо (НЕ делится на их число):
-//     2 спутника × 0.5 = суммарно 100% сверх 100% игрока.
+//     000205: по ВСЕМ мерсам (выжившим и погибшим в бою), значение =
+//     base = floor(xp / N), N = 1 (Флогистон) + ВСЕ союзники (side
+//     'ally'). В 'fled'/'dead' поля НЕТ — 000087 гвардит
+//     outcome === 'victory'.
+//   * 000205: опыт делится поровну между ВСЕМИ участниками: Флогистон
+//     — base + (xp mod N) («Учёный» (xpMult) — внутри P.addXp, только
+//     к его доле); c.result.efirXp — base, если в бою юнит Эфира
+//     (свой канал, никогда не в allyXp). Сумма долей = c.result.xp
+//     (СУММА добытой группы, отображение) ТОЧНО.
 //   * id — id юнита (data.id; для наёмника — npcId; 000087 маппит
-//     allyXp → roster по нему). Погибший союзник (alive=false) — вне
-//     списка (fallen 000087 выведет как «посланные − ids allyXp»).
-//   * Настройка читается ЖИВО при вызове: Number(SETTINGS.
-//     companion_xp_share) || 0 (мусор в настройках → 0, бой не падает).
+//     allyXp → roster по нему). Доля погибшего мерса — 000087 применяет
+//     ДО dead-сплайса (сохраняется в dead_mercs).
 //   * НОЛЬ новых вызовов c._rng в checkVictory (gold-роллы — до
 //     allyXp); лог-строка «Победа! +… опыта…» — без изменений.
-//   * Регрессия: игрок — 100% боевого опыта БЕЗ изменений (P.addXp).
+//   * Регрессия: N = 1 (соло) — игрок получает ВСЕ xp, бит-в-бит
+//     (000205-G1).
 
 // Сценарий: союзники у левого низа (i, 6), волк — (3, 2), игрок —
 // вплотную к волку (strongHero 9999 HP — не умирает). Игрок добивает
@@ -2857,60 +2856,38 @@ function winWithAllies(allies, { mobLevel = 2, seed = 5, mutate } = {}) {
   return { c, p, w };
 }
 
-test('000082: победа — allyXp: доля companion_xp_share КАЖДОМУ выжившему (НЕ делится между ними)', () => {
-  const { c } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
-  // xp волка L2 = 8 + 4×2 = 16; доля 0.5 → каждому round(16×0.5) = 8.
-  assert.equal(c.result.xp, 16, 'базовый xp — 100% игроку (без изменений)');
-  assert.deepEqual(c.result.allyXp, [
-    { id: 'a0', xp: 8 },
-    { id: 'a1', xp: 8 },
-  ], 'порядок — c.units; каждому по доле: 2×8 = 16 = 100% базового, ' +
-    'а НЕ (16×0.5)/2 = 4');
-});
-
-test('000082: регрессия — игрок получает 100% боевого опыта БЕЗ изменений', () => {
+test('000082: победа — allyXp: base = floor(xp/N) КАЖДОМУ мерсу (000205: делится поровну между всеми участниками)', () => {
   const { c, p } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
-  assert.equal(c.result.xp, 16);
-  assert.equal(p.totalXp, 16, 'scholar 0: totalXp = 100% базового xp');
-  assert.equal(p.xp, 16, '16 < 50 (xpForNext(1)) — уровень не меняется');
-  assert.equal(p.level, 1);
-});
-
-test('000082: бонус «Учёный» (xpMult) — только игроку; доля спутников — от базового xp', () => {
-  // scholar 5 → xpMult = 1 + 0.02×5 = 1.1.
-  const { c, p } = winWithAllies([ALLY_VOLK, ALLY_ASHKA],
-    { mutate: (h) => { h.secondary.scholar = 5; } });
-  assert.equal(p.totalXp, 18, 'игрок: round(16×1.1) = 18 (бонус действует)');
-  assert.deepEqual(c.result.allyXp, [
-    { id: 'a0', xp: 8 },
-    { id: 'a1', xp: 8 },
-  ], 'доля — от базового xp = 16 (round(16×0.5) = 8), а НЕ от 18: ' +
-    '«Учёный» спутникам НЕ идёт (навыков у них нет — v1)');
-});
-
-test('000082: companion_xp_share читается ЖИВО при вызове; Math.round (4.8 → 5)', (t) => {
-  SETTINGS.companion_xp_share = 0.3;
-  t.after(() => { SETTINGS.companion_xp_share = 0.5; });
-  const { c } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
+  // xp волка L2 = 8 + 4×2 = 16; N = 3 (игрок + 2 мерса) → base 5.
+  assert.equal(c.result.xp, 16, 'result.xp — СУММА добытой группы (отображение)');
+  assert.equal(p.totalXp, 6, 'игрок: base 5 + остаток 1');
   assert.deepEqual(c.result.allyXp, [
     { id: 'a0', xp: 5 },
     { id: 'a1', xp: 5 },
-  ], 'round(16×0.3) = round(4.8) = 5 — Math.round, НЕ floor (4)');
+  ], 'порядок — c.units; каждому base = floor(16/3) = 5; сумма долей ' +
+    '5+5+6 = 16 = xp ТОЧНО');
 });
 
-test('000082: companion_xp_share нечисло (мусор в настройках, 000098-UI) — фолбэк 0, бой не падает', (t) => {
-  SETTINGS.companion_xp_share = 'мусор';
-  t.after(() => { SETTINGS.companion_xp_share = 0.5; });
+test('000082: игрок — base + остаток (000205: равное деление между всеми участниками)', () => {
   const { c, p } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
-  assert.deepEqual(c.result.allyXp, [
-    { id: 'a0', xp: 0 },
-    { id: 'a1', xp: 0 },
-  ], 'Number(мусор) → NaN → || 0 → xp 0 (записи остаются — список живой)');
-  assert.equal(c.result.xp, 16, 'игрок не задет мусором в настройках');
-  assert.equal(p.totalXp, 16);
+  assert.equal(c.result.xp, 16);
+  assert.equal(p.totalXp, 6, 'scholar 0: totalXp = base 5 + остаток 1 (N = 3)');
+  assert.equal(p.xp, 6, '6 < 50 (xpForNext(1)) — уровень не меняется');
+  assert.equal(p.level, 1);
 });
 
-test('000082: погибший в бою спутник — не в allyXp (доля — только выжившим)', () => {
+test('000082: бонус «Учёный» (xpMult) — только к доле игрока (000205: round(доля×xpMult)); спутникам — base БЕЗ бонуса', () => {
+  // scholar 5 → xpMult = 1 + 0.02×5 = 1.1. N = 3 → base 5, доля игрока 6.
+  const { c, p } = winWithAllies([ALLY_VOLK, ALLY_ASHKA],
+    { mutate: (h) => { h.secondary.scholar = 5; } });
+  assert.equal(p.totalXp, 7, 'игрок: round((5+1)×1.1) = 7 (бонус — к его доле)');
+  assert.deepEqual(c.result.allyXp, [
+    { id: 'a0', xp: 5 },
+    { id: 'a1', xp: 5 },
+  ], 'base = floor(16/3) = 5 — «Учёный» спутникам НЕ идёт (навыков у них нет — v1)');
+});
+
+test('000082: погибший в бою спутник — В allyXp (000205: участник — доля сохранится в dead_mercs)', () => {
   const p = strongHero();
   const c = createCombat({
     player: p,
@@ -2950,23 +2927,29 @@ test('000082: погибший в бою спутник — не в allyXp (до
   assert.equal(c.result.outcome, 'victory');
   assert.ok(p.alive, 'игрок жив');
   assert.equal(c.result.xp, 48, 'xp волка L10 = 8 + 4×10');
-  assert.deepEqual(c.result.allyXp, [{ id: 'a1', xp: 24 }],
-    'round(48×0.5) = 24 — Ашка (выжила); погибший a0 — вне списка');
+  assert.equal(p.totalXp, 16, 'игрок: base 16 + остаток 0 (N = 3)');
+  assert.deepEqual(c.result.allyXp, [
+    { id: 'a0', xp: 16 },
+    { id: 'a1', xp: 16 },
+  ], 'погибший a0 — В списке (участник, 000205); base = floor(48/3) = 16');
 });
 
-test('000082: доля — только kind === "merc": "efir" (Эфир, 000081) и неизвестный kind ("ether") — вне доли', () => {
-  // Позитивный фильтр (memory/000082-companion-xp.md): устойчив к
-  // spelling kind Эфира — SPEC/memory/000035 «efir», memory/000080
-  // «ether». Эфир — собственный пул, 100% c.result.xp (000081 читает
-  // сам) — НЕ 0.5+100% двойного подсчёта.
+test('000082: allyXp — только kind === "merc"; "efir" (Эфир) — в efirXp, неизвестный kind ("ether") — в N, долю не получает (000205)', () => {
+  // Позитивный фильтр: устойчив к spelling kind Эфира —
+  // SPEC/memory/000035 «efir», memory/000080 «ether». 000205: N = 4
+  // (игрок + efir + ether + наёмник) → base = floor(16/4) = 4; Эфир —
+  // участник, его доля — свой канал efirXp (НЕ 0.5+100% двойного
+  // подсчёта); «ether» — в N, доли не получает.
   const EFIR = { name: 'Эфир', role: 'support', level: 1, dmg: 0.5, hp: 1,
     skills: [], spells: [], id: 'efir', kind: 'efir' };
   const ETHER = { name: 'Эфир (вариант kind)', role: 'melee', level: 1,
     dmg: 0.5, hp: 1, skills: [], spells: [], id: 'ether', kind: 'ether' };
-  const { c } = winWithAllies([EFIR, ETHER, ALLY_VOLK]);
-  assert.deepEqual(c.result.allyXp, [{ id: 'a2', xp: 8 }],
-    'наёмник a2 (kind "merc") — в списке; "efir"/"ether" — вне');
-  assert.equal(c.result.xp, 16, 'игрок — 100% (Эфир 100% — своим механизмом)');
+  const { c, p } = winWithAllies([EFIR, ETHER, ALLY_VOLK]);
+  assert.deepEqual(c.result.allyXp, [{ id: 'a2', xp: 4 }],
+    'наёмник a2 (kind "merc") — в списке, base 4; "efir"/"ether" — вне');
+  assert.equal(c.result.efirXp, 4, 'Эфир — участник: efirXp = base = 4');
+  assert.equal(p.totalXp, 4, 'игрок: base 4 + остаток 0');
+  assert.equal(c.result.xp, 16, 'result.xp — СУММА добытой группы');
 });
 
 test('000082: id союзника — data.id (для наёмника — npcId): allyXp маппится на roster', () => {
@@ -2975,8 +2958,8 @@ test('000082: id союзника — data.id (для наёмника — npcId
     Object.assign({}, ALLY_ASHKA, { id: 'merc_ashka' }),
   ]);
   assert.deepEqual(c.result.allyXp, [
-    { id: 'merc_volk', xp: 8 },
-    { id: 'merc_ashka', xp: 8 },
+    { id: 'merc_volk', xp: 5 },
+    { id: 'merc_ashka', xp: 5 },
   ], '000087: roster → allyDataForEntry (id = npcId) → createCombat ' +
     '→ c.result.allyXp → applyCombatXp');
 });
@@ -3058,7 +3041,143 @@ test('000082: практика НЕ начисляется спутникам �
   assert.equal(c.result.outcome, 'victory', 'Вольк добивает волка без игрока');
   assert.deepEqual(p.skillXp, {},
     'игрок не действовал; атака союзника НЕ вызывает P.skillPractice (v1)');
-  assert.equal(c.result.xp, 16, 'опыт боя — всё равно игроку (100%)');
+  assert.equal(c.result.xp, 16,
+    'result.xp — СУММА добытой группы (отображение); игрок — долю, 000205');
+});
+
+// --- Опыт после боя делится поровну (задача 000205) ---
+//
+// КРАСНЫЕ тесты (TDD): падают, пока checkVictory не считает
+// base = floor(xp / N), N = 1 + ВСЕ юниты c.units со side 'ally'
+// (Эфир — живой или мёртвый; наёмники — живые и погибшие в бою),
+// игроку — base + (xp mod N), прочим — base, и пока поле
+// c.result.efirXp не существует (finish() читает result.xp — 100%).
+// Контракт — memory/000205-combat-xp-split.md.
+//
+// Зелёные guards (G*): не входят в expected red-count:
+//   G1 — соло N=1: игрок ВСЕ xp, allyXp [] (бит-в-бит с до-000205);
+//   G2 — детерминизм: доля чистая арифметика, gold не зависит от
+//        числа союзников (ноль новых вызовов c._rng).
+
+test('000205-N1: победа — опыт делится поровну: N = 1 + |ally|, base = floor(xp/N), остаток — игроку; Эфира нет — efirXp 0', () => {
+  // xp волка L2 = 8 + 4×2 = 16; N = 3 (игрок + 2 мерса) → base 5.
+  // Игрок: 5 + (16 mod 3) = 6. Мерсам: по 5. Сумма долей = 16.
+  const { c, p } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
+  assert.equal(c.result.xp, 16, 'result.xp — СУММА добытой группы (отображение)');
+  assert.equal(p.totalXp, 6,
+    'игрок: base + остаток = 5 + 1 = 6 (НЕ 100% = 16, как до 000205)');
+  assert.equal(p.level, 1, '6 < xpForNext(1) = 50 — уровень не растёт');
+  assert.deepEqual(c.result.allyXp, [
+    { id: 'a0', xp: 5 },
+    { id: 'a1', xp: 5 },
+  ], 'каждому мерсу base = floor(16/3) = 5 (НЕ round(16×0.5) = 8)');
+  assert.equal(c.result.efirXp, 0,
+    'юнита Эфира в бою нет — efirXp 0 (поле ВСЕГДА в victory)');
+});
+
+test('000205-N2: Эфир-юнит — участник: N включает kind \'efir\'; result.efirXp = base; Эфир вне allyXp', () => {
+  // Фикстура Эфира — как в 000082-блоке (kind 'efir', data.id 'efir').
+  // N = 3 (игрок + Эфир + Вольк) → base = floor(16/3) = 5.
+  const EFIR = { name: 'Эфир', role: 'support', level: 1, dmg: 0.5, hp: 1,
+    skills: [], spells: [], id: 'efir', kind: 'efir' };
+  const { c, p } = winWithAllies([EFIR, ALLY_VOLK]);
+  assert.equal(c.result.xp, 16);
+  assert.equal(c.result.efirXp, 5,
+    'Эфир — участник: efirXp = base = 5 (поле НОВОЕ — 000205)');
+  assert.deepEqual(c.result.allyXp, [{ id: 'a1', xp: 5 }],
+    'allyXp — ТОЛЬКО kind \'merc\' (Вольк a1); Эфир a0 вне (свой канал efirXp)');
+  assert.equal(p.totalXp, 6, 'игрок: 5 + (16 mod 3) = 6');
+});
+
+test('000205-N3: погибший в бою наёмник — участник: в N И в allyXp (доля сохранится в dead_mercs)', () => {
+  // Сцена «Вольк погиб» (волк L10 → xp 48, паттерн 000082 T-f):
+  // N = 3 (игрок + a0 мёртв + a1 жив) → base = floor(48/3) = 16,
+  // остаток 0. Доля мёртвого a0 — в allyXp (запись ещё в roster на
+  // момент xp-шага; combatEndCompanions применит её ДО dead-сплайса).
+  const p = strongHero();
+  const c = createCombat({
+    player: p,
+    allies: [ALLY_VOLK, ALLY_ASHKA],
+    mobs: ['wolf'], mobLevel: 10, seed: 5,
+  });
+  c.obstacles.clear();
+  const a0 = c.units.find((u) => u.id === 'a0'); // Вольк
+  const w = c.units.find((u) => u.id === 'm0');
+  a0.x = 3; a0.y = 5;
+  const a1 = c.units.find((u) => u.id === 'a1'); // Ашка
+  a1.x = 0; a1.y = 6;
+  w.x = 3; w.y = 3;
+  w.damage = 20; // добивает слабого союзника (13 HP) одним ударом
+  c._rng = () => 0.01; // все попадания
+  c.endTurn();
+  c.endTurn();
+  c.endTurn();
+  c.endTurn();
+  c.endTurn();
+  c.endTurn();
+  assert.equal(a0.alive, false, 'Вольк погиб в бою');
+  assert.equal(c.result, null, 'гибель союзника — НЕ поражение');
+  standNextTo(c, w);
+  let n = 0;
+  while (!c.result && n++ < 60) {
+    c.ps.attack = 99;
+    c.attack(w.id);
+    c.endTurn();
+  }
+  assert.equal(c.result.outcome, 'victory');
+  assert.ok(p.alive, 'игрок жив');
+  assert.equal(c.result.xp, 48, 'xp волка L10 = 8 + 4×10');
+  assert.equal(p.totalXp, 16, 'игрок: base 16 + остаток 0 (НЕ 100% = 48)');
+  assert.deepEqual(c.result.allyXp, [
+    { id: 'a0', xp: 16 },
+    { id: 'a1', xp: 16 },
+  ], 'погибший a0 — В списке (участник); base = floor(48/3) = 16 ' +
+    '(НЕ «только выжившим» = [{a1, 24}], как до 000205)');
+  assert.equal(c.result.efirXp, 0, 'Эфира в бою нет — efirXp 0');
+});
+
+test('000205-N4: «Учёный» (xpMult) — к доле игрока: round(доля×xpMult); спутникам бонуса нет', () => {
+  // scholar 5 → xpMult = 1 + 0.02×5 = 1.1. N = 3, base = 5.
+  // Игрок: round(6×1.1) = round(6.6) = 7 (доля + остаток — ДО бонуса).
+  const { c, p } = winWithAllies([ALLY_VOLK, ALLY_ASHKA],
+    { mutate: (h) => { h.secondary.scholar = 5; } });
+  assert.equal(c.result.xp, 16);
+  assert.equal(p.totalXp, 7,
+    'игрок: round((5+1)×1.1) = 7 (НЕ round(16×1.1) = 18, как до 000205)');
+  assert.deepEqual(c.result.allyXp, [
+    { id: 'a0', xp: 5 },
+    { id: 'a1', xp: 5 },
+  ], 'спутникам base БЕЗ «Учёного» (навыков у них нет — v1)');
+});
+
+test('000205-G1: без союзников — N = 1: игрок получает ВСЕ xp, allyXp = [] (бит-в-бит соло)', () => {
+  const { c, p } = winWithAllies([]);
+  assert.equal(c.result.outcome, 'victory');
+  assert.equal(c.result.xp, 16);
+  assert.equal(p.totalXp, 16, 'N = 1 — весь xp игроку (соло без изменений)');
+  assert.deepEqual(c.result.allyXp, [], '0 союзников — пустой массив');
+});
+
+test('000205-G2: детерминизм — два прогона (2 мерса) → идентичный {allyXp, efirXp, xp, gold, items}; gold не зависит от числа союзников', () => {
+  const run = (allies) => {
+    const { c } = winWithAllies(allies);
+    return JSON.stringify({
+      allyXp: c.result.allyXp, efirXp: c.result.efirXp,
+      xp: c.result.xp, gold: c.result.gold, items: c.result.items,
+    });
+  };
+  assert.equal(run([ALLY_VOLK, ALLY_ASHKA]),
+    run([ALLY_VOLK, ALLY_ASHKA]), 'тот же сценарий — тот же результат');
+  const gDuo = (() => {
+    const { c } = winWithAllies([ALLY_VOLK, ALLY_ASHKA]);
+    return c.result.gold;
+  })();
+  const gSolo = (() => {
+    const { c } = winWithAllies([]);
+    return c.result.gold;
+  })();
+  assert.equal(gDuo, gSolo,
+    'gold(2 мерса) === gold(соло, тот же seed) — доля не добавила c._rng');
 });
 
 // --- Эфир: постоянный союзник (задача 000081) ---

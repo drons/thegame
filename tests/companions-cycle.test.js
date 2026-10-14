@@ -614,11 +614,14 @@ test('V3: регрессия — пустой отряд: flash байт-в-ба
   assert.ok(!hud.includes('покинул отряд'), 'без строк ухода');
 });
 
-// V4: конец боя — ПОБЕДА: выживший получает долю (25 = round(50 ×
-// 0.5)), xp копится в записи, второй бой — level_up (25+25 ≥ 50 →
-// level 2, xp 0) + строки в flash; зелёные пины в том же тесте:
-// hero.xp — не тронут (100% — ядро, 000087 НЕ дублирует), Эфир —
-// ровно result.xp × 1 (addEfirXp в finish, 000081 — НЕ 2×);
+// V4: конец боя — ПОБЕДА: выживший получает долю (25 — доля в
+// мутационной фикстуре; 000205: base = floor(xp/N) считает
+// checkVictory, здесь result мутируется вручную), xp копится в
+// записи, второй бой — level_up (25+25 ≥ 50 → level 2, xp 0) +
+// строки в flash; зелёные пины в том же тесте: hero.xp — не тронут
+// (ядро — реальный checkVictory в E2E1 ниже, 000087 НЕ дублирует),
+// Эфир — ровно result.efirXp × 1 (addEfirXp в finish, 000205 — НЕ
+// 2×; фикстура несёт efirXp = 50 = xp — числа пинов не изменились);
 // xp в сейве (onEnd → saveNow). Паттерн мутации B24/B25.
 test('V4: победа — xp 25 в запись, 2-й бой — level 2 + строки; hero.xp и Эфир 1× — не тронуты', async () => {
   const h = await boot(seedSave({
@@ -645,12 +648,14 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
   assert.equal(uMerc.level, 1, 'level — из записи отряда (000082)');
   assert.ok(c.units.indexOf(uEfir) < c.units.indexOf(uMerc),
     'Эфир ПЕРВЫМ в allies (якорь placeAllies px−1, py−1)');
-  // Мутация результата (B24/B25): checkVictory НЕ гоняется — «игрок
-  // 100%» ядра не начисляется; onEnd/finish читают c.result.
+  // Мутация результата (B24/B25): checkVictory НЕ гоняется — доля
+  // ядра не начисляется; onEnd/finish читают c.result. 000205:
+  // фикстура несёт efirXp (50 = xp — числа пинов не изменились).
   c.phase = 'over';
   c.result = {
     outcome: 'victory', xp: 50, gold: 1, defeated: 1,
     allyXp: [{ id: 'merc_volk', xp: 25 }],
+    efirXp: 50,
   };
   G.combatUI.handleCode('Escape');
   assert.equal(G.combatUI.isActive(), false, 'бой закрыт (finish → onEnd)');
@@ -661,10 +666,10 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
     [backfilledEntry({ npcId: 'merc_volk', level: 1, xp: 25,
       loyalty: 65, hiredDay: 2 })],
     'roster: xp 0 → 25 (applyCombatXp, D3; 000143 — sheet.xp + зеркало)');
-  // Зелёные пины: герой — НЕ тронут; Эфир — ровно result.xp 1×
+  // Зелёные пины: герой — НЕ тронут; Эфир — ровно result.efirXp 1×
   // (0 + 50 ≥ 50 → level 2, xp 0; при 2× было бы level 2, xp 50).
   assert.equal(g.state.hero.xp, heroXp0,
-    'hero.xp — не тронут (100% — ядро в реальном бою; 000087 не дублирует)');
+    'hero.xp — не тронут (доля ядра — в реальном бою E2E1; 000087 не дублирует)');
   assert.equal(g.state.efir.level, 2, 'Эфир: 0 + 50 → level 2 (ровно 1×)');
   assert.equal(g.state.efir.xp, 0, 'Эфир: порог 50 списан, остаток 0 (не 2×)');
   mainFrameAt(h);
@@ -693,6 +698,7 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
   c2.result = {
     outcome: 'victory', xp: 50, gold: 1, defeated: 1,
     allyXp: [{ id: 'merc_volk', xp: 25 }],
+    efirXp: 50,
   };
   G.combatUI.handleCode('Escape');
   assert.ok(Array.isArray(g.state.roster));
@@ -708,7 +714,8 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
     'roster: level_up (while-цикл, 000082; 000143 — sheet + points 2)');
   assert.equal(g.state.hero.xp, heroXp0, 'hero.xp — по-прежнему не тронут');
   // Эфир: 0 + 50 < 141 (xpForNext(2)) → level 2, xp 50 — ровно 1×
-  // result.xp (при 2× было бы level 3, xp 9 — порог 141 перекрыт).
+  // result.efirXp (000205; при 2× было бы level 3, xp 9 — порог 141
+  // перекрыт).
   assert.equal(g.state.efir.level, 2, 'Эфир: 2-й бой — 50 < 141 → level 2 (ровно 1×)');
   assert.equal(g.state.efir.xp, 50, 'Эфир: xp 50 — ровно 1× (при 2×: level 3, xp 9)');
   mainFrameAt(h);
@@ -883,4 +890,77 @@ test('PC-1 (000164): partyLost — ВСЕ записи roster (не только
     G.NpcData.NPCS, g.state.roster, g.state.deadMercs);
   assert.ok(!cands.some((n) => n.id === 'merc_volk'), 'volk — не кандидат');
   assert.ok(!cands.some((n) => n.id === 'merc_ashka'), 'ashka — не кандидат');
+});
+
+// =====================================================================
+// 000205: опыт после боя делится поровну между ВСЕМИ участниками
+// (Флогистон, Эфир, союзные NPC). Контракт —
+// memory/000205-combat-xp-split.md.
+// =====================================================================
+
+// E2E1: РЕАЛЬНЫЙ бой (без мутаций result): игрок + Эфир + мерс —
+// все трое получают равную долю d = floor(xp/3); игрок — долю +
+// остаток (xp mod 3). HUD: базовая строка — от СУММЫ, «Спутники» —
+// от доли. Доли — по totalXp (не «съедается» уровнями).
+test('000205-E2E1: e2e — РЕАЛЬНЫЙ бой игрок+Эфир+мерс: равная доля всем (d = floor(xp/3)); HUD — сумма и доля', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({ level: 8, hp: 200, gold: 200 }),
+    companions: [
+      { npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2 },
+    ],
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  assertRestored(h, 2);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  // Доли считаем по totalXp (не «съедается» уровнями): все три
+  // участника стартуют с totalXp 0 (герой L8 — порог 1131;
+  // Эфир L1, мерс L1 — порог 50, но totalXp копится без потерь).
+  const heroXp0 = g.state.hero.xp;
+  const heroLevel0 = g.state.hero.level;
+  const efirTotal0 = g.state.efir.totalXp;
+  assert.equal(efirTotal0, 0, 'Эфир: totalXp 0 на старте (без efir-раздела в сейве)');
+  assert.ok(Array.isArray(g.state.roster));
+  const volkTotal0 = g.state.roster[0].sheet.totalXp;
+  assert.equal(volkTotal0, 0, 'мерс: sheet.totalXp 0 на старте (backfill)');
+  // Реальный бой (startCombat → c.units: Эфир + мерс, seed 42).
+  const c = g.actions.startCombat(0);
+  assert.ok(c, 'бой начался (startCombat(0) — реальный бой, НЕ мутация)');
+  const uEfir = (c.units || []).find((u) => u && u.kind === 'efir');
+  const uMerc = (c.units || []).find((u) => u && u.kind === 'merc');
+  assert.ok(uEfir && uMerc, 'участники в c.units: Эфир + мерс (rosterData)');
+  // Реальная победа: ВСЕ мобы 9999 → checkVictory (ядро, без мутаций).
+  for (const m of c.units.filter((x) => x.side === 'mob' && x.alive)) {
+    G.combatInternals.dealDamageToMob(c, m, 9999);
+  }
+  assert.ok(c.result && c.result.outcome === 'victory',
+    'победа (checkVictory — реальный расчёт)');
+  assert.ok(c.result.xp > 0, 'xp > 0 (сумма добытой группы)');
+  const xp = c.result.xp;
+  const d = Math.floor(xp / 3);
+  assert.ok(d > 0, 'сценарий: d > 0');
+  G.combatUI.handleCode('Space');
+  assert.equal(G.combatUI.isActive(), false, 'бой закрыт (Space → finish)');
+  // Равная доля: Эфиру и мерсу d (000205: finish — result.efirXp,
+  // allyXp — base; до 000205 было 100%/100%/round(xp×0.5)).
+  assert.equal(g.state.efir.totalXp - efirTotal0, d,
+    'Эфир: totalXp += d (равная доля 000205, НЕ 100% xp)');
+  assert.equal(g.state.roster[0].sheet.totalXp - volkTotal0, d,
+    'мерс (Вольк): sheet.totalXp += d (равная доля 000205, ' +
+    'НЕ round(xp×0.5))');
+  // Игрок: d + остаток (xp mod 3) = xp − 2d (остаток — протагонисту).
+  assert.equal(g.state.hero.xp - heroXp0, xp - 2 * d,
+    'игрок: xp += d + (xp mod 3) = xp − 2d (равная доля + остаток)');
+  assert.equal(g.state.hero.level, heroLevel0,
+    'игрок: уровень не растёт (сценарий: доля < порога ' + heroLevel0 + ')');
+  // HUD: базовая строка — от СУММЫ (без изменений 000087/000132);
+  // «Спутники» — от ДОЛИ (единая у всех мерсов — gained[0].xp).
+  mainFrameAt(h);
+  const hud = String(h.hud.textContent);
+  assert.ok(hud.includes('Победа! +' + xp + ' опыта, +'
+      + c.result.gold + ' золота.'),
+    'hud: базовая строка победы — от СУММЫ xp: ' + hud);
+  assert.ok(hud.includes('Спутники: +' + d + ' опыта (Вольк).'),
+    'hud: «Спутники: +d опыта (Вольк).» — доля, не 50%: ' + hud);
 });
