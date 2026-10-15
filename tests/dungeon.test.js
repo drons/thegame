@@ -2372,7 +2372,7 @@ const DUN_REF_PREV = {
       ['iron_ore', 'руда'], ['copper_ore', 'руда'], ['coal', 'минерал'],
       ['stone_chunk', 'минерал'], ['silver_ore', 'руда'],
       ['quartz', 'минерал'], ['obsidian', 'минерал'], ['gold_ore', 'руда'],
-      ['phosphorite', 'минерал'],
+      ['phosphorite', 'минерал'], ['herb_healing', 'минерал'],
     ],
   },
   '000002.json': {
@@ -2384,6 +2384,7 @@ const DUN_REF_PREV = {
       ['stone_chunk', 'минерал'], ['quartz', 'минерал'],
       ['obsidian', 'минерал'], ['amethyst', 'самоцвет'],
       ['phosphorite', 'минерал'], ['sapphire', 'самоцвет'],
+      ['herb_mana', 'минерал'],
     ],
   },
   '000003.json': {
@@ -2394,7 +2395,7 @@ const DUN_REF_PREV = {
     руда: [
       ['iron_ore', 'руда'], ['copper_ore', 'руда'], ['coal', 'минерал'],
       ['silver_ore', 'руда'], ['quartz', 'минерал'], ['gold_ore', 'руда'],
-      ['ruby', 'самоцвет'],
+      ['ruby', 'самоцвет'], ['wood_log', 'минерал'], ['hide', 'минерал'],
     ],
   },
   '000004.json': {
@@ -2406,6 +2407,7 @@ const DUN_REF_PREV = {
       ['sulfur', 'минерал'], ['stone_chunk', 'минерал'],
       ['quartz', 'минерал'], ['silver_ore', 'руда'], ['emerald', 'самоцвет'],
       ['sapphire', 'самоцвет'], ['phosphorite', 'минерал'],
+      ['herb_bitter', 'минерал'],
     ],
   },
   '000005.json': {

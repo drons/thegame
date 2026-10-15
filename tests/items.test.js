@@ -1581,7 +1581,7 @@ test('000158.02 L2: loot-инварианты новых 14 — terrains неп�
   }
 });
 
-test('000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 48 предметов — loot undefined (пин «не тронуто»)', () => {
+test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 43 предмета — loot undefined (пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
   const byId = new Map(I.allItems().map((it) => [it.id, it]));
   const newIds = new Set(LOOT_00015802.map((e) => e.id));
   const nuggetIdSet = new Set(NUGGETS_00015802.map(([id]) => id));
@@ -1593,16 +1593,20 @@ test('000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       id + ': loot самородка (краснота: поля нет; tier ' + tier
       + ' → frequency ' + NUGGET_FREQ[tier] + ')');
   }
-  // ВСЕ ПРОЧИЕ предметы (48 = каталог − 14 самородков − 14 новых):
-  // loot ОТСУТСТВУЕТ — пин «остальные файлы не тронуты».
+  // ВСЕ ПРОЧИЕ предметы (43 = каталог − 14 самородков − 14 новых
+  // − 5 reagent'ов 000220): loot ОТСУТСТВУЕТ — пин «остальные файлы
+  // не тронуты».
+  const REAGENTS_000220 = new Set(['wood_log', 'hide', 'herb_healing',
+    'herb_mana', 'herb_bitter']);
   let others = 0;
   for (const it of I.allItems()) {
-    if (nuggetIdSet.has(it.id) || newIds.has(it.id)) continue;
+    if (nuggetIdSet.has(it.id) || newIds.has(it.id)
+        || REAGENTS_000220.has(it.id)) continue;
     assert.equal(it.loot, undefined,
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 48, 'прочих предметов — ровно 48');
+  assert.equal(others, 43, 'прочих предметов — ровно 43');
 });
 
 test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
@@ -1843,17 +1847,18 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
     'near_mountains: «yes» — «loot.near_mountains — boolean»');
 });
 
-// --- Задача 000211.06: 28 лут-предметов — "icon": ссылка на svg в json ---
+// --- Задача 000211.06: 33 лут-предмета — "icon": ссылка на svg в json ---
 //
 // Контракт — memory/000211.06-items-loot-icons.md §2.1 (RED-стадия):
 //   * форма `"icon": "assets/sprites/loot/<id>.svg"` — КОНЕЦ JSON-
 //     объекта (после "loot"); source of truth — assets/items/*.json
 //     (зеркало src/items-data.js покрывается deepEqual :59);
-//   * ВСЕ 28 лут-предметов (live-скан: объект loot + непустые
+//   * ВСЕ 33 лут-предмета (live-скан: объект loot + непустые
 //     terrains + строковый id — тот же строгий фильтр, что map.js
-//     lootCandidates / LOOT_ITEM_IDS tests/sprites.test.js) — icon =
-//     конвенции, 28/28 svg существует;
-//   * прочие 48 предметов — icon НЕ задан (пин «не тронуто», L3-форма);
+//     lootCandidates / LOOT_ITEM_IDS tests/sprites.test.js; 000220:
+//     +5 строительных reagent) — icon = конвенции, 33/33 svg существует;
+//   * прочие 43 предмета — icon НЕ задан (пин «не тронуто», L3-форма;
+//     5 reagent'ов 000220 — с loot+icon);
 //   * schema.json — icon ОПЦИОНАЛЬНОЕ свойство: точная форма
 //     {type, pattern} (паттерн — дословно ТЗ), НЕ в required, верхний
 //     additionalProperties false (000141: именованное поле — в том же
@@ -1865,7 +1870,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test('000211.06 I1: 28 лут-предметов — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 48 — icon undefined (пин «не тронуто»)', () => {
+test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 43 — icon undefined (пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f))
     .sort();
@@ -1883,9 +1888,9 @@ test('000211.06 I1: 28 лут-предметов — icon = assets/sprites/loot/
         && typeof it.id === 'string';
     })
     .map((it) => it.id);
-  assert.equal(lootIds.length, 28,
-    'лут-предметов — ровно 28 (live-скан JSON-каталога, фильтр '
-    + 'map.js lootCandidates)');
+  assert.equal(lootIds.length, 33,
+    'лут-предметов — ровно 33 (live-скан JSON-каталога, фильтр '
+    + 'map.js lootCandidates; 000220: +5 строительных reagent)');
   for (const id of lootIds) {
     const it = byId.get(id);
     assert.equal(it.icon, 'assets/sprites/loot/' + id + '.svg',
@@ -1902,10 +1907,10 @@ test('000211.06 I1: 28 лут-предметов — icon = assets/sprites/loot/
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
   }
-  assert.equal(others, 48, 'прочих предметов — ровно 48');
+  assert.equal(others, 43, 'прочих предметов — ровно 43');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 28,
-    'icon — ровно у 28 предметов (пин: ни больше, ни меньше)');
+    [...byId.values()].filter((it) => 'icon' in it).length, 33,
+    'icon — ровно у 33 предметов (пин: ни больше, ни меньше)');
 });
 
 test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойство {type: string, pattern: ^assets/sprites/loot/[\\w_]+\\.svg$} (дословно ТЗ), «icon» НЕ в required, additionalProperties верхнего уровня false', () => {
@@ -1918,7 +1923,7 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
     + 'свойства icon в схеме нет); факт: '
     + JSON.stringify(s.properties.icon));
   assert.ok(!s.required.includes('icon'),
-    'icon НЕ в required (прочие 48 предметов остаются валидными); '
+    'icon НЕ в required (прочие 43 предмета остаются валидными); '
     + 'факт: ' + JSON.stringify(s.required));
   assert.equal(s.additionalProperties, false,
     'верхний additionalProperties остаётся false (000141)');

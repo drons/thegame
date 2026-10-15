@@ -44,16 +44,18 @@ const NUGGET_LOOT = new Set([
   'mithril_ore', 'quartz', 'obsidian', 'phosphorite', 'ruby',
   'sapphire', 'emerald', 'amethyst', 'diamond',
 ]);
-// 13 лесных reagent (terrains ⊇ 'лес'); грибы ⊆ лес (SPEC/000158.02).
+// 18 лесных reagent (terrains ⊇ 'лес'); грибы ⊆ лес (SPEC/000158.02).
+// 000220: +5 строительных reagent (все 5 несут «лес»).
 const FOREST_REAGENTS = new Set([
   'berry_red', 'berry_blue', 'berry_wild', 'herb_sun', 'herb_wind',
   'root_moon', 'root_ember', 'fruit_apple', 'fruit_plum', 'fruit_quince',
   'mushroom_grey', 'mushroom_glow', 'mushroom_ink',
+  'wood_log', 'hide', 'herb_healing', 'herb_mana', 'herb_bitter',
 ]);
 const MUSHROOM_LOOT = new Set(
   ['mushroom_grey', 'mushroom_glow', 'mushroom_ink']);
-// Живой анти-дрейф: id ВСЕХ предметов каталога с полем loot (сейчас 28:
-// 14 самородков + 14 reagent).
+// Живой анти-дрейф: id ВСЕХ предметов каталога с полем loot (сейчас 33:
+// 14 самородков + 19 reagent — 000220: +5 строительных).
 const LOOT_ITEM_IDS = new Set(
   ITEMS.filter((it) => it && it.loot && typeof it.loot === 'object')
        .map((it) => it.id));
@@ -91,9 +93,10 @@ function oldFields(t) {
   return o;
 }
 
-test('000158.03 ML1: поле loot в tileAt — null | {item: id} на ВСЁМ 240×240; id ∈ каталогу (28 loot-предметов)', () => {
-  assert.equal(LOOT_ITEM_IDS.size, 28,
-    'каталог: 28 предметов с полем loot (14 самородков + 14 reagent)');
+test('000158.03 ML1: поле loot в tileAt — null | {item: id} на ВСЁМ 240×240; id ∈ каталогу (33 loot-предмета)', () => {
+  assert.equal(LOOT_ITEM_IDS.size, 33,
+    'каталог: 33 предмета с полем loot (14 самородков + 19 reagent; '
+    + '000220: +5 строительных)');
   const { tiles } = getProbe();
   let checked = 0;
   for (const t of tiles.values()) {
@@ -172,7 +175,7 @@ test('000158.03 ML3: распределение — трава: первые 200
     + '(Σ frequency травяных reagent, 000158.02 §2.1; паттерн 000021)');
 });
 
-test('000158.03 ML4: распределение — лес: состав (13 лесных reagent; самородки ТОЛЬКО если nearMountain), ≥1 mushroom_*', () => {
+test('000158.03 ML4: распределение — лес: состав (18 лесных reagent; самородки ТОЛЬКО если nearMountain), ≥1 mushroom_*', () => {
   const { map, tiles } = getProbe();
   assert.equal(typeof map.nearMountain, 'function',
     'map.js: нет функции инстанса nearMountain(x, y) (краснота: не реализовано)');
@@ -193,7 +196,7 @@ test('000158.03 ML4: распределение — лес: состав (13 л�
   }
   assert.ok(n > 500, 'в окне ≥500 пустых лесных тайлов (зонд)');
   assert.equal(bad, 0,
-    `лоут леса: нарушен состав (${bad}: 13 лесных reagent + самородки `
+    `лоут леса: нарушен состав (${bad}: 18 лесных reagent + самородки `
     + `только рядом с горой; класс→terrain — SPEC/000158.02); `
     + `первый: ${firstBad}`);
   assert.ok(withLoot >= 1,

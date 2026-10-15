@@ -4,5 +4,12 @@
   "kind": "reagent",
   "weight": 0.5,
   "value": 5,
-  "desc": "Кожа зверя, высушенная и отбитая: мягкая, но держит удар."
+  "desc": "Кожа зверя, высушенная и отбитая: мягкая, но держит удар.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.02
+  },
+  "icon": "assets/sprites/loot/hide.svg"
 }

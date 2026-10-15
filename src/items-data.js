@@ -378,6 +378,8 @@
       weight: 2,
       value: 3,
       desc: "Тяжёлое бревно: основа всякой столярной работы.",
+      loot: { terrains: ["лес"], frequency: 0.02 },
+      icon: "assets/sprites/loot/wood_log.svg",
     },
     // 000036.json
     {
@@ -396,6 +398,8 @@
       weight: 0.5,
       value: 5,
       desc: "Кожа зверя, высушенная и отбитая: мягкая, но держит удар.",
+      loot: { terrains: ["лес"], frequency: 0.02 },
+      icon: "assets/sprites/loot/hide.svg",
     },
     // 000038.json
     {
@@ -414,6 +418,8 @@
       weight: 0.1,
       value: 2,
       desc: "Трава исцеления: горьковатая, но заваренная затягивает раны.",
+      loot: { terrains: ["болото", "лес"], frequency: 0.02 },
+      icon: "assets/sprites/loot/herb_healing.svg",
     },
     // 000040.json
     {
@@ -423,6 +429,8 @@
       weight: 0.1,
       value: 3,
       desc: "Манная трава: в настойке шепчет об энергии, которой мало.",
+      loot: { terrains: ["болото", "лес"], frequency: 0.02 },
+      icon: "assets/sprites/loot/herb_mana.svg",
     },
     // 000041.json
     {
@@ -432,6 +440,8 @@
       weight: 0.1,
       value: 2,
       desc: "Горечавка: чистая горечь, без неё зелье не держится.",
+      loot: { terrains: ["болото", "лес"], frequency: 0.02 },
+      icon: "assets/sprites/loot/herb_bitter.svg",
     },
     // 000042.json
     {

@@ -616,17 +616,19 @@ test('visuals 000158.06: эффективный глиф при ZOOM_START — �
 //     S.LOOT_MIN_ZOOM = 16 (своя константа рендера),
 //     S.LOOT_VISUAL_SEED = 0x7f3a51c9 (свой 32-bit сид — НЕ
 //     VISUALS_SEED/DUNGEON_FLOOR_SEED/LOOT_SEED map.js);
-//   * каталог: assets/sprites/loot/<id>.svg — 1 на item-id, ровно 28
-//     (live-скан LOOT_ITEM_IDS), allAssetPaths обязан их включать.
+//   * каталог: assets/sprites/loot/<id>.svg — 1 на item-id, ровно 33
+//     (live-скан LOOT_ITEM_IDS; 000220: +5 строительных reagent),
+//     allAssetPaths обязан их включать.
 // Красные (RED-станция): S.lootSprite/LOOT_SIZE/LOOT_MIN_ZOOM/
 // LOOT_VISUAL_SEED отсутствуют в exports, файлов в assets/ нет —
 // каждый тест падает по отсутствию символа/файла (не синтаксис).
 
-test('SP-LOOT-1a 000158.05: lootSprite — чистая/детерминированная; sprite = assets/sprites/loot/<id>.svg; size = LOOT_SIZE ∈ [0.20, 0.30]; x, y ∈ [0.08, 0.92]; все 28 файлов существуют', () => {
+test('SP-LOOT-1a 000158.05: lootSprite — чистая/детерминированная; sprite = assets/sprites/loot/<id>.svg; size = LOOT_SIZE ∈ [0.20, 0.30]; x, y ∈ [0.08, 0.92]; все 33 файла существуют', () => {
   assert.equal(typeof S.lootSprite, 'function',
     'контракт: экспорт S.lootSprite (красный: символа нет в sprites.js)');
-  assert.equal(LOOT_ITEM_IDS.length, 28,
-    'пин каталога: 28 природных лут-предметов (live-скан)');
+  assert.equal(LOOT_ITEM_IDS.length, 33,
+    'пин каталога: 33 природных лут-предметов (live-скан; '
+    + '000220: +5 строительных reagent)');
   const SIZE = S.LOOT_SIZE;
   assert.equal(typeof SIZE, 'number',
     'контракт: экспорт S.LOOT_SIZE (красный: отсутствует)');
@@ -715,13 +717,13 @@ test('SP-LOOT-3 000158.05: LOOT_MIN_ZOOM = 16 (жёсткий пин); LOOT_VISU
     'golden y (index 73 = mushroom_grey)');
 });
 
-test('SP-LOOT-2 000158.05: allAssetPaths ↔ каталог лута — ровно 28 путей assets/sprites/loot/<id>.svg, все существуют, чужих id нет', () => {
+test('SP-LOOT-2 000158.05: allAssetPaths ↔ каталог лута — ровно 33 пути assets/sprites/loot/<id>.svg, все существуют, чужих id нет', () => {
   const paths = S.allAssetPaths();
   const loot = paths.filter((p) => p.startsWith('assets/sprites/loot/'));
   const uniq = new Set(loot);
-  assert.equal(uniq.size, 28,
+  assert.equal(uniq.size, 33,
     'loot-путей в allAssetPaths: ' + uniq.size
-    + ' (ожидаем 28; красное: каталога assets/sprites/loot/ нет)');
+    + ' (ожидаем 33; красное: каталога assets/sprites/loot/ нет)');
   for (const id of LOOT_ITEM_IDS) {
     const p = 'assets/sprites/loot/' + id + '.svg';
     assert.ok(uniq.has(p), 'allAssetPaths: нет пути ' + p);
