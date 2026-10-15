@@ -33,7 +33,7 @@
     },
     "база": {
       "type": "string",
-      "pattern": "^[a-z][a-z0-9_]*$"
+      "pattern": "^assets/craft/\\d{6}\\.json$"
     },
     "результат": {
       "type": "object",

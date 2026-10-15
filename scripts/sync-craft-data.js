@@ -22,6 +22,12 @@
 // assets/buildings) резолвятся в id целевого файла при сборке —
 // зеркало и рантайм получают id-форму; битая ссылка — exit 1
 // (memory/000208-craft-refs.md).
+//
+// Задача 000211.09: «база» (self-ссылка на рецепт того же каталога
+// assets/craft) тоже резолвится в id целевого файла при сборке —
+// зеркало и рантайм получают id-форму; ключ опционален — не
+// домысливается; битая self-ссылка — exit 1; ссылки живут ТОЛЬКО
+// в JSON (контракт 000211 §2, memory/000211.09-craft-base-refs.md).
 
 const fs = require('fs');
 const path = require('path');
@@ -47,6 +53,7 @@ if (files.length === 0) {
 const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
 const REF_SKILLS = /^assets\/skills\/\d{6}\.json$/;
 const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
+const REF_CRAFT = /^assets\/craft\/\d{6}\.json$/;
 const REF_CACHE = new Map();
 
 function refId(ref, re, where) {
@@ -75,12 +82,15 @@ function refId(ref, re, where) {
   return data.id;
 }
 
-// Рецепт в id-форме (зеркало/рантайм): 4 группы полей-ссылок
+// Рецепт в id-форме (зеркало/рантайм): 5 групп полей-ссылок
 // резолвятся в id целевого файла; остальные поля — те же значения
-// (вход не мутируется).
+// (вход не мутируется). «База» — ключ опционален (21/31 файл без
+// него) — не домысливается.
 function resolveRecipeData(data, file) {
   return {
     ...data,
+    ...(data.база === undefined ? {} : {
+      база: refId(data.база, REF_CRAFT, `${file}: база`) }),
     результат: { ...data.результат,
       предмет: refId(data.результат.предмет, REF_ITEMS,
         `${file}: результат.предмет`) },

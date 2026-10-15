@@ -80,6 +80,7 @@ function loadSpellIds() {
 const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
 const REF_SKILLS = /^assets\/skills\/\d{6}\.json$/;
 const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
+const REF_CRAFT = /^assets\/craft\/\d{6}\.json$/;
 const REF_CACHE = new Map(); // ссылка → id цели (файл читается 1 раз)
 
 // Числовые id сырого каталога зданий (000211.04: membership вместо
@@ -118,11 +119,14 @@ function refId(ref, re, file) {
 
 // Рецепт в id-форме — та, что в зеркале src/craft-data.js и рантайме
 // (то же преобразование, что resolveRecipeData в sync-craft-data.js):
-// 4 группы полей-ссылок резолвятся в id целевого файла, остальные
-// поля — те же значения (вход не мутируется).
+// 5 групп полей-ссылок резолвятся в id целевого файла, остальные
+// поля — те же значения (вход не мутируется). «База» — ключ
+// опционален (21/31 файл без него) — не домысливается.
 function resolveRecipe(data, file) {
   return {
     ...data,
+    ...(data.база === undefined ? {} : {
+      база: refId(data.база, REF_CRAFT, file) }),
     результат: { ...data.результат,
       предмет: refId(data.результат.предмет, REF_ITEMS, file) },
     исходники: data.исходники.map(
@@ -277,9 +281,10 @@ test('улучшенные способы: «база» → рецепт кат�
   const { byId } = loadCatalog();
   for (const { file, data } of byId.values()) {
     if (data.база === undefined) continue;
-    const base = byId.get(data.база);
+    const baseId = refId(data.база, REF_CRAFT, file);
+    const base = byId.get(baseId);
     assert.ok(base, `${file}: базовый рецепт "${data.база}" нет в каталоге`);
-    assert.notEqual(data.база, data.id, `${file}: цикл «база» на самом себе`);
+    assert.notEqual(baseId, data.id, `${file}: цикл «база» на самом себе`);
     assert.equal(base.data.тип, data.тип,
       `${file}: улучшенный способ другого вида, чем базовый`);
     assert.equal(base.data.результат.предмет, data.результат.предмет,
@@ -298,12 +303,15 @@ test('улучшенные способы: «база» → рецепт кат�
     // Обход цепочки «база» завершается (циклов нет).
     const seen = new Set();
     let cur = data;
+    let curFile = file;
     let guard = 0;
     while (cur && cur.база !== undefined) {
       assert.ok(++guard <= byId.size, `${file}: цикл в цепочке «база»`);
       assert.ok(!seen.has(cur.id), `${file}: цикл на "${cur.id}"`);
       seen.add(cur.id);
-      cur = byId.get(cur.база).data;
+      const next = byId.get(refId(cur.база, REF_CRAFT, curFile));
+      cur = next.data;
+      curFile = next.file;
     }
   }
 });
@@ -491,7 +499,7 @@ test('000157.04 R2: 12 именованных рецептов (id/тип/рез
       assert.equal(r.data.база, undefined,
         `${id}: без «база» (огранка «с нуля» — базового рецепта на самоцветы нет)`);
     } else {
-      assert.equal(r.data.база, base,
+      assert.equal(refId(r.data.база, REF_CRAFT, r.file), base,
         `${id}: «база» — "${base}"`);
     }
   }
@@ -543,7 +551,8 @@ test('000157.04 R5: 8 цепочек «база» (тот же тип/резул
     assert.ok(base, `базовый рецепт "${baseId}" в каталоге`);
     const c = child.data;
     const b = base.data;
-    assert.equal(c.база, baseId, `${childId}: «база» — "${baseId}"`);
+    assert.equal(refId(c.база, REF_CRAFT, child.file), baseId,
+      `${childId}: «база» — "${baseId}"`);
     assert.equal(c.тип, b.тип, `${childId}: тот же тип, что у базы`);
     assert.equal(c.результат.предмет, b.результат.предмет,
       `${childId}: тот же предмет-результат, что у базы`);
@@ -561,12 +570,15 @@ test('000157.04 R5: 8 цепочек «база» (тот же тип/резул
     // Обход цепочки «база» завершается (циклов нет).
     const seen = new Set();
     let cur = c;
+    let curFile = child.file;
     let guard = 0;
     while (cur && cur.база !== undefined) {
       assert.ok(++guard <= byId.size, `${childId}: цикл в цепочке «база»`);
       assert.ok(!seen.has(cur.id), `${childId}: цикл на "${cur.id}"`);
       seen.add(cur.id);
-      cur = byId.get(cur.база).data;
+      const next = byId.get(refId(cur.база, REF_CRAFT, curFile));
+      cur = next.data;
+      curFile = next.file;
     }
   }
 });
@@ -645,6 +657,21 @@ const FIXTURE_RECIPE = {
   'здания': ['assets/buildings/000003.json'],
   'уровень': 1,
   'описание': 'Фикстура 000208: ссылки на файлы каталогов',
+};
+
+// Цель self-ссылки «база» (000211.09): ВСЕ 4 группы ссылок — resolveRecipeData
+// sync читает их безусловно для каждого файла каталога; цель без них —
+// TypeError, а не fail-closed exit 1.
+const FIXTURE_BASE_RECIPE = {
+  id: 'base_recipe',
+  'название': 'Базовый рецепт',
+  'тип': 'столярное_дело',
+  'результат': { 'предмет': 'assets/items/000001.json', 'количество': 1 },
+  'исходники': [{ 'предмет': 'assets/items/000002.json', 'количество': 2 }],
+  'навыки': ['assets/skills/000001.json'],
+  'здания': ['assets/buildings/000003.json'],
+  'уровень': 1,
+  'описание': 'Фикстура 000211.09: цель self-ссылки «база»',
 };
 
 // tmp-«репозиторий»: копия реального sync-craft-data.js +
@@ -795,6 +822,126 @@ test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + и�
         (r.stdout || '') + (r.stderr || ''));
       assert.match(r.stderr || '', /assets\/items\/000001\.json/,
         'в stderr — имя ссылки на цель без id');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+// --- Задача 000211.09: «база» → self-ссылка на файл каталога craft (TDD) ---
+//
+// Красная стадия: 10 значений «база» ещё в id-форме, узел «база»
+// schema.json — паттерн id, sync-craft-data.js без 4-й per-catalog
+// группы (REF_CRAFT) — тесты ниже падают именно по этому. Контракт:
+// memory/000211.09-craft-base-refs.md (формат ссылки — 000211 §2;
+// прецедент self-ссылки — 000211.04 spells). Синк запускается в
+// tmp-«репозитории» (makeTmpCraftRepo — копия РЕАЛЬНОГО скрипта,
+// ROOT он резолвит из __dirname).
+
+test('000211.09 R1: schema.json — «база» закреплена per-catalog паттерном', () => {
+  const schema = loadSchema();
+  assert.deepEqual(schema.properties.база,
+    { type: 'string', pattern: '^assets/craft/\\d{6}\\.json$' },
+    '«база» — self-ссылка на файл каталога assets/craft '
+    + '(type string без смены типа, null-ветки нет — ключ опционален)');
+});
+
+test('000211.09 R2: все 10 «база» — self-ссылки: per-catalog паттерн, резолв, цель — рецепт того же каталога, id цели = значению зеркала (анти-вакуум 10/10)', () => {
+  const { byId } = loadCatalog();
+  const { CRAFT_BY_ID } = loadCraftData();
+  let baseRefs = 0;
+  const baseTargets = new Set();
+  for (const { file, data } of byId.values()) {
+    if (data.база === undefined) continue;
+    baseRefs += 1;
+    assert.match(data.база, REF_CRAFT,
+      `${file}: «база» "${data.база}" — self-ссылка на файл каталога assets/craft`);
+    const id = refId(data.база, REF_CRAFT, file);
+    assert.ok(byId.has(id),
+      `${file}: цель self-ссылки «база» (id "${id}") — рецепт того же каталога`);
+    assert.equal(id, CRAFT_BY_ID[data.id].база,
+      `${file}: id целевого файла «${data.база}» === прежнему значению «база» зеркала`);
+    baseTargets.add(id);
+  }
+  // Анти-вакуум: точные счётчики (контракт memory/000211.09 §2).
+  assert.equal(baseRefs, 10, 'анти-вакуум: ровно 10 self-ссылок «база»');
+  assert.equal(baseTargets.size, 10,
+    'анти-вакуум: ровно 10 уникальных целей «база»');
+});
+
+test('000211.09 R3: sync-craft-data.js запекает «база» в id-форму (tmp-репозиторий)', () => {
+  const recipe = JSON.parse(JSON.stringify(FIXTURE_RECIPE));
+  recipe.база = 'assets/craft/000002.json';
+  const dir = makeTmpCraftRepo(
+    { '000001.json': JSON.stringify(recipe),
+      '000002.json': JSON.stringify(FIXTURE_BASE_RECIPE) },
+    FIXTURE_TARGETS);
+  try {
+    const script = path.join(dir, 'scripts', 'sync-craft-data.js');
+    const run1 = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+    assert.equal(run1.status, 0,
+      'sync-craft-data.js на tmp-репозитории со self-ссылкой «база»: '
+      + (run1.stdout || '') + (run1.stderr || ''));
+    const out = path.join(dir, 'src', 'craft-data.js');
+    const text = fs.readFileSync(out, 'utf8');
+    // Данные модуля — РЕЗОЛВЕННАЯ id-форма: «база» — id целевого файла.
+    assert.match(text, /база: "base_recipe"/,
+      '«база» — резолв-ид рецепта-цели');
+    // Scope на строку данных: шапка «// Рецепты (assets/craft/…)»
+    // легитимно содержит craft-путь — глобальный пин здесь неверен.
+    assert.doesNotMatch(text, /база: "assets\/craft\/\d{6}\.json"/,
+      'в данных модуля нет сырой self-ссылки «база»');
+    assert.doesNotMatch(text, /assets\/(items|skills|buildings)\//,
+      'в данных модуля нет сырых ссылок «assets/…» (пин 000208)');
+    // Повторный запуск byte-identical.
+    const before = fs.readFileSync(out, 'utf8');
+    const run2 = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+    assert.equal(run2.status, 0,
+      'повторный запуск: ' + (run2.stdout || '') + (run2.stderr || ''));
+    assert.equal(fs.readFileSync(out, 'utf8'), before,
+      'повторный запуск byte-identical');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('000211.09 R4: sync-craft-data.js — битая «база» → exit 1 + имя ссылки в stderr', () => {
+  // 1. Нет цели self-ссылки (000009.json — нет в tmp-каталоге).
+  {
+    const recipe = JSON.parse(JSON.stringify(FIXTURE_RECIPE));
+    recipe.база = 'assets/craft/000009.json';
+    const dir = makeTmpCraftRepo(
+      { '000001.json': JSON.stringify(recipe) }, FIXTURE_TARGETS);
+    try {
+      const r = spawnSync(process.execPath,
+        [path.join(dir, 'scripts', 'sync-craft-data.js')],
+        { encoding: 'utf8' });
+      assert.equal(r.status, 1,
+        'битая «база» (нет цели) обязана дать exit 1: '
+        + (r.stdout || '') + (r.stderr || ''));
+      assert.match(r.stderr || '', /assets\/craft\/000009\.json/,
+        'в stderr — имя битой self-ссылки (нет цели)');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  // 2. Цель существует, но без id (fires на 000001: refId «база» раньше,
+  // чем цикл дойдёт до 000002).
+  {
+    const recipe = JSON.parse(JSON.stringify(FIXTURE_RECIPE));
+    recipe.база = 'assets/craft/000002.json';
+    const dir = makeTmpCraftRepo(
+      { '000001.json': JSON.stringify(recipe),
+        '000002.json': '{"name": "без id"}\n' }, FIXTURE_TARGETS);
+    try {
+      const r = spawnSync(process.execPath,
+        [path.join(dir, 'scripts', 'sync-craft-data.js')],
+        { encoding: 'utf8' });
+      assert.equal(r.status, 1,
+        'цель «база» без id обязана дать exit 1: '
+        + (r.stdout || '') + (r.stderr || ''));
+      assert.match(r.stderr || '', /assets\/craft\/000002\.json/,
+        'в stderr — имя self-ссылки на цель без id');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
