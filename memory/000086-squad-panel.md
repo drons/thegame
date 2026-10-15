@@ -130,6 +130,11 @@ G.squadUI = {
                                      // panel.style.display === 'flex'
 }
 ```
+000217: + `applyLayer(overLocation)` — контекстный подъём z-25 над
+оверлеем локации/боя (общий хелпер applyPanelLayer, паттерн 000206/
+000195): прежнее «дизайн z-10 под оверлеями» ПЕРЕПИСАН — панель в
+городе/подземелье/бою видима над оверлеем z-20. Контракт —
+memory/000217-squad-panel-over-location.md.
 
 * **npcs НЕ передаётся в init** — читается лениво внутри ui.js:
   `function npcs() { return (G.NpcData && G.NpcData.NPCS) || []; }`

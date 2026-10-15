@@ -495,10 +495,13 @@
   }
 
   const Z_OVER_LOCATION = 25;
-  function applyLayer(overLocation) {
+  function applyPanelLayer(panel, isOpen, overLocation) {
     if (!panel) return;
     const z = (overLocation && isOpen()) ? String(Z_OVER_LOCATION) : '';
     if (panel.style.zIndex !== z) panel.style.zIndex = z;
+  }
+  function applyLayer(overLocation) {
+    applyPanelLayer(panel, isOpen, overLocation);
   }
 
   G.playerUI = {
@@ -1415,6 +1418,10 @@
       }
     }
 
+    function applyLayer(overLocation) {
+      applyPanelLayer(panel, isOpen, overLocation);
+    }
+
     G.squadUI = {
       // ЖИВЫЕ ссылки (main.js, один раз; идемпотентно — перезапись):
       // roster — Array | null (мутация hire/dismiss/payWages видна
@@ -1432,6 +1439,7 @@
       toggle,
       render,
       isOpen,
+      applyLayer,
       // 000145: live-ссылки для вкладки «Персонаж» (ряд партии).
       // В ИГРЕ вкладка читает `__game.state.{roster,efir}` (main.js
       // выставил те же live-объекты) — это АДДЕТИВНЫЙ read-only

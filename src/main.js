@@ -3374,6 +3374,15 @@
             && typeof G.buildingActions.renameInputActive === 'function'
             && G.buildingActions.renameInputActive()));
       }
+      // 000217: панель «Отряд» — тот же подъём, что 000195/000206
+      // (баг-близнец: z-10 под оверлеем z-20 в городе/подземелье/бою).
+      if (G.squadUI && typeof G.squadUI.applyLayer === 'function') {
+        G.squadUI.applyLayer(!!(inDungeon || inCombat) && !inNpc
+          && !inBuilding && !inCraft && !inResurrect && !(
+            G.buildingActions
+            && typeof G.buildingActions.renameInputActive === 'function'
+            && G.buildingActions.renameInputActive()));
+      }
       // 000212: #hud — единое инфо-окно — в подземельях/пещерах
       // ПОВЕРХ оверлея (frame-driven, идемпотентно; '25' — общий
       // динамический слот 000206; в бою подъём снят — боевой оверлей
