@@ -362,15 +362,16 @@
         runAction(c, item.action);
         render();
       });
-      // Счётчик действий (задача 000199): персистентный
-      // <span class="combat-actcount"> ТОЛЬКО на «Удар»/«Книга
-      // заклинаний» (ТЗ: количество действий — числом на кнопке).
-      // Создаётся ОДИН раз здесь, как кнопки (урок 000149:
-      // пересоздание в render убивает клик); render обновляет только
-      // textContent/display. Прочие 5 кнопок — БЕЗ бейджа (пины
-      // 000124/CU171/CU178); текст «Шаги» НЕ выводится (D4: кнопки
-      // движения нет — остаток шагов на canvas + в журнале).
-      if (item.action === 'attack' || item.action === 'spellbook') {
+      // Счётчик действий (задача 000199, 000199.01): персистентный
+      // <span class="combat-actcount"> на «Удар»/«Книга
+      // заклинаний»/«Конец хода» (ТЗ: количество действий — числом
+      // на кнопке; «Шаги» — на «Конец хода» — ратификация D4 000199,
+      // 000199.01). Создаётся ОДИН раз здесь, как кнопки (урок
+      // 000149: пересоздание в render убивает клик); render
+      // обновляет только textContent/display. Прочие 4 кнопки — БЕЗ
+      // бейджа (пины 000124/CU171/CU178).
+      if (item.action === 'attack' || item.action === 'spellbook'
+          || item.action === 'endTurn') {
         const cnt = document.createElement('span');
         cnt.className = 'combat-actcount';
         cnt.textContent = '';
@@ -1749,9 +1750,10 @@
     // canDoAction выше (ветки 000168 — 1:1 с клавишами K/H); строки
     // disabled/title для них — без изменений.
     if (overlay) {
-      // 000199: значения счётчиков — ОДИН раз на render (actionCounts
-      // — чистое чтение c; бейджей только на attack/spellbook —
-      // countEls, остальные кнопки — undefined).
+      // 000199/000199.01: значения счётчиков — ОДИН раз на render
+      // (actionCounts — чистое чтение c; бейджей только на
+      // attack/spellbook/endTurn — countEls, остальные кнопки —
+      // undefined).
       const actCnt = actionCounts(c);
       overlay.querySelectorAll('.combat-actions button').forEach((b) => {
         const r = b.dataset.act === 'resurrect'
@@ -1769,18 +1771,24 @@
         if (b.dataset.act === 'cast' || b.dataset.act === 'heal') {
           b.style.display = castHealVis(c, b.dataset.act) ? '' : 'none';
         }
-        // Счётчик действий (000199): персистентный span (build, урок
-        // 000149) — render обновляет ТОЛЬКО textContent/display.
-        // «Удар» — ВСЕГДА видим (включая 0, D3); «Книга заклинаний»
-        // — «int/wis» на ходу игрока и в фазе мобов, на ходу
-        // союзника скрыта (книга ему структурно недоступна —
-        // allyCanDo; «0» отклонено — смешивает «нет пула» и
-        // «недоступно»).
+        // Счётчик действий (000199/000199.01): персистентный span
+        // (build, урок 000149) — render обновляет ТОЛЬКО
+        // textContent/display. «Удар» — ВСЕГДА видим (включая 0,
+        // D3); «Книга заклинаний» — «int/wis» на ходу игрока и в
+        // фазе мобов, на ходу союзника скрыта (книга ему
+        // структурно недоступна — allyCanDo; «0» отклонено —
+        // смешивает «нет пула» и «недоступно»); «Конец хода» —
+        // остаток шагов активного (ратификация D4 000199,
+        // 000199.01), ВСЕГДА видим, включая 0 (исчерпанность пула —
+        // видно; ветка ДО spellbook-fallback — иначе «int/wis»).
         const cnt = countEls[b.dataset.act];
         if (cnt) {
           if (b.dataset.act === 'attack') {
             cnt.style.display = '';
             cnt.textContent = String(actCnt.attack);
+          } else if (b.dataset.act === 'endTurn') {
+            cnt.style.display = '';
+            cnt.textContent = String(actCnt.steps);
           } else if (actCnt.spell == null) {
             cnt.style.display = 'none';
             cnt.textContent = '';
@@ -1892,9 +1900,10 @@
     return !!(u && u.kind === 'efir');
   }
 
-  // 000199: счётчики действий для бейджей кнопок — ОДИН чистый
-  // расчёт на render (чтения: c.ps/c.efs + activeUnit; мутаций,
-  // c._rng, Game-чтений сверх G.activeUnitId в activeUnit — нет):
+  // 000199/000199.01: счётчики действий для бейджей кнопок — ОДИН
+  // чистый расчёт на render (чтения: c.ps/c.efs + activeUnit;
+  // мутаций, c._rng, Game-чтений сверх G.activeUnitId в activeUnit
+  // — нет):
   //  * «Удар» (attack) — ВСЕГДА видим (включая 0, D3): игрок и фаза
   //    мобов — c.ps.attack; наёмник — u.attackLeft; Эфир — c.efs.
   //    touch (null-guard → 0, ветка 000180 fallback);
@@ -1903,17 +1912,24 @@
   //    строке «Огонь|Леч»; сумма отклонена — смешивает пулы) ТОЛЬКО
   //    на ходу игрока и в фазе мобов; на ходу СОЮЗНИКА — null
   //    (книга структурно недоступна — allyCanDo 'spellbook'; бейдж
-  //    «0» отклонён: смешивает «нет пула» с «недоступно»).
+  //    «0» отклонён: смешивает «нет пула» с «недоступно»);
+  //  * «Конец хода» (endTurn) — остаток шагов активного (ратификация
+  //    D4 000199, 000199.01; поле `steps` — по концепции метки
+  //    «Шаги» убранной строки): игрок и фаза мобов — c.ps.moveLeft
+  //    (D3-фолбэк, паритет attack); наёмник — u.moveLeft; Эфир —
+  //    c.efs.move (null-guard → 0, паритет touch).
   function actionCounts(c) {
     const au = activeUnit(c);
     if (au) {
       if (au.kind === 'efir') {
-        return { attack: c.efs ? c.efs.touch : 0, spell: null };
+        return { attack: c.efs ? c.efs.touch : 0, spell: null,
+                 steps: c.efs ? c.efs.move : 0 };
       }
-      return { attack: au.attackLeft, spell: null };
+      return { attack: au.attackLeft, spell: null, steps: au.moveLeft };
     }
     return { attack: c.ps.attack,
-             spell: c.ps.spellInt + '/' + c.ps.spellWis };
+             spell: c.ps.spellInt + '/' + c.ps.spellWis,
+             steps: c.ps.moveLeft };
   }
 
   // Открыть/закрыть книгу. Строки строит renderBook в render() —

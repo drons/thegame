@@ -1189,12 +1189,14 @@ test('боевой UI: кнопки .combat-actions — иконка (img assets
       + '», факт: ' + b.ariaLabel);
     // Текстовой (СЛОВЕСНОЙ) подписи (и клавиши-подсказки [J] и т.п.)
     // НЕТ. Ре-пин 000199 (ТЗ: количество действий — ЧИСЛОМ на
-    // соотв. кнопке): единственное допущенное текстовое содержимое
-    // «Удара»/«Книги заклинаний» — числовой счётчик (бейдж
-    // .combat-actcount); на остальных 5 кнопках бейджа НЕТ и
-    // textContent '' (vm-стаб НЕ пересчитывает textContent кнопки из
-    // children — бейдж читается как child, ловушка spellbook.test.js
-    // L27; в реальном DOM button.textContent = текст бейджа).
+    // соотв. кнопке); ре-пин 000199.01: «Конец хода» — остаток
+    // шагов (одно число, без «/»). Единственное допущенное
+    // текстовое содержимое «Удара»/«Книги заклинаний»/«Конец хода»
+    // — числовой счётчик (бейдж .combat-actcount); на остальных 4
+    // кнопках бейджа НЕТ и textContent '' (vm-стаб НЕ пересчитывает
+    // textContent кнопки из children — бейдж читается как child,
+    // ловушка spellbook.test.js L27; в реальном DOM
+    // button.textContent = текст бейджа).
     const cntBadge = b.children
       .find((ch) => ch.className === 'combat-actcount');
     if (b.dataset.act === 'attack' || b.dataset.act === 'spellbook') {
@@ -1206,10 +1208,19 @@ test('боевой UI: кнопки .combat-actions — иконка (img assets
         'кнопка ' + b.dataset.act + ': счётчик ЧИСЛОВОЙ (словесной '
         + 'подписи нет), факт: '
         + JSON.stringify(cntBadge.textContent));
+    } else if (b.dataset.act === 'endTurn') {
+      assert.ok(cntBadge,
+        'кнопка ' + b.dataset.act + ': числовой счётчик (бейдж) есть, '
+        + 'факт: ' + JSON.stringify(
+          b.children.map((ch) => ch.className)));
+      assert.match(cntBadge.textContent, /^\d+$/,
+        'кнопка ' + b.dataset.act + ': счётчик ЧИСЛОВОЙ — остаток '
+        + 'шагов (одно число, без «/»), факт: '
+        + JSON.stringify(cntBadge.textContent));
     } else {
       assert.ok(!cntBadge,
         'кнопка ' + b.dataset.act + ': бейджа НЕТ (счётчики только на '
-        + '«Удар»/«Книга заклинаний», 000199): '
+        + '«Удар»/«Книга заклинаний»/«Конец хода», 000199/000199.01): '
         + JSON.stringify(b.children.map((ch) => ch.className)));
       assert.equal(b.textContent, '',
         'кнопка ' + b.dataset.act + ': текстовой подписи нет, '
@@ -6489,7 +6500,7 @@ test('боевой UI: 000199 — stateEl: нет «Ход:», «Отряд:», 
     'нет строки «HP x/y | MP x/y» (значения — на полосках), факт: '
     + JSON.stringify(text));
   assert.ok(!/Шаги: \d+/.test(text),
-    'нет «Шаги:» (счётчик шагов НЕ выводится — D4), факт: '
+    'нет «Шаги:» (счётчик шагов — на кнопке «Конец хода», 000199.01), факт: '
     + JSON.stringify(text));
   assert.ok(!/Удар: \d+/.test(text),
     'нет «Удар:» (счётчик — на кнопке «Удар»), факт: '
@@ -6827,12 +6838,11 @@ test('боевой UI: 000199 — кнопка «Книга заклинаний
     assert.equal(badge.textContent, '',
       'скрытый бейдж — текст пуст');
   }
-  // (c) Бейдж ЕСТЬ только на attack+spellbook: НЕ на
-  //     block/quickItem/invItem/flee/endTurn/cast/heal/resurrect.
+  // (c) Бейдж ЕСТЬ только на attack+spellbook+endTurn (000199.01):
+  //     НЕ на block/quickItem/invItem/flee/cast/heal/resurrect.
   {
     const S = scene84();
-    for (const act of ['block', 'quickItem', 'invItem', 'flee',
-      'endTurn']) {
+    for (const act of ['block', 'quickItem', 'invItem', 'flee']) {
       const b = S.body.querySelectorAll('.combat-actions button')
         .find((x) => x.dataset.act === act);
       assert.ok(b, 'фикстура: кнопка ' + act + ' есть');
@@ -6860,12 +6870,164 @@ test('боевой UI: 000199 — кнопка «Книга заклинаний
       'фикстура: полная панель (cast/heal/resurrect построены): '
       + JSON.stringify(acts));
     for (const b of panelBtns) {
-      if (b.dataset.act === 'attack' || b.dataset.act === 'spellbook')
+      if (b.dataset.act === 'attack' || b.dataset.act === 'spellbook'
+        || b.dataset.act === 'endTurn')
         continue;
       assert.ok(!badgeOf199(b),
         'бейджа НЕТ на кнопке «' + b.dataset.act + '»');
     }
   }
+});
+
+// =====================================================================
+// Задача 000199.01 — бейдж остатка шагов на кнопке «Конец хода»
+// (ратификация D4 000199: строка «Шаги: n» убрана 000199, число —
+// на кнопке, которой сгорает остаток; «Удар/Огонь/Леч» — уже бейджи
+// 000199 — повторная работа не требуется). Контракт —
+// memory/000199.01-combat-steps-badge.md:
+//   * бейдж .combat-actcount (существующий класс 000199) на endTurn;
+//   * значение — пул шагов АКТИВНОГО: игрок/фаза мобов-конец —
+//     c.ps.moveLeft (D3-фолбэк, паритет attack); наёмник — u.moveLeft;
+//     Эфир — c.efs.move (null-guard → 0);
+//   * на 0 — «0» ВИДИМО (D-4, паритет attack-бейджа D3 000199).
+// Фикстуры — существующие (scene84/addMerc84/tickSlice/badgeOf199);
+// движение — реальным keydown (c.move — диспетч по активному, 000168).
+// =====================================================================
+
+test('боевой UI: 000199.01 — кнопка «Конец хода»: бейдж остатка шагов активного персонажа = c.ps.moveLeft; после шага (keydown ArrowUp, реальный ход) — уменьшение; на 0 — «0» видимо (CU199.01-STEPS-1)', () => {
+  const S = scene84();
+  assert.equal(S.G.activeUnitId(S.c), 'player', 'фикстура: ход игрока');
+  const byAct = {};
+  for (const b of S.body.querySelectorAll('.combat-actions button'))
+    byAct[b.dataset.act] = b;
+  // (a) Бейдж ЕСТЬ и несёт c.ps.moveLeft (динамическое чтение,
+  //     не хардкод).
+  const badge = badgeOf199(byAct.endTurn);
+  assert.ok(badge,
+    '000199.01: бейдж .combat-actcount есть на кнопке «Конец хода» '
+    + '(краснота: build создаёт бейджи только на attack/spellbook)');
+  assert.equal(badge.textContent, String(S.c.ps.moveLeft),
+    'бейдж = c.ps.moveLeft («3»): факт '
+    + JSON.stringify(badge.textContent));
+  // (b) Реальный шаг: ArrowUp → (3,6)→(3,5) (обstacle-клетка снята,
+  //     паттерн CU199-000121/L1836) — moveLeft 3→2, бейдж «2».
+  S.c.obstacles.clear();
+  press(S.keydown, 'ArrowUp');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(S.c.ps.moveLeft, 2, 'шаг сожжён: 3→2');
+  assert.equal(badge.textContent, '2',
+    'бейдж уменьшился после шага: «2»');
+  // (c) White-box: пул исчерпан → «0» ВИДИМО (D-4, паритет attack).
+  S.c.ps.moveLeft = 0;
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(badge.textContent, '0',
+    'пул исчерпан → «0» (зафиксированное решение D-4: видимо)');
+  assert.equal(badge.style.display, '',
+    '«0» — видимо (display \'\'), не скрыт');
+});
+
+test('боевой UI: 000199.01 — бейдж шагов несёт АКТИВНОГО персонажа: наёмник u.moveLeft / Эфир c.efs.move (null-guard → «0», без краха) / фаза мобов — c.ps.moveLeft (hero, D3-фолбэк) (CU199.01-STEPS-ALIAS)', () => {
+  // (a) Ход наёмника: u.moveLeft (НЕ число игрока).
+  {
+    const S = scene84();
+    const merc = addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'a1', 'фикстура: активен наёмник');
+    const badge = badgeOf199(
+      S.body.querySelectorAll('.combat-actions button')
+        .find((b) => b.dataset.act === 'endTurn'));
+    assert.ok(badge,
+      '000199.01: бейдж есть на ходу наёмника (краснота: на endTurn '
+      + 'бейджа нет вовсе)');
+    assert.equal(badge.textContent, String(merc.moveLeft),
+      'бейдж = u.moveLeft («1» — НЕ «3» игрока): факт '
+      + JSON.stringify(badge.textContent));
+    // Реальный шаг: (3,5)→(3,4) (волк (1,1) — путь свободен;
+    // obstacle-клетка снята) — moveLeft 1→0, бейдж «0».
+    S.c.obstacles.clear();
+    press(S.keydown, 'ArrowUp');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(merc.moveLeft, 0, 'шаг наёмника: 1→0');
+    assert.equal(badge.textContent, '0', 'бейдж: «0» после шага');
+  }
+  // (b) Ход Эфира: c.efs.move; реальный шаг 3→2; c.efs=null → «0»
+  //     (null-guard, re-render без краха — паритет CU199-BTN-ATK(c)).
+  {
+    const S = scene84({ efir: true });
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'efir', 'фикстура: активен Эфир');
+    const badge = badgeOf199(
+      S.body.querySelectorAll('.combat-actions button')
+        .find((b) => b.dataset.act === 'endTurn'));
+    assert.ok(badge, '000199.01: бейдж есть на ходу Эфира');
+    assert.equal(badge.textContent, String(S.c.efs.move),
+      'бейдж = c.efs.move («3»): факт '
+      + JSON.stringify(badge.textContent));
+    // (2,4) свободна: реальный шаг (2,5)→(2,4), 3→2.
+    press(S.keydown, 'ArrowUp');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.c.efs.move, 2, 'шаг Эфира: 3→2');
+    assert.equal(badge.textContent, '2', 'бейдж: «2» после шага');
+    S.c.efs = null;
+    tickSlice(S.canvas, S.rafStubs); // re-render без c.efs — краха нет
+    assert.equal(badge.textContent, '0',
+      'c.efs=null → «0» (null-guard)');
+  }
+  // (c) Фаза мобов (white-box, паттерн CU199-FIXED-2(f)): активен
+  //     моб, activeUnit null → c.ps.moveLeft героя (D3-фолбэк,
+  //     паритет с attack-бейджем «фаза мобов: c.ps.attack»).
+  {
+    const S = scene84();
+    S.c.turnIndex = S.c.turnOrder.indexOf('m0');
+    S.c.phase = 'mob';
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(S.c), 'm0', 'фикстура: фаза мобов');
+    const badge = badgeOf199(
+      S.body.querySelectorAll('.combat-actions button')
+        .find((b) => b.dataset.act === 'endTurn'));
+    assert.ok(badge, '000199.01: бейдж есть в фазе мобов');
+    assert.equal(badge.textContent, String(S.c.ps.moveLeft),
+      'бейдж = c.ps.moveLeft героя (activeUnit null → D3-фолбэк)');
+  }
+});
+
+test('боевой UI: 000199.01 — бейдж у НЕАКТИВНЫХ: число неактивного союзника НЕ отображается/НЕ подставляется (бейдж = активного); рамка 000197 не смещена (CU199.01-STEPS-ALINE)', () => {
+  // (a) Наёмник добавлен, Space НЕ дан — активен ИГРОК, Вольк
+  //     НЕАКТИВЕН: бейдж = c.ps.moveLeft игрока, НЕ merc.moveLeft.
+  const S = scene84();
+  const merc = addMerc84(S.c, S.G, 3, 5, 'melee', 'Вольк');
+  assert.equal(S.G.activeUnitId(S.c), 'player',
+    'фикстура: активен игрок (Space не дан)');
+  assert.equal(merc.moveLeft, 1, 'фикстура: у неактивного 1 шаг');
+  const badge = badgeOf199(
+    S.body.querySelectorAll('.combat-actions button')
+      .find((b) => b.dataset.act === 'endTurn'));
+  assert.ok(badge,
+    '000199.01: бейдж есть на ходу активного игрока (краснота: на '
+    + 'endTurn бейджа нет вовсе)');
+  assert.equal(badge.textContent, String(S.c.ps.moveLeft),
+    'бейдж = активного (игрока) — «3»: факт '
+    + JSON.stringify(badge.textContent));
+  assert.notEqual(badge.textContent, String(merc.moveLeft),
+    'число НЕАКТИВНОГО союзника на бейдж НЕ подставляется');
+  // (b) Якорь «не ломать пины 000197»: голубая рамка #8cf2fc — на
+  //     АКТИВНОМ герое; на клетке неактивного Волька подложки/рамки
+  //     нет (drawUnits не тронут — дублирует семантику CU197-A).
+  S.c.targetId = null;
+  const ex = merc.x * 48, ey = merc.y * 48;
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложки 44×44 на клетке НЕАКТИВНОГО наёмника нет (000197)');
+  assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамки 39×39 на клетке НЕАКТИВНОГО наёмника нет (000197)');
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 1,
+    'голубой stroke #8cf2fc за окно — ровно 1: рамка активного героя');
 });
 
 // ===== 000193.01: MP-полоса наёмника — мана (u.mp/u.maxMP) =====
