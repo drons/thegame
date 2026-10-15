@@ -23,21 +23,46 @@ const vm = require('node:vm');
 // Задача 000207: сырые JSON несут ссылки
 // .стройка.исходники[].предмет «assets/items/NNNNNN.json», зеркало
 // src/buildings.js — в id-форме (sync резолвит ссылки в id).
+// Задача 000211.07: «особые_параметры.тренирует» — ссылки
+// «assets/skills/NNNNNN.json» (зеркало — тоже id-форма).
 // Mirror-тесты whole-record: резолв ссылок в id ПЕРЕД deepEqual
-// (контракт memory/000207-buildings-refs-items.md, D7).
+// (контракт memory/000207-buildings-refs-items.md, D7;
+// memory/000211.07-buildings-sprites-trains-refs.md §4.2 T2).
+// НЕ-ссылка (имя — данные не миграированы) — throw: краснота
+// осмысленная, терпимый no-op отклонён (серийный паттерн 000211.08).
 const ITEM_REF_RE = /^assets\/items\/\d{6}\.json$/;
-function resolveItemRefs(record) {
+const SKILL_REF_RE = /^assets\/skills\/\d{6}\.json$/;
+const { resolveRef } = require('../scripts/lib/json-ref.js');
+function resolveRefs(record) {
   const out = JSON.parse(JSON.stringify(record));
-  const s = out.особые_параметры && out.особые_параметры.стройка;
-  if (!s || !Array.isArray(s.исходники)) return out;
-  for (const e of s.исходники) {
-    if (e && typeof e.предмет === 'string' && ITEM_REF_RE.test(e.предмет)) {
-      const t = JSON.parse(fs.readFileSync(
-        path.join(__dirname, '..', e.предмет), 'utf8'));
-      if (!t || typeof t.id !== 'string' || t.id === '') {
-        throw new Error('resolveItemRefs: «' + e.предмет + '» без id');
+  const op = out.особые_параметры;
+  const s = op && op.стройка;
+  if (s && Array.isArray(s.исходники)) {
+    for (const e of s.исходники) {
+      if (e && typeof e.предмет === 'string' && ITEM_REF_RE.test(e.предмет)) {
+        const t = JSON.parse(fs.readFileSync(
+          path.join(__dirname, '..', e.предмет), 'utf8'));
+        if (!t || typeof t.id !== 'string' || t.id === '') {
+          throw new Error('resolveRefs: «' + e.предмет + '» без id');
+        }
+        e.предмет = t.id;
       }
-      e.предмет = t.id;
+    }
+  }
+  const tr = op && op.тренирует;
+  if (tr && Array.isArray(tr)) {
+    for (let i = 0; i < tr.length; i++) {
+      const v = tr[i];
+      if (typeof v !== 'string' || !SKILL_REF_RE.test(v)) {
+        throw new Error('resolveRefs: «тренирует» — «' + v +
+          '» не ссылка (формат "assets/skills/NNNNNN.json")');
+      }
+      const r = resolveRef(path.join(__dirname, '..'), v);
+      if (!r.ok) {
+        throw new Error('resolveRefs: «тренирует» — «' + v +
+          '» не резолвится (' + r.reason + ')');
+      }
+      tr[i] = r.id;
     }
   }
   return out;
@@ -122,7 +147,7 @@ test('файлы assets/buildings: ровно 000001..000054.json, содерж�
     assert.equal(files[i], num + '.json', `файл ${files[i]} вместо ${num}.json`);
     const fromFile = JSON.parse(fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
     assert.equal(fromFile.id, i + 1, 'id = номер файла');
-    assert.deepEqual(resolveItemRefs(fromFile), BUILDINGS[i],
+    assert.deepEqual(resolveRefs(fromFile), BUILDINGS[i],
       `${num}.json совпадает с JS-фолбэком (ссылки — в id-форме)`);
   }
   // schema.json на месте и разбирается.
@@ -844,7 +869,7 @@ test('зеркало (000102): файлы 000001..000054.json, содержим�
     const fromFile = JSON.parse(
       fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
     assert.equal(fromFile.id, i + 1, 'id = номер файла');
-    assert.deepEqual(resolveItemRefs(fromFile), BUILDINGS[i],
+    assert.deepEqual(resolveRefs(fromFile), BUILDINGS[i],
       `${num}.json совпадает с JS-каталогом (ссылки — в id-форме)`);
   }
 });
@@ -1244,7 +1269,7 @@ test('000207 R3: запекание из ссылок: зеркало src/buildi
     'GENERATED-блок: НЕТ строк "assets/items/" (в зеркале — id-форма; ссылки — только в JSON)');
 });
 
-test('000207 R4: sync-buildings-data.js резолвит ссылки в id при запекании (функциональный: tmp-копия каталога со ссылочными JSON → перегенерированный блок в id-форме, без путей "assets/items/"); битая ссылка (файл-цель отсутствует) → exit ≠ 0 (fail-closed)', () => {
+test('000207 R4: sync-buildings-data.js резолвит ссылки в id при запекании (функциональный: tmp-копия каталога со ссылочными JSON → перегенерированный блок в id-форме, без путей "assets/items/" и "assets/skills/"); битая ссылка items (файл-цель отсутствует) → exit ≠ 0; битая skills-ссылка → exit ≠ 0; голое имя в «тренирует» (дрейф) → exit ≠ 0 (fail-closed; 000211.07: skills-ссылки — 1:1 items)', () => {
   const os = require('node:os');
   const ROOT = path.join(__dirname, '..');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '000207-r4-'));
@@ -1254,14 +1279,19 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
     fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
     fs.cpSync(path.join(ROOT, 'assets', 'items'),
       path.join(tmp, 'assets', 'items'), { recursive: true });
+    fs.cpSync(path.join(ROOT, 'assets', 'skills'),
+      path.join(tmp, 'assets', 'skills'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, 'scripts', 'sync-buildings-data.js'),
       path.join(tmp, 'scripts', 'sync-buildings-data.js'));
     for (const lf of fs.readdirSync(path.join(ROOT, 'scripts', 'lib'))) {
       fs.copyFileSync(path.join(ROOT, 'scripts', 'lib', lf),
         path.join(tmp, 'scripts', 'lib', lf));
     }
-    // Фикстура — ПОСТ-миграционная форма данных (ссылки) + пара записей
-    // без .стройки (контур); файлы-цели — копия assets/items.
+    // Фикстура — ПОСТ-миграционная форма данных (ссылки): items —
+    // по пину 000207, skills — по пину 000211.07 (позиционно,
+    // конвертер idempotent: ссылка — как есть) + пара записей
+    // без .стройки (контур); файлы-цели — копии assets/items +
+    // assets/skills.
     for (const n of REF_PIN_IDS_000207.concat(R4_NO_BUILD_000207)) {
       const f = String(n).padStart(6, '0') + '.json';
       const j = readBuildingRaw_000207(n);
@@ -1271,6 +1301,9 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
         s.исходники.forEach((e, i) => {
           e.предмет = 'assets/items/' + rows[i][2] + '.json';
         });
+      }
+      if (TRAINS_PIN_000211_07[n]) {
+        convertTrainsRefs_000211_07(j);
       }
       fs.writeFileSync(path.join(tmp, 'assets', 'buildings', f),
         JSON.stringify(j, null, 2));
@@ -1292,12 +1325,28 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
     const block = out.slice(bIdx, eIdx);
     assert.ok(!block.includes('assets/items/'),
       'прогон 1: перегенерированный блок — id-форма (НЕТ строк "assets/items/" — ссылки резолвятся при запекании; сейчас скрипт печатает ссылки как есть)');
+    assert.ok(!block.includes('assets/skills/'),
+      'прогон 1: перегенерированный блок — id-форма (НЕТ строк "assets/skills/" — skills-ссылки резолвятся при запекании, 000211.07)');
     for (const bid of Object.keys(REF_PIN_000207)) {
       for (const [itemId] of REF_PIN_000207[Number(bid)]) {
         assert.ok(block.includes('предмет: "' + itemId + '"'),
           'прогон 1: блок содержит запечённый id «' + itemId
           + '» (здание ' + bid + ')');
       }
+    }
+    for (const bid of [7, 8, 10, 11]) {
+      const ids = TRAINS_PIN_000211_07[bid].map((r) => r[1]);
+      assert.ok(block.includes(
+        'тренирует: [' + ids.map((x) => '"' + x + '"').join(', ') + ']'),
+        'прогон 1: блок содержит «тренирует» школы ' + bid
+        + ' в id-форме: [' + ids.join(', ') + '] (пин 000211.07)');
+    }
+    for (const bid of [7, 8, 10, 11]) {
+      assert.ok(block.includes(
+        'спрайт: "' + SPRITE_PIN_000211_07[bid] + '"'),
+        'прогон 1: «спрайт» здания ' + bid
+        + ' — as-is в блоке (поле-данные, не ссылка): '
+        + SPRITE_PIN_000211_07[bid]);
     }
     const p1 = path.join(tmp, 'assets', 'buildings', '000001.json');
     const j1 = JSON.parse(fs.readFileSync(p1, 'utf8'));
@@ -1306,7 +1355,22 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
     const res2 = spawnSync(process.execPath, [script],
       { cwd: tmp, encoding: 'utf8' });
     assert.notEqual(res2.status, 0,
-      'прогон 2 (битая ссылка, файл-цель отсутствует): обязателен exit ≠ 0 (fail-closed); получен exit 0 — ссылка запекнулась бы молча');
+      'прогон 2 (битая ссылка items, файл-цель отсутствует): обязателен exit ≠ 0 (fail-closed); получен exit 0 — ссылка запекнулась бы молча');
+    const p7 = path.join(tmp, 'assets', 'buildings', '000007.json');
+    const j7 = JSON.parse(fs.readFileSync(p7, 'utf8'));
+    j7.особые_параметры.тренирует[0] = 'assets/skills/999999.json';
+    fs.writeFileSync(p7, JSON.stringify(j7, null, 2));
+    const res3 = spawnSync(process.execPath, [script],
+      { cwd: tmp, encoding: 'utf8' });
+    assert.notEqual(res3.status, 0,
+      'прогон 3 (битая skills-ссылка, файл-цель отсутствует): обязателен exit ≠ 0 (fail-closed, 000211.07); получен exit 0 — ссылка запекнулась бы молча');
+    const j7b = JSON.parse(fs.readFileSync(p7, 'utf8'));
+    j7b.особые_параметры.тренирует[0] = 'мечник';
+    fs.writeFileSync(p7, JSON.stringify(j7b, null, 2));
+    const res4 = spawnSync(process.execPath, [script],
+      { cwd: tmp, encoding: 'utf8' });
+    assert.notEqual(res4.status, 0,
+      'прогон 4 (голое имя в «тренирует» — дрейф): обязателен exit ≠ 0 (fail-closed); получен exit 0 — имя запекнулось бы как данные');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -1359,5 +1423,367 @@ test('000207 R5: schema.json закрепляет ссылочный конту�
     const errs = validateData(
       schema, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')), f);
     assert.deepEqual(errs, [], f + ': ошибки схемы: ' + errs.join(' | '));
+  }
+});
+
+// --- Задача 000211.07: buildings: 18 спрайтов — svg-ссылки + «тренирует»
+// (имена!) → ссылки на навыки (рефакторинг без смены поведения) ---
+//
+// Контракт: memory/000211.07-buildings-sprites-trains-refs.md: 18 записей
+// (13 slot-представителей — id ВЫВОДИТСЯ из данных (map_index есть ровно
+// у 13 записей) + лагерь 47 + города 51-54) получают топ-level «спрайт»
+// (svg-путь = СТАРОМУ литералу в src/sprites.js, byte-идентично — ноль
+// визуальных изменений); 18 школ (id 7-24) —
+// «особые_параметры.тренирует» — имена на русском → ссылки
+// «assets/skills/NNNNNN.json» (34 позиции, 30 уникальных целей; id
+// цели = прежнему имени); schema.json — закрепление обоих свойств;
+// sync — resolveSkillRef (fail-closed, 1:1 resolveItemRef); зеркало —
+// id-форма (регенерация).
+// КРАСНЫЕ (осмысленно, функциональность ещё не существует): «спрайт»
+// в JSON отсутствует (0/18), «тренирует» — имена (0/34 под паттерн),
+// свойства схемы отсутствуют, sync не резолвит skills и не
+// fail-closed по ним (печатает ссылки как есть).
+
+const SKILL_REF_RE_000211_07 = /^assets\/skills\/\d{6}\.json$/;
+
+// Пин «спрайт» (18): id каталожной записи → СТАРОМУ литералу
+// (memory §2.1.1 — ЗАКРЫТАЯ таблица в тесте, не из src/sprites.js).
+const SPRITE_PIN_000211_07 = {
+  1: 'assets/sprites/buildings/weapons_shop.svg',
+  2: 'assets/sprites/buildings/armor_shop.svg',
+  3: 'assets/sprites/buildings/apothecary.svg',
+  4: 'assets/sprites/buildings/magic_shop.svg',
+  7: 'assets/sprites/buildings/arena.svg',
+  8: 'assets/sprites/buildings/blacksmith.svg',
+  10: 'assets/sprites/buildings/archery_range.svg',
+  11: 'assets/sprites/buildings/academy.svg',
+  25: 'assets/sprites/buildings/npc_house.svg',
+  31: 'assets/sprites/buildings/cave_entrance.svg',
+  36: 'assets/sprites/buildings/temple.svg',
+  40: 'assets/sprites/buildings/rune_stone.svg',
+  44: 'assets/sprites/buildings/tavern.svg',
+  47: 'assets/sprites/buildings/camp.svg',
+  51: 'assets/sprites/cities/city_51.svg',
+  52: 'assets/sprites/cities/city_52.svg',
+  53: 'assets/sprites/cities/city_53.svg',
+  54: 'assets/sprites/cities/city_54.svg',
+};
+const SLOT_REP_IDS_000211_07 =
+  [1, 2, 3, 4, 7, 8, 10, 11, 25, 31, 36, 40, 44];
+const SPRITE_RECORD_IDS_000211_07 =
+  [...SLOT_REP_IDS_000211_07, 47, 51, 52, 53, 54];
+
+// Пин «тренирует» (18 школ, 34 позиции): школа →
+// [имя ДО, id цели, файл-цель в assets/skills]. Позиционный пин:
+// порядок и дубли массива — 1:1 (детерминизм расстановки/обучения);
+// 16 школ × 2 + 2 школы (9, 15) × 1 = 34.
+const TRAINS_PIN_000211_07 = {
+  7: [['мечник', 'swordsman', '000007'],
+      ['тяжёлое оружие', 'heavy', '000008']],
+  8: [['кузнечная рука', 'forge', '000010'],
+      ['крепкая спина', 'back', '000011']],
+  9: [['каменные кулаки', 'fists', '000009']],
+  10: [['меткость', 'accuracy', '000012'],
+       ['стрелок', 'archer', '000015']],
+  11: [['акробатика', 'acro', '000016'],
+       ['ловкий шаг', 'step', '000014']],
+  12: [['тать', 'thief', '000017'],
+       ['кошачий глаз', 'catseye', '000013']],
+  13: [['железная кожа', 'hide', '000018'],
+       ['выносливость', 'endurance', '000019']],
+  14: [['голем', 'golem', '000020'],
+       ['несокрушимость', 'unkill', '000022']],
+  15: [['глубокий вдох', 'breath', '000021']],
+  16: [['учёный', 'scholar', '000026'],
+       ['рунопись', 'runes', '000027']],
+  17: [['алхимик', 'alchemy', '000025'],
+       ['повелитель огня', 'firelord', '000023']],
+  18: [['повелитель огня', 'firelord', '000023'],
+       ['повелитель льда', 'icelord', '000024']],
+  19: [['медитация', 'meditation', '000029'],
+       ['зоркость', 'perception', '000028']],
+  20: [['старейшина', 'elder', '000032'],
+       ['ясновидение', 'precog', '000030']],
+  21: [['медитация', 'meditation', '000029'],
+       ['сердце природы', 'nature', '000031']],
+  22: [['оратор', 'orator', '000034'],
+       ['артист', 'artist', '000036']],
+  23: [['артист', 'artist', '000036'],
+       ['оратор', 'orator', '000034']],
+  24: [['предводитель', 'leader', '000035'],
+       ['торговец', 'merchant', '000033']],
+};
+const SCHOOL_IDS_000211_07 = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+  18, 19, 20, 21, 22, 23, 24];
+
+// Idempotent-конвертер имя → ссылка для tmp-фикстур (R4/T3):
+// значение уже ссылка — как есть; имя — ссылка по пину.
+function convertTrainsRefs_000211_07(record) {
+  const tr = record.особые_параметры
+    && record.особые_параметры.тренирует;
+  if (!tr || !Array.isArray(tr)) return;
+  for (let i = 0; i < tr.length; i++) {
+    if (typeof tr[i] === 'string' && SKILL_REF_RE_000211_07.test(tr[i])) {
+      continue;
+    }
+    let ref = null;
+    for (const n of Object.keys(TRAINS_PIN_000211_07)) {
+      for (const [nm, , file] of TRAINS_PIN_000211_07[n]) {
+        if (nm === tr[i]) ref = 'assets/skills/' + file + '.json';
+      }
+    }
+    if (ref === null) {
+      throw new Error('convertTrainsRefs_000211_07: имя «'
+        + tr[i] + '» нет в пине 000211.07');
+    }
+    tr[i] = ref;
+  }
+}
+
+test('000211.07 R1: "спрайт" — ровно 18 из 54 записей (13 slot-представителей — id из данных (map_index) + лагерь 47 + города 51-54); значение = ЗАКРЫТОМУ старому литералу (byte-идентично); файл svg существует; у остальных 36 — нет (строгий контур)', () => {
+  const raw = {};
+  for (const f of fs.readdirSync(DIR)
+    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    raw[parseInt(f, 10)] = JSON.parse(
+      fs.readFileSync(path.join(DIR, f), 'utf8'));
+  }
+  assert.equal(Object.keys(raw).length, 54, 'каталог: 54 файла');
+  const slotIds = Object.keys(raw).map(Number).filter((n) => {
+    const p = raw[n].особые_параметры;
+    return p && Number.isInteger(p.map_index);
+  }).sort((a, b) => a - b);
+  assert.deepEqual(slotIds,
+    SLOT_REP_IDS_000211_07.slice().sort((a, b) => a - b),
+    'slot-представители — ИЗ ДАННЫХ (map_index есть ровно у 13 записей): '
+    + slotIds.join(', '));
+  const expected = SPRITE_RECORD_IDS_000211_07.slice().sort((a, b) => a - b);
+  const withSprite = Object.keys(raw).map(Number)
+    .filter((n) => raw[n].спрайт !== undefined)
+    .sort((a, b) => a - b);
+  assert.deepEqual(withSprite, expected,
+    '«спрайт» ровно у 18 записей (получено: '
+    + (withSprite.join(', ') || 'НЕТ') + ')');
+  for (const n of expected) {
+    assert.equal(raw[n].спрайт, SPRITE_PIN_000211_07[n],
+      `${n} ${raw[n].название}: «спрайт» «${raw[n].спрайт}» ≠ старому `
+      + `литералу «${SPRITE_PIN_000211_07[n]}» (byte-идентично)`);
+    assert.ok(fs.existsSync(path.join(__dirname, '..', raw[n].спрайт)),
+      `${n}: файл svg «${raw[n].спрайт}» существует`);
+  }
+  for (const n of Object.keys(raw).map(Number).sort((a, b) => a - b)) {
+    if (expected.includes(n)) continue;
+    assert.equal(raw[n].спрайт, undefined,
+      `${n} ${raw[n].название}: «спрайт» — строгий контур 18 `
+      + `(получено ${JSON.stringify(raw[n].спрайт)})`);
+  }
+});
+
+test('000211.07 R2: "тренирует" — 18 школ (id 7-24, строгий контур: у остальных 36 — НЕТ); ВСЕ 34 позиции — ссылки "assets/skills/NNNNNN.json" (резолвятся), id цели = ЗАКРЫТОМУ пину (позиционно), name файла-цели (lower) = имени ДО (кросс-чек против skills-каталога); отрицательный контроль: «мечника» — не имя каталога', () => {
+  const pinNames = new Set();
+  const pinIds = new Set();
+  for (const rows of Object.values(TRAINS_PIN_000211_07)) {
+    for (const [name, id] of rows) {
+      pinNames.add(name);
+      pinIds.add(id);
+    }
+  }
+  assert.equal(pinNames.size, 30, 'пин: 30 уникальных имён ДО');
+  assert.equal(pinIds.size, 30, 'пин: 30 уникальных целей (id)');
+  assert.ok(!pinNames.has('мечника'),
+    'отрицательный контроль: «мечника» — не имя каталога '
+    + '(name→id нет)');
+  let pos = 0;
+  for (const n of SCHOOL_IDS_000211_07) {
+    const j = readBuildingRaw_000207(n);
+    const rows = TRAINS_PIN_000211_07[n];
+    const tr = j.особые_параметры && j.особые_параметры.тренирует;
+    assert.ok(Array.isArray(tr) && tr.length === rows.length,
+      `${n} ${j.название}: «тренирует» — массив из ${rows.length} `
+      + `(получено ${Array.isArray(tr) ? tr.length : 'НЕТ'})`);
+    for (let i = 0; i < rows.length; i++) {
+      const [name, id, file] = rows[i];
+      const v = tr[i];
+      pos += 1;
+      assert.equal(typeof v, 'string',
+        `${n} ${j.название}: позиция ${i} — строка `
+        + `(получено ${JSON.stringify(v)})`);
+      assert.ok(SKILL_REF_RE_000211_07.test(v),
+        `${n} ${j.название}: позиция ${i} «${v}» — ссылка на файл `
+        + 'skills (формат "assets/skills/NNNNNN.json"); получено имя '
+        + '— данные не миграированы');
+      assert.equal(v, 'assets/skills/' + file + '.json',
+        `${n} ${j.название}: позиция ${i} — ссылка `
+        + `«assets/skills/${file}.json» (позиционный пин; получено «${v}»)`);
+      const r = resolveRef(path.join(__dirname, '..'), v);
+      assert.ok(r.ok,
+        `${n}: ссылка «${v}» не резолвится (reason: ${r.reason})`);
+      assert.equal(typeof r.id, 'string',
+        `${n}: id цели «${v}» — строка`);
+      assert.notEqual(r.id, '', `${n}: id цели «${v}» — непустая`);
+      assert.equal(r.id, id,
+        `${n} ${j.название}: id цели «${r.id}» ≠ прежнему имени `
+        + `«${name}» → «${id}» (пин §2.1.2)`);
+      const tj = JSON.parse(
+        fs.readFileSync(path.join(__dirname, '..', v), 'utf8'));
+      assert.equal(String(tj.name).toLowerCase(), name,
+        `${n}: name файла-цели «${tj.name}» ≠ имени ДО «${name}» `
+        + '(кросс-чек против skills-каталога — задачей не меняется)');
+    }
+  }
+  assert.equal(pos, 34,
+    'позиций «тренирует» = 34 (16 школ × 2 + 2 школы × 1; '
+    + 'получено ' + pos + ')');
+  const raw = {};
+  for (const f of fs.readdirSync(DIR)
+    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    raw[parseInt(f, 10)] = JSON.parse(
+      fs.readFileSync(path.join(DIR, f), 'utf8'));
+  }
+  for (const n of Object.keys(raw).map(Number).sort((a, b) => a - b)) {
+    if (SCHOOL_IDS_000211_07.includes(n)) continue;
+    assert.equal(raw[n].особые_параметры.тренирует, undefined,
+      `${n} ${raw[n].название}: «тренирует» — строгий контур `
+      + '(только школы id 7-24)');
+  }
+});
+
+test('000211.07 R3: schema.json — форма новых свойств: топ-level «спрайт» (svg-паттерн) + «особые_параметры.тренирует» (массив ссылочного паттерна); required — без изменений («спрайт»/«тренирует» — НЕ required: контур 36 записей без «спрайт» остаётся валидным); top-level additionalProperties: false; «особые_параметры» — СВОБОДНЫЙ; отрицательный контроль: запись школы с ИМЕНЕМ в «тренирует» → ≥1 ошибка (pattern), со ссылкой → 0; ВСЕ 54 файлов валидны', () => {
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(schema.properties['спрайт'], {
+    type: 'string',
+    pattern: '^assets/sprites/(buildings|cities)/[\\w]+\\.svg$',
+  }, 'schema.json: топ-level свойство «спрайт» — точная форма '
+    + '(svg-паттерн, memory §2.2.1)');
+  const op = schema.properties['особые_параметры'];
+  assert.deepEqual(op.properties['тренирует'], {
+    type: 'array',
+    minItems: 1,
+    items: { type: 'string', pattern: '^assets/skills/\\d{6}\\.json$' },
+  }, 'schema.json: «особые_параметры.properties.тренирует» — точная '
+    + 'форма (ссылочный паттерн, memory §2.2.2)');
+  assert.equal(schema.required[0], 'id',
+    'required[0] = «id» — не смещён (негативный контроль '
+    + 'assets-schemas цел)');
+  assert.ok(!schema.required.includes('спрайт'),
+    '«спрайт» — НЕ в required (36 записей без поля остаются '
+    + 'валидными)');
+  assert.equal(schema.additionalProperties, false,
+    'top-level additionalProperties: false (расширение в том же '
+    + 'коммите)');
+  assert.notEqual(op.additionalProperties, false,
+    '«особые_параметры» остаётся СВОБОДНЫМ объектом');
+  const rec = readBuildingRaw_000207(24);
+  const bad = JSON.parse(JSON.stringify(rec));
+  bad.особые_параметры.тренирует = ['мечник'];
+  const errBad = validateData(schema, bad, '000024.json');
+  assert.ok(errBad.length >= 1,
+    'запись с ИМЕНЕМ «мечник» в «тренирует» — ошибка схемы '
+    + 'обязательна (получено 0 ошибок — паттерн не закреплён)');
+  assert.ok(errBad.some((e) => e.includes('assets/skills')),
+    'ошибка — на ссылочном паттерне «тренирует» (получено: '
+    + errBad.join(' | ') + ')');
+  const good = JSON.parse(JSON.stringify(rec));
+  good.особые_параметры.тренирует = ['assets/skills/000035.json'];
+  assert.deepEqual(validateData(schema, good, '000024.json'), [],
+    'запись со ссылкой на файл skills — валидна');
+  for (const f of fs.readdirSync(DIR)
+    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    const errs = validateData(
+      schema, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')), f);
+    assert.deepEqual(errs, [], f + ': ошибки схемы: ' + errs.join(' | '));
+  }
+});
+
+test('000211.07 R4: sync-buildings-data.js — "тренирует"-ссылки → id при запекании (функциональный: tmp-репо: школы 7/8/10/11 со skills-ссылками + «спрайт» (закрытые пути) + 5/31 без .стройки (контур); assets/skills — цели ссылок): прогон 1 — exit 0, блок — id-форма (byte = пину), «спрайт» — as-is, НЕТ "assets/skills/"; прогон 2 — битая skills-ссылка (файл-цель отсутствует) → exit ≠ 0; прогон 3 — голое ИМЯ (дрейф) → exit ≠ 0 (fail-closed, 1:1 resolveItemRef)', () => {
+  const os = require('node:os');
+  const ROOT0 = path.join(__dirname, '..');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '000211.07-r4-'));
+  try {
+    fs.mkdirSync(path.join(tmp, 'scripts', 'lib'), { recursive: true });
+    fs.mkdirSync(path.join(tmp, 'assets', 'buildings'), { recursive: true });
+    fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+    fs.cpSync(path.join(ROOT0, 'assets', 'items'),
+      path.join(tmp, 'assets', 'items'), { recursive: true });
+    fs.cpSync(path.join(ROOT0, 'assets', 'skills'),
+      path.join(tmp, 'assets', 'skills'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT0, 'scripts', 'sync-buildings-data.js'),
+      path.join(tmp, 'scripts', 'sync-buildings-data.js'));
+    for (const lf of fs.readdirSync(path.join(ROOT0, 'scripts', 'lib'))) {
+      fs.copyFileSync(path.join(ROOT0, 'scripts', 'lib', lf),
+        path.join(tmp, 'scripts', 'lib', lf));
+    }
+    const FIXTURE_IDS_000211_07 = [7, 8, 10, 11, 5, 31];
+    for (const n of FIXTURE_IDS_000211_07) {
+      const f = String(n).padStart(6, '0') + '.json';
+      const j = readBuildingRaw_000207(n);
+      const s = j.особые_параметры && j.особые_параметры.стройка;
+      if (s) {
+        const rows = REF_PIN_000207[n];
+        s.исходники.forEach((e, i) => {
+          e.предмет = 'assets/items/' + rows[i][2] + '.json';
+        });
+      }
+      if (TRAINS_PIN_000211_07[n]) {
+        convertTrainsRefs_000211_07(j);
+      }
+      if ([7, 8, 10, 11].includes(n)) {
+        j.спрайт = SPRITE_PIN_000211_07[n];
+      }
+      fs.writeFileSync(path.join(tmp, 'assets', 'buildings', f),
+        JSON.stringify(j, null, 2));
+    }
+    fs.writeFileSync(path.join(tmp, 'src', 'buildings.js'),
+      '// ' + SYNC_HEADER_000207 + '\n'
+      + BEG_000207 + '\n' + END_000207 + '\n');
+    const script = path.join(tmp, 'scripts', 'sync-buildings-data.js');
+    const res = spawnSync(process.execPath, [script],
+      { cwd: tmp, encoding: 'utf8' });
+    assert.equal(res.status, 0,
+      'прогон 1 (все ссылки резолвятся): exit 0 (получено '
+      + res.status + '): ' + (res.stderr || res.stdout));
+    const out = fs.readFileSync(path.join(tmp, 'src', 'buildings.js'), 'utf8');
+    const bIdx = out.indexOf(BEG_000207);
+    const eIdx = out.indexOf(END_000207);
+    assert.ok(bIdx !== -1 && eIdx > bIdx,
+      'прогон 1: маркеры GENERATED на месте');
+    const block = out.slice(bIdx, eIdx);
+    assert.ok(!block.includes('assets/skills/'),
+      'прогон 1: перегенерированный блок — id-форма (НЕТ строк '
+      + '"assets/skills/" — skills-ссылки резолвятся при запекании; '
+      + 'сейчас скрипт печатает ссылки как есть)');
+    for (const bid of [7, 8, 10, 11]) {
+      const ids = TRAINS_PIN_000211_07[bid].map((r) => r[1]);
+      assert.ok(block.includes(
+        'тренирует: [' + ids.map((x) => '"' + x + '"').join(', ') + ']'),
+        'прогон 1: блок содержит «тренирует: [...]» школы ' + bid
+        + ' в id-форме (пин 000211.07)');
+      assert.ok(block.includes(
+        'спрайт: "' + SPRITE_PIN_000211_07[bid] + '"'),
+        'прогон 1: «спрайт» школы ' + bid
+        + ' — as-is в блоке (поле-данные, не ссылка): '
+        + SPRITE_PIN_000211_07[bid]);
+    }
+    const p7 = path.join(tmp, 'assets', 'buildings', '000007.json');
+    const j7 = JSON.parse(fs.readFileSync(p7, 'utf8'));
+    j7.особые_параметры.тренирует[0] = 'assets/skills/999999.json';
+    fs.writeFileSync(p7, JSON.stringify(j7, null, 2));
+    const res2 = spawnSync(process.execPath, [script],
+      { cwd: tmp, encoding: 'utf8' });
+    assert.notEqual(res2.status, 0,
+      'прогон 2 (битая skills-ссылка, файл-цель отсутствует): '
+      + 'обязателен exit ≠ 0 (fail-closed); получен exit 0 — '
+      + 'ссылка запекнулась бы молча');
+    const j7b = JSON.parse(fs.readFileSync(p7, 'utf8'));
+    j7b.особые_параметры.тренирует[0] = 'мечник';
+    fs.writeFileSync(p7, JSON.stringify(j7b, null, 2));
+    const res3 = spawnSync(process.execPath, [script],
+      { cwd: tmp, encoding: 'utf8' });
+    assert.notEqual(res3.status, 0,
+      'прогон 3 (голое ИМЯ в «тренирует» — дрейф): обязателен '
+      + 'exit ≠ 0 (fail-closed); получен exit 0 — имя '
+      + 'запекнулось бы как данные');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });

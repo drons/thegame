@@ -78,6 +78,36 @@ function resolveItemRef(file, entry) {
   }
   entry.предмет = tj.id;
 }
+// Задача 000211.07: .особые_параметры.тренирует — ссылки на файлы
+// «assets/skills/NNNNNN.json» (контракт 000211 §2); при запекании
+// резолюция в id файла-цели — зеркало src/buildings.js остаётся
+// в id-форме (ссылки живут ТОЛЬКО в JSON). Fail-closed 1:1
+// resolveItemRef: значение вне паттерна (включая голое ИМЯ —
+// дрейф), файл-цель отсутствует / не JSON / без непустого
+// строкового id → exit 1.
+const SKILL_REF_RE = /^assets\/skills\/\d{6}\.json$/;
+function resolveSkillRef(file, ref) {
+  if (typeof ref !== 'string' || !SKILL_REF_RE.test(ref)) {
+    console.error(
+      `${file}: .особые_параметры.тренирует «${ref}» — не ссылка `
+      + 'на файл skills (формат "assets/skills/NNNNNN.json")');
+    process.exit(1);
+  }
+  const target = path.join(ROOT, ref);
+  let tj;
+  try {
+    tj = JSON.parse(fs.readFileSync(target, 'utf8'));
+  } catch {
+    console.error(
+      `${file}: цель ссылки «${ref}» — файл отсутствует или не JSON`);
+    process.exit(1);
+  }
+  if (!tj || typeof tj.id !== 'string' || tj.id === '') {
+    console.error(`${file}: цель ссылки «${ref}» — id отсутствует`);
+    process.exit(1);
+  }
+  return tj.id;
+}
 const buildings = [];
 for (const f of files) {
   const n = parseInt(f, 10);
@@ -102,6 +132,14 @@ for (const f of files) {
     for (const e of s.исходники) {
       resolveItemRef(f, e);
     }
+  }
+  // Задача 000211.07: «тренирует» — ссылки skills → id цели
+  // (до генерации; зеркало — в id-форме; «спрайт» — поле-данные,
+  // проходное as-is).
+  const tr = data.особые_параметры && data.особые_параметры.тренирует;
+  if (tr && Array.isArray(tr)) {
+    data.особые_параметры.тренирует = tr.map((v) =>
+      resolveSkillRef(f, v));
   }
   buildings.push({ file: f, data });
 }

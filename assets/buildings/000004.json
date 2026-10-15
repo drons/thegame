@@ -31,5 +31,6 @@
         }
       ]
     }
-  }
+  },
+  "спрайт": "assets/sprites/buildings/magic_shop.svg"
 }

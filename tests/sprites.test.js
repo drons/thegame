@@ -2756,3 +2756,227 @@ test('sprites: 000152 — allAssetPaths(): merc-кадры в очереди з�
   const set = new Set(paths);
   assert.equal(set.size, paths.length, 'дубли в списке ассетов');
 });
+
+// --- Задача 000211.07: buildings — 18 «спрайт» (svg-ссылки) в каталоге;
+// литералы src/sprites.js (BUILDING/CITY/CAMP_SPRITES) — fallback (держим),
+// чтение из каталога ЛЕНИВОЕ (live-root, в момент вызова, паттерн
+// 000211.06/000211.08). Контракт:
+// memory/000211.07-buildings-sprites-trains-refs.md §2.5/§4.3.
+// КРАСНЫЕ (осмысленно): sprites.js ещё читает ЛИТЕРАЛЫ (каталог не
+// читается) — расходящиеся значения каталога не отражаются.
+// ЗЕЛЁНЫЕ пины (fallback/канал/ассеты — держим): SP-B2, F-B, SP-B3.
+
+// Пины (ЗАКРЫТЫЕ таблицы в тесте = старые литералы; memory §2.1.1):
+// слот → svg (BUILDING_TYPES 0..12), город id → svg (51..54),
+// лагерь — CAMP_SVG_PATH выше (47).
+const SLOT_SPRITE_PIN_000211_07 = {
+  0: 'assets/sprites/buildings/weapons_shop.svg',
+  1: 'assets/sprites/buildings/armor_shop.svg',
+  2: 'assets/sprites/buildings/apothecary.svg',
+  3: 'assets/sprites/buildings/magic_shop.svg',
+  4: 'assets/sprites/buildings/arena.svg',
+  5: 'assets/sprites/buildings/blacksmith.svg',
+  6: 'assets/sprites/buildings/archery_range.svg',
+  7: 'assets/sprites/buildings/academy.svg',
+  8: 'assets/sprites/buildings/temple.svg',
+  9: 'assets/sprites/buildings/cave_entrance.svg',
+  10: 'assets/sprites/buildings/rune_stone.svg',
+  11: 'assets/sprites/buildings/tavern.svg',
+  12: 'assets/sprites/buildings/npc_house.svg',
+};
+const CITY_SPRITE_PIN_000211_07 = {
+  51: 'assets/sprites/cities/city_51.svg',
+  52: 'assets/sprites/cities/city_52.svg',
+  53: 'assets/sprites/cities/city_53.svg',
+  54: 'assets/sprites/cities/city_54.svg',
+};
+const ALL_18_SPRITE_PIN_000211_07 = [
+  ...Object.values(SLOT_SPRITE_PIN_000211_07),
+  ...Object.values(CITY_SPRITE_PIN_000211_07),
+  CAMP_SVG_PATH,
+];
+
+test('000211.07 R5: sprites.js (vm) — чтение каталога ЛЕНИВОЕ (live-root, в момент вызова): citySprite(51)/buildingSprite(4) — «спрайт» ЗАПИСИ (расходящийся с литералом); slot — ИЗ ДАННЫХ (map_index записи 7 = 4, не id-1); campSprite(47)/buildingSprite(0)/citySprite(52) — fallback (у записи нет «спрайт» / слота нет в данных); мутация каталога ПОСЛЕ загрузки — отражается (нет снапшота на init); channel-guard: campSprite(7) — null', () => {
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  sandbox.Game.BUILDINGS = [
+    { id: 51, спрайт: 'assets/sprites/cities/divergent_51.svg' },
+    {
+      id: 7,
+      спрайт: 'assets/sprites/buildings/divergent_007.svg',
+      особые_параметры: { map_index: 4 },
+    },
+    { id: 47 },
+  ];
+  loadInSandbox('sprites.js', sandbox);
+  const G = sandbox.Game;
+  assert.equal(G.citySprite(51), 'assets/sprites/cities/divergent_51.svg',
+    'citySprite(51) — из каталога (ленивое чтение); получен старый '
+    + 'литерал — каталог не читается');
+  assert.equal(G.buildingSprite(4),
+    'assets/sprites/buildings/divergent_007.svg',
+    'buildingSprite(4) — запись 7 через её map_index (slot из '
+    + 'данных, не id-1: id 7 → слот 4, не 6); получен старый литерал '
+    + '— каталог не читается');
+  assert.equal(G.campSprite(47), CAMP_SVG_PATH,
+    'campSprite(47) — per-record fallback (у записи 47 нет «спрайт»)');
+  assert.equal(G.buildingSprite(0), SLOT_SPRITE_PIN_000211_07[0],
+    'buildingSprite(0) — fallback (слота 0 нет в данных)');
+  assert.equal(G.citySprite(52), CITY_SPRITE_PIN_000211_07[52],
+    'citySprite(52) — fallback (записи 52 нет в данных)');
+  assert.equal(G.campSprite(7), null,
+    'campSprite(7) — channel-guard (7 — канал buildings, не camp)');
+  const rec = G.BUILDINGS.find((b) => b.id === 51);
+  rec.спрайт = 'assets/sprites/cities/divergent_51b.svg';
+  assert.equal(G.citySprite(51), 'assets/sprites/cities/divergent_51b.svg',
+    'мутация каталога отражается (чтение live в момент вызова, '
+    + 'нет снапшота на init)');
+});
+
+test('000211.07 SP-B1: vm цепочка index.html (perlin→map→buildings→sprites, РЕАЛЬНЫЙ каталог src/buildings.js) — buildingSprite(0..12)/citySprite(51..54)/campSprite(47) = «спрайт» каталожных записей (= закрытому пину); slot→id — из данных (map_index); null-гарды каналов', () => {
+  const raw = {};
+  for (const f of fs.readdirSync(path.join(ROOT, 'assets', 'buildings'))
+    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    raw[parseInt(f, 10)] = JSON.parse(
+      fs.readFileSync(
+        path.join(ROOT, 'assets', 'buildings', f), 'utf8'));
+  }
+  const slotOf = {};
+  for (const n of Object.keys(raw).map(Number)) {
+    const p = raw[n].особые_параметры;
+    if (p && Number.isInteger(p.map_index)) slotOf[p.map_index] = n;
+  }
+  assert.deepEqual(
+    Object.keys(slotOf).map(Number).sort((a, b) => a - b),
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    'слоты 0..12 покрываются map_index (каталог)');
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('buildings.js', sandbox);
+  loadInSandbox('sprites.js', sandbox);
+  const G = sandbox.Game;
+  for (let s = 0; s < buildingCount(); s++) {
+    const rec = raw[slotOf[s]];
+    assert.equal(typeof rec.спрайт, 'string',
+      `слот ${s} (запись ${rec.id} ${rec.название}): «спрайт» — `
+      + 'строка в каталоге (получено ' + typeof rec.спрайт
+      + ' — поле отсутствует)');
+    assert.equal(G.buildingSprite(s), rec.спрайт,
+      `buildingSprite(${s}) = «спрайт» записи ${rec.id}`);
+    assert.equal(rec.спрайт, SLOT_SPRITE_PIN_000211_07[s],
+      `«спрайт» записи ${rec.id} = закрытому пину слота ${s}`);
+  }
+  for (const id of [51, 52, 53, 54]) {
+    const rec = raw[id];
+    assert.equal(typeof rec.спрайт, 'string',
+      `город ${id}: «спрайт» — строка в каталоге`);
+    assert.equal(G.citySprite(id), rec.спрайт,
+      `citySprite(${id}) = «спрайт» записи ${id}`);
+    assert.equal(rec.спрайт, CITY_SPRITE_PIN_000211_07[id],
+      `«спрайт» города ${id} = закрытому пину`);
+  }
+  assert.equal(typeof raw[47].спрайт, 'string',
+    'лагерь 47: «спрайт» — строка в каталоге');
+  assert.equal(G.campSprite(47), raw[47].спрайт,
+    'campSprite(47) = «спрайт» записи 47');
+  assert.equal(raw[47].спрайт, CAMP_SVG_PATH,
+    '«спрайт» лагеря = закрытому пину (camp.svg)');
+  assert.equal(G.buildingSprite(BUILDING_TYPES.NONE), null,
+    'buildingSprite(NONE) → null');
+  assert.equal(G.buildingSprite(999), null,
+    'buildingSprite(999) → null (слот вне 0..12)');
+  for (const s of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
+    assert.equal(G.citySprite(s), null,
+      `citySprite(${s}) → null (слотовый id — канал buildings)`);
+  }
+  assert.equal(G.citySprite(999), null, 'citySprite(999) → null');
+  assert.equal(G.citySprite(47), null,
+    'citySprite(47) → null (канальный guard: лагерь)');
+  assert.equal(G.citySprite(51.5), null,
+    'citySprite(51.5) → null (нецелое)');
+  assert.equal(G.citySprite('51'), null,
+    'citySprite("51") → null (строка)');
+  assert.equal(G.campSprite(7), null,
+    'campSprite(7) → null (channel-guard на РЕАЛЬНЫХ данных)');
+  for (const id of [51, 52, 53, 54]) {
+    assert.equal(G.campSprite(id), null,
+      `campSprite(${id}) → null (канальный guard: город)`);
+  }
+  assert.equal(G.campSprite(999), null, 'campSprite(999) → null');
+});
+
+test('000211.07 SP-B2: vm БЕЗ каталога (perlin→map→sprites) — fallback: buildingSprite(0..12)/citySprite(51..54)/campSprite(47) = закрытые пины (старые литералы ДЕРЖИМ — vm-песочницы без data-модулей, 000211 §7.8), загрузка ЧИСТА (0 console.error), null-гарды каналов', () => {
+  const errors = [];
+  const sandbox = {
+    console: {
+      error: (m) => errors.push(String(m)),
+      warn: () => {},
+      log: () => {},
+    },
+  };
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('sprites.js', sandbox);
+  assert.equal(errors.length, 0,
+    'загрузка без каталога — чистая (0 console.error): '
+    + errors.join('; '));
+  const G = sandbox.Game;
+  for (let s = 0; s < buildingCount(); s++) {
+    assert.equal(G.buildingSprite(s), SLOT_SPRITE_PIN_000211_07[s],
+      `buildingSprite(${s}) — fallback (литерал держим)`);
+  }
+  for (const id of [51, 52, 53, 54]) {
+    assert.equal(G.citySprite(id), CITY_SPRITE_PIN_000211_07[id],
+      `citySprite(${id}) — fallback (литерал держим)`);
+  }
+  assert.equal(G.campSprite(47), CAMP_SVG_PATH,
+    'campSprite(47) — fallback (литерал держим)');
+  assert.equal(G.buildingSprite(BUILDING_TYPES.NONE), null,
+    'buildingSprite(NONE) → null');
+  assert.equal(G.buildingSprite(999), null,
+    'buildingSprite(999) → null');
+  for (const s of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) {
+    assert.equal(G.citySprite(s), null,
+      `citySprite(${s}) → null (канальный guard)`);
+  }
+  assert.equal(G.citySprite(999), null, 'citySprite(999) → null');
+  assert.equal(G.citySprite(47), null, 'citySprite(47) → null');
+  assert.equal(G.citySprite(51.5), null, 'citySprite(51.5) → null');
+  assert.equal(G.citySprite('51'), null, 'citySprite("51") → null');
+  assert.equal(G.campSprite(7), null, 'campSprite(7) → null');
+  for (const id of [51, 52, 53, 54]) {
+    assert.equal(G.campSprite(id), null, `campSprite(${id}) → null`);
+  }
+  assert.equal(G.campSprite(999), null, 'campSprite(999) → null');
+});
+
+test('000211.07 F-B: node (require) — buildingSprite(0..12)/citySprite(51..54)/campSprite(47) = закрытые пины (те же svg, что ДО миграции), файлы существуют', () => {
+  for (let s = 0; s < buildingCount(); s++) {
+    assert.equal(S.buildingSprite(s), SLOT_SPRITE_PIN_000211_07[s],
+      `buildingSprite(${s}) = пину (без визуальных изменений)`);
+    assert.ok(exists(SLOT_SPRITE_PIN_000211_07[s]),
+      'существует: ' + SLOT_SPRITE_PIN_000211_07[s]);
+  }
+  for (const id of [51, 52, 53, 54]) {
+    assert.equal(S.citySprite(id), CITY_SPRITE_PIN_000211_07[id],
+      `citySprite(${id}) = пину (без визуальных изменений)`);
+    assert.ok(exists(CITY_SPRITE_PIN_000211_07[id]),
+      'существует: ' + CITY_SPRITE_PIN_000211_07[id]);
+  }
+  assert.equal(S.campSprite(47), CAMP_SVG_PATH,
+    'campSprite(47) = пину (без визуальных изменений)');
+  assert.ok(exists(CAMP_SVG_PATH), 'существует: ' + CAMP_SVG_PATH);
+});
+
+test('000211.07 SP-B3: 18 путей «спрайт» — все в allAssetPaths() (browser-загрузка, main.js грузит по списку), все существуют, дублей НЕТ (18 уникальных)', () => {
+  assert.equal(new Set(ALL_18_SPRITE_PIN_000211_07).size, 18,
+    '18 уникальных путей (13 slot + 4 города + лагерь)');
+  const paths = S.allAssetPaths();
+  for (const p of ALL_18_SPRITE_PIN_000211_07) {
+    assert.ok(paths.includes(p),
+      'в allAssetPaths(): ' + p);
+    assert.ok(exists(p), 'существует: ' + p);
+  }
+});

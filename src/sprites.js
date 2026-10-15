@@ -35,7 +35,8 @@
       require('./mob-groups-data.js'),
       require('./visuals-data.js'),
       undefined,
-      require('./items-data.js'));
+      require('./items-data.js'),
+      require('./buildings.js'));
   } else {
     // Браузер: модули данных грузятся ДО sprites.js (index.html) —
     // каталоги уже в Game (deps.MobGroupsData, deps.VisualsData),
@@ -44,10 +45,10 @@
     // поэтому передаётся ЖИВОЙ root (паттерн map.js).
     root.Game = Object.assign({}, root.Game,
       factory(typeof root.Game === 'object' ? root.Game : {},
-        null, null, root, null));
+        null, null, root, null, null));
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self,
-  function (deps, mobGroups, visualsData, root, itemsData) {
+  function (deps, mobGroups, visualsData, root, itemsData, buildingsData) {
 
   const TERRAIN = deps.TERRAIN;
   const TERRAIN_NAMES = deps.TERRAIN_NAMES;
@@ -338,6 +339,36 @@
   const CAMP_SPRITES = {
     47: 'assets/sprites/buildings/camp.svg',
   };
+
+  function buildingsRef() {
+    if (buildingsData && Array.isArray(buildingsData.BUILDINGS))
+      return buildingsData.BUILDINGS;
+    const g = root && root.Game;
+    return g && Array.isArray(g.BUILDINGS) ? g.BUILDINGS : null;
+  }
+
+  function slotSpriteTable() {
+    const list = buildingsRef();
+    if (!list) return null;
+    const t = {};
+    for (const b of list) {
+      const p = b && b.особые_параметры;
+      const mi = p && p.map_index;
+      if (Number.isInteger(mi) && typeof b.спрайт === 'string'
+          && b.спрайт !== '') t[mi] = b.спрайт;
+    }
+    return t;
+  }
+
+  function spriteForId(id) {
+    const list = buildingsRef();
+    if (!list) return null;
+    for (const b of list) {
+      if (b && b.id === id && typeof b.спрайт === 'string'
+          && b.спрайт !== '') return b.спрайт;
+    }
+    return null;
+  }
 
   // --- Декорации тайлов (задача 000021) ---
   //
@@ -651,7 +682,10 @@
 
   /** Иконка постройки (путь) или null для NONE. */
   function buildingSprite(buildingType) {
-    return BUILDING_SPRITES[buildingType] || null;
+    const base = BUILDING_SPRITES[buildingType];
+    if (!base) return null;
+    const t = slotSpriteTable();
+    return (t && t[buildingType]) || base;
   }
 
   /**
@@ -666,7 +700,9 @@
    */
   function citySprite(buildingId) {
     if (!Number.isInteger(buildingId)) return null;
-    return CITY_SPRITES[buildingId] || null;
+    const base = CITY_SPRITES[buildingId];
+    if (!base) return null;
+    return spriteForId(buildingId) || base;
   }
 
   /**
@@ -682,7 +718,9 @@
    */
   function campSprite(buildingId) {
     if (!Number.isInteger(buildingId)) return null;
-    return CAMP_SPRITES[buildingId] || null;
+    const base = CAMP_SPRITES[buildingId];
+    if (!base) return null;
+    return spriteForId(buildingId) || base;
   }
 
   /** Кадры анимации Флогистона для действия idle|walk|attack|cast. */
@@ -898,6 +936,13 @@
     paths.push(...Object.values(CITY_SPRITES));
     // Лагерь (задача 000131): 1 спрайт (отдельный канал, id 47).
     paths.push(...Object.values(CAMP_SPRITES));
+    const bld = buildingsRef();
+    if (bld) {
+      for (const b of bld) {
+        if (b && typeof b.спрайт === 'string' && b.спрайт !== '')
+          paths.push(b.спрайт);
+      }
+    }
     for (const v of VISUALS) paths.push(v.спрайт);
     // Природный лут (задача 000158.05): 1 спрайт на item-id
     // (каталог items-data; фильтр = map.js lootCandidates: объект

@@ -25,6 +25,7 @@ const { getItem } = require('../src/items.js');
 const { PRIMARY_SKILLS, SECONDARY_SKILLS } = require('../src/player.js');
 const { mobGroupCount } = require('../src/map.js');
 const { SPELLS_BY_ID } = require('../src/spells-data.js');
+const { resolveRef } = require('../scripts/lib/json-ref.js');
 
 const DIR = path.join(__dirname, '..', 'assets', 'npc');
 
@@ -268,23 +269,46 @@ test('целостность: предметы, навыки, типы груп�
   }
 });
 
-test('школы: «тренирует» здания = обучение.навыки NPC (названия)', () => {
-  const lower = (s) => s.toLowerCase();
+test('школы: «тренирует» здания = обучение.навыки NPC (id цели ссылки)', () => {
+  // Задача 000211.07: «тренирует» — ссылки «assets/skills/NNNNNN.json»
+  // (сырой JSON каталога зданий); id файла-цели = id навыка из
+  // npc.обучение.навыки (мульти-множество, 1:1; порядок не важен).
+  // Читаем СЫРОЙ JSON (assets/buildings), а не зеркало src/buildings.js
+  // (зеркало — id-форма, ссылки там не живут).
+  const root = path.join(__dirname, '..');
   let pairs = 0;
   for (const n of NPCS) {
     for (const bId of n.постройки) {
       const b = getBuilding(bId);
-      const trains = b && b.категория === 'школа_навыков'
-        ? b.особые_параметры.тренирует
-        : undefined;
+      if (!b || b.категория !== 'школа_навыков') continue;
+      const file = path.join(root, 'assets', 'buildings',
+        String(bId).padStart(6, '0') + '.json');
+      const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const trains = raw.особые_параметры
+        && raw.особые_параметры.тренирует;
       if (!Array.isArray(trains)) continue;
       pairs += 1;
-      const buildingNames = new Set(trains.map(lower));
-      const npcNames = new Set(
-        (n.обучение ? n.обучение.навыки : []).map(
-          (id) => lower(SECONDARY_SKILLS[id].name)));
-      assert.deepEqual([...buildingNames].sort(), [...npcNames].sort(),
-        `${n.id} в здании ${bId} «${b.название}»: наборы обучаемых навыков совпадают`);
+      const buildingIds = [];
+      for (const v of trains) {
+        assert.equal(typeof v, 'string',
+          `${n.id} в здании ${bId} «${b.название}»: «тренирует» — `
+          + `строки (получено ${JSON.stringify(v)})`);
+        const r = resolveRef(root, v);
+        assert.ok(r.ok,
+          `${n.id} в здании ${bId} «${b.название}»: «тренирует» — `
+          + `«${v}» не ссылка (reason: ${r.reason}; формат `
+          + '"assets/skills/NNNNNN.json")');
+        assert.equal(typeof r.id, 'string',
+          `${n.id} в здании ${bId}: id цели «${v}» — строка`);
+        assert.notEqual(r.id, '',
+          `${n.id} в здании ${bId}: id цели «${v}» — непустая`);
+        buildingIds.push(r.id);
+      }
+      const npcIds = n.обучение ? n.обучение.навыки : [];
+      assert.deepEqual([...buildingIds].sort(), [...npcIds].sort(),
+        `${n.id} в здании ${bId} «${b.название}»: наборы обучаемых `
+        + `навыков совпадают (id: ${buildingIds.join(',')} vs `
+        + `${npcIds.join(',')})`);
     }
   }
   // Арена, Кузница, Стрельбище, Школа акробатов, Хижина старейшин.

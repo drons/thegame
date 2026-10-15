@@ -19,5 +19,6 @@
     ],
     "map_index": 9,
     "название_карты": "Вход в пещеру"
-  }
+  },
+  "спрайт": "assets/sprites/buildings/cave_entrance.svg"
 }

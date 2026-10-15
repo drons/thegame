@@ -30,5 +30,6 @@
         }
       ]
     }
-  }
+  },
+  "спрайт": "assets/sprites/buildings/armor_shop.svg"
 }

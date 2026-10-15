@@ -99,21 +99,46 @@ const page = () => fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 // Задача 000207: сырые JSON несут ссылки
 // .стройка.исходники[].предмет «assets/items/NNNNNN.json», зеркало
 // src/buildings.js — в id-форме (sync резолвит ссылки в id).
+// Задача 000211.07: «особые_параметры.тренирует» — ссылки
+// «assets/skills/NNNNNN.json» (зеркало — тоже id-форма).
 // Mirror-тесты whole-record: резолв ссылок в id ПЕРЕД deepEqual
-// (контракт memory/000207-buildings-refs-items.md, D7).
+// (контракт memory/000207-buildings-refs-items.md, D7;
+// memory/000211.07-buildings-sprites-trains-refs.md §4.2 T2).
+// НЕ-ссылка (имя — данные не миграированы) — throw: краснота
+// осмысленная, терпимый no-op отклонён (серийный паттерн 000211.08).
 const ITEM_REF_RE = /^assets\/items\/\d{6}\.json$/;
+const SKILL_REF_RE = /^assets\/skills\/\d{6}\.json$/;
 function resolveItemRefs(record) {
   const out = JSON.parse(JSON.stringify(record));
-  const s = out.особые_параметры && out.особые_параметры.стройка;
-  if (!s || !Array.isArray(s.исходники)) return out;
-  for (const e of s.исходники) {
-    if (e && typeof e.предмет === 'string' && ITEM_REF_RE.test(e.предмет)) {
-      const t = JSON.parse(fs.readFileSync(
-        path.join(ROOT, e.предмет), 'utf8'));
-      if (!t || typeof t.id !== 'string' || t.id === '') {
-        throw new Error('resolveItemRefs: «' + e.предмет + '» без id');
+  const op = out.особые_параметры;
+  const s = op && op.стройка;
+  if (s && Array.isArray(s.исходники)) {
+    for (const e of s.исходники) {
+      if (e && typeof e.предмет === 'string' && ITEM_REF_RE.test(e.предмет)) {
+        const t = JSON.parse(fs.readFileSync(
+          path.join(ROOT, e.предмет), 'utf8'));
+        if (!t || typeof t.id !== 'string' || t.id === '') {
+          throw new Error('resolveItemRefs: «' + e.предмет + '» без id');
+        }
+        e.предмет = t.id;
       }
-      e.предмет = t.id;
+    }
+  }
+  const tr = op && op.тренирует;
+  if (tr && Array.isArray(tr)) {
+    for (let i = 0; i < tr.length; i++) {
+      const v = tr[i];
+      if (typeof v !== 'string' || !SKILL_REF_RE.test(v)) {
+        throw new Error('resolveItemRefs: «тренирует» — «' + v +
+          '» не ссылка (формат "assets/skills/NNNNNN.json")');
+      }
+      const t = JSON.parse(fs.readFileSync(
+        path.join(ROOT, v), 'utf8'));
+      if (!t || typeof t.id !== 'string' || t.id === '') {
+        throw new Error('resolveItemRefs: «тренирует» — «' + v +
+          '» без id');
+      }
+      tr[i] = t.id;
     }
   }
   return out;

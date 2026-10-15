@@ -99,8 +99,20 @@
               }
             }
           }
+        },
+        "тренирует": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^assets/skills/\\d{6}\\.json$"
+          }
         }
       }
+    },
+    "спрайт": {
+      "type": "string",
+      "pattern": "^assets/sprites/(buildings|cities)/[\\w]+\\.svg$"
     }
   }
 }

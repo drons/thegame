@@ -19,5 +19,6 @@
       "виды": ["food", "potion", "weapon", "armor"],
       "полный_отдых": { "цена": 10 }
     }
-  }
+  },
+  "спрайт": "assets/sprites/buildings/camp.svg"
 }
