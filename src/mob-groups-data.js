@@ -32,6 +32,7 @@
       состав: { название: "orc_camp", мобы: ["orc_warrior", "orc_warrior", "orc_archer", "orc_shaman"] },
       спрайт: "orc",
       особые_параметры: {},
+      кадры: ["assets/sprites/mobs/orc_1.svg", "assets/sprites/mobs/orc_2.svg"],
     },
     // 000002.json
     {
@@ -40,6 +41,7 @@
       состав: { название: "orc_raid", мобы: ["orc_rider", "orc_rider", "orc_mad"] },
       спрайт: "orc",
       особые_параметры: {},
+      кадры: ["assets/sprites/mobs/orc_1.svg", "assets/sprites/mobs/orc_2.svg"],
     },
     // 000003.json
     {
@@ -48,6 +50,7 @@
       состав: { название: "skeleton_den", мобы: ["skeleton", "skeleton", "skeleton", "crawling_bones", "crawling_bones"] },
       спрайт: "skeleton",
       особые_параметры: {},
+      кадры: ["assets/sprites/mobs/skeleton_1.svg", "assets/sprites/mobs/skeleton_2.svg"],
     },
     // 000004.json
     {
@@ -56,6 +59,7 @@
       состав: { название: "wolf_pack", число: [3, 6], мобы: ["wolf"] },
       спрайт: "wolf",
       особые_параметры: {},
+      кадры: ["assets/sprites/mobs/wolf_1.svg", "assets/sprites/mobs/wolf_2.svg"],
     },
     // 000005.json
     {
@@ -64,6 +68,7 @@
       состав: { название: "spider_nest", мобы: ["spider", "spider", "spider", "centipede"] },
       спрайт: "spider",
       особые_параметры: {},
+      кадры: ["assets/sprites/mobs/spider_1.svg", "assets/sprites/mobs/spider_2.svg"],
     },
     // 000006.json
     {
@@ -72,6 +77,7 @@
       состав: { название: "elemental_circle", мобы: ["fire_elemental", "wind_elemental", "water_elemental", "fairy"] },
       спрайт: "elemental",
       особые_параметры: {},
+      кадры: ["assets/sprites/mobs/elemental_1.svg", "assets/sprites/mobs/elemental_2.svg"],
     },
     // 000007.json
     {
@@ -80,6 +86,7 @@
       состав: { название: "abyss_spirit", мобы: ["abomination", "lower_demon", "succubus"] },
       спрайт: "abyss",
       особые_параметры: {},
+      кадры: ["assets/sprites/mobs/abyss_1.svg", "assets/sprites/mobs/abyss_2.svg"],
     },
   ];
 

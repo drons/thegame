@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "название", "состав", "спрайт", "особые_параметры"],
+  "required": ["id", "название", "состав", "спрайт", "особые_параметры", "кадры"],
   "properties": {
     "id": {
       "type": "integer",
@@ -37,7 +37,7 @@
           "maxItems": 6,
           "items": {
             "type": "string",
-            "pattern": "^[a-z][a-z0-9_]*$"
+            "pattern": "^assets/mobs/\\d{6}\\.json$"
           }
         }
       }
@@ -47,6 +47,15 @@
     },
     "особые_параметры": {
       "type": "object"
+    },
+    "кадры": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "string",
+        "pattern": "^assets/sprites/mobs/[\\w]+_[12]\\.svg$"
+      }
     }
   }
 }

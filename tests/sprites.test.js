@@ -1558,6 +1558,108 @@ test('vm: MobGroupsData ДО загрузки sprites.js — виды из ка�
   assert.equal(sandbox.Game.mobKind(1), null, 'вне каталога — null');
 });
 
+test('000211.08 SP-MGF-1: vm — «кадры» ИЗ ДАННЫХ (init-снапшот, MobGroupsData ДО загрузки sprites.js) + per-kind fallback: запись БЕЗ «кадры» → литерал, невалидные «кадры» (длина 1, пустая строка) → литерал, вида нет в данных → литерал; MOB_KINDS-механизм не тронут', () => {
+  const DIVERGENT = ['assets/sprites/mobs/divergent_1.svg',
+    'assets/sprites/mobs/divergent_2.svg'];
+  const sandbox = {};
+  loadInSandbox('perlin.js', sandbox);
+  sandbox.Game = {
+    MobGroupsData: {
+      MOB_GROUPS: [
+        {
+          id: 1,
+          название: 'тестовая группа',
+          состав: { название: 't_group', мобы: ['spider'] },
+          спрайт: 'spider',
+          особые_параметры: {},
+          кадры: DIVERGENT,
+        },
+        {
+          id: 2,
+          название: 'тестовая группа 2',
+          состав: { название: 't_group2', мобы: ['orc_warrior'] },
+          спрайт: 'orc',
+          особые_параметры: {},
+        },
+        {
+          id: 3,
+          название: 'тестовая группа 3',
+          состав: { название: 't_group3', мобы: ['wolf'] },
+          спрайт: 'wolf',
+          особые_параметры: {},
+          кадры: ['assets/sprites/mobs/wolf_1.svg'],
+        },
+        {
+          id: 4,
+          название: 'тестовая группа 4',
+          состав: { название: 't_group4', мобы: ['fire_elemental'] },
+          спрайт: 'elemental',
+          особые_параметры: {},
+          кадры: ['assets/sprites/mobs/elemental_1.svg', ''],
+        },
+      ],
+    },
+  };
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('sprites.js', sandbox);
+  const G = sandbox.Game;
+  assert.equal(G.MOB_KINDS[0], 'spider',
+    'MOB_KINDS[0] из данных (механизм не тронут)');
+  assert.equal(G.MOB_KINDS[1], 'orc', 'MOB_KINDS[1] из данных');
+  assert.deepEqual(fromVm(G.MOB_FRAMES['spider']), DIVERGENT,
+    '«кадры» из данных (не литерал spider_1/2)');
+  assert.deepEqual(fromVm(G.mobFrames(0)), DIVERGENT,
+    'mobFrames(0) — из данных');
+  assert.deepEqual(fromVm(G.MOB_FRAMES['orc']),
+    ['assets/sprites/mobs/orc_1.svg', 'assets/sprites/mobs/orc_2.svg'],
+    'запись БЕЗ «кадры» — per-kind fallback-литерал');
+  assert.deepEqual(fromVm(G.MOB_FRAMES['skeleton']),
+    ['assets/sprites/mobs/skeleton_1.svg', 'assets/sprites/mobs/skeleton_2.svg'],
+    'вида нет в данных — fallback-литерал');
+  assert.equal(G.MOB_KINDS[2], 'wolf',
+    'запись с невалидными «кадры» всё же в данных (гард по записи, не по виду)');
+  assert.deepEqual(fromVm(G.MOB_FRAMES['wolf']),
+    ['assets/sprites/mobs/wolf_1.svg', 'assets/sprites/mobs/wolf_2.svg'],
+    '«кадры» длиной 1 — per-kind fallback-литерал (не одноэлементный массив)');
+  assert.equal(G.MOB_KINDS[3], 'elemental',
+    'запись с пустой строкой в «кадры» всё же в данных');
+  assert.deepEqual(fromVm(G.MOB_FRAMES['elemental']),
+    ['assets/sprites/mobs/elemental_1.svg', 'assets/sprites/mobs/elemental_2.svg'],
+    '«кадры» с пустой строкой — per-kind fallback-литерал');
+});
+
+test('000211.08 F2 (пин): vm без каталога (perlin→map→sprites) — MOB_FRAMES = ровно старые 6×2 литерала (fallback ДЕРЖИМ для песочниц без data-модулей), mobFrames(0..6) по фолбэку, 0 console.error', () => {
+  const errors = [];
+  const sandbox = {
+    console: {
+      error: (m) => errors.push(String(m)),
+      warn: () => {},
+      log: () => {},
+    },
+  };
+  loadInSandbox('perlin.js', sandbox);
+  loadInSandbox('map.js', sandbox);
+  loadInSandbox('sprites.js', sandbox);
+  const G = sandbox.Game;
+  const FALLBACK = {
+    orc: ['assets/sprites/mobs/orc_1.svg', 'assets/sprites/mobs/orc_2.svg'],
+    skeleton: ['assets/sprites/mobs/skeleton_1.svg', 'assets/sprites/mobs/skeleton_2.svg'],
+    wolf: ['assets/sprites/mobs/wolf_1.svg', 'assets/sprites/mobs/wolf_2.svg'],
+    spider: ['assets/sprites/mobs/spider_1.svg', 'assets/sprites/mobs/spider_2.svg'],
+    elemental: ['assets/sprites/mobs/elemental_1.svg', 'assets/sprites/mobs/elemental_2.svg'],
+    abyss: ['assets/sprites/mobs/abyss_1.svg', 'assets/sprites/mobs/abyss_2.svg'],
+  };
+  assert.deepEqual(fromVm(G.MOB_FRAMES), FALLBACK,
+    'MOB_FRAMES — ровно старые литералы (без data-модулей)');
+  const kinds = ['orc', 'orc', 'skeleton', 'wolf', 'spider', 'elemental', 'abyss'];
+  for (let i = 0; i < 7; i++) {
+    assert.deepEqual(fromVm(G.mobFrames(i)), FALLBACK[kinds[i]],
+      `mobFrames(${i}) — fallback-пути`);
+  }
+  assert.equal(errors.length, 0,
+    'загрузка без данных — чистая (0 console.error): ' + errors.join('; '));
+});
+
 // --- Задача 000110 (SP-C3): citySprite без каталога (vm-минимальная
 // цепочка perlin→map→sprites, без buildings.js — паттерн теста
 // «vm без каталога mob_groups» выше). Таблица CITY_SPRITES — ЛИТЕРАЛ

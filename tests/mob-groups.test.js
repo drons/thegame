@@ -7,9 +7,12 @@
 //  * миграция 1:1 — названия/составы/спрайт-виды = ТЕКУЩИЕ значения
 //    кода master (literal'ы зашиты в тест: не читаем FALLBACK_* из
 //    src/ — иначе циклично);
-//  * ссылочную целостность: id мобов в состав.мобы ∈ assets/mobs;
-//    число — [min,max], min<=max; размер группы 2..6 (SPEC «Состав
-//    групп»);
+//  * ссылочную целостность: ссылки состав.мобы → файлы assets/mobs
+//    (id цели = прежнему значению); число — [min,max], min<=max;
+//    размер группы 2..6 (SPEC «Состав групп»);
+//  * 000211.08: «кадры» — 2 svg-пути группы (byte-идентичны старым
+//    литералам MOB_FRAMES), форма schema.json (кадры/ссылочный
+//    pattern);
 //  * фолбэк-модуль src/mob-groups-data.js: шапка GENERATED, НОЛЬ
 //    require внутри (vm-песочницы не должны тянуть его зависимости,
 //    паттерн 000049), браузерная ветка — Game.MobGroupsData;
@@ -55,6 +58,20 @@ function mobIds() {
     ids.add(JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8')).id);
   }
   return ids;
+}
+
+const { isRef, resolveRef } = require(
+  path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
+
+// 000211.08: ссылка каталога → id целевого файла (формат 000211.01);
+// не-ссылка (включая голый id — дрейф) — осмысленный fall «не ссылка»
+// (RED-стадия), не синтаксическая.
+function refToId(ref, where) {
+  assert.ok(isRef(ref),
+    `${where}: «${ref}» — не ссылка на файл mobs (формат "assets/mobs/NNNNNN.json")`);
+  const r = resolveRef(ROOT, ref);
+  assert.ok(r.ok, `${where}: «${ref}» — ${r.reason}`);
+  return r.id;
 }
 
 // --- Миграционный 1:1 (закрытый литерал master) ---
@@ -130,6 +147,19 @@ const EXPECTED_GROUPS = [
   },
 ];
 
+// --- 000211.08: старые литералы MOB_FRAMES (sprites.js, до рефактора) ---
+// Пути кадров 6 видов — закрытый литерал: «кадры» каталога и mobFrames()
+// обязаны быть byte-идентичны (без визуальных изменений); из src/ НЕ
+// читаем — иначе циклично (шапка файла).
+const OLD_MOB_FRAMES = {
+  orc: ['assets/sprites/mobs/orc_1.svg', 'assets/sprites/mobs/orc_2.svg'],
+  skeleton: ['assets/sprites/mobs/skeleton_1.svg', 'assets/sprites/mobs/skeleton_2.svg'],
+  wolf: ['assets/sprites/mobs/wolf_1.svg', 'assets/sprites/mobs/wolf_2.svg'],
+  spider: ['assets/sprites/mobs/spider_1.svg', 'assets/sprites/mobs/spider_2.svg'],
+  elemental: ['assets/sprites/mobs/elemental_1.svg', 'assets/sprites/mobs/elemental_2.svg'],
+  abyss: ['assets/sprites/mobs/abyss_1.svg', 'assets/sprites/mobs/abyss_2.svg'],
+};
+
 test('каталог assets/mob_groups: ровно 000001..000007.json + schema.json, id = номер файла', () => {
   assert.ok(fs.existsSync(DIR), 'каталога assets/mob_groups нет (задача 000057)');
   const files = fs.readdirSync(DIR).sort();
@@ -157,8 +187,10 @@ test('миграция 1:1: названия/составы (имя рецепт
     assert.equal(typeof f.состав, 'object', `${e.id}: нет поля «состав»`);
     assert.equal(f.состав.название, e.состав.название,
       `${e.id}: имя рецепта «${f.состав.название}» ≠ «${e.состав.название}» (живёт в логе боя)`);
-    assert.deepEqual(f.состав.мобы, e.состав.мобы,
-      `${e.id}: порядок/состав мобов изменился`);
+    assert.deepEqual(
+      f.состав.мобы.map((m, n) => refToId(m, `группа ${e.id}, состав.мобы[${n}]`)),
+      e.состав.мобы,
+      `${e.id}: порядок/состав мобов изменился (id целей ссылок ≠ прежнему)`);
     if (e.состав.число) {
       assert.deepEqual(f.состав.число, e.состав.число,
         `${e.id}: число ${JSON.stringify(f.состав.число)} ≠ ${JSON.stringify(e.состав.число)}`);
@@ -170,13 +202,14 @@ test('миграция 1:1: названия/составы (имя рецепт
   }
 });
 
-test('ссылочная целостность: id мобов ∈ assets/mobs; число [min,max], min<=max; размер группы 2..6 (SPEC)', () => {
+test('ссылочная целостность: ссылки состав.мобы резолвятся в id ∈ assets/mobs; число [min,max], min<=max; размер группы 2..6 (SPEC)', () => {
   const ids = mobIds();
   const files = catalogFiles();
   for (let i = 0; i < 7; i++) {
     const f = files[i];
-    for (const m of f.состав.мобы) {
-      assert.ok(ids.has(m), `${f.id}: моб «${m}» нет в assets/mobs`);
+    for (let n = 0; n < f.состав.мобы.length; n++) {
+      const id = refToId(f.состав.мобы[n], `группа ${f.id}, состав.мобы[${n}]`);
+      assert.ok(ids.has(id), `${f.id}: id «${id}» нет в assets/mobs`);
     }
     if ('число' in f.состав) {
       const [min, max] = f.состав.число;
@@ -189,7 +222,78 @@ test('ссылочная целостность: id мобов ∈ assets/mobs; 
       assert.ok(n >= 2 && n <= 6, `${f.id}: размер группы ${n} вне 2..6 (SPEC «Состав групп»)`);
     }
     // Доминирующий тип локации — всегда есть (SPEC): moby[0].
-    assert.ok(ids.has(f.состав.мобы[0]), `${f.id}: доминирующий моб неизвестен`);
+    assert.ok(ids.has(refToId(f.состав.мобы[0], `группа ${f.id}, состав.мобы[0]`)),
+      `${f.id}: доминирующий моб неизвестен`);
+  }
+});
+
+test('000211.08 R1: ВСЕ 24 записи 7 групп — ссылки на assets/mobs/<NNNNNN>.json: resolveRef ok, id цели = прежнему значению позиционно, id ∈ assets/mobs', () => {
+  const ids = mobIds();
+  const files = catalogFiles();
+  let nRefs = 0;
+  for (let i = 0; i < 7; i++) {
+    const f = files[i], e = EXPECTED_GROUPS[i];
+    assert.equal(f.состав.мобы.length, e.состав.мобы.length,
+      `${e.id}: число мобов ${f.состав.мобы.length} ≠ ${e.состав.мобы.length}`);
+    for (let n = 0; n < f.состав.мобы.length; n++) {
+      const id = refToId(f.состав.мобы[n], `группа ${e.id}, состав.мобы[${n}]`);
+      assert.equal(id, e.состав.мобы[n],
+        `${e.id}: состав.мобы[${n}] → id «${id}» ≠ прежнему «${e.состав.мобы[n]}»`);
+      assert.ok(ids.has(id), `${e.id}: id «${id}» нет в assets/mobs`);
+      nRefs++;
+    }
+  }
+  assert.equal(nRefs, 24, 'ровно 24 ссылки (4+3+5+1+4+4+3)');
+});
+
+test('000211.08 R2: «кадры» — у ВСЕХ 7 групп массив ровно 2 строк, pattern ^assets/sprites/mobs/[\\w]+_[12]\\.svg$, оба файла существуют; пути byte-идентичны старым литералам MOB_FRAMES по kind', () => {
+  const files = catalogFiles();
+  for (let i = 0; i < 7; i++) {
+    const f = files[i];
+    assert.ok(Array.isArray(f.кадры),
+      `группа ${f.id}: нет поля «кадры» (массив 2 строк)`);
+    assert.equal(f.кадры.length, 2, `группа ${f.id}: «кадры» — ровно 2 строки`);
+    for (const p of f.кадры) {
+      assert.equal(typeof p, 'string', `группа ${f.id}: «кадры» — строки`);
+      assert.ok(/^assets\/sprites\/mobs\/[\w]+_[12]\.svg$/.test(p),
+        `группа ${f.id}: путь «кадры» «${p}» вне pattern ТЗ`);
+      assert.ok(fs.existsSync(path.join(ROOT, p)),
+        `группа ${f.id}: файл «кадры» «${p}» отсутствует`);
+    }
+    assert.deepEqual(f.кадры, OLD_MOB_FRAMES[f.спрайт],
+      `группа ${f.id}: «кадры» ≠ старым путям вида «${f.спрайт}»`);
+  }
+});
+
+test('000211.08 R3: schema.json (mob_groups) — «кадры»: array, minItems 2, maxItems 2, items string pattern ТЗ (дословно); состав.мобы.items — узкий ссылочный pattern; required — «кадры» КОНЦОМ; additionalProperties:false (верх + состав); спрайт-enum без изменений', () => {
+  const s = JSON.parse(fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(s.properties.кадры, {
+    type: 'array',
+    minItems: 2,
+    maxItems: 2,
+    items: { type: 'string', pattern: '^assets/sprites/mobs/[\\w]+_[12]\\.svg$' },
+  }, 'properties.кадры — точная форма');
+  assert.deepEqual(s.properties.состав.properties.мобы.items,
+    { type: 'string', pattern: '^assets/mobs/\\d{6}\\.json$' },
+    'состав.мобы.items — ссылочный pattern (узкий, по целевому каталогу)');
+  assert.deepEqual(s.required,
+    ['id', 'название', 'состав', 'спрайт', 'особые_параметры', 'кадры'],
+    'required: «кадры» КОНЦОМ (required[0] = «id» не смещён)');
+  assert.equal(s.additionalProperties, false,
+    'additionalProperties верхнего уровня false');
+  assert.equal(s.properties.состав.additionalProperties, false,
+    'additionalProperties уровня «состав» false');
+  assert.deepEqual(s.properties.спрайт.enum,
+    ['orc', 'skeleton', 'wolf', 'spider', 'elemental', 'abyss'],
+    'спрайт-enum — без изменений');
+});
+
+test('000211.08 F1 (пин): mobFrames() — тот же результат, что ДО: S.mobFrames(0..6) = старым путям по kind (закрытый литерал, не чтение данных/зеркала)', () => {
+  const S = require(path.join(ROOT, 'src', 'sprites.js'));
+  for (let i = 0; i < 7; i++) {
+    const kind = EXPECTED_GROUPS[i].спрайт;
+    assert.deepEqual(S.mobFrames(i), OLD_MOB_FRAMES[kind],
+      `тип ${i}: mobFrames «${JSON.stringify(S.mobFrames(i))}» ≠ старым путям вида «${kind}»`);
   }
 });
 
@@ -218,14 +322,24 @@ test('src/mob-groups-data.js: НОЛЬ require внутри; браузерна�
   assert.equal(MG.MOB_GROUPS.length, 7, '7 записей');
 });
 
-test('зеркало ≡ JSON: MOB_GROUPS из src/mob-groups-data.js deepEqual файлам каталога (позиция = id−1)', () => {
+test('зеркало ≡ JSON: MOB_GROUPS из src/mob-groups-data.js deepEqual файлам каталога (мобы — id-форма, не ссылки; «кадры» as-is; позиция = id−1)', () => {
   const { MOB_GROUPS } = require(path.join(ROOT, 'src', 'mob-groups-data.js'));
   const files = catalogFiles();
   assert.equal(MOB_GROUPS.length, 7, '7 записей в зеркале');
   for (let i = 0; i < 7; i++) {
     assert.equal(MOB_GROUPS[i].id, i + 1, `позиция ${i}: id = позиция + 1`);
-    assert.deepEqual(MOB_GROUPS[i], files[i],
+    const expected = Object.assign({}, files[i], {
+      состав: Object.assign({}, files[i].состав, {
+        мобы: files[i].состав.мобы.map((m, n) =>
+          refToId(m, `00000${i + 1}.json, состав.мобы[${n}]`)),
+      }),
+    });
+    assert.deepEqual(MOB_GROUPS[i], expected,
       `00000${i + 1}.json совпадает с JS-зеркалом`);
+    for (const m of MOB_GROUPS[i].состав.мобы) {
+      assert.ok(!isRef(m),
+        `00000${i + 1}.json: зеркало в id-форме, не ссылки: «${m}»`);
+    }
   }
 });
 
@@ -281,7 +395,10 @@ test('зеркало: GROUP_RECIPES (combat.js) ≡ каталогу (назва
     const r = GROUP_RECIPES[i], f = files[i];
     assert.equal(r.name, f.состав.название,
       `тип ${i}: recipe.name «${r.name}» ≠ каталожному «${f.состав.название}»`);
-    assert.deepEqual(r.mobs, f.состав.мобы, `тип ${i}: состав мобов ≠ каталогу`);
+    assert.deepEqual(
+      r.mobs,
+      f.состав.мобы.map((m, n) => refToId(m, `тип ${i}, состав.мобы[${n}]`)),
+      `тип ${i}: состав мобов ≠ каталогу (GROUP_RECIPES — id-форма)`);
     if ('число' in f.состав) {
       assert.deepEqual(r.count, f.состав.число, `тип ${i}: count ≠ каталогу`);
     } else {

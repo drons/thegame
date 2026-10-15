@@ -3,8 +3,9 @@
   "название": "дух бездны",
   "состав": {
     "название": "abyss_spirit",
-    "мобы": ["abomination", "lower_demon", "succubus"]
+    "мобы": ["assets/mobs/000036.json", "assets/mobs/000034.json", "assets/mobs/000035.json"]
   },
   "спрайт": "abyss",
-  "особые_параметры": {}
+  "особые_параметры": {},
+  "кадры": ["assets/sprites/mobs/abyss_1.svg", "assets/sprites/mobs/abyss_2.svg"]
 }

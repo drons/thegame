@@ -47,6 +47,8 @@ const ROOT = path.join(__dirname, '..');
 // валидатор схем — красные тесты M1/M2 (EOF-блок 000211.03).
 const { isRef, resolveRef } = require('../scripts/lib/json-ref.js');
 const { validateData } = require('./json-schema.js');
+// 000211.08: ссылки состав.мобы каталога → id целей (формат 000211.01).
+const JR = require('../scripts/lib/json-ref.js');
 const mobFiles = () => fs.readdirSync(MOBS_DIR)
   .filter((f) => /^\d{6}\.json$/.test(f)).sort();
 function refToId(v, where) {
@@ -3530,8 +3532,15 @@ test('C1. BUILDING_BOSS: рецепт босса (1–3 troll) + регресс�
     const rec = GROUP_RECIPES[i], f = files[i];
     assert.equal(rec.name, f.состав.название,
       `тип ${i}: recipe.name ≠ каталогу`);
-    assert.deepEqual(rec.mobs, f.состав.мобы,
-      `тип ${i}: состав мобов ≠ каталогу`);
+    assert.deepEqual(rec.mobs,
+      f.состав.мобы.map((m, n) => {
+        assert.ok(JR.isRef(m),
+          `тип ${i}, состав.мобы[${n}]: «${m}» — не ссылка (формат "assets/mobs/NNNNNN.json")`);
+        const r = JR.resolveRef(path.join(__dirname, '..'), m);
+        assert.ok(r.ok, `тип ${i}, состав.мобы[${n}]: «${m}» — ${r.reason}`);
+        return r.id;
+      }),
+      `тип ${i}: состав мобов ≠ каталогу (GROUP_RECIPES — id-форма)`);
     if ('число' in f.состав) {
       assert.deepEqual(rec.count, f.состав.число,
         `тип ${i}: count ≠ каталогу`);

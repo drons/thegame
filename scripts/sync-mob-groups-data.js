@@ -44,6 +44,40 @@ if (files.length === 0) {
   process.exit(1);
 }
 
+// Задача 000211.08: состав.мобы — ссылка на файл
+// «assets/mobs/NNNNNN.json» (контракт 000211 §2); при запекании
+// резолюция в id файла-цели — зеркало src/mob-groups-data.js остаётся
+// в id-форме (ссылки живут ТОЛЬКО в JSON). Fail-closed: значение
+// вне паттерна (включая голый id — дрейф), файл-цель отсутствует /
+// не JSON / без непустого строкового id → exit 1 (000207); кэш
+// цели — 1 чтение на уникальную ссылку (000208).
+const MOBS_REF_RE = /^assets\/mobs\/\d{6}\.json$/;
+const MOBS_REF_CACHE = new Map();
+function resolveMobRef(file, ref, where) {
+  if (typeof ref !== 'string' || !MOBS_REF_RE.test(ref)) {
+    console.error(
+      `${file}: ${where} «${ref}» — не ссылка `
+      + 'на файл mobs (формат "assets/mobs/NNNNNN.json")');
+    process.exit(1);
+  }
+  if (MOBS_REF_CACHE.has(ref)) return MOBS_REF_CACHE.get(ref);
+  const target = path.join(ROOT, ref);
+  let tj;
+  try {
+    tj = JSON.parse(fs.readFileSync(target, 'utf8'));
+  } catch {
+    console.error(
+      `${file}: ${where} цель ссылки «${ref}» — файл отсутствует или не JSON`);
+    process.exit(1);
+  }
+  if (!tj || typeof tj.id !== 'string' || tj.id === '') {
+    console.error(`${file}: ${where} цель ссылки «${ref}» — id отсутствует`);
+    process.exit(1);
+  }
+  MOBS_REF_CACHE.set(ref, tj.id);
+  return tj.id;
+}
+
 const groups = [];
 for (const f of files) {
   const n = parseInt(f, 10);
@@ -64,6 +98,10 @@ for (const f of files) {
     console.error(`${f}: нет валидных полей название/состав/спрайт`);
     process.exit(1);
   }
+  // Задача 000211.08: ссылки состав.мобы → id целей (до генерации;
+  // зеркало — в id-форме); «кадры» — аддитивное поле, as-is.
+  data.состав.мобы = data.состав.мобы.map((m, n) =>
+    resolveMobRef(f, m, 'состав.мобы[' + n + ']'));
   groups.push({ file: f, data });
 }
 

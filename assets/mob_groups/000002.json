@@ -3,8 +3,9 @@
   "название": "орочий набеги",
   "состав": {
     "название": "orc_raid",
-    "мобы": ["orc_rider", "orc_rider", "orc_mad"]
+    "мобы": ["assets/mobs/000005.json", "assets/mobs/000005.json", "assets/mobs/000006.json"]
   },
   "спрайт": "orc",
-  "особые_параметры": {}
+  "особые_параметры": {},
+  "кадры": ["assets/sprites/mobs/orc_1.svg", "assets/sprites/mobs/orc_2.svg"]
 }

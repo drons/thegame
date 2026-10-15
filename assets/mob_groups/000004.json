@@ -4,8 +4,9 @@
   "состав": {
     "название": "wolf_pack",
     "число": [3, 6],
-    "мобы": ["wolf"]
+    "мобы": ["assets/mobs/000016.json"]
   },
   "спрайт": "wolf",
-  "особые_параметры": {}
+  "особые_параметры": {},
+  "кадры": ["assets/sprites/mobs/wolf_1.svg", "assets/sprites/mobs/wolf_2.svg"]
 }

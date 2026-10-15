@@ -3,8 +3,9 @@
   "название": "логово скелетов",
   "состав": {
     "название": "skeleton_den",
-    "мобы": ["skeleton", "skeleton", "skeleton", "crawling_bones", "crawling_bones"]
+    "мобы": ["assets/mobs/000009.json", "assets/mobs/000009.json", "assets/mobs/000009.json", "assets/mobs/000011.json", "assets/mobs/000011.json"]
   },
   "спрайт": "skeleton",
-  "особые_параметры": {}
+  "особые_параметры": {},
+  "кадры": ["assets/sprites/mobs/skeleton_1.svg", "assets/sprites/mobs/skeleton_2.svg"]
 }

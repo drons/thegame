@@ -208,7 +208,7 @@
         return k;
       })()
     : FALLBACK_MOB_KINDS;
-  const MOB_FRAMES = {
+  const FALLBACK_MOB_FRAMES = {
     orc: ['assets/sprites/mobs/orc_1.svg', 'assets/sprites/mobs/orc_2.svg'],
     skeleton: ['assets/sprites/mobs/skeleton_1.svg', 'assets/sprites/mobs/skeleton_2.svg'],
     wolf: ['assets/sprites/mobs/wolf_1.svg', 'assets/sprites/mobs/wolf_2.svg'],
@@ -216,6 +216,19 @@
     elemental: ['assets/sprites/mobs/elemental_1.svg', 'assets/sprites/mobs/elemental_2.svg'],
     abyss: ['assets/sprites/mobs/abyss_1.svg', 'assets/sprites/mobs/abyss_2.svg'],
   };
+  const MOB_FRAMES = Object.assign({}, FALLBACK_MOB_FRAMES, (function () {
+    const f = {};
+    if (!MOB_GROUPS_DATA) return f;
+    for (const g of MOB_GROUPS_DATA.MOB_GROUPS) {
+      if (g && typeof g.спрайт === 'string' &&
+          Array.isArray(g.кадры) && g.кадры.length === 2 &&
+          typeof g.кадры[0] === 'string' && g.кадры[0] !== '' &&
+          typeof g.кадры[1] === 'string' && g.кадры[1] !== '') {
+        if (!f[g.спрайт]) f[g.спрайт] = [g.кадры[0], g.кадры[1]];
+      }
+    }
+    return f;
+  })());
 
   // Бой (задача 000047): типы мобов MOB_TYPES из src/combat.js →
   // базовые спрайт-виды MOB_FRAMES. Таблица — ЛИТЕРАЛ: sprites.js не

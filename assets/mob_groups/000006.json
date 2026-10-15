@@ -3,8 +3,9 @@
   "название": "круг стихийников",
   "состав": {
     "название": "elemental_circle",
-    "мобы": ["fire_elemental", "wind_elemental", "water_elemental", "fairy"]
+    "мобы": ["assets/mobs/000026.json", "assets/mobs/000028.json", "assets/mobs/000027.json", "assets/mobs/000032.json"]
   },
   "спрайт": "elemental",
-  "особые_параметры": {}
+  "особые_параметры": {},
+  "кадры": ["assets/sprites/mobs/elemental_1.svg", "assets/sprites/mobs/elemental_2.svg"]
 }
