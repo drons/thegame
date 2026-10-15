@@ -176,9 +176,10 @@ test('ссылки: «база» — заклинание каталога, це
   const { byId } = loadCatalog();
   for (const { file, data } of byId.values()) {
     if (data.база === null) continue;
-    const base = byId.get(data.база);
-    assert.ok(base, `${file}: базовое заклинание "${data.база}" нет в каталоге`);
-    assert.notEqual(data.база, data.id, `${file}: цикл «база» на самом себе`);
+    const baseId = refId(data.база, REF_SPELLS, file);
+    const base = byId.get(baseId);
+    assert.ok(base, `${file}: базовое заклинание "${baseId}" нет в каталоге`);
+    assert.notEqual(baseId, data.id, `${file}: цикл «база» на самом себе`);
     assert.equal(base.data.школа, data.школа,
       `${file}: совершенствование другой школы, чем базовое`);
     assert.equal(data.степень, base.data.степень + 1,
@@ -190,12 +191,16 @@ test('ссылки: «база» — заклинание каталога, це
     // Обход цепочки «база» завершается (циклов нет).
     const seen = new Set();
     let cur = data;
+    let curFile = file;
     let guard = 0;
     while (cur && cur.база !== null) {
       assert.ok(++guard <= byId.size, `${file}: цикл в цепочке совершенствований`);
       assert.ok(!seen.has(cur.id), `${file}: цикл на "${cur.id}"`);
       seen.add(cur.id);
-      cur = byId.get(cur.база).data;
+      const entry = byId.get(refId(cur.база, REF_SPELLS, curFile));
+      assert.ok(entry, `${file}: базовое заклинание цепочки нет в каталоге`);
+      curFile = entry.file;
+      cur = entry.data;
     }
   }
 });
@@ -204,14 +209,16 @@ test('ссылки: «предметы» → assets/items, «здания» → 
   const { byId } = loadCatalog();
   for (const { file, data } of byId.values()) {
     for (const it of (data.предметы || [])) {
-      assert.ok(getItem(it) !== null,
-        `${file}: предмет "${it}" нет в каталоге assets/items`);
+      const id = refId(it, REF_ITEMS, file);
+      assert.ok(getItem(id) !== null,
+        `${file}: предмет "${id}" нет в каталоге assets/items`);
     }
     for (const b of data.здания) {
-      assert.ok(Number.isInteger(b) && b >= 1 && b <= 50,
-        `${file}: постройка ${b} вне диапазона 1..50 каталога`);
-      assert.ok(getBuilding(b) !== null,
-        `${file}: здание id=${b} нет в каталоге assets/buildings`);
+      const id = refId(b, REF_BUILDINGS, file);
+      assert.ok(BUILDING_IDS.has(id),
+        `${file}: здание id=${id} нет в каталоге assets/buildings (membership)`);
+      assert.ok(getBuilding(id) !== null,
+        `${file}: здание id=${id} нет в каталоге assets/buildings`);
     }
   }
 });
@@ -253,12 +260,14 @@ test('spells-data.js: точное зеркало каталога JSON (17 за
   assert.equal(files.length, 17, 'каталог: 17 файлов');
   assert.equal(SPELLS.length, 17, 'SPELLS — 17 заклинаний');
   assert.equal(Object.keys(SPELLS_BY_ID).length, 17, 'SPELLS_BY_ID — 17 id');
-  // Порядок SPELLS = порядок файлов каталога; данные — дословно.
+  // Порядок SPELLS = порядок файлов каталога; данные — дословно
+  // (в id-форме: ссылки резолвятся в id целевого файла, 000211.04).
   files.forEach((f, i) => {
     const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
     assert.equal(SPELLS[i].id, data.id, `позиция ${i}: порядок файлов`);
-    assert.deepEqual(SPELLS[i], data, `${f}: зеркало SPELLS не совпадает`);
-    assert.deepEqual(SPELLS_BY_ID[data.id], data,
+    assert.deepEqual(SPELLS[i], resolveSpell(data, f),
+      `${f}: зеркало SPELLS не совпадает`);
+    assert.deepEqual(SPELLS_BY_ID[data.id], resolveSpell(data, f),
       `${f}: зеркало SPELLS_BY_ID не совпадает`);
   });
   // Обратное: все id модуля есть в каталоге.
@@ -1319,9 +1328,13 @@ test('000163 R1: каталог 000017.json — 17-й файл, поля по Т
   assert.equal(data.уровень, 3, 'уровень 3 — ранг «Мастер» исцеления');
   assert.equal(data.мани, 15);
   assert.equal(data.действие, 'воскрешение', 'НОВОЕ значение enum');
-  assert.deepEqual(data.предметы, ['phoenix_feather'],
+  assert.deepEqual(
+    data.предметы.map((it) => refId(it, REF_ITEMS, '000017.json')),
+    ['phoenix_feather'],
     'предмет: phoenix_feather (свиток НЕ здесь — 000165)');
-  assert.deepEqual(data.здания, [21, 36, 37, 38],
+  assert.deepEqual(
+    data.здания.map((b) => refId(b, REF_BUILDINGS, '000017.json')),
+    [21, 36, 37, 38],
     'здания: Храм исцеления (21) + храмы (36/37/38)');
   assert.ok(typeof data.описание === 'string'
     && data.описание.trim().length > 0, 'описание непустое');
@@ -1334,13 +1347,16 @@ test('000163 R1: каталог 000017.json — 17-й файл, поля по Т
   assert.ok(getItem('phoenix_feather') !== null,
     'phoenix_feather — в каталоге assets/items');
   for (const b of data.здания) {
-    assert.ok(getBuilding(b) !== null, 'здание ' + b + ' — в каталоге');
+    const id = refId(b, REF_BUILDINGS, '000017.json');
+    assert.ok(getBuilding(id) !== null, 'здание ' + id + ' — в каталоге');
   }
   // (e) Зеркало src/spells-data.js (regen sync-spells-data.js).
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
   assert.equal(SPELLS.length, 17, 'зеркало: 17 заклинаний');
-  assert.deepEqual(SPELLS[16], data, 'SPELLS[16] — зеркало 000017.json');
-  assert.deepEqual(SPELLS_BY_ID.resurrect, data, 'SPELLS_BY_ID.resurrect');
+  assert.deepEqual(SPELLS[16], resolveSpell(data, '000017.json'),
+    'SPELLS[16] — зеркало 000017.json');
+  assert.deepEqual(SPELLS_BY_ID.resurrect, resolveSpell(data, '000017.json'),
+    'SPELLS_BY_ID.resurrect');
 });
 
 test('000163 R2: ядро combatInternals.resurrectAlly — мёртвый союзник/игрок: alive, hp=round(maxHP/2), лог «Возвращён в бой.», ноль c._rng, возврат hp', () => {
@@ -1673,5 +1689,391 @@ test('000163 R9: гейт неизвестного действия — «вос
     assert.equal(a.alive, false, 'союзник не воскрешён');
   } finally {
     spell.действие = saved;
+  }
+});
+
+// --- Задача 000211.04: база/предметы/здания → ссылки на файлы каталогов ---
+// (TDD, красные тесты)
+//
+// Контракт: memory/000211.04-spells-refs.md (формат ссылки — 000211 §2,
+// memory/000211-spec-coverage-audit.md; прецеденты 000207/000208).
+// Красная стадия: значения «база»/«предметы»/«здания» в 17 JSON ещё id
+// (строки/числа), узлы schema.json — в старой форме (id-паттерн /
+// integer 1..999999), sync-spells-data.js без резолвера ссылок — тесты
+// ниже падают именно по этому (осмысленная краснота: форма данных и
+// отсутствие резолвера, не синтаксис). Хелперы локальные (копия стиля
+// 000208; прецедент: хелперы per-файл, НЕ scripts/lib/json-ref.js).
+
+const { spawnSync } = require('node:child_process');
+const os = require('node:os');
+const SCRIPTS = path.join(__dirname, '..', 'scripts');
+
+const REF_SPELLS = /^assets\/spells\/\d{6}\.json$/;
+const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
+const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
+const REF_CACHE = new Map(); // ссылка → id цели (файл читается 1 раз)
+
+// Ссылка → id целевого файла: ссылка по per-catalog паттерну, цель
+// существует, парсится и имеет id (assert-вариант 1:1
+// tests/craft.test.js:87-104; «без id» — data.id === undefined,
+// не truthiness — id=0/число проходят).
+function refId(ref, re, file) {
+  assert.match(ref, re,
+    `${file}: ссылка "${ref}" не по паттерну каталога`);
+  if (REF_CACHE.has(ref)) return REF_CACHE.get(ref);
+  const target = path.join(__dirname, '..', ref);
+  assert.ok(fs.existsSync(target),
+    `${file}: нет цели ссылки ${ref}`);
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(target, 'utf8'));
+  } catch (e) {
+    assert.fail(`${file}: цель ссылки ${ref} не JSON: ${e.message}`);
+  }
+  assert.ok(data && data.id !== undefined,
+    `${file}: цель ссылки ${ref} без id`);
+  REF_CACHE.set(ref, data.id);
+  return data.id;
+}
+
+// Заклинание в id-форме — та, что в зеркале src/spells-data.js и
+// рантайме (то же преобразование, что resolveSpellData в
+// sync-spells-data.js): поля-ссылки резолвятся в id целевого файла,
+// остальные — те же значения (вход не мутируется). Ключ «предметы»
+// опционален (6 файлов без него) — не домысливается; «база» — ternary
+// на null; «здания» — required, всегда .map.
+function resolveSpell(data, file) {
+  return {
+    ...data,
+    база: data.база === null ? null : refId(data.база, REF_SPELLS, file),
+    ...(Array.isArray(data.предметы)
+      ? { предметы: data.предметы.map((it) => refId(it, REF_ITEMS, file)) }
+      : {}),
+    здания: data.здания.map((b) => refId(b, REF_BUILDINGS, file)),
+  };
+}
+
+// Числовые id сырого каталога зданий (assets/buildings, 54 записи):
+// membership «id в каталоге» — замена устаревшего range 1..50 (ТЗ п.4).
+// Set.has — строгий: строка "17" не пройдёт (проверка типа включена).
+const BUILDING_IDS = (() => {
+  const dir = path.join(__dirname, '..', 'assets', 'buildings');
+  const ids = new Set();
+  for (const f of fs.readdirSync(dir)) {
+    if (!/^\d{6}\.json$/.test(f)) continue;
+    const data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+    ids.add(data.id);
+  }
+  return ids;
+})();
+
+// Фикстуры tmp-«репозитория» (паттерн 000208 R3: копия РЕАЛЬНОГО
+// sync-spells-data.js — ROOT он резолвит из __dirname, CLI без
+// root-аргумента). Заклинание в ссылочной форме (контракт §2):
+// «база» — self-ссылка каталога spells, «предметы» → items,
+// «здания» → buildings. Цель self-ссылки (000002.json) — тоже полный
+// каталожный файл (скрипт обрабатывает ВСЕ файлы каталога): «база»
+// null и БЕЗ опционального «предметы» — задел на guard.
+const FIXTURE_SPELL = {
+  id: 'flame_burst',
+  'название': 'Пламенный взрыв',
+  'школа': 'огонь',
+  'база': 'assets/spells/000002.json',
+  'степень': 2,
+  'атрибут': 'intelligence',
+  'уровень': 3,
+  'мани': 10,
+  'действие': 'урон',
+  'предметы': ['assets/items/000001.json'],
+  'здания': ['assets/buildings/000001.json'],
+  'описание': 'Фикстура 000211.04: ссылки на файлы каталогов',
+};
+
+const FIXTURE_BASE_SPELL = {
+  id: 'fireball',
+  'название': 'Огненный шар',
+  'школа': 'огонь',
+  'база': null,
+  'степень': 1,
+  'атрибут': 'intelligence',
+  'уровень': 2,
+  'мани': 6,
+  'действие': 'урон',
+  'здания': ['assets/buildings/000001.json'],
+  'описание': 'Фикстура 000211.04: цель self-ссылки «база»',
+};
+
+const FIXTURE_TARGETS = {
+  items: { '000001.json': '{"id": "sulfur"}\n' },
+  buildings: { '000001.json': '{"id": 17}\n' },
+};
+
+// tmp-«репозиторий»: копия реального sync-spells-data.js +
+// write-atomic.js + фикстуры assets (заклинания в ссылочной форме).
+function makeTmpSpellsRepo(spellFiles, targets) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'spells-000211.04-'));
+  for (const sub of ['scripts/lib', 'src', 'assets/spells',
+                     'assets/items', 'assets/buildings']) {
+    fs.mkdirSync(path.join(dir, sub), { recursive: true });
+  }
+  fs.copyFileSync(path.join(SCRIPTS, 'sync-spells-data.js'),
+    path.join(dir, 'scripts', 'sync-spells-data.js'));
+  fs.copyFileSync(path.join(SCRIPTS, 'lib', 'write-atomic.js'),
+    path.join(dir, 'scripts', 'lib', 'write-atomic.js'));
+  for (const [f, content] of Object.entries(spellFiles)) {
+    fs.writeFileSync(path.join(dir, 'assets', 'spells', f), content, 'utf8');
+  }
+  for (const [sub, files] of Object.entries(targets)) {
+    for (const [f, content] of Object.entries(files)) {
+      fs.writeFileSync(path.join(dir, 'assets', sub, f), content, 'utf8');
+    }
+  }
+  return dir;
+}
+
+test('000211.04 R1: schema.json — поля-ссылки закреплены per-catalog паттернами (§2)', () => {
+  const schema = loadSchema();
+  assert.deepEqual(schema.properties['база'].anyOf,
+    [
+      { type: 'string', pattern: '^assets/spells/\\d{6}\\.json$' },
+      { type: 'null' },
+    ],
+    '«база» — ссылка на файл assets/spells (null-ветка сохраняется)');
+  assert.deepEqual(schema.properties['предметы'].items,
+    { type: 'string', pattern: '^assets/items/\\d{6}\\.json$' },
+    '«предметы»[] — ссылка на файл assets/items');
+  assert.deepEqual(schema.properties['здания'].items,
+    { type: 'string', pattern: '^assets/buildings/\\d{6}\\.json$' },
+    '«здания»[] — ссылка на файл assets/buildings (integer → string)');
+});
+
+test('000211.04 R2: 17 заклинаний — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 5/14/26)', () => {
+  const files = listSpellFiles();
+  assert.equal(files.length, 17, 'каталог: 17 файлов');
+  const { byId } = loadCatalog();
+  const { SPELLS } = loadSpellsData();
+  let baseRefs = 0;
+  let itemRefs = 0;
+  let buildingRefs = 0;
+  let filesWithItems = 0;
+  const baseTargets = new Set();
+  const itemTargets = new Set();
+  const buildingTargets = new Set();
+  files.forEach((f, i) => {
+    const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    // «база»: self-ссылка каталога spells (null остаётся null).
+    if (data.база !== null) {
+      baseRefs += 1;
+      const id = refId(data.база, REF_SPELLS, f);
+      assert.ok(byId.has(id),
+        `${f}: базовое заклинание id "${id}" нет в каталоге assets/spells`);
+      assert.equal(id, SPELLS[i].база,
+        `${f}: id цели «база» = прежнему значению (зеркало)`);
+      baseTargets.add(id);
+    } else {
+      assert.equal(SPELLS[i].база, null,
+        `${f}: «база» null — зеркало null`);
+    }
+    // «предметы» (опциональный ключ): ссылки каталога items.
+    if (Array.isArray(data.предметы)) {
+      filesWithItems += 1;
+      const ids = data.предметы.map((it) => {
+        itemRefs += 1;
+        const id = refId(it, REF_ITEMS, f);
+        assert.ok(getItem(id) !== null,
+          `${f}: предмет id "${id}" нет в каталоге assets/items`);
+        itemTargets.add(id);
+        return id;
+      });
+      assert.deepEqual(ids, SPELLS[i].предметы,
+        `${f}: id целей «предметы» = прежним значениям (зеркало)`);
+    } else {
+      assert.equal(SPELLS[i].предметы, undefined,
+        `${f}: ключа «предметы» нет — зеркало доверительное (без ключа)`);
+    }
+    // «здания»: ссылки каталога buildings, id — член каталога.
+    const bIds = data.здания.map((b) => {
+      buildingRefs += 1;
+      const id = refId(b, REF_BUILDINGS, f);
+      assert.ok(BUILDING_IDS.has(id),
+        `${f}: здание id=${id} нет в каталоге assets/buildings (membership)`);
+      assert.ok(getBuilding(id) !== null,
+        `${f}: здание id=${id} нет в зеркале buildings`);
+      buildingTargets.add(id);
+      return id;
+    });
+    assert.deepEqual(bIds, SPELLS[i].здания,
+      `${f}: id целей «здания» = прежним значениям (зеркало)`);
+  });
+  // Анти-вакуум: точные счётчики ссылок (контракт §1/§2).
+  assert.equal(baseRefs, 5, 'анти-вакуум: ровно 5 base-ссылок (12 null)');
+  assert.equal(itemRefs, 14, 'анти-вакуум: 14 item-ссылок');
+  assert.equal(buildingRefs, 26, 'анти-вакуум: 26 building-ссылок');
+  assert.equal(baseRefs + itemRefs + buildingRefs, 45,
+    'всего ссылок: 45 (5 + 14 + 26)');
+  assert.equal(filesWithItems, 11,
+    'анти-вакуум: 11 файлов с «предметы» (6 без ключа)');
+  assert.equal(baseTargets.size, 5, 'уникальные цели: 5 spells');
+  assert.equal(itemTargets.size, 3, 'уникальные цели: 3 items');
+  assert.equal(buildingTargets.size, 7, 'уникальные цели: 7 buildings');
+});
+
+test('000211.04 R3: membership — здания: города 51–54 проходят, id вне каталога — нет; все building-ссылки — члены каталога', () => {
+  // Отрицательный контроль — ДИНАМИЧЕСКИЙ (maxId из каталога, без
+  // хардкода: каталог может расти; прецедент AR5).
+  const maxId = Math.max(...BUILDING_IDS);
+  assert.ok(!BUILDING_IDS.has(maxId + 1),
+    'id за каталогом (max+1) — не член (membership)');
+  assert.equal(getBuilding(maxId + 1), null,
+    'getBuilding(max+1) — null');
+  assert.ok(!BUILDING_IDS.has(0), 'id 0 — не член (membership)');
+  // Положительный контроль: города 51–54 — ИМЕННО их старый range
+  // 1..50 отклонял (смысл замены range на membership, ТЗ).
+  for (const id of [51, 52, 53, 54]) {
+    assert.ok(BUILDING_IDS.has(id),
+      `город ${id} — член каталога buildings (membership)`);
+    assert.ok(getBuilding(id) !== null, `getBuilding(${id}) ≠ null`);
+  }
+  // Все элементы «здания»[] 17 заклинаний — ссылки, резолвятся,
+  // id — член каталога.
+  for (const f of listSpellFiles()) {
+    const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    for (const b of data.здания) {
+      const id = refId(b, REF_BUILDINGS, f);
+      assert.ok(BUILDING_IDS.has(id),
+        `${f}: здание id=${id} нет в каталоге assets/buildings (membership)`);
+      assert.ok(getBuilding(id) !== null,
+        `${f}: getBuilding(${id}) ≠ null`);
+    }
+  }
+});
+
+test('000211.04 R4: sync-spells-data.js запекает ссылки в id-форму (tmp-репозиторий)', () => {
+  const dir = makeTmpSpellsRepo({
+    '000001.json': JSON.stringify(FIXTURE_SPELL),
+    '000002.json': JSON.stringify(FIXTURE_BASE_SPELL),
+  }, FIXTURE_TARGETS);
+  try {
+    const script = path.join(dir, 'scripts', 'sync-spells-data.js');
+    const run1 = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+    assert.equal(run1.status, 0,
+      'sync-spells-data.js на tmp-репозитории со ссылочными данными: '
+      + (run1.stdout || '') + (run1.stderr || ''));
+    const out = path.join(dir, 'src', 'spells-data.js');
+    const text = fs.readFileSync(out, 'utf8');
+    // Данные модуля — РЕЗОЛВЕННАЯ id-форма: spells/items — строки,
+    // здание — ЧИСЛО (id целевого файла).
+    assert.match(text, /база: "fireball"/,
+      '«база» — резолв-ид заклинания-цели');
+    assert.match(text, /предметы: \["sulfur"\]/,
+      '«предметы» — резолв-ид предмета');
+    assert.match(text, /здания: \[17\]/,
+      '«здания» — резолв-ид (число)');
+    assert.doesNotMatch(text, /assets\/(items|buildings)\//,
+      'в данных модуля нет сырых ссылок «assets/items|buildings»');
+    // Повторный запуск byte-identical.
+    const before = fs.readFileSync(out, 'utf8');
+    const run2 = spawnSync(process.execPath, [script], { encoding: 'utf8' });
+    assert.equal(run2.status, 0,
+      'повторный запуск: ' + (run2.stdout || '') + (run2.stderr || ''));
+    assert.equal(fs.readFileSync(out, 'utf8'), before,
+      'повторный запуск byte-identical');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('000211.04 R5: sync-spells-data.js — все 4 ветки fail-closed refId (не по формату / нет цели / не JSON / без id) → exit 1 + контекст в stderr', () => {
+  // 1. Нет цели ссылки (000009.json — за максимальным номером фикстуры).
+  {
+    const spell = Object.assign({}, FIXTURE_SPELL,
+      { 'база': 'assets/spells/000009.json' });
+    const dir = makeTmpSpellsRepo({
+      '000001.json': JSON.stringify(spell),
+      '000002.json': JSON.stringify(FIXTURE_BASE_SPELL),
+    }, FIXTURE_TARGETS);
+    try {
+      const r = spawnSync(process.execPath,
+        [path.join(dir, 'scripts', 'sync-spells-data.js')],
+        { encoding: 'utf8' });
+      assert.equal(r.status, 1,
+        'битая ссылка (нет цели) обязана дать exit 1: '
+        + (r.stdout || '') + (r.stderr || ''));
+      assert.match(r.stderr || '', /assets\/spells\/000009\.json/,
+        'в stderr — имя битой ссылки (нет цели)');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  // 2. Цель существует, но без верхнеуровневого id.
+  {
+    const targets = {
+      items: { '000001.json': '{"name": "без id"}\n' },
+      buildings: { '000001.json': '{"id": 17}\n' },
+    };
+    const dir = makeTmpSpellsRepo({
+      '000001.json': JSON.stringify(FIXTURE_SPELL),
+      '000002.json': JSON.stringify(FIXTURE_BASE_SPELL),
+    }, targets);
+    try {
+      const r = spawnSync(process.execPath,
+        [path.join(dir, 'scripts', 'sync-spells-data.js')],
+        { encoding: 'utf8' });
+      assert.equal(r.status, 1,
+        'цель без id обязана дать exit 1: '
+        + (r.stdout || '') + (r.stderr || ''));
+      assert.match(r.stderr || '', /assets\/items\/000001\.json/,
+        'в stderr — имя ссылки на цель без id');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  // 3. Ссылка-строка вне паттерна каталога (без префикса assets/).
+  {
+    const spell = Object.assign({}, FIXTURE_SPELL,
+      { 'база': 'spells/000002.json' });
+    const dir = makeTmpSpellsRepo({
+      '000001.json': JSON.stringify(spell),
+      '000002.json': JSON.stringify(FIXTURE_BASE_SPELL),
+    }, FIXTURE_TARGETS);
+    try {
+      const r = spawnSync(process.execPath,
+        [path.join(dir, 'scripts', 'sync-spells-data.js')],
+        { encoding: 'utf8' });
+      assert.equal(r.status, 1,
+        'ссылка вне паттерна обязана дать exit 1: '
+        + (r.stdout || '') + (r.stderr || ''));
+      assert.match(r.stderr || '', /не по формату/,
+        'в stderr — «не по формату»');
+      assert.match(r.stderr || '', /spells\/000002\.json/,
+        'в stderr — имя ссылки вне паттерна');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  // 4. Цель существует, но не JSON.
+  {
+    const targets = {
+      items: { '000001.json': '{битый json\n' },
+      buildings: { '000001.json': '{"id": 17}\n' },
+    };
+    const dir = makeTmpSpellsRepo({
+      '000001.json': JSON.stringify(FIXTURE_SPELL),
+      '000002.json': JSON.stringify(FIXTURE_BASE_SPELL),
+    }, targets);
+    try {
+      const r = spawnSync(process.execPath,
+        [path.join(dir, 'scripts', 'sync-spells-data.js')],
+        { encoding: 'utf8' });
+      assert.equal(r.status, 1,
+        'цель не JSON обязана дать exit 1: '
+        + (r.stdout || '') + (r.stderr || ''));
+      assert.match(r.stderr || '', /не JSON/,
+        'в stderr — «не JSON»');
+      assert.match(r.stderr || '', /assets\/items\/000001\.json/,
+        'в stderr — имя ссылки на цель не JSON');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   }
 });

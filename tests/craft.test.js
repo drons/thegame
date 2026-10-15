@@ -82,6 +82,19 @@ const REF_SKILLS = /^assets\/skills\/\d{6}\.json$/;
 const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
 const REF_CACHE = new Map(); // ссылка → id цели (файл читается 1 раз)
 
+// Числовые id сырого каталога зданий (000211.04: membership вместо
+// устаревшего range 1..50; Set.has строгий — строка не пройдёт).
+const BUILDING_IDS = (() => {
+  const dir = path.join(__dirname, '..', 'assets', 'buildings');
+  const ids = new Set();
+  for (const f of fs.readdirSync(dir)) {
+    if (!/^\d{6}\.json$/.test(f)) continue;
+    const data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+    ids.add(data.id);
+  }
+  return ids;
+})();
+
 // Ссылка → id целевого файла: ссылка по per-catalog паттерну, цель
 // существует, парсится и имеет id.
 function refId(ref, re, file) {
@@ -240,8 +253,8 @@ test('ссылки: навыки → assets/skills, здания → assets/buil
     }
     for (const b of data.здания) {
       const id = refId(b, REF_BUILDINGS, file);
-      assert.ok(Number.isInteger(id) && id >= 1 && id <= 50,
-        `${file}: постройка ${id} вне диапазона 1..50 каталога`);
+      assert.ok(BUILDING_IDS.has(id),
+        `${file}: здание id=${id} нет в каталоге assets/buildings (membership)`);
       assert.ok(getBuilding(id) !== null,
         `${file}: здание id=${id} нет в каталоге assets/buildings`);
     }

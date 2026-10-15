@@ -16,6 +16,12 @@
 // ДОВОЛЬНОЕ: выводятся ТОЛЬКО ключи, присутствующие в JSON, в каноническом
 // порядке (схемные ключи без дополнений) — иначе deepEqual каталога в
 // тестах не сойдётся.
+//
+// Задача 000211.04: значения-ссылки на файлы каталогов («база» →
+// assets/spells, «предметы» → assets/items, «здания» →
+// assets/buildings) резолвятся в id целевого файла при сборке —
+// зеркало и рантайм получают id-форму; битая ссылка — exit 1
+// (memory/000211.04-spells-refs.md).
 
 const fs = require('fs');
 const path = require('path');
@@ -34,6 +40,60 @@ if (files.length === 0) {
   process.exit(1);
 }
 
+// --- Задача 000211.04: резолв ссылок на файлы каталогов (id-форма) ---
+// Ссылка — строка-путь от корня репозитория; id целевого файла ===
+// прежнему ссылочному значению (spells/items — строка, buildings —
+// число). Кэш — файл цели читается 1 раз на уникальную ссылку.
+const REF_SPELLS = /^assets\/spells\/\d{6}\.json$/;
+const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
+const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
+const REF_CACHE = new Map();
+
+function refId(ref, re, where) {
+  if (typeof ref !== 'string' || !re.test(ref)) {
+    console.error(`${where}: ссылка "${ref}" не по формату`);
+    process.exit(1);
+  }
+  if (REF_CACHE.has(ref)) return REF_CACHE.get(ref);
+  const target = path.join(ROOT, ref);
+  if (!fs.existsSync(target)) {
+    console.error(`${where}: нет цели ссылки ${ref}`);
+    process.exit(1);
+  }
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(target, 'utf8'));
+  } catch (e) {
+    console.error(`${where}: цель ссылки ${ref} не JSON: ${e.message}`);
+    process.exit(1);
+  }
+  if (!data || data.id === undefined) {
+    console.error(`${where}: цель ссылки ${ref} без id`);
+    process.exit(1);
+  }
+  REF_CACHE.set(ref, data.id);
+  return data.id;
+}
+
+// Заклинание в id-форме (зеркало/рантайм): поля-ссылки резолвятся
+// в id целевого файла; остальные поля — те же значения (вход не
+// мутируется). Ключ «предметы» опционален (6 файлов без него) —
+// не домысливается; «база» — required, ternary на null; «здания» —
+// required, всегда .map.
+function resolveSpellData(data, file) {
+  return {
+    ...data,
+    база: data.база === null ? null : refId(data.база, REF_SPELLS,
+      `${file}: база`),
+    ...(Array.isArray(data.предметы)
+      ? { предметы: data.предметы.map((it, n) =>
+          refId(it, REF_ITEMS, `${file}: предметы[${n}]`)) }
+      : {}),
+    здания: data.здания.map(
+      (b, n) => refId(b, REF_BUILDINGS, `${file}: здания[${n}]`)),
+  };
+}
+
 const spells = [];
 for (const f of files) {
   const data = JSON.parse(
@@ -42,7 +102,7 @@ for (const f of files) {
     console.error(`${f}: не найдено поле id — не файл заклинания`);
     process.exit(1);
   }
-  spells.push({ file: f, data });
+  spells.push({ file: f, data: resolveSpellData(data, f) });
 }
 
 // Канонический порядок ключей (схема assets/spells/schema.json).
