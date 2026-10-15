@@ -1201,3 +1201,56 @@ test('000191.10: re-anchor fail-open — сохранённый pos за гра�
       're-anchor телепорт — сохранённый pos');
   }
 });
+
+// 000148.05 — builtOccupied (src/cities.js:587) — юнит-пин:
+// нормализация записи ctx.cityStates — fail-open null (битая запись)
+// и построчный skip (мусор). Без пина разрыв нормализации (например,
+// skip-ветка без `player !== true`) проходит весь пин-сет:
+// makeCityState/maybeEnterCity в тестах видят только «чистые» записи.
+
+test('LOC-20. 000148.05: builtOccupied — (a) битая запись (null/не-объект/массив, built не-массив) → null; (b) пустой built → пустой Set; (c) мусор (не-объект, x: "2", buildingId 1.5, player !== true, id ∉ каталогу) → skip (пустой Set); (d) 3×3 здание (id 7 — Арена) на (2,2) → ровно 9 ключей (2,2)..(4,4)', () => {
+  const C = require('../src/cities.js');
+  assert.equal(typeof C.builtOccupied, 'function',
+    'экспорт builtOccupied (src/cities.js, 000148.05)');
+  // (a) запись неправильной формы → null (fail-open: «нет сохранённого»).
+  assert.equal(C.builtOccupied(null), null, 'null-запись → null');
+  assert.equal(C.builtOccupied(42), null, 'не-объект (42) → null');
+  assert.equal(C.builtOccupied('x'), null, 'не-объект (строка) → null');
+  assert.equal(C.builtOccupied([1, 2]), null, 'массив-запись → null');
+  assert.equal(C.builtOccupied({}), null, 'нет built → null');
+  assert.equal(C.builtOccupied({ built: 5 }), null, 'built не-массив → null');
+  assert.equal(C.builtOccupied({ built: 'x' }), null, 'built строка → null');
+  // (b) пустой built → пустой Set (НЕ null — запись валидна).
+  const empty = C.builtOccupied({ built: [] });
+  assert.ok(empty instanceof Set, 'пустой built → Set (не null)');
+  assert.equal(empty.size, 0, 'пустой built → 0 ключей');
+  // (c) мусорные записи — skip по записи, результат — всё равно Set.
+  const junk = C.builtOccupied({ built: [
+    42,
+    'x',
+    [1, 2],
+    { x: '2', y: 2, buildingId: 7, player: true },
+    { x: 1, y: 2, buildingId: 1.5, player: true },
+    { x: 1, y: 2, buildingId: 7 },
+    { x: 1, y: 2, buildingId: 7, player: false },
+    { x: 1, y: 2, buildingId: 9999, player: true },
+  ] });
+  assert.ok(junk instanceof Set, 'мусор → Set (не null)');
+  assert.equal(junk.size, 0,
+    'все мусорные записи skipped: 0 ключей (факт: '
+    + Array.from(junk).join(' | ') + ')');
+  // (d) 3×3 здание (id 7 — Арена) на (2,2) → ровно 9 ключей.
+  const nine = C.builtOccupied({ built: [
+    { x: 2, y: 2, buildingId: 7, player: true },
+  ] });
+  assert.equal(nine.size, 9,
+    '3×3 footprint → 9 ключей (факт: ' + nine.size + ')');
+  const expectNine = [];
+  for (let dy = 0; dy < 3; dy++)
+    for (let dx = 0; dx < 3; dx++)
+      expectNine.push((2 + dx) + ',' + (2 + dy));
+  assert.deepEqual(Array.from(nine).sort(),
+    expectNine.sort(),
+    'ключи ровно (2,2)..(4,4) (факт: '
+    + Array.from(nine).sort().join(' | ') + ')');
+});

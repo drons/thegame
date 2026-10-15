@@ -964,3 +964,79 @@ test('000205-E2E1: e2e — РЕАЛЬНЫЙ бой игрок+Эфир+мерс:
   assert.ok(hud.includes('Спутники: +' + d + ' опыта (Вольк).'),
     'hud: «Спутники: +d опыта (Вольк).» — доля, не 50%: ' + hud);
 });
+
+// E2E2 (ретро-пин 000219 №11): доля ПОГИБШЕГО мерса — реальное e2e
+// без мутации result: убийство dealDamageToAlly 9999 → победа
+// dealDamageToMob 9999. N = 3 (hero+Эфир+мерс, ВКЛЮЧАЯ погибшего):
+// applyCombatXp ДО dead-splice, serializeDeadRecord ДО splice
+// (combatEndCompanions main.js). Композиция V5/N3/RES-E1.
+test('000205-E2E2: e2e — погибший мерс: deadMercs[0].sheet.totalXp === d = floor(xp/3) (N=3, включая погибшего); roster пуст; Эфиру d; игрок xp−2d; цена воскрешения от ВЫРОСШЕГО totalXp (Храм солнца: Math.round(20 + 0.05·d))', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({ level: 8, hp: 200, gold: 200 }),
+    companions: [
+      { npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2 },
+    ],
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  assertRestored(h, 2);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const heroXp0 = g.state.hero.xp;
+  const heroLevel0 = g.state.hero.level;
+  const efirTotal0 = g.state.efir.totalXp;
+  assert.equal(efirTotal0, 0, 'Эфир: totalXp 0 на старте (фикстура)');
+  const volkTotal0 = g.state.roster[0].sheet.totalXp;
+  assert.equal(volkTotal0, 0, 'мерс: sheet.totalXp 0 на старте (backfill)');
+  // Реальный бой (паттерн E2E1) + убийство мерса БЕЗ мутации result.
+  const c = g.actions.startCombat(0);
+  assert.ok(c, 'бой начался (startCombat(0) — реальный бой)');
+  const uEfir = (c.units || []).find((u) => u && u.kind === 'efir');
+  const uMerc = (c.units || []).find((u) => u && u.kind === 'merc');
+  assert.ok(uEfir && uMerc, 'участники в c.units: Эфир + мерс');
+  G.combatInternals.dealDamageToAlly(c, uMerc, 9999);
+  assert.equal(uMerc.alive, false,
+    'мерс погиб (dealDamageToAlly 9999 — без мутации result)');
+  assert.ok(c.log.some((s) => String(s).includes('пал в бою')),
+    'журнал: «X пал в бою!»: ' + JSON.stringify(c.log.slice(-2)));
+  // Реальная победа: ВСЕ мобы 9999 → checkVictory (ядро).
+  for (const m of c.units.filter((x) => x.side === 'mob' && x.alive)) {
+    G.combatInternals.dealDamageToMob(c, m, 9999);
+  }
+  assert.ok(c.result && c.result.outcome === 'victory',
+    'победа (checkVictory — реальный расчёт)');
+  assert.ok(c.result.xp > 0, 'xp > 0 (сумма добытой группы)');
+  const xp = c.result.xp;
+  const d = Math.floor(xp / 3);
+  assert.ok(d > 0, 'сценарий: d > 0');
+  G.combatUI.handleCode('Space');
+  assert.equal(G.combatUI.isActive(), false, 'бой закрыт (Space → finish)');
+  // Погибший мерс — в deadMercs, НЕ в roster; доля применена ДО
+  // serializeDeadRecord (N = 3, включая погибшего).
+  assert.equal(g.state.deadMercs.length, 1,
+    'deadMercs: ровно 1 (мерс, НЕ игрок/Эфир)');
+  assert.equal(g.state.deadMercs[0].npcId, 'merc_volk',
+    'deadMercs[0].npcId — merc_volk');
+  assert.equal(g.state.deadMercs[0].sheet.totalXp, d,
+    'RED: доля ПОГИБШЕГО = d = floor(xp/3) — applyCombatXp ДО '
+    + 'serializeDeadRecord (N=3, факт: '
+    + g.state.deadMercs[0].sheet.totalXp + ', d: ' + d + ')');
+  assert.equal(g.state.roster.length, 0,
+    'roster пуст (мерс вынесен в deadMercs)');
+  // Живые: Эфиру d (renormalization БЕЗ мерса не происходит —
+  // доля равная, 3 получателя); игрок d + остаток = xp − 2d.
+  assert.equal(g.state.efir.totalXp - efirTotal0, d,
+    'Эфир: totalXp += d (равная доля; НЕ xp/2 без мерса)');
+  assert.equal(g.state.hero.xp - heroXp0, xp - 2 * d,
+    'игрок: xp += d + (xp mod 3) = xp − 2d');
+  assert.equal(g.state.hero.level, heroLevel0,
+    'игрок: уровень не растёт (доля < порога)');
+  // Цена воскрешения — от ВЫРОСШЕГО totalXp (Храм солнца id 36:
+  // база 20, за_опыт 0.05).
+  const price = G.buildingEffects.resurrectPrice(
+    g.state.deadMercs[0].sheet.totalXp,
+    G.getBuilding(36).особые_параметры.воскрешение);
+  assert.equal(price, Math.round(20 + 0.05 * d),
+    'RED: цена воскрешения от ВЫРОСШЕГО totalXp (факт: ' + price
+    + ', ожидание: ' + Math.round(20 + 0.05 * d) + ')');
+});

@@ -1074,6 +1074,29 @@ test('CI-B6. 000202: open()-опции — «Строительство»: scrol
     'эффекты-меню — без reasonRed (байт-в-байт как раньше)');
 });
 
+test('CI-B7. 000202: shortage «A и B» — ДВЕ item-части (id 8 — Кузница: iron_ore ×2 + coal ×2, 65 з.): (a) золото 1000, предметов 0 → «Не хватает 2 железной руды и 2 угля» (ветка itemParts.length===2); (b) золото 0, предметов 0 → «Не хватает 65 золота, 2 железной руды и 2 угля» (goldParts + items)', () => {
+  // (a) золото ОК — две item-части склеиваются «и» (без золота).
+  const t = initCityBuild({ x: 1, y: 1 });
+  t.hero.gold = 1000;
+  t.BA.interactCity();
+  const row8 = t.o.calls.buildingOpen[0]
+    .actions.find((a) => a.id === 'build-8');
+  assert.ok(row8, 'строка build-8 (Кузница) в списке (fp 5 — город)');
+  assert.equal(row8.доступен, false, 'строка недоступна (нет iron_ore/coal)');
+  assert.equal(row8.reason, 'Не хватает 2 железной руды и 2 угля',
+    '«A и B» (itemParts.length===2, goldParts пуст): ' + row8.reason);
+  // (b) золото 0 < 65 — goldParts + ', ' + item-части.
+  const t2 = initCityBuild({ x: 1, y: 1 });
+  t2.hero.gold = 0;
+  t2.BA.interactCity();
+  const row8b = t2.o.calls.buildingOpen[0]
+    .actions.find((a) => a.id === 'build-8');
+  assert.ok(row8b, 'строка build-8 в списке');
+  assert.equal(row8b.доступен, false, 'строка недоступна');
+  assert.equal(row8b.reason, 'Не хватает 65 золота, 2 железной руды и 2 угля',
+    'goldParts + items (65 = цена Кузницы): ' + row8b.reason);
+});
+
 // ============================================================
 // Секция 2: vm full-chain (index.html CHAIN, host-паттерн
 // city-screen.test.js + building-effects B-секции)
@@ -2965,6 +2988,69 @@ test('CI-V17. 000148.05 (ревью): с открытым input-оверлеем
     'Esc — имя не изменено (тихая отмена)');
   assert.equal(g.dungeon.x, x0, 'позиция — не изменена (x)');
   assert.equal(g.dungeon.y, y0, 'позиция — не изменена (y)');
+  assert.equal(h.errors.length, errsBefore,
+    'без console.error: ' + h.errors.slice(errsBefore).join('; '));
+});
+
+// CI-V19 (ретро-пин 000206, ТЗ 000219 №7): гейт rename-input
+// (main.js keydown, D-.05p) накрывает ТОЛЬКО движение/KeyE —
+// ветки KeyI/KeyC стоят ЗА ним; без пина разрыв гейта (например,
+// переезд ветки KeyI/KeyC выше гейта) проходит весь пин-сет:
+// CI-V17 проверяет движение/[E]/draft, но НЕ панели.
+
+test('CI-V19. 000148.05 (000206-ретро): с открытым input-оверлеем — KeyC → G.squadUI.isOpen() === false, KeyI → G.playerUI.isOpen() === false, draft не изменён; после Esc гейт инертен — KeyI/KeyC работают (isOpen() === true)', async () => {
+  const storage = makeStorage();
+  const h = await bootChain(storage);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findCityFor(G, myMap, g.state.player,
+    (c) => c.fp >= 2 && freeCellWithFreeRightNeighbor(c) !== null);
+  assert.ok(found,
+    'сценарий: город (fp>=2) со свободной клеткой, у которой '
+    + 'свободный правый FLOOR-сосед');
+  walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе (авто-вход)');
+  const free = freeCellWithFreeRightNeighbor(found);
+  assert.ok(free, 'сценарий: свободная клетка со свободным соседом');
+  const errsBefore = h.errors.length;
+  // Открытие input-оверлея (протокол CI-V17).
+  walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, free.x, free.y));
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true,
+    '[E] на пустой клетке — меню «Строительство»');
+  const ov = buildingOverlayOf(h);
+  const rowRen = findRow(ov, 'rename-city');
+  assert.ok(rowRen, 'строка «Переименовать город»');
+  ov.listeners.click[0]({ target: rowRen });
+  const ovIn = buildingOverlayOf(h);
+  assert.ok(ovIn && textOf(ovIn).includes('Имя города'),
+    'input-оверлей открыт: '
+    + (ovIn ? textOf(ovIn).slice(0, 200) : '—'));
+  const draft0 = textOf(ovIn);
+  assert.equal(G.playerUI.isOpen(), false,
+    'фикстура: панель персонажа закрыта');
+  assert.equal(G.squadUI.isOpen(), false, 'фикстура: панель «Отряд» закрыта');
+  // KeyC/KeyI под открытым rename-input — гейт main.js (D-.05p)
+  // возвращает ДО веток KeyI/KeyC: панели НЕ открываются.
+  key(h, 'KeyC');
+  assert.equal(G.squadUI.isOpen(), false,
+    'RED (000206-ретро): KeyC под rename-input — «Отряд» НЕ открылся');
+  key(h, 'KeyI');
+  assert.equal(G.playerUI.isOpen(), false,
+    'RED (000206-ретро): KeyI под rename-input — панель НЕ открылась');
+  assert.equal(textOf(ovIn), draft0,
+    'draft не изменён (клавиши не дошли до input)');
+  // Esc — тихая отмена; гейт инертен — KeyI/KeyC работают.
+  key(h, 'Escape');
+  assert.equal(buildingOverlayOf(h), null, 'Esc — оверлей снят из DOM');
+  key(h, 'KeyC');
+  assert.equal(G.squadUI.isOpen(), true,
+    'после Esc гейт инертен: KeyC открывает «Отряд»');
+  key(h, 'KeyI');
+  assert.equal(G.playerUI.isOpen(), true,
+    'после Esc гейт инертен: KeyI открывает панель персонажа');
   assert.equal(h.errors.length, errsBefore,
     'без console.error: ' + h.errors.slice(errsBefore).join('; '));
 });

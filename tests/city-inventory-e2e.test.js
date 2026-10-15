@@ -1080,3 +1080,57 @@ test('000195 CI-11 (мир+бой, пин; ревью): c.result — панел�
     'бой закрыт (Space → finish)');
   assert.equal(g.dungeon, null, 'локация цела: мир');
 });
+
+// ============================================================
+// 000206 CI-12 / CI-13 (ретро-пин 000219; контракт-названия
+// CI-9/CI-10 заняты 000195 — см. tasks/result/000219)
+// ============================================================
+
+test('000206 CI-12 (город, гард TV7): full-chain → вход → KeyI (панель открыта, подъём ещё не ставился) → delete G.playerUI.applyLayer → кадр НЕ падает (typeof-гард main.js frame()); деградация: zIndex falsy, панель работает как на master (isOpen true)', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const { now } = await enterCity(h, NOW, myMap,
+    (c) => c.fp >= 2 && c.contents.buildings.length >= 1);
+  assert.equal(G.dungeonUI.isActive(), true, 'dungeonUI активен (город)');
+  press(h, 'KeyI');
+  assert.equal(G.playerUI.isOpen(), true, 'KeyI: панель открыта');
+  const panel = panelOf(h);
+  assert.ok(panel, 'корень .char-panel в body');
+  assert.ok(!panel.style.zIndex,
+    'фикстура: кадр с открытой панелью ещё не было (zIndex falsy)');
+  // Гард (main.js frame, паттерн TV7): applyLayer удалён —
+  // frame() не должен падать (typeof-проверка), подъём не ставится.
+  delete G.playerUI.applyLayer;
+  assert.doesNotThrow(() => h.frameFn(now + 16),
+    'кадр без applyLayer — без исключения (typeof-гард)');
+  assert.ok(!panel.style.zIndex,
+    'деградация: подъём НЕ поставлен (zIndex falsy — как на master)');
+  assert.equal(G.playerUI.isOpen(), true,
+    'деградация: панель работает (открыта, закрывается)');
+  press(h, 'KeyI');
+  assert.equal(G.playerUI.isOpen(), false, 'деградация: [I] закрывает панель');
+});
+
+test('000206 CI-13 (статичный, пин): лестница z-index из index.html — .char-panel 10 < .fs-btn 15 < .combat-overlay 20 < 25 (подъём панели, inline) < #touch-controls 30 (zO < 25 < zT)', () => {
+  const cssZ = (re) => {
+    const m = html.match(re);
+    assert.ok(m, 'CSS-правило найдено: ' + re);
+    const zm = m[1].match(/z-index:\s*([\d.]+)/);
+    assert.ok(zm, 'z-index в правиле: ' + re);
+    return Number(zm[1]);
+  };
+  const zP = cssZ(/\.char-panel\s*{([^}]*)}/);
+  const zF = cssZ(/\.fs-btn\s*{([^}]*)}/);
+  const zO = cssZ(/\.combat-overlay\s*{([^}]*)}/);
+  const zT = cssZ(/#touch-controls\s*{([^}]*)}/);
+  assert.equal(zP, 10, '.char-panel z-index 10 (факт: ' + zP + ')');
+  assert.equal(zF, 15, '.fs-btn z-index 15 (факт: ' + zF + ')');
+  assert.equal(zO, 20, '.combat-overlay z-index 20 (факт: ' + zO + ')');
+  assert.equal(zT, 30, '#touch-controls z-index 30 (факт: ' + zT + ')');
+  assert.ok(zO < 25, 'подъём панели (25, inline) ВЫШЕ оверлея (факт: '
+    + zO + ')');
+  assert.ok(25 < zT, 'подъём панели (25) НИЖЕ тач-управления (факт: '
+    + zT + ')');
+});

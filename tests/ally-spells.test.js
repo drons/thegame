@@ -349,6 +349,168 @@ test('000216-B1: на ходу СОЮЗНИКА c.ps.blocked = true (игрок 
 });
 
 // ============================================================
+// 000193-N6. Таблица отказов §2 memory/000193-ally-spell-mechanics.md:
+// на каждую строку — точная строка reason + отсутствие расхода
+// (mp/пул/лог) + deepEqual canCastAllySpell === отказ castAllySpell
+// (000037: одна причина — одно поведение). Каждый кейс — свежий бой.
+// ============================================================
+
+test('000193-N6: таблица отказов §2 — 13 строк (не ваш ход / бой закончен / неизвестное заклинание / не изучено / неизвестное действие / высшая степень / пул Wis / пул Int / мана / нет цели×3 / слишком далеко): reason вербатим + 0 расхода + canCast-зеркало', () => {
+  const AS = loadAllySpells193();
+  assert.ok(AS && typeof AS.castAllySpell === 'function'
+    && typeof AS.canCastAllySpell === 'function',
+    'модуль src/ally-spells.js: castAllySpell + canCastAllySpell (000193)');
+  const checkCase = (label, allies, mutate, spellId, targetId, expectReason) => {
+    const c = makeCombat193(allies);
+    const u = c.units.find((x) => x.id === 'a0');
+    mutate(c, u);
+    const mp0 = u.mp, int0 = u.spellInt, wis0 = u.spellWis, n0 = c.log.length;
+    const r = AS.castAllySpell(c, u, spellId, targetId);
+    assert.equal(r.ok, false, label + ': отказ (факт: ' + JSON.stringify(r) + ')');
+    assert.equal(r.reason, expectReason,
+      label + ': reason вербатим «' + expectReason + '» (факт: '
+      + (r && r.reason) + ')');
+    assert.equal(u.mp, mp0, label + ': отказ — мана не сгорела');
+    assert.equal(u.spellInt, int0, label + ': отказ — пул Int не тронут');
+    assert.equal(u.spellWis, wis0, label + ': отказ — пул Wis не тронут');
+    assert.equal(c.log.length, n0, label + ': отказ — лог-строки нет');
+    assert.deepEqual(AS.canCastAllySpell(c, u, spellId, targetId), r,
+      label + ': canCast — тот же отказ (000037: одна причина — одно поведение)');
+  };
+  // 1. «не ваш ход» — c.phase = 'mob' (checkTurn читает ТОЛЬКО c.phase).
+  checkCase('1. не ваш ход', [MIRA193],
+    (c) => { c.phase = 'mob'; },
+    'light_heal', undefined, 'не ваш ход');
+  // 2. «бой закончен» — c.phase = 'over'.
+  checkCase('2. бой закончен', [MIRA193],
+    (c) => { c.phase = 'over'; },
+    'light_heal', undefined, 'бой закончен');
+  // 3. «неизвестное заклинание» — id вне каталога.
+  checkCase('3. неизвестное заклинание', [MIRA193],
+    () => {}, 'no_such_spell', undefined, 'неизвестное заклинание');
+  // 4. «заклинание не изучено» — MIRA + 'spark' (вне её книги).
+  checkCase('4. не изучено', [MIRA193],
+    () => {}, 'spark', undefined, 'заклинание не изучено');
+  // 5. «неизвестное действие: телепорт» — инъекция каталога (CB-6):
+  // internals.allySpells расширен, 'ghost' добавлен в книгу.
+  {
+    const saved = combatInternals.allySpells;
+    try {
+      combatInternals.allySpells = Object.assign({}, saved, {
+        ghost: { название: 'Гост', атрибут: 'intelligence',
+          мани: 1, действие: 'телепорт' },
+      });
+      checkCase('5. неизвестное действие', [ASHKA193],
+        (c, u) => { u.spells.push('ghost'); },
+        'ghost', undefined, 'неизвестное действие: телепорт');
+    } finally {
+      combatInternals.allySpells = saved;
+    }
+  }
+  // 6. «в бою действует высшая степень: Пламенный взрыв» — VOLK + fireball.
+  checkCase('6. высшая степень', [VOLK193],
+    () => {}, 'fireball', undefined,
+    'в бою действует высшая степень: Пламенный взрыв');
+  // 7. «действий «Заклинание» (Мудрость) больше нет» — MIRA, spellWis 0.
+  checkCase('7. пул Мудрости', [MIRA193],
+    (c, u) => { u.spellWis = 0; },
+    'light_heal', undefined,
+    'действий «Заклинание» (Мудрость) больше нет');
+  // 8. «действий «Заклинание» (Интеллект) больше нет» — ASHKA, spellInt 0.
+  checkCase('8. пул Интеллекта', [ASHKA193],
+    (c, u) => { u.spellInt = 0; },
+    'spark', undefined,
+    'действий «Заклинание» (Интеллект) больше нет');
+  // 9. «не хватает маны (6)» — MIRA, mp 0 (light_heal «мани» 6).
+  checkCase('9. мана', [MIRA193],
+    (c, u) => { u.mp = 0; },
+    'light_heal', undefined, 'не хватает маны (6)');
+  // 10. «нет цели» (юнит стороны ally) — targetId = id самого союзника.
+  checkCase('10. нет цели (алли)', [ASHKA193],
+    () => {}, 'spark', 'a0', 'нет цели');
+  // 11. «нет цели» (мёртвый) — m0.alive = false (white-box).
+  checkCase('11. нет цели (мёртвый)', [ASHKA193],
+    (c) => { c.units.find((x) => x.id === 'm0').alive = false; },
+    'spark', 'm0', 'нет цели');
+  // 12. «нет цели» (отсутствует) — targetId вне c.units.
+  checkCase('12. нет цели (отсутствует)', [ASHKA193],
+    () => {}, 'spark', 'ghost', 'нет цели');
+  // 13. «цель слишком далеко (дальность 4)» — rectDist 5 > 4.
+  checkCase('13. слишком далеко', [ASHKA193],
+    (c, u) => {
+      u.x = 0; u.y = 0;
+      const w = c.units.find((x) => x.id === 'm0');
+      w.x = 5; w.y = 0;
+    },
+    'spark', 'm0', 'цель слишком далеко (дальность 4)');
+});
+
+// ============================================================
+// 000193-N7. startRound (combat.js) — рефилл пулов СОЮЗНИКА
+// (ABSOLUT: 1 + floor(attr/10); u.mp НЕ пополняется) + тик щита
+// союзника (turns −−, armor не трогается). startRound не
+// экспортирован — управление ТОЛЬКО через c.endTurn() (очередь
+// исчерпана → startRound). Волк (6,6) → цель игрок (3,6): к Мире
+// (0,0) не подходит (nearestPlayerSide — игрок ближе), hp-дельты
+// белые.
+// ============================================================
+
+test('000193-N7: startRound — рефилл пулов союзника ABSOLUT (spellWis/spellInt = 1 + floor(attr/10), mp не трогается) + тик щита {armor:2, turns:3}: round 3 → turns 1 → урон 5 = −3; round 4 → turns 0 → урон 5 = −5', () => {
+  const AS = loadAllySpells193();
+  assert.ok(AS && typeof AS.castAllySpell === 'function',
+    'модуль src/ally-spells.js (000193)');
+  const toRound = (c, r) => {
+    for (let i = 0; i < 64 && c.round < r; i += 1) c.endTurn();
+  };
+  // (A) Рефилл пулов: каст light_heal (spellWis 1→0, mp 13→7) →
+  // round 2 (1 startRound) → spellWis 1, spellInt 1, mp 7.
+  {
+    const c = makeCombat193([MIRA193]);
+    const u = c.units.find((x) => x.id === 'a0');
+    const w = c.units.find((x) => x.id === 'm0');
+    u.x = 0; u.y = 0; w.x = 6; w.y = 6;
+    assert.equal(activeUnitId(c), 'a0', 'фикстура: Мира активна (pre-roll)');
+    u.hp = u.maxHP - 7; // ранена: 33 (+7 → 40, формула N1)
+    const r = AS.castAllySpell(c, u, 'light_heal');
+    assert.equal(r.ok, true, 'каст — ok (факт: ' + JSON.stringify(r) + ')');
+    assert.equal(u.spellWis, 0, 'пул 1→0 (расход)');
+    assert.equal(u.mp, 7, 'mp 13−6 = 7');
+    assert.equal(c.round, 1,
+      'фикстура: round 1 (pre-roll тиками не сопровождается)');
+    toRound(c, 2);
+    assert.equal(c.round, 2, 'round 2 (startRound через c.endTurn)');
+    assert.equal(u.spellWis, 1,
+      'рефилл ABSOLUT: spellWis = 1 + floor(Wis 4/10) = 1 (не инкремент 0+1)');
+    assert.equal(u.spellInt, 1, 'рефилл ABSOLUT: spellInt = 1 + 0 = 1');
+    assert.equal(u.mp, 7, 'mp НЕ пополняется в startRound (нет регена маны)');
+  }
+  // (B) Щит: white-box u.shield = {armor:2, turns:3} ПОСЛЕ createCombat
+  // (round 1 — тиков ещё 0).
+  {
+    const c = makeCombat193([MIRA193]);
+    const u = c.units.find((x) => x.id === 'a0');
+    const w = c.units.find((x) => x.id === 'm0');
+    u.x = 0; u.y = 0; w.x = 6; w.y = 6;
+    u.shield = { armor: 2, turns: 3 };
+    toRound(c, 3);
+    assert.equal(c.round, 3, 'round 3 (2 startRound)');
+    assert.equal(u.shield.turns, 1, 'тик щита: 3−2 = 1');
+    assert.equal(u.shield.armor, 2, 'armor НЕ трогается тиком');
+    const hp0 = u.hp;
+    const d1 = combatInternals.dealDamageToAlly(c, u, 5);
+    assert.equal(d1, 3, 'поглощение: 5 − armor 2 = 3 (броня Мира 0)');
+    assert.equal(u.hp, hp0 - 3, 'hp −3');
+    toRound(c, 4);
+    assert.equal(c.round, 4, 'round 4 (3-й startRound)');
+    assert.equal(u.shield.turns, 0, 'тик щита: 1−1 = 0');
+    const hp1 = u.hp;
+    const d2 = combatInternals.dealDamageToAlly(c, u, 5);
+    assert.equal(d2, 5, 'turns 0 — поглощение 0: 5');
+    assert.equal(u.hp, hp1 - 5, 'hp −5');
+  }
+});
+
+// ============================================================
 // VM-часть: цепочка (паттерн loadCombatUi из tests/combat-ui.test.js).
 // 000193 (Д-L): ally-spells.js — ПОСЛЕ spellbook.js, ПЕРЕД combat-ui.js
 // (G-снапшот — UMD-ловушка 000038). Красная фаза: файла нет —

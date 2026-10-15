@@ -1089,3 +1089,74 @@ test('TS-11: город: дробный зум (57.6) — клетки пола/
     'сценарий: 2×2 сетка клеток (получено ' + grid.size + ')');
   assertCellGrid(grid, camX, camY, zoom);
 });
+
+// TS-12 (ретро-пин 000219 №13): FOG_DIM_FILL (mask==1) на той же
+// снап-сетке, что и пол #182029 — дробный зум 57.6 + дробная
+// камера (4.5, 4.5). TS-10 пинит только пол, TS-11 — город,
+// TS-9 — identity (zoom 40 — снап тривиален).
+const FOG_DIM_FILL = 'rgba(10, 13, 18, 0.65)'; // dungeon-ui.js L162
+
+test('TS-12: подземелье 9×9: дробный зум (57.6) + дробная камера (4.5, 4.5) — FOG_DIM_FILL (mask==1) на снап-сетке пола #182029: frame 1 dim 0 (explored-union ПОСЛЕ mask), frame 2 dim 24 (13 стен + 11 пола), объединённая сетка 60 клеток (47 пол + 13 dim-стен); анти-вакуум 140.8 (000215)', () => {
+  const rafStubs = dMakeRafStubs();
+  const T = { t: 1000 };
+  const { G, body } = dLoadDungeonUi({
+    performance: { now: () => T.t },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const s = dMakeState({ width: 9, height: 9 });
+  assert.equal(s.dg.width, 9, 'сценарий: 9×9 (периметр — стены)');
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 57.6 });
+  assert.ok(!Number.isInteger(57.6), 'сценарий: зум дробный');
+  // 9×9 @ 57.6 = 518.4 px < вьюпорта 800×600 → жёсткое центрирование
+  // cam (4.5, 4.5) (clampCam: extent·z ≤ viewPx → extent/2) — при
+  // ANY playerPos камера НИКТО не двигает (нулевой риск глайда).
+  const camX = 4.5, camY = 4.5, zoom = 57.6;
+  const canvas = dFindCanvas(body);
+  // Frame 1 — render() СИНХРОННО в start(); разделение кадров
+  // снапшотом drawCalls.length ПОСЛЕ start().
+  const lenAfterStart = canvas.drawCalls.length;
+  assert.ok(lenAfterStart > 0, 'frame 1: start() отрисовал синхронно');
+  const frame1 = canvas.drawCalls.slice(0, lenAfterStart);
+  const dim1 = frame1.filter(
+    (c) => c[0] === 'fillRect' && c[2] === FOG_DIM_FILL);
+  assert.equal(dim1.length, 0,
+    'frame 1: FOG_DIM_FILL === 0 (explored пуст в момент mask — '
+    + 'ленивое union, апдейт ПОСЛЕ mask; факт: ' + dim1.length + ')');
+  // Перемещение (white-box): playerPos читает s.x/s.y live.
+  s.x = 7; s.y = 7;
+  T.t += 16;
+  dTick(rafStubs);
+  const frame2 = canvas.drawCalls.slice(lenAfterStart);
+  assert.ok(frame2.length > 0, 'frame 2: кадр отрисован (dTick)');
+  const dimRects = frame2.filter(
+    (c) => c[0] === 'fillRect' && c[2] === FOG_DIM_FILL);
+  // explored (union frame 1+2) = (0..6)² ∪ (2..8)² (73 клетки);
+  // visible frame 2 = (2..8)² (49); mask==1 = explored \ visible =
+  // {x=0: 7} ∪ {x=1: 7} ∪ {y=0: 5} ∪ {y=1: 5} = 24 ТОЧНО
+  // (13 стен + 11 пола — dim-pass БЕЗ isFloor-проверки).
+  assert.equal(dimRects.length, 24,
+    'frame 2: FOG_DIM_FILL fillRect === 24 (факт: '
+    + dimRects.length + '); если счёт не сошёлся — править СЦЕНАРИЙ, '
+    + 'НЕ ослаблять snap-ассерты');
+  assertIntegerCorners(dimRects, 'dim-клетка');
+  // Объединённая сетка: пол #182029 + dim-клетки — 60 уникальных
+  // клеток (47 исследованных интерьерных полов + 13 dim-стен;
+  // 11 dim-полов в обоих — одна сетка, общие края пол↔dim-стена).
+  // 47 = 49 − 2: интерьерные полы (7,1) и (1,7) НЕ исследованы
+  // (mask 0 — чистый фон, пол-пасс их не рисует).
+  const { grid, count } = cellGrid(canvas.drawCalls, { x: camX, y: camY },
+    zoom, (c) => c[2] === '#182029' || c[2] === FOG_DIM_FILL);
+  assert.equal(grid.size, 60,
+    'объединённая сетка: 60 уникальных клеток (47 пол + 13 dim-стен; '
+    + 'факт: ' + grid.size + ', rect-совпадений: ' + count + ')');
+  assertCellGrid(grid, camX, camY, zoom);
+  // Анти-вакуум: сырая проекция клетки (0,0) = 400 − 4.5·57.6 =
+  // 140.8 — НЕ целая (иначе тест проходил бы «вхолостую» на целом
+  // зуме).
+  const raw = G.worldToScreen(0, 0, camX, camY, zoom, VW, VH);
+  assert.ok(Math.abs(raw.x - 140.8) < 1e-9,
+    'анти-вакуум: сырая проекция (0,0) = 140.8: ' + raw.x);
+  assert.ok(!Number.isInteger(raw.x) && !Number.isInteger(raw.y),
+    'анти-вакуум: сырая проекция дробная: ' + raw.x + ',' + raw.y);
+});

@@ -3545,6 +3545,61 @@ test('боевой UI: 000168-UI-2 — кнопки на ходу спутник
     '000193: title пусто (краснота: «' + byActE.spellbook.title + '»)');
 });
 
+test('боевой UI: 000194 — startCombat: снапшот allyQuick в c.units по id боевого юнита — цепь сейв ally_quick → main.js → startCombat(opts.allyQuick) → wiring (combat-ui) → makeAlly; Эфир (id «efir») и наёмник (ЯВНЫЙ id «merc_volk» — продакшн: id = npc.id) получают quick; запись БЕЗ id → [null,null,null] (гард: wiring идёт по data.id ДО createCombat — ключ «a2» никогда не ищется, даже если заполнен) (CU194-QUICK-SNAP)', () => {
+  // Ретро-разрыв 20261014: цепь quick-снапшота союзников была без
+  // покрытия (кнопки/гейты — пинились, передача сейв → бой — нет).
+  // Ассерты — БЕЗ рендера: c.units сразу после startCombat.
+  const rafStubs = makeRafStubs();
+  const { G } = loadCombatUi(true, {
+    withEfir: true,
+    performance: { now: () => NOW84 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const hero = G.createCharacter();
+  const c = G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+    efir: G.efir.createEfir(),
+    rosterData: [
+      // Продакшн-форма (main.js companionAllies): id = npc.id —
+      // ключ allyQuick РАБОТАЕТ.
+      { id: 'merc_volk', name: 'Вольк', role: 'melee', level: 1,
+        dmg: 1.2, hp: 1.1, skills: [], spells: [] },
+      // Без id: id выдумывает makeAlly ПОСЛЕ createCombat
+      // ('a' + idx в allies — idx 2 → «a2»).
+      { name: 'Тень', role: 'ranged', level: 1, dmg: 1, hp: 1,
+        skills: [], spells: [] },
+    ],
+    allyQuick: {
+      efir: ['healing_potion', null, null],
+      merc_volk: ['stone_chunk', 'coal', null],
+      a2: ['coal'],
+    },
+  });
+  assert.ok(c, 'бой начался (startCombat)');
+  const uE = c.units.find((u) => u.id === 'efir');
+  const uM = c.units.find((u) => u.id === 'merc_volk');
+  const uG = c.units.find((u) => u.id === 'a2');
+  assert.ok(uE && uE.kind === 'efir',
+    'юнит Эфира в c.units (id «efir» — efirAllyData, efir.js)');
+  assert.ok(uM, 'юнит наёмника с ЯВНЫМ id «merc_volk» (продакшн: npc.id)');
+  assert.ok(uG, 'юнит без id — makeAlly дал «a2» (idx 2 в allies)');
+  assert.deepEqual(JSON.parse(JSON.stringify(uE.quick)),
+    ['healing_potion', null, null],
+    'Эфир: quick-снапшот = allyQuick[«efir»] (цепь сейв → main → '
+    + 'startCombat → makeAlly): факт ' + JSON.stringify(uE.quick));
+  assert.deepEqual(JSON.parse(JSON.stringify(uM.quick)),
+    ['stone_chunk', 'coal', null],
+    'наёмник: quick-снапшот = allyQuick[«merc_volk»] (ЯВНЫЙ id): '
+    + 'факт ' + JSON.stringify(uM.quick));
+  assert.deepEqual(JSON.parse(JSON.stringify(uG.quick)),
+    [null, null, null],
+    'ГАРД: запись БЕЗ id — quick [null,null,null], даже если '
+    + 'allyQuick[«a2»] заполнен (wiring `q = (a && a.id) ? '
+    + 'opts.allyQuick[a.id] : null` идёт по data.id ДО createCombat — '
+    + '«a2» ещё не существует): факт ' + JSON.stringify(uG.quick));
+});
+
 // =====================================================================
 // Задача 000175. Штриховка клеток, до которых выбранный моб доходит
 // за один ход. КРАСНЫЕ тесты (TDD), vm-песочница (паттерн 000084/
@@ -6117,6 +6172,49 @@ test('боевой UI: 000197 — АКТИВНЫЙ союзник: жёлтог�
     '«#ffe27a» за окно отсутствует (наёмник активен, цели нет)');
 });
 
+test('боевой UI: 000197 — рамка «переезжает» к активному, НЕ дублируется: Эфир+наёмник, активен наёмник — голубой stroke #8cf2fc за окно === 1; подложка 44×44 + рамка 39×39 НА клетке наёмника; на клетке Эфира — ни подложки, ни рамки (CU197-C-T2)', () => {
+  // Ретро-разрыв 20261014: CU197-C(b) пинит только «жёлтого кольца
+  // нет» — сценарий «рамка у ВСЕХ союзников» (дублирование) не
+  // ловился. T2 — тот же (б)-сценарий (Эфир+наёмник, активен
+  // наёмник) с ассертами ГОЛУБОЙ РАМКИ: stroke #8cf2fc ровно 1
+  // (у активного наёмника; герой неактивен — hero-рамки нет,
+  // drawUnits heroCurrent; Эфир неактивен — дубля нет,
+  // isCurrent-гейт подложки И рамки).
+  const S = scene84({ efir: true });
+  const u = S.c.units.find((x) => x.kind === 'efir');
+  S.c.targetId = null;
+  const merc = addMerc84(S.c, S.G, 5, 2, 'ranged');
+  S.c.turnIndex = S.c.turnOrder.indexOf(merc.id);
+  assert.equal(S.c.turnOrder[S.c.turnIndex], merc.id,
+    'фикстура: активен НАЁМНИК (Эфир НЕАКТИВЕН): '
+    + JSON.stringify(S.c.turnOrder) + ' @' + S.c.turnIndex);
+  const mx = merc.x * 48, my = merc.y * 48;
+  const ex = u.x * 48, ey = u.y * 48;
+  assert.ok(mx !== ex || my !== ey, 'сценарий: клетки различны');
+  const t = tickSlice(S.canvas, S.rafStubs);
+  assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
+    && s[1] === '#8cf2fc').length, 1,
+    'голубой stroke #8cf2fc за окно — ровно 1: рамка АКТИВНОГО '
+    + 'наёмника (рамка «переезжает», а не дублируется; герой '
+    + 'неактивен — hero-рамки нет)');
+  assert.ok(t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === mx + 2 && c[1][1] === my + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложка 44×44 НА клетке АКТИВНОГО наёмника');
+  assert.ok(t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === mx + 4.5 && c[1][1] === my + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамка 39×39 НА клетке АКТИВНОГО наёмника');
+  assert.ok(!t.calls.some((c) => c[0] === 'fillRect'
+    && c[1][0] === ex + 2 && c[1][1] === ey + 2
+    && c[1][2] === 44 && c[1][3] === 44),
+    'подложки 44×44 на клетке НЕАКТИВНОГО Эфира НЕТ (дубля нет)');
+  assert.ok(!t.calls.some((c) => c[0] === 'strokeRect'
+    && c[1][0] === ex + 4.5 && c[1][1] === ey + 4.5
+    && c[1][2] === 39 && c[1][3] === 39),
+    'рамки 39×39 на клетке НЕАКТИВНОГО Эфира НЕТ (дубля нет)');
+});
+
 test('боевой UI: 000197 — АКТИВНЫЙ Эфир (дефолт): голубая рамка 39×39 + подложка 44×44 на клетке, по одному разу за окно (CU197-D)', () => {
   // Гвард нового условия (зелёный с первого дня: на текущем коде
   // слои рисуются бесусловно; после реализации — только у
@@ -6643,6 +6741,51 @@ test('боевой UI: 000199 — полоска MP (.combat-mpbar) ПОД по�
     '000199: fill обновляется в render (8/16 = 50.0%)');
   assert.equal(mptext.textContent, 'MP ' + S.c.player.mp + '/' + d.maxMP,
     '000199: текст обновляется в render («MP 8/16»)');
+});
+
+test('боевой UI: 000199 — фаза мобов: инфо-блок «герой» — полосы HP/MP — значения героя (barUnit = activeUnit(c) || p; activeUnit null — моб не ally); бейдж «Удар» = String(c.ps.attack), бейдж «Книга» = «int/wis» (CU199-MOBFALL)', () => {
+  // Ретро-разрыв 20261014: CU199-FIXED-2(f) пинит ТОЛЬКО 2 строки
+  // stateEl — полоски/бейджи в (f) не засеклены. Контракт
+  // memory/000199-combat-info-block.md: фаза мобов/конец → герой.
+  const S = scene84();
+  S.c.turnIndex = S.c.turnOrder.indexOf('m0');
+  S.c.phase = 'mob';
+  assert.equal(S.G.activeUnitId(S.c), 'm0', 'фикстура: фаза мобов');
+  tickSlice(S.canvas, S.rafStubs);
+  const d = S.G.derived(S.c.player);
+  const hptext = findByClass(S.body, 'combat-hpbar-text');
+  assert.ok(hptext, '.combat-hpbar-text есть');
+  assert.equal(hptext.textContent,
+    'HP ' + S.c.player.hp + '/' + d.maxHP,
+    'фаза мобов — HP-полоса несёт значения ГЕРОЯ (activeUnit null '
+    + '→ barUnit p): факт ' + JSON.stringify(hptext.textContent));
+  const mptext = findByClass(S.body, 'combat-mpbar-text');
+  assert.ok(mptext, '.combat-mpbar-text есть');
+  assert.equal(mptext.textContent,
+    'MP ' + S.c.player.mp + '/' + d.maxMP,
+    'фаза мобов — MP-полоса несёт значения ГЕРОЯ: факт '
+    + JSON.stringify(mptext.textContent));
+  const byAct = {};
+  for (const b of S.body.querySelectorAll('.combat-actions button'))
+    byAct[b.dataset.act] = b;
+  const atk = badgeOf199(byAct.attack);
+  assert.ok(atk, 'бейдж «Удар» — персистентный child .combat-actcount');
+  assert.equal(atk.style.display, '',
+    'бейдж «Удар» — ВИДИМ в фазе мобов (D3: всегда видим)');
+  assert.equal(atk.textContent, String(S.c.ps.attack),
+    'бейдж «Удар» = String(c.ps.attack) — пул ГЕРОЯ, не моба: '
+    + JSON.stringify(atk.textContent)
+    + ' vs ' + String(S.c.ps.attack));
+  const spb = badgeOf199(byAct.spellbook);
+  assert.ok(spb, 'бейдж «Книга» — персистентный child .combat-actcount');
+  assert.equal(spb.style.display, '',
+    'бейдж «Книга» — ВИДИМ в фазе мобов («int/wis», не «none» — '
+    + 'actionCounts.spell null только на ходу СОЮЗНИКА)');
+  assert.equal(spb.textContent,
+    S.c.ps.spellInt + '/' + S.c.ps.spellWis,
+    'бейдж «Книга» = «int/wis» героя: '
+    + JSON.stringify(spb.textContent)
+    + ' vs ' + (S.c.ps.spellInt + '/' + S.c.ps.spellWis));
 });
 
 test('боевой UI: 000199/000193.01 — полоска MP: на ходу Эфира — мана Эфира; на ходу наёмника — мана МОДЕЛИ («MP 5/5», fill 100.0%) (CU199-MPBAR-ALIAS)', () => {

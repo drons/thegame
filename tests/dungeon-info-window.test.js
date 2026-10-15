@@ -63,6 +63,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const D = require('../src/dungeon.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -830,4 +831,107 @@ test('000212 DH-7 (гард, ГРАНИЦЫ ТЗ): (а) выход из подз
     'city-HUD: «До выхода: ~N» на месте');
   assert.ok(!cityText.includes('групп(ы)'),
     'city-HUD: без строк групп (000106 — как раньше)');
+});
+
+// ============================================================
+// DH-8 (ретро-пин 000219 №12): z-lift на depth>1 — основное
+// состояние подземелья (DH-1/6 пинят depth-1 и конъюнкцию боя).
+// ============================================================
+
+// Локальная адаптация walkDungeonTo (PE-10, tests/portal-exit-
+// e2e.test.js:1160): BFS 4-соседство по d.cells === D.CELL_FLOOR;
+// 1 keydown = 1 синхронный шаг; бой по маршруту — авторазрешение
+// 9999 → Space. АДАПТАЦИЯ: press/release в этом харнесе берут
+// CODE, не event.
+function walkDungeonTo8(h, tx, ty) {
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const d0 = g.dungeon;
+  const W = d0.width, H = d0.height;
+  const sx = d0.x, sy = d0.y;
+  if (sx === tx && sy === ty) return;
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const startKey = sx + ',' + sy;
+  const prev = new Map([[startKey, null]]);
+  let frontier = [{ x: sx, y: sy }];
+  let found = false;
+  outer:
+  for (let depth = 0; depth < W * H && !found; depth++) {
+    const next = [];
+    for (const cur of frontier) {
+      for (const [dx, dy] of DIRS) {
+        const nx = cur.x + dx, ny = cur.y + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        if (d0.cells[ny * W + nx] !== D.CELL_FLOOR) continue;
+        const k = nx + ',' + ny;
+        if (prev.has(k)) continue;
+        prev.set(k, cur.x + ',' + cur.y);
+        if (nx === tx && ny === ty) { found = true; break outer; }
+        next.push({ x: nx, y: ny });
+      }
+    }
+    frontier = next;
+  }
+  assert.ok(found,
+    'walkDungeonTo8: (' + tx + ',' + ty + ') недостижимо от (' + sx
+    + ',' + sy + ') (сценарий)');
+  const path = [];
+  for (let k = tx + ',' + ty; k !== startKey; k = prev.get(k)) {
+    const [x, y] = k.split(',').map(Number);
+    path.unshift({ x, y });
+  }
+  for (const step of path) {
+    const before = g.dungeon;
+    const code = keydownFor(step.x - before.x, step.y - before.y);
+    press(h, code);
+    release(h, code);
+    const after = g.dungeon;
+    assert.equal(after.x, step.x,
+      'walkDungeonTo8: герой перешёл на (' + step.x + ',' + step
+      .y + ') — x');
+    assert.equal(after.y, step.y,
+      'walkDungeonTo8: герой перешёл на (' + step.x + ',' + step
+      .y + ') — y');
+    if (G.combatUI.isActive()) {
+      const c = G.combatUI.current();
+      for (const m of c.units.filter((x) => x.side === 'mob' && x.alive)) {
+        G.combatInternals.dealDamageToMob(c, m, 9999);
+      }
+      assert.ok(c.result && c.result.outcome === 'victory',
+        'walkDungeonTo8: бой по маршруту — победа');
+      G.combatUI.handleCode('Space');
+      assert.equal(G.combatUI.isActive(), false,
+        'walkDungeonTo8: бой закрыт (Space → finish)');
+    }
+  }
+}
+
+test('000212 DH-8 (fullchain, пин): depth>1 (основное состояние) — enterDungeon → [E] на stairs-down → depth 2 → кадр → #hud zIndex «25» (z-lift под оверлеем) + строка «Глубина: 2»', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const ds = g.actions.enterDungeon();
+  assert.ok(ds, 'enterDungeon — состояние подземелья (отладочный вход)');
+  assert.equal(g.dungeon.kind, 'dungeon', 'kind dungeon');
+  assert.equal(g.dungeon.depth, 1, 'debug-вход — depth 1');
+  const stairs = g.dungeon.stairsDown;
+  assert.ok(stairs,
+    'фикстура: stairsDown выставлен (stairsDownFor — детерминировано)');
+  walkDungeonTo8(h, stairs.x, stairs.y);
+  assert.deepEqual({ x: g.dungeon.x, y: g.dungeon.y },
+    { x: stairs.x, y: stairs.y }, 'герой — на клетке stairs-down');
+  const errBefore = h.errors.length;
+  press(h, 'KeyE');
+  release(h, 'KeyE');
+  assert.equal(g.dungeon.depth, 2,
+    '[E] на stairs-down — depth 2 (спавн на клетке-выходе = entrance)');
+  h.frameFn(NOW + 16);
+  assert.equal(h.hud.style.zIndex, '25',
+    'RED: depth>1 (основное состояние) — #hud ПОДНЯТ (inline zIndex 25 '
+    + '> оверлей 20; DH-1 покрывает только depth 1)');
+  assert.ok(String(h.hud.textContent).includes('Глубина: 2'),
+    'depth>1: строка «Глубина: 2» (floorStatusLine, DH-2): '
+    + JSON.stringify(String(h.hud.textContent)));
+  assert.equal(h.errors.length, errBefore,
+    'без новых console.error: ' + h.errors.slice(errBefore).join('; '));
 });
