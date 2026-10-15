@@ -2,9 +2,9 @@
   "id": "leader",
   "type": "secondary",
   "name": "Предводитель",
-  "primary": "charisma",
+  "primary": "assets/skills/000006.json",
   "requires": {
-    "skill": "orator",
+    "skill": "assets/skills/000034.json",
     "level": 5
   },
   "effect": {

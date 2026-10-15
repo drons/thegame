@@ -2,9 +2,9 @@
   "id": "precog",
   "type": "secondary",
   "name": "Ясновидение",
-  "primary": "wisdom",
+  "primary": "assets/skills/000005.json",
   "requires": {
-    "skill": "perception",
+    "skill": "assets/skills/000028.json",
     "level": 5
   },
   "effect": {

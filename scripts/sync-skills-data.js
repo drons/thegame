@@ -15,6 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
+const { isRef, resolveRef } = require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
@@ -29,6 +30,19 @@ if (files.length === 0) {
   process.exit(1);
 }
 
+function resolveField(f, where, ref) {
+  if (!isRef(ref)) {
+    console.error(`${f}: ${where} — не ссылка на файл каталога: ${JSON.stringify(ref)}`);
+    process.exit(1);
+  }
+  const r = resolveRef(ROOT, ref);
+  if (!r.ok) {
+    console.error(`${f}: ${where} — ссылка не резолвится (${r.reason}): ${ref}`);
+    process.exit(1);
+  }
+  return r.id;
+}
+
 const skills = [];
 for (const f of files) {
   const data = JSON.parse(
@@ -36,6 +50,12 @@ for (const f of files) {
   if (!data || (data.type !== 'primary' && data.type !== 'secondary')) {
     console.error(`${f}: поле type должно быть "primary" или "secondary"`);
     process.exit(1);
+  }
+  if (data.type === 'secondary') {
+    data.primary = resolveField(f, 'primary', data.primary);
+    if (data.requires) {
+      data.requires.skill = resolveField(f, 'requires.skill', data.requires.skill);
+    }
   }
   skills.push({ file: f, data });
 }

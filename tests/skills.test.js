@@ -20,6 +20,9 @@ const {
 } = require('../src/player.js');
 
 const SKILLS_DIR = path.join(__dirname, '..', 'assets', 'skills');
+const ROOT = path.join(__dirname, '..');
+const { isRef, resolveRef, REF_RE } = require(
+  path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
 
 // Допустимые ключи JSON-схем (задача 000015: минимальный валидатор).
 const ALLOWED_SCHEMA_KEYS = new Set([
@@ -42,6 +45,22 @@ function listSkillFiles() {
 }
 
 // Каталог: Map<номер, {file, data}> + список всех файлов каталога.
+function denorm(file, data) {
+  if (isRef(data.primary)) {
+    const r = resolveRef(ROOT, data.primary);
+    assert.ok(r.ok,
+      `${file}: primary-ссылка не резолвится: ${r.reason} (${data.primary})`);
+    data.primary = r.id;
+  }
+  if (data.requires && isRef(data.requires.skill)) {
+    const r = resolveRef(ROOT, data.requires.skill);
+    assert.ok(r.ok,
+      `${file}: requires.skill не резолвится: ${r.reason} (${data.requires.skill})`);
+    data.requires.skill = r.id;
+  }
+  return data;
+}
+
 function loadCatalog() {
   const all = fs.readdirSync(SKILLS_DIR).sort();
   const byNumber = new Map();
@@ -50,7 +69,8 @@ function loadCatalog() {
     assert.match(f, /^\d{6}\.json$/, `чужой файл в каталоге навыков: ${f}`);
     const n = parseInt(f, 10);
     assert.ok(!byNumber.has(n), `дубликат номера навыка: ${f}`);
-    const data = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
+    const data = denorm(f, JSON.parse(
+      fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
     byNumber.set(n, { file: f, data });
   }
   return { all, byNumber };
@@ -266,9 +286,12 @@ test('schema.json: структура (oneOf: primary | secondary)', () => {
   assert.deepEqual(Object.keys(sec.properties).sort(),
     ['desc', 'effect', 'effectType', 'id', 'name', 'names', 'primary', 'requires', 'type'],
     'secondary: наборы свойств');
-  assert.deepEqual(sec.properties.primary.enum,
-    ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],
-    'secondary: enum основных навыков');
+  assert.equal(sec.properties.primary.pattern, REF_RE.source,
+    'secondary: primary — якорный паттерн ссылки (REF_RE)');
+  assert.ok(!('enum' in sec.properties.primary),
+    'secondary: primary без enum (ref-значение не проходит enum)');
+  assert.equal(sec.properties.requires.properties.skill.pattern, REF_RE.source,
+    'secondary: requires.skill — якорный паттерн ссылки (REF_RE)');
   assert.equal(sec.properties.names.minItems, 6, 'names: ровно 6 имён');
   assert.equal(sec.properties.names.maxItems, 6, 'names: ровно 6 имён');
   assert.deepEqual(sec.properties.effectType.enum,

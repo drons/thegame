@@ -2,7 +2,7 @@
   "id": "merchant",
   "type": "secondary",
   "name": "Торговец",
-  "primary": "charisma",
+  "primary": "assets/skills/000006.json",
   "effect": {
     "stat": "buyPriceMult",
     "perLevel": -0.05

@@ -2,7 +2,7 @@
   "id": "swordsman",
   "type": "secondary",
   "name": "Мечник",
-  "primary": "strength",
+  "primary": "assets/skills/000001.json",
   "effect": {
     "stat": "swordHitBonus",
     "perLevel": 0.05

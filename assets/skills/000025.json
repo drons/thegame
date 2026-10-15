@@ -2,7 +2,7 @@
   "id": "alchemy",
   "type": "secondary",
   "name": "Алхимик",
-  "primary": "intelligence",
+  "primary": "assets/skills/000004.json",
   "effect": {
     "stat": "potionPowerMult",
     "perLevel": 0.05

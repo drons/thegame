@@ -2,9 +2,9 @@
   "id": "breath",
   "type": "secondary",
   "name": "Глубокий вдох",
-  "primary": "constitution",
+  "primary": "assets/skills/000003.json",
   "requires": {
-    "skill": "constitution",
+    "skill": "assets/skills/000003.json",
     "level": 5
   },
   "effect": {

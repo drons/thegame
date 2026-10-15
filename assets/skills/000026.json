@@ -2,7 +2,7 @@
   "id": "scholar",
   "type": "secondary",
   "name": "Учёный",
-  "primary": "intelligence",
+  "primary": "assets/skills/000004.json",
   "effect": {
     "stat": "xpMult",
     "perLevel": 0.02

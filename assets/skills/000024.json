@@ -2,9 +2,9 @@
   "id": "icelord",
   "type": "secondary",
   "name": "Повелитель льда",
-  "primary": "intelligence",
+  "primary": "assets/skills/000004.json",
   "requires": {
-    "skill": "firelord",
+    "skill": "assets/skills/000023.json",
     "level": 5
   },
   "effect": {

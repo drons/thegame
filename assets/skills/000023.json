@@ -2,7 +2,7 @@
   "id": "firelord",
   "type": "secondary",
   "name": "Повелитель огня",
-  "primary": "intelligence",
+  "primary": "assets/skills/000004.json",
   "effect": {
     "stat": "fireDamageBonus",
     "perLevel": 0.05

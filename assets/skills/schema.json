@@ -59,14 +59,7 @@
         },
         "primary": {
           "type": "string",
-          "enum": [
-            "strength",
-            "dexterity",
-            "constitution",
-            "intelligence",
-            "wisdom",
-            "charisma"
-          ]
+          "pattern": "^assets\\/(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons|npc)\\/\\d{6}\\.json$"
         },
         "requires": {
           "type": "object",
@@ -78,7 +71,7 @@
           "properties": {
             "skill": {
               "type": "string",
-              "pattern": "^[a-z][a-z0-9_]*$"
+              "pattern": "^assets\\/(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons|npc)\\/\\d{6}\\.json$"
             },
             "level": {
               "type": "number",

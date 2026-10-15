@@ -2,9 +2,9 @@
   "id": "nature",
   "type": "secondary",
   "name": "Сердце природы",
-  "primary": "wisdom",
+  "primary": "assets/skills/000005.json",
   "requires": {
-    "skill": "wisdom",
+    "skill": "assets/skills/000005.json",
     "level": 5
   },
   "effect": {

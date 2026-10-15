@@ -2,7 +2,7 @@
   "id": "catseye",
   "type": "secondary",
   "name": "Кошачий глаз",
-  "primary": "dexterity",
+  "primary": "assets/skills/000002.json",
   "effect": {
     "stat": "caveVisionMult",
     "perLevel": 0.1

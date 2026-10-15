@@ -2,7 +2,7 @@
   "id": "meditation",
   "type": "secondary",
   "name": "Медитация",
-  "primary": "wisdom",
+  "primary": "assets/skills/000005.json",
   "effect": {
     "stat": "mpRegenMult",
     "perLevel": 0.02

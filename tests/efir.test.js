@@ -139,12 +139,26 @@ const SPELL_IDS = (() => {
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
 const SKILL_FILES = () => fs.readdirSync(SKILLS_DIR)
   .filter((f) => /^\d{6}\.json$/.test(f));
+const { isRef, resolveRef } = require(
+  path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
 const SKILL_IDS = new Set(SKILL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id));
 const SKILL_META = (() => {
   const m = new Map();
   for (const f of SKILL_FILES()) {
     const j = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
+    if (j.type === 'secondary') {
+      if (isRef(j.primary)) {
+        const r = resolveRef(ROOT, j.primary);
+        assert.ok(r.ok, f + ': primary не резолвится: ' + r.reason);
+        j.primary = r.id;
+      }
+      if (j.requires && isRef(j.requires.skill)) {
+        const r = resolveRef(ROOT, j.requires.skill);
+        assert.ok(r.ok, f + ': requires.skill не резолвится: ' + r.reason);
+        j.requires = { skill: r.id, level: j.requires.level };
+      }
+    }
     m.set(j.id, j);
   }
   return m;

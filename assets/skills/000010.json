@@ -2,9 +2,9 @@
   "id": "forge",
   "type": "secondary",
   "name": "Кузнечная рука",
-  "primary": "strength",
+  "primary": "assets/skills/000001.json",
   "requires": {
-    "skill": "strength",
+    "skill": "assets/skills/000001.json",
     "level": 5
   },
   "effect": {

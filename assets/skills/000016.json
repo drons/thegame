@@ -2,9 +2,9 @@
   "id": "acro",
   "type": "secondary",
   "name": "Акробатика",
-  "primary": "dexterity",
+  "primary": "assets/skills/000002.json",
   "requires": {
-    "skill": "step",
+    "skill": "assets/skills/000014.json",
     "level": 5
   },
   "effect": {

@@ -2,7 +2,7 @@
   "id": "orator",
   "type": "secondary",
   "name": "Оратор",
-  "primary": "charisma",
+  "primary": "assets/skills/000006.json",
   "effect": {
     "stat": "dialogueBonus",
     "perLevel": 1

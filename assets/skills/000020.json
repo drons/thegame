@@ -2,9 +2,9 @@
   "id": "golem",
   "type": "secondary",
   "name": "Голем",
-  "primary": "constitution",
+  "primary": "assets/skills/000003.json",
   "requires": {
-    "skill": "hide",
+    "skill": "assets/skills/000018.json",
     "level": 5
   },
   "effect": {

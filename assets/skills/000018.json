@@ -2,7 +2,7 @@
   "id": "hide",
   "type": "secondary",
   "name": "Железная кожа",
-  "primary": "constitution",
+  "primary": "assets/skills/000003.json",
   "effect": {
     "stat": "damageTakenMult",
     "perLevel": -0.05

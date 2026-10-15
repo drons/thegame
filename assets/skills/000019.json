@@ -2,7 +2,7 @@
   "id": "endurance",
   "type": "secondary",
   "name": "Выносливость",
-  "primary": "constitution",
+  "primary": "assets/skills/000003.json",
   "effect": {
     "stat": "maxHPMult",
     "perLevel": 0.03

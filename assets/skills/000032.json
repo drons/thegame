@@ -2,7 +2,7 @@
   "id": "elder",
   "type": "secondary",
   "name": "Старейшина",
-  "primary": "wisdom",
+  "primary": "assets/skills/000005.json",
   "effect": {
     "stat": "dialogueBonus",
     "perLevel": 1

@@ -2,9 +2,9 @@
   "id": "runes",
   "type": "secondary",
   "name": "Рунопись",
-  "primary": "intelligence",
+  "primary": "assets/skills/000004.json",
   "requires": {
-    "skill": "intelligence",
+    "skill": "assets/skills/000004.json",
     "level": 5
   },
   "effect": {

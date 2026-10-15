@@ -2,7 +2,7 @@
   "id": "artist",
   "type": "secondary",
   "name": "Артист",
-  "primary": "charisma",
+  "primary": "assets/skills/000006.json",
   "effect": {
     "stat": "performanceIncomeMult",
     "perLevel": 0.1

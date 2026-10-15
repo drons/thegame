@@ -2,7 +2,7 @@
   "id": "accuracy",
   "type": "secondary",
   "name": "Меткость",
-  "primary": "dexterity",
+  "primary": "assets/skills/000002.json",
   "effect": {
     "stat": "rangedDamageBonus",
     "perLevel": 0.05

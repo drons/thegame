@@ -2,9 +2,9 @@
   "id": "unkill",
   "type": "secondary",
   "name": "Несокрушимость",
-  "primary": "constitution",
+  "primary": "assets/skills/000003.json",
   "requires": {
-    "skill": "golem",
+    "skill": "assets/skills/000020.json",
     "level": 10
   },
   "effect": {

@@ -2,9 +2,9 @@
   "id": "thief",
   "type": "secondary",
   "name": "Тать",
-  "primary": "dexterity",
+  "primary": "assets/skills/000002.json",
   "requires": {
-    "skill": "dexterity",
+    "skill": "assets/skills/000002.json",
     "level": 5
   },
   "effect": {

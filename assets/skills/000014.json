@@ -2,7 +2,7 @@
   "id": "step",
   "type": "secondary",
   "name": "Ловкий шаг",
-  "primary": "dexterity",
+  "primary": "assets/skills/000002.json",
   "effect": {
     "stat": "moveSpeedMult",
     "perLevel": 0.05

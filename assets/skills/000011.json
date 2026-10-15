@@ -2,7 +2,7 @@
   "id": "back",
   "type": "secondary",
   "name": "Крепкая спина",
-  "primary": "strength",
+  "primary": "assets/skills/000001.json",
   "effect": {
     "stat": "carryWeightMult",
     "perLevel": 0.1

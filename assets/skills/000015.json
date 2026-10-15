@@ -2,9 +2,9 @@
   "id": "archer",
   "type": "secondary",
   "name": "Стрелок",
-  "primary": "dexterity",
+  "primary": "assets/skills/000002.json",
   "requires": {
-    "skill": "accuracy",
+    "skill": "assets/skills/000012.json",
     "level": 5
   },
   "effect": {

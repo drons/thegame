@@ -2,9 +2,9 @@
   "id": "fright",
   "type": "secondary",
   "name": "Застращивание",
-  "primary": "charisma",
+  "primary": "assets/skills/000006.json",
   "requires": {
-    "skill": "charisma",
+    "skill": "assets/skills/000006.json",
     "level": 5
   },
   "effect": {

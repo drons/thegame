@@ -2,7 +2,7 @@
   "id": "perception",
   "type": "secondary",
   "name": "Зоркость",
-  "primary": "wisdom",
+  "primary": "assets/skills/000005.json",
   "effect": {
     "stat": "magicResistMult",
     "perLevel": 0.05
