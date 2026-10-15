@@ -17,12 +17,12 @@
     "perLevel": 4
   },
   "skills": [
-    "runes"
+    "assets/skills/000027.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "sulfur",
+      "item": "assets/items/000022.json",
       "chance": 0.25
     }
   ],

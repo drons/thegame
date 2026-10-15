@@ -17,12 +17,12 @@
     "perLevel": 4
   },
   "skills": [
-    "archer"
+    "assets/skills/000015.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "short_bow",
+      "item": "assets/items/000004.json",
       "chance": 0.1
     }
   ],

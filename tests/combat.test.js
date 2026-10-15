@@ -42,8 +42,19 @@ require('../src/spells.js');
 const MOBS_DIR = path.join(__dirname, '..', 'assets', 'mobs');
 const SKILLS_DIR = path.join(__dirname, '..', 'assets', 'skills');
 const SPELLS_DIR = path.join(__dirname, '..', 'assets', 'spells');
+const ROOT = path.join(__dirname, '..');
+// 000211.03: единый источник формата ссылки (000211.01) и общий
+// валидатор схем — красные тесты M1/M2 (EOF-блок 000211.03).
+const { isRef, resolveRef } = require('../scripts/lib/json-ref.js');
+const { validateData } = require('./json-schema.js');
 const mobFiles = () => fs.readdirSync(MOBS_DIR)
   .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+function refToId(v, where) {
+  if (!isRef(v)) return v;
+  const r = resolveRef(ROOT, v);
+  assert.ok(r.ok, where + ': ссылка не резолвится (' + r.reason + '): ' + v);
+  return r.id;
+}
 
 // Сильный персонаж для контролируемых сценариев (много HP — не умирает сам).
 function strongHero() {
@@ -242,7 +253,7 @@ test('assets/mobs: JSON-файлы — структура по схеме, id у
     assert.ok(Array.isArray(j.spells), f + ': spells — массив ссылок');
     assert.ok(Array.isArray(j.loot), f + ': loot — массив');
     for (const l of j.loot) {
-      assert.match(l.item, /^[a-z][a-z0-9_]*$/, f + ': loot.item');
+      assert.match(l.item, /^assets\/items\/\d{6}\.json$/, f + ': loot.item');
       if (l.chance != null) assert.ok(l.chance >= 0 && l.chance <= 1, f + ': chance 0..1');
     }
   }
@@ -265,6 +276,9 @@ test('assets/mobs: зеркало в combat.js идентично JSON-ката�
         f + ': арта-поле «' + k + '» не должно попадать в зеркало combat.js');
       delete j[k];
     }
+    j.skills = j.skills.map((v, i) => refToId(v, f + ': skills[' + i + ']'));
+    j.spells = j.spells.map((v, i) => refToId(v, f + ': spells[' + i + ']'));
+    j.loot = j.loot.map((l, i) => ({ ...l, item: refToId(l.item, f + ': loot[' + i + '].item') }));
     assert.deepEqual(j, byId.get(j.id), f + ' расходится с combat.js');
     byId.delete(j.id);
   }
@@ -285,13 +299,15 @@ test('assets/mobs: ссылки — skills в assets/skills, loot в assets/item
   for (const f of mobFiles()) {
     const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
     for (const s of j.skills) {
-      assert.ok(skillIds.has(s), j.id + ': навык «' + s + '» нет в assets/skills');
+      assert.ok(skillIds.has(refToId(s, f + ': skills')),
+        j.id + ': навык «' + s + '» нет в assets/skills');
     }
     for (const l of j.loot) {
-      assert.ok(itemIds.has(l.item), j.id + ': лут «' + l.item + '» нет в assets/items');
+      assert.ok(itemIds.has(refToId(l.item, f + ': loot.item')),
+        j.id + ': лут «' + l.item + '» нет в assets/items');
     }
     for (const sp of j.spells) {
-      assert.ok(spellIds && spellIds.has(sp),
+      assert.ok(spellIds && spellIds.has(refToId(sp, f + ': spells')),
         j.id + ': заклинание «' + sp + '» нет в assets/spells');
     }
   }
@@ -5945,7 +5961,9 @@ test('000165 C6: доступность (ТЗ п.4) — лут Уродства 
     { item: 'greater_healing', chance: 0.15 },
     { item: 'resurrect_scroll', chance: 0.05 },
   ];
-  assert.deepEqual(j36.loot, LOOT_ABO_165,
+  const loot36 = j36.loot.map((l, i) =>
+    ({ ...l, item: refToId(l.item, '000036.json: loot[' + i + '].item') }));
+  assert.deepEqual(loot36, LOOT_ABO_165,
     '000036.json loot: свиток 0.05 концом таблицы (краснота: записи нет)');
   // Зеркало combat.js MOB_TYPES (runtime; консистентность JSON↔
   // зеркало — общий тест «assets/mobs: зеркало…» выше, ОДИН коммит).
@@ -7716,4 +7734,91 @@ test('makeAlly: 000193.01 — снапшот maxMP (знаменатель MP-п
   assert.equal(m.maxMP, 13,
     '000193.01: maxMP = 5+4+4 = 13: факт ' + JSON.stringify(m.maxMP));
   assert.equal(m.maxMP, m.mp, 'maxMP === mp на старте (по построению)');
+});
+
+// =====================================================================
+// Задача 000211.03. assets/mobs: skills/spells/loot → ссылки на
+// json-файлы (skills/spells/items). Рефакторинг без смены поведения:
+// MOB_TYPES (combat.js:141) — НЕ ТРОГАЕТСЯ (id-форма, ручное зеркало).
+//
+// КРАСНЫЕ тесты (TDD): написаны ДО миграции данных, падают на
+// текущем (неизменённом) коде — самих ссылок в данных ещё нет (все
+// 71 значение — id-строки), а поля-ссылки assets/mobs/schema.json
+// не закрепили якорные per-catalog паттерны:
+//   * M1 — по каждому из 36 мобов, поэлементно skills[i]/spells[i]/
+//     loot[i].item: (a) isRef(v) — якорная форма, (b) resolveRef ok,
+//     (c) id файла-цели = прежнему значению ПОЗИЦИОННО из зеркала
+//     MOB_TYPES (независимый источник; резолвер id НЕ сверяет —
+//     контракт 000211.01 §2). Сейчас: isRef('heavy') → false —
+//     «не якорная ссылка» — краснота в ДАННЫХ, не load-ошибка
+//     (json-ref.js существует с 000211.01);
+//   * M2 — pattern трёх полей-ссылок schema.json =
+//     '^assets/<каталог>/\d{6}\.json$' (per-catalog — строже единого
+//     REF_RE, прецедент 000207/000208); отрицательный контроль —
+//     голый id ('heavy'/'battle_axe' из исходной записи 000002.json)
+//     обязан ловиться схемой; положительный — исходная запись
+//     проходит.
+// GREEN (финальный коммит, вместе с данными): 36 json + schema.json
+// + технические правки a–d этого файла (:251 зеркало, :275 ссылки,
+// :245 структура, :5942 000165 C6) — memory/000211.03-mobs-refs.md
+// §4. Детерминизм: новые тесты чистые (fs + require), 0 RNG.
+// =====================================================================
+
+test('assets/mobs (000211.03): ссылки skills/spells/loot — якорная форма, резолв = прежнее значение (зеркало MOB_TYPES)', () => {
+  const files = mobFiles();
+  let n = 0;
+  for (const f of files) {
+    const j = JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8'));
+    const t = MOB_TYPES[j.id];
+    assert.ok(t, f + ': моб ' + j.id + ' нет в зеркале combat.js');
+    const check = (v, where, old) => {
+      n += 1;
+      assert.ok(isRef(v), f + ': ' + where + ' «' + v +
+        '» — не якорная ссылка (ожидалось assets/<каталог>/NNNNNN.json)');
+      const r = resolveRef(ROOT, v);
+      assert.ok(r.ok, f + ': ' + where + ' — ссылка не резолвится ('
+        + r.reason + '): ' + v);
+      assert.equal(r.id, old, f + ': ' + where + ' — id «' + r.id
+        + '» ≠ прежнему «' + old + '» (зеркало combat.js)');
+    };
+    j.skills.forEach((v, i) => check(v, 'skills[' + i + ']', t.skills[i]));
+    j.spells.forEach((v, i) => check(v, 'spells[' + i + ']', t.spells[i]));
+    j.loot.forEach((l, i) => check(l.item, 'loot[' + i + '].item', t.loot[i].item));
+  }
+  assert.ok(n > 0, 'проверок нет: skills/spells/loot всех мобов пусты');
+});
+
+test('mobs schema (000211.03): поля-ссылки закрепили якорные per-catalog паттерны; отрицательный контроль', () => {
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(MOBS_DIR, 'schema.json'), 'utf8'));
+  const p = schema.properties;
+  assert.equal(p.skills.items.pattern, '^assets/skills/\\d{6}\\.json$',
+    'skills: pattern не закреплён якорный (assets/skills)');
+  assert.equal(p.spells.items.pattern, '^assets/spells/\\d{6}\\.json$',
+    'spells: pattern не закреплён якорный (assets/spells)');
+  assert.equal(p.loot.items.properties.item.pattern,
+    '^assets/items/\\d{6}\\.json$',
+    'loot.item: pattern не закреплён якорный (assets/items)');
+  assert.equal(p.skills.items.type, 'string', 'skills: type string');
+  assert.equal(p.spells.items.type, 'string', 'spells: type string');
+  assert.equal(p.loot.items.properties.item.type, 'string',
+    'loot.item: type string');
+  const rec = JSON.parse(
+    fs.readFileSync(path.join(MOBS_DIR, '000002.json'), 'utf8'));
+  const badSkill = JSON.parse(JSON.stringify(rec));
+  badSkill.skills[0] = 'heavy';
+  const errSkill = validateData(schema, badSkill, '000002');
+  assert.ok(errSkill.length >= 1
+      && errSkill.some((e) => e.includes('assets/skills')),
+    'отрицательный контроль: голый id в skills не пойман схемой: '
+      + JSON.stringify(errSkill));
+  const badLoot = JSON.parse(JSON.stringify(rec));
+  badLoot.loot[0].item = 'battle_axe';
+  const errLoot = validateData(schema, badLoot, '000002');
+  assert.ok(errLoot.length >= 1
+      && errLoot.some((e) => e.includes('assets/items')),
+    'отрицательный контроль: голый id в loot.item не пойман схемой: '
+      + JSON.stringify(errLoot));
+  assert.deepEqual(validateData(schema, rec, '000002'), [],
+    'положительный контроль: исходная запись проходит схему');
 });

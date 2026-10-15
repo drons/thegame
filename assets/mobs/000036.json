@@ -17,20 +17,20 @@
     "perLevel": 4
   },
   "skills": [
-    "leader"
+    "assets/skills/000035.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "phoenix_feather",
+      "item": "assets/items/000024.json",
       "chance": 0.2
     },
     {
-      "item": "greater_healing",
+      "item": "assets/items/000013.json",
       "chance": 0.15
     },
     {
-      "item": "resurrect_scroll",
+      "item": "assets/items/000051.json",
       "chance": 0.05
     }
   ],

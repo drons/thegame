@@ -20,16 +20,16 @@
     "perLevel": 4
   },
   "skills": [
-    "endurance"
+    "assets/skills/000019.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "greater_healing",
+      "item": "assets/items/000013.json",
       "chance": 0.1
     },
     {
-      "item": "mana_elixir",
+      "item": "assets/items/000015.json",
       "chance": 0.1
     }
   ],

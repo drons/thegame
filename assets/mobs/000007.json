@@ -17,16 +17,16 @@
     "perLevel": 4
   },
   "skills": [
-    "leader"
+    "assets/skills/000035.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "war_hammer",
+      "item": "assets/items/000007.json",
       "chance": 0.1
     },
     {
-      "item": "chainmail",
+      "item": "assets/items/000009.json",
       "chance": 0.1
     }
   ],

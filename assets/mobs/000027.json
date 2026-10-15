@@ -20,12 +20,12 @@
     "perLevel": 4
   },
   "skills": [
-    "breath"
+    "assets/skills/000021.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "mana_elixir",
+      "item": "assets/items/000015.json",
       "chance": 0.1
     }
   ],

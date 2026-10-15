@@ -18,16 +18,16 @@
     "perLevel": 4
   },
   "skills": [
-    "heavy"
+    "assets/skills/000008.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "battle_axe",
+      "item": "assets/items/000006.json",
       "chance": 0.1
     },
     {
-      "item": "sulfur",
+      "item": "assets/items/000022.json",
       "chance": 0.15
     }
   ],

@@ -18,16 +18,16 @@
     "perLevel": 4
   },
   "skills": [
-    "golem"
+    "assets/skills/000020.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "knight_plate",
+      "item": "assets/items/000010.json",
       "chance": 0.1
     },
     {
-      "item": "chainmail",
+      "item": "assets/items/000009.json",
       "chance": 0.1
     }
   ],

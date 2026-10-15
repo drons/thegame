@@ -18,12 +18,12 @@
     "perLevel": 4
   },
   "skills": [
-    "golem"
+    "assets/skills/000020.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "moonstone",
+      "item": "assets/items/000023.json",
       "chance": 0.15
     }
   ],

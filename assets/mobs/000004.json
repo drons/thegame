@@ -17,12 +17,12 @@
     "perLevel": 4
   },
   "skills": [
-    "meditation"
+    "assets/skills/000029.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "mana_potion",
+      "item": "assets/items/000014.json",
       "chance": 0.15
     }
   ],

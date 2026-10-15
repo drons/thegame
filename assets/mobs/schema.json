@@ -43,11 +43,11 @@
     },
     "skills": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+      "items": { "type": "string", "pattern": "^assets/skills/\\d{6}\\.json$" }
     },
     "spells": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+      "items": { "type": "string", "pattern": "^assets/spells/\\d{6}\\.json$" }
     },
     "loot": {
       "type": "array",
@@ -55,7 +55,7 @@
         "type": "object",
         "required": ["item"],
         "properties": {
-          "item": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "item": { "type": "string", "pattern": "^assets/items/\\d{6}\\.json$" },
           "chance": { "type": "number", "minimum": 0, "maximum": 1 }
         },
         "additionalProperties": false

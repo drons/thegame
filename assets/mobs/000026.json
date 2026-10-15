@@ -17,12 +17,12 @@
     "perLevel": 4
   },
   "skills": [
-    "firelord"
+    "assets/skills/000023.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "phoenix_feather",
+      "item": "assets/items/000024.json",
       "chance": 0.1
     }
   ],

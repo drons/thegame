@@ -17,16 +17,16 @@
     "perLevel": 4
   },
   "skills": [
-    "firelord"
+    "assets/skills/000023.json"
   ],
   "spells": [],
   "loot": [
     {
-      "item": "greater_healing",
+      "item": "assets/items/000013.json",
       "chance": 0.1
     },
     {
-      "item": "sulfur",
+      "item": "assets/items/000022.json",
       "chance": 0.2
     }
   ],
