@@ -1811,21 +1811,21 @@ test('000070 DUNGEON_WALL_FRAMES: 6 объектов, имена/пути, фа�
   }
 });
 
-test('000070 DUNGEON_WALL_FRAMES ≡ каталог: объединение предметов_стен × варианты 1..2, ровно 6 файлов', () => {
+test('000070 DUNGEON_WALL_FRAMES ≡ каталог: объединение объектов_стен × варианты 1..2, ровно 6 файлов', () => {
   const ddir = path.join(ROOT, 'assets', 'dungeons');
   const kinds = new Set();
   for (const f of fs.readdirSync(ddir).filter((f) => /^\d{6}\.json$/.test(f)).sort()) {
     const data = JSON.parse(fs.readFileSync(path.join(ddir, f), 'utf8'));
-    assert.ok(Array.isArray(data.предметы_стен),
-      `${f}: нет «предметы_стен» (связь с каталогом не проверима)`);
-    for (const k of data.предметы_стен) kinds.add(k);
+    assert.ok(Array.isArray(data.объекты_стен),
+      `${f}: нет «объекты_стен» (связь с каталогом не проверима)`);
+    for (const k of data.объекты_стен) kinds.add(k);
   }
   const expected = [];
   for (const k of [...kinds].sort()) expected.push(k + '_1', k + '_2');
   assert.ok(S.DUNGEON_WALL_FRAMES && typeof S.DUNGEON_WALL_FRAMES === 'object',
     'sprites.js: нет экспорта DUNGEON_WALL_FRAMES');
   assert.deepEqual(Object.keys(S.DUNGEON_WALL_FRAMES).sort(), expected.sort(),
-    'ключи DUNGEON_WALL_FRAMES ≠ объединение(предметы_стен) × {1, 2}');
+    'ключи DUNGEON_WALL_FRAMES ≠ объединение(объекты_стен) × {1, 2}');
   // На диске — ровно 6 файлов, сиротских/отсутствующих нет.
   const onDisk = fs.readdirSync(path.join(ROOT, WALLS_DIR_000070)).sort();
   assert.deepEqual(onDisk, WALL_KEYS_000070.map((k) => k + '.svg').sort(),

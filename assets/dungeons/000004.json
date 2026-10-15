@@ -2,50 +2,50 @@
   "id": 3,
   "название": "затопленная пещера",
   "мобы": [
-    "water_elemental",
-    "scorpion",
-    "spider",
-    "imp"
+    "assets/mobs/000027.json",
+    "assets/mobs/000024.json",
+    "assets/mobs/000020.json",
+    "assets/mobs/000030.json"
   ],
   "предметы": [
-    "mana_elixir",
-    "hunting_bow",
-    "moonstone",
-    "nature_scroll",
-    "magic_shield_scroll"
+    "assets/items/000015.json",
+    "assets/items/000005.json",
+    "assets/items/000023.json",
+    "assets/items/000032.json",
+    "assets/items/000049.json"
   ],
   "размер": 27,
-  "постройка": 34,
-  "предметы_стен": [
+  "постройка": "assets/buildings/000034.json",
+  "объекты_стен": [
     "rock"
   ],
   "руда": [
     {
-      "предмет": "sulfur",
+      "предмет": "assets/items/000022.json",
       "вид": "минерал"
     },
     {
-      "предмет": "stone_chunk",
+      "предмет": "assets/items/000036.json",
       "вид": "минерал"
     },
     {
-      "предмет": "quartz",
+      "предмет": "assets/items/000055.json",
       "вид": "минерал"
     },
     {
-      "предмет": "silver_ore",
+      "предмет": "assets/items/000052.json",
       "вид": "руда"
     },
     {
-      "предмет": "emerald",
+      "предмет": "assets/items/000060.json",
       "вид": "самоцвет"
     },
     {
-      "предмет": "sapphire",
+      "предмет": "assets/items/000059.json",
       "вид": "самоцвет"
     },
     {
-      "предмет": "phosphorite",
+      "предмет": "assets/items/000057.json",
       "вид": "минерал"
     }
   ]

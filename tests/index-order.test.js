@@ -13,6 +13,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const refLib = require('../scripts/lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
@@ -501,6 +502,31 @@ test('порядок битый: spells.js без combat.js → Game.Spells не
 
 const DUNGEON_CORE = ['src/global-settings.js', 'src/perlin.js', 'src/map.js'];
 
+// 000211.05: каталог dungeons — ссылка-форма, таблицы/зеркало — id-форма:
+// перед сравнением резолвит 4 группы ссылок в id файла-цели (строго,
+// fail с where); «объекты_стен»/«вид» — не ссылки.
+function resolvedDungeonRecord(data, file) {
+  const id = (where, ref) => {
+    const r = refLib.resolveRef(ROOT, ref);
+    assert.ok(r.ok,
+      (file ? file + ' ' : '') + where + ': «' + ref +
+      '» не резолвится: ' + r.reason);
+    return r.id;
+  };
+  const out = {};
+  for (const [k, v] of Object.entries(data)) out[k] = v;
+  out.мобы = data.мобы.map((r, i) => id('мобы[' + i + ']', r));
+  out.предметы = data.предметы.map((r, i) => id('предметы[' + i + ']', r));
+  out.постройка = id('постройка', data.постройка);
+  if (Array.isArray(data.руда)) {
+    out.руда = data.руда.map((o, i) => ({
+      предмет: id('руда[' + i + '].предмет', o.предмет),
+      вид: o.вид,
+    }));
+  }
+  return out;
+}
+
 test('порядок core → dungeons-data.js → dungeon.js: таблицы из каталога в браузерном realm', () => {
   const dataModule = path.join(ROOT, 'src', 'dungeons-data.js');
   assert.ok(fs.existsSync(dataModule),
@@ -522,12 +548,13 @@ test('порядок core → dungeons-data.js → dungeon.js: таблицы и
   for (const f of dfiles) {
     const data = JSON.parse(fs.readFileSync(path.join(ddir, f), 'utf8'));
     const t = data.id;
+    const rec = resolvedDungeonRecord(data, f);
     assert.equal(sandbox.Game.DUNGEON_NAMES[t], data.название,
       `DUNGEON_NAMES[${t}] (${f}) — браузерная ветка`);
     // Распространение в node-массив: объекты vm-контекста — чужой realm.
-    assert.deepEqual([...sandbox.Game.DUNGEON_MOBS[t]], data.мобы,
+    assert.deepEqual([...sandbox.Game.DUNGEON_MOBS[t]], rec.мобы,
       `DUNGEON_MOBS[${t}] (${f}) — браузерная ветка`);
-    assert.deepEqual([...sandbox.Game.DUNGEON_ITEMS[t]], data.предметы,
+    assert.deepEqual([...sandbox.Game.DUNGEON_ITEMS[t]], rec.предметы,
       `DUNGEON_ITEMS[${t}] (${f}) — браузерная ветка`);
     assert.equal(sandbox.Game.DUNGEON_SIZE[t], data.размер,
       `DUNGEON_SIZE[${t}] (${f}) — браузерная ветка`);
@@ -1605,9 +1632,10 @@ test('IO-DEP-1: dungeon.js БЕЗ dungeons-data.js — fallback DUNGEON_ORES «�
       'fallback: Game.DUNGEON_ORES[' + data.id + '] (' + f + ')');
     // vm-realm: нормализуем объекты в node-прототип (cross-realm
     // deepEqual падает на прототипах).
+    const rec = resolvedDungeonRecord(data, f);
     const ores = [...sandbox.Game.DUNGEON_ORES[data.id]]
       .map((o) => ({ предмет: o.предмет, вид: o.вид }));
-    assert.deepEqual(ores, data.руда,
+    assert.deepEqual(ores, rec.руда,
       'fallback: DUNGEON_ORES[' + data.id + '] (' + f + ') ≡ каталогу '
       + '(1:1, порядок как в JSON)');
   }
@@ -1630,9 +1658,10 @@ test('IO-DEP-2: порядок core → dungeons-data.js → dungeon.js — DUNG
     const t = data.id;
     assert.ok(sandbox.Game.DUNGEON_ORES && sandbox.Game.DUNGEON_ORES[t],
       'Game.DUNGEON_ORES[' + t + '] (' + f + ') — browser-ветка');
+    const rec = resolvedDungeonRecord(data, f);
     const ores = [...sandbox.Game.DUNGEON_ORES[t]]
       .map((o) => ({ предмет: o.предмет, вид: o.вид }));
-    assert.deepEqual(ores, data.руда,
+    assert.deepEqual(ores, rec.руда,
       'DUNGEON_ORES[' + t + '] (' + f + ') — browser-ветка 1:1 с «руда» '
       + 'каталога');
   }

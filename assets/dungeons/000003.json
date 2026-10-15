@@ -2,52 +2,52 @@
   "id": 2,
   "название": "руины замка",
   "мобы": [
-    "orc_warrior",
-    "orc_archer",
-    "wolf",
-    "troll",
-    "skeleton"
+    "assets/mobs/000002.json",
+    "assets/mobs/000003.json",
+    "assets/mobs/000016.json",
+    "assets/mobs/000021.json",
+    "assets/mobs/000009.json"
   ],
   "предметы": [
-    "steel_sword",
-    "knight_plate",
-    "war_hammer",
-    "iron_hide_tome",
-    "fireball_scroll",
-    "vine_scroll"
+    "assets/items/000003.json",
+    "assets/items/000010.json",
+    "assets/items/000007.json",
+    "assets/items/000026.json",
+    "assets/items/000043.json",
+    "assets/items/000050.json"
   ],
   "размер": 31,
-  "постройка": 33,
-  "предметы_стен": [
+  "постройка": "assets/buildings/000033.json",
+  "объекты_стен": [
     "column"
   ],
   "руда": [
     {
-      "предмет": "iron_ore",
+      "предмет": "assets/items/000033.json",
       "вид": "руда"
     },
     {
-      "предмет": "copper_ore",
+      "предмет": "assets/items/000034.json",
       "вид": "руда"
     },
     {
-      "предмет": "coal",
+      "предмет": "assets/items/000038.json",
       "вид": "минерал"
     },
     {
-      "предмет": "silver_ore",
+      "предмет": "assets/items/000052.json",
       "вид": "руда"
     },
     {
-      "предмет": "quartz",
+      "предмет": "assets/items/000055.json",
       "вид": "минерал"
     },
     {
-      "предмет": "gold_ore",
+      "предмет": "assets/items/000053.json",
       "вид": "руда"
     },
     {
-      "предмет": "ruby",
+      "предмет": "assets/items/000058.json",
       "вид": "самоцвет"
     }
   ]

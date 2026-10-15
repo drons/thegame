@@ -2,59 +2,59 @@
   "id": 0,
   "название": "простая пещера",
   "мобы": [
-    "skeleton",
-    "ant",
-    "crawling_bones",
-    "giant_larva"
+    "assets/mobs/000009.json",
+    "assets/mobs/000022.json",
+    "assets/mobs/000011.json",
+    "assets/mobs/000012.json"
   ],
   "предметы": [
-    "iron_sword",
-    "healing_potion",
-    "sulfur",
-    "stone_fist_grimoire",
-    "frost_bolt_scroll"
+    "assets/items/000002.json",
+    "assets/items/000012.json",
+    "assets/items/000022.json",
+    "assets/items/000025.json",
+    "assets/items/000045.json"
   ],
   "размер": 25,
-  "постройка": 31,
-  "предметы_стен": [
+  "постройка": "assets/buildings/000031.json",
+  "объекты_стен": [
     "rock",
     "stalactite"
   ],
   "руда": [
     {
-      "предмет": "iron_ore",
+      "предмет": "assets/items/000033.json",
       "вид": "руда"
     },
     {
-      "предмет": "copper_ore",
+      "предмет": "assets/items/000034.json",
       "вид": "руда"
     },
     {
-      "предмет": "coal",
+      "предмет": "assets/items/000038.json",
       "вид": "минерал"
     },
     {
-      "предмет": "stone_chunk",
+      "предмет": "assets/items/000036.json",
       "вид": "минерал"
     },
     {
-      "предмет": "silver_ore",
+      "предмет": "assets/items/000052.json",
       "вид": "руда"
     },
     {
-      "предмет": "quartz",
+      "предмет": "assets/items/000055.json",
       "вид": "минерал"
     },
     {
-      "предмет": "obsidian",
+      "предмет": "assets/items/000056.json",
       "вид": "минерал"
     },
     {
-      "предмет": "gold_ore",
+      "предмет": "assets/items/000053.json",
       "вид": "руда"
     },
     {
-      "предмет": "phosphorite",
+      "предмет": "assets/items/000057.json",
       "вид": "минерал"
     }
   ]

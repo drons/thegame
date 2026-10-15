@@ -334,7 +334,8 @@ test('зеркало src/dungeons-data.js ≡ JSON-файлы каталога (
   const cat = loadDungeonCatalog();
   assert.equal(DD.DUNGEONS.length, 5, 'DUNGEONS — 5 записей в порядке файлов');
   cat.forEach(({ file, data }, i) => {
-    assert.deepEqual(DD.DUNGEONS[i], data, `DUNGEONS[${i}] ≠ ${file}`);
+    assert.deepEqual(DD.DUNGEONS[i], resolvedDungeonRecord(data, file),
+      `DUNGEONS[${i}] ≠ ${file}`);
   });
   assert.deepEqual(
     Object.keys(DD.DUNGEONS_BY_ID).sort(), ['0', '1', '2', '3', '4'],
@@ -348,11 +349,12 @@ test('таблицы dungeon.js (node-ветка) выведены из ката
   const cat = loadDungeonCatalog();
   for (const { file, data } of cat) {
     const t = data.id;
-    assert.equal(D.DUNGEON_NAMES[t], data.название, `DUNGEON_NAMES[${t}] (${file})`);
-    assert.deepEqual(D.DUNGEON_MOBS[t], data.мобы, `DUNGEON_MOBS[${t}] (${file})`);
-    assert.deepEqual(D.DUNGEON_ITEMS[t], data.предметы, `DUNGEON_ITEMS[${t}] (${file})`);
-    assert.deepEqual(D.DUNGEON_ORES[t], data.руда, `DUNGEON_ORES[${t}] (${file})`);
-    assert.equal(D.DUNGEON_SIZE[t], data.размер, `DUNGEON_SIZE[${t}] (${file})`);
+    const rec = resolvedDungeonRecord(data, file);
+    assert.equal(D.DUNGEON_NAMES[t], rec.название, `DUNGEON_NAMES[${t}] (${file})`);
+    assert.deepEqual(D.DUNGEON_MOBS[t], rec.мобы, `DUNGEON_MOBS[${t}] (${file})`);
+    assert.deepEqual(D.DUNGEON_ITEMS[t], rec.предметы, `DUNGEON_ITEMS[${t}] (${file})`);
+    assert.deepEqual(D.DUNGEON_ORES[t], rec.руда, `DUNGEON_ORES[${t}] (${file})`);
+    assert.equal(D.DUNGEON_SIZE[t], rec.размер, `DUNGEON_SIZE[${t}] (${file})`);
   }
   // DUNGEON_TYPES — без изменений (перенумерации нет, 000049).
   assert.deepEqual(D.DUNGEON_TYPES, {
@@ -370,8 +372,9 @@ test('связь постройка: подземелье ↔ пещера 31..3
   }
   const targets = [];
   for (const { file, data } of cat) {
-    const b = byId[data.постройка];
-    assert.ok(b, `подземелье ${file}: постройки ${data.постройка} нет в assets/buildings`);
+    const rec = resolvedDungeonRecord(data, file);
+    const b = byId[rec.постройка];
+    assert.ok(b, `подземелье ${file}: постройки ${rec.постройка} нет в assets/buildings`);
     assert.ok(b.id >= 31 && b.id <= 35,
       `подземелье ${file}: постройка ${b.id} не из пещер 31..35`);
     assert.equal(b.категория, 'пещера',
@@ -399,7 +402,8 @@ test('ссылки: ВСЕ предметы подземелий существ�
   }
   assert.ok(itemIds.size >= 20, 'каталог assets/items пуст (прединд теста)');
   for (const { file, data } of loadDungeonCatalog()) {
-    for (const id of data.предметы) {
+    const rec = resolvedDungeonRecord(data, file);
+    for (const id of rec.предметы) {
       assert.ok(itemIds.has(id),
         `подземелье ${file} (${data.название}): предмета «${id}» нет в assets/items`);
       // JS-фолбэк (file://-ветка): getItem обязан вернуть запись,
@@ -413,7 +417,7 @@ test('ссылки: ВСЕ предметы подземелий существ�
 // --- Задача 000070: «непроходимые» предметы стен (подзадача 000032, н.3) ---
 //
 // Зафиксированные решения (стадия красных тестов — всё ниже падает до кода):
-// * набор видов стен каждого типа — поле `предметы_стен` в каталоге
+// * набор видов стен каждого типа — поле `объекты_стен` в каталоге
 //   assets/dungeons (source of truth — JSON, 000058; зеркало —
 //   src/dungeons-data.js, перегенерация через sync:dungeons). Литерал
 //   «рядом с DUNGEON_MOBS» отклонён: 000058 уже смержена, каталог —
@@ -475,19 +479,19 @@ function edgeWallSet(d) {
   return s;
 }
 
-test('000070 каталог: предметы_стен — у каждого типа, из допустимого множества, точная матрица 1:1', () => {
+test('000070 каталог: объекты_стен — у каждого типа, из допустимого множества, точная матрица 1:1', () => {
   const cat = loadDungeonCatalog();
   assert.equal(cat.length, 5, 'каталог — ровно 5 файлов');
   for (const { file, data } of cat) {
-    assert.ok(Array.isArray(data.предметы_стен),
-      `${file}: нет поля «предметы_стен»`);
-    assert.ok(data.предметы_стен.length > 0, `${file}: «предметы_стен» пусто`);
-    for (const k of data.предметы_стен) {
+    assert.ok(Array.isArray(data.объекты_стен),
+      `${file}: нет поля «объекты_стен»`);
+    assert.ok(data.объекты_стен.length > 0, `${file}: «объекты_стен» пусто`);
+    for (const k of data.объекты_стен) {
       assert.ok(WALL_KINDS_ALLOWED.has(k),
         `${file}: вид «${k}» вне {rock, column, stalactite}`);
     }
     assert.deepEqual(
-      data.предметы_стен.slice().sort(),
+      data.объекты_стен.slice().sort(),
       WALL_MATRIX[data.id].slice().sort(),
       `${file} (${data.название}): матрица ≠ зафиксированной`);
   }
@@ -497,7 +501,7 @@ test('000070 DUNGEON_WALL_KINDS ≡ каталог (1:1, порядок — ка
   assert.ok(D.DUNGEON_WALL_KINDS && typeof D.DUNGEON_WALL_KINDS === 'object',
     'dungeon.js: нет экспорта DUNGEON_WALL_KINDS');
   for (const { file, data } of loadDungeonCatalog()) {
-    assert.deepEqual(D.DUNGEON_WALL_KINDS[data.id], data.предметы_стен,
+    assert.deepEqual(D.DUNGEON_WALL_KINDS[data.id], data.объекты_стен,
       `DUNGEON_WALL_KINDS[${data.id}] (${file}) ≠ каталогу`);
   }
 });
@@ -805,10 +809,11 @@ test('S3. 000133: пулы подземелий — 8 свитков, кажды
   assert.equal(cat.length, 5, '5 подземелий (регрессия)');
   const seen = new Map();
   for (const { file, data } of cat) {
-    assert.deepEqual(data.предметы, EXPECTED[file],
+    const rec = resolvedDungeonRecord(data, file);
+    assert.deepEqual(rec.предметы, EXPECTED[file],
       file + ': предметы (red: свитков нет в пуле); факт: '
-      + JSON.stringify(data.предметы));
-    for (const id of data.предметы) {
+      + JSON.stringify(rec.предметы));
+    for (const id of rec.предметы) {
       if (SCROLL_IDS.has(id)) seen.set(id, (seen.get(id) || 0) + 1);
     }
   }
@@ -2011,14 +2016,15 @@ test('ORE-8: DUNGEON_ORES 1:1 с каталогом («руда»), предме
     'dungeon.js: нет экспорта DUNGEON_ORES (тип → пул залежей)');
   for (const { file, data } of loadDungeonCatalog()) {
     const t = data.id;
+    const rec = resolvedDungeonRecord(data, file);
     assert.ok(Array.isArray(data.руда),
       file + ': в каталоге — поле «руда» (массив)');
     assert.ok(data.руда.length >= 1, file + ': «руда» — minItems 1');
-    assert.deepEqual(D.DUNGEON_ORES[t], data.руда,
+    assert.deepEqual(D.DUNGEON_ORES[t], rec.руда,
       'DUNGEON_ORES[' + t + '] (' + file + ') ≠ каталогу (порядок как в '
       + 'JSON)');
     const seen = new Set();
-    for (const o of data.руда) {
+    for (const o of rec.руда) {
       assert.ok(o && typeof o === 'object' && !Array.isArray(o),
         file + ': запись залежи — объект {предмет, вид}');
       assert.ok(typeof o.предмет === 'string' && o.предмет.length > 0,
@@ -2035,7 +2041,7 @@ test('ORE-8: DUNGEON_ORES 1:1 с каталогом («руда»), предме
         file + ': предмет «' + o.предмет + '» отсутствует в assets/items');
     }
     // Каждый пул ≥1 T1: глубина 1 даёт добычу во всех 5 типах.
-    const t1 = data.руда.filter(
+    const t1 = rec.руда.filter(
       (o) => ((I.getItem(o.предмет) || {}).tier || 1) === 1);
     assert.ok(t1.length >= 1,
       file + ': в пуле ≥1 T1-предмет (глубина 1 даёт добычу)');
@@ -2268,4 +2274,386 @@ test('000157.03 GRD-4: validateDungeonContents — deposits: ОПЦИОНАЛЬ�
     assert.equal(D.validateDungeonContents(broken(dep)), null,
       label + ' → null');
   }
+});
+
+// =====================================================================
+// 000211.05: dungeons — мобы/предметы/постройка/руда → ссылки на json
+// + переименование OLD_NAME → NEW_NAME. КРАСНЫЕ тесты (TDD).
+//
+// Написаны ДО миграции; падают на текущем коде, где
+// assets/dungeons/000001..000005.json хранят plain-id (строки-ид в
+// мобы/предметы/руда[].предмет, число 31..35 в постройка), а поле
+// видов стен имеет старое имя OLD_NAME. Причины падений осмысленные
+// (нет функциональности ТЗ), не синтаксические:
+//   * DUN-REF-1/2/4 — isRef(plain-id) = false (конвейер «not-a-ref»);
+//   * DUN-REF-3 — isRef(число 31..35) = false;
+//   * DUN-RENAME-1 — grep-вхождения OLD_NAME в 5 json + schema.json
+//     + src/dungeon.js + src/dungeons-data.js + 2 test-файла.
+// Зелёная фаза: ссылки в 5 json + якорный pattern в schema.json +
+// строгий резолв в sync-dungeons-data.js (зеркало — id-форма) +
+// rename в dungeon.js/dungeons-data.js/tests — ОДИН коммит (ТЗ §2).
+//
+// Контракты (memory/000211.05-dungeons-refs-wall-objects-rename.md):
+//   * DUN-REF-1 — мобы[]: каждый элемент — якорная ссылка в каталог
+//     assets/mobs; id целевого файла = прежнему значению (hardcoded
+//     карта — нетавтология: зеркало регенерируется тем же sync в том
+//     же коммите, сравнение только с зеркалом баг sync не поймает).
+//   * DUN-REF-2 — предметы[] + руда[].предмет: якорные ссылки в
+//     assets/items, id целевого файла = прежнему значению; «вид» из
+//     руда НЕ меняется.
+//   * DUN-REF-3 — постройка: якорная ссылка в assets/buildings; id
+//     цели биективно 31..35 (порядок файлов 000001..000005);
+//     категория цели «пещера»; название совпадает с data.название
+//     (без учёта регистра — семантика существующего теста).
+//   * DUN-REF-4 — ∈-проверка мобы ПОСЛЕ резолюции: конвейер
+//     JSON-ссылка → resolveRef → id ∈ C.MOB_TYPES (все 5 файлов) +
+//     негативные фикстуры в mkdtemp tmp-корне: no-file / чужой
+//     каталог items (id ∉ MOB_TYPES → not-a-mob) / plain-id
+//     (not-a-ref). Существующий тест «DUNGEON_MOBS: все id мобов
+//     описаны в каталоге» (runtime id-формы, ловит мутации зеркала)
+//     НЕ меняется.
+//   * DUN-RENAME-1 — 0 вхождений OLD_NAME в assets/ + src/ + tests/
+//     (.json/.js, рекурсивно); NEW_NAME — в schema.json (required +
+//     properties, enum ⊇ rock/column/stalactite), в 5 json, в
+//     src/dungeons-data.js. Иголка OLD_NAME — КОНКАТЕНАЦИЯ
+//     ('предметы_' + 'стен'): литерал в этом файле попал бы в
+//     собственный 0-гейт (grep-гейт покрывает tests/ целиком).
+//
+// Общий sweep AR8 (tests/assets-refs.test.js) автоматически гейтит
+// все 92 новые ссылки с первого коммита миграции; DUN-REF-1..3
+// добавляют то, чего AR8 не даёт: координату каталога-цели и
+// «id целевого файла = прежнее значение».
+// =====================================================================
+
+const refLib = require('../scripts/lib/json-ref.js');
+const os = require('node:os');
+
+const OLD_NAME = 'предметы_' + 'стен';
+const NEW_NAME = 'объекты_стен';
+
+// 000211.05: каталог JSON — ссылка-форма (assets/<каталог>/NNNNNN.json),
+// таблицы dungeon.js и зеркало dungeons-data.js — id-форма. Перед
+// сравнением каталога с таблицами резолвит 4 группы ссылок
+// (мобы/предметы/постройка/руда[].предмет) в id файла-цели; строго:
+// не-ссылка / no-file / … → fail с where. Значения «объекты_стен»
+// и «вид» не ссылки — не тронуты.
+function resolvedDungeonRecord(data, file) {
+  const id = (where, ref) => {
+    const r = refLib.resolveRef(ROOT, ref);
+    assert.ok(r.ok,
+      (file ? file + ' ' : '') + where + ': «' + ref +
+      '» не резолвится: ' + r.reason);
+    return r.id;
+  };
+  const out = {};
+  for (const [k, v] of Object.entries(data)) out[k] = v;
+  out.мобы = data.мобы.map((r, i) => id('мобы[' + i + ']', r));
+  out.предметы = data.предметы.map((r, i) => id('предметы[' + i + ']', r));
+  out.постройка = id('постройка', data.постройка);
+  if (Array.isArray(data.руда)) {
+    out.руда = data.руда.map((o, i) => ({
+      предмет: id('руда[' + i + '].предмет', o.предмет),
+      вид: o.вид,
+    }));
+  }
+  return out;
+}
+
+// Карта «прежнее значение» по 5 файлам; все целевые файлы проверены
+// на существование (missing=[]). Для mobs/items файл ≠ номер id
+// (таблица id→файл — из каталогов); buildings — identity 31..35.
+const DUN_REF_PREV = {
+  '000001.json': {
+    мобы: ['skeleton', 'ant', 'crawling_bones', 'giant_larva'],
+    постройки_id: 31,
+    предметы: ['iron_sword', 'healing_potion', 'sulfur',
+      'stone_fist_grimoire', 'frost_bolt_scroll'],
+    руда: [
+      ['iron_ore', 'руда'], ['copper_ore', 'руда'], ['coal', 'минерал'],
+      ['stone_chunk', 'минерал'], ['silver_ore', 'руда'],
+      ['quartz', 'минерал'], ['obsidian', 'минерал'], ['gold_ore', 'руда'],
+      ['phosphorite', 'минерал'],
+    ],
+  },
+  '000002.json': {
+    мобы: ['skeleton', 'skeleton_archer', 'rot', 'vampire', 'bone_coloss'],
+    постройки_id: 32,
+    предметы: ['alchemy_manual', 'chainmail', 'mana_potion',
+      'meditation_scroll', 'chill_scroll', 'light_heal_scroll'],
+    руда: [
+      ['stone_chunk', 'минерал'], ['quartz', 'минерал'],
+      ['obsidian', 'минерал'], ['amethyst', 'самоцвет'],
+      ['phosphorite', 'минерал'], ['sapphire', 'самоцвет'],
+    ],
+  },
+  '000003.json': {
+    мобы: ['orc_warrior', 'orc_archer', 'wolf', 'troll', 'skeleton'],
+    постройки_id: 33,
+    предметы: ['steel_sword', 'knight_plate', 'war_hammer',
+      'iron_hide_tome', 'fireball_scroll', 'vine_scroll'],
+    руда: [
+      ['iron_ore', 'руда'], ['copper_ore', 'руда'], ['coal', 'минерал'],
+      ['silver_ore', 'руда'], ['quartz', 'минерал'], ['gold_ore', 'руда'],
+      ['ruby', 'самоцвет'],
+    ],
+  },
+  '000004.json': {
+    мобы: ['water_elemental', 'scorpion', 'spider', 'imp'],
+    постройки_id: 34,
+    предметы: ['mana_elixir', 'hunting_bow', 'moonstone', 'nature_scroll',
+      'magic_shield_scroll'],
+    руда: [
+      ['sulfur', 'минерал'], ['stone_chunk', 'минерал'],
+      ['quartz', 'минерал'], ['silver_ore', 'руда'], ['emerald', 'самоцвет'],
+      ['sapphire', 'самоцвет'], ['phosphorite', 'минерал'],
+    ],
+  },
+  '000005.json': {
+    мобы: ['lower_demon', 'succubus', 'abomination'],
+    постройки_id: 35,
+    предметы: ['war_hammer', 'phoenix_feather', 'greater_healing',
+      'heavy_tome', 'fire_spellbook', 'flame_burst_scroll',
+      'blizzard_scroll'],
+    руда: [
+      ['stone_chunk', 'минерал'], ['obsidian', 'минерал'],
+      ['amethyst', 'самоцвет'], ['ruby', 'самоцвет'], ['gold_ore', 'руда'],
+      ['phosphorite', 'минерал'], ['mithril_ore', 'руда'],
+      ['diamond', 'самоцвет'],
+    ],
+  },
+};
+
+test('DUN-REF-1: dungeons: мобы[] — json-ссылки на assets/mobs, id целевого файла = прежнее значение (5 файлов)', () => {
+  const cat = loadDungeonCatalog();
+  assert.equal(cat.length, 5, 'каталог — ровно 5 файлы');
+  for (const { file, data } of cat) {
+    const prev = DUN_REF_PREV[file];
+    assert.ok(prev, file + ': нет строки в карте прежних значений');
+    assert.ok(Array.isArray(data.мобы), file + ': «мобы» — массив');
+    assert.equal(data.мобы.length, prev.мобы.length,
+      file + ': длина «мобы» = ' + prev.мобы.length);
+    for (let i = 0; i < prev.мобы.length; i++) {
+      const ref = data.мобы[i];
+      const id = prev.мобы[i];
+      assert.equal(refLib.isRef(ref), true,
+        file + ' мобы[' + i + ']: «' + JSON.stringify(ref) +
+        '» — не якорная ссылка (ожидается assets/mobs/NNNNNN.json)');
+      assert.ok(String(ref).startsWith('assets/mobs/'),
+        file + ' мобы[' + i + ']: ссылка вне каталога assets/mobs: '
+        + ref);
+      const r = refLib.resolveRef(ROOT, ref);
+      assert.ok(r.ok,
+        file + ' мобы[' + i + ']: «' + ref + '» не резолвится: '
+        + r.reason);
+      assert.equal(r.id, id,
+        file + ' мобы[' + i + ']: id целевого файла «' + r.id +
+        '» ≠ прежнему значению «' + id + '»');
+    }
+  }
+});
+
+test('DUN-REF-2: dungeons: предметы[] и руда[].предмет — json-ссылки на assets/items, id целевого файла = прежнее значение, «вид» не меняется (5 файлов)', () => {
+  const cat = loadDungeonCatalog();
+  assert.equal(cat.length, 5, 'каталог — ровно 5 файлов');
+  for (const { file, data } of cat) {
+    const prev = DUN_REF_PREV[file];
+    assert.ok(prev, file + ': нет строки в карте прежних значений');
+    assert.ok(Array.isArray(data.предметы), file + ': «предметы» — массив');
+    assert.equal(data.предметы.length, prev.предметы.length,
+      file + ': длина «предметы» = ' + prev.предметы.length);
+    for (let i = 0; i < prev.предметы.length; i++) {
+      const ref = data.предметы[i];
+      const id = prev.предметы[i];
+      assert.equal(refLib.isRef(ref), true,
+        file + ' предметы[' + i + ']: «' + JSON.stringify(ref) +
+        '» — не якорная ссылка (ожидается assets/items/NNNNNN.json)');
+      assert.ok(String(ref).startsWith('assets/items/'),
+        file + ' предметы[' + i + ']: ссылка вне каталога assets/items: '
+        + ref);
+      const r = refLib.resolveRef(ROOT, ref);
+      assert.ok(r.ok,
+        file + ' предметы[' + i + ']: «' + ref + '» не резолвится: '
+        + r.reason);
+      assert.equal(r.id, id,
+        file + ' предметы[' + i + ']: id целевого файла «' + r.id +
+        '» ≠ прежнему значению «' + id + '»');
+    }
+    assert.ok(Array.isArray(data.руда), file + ': «руда» — массив');
+    assert.equal(data.руда.length, prev.руда.length,
+      file + ': длина «руда» = ' + prev.руда.length);
+    for (let i = 0; i < prev.руда.length; i++) {
+      const rec = data.руда[i];
+      const [id, kind] = prev.руда[i];
+      assert.ok(rec && typeof rec === 'object' && !Array.isArray(rec),
+        file + ' руда[' + i + ']: запись — объект {предмет, вид}');
+      assert.equal(rec.вид, kind,
+        file + ' руда[' + i + ']: «вид» изменился: «' + rec.вид +
+        '» (ожидалось «' + kind + '»)');
+      const ref = rec.предмет;
+      assert.equal(refLib.isRef(ref), true,
+        file + ' руда[' + i + '].предмет: «' + JSON.stringify(ref) +
+        '» — не якорная ссылка (ожидается assets/items/NNNNNN.json)');
+      assert.ok(String(ref).startsWith('assets/items/'),
+        file + ' руда[' + i + '].предмет: ссылка вне каталога '
+        + 'assets/items: ' + ref);
+      const r = refLib.resolveRef(ROOT, ref);
+      assert.ok(r.ok,
+        file + ' руда[' + i + '].предмет: «' + ref + '» не резолвится: '
+        + r.reason);
+      assert.equal(r.id, id,
+        file + ' руда[' + i + '].предмет: id целевого файла «' + r.id +
+        '» ≠ прежнему значению «' + id + '»');
+    }
+  }
+});
+
+test('DUN-REF-3: dungeons: постройка — json-ссылка на assets/buildings, id цели биективно 31..35, категория «пещера», название совпадает', () => {
+  const cat = loadDungeonCatalog();
+  assert.equal(cat.length, 5, 'каталог — ровно 5 файлов');
+  const targets = [];
+  for (const { file, data } of cat) {
+    const ref = data.постройка;
+    assert.equal(refLib.isRef(ref), true,
+      file + ': постройка «' + JSON.stringify(ref) +
+      '» — не якорная ссылка (ожидается assets/buildings/NNNNNN.json)');
+    assert.ok(String(ref).startsWith('assets/buildings/'),
+      file + ': постройка вне каталога assets/buildings: ' + ref);
+    const r = refLib.resolveRef(ROOT, ref);
+    assert.ok(r.ok,
+      file + ': постройка «' + ref + '» не резолвится: ' + r.reason);
+    assert.equal(r.id, DUN_REF_PREV[file].постройки_id,
+      file + ': id целевого здания «' + r.id + '» ≠ прежнему '
+      + 'значению ' + DUN_REF_PREV[file].постройки_id);
+    const b = JSON.parse(fs.readFileSync(path.join(ROOT, ref), 'utf8'));
+    assert.equal(b.категория, 'пещера',
+      file + ': здание ' + b.id + ' не категории «пещера»');
+    assert.equal(b.название.toLowerCase(), data.название,
+      file + ' ↔ здание ' + b.id + ': «' + b.название + '» ≠ «'
+      + data.название + '»');
+    targets.push(b.id);
+  }
+  // Биекция: каждая из пещер 31..35 указана ровно одним подземельем.
+  assert.deepEqual(targets.slice().sort((a, b) => a - b),
+    [31, 32, 33, 34, 35],
+    'множество построек ≠ 31..35 (связь не биективна)');
+});
+
+// Конвейер ∈-проверки мобы ПОСЛЕ резолюции: JSON-ссылка → isRef →
+// resolveRef → id ∈ MOB_TYPES. Возвращает null (ссылка цела) или
+// причину поломки (not-a-ref / no-file / not-json / no-id /
+// not-a-mob) — where-стиль резолвера.
+function mobRefBroken(root, ref, MOB_TYPES) {
+  if (!refLib.isRef(ref)) return 'not-a-ref';
+  const r = refLib.resolveRef(root, ref);
+  if (!r.ok) return r.reason;
+  if (!MOB_TYPES[r.id]) return 'not-a-mob';
+  return null;
+}
+
+test('DUN-REF-4: dungeons: ∈-проверка мобы ПОСЛЕ резолюции ссылок → id: провисший id ловится (5 файлов + негативные фикстуры)', () => {
+  const C = require('../src/combat.js');
+  const broken = [];
+  for (const { file, data } of loadDungeonCatalog()) {
+    if (!Array.isArray(data.мобы)) {
+      broken.push(file + ' мобы: нет поля «мобы» (массива)');
+      continue;
+    }
+    for (let i = 0; i < data.мобы.length; i++) {
+      const why = mobRefBroken(ROOT, data.мобы[i], C.MOB_TYPES);
+      if (why) {
+        broken.push(file + ' мобы[' + i + ']='
+          + JSON.stringify(data.мобы[i]) + ' → ' + why);
+      }
+    }
+  }
+  assert.deepEqual(broken, [],
+    'конвейер ссылка→id→∈MOB_TYPES пометил битыми: ' + broken.join('; '));
+  const withTmpRoot = (files, fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dungeon-ref4-'));
+    try {
+      for (const [rel, content] of files) {
+        const p = path.join(dir, rel);
+        fs.mkdirSync(path.dirname(p), { recursive: true });
+        fs.writeFileSync(p, content, 'utf8');
+      }
+      return fn(dir);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  assert.ok(!C.MOB_TYPES['wood_sword'],
+    'предпосылка: id предмета «wood_sword» — НЕ моб');
+  withTmpRoot([
+    ['assets/items/000001.json', JSON.stringify({ id: 'wood_sword' })],
+  ], (dir) => {
+    // (а) якорная ссылка на несуществующий файл мобов → битый.
+    assert.equal(mobRefBroken(dir, 'assets/mobs/000999.json',
+      C.MOB_TYPES), 'no-file',
+      'провисший путь assets/mobs/000999.json → no-file');
+    // (б) ссылка резолвится, но id ∉ MOB_TYPES (чужой каталог
+    // items) → битый: миграция в чужой каталог не пройдёт.
+    assert.equal(mobRefBroken(dir, 'assets/items/000001.json',
+      C.MOB_TYPES), 'not-a-mob',
+      'id «wood_sword» ∉ MOB_TYPES → not-a-mob');
+    // (в) plain-id (сегодняшняя форма данных) — не ссылка → битый.
+    assert.equal(mobRefBroken(dir, 'skeleton', C.MOB_TYPES),
+      'not-a-ref', 'plain-id «skeleton» → not-a-ref');
+  });
+});
+
+// Grep-обход: рекурсивно .json/.js-файлы, строки с иголкой.
+function grepNeedle(dirs, needle) {
+  const hits = [];
+  const walkDir = (dir) => {
+    for (const name of fs.readdirSync(dir).sort()) {
+      const p = path.join(dir, name);
+      const st = fs.statSync(p);
+      if (st.isDirectory()) {
+        walkDir(p);
+        continue;
+      }
+      if (!/\.(json|js)$/.test(name)) continue;
+      fs.readFileSync(p, 'utf8').split('\n').forEach((line, i) => {
+        if (line.includes(needle)) {
+          hits.push(path.relative(ROOT, p) + ':' + (i + 1));
+        }
+      });
+    }
+  };
+  for (const d of dirs) walkDir(d);
+  return hits;
+}
+
+test('DUN-RENAME-1: переименование поля видов стен: 0 вхождений OLD_NAME по assets/ + src/ + tests/; NEW_NAME — schema.json (required + properties, enum ⊇ rock/column/stalactite) + 5 json + src/dungeons-data.js', () => {
+  const hits = grepNeedle(
+    [path.join(ROOT, 'assets'), path.join(ROOT, 'src'),
+      path.join(ROOT, 'tests')],
+    OLD_NAME);
+  assert.deepEqual(hits, [],
+    'вхождения «' + OLD_NAME + '» (ожидалось 0): ' + hits.join('; '));
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(DDIR, 'schema.json'), 'utf8'));
+  assert.ok(Array.isArray(schema.required)
+      && schema.required.includes(NEW_NAME),
+    'schema.json: «' + NEW_NAME + '» в required');
+  assert.ok(Object.prototype.hasOwnProperty.call(schema.properties,
+    NEW_NAME),
+    'schema.json: properties.«' + NEW_NAME + '»');
+  const enumArr = schema.properties[NEW_NAME].items.enum;
+  assert.ok(Array.isArray(enumArr),
+    'schema.json: «' + NEW_NAME + '» — items.enum (массив)');
+  for (const k of ['rock', 'column', 'stalactite']) {
+    assert.ok(enumArr.includes(k),
+      'schema.json: «' + k + '» в enum «' + NEW_NAME + '»');
+  }
+  for (const { file, data } of loadDungeonCatalog()) {
+    assert.ok(Object.prototype.hasOwnProperty.call(data, NEW_NAME),
+      file + ': поле «' + NEW_NAME + '»');
+    assert.ok(Array.isArray(data[NEW_NAME]),
+      file + ': «' + NEW_NAME + '» — массив');
+  }
+  const ddText = fs.readFileSync(
+    path.join(ROOT, 'src', 'dungeons-data.js'), 'utf8');
+  assert.ok(ddText.includes(NEW_NAME),
+    'src/dungeons-data.js: зеркало — ключ «' + NEW_NAME + '»');
 });

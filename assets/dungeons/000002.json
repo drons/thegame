@@ -2,49 +2,49 @@
   "id": 1,
   "название": "склеп",
   "мобы": [
-    "skeleton",
-    "skeleton_archer",
-    "rot",
-    "vampire",
-    "bone_coloss"
+    "assets/mobs/000009.json",
+    "assets/mobs/000010.json",
+    "assets/mobs/000014.json",
+    "assets/mobs/000013.json",
+    "assets/mobs/000015.json"
   ],
   "предметы": [
-    "alchemy_manual",
-    "chainmail",
-    "mana_potion",
-    "meditation_scroll",
-    "chill_scroll",
-    "light_heal_scroll"
+    "assets/items/000019.json",
+    "assets/items/000009.json",
+    "assets/items/000014.json",
+    "assets/items/000031.json",
+    "assets/items/000047.json",
+    "assets/items/000048.json"
   ],
   "размер": 27,
-  "постройка": 32,
-  "предметы_стен": [
+  "постройка": "assets/buildings/000032.json",
+  "объекты_стен": [
     "column",
     "rock"
   ],
   "руда": [
     {
-      "предмет": "stone_chunk",
+      "предмет": "assets/items/000036.json",
       "вид": "минерал"
     },
     {
-      "предмет": "quartz",
+      "предмет": "assets/items/000055.json",
       "вид": "минерал"
     },
     {
-      "предмет": "obsidian",
+      "предмет": "assets/items/000056.json",
       "вид": "минерал"
     },
     {
-      "предмет": "amethyst",
+      "предмет": "assets/items/000061.json",
       "вид": "самоцвет"
     },
     {
-      "предмет": "phosphorite",
+      "предмет": "assets/items/000057.json",
       "вид": "минерал"
     },
     {
-      "предмет": "sapphire",
+      "предмет": "assets/items/000059.json",
       "вид": "самоцвет"
     }
   ]

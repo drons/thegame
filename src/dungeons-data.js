@@ -30,7 +30,7 @@
       предметы: ["iron_sword", "healing_potion", "sulfur", "stone_fist_grimoire", "frost_bolt_scroll"],
       размер: 25,
       постройка: 31,
-      предметы_стен: ["rock", "stalactite"],
+      объекты_стен: ["rock", "stalactite"],
       руда: [{ предмет: "iron_ore", вид: "руда" }, { предмет: "copper_ore", вид: "руда" }, { предмет: "coal", вид: "минерал" }, { предмет: "stone_chunk", вид: "минерал" }, { предмет: "silver_ore", вид: "руда" }, { предмет: "quartz", вид: "минерал" }, { предмет: "obsidian", вид: "минерал" }, { предмет: "gold_ore", вид: "руда" }, { предмет: "phosphorite", вид: "минерал" }],
     },
     // 000002.json
@@ -41,7 +41,7 @@
       предметы: ["alchemy_manual", "chainmail", "mana_potion", "meditation_scroll", "chill_scroll", "light_heal_scroll"],
       размер: 27,
       постройка: 32,
-      предметы_стен: ["column", "rock"],
+      объекты_стен: ["column", "rock"],
       руда: [{ предмет: "stone_chunk", вид: "минерал" }, { предмет: "quartz", вид: "минерал" }, { предмет: "obsidian", вид: "минерал" }, { предмет: "amethyst", вид: "самоцвет" }, { предмет: "phosphorite", вид: "минерал" }, { предмет: "sapphire", вид: "самоцвет" }],
     },
     // 000003.json
@@ -52,7 +52,7 @@
       предметы: ["steel_sword", "knight_plate", "war_hammer", "iron_hide_tome", "fireball_scroll", "vine_scroll"],
       размер: 31,
       постройка: 33,
-      предметы_стен: ["column"],
+      объекты_стен: ["column"],
       руда: [{ предмет: "iron_ore", вид: "руда" }, { предмет: "copper_ore", вид: "руда" }, { предмет: "coal", вид: "минерал" }, { предмет: "silver_ore", вид: "руда" }, { предмет: "quartz", вид: "минерал" }, { предмет: "gold_ore", вид: "руда" }, { предмет: "ruby", вид: "самоцвет" }],
     },
     // 000004.json
@@ -63,7 +63,7 @@
       предметы: ["mana_elixir", "hunting_bow", "moonstone", "nature_scroll", "magic_shield_scroll"],
       размер: 27,
       постройка: 34,
-      предметы_стен: ["rock"],
+      объекты_стен: ["rock"],
       руда: [{ предмет: "sulfur", вид: "минерал" }, { предмет: "stone_chunk", вид: "минерал" }, { предмет: "quartz", вид: "минерал" }, { предмет: "silver_ore", вид: "руда" }, { предмет: "emerald", вид: "самоцвет" }, { предмет: "sapphire", вид: "самоцвет" }, { предмет: "phosphorite", вид: "минерал" }],
     },
     // 000005.json
@@ -74,7 +74,7 @@
       предметы: ["war_hammer", "phoenix_feather", "greater_healing", "heavy_tome", "fire_spellbook", "flame_burst_scroll", "blizzard_scroll"],
       размер: 35,
       постройка: 35,
-      предметы_стен: ["stalactite", "rock"],
+      объекты_стен: ["stalactite", "rock"],
       руда: [{ предмет: "stone_chunk", вид: "минерал" }, { предмет: "obsidian", вид: "минерал" }, { предмет: "amethyst", вид: "самоцвет" }, { предмет: "ruby", вид: "самоцвет" }, { предмет: "gold_ore", вид: "руда" }, { предмет: "phosphorite", вид: "минерал" }, { предмет: "mithril_ore", вид: "руда" }, { предмет: "diamond", вид: "самоцвет" }],
     },
   ];

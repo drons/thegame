@@ -22,14 +22,42 @@
 // ДОВОЛЬНОЕ: выводятся ТОЛЬКО ключи, присутствующие в JSON, в
 // каноническом порядке (схемные ключи без дополнений) — иначе
 // deepEqual каталога в тестах не сойдётся.
+//
+// Задача 000211.05: 4 группы ссылочных полей (мобы[], предметы[],
+// постройка, руда[].предмет) — ссылки на файлы каталогов
+// («assets/<каталог>/NNNNNN.json», контракт 000211.01 §1). При
+// сборке резолюция в id файла-цели — зеркало src/dungeons-data.js
+// остаётся в id-форме (ссылки живут ТОЛЬКО в JSON). Fail-closed:
+// значение не-ссылка (включая голый id — дрейф) или цель-файл
+// отсутствует / не JSON / без id → exit 1 (зеркало только id-форма,
+// lenient pass-through запрещён: ссылка в зеркале → гард
+// validDungeonCatalog отклонил бы каталог в рантайме).
 
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
+const { isRef, resolveRef } = require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'dungeons');
 const OUT_FILE = path.join(ROOT, 'src', 'dungeons-data.js');
+
+// Строгий резолв значения ссылочного поля → id файла-цели (000211.05).
+// where — where-стиль (мобы[2] / постройка / руда[3].предмет).
+function resolveRefField(file, where, value) {
+  if (!isRef(value)) {
+    console.error(
+      `${file}: ${where} «${JSON.stringify(value)}» — не ссылка на файл`
+      + ' каталога (формат "assets/<каталог>/NNNNNN.json")');
+    process.exit(1);
+  }
+  const r = resolveRef(ROOT, value);
+  if (!r.ok) {
+    console.error(`${file}: ${where} «${value}» — не резолвится: ${r.reason}`);
+    process.exit(1);
+  }
+  return r.id;
+}
 
 // --- Чтение каталога ---
 const files = fs.readdirSync(DIR)
@@ -50,6 +78,29 @@ for (const f of files) {
     console.error(`${f}: id ≠ номер файла − 1 (ожидалось ${n - 1})`);
     process.exit(1);
   }
+  // 000211.05: ссылки 4 групп → id (ПЕРЕД эмиссией; зеркало —
+  // id-форма). Поля резолвятся только при присутствии (схема не
+  // требует «руда» — гард рантайма допускает отсутствие).
+  if (Array.isArray(data.мобы)) {
+    data.мобы = data.мобы.map(
+      (v, i) => resolveRefField(f, `мобы[${i}]`, v));
+  }
+  if (Array.isArray(data.предметы)) {
+    data.предметы = data.предметы.map(
+      (v, i) => resolveRefField(f, `предметы[${i}]`, v));
+  }
+  if (data.постройка !== undefined) {
+    data.постройка = resolveRefField(f, 'постройка', data.постройка);
+  }
+  if (Array.isArray(data.руда)) {
+    data.руда = data.руда.map((rec, i) => {
+      if (rec && typeof rec === 'object') {
+        rec.предмет =
+          resolveRefField(f, `руда[${i}].предмет`, rec.предмет);
+      }
+      return rec;
+    });
+  }
   dungeons.push({ file: f, data });
 }
 // Множество id — ровно {0..4} (уникальность схемой не выразима).
@@ -60,7 +111,7 @@ if (JSON.stringify(ids) !== JSON.stringify([0, 1, 2, 3, 4])) {
 }
 
 // Канонический порядок ключей (схема assets/dungeons/schema.json).
-const KEYS = ['id', 'название', 'мобы', 'предметы', 'размер', 'постройка', 'предметы_стен', 'руда'];
+const KEYS = ['id', 'название', 'мобы', 'предметы', 'размер', 'постройка', 'объекты_стен', 'руда'];
 
 // --- Генерация JS ---
 const range = `${files[0]} … ${files[files.length - 1]}`;

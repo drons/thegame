@@ -2,56 +2,56 @@
   "id": 4,
   "название": "бездна",
   "мобы": [
-    "lower_demon",
-    "succubus",
-    "abomination"
+    "assets/mobs/000034.json",
+    "assets/mobs/000035.json",
+    "assets/mobs/000036.json"
   ],
   "предметы": [
-    "war_hammer",
-    "phoenix_feather",
-    "greater_healing",
-    "heavy_tome",
-    "fire_spellbook",
-    "flame_burst_scroll",
-    "blizzard_scroll"
+    "assets/items/000007.json",
+    "assets/items/000024.json",
+    "assets/items/000013.json",
+    "assets/items/000029.json",
+    "assets/items/000027.json",
+    "assets/items/000044.json",
+    "assets/items/000046.json"
   ],
   "размер": 35,
-  "постройка": 35,
-  "предметы_стен": [
+  "постройка": "assets/buildings/000035.json",
+  "объекты_стен": [
     "stalactite",
     "rock"
   ],
   "руда": [
     {
-      "предмет": "stone_chunk",
+      "предмет": "assets/items/000036.json",
       "вид": "минерал"
     },
     {
-      "предмет": "obsidian",
+      "предмет": "assets/items/000056.json",
       "вид": "минерал"
     },
     {
-      "предмет": "amethyst",
+      "предмет": "assets/items/000061.json",
       "вид": "самоцвет"
     },
     {
-      "предмет": "ruby",
+      "предмет": "assets/items/000058.json",
       "вид": "самоцвет"
     },
     {
-      "предмет": "gold_ore",
+      "предмет": "assets/items/000053.json",
       "вид": "руда"
     },
     {
-      "предмет": "phosphorite",
+      "предмет": "assets/items/000057.json",
       "вид": "минерал"
     },
     {
-      "предмет": "mithril_ore",
+      "предмет": "assets/items/000054.json",
       "вид": "руда"
     },
     {
-      "предмет": "diamond",
+      "предмет": "assets/items/000062.json",
       "вид": "самоцвет"
     }
   ]

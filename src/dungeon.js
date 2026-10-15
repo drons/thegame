@@ -86,7 +86,7 @@
         'stone_fist_grimoire', 'frost_bolt_scroll'],
       размер: 25,
       постройка: 31,
-      предметы_стен: ['rock', 'stalactite'],
+      объекты_стен: ['rock', 'stalactite'],
       руда: [
         { предмет: 'iron_ore', вид: 'руда' },
         { предмет: 'copper_ore', вид: 'руда' },
@@ -107,7 +107,7 @@
         'meditation_scroll', 'chill_scroll', 'light_heal_scroll'],
       размер: 27,
       постройка: 32,
-      предметы_стен: ['column', 'rock'],
+      объекты_стен: ['column', 'rock'],
       руда: [
         { предмет: 'stone_chunk', вид: 'минерал' },
         { предмет: 'quartz', вид: 'минерал' },
@@ -125,7 +125,7 @@
         'iron_hide_tome', 'fireball_scroll', 'vine_scroll'],
       размер: 31,
       постройка: 33,
-      предметы_стен: ['column'],
+      объекты_стен: ['column'],
       руда: [
         { предмет: 'iron_ore', вид: 'руда' },
         { предмет: 'copper_ore', вид: 'руда' },
@@ -144,7 +144,7 @@
         'nature_scroll', 'magic_shield_scroll'],
       размер: 27,
       постройка: 34,
-      предметы_стен: ['rock'],
+      объекты_стен: ['rock'],
       руда: [
         { предмет: 'sulfur', вид: 'минерал' },
         { предмет: 'stone_chunk', вид: 'минерал' },
@@ -164,7 +164,7 @@
         'blizzard_scroll'],
       размер: 35,
       постройка: 35,
-      предметы_стен: ['stalactite', 'rock'],
+      объекты_стен: ['stalactite', 'rock'],
       руда: [
         { предмет: 'stone_chunk', вид: 'минерал' },
         { предмет: 'obsidian', вид: 'минерал' },
@@ -197,7 +197,7 @@
       Number.isInteger(r.размер) && r.размер > 0 &&
       Number.isInteger(r.постройка) &&
       // Строки — по enum в схеме (tests/assets-schemas.test.js).
-      Array.isArray(r.предметы_стен) && r.предметы_стен.length > 0 &&
+      Array.isArray(r.объекты_стен) && r.объекты_стен.length > 0 &&
       (r.руда === undefined || (Array.isArray(r.руда)
         && r.руда.length >= 1 && r.руда.every((o) =>
           o && typeof o === 'object'
@@ -238,7 +238,7 @@
     DUNGEON_MOBS[rec.id] = rec.мобы.slice();
     DUNGEON_ITEMS[rec.id] = rec.предметы.slice();
     DUNGEON_SIZE[rec.id] = rec.размер;
-    DUNGEON_WALL_KINDS[rec.id] = rec.предметы_стен.slice();
+    DUNGEON_WALL_KINDS[rec.id] = rec.объекты_стен.slice();
     DUNGEON_ORES[rec.id] = (rec.руда || []).slice();
   }
 
