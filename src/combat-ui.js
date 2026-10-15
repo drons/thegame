@@ -2386,6 +2386,7 @@
   // причина, можно поправить). Предпроверка — гейт
   // spellbookUnitGate (000193: только result/phase).
   function quickUseRow(c, slot) {
+    if (fleeOpen) return;
     const g = spellbookUnitGate(c);
     if (g) {
       logRejection(c, g);

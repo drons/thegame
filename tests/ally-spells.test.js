@@ -293,6 +293,62 @@ test('000193-N5: практика — Эфир: firelord +3 (ленивый Game
 });
 
 // ============================================================
+// 000216-B1. Каст СОЮЗНИКА под блоком ИГРОКА (c.ps.blocked — флаг
+// хода ИГРОКА; союзный ход независим — зеркало 000168/000194)
+// ============================================================
+
+test('000216-B1: на ходу СОЮЗНИКА c.ps.blocked = true (игрок в блоке) → canCastAllySpell/castAllySpell — ok: каст СОЮЗНИКА, мана/пул СОЮЗНИКА тратятся, игрок и c.ps.blocked нетронуты; canCast deepEqual {ok:true} (000037-зеркало: одна причина — одно поведение). Краснота: reason «блок — только последнее действие»', () => {
+  const AS = loadAllySpells193();
+  const c = makeCombat193([MIRA193]);
+  const u = c.units.find((x) => x.id === 'a0');
+  assert.equal(activeUnitId(c), 'a0',
+    'наёмник активен (pre-roll стоп: init 8 > волк 3 > игрок 2)');
+  assert.ok(AS && typeof AS.castAllySpell === 'function'
+    && typeof AS.canCastAllySpell === 'function',
+    'модуль src/ally-spells.js: castAllySpell + canCastAllySpell (000193)');
+  // white-box: игрок заблокировался ранее в том же раунде; флаг жив до
+  // startRound (combat.js:2711) — на СОЮЗНЫЙ ход влиять не обязан.
+  c.ps.blocked = true;
+  u.hp = u.maxHP - 7; // ранена: 33 (+7 → 40, формула N1)
+  let rngCalls = 0;
+  c._rng = () => { rngCalls += 1; return 0.99; };
+  const pMp0 = c.player.mp, pWis0 = c.ps.spellWis, n0 = c.log.length;
+  // (a) canCast — {ok:true} (краснота: {ok:false, reason: «блок —
+  // только последнее действие»} — чужой блок игрока).
+  assert.deepEqual(AS.canCastAllySpell(c, u, 'light_heal'), { ok: true },
+    'canCast — {ok:true} на ходу союзника под блоком игрока (факт: '
+    + JSON.stringify(AS.canCastAllySpell(c, u, 'light_heal')) + ')');
+  // (b) cast — ok: расход СОЮЗНИКА, игрок и блок игрока нетронуты.
+  const r = AS.castAllySpell(c, u, 'light_heal');
+  assert.equal(r.ok, true,
+    'каст под блоком игрока — ok (факт: ' + JSON.stringify(r) + ')');
+  assert.equal(r.healed, 7, 'healed = 40−33 = 7 (факт: ' + (r && r.healed) + ')');
+  assert.equal(u.hp, 40, 'hp 33 → 40');
+  assert.equal(u.mp, 7, 'u.mp 13−6 (light_heal) = 7 (факт: ' + u.mp + ')');
+  assert.equal(u.spellWis, 0, 'пул spellWis 1→0 (атрибут — Мудрость)');
+  assert.equal(u.spellInt, 1, 'spellInt не тронут');
+  assert.equal(u.attackLeft, 1, 'книга не ест слот действия (Д-D)');
+  assert.equal(c.player.mp, pMp0, 'мана игрока не сожжена');
+  assert.equal(c.ps.spellWis, pWis0, 'пул игрока не сожжён');
+  assert.deepEqual(Array.from(c.log).slice(n0), ['Мира лечит себя (+7).'],
+    'лог — вычисленный (паттерн 000168): ' + JSON.stringify(Array.from(c.log).slice(n0)));
+  assert.equal(c.ps.blocked, true,
+    'каст союзника НЕ сбирает блок игрока (флаг жив до startRound)');
+  assert.equal(rngCalls, 0, '0 c._rng (детерминизм)');
+  // (c) 000037-зеркало: после расхода пула (spellWis 0) — canCast и
+  // cast дают ОДНУ причину, каст не расходует.
+  const mp1 = u.mp;
+  const poolReason =
+    { ok: false, reason: 'действий «Заклинание» (Мудрость) больше нет' };
+  assert.deepEqual(AS.canCastAllySpell(c, u, 'light_heal'), poolReason,
+    'canCast после расхода — причина пула (факт: '
+    + JSON.stringify(AS.canCastAllySpell(c, u, 'light_heal')) + ')');
+  assert.deepEqual(AS.castAllySpell(c, u, 'light_heal'), poolReason,
+    'cast после расхода — та же причина (000037: одна причина — одно поведение)');
+  assert.equal(u.mp, mp1, 'отказ — мана не сгорела');
+});
+
+// ============================================================
 // VM-часть: цепочка (паттерн loadCombatUi из tests/combat-ui.test.js).
 // 000193 (Д-L): ally-spells.js — ПОСЛЕ spellbook.js, ПЕРЕД combat-ui.js
 // (G-снапшот — UMD-ловушка 000038). Красная фаза: файла нет —

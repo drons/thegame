@@ -411,3 +411,91 @@ test('194-QUI-FINISH (якорь): finish() — isActive false, KeyE не пот
   assert.equal(S.G.combatUI.handleCode('KeyE'), false,
     'KeyE после боя не потребляется');
 });
+
+// --- 000216-B2 (красный) ---
+// Быстрый предмет под ОТКРЫТЫМ диалогом побега: модал-контракт 000210 —
+// под диалогом ВСЕ JS-точки входа боя — тихий no-op (0 ядра/0 лога/
+// 0 c._rng), закрытие — ТОЛЬКО «да»/«нет». Краснота: клик по строке
+// быстрого предмета под диалогом применяет предмет и сжигает ход
+// (quickUseRow — без fleeOpen-гарда).
+
+test('000216-B2: быстрый предмет под открытым диалогом побега: KeyE (список) → KeyF (диалог) → клик по строке = no-op (снимок бит-в-бит: hp/mp/пул/предмет/лог/round/phase, 0 c._rng); KeyE-повтор и Escape под диалогом — глотаются; после «нет» — клик работает (предмет потреблён, список закрыт)', () => {
+  const S = scene();
+  const { G, c } = S;
+  assert.equal(G.activeUnitId(c), 'player', 'сценарий: ход героя');
+  c.player.hp = G.derived(c.player).maxHP - 15; // зазор для +15 на финальном шаге
+  let rngCalls = 0;
+  c._rng = () => { rngCalls++; return 0.99; };
+  const ql = findByClass(S.body, 'combat-quicklist');
+  assert.ok(ql, 'список создан (loadCombatUi194)');
+  const fleeBox = findByClass(S.body, 'combat-flee-confirm');
+  assert.ok(fleeBox, 'диалог побега на месте в цепи (loadCombatUi194)');
+  const snap = () => ({
+    hp: c.player.hp,
+    mp: c.player.mp,
+    ps: Object.assign({}, c.ps),
+    qty: G.totalQty(c.player, 'healing_potion'),
+    logLen: c.log.length,
+    round: c.round,
+    phase: c.phase,
+    quick: ql.style.display,
+    flee: fleeBox.style.display,
+    units: c.units.map((u) => [u.id, u.x, u.y, u.hp]),
+  });
+  // Строка 0 — ПОСЛЕДНЯЯ с dataset.slot === '0' (vm-ловушка: перестроение
+  // ДОБАВЛЯЕТ строки, innerHTML='' не чистит children — 194-паттерн).
+  const row0 = () => {
+    const rows = ql.children.filter((ch) =>
+      String(ch.className).includes('combat-quickrow')
+      && ch.dataset && ch.dataset.slot === '0');
+    return rows[rows.length - 1];
+  };
+  // (1) KeyE — список ПОВЕРХ боя.
+  press(S.keydown, 'KeyE');
+  assert.equal(ql.style.display, '', 'список открыт (KeyE)');
+  // (2) KeyF — диалог побега СВЕРХУ открытого списка (quickOpen не тронут).
+  press(S.keydown, 'KeyF');
+  assert.notEqual(fleeBox.style.display, 'none', 'диалог открыт (KeyF)');
+  assert.equal(rngCalls, 0, 'открытие диалога — 0 c._rng');
+  assert.equal(ql.style.display, '',
+    'список НЕ закрывается под диалогом (quickOpen не тронут)');
+  // (3) Снимок ДО клика.
+  const before = snap();
+  // (4) КЛИК ПО СТРОКЕ под диалогом = no-op (краснота: предмет применён,
+  // снимок расходится по qty/пулу/логу/списку).
+  row0().listeners.click[0]({ target: row0() });
+  assert.deepEqual(snap(), before,
+    'клик по строке под диалогом = no-op (предмет не применён, бит-в-бит)');
+  assert.equal(rngCalls, 0, 'no-op — 0 c._rng');
+  assert.equal(ql.style.display, '', 'список остался открыт');
+  assert.notEqual(fleeBox.style.display, 'none', 'диалог остался открыт');
+  // (5) KeyE-повтор под диалогом — глотается (гард handleCode), список
+  // НЕ закрывается (пин KeyE-канала).
+  press(S.keydown, 'KeyE');
+  assert.deepEqual(snap(), before,
+    'KeyE-повтор под диалогом — глотается (список не закрылся)');
+  assert.equal(ql.style.display, '', 'список открыт после KeyE-повтора');
+  // (6) Escape под диалогом — глотается, диалог НЕ закрывается (Д8).
+  press(S.keydown, 'Escape');
+  assert.deepEqual(snap(), before, 'Escape под диалогом — глотается');
+  assert.notEqual(fleeBox.style.display, 'none',
+    'диалог остался открыт (Escape НЕ закрывает — только «да»/«нет»)');
+  // (7) Закрытие «нет» — тихое, 0 ядра (снимок без изменений, кроме flee).
+  fleeBox.children[1].children[1].listeners.click[0]();
+  assert.equal(fleeBox.style.display, 'none', 'диалог закрыт «нет»');
+  const afterClose = snap();
+  assert.equal(afterClose.hp, before.hp, '«нет» — hp нетронут');
+  assert.equal(afterClose.qty, before.qty, '«нет» — предмет нетронут');
+  assert.equal(afterClose.logLen, before.logLen, '«нет» — 0 строк лога');
+  assert.equal(afterClose.ps.quickItem, before.ps.quickItem, '«нет» — пул нетронут');
+  assert.equal(afterClose.quick, before.quick, '«нет» — список остался открыт');
+  // (8) Клик ПОСЛЕ закрытия РАБОТАЕТ (194-QUI-CLICK восстановлен).
+  row0().listeners.click[0]({ target: row0() });
+  assert.equal(G.totalQty(c.player, 'healing_potion'), 0, 'зелье потреблено');
+  assert.equal(c.ps.quickItem, 0, 'пул quickItem 1→0');
+  assert.equal(c.player.hp, G.derived(c.player).maxHP, 'лечение +15 (зазор)');
+  assert.equal(c.log.length, afterClose.logLen + 1, 'строка применения в логе');
+  assert.ok(c.log.some((l) => l.includes('Зелье лечения')),
+    'строка применения: ' + c.log.slice(-2).join(' | '));
+  assert.equal(ql.style.display, 'none', 'список закрыт после применения');
+});

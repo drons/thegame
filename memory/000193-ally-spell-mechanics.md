@@ -53,7 +53,7 @@ evalSpell `src/spells.js` L322-405 — ОДНА причина, тот же по
 | # | Проигравшая проверка (evalSpell) | Союзный аналог | причина (дословно) |
 |---|---|---|---|
 | 1 | checkTurn(c) | checkTurn(c) (internals) | «не ваш ход»/«бой закончен» (ядро) |
-| 2 | checkBlocked(c) | checkBlocked(c) (internals) | ядро (окно смерти) |
+| 2 | checkBlocked(c) | — (000216: УДАЛЕНА) | c.ps.blocked — флаг ИГРОКА (playerBlock, сброс startRound); союзный ход независим — конвенция союзных ядер (combat.js:1525); 000216 |
 | 3 | getSpell(id) | `catalog[id]`, catalog = **combatInternals.allySpells** (лениво, Д-I) | «неизвестное заклинание» |
 | 4 | p.spells ∋ id | u.spells ∋ id | «заклинание не изучено» |
 | 5 | KNOWN_ACTIONS ∋ spell.действие | тот же set (локальное зеркало) | «неизвестное действие: X» |

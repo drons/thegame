@@ -190,8 +190,6 @@
     }
     const why = I.checkTurn(c);
     if (why) return { fail: { ok: false, reason: why } };
-    const blocked = I.checkBlocked(c);
-    if (blocked) return { fail: blocked };
     const catalog = catalogNow();
     const spell = catalog ? catalog[spellId] : null;
     if (!spell) return { fail: { ok: false, reason: 'неизвестное заклинание' } };
