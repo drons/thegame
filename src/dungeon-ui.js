@@ -40,9 +40,9 @@
 // пещеру); СВОИ тайлы (палитра + чистая функция выбора варианта по
 // (x, y, seed), стены периметра рисуются); stateEl — имя города, без
 // строк групп/сундуков (contents у города null — 000106);
-// 000212: stateEl — ГОРОД ТОЛЬКО (подземелье — единое инфо-окно
-// #hud, рисует main.js renderHud → hud.js buildLine; панель
-// подземелья хранит только log + hint); hint — без
+// 000229: панель .combat-side (stateEl/logEl/hint) — ГОРОД ТОЛЬКО:
+// в подземелье панель не создаётся вовсе (000212: единое инфо-окно —
+// #hud, рисует main.js renderHud → hud.js buildLine); hint — без
 // строк про сундуки/мобы (000105) и с «[E] — постройки» (000107).
 // [E] → ctx.onInteract → locationOnInteract main.js (000177: выход
 // на совмещённом тайле для обоих kind; вне тайла — город: постройки,
@@ -230,7 +230,9 @@
   let overlay = null, canvas = null, g2 = null, stateEl = null, logEl = null;
   // 000157.03: контекстная строка «Залежь — [E]» — hint-элемент
   // (статичен в build()) + его базисный текст (вне залежи hint =
-  // hintBase byte-в-бит; пересчёт — на кадр в render()).
+  // hintBase byte-в-бит; пересчёт — на кадр в render()). 000229:
+  // панель (и hint) — город ТОЛЬКО: в подземелье stateEl/logEl/hintEl
+  // = null, hintBase = '' (close()).
   let hintEl = null, hintBase = '';
   let zoom = G.ZOOM_START; // общий с миром: px/клетку = px/тайл
   let cam = { x: 0.5, y: 0.5 }; // клетки (дробные) — центр камеры
@@ -405,51 +407,35 @@
     g2 = canvas.getContext('2d');
 
     const s0 = state();
-    const side = document.createElement('div');
-    side.className = 'combat-side';
-    // 000212: stateEl (инфо-строка) — ТОЛЬКО город: в подземелье
-    // инфо-окно унифицировано в #hud (один блок renderHud → buildLine,
-    // main.js) — панель хранит только log + hint.
+    // 000229: панель .combat-side (stateEl/logEl/hint) — ТОЛЬКО город:
+    // в подземелье панель НЕ создаётся вообще (цель 000212 достигнута
+    // полностью: единое инфо-окно — #hud, один блок renderHud →
+    // buildLine, main.js).
     if (s0 && s0.kind === 'city') {
+      const side = document.createElement('div');
+      side.className = 'combat-side';
       stateEl = document.createElement('div');
       stateEl.className = 'combat-state';
       side.appendChild(stateEl);
-    }
-    logEl = document.createElement('div');
-    logEl.className = 'combat-log';
-    side.appendChild(logEl);
-    const hint = document.createElement('div');
-    hint.className = 'combat-state';
-    // Город (000105/000107) — без строк про сундуки/мобы (000105) и
-    // С «[E] — постройки» (взаимодействие [E] — 000107, buildingUI).
-    // Подземелье — прежний текст (без kind — dungeon).
-    // 000153.03 (D8): хинт — depth-aware (перестраивается в build()
-    // при КАЖДОМ входе/переходе — start→build, start-time).
-    // Город — БИТ-В-БИТ (CI-V3). Подземелье: depth ≤ 1 (и нет поля —
-    // legacy-фикстуры) — строка 2 «Вход в пещеру…» (бит-в-бит) +
-    // НОВАЯ строка 3 «Лестница вниз» ДО строки про сундуки;
-    // depth > 1 — тайл d.exit — лестница ВВЕРХ: строка «Вход в
-    // пещеру» ЗАМЕНЕНА на «Лестница вверх».
-    // 000157.02: + строка про залежи (подземелье; город НЕ трогается
-    // — залежей в городе нет, пин UI-DEP-3).
-    const dDepth = s0 && s0.dg && Number.isInteger(s0.dg.depth)
-      ? s0.dg.depth : 1;
-    hint.textContent = (s0 && s0.kind === 'city')
-      ? 'Стрелки/WASD — шаг.\nДверь — вход и выход: встаньте на неё и нажмите [E].\n[E] — постройки.'
-      : 'Стрелки/WASD — шаг.\n' +
-        (dDepth > 1
-          ? 'Лестница вверх — этаж выше: встаньте на неё и нажмите [E].'
-          : 'Вход в пещеру — вход и выход: встаньте на него и нажмите [E].') +
-        '\nЛестница вниз — следующий этаж: встаньте на неё и нажмите [E].' +
-        '\nСундук и мобы — графические спрайты (красный квадрат — фолбэк-метка).' +
-        '\nЗалежи — графические спрайты руды, минералов и самоцветов (цветной квадрат — фолбэк-метка).';
-    side.appendChild(hint);
-    // 000157.03: базис контекстной строки «Залежь — [E]» — render()
-    // дописывает строку на кадр (вне залежи — hintBase byte-в-бит).
-    hintEl = hint;
-    hintBase = hint.textContent;
+      logEl = document.createElement('div');
+      logEl.className = 'combat-log';
+      side.appendChild(logEl);
+      const hint = document.createElement('div');
+      hint.className = 'combat-state';
+      // Город (000105/000107) — без строк про сундуки/мобы (000105) и
+      // С «[E] — постройки» (взаимодействие [E] — 000107, buildingUI).
+      // Город — БИТ-В-БИТ (CI-V3, RW-G1). 000229: dungeon-текст
+      // (depth-aware 000153.03/000157.02) — убран вместе с панелью
+      // (в подземелье панели нет вовсе).
+      hint.textContent = 'Стрелки/WASD — шаг.\nДверь — вход и выход: встаньте на неё и нажмите [E].\n[E] — постройки.';
+      side.appendChild(hint);
+      // 000157.03: базис контекстной строки «Залежь — [E]» — render()
+      // дописывает строку на кадр (вне залежи — hintBase byte-в-бит).
+      hintEl = hint;
+      hintBase = hint.textContent;
 
-    overlay.appendChild(side);
+      overlay.appendChild(side);
+    }
     document.body.appendChild(overlay);
     // { passive: false } — иначе preventDefault не гасит скролл страницы.
     overlay.addEventListener('wheel', onWheel, { passive: false });
@@ -927,7 +913,10 @@
     // 000212: stateEl — ТОЛЬКО город (build(): в подземелье элемент
     // не создаётся — инфо-окно унифицировано в #hud, единый блок
     // renderHud → buildLine). dungeon-ветка (счётчики
-    // «Группы: /Сундуки: /Залежи: ») УДАЛЕНА.
+    // «Группы: /Сундуки: /Залежи: ») УДАЛЕНА. 000229: панель в
+    // подземелье не создаётся вовсе — в подземелье stateEl/logEl/
+    // hintEl = null (все записи — под гардами if(stateEl)/if(hintEl)/
+    // if(logEl)).
     if (stateEl) {
       // Город (000105): заголовок — имя города (название_карты
       // каталога); БЕЗ строк групп/сундуков (contents у города null —
@@ -938,12 +927,13 @@
     }
     // 000157.03: контекстная строка «Залежь — [E]» — стоя на
     // не-собранной залежи (hint статичен в build() — пересчёт
-    // на кадр; вне залежи — hintBase byte-в-бит).
+    // на кадр; вне залежи — hintBase byte-в-бит). 000229: строка —
+    // ТОЛЬКО город (в подземелье панели нет).
     const onDeposit = !isCity && (c.deposits || []).some(
       (x) => x && !x.gathered && x.x === s.x && x.y === s.y);
     if (hintEl) hintEl.textContent = hintBase
       + (onDeposit ? '\nЗалежь — [E]' : '');
-    logEl.textContent = (s.log || []).slice(-8).join('\n');
+    if (logEl) logEl.textContent = (s.log || []).slice(-8).join('\n');
   }
 
   // Кадр rAF-цикла: ресайз вьюпорта (паттерн main.js), сглаживание

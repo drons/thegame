@@ -1683,14 +1683,14 @@ function clickTab(h, overlay, tab) {
 }
 
 // Hint dungeon-ui: ПОСЛЕДНИЙ .combat-state внутри .dungeon-overlay
-// (город: [stateEl, hint]; подземелье: [hint] — 000212: stateEl
-// только город; паттерн dungeon-ui.test.js).
+// (город: [stateEl, hint]; 000229: подземелье — панели НЕТ, helper
+// вызывается ТОЛЬКО для города; паттерн dungeon-ui.test.js).
 function hintOf(h) {
   const ov = findAll(h.body, '.dungeon-overlay')[0];
   assert.ok(ov, 'dungeon-ui оверлей активен');
   const states = findAll(ov, '.combat-state');
   assert.ok(states.length >= 1,
-    'оверлей: .combat-state (hint) присутствует');
+    'оверлей города: .combat-state (hint) присутствует');
   return textOf(states[states.length - 1]);
 }
 
@@ -1803,7 +1803,7 @@ test('CI-V2. «Диалог» из buildingUI → npcUI: Бренн — сток
     'кандидаты найма: ' + textOf(ovT).slice(0, 240));
 });
 
-test('CI-V3. HUD: hint города — строка «[E] — постройки.»; hint подземелья — без изменений', async () => {
+test('CI-V3. HUD: hint города — строка «[E] — постройки.»; подземелье — панели НЕТ (000229)', async () => {
   // Город.
   const h = await bootChain();
   const G = h.sandbox.Game;
@@ -1824,7 +1824,8 @@ test('CI-V3. HUD: hint города — строка «[E] — постройк�
     'в городе — без подземной строки (000105)');
 
   // Подземелье (отдельный boot: без выхода из города — не тапать
-  // входной тайл повторно, авто-вход сломал бы протокол).
+  // входной тайл повторно, авто-вход сломал бы протокол). 000229:
+  // панели (hint) в подземелье НЕТ.
   const h2 = await bootChain();
   const g2 = h2.sandbox.__game;
   const G2 = h2.sandbox.Game;
@@ -1833,11 +1834,12 @@ test('CI-V3. HUD: hint города — строка «[E] — постройк�
   assert.ok(cave, 'сценарий: вход в пещеру');
   walkTiles(h2, NOW, cave.steps);
   assert.ok(g2.dungeon && g2.dungeon.kind === 'dungeon', 'в подземелье');
-  const dHint = hintOf(h2);
-  assert.ok(dHint.includes('Сундук и мобы'),
-    'hint подземелья: строка без изменений');
-  assert.ok(!dHint.includes('[E] — постройки.'),
-    'hint подземелья: без городской строки');
+  const ov2 = findAll(h2.body, '.dungeon-overlay')[0];
+  assert.ok(ov2, 'dungeon-ui оверлей активен');
+  assert.equal(findAll(ov2, '.combat-state').length, 0,
+    '000229: hint подземелья — .combat-state НЕТ (панель убрана)');
+  assert.equal(findAll(ov2, '.combat-side').length, 0,
+    '000229: подземелье — .combat-side НЕТ');
 });
 
 // 000148.03 (репин): клетка без постройки — больше НЕ no-op: [E] →

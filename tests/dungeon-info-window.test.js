@@ -17,8 +17,10 @@
 // «Флогистон, ур. N  (<имя подземелья>)», блок локации — floorStatusLine
 // (Глубина: N при depth>1 + До выхода: ~N клеток) без рамки/счётчиков;
 // строки героя/Местность/День/Масштаб/explored/flash — байт-в-байт;
-// stateEl из панели УБИРАЕТСЯ (city-only), log+hint — сохранены; город —
-// вне скоупа, байт-в-байт.
+// stateEl из панели УБИРАЕТСЯ (city-only); 000229: панель в
+// подземелье убрана ЦЕЛИКОМ (log+hint тоже — чистое удаление, в
+// #hud НЕ переносится) — #hud — ЕДИНСТВЕННОЕ инфо-окно подземелья;
+// город — вне скоупа, байт-в-байт.
 //
 // RED (6 — падают на master ОСМЫСЛЕННО: отсутствует новая
 // функциональность, не синтаксис; зеленеют после фикса):
@@ -31,10 +33,10 @@
 //   * DH-3 (node) — buildLine dungeon-байты depth=1/2 (§3.1 memory) +
 //     city-вариант байт-в-байт (гард от over-fix; city-часть зелёная
 //     и сейчас).
-//   * DH-4 — в .dungeon-overlay ровно 1 .combat-state (= hint) и 1
-//     .combat-log; ни один .combat-state не несёт «До выхода:
-//     »/«Группы: »/«Сундуки: »/«Залежи: » (master: 2 .combat-state,
-//     states[0] — вся инфо + счётчики).
+//   * DH-4 (re-pin 000229) — в .dungeon-overlay НЕТ .combat-side/
+//     .combat-state/.combat-log; оверлей = canvas (1 прямой
+//     ребёнок) (000229: панель в подземелье убрана совсем; до
+//     000229: ровно 1 .combat-state + 1 .combat-log).
 //   * DH-5 (структурный) — в src/dungeon-ui.js строки 'Группы: ' НЕТ
 //     (потребитель инфо удалён); floorStatusLine — в src/hud.js И
 //     src/dungeon-ui.js (city-ветка stateEl) (master: «Группы: » есть).
@@ -704,42 +706,34 @@ test('000212 DH-3 (RED, node): buildLine dungeon-формат побайтово
     'гард: city-байты НЕ МЕНЯЮТСЯ');
 });
 
-test('000212 DH-4 (RED, fullchain): панель подземелья — дубль инфо УБРАН: ровно 1 .combat-state (= hint) + 1 .combat-log; ни один .combat-state не несёт инфо/счётчики; hint на месте', async () => {
+test('000212 DH-4 (fullchain, re-pin 000229): панель подземелья УБРАНА СОВСЕМ: в .dungeon-overlay НЕТ .combat-side/.combat-state/.combat-log; оверлей = canvas (1 прямой ребёнок)', async () => {
   const h = await boot();
   const g = h.sandbox.__game;
-  const G = h.sandbox.Game;
   const ds = g.actions.enterDungeon();
   assert.ok(ds, 'enterDungeon — состояние подземелья (отладочный вход)');
   assert.equal(g.dungeon.kind, 'dungeon', 'kind dungeon');
   h.frameFn(NOW + 16);
   const overlay = dungeonOverlayOf(h);
   assert.ok(overlay, 'экран подземелья — .dungeon-overlay в body');
+  const sides = findAll(overlay, '.combat-side');
+  assert.equal(sides.length, 0,
+    '000229: .combat-side НЕТ (панель убрана совсем): '
+    + sides.map((s) => JSON.stringify(String(s.textContent).slice(0, 60)))
+      .join(' ; '));
   const states = findAll(overlay, '.combat-state');
-  assert.equal(states.length, 1,
-    'RED: ровно 1 .combat-state — hint (master: 2 — stateEl с инфо + '
-    + 'hint; stateEl — дубль #hud, ТЗ); .combat-state: '
-    + states.map((s) => JSON.stringify(s.textContent)).join(' ; '));
+  assert.equal(states.length, 0,
+    '000229: .combat-state НЕТ (stateEl и hint — вместе с панелью); '
+    + '.combat-state: '
+    + states.map((s) => JSON.stringify(String(s.textContent).slice(0, 60)))
+      .join(' ; '));
   const logs = findAll(overlay, '.combat-log');
-  assert.equal(logs.length, 1, 'журнал локации — 1 .combat-log');
-  for (const s of states) {
-    const t = String(s.textContent);
-    assert.ok(!t.includes('До выхода: '),
-      'инфо (floorStatusLine) — только в #hud, не в панели: '
-      + JSON.stringify(t));
-    assert.ok(!t.includes('Группы: '),
-      'счётчик «Группы: » из панели удалён: ' + JSON.stringify(t));
-    assert.ok(!t.includes('Сундуки: '),
-      'счётчик «Сундуки: » из панели удалён: ' + JSON.stringify(t));
-    assert.ok(!t.includes('Залежи: '),
-      'счётчик «Залежи: » из панели удалён: ' + JSON.stringify(t));
-  }
-  // Подсказки управления (000153.03/000157.03) — НЕ инфо-окно,
-  // СОХРАНЕННЫ (ТЗ жалоба — только про инфо-дубль).
-  const hint = states[0];
-  assert.ok(String(hint.textContent).includes('Стрелки/WASD — шаг.'),
-    'hint: строка управления на месте: ' + JSON.stringify(hint.textContent));
-  assert.ok(String(hint.textContent).includes('Сундук и мобы'),
-    'hint: строка про сундуки/мобы на месте');
+  assert.equal(logs.length, 0,
+    '000229: .combat-log (журнал) НЕТ — окно убрано совсем');
+  assert.equal(overlay.children.length, 1,
+    'оверлей = canvas — ОДИН прямой ребёнок (000229: canvas + '
+    + 'side → canvas)');
+  assert.equal(overlay.children[0].tagName, 'canvas',
+    'единственный ребёнок оверлея — canvas');
 });
 
 test('000212 DH-5 (RED, структурный): потребитель инфо в dungeon-ui.js удалён — строки «\'Группы: \'» нет; единый источник floorStatusLine — в src/hud.js И src/dungeon-ui.js (city-ветка stateEl)', () => {
