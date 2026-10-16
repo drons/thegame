@@ -5,8 +5,8 @@
 // и vm не нужны.
 //
 // Контракт — memory/000202-building-menu-ui.md (R7): 4 новых правила
-// вставляются ПОСЛЕ `.cp-itemrow .cp-btn` и ДО блока 000147
-// (`.cp-availrow`):
+// вставляются ПОСЛЕ `.cp-itemrow .cp-btn` (якорь «и ДО блока 000147
+// (.cp-availrow)» — 000231: блок avail-строк со страницы убран):
 //   .cp-itemreason — красный #e65f52 (существующая палитра) + 700;
 //   .combat-overlay--build .combat-side — width min(520px, 94vw)
 //   (вписать в экран по горизонтали);

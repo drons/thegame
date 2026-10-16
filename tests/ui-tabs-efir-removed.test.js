@@ -389,7 +389,7 @@ test('000146 R2: клик по строке «Эфир» в «Отряде» о�
 
 // --- R3: вид kind 'efir' — все бывшие секции, каждый носитель 1 раз ---
 
-test('000146 R3: вид kind \'efir\' на «Персонаж» содержит ВСЕ бывшие секции вкладки, каждый носитель ОДИН РАЗ: книга — ровно 11 строк канонического порядка с отметками (носитель контента «Открытия»); live L5 «Свет исцеления» = «уровень 5» (in place); «Вдох Эфира» ВИДНА, текст SPEC; левый столбец — ровно 3 .cp-tabpane; по ВЕЙ панели ровно ОДИН pane содержит «Вдох Эфира»; секции «Открытия» НЕТ (D1); hero-дефолт: «Флогистон», книга learned-only без .cp-itemmeta, «Вдох Эфира» СКРЫТА; пул EFIR_START_LIST на едином листе (D2); потолок — единый текст (D3), старый хвост нигде', () => {
+test('000146 R3: вид kind \'efir\' на «Персонаж» содержит ВСЕ бывшие секции вкладки, каждый носитель ОДИН РАЗ: книга — learned-only, ровно старт (efirSpellsByLevel(1).length) с метками «уровень 1», «откроется» НЕТ (Ре-пин 000231: неизученные скрыты); live L5 — 3 строки, «Свет исцеления» = «уровень 5» (in place); «Вдох Эфира» ВИДНА, текст SPEC; левый столбец — ровно 3 .cp-tabpane; по ВЕЙ панели ровно ОДИН pane содержит «Вдох Эфира»; секции «Открытия» НЕТ (D1); hero-дефолт: «Флогистон», книга learned-only без .cp-itemmeta, «Вдох Эфира» СКРЫТА; пул EFIR_START_LIST на едином листе (D2); потолок — единый текст (D3), старый хвост нигде', () => {
   const env = makePartyEnv(true);
   const pane = characterPane(env);
   assert.ok(pane, 'character-pane существует');
@@ -429,33 +429,40 @@ test('000146 R3: вид kind \'efir\' на «Персонаж» содержит
       'round(10 + 0.8 * Мудрость)', '×0.8', '2 хода']) {
     assert.ok(bt.includes(s), '«Вдох Эфира» — строка SPEC: ' + s);
   }
-  // Книга Эфира — ВСЕГДА ровно 11 строк (канонический порядок:
-  // 000163: +resurrect 22 — пин регенерирован по фактическому коду).
-  // старт сперва — efirSpellsByLevel(1), затем UNLOCKS по
-  // возрастанию порога). Метки «уровень N»/«откроется на N-м
-  // уровне» — это и есть отметки авто-разблокировок ТЗ = носитель
-  // контента бывшей статической таблицы «Открытия» (D1).
+  // Ре-пин 000231: неизученные канонические строки Эфира СКРЫТЫ —
+  // книга = learned-only (fresh Эфир: ровно старт
+  // efirSpellsByLevel(1), data-driven, метки «уровень 1», D2);
+  // меток «откроется на N-м уровне» на странице НЕТ. (До 000231:
+  // ВСЕГДА 11 строк — 2 старт + 9 UNLOCKS, неизученные с меткой
+  // «откроется…» — носитель контента «Открытия», D1.)
   book = bookOf();
   rows = findAll(book, '.cp-itemrow');
-  assert.equal(rows.length, 11,
-    'книга «Эфира» — ровно 11 строк (2 старт + 9 UNLOCKS)');
   const start = E.efirSpellsByLevel(1);
   const un = E.EFIR_SPELL_UNLOCKS.slice().sort((a, b) => a[0] - b[0]);
   const nameOf = (id) => env.G.SpellsData.SPELLS_BY_ID[id].название;
-  const expect = start.map((id) => [nameOf(id), 'уровень 1'])
-    .concat(un.map(([lv, id]) =>
-      [nameOf(id), 'откроется на ' + lv + '-м уровне']));
+  assert.equal(rows.length, start.length,
+    'книга «Эфира» — learned-only (000231): ровно старт ' +
+    '(efirSpellsByLevel(1).length — data-driven, хардкода НЕТ); ' +
+    'RED: 11 канон. строк (неизученные ещё видны)');
+  const expect = start.map((id) => [nameOf(id), 'уровень 1']);
   rows.forEach((r, i) => {
     assert.equal(r.querySelector('.cp-itemname').textContent,
       expect[i][0], 'строка ' + i + ' — имя из G.SpellsData');
     assert.equal(r.querySelector('.cp-itemmeta').textContent,
       expect[i][1],
-      'строка ' + i + ' — отметка (носитель «Открытия», D1)');
+      'строка ' + i + ' — отметка изученного «уровень N» (D2)');
   });
+  for (const r of rows) {
+    const meta = r.querySelector('.cp-itemmeta');
+    assert.ok(meta && !String(meta.textContent).includes('откроется'),
+      '000231: меток «откроется на N-м уровне» в книге НЕТ; ' +
+      'RED: 9 неизученных строк с этой меткой');
+  }
   assert.deepEqual([...un.map((u) => u[0])],
     [5, 8, 10, 12, 15, 20, 22, 25, 30],
-    'пороги UNLOCKS — канонический порядок (пин); [...]: массив ' +
-    'ЧУЖОГО realm (vm) — спред даёт host-массив (правило 000082)');
+    'пороги UNLOCKS — канонический порядок (пин ДАННЫХ G.efir, не ' +
+    'UI — 000231 не трогает; [...]: массив ЧУЖОГО realm (vm) — ' +
+    'спред даёт host-массив (правило 000082)');
   // live: L5 — «Свет исцеления» = «уровень 5» (in place: тело
   // книги _book — тот же узел; строки пересобираются в нём).
   const bookBody = book.querySelector('.cp-items');
@@ -464,7 +471,9 @@ test('000146 R3: вид kind \'efir\' на «Персонаж» содержит
   e.spells = E.efirSpellsByLevel(5); // [spark, mend, light_heal]
   env.G.playerUI.render();
   const rows5 = findAll(bookBody, '.cp-itemrow');
-  assert.equal(rows5.length, 11, 'после render — 11 строк (in place)');
+  assert.equal(rows5.length, 3,
+    'после render — 3 строки learned-only (in place; 000231: ' +
+    'старт + light_heal); RED: 11 строк (неизученные ещё видны)');
   const light = rows5.find((r) =>
     r.querySelector('.cp-itemname').textContent === 'Свет исцеления');
   assert.ok(light, '«Свет исцеления» в книге L5');

@@ -13,9 +13,11 @@
 //   * applyRuneSpell — кандидаты по активному (picked=learned);
 //   * 'mentor' (spec/spells.md «Книга заклинаний», 000133b): 5 школ
 //     17/18/19/21/38, цена 50 с героя, первый learnable, БЕЗ daily-лимита;
-//   * UI «Книга заклинаний»: learned (.cp-itemrow — пины B6/B7 intact)
-//     + avail (.cp-availrow/.cp-avail-title — НОВЫЙ класс, display-
-//     only, «<источник>: доступно|canLearn.reason»).
+//   * UI «Книга заклинаний»: learned (.cp-itemrow — пины B6/B7 intact).
+//     (000231 SUPERSEDED: avail-блок 000147 (.cp-availrow /
+//     .cp-avail-title «Доступно к изучению») УБРАН со страницы —
+//     не показывать неизученные заклинания; memory/000231-hidden-
+//     unlearned-spells.md §5; AP-6/AP-6B — ре-пин 000231.)
 //
 // Контракт: memory/000147-unified-spell-learning.md (§3.1-3.7, §4 —
 // эти красные). ТЗ: tasks/pending/000147.md. Контракты-родители:
@@ -51,17 +53,19 @@
 //   * AP-M3 (node) — building-effect-mentor: learn на активного,
 //     gold С ГЕРОЯ, повтор → «уже изучено», без Spells → console.
 //     error. RED: модуль отсутствует.
-//   * AP-6  (vm)   — UI «Книга заклинаний»: learned + avail-строки
-//     (display-only, источник+reason); Эфир — каноника data-driven.
-//     RED: avail-блока НЕТ (renderBook learned-only + early-return
-//     у Эфира) → .cp-availrow = 0.
+//   * AP-6  (vm)   — UI «Книга заклинаний»: learned-строки
+//     (наёмный 1 «—»; Эфир — learned-only старт, data-driven) +
+//     НЕТ неизученных (Ре-пин 000231: .cp-availrow = 0,
+//     «Доступно к изучению»/«Огненный шар»/«Хлад»/«Теневой сгусток»
+//     в секции НЕТ при наличных источниках).
 //   * AP-7  (vm)   — UI-путь: свиток «исп.» → АКТИВНОМУ наёмному
 //     (hero.spells не тронут, flash 000133 intact). RED: ui.js
 //     G.useItem(c, id) без 4-го аргумента → герой учится.
 // + 2 ЗЕЛЁНЫХ (правки по итогам ревью, добавлены на зелёном):
 //   * AP-6B (vm)   — выученное НЕ-КАНОНИЧЕСКОЕ Эфира (свиток/руна/
 //     наставник — learn на sheet) — строка «изучено» ПОСЛЕ каноники;
-//     не дублируется в avail (было: невидимо — ни там, ни там).
+//     ДО изучения «Хлад» невидим НИГДЕ (Ре-пин 000231: ни learned-,
+//     ни avail-строки; avail-блока нет).
 //   * AP-M4 (vm)   — полная цепочка index.html до building-effect-
 //     mentor.js: саморегистрация specials['17_mentor'…'38_mentor']
 //     (интеграционный шов «нажатие строки → хендлер»).
@@ -78,9 +82,10 @@
 //
 // БАЗА worktree: master 7306ca3 (красная фаза ДО ребейза; каталог
 // 16 заклинаний, канон. книга Эфира 10 строк). Data-driven-ассерты
-// (G.efir.efirSpellsByLevel(100).length) переживают ребейз на
-// 000163 (17 заклинаний, 11 строк: +resurrect — АВТО-unlock Эфира,
-// в avail-строках НЕ появляется: источников у него нет).
+// (G.efir.efirSpellsByLevel(1).length — learned-only после Ре-пина
+// 000231: книга fresh-Эфира = старт) переживают рост каталога
+// (000163: +resurrect — АВТО-unlock Эфира; до 000231 ассерты были
+// на efirSpellsByLevel(100).length — ВСЕ канонические строки).
 //
 // Cross-realm (vm): пины — примитивы/текст/длина (правило 000082);
 // массивы песочницы — через [...arr] в node-массив (примитивы
@@ -909,9 +914,17 @@ function sectionOf(pane, name) {
     .find((s) => s.textContent === name) || null;
 }
 
+// Полный текст узла (рекурсивно: заголовок + тела) — для
+// негативных пинов 000231 «текста в секции НЕТ».
+function textOf(node) {
+  let s = node._text || '';
+  for (const ch of node.children || []) s += textOf(ch);
+  return s;
+}
+
 // --- AP-6: UI «Книга заклинаний» — learned + avail ---
 
-test('000147 AP-6: UI «Книга заклинаний» — learned-строки (.cp-itemrow — пины B6/B7 intact: у наёмного 1 «—») + avail-строки (.cp-availrow/.cp-avail-title): «<источник>: доступно|reason», display-only (кнопок НЕТ); наёмный: «Огненный шар» = «свиток: нужен ранг школы «Знаток»», «Хлад» = «руна: доступно»; Эфир: каноника data-driven (G.efir — не хардкод 10/11) + «Теневой сгусток» = «руна: нужен ранг школы «Знаток»»; RED: avail-блока НЕТ', () => {
+test('000147 AP-6: UI «Книга заклинаний» — learned-строки (.cp-itemrow — пины B6/B7 intact: у наёмного 1 «—»; Эфир — learned-only старт efirSpellsByLevel(1).length, data-driven) + НЕТ неизученных (Ре-пин 000231: .cp-availrow = 0, заголовка «Доступно к изучению» НЕТ, «Огненный шар»/«Хлад»/«Теневой сгусток» в секции НЕТ — при наличных источниках: свиток в инвентаре героя, руна 40, наставники 17-38)', () => {
   const env = makePartyEnv({ heroScroll: 'fireball_scroll' });
   const pane = characterPane(env);
   // (1) АКТИВЕН наёмный (INT 1, Рунопись 1, spells []):
@@ -920,70 +933,52 @@ test('000147 AP-6: UI «Книга заклинаний» — learned-строк
     'переключение активного: 0 ошибок: ' + env.errors.join('; '));
   const bookSec = sectionOf(pane, 'Книга заклинаний');
   assert.ok(bookSec, 'секция «Книга заклинаний» (все kinds, 000145)');
-  // learned — БЕЗ ИЗМЕНЕНИЙ (отдельный класс avail, D7):
+  // learned — БЕЗ ИЗМЕНЕНИЙ:
   const learned = findAll(bookSec, '.cp-itemrow');
   assert.equal(learned.length, 1,
-    'learned-строки наёмного — 1 «—» (B7-пин intact: avail-строки ' +
-    'ДРУГИМ классом .cp-availrow)');
+    'learned-строки наёмного — 1 «—» (B7-пин intact)');
   assert.equal(learned[0].querySelector('.cp-itemname').textContent,
     '—', 'пустая книга — строка «—» (как ДО)');
-  // avail-блок (контракт §3.6):
+  // Ре-пин 000231: неизученные НЕ видны при наличных источниках
+  // (свиток fireball в инвентаре ГЕРОЯ, руна 40, наставники 17-38)
+  // — avail-блока НЕТ (SUPERSEDED 000147 §3.6/D7/§9):
   const avail = findAll(bookSec, '.cp-availrow');
-  assert.ok(avail.length >= 1,
-    'avail-строки (RED: блока НЕТ — renderBook learned-only)');
-  for (const row of avail) {
-    assert.equal(row.querySelector('button'), null,
-      'avail — display-only: кнопок НЕТ (read-only, как learned; ' +
-      'изучение — через предмет [I] / постройку [E])');
-  }
+  assert.equal(avail.length, 0,
+    '000231: .cp-availrow = 0 (блок «Доступно к изучению» убран); ' +
+    'RED: avail-строки ещё рендерятся');
   const titles = findAll(bookSec, '.cp-avail-title');
-  assert.equal(titles.length, 1, 'заголовок avail-блока — ОДИН');
-  assert.equal(titles[0].textContent, 'Доступно к изучению:',
-    'текст заголовка по контракту §3.6');
-  const byName = (name) => avail.find((r) => {
-    const nm = r.querySelector('.cp-itemname');
-    return nm && nm.textContent === name;
-  });
-  const fb = byName('Огненный шар');
-  assert.ok(fb, 'avail-строка «Огненный шар»');
-  assert.equal(fb.querySelector('.cp-itemmeta').textContent,
-    'свиток: нужен ранг школы «Знаток»',
-    'первый источник — свиток (инвентарь ГЕРОЯ), canLearn.reason ' +
-    'по АКТИВНОМУ наёмному (INT 1 < Знаток t2)');
-  const ch = byName('Хлад');
-  assert.ok(ch, 'avail-строка «Хлад»');
-  assert.equal(ch.querySelector('.cp-itemmeta').textContent,
-    'руна: доступно',
-    'первый источник — руна (пул камня 40); canLearn ok (t1, ' +
-    'Рунопись 1 ≥ 1)');
-  // (2) АКТИВЕН Эфир: каноника data-driven + avail не-канонических:
+  assert.equal(titles.length, 0,
+    '000231: заголовка avail-блока НЕТ');
+  const secText = textOf(bookSec);
+  assert.ok(!secText.includes('Доступно к изучению'),
+    '000231: текста «Доступно к изучению» в секции НЕТ');
+  assert.ok(!secText.includes('Огненный шар'),
+    '000231: «Огненный шар» (свиток в инвентаре героя) НЕВИДИМ');
+  assert.ok(!secText.includes('Хлад'),
+    '000231: «Хлад» (руна 40, «руна: доступно») НЕВИДИМ');
+  // (2) АКТИВЕН Эфир: learned-only старт (data-driven) + НЕТ
+  //     неизученных (не-канонические с источниками — скрыты):
   env.G.playerUI.toggle(true, 'character', 'efir');
   assert.equal(env.errors.length, 0,
     'переключение на Эфир: 0 ошибок: ' + env.errors.join('; '));
   const rows2 = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows2.length, env.G.efir.efirSpellsByLevel(100).length,
-    'каноническая книга Эфира — data-driven (старт + ВСЕ UNLOCKS; ' +
-    '10 на базе, 11 после 000163 — хардкода НЕТ, gotcha §8.11)');
+  assert.equal(rows2.length, env.G.efir.efirSpellsByLevel(1).length,
+    '000231: книга Эфира — learned-only (fresh Эфир = старт; ' +
+    'data-driven — хардкода НЕТ); RED: 11 канон. строк (неизученные ' +
+    'с меткой «откроется…»)');
   const avail2 = findAll(bookSec, '.cp-availrow');
-  assert.ok(avail2.length >= 1,
-    'avail-строки у Эфира (не-канонические с источниками)');
-  const sb = avail2.find((r) => {
-    const nm = r.querySelector('.cp-itemname');
-    return nm && nm.textContent === 'Теневой сгусток';
-  });
-  assert.ok(sb,
-    'avail-строка «Теневой сгусток» (НЕ каноника Эфира; источники: ' +
-    'руна 40 / наставник 19)');
-  assert.equal(sb.querySelector('.cp-itemmeta').textContent,
-    'руна: нужен ранг школы «Знаток»',
-    'первый источник — руна; INT Эфира 3 → Ученик < Знаток (t2)');
+  assert.equal(avail2.length, 0,
+    '000231: у Эфира .cp-availrow = 0 (не-канонические с ' +
+    'источниками НЕ видны); RED: avail-строки ещё рендерятся');
+  assert.ok(!textOf(bookSec).includes('Теневой сгусток'),
+    '000231: «Теневой сгусток» (руна 40/наставник 19) НЕВИДИМ');
   assert.equal(env.errors.length, 0, '0 ошибок: ' + env.errors.join('; '));
 });
 
 // --- AP-6B: (правки по итогам ревью) выученное НЕ-КАНОНИЧЕСКОЕ
 // Эфира — в книге (learned-строка), а не невидимо ---
 
-test('000147 AP-6B: UI — выученное НЕ-КАНОНИЧЕСКОЕ Эфира (learn на sheet через обобщённые источники 000147: свиток/руна/наставник) — строка .cp-itemrow ПОСЛЕ каноники, метка «изучено», без кнопки; НЕ дублируется в avail (learned — пропуск); каноника (data-driven) и метки «уровень N» intact', () => {
+test('000147 AP-6B: UI — выученное НЕ-КАНОНИЧЕСКОЕ Эфира (learn на sheet через обобщённые источники 000147: свиток/руна/наставник) — строка .cp-itemrow ПОСЛЕ каноники, метка «изучено», без кнопки; ДО изучения «Хлад» НЕВИДИМ НИГДЕ (Ре-пин 000231: ни learned-, ни avail-строки; .cp-availrow = 0); каноника — learned-only старт (efirSpellsByLevel(1).length, data-driven) и метки «уровень N» intact', () => {
   const env = makePartyEnv({});
   // Активен Эфир (INT 3 — Ученик):
   env.G.playerUI.toggle(true, 'character', 'efir');
@@ -991,19 +986,26 @@ test('000147 AP-6B: UI — выученное НЕ-КАНОНИЧЕСКОЕ Эф
     'переключение на Эфир: 0 ошибок: ' + env.errors.join('; '));
   const pane = characterPane(env);
   const bookSec = sectionOf(pane, 'Книга заклинаний');
-  // (1) ДО изучения: «Хлад» — avail-строка (не каноника Эфира;
-  //     источники: руна 40 / наствник 19):
+  // (1) ДО изучения: «Хлад» НЕВИДИМ НИГДЕ (Ре-пин 000231: не
+  //     каноника Эфира, источники руна 40/наставник 19 — но
+  //     неизученные на странице не показываются):
   const byName = (rows, name) => rows.find((r) => {
     const nm = r.querySelector('.cp-itemname');
     return nm && nm.textContent === name;
   });
   const availBefore = findAll(bookSec, '.cp-availrow');
-  assert.ok(byName(availBefore, 'Хлад'),
-    '«Хлад» — avail-строка Эфира до изучения (не каноника, есть ' +
-    'источники)');
+  assert.equal(availBefore.length, 0,
+    '000231: до изучения .cp-availrow = 0 (блока нет); ' +
+    'RED: avail-строки ещё рендерятся');
+  assert.equal(byName(availBefore, 'Хлад'), undefined,
+    '«Хлад» — не в avail (блока нет)');
   const rows0 = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows0.length, env.G.efir.efirSpellsByLevel(100).length,
-    'до изучения — только каноника (data-driven, хардкода нет)');
+  assert.equal(rows0.length, env.G.efir.efirSpellsByLevel(1).length,
+    'до изучения — learned-only старт (000231; data-driven); ' +
+    'RED: 11 канон. строк (неизученные ещё видны)');
+  assert.equal(byName(rows0, 'Хлад'), undefined,
+    '000231: «Хлад» НЕВИДИМ до изучения (ни learned-, ни ' +
+    'avail-строки)');
   // (2) Изучение на live-лист Эфира — ТОТ ЖЕ мутирующий путь, что
   //     у обобщённых источников (useItem 4-й аргумент / apply-
   //     MentorSpell → S.learn(sheet, …)); chill t1, база null,
@@ -1017,23 +1019,27 @@ test('000147 AP-6B: UI — выученное НЕ-КАНОНИЧЕСКОЕ Эф
   assert.equal(env.errors.length, 0,
     're-render: 0 ошибок: ' + env.errors.join('; '));
   const rows = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows.length, env.G.efir.efirSpellsByLevel(100).length + 1,
-    'каноника (data-driven) + 1 строка выученного не-каноника');
+  assert.equal(rows.length,
+    env.G.efir.efirSpellsByLevel(1).length + 1,
+    'learned-старт + 1 строка выученного не-каноника (000231); ' +
+    'RED: 11 + 1');
   const learnedChill = byName(rows, 'Хлад');
   assert.ok(learnedChill,
     'выученное не-каноническое «Хлад» — ВИДИМО в книге ' +
     '(правка по ревью: было — ни в канонике, ни в avail)');
+  assert.equal(rows.indexOf(learnedChill),
+    env.G.efir.efirSpellsByLevel(1).length,
+    'строка «Хлад» — ПОСЛЕ каноники (контракт §3)');
   assert.equal(learnedChill.querySelector('.cp-itemmeta').textContent,
     'изучено', 'метка — «изучено» (уровня авто-разблокировки нет)');
   assert.equal(learnedChill.querySelector('button'), null,
     'read-only: кнопок НЕТ (как у learned-строк)');
-  // (4) avail: «Хлад» УБРАН (learned — пропуск), остальные строки
-  //     на месте:
+  // (4) Ре-пин 000231: avail-блока НЕТ (дубля learned-строки —
+  //     нет тривиально: блока нет):
   const availAfter = findAll(bookSec, '.cp-availrow');
-  assert.equal(byName(availAfter, 'Хлад'), undefined,
-    'выученное не дублируется в avail');
-  assert.ok(availAfter.length >= 1, 'остальные avail-строки есть');
-  // (5) Каноника intact: старт-стрка «Искра» — «уровень 1»:
+  assert.equal(availAfter.length, 0,
+    '000231: .cp-availrow = 0 (блока нет — дубля невозможен)');
+  // (5) Каноника intact: старт-строка «Искра» — «уровень 1»:
   const spark = byName(rows, 'Искра');
   assert.ok(spark, 'каноническая строка «Искра» (старт)');
   assert.equal(spark.querySelector('.cp-itemmeta').textContent,
