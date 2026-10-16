@@ -7837,3 +7837,46 @@ test('mobs schema (000211.03): поля-ссылки закрепили якор
   assert.deepEqual(validateData(schema, rec, '000002'), [],
     'положительный контроль: исходная запись проходит схему');
 });
+
+// =====================================================================
+// Задача 000227 — БОЙ: кнопка последнего заклинания из книги.
+// Контракты D1/D3 — memory/000227-combat-last-spell-button.md.
+// autoSpellFor — НОВОЕ чистое экспортируемое ядра combat.js
+// (обёртка strongestKnown в id): UI-слой бейджей legacy-пула (без
+// выбора) должен получить id legacy-спелла — каталог известен ядру.
+//
+// КРАСНЫЕ (TDD): экспорт в return-объекте фабрики НЕТ —
+// C.autoSpellFor === undefined → осмысленный TypeError «is not a
+// function» (прецеденты 000132/000155/000167), не ошибка загрузки:
+// combat.js требует штатно. Каталог — реальный (шапка файла:
+// require('../src/spells.js') → combatInternals.allySpells).
+// =====================================================================
+
+test('000227 AF-1: autoSpellFor — книга spark+mend (дефолт Эфира): «урон» → «spark», «лечение» → «mend»', () => {
+  const C = require('../src/combat.js');
+  const u = { spells: ['spark', 'mend'] };
+  assert.equal(C.autoSpellFor(u, 'урон'), 'spark',
+    '«урон» — spark (единственный урон в книге)');
+  assert.equal(C.autoSpellFor(u, 'лечение'), 'mend',
+    '«лечение» — mend (единственное лечение в книге)');
+});
+
+test('000227 AF-2: autoSpellFor — spark+frost_bolt: «урон» → «frost_bolt» (макс «мани», strongestKnown 000112), «лечение» → null', () => {
+  const C = require('../src/combat.js');
+  const u = { spells: ['spark', 'frost_bolt'] };
+  assert.equal(C.autoSpellFor(u, 'урон'), 'frost_bolt',
+    '«урон» — frost_bolt (4 маны > 3 — максимум по «мани»): '
+    + C.autoSpellFor(u, 'урон'));
+  assert.equal(C.autoSpellFor(u, 'лечение'), null,
+    'лечения в книге нет — null');
+});
+
+test('000227 AF-3: autoSpellFor — пустая книга / id вне каталога / действие не из книги → null (strongestKnown — тихий skip)', () => {
+  const C = require('../src/combat.js');
+  assert.equal(C.autoSpellFor({ spells: [] }, 'урон'), null,
+    'пустая книга — null');
+  assert.equal(C.autoSpellFor({ spells: ['no_such_spell'] }, 'урон'), null,
+    'id вне каталога — null (тихий skip)');
+  assert.equal(C.autoSpellFor({ spells: ['spark'] }, 'защита'), null,
+    '«защита» в книге нет — null');
+});

@@ -15,8 +15,9 @@
 //    mercs 12 (задача 000152),
 //    mobs 192, phlogiston 8,
 //    efir 8 — 000034, visuals 13),
-//    ui 11 (задачи 000124 + 000123; 000178: +combat_cast/
-//    +combat_heal), spell-icons 17 (задача 000149), portraits 8
+//    ui 12 (задачи 000124 + 000123; 000178: +combat_cast/
+//    +combat_heal; 000227: +combat_lastspell), spell-icons 17
+//    (задача 000149), portraits 8
 //    (задача 000142), logo.svg 1);
 //  * XML well-formedness — минимальный парсер ограниченного
 //    SVG-подмножества, реально встречающегося в ассетах: теги с
@@ -461,13 +462,15 @@ const EXPECTED_SVG_BY_DIR = {
                                       // кадры героя перенесены сюда)
   'sprites/mercs': 12,                // наёмные NPC (задача 000152: 6 × 2)
   'sprites/visuals': 13,
-  'ui': 11,                           // иконки действий боя (задача 000124)
+  'ui': 12,                           // иконки действий боя (задача 000124)
                                       // + icon_action/icon_inventory —
                                       // кнопки [E]/[I] (задача 000123)
                                       // 000149: −combat_fire/−combat_heal
                                       // +combat_spellbook (книга)
                                       // 000178: +combat_cast/+combat_heal
                                       // (кнопки «Каст»/«Лечение»)
+                                      // 000227: +combat_lastspell
+                                      // (кнопка «Последнее заклинание»)
   'spell-icons': 17,                  // иконки заклинаний (задача 000149,
                                       // по одной на JSON каталога; 000163:
                                       // +resurrect)

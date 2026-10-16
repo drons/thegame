@@ -191,6 +191,13 @@
   let quickBox = null;
   let quickOpen = false;
   let quickSig = null;
+  // 000227: выбор «последнего заклинания из книги» — UI-состояние
+  // пер БОЯ: ключ 'player' (игрок) / u.id (союзник) → spellId.
+  // Запись — castRow (после гейта, ДО каста: любой тап по строке,
+  // прошедшей гейт, независимо от исхода, D3). Сброс — build()/
+  // finish()/catch startCombat (как countEls: выбор не живёт между
+  // боями; сейвов боя нет — save.js полей combat не имеет).
+  let lastSpells = {};
   let ended = false;
   let rafId = null; // id rAF-цикла анимации (задача 000047); null — нет rAF
   // 000174: глейд передвижения мобов — null | Map id → { path, at }:
@@ -277,6 +284,7 @@
 
   function build() {
     countEls = {}; // 000199: пересборка — карта бейджей свежая
+    lastSpells = {}; // 000227: пересборка — выбор не живёт между боями
     overlay = document.createElement('div');
     // Скоуп-класс (задача 000124): вся геометрия боевого layout живёт
     // в CSS .combat-overlay--combat; базовые .combat-overlay,
@@ -400,7 +408,14 @@
       cb.appendChild(icon);
       cb.ariaLabel = 'Каст';
       cb.dataset.act = 'cast';
-      cb.addEventListener('click', () => allyBtn(c, 'cast'));
+      cb.addEventListener('click', () => lastSpellPress(c, 'cast'));
+      // 000227: бейдж остатка пула (конвенция 000199): персистентный
+      // span, ОДИН раз в build; render — только textContent/display.
+      const cbCnt = document.createElement('span');
+      cbCnt.className = 'combat-actcount';
+      cbCnt.textContent = '';
+      cb.appendChild(cbCnt);
+      countEls['cast'] = cbCnt;
       // Начальное значение — display 'none': первый render
       // синхронен в startCombat (build(); render();), видимость —
       // castHealVis; защищает гипотетический build без render.
@@ -409,11 +424,12 @@
     }
     // «Лечение» (задача 000178): тач-путь для клавиши H (лечение
     // support-наёмника, 000168) — паттерн 000171. ГЕЙТ build() —
-    // support-наёмник в партии (условие ядра allyCanDo 'heal'
-    // ДОСЛОВНО; КРИТИЧНО kind==='merc' — у Эфира role 'support'
-    // ТОЖЕ). Остальное — как у «Каста» выше.
-    if (c.units.some((u) => u.side === 'ally' && u.role === 'support'
-        && u.kind === 'merc')) {
+    // 000227: ЛЮБОЙ наёмник с непустой книгой (было support;
+    // кнопка без книги бессмысленна — гейт ложится). КРИТИЧНО
+    // kind==='merc' — у Эфира role 'support' ТОЖЕ. Остальное — как
+    // у «Каста» выше.
+    if (c.units.some((u) => u.side === 'ally' && u.kind === 'merc'
+        && Array.isArray(u.spells) && u.spells.length > 0)) {
       const hb = document.createElement('button');
       const icon = document.createElement('img');
       icon.src = 'assets/ui/combat_heal.svg';
@@ -421,9 +437,43 @@
       hb.appendChild(icon);
       hb.ariaLabel = 'Лечение';
       hb.dataset.act = 'heal';
-      hb.addEventListener('click', () => allyBtn(c, 'heal'));
+      hb.addEventListener('click', () => lastSpellPress(c, 'heal'));
+      const hbCnt = document.createElement('span');
+      hbCnt.className = 'combat-actcount';
+      hbCnt.textContent = '';
+      hb.appendChild(hbCnt);
+      countEls['heal'] = hbCnt;
       hb.style.display = 'none'; // видимость — render (castHealVis)
       actions.appendChild(hb);
+    }
+    // «Последнее заклинание» (задача 000227): тач-путь применения
+    // последнего заклинания, выбранного кликом по строке книги
+    // (lastSpells.player; запись — castRow). ГЕЙТ build() —
+    // непустая книга ИГРОКА (дефолтный герой ['spark','mend'] —
+    // кнопка строится во всех дефолтных сценах). НЕТABЛИЧНАЯ
+    // (паттерн 000171/000178: таблица COMBAT_KEYS заморожена,
+    // клавишей — K у Эфира / H у наёмника / кнопка — свой путь).
+    // Видимость — lastSpellVis (render): только ход игрока +
+    // выбор есть + не уступает resurrect (D8). Позиция — ПЕРЕД
+    // «Воскрешением» (игрок-кнопки группируются; включённая — ≤8-й
+    // видимой клетке, memory/000178 §3.3).
+    if (c.player && Array.isArray(c.player.spells)
+        && c.player.spells.length > 0) {
+      const lb = document.createElement('button');
+      const icon = document.createElement('img');
+      icon.src = 'assets/ui/combat_lastspell.svg';
+      icon.alt = '';
+      lb.appendChild(icon);
+      lb.ariaLabel = 'Последнее заклинание';
+      lb.dataset.act = 'lastSpell';
+      lb.addEventListener('click', () => lastSpellPress(c, 'lastSpell'));
+      const lbCnt = document.createElement('span');
+      lbCnt.className = 'combat-actcount';
+      lbCnt.textContent = '';
+      lb.appendChild(lbCnt);
+      countEls['lastSpell'] = lbCnt;
+      lb.style.display = 'none'; // видимость — render (lastSpellVis)
+      actions.appendChild(lb);
     }
     // «Воскрешение» (задача 000171): выделенная кнопка панели —
     // мобильный путь БЕЗ книги (цепочка «книга → строка → клетка» на
@@ -884,27 +934,26 @@
         && activeUnit(c)) {
       // 000168 (D9/P4): лечение АКТИВНОГО support-наёмника — отдельная
       // ветка ДО lookup таблицы (KeyH в застывшей таблице
-      // combat-keys.js НЕТ — «кнопок новых НЕТ», D10): предпроверка —
-      // canDoAction 'heal' (зеркало; причина в журнал при отказе,
-      // паттерн r.reason ниже). На ходу ИГРОКА ветка не срабатывает —
-      // фоллбук в таблицу, где KeyH отсутствует (бит-в-бит).
-      const hr = G.canDoAction(c, 'heal', { targetId: c.targetId });
-      if (hr.ok) logRejection(c, c.heal());
-      else c.log.push(hr.reason);
+      // combat-keys.js НЕТ — «кнопок новых НЕТ», D10). 000227: единый
+      // обработчик lastSpellPress (кнопка = клавиша): выбор из книги →
+      // castRow; без выбора — legacy c.heal() бит-в-бит. На ходу
+      // ИГРОКА ветка не срабатывает — фоллбук в таблицу, где KeyH
+      // отсутствует (бит-в-бит).
+      lastSpellPress(c, 'heal');
+    } else if (code === 'KeyK' && activeIsEfir(c)) {
+      // 000168 (D9/P3): на ходу Эфира KeyK — КАСТ; 000227: единый
+      // обработчик lastSpellPress (кнопка = клавиша; старый remap
+      // KeyK→'cast' УДАЛЁН): выбор из книги → выбранный; без выбора —
+      // legacy strongestKnown бит-в-бит. На ходу не-Эфира — фоллбук
+      // в таблицу (KeyK → 'attack', бит-в-бит).
+      lastSpellPress(c, 'cast');
     } else {
       // Единая таблица (src/combat-keys.js, задача 000048): движение и
       // действия. Снимок для resolveCombatKey: canDo — результат
       // canDoAction именно для действия этой клавиши (000037).
       const entry = G.CombatKeys.COMBAT_KEYS[code];
       const st = { phase: c.phase, result: c.result };
-      // 000168 (D9/P3): на ходу Эфира KeyK — КАСТ (сильнейшее
-      // урон-заклинание; в застывшей таблице KeyK → 'attack').
-      // st.canDo и runAction получают ПЕРЕМАПНУТОЕ имя; на ходу
-      // игрока — бит-в-бит.
-      let action = entry ? entry.action : null;
-      if (code === 'KeyK' && action === 'attack' && activeIsEfir(c)) {
-        action = 'cast';
-      }
+      const action = entry ? entry.action : null;
       if (entry && entry.type === 'action') {
         st.canDo = G.canDoAction(c, action, { targetId: c.targetId });
       }
@@ -1756,20 +1805,29 @@
       // undefined).
       const actCnt = actionCounts(c);
       overlay.querySelectorAll('.combat-actions button').forEach((b) => {
-        const r = b.dataset.act === 'resurrect'
+        const act = b.dataset.act;
+        // 000227: «Последнее заклинание»/«Каст»/«Лечение» — спец-кейс
+        // гашения lastSpellChk (ядро «lastSpell» не знает; cast/heal
+        // с выбором — rowChk, зеркало книжной строки; без выбора —
+        // canDoAction бит-в-байт).
+        const r = act === 'resurrect'
           ? resurrectChk(c)
-          : G.canDoAction(c, b.dataset.act, { targetId: c.targetId });
+          : (act === 'lastSpell' || act === 'cast' || act === 'heal')
+            ? lastSpellChk(c, act)
+            : G.canDoAction(c, act, { targetId: c.targetId });
         // 000194 (правка по ревью): «Быстрый предмет» — тот же гейт,
         // что и KeyE (quickOpenable): stale-слот не гасит кнопку
         // (клик открывает список, причина — на строке); блок —
         // quickOpenable false, кнопка disabled (причина в журнал).
-        const ok = b.dataset.act === 'quickItem'
+        const ok = act === 'quickItem'
           ? (r.ok || quickOpenable(c))
           : r.ok;
         b.disabled = c.phase !== 'player' || !!c.result || !ok;
         b.title = ok ? '' : r.reason;
-        if (b.dataset.act === 'cast' || b.dataset.act === 'heal') {
-          b.style.display = castHealVis(c, b.dataset.act) ? '' : 'none';
+        if (act === 'cast' || act === 'heal') {
+          b.style.display = castHealVis(c, act) ? '' : 'none';
+        } else if (act === 'lastSpell') {
+          b.style.display = lastSpellVis(c) ? '' : 'none';
         }
         // Счётчик действий (000199/000199.01): персистентный span
         // (build, урок 000149) — render обновляет ТОЛЬКО
@@ -1781,14 +1839,28 @@
         // остаток шагов активного (ратификация D4 000199,
         // 000199.01), ВСЕГДА видим, включая 0 (исчерпанность пула —
         // видно; ветка ДО spellbook-fallback — иначе «int/wis»).
-        const cnt = countEls[b.dataset.act];
+        // 000227: «Каст»/«Лечение»/«Последнее заклинание» — остаток
+        // ПУЛА заклинания, которое кнопка применит СЕЙЧАС (actCnt.
+        // spellBtn — единый расчёт на render): «0» видно (паритет
+        // «Удара», D3/D4 000199); «нет пула» / скрытая кнопка —
+        // 'none' + '' (000199: «нет пула» ≠ «0»).
+        const cnt = countEls[act];
         if (cnt) {
-          if (b.dataset.act === 'attack') {
+          if (act === 'attack') {
             cnt.style.display = '';
             cnt.textContent = String(actCnt.attack);
-          } else if (b.dataset.act === 'endTurn') {
+          } else if (act === 'endTurn') {
             cnt.style.display = '';
             cnt.textContent = String(actCnt.steps);
+          } else if (act === 'lastSpell' || act === 'cast'
+              || act === 'heal') {
+            if (b.style.display === 'none' || actCnt.spellBtn == null) {
+              cnt.style.display = 'none';
+              cnt.textContent = '';
+            } else {
+              cnt.style.display = '';
+              cnt.textContent = String(actCnt.spellBtn);
+            }
           } else if (actCnt.spell == null) {
             cnt.style.display = 'none';
             cnt.textContent = '';
@@ -1919,19 +1991,25 @@
   //    D4 000199, 000199.01; поле `steps` — по концепции метки
   //    «Шаги» убранной строки): игрок и фаза мобов — c.ps.moveLeft
   //    (D3-фолбэк, паритет attack); наёмник — u.moveLeft; Эфир —
-  //    c.efs.move (null-guard → 0, паритет touch).
+  //    c.efs.move (null-guard → 0, паритет touch);
+  //  * 000227 «Каст»/«Лечение»/«Последнее заклинание» (spellBtn) —
+  //    остаток ПУЛА заклинания, которое кнопка применит СЕЙЧАС
+  //    (spellBtnOf: выбор из книги || legacy strongestKnown;
+  //    «нет пула» → null — бейдж скрыт).
   function actionCounts(c) {
     const au = activeUnit(c);
     if (au) {
       if (au.kind === 'efir') {
         return { attack: c.efs ? c.efs.touch : 0, spell: null,
-                 steps: c.efs ? c.efs.move : 0 };
+                 steps: c.efs ? c.efs.move : 0,
+                 spellBtn: spellBtnOf(c) };
       }
-      return { attack: au.attackLeft, spell: null, steps: au.moveLeft };
+      return { attack: au.attackLeft, spell: null, steps: au.moveLeft,
+               spellBtn: spellBtnOf(c) };
     }
     return { attack: c.ps.attack,
              spell: c.ps.spellInt + '/' + c.ps.spellWis,
-             steps: c.ps.moveLeft };
+             steps: c.ps.moveLeft, spellBtn: spellBtnOf(c) };
   }
 
   // Открыть/закрыть книгу. Строки строит renderBook в render() —
@@ -2083,6 +2161,10 @@
       return;
     }
     const u = unitOf(c);
+    // 000227 (D3): выбор «последнего заклинания» — на ЛЮБОМ тапе по
+    // строке, прошедшей гейт, независимо от исхода каста (отказ
+    // «нет маны» — выбор остаётся: кнопка — повторный путь).
+    lastSpells[u === c.player ? 'player' : u.id] = spellId;
     let r;
     if (u !== c.player) {
       if (G.AllySpells && typeof G.AllySpells.castAllySpell === 'function') {
@@ -2185,52 +2267,121 @@
     render();
   }
 
-  // --- «Каст»/«Лечение» — кнопки панели (задача 000178) ---
+  // --- «Каст»/«Лечение»/«Последнее заклинание» — кнопки панели
+  //     (задачи 000178/000227) ---
   //
-  // Контракт — memory/000178-combat-cast-heal-buttons.md: кнопки —
-  // тач-пути для клавиш K (каст Эфира) / H (лечение support-наёмника;
-  // 000168). КЛЮЧЕВОЕ ОТЛИЧИЕ от 000171: ветки 'cast'/'heal' ЕСТЬ в
-  // canDoAction/allyCanDo — гашение = СТАНДАРТНЫЙ canDoAction (строки
-  // причины 1:1 с клавишами, БЕЗ собственного chk-хелпера), спец-кейс
-  // в цикле render — только ВИДИМОСТЬ (castHealVis). Вставка ПОСЛЕ
-  // resurrectCast (НЕ после canResurrect — там hunk 000168
+  // Контракт — memory/000178-combat-cast-heal-buttons.md +
+  // memory/000227-combat-last-spell-button.md. 000227: ЕДИНЫЙ
+  // обработчик lastSpellPress на три кнопки + клавиши K/H (кнопка =
+  // клавиша = книжная строка): с выбором из книги — castRow (та же
+  // воронка, что тап по строке); без выбора — legacy (c.cast/c.heal
+  // через runAction — strongestKnown/mostWounded, бит-в-бит). Гашение
+  // — lastSpellChk (спец-кейс render-цикла, ДО canDoAction):
+  // 'cast'/'heal' с выбором — rowChk (книга активного), без выбора —
+  // canDoAction (legacy, бит-в-бит); 'lastSpell' — свой порядок
+  // причин. allyBtn УДАЛЁН (вызывающих нет); thunk'и runAction
+  // 'cast'/'heal' сохранены (legacy-путь). Предпроверка ПЕРВОЙ
+  // строкой (паттерн 000178/resurrectCast): стаб-клик / смена
+  // состояния между рендером и кликом → ровно ОДНА строка причины в
+  // журнал, ДЕЙСТВИЯ НЕТ, трат НЕТ (ядро ПЕРЕПРОВЕРЯЕТ — двойная
+  // защита). Ход НЕ сгорает (действие ≠ endTurn). 0 новых c._fx:
+  // строку лога строит ЯДРО — свою строку/FX НЕ вводить. Вставка
+  // ПОСЛЕ resurrectCast (НЕ после canResurrect — там hunk 000168
   // activeUnit/activeIsEfir: rebase-конфликт, урок 000171 §8.2).
   // activeUnit — существующий typeof-guard (фолбэк null → скрыта —
   // безопасная деградация).
-  function activeIsSupportMerc(c) {
-    const u = activeUnit(c);
-    return !!(u && u.role === 'support' && u.kind === 'merc');
-  }
-  // Видимость «Каст»/«Лечение» — по активному СОЮЗНИКУ: «Каст» —
-  // только на ходу Эфира, «Лечение» — только на ходу support-наёмника
-  // (условие ядра allyCanDo 'heal' ДОСЛОВНО; у Эфира role 'support'
-  // ТОЖЕ — kind-гейт обязателен). Игрок/моб/конец боя — activeUnit
-  // null → скрыта.
-  function castHealVis(c, act) {
-    return act === 'cast' ? activeIsEfir(c) : activeIsSupportMerc(c);
-  }
-  // Тап кнопки (000178): ЗЕРКАЛО клавиши — handleCode: KeyH
-  // предпроверяет canDoAction ДО c.heal; KeyK — reason из
-  // resolveCombatKey — + домовой паттерн предпроверок (resurrectCast
-  // 000171, 'spellbook'-thunk runAction): предпроверка ПЕРВОЙ строкой
-  // — стаб-клик / смена состояния между рендером и кликом → ровно
-  // ОДНА строка причины в журнал, ДЕЙСТВИЯ НЕТ, трат НЕТ (ядро
-  // c.cast/c.heal ПЕРЕПРОВЕРЯЕТ всё — двойная защита; в деградационном
-  // состоянии без предпроверки лог-строки не было — «тишина»).
-  // Ход НЕ сгорает (действие ≠ endTurn). 0 новых c._fx: строку лога
-  // строит ЯДРО (efirCastAction «Эфир: «<зак>» — <имя>: N.» /
-  // allyHeal «<имя> лечит <имя> (+N).») — свою строку/FX НЕ вводить
-  // (дубль строк; runAction анимирует только 'attack').
-  function allyBtn(c, act) {
+  function lastSpellPress(c, act) {
     if (fleeOpen) return;
-    const chk = G.canDoAction(c, act, { targetId: c.targetId });
+    const chk = lastSpellChk(c, act);
     if (!chk.ok) {
       logRejection(c, chk);
       render();
       return;
     }
+    if (act === 'lastSpell') {
+      castRow(c, lastSpells.player);
+      return;
+    }
+    const u = unitOf(c);
+    const sel = (u && u !== c.player) ? lastSpells[u.id] : null;
+    if (sel) {
+      castRow(c, sel);
+      return;
+    }
     runAction(c, act);
     render();
+  }
+  function lastSpellChk(c, act) {
+    if (act === 'lastSpell') {
+      if (c.result) return { ok: false, reason: 'бой закончен' };
+      if (c.phase !== 'player') return { ok: false, reason: 'не ваш ход' };
+      const u = unitOf(c);
+      if (u !== c.player) {
+        return { ok: false, reason: 'недоступно активному персонажу' };
+      }
+      const sel = lastSpells.player;
+      if (!sel) return { ok: false, reason: 'нет выбранного заклинания' };
+      if (G.Spells && typeof G.Spells.canCastSpell === 'function') {
+        return G.Spells.canCastSpell(c, sel, { targetId: c.targetId });
+      }
+      return { ok: false, reason: 'Заклинания недоступны' };
+    }
+    const u = unitOf(c);
+    const sel = (u && u !== c.player) ? lastSpells[u.id] : null;
+    if (sel) return rowChk(c, { id: sel });
+    return G.canDoAction(c, act, { targetId: c.targetId });
+  }
+  // Видимость «Последнее заклинание» (000227 D9): '' ТОЛЬКО когда
+  // фаза игрока, бой не кончен, активен ИГРОК (unitOf — фолбэк
+  // c.player на ходу МОБА — проверка c.phase ОБЯЗАТЕЛЬНА), выбор
+  // есть и «Воскрешение» не включено (yield D8: 9-я видимая клетка
+  // row 3 col 1 ПОД D-падом).
+  function lastSpellVis(c) {
+    return c.phase === 'player' && !c.result
+      && unitOf(c) === c.player
+      && !!lastSpells.player
+      && !resurrectChk(c).ok;
+  }
+  // 000227 (D6): гейт «Лечение» ОБЩЁН — ЛЮБОЙ наёмник с непустой
+  // книгой (было: support-наёмник — условие ядра allyCanDo 'heal'
+  // ДОСЛОВНО; у Эфира role 'support' ТОЖЕ — kind-гейт обязателен).
+  // До выбора из книги legacy-поведение ядра без изменений:
+  // support-наёмник — mostWounded/strongestKnown, прочие —
+  // «недоступно активному персонажу», пока выбора нет.
+  function activeIsMercWithBook(c) {
+    const u = activeUnit(c);
+    return !!(u && u.kind === 'merc' && Array.isArray(u.spells)
+      && u.spells.length > 0);
+  }
+  // Видимость «Каст»/«Лечение» — по активному СОЮЗНИКУ: «Каст» —
+  // только на ходу Эфира; «Лечение» — только на ходу наёмника с
+  // книгой (000227 D6). Игрок/моб/конец боя — activeUnit null →
+  // скрыта.
+  function castHealVis(c, act) {
+    return act === 'cast' ? activeIsEfir(c) : activeIsMercWithBook(c);
+  }
+  // 000227 (D12): ОСТАТОК ПУЛА заклинания, которое кнопка применит
+  // СЕЙЧАС: выбор из книги (lastSpells) → строка книги; без выбора —
+  // legacy G.autoSpellFor(u, 'урон'/'лечение') → его строка. poolKey
+  // строки (spellbook.js: intelligence→spellInt, иначе spellWis);
+  // источник пула: игрок c.ps, Эфир c.efs (null-guard), наёмник u.
+  // Нет строки/пула → null (бейдж скрыт; «нет пула» ≠ «0», 000199).
+  // Чистое чтение — в actionCounts (ОДИН расчёт на render);
+  // typeof-guard G.autoSpellFor (деградация: legacy-бейдж скрыт).
+  function spellBtnOf(c) {
+    const u = unitOf(c);
+    if (!u) return null;
+    let sel = (u === c.player) ? lastSpells.player : lastSpells[u.id];
+    if (!sel && u !== c.player && typeof G.autoSpellFor === 'function') {
+      sel = G.autoSpellFor(u, u.kind === 'efir' ? 'урон' : 'лечение');
+    }
+    if (!sel) return null;
+    const row = bookRows(c).find((r) => r.id === sel);
+    if (!row || !row.poolKey) return null;
+    const src = (u === c.player) ? c.ps
+      : (u.kind === 'efir' ? (c.efs || null) : u);
+    if (!src || typeof src[row.poolKey] !== 'number') return null;
+    return src[row.poolKey];
   }
 
   function openFleeConfirm() {
@@ -2510,6 +2661,7 @@
     hpbarEl = hpbarFillEl = hpbarTextEl = null;
     mpbarEl = mpbarFillEl = mpbarTextEl = null;
     countEls = {}; // 000199: как hpbar-refs — обе точки (D5b 000170)
+    lastSpells = {}; // 000227: как countEls — обе точки (finish/catch)
     bookBox = null;
     bookOpen = false;
     bookSig = null;
@@ -2720,6 +2872,7 @@
         hpbarEl = hpbarFillEl = hpbarTextEl = null;
         mpbarEl = mpbarFillEl = mpbarTextEl = null;
         countEls = {}; // 000199: как hpbar-refs — обе точки (D5b 000170)
+        lastSpells = {}; // 000227: как countEls — обе точки (finish/catch)
         bookBox = null;
         bookOpen = false;
         bookSig = null;

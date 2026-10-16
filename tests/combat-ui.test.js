@@ -334,12 +334,14 @@ test('боевой UI: кнопки панели действий собраны
     hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
   });
   // 000149: «Огонь» + «Исцел.» сдвинуты в одну кнопку «Книга
-  // заклинаний» — действий 8 → 7.
-  assert.equal(buttons.length, 7,
-    'кнопок действий = 7 (таблица combat-keys.js, задача 000149)');
+  // заклинаний» — действий 8 → 7. 000227: кнопка «Последнее
+  // заклинание» (дефолтный герой с книгой) — 7 → 8.
+  assert.equal(buttons.length, 8,
+    'кнопок действий = 8 (7 табличных + lastSpell, 000227)');
   const acts = buttons.map((b) => b.dataset.act).sort();
   assert.deepEqual(acts, [
-    'attack', 'block', 'endTurn', 'flee', 'invItem', 'quickItem', 'spellbook',
+    'attack', 'block', 'endTurn', 'flee', 'invItem', 'lastSpell',
+    'quickItem', 'spellbook',
   ]);
 });
 
@@ -1164,13 +1166,15 @@ test('боевой UI: кнопки .combat-actions — иконка (img assets
   G.combatUI.startCombat({
     hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
   });
-  assert.equal(buttons.length, 7,
-    'кнопок действий = 7 (таблица combat-keys.js, задача 000149)');
+  assert.equal(buttons.length, 8,
+    'кнопок действий = 8 (7 табличных + lastSpell, 000227)');
   const byAction = {};
   for (const it of G.CombatKeys.describeCombatKeys()) byAction[it.action] = it;
   for (const b of buttons) {
     const item = byAction[b.dataset.act];
-    assert.ok(item, 'кнопка из таблицы: ' + b.dataset.act);
+    const isLastSpell = b.dataset.act === 'lastSpell';
+    assert.ok(item || isLastSpell,
+      'кнопка из таблицы (или lastSpell, 000227): ' + b.dataset.act);
     // Иконка — единственный img-ребёнок; src — файл assets/ui/,
     // и файл СУЩЕСТВУЕТ (контракт иконок — память 000124).
     const imgs = b.children.filter((ch) => ch.tagName === 'img');
@@ -1183,9 +1187,13 @@ test('боевой UI: кнопки .combat-actions — иконка (img assets
       + 'факт: ' + img.src);
     assert.ok(fs.existsSync(path.join(ROOT, img.src)),
       'кнопка ' + b.dataset.act + ': файл иконки существует: ' + img.src);
-    // Доступность: aria-label = имя действия (из describeCombatKeys).
-    assert.equal(b.ariaLabel, item.label,
-      'кнопка ' + b.dataset.act + ': aria-label = «' + item.label
+    // Доступность: aria-label = имя действия (из describeCombatKeys);
+    // 000227: lastSpell — «Последнее заклинание» (из build, не из
+    // таблицы).
+    assert.equal(b.ariaLabel,
+      isLastSpell ? 'Последнее заклинание' : item.label,
+      'кнопка ' + b.dataset.act + ': aria-label = «'
+      + (isLastSpell ? 'Последнее заклинание' : item.label)
       + '», факт: ' + b.ariaLabel);
     // Текстовой (СЛОВЕСНОЙ) подписи (и клавиши-подсказки [J] и т.п.)
     // НЕТ. Ре-пин 000199 (ТЗ: количество действий — ЧИСЛОМ на
@@ -1217,6 +1225,16 @@ test('боевой UI: кнопки .combat-actions — иконка (img assets
         'кнопка ' + b.dataset.act + ': счётчик ЧИСЛОВОЙ — остаток '
         + 'шагов (одно число, без «/»), факт: '
         + JSON.stringify(cntBadge.textContent));
+    } else if (isLastSpell) {
+      // 000227: бейдж ЕСТЬ (children [img, span]); до выбора кнопка
+      // скрыта — текст бейджа '' (000199: «нет пула» ≠ «0»).
+      assert.ok(cntBadge,
+        'кнопка ' + b.dataset.act + ': числовой счётчик (бейдж) есть '
+        + '(000227), факт: ' + JSON.stringify(
+          b.children.map((ch) => ch.className)));
+      assert.equal(cntBadge.textContent, '',
+        'кнопка ' + b.dataset.act + ': до выбора бейдж «» (кнопка '
+        + 'скрыта), факт: ' + JSON.stringify(cntBadge.textContent));
     } else {
       assert.ok(!cntBadge,
         'кнопка ' + b.dataset.act + ': бейджа НЕТ (счётчики только на '
@@ -4395,7 +4413,7 @@ test('боевой UI: 000171 — гейты кнопки «Воскрешени
   }
 });
 
-test('боевой UI: 000171 — гейт canResurrect: дефолтный герой (без «Воскрешения») — кнопки НЕТ, панель 7 кнопок (CU171-GATE)', () => {
+test('боевой UI: 000171 — гейт canResurrect: дефолтный герой (без «Воскрешения») — кнопки НЕТ, панель 8 кнопок (CU171-GATE)', () => {
   // Зелёный guard: кнопка создаётся ТОЛЬКО под гейтом canResurrect
   // (носитель знает 'resurrect'); дефолтный герой (sheet.js:
   // ['spark','mend']) — панели бит-в-байт: пины «7 штук»/000124/
@@ -4407,8 +4425,9 @@ test('боевой UI: 000171 — гейт canResurrect: дефолтный ге
     'герой НЕ знает «Воскрешение» (дефолт)');
   assert.ok(!ally.alive,
     'фикстура: союзник мёртв (гейт — знание, а не «мёртвых нет»)');
-  assert.equal(S.buttons.length, 7,
-    'панель — 7 кнопок (кнопки «Воскрешение» нет)');
+  assert.equal(S.buttons.length, 8,
+    'панель — 8 кнопок (кнопки «Воскрешение» нет; lastSpell — '
+    + '000227, дефолтный герой с книгой)');
   assert.ok(!S.buttons.some((x) => x.dataset.act === 'resurrect'),
     'dataset.act=resurrect отсутствует');
 });
@@ -5137,7 +5156,8 @@ test('боевой UI: 000178 — тап «Каст» на ходу Эфира =
   assert.equal(byAct.cast.title, '', 'без причины — title пусто');
   assert.equal(byAct.cast.ariaLabel, 'Каст', 'aria-label «Каст»');
   assert.equal(byAct.cast.textContent, '', 'текстовой подписи нет (000124)');
-  assert.equal(byAct.cast.children.length, 1, 'ровно ОДИН дочерний элемент');
+  assert.equal(byAct.cast.children.length, 2,
+    'ровно ДВА дочерних элемента (000227: +бейдж остатка пула)');
   const img = byAct.cast.children[0];
   assert.equal(img.tagName, 'img', 'иконка — <img>');
   assert.equal(img.src, 'assets/ui/combat_cast.svg',
@@ -5253,7 +5273,8 @@ test('боевой UI: 000178 — тап «Лечение» на ходу suppor
   assert.equal(byAct.heal.title, '', 'без причины — title пусто');
   assert.equal(byAct.heal.ariaLabel, 'Лечение', 'aria-label «Лечение»');
   assert.equal(byAct.heal.textContent, '', 'текстовой подписи нет (000124)');
-  assert.equal(byAct.heal.children.length, 1, 'ровно ОДИН дочерний элемент');
+  assert.equal(byAct.heal.children.length, 2,
+    'ровно ДВА дочерних элемента (000227: +бейдж остатка пула)');
   const img = byAct.heal.children[0];
   assert.equal(img.tagName, 'img', 'иконка — <img>');
   assert.equal(img.src, 'assets/ui/combat_heal.svg',
@@ -5299,10 +5320,13 @@ test('боевой UI: 000178 — «Лечение» disabled с дословн�
     // (b) Никто не ранен (игрок 25/25, медик цел) → «нет раненых».
     { title: 'нет раненых', mut: null },
     // (c) В у.спells нет лечения → «нет лечения» (порядок ядра
-    // 000193: раненые → каталог).
+    // 000193: раненые → каталог). 000227 (D6): гейт «Лечение» —
+    // ЛЮБОЙ наёмник с НЕПУСТОЙ книгой — пустая книга (spells: [])
+    // кнопки НЕ строит; ре-пин: книга только с урон-заклинанием —
+    // пин ядра «нет лечения» без изменений.
     { title: 'нет лечения',
       roster: [{ name: 'Медик', role: 'support', level: 2, dmg: 1, hp: 1,
-        spells: [] }],
+        spells: ['spark'] }],
       mut: (S) => { S.c.player.hp = 15; } },
   ];
   for (const { title, mut, roster } of cases) {
@@ -5335,28 +5359,32 @@ test('боевой UI: 000178 — «Лечение» disabled с дословн�
   }
 });
 
-test('боевой UI: 000178 — гейты build(): без Эфира/support-наёмника кнопок НЕТ, панель бит-в-байт 7 (CU178-GATE)', () => {
+test('боевой UI: 000178 — гейты build(): без Эфира/support-наёмника кнопок НЕТ, панель бит-в-байт 8 (CU178-GATE)', () => {
   // ЗЕЛЁНЫЙ guard (зелёный и до, и после фикса): кнопки создаются
   // ТОЛЬКО под статическими гейтами состава партии (c.units в
-  // build()): «Каст» — Эфир в партии; «Лечение» — support-наёмник
-  // (role 'support' && kind 'merc'). Дефолтный бой и melee-отряд
-  // (Вольк — не Эфир и не support) — 7 табличных кнопок бит-в-байт:
-  // пины «7 штук»/000124/CU171-GATE/SB1 — без ре-пина (спящий пин,
-  // паттерн 000166/000171: защита от «кнопок без гейта»).
+  // build()): «Каст» — Эфир в партии; «Лечение» — наёмник с книгой
+  // (000227 D6: ЛЮБОЙ наёмник с непустой книгой; было:
+  // support-наёмник role 'support' && kind 'merc'). 000227:
+  // «Последнее заклинание» строится у героя с книгой (дефолт) —
+  // 7 → 8. Дефолтный бой и melee-отряд (Вольк — не Эфир, книги нет)
+  // — 7 табличных + lastSpell: пины «7 штук»/000124/CU171-GATE/SB1 —
+  // ре-пин 7→8 (000227, паттерн 000166/000171: защита от «кнопок
+  // без гейта»).
   const D = scene178({});
-  assert.equal(D.buttons.length, 7, 'дефолтный бой — 7 кнопок');
+  assert.equal(D.buttons.length, 8, 'дефолтный бой — 8 кнопок (000227)');
   assert.ok(!D.buttons.some((b) => b.dataset.act === 'cast'),
     'dataset.act=cast отсутствует (Эфира нет)');
   assert.ok(!D.buttons.some((b) => b.dataset.act === 'heal'),
-    'dataset.act=heal отсутствует (support-наёмника нет)');
+    'dataset.act=heal отсутствует (наёмника с книгой нет)');
   const M = scene178({ roster: [{ name: 'Вольк', role: 'melee', level: 2,
     dmg: 1, hp: 1 }] });
-  assert.equal(M.buttons.length, 7,
-    'melee-отряд (Вольк) — 7 кнопок (союзник есть, но НЕ под гейты)');
+  assert.equal(M.buttons.length, 8,
+    'melee-отряд (Вольк) — 8 кнопок (союзник есть, но НЕ под гейты; '
+    + 'lastSpell — 000227)');
   assert.ok(!M.buttons.some((b) => b.dataset.act === 'cast'),
     'dataset.act=cast отсутствует (Вольк — не Эфир)');
   assert.ok(!M.buttons.some((b) => b.dataset.act === 'heal'),
-    'dataset.act=heal отсутствует (Вольк — не support)');
+    'dataset.act=heal отсутствует (Вольк — книги нет, 000227 D6)');
 });
 
 // =====================================================================
@@ -5537,15 +5565,16 @@ test('боевой UI: 000182 — книга: закрывается при УС
     'книга ОСТАЛАСЬ открыта при отказе (игрок видит причину)');
 });
 
-test('боевой UI: 000182 — герой знает «Воскрешение» (без Эфира/medica): ровно 8 кнопок; порядок 7 табличных (first-appearance COMBAT_KEYS) + resurrect (CU182-BTN8)', () => {
+test('боевой UI: 000182 — герой знает «Воскрешение» (без Эфира/medica): ровно 9 кнопок; порядок 7 табличных (first-appearance COMBAT_KEYS) + lastSpell + resurrect (CU182-BTN8)', () => {
   const S = scene166();
-  assert.equal(S.buttons.length, 8,
-    'кнопок 8 (7 табличных + resurrect; гейты: cast нет — Эфира нет, '
-    + 'heal нет — support-наёмника нет)');
+  assert.equal(S.buttons.length, 9,
+    'кнопок 9 (7 табличных + lastSpell + resurrect, 000227; гейты: '
+    + 'cast нет — Эфира нет, heal нет — наёмника с книгой нет)');
   assert.deepEqual(S.buttons.map((b) => b.dataset.act),
     ['attack', 'spellbook', 'block', 'quickItem', 'invItem', 'flee',
-      'endTurn', 'resurrect'],
-    'порядок build(): таблица + resurrect (после cast/heal-блоков)');
+      'endTurn', 'lastSpell', 'resurrect'],
+    'порядок build(): таблица + lastSpell + resurrect (после '
+    + 'cast/heal-блоков, 000227 D8)');
 });
 
 test('боевой UI: 000182 — без G.Spells (битый порядок): resurrect-кнопка ЕСТЬ (canResurrect — чистое чтение u.spells), disabled + «Заклинания недоступны», стаб-клик → 1 строка, трат НЕТ, книга пустая «—» (CU182-NOSP)', () => {
@@ -5906,16 +5935,17 @@ test('боевой UI: 000182 — активный юнит = МОБ (m0): ОБ�
     'активен МОБ — «Лечение» скрыта (не только на ходу наёмника)');
 });
 
-test('боевой UI: 000182 — DOM-порядок .combat-actions: [attack, spellbook, block, quickItem, invItem, flee, endTurn, cast, heal, resurrect] (build(): таблица first-appearance → cast (Эфир) → heal (support-merc) → resurrect (canResurrect)) (CU182-ORDER)', () => {
+test('боевой UI: 000182 — DOM-порядок .combat-actions: [attack, spellbook, block, quickItem, invItem, flee, endTurn, cast, heal, lastSpell, resurrect] (build(): таблица first-appearance → cast (Эфир) → heal (наёмник с книгой) → lastSpell (000227) → resurrect (canResurrect)) (CU182-ORDER)', () => {
   const S = scene178({ efir: true, spells: true, roster: ROSTER_MEDIC,
     resurrect: true });
-  assert.equal(S.buttons.length, 10,
-    'кнопок 10 (7 табличных + cast + heal + resurrect)');
+  assert.equal(S.buttons.length, 11,
+    'кнопок 11 (7 табличных + cast + heal + lastSpell + resurrect, '
+    + '000227)');
   assert.deepEqual(S.buttons.map((b) => b.dataset.act),
     ['attack', 'spellbook', 'block', 'quickItem', 'invItem', 'flee',
-      'endTurn', 'cast', 'heal', 'resurrect'],
-    'порядок = дотягиваемость тапа (memory/000178 §3.3): новые '
-    + 'кнопки — ПОСЛЕ resurrect');
+      'endTurn', 'cast', 'heal', 'lastSpell', 'resurrect'],
+    'порядок = дотягиваемость тапа (memory/000178 §3.3): lastSpell — '
+    + 'перед resurrect (000227 D8: игрок-кнопки группируются)');
 });
 
 test('боевой UI: 000182 — spellbookUnitGate: фиксированный ПОРЯДОК (result → «бой закончен» ПЕРВЫМ; phase → «не ваш ход» вторым; активный персонаж — третьим) — зеркало resurrectChk (000171), закреплённое у CU171 (CU182-GATE-ORDER)', () => {
@@ -6981,8 +7011,9 @@ test('боевой UI: 000199 — кнопка «Книга заклинаний
     assert.equal(badge.textContent, '',
       'скрытый бейдж — текст пуст');
   }
-  // (c) Бейдж ЕСТЬ только на attack+spellbook+endTurn (000199.01):
-  //     НЕ на block/quickItem/invItem/flee/cast/heal/resurrect.
+  // (c) Бейдж ЕСТЬ только на attack+spellbook+endTurn
+  //     (000199.01) + cast/heal/lastSpell (000227): НЕ на
+  //     block/quickItem/invItem/flee/resurrect.
   {
     const S = scene84();
     for (const act of ['block', 'quickItem', 'invItem', 'flee']) {
@@ -7014,7 +7045,9 @@ test('боевой UI: 000199 — кнопка «Книга заклинаний
       + JSON.stringify(acts));
     for (const b of panelBtns) {
       if (b.dataset.act === 'attack' || b.dataset.act === 'spellbook'
-        || b.dataset.act === 'endTurn')
+        || b.dataset.act === 'endTurn'
+        || b.dataset.act === 'cast' || b.dataset.act === 'heal'
+        || b.dataset.act === 'lastSpell')
         continue;
       assert.ok(!badgeOf199(b),
         'бейджа НЕТ на кнопке «' + b.dataset.act + '»');
@@ -7171,6 +7204,609 @@ test('боевой UI: 000199.01 — бейдж у НЕАКТИВНЫХ: чис�
   assert.equal(t.styleCalls.filter((s) => s[0] === 'strokeStyle'
     && s[1] === '#8cf2fc').length, 1,
     'голубой stroke #8cf2fc за окно — ровно 1: рамка активного героя');
+});
+
+// =====================================================================
+// Задача 000227 — БОЙ: кнопка применения последнего выбранного
+// заклинания из книги + счётчик остатка (Флогистон, Эфир, союзные
+// NPC). ТЗ — tasks/pending/000227.md; контракты D1–D15 —
+// memory/000227-combat-last-spell-button.md.
+//
+// КРАСНЫЕ тесты (TDD, до реализации; порядок станций — memory §8).
+// Падение — осмысленное, функциональности НЕТ в текущем коде:
+// кнопки 'lastSpell' нет (grep src — ноль), бейджей
+// .combat-actcount на 'cast'/'heal' нет (children — только img),
+// состояния выбора (lastSpells) и lastSpellChk/lastSpellPress нет,
+// файла assets/ui/combat_lastspell.svg нет. Сцены собираются
+// штатно — падение на assert контракта, не на окружение.
+//
+// scene227 — self-contained копия scene178 + прокидка withAllySpells
+// (scene178 НЕ грузит ally-spells.js — книга на ходу союзника идёт
+// через G.AllySpells, паттерн CU179) + override heroSpells;
+// scene227yield — копия scene166 с hero.spells ['resurrect','spark']
+// (yield D8: lastSpell уступает видимую 8-ю клетку resurrect).
+// Выбор БЕЗ каста — цикл отказа (D3): whitebox mp < мана строки →
+// книга (KeyQ) → клик строки → ровно одна строка причины, трат НЕТ,
+// книга открыта → выбор записан (после реализации H10).
+// Зелёные guard внутри красных тестов (падают ни до, ни после):
+// CU227-EFIR(a)/CU227-MERC(a) — legacy-фолбэк бит-в-байт (без выбора
+// → strongestKnown/mostWounded, сцены CU178-CAST/CU178-HEAL);
+// CU227-FLEE — открытая flee-диалог + проглатывание K/H/cast-кликов
+// (000210, уже реализовано).
+// Блок — в СЕРЕДИНЕ файла (якорь 000193.01), не в конце: 000226
+// пишет в EOF этого файла.
+// =====================================================================
+
+function scene227(opts = {}) {
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body, buttons } = loadCombatUi(true, {
+    withEfir: !!opts.efir,
+    withSpells: !!opts.spells,
+    withAllySpells: !!opts.allySpells,
+    performance: { now: () => NOW84 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const hero = G.createCharacter();
+  if (opts.heroSpells) hero.spells = opts.heroSpells;
+  const c = G.combatUI.startCombat({
+    hero,
+    mobs: opts.mobs || ['wolf'], mobLevel: 1, seed: 42,
+    ...(opts.efir ? { efir: G.efir.createEfir() } : {}),
+    ...(opts.roster ? { rosterData: opts.roster } : {}),
+  });
+  return { G, c, canvas: findCanvas(body), body, keydown, rafStubs,
+    buttons, hero };
+}
+
+function scene227yield() {
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body, buttons } = loadCombatUi(true, {
+    withSpells: true,
+    performance: { now: () => NOW84 },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const hero = G.createCharacter();
+  hero.mp = 50;
+  hero.spells = ['resurrect', 'spark'];
+  const c = G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+    rosterData: [{ name: 'Вольк', role: 'melee', level: 1,
+      dmg: 1.2, hp: 1.1, skills: [], spells: [] }],
+  });
+  const ally = c.units.find((u) => u.side === 'ally'
+    && u.kind === 'merc');
+  G.combatInternals.dealDamageToAlly(c, ally, 9999);
+  rafStubs.scheduled[rafStubs.scheduled.length - 1]();
+  return { G, c, canvas: findCanvas(body), body, keydown, rafStubs,
+    hero, ally, buttons };
+}
+
+test('боевой UI: 000227 — панель: кнопка «Последнее заклинание» (act=lastSpell) при непустой книге героя: 8-я, children [img, span.combat-actcount], иконка combat_lastspell.svg, aria «Последнее заклинание», display none (выбора нет); пустая книга — 7 кнопок, lastSpell нет (гейт build) (CU227-BUILD)', () => {
+  const S = scene227({});
+  assert.equal(S.buttons.length, 8,
+    'бой по умолчанию — 8 кнопок (7 табличных + lastSpell): '
+    + S.buttons.length);
+  assert.equal(S.buttons.filter((b) => b.dataset.act === 'lastSpell')
+    .length, 1, 'кнопка lastSpell — ровно одна');
+  const byAct = byActOf178(S);
+  const b = byAct.lastSpell;
+  assert.ok(b, 'кнопка lastSpell построена (гейт: hero.spells не пусто)');
+  assert.equal(b.ariaLabel, 'Последнее заклинание',
+    'aria-label = «Последнее заклинание»');
+  assert.equal(b.children.length, 2,
+    'children — [img, span.combat-actcount]: ' + b.children.length);
+  const img = b.children[0];
+  assert.equal(img.tagName, 'img', 'иконка — <img>');
+  assert.equal(img.src, 'assets/ui/combat_lastspell.svg',
+    'иконка — assets/ui/combat_lastspell.svg (конвенция 000124): '
+    + img.src);
+  assert.equal(img.alt, '', 'alt="" (иконка — презентационная)');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/ui/combat_lastspell.svg')),
+    'файл иконки существует в каталоге');
+  const cnt = badgeOf199(b);
+  assert.ok(cnt, 'постоянный бейдж .combat-actcount (конвенция 000199)');
+  assert.equal(cnt.textContent, '', 'бейдж пуст до первого рендера');
+  assert.equal(b.style.display, 'none',
+    'display none (выбранного заклинания нет — видимость рендером)');
+  const acts = S.body.querySelectorAll('.combat-actions button')
+    .map((x) => x.dataset.act);
+  assert.deepEqual(acts,
+    ['attack', 'spellbook', 'block', 'quickItem', 'invItem', 'flee',
+     'endTurn', 'lastSpell'],
+    'порядок DOM: 7 табличных, lastSpell — 8-я');
+  const E = scene227({ heroSpells: [] });
+  assert.equal(E.buttons.length, 7,
+    'пустая книга — 7 кнопок (гейт build() false): '
+    + E.buttons.length);
+  assert.ok(!E.buttons.some((x) => x.dataset.act === 'lastSpell'),
+    'lastSpell нет (hero.spells = [])');
+});
+
+test('боевой UI: 000227 — lastSpell: без выбора — display none + стаб-клик «нет выбранного заклинания» (1 строка, трат НЕТ, 0 c._rng); выбор строкой из книги (каст) — display/enabled, бейдж = c.ps.spellInt; тап — каст ВЫБРАННОГО (пул 1→0, бейдж «0» виден); пул исчерпан — disabled с дословным title (CU227-PLAYER)', () => {
+  const S = scene227({ spells: true });
+  const { G, c } = S;
+  const m0 = c.units.find((x) => x.id === 'm0');
+  m0.x = c.px; m0.y = c.py - 1;
+  m0.maxHP = 100; m0.hp = 100;
+  c.selectTarget(m0.id);
+  c.ps.spellInt = 2; // пул на два каста (строка + кнопка)
+  assert.equal(G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  assert.equal(c.player.mp, 16, 'фикстура: мана 16');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.ok(byAct.lastSpell,
+    'кнопка lastSpell построена (гейт: hero.spells не пусто)');
+  assert.equal(byAct.lastSpell.style.display, 'none',
+    'выбора нет — display none (видимость: выбор + ход игрока)');
+  assert.equal(byAct.lastSpell.disabled, true,
+    'выбора нет — disabled (lastSpellChk)');
+  assert.equal(byAct.lastSpell.title, 'нет выбранного заклинания',
+    'title дословно: ' + JSON.stringify(byAct.lastSpell.title));
+  let rngCalls = 0;
+  const realRng = c._rng;
+  c._rng = () => (rngCalls++, realRng());
+  const n0 = c.log.length;
+  byAct.lastSpell.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const a0 = Array.from(c.log).slice(n0);
+  assert.deepEqual(a0, ['нет выбранного заклинания'],
+    'стаб-клик — ровно одна строка причины: ' + JSON.stringify(a0));
+  assert.equal(c.player.mp, 16, 'мана не потрачена');
+  assert.equal(c.ps.spellInt, 2, 'пул не потрачен');
+  assert.equal(rngCalls, 0, '0 c._rng (действия нет)');
+  const bookBtn = S.buttons.find((x) => x.dataset.act === 'spellbook');
+  bookBtn.listeners.click[0]();
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта');
+  const sparkRow = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(sparkRow, 'строка «Искра» в книге');
+  const n1 = c.log.length;
+  sparkRow.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const b0 = Array.from(c.log).slice(n1);
+  assert.match(b0[b0.length - 1], /^Искра по Волк: \d+\.$/,
+    'клик строки — каст + выбор записан (D3): ' + JSON.stringify(b0));
+  assert.equal(c.ps.spellInt, 1, 'пул 2→1 (каст строкой)');
+  assert.equal(c.player.mp, 13, 'мана 16→13 (Искра: 3)');
+  assert.equal(bookBox.style.display, 'none',
+    'книга закрыта (действие совершено)');
+  assert.equal(byAct.lastSpell.style.display, '',
+    'выбор + ход игрока — display ""');
+  assert.equal(byAct.lastSpell.disabled, false,
+    'enabled (canCastSpell: пул 1, мана 13)');
+  const cnt = badgeOf199(byAct.lastSpell);
+  assert.ok(cnt, 'бейдж на кнопке lastSpell');
+  assert.equal(cnt.textContent, String(c.ps.spellInt),
+    'бейдж = c.ps.spellInt («1»): ' + JSON.stringify(cnt.textContent));
+  const n2 = c.log.length;
+  byAct.lastSpell.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const d0 = Array.from(c.log).slice(n2);
+  assert.match(d0[d0.length - 1], /^Искра по Волк: \d+\.$/,
+    'тап кнопки — каст ВЫБРАННОГО (не fallback): ' + JSON.stringify(d0));
+  assert.equal(c.ps.spellInt, 0, 'пул 1→0');
+  assert.equal(c.player.mp, 10, 'мана 13→10');
+  assert.equal(cnt.textContent, '0', 'бейдж «0» после каста');
+  assert.equal(cnt.style.display, '', '«0» — виден (display "")');
+  assert.equal(byAct.lastSpell.disabled, true,
+    'пул исчерпан — disabled');
+  assert.equal(byAct.lastSpell.title,
+    'действий «Заклинание» (Интеллект) больше нет',
+    'title дословно (зеркало canCastSpell): '
+    + JSON.stringify(byAct.lastSpell.title));
+});
+
+test('боевой UI: 000227 — «Каст»: без выбора — legacy бит-в-байт (strongestKnown, сцена CU178-CAST: «Эфир: «Искра» — Волк: 6.»); с выбором из книги — каст ВЫБРАННОГО, не strongestKnown (книга spark+frost_bolt → кнопка «Искра», не «Морозная стрела»); бейдж cast: без выбора — legacy-пул (autoSpellFor → frost_bolt → spellInt «1»), с выбором — «1», после каста — «0» (CU227-EFIR)', () => {
+  {
+    const S = scene227({ efir: true, spells: true, allySpells: true });
+    const c = S.c;
+    const u = c.units.find((x) => x.kind === 'efir');
+    const wolf = c.units.find((x) => x.id === 'm0');
+    u.x = 3; u.y = 5;
+    wolf.x = 3; wolf.y = 4;
+    wolf.maxHP = 100; wolf.hp = 100;
+    tickSlice(S.canvas, S.rafStubs);
+    const byAct = byActOf178(S);
+    assert.ok(byAct.cast, 'кнопка «Каст» построена (гейт: Эфир в партии)');
+    assert.equal(S.G.activeUnitId(c), 'efir', 'фикстура: ход Эфира');
+    assert.equal(byAct.cast.style.display, '',
+      'видна на ходу Эфира');
+    assert.equal(u.mp, 11, 'фикстура: мана 11');
+    assert.equal(c.efs.spellInt, 1, 'фикстура: пул Интеллект 1');
+    const n0 = c.log.length;
+    byAct.cast.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const added = Array.from(c.log).slice(n0);
+    assert.deepEqual(added, ['Эфир: «Искра» — Волк: 6.'],
+      'без выбора — legacy strongestKnown («Искра», дефолтная книга): '
+      + JSON.stringify(added));
+    assert.equal(c.efs.spellInt, 0, 'пул 1→0');
+    assert.equal(u.mp, 8, 'мана 11→8');
+  }
+  {
+    const S = scene227({ efir: true, spells: true, allySpells: true });
+    const c = S.c;
+    const u = c.units.find((x) => x.kind === 'efir');
+    const wolf = c.units.find((x) => x.id === 'm0');
+    u.x = 3; u.y = 5;
+    wolf.x = 3; wolf.y = 4;
+    wolf.maxHP = 100; wolf.hp = 100;
+    u.spells = ['spark', 'frost_bolt'];
+    assert.equal(u.mp, 11, 'фикстура: мана 11');
+    assert.equal(c.efs.spellInt, 1, 'фикстура: пул Интеллект 1');
+    tickSlice(S.canvas, S.rafStubs);
+    const byAct = byActOf178(S);
+    assert.ok(byAct.cast, 'кнопка «Каст» построена');
+    const cnt = badgeOf199(byAct.cast);
+    assert.ok(cnt,
+      'бейдж .combat-actcount на «Каст» (ТЗ: число, как на остальных)');
+    assert.equal(cnt.textContent, '1',
+      'бейдж без выбора = legacy-пул (autoSpellFor → frost_bolt → '
+      + 'spellInt): ' + JSON.stringify(cnt.textContent));
+    u.mp = 2;
+    tickSlice(S.canvas, S.rafStubs);
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+    const sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    assert.ok(sparkRow, 'строка «Искра» в книге Эфира');
+    const n1 = c.log.length;
+    sparkRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const r0 = Array.from(c.log).slice(n1);
+    assert.deepEqual(r0, ['не хватает маны (3)'],
+      'клик строки без маны — отказ, выбор записан (D3): '
+      + JSON.stringify(r0));
+    assert.equal(c.efs.spellInt, 1, 'пул не потрачен (отказ)');
+    assert.equal(u.mp, 2, 'мана не потрачена (отказ)');
+    u.mp = 11;
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(cnt.textContent, '1',
+      'бейдж с выбором = пул выбранного (spark → spellInt): '
+      + JSON.stringify(cnt.textContent));
+    const n2 = c.log.length;
+    byAct.cast.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const added = Array.from(c.log).slice(n2);
+    assert.deepEqual(added, ['Эфир: «Искра» — Волк: 6.'],
+      'тап «Каст» — выбранный «Искра» (НЕ strongestKnown «Морозная '
+      + 'стрела»): ' + JSON.stringify(added));
+    assert.equal(c.efs.spellInt, 0, 'пул 1→0');
+    assert.equal(u.mp, 8, 'мана 11→8');
+    assert.equal(cnt.textContent, '0', 'бейдж «0» после каста');
+    assert.equal(cnt.style.display, '', '«0» — виден');
+  }
+});
+
+test('боевой UI: 000227 — «Лечение»: без выбора — legacy бит-в-байт (mostWounded + strongestKnown: книга mend+light_heal, мана 5 → отказ «не хватает маны (6)»); с выбором mend — каст на себя (000193 Д-F): ровно «Медик лечит себя (+6).», mp 5→2, spellWis 1→0; бейдж heal «1» → «0» (CU227-MERC)', () => {
+  {
+    const S = scene227({ spells: true, allySpells: true,
+      roster: ROSTER_MEDIC });
+    const c = S.c;
+    const medic = c.units.find((x) => x.side === 'ally'
+      && x.role === 'support' && x.kind === 'merc');
+    assert.equal(Array.from(c.turnOrder).join(','), 'm0,player,a0',
+      'фикстура: очередь');
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(c), 'a0',
+      'фикстура: ход support-наёмника');
+    medic.spells = ['mend', 'light_heal'];
+    c.player.hp = 15;
+    assert.equal(medic.mp, 5, 'фикстура: мана 5');
+    assert.equal(medic.spellWis, 1, 'фикстура: пул Мудрость 1');
+    tickSlice(S.canvas, S.rafStubs);
+    const byAct = byActOf178(S);
+    assert.ok(byAct.heal, 'кнопка «Лечение» построена (гейт: support)');
+    assert.equal(byAct.heal.style.display, '',
+      'видна на ходу support-наёмника');
+    assert.equal(byAct.heal.disabled, true,
+      'disabled (legacy: light_heal 6 маны > 5)');
+    assert.equal(byAct.heal.title, 'не хватает маны (6)',
+      'title legacy-причины: ' + JSON.stringify(byAct.heal.title));
+    let rngCalls = 0;
+    const realRng = c._rng;
+    c._rng = () => (rngCalls++, realRng());
+    const n0 = c.log.length;
+    byAct.heal.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const a0 = Array.from(c.log).slice(n0);
+    assert.deepEqual(a0, ['не хватает маны (6)'],
+      'без выбора — legacy strongestKnown → отказ: '
+      + JSON.stringify(a0));
+    assert.equal(c.player.hp, 15, 'игрок не залечен');
+    assert.equal(medic.mp, 5, 'мана не потрачена');
+    assert.equal(medic.spellWis, 1, 'пул не потрачен');
+    assert.equal(rngCalls, 0, '0 c._rng');
+  }
+  {
+    const S = scene227({ spells: true, allySpells: true,
+      roster: ROSTER_MEDIC });
+    const c = S.c;
+    const medic = c.units.find((x) => x.side === 'ally'
+      && x.role === 'support' && x.kind === 'merc');
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(c), 'a0',
+      'фикстура: ход support-наёмника');
+    medic.spells = ['mend', 'light_heal'];
+    c.player.hp = c.player.maxHP;
+    medic.hp = medic.maxHP;
+    assert.equal(medic.mp, 5, 'фикстура: мана 5');
+    assert.equal(medic.spellWis, 1, 'фикстура: пул Мудрость 1');
+    tickSlice(S.canvas, S.rafStubs);
+    const byAct = byActOf178(S);
+    assert.ok(byAct.heal, 'кнопка «Лечение» построена');
+    const cnt = badgeOf199(byAct.heal);
+    assert.ok(cnt,
+      'бейдж .combat-actcount на «Лечение» (ТЗ: число, как на остальных)');
+    assert.equal(cnt.textContent, '1',
+      'бейдж без выбора = legacy-пул (strongestKnown → light_heal → '
+      + 'spellWis): ' + JSON.stringify(cnt.textContent));
+    medic.mp = 2;
+    tickSlice(S.canvas, S.rafStubs);
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+    const mendRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'mend');
+    assert.ok(mendRow, 'строка «Заговора» в книге Медика');
+    const n1 = c.log.length;
+    mendRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const r0 = Array.from(c.log).slice(n1);
+    assert.deepEqual(r0, ['не хватает маны (3)'],
+      'клик строки без маны — отказ, выбор записан (D3): '
+      + JSON.stringify(r0));
+    assert.equal(medic.mp, 2, 'мана не потрачена (отказ)');
+    medic.mp = 5;
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(cnt.textContent, '1',
+      'бейдж с выбором = пул выбранного (mend → spellWis): '
+      + JSON.stringify(cnt.textContent));
+    const n2 = c.log.length;
+    byAct.heal.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const added = Array.from(c.log).slice(n2);
+    assert.deepEqual(added, ['Медик лечит себя (+6).'],
+      'тап «Лечение» — ВЫБРАННЫЙ mend на себя (000193 Д-F), legacy бы '
+      + 'дал «нет раненых»: ' + JSON.stringify(added));
+    assert.equal(medic.mp, 2, 'мана 5→2 (mend: 3)');
+    assert.equal(medic.spellWis, 0, 'пул Мудрость 1→0');
+    assert.equal(cnt.textContent, '0', 'бейдж «0» после каста');
+    assert.equal(cnt.style.display, '', '«0» — виден');
+  }
+});
+
+test('боевой UI: 000227 — бейджи: value = остаток пула ВЫБРАННОГО по атрибуту (spark → spellInt «3», mend → spellWis «2»); «0» виден (000199 Д3/Д4 — паритет с «Удар»); бейджи на всех ТРЕХ кнопках (children [img, span]); кнопка скрыта (чужой ход) — бейдж display none + текст "" (CU227-BADGE)', () => {
+  {
+    const S = scene227({ spells: true });
+    const c = S.c;
+    const m0 = c.units.find((x) => x.id === 'm0');
+    m0.x = c.px; m0.y = c.py - 1;
+    m0.maxHP = 100; m0.hp = 100;
+    c.selectTarget(m0.id);
+    c.ps.spellInt = 3;
+    c.ps.spellWis = 2;
+    tickSlice(S.canvas, S.rafStubs);
+    const byAct = byActOf178(S);
+    assert.ok(byAct.lastSpell, 'кнопка lastSpell построена');
+    const cnt = badgeOf199(byAct.lastSpell);
+    assert.ok(cnt, 'бейдж на кнопке lastSpell');
+    c.player.mp = 2;
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+    let sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    assert.ok(sparkRow, 'строка «Искра» в книге');
+    sparkRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(c.player.mp, 2, 'отказ — мана не потрачена');
+    c.player.mp = 16;
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(cnt.textContent, '3',
+      'бейдж = остаток пула выбранного (spellInt «3»): '
+      + JSON.stringify(cnt.textContent));
+    assert.equal(cnt.style.display, '', 'бейдж виден (кнопка видима)');
+    c.ps.spellInt = 0;
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(cnt.textContent, '0', 'пул 0 — «0»');
+    assert.equal(cnt.style.display, '', '«0» — виден (display "")');
+    c.player.mp = 2;
+    tickSlice(S.canvas, S.rafStubs);
+    const mendRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'mend');
+    assert.ok(mendRow, 'строка «Заговора» в книге (книга всё ещё открыта)');
+    mendRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    c.player.mp = 16;
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(cnt.textContent, '2',
+      'бейдж — атрибут НОВОГО выбора (mend → spellWis «2»): '
+      + JSON.stringify(cnt.textContent));
+  }
+  {
+    const S = scene227({ efir: true, spells: true, allySpells: true,
+      roster: ROSTER_MEDIC });
+    tickSlice(S.canvas, S.rafStubs);
+    const byAct = byActOf178(S);
+    for (const act of ['cast', 'heal', 'lastSpell']) {
+      assert.ok(byAct[act], 'кнопка ' + act + ' построена (полная панель)');
+      assert.equal(byAct[act].children.length, 2,
+        act + ': children — [img, span]');
+      assert.equal(byAct[act].children[0].tagName, 'img',
+        act + ': иконка <img>');
+      assert.ok(badgeOf199(byAct[act]),
+        act + ': бейдж .combat-actcount');
+    }
+  }
+  {
+    const S = scene227({ efir: true, spells: true, allySpells: true,
+      roster: ROSTER_MEDIC });
+    const c = S.c;
+    const medic = c.units.find((x) => x.side === 'ally'
+      && x.role === 'support' && x.kind === 'merc');
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(S.G.activeUnitId(c), medic.id,
+      'фикстура: ход Медика (efir → волк → player → medic)');
+    const byAct = byActOf178(S);
+    assert.equal(byAct.lastSpell.style.display, 'none',
+      'чужой ход — lastSpell скрыта (видимость: ход игрока + выбор)');
+    const cnt = badgeOf199(byAct.lastSpell);
+    assert.equal(cnt.style.display, 'none', 'скрытый бейдж — display none');
+    assert.equal(cnt.textContent, '', 'скрытый бейдж — пустой текст');
+  }
+});
+
+test('боевой UI: 000227 — fleeOpen (000210): клики по трём кнопкам + K/H — НИ ОДНОГО каста, трат НЕТ, строк НЕТ, 0 c._rng (восьмая точка входа), бой не завершён, диалог открыт (CU227-FLEE)', () => {
+  const S = scene227({ efir: true, spells: true, allySpells: true,
+    roster: ROSTER_MEDIC });
+  const { G, c } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const medic = c.units.find((x) => x.side === 'ally'
+    && x.role === 'support' && x.kind === 'merc');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  assert.equal(G.activeUnitId(c), 'efir', 'фикстура: pre-roll стоп на efir');
+  c.turnIndex = c.turnOrder.indexOf('player');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  const fleeBtn = S.buttons.find((b) => b.dataset.act === 'flee');
+  fleeBtn.listeners.click[0]();
+  const fleeBox = findByClass(S.body, 'combat-flee-confirm');
+  assert.notEqual(fleeBox.style.display, 'none',
+    'фикстура: flee-диалог открыт (000210)');
+  let rngCalls = 0;
+  const realRng = c._rng;
+  c._rng = () => (rngCalls++, realRng());
+  const snap = {
+    logLen: c.log.length,
+    efirMp: u.mp, efirInt: c.efs.spellInt,
+    mercMp: medic.mp, mercWis: medic.spellWis,
+    playerMp: c.player.mp,
+    int: c.ps.spellInt, wis: c.ps.spellWis,
+    wolfHp: wolf.hp,
+  };
+  const byAct = byActOf178(S);
+  assert.ok(byAct.cast, 'кнопка «Каст» построена');
+  assert.ok(byAct.heal, 'кнопка «Лечение» построена');
+  assert.ok(byAct.lastSpell,
+    'кнопка lastSpell построена (гейт: hero.spells не пусто)');
+  c.turnIndex = c.turnOrder.indexOf('efir');
+  tickSlice(S.canvas, S.rafStubs);
+  byAct.cast.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  press(S.keydown, 'KeyK');
+  c.turnIndex = c.turnOrder.indexOf('player');
+  tickSlice(S.canvas, S.rafStubs);
+  byAct.lastSpell.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  c.turnIndex = c.turnOrder.indexOf(medic.id);
+  tickSlice(S.canvas, S.rafStubs);
+  byAct.heal.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  press(S.keydown, 'KeyH');
+  assert.equal(c.log.length, snap.logLen,
+    'строк в журнале НЕТ (ни действий, ни отказов): '
+    + JSON.stringify(Array.from(c.log).slice(snap.logLen)));
+  assert.equal(u.mp, snap.efirMp, 'мана Эфира не потрачена');
+  assert.equal(c.efs.spellInt, snap.efirInt, 'пул Эфира не потрачен');
+  assert.equal(medic.mp, snap.mercMp, 'мана наёмника не потрачена');
+  assert.equal(medic.spellWis, snap.mercWis, 'пул наёмника не потрачен');
+  assert.equal(c.player.mp, snap.playerMp, 'мана игрока не потрачена');
+  assert.equal(c.ps.spellInt, snap.int, 'пул игрока не потрачен');
+  assert.equal(c.ps.spellWis, snap.wis, 'пул игрока не потрачен');
+  assert.equal(wolf.hp, snap.wolfHp, 'волк не задет');
+  assert.equal(c.result, null, 'бой не завершён');
+  assert.equal(rngCalls, 0, '0 c._rng (действий нет)');
+  assert.notEqual(fleeBox.style.display, 'none', 'диалог всё ещё открыт');
+});
+
+test('боевой UI: 000227 — выбор НЕ переносится между боями: выбор в бою 1 (кнопка видима) → finish → новый startCombat (тот же sandbox, re-build) — lastSpells очищен: display none, стаб-клик — «нет выбранного заклинания» (CU227-RESET)', () => {
+  const S = scene227({ spells: true });
+  const { G, c } = S;
+  const m0 = c.units.find((x) => x.id === 'm0');
+  m0.x = c.px; m0.y = c.py - 1;
+  m0.maxHP = 100; m0.hp = 100;
+  c.selectTarget(m0.id);
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.ok(byAct.lastSpell, 'кнопка lastSpell построена (бой 1)');
+  const bookBtn = S.buttons.find((x) => x.dataset.act === 'spellbook');
+  bookBtn.listeners.click[0]();
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  const sparkRow = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(sparkRow, 'строка «Искра» в книге (бой 1)');
+  sparkRow.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(byAct.lastSpell.style.display, '',
+    'бой 1: выбор есть — кнопка видима');
+  c.result = { outcome: 'victory' };
+  tickSlice(S.canvas, S.rafStubs);
+  press(S.keydown, 'Space');
+  assert.equal(G.combatUI.isActive(), false, 'бой 1 завершён (finish)');
+  const c2 = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c2, 'бой 2 создан (тот же sandbox)');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct2 = byActOf178(S);
+  assert.ok(byAct2.lastSpell, 'кнопка lastSpell построена (бой 2)');
+  assert.equal(byAct2.lastSpell.style.display, 'none',
+    'бой 2: выбора нет (lastSpells очищен при re-build — D2)');
+  const n0 = c2.log.length;
+  byAct2.lastSpell.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  assert.deepEqual(Array.from(c2.log).slice(n0),
+    ['нет выбранного заклинания'],
+    'стаб-клик — «нет выбранного заклинания» (выбор НЕ перенёсся): '
+    + JSON.stringify(Array.from(c2.log).slice(n0)));
+});
+
+test('боевой UI: 000227 — yield: мёртвый союзник (resurrect enabled) + выбранный spark — lastSpell СКРЫТА (display none, 8-я видимая клетка занята resurrect), resurrect видима + enabled; без выбора lastSpell тоже скрыта (CU227-YIELD)', () => {
+  const S = scene227yield();
+  const { G, c } = S;
+  assert.ok(!S.ally.alive, 'фикстура: союзник мёртв');
+  assert.equal(c.phase, 'player', 'фикстура: ход игрока');
+  assert.deepEqual([...c.player.spells], ['resurrect', 'spark'],
+    'фикстура: герой знает resurrect + spark');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.ok(byAct.resurrect, 'кнопка «Воскрешение» построена (000171)');
+  assert.ok(byAct.lastSpell,
+    'кнопка lastSpell построена (гейт: hero.spells не пусто)');
+  assert.notEqual(byAct.resurrect.style.display, 'none',
+    'resurrect — видима (мёртвый союзник; display-тогла нет, 000171)');
+  assert.equal(byAct.resurrect.disabled, false,
+    'resurrect — enabled (мёртвый союзник, пул/мана 50)');
+  assert.equal(byAct.lastSpell.style.display, 'none',
+    'выбора нет — display none');
+  c.player.mp = 2;
+  tickSlice(S.canvas, S.rafStubs);
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  const sparkRow = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(sparkRow, 'строка «Искра» в книге героя');
+  sparkRow.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  c.player.mp = 50;
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(byAct.lastSpell.style.display, 'none',
+    'yield D8: resurrect enabled — lastSpell скрыта (8-я клетка free)');
+  assert.notEqual(byAct.resurrect.style.display, 'none',
+    'resurrect — видима (не скрыта yield-ом; display-тогла нет, 000171)');
+  assert.equal(byAct.resurrect.disabled, false,
+    'resurrect — enabled (выбор spark его не гасит)');
 });
 
 // ===== 000193.01: MP-полоса наёмника — мана (u.mp/u.maxMP) =====
@@ -8326,8 +8962,9 @@ test('боевой UI: 000210 — панель .combat-flee-confirm в .combat-b
     '«нет» — .combat-flee-btn--no (зелёная): ' + no.className);
   assert.equal(yes.textContent, 'да', 'текст «да» — строчный, как в ТЗ');
   assert.equal(no.textContent, 'нет', 'текст «нет» — строчный, как в ТЗ');
-  assert.equal(buttons.length, 7,
-    'счётчик <button> стаба = 7 (кнопки диалога — div, пин не вырос)');
+  assert.equal(buttons.length, 8,
+    'счётчик <button> стаба = 8 (000227: +lastSpell; кнопки '
+    + 'диалога — div, пин диалога не вырос)');
 });
 
 test('боевой UI: 000210 — клик «Побег» и [F] — открывается confirmation-диалог, НЕ мгновенный побег: 0 c._rng, round/log/phase/result нетронуты, активен player (CU210-OPEN)', () => {

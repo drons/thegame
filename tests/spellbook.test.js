@@ -230,7 +230,7 @@ function loadCheckSvg() {
 // SB1: кнопка «Книга заклинаний» вместо пары «Огонь»/«Исцел.»
 // ---------------------------------------------------------------------------
 
-test('SB1: нет кнопок fire/heal; ровно одна spellbook; всего 7; иконка+aria (000149)', () => {
+test('SB1: нет кнопок fire/heal; ровно одна spellbook; всего 8; иконка+aria (000149/000227)', () => {
   const { G, buttons } = loadBookUi();
   G.combatUI.startCombat({
     hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
@@ -244,9 +244,9 @@ test('SB1: нет кнопок fire/heal; ровно одна spellbook; все�
   assert.equal(bookBtns.length, 1,
     'кнопок «Книга заклинаний» (act=spellbook) ровно одна, найдено: '
       + bookBtns.length);
-  assert.equal(buttons.length, 7,
-    'кнопок действий всего 7 (таблица combat-keys.js), факт: '
-      + buttons.length);
+  assert.equal(buttons.length, 8,
+    'кнопок действий всего 8 (7 табличных + lastSpell, 000227), '
+    + 'факт: ' + buttons.length);
   const b = bookBtns[0];
   const imgs = b.children.filter((ch) => ch.tagName === 'img');
   assert.equal(imgs.length, 1, 'у кнопки книги ровно одна иконка');
