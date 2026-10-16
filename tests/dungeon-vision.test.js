@@ -995,3 +995,359 @@ test('туман FOG-E2: «Кошачий глаз» (derived live) — ради
     + 'G.derived(hero).caveVisionMult → radiusFor → маска → рендер): '
     + h.errors.join('; '));
 });
+
+// =====================================================================
+// MOBV (000225): мобы за пределами зрения персонажа не отображаются
+// =====================================================================
+//
+// ТЗ (tasks/pending/000225.md): в пещерах не должны показываться мобы,
+// которые за пределами зрения персонажа.
+// Контракты — memory/000225-dungeon-mob-vision.md:
+//   D1: группа мобов (включая босса) рисуется, только если КЛЕТКА
+//   ГРУППЫ (m.x, m.y) — mask == 2 (видно); mask == 1 (исследована,
+//   вне радиуса) — моб НЕ рисуется (в отличие от пола/сундуков — те
+//   остаются видимыми затемнёнными);
+//   D2: гейт цикла мобов — `mask === 0` → `mask !== 2`; слои пола,
+//   сундуков (mask === 0), затемнения — без изменений.
+//
+// КРАСНЫЕ (падают на текущем коде — гейт mask === 0 пропускает
+// explored-клетки, mask 1; падают ТОЛЬКО на ассертах «вне радиуса —
+// не рисуется»): MOBV-1 (legacy-группа, vm), MOBV-3 (босс: bbox +
+// спрайты юнитов, vm), MOBV-5 (full-chain: подход + отход — в финальном
+// кадре моб исследован и вне радиуса, а спрайт юнитов рисуется).
+// ЗЕЛЁНЫЕ пины (регрессия — рисование видимых мобов не меняется):
+// MOBV-2 (видимый legacy-моб — та же позиция/размер), MOBV-4
+// (граница R = 5 + сундук explored вне радиуса — всё ещё рисуется,
+// слой сундуков 000225 не трогает).
+//
+// Детерминизм MOBV-5: сид карты фиксирован (MAP_PNG_SEED), герой (7,17),
+// R = 5 («Кошачьего глаза» нет), 25 клавиш: подход в зону (13,13) и
+// отход в (3,20). Сверено прогоном (3 независимых запуска): g0
+// (crawling_bones/skeleton) — 2 юнита; есть кадр, где g0 в радиусе
+// (спрайт рисуется); финал — g0 (13,14), rendered-герой (3,19),
+// cheb 10 > 5, клетка (13,14) исследована (пол + FOG_DIM_FILL).
+
+// --- Локальные копии (автономность тест-файла; паттерн
+// tests/dungeon-ui.test.js) ---
+
+// Детерминированные смещения юнита группы ПО ИНДЕКСУ (000067).
+const MOB_UNIT_OFF = [[0, 0], [-0.35, 0.15], [0.35, 0.15]];
+
+// DI spriteLoader-стаб: «ready» — ТОЛЬКО пути из paths; изображение —
+// { __img: path } (путь читаем из drawCalls).
+function makeSpriteLoader(paths) {
+  const ready = new Set(paths);
+  const imgs = new Map();
+  return {
+    isReady: (p) => ready.has(p),
+    image: (p) => {
+      if (!ready.has(p)) return null;
+      if (!imgs.has(p)) imgs.set(p, { __img: p });
+      return imgs.get(p);
+    },
+  };
+}
+
+// Все пути базовых видов мобов MOB_FRAMES («всё готово»-набор).
+function allMobFramePaths(G) {
+  const out = [];
+  for (const frames of Object.values(G.MOB_FRAMES)) out.push(...frames);
+  return out;
+}
+
+test('мобы MOBV-1: legacy-группа (без mobIds) — explored вне радиуса: не показывается', () => {
+  const { body, errors, s, rafStubs, T, P } = loadFogDungeon({
+    stateOpts: {
+      px: 4, py: 1,
+      mobs: [{ mobIds: [], x: 8, y: 1, level: 3, defeated: false }],
+    },
+  });
+  T.t += 16;
+  tick(rafStubs); // кадр 1: hero (4,1) — cheb 4 ≤ R = 5
+  const calls = findCanvas(body).drawCalls;
+  const p81 = P(8, 1);
+  assert.ok(fillRectAt(calls, '#d9483b', p81.x + 3, p81.y + 3, 34, 34),
+    'кадр 1: (8,1) — cheb 4 ≤ R — видно — квадрат #d9483b (zoom−6, +3/+3)');
+  const f1End = calls.length;
+  s.x = 1;
+  T.t += 16;
+  tick(rafStubs); // кадр 2: hero (1,1) — (8,1) cheb 7, explored (mask 1)
+  const calls2 = findCanvas(body).drawCalls.slice(f1End);
+  assert.ok(floorRectAt(calls2, p81.x, p81.y, 40),
+    'кадр 2: (8,1) — explored вне радиуса — пол РИСУЕТСЯ (не «слепота»)');
+  assert.ok(fillRectAt(calls2, FOG_DIM_FILL, p81.x, p81.y, 40, 40),
+    'кадр 2: (8,1) — затемнение ' + FOG_DIM_FILL + ' (explored)');
+  assert.ok(!fillRectAt(calls2, '#d9483b', p81.x + 3, p81.y + 3, 34, 34),
+    'кадр 2: группа за пределами зрения (cheb 7) — НЕ показывается (000225)');
+  assert.equal(errors.length, 0, 'нет console.error: ' + JSON.stringify(errors));
+});
+
+test('мобы MOBV-2: видимая legacy-группа — рисуется (позиция/размер без изменений)', () => {
+  const { body, errors, rafStubs, T, P } = loadFogDungeon({
+    stateOpts: {
+      mobs: [{ mobIds: [], x: 2, y: 1, level: 3, defeated: false }],
+    },
+  });
+  T.t += 16;
+  tick(rafStubs); // hero (1,1) — cheb 1
+  const calls = findCanvas(body).drawCalls;
+  const p21 = P(2, 1);
+  assert.ok(fillRectAt(calls, '#d9483b', p21.x + 3, p21.y + 3, 34, 34),
+    '(2,1) — cheb 1 ≤ R — видно — квадрат #d9483b (zoom−6, +3/+3)');
+  assert.equal(errors.length, 0, 'нет console.error: ' + JSON.stringify(errors));
+});
+
+test('мобы MOBV-3: босс (bbox + спрайты юнитов) — explored вне радиуса: не показывается', () => {
+  const pre = loadDungeonUi({ withSprites: true });
+  const loader = makeSpriteLoader(allMobFramePaths(pre.G));
+  const boss = {
+    boss: true, level: 7, defeated: false,
+    mobIds: ['abomination', 'lower_demon', 'lower_demon'],
+    x: 8, y: 1,
+  };
+  const { G, body, errors, s, rafStubs, T, P } = loadFogDungeon({
+    withSprites: true,
+    stateOpts: { type: 4, px: 4, py: 1, mobs: [boss] },
+    startOpts: { spriteLoader: loader },
+  });
+  // start() — синхронный кадр 0 (dungeon-ui start): счёт ассертов —
+  // на кадре 1 (первый tick), не на накоплении.
+  const f0End = findCanvas(body).drawCalls.length;
+  T.t += 16;
+  tick(rafStubs); // кадр 1: hero (4,1) — cheb 4 ≤ R = 5
+  const calls = findCanvas(body).drawCalls.slice(f0End);
+  const zoom = 40;
+  const ms = zoom * 1.2;
+  const units = boss.mobIds.map((id, i) => ({
+    id,
+    x: boss.x + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][0],
+    y: boss.y + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][1],
+  }));
+  let minX = Infinity, minY = Infinity;
+  let maxX = -Infinity, maxY = -Infinity;
+  for (const u of units) {
+    minX = Math.min(minX, u.x - 0.1);
+    maxX = Math.max(maxX, u.x + 1.1);
+    minY = Math.min(minY, u.y - 0.1);
+    maxY = Math.max(maxY, u.y + 1.1);
+  }
+  const bb = P(minX, minY);
+  const f1End = findCanvas(body).drawCalls.length;
+  assert.ok(fillRectAt(calls, '#b06ad4', bb.x, bb.y,
+      (maxX - minX) * zoom, (maxY - minY) * zoom),
+    'кадр 1: босс — bbox #b06ad4 (юниты ±0.1/+1.1)');
+  assert.equal(calls.filter((c) => c[0] === 'fillRect'
+    && c[2] === '#b06ad4').length, 1,
+    'кадр 1: bbox ровно ОДИН (юниты — спрайты)');
+  for (let i = 0; i < units.length; i++) {
+    const u = units[i];
+    const frames = G.MOB_FRAMES[G.mobSpriteKind(u.id)];
+    const fi = Math.floor(G.frameIndex(T.t, u.x, u.y, frames.length));
+    const mc = P(u.x + 0.5, u.y + 0.5);
+    const hit = calls.find((c) => c[0] === 'drawImage'
+      && Math.abs(c[1][1] - (mc.x - ms / 2)) < 1e-9
+      && Math.abs(c[1][2] - (mc.y - ms / 2)) < 1e-9
+      && Math.abs(c[1][3] - ms) < 1e-9 && Math.abs(c[1][4] - ms) < 1e-9
+      && c[1][0] && c[1][0].__img === frames[fi]);
+    assert.ok(hit,
+      'кадр 1: юнит ' + i + ' (' + u.id + ') — спрайт ' + frames[fi]
+      + ' (zoom*1.2, центр юнита)');
+  }
+  assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#d9483b'),
+    'кадр 1: красных квадратов #d9483b нет (юниты — спрайты)');
+  s.x = 1;
+  T.t += 16;
+  tick(rafStubs); // кадр 2: hero (1,1) — (8,1) cheb 7, explored (mask 1)
+  const calls2 = findCanvas(body).drawCalls.slice(f1End);
+  const p81 = P(8, 1);
+  assert.ok(floorRectAt(calls2, p81.x, p81.y, 40),
+    'кадр 2: (8,1) — explored вне радиуса — пол РИСУЕТСЯ');
+  assert.ok(fillRectAt(calls2, FOG_DIM_FILL, p81.x, p81.y, 40, 40),
+    'кадр 2: (8,1) — затемнение (explored)');
+  assert.ok(!calls2.some((c) => c[0] === 'fillRect' && c[2] === '#b06ad4'),
+    'кадр 2: босс за пределами зрения (cheb 7) — bbox НЕ рисуется (000225)');
+  for (let i = 0; i < units.length; i++) {
+    const u = units[i];
+    const mc = P(u.x + 0.5, u.y + 0.5);
+    const hit = calls2.some((c) => c[0] === 'drawImage'
+      && Math.abs(c[1][1] - (mc.x - ms / 2)) < 1e-9
+      && Math.abs(c[1][2] - (mc.y - ms / 2)) < 1e-9
+      && Math.abs(c[1][3] - ms) < 1e-9 && Math.abs(c[1][4] - ms) < 1e-9);
+    assert.ok(!hit,
+      'кадр 2: юнит босса ' + i + ' (' + u.id + ') — НЕ показывается (000225)');
+  }
+  assert.equal(errors.length, 0, 'нет console.error: ' + JSON.stringify(errors));
+});
+
+test('мобы MOBV-4: граница R видима; explored-сундук вне радиуса — рисуется (слой сундуков не тронут)', () => {
+  const { body, errors, s, rafStubs, T, P } = loadFogDungeon({
+    stateOpts: {
+      mobs: [
+        { mobIds: [], x: 6, y: 1, level: 3, defeated: false },
+        { mobIds: [], x: 8, y: 1, level: 3, defeated: false },
+      ],
+      chests: [{ x: 2, y: 1, opened: false }],
+    },
+  });
+  T.t += 16;
+  tick(rafStubs); // кадр 1: hero (1,1)
+  const calls = findCanvas(body).drawCalls;
+  const p61 = P(6, 1);
+  const p81 = P(8, 1);
+  const p21 = P(2, 1);
+  assert.ok(fillRectAt(calls, '#d9483b', p61.x + 3, p61.y + 3, 34, 34),
+    'кадр 1: (6,1) — cheb 5 = граница R — видно — рисуется');
+  assert.ok(!fillRectAt(calls, '#d9483b', p81.x + 3, p81.y + 3, 34, 34),
+    'кадр 1: (8,1) — cheb 7, неисследовано — не рисуется');
+  assert.ok(fillRectAt(calls, '#e0b13c', p21.x + 3, p21.y + 3, 34, 34),
+    'кадр 1: сундук (2,1) — видно — рисуется');
+  const f1End = calls.length;
+  s.x = 8;
+  T.t += 16;
+  tick(rafStubs); // кадр 2: hero (8,1) — (2,1) cheb 6, explored (mask 1)
+  const calls2 = findCanvas(body).drawCalls.slice(f1End);
+  assert.ok(fillRectAt(calls2, '#e0b13c', p21.x + 3, p21.y + 3, 34, 34),
+    'кадр 2: сундук (2,1) — explored вне радиуса — всё ещё рисуется '
+    + '(гейт сундуков mask === 0 — 000225 его не меняет)');
+  assert.ok(fillRectAt(calls2, '#7a5c16', p21.x + 3, p21.y + 19, 34, 2),
+    'кадр 2: полоса сундука — рисуется (позиция/размер без изменений)');
+  assert.equal(errors.length, 0, 'нет console.error: ' + JSON.stringify(errors));
+});
+
+// keydown+keyup одной клавишей — ОДИН синхронный кадр (dungeon-ui
+// keydown-обработчик: onMove + render; main.js dungeonOnMove).
+function pressKey(h, code) {
+  const e = {
+    code, key: code, prevented: false,
+    preventDefault() { this.prevented = true; },
+    stopPropagation() {},
+  };
+  for (const fn of (h.winListeners['keydown'] || []).slice()) fn(e);
+  for (const fn of (h.winListeners['keyup'] || []).slice()) fn(e);
+  return e;
+}
+
+test('мобы MOBV-5: полная цепочка — за пределами зрения (approach + retreat) — моб не показывается', async () => {
+  const h = await bootFull();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const g = h.sandbox.__game;
+  const G2 = h.sandbox.Game;
+  const R = G2.dungeonUI.vision.radiusFor(1.0);
+  assert.equal(R, 5, 'без «Кошачьего глаза»: R = 5 (база)');
+  const ds = g.actions.enterDungeon();
+  assert.ok(ds, 'enterDungeon — состояние подземелья');
+  const dg = g.dungeon;
+  const cv = allCanvases(h.sandbox.document.body, []).pop();
+  assert.ok(cv, 'canvas оверлея подземелья — в дереве body');
+  const zoom = G2.ZOOM_START;
+  const clampCamV = (val, extent, viewPx, z) => (extent * z <= viewPx)
+    ? extent / 2
+    : Math.min(extent - viewPx / 2 / z,
+      Math.max(viewPx / 2 / z, val));
+  const camX = clampCamV(dg.x + 0.5, dg.width, cv.width, zoom);
+  const camY = clampCamV(dg.y + 0.5, dg.height, cv.height, zoom);
+  const proj = (x, y) => G2.worldToScreen(
+    x, y, camX, camY, zoom, cv.width, cv.height);
+  const mobSize = zoom * 1.2;
+  const cheb = (ax, ay, bx, by) =>
+    Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+  const g0 = g.dungeon.contents.mobs.find((m) => m.id === 'g0');
+  assert.ok(g0 && g0.mobIds.length > 0,
+    'g0 — группа с mobIds (детерминированный layout)');
+  // Входной кадр: все группы вне радиуса — спрайтов юнитов нет.
+  h.raf[h.raf.length - 1](NOW);
+  const entry = cv.drawCalls.slice();
+  for (const m of g.dungeon.contents.mobs.filter((m) => !m.defeated)) {
+    assert.ok(cheb(g.dungeon.x, g.dungeon.y, m.x, m.y) > R,
+      'предусловие: ' + m.id + ' (' + m.x + ',' + m.y + ') на входе — '
+      + 'вне радиуса R = ' + R);
+  }
+  const entryImgs = entry.filter((c) => c[0] === 'drawImage'
+    && Math.abs(c[1][3] - mobSize) < 1e-6
+    && Math.abs(c[1][4] - mobSize) < 1e-6);
+  assert.equal(entryImgs.length, 0,
+    'входной кадр: видимых мобов нет — спрайтов юнитов нет');
+  // Подход в зону (13,13) и отход в (3,20) — 25 клавиш (детерминированно;
+  // на маршруте нет боя — проверено каждый шаг).
+  const KEYS = [
+    'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowUp',
+    'ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowUp',
+    'ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'ArrowLeft',
+    'ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'ArrowLeft', 'ArrowLeft',
+    'ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowDown',
+    'ArrowDown',
+  ];
+  let mark = cv.drawCalls.length;
+  const frames = [];
+  for (const k of KEYS) {
+    const rendered = { x: g.dungeon.x, y: g.dungeon.y };
+    pressKey(h, k);
+    assert.ok(!G2.combatUI.isActive(), 'на маршруте боя нет (' + k + ')');
+    const start = mark;
+    mark = cv.drawCalls.length;
+    const m0 = g.dungeon.contents.mobs.find((m) => m.id === 'g0');
+    frames.push({
+      rendered,
+      g0: { x: m0.x, y: m0.y },
+      calls: cv.drawCalls.slice(start, mark),
+    });
+  }
+  assert.equal(frames.length, KEYS.length,
+    'каждая клавиша — один синхронный кадр');
+  // Кадр, где g0 в радиусе: спрайты юнитов РИСУЮТСЯ (пин: видимый
+  // моб рисуется; без него «не рисуется в финале» было бы тривиально).
+  const vis = frames.find((f) =>
+    cheb(f.rendered.x, f.rendered.y, f.g0.x, f.g0.y) <= R);
+  assert.ok(vis, 'есть кадр, где g0 в радиусе (подход)');
+  for (let i = 0; i < g0.mobIds.length; i++) {
+    const u = {
+      x: vis.g0.x + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][0],
+      y: vis.g0.y + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][1],
+    };
+    const mc = proj(u.x + 0.5, u.y + 0.5);
+    const hit = vis.calls.some((c) => c[0] === 'drawImage'
+      && Math.abs(c[1][1] - (mc.x - mobSize / 2)) < 1e-6
+      && Math.abs(c[1][2] - (mc.y - mobSize / 2)) < 1e-6
+      && Math.abs(c[1][3] - mobSize) < 1e-6
+      && Math.abs(c[1][4] - mobSize) < 1e-6);
+    assert.ok(hit,
+      'видимый кадр: юнит g0 ' + i + ' — спрайт нарисован (zoom*1.2)');
+  }
+  // Финальный кадр: g0 — explored вне радиуса (клетка затемнена).
+  const last = frames[frames.length - 1];
+  const lastCheb = cheb(
+    last.rendered.x, last.rendered.y, last.g0.x, last.g0.y);
+  assert.ok(lastCheb > R,
+    'предусловие: g0 в финале — вне радиуса (cheb ' + lastCheb
+    + ' > ' + R + ')');
+  const cell = G2.snappedTileRect(
+    last.g0.x, last.g0.y, camX, camY, zoom, cv.width, cv.height);
+  assert.ok(floorCellDrawn(last.calls, cell, zoom),
+    'финал: клетка (' + last.g0.x + ',' + last.g0.y
+    + ') — explored — пол рисуется (не «слепота»)');
+  assert.ok(fillRectAt(last.calls, FOG_DIM_FILL,
+      cell.x, cell.y, cell.w, cell.h, 1e-6),
+    'финал: клетка g0 — затемнение (explored вне радиуса)');
+  // КРАСНОЕ: за пределами зрения — не показывается.
+  for (let i = 0; i < g0.mobIds.length; i++) {
+    const u = {
+      x: last.g0.x + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][0],
+      y: last.g0.y + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][1],
+    };
+    const mc = proj(u.x + 0.5, u.y + 0.5);
+    const hit = last.calls.some((c) => c[0] === 'drawImage'
+      && Math.abs(c[1][1] - (mc.x - mobSize / 2)) < 1e-6
+      && Math.abs(c[1][2] - (mc.y - mobSize / 2)) < 1e-6
+      && Math.abs(c[1][3] - mobSize) < 1e-6
+      && Math.abs(c[1][4] - mobSize) < 1e-6);
+    assert.ok(!hit,
+      'финал: юнит g0 ' + i + ' — за пределами зрения — НЕ показывается (000225)');
+  }
+  const lastImgs = last.calls.filter((c) => c[0] === 'drawImage'
+    && Math.abs(c[1][3] - mobSize) < 1e-6
+    && Math.abs(c[1][4] - mobSize) < 1e-6);
+  assert.equal(lastImgs.length, 0,
+    'финал: спрайтов юнитов мобов нет (исследованные группы вне зрения)');
+  assert.equal(h.errors.length, 0, 'нет ошибок: ' + h.errors.join('; '));
+});

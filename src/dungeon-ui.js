@@ -792,10 +792,14 @@
       && typeof live.frameIndex === 'function';
     for (const m of c.mobs) {
       if (m.defeated) continue;
-      // 000136: guard по КЛЕТКЕ ГРУППЫ (m.x, m.y): смещения юнитов ±0.35
-      // могут вылезти ≤ полклетки в скрытую соседнюю (допущенный
-      // артефакт, D7).
-      if (!isCity && mask[m.y * d.width + m.x] === 0) continue;
+      // 000225: строгая видимость — группа рисуется только пока её
+      // КЛЕТКА (m.x, m.y) видна в ТЕКУЩЕМ кадре (mask === 2): explored
+      // вне радиуса (1) и неисследованное (0) — скрыто (000136
+      // оставлял mask 1 затемнённым — то для статических слоёв; моб
+      // динамичен). Смещения юнитов ±0.35 — guard по КЛЕТКЕ ГРУППЫ
+      // сохраняется (допущенный артефакт, 000136 D7).
+      // memory/000225-dungeon-mob-vision.md.
+      if (!isCity && mask[m.y * d.width + m.x] !== 2) continue;
       const units = (Array.isArray(m.mobIds) && m.mobIds.length > 0
         && mobSpriteOk)
         ? m.mobIds.map((id, i) => ({
