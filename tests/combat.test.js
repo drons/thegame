@@ -1377,10 +1377,12 @@ test('canDoAction: quickItem — пул, пустые слоты, примени
   I.setQuick(p, 0, 'sulfur');
   assert.equal(canDoAction(c, 'quickItem').reason,
     'реагент нельзя применить (торговый товар)');
-  // Слот ссылается на предмет, которого нет в инвентаре.
+  // 000223: слот владеет СВОЕЙ единицей — «предмета нет в инвентаре»
+  // на quick-пути недостижим: stale-слот доступен.
   p.inventory.quick[0] = 'healing_potion';
   p.inventory.slots = p.inventory.slots.filter((e) => e.id !== 'healing_potion');
-  assert.equal(canDoAction(c, 'quickItem').reason, 'предмета нет в инвентаре');
+  assert.deepEqual(canDoAction(c, 'quickItem'), { ok: true },
+    'stale-слот — своя единица: ok (000223)');
   // Слот с неизвестным id.
   p.inventory.quick[0] = 'no_such_item';
   assert.equal(canDoAction(c, 'quickItem').reason,
@@ -5859,12 +5861,12 @@ test('000165 C1: quick-слот — воскресает ПЕРВЫЙ мёртв
   assert.equal(aB.alive, false, 'B остаётся мёртв (цель — один)');
   assert.equal(aB.hp, 0, 'B: hp 0');
   // Расход: ровно 1 шт.; пул −1 (СНАЧАЛА, как в текущем коде — ТЗ);
-  // quick-слот очищен (qty → 0, removeItem items.js).
+  // quick-слот очищен (takeQuickSlot; 000223: слот — своя единица).
   assert.equal(I.totalQty(p, 'resurrect_scroll'), 0,
     'свиток сгорел (ровно 1 шт.)');
   assert.equal(c.ps.quickItem, pool0 - 1, 'пул quickItem −1');
   assert.equal(p.inventory.quick[0], null,
-    'quick-слот 0 очищен (removeItem, qty → 0)');
+    'quick-слот 0 очищен (takeQuickSlot, 000223)');
   // Лог — ЕДИНСТВЕННАЯ строка ядра 000163 (R-3), дописок нет.
   assert.ok(c.log.includes('Возвращён в бой.'),
     'лог «Возвращён в бой.»: ' + c.log.join(' | '));
@@ -5901,7 +5903,10 @@ test('000165 C3: quick-слот, живых только — отказ «нет
     'строка отказа закреплена (контракт Р-2/§3.5); факт: ' + r.reason);
   assert.equal(c.ps.quickItem, pool0,
     'действие НЕ сгорело (паттерн playerQuickItem: отказ — return ДО пула)');
-  assert.equal(I.totalQty(p, 'resurrect_scroll'), 1, 'предмет цел');
+  assert.equal(I.totalQty(p, 'resurrect_scroll'), 0,
+    '000223: единица в слоте (перенесена из запасов)');
+  assert.equal(p.inventory.quick[0], 'resurrect_scroll',
+    'слот цел (отказ — единица не потеряна)');
   assert.equal(aA.alive, true, 'союзник не мутирован (alive)');
   assert.equal(aA.hp, hp0, 'союзник не мутирован (hp)');
 });
@@ -5949,7 +5954,8 @@ test('000165 C5: canDoAction «quickItem» — зеркало (000037): живы
     + JSON.stringify(r0));
   // canDoAction — ЧИСТОЕ ЧТЕНИЕ (000037): пулы и предмет не тронуты.
   assert.equal(c.ps.quickItem, pool0, 'пул quickItem не мутирован');
-  assert.equal(I.totalQty(p, 'resurrect_scroll'), 1, 'предмет цел');
+  assert.equal(I.totalQty(p, 'resurrect_scroll'), 0,
+    '000223: единица в слоте (перенесена из запасов)');
   // После гибели союзника — действие доступно (тот же предикат).
   combatInternals.dealDamageToAlly(c, aA, 9999);
   assert.equal(aA.alive, false, 'фикстура: союзник мёртв');

@@ -292,7 +292,10 @@
           // Порядок как геройский (контракт memory/000194 §2.10,
           // правка по ревью): СНАЧАЛА свободный слот, ПОТОМ hasItem —
           // при двойном отказе причина «все быстрые слоты заняты»
-          // (паритет с hero-путём freeQuickSlot → setQuick).
+          // (паритет с hero-путём freeQuickSlot → setQuick). 000223:
+          // физический перенос — 1 ед. снимается из ОБЩЕГО инвентаря
+          // (removeItem) и записывается в СВОЙ слот союзника (ok
+          // гарантирован после hasItem).
           if (!allyQuickMap || typeof allyQuickMap !== 'object'
               || Array.isArray(allyQuickMap)) allyQuickMap = {};
           let q = allyQuickMap[mid];
@@ -301,24 +304,41 @@
             allyQuickMap[mid] = q;
           }
           const s = q.findIndex((x) => x == null);
-          r = s === -1
-            ? { ok: false, reason: 'все быстрые слоты заняты' }
-            : (!G.hasItem(c, id)
-                ? { ok: false, reason: 'предмета нет в инвентаре' }
-                : (q[s] = id, { ok: true }));
+          if (s === -1) {
+            r = { ok: false, reason: 'все быстрые слоты заняты' };
+          } else if (!G.hasItem(c, id)) {
+            r = { ok: false, reason: 'предмета нет в инвентаре' };
+          } else {
+            G.removeItem(c, id, 1);
+            q[s] = id;
+            r = { ok: true };
+          }
         }
         break;
       }
       case 'quick-clear': {
         // 000194: АКТИВНЫЙ персонаж: Флогистон —
-        // hero.inventory.quick бит-в-бит; остальные — null-слот в
-        // ОБЩЕЙ map (без записи — тихо, no-op).
+        // hero.inventory.quick (G.clearQuick — 000223: возврат единицы);
+        // остальные — СВОЙ слот в ОБЩЕЙ map (000223: единица
+        // возвращается в ОБЩИЙ инвентарь; не влезает — отказ, слот
+        // сохранён; пустой слот — тихо, no-op).
         const mid = activeCharId == null
           ? 'flogiston' : String(activeCharId);
         if (mid === 'flogiston') {
           r = G.clearQuick(c, Number(btn.dataset.slot));
         } else if (allyQuickMap && Array.isArray(allyQuickMap[mid])) {
-          allyQuickMap[mid][Number(btn.dataset.slot)] = null;
+          const slot = Number(btn.dataset.slot);
+          const qid = allyQuickMap[mid][slot];
+          if (qid) {
+            const chk = G.canAddItem(c, qid);
+            if (!chk.ok) {
+              r = { ok: false, reason: chk.reason };
+            } else {
+              G.addItem(c, qid, 1);
+              allyQuickMap[mid][slot] = null;
+              r = { ok: true };
+            }
+          }
         }
         break;
       }

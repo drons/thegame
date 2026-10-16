@@ -993,8 +993,8 @@ test('000195 CI-9 (мир+бой, полный loop ТЗ): debug-бой → KeyT
   panel.listeners.click[0]({ target: qbtn });
   assert.equal(c.player.inventory.quick[0], 'healing_potion',
     'быстрый слот 0 героя = предмет (переложить)');
-  assert.equal(G.totalQty(c.player, 'healing_potion'), 1,
-    'переложить, а не использовать');
+  assert.equal(G.totalQty(c.player, 'healing_potion'), 0,
+    '000223: единица в слоте (перенос, а не использование)');
   assert.equal(c.ps.invItem, 1, 'боевой пул переложением не тратится');
   // Закрытие повторным [I] (full-chain песочница: document-слушатели
   // отброшены — Esc не работает; Esc-семантика — partial-chain).

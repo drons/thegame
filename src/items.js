@@ -494,24 +494,31 @@
       }
     }
     if (left > 0) return { ok: false, reason: 'не хватает: ' + it.name };
-    // Пустые быстрые слоты на удалённый предмет очищаем.
-    for (let i = 0; i < inv.quick.length; i++) {
-      if (inv.quick[i] === itemId && totalQty(c, itemId) === 0) inv.quick[i] = null;
-    }
     return { ok: true };
   }
 
   // --- Быстрые слоты (закреплённые для действий в бою) ---
+  // 000223: слот — СВОЯ единица персонажа (не ссылка на инвентарь):
+  // «быстр.» — ровно 1 шт. физически снимается из инвентаря, «убрать»
+  // — возвращается; removeItem/sellItem занятый слот не трогают.
 
   function setQuick(c, slot, itemId) {
     const inv = ensureInventory(c);
     if (!Number.isInteger(slot) || slot < 0 || slot >= QUICK_SLOTS) {
       return { ok: false, reason: 'неверный быстрый слот' };
     }
-    if (itemId != null && !hasItem(c, itemId)) {
+    if (itemId == null) return clearQuick(c, slot);
+    if (!hasItem(c, itemId)) {
       return { ok: false, reason: 'предмета нет в инвентаре' };
     }
-    inv.quick[slot] = itemId || null;
+    const old = inv.quick[slot];
+    if (old) {
+      const chk = canAddItem(c, old);
+      if (!chk.ok) return chk;
+      addItem(c, old, 1);
+    }
+    removeItem(c, itemId, 1, false);
+    inv.quick[slot] = itemId;
     return { ok: true };
   }
 
@@ -520,6 +527,11 @@
     if (!Number.isInteger(slot) || slot < 0 || slot >= QUICK_SLOTS) {
       return { ok: false, reason: 'неверный быстрый слот' };
     }
+    const id = inv.quick[slot];
+    if (!id) return { ok: true };
+    const chk = canAddItem(c, id);
+    if (!chk.ok) return chk;
+    addItem(c, id, 1);
     inv.quick[slot] = null;
     return { ok: true };
   }
@@ -552,6 +564,94 @@
   // Опыт практики за успешное применение зелья (Алхимик) / еды (Сердце
   // природы) — задача 000013, spec/skills.md.
   const USE_PRACTICE_XP = 2;
+
+  // Цикл эффектов применения предмета (общий для useItem/useQuickUnit,
+  // 000223): qty единиц, первые bonusUnits — с бонусом bonusVal;
+  // T — цель эффекта heal/mp/food (боевой юнит) либо null. Возврат —
+  // накопленные эффекты (hp/mp/skill/craft/practice).
+  function applyItemEffects(c, it, d, T, qty, bonusUnits, bonusVal) {
+    let hp = 0, mp = 0, skill = null, craft = null, practice = null,
+      practiceApplied = 0;
+    for (let n = 0; n < qty; n++) {
+      const e = it.effect;
+      const bonus = (n < bonusUnits) ? bonusVal : 0;
+      if (it.kind === 'potion' && e.kind === 'heal') {
+        const amt = Math.round(e.amount * d.potionPowerMult) + bonus;
+        if (T) {
+          const b = T.hp;
+          T.hp = Math.min(T.maxHP, b + amt);
+          hp += T.hp - b;
+        } else {
+          P.heal(c, amt);
+          hp += amt;
+        }
+      } else if (it.kind === 'potion' && e.kind === 'mp') {
+        const amt = Math.round(e.amount * d.potionPowerMult) + bonus;
+        if (T) {
+          const b = T.mp;
+          T.mp = Math.min(T.maxMP, b + amt);
+          mp += T.mp - b;
+        } else {
+          const before = c.mp;
+          c.mp = Math.min(d.maxMP, c.mp + amt);
+          mp += c.mp - before;
+        }
+      } else if (it.kind === 'food') {
+        const amt = Math.round(e.amount * d.foodPowerMult) + bonus;
+        if (T) {
+          const b = T.hp;
+          T.hp = Math.min(T.maxHP, b + amt);
+          hp += T.hp - b;
+        } else {
+          P.heal(c, amt);
+          hp += amt;
+        }
+      } else if (it.kind === 'skill_book') {
+        skill = addSkillXp(c, e.skill, e.amount);
+        // Хук крафта (задача 000046): книга даёт и опыт виду крафта
+        // (Game.Craft при ВЫЗОВЕ — лениво; в node-тестах Game.Craft
+        // нет — no-op). Вид определяется по навыку книги.
+        const G = (typeof globalThis !== 'undefined' && typeof globalThis.Game === 'object')
+          ? globalThis.Game : null;
+        if (G && G.Craft && typeof G.Craft.bookCraftXp === 'function') {
+          const cr = G.Craft.bookCraftXp(c, it);
+          if (cr && cr.ok) {
+            craft = { ok: true, applied: cr.applied, level: cr.level };
+          }
+        }
+      }
+      // Практика: успешное применение зелья/еды (задача 000013).
+      if (it.kind === 'potion' || it.kind === 'food') {
+        const pid = it.kind === 'potion' ? 'alchemy' : 'nature';
+        const pr = P.skillPractice(c, pid, USE_PRACTICE_XP);
+        practice = { skill: pid, xp: USE_PRACTICE_XP, level: pr.level };
+        practiceApplied += pr.applied;
+      }
+    }
+    return { hp, mp, skill, craft, practice, practiceApplied };
+  }
+
+  // Сборка useItem-сообщения из накопленных эффектов (общий хелпер
+  // useItem/useQuickUnit, 000223).
+  function useResultMessage(it, eff) {
+    const parts = [];
+    if (eff.hp) parts.push('+' + eff.hp + ' HP');
+    if (eff.mp) parts.push('+' + eff.mp + ' MP');
+    if (eff.skill) {
+      if (eff.skill.ok && eff.skill.applied) {
+        const name = P.SECONDARY_SKILLS[eff.skill.skill].name;
+        parts.push(name + ': +' + eff.skill.applied + ' опыта навыка');
+      } else if (eff.skill.ok) {
+        parts.push('навык уже максимален');
+      }
+    }
+    if (eff.craft) parts.push('крафт: +' + eff.craft.applied + ' опыта');
+    if (eff.practice && eff.practiceApplied > 0) {
+      const name = P.SECONDARY_SKILLS[eff.practice.skill].name;
+      parts.push(name + ': +' + eff.practiceApplied + ' опыта за практику');
+    }
+    return it.name + ': ' + parts.join(', ');
+  }
 
   /**
    * Опыт навыка от книг и свитков (задача 000013): опыт конвертируется
@@ -661,93 +761,115 @@
     }
     const bonusUnits = bonusSlot ? Math.min(qty, bonusSlot.qty) : 0;
     const bonusVal = bonusUnits > 0 ? (bonusSlot.bonus.amount || 0) : 0;
-    let hp = 0, mp = 0, skill = null, craft = null, practice = null,
-      practiceApplied = 0;
-    for (let n = 0; n < qty; n++) {
-      const e = it.effect;
-      const bonus = (n < bonusUnits) ? bonusVal : 0;
-      if (it.kind === 'potion' && e.kind === 'heal') {
-        const amt = Math.round(e.amount * d.potionPowerMult) + bonus;
-        if (T) {
-          const b = T.hp;
-          T.hp = Math.min(T.maxHP, b + amt);
-          hp += T.hp - b;
-        } else {
-          P.heal(c, amt);
-          hp += amt;
-        }
-      } else if (it.kind === 'potion' && e.kind === 'mp') {
-        const amt = Math.round(e.amount * d.potionPowerMult) + bonus;
-        if (T) {
-          const b = T.mp;
-          T.mp = Math.min(T.maxMP, b + amt);
-          mp += T.mp - b;
-        } else {
-          const before = c.mp;
-          c.mp = Math.min(d.maxMP, c.mp + amt);
-          mp += c.mp - before;
-        }
-      } else if (it.kind === 'food') {
-        const amt = Math.round(e.amount * d.foodPowerMult) + bonus;
-        if (T) {
-          const b = T.hp;
-          T.hp = Math.min(T.maxHP, b + amt);
-          hp += T.hp - b;
-        } else {
-          P.heal(c, amt);
-          hp += amt;
-        }
-      } else if (it.kind === 'skill_book') {
-        skill = addSkillXp(c, e.skill, e.amount);
-        // Хук крафта (задача 000046): книга даёт и опыт виду крафта
-        // (Game.Craft при ВЫЗОВЕ — лениво; в node-тестах Game.Craft
-        // нет — no-op). Вид определяется по навыку книги.
-        const G = (typeof globalThis !== 'undefined' && typeof globalThis.Game === 'object')
-          ? globalThis.Game : null;
-        if (G && G.Craft && typeof G.Craft.bookCraftXp === 'function') {
-          const cr = G.Craft.bookCraftXp(c, it);
-          if (cr && cr.ok) {
-            craft = { ok: true, applied: cr.applied, level: cr.level };
-          }
-        }
-      }
-      // Практика: успешное применение зелья/еды (задача 000013).
-      if (it.kind === 'potion' || it.kind === 'food') {
-        const pid = it.kind === 'potion' ? 'alchemy' : 'nature';
-        const pr = P.skillPractice(c, pid, USE_PRACTICE_XP);
-        practice = { skill: pid, xp: USE_PRACTICE_XP, level: pr.level };
-        practiceApplied += pr.applied;
-      }
-    }
+    const eff = applyItemEffects(c, it, d, T, qty, bonusUnits, bonusVal);
     // Бонусный экземпляр тратится первым (задача 000046).
     removeItem(c, itemId, qty, true);
 
-    const parts = [];
-    if (hp) parts.push('+' + hp + ' HP');
-    if (mp) parts.push('+' + mp + ' MP');
-    if (skill) {
-      if (skill.ok && skill.applied) {
-        const name = P.SECONDARY_SKILLS[skill.skill].name;
-        parts.push(name + ': +' + skill.applied + ' опыта навыка');
-      } else if (skill.ok) {
-        parts.push('навык уже максимален');
-      }
-    }
-    if (craft) parts.push('крафт: +' + craft.applied + ' опыта');
-    if (practice && practiceApplied > 0) {
-      const name = P.SECONDARY_SKILLS[practice.skill].name;
-      parts.push(name + ': +' + practiceApplied + ' опыта за практику');
-    }
     const out = {
-      ok: true, name: it.name, hp: hp || undefined, mp: mp || undefined,
-      skill: skill || undefined,
-      practice: practice && practiceApplied > 0
-        ? { skill: practice.skill, applied: practiceApplied, level: practice.level }
+      ok: true, name: it.name, hp: eff.hp || undefined, mp: eff.mp || undefined,
+      skill: eff.skill || undefined,
+      practice: eff.practice && eff.practiceApplied > 0
+        ? { skill: eff.practice.skill, applied: eff.practiceApplied,
+           level: eff.practice.level }
         : undefined,
-      message: it.name + ': ' + parts.join(', '),
+      message: useResultMessage(it, eff),
     };
-    if (craft) out.craft = craft;
+    if (eff.craft) out.craft = eff.craft;
     return out;
+  }
+
+  /**
+   * Ядро применения ЕДИНИЦЫ быстрого слота БЕЗ расхода (задача
+   * 000223): расход — у вызывающего (useQuickItem/takeQuickSlot —
+   * герой; combat.js allyQuickItem — союзник, clearAllyQuickUnit).
+   * it — каталожная запись (слот владеет единицей, запасы НЕ читаются
+   * и НЕ тратятся). kind-отказы — ТЕМИ ЖЕ причинами, что useItem;
+   * resurrection_scroll — «только в бою» (боевая обработка — combat.js);
+   * spell_scroll — canLearn(learnTarget||c) ОТКАЗ ДО расхода, успех —
+   * learn; эффекты — тот же цикл, что useItem (qty=1, без бонуса,
+   * effectTarget T-валидация как useItem). Результат — useItem-форма.
+   * @returns {{ok:boolean, reason?:string, message?:string, hp?:number, mp?:number, skill?:object, spell?:string}}
+   */
+  function useQuickUnit(c, it, learnTarget, effectTarget) {
+    if (it.kind === 'weapon' || it.kind === 'armor') {
+      return { ok: false, reason: it.kind === 'weapon' ? 'оружие — экипируется' : 'броня — экипируется' };
+    }
+    if (it.kind === 'reagent') return { ok: false, reason: 'реагент нельзя применить (торговый товар)' };
+    // Свиток заклинания (source 'scroll'): ленивый Game в момент
+    // ВЫЗОВА (паттерн useItem); ОТКАЗ canLearn — ДО расхода (слот
+    // цел — расход у вызывающего).
+    if (it.kind === 'spell_scroll') {
+      const G = (typeof globalThis !== 'undefined' &&
+                 typeof globalThis.Game === 'object')
+        ? globalThis.Game : null;
+      const S = G && G.Spells;
+      if (!S || typeof S.canLearn !== 'function') {
+        return { ok: false, reason: 'заклинания недоступны' };
+      }
+      const T = (learnTarget && typeof learnTarget === 'object' &&
+                 !Array.isArray(learnTarget)) ? learnTarget : c;
+      const chk = S.canLearn(T, it.effect.spell, 'scroll');
+      if (!chk.ok) return { ok: false, reason: chk.reason };
+      S.learn(T, it.effect.spell, 'scroll');
+      const sp = S.getSpell(it.effect.spell);
+      return {
+        ok: true, name: it.name, spell: it.effect.spell,
+        message: 'Изучено: «' + (sp ? sp.название : it.effect.spell) + '»',
+      };
+    }
+    // Свиток воскрешения — только в бою (обработка — combat.js).
+    if (it.kind === 'resurrection_scroll') {
+      return { ok: false, reason: 'Свиток воскрешения можно применить только в бою' };
+    }
+    const d = P.derived(c);
+    const T = (effectTarget && typeof effectTarget === 'object'
+      && !Array.isArray(effectTarget) && effectTarget !== c
+      && typeof effectTarget.hp === 'number'
+      && typeof effectTarget.maxHP === 'number') ? effectTarget : null;
+    const eff = applyItemEffects(c, it, d, T, 1, 0, 0);
+    return {
+      ok: true, name: it.name, hp: eff.hp || undefined, mp: eff.mp || undefined,
+      skill: eff.skill || undefined,
+      practice: eff.practice && eff.practiceApplied > 0
+        ? { skill: eff.practice.skill, applied: eff.practiceApplied,
+           level: eff.practice.level }
+        : undefined,
+      message: useResultMessage(it, eff),
+    };
+  }
+
+  /**
+   * Применение предмета из быстрого СЛОТА героя (задача 000223):
+   * расход — ИЗ СЛОТА (slotted единица — своя, запасы не трогаются).
+   * Self-guarded: range/пустой/ghost-id — отказ ДО расхода; kind-
+   * отказы — через useQuickUnit (слот цел). Успех — quick[slot]=null.
+   * @returns {{ok:boolean, reason?:string, message?:string, hp?:number, mp?:number, skill?:object, spell?:string}}
+   */
+  function useQuickItem(c, slot) {
+    const inv = ensureInventory(c);
+    if (!Number.isInteger(slot) || slot < 0 || slot >= QUICK_SLOTS) {
+      return { ok: false, reason: 'неверный быстрый слот' };
+    }
+    const id = inv.quick[slot];
+    if (!id) return { ok: false, reason: 'быстрый слот ' + (slot + 1) + ' пуст' };
+    const it = getItem(id);
+    if (!it) return { ok: false, reason: 'неизвестный предмет: ' + id };
+    const r = useQuickUnit(c, it, c, null);
+    if (!r.ok) return r;
+    inv.quick[slot] = null;
+    return r;
+  }
+
+  // Вынимает единицу из быстрого слота (задача 000223, расход боевой
+  // ветки): range-check → id → slot=null → {ok:true, id|null}.
+  function takeQuickSlot(c, slot) {
+    const inv = ensureInventory(c);
+    if (!Number.isInteger(slot) || slot < 0 || slot >= QUICK_SLOTS) {
+      return { ok: false, reason: 'неверный быстрый слот' };
+    }
+    const id = inv.quick[slot] || null;
+    inv.quick[slot] = null;
+    return { ok: true, id };
   }
 
   // --- Снаряжение (оружие и броня) ---
@@ -1142,7 +1264,7 @@
     inventoryWeight, maxCarryWeight, slotCount, totalQty, hasItem,
     addItem, canAddItem, removeItem,
     setQuick, clearQuick, quickItem, firstQuickSlot, freeQuickSlot,
-    addSkillXp, useItem,
+    addSkillXp, useItem, useQuickUnit, useQuickItem, takeQuickSlot,
     equip, unequip, equipmentStats,
     shopKindsFor, makeShop, buyPrice, sellPrice, buyItem, sellItem,
     // Задача 000095: барахолка лагеря (id 47) — сток (tile, day),

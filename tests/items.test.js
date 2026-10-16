@@ -316,13 +316,14 @@ test('useItem: книга обходит потолок практикой, на
 
 // --- Быстрые слоты ---
 
-test('быстрые слоты: назначение, проверка наличия, очистка', () => {
+test('быстрые слоты: перенос, проверка наличия, возврат, независимость от запаса', () => {
   const c = createCharacter();
   assert.equal(I.setQuick(c, 0, 'bread').ok, false, 'нет предмета в инвентаре');
   I.addItem(c, 'bread');
   I.addItem(c, 'meat');
   assert.equal(I.setQuick(c, 0, 'bread').ok, true);
   assert.equal(I.quickItem(c, 0), 'bread');
+  assert.equal(I.totalQty(c, 'bread'), 0, '000223: единица в слоте, не в запасах');
   assert.equal(I.firstQuickSlot(c), 0);
   assert.equal(I.setQuick(c, 5, 'meat').ok, false, 'слот вне диапазона');
   assert.equal(I.setQuick(c, 1, 'meat').ok, true);
@@ -330,10 +331,13 @@ test('быстрые слоты: назначение, проверка нали
   assert.equal(I.freeQuickSlot(c), 2);
   assert.equal(I.clearQuick(c, 0).ok, true);
   assert.equal(I.quickItem(c, 0), null);
-  // Удалили предмет — его быстрый слот очищается.
-  assert.equal(I.setQuick(c, 0, 'meat').ok, true);
-  I.removeItem(c, 'meat');
-  assert.equal(I.quickItem(c, 0), null, 'слот на удалённый предмет пуст');
+  assert.equal(I.totalQty(c, 'bread'), 1, '000223: «убрать» — единица вернулась');
+  // 000223: удаление запаса занятый слот НЕ чистит (своя единица;
+  // старая авто-очистка removeItem убрана).
+  assert.equal(I.setQuick(c, 0, 'bread').ok, true);
+  I.removeItem(c, 'bread');
+  assert.equal(I.totalQty(c, 'bread'), 0, 'запас пуст');
+  assert.equal(I.quickItem(c, 0), 'bread', 'запас удалён — слот СОХРАНЯЕТСЯ');
 });
 
 // --- Снаряжение ---

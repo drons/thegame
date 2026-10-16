@@ -222,9 +222,10 @@ test('194-QUI-OPEN: KeyE (ход героя) — список ПОВЕРХ бо�
     assert.ok(String(rows[i].className).includes('combat-quickrow-off'),
       'пустой слот ' + i + ' — приглушён');
   }
-  // Сам список НЕ потребляет: предмет на месте, пул не сгорел.
-  assert.equal(S.G.totalQty(S.c.player, 'healing_potion'), 1,
-    'зелье НЕ потрачено открытием списка');
+  // Сам список НЕ потребляет: зелье — в своём слоте (000223:
+  // перенесено из запасов), пул не сгорел.
+  assert.equal(S.G.totalQty(S.c.player, 'healing_potion'), 0,
+    '000223: зелье в слоте; открытием списка НЕ потрачено');
   assert.equal(S.c.ps.quickItem, 1, 'пул не сгорел');
 });
 
@@ -251,12 +252,13 @@ test('194-QUI-CLICK: клик по строке — действие c.quickItem
 
 // --- 194-QUI-REJ (красный) ---
 
-test('194-QUI-REJ: строка на отсутствующий предмет — приглушена; клик — причина в логе, список открыт, пул не тратится', () => {
+test('194-QUI-REJ: строка на неприменимый предмет (реагент) — приглушена; клик — причина в логе, список открыт, пул не тратится', () => {
   const S = scene();
-  // Stale-слот: быстрый слот 0 ссылается на зелье, которого нет в
-  // инвентаре (белая коробка: инвентарь очищаем напрямую).
-  S.c.player.inventory.slots =
-    S.c.player.inventory.slots.filter((e) => e.id !== 'healing_potion');
+  // 000223: stale-слот недостижим (слот владеет своей единицей);
+  // приглушение — по kind-отказу: сера в слоте 0 (overwrite: зелье
+  // вернулось в запас).
+  S.G.addItem(S.c.player, 'sulfur');
+  S.G.setQuick(S.c.player, 0, 'sulfur');
   press(S.keydown, 'KeyE');
   const ql = findByClass(S.body, 'combat-quicklist');
   assert.ok(ql, 'список создан (краснота: отсутствует)');
@@ -264,14 +266,14 @@ test('194-QUI-REJ: строка на отсутствующий предмет �
     String(ch.className).includes('combat-quickrow'));
   assert.equal(rows.length, 3, '3 строки (краснота: ' + rows.length + ')');
   assert.ok(String(rows[0].className).includes('combat-quickrow-off'),
-    'строка на отсутствующий предмет — приглушена');
+    'строка на реагент — приглушена');
   assert.ok(rows[0].listeners.click && rows[0].listeners.click.length,
     'у приглушённой строки есть click (причина в лог)');
   const pool = S.c.ps.quickItem;
   const logLen = S.c.log.length;
   rows[0].listeners.click[0]({ target: rows[0] });
   assert.ok(S.c.log.slice(logLen)
-    .some((l) => l.includes('предмета нет в инвентаре')),
+    .some((l) => l.includes('реагент нельзя применить (торговый товар)')),
     'причина ядра в журнале: ' + S.c.log.slice(logLen).join(' | '));
   assert.equal(S.c.ps.quickItem, pool, 'пул не тратится');
   assert.equal(ql.style.display, '', 'список остаётся открыт (отказ)');
@@ -296,6 +298,12 @@ test('194-QUI-ALLY: на ходу СОЮЗНИКА кнопка quickItem вкл
   press(S.keydown, 'Space');
   assert.equal(S.G.activeUnitId(S.c), 'a1',
     'активен наёмник (краснота: ' + S.G.activeUnitId(S.c) + ')');
+  // 000223: зелье героя — в его СВОЁМ слоте (scene: setQuick перенесло
+  // из запасов); действие союзника слот героя не трогает.
+  assert.equal(S.G.totalQty(S.c.player, 'healing_potion'), 0,
+    'зелье героя в его слоте (переносом), НЕ потрачено');
+  S.G.addItem(S.c.player, 'healing_potion'); // запас для кнопки invItem (000223)
+  S.rafStubs.scheduled[S.rafStubs.scheduled.length - 1](); // кадр — пересчёт кнопок
   const acts = byAct(S);
   assert.equal(acts.quickItem.disabled, false,
     'кнопка «Быстрый предмет» ВКЛЮЧЕНА на ходу союзника '
@@ -321,10 +329,13 @@ test('194-QUI-ALLY: на ходу СОЮЗНИКА кнопка quickItem вкл
     assert.ok(String(rows[i].className).includes('combat-quickrow-off'),
       'пустые слоты приглушены');
   }
-  // Слоты героя в списке НЕ отображаются (у героя — свой пустой
-  // список; здесь строки из u.quick наёмника).
+  // Слоты героя в списке НЕ отображаются (у героя — свой список:
+  // 000223: его зелье в его слоте; здесь строки из u.quick наёмника);
+  // добавленный запас союзным действием не потрачен.
   assert.equal(S.G.totalQty(S.c.player, 'healing_potion'), 1,
-    'зелье героя НЕ потрачено');
+    '000223: добавленный запас НЕ потрачен союзником');
+  assert.equal(S.c.player.inventory.quick[0], 'healing_potion',
+    'слот героя цел');
 });
 
 // --- 194-QUI-BLOCK (правка по ревью) ---
@@ -353,7 +364,7 @@ test('194-QUI-BLOCK: блок — список НЕ открывается: KeyE
 
 // --- 194-QUI-ALLY-STALE (правка по ревью) ---
 
-test('194-QUI-ALLY-STALE: союзник — stale-ПЕРВЫЙ слот: кнопка ВКЛЮЧЕНА (≡ KeyE), клик открывает список', () => {
+test('194-QUI-ALLY-STALE: 000223: слот — своя единица: реагент-строка 0 приглушена (kind-отказ), строка 1 активна; кнопка ≡ KeyE, клик открывает список', () => {
   const S = scene();
   const merc = S.G.makeAlly({
     name: 'Вольк', role: 'melee', level: 2, dmg: 1, hp: 1,
@@ -362,21 +373,19 @@ test('194-QUI-ALLY-STALE: союзник — stale-ПЕРВЫЙ слот: кно
   merc.x = 3; merc.y = 5;
   S.c.units.push(merc);
   S.c.turnOrder.push(merc.id);
-  // Слот 0 — stale (зелья нет в общем), слот 1 — валидный (хлеб есть).
-  merc.quick = ['healing_potion', 'bread', null];
+  // 000223: stale недостижим (слот — СВОЯ единица); строка 0
+  // приглушена kind-отказом (реагент), строка 1 активна (зелье).
+  merc.quick = ['sulfur', 'healing_potion', null];
   merc.quickItem = 1;
   merc.invItem = 1;
   const w = S.c.units.find((x) => x.id === 'm0');
   w.x = 3; w.y = 4; // d 1 от наёмника
-  S.c.player.inventory.slots =
-    S.c.player.inventory.slots.filter((e) => e.id !== 'healing_potion');
-  S.G.addItem(S.c.player, 'bread');
   press(S.keydown, 'Space');
   assert.equal(S.G.activeUnitId(S.c), 'a1',
     'активен наёмник (краснота: ' + S.G.activeUnitId(S.c) + ')');
   const acts = byAct(S);
   assert.equal(acts.quickItem.disabled, false,
-    'кнопка ВКЛЮЧЕНА при stale-первом слоте (≡ клавиши) '
+    'кнопка ВКЛЮЧЕНА (≡ клавиши) '
     + '(краснота: disabled, title «' + acts.quickItem.title + '»)');
   assert.equal(acts.quickItem.title, '',
     'title пуст (клик открывает список, а не отказ)');
@@ -389,9 +398,9 @@ test('194-QUI-ALLY-STALE: союзник — stale-ПЕРВЫЙ слот: кно
     String(ch.className).includes('combat-quickrow'));
   assert.equal(rows.length, 3, '3 строки (краснота: ' + rows.length + ')');
   assert.ok(String(rows[0].className).includes('combat-quickrow-off'),
-    'stale-строка 0 — приглушена');
+    'строка 0 (реагент — kind-отказ) — приглушена');
   assert.ok(!String(rows[1].className).includes('combat-quickrow-off'),
-    'строка 1 (хлеб в общем инвентаре) — активна');
+    'строка 1 (зелье — своя единица) — активна');
 });
 
 // --- 194-QUI-FINISH (якорь) ---

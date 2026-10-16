@@ -284,14 +284,16 @@ test('194-PNL-GIVE-ALLY: «быстр.» при активном «efir»/npcId 
     'map не изменился (занято)');
   // (c) npcId — та же механика.
   G.playerUI.toggle(true, null, 'merc_volk');
-  G.addItem(c, 'sulfur');
+  G.addItem(c, 'sulfur', 2);
   G.playerUI.render();
   clickBtn(panel, invQuickBtn(panel, 'Сера'));
   assert.equal(JSON.stringify(map.merc_volk),
     JSON.stringify(['sulfur', null, null]),
     'map[npcId] создана (краснота: ' + JSON.stringify(map.merc_volk) + ')');
-  // (d) Stale-строка: предмета больше нет в инвентаре — отказ ДО
-  // записи (map не меняется — слот 0 занят с (c)).
+  assert.equal(G.totalQty(c, 'sulfur'), 1,
+    '000223: одна единица перенесена в слот (строка ×1)');
+  // (d) Stale-строка: единица перенесена в слот, последняя в запасах
+  // удалена — отказ ДО записи (map не меняется — слот 0 занят с (c)).
   const btnStale = invQuickBtn(panel, 'Сера');
   G.removeItem(c, 'sulfur', 1); // без render — строка устарела
   clickBtn(panel, btnStale);

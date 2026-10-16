@@ -394,10 +394,10 @@ test('195-CUI-HERO-QUICK: после KeyT «быстр.» — ОДИН пред�
   assert.equal(c.player.inventory.quick[0], 'healing_potion',
     'быстрый слот 0 героя = предмет (краснота: '
     + JSON.stringify(c.player.inventory.quick) + ')');
-  assert.equal(G.totalQty(c.player, 'healing_potion'), 1,
-    'переложить, а не использовать');
-  assert.ok(c.player.inventory.slots.some((e) => e.id === 'healing_potion'),
-    'предмет остаётся в общем инвентаре');
+  assert.equal(G.totalQty(c.player, 'healing_potion'), 0,
+    '000223: единица перенесена в слот (переложить, а не использовать)');
+  assert.ok(!c.player.inventory.slots.some((e) => e.id === 'healing_potion'),
+    '000223: единица покинула общий инвентарь');
   assert.equal(c.ps.invItem, 1, 'боевой пул переложением не тратится');
   noCombatErrors(S);
 });
@@ -450,19 +450,29 @@ test('195-CUI-ALLY-SYNC: «быстр.» союзника — в live-карту
     String(ch.className).includes('combat-quickrow')).slice(-3);
   assert.equal(rows.length, 3, '3 строки (краснота: ' + rows.length + ')');
   assert.ok(!String(rows[0].className).includes('combat-quickrow-off'),
-    'строка 0 (зелье в общем инвентаре) — активна');
+    'строка 0 (зелье — своя единица в слоте) — активна');
   assert.ok(rows[0].listeners.click && rows[0].listeners.click.length,
     'строка кликабельна');
   rows[0].listeners.click[0]({ target: rows[0] });
   assert.equal(G.totalQty(c.player, 'healing_potion'), 0,
-    'предмет ПОТРЕБЛЁН из общего инвентаря');
+    '000223: запасы сняты переносом; расход — из СВОЕГО слота союзника');
   assert.ok(merc.hp > 10, 'эффект на союзника (Лечит +15): hp '
     + merc.hp);
   assert.equal(merc.quickItem, 0, 'пул quickItem союзника 1→0');
+  assert.equal(S.liveMap.a1[0], null,
+    '000223 D9: live-слот очищен при расходе (иначе re-sync '
+    + 'live→u.quick возродит потраченную единицу и персистнет её '
+    + 'в сейве)');
+  assert.equal(merc.quick[0], null,
+    '000223 D9: слот юнита очищен при расходе (render уже re-sync)');
   assert.equal(JSON.stringify(c.player.inventory.quick),
     JSON.stringify([null, null, null]), 'быстрые героя не тронуты');
   assert.ok(c.log.some((l) => l.includes('Вольк')),
     'строка действия союзника в журнале: ' + c.log.slice(-3).join(' | '));
+  press(S.keydown, 'KeyE');
+  assert.equal(merc.quick[0], null,
+    '000223 D9: потраченная единица не воскрешена re-sync '
+    + 'live→u.quick (handleCode — KeyE)');
   noCombatErrors(S);
 });
 

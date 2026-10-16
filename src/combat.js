@@ -1472,18 +1472,16 @@
     // return ДО сброса пула: действие НЕ сгорает (паттерн).
     const it = I.getItem(itemId);
     if (it && it.kind === 'resurrection_scroll') {
-      if (!I.hasItem(p, it.id))
-        return { ok: false, reason: 'предмета нет в инвентаре' };
       const t = c.units.find((u) => u.side === 'ally' && !u.alive && !u.fled);
       if (!t) return { ok: false, reason: 'нет погибших союзников' };
       c.ps.quickItem -= 1; // СНАЧАЛА — как в текущем коде (ТЗ)
       resurrectAlly(c, t); // лог «Возвращён в бой.» (R-3, 000163)
-      I.removeItem(p, it.id, 1, true); // bonusFirst (000046, паттерн :531);
-      // при qty→0 removeItem сам очищает quick-слот (items.js)
+      I.takeQuickSlot(p, s); // 000223: слот владеет своей единицей
       return { ok: true, slot: s, item: it.name };
     }
     c.ps.quickItem -= 1;
-    const r = I.useItem(p, itemId);
+    // 000223: расход — ИЗ СЛОТА (своя единица), запасы не трогаются.
+    const r = I.useQuickItem(p, s);
     if (!r.ok) {
       c.ps.quickItem += 1; // неприменимый предмет — действие не сгорает
       return { ok: false, reason: r.reason };
@@ -1519,11 +1517,25 @@
     return null;
   }
 
+  // 000223: очистка потраченной ЕДИНИЦЫ союзника: u.quick[s] И live-
+  // карта c._allyQuickLive[u.id][s] (syncAllyQuickLive combat-ui.js
+  // live→u.quick возродит неочищенный live-слот). Guards: live не
+  // объект / live[u.id] не массив — skip (node-тесты createCombat без
+  // allyQuickLive — no-op).
+  function clearAllyQuickUnit(c, u, slot) {
+    if (Array.isArray(u.quick)) u.quick[slot] = null;
+    const live = c._allyQuickLive;
+    if (live && typeof live === 'object' && Array.isArray(live[u.id])) {
+      live[u.id][slot] = null;
+    }
+  }
+
   // 000194: «Быстрый предмет» СОЮЗНИКА — зеркало playerQuickItem 1:1
-  // (последовательность проверок и причины); предмет — из ОБЩЕГО
-  // инвентаря (c.player), эффект — на u (useItem effectTarget).
-  // checkBlocked НЕ вызывается (c.ps.blocked — флаг игрока; все
-  // существующие союзные ядра его не гоняют).
+  // (последовательность проверок и причины); 000223: расход — СВОЯ
+  // единица (u.quick), эффект — на u (useQuickUnit effectTarget);
+  // множители — с c.player (носитель). checkBlocked НЕ вызывается
+  // (c.ps.blocked — флаг игрока; все существующие союзные ядра его
+  // не гоняют).
   function allyQuickItem(c, u, slot) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
@@ -1534,21 +1546,21 @@
     if (!itemId) return { ok: false, reason: 'быстрый слот ' + (s + 1) + ' пуст' };
     const it = I.getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
-    if (!I.hasItem(c.player, it.id)) return { ok: false, reason: 'предмета нет в инвентаре' };
     if (it.kind === 'resurrection_scroll') {
       const t = c.units.find((x) => x.side === 'ally' && !x.alive && !x.fled);
       if (!t) return { ok: false, reason: 'нет погибших союзников' };
       u.quickItem -= 1;
       resurrectAlly(c, t);
-      I.removeItem(c.player, it.id, 1, true);
+      clearAllyQuickUnit(c, u, s);
       return { ok: true, slot: s, item: it.name };
     }
     u.quickItem -= 1;
-    const r = I.useItem(c.player, it.id, 1, null, u);
+    const r = I.useQuickUnit(c.player, it, null, u);
     if (!r.ok) {
       u.quickItem += 1;
       return { ok: false, reason: r.reason };
     }
+    clearAllyQuickUnit(c, u, s);
     log(c, u.name + ': ' + r.message);
     return { ok: true, slot: s, item: r.name };
   }
@@ -1710,11 +1722,13 @@
       const blocked = checkBlocked(c);
       if (blocked) return blocked;
       if (c.ps.quickItem <= 0) return { ok: false, reason: 'действий «Быстрый предмет» больше нет' };
-      // Быстрые слоты и наличие предмета читаем прямым доступом, БЕЗ
-      // I.firstQuickSlot/I.quickItem/I.hasItem (те через ensureInventory
-      // лениво СОЗДАЮТ p.inventory — canDoAction обязан быть без
-      // побочных эффектов). Поведение совпадает с ядром: при отсутствии
-      // инвентаря «быстрые слоты пусты».
+      // Быстрые слоты читаем прямым доступом, БЕЗ I.firstQuickSlot/
+      // I.quickItem (они через ensureInventory лениво СОЗДАЮТ
+      // p.inventory — canDoAction обязан быть без побочных эффектов).
+      // Поведение совпадает с ядром: при отсутствии инвентаря «быстрые
+      // слоты пусты». 000223: занятость слота + id из каталога =
+      // доступность (слот владеет единицей; «предмета нет в инвентаре»
+      // на quick-пути нет, ghost-id — «неизвестный предмет»).
       const inv = p.inventory;
       const quick = (inv && Array.isArray(inv.quick)) ? inv.quick : null;
       let s = null;
@@ -1735,9 +1749,6 @@
       // (он мутирует: инвентарь, HP, навыки).
       const it = I.getItem(itemId);
       if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
-      const has = !!(inv && Array.isArray(inv.slots)
-        && inv.slots.some((e) => e && e.id === itemId));
-      if (!has) return { ok: false, reason: 'предмета нет в инвентаре' };
       if (it.kind === 'weapon') return { ok: false, reason: 'оружие — экипируется' };
       if (it.kind === 'armor') return { ok: false, reason: 'броня — экипируется' };
       if (it.kind === 'reagent') return { ok: false, reason: 'реагент нельзя применить (торговый товар)' };
@@ -2351,8 +2362,9 @@
     }
     if (action === 'quickItem') {
       // 000194: зеркало героической ветки canDoAction 1:1 по причинам;
-      // прямые чтения (u.quick / u.quickItem / p.inventory) — БЕЗ I.*
-      // (ensureInventory лениво создаёт инвентарь — 0 side effects).
+      // прямые чтения (u.quick / u.quickItem) — БЕЗ I.* (ensureInventory
+      // лениво создаёт инвентарь — 0 side effects). 000223: занятость
+      // слота + id из каталога = доступность (своя единица).
       if (u.quickItem <= 0) {
         return { ok: false, reason: 'действий «Быстрый предмет» больше нет' };
       }
@@ -2371,11 +2383,6 @@
       if (!itemId) return { ok: false, reason: 'быстрый слот ' + (s + 1) + ' пуст' };
       const it = I.getItem(itemId);
       if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
-      const p = c.player;
-      const inv = p.inventory;
-      const has = !!(inv && Array.isArray(inv.slots)
-        && inv.slots.some((e) => e && e.id === itemId));
-      if (!has) return { ok: false, reason: 'предмета нет в инвентаре' };
       if (it.kind === 'weapon') return { ok: false, reason: 'оружие — экипируется' };
       if (it.kind === 'armor') return { ok: false, reason: 'броня — экипируется' };
       if (it.kind === 'reagent') {

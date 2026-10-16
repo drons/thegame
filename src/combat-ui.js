@@ -1880,9 +1880,11 @@
   // 000195: live-sync быстрых слотов СОЮЗНИКОВ — с live-карты
   // (opts.allyQuickLive = тот же объект, что G.playerUI.setAllyQuick)
   // в u.quick: «быстр.» панели действует В ТЕКУЩЕМ бою (у ядра —
-  // снапшот createCombat). UI-only: ядро combat.js c._allyQuickLive
-  // не читает (паттерн c._fx); c._rng не вызывается. Валидация —
-  // зеркало makeAlly (нестрока → null-слот); id не в карте — skip.
+  // снапшот createCombat). Ядро combat.js c._allyQuickLive не читает;
+  // 000223: ядро ЧИСТИТ live-слот при расходе (clearAllyQuickUnit —
+  // иначе live→u.quick sync возродил бы потраченную единицу); c._rng
+  // не вызывается. Валидация — зеркало makeAlly (нестрока → null-слот);
+  // id не в карте — skip.
   function syncAllyQuickLive(c) {
     const live = c._allyQuickLive;
     if (!live || typeof live !== 'object') return;
@@ -2304,9 +2306,9 @@
   // Контракт — memory/000194-ally-quick-items.md. Список — три быстрых
   // слота АКТИВНОГО персонажа (unitOf, паттерн книги 000193): герой —
   // inventory.quick, союзник (наёмник/Эфир) — u.quick (свои слоты,
-  // makeAlly 000194). Предмет ВСЕГДА расходуется из ОБЩЕГО
-  // инвентаря (c.player) — ядро (c.quickItem — диспатч
-  // playerQuickItem/allyQuickItem). Строки — div (не <button>,
+  // makeAlly 000194). 000223: расход — СВОЯ единица слота (ядро
+  // c.quickItem — диспатч playerQuickItem/allyQuickItem; слот — не
+  // ссылка на инвентарь). Строки — div (не <button>,
   // R9-паттерн книги) с ИМЕНЕМ и ОПИСАНИЕМ предмета. Открытие
   // (KeyE/кнопка «Быстрый предмет») НИЧЕГО не тратит: пул и предмет —
   // только при клике по строке (quickUseRow, путь ядра).
@@ -2653,8 +2655,9 @@
       // 000195: live-карта быстрых слотов союзников (тот же объект, что
       // G.playerUI.setAllyQuick, main.js) — syncAllyQuickLive re-sync'ит
       // u.quick из неё (handleCode/render): раздача на [I]-панели
-      // действует в текущем бою. UI-only поле: ядро не читает;
-      // не передан → null (снапшот, бит-в-бит).
+      // действует в текущем бою. Ядро не читает; 000223: ядро чистит
+      // live-слот при расходе (clearAllyQuickUnit). Не передан → null
+      // (снапшот, бит-в-бит).
       combat._allyQuickLive = (opts.allyQuickLive
         && typeof opts.allyQuickLive === 'object'
         && !Array.isArray(opts.allyQuickLive)) ? opts.allyQuickLive : null;

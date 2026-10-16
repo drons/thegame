@@ -105,8 +105,10 @@ test('194-CORE-ALLY-USE: быстрый предмет — из ОБЩЕГО и�
     'c.quickItem на ходу союзника (краснота: null — player-guard): '
     + JSON.stringify(r));
   assert.equal(r.slot, 0);
-  assert.equal(I.totalQty(p, 'healing_potion'), 0,
-    'зелье потрачено из ОБЩЕГО инвентаря героя');
+  assert.equal(I.totalQty(p, 'healing_potion'), 1,
+    '000223: ОБЩИЙ инвентарь НЕ тронут (расход — из своего слота)');
+  assert.equal(a.quick[0], null,
+    '000223: слот очищен (своя единица потрачена)');
   assert.equal(a.hp, 13,
     'эффект на СОЮЗНИКЕ: +15 HP с капом maxHP (10→13)');
   assert.equal(p.hp, 9999, 'игрок не тронут');
@@ -148,19 +150,21 @@ test('194-CORE-ALLY-SLOT: без аргумента — первый ЗАНЯТ�
   }
 });
 
-test('194-CORE-ALLY-SHALE: слот на предмет, которого нет в общем инвентаре — отказ, пул и лог не тронуты', () => {
+test('194-CORE-ALLY-SHALE: 000223: слот — СВОЯ единица (без копии у героя) — успех, общий инвентарь НЕ тронут', () => {
   const p = strongHero();
   const c = allyCombat(p);
   const a = c.units.find((x) => x.id === 'a0');
   a.quick = ['healing_potion', null, null]; // зелья в инвентаре НЕТ
+  a.hp = 10; // maxHP 13 — кап виден
   const pool = a.quickItem;
-  const logLen = c.log.length;
   const r = c.quickItem(0);
-  assert.ok(r && r.ok === false, 'краснота: ' + JSON.stringify(r));
-  assert.equal(r.reason, 'предмета нет в инвентаре',
-    'причина дословно (краснота: ' + (r && r.reason) + ')');
-  assert.equal(a.quickItem, pool, 'пул не тратится');
-  assert.equal(c.log.length, logLen, 'лог не растёт');
+  assert.ok(r && r.ok === true, '000223: успех из своей единицы: ' + JSON.stringify(r));
+  assert.equal(r.slot, 0);
+  assert.equal(a.hp, 13, 'эффект на союзнике (кап maxHP)');
+  assert.equal(I.totalQty(p, 'healing_potion'), 0,
+    '000223: общий инвентарь НЕ тронут (копии у героя нет)');
+  assert.equal(a.quick[0], null, '000223: слот очищен');
+  assert.equal(a.quickItem, pool - 1, 'пул потрачен');
 });
 
 test('194-CORE-ALLY-REJ: неприменимый предмет (оружие) — причина useItem, пул восстанавливается', () => {
@@ -194,8 +198,9 @@ test('194-CORE-ALLY-RES: быстрый свиток воскрешения — 
   assert.equal(r.item, 'Свиток воскрешения', 'r.item — имя предмета');
   assert.equal(a1.alive, true, 'первый мёртвый СОЮЗНИК воскрес');
   assert.equal(a1.hp, Math.round(a1.maxHP / 2), 'hp = 50% maxHP (ядро)');
-  assert.equal(I.totalQty(p, 'resurrect_scroll'), 0,
-    'свиток потрачен из общего инвентаря');
+  assert.equal(I.totalQty(p, 'resurrect_scroll'), 1,
+    '000223: общий инвентарь НЕ тронут (расход — из слота)');
+  assert.equal(a0.quick[0], null, '000223: слот очищен');
   assert.equal(a0.quickItem, pool - 1, 'пул 1→0');
   assert.ok(c.log.includes('Возвращён в бой.'), 'строка ядра в логе');
   assert.equal(rngCalls, 0, '0 c._rng (детерминированное правило)');
@@ -276,12 +281,12 @@ test('194-CANDO-ALLY-Q: canDoAction quickItem на ходу союзника —
       'неизвестный предмет: nope_item',
       'причина дословно (краснота: «недоступно активному персонажу»)');
   }
-  // Слот на предмет, которого нет в инвентаре.
+  // 000223: слот владеет СВОЕЙ единицей — «предмета нет в инвентаре»
+  // на quick-пути нет: ок, даже без копии у героя.
   {
     const { c, a } = mk((pp, aa) => { aa.quick = ['healing_potion', null, null]; });
-    assert.equal(canDoAction(c, 'quickItem').reason,
-      'предмета нет в инвентаре',
-      'причина дословно (краснота: «недоступно активному персонажу»)');
+    assert.deepEqual(canDoAction(c, 'quickItem'), { ok: true },
+      '000223: слот — своя единица — ok (краснота: «недоступно активному персонажу»)');
   }
   // Оружие/броня/реагент — причины useItem-применимости.
   for (const [id, reason] of [
@@ -415,6 +420,7 @@ test('194-CANDO-HERO (якорь): canDoAction quickItem/invItem на ходу �
   assert.equal(canDoAction(c, 'quickItem').reason,
     'действий «Быстрый предмет» больше нет');
   c.ps.quickItem = 1;
+  I.addItem(p, 'healing_potion'); // 000223: setQuick перенёс единицу — запас для invItem
   assert.deepEqual(canDoAction(c, 'invItem'), { ok: true },
     'зелье в инвентаре — применимо');
   c.ps.invItem = 0;
