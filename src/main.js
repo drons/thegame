@@ -2831,24 +2831,14 @@
   }
 
   // --- Камера ---
-  let lastCamNow = 0; // timestamp предыдущего кадра (dt; 0 — ещё не было)
-  function updateCamera(now) {
-    // Плавное следование за игроком. Задача 000033: раньше коэффициент
-    // 0.2 применялся НА КАДР — при 144 Гц камера ловила цель в ~2.4 раза
-    // быстрее, чем при 60. Теперь — экспоненциальное сглаживание с dt
-    // (G.cameraStep, CAM_TAU_MS ≈ 74.7 мс): при 60 fps тот же ≈ 0.2/кадр
-    // (ощущение не меняется), при любом другом fps — то же движение за
-    // то же РЕАЛЬНОЕ время. Первый кадр — dt = 0 (без движения).
-    const dt = lastCamNow ? now - lastCamNow : 0;
-    lastCamNow = now;
-    const tx = player.x + 0.5, ty = player.y + 0.5;
-    if (G.cameraStep) {
-      cam.x = G.cameraStep(cam.x, tx, dt, G.CAM_TAU_MS);
-      cam.y = G.cameraStep(cam.y, ty, dt, G.CAM_TAU_MS);
-    } else {
-      cam.x += (tx - cam.x) * 0.2; // fallback, если motion.js не загрузился
-      cam.y += (ty - cam.y) * 0.2;
-    }
+  // Фазо-запрет (задача 000228): cam ≡ renderPos(now) + 0.5 НА КАЖДОМ
+  // кадре — герой ровно в центре экрана, мир скроллится со скоростью
+  // ходьбы (1px-шаги), в покое камера ровно на центре тайла (нет
+  // пульса погони и асимптотического хвоста). Контракты и причины —
+  // memory/000228-world-rigid-snap.md.
+  function updateCamera(rp) {
+    cam.x = rp.x + 0.5;
+    cam.y = rp.y + 0.5;
   }
 
   // --- Отрисовка ---
@@ -3082,21 +3072,29 @@
           x: w / 2 + (tx - cam.x) * zoom,
           y: h / 2 + (ty - cam.y) * zoom,
         });
-    // Снап сетки тайлов (задача 000215): текстуры тайлов — на ЦЕЛЫХ
-    // пикселях, у соседних клеток — ОДИН общий край (нет AA-шва →
-    // тёмных линий; формула — expr worldToScreen в Math.round,
-    // src/map.js; контракты — memory/000215-tile-seam.md). Сетка
-    // краёв — ОДИН раз на кадр (O(1) на тайл): диапазон ТОТ ЖЕ, что
-    // buildFrame (visibleTileRange — чистая, пересчёт бит-в-бит).
-    // Тихий fallback на (sx, sy, zoom, zoom) — паттерн toPt;
-    // дефенсивно (map.js всегда в цепочке ДО main.js).
+    // Снап сетки тайлов (задачи 000215/000228): текстуры тайлов — на
+    // ЦЕЛЫХ пикселях, у соседних клеток — ОДИН общий край (нет AA-шва
+    // → тёмных линий). Мир — мир-якорная жёсткая решётка
+    // worldAnchoredTileEdges (край — функция ЦЕЛОГО индекса и зума +
+    // один общий сдвиг на ось за кадр; контракты —
+    // memory/000228-world-rigid-snap.md); тихий фолбэк —
+    // snappedTileEdges (поведение 000215, урезанная цепочка map.js) —
+    // паттерн toPt, игра не падает. Сетка краёв — ОДИН раз на кадр
+    // (O(1) на тайл): диапазон ТОТ ЖЕ, что buildFrame
+    // (visibleTileRange — чистая, пересчёт бит-в-бит). Тихий fallback
+    // на (sx, sy, zoom, zoom) — паттерн toPt; дефенсивно (map.js
+    // всегда в цепочке ДО main.js).
     const tileRange = (typeof G.visibleTileRange === 'function'
-      && typeof G.snappedTileEdges === 'function')
+      && (typeof G.worldAnchoredTileEdges === 'function'
+        || typeof G.snappedTileEdges === 'function'))
       ? G.visibleTileRange(cam.x, cam.y, w, h, zoom)
       : null;
     const tileEdges = tileRange
-      ? G.snappedTileEdges(tileRange.x0, tileRange.y0, tileRange.x1,
-          tileRange.y1, cam.x, cam.y, zoom, w, h)
+      ? (typeof G.worldAnchoredTileEdges === 'function'
+          ? G.worldAnchoredTileEdges(tileRange.x0, tileRange.y0,
+              tileRange.x1, tileRange.y1, cam.x, cam.y, zoom, w, h)
+          : G.snappedTileEdges(tileRange.x0, tileRange.y0,
+              tileRange.x1, tileRange.y1, cam.x, cam.y, zoom, w, h))
       : null;
     const snapTile = (tileEdges && !Number.isNaN(tileEdges.x[0]))
       ? (tx, ty) => {
@@ -3427,9 +3425,9 @@
           saveNow();
         }
       }
-      updateCamera(now);
       // Одна точка рендера на кадр для обоих слоёв (задача 000033).
       const rp = renderPos(now);
+      updateCamera(rp);
 
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;

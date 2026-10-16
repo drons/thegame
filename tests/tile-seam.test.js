@@ -569,7 +569,9 @@ function wKeyup(h, code) {
 
 // Текстуры тайлов кадра → сетка «tx,ty → {x, y, w, h}» через
 // обратную проекцию (tx = cam.x + (x − viewW/2)/zoom). После снапа
-// смещение ≤ 0.5 px → допуск 0.5/zoom (до фикса — 0, строго).
+// смещение < 1 px (мир-якорная решётка 000228: сумма двух
+// округлений; старая формула 000215 — ≤ 0.5 px, ⊂ допуска) →
+// допуск 1/zoom (до фикса 000215 — 0, строго).
 function tileGrid(draw, st) {
   const grid = new Map();
   let rawNonInt = 0;
@@ -578,8 +580,8 @@ function tileGrid(draw, st) {
     const wx = st.cam.x + (x - VIEW_W / 2) / st.zoom;
     const wy = st.cam.y + (y - VIEW_H / 2) / st.zoom;
     const tx = Math.round(wx), ty = Math.round(wy);
-    assert.ok(Math.abs(wx - tx) <= 0.5 / st.zoom + 1e-9
-        && Math.abs(wy - ty) <= 0.5 / st.zoom + 1e-9,
+    assert.ok(Math.abs(wx - tx) <= 1 / st.zoom + 1e-9
+        && Math.abs(wy - ty) <= 1 / st.zoom + 1e-9,
       'сценарий: отрисовка на сетке тайлов: ' + x + ',' + y);
     const rawX = VIEW_W / 2 + (tx - st.cam.x) * st.zoom;
     const rawY = VIEW_H / 2 + (ty - st.cam.y) * st.zoom;
@@ -709,7 +711,7 @@ test('TS-7: мир: дробная камера mid-glide (ход при дро�
     'сценарий: стыков соседних тайлов: ' + seams);
 });
 
-test('TS-8: мир: ПИН ФОРМУЛЫ — край = round(сырая проекция ЦЕЛОГО индекса), размер = РАЗНОСТЬ снап-краёв (не «округление позиций + прежний размер», не zoom+1) (000215)', async () => {
+test('TS-8: мир: ПИН ФОРМУЛЫ — мир-якорный край = round(viewW/2 − cam·zoom) + round(ЦЕЛОЙ индекс·zoom), размер = РАЗНОСТЬ снап-краёв (не «округление позиций + прежний размер», не zoom+1) (000228)', async () => {
   const h = await wBoot();
   wAssertReady(h);
   const g = h.sandbox.__game;
@@ -727,20 +729,23 @@ test('TS-8: мир: ПИН ФОРМУЛЫ — край = round(сырая про
     const tx = Math.round(st.cam.x + (x - VIEW_W / 2) / st.zoom);
     const ty = Math.round(st.cam.y + (y - VIEW_H / 2) / st.zoom);
     assert.ok(Math.abs(st.cam.x + (x - VIEW_W / 2) / st.zoom - tx)
-        <= 0.5 / st.zoom + 1e-9
+        <= 1 / st.zoom + 1e-9
       && Math.abs(st.cam.y + (y - VIEW_H / 2) / st.zoom - ty)
-        <= 0.5 / st.zoom + 1e-9,
+        <= 1 / st.zoom + 1e-9,
       'сценарий: отрисовка на сетке тайлов: ' + x + ',' + y);
-    // Тот же порядок операций, что worldToScreen (бит-идентично).
-    const ex0 = Math.round(VIEW_W / 2 + (tx - st.cam.x) * st.zoom);
-    const ex1 = Math.round(VIEW_W / 2 + (tx + 1 - st.cam.x) * st.zoom);
-    const ey0 = Math.round(VIEW_H / 2 + (ty - st.cam.y) * st.zoom);
-    const ey1 = Math.round(VIEW_H / 2 + (ty + 1 - st.cam.y) * st.zoom);
+    // Мир-якорная формула 000228: якорь — ОДИН раз на ось, край —
+    // функция ЦЕЛОГО индекса и зума.
+    const Cx = Math.round(VIEW_W / 2 - st.cam.x * st.zoom);
+    const Cy = Math.round(VIEW_H / 2 - st.cam.y * st.zoom);
+    const ex0 = Cx + Math.round(tx * st.zoom);
+    const ex1 = Cx + Math.round((tx + 1) * st.zoom);
+    const ey0 = Cy + Math.round(ty * st.zoom);
+    const ey1 = Cy + Math.round((ty + 1) * st.zoom);
     assert.equal(x, ex0,
-      'левый край = round(сырая проекция индекса) (' + tx + ',' + ty + '): '
+      'левый край = якорь + round(индекс·zoom) (' + tx + ',' + ty + '): '
       + x + ' vs ' + ex0);
     assert.equal(y, ey0,
-      'верхний край = round(сырая проекция индекса) (' + tx + ',' + ty + '): '
+      'верхний край = якорь + round(индекс·zoom) (' + tx + ',' + ty + '): '
       + y + ' vs ' + ey0);
     assert.equal(w, ex1 - ex0,
       'ширина = разница снап-краёв (' + tx + ',' + ty + '): '
@@ -1159,4 +1164,294 @@ test('TS-12: подземелье 9×9: дробный зум (57.6) + дроб�
     'анти-вакуум: сырая проекция (0,0) = 140.8: ' + raw.x);
   assert.ok(!Number.isInteger(raw.x) && !Number.isInteger(raw.y),
     'анти-вакуум: сырая проекция дробная: ' + raw.x + ',' + raw.y);
+});
+
+// ====================================================================
+// Задача 000228 (СТАДИЯ КРАСНЫХ ТЕСТОВ, TDD): цели 000215 не
+// достигнуты — тёмные линии и дрожание тайлов на глобальной карте
+// («округление координат»). Контракты: memory/000228-world-rigid-snap
+// .md — ДВЕ правки мир-слоя:
+//   * фазо-запрет мировой камеры cam ≡ renderPos(now) + 0.5 на каждом
+//     кадре (main.js) — пинится tests/tile-pulse.test.js PW-1/2/3;
+//   * мир-якорная жёсткая решётка worldAnchoredTileEdges (map.js) —
+//     край = round(viewW/2 − cam·zoom) + round(индекс·zoom): ЦЕЛОЙ
+//     ЯКОРЬ в мировом пространстве → жёсткая трансляция между
+//     кадрами (один Δx/Δy для ВСЕХ тайлов), ПРАТТЕРН широт
+//     {⌊zoom⌋, ⌈zoom⌉} не зависит от камеры (никакого дрейфа
+//     «прибора» со скоростью камеры при дробном зуме), identity
+//     побайтово со старой формулой при ЦЕЛОМ зуме (все достижимые
+//     в игре камеры — все существующие пины без правок; строго
+//     «ЛЮБАЯ» — нет: см. (f) и memory/000228 §3.2).
+// КРАСНЫЕ (падают на ТЕКУЩЕМ коде осмысленно):
+//   TS-13: экспорт worldAnchoredTileEdges отсутствует в src/map.js
+//          (паттерн TS-1..5: осмысленное отсутствие символа ТЗ-
+//          функции, не синтаксис); анти-фикс «экспорт со СТАРОЙ
+//          формулой» — падают ровно жёсткость (a) и паттерн широт
+//          (d) (численно: stagger-сдвиги 7/8 px, дрейф широт на 6
+//          тайлах за Δcam 0.064);
+//   TS-14: e2e (паттерн TS-6/7): 2 wheel-in → зум 115.2, два
+//          СОСЕДНИХ pumped-кадра mid-glide — старая формула даёт
+//          staggered-сдвиги (Δx 7/8 px вместо единого) + дрейф
+//          широт (6 из 14 тайлов) — assertion-неравенства.
+// Хелпер tileGrid — допуск 1/zoom (max отклонение мир-якорной
+// решётки < 1 px — сумма двух округлений, memory/000228 §3.2);
+// допуск старой формулы (≤ 0.5 px) — подмножество, TS-6/7/8/14
+// универсальны.
+// ====================================================================
+
+test('TS-13: мир-якорная решётка worldAnchoredTileEdges — целые края, ширина ∈ {115,116}, жёсткая трансляция для ЛЮБОЙ пары (один Δx/Δy), паттерн широт не зависит от камеры, anti-вакуум, identity при целом зуме, guards-зеркало, детерминизм (000228)', () => {
+  assert.equal(typeof MAP.worldAnchoredTileEdges, 'function',
+    'src/map.js: экспорт Game.worldAnchoredTileEdges (задача 000228)');
+  const zoom = 80 * 1.2 * 1.2; // 115.19999999999999 — дробный
+  const vw = 800, vh = 600;
+  const x0 = 4, y0 = 2, x1 = 12, y1 = 7;
+  // Семейство близкой дробной камеры (Δcam 0.09 · zoom ≈ 10.4 px —
+  // сетка реально двигается; при старой формуле — stagger + дрейф).
+  const F = [];
+  for (let i = 0; i < 10; i++) {
+    const cam = 10.5 + i * 0.01;
+    F.push({
+      cam,
+      e: MAP.worldAnchoredTileEdges(x0, y0, x1, y1, cam, cam, zoom, vw, vh),
+    });
+  }
+  for (const { cam, e } of F) {
+    assert.equal(e.x.length, x1 - x0 + 2,
+      'edges: длина x = клеток + 1 (cam ' + cam + '): ' + e.x.length);
+    assert.equal(e.y.length, y1 - y0 + 2,
+      'edges: длина y = клеток + 1 (cam ' + cam + '): ' + e.y.length);
+    for (let i = 0; i < e.x.length; i++) {
+      assert.ok(Number.isInteger(e.x[i]),
+        'x-край — целый пиксель (cam ' + cam + ', i ' + i + '): ' + e.x[i]);
+    }
+    for (let j = 0; j < e.y.length; j++) {
+      assert.ok(Number.isInteger(e.y[j]),
+        'y-край — целый пиксель (cam ' + cam + ', j ' + j + '): ' + e.y[j]);
+    }
+  }
+  // (c) + (d) ширина/высота ∈ {⌊zoom⌋, ⌈zoom⌉}; паттерн НЕ зависит
+  // от камеры (мир-якорь: ширина — функция от ЦЕЛОГО столбца и зума).
+  const widthsX = [], widthsY = [];
+  for (const { cam, e } of F) {
+    const wx = [], wy = [];
+    for (let i = 0; i < x1 - x0; i++) {
+      const w = e.x[i + 1] - e.x[i];
+      assert.ok(w === 115 || w === 116,
+        'ширина ∈ {115, 116} = {⌊zoom⌋, ⌈zoom⌉} (cam ' + cam
+        + ', столбец ' + (x0 + i) + '): ' + w);
+      wx.push(w);
+    }
+    for (let j = 0; j < y1 - y0; j++) {
+      const hh = e.y[j + 1] - e.y[j];
+      assert.ok(hh === 115 || hh === 116,
+        'высота ∈ {115, 116} (cam ' + cam + ', строка ' + (y0 + j)
+        + '): ' + hh);
+      wy.push(hh);
+    }
+    widthsX.push(wx);
+    widthsY.push(wy);
+  }
+  for (let i = 1; i < F.length; i++) {
+    assert.deepEqual(widthsX[i], widthsX[0],
+      'паттерн широт НЕ зависит от камеры (x, cam ' + F[i].cam + '): '
+      + JSON.stringify(widthsX[i]) + ' vs ' + JSON.stringify(widthsX[0]));
+    assert.deepEqual(widthsY[i], widthsY[0],
+      'паттерн высот НЕ зависит от камеры (y, cam ' + F[i].cam + '): '
+      + JSON.stringify(widthsY[i]) + ' vs ' + JSON.stringify(widthsY[0]));
+  }
+  // (a) ЖЁСТОСТЬ: ∀ пары кадров ∃ единых целых Δx/Δy: E_j(k) =
+  // E_i(k) + Δx ∀k (жёсткая трансляция, не «поштучный round»).
+  for (let a = 0; a < F.length; a++) {
+    for (let b = a + 1; b < F.length; b++) {
+      const dx = F[b].e.x[0] - F[a].e.x[0];
+      const dy = F[b].e.y[0] - F[a].e.y[0];
+      assert.ok(Number.isInteger(dx) && Number.isInteger(dy),
+        'жёсткая трансляция: Δx/Δy целые (cam ' + F[a].cam + ' → '
+        + F[b].cam + '): ' + dx + ',' + dy);
+      for (let k = 1; k < F[a].e.x.length; k++) {
+        assert.equal(F[b].e.x[k] - F[a].e.x[k], dx,
+          'жёсткость: ВСЕ x-края сдвинуты ОДИНАКОВО (k ' + k + ', cam '
+          + F[a].cam + ' → ' + F[b].cam + '): '
+          + (F[b].e.x[k] - F[a].e.x[k]) + ' vs ' + dx);
+      }
+      for (let k = 1; k < F[a].e.y.length; k++) {
+        assert.equal(F[b].e.y[k] - F[a].e.y[k], dy,
+          'жёсткость: ВСЕ y-края сдвинуты ОДИНАКОВО (k ' + k + ', cam '
+          + F[a].cam + ' → ' + F[b].cam + '): '
+          + (F[b].e.y[k] - F[a].e.y[k]) + ' vs ' + dy);
+      }
+    }
+  }
+  // (e) анти-вакуум: камера реально сдвинула сетку + края НЕ равны
+  // точной проекции (мир-якорный снап — не passthrough raw).
+  let moved = false;
+  let devFromRaw = false;
+  for (let a = 0; a < F.length; a++) {
+    for (let b = a + 1; b < F.length; b++) {
+      if (F[b].e.x[0] !== F[a].e.x[0]
+          || F[b].e.y[0] !== F[a].e.y[0]) moved = true;
+    }
+    for (let i = 0; i < F[a].e.x.length; i++) {
+      const raw = vw / 2 + (x0 + i - F[a].cam) * zoom;
+      if (Math.abs(F[a].e.x[i] - raw) > 0) devFromRaw = true;
+    }
+    for (let j = 0; j < F[a].e.y.length; j++) {
+      const raw = vh / 2 + (y0 + j - F[a].cam) * zoom;
+      if (Math.abs(F[a].e.y[j] - raw) > 0) devFromRaw = true;
+    }
+  }
+  assert.ok(moved,
+    'анти-вакуум: ∃ пара кадров с Δ ≠ 0 (Δcam 0.09 · zoom ≈ 10 px)');
+  assert.ok(devFromRaw,
+    'анти-вакуум: ∃ край с |E − точная проекция| > 0');
+  // (f) identity-гауард: ЦЕЛЫЙ зум — все достижимые в игре камеры
+  // и пин-сценарии — побайтово = round(сырая проекция целого
+  // индекса) (как TS-5/TS-9; строго «ЛЮБАЯ» — нет: при
+  // патологических camX ~1 ulp от .5-границы возможен 1px-сдвиг
+  // отдельного края — memory/000228 §3.2).
+  const CAMES = [[0.5, 0.5], [4, 3], [10.37, 7.125], [123.123, 0.125],
+    [0.125, 2]];
+  for (const [cx, cy] of CAMES) {
+    const e = MAP.worldAnchoredTileEdges(x0, y0, x1, y1, cx, cy, 80,
+      vw, vh);
+    for (let i = 0; i < e.x.length; i++) {
+      const p = worldToScreen(x0 + i, y0, cx, cy, 80, vw, vh);
+      assert.equal(e.x[i], Math.round(p.x),
+        'identity z=80: x-край = round(сырая проекция индекса) (cam '
+        + cx + ',' + cy + ', i ' + i + '): ' + e.x[i] + ' vs '
+        + Math.round(p.x));
+    }
+    for (let j = 0; j < e.y.length; j++) {
+      const p = worldToScreen(x0, y0 + j, cx, cy, 80, vw, vh);
+      assert.equal(e.y[j], Math.round(p.y),
+        'identity z=80: y-край = round(сырая проекция индекса) (cam '
+        + cx + ',' + cy + ', j ' + j + '): ' + e.y[j] + ' vs '
+        + Math.round(p.y));
+    }
+  }
+  // Guards-зеркало snappedTileEdges (9 аргументов число+конечный,
+  // целые границы, x1≥x0, y1≥y0, zoom>0, view>0) → [NaN] без
+  // исключения; детерминизм побайтово.
+  const edgesBad = [
+    [undefined, 0, 4, 4, 0, 0, 80, 800, 600],
+    [0, null, 4, 4, 0, 0, 80, 800, 600],
+    [0, 0, 'x', 4, 0, 0, 80, 800, 600],
+    [0, 0, 4, 4, NaN, 0, 80, 800, 600],
+    [0, 0, 4, 4, 0, 0, 80, Infinity, 600],
+    [0.5, 0, 4, 4, 0, 0, 80, 800, 600],
+    [0, 0, 4, 4.5, 0, 0, 80, 800, 600],
+    [4, 0, 0, 4, 0, 0, 80, 800, 600],
+    [0, 4, 4, 0, 0, 0, 80, 800, 600],
+    [0, 0, 4, 4, 0, 0, 0, 800, 600],
+    [0, 0, 4, 4, 0, 0, 80, 0, 600],
+    [0, 0, 4, 4, 0, 0, 80, 800, 0],
+  ];
+  for (const args of edgesBad) {
+    const e = MAP.worldAnchoredTileEdges(...args);
+    assert.deepEqual(e, { x: [NaN], y: [NaN] },
+      'edges guard → [NaN] без исключения: ' + JSON.stringify(args));
+  }
+  const d1 = MAP.worldAnchoredTileEdges(x0, y0, x1, y1, 10.54, 10.54,
+    zoom, vw, vh);
+  const d2 = MAP.worldAnchoredTileEdges(x0, y0, x1, y1, 10.54, 10.54,
+    zoom, vw, vh);
+  assert.deepEqual(d1, d2, 'детерминизм: edges побайтово');
+  for (let i = 0; i < d1.x.length; i++) {
+    assert.equal(d1.x[i], d2.x[i], 'детерминизм x[' + i + ']');
+  }
+  for (let j = 0; j < d1.y.length; j++) {
+    assert.equal(d1.y[j], d2.y[j], 'детерминизм y[' + j + ']');
+  }
+});
+
+test('TS-14: мир: два СОСЕДНИХ mid-glide кадра при дробном зуме (115.2) — сетка смещается ЦЕЛИКОМ: один Δx/Δy для ВСЕХ общих тайлов, ширина/высота НЕ меняются между кадрами (нет дрейфа прибора), целые края, швов нет (000228)', async () => {
+  const h = await wBoot();
+  wAssertReady(h);
+  const g = h.sandbox.__game;
+  wFrameAt(h, NOW + 200);
+  const wheel = (h.gameCanvas.listeners['wheel'] || [])[0];
+  assert.ok(typeof wheel === 'function',
+    'сценарий: wheel-обработчик на #game');
+  wheel({ deltaY: -100, preventDefault() {} });
+  wheel({ deltaY: -100, preventDefault() {} });
+  assert.equal(g.state.zoom, 80 * 1.2 * 1.2,
+    'зум после 2 wheel-in = 115.19999999999999');
+  let now = NOW + 400;
+  wFrameAt(h, now);
+  // (−1,0) — безопасный тайл спавн-мира (паттерн TS-7).
+  wKey(h, 'ArrowLeft');
+  // Адаптивный поиск ДВУХ СОСЕДНИХ pumped-кадров mid-glide (камера
+  // дробная и не на цели; шаг 200 мс), при чём сетка между ними
+  // реально сдвинулась (анти-вакуум — в поиск).
+  let prev = null;
+  let f1 = null, f2 = null;
+  for (let i = 0; i < 12 && !f2; i++) {
+    now += 200;
+    const f = wFrameAt(h, now);
+    const s = g.state;
+    const target = s.player.x + 0.5;
+    const isMid = Math.abs(2 * s.cam.x - Math.round(2 * s.cam.x)) > 1e-9
+      && Math.abs(s.cam.x - target) > 1e-9;
+    const rec = { now, cam: { x: s.cam.x, y: s.cam.y }, draw: f.draw,
+      isMid };
+    if (rec.isMid && prev && prev.isMid) {
+      const A = tileGrid(prev.draw, { cam: prev.cam, zoom: g.state.zoom });
+      const B = tileGrid(rec.draw, { cam: rec.cam, zoom: g.state.zoom });
+      const common = [...A.grid.keys()].filter((k) => B.grid.has(k));
+      const k0 = common[0];
+      const dx0 = k0 == null ? 0 : B.grid.get(k0).x - A.grid.get(k0).x;
+      const dy0 = k0 == null ? 0 : B.grid.get(k0).y - A.grid.get(k0).y;
+      if (common.length >= 50
+          && Math.abs(rec.cam.x - prev.cam.x) > 1e-3
+          && (dx0 !== 0 || dy0 !== 0)) {
+        f1 = prev;
+        f2 = rec;
+      }
+    }
+    prev = rec;
+  }
+  wKeyup(h, 'ArrowLeft');
+  assert.ok(f1 && f2,
+    'сценарий: два соседних mid-glide кадра (камера дробная и не на '
+    + 'цели, сетка сдвинута): '
+    + (f1 ? f1.now + ' → ' + f2.now : 'не найдено'));
+  const A = tileGrid(f1.draw, { cam: f1.cam, zoom: g.state.zoom });
+  const B = tileGrid(f2.draw, { cam: f2.cam, zoom: g.state.zoom });
+  const g1 = A.grid, g2 = B.grid;
+  const common = [...g1.keys()].filter((k) => g2.has(k));
+  assert.ok(common.length >= 50,
+    'сценарий: пересечение видимых тайлов двух кадров: ' + common.length
+    + '/' + Math.min(g1.size, g2.size));
+  assert.ok(A.rawNonInt > 0 && B.rawNonInt > 0,
+    'анти-вакуум: сырые проекции дробные в ОБОИХ кадрах (камера не '
+    + 'на сетке при этом зуме): ' + A.rawNonInt + '/' + B.rawNonInt);
+  assert.ok(Math.abs(f2.cam.x - f1.cam.x) > 1e-3,
+    'анти-вакуум: камера реально сдвинулась: '
+    + (f2.cam.x - f1.cam.x));
+  const k0 = common[0];
+  const dx = g2.get(k0).x - g1.get(k0).x;
+  const dy = g2.get(k0).y - g1.get(k0).y;
+  assert.ok(dx !== 0 || dy !== 0,
+    'анти-вакуум: сетка сместилась между кадрами: (' + dx + ',' + dy + ')');
+  for (const k of common) {
+    const a = g1.get(k), b = g2.get(k);
+    assert.equal(b.x - a.x, dx,
+      'жёсткость: ОДИН Δx для ВСЕХ общих тайлов (' + k + '): '
+      + (b.x - a.x) + ' vs ' + dx);
+    assert.equal(b.y - a.y, dy,
+      'жёсткость: ОДИН Δy для ВСЕХ общих тайлов (' + k + '): '
+      + (b.y - a.y) + ' vs ' + dy);
+    assert.equal(b.w, a.w,
+      'ширина столбца НЕ меняется между кадрами (нет дрейфа прибора '
+      + 'при дробном зуме, ' + k + '): ' + b.w + ' vs ' + a.w);
+    assert.equal(b.h, a.h,
+      'высота строки НЕ меняется между кадрами (' + k + '): ' + b.h
+      + ' vs ' + a.h);
+    assert.ok(Number.isInteger(a.x) && Number.isInteger(a.y)
+        && Number.isInteger(b.x) && Number.isInteger(b.y),
+      'целые края в обоих кадрах (' + k + '): ' + a.x + ',' + a.y
+      + ' / ' + b.x + ',' + b.y);
+  }
+  assertSeams(g1);
+  assertSeams(g2);
 });

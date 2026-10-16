@@ -1358,6 +1358,66 @@
   }
 
   /**
+   * Мир-якорные снап-края диапазона тайлов (задача 000228): мир
+   * ГЛОБАЛЬНОЙ карты. Край = Math.round(viewW/2 − camX·zoom) +
+   * Math.round((x0+i)·zoom) (y — аналог с viewH/camY): ЦЕЛОЙ якорь
+   * (округление — функция ТОЛЬКО целого индекса и зума) + ОДИН общий
+   * сдвиг на ось за кадр (округление центра вьюпорта). Следствия:
+   * все края сдвигаются на ОДИН Δ между кадрами (жёсткая трансляция),
+   * паттерн широт {⌊zoom⌋, ⌈zoom⌉} НЕ зависит от камеры (дрейфа
+   * «прибора» при дробном зуме нет), общий край с соседом, error от
+   * точной проекции < 1 px. ИДЕНТИЧНОСТЬ: при ЦЕЛОМ зуме побайтово
+   * равно snappedTileEdges для всех достижимых в игре камер и всех
+   * пин-сценариев (200k случайных камер — 0 расхождений); строго
+   * «для ЛЮБОЙ» — нет: разные порядки float-операций, при
+   * патологических camX (~1 ulp от .5-границы) возможен 1px-сдвиг
+   * отдельного края (в игре недостижимо, визуально невидим).
+   * НЕ обобщение snappedTileEdges (камерно-якорная — подземелье/
+   * город, пины
+   * TS-10/11/12): два намеренно разных экспорта. Остальные свойства —
+   * как у snappedTileEdges. Контракты: memory/000228-world-rigid-snap
+   * .md; пины — tests/tile-seam.test.js TS-13/14, TS-8.
+   * @param {number} x0 левый столбец (целое)
+   * @param {number} y0 верхняя строка (целое, y растёт вниз)
+   * @param {number} x1 правый столбец (целое, включительно)
+   * @param {number} y1 нижняя строка (целое, включительно)
+   * @param {number} camX центр камеры X
+   * @param {number} camY центр камеры Y
+   * @param {number} zoom пикселей на тайл (>0)
+   * @param {number} viewW ширина окна, пиксели (>0)
+   * @param {number} viewH высота окна, пиксели (>0)
+   * @returns {{x:number[], y:number[]}} массивы снап-краёв;
+   *   невалидные аргументы (зеркало snappedTileEdges) →
+   *   {x: [NaN], y: [NaN]}, без исключения.
+   */
+  function worldAnchoredTileEdges(x0, y0, x1, y1, camX, camY, zoom,
+      viewW, viewH) {
+    const args = [x0, y0, x1, y1, camX, camY, zoom, viewW, viewH];
+    for (let i = 0; i < args.length; i++) {
+      if (typeof args[i] !== 'number' || !Number.isFinite(args[i])) {
+        return { x: [NaN], y: [NaN] };
+      }
+    }
+    if (!Number.isInteger(x0) || !Number.isInteger(y0)
+        || !Number.isInteger(x1) || !Number.isInteger(y1)) {
+      return { x: [NaN], y: [NaN] };
+    }
+    if (x1 < x0 || y1 < y0) return { x: [NaN], y: [NaN] };
+    if (zoom <= 0 || viewW <= 0 || viewH <= 0) return { x: [NaN], y: [NaN] };
+    const bx = Math.round(viewW / 2 - camX * zoom);
+    const by = Math.round(viewH / 2 - camY * zoom);
+    const ex = new Array(x1 - x0 + 2);
+    const ey = new Array(y1 - y0 + 2);
+    for (let i = 0; i < ex.length; i++) {
+      ex[i] = bx + Math.round((x0 + i) * zoom);
+    }
+    for (let j = 0; j < ey.length; j++) {
+      ey[j] = by + Math.round((y0 + j) * zoom);
+    }
+    return { x: ex, y: ey };
+  }
+
+  /**
    * Орто-матрица 4x4 (column-major, Float32Array) для WebGL-слоя:
    * ТО ЖЕ мир→экран, что и worldToScreen — тайл южнее камеры рисуется
    * НИЖЕ центра экрана.
@@ -1405,6 +1465,7 @@
     visibleTileRange, createTileCache,
     worldToScreen, orthoMatrix, // проекция мир→экран (задача 000061)
     snappedTileEdges, snappedTileRect, // снап сетки тайлов (задача 000215)
+    worldAnchoredTileEdges, // мир-якорная жёсткая решётка (задача 000228)
     hash2, // детерминированный хэш (perlin.js) — нужен src/sprites.js
   };
 });
