@@ -22,6 +22,15 @@ Worktree `.worktrees/task-000172`, ветка `task/000172`, base = master
 (map.js + combat.js + mapseed.js, node — цифры в §6).
 Базовая линия: `npm test` = **1913/1913 зелёных** (измерено в worktree).
 
+**Стиль изменён 000233 (2026-10-16, отчёт пользователя: линия не
+видна):** alpha 0.4→0.9, lineWidth 1→2 (константа
+AGGRO_CIRCLE_WIDTH), dash [6, 6] без изменений, + заливка диска
+зоны 0.10 (AGGRO_CIRCLE_FILL); M1/M3/M9 ре-пиннуты (M-ассерт
+stroke-after-arc пере-пиннут под fill-then-stroke), новые AV1/AV2
+(tests/aggro-visibility.test.js); причина (контраст, не layering) и
+допуски — memory/000233-aggro-circle-visibility.md. Геометрия/гарды/
+z-порядок Прохода 2.5 — без изменений.
+
 ## 1. Суть (одной строкой)
 
 На спрайт-слое глобальной карты (2D-канвас #sprites, `drawSprites` в

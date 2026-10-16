@@ -14,13 +14,27 @@
 //   * окружность — ТОЛЬКО для triggers=true групп; центр = центр тайла
 //     worldToScreen(x + 0.5, y + 0.5), r = info.radius * zoom (радиус
 //     читается на кадр из groupZoneInfo — НЕ хардкодится);
-//   * стиль: strokeStyle 'rgba(255, 64, 56, 0.4)' (красный, alpha 0.4 <
-//     1 — полупрозрачный), lineWidth 1 (тонкая — экранный px),
-//     setLineDash([6,6]) (пунктирная), setLineDash([]) после stroke
-//     (2d-состояние не «висит»);
+//   * стиль: strokeStyle 'rgba(255, 64, 56, 0.9)' (красный hue 000172,
+//     alpha 0.9 < 1 — полупрозрачный), lineWidth 2 (константа
+//     AGGRO_CIRCLE_WIDTH), setLineDash([6,6]) (пунктирная — без
+//     изменений), + заливка диска зоны: fillStyle
+//     'rgba(255, 64, 56, 0.10)' (AGGRO_CIRCLE_FILL), fill() сразу
+//     после arc, stroke() сразу после fill, setLineDash([]) после
+//     stroke (2d-состояние не «висит»);
 //   * z-порядок: тайлы/декорации < постройки < агро-окружности < мобы <
 //     Флогистон (отдельный проход между Проходом 2 и Проходом 3);
-//   * без fill, без анимации (ТЗ — «не больше, чем просит ТЗ»).
+//   * без анимации (ТЗ — «не больше, чем просит ТЗ»); «без fill» 000172
+//     снято 000233 (заливка диска зоны — ТЗ 000233, решение анализа).
+//
+// Стиль изменён 000233 (отчёт пользователя 2026-10-16: линия не видна
+// на глобальной карте; корневая причина — контраст, не layering):
+// alpha 0.4→0.9, lineWidth 1→2 (константа AGGRO_CIRCLE_WIDTH),
+// dash [6, 6] без изменений, + заливка диска зоны 0.10
+// (AGGRO_CIRCLE_FILL). Контракт и допуски (ΔE76) —
+// memory/000233-aggro-circle-visibility.md; новый тест-файл —
+// tests/aggro-visibility.test.js (AV1/AV2). Ре-пиннуты M1
+// (fill-then-stroke) и M3/M9 (стиль/заливка); M2/M4–M8/M10 —
+// без изменений (геометрия/z-порядок/гарды/зум/деградация).
 //
 // КРАСНАЯ стадия (TDD): прохода НЕТ в drawSprites → в кадре НОЛЬ
 // arc-вызовов → M1–M5 падают осмысленно («окружность не нарисована»,
@@ -402,7 +416,7 @@ async function scene() {
 
 // --- Тесты ---
 
-test('M1: окружность — каждая видимая триггерящая группа: arc(центр, radius·zoom, 0..2π) + stroke; (2,3) — r = 2·zoom', async () => {
+test('M1: окружность — каждая видимая триггерящая группа: arc(центр, radius·zoom, 0..2π) + fill + stroke; (2,3) — r = 2·zoom', async () => {
   const { st, calls, G, myMap } = await scene();
   const expected = expectedAgroCircles(G, myMap, st.cam, st.zoom);
   // Сценарий фолбэк-мира (спавн (0,0), ZOOM_START 80): в кадре
@@ -426,8 +440,12 @@ test('M1: окружность — каждая видимая триггеря�
     assert.ok(Math.abs(hit.a0 - 0) < EPS
         && Math.abs(hit.a1 - Math.PI * 2) < EPS,
       'группа (' + e.x + ',' + e.y + '): ПОЛНАЯ окружность 0..2π');
-    assert.equal(calls[hit.i + 1][0], 'stroke',
-      'группа (' + e.x + ',' + e.y + '): сразу после arc — stroke()');
+    // 000233: заливка диска зоны между arc и stroke (fill → stroke).
+    assert.equal(calls[hit.i + 1][0], 'fill',
+      'группа (' + e.x + ',' + e.y + '): сразу после arc — fill() '
+      + '(диск зоны, 000233)');
+    assert.equal(calls[hit.i + 2][0], 'stroke',
+      'группа (' + e.x + ',' + e.y + '): сразу после fill — stroke()');
   }
   // ЯВНО (2,3): spider_nest — «моб на глобальной карте имеет
   // окружность радиуса агрессии правильного радиуса»:
@@ -504,7 +522,7 @@ test('M2: окружность — не-триггерящие группы (D1)
     'не нарисованы: ' + JSON.stringify(pool.slice(0, 3)));
 });
 
-test('M3: стиль (D4) — тонкая красная пунктирная полупрозрачная: lineWidth 1, strokeStyle rgba(255, 64, 56, 0.4), setLineDash([6,6]) перед arc, setLineDash([]) после stroke — побайтово', async () => {
+test('M3: стиль 000233 (видимость — memory/000233-aggro-circle-visibility.md) — strokeStyle rgba(255, 64, 56, 0.9), lineWidth 2 (AGGRO_CIRCLE_WIDTH), setLineDash([6,6]) перед arc, fillStyle rgba(255, 64, 56, 0.10) (диск зоны), fill→stroke, setLineDash([]) после stroke — побайтово', async () => {
   const { calls } = await scene();
   const arcs = arcsOf(calls);
   // Пресуппозиция: в кадре ЕСТЬ агро-arc — иначе проверка стиля
@@ -514,24 +532,34 @@ test('M3: стиль (D4) — тонкая красная пунктирная �
     'в кадре есть агро-arc (пресуппозиция проверки стиля); '
     + 'найдено 0 — окружности не нарисованы');
   for (const a of arcs) {
-    // Состояние ПЕРЕД arc: цвет/толщина/пунктир (порядок
+    // Состояние ПЕРЕД arc: цвет/толщина/пунктир/заливка (порядок
     // выставления внутри прохода не важен — важно состояние на
-    // момент arc/stroke).
+    // момент arc/fill/stroke).
     const ss = prevEntry(calls, a.i, 'set:strokeStyle');
     assert.ok(ss, 'перед arc — выставлен strokeStyle');
-    assert.equal(ss.v, 'rgba(255, 64, 56, 0.4)',
-      'strokeStyle — красный + alpha 0.4 < 1 (полупрозрачный)');
+    assert.equal(ss.v, 'rgba(255, 64, 56, 0.9)',
+      'strokeStyle — красный hue 000172 + alpha 0.9 < 1 (000233: '
+      + 'видимость на худшем тайле — ΔE76 ≥ TOL_STROKE, память)');
     const lw = prevEntry(calls, a.i, 'set:lineWidth');
     assert.ok(lw, 'перед arc — выставлен lineWidth');
-    assert.equal(lw.v, 1, 'lineWidth = 1 (тонкая — экранный px)');
+    assert.equal(lw.v, 2,
+      'lineWidth = 2 (AGGRO_CIRCLE_WIDTH; 000233: полная строка '
+      + 'пикселей — нет AA-растворения 1px)');
     const dash = prevEntry(calls, a.i, 'setLineDash');
     assert.ok(dash, 'перед arc — setLineDash');
-    assert.deepEqual(dash.v, [6, 6], 'пунктир [6, 6]');
-    assert.equal(calls[a.i + 1][0], 'stroke',
-      'сразу после arc — stroke()');
+    assert.deepEqual(dash.v, [6, 6], 'пунктир [6, 6] (000172 — без изменений)');
+    // 000233: заливка диска зоны (диск — область, кольцо — радиус).
+    const fs = prevEntry(calls, a.i, 'set:fillStyle');
+    assert.ok(fs, 'перед arc — выставлен fillStyle (диск зоны)');
+    assert.equal(fs.v, 'rgba(255, 64, 56, 0.10)',
+      'fillStyle — лёгкий тон диска зоны (000233)');
+    assert.equal(calls[a.i + 1][0], 'fill',
+      'сразу после arc — fill() (диск зоны)');
+    assert.equal(calls[a.i + 2][0], 'stroke',
+      'сразу после fill — stroke() (кольцо поверх диска)');
     // ПОСЛЕ stroke — сброс пунктира: dash-состояние 2d-контекста не
     // «висит» за пределами прохода.
-    const reset = nextEntry(calls, a.i + 1, 'setLineDash');
+    const reset = nextEntry(calls, a.i + 2, 'setLineDash');
     assert.ok(reset, 'после stroke — сброс setLineDash');
     assert.deepEqual(reset.v, [],
       'setLineDash([]) — dash-состояние не остаётся после stroke');
@@ -791,21 +819,37 @@ test('M8: мусорные groupZoneInfo (radius 0 / null / без triggers) —
     'после восстановления: набор окружностей = исходный');
 });
 
-// --- M9 (GUARD, 000172-пин): «без fill» ТЗ — в кадре 0 вызовов
-// fill()/fillRect() (агро-проход — только arc + stroke) ---
+// --- M9 (GUARD, 000172/000183-пин → ре-скоуп 000233): fill — ТОЛЬКО
+// диски агро-зон (fills === arcs, каждый fill сразу после СВОЕГО arc,
+// prevEntry каждого fill = set:fillStyle с AGGRO_CIRCLE_FILL);
+// fillRect и fill других проходов по-прежнему запрещены (дух
+// «без fill» сохранён; 000172/000183 «без fill» снято ТЗ 000233) ---
 
-test('M9: «без fill» — 0 вызовов fill()/fillRect() в кадре (агро-проход: только arc+stroke) (000172/000183)', async () => {
+test('M9: fill — только диски агро-зон: fills = arcs (каждый fill сразу после СВОЕГО arc, fillStyle — rgba(255, 64, 56, 0.10)), fillRect = 0 (000172/000183 → 000233)', async () => {
   const { calls } = await scene();
   // Пресуппозиция (анти-вакуум): в кадре ЕСТЬ агро-arc — иначе
   // «0 fill в пустом кадре» было бы тривиально-зелёным.
   const arcs = arcsOf(calls);
   assert.ok(arcs.length >= 1,
     'пресуппозиция: в кадре есть агро-arc (найдено ' + arcs.length + ')');
-  const fills = calls.filter((c) => c[0] === 'fill' || c[0] === 'fillRect');
-  assert.equal(fills.length, 0,
-    '«без fill, без анимации» (ТЗ): 0 вызовов fill()/fillRect(), '
-    + 'найдено ' + fills.length
-    + (fills.length ? ' (первый: ' + fills[0][0] + ')' : ''));
+  const fillIdx = [];
+  for (let i = 0; i < calls.length; i++) {
+    if (calls[i][0] === 'fill') fillIdx.push(i);
+  }
+  assert.equal(fillIdx.length, arcs.length,
+    '000233: fill — только диски агро-зон: число fill() = число arc '
+    + '(fill ' + fillIdx.length + ', arcs ' + arcs.length + ')');
+  for (const j of fillIdx) {
+    assert.equal(calls[j - 1][0], 'arc',
+      'каждый fill — сразу после СВОЕГО arc (диск агро-зоны)');
+    const fs = prevEntry(calls, j, 'set:fillStyle');
+    assert.ok(fs, 'перед fill — выставлен fillStyle');
+    assert.equal(fs.v, 'rgba(255, 64, 56, 0.10)',
+      'fillStyle — AGGRO_CIRCLE_FILL (лёгкий тон диска зоны, 000233)');
+  }
+  const fillRects = calls.filter((c) => c[0] === 'fillRect');
+  assert.equal(fillRects.length, 0,
+    'fillRect() = 0 (fill других проходов по-прежнему запрещён)');
 });
 
 // --- M10 (GUARD, 000172-пин): тихий гард по экспорту —

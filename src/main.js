@@ -55,13 +55,14 @@
   const BUILDING_COLOR = [0.98, 0.83, 0.30]; // золотой маркер
   const MOB_COLOR = [0.85, 0.30, 0.25];      // красный маркер
   const PLAYER_COLOR = [0.55, 0.95, 1.0];    // светящийся Флогистон
-  // Задача 000172: окружность радиуса агрессии на глобальной карте —
-  // тонкая красная пунктирная полупрозрачная (4 прилагательных ТЗ):
-  // alpha < 1 — не заслоняет карту; lineWidth 1 экр. px — «тонкая»
-  // при любом зуме; dash — в пикселях экрана (не зависит от зума).
-  // Радиус НЕ здесь: из G.groupZoneInfo (combat.js, 000135) на кадр.
-  const AGGRO_CIRCLE_STYLE = 'rgba(255, 64, 56, 0.4)';
+  // Задача 000172: окружность радиуса агрессии на глобальной карте:
+  // alpha < 1 — не заслоняет карту; dash — в пикселях экрана
+  // (не зависит от зума). Радиус НЕ здесь: из G.groupZoneInfo
+  // (combat.js, 000135) на кадр.
+  const AGGRO_CIRCLE_STYLE = 'rgba(255, 64, 56, 0.9)';
   const AGGRO_CIRCLE_DASH = [6, 6];
+  const AGGRO_CIRCLE_WIDTH = 2;
+  const AGGRO_CIRCLE_FILL = 'rgba(255, 64, 56, 0.10)';
   // Базовый интервал шага по глобальной карте (задача 000063) — из
   // глобальных настроек (единый источник, паттерн 000020): 140 * 3 =
   // 420 мс, базовая скорость передвижения уменьшена в три раза.
@@ -3217,8 +3218,8 @@
       s2.drawImage(img, p.x, p.y, rec.w * zoom, rec.h * zoom);
     }
 
-    // Проход 2.5 (задача 000172): окружность радиуса агрессии — тонкая
-    // красная пунктирная полупрозрачная (AGGRO_CIRCLE_*, lineWidth 1).
+    // Проход 2.5 (задача 000172): окружность радиуса агрессии —
+    // красная пунктирная полупрозрачная (AGGRO_CIRCLE_*).
     // Радиус агрессии = дистанция триггера боя (000135, ЕДИНЫЙ источник
     // G.groupZoneInfo): triggers=true (aggressive/territorial) — круг
     // радиуса info.radius*zoom по центру тайла группы; neutral/timid
@@ -3239,8 +3240,10 @@
         s2.beginPath();
         s2.setLineDash(AGGRO_CIRCLE_DASH);
         s2.strokeStyle = AGGRO_CIRCLE_STYLE;
-        s2.lineWidth = 1;
+        s2.lineWidth = AGGRO_CIRCLE_WIDTH;
+        s2.fillStyle = AGGRO_CIRCLE_FILL;
         s2.arc(c.x, c.y, info.radius * zoom, 0, Math.PI * 2);
+        s2.fill();
         s2.stroke();
         s2.setLineDash([]); // гигиена: не оставлять dash-состояние в s2
       }
