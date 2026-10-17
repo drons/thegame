@@ -67,6 +67,9 @@ test('index.html: нужные модули подключены', () => {
     // 000200: слот спец-модулей «Полный отдых» (таверна 44 / лагерь
     // 47 — общая услуга) — после mentor, до hud.js (пин порядка IO3).
     'src/building-effect-fullrest.js',
+    // 000221: слот спец-модулей «Хранилище» (город, id 55) — после
+    // fullrest, до hud.js (пин порядка IO4).
+    'src/building-effect-storage.js',
     'src/hud.js',
     // Слот спец-модулей 000128 (после hud.js, до visuals-data.js);
     // добавлено на зелёной стадии (план красной — см. коммит
@@ -1604,6 +1607,35 @@ test('IO3. 000200: спец-модуль «Полный отдых» — тег 
     + '(слот спец-модулей, задача 000200)');
   assert.ok(pos('src/building-effect-fullrest.js') < pos('src/main.js'),
     'src/building-effect-fullrest.js должен быть ДО src/main.js '
+    + '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+// ====================================================================
+// 000221: спец-модуль src/building-effect-storage.js («Хранилище»,
+// город id 55) — тег в слоте спец-модулей (после fullrest, до hud.js).
+// Пин ТОЛЬКО порядка (pos) — UMD-гарды покрыты R7
+// (tests/city-storage.test.js). Красный: тега нет (pos === -1).
+// Имя IO4: IO1/IO2/IO3 заняты 000137/000162/000200.
+// ====================================================================
+
+test('IO4. 000221: спец-модуль «Хранилище» — тег src/building-effect-storage.js в index.html (ПОСЛЕ building-actions.js и building-effect-fullrest.js, ДО hud.js и main.js)', () => {
+  assert.notEqual(pos('src/building-effect-storage.js'), -1,
+    'src/building-effect-storage.js не подключён в index.html '
+    + '(задача 000221)');
+  assert.ok(pos('src/building-actions.js')
+    < pos('src/building-effect-storage.js'),
+    'src/building-actions.js должен быть раньше '
+    + 'src/building-effect-storage.js (registerSpecial обязан '
+    + 'существовать, задача 000128)');
+  assert.ok(pos('src/building-effect-fullrest.js')
+    < pos('src/building-effect-storage.js'),
+    'src/building-effect-storage.js — в слоте спец-модулей '
+    + '(ПОСЛЕ fullrest.js, задача 000221)');
+  assert.ok(pos('src/building-effect-storage.js') < pos('src/hud.js'),
+    'src/building-effect-storage.js должен быть ДО src/hud.js '
+    + '(слот спец-модулей, задача 000221)');
+  assert.ok(pos('src/building-effect-storage.js') < pos('src/main.js'),
+    'src/building-effect-storage.js должен быть ДО src/main.js '
     + '(UMD-ловушка 000038: main.js снимает Game один раз)');
 });
 

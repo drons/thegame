@@ -663,8 +663,24 @@ function (perlin, items, buildings, rootRef) {
               + 'вход отброшен (000148.05): ' + JSON.stringify(e));
             continue;
           }
-          built.push({ x: e.x, y: e.y, buildingId: e.buildingId,
-            player: true });
+          // 000221: storage (вложенное поле built-записи, per-building)
+          // — ПЕРСИСТЕНТНО (D4/D7): валидный storage — canonical-копия
+          // (storageSanitize); пустой результат — поле omitted (паритет
+          // built 0, D-.05f); битое ПОЛЕ (не-массив) — warn + отброс
+          // ПОЛЯ, запись жива (паттерн 000148.05).
+          const entry = { x: e.x, y: e.y, buildingId: e.buildingId,
+            player: true };
+          if (e.storage !== undefined) {
+            if (!Array.isArray(e.storage)) {
+              console.warn('cities.js: города — storage не массив — '
+                + 'поле отброшено (000221): '
+                + JSON.stringify(e.storage));
+            } else {
+              const s = storageSanitize(e.storage);
+              if (s.length) entry.storage = s;
+            }
+          }
+          built.push(entry);
         }
         if (built.length) out.built = built;
       }
@@ -1097,6 +1113,165 @@ function (perlin, items, buildings, rootRef) {
     return out;
   }
 
+  // ============================================================
+  // Хранилище (задача 000221) — ядро: ЧИСТЫЕ функции
+  // ============================================================
+  //
+  // Решения зафиксированы в memory/000221-city-storage.md (D4–D7):
+  //  * storage — ВНУТРИ built-записи cityStates (per-building), форма
+  //    записи = inventory.slots (000046): {id, qty 1..99, bonus?}
+  //    (bonus — plain-object {damage|armor|amount: int ≥ 1});
+  //    merge-ключ — (id, bonusState), bonusState — та же формула,
+  //    что items.js:224 (один ключ: k + ':' + v);
+  //  * ёмкость — каталог особые_параметры.хранилище.слоты (int ≥ 1),
+  //    иначе 0 (D5: 40 у 000055; id ∉ каталогу — 0, НЕ throw);
+  //  * put/take — ЧИСТЫЕ (новый массив, вход не мутируется);
+  //    storageAt — ЖИВАЯ ссылка (точка персиста: мутация записи
+  //    cityStates — едет spread'ом main.js prepareCityState).
+  // НОЛЬ новых require: каталог — лениво buildingsRef() (тот же
+  // паттерн, что весь строительный блок); RNG — нет (D-детерминизм).
+
+  // Ключ merge (дубль формулы items.js bonusState — items.js НЕ
+  // экспортирует его; формула одна: первый ключ + значение).
+  function storageBonusKey(bonus) {
+    if (!bonus) return null;
+    const k = Object.keys(bonus)[0];
+    return k + ':' + bonus[k];
+  }
+
+  /**
+   * Ёмкость хранилища постройки (D5): каталог
+   * особые_параметры.хранилище.слоты — int ≥ 1, иначе 0
+   * (0 — здание строится, склад недоступен: дефенсивный случай;
+   * id ∉ каталогу — 0, гард, не ошибка вызывающего).
+   * @returns {number}
+   */
+  function storageCapacity(buildingId) {
+    const B = buildingsRef();
+    const b = B.getBuilding ? B.getBuilding(buildingId) : null;
+    if (!b) return 0;
+    const pp = b.особые_параметры;
+    const s = pp && typeof pp === 'object' && !Array.isArray(pp)
+      ? pp.хранилище : null;
+    const slots = s && typeof s === 'object' && !Array.isArray(s)
+      ? s.слоты : null;
+    return (Number.isInteger(slots) && slots >= 1) ? slots : 0;
+  }
+
+  /**
+   * Canonical-копия storage (D6): запись валидна ⇔ plain-object
+   * с id — непустая строка, qty — int 1..99, bonus — plain-object
+   * (не массив/null) ИЛИ отсутствует; битая ЗАПИСЬ → console.warn
+   * (msg содержит «cities», 000029) + отброс ЗАПИСИ (не полей).
+   * Не-массив на входе → [] (warn выдает вызывающий —
+   * validateCityState). Чистая: НОВЫЙ массив, вход не мутируется.
+   * @returns {object[]}
+   */
+  function storageSanitize(storage) {
+    if (!Array.isArray(storage)) return [];
+    const out = [];
+    for (const e of storage) {
+      const bonus = e && e.bonus;
+      const bonusOk = bonus === undefined
+        || (bonus && typeof bonus === 'object' && !Array.isArray(bonus));
+      if (!e || typeof e !== 'object' || Array.isArray(e)
+          || typeof e.id !== 'string' || e.id === ''
+          || !Number.isInteger(e.qty) || e.qty < 1 || e.qty > 99
+          || !bonusOk) {
+        console.warn('cities.js: storage — битая запись отброшена '
+          + '(000221): ' + JSON.stringify(e));
+        continue;
+      }
+      const rec = { id: e.id, qty: e.qty };
+      if (bonus !== undefined) rec.bonus = Object.assign({}, bonus);
+      out.push(rec);
+    }
+    return out;
+  }
+
+  /**
+   * storage built-записи на клетке (x, y) (D6): ЖИВАЯ ссылка на
+   * массив записи player:true (точка персиста) | null (нет записи /
+   * нет поля storage / не-player / record бит).
+   * @returns {object[]|null}
+   */
+  function storageAt(record, x, y) {
+    if (!record || typeof record !== 'object' || Array.isArray(record))
+      return null;
+    const built = record.built;
+    if (!Array.isArray(built)) return null;
+    for (const e of built) {
+      if (e && typeof e === 'object' && !Array.isArray(e)
+          && e.x === x && e.y === y && e.player === true) {
+        // Поле лениво материализуется (постройка без storage —
+        // ПУСТОЕ хранилище; пустой массив при сериализации omitted —
+        // byte-совместимость R5(e)).
+        if (!Array.isArray(e.storage)) e.storage = [];
+        return e.storage;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Положить предмет в storage (D6): merge по (id, bonusState) —
+   * в существующий стак до 99, остаток — НОВАЯ запись; число
+   * записей ≤ capacity. Чистая: НОВЫЙ массив (записи — копии),
+   * вход не мутируется; отказ — { ok: false, reason: 'full' }.
+   * @returns {{ok:true, storage:object[]}|{ok:false, reason:'full'}}
+   */
+  function storagePut(storage, id, qty, bonus, capacity) {
+    const src = Array.isArray(storage) ? storage : [];
+    const cap = Number.isInteger(capacity) ? capacity : 0;
+    const b = bonus && typeof bonus === 'object' && !Array.isArray(bonus)
+      ? Object.assign({}, bonus) : (bonus === undefined ? null : bonus);
+    const st = storageBonusKey(b);
+    const out = [];
+    let rest = Number.isInteger(qty) ? qty : 0;
+    for (const e of src) {
+      if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
+      const copy = Object.assign({}, e);
+      out.push(copy);
+      if (rest > 0 && copy.id === id
+          && storageBonusKey(copy.bonus) === st
+          && Number.isInteger(copy.qty) && copy.qty < 99) {
+        const take = Math.min(rest, 99 - copy.qty);
+        copy.qty += take;
+        rest -= take;
+      }
+    }
+    while (rest > 0) {
+      const n = Math.min(rest, 99);
+      const rec = { id, qty: n };
+      if (b) rec.bonus = b;
+      out.push(rec);
+      rest -= n;
+    }
+    if (out.length > cap) return { ok: false, reason: 'full' };
+    return { ok: true, storage: out };
+  }
+
+  /**
+   * Вынуть ЦЕЛОЙ записью по ТОЧНОМУ индексу (D6): out-of-range /
+   * не-целый индекс / битая запись — { ok: false }. Чистая: новый
+   * массив (записи — копии), вход не мутируется.
+   * @returns {{ok:true, storage:object[], entry:object}|{ok:false}}
+   */
+  function storageTake(storage, index) {
+    if (!Array.isArray(storage)) return { ok: false };
+    if (!Number.isInteger(index) || index < 0 || index >= storage.length)
+      return { ok: false };
+    const e = storage[index];
+    if (!e || typeof e !== 'object' || Array.isArray(e))
+      return { ok: false };
+    const out = storage.slice(0, index).concat(storage.slice(index + 1));
+    for (let i = 0; i < out.length; i++) {
+      if (out[i] && typeof out[i] === 'object' && !Array.isArray(out[i]))
+        out[i] = Object.assign({}, out[i]);
+    }
+    return { ok: true, storage: out, entry: Object.assign({}, e) };
+  }
+
   return {
     CELL_WALL, CELL_FLOOR,
     CITY_LAYOUT_CONST,
@@ -1122,5 +1297,11 @@ function (perlin, items, buildings, rootRef) {
     // 000148.05: имя города (правила D7) + occupied для перегенерации.
     validateCityName,
     builtOccupied,
+    // 000221: хранилище (ядро — чистые функции, D4–D7).
+    storageCapacity,
+    storageSanitize,
+    storageAt,
+    storagePut,
+    storageTake,
   };
 });

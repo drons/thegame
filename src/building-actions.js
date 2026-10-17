@@ -337,7 +337,16 @@
     // позиция после moveHero, ctx.r — результат apply — §2.5/§6.6
     // memory).
     let sres = null;
-    const sp = specials[action.id];
+    // Задача 000221: строки «Сложить/Вынуть» (put-*/take-*) хранилища
+    // — делегирование спец-а «storage» (реестр); save/flash/render —
+    // внутри модуля, пайплайн получает {ok:false} без message.
+    let sp = specials[action.id];
+    if (!sp && typeof action.id === 'string'
+        && (action.id.indexOf('put-') === 0
+          || action.id.indexOf('take-') === 0)
+        && typeof specials['storage'] === 'function') {
+      sp = specials['storage'];
+    }
     if (typeof sp === 'function') {
       sres = sp({
         day: deps.clock.day,
@@ -679,6 +688,68 @@
     return { id: 'demolish',
       имя: label,
       доступен: true };
+  }
+
+  // Строки «Сложить/Вынуть» (задача 000221) — [E]-меню постройки
+  // игрока-хранилища (КНИГА строки — building-effect-storage.js,
+  // здесь — только СТРОКИ [E]: put-*/take-* — делегирование
+  // пайплайном спец-у «storage»). Строки ТОЛЬКО для каталожного
+  // хранилища (особые_параметры.хранилище) + LIVE record/storage
+  // (cityStates) + capacity > 0; иначе [] (строки эффектов +
+  // «Разобрать» — как без хранилища). Форма строки = оверлей 1:1
+  // (id/itemId/bonus/qty/имя/доступен/reason).
+  function storageMenuRows(cell, cityAnchor) {
+    const g = deps.game;
+    const C = g && g.Cities;
+    if (!C || typeof C.storageAt !== 'function'
+        || typeof C.storageCapacity !== 'function') return [];
+    const cs = deps.cityStates;
+    if (!cs || typeof cs.get !== 'function' || !cityAnchor) return [];
+    const b = g.getBuilding ? g.getBuilding(cell.buildingId) : null;
+    const pp = b && b.особые_параметры;
+    if (!pp || typeof pp !== 'object' || Array.isArray(pp)
+        || !pp.хранилище) return [];
+    const record = cs.get(cityAnchor);
+    const storage = C.storageAt(record, cell.x, cell.y);
+    if (!storage) return [];
+    const capacity = C.storageCapacity(cell.buildingId);
+    if (!Number.isFinite(capacity) || capacity <= 0) return [];
+    const hero = deps.hero;
+    const inv = hero && hero.inventory;
+    const slots = inv && Array.isArray(inv.slots) ? inv.slots : [];
+    const rows = [];
+    for (let i = 0; i < slots.length; i++) {
+      const e = slots[i];
+      if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
+      const row = { id: 'put-' + i, itemId: e.id,
+        bonus: e.bonus === undefined ? null : e.bonus,
+        qty: e.qty,
+        имя: 'Сложить: ' + reagentName(g, e.id) + ' ×' + e.qty
+          + (e.bonus ? ' (улучш.)' : ''),
+        доступен: storage.length < capacity };
+      if (!row.доступен) {
+        row.reason = 'хранилище полное (' + storage.length + '/'
+          + capacity + ')';
+      }
+      rows.push(row);
+    }
+    for (let j = 0; j < storage.length; j++) {
+      const e = storage[j];
+      if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
+      const bns = e.bonus === undefined ? null : e.bonus;
+      const chk = typeof g.canAddItem === 'function'
+        ? g.canAddItem(hero, e.id, e.qty, bns) : { ok: true };
+      const row = { id: 'take-' + j, itemId: e.id, bonus: bns,
+        qty: e.qty,
+        имя: 'Вынуть: ' + reagentName(g, e.id) + ' ×' + e.qty
+          + (e.bonus ? ' (улучш.)' : ''),
+        доступен: !!(chk && chk.ok) };
+      if (!row.доступен) {
+        row.reason = chk && chk.reason ? chk.reason : 'недоступно';
+      }
+      rows.push(row);
+    }
+    return rows;
   }
 
   // Меню «Строительство» (000148.03, pre-check 000202): пустая
@@ -1265,6 +1336,15 @@
     if (!record) {
       return { ok: false, message: 'Запись города отсутствует' };
     }
+    // Задача 000221 (D10): разборка хранилища НЕПУСТОГО — отказ
+    // (предметы привязаны к постройке; автовозврат отклонён — риск
+    // «инвентарь полон → предметы потеряны»). Гард общий: любая
+    // built-запись со storage.
+    const st = C.storageAt ? C.storageAt(record, t.x, t.y) : null;
+    if (st && st.length) {
+      return { ok: false,
+        message: 'Хранилище не пусто — сначала выньте предметы' };
+    }
     const res = C.demolishCity(record, t.x, t.y);
     if (!res) {
       // Базовая (player отсутствует) / не покрыто footprint —
@@ -1629,8 +1709,12 @@
     // 000148.03: постройка игрока (per-cell player:true) — строка
     // «Разобрать» (возврат 30% floor) ПОСЛЕ строк эффектов; базовая
     // — без строки (затрачено = 0).
+    // 000221: строки хранилища (put-*/take-*) ПЕРЕД «Разобрать» —
+    // конец списка extraActions (эффекты — первой частью all).
     const extraActions = cell.player === true
-      ? [demolishActionRow(cell)] : [];
+      ? storageMenuRows(cell, cityAnchor)
+        .concat([demolishActionRow(cell)])
+      : [];
     // СУЩЕСТВУЮЩАЯ точка: buildingUI.open + actions (городские
     // записи БЕЗ эффектов → ровно «Диалог», если npc != null;
     // пустой список — openBuildingUI false → [E] ничего).

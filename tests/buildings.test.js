@@ -82,8 +82,8 @@ const TERRAIN_TABLE_NAMES = [
 ];
 
 // spec/buildings.md: 6 магазинов, 18 школ навыков, 6 домов NPC,
-// 5 входов в пещеры, 4 храма, 4 магических знака, 7 прочих = 50 типов
-// + 4 города (000102) = 54 типов.
+// 5 входов в пещеры, 4 храма, 4 магических знака, 8 прочих = 51 тип
+// + 4 города (000102) = 55 типов.
 const EXPECTED_COUNTS = {
   магазин: 6,
   школа_навыков: 18,
@@ -92,19 +92,19 @@ const EXPECTED_COUNTS = {
   храм: 4,
   магический_знак: 4,
   город: 4,
-  прочее: 7,
+  прочее: 8,
 };
 
-test('каталог: 54 типа, id = 1..54 без дублей, порядок = id', () => {
-  assert.equal(BUILDINGS.length, 54);
+test('каталог: 55 типов, id = 1..55 без дублей, порядок = id', () => {
+  assert.equal(BUILDINGS.length, 55);
   const ids = BUILDINGS.map((b) => b.id);
-  assert.equal(new Set(ids).size, 54, 'id уникальны');
+  assert.equal(new Set(ids).size, 55, 'id уникальны');
   for (let i = 0; i < BUILDINGS.length; i++) {
     assert.equal(BUILDINGS[i].id, i + 1, 'id = позиция в каталоге + 1');
   }
 });
 
-test('каталог: категории — 6/18/6/5/4/4/4/7, все категории из CATEGORIES', () => {
+test('каталог: категории — 6/18/6/5/4/4/4/8, все категории из CATEGORIES', () => {
   for (const cat of Object.keys(EXPECTED_COUNTS)) {
     assert.equal(getBuildingsByCategory(cat).length, EXPECTED_COUNTS[cat], cat);
   }
@@ -139,10 +139,10 @@ test('каталог: обязательные поля, допустимые_т
   }
 });
 
-test('файлы assets/buildings: ровно 000001..000054.json, содержимое = JS-фолбэк', () => {
+test('файлы assets/buildings: ровно 000001..000055.json, содержимое = JS-фолбэк', () => {
   const files = fs.readdirSync(DIR).filter((f) => /^\d{6}\.json$/.test(f)).sort();
-  assert.equal(files.length, 54, 'ровно 54 файла типа');
-  for (let i = 0; i < 54; i++) {
+  assert.equal(files.length, 55, 'ровно 55 файла типа');
+  for (let i = 0; i < 55; i++) {
     const num = String(i + 1).padStart(6, '0');
     assert.equal(files[i], num + '.json', `файл ${files[i]} вместо ${num}.json`);
     const fromFile = JSON.parse(fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
@@ -161,7 +161,7 @@ test('getBuilding: id → объект из каталога, вне диапа�
   assert.equal(getBuilding(50), BUILDINGS[49]);
   assert.equal(getBuilding(25).название, 'Дом кузнеца');
   assert.equal(getBuilding(0), null);
-  assert.equal(getBuilding(55), null, 'вне каталога (1..54) — null');
+  assert.equal(getBuilding(56), null, 'вне каталога (1..55) — null');
   assert.equal(getBuilding(12345), null);
 });
 
@@ -693,9 +693,9 @@ test('CATEGORIES (000102): содержит «город»', () => {
   assert.ok(CATEGORIES.includes('город'), 'CATEGORIES: нет «город»');
 });
 
-test('каталог (000102): 54 типа, id = 1..54 без дублей, 4 из них — города', () => {
-  assert.equal(BUILDINGS.length, 54, 'в каталоге 54 типа');
-  assert.equal(new Set(BUILDINGS.map((b) => b.id)).size, 54,
+test('каталог (000102): 55 типов, id = 1..55 без дублей, 4 из них — города', () => {
+  assert.equal(BUILDINGS.length, 55, 'в каталоге 55 типов');
+  assert.equal(new Set(BUILDINGS.map((b) => b.id)).size, 55,
     'id уникальны');
   for (let i = 0; i < BUILDINGS.length; i++) {
     assert.equal(BUILDINGS[i].id, i + 1, 'id = позиция в каталоге + 1');
@@ -858,11 +858,11 @@ test('placeBuilding (000102): флаг берётся строго === true — 
     'не_сжимать=true: не влез → null (3x3 не строится)');
 });
 
-test('зеркало (000102): файлы 000001..000054.json, содержимое = JS-каталог', () => {
+test('зеркало (000102): файлы 000001..000055.json, содержимое = JS-каталог', () => {
   const files = fs.readdirSync(DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)).sort();
-  assert.equal(files.length, 54, 'ровно 54 файла типа');
-  for (let i = 0; i < 54; i++) {
+  assert.equal(files.length, 55, 'ровно 55 файла типа');
+  for (let i = 0; i < 55; i++) {
     const num = String(i + 1).padStart(6, '0');
     assert.equal(files[i], num + '.json',
       `файл ${files[i]} вместо ${num}.json`);
@@ -885,7 +885,7 @@ test('sync-buildings-data.js (000102): CATEGORY_TITLES знает «город»
 
 test('buildings.js (000102): шапочный комментарий и JSDoc согласованы с размером каталога', () => {
   // Согласованность (зелёный теперь: 50/50; после реализации
-  // краснеет, если «Каталог: 54 типа» и JSDoc «1..54» не обновить).
+  // краснеет, если «Каталог: 55 типов» и JSDoc «1..55» не обновить).
   const src = fs.readFileSync(
     path.join(__dirname, '..', 'src', 'buildings.js'), 'utf8');
   assert.ok(src.includes(`Каталог: ${BUILDINGS.length} типов`),
@@ -896,8 +896,9 @@ test('buildings.js (000102): шапочный комментарий и JSDoc с
 
 // --- Задача 000073: размещение подтипов — особые_параметры.размещение ---
 //
-// 10 «некартовых» записям каталога (37/38/39 храм, 41/42/43 маг.
-// знаки, 45/46/48/49 прочее) — поле особых_параметры.размещение
+// 11 «некартовых» записям каталога (37/38/39 храм, 41/42/43 маг.
+// знаки, 45/46/48/49 прочее, 55 хранилище — доля 0, 000221) — поле
+// особых_параметры.размещение
 // { слот, доля } — source of truth генерации подтипов слотов 8..12
 // (src/map.js: subtypeFor по hash2(x, y, SUBTYPE_SEED_CONST); доля
 // базовой записи слота = остаток 100 − Σдоля — поле У НЕЁ НЕТ).
@@ -913,15 +914,15 @@ const SUBTYPE_PLACEMENT_0073 = {
   9: { 48: 20 },                  // развалины (базовая 31 — 80)
   10: { 41: 15, 42: 15, 43: 15 }, // телепорт/обелиск/маг. круг
   11: { 45: 15, 49: 25 },         // колодец/фонтан (базовая 44 — 60)
-  12: { 46: 30 },                 // смотровая башня (базовая 25 — 70)
+  12: { 46: 30, 55: 0 },          // смотровая башня; 55 доля 0 (000221)
 };
 const BASE_SLOT_IDS_0073 = { 8: 36, 9: 31, 10: 40, 11: 44, 12: 25 };
 
-test('каталог 000073: ровно 10 записей-подтипов с особые_параметры.размещение; таблица = ТЗ (слот → {id: доля})', () => {
+test('каталог 000073: ровно 11 записей-подтипов с особые_параметры.размещение; таблица = ТЗ (слот → {id: доля})', () => {
   const withPlacement = BUILDINGS.filter(
     (b) => b.особые_параметры && b.особые_параметры.размещение);
-  assert.equal(withPlacement.length, 10,
-    'ровно 10 записей-подтипов (получено: ' +
+  assert.equal(withPlacement.length, 11,
+    'ровно 11 записей-подтипов (получено: ' +
     (withPlacement.map((b) => b.id).join(', ') || 'нет') + ')');
   const seen = {};
   for (const b of withPlacement) {
@@ -929,8 +930,8 @@ test('каталог 000073: ровно 10 записей-подтипов с о
     const slot = r.слот;
     assert.ok(Number.isInteger(slot) && slot >= 8 && slot <= 12,
       `${b.id} ${b.название}: слот ${slot} — подтипы только слоты 8..12`);
-    assert.ok(Number.isInteger(r.доля) && r.доля >= 1 && r.доля <= 100,
-      `${b.id} ${b.название}: доля — целое 1..100 (получено ${r.доля})`);
+    assert.ok(Number.isInteger(r.доля) && r.доля >= 0 && r.доля <= 100,
+      `${b.id} ${b.название}: доля — целое 0..100 (получено ${r.доля})`);
     (seen[slot] = seen[slot] || {})[b.id] = r.доля;
   }
   assert.deepEqual(Object.keys(seen).map(Number).sort((a, b) => a - b),
@@ -969,21 +970,21 @@ test('каталог 000073: сумма долей подтипов слота <
 // .стройка: 31-35 пещеры — dungeon-система, 41 телепорт-круг — пары
 // на карте мира, 47 лагерь — мировая механика, 50 мост — резерв
 // 000064, 51-54 города — само-вложение). Строгай контур: у остальных
-// 33 записей поля «стройка» НЕТ. Зеркало src/buildings.js ≡ JSON —
+// 34 записей поля «стройка» НЕТ. Зеркало src/buildings.js ≡ JSON —
 // существующие тесты «файлы assets/buildings … = JS-фолбэк» (:94) и
 // sync-тест (:498) покрывают byte-идентичность (один коммит).
 // КРАСНЫЕ: поле отсутствует во всех JSON/зеркале.
 
 const D3_IDS_03 = [1, 2, 3, 4, 7, 8, 10, 11, 25, 36, 37, 38, 39, 40,
-  42, 43, 44, 45, 46, 48, 49];
+  42, 43, 44, 45, 46, 48, 49, 55];
 
-test('каталог 000148.03: особые_параметры.стройка = {золото: int>0} ровно у 21 buildable-типа (набор D3); у остальных 33 — нет', () => {
+test('каталог 000148.03: особые_параметры.стройка = {золото: int>0} ровно у 22 buildable-типа (набор D3); у остальных 34 — нет', () => {
   const withBuild = BUILDINGS.filter(
     (b) => b.особые_параметры && b.особые_параметры.стройка);
   assert.deepEqual(
     withBuild.map((b) => b.id).sort((a, b) => a - b),
     D3_IDS_03.slice().sort((a, b) => a - b),
-    'RED: ровно 21 запись с .стройка (набор D3); получено: '
+    'RED: ровно 22 запись с .стройка (набор D3); получено: '
     + (withBuild.map((b) => b.id).join(', ') || 'НЕТ'));
   for (const b of withBuild) {
     const g = b.особые_параметры.стройка.золото;
@@ -1019,7 +1020,7 @@ const REAGENTS_000044 = [
   'herb_mana', 'herb_bitter', 'stone_chisel',
 ];
 
-test('000148.04 R13: каталог: особые_параметры.стройка.исходники — непустой массив записей {предмет: непустая строка, количество: int>0} ровно у 21 buildable-типа (набор D3); у остальных 33 — .стройка НЕТ (строгий контур)', () => {
+test('000148.04 R13: каталог: особые_параметры.стройка.исходники — непустой массив записей {предмет: непустая строка, количество: int>0} ровно у 22 buildable-типа (набор D3); у остальных 34 — .стройка НЕТ (строгий контур)', () => {
   const withSrc = [];
   for (const b of BUILDINGS) {
     const pp = b.особые_параметры;
@@ -1049,9 +1050,9 @@ test('000148.04 R13: каталог: особые_параметры.строй�
   }
   assert.deepEqual(withSrc.map((b) => b.id).sort((a, b) => a - b),
     D3_IDS_03.slice().sort((a, b) => a - b),
-    'RED: ровно 21 запись с непустым .стройка.исходники (набор D3); '
+    'RED: ровно 22 запись с непустым .стройка.исходники (набор D3); '
     + 'получено: ' + (withSrc.map((b) => b.id).join(', ') || 'НЕТ'));
-  // Строгий контур: у остальных 33 записей поля «стройка» НЕТ
+  // Строгий контур: у остальных 34 записей поля «стройка» НЕТ
   // (дубль .03 :931 — исходники существуют только у buildable).
   for (const b of BUILDINGS) {
     if (D3_IDS_03.includes(b.id)) continue;
@@ -1120,8 +1121,9 @@ const SYNC_HEADER_000207 =
   + '(scripts/sync-buildings-data.js)';
 
 // Пин-таблица 000207: здание → [id предмета (прежнее значение),
-// количество, файл-цель в assets/items]. 22 позиции, 21 здание D3
-// (memory/000207-buildings-refs-items.md §0 — проверено 1:1).
+// количество, файл-цель в assets/items]. 24 позиции, 22 здания D3
+// (memory/000207-buildings-refs-items.md §0 — проверено 1:1;
+// 55 — 000221).
 const REF_PIN_000207 = {
   1: [['wood_log', 2, '000035']],
   2: [['hide', 2, '000037']],
@@ -1144,6 +1146,7 @@ const REF_PIN_000207 = {
   46: [['stone_chunk', 3, '000036']],
   48: [['stone_chunk', 1, '000036']],
   49: [['stone_chunk', 2, '000036']],
+  55: [['wood_log', 2, '000035'], ['stone_chunk', 2, '000036']],
 };
 const REF_PIN_IDS_000207 = Object.keys(REF_PIN_000207).map(Number);
 const R4_NO_BUILD_000207 = [5, 31];
@@ -1153,10 +1156,10 @@ function readBuildingRaw_000207(n) {
   return JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
 }
 
-test('000207 R1: assets/buildings: .стройка.исходники[].предмет — ссылка на файл items (паттерн ^assets/items/\\d{6}\\.json$); ровно 21 здание D3, 22 позиции; вне D3 — .стройка НЕТ (строгий контур)', () => {
+test('000207 R1: assets/buildings: .стройка.исходники[].предмет — ссылка на файл items (паттерн ^assets/items/\\d{6}\\.json$); ровно 22 здания D3, 24 позиции; вне D3 — .стройка НЕТ (строгий контур)', () => {
   const files = fs.readdirSync(DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)).sort();
-  assert.equal(files.length, 54, 'каталог: ровно 54 файла 0000NN.json');
+  assert.equal(files.length, 55, 'каталог: ровно 55 файлов 0000NN.json');
   const raw = {};
   for (const f of files) {
     raw[parseInt(f, 10)] = JSON.parse(
@@ -1178,10 +1181,10 @@ test('000207 R1: assets/buildings: .стройка.исходники[].пред
   }
   assert.deepEqual(withBuild.slice().sort((a, b) => a - b),
     D3_IDS_03.slice().sort((a, b) => a - b),
-    'ровно 21 здание с .стройка.исходники (набор D3); получено: '
+    'ровно 22 здания с .стройка.исходники (набор D3); получено: '
     + (withBuild.join(', ') || 'НЕТ'));
-  assert.equal(pos, 22,
-    'позиций .стройка.исходники = 22 (получено ' + pos + ')');
+  assert.equal(pos, 24,
+    'позиций .стройка.исходники = 24 (получено ' + pos + ')');
   for (const n of Object.keys(raw).map(Number).sort((a, b) => a - b)) {
     if (D3_IDS_03.includes(n)) continue;
     const j = raw[n];
@@ -1225,11 +1228,11 @@ test('000207 R2: assets/buildings: целостность ссылок: кажд
         `${n}: id цели «${tj.id}» ∈ пулу 13 reagent 000044`);
     }
   }
-  assert.equal(pos, 22,
-    'позиций .стройка.исходники = 22 (получено ' + pos + ')');
+  assert.equal(pos, 24,
+    'позиций .стройка.исходники = 24 (получено ' + pos + ')');
 });
 
-test('000207 R3: запекание из ссылок: зеркало src/buildings.js — id-форма: для всех 22 позиций зеркальный .предмет === id файла-цели ссылки из JSON; в GENERATED-блоке НЕТ строк "assets/items/" (ссылки живут ТОЛЬКО в JSON)', () => {
+test('000207 R3: запекание из ссылок: зеркало src/buildings.js — id-форма: для всех 24 позиций зеркальный .предмет === id файла-цели ссылки из JSON; в GENERATED-блоке НЕТ строк "assets/items/" (ссылки живут ТОЛЬКО в JSON)', () => {
   let pos = 0;
   for (const bid of Object.keys(REF_PIN_000207)) {
     const n = Number(bid);
@@ -1256,8 +1259,8 @@ test('000207 R3: запекание из ссылок: зеркало src/buildi
         `${n} ${j.название}: зеркальный .предмет «${ms.исходники[i].предмет}» ≠ прежнему значению «${itemId}» (byte-identical зеркало)`);
     }
   }
-  assert.equal(pos, 22,
-    'позиций .стройка.исходники = 22 (получено ' + pos + ')');
+  assert.equal(pos, 24,
+    'позиций .стройка.исходники = 24 (получено ' + pos + ')');
   const src = fs.readFileSync(
     path.join(__dirname, '..', 'src', 'buildings.js'), 'utf8');
   const bIdx = src.indexOf(BEG_000207);
@@ -1376,7 +1379,7 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
   }
 });
 
-test('000207 R5: schema.json закрепляет ссылочный контур: под-схема особые_параметры.стройка — строгая (D2: предмет — pattern ^assets/items/\\d{6}\\.json$); отрицательный контроль: запись с ГОЛЫМ id предмета — ≥1 ошибка, со ссылкой — 0; особые_параметры остаётся свободным; все 54 файла каталога валидны', () => {
+test('000207 R5: schema.json закрепляет ссылочный контур: под-схема особые_параметры.стройка — строгая (D2: предмет — pattern ^assets/items/\\d{6}\\.json$); отрицательный контроль: запись с ГОЛЫМ id предмета — ≥1 ошибка, со ссылкой — 0; особые_параметры остаётся свободным; все 55 файлов каталога валидны', () => {
   const schema = JSON.parse(
     fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
   const rec = readBuildingRaw_000207(1);
@@ -1540,14 +1543,14 @@ function convertTrainsRefs_000211_07(record) {
   }
 }
 
-test('000211.07 R1: "спрайт" — ровно 18 из 54 записей (13 slot-представителей — id из данных (map_index) + лагерь 47 + города 51-54); значение = ЗАКРЫТОМУ старому литералу (byte-идентично); файл svg существует; у остальных 36 — нет (строгий контур)', () => {
+test('000211.07 R1: "спрайт" — ровно 18 из 55 записей (13 slot-представителей — id из данных (map_index) + лагерь 47 + города 51-54); значение = ЗАКРЫТОМУ старому литералу (byte-идентично); файл svg существует; у остальных 37 — нет (строгий контур)', () => {
   const raw = {};
   for (const f of fs.readdirSync(DIR)
     .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
     raw[parseInt(f, 10)] = JSON.parse(
       fs.readFileSync(path.join(DIR, f), 'utf8'));
   }
-  assert.equal(Object.keys(raw).length, 54, 'каталог: 54 файла');
+  assert.equal(Object.keys(raw).length, 55, 'каталог: 55 файлов');
   const slotIds = Object.keys(raw).map(Number).filter((n) => {
     const p = raw[n].особые_параметры;
     return p && Number.isInteger(p.map_index);
@@ -1578,7 +1581,7 @@ test('000211.07 R1: "спрайт" — ровно 18 из 54 записей (13 
   }
 });
 
-test('000211.07 R2: "тренирует" — 18 школ (id 7-24, строгий контур: у остальных 36 — НЕТ); ВСЕ 34 позиции — ссылки "assets/skills/NNNNNN.json" (резолвятся), id цели = ЗАКРЫТОМУ пину (позиционно), name файла-цели (lower) = имени ДО (кросс-чек против skills-каталога); отрицательный контроль: «мечника» — не имя каталога', () => {
+test('000211.07 R2: "тренирует" — 18 школ (id 7-24, строгий контур: у остальных 37 — НЕТ); ВСЕ 34 позиции — ссылки "assets/skills/NNNNNN.json" (резолвятся), id цели = ЗАКРЫТОМУ пину (позиционно), name файла-цели (lower) = имени ДО (кросс-чек против skills-каталога); отрицательный контроль: «мечника» — не имя каталога', () => {
   const pinNames = new Set();
   const pinIds = new Set();
   for (const rows of Object.values(TRAINS_PIN_000211_07)) {
@@ -1647,7 +1650,7 @@ test('000211.07 R2: "тренирует" — 18 школ (id 7-24, строги�
   }
 });
 
-test('000211.07 R3: schema.json — форма новых свойств: топ-level «спрайт» (svg-паттерн) + «особые_параметры.тренирует» (массив ссылочного паттерна); required — без изменений («спрайт»/«тренирует» — НЕ required: контур 36 записей без «спрайт» остаётся валидным); top-level additionalProperties: false; «особые_параметры» — СВОБОДНЫЙ; отрицательный контроль: запись школы с ИМЕНЕМ в «тренирует» → ≥1 ошибка (pattern), со ссылкой → 0; ВСЕ 54 файлов валидны', () => {
+test('000211.07 R3: schema.json — форма новых свойств: топ-level «спрайт» (svg-паттерн) + «особые_параметры.тренирует» (массив ссылочного паттерна); required — без изменений («спрайт»/«тренирует» — НЕ required: контур 37 записей без «спрайт» остаётся валидным); top-level additionalProperties: false; «особые_параметры» — СВОБОДНЫЙ; отрицательный контроль: запись школы с ИМЕНЕМ в «тренирует» → ≥1 ошибка (pattern), со ссылкой → 0; ВСЕ 55 файлов валидны', () => {
   const schema = JSON.parse(
     fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
   assert.deepEqual(schema.properties['спрайт'], {

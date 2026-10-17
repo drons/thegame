@@ -208,7 +208,8 @@ test('A1. building-effects (UMD node): реестр и чистые функци
     'fire', 'market', 'coin', 'heal', '40_spell', '42_spell',
     'resurrect',
     '17_mentor', '18_mentor', '19_mentor', '21_mentor', '38_mentor',
-    'fullrest'];
+    'fullrest',
+    'storage'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
     assert.ok(regKeys.includes(id),
@@ -217,7 +218,8 @@ test('A1. building-effects (UMD node): реестр и чистые функци
   for (const id of regKeys) {
     assert.ok(UNION.includes(id),
       'реестр: чужой id «' + id + '» (union 000074/000075/000076/' +
-      '000077/000091/000092/000093/000094/000095/000137/000133)');
+      '000077/000091/000092/000093/000094/000095/000137/000133/' +
+      '000147/000162/000200/000221)');
   }
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');

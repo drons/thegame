@@ -1143,15 +1143,15 @@ test('город 000191.6b (e2e): z-порядок слоя — ВСЕ building-
 // (4,4) таверна 44, (2,3) оружейная 1, (2,2) таверна 44; герой
 // HERO109 (золото 50, ПРЕДМЕТОВ НЕТ). Ходьба (1,5)→(1,4)→(1,3)→
 // (1,2)→(1,1) (все — интерьерный FLOOR) и [E] на СВОБОДНОЙ (1,1) →
-// buildingUI «Строительство»: 21 build-строка (набор D3) + rename.
+// buildingUI «Строительство»: 22 build-строки (набор D3) + rename.
 // Ходьба в городе — синхронная (keydown → ctx.onMove → cityMove,
 // кадры не нужны; позиция — g.dungeon.x/y, не g.state.player — в
 // городе player = мировой якорь входа). Красный: в текущем коде
-// pre-check геометрический (19 из 21 строк доступны, reason у 3×3
+// pre-check геометрический (20 из 22 строк доступны, reason у 3×3
 // строчными «нет места»), icon нет, --build/cp-itemreason нет.
 
 const D3_202 = [1, 2, 3, 4, 7, 8, 10, 11, 25, 36, 37, 38, 39, 40, 42,
-  43, 44, 45, 46, 48, 49];
+  43, 44, 45, 46, 48, 49, 55];
 
 function walkCity202(h, steps) {
   const g = h.sandbox.__game;
@@ -1167,7 +1167,7 @@ function walkCity202(h, steps) {
   }
 }
 
-test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕАЛЬНОЕ «Строительство»: оверлей combat-overlay--build; 21 строка с IMG.cp-itemicon (реальный путь G.buildingSprite) + чип rename; ВСЕ 21 строки disabled + reason cp-itemreason (без dim); 7/36 (3×3 перекрытие) — «Нет места», 1 — «Не хватает 2 бревна» (золото 50 ≥ 50), 48 — «Не хватает 1 каменного обломка» (золото 50 ≥ 30); без console.error; второй [E] — закрыть', async () => {
+test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕАЛЬНОЕ «Строительство»: оверлей combat-overlay--build; 22 строки с IMG.cp-itemicon (реальный путь G.buildingSprite) + чип rename; ВСЕ 22 строки disabled + reason cp-itemreason (без dim); 7/36 (3×3 перекрытие) — «Нет места», 1 — «Не хватает 2 бревна» (золото 50 ≥ 50), 48 — «Не хватает 1 каменного обломка» (золото 50 ≥ 30); без console.error; второй [E] — закрыть', async () => {
   const h = await bootSeeded({ day: V109.day, steps: 0, hero: HERO109 });
   const { g, G } = await enterVillage109(h);
   walkCity202(h, [[1, 4], [1, 3], [1, 2], [1, 1]]);
@@ -1198,8 +1198,8 @@ test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕ
     String(ch.className || '').includes('cp-items'));
   assert.ok(list, '.cp-items в оверлее');
   const rows = list.children;
-  assert.equal(rows.length, 22,
-    '22 строки (21 набор D3 + «Переименовать город», 000148.05); '
+  assert.equal(rows.length, 23,
+    '23 строки (22 набора D3 + «Переименовать город», 000148.05); '
     + 'факт: ' + rows.length);
   // Иконка — реальный слот-спрайт (резолв 1:1 с тестом G1 000148.02:
   // getBuilding → map_index/размещение.слот → G.buildingSprite).
@@ -1213,7 +1213,7 @@ test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕ
   };
   const lastChild = (row) => row.children[row.children.length - 1];
   const reasonOf = (row) => String(lastChild(row).textContent || '');
-  for (let i = 0; i < 21; i += 1) {
+  for (let i = 0; i < 22; i += 1) {
     const id = D3_202[i];
     const row = rows[i];
     assert.equal(row.disabled === true, true,
@@ -1234,13 +1234,13 @@ test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕ
       'RED: reason строки build-' + id + ' — класс cp-itemreason: '
       + lastChild(row).className);
   }
-  // 22-я строка — «Переименовать город»: нумерационный чип (без
+  // 23-я строка — «Переименовать город»: нумерационный чип (без
   // иконки), доступна.
-  const rename = rows[21];
+  const rename = rows[22];
   assert.equal(String(rename.children[0].className), 'cp-btn',
     'rename-строка — нумерационный чип (без иконки)');
-  assert.equal(String(rename.children[0].textContent), '22',
-    'чип — номер 22');
+  assert.equal(String(rename.children[0].textContent), '23',
+    'чип — номер 23');
   assert.equal(rename.disabled === false, true,
     'rename-строка — доступна (000148.05)');
   // Reasons: геометрия приоритетнее (7/36 3×3 — перекрытие

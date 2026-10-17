@@ -6,7 +6,7 @@
 // расширяется строкой «Разобрать (возврат N з.)» — special 'demolish'.
 // Обход buildingUI ЗАПРЕЩЁН (даже при деградации —
 // console.error + no-op); клетка БЕЗ постройки → [E] → меню
-// «Строительство» (buildingUI, 21 строка набора D3, 000148.03);
+// «Строительство» (buildingUI, 22 строка набора D3, 000148.03);
 // HUD hint города получает строку «[E] — постройки.»; найм
 // (000078/000083) — НЕ зависимый, код найма не трогаем. Контракты:
 // memory/000107-city-interact.md, memory/000148.03-city-building-
@@ -28,7 +28,7 @@
 //     рантайме).
 // Зелёные пины (регрессия, проходят с первой стадии): CI-U9 (гард
 // toggle() dungeonUI.isActive — 000128, НЕ ПЕРЕНОСИТЬ), CI-V4 (клетка
-// без постройки → [E] → меню «Строительство», 21 строка; повторный [E]
+// без постройки → [E] → меню «Строительство», 22 строка; повторный [E]
 // — закрыть; репин 000148.03), CI-V5 (KeyE в настоящем подземелье →
 // no-op, 000121).
 //
@@ -44,7 +44,7 @@
 //     day: clock.day}. Сравнение ПОЛЕ-В-ПОЛЕ (payload расширяет
 //     000083: roster/deadMercs — пин тестов 000083).
 //   * CI-U2 — клетка без постройки → [E] → buildingUI-меню
-//     «Строительство» (21 строка, набор D3; npcUI не открывается) —
+//     «Строительство» (22 строка, набор D3; npcUI не открывается) —
 //     репин 000148.03 (ранее: «ничего»).
 //   * CI-U3 — ds.cityContents: null (генерация не сработала) → ничего.
 //   * CI-U4 — стек (паритет с миром): buildingUI.isActive → [E]
@@ -76,7 +76,7 @@
 //     строка 2 — единый тайл-дверь, 000177); hint подземелья —
 //     «Вход в пещеру — вход и выход…» + «Сундук и мобы…».
 //   * CI-V4 — [ПИН] 000177: спавн — на двери ([E] там = выход); [E] на
-//     ДРУГОЙ клетке без постройки → меню «Строительство» (21 строка,
+//     ДРУГОЙ клетке без постройки → меню «Строительство» (22 строка,
 //     000148.03), повторный [E] — закрыть оверлей; без ошибок.
 //   * CI-V5 — [ЗЕЛЁНЫЙ ПИН] KeyE в настоящем подземелье ВНЕ единого
 //     тайла → no-op (000121/000177: спавн на тайле — шаг С тайла,
@@ -366,11 +366,11 @@ test('CI-U1. [E] на клетке с постройкой → buildingUI.open �
 });
 
 // 000148.03 (репин): клетка без постройки — больше НЕ no-op: [E] →
-// buildingUI-меню «Строительство» (21 строка buildable-типа, набор
+// buildingUI-меню «Строительство» (22 строка buildable-типа, набор
 // D3). Фейк — initCityBuild (реальный layout + реальный каталог +
 // Game.Cities — pre-check canBuildAt; дефолт makeCityDs dg.cells ===
 // null была бы throw).
-test('CI-U2. клетка без постройки → [E] → меню «Строительство» (21 строка); npcUI — нет (000148.03)', () => {
+test('CI-U2. клетка без постройки → [E] → меню «Строительство» (22 строка); npcUI — нет (000148.03)', () => {
   const t = initCityBuild({
     cityContents: [{ x: 9, y: 9, buildingId: 48 }], cityShops: {},
   });
@@ -379,8 +379,8 @@ test('CI-U2. клетка без постройки → [E] → меню «Ст�
     'buildingUI — меню «Строительство»');
   assert.equal(t.o.calls.buildingOpen[0].title, 'Строительство',
     'заголовок «Строительство»');
-  assert.equal(t.o.calls.buildingOpen[0].actions.length, 22,
-    'ровно 22 строки (21 набор D3 + «Переименовать город», 000148.05)');
+  assert.equal(t.o.calls.buildingOpen[0].actions.length, 23,
+    'ровно 23 строки (22 набора D3 + «Переименовать город», 000148.05)');
   assert.equal(t.o.calls.npcOpen.length, 0, 'npcUI — нет');
   assert.equal(t.o.calls.buildingClose + t.o.calls.npcClose, 0,
     'ничего не закрыто');
@@ -533,10 +533,10 @@ test('CI-U11. 000134: клетка города БЕЗ cityShops-записи (�
 // Меню — ТОЛЬКО через buildingUI (000107): гард «обход запрещён»
 // (CI-U10) сохраняется и дублируется в пустой ветке (не репинится).
 
-// Набор D3 (ровно 21) — id-строки меню (id 'build-<id>', порядок
-// BUILDINGS = id-порядок).
+// Набор D3 (ровно 22, +55 — 000221) — id-строки меню
+// (id 'build-<id>', порядок BUILDINGS = id-порядок).
 const D3_IDS_03 = [1, 2, 3, 4, 7, 8, 10, 11, 25, 36, 37, 38, 39, 40,
-  42, 43, 44, 45, 46, 48, 49];
+  42, 43, 44, 45, 46, 48, 49, 55];
 
 // 000202 (репин CI-U12 + сиды CI-B): ВСЕ 10 реагентов в количестве
 // максимума, требуемого ценами (000148.04): сера 10 (id 36), кожа 8
@@ -548,9 +548,9 @@ const REAGENT_SEED_202 = {
   herb_healing: 2, iron_ore: 2, coal: 2, herb_mana: 2, herb_bitter: 2,
 };
 
-test('CI-U12. 000148.03: [E] на пустой клетке города → buildingUI «Строительство»: ровно 21 строка «Построить: <название> — N з. (…исходники…)» (набор D3, цены каталога, id build-<id>); npcUI напрямую НЕ открывается', () => {
+test('CI-U12. 000148.03: [E] на пустой клетке города → buildingUI «Строительство»: ровно 22 строки «Построить: <название> — N з. (…исходники…)» (набор D3, цены каталога, id build-<id>); npcUI напрямую НЕ открывается', () => {
   // Город 18×18 (fp5): интерьер 256, потолок 128 — при пустом
-  // occupied ВСЕ 21 строка доступны (в т.ч. 3×3 на (1,1)).
+  // occupied ВСЕ 22 строки доступны (в т.ч. 3×3 на (1,1)).
   // 000202 (осознанный репин): pre-check = геометрия + золото +
   // предметы (R1) — сиды В ТЕСТЕ (фикстура общая с .03-пинами):
   // золото 1000 (макс. цена — 500, id 36) + все 10 реагентов в
@@ -566,8 +566,8 @@ test('CI-U12. 000148.03: [E] на пустой клетке города → bui
     'RED: buildingUI.open — ровно 1 (сейчас no-op, :616)');
   const p = t.o.calls.buildingOpen[0];
   assert.equal(p.title, 'Строительство', 'RED: заголовок меню «Строительство»');
-  assert.equal(p.actions.length, 22,
-    'ровно 22 строки (21 набор D3 + «Переименовать город», 000148.05),'
+  assert.equal(p.actions.length, 23,
+    'ровно 23 строки (22 набора D3 + «Переименовать город», 000148.05),'
     + ' получено ' + p.actions.length);
   assert.deepEqual(p.actions.map((a) => a.id),
     D3_IDS_03.map((id) => 'build-' + id).concat(['rename-city']),
@@ -735,8 +735,8 @@ test('CI-U15. 000148.03: pre-disabled строки с reason: деревня п�
   assert.equal(t.o.calls.buildingOpen.length, 1,
     'меню открывается (pre-check — доступность строк, не открытие)');
   const p = t.o.calls.buildingOpen[0];
-  assert.equal(p.actions.length, 22,
-    'все 22 строки присутствуют (21 D3 + rename-city, 000148.05)');
+  assert.equal(p.actions.length, 23,
+    'все 23 строки присутствуют (22 D3 + rename-city, 000148.05)');
   for (const a of p.actions) {
     if (a.id === 'rename-city') continue; // строка переименования — всегда доступна (000148.05)
     assert.equal(a.доступен, false,
@@ -771,8 +771,8 @@ test('CI-U16. 000148.03: pre-check reason «reach»: 1×1 на (3,4) дерев�
   t.BA.interactCity();
   assert.equal(t.o.calls.buildingOpen.length, 1, 'меню открывается');
   const p = t.o.calls.buildingOpen[0];
-  assert.equal(p.actions.length, 22,
-    'все 22 строки присутствуют (21 D3 + rename-city, 000148.05)');
+  assert.equal(p.actions.length, 23,
+    'все 23 строки присутствуют (22 D3 + rename-city, 000148.05)');
   for (const a of p.actions) {
     if (a.id === 'rename-city') continue; // строка переименования — всегда доступна (000148.05)
     assert.equal(a.доступен, false,
@@ -988,7 +988,7 @@ test('CI-B4. 000202: приоритет геометрии — деревня п
   t.hero.gold = 0;
   t.BA.interactCity();
   const p = t.o.calls.buildingOpen[0];
-  assert.equal(p.actions.length, 22, 'все 22 строки');
+  assert.equal(p.actions.length, 23, 'все 23 строки');
   for (const a of p.actions) {
     if (a.id === 'rename-city') continue;
     assert.equal(a.доступен, false, 'строка ' + a.id + ' недоступна');
@@ -1003,7 +1003,7 @@ test('CI-B4. 000202: приоритет геометрии — деревня п
   }
 });
 
-test('CI-B5. 000202: icon = путь к спрайту слота (game.buildingSprite, 1:1 cityBuildingPath 000148.02): build-48 → cave_entrance.svg, build-36 → temple.svg, build-44 → tavern.svg, build-1 → weapons_shop.svg; ВСЕ 21 строка — icon (строка); rename-city — без icon; без buildingSprite (фикстура по умолчанию) — icon везде undefined и console.error нет (тихая деградация, R8)', () => {
+test('CI-B5. 000202: icon = путь к спрайту слота (game.buildingSprite, 1:1 cityBuildingPath 000148.02): build-48 → cave_entrance.svg, build-36 → temple.svg, build-44 → tavern.svg, build-1 → weapons_shop.svg, build-55 → npc_house.svg (слот 12, 000221); ВСЕ 22 строки — icon (строка); rename-city — без icon; без buildingSprite (фикстура по умолчанию) — icon везде undefined и console.error нет (тихая деградация, R8)', () => {
   // (a) Реальный buildingSprite (sprites.js — чистый в node).
   const SP = require('../src/sprites.js');
   const t = initCityBuild({ x: 1, y: 1 });
@@ -1020,6 +1020,7 @@ test('CI-B5. 000202: icon = путь к спрайту слота (game.building
   pinIcon(36, 'assets/sprites/buildings/temple.svg');
   pinIcon(44, 'assets/sprites/buildings/tavern.svg');
   pinIcon(1, 'assets/sprites/buildings/weapons_shop.svg');
+  pinIcon(55, 'assets/sprites/buildings/npc_house.svg');
   for (const a of p.actions) {
     if (a.id === 'rename-city') {
       assert.equal(a.icon, undefined,
@@ -1042,7 +1043,7 @@ test('CI-B5. 000202: icon = путь к спрайту слота (game.building
     console.error = origErr;
   }
   const p2 = t2.o.calls.buildingOpen[0];
-  assert.equal(p2.actions.length, 22, 'меню открывается (деградация, не сбой)');
+  assert.equal(p2.actions.length, 23, 'меню открывается (деградация, не сбой)');
   for (const a of p2.actions) {
     assert.equal(a.icon, undefined,
       'тихая деградация: строка ' + a.id + ' — icon отсутствует (нет buildingSprite)');
@@ -1843,9 +1844,9 @@ test('CI-V3. HUD: hint города — строка «[E] — постройк�
 });
 
 // 000148.03 (репин): клетка без постройки — больше НЕ no-op: [E] →
-// buildingUI-меню «Строительство» (21 строка, набор D3); повторный
+// buildingUI-меню «Строительство» (22 строка, набор D3); повторный
 // [E] — закрыть оверлей (стек, как было).
-test('CI-V4. [пин] клетка без постройки → [E] → меню «Строительство» (21 строка); повторный [E] — закрыть; без ошибок (000148.03)', async () => {
+test('CI-V4. [пин] клетка без постройки → [E] → меню «Строительство» (22 строка); повторный [E] — закрыть; без ошибок (000148.03)', async () => {
   const h = await bootChain();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -1877,8 +1878,8 @@ test('CI-V4. [пин] клетка без постройки → [E] → мен�
   const ov = buildingOverlayOf(h);
   assert.ok(ov && textOf(ov).includes('Строительство'),
     'заголовок «Строительство»: ' + (ov ? textOf(ov).slice(0, 200) : 'нет оверлея'));
-  assert.equal(findAll(ov, '[data-buid]').length, 22,
-    'ровно 22 строки (21 набор D3 + rename-city, 000148.05)');
+  assert.equal(findAll(ov, '[data-buid]').length, 23,
+    'ровно 23 строки (22 набора D3 + rename-city, 000148.05)');
   assert.ok(!G.npcUI.isActive(), 'npcUI не открыт');
   // Повторный [E] — закрыть оверлей (стек, паритет с 000107).
   key(h, 'KeyE');
@@ -2045,7 +2046,7 @@ function qtyOf(g, id) {
     .reduce((s, e) => s + (e.qty || 0), 0);
 }
 
-test('CI-V12. 000148.03: [E] на пустой клетке города (vm e2e) → buildingUI «Строительство»: 21 строка «Построить: <название> — N з.»; повторный [E] — закрыть оверлей (стек); позиция/день не изменены', async () => {
+test('CI-V12. 000148.03: [E] на пустой клетке города (vm e2e) → buildingUI «Строительство»: 22 строки «Построить: <название> — N з.»; повторный [E] — закрыть оверлей (стек); позиция/день не изменены', async () => {
   const h = await bootChain();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -2068,8 +2069,8 @@ test('CI-V12. 000148.03: [E] на пустой клетке города (vm e2e
   assert.ok(ov, 'оверлей buildingUI прикреплён к body');
   assert.ok(textOf(ov).includes('Строительство'),
     'RED: заголовок меню «Строительство»: ' + textOf(ov).slice(0, 200));
-  assert.equal(findAll(ov, '[data-buid]').length, 22,
-    'ровно 22 строки (21 набор D3 + rename-city, 000148.05)');
+  assert.equal(findAll(ov, '[data-buid]').length, 23,
+    'ровно 23 строки (22 набора D3 + rename-city, 000148.05)');
   assert.ok(textOf(ov).includes(
     'Построить: Развалины — 30 з. (Каменный обломок ×1)'),
     'RED: строка «Построить: <название> — <N> з. (<имя> ×<Q>…)» (000148.04, id 48)');
@@ -2573,17 +2574,17 @@ test('CI-134B. сейв/лоад: npcStocks сериализуется (data.npc
 // D-.05j — input-оверлей; D-.05k — гард interactCity).
 // КРАСНЫЕ (TDD):
 //  * CI-U20 — в openCityBuildMenu (building-actions.js:588-649)
-//    ровно 21 строка build-<id>; строки 'rename-city' НЕТ;
+//    ровно 22 строки build-<id>; строки 'rename-city' НЕТ;
 //  * CI-U21 — экспорт renameCity отсутствует (typeof undefined);
 //    onAction('rename-city') → buildCityAt(t, NaN) →
 //    canBuildAt — throw (диспетчера нет);
 //  * CI-V16 — строки «Переименовать город»/input-оверлея/
 //    persistent-имени нет — e2e падают на первой такой проверке.
-// 6× существующих 21-ассертов (CI-U2/U12/U15/U16/V4/V12) — БЕЗ
+// 6× существующих 22-ассертов (CI-U2/U12/U15/U16/V4/V12) — БЕЗ
 // ПРАВКИ на красной стадии (техправка 21→22 — зелёная стадия,
-// контракт §7).
+// контракт §7; 000221: +55 → 23 строки).
 
-test('CI-U20. 000148.05: [E] на пустой клетке → «Строительство»: 21 «Построить: …» (порядок D3) + 22-я строка {id: "rename-city", имя: «Переименовать город», доступен: true} КОНЦА; npcUI напрямую НЕ открывается (000107)', () => {
+test('CI-U20. 000148.05: [E] на пустой клетке → «Строительство»: 22 «Построить: …» (порядок D3) + 23-я строка {id: "rename-city", имя: «Переименовать город», доступен: true} КОНЦА; npcUI напрямую НЕ открывается (000107)', () => {
   const t = initCityBuild({ x: 1, y: 1 });
   t.BA.interactCity();
   assert.equal(t.o.calls.buildingOpen.length, 1,
@@ -2591,15 +2592,15 @@ test('CI-U20. 000148.05: [E] на пустой клетке → «Строите
   const p = t.o.calls.buildingOpen[0];
   assert.equal(p.title, 'Строительство',
     'RED: заголовок «Строительство» НЕ меняется (D-.05m)');
-  assert.equal(p.actions.length, 22,
-    'RED: 22 строки (21 build + rename-city; сейчас 21) — '
+  assert.equal(p.actions.length, 23,
+    'RED: 23 строки (22 build + rename-city; сейчас 21) — '
     + p.actions.length);
-  assert.deepEqual(p.actions.slice(0, 21).map((a) => a.id),
+  assert.deepEqual(p.actions.slice(0, 22).map((a) => a.id),
     D3_IDS_03.map((id) => 'build-' + id),
-    '21 build-строка — порядок каталога (id-порядок), НЕСДВИГНУТА');
-  const last = p.actions[21];
+    '22 build-строки — порядок каталога (id-порядок), НЕСДВИГНУТЫ');
+  const last = p.actions[22];
   assert.equal(last.id, 'rename-city',
-    'RED: 22-я строка — id «rename-city» (конец списка)');
+    'RED: 23-я строка — id «rename-city» (конец списка)');
   assert.equal(last.имя, 'Переименовать город',
     'RED: текст строки «Переименовать город» (D-.05d)');
   assert.equal(last.доступен, true,
