@@ -9286,3 +9286,753 @@ test('боевой UI: 000210 — правки ревью: JS-гарды мод�
   fleeBox.children[1].children[1].listeners.click[0]();
   assert.equal(fleeBox.style.display, 'none', 'диалог закрыт «нет»');
 });
+
+// =====================================================================
+// Задача 000226 — БОЙ: анимация применения заклинаний.
+// ТЗ — tasks/pending/000226.md; контракт —
+// memory/000226-combat-cast-anim.md (решения R1-R8): заявка
+// c._fx.castFx {at, until: at+600, spellId, name, school, from, toId}
+// — 3 точки записи (castRow / resurrectCast / legacy runAction
+// 'cast'/'heal'), все ТОЛЬКО при r.ok; позы — Эфир (СТРОГИЙ гейт
+// u.kind === 'efir'), герой — from === 'player' (quirk-фикс: сегодня
+// герой играет cast-позу на касте ЛЮБОГО союзника), наёмники — всегда
+// 'idle' (Q2: cast-ассетов нет); FX — орб (полёт t<0.5) + импакт на
+// цели (t≥0.5) + имя над кастером, окно 600 мс (SPELL_FX_MS =
+// 2×FX_MS — прецедент BREATH_FX_MS), палитра — только существующие
+// константы (огонь '#e08a3c' = ROLE_COLORS.ranged); toId — явная
+// цель / mostWounded-зеркало / воскрешённый.
+//
+// КРАСНЫЕ тесты (TDD, до реализации): фичи в текущем коде НЕТ —
+// под-объекта c._fx.castFx нет, FX-слоя нет (единственный эффект-
+// слой — drawBreathFx, гейт c._fx.breath), ally-ветвь хардкодит
+// allyFrames(u, now, 'idle') (cast-кадры Эфира — мёртвый ассет),
+// legacy-путь (runAction 'cast'/'heal') c._fx НЕ пишет вовсе.
+// Сцены собираются нормально — падение на assert контракта
+// (castFx undefined / idle-__path вместо cast / отсутствие arc
+// школы), не на окружении (ReferenceError/ENOENT — 0 новых скриптов).
+//
+// Фикстура scene226 — самодостаточная копия scene227: opts.loader →
+// fakeLoader84 (дистинкция кадров по __path/__fake, vm-правило
+// 000082): 'efir/cast_' → efirCast, 'efir/' → efir,
+// 'phlogiston/cast_' → heroCast, 'phlogiston/' → hero,
+// 'mobs/orc_' → orc, 'mercs/' → merc; фазы — mutable T
+// (performance { now: () => T.v }, паттерн 000174). CELL = 48.
+//
+// Геометрия (каст при T=0, окно 600 мс): T+150 → t = 0.25,
+// k = easeInOut(0.5) = 0.5 — орб в СЕРЕДИНЕ кастер→цель (робастно к
+// формуле ease), имя над кастером (y = max(2, cellTop − 6 − 10t));
+// T+450 → t = 0.75, q = 0.5 — импакт на цели r = 48·(0.25+0.45·0.5)
+// = 22.8 (вспышка rgba α 0.35·(1−q) + кольцо), поза истекла
+// (300 мс) → кастер idle; T+650 — окно истекло → 0 arc / 0 имени.
+// Шрифт имени '6px ui-monospace, monospace', textAlign 'center',
+// цвет = школа (spark — огонь).
+//
+// GREEN-гарды внутри красных тестов (зелёные и ДО, и ПОСЛЕ):
+// строки ядра бит-в-бит («Эфир: «Искра» — Волк: 6.» / «Медик лечит
+// Флогистон (+6).» / «Возвращён в бой.» / «Искра по Волк: N.»),
+// мана/пулы/HP, c._fx {action 'cast', until NOW+300} (пины регрессий
+// 000149/L3178/L4721), 0 c._rng, книга закрыта при успехе, Q2:
+// наёмник — idle-путь (orc-фолбэк: id 'a0' не в MERC_FRAMES),
+// cast-пути mercs/ нет.
+//
+// expectedRedCount = 5: CU226-CAST, CU226-EFIRBOOK, CU226-EFIRLEGACY,
+// CU226-MERC, CU226-RES; CU226-REJ / CU226-PURE — зелёные гарды.
+//
+// 000226-ревью: +1 зелёный гард CU226-NOMOTION (песочница без
+// motion.js, опция loadCombatUi withoutMotion — прецедент 000182):
+// линейный фолбэк drawCastFx (R7, контракт
+// memory/000226-combat-cast-anim.md §2) — успешный каст, T+150:
+// орб в середине (r 0.07·CELL) рисуется и без motion.js, краха нет,
+// 0 console.error. Мидпоинт-пин ветки не различает (easeInOut(0.5) =
+// t/0.5 = 0.5) — ассерт «рисуется + тишина», как в CU182-NOMOTION.
+// =====================================================================
+
+const LOADER226 = [
+  ['assets/sprites/efir/cast_', { __fake: 'efirCast' }],
+  ['assets/sprites/efir/', { __fake: 'efir' }],
+  ['assets/sprites/phlogiston/cast_', { __fake: 'heroCast' }],
+  ['assets/sprites/phlogiston/', { __fake: 'hero' }],
+  ['assets/sprites/mobs/orc_', { __fake: 'orc' }],
+  ['assets/sprites/mercs/', { __fake: 'merc' }],
+];
+const ROSTER_MEDIC226 = [{ name: 'Медик', role: 'support', level: 2,
+  dmg: 1, hp: 1, spells: ['mend'] }];
+const ROSTER_WOLK226 = [{ name: 'Вольк', role: 'melee', level: 1,
+  dmg: 1.2, hp: 1.1, skills: [], spells: [] }];
+
+function scene226(opts = {}) {
+  const T = { v: 0 };
+  const rafStubs = makeRafStubs();
+  const { G, keydown, body, buttons } = loadCombatUi(true, {
+    withEfir: !!opts.efir,
+    withSpells: !!opts.spells,
+    withAllySpells: !!opts.allySpells,
+    // 000226-ревью (CU226-NOMOTION): техническая проводка опции
+    // loadCombatUi (прецедент 000182, L295) — песочница БЕЗ motion.js:
+    // liveGame().easeInOut отсутствует → линейный фолбэк drawCastFx
+    // (R7). Дефолт (опция не передана) — цепь бит-в-бит.
+    withoutMotion: !!opts.withoutMotion,
+    performance: { now: () => T.v },
+    requestAnimationFrame: rafStubs.requestAnimationFrame,
+    cancelAnimationFrame: rafStubs.cancelAnimationFrame,
+  });
+  const hero = G.createCharacter();
+  if (opts.heroSpells) hero.spells = opts.heroSpells;
+  if (opts.heroMp != null) hero.mp = opts.heroMp;
+  const requested = [];
+  const c = G.combatUI.startCombat({
+    hero,
+    mobs: opts.mobs || ['wolf'], mobLevel: 1, seed: 42,
+    ...(opts.efir ? { efir: G.efir.createEfir() } : {}),
+    ...(opts.roster ? { rosterData: opts.roster } : {}),
+    spriteLoader: fakeLoader84(requested, LOADER226),
+  });
+  return { G, c, canvas: findCanvas(body), body, keydown, rafStubs,
+    buttons, requested, hero, T };
+}
+
+// Arc'и в точке (x, y) в срезе: радиус + стиль, действовавший в
+// момент вызова (обратный обход — срез = один рендер, присвоения
+// стилей предшествуют вызову).
+function arcsAt226(events, x, y) {
+  const out = [];
+  events.forEach((ev, i) => {
+    if (!(ev.c && ev.c[0] === 'arc')) return;
+    if (Math.abs(ev.c[1][0] - x) > 1e-6) return;
+    if (Math.abs(ev.c[1][1] - y) > 1e-6) return;
+    let fill, stroke;
+    for (let j = i - 1; j >= 0; j--) {
+      const e2 = events[j];
+      if (!e2.s) continue;
+      if (e2.s[0] === 'fillStyle' && fill === undefined) fill = e2.s[1];
+      if (e2.s[0] === 'strokeStyle' && stroke === undefined)
+        stroke = e2.s[1];
+    }
+    out.push({ r: ev.c[1][2], fill, stroke });
+  });
+  return out;
+}
+
+// fillStyle, действовавший в момент события idx (обратный обход).
+function fillAt226(events, idx) {
+  for (let i = idx - 1; i >= 0; i--) {
+    const ev = events[i];
+    if (ev.s && ev.s[0] === 'fillStyle') return ev.s[1];
+  }
+  return undefined;
+}
+
+const nameEvIdx226 = (events, name) => events.findIndex(
+  (ev) => ev.c && ev.c[0] === 'fillText' && ev.c[1][0] === name);
+
+// Снапшот c для чистоты: без UI-полей _fx/_unitFx/_uiMoves.
+const snapC226 = (c) => JSON.stringify(c, (k, v) =>
+  (k === '_fx' || k === '_unitFx' || k === '_uiMoves')
+    ? undefined : v);
+
+test('боевой UI: 000226 — каст ИГРОКА из книги (spark): c._fx.castFx {at, until 600, spellId, name, school, from, toId}, hero-cast-кадр в окне, орб в середине (T+150), импакт на цели (T+450, r 22.8), имя над кастером (6px/center/школа), после until — 0 arc/0 имени (CU226-CAST)', () => {
+  const S = scene226({ spells: true });
+  const { G, c, canvas, rafStubs } = S;
+  const wolf = c.units.find((x) => x.id === 'm0');
+  wolf.x = c.px; wolf.y = c.py - 1; // в упор (паттерн 000149)
+  wolf.maxHP = 100; wolf.hp = 100;
+  c.selectTarget(wolf.id);
+  c._rng = () => 0.99;
+  assert.equal(G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  assert.equal(c._fx, undefined, 'c._fx не записано до каста');
+  const cc = [(c.px + 0.5) * 48, (c.py + 0.5) * 48]; // кастер
+  const tc = [(wolf.x + 0.5) * 48, (wolf.y + 0.5) * 48]; // цель
+  const mid = [(cc[0] + tc[0]) / 2, (cc[1] + tc[1]) / 2];
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  const sparkRow = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(sparkRow, 'строка «Искра»');
+  const n0 = c.log.length;
+  const mp0 = c.player.mp, int0 = c.ps.spellInt;
+  sparkRow.listeners.click[0](); // каст — кликом по строке
+  const added = Array.from(c.log).slice(n0);
+  const mLine = added.length
+    ? added[added.length - 1].match(/^Искра по Волк: (\d+)\.$/) : null;
+  assert.ok(mLine, 'строка ядра «Искра по Волк: N.»: '
+    + JSON.stringify(added));
+  assert.equal(wolf.hp, 100 - Number(mLine[1]),
+    'волк −урон из строки ядра');
+  assert.equal(c._fx && c._fx.action, 'cast',
+    'c._fx.action = cast (регрессия 000149)');
+  assert.equal(c._fx.until, 300, 'c._fx.until = NOW+FX_MS (поза 300)');
+  assert.equal(c.player.mp, mp0 - 3, 'мана −3');
+  assert.equal(c.ps.spellInt, int0 - 1, 'пул −1');
+  assert.equal(bookBox.style.display, 'none',
+    'книга закрыта (действие сделано)');
+  // RED: заявка — форма контракта (R8).
+  assert.ok(c._fx && c._fx.castFx,
+    'RED: c._fx.castFx не записан (заявка отсутствует)');
+  assert.deepEqual(JSON.parse(JSON.stringify(c._fx.castFx)), {
+    at: 0, until: 600, spellId: 'spark', name: 'Искра',
+    school: 'огонь', from: 'player', toId: wolf.id,
+  }, 'RED: форма castFx {at, until 600, spellId, name, school, from, toId}');
+  // T+150 (t = 0.25): hero-cast-кадр (from 'player') + орб в
+  // середине + имя над кастером.
+  S.T.v = 150;
+  let t = tickSlice(canvas, rafStubs);
+  assert.ok(t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'heroCast'),
+    'hero-cast-кадр в окне (from=player, паттерн 000047)');
+  const orb = arcsAt226(t.events, mid[0], mid[1]);
+  assert.ok(orb.some((a) => Math.abs(a.r - 48 * 0.07) < 1e-6
+    && a.fill === '#e08a3c'),
+    'RED: ядро орба в середине (r 0.07·CELL, огонь #e08a3c)');
+  assert.ok(orb.some((a) => Math.abs(a.r - 48 * 0.16) < 1e-6
+    && a.fill === 'rgba(224, 138, 60, 0.3)'),
+    'RED: свечение орба в середине (r 0.16·CELL, rgba α 0.3)');
+  assert.ok(orb.some((a) => Math.abs(a.r - 48 * 0.12) < 1e-6
+    && a.stroke === '#e08a3c'),
+    'RED: кольцо орба в середине (r 0.12·CELL, цвет школы)');
+  const ni = nameEvIdx226(t.events, 'Искра');
+  assert.ok(ni >= 0, 'RED: имя «Искра» над кастером (fillText)');
+  if (ni >= 0) {
+    assert.equal(t.events[ni].c[1][1], cc[0],
+      'имя x — центр клетки кастера');
+    assert.equal(t.events[ni].c[1][2],
+      Math.max(2, c.py * 48 - 6 - 10 * 0.25),
+      'имя y — top клетки − 6 − 10t');
+    assert.equal(fillAt226(t.events, ni), '#e08a3c',
+      'имя цвет — школа (огонь)');
+  }
+  assert.ok(t.textStyleSets.some(([p, v]) => p === 'font'
+    && v === '6px ui-monospace, monospace'),
+    'шрифт имени 6px ui-monospace (окно FX)');
+  assert.ok(t.textStyleSets.some(([p, v]) => p === 'textAlign'
+    && v === 'center'),
+    'RED: textAlign center (имя)');
+  // T+450 (t = 0.75, q = 0.5): импакт на цели r 22.8; герой — idle
+  // (поза 300 истекла, окно FX 600 ещё открыто).
+  S.T.v = 450;
+  t = tickSlice(canvas, rafStubs);
+  const imp = arcsAt226(t.events, tc[0], tc[1]);
+  assert.ok(imp.some((a) => Math.abs(a.r - 22.8) < 1e-6
+    && a.fill === 'rgba(224, 138, 60, 0.175)'),
+    'RED: вспышка импакта на цели (r 22.8, rgba α 0.35·(1−q))');
+  assert.ok(imp.some((a) => Math.abs(a.r - 22.8) < 1e-6
+    && a.stroke === '#e08a3c'),
+    'RED: кольцо импакта на цели (r 22.8, цвет школы)');
+  assert.ok(t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'hero'),
+    'герой — idle после окна позы (300 < 450)');
+  // T+650: окно истекло — 0 arc / 0 имени; hero-cast-кадра нет.
+  S.T.v = 650;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(!t.calls.some((x) => x[0] === 'arc'),
+    'T+650: 0 arc (FX истекло)');
+  assert.ok(!t.calls.some((x) => x[0] === 'fillText'
+    && x[1][0] === 'Искра'), 'T+650: 0 имени');
+  assert.ok(!t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'heroCast'),
+    'hero-cast-кадра нет после истечения');
+});
+
+test('боевой UI: 000226 — каст Эфира из книги: ядро/мана/пул бит-в-бит, c._fx.action «cast» (пин L4721), Эфир-cast-кадр в окне, БЕЗ hero-cast-кадра (quirk-фикс), орб от клетки Эфира, импакт на волке, после until — 0 arc (CU226-EFIRBOOK)', () => {
+  const S = scene226({ efir: true, spells: true, allySpells: true });
+  const { G, c, canvas, rafStubs } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  u.x = 3; u.y = 5;
+  wolf.x = 3; wolf.y = 4;
+  wolf.maxHP = 100; wolf.hp = 100;
+  c.selectTarget(wolf.id);
+  let rngCalls = 0;
+  const realRng = c._rng;
+  c._rng = () => (rngCalls++, realRng());
+  tickSlice(canvas, rafStubs);
+  assert.equal(G.activeUnitId(c), 'efir',
+    'pre-roll — стоп на ходу Эфира');
+  assert.equal(u.mp, 11, 'фикстура: мана 11');
+  assert.equal(c.efs.spellInt, 1, 'фикстура: пул 1');
+  const n0 = c.log.length;
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none',
+    'книга открыта (книга Эфира)');
+  const sparkRow = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(sparkRow, 'строка «Искра» (книга Эфира [spark, mend])');
+  sparkRow.listeners.click[0]();
+  assert.deepEqual(Array.from(c.log).slice(n0),
+    ['Эфир: «Искра» — Волк: 6.'],
+    'лог — ровно одна строка ядра: '
+    + JSON.stringify(Array.from(c.log).slice(n0)));
+  assert.equal(c.efs.spellInt, 0, 'пул 1→0');
+  assert.equal(u.mp, 8, 'мана 11→8 (spark: 3)');
+  assert.equal(wolf.hp, 94, 'волк 100→94');
+  assert.ok(c._fx && c._fx.action === 'cast',
+    'c._fx.action «cast» после каста союзника (пин L4721)');
+  assert.equal(G.activeUnitId(c), 'efir', 'ход не сгорел');
+  assert.equal(bookBox.style.display, 'none', 'книга закрыта');
+  assert.equal(rngCalls, 0, '0 c._rng');
+  // RED: заявка — from = id кастера, toId — явная цель.
+  assert.ok(c._fx && c._fx.castFx,
+    'RED: c._fx.castFx не записан (заявка отсутствует)');
+  assert.equal(c._fx.castFx.from, 'efir', 'RED: from — Эфир (u.id)');
+  assert.equal(c._fx.castFx.toId, wolf.id,
+    'RED: toId — явная цель');
+  assert.equal(c._fx.castFx.spellId, 'spark', 'RED: spellId');
+  // T+150: Эфир-cast-кадр, БЕЗ hero-cast-кадра (quirk), орб в
+  // середине Эфир→волк, имя над Эфиром.
+  S.T.v = 150;
+  let t = tickSlice(canvas, rafStubs);
+  assert.ok(t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'efirCast'),
+    'RED: Эфир-cast-кадр в окне (efirFrames «cast» — мёртвый ассет)');
+  assert.ok(!t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'heroCast'),
+    'RED (quirk-фикс): герой НЕ играет cast-кадр на касте союзника');
+  const orb = arcsAt226(t.events, 168, 240); // середина (3,5)→(3,4)
+  assert.ok(orb.some((a) => Math.abs(a.r - 48 * 0.07) < 1e-6
+    && a.fill === '#e08a3c'),
+    'RED: орб в середине Эфир→волк');
+  const ni = nameEvIdx226(t.events, 'Искра');
+  assert.ok(ni >= 0, 'RED: имя над кастером (Эфир)');
+  if (ni >= 0) {
+    assert.equal(t.events[ni].c[1][1], 168,
+      'имя x — центр клетки Эфира');
+    assert.equal(t.events[ni].c[1][2],
+      Math.max(2, 5 * 48 - 6 - 10 * 0.25), 'имя y');
+  }
+  // T+450: импакт на волке; Эфир — idle (поза 300 истекла).
+  S.T.v = 450;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(arcsAt226(t.events, 168, 216)
+    .some((a) => Math.abs(a.r - 22.8) < 1e-6),
+    'RED: импакт на волке (r 22.8)');
+  assert.ok(t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'efir'),
+    'Эфир — idle после окна позы');
+  assert.ok(!t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'efirCast'),
+    'Эфир-cast-кадра нет после окна позы');
+  // T+650: 0 arc / 0 имени.
+  S.T.v = 650;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(!t.calls.some((x) => x[0] === 'arc'), 'T+650: 0 arc');
+  assert.ok(!t.calls.some((x) => x[0] === 'fillText'
+    && x[1][0] === 'Искра'), 'T+650: 0 имени');
+});
+
+test('боевой UI: 000226 — legacy-кнопка «Каст» (без выбора из книги): ядро/мана/пул бит-в-бит (CU178-CAST), 0 c._rng, Эфир-cast-кадр + орб/импакт на клетке волка, герой — без cast-кадра (CU226-EFIRLEGACY)', () => {
+  const S = scene226({ efir: true, spells: true });
+  const { G, c, canvas, rafStubs } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  u.x = 3; u.y = 5;
+  wolf.x = 3; wolf.y = 4;
+  wolf.maxHP = 100; wolf.hp = 100;
+  c.selectTarget(wolf.id);
+  let rngCalls = 0;
+  const realRng = c._rng;
+  c._rng = () => (rngCalls++, realRng());
+  tickSlice(canvas, rafStubs);
+  assert.equal(G.activeUnitId(c), 'efir',
+    'pre-roll — стоп на ходу Эфира');
+  const byAct = {};
+  for (const b of S.body.querySelectorAll('.combat-actions button'))
+    byAct[b.dataset.act] = b;
+  assert.ok(byAct.cast, 'кнопка «Каст» (гейт: Эфир в партии)');
+  assert.equal(byAct.cast.disabled, false,
+    'активна (слот 1, мана 11, пул 1)');
+  const n0 = c.log.length;
+  byAct.cast.listeners.click[0](); // legacy: c.cast(c.targetId)
+  assert.deepEqual(Array.from(c.log).slice(n0),
+    ['Эфир: «Искра» — Волк: 6.'],
+    'лог — ровно одна строка ядра (бит-в-бит CU178-CAST)');
+  assert.equal(c.efs.spellInt, 0, 'пул 1→0');
+  assert.equal(u.mp, 8, 'мана 11→8');
+  assert.equal(wolf.hp, 94, 'волк 100→94');
+  assert.equal(G.activeUnitId(c), 'efir', 'ход не сгорел');
+  assert.equal(rngCalls, 0, '0 c._rng (детерминизм)');
+  // RED: legacy-путь заявку НЕ пишет (сегодня c._fx undefined).
+  assert.ok(c._fx && c._fx.castFx,
+    'RED: legacy «Каст» — c._fx.castFx не записан (анимации нет)');
+  assert.equal(c._fx.castFx.from, 'efir', 'RED: from — Эфир');
+  assert.equal(c._fx.castFx.toId, wolf.id,
+    'RED: toId — c.targetId (та же, что ядру)');
+  // T+150: Эфир-cast-кадр + орб в середине; герой — без cast-кадра.
+  S.T.v = 150;
+  let t = tickSlice(canvas, rafStubs);
+  assert.ok(t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'efirCast'),
+    'RED: Эфир-cast-кадр в окне (legacy-путь)');
+  assert.ok(!t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'heroCast'),
+    'герой — без cast-кадра на касте Эфира');
+  assert.ok(arcsAt226(t.events, 168, 240)
+    .some((a) => Math.abs(a.r - 48 * 0.07) < 1e-6),
+    'RED: орб в середине Эфир→волк');
+  // T+450: импакт на волке; Эфир — idle.
+  S.T.v = 450;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(arcsAt226(t.events, 168, 216)
+    .some((a) => Math.abs(a.r - 22.8) < 1e-6),
+    'RED: импакт на волке (r 22.8)');
+  assert.ok(t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'efir'),
+    'Эфир — idle после окна позы');
+  // T+650: 0 arc.
+  S.T.v = 650;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(!t.calls.some((x) => x[0] === 'arc'), 'T+650: 0 arc');
+});
+
+test('боевой UI: 000226 — legacy «Лечение» медика: ядро бит-в-бит (CU178-HEAL), наёмник остаётся на idle-пути (Q2: cast-ассетов нет), FX на клетке ИГРОКА (toId «player» — зеркало mostWounded) (CU226-MERC)', () => {
+  const S = scene226({ spells: true, roster: ROSTER_MEDIC226 });
+  const { G, c, canvas, rafStubs } = S;
+  const medic = c.units.find((x) => x.side === 'ally'
+    && x.role === 'support' && x.kind === 'merc');
+  assert.equal(medic.id, 'a0', 'фикстура: медик — a0 (Эфира нет)');
+  assert.equal(G.activeUnitId(c), 'player',
+    'pre-roll: волк действует → стоп на игроке');
+  press(S.keydown, 'Space');
+  let rngCalls = 0;
+  const realRng = c._rng;
+  c._rng = () => (rngCalls++, realRng());
+  tickSlice(canvas, rafStubs);
+  assert.equal(G.activeUnitId(c), 'a0', 'Space → ход медика');
+  c.player.hp = 15; // раненый игрок (mostWounded)
+  tickSlice(canvas, rafStubs);
+  const byAct = {};
+  for (const b of S.body.querySelectorAll('.combat-actions button'))
+    byAct[b.dataset.act] = b;
+  assert.ok(byAct.heal, 'кнопка «Лечение» (гейт: наёмник с книгой)');
+  assert.equal(byAct.heal.disabled, false,
+    'активна (слот 1, есть раненый, mend)');
+  assert.equal(c.player.hp, 15, 'фикстура: игрок 15/25');
+  const mp0 = medic.mp, wis0 = medic.spellWis;
+  const n0 = c.log.length;
+  byAct.heal.listeners.click[0]();
+  assert.deepEqual(Array.from(c.log).slice(n0),
+    ['Медик лечит Флогистон (+6).'],
+    'лог — ровно одна строка ядра (бит-в-бит CU178-HEAL)');
+  assert.equal(c.player.hp, 21, 'игрок 15→21 (mend +6)');
+  assert.equal(medic.mp, mp0 - 3, 'мана −3');
+  assert.equal(medic.spellWis, wis0 - 1, 'пул −1');
+  assert.equal(G.activeUnitId(c), 'a0', 'ход не сгорел');
+  assert.equal(rngCalls, 0, '0 c._rng');
+  // Q2-гард: наёмник — idle-путь (orc-фолбэк: id 'a0' не в
+  // MERC_FRAMES), cast-пути mercs/ нет.
+  let t = tickSlice(canvas, rafStubs);
+  assert.ok(t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'orc'),
+    'медик — idle-путь (orc-фолбэк)');
+  assert.ok(!t.calls.some((x) => x[0] === 'drawImage' && x[1][0]
+    && typeof x[1][0].__path === 'string'
+    && x[1][0].__path.indexOf('assets/sprites/mercs/') === 0),
+    'кадров mercs/ нет (Q2: cast-ассетов наёмника нет)');
+  // RED: заявка — toId «player» (mostWounded).
+  assert.ok(c._fx && c._fx.castFx,
+    'RED: legacy «Лечение» — c._fx.castFx не записан');
+  assert.equal(c._fx.castFx.from, 'a0', 'RED: from — медик');
+  assert.equal(c._fx.castFx.toId, 'player',
+    'RED: toId — игрок (mostWounded: 15/25 < 1)');
+  const mc = [(medic.x + 0.5) * 48, (medic.y + 0.5) * 48];
+  const pc = [(c.px + 0.5) * 48, (c.py + 0.5) * 48];
+  const mid = [(mc[0] + pc[0]) / 2, (mc[1] + pc[1]) / 2];
+  // T+150: орб в середине медик→игрок.
+  S.T.v = 150;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(arcsAt226(t.events, mid[0], mid[1])
+    .some((a) => Math.abs(a.r - 48 * 0.07) < 1e-6),
+    'RED: орб в середине медик→игрок');
+  // T+450: импакт на клетке игрока.
+  S.T.v = 450;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(arcsAt226(t.events, pc[0], pc[1])
+    .some((a) => Math.abs(a.r - 22.8) < 1e-6),
+    'RED: импакт на клетке игрока (r 22.8)');
+  // T+650: 0 arc.
+  S.T.v = 650;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(!t.calls.some((x) => x[0] === 'arc'), 'T+650: 0 arc');
+});
+
+test('боевой UI: 000226 — воскрешение кнопкой: ядро + 50% HP, c._fx «cast» (пин L3178), hero-cast-кадр в окне, toId — воскрешённый, импакт на ЕГО клетке (CU226-RES)', () => {
+  const S = scene226({ spells: true, heroMp: 50,
+    heroSpells: ['resurrect', 'spark'], roster: ROSTER_WOLK226 });
+  const { G, c, canvas, rafStubs } = S;
+  const ally = c.units.find((u) => u.side === 'ally' && u.kind === 'merc');
+  G.combatInternals.dealDamageToAlly(c, ally, 9999);
+  tickSlice(canvas, rafStubs);
+  assert.ok(!ally.alive, 'фикстура: союзник мёртв');
+  assert.equal(G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  S.canvas.listeners.click[0]({
+    clientX: (ally.x + 0.5) * 48, clientY: (ally.y + 0.5) * 48,
+  });
+  assert.equal(c.targetId, ally.id,
+    'клик — выбран мёртвый союзник (000166)');
+  const mp0 = c.player.mp, wis0 = c.ps.spellWis, round0 = c.round;
+  let rngCalls = 0;
+  const realRng = c._rng;
+  c._rng = () => (rngCalls++, realRng());
+  const b = S.buttons.find((x) => x.dataset.act === 'resurrect');
+  assert.ok(b, 'кнопка «Воскрешение»');
+  assert.equal(b.disabled, false,
+    'активна (выбран мёртвый союзник, мана 50, пул 1)');
+  b.listeners.click[0]();
+  assert.equal(ally.alive, true, 'союзник возвращён в бой');
+  assert.equal(ally.hp, Math.round(ally.maxHP / 2),
+    'hp = 50% (формула 000163)');
+  assert.equal(c.player.mp, mp0 - 15, 'мана −15');
+  assert.equal(c.ps.spellWis, wis0 - 1, 'пул −1');
+  assert.ok(c.log.some((s) => s === 'Возвращён в бой.'),
+    'строка ядра');
+  assert.equal(c._fx && c._fx.action, 'cast',
+    'c._fx — cast (пин L3178)');
+  assert.equal(c.phase, 'player', 'ход не сгорел');
+  assert.equal(c.round, round0, 'раунд не сдвинулся');
+  assert.equal(rngCalls, 0, '0 c._rng (000163)');
+  // RED: заявка — toId — воскрешённый.
+  assert.ok(c._fx && c._fx.castFx,
+    'RED: c._fx.castFx не записан (без-цельного FX нет)');
+  assert.equal(c._fx.castFx.from, 'player', 'RED: кастер — герой');
+  assert.equal(c._fx.castFx.spellId, 'resurrect', 'RED: spellId');
+  assert.equal(c._fx.castFx.toId, ally.id,
+    'RED: toId — воскрешённый (явная цель)');
+  // hero-cast-кадр в окне (from 'player' — гард).
+  let t = tickSlice(canvas, rafStubs);
+  assert.ok(t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'heroCast'),
+    'hero-cast-кадр в окне (from=player)');
+  // T+450: импакт на клетке воскрешённого.
+  S.T.v = 450;
+  t = tickSlice(canvas, rafStubs);
+  const ac = [(ally.x + 0.5) * 48, (ally.y + 0.5) * 48];
+  assert.ok(arcsAt226(t.events, ac[0], ac[1])
+    .some((a) => Math.abs(a.r - 22.8) < 1e-6),
+    'RED: импакт на клетке воскрешённого (r 22.8)');
+  // T+650: 0 arc.
+  S.T.v = 650;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(!t.calls.some((x) => x[0] === 'arc'), 'T+650: 0 arc');
+});
+
+test('боевой UI: 000226 — отказы → БЕЗ FX: (a) Эфир без маны, (b) игрок без пула, (c) медик без раненых: castFx НЕ записан, 0 arc/0 имени в render-срезе, ровно ОДНА строка причины, трат НЕТ, книга открыта (a/b), 0 c._rng (CU226-REJ)', () => {
+  // (a) Эфир без маны (книга, ход Эфира).
+  {
+    const S = scene226({ efir: true, spells: true, allySpells: true });
+    const { G, c, canvas, rafStubs } = S;
+    const u = c.units.find((x) => x.kind === 'efir');
+    const wolf = c.units.find((x) => x.id === 'm0');
+    u.x = 3; u.y = 5;
+    wolf.x = 3; wolf.y = 4;
+    wolf.maxHP = 100; wolf.hp = 100;
+    u.mp = 0;
+    c.selectTarget(wolf.id);
+    let rngCalls = 0;
+    const realRng = c._rng;
+    c._rng = () => (rngCalls++, realRng());
+    tickSlice(canvas, rafStubs);
+    assert.equal(G.activeUnitId(c), 'efir',
+      '(a) pre-roll — стоп на ходу Эфира');
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.notEqual(bookBox.style.display, 'none',
+      '(a) книга открыта');
+    const sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    assert.ok(sparkRow, '(a) строка «Искра»');
+    assert.ok(sparkRow.className.includes('combat-spellrow-off'),
+      '(a) строка -off (маны нет)');
+    const n0 = c.log.length;
+    const int0 = c.efs.spellInt;
+    const nD0 = canvas.drawCalls.length;
+    sparkRow.listeners.click[0]();
+    assert.deepEqual(Array.from(c.log).slice(n0), ['не хватает маны (3)'],
+      '(a) ровно одна строка причины: '
+      + JSON.stringify(Array.from(c.log).slice(n0)));
+    assert.equal(u.mp, 0, '(a) мана не потрачена');
+    assert.equal(c.efs.spellInt, int0, '(a) пул не потрачен');
+    assert.equal(wolf.hp, 100, '(a) волк нетронут');
+    assert.ok(!c._fx || c._fx.action !== 'cast',
+      '(a) состояния cast нет');
+    assert.ok(!c._fx || c._fx.castFx === undefined,
+      '(a) заявка не записана');
+    assert.notEqual(bookBox.style.display, 'none',
+      '(a) книга остаётся открытой');
+    assert.equal(G.activeUnitId(c), 'efir',
+      '(a) очередь не сдвинулась');
+    assert.equal(rngCalls, 0, '(a) 0 c._rng');
+    const slice = canvas.drawCalls.slice(nD0);
+    assert.ok(!slice.some((x) => x[0] === 'arc'),
+      '(a) 0 arc в render-срезе');
+    assert.ok(!slice.some((x) => x[0] === 'fillText'
+      && x[1][0] === 'Искра'), '(a) 0 имени в render-срезе');
+  }
+  // (b) Игрок без пула (книга, ход игрока).
+  {
+    const S = scene226({ spells: true });
+    const { G, c, canvas, rafStubs } = S;
+    const wolf = c.units.find((x) => x.id === 'm0');
+    wolf.x = c.px; wolf.y = c.py - 1;
+    c.selectTarget(wolf.id);
+    c.ps.spellInt = 0;
+    let rngCalls = 0;
+    const realRng = c._rng;
+    c._rng = () => (rngCalls++, realRng());
+    tickSlice(canvas, rafStubs);
+    assert.equal(G.activeUnitId(c), 'player', '(b) ход игрока');
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    const sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    assert.ok(sparkRow && sparkRow.className.includes(
+      'combat-spellrow-off'), '(b) строка -off (пула нет)');
+    const n0 = c.log.length;
+    const mp0 = c.player.mp;
+    const nD0 = canvas.drawCalls.length;
+    sparkRow.listeners.click[0]();
+    assert.deepEqual(Array.from(c.log).slice(n0),
+      ['действий «Заклинание» (Интеллект) больше нет'],
+      '(b) строка причины дословно: '
+      + JSON.stringify(Array.from(c.log).slice(n0)));
+    assert.equal(c.player.mp, mp0, '(b) мана не потрачена');
+    assert.ok(!c._fx || c._fx.action !== 'cast',
+      '(b) состояния cast нет');
+    assert.ok(!c._fx || c._fx.castFx === undefined,
+      '(b) заявка не записана');
+    assert.notEqual(bookBox.style.display, 'none',
+      '(b) книга остаётся открытой');
+    assert.equal(G.activeUnitId(c), 'player',
+      '(b) очередь не сдвинулась');
+    assert.equal(rngCalls, 0, '(b) 0 c._rng');
+    const slice = canvas.drawCalls.slice(nD0);
+    assert.ok(!slice.some((x) => x[0] === 'arc'),
+      '(b) 0 arc в render-срезе');
+    assert.ok(!slice.some((x) => x[0] === 'fillText'
+      && x[1][0] === 'Искра'), '(b) 0 имени в render-срезе');
+  }
+  // (c) Медик без раненых (legacy «Лечение»).
+  {
+    const S = scene226({ spells: true, roster: ROSTER_MEDIC226 });
+    const { G, c, canvas, rafStubs } = S;
+    const medic = c.units.find((x) => x.side === 'ally'
+      && x.role === 'support' && x.kind === 'merc');
+    press(S.keydown, 'Space');
+    tickSlice(canvas, rafStubs);
+    assert.equal(G.activeUnitId(c), 'a0', '(c) ход медика');
+    assert.equal(c.player.hp, 25, '(c) игрок не ранен (25/25)');
+    const byAct = {};
+    for (const b of S.body.querySelectorAll('.combat-actions button'))
+      byAct[b.dataset.act] = b;
+    assert.equal(byAct.heal.disabled, true,
+      '(c) гашена (нет раненых)');
+    const mp0 = medic.mp, wis0 = medic.spellWis, hp0 = c.player.hp;
+    const n0 = c.log.length;
+    let rngCalls = 0;
+    const realRng = c._rng;
+    c._rng = () => (rngCalls++, realRng());
+    const nD0 = canvas.drawCalls.length;
+    byAct.heal.listeners.click[0]();
+    assert.deepEqual(Array.from(c.log).slice(n0), ['нет раненых'],
+      '(c) ровно одна строка причины: '
+      + JSON.stringify(Array.from(c.log).slice(n0)));
+    assert.equal(medic.mp, mp0, '(c) мана не потрачена');
+    assert.equal(medic.spellWis, wis0, '(c) пул не потрачен');
+    assert.equal(c.player.hp, hp0, '(c) HP не изменилось');
+    assert.ok(!c._fx || c._fx.action !== 'cast',
+      '(c) состояния cast нет');
+    assert.ok(!c._fx || c._fx.castFx === undefined,
+      '(c) заявка не записана');
+    assert.equal(G.activeUnitId(c), 'a0',
+      '(c) очередь не сдвинулась');
+    assert.equal(rngCalls, 0, '(c) 0 c._rng');
+    const slice = canvas.drawCalls.slice(nD0);
+    assert.ok(!slice.some((x) => x[0] === 'arc'),
+      '(c) 0 arc в render-срезе');
+    assert.ok(!slice.some((x) => x[0] === 'fillText'
+      && x[1][0] === 'Заговора'), '(c) 0 имени в render-срезе');
+  }
+});
+
+test('боевой UI: 000226 — чистота: рендер окна cast-FX не мутирует c (кроме UI-полей), 0 c._rng в окне, 0 console.error (CU226-PURE)', () => {
+  const S = scene226({ spells: true });
+  const { c, canvas, rafStubs } = S;
+  const wolf = c.units.find((x) => x.id === 'm0');
+  wolf.x = c.px; wolf.y = c.py - 1;
+  wolf.maxHP = 100; wolf.hp = 100;
+  c.selectTarget(wolf.id);
+  let rngCalls = 0;
+  const realRng = c._rng;
+  c._rng = () => (rngCalls++, realRng());
+  const errs = [];
+  const realErr = console.error;
+  console.error = (...a) => errs.push(a.join(' '));
+  try {
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    const sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    sparkRow.listeners.click[0]();
+    assert.ok(c._fx && c._fx.action === 'cast',
+      'каст успешен (c._fx записан)');
+    const before = snapC226(c);
+    S.T.v = 150;
+    tickSlice(canvas, rafStubs);
+    S.T.v = 300;
+    tickSlice(canvas, rafStubs);
+    assert.equal(snapC226(c), before,
+      'рендер окна FX не мутирует c (UI-поля исключены)');
+    assert.equal(rngCalls, 0, '0 c._rng в окне FX');
+    assert.equal(errs.length, 0,
+      '0 console.error: ' + errs.join(' | '));
+  } finally {
+    console.error = realErr;
+  }
+});
+
+test('боевой UI: 000226 — без motion.js: линейный фолбэк drawCastFx (R7) — успешный каст, T+150: орб в середине (r 0.07·CELL, свечение, кольцо) + имя рисуются, краха нет, 0 console.error (CU226-NOMOTION)', () => {
+  const S = scene226({ spells: true, withoutMotion: true });
+  const { c, canvas, rafStubs } = S;
+  const wolf = c.units.find((x) => x.id === 'm0');
+  wolf.x = c.px; wolf.y = c.py - 1; // в упор (паттерн CU226-CAST)
+  wolf.maxHP = 100; wolf.hp = 100;
+  c.selectTarget(wolf.id);
+  c._rng = () => 0.99;
+  const cc = [(c.px + 0.5) * 48, (c.py + 0.5) * 48]; // кастер
+  const tc = [(wolf.x + 0.5) * 48, (wolf.y + 0.5) * 48]; // цель
+  const mid = [(cc[0] + tc[0]) / 2, (cc[1] + tc[1]) / 2];
+  const errs = [];
+  const realErr = console.error;
+  console.error = (...a) => errs.push(a.join(' '));
+  try {
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    const sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    sparkRow.listeners.click[0]();
+    assert.ok(c._fx && c._fx.castFx,
+      'каст успешен, c._fx.castFx записан');
+    // T+150 (t = 0.25): liveGame().easeInOut отсутствует (motion.js
+    // не загружен) → линейный k = t/0.5 = 0.5 — орб в СЕРЕДИНЕ.
+    S.T.v = 150;
+    let t;
+    assert.doesNotThrow(() => { t = tickSlice(canvas, rafStubs); },
+      'рендер полёта без motion.js — краха нет');
+    const orb = arcsAt226(t.events, mid[0], mid[1]);
+    assert.ok(orb.some((a) => Math.abs(a.r - 48 * 0.07) < 1e-6
+      && a.fill === '#e08a3c'),
+      'ядро орба в середине (линейный фолбэк, огонь #e08a3c)');
+    assert.ok(orb.some((a) => Math.abs(a.r - 48 * 0.16) < 1e-6
+      && a.fill === 'rgba(224, 138, 60, 0.3)'),
+      'свечение орба в середине (линейный фолбэк)');
+    assert.ok(orb.some((a) => Math.abs(a.r - 48 * 0.12) < 1e-6
+      && a.stroke === '#e08a3c'),
+      'кольцо орба в середине (линейный фолбэк)');
+    assert.ok(nameEvIdx226(t.events, 'Искра') >= 0,
+      'имя «Искра» над кастером (фолбэк не трогает имя)');
+    assert.equal(errs.length, 0,
+      'тихий фолбэк: 0 console.error (контракт R7): '
+      + JSON.stringify(errs));
+  } finally {
+    console.error = realErr;
+  }
+});

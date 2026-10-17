@@ -129,6 +129,17 @@
   // совпадает ни с одним закреплённым styleCalls-значением (контракт
   // memory/000175-mob-reach-hatch.md D9).
   const MOB_REACH_HATCH = 'rgba(255, 226, 122, 0.35)';
+  const CAST_FX_SCHOOLS = {
+    'огонь': ROLE_COLORS.ranged,
+    'лёд': ALLY_MARKER,
+    'тень': ROLE_COLORS.leader,
+    'исцеление': '#6fdc6f',
+    'природа': ROLE_COLORS.support,
+    'защита': ROLE_COLORS.swarm,
+  };
+  const CAST_FX_FALLBACK = '#ffe27a';
+  const CAST_FX_TARGETED = { 'урон': 1, 'ослабление': 1, 'контроль': 1 };
+  const CAST_FX_TEXT = '6px ui-monospace, monospace';
 
   // --- Время и кадры анимации (задача 000047) ---
   //
@@ -152,6 +163,7 @@
   // (2×FX_MS — эффект «всей команды» дольше герой-кадра; пин
   // tests/combat-ui.test.js CU118-FX).
   const BREATH_FX_MS = 600;
+  const SPELL_FX_MS = 600;
   // 000174: длительность глейда передвижения моба на СЕГМЕНТ
   // (1 тайл), мс (порядок FX_MS 000062): волна fast-моба (2 тайла) —
   // 600 мс. Поотрезочный smoothstep — «шаг по клеткам» (000033).
@@ -886,6 +898,7 @@
         return r;
       },
     }[action];
+    const healToId = action === 'heal' ? healFxTargetId(c) : null;
     const r = run ? run() : undefined;
     logRejection(c, r);
     // Анимация героя (задача 000047): UI-состояние ТОЛЬКО в UI-слое —
@@ -902,6 +915,23 @@
       // (активен союзник — activeUnit ≠ null).
       if (action === 'attack' && !activeUnit(c)) {
         c._fx = { action: 'attack', until: nowMs() + FX_MS };
+      } else if (action === 'cast' || action === 'heal') {
+        const u = activeUnit(c);
+        if (u) {
+          const n = nowMs();
+          const sid = typeof G.autoSpellFor === 'function'
+            ? G.autoSpellFor(u, action === 'heal' ? 'лечение' : 'урон')
+            : null;
+          const entry = (sid && G.SpellsData && G.SpellsData.SPELLS_BY_ID)
+            ? G.SpellsData.SPELLS_BY_ID[sid] : null;
+          c._fx = {
+            action: 'cast', until: n + FX_MS,
+            castFx: entry
+              ? castFxOf(c, u, entry,
+                action === 'heal' ? healToId : c.targetId, n)
+              : null,
+          };
+        }
       }
     }
   }
@@ -1258,7 +1288,11 @@
           g2.fillRect(px + 2, py + 2, pw - 4, ph - 4);
         }
         // Спрайт (запас 8px — как у мобов) или фолбэк-прямоугольник.
-        const img = allyFrames(u, now, 'idle');
+        const cfx = c._fx && c._fx.castFx;
+        const allyAction = (c._fx && c._fx.action === 'cast'
+          && now < c._fx.until && cfx && cfx.from === u.id
+          && u.kind === 'efir') ? 'cast' : 'idle';
+        const img = allyFrames(u, now, allyAction);
         if (img) {
           g2.drawImage(img, px + 8, py + 8, pw - 16, ph - 16);
         } else {
@@ -1347,7 +1381,9 @@
         // sprites.js/лоадера — прежний ромб (фолбэк, бой играбелен).
         const heroCurrent = !c.result && c.turnOrder
           && c.turnOrder[c.turnIndex] === 'player' && c.player && c.player.alive;
-        const action = (c._fx && c._fx.action && now < c._fx.until)
+        const cfxH = c._fx && c._fx.castFx;
+        const action = (c._fx && c._fx.action && now < c._fx.until
+          && !(c._fx.action === 'cast' && cfxH && cfxH.from !== 'player'))
           ? c._fx.action : 'idle';
         const pf = G.phlogistonFrames ? G.phlogistonFrames(action) : [];
         const idx = (pf.length > 1 && G.frameIndex)
@@ -1481,6 +1517,144 @@
       g2.arc(ex, ey, CELL * (0.2 + 0.2 * t), 0, Math.PI * 2);
       g2.strokeStyle = ALLY_MARKER;
       g2.lineWidth = 1.5;
+      g2.stroke();
+    }
+  }
+
+  function rgba(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ', ' + ((n >> 8) & 255) + ', '
+      + (n & 255) + ', ' + a + ')';
+  }
+
+  function autoResurrectId(c) {
+    if (c.player && !c.player.alive) return 'player';
+    const d = c.units.find((u) => u.side === 'ally' && !u.alive && !u.fled);
+    return d ? d.id : null;
+  }
+
+  function healFxTargetId(c) {
+    if (!c.player) return null;
+    let best = null, bestFrac = null;
+    const consider = (frac, ref) => {
+      if (frac >= 1) return;
+      if (bestFrac == null || frac < bestFrac) { best = ref; bestFrac = frac; }
+    };
+    consider(c.player.hp / G.derived(c.player).maxHP, { player: true });
+    for (const u of c.units) {
+      if (u.side !== 'ally' || !u.alive || u.fled) continue;
+      if (!(u.maxHP > 0)) continue;
+      consider(u.hp / u.maxHP, { unit: u });
+    }
+    if (!best) return null;
+    return best.player ? 'player' : best.unit.id;
+  }
+
+  function castFxOf(c, caster, spell, toId, at) {
+    if (!spell) return null;
+    return {
+      at: at,
+      until: at + SPELL_FX_MS,
+      spellId: spell.id,
+      name: spell['название'],
+      school: spell['школа'],
+      from: caster === c.player ? 'player' : caster.id,
+      toId: toId || null,
+    };
+  }
+
+  function toIdOf(c, spell, targetId) {
+    const act = spell && spell['действие'];
+    if (act === 'воскрешение') return targetId || autoResurrectId(c);
+    if (act && CAST_FX_TARGETED[act]) return targetId || null;
+    return 'self';
+  }
+
+  function castFxCenter(c, who) {
+    if (who === 'player') {
+      return [(c.px + 0.5) * CELL, (c.py + 0.5) * CELL];
+    }
+    const u = c.units.find((x) => x.id === who);
+    if (!u) return null;
+    return [
+      (u.x + ((u.size && u.size.w) || 1) / 2) * CELL,
+      (u.y + ((u.size && u.size.h) || 1) / 2) * CELL,
+    ];
+  }
+
+  function drawCastFx(c, now) {
+    const fx = c._fx && c._fx.castFx;
+    if (!fx || now >= fx.until) return;
+    const t = (now - fx.at) / (fx.until - fx.at);
+    const color = CAST_FX_SCHOOLS[fx.school] || CAST_FX_FALLBACK;
+    const cu = fx.from === 'player'
+      ? { x: c.px, y: c.py, size: { w: 1, h: 1 } }
+      : c.units.find((x) => x.id === fx.from);
+    if (!cu) return;
+    const ccx = (cu.x + ((cu.size && cu.size.w) || 1) / 2) * CELL;
+    const ccy = (cu.y + ((cu.size && cu.size.h) || 1) / 2) * CELL;
+    const ccTop = cu.y * CELL;
+    g2.font = CAST_FX_TEXT;
+    g2.textAlign = 'center';
+    g2.fillStyle = color;
+    g2.fillText(fx.name, ccx, Math.max(2, ccTop - 6 - 10 * t));
+    const ringR = CELL * (0.3 + 0.3 * t);
+    if (fx.toId === 'self') {
+      g2.fillStyle = rgba(color, 0.25);
+      g2.strokeStyle = color;
+      g2.lineWidth = 2;
+      g2.beginPath();
+      g2.arc(ccx, ccy, ringR, 0, Math.PI * 2);
+      g2.fill();
+      g2.stroke();
+      return;
+    }
+    g2.strokeStyle = color;
+    g2.lineWidth = 2;
+    g2.beginPath();
+    g2.arc(ccx, ccy, ringR, 0, Math.PI * 2);
+    g2.stroke();
+    const tc = castFxCenter(c, fx.toId);
+    if (!tc) return;
+    if (t < 0.5) {
+      const m = liveGame();
+      const k = (m && typeof m.easeInOut === 'function')
+        ? m.easeInOut(t / 0.5) : t / 0.5;
+      const ox = ccx + (tc[0] - ccx) * k;
+      const oy = ccy + (tc[1] - ccy) * k;
+      g2.fillStyle = rgba(color, 0.3);
+      g2.beginPath();
+      g2.arc(ox, oy, CELL * 0.16, 0, Math.PI * 2);
+      g2.fill();
+      g2.fillStyle = color;
+      g2.beginPath();
+      g2.arc(ox, oy, CELL * 0.07, 0, Math.PI * 2);
+      g2.fill();
+      g2.strokeStyle = color;
+      g2.lineWidth = 2;
+      g2.beginPath();
+      g2.arc(ox, oy, CELL * 0.12, 0, Math.PI * 2);
+      g2.stroke();
+      const dx = tc[0] - ccx, dy = tc[1] - ccy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 0) {
+        g2.fillStyle = rgba(color, 0.18);
+        g2.beginPath();
+        g2.arc(ox - (dx / dist) * CELL * 0.14,
+          oy - (dy / dist) * CELL * 0.14, CELL * 0.06, 0, Math.PI * 2);
+        g2.fill();
+      }
+    } else {
+      const q = (t - 0.5) * 2;
+      const r = CELL * (0.25 + 0.45 * q);
+      g2.fillStyle = rgba(color, 0.35 * (1 - q));
+      g2.beginPath();
+      g2.arc(tc[0], tc[1], r, 0, Math.PI * 2);
+      g2.fill();
+      g2.strokeStyle = color;
+      g2.lineWidth = 2;
+      g2.beginPath();
+      g2.arc(tc[0], tc[1], r, 0, Math.PI * 2);
       g2.stroke();
     }
   }
@@ -1667,6 +1841,7 @@
     // 000062-паттерн — будущие боевые эффекты вызываются здесь).
     // Без c._fx.breath / после until — ранний возврат (ничего).
     drawBreathFx(c, now);
+    drawCastFx(c, now);
 
     // Панель состояния.
     const t = c.units.find((u) => u.id === c.targetId && u.alive && !u.fled);
@@ -2184,7 +2359,11 @@
         : { ok: false, reason: 'Заклинания недоступны' };
     }
     if (r && r.ok) {
-      c._fx = { action: 'cast', until: nowMs() + FX_MS };
+      const n = nowMs();
+      c._fx = {
+        action: 'cast', until: n + FX_MS,
+        castFx: castFxOf(c, u, r.spell, toIdOf(c, r.spell, c.targetId), n),
+      };
       bookOpen = false;
     } else {
       logRejection(c, r);
@@ -2255,11 +2434,16 @@
       render();
       return;
     }
+    const tid = resurrectTargetId(c);
     const r = (G.Spells && typeof G.Spells.castSpell === 'function')
-      ? G.Spells.castSpell(c, 'resurrect', resurrectTargetId(c))
+      ? G.Spells.castSpell(c, 'resurrect', tid)
       : { ok: false, reason: 'Заклинания недоступны' };
     if (r && r.ok) {
-      c._fx = { action: 'cast', until: nowMs() + FX_MS };
+      const n = nowMs();
+      c._fx = {
+        action: 'cast', until: n + FX_MS,
+        castFx: castFxOf(c, c.player, r.spell, tid || autoResurrectId(c), n),
+      };
       bookOpen = false;
     } else {
       logRejection(c, r);
