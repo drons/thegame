@@ -105,19 +105,27 @@ test('SPEC 000218; 000223: «Спутники → Бой» — блок/побе
       'и союзники/Эфир; блок/побег — player-only)');
 });
 
-test('SPEC 000218: dungeons-storage «Залежи» (Рендер) — счётчик «Залежи: N» в инфо-окне НЕ выводится (000212); строка hint «Залежь — [E]» — как есть', () => {
+test('SPEC 000218; 000234: dungeons-storage «Залежи» (Рендер) — счётчик «Залежи: N» в инфо-окне НЕ выводится (000212); строка hint «Залежь — [E]» — в подземелье/пещерах убрана с панелью (000229; hint — только город; onDeposit = !isCity — строка недостижима)', () => {
   const z = W2();
   assert.ok(
-    z.includes('HUD — счётчик «Залежи: N» в инфо-окне НЕ выводится (000212); строка hint «Залежь — [E]» — как есть.'),
+    z.includes('HUD — счётчик «Залежи: N» в инфо-окне НЕ выводится (000212); строка hint «Залежь — [E]» — в подземелье/пещерах убрана вместе с панелью `.combat-side` (000229; hint — только город); механизм render() сохранён — `hintBase + onDeposit = !isCity` (`src/dungeon-ui.js`), строка недостижима (город — false, подземелье — hintEl = null).'),
     '«## Залежи» (буллет «Рендер»): хвост обязан гласить «HUD — счётчик ' +
       '„Залежи: N“ в инфо-окне НЕ выводится (000212); строка hint ' +
-      '„Залежь — [E]“ — как есть.» (код: dungeon-ui.js — dungeon-ветка ' +
-      'stateEl со счётчиками «Группы:/Сундуки:/Залежи: » удалена, ' +
-      'счётчик в #hud НЕ добавлен — возврат ТОЛЬКО #hud/buildLine, ' +
-      'memory/000212-dungeon-hud-window.md §6; hint сохранён 000157.03: ' +
-      'dungeon-ui.js:941 «Залежь — [E]»; фиксаторы: ' +
-      'dungeon-info-window.test.js DH-1..DH-7, dungeon-ui.test.js ' +
-      'UI-DEP-2/UI-DEP-3/UI-GRD-1)');
+      '„Залежь — [E]“ — в подземелье/пещерах убрана вместе с панелью ' +
+      '`.combat-side` (000229; hint — только город); механизм render() ' +
+      'сохранён — `hintBase + onDeposit = !isCity` ' +
+      '(`src/dungeon-ui.js`), строка недостижима (город — false, ' +
+      'подземелье — hintEl = null).» (код: dungeon-ui.js — build() ' +
+      'L414 панель `.combat-side` (stateEl/logEl/hint) создаётся ТОЛЬКО ' +
+      'в городе (`s0 && s0.kind === \'city\'`, 000229 D2), городской ' +
+      'hint-литерал L430, hintEl/hintBase L434-435; render() L932 — ' +
+      '`onDeposit = !isCity && …`, L934-935 — гард `if (hintEl)`; ' +
+      'строка недостижима ВЕЗДЕ — город: !isCity = false, подземелье: ' +
+      'hintEl = null (memory/000229-dungeon-side-panel-removed.md ' +
+      '§10); мёртвая ветка — осознанно (000229 D4/D11); фиксаторы: ' +
+      'dungeon-side-panel.test.js RW-1..4/RW-G1, ' +
+      'dungeon-info-window.test.js DH-4, deposit-e2e.test.js DE-1, ' +
+      'city-interact.test.js CI-V3; re-pin-прецедент — W1 000223)');
   assert.ok(
     !z.includes('HUD — строка состояния `… | Залежи: N` (N — нерасчищенные) + строка hint.'),
     '«## Залежи» (буллет «Рендер»): старая формула «HUD — строка ' +
