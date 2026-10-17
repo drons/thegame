@@ -7880,3 +7880,769 @@ test('000227 AF-3: autoSpellFor — пустая книга / id вне ката
   assert.equal(C.autoSpellFor({ spells: ['spark'] }, 'защита'), null,
     '«защита» в книге нет — null');
 });
+
+// =====================================================================
+// --- Задача 000235.01: боевое ядро новых действий ---
+// (TDD: красные тесты C1-C5)
+//
+// Контракт: memory/000235.01-spell-actions-core.md. Гост-спеллы —
+// инъекция в зеркало src/spells-data.js (паттерн fireball_alt,
+// tests/spells.test.js) с restore в finally; госты — КОРНИ (база
+// null), highestKnown фолбэк [spell] — пере-require spells.js НЕ
+// нужен (SPELLS_BY_ID/SPELLS читаются live). Красная причина —
+// осмысленная: castSpell/canCastSpell — «неизвестное действие: …»
+// (KNOWN_ACTIONS — старые 6, зеркала одной причины 000037), без
+// расхода пула/маны; полей c.walls/c.zone/c.ps.buff/u.buff/u.debuff/
+// u.summonTurns в ядре пока нет. Каталог ЭТОЙ задачей не растёт.
+// =====================================================================
+
+function ghostSpell0235(id, action, params, attrs) {
+  const s = {
+    id,
+    название: 'Тест ' + id,
+    школа: 'огонь',
+    база: null,
+    степень: 1,
+    атрибут: 'intelligence',
+    уровень: 1,
+    мани: 3,
+    действие: action,
+    здания: [17],
+    описание: 'Тестовое заклинание (000235.01)',
+    icon: 'assets/spell-icons/ghost.svg',
+    icon_prompt: 'Тестовая иконка (000235.01)',
+  };
+  if (params !== undefined) s.параметры = params;
+  return Object.assign(s, attrs || {});
+}
+
+function withGhosts0235(ghosts, fn) {
+  const dataMod = require('../src/spells-data.js');
+  try {
+    for (const g of ghosts) {
+      dataMod.SPELLS.push(g);
+      dataMod.SPELLS_BY_ID[g.id] = g;
+    }
+    fn();
+  } finally {
+    for (const g of ghosts) {
+      const i = dataMod.SPELLS.lastIndexOf(g);
+      if (i >= 0) dataMod.SPELLS.splice(i, 1);
+      delete dataMod.SPELLS_BY_ID[g.id];
+    }
+  }
+}
+
+test('000235.01 C1: баф — по себе/союзнику, «нет цели» до расхода, тик startRound «ровно N раундов»', () => {
+  const { castSpell, canCastSpell } = spells();
+  const gArmor = ghostSpell0235('ghost_c1_armor', 'баф',
+    { stat: 'броня', value: 2, turns: 3 });
+  const gDmgTaken = ghostSpell0235('ghost_c1_dmg_taken', 'баф',
+    { stat: 'получаемый_урон', value: 0.5, turns: 1 });
+  const gAllyDmg = ghostSpell0235('ghost_c1_ally_dmg', 'баф',
+    { stat: 'урон', value: 0.5, turns: 3 });
+  // Ревью: допины «попадание»/«урон» по СЕБЕ + fail-closed на
+  // неполные «параметры» (госты без/с пропущенными полями).
+  const gHit = ghostSpell0235('ghost_c1_hit', 'баф',
+    { stat: 'попадание', value: 0.2, turns: 1 });
+  const gPlayerDmg = ghostSpell0235('ghost_c1_player_dmg', 'баф',
+    { stat: 'урон', value: 0.5, turns: 2 });
+  const gFire = ghostSpell0235('ghost_c1_fire', 'урон');
+  const gNoP = ghostSpell0235('ghost_c1_noparam', 'баф');
+  const gNoVal = ghostSpell0235('ghost_c1_noval', 'баф',
+    { stat: 'броня', turns: 3 });
+  const gNoTurns = ghostSpell0235('ghost_c1_noturns', 'дебаф',
+    { stat: 'урон_вниз', value: 0.25 });
+  const gBadStat = ghostSpell0235('ghost_c1_badstat', 'дебаф',
+    { stat: 'no_such_stat', value: 0.5, turns: 3 });
+  withGhosts0235(
+    [gArmor, gDmgTaken, gAllyDmg, gHit, gPlayerDmg, gFire,
+     gNoP, gNoVal, gNoTurns, gBadStat], () => {
+    // (a) Каст по себе (без targetId): c.ps.buff = eff, «броня» —
+    // ровно 3 раунда включая раунд каста (паттерн c.ps.shield),
+    // пул/мана списываются один раз.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gArmor.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      w.damage = 2; // баф-броня 2 гасит полностью
+      c._rng = () => 0.01;
+      const r = castSpell(c, gArmor.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.equal(r.buffed, 'player', 'каст по себе — эффект игроку');
+      assert.deepEqual(c.ps.buff, { stat: 'броня', value: 2, turns: 3 },
+        'c.ps.buff — эффект');
+      assert.equal(c.ps.spellInt, 1, 'пул Интеллекта −1 (int 10 → 2)');
+      assert.equal(p.mp, 13, 'мана −3');
+      const hits = [];
+      for (let i = 0; i < 4; i++) {
+        const hp = p.hp;
+        c.endTurn();
+        hits.push(hp - p.hp);
+      }
+      assert.deepEqual(hits, [0, 0, 0, 2],
+        'броня 2 — ровно 3 раунда (включая раунд каста), потом полный');
+      assert.deepEqual(c.ps.buff, { stat: 'броня', value: 2, turns: 0 },
+        'тик startRound: до 0, поле остаётся');
+    }
+    // (a2) «получаемый_урон»: урон по игроку ×(1−v) ровно turns раундов.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gDmgTaken.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      w.damage = 10;
+      c._rng = () => 0.01;
+      assert.equal(castSpell(c, gDmgTaken.id).ok, true);
+      const hits = [];
+      for (let i = 0; i < 2; i++) {
+        const hp = p.hp;
+        c.endTurn();
+        hits.push(hp - p.hp);
+      }
+      assert.deepEqual(hits, [5, 10],
+        '×(1−0.5) ровно 1 раунд, затем полный урон');
+    }
+    // (a3) «попадание» по себе (ревью): hitChance-граница — rng 0.6
+    // МЕЖДУ базовой 0.52 и повышенной 0.72: с бафом — попадание
+    // (0.6 < 0.72), без — промах (0.6 ≥ 0.52). Ровно turns раундов
+    // (включая раунд каста), потом возврат.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gHit.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      w.maxHP = 200; w.hp = 200;
+      c._rng = () => 0.6;
+      const r = castSpell(c, gHit.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.deepEqual(c.ps.buff,
+        { stat: 'попадание', value: 0.2, turns: 1 }, 'c.ps.buff — эффект');
+      const r1 = c.attack(w.id);
+      assert.equal(r1.ok, true, r1.reason);
+      assert.equal(r1.hit, true, '0.6 < 0.52+0.2 — баф даёт попадание');
+      assert.equal(r1.dmg, 2, 'урон 3 − броня 1');
+      c.endTurn();
+      assert.equal(c.ps.buff.turns, 0, 'тик startRound: ровно 1 раунд');
+      const r2 = c.attack(w.id);
+      assert.equal(r2.ok, true, r2.reason);
+      assert.equal(r2.hit, false, 'баф истёк: 0.6 ≥ 0.52 — промах');
+      assert.equal(r2.dmg, 0, 'промах — урона нет');
+    }
+    // (a4) «урон» по себе (ревью): удар игрока ×(1+v) ровно turns
+    // раундов (playerAttack); кэс «урон» — buffMult ×(1+v) (инлайн
+    // spells.js, ignoreArmor); потом формулы возвращаются.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gPlayerDmg.id, gFire.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      w.maxHP = 200; w.hp = 200;
+      c._rng = () => 0.01;
+      const r = castSpell(c, gPlayerDmg.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.deepEqual(c.ps.buff,
+        { stat: 'урон', value: 0.5, turns: 2 }, 'c.ps.buff — эффект');
+      const r1 = c.attack(w.id);
+      assert.equal(r1.ok, true, r1.reason);
+      assert.equal(r1.dmg, 4, 'round(3×1.5) − броня 1 = 5 − 1 = 4');
+      const r2 = castSpell(c, gFire.id);
+      assert.equal(r2.ok, true, r2.reason);
+      assert.equal(r2.dmg, 14, 'round(9×1.5) = 14 (ignoreArmor)');
+      c.endTurn(); // 2 → 1 — баф ещё действует
+      const r3 = c.attack(w.id);
+      assert.equal(r3.dmg, 4, 'раунд 2 — ×1.5 (turns 1)');
+      c.endTurn(); // 1 → 0
+      const r4 = c.attack(w.id);
+      assert.equal(r4.dmg, 2, 'баф истёк: 3 − 1 = 2');
+      assert.equal(c.ps.buff.turns, 0, 'тик: до 0, поле остаётся');
+    }
+    // (b) Каст на союзника: a.buff = eff, c.ps.buff не тронут, союзник
+    // бьёт ×(1+v) (3×1.5 = 4.5 → 5).
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gAllyDmg.id];
+      const c = createCombat({
+        player: p, allies: [Object.assign({}, ALLY_VOLK)],
+        mobs: ['wolf'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      const a0 = c.units.find((u) => u.side === 'ally');
+      c.obstacles.clear();
+      w.x = 0; w.y = 0; w.maxHP = 200; w.hp = 200; w.damage = 1;
+      a0.x = 1; a0.y = 0; // волк → союзник (дист 1), игрок далеко (9)
+      c._rng = () => 0.01;
+      const r = castSpell(c, gAllyDmg.id, a0.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.equal(r.buffed, a0.id, 'союзник — цель бафа');
+      assert.deepEqual(a0.buff, { stat: 'урон', value: 0.5, turns: 3 },
+        'a.buff — эффект');
+      assert.ok(!c.ps.buff, 'игрок бафом не задет');
+      // 000168: очередь останавливается на слоте СОЮЗНИКА — его удар
+      // это ввод ИГРОКА (c.attack), авто-ИИ союзников нет.
+      c.endTurn(); // волк бьёт a0 (1); очередь — на слоте a0
+      c.attack(w.id); // ход a0: удар ×1.5
+      assert.equal(w.hp, 195, 'удар союзника 3×1.5 = 4.5 → 5');
+      c.endTurn(); // ход a0 завершён: startRound, тик a.buff
+      assert.equal(a0.hp, 12, 'удар волка (damage 1): 13 → 12');
+      assert.equal(a0.buff.turns, 2, 'a.buff тикает в startRound');
+    }
+    // (c) «нет цели»: id моба / чужой id / мёртвый союзник — до расхода.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gAllyDmg.id];
+      const c = createCombat({
+        player: p, allies: [Object.assign({}, ALLY_VOLK)],
+        mobs: ['wolf'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      const a0 = c.units.find((u) => u.side === 'ally');
+      a0.alive = false;
+      for (const bad of [w.id, 'no_such', a0.id]) {
+        const pool = c.ps.spellInt;
+        const r = castSpell(c, gAllyDmg.id, bad);
+        assert.equal(r.ok, false, 'невалидная цель — не каст: ' + bad);
+        assert.equal(r.reason, 'нет цели', 'причина: ' + bad);
+        assert.equal(
+          canCastSpell(c, gAllyDmg.id, { targetId: bad }).reason,
+          'нет цели', 'зеркало — одна причина: ' + bad);
+        assert.equal(c.ps.spellInt, pool, 'пул не тратится: ' + bad);
+        assert.equal(p.mp, 16, 'мана не тратится: ' + bad);
+      }
+      assert.ok(!a0.buff, 'мёртвый союзник эффектом не задет');
+    }
+    // (e) Fail-closed (ревью): «баф»/«дебаф» без «параметры»/с
+    // неполными (D1: {stat, value, turns}) — отказ ДО расхода
+    // пула/маны; canCastSpell — та же причина (зеркало 000037);
+    // состояния (c.ps.buff/u.debuff) не заданы.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gNoP.id, gNoVal.id, gNoTurns.id, gBadStat.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      const pool = c.ps.spellInt;
+      for (const [id, reason, targetId] of [
+        [gNoP.id, 'нет параметров', undefined],
+        [gNoVal.id, 'неполные параметры: value', undefined],
+        [gNoTurns.id, 'неполные параметры: turns', w.id],
+        [gBadStat.id, 'неполные параметры: stat', w.id],
+      ]) {
+        const r = castSpell(c, id, targetId);
+        assert.equal(r.ok, false, id + ' — не каст');
+        assert.equal(r.reason, reason, id + ' — причина');
+        assert.equal(
+          canCastSpell(c, id, { targetId }).reason, reason,
+          id + ' — зеркало (одна причина)');
+      }
+      assert.equal(c.ps.spellInt, pool, 'пул не тратится');
+      assert.equal(p.mp, 16, 'мана не тратится');
+      assert.ok(!c.ps.buff, 'c.ps.buff не задан');
+      assert.strictEqual(w.debuff, undefined, 'у моба debuff нет');
+    }
+  });
+});
+
+test('000235.01 C2: дебаф — 4 активных стата ровно N раундов, «нет цели»/дальность 4 до расхода', () => {
+  const { castSpell } = spells();
+  const gDmgDown = ghostSpell0235('ghost_c2_dmg_down', 'дебаф',
+    { stat: 'урон_вниз', value: 0.25, turns: 3 });
+  const gArmorDown = ghostSpell0235('ghost_c2_armor_down', 'дебаф',
+    { stat: 'броня_вниз', value: 2, turns: 1 });
+  const gHitDown = ghostSpell0235('ghost_c2_hit_down', 'дебаф',
+    { stat: 'попадание_вниз', value: 0.2, turns: 1 });
+  const gDmgUp = ghostSpell0235('ghost_c2_dmg_up', 'дебаф',
+    { stat: 'получаемый_урон_вверх', value: 0.5, turns: 1 });
+  withGhosts0235([gDmgDown, gArmorDown, gHitDown, gDmgUp], () => {
+    // (a) «урон_вниз»: урон моба ×(1−v) ровно turns раундов.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gDmgDown.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      w.damage = 10; // ×0.75 = 7.5 → round 8
+      c._rng = () => 0.01;
+      const r = castSpell(c, gDmgDown.id, w.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.equal(r.debuffed, w.id, 'дебаф — на моба');
+      assert.deepEqual(w.debuff,
+        { stat: 'урон_вниз', value: 0.25, turns: 3 }, 'u.debuff — эффект');
+      const hits = [];
+      for (let i = 0; i < 4; i++) {
+        const hp = p.hp;
+        c.endTurn();
+        hits.push(hp - p.hp);
+      }
+      assert.deepEqual(hits, [8, 8, 8, 10],
+        '×(1−0.25) ровно 3 раунда, затем полный урон');
+      assert.equal(w.debuff.turns, 0, 'тик: до 0, поле остаётся');
+    }
+    // (b) «броня_вниз»: броня моба −v (min 0) ровно turns раундов.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gArmorDown.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      assert.ok(w.armor >= 1, 'у воина броня ≥ 1');
+      c._rng = () => 0.01;
+      assert.equal(castSpell(c, gArmorDown.id, w.id).ok, true);
+      const r1 = c.attack(w.id);
+      assert.equal(r1.ok, true, r1.reason);
+      assert.equal(r1.dmg, 3, 'броня 1−2 → 0: полный урон 3');
+      c.endTurn();
+      const r2 = c.attack(w.id);
+      assert.equal(r2.ok, true, r2.reason);
+      assert.equal(r2.dmg, 2, 'раунд 2 — дебафа нет: броня вернулась');
+    }
+    // (c) «попадание_вниз»: промахи моба ровно turns раундов
+    // (0.58−0.2 = 0.38: rng 0.5 — промах; 0.58: rng 0.5 — попадание).
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gHitDown.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      w.damage = 10;
+      c._rng = () => 0.5;
+      assert.equal(castSpell(c, gHitDown.id, w.id).ok, true);
+      let hp = p.hp;
+      c.endTurn(); // раунд 1: 0.5 ≥ 0.38 — промах
+      assert.equal(p.hp, hp, 'раунд 1 — моб промахивается');
+      c.endTurn(); // раунд 2: дебаф истёк — 0.5 < 0.58 — попадание
+      assert.equal(p.hp, hp - 10, 'раунд 2 — моб снова бьёт');
+    }
+    // (d) «получаемый_урон_вверх»: урон по мобо ×(1+v) ровно turns раундов.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gDmgUp.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      w.maxHP = 200; w.hp = 200;
+      c._rng = () => 0.01;
+      assert.equal(castSpell(c, gDmgUp.id, w.id).ok, true);
+      const r1 = c.attack(w.id);
+      // 3 × 1.5 = 4.5 → round 5 − броня 1 = 4.
+      assert.equal(r1.dmg, 4, '×1.5: round(4.5) − 1 = 4');
+      c.endTurn();
+      const r2 = c.attack(w.id);
+      assert.equal(r2.dmg, 2, 'раунд 2 — дебафа нет: 3 − 1 = 2');
+    }
+    // (e) «нет цели» (союзник) и дальность 4 — до расхода пула/маны.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gDmgDown.id];
+      const c = createCombat({
+        player: p, allies: [Object.assign({}, ALLY_VOLK)],
+        mobs: ['wolf'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      const a0 = c.units.find((u) => u.side === 'ally');
+      const pool = c.ps.spellInt;
+      const r = castSpell(c, gDmgDown.id, a0.id);
+      assert.equal(r.ok, false, 'союзник — не цель дебафа');
+      assert.equal(r.reason, 'нет цели');
+      w.x = c.px; w.y = c.py - 5; // дистанция 5 > 4
+      const r2 = castSpell(c, gDmgDown.id, w.id);
+      assert.equal(r2.ok, false, 'дальше дальности — не каст');
+      assert.equal(r2.reason, 'цель слишком далеко (дальность 4)');
+      assert.equal(c.ps.spellInt, pool, 'пул не тратится');
+      assert.equal(p.mp, 16, 'мана не тратится');
+    }
+  });
+});
+
+test('000235.01 C3: дебаф «dot» — тик в начале хода ЦЕЛИ (скованный тикает), ровно turns тиков', () => {
+  const { castSpell } = spells();
+  const gDot = ghostSpell0235('ghost_c3_dot', 'дебаф',
+    { stat: 'dot', value: 3, turns: 2 });
+  withGhosts0235([gDot], () => {
+    // (a) Тик — в начале хода моба: раунд каста → тик 1, далее тик 2,
+    // третьего нет; броня моба НЕ гасит (ignoreArmor).
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gDot.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      w.maxHP = 200; w.hp = 200; w.damage = 1;
+      c._rng = () => 0.01;
+      const r = castSpell(c, gDot.id, w.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.deepEqual(w.debuff, { stat: 'dot', value: 3, turns: 2 },
+        'u.debuff — dot');
+      c.endTurn(); // ход моба: тик 1, потом удар
+      assert.equal(w.hp, 197, 'тик 1: 200 − 3 (броня не гасит)');
+      assert.equal(w.debuff.turns, 1, 'декремент в тике');
+      c.endTurn(); // тик 2
+      assert.equal(w.hp, 194, 'тик 2: 197 − 3');
+      assert.equal(w.debuff.turns, 0, 'ровно 2 тика');
+      c.endTurn();
+      assert.equal(w.hp, 194, 'третьего тика нет');
+    }
+    // (b) Скованный моб тикает dot (тик ПЕРЕД bind-проверкой).
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gDot.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      w.maxHP = 200; w.hp = 200; w.damage = 10;
+      c._rng = () => 0.01;
+      assert.equal(castSpell(c, gDot.id, w.id).ok, true);
+      w.bind = { turns: 1 }; // сковываем dot-моба
+      const hp = p.hp;
+      c.endTurn(); // тик dot, потом пропуск действия
+      assert.equal(p.hp, hp, 'скованный моб не бьёт');
+      assert.equal(w.hp, 197, 'dot тикает даже у скованного');
+      assert.equal(w.bind.turns, 0, 'bind исчерпан');
+      assert.equal(w.debuff.turns, 1, 'dot оттикнут ровно один раз');
+    }
+    // (c) Эффект не переносится в новый бой.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gDot.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      assert.strictEqual(c.units[0].debuff, undefined,
+        'свежий бой — у моба поля debuff нет');
+    }
+  });
+});
+
+test('000235.01 C4: призыв — makeAlly (уровень СПЕЛЛА), действует с R+1, ровно turns раундов → рассеивается, XP не получает', () => {
+  const { castSpell } = spells();
+  const mt = MOB_TYPES['wolf'];
+  const gSummon = ghostSpell0235('ghost_c4_summon', 'призыв',
+    { summon: 'wolf', turns: 4 }, { уровень: 3 });
+  const gSummonBad = ghostSpell0235('ghost_c4_summon_bad', 'призыв',
+    { summon: 'no_such_mob', turns: 4 });
+  const gSummon2 = ghostSpell0235('ghost_c4_summon2', 'призыв',
+    { summon: 'wolf', turns: 4 }, { уровень: 3 });
+  withGhosts0235([gSummon, gSummonBad, gSummon2], () => {
+    // (a) Юнит в c.units: side ally, kind summon, статы по уровню
+    // СПЕЛЛА (3, не героя), 1×1, рядом с игроком; очередь — с R+1;
+    // рассеивается в начале раунда R+4 (fled, hp сохраняется).
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gSummon.id];
+      const c = createCombat({
+        player: p, mobs: ['wolf'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      c.obstacles.clear();
+      w.x = 3; w.y = 1; w.maxHP = 2000; w.hp = 2000;
+      c._rng = () => 0.01;
+      const r = castSpell(c, gSummon.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.equal(c.ps.spellInt, 1, 'пул −1');
+      assert.equal(p.mp, 13, 'мана −3');
+      const s = c.units.find((u) => u.side === 'ally');
+      assert.ok(s, 'призывной в c.units');
+      assert.equal(s.kind, 'summon', 'kind — "summon" (не merc/efir)');
+      assert.equal(s.name, mt.name, 'имя — из MOB_TYPES');
+      assert.equal(s.role, mt.role, 'роль — из MOB_TYPES');
+      assert.equal(s.level, 3, 'уровень — spell.уровень (не уровень героя)');
+      assert.deepEqual(s.size, { w: 1, h: 1 }, 'призывной 1×1');
+      assert.equal(s.maxHP, Math.max(1, Math.round((8 + 4 * 3) * mt.hp)),
+        'maxHP по уровню 3: round(16 × 0.8) = 13');
+      assert.equal(s.damage,
+        Math.max(1, Math.round((2 + 0.7 * 3) * mt.dmg)),
+        'damage по уровню 3: round(4.1 × 0.7) = 3');
+      assert.equal(s.summonTurns, 4, 'summonTurns — параметры.turns');
+      assert.ok(Math.abs(s.x - c.px) + Math.abs(s.y - c.py) <= 2,
+        'рядом с игроком (якоря placeAllies, d ≤ 2)');
+      assert.ok(!c.turnOrder.includes(s.id),
+        'в очереди — со следующего пересчёта buildTurnOrder');
+      c.endTurn(); // раунд 2: тик 4→3, в очереди
+      assert.equal(c.round, 2);
+      assert.ok(c.turnOrder.includes(s.id), 'действует с R+1');
+      assert.equal(s.summonTurns, 3, 'тик startRound: 4 → 3');
+      // 000168: призывной — СОЮЗНИК: его слот в очереди ждёт ввода
+      // игрока (c.endTurn — пропуск хода); раунд сдвигается только
+      // после слота призывного.
+      c.endTurn(); // слот призывного (раунд 2) — пропуск хода
+      c.endTurn();
+      assert.equal(s.summonTurns, 2, 'раунд 3: 3 → 2');
+      c.endTurn(); // слот призывного (раунд 3) — пропуск хода
+      c.endTurn();
+      assert.equal(s.summonTurns, 1, 'раунд 4: 2 → 1');
+      c.endTurn(); // слот призывного (раунд 4) — пропуск хода
+      c.endTurn(); // начало раунда 5: 1 → 0 — рассеивание
+      assert.equal(c.round, 5, 'рассеивается в начале раунда R+4');
+      assert.equal(s.summonTurns, 0, 'ровно 4 раунда жизни');
+      assert.equal(s.fled, true, 'рассеивание — fled (не смерть)');
+      assert.equal(s.alive, true, 'hp сохраняется (не труп)');
+      assert.ok(c.units.includes(s), 'из c.units не удаляется');
+      assert.ok(!c.turnOrder.includes(s.id), 'из очереди исключён');
+      assert.ok(c.log.some((l) => l.includes('рассеивается')),
+        'лог «…рассеивается.»: ' + c.log.slice(-4).join(' | '));
+      assert.deepEqual(
+        c.units.filter((u) => u.side === 'ally' && u.kind === 'merc'
+          && !u.alive),
+        [],
+        'призывной — никогда не в dead_mercs (side ally && kind merc)');
+    }
+    // (b) Неизвестный id — fail-closed до расхода пула/маны.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gSummonBad.id];
+      const c = createCombat({
+        player: p, mobs: ['wolf'], mobLevel: 2, seed: 5 });
+      const pool = c.ps.spellInt;
+      const r = castSpell(c, gSummonBad.id);
+      assert.equal(r.ok, false, 'неизвестный призыв — отказ');
+      assert.equal(r.reason, 'неизвестный призыв: no_such_mob');
+      assert.equal(c.ps.spellInt, pool, 'пул не тратится');
+      assert.equal(p.mp, 16, 'мана не тратится');
+      assert.equal(c.units.length, 1, 'призывного нет в c.units');
+    }
+    // (c) Поле полное (2×2: игрок + 3 волка) — «нет места для призыва».
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gSummon2.id];
+      const c = createCombat({
+        player: p, mobs: ['wolf', 'wolf', 'wolf'], mobLevel: 2,
+        seed: 5, width: 2, height: 2 });
+      assert.equal(c.units.length + 1, 4,
+        '2×2: игрок + 3 моба заняли все клетки');
+      const r = castSpell(c, gSummon2.id);
+      assert.equal(r.ok, false, 'мест нет — fail-closed');
+      assert.equal(r.reason, 'нет места для призыва');
+      assert.equal(c.units.length, 3, 'призывного нет в c.units');
+    }
+    // (d) Призывной НЕ получает allyXp (фильтр kind === 'merc').
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gSummon2.id];
+      const c = createCombat({
+        player: p, mobs: ['wolf'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      c.obstacles.clear();
+      c._rng = () => 0.01;
+      assert.equal(castSpell(c, gSummon2.id).ok, true);
+      standNextTo(c, w);
+      w.hp = 1;
+      const r = c.attack(w.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.ok(r.killed, 'волк повержен');
+      assert.equal(c.result.outcome, 'victory', 'победа');
+      assert.deepEqual(c.result.allyXp, [],
+        'призывной (kind "summon") — не в allyXp');
+    }
+  });
+});
+
+test('000235.01 C5: создание — стена (ряд y=py−2, ровно turns раундов, старые препятствия не удаляются) и зона (один слот, overwrite, роутинг по стороне стата)', () => {
+  const { castSpell, canCastSpell } = spells();
+  const gWall = ghostSpell0235('ghost_c5_wall', 'создание',
+    { object: 'стена', turns: 5 });
+  const gZoneDmg = ghostSpell0235('ghost_c5_zone_dmg', 'создание',
+    { object: 'зона', radius: 1, stat: 'урон_вниз', value: 0.25,
+      turns: 3 });
+  const gZoneAlly = ghostSpell0235('ghost_c5_zone_ally', 'создание',
+    { object: 'зона', radius: 1, stat: 'урон', value: 0.5, turns: 3 });
+  const gZone2 = ghostSpell0235('ghost_c5_zone_2', 'создание',
+    { object: 'зона', radius: 2, stat: 'урон_вниз', value: 0.5,
+      turns: 1 });
+  // Ревью: fail-closed на неполные «параметры» зоны/стены.
+  const gZoneNoR = ghostSpell0235('ghost_c5_zone_noradius', 'создание',
+    { object: 'зона', stat: 'урон_вниз', value: 0.5, turns: 3 });
+  const gZoneBigR = ghostSpell0235('ghost_c5_zone_bigradius', 'создание',
+    { object: 'зона', radius: 7, stat: 'урон_вниз', value: 0.5, turns: 3 });
+  const gWallNoT = ghostSpell0235('ghost_c5_wall_noturns', 'создание',
+    { object: 'стена' });
+  withGhosts0235(
+    [gWall, gZoneDmg, gZoneAlly, gZone2, gZoneNoR, gZoneBigR, gWallNoT],
+    () => {
+    // (a) Стена: весь ряд y = py−2, кроме клеток игрока/юнитов и
+    // УЖЕ существующих препятствий; непроходима; ровно 5 раундов;
+    // при истечении старые препятствия ряда НЕ удаляются.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gWall.id];
+      const c = createCombat({
+        player: p, mobs: ['wolf'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      c.obstacles.clear();
+      c.obstacles.add('1,4'); // старое 000050-препятствие в ряду стены
+      w.x = 3; w.y = 1; // волк — выше стены
+      assert.equal(c.py, 6, 'поле 7×7: игрок (3,6)');
+      c._rng = () => 0.01;
+      const r = castSpell(c, gWall.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.equal(r.wall, 6, 'out.wall — число клеток ряда');
+      assert.equal(c.walls.length, 1, 'c.walls — одна стена');
+      assert.equal(c.walls[0].turns, 5, 'turns — параметры.turns');
+      const cells = c.walls[0].cells.map(([x, y]) => x + ',' + y);
+      assert.deepEqual(cells.slice().sort(),
+        ['0,4', '2,4', '3,4', '4,4', '5,4', '6,4'],
+        'ряд y = py−2 = 4; ячейка (1,4) — старое препятствие — мимо');
+      for (const cell of cells)
+        assert.ok(c.obstacles.has(cell), 'клетка стены в c.obstacles: ' + cell);
+      let reach = reachableCells(c);
+      assert.ok(
+        [...reach].every((k) => Number(k.split(',')[1]) > 3),
+        'стена непроходима: клеток y ≤ 3 из позиции игрока нет');
+      for (let i = 0; i < 5; i++) c.endTurn(); // тики 5→4→3→2→1→0
+      assert.equal(c.round, 6, 'раунд R+5 — истечение');
+      assert.deepEqual(c.walls, [], 'стена удалена из c.walls');
+      for (const cell of cells)
+        assert.ok(!c.obstacles.has(cell), 'клетка вычищена: ' + cell);
+      assert.ok(c.obstacles.has('1,4'),
+        'старое препятствие ряда НЕ удалено');
+      reach = reachableCells(c);
+      assert.ok(
+        [...reach].some((k) => Number(k.split(',')[1]) <= 3),
+        'путь через вычищенный ряд открыт');
+    }
+    // (b1) Зона (дебаф-стат): моб в Чебышёв-радиусе — u.debuff ровно
+    // turns раундов; игрок (центр) не затрагивается.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gZoneDmg.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w); // Чебышёв 1 — в радиусе 1
+      w.maxHP = 200; w.hp = 200; w.damage = 10;
+      c._rng = () => 0.01;
+      const r = castSpell(c, gZoneDmg.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.equal(r.zone, 1, 'out.zone — радиус');
+      assert.deepEqual(c.zone,
+        { x: c.px, y: c.py, radius: 1, stat: 'урон_вниз',
+          value: 0.25, turns: 3 },
+        'c.zone — объект зоны (центр — клетка игрока)');
+      assert.deepEqual(w.debuff,
+        { stat: 'урон_вниз', value: 0.25, turns: 3 },
+        'моб в радиусе — дебаф (применение однократное)');
+      assert.ok(!c.ps.buff, 'игрок не затрагивается собственной зоной');
+      const hits = [];
+      for (let i = 0; i < 4; i++) {
+        const hp = p.hp;
+        c.endTurn();
+        hits.push(hp - p.hp);
+      }
+      assert.deepEqual(hits, [8, 8, 8, 10],
+        'дебаф зоны — ровно 3 раунда (тик m.debuff — startRound)');
+    }
+    // (b2) Рекаст в тот же ход — overwrite одного слота c.zone.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gZoneDmg.id, gZone2.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      w.maxHP = 200; w.hp = 200;
+      c._rng = () => 0.01;
+      assert.equal(castSpell(c, gZoneDmg.id).ok, true);
+      assert.equal(castSpell(c, gZone2.id).ok, true,
+        'вторая зона в тот же раунд (пул int 10 = 2)');
+      assert.equal(c.ps.spellInt, 0, 'пул −2');
+      assert.deepEqual(c.zone,
+        { x: c.px, y: c.py, radius: 2, stat: 'урон_вниз',
+          value: 0.5, turns: 1 },
+        'рекаст — overwrite (слот один)');
+      assert.deepEqual(w.debuff,
+        { stat: 'урон_вниз', value: 0.5, turns: 1 },
+        'debuff моба перезаписан');
+    }
+    // (c) Зона (баф-стат): союзник в радиусе — u.buff; моб вне — нет;
+    // игрок не затрагивается.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gZoneAlly.id];
+      const c = createCombat({
+        player: p, allies: [Object.assign({}, ALLY_VOLK)],
+        mobs: ['wolf'], mobLevel: 2, seed: 5 });
+      const w = c.units.find((u) => u.side === 'mob');
+      const a0 = c.units.find((u) => u.side === 'ally');
+      c.obstacles.clear();
+      w.x = 0; w.y = 0; // Чебышёв max(3,6) = 6 — вне радиуса 1
+      assert.ok(
+        Math.max(Math.abs(a0.x - c.px), Math.abs(a0.y - c.py)) <= 1,
+        'союзник на якоря (Чебышёв ≤ 1) — внутри зоны');
+      const r = castSpell(c, gZoneAlly.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.deepEqual(a0.buff, { stat: 'урон', value: 0.5, turns: 3 },
+        'союзник в радиусе — баф (роутинг по стороне стата)');
+      assert.strictEqual(w.debuff, undefined,
+        'моб вне радиуса — без эффекта');
+      assert.ok(!c.ps.buff, 'игрок не затрагивается собственной зоной');
+    }
+    // (d) Fail-closed (ревью): зона без radius — «неполные параметры:
+    // radius» (без проверки эффект шел бы на ВСЁ поле: сравнение с
+    // undefined — false); radius > 5 (максимум схемы) — то же; стена
+    // без turns — «неполные параметры: turns» (без проверки стена
+    // была бы вечной: тик NaN). Отказ ДО расхода, состояний нет,
+    // c.obstacles не тронуты; зеркало — одна причина.
+    {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = [gZoneNoR.id, gZoneBigR.id, gWallNoT.id];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior'], mobLevel: 2, seed: 5 });
+      const w = c.units[0];
+      standNextTo(c, w);
+      const pool = c.ps.spellInt;
+      const obstaclesBefore = new Set(c.obstacles);
+      for (const [id, reason] of [
+        [gZoneNoR.id, 'неполные параметры: radius'],
+        [gZoneBigR.id, 'неполные параметры: radius'],
+        [gWallNoT.id, 'неполные параметры: turns'],
+      ]) {
+        const r = castSpell(c, id);
+        assert.equal(r.ok, false, id + ' — не каст');
+        assert.equal(r.reason, reason, id + ' — причина');
+        assert.equal(canCastSpell(c, id).reason, reason,
+          id + ' — зеркало (одна причина)');
+      }
+      assert.equal(c.ps.spellInt, pool, 'пул не тратится');
+      assert.equal(p.mp, 16, 'мана не тратится');
+      assert.ok(!c.zone, 'c.zone не создан');
+      assert.deepEqual(c.walls, [], 'c.walls пуста');
+      assert.strictEqual(w.debuff, undefined, 'моб без эффекта');
+      assert.deepEqual(new Set(c.obstacles), obstaclesBefore,
+        'c.obstacles не тронуты');
+    }
+  });
+});

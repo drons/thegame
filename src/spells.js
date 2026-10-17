@@ -70,7 +70,12 @@
       typeof internals.checkTurn !== 'function' ||
       typeof internals.checkBlocked !== 'function' ||
       typeof internals.dealDamageToMob !== 'function' ||
-      typeof internals.resurrectAlly !== 'function') {
+      typeof internals.resurrectAlly !== 'function' ||
+      // 000235.01: ядро «баф/дебаф/призыв/создание» (combat.js).
+      typeof internals.makeAlly !== 'function' ||
+      typeof internals.placeAllies !== 'function' ||
+      typeof internals.allyRoom !== 'function' ||
+      typeof internals.MOB_TYPES !== 'object') {
     console.error('spells.js: не найдены боевые internals — загрузите ' +
       'src/combat.js до src/spells.js (задача 000045)');
     return;
@@ -92,6 +97,8 @@
     // 000163: ядро воскрешения (combat.js; GUARD выше — деградация,
     // не crash, паттерн 000038/000113).
     resurrectAlly,
+    // 000235.01: «баф/дебаф/призыв/создание» (combat.js).
+    makeAlly, placeAllies, allyRoom, MOB_TYPES,
   } = internals;
 
   // --- Каталог (зеркало assets/spells, src/spells-data.js) ---
@@ -307,13 +314,35 @@
     природа: 'nature',
   };
   // Действия, требующие цель на поле (прочие — по себе).
-  const TARGETED = new Set(['урон', 'ослабление', 'контроль']);
+  const TARGETED = new Set(['урон', 'ослабление', 'контроль', 'дебаф']);
   // Все действия, поддерживаемые эффектом (ветки switch в castSpell).
   // В файле enum закреплён схемой; проверка — защита от каталога,
   // мутированного в памяти (ревью 000045, раунд 1): отказ обязан идти
   // ДО расхода пула/маны, и canCastSpell даёт ту же причину (000037).
   const KNOWN_ACTIONS = new Set(
-    ['урон', 'лечение', 'защита', 'ослабление', 'контроль', 'воскрешение']);
+    ['урон', 'лечение', 'защита', 'ослабление', 'контроль', 'воскрешение',
+     'баф', 'дебаф', 'призыв', 'создание', 'невидимость', 'телепорт',
+     'внебой']);
+  // 000235.01: внебоевые действия — в бою каст/зеркало отказываются
+  // единственной причиной «внебоевое заклинание» (гейт по ДЕЙСТВИЮ,
+  // не по флагу «вне_боя»); обработчики — вне боя (.02/.03/.04).
+  const OUT_OF_COMBAT = new Set(['невидимость', 'телепорт', 'внебой']);
+  // 000235.01: дебаф-статы (роутинг зоны: дебаф → мобы, баф → союзники).
+  // «ход_вниз» — 6-й дебаф-стат ТЗ (ревью: без него зона с этим
+  // statом роутилась СОЮЗНИКАМ как баф).
+  const DEBUFF_STATS = new Set([
+    'урон_вниз', 'броня_вниз', 'попадание_вниз', 'получаемый_урон_вверх',
+    'dot', 'ход_вниз',
+  ]);
+  // 9 баф-статов ТЗ (union схемы «stat» = баф ∪ дебаф).
+  const BUFF_STATS = new Set([
+    'урон', 'броня', 'ход', 'реген', 'вампиризм', 'отражение',
+    'попадание', 'получаемый_урон', 'иммунитет_контроля',
+  ]);
+  // 000235.01 ревью: все 15 stat — fail-closed «баф»/«дебаф»/
+  // «создание» (зона): stat вне union — мусор (мутированный
+  // каталог), отказ ДО расхода (000045, зеркало 000037).
+  const EFFECT_STATS = new Set([...BUFF_STATS, ...DEBUFF_STATS]);
 
   // Общие проверки каста (зеркало 000037: castSpell и canCastSpell
   // обязаны дать ОДНУ и ту же причину). Чисто: не тратит пулы/ману,
@@ -337,6 +366,11 @@
       return {
         fail: { ok: false, reason: 'неизвестное действие: ' + spell.действие },
       };
+    }
+    // 000235.01: внебоевое действие в бою — тот же отказ до расхода
+    // (гейт по действию; зеркало 000037 — canCastSpell = evalSpell).
+    if (OUT_OF_COMBAT.has(spell.действие)) {
+      return { fail: { ok: false, reason: 'внебоевое заклинание' } };
     }
     // В бою действует только высшая известная степень цепочки «база».
     const highest = highestKnown(p, spell);
@@ -402,6 +436,98 @@
           && !x.fled) || null;
         if (!t) return { fail: { ok: false, reason: 'нет цели' } };
       }
+    } else if (spell.действие === 'баф') {
+      // 000235.01: цель — живой СОЮЗНИК (явный targetId; моб/чужой id/
+      // мёртвый — «нет цели», как у урона). Без targetId — каст по
+      // себе (t = null: castSpell пишет c.ps.buff). Дальность НЕ
+      // ограничена (спасательная механика, как воскрешение).
+      if (targetId) {
+        const u = c.units.find((x) => x.id === targetId);
+        if (!(u && u.side === 'ally' && u.alive && !u.fled)) {
+          return { fail: { ok: false, reason: 'нет цели' } };
+        }
+        t = u;
+      }
+    } else if (spell.действие === 'призыв') {
+      // 000235.01: fail-closed (идентификатор призывного + место) —
+      // ДО расхода пула/маны.
+      const pa = spell.параметры;
+      if (!pa || !MOB_TYPES[pa.summon]) {
+        return {
+          fail: {
+            ok: false,
+            reason: 'неизвестный призыв: '
+              + (pa && pa.summon ? pa.summon : 'нет'),
+          },
+        };
+      }
+      if (!allyRoom(c)) {
+        return { fail: { ok: false, reason: 'нет места для призыва' } };
+      }
+    } else if (spell.действие === 'создание') {
+      // 000235.01: fail-closed (объект — стена|зона) — ДО расхода.
+      const pa = spell.параметры;
+      if (!pa || (pa.object !== 'стена' && pa.object !== 'зона')) {
+        return {
+          fail: {
+            ok: false,
+            reason: 'неизвестный объект: '
+              + (pa && pa.object ? pa.object : 'нет'),
+          },
+        };
+      }
+      // 000235.01 ревью: без turns тик «−=1; ≤0 → снять» даёт NaN —
+      // стена была бы вечной; зона без radius применялась бы на
+      // ВСЁ поле (сравнение с undefined — false). Отказ ДО расхода
+      // (000045, зеркало 000037 — один evalSpell).
+      if (!Number.isInteger(pa.turns) || pa.turns < 1) {
+        return {
+          fail: { ok: false, reason: 'неполные параметры: turns' },
+        };
+      }
+      if (pa.object === 'зона') {
+        if (typeof pa.radius !== 'number' || !Number.isInteger(pa.radius)
+            || pa.radius < 1 || pa.radius > 5) {
+          return {
+            fail: { ok: false, reason: 'неполные параметры: radius' },
+          };
+        }
+        if (typeof pa.stat !== 'string' || !EFFECT_STATS.has(pa.stat)) {
+          return {
+            fail: { ok: false, reason: 'неполные параметры: stat' },
+          };
+        }
+        if (typeof pa.value !== 'number' || !Number.isFinite(pa.value)) {
+          return {
+            fail: { ok: false, reason: 'неполные параметры: value' },
+          };
+        }
+      }
+    }
+    // 000235.01 ревью: «баф»/«дебаф» — fail-closed на неполные
+    // «параметры» (D1: {stat, value, turns}) ДО расхода пула/маны;
+    // без гейта castSpell бросал TypeError ПОСЛЕ расхода (падение
+    // хода; canCastSpell давал ok:true — срыв зеркала 000037).
+    if (spell.действие === 'баф' || spell.действие === 'дебаф') {
+      const pa = spell.параметры;
+      if (!pa) {
+        return { fail: { ok: false, reason: 'нет параметров' } };
+      }
+      if (typeof pa.stat !== 'string' || !EFFECT_STATS.has(pa.stat)) {
+        return {
+          fail: { ok: false, reason: 'неполные параметры: stat' },
+        };
+      }
+      if (typeof pa.value !== 'number' || !Number.isFinite(pa.value)) {
+        return {
+          fail: { ok: false, reason: 'неполные параметры: value' },
+        };
+      }
+      if (!Number.isInteger(pa.turns) || pa.turns < 1) {
+        return {
+          fail: { ok: false, reason: 'неполные параметры: turns' },
+        };
+      }
     }
     return { ok: true, spell, p, t, poolKey };
   }
@@ -426,9 +552,13 @@
         // Заклинание: всегда попадает, игнорирует броню моба.
         const bonusKey = SCHOOL_BONUS[spell.школа];
         const bonus = bonusKey ? d[bonusKey] : 0;
+        // 000235.01: баф игрока «урон» — ×(1+v) (c.ps.buff; инлайн —
+        // хелперы combat.js spells.js не видят, UMD-изоляция).
+        const buffMult = (c.ps.buff && c.ps.buff.stat === 'урон'
+          && c.ps.buff.turns > 0) ? 1 + c.ps.buff.value : 1;
         const dmg = Math.round(
           (4 + 0.5 * p.primary[spell.атрибут]) *
-          (1 + 0.15 * (spell.степень - 1)) * (1 + bonus));
+          (1 + 0.15 * (spell.степень - 1)) * (1 + bonus) * buffMult);
         const r = dealDamageToMob(c, t, dmg, true);
         log(c, `${spell.название} по ${t.name}: ${r.dmg}.`);
         out.dmg = r.dmg;
@@ -476,6 +606,115 @@
         // maxHP/2), лог «Возвращён в бой.»); цель — из evalSpell
         // (мёртвый союзник c.units / мёртвый игрок; дальности нет).
         out.hp = resurrectAlly(c, t);
+        break;
+      }
+      case 'баф': {
+        // 000235.01: эффект {stat, value, turns} — на союзнике (t,
+        // u.buff) или на себе (t === null, c.ps.buff). Тик «ровно N
+        // раундов, включая каст» — startRound (combat.js); рекаст —
+        // overwrite (паттерн c.ps.shield).
+        const pa = spell.параметры;
+        const eff = { stat: pa.stat, value: pa.value, turns: pa.turns };
+        if (t) t.buff = eff; else c.ps.buff = eff;
+        log(c, t
+          ? `${t.name}: эффект «${pa.stat}» на ${pa.turns} ходов.`
+          : `${spell.название}: эффект «${pa.stat}» на ${pa.turns} ходов.`);
+        out.buffed = t ? t.id : 'player';
+        break;
+      }
+      case 'дебаф': {
+        // 000235.01: эффект {stat, value, turns} на мобе (u.debuff;
+        // цель — из evalSpell, TARGETED). «dot» — тик в начале хода
+        // цели (mobAct), остальные статы — startRound (combat.js).
+        const pa = spell.параметры;
+        t.debuff = { stat: pa.stat, value: pa.value, turns: pa.turns };
+        log(c, `${t.name}: «${pa.stat}» на ${pa.turns} ходов.`);
+        out.debuffed = t.id;
+        break;
+      }
+      case 'призыв': {
+        // 000235.01: временный союзник из данных assets/mobs (ядро
+        // makeAlly, 000193): уровень — СПЕЛЛА (не героя), moraleMult 1
+        // (мораль отряда к призывному не применяется — упрощение,
+        // memory §3.5). Живёт `параметры.turns` раундов, включая каст
+        // (рассеивание — startRound, combat.js; fail-closed — evalSpell).
+        const pa = spell.параметры;
+        const mt = MOB_TYPES[pa.summon];
+        const u = makeAlly({
+          id: 's' + c.units.length,
+          name: mt.name,
+          role: mt.role,
+          level: spell.уровень,
+          dmg: mt.dmg,
+          hp: mt.hp,
+          armor: mt.armor,
+          attrs: {
+            dexterity: mt.dexterity || 0,
+            intelligence: mt.intelligence || 0,
+          },
+          kind: 'summon',
+        }, c.units.length);
+        u.summonTurns = pa.turns;
+        placeAllies(c, [u]);
+        c.units.push(u);
+        log(c, `${spell.название}: ${u.name} (${pa.turns} ходов).`);
+        out.summoned = u.id;
+        break;
+      }
+      case 'создание': {
+        // 000235.01: стена — ряд клеток (c.walls, непроходимость —
+        // общее c.obstacles; ряд y = clamp(py−2, 1, height−2), минус
+        // игрок/юниты/уже существующие препятствия); зона — ОДИН
+        // слот c.zone (радиус Чебышёва от клетки игрока, применение
+        // ОДНОКРАТНО в момент каста: дебаф-стат → мобы в радиусе
+        // u.debuff, баф-стат → союзники u.buff; игрок не затрагивается;
+        // рекаст — overwrite).
+        const pa = spell.параметры;
+        if (pa.object === 'стена') {
+          const y = Math.min(c.height - 2, Math.max(1, c.py - 2));
+          const cells = [];
+          for (let x = 0; x < c.width; x++) {
+            if (x === c.px && y === c.py) continue;
+            let taken = false;
+            for (const un of c.units) {
+              if (!un.alive || un.fled) continue;
+              if (x >= un.x && x < un.x + (un.size.w || 1)
+                  && y >= un.y && y < un.y + (un.size.h || 1)) {
+                taken = true;
+                break;
+              }
+            }
+            if (taken) continue;
+            if (c.obstacles.has(x + ',' + y)) continue;
+            cells.push([x, y]);
+          }
+          for (const cell of cells) c.obstacles.add(cell[0] + ',' + cell[1]);
+          c.walls.push({ cells, turns: pa.turns });
+          log(c, `${spell.название}: стена (${pa.turns} ходов).`);
+          out.wall = cells.length;
+        } else {
+          c.zone = {
+            x: c.px, y: c.py, radius: pa.radius,
+            stat: pa.stat, value: pa.value, turns: pa.turns,
+          };
+          for (const un of c.units) {
+            if (!un.alive || un.fled) continue;
+            if (Math.max(Math.abs(un.x - c.px), Math.abs(un.y - c.py))
+                > pa.radius) continue;
+            if (DEBUFF_STATS.has(pa.stat)) {
+              if (un.side === 'mob') {
+                un.debuff = {
+                  stat: pa.stat, value: pa.value, turns: pa.turns,
+                };
+              }
+            } else if (un.side === 'ally') {
+              un.buff = { stat: pa.stat, value: pa.value, turns: pa.turns };
+            }
+          }
+          log(c, `${spell.название}: зона (радиус ${pa.radius}, `
+            + `${pa.turns} ходов).`);
+          out.zone = pa.radius;
+        }
         break;
       }
       default:

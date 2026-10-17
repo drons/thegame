@@ -108,7 +108,7 @@ for (const f of files) {
 // Канонический порядок ключей (схема assets/spells/schema.json).
 const KEYS = ['id', 'название', 'школа', 'база', 'степень', 'атрибут',
   'уровень', 'мани', 'действие', 'предметы', 'здания', 'описание',
-  'icon', 'icon_prompt'];
+  'icon', 'icon_prompt', 'параметры', 'вне_боя'];
 
 // --- Генерация JS ---
 const range = `${files[0]} … ${files[files.length - 1]}`;

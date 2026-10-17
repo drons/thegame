@@ -272,6 +272,20 @@
     return clamp(0.55 + 0.03 * (atkLevel - defLevel) + (atkBonus || 0) - (defDodge || 0), 0.05, 0.95);
   }
 
+  // 000235.01: боевые эффекты заклинаний (src/spells.js) —
+  // «баф»/«дебаф» (u.buff/u.debuff, игрок — c.ps.buff). Чистые
+  // читатели: значение эффекта, если стат совпадает и turns > 0,
+  // иначе 0 (тик «ровно N раундов» — startRound; dot — тик цели).
+  function unitBuffValue(c, u, stat) {
+    const eff = u === c.player ? c.ps.buff : (u && u.buff);
+    return eff && eff.stat === stat && eff.turns > 0 ? eff.value : 0;
+  }
+
+  function unitDebuffValue(c, u, stat) {
+    const eff = u && u.debuff;
+    return eff && eff.stat === stat && eff.turns > 0 ? eff.value : 0;
+  }
+
   // Множитель сложности (задача 000027): { hp, damage } из
   // settings.SETTINGS.combat_difficulties[difficulty].
   function makeMob(mobId, level, idx, hasLeader, diff) {
@@ -946,7 +960,10 @@
   // Урон по мобо (броня моба, минимум 1; ignoreArmor — для заклинаний).
   // Возвращает { dmg, killed }.
   function dealDamageToMob(c, u, amount, ignoreArmor = false) {
-    const dmg = Math.max(1, Math.round(amount * u.damageTakenMult) - (ignoreArmor ? 0 : u.armor));
+    const armor = Math.max(0, u.armor - unitDebuffValue(c, u, 'броня_вниз'));
+    const dmg = Math.max(1, Math.round(
+      amount * (1 + unitDebuffValue(c, u, 'получаемый_урон_вверх'))
+      * u.damageTakenMult) - (ignoreArmor ? 0 : armor));
     u.hp -= dmg;
     if (u.hp <= 0) {
       u.hp = 0;
@@ -966,7 +983,8 @@
   function dealDamageToPlayer(c, raw) {
     const p = c.player;
     const d = P.derived(p);
-    let dmg = raw;
+    // 000235.01: баф игрока «получаемый_урон» — ×(1−v) (c.ps.buff).
+    let dmg = raw * (1 - unitBuffValue(c, p, 'получаемый_урон'));
     // Магический щит (задача 000045): пока turns > 0, гасит shield.armor
     // (поставляется/тикается src/spells.js и startRound, 000167).
     const shield = c.ps.shield;
@@ -986,7 +1004,7 @@
     // Задача 000076: благословение горы (c.buffMods.armor, 000072) —
     // +броня поверх уровня/снаряжения. Дефолт 0 — бит-в-бит (−0).
     dmg = Math.max(0, Math.round(dmg) - d.armor - I.equipmentStats(p).armor
-      - c.buffMods.armor);
+      - c.buffMods.armor - unitBuffValue(c, p, 'броня'));
     if (dmg > 0) P.takeDamage(p, dmg);
     if (!p.alive) {
       // «Несокрушимость»: шанс выжить смертельный удар — 1 раз в игровой день
@@ -1086,7 +1104,11 @@
       log(c, `${t.name} сопротивляется магическому урону.`);
       efirPractice(c, 'perception', PRACTICE_XP.block);
     }
-    let dmg = Math.max(1, Math.round(raw) - (t.armor || 0));
+    // 000235.01: баф «получаемый_урон» ×(1−v) до раунда, баф «броня»
+    // — к бронё (t.buff; нет эффекта — ×1/+0, бит-в-бит).
+    let dmg = Math.max(1, Math.round(
+      raw * (1 - unitBuffValue(c, t, 'получаемый_урон')))
+      - ((t.armor || 0) + unitBuffValue(c, t, 'броня')));
     // 000193: щит союзника (щитовое заклинание из книги): плоское
     // поглощение ДО 0 ПОСЛЕ магореза и брони (эффекты c.ps — только
     // игрок, v1; это СОБСТВЕННЫЙ щит союзника u.shield, тик —
@@ -1311,8 +1333,13 @@
     // формулы). Применён ДО round() в dealDamageToMob; дефолт ×1 —
     // бит-в-бит, НОЛЬ новых вызовов c._rng (детерминизм 000080/000082).
     dmg *= c.buffMods.damageMult;
+    // 000235.01: баф игрока «урон» ×(1+v) (после buffMods, как
+    // 000076); нет эффекта — ×1, бит-в-бит.
+    dmg *= 1 + unitBuffValue(c, p, 'урон');
     const hitBonus = eq.damage > 0 ? eq.hitBonus : d.swordHitBonus;
-    if (c._rng() >= hitChance(p.level, hitBonus, t.level, 0)) {
+    if (c._rng() >= hitChance(
+        p.level, hitBonus + unitBuffValue(c, p, 'попадание'),
+        t.level, unitDebuffValue(c, t, 'попадание_вниз'))) {
       log(c, `Вы промахнулись (${t.name}).`);
       return { ok: true, hit: false, dmg: 0 };
     }
@@ -1348,8 +1375,10 @@
       // Заклинание: всегда попадает, игнорирует броню. Задача 000076:
       // благословение солнца (c.buffMods.damageMult) — ×множитель
       // (дефолт ×1 — бит-в-бит, НОЛЬ новых вызовов c._rng).
+      // 000235.01: баф «урон» — ×(1+v) (нет эффекта — ×1, бит-в-бит).
       const dmg = Math.round((3 + 0.5 * p.primary.intelligence)
-        * (1 + d.fireDamageBonus) * c.buffMods.damageMult);
+        * (1 + d.fireDamageBonus) * c.buffMods.damageMult
+        * (1 + unitBuffValue(c, p, 'урон')));
       const r = dealDamageToMob(c, t, dmg, true);
       log(c, `Огненная стрела по ${t.name}: ${r.dmg}.`);
       // Практика: каст даёт опыт «Повелителю огня» (задача 000013).
@@ -1801,7 +1830,11 @@
   function mobAttack(c, u) {
     const p = c.player;
     const d = P.derived(p);
-    if (c._rng() >= hitChance(u.level, 0, p.level, d.dodgeBonus)) {
+    // 000235.01: дебаф моба «попадание_вниз» — atkBonus −v
+    // (нет эффекта — −0, бит-в-бит).
+    if (c._rng() >= hitChance(
+        u.level, -unitDebuffValue(c, u, 'попадание_вниз'),
+        p.level, d.dodgeBonus)) {
       log(c, `${u.name} промахивается.`);
       return;
     }
@@ -1817,6 +1850,8 @@
     // мультипликативно с u.weaken (000045, тик по ударам). Декремента
     // при применении НЕТ (тик — в startRound).
     if (u.weakened && u.weakened.turns > 0) dmg *= u.weakened.mult;
+    // 000235.01: дебаф моба «урон_вниз» — ×(1−v) (тик startRound).
+    dmg *= 1 - unitDebuffValue(c, u, 'урон_вниз');
     const dealt = dealDamageToPlayer(c, dmg);
     // 000164: окно смерти ЗАКРЫЛО удар — убивший удар больше ничто не
     // производит (трейт-блок пропускается; в спасённом кейсе c.result
@@ -1852,7 +1887,9 @@
     // бит-в-бит, ноль новых c._rng).
     const efirDodge = (t.kind === 'efir' && t.efirSkills)
       ? 0.05 * (t.efirSkills.precog || 0) : 0;
-    if (c._rng() >= hitChance(u.level, 0, t.level, efirDodge)) {
+    if (c._rng() >= hitChance(
+        u.level, -unitDebuffValue(c, u, 'попадание_вниз'),
+        t.level, efirDodge)) {
       log(c, `${u.name} промахивается.`);
       // 000117: промах ПО ЭФИРУ = «уклонение» — практика precog.
       if (t.kind === 'efir') efirPractice(c, 'precog', PRACTICE_XP.block);
@@ -1867,14 +1904,27 @@
     // u.weakened, что в mobAttack (тик по раундам — startRound;
     // дробь ×0.8 округляется Math.round ВНУТРИ dealDamageToAlly).
     if (u.weakened && u.weakened.turns > 0) dmg *= u.weakened.mult;
+    // 000235.01: дебаф моба «урон_вниз» — ×(1−v) (как mobAttack).
+    dmg *= 1 - unitDebuffValue(c, u, 'урон_вниз');
     dealDamageToAlly(c, t, dmg);
   }
 
   function mobAct(c, u) {
     if (!u.alive || u.fled || c.result) return;
+    // 000235.01: дебаф «dot» — тик в начале хода ЦЕЛИ (ДО bind-
+    // проверки: скованный тоже тикает, C3b). Плоский урон, игнорирует
+    // броню (как все заклинания); декремент — в тике (ровно turns
+    // тиков). Тик по раундам (не-dot u.debuff) — в startRound.
+    if (u.debuff && u.debuff.stat === 'dot' && u.debuff.turns > 0) {
+      u.debuff.turns -= 1;
+      const r = dealDamageToMob(c, u, u.debuff.value, true);
+      log(c, `${u.name}: −${r.dmg} HP.`);
+      if (!u.alive || c.result) return;
+    }
     // Контроль (задача 000045, ставится src/spells.js): скованный моб
     // пропускает ровно ОДНО действие (тик вместе с пропуском); пока
-    // скован, прочие эффекты НЕ тикают (weaken тикает в mobAttack).
+    // скован, прочие эффекты НЕ тикают (weaken тикает в mobAttack;
+    // dot — исключение 000235.01, тик выше этой проверки).
     if (u.bind && u.bind.turns > 0) {
       u.bind.turns -= 1;
       log(c, `${u.name} скован — пропускает действие.`);
@@ -1990,12 +2040,16 @@
   // урон — u.damage (мораль уже применена при создании) через
   // dealDamageToMob (гибель последнего моба → checkVictory — победа).
   function allyAttack(c, u, t) {
-    if (c._rng() >= hitChance(u.level, 0, t.level, 0)) {
+    // 000235.01: баф союзника «попадание»/«урон» (u.buff, каст
+    // src/spells.js); нет эффекта — +0/×1, бит-в-бит.
+    if (c._rng() >= hitChance(
+        u.level, unitBuffValue(c, u, 'попадание'), t.level, 0)) {
       log(c, `${u.name} промахивается.`);
       return;
     }
     // t — МОБ-цель (dealDamageToMob: 2-й аргумент — получающий урон).
-    const r = dealDamageToMob(c, t, u.damage);
+    const r = dealDamageToMob(
+      c, t, u.damage * (1 + unitBuffValue(c, u, 'урон')));
     log(c, `${u.name} бьёт ${t.name}: ${r.dmg}.`);
   }
 
@@ -2135,7 +2189,10 @@
         return { ok: false, reason: 'цель слишком далеко (ближний бой)' };
       }
       c.efs.touch -= 1;
-      const r = dealDamageToMob(c, t, u.damage, true);
+      // 000235.01: баф «урон» (u.buff) — как у обычного удара;
+      // нет эффекта — ×1, бит-в-бит.
+      const r = dealDamageToMob(
+        c, t, u.damage * (1 + unitBuffValue(c, u, 'урон')), true);
       // 000118: паттерн ТЗ «Касание духа: N.» (без имени).
       log(c, `Касание духа: ${r.dmg}.`);
       return { ok: true, dmg: r.dmg, killed: r.killed };
@@ -2731,6 +2788,9 @@
     // refillPools) — эффект держится ровно `turns` раундов, включая
     // раунд каста (защита в раунде каста — до этого тика).
     if (c.ps.shield && c.ps.shield.turns > 0) c.ps.shield.turns -= 1;
+    // 000235.01: баф игрока (c.ps.buff, каст src/spells.js) — тот же
+    // ритм, что c.ps.shield: ровно turns раундов, включая раунд каста.
+    if (c.ps.buff && c.ps.buff.turns > 0) c.ps.buff.turns -= 1;
     // Щит Эфира (задача 000112): тик — тот же ритм; идёт и ПОСЛЕ
     // ГИБЕЛИ Эфира (тик в efirTurn дал бы вечный щит у мёртвого духа
     // — «2 хода» именно 2; D5).
@@ -2750,6 +2810,10 @@
     // не имеет значения.
     for (const m of livingMobs(c)) {
       if (m.weakened && m.weakened.turns > 0) m.weakened.turns -= 1;
+      // 000235.01: дебаф моба (u.debuff, каст src/spells.js) — тик по
+      // раундам; «dot» исключён (его тик — в начале хода цели, mobAct).
+      if (m.debuff && m.debuff.stat !== 'dot' && m.debuff.turns > 0)
+        m.debuff.turns -= 1;
     }
     // Пулы Эфира (задача 000112): рефилл — ЗЕРКАЛЬНАЯ формула
     // buildEfirUnit (efir.js) от c.efir.attrs (D5: тот же ритм, что у
@@ -2768,6 +2832,18 @@
     // 1: удар ИЛИ лечение). makeAlly — та же инициализация для
     // round 1. (Не рядом с poison-тиком — ханка 000164.)
     for (const a of livingAllies(c)) {
+      // 000235.01: призывной (u.summonTurns, каст src/spells.js) — тик
+      // Вверху цикла (до рефиллов): ровно turns раундов жизни, включая
+      // раунд каста; на 0 — рассеивается (fled — не смерть: hp
+      // сохраняется, труп/allyXp/dead_mercs не касаются).
+      if (a.summonTurns > 0) {
+        a.summonTurns -= 1;
+        if (a.summonTurns === 0) {
+          a.fled = true;
+          log(c, `${a.name} рассеивается.`);
+          continue;
+        }
+      }
       a.moveLeft = a.movePerTurn || 1;
       a.attackLeft = 1;
       // 000193: рефилл пулов заклинаний (та же формула, что c.efs) +
@@ -2779,7 +2855,24 @@
       a.quickItem = 1 + Math.floor(((a.attrs && a.attrs.dexterity) || 0) / 10);
       a.invItem = 1;
       if (a.shield && a.shield.turns > 0) a.shield.turns -= 1;
+      // 000235.01: баф союзника (u.buff, каст src/spells.js) — тот же
+      // ритм, что щит союзника.
+      if (a.buff && a.buff.turns > 0) a.buff.turns -= 1;
     }
+    // 000235.01: стена заклинания (c.walls, каст src/spells.js) — тик
+    // по раундам; на 0 — из c.obstacles удаляются ТОЛЬКО её клетки
+    // (старые препятствия того же ряда сохраняются), запись вычленяется.
+    for (let i = c.walls.length - 1; i >= 0; i--) {
+      const wl = c.walls[i];
+      wl.turns -= 1;
+      if (wl.turns <= 0) {
+        for (const [x, y] of wl.cells) c.obstacles.delete(x + ',' + y);
+        c.walls.splice(i, 1);
+      }
+    }
+    // 000235.01: зона (c.zone) — тик по раундам; объект НЕ нулится
+    // (паттерн щита: читатели — unitBuffValue/unitDebuffValue по turns).
+    if (c.zone && c.zone.turns > 0) c.zone.turns -= 1;
     // Новый раунд — новая очередь (задачи 000036/000167): из очереди
     // вышли мёртвые и сбежавшие, очередь отсортирована по инициативе,
     // turnIndex — на первом слоте.
@@ -3001,6 +3094,33 @@
     }
   }
 
+  // 000235.01: место для призывного — чистый мультискан placeAllies
+  // (якоря вокруг игрока, затем снизу вверх; занятость — игрок +
+  // c.units; препятствия НЕ проверяются — та же семантика, что у
+  // placeAllies). Без мутаций, без c._rng — fail-closed проверка
+  // evalSpell (src/spells.js) до расхода пула/маны.
+  function allyRoom(c) {
+    const occ = new Set([c.px + ',' + c.py]);
+    for (const u of c.units) {
+      for (let yy = u.y; yy < u.y + (u.size.h || 1); yy++) {
+        for (let xx = u.x; xx < u.x + (u.size.w || 1); xx++) {
+          occ.add(xx + ',' + yy);
+        }
+      }
+    }
+    const free = (x, y) => x >= 0 && y >= 0 && x < c.width && y < c.height
+      && !occ.has(x + ',' + y);
+    const anchors = [
+      [c.px - 1, c.py - 1], [c.px + 1, c.py - 1], [c.px, c.py - 1],
+      [c.px - 1, c.py], [c.px + 1, c.py],
+    ];
+    for (const [ax, ay] of anchors) if (free(ax, ay)) return true;
+    for (let y = c.height - 1; y >= 0; y--) {
+      for (let x = 0; x < c.width; x++) if (free(x, y)) return true;
+    }
+    return false;
+  }
+
   // Препятствия (задача 000050): случайные непроходимые клетки поля.
   // Вызывается в createCombat РОВНО между placeUnits (нужны стартовые
   // прямоугольники мобов) и refillPools — порядок потока c._rng:
@@ -3197,6 +3317,10 @@
       turnIndex: 0,
       log: [],
       targetId: null,
+      // 000235.01: эффекты кастов (src/spells.js) — боевые транзиенты,
+      // в сейв не идут (v1 не меняется); новый бой — чистые.
+      walls: [],
+      zone: null,
       ps: {
         moveLeft: 0, attack: 0, spellInt: 0, spellWis: 0,
         quickItem: 0, invItem: 0, block: 0,
@@ -3204,6 +3328,8 @@
         // Магический щит (задача 000045, src/spells.js): временная броня.
         // Новый бой — всегда чистое состояние (эффекты не переносятся).
         shield: { armor: 0, turns: 0 },
+        // 000235.01: баф игрока («баф» без targetId).
+        buff: null,
       },
       _rng: rng,
       day,
@@ -3406,6 +3532,11 @@
     // module-exports — БЕЗ ИЗМЕНЕНИЙ (P14).
     efirBreath, allyMove, allyStrike, allyHealAction,
     efirCastAction, allyCanDo,
+    // 000235.01: действия «баф»/«дебаф»/«призыв»/«создание»
+    // (src/spells.js): союзный юнит из данных + детерминированная
+    // расстановка (якоря вокруг игрока) + чистая проверка места +
+    // данные мобов (статы призывного).
+    makeAlly, placeAllies, allyRoom, MOB_TYPES,
   };
 
   return {
@@ -3424,6 +3555,9 @@
     autoSpellFor,
     // Союзники (задача 000080): союзный юнит 1×1 из данных.
     makeAlly,
+    // 000235.01: место для призывного (чистый мультискан placeAllies) —
+    // fail-closed в evalSpell (src/spells.js) + тесты.
+    allyRoom,
     // Препятствия (задача 000050): достижимость клеток от игрока по
     // не-препятствиям — чистая функция для тестов.
     reachableCells,

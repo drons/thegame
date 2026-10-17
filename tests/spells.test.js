@@ -832,8 +832,9 @@ test('castSpell: неизвестное действие — зеркало и �
   try {
     // Мутация в памяти: в файле enum фиксирован схемой, но код обязан
     // НЕ тратить пул/ману при отказе, и canCastSpell обязан дать ту же
-    // причину (зеркало 000037).
-    spark.действие = 'телепорт';
+    // причину (зеркало 000037). 000235.01: «телепорт» стало
+    // известным действием — мутант на «прыжок» (истинно неизвестное).
+    spark.действие = 'прыжок';
     const p = spellHero({ spells: ['spark'], intelligence: 10, mp: 30 });
     const c = soloCombat(p, 'wolf');
     const w = c.units[0];
@@ -843,7 +844,7 @@ test('castSpell: неизвестное действие — зеркало и �
     assert.equal(core.ok, false, 'неизвестное действие — отказ');
     assert.equal(mirror.ok, false, 'зеркало: тот же отказ');
     assert.equal(mirror.reason, core.reason, 'зеркало: одна причина');
-    assert.equal(core.reason, 'неизвестное действие: телепорт');
+    assert.equal(core.reason, 'неизвестное действие: прыжок');
     assert.equal(c.ps.spellInt, poolBefore, 'пул при отказе не тратится');
     assert.equal(p.mp, 30, 'мана при отказе не тратится');
   } finally {
@@ -1650,7 +1651,7 @@ test('000163 R8: зеркало canCast/evalSpell «resurrect» — одна п�
   }
 });
 
-test('000163 R9: гейт неизвестного действия — «воскрешение» проходит (пин 000045); регрессия: мутация «телепорт» — отказ ДО расхода', () => {
+test('000163 R9: гейт неизвестного действия — «воскрешение» проходит (пин 000045); регрессия: мутация «прыжок» — отказ ДО расхода', () => {
   const { castSpell, canCastSpell } = loadSpells();
   const { SPELLS_BY_ID } = loadSpellsData();
   const spell = SPELLS_BY_ID.resurrect;
@@ -1669,11 +1670,12 @@ test('000163 R9: гейт неизвестного действия — «вос
     }
   }
   // (b) РЕГРЕССИЯ пина 000045: мутация действия в памяти (finally —
-  //     возврат) → отказ «неизвестное действие: телепорт» у ОБЕИХ
+  //     возврат) → отказ «неизвестное действие: прыжок» у ОБЕИХ
   //     точек ДО расхода пула/маны, одна причина (зеркало 000037).
+  //     000235.01: «телепорт» — известное действие, мутант — «прыжок».
   const saved = spell.действие;
   try {
-    spell.действие = 'телепорт';
+    spell.действие = 'прыжок';
     const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
     const c = allyCombat163(p);
     const a = deadAlly163(c);
@@ -1683,7 +1685,7 @@ test('000163 R9: гейт неизвестного действия — «вос
     assert.equal(core.ok, false, 'неизвестное действие — отказ');
     assert.equal(mirror.ok, false, 'зеркало: тот же отказ');
     assert.equal(mirror.reason, core.reason, 'зеркало: одна причина');
-    assert.equal(core.reason, 'неизвестное действие: телепорт');
+    assert.equal(core.reason, 'неизвестное действие: прыжок');
     assert.equal(c.ps.spellWis, poolBefore, 'пул при отказе не тратится');
     assert.equal(p.mp, 30, 'мана при отказе не тратится');
     assert.equal(a.alive, false, 'союзник не воскрешён');
@@ -2075,5 +2077,167 @@ test('000211.04 R5: sync-spells-data.js — все 4 ветки fail-closed refI
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  }
+});
+
+// --- Задача 000235.01: схема новых действий (TDD: красные тесты S1-S3) ---
+//
+// Контракт: memory/000235.01-spell-actions-core.md. Каталог ЭТОЙ
+// задачей НЕ растёт (17 заклинаний, пин «ровно 17» :257-278 не
+// меняется; контент — волны .07–.12); краснота — отсутствие в
+// schema.json 7 новых действий и 2 новых опциональных полей (S1-S2)
+// и гейта «внебоевое заклинание» в src/spells.js (поведенческая
+// половина S3). Синтетические спеллы — в файловой (schema) форме;
+// госты боевого каталога — инъекция в зеркало с restore в finally
+// (паттерн fireball_alt :877-929).
+
+// Полный синтетический спелл в форме schema.json (валиден по текущей
+// схеме при старом enum «действия» — «урон»).
+function ghostSpell0235(action, extra) {
+  const s = {
+    id: 'ghost_0235',
+    название: 'Тестовое заклинание',
+    школа: 'огонь',
+    база: null,
+    степень: 1,
+    атрибут: 'intelligence',
+    уровень: 1,
+    мани: 3,
+    действие: action,
+    здания: ['assets/buildings/000001.json'],
+    описание: 'Тестовое заклинание (000235.01)',
+    icon: 'assets/spell-icons/ghost.svg',
+    icon_prompt: 'Тестовая иконка (000235.01)',
+  };
+  return Object.assign(s, extra || {});
+}
+
+test('000235.01 S1: schema.json «действие» — ровно 13 значений (старые 6 + новые 7)', () => {
+  const schema = loadSchema();
+  const expected = ['урон', 'лечение', 'защита', 'ослабление', 'контроль',
+    'воскрешение', 'баф', 'дебаф', 'призыв', 'создание', 'невидимость',
+    'телепорт', 'внебой'];
+  const enum13 = schema.properties['действие'].enum;
+  assert.equal(enum13.length, 13, 'enum «действие» — 13 значений');
+  assert.deepEqual(enum13.slice().sort(), expected.slice().sort(),
+    'ровно: старые 6 без изменений + 7 новых');
+});
+
+test('000235.01 S2: «параметры» — опционально; additionalProperties:false; 8 ключей; чужой ключ — невалиден', () => {
+  const schema = loadSchema();
+  const params = schema.properties['параметры'];
+  assert.ok(params, 'схема: есть опциональное поле «параметры»');
+  assert.equal(params.type, 'object', 'параметры — object');
+  assert.equal(params.additionalProperties, false,
+    'параметры: additionalProperties false');
+  assert.deepEqual(Object.keys(params.properties).sort(),
+    ['days', 'mode', 'object', 'radius', 'stat', 'summon', 'turns', 'value'],
+    'карта — ровно 8 ключей (контракт D1)');
+  assert.ok(!schema.required.includes('параметры'),
+    '«параметры» — опционально (не в required)');
+  // Под-схемы 8 ключей (контракт §2): union 15 stat, границы.
+  const stats = ['урон', 'броня', 'ход', 'реген', 'вампиризм', 'отражение',
+    'попадание', 'получаемый_урон', 'иммунитет_контроля',
+    'урон_вниз', 'броня_вниз', 'попадание_вниз', 'получаемый_урон_вверх',
+    'dot', 'ход_вниз'];
+  assert.deepEqual(params.properties.stat.enum.slice().sort(),
+    stats.slice().sort(), 'stat — union 15 статов (9 баф + 6 дебаф)');
+  assert.equal(params.properties.value.type, 'number', 'value — number');
+  assert.equal(params.properties.value.minimum, 0, 'value ≥ 0');
+  assert.equal(params.properties.turns.type, 'integer', 'turns — integer');
+  assert.equal(params.properties.turns.minimum, 1, 'turns ≥ 1');
+  assert.equal(params.properties.summon.type, 'string', 'summon — string');
+  assert.equal(params.properties.summon.pattern, '^[a-z][a-z0-9_]*$',
+    'summon — id-паттерн assets/mobs');
+  assert.deepEqual(params.properties.object.enum.slice().sort(),
+    ['стена', 'зона'].slice().sort(), 'object — enum стена|зона');
+  assert.equal(params.properties.radius.type, 'integer', 'radius — integer');
+  assert.equal(params.properties.radius.minimum, 1, 'radius ≥ 1');
+  assert.equal(params.properties.radius.maximum, 5, 'radius ≤ 5');
+  assert.equal(params.properties.days.type, 'integer', 'days — integer');
+  assert.equal(params.properties.days.minimum, 1, 'days ≥ 1');
+  assert.equal(params.properties.days.maximum, 3, 'days ≤ 3');
+  assert.deepEqual(params.properties.mode.enum.slice().sort(),
+    ['метка_установить', 'метка_вернуться', 'город'].slice().sort(),
+    'mode — enum 3 значения');
+  // Поведенческая половина: синтетические спеллы по схеме.
+  const all8 = { stat: 'урон', value: 0.25, turns: 3, summon: 'wolf',
+    object: 'стена', radius: 1, days: 1, mode: 'город' };
+  const errs = (data) => {
+    const e = [];
+    validate(schema, data, '$', e);
+    return e;
+  };
+  assert.deepEqual(
+    errs(ghostSpell0235('баф', { параметры: all8 })),
+    [], 'все 8 ключей своих формах — валиден');
+  assert.ok(errs(ghostSpell0235('баф',
+    { параметры: Object.assign({}, all8, { duration: 3 }) }))
+    .some((e) => e.includes('лишнее поле «duration»')),
+    'чужой ключ в «параметрах» — невалиден');
+  for (const bad of [
+    { stat: 'урон', turns: 0 },           // turns ≥ 1
+    { stat: 'урон', value: -1 },          // value ≥ 0
+    { stat: 'урон', radius: 6 },          // radius ≤ 5
+    { stat: 'нет_такого', value: 1, turns: 1 }, // stat вне enum
+    { stat: 'урон', value: 1, turns: 1, days: 4 }, // days ≤ 3
+  ]) {
+    assert.ok(errs(ghostSpell0235('баф', { параметры: bad })).length > 0,
+      'несоответствующий «параметры» — невалиден: ' + JSON.stringify(bad));
+  }
+  // 17 заклинаний каталога без «параметры» по-прежнему валидны —
+  // опциональность закреплена (и тестом «каждый файл валиден»).
+  assert.deepEqual(errs(ghostSpell0235('баф')), [],
+    'спелл без «параметры» — валиден');
+});
+
+test('000235.01 S3: «вне_боя» — опционально, default false; required — те же 13; в бою отказ «внебоевое заклинание» до расхода', () => {
+  const schema = loadSchema();
+  assert.deepEqual(schema.properties['вне_боя'], { type: 'boolean' },
+    '«вне_боя» — boolean');
+  assert.ok(!schema.required.includes('вне_боя'),
+    '«вне_боя» — опционально (не в required)');
+  assert.deepEqual(schema.required.slice().sort(),
+    ['id', 'название', 'школа', 'база', 'степень', 'атрибут', 'уровень',
+      'мани', 'действие', 'здания', 'описание', 'icon', 'icon_prompt']
+      .slice().sort(),
+    'required — те же 13 полей, без изменений');
+  // Поведенческий default: в 17 заклинаниях каталога флага нет —
+  // false; гейт — по ДЕЙСТВИЮ (не по флагу): «телепорт» БЕЗ вне_боя
+  // в бою — отказ ДО расхода пула/маны (зеркало 000037).
+  const dataMod = loadSpellsData();
+  for (const s of dataMod.SPELLS) {
+    assert.ok(!s.вне_боя, `${s.id}: «вне_боя» отсутствует/false`);
+  }
+  const ghost = {
+    id: 'ghost_tport', название: 'Тестовый телепорт', школа: 'тень',
+    база: null, степень: 1, атрибут: 'intelligence', уровень: 1,
+    мани: 3, действие: 'телепорт',
+    здания: ['assets/buildings/000001.json'],
+    описание: 'Тестовое заклинание (000235.01)',
+    icon: 'assets/spell-icons/ghost.svg',
+    icon_prompt: 'Тестовая иконка (000235.01)',
+    параметры: { mode: 'город' },
+  };
+  try {
+    dataMod.SPELLS.push(ghost);
+    dataMod.SPELLS_BY_ID[ghost.id] = ghost;
+    const { castSpell, canCastSpell } = loadSpells();
+    const p = spellHero({ spells: ['ghost_tport'], intelligence: 10, mp: 30 });
+    const c = soloCombat(p, 'wolf');
+    const poolBefore = c.ps.spellInt;
+    const mirror = canCastSpell(c, 'ghost_tport');
+    const core = castSpell(c, 'ghost_tport');
+    assert.equal(core.ok, false, 'в бою внебоевое заклинание не кастуется');
+    assert.equal(core.reason, 'внебоевое заклинание',
+      'гейт по действию — до расхода пула/маны');
+    assert.equal(mirror.ok, false, 'зеркало: тот же отказ');
+    assert.equal(mirror.reason, core.reason, 'зеркало: одна причина');
+    assert.equal(c.ps.spellInt, poolBefore, 'пул при отказе не тратится');
+    assert.equal(p.mp, 30, 'мана при отказе не тратится');
+  } finally {
+    const i = dataMod.SPELLS.lastIndexOf(ghost);
+    if (i >= 0) dataMod.SPELLS.splice(i, 1);
+    delete dataMod.SPELLS_BY_ID[ghost.id];
   }
 });
