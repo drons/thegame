@@ -2,10 +2,12 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const I = require('../src/items.js');
 const M = require('../src/map.js');
 const { createCharacter, SECONDARY_SKILLS } = require('../src/player.js');
+const SKILLS_DATA = require('../src/skills-data.js');
 
 const ITEMS_DIR = path.join(__dirname, '..', 'assets', 'items');
 
@@ -1917,12 +1919,14 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     'icon — ровно у 33 предметов (пин: ни больше, ни меньше)');
 });
 
-test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойство {type: string, pattern: ^assets/sprites/loot/[\\w_]+\\.svg$} (дословно ТЗ), «icon» НЕ в required, additionalProperties верхнего уровня false', () => {
+test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойство {type: string, pattern: ^assets/sprites/(loot|items)/[\\w_]+\\.svg$} (дословно ТЗ), «icon» НЕ в required, additionalProperties верхнего уровня false', () => {
   const s = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
   assert.deepEqual(s.properties.icon, {
     type: 'string',
-    pattern: '^assets/sprites/loot/[\\w_]+\\.svg$',
+    // Ре-пин 000230.01: ОБЕ директории — loot/ + items/ (иконки
+    // контента — assets/sprites/items/<id>.svg, волны .08–.15).
+    pattern: '^assets/sprites/(loot|items)/[\\w_]+\\.svg$',
   }, 'properties.icon — точная форма {type, pattern} (краснота: '
     + 'свойства icon в схеме нет); факт: '
     + JSON.stringify(s.properties.icon));
@@ -1931,4 +1935,464 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
     + 'факт: ' + JSON.stringify(s.required));
   assert.equal(s.additionalProperties, false,
     'верхний additionalProperties остаётся false (000141)');
+});
+
+// --- Задача 000230.01: items-схема — ОПЦИОНАЛЬНЫЕ поля slot/rarity/
+// set/affixes для экипировки + новые kind shield/artifact/tool/ring +
+// subtype staff (P0; контракт — memory/000230.01-item-schema-
+// slot-rarity-set-affixes.md §2/§5) ---
+//
+// RED (TDD; краснота осмысленная — функциональности ещё нет):
+//   E1/E1b/E2–E7 — schema.json: properties.slot/rarity/set/affixes
+//     отсутствуют (undefined), kind-enum 8 (не 12), subtype-enum 3
+//     (не 4), icon-паттерн — только loot/ (не обе директории),
+//     порядок properties — 12 ключей (не 16);
+//   E8 — src/items.js: ITEM_KINDS.SHIELD/ARTIFACT/TOOL/RING,
+//     WEAPON_SUBTYPES.STAFF, константы EQUIP_SLOTS/ITEM_RARITIES/
+//     AFFIX_TYPES/EQUIP_KINDS — отсутствуют;
+//   E10/E11 — doesNotThrow падает на СУЩЕСТВУЮЩИХ бросках
+//     «неизвестный тип: shield» / «у оружия нужен подтип
+//     sword|bow|heavy» (новые kind/subtype не в константах);
+//   E12–E18/E21 — Missing expected exception: веток валидации
+//     slot/rarity/set/affixes/«kind требует slot» в validateItem нет;
+//   E20 — sync-items-data.js: KEYS без 4 новых ключей → tmp-репо:
+//     «ключи вне схемы» → exit 1.
+// Гарды (зелёные с первого запуска): E9 (каталог — 76 предметов без
+// новых полей), E19 (armor со ВСЕМИ валидными новыми полями — без
+// броска, без console.error, поля сохранены), E22 (D4-каталожность —
+// в .01 вакуумно: предметов с affixes нет).
+
+const EQUIP_FIELDS_00023001 = new Set();
+// .10/.12 заполнят (remap существующих 000001-000010 += slot; паттерн
+// исключения REAGENTS_000220).
+
+test('000230.01 E1: schema.json — slot ОПЦИОНАЛЬНО {type: string, enum: 11 значений в порядке ТЗ}, «slot» НЕ в required, верхний additionalProperties false', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(s.properties.slot, {
+    type: 'string',
+    enum: ['head', 'ears', 'neck', 'torso', 'forearms', 'right_hand',
+           'left_hand', 'palms', 'ring', 'legs', 'feet'],
+  }, 'properties.slot — {type, enum 11} (краснота: свойства slot в '
+    + 'схеме нет); факт: ' + JSON.stringify(s.properties.slot));
+  assert.ok(!s.required.includes('slot'),
+    'slot НЕ в required (старые предметы валидны без изменений); '
+    + 'факт: ' + JSON.stringify(s.required));
+  assert.equal(s.additionalProperties, false,
+    'верхний additionalProperties остаётся false (000141)');
+});
+
+test('000230.01 E1b: schema.json — порядок properties = 16 канонических ключей (связка с KEYS sync-items-data.js, E20)', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(Object.keys(s.properties),
+    ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'tier',
+     'desc', 'stats', 'effect', 'loot', 'icon',
+     'slot', 'rarity', 'set', 'affixes'],
+    'порядок properties — append 4 новых ключей КОНЦОМ (после icon); '
+    + 'краснота: 12 ключей (slot/rarity/set/affixes нет); факт: '
+    + JSON.stringify(Object.keys(s.properties)));
+});
+
+test('000230.01 E2: schema.json — rarity ОПЦИОНАЛЬНО {type: string, enum: common/rare/epic/legendary/impossible}, «rarity» НЕ в required', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(s.properties.rarity, {
+    type: 'string',
+    enum: ['common', 'rare', 'epic', 'legendary', 'impossible'],
+  }, 'properties.rarity — {type, enum 5} (краснота: свойства rarity '
+    + 'в схеме нет); факт: ' + JSON.stringify(s.properties.rarity));
+  assert.ok(!s.required.includes('rarity'),
+    'rarity НЕ в required (отдельное поле, НЕ tier — D3); '
+    + 'факт: ' + JSON.stringify(s.required));
+});
+
+test('000230.01 E3: schema.json — set ОПЦИОНАЛЬНО {type: string, pattern: ^[a-z][a-z0-9_]*$} (id-regex), «set» НЕ в required', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(s.properties.set, {
+    type: 'string',
+    pattern: '^[a-z][a-z0-9_]*$',
+  }, 'properties.set — {type, pattern id-regex} (краснота: свойства '
+    + 'set в схеме нет); факт: ' + JSON.stringify(s.properties.set));
+  assert.ok(!s.required.includes('set'),
+    'set НЕ в required (наборы — 000230.04); '
+    + 'факт: ' + JSON.stringify(s.required));
+});
+
+test('000230.01 E4: schema.json — affixes ОПЦИОНАЛЬНО {type: array, minItems 1, items: oneOf [skill-вариант, free_cast-вариант], каждый вариант additionalProperties false}, «affixes» НЕ в required', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(s.properties.affixes, {
+    type: 'array',
+    minItems: 1,
+    items: {
+      oneOf: [
+        {
+          type: 'object',
+          required: ['type', 'skill', 'amount'],
+          properties: {
+            type: { const: 'skill' },
+            skill: { type: 'string', pattern: '^[a-z][a-z0-9_]*$' },
+            amount: { type: 'number' },
+          },
+          additionalProperties: false,
+        },
+        {
+          type: 'object',
+          required: ['type', 'spell'],
+          properties: {
+            type: { const: 'free_cast' },
+            spell: { type: 'string', pattern: '^[a-z][a-z0-9_]*$' },
+          },
+          additionalProperties: false,
+        },
+      ],
+    },
+  }, 'properties.affixes — точная под-схема (amount БЕЗ границ — '
+    + 'может быть отрицательным; oneOf — взаимоисключаемые варианты '
+    + 'по const type; краснота: свойства affixes в схеме нет); '
+    + 'факт: ' + JSON.stringify(s.properties.affixes));
+  assert.ok(!s.required.includes('affixes'),
+    'affixes НЕ в required (только у экипируемых); '
+    + 'факт: ' + JSON.stringify(s.required));
+});
+
+test('000230.01 E5: schema.json — kind-enum — 12 значений: текущие 8 + shield/artifact/tool/ring (append концом)', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(s.properties.kind.enum,
+    ['weapon', 'armor', 'potion', 'food', 'skill_book', 'reagent',
+     'spell_scroll', 'resurrection_scroll',
+     'shield', 'artifact', 'tool', 'ring'],
+    'kind-enum — 12 значений (краснота: 8 — новые kind нет); '
+    + 'факт: ' + JSON.stringify(s.properties.kind.enum));
+});
+
+test('000230.01 E6: schema.json — subtype-enum — sword/bow/heavy + staff (append концом)', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(s.properties.subtype.enum,
+    ['sword', 'bow', 'heavy', 'staff'],
+    'subtype-enum — 4 значения (краснота: 3 — staff нет); '
+    + 'факт: ' + JSON.stringify(s.properties.subtype.enum));
+});
+
+test('000230.01 E7: schema.json — icon-паттерн — ОБЕ директории loot/ и items/', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  assert.deepEqual(s.properties.icon, {
+    type: 'string',
+    pattern: '^assets/sprites/(loot|items)/[\\w_]+\\.svg$',
+  }, 'properties.icon — паттерн ОБЕХ директорий (краснота: только '
+    + 'loot/); факт: ' + JSON.stringify(s.properties.icon));
+});
+
+test('000230.01 E8: src/items.js — ITEM_KINDS += SHIELD/ARTIFACT/TOOL/RING, WEAPON_SUBTYPES += STAFF; константы EQUIP_SLOTS/ITEM_RARITIES/AFFIX_TYPES/EQUIP_KINDS', () => {
+  assert.equal(I.ITEM_KINDS.SHIELD, 'shield',
+    'ITEM_KINDS.SHIELD (краснота: константы нет — 8 kind)');
+  assert.equal(I.ITEM_KINDS.ARTIFACT, 'artifact',
+    'ITEM_KINDS.ARTIFACT (краснота: константы нет)');
+  assert.equal(I.ITEM_KINDS.TOOL, 'tool',
+    'ITEM_KINDS.TOOL (краснота: константы нет)');
+  assert.equal(I.ITEM_KINDS.RING, 'ring',
+    'ITEM_KINDS.RING (краснота: константы нет)');
+  assert.equal(I.WEAPON_SUBTYPES.STAFF, 'staff',
+    'WEAPON_SUBTYPES.STAFF (краснота: константы нет — 3 subtype)');
+  assert.deepEqual(I.EQUIP_SLOTS, {
+    HEAD: 'head', EARS: 'ears', NECK: 'neck', TORSO: 'torso',
+    FOREARMS: 'forearms', RIGHT_HAND: 'right_hand',
+    LEFT_HAND: 'left_hand', PALMS: 'palms', RING: 'ring',
+    LEGS: 'legs', FEET: 'feet',
+  }, 'EQUIP_SLOTS — 11 слотов в порядке ТЗ (краснота: константы нет)');
+  assert.deepEqual(I.ITEM_RARITIES, {
+    COMMON: 'common', RARE: 'rare', EPIC: 'epic',
+    LEGENDARY: 'legendary', IMPOSSIBLE: 'impossible',
+  }, 'ITEM_RARITIES — 5 редкостей в порядке ТЗ (краснота: нет)');
+  assert.deepEqual(I.AFFIX_TYPES,
+    { SKILL: 'skill', FREE_CAST: 'free_cast' },
+    'AFFIX_TYPES — 2 типа (краснота: константы нет)');
+  assert.deepEqual(
+    I.EQUIP_KINDS instanceof Set ? [...I.EQUIP_KINDS].sort() : null,
+    ['armor', 'artifact', 'ring', 'shield', 'tool', 'weapon'],
+    'EQUIP_KINDS — ровно 6 экипируемых kind (краснота: константы нет)');
+});
+
+test('000230.01 E9 (ГАРД): каталог — ровно 76 предметов, у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
+  const items = I.allItems();
+  assert.equal(items.length, 76, 'каталог — ровно 76 предметов');
+  let others = 0;
+  for (const it of items) {
+    if (EQUIP_FIELDS_00023001.has(it.id)) continue;
+    assert.equal(it.slot, undefined,
+      it.id + ': slot отсутствует (предмет не тронут, 000230.01)');
+    assert.equal(it.rarity, undefined,
+      it.id + ': rarity отсутствует (предмет не тронут, 000230.01)');
+    assert.equal(it.set, undefined,
+      it.id + ': set отсутствует (предмет не тронут, 000230.01)');
+    assert.equal(it.affixes, undefined,
+      it.id + ': affixes отсутствует (предмет не тронут, 000230.01)');
+    others++;
+  }
+  assert.equal(others, 76, 'прочих предметов — ровно 76 (в .01 '
+    + 'исключений нет)');
+});
+
+test('000230.01 E10 (vm): НОВЫЕ kind shield/artifact/tool/ring — валидные фикстуры (id/name/kind/slot/weight/value/desc) грузятся БЕЗ броска, без console.error, поля сохранены', () => {
+  const fixtures = [
+    { id: 'x_shield', name: 'Тестовый щит', kind: 'shield',
+      slot: 'left_hand', weight: 3, value: 50, desc: 'т' },
+    { id: 'x_artifact', name: 'Тестовый артефакт', kind: 'artifact',
+      slot: 'left_hand', weight: 0.5, value: 100, desc: 'т' },
+    { id: 'x_tool', name: 'Тестовый инструмент', kind: 'tool',
+      slot: 'right_hand', weight: 1, value: 20, desc: 'т' },
+    { id: 'x_ring', name: 'Тестовое кольцо', kind: 'ring',
+      slot: 'ring', weight: 0.1, value: 30, desc: 'т' },
+  ];
+  const { sandbox, errors } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = fixtures;
+  assert.doesNotThrow(() => loadInSandbox('items.js', sandbox),
+    'новые kind — без броска (краснота: СУЩЕСТВУЮЩИЙ бросок '
+    + '«неизвестный тип: shield» — kind не в ITEM_KINDS)');
+  assert.equal(errors.length, 0,
+    'console.error нет; факт: ' + JSON.stringify(errors));
+  for (const f of fixtures) {
+    assert.deepEqual(fromVm(sandbox.Game.getItem(f.id)), f,
+      f.id + ': поля сохранены (валидация не мутирует/не отбрасывает)');
+  }
+});
+
+test('000230.01 E11 (vm): weapon с subtype «staff» + stats.damage — загрузка БЕЗ броска, без console.error', () => {
+  const { sandbox, errors } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [{ id: 'x_staff', name: 'Тестовый посох',
+    kind: 'weapon', subtype: 'staff', stats: { damage: 7 },
+    weight: 4, value: 80, desc: 'т' }];
+  assert.doesNotThrow(() => loadInSandbox('items.js', sandbox),
+    'staff — без броска (краснота: СУЩЕСТВУЮЩИЙ бросок «у оружия '
+    + 'нужен подтип sword|bow|heavy» — staff не в WEAPON_SUBTYPES)');
+  assert.equal(errors.length, 0,
+    'console.error нет; факт: ' + JSON.stringify(errors));
+  assert.equal(fromVm(sandbox.Game.getItem('x_staff').subtype), 'staff',
+    'subtype сохранён');
+});
+
+test('000230.01 E12 (vm): armor с slot вне enum («wrist») → Error /неизвестный slot/ при загрузке', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [{ id: 'x_armor', name: 'Тестовая броня',
+    kind: 'armor', stats: { armor: 2 }, slot: 'wrist',
+    weight: 5, value: 40, desc: 'т' }];
+  assert.throws(
+    () => loadInSandbox('items.js', sandbox),
+    /неизвестный slot/,
+    'load-time-валидация бросает на slot вне enum (краснота: ветки '
+    + 'валидации slot в validateItem нет — Missing expected '
+    + 'exception)');
+});
+
+test('000230.01 E13 (vm): armor с rarity вне enum («mythic») → Error /неизвестная редкость/ при загрузке', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [{ id: 'x_armor', name: 'Тестовая броня',
+    kind: 'armor', stats: { armor: 2 }, rarity: 'mythic',
+    weight: 5, value: 40, desc: 'т' }];
+  assert.throws(
+    () => loadInSandbox('items.js', sandbox),
+    /неизвестная редкость/,
+    'load-time-валидация бросает на rarity вне enum (краснота: ветки '
+    + 'нет — Missing expected exception)');
+});
+
+test('000230.01 E14 (vm): armor с set вне паттерна («Bad-Set» / «9set») → Error /set/ при загрузке', () => {
+  for (const bad of ['Bad-Set', '9set']) {
+    const { sandbox } = makeVmSandboxWithConsole();
+    loadItemsVmChain(sandbox);
+    sandbox.Game.ITEMS = [{ id: 'x_armor', name: 'Тестовая броня',
+      kind: 'armor', stats: { armor: 2 }, set: bad,
+      weight: 5, value: 40, desc: 'т' }];
+    assert.throws(
+      () => loadInSandbox('items.js', sandbox),
+      /set/,
+      'load-time-валидация бросает на set «' + bad + '» '
+      + '(краснота: ветки нет — Missing expected exception)');
+  }
+});
+
+test('000230.01 E15 (vm): armor с affixes — skill id вне формы («Fireball») и неизвестный type («bogus») → Error /affixes/ при загрузке (D4: валидатор — ФОРМА id)', () => {
+  for (const affixes of [
+    [{ type: 'skill', skill: 'Fireball' }],
+    [{ type: 'bogus' }],
+  ]) {
+    const { sandbox } = makeVmSandboxWithConsole();
+    loadItemsVmChain(sandbox);
+    sandbox.Game.ITEMS = [{ id: 'x_armor', name: 'Тестовая броня',
+      kind: 'armor', stats: { armor: 2 }, affixes,
+      weight: 5, value: 40, desc: 'т' }];
+    assert.throws(
+      () => loadInSandbox('items.js', sandbox),
+      /affixes/,
+      'load-time-валидация бросает на affixes '
+      + JSON.stringify(affixes) + ' (краснота: ветки нет — Missing '
+      + 'expected exception)');
+  }
+});
+
+test('000230.01 E16 (vm): armor с affixes [{type: skill, skill: «swordsman», amount: «5»/NaN/null}] (amount не число) → Error /amount/ при загрузке', () => {
+  for (const amount of ['5', NaN, null]) {
+    const { sandbox } = makeVmSandboxWithConsole();
+    loadItemsVmChain(sandbox);
+    sandbox.Game.ITEMS = [{ id: 'x_armor', name: 'Тестовая броня',
+      kind: 'armor', stats: { armor: 2 },
+      affixes: [{ type: 'skill', skill: 'swordsman', amount }],
+      weight: 5, value: 40, desc: 'т' }];
+    assert.throws(
+      () => loadInSandbox('items.js', sandbox),
+      /amount/,
+      'load-time-валидация бросает на amount ' + String(amount)
+      + ' (краснота: ветки нет — Missing expected exception)');
+  }
+});
+
+test('000230.01 E17 (vm): armor с affixes [{type: free_cast, spell: «9bad»}] (spell вне формы) → Error /spell/ при загрузке', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [{ id: 'x_armor', name: 'Тестовая броня',
+    kind: 'armor', stats: { armor: 2 },
+    affixes: [{ type: 'free_cast', spell: '9bad' }],
+    weight: 5, value: 40, desc: 'т' }];
+  assert.throws(
+    () => loadInSandbox('items.js', sandbox),
+    /spell/,
+    'load-time-валидация бросает на spell «9bad» (краснота: ветки '
+    + 'нет — Missing expected exception)');
+});
+
+test('000230.01 E18 (vm): reagent с ВАЛИДНЫМИ affixes и с ВАЛИДНЫМ slot → Error /только у экипируемых/ при загрузке (ТЗ: поля экипировки — только у 6 экипируемых kind)', () => {
+  for (const extra of [
+    { affixes: [{ type: 'skill', skill: 'swordsman', amount: 0.05 }] },
+    { slot: 'torso' },
+  ]) {
+    const { sandbox } = makeVmSandboxWithConsole();
+    loadItemsVmChain(sandbox);
+    sandbox.Game.ITEMS = [{ id: 'x_test', name: 'Тестовый реагент',
+      kind: 'reagent', weight: 0.1, value: 1, desc: 'т', ...extra }];
+    assert.throws(
+      () => loadInSandbox('items.js', sandbox),
+      /только у экипируемых/,
+      'load-time-валидация бросает на reagent с '
+      + Object.keys(extra).join('/') + ' (краснота: ветки нет — '
+      + 'Missing expected exception)');
+  }
+});
+
+test('000230.01 E19 (ГАРД, vm): armor со ВСЕМИ валидными новыми полями (slot/rarity/set/affixes skill+free_cast) — загрузка БЕЗ броска, БЕЗ console.error, поля сохранены deepEqual (гард от избыточной валидации)', () => {
+  const { sandbox, errors } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  const it = { id: 'x_guard', name: 'Тестовая броня', kind: 'armor',
+    stats: { armor: 3 }, weight: 6, value: 60, desc: 'т',
+    slot: 'torso', rarity: 'rare', set: 'guardian',
+    affixes: [
+      { type: 'skill', skill: 'swordsman', amount: 0.05 },
+      { type: 'free_cast', spell: 'fireball' },
+    ] };
+  sandbox.Game.ITEMS = [it];
+  assert.doesNotThrow(() => loadInSandbox('items.js', sandbox),
+    'валидный armor со ВСЕМИ 4 полями — без броска (гард от '
+    + 'избыточной валидации)');
+  assert.deepEqual(fromVm(sandbox.Game.getItem('x_guard')), it,
+    'поля сохранены (валидация не мутирует/не отбрасывает)');
+  assert.equal(errors.length, 0,
+    'console.error на валидном каталоге нет; факт: '
+    + JSON.stringify(errors));
+});
+
+test('000230.01 E20: sync-items-data.js — новые поля slot/rarity/set/affixes проходят в зеркало в каноническом порядке (функциональный tmp-репо: fixture ring с ВСЕМИ 4 полями)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-items-00023001-'));
+  try {
+    fs.mkdirSync(path.join(dir, 'scripts', 'lib'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'assets', 'items'), { recursive: true });
+    fs.copyFileSync(
+      path.join(__dirname, '..', 'scripts', 'sync-items-data.js'),
+      path.join(dir, 'scripts', 'sync-items-data.js'));
+    fs.copyFileSync(
+      path.join(__dirname, '..', 'scripts', 'lib', 'write-atomic.js'),
+      path.join(dir, 'scripts', 'lib', 'write-atomic.js'));
+    fs.writeFileSync(path.join(dir, 'assets', 'items', '000001.json'),
+      JSON.stringify({
+        id: 'x_ring', name: 'Тестовое кольцо', kind: 'ring',
+        weight: 0.1, value: 30, desc: 'т',
+        icon: 'assets/sprites/items/x_ring.svg',
+        slot: 'ring', rarity: 'rare', set: 'guardian',
+        affixes: [{ type: 'skill', skill: 'swordsman', amount: 0.05 }],
+      }, null, 2) + '\n', 'utf8');
+    const run = () => spawnSync(process.execPath,
+      [path.join(dir, 'scripts', 'sync-items-data.js')],
+      { cwd: dir, encoding: 'utf8' });
+    const mirrorFile = path.join(dir, 'src', 'items-data.js');
+    const res = run();
+    assert.equal(res.status, 0,
+      'sync — exit 0 (краснота: KEYS без 4 ключей — «ключи вне '
+      + 'схемы: slot, rarity, set, affixes» → exit 1); факт: '
+      + (res.stderr || res.stdout));
+    const mirror = fs.readFileSync(mirrorFile, 'utf8');
+    for (const f of ['slot', 'rarity', 'set', 'affixes']) {
+      assert.ok(mirror.includes(f + ': '),
+        f + ' — в зеркале (краснота: ключа нет в KEYS — не выводится)');
+    }
+    const pos = (k) => mirror.indexOf(k + ':');
+    assert.ok(pos('icon') !== -1 && pos('icon') < pos('slot')
+      && pos('slot') < pos('rarity') && pos('rarity') < pos('set')
+      && pos('set') < pos('affixes'),
+      'канонический порядок icon < slot < rarity < set < affixes '
+      + '(связка с порядком properties schema.json, E1); факт: '
+      + JSON.stringify({
+        icon: pos('icon'), slot: pos('slot'), rarity: pos('rarity'),
+        set: pos('set'), affixes: pos('affixes'),
+      }));
+    const once = fs.readFileSync(mirrorFile);
+    const res2 = run();
+    assert.equal(res2.status, 0,
+      'повторный запуск — exit 0; факт: ' + (res2.stderr || res2.stdout));
+    assert.deepEqual(fs.readFileSync(mirrorFile), once,
+      'повторный запуск — byte-identical (идемпотентность)');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('000230.01 E21 (vm): shield БЕЗ slot → Error /требует slot/ при загрузке (D1: новый kind экипировки — ВСЕГДА с явным slot)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [{ id: 'x_shield2', name: 'Щит без слота',
+    kind: 'shield', weight: 3, value: 50, desc: 'т' }];
+  assert.throws(
+    () => loadInSandbox('items.js', sandbox),
+    /требует slot/,
+    'load-time-валидация бросает на shield без slot (краснота: ветки '
+    + '«kind требует slot» нет — Missing expected exception)');
+});
+
+test('000230.01 E22 (ГАРД): D4-каталожность — каждый skill-affix: skill ∈ каталогу навыков (live), каждый free_cast: spell ∈ каталогу заклинаний (в .01 вакуумно: предметов с affixes нет; с волн .08+ — постоянный пин, прецедент S1 000133)', () => {
+  const skillIds = new Set([
+    ...SKILLS_DATA.PRIMARY_SKILLS.map((s) => s.id),
+    ...Object.keys(SKILLS_DATA.SECONDARY_SKILLS),
+  ]);
+  for (const it of I.allItems()) {
+    if (it.affixes === undefined) continue;
+    for (const [i, a] of it.affixes.entries()) {
+      if (a.type === 'skill') {
+        assert.ok(skillIds.has(a.skill),
+          it.id + ': affixes[' + i + '].skill «' + a.skill
+          + '» — в каталоге навыков (D4: форма — валидатор, '
+          + 'каталожность — тестом)');
+      } else if (a.type === 'free_cast') {
+        assert.ok(SPELLS.SPELLS_BY_ID[a.spell],
+          it.id + ': affixes[' + i + '].spell «' + a.spell
+          + '» — в каталоге заклинаний (D4)');
+      }
+    }
+  }
 });

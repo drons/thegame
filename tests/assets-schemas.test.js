@@ -409,9 +409,13 @@ test('items schema (000157.01): опциональное поле tier (integer 
   assert.equal(s.additionalProperties, false,
     'additionalProperties остаётся false (tier — именованное поле схемы)');
   assert.deepEqual(s.properties.kind.enum,
+    // Ре-пин 000230.01: +shield/artifact/tool/ring (поля экипировки
+    // slot/rarity/set/affixes; новые kind — концом).
     ['weapon', 'armor', 'potion', 'food', 'skill_book', 'reagent',
-     'spell_scroll', 'resurrection_scroll'],
-    'kind-enum — текущие 8 видов без изменений (ТЗ: не расширять)');
+     'spell_scroll', 'resurrection_scroll',
+     'shield', 'artifact', 'tool', 'ring'],
+    'kind-enum — текущие 12 видов (ТЗ 000157.01: не расширять; '
+    + '000230.01: +4 концом)');
 });
 
 // --- Задача 000158.02: schema.json (items) — опциональное поле loot ---

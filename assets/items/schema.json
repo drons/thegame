@@ -4,8 +4,8 @@
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "name": { "type": "string" },
-    "kind": { "enum": ["weapon", "armor", "potion", "food", "skill_book", "reagent", "spell_scroll", "resurrection_scroll"] },
-    "subtype": { "type": "string", "enum": ["sword", "bow", "heavy"] },
+    "kind": { "enum": ["weapon", "armor", "potion", "food", "skill_book", "reagent", "spell_scroll", "resurrection_scroll", "shield", "artifact", "tool", "ring"] },
+    "subtype": { "type": "string", "enum": ["sword", "bow", "heavy", "staff"] },
     "weight": { "type": "number", "minimum": 0.05, "maximum": 200 },
     "value": { "type": "number", "minimum": 1, "maximum": 100000 },
     "tier": { "type": "integer", "minimum": 1, "maximum": 4 },
@@ -46,7 +46,44 @@
       },
       "additionalProperties": false
     },
-    "icon": { "type": "string", "pattern": "^assets/sprites/loot/[\\w_]+\\.svg$" }
+    "icon": { "type": "string", "pattern": "^assets/sprites/(loot|items)/[\\w_]+\\.svg$" },
+    "slot": {
+      "type": "string",
+      "enum": ["head", "ears", "neck", "torso", "forearms",
+               "right_hand", "left_hand", "palms", "ring", "legs", "feet"]
+    },
+    "rarity": {
+      "type": "string",
+      "enum": ["common", "rare", "epic", "legendary", "impossible"]
+    },
+    "set": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "affixes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["type", "skill", "amount"],
+            "properties": {
+              "type": { "const": "skill" },
+              "skill": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+              "amount": { "type": "number" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["type", "spell"],
+            "properties": {
+              "type": { "const": "free_cast" },
+              "spell": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
   },
   "additionalProperties": false
 }

@@ -63,12 +63,36 @@
     FOOD: 'food', SKILL_BOOK: 'skill_book', REAGENT: 'reagent',
     SPELL_SCROLL: 'spell_scroll',
     RESURRECTION_SCROLL: 'resurrection_scroll',
+    SHIELD: 'shield', ARTIFACT: 'artifact', TOOL: 'tool', RING: 'ring',
   };
-  const WEAPON_SUBTYPES = { SWORD: 'sword', BOW: 'bow', HEAVY: 'heavy' };
+  const WEAPON_SUBTYPES = {
+    SWORD: 'sword', BOW: 'bow', HEAVY: 'heavy', STAFF: 'staff',
+  };
   const EFFECT_KINDS = {
     HEAL: 'heal', MP: 'mp', EAT: 'eat', SKILL_XP: 'skill_xp',
     SPELL: 'spell', RESURRECT: 'resurrect',
   };
+
+  // --- Поля экипировки (задача 000230.01) ---
+  // slot/rarity/set/affixes — ОПЦИОНАЛЬНЫЕ (schema.json), только у
+  // 6 экипируемых kind (EQUIP_KINDS); новый kind — ВСЕГДА с явным slot
+  // (D1); rarity — отдельное поле, НЕ tier (D3); валидатор — ФОРМА
+  // id (D4), каталожность — тестом. Единый источник для .02/.03/.05.
+  const EQUIP_SLOTS = {
+    HEAD: 'head', EARS: 'ears', NECK: 'neck', TORSO: 'torso',
+    FOREARMS: 'forearms', RIGHT_HAND: 'right_hand',
+    LEFT_HAND: 'left_hand', PALMS: 'palms', RING: 'ring',
+    LEGS: 'legs', FEET: 'feet',
+  };
+  const ITEM_RARITIES = {
+    COMMON: 'common', RARE: 'rare', EPIC: 'epic',
+    LEGENDARY: 'legendary', IMPOSSIBLE: 'impossible',
+  };
+  const AFFIX_TYPES = { SKILL: 'skill', FREE_CAST: 'free_cast' };
+  const EQUIP_KINDS = new Set([
+    ITEM_KINDS.WEAPON, ITEM_KINDS.ARMOR, ITEM_KINDS.SHIELD,
+    ITEM_KINDS.ARTIFACT, ITEM_KINDS.TOOL, ITEM_KINDS.RING,
+  ]);
 
   // Параметры инвентаря и веса.
   const INVENTORY_SLOTS = 20;   // слоты инвентаря
@@ -120,6 +144,41 @@
     // обязательным непустым terrains выше.
   }
 
+  // affixes (задача 000230.01): эффекты экипировки — непустой массив
+  // { type: 'skill', skill: <id>, amount: <число, может быть
+  // отрицательным> } и { type: 'free_cast', spell: <id> }. ФОРМА id
+  // только (D4: каталог skills/spells в браузере грузится ПОЗЖЕ
+  // items.js — прецедент spell_scroll :155-158; каталожность —
+  // тестом). Лишние ключи элемента не бросают (ловит schema
+  // additionalProperties false в node).
+  function validateAffixes(it) {
+    const affixes = it.affixes;
+    if (!Array.isArray(affixes))
+      throw new Error(it.id + ': affixes — массив');
+    if (affixes.length === 0)
+      throw new Error(it.id + ': affixes — непустой массив');
+    for (const [i, a] of affixes.entries()) {
+      if (!a || typeof a !== 'object' || Array.isArray(a))
+        throw new Error(it.id + ': affixes[' + i + '] — объект');
+      if (a.type === AFFIX_TYPES.SKILL) {
+        if (typeof a.skill !== 'string' ||
+            !/^[a-z][a-z0-9_]*$/.test(a.skill)) {
+          throw new Error(it.id + ': affixes[' + i + '].skill — id навыка');
+        }
+        if (typeof a.amount !== 'number' || !Number.isFinite(a.amount)) {
+          throw new Error(it.id + ': affixes[' + i + '].amount — число');
+        }
+      } else if (a.type === AFFIX_TYPES.FREE_CAST) {
+        if (typeof a.spell !== 'string' ||
+            !/^[a-z][a-z0-9_]*$/.test(a.spell)) {
+          throw new Error(it.id + ': affixes[' + i + '].spell — id заклинания');
+        }
+      } else {
+        throw new Error(it.id + ': affixes[' + i + '].type — skill|free_cast');
+      }
+    }
+  }
+
   function validateItem(it) {
     const idOk = typeof it.id === 'string' && /^[a-z][a-z0-9_]*$/.test(it.id);
     if (!idOk) throw new Error('предмет: неверный id: ' + it.id);
@@ -128,8 +187,9 @@
     if (typeof it.weight !== 'number' || it.weight <= 0) throw new Error(it.id + ': неверный вес');
     if (typeof it.value !== 'number' || it.value < 1) throw new Error(it.id + ': неверная цена');
     if (it.kind === 'weapon') {
-      if (!['sword', 'bow', 'heavy'].includes(it.subtype)) {
-        throw new Error(it.id + ': у оружия нужен подтип sword|bow|heavy');
+      if (!Object.values(WEAPON_SUBTYPES).includes(it.subtype)) {
+        throw new Error(it.id +
+          ': у оружия нужен подтип sword|bow|heavy|staff');
       }
       if (!(it.stats && it.stats.damage >= 1)) throw new Error(it.id + ': у оружия нужен stats.damage');
     }
@@ -172,6 +232,35 @@
       if (!e || e.kind !== 'resurrect')
         throw new Error(it.id + ': свиток воскрешения — только effect.kind «resurrect»');
     }
+    // Поля экипировки (задача 000230.01): slot/rarity/set/affixes —
+    // ОПЦИОНАЛЬНЫЕ, только у 6 экипируемых kind (EQUIP_KINDS);
+    // новый kind — ВСЕГДА с явным slot (D1); у weapon/armor slot —
+    // ОПЦИОНАЛЕН (фолбэк .02).
+    if (!EQUIP_KINDS.has(it.kind) &&
+        (it.slot !== undefined || it.rarity !== undefined ||
+         it.set !== undefined || it.affixes !== undefined)) {
+      throw new Error(it.id +
+        ': поля экипировки (slot/rarity/set/affixes) — только у экипируемых');
+    }
+    if ((it.kind === ITEM_KINDS.SHIELD ||
+         it.kind === ITEM_KINDS.ARTIFACT ||
+         it.kind === ITEM_KINDS.TOOL ||
+         it.kind === ITEM_KINDS.RING) && it.slot === undefined) {
+      throw new Error(it.id + ': kind ' + it.kind + ' требует slot');
+    }
+    if (it.slot !== undefined &&
+        !Object.values(EQUIP_SLOTS).includes(it.slot)) {
+      throw new Error(it.id + ': неизвестный slot: ' + it.slot);
+    }
+    if (it.rarity !== undefined &&
+        !Object.values(ITEM_RARITIES).includes(it.rarity)) {
+      throw new Error(it.id + ': неизвестная редкость: ' + it.rarity);
+    }
+    if (it.set !== undefined &&
+        (typeof it.set !== 'string' || !/^[a-z][a-z0-9_]*$/.test(it.set))) {
+      throw new Error(it.id + ': set — неверный паттерн');
+    }
+    if (it.affixes !== undefined) validateAffixes(it);
   }
 
   const catalog = new Map();
@@ -1253,6 +1342,8 @@
 
   return {
     ITEM_KINDS, WEAPON_SUBTYPES, EFFECT_KINDS,
+    // 000230.01: поля экипировки — единый источник для .02/.03/.05.
+    EQUIP_SLOTS, ITEM_RARITIES, AFFIX_TYPES, EQUIP_KINDS,
     INVENTORY_SLOTS, QUICK_SLOTS, MAX_STACK, BASE_CARRY_WEIGHT,
     BUY_WEALTH_MULT, SELL_WEALTH_MULT,
     // 000158.02: экспорт для тестов (негативные пути validateLoot).
