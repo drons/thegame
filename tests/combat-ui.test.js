@@ -10036,3 +10036,390 @@ test('боевой UI: 000226 — без motion.js: линейный фолбэ�
     console.error = realErr;
   }
 });
+
+// =====================================================================
+// Задача 000236. Ретро-фикс 000226/000227 (ретро-2026-10-17):
+// покрытие боевой книги — гейт «Лечение» у НЕsupport-наёмника
+// (CU236-GATE), K/H 1:1 С выбором из книги (CU236-KH), cast-FX аура
+// toId='self' из книги (CU236-AURA).
+//
+// Все три — ЗЕЛЁНЫЕ с момента написания (фиксируют СУЩЕСТВУЮЩЕЕ
+// поведение; падение = регрессия → finding в tasks/result/000236.md
+// + отдельная задача; src/ НЕ чинить — ТЗ «Ограничения»).
+// Единственный RED задачи — W236-K (wording-пин, tests/
+// spec-combat-wording.test.js). Контракты — memory/
+// 000236-retro-combat-k-heal-fx.md.
+// =====================================================================
+
+// Вольк — melee-наёмник (НЕ support) с книгой ['mend'] в rosterData
+// ДО build: гейт «Лечения» build() (kind 'merc' + непустая книга,
+// D6 000227). Пара-контраст с CU178-GATE (тот же Вольк БЕЗ книги —
+// кнопки «Лечение» нет).
+const ROSTER_WOLK_BOOK = [{ name: 'Вольк', role: 'melee', level: 1,
+  dmg: 1.2, hp: 1.1, skills: [], spells: ['mend'] }];
+
+test('боевой UI: 000236 — гейт «Лечение» у НЕsupport-наёмника с книгой: кнопка построена build() (ДО build), видимость по активному; до выбора — disabled «недоступно активному персонажу» (стаб-клик: 1 строка, 0 трат, 0 c._rng); после выбора mend — каст ВЫБРАННОГО кнопкой И клавишей H: «Вольк лечит себя (+5).», mp 5→2, spellWis 1→0, игрок не тронут (CU236-GATE)', () => {
+  {
+    // (a) тап кнопки.
+    const S = scene227({ spells: true, allySpells: true,
+      roster: ROSTER_WOLK_BOOK });
+    const { G, c } = S;
+    const volk = c.units.find((x) => x.side === 'ally'
+      && x.kind === 'merc');
+    assert.equal(volk.id, 'a0', 'фикстура: Вольк — a0');
+    assert.equal(volk.role, 'melee', 'фикстура: role melee (НЕ support)');
+    assert.deepEqual(volk.spells, ['mend'], 'фикстура: книга ДО build');
+    assert.equal(volk.maxHP, 13, 'фикстура: maxHP 13 (round((8+4)·1.1))');
+    assert.equal(volk.mp, 5, 'фикстура: мана 5');
+    assert.equal(volk.spellWis, 1, 'фикстура: пул Мудрость 1');
+    assert.equal(Array.from(c.turnOrder).join(','), 'm0,player,a0',
+      'фикстура: очередь');
+    assert.equal(G.activeUnitId(c), 'player',
+      'pre-roll: волк действует сам → стоп на игроке');
+    tickSlice(S.canvas, S.rafStubs);
+    const byAct = byActOf178(S);
+    const hb = byAct.heal;
+    assert.ok(hb, 'кнопка «Лечение» построена (гейт: ЛЮБОЙ наёмник с '
+      + 'непустой книгой, D6 000227 — role НЕ support)');
+    assert.equal(hb.ariaLabel, 'Лечение', 'aria-label «Лечение»');
+    const img = hb.children[0];
+    assert.equal(img.tagName, 'img', 'иконка — <img>');
+    assert.equal(img.src, 'assets/ui/combat_heal.svg',
+      'иконка — assets/ui/combat_heal.svg (конвенция 000124)');
+    assert.equal(hb.style.display, 'none',
+      'ход игрока — скрыта (castHealVis: активен не наёмник)');
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(G.activeUnitId(c), 'a0', 'Space → ход наёмника');
+    assert.equal(hb.style.display, '',
+      'ход наёмника с книгой — видима (activeIsMercWithBook)');
+    c.player.hp = c.player.maxHP; // фикстура: игрок цел (пин «не тронут»)
+    const int0 = c.ps.spellInt, pmp0 = c.player.mp;
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(hb.disabled, true,
+      'до выбора — disabled (legacy allyCanDo: guard support не прошёл)');
+    assert.equal(hb.title, 'недоступно активному персонажу',
+      'title дословно (финальный return allyCanDo «heal»): '
+      + JSON.stringify(hb.title));
+    let rngCalls = 0;
+    const realRng = c._rng;
+    c._rng = () => (rngCalls++, realRng());
+    const n0 = c.log.length;
+    hb.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n0),
+      ['недоступно активному персонажу'],
+      'стаб-клик — ровно ОДНА строка причины: '
+      + JSON.stringify(Array.from(c.log).slice(n0)));
+    assert.equal(volk.mp, 5, 'мана не потрачена');
+    assert.equal(volk.spellWis, 1, 'пул не потрачен');
+    assert.equal(c.player.hp, c.player.maxHP, 'игрок не тронут');
+    assert.equal(G.activeUnitId(c), 'a0', 'ход не сгорел');
+    assert.equal(rngCalls, 0, '0 c._rng');
+    // D3-цикл: отказ (2 < 3 маны) записывает выбор, книга открыта.
+    volk.mp = 2;
+    tickSlice(S.canvas, S.rafStubs);
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+    const mendRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'mend');
+    assert.ok(mendRow, 'строка «Заговора» в книге Волька');
+    const n1 = c.log.length;
+    mendRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n1),
+      ['не хватает маны (3)'],
+      'D3: отказ — одна строка, выбор записан: '
+      + JSON.stringify(Array.from(c.log).slice(n1)));
+    assert.equal(volk.mp, 2, 'отказ — трат НЕТ');
+    assert.equal(volk.spellWis, 1, 'отказ — пул на месте');
+    assert.notEqual(bookBox.style.display, 'none',
+      'отказ — книга остаётся открытой');
+    volk.mp = 5;
+    tickSlice(S.canvas, S.rafStubs);
+    const cnt = badgeOf199(hb);
+    assert.ok(cnt, 'бейдж .combat-actcount на «Лечение»');
+    assert.equal(hb.disabled, false,
+      'с выбором — enabled (rowChk: пул 1, мана 5 ≥ 3)');
+    assert.equal(hb.title, '', 'без причины — title пусто');
+    assert.equal(cnt.textContent, '1',
+      'бейдж = пул выбранного (mend → spellWis): '
+      + JSON.stringify(cnt.textContent));
+    const n2 = c.log.length;
+    hb.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n2),
+      ['Вольк лечит себя (+5).'],
+      'тап — каст ВЫБРАННОГО mend на себя (legacy дал бы «недоступно»): '
+      + JSON.stringify(Array.from(c.log).slice(n2)));
+    assert.equal(volk.mp, 2, 'мана 5→2 (mend: 3)');
+    assert.equal(volk.spellWis, 0, 'пул Мудрость 1→0');
+    assert.equal(cnt.textContent, '0', 'бейдж «0» после каста');
+    assert.equal(cnt.style.display, '', '«0» — виден');
+    assert.equal(G.activeUnitId(c), 'a0', 'ход не сгорел');
+    assert.equal(rngCalls, 0, '0 c._rng');
+    assert.equal(c.player.hp, c.player.maxHP, 'игрок не тронут');
+    assert.equal(c.ps.spellInt, int0, 'пул игрока не тронут');
+    assert.equal(c.player.mp, pmp0, 'мана игрока не тронута');
+  }
+  {
+    // (b) КЛАВИША H: новая сцена, тот же D3-цикл → KeyH.
+    const S = scene227({ spells: true, allySpells: true,
+      roster: ROSTER_WOLK_BOOK });
+    const { G, c } = S;
+    const volk = c.units.find((x) => x.side === 'ally'
+      && x.kind === 'merc');
+    let rngCalls = 0;
+    const realRng = c._rng;
+    c._rng = () => (rngCalls++, realRng());
+    assert.equal(G.activeUnitId(c), 'player',
+      'pre-roll: стоп на игроке');
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(G.activeUnitId(c), 'a0', 'Space → ход наёмника');
+    c.player.hp = c.player.maxHP;
+    volk.mp = 2;
+    tickSlice(S.canvas, S.rafStubs);
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    const mendRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'mend');
+    assert.ok(mendRow, 'строка «Заговора» в книге Волька');
+    const n1 = c.log.length;
+    mendRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n1),
+      ['не хватает маны (3)'],
+      'D3: отказ, выбор записан: '
+      + JSON.stringify(Array.from(c.log).slice(n1)));
+    volk.mp = 5;
+    tickSlice(S.canvas, S.rafStubs);
+    const n2 = c.log.length;
+    press(S.keydown, 'KeyH');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n2),
+      ['Вольк лечит себя (+5).'],
+      'KeyH — каст ВЫБРАННОГО (контракт D5 «кнопка = клавиша 1:1»): '
+      + JSON.stringify(Array.from(c.log).slice(n2)));
+    assert.equal(volk.mp, 2, 'мана 5→2');
+    assert.equal(volk.spellWis, 0, 'пул 1→0');
+    assert.equal(G.activeUnitId(c), 'a0', 'ход не сгорел');
+    assert.equal(c.player.hp, c.player.maxHP, 'игрок не тронут');
+    assert.equal(rngCalls, 0, '0 c._rng');
+  }
+});
+
+test('боевой UI: 000236 — K/H 1:1 С выбором из книги: Эфир + выбор spark → KeyK — «Эфир: «Искра» — Волк: 6.» (НЕ strongestKnown «Морозная стрела», мана −3 не −4); Медик + выбор mend → KeyH — «Медик лечит себя (+6).» (НЕ «самый раненый» — игрок при 5 HP не тронут) (CU236-KH)', () => {
+  {
+    // (K) Эфир: выбор spark vs legacy strongestKnown frost_bolt (4 маны).
+    const S = scene227({ efir: true, spells: true, allySpells: true });
+    const { G, c } = S;
+    const u = c.units.find((x) => x.kind === 'efir');
+    const wolf = c.units.find((x) => x.id === 'm0');
+    u.x = 3; u.y = 5;
+    wolf.x = 3; wolf.y = 4;
+    wolf.maxHP = 100; wolf.hp = 100;
+    u.spells = ['spark', 'frost_bolt']; // книга live (строки — при рендере)
+    assert.equal(G.activeUnitId(c), 'efir',
+      'pre-roll — стоп на ходу Эфира');
+    assert.equal(u.mp, 11, 'фикстура: мана 11');
+    assert.equal(c.efs.spellInt, 1, 'фикстура: пул Интеллект 1');
+    let rngCalls = 0;
+    const realRng = c._rng;
+    c._rng = () => (rngCalls++, realRng());
+    tickSlice(S.canvas, S.rafStubs);
+    u.mp = 2;
+    tickSlice(S.canvas, S.rafStubs);
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+    const sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    assert.ok(sparkRow, 'строка «Искра» в книге Эфира');
+    const n1 = c.log.length;
+    sparkRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n1),
+      ['не хватает маны (3)'],
+      'D3: отказ — одна строка, выбор записан: '
+      + JSON.stringify(Array.from(c.log).slice(n1)));
+    assert.equal(c.efs.spellInt, 1, 'пул не потрачен (отказ)');
+    assert.equal(u.mp, 2, 'мана не потрачена (отказ)');
+    u.mp = 11;
+    tickSlice(S.canvas, S.rafStubs);
+    const n2 = c.log.length;
+    press(S.keydown, 'KeyK');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n2),
+      ['Эфир: «Искра» — Волк: 6.'],
+      'KeyK — ВЫБРАННЫЙ spark (legacy strongestKnown дал бы «Морозная '
+      + 'стрела», −4 маны): ' + JSON.stringify(Array.from(c.log).slice(n2)));
+    assert.equal(c.efs.spellInt, 0, 'пул 1→0');
+    assert.equal(u.mp, 8, 'мана 11→8 (spark: 3, не 4)');
+    assert.equal(wolf.hp, 94, 'волк 100→94');
+    assert.equal(G.activeUnitId(c), 'efir', 'ход не сгорел');
+    assert.equal(rngCalls, 0, '0 c._rng');
+  }
+  {
+    // (H) Медик: выбор mend vs legacy mostWounded (игрок при 5 HP).
+    const S = scene227({ spells: true, allySpells: true,
+      roster: ROSTER_MEDIC });
+    const { G, c } = S;
+    const medic = c.units.find((x) => x.side === 'ally'
+      && x.role === 'support' && x.kind === 'merc');
+    assert.equal(Array.from(c.turnOrder).join(','), 'm0,player,a0',
+      'фикстура: очередь');
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(G.activeUnitId(c), 'a0',
+      'Space → ход support-наёмника');
+    assert.equal(medic.hp, medic.maxHP, 'фикстура: медик цел');
+    c.player.hp = 5; // игрок САМЫЙ раненый (frac 0.8 vs 0 у медика)
+    assert.equal(medic.mp, 5, 'фикстура: мана 5');
+    assert.equal(medic.spellWis, 1, 'фикстура: пул Мудрость 1');
+    let rngCalls = 0;
+    const realRng = c._rng;
+    c._rng = () => (rngCalls++, realRng());
+    tickSlice(S.canvas, S.rafStubs);
+    medic.mp = 2;
+    tickSlice(S.canvas, S.rafStubs);
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    const mendRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'mend');
+    assert.ok(mendRow, 'строка «Заговора» в книге Медика');
+    const n1 = c.log.length;
+    mendRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n1),
+      ['не хватает маны (3)'],
+      'D3: отказ — одна строка, выбор записан: '
+      + JSON.stringify(Array.from(c.log).slice(n1)));
+    medic.mp = 5;
+    tickSlice(S.canvas, S.rafStubs);
+    const n2 = c.log.length;
+    press(S.keydown, 'KeyH');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n2),
+      ['Медик лечит себя (+6).'],
+      'KeyH — ВЫБРАННЫЙ mend на себя (legacy дал бы «Медик лечит '
+      + 'Флогистон (+6).» — самый раненый): '
+      + JSON.stringify(Array.from(c.log).slice(n2)));
+    assert.equal(c.player.hp, 5, 'игрок не тронут (цель = СЕБЕ, Д-F)');
+    assert.equal(medic.mp, 2, 'мана 5→2');
+    assert.equal(medic.spellWis, 0, 'пул 1→0');
+    assert.equal(G.activeUnitId(c), 'a0', 'ход не сгорел');
+    assert.equal(rngCalls, 0, '0 c._rng');
+  }
+});
+
+test('боевой UI: 000236 — каст «Заговора» (лечение) из книги Эфира: c._fx.castFx {at 0, until 600, spellId mend, school исцеление, from efir, toId self}; ровно ОДИН arc среза — аура на клетке кастера (T+150: r 18, fill rgba(111, 220, 111, 0.25) + stroke #6fdc6f; имя «Заговора» 6px/center), полётных/импактных arc на цели НЕТ, кадр efirCast БЕЗ heroCast; T+450 — r 25.2, T+650 — 0 arc/0 имени (CU236-AURA)', () => {
+  const S = scene226({ efir: true, spells: true, allySpells: true });
+  const { G, c, canvas, rafStubs } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  u.x = 3; u.y = 5; // клетка кастера (168, 264)
+  wolf.x = 3; wolf.y = 4; // клетка цели (168, 216)
+  assert.equal(G.activeUnitId(c), 'efir',
+    'pre-roll — стоп на ходу Эфира');
+  assert.equal(u.maxHP, 16, 'фикстура: maxHP 16 (10 + 2·Тел3)');
+  G.combatInternals.dealDamageToAlly(c, u, 6);
+  assert.equal(u.hp, 10, 'фикстура: Эфир ранен 10/16');
+  assert.equal(u.mp, 11, 'фикстура: мана 11');
+  assert.equal(c.efs.spellWis, 1, 'фикстура: пул Мудрость 1');
+  assert.equal(c._fx, undefined, 'c._fx не записано до каста');
+  let rngCalls = 0;
+  const realRng = c._rng;
+  c._rng = () => (rngCalls++, realRng());
+  tickSlice(canvas, rafStubs);
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  const mendRow = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'mend');
+  assert.ok(mendRow, 'строка «Заговора» (книга Эфира [spark, mend])');
+  const n0 = c.log.length;
+  mendRow.listeners.click[0]();
+  assert.deepEqual(Array.from(c.log).slice(n0),
+    ['Эфир лечит себя (+7).'],
+    'лог — ровно ОДНА строка ядра (round((4+1.5+1))=7): '
+    + JSON.stringify(Array.from(c.log).slice(n0)));
+  assert.equal(u.hp, 16, 'Эфир 10→16 (кламп maxHP)');
+  assert.equal(c.efs.spellWis, 0, 'пул 1→0');
+  assert.equal(u.mp, 8, 'мана 11→8 (mend: 3)');
+  assert.equal(G.activeUnitId(c), 'efir', 'ход не сгорел');
+  assert.equal(bookBox.style.display, 'none', 'книга закрыта (r.ok)');
+  assert.equal(rngCalls, 0, '0 c._rng');
+  assert.equal(c._fx && c._fx.action, 'cast', 'c._fx.action = cast');
+  assert.equal(c._fx.until, 300, 'c._fx.until = NOW+300 (поза)');
+  assert.deepEqual(JSON.parse(JSON.stringify(c._fx.castFx)), {
+    at: 0, until: 600, spellId: 'mend', name: 'Заговора',
+    school: 'исцеление', from: 'efir', toId: 'self',
+  }, 'форма castFx: toId «self» (лечение ∉ урон/ослабление/контроль)');
+  // T+150 (t = 0.25): ровно ОДИН arc во всём срезе — аура на клетке
+  // кастера; полётных/импактных НЕТ (ветка «self» return'ит до полёта).
+  S.T.v = 150;
+  let t = tickSlice(canvas, rafStubs);
+  const allArcs = t.calls.filter((x) => x[0] === 'arc');
+  assert.equal(allArcs.length, 1,
+    'ровно ОДИН arc в срезе (аура; steady-state = 0 arc): '
+    + allArcs.length);
+  const aura = arcsAt226(t.events, 168, 264);
+  assert.ok(aura.some((a) => Math.abs(a.r - 18) < 1e-6
+    && a.fill === 'rgba(111, 220, 111, 0.25)'
+    && a.stroke === '#6fdc6f'),
+    'аура на клетке кастера (r 48·(0.3+0.3·0.25)=18, fill rgba α 0.25 '
+    + '+ stroke #6fdc6f)');
+  assert.equal(arcsAt226(t.events, 168, 216).length, 0,
+    '0 arc на клетке цели (полётных/импактных НЕТ: ветка «self»): '
+    + arcsAt226(t.events, 168, 216).length);
+  assert.equal(arcsAt226(t.events, 168, 240).length, 0,
+    '0 arc в середине линии кастер→цель (полётной дуги нет)');
+  assert.equal(arcsAt226(t.events, 216, 216).length, 0,
+    '0 arc в стороне от линии кастер→цель');
+  const ni = nameEvIdx226(t.events, 'Заговора');
+  assert.ok(ni >= 0, 'имя «Заговора» над кастером (fillText)');
+  assert.equal(t.events[ni].c[1][1], 168,
+    'имя x — центр клетки кастера');
+  assert.equal(t.events[ni].c[1][2],
+    Math.max(2, 240 - 6 - 10 * 0.25), 'имя y — top − 6 − 10t = 231.5');
+  assert.equal(fillAt226(t.events, ni), '#6fdc6f',
+    'имя цвет — школа (исцеление)');
+  assert.ok(t.textStyleSets.some(([p, v]) => p === 'font'
+    && v === '6px ui-monospace, monospace'),
+    'шрифт имени 6px ui-monospace');
+  assert.ok(t.textStyleSets.some(([p, v]) => p === 'textAlign'
+    && v === 'center'), 'textAlign center (имя)');
+  assert.ok(t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'efirCast'),
+    'Эфир-cast-кадр в окне позы');
+  assert.ok(!t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'heroCast'),
+    'герой НЕ играет cast-кадр на касте Эфира (quirk-фикс 000226)');
+  // T+450 (t = 0.75): аура продолжается (r 25.2); поза истекла —
+  // кадр idle; на клетке волка 0 arc (не-ветка дала бы импакт 22.8).
+  S.T.v = 450;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(arcsAt226(t.events, 168, 264)
+    .some((a) => Math.abs(a.r - 25.2) < 1e-6
+      && a.fill === 'rgba(111, 220, 111, 0.25)'
+      && a.stroke === '#6fdc6f'),
+    'аура на клетке кастера (r 48·(0.3+0.3·0.75)=25.2)');
+  assert.equal(arcsAt226(t.events, 168, 216).length, 0,
+    '0 arc на клетке волка (импакта в ветке «self» нет)');
+  assert.ok(t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'efir'),
+    'Эфир — idle после окна позы (300 < 450)');
+  assert.ok(!t.calls.some((x) => x[0] === 'drawImage'
+    && x[1][0] && x[1][0].__fake === 'efirCast'),
+    'Эфир-cast-кадра нет после окна позы');
+  // T+650: окно 600 истекло — 0 arc / 0 имени (гард until).
+  S.T.v = 650;
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(!t.calls.some((x) => x[0] === 'arc'),
+    'T+650: 0 arc (FX истекло)');
+  assert.ok(!t.calls.some((x) => x[0] === 'fillText'
+    && x[1][0] === 'Заговора'), 'T+650: 0 имени');
+  assert.equal(rngCalls, 0, '0 c._rng на всё окно');
+});

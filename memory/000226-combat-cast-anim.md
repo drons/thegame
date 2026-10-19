@@ -432,3 +432,23 @@ src/motion.js, src/sprites.js, .merge-pending (стадия мержа).
   resurrectTargetId — то же правило в H4).
 * **CHANGELOG-дата**: workflow — «дата = сегодня» → секция
   ## 2026-10-17 (прогноз 2026-10-16 из §6 — устарел, мерж 17.10).
+
+## 9. Закрытие ретро-20261017 finding'а — задача 000236 (2026-10-19)
+
+Отчёт: tasks/result/000226-retro-20261017.md (анализ на master
+38dbd89, отчёт закоммичен 33c3a4b). major (src/combat-ui.js:1602 —
+путь лечения/защиты ИЗ КНИГИ toId='self' и аура-ветка drawCastFx
+вообще не покрыты; все книжные касты блока — spark-урон) закрыт
+000236: тест CU236-AURA (tests/combat-ui.test.js, EOF-блок
+000236) — Эфир кастит «Заговора» (mend) из книги при r.ok:
+c._fx.castFx deepEqual {at: 0, until: 600, spellId: 'mend',
+name: 'Заговора', school: 'исцеление', from: 'efir', toId:
+'self'}; T+150 — ровно 1 arc в срезе: аура на клетке кастера
+(168, 264) r = 48·(0.3+0.3t) = 18, fill rgba(111, 220, 111, 0.25)
++ stroke #6fdc6f, имя «Заговора» (168, 231.5); T+450 — r 25.2;
+0 arc на клетке волка (168, 216) и на полётной линии (216, 216)
+(ветка 'self' return'ит до полёта/импакта); кадр efirCast без
+heroCast; T+650 — 0 arc/0 имени; 0 c._rng. Контракты —
+memory/000236-retro-combat-k-heal-fx.md §5; отчёт — tasks/result/
+000236.md. Код src/ не менялся (coverage-тест фиксирует
+существующее поведение).
