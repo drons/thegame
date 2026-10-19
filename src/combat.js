@@ -98,15 +98,17 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(
       require('./perlin.js'), require('./player.js'), require('./items.js'),
-      require('./global-settings.js'), require('./mob-groups-data.js'));
+      require('./global-settings.js'), require('./mob-groups-data.js'),
+      require('./loot-equip-data.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
       factory(typeof root.Game === 'object' ? root.Game : {}, root.Game,
         root.Game, root.Game && root.Game.GlobalSettings,
-        (root.Game && root.Game.MobGroupsData) || null));
+        (root.Game && root.Game.MobGroupsData) || null,
+        (root.Game && root.Game.LootEquipData) || null));
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self,
-  function (perlin, P, I, settings, mobGroups) {
+  function (perlin, P, I, settings, mobGroups, lootEquipData) {
 
   if (!settings || typeof settings.SETTINGS !== 'object') {
     throw new Error(
@@ -1177,6 +1179,13 @@
   // efir.js): каталог в рантайме НЕ читается (000133 может расти
   // параллельно — состав пула не сдвигается; целостность id — пин
   // N6). Выбор из пула — равномерный pool[floor(c._rng() * len)].
+  // Экспортируемые live-ссылки на данные модуля (задача 000230.05,
+  // пин N6/EQ2: данные модуля, НЕ каталог; деградация — []/{}).
+  const RARITY_TABLE = (lootEquipData && Array.isArray(lootEquipData.RARITY))
+    ? lootEquipData.RARITY : [];
+  const EQUIP_POOLS = (lootEquipData && lootEquipData.EQUIP_POOLS)
+    ? lootEquipData.EQUIP_POOLS : {};
+
   const LOOT_BASE_CHANCE = 0.25;
   // Базовый пул — ВСЕ предметы каталога kind food/potion (8),
   // порядок файлов каталога (000011..000018).
@@ -1232,6 +1241,28 @@
       if (c._rng() < LOOT_RARE_CHANCE_BASE
           + LOOT_RARE_CHANCE_PER_LV * maxLvl)
         drop(LOOT_RARE_POOL[Math.floor(c._rng() * LOOT_RARE_POOL.length)]);
+      // Редкость экипировочного лута (задача 000230.05, контракт
+      // memory/000230.05-loot-rarity.md §3.2): 1 ролл на ПОБЕДУ,
+      // ОТДЕЛЬНЫЙ — строго ПОСЛЕ редкого ролла (порядок c._rng
+      // закреплён пином N2/EQ4). Guard ДО ЛЮБОГО вызова c._rng:
+      // пустой пул (000230.05 — до контентных волн) → 0 вызовов,
+      // бит-в-бит всех существующих stream-пинов. Редкость —
+      // pickRarityTier (данные модуля 50/30/15/4.9/0.1), предмет —
+      // пул тира (данные модуля; порядок = каталожный); пустой ТИР
+      // → предмета нет (деградация запрещена), select-вызов не
+      // происходит. Дроп-шанса нет (решение D2).
+      if (lootEquipData && Array.isArray(lootEquipData.RARITY)
+          && lootEquipData.EQUIP_POOLS
+          && typeof lootEquipData.pickRarityTier === 'function') {
+        const eqTotal = lootEquipData.RARITY.reduce(
+          (s, t) => s + ((lootEquipData.EQUIP_POOLS[t.id] || []).length), 0);
+        if (eqTotal > 0) {
+          const tier = lootEquipData.pickRarityTier(c._rng);
+          const pool = lootEquipData.EQUIP_POOLS[tier] || [];
+          if (pool.length)
+            drop(pool[Math.floor(c._rng() * pool.length)]);
+        }
+      }
     }
     return items;
   }
@@ -3545,6 +3576,9 @@
     PRACTICE_XP,
     // Лут с мобов (задача 000132): пулы — данные модуля (пины N6).
     LOOT_BASE_POOL, LOOT_RARE_POOL,
+    // Редкость экипировочного лута (задача 000230.05): live-ссылки
+    // на данные модуля (деградация — []/{}).
+    RARITY_TABLE, EQUIP_POOLS,
     hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
     // Инициатива (задача 000167): формула (Ловкость + Интеллект) и
     // активный юнит по очереди — чистые функции (D1/D6, 0 c._rng).

@@ -1072,6 +1072,12 @@
        main.js снимает Game один раз). Чистый модуль — взаимных require
        в момент загрузки нет (прецедент 000053). -->
   <script src="src/building-effects.js"></script>
+  <!-- Редкость экипировочного лута (задача 000230.05): пулы/таблица —
+       МЕЖДУ building-effects.js и combat.js, ДО ОБЕИХ потребителей
+       (browser-ветки combat.js/dungeon.js читают Game.LootEquipData
+       НА LOAD — UMD-ловушка 000038). Чистый data-модуль — ноль
+       зависимостей при загрузке (паттерн mob-groups-data). -->
+  <script src="src/loot-equip-data.js"></script>
   <script src="src/combat.js"></script>
   <script src="src/spells-data.js"></script>
   <script src="src/spells.js"></script>

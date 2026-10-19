@@ -3,6 +3,13 @@ const assert = require('node:assert/strict');
 const D = require('../src/dungeon.js');
 const M = require('../src/map.js');
 const { createCharacter } = require('../src/player.js');
+// 000230.05: каталог предметов (фикстура: in-place push в ITEMS) +
+// perlin (независимый расчёт потока rng_eq для CH-пинов) — оба
+// модуля существуют на мастерской базе (техническое добавление в
+// шапку; data-модуль loot-equip-data.js require-вается ЛЕНИВО в теле
+// тестов — на red-фазе файла нет, MODULE_NOT_FOUND осмысленный).
+const { ITEMS } = require('../src/items-data.js');
+const { hash2, mulberry32 } = require('../src/perlin.js');
 
 const PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
 
@@ -2658,4 +2665,231 @@ test('DUN-RENAME-1: переименование поля видов стен: 0
     path.join(ROOT, 'src', 'dungeons-data.js'), 'utf8');
   assert.ok(ddText.includes(NEW_NAME),
     'src/dungeons-data.js: зеркало — ключ «' + NEW_NAME + '»');
+});
+
+// =====================================================================
+// --- Задача 000230.05 ---
+// 000230.05: редкость лута экипировки из сундуков 50/30/15/4.9/0.1.
+// Контракт: memory/000230.05-loot-rarity.md §3.3/§4/§5.
+//
+// КРАСНЫЕ тесты (TDD): в dungeon.js функциональности НЕТ — нет
+// экспорта CHEST_EQ_SALT, нет data-модуля src/loot-equip-data.js
+// (require ЛЕНИВО в теле теста — MODULE_NOT_FOUND осмысленный, НЕ
+// load-ошибка всех 73 тестов файла; шапка не тронута, кроме
+// items-data/perlin — они существуют на базе).
+//
+// Закреплены контракты:
+//   * CH1 — СВОЙ rng-поток (паттерн 000157.02): формула
+//     mulberry32(hash2(seed, depth, CHEST_EQ_SALT) >>> 0), соль
+//     0x0E5C (export + ТЕКСТ-ПИН литерала — смена = репин зоны);
+//     блок ПОСЛЕ залежей, вызовы по порядку сундуков ТОЛЬКО
+//     триггернутые; golden: ABYSS (11,3) xp=18 (сценарий D-BOSS-2,
+//     cseed 4033219701, depth 1): fixture slot-предмет c1 → тир
+//     common (r1=0.10336582502350211) → pool[1] (r2=
+//     0.8092278488911688, idx=floor(r·2)=1); c0 (null) / c2 / c3
+//     (без slot) / seed / mobs / deposits — бит-в-бит D-BOSS-2;
+//   * CH2 — триггер: ЯВНЫЙ slot ТОЛЬКО (it.slot !== undefined,
+//     решение 10): предмет заменён на предмет роулнутой редкости из
+//     пула; расходники (slot undefined) — без изменений; null-
+//     сундук — без изменений; gold/позиции — без изменений;
+//   * CH3 — детерминизм СВОЕГО потока: 2 запуска → идентичные
+//     chests + golden;
+//   * CH4 — данные модуля: RARITY 5 записей (сумма === 1), ids ===
+//     ITEM_RARITIES, на .05 все 5 тиров ПУСТЫ, pickRarityTier —
+//     функция; целостность-хук (волны .08–.15).
+//
+// Фикстура (D7): предмет — in-place push в ITEMS-синглтон (главный
+// rng НЕ трогает: выбор сундука по индексу, DUNGEON_ITEMS[type] —
+// собственная копия, push её не удлиняет); триггер —
+// DUNGEON_ITEMS.ABYSS[0] = fixture-id ПО ИНДЕКСУ (len 7 сохранён →
+// главный rng index-идентичен, меняются только предметы сундуков);
+// пул — in-place push в L.EQUIP_POOLS.common; restore ВСЕГО — в
+// finally ВНУТРИ теста. Замена export-объекта ЗАПРЕЩЕНА (снапшот
+// ссылки фабрики).
+// =====================================================================
+
+const CH_FIX_ID = 'ch_fixture_eq';
+const CH_FIX_POOL_B = 'ch_fixture_pool_b';
+
+// Сценарий D-BOSS-2 (11,3) xp=18: mobs — бит-в-бит (пин :895-901).
+const CH1_MOBS = [
+  { id: 'g0', mobIds: ['lower_demon', 'abomination', 'succubus'], x: 5, y: 23, level: 4, defeated: false },
+  { id: 'g1', mobIds: ['lower_demon', 'lower_demon'], x: 3, y: 13, level: 1, defeated: false },
+  { id: 'g2', mobIds: ['lower_demon'], x: 7, y: 5, level: 3, defeated: false },
+  { id: 'g3', mobIds: ['abomination', 'abomination'], x: 13, y: 7, level: 1, defeated: false },
+  { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 14, y: 6, level: 4, defeated: false, boss: true },
+];
+// Deposits сценария — по ФАКТУ рабочей генерации (node-пробой
+// master-базы; блок .05 ПОСЛЕ залежей — deposits не трогает).
+const CH1_DEPOSITS = [
+  { id: 'd0', x: 24, y: 16, item: 'stone_chunk', amount: 2, gathered: false },
+];
+// Golden chests: c1 (fixture с явным slot) → common, pool[1];
+// c0/c2/c3 — дословно D-BOSS-2 (war_hammer заменён на пуловый).
+const CH1_GOLDEN_CHESTS = [
+  { id: 'c0', x: 17, y: 23, opened: false, gold: 20, item: null },
+  { id: 'c1', x: 13, y: 11, opened: false, gold: 12, item: CH_FIX_POOL_B },
+  { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'blizzard_scroll' },
+  { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'blizzard_scroll' },
+];
+
+function chFixItem() {
+  return {
+    id: CH_FIX_ID, name: 'Фикстура (000230.05)', kind: 'weapon',
+    slot: 'right_hand', rarity: 'common', weight: 1, value: 10,
+    desc: 'Тест-фикстура: явный slot (триггер 000230.05).',
+  };
+}
+
+function chSetup(L, poolIds) {
+  const itemsLen = ITEMS.length;
+  const abyss = D.DUNGEON_ITEMS[D.DUNGEON_TYPES.ABYSS];
+  const abyss0 = abyss[0];
+  const poolLen = L.EQUIP_POOLS.common.length;
+  ITEMS.push(chFixItem());
+  abyss[0] = CH_FIX_ID;
+  L.EQUIP_POOLS.common.push(...poolIds);
+  return { itemsLen, abyss0, poolLen };
+}
+
+function chTeardown(L, sav) {
+  if (!L || !sav) return;
+  L.EQUIP_POOLS.common.splice(sav.poolLen);
+  D.DUNGEON_ITEMS[D.DUNGEON_TYPES.ABYSS][0] = sav.abyss0;
+  ITEMS.splice(sav.itemsLen);
+}
+
+test('000230.05-CH1: сундук-редкость — СВОЙ rng-поток: соль 0x0E5C (export + текст-пин), формула mulberry32(hash2(seed, depth, 0x0E5C)>>>0); golden ABYSS (11,3) xp=18: c1 = common-пул pool[1], c0/c2/c3/seed/mobs/deposits — бит-в-бит (RED)', () => {
+  let L = null;
+  let sav = null;
+  try {
+    L = require('../src/loot-equip-data.js');
+    assert.equal(D.CHEST_EQ_SALT, 0x0E5C,
+      'dungeon.js: экспорт CHEST_EQ_SALT — 0x0E5C (уникальна '
+      + 'против ВСЕХ 0x-констант src/*, решение D6)');
+    const text = fs.readFileSync(
+      path.join(ROOT, 'src', 'dungeon.js'), 'utf8');
+    assert.ok(text.includes('0x0E5C'),
+      'соль 0x0E5C — литерал в src/dungeon.js (смена = репин всей '
+      + 'зоны сундуков, ORE-7)');
+    // Независимый расчёт СВОЕГО потока (контракт-формула):
+    // seed = c.seed (4033219701, D-BOSS-2), depth = 1.
+    assert.equal(hash2(4033219701, 1, 0x0E5C) >>> 0, 0xe9950614,
+      'hash2(cseed, 1, 0x0E5C) >>> 0 — закреплён');
+    const rng_eq = mulberry32(0xe9950614);
+    assert.equal(rng_eq(), 0.10336582502350211,
+      'r1 (tier, c1) — закреплён → common');
+    assert.equal(rng_eq(), 0.8092278488911688,
+      'r2 (select, c1) — закреплён → idx floor(r·2) = 1');
+    sav = chSetup(L, ['ch_fixture_pool_a', CH_FIX_POOL_B]);
+    const d = D.createDungeon(11, 3, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN);
+    assert.equal(d.seed, 2941640529, 'сид подземелья (D-BOSS-2 пин)');
+    const c = D.generateDungeonContents(d, heroAt(18));
+    assert.equal(c.seed, 4033219701,
+      'сид контента — бит-в-бит (главный поток не тронут)');
+    assert.deepEqual(c.mobs, CH1_MOBS,
+      'mobs — без изменений (D-BOSS-2 пин; потоки изолированы)');
+    assert.deepEqual(c.deposits, CH1_DEPOSITS,
+      'deposits — без изменений (блок .05 ПОСЛЕ залежей)');
+    assert.deepEqual(c.chests, CH1_GOLDEN_CHESTS,
+      'golden: c1 (fixture с явным slot) → common tier, pool[1]; '
+      + 'c0 (null), c2/c3 (без slot) — дословно D-BOSS-2');
+  } finally {
+    chTeardown(L, sav);
+  }
+});
+
+test('000230.05-CH2: триггер — ЯВНЫЙ slot ТОЛЬКО: c1 (fixture, slot right_hand) → предмет роулнутой редкости (common) из пула; c2/c3 (spell_scroll, без slot) — без изменений; c0 (null) — без изменений; gold/позиции — без изменений (RED)', () => {
+  let L = null;
+  let sav = null;
+  try {
+    L = require('../src/loot-equip-data.js');
+    sav = chSetup(L, ['ch2_fixture_a', 'ch2_fixture_b']);
+    const d = D.createDungeon(11, 3, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN);
+    const c = D.generateDungeonContents(d, heroAt(18));
+    const chest = (id) => c.chests.find((x) => x.id === id);
+    const c1 = chest('c1');
+    assert.ok(L.EQUIP_POOLS.common.includes(c1.item),
+      'c1 (явный slot): item — ИЗ пула роулнутой редкости (common); '
+      + 'факт: ' + c1.item);
+    assert.notEqual(c1.item, CH_FIX_ID,
+      'c1: item ЗАМЕНЁН (не выбранный fixture)');
+    assert.equal(c1.item, 'ch2_fixture_b',
+      'c1: select idx = floor(0.8092…·2) = 1 (поток CH1)');
+    assert.deepEqual({ x: c1.x, y: c1.y, gold: c1.gold },
+      { x: 13, y: 11, gold: 12 },
+      'c1: позиция/gold — без изменений (главный rng бит-в-бит)');
+    assert.equal(chest('c2').item, 'blizzard_scroll',
+      'c2 (spell_scroll, slot undefined): БЕЗ ИЗМЕНЕНИЙ (расходник — '
+      + 'как сейчас, DUNGEON_ITEMS)');
+    assert.equal(chest('c3').item, 'blizzard_scroll',
+      'c3 (spell_scroll, slot undefined): БЕЗ ИЗМЕНЕНИЙ');
+    assert.equal(chest('c0').item, null, 'c0 (null): без изменений');
+  } finally {
+    chTeardown(L, sav);
+  }
+});
+
+test('000230.05-CH3: детерминизм СВОЕГО потока: фикстура пула → два запуска generateDungeonContents → идентичные chests (+ seed/mobs); golden (RED)', () => {
+  let L = null;
+  let sav = null;
+  try {
+    L = require('../src/loot-equip-data.js');
+    sav = chSetup(L, ['ch_fixture_pool_a', CH_FIX_POOL_B]);
+    const d = D.createDungeon(11, 3, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN);
+    const a = D.generateDungeonContents(d, heroAt(18));
+    const b = D.generateDungeonContents(d, heroAt(18));
+    assert.equal(a.seed, b.seed, 'seed — идентичен');
+    assert.deepEqual(a.mobs, b.mobs, 'mobs — идентичны');
+    assert.deepEqual(a.deposits, b.deposits, 'deposits — идентичны');
+    assert.deepEqual(a.chests, b.chests,
+      'повторный вызов — идентичные chests (свой rng-поток '
+      + 'детерминирован)');
+    assert.deepEqual(a.chests, CH1_GOLDEN_CHESTS, 'golden (CH1)');
+  } finally {
+    chTeardown(L, sav);
+  }
+});
+
+test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/30/15/4.9/0.1 (сумма === 1, ids === ITEM_RARITIES), на .05 все 5 тиров ПУСТЫ, pickRarityTier — функция; целостность-хук (RED)', () => {
+  const L = require('../src/loot-equip-data.js');
+  const I = require('../src/items.js');
+  assert.ok(Array.isArray(L.RARITY), 'RARITY — массив');
+  assert.deepEqual(L.RARITY, [
+    { id: 'common', chance: 0.5 },
+    { id: 'rare', chance: 0.3 },
+    { id: 'epic', chance: 0.15 },
+    { id: 'legendary', chance: 0.049 },
+    { id: 'impossible', chance: 0.001 },
+  ], 'RARITY: 5 редкостей 50/30/15/4.9/0.1, порядок common→'
+    + 'impossible (acc-накопление зависит от порядка)');
+  assert.equal(L.RARITY.reduce((s, t) => s + t.chance, 0), 1,
+    'сумма вероятностей === 1 (FP, точное)');
+  assert.deepEqual(L.RARITY.map((t) => t.id),
+    Object.values(I.ITEM_RARITIES),
+    'ids === ITEM_RARITIES (items.js, 000230.01 — единый источник)');
+  assert.deepEqual(L.EQUIP_POOLS,
+    { common: [], rare: [], epic: [], legendary: [], impossible: [] },
+    '.05: все 5 тиров ПУСТЫ (контент — волны 000230.08–.15)');
+  assert.equal(typeof L.pickRarityTier, 'function',
+    'pickRarityTier(rngFn) — чистая функция (1 вызов rngFn)');
+  // Целостность-хук (волны): каждый id — в каталоге, явный slot +
+  // rarity, catalog-rarity === ключ тира, порядок = каталожный.
+  const byId = new Map(I.allItems().map((it) => [it.id, it]));
+  const catOrder = I.allItems().map((it) => it.id);
+  for (const t of L.RARITY) {
+    let prevIdx = -1;
+    for (const id of (L.EQUIP_POOLS[t.id] || [])) {
+      const it = byId.get(id);
+      assert.ok(it, 'пул ' + t.id + ': id есть в каталоге: ' + id);
+      assert.notEqual(it.slot, undefined,
+        'пул ' + t.id + ': явный slot: ' + id);
+      assert.equal(it.rarity, t.id,
+        'пул ' + t.id + ': catalog-rarity === ключ тира: ' + id);
+      const idx = catOrder.indexOf(id);
+      assert.ok(idx > prevIdx,
+        'пул ' + t.id + ': порядок = порядок каталога: ' + id);
+      prevIdx = idx;
+    }
+  }
 });

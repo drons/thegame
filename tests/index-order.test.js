@@ -45,6 +45,11 @@ test('index.html: нужные модули подключены', () => {
     'src/dungeons-data.js',
     'src/visuals-data.js',
     'src/building-effects.js',
+    // 000230.05: пулы/редкость экипировочного лута — МЕЖДУ
+    // building-effects.js и combat.js, ДО ОБОИХ потребителей
+    // (browser-ветки combat.js/dungeon.js читают Game.LootEquipData
+    // НА LOAD — UMD-ловушка 000038; пин порядка ниже).
+    'src/loot-equip-data.js',
     'src/building-ui.js',
     'src/building-actions.js',
     'src/building-effect-44_rest.js',
@@ -1995,4 +2000,26 @@ test('000235.02 OC18: index.html CSS — новые правила .spellbook-oc
   assert.equal(res['z-index'], '20', 'гард: лестница .resurrect-overlay 20');
   const tc = first('#touch-controls');
   assert.equal(tc['z-index'], '30', 'гард: лестница #touch-controls 30');
+});
+
+// --- Задача 000230.05: редкость экипировочного лута ---
+//
+// loot-equip-data.js (Game.LootEquipData: RARITY/EQUIP_POOLS/
+// pickRarityTier) — data-модуль для ДВУХ потребителей: browser-ветки
+// combat.js и dungeon.js читают root.Game.LootEquipData НА LOAD
+// фабрики (UMD-ловушка 000038: битый порядок не падает при
+// загрузке, а тихо даёт null навсегда — node-тесты зелёные).
+// Порядок закреплён: МЕЖДУ building-effects.js и combat.js, т.е. ДО
+// combat.js И ДО dungeon.js (паттерн dungeons-data.js < dungeon.js,
+// задача 000058).
+
+test('index.html: loot-equip-data.js подключён и ДО combat.js и dungeon.js (UMD: пулы читаются при загрузке обоих потребителей) (000230.05, RED)', () => {
+  assert.notEqual(pos('src/loot-equip-data.js'), -1,
+    'src/loot-equip-data.js не подключён в index.html (задача 000230.05)');
+  assert.ok(pos('src/loot-equip-data.js') < pos('src/combat.js'),
+    'src/loot-equip-data.js должен быть раньше src/combat.js '
+    + '(browser-ветка combat.js снимает Game ЛОАД)');
+  assert.ok(pos('src/loot-equip-data.js') < pos('src/dungeon.js'),
+    'src/loot-equip-data.js должен быть раньше src/dungeon.js '
+    + '(browser-ветка dungeon.js снимает Game ЛОАД)');
 });

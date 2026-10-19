@@ -26,16 +26,18 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(require('./perlin.js'), require('./map.js'),
       require('./global-settings.js'), require('./dungeons-data.js'),
-      require('./items-data.js').ITEMS);
+      require('./items-data.js').ITEMS, require('./loot-equip-data.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
       factory(typeof root.Game === 'object' ? root.Game : {}, root.Game,
         root.Game && root.Game.GlobalSettings,
         root.Game && root.Game.DungeonsData,
-        root.Game && root.Game.ITEMS));
+        root.Game && root.Game.ITEMS,
+        (root.Game && root.Game.LootEquipData) || null));
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self,
-  function (perlin, mapmod, settings, dungeonsData, itemsData) {
+  function (perlin, mapmod, settings, dungeonsData, itemsData,
+            lootEquipData) {
 
   const mulberry32 = perlin.mulberry32;
   const hash2 = perlin.hash2;
@@ -403,6 +405,13 @@
   // 0x0c9f4b2d стены) и с in-flight 0x0DE5 (депозиты 000157.02) —
   // закреплено tests/dungeon.test.js ST-1.
   const STAIRS_SALT = 0x53d10d53;
+
+  // 000230.05: редкость лута экипировки из сундуков — СВОЙ rng-поток
+  // mulberry32(hash2(seed, depth, 0x0E5C) >>> 0) (паттерн 000157.02,
+  // блок ПОСЛЕ залежей). Соль 0x0E5C — без коллизий с ВСЕМИ 0x-
+  // константами src/* (решение D6; ORE-7: смена = репин всей зоны —
+  // пин CH1: export + текст-пин литерала).
+  const CHEST_EQ_SALT = 0x0E5C;
 
   /**
    * BFS-дистанции (4-соседство) от (sx, sy) по FLOOR-клеткам.
@@ -796,6 +805,47 @@
       }
     }
 
+    // Редкость лута экипировки из сундуков (задача 000230.05,
+    // контракт memory/000230.05-loot-rarity.md §3.3): предмет с
+    // ЯВНЫМ slot (it.slot !== undefined — решение 10; расходники
+    // и legacy без slot — без изменений) → ролл редкости
+    // (50/30/15/4.9/0.1, данные модуля) → замена ch.item на
+    // предмет тир-пула. СВОЙ rng-поток mulberry32(hash2(seed,
+    // depth, CHEST_EQ_SALT) >>> 0) — паттерн 000157.02: блок
+    // ПОСЛЕ залежей (правило «новые механики — ПОСЛЕ залежей»),
+    // вызовы строго по порядку сундуков c0..cN, ТОЛЬКО
+    // триггернутые (item непусто И slot явный): 1 (tier) +
+    // 1 (select, только если тир-пул не пуст). Главный rng /
+    // occupied / spots / gold / mobs — НЕ ТРОГАЮТСЯ (goldens
+    // seed/mobs/chests бит-в-бит). Guard ДО ЛЮБОГО вызова rng:
+    // пустой пул (000230.05) → 0 вызовов. Замена IN-PLACE:
+    // НОВЫХ КЛЮЧЕЙ В ОБЪЕКТЕ СУНДУКА НЕТ (сериализатор save.js
+    // {id,x,y,opened,gold,item} держит). Редкость предмета НЕ
+    // храним — определяется каталогом (000230.01/.02).
+    {
+      const eqOk = lootEquipData && Array.isArray(lootEquipData.RARITY)
+        && lootEquipData.EQUIP_POOLS
+        && typeof lootEquipData.pickRarityTier === 'function';
+      const eqTotal = eqOk
+        ? lootEquipData.RARITY.reduce(
+            (s, t) => s + ((lootEquipData.EQUIP_POOLS[t.id] || []).length), 0)
+        : 0;
+      if (eqTotal > 0) {
+        const rng_eq = mulberry32(hash2(seed, depth, CHEST_EQ_SALT) >>> 0);
+        for (const ch of chests) {
+          if (!ch.item) continue;
+          const it = Array.isArray(itemsData)
+            ? itemsData.find((x) => x && x.id === ch.item)
+            : undefined;
+          if (!it || it.slot === undefined) continue;
+          const tier = lootEquipData.pickRarityTier(rng_eq);
+          const pool = lootEquipData.EQUIP_POOLS[tier] || [];
+          if (pool.length)
+            ch.item = pool[Math.floor(rng_eq() * pool.length)];
+        }
+      }
+    }
+
     return {
       seed,
       mobs,
@@ -1106,5 +1156,7 @@
     // 000153.02: генерация этажа — размер per-глубина + stairs-down
     // (additive; bfsDistances — внутренний хелпер, НЕ экспортируется).
     DUNGEON_SIZE_CAP, dungeonSizeFor, STAIRS_SALT, stairsDownFor,
+    // 000230.05: соль СВОЕГО rng-потока редкости сундуков (CH1-пин).
+    CHEST_EQ_SALT,
   };
 });

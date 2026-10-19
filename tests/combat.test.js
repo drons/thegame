@@ -26,6 +26,10 @@ const {
   // TypeError «not a function», не load-ошибка; прецедент
   // 000132/000155/000167).
   mobReachCells,
+  // 000230.05: редкость экипировочного лута (красные тесты: экспорт
+  // отсутствует — undefined, падение осмысленное, не load-ошибка;
+  // прецедент 000132: LOOT_BASE_POOL/LOOT_RARE_POOL).
+  RARITY_TABLE, EQUIP_POOLS,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
@@ -8645,4 +8649,237 @@ test('000235.01 C5: создание — стена (ряд y=py−2, ровно
         'c.obstacles не тронуты');
     }
   });
+});
+
+// =====================================================================
+// --- Задача 000230.05 ---
+// 000230.05: редкость экипировочного лута мобов 50/30/15/4.9/0.1.
+// Контракт: memory/000230.05-loot-rarity.md §3.2/§4/§5.
+//
+// КРАСНЫЕ тесты (TDD): в combat.js функциональности НЕТ — нет экспорта
+// RARITY_TABLE/EQUIP_POOLS (undefined — осмысленное падение, не
+// load-ошибка; прецедент 000132/000155/000167), data-модуля
+// src/loot-equip-data.js НЕТ (require ТОЛЬКО в теле теста —
+// MODULE_NOT_FOUND осмысленный, не load-ошибка всего файла).
+//
+// Закреплены контракты:
+//   * EQ1 — таблица редкости: точные 5 записей
+//     common 0.5 / rare 0.3 / epic 0.15 / legendary 0.049 /
+//     impossible 0.001 (порядок common→impossible), сумма === 1 (FP),
+//     ids === ITEM_RARITIES (items.js, 000230.01);
+//   * EQ2 — пул экипировки: данные модуля, на .05 ВСЕ 5 тиров ПУСТЫ
+//     (контент — волны 000230.08–.15), live-ссылка на data-модуль
+//     (чтение ЖИВЬЁМ в момент ролла), целостность-хук в одну сторону
+//     (id ∈ каталогу, явный slot + rarity, catalog-rarity === тир);
+//   * EQ3 — выпадает предмет СКАЗАНОЙ редкости: фикстура 1 предмет/тир,
+//     константные rng 0.25/0.65/0.875/0.9745/0.9995 (существующие
+//     роллы все мимо) → ТОЧНО фикстура соответствующего тира;
+//     select = pool[floor(rng·len)] (2-элем. пул, r=0.8092… → idx 1);
+//     E3-границы pickRarityTier (строгоe r < acc, FP-точные acc:
+//     0.95 = 0.9500000000000001 → epic, 0.999 → legendary,
+//     0.9990000000000001 → impossible); E7 — пустой тир: предмета
+//     НЕТ, деградации в нижний тир НЕТ, select-вызов НЕ происходит;
+//   * EQ4 — новый ролл ОТДЕЛЬНЫЙ, СТРОГО ПОСЛЕ существующих:
+//     фикстура + rng→0, 2×волк L2 → точный состав N2 + 1 экипировочный
+//     (common) ПОСЛЕДНИМ, xp 32 / gold 14 БЕЗ ИЗМЕНЕНИЙ (бит-в-бит);
+//     под-случай реального ПУСТОГО пула → состав дословно N2
+//     (зелёный с red-фазы — бит-в-бит-гард реального потока);
+//   * EQ5 — детерминизм: фиксированный сид + фикстура 5 тиров,
+//     2 прогона → идентичный состав; golden — захват с рабочего кода
+//     на зелёной стадии (ORE-7, node-реверификация).
+//
+// Фикстура пула — in-place push в C.EQUIP_POOLS, restore в finally
+// ВНУТРИ теста (Д7: замена объекта ЗАПРЕЩЕНА — фабрика держит
+// снапшот ссылки; id фикстуры НЕ обязан существовать в каталоге —
+// рантайм каталог не читает, решение D1).
+// =====================================================================
+
+const EQ_TIERS = ['common', 'rare', 'epic', 'legendary', 'impossible'];
+
+function eqPoolsSave() {
+  if (!EQUIP_POOLS) return null;
+  return EQ_TIERS.map((t) => EQUIP_POOLS[t].length);
+}
+
+function eqPoolsRestore(sav) {
+  if (!sav || !EQUIP_POOLS) return;
+  EQ_TIERS.forEach((t, i) => { EQUIP_POOLS[t].splice(sav[i]); });
+}
+
+test('000230.05-EQ1: таблица редкости — пин: точные 5 записей 0.50/0.30/0.15/0.049/0.001 (порядок common→impossible), сумма === 1 (FP), ids === ITEM_RARITIES (RED)', () => {
+  assert.ok(Array.isArray(RARITY_TABLE),
+    'combat.js: экспорт RARITY_TABLE (таблица редкости — данные '
+    + 'модуля, фиксированная)');
+  assert.deepEqual(RARITY_TABLE, [
+    { id: 'common', chance: 0.5 },
+    { id: 'rare', chance: 0.3 },
+    { id: 'epic', chance: 0.15 },
+    { id: 'legendary', chance: 0.049 },
+    { id: 'impossible', chance: 0.001 },
+  ], 'RARITY_TABLE: 5 редкостей 50/30/15/4.9/0.1, порядок '
+    + 'возрастающей редкости (acc-накопление зависит от порядка)');
+  assert.equal(
+    RARITY_TABLE.reduce((s, t) => s + t.chance, 0), 1,
+    'сумма вероятностей === 1 (FP, точное)');
+  assert.deepEqual(
+    RARITY_TABLE.map((t) => t.id), Object.values(I.ITEM_RARITIES),
+    'ids редкостей === ITEM_RARITIES (items.js, 000230.01 — единый '
+    + 'источник)');
+});
+
+test('000230.05-EQ2: пул экипировки — данные модуля: на .05 все 5 тиров ПУСТЫ, live-ссылка на data-модуль, целостность-хук (RED)', () => {
+  assert.ok(EQUIP_POOLS && typeof EQUIP_POOLS === 'object',
+    'combat.js: экспорт EQUIP_POOLS (пул экипировки — данные '
+    + 'модуля, НЕ вывод из каталога в рантайме)');
+  assert.deepEqual(EQUIP_POOLS,
+    { common: [], rare: [], epic: [], legendary: [], impossible: [] },
+    '.05: все 5 тиров ПУСТЫ (контент — волны 000230.08–.15)');
+  const L = require('../src/loot-equip-data.js');
+  assert.strictEqual(EQUIP_POOLS, L.EQUIP_POOLS,
+    'EQUIP_POOLS — live-ссылка на data-модуль (чтение ЖИВЬЁМ в '
+    + 'момент ролла; load-time-копия запрещена)');
+  assert.strictEqual(RARITY_TABLE, L.RARITY,
+    'RARITY_TABLE — live-ссылка на data-модуль');
+  // Целостность — В ОДНУ СТОРОНУ (паттерн N6/ORE-8); на .05 хук
+  // пустой (пулы пусты), волны наполнят — регресс ловится здесь.
+  const byId = new Map(I.allItems().map((it) => [it.id, it]));
+  for (const t of RARITY_TABLE) {
+    for (const id of (EQUIP_POOLS[t.id] || [])) {
+      const it = byId.get(id);
+      assert.ok(it, 'пул ' + t.id + ': id есть в каталоге: ' + id);
+      assert.notEqual(it.slot, undefined,
+        'пул ' + t.id + ': явный slot: ' + id);
+      assert.equal(it.rarity, t.id,
+        'пул ' + t.id + ': catalog-rarity === ключ тира: ' + id);
+    }
+  }
+});
+
+test('000230.05-EQ3: выпадает предмет СКАЗАНОЙ редкости: константные rng 0.25/0.65/0.875/0.9745/0.9995 → ТОЧНО фикстура тира; select = pool[floor(rng·len)]; E3-границы pickRarityTier; E7 — пустой тир → предмета нет (RED)', () => {
+  const L = require('../src/loot-equip-data.js');
+  const sav = eqPoolsSave();
+  try {
+    // Фикстура: 1 предмет на тир. id вне каталога — допустимо
+    // (рантайм каталог не читает, D1; целостность — EQ2/CH4).
+    for (const t of EQ_TIERS) EQUIP_POOLS[t].push('eq3_fixture_' + t);
+    // killBy 'dealDamage' — НОЛЬ c._rng на убийство: поток = gold-ролл
+    // (checkVictory, 1) + лут-роллы (per-mob 0.1 / база 0.25 / редкий
+    // 0.05+0.01·2 = 0.07) + экипировка. Константы ниже ВСЕ мимо
+    // лут-роллов (gold-ролл предметов не даёт) → items = ТОЛЬКО
+    // экипировочный дроп.
+    const kill = (r) =>
+      winLoot({ rng: () => r, killBy: 'dealDamage' }).c.result.items;
+    const expect = (r, tier) => {
+      assert.deepEqual(kill(r), [{ id: 'eq3_fixture_' + tier, qty: 1 }],
+        'rng→' + r + ': дроп — ТОЧНО фикстура «' + tier + '» '
+        + '(ролл редкости → пул тира)');
+    };
+    expect(0.25, 'common');
+    expect(0.65, 'rare');
+    expect(0.875, 'epic');
+    expect(0.9745, 'legendary');
+    expect(0.9995, 'impossible');
+    // select = pool[floor(rng·len)]: 2-элементный пул, r = 0.8092…
+    // (тир epic) → idx 1 (второй предмет).
+    EQUIP_POOLS.epic.push('eq3_fixture_epic_b');
+    assert.deepEqual(
+      kill(0.8092278488911688),
+      [{ id: 'eq3_fixture_epic_b', qty: 1 }],
+      'select: пул 2 elem, r=0.8092… → idx 1 (floor(r·len))');
+    // E3-границы: строгое r < acc, FP-точные накопленные суммы
+    // (0.5+0.3+0.15 = 0.9500000000000001; +0.049 = 0.9990000000000001)
+    // — 0.95 → epic, 0.999 → legendary (НЕ impossible),
+    // 0.9990000000000001 → impossible.
+    const pin = [
+      [0.25, 'common'], [0.5, 'rare'], [0.65, 'rare'],
+      [0.8, 'epic'], [0.875, 'epic'], [0.95, 'epic'],
+      [0.9500000000000001, 'legendary'], [0.9745, 'legendary'],
+      [0.999, 'legendary'], [0.9990000000000001, 'impossible'],
+      [0.9995, 'impossible'], [1, 'impossible'],
+    ];
+    for (const [v, tier] of pin) {
+      assert.equal(L.pickRarityTier(() => v), tier,
+        'pickRarityTier(' + v + ') — «' + tier + '»');
+    }
+    // E7: пустой ТИР (ролл дал тир, в нём пусто) → предмета НЕТ,
+    // деградации в нижний тир НЕТ, select-вызов НЕ происходит
+    // (D-D; бит-в-бит-робастность). Пул оставлен ТОЛЬКО в common.
+    for (const t of ['rare', 'epic', 'legendary', 'impossible'])
+      EQUIP_POOLS[t].splice(0);
+    let calls = 0;
+    const counting = () => { calls += 1; return 0.875; };
+    const r7 = winLoot({ rng: counting, killBy: 'dealDamage' }).c.result;
+    assert.deepEqual(r7.items, [],
+      'пустой тир (epic при r=0.875): предмета НЕТ (деградация '
+      + 'запрещена)');
+    assert.equal(calls, 5,
+      'вызовы c._rng: gold 1 (checkVictory) + per-mob 1 + база 1 + '
+      + 'редкий 1 + tier 1; select — НЕТ (пустой тир)');
+  } finally {
+    eqPoolsRestore(sav);
+  }
+});
+
+test('000230.05-EQ4: экипировочный ролл ОТДЕЛЬНЫЙ, СТРОГО ПОСЛЕ существующих: rng→0, 2×волк L2 → состав N2 + 1 экипировочный (common) ПОСЛЕДНИМ, xp 32 / gold 14 без изменений; пустой пул → дословно N2 (RED)', () => {
+  const sav = eqPoolsSave();
+  try {
+    // (а) Фикстура (1 common): экипировочный предмет — КОНЦОМ массива
+    // (порядок первого появления), ДО него — точный состав N2.
+    EQUIP_POOLS.common.push('eq4_fixture_common');
+    const { c } = winLoot({ mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 5,
+      rng: () => 0 });
+    assert.equal(c.result.xp, 32, 'xp — без изменений (N2)');
+    assert.equal(c.result.gold, 14,
+      'gold — без изменений (N2): поток c._rng не сдвинут');
+    assert.deepEqual(c.result.items, [
+      { id: 'leather_armor', qty: 2 },
+      { id: 'minor_healing', qty: 2 },
+      { id: 'iron_sword', qty: 1 },
+      { id: 'eq4_fixture_common', qty: 1 },
+    ], 'rng→0: точный состав N2 (таблица+база+редкий) + 1 '
+      + 'экипировочный (tier common) ПОСЛЕДНИМ');
+  } finally {
+    eqPoolsRestore(sav);
+  }
+  // (б) Реальный ПУСТОЙ пул (состояние .05) → состав дословно N2:
+  // бит-в-бит-гард реального потока (зелёный с red-фазы: механизма
+  // нет — N2; зелёная фаза: guard eqTotal → 0 новых вызовов c._rng).
+  const { c: c2 } = winLoot({ mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 5,
+    rng: () => 0 });
+  assert.deepEqual(c2.result.items, [
+    { id: 'leather_armor', qty: 2 },
+    { id: 'minor_healing', qty: 2 },
+    { id: 'iron_sword', qty: 1 },
+  ], 'пустой пул — состав дословно N2 (без нового ролла)');
+});
+
+// Golden EQ5 — захват с рабочего кода на зелёной стадии (ORE-7,
+// node-реверификация): сценарий winLoot (2×волк L2, seed 7, реальный
+// c._rng) + фикстура 1 предмет/тир; состав = существующие дропы
+// (per-mob/база/редкий по реальному потоку) + 1 экипировочный
+// (фикстура роулнутого тира) ПОСЛЕДНИМ. По реальному потоку seed 7:
+// per-mob leather_armor (qty 1) + редкий ролл дал тир rare →
+// eq5_fixture_rare (последним). Dormant (без пула) — leather_armor
+// только (бит-в-бит существующего потока).
+const EQ5_GOLDEN = [
+  { id: 'leather_armor', qty: 1 },
+  { id: 'eq5_fixture_rare', qty: 1 },
+];
+
+test('000230.05-EQ5: детерминизм: фиксированный сид + фикстура 5 тиров → два прогона идентичны; golden (RED)', () => {
+  const sav = eqPoolsSave();
+  try {
+    for (const t of EQ_TIERS) EQUIP_POOLS[t].push('eq5_fixture_' + t);
+    const run = () =>
+      winLoot({ mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 7 }).c.result.items;
+    const a = run();
+    const b = run();
+    assert.ok(Array.isArray(a), 'victory: c.result.items — массив');
+    assert.deepEqual(a, b, 'тот же сид → тот же состав дропа '
+      + '(детерминизм экипировочного ролла)');
+    assert.deepEqual(a, EQ5_GOLDEN,
+      'golden: точный состав (экипировочный дроп — ПОСЛЕДНИМ)');
+  } finally {
+    eqPoolsRestore(sav);
+  }
 });
