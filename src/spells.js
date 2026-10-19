@@ -327,6 +327,9 @@
   // единственной причиной «внебоевое заклинание» (гейт по ДЕЙСТВИЮ,
   // не по флагу «вне_боя»); обработчики — вне боя (.02/.03/.04).
   const OUT_OF_COMBAT = new Set(['невидимость', 'телепорт', 'внебой']);
+  // 000235.02: внебоевые действия с ДЛИТЕЛЬНОСТЬЮ — каст требует
+  // параметры.days (1..3); «телепорт» — мгновенное, дней не требует.
+  const DURATION_ACTIONS = new Set(['невидимость', 'внебой']);
   // 000235.01: дебаф-статы (роутинг зоны: дебаф → мобы, баф → союзники).
   // «ход_вниз» — 6-й дебаф-стат ТЗ (ревью: без него зона с этим
   // statом роутилась СОЮЗНИКАМ как баф).
@@ -762,6 +765,108 @@
     return out;
   }
 
+  // --- 000235.02: каст вне боя (книга заклинаний) ---
+  //
+  // Чисто-боевое ядро НЕ трогаем: вне боя каст не создаёт сражения,
+  // не ходит по ходам — только мана + hero.outOfCombatEffects
+  // (append-only v1, без бампа версии сейва). Форма отказа —
+  // fail-closed {ok, reason} (000037), ОДНА причина, мутации —
+  // ПОСЛЕ всех проверок.
+
+  // Нужны ли заклинанию дни (длительность): по ДЕЙСТВИЮ (невидимость/
+  // внебой) или если каталог сам декларативно несёт параметры.days.
+  function outOfCombatDays(spell) {
+    const needs = DURATION_ACTIONS.has(spell.действие)
+      || (spell.параметры && typeof spell.параметры === 'object'
+          && 'days' in spell.параметры);
+    if (!needs) return null;
+    const days = spell.параметры && spell.параметры.days;
+    if (typeof days !== 'number' || !Number.isInteger(days)
+        || days < 1 || days > 3) return 'неполные параметры: days';
+    return days;
+  }
+
+  // castOutOfCombat(p, spellId, day, ctx) → {ok, spell, expiresDay}
+  // или {ok:false, reason}. Проверки ПО ПОРЯДКУ: каталог → книга →
+  // флаг вне_боя → days (1..3) → мана. day — день каста (clock.day).
+  // ctx — зарезервирован (каркас switch .04: обработка по spellId),
+  // .02 его игнорирует. Перезаклинание того же spellId — ОБНОВЛЕНИЕ
+  // записи in place (expiresDay = day + days), дублей нет; кулдаунов
+  // нет — повторный каст в тот же день разрешён. Мгновенные (телепорт)
+  // записей не создают (expiresDay = null).
+  function castOutOfCombat(p, spellId, day, ctx) {
+    void ctx;
+    if (!p || typeof p !== 'object') {
+      return { ok: false, reason: 'неизвестное заклинание' };
+    }
+    const spell = getSpell(spellId);
+    if (!spell) return { ok: false, reason: 'неизвестное заклинание' };
+    if (!knows(p, spellId)) {
+      return { ok: false, reason: 'заклинание не изучено' };
+    }
+    if (spell['вне_боя'] !== true) {
+      return { ok: false, reason: 'боевое заклинание' };
+    }
+    const days = outOfCombatDays(spell);
+    if (typeof days === 'string') return { ok: false, reason: days };
+    if (typeof p.mp !== 'number' || p.mp < (spell['мани'] || 0)) {
+      return { ok: false, reason: 'не хватает маны' };
+    }
+    // Мутации — ПОСЛЕ всех проверок.
+    p.mp -= spell['мани'] || 0;
+    if (!Array.isArray(p.outOfCombatEffects)) p.outOfCombatEffects = [];
+    let expiresDay = null;
+    if (days !== null) {
+      expiresDay = day + days;
+      const i = p.outOfCombatEffects.findIndex(
+        (e) => e && e.spellId === spellId);
+      if (i >= 0) p.outOfCombatEffects[i].expiresDay = expiresDay;
+      else p.outOfCombatEffects.push(
+        { spellId, expiresDay: expiresDay });
+    }
+    // Каркас .04: обработка конкретного заклинания по spellId
+    // (возврат {ok:false, reason} обязан откатить ману и запись
+    // сам — .02 только break).
+    switch (spellId) {
+      default:
+        break;
+    }
+    return { ok: true, spell, expiresDay };
+  }
+
+  // expireOutOfCombatEffects(effects, day) → НОВЫЙ массив без
+  // записей с expiresDay <= day (граница: эффект живёт ровно days
+  // дней, на onDay(D+N) вылетает). Чисто: аргумент не мутируется;
+  // не-массив → [].
+  function expireOutOfCombatEffects(effects, day) {
+    if (!Array.isArray(effects)) return [];
+    return effects.filter(
+      (e) => e && e.expiresDay !== undefined && e.expiresDay > day);
+  }
+
+  // sanitizeOutOfCombatEffects(list) — чистка полей из (подделанного)
+  // сейва: запись живёт, если объект (не null/массив), spellId —
+  // строка из SPELLS_BY_ID, expiresDay — конечное число и
+  // Math.round(expiresDay) > 0 (хранится как Math.round). Дубликат
+  // spellId — последний wins (позиция первого вхождения), порядок
+  // сохранён; не-массив → [].
+  function sanitizeOutOfCombatEffects(list) {
+    if (!Array.isArray(list)) return [];
+    const out = [];
+    for (const e of list) {
+      if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
+      if (typeof e.spellId !== 'string' || !SPELLS_BY_ID[e.spellId]) continue;
+      if (typeof e.expiresDay !== 'number' || !Number.isFinite(e.expiresDay)) continue;
+      const d = Math.round(e.expiresDay);
+      if (d <= 0) continue;
+      const rec = { spellId: e.spellId, expiresDay: d };
+      const i = out.findIndex((o) => o.spellId === e.spellId);
+      if (i >= 0) out[i] = rec;
+      else out.push(rec);
+    }
+    return out;
+  }
+
   return {
     SPELLS, SPELLS_BY_ID, SCHOOL_RANKS,
     getSpell, schoolRank, rankAllowsTier,
@@ -769,5 +874,7 @@
     chainRoot, chainSpells, highestKnown, activeSpells,
     castSpell, canCastSpell,
     sanitizeSpellBook,
+    castOutOfCombat, expireOutOfCombatEffects,
+    sanitizeOutOfCombatEffects,
   };
 });

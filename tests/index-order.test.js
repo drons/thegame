@@ -1698,3 +1698,301 @@ test('IO-DEP-2: порядок core → dungeons-data.js → dungeon.js — DUNG
       + 'каталога');
   }
 });
+
+// --- Задача 000235.02: книга заклинаний вне боя (src/spellbook-oc.js) ---
+//
+// Контракт: memory/000235.02-spellbook-out-of-combat.md §2.6-2.7,
+// Д-4/Д-5/Д-6. RED: тега/файла/правил нет — осмысленные красные в
+// ассертах (existsSync-guard, паттерн 000149), не ENOENT-крах.
+
+test('index.html: src/spellbook-oc.js подключён ПОСЛЕ src/spellbook.js (entriesFor-провайдер) и ДО src/ally-spells.js и src/main.js (задача 000235.02, Д-4)', () => {
+  assert.notEqual(pos('src/spellbook-oc.js'), -1,
+    'RED: src/spellbook-oc.js не подключён в index.html '
+    + '(задача 000235.02)');
+  assert.ok(pos('src/spells.js') < pos('src/spellbook-oc.js'),
+    'src/spellbook-oc.js должен быть ПОСЛЕ src/spells.js '
+    + '(каталог/движок магии)');
+  assert.ok(pos('src/spellbook.js') < pos('src/spellbook-oc.js'),
+    'src/spellbook-oc.js — слот ПОСЛЕ src/spellbook.js (рядом с '
+    + 'entriesFor-провайдером, задача 000235.02)');
+  assert.ok(pos('src/spellbook-oc.js') < pos('src/ally-spells.js'),
+    'src/spellbook-oc.js должен быть ДО src/ally-spells.js '
+    + '(слот, задача 000235.02)');
+  assert.ok(pos('src/spellbook-oc.js') < pos('src/main.js'),
+    'src/spellbook-oc.js должен быть ДО src/main.js (UMD-ловушка '
+    + '000038: main.js снимает Game один раз — иначе G.spellbookOC '
+    + 'не в снапшоте, книга мертва тихо)');
+});
+
+test('000235.02 OC17: src/spellbook-oc.js — UMD-гарды: node-ветка чистая (surface ровно 6, 0 console на load); vm standalone (без Game) — тихо + регистрация; без зависимостей — load тихо, вызовы: console.error + деградация, без краха (000053)', () => {
+  const p = path.join(ROOT, 'src', 'spellbook-oc.js');
+  assert.ok(fs.existsSync(p),
+    'RED: src/spellbook-oc.js отсутствует (задача 000235.02)');
+  const code = fs.readFileSync(p, 'utf8');
+  const mkConsole = (sink) => ({
+    log: () => {}, info: () => {}, warn: () => {},
+    error: (m) => sink.push(String(m)),
+  });
+  // (a) node-ветка: require — ЧИСТЫЙ (ноль console.* на загрузке,
+  // 000038/000053: load-clean — подхватывается ~50 vm-песочницами).
+  const nodeErrs = [];
+  const realErr = console.error;
+  const realWarn = console.warn;
+  const realLog = console.log;
+  console.error = (m) => nodeErrs.push(String(m));
+  console.warn = (m) => nodeErrs.push(String(m));
+  console.log = () => {};
+  let mod;
+  try {
+    mod = require(p);
+  } finally {
+    console.error = realErr;
+    console.warn = realWarn;
+    console.log = realLog;
+  }
+  assert.ok(mod && typeof mod === 'object',
+    'module.exports — объект (UMD node-ветка)');
+  assert.deepEqual(Object.keys(mod).sort(),
+    ['applyVisibility', 'close', 'init', 'isOpen', 'render', 'toggle'],
+    'surface — ровно {init, toggle, isOpen, close, applyVisibility, '
+    + 'render}');
+  assert.equal(nodeErrs.length, 0,
+    'node-ветка: загрузка ЧИСТАЯ (0 console.*): ' + nodeErrs.join('; '));
+  // (b) vm standalone (без Game): тихо + self-registration.
+  const errorsA = [];
+  const sandboxA = { console: mkConsole(errorsA) };
+  vm.createContext(sandboxA);
+  assert.doesNotThrow(() => vm.runInContext(code, sandboxA,
+    { filename: 'spellbook-oc.js' }),
+    'standalone (без Game) — без краха');
+  assert.equal(errorsA.length, 0,
+    'standalone (без Game) — 0 console.error на load: '
+    + errorsA.join('; '));
+  assert.ok(sandboxA.Game && sandboxA.Game.spellbookOC,
+    'UMD: Game.spellbookOC зарегистрирован при загрузке '
+    + '(нечистая на load ветка — ловушка 000038)');
+  // (c) vm с Game = {} (без SpellsData/SpellBook/Spells): load —
+  // тихо (ленивые ссылки, Д-5); ВЫЗОВ — console.error 1×/вызов +
+  // деградация, игра НЕ роняется (000053).
+  const errorsB = [];
+  const mkEl = () => {
+    const t = {
+      tagName: 'div', className: '', style: {}, dataset: {},
+      children: [], listeners: {},
+      appendChild(c) { this.children.push(c); return c; },
+      addEventListener() {}, removeEventListener() {},
+      setAttribute(n, v) {
+        if (String(n).startsWith('data-')) {
+          this.dataset[String(n).slice(5)] = v;
+        }
+      },
+      remove() {},
+    };
+    Object.defineProperty(t, 'textContent', {
+      get() { return ''; }, set() {},
+    });
+    return t;
+  };
+  const sandboxB = {
+    Game: {},
+    console: mkConsole(errorsB),
+    document: {
+      createElement: mkEl, body: mkEl(),
+      addEventListener() {}, removeEventListener() {},
+    },
+    window: { addEventListener() {}, removeEventListener() {} },
+    performance: { now: () => 0 },
+  };
+  vm.createContext(sandboxB);
+  assert.doesNotThrow(() => vm.runInContext(code, sandboxB,
+    { filename: 'spellbook-oc.js' }),
+    'без зависимостей — без краха на load');
+  assert.equal(errorsB.length, 0,
+    'без зависимостей — 0 console.error на LOAD (лениво, Д-5): '
+    + errorsB.join('; '));
+  const ocB = sandboxB.Game.spellbookOC;
+  assert.ok(ocB, 'без зависимостей — Game.spellbookOC зарегистрирован');
+  assert.doesNotThrow(() => ocB.init({}),
+    'init без hero/clock — без краха (деградация)');
+  assert.equal(errorsB.length, 1,
+    'init без hero/clock — console.error 1× (книга не работает, '
+    + 'игра не роняется): ' + errorsB.join('; '));
+  assert.doesNotThrow(() => ocB.toggle(),
+    'toggle без зависимостей — без краха (деградация 000053)');
+  assert.ok(errorsB.length > 1,
+    'toggle без зависимостей — console.error 1×/ВЫЗОВ (деградация '
+    + 'видима, не тихий no-op): ' + errorsB.join('; '));
+  assert.equal(ocB.isOpen(), false, 'деградация: книга не открыта');
+  assert.doesNotThrow(() => ocB.applyVisibility(),
+    'applyVisibility (каждый кадр из main.js) — НИКОГДА не бросает');
+  assert.doesNotThrow(() => ocB.render(), 'render — без краха');
+  assert.doesNotThrow(() => ocB.close(), 'close — без краха');
+  // (d) cast(): init валиден (hero/clock), но Spells.castOutOfCombat
+  // отсутствует — контракт §3 (ревью 000235.02): console.error 1×/
+  // вызов + деградация (НЕ тихий фолбэк {ok:false, «неизвестное
+  // заклинание»}), игра не роняется. Гостевая строка через стаб
+  // entriesFor → клик по строке → cast().
+  const errorsC = [];
+  const mkElC = () => {
+    const t = {
+      tagName: 'div', className: '', style: {}, dataset: {},
+      children: [], listeners: {},
+      appendChild(c) { this.children.push(c); return c; },
+      addEventListener(type, fn) {
+        (this.listeners[type] || (this.listeners[type] = [])).push(fn);
+      },
+      removeEventListener() {},
+      setAttribute(n, v) {
+        if (String(n).startsWith('data-')) {
+          this.dataset[String(n).slice(5)] = v;
+        }
+      },
+      remove() {},
+    };
+    Object.defineProperty(t, 'textContent', {
+      get() { return ''; }, set() {},
+    });
+    return t;
+  };
+  const sandboxC = {
+    Game: {
+      SpellsData: { SPELLS_BY_ID: { oc_guest_d: { id: 'oc_guest_d',
+        вне_боя: true } } },
+      SpellBook: {
+        entriesFor: () => [{ id: 'oc_guest_d', name: 'Г', desc: '',
+          mana: 5, icon: '' }],
+      },
+    },
+    console: mkConsole(errorsC),
+    document: {
+      createElement: mkElC, body: mkElC(),
+      addEventListener() {}, removeEventListener() {},
+    },
+    window: { addEventListener() {}, removeEventListener() {} },
+    performance: { now: () => 0 },
+  };
+  vm.createContext(sandboxC);
+  assert.doesNotThrow(() => vm.runInContext(code, sandboxC,
+    { filename: 'spellbook-oc.js' }),
+    'гость без Spells — без краха на load');
+  const ocC = sandboxC.Game.spellbookOC;
+  assert.doesNotThrow(() => ocC.init({
+    hero: { spells: ['oc_guest_d'], outOfCombatEffects: [] },
+    clock: { day: 1 },
+  }), 'init с валидными hero/clock — без краха');
+  assert.equal(errorsC.length, 0,
+    'init валиден — 0 console.error: ' + errorsC.join('; '));
+  ocC.toggle();
+  const bookEl = sandboxC.document.body.children
+    .filter((c) => c.className === 'spellbook-oc');
+  assert.equal(bookEl.length, 1, 'оверлей .spellbook-oc в body');
+  // rowsEl — без класса (container строк, между .spoc-title и
+  // .spoc-hint); строки — его прямые дети.
+  const rows = bookEl[0].children
+    .filter((c) => c.className === 'spoc-panel')
+    .map((p) => p.children)
+    .reduce((a, b) => a.concat(b), [])
+    .map((c) => c.children)
+    .reduce((a, b) => a.concat(b), [])
+    .filter((c) => c.className === 'spoc-row');
+  assert.equal(rows.length, 1,
+    'гостевая строка (стаб entriesFor + фильтр вне_боя)');
+  const click = rows[0].listeners.click;
+  assert.ok(click && click.length > 0,
+    'строка — свой click-listener (makeEl)');
+  const errBeforeCast = errorsC.length;
+  assert.doesNotThrow(() => click[click.length - 1](),
+    'cast без castOutOfCombat — без краха (деградация 000053)');
+  assert.equal(errorsC.length, errBeforeCast + 1,
+    'cast без castOutOfCombat — console.error РОВНО 1×/вызов '
+    + '(контракт §3, не тихий фолбэк): '
+    + errorsC.slice(errBeforeCast).join('; '));
+  assert.ok(
+    errorsC[errorsC.length - 1].includes('castOutOfCombat'),
+    'ошибка называет отсутствующую зависимость: '
+    + errorsC[errorsC.length - 1]);
+  assert.equal(ocC.isOpen(), true,
+    'деградация: книга остаётся открыта, игра не роняется');
+});
+
+test('000235.02 OC18: index.html CSS — новые правила .spellbook-oc (z-35, палитра, display:none) + .spoc-* на месте; гард: базовые правила (#hud, .combat-spellbook, лестница z) НЕ ИЗМЕНЕНЫ (CSS union)', () => {
+  // cssRule — первое вхождение правила с ТОЧНЫМ селектором в начале
+  // строки (паттерн tests/combat-layout.test.js); rules — все
+  // вхождения (для .spoc-icon / .spoc-icon img).
+  const rules = (selector) => {
+    const re = new RegExp('^[ \\t]*'
+      + selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      + '[ \\t]*\\{([^}]*)\\}', 'gm');
+    const out = [];
+    let m;
+    while ((m = re.exec(html))) {
+      const decls = {};
+      for (const part of m[1].split(';')) {
+        const i = part.indexOf(':');
+        if (i < 0) continue;
+        const prop = part.slice(0, i).trim().toLowerCase();
+        if (prop) decls[prop] = part.slice(i + 1).trim();
+      }
+      out.push(decls);
+    }
+    return out;
+  };
+  const first = (selector) => {
+    const r = rules(selector);
+    assert.ok(r.length > 0,
+      'RED: CSS-правило ' + selector + ' { … } не найдено в '
+      + 'index.html (задача 000235.02)');
+    return r[0];
+  };
+  // whitespace-независимое сравнение значений (rgba(16,18,24,0.95)
+  // ≡ rgba(16, 18, 24, 0.95)).
+  const norm = (s) => String(s).replace(/\s+/g, '');
+  // Оверлей: fixed, z-index 35 (НОВАЯ ступень лестницы между
+  // #touch-controls 30 и .start-window 40), display none по
+  // умолчанию (JS показывает), события ВКЛЮЧЕНЫ, палитра
+  // .resurrect-overlay.
+  const ov = first('.spellbook-oc');
+  assert.equal(ov['position'], 'fixed', '.spellbook-oc: position fixed');
+  assert.equal(ov['z-index'], '35', '.spellbook-oc: z-index 35 (лестница)');
+  assert.equal(ov['display'], 'none',
+    '.spellbook-oc: display none по умолчанию (JS показывает)');
+  assert.equal(ov['pointer-events'], 'auto',
+    '.spellbook-oc: pointer-events auto (в отличие от #hud)');
+  assert.equal(norm(ov['background']), 'rgba(16,18,24,0.95)',
+    '.spellbook-oc: фон палитры (паттерн .resurrect-overlay)');
+  assert.equal(norm(ov['color']), '#e8dcc0', '.spellbook-oc: текст палитры');
+  // Строки: набор .spoc-* на месте; строка — flex + border +
+  // cursor:pointer (паттерн .resurrect-row).
+  const row = first('.spoc-row');
+  assert.equal(row['display'], 'flex', '.spoc-row: display flex');
+  assert.ok(row['border'], '.spoc-row: border');
+  assert.equal(row['cursor'], 'pointer', '.spoc-row: cursor pointer');
+  for (const sel of ['.spoc-panel', '.spoc-title', '.spoc-name',
+    '.spoc-desc', '.spoc-mana', '.spoc-status', '.spoc-empty',
+    '.spoc-hint']) {
+    assert.ok(rules(sel).length > 0,
+      'CSS-правило ' + sel + ' (задача 000235.02)');
+  }
+  // Иконка строки — 24px (.spoc-icon или .spoc-icon img).
+  assert.ok(rules('.spoc-icon').concat(rules('.spoc-icon img'))
+    .some((r) => r['width'] === '24px'),
+    'иконка строки — 24px');
+  // ГАРД: базовые правила НЕ ИЗМЕНЕНЫ (CSS union по content-маркеру,
+  // ТЗ п.5 — параллельные UI-задачи 000226/000227/000230.07 не
+  // пересекаются).
+  const hud = first('#hud');
+  assert.equal(hud['pointer-events'], 'none',
+    'гард: #hud pointer-events none (textContent-движок, П10)');
+  assert.equal(hud['white-space'], 'pre-line',
+    'гард: #hud white-space pre-line');
+  const cs = first('.combat-overlay--combat .combat-spellbook');
+  assert.equal(norm(cs['background']), 'rgba(10,12,16,0.85)',
+    'гард: .combat-spellbook фон НЕ изменён (боевая книга — вне '
+    + 'скоупа)');
+  assert.equal(cs['pointer-events'], 'none',
+    'гард: .combat-spellbook pointer-events none НЕ изменён');
+  const res = first('.resurrect-overlay');
+  assert.equal(res['z-index'], '20', 'гард: лестница .resurrect-overlay 20');
+  const tc = first('#touch-controls');
+  assert.equal(tc['z-index'], '30', 'гард: лестница #touch-controls 30');
+});

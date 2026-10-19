@@ -2160,3 +2160,98 @@ test('000158.04: shell-рондтрип секции collectedLoot — save.js �
   assert.equal(m.get('-1,1'), 1, 'ключ "-1,1" (minus) — int день');
   assert.equal(m.get('-2,-3'), 5, 'второй ключ цел');
 });
+
+// --- Задача 000235.02: hero.outOfCombatEffects в сейве (TDD: красные) ---
+//
+// append-only v1 (без бампа/миграций — конвенция 000046: санитайзер
+// живёт в Game.Spells, restore-проводка — дословный паттерн
+// hero.spells :955-956). Контракт:
+// memory/000235.02-spellbook-out-of-combat.md §2.3/§2.4.2/2.4.7.
+// collectSaveData НЕ ТРОГАЕТСЯ: `hero,` — live-объект (JSON) → поле
+// сериализуется автоматически; пины — restore-проводка + state-зеркало.
+
+test('000235.02 OC8: restoreFromSave восстанавливает hero.outOfCombatEffects через G.Spells.sanitizeOutOfCombatEffects + state-зеркало (source-пин)', () => {
+  // restoreFromSave живёт внутри IIFE main.js — проводка по коду
+  // (паттерн 000045/000046). RED: строк в main.js нет.
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const restore = src.slice(src.indexOf('function restoreFromSave'));
+  assert.ok(restore.length > 0, 'restoreFromSave найден в main.js');
+  assert.ok(restore.includes('hero.outOfCombatEffects')
+    && restore.includes('G.Spells.sanitizeOutOfCombatEffects'),
+    'restoreFromSave: hero.outOfCombatEffects ← '
+    + 'G.Spells.sanitizeOutOfCombatEffects (именованное пространство '
+    + 'Game.Spells — регрессия 000045: G.sanitizeOutOfCombatEffects '
+    + 'без .Spells — undefined)');
+  assert.ok(src.includes('outOfCombatEffects: hero.outOfCombatEffects'),
+    'state-зеркало: outOfCombatEffects: hero.outOfCombatEffects '
+    + '(после spells: hero.spells — без этого vm-e2e не читает '
+    + 'состояние)');
+});
+
+test('000235.02 OC9: hero.outOfCombatEffects — roundtrip / подделанный сейв / старый сейв → []', async () => {
+  // Roundtrip: валидная запись восстанавливается и переживает сейв.
+  const st = makeStorage();
+  const h = bootWithSave(st, {
+    outOfCombatEffects: [{ spellId: 'spark', expiresDay: 5 }],
+  });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const g = h.sandbox.__game;
+  assert.ok(g, 'main.js выполнен (__game)');
+  assert.ok(g.state.save, 'сейв загружен');
+  const eff0 = g.state.hero.outOfCombatEffects;
+  assert.ok(eff0 !== undefined,
+    'RED: state-зеркало hero.outOfCombatEffects (master: undefined)');
+  assert.deepEqual(host(eff0),
+    [{ spellId: 'spark', expiresDay: 5 }],
+    'oc-effects восстановлены в state (mirror live-массива героя)');
+  const beforeUnload = h.winListeners['beforeunload'];
+  assert.ok(beforeUnload && beforeUnload.length > 0,
+    'beforeunload зарегистрирован');
+  beforeUnload[0]();
+  const saved = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.deepEqual(saved.data.hero.outOfCombatEffects,
+    [{ spellId: 'spark', expiresDay: 5 }],
+    'oc-effects пережили roundtrip (hero сериализуется live)');
+
+  // Подделанный сейв: призраки/невалидные/мусор чистятся; дедуп по
+  // spellId — последний wins (позиция первого вхождения).
+  const st2 = makeStorage();
+  const h2 = bootWithSave(st2, {
+    outOfCombatEffects: [
+      { spellId: 'spark', expiresDay: 5 }, // валиден (поз. 0)
+      { spellId: 'нет_такого_заклинания', expiresDay: 9 }, // призрак
+      { spellId: 'mend', expiresDay: -1 }, // ≤ 0
+      { spellId: 'mend', expiresDay: NaN }, // → null в JSON; не-конечное
+      'мусор',
+      null,
+      { spellId: 'mend', expiresDay: 4 },
+      { spellId: 'mend', expiresDay: 7 }, // mend — last-wins
+    ],
+  });
+  for (let i = 0; i < 5; i++) await h2.drain();
+  assert.equal(h2.errors.length, 0,
+    'подделанный сейв: ошибок загрузки нет (битый сейв не роняет): '
+    + h2.errors.join('; '));
+  const eff2 = h2.sandbox.__game.state.hero.outOfCombatEffects;
+  assert.ok(eff2 !== undefined,
+    'RED: state-зеркало (подделанный сейв — master: undefined)');
+  assert.deepEqual(host(eff2),
+    [{ spellId: 'spark', expiresDay: 5 }, { spellId: 'mend', expiresDay: 7 }],
+    'поддел: очищено (призрак/≤0/не-конечное/не-объекты отброшены; '
+    + 'mend — last-wins на позиции первого вхождения)');
+
+  // Старый сейв (поля нет — JSON выбрасывает undefined) → [].
+  const st3 = makeStorage();
+  const h3 = bootWithSave(st3, { outOfCombatEffects: undefined });
+  for (let i = 0; i < 5; i++) await h3.drain();
+  assert.equal(h3.errors.length, 0,
+    'старый сейв: ошибок загрузки нет: ' + h3.errors.join('; '));
+  const eff3 = h3.sandbox.__game.state.hero.outOfCombatEffects;
+  assert.ok(eff3 !== undefined,
+    'RED: state-зеркало (старый сейв — master: undefined)');
+  assert.deepEqual(host(eff3),
+    [], 'старый сейв: outOfCombatEffects → [] (append-only v1)');
+});

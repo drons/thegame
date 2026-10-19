@@ -190,7 +190,7 @@
        z-index 30 — ВЫШЕ оверлеев боя/подземелья (20): оверлеи не
        перекрывают контролы (000121). Лестница: .char-panel 10 <
        .fs-btn 15 < .combat-overlay/.dungeon-overlay 20 <
-       #touch-controls 30. */
+       #touch-controls 30 < .spellbook-oc 35. */
     #touch-controls {
       position: fixed;
       inset: 0;
@@ -795,7 +795,8 @@
        «Начать заново» — тройное переспрашивание (Да/Нет/Да) перед
        стиранием сохранений. z-index 40 — НОВАЯ верхняя ступень
        лестницы (.char-panel 10 < .fs-btn 15 < оверлеи боя/
-       подземелья 20 < #touch-controls 30 < start-window 40).
+       подземелья 20 < #touch-controls 30 < .spellbook-oc 35 <
+       start-window 40).
        Панель подтверждения (.start-window-confirm) показывается
        inline display:flex из src/start-window.js (базовый display
        none здесь — страховка). */
@@ -976,6 +977,46 @@
        последний ребёнок, thumb-friendly (align-self:flex-end). */
     .resurrect-close { margin-top: 8px; align-self: flex-end;
       padding: 4px 12px; border: 1px solid #3a3f4a; cursor: pointer; }
+    /* 000235.02 — книга заклинаний вне боя (src/spellbook-oc.js):
+       НОВАЯ ступень лестницы между #touch-controls 30 и .start-window
+       40; палитра .resurrect-overlay; display none — JS показывает. */
+    .spellbook-oc {
+      position: fixed;
+      inset: 0;
+      z-index: 35;
+      display: none;
+      pointer-events: auto;
+      background: rgba(16,18,24,0.95);
+      color: #e8dcc0;
+      font: 14px/1.4 "Courier New", monospace;
+    }
+    .spoc-panel {
+      box-sizing: border-box;
+      max-width: 640px;
+      margin: 8vh auto 0;
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .spoc-title { font-size: 16px; color: #d8c27a; margin-bottom: 6px; }
+    .spoc-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 4px 8px;
+      border: 1px solid #3a3f4a;
+      background: rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+    }
+    .spoc-row:hover { background: rgba(255, 255, 255, 0.07); }
+    .spoc-icon { width: 24px; height: 24px; align-self: center; }
+    .spoc-name { color: #e8dcc0; }
+    .spoc-desc { flex: 1 1 auto; color: #9a9484; font-size: 12px; }
+    .spoc-mana { margin-left: auto; color: #d8c27a; }
+    .spoc-status { color: #9a9484; font-size: 12px; white-space: nowrap; }
+    .spoc-empty { padding: 8px; color: #9a9484; }
+    .spoc-hint { margin-top: 8px; color: #9a9484; }
   </style>
 </head>
 <body>
@@ -1039,6 +1080,12 @@
        000038: combat-ui снимает Game один раз при загрузке). Чистый
        модуль — без require и чтений Game на загрузке. -->
   <script src="src/spellbook.js"></script>
+  <!-- Книга заклинаний ВНЕ боя (задача 000235.02): ПОСЛЕ spellbook.js
+       (entriesFor-провайдер) и spells.js (castOutOfCombat), ПЕРЕД
+       main.js (UMD-ловушка 000038: main.js снимает Game один раз —
+       иначе G.spellbookOC не в снапшоте, книга мертва тихо). Чистый
+       модуль — ноль load-time зависимостей (лениво через curGame). -->
+  <script src="src/spellbook-oc.js"></script>
   <!-- Заклинания спутников в бою (задача 000193): ПОСЛЕ spellbook.js и
        combat.js (UMD-ловушка 000038: combat-ui.js снимает снапшот Game
        один раз при загрузке — G.AllySpells обязан быть в нём), ПЕРЕД

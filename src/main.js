@@ -250,6 +250,9 @@
   let tileCache = null; // кэш тайлов (000019): шум пересчитывается только для новых тайлов
   let mapPixels = null; // пиксели map.png — нужны для сида подземелий
   const hero = G.createCharacter('Флогистон'); // персонаж (src/player.js)
+  // 000235.02: активные эффекты каста вне боя [{spellId, expiresDay}]
+  // (опциональное поле v1; restore — санитайзером из Game.Spells).
+  hero.outOfCombatEffects = [];
   G.playerUI && G.playerUI.setCharacter(hero);
   // 000194: карта быстрых предметов союзников { memberId
   // ('efir'|npcId) → [itemId|null]×3 } — ЛАЙВ-объект: [I]-панель
@@ -954,6 +957,13 @@
           // (data loss, которую 000045 как раз исключало).
           hero.spells = (G.Spells && G.Spells.sanitizeSpellBook)
             ? G.Spells.sanitizeSpellBook(d.hero.spells) : [];
+          // 000235.02: эффекты вне боя — ОПЦИОНАЛЬНОЕ поле сейва v1
+          // (без бампа, 000031): старому сейву поля нет → [];
+          // подделанные записи чистятся по каталогу (Game.Spells).
+          hero.outOfCombatEffects = (G.Spells
+              && G.Spells.sanitizeOutOfCombatEffects)
+            ? G.Spells.sanitizeOutOfCombatEffects(
+                d.hero.outOfCombatEffects) : [];
           // Крафт (задача 000046): новые ОПЦИОНАЛЬНЫЕ поля сейва
           // (без повышения версии, 000031) — старым сейвам полей нет →
           // дефолты; подделанные значения чистятся санитизерами
@@ -1571,6 +1581,14 @@
       for (let i = buffs.length - 1; i >= 0; i--) {
         if (buffs[i].day < day) buffs.splice(i, 1);
       }
+      // 000235.02: истёкшие эффекты вне боя (expiresDay <= day —
+      // граница: эффект живёт ровно days дней). МУТАЦИЯ ДО payWages/
+      // render/saveNow (D8); новых flash-строк НЕТ (:1607-1610
+      // байт-забинуется).
+      hero.outOfCombatEffects = G.Spells
+        ? G.Spells.expireOutOfCombatEffects(
+            hero.outOfCombatEffects, day)
+        : hero.outOfCombatEffects;
       // Задача 000087: жалованье отряда (000079) — МЕЖДУ buff-cleanup
       // и render, ДО saveNow (D1/D8): payWages мутирует
       // hero.gold/roster in place — существующий saveNow в конце
@@ -1860,6 +1878,20 @@
     console.error('main.js: Game.hud отсутствует — src/hud.js ' +
       'обязан грузиться ДО src/main.js (000129)');
   }
+  // 000235.02: книга заклинаний вне боя (src/spellbook-oc.js) —
+  // ОБЯЗАН грузиться ДО main.js (UMD-ловушка 000038: снапшот const G
+  // снят вверху) — иначе G.spellbookOC — undefined всегда и [B]/кнопка
+  // молча не работают; ошибка видна ОДИН раз при загрузке.
+  // hero/clock — live-ссылки; flash — функция-декларация ниже
+  // (hoisting); startWindow (000138) — в блок-списке модуля (книга не
+  // открывается, пока показано стартовое окно).
+  if (G.spellbookOC) {
+    G.spellbookOC.init({ hero, clock, flash, startWindow });
+  } else {
+    console.error('main.js: книга вне боя (000235.02) — Game.spellbookOC '
+      + 'отсутствует — src/spellbook-oc.js обязан грузиться ДО '
+      + 'src/main.js');
+  }
 
   // --- Ввод ---
   // Маппинг клавиш→направление — в src/controls.js (чистые функции):
@@ -1892,6 +1924,13 @@
     // Семантика = KeyI: работает поверх ОТКРЫТЫХ оверлеев, до гейтов.
     if (e.code === 'KeyC' && G.squadUI) {
       G.squadUI.toggle();
+      return;
+    }
+    // 000235.02: B (И) — книга заклинаний вне боя. Как KeyC: до гейтов
+    // (работает на всех 3 экранах; активные оверлеи гасит сама
+    // toggle() внутри модуля — no-op).
+    if (e.code === 'KeyB' && G.spellbookOC) {
+      G.spellbookOC.toggle();
       return;
     }
     if (e.code === 'KeyE' && G.npcUI) { // E (У) — диалог NPC
@@ -3395,6 +3434,10 @@
         const z = hudOver ? '25' : '';
         if (hud.style.zIndex !== z) hud.style.zIndex = z;
       }
+      // 000235.02: книга вне боя — frame-driven мягкое скрытие при
+      // активных оверлеях + ре-рендер при смене дня (дешёвый no-op,
+      // пока книга закрыта; сам модуль никогда не бросает).
+      if (G.spellbookOC) G.spellbookOC.applyVisibility();
       // Интервал шага (задача 000033 + 000063): база — из глобальных
       // настроек (420 мс), навык «Ловкий шаг» укорачивает, нижний
       // кламп — G.MIN_MOVE_INTERVAL_MS. Одно значение для шага и окна
@@ -3510,6 +3553,10 @@
           // здесь просто значение героя — иначе тесту не из чего читать
           // (паттерн craft/craftXp/equipmentBonus, 000046).
           spells: hero.spells,
+          // 000235.02: эффекты каста вне боя — restoreFromSave всегда
+          // задаёт массив → здесь просто значение героя (паттерн
+          // spells/craft, 000046).
+          outOfCombatEffects: hero.outOfCombatEffects,
           // Крафт (задача 000046): опциональные поля — restoreFromSave
           // всегда задаёт дефолты ({} / {} / {weapon:null,armor:null}),
           // поэтому здесь просто значения героя.

@@ -2241,3 +2241,217 @@ test('000235.01 S3: «вне_боя» — опционально, default false;
     delete dataMod.SPELLS_BY_ID[ghost.id];
   }
 });
+
+// --- Задача 000235.02: каст вне боя (TDD: красные тесты) ---
+//
+// 3 НОВЫХ экспорта src/spells.js: castOutOfCombat(p, spellId, day, ctx),
+// expireOutOfCombatEffects(effects, day),
+// sanitizeOutOfCombatEffects(list). Контракт:
+// memory/000235.02-spellbook-out-of-combat.md §2.1-2.3 (Д-1/Д-2).
+// Гость — полная форма каталога + «вне_боя: true» (инъекция по
+// паттерну S3 с restore в finally; пины «ровно 17» НЕ ТРОГАТЬ —
+// инъекция только внутри try/finally). RED: экспорт отсутствует
+// (TypeError: … is not a function — осмысленно, не синтаксис).
+
+function ocGuest0235(id, over = {}) {
+  return Object.assign({
+    id,
+    название: 'Тестовое заклинание (000235.02)',
+    школа: 'тень',
+    база: null,
+    степень: 1,
+    атрибут: 'intelligence',
+    уровень: 1,
+    мани: 5,
+    действие: 'внебой',
+    вне_боя: true,
+    параметры: { days: 2 },
+    здания: ['assets/buildings/000001.json'],
+    описание: 'Тестовое заклинание (000235.02)',
+    icon: 'assets/spell-icons/ghost.svg',
+    icon_prompt: 'Тестовая иконка (000235.02)',
+  }, over);
+}
+
+function pushOcGuests(dataMod, guests) {
+  for (const g of guests) {
+    dataMod.SPELLS.push(g);
+    dataMod.SPELLS_BY_ID[g.id] = g;
+  }
+}
+
+function popOcGuests(dataMod, guests) {
+  for (const g of guests) {
+    const i = dataMod.SPELLS.lastIndexOf(g);
+    if (i >= 0) dataMod.SPELLS.splice(i, 1);
+    delete dataMod.SPELLS_BY_ID[g.id];
+  }
+}
+
+test('000235.02 OC1: castOutOfCombat успех — мана ровно «мани», запись {spellId, expiresDay: day+days}; телепорт — дней НЕТ, записи НЕТ', () => {
+  const dataMod = loadSpellsData();
+  const g1 = ocGuest0235('oc_g1'); // внебой, days 2, мани 5
+  const gT = ocGuest0235('oc_g1_t', {
+    действие: 'телепорт', параметры: { mode: 'город' },
+  });
+  try {
+    pushOcGuests(dataMod, [g1, gT]);
+    const { castOutOfCombat } = loadSpells();
+    const p = spellHero({ spells: [g1.id, gT.id], mp: 30 });
+    const r = castOutOfCombat(p, g1.id, 10);
+    assert.equal(r.ok, true, 'каст вне боя — ok');
+    assert.equal(r.expiresDay, 12, 'expiresDay = day + days (10 + 2)');
+    assert.ok(r.spell && r.spell.id === g1.id,
+      'возврат {ok, spell, expiresDay}');
+    assert.equal(p.mp, 25, 'мана ровно по «мани» (5)');
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: g1.id, expiresDay: 12 }],
+      'запись {spellId, expiresDay} создана');
+    const rt = castOutOfCombat(p, gT.id, 10);
+    assert.equal(rt.ok, true, 'телепорт (вне_боя) — кастуется');
+    assert.equal(rt.expiresDay, null,
+      'телепорт — мгновенное, дней НЕТ → expiresDay null');
+    assert.equal(p.mp, 20, 'телепорт тоже снял манию');
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: g1.id, expiresDay: 12 }],
+      'телепорт НЕ создаёт запись (запись — только при валидных days)');
+  } finally {
+    popOcGuests(dataMod, [g1, gT]);
+  }
+});
+
+test('000235.02 OC2: castOutOfCombat «не хватает маны» — состояние НЕ изменилось (поле не создано, мана не снята)', () => {
+  const dataMod = loadSpellsData();
+  const g1 = ocGuest0235('oc_g2'); // мани 5
+  try {
+    pushOcGuests(dataMod, [g1]);
+    const { castOutOfCombat } = loadSpells();
+    const p = spellHero({ spells: [g1.id], mp: 4 });
+    const r = castOutOfCombat(p, g1.id, 10);
+    assert.equal(r.ok, false);
+    assert.equal(r.reason, 'не хватает маны', 'одна причина (форма 000037)');
+    assert.equal(p.mp, 4, 'при отказе мана не снимается');
+    assert.equal(p.outOfCombatEffects, undefined,
+      'при отказе поле НЕ создаётся (мутации — ПОСЛЕ всех проверок)');
+  } finally {
+    popOcGuests(dataMod, [g1]);
+  }
+});
+
+test('000235.02 OC3: фильтр по ФЛАГУ вне_боя — боевое заклинание «боевое заклинание», гость с флагом — кастуется (пара в одном тесте)', () => {
+  const dataMod = loadSpellsData();
+  const g1 = ocGuest0235('oc_g3');
+  try {
+    pushOcGuests(dataMod, [g1]);
+    const { castOutOfCombat } = loadSpells();
+    const p = spellHero({ spells: ['spark', g1.id], mp: 30 });
+    const rc = castOutOfCombat(p, 'spark', 10);
+    assert.equal(rc.ok, false);
+    assert.equal(rc.reason, 'боевое заклинание',
+      'отказ именно по флагу вне_боя (гейт .01 по ДЕЙСТВИЮ в бою — не тронут)');
+    assert.equal(p.mp, 30, 'отказ — до расхода');
+    assert.equal(p.outOfCombatEffects, undefined);
+    const ro = castOutOfCombat(p, g1.id, 10);
+    assert.equal(ro.ok, true, 'гость с вне_боя: true — кастуется');
+  } finally {
+    popOcGuests(dataMod, [g1]);
+  }
+});
+
+test('000235.02 OC4: причины — «заклинание не изучено» (гость в каталоге, не в книге) и «неизвестное заклинание» (id не в каталоге)', () => {
+  const dataMod = loadSpellsData();
+  const g1 = ocGuest0235('oc_g4');
+  try {
+    pushOcGuests(dataMod, [g1]);
+    const { castOutOfCombat } = loadSpells();
+    const p = spellHero({ spells: ['spark'], mp: 30 });
+    const r1 = castOutOfCombat(p, g1.id, 10);
+    assert.equal(r1.ok, false);
+    assert.equal(r1.reason, 'заклинание не изучено');
+    const r2 = castOutOfCombat(p, 'нет_такого_заклинания', 10);
+    assert.equal(r2.ok, false);
+    assert.equal(r2.reason, 'неизвестное заклинание');
+    assert.equal(p.mp, 30, 'отказы — без расхода');
+    assert.equal(p.outOfCombatEffects, undefined, 'отказы — без мутаций');
+  } finally {
+    popOcGuests(dataMod, [g1]);
+  }
+});
+
+test('000235.02 OC5: перезаклинание — ОБНОВЛЕНИЕ (не дубль), кулдаунов НЕТ (второй каст в тот же день)', () => {
+  const dataMod = loadSpellsData();
+  const g3 = ocGuest0235('oc_g5', { мани: 3 }); // days 2
+  try {
+    pushOcGuests(dataMod, [g3]);
+    const { castOutOfCombat } = loadSpells();
+    const p = spellHero({ spells: [g3.id], mp: 30 });
+    const r1 = castOutOfCombat(p, g3.id, 10);
+    assert.equal(r1.ok, true);
+    const r2 = castOutOfCombat(p, g3.id, 10); // тот же день
+    assert.equal(r2.ok, true,
+      'кулдаунов НЕТ: второй каст в тот же день (мана есть)');
+    assert.equal(p.mp, 24, 'мана снята дважды (3 + 3)');
+    assert.equal(p.outOfCombatEffects.length, 1,
+      'ОДНА запись (обновление in place, не дубль)');
+    assert.deepEqual(p.outOfCombatEffects[0],
+      { spellId: g3.id, expiresDay: 12 },
+      'expiresDay пересчитан (day + days)');
+  } finally {
+    popOcGuests(dataMod, [g3]);
+  }
+});
+
+test('000235.02 OC6: expireOutOfCombatEffects — чистый: не-массив → [], expiresDay <= day вылетает (граница), живёт ровно days дней', () => {
+  const { expireOutOfCombatEffects } = loadSpells();
+  assert.deepEqual(expireOutOfCombatEffects(undefined, 5), [],
+    'не-массив → []');
+  assert.deepEqual(expireOutOfCombatEffects(null, 5), [], 'null → []');
+  assert.deepEqual(expireOutOfCombatEffects('бито', 5), [], 'мусор → []');
+  const eff = [
+    { spellId: 'a', expiresDay: 5 }, // граница: 5 <= 5 → вылетел
+    { spellId: 'b', expiresDay: 6 }, // жив
+    { spellId: 'c', expiresDay: 9 }, // жив
+  ];
+  const out = expireOutOfCombatEffects(eff, 5);
+  assert.deepEqual(out,
+    [{ spellId: 'b', expiresDay: 6 }, { spellId: 'c', expiresDay: 9 }],
+    'expiresDay <= day удалены, остальные — с сохранением порядка');
+  assert.notEqual(out, eff, 'НОВЫЙ массив (аргумент не мутируется)');
+  assert.equal(eff.length, 3, 'аргумент не мутирован');
+  // Каст в день D с days=N: expiresDay = D+N; активен на D..D+N-1.
+  const one = [{ spellId: 'a', expiresDay: 1 + 1 }]; // каст 1, days 1
+  assert.deepEqual(expireOutOfCombatEffects(one, 1),
+    [{ spellId: 'a', expiresDay: 2 }], 'день D — жив');
+  assert.deepEqual(expireOutOfCombatEffects(one, 2), [],
+    'onDay(D+N) — вылетел');
+});
+
+test('000235.02 OC7: sanitizeOutOfCombatEffects — не-массив → []; призрачные id / не-целые / ≤0 expiresDay / не-объекты отброшены; порядок; дубликат spellId — последний wins (поз. первого вхождения)', () => {
+  const { sanitizeOutOfCombatEffects } = loadSpells();
+  assert.deepEqual(sanitizeOutOfCombatEffects(undefined), [],
+    'старый сейв без поля → [] (append-only v1, без бампа)');
+  assert.deepEqual(sanitizeOutOfCombatEffects(null), [], 'null → []');
+  assert.deepEqual(sanitizeOutOfCombatEffects('бито'), [],
+    'не-массив → []');
+  assert.deepEqual(sanitizeOutOfCombatEffects([
+    { spellId: 'нет_такого_заклинания', expiresDay: 5 }, // призрак
+    { spellId: 'spark', expiresDay: -1 }, // ≤ 0
+    { spellId: 'spark', expiresDay: NaN }, // не-конечное
+    'мусор', // не-объект
+    null,
+    { spellId: 'mend', expiresDay: 3 }, // валиден
+  ]),
+  [{ spellId: 'mend', expiresDay: 3 }],
+  'невалидные записи отброшены (каталог SPELLS_BY_ID — источник)');
+  assert.deepEqual(sanitizeOutOfCombatEffects([
+    { spellId: 'spark', expiresDay: 2 },
+    { spellId: 'mend', expiresDay: 4 },
+    { spellId: 'spark', expiresDay: 6 },
+  ]),
+  [
+    { spellId: 'spark', expiresDay: 6 },
+    { spellId: 'mend', expiresDay: 4 },
+  ],
+  'дубликат spellId — последний wins (позиция первого вхождения), '
+  + 'порядок сохранён');
+});

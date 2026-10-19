@@ -95,7 +95,7 @@ const SURFACE = ['update', 'buildLine', 'eHint', 'buildingNameHint',
 
 function makeGame(over = {}) {
   const g = {
-    derived: (h) => ({ maxHP: 50 }),
+    derived: (h) => ({ maxHP: 50, maxMP: 40 }),
     TERRAIN_NAMES: { 3: 'трава' },
     DUNGEON_NAMES: { 0: 'простая пещера' },
     buildingNameUi: m.buildingNameUi,
@@ -132,7 +132,7 @@ function makeCtx(over = {}) {
       hasMobGroup: false },
     map: { width: 40, height: 40, fromPng: false },
     player: { x: 5, y: 7 },
-    hero: { level: 3, hp: 42, gold: 100, points: 5 },
+    hero: { level: 3, hp: 42, gold: 100, points: 5, mp: 25 },
     day: 5,
     zoom: 28,
     spriteLoader: null,
@@ -144,12 +144,13 @@ function makeCtx(over = {}) {
   }, rest, { game: g });
 }
 
-// Топ-строка для базового ctx (hero 3/42/100/5, d.maxHP 50, player
-// 5,7, трава, день 5, zoom 28px, карта 40x40 пересчёт, без
-// spriteLoader) — побайтово 1:1 main.js L1275–1282.
+// Топ-строка для базового ctx (hero 3/42/mp25/100/5, d.maxHP 50,
+// d.maxMP 40, player 5,7, трава, день 5, zoom 28px, карта 40x40
+// пересчёт, без spriteLoader) — побайтово 1:1 main.js L1275–1282
+// (000235.02: «МП x/y» в строке героя).
 const TOP_BASE =
   'Флогистон, ур. 3  (5, 7)\n' +
-  'HP 42/50  |  Золото: 100  |  Очки: 5\n' +
+  'HP 42/50  |  МП 25/40  |  Золото: 100  |  Очки: 5\n' +
   'Местность: трава\n' +
   'День: 5  |  Масштаб: 28px  |  карта: 40x40 (пересчёт)\n';
 
@@ -275,7 +276,7 @@ test('HU4. buildLine(ctx) — побайтовый снимок строки HUD
   // доселе в тестах НЕ была зафиксирована).
   assert.equal(hud.buildLine(makeCtx()),
     TOP_BASE + '[I] персонаж',
-    'топ-строка: ур/HP/Золото/Очки/Местность/День/Масштаб/карта');
+    'топ-строка: ур/HP/МП/Золото/Очки/Местность/День/Масштаб/карта');
 
   // (b) spriteLoader — фрагмент «  |  графика: a/b» (1:1) и его
   // АБСЕНС при null.
@@ -283,7 +284,7 @@ test('HU4. buildLine(ctx) — побайтовый снимок строки HUD
     spriteLoader: { readyCount: () => 7, totalCount: () => 12 },
   })),
     'Флогистон, ур. 3  (5, 7)\n' +
-    'HP 42/50  |  Золото: 100  |  Очки: 5\n' +
+    'HP 42/50  |  МП 25/40  |  Золото: 100  |  Очки: 5\n' +
     'Местность: трава\n' +
     'День: 5  |  Масштаб: 28px  |  карта: 40x40 (пересчёт)  |  графика: 7/12\n' +
     '[I] персонаж',
@@ -387,7 +388,7 @@ test('HU4. buildLine(ctx) — побайтовый снимок строки HUD
     },
   })),
     'Флогистон, ур. 3  (простая пещера)\n' +
-    'HP 42/50  |  Золото: 100  |  Очки: 5\n' +
+    'HP 42/50  |  МП 25/40  |  Золото: 100  |  Очки: 5\n' +
     'Местность: трава\n' +
     'День: 5  |  Масштаб: 28px  |  карта: 40x40 (пересчёт)\n' +
     '[I] персонаж\n' +
@@ -875,8 +876,10 @@ test('HU5. full-chain index.html: Game.hud в браузерном realm, заг
   assert.ok(text.startsWith('Флогистон, ур. '),
     'топ-строка «Флогистон, ур. N  (x, y)»: ' + JSON.stringify(text));
   assert.ok(
-    /\nHP \d+\/\d+  \|  Золото: \d+  \|  Очки: \d+\n/.test(text),
-    'строка «HP N/N  |  Золото: N  |  Очки: N»: ' + JSON.stringify(text));
+    /\nHP \d+\/\d+  \|  МП \d+\/\d+  \|  Золото: \d+  \|  Очки: \d+\n/
+      .test(text),
+    'строка «HP N/N  |  МП N/N  |  Золото: N  |  Очки: N»: '
+    + JSON.stringify(text));
   assert.ok(/\nМестность: [^\n]+\n/.test(text),
     'строка «Местность: …»: ' + JSON.stringify(text));
   // В полной цепочке спрайты загружены (Image-стаб onload) —
@@ -1333,4 +1336,56 @@ test('LH1. 000158.04: строка «[E] Собрать: <имя>» — види
   } finally {
     console.error = realError;
   }
+});
+
+// ====================================================================
+// Задача 000235.02: МП в HUD-строке + условный хинт «  |  [B] книга».
+// Контракт: memory/000235.02-spellbook-out-of-combat.md §2.5/Д-1/Д-3.
+// Фикстуры исправлены ПАРО в этом же коммите (derived +maxMP: 40,
+// hero +mp: 25 — П1; для RED безвредно: текущий buildLine их
+// игнорирует; без исправления GREEN давал бы NaN во ВСЕХ строках).
+// 7 старых HP-пинов (TOP_BASE :152 и др.) — НЕ ТРОГАЮТСЯ: репин —
+// зелёная стадия (в том же коммите, что правка hud.js).
+// ====================================================================
+
+test('000235.02 OC10: buildLine — «МП x/y» в строке героя (hero.mp / derived.maxMP) + условный хинт «  |  [B] книга» (известно вне_боя)', () => {
+  const hud = require('../src/hud.js');
+  // (a) Новый формат строки (Д-1) — фикстура 25/40. RED: текущая
+  // строка без «МП».
+  assert.equal(hud.buildLine(makeCtx()),
+    'Флогистон, ур. 3  (5, 7)\n' +
+    'HP 42/50  |  МП 25/40  |  Золото: 100  |  Очки: 5\n' +
+    'Местность: трава\n' +
+    'День: 5  |  Масштаб: 28px  |  карта: 40x40 (пересчёт)\n' +
+    '[I] персонаж',
+    'МП в строке героя (разряд x/y, двойной пробел вокруг |)');
+  // (b) Хинт ЕСТЬ: герой знает заклинание с вне_боя (SpellsData в
+  // game-стабе — зеркало снапшота main.js).
+  const lineOn = hud.buildLine(makeCtx({
+    hero: { level: 3, hp: 42, mp: 25, gold: 100, points: 5,
+      spells: ['oc_hud_0235'] },
+    game: { SpellsData: { SPELLS_BY_ID:
+      { oc_hud_0235: { вне_боя: true } } } },
+  }));
+  assert.ok(lineOn.includes('[I] персонаж  |  [B] книга'),
+    'RED: хинт «  |  [B] книга» в key-hint-строке (известно вне_боя): '
+    + JSON.stringify(lineOn));
+  // (c) Хинта НЕТ: без spells / без вне_боя / без SpellsData (стабы —
+  // тихо, кадр не спамит).
+  const lineOff = hud.buildLine(makeCtx());
+  assert.ok(!lineOff.includes('[B]'),
+    'без spells — хинта нет: ' + JSON.stringify(lineOff));
+  const lineOff2 = hud.buildLine(makeCtx({
+    hero: { level: 3, hp: 42, mp: 25, gold: 100, points: 5,
+      spells: ['oc_hud_0235'] },
+    game: { SpellsData: { SPELLS_BY_ID: { oc_hud_0235: {} } } },
+  }));
+  assert.ok(!lineOff2.includes('[B]'),
+    'без флага вне_боя — хинта нет');
+  const lineOff3 = hud.buildLine(makeCtx({
+    hero: { level: 3, hp: 42, mp: 25, gold: 100, points: 5,
+      spells: ['oc_hud_0235'] },
+  }));
+  assert.ok(!lineOff3.includes('[B]'),
+    'без SpellsData в game-стабе — хинта нет (тихо)');
 });

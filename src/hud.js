@@ -225,14 +225,30 @@
     // входе — по ТЗ вместо них информация про подземелье).
     const where = (ctx.dungeonState && ctx.dungeonState.kind ===
       'dungeon') ? dungeonName(ctx) : ctx.player.x + ', ' + ctx.player.y;
+    // 000235.02: «МП x/y» в строке героя (hero.mp / derived.maxMP —
+    // тот же derived, что maxHP; разряд x/y, двойной пробел вокруг |).
+    // 000235.02: подсказка «  |  [B] книга» — ТОЛЬКО если герой знает
+    // хотя бы одно заклинание с вне_боя: true (каталог —
+    // g.SpellsData.SPELLS_BY_ID, зеркало снапшота main.js; без
+    // SpellsData/флага — тихо, кадр не спамит).
+    const bookHint = Array.isArray(ctx.hero.spells)
+      && ctx.hero.spells.length > 0
+      && g.SpellsData && g.SpellsData.SPELLS_BY_ID
+      && ctx.hero.spells.some((id) => {
+        const s = g.SpellsData.SPELLS_BY_ID[id];
+        return s && s['вне_боя'] === true;
+      })
+      ? '  |  [B] книга' : '';
     let line = 'Флогистон, ур. ' + ctx.hero.level + '  (' + where + ')\n' +
-      'HP ' + ctx.hero.hp + '/' + d.maxHP + '  |  Золото: ' + ctx.hero.gold + '  |  Очки: ' + ctx.hero.points + '\n' +
+      'HP ' + ctx.hero.hp + '/' + d.maxHP +
+      '  |  МП ' + ctx.hero.mp + '/' + d.maxMP +
+      '  |  Золото: ' + ctx.hero.gold + '  |  Очки: ' + ctx.hero.points + '\n' +
       'Местность: ' + g.TERRAIN_NAMES[t.terrain] + '\n' +
       'День: ' + ctx.day + '  |  Масштаб: ' + ctx.zoom + 'px  |  карта: ' + ctx.map.width + 'x' + ctx.map.height +
       (ctx.map.fromPng ? ' (map.png)' : ' (пересчёт)') +
       (ctx.spriteLoader ? '  |  графика: ' + ctx.spriteLoader.readyCount() + '/' + ctx.spriteLoader.totalCount() : '') + '\n' +
       '[I] персонаж' + (npcHere ? '  |  [E] диалог'
-        : (effectsHere ? '  |  [E] действия' : ''));
+        : (effectsHere ? '  |  [E] действия' : '')) + bookHint;
     // Задача 000093: «Исследовано: N тайлов» (сумма по explored,
     // main.js) — отдельная строка ПОСЛЕ top-блока, ДО веток
     // dungeonState/hereLine/mobgroup; ТОЛЬКО при N>0 (0/NaN/нет

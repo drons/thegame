@@ -555,7 +555,7 @@ const L = require('../src/locations.js');
 // 3=трава, день 5, zoom 28, карта 40x40 пересчёт, без spriteLoader).
 function makeGame(over = {}) {
   const g = {
-    derived: () => ({ maxHP: 50 }),
+    derived: () => ({ maxHP: 50, maxMP: 40 }),
     TERRAIN_NAMES: { 3: 'трава' },
     DUNGEON_NAMES: { 0: 'простая пещера' },
     locations: { floorStatusLine: L.floorStatusLine },
@@ -575,7 +575,7 @@ function makeCtx(over = {}) {
       hasMobGroup: false },
     map: { width: 40, height: 40, fromPng: false },
     player: { x: 5, y: 7 },
-    hero: { level: 3, hp: 42, gold: 100, points: 5 },
+    hero: { level: 3, hp: 42, gold: 100, points: 5, mp: 25 },
     day: 5,
     zoom: 28,
     spriteLoader: null,
@@ -645,8 +645,10 @@ test('000212 DH-2 (RED, fullchain): dungeon-HUD — 1-я строка = ИМЯ �
   // Строки героя/мира — БАЙТ-В-БАЙТ (ТЗ заменяет только «информацию
   // про координаты на карте»).
   assert.ok(
-    /\nHP \d+\/\d+  \|  Золото: \d+  \|  Очки: \d+\n/.test(hudText),
-    'блок героя (HP/Золото/Очки) на месте: ' + JSON.stringify(hudText));
+    /\nHP \d+\/\d+  \|  МП \d+\/\d+  \|  Золото: \d+  \|  Очки: \d+\n/
+      .test(hudText),
+    'блок героя (HP/МП/Золото/Очки) на месте: '
+    + JSON.stringify(hudText));
   assert.ok(hudText.includes('Местность: '),
     'строка «Местность: » на месте: ' + JSON.stringify(hudText));
   assert.ok(hudText.includes('[I] персонаж'),
@@ -657,7 +659,7 @@ test('000212 DH-3 (RED, node): buildLine dungeon-формат побайтово
   const hud = require('../src/hud.js');
   const TOP_D =
     'Флогистон, ур. 3  (простая пещера)\n' +
-    'HP 42/50  |  Золото: 100  |  Очки: 5\n' +
+    'HP 42/50  |  МП 25/40  |  Золото: 100  |  Очки: 5\n' +
     'Местность: трава\n' +
     'День: 5  |  Масштаб: 28px  |  карта: 40x40 (пересчёт)\n';
   // (a) dungeon depth=1 (фикстура §3.1: type 0, exit (0,0), ds (2,3) —
@@ -697,7 +699,7 @@ test('000212 DH-3 (RED, node): buildLine dungeon-формат побайтово
     },
   })),
     'Флогистон, ур. 3  (5, 7)\n' +
-    'HP 42/50  |  Золото: 100  |  Очки: 5\n' +
+    'HP 42/50  |  МП 25/40  |  Золото: 100  |  Очки: 5\n' +
     'Местность: трава\n' +
     'День: 5  |  Масштаб: 28px  |  карта: 40x40 (пересчёт)\n' +
     '[I] персонаж\n' +
