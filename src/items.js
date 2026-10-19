@@ -94,6 +94,22 @@
     ITEM_KINDS.ARTIFACT, ITEM_KINDS.TOOL, ITEM_KINDS.RING,
   ]);
 
+  // --- Физические слоты экипировки (задача 000230.02) ---
+  // 18 физ. слотов = ключи c.equipment: 10 одиночных (группа = слот
+  // 1:1 в порядке ТЗ) + 8 колец (4 на каждую руку). EQUIP_SLOTS (11
+  // групп) — форма item.slot (схема, .01) — не расширяется (D-03):
+  // item.slot колец = 'ring'. Порядок — детерминирован (байты сейва,
+  // 000031).
+  const RING_SLOTS = [
+    'ring_left_1', 'ring_left_2', 'ring_left_3', 'ring_left_4',
+    'ring_right_1', 'ring_right_2', 'ring_right_3', 'ring_right_4',
+  ];
+  const EQUIP_PHYS_SLOTS = [
+    'head', 'ears', 'neck', 'torso', 'forearms',
+    'right_hand', 'left_hand', 'palms', 'legs', 'feet',
+    ...RING_SLOTS,
+  ];
+
   // Параметры инвентаря и веса.
   const INVENTORY_SLOTS = 20;   // слоты инвентаря
   const QUICK_SLOTS = 3;        // закреплённые «быстрые» слоты для боя
@@ -324,21 +340,63 @@
     return c.inventory;
   }
 
-  function ensureEquipment(c) {
-    if (!c.equipment) c.equipment = { weapon: null, armor: null };
-    return c.equipment;
+  // Зеркала совместимости (задача 000230.02, D-01): combat.js
+  // (canDoAction 'attack', дальность лука) и вкладка «Снаряжение»
+  // читают eq.weapon/eq.armor напрямую — ключи ВСЕГДА синхронны с
+  // физическими right_hand/torso.
+  function syncEquipmentMirrors(eq) {
+    eq.weapon = eq.right_hand;
+    eq.armor = eq.torso;
   }
 
-  // Бонус качества надетого снаряжения (задача 000046):
-  // {weapon: {damage:N}|null, armor: {armor:N}|null}.
+  // Канон-форма c.equipment (задача 000230.02): 18 физ. слотов
+  // (EQUIP_PHYS_SLOTS) + зеркала weapon/armor концом.
+  function ensureEquipment(c) {
+    if (!c.equipment || typeof c.equipment !== 'object' ||
+        Array.isArray(c.equipment)) {
+      c.equipment = {};
+    }
+    const eq = c.equipment;
+    for (const s of EQUIP_PHYS_SLOTS) {
+      if (eq[s] === undefined) eq[s] = null;
+    }
+    if (eq.right_hand === null && typeof eq.weapon === 'string') {
+      eq.right_hand = eq.weapon;
+    }
+    if (eq.torso === null && typeof eq.armor === 'string') {
+      eq.torso = eq.armor;
+    }
+    syncEquipmentMirrors(eq);
+    return eq;
+  }
+
+  // Бонус качества надетого снаряжения (задача 000046), 000230.02:
+  // ЧИСТАЯ мапа 18 физ. слотов (EQUIP_PHYS_SLOTS), зеркал нет.
   function ensureEquipmentBonus(c) {
     if (!c.equipmentBonus || typeof c.equipmentBonus !== 'object' ||
         Array.isArray(c.equipmentBonus)) {
-      c.equipmentBonus = { weapon: null, armor: null };
+      c.equipmentBonus = {};
     }
-    if (c.equipmentBonus.weapon === undefined) c.equipmentBonus.weapon = null;
-    if (c.equipmentBonus.armor === undefined) c.equipmentBonus.armor = null;
-    return c.equipmentBonus;
+    const eb = c.equipmentBonus;
+    for (const s of EQUIP_PHYS_SLOTS) {
+      if (eb[s] === undefined) eb[s] = null;
+    }
+    // Защитный backfill старой формы {weapon, armor}: только при
+    // пустом физ. слоте и валидном legacy-бонусе (гард `!= null` —
+    // validBonus(null) = true, без него — TypeError на `{weapon:null}`).
+    if (eb.right_hand === null) {
+      const lw = eb.weapon;
+      if (lw != null && validBonus({ kind: 'weapon' }, lw)) {
+        eb.right_hand = { damage: lw.damage };
+      }
+    }
+    if (eb.torso === null) {
+      const la = eb.armor;
+      if (la != null && validBonus({ kind: 'armor' }, la)) {
+        eb.torso = { armor: la.armor };
+      }
+    }
+    return eb;
   }
 
   /**
@@ -394,36 +452,71 @@
   }
 
   /**
-   * Чистка сохранённого снаряжения (задачи 000029/000031): только
-   * строковые id, существующие в каталоге; прочее — null.
-   * @returns {{weapon: string|null, armor: string|null}}
+   * Чистка сохранённого снаряжения (задачи 000029/000031, 000230.02):
+   * канон-форма — 18 физ. слотов (каталог-чек, битое/неизвестное →
+   * null, паттерн 000029) + зеркала weapon/armor; старая 2-слотовая
+   * форма {weapon, armor} — backfill ТОЛЬКО в пустой физ. слот
+   * (физический ПРЁТ над legacy; каталог-чек — как у физических).
+   * @returns {object} 20 ключей: EQUIP_PHYS_SLOTS + weapon + armor
    */
   function sanitizeEquipment(eq) {
-    const out = { weapon: null, armor: null };
-    if (!eq || typeof eq !== 'object' || Array.isArray(eq)) return out;
-    for (const slot of ['weapon', 'armor']) {
-      const id = eq[slot];
-      if (typeof id === 'string' && getItem(id)) out[slot] = id;
+    const out = {};
+    for (const s of EQUIP_PHYS_SLOTS) out[s] = null;
+    out.weapon = null;
+    out.armor = null;
+    if (eq && typeof eq === 'object' && !Array.isArray(eq)) {
+      for (const s of EQUIP_PHYS_SLOTS) {
+        const id = eq[s];
+        if (typeof id === 'string' && getItem(id)) out[s] = id;
+      }
+      const lw = eq.weapon;
+      if (out.right_hand === null && typeof lw === 'string' &&
+          getItem(lw)) {
+        out.right_hand = lw;
+      }
+      const la = eq.armor;
+      if (out.torso === null && typeof la === 'string' &&
+          getItem(la)) {
+        out.torso = la;
+      }
     }
+    out.weapon = out.right_hand;
+    out.armor = out.torso;
     return out;
   }
 
   /**
    * Чистка сохранённого бонуса качества снаряжения (задача 000046,
-   * задачи 000029/000031): {weapon, armor} — null либо одноключевой
-   * валидный бонус слота (weapon → {damage}, armor → {armor}, целое
-   * >= 1). Мусор в одном слоте не трогает другой.
-   * @returns {{weapon: object|null, armor: object|null}}
+   * задачи 000029/000031, 000230.02): 18 физ. слотов (зеркал нет):
+   * right_hand — строго {damage:N}, torso — строго {armor:N}, прочие
+   * 16 — разрешительные ({damage:N} или {armor:N}); старая форма
+   * {weapon, armor} — backfill ТОЛЬКО при отсутствии ключа physical
+   * (`=== undefined`, легальный null в новом сейве не подменяется;
+   * физический ПРЁТ). Мусор в одном слоте не трогает другой.
+   * @returns {object} 18 ключей EQUIP_PHYS_SLOTS
    */
   function sanitizeEquipmentBonus(eq) {
-    const out = { weapon: null, armor: null };
+    const out = {};
+    for (const s of EQUIP_PHYS_SLOTS) out[s] = null;
     if (!eq || typeof eq !== 'object' || Array.isArray(eq)) return out;
-    for (const slot of ['weapon', 'armor']) {
-      const b = eq[slot];
-      if (b && typeof b === 'object' && !Array.isArray(b) &&
-          validBonus({ kind: slot === 'weapon' ? 'weapon' : 'armor' }, b)) {
-        const key = bonusKeyFor({ kind: slot });
-        out[slot] = { [key]: b[key] };
+    for (const s of EQUIP_PHYS_SLOTS) {
+      let b = eq[s];
+      if (b === undefined && s === 'right_hand' &&
+          eq.weapon !== undefined) {
+        b = eq.weapon;
+      }
+      if (b === undefined && s === 'torso' && eq.armor !== undefined) {
+        b = eq.armor;
+      }
+      if (b == null) continue;
+      if (s === 'torso') {
+        if (validBonus({ kind: 'armor' }, b)) out[s] = { armor: b.armor };
+      } else if (s === 'right_hand') {
+        if (validBonus({ kind: 'weapon' }, b)) out[s] = { damage: b.damage };
+      } else if (validBonus({ kind: 'weapon' }, b)) {
+        out[s] = { damage: b.damage };
+      } else if (validBonus({ kind: 'armor' }, b)) {
+        out[s] = { armor: b.armor };
       }
     }
     return out;
@@ -779,6 +872,9 @@
     if (it.kind === 'weapon' || it.kind === 'armor') {
       return { ok: false, reason: it.kind === 'weapon' ? 'оружие — экипируется' : 'броня — экипируется' };
     }
+    if (EQUIP_KINDS.has(it.kind)) {
+      return { ok: false, reason: it.name + ' — экипируется' };
+    }
     if (it.kind === 'reagent') return { ok: false, reason: 'реагент нельзя применить (торговый товар)' };
 
     // Свиток заклинания (задача 000133, source 'scroll'): применение —
@@ -883,6 +979,9 @@
     if (it.kind === 'weapon' || it.kind === 'armor') {
       return { ok: false, reason: it.kind === 'weapon' ? 'оружие — экипируется' : 'броня — экипируется' };
     }
+    if (EQUIP_KINDS.has(it.kind)) {
+      return { ok: false, reason: it.name + ' — экипируется' };
+    }
     if (it.kind === 'reagent') return { ok: false, reason: 'реагент нельзя применить (торговый товар)' };
     // Свиток заклинания (source 'scroll'): ленивый Game в момент
     // ВЫЗОВА (паттерн useItem); ОТКАЗ canLearn — ДО расхода (слот
@@ -961,10 +1060,23 @@
     return { ok: true, id };
   }
 
-  // --- Снаряжение (оружие и броня) ---
+  // --- Снаряжение (части тела + кольца, задача 000230.02) ---
+
+  // Группа слотов предмета (задача 000230.02): явный item.slot
+  // (EQUIP_SLOTS, .01) в приоритете; у weapon/armor БЕЗ slot —
+  // фолбэк в right_hand/torso (каталог 76 без изменения JSON).
+  // @returns {'head'|'ears'|'neck'|'torso'|'forearms'|'right_hand'|
+  //   'left_hand'|'palms'|'legs'|'feet'|'ring'|null}
+  function slotOf(item) {
+    return (item && item.slot) || (
+      item && item.kind === 'weapon' ? 'right_hand'
+      : item && item.kind === 'armor' ? 'torso' : null);
+  }
 
   /**
-   * Экипирует оружие/броню из инвентаря (текущее возвращается обратно).
+   * Экипирует предмет в слот его части тела (задача 000230.02;
+   * текущий предмет слота возвращается обратно). Кольца — первый
+   * пустой из 8 (порядок RING_SLOTS); все 8 заняты — отказ.
    * Копия, которая надевается, — ПЕРВЫЙ слот инвентаря с этим id по
    * порядку слотов (задача 000046, НЕ bonusFirst): бонус качества
    * ЭТОЙ копии следует предмету в c.equipmentBonus. addItem дописывает
@@ -979,8 +1091,16 @@
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     const eq = ensureEquipment(c);
     const eb = ensureEquipmentBonus(c);
-    const slot = it.kind === 'weapon' ? 'weapon' : it.kind === 'armor' ? 'armor' : null;
-    if (!slot) return { ok: false, reason: 'такое не экипируется' };
+    const group = slotOf(it);
+    if (!group) return { ok: false, reason: 'такое не экипируется' };
+    let slot = group;
+    if (group === 'ring') {
+      slot = null;
+      for (const r of RING_SLOTS) {
+        if (!eq[r]) { slot = r; break; }
+      }
+      if (!slot) return { ok: false, reason: 'нет свободных слотов колец' };
+    }
     if (eq[slot] === itemId) return { ok: false, reason: 'уже экипировано' };
     if (!hasItem(c, itemId)) return { ok: false, reason: 'предмета нет в инвентаре' };
     const inv = ensureInventory(c);
@@ -989,24 +1109,31 @@
     const prevBonus = prev ? (eb[slot] || null) : null;
     eq[slot] = itemId;
     eb[slot] = taken.bonus || null;
-    // Снимаем именно эту копию (оружие/броня — 1 шт. на слот).
+    // Снимаем именно эту копию (одна единица на физ. слот).
     const pos = inv.slots.indexOf(taken);
     if (pos >= 0) inv.slots.splice(pos, 1);
     if (prev) {
       const back = addItem(c, prev, 1, prevBonus || undefined);
-      if (!back.ok) return { ok: true, note: 'вернуть ' + prev + ' не удалось: ' + back.reason };
+      if (!back.ok) {
+        syncEquipmentMirrors(eq);
+        return { ok: true, note: 'вернуть ' + prev + ' не удалось: ' + back.reason };
+      }
     }
+    syncEquipmentMirrors(eq);
     return { ok: true, slot, item: itemId };
   }
 
   /**
    * Снимает снаряжение обратно в инвентарь (бонус качества — с ним,
-   * задача 000046).
-   * @param {'weapon'|'armor'} slot
+   * задача 000046). 'weapon'/'armor' — алиасы right_hand/torso
+   * (задача 000230.02: старые UI-кнопки и пины работают без изменений).
+   * @param {'weapon'|'armor'|string} slot физ. слот (EQUIP_PHYS_SLOTS)
    */
   function unequip(c, slot) {
     const eq = ensureEquipment(c);
     const eb = ensureEquipmentBonus(c);
+    if (slot === 'weapon') slot = 'right_hand';
+    if (slot === 'armor') slot = 'torso';
     const id = eq[slot];
     if (!id) return { ok: false, reason: 'ничего не экипировано' };
     const bonus = eb[slot] || null;
@@ -1017,15 +1144,20 @@
       // Некуда положить — остаётся надетым (бонус тоже на месте).
       eq[slot] = id;
       eb[slot] = bonus;
+      syncEquipmentMirrors(eq);
       return r;
     }
+    syncEquipmentMirrors(eq);
     return { ok: true, item: id };
   }
 
   /**
    * Боевые характеристики снаряжения (для combat.js):
-   * { damage, subtype, hitBonus, dmgBonus, armor }.
-   * damage/armor включают бонус качества надетого (задача 000046).
+   * { damage, subtype, hitBonus, dmgBonus, armor } — ИНТЕРФЕЙС НЕ
+   * МЕНЯЕТСЯ (задача 000230.02): damage/subtype/hitBonus/dmgBonus —
+   * из оружия в right_hand; armor — СУММА stats.armor всех 18 физ.
+   * слотов. damage/armor включают бонус качества надетого (задача
+   * 000046, raw-чтение c.equipmentBonus — без side effects).
    */
   function equipmentStats(c) {
     const eq = ensureEquipment(c);
@@ -1033,11 +1165,11 @@
     const eb = (c.equipmentBonus && typeof c.equipmentBonus === 'object'
       && !Array.isArray(c.equipmentBonus)) ? c.equipmentBonus : null;
     const out = { damage: 0, subtype: null, hitBonus: 0, dmgBonus: 0, armor: 0 };
-    if (eq.weapon) {
-      const it = getItem(eq.weapon);
-      if (it) {
+    if (eq.right_hand) {
+      const it = getItem(eq.right_hand);
+      if (it && it.stats && typeof it.stats.damage === 'number') {
         out.damage = it.stats.damage +
-          ((eb && eb.weapon && eb.weapon.damage) || 0);
+          ((eb && eb.right_hand && eb.right_hand.damage) || 0);
         out.subtype = it.subtype;
         if (it.subtype === 'sword') out.hitBonus = d.swordHitBonus;
         else if (it.subtype === 'bow') {
@@ -1046,11 +1178,12 @@
         } else if (it.subtype === 'heavy') out.dmgBonus = d.heavyDamageBonus;
       }
     }
-    if (eq.armor) {
-      const it = getItem(eq.armor);
+    for (const s of EQUIP_PHYS_SLOTS) {
+      if (!eq[s]) continue;
+      const it = getItem(eq[s]);
       if (it && it.stats && it.stats.armor) {
-        out.armor = it.stats.armor +
-          ((eb && eb.armor && eb.armor.armor) || 0);
+        out.armor += it.stats.armor +
+          ((eb && eb[s] && eb[s].armor) || 0);
       }
     }
     return out;
@@ -1344,6 +1477,8 @@
     ITEM_KINDS, WEAPON_SUBTYPES, EFFECT_KINDS,
     // 000230.01: поля экипировки — единый источник для .02/.03/.05.
     EQUIP_SLOTS, ITEM_RARITIES, AFFIX_TYPES, EQUIP_KINDS,
+    // 000230.02: физ. слоты c.equipment (18) + кольца (8).
+    RING_SLOTS, EQUIP_PHYS_SLOTS,
     INVENTORY_SLOTS, QUICK_SLOTS, MAX_STACK, BASE_CARRY_WEIGHT,
     BUY_WEALTH_MULT, SELL_WEALTH_MULT,
     // 000158.02: экспорт для тестов (негативные пути validateLoot).
@@ -1356,7 +1491,7 @@
     addItem, canAddItem, removeItem,
     setQuick, clearQuick, quickItem, firstQuickSlot, freeQuickSlot,
     addSkillXp, useItem, useQuickUnit, useQuickItem, takeQuickSlot,
-    equip, unequip, equipmentStats,
+    equip, unequip, equipmentStats, slotOf,
     shopKindsFor, makeShop, buyPrice, sellPrice, buyItem, sellItem,
     // Задача 000095: барахолка лагеря (id 47) — сток (tile, day),
     // свежестность, сериализация/восстановление раздела campStocks.

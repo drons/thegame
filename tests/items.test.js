@@ -571,18 +571,24 @@ test('sanitizeInventory: не-объект на входе → пустой ин
 
 test('sanitizeEquipment: только id из каталога, прочее → null', () => {
   const [w, a] = I.allItems();
+  // Ре-пин 000230.02 (форменный): канон-форма — физ. слоты + зеркала;
+  // старая 2-слотовая форма — backfill weapon→right_hand /
+  // armor→torso (каталог-чек сохранён).
+  const canon = emptyEquipment();
+  canon.right_hand = w.id; canon.torso = a.id;
+  canon.weapon = w.id; canon.armor = a.id;
   assert.deepEqual(
     I.sanitizeEquipment({ weapon: w.id, armor: a.id }),
-    { weapon: w.id, armor: a.id });
+    canon);
   assert.deepEqual(
     I.sanitizeEquipment({ weapon: 'nope', armor: 42, extra: w.id }),
-    { weapon: null, armor: null });
+    emptyEquipment());
   assert.deepEqual(
-    I.sanitizeEquipment(null), { weapon: null, armor: null });
+    I.sanitizeEquipment(null), emptyEquipment());
   assert.deepEqual(
-    I.sanitizeEquipment('junk'), { weapon: null, armor: null });
+    I.sanitizeEquipment('junk'), emptyEquipment());
   assert.deepEqual(
-    I.sanitizeEquipment([w.id]), { weapon: null, armor: null });
+    I.sanitizeEquipment([w.id]), emptyEquipment());
 });
 
 test('сценарий ревью: битый персонаж из сейва не роняет старт (интеграция)', () => {
@@ -623,7 +629,9 @@ test('сценарий ревью: битый персонаж из сейва �
   assert.doesNotThrow(() => I.slotCount(hero));
   assert.doesNotThrow(() => I.equipmentStats(hero));
   assert.equal(I.totalQty(hero, a.id), 2);
-  assert.deepEqual(hero.equipment, { weapon: null, armor: null });
+  // Ре-пин 000230.02 (форменный): канон-форма (18 физ. слотов +
+  // зеркала weapon/armor) — семантика «призрак + не-строка → null».
+  assert.deepEqual(hero.equipment, emptyEquipment());
 });
 
 // --- Задача 000060: единый источник ассортимента магазинов ---
@@ -2395,4 +2403,498 @@ test('000230.01 E22 (ГАРД): D4-каталожность — каждый ski
       }
     }
   }
+});
+
+// --- Задача 000230.02: экипировка — 2 слота → 11 частей тела +
+// 8 слотов колец (P0) ---
+//
+// Контракт — memory/000230.02-multi-slot-equipment-model.md §2/§6:
+//   * RING_SLOTS — 8 физ. слотов колец (ring_left_1..4, ring_right_1..4);
+//     EQUIP_PHYS_SLOTS — 18 физ. слотов (10 одиночных в порядке ТЗ +
+//     кольца концом) — ключи c.equipment;
+//   * c.equipment — канон-форма: 18 физ. + зеркала weapon ≡ right_hand,
+//     armor ≡ torso концом (20 ключей); c.equipmentBonus — 18 физ.
+//     ключей, зеркал НЕТ (D-15);
+//   * slotOf(item) — формула ТЗ дословно: item.slot || (weapon →
+//     right_hand, armor → torso, иначе null);
+//   * equip — по слоту (кольца: первый пустой из 8 в порядке
+//     RING_SLOTS; все 8 заняты — «нет свободных слотов колец»);
+//     unequip — алиасы 'weapon'/'armor';
+//   * equipmentStats — интерфейс {damage, subtype, hitBonus, dmgBonus,
+//     armor} НЕ меняется: урон из right_hand, armor — СУММА всех 18
+//     слотов + бонус качества надетого (000046, raw-чтение eb);
+//   * sanitizeEquipment/Bonus — новая форма + backfill старой
+//     (weapon→right_hand, armor→torso); битое/неизвестное → null
+//     (паттерн 000029); physical ПРЁТ над legacy (D-09);
+//   * useItem/useQuickUnit — 6 kind'ов EQUIP_KINDS — отказ
+//     «<имя> — экипируется» (после weapon/armor-веток; предмет НЕ
+//     тратится, быстрый слот цел).
+// RED (TDD): краснота осмысленная — в текущем коде нет
+// slotOf/RING_SLOTS/EQUIP_PHYS_SLOTS, slot-мапы c.equipment,
+// backfill, новой формы sanitize* и useItem-отказа; syntax/require-
+// падений нет (хелперы уже в файле). Фикстуры проходят валидацию
+// .01 (новый kind — ВСЕГДА с явным slot, E21; weight/value > 0, desc).
+
+const PHYS_SLOTS_00023002 = ['head', 'ears', 'neck', 'torso', 'forearms',
+  'right_hand', 'left_hand', 'palms', 'legs', 'feet',
+  'ring_left_1', 'ring_left_2', 'ring_left_3', 'ring_left_4',
+  'ring_right_1', 'ring_right_2', 'ring_right_3', 'ring_right_4'];
+function emptyEquipment() {
+  const o = {};
+  for (const s of PHYS_SLOTS_00023002) o[s] = null;
+  o.weapon = null; o.armor = null;
+  return o;
+}
+function emptyEquipmentBonus() {
+  const o = {};
+  for (const s of PHYS_SLOTS_00023002) o[s] = null;
+  return o;
+}
+
+test('000230.02 M1 (node): RING_SLOTS (8) / EQUIP_PHYS_SLOTS (18) — экспортированные константы; slotOf — формула ТЗ (явный slot в приоритете, weapon → right_hand, armor → torso, прочее → null)', () => {
+  assert.deepEqual(I.RING_SLOTS, [
+    'ring_left_1', 'ring_left_2', 'ring_left_3', 'ring_left_4',
+    'ring_right_1', 'ring_right_2', 'ring_right_3', 'ring_right_4',
+  ], 'RING_SLOTS — 8 физ. слотов колец, левая рука первой, 1..4 '
+    + '(краснота: константы нет)');
+  assert.deepEqual(I.EQUIP_PHYS_SLOTS, PHYS_SLOTS_00023002,
+    'EQUIP_PHYS_SLOTS — 18 физ. слотов (10 одиночных + кольца концом) '
+    + '(краснота: константы нет)');
+  assert.equal(typeof I.slotOf, 'function',
+    'slotOf экспортирован (краснота: функции нет)');
+  assert.equal(I.slotOf(I.getItem('wood_sword')), 'right_hand',
+    'weapon БЕЗ slot → right_hand (фолбэк — JSON не меняется)');
+  assert.equal(I.slotOf(I.getItem('leather_armor')), 'torso',
+    'armor БЕЗ slot → torso (фолбэк)');
+  assert.equal(I.slotOf(I.getItem('healing_potion')), null,
+    'potion → null (не экипировка)');
+  assert.equal(I.slotOf({ kind: 'armor', slot: 'head' }), 'head',
+    'явный slot в приоритете над фолбэком kind-а');
+});
+
+test('000230.02 M2 (vm): equip по части тела — armor slot head → eq.head; shield → left_hand; tool → right_hand; ring → первый пустой ring-слот; weapon/armor БЕЗ slot (реальные wood_sword/leather_armor) → right_hand/torso; ответ {ok, slot: физический, item}', () => {
+  const fixtures = [
+    { id: 'x_head', name: 'Тестовый шлем', kind: 'armor',
+      stats: { armor: 1 }, slot: 'head', weight: 2, value: 20, desc: 'т' },
+    { id: 'x_shield', name: 'Тестовый щит', kind: 'shield',
+      slot: 'left_hand', weight: 3, value: 50, desc: 'т' },
+    { id: 'x_tool', name: 'Тестовый инструмент', kind: 'tool',
+      slot: 'right_hand', weight: 1, value: 20, desc: 'т' },
+    { id: 'x_ring', name: 'Тестовое кольцо', kind: 'ring',
+      slot: 'ring', weight: 0.1, value: 30, desc: 'т' },
+    I.getItem('wood_sword'),
+    I.getItem('leather_armor'),
+  ];
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = fixtures;
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  for (const id of ['x_head', 'x_shield', 'x_tool', 'x_ring',
+      'wood_sword', 'leather_armor']) {
+    G.addItem(c, id);
+  }
+  const r1 = G.equip(c, 'x_head');
+  assert.equal(r1.ok, true, 'armor с slot head экипируется');
+  assert.equal(r1.slot, 'head',
+    'ответ — ФИЗИЧЕСКИЙ слот (краснота: слот только по kind — «armor»)');
+  assert.equal(r1.item, 'x_head');
+  assert.equal(c.equipment.head, 'x_head', 'шлем в слоте head');
+  const r2 = G.equip(c, 'x_shield');
+  assert.equal(r2.ok, true,
+    'shield экипируется (краснота: «такое не экипируется» — kind shield)');
+  assert.equal(r2.slot, 'left_hand');
+  assert.equal(c.equipment.left_hand, 'x_shield');
+  const r3 = G.equip(c, 'x_tool');
+  assert.equal(r3.ok, true,
+    'tool экипируется (краснота: «такое не экипируется» — kind tool)');
+  assert.equal(r3.slot, 'right_hand');
+  assert.equal(c.equipment.right_hand, 'x_tool');
+  const r4 = G.equip(c, 'x_ring');
+  assert.equal(r4.ok, true,
+    'ring экипируется (краснота: «такое не экипируется» — kind ring)');
+  assert.equal(r4.slot, 'ring_left_1', 'кольцо — первый пустой из 8');
+  assert.equal(c.equipment.ring_left_1, 'x_ring');
+  const r5 = G.equip(c, 'wood_sword');
+  assert.equal(r5.ok, true);
+  assert.equal(r5.slot, 'right_hand',
+    'weapon БЕЗ slot → right_hand (пин ТЗ: JSON предметов не меняется)');
+  assert.equal(c.equipment.right_hand, 'wood_sword',
+    'реальный меч в right_hand (заменяет tool)');
+  const r6 = G.equip(c, 'leather_armor');
+  assert.equal(r6.ok, true);
+  assert.equal(r6.slot, 'torso',
+    'armor БЕЗ slot → torso (пин ТЗ: JSON предметов не меняется)');
+  assert.equal(c.equipment.torso, 'leather_armor');
+});
+
+test('000230.02 M3 (vm): один предмет на слот — второй шлем заменяет первый; предыдущий возвращён в инвентарь (с бонусом качества, 000046); зеркала weapon/armor не тронуты; unequip по физическому слоту возвращает предмет', () => {
+  const fixtures = [
+    { id: 'x_head_a', name: 'Шлем A', kind: 'armor',
+      stats: { armor: 2 }, slot: 'head', weight: 2, value: 20, desc: 'т' },
+    { id: 'x_head_b', name: 'Шлем B', kind: 'armor',
+      stats: { armor: 2 }, slot: 'head', weight: 2, value: 20, desc: 'т' },
+  ];
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = fixtures;
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  G.addItem(c, 'x_head_a', 1, { armor: 2 });
+  G.addItem(c, 'x_head_b');
+  const rA = G.equip(c, 'x_head_a');
+  assert.equal(rA.ok, true);
+  assert.equal(rA.slot, 'head',
+    'краснота: armor кладётся в «armor» независимо от slot');
+  assert.equal(c.equipment.head, 'x_head_a');
+  const rB = G.equip(c, 'x_head_b');
+  assert.equal(rB.ok, true, 'та же часть тела — замена (один предмет на слот)');
+  assert.equal(c.equipment.head, 'x_head_b', 'B в слоте, A снят');
+  assert.equal(G.totalQty(c, 'x_head_a'), 1, 'A возвращён в инвентарь');
+  const slotA = fromVm(c.inventory.slots).find((e) => e.id === 'x_head_a');
+  assert.ok(slotA, 'слот A в инвентаре');
+  assert.deepEqual(slotA.bonus, { armor: 2 },
+    'бонус качества — с предметом (000046)');
+  assert.equal(c.equipment.weapon, null,
+    'зеркало weapon не тронуто (head ≠ right_hand)');
+  assert.equal(c.equipment.armor, null,
+    'зеркало armor не тронуто (head ≠ torso)');
+  const rU = G.unequip(c, 'head');
+  assert.equal(rU.ok, true,
+    'unequip по физическому слоту (краснота: eq.head отсутствует — «ничего не экипировано»)');
+  assert.equal(c.equipment.head, null);
+  assert.equal(G.totalQty(c, 'x_head_b'), 1, 'B возвращён в инвентарь');
+});
+
+test('000230.02 M4 (vm): смена в одиночном слоте возвращает предыдущий (реальные предметы) — wood_sword → iron_sword: right_hand = iron_sword, зеркало weapon ≡ right_hand, старый меч в инвентаре', () => {
+  const fixtures = [I.getItem('wood_sword'), I.getItem('iron_sword')];
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = fixtures;
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  G.addItem(c, 'wood_sword');
+  G.addItem(c, 'iron_sword');
+  G.equip(c, 'wood_sword');
+  const r = G.equip(c, 'iron_sword');
+  assert.equal(r.ok, true);
+  assert.equal(c.equipment.right_hand, 'iron_sword',
+    'краснота: оружие в «weapon», key right_hand отсутствует');
+  assert.equal(c.equipment.weapon, 'iron_sword', 'зеркало weapon ≡ right_hand');
+  assert.equal(G.totalQty(c, 'wood_sword'), 1, 'предыдущий меч — в инвентаре');
+});
+
+test('000230.02 M5 (vm): 4+4 кольца — 8 equip заполняют ring_left_1..4 + ring_right_1..4 (порядок RING_SLOTS); 9-е — отказ «нет свободных слотов колец»; освобождённый слот занимает следующее кольцо — первым пустым ПО ПОРЯДКУ', () => {
+  const fixtures = [
+    { id: 'x_ring', name: 'Тестовое кольцо', kind: 'ring',
+      slot: 'ring', weight: 0.1, value: 30, desc: 'т' },
+  ];
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = fixtures;
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  G.addItem(c, 'x_ring', 9);
+  const order = ['ring_left_1', 'ring_left_2', 'ring_left_3',
+    'ring_left_4', 'ring_right_1', 'ring_right_2', 'ring_right_3',
+    'ring_right_4'];
+  for (const slot of order) {
+    const r = G.equip(c, 'x_ring');
+    assert.equal(r.ok, true,
+      'кольцо экипируется (краснота: «такое не экипируется» — kind ring)');
+    assert.equal(r.slot, slot,
+      'порядок — первый пустой по RING_SLOTS (левая рука первой)');
+    assert.equal(c.equipment[slot], 'x_ring');
+  }
+  assert.equal(G.totalQty(c, 'x_ring'), 1, '8 надето, 1 в инвентаре');
+  const r9 = G.equip(c, 'x_ring');
+  assert.equal(r9.ok, false, '9-е кольцо — отказ (слотов 8)');
+  assert.equal(r9.reason, 'нет свободных слотов колец');
+  assert.equal(G.totalQty(c, 'x_ring'), 1, 'предмет не тратится');
+  const rU = G.unequip(c, 'ring_left_2');
+  assert.equal(rU.ok, true,
+    'unequip конкретного ring-слота (краснота: слот не существует)');
+  assert.equal(c.equipment.ring_left_2, null, 'слот освобождён');
+  assert.equal(G.totalQty(c, 'x_ring'), 2);
+  const r10 = G.equip(c, 'x_ring');
+  assert.equal(r10.ok, true);
+  assert.equal(r10.slot, 'ring_left_2',
+    'следующее кольцо — первый пустой ПО ПОРЯДКУ (не конец, не right_*)');
+  assert.equal(c.equipment.ring_left_2, 'x_ring');
+  assert.equal(G.totalQty(c, 'x_ring'), 1);
+});
+
+test('000230.02 M6 (vm+node): equipmentStats — интерфейс {damage, subtype, hitBonus, dmgBonus, armor} не меняется: armor = СУММА stats.armor всех слотов (+ бонус качества надетого, 000046); damage/subtype/hitBonus/dmgBonus — ТОЛЬКО из right_hand; staff — damage без бонусов; tool БЕЗ stats.damage — 0/null без падения; ghost — вклад 0', () => {
+  const fixtures = [
+    { id: 'x_head6', name: 'Тестовый шлем', kind: 'armor',
+      stats: { armor: 1 }, slot: 'head', weight: 1, value: 10, desc: 'т' },
+    { id: 'x_torso6', name: 'Тестовая кираса', kind: 'armor',
+      stats: { armor: 2 }, slot: 'torso', weight: 2, value: 20, desc: 'т' },
+    { id: 'x_legs6', name: 'Тестовые поножи', kind: 'armor',
+      stats: { armor: 3 }, slot: 'legs', weight: 3, value: 30, desc: 'т' },
+    { id: 'x_staff6', name: 'Тестовый посох', kind: 'weapon',
+      subtype: 'staff', stats: { damage: 7 }, weight: 4, value: 80,
+      desc: 'т' },
+    { id: 'x_tool6', name: 'Тестовый инструмент', kind: 'tool',
+      slot: 'right_hand', weight: 1, value: 20, desc: 'т' },
+    I.getItem('iron_sword'),
+    I.getItem('short_bow'),
+  ];
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = fixtures;
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  c.secondary.swordsman = 6;
+  c.secondary.archer = 4;
+  c.secondary.accuracy = 2;
+  G.addItem(c, 'x_head6');
+  G.addItem(c, 'x_torso6');
+  G.addItem(c, 'x_legs6');
+  // Тех-фикс (зелёная стадия): equip требует предмет в инвентаре
+  // (hasItem) — оружие/посох/инструмент дописаны в инвентарь.
+  G.addItem(c, 'iron_sword');
+  G.addItem(c, 'short_bow');
+  G.addItem(c, 'x_staff6');
+  G.addItem(c, 'x_tool6');
+  G.equip(c, 'x_head6');
+  G.equip(c, 'x_torso6');
+  G.equip(c, 'x_legs6');
+  let st = G.equipmentStats(c);
+  assert.equal(st.armor, 6,
+    'armor — СУММА всех слотов 1+2+3 (краснота: только eq.armor — одно слагаемое)');
+  assert.equal(st.damage, 0, 'нет оружия в right_hand — damage 0');
+  assert.equal(st.subtype, null, 'нет оружия — subtype null');
+  // Бонус качества надетого входит в сумму (000046; eb — raw-чтение).
+  c.equipmentBonus = {};
+  c.equipmentBonus.torso = { armor: 1 };
+  st = G.equipmentStats(c);
+  assert.equal(st.armor, 7, 'armor — сумма + бонус torso {armor:1} (000046)');
+  // Урон — ТОЛЬКО из right_hand.
+  G.equip(c, 'iron_sword');
+  st = G.equipmentStats(c);
+  assert.equal(st.damage, 5,
+    'damage — из right_hand (краснота: читается eq.weapon)');
+  assert.equal(st.subtype, 'sword');
+  assert.equal(st.hitBonus, 0.05 * 6, 'sword — hitBonus = swordHitBonus');
+  assert.equal(st.dmgBonus, 0, 'sword — без dmgBonus');
+  G.equip(c, 'short_bow');
+  st = G.equipmentStats(c);
+  assert.equal(st.damage, 4, 'лук заменил меч (меч — в инвентаре)');
+  assert.equal(st.hitBonus, 0.05 * 4, 'bow — hitBonus = archerHitBonus');
+  assert.equal(st.dmgBonus, 0.05 * 2, 'bow — dmgBonus = rangedDamageBonus');
+  G.equip(c, 'x_staff6');
+  st = G.equipmentStats(c);
+  assert.equal(st.damage, 7, 'staff — damage');
+  assert.equal(st.subtype, 'staff');
+  assert.equal(st.hitBonus, 0, 'staff — без hitBonus (карты бонусов нет)');
+  assert.equal(st.dmgBonus, 0, 'staff — без dmgBonus');
+  G.equip(c, 'x_tool6');
+  st = G.equipmentStats(c);
+  assert.equal(st.damage, 0,
+    'tool БЕЗ stats.damage — damage 0 (гард; краснота: NaN/TypeError)');
+  assert.equal(st.subtype, null, 'tool — subtype null');
+  assert.ok(Number.isFinite(st.damage) && Number.isFinite(st.armor),
+    'статы — числа, не NaN');
+  // Ghost в слоте — вклад 0, без падения.
+  G.unequip(c, 'right_hand');
+  c.equipment.right_hand = 'ghost_00023002';
+  assert.doesNotThrow(() => { st = G.equipmentStats(c); },
+    'ghost id — без TypeError');
+  assert.equal(st.damage, 0, 'ghost — вклад 0');
+  assert.equal(st.subtype, null);
+  // «Голый» персонаж (node) — дефолты интерфейса.
+  const c0 = createCharacter();
+  assert.deepEqual(I.equipmentStats(c0),
+    { damage: 0, subtype: null, hitBonus: 0, dmgBonus: 0, armor: 0 },
+    'голый персонаж — дефолты {0, null, 0, 0, 0}');
+});
+
+test('000230.02 M7 (node): backfill — старый сейв {weapon: iron_sword, armor: leather_armor} → right_hand/torso + зеркала; equipmentStats — бит-в-бит как в старой форме; legacy eb {weapon:{damage:2}} → right_hand → damage 7; ensureEquipment — защитный backfill', () => {
+  const eq = I.sanitizeEquipment(
+    { weapon: 'iron_sword', armor: 'leather_armor' });
+  assert.equal(eq.right_hand, 'iron_sword',
+    'weapon → right_hand (краснота: backfill нет — форма {weapon, armor})');
+  assert.equal(eq.torso, 'leather_armor', 'armor → torso');
+  assert.equal(eq.weapon, 'iron_sword', 'зеркало weapon ≡ right_hand');
+  assert.equal(eq.armor, 'leather_armor', 'зеркало armor ≡ torso');
+  const c = createCharacter();
+  c.equipment = eq;
+  const st = I.equipmentStats(c);
+  assert.deepEqual(st,
+    { damage: 5, subtype: 'sword', hitBonus: 0, dmgBonus: 0, armor: 2 },
+    'equipmentStats — РОВНО значения старой 2-слотовой формы (пин ТЗ)');
+  c.equipmentBonus = I.sanitizeEquipmentBonus({ weapon: { damage: 2 } });
+  assert.deepEqual(c.equipmentBonus.right_hand, { damage: 2 },
+    'legacy eb weapon → right_hand (краснота: backfill нет)');
+  assert.equal(I.equipmentStats(c).damage, 7, 'damage — 5 + бонус 2 (000046)');
+  const c2 = createCharacter();
+  c2.equipment = { weapon: 'iron_sword' };
+  I.ensureEquipment(c2);
+  assert.equal(c2.equipment.right_hand, 'iron_sword',
+    'ensureEquipment — legacy weapon → right_hand (защитный backfill)');
+  assert.equal(c2.equipment.weapon, 'iron_sword', 'зеркало weapon');
+});
+
+test('000230.02 M8 (node): sanitize — битый/неизвестный слот → null, неизвестные ключи отброшены; legacy backfill weapon→right_hand / armor→torso; physical ПРЁТ над legacy; {weapon:null} → канон-пустота без падений', () => {
+  const o1 = I.sanitizeEquipment({ right_hand: 'ghost_id_00023002' });
+  assert.equal(o1.right_hand, null,
+    'id вне каталога → null (краснота: ключа right_hand в форме нет)');
+  const o2 = I.sanitizeEquipment({ head: 7 });
+  assert.equal(o2.head, null, 'не-строка → null');
+  const o3 = I.sanitizeEquipment({ head: 7, unknown_key: 'x', extra: 1 });
+  assert.ok(!('unknown_key' in o3), 'неизвестный ключ — отброшен');
+  assert.ok(!('extra' in o3), 'чужой ключ — отброшен');
+  for (const junk of [null, 'junk', [1, 2], 42]) {
+    assert.deepEqual(I.sanitizeEquipment(junk), emptyEquipment(),
+      'не-объект → канон-пустота (краснота: форма {weapon, armor})');
+  }
+  assert.deepEqual(I.sanitizeEquipment(
+    { weapon: 'ghost_item', armor: 7 }), emptyEquipment(),
+    'legacy-бэкфилл не спасает призраков (каталог-чек)');
+  const b1 = I.sanitizeEquipmentBonus({ right_hand: { damage: 2 } });
+  assert.deepEqual(b1.right_hand, { damage: 2 },
+    'right_hand — строго {damage} — сохраняется');
+  const b2 = I.sanitizeEquipmentBonus({ right_hand: { armor: 1 } });
+  assert.equal(b2.right_hand, null,
+    'чужой стат для right_hand → null (старая семантика)');
+  const b3 = I.sanitizeEquipmentBonus({ torso: { armor: 3 } });
+  assert.deepEqual(b3.torso, { armor: 3 }, 'torso — строго {armor}');
+  const b4 = I.sanitizeEquipmentBonus({ head: { armor: 2 } });
+  assert.deepEqual(b4.head, { armor: 2 },
+    'разрешительный слот: {armor} — сохраняется');
+  const b5 = I.sanitizeEquipmentBonus({ head: { damage: 1 } });
+  assert.deepEqual(b5.head, { damage: 1 },
+    'разрешительный слот: {damage} — сохраняется (data loss запрещён)');
+  const b6 = I.sanitizeEquipmentBonus({ extra: { damage: 1 } });
+  assert.ok(!('extra' in b6), 'неизвестный ключ — отброшен');
+  const b7 = I.sanitizeEquipmentBonus({ weapon: { damage: 2 } });
+  assert.deepEqual(b7.right_hand, { damage: 2 },
+    'legacy weapon → right_hand (backfill)');
+  const b8 = I.sanitizeEquipmentBonus({ armor: { armor: 3 } });
+  assert.deepEqual(b8.torso, { armor: 3 }, 'legacy armor → torso (backfill)');
+  for (const junk of [{ weapon: null, armor: null }, {}, null, 'junk', [1]]) {
+    assert.deepEqual(I.sanitizeEquipmentBonus(junk), emptyEquipmentBonus(),
+      'пустой/битый legacy → канон-пустота БЕЗ падений');
+  }
+  const b9 = I.sanitizeEquipmentBonus(
+    { right_hand: { damage: 1 }, weapon: { damage: 2 } });
+  assert.deepEqual(b9.right_hand, { damage: 1 },
+    'physical ПРЁТ над legacy (мешаный сейв)');
+});
+
+test('000230.02 M9 (vm): useItem/useQuickUnit — 4 новых kind (tool/shield/ring/artifact) → отказ «<имя> — экипируется»; weapon/armor — СТАРЫЕ сообщения бит-в-байт; предмет НЕ тратится, быстрый слот цел', () => {
+  const fixtures = [
+    { id: 'x_tool9', name: 'Тестовый инструмент', kind: 'tool',
+      slot: 'right_hand', weight: 1, value: 20, desc: 'т' },
+    { id: 'x_shield9', name: 'Тестовый щит', kind: 'shield',
+      slot: 'left_hand', weight: 3, value: 50, desc: 'т' },
+    { id: 'x_ring9', name: 'Тестовое кольцо', kind: 'ring',
+      slot: 'ring', weight: 0.1, value: 30, desc: 'т' },
+    { id: 'x_artifact9', name: 'Тестовый артефакт', kind: 'artifact',
+      slot: 'left_hand', weight: 0.5, value: 100, desc: 'т' },
+    I.getItem('iron_sword'),
+    I.getItem('leather_armor'),
+  ];
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = fixtures;
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  for (const id of ['x_tool9', 'x_shield9', 'x_ring9', 'x_artifact9',
+      'iron_sword', 'leather_armor']) {
+    G.addItem(c, id);
+  }
+  const r1 = G.useItem(c, 'x_tool9');
+  assert.equal(r1.ok, false,
+    'tool — отказ (краснота: old-код МОЛЧА тратит предмет)');
+  assert.equal(r1.reason, 'Тестовый инструмент — экипируется',
+    'сообщение — по ИМЕНИ предмета');
+  assert.equal(G.useItem(c, 'x_shield9').reason, 'Тестовый щит — экипируется');
+  assert.equal(G.useItem(c, 'x_ring9').reason, 'Тестовое кольцо — экипируется');
+  assert.equal(G.useItem(c, 'x_artifact9').reason,
+    'Тестовый артефакт — экипируется');
+  const r5 = G.useItem(c, 'iron_sword');
+  assert.equal(r5.ok, false);
+  assert.equal(r5.reason, 'оружие — экипируется',
+    'weapon — СТАРОЕ сообщение бит-в-байт');
+  const r6 = G.useItem(c, 'leather_armor');
+  assert.equal(r6.ok, false);
+  assert.equal(r6.reason, 'броня — экипируется',
+    'armor — СТАРОЕ сообщение бит-в-байт');
+  for (const id of ['x_tool9', 'x_shield9', 'x_ring9', 'x_artifact9',
+      'iron_sword', 'leather_armor']) {
+    assert.equal(G.totalQty(c, id), 1, id + ' — предмет не тратится');
+  }
+  G.setQuick(c, 0, 'x_ring9');
+  const q = G.useQuickItem(c, 0);
+  assert.equal(q.ok, false, 'кольцо в быстром слоте — отказ');
+  assert.equal(q.reason, 'Тестовое кольцо — экипируется');
+  assert.equal(G.quickItem(c, 0), 'x_ring9',
+    'быстрый слот цел (действие не сгорело)');
+});
+
+test('000230.02 M10 (node): канон-форма — sanitizeEquipment: ровно 20 ключей (18 физ. ПОРЯДКОМ EQUIP_PHYS_SLOTS + weapon/armor концом); ensureEquipment(fresh) — канон 20; ensureEquipmentBonus(fresh) — ровно 18 ключей, зеркал нет', () => {
+  const eq = I.sanitizeEquipment(
+    { weapon: 'iron_sword', armor: 'leather_armor' });
+  assert.deepEqual(eq, {
+    head: null, ears: null, neck: null, torso: 'leather_armor',
+    forearms: null, right_hand: 'iron_sword', left_hand: null,
+    palms: null, legs: null, feet: null,
+    ring_left_1: null, ring_left_2: null, ring_left_3: null,
+    ring_left_4: null, ring_right_1: null, ring_right_2: null,
+    ring_right_3: null, ring_right_4: null,
+    weapon: 'iron_sword', armor: 'leather_armor',
+  }, 'канон: backfill + зеркала (краснота: форма {weapon, armor})');
+  assert.deepEqual(Object.keys(eq),
+    [...PHYS_SLOTS_00023002, 'weapon', 'armor'],
+    'порядок ключей — 18 физ. + зеркала концом (детерминизм сейва, 000031)');
+  const c = createCharacter();
+  I.ensureEquipment(c);
+  assert.deepEqual(c.equipment, emptyEquipment(),
+    'ensureEquipment(fresh) — канон 20 ключей null');
+  assert.deepEqual(Object.keys(c.equipment),
+    [...PHYS_SLOTS_00023002, 'weapon', 'armor'], 'порядок ключей');
+  const c2 = createCharacter();
+  I.ensureEquipmentBonus(c2);
+  assert.deepEqual(c2.equipmentBonus, emptyEquipmentBonus(),
+    'ensureEquipmentBonus(fresh) — ровно 18 ключей, зеркал нет');
+  assert.deepEqual(Object.keys(c2.equipmentBonus), PHYS_SLOTS_00023002,
+    'порядок ключей — EQUIP_PHYS_SLOTS');
+});
+
+test('000230.02 M11 (vm): equip с заменой тяжёлого на лёгкое при инвентаре у лимита веса — note-ветка (вернуть старое не удалось) синхронизирует зеркала: weapon ≡ right_hand (D-01 — ВСЕГДА синхронны); потеря старого предмета — пин ПРЕСУЩЕСТВУЮЩЕГО поведения', () => {
+  const fixtures = [
+    { id: 'x_ballast', name: 'Тестовый балласт', kind: 'food', weight: 4,
+      value: 5, desc: 'т', effect: { kind: 'eat', amount: 1 } },
+    I.getItem('war_hammer'),
+    I.getItem('wood_sword'),
+  ];
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = fixtures;
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  G.addItem(c, 'war_hammer');
+  G.equip(c, 'war_hammer');
+  for (let i = 0; i < 7; i++) G.addItem(c, 'x_ballast');
+  G.addItem(c, 'wood_sword');
+  assert.equal(G.inventoryWeight(c), 29, 'установка: 29/30 кг (war_hammer w4 надет)');
+  const r = G.equip(c, 'wood_sword');
+  assert.equal(r.ok, true, 'новая копия легче — экипирование проходит');
+  assert.match(r.note, /war_hammer/);
+  assert.match(r.note, /тяжело/);
+  assert.equal(G.totalQty(c, 'war_hammer'), 0,
+    'старый предмет потерян — пресуществующее поведение, НЕ регрессия');
+  assert.equal(c.equipment.right_hand, 'wood_sword');
+  assert.equal(c.equipment.weapon, 'wood_sword',
+    'краснота: note-ветка уходила без syncEquipmentMirrors — '
+    + 'зеркало weapon застревало на старом предмете (D-01)');
 });

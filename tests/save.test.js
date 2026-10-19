@@ -542,13 +542,16 @@ test('000046: hero.craft/craftXp/equipmentBonus — roundtrip и поддела�
   //   * «нет_такого_вида» — отброс; «алхимия»: 150 — кламп до 100;
   //   * craftXp: отрицательный чужой вид — отброс;
   //   * equipmentBonus: armor {armor: -1} — невалиден → null;
-  //     чужой ключ «extra» — отброс.
+  //     чужой ключ «extra» — отброс;
+  //   * equipment: СТАРАЯ 2-слотовая форма {weapon, armor} — backfill
+  //     000230.02 в канон (right_hand/torso + зеркала).
   const h = bootWithSave(st, {
     craft: { 'кузнечное_дело': 7, 'алхимия': 150, 'нет_такого_вида': 5 },
     craftXp: { 'алхимия': 5, 'нет_такого_вида': -3 },
     equipmentBonus: {
       weapon: { damage: 2 }, armor: { armor: -1 }, extra: 1,
     },
+    equipment: { weapon: 'iron_sword', armor: 'leather_armor' },
   });
   for (let i = 0; i < 5; i++) await h.drain();
   assert.equal(h.errors.length, 0,
@@ -568,9 +571,34 @@ test('000046: hero.craft/craftXp/equipmentBonus — roundtrip и поддела�
     'craft восстановлен и очищен (чужой вид отброшен, >100 — кламп)');
   assert.deepEqual(host(state.hero.craftXp), { 'алхимия': 5 },
     'craftXp восстановлен и очищен');
-  assert.deepEqual(host(state.hero.equipmentBonus),
-    { weapon: { damage: 2 }, armor: null },
+  // Ре-пин 000230.02 (форменный): equipmentBonus — чистая мапа 18
+  // физ. слотов (зеркал нет); вход — СТАРАЯ форма {weapon, armor}
+  // (backfill weapon→right_hand; {armor:-1} невалиден → null; «extra»
+  // — отброшен).
+  const EB_00023002 = {
+    head: null, ears: null, neck: null, torso: null, forearms: null,
+    right_hand: { damage: 2 }, left_hand: null, palms: null,
+    legs: null, feet: null,
+    ring_left_1: null, ring_left_2: null, ring_left_3: null,
+    ring_left_4: null, ring_right_1: null, ring_right_2: null,
+    ring_right_3: null, ring_right_4: null,
+  };
+  assert.deepEqual(host(state.hero.equipmentBonus), EB_00023002,
     'equipmentBonus восстановлен и очищен');
+  // 000230.02: старая 2-слотовая форма {weapon, armor} — backfill в
+  // канон (weapon→right_hand, armor→torso) + зеркала weapon/armor.
+  // Живой hero НЕ в __game-проекции (state.hero) — пин на roundtrip:
+  // поддельный сейв → restoreFromSave → sanitizeEquipment →
+  // collectSaveData → JSON сейва (единый путь — main.js, правок нет).
+  const EQ_00023002 = {
+    head: null, ears: null, neck: null, torso: 'leather_armor',
+    forearms: null, right_hand: 'iron_sword', left_hand: null,
+    palms: null, legs: null, feet: null,
+    ring_left_1: null, ring_left_2: null, ring_left_3: null,
+    ring_left_4: null, ring_right_1: null, ring_right_2: null,
+    ring_right_3: null, ring_right_4: null,
+    weapon: 'iron_sword', armor: 'leather_armor',
+  };
   // Roundtrip: beforeunload → поля в сериализованном герое (очищенные).
   const beforeUnload = h.winListeners['beforeunload'];
   assert.ok(beforeUnload && beforeUnload.length > 0,
@@ -581,8 +609,11 @@ test('000046: hero.craft/craftXp/equipmentBonus — roundtrip и поддела�
     { 'кузнечное_дело': 7, 'алхимия': 100 }, 'craft пережил roundtrip');
   assert.deepEqual(saved.data.hero.craftXp, { 'алхимия': 5 },
     'craftXp пережил roundtrip');
-  assert.deepEqual(saved.data.hero.equipmentBonus,
-    { weapon: { damage: 2 }, armor: null }, 'equipmentBonus пережил roundtrip');
+  assert.deepEqual(saved.data.hero.equipmentBonus, EB_00023002,
+    'equipmentBonus пережил roundtrip');
+  assert.deepEqual(saved.data.hero.equipment, EQ_00023002,
+    'equipment: backfill weapon→right_hand, armor→torso + зеркала — '
+    + 'канон-форма пережил roundtrip (000230.02)');
   assert.deepEqual(saved.data.hero.spells, ['spark'],
     'spells пережили roundtrip (регрессия 000045)');
 
@@ -598,8 +629,17 @@ test('000046: hero.craft/craftXp/equipmentBonus — roundtrip и поддела�
   assert.ok(state2.save, 'старый сейв загружен');
   assert.deepEqual(host(state2.hero.craft), {}, 'старый сейв: craft → {}');
   assert.deepEqual(host(state2.hero.craftXp), {}, 'старый сейв: craftXp → {}');
+  // Ре-пин 000230.02 (форменный): дефолт — канон 18 физ. слотов null.
+  const EB_EMPTY_00023002 = {
+    head: null, ears: null, neck: null, torso: null, forearms: null,
+    right_hand: null, left_hand: null, palms: null, legs: null,
+    feet: null,
+    ring_left_1: null, ring_left_2: null, ring_left_3: null,
+    ring_left_4: null, ring_right_1: null, ring_right_2: null,
+    ring_right_3: null, ring_right_4: null,
+  };
   assert.deepEqual(host(state2.hero.equipmentBonus),
-    { weapon: null, armor: null }, 'старый сейв: equipmentBonus → дефолт');
+    EB_EMPTY_00023002, 'старый сейв: equipmentBonus → дефолт');
   assert.deepEqual(host(state2.hero.spells), [], 'старый сейв: spells → []');
 });
 

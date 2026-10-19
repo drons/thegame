@@ -1051,6 +1051,21 @@ test('инвентарь: слот с bonus изолирован; addItem/canAdd
     'ушла bonus-копия, осталась обычная');
 });
 
+// Ре-пин 000230.02 (форменный): equipmentBonus — чистая мапа 18
+// физ. слотов (EQUIP_PHYS_SLOTS), зеркал weapon/armor нет; старая
+// форма {weapon, armor} — backfill в right_hand/torso.
+function eqBonusCanon(m) {
+  const o = {
+    head: null, ears: null, neck: null, torso: null, forearms: null,
+    right_hand: null, left_hand: null, palms: null, legs: null,
+    feet: null,
+    ring_left_1: null, ring_left_2: null, ring_left_3: null,
+    ring_left_4: null, ring_right_1: null, ring_right_2: null,
+    ring_right_3: null, ring_right_4: null,
+  };
+  return Object.assign(o, m || {});
+}
+
 test('инвентарь: equip/unequip — бонус следует предмету (equipmentBonus)', () => {
   const p = createCharacter();
   I.addItem(p, 'iron_sword', 1, { damage: 2 });
@@ -1058,7 +1073,8 @@ test('инвентарь: equip/unequip — бонус следует предм
   // equip забирает bonus-копию (bonusFirst).
   const eq = I.equip(p, 'iron_sword');
   assert.equal(eq.ok, true, eq.reason);
-  assert.deepEqual(p.equipmentBonus, { weapon: { damage: 2 }, armor: null });
+  assert.deepEqual(p.equipmentBonus,
+    eqBonusCanon({ right_hand: { damage: 2 } }));
   assert.equal(I.equipmentStats(p).damage, 5 + 2, 'база 5 + бонус 2');
   assert.equal(I.totalQty(p, 'iron_sword'), 1, 'в инвентаре обычная копия');
   // unequip — бонус вернулся с предметом.
@@ -1069,7 +1085,7 @@ test('инвентарь: equip/unequip — бонус следует предм
   assert.equal(slots.filter((s) => s.bonus).length, 1, 'бонус вернулся');
   // Следующий equip — обычная копия: бонуса нет.
   I.equip(p, 'iron_sword');
-  assert.deepEqual(p.equipmentBonus, { weapon: null, armor: null });
+  assert.deepEqual(p.equipmentBonus, eqBonusCanon());
   assert.equal(I.equipmentStats(p).damage, 5);
 });
 
@@ -1169,14 +1185,14 @@ test('sanitizeCraftLevels/sanitizeCraftXp: мусор → {}, валидные �
 });
 
 test('sanitizeEquipmentBonus/sanitizeInventory: bonus в сейве — чистка без падений', () => {
-  const EMPTY = { weapon: null, armor: null };
+  const EMPTY = eqBonusCanon();
   assert.deepEqual(I.sanitizeEquipmentBonus(null), EMPTY);
   assert.deepEqual(I.sanitizeEquipmentBonus('x'), EMPTY);
   assert.deepEqual(I.sanitizeEquipmentBonus({}), EMPTY);
   assert.deepEqual(I.sanitizeEquipmentBonus({ weapon: { damage: 2 } }),
-    { weapon: { damage: 2 }, armor: null });
+    eqBonusCanon({ right_hand: { damage: 2 } }));
   assert.deepEqual(I.sanitizeEquipmentBonus({ armor: { armor: 3 } }),
-    { weapon: null, armor: { armor: 3 } });
+    eqBonusCanon({ torso: { armor: 3 } }));
   // Мусор:
   assert.deepEqual(I.sanitizeEquipmentBonus({ weapon: { damage: -1 } }), EMPTY);
   assert.deepEqual(I.sanitizeEquipmentBonus({ weapon: { damage: 0 } }), EMPTY);
@@ -1186,7 +1202,7 @@ test('sanitizeEquipmentBonus/sanitizeInventory: bonus в сейве — чист
   assert.deepEqual(I.sanitizeEquipmentBonus({ weapon: { damage: 1, armor: 1 } }),
     EMPTY, 'лишний ключ');
   assert.deepEqual(I.sanitizeEquipmentBonus({ weapon: 'iron_sword', armor: { armor: 2 } }),
-    { weapon: null, armor: { armor: 2 } }, 'чистка одного слота не трогает другой');
+    eqBonusCanon({ torso: { armor: 2 } }), 'чистка одного слота не трогает другой');
   // sanitizeInventory: валидный bonus сохраняется; невалидный — отбрасывается
   // (слот остаётся); bonus-слот не сливается с обычной стопкой.
   assert.deepEqual(I.sanitizeInventory({
