@@ -77,6 +77,10 @@
 // player.js (порядок загрузки — guard: xpForNext топовый ключ Game,
 // в node — require; порог уровня теперь — Sheet.addXp;
 // SECONDARY_SKILLS — каталог вторичных навыков для sanitize),
+// items.js (equip/unequip/equipmentStats/equipmentAffixes/
+// sanitizeEquipment(Bonus) — экипировка наёмника, 000230.06;
+// в node — require в merge, в браузере — топовые ключи Game;
+// typeof-guards в момент вызова — деградация без crash),
 // sheet.js (Game.Sheet — единый лист, 000140: createSheet/addXp/
 // derived; в браузере — Game.Sheet, в node — require; порядок
 // index.html: sheet.js → player.js → npc.js → companions.js).
@@ -488,10 +492,11 @@ function (settings, G) {
     return sheet;
   }
 
-  // Свежая глубокая копия 10 ключей (сериализация — fresh-copy-пин
-  // T1/CS-5: мутация input не меняет снапшот).
+  // Свежая глубокая копия 10/12 ключей (сериализация — fresh-copy-пин
+  // T1/CS-5: мутация input не меняет снапшот); equipment/equipmentBonus
+  // (000230.06) — опционально, только при наличии (as-is).
   function copyMercSheet(s) {
-    return {
+    const out = {
       kind: s.kind,
       level: s.level,
       xp: s.xp,
@@ -503,6 +508,19 @@ function (settings, G) {
       spells: (Array.isArray(s.spells) ? s.spells : []).slice(),
       npcId: s.npcId,
     };
+    const eq = s.equipment;
+    if (eq && typeof eq === 'object' && !Array.isArray(eq)) {
+      out.equipment = Object.assign({}, eq);
+    }
+    const eb = s.equipmentBonus;
+    if (eb && typeof eb === 'object' && !Array.isArray(eb)) {
+      out.equipmentBonus = {};
+      for (const [k, v] of Object.entries(eb)) {
+        out.equipmentBonus[k] = (v && typeof v === 'object' &&
+          !Array.isArray(v)) ? Object.assign({}, v) : v;
+      }
+    }
+    return out;
   }
 
   /**
@@ -558,7 +576,7 @@ function (settings, G) {
       ? s.totalXp : s.xp;
     const points = (Number.isInteger(s.points) && s.points >= 0)
       ? s.points : 0;
-    return {
+    const out = {
       kind: 'merc',
       level: s.level,
       xp: s.xp,
@@ -570,6 +588,17 @@ function (settings, G) {
       spells,
       npcId: s.npcId,
     };
+    const eq = s.equipment;
+    if (eq && typeof eq === 'object' && !Array.isArray(eq) &&
+        typeof G.sanitizeEquipment === 'function') {
+      out.equipment = G.sanitizeEquipment(eq);
+    }
+    const eb = s.equipmentBonus;
+    if (eb && typeof eb === 'object' && !Array.isArray(eb) &&
+        typeof G.sanitizeEquipmentBonus === 'function') {
+      out.equipmentBonus = G.sanitizeEquipmentBonus(eb);
+    }
+    return out;
   }
 
   /**
@@ -703,25 +732,30 @@ function (settings, G) {
     const dd = G.Sheet.derived(entry.sheet,
       { modifier: mercModifier, h });
     if (!dd) return null; // деградация каталога (000140) — тихий skip
+    const sheet = entry.sheet;
+    const eq0 = sheet.equipment;
+    const es = (eq0 && typeof eq0 === 'object' && !Array.isArray(eq0) &&
+        typeof G.equipmentStats === 'function')
+      ? G.equipmentStats(sheet) : null;
+    const aff = (typeof G.equipmentAffixes === 'function')
+      ? G.equipmentAffixes(sheet) : null;
+    const freeCast = (aff && aff.freeCast)
+      ? Array.from(aff.freeCast) : [];
     return {
       id: npc.id,
       name: npc.имя,
       role: h.роль,
       level: entry.level, // зеркало = sheet.level (§2.1)
       maxHP: dd.maxHP,
-      damage: dd.damage,
-      armor: h.armor,
-      skills: Object.keys(entry.sheet.secondary || {}),
-      spells: (Array.isArray(entry.sheet.spells)
-        ? entry.sheet.spells : []).slice(),
+      damage: dd.damage + (es ? es.damage : 0),
+      armor: (es && es.armor > 0) ? (h.armor || 0) + es.armor : h.armor,
+      skills: Object.keys(sheet.secondary || {}),
+      spells: (Array.isArray(sheet.spells)
+        ? sheet.spells : []).slice(),
       // 000167: все 6 характеристик листа (КОПИЯ; деградация — {}).
-      attrs: Object.assign({}, entry.sheet.primary || {}),
+      attrs: Object.assign({}, sheet.primary || {}),
       kind: 'merc',
-      // 000230.04: set-бонусы через общий агрегат (тот же образ, что
-      // combat.js-снапшот hero): call-time guard, no-op без items.js
-      // ([]) и без equipment в листе (merc-экипировка — 000230.06).
-      freeCast: [...(typeof G.equipmentAffixes === 'function'
-        ? (G.equipmentAffixes(entry.sheet).freeCast || []) : [])],
+      freeCast,
     };
   }
 
@@ -956,12 +990,96 @@ function (settings, G) {
     };
   }
 
+  // --- Экипировка наёмника (задача 000230.06) ---
+
+  // «Персонаж» generic equip/unequip (000230.02): владелец инвентаря
+  // и веса — герой (общий инвентарь, 000194), владелец экипировки —
+  // live-лист наёмника (живые ссылки, pre-init {}).
+  function allyView(hero, sheet) {
+    return {
+      inventory: hero.inventory,
+      primary: hero.primary,
+      secondary: hero.secondary,
+      equipment: sheet.equipment,
+      equipmentBonus: sheet.equipmentBonus,
+    };
+  }
+
+  function allyPreInit(sheet) {
+    if (!sheet.equipment || typeof sheet.equipment !== 'object' ||
+        Array.isArray(sheet.equipment)) sheet.equipment = {};
+    if (!sheet.equipmentBonus || typeof sheet.equipmentBonus !==
+        'object' || Array.isArray(sheet.equipmentBonus)) {
+      sheet.equipmentBonus = {};
+    }
+  }
+
+  function allyReject(hero, sheet, api) {
+    if (!sheet || typeof sheet !== 'object' || Array.isArray(sheet)) {
+      return { ok: false, reason: 'нет листа персонажа' };
+    }
+    if (sheet.kind === 'efir') {
+      return { ok: false, reason: 'Эфир — дух, не экипируется' };
+    }
+    if (sheet.kind !== 'merc') {
+      return { ok: false, reason: 'не лист наёмника' };
+    }
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero) ||
+        !hero.primary || typeof hero.primary !== 'object' ||
+        Array.isArray(hero.primary) ||
+        !hero.secondary || typeof hero.secondary !== 'object' ||
+        Array.isArray(hero.secondary) ||
+        !hero.inventory || typeof hero.inventory !== 'object' ||
+        Array.isArray(hero.inventory)) {
+      return { ok: false, reason: 'нет персонажа' };
+    }
+    if (typeof (api === 'equip' ? G.equip : G.unequip) !== 'function') {
+      return { ok: false,
+        reason: 'экипировка недоступна (items.js не загружен)' };
+    }
+    return null;
+  }
+
+  /**
+   * Экипировать предмет из ОБЩЕГО инвентаря героя на наёмника
+   * (задача 000230.06, паттерн 000194): предмет уходит из
+   * hero.inventory на live-лист наёмника; слот занят — swap
+   * (прежний предмет возвращается в инвентарь героя, note при
+   * неудаче возврата). Эфиру — ОТКАЗ (он дух).
+   * @returns {{ok:true, slot, item}|{ok:true, slot, item, note:string}
+   *   |{ok:false, reason}} — generic equip (000230.02) как есть.
+   */
+  function allyEquip(hero, sheet, itemId) {
+    const bad = allyReject(hero, sheet, 'equip');
+    if (bad) return bad;
+    allyPreInit(sheet);
+    return G.equip(allyView(hero, sheet), itemId);
+  }
+
+  /**
+   * Снять с наёмника в общий инвентарь героя (задача 000230.06):
+   * слот — EQUIP_PHYS_SLOTS или алиасы 'weapon'/'armor'; инвентарь
+   * полон/тяжело — предмет остаётся экипированным (failsafe, как у
+   * героя). Эфиру — ОТКАЗ.
+   * @returns {{ok:true, item}|{ok:false, reason}} — generic unequip
+   *   (000230.02) как есть.
+   */
+  function allyUnequip(hero, sheet, slot) {
+    const bad = allyReject(hero, sheet, 'unequip');
+    if (bad) return bad;
+    allyPreInit(sheet);
+    return G.unequip(allyView(hero, sheet), slot);
+  }
+
   return {
     createRoster, canHire, hire, canDismiss, dismiss,
     wagesTotal, payWages, loyaltyTick, candidatesForTavern, eventSeed,
     // Опыт и уровни (задача 000082): применение доли боевого xp и
     // мост roster → данные makeAlly (000087).
     applyCombatXp, allyDataForEntry,
+    // Экипировка наёмника (задача 000230.06): слоты на листе,
+    // общий инвентарь (000194); Эфир — отказ.
+    allyEquip, allyUnequip,
     // Сериализация отряда для сейва (задача 000085; контракт
     // memory/000085-save-party-efir.md D2/D3).
     serializeRoster, deserializeRoster,

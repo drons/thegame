@@ -2295,3 +2295,161 @@ test('000235.02 OC9: hero.outOfCombatEffects — roundtrip / подделанн�
   assert.deepEqual(host(eff3),
     [], 'старый сейв: outOfCombatEffects → [] (append-only v1)');
 });
+
+// =====================================================================
+// Задача 000230.06 — Экипировка наёмника на листе: сейв (внутри
+// sheet: 10 → 12 ключей; absent → absent; dead_mercs — автоматически).
+// Контракты: memory/000230.06-ally-equipment.md §2.4/§6 (S1/S2/S3).
+//
+// КРАСНЫЕ (TDD):
+//   * S1 — round-trip с экипировкой: copyMercSheet/санизация
+//     equipment/equipmentBonus — сейчас секции теряются (ключа нет
+//     в снапшоте);
+//   * S3 — dead_mercs: запись с экипировкой через
+//     serializeDeadRecord → reviveEntryFromRecord (000161/000162) —
+//     сейчас equipment теряется в записи.
+// Зелёный пин (НЕ красный):
+//   * S2 — старый сейв БЕЗ equipment валиден: dropped [], запись
+//     жива, КЛЮЧА НЕТ на восстановленном листе (absent → absent,
+//     D-05), наёмник bit-for-bit без экипировки.
+// =====================================================================
+
+const I06 = require('../src/items.js');
+
+// Канон 20-ключевого equipment и 18-ключевого equipmentBonus —
+// строим через реальный API items.js (форма live-листа после
+// первого equip, 000230.02):
+//   equipment      = sanitizeEquipment({слоты: id}) — 20 ключей
+//                    (18 слотов + зеркала weapon/armor);
+//   equipmentBonus = sanitizeEquipmentBonus({слоты: {damage, armor}})
+//                    — 18 ключей.
+
+test('000230.06 S1: round-trip — лист с экипировкой сериализуется/восстанавливается: as-is-копия, канон 20/18, ровно 4 поля, fresh-copy', () => {
+  const volk = NPCS.find((n) => n.id === 'merc_volk');
+  const equipment = I06.sanitizeEquipment({ right_hand: 'iron_sword' });
+  const equipmentBonus = I06.sanitizeEquipmentBonus({ right_hand: { damage: 2 } });
+  assert.equal(Object.keys(equipment).length, 20, 'канон equipment — 20 ключей');
+  assert.equal(Object.keys(equipmentBonus).length, 18, 'канон equipmentBonus — 18 ключей');
+  const sheet = {
+    kind: 'merc', level: 2, xp: 30, totalXp: 30, points: 0,
+    primary: volk.найм.базовые_характеристики,
+    secondary: { swordsman: 2 }, skillXp: {}, spells: [],
+    npcId: 'merc_volk',
+    equipment, equipmentBonus,
+  };
+  const entry = { npcId: 'merc_volk', sheet, level: 2, xp: 30,
+    loyalty: 77, hiredDay: 3 };
+  const snap = C.serializeRoster([entry]);
+  assert.equal(snap.length, 1);
+  assert.deepEqual(Object.keys(snap[0]).sort(),
+    ['hiredDay', 'loyalty', 'npcId', 'sheet'],
+    'запись — ровно 4 поля (экипировка ВНУТРИ sheet, не новое поле)');
+  assert.deepEqual(snap[0].sheet.equipment, sheet.equipment,
+    'RED: equipment — as-is-копия внутри снапшот-листа');
+  assert.deepEqual(snap[0].sheet.equipmentBonus, sheet.equipmentBonus,
+    'RED: equipmentBonus — as-is-копия внутри снапшот-листа');
+  // fresh-copy: мутировать исходник — снапшот не меняется.
+  sheet.equipment.right_hand = 'battle_axe';
+  sheet.equipmentBonus.right_hand.damage = 9;
+  assert.equal(snap[0].sheet.equipment.right_hand, 'iron_sword',
+    'fresh-copy: снапшот не затронут (копия объекта equipment)');
+  assert.deepEqual(snap[0].sheet.equipmentBonus.right_hand, { damage: 2 },
+    'fresh-copy: бонусы — глубокая копия по слотам (объект {damage:N} не делится)');
+  // restore: канон 20/18, запись жива.
+  const res = C.deserializeRoster(NPCS, snap);
+  assert.deepEqual(res.dropped, [], 'запись жива (dropped пуст)');
+  assert.equal(res.roster.length, 1);
+  const sh = res.roster[0].sheet;
+  assert.deepEqual(sh.equipment,
+    I06.sanitizeEquipment({ right_hand: 'iron_sword' }),
+    'equipment — канон 20 (санизация по канону)');
+  assert.equal(Object.keys(sh.equipment).length, 20);
+  assert.deepEqual(sh.equipmentBonus,
+    I06.sanitizeEquipmentBonus({ right_hand: { damage: 2 } }),
+    'equipmentBonus — канон 18 (санизация по канону)');
+  assert.equal(Object.keys(sh.equipmentBonus).length, 18);
+});
+
+test('000230.06 S2: старый сейв без equipment — валиден: dropped [], запись жива, КЛЮЧА equipment/equipmentBonus НЕТ (absent → absent, D-05); наёмник bit-for-bit без экипировки', () => {
+  const volk = NPCS.find((n) => n.id === 'merc_volk');
+  const oldSheet = {
+    kind: 'merc', level: 5, xp: 0, totalXp: 0, points: 0,
+    primary: volk.найм.базовые_характеристики,
+    secondary: { swordsman: 2 }, skillXp: {}, spells: [],
+    npcId: 'merc_volk',
+  };
+  const res = C.deserializeRoster(NPCS, [{
+    npcId: 'merc_volk', sheet: oldSheet, loyalty: 77, hiredDay: 3,
+  }]);
+  assert.deepEqual(res.dropped, [], 'старый сейв — без дропа');
+  assert.equal(res.roster.length, 1, 'запись жива');
+  const sh = res.roster[0].sheet;
+  assert.equal('equipment' in sh, false,
+    'ключ absent (НЕ материализуется в {} — D-05)');
+  assert.equal('equipmentBonus' in sh, false,
+    'ключ absent (НЕ материализуется в {})');
+  // Наёмник ведёт себя как без экипировки — bit-for-bit (значения C2):
+  const d = C.allyDataForEntry(res.roster[0], volk);
+  assert.equal(d.damage, 7, 'базовый damage (без оружия)');
+  assert.equal(d.armor, undefined, 'h.armor as-is (undefined)');
+  assert.deepEqual(d.freeCast, []);
+});
+
+test('000230.06 S3: dead_mercs — запись с экипировкой проходит serializeDeadRecord → reviveEntryFromRecord (000161/000162)', () => {
+  const volk = NPCS.find((n) => n.id === 'merc_volk');
+  const entry = {
+    npcId: 'merc_volk',
+    sheet: {
+      kind: 'merc', level: 3, xp: 10, totalXp: 10, points: 0,
+      primary: volk.найм.базовые_характеристики,
+      secondary: { swordsman: 2 }, skillXp: {}, spells: [],
+      npcId: 'merc_volk',
+      equipment: I06.sanitizeEquipment(
+        { right_hand: 'iron_sword', torso: 'leather_armor' }),
+      equipmentBonus: I06.sanitizeEquipmentBonus({ torso: { armor: 1 } }),
+    },
+    level: 3, xp: 10, loyalty: 64, hiredDay: 2,
+  };
+  const rec = C.serializeDeadRecord(entry);
+  assert.ok(rec, 'запись есть');
+  assert.deepEqual(rec.sheet.equipment, entry.sheet.equipment,
+    'RED: запись несёт equipment (as-is-копия)');
+  assert.deepEqual(rec.sheet.equipmentBonus, entry.sheet.equipmentBonus,
+    'RED: запись несёт equipmentBonus (as-is-копия)');
+  const revived = C.reviveEntryFromRecord(NPCS, rec);
+  assert.ok(revived, 'revive — запись не потеряна');
+  assert.equal(revived.npcId, 'merc_volk');
+  assert.equal(revived.loyalty, 64, 'лояльность восстановлена');
+  assert.deepEqual(revived.sheet.equipment,
+    I06.sanitizeEquipment({ right_hand: 'iron_sword', torso: 'leather_armor' }),
+    'equipment — канон после revive');
+  assert.deepEqual(revived.sheet.equipmentBonus,
+    I06.sanitizeEquipmentBonus({ torso: { armor: 1 } }),
+    'equipmentBonus — канон после revive');
+});
+
+test('000230.06 S4: мусор не-объектом в sheet.equipment/equipmentBonus → как absent (тихий, 000029): запись жива, КЛЮЧЕЙ НЕТ (ревью 2026-10-20, F3)', () => {
+  const volk = NPCS.find((n) => n.id === 'merc_volk');
+  for (const junk of ['мусор', 42, [1, 2]]) {
+    const snap = C.serializeRoster([{
+      npcId: 'merc_volk',
+      sheet: {
+        kind: 'merc', level: 2, xp: 1, totalXp: 1, points: 0,
+        primary: volk.найм.базовые_характеристики,
+        secondary: { swordsman: 1 }, skillXp: {}, spells: [],
+        npcId: 'merc_volk',
+        equipment: junk, equipmentBonus: [9, 9],
+      },
+      level: 2, xp: 1, loyalty: 77, hiredDay: 3,
+    }]);
+    const res = C.deserializeRoster(NPCS, snap);
+    assert.deepEqual(res.dropped, [],
+      'мусор equipment (' + String(junk) + '): запись не дропнута');
+    assert.equal(res.roster.length, 1, 'запись жива');
+    const sh = res.roster[0].sheet;
+    assert.equal('equipment' in sh, false,
+      'equipment — как absent (ключ не создаётся, D-05)');
+    assert.equal('equipmentBonus' in sh, false,
+      'equipmentBonus — как absent');
+  }
+});

@@ -168,7 +168,8 @@ const BROWSER_CHAIN = [
 // {npcId, sheet, loyalty, hiredDay} вместо голого npcId (D1 000156;
 // контракт memory/000161-dead-mercs-record.md).
 const API_KEYS = [
-  'allyDataForEntry', 'applyCombatXp', 'canDismiss', 'canHire',
+  'allyDataForEntry', 'allyEquip', 'allyUnequip', 'applyCombatXp',
+  'canDismiss', 'canHire',
   'candidatesForTavern', 'createRoster', 'deserializeRoster', 'dismiss',
   'eventSeed', 'hire', 'loyaltyTick', 'payWages',
   'reviveEntryFromRecord', 'rosterSummary',
@@ -1327,4 +1328,256 @@ test('000087 W3: баланс — ЛЮБОЕ трио реального кат�
   // Фактический максимум каталога (torga+rena+baldor/mira) — 8
   // (16% от ~50) — порог W3 проходит с запасом (D10: каталог не правится).
   assert.equal(max, 8, 'максимальное трио = 8');
+});
+
+// =====================================================================
+// Задача 000230.06 — Экипировка наёмников: слоты на листе, статы в бою,
+// сейв; Эфир не экипируется.
+// Контракты: memory/000230.06-ally-equipment.md;
+// ТЗ: tasks/pending/000230.06.md.
+//
+// КРАСНЫЕ (TDD; падают на неизменённом коде):
+//   * C1 — allyDataForEntry с экипировкой: damage = база + оружие,
+//     armor = h.armor + Σ слотов (пины формулы, §2.3); сейчас
+//     экипировка игнорируется (7 vs 12; undefined vs 4).
+//   * C3 — Эфир: строгий отказ «Эфир — дух, не экипируется» (§2.5);
+//     сейчас C.allyEquip — не функция.
+//   * E1 — allyEquip/allyUnequip: общий инвентарь (000194), live-лист,
+//     swap, failsafe, guards (§2.2); сейчас — не функции.
+// Зелёные пины (НЕ красные):
+//   * C2 — наёмник БЕЗ экипировки: bit-for-bit deepEqual всего объекта
+//     (форма allyDataForEntry сохранена, §2.3).
+// =====================================================================
+
+const I = require('../src/items.js');
+const EF = require('../src/efir.js');
+
+const NPC_BALDOR = NPCS.find((n) => n.id === 'merc_baldor');
+assert.ok(NPC_BALDOR && NPC_BALDOR.найм, 'каталог: merc_baldor с найм-данными');
+
+test('000230.06 C1: наёмник с экипировкой — формула allyDataForEntry: damage = база + оружие, armor = h.armor + Σ слотов (пины §2.3); makeAlly', () => {
+  // Реальный каталог (E9: 76 предметов, 0 slot/affixes): оружие →
+  // right_hand, броня → torso (fallback slotOf, 000230.02).
+  // Вольк L5: база damage 7, найм.armor НЕТ.
+  const e1 = entryWithSheet(NPC_VOLK, { level: 5 });
+  e1.sheet.equipment = { right_hand: 'iron_sword' }; // dmg 5
+  const d1 = C.allyDataForEntry(e1, NPC_VOLK);
+  assert.equal(d1.damage, 12,
+    'damage = база 7 + iron_sword 5 (пин); RED: без оружия = 7');
+  assert.equal(d1.armor, undefined,
+    'Σ armor = 0 → h.armor as-is (у Волька найм.armor нет — undefined)');
+  // + chainmail (armor 4) → armor 4:
+  const e2 = entryWithSheet(NPC_VOLK, { level: 5 });
+  e2.sheet.equipment = { right_hand: 'iron_sword', torso: 'chainmail' };
+  const d2 = C.allyDataForEntry(e2, NPC_VOLK);
+  assert.equal(d2.damage, 12);
+  assert.equal(d2.armor, 4,
+    'armor = (h.armor||0) + 4 (пин); RED: без брони = undefined');
+  // Бальдор L10: база damage 11, найм.armor 3.
+  const e3 = entryWithSheet(NPC_BALDOR, { level: 10 });
+  e3.sheet.equipment = { right_hand: 'battle_axe', torso: 'knight_plate' };
+  const d3 = C.allyDataForEntry(e3, NPC_BALDOR);
+  assert.equal(d3.damage, 19, 'damage = 11 + battle_axe 8 (пин)');
+  assert.equal(d3.armor, 9, 'armor = 3 + knight_plate 6 (пин)');
+  assert.equal(d3.maxHP, 95, 'maxHP — из sheet (экипировка не влияет)');
+  // makeAlly: data.damage — единственный рычаг урона;
+  // armor = data.armor + floor(level/10).
+  const u3 = makeAlly(d3, 0);
+  assert.equal(u3.damage, 19, 'makeAlly: round(19·мораль 1)');
+  assert.equal(u3.armor, 10, 'makeAlly: 9 + floor(10/10) = 10');
+  // Форма объекта неизменна: порядок ключей (id…freeCast).
+  assert.deepEqual(Object.keys(d3),
+    ['id', 'name', 'role', 'level', 'maxHP', 'damage', 'armor',
+     'skills', 'spells', 'attrs', 'kind', 'freeCast'],
+    'порядок ключей allyDataForEntry сохранён (§2.3)');
+});
+
+test('000230.06 C2: наёмник без экипировки — allyDataForEntry bit-for-bit как сейчас (пин формы, deepEqual всего объекта)', () => {
+  const e = entryWithSheet(NPC_VOLK, { level: 5 });
+  assert.equal('equipment' in e.sheet, false,
+    'свежий лист — без секции (10 ключей)');
+  const d = C.allyDataForEntry(e, NPC_VOLK);
+  assert.deepEqual(d, {
+    id: 'merc_volk',
+    name: 'Вольк',
+    role: 'melee',
+    level: 5,
+    maxHP: 33,
+    damage: 7,
+    armor: undefined,
+    skills: ['swordsman'],
+    spells: [],
+    attrs: { strength: 3, dexterity: 1, constitution: 2,
+      intelligence: 1, wisdom: 1, charisma: 1 },
+    kind: 'merc',
+    freeCast: [],
+  }, 'bit-for-bit: без экипировки форма и значения не меняются');
+});
+
+test('000230.06 C3: Эфир — отказ от экипировки (точная строка ТЗ); инвентарь/лист не тронуты; efirAllyData без equipment/freeCast (зелёный под-пин)', () => {
+  const hero = createCharacter();
+  I.addItem(hero, 'iron_sword');
+  const efirSheet = S.createSheet('efir', { npcId: 'efir' });
+  assert.equal('equipment' in efirSheet, false,
+    'лист Эфира — 10 ключей, без секции');
+  const r1 = C.allyEquip(hero, efirSheet, 'iron_sword');
+  assert.deepEqual(r1, { ok: false, reason: 'Эфир — дух, не экипируется' },
+    'RED: C.allyEquip — не функция на текущем коде');
+  const r2 = C.allyUnequip(hero, efirSheet, 'right_hand');
+  assert.deepEqual(r2, { ok: false, reason: 'Эфир — дух, не экипируется' });
+  assert.equal(I.totalQty(hero, 'iron_sword'), 1,
+    'инвентарь героя не тронут');
+  assert.equal('equipment' in efirSheet, false,
+    'лист Эфира не тронут');
+  // Зелёный под-пин (000130/§2.5): юнит Эфира строится из
+  // efirAllyData — без equipment и freeCast (роster = только
+  // наёмники; Эфир — отдельный слот).
+  const a = EF.efirAllyData({ level: 1 });
+  assert.equal(a.kind, 'efir');
+  assert.equal('equipment' in a, false, 'efirAllyData — без equipment');
+  assert.equal('freeCast' in a, false, 'efirAllyData — без freeCast');
+});
+
+test('000230.06 E1: allyEquip/allyUnequip — общий инвентарь (000194): предмет уходит из инвентаря героя и возвращается; live-лист + зеркала; swap; failsafe; guards', () => {
+  const volk = NPC_VOLK;
+  // --- Базовый поток: totalQty 1→0→1, live-лист, зеркала weapon/armor ---
+  {
+    const hero = createCharacter();
+    I.addItem(hero, 'iron_sword');
+    I.addItem(hero, 'chainmail');
+    const e = entryWithSheet(volk, { level: 5 });
+    assert.equal('equipment' in e.sheet, false,
+      'до первого equip — секции нет (лениво, D-09)');
+    const r1 = C.allyEquip(hero, e.sheet, 'iron_sword');
+    assert.deepEqual(r1, { ok: true, slot: 'right_hand', item: 'iron_sword' },
+      'RED: C.allyEquip — не функция на текущем коде');
+    assert.equal(I.totalQty(hero, 'iron_sword'), 0,
+      'предмет покинул ОБЩИЙ инвентарь героя (000194)');
+    assert.equal(e.sheet.equipment.right_hand, 'iron_sword',
+      'live-лист наёмника записан (не одноразовый композит)');
+    assert.equal(e.sheet.equipment.weapon, 'iron_sword', 'зеркало weapon');
+    const r1b = C.allyEquip(hero, e.sheet, 'chainmail');
+    assert.deepEqual(r1b, { ok: true, slot: 'torso', item: 'chainmail' });
+    assert.equal(e.sheet.equipment.torso, 'chainmail');
+    assert.equal(e.sheet.equipment.armor, 'chainmail', 'зеркало armor');
+    // swap: слот занят — предыдущий предмет возвращается в инвентарь.
+    I.addItem(hero, 'battle_axe');
+    const r2 = C.allyEquip(hero, e.sheet, 'battle_axe');
+    assert.deepEqual(r2, { ok: true, slot: 'right_hand', item: 'battle_axe' });
+    assert.equal(e.sheet.equipment.right_hand, 'battle_axe');
+    assert.equal(I.totalQty(hero, 'iron_sword'), 1,
+      'предыдущее оружие вернулось в инвентарь героя');
+    assert.equal(I.totalQty(hero, 'battle_axe'), 0);
+    // --- unequip: возврат в инвентарь, слот и зеркало пусты ---
+    const r3 = C.allyUnequip(hero, e.sheet, 'right_hand');
+    assert.deepEqual(r3, { ok: true, item: 'battle_axe' });
+    assert.equal(I.totalQty(hero, 'battle_axe'), 1, 'вернулось в инвентарь');
+    assert.equal(e.sheet.equipment.right_hand, null, 'слот пуст');
+    assert.equal(e.sheet.equipment.weapon, null, 'зеркало weapon пусто');
+    // алиас 'weapon' (000230.02) на пустом слоте — стандартная причина.
+    const r3b = C.allyUnequip(hero, e.sheet, 'weapon');
+    assert.deepEqual(r3b, { ok: false, reason: 'ничего не экипировано' });
+  }
+  // --- failsafe: вес — предмет ОСТАЁТСЯ экипированным ---
+  {
+    const hero = createCharacter();
+    I.addItem(hero, 'iron_sword');
+    const e = entryWithSheet(volk, { level: 1 });
+    assert.equal(C.allyEquip(hero, e.sheet, 'iron_sword').ok, true);
+    // Инвентарь — ровно до лимита веса (30 кг, 8 слотов).
+    for (const id of ['knight_plate', 'knight_plate', 'knight_plate',
+      'war_hammer', 'battle_axe', 'short_bow',
+      'resurrect_scroll', 'resurrect_scroll']) {
+      assert.equal(I.addItem(hero, id).ok, true, id);
+    }
+    assert.equal(I.inventoryWeight(hero), 30, 'вес ровно на лимите (30)');
+    const r = C.allyUnequip(hero, e.sheet, 'right_hand');
+    assert.deepEqual(r, { ok: false, reason: 'слишком тяжело (лимит веса)' });
+    assert.equal(e.sheet.equipment.right_hand, 'iron_sword',
+      'предмет остался экипированным (failsafe)');
+    assert.equal(I.totalQty(hero, 'iron_sword'), 0,
+      'предмет не вернулся в инвентарь');
+  }
+  // --- failsafe: инвентарь полон (20/20) ---
+  {
+    const hero = createCharacter();
+    // 19 лёгких реагентов (все стакуются отдельными слотами,
+    // суммарный вес ~1.5 кг — лимит веса не мешает).
+    for (const id of ['phoenix_feather', 'diamond', 'berry_red',
+      'berry_blue', 'berry_wild', 'mushroom_grey', 'mushroom_glow',
+      'mushroom_ink', 'moonstone', 'herb_healing', 'herb_mana',
+      'herb_bitter', 'ruby', 'sapphire', 'emerald', 'amethyst',
+      'herb_sun', 'herb_wind', 'fruit_apple']) {
+      assert.equal(I.addItem(hero, id).ok, true, id);
+    }
+    I.addItem(hero, 'iron_sword'); // 20-й слот
+    const e = entryWithSheet(volk, { level: 1 });
+    assert.equal(C.allyEquip(hero, e.sheet, 'iron_sword').ok, true,
+      'последний слот инвентаря занят — и всё равно можно экипировать');
+    // Экипировка освободила слот — на момент unequip инвентарь 19/20;
+    // доводим до 20/20, чтобы возврат не влез (интент «инвентарь
+    // полон» — в момент снятия).
+    assert.equal(I.addItem(hero, 'bread').ok, true);
+    const r = C.allyUnequip(hero, e.sheet, 'right_hand');
+    assert.deepEqual(r,
+      { ok: false, reason: 'нет свободных слотов инвентаря' });
+    assert.equal(e.sheet.equipment.right_hand, 'iron_sword',
+      'предмет остался экипированным (failsafe)');
+  }
+  // --- guards: порядок и причины зафиксированы (§2.2) ---
+  {
+    const hero = createCharacter();
+    I.addItem(hero, 'iron_sword');
+    const e = entryWithSheet(volk, { level: 1 });
+    // 1) sheet не plain-объект:
+    for (const bad of [null, undefined, 'мусор', 42, [1]]) {
+      assert.deepEqual(C.allyEquip(hero, bad, 'iron_sword'),
+        { ok: false, reason: 'нет листа персонажа' },
+        'sheet: ' + String(bad));
+    }
+    // 2) Эфир — ПЕРЕД проверкой наёмника и героя (порядок):
+    const efirSheet = S.createSheet('efir', { npcId: 'efir' });
+    assert.deepEqual(C.allyEquip(hero, efirSheet, 'iron_sword'),
+      { ok: false, reason: 'Эфир — дух, не экипируется' });
+    assert.deepEqual(C.allyEquip(null, efirSheet, 'iron_sword'),
+      { ok: false, reason: 'Эфир — дух, не экипируется' },
+      'guard Эфира раньше guard-а героя (порядок §2.2)');
+    // 3) не лист наёмника (hero-sheet — не цель):
+    const heroSheet = createCharacter();
+    assert.deepEqual(C.allyEquip(hero, heroSheet, 'iron_sword'),
+      { ok: false, reason: 'не лист наёмника' });
+    // 4) нет персонажа / primary/secondary/inventory не plain-объекты:
+    for (const badHero of [null, undefined, 'мусор', 42, {},
+      { primary: {} },
+      { primary: {}, secondary: {} },
+      { primary: {}, secondary: {}, inventory: 'мусор' },
+      { primary: 'мусор', secondary: {}, inventory: {} }]) {
+      assert.deepEqual(C.allyEquip(badHero, e.sheet, 'iron_sword'),
+        { ok: false, reason: 'нет персонажа' },
+        'hero: ' + String(badHero));
+    }
+    // Причины общего equip/unequip проходят как есть (пины героя):
+    assert.deepEqual(C.allyEquip(hero, e.sheet, 'healing_potion'),
+      { ok: false, reason: 'такое не экипируется' },
+      'зелье — не экипировка');
+    assert.deepEqual(C.allyEquip(hero, e.sheet, 'no_such_item'),
+      { ok: false, reason: 'неизвестный предмет: no_such_item' });
+    // «предмета нет в инвентаре» — инвентарь существует, но пуст:
+    const e2 = entryWithSheet(volk, { level: 1 });
+    const heroEmpty = createCharacter();
+    I.addItem(heroEmpty, 'bread');
+    I.removeItem(heroEmpty, 'bread');
+    assert.deepEqual(C.allyEquip(heroEmpty, e2.sheet, 'iron_sword'),
+      { ok: false, reason: 'предмета нет в инвентаре' });
+    // «уже экипировано» — после успешного equip:
+    assert.deepEqual(C.allyEquip(hero, e.sheet, 'iron_sword'),
+      { ok: true, slot: 'right_hand', item: 'iron_sword' });
+    assert.deepEqual(C.allyEquip(hero, e.sheet, 'iron_sword'),
+      { ok: false, reason: 'уже экипировано' });
+    // unequip: те же guard-ы 1 и 3:
+    assert.deepEqual(C.allyUnequip(hero, null, 'right_hand'),
+      { ok: false, reason: 'нет листа персонажа' });
+    assert.deepEqual(C.allyUnequip(hero, heroSheet, 'right_hand'),
+      { ok: false, reason: 'не лист наёмника' });
+  }
 });
