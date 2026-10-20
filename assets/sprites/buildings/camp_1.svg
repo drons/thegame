@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="24" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- палатка -->
+  <path d="M32 15 C26 21 18 31 13 48 L51 48 C46 31 38 21 32 15 Z" fill="#b08a4c" stroke="#7a5a2a" stroke-width="1.2"/>
+  <path d="M32 15 C29 21 25 31 22.5 48 L41.5 48 C39 31 35 21 32 15 Z" fill="#96793f"/>
+  <path d="M32 24 C30.5 30 28.5 39 27 48 L37 48 C35.5 39 33.5 30 32 24 Z" fill="#5d4426"/>
+  <path d="M32 15 C29 21 25 31 22.5 48" fill="none" stroke="#c9a34c" stroke-width="1" opacity="0.7"/>
+  <path d="M32 15 C35 21 39 31 41.5 48" fill="none" stroke="#c9a34c" stroke-width="1" opacity="0.7"/>
+  <!-- костёр: дрова -->
+  <line x1="48" y1="53" x2="60" y2="47.5" stroke="#6f4a2a" stroke-width="3.4" stroke-linecap="round"/>
+  <line x1="48" y1="47.5" x2="60" y2="53" stroke="#8a6238" stroke-width="3.4" stroke-linecap="round"/>
+  <!-- пламя -->
+  <path d="M54 26 C57.5 31.5 59 34.5 59 37.5 A5 5 0 0 1 49 37.5 C49 34.5 50.5 31.5 54 26 Z" fill="#e8842a" stroke="#c05a14" stroke-width="1"/>
+  <path d="M54 32.5 C55.5 34.8 56.5 36 56.5 37.5 A2.5 2.5 0 0 1 51.5 37.5 C51.5 36 52.5 34.8 54 32.5 Z" fill="#f2c14e"/>
+  <!-- дым -->
+  <path d="M54 22 C52.5 19 55.5 16.5 54 13" fill="none" stroke="#c9c2b8" stroke-width="1.2" opacity="0.7"/>
+</svg>

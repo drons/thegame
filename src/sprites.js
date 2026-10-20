@@ -328,6 +328,18 @@
       'assets/sprites/buildings/blacksmith_3.svg',
       'assets/sprites/buildings/blacksmith_4.svg',
     ],
+    [BUILDING_TYPES.APOTHECARY]: [
+      'assets/sprites/buildings/apothecary_1.svg',
+      'assets/sprites/buildings/apothecary_2.svg',
+      'assets/sprites/buildings/apothecary_3.svg',
+      'assets/sprites/buildings/apothecary_4.svg',
+    ],
+    [BUILDING_TYPES.ACADEMY]: [
+      'assets/sprites/buildings/academy_1.svg',
+      'assets/sprites/buildings/academy_2.svg',
+      'assets/sprites/buildings/academy_3.svg',
+      'assets/sprites/buildings/academy_4.svg',
+    ],
   };
 
   const BUILDING_FRAME_MS = 800;
@@ -347,6 +359,21 @@
     54: 'assets/sprites/cities/city_54.svg',
   };
 
+  // Кадры анимации городов (задача 000238, волна 1): город НЕ слот
+  // (000103: type = NONE, buildingId 51..54) — СВОЯ таблица, ключ —
+  // buildingId (зеркало CITY_SPRITES; BUILDING_FRAMES — только слоты).
+  // ЛИТЕРАЛ (не каталог): мутация «спрайт» записей каталога НЕ меняет
+  // кадры. Строгая готовность — как слоты 000224 (fallback на базу
+  // запрещён). 51/52/54 — волна 2 (000238.01).
+  const CITY_FRAMES = {
+    53: [
+      'assets/sprites/cities/city_53_1.svg',
+      'assets/sprites/cities/city_53_2.svg',
+      'assets/sprites/cities/city_53_3.svg',
+      'assets/sprites/cities/city_53_4.svg',
+    ],
+  };
+
   // Спрайт лагеря (задача 000131): лагерь НЕ слот (свой канал в
   // anchorAt: type = NONE, buildingId 47; механика 000095) —
   // отдельная таблица, ОДНА каталожная запись (каталог 000047,
@@ -355,6 +382,20 @@
   // семья слотовых иконок (у городов своя семья cities/ 64·w).
   const CAMP_SPRITES = {
     47: 'assets/sprites/buildings/camp.svg',
+  };
+
+  // Кадры костра лагеря (задача 000238, волна 1): лагерь НЕ слот
+  // (000131: type = NONE, buildingId 47) — СВОЯ таблица, ключ —
+  // buildingId (зеркало CAMP_SPRITES). ЛИТЕРАЛ; семья buildings/
+  // (64×64, как база camp.svg). Строгая готовность — как слоты
+  // 000224 (fallback на camp.svg запрещён).
+  const CAMP_FRAMES = {
+    47: [
+      'assets/sprites/buildings/camp_1.svg',
+      'assets/sprites/buildings/camp_2.svg',
+      'assets/sprites/buildings/camp_3.svg',
+      'assets/sprites/buildings/camp_4.svg',
+    ],
   };
 
   function buildingsRef() {
@@ -762,6 +803,26 @@
   }
 
   /**
+   * Кадры анимации города по buildingId (задача 000238): город НЕ
+   * слот (000103: type = NONE, buildingId 51..54) — СВОЯ таблица
+   * CITY_FRAMES (литерал, НЕ каталог — мутация «спрайт» записей на
+   * кадры не влияет), ключ — buildingId. Волна 1: строка 53 (4 кадра
+   * city_53_1..4.svg). Чистая функция; нецелое/неизвестное/слотовый
+   * id/строка → null (конвенция null — как citySprite). НЕ читает
+   * spriteForId: подтипы существуют только у слотов 8..12 (000073) —
+   * у городов их нет, 51..54 не пересекаются с buildingId слотовых
+   * записей. Индекс кадра — buildingFrameIndex (механизм 000224
+   * переиспользуется).
+   * @param {number} buildingId id каталожной записи (map.js:
+   *   rec.buildingId городского якоря)
+   * @returns {string[]|null} кадры или null
+   */
+  function cityFrames(buildingId) {
+    if (!Number.isInteger(buildingId)) return null;
+    return CITY_FRAMES[buildingId] || null;
+  }
+
+  /**
    * Спрайт лагеря (путь) по id каталожной записи (задача 000131):
    * лагерь НЕ слот (свой канал в anchorAt: type = NONE,
    * buildingId 47) — канал, отдельный от buildingSprite (слоты
@@ -777,6 +838,23 @@
     const base = CAMP_SPRITES[buildingId];
     if (!base) return null;
     return spriteForId(buildingId) || base;
+  }
+
+  /**
+   * Кадры костра лагеря по buildingId (задача 000238): лагерь НЕ
+   * слот (000131: type = NONE, buildingId 47) — СВОЯ таблица
+   * CAMP_FRAMES (литерал, НЕ каталог), ключ — buildingId. ОДНА
+   * строка: 47 → 4 кадра camp_1..4.svg (семья buildings/, 64×64).
+   * Чистая функция; нецелое/неизвестное/слотовый id/городский
+   * id/строка → null (конвенция null — как campSprite). Индекс
+   * кадра — buildingFrameIndex (механизм 000224 переиспользуется).
+   * @param {number} buildingId id каталожной записи (map.js:
+   *   rec.buildingId лагерного якоря)
+   * @returns {string[]|null} кадры или null
+   */
+  function campFrames(buildingId) {
+    if (!Number.isInteger(buildingId)) return null;
+    return CAMP_FRAMES[buildingId] || null;
   }
 
   /** Кадры анимации Флогистона для действия idle|walk|attack|cast. */
@@ -992,8 +1070,12 @@
     for (const frames of Object.values(BUILDING_FRAMES)) paths.push(...frames);
     // Города (задача 000110): 4 спрайта по типу (отдельный канал).
     paths.push(...Object.values(CITY_SPRITES));
+    // Кадры городов (задача 000238): строка 53 → 4 кадра (волна 1).
+    for (const frames of Object.values(CITY_FRAMES)) paths.push(...frames);
     // Лагерь (задача 000131): 1 спрайт (отдельный канал, id 47).
     paths.push(...Object.values(CAMP_SPRITES));
+    // Кадры костра (задача 000238): строка 47 → 4 кадра (волна 1).
+    for (const frames of Object.values(CAMP_FRAMES)) paths.push(...frames);
     const bld = buildingsRef();
     if (bld) {
       for (const b of bld) {
@@ -1159,8 +1241,8 @@
     MOB_ART_DIR, MOB_ART_FRAME_COUNTS, MOB_ART_ACTIONS, mobArtFrames,
     BUILDING_SPRITES, BUILDING_FRAMES, BUILDING_FRAME_MS,
     buildingFrames, buildingFrameIndex,
-    CITY_SPRITES,
-    CAMP_SPRITES,
+    CITY_SPRITES, CITY_FRAMES,
+    CAMP_SPRITES, CAMP_FRAMES,
     COMBAT_BG_DIR, COMBAT_BG_TERRAIN, COMBAT_BG_DUNGEON, COMBAT_BG_FALLBACK,
     combatBackground,
     OBSTACLE_DIR, OBSTACLE_SPRITES, obstacleSprite,
@@ -1180,6 +1262,7 @@
     wavePhase, waterTileFrame,
     frameIndex, waterFrame,
     tileFrames, mobKind, mobFrames, buildingSprite, citySprite, campSprite,
+    cityFrames, campFrames,
     phlogistonFrames,
     efirFrames,
     mercFrames,

@@ -43,9 +43,37 @@
 //         НЕ меняет buildingFrames; база остаётся пин-базой слота;
 //         кадры ≠ базы.
 //
+// Задача 000238 (волна 1, СТАДИЯ КРАСНЫХ ТЕСТОВ): расширение
+// кадр-свитча на слот 2 «Аптекарь» (id 3), слот 7 «Школа акробатов»
+// (id 11), город 53 (на карте — MV-C3/C4) и лагерь 47 (костёр).
+// Контракты: memory/000238-building-anim-extension.md
+//   * BUILDING_FRAMES — новые строки 2/7 (4 РАЗНЫХ кадра
+//     apothecary_1..4.svg / academy_1..4.svg); кадр 1 = БАЙТ-КОПИЯ
+//     статичной базы (идеология 000224: кадры 2–4 — та же композиция,
+//     движется только анимированный элемент); остальные слоты — null.
+//   * CITY_FRAMES — СВОЯ таблица (ключ — buildingId, не слот: города —
+//     не слоты, 000103): {53: [city_53_1..4.svg]} (5×5 = 320×320);
+//     селектор cityFrames(buildingId) — Number.isInteger-гард +
+//     конвенция null; ЛИТЕРАЛ; CITY_SPRITES/citySprite — БАЗЫ
+//     (SP-C1/C2 интактны).
+//   * CAMP_FRAMES — СВОЯ таблица: {47: [camp_1..4.svg]} (семья
+//     buildings/); селектор campFrames(buildingId); ЛИТЕРАЛ;
+//     CAMP_SPRITES/campSprite — БАЗА (SP-47 интактен).
+//   * allAssetPaths — все 16 новых кадров (ЕДИНСТВЕННЫЙ pre-лоад),
+//     без дублей.
+//
+// КРАСНЫЕ 000238 (падают на ТЕКУЩЕМ коде, осмысленно):
+//   BA-4: строки BUILDING_FRAMES[2]/[7] отсутствуют (null) + 8 файлов
+//         кадров нет;
+//   BA-5: экспорты S.CITY_FRAMES/S.cityFrames отсутствуют (typeof
+//         'undefined'), 4 файла city_53_1..4.svg нет;
+//   BA-6: экспорты S.CAMP_FRAMES/S.campFrames отсутствуют (typeof
+//         'undefined'), 4 файла camp_1..4.svg нет.
+//
 // node (не vm): sprites.js — чистый UMD-модуль (require). Интеграция
-// кадров в рендер — в vm-тестах RM-BA (tests/global-map-draw.test.js)
-// и CU-BA (tests/dungeon-ui.test.js).
+// кадров в рендер — в vm-тестах RM-BA/RM-CAMP (tests/global-map-draw.
+// test.js), MV-C (tests/main-visuals.test.js), CP-12
+// (tests/camp-map-e2e.test.js) и CU-BA (tests/dungeon-ui.test.js).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -89,7 +117,9 @@ test('000224 BA-1: buildingFrames(slot) — магазин магии (слот 
     'слот 5 (кузница) — 4 кадра blacksmith_1..4.svg');
   assert.equal(new Set(MAGIC_FRAMES).size, 4, 'кадры лавки — 4 РАЗНЫХ');
   assert.equal(new Set(BLACK_FRAMES).size, 4, 'кадры кузницы — 4 РАЗНЫХ');
-  for (const slot of [0, 1, 2, 4, 6, 7, 8, 9, 10, 11, 12]) {
+  // 000238: слоты 2 (Аптекарь) и 7 (академия) получают кадры —
+  // из null-списка исключены (пони — BA-4).
+  for (const slot of [0, 1, 4, 6, 8, 9, 10, 11, 12]) {
     assert.equal(S.buildingFrames(slot), null,
       'слот ' + slot + ' — анимации нет (null)');
   }
@@ -209,4 +239,196 @@ test('000224 BA-3: таблица кадров — ЛИТЕРАЛ (не ката
     assert.notEqual(p, BASE_MAGIC, 'кадр ≠ база магазина магии');
     assert.notEqual(p, BASE_BLACK, 'кадр ≠ база кузницы');
   }
+});
+
+// --- Задача 000238 (волна 1): пины кадров новых строителей.
+// Имя кадра = <база без расширения>_<n>.svg (идиома 000224).
+const APOT_FRAMES = [
+  'assets/sprites/buildings/apothecary_1.svg',
+  'assets/sprites/buildings/apothecary_2.svg',
+  'assets/sprites/buildings/apothecary_3.svg',
+  'assets/sprites/buildings/apothecary_4.svg',
+];
+const ACAD_FRAMES = [
+  'assets/sprites/buildings/academy_1.svg',
+  'assets/sprites/buildings/academy_2.svg',
+  'assets/sprites/buildings/academy_3.svg',
+  'assets/sprites/buildings/academy_4.svg',
+];
+const BASE_APOT = 'assets/sprites/buildings/apothecary.svg';
+const BASE_ACAD = 'assets/sprites/buildings/academy.svg';
+// Город 53 = 5×5 (320×320, каталог 000053) — кадры в СВОЕЙ таблице
+// CITY_FRAMES (ключ — buildingId), не в BUILDING_FRAMES (слоты).
+const CITY53_FRAMES = [
+  'assets/sprites/cities/city_53_1.svg',
+  'assets/sprites/cities/city_53_2.svg',
+  'assets/sprites/cities/city_53_3.svg',
+  'assets/sprites/cities/city_53_4.svg',
+];
+const BASE_CITY53 = 'assets/sprites/cities/city_53.svg';
+// Лагерь 47 — костёр, кадры в СВОЕЙ таблице CAMP_FRAMES (семья
+// buildings/ — тот же каталог спрайтов, что и база camp.svg).
+const CAMP47_FRAMES = [
+  'assets/sprites/buildings/camp_1.svg',
+  'assets/sprites/buildings/camp_2.svg',
+  'assets/sprites/buildings/camp_3.svg',
+  'assets/sprites/buildings/camp_4.svg',
+];
+const BASE_CAMP = 'assets/sprites/buildings/camp.svg';
+
+// buildingId каталожных записей слотовых построек (особые_параметры.
+// map_index: 0..12 → id) — для null-гардов селекторов городов/лагеря:
+// слотовые id НЕ города и НЕ лагерь → null.
+const SLOT_IDS = [1, 2, 3, 4, 7, 8, 10, 11, 36, 31, 40, 44, 25];
+
+test('000238 BA-4: BUILDING_FRAMES[2] (Аптекарь) и [7] (академия) — по 4 РАЗНЫХ кадра apothecary_1..4.svg / academy_1..4.svg; остальные слоты (0,1,4,6,8,9,10,11,12) — null; кадр 1 = байт-копия статичной базы; кадры — файлы, в allAssetPaths, без дублей', () => {
+  assert.equal(typeof S.buildingFrames, 'function',
+    'sprites.js: экспорт buildingFrames(slot) — отсутствует (Задача 000224)');
+  assert.deepEqual(
+    S.buildingFrames(BUILDING_TYPES.APOTHECARY), APOT_FRAMES,
+    'строка BUILDING_FRAMES[2] (Аптекарь) — 4 кадра apothecary_1..4.svg (Задача 000238)');
+  assert.deepEqual(
+    S.buildingFrames(BUILDING_TYPES.ACADEMY), ACAD_FRAMES,
+    'строка BUILDING_FRAMES[7] (академия) — 4 кадра academy_1..4.svg (Задача 000238)');
+  assert.equal(new Set(APOT_FRAMES).size, 4, 'кадры аптекаря — 4 РАЗНЫХ');
+  assert.equal(new Set(ACAD_FRAMES).size, 4, 'кадры академии — 4 РАЗНЫХ');
+  for (const slot of [0, 1, 4, 6, 8, 9, 10, 11, 12]) {
+    assert.equal(S.buildingFrames(slot), null,
+      'слот ' + slot + ' — анимации нет (null)');
+  }
+  const all16 = [...MAGIC_FRAMES, ...BLACK_FRAMES, ...APOT_FRAMES, ...ACAD_FRAMES];
+  assert.equal(new Set(all16).size, 16, '16 кадров — 16 РАЗНЫХ путей');
+  for (const p of all16) {
+    assert.ok(exists(p), 'нет файла кадра: ' + p);
+  }
+  // КАДР 1 = БАЙТ-КОПИЯ статичной базы (идеология 000224: кадры 2–4 —
+  // та же композиция, движется только анимированный элемент).
+  assert.equal(Buffer.compare(
+    fs.readFileSync(path.join(ROOT, APOT_FRAMES[0])),
+    fs.readFileSync(path.join(ROOT, BASE_APOT))), 0,
+    'apothecary_1.svg — байт-копия apothecary.svg');
+  assert.equal(Buffer.compare(
+    fs.readFileSync(path.join(ROOT, ACAD_FRAMES[0])),
+    fs.readFileSync(path.join(ROOT, BASE_ACAD))), 0,
+    'academy_1.svg — байт-копия academy.svg');
+  const all = S.allAssetPaths();
+  for (const p of all16) {
+    assert.ok(all.includes(p),
+      'кадр вне allAssetPaths (нет pre-лоада → вечный legacy-маркер): ' + p);
+  }
+  assert.equal(new Set(all).size, all.length, 'дублей в allAssetPaths нет');
+});
+
+test('000238 BA-5: CITY_FRAMES/cityFrames(53) — 4 РАЗНЫХ кадра city_53_1..4.svg (320×320); город НЕ слот — таблица по buildingId; cityFrames(51/52/54/47/слотовые id/999/−1/нецелое/строка/неопределённое) → null; кадр 1 = байт-копия city_53.svg; кадры — файлы, в allAssetPaths; таблица — ЛИТЕРАЛ; CITY_SPRITES/citySprite(53) — БАЗА (SP-C1/C2 интактны)', () => {
+  assert.equal(typeof S.cityFrames, 'function',
+    'sprites.js: экспорт cityFrames(buildingId) — отсутствует (Задача 000238)');
+  assert.ok(S.CITY_FRAMES && typeof S.CITY_FRAMES === 'object',
+    'sprites.js: экспорт CITY_FRAMES (таблица кадров городов) — отсутствует (Задача 000238)');
+  assert.deepEqual(Object.keys(S.CITY_FRAMES), ['53'],
+    'CITY_FRAMES — ровно одна строка: 53 (волна 1; 51/52/54 — волна 2)');
+  assert.deepEqual(S.cityFrames(53), CITY53_FRAMES,
+    'cityFrames(53) — 4 кадра city_53_1..4.svg');
+  assert.equal(new Set(CITY53_FRAMES).size, 4, 'кадры города 53 — 4 РАЗНЫХ');
+  for (const id of [51, 52, 54, 47, 999, -1,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, ...SLOT_IDS,
+    '53', 53.5, undefined, null, NaN]) {
+    assert.equal(S.cityFrames(id), null,
+      'cityFrames(' + String(id) + ') — null (городов там нет)');
+  }
+  for (const p of CITY53_FRAMES) {
+    assert.ok(exists(p), 'нет файла кадра: ' + p);
+  }
+  // Город 53 = 5×5 → viewBox кадров = базе (320×320, каталог 000053).
+  for (const p of CITY53_FRAMES) {
+    assert.ok(
+      fs.readFileSync(path.join(ROOT, p), 'utf8').includes('viewBox="0 0 320 320"'),
+      'viewBox 320×320 у кадра: ' + p);
+  }
+  assert.equal(Buffer.compare(
+    fs.readFileSync(path.join(ROOT, CITY53_FRAMES[0])),
+    fs.readFileSync(path.join(ROOT, BASE_CITY53))), 0,
+    'city_53_1.svg — байт-копия city_53.svg');
+  const all = S.allAssetPaths();
+  for (const p of CITY53_FRAMES) {
+    assert.ok(all.includes(p),
+      'кадр вне allAssetPaths (нет pre-лоада → вечный skip города): ' + p);
+  }
+  assert.equal(new Set(all).size, all.length, 'дублей в allAssetPaths нет');
+  // ЛИТЕРАЛ: мутация «спрайт» каталога 53 — citySprite меняется
+  // (ленивое чтение, R5), cityFrames — НЕТ.
+  const rec53 = B.BUILDINGS.find((b) => b.id === 53);
+  assert.ok(rec53, 'каталог: запись 53');
+  const orig53 = rec53.спрайт;
+  try {
+    rec53.спрайт = 'assets/sprites/cities/divergent_000238.svg';
+    assert.equal(S.citySprite(53), 'assets/sprites/cities/divergent_000238.svg',
+      'citySprite(53) — ленивое чтение каталога (мутация отражена, R5)');
+    assert.deepEqual(S.cityFrames(53), CITY53_FRAMES,
+      'cityFrames(53) — ЛИТЕРАЛ: мутация каталога НЕ меняет кадры');
+  } finally {
+    rec53.спрайт = orig53;
+  }
+  assert.deepEqual(S.CITY_SPRITES, {
+    51: 'assets/sprites/cities/city_51.svg',
+    52: 'assets/sprites/cities/city_52.svg',
+    53: 'assets/sprites/cities/city_53.svg',
+    54: 'assets/sprites/cities/city_54.svg',
+  }, 'CITY_SPRITES — БАЗЫ, НЕ расширяется (SP-C2); кадры — отдельная CITY_FRAMES');
+  assert.equal(S.citySprite(53), BASE_CITY53,
+    'citySprite(53) — БАЗА city_53.svg (селектор баз интактен)');
+});
+
+test('000238 BA-6: CAMP_FRAMES/campFrames(47) — 4 РАЗНЫХ кадра camp_1..4.svg (семья buildings/); лагерь НЕ слот — таблица по buildingId; campFrames(слотовые id/51..54/999/−1/нецелое/строка/неопределённое) → null; кадр 1 = байт-копия camp.svg; кадры — файлы, в allAssetPaths; таблица — ЛИТЕРАЛ; CAMP_SPRITES/campSprite(47) — БАЗА (SP-47 интактен)', () => {
+  assert.equal(typeof S.campFrames, 'function',
+    'sprites.js: экспорт campFrames(buildingId) — отсутствует (Задача 000238)');
+  assert.ok(S.CAMP_FRAMES && typeof S.CAMP_FRAMES === 'object',
+    'sprites.js: экспорт CAMP_FRAMES (таблица кадров костра) — отсутствует (Задача 000238)');
+  assert.deepEqual(Object.keys(S.CAMP_FRAMES), ['47'],
+    'CAMP_FRAMES — ровно одна строка: 47 (лагерь)');
+  assert.deepEqual(S.campFrames(47), CAMP47_FRAMES,
+    'campFrames(47) — 4 кадра camp_1..4.svg');
+  assert.equal(new Set(CAMP47_FRAMES).size, 4, 'кадры костра — 4 РАЗНЫХ');
+  for (const id of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+    ...SLOT_IDS, 51, 52, 53, 54, 999, -1, '47', 47.5, undefined, null, NaN]) {
+    assert.equal(S.campFrames(id), null,
+      'campFrames(' + String(id) + ') — null (лагеря там нет)');
+  }
+  for (const p of CAMP47_FRAMES) {
+    assert.ok(exists(p), 'нет файла кадра: ' + p);
+  }
+  // Костёр — 64×64 (семья buildings/, как база camp.svg).
+  for (const p of CAMP47_FRAMES) {
+    assert.ok(
+      fs.readFileSync(path.join(ROOT, p), 'utf8').includes('viewBox="0 0 64 64"'),
+      'viewBox 64×64 у кадра: ' + p);
+  }
+  assert.equal(Buffer.compare(
+    fs.readFileSync(path.join(ROOT, CAMP47_FRAMES[0])),
+    fs.readFileSync(path.join(ROOT, BASE_CAMP))), 0,
+    'camp_1.svg — байт-копия camp.svg');
+  const all = S.allAssetPaths();
+  for (const p of CAMP47_FRAMES) {
+    assert.ok(all.includes(p),
+      'кадр вне allAssetPaths (нет pre-лоада → вечный skip лагеря): ' + p);
+  }
+  assert.equal(new Set(all).size, all.length, 'дублей в allAssetPaths нет');
+  // ЛИТЕРАЛ: мутация «спрайт» каталога 47 — campSprite меняется
+  // (ленивое чтение, R5), campFrames — НЕТ.
+  const rec47 = B.BUILDINGS.find((b) => b.id === 47);
+  assert.ok(rec47, 'каталог: запись 47');
+  const orig47 = rec47.спрайт;
+  try {
+    rec47.спрайт = 'assets/sprites/buildings/divergent_000238.svg';
+    assert.equal(S.campSprite(47), 'assets/sprites/buildings/divergent_000238.svg',
+      'campSprite(47) — ленивое чтение каталога (мутация отражена, R5)');
+    assert.deepEqual(S.campFrames(47), CAMP47_FRAMES,
+      'campFrames(47) — ЛИТЕРАЛ: мутация каталога НЕ меняет кадры');
+  } finally {
+    rec47.спрайт = orig47;
+  }
+  assert.deepEqual(S.CAMP_SPRITES,
+    { 47: 'assets/sprites/buildings/camp.svg' },
+    'CAMP_SPRITES — БАЗА, НЕ расширяется (SP-47); кадры — отдельная CAMP_FRAMES');
+  assert.equal(S.campSprite(47), BASE_CAMP,
+    'campSprite(47) — БАЗА camp.svg (селектор баз интактен)');
 });

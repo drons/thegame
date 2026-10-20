@@ -667,23 +667,36 @@ test('CP-9: два boot — один мир: nearest-лагерь и сток (t
 });
 
 // ====================================================================
-// CP-10: спрайт лагеря — assets/sprites/buildings/camp.svg рисуется
-// в кадре РОВНО 1× (проход 2 drawSprites main.js: лагерь 1×1,
-// drawImage(img, worldToScreen(якоря), 1·zoom, 1·zoom)). Кадр —
-// после переходов к лагерю (в спавн-кадре лагерей 0 — зонд §5).
+// CP-10: спрайт лагеря — рисуется в кадре РОВНО 1× (проход 2
+// drawSprites main.js: лагерь 1×1, drawImage(img,
+// worldToScreen(якоря), 1·zoom, 1·zoom)). Кадр — после переходов к
+// лагерю (в спавн-кадре лагерей 0 — зонд §5).
+// 000238: техническая синхронизация — лагерю дали КАДРЫ костра
+// (CAMP_FRAMES[47], 4 кадра): ожидаемый asset — ЗЕРКАЛО строгого
+// селектора buildingAsset main.js на now кадра (typeof-гард: до
+// волны — статичная camp.svg, после — ТЕКУЩИЙ кадр camp_N.svg).
 // ====================================================================
-test('CP-10: спрайт лагеря в кадре 1× — camp.svg на worldToScreen(−18,−12), размер 1·zoom', async () => {
+test('CP-10: спрайт лагеря в кадре 1× на worldToScreen(−18,−12), размер 1·zoom (000238: текущий кадр костра)', async () => {
   const { h, G, now } = await bootAndWalkToCamp();
   const g = h.sandbox.__game;
+  // 000238: зеркало селектора main.js (строгая готовность):
+  // campFrames(47) — текущий кадр на now; нет селектора (RED) —
+  // статичная база.
+  const campFrames = typeof G.campFrames === 'function'
+    ? G.campFrames(CAMP_ID) : null;
+  const campAsset = (campFrames && campFrames.length > 1)
+    ? campFrames[G.buildingFrameIndex(now + 200, -18, -12,
+          campFrames.length)]
+    : CAMP_SVG;
   // Свежий кадр после осадки (walkTiles уже отрисовала 4 кадра).
   const calls = frameAt(h, now + 200);
   const campDraws = calls.filter((c) => c[0] === 'drawImage'
     && c[1][0]
-    && c[1][0].__asset === CAMP_SVG);
+    && c[1][0].__asset === campAsset);
   assert.equal(campDraws.length, 1,
-    'спрайт лагеря (camp.svg) нарисован РОВНО 1× '
-    + '(красный: campSprite/camp.svg не существуют, лагерь не '
-    + 'в allAssetPaths и не рисуется прохождением 2)');
+    'спрайт лагеря (' + campAsset + ') нарисован РОВНО 1× '
+    + '(красный 000131: campSprite/camp.svg не существуют, лагерь '
+    + 'не в allAssetPaths и не рисуется прохождением 2)');
   const [, a] = campDraws[0];
   // Позиция/размер — из ЖИВОГО состояния (cam/zoom ПОСЛЕ кадра;
   // updateCamera идёт ДО drawSprites — точность без терпимости,
@@ -768,4 +781,71 @@ test('CP-11: 000200 лагерь [E] → Digit4 («Полный отдых») �
     assert.ok(!k.endsWith(':fullrest'),
       'НЕТ отметки fullrest в buildingOncePerDay: ' + k);
   }
+});
+
+// ====================================================================
+// CP-12 (Задача 000238, RED): костёр лагеря — анимация. На якоря
+// (−18,−12) — drawImage ТЕКУЩЕГО КАДРА camp_N.svg (таблица
+// CAMP_FRAMES[47], ключ — buildingId) РОВНО 1×, 1·zoom — а НЕ
+// статичной базы camp.svg (кадр ЗАМЕСТИЛ базу); через 800 мс
+// (BUILDING_FRAME_MS) — кадр ДРУГОЙ; тот же now — идентично (D10);
+// индекс кадра — buildingFrameIndex(now, якорь, 4); errors 0.
+// Контракт: memory/000238-building-anim-extension.md (§3, §6).
+// КРАСНЫЙ: экспорт G.campFrames отсутствует (typeof 'undefined').
+// (Строгая готовность лагеря — RM-CAMP-2 в
+// tests/global-map-draw.test.js, где есть WebGL-слой маркеров.)
+// ====================================================================
+test('CP-12 (Задача 000238, RED): костёр — кадр camp_N.svg (не camp.svg) на якоря (−18,−12) 1×, 1·zoom; +800 мс — кадр другой; D10; errors 0', async () => {
+  const { h, G, now } = await bootAndWalkToCamp();
+  const g = h.sandbox.__game;
+  assert.equal(typeof G.campFrames, 'function',
+    'sprites.js: экспорт campFrames(buildingId) — отсутствует (Задача 000238)');
+  assert.equal(typeof G.buildingFrameIndex, 'function',
+    'sprites.js: экспорт buildingFrameIndex (механизм 000224)');
+  const frames = Array.from(G.campFrames(CAMP_ID));
+  assert.equal(frames.length, 4, 'CAMP_FRAMES[47] — 4 кадра костра');
+  const st = g.state;
+  const p = G.worldToScreen(-18, -12, st.cam.x, st.cam.y,
+    st.zoom, VIEW_W, VIEW_H);
+  // drawImage КАДРА на ТОЧНОМ угле якоря размером 1·zoom (лагерь
+  // 1×1; герой рисуется центром на (−18.5,−12.5) 1.15·zoom — не
+  // совпадает с фильтром).
+  const campFrameAt = (calls) => calls.filter((c) => c[0] === 'drawImage'
+    && c[1][0]
+    && frames.includes(c[1][0].__asset)
+    && Math.abs(c[1][1] - p.x) < EPS && Math.abs(c[1][2] - p.y) < EPS
+    && Math.abs(c[1][3] - st.zoom) < EPS
+    && Math.abs(c[1][4] - st.zoom) < EPS);
+  const c1 = frameAt(h, now + 200);
+  const d1 = campFrameAt(c1);
+  assert.equal(d1.length, 1,
+    'костёр — ТЕКУЩИЙ КАДР camp_N.svg на якоря (−18,−12) РОВНО 1×, '
+    + '1·zoom');
+  assert.notEqual(d1[0][1][0].__asset, CAMP_SVG,
+    'нарисован КАДР, а не статичная база camp.svg ('
+    + d1[0][1][0].__asset + ')');
+  assert.equal(d1[0][1][0].__asset,
+    frames[G.buildingFrameIndex(now + 200, -18, -12, 4)],
+    'кадр = campFrames(47)[buildingFrameIndex(now, якорь, 4)]');
+  // Статичная база в кадре НЕ рисуется (кадр заместил базу).
+  assert.equal(c1.filter((c) => c[0] === 'drawImage' && c[1][0]
+    && c[1][0].__asset === CAMP_SVG).length, 0,
+    'статичная camp.svg в кадре не рисуется (строгая замена)');
+  // +800 мс (один BUILDING_FRAME_MS) — кадр сменился (анимация).
+  const c2 = frameAt(h, now + 1000);
+  const d2 = campFrameAt(c2);
+  assert.equal(d2.length, 1, 'через 800 мс — кадр костра на якоря');
+  assert.notEqual(d2[0][1][0].__asset, d1[0][1][0].__asset,
+    'через 800 мс кадр ДРУГОЙ (анимация костра видна): '
+    + d1[0][1][0].__asset + ' → ' + d2[0][1][0].__asset);
+  assert.equal(d2[0][1][0].__asset,
+    frames[G.buildingFrameIndex(now + 1000, -18, -12, 4)],
+    '+800 мс — индекс шагнул на 1');
+  // D10: повторный рендер на ТОМ ЖЕ now — идентичен (тот же кадр).
+  const c3 = frameAt(h, now + 1000);
+  const d3 = campFrameAt(c3);
+  assert.equal(d3.length, 1, 'D10: рендер на том же now — кадр на якоря');
+  assert.equal(d3[0][1][0].__asset, d2[0][1][0].__asset,
+    'D10: тот же now — тот же кадр');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
 });

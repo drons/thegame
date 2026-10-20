@@ -3651,3 +3651,112 @@ test('000224 CU-BA-2 (RED): строгая готовность в городе 
   assert.equal(loaded.errors.length, 0,
     'тихий skip — без console.error: ' + loaded.errors.join('; '));
 });
+
+// --- Задача 000238 (СТАДИЯ КРАСНЫХ ТЕСТОВ): расширение анимации на
+// слот 2 «Аптекарь» (каталожный id 3, map_index 2). Городской
+// канал — cityBuildingPath УЖЕ generic по слоту (000224): новая
+// строка BUILDING_FRAMES[2] подхватывается БЕЗ правки dungeon-ui.js
+// (ТЗ: «НЕ трогаются: dungeon-ui.js»). Контракт:
+// memory/000238-building-anim-extension.md (§4).
+//
+// КРАСНЫЕ (падают на ТЕКУЩЕМ коде, осмысленно — строка
+// BUILDING_FRAMES[2] отсутствует, buildingFrames(2) = null):
+//   CU-BA-3: на клетке id 3 — СТАТИЧНАЯ БАЗА apothecary.svg, а не
+//            кадр (ассерт «кадр таблицы» падает);
+//   CU-BA-4: loader без кадров — рисуется база (fallback), а
+//            ожидаемый strict-skip (0 building-drawImage) не
+//            случается.
+
+const BA_FR_APOT = [
+  'assets/sprites/buildings/apothecary_1.svg',
+  'assets/sprites/buildings/apothecary_2.svg',
+  'assets/sprites/buildings/apothecary_3.svg',
+  'assets/sprites/buildings/apothecary_4.svg',
+];
+
+test('000238 CU-BA-3 (RED): город — Аптекарь (id 3, слот 2) — на клетке КАДР таблицы (не статичная база apothecary.svg), zoom×zoom на угле; +800 мс — кадр другой (анимация видна); тот же now — идентично (D10); hex-пол сохранён; errors 0', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  // Предусловия: строка BUILDING_FRAMES[2] (Задача 000238) — 4 кадра.
+  assert.ok(Array.isArray(G.buildingFrames(2))
+      && G.buildingFrames(2).length === 4,
+    'строка BUILDING_FRAMES[2] (Аптекарь) — 4 кадра (Задача 000238)');
+  assert.equal(typeof G.buildingFrameIndex, 'function',
+    'sprites.js: экспорт buildingFrameIndex(nowMs, tx, ty, n) (000224)');
+  assert.deepEqual(Array.from(G.buildingFrames(2)), BA_FR_APOT,
+    'buildingFrames(2) — кадры аптекаря');
+  const s = baCityState([
+    { x: 2, y: 2, buildingId: 3 }, // Аптекарь → слот 2
+  ]);
+  // ВСЁ готово: кадры И статичная база (строгая семантика).
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader(
+      [...BA_FR_APOT, G.buildingSprite(2)]) });
+  const canvas = findCanvas(loaded.body);
+  const n1 = canvas.drawCalls.length;
+  const d1 = baCellDraws(canvas.drawCalls.slice(0, n1), G, 2, 2, 48);
+  assert.equal(d1.length, 1, 'id 3 — building-спрайт на клетке (2,2)');
+  assert.ok(BA_FR_APOT.includes(d1[0][1][0].__img),
+    'id 3 — нарисован КАДР таблицы (не статичная база): '
+    + d1[0][1][0].__img);
+  assert.notEqual(d1[0][1][0].__img, G.buildingSprite(2),
+    'id 3 — кадр ≠ статичной базе (' + G.buildingSprite(2) + ')');
+  // +800 мс (один BUILDING_FRAME_MS) — кадр сменился (анимация).
+  G.dungeonUI.render(1000 + 800);
+  const n2 = canvas.drawCalls.length;
+  const d2 = baCellDraws(canvas.drawCalls.slice(n1, n2), G, 2, 2, 48);
+  assert.equal(d2.length, 1, 'id 3 — через 800 мс спрайт на месте');
+  assert.notEqual(d2[0][1][0].__img, d1[0][1][0].__img,
+    'id 3 — через 800 мс кадр ДРУГОЙ (анимация): '
+    + d1[0][1][0].__img + ' → ' + d2[0][1][0].__img);
+  // D10: повторный рендер на ТОМ ЖЕ now (1000) — идентичен.
+  G.dungeonUI.render(1000);
+  const d3 = baCellDraws(canvas.drawCalls.slice(n2), G, 2, 2, 48);
+  assert.equal(d3.length, 1, 'D10: тот же now — спрайт на месте');
+  assert.equal(d3[0][1][0].__img, d1[0][1][0].__img,
+    'D10: тот же now — тот же кадр (id 3)');
+  // Индекс кадра — контрактная формула (зеркало селектора).
+  const i1 = G.buildingFrameIndex(1000, 2, 2, BA_FR_APOT.length);
+  const i2 = G.buildingFrameIndex(1000 + 800, 2, 2, BA_FR_APOT.length);
+  assert.equal(d1[0][1][0].__img, BA_FR_APOT[i1],
+    'id 3 — кадр = buildingFrameIndex(now, клетка)');
+  assert.equal(d2[0][1][0].__img, BA_FR_APOT[i2],
+    'id 3 — +800 мс — индекс шагнул на 1');
+  // hex-палитра сохранена (спрайт лежит НА поле, не заменяет его).
+  const colors = cityCellColors(canvas.drawCalls, G, s, 48, 3, 3);
+  assert.ok(colors['2,2'], 'пол под постройкой нарисован fillRect');
+  assert.notEqual(colors['2,2'], '#182029',
+    'пол (2,2) — не фолбэк-пол подземелья (hex сохранён)');
+  assert.notEqual(colors['2,2'], '#0a0d12',
+    'пол (2,2) — не фон «за пределами»');
+  assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
+});
+
+test('000238 CU-BA-4 (RED): строгая готовность в городе — Аптекарь (id 3, слот 2), loader БЕЗ кадров (ready только статичная база) → building-спрайта НЕТ (skip, клетка остаётся полом — контракт 000148.02); fallback на базу ЗАПРЕЩЁН; без console.error', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  assert.ok(Array.isArray(G.buildingFrames(2))
+      && G.buildingFrames(2).length === 4,
+    'строка BUILDING_FRAMES[2] (Аптекарь) — 4 кадра (Задача 000238)');
+  const s = baCityState([
+    { x: 2, y: 2, buildingId: 3 }, // Аптекарь → слот 2
+  ]);
+  // Только СТАТИЧНАЯ БАЗА готова — кадры в loader НЕТ.
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([G.buildingSprite(2)]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  assert.equal(buildingDrawCalls(calls).length, 0,
+    'кадры не готовы — building-спрайта НЕТ (строгая семантика: '
+    + 'fallback на статичную базу запрещён); сейчас: '
+    + buildingDrawCalls(calls).length);
+  // Клетка остаётся полом (hex-палитра, контракт 000148.02).
+  const colors = cityCellColors(calls, G, s, 48, 3, 3);
+  assert.ok(colors['2,2'], 'клетка (2,2) — пол');
+  assert.notEqual(colors['2,2'], '#182029',
+    'пол (2,2) — не фолбэк-пол подземелья');
+  assert.notEqual(colors['2,2'], '#0a0d12', 'пол (2,2) — не фон');
+  assert.equal(loaded.errors.length, 0,
+    'тихий skip — без console.error: ' + loaded.errors.join('; '));
+});

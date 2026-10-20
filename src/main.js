@@ -2996,6 +2996,22 @@
     if (frames && frames.length > 1) {
       return frames[G.buildingFrameIndex(now, rec.x, rec.y, frames.length)];
     }
+    // 000238: город/лагерь — кадры СВОИХ таблиц (ключ — buildingId,
+    // не слот: CITY_FRAMES 53, CAMP_FRAMES 47) — строгая готовность
+    // и формула те же, что слоты (000224); порядок: слот → город →
+    // лагерь (у слотовых записей buildingId = null или id каталожной
+    // записи слотов 8..12 (000073); 47 и 51..54 там не бывают —
+    // только NONE-каналы).
+    if (rec.buildingId != null
+        && typeof G.buildingFrameIndex === 'function') {
+      const nf = (typeof G.cityFrames === 'function'
+        ? G.cityFrames(rec.buildingId) : null) ||
+        (typeof G.campFrames === 'function'
+         ? G.campFrames(rec.buildingId) : null);
+      if (nf && nf.length > 1) {
+        return nf[G.buildingFrameIndex(now, rec.x, rec.y, nf.length)];
+      }
+    }
     return G.buildingSprite(rec.type) ||
       (rec.buildingId != null && typeof G.citySprite === 'function'
        ? G.citySprite(rec.buildingId) : null) ||

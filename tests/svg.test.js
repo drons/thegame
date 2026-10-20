@@ -451,10 +451,13 @@ const EXPECTED_SVG_BY_DIR = {
                                       // (задача 000177) + залежи
                                       // deposit_ore/deposit_mineral/
                                       // deposit_gem (задача 000157.02)
-  'sprites/buildings': 22,            // + лагерь (задача 000131: camp.svg)
+  'sprites/buildings': 34,            // + лагерь (задача 000131: camp.svg)
                                       // + кадры 000224: blacksmith_1..4,
                                       // magic_shop_1..4 (8 анимированных)
-  'sprites/cities': 4,                // спрайты городов (задача 000110: 4 типа)
+                                      // + кадры 000238: apothecary_1..4,
+                                      // academy_1..4, camp_1..4 (12)
+  'sprites/cities': 8,                // спрайты городов (задача 000110: 4 типа)
+                                      // + кадры 000238: city_53_1..4 (4)
   'sprites/loot': 33,                 // природный лут (задача 000158.05):
                                       // 1 спрайт на item-id (каталог
                                       // items-data, поле loot)
