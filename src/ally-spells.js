@@ -153,6 +153,10 @@
     return (u.kind === 'efir' && c.efs) ? c.efs : u;
   }
 
+  function isAllyFreeCast(u, spellId) {
+    return Array.isArray(u.freeCast) && u.freeCast.includes(spellId);
+  }
+
   // --- Ленивые боевые internals (деградация: 1 console.error +
   // отказ, паттерн 000038/spellBookWarned) ---
   let internalsErrLogged = false;
@@ -226,7 +230,8 @@
         },
       };
     }
-    if (u.mp < spell['мани']) {
+    const free = isAllyFreeCast(u, spellId);
+    if (!free && u.mp < spell['мани']) {
       return { fail: { ok: false, reason: 'не хватает маны (' + spell['мани'] + ')' } };
     }
     // Цель (для урона/ослабления/контроля): аргумент, иначе
@@ -262,7 +267,7 @@
       }
     }
     // лечение/защита — СЕБЕ (t = u; Д-F — как пайплайн игрока).
-    return { ok: true, spell, pools, poolKey, t };
+    return { ok: true, spell, pools, poolKey, t, free };
   }
 
   // --- Практика (000117-зеркало; ленивое Game.efir; ПРАКТИКА ТОЛЬКО
@@ -294,9 +299,9 @@
     const ev = evalAllySpell(c, u, spellId, targetId);
     if (ev.fail) return ev.fail;
     const I = getInternals();
-    const { spell, pools, poolKey, t } = ev;
+    const { spell, pools, poolKey, t, free } = ev;
     pools[poolKey] -= 1;
-    u.mp -= spell['мани'];
+    if (!free) u.mp -= spell['мани'];
     const out = { ok: true, spell };
     const attrVal = ((u.attrs && u.attrs[spell['атрибут']]) || 0);
     switch (spell['действие']) {

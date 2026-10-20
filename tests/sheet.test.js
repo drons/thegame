@@ -486,3 +486,124 @@ test('UMD: тихая standalone-загрузка (browser-ветка) + дег�
   assert.equal(sandbox.Game.Sheet.pointsPerLevel(), 2);
   assert.equal(errors.length, 1, 'pointsPerLevel молчалив');
 });
+
+// --- Задача 000230.03: affix-множитель в derived (красные тесты TDD) ---
+//
+// Контракт — memory/000230.03-affixes-derived-free-cast.md §2.2:
+//   * ЕДИНАЯ точка — pct(id) в derived(): base = perLevel·S(id);
+//     affix-вклад → base · max(0, 1 + Σ affix.skills[id]) (D-01/D-04);
+//   * БЕЗ affix (affixSkills null/{}): base БЕЗ умножения — бит-в-бит
+//     текущие derived (пин D3);
+//   * отрицательный affix не уводит вклад навыка ниже её базового
+//     нуля (clamp по множителю);
+//   * ленивая ссылка sheet→items: browser/vm — rootRef.Game.
+//     equipmentAffixes в момент ВЫЗОВА (call-time; require-цикл
+//     sheet→items→player→sheet делает load-time require фатальным).
+// RED D1/D2: derived НЕ читает экипировку (affix-пути в sheet.js нет)
+// — осмысленные числовые assert (0.5 ≠ 0.55; 0.5 ≠ 0), не load-ошибки.
+// D3 — node-пин (зелёный с red-фазы): реальная экипировка БЕЗ affixes
+// (E9: каталог 76/0) НЕ меняет derived.
+
+const VM_SHEET_CHAIN_00023003 = ['global-settings.js', 'perlin.js',
+  'map.js', 'skills-data.js', 'items-data.js', 'sheet.js', 'player.js'];
+function loadSheetAffixVm00023003(fixtures) {
+  const sandbox = { console: { log() {}, warn() {}, error() {} } };
+  vm.createContext(sandbox);
+  for (const f of VM_SHEET_CHAIN_00023003) {
+    if (f === 'items-data.js') continue;
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, 'src', f), 'utf8'),
+      sandbox, { filename: f });
+    if (f === 'player.js') sandbox.Game.ITEMS = fixtures;
+  }
+  vm.runInContext(
+    fs.readFileSync(path.join(ROOT, 'src', 'items.js'), 'utf8'),
+    sandbox, { filename: 'items.js' });
+  return sandbox.Game;
+}
+
+test('000230.03-D1 (vm): affix swordsman +0.10 → swordHitBonus = base × 1.10 (0.5 → 0.55 — пин формулы perLevel·уровень·(1+Σ)); контроль: без экипировки — base', () => {
+  const G = loadSheetAffixVm00023003([
+    { id: 'x_ring2', name: 'Тестовое кольцо', kind: 'ring', slot: 'ring',
+      weight: 0.1, value: 30, desc: 'т',
+      affixes: [{ type: 'skill', skill: 'swordsman', amount: 0.10 }] },
+  ]);
+  const c = G.createCharacter();
+  c.secondary.swordsman = 10;
+  G.addItem(c, 'x_ring2');
+  assert.equal(G.equip(c, 'x_ring2').ok, true, 'кольцо экипируется');
+  assert.equal(c.equipment.ring_left_1, 'x_ring2');
+  const d = G.Sheet.derived(c);
+  assert.equal(d.swordHitBonus, 0.55,
+    'base 0.5 (0.05·10) × (1 + 0.10) (краснота: derived игнорирует '
+    + 'экипировку — факт ' + d.swordHitBonus + ')');
+  const c0 = G.createCharacter();
+  c0.secondary.swordsman = 10;
+  assert.equal(G.Sheet.derived(c0).swordHitBonus, 0.5,
+    'контроль: без экипировки — base (бит-в-бит)');
+});
+
+test('000230.03-D2 (vm): отрицательный affix swordsman −1.5 → clamp: swordHitBonus = 0 (вклад не уходит ниже базового нуля); прочие derived — без изменений (maxHP/armor — base)', () => {
+  const G = loadSheetAffixVm00023003([
+    { id: 'x_ring_neg', name: 'Тестовое кольцо (отрицательный)',
+      kind: 'ring', slot: 'ring', weight: 0.1, value: 30, desc: 'т',
+      affixes: [{ type: 'skill', skill: 'swordsman', amount: -1.5 }] },
+  ]);
+  const c = G.createCharacter();
+  c.secondary.swordsman = 10;
+  G.addItem(c, 'x_ring_neg');
+  assert.equal(G.equip(c, 'x_ring_neg').ok, true, 'кольцо экипируется');
+  const d = G.Sheet.derived(c);
+  assert.equal(d.swordHitBonus, 0,
+    '0.5·(1 − 1.5) < 0 → clamp к 0 (краснота: clamp-ветки нет — '
+    + 'факт ' + d.swordHitBonus + ')');
+  assert.equal(d.maxHP, 25, 'endurance/golem без affixes — base');
+  assert.equal(d.armor, 0, 'armor — чистый уровень golem — base');
+});
+
+test('000230.03-D3 (node-пин): реальная экипировка БЕЗ affixes (wood_sword + leather_armor) — derived бит-в-бит текущим (зелёный с red-фазы: «снаряжение без affixes НЕ меняет derived»)', () => {
+  const I = require('../src/items.js');
+  const c = Sheet.createSheet('hero', { name: 'd3' });
+  c.secondary.swordsman = 5;
+  c.secondary.endurance = 5;
+  c.secondary.golem = 3;
+  c.secondary.accuracy = 10;
+  I.addItem(c, 'wood_sword');
+  assert.equal(I.equip(c, 'wood_sword').ok, true);
+  I.addItem(c, 'leather_armor');
+  assert.equal(I.equip(c, 'leather_armor').ok, true);
+  assert.equal(c.equipment.right_hand, 'wood_sword');
+  assert.equal(c.equipment.torso, 'leather_armor');
+  const d = Sheet.derived(c);
+  assert.equal(d.maxHP, 30, '25·(1 + 0.03·5 + 0.02·3) = 30.25 → 30');
+  assert.equal(d.swordHitBonus, 0.25, '0.05·5 — множителя нет');
+  assert.equal(d.armor, 3, 'golem 3 — чистый уровень');
+  assert.equal(d.rangedDamageBonus, 0.5, '0.05·10 — множителя нет');
+  assert.equal(d.maxMP, 16, 'maxMP — flat, НЕ масштабируется');
+  assert.equal(d.dialogueBonus, 0, 'elder/orator 0 — бит-в-бит');
+});
+
+test('000230.03-D4 (vm): деградация без items-API (D-11): цепь БЕЗ items.js — лист с «призрачной» экипировкой → derived бит-в-бит (swordHitBonus 0.5), исключений 0, console.error 0 (items — мягкая зависимость: affixSkills null → pct без умножения; отклонение от паттерна «console.error 1×» задокументировано в memory §4)', () => {
+  const errors = [];
+  const sandbox = { console: { log() {}, warn() {},
+    error: (m) => errors.push(String(m)) } };
+  vm.createContext(sandbox);
+  // Цепь D1/D2 БЕЗ items.js (и без items-data.js — каталога нет в принципе):
+  // rootRef.Game.equipmentAffixes отсутствует → affixSkillsFor → null
+  // молчаливо (D-11).
+  for (const f of ['global-settings.js', 'perlin.js', 'map.js',
+    'skills-data.js', 'sheet.js', 'player.js']) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, 'src', f), 'utf8'),
+      sandbox, { filename: f });
+  }
+  const c = sandbox.Game.createCharacter();
+  c.secondary.swordsman = 10;
+  c.equipment = { ring_left_1: 'ghost_item' }; // id не существует
+  const d = sandbox.Game.Sheet.derived(c);
+  assert.equal(d.swordHitBonus, 0.5,
+    'без affix-вклада (items-API нет) — base бит-в-бит');
+  assert.equal(d.maxHP, 25, 'прочие derived — base (без affix-вклада)');
+  assert.equal(errors.length, 0,
+    'D-11: молчаливая деградация — 0 console.error');
+});

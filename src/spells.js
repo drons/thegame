@@ -347,6 +347,10 @@
   // каталог), отказ ДО расхода (000045, зеркало 000037).
   const EFFECT_STATS = new Set([...BUFF_STATS, ...DEBUFF_STATS]);
 
+  function isFreeCast(c, spellId) {
+    return Array.isArray(c.freeCast) && c.freeCast.includes(spellId);
+  }
+
   // Общие проверки каста (зеркало 000037: castSpell и canCastSpell
   // обязаны дать ОДНУ и ту же причину). Чисто: не тратит пулы/ману,
   // не трогает c.log/c.targetId/c._rng, не создаёт p.spells.
@@ -396,7 +400,8 @@
         },
       };
     }
-    if (p.mp < spell.мани) {
+    const free = isFreeCast(c, spellId);
+    if (!free && p.mp < spell.мани) {
       return { fail: { ok: false, reason: `не хватает маны (${spell.мани})` } };
     }
     // Цель (для урона/ослабления/контроля): аргумент, иначе ближайший.
@@ -532,7 +537,7 @@
         };
       }
     }
-    return { ok: true, spell, p, t, poolKey };
+    return { ok: true, spell, p, t, poolKey, free };
   }
 
   /**
@@ -545,9 +550,9 @@
   function castSpell(c, spellId, targetId) {
     const ev = evalSpell(c, spellId, targetId);
     if (ev.fail) return ev.fail;
-    const { spell, p, t, poolKey } = ev;
+    const { spell, p, t, poolKey, free } = ev;
     c.ps[poolKey] -= 1;
-    p.mp -= spell.мани;
+    if (!free) p.mp -= spell.мани;
     const d = P.derived(p);
     const out = { ok: true, spell };
     switch (spell.действие) {

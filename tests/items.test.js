@@ -2952,3 +2952,120 @@ test('000235.05 I1: 8 свитков — tier = уровень соответс�
       + JSON.stringify(errors));
   }
 });
+
+// --- Задача 000230.03: equipmentAffixes — агрегат affixes надетых
+// предметов (красные тесты TDD) ---
+//
+// Контракт — memory/000230.03-affixes-derived-free-cast.md §2.1:
+//   * ЧИСТАЯ функция: НЕ вызывает ensureEquipment (side effects нет —
+//     поле equipment НЕ создаётся);
+//   * итерация ТОЛЬКО EQUIP_PHYS_SLOTS (18 физ. слотов; зеркальные
+//     ключи weapon/armor — алиасы из 000230.02 — НЕ итерировать,
+//     иначе двойной подсчёт);
+//   * возврат {skills: {<id>: сумма amount}, freeCast: Set(<spell id>)};
+//     пустая/отсутствующая экипировка → {skills: {}, freeCast: ∅};
+//   * guards: id falsy → skip; getItem null (ghost) → skip;
+//     affixes не массив → skip; amount не число → skip.
+// RED: items.js НЕ ЭКСПОРТИРУЕТ equipmentAffixes → вызов в тесте
+// бросает TypeError «not a function» (осмысленная краснота по
+// прецеденту 000132/000193: падение в assert-вызове, НЕ load-ошибка).
+// Фикстуры — ТОЛЬКО в vm (каталог items.js — Map, строится при
+// загрузке; E9-пин 76/0-affixes жив — в каталог НЕ попадают).
+
+function affixFixtures00023003() {
+  return [
+    { id: 'x_ring', name: 'Тестовое кольцо', kind: 'ring', slot: 'ring',
+      weight: 0.1, value: 30, desc: 'т',
+      affixes: [
+        { type: 'skill', skill: 'swordsman', amount: 0.05 },
+        { type: 'free_cast', spell: 'spark' },
+      ] },
+    { id: 'x_ring2', name: 'Тестовое кольцо 2', kind: 'ring', slot: 'ring',
+      weight: 0.1, value: 30, desc: 'т',
+      affixes: [{ type: 'skill', skill: 'swordsman', amount: 0.10 }] },
+    { id: 'x_ring_two', name: 'Тестовое кольцо 3', kind: 'ring',
+      slot: 'ring', weight: 0.1, value: 30, desc: 'т',
+      affixes: [
+        { type: 'skill', skill: 'endurance', amount: 0.10 },
+        { type: 'skill', skill: 'endurance', amount: 0.25 },
+      ] },
+    { id: 'x_head', name: 'Тестовый шлем', kind: 'armor',
+      stats: { armor: 1 }, slot: 'head', weight: 2, value: 20, desc: 'т',
+      affixes: [{ type: 'skill', skill: 'endurance', amount: 0.10 }] },
+    { id: 'x_art', name: 'Тестовый артефакт', kind: 'artifact',
+      slot: 'left_hand', weight: 0.5, value: 100, desc: 'т',
+      affixes: [{ type: 'free_cast', spell: 'mend' }] },
+  ];
+}
+
+test('000230.03-A1 (vm): equipmentAffixes — сумма по слотам: x_ring (ring_left_1) + x_head (head) + x_art (left_hand) → skills {swordsman: 0.05, endurance: 0.10}, freeCast {spark, mend}', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = affixFixtures00023003();
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  for (const id of ['x_ring', 'x_head', 'x_art']) {
+    G.addItem(c, id);
+    const r = G.equip(c, id);
+    assert.equal(r.ok, true, id + ': экипирование (' + (r.reason || '') + ')');
+  }
+  assert.equal(c.equipment.ring_left_1, 'x_ring', 'кольцо — ring_left_1');
+  assert.equal(c.equipment.head, 'x_head', 'шлем — head');
+  assert.equal(c.equipment.left_hand, 'x_art', 'артефакт — left_hand');
+  const a = G.equipmentAffixes(c);
+  assert.deepEqual(fromVm(a.skills), { swordsman: 0.05, endurance: 0.10 },
+    'skills — сумма по слотам (краснота: equipmentAffixes не экспортирован)');
+  assert.equal(a.freeCast.size, 2, 'freeCast — Set из 2 заклинаний');
+  assert.ok(a.freeCast.has('spark'), 'free_cast кольца (spark)');
+  assert.ok(a.freeCast.has('mend'), 'free_cast артефакта (mend)');
+});
+
+test('000230.03-A2 (vm): пустая экипировка → {skills: {}, freeCast: ∅}; ЧИСТАЯ — поле equipment НЕ создаётся (ensureEquipment не вызывается)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = affixFixtures00023003();
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  assert.equal('equipment' in c, false, 'свежий персонаж — без поля equipment');
+  const a = G.equipmentAffixes(c);
+  assert.deepEqual(fromVm(a.skills), {},
+    'skills — пустой объект (краснота: equipmentAffixes не экспортирован)');
+  assert.equal(a.freeCast.size, 0, 'freeCast — пустой Set');
+  assert.equal('equipment' in c, false,
+    'чистая функция: поле equipment НЕ появилось (краснота: '
+    + 'ensureEquipment лениво создаёт его)');
+  const eq = {};
+  for (const s of G.EQUIP_PHYS_SLOTS) eq[s] = null;
+  c.equipment = eq;
+  const a2 = G.equipmentAffixes(c);
+  assert.deepEqual(fromVm(a2.skills), {}, 'канон-пустота (18 null) — пусто');
+  assert.equal(a2.freeCast.size, 0, 'канон-пустота — freeCast пуст');
+});
+
+test('000230.03-A3 (vm): несколько affixes на ОДИН навык — суммируются: x_ring (+0.05) + x_ring2 (+0.10) в РАЗНЫХ слотах → swordsman 0.15; ДВЕ записи одного skill в affixes ОДНОГО предмета → сумма', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = affixFixtures00023003();
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  for (const id of ['x_ring', 'x_ring2']) {
+    G.addItem(c, id);
+    assert.equal(G.equip(c, id).ok, true, id + ': экипирование');
+  }
+  assert.equal(c.equipment.ring_left_1, 'x_ring');
+  assert.equal(c.equipment.ring_left_2, 'x_ring2', 'кольца — РАЗНЫЕ слоты');
+  const a = G.equipmentAffixes(c);
+  assert.ok(Math.abs(a.skills.swordsman - 0.15) < 1e-12,
+    '0.05 + 0.10 = 0.15 (краснота: equipmentAffixes не экспортирован; '
+    + 'факт: ' + a.skills.swordsman);
+  const c2 = G.createCharacter();
+  G.addItem(c2, 'x_ring_two');
+  assert.equal(G.equip(c2, 'x_ring_two').ok, true);
+  const a2 = G.equipmentAffixes(c2);
+  assert.ok(Math.abs(a2.skills.endurance - 0.35) < 1e-12,
+    'один предмет, 2 записи endurance: 0.10 + 0.25 = 0.35');
+  assert.equal(a2.freeCast.size, 0, 'free_cast у x_ring_two нет');
+});

@@ -2,6 +2,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+// 000230.03: vm-песочница для красных тестов free_cast (F1/F2) —
+// техническое добавление (vm-цепи в файле до этой задачи не было).
+const vm = require('node:vm');
 const {
   hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
   MOB_TYPES, GROUP_RECIPES, LEADER_DMG_MULT, PRACTICE_XP, reachableCells,
@@ -9102,4 +9105,103 @@ test('000235.05 S5: свиток без tier = tier 1 (правило dungeon.js
   } finally {
     it.tier = saved;
   }
+});
+
+// --- Задача 000230.03: free_cast — заклинания из freeCast с нулевой
+// маной (красные тесты TDD) ---
+//
+// Контракт — memory/000230.03-affixes-derived-free-cast.md §2.3:
+//   * c.freeCast — СНАПШОТ из экипировки героя в createCombat
+//     (plain-массив, Set→Array; D-05);
+//   * eval: `if (!free && p.mp < spell.мани) fail` — строка reason
+//     БЕЗ ИЗМЕНЕНИЙ (пин); ok-возврат eval += `free`;
+//   * cast: пул ВСЕГДА сгорает; мана `if (!free) p.mp -= spell.мани`;
+//   * действие «Заклинание» ВСЕГДА сгорает — free_cast экономит
+//     ТОЛЬКО ману; логика рангов/степени — без изменений;
+//   * урон/лечение — формулы книги без изменений.
+// RED F1/F2: free_cast не существует → evalSpell отказывает
+// «не хватает маны (3)» (mp 1 < 3) — осмысленно: assert на r.ok,
+// не load-ошибка. Фикстуры — ТОЛЬКО в vm (каталог items.js — Map
+// при загрузке; E9-пин 76/0 жив). Цепь = паттерн loadUi193 из
+// ally-spells.test.js БЕЗ UI-модулей (краснота — в ядре).
+
+const VM_00023003_CHAIN = ['global-settings.js', 'perlin.js', 'map.js',
+  'skills-data.js', 'items-data.js', 'sheet.js', 'player.js',
+  'items.js', 'combat.js', 'spells-data.js', 'spells.js'];
+function loadFreeCastVm00023003(fixtures) {
+  const sandbox = { console: { log() {}, warn() {}, error() {} } };
+  vm.createContext(sandbox);
+  for (const f of VM_00023003_CHAIN) {
+    if (f === 'items-data.js') continue;
+    if (f === 'items.js') sandbox.Game.ITEMS = fixtures;
+    vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', f), 'utf8'),
+      sandbox, { filename: f });
+  }
+  return sandbox.Game;
+}
+
+test('000230.03-F1 (vm): free_cast (урон) — заклинание из freeCast: ok, мана НЕ тратится (mp 1 остаётся 1), действие «Заклинание» сгорает (spellInt −1), урон без изменений (round(4 + 0.5·10) = 9)', () => {
+  const G = loadFreeCastVm00023003([
+    { id: 'x_ring_fc', name: 'Тестовое кольцо', kind: 'ring',
+      slot: 'ring', weight: 0.1, value: 30, desc: 'т',
+      affixes: [{ type: 'free_cast', spell: 'spark' }] },
+  ]);
+  const p = G.createCharacter();
+  p.primary.intelligence = 10;
+  p.mp = 1;
+  p.spells = ['spark'];
+  G.addItem(p, 'x_ring_fc');
+  assert.equal(G.equip(p, 'x_ring_fc').ok, true, 'кольцо экипируется');
+  const c = G.createCombat({ player: p, mobs: ['wolf'], mobLevel: 2, seed: 5 });
+  const w = c.units[0];
+  w.x = c.px; w.y = c.py - 1; // в дальности 4
+  const poolBefore = c.ps.spellInt;
+  const r = G.Spells.castSpell(c, 'spark', w.id);
+  assert.equal(r.ok, true,
+    'free_cast: каст при mp 1 (краснота: нет free_cast — '
+    + '«не хватает маны (3)»); факт: ' + (r.reason || ''));
+  assert.equal(p.mp, 1, 'мана НЕ тратится (free)');
+  assert.equal(c.ps.spellInt, poolBefore - 1, 'действие «Заклинание» сгорает');
+  assert.equal(r.dmg, 9, 'урон без изменений: round(4 + 0.5·10), степень 1');
+});
+
+test('000230.03-F2 (vm): free_cast (лечение) — mend из freeCast: ok, мана НЕ тратится (mp 1 остаётся 1), действие сгорает (spellWis −1), лечение без изменений (round(4 + 0.5·10 + 1) = 10)', () => {
+  const G = loadFreeCastVm00023003([
+    { id: 'x_art_fc', name: 'Тестовый артефакт', kind: 'artifact',
+      slot: 'left_hand', weight: 0.5, value: 100, desc: 'т',
+      affixes: [{ type: 'free_cast', spell: 'mend' }] },
+  ]);
+  const p = G.createCharacter();
+  p.primary.wisdom = 10;
+  p.mp = 1;
+  p.spells = ['mend'];
+  G.addItem(p, 'x_art_fc');
+  assert.equal(G.equip(p, 'x_art_fc').ok, true, 'артефакт экипируется');
+  const c = G.createCombat({ player: p, mobs: ['wolf'], mobLevel: 2, seed: 5 });
+  p.hp = 1; // рана — лечение поднимет
+  const poolBefore = c.ps.spellWis;
+  const r = G.Spells.castSpell(c, 'mend');
+  assert.equal(r.ok, true,
+    'free_cast: каст при mp 1 (краснота: нет free_cast — '
+    + '«не хватает маны (3)»); факт: ' + (r.reason || ''));
+  assert.equal(p.mp, 1, 'мана НЕ тратится (free)');
+  assert.equal(c.ps.spellWis, poolBefore - 1, 'действие «Заклинание» сгорает');
+  assert.equal(r.healed, 10,
+    'лечение без изменений: round(4 + 0.5·10 + 1), степень 1');
+});
+
+test('000230.03-F3 (node-пин): заклинание НЕ из freeCast — мана тратится как сейчас (mp 30 → 27, пул −1, ok; герой БЕЗ affix-экипировки; зелёный с red-фазы)', () => {
+  const { castSpell } = spells();
+  const p = createCharacter();
+  p.primary.intelligence = 10;
+  p.mp = 30;
+  p.spells = ['spark'];
+  const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2, seed: 5 });
+  const w = c.units[0];
+  standNextTo(c, w);
+  const poolBefore = c.ps.spellInt;
+  const r = castSpell(c, 'spark', w.id);
+  assert.equal(r.ok, true, r.reason);
+  assert.equal(p.mp, 27, 'мана −3 (Искра) — пин текущего поведения');
+  assert.equal(c.ps.spellInt, poolBefore - 1, 'пул Интеллекта −1');
 });

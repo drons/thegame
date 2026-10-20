@@ -714,6 +714,7 @@ function (settings, G) {
       // 000167: все 6 характеристик листа (КОПИЯ; деградация — {}).
       attrs: Object.assign({}, entry.sheet.primary || {}),
       kind: 'merc',
+      freeCast: [],
     };
   }
 

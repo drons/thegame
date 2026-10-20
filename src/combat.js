@@ -424,6 +424,8 @@
       spells: (data.spells || []).slice(),
       attrs: data.attrs || {},
       kind: data.kind || 'merc',
+      freeCast: (data.kind === 'efir') ? []
+        : (Array.isArray(data.freeCast) ? data.freeCast.slice() : []),
     };
   }
 
@@ -2325,6 +2327,10 @@
   // mostWounded → strongestKnown → пул → мана → расход → эффект.
   // Лог «X лечит Y (+N).» — вычисленное значение (паттерн 000168;
   // факт восстановления — в out.healed); игрок в логе — «Флогистон».
+  function allyFree(u, id) {
+    return Array.isArray(u.freeCast) && u.freeCast.includes(id);
+  }
+
   function allyHealAction(c, u) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
@@ -2343,7 +2349,8 @@
           + (pool === 'spellInt' ? 'Интеллект' : 'Мудрость') + ') больше нет',
       };
     }
-    const mana = Number(s['мани']) || 0;
+    let mana = Number(s['мани']) || 0;
+    if (allyFree(u, s.id)) mana = 0;
     if (u.mp < mana) {
       return { ok: false, reason: 'не хватает маны (' + mana + ')' };
     }
@@ -2495,7 +2502,8 @@
               + ') больше нет',
           };
         }
-        const mana = Number(s['мани']) || 0;
+        let mana = Number(s['мани']) || 0;
+        if (allyFree(u, s.id)) mana = 0;
         if (u.mp < mana) {
           return { ok: false, reason: 'не хватает маны (' + mana + ')' };
         }
@@ -3440,6 +3448,8 @@
       // читает ТОЛЬКО UI-тханк endTurn (drain → null). Ядро поле не
       // читает. 0 c._rng, 0 строк лога — бой бит-в-бит.
       _uiMoves: null,
+      freeCast: [...(typeof I.equipmentAffixes === 'function'
+        ? (I.equipmentAffixes(p).freeCast || []) : [])],
     };
     // Мобы — в верхней части, игрок — в центре нижнего края.
     placeUnits(c, mobs);

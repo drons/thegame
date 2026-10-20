@@ -511,6 +511,157 @@ test('000193-N7: startRound — рефилл пулов союзника ABSOLUT
 });
 
 // ============================================================
+// 000230.03-AF. free_cast у СОЮЗНИКОВ (ТЗ п.3 «те же правила
+// (000193)», п.4 «эфир — дух»: guard). Контракт —
+// memory/000230.03-affixes-derived-free-cast.md §2.3 (4 каст-точки),
+// §3.3 (D-09/D-11/D-12):
+//   * makeAlly — снапшот data.freeCast (slice); kind «efir» → []
+//     (ЦЕНТРАЛЬНЫЙ guard); не-массив → [];
+//   * allyHealAction + зеркало allyCanDo «heal»: free → мана 0,
+//     пул ВСЕГДА сгорает, reason «не хватает маны (N)» — только
+//     для НЕ-free (строка без изменений);
+//   * castAllySpell/canCastAllySpell (книга): free → мана 0,
+//     пул сгорает, dmg-формула без изменений.
+// На .03 у союзников экипировки нет (D-12: allyDataForEntry
+// freeCast: []) — пул латентен до .06; эти пины фиксируют шов.
+// ============================================================
+
+test('000230.03-AF1 (node): makeAlly — freeCast = СНАПШОТ data (merc: slice, мутирование data не трогает юнита); guard: kind «efir» → [] независимо от data (ТЗ п.4); не-массив → []; createCombat передаёт data в makeAlly 1:1 (seam)', () => {
+  // (a) merc: снапшот — КОПИЯ массива (D-05: транзиент-поле, не ссылка).
+  const data = Object.assign({}, ASHKA193, { freeCast: ['spark'] });
+  const u = C.makeAlly(data, 0);
+  assert.deepEqual(u.freeCast, ['spark'],
+    'merc: freeCast — снапшот data.freeCast (факт: ' + JSON.stringify(u.freeCast) + ')');
+  data.freeCast.push('mend');
+  assert.deepEqual(u.freeCast, ['spark'],
+    'снапшот — не ссылка на data (мутирование data не влияет)');
+  // (b) эфир: ЦЕНТРАЛЬНЫЙ guard (D-09) — [] независимо от data.
+  const uE = C.makeAlly(
+    Object.assign({}, data, { kind: 'efir', id: 'efir' }), 1);
+  assert.deepEqual(uE.freeCast, [],
+    'эфир: guard — freeCast [] (ТЗ п.4 «он дух», экипировки нет)');
+  // (c) не-массив: [] (защита legacy-снапшотов/битых данных).
+  const uB = C.makeAlly(Object.assign({}, ASHKA193, { freeCast: 'spark' }), 2);
+  assert.deepEqual(uB.freeCast, [], 'не-массив → []');
+  // (d) поля нет: [] (default).
+  const u0 = C.makeAlly(Object.assign({}, ASHKA193), 3);
+  assert.deepEqual(u0.freeCast, [], 'без поля freeCast → []');
+  // (e) seam createCombat: opts.allies → makeAlly (карта 1:1,
+  // 000235.01) — снапшот доживает до c.units.
+  const c = makeCombat193([Object.assign({}, ASHKA193, { freeCast: ['spark'] })]);
+  const au = c.units.find((x) => x.id === 'a0');
+  assert.deepEqual(au.freeCast, ['spark'],
+    'createCombat: freeCast дошёл до юнита (факт: ' + JSON.stringify(au.freeCast) + ')');
+});
+
+test('000230.03-AF2 (node): allyHealAction + зеркало allyCanDo «heal» — free (mp 0: ok, healed 7, пул spellWis −1, мана 0, canDo {ok:true}) vs контроль (mp 0, freeCast нет: отказ «не хватает маны (6)», canDo — тот же отказ 1:1, 0 расхода)', () => {
+  const I = combatInternals;
+  assert.ok(typeof I.allyHealAction === 'function'
+    && typeof I.allyCanDo === 'function',
+    'combatInternals.allyHealAction/allyCanDo');
+  // (a) free: support-наёмник + freeCast ['light_heal'], мана 0.
+  {
+    const c = makeCombat193(
+      [Object.assign({}, MIRA193, { freeCast: ['light_heal'] })]);
+    const u = c.units.find((x) => x.id === 'a0');
+    u.mp = 0;
+    u.hp = u.maxHP - 7; // ранена: 33 (mostWounded — она)
+    const pMp0 = c.player.mp;
+    assert.deepEqual(I.allyCanDo(c, u, 'heal'), { ok: true },
+      'canDo: free — {ok:true} при мана 0 (факт: '
+      + JSON.stringify(I.allyCanDo(c, u, 'heal')) + ')');
+    const mp0 = u.mp, wis0 = u.spellWis, n0 = c.log.length;
+    const r = I.allyHealAction(c, u);
+    assert.equal(r.ok, true,
+      'лечение — ok при мана 0 (краснота: «не хватает маны (6)»); факт: '
+      + JSON.stringify(r));
+    assert.equal(r.healed, 7, 'healed = round(4 + 0.5·4 + 1) = 7 (формула 1:1)');
+    assert.equal(u.mp, 0, 'мана НЕ тратится (free)');
+    assert.equal(u.spellWis, 0, 'пул spellWis 1→0 (действие ВСЕГДА сгорает)');
+    assert.equal(u.spellInt, 1, 'spellInt не тронут (light_heal — Мудрость)');
+    assert.equal(c.player.mp, pMp0, 'мана игрока не сожжена');
+    assert.equal(c.log.length, n0 + 1, 'одна лог-строка лечения');
+  }
+  // (b) контроль: тот же data БЕЗ freeCast, мана 0 → отказ ДО расхода.
+  {
+    const c = makeCombat193([MIRA193]);
+    const u = c.units.find((x) => x.id === 'a0');
+    u.mp = 0;
+    u.hp = u.maxHP - 7;
+    const expect = { ok: false, reason: 'не хватает маны (6)' };
+    assert.deepEqual(I.allyCanDo(c, u, 'heal'), expect,
+      'canDo: контроль — отказ «не хватает маны (6)» (факт: '
+      + JSON.stringify(I.allyCanDo(c, u, 'heal')) + ')');
+    const mp0 = u.mp, wis0 = u.spellWis, n0 = c.log.length;
+    const r = I.allyHealAction(c, u);
+    assert.deepEqual(r, expect,
+      'allyHealAction — тот же отказ (000037: одна причина — одно поведение)');
+    assert.equal(u.mp, mp0, 'отказ — мана не сгорела');
+    assert.equal(u.spellWis, wis0, 'отказ — пул не сгорел');
+    assert.equal(c.log.length, n0, 'отказ — лог-строки нет');
+    assert.equal(u.hp, u.maxHP - 7, 'отказ — лечения не было');
+  }
+});
+
+test('000230.03-AF3 (node): castAllySpell (книга наёмника) — free (mp 0: ok, dmg 6 — формула без изменений, пул spellInt −1, мана 0, canCast {ok:true}, лог 000118) vs контроль (mp 0, freeCast нет: отказ «не хватает маны (3)», canCast-зеркало, 0 расхода, 0 c._rng)', () => {
+  const AS = loadAllySpells193();
+  assert.ok(AS && typeof AS.castAllySpell === 'function'
+    && typeof AS.canCastAllySpell === 'function',
+    'модуль src/ally-spells.js: castAllySpell + canCastAllySpell (000193)');
+  // (a) free: Ашка + freeCast ['spark'], мана 0.
+  {
+    const c = makeCombat193(
+      [Object.assign({}, ASHKA193, { freeCast: ['spark'] })]);
+    const u = c.units.find((x) => x.id === 'a0');
+    const w = c.units.find((x) => x.id === 'm0');
+    u.x = 3; u.y = 5; w.x = 3; w.y = 2; // d 3 ≤ 4
+    w.maxHP = 100; w.hp = 100; w.armor = 50; // броня игнорируется
+    u.mp = 0;
+    let rngCalls = 0;
+    c._rng = () => { rngCalls += 1; return 0.99; };
+    const pMp0 = c.player.mp, pInt0 = c.ps.spellInt;
+    assert.deepEqual(AS.canCastAllySpell(c, u, 'spark', w.id), { ok: true },
+      'canCast: free — {ok:true} при мана 0 (факт: '
+      + JSON.stringify(AS.canCastAllySpell(c, u, 'spark', w.id)) + ')');
+    const n0 = c.log.length;
+    const r = AS.castAllySpell(c, u, 'spark', w.id);
+    assert.equal(r.ok, true,
+      'каст — ok при мана 0 (краснота: «не хватает маны (3)»); факт: '
+      + JSON.stringify(r));
+    assert.equal(r.dmg, 6,
+      'dmg = round((4 + 0.5·4)·(1+0.15·0)·(1+0)) = 6 (формула без изменений)');
+    assert.equal(w.hp, 94, 'волк −6 (броня 50 игнорируется)');
+    assert.equal(u.mp, 0, 'мана НЕ тратится (free)');
+    assert.equal(u.spellInt, 0, 'пул spellInt 1→0 (действие ВСЕГДА сгорает)');
+    assert.equal(u.spellWis, 1, 'spellWis не тронут (spark — Интеллект)');
+    assert.equal(c.player.mp, pMp0, 'мана игрока не сожжена');
+    assert.equal(c.ps.spellInt, pInt0, 'пул игрока не сожжён');
+    assert.ok(c.log.includes('Ашка: «Искра» — Волк: 6.'),
+      'лог — вербатим 000118: ' + c.log.slice(n0).join(' | '));
+    assert.equal(rngCalls, 0, '0 c._rng (детерминизм)');
+  }
+  // (b) контроль: Ашка БЕЗ freeCast, мана 0 → отказ ДО расхода.
+  {
+    const c = makeCombat193([ASHKA193]);
+    const u = c.units.find((x) => x.id === 'a0');
+    const w = c.units.find((x) => x.id === 'm0');
+    u.x = 3; u.y = 5; w.x = 3; w.y = 2;
+    w.maxHP = 100; w.hp = 100;
+    u.mp = 0;
+    const expect = { ok: false, reason: 'не хватает маны (3)' };
+    assert.deepEqual(AS.canCastAllySpell(c, u, 'spark', w.id), expect,
+      'canCast: контроль — отказ «не хватает маны (3)» (000037-зеркало)');
+    const mp0 = u.mp, int0 = u.spellInt, n0 = c.log.length;
+    const r = AS.castAllySpell(c, u, 'spark', w.id);
+    assert.deepEqual(r, expect, 'cast — тот же отказ (одна причина — одно поведение)');
+    assert.equal(u.mp, mp0, 'отказ — мана не сгорела');
+    assert.equal(u.spellInt, int0, 'отказ — пул не сгорел');
+    assert.equal(c.log.length, n0, 'отказ — лог-строки нет');
+    assert.equal(w.hp, 100, 'отказ — волк не тронут');
+  }
+});
+
+// ============================================================
 // VM-часть: цепочка (паттерн loadCombatUi из tests/combat-ui.test.js).
 // 000193 (Д-L): ally-spells.js — ПОСЛЕ spellbook.js, ПЕРЕД combat-ui.js
 // (G-снапшот — UMD-ловушка 000038). Красная фаза: файла нет —

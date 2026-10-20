@@ -36,13 +36,14 @@
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(require('./skills-data.js'),
-      require('./global-settings.js'), null);
+      require('./global-settings.js'), null,
+      () => require('./items.js'));
   } else {
     root.Game = Object.assign({}, root.Game,
-      { Sheet: factory(null, null, root) });
+      { Sheet: factory(null, null, root, null) });
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self,
-  function (skills, settings, rootRef) {
+  function (skills, settings, rootRef, itemsThunk) {
 
   // node-ветка — прямые объекты от require (тот же живой SETTINGS —
   // live-семантика 000099 сохраняется); browser-ветка — лениво через
@@ -78,6 +79,25 @@
     const g = hasDirect ? settings
       : (rootRef && rootRef.Game ? rootRef.Game.GlobalSettings : null);
     return (g && typeof g.SETTINGS === 'object') ? g : null;
+  }
+
+  let itemsApi = null;
+  function affixSkillsFor(sheet) {
+    if (!sheet || typeof sheet.equipment !== 'object'
+        || Array.isArray(sheet.equipment)) return null;
+    let api;
+    if (itemsThunk) {
+      if (!itemsApi) {
+        try { itemsApi = itemsThunk(); } catch (e) { itemsApi = {}; }
+      }
+      api = itemsApi;
+    } else {
+      api = (rootRef && rootRef.Game) ? rootRef.Game : null;
+    }
+    if (!api || typeof api.equipmentAffixes !== 'function') return null;
+    const a = api.equipmentAffixes(sheet);
+    return (a && typeof a.skills === 'object' && !Array.isArray(a.skills))
+      ? a.skills : null;
   }
 
   /**
@@ -438,7 +458,12 @@
     if (!sk) { logDegrade(); return null; }
     const P = sheet.primary;
     const S = (id) => sheet.secondary[id] || 0;
-    const pct = (id) => sk.SECONDARY_SKILLS[id].effect.perLevel * S(id);
+    const affixSkills = affixSkillsFor(sheet);
+    const pct = (id) => {
+      const base = sk.SECONDARY_SKILLS[id].effect.perLevel * S(id);
+      const a = affixSkills ? affixSkills[id] : undefined;
+      return a ? base * Math.max(0, 1 + a) : base;
+    };
 
     const maxHPMult = 1 + pct('endurance') + pct('golem');
     const maxHP = Math.round((20 + P.constitution * 5) * maxHPMult);
@@ -473,7 +498,7 @@
       caveVisionMult: 1 + pct('catseye'),
       acroBonus: pct('acro'),
       thiefBonus: pct('thief'),
-      dialogueBonus: Math.round(S('elder') * 1 + S('orator') * 1),
+      dialogueBonus: Math.round(pct('elder') + pct('orator')),
       companionMoraleBonus: pct('leader'),
       performanceIncomeMult: 1 + pct('artist'),
       fearChance: Math.min(0.75, pct('fright')),

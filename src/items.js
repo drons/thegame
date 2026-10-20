@@ -1189,6 +1189,32 @@
     return out;
   }
 
+  function equipmentAffixes(c) {
+    const skills = {};
+    const freeCast = new Set();
+    const eq = (c && typeof c === 'object') ? c.equipment : null;
+    if (!eq || typeof eq !== 'object' || Array.isArray(eq)) {
+      return { skills, freeCast };
+    }
+    for (const s of EQUIP_PHYS_SLOTS) {
+      const id = eq[s];
+      if (!id) continue;
+      const it = getItem(id);
+      if (!it) continue;
+      if (!Array.isArray(it.affixes)) continue;
+      for (const a of it.affixes) {
+        if (!a || typeof a !== 'object' || Array.isArray(a)) continue;
+        if (a.skill) {
+          if (typeof a.amount !== 'number' ||
+              !Number.isFinite(a.amount)) continue;
+          skills[a.skill] = (skills[a.skill] || 0) + a.amount;
+        }
+        if (a.spell) freeCast.add(a.spell);
+      }
+    }
+    return { skills, freeCast };
+  }
+
   // --- Торговля (spec/buildings.md «Магазины») ---
   // Цена = стоимость предмета × богатство постройки × навык «Торговец».
   // Богатство 0-3: −10% цена покупки за уровень, +15% цена продажи.
@@ -1491,7 +1517,7 @@
     addItem, canAddItem, removeItem,
     setQuick, clearQuick, quickItem, firstQuickSlot, freeQuickSlot,
     addSkillXp, useItem, useQuickUnit, useQuickItem, takeQuickSlot,
-    equip, unequip, equipmentStats, slotOf,
+    equip, unequip, equipmentStats, equipmentAffixes, slotOf,
     shopKindsFor, makeShop, buyPrice, sellPrice, buyItem, sellItem,
     // Задача 000095: барахолка лагеря (id 47) — сток (tile, day),
     // свежестность, сериализация/восстановление раздела campStocks.
