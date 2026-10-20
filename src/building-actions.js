@@ -197,6 +197,24 @@
     c.mp = Math.min(d.maxMP, c.mp);
   }
 
+  // 000222: уровень built-записи на клетке города (apply-state
+  // проводка): город (cityAnchor + cityStates + record) →
+  // cities.buildingLevelAt (int 1..7 | null — нет записи/мировое).
+  // Любая деградация проводки → null (fail-open, бит-в-бит для
+  // эффектов, не знающих level).
+  function cityLevelAt(t) {
+    if (!t || !t.cityAnchor || !Number.isInteger(t.x) ||
+        !Number.isInteger(t.y)) return null;
+    if (!deps.cityStates || typeof deps.cityStates.get !== 'function')
+      return null;
+    const C = deps.game && deps.game.Cities;
+    if (!C || typeof C.buildingLevelAt !== 'function') return null;
+    const lv = C.buildingLevelAt(deps.cityStates.get(t.cityAnchor),
+      t.x, t.y);
+    if (!Number.isInteger(lv) || lv < 1) return null;
+    return lv;
+  }
+
   function onBuildingAction(action, t, b, npc) {
     if (!needDeps()) return;
     // Реестр эффектов — ПЕРВЫМИ (ревью раунда 3): запись
@@ -226,6 +244,9 @@
         // re-check марки раз-в-день в apply (город — якорь, мир —
         // null → ключ по тайлу; dailyKeyFor).
         cityAnchor: t && t.cityAnchor || null,
+        // 000222: уровень постройки на клетке (int 1..7 | null) —
+        // проводка для гейта наставника (applyMentorSpell cap).
+        level: cityLevelAt(t),
       });
       if (!r || !r.ok) {
         // Отказ apply: видимый отказ (message → flash), без
@@ -389,9 +410,12 @@
     // отвечает каталожным флажом раз_в_день на ЛЮБОЙ id действия —
     // у id 48 (раз_в_день: true) строка «Разобрать» всегда доступна,
     // EFFECTS['demolish'] отсутствует, читателя марка 'ax,ay:demolish'
-    // нет — чистый джанк в buildingOncePerDay. Остальные действия —
-    // как было (BA4(e): special-only действие марк пишет).
-    if (action.id !== 'demolish' && BE && BE.hasDailyLimit(b, action.id)) {
+    // нет — чистый джанк в buildingOncePerDay. 000222: то же для
+    // 'upgrade' (марка 'ax,ay:upgrade' не читается никем).
+    // Остальные действия — как было (BA4(e): special-only действие
+    // марк пишет).
+    if (action.id !== 'demolish' && action.id !== 'upgrade'
+        && BE && BE.hasDailyLimit(b, action.id)) {
       // Задача 000137: ключ — dailyKeyFor (ЕДИНАЯ точка): мир —
       // 'x,y:effectId' (t.x/t.y — тайл постройки; в мире === player,
       // behavior-preserving), город — 'ax,ay:effectId' (t.cityAnchor
@@ -690,6 +714,62 @@
       доступен: true };
   }
 
+  // 000222: хранилище (особые_параметры.хранилище — объект) — тип
+  // levelable-постройки без map_index/наставника (контракт D-H).
+  function isStorageBuilding(b) {
+    const op = b && b.особые_параметры;
+    return !!(op && typeof op.хранилище === 'object'
+      && !Array.isArray(op.хранилище));
+  }
+
+  // Строка «Улучшить…» (задача 000222) — [E]-меню постройки
+  // игрока: ПЕРВАЯ в extraActions (до строк хранилища). null (тихо,
+  // без строки): Cities-API нет / каталога нет / player ≠ true /
+  // не levelable (D-H: нет level-эффекта) / record не найден.
+  // level ≥ 7 — строка ЕСТЬ, недоступна («максимальный уровень
+  // (7)»). Цена — cities.upgradeCost(buildCost × 2^(L−1), ВСЕ
+  // ресурсы) на уровне ЗАПИСИ (ровно ТЗ; память §7); reason —
+  // buildShortageReason («Не хватает …»). Списание — ТОЛЬКО в
+  // спец-хендлере 'upgrade' (та же формула, re-check).
+  function upgradeActionRow(cell, cityAnchor) {
+    const g = deps.game;
+    const C = g && g.Cities;
+    if (!C || typeof C.isLevelableBuilding !== 'function' ||
+        typeof C.upgradeCost !== 'function' ||
+        typeof C.buildingLevelAt !== 'function' ||
+        typeof C.MAX_BUILDING_LEVEL !== 'number') return null;
+    if (!cell || cell.player !== true || !cityAnchor) return null;
+    const b = g.getBuilding ? g.getBuilding(cell.buildingId) : null;
+    if (!b || !C.isLevelableBuilding(b)) return null;
+    const cs = deps.cityStates;
+    if (!cs || typeof cs.get !== 'function') return null;
+    const record = cs.get(cityAnchor);
+    if (!record) return null;
+    const MAX = C.MAX_BUILDING_LEVEL;
+    const name = b.название ? b.название : String(cell.buildingId);
+    let level = C.buildingLevelAt(record, cell.x, cell.y);
+    if (!Number.isInteger(level) || level < 1) level = 1;
+    if (level >= MAX) {
+      return { id: 'upgrade',
+        имя: 'Улучшить: ' + name,
+        доступен: false,
+        reason: 'максимальный уровень (' + MAX + ')' };
+    }
+    const cost = C.upgradeCost(b.id, level);
+    const src = Array.isArray(cost.исходники) ? cost.исходники : [];
+    let label = 'Улучшить до уровня ' + (level + 1) + ' — '
+      + cost.золото + ' з.';
+    if (src.length > 0)
+      label += ' (' + src.map((e) =>
+        reagentName(g, e.предмет) + ' ×' + e.количество)
+        .join(', ') + ')';
+    const reason = buildShortageReason(deps.hero, cost);
+    const row = { id: 'upgrade', имя: label };
+    row.доступен = reason === null;
+    if (reason !== null) row.reason = reason;
+    return row;
+  }
+
   // Строки «Сложить/Вынуть» (задача 000221) — [E]-меню постройки
   // игрока-хранилища (КНИГА строки — building-effect-storage.js,
   // здесь — только СТРОКИ [E]: put-*/take-* — делегирование
@@ -712,7 +792,11 @@
     const record = cs.get(cityAnchor);
     const storage = C.storageAt(record, cell.x, cell.y);
     if (!storage) return [];
-    const capacity = C.storageCapacity(cell.buildingId);
+    // 000222: ёмкость по УРОВНЮ записи (buildingLevelAt — absent/
+    // мусор → 1; без функции — 1-аргументный бит-в-бит 000221).
+    const level = typeof C.buildingLevelAt === 'function'
+      ? C.buildingLevelAt(record, cell.x, cell.y) : null;
+    const capacity = C.storageCapacity(cell.buildingId, level);
     if (!Number.isFinite(capacity) || capacity <= 0) return [];
     const hero = deps.hero;
     const inv = hero && hero.inventory;
@@ -1352,6 +1436,19 @@
       return { ok: false, message: 'Не постройка игрока' };
     }
     w.cityStates.set(t.cityAnchor, res.record);
+    // 000222 (правка по итогам ревью): реестр shopLevels — синк ПОСЛЕ
+    // сноса (как после улучшения): запись слота удалена → синк по
+    // записи города отпишет префикс «ax,ay:» этой ячейки; иначе
+    // makeCityShop (buildCityAt) при перестройке прочитает СТАРЫЙ
+    // уровень (wealth-бамп) — пин R17.
+    {
+      const parts = String(t.cityAnchor).split(',');
+      const pax = Number(parts[0]), pay = Number(parts[1]);
+      if (Number.isInteger(pax) && Number.isInteger(pay)
+          && typeof C.syncShopLevels === 'function') {
+        C.syncShopLevels(pax, pay, res.record);
+      }
+    }
     // per-cell view: удалить записи в footprint (in-place — тот же
     // массив ds.cityContents.buildings, рендер/__game.dungeon читают
     // live).
@@ -1423,6 +1520,148 @@
     if (got.length > 0)
       msg += ', ' + got.map((e) =>
         '+' + reagentName(w.game, e.предмет) + ' ×' + e.количество)
+        .join(', ');
+    msg += ')';
+    return { ok: true, message: msg };
+  });
+
+  // «Улучшить» (задача 000222) — спец-действие, саморегистрация.
+  // ТОЛЬКО built-записи игрока (player === true) и levelable
+  // постройки (D-H); уровень — ТОЛЬКО в record (per-cell view не
+  // трогается). Атомарность (паттерн buildCityAt): re-check ядра →
+  // провочка золота (gold-first) → гард items-API → hasItem ВСЕ →
+  // teleportCharge → removeItem ВСЕ ДО hero.gold → upgradeBuildingAt
+  // → cityStates.set → синк реестра лавок + in-place wealth-бамп
+  // (f(L) = floor((L−1)/2), тот же эффWealth, что makeCityShop).
+  // STOCK record НЕ трогается (в окне респауна — сток прежний;
+  // fresh-вход перегенерирует по реестру, 000222). Успех →
+  // стандартный хвост пайплайна (daily-марк 'upgrade' исключён).
+  registerSpecial('upgrade', (ctx) => {
+    const t = ctx && ctx.t;
+    const w = ctx && ctx.world;
+    if (!t || !Number.isInteger(t.x) || !Number.isInteger(t.y) ||
+        !t.cityAnchor) {
+      return { ok: false,
+        message: 'Город не найден (якорь не решён) — улучшение ' +
+          'невозможно' };
+    }
+    if (!w || !w.cityStates ||
+        typeof w.cityStates.get !== 'function' ||
+        typeof w.cityStates.set !== 'function') {
+      return { ok: false,
+        message: 'Состояние города недоступно — улучшение ' +
+          'невозможно' };
+    }
+    const C = w.game && w.game.Cities;
+    if (!C || typeof C.upgradeBuildingAt !== 'function' ||
+        typeof C.upgradeCost !== 'function' ||
+        typeof C.buildingCells !== 'function') {
+      return { ok: false,
+        message: 'Каталог построек недоступен — улучшение ' +
+          'невозможно' };
+    }
+    const record = w.cityStates.get(t.cityAnchor);
+    if (!record) {
+      return { ok: false, message: 'Запись города отсутствует' };
+    }
+    const b = ctx && ctx.b;
+    if (!b || typeof C.isLevelableBuilding !== 'function'
+        || !C.isLevelableBuilding(b)) {
+      return { ok: false, message: 'Эту постройку нельзя улучшить' };
+    }
+    const res = C.upgradeBuildingAt(record, t.x, t.y);
+    if (!res) {
+      // Не покрыто footprint / level 7 (макс) / запись чужая —
+      // отказ (строка существует только для player-levelable).
+      return { ok: false, message: 'Эту постройку нельзя улучшить' };
+    }
+    // 000222 (правка по итогам ревью): цена — ровно ТЗ: buildCost ×
+    // 2^(L−1) по ВСЕМ ресурсам, L — уровень ЗАПИСИ (ровно по записи
+    // и для магазина/наставника; память §7). ≥7 → null (строка
+    // disabled, сюда не дойти).
+    const cost = C.upgradeCost(b.id, res.oldLevel);
+    if (!w.hero || !Number.isFinite(w.hero.gold)
+        || w.hero.gold < cost.золото) {
+      return { ok: false,
+        message: 'мало золота (нужно ' + cost.золото + ')' };
+    }
+    if (typeof w.game.hasItem !== 'function'
+        || typeof w.game.removeItem !== 'function') {
+      console.error('building-actions.js: flat-items API ' +
+        '(Game.hasItem/removeItem) отсутствует — списание ' +
+        'исходников невозможно (000222)');
+      return { ok: false,
+        message: 'Предметы недоступны — улучшение невозможно' };
+    }
+    const src = Array.isArray(cost.исходники) ? cost.исходники : [];
+    for (const e of src) {
+      if (!w.game.hasItem(w.hero, e.предмет, e.количество)) {
+        return { ok: false,
+          message: 'мало: ' + reagentName(w.game, e.предмет) };
+      }
+    }
+    const BE = w.game && w.game.buildingEffects;
+    if (!BE || typeof BE.teleportCharge !== 'function') {
+      console.error('building-actions.js: buildingEffects.' +
+        'teleportCharge отсутствует — списание золота невозможно ' +
+        '(000222)');
+      return { ok: false, message: 'Улучшение невозможно' };
+    }
+    const ch = BE.teleportCharge(w.hero, false, cost.золото);
+    if (!ch || !ch.ok) {
+      return { ok: false,
+        message: 'мало золота (нужно ' + cost.золото + ')' };
+    }
+    for (const e of src) {
+      const rr = w.game.removeItem(w.hero, e.предмет, e.количество);
+      if (!rr || !rr.ok) {
+        console.error('building-actions.js: removeItem(' +
+          e.предмет + ') unexpectedly failed: ' +
+          (rr && rr.reason ? rr.reason : 'неизвестная причина') +
+          ' (000222)');
+        return { ok: false,
+          message: 'Эту постройку нельзя улучшить' };
+      }
+    }
+    w.hero.gold = ch.gold; // live-ссылка (паттерн 000075)
+    w.cityStates.set(t.cityAnchor, res.record);
+    {
+      const parts = String(t.cityAnchor).split(',');
+      const pax = Number(parts[0]), pay = Number(parts[1]);
+      // Синк реестра — ТОЛЬКО для лавки (map_index): реестр питает
+      // makeCityShop (buildCityAt) при перестройке — wealth-бамп
+      // f(L) по уровню лавки (память §7). Стоимость улучшения — по
+      // уровню ЗАПИСИ (не по реестру), поэтому синк здесь — для
+      // перестройки, а не для цены.
+      const op = b && b.особые_параметры;
+      const isShop = op && typeof op.map_index === 'number';
+      if (isShop && Number.isInteger(pax) && Number.isInteger(pay)
+          && typeof C.syncShopLevels === 'function') {
+        C.syncShopLevels(pax, pay, res.record);
+      }
+      // In-place wealth-бамп лавок footprint (fresh-регенерация
+      // подхватит effWealth; в окне — сток прежний, 000222).
+      const f = (L) => Math.floor((L - 1) / 2);
+      const delta = f(res.newLevel) - f(res.oldLevel);
+      if (delta !== 0) {
+        const ds = typeof w.cityState === 'function'
+          ? w.cityState() : null;
+        if (ds && ds.cityShops && typeof ds.cityShops === 'object') {
+          for (const [cx, cy] of
+              C.buildingCells(res.buildingId, res.x, res.y)) {
+            const shop = ds.cityShops[cx + ',' + cy];
+            if (shop && typeof shop.wealth === 'number')
+              shop.wealth = Math.min(3, shop.wealth + delta);
+          }
+        }
+      }
+    }
+    const name = b.название ? b.название : String(res.buildingId);
+    let msg = 'Улучшено: ' + name + ' (уровень ' + res.newLevel
+      + ') (−' + cost.золото + ' з.';
+    if (src.length > 0)
+      msg += ', ' + src.map((e) =>
+        '−' + reagentName(w.game, e.предмет) + ' ×' + e.количество)
         .join(', ');
     msg += ')';
     return { ok: true, message: msg };
@@ -1711,8 +1950,12 @@
     // — без строки (затрачено = 0).
     // 000221: строки хранилища (put-*/take-*) ПЕРЕД «Разобрать» —
     // конец списка extraActions (эффекты — первой частью all).
+    // 000222: строка «Улучшить…» — ПЕРВАЯ в extraActions (до
+    // хранилища); null (не levelable/нет record) — тихо отброшена.
     const extraActions = cell.player === true
-      ? storageMenuRows(cell, cityAnchor)
+      ? [upgradeActionRow(cell, cityAnchor)]
+        .filter((r) => r !== null)
+        .concat(storageMenuRows(cell, cityAnchor))
         .concat([demolishActionRow(cell)])
       : [];
     // СУЩЕСТВУЮЩАЯ точка: buildingUI.open + actions (городские

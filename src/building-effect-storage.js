@@ -67,8 +67,12 @@
         message: 'Постройка не найдена' } };
     }
     const b = ctx && ctx.b;
+    // 000222: ёмкость по УРОВНЮ записи (buildingLevelAt — absent/
+    // мусор → 1 — 1-аргументный бит-в-бит 000221).
+    const level = C && typeof C.buildingLevelAt === 'function'
+      ? C.buildingLevelAt(record, t.x, t.y) : null;
     const capacity = C && typeof C.storageCapacity === 'function'
-      ? C.storageCapacity(b && b.id) : 0;
+      ? C.storageCapacity(b && b.id, level) : 0;
     if (!Number.isFinite(capacity) || capacity <= 0) {
       return { ok: false, fail: { ok: false,
         message: 'Хранилище недоступно' } };

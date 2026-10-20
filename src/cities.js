@@ -455,7 +455,7 @@ function (perlin, items, buildings, rootRef) {
    *   map_index нет (города 51..54) или «виды» нет (Арена 7 /
    *   Стрельбище 10 / Дом кузнеца 25).
    */
-  function makeCityShop(cityX, cityY, tx, ty, buildingId, wealth) {
+  function makeCityShop(cityX, cityY, tx, ty, buildingId, wealth, level) {
     for (const [n, v] of [['cityX', cityX], ['cityY', cityY],
         ['tx', tx], ['ty', ty], ['buildingId', buildingId]])
       if (!Number.isInteger(v))
@@ -477,8 +477,22 @@ function (perlin, items, buildings, rootRef) {
     const pp = rec.особые_параметры;
     if (!pp || typeof pp.map_index !== 'number')
       return null; // город (51..54) — лавок нет
+    // 000222: эффективное богатство — явный level (int 1..7)
+    // > реестр shopLevels (клетка) > 1 (бит-в-бит 6-арг.).
+    let L = 1;
+    if (Number.isInteger(level) && level >= 1 &&
+        level <= MAX_BUILDING_LEVEL) {
+      L = level;
+    } else {
+      const reg = shopLevels.get(cityX + ',' + cityY + ':' +
+        tx + ',' + ty);
+      if (Number.isInteger(reg) && reg >= 1 &&
+          reg <= MAX_BUILDING_LEVEL) L = reg;
+    }
+    const effWealth = Math.min(3, Math.floor(wealth) +
+      Math.floor((L - 1) / 2));
     const shop = I.makeShop(cityX * CITY_SHOP_CELL_BASE + tx,
-      cityY * CITY_SHOP_CELL_BASE + ty, pp.map_index, wealth);
+      cityY * CITY_SHOP_CELL_BASE + ty, pp.map_index, effWealth);
     if (!shop)
       return null; // «виды» нет — не лавка (Арена/Стрельбище/кузнец)
     // x/y — ЛОКАЛЬНАЯ клетка города (ключ 000109 «tx,ty»), а не
@@ -678,6 +692,18 @@ function (perlin, items, buildings, rootRef) {
             } else {
               const s = storageSanitize(e.storage);
               if (s.length) entry.storage = s;
+            }
+          }
+          // 000222: level (1..7) — canonical-копия; битое ПОЛЕ →
+          // warn + отброс ПОЛЯ, запись жива (паттерн name 000148.05).
+          if (e.level !== undefined) {
+            if (Number.isInteger(e.level) && e.level >= 1 &&
+                e.level <= MAX_BUILDING_LEVEL) {
+              entry.level = e.level;
+            } else {
+              console.warn('cities.js: города — level некорректно '
+                + '(1–7): ' + JSON.stringify(e.level)
+                + ' — поле отброшено (000222)');
             }
           }
           built.push(entry);
@@ -1114,6 +1140,249 @@ function (perlin, items, buildings, rootRef) {
   }
 
   // ============================================================
+  // Уровни зданий (задача 000222) — ядро: ЧИСТЫЕ функции
+  // ============================================================
+  //
+  // Решения зафиксированы в memory/000222-building-levels.md:
+  //  * D-A: level — append-only поле ВНУТРИ built-записи
+  //    (cityStates), 1..MAX_BUILDING_LEVEL (7), absent = 1;
+  //    материализации in-place НЕТ (канон-копии);
+  //  * D-B: upgradeCost(id, L) = buildCost(id) × 2^(L−1) по ВСЕМ
+  //    ресурсам (целочисленно, 1 << (L−1)); L ≥ 7 → null;
+  //    не-целые → throw;
+  //  * D-C: ёмкость хранилища = слоты + прирост×(L−1);
+  //  * D-D: shopLevels — module-реестр 'cx,cy:tx,ty' → level
+  //    (синк из built при входе — locations.js; bump — хендлер
+  //    upgrade building-actions.js); makeCityShop 7-й аргумент
+  //    level → effWealth = min(3, wealth + floor((L−1)/2));
+  //  * D-H: isLevelableBuilding — ДАННЫЕ каталога (.стройка.золото
+  //    int>0 И лавка/наставник/хранилище);
+  //  * ДЕТЕРМИНИЗМ: level/effWealth НИ В КАКИЕ сиды не входят
+  //    (сиды makeShop/stock — без изменений); RNG — ноль.
+  // НОЛЬ новых require (require-пин cities.test.js: perlin/items/
+  // buildings — каталог/предметы — лениво buildingsRef/itemsRef).
+
+  const MAX_BUILDING_LEVEL = 7;
+
+  // Реестр уровней лавок (D-D): ключ 'cx,cy:tx,ty' (локальные
+  // координаты клетки в городе), значение level int 1..7.
+  // Module-state: живёт в памяти на время сессии; источник истины —
+  // built-записи cityStates (syncShopLevels при входе в город).
+  const shopLevels = new Map();
+
+  /**
+   * Постройка улучшаема (D-H): .стройка.золото int > 0 И хотя бы
+   * ОДИН уровень-эффект: лавка (map_index + «виды» items.js) ИЛИ
+   * наставник (пул непустых строк) ИЛИ хранилище (объект).
+   * ДАННЫЕ каталога — без хардкода id. Чистый.
+   * @param {object} b каталожная запись (B.getBuilding(id))
+   * @returns {boolean}
+   */
+  function isLevelableBuilding(b) {
+    if (!b || typeof b !== 'object' || Array.isArray(b)) return false;
+    const pp = b.особые_параметры;
+    if (!pp || typeof pp !== 'object' || Array.isArray(pp)) return false;
+    const s = pp.стройка;
+    const gold = s && typeof s === 'object' && !Array.isArray(s)
+      ? s.золото : null;
+    if (!(Number.isInteger(gold) && gold > 0)) return false;
+    if (typeof pp.map_index === 'number') {
+      try {
+        return itemsRef().shopKindsFor(pp.map_index) !== null;
+      } catch (err) {
+        return false; // items.js деградация — мимо (000053)
+      }
+    }
+    const m = pp.наставник;
+    if (m && typeof m === 'object' && !Array.isArray(m) &&
+        Array.isArray(m.заклинания) && m.заклинания.length > 0 &&
+        m.заклинания.every(
+          (id) => typeof id === 'string' && id !== '')) {
+      return true;
+    }
+    const st = pp.хранилище;
+    if (st && typeof st === 'object' && !Array.isArray(st)) return true;
+    return false;
+  }
+
+  /**
+   * Стоимость улучшения L → L+1 (D-B): buildCost × 2^(L−1) по ВСЕМ
+   * ресурсам (целочисленно — float-края исключены). L ≥ 7 → null
+   * (макс); L < 1 / не-целые → throw (ошибка вызывающего — строка
+   * меню не отдаёт таких L).
+   * @returns {{ золото: number, исходники: {предмет: string,
+   *   количество: number}[] }|null}
+   */
+  function upgradeCost(buildingId, level) {
+    if (!Number.isInteger(buildingId))
+      throw new Error('cities.js: upgradeCost — id — целое (получено ' +
+        String(buildingId) + ')');
+    if (!Number.isInteger(level))
+      throw new Error('cities.js: upgradeCost — level — целое ' +
+        '(получено ' + String(level) + ')');
+    if (level < 1)
+      throw new Error('cities.js: upgradeCost — level ≥ 1 (получено ' +
+        String(level) + ')');
+    if (level >= MAX_BUILDING_LEVEL) return null;
+    const base = buildCost(buildingId);
+    const k = 1 << (level - 1);
+    return {
+      золото: base.золото * k,
+      исходники: base.исходники.map((e) =>
+        ({ предмет: e.предмет, количество: e.количество * k })),
+    };
+  }
+
+  // Поиск built-записи, footprint которой накрывает (x, y)
+  // (С КОНЦА — последняя запись побеждает; паттерн demolishCity).
+  // Возврат индекса | null. b/size — из каталога (fail-open 1×1).
+  function findBuiltEntryAt(built, x, y) {
+    const B = buildingsRef();
+    for (let i = built.length - 1; i >= 0; i--) {
+      const e = built[i];
+      if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
+      if (!Number.isInteger(e.x) || !Number.isInteger(e.y) ||
+          !Number.isInteger(e.buildingId)) continue;
+      const b = B.getBuilding ? B.getBuilding(e.buildingId) : null;
+      if (!b) continue;
+      const size = B.buildingSize
+        ? B.buildingSize(b) : { width: 1, height: 1 };
+      const { width, height } = size;
+      for (let dy = 0; dy < height; dy++)
+        for (let dx = 0; dx < width; dx++)
+          if (e.x + dx === x && e.y + dy === y) return i;
+    }
+    return null;
+  }
+
+  /**
+   * Улучшение постройки на (x, y) (D-A): ЧИСТАЯ копия record с
+   * level+1 в НАЙДЕННОЙ (по footprint, с конца) built-записи.
+   * oldLevel — из записи (мусор/absent → 1); ≥ 7 → null (макс).
+   * (x, y) не покрыт / record не-объект / built не-массив → null.
+   * x/y не-целые → throw (ошибка вызывающего).
+   * @returns {{ record: object, buildingId: number, x: number,
+   *   y: number (ЯКОРЬ записи), oldLevel: number,
+   *   newLevel: number }|null}
+   */
+  function upgradeBuildingAt(record, x, y) {
+    if (!Number.isInteger(x) || !Number.isInteger(y))
+      throw new Error('cities.js: upgradeBuildingAt — x/y — целые ' +
+        '(получено ' + x + ',' + y + ')');
+    if (!record || typeof record !== 'object' || Array.isArray(record))
+      return null;
+    const built = record.built;
+    if (!Array.isArray(built)) return null;
+    const i = findBuiltEntryAt(built, x, y);
+    if (i === null) return null;
+    const e = built[i];
+    let old = e.level;
+    if (!Number.isInteger(old) || old < 1) old = 1;
+    if (old >= MAX_BUILDING_LEVEL) return null;
+    // «Прочее» (в т.ч. storage — 000221/000222) переносится в копию
+    // БИТ-В-БИТ (пин R3 «прочее сохранено»); канонизация пустого
+    // storage:[] (ленивая материализация storageAt) — не здесь, а на
+    // входе в город (locations.js, 000222 §8 — пин R14).
+    const newBuilt = built.slice(0, i).concat(
+      [Object.assign({}, e, { level: old + 1 })], built.slice(i + 1));
+    return {
+      record: Object.assign({}, record, { built: newBuilt }),
+      buildingId: e.buildingId,
+      x: e.x,
+      y: e.y,
+      oldLevel: old,
+      newLevel: old + 1,
+    };
+  }
+
+  /**
+   * Уровень постройки на клетке города (D-A): built-запись по
+   * footprint (с конца); absent/мусор level → 1; нет записи → null.
+   * Fail-open (000029): каталог недоступен — 1×1, warn НЕТ.
+   * @returns {number|null}
+   */
+  function buildingLevelAt(record, x, y) {
+    if (!record || typeof record !== 'object' || Array.isArray(record))
+      return null;
+    const built = record.built;
+    if (!Array.isArray(built)) return null;
+    const i = findBuiltEntryAt(built, x, y);
+    if (i === null) return null;
+    const lv = built[i].level;
+    if (Number.isInteger(lv) && lv >= 1 && lv <= MAX_BUILDING_LEVEL)
+      return lv;
+    return 1;
+  }
+
+  /**
+   * Реестр уровней лавок (D-D): level int 1..7 → запись,
+   * иначе (мусор/absent) — УДАЛЕНИЕ ключа (fail-soft). Ключ —
+   * 'cx,cy:tx,ty' (локальные координаты клетки).
+   */
+  function setShopLevel(cityX, cityY, tx, ty, level) {
+    const key = cityX + ',' + cityY + ':' + tx + ',' + ty;
+    if (Number.isInteger(level) && level >= 1 &&
+        level <= MAX_BUILDING_LEVEL) {
+      shopLevels.set(key, level);
+    } else {
+      shopLevels.delete(key);
+    }
+  }
+
+  /**
+   * Чтение уровня лавки из реестра (000222, D-B/D-D): int 1..7 или
+   * null (ключ отсутствует/мусор). Читает makeCityShop (wealth-бамп
+   * f(L) при перестройке в buildCityAt). Стоимость улучшения — по
+   * уровню ЗАПИСИ, не по реестру (правка по итогам ревью —
+   * memory/000222-building-levels.md §7).
+   * @returns {number|null}
+   */
+  function shopLevelAt(cityX, cityY, tx, ty) {
+    const key = cityX + ',' + cityY + ':' + tx + ',' + ty;
+    const lv = shopLevels.get(key);
+    if (Number.isInteger(lv) && lv >= 1 && lv <= MAX_BUILDING_LEVEL)
+      return lv;
+    return null;
+  }
+
+  /**
+   * Синхронизация реестра из built-записи города (D-D): очистка
+   * ВСЕХ ключей префикса 'cx,cy:' + запись уровня (мусор/absent →
+   * 1) на КАЖДУЮ клетку footprint КАЖДОЙ built-записи (клетка без
+   * map_index — тоже: makeCityShop сама отфильтрует). record null →
+   * только очистка. Идемпотентна (точки вызова — при входе,
+   * locations.js; после upgrade И после demolish, building-actions.js
+   * — инвариант: запись в реестре есть, только если ячейка содержит
+   * built-запись).
+   */
+  function syncShopLevels(cityX, cityY, record) {
+    const prefix = cityX + ',' + cityY + ':';
+    for (const k of Array.from(shopLevels.keys()))
+      if (k.indexOf(prefix) === 0) shopLevels.delete(k);
+    if (!record || typeof record !== 'object' || Array.isArray(record))
+      return;
+    const built = record.built;
+    if (!Array.isArray(built)) return;
+    const B = buildingsRef();
+    for (const e of built) {
+      if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
+      if (!Number.isInteger(e.x) || !Number.isInteger(e.y) ||
+          !Number.isInteger(e.buildingId)) continue;
+      const b = B.getBuilding ? B.getBuilding(e.buildingId) : null;
+      if (!b) continue;
+      const size = B.buildingSize
+        ? B.buildingSize(b) : { width: 1, height: 1 };
+      const { width, height } = size;
+      const lv = e.level;
+      const L = (Number.isInteger(lv) && lv >= 1 &&
+        lv <= MAX_BUILDING_LEVEL) ? lv : 1;
+      for (let dy = 0; dy < height; dy++)
+        for (let dx = 0; dx < width; dx++)
+          shopLevels.set(prefix + (e.x + dx) + ',' + (e.y + dy), L);
+    }
+  }
+
+  // ============================================================
   // Хранилище (задача 000221) — ядро: ЧИСТЫЕ функции
   // ============================================================
   //
@@ -1144,18 +1413,26 @@ function (perlin, items, buildings, rootRef) {
    * особые_параметры.хранилище.слоты — int ≥ 1, иначе 0
    * (0 — здание строится, склад недоступен: дефенсивный случай;
    * id ∉ каталогу — 0, гард, не ошибка вызывающего).
+   * 000222 (D-C): + level — ёмкость = слоты + прирост×(L−1)
+   * (прирост — каталог, int ≥ 0, absent → 0); level вне 1..7 /
+   * мусор → кламп 1 (1-аргументный вызов — бит-в-бит 000221).
    * @returns {number}
    */
-  function storageCapacity(buildingId) {
+  function storageCapacity(buildingId, level) {
     const B = buildingsRef();
     const b = B.getBuilding ? B.getBuilding(buildingId) : null;
     if (!b) return 0;
     const pp = b.особые_параметры;
     const s = pp && typeof pp === 'object' && !Array.isArray(pp)
       ? pp.хранилище : null;
-    const slots = s && typeof s === 'object' && !Array.isArray(s)
-      ? s.слоты : null;
-    return (Number.isInteger(slots) && slots >= 1) ? slots : 0;
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return 0;
+    const slots = s.слоты;
+    if (!(Number.isInteger(slots) && slots >= 1)) return 0;
+    const growth = (Number.isInteger(s.прирост) && s.прирост >= 0)
+      ? s.прирост : 0;
+    const L = (Number.isInteger(level) && level >= 1 &&
+      level <= MAX_BUILDING_LEVEL) ? level : 1;
+    return slots + growth * (L - 1);
   }
 
   /**
@@ -1303,5 +1580,14 @@ function (perlin, items, buildings, rootRef) {
     storageAt,
     storagePut,
     storageTake,
+    // 000222: уровни зданий (улучшение, стоимость ×2, максимум 7).
+    MAX_BUILDING_LEVEL,
+    isLevelableBuilding,
+    upgradeCost,
+    upgradeBuildingAt,
+    buildingLevelAt,
+    setShopLevel,
+    shopLevelAt,
+    syncShopLevels,
   };
 });

@@ -107,6 +107,21 @@
             "type": "string",
             "pattern": "^assets/skills/\\d{6}\\.json$"
           }
+        },
+        "хранилище": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["слоты"],
+          "properties": {
+            "слоты": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "прирост": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
         }
       }
     },

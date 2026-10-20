@@ -1288,13 +1288,14 @@ test('валидация: layout — width/height/cells/entrance/exit, инач�
 
 // --- API и константа ---
 
-test('000108 API: makeCityShop — функция (ровно 6 параметров); CITY_SHOP_CELL_BASE = 256 (golden-пин литерала)', () => {
+test('000108 API: makeCityShop — функция (ровно 7 параметров); CITY_SHOP_CELL_BASE = 256 (golden-пин литерала)', () => {
   const C = loadCities();
   assert.equal(typeof C.makeCityShop, 'function',
-    'makeCityShop(cityX, cityY, tx, ty, buildingId, wealth)');
-  assert.equal(C.makeCityShop.length, 6,
-    'ровно 6 параметров: layout/cityRecord-аргументов НЕТ ' +
-    '(данные — из (город, клетка) и каталога по buildingId)');
+    'makeCityShop(cityX, cityY, tx, ty, buildingId, wealth, level)');
+  assert.equal(C.makeCityShop.length, 7,
+    'ровно 7 параметров (level — 000222): layout/cityRecord-' +
+    'аргументов НЕТ (данные — из (город, клетка) и каталога по '
+    + 'buildingId)');
   assert.equal(C.CITY_SHOP_CELL_BASE, 256,
     'golden-пин: 256 > максимального layout (4×footprint−1 ≤ 27, ' +
     'tx ≤ 25 < 256 — 000148.01); смена после мержа = смена ВСЕХ ' +

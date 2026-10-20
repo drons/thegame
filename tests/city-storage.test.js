@@ -526,10 +526,11 @@ test('000221-R5. персист: storage живёт в roundtrip (окно stock
 });
 
 // ============================================================
-// R6. [E] на построенном 55 (player) — строки [storage, demolish]
+// R6. [E] на построенном 55 (player) — строки [storage, upgrade,
+// demolish] (upgrade — 000222)
 // ============================================================
 
-test('000221-R6. [E] на построенном 55 (per-cell player:true) → buildingUI: строки [{id:"storage", имя:"Хранилище", доступен:true}, {id:"demolish", «Разобрать (возврат 30 з.)»}], title «хранилище», npcUI не открывается', () => {
+test('000221-R6. [E] на построенном 55 (per-cell player:true) → buildingUI: строки [{id:"storage", имя:"Хранилище", доступен:true}, {id:"upgrade", «Улучшить…» (000222)}, {id:"demolish", «Разобрать (возврат 30 з.)»}], title «хранилище», npcUI не открывается', () => {
   const t = initStorageFixture({
     x: 1, y: 1,
     cityContents: [{ x: 1, y: 1, buildingId: 55, player: true }],
@@ -547,9 +548,10 @@ test('000221-R6. [E] на построенном 55 (per-cell player:true) → b
   assert.equal(p.title, 'хранилище',
     'RED: title — название каталога, первая буква нижним');
   assert.deepEqual(p.actions.map((a) => a.id),
-    ['storage', 'demolish'],
-    'RED: строки — «Хранилище» (эффекты) ПЕРЕД «Разобрать» (конец '
-    + 'списка): ' + JSON.stringify(p.actions.map((a) => a.id)));
+    ['storage', 'upgrade', 'demolish'],
+    'RED: строки — «Хранилище» (эффекты), «Улучшить» (000222), '
+    + '«Разобрать» (конец списка): '
+    + JSON.stringify(p.actions.map((a) => a.id)));
   const st = p.actions[0];
   assert.equal(st.имя, 'Хранилище',
     'RED: имя — реестр EFFECTS["storage"] (data-driven, каталог '
@@ -557,7 +559,7 @@ test('000221-R6. [E] на построенном 55 (per-cell player:true) → b
   assert.equal(st.доступен, true,
     'RED: без раз_в_день — строка ВСЕГДА доступна');
   assert.equal(st.reason, undefined, 'доступная строка — без reason');
-  assert.equal(p.actions[1].имя, 'Разобрать (возврат 30 з.)',
+  assert.equal(p.actions[2].имя, 'Разобрать (возврат 30 з.)',
     'RED: «Разобрать» — 30% floor (100 → 30), предметный возврат '
     + 'пуст (2 → 0) — старая форма');
   assert.equal(t.o.calls.npcOpen.length, 0,

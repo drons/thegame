@@ -316,6 +316,26 @@
       if (!savedRec)
         savedRec = ctx.cityStates.get(player.x + ',' + player.y) || null;
     }
+    // 000222 (§8): канонизация ЖИВОЙ built-записи на входе — пустой
+    // storage:[] (ленивая материализация storageAt, 000221)
+    // удаляется: live-запись становится равной форме сейва
+    // (validateCityState omitted-пустой storage, 000221 D4/D7).
+    // prepareCityState (main.js, заморожен) держит built ПО ССЫЛКЕ —
+    // in-place-чистка видна g.cities (пин R14: после выхода/возврата
+    // запись = 4 ключа + level, storage:[] НЕТ). Ненулевой storage
+    // и прочее — БИТ-В-БИТ.
+    if (savedRec && Array.isArray(savedRec.built)) {
+      for (const e of savedRec.built) {
+        if (e && typeof e === 'object' && !Array.isArray(e)
+            && Array.isArray(e.storage) && e.storage.length === 0)
+          delete e.storage;
+      }
+    }
+    // 000222 (D-D): реестр уровней лавок — из built-записи ДО
+    // стоков (makeCityShop 6-арг. ниже и prepareCityState main.js
+    // читают shopLevels → effWealth по уровню).
+    if (G.Cities && typeof G.Cities.syncShopLevels === 'function')
+      G.Cities.syncShopLevels(ax, ay, savedRec || {});
     // occupied (клетки built) — ОДИН источник для обеих точек
     // генерации (контракт §3.5): базовый набор НЕ занимает
     // player-клетки. try/catch — деградация 000053 (в production

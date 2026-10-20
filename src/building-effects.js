@@ -1129,6 +1129,26 @@
    * @returns {{ok: boolean, success?: boolean, spellId?: string,
    *            price?: number, message?: string}}
    */
+  // 000222 (D-E): гейт уровня постройки-наставника: sp.уровень ≤
+  // cap (cap = max(4, level) — level 4 и ниже (и absent = 1) БИТ-
+  // В-БИТ с 000147: все 17 каталожных спеллов ≤ L4). Fail-open
+  // (000029): getSpell отсутствует/бросил/нет спелла/уровень не
+  // число → true (кандидат не сужается).
+  function mentorLevelOk(G, id, cap) {
+    if (!G || typeof G.Spells !== 'object' ||
+        typeof G.Spells.getSpell !== 'function') return true;
+    let sp = null;
+    try {
+      sp = G.Spells.getSpell(id);
+    } catch (err) {
+      return true;
+    }
+    if (!sp || typeof sp !== 'object' || Array.isArray(sp)) return true;
+    if (typeof sp.уровень !== 'number' || !Number.isFinite(sp.уровень))
+      return true;
+    return sp.уровень <= cap;
+  }
+
   function applyMentorSpell(st) {
     const G = lazyGame();
     if (!G || !G.Spells || typeof G.Spells.canLearn !== 'function') {
@@ -1145,8 +1165,14 @@
     const LT = G.LearnTarget;
     const learner = (LT && typeof LT.activeSheet === 'function')
       ? LT.activeSheet(hero) : hero;
+    // 000222 (D-E): cap — из УРОВНЯ постройки (st.level, проводка
+    // building-actions.js apply-state); absent/мусор → 4 (бит-в-бит).
+    const lvl = st && st.level;
+    const cap = Math.max(4, (Number.isInteger(lvl) && lvl >= 1)
+      ? lvl : 1);
     const picked = info.pool.find(
-      (id) => G.Spells.canLearn(learner, id, 'mentor').ok) || null;
+      (id) => mentorLevelOk(G, id, cap)
+        && G.Spells.canLearn(learner, id, 'mentor').ok) || null;
     if (!picked) {
       return {
         ok: false,
@@ -2395,7 +2421,8 @@
     }
     const st = state || {};
     const tile = st.tile || { x: 0, y: 0 };
-    for (const id of effectIds(building)) {
+    const effIds = effectIds(building);
+    for (const id of effIds) {
       const entry = EFFECTS[id];
       const action = { id, имя: entry.имя, доступен: true };
       // Недневная доступность — ПЕРВОЙ: если эффект в принципе
