@@ -203,6 +203,8 @@
   let quickBox = null;
   let quickOpen = false;
   let quickSig = null;
+  let boxEl = null;
+  let lootEl = null;
   // 000227: выбор «последнего заклинания из книги» — UI-состояние
   // пер БОЯ: ключ 'player' (игрок) / u.id (союзник) → spellId.
   // Запись — castRow (после гейта, ДО каста: любой тап по строке,
@@ -307,6 +309,7 @@
 
     const box = document.createElement('div');
     box.className = 'combat-box';
+    boxEl = box;
 
     canvas = document.createElement('canvas');
     const c = ctx.combat;
@@ -2077,6 +2080,38 @@
         G.playerUI.toggle(false);
       }
     }
+    renderVictoryLoot(c);
+  }
+
+  // --- Лут победы (задача 000237) ---
+
+  function renderVictoryLoot(c) {
+    if (lootEl) return;
+    if (!boxEl || !c.result || c.result.outcome !== 'victory') return;
+    const items = Array.isArray(c.result.items) ? c.result.items : [];
+    const div = document.createElement('div');
+    div.className = 'combat-victory-loot';
+    for (const e of items) {
+      const it = (e && G.getItem) ? G.getItem(e.id) : null;
+      const row = document.createElement('div');
+      row.className = 'cp-itemrow';
+      if (it && typeof it.icon === 'string' && it.icon !== '') {
+        const img = document.createElement('img');
+        img.className = 'cp-itemicon';
+        img.src = it.icon;
+        img.alt = '';
+        row.appendChild(img);
+      }
+      const nm = document.createElement('span');
+      nm.className = 'cp-itemname';
+      nm.textContent = (it ? it.name : (e ? String(e.id) : ''))
+        + (e && e.qty > 1 ? ' ×' + e.qty : '');
+      row.appendChild(nm);
+      div.appendChild(row);
+    }
+    if (!items.length) div.style.display = 'none';
+    lootEl = div;
+    boxEl.appendChild(div);
   }
 
   // --- «Книга заклинаний» (задача 000149) ---
@@ -2841,7 +2876,8 @@
       }
     }
     if (overlay) overlay.remove();
-    overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl = null;
+    overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl =
+      boxEl = null;
     hpbarEl = hpbarFillEl = hpbarTextEl = null;
     mpbarEl = mpbarFillEl = mpbarTextEl = null;
     countEls = {}; // 000199: как hpbar-refs — обе точки (D5b 000170)
@@ -2850,6 +2886,7 @@
     bookOpen = false;
     bookSig = null;
     quickBox = null;
+    lootEl = null;
     quickOpen = false;
     quickSig = null;
     fleeBox = null;
@@ -3052,7 +3089,8 @@
             // снятие обломка — косметика: состояния очищены ниже
           }
         }
-        overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl = null;
+        overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl =
+          boxEl = null;
         hpbarEl = hpbarFillEl = hpbarTextEl = null;
         mpbarEl = mpbarFillEl = mpbarTextEl = null;
         countEls = {}; // 000199: как hpbar-refs — обе точки (D5b 000170)
@@ -3061,6 +3099,7 @@
         bookOpen = false;
         bookSig = null;
         quickBox = null;
+        lootEl = null;
         quickOpen = false;
         quickSig = null;
         fleeBox = null;

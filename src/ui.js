@@ -360,8 +360,14 @@
   // быстрые/инвентарь); пустые строки и строки магазина (зона
   // 000101) его не получают. 000130: ОСТАЁТСЯ в ядре и идёт
   // вкладкам через ctx (общий механизм строк — ЛЮБОЙ вкладке, как el).
-  function itemRow(name, meta, buttons, tip) {
+  function itemRow(name, meta, buttons, tip, icon) {
     const div = el('div', 'cp-itemrow');
+    if (typeof icon === 'string' && icon !== '') {
+      const img = el('img', 'cp-itemicon');
+      img.src = icon;
+      img.alt = '';
+      div.appendChild(img);
+    }
     div.appendChild(el('span', 'cp-itemname', name));
     if (meta) div.appendChild(el('span', 'cp-itemmeta', meta));
     for (const [label, act, data] of buttons || []) {

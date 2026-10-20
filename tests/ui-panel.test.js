@@ -2996,3 +2996,154 @@ test('000123: toggle() без аргументов — поведение БЕЗ
   assert.equal(inv.style.display, 'none',
     'без tabId — дефолтная вкладка («Персонаж» видима, «Инвентарь» скрыта)');
 });
+
+// =====================================================================
+// Задача 000237 — иконки в строках «Инвентарь»/«Снаряжение»/быстрых
+// слотов (стиль как в инвентаре: ядро itemRow + cp-классы). ТЗ —
+// tasks/pending/000237.md; контракт —
+// memory/000237-victory-loot-icons.md (§2.1, D4).
+//
+// КРАСНЫЕ (TDD, до реализации): itemRow (src/ui.js) БЕЗ 5-го
+// аргумента icon; ui-tab-inventory.js иконку НЕ передаёт → img в
+// строке предмета с иконкой отсутствует (assert падает на
+// children[0].tagName 'span' вместо 'img'). ОСТАЛЬНОЕ в строке
+// (имя/meta/кнопки/tip) — 0 diff, фиксаторы зелёные.
+//
+// Предметы: iron_ore — icon в каталоге (assets/sprites/loot/
+// iron_ore.svg), реагент; bread — БЕЗ icon (деградация — текстовая
+// строка, как на master).
+
+test('000237: вкладка «Инвентарь» — iron_ore: img.cp-itemicon ПЕРВЫМ ребёнком (src из каталога); bread — без img, строка 0 diff (237-INV-1)', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  env.G.addItem(c, 'iron_ore');
+  env.G.addItem(c, 'bread');
+  const panel = openPanel(env, c);
+  const ore = env.G.getItem('iron_ore');
+  const bread = env.G.getItem('bread');
+  const oreRow = itemRowByName(panel._invBody, 'Железная руда');
+  assert.ok(oreRow, 'строка «Железная руда» найдена');
+  assert.equal(oreRow.querySelector('.cp-itemname').textContent,
+    'Железная руда', 'имя (qty 1 — без «×») без изменений');
+  assert.equal(oreRow.querySelector('.cp-itemmeta').textContent,
+    '1.0 кг, 8 з', 'meta строки без изменений (0 diff)');
+  assert.deepEqual(oreRow.children
+      .filter((ch) => ch.tagName === 'button')
+      .map((b) => b.dataset.act),
+    ['quick', 'remove'],
+    'кнопки реагента без изменений (без «исп.»/«надеть»)');
+  const oreTip = oreRow.querySelector('.cp-tip');
+  assert.ok(oreTip, 'у строки есть .cp-tip');
+  assert.ok(oreTip.textContent.includes(ore.desc), 'desc предмета в tip');
+  assert.ok(!oreTip.textContent.includes('Эффект'),
+    'реагент — без строки «Эффект»');
+  assert.equal(oreRow.children[0].tagName, 'img',
+    '000237: строка предмета С иконкой — img ПЕРВЫМ ребёнком; '
+    + 'факт: ' + oreRow.children[0].tagName);
+  assert.equal(oreRow.children[0].className, 'cp-itemicon',
+    '000237: класс иконки — cp-itemicon (стиль инвентаря)');
+  assert.equal(oreRow.children[0].src, 'assets/sprites/loot/iron_ore.svg',
+    '000237: src = icon каталога; факт: ' + oreRow.children[0].src);
+  assert.equal(oreRow.children[0].src, ore.icon,
+    '000237: src === G.getItem("iron_ore").icon');
+  assert.equal(oreRow.children[0].alt, '',
+    '000237: alt пуст (иконка презентационная)');
+  const breadRow = itemRowByName(panel._invBody, 'Хлеб');
+  assert.ok(breadRow, 'строка «Хлеб» найдена');
+  assert.equal(breadRow.children[0].tagName, 'span',
+    '000237: bread (без icon) — ПЕРВЫМ идёт имя (img нет); факт: '
+    + breadRow.children[0].tagName);
+  assert.equal(breadRow.children[0].className, 'cp-itemname',
+    '000237: первый ребёнок строки bread — cp-itemname (0 diff)');
+  assert.equal(breadRow.querySelector('.cp-itemname').textContent, 'Хлеб',
+    'имя bread без изменений');
+  assert.equal(breadRow.querySelector('.cp-itemmeta').textContent,
+    '0.2 кг, 2 з', 'meta bread без изменений (0 diff)');
+  assert.deepEqual(breadRow.children
+      .filter((ch) => ch.tagName === 'button')
+      .map((b) => b.dataset.act),
+    ['use', 'quick', 'remove'],
+    'кнопки bread без изменений');
+  assert.ok(breadRow.querySelector('.cp-tip').textContent
+      .includes('Эффект: +' + bread.effect.amount + ' HP'),
+    'tip bread без изменений («Эффект: +4 HP»)');
+  assert.ok(!breadRow.children.some((ch) => ch.tagName === 'img'),
+    '000237: у bread img НЕТ (деградация: img только при ненулевой '
+    + 'it.icon)');
+});
+
+test('000237: «Снаряжение»/быстрые слоты — тот же стиль: iron_ore в быстром слоте — img; пустые слоты и оружие без иконки — без img (237-INV-2)', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  env.G.addItem(c, 'iron_ore');
+  env.G.addItem(c, 'iron_sword');
+  env.G.equip(c, 'iron_sword');
+  const panel = openPanel(env, c);
+  const oreRow = itemRowByName(panel._invBody, 'Железная руда');
+  assert.ok(oreRow, 'строка «Железная руда» в «Инвентарь»');
+  const quickBtn = oreRow.children
+    .find((ch) => ch.tagName === 'button' && ch.dataset.act === 'quick');
+  assert.ok(quickBtn, 'кнопка «быстр.» у iron_ore');
+  (panel.listeners.click || [])[0]({ target: quickBtn });
+  assert.equal(c.inventory.quick[0], 'iron_ore',
+    'фикстура: предмет перенесён в быстрый слот 0 (000223)');
+  const q1 = itemRowByName(panel._quickBody, 'Слот 1: Железная руда');
+  assert.ok(q1, 'строка «Слот 1: Железная руда»');
+  assert.equal(q1.children[0].tagName, 'img',
+    '000237: быстрый слот с иконкой — img ПЕРВЫМ ребёнком; факт: '
+    + q1.children[0].tagName);
+  assert.equal(q1.children[0].className, 'cp-itemicon',
+    '000237: класс иконки — cp-itemicon');
+  assert.equal(q1.children[0].src, env.G.getItem('iron_ore').icon,
+    '000237: src из каталога');
+  for (const namePart of ['Слот 2: — пусто —', 'Слот 3: — пусто —']) {
+    const qe = itemRowByName(panel._quickBody, namePart);
+    assert.ok(qe, 'пустая строка «' + namePart + '»');
+    assert.equal(qe.children[0].tagName, 'span',
+      '000237: пустой слот — ПЕРВЫМ имя (img нет, 0 diff); факт: '
+      + qe.children[0].tagName);
+    assert.ok(!qe.children.some((ch) => ch.tagName === 'img'),
+      '000237: пустой слот — img нет');
+    assert.equal(qe.querySelector('.cp-tip'), null,
+      'пустой слот — без .cp-tip (существующий контракт)');
+  }
+  const swordRow = itemRowByName(panel._equipBody, 'Железный меч');
+  assert.ok(swordRow, 'строка «Железный меч» в «Снаряжение»');
+  assert.equal(swordRow.children[0].tagName, 'span',
+    '000237: оружие БЕЗ icon в каталоге — img НЕТ (деградация, единый '
+    + 'механизм); факт: ' + swordRow.children[0].tagName);
+  assert.ok(!swordRow.children.some((ch) => ch.tagName === 'img'),
+    '000237: строка оружия — img нет');
+  assert.equal(swordRow.querySelector('.cp-itemmeta').textContent,
+    'урон 5', 'meta оружия без изменений (0 diff)');
+  assert.deepEqual(swordRow.children
+      .filter((ch) => ch.tagName === 'button')
+      .map((b) => b.dataset.act),
+    ['unequip'], 'кнопка «снять» без изменений');
+});
+
+test('000237: itemRow с 4 аргументами (существующие вызовы) — 0 diff: ПЕРВЫМ ребёнком span.cp-itemname, img нет (гвард) (237-INV-G)', () => {
+  const env = loadPanelUi();
+  const c = env.G.createCharacter();
+  env.G.addItem(c, 'bread');
+  env.G.addItem(c, 'sulfur');
+  const panel = openPanel(env, c);
+  for (const namePart of ['Хлеб', 'Сера']) {
+    const row = itemRowByName(panel._invBody, namePart);
+    assert.ok(row, 'строка «' + namePart + '» найдена');
+    assert.equal(row.children[0].className, 'cp-itemname',
+      '4-арг. itemRow: ПЕРВЫМ ребёнком — span.cp-itemname (0 diff); '
+      + 'факт: ' + row.children[0].className);
+    assert.ok(!row.children.some((ch) => ch.tagName === 'img'),
+      '4-арг. itemRow: img среди детей нет (icon не передан)');
+  }
+  for (const namePart of ['— без оружия —', '— без брони —']) {
+    const row = itemRowByName(panel._equipBody, namePart);
+    assert.ok(row, 'строка «' + namePart + '» найдена');
+    assert.equal(row.children[0].className, 'cp-itemname',
+      'пустая строка — первым имя (0 diff); факт: '
+      + row.children[0].className);
+    assert.ok(!row.children.some((ch) => ch.tagName === 'img'),
+      'пустая строка — img нет');
+  }
+});

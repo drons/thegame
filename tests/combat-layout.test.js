@@ -408,3 +408,46 @@ test('index.html: 000210 — portrait: .combat-flee-confirm — зеркало �
     '000210: portrait — диалог квадратный, та же формула; факт: '
     + pfc['height']);
 });
+
+// --- 000237: лента лута победы (.combat-victory-loot) ---
+//
+// Контракт — memory/000237-victory-loot-icons.md §2.3 (решение D5):
+// absolute-лента ПОД центрированным баннером (victory — 2 строки
+// 22px ≈53px → верх ленты на 28px ниже центра), wrap-граница =
+// формула canvas (конвенция 000124/000196/000210 — каждый
+// absolute-элемент боя зеркалит геометрию canvas), pointer-events
+// none (клик проходит в баннер → finish), без фона/цветов (фон
+// баннера за узлом; текст наследует базу .combat-overlay).
+// Краснота — осмысленная: правил в index.html нет (cssRule/
+// portraitRule — assert «правило не найдено»).
+
+test('index.html: 000237 — .combat-victory-loot — absolute под центрированным баннером (+28px), flex/wrap-лента = формуле canvas, pointer-events: none; portrait — зеркало формулы canvas (237-CSS)', () => {
+  const d = cssRule('.combat-overlay--combat .combat-victory-loot');
+  assert.equal(d['position'], 'absolute',
+    '000237: лента лута — absolute (in-flow сдвинул бы центр '
+    + '.combat-box — контракт 000124); факт: ' + d['position']);
+  assert.equal(d['top'], '50%',
+    '000237: центрирование в .combat-box; факт: ' + d['top']);
+  assert.equal(d['left'], '50%',
+    '000237: центрирование; факт: ' + d['left']);
+  assert.equal(d['transform'], 'translate(-50%, calc(50% + 28px))',
+    '000237: верх ленты на 28px НИЖЕ центра (victory-баннер — 2 '
+    + 'строки ≈53px); факт: ' + d['transform']);
+  assert.equal(d['width'], 'min(100vh - 32px, 100vw - 304px)',
+    '000237: wrap-граница = формула canvas (конвенция 000124/000196/'
+    + '000210); факт: ' + d['width']);
+  assert.equal(d['display'], 'flex',
+    '000237: строки-чипы [иконка 22px + имя] — flex-лента; факт: '
+    + d['display']);
+  assert.equal(d['flex-wrap'], 'wrap',
+    '000237: перенос строк под текст баннера; факт: ' + d['flex-wrap']);
+  assert.equal(d['justify-content'], 'center',
+    '000237: лента центрирована; факт: ' + d['justify-content']);
+  assert.equal(d['pointer-events'], 'none',
+    '000237: pointer-events none — клик проходит в баннер (finish); '
+    + 'факт: ' + d['pointer-events']);
+  const p = portraitRule('.combat-overlay--combat .combat-victory-loot');
+  assert.equal(p['width'], 'min(100vw - 16px, 100vh - 16px - 520px)',
+    '000237: portrait — зеркало формулы canvas (portrait); факт: '
+    + p['width']);
+});

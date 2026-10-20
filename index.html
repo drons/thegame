@@ -444,6 +444,26 @@
       width: min(100vh - 32px, 100vw - 304px);
       height: min(100vh - 32px, 100vw - 304px);
     }
+    /* Лента лута победы (задача 000237): absolute-сИБЛИНГ ПОСЛЕ
+       баннера (не в-flow — центр 000124 не сдвигается); верх ленты
+       на 28px ниже центра (victory-баннер — 2 строки 22px ≈ 53px —
+       лента под текстом); wrap-граница = формула canvas; без
+       фона/цветов (фон баннера за узлом, текст наследует базу);
+       pointer-events: none — клик проходит в баннер (finish). */
+    .combat-overlay--combat .combat-victory-loot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, calc(50% + 28px));
+      box-sizing: border-box;
+      width: min(100vh - 32px, 100vw - 304px);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 2px 8px;
+      padding: 0 12px;
+      pointer-events: none;
+    }
     .combat-overlay--combat .combat-spellbook {
       position: absolute;
       top: 50%;
@@ -610,6 +630,9 @@
       .combat-overlay--combat .combat-flee-confirm {
         width: min(100vw - 16px, 100vh - 16px - 520px);
         height: min(100vw - 16px, 100vh - 16px - 520px);
+      }
+      .combat-overlay--combat .combat-victory-loot {
+        width: min(100vw - 16px, 100vh - 16px - 520px);
       }
     }
     /* Подземелье (задача 000066): вьюпорт на весь экран — тот же

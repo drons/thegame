@@ -10423,3 +10423,201 @@ test('боевой UI: 000236 — каст «Заговора» (лечение)
     && x[1][0] === 'Заговора'), 'T+650: 0 имени');
   assert.equal(rngCalls, 0, '0 c._rng на всё окно');
 });
+
+// =====================================================================
+// Задача 000237 — Победа: иконки выпавших предметов (стиль как в
+// инвентаре). ТЗ — tasks/pending/000237.md; контракт —
+// memory/000237-victory-loot-icons.md (решения D1-D8).
+//
+// КРАСНЫЕ тесты (TDD, до реализации): узла лута в src/combat-ui.js
+// НЕТ — сцены победы строятся нормально (ядро 000132: c.result.items
+// существует), падение — на assert DOM-контракта (отсутствующий узел
+// .combat-victory-loot / строки / img), не на окружении.
+//
+// Сцена — scene84 (волк L1, seed 42) + ПРИНУДИТЕЛЬНЫЙ лут:
+//  * u.loot — живая мутация таблицы (паттерн 000132-N2(в): поле
+//    читается в checkVictory live, ДО ролла);
+//  * c._rng — ОЧЕРЕДЬ значений (потом fallback 0.99 — роллы мимо):
+//    порядок checkVictory ФИКСИРОВАН (000132-N5) — gold-роллы (1 на
+//    моба: round(3 + 2·lvl + r·lvl)), затем на каждого убитого:
+//    таблица (1 ролл на запись), базовый (0.25); КОНЦОМ 1 общий
+//    редкий (0.05 + 0.01·maxLvl);
+//  * G.combatInternals.dealDamageToMob(c, u, 9999) — 0 c._rng,
+//    c.result — синхронно (паттерн CI-11); баннер/узел — на
+//    rAF-тике через tickSlice.
+//
+// Волк L1: xp = 8 + 4·1 = 12. r 0.25 → gold round(5.25) = 5;
+// r 0.99 → gold round(5.99) = 6.
+
+// Очередь c._rng: значения по одному на вызов, при исчерпании
+// fallback (лут-роллы мимо; gold уже потреблён первым).
+function rngQueue237(values, fallback) {
+  const q = values.slice();
+  const fb = fallback === undefined ? 0.99 : fallback;
+  return () => (q.length ? q.shift() : fb);
+}
+
+test('боевой UI: 000237 — victory (реальный checkVictory, принудительный лут): баннер-пин точный + узел лута: iron_ore — img.cp-itemicon, bread — без img (237-CU-LOOT-1)', () => {
+  const S = scene84();
+  const { G, c, body, canvas, rafStubs } = S;
+  const m0 = c.units[0];
+  assert.equal(m0.id, 'm0', 'фикстура: волк m0');
+  m0.loot = [{ item: 'iron_ore', chance: 1 }, { item: 'bread', chance: 1 }];
+  c._rng = rngQueue237([0.25, 0, 0, 0.99, 0.99]);
+  G.combatInternals.dealDamageToMob(c, m0, 9999);
+  assert.ok(c.result && c.result.outcome === 'victory',
+    'фикстура: victory (ядро 000132): ' + JSON.stringify(c.result));
+  assert.equal(c.result.xp, 12, 'xp волка L1 = 8 + 4·1 = 12');
+  assert.equal(c.result.gold, 5, 'gold = round(3 + 2·1 + 0.25·1) = 5');
+  assert.deepEqual(JSON.parse(JSON.stringify(c.result.items)),
+    [{ id: 'iron_ore', qty: 1 }, { id: 'bread', qty: 1 }],
+    'фикстура: items ядра (порядок первого появления): '
+    + JSON.stringify(c.result.items));
+  tickSlice(canvas, rafStubs);
+  const banner = findByClass(body, 'combat-banner');
+  assert.equal(banner.style.display, 'block', 'баннер результата виден');
+  assert.equal(banner.textContent, 'ПОБЕДА!\n+12 опыта, +5 золота',
+    'текст баннера victory ТОЧНО (пин): '
+    + JSON.stringify(banner.textContent));
+  assert.equal(banner.children.length, 0,
+    'баннер — только текст (0 детей; узел лута — СИБЛИНГ, не ребёнок): '
+    + banner.children.length);
+  const box = findByClass(body, 'combat-box');
+  assert.equal(box.children.length, 5,
+    '000237: .combat-box — 5 детей в victory-сцене (canvas, spellbook, '
+    + 'flee-confirm, banner, узел лута); факт: ' + box.children.length);
+  assert.deepEqual(box.children.map((ch) => ch.className),
+    ['', 'combat-spellbook', 'combat-flee-confirm', 'combat-banner',
+      'combat-victory-loot'],
+    '000237: порядок детей .combat-box (узел лута — ПОСЛЕ баннера): '
+    + JSON.stringify(box.children.map((ch) => ch.className)));
+  const loot = findByClass(body, 'combat-victory-loot');
+  assert.ok(loot,
+    '000237: узел лута .combat-victory-loot существует (краснота: '
+    + 'узел не строится)');
+  assert.notEqual(loot.style.display, 'none',
+    '000237: лут непустой — узел виден: ' + loot.style.display);
+  const rows = loot.children.filter((ch) => ch.className === 'cp-itemrow');
+  assert.equal(rows.length, 2,
+    '000237: строк лута = 2 (iron_ore, bread): ' + rows.length);
+  const oreRow = rows[0];
+  assert.equal(oreRow.children[0].tagName, 'img',
+    '000237: iron_ore — img ПЕРВЫМ ребёнком строки; факт: '
+    + oreRow.children[0].tagName);
+  assert.equal(oreRow.children[0].className, 'cp-itemicon',
+    '000237: класс иконки — cp-itemicon (стиль инвентаря)');
+  assert.equal(oreRow.children[0].src, 'assets/sprites/loot/iron_ore.svg',
+    '000237: src = icon каталога; факт: ' + oreRow.children[0].src);
+  assert.equal(oreRow.children[0].src, G.getItem('iron_ore').icon,
+    '000237: src === G.getItem("iron_ore").icon');
+  assert.equal(oreRow.children[0].alt, '',
+    '000237: alt пуст (иконка презентационная)');
+  assert.equal(oreRow.children[1].tagName, 'span',
+    '000237: имя — span после иконки');
+  assert.equal(oreRow.children[1].className, 'cp-itemname',
+    '000237: класс имени — cp-itemname');
+  assert.equal(oreRow.children[1].textContent, 'Железная руда',
+    '000237: имя = имя каталога (qty 1 — без «×»): '
+    + oreRow.children[1].textContent);
+  const breadRow = rows[1];
+  assert.equal(breadRow.children[0].tagName, 'span',
+    '000237: bread (без icon в каталоге) — img НЕТ, первым идёт имя; '
+    + 'факт: ' + breadRow.children[0].tagName);
+  assert.equal(breadRow.children[0].className, 'cp-itemname',
+    '000237: первый ребёнок строки bread — имя');
+  assert.equal(breadRow.children[0].textContent, 'Хлеб',
+    '000237: имя bread — «Хлеб»');
+  assert.ok(!breadRow.children.some((ch) => ch.tagName === 'img'),
+    '000237: у строки bread img НЕТ (деградация: img только при '
+    + 'ненулевой it.icon)');
+});
+
+test('боевой UI: 000237 — два волка, один id дважды → одна строка «×2» (слияние qty ядра 000132) (237-CU-LOOT-2)', () => {
+  const S = scene84({ mobs: ['wolf', 'wolf'] });
+  const { G, c, body, canvas, rafStubs } = S;
+  for (const u of c.units) {
+    if (u.side === 'mob') u.loot = [{ item: 'iron_ore', chance: 1 }];
+  }
+  c._rng = rngQueue237([0.25, 0.25, 0, 0.99, 0, 0.99, 0.99]);
+  for (const u of c.units) {
+    if (u.side === 'mob' && u.alive) {
+      G.combatInternals.dealDamageToMob(c, u, 9999);
+    }
+  }
+  assert.ok(c.result && c.result.outcome === 'victory',
+    'фикстура: victory: ' + JSON.stringify(c.result));
+  assert.equal(c.result.xp, 24, 'xp = 2×12');
+  assert.equal(c.result.gold, 10, 'gold = 2×round(5.25) = 10');
+  assert.deepEqual(JSON.parse(JSON.stringify(c.result.items)),
+    [{ id: 'iron_ore', qty: 2 }],
+    'фикстура: слияние qty ядра 000132: ' + JSON.stringify(c.result.items));
+  tickSlice(canvas, rafStubs);
+  const banner = findByClass(body, 'combat-banner');
+  assert.equal(banner.textContent, 'ПОБЕДА!\n+24 опыта, +10 золота',
+    'текст баннера victory ТОЧНО: ' + JSON.stringify(banner.textContent));
+  const loot = findByClass(body, 'combat-victory-loot');
+  assert.ok(loot, '000237: узел лута существует (краснота: узел не строится)');
+  assert.notEqual(loot.style.display, 'none', '000237: узел виден');
+  const rows = loot.children.filter((ch) => ch.className === 'cp-itemrow');
+  assert.equal(rows.length, 1,
+    '000237: ОДНА строка (повторяющиеся id слиты в qty); факт: '
+    + rows.length);
+  assert.equal(rows[0].children[0].tagName, 'img',
+    '000237: img первым ребёнком строки; факт: '
+    + rows[0].children[0].tagName);
+  assert.equal(rows[0].children[0].src, G.getItem('iron_ore').icon,
+    '000237: src = icon каталога');
+  assert.equal(rows[0].children[1].textContent, 'Железная руда ×2',
+    '000237: имя + « ×N» при qty > 1 (формат инвентаря): '
+    + rows[0].children[1].textContent);
+});
+
+test('боевой UI: 000237 — victory с ПУСТЫМ лутом (все роллы мимо): узел лута существует и скрыт (display none), баннер цёл (237-CU-LOOT-3)', () => {
+  const S = scene84();
+  const { G, c, body, canvas, rafStubs } = S;
+  // СТАНДАРТНАЯ таблица волка (leather_armor 0.1); константа 0.99 —
+  // все роллы мимо (0.99 > 0.1 / 0.25 / 0.06).
+  c._rng = () => 0.99;
+  G.combatInternals.dealDamageToMob(c, c.units[0], 9999);
+  assert.ok(c.result && c.result.outcome === 'victory',
+    'фикстура: victory: ' + JSON.stringify(c.result));
+  assert.deepEqual(JSON.parse(JSON.stringify(c.result.items)), [],
+    'фикстура: items [] (роллы мимо)');
+  tickSlice(canvas, rafStubs);
+  const banner = findByClass(body, 'combat-banner');
+  assert.equal(banner.style.display, 'block', 'баннер виден');
+  assert.equal(banner.textContent, 'ПОБЕДА!\n+12 опыта, +6 золота',
+    'текст баннера victory ТОЧНО (gold round(5.99) = 6): '
+    + JSON.stringify(banner.textContent));
+  const loot = findByClass(body, 'combat-victory-loot');
+  assert.ok(loot,
+    '000237: victory + items пусто — узел лута СУЩЕСТВУЕТ (краснота: '
+    + 'узел не строится)');
+  assert.equal(loot.style.display, 'none',
+    '000237: items пусто — узел скрыт (display none, буква ТЗ): '
+    + loot.style.display);
+  assert.equal(loot.children.filter((ch) => ch.className === 'cp-itemrow')
+    .length, 0, '000237: строк лута — 0');
+});
+
+test('боевой UI: 000237 — outcome «fled»: узла лута НЕТ, .combat-box — 4 ребёнка (гвард единого механизма) (237-CU-LOOT-4)', () => {
+  const S = scene84();
+  const { c, body, buttons } = S;
+  buttons.find((b) => b.dataset.act === 'flee').listeners.click[0]();
+  const fleeBox = findByClass(body, 'combat-flee-confirm');
+  assert.ok(fleeBox, 'фикстура: диалог побега открыт');
+  c._rng = () => 0.0; // детерминированный успех
+  fleeBox.children[1].children[0].listeners.click[0]();
+  assert.ok(c.result && c.result.outcome === 'fled',
+    'фикстура: result «fled»: ' + JSON.stringify(c.result));
+  const banner = findByClass(body, 'combat-banner');
+  assert.equal(banner.style.display, 'block', 'баннер «fled» виден');
+  assert.equal(banner.textContent, 'Вы ушли из боя.',
+    'текст баннера «fled» (существующий пин)');
+  assert.equal(findByClass(body, 'combat-victory-loot'), null,
+    '000237: «fled» — узла лута в DOM НЕТ (строится только victory)');
+  const box = findByClass(body, 'combat-box');
+  assert.equal(box.children.length, 4,
+    '000237: .combat-box — 4 ребёнка (узел лута не появился): '
+    + box.children.length);
+});

@@ -46,6 +46,11 @@ function (G0, rootRef) {
   // при ВЫЗОВЕ, не при загрузке.
   const G = G0 || {};
 
+  function iconOf(it) {
+    return (it && typeof it.icon === 'string' && it.icon !== '')
+      ? it.icon : null;
+  }
+
   const inventoryTab = {
     column: 0,
     id: 'inventory',
@@ -87,7 +92,8 @@ function (G0, rootRef) {
           it.name + (e.qty > 1 ? ' ×' + e.qty : ''),
           (it.weight * e.qty).toFixed(1) + ' кг, ' + it.value + ' з',
           btns,
-          ctx.itemTipText(it)));
+          ctx.itemTipText(it),
+          iconOf(it)));
       }
     },
   };
@@ -125,13 +131,15 @@ function (G0, rootRef) {
         wep ? wep.name : '— без оружия —',
         wep ? 'урон ' + wep.stats.damage : '',
         wep ? [['снять', 'unequip', { equipslot: 'weapon' }]] : [],
-        wep ? ctx.itemTipText(wep) : null));
+        wep ? ctx.itemTipText(wep) : null,
+        wep ? iconOf(wep) : null));
       const arm = eq.armor ? G.getItem(eq.armor) : null;
       panel._equipBody.appendChild(ctx.itemRow(
         arm ? arm.name : '— без брони —',
         arm ? 'броня +' + arm.stats.armor : '',
         arm ? [['снять', 'unequip', { equipslot: 'armor' }]] : [],
-        arm ? ctx.itemTipText(arm) : null));
+        arm ? ctx.itemTipText(arm) : null,
+        arm ? iconOf(arm) : null));
 
       // Быстрые слоты (000194): запись АКТИВНОГО персонажа
       // (ctx.activeCharId, 000145): Флогистон (дефолт,
@@ -153,7 +161,8 @@ function (G0, rootRef) {
           'Слот ' + (i + 1) + ': ' + (q ? q.name : '— пусто —'),
           '',
           q ? [['убрать', 'quick-clear', { slot: i }]] : [],
-          q ? ctx.itemTipText(q) : null));
+          q ? ctx.itemTipText(q) : null,
+          q ? iconOf(q) : null));
       }
     },
   };
