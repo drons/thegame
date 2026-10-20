@@ -30,6 +30,7 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
+const { resolveRef } = require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
@@ -66,6 +67,20 @@ for (const f of files) {
     process.exit(1);
   }
   seenIds.add(data.id);
+  // Чертёж вида крафта (задача 000232): effect.recipe — явная файловая
+  // ссылка ТОЛЬКО в JSON; в зеркало — id каталога рецептов (convention
+  // 000211: ссылки — в assets, id-форма — в src). Битая ссылка — exit 1.
+  if (data.effect && data.effect.kind === 'craft_recipe'
+      && typeof data.effect.recipe === 'string') {
+    const rr = resolveRef(ROOT, data.effect.recipe);
+    if (!rr.ok) {
+      console.error(
+        `${f}: ${data.id}: effect.recipe — битая ссылка на рецепт: `
+        + `${data.effect.recipe} (${rr.reason})`);
+      process.exit(1);
+    }
+    data.effect.recipe = rr.id;
+  }
   items.push({ file: f, data });
 }
 

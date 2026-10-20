@@ -59,7 +59,7 @@ test('npc: постройки — строки-ссылки assets/buildings, р
   assert.equal(unique.size, 14, 'уникальных зданий: 14');
 });
 
-test('npc: предметы — строки-ссылки assets/items (торговля/цель bring_item/награда), резолюция (44/35)', () => {
+test('npc: предметы — строки-ссылки assets/items (торговля/цель bring_item/награда), резолюция (50/41, ре-пин 000232)', () => {
   const files = listNpcFiles();
   let trade = 0;
   let goal = 0;
@@ -108,11 +108,13 @@ test('npc: предметы — строки-ссылки assets/items (торг
       }
     }
   }
-  assert.equal(trade, 40, 'ссылок в торговле: 40');
+  // Ре-пин 000232: +6 чертежей в торговле 6 NPC (40→46, 44→50,
+  // 35→41 — 6 новых уникальных id).
+  assert.equal(trade, 46, 'ссылок в торговле: 46');
   assert.equal(goal, 1, 'ссылок в целях bring_item: 1');
   assert.equal(reward, 3, 'ссылок в наградах: 3');
-  assert.equal(trade + goal + reward, 44, 'ссылок на предметы: 44');
-  assert.equal(unique.size, 35, 'уникальных предметов: 35');
+  assert.equal(trade + goal + reward, 50, 'ссылок на предметы: 50');
+  assert.equal(unique.size, 41, 'уникальных предметов: 41');
 });
 
 test('npc: schema — 4 ссылочных под-схемы зафиксированы, старые значения — отрицательная валидация', () => {

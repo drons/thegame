@@ -404,6 +404,10 @@ test('торговля: сырьё продаётся (задача 000044)', ()
     'странствующий торговец продаёт не меньше 3 видов сырья, '
     + 'а продаёт: ' + new Set(rawStock.map((p) => p.предмет)).size);
   for (const p of wanderer.торговля.предметы) {
+    // Ре-пин 000232: Хольд продаёт чертёж своего дела
+    // (blueprint_carving, kind craft_scroll) — контракт
+    // memory/000232-craft-learned-kinds.md, таблица NPC (D5).
+    if (p.предмет === 'blueprint_carving') continue;
     const it = getItem(p.предмет);
     assert.ok(it !== null,
       `${wanderer.id}: предмет "${p.предмет}" нет в items`);
@@ -900,13 +904,13 @@ test('зеркало: новые поля найма совпадают с ка�
 // 000157.04-craft-ore-recipes.md §5). Цены — value-конвенция 000044
 // (покупка ≈ value, продажа ≈ половина).
 
-test('000157.04 R8: Хольд — ровно 8 позиций (6 старых + silver_ore 15/8×2 и quartz 12/6×3 — концом массива)', () => {
+test('000157.04 R8: Хольд — ровно 9 позиций (6 старых + silver_ore 15/8×2 и quartz 12/6×3 концом массива; +blueprint_carving 120/60×1 — ре-пин 000232)', () => {
   const hold = NPCS.find((n) => n.id === 'wanderer_merchant');
   assert.ok(hold, 'Хольд (wanderer_merchant) в каталоге NPC');
   assert.ok(hold.торговля, 'у Хольда есть «торговля»');
   const items = hold.торговля.предметы;
-  assert.equal(items.length, 8,
-    'Хольд — ровно 8 позиций сырья, а есть: ' + items.length);
+  assert.equal(items.length, 9,
+    'Хольд — ровно 9 позиций, а есть: ' + items.length);
   // 6 старых позиций — дословно, в исходном порядке (без сдвигов).
   assert.deepEqual(items.slice(0, 6), [
     { 'предмет': 'wood_log', 'цена_покупки': 3, 'цена_продажи': 2, 'количество': 5 },
@@ -925,4 +929,8 @@ test('000157.04 R8: Хольд — ровно 8 позиций (6 старых +
     'предмет': 'quartz', 'цена_покупки': 12, 'цена_продажи': 6,
     'количество': 3,
   }, 'позиция 8 — quartz (покупка 12 / продажа 6, qty 3)');
+  assert.deepEqual(items[8], {
+    'предмет': 'blueprint_carving', 'цена_покупки': 120,
+    'цена_продажи': 60, 'количество': 1,
+  }, 'позиция 9 — blueprint_carving (ре-пин 000232: чертёж дела)');
 });

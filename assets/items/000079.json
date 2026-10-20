@@ -1,0 +1,13 @@
+{
+  "id": "blueprint_carving",
+  "name": "Чертёж: резьба по камню",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 80,
+  "desc": "Изучает вид крафта «резьба_по_камню»: его рецепты появляются в диалоге крафта.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/000013.json"
+  },
+  "icon": "assets/sprites/items/blueprint_carving.svg"
+}

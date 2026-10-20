@@ -1449,6 +1449,10 @@ const SHOP_GOLDEN = {
   // КОНЕЦ каталога, rng-хвост пула allItems → += 12 новых reagent
   // (berry_red/fruit_apple на этой клетке не выпали), остальные ключи
   // стока не сдвинулись (симуляция: seed/старые стоки byte-identical).
+  // Ре-пин 000232: чертежи (000077-000082) — КОНЕЦ каталога,
+  // rng-хвост пула allItems → += 4 чертежа (enchant/runecraft на
+  // этой клетке не выпали), остальные ключи стока не сдвинулись
+  // (симуляция: seed/старые стоки byte-identical).
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
@@ -1467,7 +1471,8 @@ const SHOP_GOLDEN = {
     amethyst: 5, diamond: 3, berry_blue: 2, berry_wild: 1, herb_sun: 2,
     herb_wind: 1, root_moon: 1, root_ember: 2, root_rock: 2,
     fruit_plum: 3, fruit_quince: 2, mushroom_grey: 3, mushroom_glow: 4,
-    mushroom_ink: 2 } },
+    mushroom_ink: 2, blueprint_forge: 5, blueprint_alchemy: 1,
+    blueprint_carving: 1, blueprint_woodwork: 4 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1 } },

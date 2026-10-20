@@ -410,6 +410,15 @@
           lines.push('Эффект: изучает заклинание «' + it.effect.spell + '»');
         }
       }
+      // 000232: чертёж вида крафта (G.Craft — typeof-guard; без
+      // каталога — id из effect.recipe).
+      else if (it.effect.kind === 'craft_recipe') {
+        const C = G.Craft;
+        const r = (C && C.CRAFT_BY_ID)
+          ? C.CRAFT_BY_ID[it.effect.recipe] : null;
+        lines.push('Эффект: изучает вид крафта «' +
+          (r ? r.тип : it.effect.recipe) + '»');
+      }
     }
     lines.push('Вес: ' + it.weight + ' кг');
     lines.push('Цена: ' + it.value + ' з');

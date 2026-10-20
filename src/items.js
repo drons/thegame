@@ -64,13 +64,14 @@
     SPELL_SCROLL: 'spell_scroll',
     RESURRECTION_SCROLL: 'resurrection_scroll',
     SHIELD: 'shield', ARTIFACT: 'artifact', TOOL: 'tool', RING: 'ring',
+    CRAFT_SCROLL: 'craft_scroll',
   };
   const WEAPON_SUBTYPES = {
     SWORD: 'sword', BOW: 'bow', HEAVY: 'heavy', STAFF: 'staff',
   };
   const EFFECT_KINDS = {
     HEAL: 'heal', MP: 'mp', EAT: 'eat', SKILL_XP: 'skill_xp',
-    SPELL: 'spell', RESURRECT: 'resurrect',
+    SPELL: 'spell', RESURRECT: 'resurrect', CRAFT_RECIPE: 'craft_recipe',
   };
 
   // --- Поля экипировки (задача 000230.01) ---
@@ -247,6 +248,19 @@
       const e = it.effect;
       if (!e || e.kind !== 'resurrect')
         throw new Error(it.id + ': свиток воскрешения — только effect.kind «resurrect»');
+    }
+    // Чертёж/свиток изучения вида крафта (задача 000232): ЕДИНСТВЕННЫЙ
+    // эффект — { kind: 'craft_recipe', recipe: <id> } (ФОРМА id —
+    // зеркало; в JSON-каталоге — файловая ссылка, sync-items-data.js
+    // резолвит в id; каталожность id — тестами).
+    if (it.kind === 'craft_scroll') {
+      const e = it.effect;
+      if (!e || e.kind !== 'craft_recipe')
+        throw new Error(it.id + ': чертёж — только effect.kind «craft_recipe»');
+      if (typeof e.recipe !== 'string' ||
+          !/^[a-z][a-z0-9_]*$/.test(e.recipe)) {
+        throw new Error(it.id + ': чертёж — неверный id рецепта: ' + e.recipe);
+      }
     }
     // Поля экипировки (задача 000230.01): slot/rarity/set/affixes —
     // ОПЦИОНАЛЬНЫЕ, только у 6 экипируемых kind (EQUIP_KINDS);
@@ -535,9 +549,13 @@
 
   function slotCount(c) { return ensureInventory(c).slots.length; }
 
+  // Читает слоты БЕЗ мутации: c.inventory — объект {slots, quick}
+  // (живой герой) ИЛИ массив слотов (проекция state.hero — только
+  // чтение; ensureInventory на ней мутировал бы снимок).
   function totalQty(c, itemId) {
-    const inv = ensureInventory(c);
-    return inv.slots.reduce((s, e) => (e.id === itemId ? s + e.qty : s), 0);
+    const inv = c.inventory;
+    const slots = Array.isArray(inv) ? inv : ensureInventory(c).slots;
+    return slots.reduce((s, e) => (e.id === itemId ? s + e.qty : s), 0);
   }
 
   function hasItem(c, itemId, qty = 1) {
@@ -914,6 +932,36 @@
       };
     }
 
+    // Чертёж/свиток изучения вида крафта (задача 000232): Game.Craft —
+    // ЛЕНИВО в момент вызова (паттерн 000133); любой отказ — ДО расхода
+    // (предмет цел); успех — learnCraftType + removeItem РОВНО 1 (не
+    // стаккуем; qty>1 невозможен из UI — ветка защитная).
+    // console.error НЕ ставится (тихий no-op деградации, 000053).
+    if (it.kind === 'craft_scroll') {
+      if (qty > 1) return { ok: false, reason: 'свиток: по одному' };
+      const G = (typeof globalThis !== 'undefined' &&
+                 typeof globalThis.Game === 'object')
+        ? globalThis.Game : null;
+      const C = G && G.Craft;
+      if (!C || typeof C.learnCraftType !== 'function') {
+        return { ok: false, reason: 'крафт недоступен' };
+      }
+      const r = C.CRAFT_BY_ID && C.CRAFT_BY_ID[it.effect.recipe];
+      if (!r) {
+        return {
+          ok: false,
+          reason: 'неизвестный рецепт: ' + it.effect.recipe,
+        };
+      }
+      const chk = C.learnCraftType(c, r.тип);
+      if (!chk.ok) return { ok: false, reason: chk.reason };
+      removeItem(c, it.id, 1, true);
+      return {
+        ok: true, name: it.name, craft: r.тип,
+        message: 'Изучено: «' + r.название + '»',
+      };
+    }
+
     // Свиток воскрешения (задача 000165, контракт D6): v1 — только в
     // бою (быстрый слот — combat.js playerQuickItem). Мирное средство
     // воскрешения — храм (000162). Отказ ДО расхода, предмет не
@@ -1003,6 +1051,30 @@
       return {
         ok: true, name: it.name, spell: it.effect.spell,
         message: 'Изучено: «' + (sp ? sp.название : it.effect.spell) + '»',
+      };
+    }
+    // Чертёж изучения вида крафта (задача 000232): зеркало useItem
+    // БЕЗ расхода (слот цел — расход у вызывающего).
+    if (it.kind === 'craft_scroll') {
+      const G = (typeof globalThis !== 'undefined' &&
+                 typeof globalThis.Game === 'object')
+        ? globalThis.Game : null;
+      const C = G && G.Craft;
+      if (!C || typeof C.learnCraftType !== 'function') {
+        return { ok: false, reason: 'крафт недоступен' };
+      }
+      const r = C.CRAFT_BY_ID && C.CRAFT_BY_ID[it.effect.recipe];
+      if (!r) {
+        return {
+          ok: false,
+          reason: 'неизвестный рецепт: ' + it.effect.recipe,
+        };
+      }
+      const chk = C.learnCraftType(c, r.тип);
+      if (!chk.ok) return { ok: false, reason: chk.reason };
+      return {
+        ok: true, name: it.name, craft: r.тип,
+        message: 'Изучено: «' + r.название + '»',
       };
     }
     // Свиток воскрешения — только в бою (обработка — combat.js).

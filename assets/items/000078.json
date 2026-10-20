@@ -1,0 +1,13 @@
+{
+  "id": "blueprint_alchemy",
+  "name": "Чертёж: алхимия",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 80,
+  "desc": "Изучает вид крафта «алхимия»: его рецепты появляются в диалоге крафта.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/000004.json"
+  },
+  "icon": "assets/sprites/items/blueprint_alchemy.svg"
+}

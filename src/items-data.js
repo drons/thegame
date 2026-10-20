@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000076.json);
+  // Предметы (assets/items/000001.json … 000082.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -835,6 +835,72 @@
       desc: "Чернопряд: чёрный гриб, сочится чернильной жидкостью.",
       loot: { terrains: ["лес"], frequency: 0.03 },
       icon: "assets/sprites/loot/mushroom_ink.svg",
+    },
+    // 000077.json
+    {
+      id: "blueprint_forge",
+      name: "Чертёж: кузнечное дело",
+      kind: "craft_scroll",
+      weight: 0.2,
+      value: 80,
+      desc: "Изучает вид крафта «кузнечное_дело»: его рецепты появляются в диалоге крафта.",
+      effect: { kind: "craft_recipe", recipe: "iron_sword" },
+      icon: "assets/sprites/items/blueprint_forge.svg",
+    },
+    // 000078.json
+    {
+      id: "blueprint_alchemy",
+      name: "Чертёж: алхимия",
+      kind: "craft_scroll",
+      weight: 0.2,
+      value: 80,
+      desc: "Изучает вид крафта «алхимия»: его рецепты появляются в диалоге крафта.",
+      effect: { kind: "craft_recipe", recipe: "healing_potion" },
+      icon: "assets/sprites/items/blueprint_alchemy.svg",
+    },
+    // 000079.json
+    {
+      id: "blueprint_carving",
+      name: "Чертёж: резьба по камню",
+      kind: "craft_scroll",
+      weight: 0.2,
+      value: 80,
+      desc: "Изучает вид крафта «резьба_по_камню»: его рецепты появляются в диалоге крафта.",
+      effect: { kind: "craft_recipe", recipe: "stone_chisel" },
+      icon: "assets/sprites/items/blueprint_carving.svg",
+    },
+    // 000080.json
+    {
+      id: "blueprint_woodwork",
+      name: "Чертёж: столярное дело",
+      kind: "craft_scroll",
+      weight: 0.2,
+      value: 80,
+      desc: "Изучает вид крафта «столярное_дело»: его рецепты появляются в диалоге крафта.",
+      effect: { kind: "craft_recipe", recipe: "wood_sword" },
+      icon: "assets/sprites/items/blueprint_woodwork.svg",
+    },
+    // 000081.json
+    {
+      id: "blueprint_enchant",
+      name: "Чертёж: зачарование",
+      kind: "craft_scroll",
+      weight: 0.2,
+      value: 80,
+      desc: "Изучает вид крафта «зачарование»: его рецепты появляются в диалоге крафта.",
+      effect: { kind: "craft_recipe", recipe: "hunting_bow" },
+      icon: "assets/sprites/items/blueprint_enchant.svg",
+    },
+    // 000082.json
+    {
+      id: "blueprint_runecraft",
+      name: "Чертёж: рунопись",
+      kind: "craft_scroll",
+      weight: 0.2,
+      value: 80,
+      desc: "Изучает вид крафта «рунопись»: его рецепты появляются в диалоге крафта.",
+      effect: { kind: "craft_recipe", recipe: "moonstone_runes" },
+      icon: "assets/sprites/items/blueprint_runecraft.svg",
     },
   ];
 

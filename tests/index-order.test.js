@@ -594,9 +594,12 @@ test('dungeon.js БЕЗ dungeons-data.js: гард деградирует до f
   assert.deepEqual([...sandbox.Game.DUNGEON_MOBS[0]],
     ['skeleton', 'ant', 'crawling_bones', 'giant_larva'],
     'fallback: DUNGEON_MOBS[0]');
+  // Ре-пин 000232: ABYSS-пул += blueprint_enchant (концом; каталог
+  // и fallback синхронно).
   assert.deepEqual([...sandbox.Game.DUNGEON_ITEMS[4]],
     ['war_hammer', 'phoenix_feather', 'greater_healing', 'heavy_tome',
-      'fire_spellbook', 'flame_burst_scroll', 'blizzard_scroll'],
+      'fire_spellbook', 'flame_burst_scroll', 'blizzard_scroll',
+      'blueprint_enchant'],
     'fallback: DUNGEON_ITEMS[4]');
   assert.equal(sandbox.Game.DUNGEON_SIZE[2], 31, 'fallback: DUNGEON_SIZE[2]');
   // Генерация работает и во fallback-ветке.
@@ -685,7 +688,11 @@ test('порядок core → craft-data.js → craft.js: Game.Craft сущес�
   const wood = Cr.CRAFT.find((r) => r.id === 'wood_sword');
   assert.equal(Cr.CRAFT_BY_ID.wood_sword, wood);
   // Работоспособность в браузерном realm: крафт в поле, без роллов.
+  // Ре-пин 000232: гейт «вид изучен» ДО уровня — фикстура изучает
+  // вид через learnCraftType (новое ядро изученности).
   const p = sandbox.Game.createCharacter();
+  assert.equal(Cr.learnCraftType(p, 'столярное_дело').ok, true,
+    'learnCraftType (000232): фикстура изучает вид');
   sandbox.Game.addItem(p, 'wood_log', 1);
   const r = Cr.craft(p, 'wood_sword', { building: 5, rng: () => 0.99 });
   assert.equal(r.ok, true,

@@ -3875,7 +3875,7 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
   const refToId = (ref) => JSON.parse(
     fs.readFileSync(path.join(ROOT, ref), 'utf8')).id;
   const items = npc.торговля.предметы;
-  assert.equal(items.length, 5, 'витрина — 5 позиций');
+  assert.equal(items.length, 6, 'витрина — 6 позиций (ре-пин 000232: +blueprint_woodwork)');
   for (const p of items) {
     assert.ok(I.getItem(refToId(p.предмет)),
       'предмет существует в каталоге: ' + p.предмет);
@@ -7831,8 +7831,8 @@ test('B29. «Диалог» кочевника и «Барахолка» — Д�
     .find((btn) => btn.dataset.optid === 'trade');
   assert.ok(optTrade, 'опция «trade» в диалоге');
   ov.listeners.click[0]({ target: optTrade });
-  assert.equal(findAll(ov, 'button[data-npcact="buy"]').length, 5,
-    'витрина — 5 предметов (каталог 000018)');
+  assert.equal(findAll(ov, 'button[data-npcact="buy"]').length, 6,
+    'витрина — 6 предметов (каталог 000018; ре-пин 000232: +blueprint_woodwork)');
   // Сток NPC создан лениво: ключ = npcId (ОБЩАЯ на все лагеря).
   const npcStock0 = g.npcStocks['camp_wanderer'];
   assert.ok(npcStock0,

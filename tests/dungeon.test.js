@@ -305,6 +305,10 @@ test('golden: детерминизм — закреплённые значени
     { id: 'g2', mobIds: ['abomination', 'succubus'], x: 13, y: 9, level: 7, defeated: false },
     { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 14, y: 6, level: 13, defeated: false, boss: true },
   ]);
+  // РЕ-ПИН 000232+000235.05 (пост-мерж): depth 1 → tier-фильтр T=1
+  // (свитки T3 вне пула: 8→6) + blueprint_enchant концом → c1 =
+  // phoenix_feather (фильтр-индекс 1). Позиции/gold/mobs/seed —
+  // бит-в-бит (по факту генерации).
   assert.deepEqual(c2.chests, [
     { id: 'c0', x: 20, y: 11, opened: false, gold: 63, item: null },
     { id: 'c1', x: 7, y: 8, opened: false, gold: 58, item: 'phoenix_feather' },
@@ -794,18 +798,22 @@ test('000070 golden: CAVE (37, −12) — закреплённые wallObjs', ()
 
 test('S3. 000133: пулы подземелий — 8 свитков, каждый ровно в одном', () => {
   // Целевые пулы (текущий состав + приложенные свитки).
+  // Ре-пин 000232: приложенные чертежи (каждый РОВНО в одном пуле;
+  // простая пещера 000001.json — БЕЗ ИЗМЕНЕНИЙ).
   const EXPECTED = {
     '000001.json': ['iron_sword', 'healing_potion', 'sulfur',
       'stone_fist_grimoire', 'frost_bolt_scroll'],
     '000002.json': ['alchemy_manual', 'chainmail', 'mana_potion',
-      'meditation_scroll', 'chill_scroll', 'light_heal_scroll'],
+      'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
+      'blueprint_alchemy', 'blueprint_carving'],
     '000003.json': ['steel_sword', 'knight_plate', 'war_hammer',
-      'iron_hide_tome', 'fireball_scroll', 'vine_scroll'],
+      'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
+      'blueprint_forge', 'blueprint_woodwork'],
     '000004.json': ['mana_elixir', 'hunting_bow', 'moonstone',
-      'nature_scroll', 'magic_shield_scroll'],
+      'nature_scroll', 'magic_shield_scroll', 'blueprint_runecraft'],
     '000005.json': ['war_hammer', 'phoenix_feather', 'greater_healing',
       'heavy_tome', 'fire_spellbook', 'flame_burst_scroll',
-      'blizzard_scroll'],
+      'blizzard_scroll', 'blueprint_enchant'],
   };
   const SCROLL_IDS = new Set([
     'fireball_scroll', 'flame_burst_scroll', 'frost_bolt_scroll',
@@ -897,6 +905,11 @@ test('D-BOSS-1: ABYSS — клетка босса (дальняя комната
 test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземелий, босс-клетка чиста (000183)', () => {
   const PINS = [
     {
+      // РЕ-ПИН 000232+000235.05 (пост-мерж): depth 1 → tier-фильтр
+      // T=1 (свитки T3 вне пула: 8→6) + blueprint_enchant концом →
+      // c1=war_hammer (фильтр-индекс 0), c2/c3=blueprint_enchant
+      // (фильтр-индекс 5). Позиции/gold/mobs/seed — бит-в-бит (по
+      // факту генерации); Case A/B — без изменений.
       name: '(11,3) xp=18', args: [11, 3], xp: 18,
       dseed: 2941640529, cseed: 4033219701,
       mobs: [
@@ -909,8 +922,8 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
       chests: [
         { id: 'c0', x: 17, y: 23, opened: false, gold: 20, item: null },
         { id: 'c1', x: 13, y: 11, opened: false, gold: 12, item: 'war_hammer' },
-        { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'fire_spellbook' },
-        { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'fire_spellbook' },
+        { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'blueprint_enchant' },
+        { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'blueprint_enchant' },
       ],
     },
     {
@@ -928,7 +941,10 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
         { id: 'c1', x: 14, y: 13, opened: false, gold: 27, item: null },
         { id: 'c2', x: 20, y: 8, opened: false, gold: 28, item: null },
         { id: 'c3', x: 10, y: 10, opened: false, gold: 11, item: null },
-        { id: 'c4', x: 17, y: 7, opened: false, gold: 20, item: 'phoenix_feather' },
+        // РЕ-ПИН 000232+000235.05 (пост-мерж): depth 1 → tier-фильтр
+        // T=1 (пул 8→6) → c4 = greater_healing (фильтр-индекс 2, по
+        // факту генерации).
+        { id: 'c4', x: 17, y: 7, opened: false, gold: 20, item: 'greater_healing' },
       ],
     },
     {
@@ -1666,6 +1682,10 @@ test('G2-2: golden: ABYSS (11,3) depth=2 — полный детерминиро
     { id: 'g3', mobIds: ['lower_demon'], x: 29, y: 26, level: 12, defeated: false },
     { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 13, y: 22, level: 14, defeated: false, boss: true },
   ], 'depth2 mobs (по-полевой пин)');
+  // РЕ-ПИН 000232+000235.05 (пост-мерж): depth 2 → tier-фильтр T=1
+  // (свитки T3 вне пула: 8→6) + blueprint_enchant концом → c3 =
+  // fire_spellbook (фильтр-индекс 4). Gold/позиции/mobs/seed —
+  // бит-в-бит (по факту генерации).
   assert.deepEqual(c.chests, [
     { id: 'c0', x: 11, y: 20, opened: false, gold: 68, item: null },
     { id: 'c1', x: 10, y: 21, opened: false, gold: 43, item: null },
@@ -1794,10 +1814,14 @@ test('ST-4: stairs-down depth=1: размещение валидно, конте
     { id: 'g2', mobIds: ['abomination', 'succubus'], x: 13, y: 9, level: 7, defeated: false },
     { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 14, y: 6, level: 13, defeated: false, boss: true },
   ], 'ABYSS d1 mobs = существующий golden (бит-в-бит)');
+  // РЕ-ПИН 000232+000235.05 (пост-мерж): depth 1 → tier-фильтр T=1
+  // (свитки T3 вне пула: 8→6) + blueprint_enchant концом → c1 =
+  // phoenix_feather (фильтр-индекс 1). Позиции/gold/mobs — те же
+  // (тот же сценарий, что golden :257).
   assert.deepEqual(c.chests, [
     { id: 'c0', x: 20, y: 11, opened: false, gold: 63, item: null },
     { id: 'c1', x: 7, y: 8, opened: false, gold: 58, item: 'phoenix_feather' },
-  ], 'ABYSS d1 chests = существующий golden (бит-в-бит)');
+  ], 'ABYSS d1 chests = существующий golden (item c1 — ре-пин 000232+000235.05)');
 });
 
 // ====================================================================
@@ -2385,8 +2409,10 @@ const DUN_REF_PREV = {
   '000002.json': {
     мобы: ['skeleton', 'skeleton_archer', 'rot', 'vampire', 'bone_coloss'],
     постройки_id: 32,
+    // Ре-пин 000232: приложенные чертежи (концом массива).
     предметы: ['alchemy_manual', 'chainmail', 'mana_potion',
-      'meditation_scroll', 'chill_scroll', 'light_heal_scroll'],
+      'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
+      'blueprint_alchemy', 'blueprint_carving'],
     руда: [
       ['stone_chunk', 'минерал'], ['quartz', 'минерал'],
       ['obsidian', 'минерал'], ['amethyst', 'самоцвет'],
@@ -2397,8 +2423,10 @@ const DUN_REF_PREV = {
   '000003.json': {
     мобы: ['orc_warrior', 'orc_archer', 'wolf', 'troll', 'skeleton'],
     постройки_id: 33,
+    // Ре-пин 000232: приложенные чертежи (концом массива).
     предметы: ['steel_sword', 'knight_plate', 'war_hammer',
-      'iron_hide_tome', 'fireball_scroll', 'vine_scroll'],
+      'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
+      'blueprint_forge', 'blueprint_woodwork'],
     руда: [
       ['iron_ore', 'руда'], ['copper_ore', 'руда'], ['coal', 'минерал'],
       ['silver_ore', 'руда'], ['quartz', 'минерал'], ['gold_ore', 'руда'],
@@ -2408,8 +2436,9 @@ const DUN_REF_PREV = {
   '000004.json': {
     мобы: ['water_elemental', 'scorpion', 'spider', 'imp'],
     постройки_id: 34,
+    // Ре-пин 000232: приложенный чертёж (концом массива).
     предметы: ['mana_elixir', 'hunting_bow', 'moonstone', 'nature_scroll',
-      'magic_shield_scroll'],
+      'magic_shield_scroll', 'blueprint_runecraft'],
     руда: [
       ['sulfur', 'минерал'], ['stone_chunk', 'минерал'],
       ['quartz', 'минерал'], ['silver_ore', 'руда'], ['emerald', 'самоцвет'],
@@ -2420,9 +2449,10 @@ const DUN_REF_PREV = {
   '000005.json': {
     мобы: ['lower_demon', 'succubus', 'abomination'],
     постройки_id: 35,
+    // Ре-пин 000232: приложенный чертёж (концом массива).
     предметы: ['war_hammer', 'phoenix_feather', 'greater_healing',
       'heavy_tome', 'fire_spellbook', 'flame_burst_scroll',
-      'blizzard_scroll'],
+      'blizzard_scroll', 'blueprint_enchant'],
     руда: [
       ['stone_chunk', 'минерал'], ['obsidian', 'минерал'],
       ['amethyst', 'самоцвет'], ['ruby', 'самоцвет'], ['gold_ore', 'руда'],
@@ -2701,8 +2731,10 @@ test('DUN-RENAME-1: переименование поля видов стен: 0
 // Фикстура (D7): предмет — in-place push в ITEMS-синглтон (главный
 // rng НЕ трогает: выбор сундука по индексу, DUNGEON_ITEMS[type] —
 // собственная копия, push её не удлиняет); триггер —
-// DUNGEON_ITEMS.ABYSS[0] = fixture-id ПО ИНДЕКСУ (len 7 сохранён →
-// главный rng index-идентичен, меняются только предметы сундуков);
+// DUNGEON_ITEMS.ABYSS[0] = fixture-id ПО ИНДЕКСУ (ре-пин
+// 000232+000235.05 пост-мерж: пул 8 + tier-фильтр depth 1 (T=1,
+// свитки T3 вне пула) → c1 роуллит ФИЛЬТР-индекс 0; фикстура на
+// индексе 0 = фильтр-индекс 0; меняются только предметы сундуков);
 // пул — in-place push в L.EQUIP_POOLS.common; restore ВСЕГО — в
 // finally ВНУТРИ теста. Замена export-объекта ЗАПРЕЩЕНА (снапшот
 // ссылки фабрики).
@@ -2725,12 +2757,14 @@ const CH1_DEPOSITS = [
   { id: 'd0', x: 24, y: 16, item: 'stone_chunk', amount: 2, gathered: false },
 ];
 // Golden chests: c1 (fixture с явным slot) → common, pool[1];
-// c0/c2/c3 — дословно D-BOSS-2 (war_hammer заменён на пуловый).
+// c0 — null; c2/c3 — ре-пин 000232+000235.05 (пост-мерж): depth 1 →
+// tier-фильтр T=1 (свитки T3 вне пула: 8→6) + blueprint_enchant
+// концом → c2/c3 (фильтр-индекс 5, без slot) = blueprint_enchant.
 const CH1_GOLDEN_CHESTS = [
   { id: 'c0', x: 17, y: 23, opened: false, gold: 20, item: null },
   { id: 'c1', x: 13, y: 11, opened: false, gold: 12, item: CH_FIX_POOL_B },
-  { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'fire_spellbook' },
-  { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'fire_spellbook' },
+  { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'blueprint_enchant' },
+  { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'blueprint_enchant' },
 ];
 
 function chFixItem() {
@@ -2744,6 +2778,8 @@ function chFixItem() {
 function chSetup(L, poolIds) {
   const itemsLen = ITEMS.length;
   const abyss = D.DUNGEON_ITEMS[D.DUNGEON_TYPES.ABYSS];
+  // Ре-пин 000232+000235.05: индекс 0 (c1 роуллит фильтр-индекс 0 —
+  // см. фикстура-комментарий).
   const abyss0 = abyss[0];
   const poolLen = L.EQUIP_POOLS.common.length;
   ITEMS.push(chFixItem());
@@ -2819,11 +2855,14 @@ test('000230.05-CH2: триггер — ЯВНЫЙ slot ТОЛЬКО: c1 (fixtur
     assert.deepEqual({ x: c1.x, y: c1.y, gold: c1.gold },
       { x: 13, y: 11, gold: 12 },
       'c1: позиция/gold — без изменений (главный rng бит-в-бит)');
-    assert.equal(chest('c2').item, 'fire_spellbook',
-      'c2 (skill_book, slot undefined): БЕЗ ИЗМЕНЕНИЙ (расходник — '
+    // РЕ-ПИН 000232+000235.05 (пост-мерж): c2/c3 (фильтр-индекс 5) —
+    // blueprint_enchant (расходник, slot undefined — без редкостной
+    // замены).
+    assert.equal(chest('c2').item, 'blueprint_enchant',
+      'c2 (slot undefined): БЕЗ ИЗМЕНЕНИЙ (расходник — '
       + 'как сейчас, DUNGEON_ITEMS)');
-    assert.equal(chest('c3').item, 'fire_spellbook',
-      'c3 (skill_book, slot undefined): БЕЗ ИЗМЕНЕНИЙ');
+    assert.equal(chest('c3').item, 'blueprint_enchant',
+      'c3 (slot undefined): БЕЗ ИЗМЕНЕНИЙ');
     assert.equal(chest('c0').item, null, 'c0 (null): без изменений');
   } finally {
     chTeardown(L, sav);

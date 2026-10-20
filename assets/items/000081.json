@@ -1,0 +1,13 @@
+{
+  "id": "blueprint_enchant",
+  "name": "Чертёж: зачарование",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 80,
+  "desc": "Изучает вид крафта «зачарование»: его рецепты появляются в диалоге крафта.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/000008.json"
+  },
+  "icon": "assets/sprites/items/blueprint_enchant.svg"
+}

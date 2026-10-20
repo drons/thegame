@@ -24,6 +24,10 @@
     {
       "item": "assets/items/000007.json",
       "chance": 0.15
+    },
+    {
+      "item": "assets/items/000080.json",
+      "chance": 0.05
     }
   ],
   "art": {

@@ -66,9 +66,17 @@ test('JS-фолбэк идентичен JSON-каталогу assets/items (sou
   assert.equal(files.length, I.allItems().length,
     'число файлов != числу предметов в JS-модуле');
   const byId = new Map(I.allItems().map((it) => [it.id, it]));
+  const ROOT = path.join(__dirname, '..');
+  const { resolveRef } = require(path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
   for (const f of files) {
     const raw = fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8');
     const j = JSON.parse(raw);
+    if (j.effect && j.effect.kind === 'craft_recipe'
+        && typeof j.effect.recipe === 'string') {
+      const rr = resolveRef(ROOT, j.effect.recipe);
+      assert.ok(rr.ok, f + ': effect.recipe — битая ссылка: ' + j.effect.recipe);
+      j.effect = { ...j.effect, recipe: rr.id };
+    }
     assert.ok(byId.has(j.id), f + ': предмет ' + j.id + ' нет в JS-модуле');
     assert.deepEqual(j, byId.get(j.id), f + ' расходится с JS-модулем');
     byId.delete(j.id);
@@ -723,8 +731,12 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // (fruit_plum/mushroom_ink в этом (x,y) не выпали), остальные
     // ключи стока не сдвинулись (симуляция: seed/старые стоки
     // byte-identical).
+    // Ре-пин 000232: чертежи (000077-000082) — КОНЕЦ каталога,
+    // rng-хвост пула allItems → += 5 новых чертежей (blueprint_forge
+    // в этом (x,y) не выпал), остальные ключи стока не сдвинулись
+    // (симуляция: seed/старые стоки byte-identical).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
-      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5, gold_ore: 4, mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3, ruby: 3, sapphire: 5, emerald: 3, amethyst: 5, berry_red: 3, berry_blue: 5, berry_wild: 3, herb_sun: 3, herb_wind: 4, root_moon: 1, root_ember: 3, root_rock: 3, fruit_apple: 1, fruit_quince: 1, mushroom_grey: 4, mushroom_glow: 3 } },
+      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5, gold_ore: 4, mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3, ruby: 3, sapphire: 5, emerald: 3, amethyst: 5, berry_red: 3, berry_blue: 5, berry_wild: 3, herb_sun: 3, herb_wind: 4, root_moon: 1, root_ember: 3, root_rock: 3, fruit_apple: 1, fruit_quince: 1, mushroom_grey: 4, mushroom_glow: 3, blueprint_alchemy: 3, blueprint_carving: 3, blueprint_woodwork: 2, blueprint_enchant: 4, blueprint_runecraft: 4 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1242,9 +1254,11 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // 51-м файлом (append-only, слоты не сдвигаются).
   // Ре-пин 000158.02: каталог растёт 62 → 76 (добавляются
   // 000063-000076 — природные ингредиенты); слоты не сдвигаются.
-  assert.equal(files.length, 76,
-    'каталог — 76 файлов (краснота: ' + files.length
-    + ' — каталог ещё не расширен, 000158.02)');
+  // Ре-пин 000232: каталог растёт 76 → 82 (добавляются
+  // 000077-000082 — чертежи изучения видов крафта); слоты не сдвигаются.
+  assert.equal(files.length, 82,
+    'каталог — 82 файла (краснота: ' + files.length
+    + ' — каталог ещё не расширен, 000232)');
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
@@ -1273,16 +1287,17 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   validateSchema165(schema, j, '000051.json', errors);
   assert.deepEqual(errors, [], 'схема: ' + errors.join('; '));
   // (d) Зеркало src/items-data.js (реген npm run sync:items):
-  //     getItem ≡ JSON, каталог — 76 предметов (краснота: записи нет).
+  //     getItem ≡ JSON, каталог — 82 предметов (краснота: записи нет).
   //     Ре-пин 000157.01 (Р0): 51 → 62 (конец каталога).
   //     Ре-пин 000158.02: 62 → 76 (конец каталога).
+  //     Ре-пин 000232: 76 → 82 (конец каталога).
   const it = I.getItem('resurrect_scroll');
   assert.ok(it, 'зеркало items-data.js: resurrect_scroll '
     + '(краснота: записи нет)');
   assert.deepEqual(it, j, 'зеркало ≡ JSON');
-  assert.equal(I.allItems().length, 76,
-    'allItems — 76 предметов (краснота: ' + I.allItems().length
-    + ' — зеркало не регенерировано, 000158.02)');
+  assert.equal(I.allItems().length, 82,
+    'allItems — 82 предмета (краснота: ' + I.allItems().length
+    + ' — зеркало не регенерировано, 000232)');
   // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
   //     addItem ×2 → 2 слота qty 1 (не стопка).
   const c = createCharacter();
@@ -1382,12 +1397,14 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
   // Ре-пин 000158.02: каталог растёт 62 → 76 (добавляются
   // 000063-000076 — природные ингредиенты); 000062.json остаётся
   // 62-м файлом (append-only, слоты не сдвигаются).
-  assert.equal(files.length, 76,
-    'каталог — 76 файлов (краснота: ' + files.length + ')');
+  // Ре-пин 000232: каталог растёт 76 → 82 (000077-000082 —
+  // чертежи изучения видов крафта); слоты не сдвигаются.
+  assert.equal(files.length, 82,
+    'каталог — 82 файла (краснота: ' + files.length + ')');
   assert.equal(files[61], '000062.json',
     '000062.json — 62-й файл (краснота: файла нет)');
-  assert.equal(I.allItems().length, 76,
-    'allItems — 76 предметов (краснота: ' + I.allItems().length + ')');
+  assert.equal(I.allItems().length, 82,
+    'allItems — 82 предмета (краснота: ' + I.allItems().length + ')');
 });
 
 // R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
@@ -1595,7 +1612,7 @@ test('000158.02 L2: loot-инварианты новых 14 — terrains неп�
   }
 });
 
-test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 43 предмета — loot undefined (пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
+test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 49 предметов — loot undefined (ре-пин 000232: +6 чертежей; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
   const byId = new Map(I.allItems().map((it) => [it.id, it]));
   const newIds = new Set(LOOT_00015802.map((e) => e.id));
   const nuggetIdSet = new Set(NUGGETS_00015802.map(([id]) => id));
@@ -1607,9 +1624,9 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЩИХ id не
       id + ': loot самородка (краснота: поля нет; tier ' + tier
       + ' → frequency ' + NUGGET_FREQ[tier] + ')');
   }
-  // ВСЕ ПРОЧИЕ предметы (43 = каталог − 14 самородков − 14 новых
-  // − 5 reagent'ов 000220): loot ОТСУТСТВУЕТ — пин «остальные файлы
-  // не тронуты».
+  // ВСЕ ПРОЧИЕ предметы (49 = каталог − 14 самородков − 14 новых
+  // − 5 reagent'ов 000220; ре-пин 000232: +6 чертежей без loot):
+  // loot ОТСУТСТВУЕТ — пин «остальные файлы не тронуты».
   const REAGENTS_000220 = new Set(['wood_log', 'hide', 'herb_healing',
     'herb_mana', 'herb_bitter']);
   let others = 0;
@@ -1620,7 +1637,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЩИХ id не
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 43, 'прочих предметов — ровно 43');
+  assert.equal(others, 49, 'прочих предметов — ровно 49 (ре-пин 000232: +6)');
 });
 
 test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
@@ -1884,7 +1901,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 43 — icon undefined (пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
+test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 43 — icon undefined (ре-пин 000232: +6 чертежей с icon в items/ — в исключении; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f))
     .sort();
@@ -1914,17 +1931,21 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     assert.ok(fs.existsSync(path.join(__dirname, '..', it.icon)),
       id + ': svg-файл существует по пути icon');
   }
+  const BLUEPRINTS_000232 = new Set(['blueprint_forge', 'blueprint_alchemy',
+    'blueprint_carving', 'blueprint_woodwork', 'blueprint_enchant',
+    'blueprint_runecraft']);
   let others = 0;
   for (const it of byId.values()) {
-    if (lootIds.includes(it.id)) continue;
+    if (lootIds.includes(it.id) || BLUEPRINTS_000232.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
   }
   assert.equal(others, 43, 'прочих предметов — ровно 43');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 33,
-    'icon — ровно у 33 предметов (пин: ни больше, ни меньше)');
+    [...byId.values()].filter((it) => 'icon' in it).length, 39,
+    'icon — ровно у 39 предметов (ре-пин 000232: 33 лут + 6 чертежей; '
+    + 'пин: ни больше, ни меньше)');
 });
 
 test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойство {type: string, pattern: ^assets/sprites/(loot|items)/[\\w_]+\\.svg$} (дословно ТЗ), «icon» НЕ в required, additionalProperties верхнего уровня false', () => {
@@ -2066,14 +2087,14 @@ test('000230.01 E4: schema.json — affixes ОПЦИОНАЛЬНО {type: array,
     + 'факт: ' + JSON.stringify(s.required));
 });
 
-test('000230.01 E5: schema.json — kind-enum — 12 значений: текущие 8 + shield/artifact/tool/ring (append концом)', () => {
+test('000230.01 E5: schema.json — kind-enum — 13 значений: текущие 8 + shield/artifact/tool/ring + craft_scroll (ре-пин 000232, append концом)', () => {
   const s = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
   assert.deepEqual(s.properties.kind.enum,
     ['weapon', 'armor', 'potion', 'food', 'skill_book', 'reagent',
      'spell_scroll', 'resurrection_scroll',
-     'shield', 'artifact', 'tool', 'ring'],
-    'kind-enum — 12 значений (краснота: 8 — новые kind нет); '
+     'shield', 'artifact', 'tool', 'ring', 'craft_scroll'],
+    'kind-enum — 13 значений (краснота: 8 — новые kind нет); '
     + 'факт: ' + JSON.stringify(s.properties.kind.enum));
 });
 
@@ -2126,9 +2147,9 @@ test('000230.01 E8: src/items.js — ITEM_KINDS += SHIELD/ARTIFACT/TOOL/RING, WE
     'EQUIP_KINDS — ровно 6 экипируемых kind (краснота: константы нет)');
 });
 
-test('000230.01 E9 (ГАРД): каталог — ровно 76 предметов, у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
+test('000230.01 E9 (ГАРД): каталог — ровно 82 предмета (ре-пин 000232: +6 чертежей), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
   const items = I.allItems();
-  assert.equal(items.length, 76, 'каталог — ровно 76 предметов');
+  assert.equal(items.length, 82, 'каталог — ровно 82 предмета');
   let others = 0;
   for (const it of items) {
     if (EQUIP_FIELDS_00023001.has(it.id)) continue;
@@ -2142,8 +2163,8 @@ test('000230.01 E9 (ГАРД): каталог — ровно 76 предмето
       it.id + ': affixes отсутствует (предмет не тронут, 000230.01)');
     others++;
   }
-  assert.equal(others, 76, 'прочих предметов — ровно 76 (в .01 '
-    + 'исключений нет)');
+  assert.equal(others, 82, 'прочих предметов — ровно 82 (ре-пин 000232: '
+    + 'в .01 исключений нет, +6 чертежей без equip-полей)');
 });
 
 test('000230.01 E10 (vm): НОВЫЕ kind shield/artifact/tool/ring — валидные фикстуры (id/name/kind/slot/weight/value/desc) грузятся БЕЗ броска, без console.error, поля сохранены', () => {
@@ -2328,6 +2349,11 @@ test('000230.01 E20: sync-items-data.js — новые поля slot/rarity/set/
     fs.copyFileSync(
       path.join(__dirname, '..', 'scripts', 'lib', 'write-atomic.js'),
       path.join(dir, 'scripts', 'lib', 'write-atomic.js'));
+    // Ре-пин 000232: sync-items-data.js резолвит effect.recipe через
+    // scripts/lib/json-ref.js (конвенция 000211) — копировать lib.
+    fs.copyFileSync(
+      path.join(__dirname, '..', 'scripts', 'lib', 'json-ref.js'),
+      path.join(dir, 'scripts', 'lib', 'json-ref.js'));
     fs.writeFileSync(path.join(dir, 'assets', 'items', '000001.json'),
       JSON.stringify({
         id: 'x_ring', name: 'Тестовое кольцо', kind: 'ring',

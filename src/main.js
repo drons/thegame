@@ -973,6 +973,8 @@
             ? G.sanitizeCraftLevels(d.hero.craft) : {};
           hero.craftXp = G.sanitizeCraftXp
             ? G.sanitizeCraftXp(d.hero.craftXp) : {};
+          hero.craftTypes = G.sanitizeCraftTypes
+            ? G.sanitizeCraftTypes(d.hero.craftTypes) : {};
           hero.equipmentBonus = G.sanitizeEquipmentBonus
             ? G.sanitizeEquipmentBonus(d.hero.equipmentBonus)
             : { weapon: null, armor: null };
@@ -3614,6 +3616,7 @@
           // поэтому здесь просто значения героя.
           craft: hero.craft,
           craftXp: hero.craftXp,
+          craftTypes: hero.craftTypes,
           equipmentBonus: hero.equipmentBonus,
         },
         // Эфир (задача 000081): live-объект

@@ -80,7 +80,9 @@ function (G0, rootRef) {
         const btns = [];
         if (it.kind === 'potion' || it.kind === 'food'
             || it.kind === 'skill_book'
-            || it.kind === 'spell_scroll') { // 000133: изучение свитком
+            || it.kind === 'spell_scroll'
+            || it.kind === 'craft_scroll') { // 000133: изучение свитком;
+                                             // 000232: чертёж вида крафта
           btns.push(['исп.', 'use', { item: e.id }]);
         }
         if (it.kind === 'weapon' || it.kind === 'armor') {

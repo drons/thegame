@@ -42,7 +42,13 @@
 //     тратится). Бонус складывается с бонусом качества;
 //   * наставник: +1 уровень виду за обучение.цена_за_уровень, без
 //     потолка (до 100); NPC обязан обучать навык, маппящийся в вид,
-//     и стоять в постройке этого вида.
+//     и стоять в постройке этого вида;
+//   * изученность видов (задача 000232): вид «изучен», если
+//     c.craftTypes[type] ИЛИ прогресс (c.craft[type] !== undefined
+//     ИЛИ c.craftXp[type] > 0) — дефолт уровня 1 ≠ знание;
+//     неизученный вид — evalCraft даёт «вид не изучен» (ОДНА точка
+//     гейта: после alive, до уровня; canCraft/craft — одна причина,
+//     000037); mentorCraft/bookCraftXp гейтом НЕ ограничены.
 // Роллы: rng вызывается СНАЧАЛА для качества, затем для выхода
 // (порядок закреплён тестами; детерминированные тесты — scripted-rng).
 // Атомарность: ВСЕ мутации — ПОСЛЕ всех проверок (при отказе
@@ -84,6 +90,7 @@
         // 000045) — restoreFromSave не ходит в Game.Craft.
         sanitizeCraftLevels: api.sanitizeCraftLevels,
         sanitizeCraftXp: api.sanitizeCraftXp,
+        sanitizeCraftTypes: api.sanitizeCraftTypes,
       });
     }
   }
@@ -194,6 +201,40 @@
   // не создаёт — canCraft/canCraft-зеркало).
   function craftLevel(c, type) {
     return (c.craft && c.craft[type]) || 1;
+  }
+
+  // --- Изученность видов (задача 000232) ---
+  // «Изучен» (D0b): запись c.craftTypes[type] ИЛИ прогресс по виду
+  // (c.craft[type] !== undefined ИЛИ c.craftXp[type] > 0) — прогресс =
+  // знание (mentorCraft/craft/addCraftXp пишут c.craft/c.craftXp).
+  // Дефолт уровня 1 ≠ знание: свежий герой — 0 изученных видов.
+  function isTypeLearned(c, type) {
+    if (c.craftTypes && c.craftTypes[type]) return true;
+    if (c.craft && c.craft[type] !== undefined) return true;
+    return !!(c.craftXp && c.craftXp[type] > 0);
+  }
+
+  // Все изученные виды, отсортированно (строки CRAFT_TYPES).
+  function learnedCraftTypes(c) {
+    return CRAFT_TYPES.filter((t) => isTypeLearned(c, t)).sort();
+  }
+
+  /**
+   * Изучить вид (свиток/чертёж, задача 000232). Мутация c.craftTypes —
+   * ТОЛЬКО на успехе; повтор (в т.ч. «изучен» по D0b-прогрессу) —
+   * отказ без мутации.
+   * @returns {{ok:boolean, reason?:string}}
+   */
+  function learnCraftType(c, type) {
+    if (!CRAFT_TYPE_SKILL[type]) {
+      return { ok: false, reason: 'неизвестный вид крафта: ' + type };
+    }
+    if (isTypeLearned(c, type)) {
+      return { ok: false, reason: 'вид уже изучен' };
+    }
+    c.craftTypes = c.craftTypes || {};
+    c.craftTypes[type] = true;
+    return { ok: true };
   }
 
   // Порог уровня вида (та же формула, что у навыков, player.js).
@@ -512,6 +553,12 @@
     // canCraft при том же персонаже — ok:true (нарушение зеркала).
     // Причина — та же, что в addCraftXp/player.js.
     if (!c.alive) return { fail: { ok: false, reason: 'персонаж погиб' } };
+    // Вид должен быть изучен (задача 000232): ОДНА точка гейта —
+    // canCraft/craft дают одну причину (зеркало 000037); после alive-
+    // пре-чека, ДО проверки уровня.
+    if (!isTypeLearned(c, recipe.тип)) {
+      return { fail: { ok: false, reason: 'вид не изучен' } };
+    }
     // Уровень вида.
     const need = recipe.уровень;
     if (craftLevel(c, recipe.тип) < need) {
@@ -736,13 +783,26 @@
     return out;
   }
 
+  // {вид: true} — изученные виды (задача 000232): ключи вне каталога
+  // отбрасываются, truthy → true, falsy — без ключа; не-объект → {}.
+  function sanitizeCraftTypes(v) {
+    const out = {};
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+    for (const [t, val] of Object.entries(v)) {
+      if (!CRAFT_TYPE_SKILL[t]) continue;
+      if (val) out[t] = true;
+    }
+    return out;
+  }
+
   return {
     CRAFT, CRAFT_BY_ID, CRAFT_TYPES,
     CRAFT_TYPE_SKILL, SKILL_CRAFT_TYPE, typeBuildings,
     craftOf, craftLevel, craftXpForNext, craftCap,
+    isTypeLearned, learnedCraftTypes, learnCraftType,
     addCraftXp, reprocessCraftXp,
     bookCraftXp, canMentorCraft, mentorCraft,
     canCraft, craft, qualityChance, yieldChance,
-    sanitizeCraftLevels, sanitizeCraftXp,
+    sanitizeCraftLevels, sanitizeCraftXp, sanitizeCraftTypes,
   };
 });

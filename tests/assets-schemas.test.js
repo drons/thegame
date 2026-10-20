@@ -411,11 +411,12 @@ test('items schema (000157.01): опциональное поле tier (integer 
   assert.deepEqual(s.properties.kind.enum,
     // Ре-пин 000230.01: +shield/artifact/tool/ring (поля экипировки
     // slot/rarity/set/affixes; новые kind — концом).
+    // Ре-пин 000232: +craft_scroll (свитки изучения видов крафта) концом.
     ['weapon', 'armor', 'potion', 'food', 'skill_book', 'reagent',
      'spell_scroll', 'resurrection_scroll',
-     'shield', 'artifact', 'tool', 'ring'],
-    'kind-enum — текущие 12 видов (ТЗ 000157.01: не расширять; '
-    + '000230.01: +4 концом)');
+     'shield', 'artifact', 'tool', 'ring', 'craft_scroll'],
+    'kind-enum — текущие 13 видов (ТЗ 000157.01: не расширять; '
+    + '000230.01: +4 концом; 000232: +1 концом)');
 });
 
 // --- Задача 000158.02: schema.json (items) — опциональное поле loot ---

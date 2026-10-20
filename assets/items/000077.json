@@ -1,0 +1,13 @@
+{
+  "id": "blueprint_forge",
+  "name": "Чертёж: кузнечное дело",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 80,
+  "desc": "Изучает вид крафта «кузнечное_дело»: его рецепты появляются в диалоге крафта.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/000001.json"
+  },
+  "icon": "assets/sprites/items/blueprint_forge.svg"
+}

@@ -14,7 +14,9 @@
     "assets/items/000014.json",
     "assets/items/000031.json",
     "assets/items/000047.json",
-    "assets/items/000048.json"
+    "assets/items/000048.json",
+    "assets/items/000078.json",
+    "assets/items/000079.json"
   ],
   "размер": 27,
   "постройка": "assets/buildings/000032.json",

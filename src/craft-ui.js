@@ -237,9 +237,14 @@ function (G0, _unused1, _unused2, rootRef) {
     const C = G && G.Craft;
     if (!C) return;
     bodyEl.textContent = ''; // очистка (DOM: убирает детей)
+    // Задача 000232: неизученные виды НЕ показываются (фильтр
+    // здания ∩ изученность; fallback true — деградация без API).
+    const learned = (r) => (C.isTypeLearned
+      ? C.isTypeLearned(hero, r.тип)
+      : true);
     const recipes = (Array.isArray(C.CRAFT) ? C.CRAFT : []).filter(
       (r) => r && Array.isArray(r.здания)
-        && r.здания.includes(building.id));
+        && r.здания.includes(building.id) && learned(r));
     const types = Array.isArray(C.CRAFT_TYPES) ? C.CRAFT_TYPES : [];
     for (const type of types) {
       const rs = recipes.filter((r) => r.тип === type);
@@ -250,6 +255,14 @@ function (G0, _unused1, _unused2, rootRef) {
         type + ' — уровень ' + L));
       for (const r of rs) sec.appendChild(recipeEl(G, C, r, L));
       bodyEl.appendChild(sec);
+    }
+    if (!recipes.length) {
+      const hint = (C.isTypeLearned &&
+        types.some((t) => C.isTypeLearned(hero, t)))
+        ? 'В этом здании нет изученных видов крафта.'
+        : 'Виды крафта не изучены. Свитки и чертежи (торговцы, сундуки, '
+          + 'лут мобов) открывают целый вид.';
+      bodyEl.appendChild(el('p', 'craft-hint', hint));
     }
   }
 

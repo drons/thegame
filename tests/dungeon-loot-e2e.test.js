@@ -677,10 +677,12 @@ test('000191.12: успешная ветка сундука (add.ok → «, <nam
 // hero totalXp=1 (level 1), primary {STR 2, DEX 1, CON 1, INT 11,
 // WIS 1, CHA 1}: dseed = 820179115, герой (8,19), c0 = (12,4), gold 29,
 // item light_heal_scroll (старый выбор) → chill_scroll (tier-выбор).
+// РЕ-ПИН 000232+000235.05 (пост-мерж): пул CRYPT += 2 чертежа (T1) →
+// c0 = blueprint_carving (dseed/позиции/gold — бит-в-бит).
 // Мобы (16,3)/(21,10)/(11,9) — не у входа (соседи (8,19) свободны).
 // ----------------------------------------------------------------------
 
-test('000235.05 E1: сундук → свиток → изучение → сейв (FOREST, dseed 820179115, c0 = chill_scroll)', async () => {
+test('000235.05 E1: сундук → свиток → изучение → сейв (FOREST, dseed 820179115, c0 = blueprint_carving)', async () => {
   const h = await boot(seedSave({
     day: 2,
     hero: mkHero({
@@ -699,6 +701,10 @@ test('000235.05 E1: сундук → свиток → изучение → се�
   //     chainmail, mana_potion, meditation_scroll, chill_scroll (T1),
   //     light_heal_scroll (T2)] на глубине 1 (T=1) — tier-выбор даёт
   //     chill_scroll; старый равномерный выбор — light_heal_scroll.
+  // РЕ-ПИН 000232+000235.05 (пост-мерж): CRYPT-пул += blueprint_alchemy/
+  //     blueprint_carving (000232, концом; оба T1) → пул 8, tier-фильтр
+  //     T=1 → 7 → c0 = blueprint_carving (фильтр-индекс 6, по факту
+  //     генерации; dseed/позиции/gold — бит-в-бит).
   const ds = g.actions.enterDungeon(G.TERRAIN.FOREST);
   assert.ok(ds, 'enterDungeon(FOREST) — состояние подземелья');
   assert.equal(ds.dg.seed, 820179115, 'dseed (сценарий: FOREST, totalXp=1)');
@@ -706,8 +712,9 @@ test('000235.05 E1: сундук → свиток → изучение → се�
   assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
   assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold,
     item: c0.item },
-    { x: 12, y: 4, opened: false, gold: 29, item: 'chill_scroll' },
-    'c0: tier-выбор — chill_scroll (краснота: равномерный выбор — '
+    { x: 12, y: 4, opened: false, gold: 29, item: 'blueprint_carving' },
+    'c0: tier-выбор — blueprint_carving (ре-пин 000232+000235.05; '
+    + 'краснота: равномерный выбор — '
     + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold, item: c0.item }) + ')');
   // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-
   //     соседе входа (паттерн 000191.12 — без pathfinding-зависимости).

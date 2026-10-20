@@ -376,6 +376,8 @@ test('наставник: кузнец Торн — кузнечное_дело 
 test('craft: успех — исходники сняты, результат в инвентаре, опыт 10+уровень', () => {
   const C = loadCraft();
   const p = createCharacter();
+  // Ре-пин 000232: гейт «вид изучен» — фикстура изучает вид.
+  p.craftTypes = { 'столярное_дело': true };
   give(p, 'wood_log', 1);
   const r = C.craft(p, 'wood_sword', { building: 5, rng: NO_ROLLS });
   assert.equal(r.ok, true, r.reason);
@@ -399,6 +401,8 @@ test('craft: успех — исходники сняты, результат в
 test('craft: неизвестный рецепт / «недостаточный уровень (нужно N)»', () => {
   const C = loadCraft();
   const p = createCharacter();
+  // Ре-пин 000232: вид изучен — проверяем именно гейт уровня.
+  p.craftTypes = { 'столярное_дело': true };
   give(p, 'wood_log', 2);
   assert.equal(C.craft(p, 'nope', { rng: NO_ROLLS }).reason, 'неизвестный рецепт');
   assert.equal(C.canCraft(p, 'nope').reason, 'неизвестный рецепт');
@@ -476,6 +480,8 @@ test('craft: нехватка исходников — «не хватает: <�
 test('craft: не то здание — отказ; в поле (building null) — успех', () => {
   const C = loadCraft();
   const p = createCharacter();
+  // Ре-пин 000232: вид изучен — проверяем именно гейт здания.
+  p.craftTypes = { 'столярное_дело': true };
   give(p, 'wood_log', 1);
   // Деревянный меч — здания [5]; Аптекарь (3) — не место.
   const r = C.craft(p, 'wood_sword', { building: 3, rng: NO_ROLLS });
@@ -494,6 +500,8 @@ test('craft: инвентарь полон / слишком тяжело — о�
   const C = loadCraft();
   // Полон: 19 слотов серы + 1 бревно = 20; меч — ещё слот.
   const p = createCharacter();
+  // Ре-пин 000232: вид изучен — проверяем именно гейт ёмкости.
+  p.craftTypes = { 'столярное_дело': true };
   p.inventory = {
     slots: [
       ...Array.from({ length: 19 }, () => ({ id: 'sulfur', qty: 1 })),
@@ -511,6 +519,8 @@ test('craft: инвентарь полон / слишком тяжело — о�
   // Слишком тяжело: 28 руды (28 кг) + бревно (2 кг) = лимит 30;
   // + деревянный меч (1 кг) — не влезает.
   const p2 = createCharacter();
+  // Ре-пин 000232: вид изучен — проверяем именно гейт веса.
+  p2.craftTypes = { 'столярное_дело': true };
   give(p2, 'iron_ore', 28);
   give(p2, 'wood_log', 1);
   const r2 = C.craft(p2, 'wood_sword', { building: 5, rng: NO_ROLLS });
@@ -589,6 +599,8 @@ test('ёмкость: выход (+1) считается зеркалом — о
   // излишком, слот НЕ освобождается), sulfur ×17. Стопки зелья НЕТ:
   // результат (качество — бонусный слот) — 20/20, +1 выходной — 21.
   const p = createCharacter();
+  // Ре-пин 000232: вид изучен — проверяем именно гейт ёмкости.
+  p.craftTypes = { 'алхимия': true };
   p.inventory = {
     slots: [
       { id: 'honey_cake', qty: 2 },
@@ -637,6 +649,8 @@ test('ёмкость: бонусный слот (отдельный, не сли
   // healing_potion ×5. В обычную стопку влезает, но БОНУСНЫЙ экземпляр
   // — отдельный слот, а слотов нет.
   const p = createCharacter();
+  // Ре-пин 000232: вид изучен — проверяем именно гейт ёмкости.
+  p.craftTypes = { 'алхимия': true };
   p.inventory = {
     slots: [
       { id: 'honey_cake', qty: 2 },
@@ -742,6 +756,8 @@ test('качество: бонус на слоте, множитель навы�
   // Зелье, алхимик 10 → {amount: 2} (potionPowerMult 1.5).
   const p4 = createCharacter();
   p4.secondary.alchemy = 10;
+  // Ре-пин 000232: вид изучен.
+  p4.craftTypes = { 'алхимия': true };
   give(p4, 'herb_healing', 2);
   const r4 = C.craft(p4, 'minor_healing', { building: 3, rng: rolls(0.01, 0.999) });
   assert.equal(r4.ok, true, r4.reason);
@@ -760,6 +776,8 @@ test('качество: бонус на слоте, множитель навы�
     p5.inventory.slots.find((s) => s.id === 'iron_sword').bonus, undefined);
   // Реагент (резец) — статы нет, бонуса нет.
   const p6 = createCharacter();
+  // Ре-пин 000232: вид изучен.
+  p6.craftTypes = { 'резьба_по_камню': true };
   give(p6, 'stone_chunk', 2);
   const r6 = C.craft(p6, 'stone_chisel', { building: 40, rng: () => 0 });
   assert.equal(r6.ok, true, r6.reason);
@@ -787,6 +805,8 @@ test('выход: формула, работает и в поле, extra = ре�
   assert.equal(C.yieldChance(p2, 'nope', 5), 0);
   // extra: качество не выпало, выход выпал — зелье ×2 в одной стопке.
   const p3 = createCharacter();
+  // Ре-пин 000232: вид изучен.
+  p3.craftTypes = { 'алхимия': true };
   give(p3, 'honey_cake', 1);
   give(p3, 'moonstone', 1);
   const r = C.craft(p3, 'healing_potion', { building: 17, rng: rolls(0.999, 0.01) });
@@ -799,6 +819,8 @@ test('выход: формула, работает и в поле, extra = ре�
     'зелья складываются в одну стопку');
   // В поле тоже:
   const p4 = createCharacter();
+  // Ре-пин 000232: вид изучен.
+  p4.craftTypes = { 'алхимия': true };
   give(p4, 'honey_cake', 1);
   give(p4, 'moonstone', 1);
   const r4 = C.craft(p4, 'healing_potion', { building: null, rng: rolls(0.999, 0.01) });
@@ -807,6 +829,8 @@ test('выход: формула, работает и в поле, extra = ре�
   assert.equal(I.totalQty(p4, 'healing_potion'), 2);
   // Оружие не складывается: extra = +1 копия (2 слота, без бонусов).
   const p5 = createCharacter();
+  // Ре-пин 000232: вид изучен.
+  p5.craftTypes = { 'столярное_дело': true };
   give(p5, 'wood_log', 1);
   const r5 = C.craft(p5, 'wood_sword', { building: 5, rng: rolls(0.999, 0.01) });
   assert.equal(r5.ok, true, r5.reason);

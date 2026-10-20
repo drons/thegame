@@ -4,7 +4,7 @@
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
     "name": { "type": "string" },
-    "kind": { "enum": ["weapon", "armor", "potion", "food", "skill_book", "reagent", "spell_scroll", "resurrection_scroll", "shield", "artifact", "tool", "ring"] },
+    "kind": { "enum": ["weapon", "armor", "potion", "food", "skill_book", "reagent", "spell_scroll", "resurrection_scroll", "shield", "artifact", "tool", "ring", "craft_scroll"] },
     "subtype": { "type": "string", "enum": ["sword", "bow", "heavy", "staff"] },
     "weight": { "type": "number", "minimum": 0.05, "maximum": 200 },
     "value": { "type": "number", "minimum": 1, "maximum": 100000 },
@@ -22,10 +22,11 @@
       "type": "object",
       "required": ["kind"],
       "properties": {
-        "kind": { "enum": ["heal", "mp", "eat", "skill_xp", "spell", "resurrect"] },
+        "kind": { "enum": ["heal", "mp", "eat", "skill_xp", "spell", "resurrect", "craft_recipe"] },
         "amount": { "type": "number", "minimum": 1, "maximum": 500 },
         "skill": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
-        "spell": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+        "spell": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "recipe": { "type": "string", "pattern": "^assets/craft/\\d{6}\\.json$" }
       },
       "additionalProperties": false
     },

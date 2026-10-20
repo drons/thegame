@@ -1,0 +1,13 @@
+{
+  "id": "blueprint_woodwork",
+  "name": "Чертёж: столярное дело",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 80,
+  "desc": "Изучает вид крафта «столярное_дело»: его рецепты появляются в диалоге крафта.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/000011.json"
+  },
+  "icon": "assets/sprites/items/blueprint_woodwork.svg"
+}
