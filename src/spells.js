@@ -828,6 +828,8 @@
     // (возврат {ok:false, reason} обязан откатить ману и запись
     // сам — .02 только break).
     switch (spellId) {
+      case 'invisibility':
+        break;
       default:
         break;
     }
@@ -867,6 +869,38 @@
     return out;
   }
 
+  // 000235.03: hero невидим в день day ⇔ активная запись действия
+  // «невидимость» (expiresDay > day — зеркало истечения .02).
+  // Матчинг — по ДЕЙСТВИЮ (ленивый lookup — .09/совершенствования, Д-1).
+  function isHeroInvisible(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object') continue;
+      const spell = SPELLS_BY_ID[e.spellId];
+      if (!spell || spell.действие !== 'невидимость') continue;
+      if (typeof e.expiresDay === 'number' && e.expiresDay > day) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 000235.03: снятие невидимости (триггер — вступление в бой):
+  // выносит ТОЛЬКО записи действия «невидимость»; переприсваивает
+  // только если что-то снято (идентичность на чистых путях);
+  // поля, которого не было, не создаёт; не-массив/null — no-op.
+  function clearInvisibility(p) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return;
+    const kept = p.outOfCombatEffects.filter((e) => {
+      if (!e || typeof e !== 'object') return true;
+      const spell = SPELLS_BY_ID[e.spellId];
+      return !(spell && spell.действие === 'невидимость');
+    });
+    if (kept.length !== p.outOfCombatEffects.length) {
+      p.outOfCombatEffects = kept;
+    }
+  }
+
   return {
     SPELLS, SPELLS_BY_ID, SCHOOL_RANKS,
     getSpell, schoolRank, rankAllowsTier,
@@ -876,5 +910,6 @@
     sanitizeSpellBook,
     castOutOfCombat, expireOutOfCombatEffects,
     sanitizeOutOfCombatEffects,
+    isHeroInvisible, clearInvisibility,
   };
 });

@@ -2455,3 +2455,212 @@ test('000235.02 OC7: sanitizeOutOfCombatEffects — не-массив → []; п
   'дубликат spellId — последний wins (позиция первого вхождения), '
   + 'порядок сохранён');
 });
+
+// --- Задача 000235.03: невидимость — механика (TDD: красные тесты IV1-IV4) ---
+//
+// 2 НОВЫХ экспорта src/spells.js (контракт:
+// memory/000235.03-invisibility-mechanic.md §2.1/§2.2, Д-1/Д-5):
+//   * isHeroInvisible(hero, day) → boolean — true ⇔ в
+//     hero.outOfCombatEffects есть запись, чей spellId мапится на
+//     действие 'невидимость' и expiresDay > day (граница — зеркало
+//     expireOutOfCombatEffects .02);
+//   * clearInvisibility(hero) → void — выносит ВСЕ записи действия
+//     'невидимость'; переприсваивает поле только если что-то снято
+//     (иначе идентичность массива не меняется); поле, которого не
+//     было, не создаёт; не-массив/null — no-op.
+// Матчинг — по ДЕЙСТВИЮ (ленивый lookup SPELLS_BY_ID в момент вызова),
+// не по id (Д-1: id решается контентной волной .09; цепочки-
+// совершенствований могут дать НОВОЕ id с тем же действием;
+// guest-инъекции live видны без перезагрузки).
+// Гость — полная форма каталога: школа 'тень', действие
+// 'невидимость', вне_боя: true, параметры {days} (инъекция по
+// паттерну ocGuest0235 pushOcGuests/popOcGuests, restore в finally;
+// пины «ровно 17» не трогаются).
+// RED: экспорт отсутствует (assert typeof — осмысленно, не синтаксис);
+// запись/мана — уже зелёное ядро .02.
+
+function invGuest0235(id, over = {}) {
+  return Object.assign({
+    id,
+    название: 'Тестовое заклинание (000235.03)',
+    школа: 'тень',
+    база: null,
+    степень: 1,
+    атрибут: 'intelligence',
+    уровень: 2,
+    мани: 5,
+    действие: 'невидимость',
+    вне_боя: true,
+    параметры: { days: 1 },
+    здания: ['assets/buildings/000001.json'],
+    описание: 'Тестовое заклинание (000235.03)',
+    icon: 'assets/spell-icons/ghost.svg',
+    icon_prompt: 'Тестовая иконка (000235.03)',
+  }, over);
+}
+
+test('000235.03 IV1: isHeroInvisible — запись «невидимость» expiresDay = day+1 → true; граница expiresDay = day → false; < day → false; нет поля / [] → false; чужое действие («внебой» активен) → false; null / мусор-записи → false без краха', () => {
+  const dataMod = loadSpellsData();
+  const inv = invGuest0235('iv1_inv'); // «невидимость», days 1
+  const out = ocGuest0235('iv1_out');  // «внебой», days 2
+  try {
+    pushOcGuests(dataMod, [inv, out]);
+    const { isHeroInvisible } = loadSpells();
+    assert.equal(typeof isHeroInvisible, 'function',
+      '000235.03: export Spells.isHeroInvisible (src/spells.js)');
+    const day = 10;
+    assert.equal(isHeroInvisible(
+      { outOfCombatEffects: [{ spellId: inv.id, expiresDay: day + 1 }] }, day),
+      true, 'активная запись (expiresDay = day+1) — true');
+    assert.equal(isHeroInvisible(
+      { outOfCombatEffects: [{ spellId: inv.id, expiresDay: day }] }, day),
+      false, 'граница: expiresDay === day — false (зеркало истечения .02)');
+    assert.equal(isHeroInvisible(
+      { outOfCombatEffects: [{ spellId: inv.id, expiresDay: day - 1 }] }, day),
+      false, 'истёкшая запись (expiresDay < day) — false');
+    assert.equal(isHeroInvisible({}, day), false, 'нет поля — false');
+    assert.equal(isHeroInvisible({ outOfCombatEffects: [] }, day), false,
+      'пустой массив — false');
+    assert.equal(isHeroInvisible(
+      { outOfCombatEffects: [{ spellId: out.id, expiresDay: day + 2 }] }, day),
+      false, 'чужое действие («внебой» активен) — false');
+    assert.equal(isHeroInvisible(null, day), false, 'hero = null — false');
+    assert.equal(isHeroInvisible(
+      { outOfCombatEffects: [
+        null, 'мусор', 42,
+        { expiresDay: day + 1 },
+        { spellId: 'нет_такого_заклинания', expiresDay: day + 1 },
+      ] }, day),
+      false, 'мусор-записи — false без краха');
+  } finally {
+    popOcGuests(dataMod, [inv, out]);
+  }
+});
+
+test('000235.03 IV2: clearInvisibility — удаляет ТОЛЬКО «невидимость» (оба id — по действию, соседняя запись жива, порядок сохранён); без записи — no-op (идентичность массива, чужие живут); поля нет — не создаёт; не-массив — без краха', () => {
+  const dataMod = loadSpellsData();
+  const invA = invGuest0235('iv2_inv_a');
+  const invB = invGuest0235('iv2_inv_b', { параметры: { days: 2 } });
+  const out = ocGuest0235('iv2_out');
+  try {
+    pushOcGuests(dataMod, [invA, invB, out]);
+    const { clearInvisibility } = loadSpells();
+    assert.equal(typeof clearInvisibility, 'function',
+      '000235.03: export Spells.clearInvisibility (src/spells.js)');
+    const arr = [
+      { spellId: out.id, expiresDay: 12 },
+      { spellId: invA.id, expiresDay: 11 },
+      { spellId: invB.id, expiresDay: 13 },
+    ];
+    const p1 = { outOfCombatEffects: arr };
+    clearInvisibility(p1);
+    assert.deepEqual(p1.outOfCombatEffects,
+      [{ spellId: out.id, expiresDay: 12 }],
+      'вынесены ТОЛЬКО записи «невидимость» (оба id — матчинг по '
+      + 'действию, Д-1); соседняя «внебой» жива, порядок сохранён');
+    assert.notEqual(p1.outOfCombatEffects, arr,
+      'успех — переприсвоение (новый массив)');
+    const arr2 = [{ spellId: out.id, expiresDay: 12 }];
+    const p2 = { outOfCombatEffects: arr2 };
+    clearInvisibility(p2);
+    assert.equal(p2.outOfCombatEffects, arr2,
+      'no-op: идентичность массива не меняется (чистые пути)');
+    assert.deepEqual(p2.outOfCombatEffects,
+      [{ spellId: out.id, expiresDay: 12 }], 'чужие записи живут');
+    const p3 = {};
+    clearInvisibility(p3);
+    assert.equal(p3.outOfCombatEffects, undefined,
+      'поля, которого не было, НЕ создаёт');
+    const p4 = { outOfCombatEffects: 'бито' };
+    clearInvisibility(p4);
+    assert.equal(p4.outOfCombatEffects, 'бито', 'не-массив — no-op');
+    clearInvisibility(null); // null — без краха
+  } finally {
+    popOcGuests(dataMod, [invA, invB, out]);
+  }
+});
+
+test('000235.03 IV3: установка — castOutOfCombat действия «невидимость» (days 1..3): ok, запись {spellId, expiresDay: day+days}, мана ровно «мани», isHeroInvisible → true; перезаклинание — обновление in place (без дубля); «не хватает маны» — без мутаций; без days — «неполные параметры: days» (пин DURATION_ACTIONS)', () => {
+  const dataMod = loadSpellsData();
+  const inv1 = invGuest0235('iv3_d1'); // days 1, мани 5
+  const inv3 = invGuest0235('iv3_d3', { параметры: { days: 3 } });
+  const invN = invGuest0235('iv3_nd', { параметры: {} });
+  try {
+    pushOcGuests(dataMod, [inv1, inv3, invN]);
+    const { castOutOfCombat, isHeroInvisible } = loadSpells();
+    assert.equal(typeof isHeroInvisible, 'function',
+      '000235.03: export Spells.isHeroInvisible (src/spells.js)');
+    const day = 10;
+    const p = spellHero({ spells: [inv1.id, inv3.id, invN.id], mp: 30 });
+    const r1 = castOutOfCombat(p, inv1.id, day);
+    assert.equal(r1.ok, true, 'каст действия «невидимость» — ok');
+    assert.equal(r1.expiresDay, day + 1, 'days 1 → expiresDay = day+1');
+    assert.equal(p.mp, 25, 'мана ровно «мани» (5)');
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: inv1.id, expiresDay: day + 1 }], 'запись создана');
+    assert.equal(isHeroInvisible(p, day), true,
+      'после каста — isHeroInvisible true (день каста)');
+    const r2 = castOutOfCombat(p, inv1.id, day); // перезаклинание, тот же день
+    assert.equal(r2.ok, true, 'кулдаунов НЕТ: второй каст в тот же день');
+    assert.equal(p.outOfCombatEffects.length, 1,
+      'перезаклинание — ОБНОВЛЕНИЕ in place (без дубля)');
+    assert.equal(p.mp, 20, 'мана снята дважды (5 + 5)');
+    const r3 = castOutOfCombat(p, inv3.id, day);
+    assert.equal(r3.ok, true, 'days 3 — ok');
+    assert.equal(r3.expiresDay, day + 3, 'days 3 → expiresDay = day+3');
+    assert.equal(p.outOfCombatEffects.length, 2,
+      'другой spellId — вторая запись');
+    assert.equal(isHeroInvisible(p, day), true,
+      'две активные записи — true');
+    const pPoor = spellHero({ spells: [inv1.id], mp: 4 });
+    const r4 = castOutOfCombat(pPoor, inv1.id, day);
+    assert.equal(r4.ok, false);
+    assert.equal(r4.reason, 'не хватает маны');
+    assert.equal(pPoor.mp, 4, 'при отказе мана не снимается');
+    assert.equal(pPoor.outOfCombatEffects, undefined,
+      'при отказе поле НЕ создаётся');
+    const pN = spellHero({ spells: [invN.id], mp: 30 });
+    const r5 = castOutOfCombat(pN, invN.id, day);
+    assert.equal(r5.ok, false, 'без параметров.days — fail-closed');
+    assert.equal(r5.reason, 'неполные параметры: days',
+      'пин: DURATION_ACTIONS несёт действие «невидимость» (не только '
+      + '«внебой» — пин .02)');
+    assert.equal(pN.mp, 30, 'отказ — до расхода');
+    assert.equal(pN.outOfCombatEffects, undefined, 'отказ — без мутаций');
+  } finally {
+    popOcGuests(dataMod, [inv1, inv3, invN]);
+  }
+});
+
+test('000235.03 IV4: снятие-примитив (триггеры «атака» / «вступление в бой»): каст → isHeroInvisible true → clearInvisibility → false (запись вынесена, чужие живы); повтор — no-op (идентичность)', () => {
+  const dataMod = loadSpellsData();
+  const inv = invGuest0235('iv4_inv', { параметры: { days: 2 } });
+  const out = ocGuest0235('iv4_out');
+  try {
+    pushOcGuests(dataMod, [inv, out]);
+    const { castOutOfCombat, isHeroInvisible, clearInvisibility }
+      = loadSpells();
+    assert.equal(typeof isHeroInvisible, 'function',
+      '000235.03: export Spells.isHeroInvisible (src/spells.js)');
+    assert.equal(typeof clearInvisibility, 'function',
+      '000235.03: export Spells.clearInvisibility (src/spells.js)');
+    const p = spellHero({ spells: [inv.id, out.id], mp: 30 });
+    assert.equal(castOutOfCombat(p, out.id, 10).ok, true, 'фикстура: «внебой»');
+    assert.equal(castOutOfCombat(p, inv.id, 10).ok, true,
+      'фикстура: «невидимость» (expiresDay 12)');
+    assert.equal(isHeroInvisible(p, 10), true, 'после каста — невидим');
+    clearInvisibility(p);
+    assert.equal(isHeroInvisible(p, 10), false,
+      'после clearInvisibility — видим (примитив, который вызывают '
+      + 'хуки старта боя main.js)');
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: out.id, expiresDay: 12 }],
+      'запись «невидимость» вынесена; соседняя «внебой» жива');
+    const arr = p.outOfCombatEffects;
+    clearInvisibility(p);
+    assert.equal(p.outOfCombatEffects, arr, 'повтор — no-op (идентичность)');
+    assert.equal(isHeroInvisible(p, 10), false, 'повтор — всё ещё видим');
+  } finally {
+    popOcGuests(dataMod, [inv, out]);
+  }
+});

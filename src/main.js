@@ -1693,6 +1693,14 @@
       efirMet = true;
     }
   }
+  // 000235.03: снятие невидимости вступлением в бой — на всех 3
+  // точках startCombat (после guard'ов, до startCombat); тихий
+  // call-time гард (деградация — до-.03, игра не падает).
+  function clearInvisibilityOnCombatStart() {
+    if (G.Spells && typeof G.Spells.clearInvisibility === 'function') {
+      G.Spells.clearInvisibility(hero);
+    }
+  }
   // Бой на текущем тайле (одна точка истины мир-боя: делегация
   // __game.actions.startCombat ниже; тело — 1:1). extra (задача
   // 000077): { seed } — детерминированный боевой сид (босс
@@ -1720,6 +1728,7 @@
     // Задача 000087: `const combat` — onEnd (finish) читает ЖИВОЙ
     // объект боя ПОЗЖЕ return (гибель — по combat.units, D2);
     // startCombat → null (isActive guard выше) → onEnd не вызывается.
+    clearInvisibilityOnCombatStart();
     const combat = G.combatUI.startCombat({
       hero,
       // Эфир (задача 000081): постоянный союзник — ВСЕГДА, включая
@@ -2134,11 +2143,25 @@
     return out;
   }
 
+  // 000235.03: единая точка расширения «зона не триггерится для
+  // героя: причина» (ТЗ п.5; .04 — зональная ветка warding_circle
+  // по аргументу zone, Чебышёв ≤ 5).
+  function zoneSuppressedReason(zone) {
+    void zone;
+    if (G.Spells && typeof G.Spells.isHeroInvisible === 'function'
+        && G.Spells.isHeroInvisible(hero, clock.day)) {
+      return 'невидимость';
+    }
+    return null;
+  }
+
   // 000135: зона для текущей позиции (тайл группы или null) — ОДИН
   // общий скан (бой + HUD). Тихий гард — ошибка уже видна при
-  // загрузке.
+  // загрузке. 000235.03: невидимый герой — findZoneCombat НЕ
+  // вызывается (zone-бой и HUD «— зона» гаснут одной точкой).
   function zoneCombatInfo() {
     if (typeof G.findZoneCombat !== 'function') return null;
+    if (zoneSuppressedReason()) return null;
     return G.findZoneCombat(player.x, player.y,
       nearbyGroupTiles(), defeatedAt);
   }
@@ -2227,6 +2250,7 @@
     }
     // Задача 000087: `const combat` — onEnd читает ЖИВОЙ объект боя
     // ПОЗЖЕ (гибель — по combat.units, D2); guard isActive — выше.
+    clearInvisibilityOnCombatStart();
     const combat = G.combatUI.startCombat({
       hero,
       // Эфир (задача 000081): постоянный союзник — ВСЕГДА.
@@ -2810,6 +2834,7 @@
     // Задача 000087: `const combat` — onEnd читает ЖИВОЙ объект боя
     // ПОЗЖЕ (гибель — по combat.units, D2); guard isActive — выше
     // (в вызывающем коде подземелья).
+    clearInvisibilityOnCombatStart();
     const combat = G.combatUI.startCombat({
       hero,
       // Эфир (задача 000081): постоянный союзник — ВСЕГДА.
