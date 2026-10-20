@@ -1211,6 +1211,56 @@ function findNearestAnimated238(G, myMap, sx, sy, cap) {
   return { target: found, steps, slot: found.tile.building };
 }
 
+function findNearestApothecary238(G, myMap, sx, sy, cap) {
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const visited = new Set([sx + ',' + sy]);
+  const prev = new Map();
+  let frontier = [{ x: sx, y: sy }];
+  let depth = 0;
+  let found = null;
+  while (frontier.length && depth < cap && !found) {
+    const next = [];
+    for (const t of frontier) {
+      for (const [dx, dy] of DIRS) {
+        const x = t.x + dx, y = t.y + dy;
+        const k = x + ',' + y;
+        if (visited.has(k)) continue;
+        const tile = myMap.tileAt(x, y);
+        const cityEntrance = tile.isEntrance
+          && tile.building === G.BUILDING_TYPES.NONE
+          && tile.buildingId != null;
+        const caveEntrance = tile.hasBuilding
+          && tile.building === G.BUILDING_TYPES.CAVE_ENTRANCE;
+        const isGoal = tile.isEntrance
+          && tile.building === G.BUILDING_TYPES.APOTHECARY
+          && !tile.hasMobGroup;
+        if (isGoal) {
+          visited.add(k);
+          prev.set(k, t);
+          found = { x, y, tile };
+          break;
+        }
+        if (!tile.passable || tile.hasMobGroup || caveEntrance
+            || cityEntrance) continue;
+        visited.add(k);
+        prev.set(k, t);
+        next.push({ x, y });
+      }
+      if (found) break;
+    }
+    frontier = next;
+    depth++;
+  }
+  if (!found) return null;
+  const steps = [];
+  let cur = { x: found.x, y: found.y };
+  while (!(cur.x === sx && cur.y === sy)) {
+    steps.unshift(cur);
+    cur = prev.get(cur.x + ',' + cur.y);
+  }
+  return { target: found, steps, slot: found.tile.building };
+}
+
 // BFS до ближайшего лагеря (hasBuilding && buildingId = 47) — 1:1
 // findNearest tests/camp-map-e2e.test.js: ЦЕЛЬ проверяется ДО
 // исключения (лагерь — NONE-вход, не промежуточный узел).
@@ -1420,6 +1470,93 @@ test('RM-BA-4 (Задача 000238, RED): строгая готовность �
     'мобы: ready → маркеров нет (XOR)');
   assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
     'герой: ready → legacy-ромба нет (XOR)');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
+
+test('000238.02 R2 (ретро): карта — Аптекарь (слот 2) — на якоря (2,−36), 38 шагов, drawImage КАДРА apothecary_1..4.svg (не статичная база apothecary.svg), rec.w×rec.h × zoom; +800 мс — кадр другой; тот же now — идентично (D10); тайлы/мобы/герой интактны; errors 0', async () => {
+  const h = await boot();
+  assertReady(h);
+  const G = h.sandbox.Game;
+  assert.ok(Array.isArray(G.buildingFrames(G.BUILDING_TYPES.APOTHECARY))
+      && G.buildingFrames(G.BUILDING_TYPES.APOTHECARY).length === 4,
+    'строка BUILDING_FRAMES[2] (Аптекарь) — 4 кадра (Задача 000238)');
+  assert.ok(Array.isArray(G.buildingFrames(G.BUILDING_TYPES.ACADEMY))
+      && G.buildingFrames(G.BUILDING_TYPES.ACADEMY).length === 4,
+    'строка BUILDING_FRAMES[7] (академия) — 4 кадра (Задача 000238)');
+  const myMap = G.createMap(G.generateSeedPixels());
+  const sc = findNearestApothecary238(G, myMap, 0, 0, 400);
+  assert.ok(sc, 'сценарий: аптекарь пешком достижим от спавна');
+  assert.deepEqual({ x: sc.target.x, y: sc.target.y }, { x: 2, y: -36 },
+    'сценарий: nearest Аптекарь — (2,−36) (дрейф мира — тест обязан упасть)');
+  assert.equal(sc.steps.length, 38,
+    'сценарий: 38 шагов от спавна (факт ' + sc.steps.length + ')');
+  const rec = myMap.buildingAt(sc.target.x, sc.target.y);
+  assert.equal(rec.type, sc.slot,
+    'сценарий: buildingAt(якорь) — та же постройка (слот ' + sc.slot + ')');
+  assert.equal(rec.w * rec.h, 1, 'сценарий: постройка 1×1 (один маркерный квад)');
+  let now = NOW;
+  const walker = makeRouteWalker(h);
+  for (const st of sc.steps) now = walker(st.x, st.y);
+  const f1 = frameAt(h, now + 200);
+  const st1 = h.sandbox.__game.state;
+  const p = G.worldToScreen(rec.x, rec.y, st1.cam.x, st1.cam.y,
+    st1.zoom, VIEW_W, VIEW_H);
+  const bds = drawImages(f1.draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const hit = bds.find((c) =>
+    Math.abs(c[1][1] - p.x) <= 1e-6 && Math.abs(c[1][2] - p.y) <= 1e-6
+    && Math.abs(c[1][3] - rec.w * st1.zoom) <= 1e-6
+    && Math.abs(c[1][4] - rec.h * st1.zoom) <= 1e-6);
+  assert.ok(hit,
+    'Аптекарь — спрайт на якоря (' + rec.x + ',' + rec.y + '); '
+    + 'building-drawImage в кадре: '
+    + bds.map((c) => assetOf(c)).join(', '));
+  const frames = G.buildingFrames(rec.type);
+  assert.ok(Array.from(frames).includes(assetOf(hit)),
+    'нарисованный спрайт — КАДР таблицы (' + assetOf(hit)
+    + '), а не статичная база');
+  assert.notEqual(assetOf(hit), G.buildingSprite(rec.type),
+    'нарисованный спрайт ≠ статичной базе (' + G.buildingSprite(rec.type) + ')');
+  assert.equal(tileVerts(h.glCalls), 0, 'тайлы: все ready → 0 тайл-квадов');
+  assert.equal(countColor(h.glCalls, BUILDING_COLOR), 0,
+    'постройки ready → маркеров BUILDING_COLOR нет (XOR)');
+  assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
+    'герой ready → legacy-ромба нет (XOR)');
+  assert.equal(heroDraws(f1.draw).length, 1, 'герой: 1× (спрайт-слой)');
+  const N_mob1 = mobDraws(f1.draw).length;
+  // D10: повторный рендер на ТОМ ЖЕ now — идентичен (тот же кадр).
+  const f1b = frameAt(h, now + 200);
+  const st1b = h.sandbox.__game.state;
+  const pb = G.worldToScreen(rec.x, rec.y, st1b.cam.x, st1b.cam.y,
+    st1b.zoom, VIEW_W, VIEW_H);
+  const bdsb = drawImages(f1b.draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const hitb = bdsb.find((c) =>
+    Math.abs(c[1][1] - pb.x) <= 1e-6 && Math.abs(c[1][2] - pb.y) <= 1e-6
+    && Math.abs(c[1][3] - rec.w * st1b.zoom) <= 1e-6
+    && Math.abs(c[1][4] - rec.h * st1b.zoom) <= 1e-6);
+  assert.ok(hitb, 'D10: повторный рендер — постройка на месте');
+  assert.equal(assetOf(hitb), assetOf(hit), 'D10: тот же now — тот же кадр');
+  assert.equal(bdsb.length, bds.length,
+    'D10: число building-draw не изменилось');
+  // +800 мс (один BUILDING_FRAME_MS) — кадр сменился (анимация видна).
+  const f2 = frameAt(h, now + 1000);
+  const st2 = h.sandbox.__game.state;
+  const p2 = G.worldToScreen(rec.x, rec.y, st2.cam.x, st2.cam.y,
+    st2.zoom, VIEW_W, VIEW_H);
+  const bds2 = drawImages(f2.draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const hit2 = bds2.find((c) =>
+    Math.abs(c[1][1] - p2.x) <= 1e-6 && Math.abs(c[1][2] - p2.y) <= 1e-6
+    && Math.abs(c[1][3] - rec.w * st2.zoom) <= 1e-6
+    && Math.abs(c[1][4] - rec.h * st2.zoom) <= 1e-6);
+  assert.ok(hit2, 'постройка по-прежнему нарисована через 800 мс');
+  assert.ok(Array.from(frames).includes(assetOf(hit2)),
+    'через 800 мс — тоже кадр таблицы (' + assetOf(hit2) + ')');
+  assert.notEqual(assetOf(hit2), assetOf(hit),
+    'через 800 мс кадр ДРУГОЙ (анимация видна): ' + assetOf(hit)
+    + ' → ' + assetOf(hit2));
+  assert.equal(mobDraws(f2.draw).length, N_mob1, 'мобы: интактны');
   assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
 });
 

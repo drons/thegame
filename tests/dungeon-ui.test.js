@@ -3673,6 +3673,12 @@ const BA_FR_APOT = [
   'assets/sprites/buildings/apothecary_3.svg',
   'assets/sprites/buildings/apothecary_4.svg',
 ];
+const BA_FR_ACAD = [
+  'assets/sprites/buildings/academy_1.svg',
+  'assets/sprites/buildings/academy_2.svg',
+  'assets/sprites/buildings/academy_3.svg',
+  'assets/sprites/buildings/academy_4.svg',
+];
 
 test('000238 CU-BA-3 (RED): город — Аптекарь (id 3, слот 2) — на клетке КАДР таблицы (не статичная база apothecary.svg), zoom×zoom на угле; +800 мс — кадр другой (анимация видна); тот же now — идентично (D10); hex-пол сохранён; errors 0', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 },
@@ -3759,4 +3765,93 @@ test('000238 CU-BA-4 (RED): строгая готовность в городе 
   assert.notEqual(colors['2,2'], '#0a0d12', 'пол (2,2) — не фон');
   assert.equal(loaded.errors.length, 0,
     'тихий skip — без console.error: ' + loaded.errors.join('; '));
+});
+
+test('000238.02 R3 (ретро): город — Аптекарь (id 3, слот 2) и Школа акробатов (id 11, слот 7) — ОБА слота волны в одном тесте (паттерн CU-BA-1): на клетках (2,2)/(4,3) КАДР таблицы (не статичная база), zoom×zoom на угле; +800 мс — кадр другой; тот же now — идентично (D10); hex-пол сохранён; errors 0', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  assert.ok(Array.isArray(G.buildingFrames(2))
+      && G.buildingFrames(2).length === 4,
+    'строка BUILDING_FRAMES[2] (Аптекарь) — 4 кадра (Задача 000238)');
+  assert.ok(Array.isArray(G.buildingFrames(7))
+      && G.buildingFrames(7).length === 4,
+    'строка BUILDING_FRAMES[7] (академия) — 4 кадра (Задача 000238)');
+  assert.equal(typeof G.buildingFrameIndex, 'function',
+    'sprites.js: экспорт buildingFrameIndex(nowMs, tx, ty, n) (000224)');
+  assert.deepEqual(Array.from(G.buildingFrames(2)), BA_FR_APOT,
+    'buildingFrames(2) — кадры аптекаря');
+  assert.deepEqual(Array.from(G.buildingFrames(7)), BA_FR_ACAD,
+    'buildingFrames(7) — кадры академии');
+  const s = baCityState([
+    { x: 2, y: 2, buildingId: 3 }, // Аптекарь → слот 2
+    { x: 4, y: 3, buildingId: 11 }, // Школа акробатов → слот 7
+  ]);
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader(
+      [...BA_FR_APOT, ...BA_FR_ACAD,
+       G.buildingSprite(2), G.buildingSprite(7)]) });
+  const canvas = findCanvas(loaded.body);
+  const n1 = canvas.drawCalls.length;
+  const d1a = baCellDraws(canvas.drawCalls.slice(0, n1), G, 2, 2, 48);
+  const d1b = baCellDraws(canvas.drawCalls.slice(0, n1), G, 4, 3, 48);
+  assert.equal(d1a.length, 1, 'id 3 — building-спрайт на клетке (2,2)');
+  assert.equal(d1b.length, 1, 'id 11 — building-спрайт на клетке (4,3)');
+  assert.ok(BA_FR_APOT.includes(d1a[0][1][0].__img),
+    'id 3 — нарисован КАДР таблицы (не статичная база): '
+    + d1a[0][1][0].__img);
+  assert.notEqual(d1a[0][1][0].__img, G.buildingSprite(2),
+    'id 3 — кадр ≠ статичной базе');
+  assert.ok(BA_FR_ACAD.includes(d1b[0][1][0].__img),
+    'id 11 — нарисован КАДР таблицы (не статичная база): '
+    + d1b[0][1][0].__img);
+  assert.notEqual(d1b[0][1][0].__img, G.buildingSprite(7),
+    'id 11 — кадр ≠ статичной базе');
+  // +800 мс (один BUILDING_FRAME_MS) — кадр сменился (анимация видна).
+  G.dungeonUI.render(1000 + 800);
+  const n2 = canvas.drawCalls.length;
+  const seg2 = canvas.drawCalls.slice(n1, n2);
+  const d2a = baCellDraws(seg2, G, 2, 2, 48);
+  const d2b = baCellDraws(seg2, G, 4, 3, 48);
+  assert.equal(d2a.length, 1, 'id 3 — через 800 мс спрайт на месте');
+  assert.equal(d2b.length, 1, 'id 11 — через 800 мс спрайт на месте');
+  assert.notEqual(d2a[0][1][0].__img, d1a[0][1][0].__img,
+    'id 3 — через 800 мс кадр ДРУГОЙ (анимация): ' + d1a[0][1][0].__img
+    + ' → ' + d2a[0][1][0].__img);
+  assert.notEqual(d2b[0][1][0].__img, d1b[0][1][0].__img,
+    'id 11 — через 800 мс кадр ДРУГОЙ (анимация): ' + d1b[0][1][0].__img
+    + ' → ' + d2b[0][1][0].__img);
+  // D10: повторный рендер на ТОМ ЖЕ now (1000) — идентичен первому.
+  G.dungeonUI.render(1000);
+  const seg3 = canvas.drawCalls.slice(n2);
+  const d3a = baCellDraws(seg3, G, 2, 2, 48);
+  const d3b = baCellDraws(seg3, G, 4, 3, 48);
+  assert.equal(d3a[0][1][0].__img, d1a[0][1][0].__img,
+    'D10: тот же now — тот же кадр (id 3)');
+  assert.equal(d3b[0][1][0].__img, d1b[0][1][0].__img,
+    'D10: тот же now — тот же кадр (id 11)');
+  const i1a = G.buildingFrameIndex(1000, 2, 2, BA_FR_APOT.length);
+  const i2a = G.buildingFrameIndex(1000 + 800, 2, 2, BA_FR_APOT.length);
+  const i1b = G.buildingFrameIndex(1000, 4, 3, BA_FR_ACAD.length);
+  const i2b = G.buildingFrameIndex(1000 + 800, 4, 3, BA_FR_ACAD.length);
+  assert.equal(d1a[0][1][0].__img, BA_FR_APOT[i1a],
+    'id 3 — кадр = buildingFrameIndex(now, клетка)');
+  assert.equal(d2a[0][1][0].__img, BA_FR_APOT[i2a],
+    'id 3 — +800 мс — индекс шагнул на 1');
+  assert.equal(d1b[0][1][0].__img, BA_FR_ACAD[i1b],
+    'id 11 — кадр = buildingFrameIndex(now, клетка)');
+  assert.equal(d2b[0][1][0].__img, BA_FR_ACAD[i2b],
+    'id 11 — +800 мс — индекс шагнул на 1');
+  // hex-палитра сохранена (спрайт лежит НА поле, не заменяет его).
+  const colors = cityCellColors(canvas.drawCalls, G, s, 48, 3, 3);
+  assert.ok(colors['2,2'] && colors['4,3'],
+    'пол под постройками нарисован fillRect');
+  assert.notEqual(colors['2,2'], '#182029',
+    'пол (2,2) — не фолбэк-пол подземелья (hex сохранён)');
+  assert.notEqual(colors['2,2'], '#0a0d12', 'пол (2,2) — не фон');
+  assert.notEqual(colors['4,3'], '#182029',
+    'пол (4,3) — не фолбэк-пол подземелья (hex сохранён)');
+  assert.notEqual(colors['4,3'], '#0a0d12',
+    'пол (4,3) — не фон «за пределами»');
+  assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
 });

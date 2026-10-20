@@ -301,6 +301,11 @@ test('000238 BA-4: BUILDING_FRAMES[2] (Аптекарь) и [7] (академи�
   for (const p of all16) {
     assert.ok(exists(p), 'нет файла кадра: ' + p);
   }
+  for (const p of [...APOT_FRAMES, ...ACAD_FRAMES]) {
+    assert.ok(
+      fs.readFileSync(path.join(ROOT, p), 'utf8').includes('viewBox="0 0 64 64"'),
+      'viewBox 64×64 у кадра: ' + p);
+  }
   // КАДР 1 = БАЙТ-КОПИЯ статичной базы (идеология 000224: кадры 2–4 —
   // та же композиция, движется только анимированный элемент).
   assert.equal(Buffer.compare(
