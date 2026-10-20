@@ -94,6 +94,11 @@
     ITEM_KINDS.WEAPON, ITEM_KINDS.ARMOR, ITEM_KINDS.SHIELD,
     ITEM_KINDS.ARTIFACT, ITEM_KINDS.TOOL, ITEM_KINDS.RING,
   ]);
+  // --- Наборы экипировки: set-бонусы (задача 000230.04) ---
+  // Пороги — число НАДЕТЫХ предметов набора (каждый предмет = 1,
+  // кольцо = 1); каждый порог активен независимо, кумулятивно.
+  const SET_BONUS_THRESHOLDS = [2, 3, 4];
+  const SET_BONUS_KEYS = SET_BONUS_THRESHOLDS.map(String);
 
   // --- Физические слоты экипировки (задача 000230.02) ---
   // 18 физ. слотов = ключи c.equipment: 10 одиночных (группа = слот
@@ -168,6 +173,30 @@
   // items.js — прецедент spell_scroll :155-158; каталожность —
   // тестом). Лишние ключи элемента не бросают (ловит schema
   // additionalProperties false в node).
+  // Ядро проверки одного аффикса (000230.03/000230.04): label — путь
+  // элемента ('affixes[0]' / 'set_bonus.2[1]'); сообщения побайтово
+  // как у validateAffixes до рефактора.
+  function validateAffixEntry(it, a, label) {
+    if (!a || typeof a !== 'object' || Array.isArray(a))
+      throw new Error(it.id + ': ' + label + ' — объект');
+    if (a.type === AFFIX_TYPES.SKILL) {
+      if (typeof a.skill !== 'string' ||
+          !/^[a-z][a-z0-9_]*$/.test(a.skill)) {
+        throw new Error(it.id + ': ' + label + '.skill — id навыка');
+      }
+      if (typeof a.amount !== 'number' || !Number.isFinite(a.amount)) {
+        throw new Error(it.id + ': ' + label + '.amount — число');
+      }
+    } else if (a.type === AFFIX_TYPES.FREE_CAST) {
+      if (typeof a.spell !== 'string' ||
+          !/^[a-z][a-z0-9_]*$/.test(a.spell)) {
+        throw new Error(it.id + ': ' + label + '.spell — id заклинания');
+      }
+    } else {
+      throw new Error(it.id + ': ' + label + '.type — skill|free_cast');
+    }
+  }
+
   function validateAffixes(it) {
     const affixes = it.affixes;
     if (!Array.isArray(affixes))
@@ -175,23 +204,59 @@
     if (affixes.length === 0)
       throw new Error(it.id + ': affixes — непустой массив');
     for (const [i, a] of affixes.entries()) {
-      if (!a || typeof a !== 'object' || Array.isArray(a))
-        throw new Error(it.id + ': affixes[' + i + '] — объект');
-      if (a.type === AFFIX_TYPES.SKILL) {
-        if (typeof a.skill !== 'string' ||
-            !/^[a-z][a-z0-9_]*$/.test(a.skill)) {
-          throw new Error(it.id + ': affixes[' + i + '].skill — id навыка');
+      validateAffixEntry(it, a, 'affixes[' + i + ']');
+    }
+  }
+
+  // set_bonus (задача 000230.04): объект {2, 3, 4} → эффект; пороги
+  // ⊆ {2,3,4}; значение — непустой массив affixes (ядро
+  // validateAffixEntry) или объект {armor? >= 0, damage? >= 1}
+  // (верхние границы 100 — в схеме; JS — нижние, паттерн stats).
+  function validateSetBonus(it) {
+    const bonus = it.set_bonus;
+    if (!bonus || typeof bonus !== 'object' || Array.isArray(bonus))
+      throw new Error(it.id + ': set_bonus — объект {2, 3, 4}');
+    const keys = Object.keys(bonus);
+    if (keys.length === 0)
+      throw new Error(it.id + ': set_bonus — непустой объект');
+    for (const t of keys) {
+      if (!SET_BONUS_KEYS.includes(t)) {
+        throw new Error(it.id + ': set_bonus — порог ' + t
+          + ' вне {2,3,4}');
+      }
+      const v = bonus[t];
+      if (Array.isArray(v)) {
+        if (v.length === 0) {
+          throw new Error(it.id + ': set_bonus.' + t
+            + ' — непустой массив');
         }
-        if (typeof a.amount !== 'number' || !Number.isFinite(a.amount)) {
-          throw new Error(it.id + ': affixes[' + i + '].amount — число');
+        v.forEach((a, i) => validateAffixEntry(
+          it, a, 'set_bonus.' + t + '[' + i + ']'));
+      } else if (v && typeof v === 'object') {
+        const vk = Object.keys(v);
+        if (vk.length === 0) {
+          throw new Error(it.id + ': set_bonus.' + t
+            + ' — объект {armor?, damage?}');
         }
-      } else if (a.type === AFFIX_TYPES.FREE_CAST) {
-        if (typeof a.spell !== 'string' ||
-            !/^[a-z][a-z0-9_]*$/.test(a.spell)) {
-          throw new Error(it.id + ': affixes[' + i + '].spell — id заклинания');
+        if (!vk.every((k) => k === 'armor' || k === 'damage')) {
+          throw new Error(it.id + ': set_bonus.' + t
+            + ' — только armor|damage');
+        }
+        if (v.armor !== undefined &&
+            (typeof v.armor !== 'number' ||
+             !Number.isFinite(v.armor) || v.armor < 0)) {
+          throw new Error(it.id + ': set_bonus.' + t
+            + '.armor — число >= 0');
+        }
+        if (v.damage !== undefined &&
+            (typeof v.damage !== 'number' ||
+             !Number.isFinite(v.damage) || v.damage < 1)) {
+          throw new Error(it.id + ': set_bonus.' + t
+            + '.damage — число >= 1');
         }
       } else {
-        throw new Error(it.id + ': affixes[' + i + '].type — skill|free_cast');
+        throw new Error(it.id + ': set_bonus.' + t
+          + ' — массив (affixes) или объект {armor?, damage?}');
       }
     }
   }
@@ -262,15 +327,16 @@
         throw new Error(it.id + ': чертёж — неверный id рецепта: ' + e.recipe);
       }
     }
-    // Поля экипировки (задача 000230.01): slot/rarity/set/affixes —
-    // ОПЦИОНАЛЬНЫЕ, только у 6 экипируемых kind (EQUIP_KINDS);
-    // новый kind — ВСЕГДА с явным slot (D1); у weapon/armor slot —
-    // ОПЦИОНАЛЕН (фолбэк .02).
+    // Поля экипировки (задачи 000230.01/000230.04):
+    // slot/rarity/set/set_bonus/affixes — ОПЦИОНАЛЬНЫЕ, только у 6
+    // экипируемых kind (EQUIP_KINDS); новый kind — ВСЕГДА с явным slot
+    // (D1); у weapon/armor slot — ОПЦИОНАЛЕН (фолбэк .02).
     if (!EQUIP_KINDS.has(it.kind) &&
         (it.slot !== undefined || it.rarity !== undefined ||
-         it.set !== undefined || it.affixes !== undefined)) {
-      throw new Error(it.id +
-        ': поля экипировки (slot/rarity/set/affixes) — только у экипируемых');
+         it.set !== undefined || it.set_bonus !== undefined ||
+         it.affixes !== undefined)) {
+      throw new Error(it.id + ': поля экипировки '
+        + '(slot/rarity/set/set_bonus/affixes) — только у экипируемых');
     }
     if ((it.kind === ITEM_KINDS.SHIELD ||
          it.kind === ITEM_KINDS.ARTIFACT ||
@@ -290,6 +356,11 @@
         (typeof it.set !== 'string' || !/^[a-z][a-z0-9_]*$/.test(it.set))) {
       throw new Error(it.id + ': set — неверный паттерн');
     }
+    // set_bonus (задача 000230.04) — только у предмета из набора.
+    if (it.set_bonus !== undefined && it.set === undefined) {
+      throw new Error(it.id + ': set_bonus — только с set');
+    }
+    if (it.set_bonus !== undefined) validateSetBonus(it);
     if (it.affixes !== undefined) validateAffixes(it);
   }
 
@@ -1226,10 +1297,12 @@
   /**
    * Боевые характеристики снаряжения (для combat.js):
    * { damage, subtype, hitBonus, dmgBonus, armor } — ИНТЕРФЕЙС НЕ
-   * МЕНЯЕТСЯ (задача 000230.02): damage/subtype/hitBonus/dmgBonus —
-   * из оружия в right_hand; armor — СУММА stats.armor всех 18 физ.
-   * слотов. damage/armor включают бонус качества надетого (задача
-   * 000046, raw-чтение c.equipmentBonus — без side effects).
+   * МЕНЯЕТСЯ (задачи 000230.02/000230.04): damage/subtype/hitBonus/
+   * dmgBonus — из оружия в right_hand + set-damage (гейт: только с
+   * оружием, 000230.04); armor — СУММА stats.armor всех 18 физ. слотов
+   * + set-armor активных порогов наборов (000230.04). damage/armor
+   * включают бонус качества надетого (задача 000046, raw-чтение
+   * c.equipmentBonus — без side effects).
    */
   function equipmentStats(c) {
     const eq = ensureEquipment(c);
@@ -1237,11 +1310,15 @@
     const eb = (c.equipmentBonus && typeof c.equipmentBonus === 'object'
       && !Array.isArray(c.equipmentBonus)) ? c.equipmentBonus : null;
     const out = { damage: 0, subtype: null, hitBonus: 0, dmgBonus: 0, armor: 0 };
+    // Наборы (задача 000230.04): set-damage — ТОЛЬКО в оружейной ветке
+    // (без оружия не создаётся «фантомное оружие» — D-02); set-armor —
+    // плоская сумма, без условий.
+    const st = activeSets(c);
     if (eq.right_hand) {
       const it = getItem(eq.right_hand);
       if (it && it.stats && typeof it.stats.damage === 'number') {
         out.damage = it.stats.damage +
-          ((eb && eb.right_hand && eb.right_hand.damage) || 0);
+          ((eb && eb.right_hand && eb.right_hand.damage) || 0) + st.damage;
         out.subtype = it.subtype;
         if (it.subtype === 'sword') out.hitBonus = d.swordHitBonus;
         else if (it.subtype === 'bow') {
@@ -1258,7 +1335,76 @@
           ((eb && eb[s] && eb[s].armor) || 0);
       }
     }
+    out.armor += st.armor;
     return out;
+  }
+
+  // Наборы экипировки (задача 000230.04): счёт НАДЕТЫХ предметов по
+  // set и бонусы активных порогов [2,3,4] (независимо, кумулятивно).
+  // ЧИСТАЯ: raw c.equipment (ensureEquipment НЕ вызывается); ТОЛЬКО
+  // EQUIP_PHYS_SLOTS (зеркальные ключи weapon/armor — не итерировать);
+  // каждый надетый предмет = 1 (кольцо = 1); ghost-id / falsy id /
+  // set без set_bonus — skip; runtime — без throw (валидность
+  // каталога — validateItem при загрузке). Данные порога —
+  // REPRESENTATIVE: значение берётся у ПЕРВОГО (по порядку слотов)
+  // надетого предмета набора, у которого определён set_bonus[t]
+  // (контракт контента: все предметы набора декларируют ОДИНАКОВЫЙ
+  // set_bonus — суммирование по предметам дало бы ×count-переучёт).
+  function activeSets(c) {
+    const counts = {};
+    const skills = {};
+    const freeCast = new Set();
+    let armor = 0;
+    let damage = 0;
+    const eq = (c && typeof c === 'object') ? c.equipment : null;
+    if (!eq || typeof eq !== 'object' || Array.isArray(eq)) {
+      return { counts, skills, freeCast, armor, damage };
+    }
+    const bySet = new Map();
+    for (const s of EQUIP_PHYS_SLOTS) {
+      const id = eq[s];
+      if (!id) continue;
+      const it = getItem(id);
+      if (!it) continue;
+      if (typeof it.set !== 'string' || !it.set) continue;
+      counts[it.set] = (counts[it.set] || 0) + 1;
+      if (!bySet.has(it.set)) bySet.set(it.set, []);
+      bySet.get(it.set).push(it);
+    }
+    for (const [setName, its] of bySet) {
+      const n = counts[setName];
+      for (const t of SET_BONUS_THRESHOLDS) {
+        if (n < t) continue;
+        const key = String(t);
+        const rep = its.find((it) =>
+          it.set_bonus && typeof it.set_bonus === 'object' &&
+          !Array.isArray(it.set_bonus) &&
+          it.set_bonus[key] !== undefined);
+        if (!rep) continue;
+        const v = rep.set_bonus[key];
+        if (Array.isArray(v)) {
+          for (const a of v) mergeAffix(a, skills, freeCast);
+        } else if (v && typeof v === 'object') {
+          if (Number.isFinite(v.armor)) armor += v.armor;
+          if (Number.isFinite(v.damage)) damage += v.damage;
+        }
+      }
+    }
+    return { counts, skills, freeCast, armor, damage };
+  }
+
+  // Единый per-элемент-слияние аффикса в агрегат {skills, freeCast}
+  // (000230.03: affixes предметов; 000230.04: set-бонусы) — runtime,
+  // без throw (defensive skip битого элемента).
+  function mergeAffix(a, skills, freeCast) {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return;
+    if (a.skill) {
+      if (typeof a.amount !== 'number' || !Number.isFinite(a.amount)) {
+        return;
+      }
+      skills[a.skill] = (skills[a.skill] || 0) + a.amount;
+    }
+    if (a.spell) freeCast.add(a.spell);
   }
 
   function equipmentAffixes(c) {
@@ -1274,16 +1420,15 @@
       const it = getItem(id);
       if (!it) continue;
       if (!Array.isArray(it.affixes)) continue;
-      for (const a of it.affixes) {
-        if (!a || typeof a !== 'object' || Array.isArray(a)) continue;
-        if (a.skill) {
-          if (typeof a.amount !== 'number' ||
-              !Number.isFinite(a.amount)) continue;
-          skills[a.skill] = (skills[a.skill] || 0) + a.amount;
-        }
-        if (a.spell) freeCast.add(a.spell);
-      }
+      for (const a of it.affixes) mergeAffix(a, skills, freeCast);
     }
+    // Наборы (задача 000230.04): set-skill/free_cast — единый
+    // пайплайн (форма возврата {skills, freeCast} не меняется).
+    const st = activeSets(c);
+    for (const [k, v] of Object.entries(st.skills)) {
+      skills[k] = (skills[k] || 0) + v;
+    }
+    for (const s of st.freeCast) freeCast.add(s);
     return { skills, freeCast };
   }
 
@@ -1577,6 +1722,8 @@
     EQUIP_SLOTS, ITEM_RARITIES, AFFIX_TYPES, EQUIP_KINDS,
     // 000230.02: физ. слоты c.equipment (18) + кольца (8).
     RING_SLOTS, EQUIP_PHYS_SLOTS,
+    // 000230.04: наборы — пороги set-бонусов.
+    SET_BONUS_THRESHOLDS,
     INVENTORY_SLOTS, QUICK_SLOTS, MAX_STACK, BASE_CARRY_WEIGHT,
     BUY_WEALTH_MULT, SELL_WEALTH_MULT,
     // 000158.02: экспорт для тестов (негативные пути validateLoot).
@@ -1589,7 +1736,7 @@
     addItem, canAddItem, removeItem,
     setQuick, clearQuick, quickItem, firstQuickSlot, freeQuickSlot,
     addSkillXp, useItem, useQuickUnit, useQuickItem, takeQuickSlot,
-    equip, unequip, equipmentStats, equipmentAffixes, slotOf,
+    equip, unequip, equipmentStats, equipmentAffixes, activeSets, slotOf,
     shopKindsFor, makeShop, buyPrice, sellPrice, buyItem, sellItem,
     // Задача 000095: барахолка лагеря (id 47) — сток (tile, day),
     // свежестность, сериализация/восстановление раздела campStocks.

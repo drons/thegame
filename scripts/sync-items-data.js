@@ -89,9 +89,11 @@ for (const f of files) {
 // позиция свойства в схеме, паттерн 'tier' 000157.01).
 // 'icon' — 000211.06 (опциональная ссылка на svg-иконку лута; конец).
 // 'slot'/'rarity'/'set'/'affixes' — 000230.01 (поля экипировки; конец).
+// 'set_bonus' — 000230.04 (наборы; конец — после 'affixes', позиция
+// свойства в схеме).
 const KEYS = ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'tier',
   'desc', 'stats', 'effect', 'loot', 'icon', 'slot', 'rarity', 'set',
-  'affixes'];
+  'affixes', 'set_bonus'];
 
 // --- Генерация JS ---
 const range = `${files[0]} … ${files[files.length - 1]}`;

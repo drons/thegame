@@ -8,6 +8,7 @@ const I = require('../src/items.js');
 const M = require('../src/map.js');
 const { createCharacter, SECONDARY_SKILLS } = require('../src/player.js');
 const SKILLS_DATA = require('../src/skills-data.js');
+const { validateData } = require('./json-schema.js');
 
 const ITEMS_DIR = path.join(__dirname, '..', 'assets', 'items');
 
@@ -2011,15 +2012,17 @@ test('000230.01 E1: schema.json — slot ОПЦИОНАЛЬНО {type: string, e
     'верхний additionalProperties остаётся false (000141)');
 });
 
-test('000230.01 E1b: schema.json — порядок properties = 16 канонических ключей (связка с KEYS sync-items-data.js, E20)', () => {
+test('000230.01 E1b: schema.json — порядок properties = 17 канонических ключей (связка с KEYS sync-items-data.js, E20)', () => {
   const s = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
   assert.deepEqual(Object.keys(s.properties),
     ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'tier',
      'desc', 'stats', 'effect', 'loot', 'icon',
-     'slot', 'rarity', 'set', 'affixes'],
-    'порядок properties — append 4 новых ключей КОНЦОМ (после icon); '
-    + 'краснота: 12 ключей (slot/rarity/set/affixes нет); факт: '
+     'slot', 'rarity', 'set', 'affixes', 'set_bonus'],
+    'порядок properties — append 5 новых ключей КОНЦОМ (после icon; '
+    + 'set_bonus — 000230.04, ПОСЛЕ affixes); '
+    + 'краснота: 12 ключей (slot/rarity/set/affixes/set_bonus нет); '
+    + 'факт: '
     + JSON.stringify(Object.keys(s.properties)));
 });
 
@@ -3094,4 +3097,556 @@ test('000230.03-A3 (vm): несколько affixes на ОДИН навык —
   assert.ok(Math.abs(a2.skills.endurance - 0.35) < 1e-12,
     'один предмет, 2 записи endurance: 0.10 + 0.25 = 0.35');
   assert.equal(a2.freeCast.size, 0, 'free_cast у x_ring_two нет');
+});
+
+// --- Задача 000230.04: наборы экипировки — set-бонусы за 2/3/4+ предмета
+// (красные тесты TDD) ---
+//
+// Контракт — memory/000230.04-set-bonuses.md §2:
+//   * schema.json — ОПЦИОНАЛЬНОЕ свойство set_bonus КОНЦОМ properties
+//     (ПОСЛЕ affixes): объект с ключами {2|3|4} (anyOf-непустота),
+//     значение — oneOf [массив affixes (форма ДОСЛОВНО properties.affixes),
+//     стат-объект {damage?: 1..100, armor?: 0..100} (anyOf-непустота)];
+//     additionalProperties false на обоих уровнях; ключи "2"/"3"/"4" —
+//     пороги ⊆ {2,3,4} на уровне схемы. Минивалидатор (000015) без $ref
+//     → EFFECT инлайнится ×3.
+//   * validateItem: equipment-only-гард += set_bonus (сообщение —
+//     хвост «— только у экипируемых», E18-regex жив); set_bonus без set
+//     → throw «set_bonus — только с set»; validateSetBonus: не объект →
+//     throw, пустой → throw, порог ∉ {2,3,4} → throw, значение —
+//     affix-массив (ядро validateAffixEntry, label set_bonus.N[i]) или
+//     стат-объект {armor finite ≥ 0, damage finite ≥ 1} (пустой/лишний
+//     ключ/не число → throw).
+//   * activeSets(c) — НОВЫЙ чистый агрегатор → {counts: {<set>: n},
+//     skills: {<id>: Σ amount}, freeCast: Set(<spell>), armor: n,
+//     damage: n}; raw c.equipment (БЕЗ ensureEquipment), ТОЛЬКО
+//     EQUIP_PHYS_SLOTS (зеркала weapon/armor не итерировать), кольцо =
+//     1 предмет, ghost-id → skip, пороги [2,3,4] независимы и кумулятивны;
+//     данные набора — representative per-порог (первый надетый по
+//     порядку слотов с set_bonus[t] — анти-×count переучёт); runtime —
+//     без throw (defensive skip).
+//   * ЕДИНЫЙ пайплайн: equipmentAffixes (форма возврата {skills,
+//     freeCast} НЕ меняется) сливает set-skill/free_cast;
+//     equipmentStats (интерфейс {damage, subtype, hitBonus, dmgBonus,
+//     armor} НЕ меняется): armor += set-armor БЕЗУСЛОВНО, damage +=
+//     set-damage ТОЛЬКО в оружейной ветке (D-02 гейт: без оружия — не
+//     «фантомное оружие»).
+//   * sync-items-data.js: KEYS += 'set_bonus' КОНЦОМ (канон-порядок
+//     pos(set) < pos(affixes) < pos(set_bonus)); .04 без контента →
+//     зеркало items-data.js byte-identical, предметов с set_bonus — 0.
+// RED: set_bonus в схеме нет (SB1, SB11); activeSets в items.js не
+// экспортирован (SB2/SB3/SB5/SB15 — TypeError «not a function» в
+// assert-контексте, НЕ load-ошибка); set-бонусы отсутствуют в
+// equipmentStats (SB4 — deepEqual); веток валидации нет
+// (SB6/SB7/SB8/SB14 — Missing expected exception); KEYS sync без
+// set_bonus (SB12 — «ключи вне схемы» → exit 1).
+// Фикстуры — ТОЛЬКО в vm (каталог items.js — Map, строится при
+// загрузке; E9-пин 76/0-set жив — в каталог НЕ попадают). Set в vm —
+// Set vm-реальма: .size/.has напрямую, НЕ fromVm (JSON-ранд-трип убил
+// бы Set; паттерн A1/A2).
+
+function setFixtures00023004() {
+  const xguardBonus = {
+    2: [{ type: 'skill', skill: 'endurance', amount: 0.05 }],
+    3: { armor: 2 },
+    4: [{ type: 'free_cast', spell: 'mend' }],
+  };
+  const xstatBonus = {
+    2: { armor: 2 },
+    3: { armor: 1, damage: 1 },
+  };
+  return [
+    { id: 'xg_head', name: 'Тестовый шлем (xguard)', kind: 'armor',
+      stats: { armor: 1 }, slot: 'head', set: 'xguard',
+      set_bonus: xguardBonus, weight: 1, value: 20, desc: 'т' },
+    { id: 'xg_ears', name: 'Тестовые серьги (xguard)', kind: 'armor',
+      stats: { armor: 1 }, slot: 'ears', set: 'xguard',
+      set_bonus: xguardBonus, weight: 1, value: 20, desc: 'т' },
+    { id: 'xg_ring', name: 'Тестовое кольцо (xguard)', kind: 'ring',
+      slot: 'ring', set: 'xguard', set_bonus: xguardBonus,
+      weight: 0.1, value: 30, desc: 'т' },
+    { id: 'xg_blade', name: 'Тестовый меч (xguard)', kind: 'weapon',
+      subtype: 'sword', stats: { damage: 5 }, set: 'xguard',
+      set_bonus: xguardBonus, weight: 4, value: 80, desc: 'т' },
+    { id: 'xs_head', name: 'Тестовый шлем (xstat)', kind: 'armor',
+      stats: { armor: 1 }, slot: 'head', set: 'xstat',
+      set_bonus: xstatBonus, weight: 1, value: 20, desc: 'т' },
+    { id: 'xs_torso', name: 'Тестовая кираса (xstat)', kind: 'armor',
+      stats: { armor: 1 }, slot: 'torso', set: 'xstat',
+      set_bonus: xstatBonus, weight: 2, value: 20, desc: 'т' },
+    { id: 'xs_blade', name: 'Тестовый меч (xstat)', kind: 'weapon',
+      subtype: 'sword', stats: { damage: 5 }, set: 'xstat',
+      set_bonus: xstatBonus, weight: 4, value: 80, desc: 'т' },
+    { id: 'xb_neck', name: 'Тестовый амулет (xbane)', kind: 'armor',
+      stats: { armor: 3 }, slot: 'neck', set: 'xbane',
+      set_bonus: { 2: { armor: 9 } }, weight: 1, value: 30, desc: 'т' },
+  ];
+}
+
+test('000230.04-SB1 (node): schema.json — set_bonus: точная под-схема КОНЦОМ properties (ПОСЛЕ affixes): {2|3|4: oneOf[массив affixes (≡ properties.affixes дословно), стат {damage? 1..100, armor? 0..100}]}, anyOf-непустота обоих уровней, additionalProperties false; НЕ в required (краснота: свойства set_bonus в схеме нет)', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  const affixes = s.properties.affixes;
+  const effect = {
+    oneOf: [
+      affixes,
+      {
+        type: 'object',
+        anyOf: [{ required: ['armor'] }, { required: ['damage'] }],
+        properties: {
+          damage: { type: 'number', minimum: 1, maximum: 100 },
+          armor: { type: 'number', minimum: 0, maximum: 100 },
+        },
+        additionalProperties: false,
+      },
+    ],
+  };
+  const expected = {
+    type: 'object',
+    anyOf: [{ required: ['2'] }, { required: ['3'] }, { required: ['4'] }],
+    properties: { 2: effect, 3: effect, 4: effect },
+    additionalProperties: false,
+  };
+  assert.deepEqual(s.properties.set_bonus, expected,
+    'properties.set_bonus — точная под-схема (контракт §2.1; '
+    + 'краснота: свойства set_bonus в схеме нет); факт: '
+    + JSON.stringify(s.properties.set_bonus));
+  const sb = s.properties.set_bonus;
+  assert.deepEqual(sb.properties['2'].oneOf[0], affixes,
+    'аффикс-вариант — properties.affixes дословно (та же форма)');
+  assert.deepEqual(sb.properties['3'], sb.properties['2'],
+    'порог 3 — тот же EFFECT, что 2 (инлайн ×3: $ref в минивалидаторе нет)');
+  assert.deepEqual(sb.properties['4'], sb.properties['2'],
+    'порог 4 — тот же EFFECT, что 2 (инлайн ×3)');
+  assert.ok(!s.required.includes('set_bonus'),
+    'set_bonus НЕ в required (старые предметы валидны без изменений); '
+    + 'факт: ' + JSON.stringify(s.required));
+  assert.equal(s.additionalProperties, false,
+    'верхний additionalProperties остаётся false (закрытая схема)');
+  assert.equal(Object.keys(s.properties).indexOf('set_bonus'),
+    Object.keys(s.properties).length - 1,
+    'set_bonus — КОНЦОМ properties (ПОСЛЕ affixes — контракт .01 §4; '
+    + 'связка с порядком KEYS sync, SB12)');
+});
+
+test('000230.04-SB2 (vm, ПИН ТЗ 2/2+3/2+3+4): xguard — 2 надето (xg_head + xg_ring — кольцо = 1 предмет) → активен порог 2: skills {endurance: 0.05}; 3 (+xg_ears) → +порог 3: armor 2 (skills БЕЗ изменения — порог 3 стат); 4 (+xg_blade) → +порог 4: freeCast {mend}, counts {xguard: 4} — пороги независимы, кумулятивны; set-skill/free_cast — в equipmentAffixes (единый пайплайн)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = setFixtures00023004();
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  for (const id of ['xg_head', 'xg_ring']) {
+    G.addItem(c, id);
+    assert.equal(G.equip(c, id).ok, true, id + ': экипирование');
+  }
+  assert.equal(c.equipment.head, 'xg_head');
+  assert.equal(c.equipment.ring_left_1, 'xg_ring',
+    'кольцо — ring_left_1 (1 предмет набора)');
+  let st = G.activeSets(c);
+  assert.deepEqual(fromVm(st.counts), { xguard: 2 },
+    'counts — 2 предмета набора (краснота: activeSets не экспортирован)');
+  assert.deepEqual(fromVm(st.skills), { endurance: 0.05 },
+    'порог 2 — skill-affix (краснота: set-бонусов в агрегате нет)');
+  assert.equal(st.freeCast.size, 0, 'порог 4 не активен — freeCast пуст');
+  assert.equal(st.armor, 0, 'порог 3 не активен — armor 0');
+  assert.equal(st.damage, 0, 'урона в наборе нет — 0');
+  let a = G.equipmentAffixes(c);
+  assert.deepEqual(fromVm(a.skills), { endurance: 0.05 },
+    'единый пайплайн: set-skill в equipmentAffixes');
+  assert.equal(a.freeCast.size, 0, 'freeCast — пуст (2 предмета)');
+  G.addItem(c, 'xg_ears');
+  assert.equal(G.equip(c, 'xg_ears').ok, true, 'xg_ears: экипирование');
+  st = G.activeSets(c);
+  assert.deepEqual(fromVm(st.counts), { xguard: 3 });
+  assert.equal(st.armor, 2, 'порог 3 АКТИВЕН: armor 2 (кумуляция 2+3)');
+  assert.deepEqual(fromVm(st.skills), { endurance: 0.05 },
+    'порог 3 — стат: skills БЕЗ изменения (каждый порог независимо)');
+  assert.equal(st.freeCast.size, 0, 'порог 4 не активен (3 < 4)');
+  G.addItem(c, 'xg_blade');
+  assert.equal(G.equip(c, 'xg_blade').ok, true, 'xg_blade: экипирование');
+  st = G.activeSets(c);
+  assert.deepEqual(fromVm(st.counts), { xguard: 4 });
+  assert.equal(st.armor, 2, 'armor — кумулятивны (порог 3: 2)');
+  assert.ok(st.freeCast.has('mend'),
+    'порог 4 АКТИВЕН: free_cast mend (2+3+4 — каждый независимо)');
+  assert.deepEqual(fromVm(st.skills), { endurance: 0.05 });
+  assert.equal(st.damage, 0);
+  a = G.equipmentAffixes(c);
+  assert.deepEqual(fromVm(a.skills), { endurance: 0.05 });
+  assert.ok(a.freeCast.has('mend'),
+    'единый пайплайн: set-free_cast в equipmentAffixes (4 предмета)');
+});
+
+test('000230.04-SB3 (vm, ТЗ «не смешиваются»): xg_head + xg_ears (xguard 2) + xb_neck (xbane 1) — наборы не смешиваются: counts {xguard: 2, xbane: 1}; активен ТОЛЬКО порог xguard.2: skills {endurance: 0.05}, armor 0 (xguard.3 не активен: 2 < 3; xbane.2 не активен: 1 < 2 — 3 предмета ВЕСЬМО не суммируются в чужой/свой порог); equipmentStats armor = 1+1+3 = 5', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = setFixtures00023004();
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  for (const id of ['xg_head', 'xg_ears', 'xb_neck']) {
+    G.addItem(c, id);
+    assert.equal(G.equip(c, id).ok, true, id + ': экипирование');
+  }
+  const st = G.activeSets(c);
+  assert.deepEqual(fromVm(st.counts), { xguard: 2, xbane: 1 },
+    'counts — каждый набор отдельно (краснота: activeSets не '
+    + 'экспортирован)');
+  assert.deepEqual(fromVm(st.skills), { endurance: 0.05 },
+    'активен ТОЛЬКО порог xguard.2 (xbane.2 не активен: 1 < 2)');
+  assert.equal(st.armor, 0,
+    'xguard.3 не активен: 2 < 3 — 3 предмета не суммируются по наборам');
+  assert.equal(st.damage, 0);
+  assert.equal(st.freeCast.size, 0);
+  const es = G.equipmentStats(c);
+  assert.equal(es.armor, 5,
+    'armor = 1 (xg_head) + 1 (xg_ears) + 3 (xb_neck) + 0 (set-бонусов '
+    + 'активных нет) (краснота: set-бонусов нет в equipmentStats)');
+  assert.equal(es.damage, 0, 'нет оружия — damage 0');
+});
+
+test('000230.04-SB4 (vm, стат-формат + D-02 гейт): xstat 2 (xs_head + xs_torso, БЕЗ оружия) → equipmentStats armor = 1+1+2 = 4, damage 0 (пин гейта: без оружия set-damage не входит); 3 (+xs_blade) → armor = 1+1+2+1 = 5, damage = 5+1 = 6 («в урон оружия»); интерфейс key-set deepEqual {damage, subtype, hitBonus, dmgBonus, armor} (M6)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = setFixtures00023004();
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  for (const id of ['xs_head', 'xs_torso']) {
+    G.addItem(c, id);
+    assert.equal(G.equip(c, id).ok, true, id + ': экипирование');
+  }
+  let es = G.equipmentStats(c);
+  assert.equal(es.armor, 4,
+    'armor = 1 + 1 (слоты) + 2 (порог 2) (краснота: set-бонусов нет — '
+    + 'факт ' + es.armor + ')');
+  assert.equal(es.damage, 0,
+    'БЕЗ оружия — set-damage НЕ входит (D-02 гейт; факт ' + es.damage + ')');
+  G.addItem(c, 'xs_blade');
+  assert.equal(G.equip(c, 'xs_blade').ok, true, 'xs_blade: экипирование');
+  es = G.equipmentStats(c);
+  assert.equal(es.armor, 5,
+    'armor = 1 + 1 + 2 (порог 2) + 1 (порог 3) (краснота: факт '
+    + es.armor + ')');
+  assert.equal(es.damage, 6,
+    'damage = 5 (оружие) + 1 (порог 3 «в урон оружия»); факт '
+    + es.damage);
+  assert.equal(es.subtype, 'sword');
+  assert.deepEqual(Object.keys(es),
+    ['damage', 'subtype', 'hitBonus', 'dmgBonus', 'armor'],
+    'интерфейс equipmentStats НЕ меняется (M6-пин)');
+  const st = G.activeSets(c);
+  assert.deepEqual(fromVm(st.skills), {}, 'стат-формат — skills пуст');
+  assert.equal(st.freeCast.size, 0, 'free_cast в наборе нет');
+  assert.equal(st.armor, 3, 'set-armor: 2 (порог 2) + 1 (порог 3)');
+  assert.equal(st.damage, 1, 'set-damage: 1 (порог 3)');
+});
+
+test('000230.04-SB5 (vm, ТЗ «без экипировки — бонусов нет» + ЧИСТАЯ): свежий персонаж → activeSets {counts: {}, skills: {}, freeCast ∅, armor: 0, damage: 0}; поле equipment НЕ создаётся (A2-паттерн: в c его нет ДО и ПОСЛЕ); equipmentAffixes пуст; канон-пустота (18 null) → то же', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = setFixtures00023004();
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  assert.equal('equipment' in c, false,
+    'свежий персонаж — без поля equipment');
+  const st = G.activeSets(c);
+  assert.deepEqual(fromVm(st.counts), {},
+    'counts — пусто (краснота: activeSets не экспортирован)');
+  assert.deepEqual(fromVm(st.skills), {}, 'skills — пусто');
+  assert.equal(st.freeCast.size, 0, 'freeCast — пустой Set');
+  assert.equal(st.armor, 0, 'armor — 0');
+  assert.equal(st.damage, 0, 'damage — 0');
+  assert.equal('equipment' in c, false,
+    'чистая функция: поле equipment НЕ появилось (ensureEquipment не '
+    + 'вызывается)');
+  const a = G.equipmentAffixes(c);
+  assert.deepEqual(fromVm(a.skills), {}, 'equipmentAffixes — пусто');
+  assert.equal(a.freeCast.size, 0);
+  const eq = {};
+  for (const s of G.EQUIP_PHYS_SLOTS) eq[s] = null;
+  c.equipment = eq;
+  const st2 = G.activeSets(c);
+  assert.deepEqual(fromVm(st2.counts), {},
+    'канон-пустота (18 null) — counts {}');
+  assert.equal(st2.armor, 0, 'канон-пустота — armor 0');
+  assert.equal(st2.damage, 0, 'канон-пустота — damage 0');
+});
+
+test('000230.04-SB6 (vm, ТЗ throw): armor с set_bonus БЕЗ set → Error при загрузке /set_bonus.*set/ (краснота: ветки «set_bonus — только с set» нет — Missing expected exception)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [{ id: 'x_noset', name: 'Тестовая броня',
+    kind: 'armor', stats: { armor: 1 }, slot: 'head',
+    set_bonus: { 2: { armor: 1 } }, weight: 1, value: 20, desc: 'т' }];
+  assert.throws(
+    () => loadInSandbox('items.js', sandbox),
+    /set_bonus.*set/,
+    'load-time-валидация бросает на set_bonus без set (краснота: '
+    + 'Missing expected exception)');
+});
+
+test('000230.04-SB7 (vm, ТЗ throw): пороги set_bonus вне {2,3,4}: {1:{armor:1}}, {5:{armor:1}}, {2:{armor:1},7:{armor:1}} → Error при загрузке /порог|{2,3,4}/ (краснота: проверки порогов нет — Missing expected exception)', () => {
+  for (const bonus of [
+    { 1: { armor: 1 } },
+    { 5: { armor: 1 } },
+    { 2: { armor: 1 }, 7: { armor: 1 } },
+  ]) {
+    const { sandbox } = makeVmSandboxWithConsole();
+    loadItemsVmChain(sandbox);
+    sandbox.Game.ITEMS = [{ id: 'x_bad', name: 'Тестовая броня',
+      kind: 'armor', stats: { armor: 1 }, slot: 'head', set: 'xset',
+      set_bonus: bonus, weight: 1, value: 20, desc: 'т' }];
+    assert.throws(
+      () => loadInSandbox('items.js', sandbox),
+      /порог|\{2,3,4\}/,
+      'load-time-валидация бросает на пороги '
+      + JSON.stringify(Object.keys(bonus)) + ' (краснота: Missing '
+      + 'expected exception)');
+  }
+});
+
+test('000230.04-SB8 (vm, throw, форма): значения set_bonus вне разрешённых форм → Error при загрузке: affix-массив с type «bogus» / amount «5» (не число) / пустой []; стат-объект с лишним ключом {hp:3} / armor «2» (не число) / пустой {} (краснота: веток validateSetBonus нет — Missing expected exception)', () => {
+  // vm-реалм: брошенный Error — ЧУЖОЙ прототип (instanceof host Error
+  // false) → предикат-regex на сообщение, house-паттерн (SB6/SB7/E18).
+  for (const [bonus, re] of [
+    [{ 2: [{ type: 'bogus' }] }, /\.type — skill\|free_cast/],
+    [{ 2: [{ type: 'skill', skill: 'swordsman', amount: '5' }] },
+     /\.amount — число/],
+    [{ 2: [] }, /непустой массив/],
+    [{ 2: { hp: 3 } }, /только armor\|damage/],
+    [{ 2: { armor: '2' } }, /\.armor — число >= 0/],
+    [{ 2: {} }, /объект \{armor\?, damage\?\}/],
+  ]) {
+    const { sandbox } = makeVmSandboxWithConsole();
+    loadItemsVmChain(sandbox);
+    sandbox.Game.ITEMS = [{ id: 'x_bad', name: 'Тестовая броня',
+      kind: 'armor', stats: { armor: 1 }, slot: 'head', set: 'xset',
+      set_bonus: bonus, weight: 1, value: 20, desc: 'т' }];
+    assert.throws(
+      () => loadInSandbox('items.js', sandbox),
+      re,
+      'load-time-валидация бросает на set_bonus ' + JSON.stringify(bonus)
+      + ' (краснота: Missing expected exception)');
+  }
+});
+
+test('000230.04-SB9 (ГАРД, vm, E19-паттерн): armor со ВСЕМИ валидными полями включая set_bonus (смешанный: 2 — affix-массив, 3 — стат, 4 — affix-массив) → загрузка БЕЗ броска, 0 console.error, поля сохранены deepEqual (гард от избыточной валидации; зелёный с начала)', () => {
+  const { sandbox, errors } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  const it = { id: 'x_guard', name: 'Тестовая броня', kind: 'armor',
+    stats: { armor: 3 }, weight: 6, value: 60, desc: 'т',
+    slot: 'torso', rarity: 'epic', set: 'xguard9',
+    affixes: [
+      { type: 'skill', skill: 'swordsman', amount: 0.05 },
+      { type: 'free_cast', spell: 'fireball' },
+    ],
+    set_bonus: {
+      2: [{ type: 'skill', skill: 'swordsman', amount: 0.05 }],
+      3: { armor: 2 },
+      4: [{ type: 'free_cast', spell: 'mend' }],
+    } };
+  sandbox.Game.ITEMS = [it];
+  assert.doesNotThrow(() => loadInSandbox('items.js', sandbox),
+    'валидный armor со ВСЕМИ полями включая set_bonus — без броска');
+  assert.deepEqual(fromVm(sandbox.Game.getItem('x_guard')), it,
+    'поля сохранены (валидация не мутирует/не отбрасывает)');
+  assert.equal(errors.length, 0,
+    'console.error на валидном каталоге нет; факт: '
+    + JSON.stringify(errors));
+});
+
+test('000230.04-SB10 (бит-в-бит, vm, ТЗ-инвариант): БЕЗ set_bonus — .03-фикстуры инвариантны: equipmentAffixes skills {swordsman: 0.05, endurance: 0.10}, freeCast {spark, mend}; x_head → equipmentStats armor 1, damage 0; activeSets (если экспортирован) → counts {} — в .03-фикстурах нет set (зелёный с начала)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = affixFixtures00023003();
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  for (const id of ['x_ring', 'x_head', 'x_art']) {
+    G.addItem(c, id);
+    assert.equal(G.equip(c, id).ok, true, id + ': экипирование');
+  }
+  const a = G.equipmentAffixes(c);
+  assert.deepEqual(fromVm(a.skills), { swordsman: 0.05, endurance: 0.10 },
+    'affixes без set_bonus — бит-в-бит (пин A1)');
+  assert.equal(a.freeCast.size, 2);
+  assert.ok(a.freeCast.has('spark'));
+  assert.ok(a.freeCast.has('mend'));
+  const c2 = G.createCharacter();
+  G.addItem(c2, 'x_head');
+  assert.equal(G.equip(c2, 'x_head').ok, true, 'x_head: экипирование');
+  const es = G.equipmentStats(c2);
+  assert.equal(es.armor, 1, 'armor — x_head только (1)');
+  assert.equal(es.damage, 0, 'нет оружия — damage 0');
+  if (typeof G.activeSets === 'function') {
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm(st.counts), {},
+      'без set_bonus — counts {} (бит-в-бит: в .03-фикстурах нет set)');
+    assert.deepEqual(fromVm(st.skills), {}, 'skills — {}');
+    assert.equal(st.freeCast.size, 0, 'freeCast — ∅');
+    assert.equal(st.armor, 0, 'armor — 0');
+    assert.equal(st.damage, 0, 'damage — 0');
+  }
+});
+
+test('000230.04-SB11 (node, минивалидатор): validateData(schema.properties.set_bonus, v) — валидно → 0 ошибок: affix-массив; {armor:2}; {armor:2,damage:3}; смешанный {2:affix,3:стат}; {4:free_cast}. Невалидно → ошибки: {5:{armor:1}}; {armor:1} верхнего уровня; {}; {2:[]}; {2:{hp:1}}; {2:{armor:-1}}; {2:{damage:0}}; {2:5} (краснота: под-схемы нет — undefined)', () => {
+  const s = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  const sb = s.properties.set_bonus;
+  assert.ok(sb && typeof sb === 'object' && !Array.isArray(sb),
+    'в схеме есть свойства set_bonus (краснота: под-схемы нет — '
+    + 'undefined; факт: ' + JSON.stringify(sb) + ')');
+  const AFF = [{ type: 'skill', skill: 'swordsman', amount: 0.05 }];
+  const ok = [
+    { 2: AFF },
+    { 2: { armor: 2 } },
+    { 2: { armor: 2, damage: 3 } },
+    { 2: AFF, 3: { armor: 1 } },
+    { 4: [{ type: 'free_cast', spell: 'mend' }] },
+  ];
+  for (const v of ok) {
+    const errs = validateData(sb, v, 'set_bonus');
+    assert.deepEqual(errs, [],
+      'валидно: ' + JSON.stringify(v) + ' → 0 ошибок; факт: '
+      + JSON.stringify(errs));
+  }
+  const bad = [
+    { 5: { armor: 1 } },
+    { armor: 1 },
+    {},
+    { 2: [] },
+    { 2: { hp: 1 } },
+    { 2: { armor: -1 } },
+    { 2: { damage: 0 } },
+    { 2: 5 },
+  ];
+  for (const v of bad) {
+    const errs = validateData(sb, v, 'set_bonus');
+    assert.ok(errs.length > 0,
+      'невалидно: ' + JSON.stringify(v) + ' → ошибки; факт: 0 ошибок');
+  }
+});
+
+test('000230.04-SB12 (node, sync, E20-паттерн tmp-репо): ring с set + set_bonus (смешанные формы) → exit 0; зеркало содержит set_bonus; канон-порядок pos(set) < pos(affixes) < pos(set_bonus) (set_bonus КОНЦОМ — связка E1b/SB1); повторный запуск byte-identical (краснота: KEYS без set_bonus → «ключи вне схемы» → exit 1)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-items-00023004-'));
+  try {
+    fs.mkdirSync(path.join(dir, 'scripts', 'lib'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+    fs.mkdirSync(path.join(dir, 'assets', 'items'), { recursive: true });
+    fs.copyFileSync(
+      path.join(__dirname, '..', 'scripts', 'sync-items-data.js'),
+      path.join(dir, 'scripts', 'sync-items-data.js'));
+    fs.copyFileSync(
+      path.join(__dirname, '..', 'scripts', 'lib', 'write-atomic.js'),
+      path.join(dir, 'scripts', 'lib', 'write-atomic.js'));
+    fs.copyFileSync(
+      path.join(__dirname, '..', 'scripts', 'lib', 'json-ref.js'),
+      path.join(dir, 'scripts', 'lib', 'json-ref.js'));
+    fs.writeFileSync(path.join(dir, 'assets', 'items', '000001.json'),
+      JSON.stringify({
+        id: 'x_ring', name: 'Тестовое кольцо', kind: 'ring',
+        weight: 0.1, value: 30, desc: 'т',
+        icon: 'assets/sprites/items/x_ring.svg',
+        slot: 'ring', rarity: 'rare', set: 'guardian',
+        affixes: [{ type: 'skill', skill: 'swordsman', amount: 0.05 }],
+        set_bonus: {
+          2: [{ type: 'skill', skill: 'swordsman', amount: 0.05 }],
+          3: { armor: 2 },
+          4: [{ type: 'free_cast', spell: 'mend' }],
+        },
+      }, null, 2) + '\n', 'utf8');
+    const run = () => spawnSync(process.execPath,
+      [path.join(dir, 'scripts', 'sync-items-data.js')],
+      { cwd: dir, encoding: 'utf8' });
+    const mirrorFile = path.join(dir, 'src', 'items-data.js');
+    const res = run();
+    assert.equal(res.status, 0,
+      'sync — exit 0 (краснота: KEYS без set_bonus — «ключи вне '
+      + 'схемы: set_bonus» → exit 1); факт: ' + (res.stderr || res.stdout));
+    const mirror = fs.readFileSync(mirrorFile, 'utf8');
+    for (const f of ['set', 'affixes', 'set_bonus']) {
+      assert.ok(mirror.includes(f + ': '),
+        f + ' — в зеркале (ключа нет в KEYS — не выводится)');
+    }
+    const pos = (k) => mirror.indexOf(k + ':');
+    assert.ok(pos('set') !== -1 && pos('set') < pos('affixes')
+      && pos('affixes') < pos('set_bonus'),
+      'канон-порядок set < affixes < set_bonus (set_bonus КОНЦОМ — '
+      + 'связка с порядком properties schema.json, E1b/SB1); факт: '
+      + JSON.stringify({
+        set: pos('set'), affixes: pos('affixes'),
+        set_bonus: pos('set_bonus'),
+      }));
+    const once = fs.readFileSync(mirrorFile);
+    const res2 = run();
+    assert.equal(res2.status, 0,
+      'повторный запуск — exit 0; факт: ' + (res2.stderr || res2.stdout));
+    assert.deepEqual(fs.readFileSync(mirrorFile), once,
+      'повторный запуск — byte-identical (идемпотентность)');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): предметы с ОДНИМ set → set_bonus deepEqual внутри набора (в .04 вакуумно: 0 предметов с set); предметов с set_bonus — РОВНО 0 (пин «контента нет»; .08 — ре-пин числа + реальный кросс-пин; зелёный с начала)', () => {
+  const bySet = new Map();
+  let withSetBonus = 0;
+  for (const it of I.allItems()) {
+    if (it.set !== undefined) {
+      if (bySet.has(it.set)) {
+        assert.deepEqual(it.set_bonus, bySet.get(it.set).set_bonus,
+          it.id + ': набор «' + it.set + '» — ОДИНАКОВЫЙ set_bonus '
+          + 'во всех файлах (representative D-03)');
+      } else {
+        bySet.set(it.set, it);
+      }
+    }
+    if (it.set_bonus !== undefined) withSetBonus++;
+  }
+  assert.equal(withSetBonus, 0,
+    'предметов с set_bonus — 0 (контента нет; .08 — ре-пин)');
+});
+
+test('000230.04-SB14 (vm, throw, E18-паттерн): reagent с set_bonus → Error /только у экипируемых/ при загрузке (equipment-only-гард покрывает set_bonus; краснота: гард без set_bonus — Missing expected exception)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [{ id: 'x_test', name: 'Тестовый реагент',
+    kind: 'reagent', weight: 0.1, value: 1, desc: 'т',
+    set_bonus: { 2: { armor: 1 } } }];
+  assert.throws(
+    () => loadInSandbox('items.js', sandbox),
+    /только у экипируемых/,
+    'load-time-валидация бросает на reagent с set_bonus (краснота: '
+    + 'Missing expected exception)');
+});
+
+test('000230.04-SB15 (vm, generic — ТЗ п.4): merc-лист — set-бонусы через тот же агрегат для ЛЮБОГО объекта с .equipment (фундамент .06, 0 кода .04): raw-подвеска sheet.equipment (xguard 2: head + ring_left_1) → G.equipmentAffixes(mercSheet).skills ≡ {endurance: 0.05} И G.activeSets(mercSheet).counts ≡ {xguard: 2}; G.Sheet.derived(mercSheet) — (1+0.05) в endurance-вкладе maxHP (25·1.63 = 40.75 → 41; без set-экипировки — 25·1.6 = 40)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = setFixtures00023004();
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const merc = G.Sheet.createSheet('merc');
+  merc.secondary.endurance = 20;
+  merc.equipment = { head: 'xg_head', ring_left_1: 'xg_ring' };
+  const a = G.equipmentAffixes(merc);
+  assert.deepEqual(fromVm(a.skills), { endurance: 0.05 },
+    'тот же агрегат для ЛЮБОГО объекта с .equipment (краснота: '
+    + 'set-бонусы отсутствуют в equipmentAffixes; факт: '
+    + JSON.stringify(fromVm(a.skills)));
+  const st = G.activeSets(merc);
+  assert.deepEqual(fromVm(st.counts), { xguard: 2 },
+    'activeSets на merc-листе (краснота: не экспортирован)');
+  const d = G.Sheet.derived(merc);
+  assert.equal(d.maxHP, 41,
+    'maxHP = round(25 · (1 + 0.03·20·1.05 + 0)) = round(40.75) = 41 '
+    + '(краснота: set-бонусы не доходят до derived — факт '
+    + d.maxHP + ')');
+  const merc0 = G.Sheet.createSheet('merc');
+  merc0.secondary.endurance = 20;
+  assert.equal(G.Sheet.derived(merc0).maxHP, 40,
+    'контроль: без set-экипировки — base (25 · 1.6 = 40)');
 });

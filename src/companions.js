@@ -87,11 +87,14 @@
     // общий ключ skillLevel — побеждает версия npc.js (читает primary
     // ПЕРЕД secondary — refusalChance/loyalty от Харизмы, 000079).
     // sheet.js (000143): Game.Sheet — единый лист; циклов НЕТ (sheet.js
-    // требует только global-settings/skills-data).
+    // требует только global-settings/skills-data). items.js (000230.04):
+    // общий агрегат set-бонусов — циклов НЕТ (npc.js уже требует
+    // items.js при загрузке; require-кэш — 0 нового порядка загрузки).
     module.exports = factory(
       require('./global-settings.js'),
       Object.assign({}, require('./perlin.js'), require('./player.js'),
-        require('./npc.js'), { Sheet: require('./sheet.js') }));
+        require('./npc.js'), require('./items.js'),
+        { Sheet: require('./sheet.js') }));
   } else {
     const G0 = typeof root.Game === 'object' ? root.Game : {};
     root.Game = Object.assign({}, G0,
@@ -714,7 +717,11 @@ function (settings, G) {
       // 000167: все 6 характеристик листа (КОПИЯ; деградация — {}).
       attrs: Object.assign({}, entry.sheet.primary || {}),
       kind: 'merc',
-      freeCast: [],
+      // 000230.04: set-бонусы через общий агрегат (тот же образ, что
+      // combat.js-снапшот hero): call-time guard, no-op без items.js
+      // ([]) и без equipment в листе (merc-экипировка — 000230.06).
+      freeCast: [...(typeof G.equipmentAffixes === 'function'
+        ? (G.equipmentAffixes(entry.sheet).freeCast || []) : [])],
     };
   }
 
