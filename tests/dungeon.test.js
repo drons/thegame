@@ -909,8 +909,8 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
       chests: [
         { id: 'c0', x: 17, y: 23, opened: false, gold: 20, item: null },
         { id: 'c1', x: 13, y: 11, opened: false, gold: 12, item: 'war_hammer' },
-        { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'blizzard_scroll' },
-        { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'blizzard_scroll' },
+        { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'fire_spellbook' },
+        { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'fire_spellbook' },
       ],
     },
     {
@@ -924,11 +924,11 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
         { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 24, y: 24, level: 4, defeated: false, boss: true },
       ],
       chests: [
-        { id: 'c0', x: 22, y: 24, opened: false, gold: 21, item: 'heavy_tome' },
+        { id: 'c0', x: 22, y: 24, opened: false, gold: 21, item: 'greater_healing' },
         { id: 'c1', x: 14, y: 13, opened: false, gold: 27, item: null },
         { id: 'c2', x: 20, y: 8, opened: false, gold: 28, item: null },
         { id: 'c3', x: 10, y: 10, opened: false, gold: 11, item: null },
-        { id: 'c4', x: 17, y: 7, opened: false, gold: 20, item: 'greater_healing' },
+        { id: 'c4', x: 17, y: 7, opened: false, gold: 20, item: 'phoenix_feather' },
       ],
     },
     {
@@ -1670,7 +1670,7 @@ test('G2-2: golden: ABYSS (11,3) depth=2 — полный детерминиро
     { id: 'c0', x: 11, y: 20, opened: false, gold: 68, item: null },
     { id: 'c1', x: 10, y: 21, opened: false, gold: 43, item: null },
     { id: 'c2', x: 20, y: 23, opened: false, gold: 64, item: null },
-    { id: 'c3', x: 21, y: 29, opened: false, gold: 61, item: 'flame_burst_scroll' },
+    { id: 'c3', x: 21, y: 29, opened: false, gold: 61, item: 'fire_spellbook' },
     { id: 'c4', x: 35, y: 28, opened: false, gold: 24, item: null },
   ], 'depth2 chests (по-полевой пин)');
 });
@@ -2729,8 +2729,8 @@ const CH1_DEPOSITS = [
 const CH1_GOLDEN_CHESTS = [
   { id: 'c0', x: 17, y: 23, opened: false, gold: 20, item: null },
   { id: 'c1', x: 13, y: 11, opened: false, gold: 12, item: CH_FIX_POOL_B },
-  { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'blizzard_scroll' },
-  { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'blizzard_scroll' },
+  { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'fire_spellbook' },
+  { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'fire_spellbook' },
 ];
 
 function chFixItem() {
@@ -2799,7 +2799,7 @@ test('000230.05-CH1: сундук-редкость — СВОЙ rng-поток: 
   }
 });
 
-test('000230.05-CH2: триггер — ЯВНЫЙ slot ТОЛЬКО: c1 (fixture, slot right_hand) → предмет роулнутой редкости (common) из пула; c2/c3 (spell_scroll, без slot) — без изменений; c0 (null) — без изменений; gold/позиции — без изменений (RED)', () => {
+test('000230.05-CH2: триггер — ЯВНЫЙ slot ТОЛЬКО: c1 (fixture, slot right_hand) → предмет роулнутой редкости (common) из пула; c2/c3 (без slot) — без изменений; c0 (null) — без изменений; gold/позиции — без изменений (RED)', () => {
   let L = null;
   let sav = null;
   try {
@@ -2819,11 +2819,11 @@ test('000230.05-CH2: триггер — ЯВНЫЙ slot ТОЛЬКО: c1 (fixtur
     assert.deepEqual({ x: c1.x, y: c1.y, gold: c1.gold },
       { x: 13, y: 11, gold: 12 },
       'c1: позиция/gold — без изменений (главный rng бит-в-бит)');
-    assert.equal(chest('c2').item, 'blizzard_scroll',
-      'c2 (spell_scroll, slot undefined): БЕЗ ИЗМЕНЕНИЙ (расходник — '
+    assert.equal(chest('c2').item, 'fire_spellbook',
+      'c2 (skill_book, slot undefined): БЕЗ ИЗМЕНЕНИЙ (расходник — '
       + 'как сейчас, DUNGEON_ITEMS)');
-    assert.equal(chest('c3').item, 'blizzard_scroll',
-      'c3 (spell_scroll, slot undefined): БЕЗ ИЗМЕНЕНИЙ');
+    assert.equal(chest('c3').item, 'fire_spellbook',
+      'c3 (skill_book, slot undefined): БЕЗ ИЗМЕНЕНИЙ');
     assert.equal(chest('c0').item, null, 'c0 (null): без изменений');
   } finally {
     chTeardown(L, sav);
@@ -2892,4 +2892,72 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
       prevIdx = idx;
     }
   }
+});
+
+// 000235.05. Сундуки — tier-чувствительный выбор по глубине (контракт
+// memory/000235.05-scroll-tier-loot.md §7; ТЗ — tasks/pending/000235.05.md
+// п.3).
+//
+// TDD-красное: выбор сейчас РАВНОМЕРНЫЙ по всему пулу генерации (dungeon.js
+// :744, без tier-фильтра) — в сундуках ABYSS d1-4 лежат T3-свитки
+// (flame_burst_scroll/blizzard_scroll), в CRYPT/RUINS d1-2 — T2
+// (light_heal_scroll/fireball_scroll) — специфика ниже красная.
+// Sweep-инвариант (a) (tier предмета ≤ T(глубины)) на текущих данных
+// тривиально истинен (tier у предметов пулов ещё не проставлен —
+// 000235.05 п.1 data-only) и становится несущим после простановки.
+// T(глубина) = min(4, 1 + floor((depth-1)/2)) — паттерн залежей
+// (dungeon.js :769-770, 000157.02). Fallback «если elig пуст — любой»
+// (защита 000157.02) при текущем содержимом пулов недостижим (в каждом
+// пуле есть T1-предметы) — покрыт кодом, не пином.
+// =====================================================================
+
+test('000235.05 X1: сундуки — tier-выбор: предмет ∈ пула с tier ≤ T(глубина); ABYSS d1-4 без T3-свитков, CRYPT/RUINS d1-2 без T2-свитков', () => {
+  const I = require('../src/items.js');
+  const ds = WALL_ENTRIES.map((t) => D.createDungeon(t.args[0], t.args[1], t.args[2], t.args[3]));
+  // (a) Инвариант: у каждого сундука с предметом tier ≤ T(глубина).
+  for (let ti = 0; ti < ds.length; ti++) {
+    const t = WALL_ENTRIES[ti];
+    assert.equal(ds[ti].type, D.DUNGEON_TYPES[t.name], t.name + ' (сценарий)');
+    for (let xp = 1; xp <= 200; xp++) {
+      for (const depth of [1, 2, 3, 4, 5, 6]) {
+        const c = D.generateDungeonContents(ds[ti], heroAt(xp), { depth });
+        const T = TIER_OF_DEPTH(depth);
+        for (const ch of c.chests) {
+          if (ch.item === null) continue;
+          const it = I.getItem(ch.item);
+          assert.ok(it, t.name + ' xp=' + xp + ' d' + depth +
+            ': предмет «' + ch.item + '» в каталоге items');
+          assert.ok((it.tier || 1) <= T,
+            t.name + ' xp=' + xp + ' d' + depth + ': tier(«' + ch.item + '»)'
+            + ' = ' + (it.tier || 1) + ' > T(' + depth + ') = ' + T);
+        }
+      }
+    }
+  }
+  // (b) Специфика (красное на текущем равномерном выборе): высокотирные
+  //     свитки отсекаются глубиной. ABYSS d1-4 (T = 1,1,2,2) — без
+  //     flame_burst_scroll/blizzard_scroll (T3); CRYPT/RUINS d1-2
+  //     (T = 1,1) — без light_heal_scroll/fireball_scroll (T2).
+  const dA = ds[WALL_ENTRIES.findIndex((t) => t.name === 'ABYSS')];
+  const dC = ds[WALL_ENTRIES.findIndex((t) => t.name === 'CRYPT')];
+  const dR = ds[WALL_ENTRIES.findIndex((t) => t.name === 'RUINS')];
+  const sweepType = (d, typeName, depths, banned) => {
+    for (let xp = 1; xp <= 200; xp++) {
+      for (const depth of depths) {
+        const c = D.generateDungeonContents(d, heroAt(xp), { depth });
+        for (const ch of c.chests) {
+          if (ch.item === null) continue;
+          const it = I.getItem(ch.item);
+          assert.ok(!banned.includes(ch.item),
+            typeName + ' d' + depth + ' xp=' + xp + ': свиток «' + ch.item
+            + '» (tier = ' + (it ? it.tier : '?')
+            + ') глубже T(' + depth + ') = ' + TIER_OF_DEPTH(depth));
+        }
+      }
+    }
+  };
+  sweepType(dA, 'ABYSS', [1, 2, 3, 4],
+    ['flame_burst_scroll', 'blizzard_scroll']);
+  sweepType(dC, 'CRYPT', [1, 2], ['light_heal_scroll']);
+  sweepType(dR, 'RUINS', [1, 2], ['fireball_scroll']);
 });

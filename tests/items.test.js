@@ -2898,3 +2898,57 @@ test('000230.02 M11 (vm): equip с заменой тяжёлого на лёгк
     'краснота: note-ветка уходила без syncEquipmentMirrors — '
     + 'зеркало weapon застревало на старом предмете (D-01)');
 });
+
+// =====================================================================
+// 000235.05. Тир свитков = уровень заклинания (ТЗ tasks/pending/
+// 000235.05.md п.1: data-only, append-only; контракт —
+// memory/000235.05-scroll-tier-loot.md).
+//
+// TDD-красное: поле `tier` у 8 свитков 000043–000050 ещё не проставлено
+// (ITEM_TIER = it.tier || 1, dungeon.js:55-57 — все свитки tier 1);
+// поле tier уже в schema.json (000157.01) — правки схемы не нужно.
+// Зеркало src/items-data.js ре-генерируется (npm run sync:items) —
+// существующий пин «зеркало ≡ JSON» (S1. 000133) остаётся несущим.
+// =====================================================================
+
+test('000235.05 I1: 8 свитков — tier = уровень соответствующего заклинания (JSON + зеркало + schema)', () => {
+  const TIER_TABLE = {
+    '000043.json': { id: 'fireball_scroll', tier: 2 },
+    '000044.json': { id: 'flame_burst_scroll', tier: 3 },
+    '000045.json': { id: 'frost_bolt_scroll', tier: 1 },
+    '000046.json': { id: 'blizzard_scroll', tier: 3 },
+    '000047.json': { id: 'chill_scroll', tier: 1 },
+    '000048.json': { id: 'light_heal_scroll', tier: 2 },
+    '000049.json': { id: 'magic_shield_scroll', tier: 1 },
+    '000050.json': { id: 'vine_scroll', tier: 1 },
+  };
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  for (const e of SCROLLS_000133) {
+    const t = TIER_TABLE[e.file];
+    const j = JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, e.file), 'utf8'));
+    // (a) JSON: tier проставлен = уровень заклинания (таблица ТЗ).
+    assert.equal(j.tier, t.tier, e.file + ': tier = ' + t.tier
+      + ' (краснота: tier нет — ' + JSON.stringify(j.tier) + ')');
+    assert.ok(j.tier >= 1 && j.tier <= 4,
+      e.file + ': tier в домене 1..4');
+    // (b) tier = уровень заклинания из каталога spells (авто-связь,
+    //     D8: ранг-гейт canLearn рангом школы).
+    const spell = SPELLS.SPELLS_BY_ID[e.spell];
+    assert.ok(spell, e.file + ': заклинание «' + e.spell + '» в каталоге');
+    assert.equal(j.tier, spell['уровень'],
+      e.file + ': tier (' + j.tier + ') = уровень «' + e.spell + '» ('
+      + spell['уровень'] + ')');
+    // (c) Зеркало items-data.js — то же значение.
+    const it = I.getItem(e.id);
+    assert.ok(it, e.file + ': зеркало items-data.js — «' + e.id + '»');
+    assert.equal(it.tier, t.tier,
+      e.file + ': зеркало tier = ' + t.tier + ' (краснота: ' + it.tier + ')');
+    // (d) Валиден по schema.json (поле tier — уже в схеме, 000157.01).
+    const errors = [];
+    validateSchema165(schema, j, e.file, errors);
+    assert.deepEqual(errors, [], e.file + ': schema.json — '
+      + JSON.stringify(errors));
+  }
+});

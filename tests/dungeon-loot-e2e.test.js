@@ -659,3 +659,116 @@ test('000191.12: успешная ветка сундука (add.ok → «, <nam
     [{ id: 'knight_plate', qty: 1 }],
     'предмет в инвентаре (add.ok — qty 1, не конвертирован)');
 });
+
+// --- Задача 000235.05: E1 — полный путь «свиток из сундука подземелья
+// → изучение → книга в сейве» (закрывает пробел a3 §2; контракт —
+// memory/000235.05-scroll-tier-loot.md; ТЗ — tasks/pending/000235.05.md
+// «Тесты (красные)» vm-e2e).
+//
+// КРАСНОЕ: сундуки выбирают предмет РАВНОМЕРНО по всему пулу (tier-фильтр
+// НЕТ) — сгенерированный сундук c0 подземелья FOREST (CRYPT, dseed
+// 820179115: hero totalXp=1) содержит light_heal_scroll, а НЕ
+// chill_scroll (T1 ≤ T(1)=1 — tier-выбор отбрасывает T2 light_heal_scroll
+// из CRYPT-пула на глубине 1). Дальний путь (сундук → useItem →
+// hero.spells → saveNow) существует с 000133 — он зелёный; красный
+// драйвер — генерационный пин c0.item.
+//
+// Пин (пробный прогон на прототипе tier-выбора): terrain FOREST (CRYPT),
+// hero totalXp=1 (level 1), primary {STR 2, DEX 1, CON 1, INT 11,
+// WIS 1, CHA 1}: dseed = 820179115, герой (8,19), c0 = (12,4), gold 29,
+// item light_heal_scroll (старый выбор) → chill_scroll (tier-выбор).
+// Мобы (16,3)/(21,10)/(11,9) — не у входа (соседи (8,19) свободны).
+// ----------------------------------------------------------------------
+
+test('000235.05 E1: сундук → свиток → изучение → сейв (FOREST, dseed 820179115, c0 = chill_scroll)', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({
+      totalXp: 1,
+      primary: {
+        strength: 2, dexterity: 1, constitution: 1,
+        intelligence: 11, wisdom: 1, charisma: 1,
+      },
+    }),
+  }));
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  // (a) Генерационный пин (красный драйвер): CRYPT-пул [alchemy_manual,
+  //     chainmail, mana_potion, meditation_scroll, chill_scroll (T1),
+  //     light_heal_scroll (T2)] на глубине 1 (T=1) — tier-выбор даёт
+  //     chill_scroll; старый равномерный выбор — light_heal_scroll.
+  const ds = g.actions.enterDungeon(G.TERRAIN.FOREST);
+  assert.ok(ds, 'enterDungeon(FOREST) — состояние подземелья');
+  assert.equal(ds.dg.seed, 820179115, 'dseed (сценарий: FOREST, totalXp=1)');
+  const c0 = ds.contents.chests[0];
+  assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
+  assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold,
+    item: c0.item },
+    { x: 12, y: 4, opened: false, gold: 29, item: 'chill_scroll' },
+    'c0: tier-выбор — chill_scroll (краснота: равномерный выбор — '
+    + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold, item: c0.item }) + ')');
+  // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-
+  //     соседе входа (паттерн 000191.12 — без pathfinding-зависимости).
+  const cell = asideDir(G, ds.dg);
+  assert.ok(cell, 'FLOOR-клетка-сосед входа найдена');
+  ds.contents = {
+    mobs: [],
+    chests: [{ id: 'c0', x: cell.x, y: cell.y, opened: false, gold: 29,
+      item: 'chill_scroll' }],
+    seed: 1, step: 0,
+  };
+  stepTo(h, cell.x, cell.y); // шаг на сундук → openChest
+  const line = ds.log.find((l) => l.startsWith('Сундук: +'));
+  assert.ok(line, 'строка сундука в ds.log: ' + JSON.stringify(ds.log));
+  const it = G.getItem('chill_scroll');
+  assert.ok(it, 'chill_scroll в каталоге items');
+  assert.equal(line, 'Сундук: +29 золота, ' + it.name,
+    'строка сундука побайтово: ' + line);
+  assert.deepEqual(host(g.state.hero.inventory),
+    [{ id: 'chill_scroll', qty: 1 }],
+    'свиток в инвентаре (qty 1)');
+  // (c) Изучение: INT 11 → Знаток (tier 2) ≥ chill (L1) → ok; мост —
+  //     живые spells/inventory + первичные атрибуты (паттерн E2 000133).
+  const liveSlots = g.state.hero.inventory;
+  const bridge = {
+    level: g.state.hero.level,
+    hp: g.state.hero.hp,
+    primary: {
+      strength: 2, dexterity: 1, constitution: 1,
+      intelligence: 11, wisdom: 1, charisma: 1,
+    },
+    secondary: {},
+    spells: g.state.hero.spells,
+    inventory: { slots: liveSlots, quick: [] },
+  };
+  const res = G.useItem(bridge, 'chill_scroll');
+  assert.equal(res.ok, true,
+    'useItem chill_scroll ok (INT 11 ≥ L1): ' + JSON.stringify(res));
+  assert.ok(g.state.hero.spells.includes('chill'),
+    'hero.spells += chill (мост — живая ссылка)');
+  assert.equal(G.totalQty(bridge, 'chill_scroll'), 0,
+    'свиток потрачен (живой инвентарь)');
+  // (d) Ранг-гейт (без изменений, 000235.05 п.4): light_heal (L2) при
+  //     WIS 1 → Ученик (tier 1) < 2 — отказ ДО расхода, «нужен ранг
+  //     школы «Знаток»».
+  const give = g.actions.giveItem('light_heal_scroll', 1);
+  assert.equal(give.ok, true, 'light_heal_scroll выдан: ' + JSON.stringify(give));
+  const res2 = G.useItem(bridge, 'light_heal_scroll');
+  assert.equal(res2.ok, false,
+    'rank-гейт: WIS 1 (Ученик tier 1) < light_heal (L2): ' + JSON.stringify(res2));
+  assert.ok(String(res2.reason).includes('ранг'),
+    'reason «нужен ранг школы…»: ' + res2.reason);
+  assert.ok(!g.state.hero.spells.includes('light_heal'),
+    'light_heal НЕ изучен');
+  assert.equal(G.totalQty(bridge, 'light_heal_scroll'), 1,
+    'свиток НЕ потрачен (отказ до расхода)');
+  // (e) Сейв: rest → onDay → saveNow — chill в hero.spells сейва.
+  g.actions.setDay(3);
+  const parsed = JSON.parse(h.storage.getItem(SAVE_KEY));
+  assert.ok(Array.isArray(parsed.data.hero.spells)
+    && parsed.data.hero.spells.includes('chill'),
+    'сейв: hero.spells содержит chill (saveNow при смене дня); факт: '
+    + JSON.stringify(parsed.data.hero.spells));
+});

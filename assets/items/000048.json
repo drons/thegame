@@ -4,6 +4,7 @@
   "kind": "spell_scroll",
   "weight": 0.2,
   "value": 70,
+  "tier": 2,
   "desc": "Свиток: изучает «Свет исцеления» (нужен ранг школы).",
   "effect": {
     "kind": "spell",

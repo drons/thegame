@@ -30,6 +30,12 @@ const {
   // отсутствует — undefined, падение осмысленное, не load-ошибка;
   // прецедент 000132: LOOT_BASE_POOL/LOOT_RARE_POOL).
   RARITY_TABLE, EQUIP_POOLS,
+  // 000235.05: лут свитков от разницы уровней (красные тесты: экспорт
+  // отсутствует — undefined → осмысленный TypeError/AssertionError,
+  // не load-ошибка; прецедент 000132/000155/000167/000175).
+  SALT_SCROLL, LOOT_SCROLL_CHANCE_BASE, LOOT_SCROLL_CHANCE_PER_DIFF,
+  LOOT_SCROLL_CHANCE_CAP, LOOT_SCROLL_MAX_TIER, SCROLL_SCHOOLS,
+  scrollChance, scrollTier, pickScroll, rollScrollDrop, scrollCatalog,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
@@ -8881,5 +8887,219 @@ test('000230.05-EQ5: детерминизм: фиксированный сид +
       'golden: точный состав (экипировочный дроп — ПОСЛЕДНИМ)');
   } finally {
     eqPoolsRestore(sav);
+  }
+});
+
+// 000235.05. Лут свитков от разницы уровней (контракт —
+// memory/000235.05-scroll-tier-loot.md; ТЗ — tasks/pending/000235.05.md).
+//
+// TDD-красное: фича ещё не в combat.js — экспорт
+// SALT_SCROLL/SCROLL_SCHOOLS/scrollChance/scrollTier/pickScroll/
+// rollScrollDrop/scrollCatalog отсутствует (undefined → осмысленные
+// AssertionError/TypeError в юнит-тестах, не load-ошибка — прецедент
+// 000132/000155/000167/000175):
+//   * S1 — формула: P(D) = 0.05 + 0.02·max(0, D), кап 0.25;
+//     T: D > 0 → min(4, 1+floor(D/3)), D ≤ 0 → перехватывательная
+//     ветка coin < 0.5 ? 2 : 1 (50/50); константы LOOT_*; школы;
+//   * S2 — солёный поток: детерминизм по (seed, day) + золотой
+//     свиток + пин SALT_SCROLL (значение/литерал/FNV-1a32("SCRL")/
+//     уникальность/legacy-безопасность);
+//   * S3 — существующие роллы бит-в-бит (xp/gold/предметы) +
+//     независимость свитка от c._rng;
+//   * S4 — выбор свитка: школа+тир → fallback вниз, затем вверх
+//     (каталог из 8 свитков ТЗ, школы+тиры по таблицам ТЗ);
+//   * S5 — свиток без tier = tier 1 (правило dungeon.js:55-57).
+// Золотой бой (пробный прогон на каталоге 2/3/1/3/1/2/1/1):
+// seed 6, day 0, wolf L4, герой L1 (D=3, P=0.11, T=2): солёный поток
+// (0x2eaef6ed) → r1=0.088581<0.11 (попадание) → школа лёд → T2 лёд
+// пуст → fallback вниз (T1) → frost_bolt_scroll. Доизменения тот же
+// бой: xp=24, gold=13, items=[honey_cake]. Legacy-фикстуры
+// (N1/N2 seed 5..10 day 0, C6 seed 5 day 0 — D=1, P=0.07): первый
+// заброс солёного потока (seed 5..10 × day 0..2) ≥ 0.07 → свитка нет,
+// поведение бит-в-бит.
+// =====================================================================
+
+const { mulberry32: mb32_000235, hash2: hash2_000235 } = require('../src/perlin.js');
+const SCROLL_IDS_000235 = [
+  'fireball_scroll', 'flame_burst_scroll', 'frost_bolt_scroll',
+  'blizzard_scroll', 'chill_scroll', 'light_heal_scroll',
+  'magic_shield_scroll', 'vine_scroll',
+];
+// Каталог ТЗ: id → {school, tier} (тиры = уровни заклинаний:
+// fireball L2, flame_burst L3, frost_bolt L1, blizzard L3, chill L1,
+// light_heal L2, magic_shield L1, vine L1).
+const CATALOG_000235 = [
+  { id: 'fireball_scroll', school: 'огонь', tier: 2 },
+  { id: 'flame_burst_scroll', school: 'огонь', tier: 3 },
+  { id: 'frost_bolt_scroll', school: 'лёд', tier: 1 },
+  { id: 'blizzard_scroll', school: 'лёд', tier: 3 },
+  { id: 'chill_scroll', school: 'тень', tier: 1 },
+  { id: 'light_heal_scroll', school: 'исцеление', tier: 2 },
+  { id: 'magic_shield_scroll', school: 'защита', tier: 1 },
+  { id: 'vine_scroll', school: 'природа', tier: 1 },
+];
+
+test('000235.05 S1: формула — D=0 (P=0.05, T∈{1,2} 50/50), D=3 (P=0.11, T=2), D=6 (P=0.17, T=3), D≥10 (P=0.25 кап, T=4)', () => {
+  assert.equal(typeof scrollChance, 'function', 'экспорт scrollChance(D)');
+  assert.equal(typeof scrollTier, 'function', 'экспорт scrollTier(D, coin)');
+  const near = (got, want, msg) => assert.ok(
+    Math.abs(got - want) < 1e-9, msg + ' (факт: ' + got + ')');
+  near(scrollChance(0), 0.05, 'P(0) = 0.05 (базовая)');
+  near(scrollChance(3), 0.11, 'P(3) = 0.11');
+  near(scrollChance(6), 0.17, 'P(6) = 0.17');
+  assert.equal(scrollChance(10), 0.25, 'P(10) = 0.25 (кап при D ≥ 10)');
+  assert.equal(scrollChance(20), 0.25, 'P(20) = 0.25 (кап)');
+  near(scrollChance(-4), 0.05, 'P(D<0) = 0.05 (max(0, D))');
+  // Тир: D > 0 — T = min(4, 1 + floor(D/3)); D ≤ 0 — перехватывательная
+  // ветка (coin < 0.5 → 2, иначе 1), базовая формула не применяется.
+  assert.equal(scrollTier(1, 0), 1, 'T(1) = 1');
+  assert.equal(scrollTier(3, 0), 2, 'T(3) = 2');
+  assert.equal(scrollTier(6, 0), 3, 'T(6) = 3');
+  assert.equal(scrollTier(9, 0), 4, 'T(9) = 4 (кап)');
+  assert.equal(scrollTier(12, 0), 4, 'T(12) = 4 (кап)');
+  assert.equal(scrollTier(0, 0), 2, 'T(D=0, coin=0) = 2');
+  assert.equal(scrollTier(0, 0.4), 2, 'T(D=0, coin=0.4) = 2');
+  assert.equal(scrollTier(0, 0.5), 1, 'T(D=0, coin=0.5) = 1');
+  assert.equal(scrollTier(0, 0.9), 1, 'T(D=0, coin=0.9) = 1');
+  assert.equal(scrollTier(-5, 0.1), 2, 'T(D<0, coin<0.5) = 2');
+  // Константы (паттерн LOOT_* :1158-1172) + школы (порядок — пин
+  // индекса floor(r·6) солёного потока).
+  assert.equal(LOOT_SCROLL_CHANCE_BASE, 0.05, 'LOOT_SCROLL_CHANCE_BASE');
+  assert.equal(LOOT_SCROLL_CHANCE_PER_DIFF, 0.02, 'LOOT_SCROLL_CHANCE_PER_DIFF');
+  assert.equal(LOOT_SCROLL_CHANCE_CAP, 0.25, 'LOOT_SCROLL_CHANCE_CAP');
+  assert.equal(LOOT_SCROLL_MAX_TIER, 4, 'LOOT_SCROLL_MAX_TIER');
+  assert.deepEqual(SCROLL_SCHOOLS,
+    ['огонь', 'лёд', 'тень', 'исцеление', 'защита', 'природа'],
+    'SCROLL_SCHOOLS — 6 школ, порядок каталога');
+});
+
+test('000235.05 S2: солёный поток — детерминизм по (seed, day) + золотой свиток + пин SALT_SCROLL', () => {
+  assert.equal(typeof rollScrollDrop, 'function', 'экспорт rollScrollDrop');
+  assert.equal(typeof SALT_SCROLL, 'number', 'экспорт SALT_SCROLL');
+  // (a) Детерминизм: один и тот же бой (seed 6, wolf L4, day 0) ×2 →
+  //     один и тот же состав лута.
+  const run = () => {
+    const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
+      killBy: 'dealDamage' });
+    return JSON.stringify(c.result.items);
+  };
+  assert.equal(run(), run(), 'один бой → один лут (солёный поток детерминирован)');
+  // (b) Золотое наполнение (пробный прогон на каталоге 2/3/1/3/1/2/1/1):
+  //     seed 6, day 0, wolf L4, герой L1 (D=3, P=0.11, T=2) → r1 =
+  //     0.088581 < 0.11 (попадание) → школа лёд → T2 лёд пуст →
+  //     fallback вниз (T1) → frost_bolt_scroll.
+  const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
+    killBy: 'dealDamage' });
+  const scrolls = c.result.items.filter((r) => SCROLL_IDS_000235.includes(r.id));
+  assert.deepEqual(scrolls, [{ id: 'frost_bolt_scroll', qty: 1 }],
+    'золотой: выпавший свиток — frost_bolt_scroll (факт: '
+    + JSON.stringify(c.result.items) + ')');
+  // (c) Пин SALT_SCROLL: значение + литерал в src/combat.js +
+  //     самостоятельный расчёт FNV-1a32("SCRL") + уникальность среди
+  //     существующих солей.
+  assert.equal(SALT_SCROLL, 0x2eaef6ed, 'SALT_SCROLL = 0x2eaef6ed');
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'combat.js'), 'utf8');
+  assert.ok(src.includes('2eaef6ed'), 'SALT_SCROLL-литерал 2eaef6ed в src/combat.js');
+  let fnv = 0x811c9dc5;
+  for (const ch of 'SCRL') {
+    fnv = Math.imul(fnv ^ ch.charCodeAt(0), 0x01000193) >>> 0;
+  }
+  assert.equal(fnv, 0x2eaef6ed, 'SALT_SCROLL = FNV-1a32("SCRL") (самопроверка)');
+  assert.ok(![0x0DE5, 0x5e11, 0x7777, 0xabcdef, 0x154075, 0xb055,
+    0x51a11ce5, 0x53d10d53, 0xd0d6b5e5, 0xd337b153, 0x5e11c3a7,
+    0x0c9f4b2d, 0x669f0101, 0x7f3a51c9, 0xf10c7a26, 0x5eedc0de,
+    0x54454c50, 0x71756974, 0x72656675, 0x4c4f4f54, 0x43495453,
+    0x53554254, 0x434f4e54, 0x43414d50].includes(SALT_SCROLL),
+    'SALT_SCROLL уникален относительно существующих солей');
+  // (d) Legacy-безопасность (пин N2/C6): зафиксированные бои
+  //     (N1/N2 seed 5..10 day 0, C6 seed 5 day 0 — D=1, P=0.07):
+  //     первый заброс солёного потока (seed 5..10 × day 0..2) ≥ 0.07
+  //     → свитка в legacy-фикстурах нет, их поведение бит-в-бит.
+  for (const seed of [5, 6, 7, 8, 9, 10]) {
+    for (const day of [0, 1, 2]) {
+      const r1 = mb32_000235(hash2_000235(seed, day, 0x2eaef6ed) >>> 0)();
+      assert.ok(r1 >= 0.07,
+        'первый заброс (' + seed + ',' + day + ') = ' + r1
+        + ' < 0.07 — legacy-пину P(1)=0.07 угрожает сдвиг');
+    }
+  }
+});
+
+test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng', () => {
+  // (a) Золотой бой (seed 6, wolf L4, герой L1): значения доизменения
+  //     (пробный прогон на текущем коде) — новый код обязан их
+  //     сохранить: новый ролл — СТРОГО ПОСЛЕ существующих (пин N2),
+  //     отдельный солёный поток — ноль вызовов c._rng.
+  const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
+    killBy: 'dealDamage' });
+  assert.equal(c.result.xp, 24, 'xp = 24 (бит-в-бит)');
+  assert.equal(c.result.gold, 13, 'gold = 13 (бит-в-бит)');
+  assert.deepEqual(c.result.items, [
+    { id: 'honey_cake', qty: 1 },
+    { id: 'frost_bolt_scroll', qty: 1 },
+  ], 'items: существующий состав бит-в-бит + свиток СТРОГО после '
+    + '(порядок первого появления; факт: ' + JSON.stringify(c.result.items) + ')');
+  // (b) c._rng → 0.99: все СТАРЫЕ роллы промазывают (таблица wolf 0.1,
+  //     базовый 0.25, редкий 0.05+0.01·4 = 0.09) → в луте только
+  //     свиток (солёный поток не зависит от c._rng — «старые потоки не
+  //     сдвигаются», тип пина N2).
+  const { c: b } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
+    rng: () => 0.99, killBy: 'dealDamage' });
+  assert.equal(b.result.xp, 24, 'xp = 24 (бит-в-бит)');
+  assert.equal(b.result.gold, 15, 'gold = round(3+2·4+0.99·4) = 15 (бит-в-бит)');
+  assert.deepEqual(b.result.items, [{ id: 'frost_bolt_scroll', qty: 1 }],
+    'rng→0.99: старые роллы промахнулись, солёный поток дал свиток всё '
+    + 'равно (факт: ' + JSON.stringify(b.result.items) + ')');
+});
+
+test('000235.05 S4: выбор свитка — школа+тир, fallback вниз, затем вверх; пустая школа → нет дропа', () => {
+  assert.equal(typeof pickScroll, 'function', 'экспорт pickScroll');
+  const cases = [
+    // [школа, тир, ожидаемый массив] — каталог CATALOG_000235:
+    // 2/3/1/3/1/2/1/1.
+    ['огонь', 1, ['fireball_scroll']],
+    ['огонь', 2, ['fireball_scroll']],
+    ['огонь', 3, ['flame_burst_scroll']],
+    ['огонь', 4, ['flame_burst_scroll']],
+    ['лёд', 1, ['frost_bolt_scroll']],
+    ['лёд', 2, ['frost_bolt_scroll']],
+    ['лёд', 3, ['blizzard_scroll']],
+    ['лёд', 4, ['blizzard_scroll']],
+    ['тень', 3, ['chill_scroll']],
+    ['тень', 4, ['chill_scroll']],
+    ['исцеление', 4, ['light_heal_scroll']],
+    ['исцеление', 1, ['light_heal_scroll']],
+    ['защита', 1, ['magic_shield_scroll']],
+    ['защита', 2, ['magic_shield_scroll']],
+    ['природа', 4, ['vine_scroll']],
+    ['природа', 1, ['vine_scroll']],
+    ['ветер', 1, []],
+    ['ветер', 4, []],
+  ];
+  for (const [school, tier, want] of cases) {
+    assert.deepEqual(pickScroll(CATALOG_000235, school, tier), want,
+      'pickScroll(' + school + ', T' + tier + ') — '
+      + JSON.stringify(pickScroll(CATALOG_000235, school, tier)));
+  }
+});
+
+test('000235.05 S5: свиток без tier = tier 1 (правило dungeon.js:55-57) — каталог деградирует, не падает', () => {
+  assert.equal(typeof scrollCatalog, 'function', 'экспорт scrollCatalog');
+  const cat = scrollCatalog();
+  assert.ok(Array.isArray(cat) && cat.length > 0, 'каталог не пуст');
+  const rec = cat[0];
+  const it = I.getItem(rec.id);
+  assert.ok(it, 'предмет «' + rec.id + '» в каталоге items');
+  const saved = it.tier;
+  try {
+    delete it.tier;
+    const cat2 = scrollCatalog();
+    const rec2 = cat2.find((r) => r.id === rec.id);
+    assert.ok(rec2, 'каталог после удаления tier содержит «' + rec.id + '»');
+    assert.equal(rec2.tier, 1, 'свиток без tier = tier 1');
+    assert.ok(pickScroll(cat2, rec2.school, 1).includes(rec.id),
+      'tier-1 нормализация: свиток выбирается из пула T1 своей школы');
+  } finally {
+    it.tier = saved;
   }
 });

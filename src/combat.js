@@ -99,16 +99,17 @@
     module.exports = factory(
       require('./perlin.js'), require('./player.js'), require('./items.js'),
       require('./global-settings.js'), require('./mob-groups-data.js'),
-      require('./loot-equip-data.js'));
+      require('./loot-equip-data.js'),
+      { Game: { SpellsData: require('./spells-data.js') } });
   } else {
     root.Game = Object.assign({}, root.Game,
       factory(typeof root.Game === 'object' ? root.Game : {}, root.Game,
         root.Game, root.Game && root.Game.GlobalSettings,
         (root.Game && root.Game.MobGroupsData) || null,
-        (root.Game && root.Game.LootEquipData) || null));
+        (root.Game && root.Game.LootEquipData) || null, root));
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self,
-  function (perlin, P, I, settings, mobGroups, lootEquipData) {
+  function (perlin, P, I, settings, mobGroups, lootEquipData, rootRef) {
 
   if (!settings || typeof settings.SETTINGS !== 'object') {
     throw new Error(
@@ -116,6 +117,7 @@
   }
 
   const mulberry32 = perlin.mulberry32;
+  const hash2 = perlin.hash2;
 
   // --- Роли и агрессивность (spec/mobs.md) ---
   const MOB_ROLES = {
@@ -1210,6 +1212,65 @@
     'nature_scroll',
   ];
 
+  const SALT_SCROLL = 0x2eaef6ed;
+  const LOOT_SCROLL_CHANCE_BASE = 0.05;
+  const LOOT_SCROLL_CHANCE_PER_DIFF = 0.02;
+  const LOOT_SCROLL_CHANCE_CAP = 0.25;
+  const LOOT_SCROLL_MAX_TIER = 4;
+  const SCROLL_SCHOOLS = ['огонь', 'лёд', 'тень', 'исцеление', 'защита', 'природа'];
+
+  function scrollChance(D) {
+    return Math.min(LOOT_SCROLL_CHANCE_CAP,
+      LOOT_SCROLL_CHANCE_BASE + LOOT_SCROLL_CHANCE_PER_DIFF * Math.max(0, D));
+  }
+
+  function scrollTier(D, coin) {
+    if (D > 0) return Math.min(LOOT_SCROLL_MAX_TIER, 1 + Math.floor(D / 3));
+    return coin < 0.5 ? 2 : 1;
+  }
+
+  function pickScroll(catalog, school, tier) {
+    const inSchool = catalog.filter((r) => r.school === school);
+    const order = [tier];
+    for (let t = tier - 1; t >= 1; t--) order.push(t);
+    for (let t = tier + 1; t <= LOOT_SCROLL_MAX_TIER; t++) order.push(t);
+    for (const t of order) {
+      const pool = inSchool.filter((r) => r.tier === t).map((r) => r.id);
+      if (pool.length) return pool;
+    }
+    return [];
+  }
+
+  function scrollCatalog() {
+    const out = [];
+    try {
+      const sd = rootRef && rootRef.Game && rootRef.Game.SpellsData;
+      if (!sd || !sd.SPELLS_BY_ID || typeof I.allItems !== 'function')
+        return out;
+      const byId = sd.SPELLS_BY_ID;
+      for (const it of I.allItems()) {
+        if (!it || it.kind !== 'spell_scroll') continue;
+        const e = it.effect;
+        if (!e || e.kind !== 'spell' || !byId[e.spell]) continue;
+        out.push({ id: it.id, school: byId[e.spell]['школа'], tier: it.tier || 1 });
+      }
+    } catch (err) {
+      return out;
+    }
+    return out;
+  }
+
+  function rollScrollDrop(catalog, seed, day, maxLvl, playerLevel) {
+    const D = maxLvl - playerLevel;
+    const rng = mulberry32(hash2(seed, day, SALT_SCROLL) >>> 0);
+    if (rng() >= scrollChance(D)) return null;
+    const T = D > 0 ? scrollTier(D, 0) : scrollTier(D, rng());
+    const school = SCROLL_SCHOOLS[Math.floor(rng() * SCROLL_SCHOOLS.length)];
+    const pool = pickScroll(catalog, school, T);
+    if (!pool.length) return null;
+    return pool[Math.floor(rng() * pool.length)];
+  }
+
   // Чистая функция (кроме c._rng): killed — поверженные мобы (тот же
   // список, что для xp/gold). Порядок вызовов c._rng ФИКСИРОВАН
   // (детерминизм, пин N2): для КАЖДОГО u из killed (порядок c.units)
@@ -1236,8 +1297,8 @@
       if (c._rng() < LOOT_BASE_CHANCE)
         drop(LOOT_BASE_POOL[Math.floor(c._rng() * LOOT_BASE_POOL.length)]);
     }
+    const maxLvl = killed.reduce((m, u) => Math.max(m, u.level || 0), 0);
     if (killed.length) {
-      const maxLvl = killed.reduce((m, u) => Math.max(m, u.level || 0), 0);
       if (c._rng() < LOOT_RARE_CHANCE_BASE
           + LOOT_RARE_CHANCE_PER_LV * maxLvl)
         drop(LOOT_RARE_POOL[Math.floor(c._rng() * LOOT_RARE_POOL.length)]);
@@ -1264,6 +1325,9 @@
         }
       }
     }
+    const sid = rollScrollDrop(scrollCatalog(), c.seed, c.day,
+      maxLvl, c.player.level);
+    if (sid) drop(sid);
     return items;
   }
 
@@ -3279,7 +3343,8 @@
    */
   function createCombat(opts) {
     const p = opts.player;
-    const rng = opts.rng || mulberry32(opts.seed != null ? opts.seed : 12345);
+    const seed = opts.seed != null ? opts.seed : 12345;
+    const rng = opts.rng || mulberry32(seed);
     const N = opts.levelDeltaMax != null ? opts.levelDeltaMax
       : settings.SETTINGS.level_delta_max;
     const difficulty = opts.difficulty != null
@@ -3364,6 +3429,7 @@
       },
       _rng: rng,
       day,
+      seed,
       // Задача 000076: благословения храма (000072) — ПАРАМЕТР боя,
       // не поле персонажа (derived не трогается). Дефолт ×1/−0 —
       // бит-в-бит как без 000076.
@@ -3579,6 +3645,9 @@
     // Редкость экипировочного лута (задача 000230.05): live-ссылки
     // на данные модуля (деградация — []/{}).
     RARITY_TABLE, EQUIP_POOLS,
+    SALT_SCROLL, LOOT_SCROLL_CHANCE_BASE, LOOT_SCROLL_CHANCE_PER_DIFF,
+    LOOT_SCROLL_CHANCE_CAP, LOOT_SCROLL_MAX_TIER, SCROLL_SCHOOLS,
+    scrollChance, scrollTier, pickScroll, scrollCatalog, rollScrollDrop,
     hitChance, createCombat, resolveDifficulty, canDoAction, buildTurnOrder,
     // Инициатива (задача 000167): формула (Ловкость + Интеллект) и
     // активный юнит по очереди — чистые функции (D1/D6, 0 c._rng).

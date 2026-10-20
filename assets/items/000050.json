@@ -4,6 +4,7 @@
   "kind": "spell_scroll",
   "weight": 0.2,
   "value": 50,
+  "tier": 1,
   "desc": "Свиток: изучает «Плетень» (нужен ранг школы).",
   "effect": {
     "kind": "spell",

@@ -744,13 +744,16 @@
     // Сундуки: 2-5 (+1/этаж, 000153.02: + (depth−1) — лут растёт с
     // глубиной; depth=1 — старая формула бит-в-бит), золото растёт с
     // эффективным уровнем, шанс предмета.
+    const T_ = Math.min(4, 1 + Math.floor((depth - 1) / 2));
+    const elig_ = items.filter((id) => (ITEM_TIER[id] || 1) <= T_);
+    const pool_ = elig_.length ? elig_ : items;
     const chests = [];
     const nChests = 2 + Math.floor(rng() * 4) + (d.depth - 1);
     for (let i = 0; i < nChests; i++) {
       const s = takeSpot();
       if (!s) break;
       const gold = Math.round(10 + rng() * 20 * (1 + effLevel * 0.2));
-      const item = rng() < CHEST_ITEM_CHANCE ? items[Math.floor(rng() * items.length)] : null;
+      const item = rng() < CHEST_ITEM_CHANCE ? pool_[Math.floor(rng() * pool_.length)] : null;
       chests.push({ id: 'c' + i, x: s[0], y: s[1], opened: false, gold, item });
     }
 
