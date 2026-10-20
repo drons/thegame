@@ -315,6 +315,23 @@
     [BUILDING_TYPES.NPC_HOUSE]: 'assets/sprites/buildings/npc_house.svg',
   };
 
+  const BUILDING_FRAMES = {
+    [BUILDING_TYPES.MAGIC_SHOP]: [
+      'assets/sprites/buildings/magic_shop_1.svg',
+      'assets/sprites/buildings/magic_shop_2.svg',
+      'assets/sprites/buildings/magic_shop_3.svg',
+      'assets/sprites/buildings/magic_shop_4.svg',
+    ],
+    [BUILDING_TYPES.BLACKSMITH]: [
+      'assets/sprites/buildings/blacksmith_1.svg',
+      'assets/sprites/buildings/blacksmith_2.svg',
+      'assets/sprites/buildings/blacksmith_3.svg',
+      'assets/sprites/buildings/blacksmith_4.svg',
+    ],
+  };
+
+  const BUILDING_FRAME_MS = 800;
+
   // Спрайты городов (задача 000110): город НЕ слот (000103 — свой
   // канал, type = BUILDING_TYPES.NONE, buildingId 51..54) — отдельная
   // таблица, ЛИТЕРАЛЬНОЕ зеркало каталога по категории «город»
@@ -689,6 +706,45 @@
   }
 
   /**
+   * Кадры анимации здания по СЛОТУ (задача 000224): анимированные
+   * слоты (3 — магазин магии, 5 — кузница) → массив из 4 путей
+   * BUILDING_FRAMES (литерал, НЕ каталог — мутация «спрайт» записей
+   * каталога на кадры не влияет); остальные слоты (0..12 без
+   * анимации), NONE(−1), 999, нечисла — null (конвенция null — как
+   * buildingSprite).
+   * @param {number} buildingType слот BUILDING_TYPES
+   * @returns {string[]|null} кадры или null
+   */
+  function buildingFrames(buildingType) {
+    return BUILDING_FRAMES[buildingType] || null;
+  }
+
+  /**
+   * Индекс кадра анимации здания (задача 000224):
+   * t = max(0, floor(nowMs / BUILDING_FRAME_MS));
+   * phase = (((tx*5 + ty*9) % n) + n) % n;
+   * return (t + phase) % n.
+   * Чистая функция (D10: кадр = f(now, x, y), детерминизм). Фаза —
+   * та же схема, что frameIndex (соседи рассинхронизированы); НЕ
+   * waterTileFrame (ловушка 000025: frameIndex(4) — мирская фаза
+   * волны, здесь — своя отображающая функция). Нечисловое now
+   * (NaN/±Infinity/undefined) — клампится к 0 БЕЗ исключения
+   * (индекс валиден, рендер не падает).
+   * @param {number} nowMs текущее время (мс)
+   * @param {number} tx координата якоря по X
+   * @param {number} ty координата якоря по Y
+   * @param {number} frameCount число кадров (строка BUILDING_FRAMES)
+   * @returns {number} индекс кадра в [0; frameCount)
+   */
+  function buildingFrameIndex(nowMs, tx, ty, frameCount) {
+    if (!frameCount || frameCount <= 1) return 0;
+    const tRaw = Math.floor(nowMs / BUILDING_FRAME_MS);
+    const t = Number.isFinite(tRaw) ? Math.max(0, tRaw) : 0;
+    const phase = (((tx * 5 + ty * 9) % frameCount) + frameCount) % frameCount;
+    return (t + phase) % frameCount;
+  }
+
+  /**
    * Спрайт города (путь) по id каталожной записи (задача 000110):
    * город НЕ слот (000103: type = NONE, buildingId 51..54) — канал,
    * отдельный от buildingSprite (слоты 0..12). Чистая функция;
@@ -932,6 +988,8 @@
       for (const a of MOB_ART_ACTIONS) paths.push(...mobArtFrames(mobId, a));
     }
     paths.push(...Object.values(BUILDING_SPRITES));
+    // Анимированные здания (задача 000224): 8 кадров (слоты 3/5 × 4).
+    for (const frames of Object.values(BUILDING_FRAMES)) paths.push(...frames);
     // Города (задача 000110): 4 спрайта по типу (отдельный канал).
     paths.push(...Object.values(CITY_SPRITES));
     // Лагерь (задача 000131): 1 спрайт (отдельный канал, id 47).
@@ -1099,7 +1157,8 @@
     MOB_KINDS, MOB_FRAMES,
     MOB_SPRITE_KINDS, mobSpriteKind,
     MOB_ART_DIR, MOB_ART_FRAME_COUNTS, MOB_ART_ACTIONS, mobArtFrames,
-    BUILDING_SPRITES,
+    BUILDING_SPRITES, BUILDING_FRAMES, BUILDING_FRAME_MS,
+    buildingFrames, buildingFrameIndex,
     CITY_SPRITES,
     CAMP_SPRITES,
     COMBAT_BG_DIR, COMBAT_BG_TERRAIN, COMBAT_BG_DUNGEON, COMBAT_BG_FALLBACK,

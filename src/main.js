@@ -2984,8 +2984,18 @@
   // остальных селекторов (контракт §4: legacy-сцена рисуется ПОЛНОСТЬЮ,
   // игра не падает; до правки по ревью 000176 здесь краш ПЕРВОГО кадра:
   // TypeError в buildFrame → frame, rAF-цикл умирал).
-  function buildingAsset(rec) {
+  // 000224: анимированный слот (3/5) — ТЕКУЩИЙ КАДР строго (G.
+  // buildingFrames + G.buildingFrameIndex, BUILDING_FRAME_MS = 800):
+  // кадр не загрузился — legacy-маркер/skip, FALLBACK НА БАЗУ ЗАПРЕЩЁН
+  // (прецедент воды 000025). now — ОДИН на кадр (frame(now) → оба
+  // потребителя), XOR-паритет 000176 цел.
+  function buildingAsset(rec, now) {
     if (!spriteLoader) return null;
+    const frames = typeof G.buildingFrames === 'function'
+      ? G.buildingFrames(rec.type) : null;
+    if (frames && frames.length > 1) {
+      return frames[G.buildingFrameIndex(now, rec.x, rec.y, frames.length)];
+    }
     return G.buildingSprite(rec.type) ||
       (rec.buildingId != null && typeof G.citySprite === 'function'
        ? G.citySprite(rec.buildingId) : null) ||
@@ -3062,7 +3072,7 @@
           // под готовым спрайтом (000176).
           const a = t.buildingAnchor;
           const rec = a ? buildingRec(a[0], a[1]) : buildingRec(t.x, t.y);
-          const asset = rec ? buildingAsset(rec) : null;
+          const asset = rec ? buildingAsset(rec, now) : null;
           const bimg = (spriteLoader && asset)
             ? spriteLoader.image(asset) : null;
           if (!bimg) {
@@ -3272,8 +3282,9 @@
       // Спрайт: слотовая ветка — первична, город/лагерь — по
       // каталожному buildingId (000176: выражение вынесено в
       // buildingAsset — ОБЩИЙ селектор с гейтом legacy-маркера в
-      // buildFrame; семантика веток — там).
-      const asset = buildingAsset(rec);
+      // buildFrame; семантика веток — там; 000224: анимированный слот
+      // — строгий текущий кадр, тот же now, что гейт).
+      const asset = buildingAsset(rec, now);
       const img = spriteLoader.image(asset);
       if (!img) continue;
       const p = toPt(rec.x, rec.y);

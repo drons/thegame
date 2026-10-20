@@ -659,7 +659,8 @@ function findNearestMulti(G, myMap, start) {
 // в конце — 4 осадочных кадра (глейд мувера и сглаживание камеры
 // завершаются). Кадр делает не более ОДНОГО хода, поэтому перелёта
 // через целевой тайл быть не может. Возвращает { calls — вызовы
-// ПОСЛЕДНЕГО кадра, found }.
+// ПОСЛЕДНЕГО кадра, found, now — now последнего кадра (зеркало
+// expectedBuildings) }.
 function walkToMulti(h) {
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
@@ -715,7 +716,7 @@ function walkToMulti(h) {
     now += 200;
     calls = frameAt(h, now);
   }
-  return { calls, found };
+  return { calls, found, now };
 }
 
 // Ожидаемые drawImage построек кадра (новое поведение 000042):
@@ -723,7 +724,7 @@ function walkToMulti(h) {
 // w×h от якоря: позиция G.worldToScreen(ax, ay), размер w*zoom ×
 // h*zoom. Якоря ищутся по видимому диапазону (якорь — любой тайл
 // footprint'а, поэтому расширять диапазон не нужно).
-function expectedBuildings(G, myMap, cam, zoom) {
+function expectedBuildings(G, myMap, cam, zoom, now) {
   const range = G.visibleTileRange(cam.x, cam.y, VIEW_W, VIEW_H, zoom);
   const anchors = new Map();
   for (let ty = range.y0; ty <= range.y1; ty++) {
@@ -749,9 +750,17 @@ function expectedBuildings(G, myMap, cam, zoom) {
     // и после задачи. 47 — единственный нетривиальный нетиповой
     // buildingId в этих окнах, поэтому campSprite — единственная
     // ветка, которую зеркалим.
-    const asset = G.buildingSprite(rec.type) ||
-      (rec.buildingId != null && typeof G.campSprite === 'function'
-       ? G.campSprite(rec.buildingId) : null);
+    // 000224: ЗЕРКАЛО селектора прохождением 2 main.js —
+    // анимированный слот (3/5) берёт ТЕКУЩИЙ КАДР (buildingFrameIndex
+    // на now последнего кадра; в этом тесте кадры pre-лоадены и
+    // готовы — строгость не впадает в skip).
+    const frames = typeof G.buildingFrames === 'function'
+      ? G.buildingFrames(rec.type) : null;
+    const asset = (frames && frames.length > 1)
+      ? frames[G.buildingFrameIndex(now, rec.ax, rec.ay, frames.length)]
+      : G.buildingSprite(rec.type) ||
+        (rec.buildingId != null && typeof G.campSprite === 'function'
+         ? G.campSprite(rec.buildingId) : null);
     if (!asset) continue;
     const p = G.worldToScreen(rec.ax, rec.ay, cam.x, cam.y, zoom, VIEW_W, VIEW_H);
     out.push({
@@ -786,7 +795,7 @@ function assertBuildingsEqual(actual, expected, label) {
 
 test('постройка: footprint рисуется ОДИН раз w×h с якоря (не 1x1 на входе)', async () => {
   const h = await boot(new Set());
-  const { calls, found } = walkToMulti(h);
+  const { calls, found, now } = walkToMulti(h);
   const g = h.sandbox.__game;
   const st = g.state;
   assert.deepEqual({ x: st.player.x, y: st.player.y },
@@ -795,7 +804,7 @@ test('постройка: footprint рисуется ОДИН раз w×h с я�
   assert.ok(tileDraws(calls).length > 0, 'текстуры тайлов на месте (слой жив)');
   const G = h.sandbox.Game;
   const myMap = G.createMap(G.generateSeedPixels());
-  const expected = expectedBuildings(G, myMap, st.cam, st.zoom);
+  const expected = expectedBuildings(G, myMap, st.cam, st.zoom, now);
   assert.ok(expected.some((e) => e.w > st.zoom || e.h > st.zoom),
     'сценарий: в кадре есть много-тайловая постройка');
   assertBuildingsEqual(buildingDraws(calls), expected, 'footprint');

@@ -451,7 +451,11 @@
   // Нет каталога/спрайтов/слота — null (тихий skip слоя; id 5 «Лавка
   // странника» — город-специфичный тип БЕЗ map-слота — нормальный skip,
   // не ошибка). Не экспортируется — поверхность G.dungeonUI стабильна.
-  function cityBuildingPath(live, buildingId) {
+  // 000224: анимированный слот (3/5) — ТЕКУЩИЙ КАДР того же строгого
+  // селектора, что карта (live.buildingFrames/live.buildingFrameIndex,
+  // x/y — клетка, кадр = f(now, x, y)); кадр не готов — клетка остаётся
+  // полом (контракт 000148.02), fallback на статичную базу запрещён.
+  function cityBuildingPath(live, buildingId, now, x, y) {
     if (!live || typeof live.getBuilding !== 'function'
         || typeof live.buildingSprite !== 'function') return null;
     const rec = live.getBuilding(buildingId);
@@ -461,7 +465,14 @@
       ? op.map_index
       : (op.размещение && Number.isInteger(op.размещение.слот)
          ? op.размещение.слот : null);
-    return slot == null ? null : live.buildingSprite(slot);
+    if (slot == null) return null;
+    const frames = typeof live.buildingFrames === 'function'
+      ? live.buildingFrames(slot) : null;
+    if (frames && frames.length > 1
+        && typeof live.buildingFrameIndex === 'function') {
+      return frames[live.buildingFrameIndex(now, x, y, frames.length)];
+    }
+    return live.buildingSprite(slot);
   }
 
   // now — время кадра (rAF-цикл); из событий (keydown) — текущее.
@@ -597,7 +608,7 @@
         for (let i = 0; i < bld.length; i++) {
           const b = bld[i];
           if (!b || b.x < x0 || b.x > x1 || b.y < y0 || b.y > y1) continue;
-          const path = cityBuildingPath(live, b.buildingId);
+          const path = cityBuildingPath(live, b.buildingId, nowT, b.x, b.y);
           if (!path) continue;
           const img = (typeof loader.isReady === 'function'
             ? loader.isReady(path) : true) && loader.image(path);

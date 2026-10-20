@@ -872,3 +872,264 @@ test('RM-10: обзорный зум (ZOOM_MIN): WebGL-буфер пуст (0 в
     + tileDraws(f.draw).length + ' > ' + N_tile + ')');
   assert.equal(heroDraws(f.draw).length, 1, 'герой: 1× (спрайт-слой)');
 });
+
+// --- RM-BA (Задача 000224, СТАДИЯ КРАСНЫХ ТЕСТОВ): анимированные
+// элементы зданий — кадр-свитч на глобальной карте.
+//
+// Контракты: memory/000224-building-anim-overlays.md
+//   * buildingAsset(rec, now) — анимированный слот (3/5) берёт ТЕКУЩИЙ
+//     КАДР из G.buildingFrames(slot) строго (без fallback на базу);
+//     кадр не загрузился → legacy-маркер (гейт buildFrame) + skip
+//     (проход 2) — СТРОГАЯ готовность (прецедент воды);
+//   * оба потребителя (гейт buildFrame, проход 2 drawSprites)
+//     получают now ОДНОГО кадра (XOR-паритет 000176);
+//   * кадр = f(now, x, y) (buildingFrameIndex, BUILDING_FRAME_MS = 800)
+//     — детерминизм (D10: два рендера на одном now идентичны).
+//
+// КРАСНЫЕ (падают на ТЕКУЩЕМ коде, осмысленно — экспорты
+// buildingFrames/buildingFrameIndex/BUILDING_FRAME_MS отсутствуют
+// в sprites.js):
+//   RM-BA-1: анимированная постройка (слот 3/5) пешком достижима —
+//            в кадре на её якоря drawImage КАДРА (не статичной базы),
+//            rec.w×rec.h × zoom; кадр через 800 мс — ДРУГОЙ (анимация
+//            видна); герой/тайлы/мобы интактны; errors 0.
+//   RM-BA-2: СТРОГАЯ готовность — отклонён ТЕКУЩИЙ кадр постройки →
+//            legacy-маркер (6 вершин) на якоря и СПРАЙТА нет (fallback
+//            на статичную базу ЗАПРЕЩЁН — база загрузилась!);
+//            остальной кадр интактен (RM-9(c) XOR).
+//
+// Сценарий: BFS от спавна (0,0) до входа ближайшей анимированной
+// постройки (слот 3/5) по проходимым тайлам, ИСКЛЮЧАЯ группы мобов,
+// входы пещер (maybeEnterDungeon) и входы городов (maybeEnterCity —
+// затянет игрока в город посреди пути). Мир — тот же детерминированный
+// G.generateSeedPixels (map.png в стабе ВСЕГДА onerror).
+
+// BFS: вход ближайшей анимированной постройки (слот 3/5) от (sx, sy).
+// Возврат: { target: {x, y, tile}, steps: [{x, y}…] (без старта),
+// slot } | null (не найдена в пределах cap).
+function findNearestAnimated(G, myMap, sx, sy, cap) {
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const visited = new Set([sx + ',' + sy]);
+  const prev = new Map();
+  let frontier = [{ x: sx, y: sy }];
+  let depth = 0;
+  let found = null;
+  while (frontier.length && depth < cap && !found) {
+    const next = [];
+    for (const t of frontier) {
+      for (const [dx, dy] of DIRS) {
+        const x = t.x + dx, y = t.y + dy;
+        const k = x + ',' + y;
+        if (visited.has(k)) continue;
+        const tile = myMap.tileAt(x, y);
+        const cityEntrance = tile.isEntrance
+          && tile.building === G.BUILDING_TYPES.NONE
+          && tile.buildingId != null;
+        const caveEntrance = tile.hasBuilding
+          && tile.building === G.BUILDING_TYPES.CAVE_ENTRANCE;
+        const isGoal = tile.isEntrance
+          && (tile.building === G.BUILDING_TYPES.BLACKSMITH
+              || tile.building === G.BUILDING_TYPES.MAGIC_SHOP)
+          && !tile.hasMobGroup;
+        if (isGoal) {
+          visited.add(k);
+          prev.set(k, t);
+          found = { x, y, tile };
+          break;
+        }
+        if (!tile.passable || tile.hasMobGroup || caveEntrance
+            || cityEntrance) continue;
+        visited.add(k);
+        prev.set(k, t);
+        next.push({ x, y });
+      }
+      if (found) break;
+    }
+    frontier = next;
+    depth++;
+  }
+  if (!found) return null;
+  const steps = [];
+  let cur = { x: found.x, y: found.y };
+  while (!(cur.x === sx && cur.y === sy)) {
+    steps.unshift(cur);
+    cur = prev.get(cur.x + ',' + cur.y);
+  }
+  return { target: found, steps, slot: found.tile.building };
+}
+
+// Ходьба ПО МАРШРУТУ (как makeWalker, но: бой зоны (000135)
+// авторешается (победа → Space — боевая панель замораживает
+// игрока), guard кадра щедрый — 40). now — монотонный (+200 мс).
+function makeRouteWalker(h) {
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  let now = NOW;
+  return function walkStep(tx, ty) {
+    const px = g.state.player.x, py = g.state.player.y;
+    const dx = tx - px, dy = ty - py;
+    assert.ok(Math.abs(dx) + Math.abs(dy) === 1,
+      'шаг по соседнему тайлу (' + px + ',' + py + ')→(' + tx + ',' + ty + ')');
+    const code = dx === 1 ? 'ArrowRight' : dx === -1 ? 'ArrowLeft'
+      : dy === 1 ? 'ArrowDown' : 'ArrowUp';
+    key(h, code);
+    let guard = 0;
+    do {
+      now += 200;
+      frameAt(h, now);
+      if (G.combatUI.isActive()) {
+        resolveCombatVictory(G, G.combatUI.current(), 'RM-BA');
+      }
+    } while ((g.state.player.x !== tx || g.state.player.y !== ty)
+      && ++guard < 40);
+    keyup(h, code);
+    assert.ok(g.state.player.x === tx && g.state.player.y === ty,
+      'сценарий: игрок перешёл на (' + tx + ',' + ty + ')');
+    for (let i = 0; i < 4; i++) { now += 200; frameAt(h, now); }
+    return now;
+  };
+}
+
+test('RM-BA-1 (Задача 000224, RED): анимированная постройка (слот 3/5) — на её якоря drawImage КАДРА (не статичная база), rec.w×rec.h × zoom; через 800 мс кадр ДРУГОЙ (анимация видна); герой 1×; errors 0', async () => {
+  const h = await boot();
+  assertReady(h);
+  const G = h.sandbox.Game;
+  // Предусловия — контракты кадров (отсутствуют в sprites.js сейчас).
+  assert.equal(typeof G.buildingFrames, 'function',
+    'sprites.js: экспорт buildingFrames(slot) — отсутствует (Задача 000224)');
+  assert.equal(typeof G.buildingFrameIndex, 'function',
+    'sprites.js: экспорт buildingFrameIndex(nowMs, tx, ty, n) — отсутствует (Задача 000224)');
+  assert.equal(G.BUILDING_FRAME_MS, 800,
+    'sprites.js: BUILDING_FRAME_MS = 800 — отсутствует (Задача 000224)');
+  const myMap = G.createMap(G.generateSeedPixels());
+  const sc = findNearestAnimated(G, myMap, 0, 0, 400);
+  assert.ok(sc, 'сценарий: анимированная постройка (слот 3/5) пешком достижима от спавна');
+  const rec = myMap.buildingAt(sc.target.x, sc.target.y);
+  assert.equal(rec.type, sc.slot,
+    'сценарий: buildingAt(якорь) — та же постройка (слот ' + sc.slot + ')');
+  assert.equal(rec.w * rec.h, 1, 'сценарий: анимированная постройка 1×1 (один маркерный квад)');
+  let now = NOW;
+  const walker = makeRouteWalker(h);
+  for (const st of sc.steps) now = walker(st.x, st.y);
+  const f1 = frameAt(h, now + 200);
+  const st1 = h.sandbox.__game.state;
+  const p = G.worldToScreen(rec.x, rec.y, st1.cam.x, st1.cam.y,
+    st1.zoom, VIEW_W, VIEW_H);
+  const bds = drawImages(f1.draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const hit = bds.find((c) =>
+    Math.abs(c[1][1] - p.x) <= 1e-6 && Math.abs(c[1][2] - p.y) <= 1e-6
+    && Math.abs(c[1][3] - rec.w * st1.zoom) <= 1e-6
+    && Math.abs(c[1][4] - rec.h * st1.zoom) <= 1e-6);
+  assert.ok(hit,
+    'анимированная постройка — спрайт на якоря (' + rec.x + ',' + rec.y + ') '
+    + 'размером rec.w×rec.h × zoom; building-drawImage в кадре: '
+    + bds.map((c) => assetOf(c)).join(', ') || '0');
+  const frames = G.buildingFrames(rec.type);
+  assert.ok(Array.isArray(frames) && frames.length >= 2,
+    'buildingFrames(слот) — таблица кадров');
+  assert.ok(frames.includes(assetOf(hit)),
+    'нарисованный спрайт — КАДР таблицы (' + assetOf(hit) + '), '
+    + 'а не статичная база');
+  assert.notEqual(assetOf(hit), G.buildingSprite(rec.type),
+    'нарисованный спрайт ≠ статичной базе (' + G.buildingSprite(rec.type) + ')');
+  assert.equal(tileVerts(h.glCalls), 0, 'тайлы: все ready → 0 тайл-квадов');
+  assert.equal(countColor(h.glCalls, BUILDING_COLOR), 0,
+    'постройки ready → маркеров BUILDING_COLOR нет (XOR)');
+  assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
+    'герой ready → legacy-ромба нет (XOR)');
+  assert.equal(heroDraws(f1.draw).length, 1, 'герой: 1× (спрайт-слой)');
+  // +800 мс (один BUILDING_FRAME_MS) — кадр сменился (анимация видна).
+  const f2 = frameAt(h, now + 1000);
+  const st2 = h.sandbox.__game.state;
+  const p2 = G.worldToScreen(rec.x, rec.y, st2.cam.x, st2.cam.y,
+    st2.zoom, VIEW_W, VIEW_H);
+  const bds2 = drawImages(f2.draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const hit2 = bds2.find((c) =>
+    Math.abs(c[1][1] - p2.x) <= 1e-6 && Math.abs(c[1][2] - p2.y) <= 1e-6
+    && Math.abs(c[1][3] - rec.w * st2.zoom) <= 1e-6
+    && Math.abs(c[1][4] - rec.h * st2.zoom) <= 1e-6);
+  assert.ok(hit2, 'постройка по-прежнему нарисована через 800 мс');
+  assert.ok(frames.includes(assetOf(hit2)),
+    'через 800 мс — тоже кадр таблицы (' + assetOf(hit2) + ')');
+  assert.notEqual(assetOf(hit2), assetOf(hit),
+    'через 800 мс кадр ДРУГОЙ (анимация видна): ' + assetOf(hit)
+    + ' → ' + assetOf(hit2));
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
+
+test('RM-BA-2 (Задача 000224, RED): строгая готовность — отклонён ТЕКУЩИЙ кадр анимированной постройки → legacy-маркер (6 вершин) на якоря, СПРАЙТА нет (fallback на статичную базу ЗАПРЕЩЁН — база загрузилась); остальной кадр интактен (RM-9(c) XOR)', async () => {
+  // (0) Эталонный boot: ходьба к анимированной постройке, baseline-кадр.
+  const hb = await boot();
+  assertReady(hb);
+  const G = hb.sandbox.Game;
+  assert.equal(typeof G.buildingFrames, 'function',
+    'sprites.js: экспорт buildingFrames(slot) — отсутствует (Задача 000224)');
+  assert.equal(typeof G.buildingFrameIndex, 'function',
+    'sprites.js: экспорт buildingFrameIndex(nowMs, tx, ty, n) — отсутствует (Задача 000224)');
+  const myMap = G.createMap(G.generateSeedPixels());
+  const sc = findNearestAnimated(G, myMap, 0, 0, 400);
+  assert.ok(sc, 'сценарий: анимированная постройка (слот 3/5) пешком достижима');
+  const rec = myMap.buildingAt(sc.target.x, sc.target.y);
+  const ax = rec.x, ay = rec.y;
+  let now0 = NOW;
+  {
+    const walker = makeRouteWalker(hb);
+    for (const st of sc.steps) now0 = walker(st.x, st.y);
+  }
+  const now1 = now0 + 200;
+  const fb = frameAt(hb, now1);
+  const buildingDraws = (draw) => drawImages(draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const frames = G.buildingFrames(rec.type);
+  assert.ok(Array.isArray(frames) && frames.length >= 2,
+    'buildingFrames(слот) — таблица кадров');
+  const active = frames[G.buildingFrameIndex(now1, ax, ay, frames.length)];
+  assert.ok(frames.includes(active), 'текущий кадр — из таблицы');
+  const N_bld = buildingDraws(fb.draw).length;
+  const K = buildingDraws(fb.draw).filter(
+    (c) => assetOf(c) === active).length;
+  assert.ok(K >= 1,
+    'baseline-кадр: постройка с текущим кадром нарисована (K=' + K + ')');
+  const N_tile = tileDraws(fb.draw).length;
+  const N_mob = mobDraws(fb.draw).length;
+  assert.ok(N_tile > 0, 'сценарий: кадр с тайлами');
+  assert.equal(heroDraws(fb.draw).length, 1, 'герой: 1×');
+  assert.equal(countColor(hb.glCalls, BUILDING_COLOR), 0,
+    'baseline: постройки ready → маркеров нет (XOR)');
+  // (1) Reject ТОЛЬКО текущего кадра (база загрузилась — fallback
+  // искушает, но запрещён: строгая семантика, прецедент воды).
+  const h = await boot((v) => v === active);
+  let now1b = NOW;
+  {
+    const walker = makeRouteWalker(h);
+    for (const st of sc.steps) now1b = walker(st.x, st.y);
+  }
+  assert.equal(now1b, now0,
+    'детерминизм: ходьба (тот же мир/входы) завершается в тот же now');
+  const f = frameAt(h, now1);
+  const st = h.sandbox.__game.state;
+  const p = G.worldToScreen(ax, ay, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const atAnchor = buildingDraws(f.draw).filter((c) =>
+    Math.abs(c[1][1] - p.x) <= 1e-6 && Math.abs(c[1][2] - p.y) <= 1e-6);
+  assert.equal(atAnchor.length, 0,
+    'отклонённый кадр — на якоря (' + ax + ',' + ay + ') building-спрайта НЕТ '
+    + '(fallback на статичную базу запрещён: строгая готовность)');
+  assert.equal(countColor(h.glCalls, BUILDING_COLOR), 6 * K,
+    'каждая постройка, рисовавшая отклонённый кадр — legacy-маркер (6 вершин × K=' + K + ')');
+  assert.equal(markerVerts(h.glCalls, BUILDING_COLOR, ax, ay), 6,
+    'маркер — на якоря целевой постройки (' + ax + ',' + ay + ')');
+  assert.equal(buildingDraws(f.draw).length, N_bld - K,
+    'остальные постройки интактны (' + (N_bld - K) + ' из ' + N_bld + ')');
+  assert.equal(tileDraws(f.draw).length, N_tile, 'тайлы: интактны');
+  assert.equal(mobDraws(f.draw).length, N_mob, 'мобы: интактны');
+  assert.equal(heroDraws(f.draw).length, 1, 'герой: 1×');
+  assert.equal(tileVerts(h.glCalls), 0, 'тайлы: все ready → 0 тайл-квадов');
+  assert.equal(countColor(h.glCalls, MOB_COLOR), 0,
+    'мобы: ready → маркеров нет (XOR)');
+  assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
+    'герой: ready → legacy-ромба нет (XOR)');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
