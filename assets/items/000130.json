@@ -1,0 +1,13 @@
+{
+  "id": "firelight_scroll",
+  "name": "Свиток: Свет пламени",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Свет пламени» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "firelight"
+  }
+}

@@ -254,12 +254,12 @@ function loadSpellsData() { return require('../src/spells-data.js'); }
 
 // --- Модуль-зеркало src/spells-data.js ---
 
-test('spells-data.js: точное зеркало каталога JSON (17 заклинаний)', () => {
+test('spells-data.js: точное зеркало каталога JSON (42 заклинания)', () => {
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
   const files = listSpellFiles();
-  assert.equal(files.length, 17, 'каталог: 17 файлов');
-  assert.equal(SPELLS.length, 17, 'SPELLS — 17 заклинаний');
-  assert.equal(Object.keys(SPELLS_BY_ID).length, 17, 'SPELLS_BY_ID — 17 id');
+  assert.equal(files.length, 42, 'каталог: 42 файла');
+  assert.equal(SPELLS.length, 42, 'SPELLS — 42 заклинания');
+  assert.equal(Object.keys(SPELLS_BY_ID).length, 42, 'SPELLS_BY_ID — 42 id');
   // Порядок SPELLS = порядок файлов каталога; данные — дословно
   // (в id-форме: ссылки резолвятся в id целевого файла, 000211.04).
   files.forEach((f, i) => {
@@ -1353,7 +1353,7 @@ test('000163 R1: каталог 000017.json — 17-й файл, поля по Т
   }
   // (e) Зеркало src/spells-data.js (regen sync-spells-data.js).
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
-  assert.equal(SPELLS.length, 17, 'зеркало: 17 заклинаний');
+  assert.equal(SPELLS.length, 42, 'зеркало: 42 заклинания');
   assert.deepEqual(SPELLS[16], resolveSpell(data, '000017.json'),
     'SPELLS[16] — зеркало 000017.json');
   assert.deepEqual(SPELLS_BY_ID.resurrect, resolveSpell(data, '000017.json'),
@@ -1849,9 +1849,9 @@ test('000211.04 R1: schema.json — поля-ссылки закреплены p
     '«здания»[] — ссылка на файл assets/buildings (integer → string)');
 });
 
-test('000211.04 R2: 17 заклинаний — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 5/14/26)', () => {
+test('000211.04 R2: 42 заклинания — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 11/39/51)', () => {
   const files = listSpellFiles();
-  assert.equal(files.length, 17, 'каталог: 17 файлов');
+  assert.equal(files.length, 42, 'каталог: 42 файла');
   const { byId } = loadCatalog();
   const { SPELLS } = loadSpellsData();
   let baseRefs = 0;
@@ -1908,15 +1908,16 @@ test('000211.04 R2: 17 заклинаний — база/предметы/зда
       `${f}: id целей «здания» = прежним значениям (зеркало)`);
   });
   // Анти-вакуум: точные счётчики ссылок (контракт §1/§2).
-  assert.equal(baseRefs, 5, 'анти-вакуум: ровно 5 base-ссылок (12 null)');
-  assert.equal(itemRefs, 14, 'анти-вакуум: 14 item-ссылок');
-  assert.equal(buildingRefs, 26, 'анти-вакуум: 26 building-ссылок');
-  assert.equal(baseRefs + itemRefs + buildingRefs, 45,
-    'всего ссылок: 45 (5 + 14 + 26)');
-  assert.equal(filesWithItems, 11,
-    'анти-вакуум: 11 файлов с «предметы» (6 без ключа)');
-  assert.equal(baseTargets.size, 5, 'уникальные цели: 5 spells');
-  assert.equal(itemTargets.size, 3, 'уникальные цели: 3 items');
+  assert.equal(baseRefs, 11, 'анти-вакуум: ровно 11 base-ссылок (31 null)');
+  assert.equal(itemRefs, 39, 'анти-вакуум: 39 item-ссылок');
+  assert.equal(buildingRefs, 51, 'анти-вакуум: 51 building-ссылок');
+  assert.equal(baseRefs + itemRefs + buildingRefs, 101,
+    'всего ссылок: 101 (11 + 39 + 51)');
+  assert.equal(filesWithItems, 36,
+    'анти-вакуум: 36 файлов с «предметы» (6 без ключа)');
+  assert.equal(baseTargets.size, 11,
+    'уникальные цели: 11 spells (5 старых + ember, ignite, blazing_speed, fire_aura, scorch, cinder)');
+  assert.equal(itemTargets.size, 28, 'уникальные цели: 28 items');
   assert.equal(buildingTargets.size, 7, 'уникальные цели: 7 buildings');
 });
 
@@ -2206,7 +2207,7 @@ test('000235.01 S3: «вне_боя» — опционально, default false;
   // false; гейт — по ДЕЙСТВИЮ (не по флагу): «телепорт» БЕЗ вне_боя
   // в бою — отказ ДО расхода пула/маны (зеркало 000037).
   const dataMod = loadSpellsData();
-  for (const s of dataMod.SPELLS) {
+  for (const s of dataMod.SPELLS.slice(0, 17)) {
     assert.ok(!s.вне_боя, `${s.id}: «вне_боя» отсутствует/false`);
   }
   const ghost = {
@@ -3188,5 +3189,341 @@ test('000235.04 H4: dispatch-пины — «телепорт» БЕЗ mode → s
       '«внебой» — БЕЗ телепорта (кейс-маркер — только запись)');
   } finally {
     popOcGuests(dataMod, [noMode, out]);
+  }
+});
+
+// --- Задача 000235.07: волна Огонь — 25 заклинаний + 25 свитков (TDD) ---
+//
+// Контракт: memory/000235.07-fire-wave-content.md. RED: записи/свитки/
+// иконки/пул/зеркала/экспорты отсутствуют (ENOENT / undefined / count) —
+// осмысленно, не синтаксис. Таблица ТЗ дословно; нумерация append-only:
+// spells 000018–000042, свитки items 000108–00132 (тот же порядок;
+// после ребейза конкурент 000232 занял 000077–000082).
+
+const FIRE07 = [
+  // id, название, действие, уровень, степень, база(файл|null), мани, вне_боя
+  ['ember', 'Тлеющий уголёк', 'урон', 1, 1, null, 3, false],
+  ['ignite', 'Поджечь', 'урон', 2, 2, 'assets/spells/000018.json', 7, false],
+  ['fire_nova', 'Огненная нова', 'урон', 2, 1, null, 6, false],
+  ['lava_burst', 'Лава-всплеск', 'урон', 3, 3, 'assets/spells/000019.json', 10, false],
+  ['meteor', 'Метеор', 'урон', 3, 1, null, 15, false],
+  ['flame_strike', 'Огненный удар', 'урон', 3, 1, null, 12, false],
+  ['hellfire', 'Адское пламя', 'урон', 4, 1, null, 20, false],
+  ['phlogiston_blast', 'Взрыв флогистона', 'урон', 4, 1, null, 20, false],
+  ['burning_ground', 'Жгучая земля', 'создание', 2, 1, null, 8, false],
+  ['wall_of_fire', 'Стена огня', 'создание', 3, 1, null, 12, false],
+  ['burning_haze', 'Облако пламени', 'создание', 3, 1, null, 12, false],
+  ['blazing_speed', 'Пламенная стремительность', 'баф', 1, 1, null, 4, false],
+  ['fire_aura', 'Аура пламени', 'баф', 2, 2, 'assets/spells/000029.json', 7, false],
+  ['heat_shield', 'Жаровой щит', 'баф', 2, 1, null, 8, false],
+  ['sunfire', 'Солнечный огонь', 'баф', 3, 3, 'assets/spells/000030.json', 13, false],
+  ['scorch', 'Обжечь', 'дебаф', 2, 1, null, 7, false],
+  ['cinder', 'Пепел', 'дебаф', 3, 2, 'assets/spells/000033.json', 10, false],
+  ['ashen_debilitation', 'Пепельная слабость', 'дебаф', 4, 3, 'assets/spells/000034.json', 20, false],
+  ['lava_snare', 'Лава-петля', 'контроль', 2, 1, null, 6, false],
+  ['burning_cage', 'Огненная клетка', 'контроль', 3, 1, null, 12, false],
+  ['flame_imp', 'Огненный имп', 'призыв', 2, 1, null, 8, false],
+  ['phoenix', 'Феникс', 'призыв', 4, 1, null, 20, false],
+  ['firelight', 'Свет пламени', 'внебой', 1, 1, null, 4, true],
+  ['hearthfire', 'Очаговый огонь', 'внебой', 1, 1, null, 5, true],
+  ['flame_step', 'Пламенный шаг', 'телепорт', 2, 1, null, 7, true],
+];
+const FIRE07_IDS = FIRE07.map((r) => r[0]);
+const FIRE07_OC = ['firelight', 'hearthfire', 'flame_step'];
+
+function fireSpellFile(i) {
+  return path.join(DIR, String(18 + i).padStart(6, '0') + '.json');
+}
+function fireScrollFile(i) {
+  return `assets/items/${String(108 + i).padStart(6, '0')}.json`;
+}
+function fireScrollId(i) { return FIRE07[i][0] + '_scroll'; }
+
+test('000235.07 W-02: 25 записей spells — id/название/школа/атрибут/действие/уровень/степень/база/мани/icon/icon_prompt/здания/предметы/вне_боя по таблице ТЗ', () => {
+  let ocCount = 0;
+  FIRE07.forEach((row, i) => {
+    const [id, name, action, level, degree, base, mana, oc] = row;
+    const f = fireSpellFile(i);
+    assert.ok(fs.existsSync(f),
+      `W-02: запись отсутствует — ${path.basename(f)} (${id}) (RED: файл нет)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    assert.equal(d.id, id, `${id}: id`);
+    assert.equal(d.название, name, `${id}: название`);
+    assert.equal(d.школа, 'огонь', `${id}: школа`);
+    assert.equal(d.атрибут, 'intelligence', `${id}: атрибут`);
+    assert.equal(d.действие, action, `${id}: действие`);
+    assert.equal(d.уровень, level, `${id}: уровень`);
+    assert.equal(d.степень, degree, `${id}: степень`);
+    assert.equal(d.база, base, `${id}: база`);
+    assert.equal(d.мани, mana, `${id}: мани`);
+    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.ok(typeof d.icon_prompt === 'string' && d.icon_prompt.trim().length > 0,
+      `${id}: icon_prompt непустое`);
+    assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
+      `${id}: описание непустое`);
+    assert.deepEqual(d.здания, ['assets/buildings/000018.json'],
+      `${id}: здания = [000018]`);
+    assert.deepEqual(d.предметы, [fireScrollFile(i)],
+      `${id}: предметы = [свой свиток ${fireScrollFile(i)}]`);
+    assert.equal(d.вне_боя === true, oc, `${id}: вне_боя`);
+    if (oc) ocCount += 1;
+  });
+  assert.equal(ocCount, 3,
+    'вне_боя — ровно 3 (firelight/hearthfire/flame_step)');
+});
+
+test('000235.07 W-03: параметры по D1 — баф/дебаф {stat,value,turns}; призыв {summon,turns:4}; создание {object,stat,value,turns,radius}/{object,turns}; внебой {days:1,radius:5}; урон/контроль/телепорт — без параметров', () => {
+  const P = {
+    blazing_speed: { stat: 'ход', value: 1, turns: 3 },
+    fire_aura: { stat: 'урон', value: 0.15, turns: 3 },
+    heat_shield: { stat: 'броня', value: 1, turns: 3 },
+    sunfire: { stat: 'урон', value: 0.15, turns: 3 },
+    scorch: { stat: 'броня_вниз', value: 1, turns: 3 },
+    cinder: { stat: 'урон_вниз', value: 0.15, turns: 3 },
+    ashen_debilitation: { stat: 'урон_вниз', value: 0.2, turns: 3 },
+    flame_imp: { summon: 'imp', turns: 4 },
+    phoenix: { summon: 'fire_elemental', turns: 4 },
+    burning_ground: { object: 'зона', stat: 'dot', value: 1, turns: 3, radius: 2 },
+    burning_haze: { object: 'зона', stat: 'dot', value: 1, turns: 3, radius: 2 },
+    wall_of_fire: { object: 'стена', turns: 5 },
+    firelight: { days: 1, radius: 5 },
+    hearthfire: { days: 1, radius: 5 },
+  };
+  const NO_PARAMS = new Set([
+    'ember', 'ignite', 'fire_nova', 'lava_burst', 'meteor', 'flame_strike',
+    'hellfire', 'phlogiston_blast', 'lava_snare', 'burning_cage', 'flame_step',
+  ]);
+  FIRE07.forEach((row, i) => {
+    const id = row[0];
+    const f = fireSpellFile(i);
+    assert.ok(fs.existsSync(f), `W-03: запись отсутствует — ${id} (RED)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const expected = P[id];
+    if (expected !== undefined) {
+      assert.deepEqual(d.параметры, expected, `${id}: параметры по D1`);
+    } else {
+      assert.equal(d.параметры, undefined,
+        `${id}: БЕЗ «параметры» (${NO_PARAMS.has(id) ? 'урон/контроль/телепорт' : 'ошибка таблицы'})`);
+    }
+  });
+});
+
+test('000235.07 W-04: кастабельность вне боя — firelight/hearthfire/flame_step ok; 22 боевых «боевое заклинание» до расхода; телепорт без вне_боя (гость) — отказ', () => {
+  const dataMod = loadSpellsData();
+  const guest = ocGuest0235('w04_tport_noflag', {
+    действие: 'телепорт', параметры: {}, вне_боя: false,
+  });
+  try {
+    pushOcGuests(dataMod, [guest]);
+    const { castOutOfCombat } = loadSpells();
+    for (const id of FIRE07_OC) {
+      assert.ok(dataMod.SPELLS_BY_ID[id], `W-04: ${id} — запись в каталоге (RED: нет)`);
+      const p = spellHero({ spells: [id], mp: 30 });
+      const r = castOutOfCombat(p, id, 10);
+      assert.equal(r.ok, true, `${id}: каст вне боя ok (${r.reason})`);
+    }
+    const combatIds = FIRE07_IDS.filter((id) => !FIRE07_OC.includes(id));
+    assert.equal(combatIds.length, 22, '25 − 3 внебоевых = 22 боевых');
+    for (const id of combatIds) {
+      assert.ok(dataMod.SPELLS_BY_ID[id], `W-04: ${id} — запись (RED: нет)`);
+      const p = spellHero({ spells: [id], mp: 30 });
+      const r = castOutOfCombat(p, id, 10);
+      assert.equal(r.ok, false, `${id}: боевое вне боя — отказ`);
+      assert.equal(r.reason, 'боевое заклинание', `${id}: причина по флагу`);
+      assert.equal(p.mp, 30, `${id}: отказ — до расхода`);
+      assert.equal(p.outOfCombatEffects, undefined, `${id}: отказ — без мутаций`);
+    }
+    const pg = spellHero({ spells: [guest.id], mp: 30 });
+    const rg = castOutOfCombat(pg, guest.id, 10);
+    assert.equal(rg.ok, false, 'телепорт без вне_боя — отказ');
+    assert.equal(rg.reason, 'боевое заклинание', 'телепорт без флага — гейт по флагу');
+    assert.equal(pg.mp, 30, 'гость: отказ до расхода');
+  } finally {
+    popOcGuests(dataMod, [guest]);
+  }
+});
+
+test('000235.07 W-08: зеркала в синке — spells-data 42 / items-data 132; sync:check exit 0', () => {
+  const { SPELLS } = loadSpellsData();
+  assert.equal(SPELLS.length, 42, 'spells-data: 42 записи (RED: 17)');
+  const itemsData = require('../src/items-data.js');
+  assert.equal(itemsData.ITEMS.length, 132, 'items-data: 132 (RED: 82)');
+  const { spawnSync } = require('node:child_process');
+  const r = spawnSync(process.execPath,
+    [path.join(__dirname, '..', 'scripts', 'sync-all.js'), '--check'],
+    { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(r.status, 0,
+    'sync:check exit 0 (RED: зеркала/каталоги расходятся): '
+    + ((r.stdout || '') + (r.stderr || '')).slice(0, 400));
+});
+
+test('000235.07 W-10a: case flame_step — отказ callback → reason + мана откатилась, ЗАПИСЕЙ НЕТ; успех → {ok:true}, записи нет; без callback → «телепорт недоступен здесь»; нет маны → «не хватает маны» ДО cb (мутаций нет)', () => {
+  const dataMod = loadSpellsData();
+  assert.ok(dataMod.SPELLS_BY_ID['flame_step'],
+    'W-10a: запись flame_step в каталоге (RED: нет)');
+  const { castOutOfCombat } = loadSpells();
+  {
+    const p = spellHero({ spells: ['flame_step'], mp: 30 });
+    const r = castOutOfCombat(p, 'flame_step', 10, {
+      flameStep: () => ({ ok: false, reason: 'нет направления движения' }),
+    });
+    assert.equal(r.ok, false, 'отказ callback → ok:false');
+    assert.equal(r.reason, 'нет направления движения', 'reason из callback');
+    assert.equal(p.mp, 30, 'отказ → мана откатилась (не 30−7)');
+    assert.equal(p.outOfCombatEffects, undefined, 'телепорт — ЗАПИСЕЙ НЕТ');
+  }
+  {
+    const p = spellHero({ spells: ['flame_step'], mp: 30 });
+    const r = castOutOfCombat(p, 'flame_step', 10, {
+      flameStep: () => ({ ok: true }),
+    });
+    assert.equal(r.ok, true, 'успех callback → ok:true');
+    assert.equal(r.expiresDay, null, 'телепорт — expiresDay null');
+    assert.equal(p.mp, 23, 'успех → мана снята (7)');
+    assert.equal(p.outOfCombatEffects, undefined, 'телепорт — записи НЕ создаёт');
+  }
+  {
+    const p = spellHero({ spells: ['flame_step'], mp: 30 });
+    const r = castOutOfCombat(p, 'flame_step', 10, {});
+    assert.equal(r.ok, false, 'без callback → отказ');
+    assert.equal(r.reason, 'телепорт недоступен здесь');
+    assert.equal(p.mp, 30, 'отказ → мана откатилась');
+  }
+  {
+    let calls = 0;
+    const p = spellHero({ spells: ['flame_step'], mp: 2 });
+    const r = castOutOfCombat(p, 'flame_step', 10, {
+      flameStep: () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(r.ok, false, 'нет маны + успешный cb → отказ');
+    assert.equal(r.reason, 'не хватает маны',
+      'проверка маны ДО cb (ревью: мутация — после всех проверок)');
+    assert.equal(calls, 0, 'cb НЕ вызван — телепорта нет при отказе');
+    assert.equal(p.mp, 2, 'mp без изменений');
+    assert.equal(p.outOfCombatEffects, undefined, 'записей нет');
+  }
+  {
+    let calls = 0;
+    const p = spellHero({ spells: ['flame_step'], mp: 2 });
+    const r = castOutOfCombat(p, 'flame_step', 10, {
+      flameStep: () => { calls += 1;
+        return { ok: false, reason: 'некуда шагнуть' }; },
+    });
+    assert.equal(r.ok, false, 'нет маны + отказ cb → отказ');
+    assert.equal(r.reason, 'не хватает маны',
+      'одновременные «нет маны» и «телепорт невозможен» → мана');
+    assert.equal(calls, 0, 'cb НЕ вызван (проверка маны первая)');
+    assert.equal(p.mp, 2, 'mp без изменений');
+  }
+});
+
+test('000235.07 W-11a: isHeroLit — запись firelight expiresDay > day → true; граница = day → false; < day → false; нет/[]/чужой id/null/мусор → false без краха', () => {
+  const { isHeroLit } = loadSpells();
+  assert.equal(typeof isHeroLit, 'function',
+    '000235.07: export Spells.isHeroLit (src/spells.js) (RED: нет)');
+  const day = 10;
+  assert.equal(isHeroLit({ outOfCombatEffects: [{ spellId: 'firelight', expiresDay: day + 1 }] }, day),
+    true, 'активная (expiresDay = day+1) — true');
+  assert.equal(isHeroLit({ outOfCombatEffects: [{ spellId: 'firelight', expiresDay: day }] }, day),
+    false, 'граница: expiresDay === day — false (>)');
+  assert.equal(isHeroLit({ outOfCombatEffects: [{ spellId: 'firelight', expiresDay: day - 1 }] }, day),
+    false, 'истёкшая (expiresDay < day) — false');
+  assert.equal(isHeroLit({}, day), false, 'нет поля — false');
+  assert.equal(isHeroLit({ outOfCombatEffects: [] }, day), false, 'пустой массив — false');
+  assert.equal(isHeroLit({ outOfCombatEffects: [{ spellId: 'hearthfire', expiresDay: day + 2 }] }, day),
+    false, 'чужой id — false');
+  assert.equal(isHeroLit(null, day), false, 'hero = null — false');
+  assert.equal(isHeroLit({ outOfCombatEffects: [
+    null, 'мусор', 42, { expiresDay: day + 1 },
+    { spellId: 'нет_такого', expiresDay: day + 1 },
+  ] }, day), false, 'мусор-записи — false без краха');
+});
+
+test('000235.07 W-12a: isHeroCamped — ГРАНИЦА expiresDay >= day (day → true, day+1 → true, day−1 → false), матчинг по id; restoreDay(sheet) бит-в-байт, restoreDay(sheet,1.1) — ×1.1 (HP И MP больше)', () => {
+  const { isHeroCamped } = loadSpells();
+  assert.equal(typeof isHeroCamped, 'function',
+    '000235.07: export Spells.isHeroCamped (src/spells.js) (RED: нет)');
+  const day = 10;
+  assert.equal(isHeroCamped({ outOfCombatEffects: [{ spellId: 'hearthfire', expiresDay: day }] }, day),
+    true, 'граница: expiresDay === day — TRUE (>=, не >)');
+  assert.equal(isHeroCamped({ outOfCombatEffects: [{ spellId: 'hearthfire', expiresDay: day + 1 }] }, day),
+    true, 'expiresDay = day+1 — true');
+  assert.equal(isHeroCamped({ outOfCombatEffects: [{ spellId: 'hearthfire', expiresDay: day - 1 }] }, day),
+    false, 'expiresDay < day — false');
+  assert.equal(isHeroCamped({ outOfCombatEffects: [{ spellId: 'firelight', expiresDay: day }] }, day),
+    false, 'чужой id — false');
+  assert.equal(isHeroCamped({}, day), false, 'нет поля — false');
+  assert.equal(isHeroCamped(null, day), false, 'null — false');
+
+  const player = require('../src/player.js');
+  const Sheet = require('../src/sheet.js');
+  function regenHero() {
+    const h = player.createCharacter();
+    h.primary.constitution = 10;
+    h.primary.intelligence = 10;
+    h.primary.wisdom = 10;
+    h.level = 1;
+    h.hp = 0;
+    h.mp = 0;
+    return h;
+  }
+  const base = Sheet.restoreDay(regenHero());
+  const boost = Sheet.restoreDay(regenHero(), 1.1);
+  assert.ok(base.hp > 0 && base.mp > 0, 'фикстура: базовый реген > 0');
+  assert.ok(boost.hp > base.hp,
+    '×1.1 — HP реген больше (RED: regenMult-аргумент не учитывается)');
+  assert.ok(boost.mp > base.mp,
+    '×1.1 — MP реген больше (RED: regenMult-аргумент не учитывается)');
+});
+
+test('000235.07 W-13: призывы flame_imp/phoenix — makeAlly level=уровень спелла, summonTurns=4, имя/роль из MOB_TYPES; детерминизм (seed); fail-closed «неизвестный призыв»', () => {
+  const dataMod = loadSpellsData();
+  assert.ok(dataMod.SPELLS_BY_ID['flame_imp'], 'W-13: flame_imp (RED: нет)');
+  assert.ok(dataMod.SPELLS_BY_ID['phoenix'], 'W-13: phoenix (RED: нет)');
+  const { castSpell } = loadSpells();
+  function summonCase(spellId, level, name, role) {
+    const p = spellHero({ spells: [spellId], intelligence: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, spellId);
+    assert.equal(r.ok, true, `${spellId}: каст призыва ok (${r.reason})`);
+    assert.ok(r.summoned, `${spellId}: r.summoned`);
+    const a = c.units.find((u) => u.id === r.summoned);
+    assert.ok(a, `${spellId}: призванный в c.units`);
+    assert.equal(a.kind, 'summon', `${spellId}: kind summon`);
+    assert.equal(a.summonTurns, 4, `${spellId}: summonTurns 4`);
+    assert.equal(a.level, level, `${spellId}: level = уровень спелла`);
+    assert.equal(a.name, name, `${spellId}: имя из MOB_TYPES`);
+    assert.equal(a.role, role, `${spellId}: роль из MOB_TYPES`);
+  }
+  summonCase('flame_imp', 2, 'Имп', 'ranged');
+  summonCase('phoenix', 4, 'Огненный стихийник', 'melee');
+  // Детерминизм: два одинаковых боя (seed) → одинаковые статистики.
+  {
+    const p1 = spellHero({ spells: ['flame_imp'], intelligence: 11, mp: 40 });
+    const c1 = soloCombat(p1, 'wolf');
+    castSpell(c1, 'flame_imp');
+    const a1 = c1.units.find((u) => u.kind === 'summon');
+    const p2 = spellHero({ spells: ['flame_imp'], intelligence: 11, mp: 40 });
+    const c2 = soloCombat(p2, 'wolf');
+    castSpell(c2, 'flame_imp');
+    const a2 = c2.units.find((u) => u.kind === 'summon');
+    assert.equal(a1.maxHP, a2.maxHP, 'детерминизм: maxHP');
+    assert.equal(a1.dmg, a2.dmg, 'детерминизм: dmg');
+    assert.equal(a1.armor, a2.armor, 'детерминизм: armor');
+  }
+  // Fail-closed: гость-призыв с неизвестным mob → «неизвестный призыв: X».
+  const bad = Object.assign(ocGuest0235('w13_badsummon', {
+    действие: 'призыв', параметры: { summon: 'nope', turns: 4 }, вне_боя: false,
+  }));
+  try {
+    pushOcGuests(dataMod, [bad]);
+    const p = spellHero({ spells: [bad.id], intelligence: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, bad.id);
+    assert.equal(r.ok, false, 'неизвестный призыв — отказ');
+    assert.equal(r.reason, 'неизвестный призыв: nope', 'fail-closed reason');
+    assert.equal(p.mp, 40, 'отказ — до расхода маны');
+  } finally {
+    popOcGuests(dataMod, [bad]);
   }
 });

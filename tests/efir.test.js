@@ -829,7 +829,8 @@ test('000115: deserializeEfir — id-валидация по каталогам-
   // Каталоги — полные зеркала assets (записи, не только id-набор).
   assert.equal(SKILL_CATALOG.length, 37,
     'каталог skills: 37 записей (6 primary + 31 secondary)');
-  assert.equal(SPELL_CATALOG.length, 17, 'каталог spells: 17 записей');
+  // Ре-пин 000235.07: +25 заклинаний волны Огонь — 17 → 42.
+  assert.equal(SPELL_CATALOG.length, 42, 'каталог spells: 42 записи');
 
   // Чужой id (вне ЛЮБОГО каталога) → null — сброс ЗАПИСИ (000029).
   const base = { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] };

@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000107.json);
+  // Предметы (assets/items/000001.json … 000132.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -1259,6 +1259,281 @@
       slot: "head",
       rarity: "impossible",
       affixes: [{ type: "skill", skill: "perception", amount: 0.4 }, { type: "skill", skill: "meditation", amount: 0.35 }],
+    },
+    // 000108.json
+    {
+      id: "ember_scroll",
+      name: "Свиток: Тлеющий уголёк",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Тлеющий уголёк» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "ember" },
+    },
+    // 000109.json
+    {
+      id: "ignite_scroll",
+      name: "Свиток: Поджечь",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Поджечь» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "ignite" },
+    },
+    // 000110.json
+    {
+      id: "fire_nova_scroll",
+      name: "Свиток: Огненная нова",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Огненная нова» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "fire_nova" },
+    },
+    // 000111.json
+    {
+      id: "lava_burst_scroll",
+      name: "Свиток: Лава-всплеск",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Лава-всплеск» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "lava_burst" },
+    },
+    // 000112.json
+    {
+      id: "meteor_scroll",
+      name: "Свиток: Метеор",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Метеор» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "meteor" },
+    },
+    // 000113.json
+    {
+      id: "flame_strike_scroll",
+      name: "Свиток: Огненный удар",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Огненный удар» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "flame_strike" },
+    },
+    // 000114.json
+    {
+      id: "hellfire_scroll",
+      name: "Свиток: Адское пламя",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Адское пламя» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "hellfire" },
+    },
+    // 000115.json
+    {
+      id: "phlogiston_blast_scroll",
+      name: "Свиток: Взрыв флогистона",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Взрыв флогистона» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "phlogiston_blast" },
+    },
+    // 000116.json
+    {
+      id: "burning_ground_scroll",
+      name: "Свиток: Жгучая земля",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Жгучая земля» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "burning_ground" },
+    },
+    // 000117.json
+    {
+      id: "wall_of_fire_scroll",
+      name: "Свиток: Стена огня",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Стена огня» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "wall_of_fire" },
+    },
+    // 000118.json
+    {
+      id: "burning_haze_scroll",
+      name: "Свиток: Облако пламени",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Облако пламени» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "burning_haze" },
+    },
+    // 000119.json
+    {
+      id: "blazing_speed_scroll",
+      name: "Свиток: Пламенная стремительность",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Пламенная стремительность» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "blazing_speed" },
+    },
+    // 000120.json
+    {
+      id: "fire_aura_scroll",
+      name: "Свиток: Аура пламени",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Аура пламени» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "fire_aura" },
+    },
+    // 000121.json
+    {
+      id: "heat_shield_scroll",
+      name: "Свиток: Жаровой щит",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Жаровой щит» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "heat_shield" },
+    },
+    // 000122.json
+    {
+      id: "sunfire_scroll",
+      name: "Свиток: Солнечный огонь",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Солнечный огонь» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "sunfire" },
+    },
+    // 000123.json
+    {
+      id: "scorch_scroll",
+      name: "Свиток: Обжечь",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Обжечь» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "scorch" },
+    },
+    // 000124.json
+    {
+      id: "cinder_scroll",
+      name: "Свиток: Пепел",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Пепел» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "cinder" },
+    },
+    // 000125.json
+    {
+      id: "ashen_debilitation_scroll",
+      name: "Свиток: Пепельная слабость",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Пепельная слабость» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "ashen_debilitation" },
+    },
+    // 000126.json
+    {
+      id: "lava_snare_scroll",
+      name: "Свиток: Лава-петля",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Лава-петля» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "lava_snare" },
+    },
+    // 000127.json
+    {
+      id: "burning_cage_scroll",
+      name: "Свиток: Огненная клетка",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Огненная клетка» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "burning_cage" },
+    },
+    // 000128.json
+    {
+      id: "flame_imp_scroll",
+      name: "Свиток: Огненный имп",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Огненный имп» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "flame_imp" },
+    },
+    // 000129.json
+    {
+      id: "phoenix_scroll",
+      name: "Свиток: Феникс",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Феникс» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "phoenix" },
+    },
+    // 000130.json
+    {
+      id: "firelight_scroll",
+      name: "Свиток: Свет пламени",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Свет пламени» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "firelight" },
+    },
+    // 000131.json
+    {
+      id: "hearthfire_scroll",
+      name: "Свиток: Очаговый огонь",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Очаговый огонь» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "hearthfire" },
+    },
+    // 000132.json
+    {
+      id: "flame_step_scroll",
+      name: "Свиток: Пламенный шаг",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Пламенный шаг» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "flame_step" },
     },
   ];
 

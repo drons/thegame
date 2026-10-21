@@ -1,0 +1,13 @@
+{
+  "id": "hearthfire_scroll",
+  "name": "Свиток: Очаговый огонь",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Очаговый огонь» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "hearthfire"
+  }
+}

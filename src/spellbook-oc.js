@@ -200,8 +200,12 @@ function (G0, rootRef) {
         + "(000235.02)");
       return;
     }
-    const ctx = (typeof opts.outOfCombatCtx === "function")
+    const ctxBase = (typeof opts.outOfCombatCtx === "function")
       ? opts.outOfCombatCtx() : {};
+    const ctx = Object.assign(
+      { flameStep: (typeof opts.flameStep === "function")
+          ? opts.flameStep : null },
+      ctxBase);
     const r = g.Spells.castOutOfCombat(opts.hero, spellId, opts.clock.day,
       ctx);
     if (r && r.ok) { close(); return; }
@@ -239,7 +243,9 @@ function (G0, rootRef) {
       // 000235.04: ctx портала — ФУНКЦИЯ (вызов на каст); null —
       // skeleton-деградация (до-.04 поведение).
       outOfCombatCtx: (o && typeof o.outOfCombatCtx === "function")
-        ? o.outOfCombatCtx : null };
+        ? o.outOfCombatCtx : null,
+      flameStep: (o && typeof o.flameStep === "function")
+        ? o.flameStep : null };
     ready = true;
   }
 

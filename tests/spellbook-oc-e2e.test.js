@@ -51,6 +51,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const S = require('../src/save.js');
+const P = require('../src/player.js');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -225,8 +226,9 @@ function makeEl(tag) {
   });
 }
 
-function makeStorage() {
+function makeStorage(seed) {
   const m = new Map();
+  if (seed != null) m.set(S.SAVE_KEY, JSON.stringify(seed));
   return {
     getItem: (k) => (m.has(k) ? m.get(k) : null),
     setItem: (k, v) => { m.set(k, String(v)); },
@@ -235,7 +237,7 @@ function makeStorage() {
 }
 
 // --- Песочница: вся цепочка index.html (браузерная ветка UMD) ---
-function bootSandbox() {
+function bootSandbox(seed) {
   const winListeners = {};
   const raf = [];
   const errors = [];
@@ -246,7 +248,7 @@ function bootSandbox() {
     ? makeGl() : makeContext2d(gameCanvas));
   spriteCanvas.getContext = (kind) => (kind === '2d'
     ? makeContext2d(spriteCanvas) : null);
-  const storage = makeStorage();
+  const storage = makeStorage(seed);
   const body = makeEl('body');
   const document = {
     createElement: (tag) => makeEl(tag),
@@ -327,8 +329,8 @@ function bootSandbox() {
 // requestAnimationFrame(frame)).
 const drain = () => new Promise((r) => setImmediate(r));
 
-async function boot() {
-  const h = bootSandbox();
+async function boot(seed) {
+  const h = bootSandbox(seed);
   await drain();
   await drain();
   await drain();
@@ -800,4 +802,190 @@ test('000235.02 OC15: истечение по дням (день-хук clock.on
   g.actions.setDay(4);
   assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
     'days=2 — в D+2 (день 4) эффект вылетел (живёт ровно 2 дня)');
+});
+
+// =====================================================================
+// 000235.07 — Волна Огонь: e2e механики внебоевых (красные)
+//
+// W-10b — flame_step (телепорт 10 тайлов) через книгу в подземелье.
+// W-12b — hearthfire (лагерь, реген HP/MP +10%) — ГРАНИЦА onDay
+// (restoreDay ДО expire: ровно ОДИН усиленный день, expiresDay >= day).
+//
+// Краснота: в каталоге spells записей волны НЕТ (17) — строки
+// flame_step/hearthfire в книге отсутствуют (render-фильтр
+// вне_боя===true по SPELLS_BY_ID) — clickRow падает на «строка … в
+// книге». Дальние ассерты (телепорт/реген) — пины Зелёной стадии.
+// =====================================================================
+
+// Досеянная оболочка сейва (v1; паттерн tests/dungeon-loot-e2e.test.js).
+function seedSave07(data) {
+  return { version: 1, savedAt: new Date(0).toISOString(), data };
+}
+
+// Персонаж для досеянного сейва (форма createCharacter + over).
+function mkHero07(over = {}) {
+  return Object.assign(P.createCharacter(), over);
+}
+
+test('000235.07 W-10b: e2e flame_step (книга + подземелье) — телепорт 10 тайлов по последнему движению (mp −7, записей НЕТ); стена → ближайший проходимый; отказы «нет направления движения»/«некуда шагнуть»/город — мана откатилась', async () => {
+  // Сид mp 24 (maxMP 70 по primary): кейс D идёт с mp ≥ 7 — пин
+  // «некуда шагнуть» остаётся е2е-покрытым после ревью-правки
+  // (проверка маны ПЕРЕД cb; mp < 7 давал бы «не хватает маны»).
+  const h = await boot(seedSave07({
+    day: 1,
+    hero: mkHero07({
+      mp: 24,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(saveHero(h).mp, 24, 'фикстура: сид героя mp 24 (maxMP 70)');
+  learn(h, ['flame_step']);
+  const ds = g.actions.enterDungeon(G.TERRAIN.HILL);
+  assert.ok(ds && ds.kind === 'dungeon', 'подземелье открыто');
+  h.frameFn(NOW + 16);
+  const d = ds.dg;
+  const w = d.width;
+  const F = G.CELL_FLOOR, WL = G.CELL_WALL;
+  // Контролируемая комната: весь интерьер FLOOR, периметр WALL.
+  for (let y = 0; y < d.height; y++)
+    for (let x = 0; x < w; x++)
+      d.cells[y * w + x] = (x === 0 || y === 0 || x === w - 1
+        || y === d.height - 1) ? WL : F;
+  ds.contents = { seed: 1, mobs: [], chests: [], deposits: [],
+    createdAtXp: 0, step: 0 };
+  const ex = ds.x, ey = ds.y;
+  assert.ok(ex > 1 && ey > 1 && ex < w - 2 && ey < d.height - 2,
+    'фикстура: вход — интерьерная клетка: ' + ex + ',' + ey);
+  // A. Шаг вправо (направление (1,0)) → телепорт k=10 (максимум).
+  press(h, 'ArrowRight');
+  assert.equal(ds.x, ex + 1, 'шаг: (ex+1, ey)');
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'flame_step');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.equal(ds.x, ex + 11, 'телепорт: приземление k=10 (макс. дистанция)');
+  assert.equal(ds.y, ey, 'телепорт: та же клетка ряда');
+  assert.equal(saveHero(h).mp, 17, 'mp ровно «мани» (24 − 7)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'телепорт — ЗАПИСЕЙ НЕ создаёт');
+  // B. Повторный каст без движения → «нет направления движения»,
+  //    мана откатилась, позиция/записи без изменений, книга открыта.
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга снова открыта');
+  clickRow(h, 'flame_step');
+  assert.equal(ds.x, ex + 11, 'отказ: позиция без изменений');
+  assert.equal(saveHero(h).mp, 17, 'отказ: мана откатилась');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'отказ: записей нет');
+  h.frameFn(NOW + 32);
+  assert.ok(String(h.hud.textContent).includes('нет направления движения'),
+    'отказ: reason в #hud: ' + JSON.stringify(h.hud.textContent));
+  key(h, 'KeyB');
+  assert.ok(!h.body.querySelector('.spellbook-oc'), 'книга закрыта');
+  // C. Стена на k=3 от старта телепорта → приземление на k=2.
+  press(h, 'ArrowRight');
+  assert.equal(ds.x, ex + 12, 'шаг перед сценарием «стена»');
+  d.cells[ey * w + (ex + 15)] = WL;
+  key(h, 'KeyB');
+  clickRow(h, 'flame_step');
+  assert.equal(ds.x, ex + 14,
+    'стена на k=3 → ближайший проходимый k=2 (ex+12+2)');
+  assert.equal(ds.y, ey, 'стена: та же клетка ряда');
+  assert.equal(saveHero(h).mp, 10, 'mp (17 − 7)');
+  // D. Стена на k=1 по направлению последнего движения → «некуда
+  //    шагнуть», позиция/mp без изменений.
+  press(h, 'ArrowLeft');
+  assert.equal(ds.x, ex + 13, 'шаг влево (направление (−1,0))');
+  d.cells[ey * w + (ex + 12)] = WL;
+  key(h, 'KeyB');
+  clickRow(h, 'flame_step');
+  assert.equal(ds.x, ex + 13, '«некуда шагнуть»: позиция без изменений');
+  assert.equal(saveHero(h).mp, 10, '«некуда шагнуть»: мана не тронута (mp 10 ≥ 7)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    '«некуда шагнуть»: записей нет');
+  h.frameFn(NOW + 48);
+  assert.ok(String(h.hud.textContent).includes('некуда шагнуть'),
+    '«некуда шагнуть»: reason в #hud: '
+    + JSON.stringify(h.hud.textContent));
+  key(h, 'KeyB');
+  // E. Город (city-screen протокол) → «в городе телепорт недоступен».
+  const h2 = await boot();
+  dismissStartWindow(h2);
+  const g2 = h2.sandbox.__game;
+  const G2 = h2.sandbox.Game;
+  const myMap = G2.createMap(G2.generateSeedPixels());
+  learn(h2, ['flame_step']);
+  const errBefore = h2.errors.length;
+  const mp0 = saveHero(h2).mp;
+  assert.equal(mp0, 16, 'город: фикстура mp 16');
+  await drain();
+  enterCity(h2, NOW + 64, myMap, (c) => c.fp >= 2);
+  h2.frameFn(NOW + 96);
+  key(h2, 'KeyB');
+  assert.ok(h2.body.querySelector('.spellbook-oc'), 'город: книга открыта');
+  clickRow(h2, 'flame_step');
+  assert.equal(saveHero(h2).mp, mp0, 'город: мана откатилась');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects), [],
+    'город: записей нет');
+  h2.frameFn(NOW + 112);
+  assert.ok(
+    String(h2.hud.textContent).includes('в городе телепорт недоступен'),
+    'город: reason в #hud: ' + JSON.stringify(h2.hud.textContent));
+  assert.equal(h2.errors.length, errBefore,
+    'город: без новых console.error: '
+    + h2.errors.slice(errBefore).join('; '));
+});
+
+test('000235.07 W-12b: e2e hearthfire (книга) — лагерь: ровно ОДИН усиленный реген-день (ГРАНИЦА onDay: restoreDay ДО expire, expiresDay >= day), дальше базовый; запись вылетает; mp −5', async () => {
+  // maxHP = (20 + 10×5) = 70; maxMP = 10 + (10+10)×3 = 70;
+  // реген-множители 0.10 (без вторичных навыков). Буст ×1.1:
+  //   день 2: 1 + round(7.7) = 9 / 10 + round(7.7) = 18
+  //   день 3: 9 + round(7.0) = 16 / 18 + round(7.0) = 25
+  const h = await boot(seedSave07({
+    day: 1,
+    hero: mkHero07({
+      hp: 1, mp: 15,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(g.state.day, 1, 'фикстура: день 1 (сид)');
+  assert.equal(g.state.hero.hp, 1, 'фикстура: hp 1 (сид)');
+  assert.equal(saveHero(h).mp, 15, 'фикстура: mp 15 (сид)');
+  learn(h, ['hearthfire']);
+  h.frameFn(NOW + 16);
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'hearthfire');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects),
+    [{ spellId: 'hearthfire', expiresDay: 2 }],
+    'запись {hearthfire, expiresDay: 2} (день 1 + days 1)');
+  assert.equal(saveHero(h).mp, 10, 'mp ровно «мани» (15 − 5)');
+  // День 2: запись ЕЩЁ в массиве (2 >= 2) → restoreDay ×1.1;
+  // ПОСЛЕ restoreDay — expire (2 <= 2) → запись вылетает.
+  g.actions.setDay(2);
+  assert.equal(g.state.hero.hp, 9,
+    'день 2: hp 1 + round(70×0.1×1.1) = 1 + 8 — УСИЛЕННЫЙ (×1.1)');
+  assert.equal(saveHero(h).mp, 18,
+    'день 2: mp 10 + 8 = 18 — УСИЛЕННЫЙ (×1.1)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'день 2: запись вылетела (expiresDay <= day)');
+  // День 3: базовый реген.
+  g.actions.setDay(3);
+  assert.equal(g.state.hero.hp, 16,
+    'день 3: hp 9 + round(70×0.1) = 9 + 7 — базовый');
+  assert.equal(saveHero(h).mp, 25,
+    'день 3: mp 18 + 7 = 25 — базовый');
 });

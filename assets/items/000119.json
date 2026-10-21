@@ -1,0 +1,13 @@
+{
+  "id": "blazing_speed_scroll",
+  "name": "Свиток: Пламенная стремительность",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Пламенная стремительность» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "blazing_speed"
+  }
+}

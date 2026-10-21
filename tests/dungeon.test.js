@@ -231,6 +231,7 @@ test('побеждённая группа не двигается', () => {
 // однонаправленная: dungeons → buildings, buildings не меняется).
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const ROOT = path.join(__dirname, '..');
 const DDIR = path.join(ROOT, 'assets', 'dungeons');
 
@@ -796,10 +797,11 @@ test('000070 golden: CAVE (37, −12) — закреплённые wallObjs', ()
 // «предметы» (золотые значения DUNGEON_ITEMS ре-пинятся на стадии
 // ЗЕЛЁНОЙ — §5, здесь фиксируется целевой состав).
 
-test('S3. 000133: пулы подземелий — 8 свитков, каждый ровно в одном', () => {
+test('S3. 000133: пулы подземелий — 33 свитка, каждый ровно в одном', () => {
   // Целевые пулы (текущий состав + приложенные свитки).
   // Ре-пин 000232: приложенные чертежи (каждый РОВНО в одном пуле;
-  // простая пещера 000001.json — БЕЗ ИЗМЕНЕНИЙ).
+  // простая пещера 000001.json — БЕЗ ИЗМЕНЕНИЙ). Ре-пин 000235.07:
+  // +25 свитков волны Огонь КОНЦОМ пула 000003 (RUINS).
   const EXPECTED = {
     '000001.json': ['iron_sword', 'healing_potion', 'sulfur',
       'stone_fist_grimoire', 'frost_bolt_scroll'],
@@ -808,7 +810,16 @@ test('S3. 000133: пулы подземелий — 8 свитков, кажды
       'blueprint_alchemy', 'blueprint_carving'],
     '000003.json': ['steel_sword', 'knight_plate', 'war_hammer',
       'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
-      'blueprint_forge', 'blueprint_woodwork'],
+      'blueprint_forge', 'blueprint_woodwork',
+      'ember_scroll', 'ignite_scroll', 'fire_nova_scroll',
+      'lava_burst_scroll', 'meteor_scroll', 'flame_strike_scroll',
+      'hellfire_scroll', 'phlogiston_blast_scroll',
+      'burning_ground_scroll', 'wall_of_fire_scroll',
+      'burning_haze_scroll', 'blazing_speed_scroll', 'fire_aura_scroll',
+      'heat_shield_scroll', 'sunfire_scroll', 'scorch_scroll',
+      'cinder_scroll', 'ashen_debilitation_scroll', 'lava_snare_scroll',
+      'burning_cage_scroll', 'flame_imp_scroll', 'phoenix_scroll',
+      'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll'],
     '000004.json': ['mana_elixir', 'hunting_bow', 'moonstone',
       'nature_scroll', 'magic_shield_scroll', 'blueprint_runecraft'],
     '000005.json': ['war_hammer', 'phoenix_feather', 'greater_healing',
@@ -819,6 +830,15 @@ test('S3. 000133: пулы подземелий — 8 свитков, кажды
     'fireball_scroll', 'flame_burst_scroll', 'frost_bolt_scroll',
     'blizzard_scroll', 'chill_scroll', 'light_heal_scroll',
     'magic_shield_scroll', 'vine_scroll',
+    'ember_scroll', 'ignite_scroll', 'fire_nova_scroll',
+    'lava_burst_scroll', 'meteor_scroll', 'flame_strike_scroll',
+    'hellfire_scroll', 'phlogiston_blast_scroll',
+    'burning_ground_scroll', 'wall_of_fire_scroll',
+    'burning_haze_scroll', 'blazing_speed_scroll', 'fire_aura_scroll',
+    'heat_shield_scroll', 'sunfire_scroll', 'scorch_scroll',
+    'cinder_scroll', 'ashen_debilitation_scroll', 'lava_snare_scroll',
+    'burning_cage_scroll', 'flame_imp_scroll', 'phoenix_scroll',
+    'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll',
   ]);
   const cat = loadDungeonCatalog();
   assert.equal(cat.length, 5, '5 подземелий (регрессия)');
@@ -2423,10 +2443,20 @@ const DUN_REF_PREV = {
   '000003.json': {
     мобы: ['orc_warrior', 'orc_archer', 'wolf', 'troll', 'skeleton'],
     постройки_id: 33,
-    // Ре-пин 000232: приложенные чертежи (концом массива).
+    // Ре-пин 000232: приложенные чертежи (концом массива). Ре-пин
+    // 000235.07: +25 свитков волны Огонь КОНЦОМ пула (8 → 33).
     предметы: ['steel_sword', 'knight_plate', 'war_hammer',
       'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
-      'blueprint_forge', 'blueprint_woodwork'],
+      'blueprint_forge', 'blueprint_woodwork',
+      'ember_scroll', 'ignite_scroll', 'fire_nova_scroll',
+      'lava_burst_scroll', 'meteor_scroll', 'flame_strike_scroll',
+      'hellfire_scroll', 'phlogiston_blast_scroll',
+      'burning_ground_scroll', 'wall_of_fire_scroll',
+      'burning_haze_scroll', 'blazing_speed_scroll', 'fire_aura_scroll',
+      'heat_shield_scroll', 'sunfire_scroll', 'scorch_scroll',
+      'cinder_scroll', 'ashen_debilitation_scroll', 'lava_snare_scroll',
+      'burning_cage_scroll', 'flame_imp_scroll', 'phoenix_scroll',
+      'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll'],
     руда: [
       ['iron_ore', 'руда'], ['copper_ore', 'руда'], ['coal', 'минерал'],
       ['silver_ore', 'руда'], ['quartz', 'минерал'], ['gold_ore', 'руда'],
@@ -3008,4 +3038,71 @@ test('000235.05 X1: сундуки — tier-выбор: предмет ∈ пу�
     ['flame_burst_scroll', 'blizzard_scroll']);
   sweepType(dC, 'CRYPT', [1, 2], ['light_heal_scroll']);
   sweepType(dR, 'RUINS', [1, 2], ['fireball_scroll']);
+});
+
+// --- Задача 000235.07: волна Огонь — пул RUINS (W-07) ---
+//
+// Контракт memory/000235.07-fire-wave-content.md §7: пул 000003
+// (RUINS) = 8 существующих (6 000133 + 2 чертежа 000232) + 25
+// свитков волны Огонь КОНЦОМ (порядок ТЗ); каждый из 25 РОВНО в
+// одном пуле (скан ВСЕХ assets/dungeons); FALLBACK_DUNGEONS
+// (file://-ветка dungeon.js) — 1:1 с каталогом; баланс: 33
+// предмета, 27 свитков (27/33 — зафиксировано).
+const FIRE07_SCROLLS = [
+  'ember_scroll', 'ignite_scroll', 'fire_nova_scroll',
+  'lava_burst_scroll', 'meteor_scroll', 'flame_strike_scroll',
+  'hellfire_scroll', 'phlogiston_blast_scroll',
+  'burning_ground_scroll', 'wall_of_fire_scroll',
+  'burning_haze_scroll', 'blazing_speed_scroll', 'fire_aura_scroll',
+  'heat_shield_scroll', 'sunfire_scroll', 'scorch_scroll',
+  'cinder_scroll', 'ashen_debilitation_scroll', 'lava_snare_scroll',
+  'burning_cage_scroll', 'flame_imp_scroll', 'phoenix_scroll',
+  'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll',
+];
+
+test('W-07. 000235.07: пул RUINS 000003 — 33 предмета (8 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, баланс 27/33', () => {
+  const cat = loadDungeonCatalog();
+  const ruins = cat.find(({ file }) => file === '000003.json');
+  assert.ok(ruins, '000003.json (RUINS) в каталоге');
+  assert.equal(ruins.data.id, 2, '000003.json — RUINS (id 2)');
+  const rec = resolvedDungeonRecord(ruins.data, ruins.file);
+  assert.deepEqual(rec.предметы,
+    ['steel_sword', 'knight_plate', 'war_hammer',
+      'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
+      'blueprint_forge', 'blueprint_woodwork',
+      ...FIRE07_SCROLLS],
+    'RUINS: 33 предмета = 8 (000133/000232) + 25 свитков волны '
+    + 'Огонь КОНЦОМ (RED: '
+    + rec.предметы.length + ' — свитков волны нет)');
+  const poolCount = new Map();
+  for (const { file, data } of cat) {
+    const r2 = resolvedDungeonRecord(data, file);
+    for (const id of r2.предметы)
+      poolCount.set(id, (poolCount.get(id) || 0) + 1);
+  }
+  for (const id of FIRE07_SCROLLS) {
+    assert.equal(poolCount.get(id) || 0, 1,
+      id + ': РОВНО в одном пуле (RED: '
+      + (poolCount.get(id) || 0) + ')');
+  }
+  const DUNGEON_CORE = ['src/global-settings.js', 'src/perlin.js',
+    'src/map.js'];
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of DUNGEON_CORE.concat('src/dungeon.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox,
+      { filename: f });
+  }
+  assert.deepEqual(
+    [...sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.RUINS]],
+    rec.предметы,
+    'FALLBACK_DUNGEONS RUINS — 1:1 с каталогом (RED: fallback на 6, '
+    + 'каталог на ' + rec.предметы.length + ')');
+  const nScrolls = rec.предметы.filter(
+    (id) => id.endsWith('_scroll')).length;
+  assert.equal(rec.предметы.length, 33, 'баланс: 33 предмета');
+  assert.equal(nScrolls, 27,
+    'баланс: 27 свитков из 33 (RED: ' + nScrolls + ')');
 });

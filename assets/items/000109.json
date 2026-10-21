@@ -1,0 +1,13 @@
+{
+  "id": "ignite_scroll",
+  "name": "Свиток: Поджечь",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Поджечь» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "ignite"
+  }
+}

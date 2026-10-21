@@ -1,0 +1,13 @@
+{
+  "id": "ember_scroll",
+  "name": "Свиток: Тлеющий уголёк",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Тлеющий уголёк» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "ember"
+  }
+}

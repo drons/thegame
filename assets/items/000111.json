@@ -1,0 +1,13 @@
+{
+  "id": "lava_burst_scroll",
+  "name": "Свиток: Лава-всплеск",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Лава-всплеск» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "lava_burst"
+  }
+}

@@ -779,3 +779,95 @@ test('000235.05 E1: сундук → свиток → изучение → се�
     'сейв: hero.spells содержит chill (saveNow при смене дня); факт: '
     + JSON.stringify(parsed.data.hero.spells));
 });
+
+// --- Задача 000235.07: W-09 — полный путь «сундук RUINS → свиток волны
+// Огонь → изучение → сейв» (a3-tests.md §9; контракт —
+// memory/000235.07-fire-wave-content.md §15 e2e-сид RUINS; паттерн E1).
+//
+// КРАСНОЕ (генерационный пин): пул RUINS (000003.json) = 6 предметов,
+// свитков волны НЕТ — c0 содержит vine_scroll (равномерный T1-выбор из
+// 7-ми пула: steel_sword, fireball_scroll, vine_scroll + 4 новых L1:
+// ember/blazing_speed/firelight/hearthfire). ЗЕЛЁНОЕ: +25 свитков в
+// КОНЦЕ пула → c0 = hearthfire_scroll. Калибровка (пробный сим
+// /tmp/thegame-wf-000235.07/sim-ruins.js на прототипе пула): dseed
+// 820179115, c0 (19,4) gold 29; 970/3000 значений xp дают свиток огня
+// в c0 — при xp=1 уже hearthfire_scroll.
+test('000235.07 W-09: сундук RUINS → свиток огня → изучение → сейв (HILL, dseed 820179115, c0 = hearthfire_scroll)', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({
+      totalXp: 1,
+      primary: {
+        strength: 2, dexterity: 1, constitution: 1,
+        intelligence: 11, wisdom: 1, charisma: 1,
+      },
+    }),
+  }));
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  // (a) Генерационный пин (красный драйвер): RUINS-пул (8 + 25 свитков
+  //     волны) на глубине 1 (T=1) — c0 = hearthfire_scroll.
+  const ds = g.actions.enterDungeon(G.TERRAIN.HILL);
+  assert.ok(ds, 'enterDungeon(HILL) — состояние подземелья');
+  assert.equal(ds.dg.type, G.DUNGEON_TYPES.RUINS,
+    'HILL → RUINS (синтетические пиксели, alpha 255)');
+  assert.equal(ds.dg.seed, 820179115, 'dseed (сценарий: HILL, totalXp=1)');
+  const c0 = ds.contents.chests[0];
+  assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
+  assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold,
+    item: c0.item },
+    { x: 19, y: 4, opened: false, gold: 29, item: 'hearthfire_scroll' },
+    'c0: RUINS-пул +25 свитков волны — hearthfire_scroll (краснота: '
+    + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold, item: c0.item })
+    + ')');
+  // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-
+  //     соседе входа (паттерн E1/000191.12 — без pathfinding).
+  const cell = asideDir(G, ds.dg);
+  assert.ok(cell, 'FLOOR-клетка-сосед входа найдена');
+  ds.contents = {
+    mobs: [],
+    chests: [{ id: 'c0', x: cell.x, y: cell.y, opened: false, gold: 29,
+      item: 'ember_scroll' }],
+    seed: 1, step: 0,
+  };
+  stepTo(h, cell.x, cell.y); // шаг на сундук → openChest
+  const line = ds.log.find((l) => l.startsWith('Сундук: +'));
+  assert.ok(line, 'строка сундука в ds.log: ' + JSON.stringify(ds.log));
+  const it = G.getItem('ember_scroll');
+  assert.ok(it, 'ember_scroll в каталоге items (RED: нет)');
+  assert.equal(line, 'Сундук: +29 золота, ' + it.name,
+    'строка сундука побайтово: ' + line);
+  assert.deepEqual(host(g.state.hero.inventory),
+    [{ id: 'ember_scroll', qty: 1 }],
+    'свиток в инвентаре (qty 1)');
+  // (c) Изучение: INT 11 → Знаток (tier 2) ≥ ember (L1) → ok; мост —
+  //     живые spells/inventory + первичные атрибуты (паттерн E1).
+  const liveSlots = g.state.hero.inventory;
+  const bridge = {
+    level: g.state.hero.level,
+    hp: g.state.hero.hp,
+    primary: {
+      strength: 2, dexterity: 1, constitution: 1,
+      intelligence: 11, wisdom: 1, charisma: 1,
+    },
+    secondary: {},
+    spells: g.state.hero.spells,
+    inventory: { slots: liveSlots, quick: [] },
+  };
+  const res = G.useItem(bridge, 'ember_scroll');
+  assert.equal(res.ok, true,
+    'useItem ember_scroll ok (INT 11 ≥ L1): ' + JSON.stringify(res));
+  assert.ok(g.state.hero.spells.includes('ember'),
+    'hero.spells += ember (мост — живая ссылка)');
+  assert.equal(G.totalQty(bridge, 'ember_scroll'), 0,
+    'свиток потрачен (живой инвентарь)');
+  // (d) Сейв: rest → onDay → saveNow — ember в hero.spells сейва.
+  g.actions.setDay(3);
+  const parsed = JSON.parse(h.storage.getItem(SAVE_KEY));
+  assert.ok(Array.isArray(parsed.data.hero.spells)
+    && parsed.data.hero.spells.includes('ember'),
+    'сейв: hero.spells содержит ember (saveNow при смене дня); факт: '
+    + JSON.stringify(parsed.data.hero.spells));
+});

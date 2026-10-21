@@ -590,12 +590,13 @@ test('SB8: canDoAction «spellbook» — ok / «заклинаний нет» / 
 // SB9: JSON-каталог — icon + icon_prompt, schema
 // ---------------------------------------------------------------------------
 
-test('SB9: 17 JSON — непустые icon/icon_prompt; оба поля в schema.required (000149)', () => {
+test('SB9: 42 JSON — непустые icon/icon_prompt; оба поля в schema.required (000149)', () => {
   const files = fs.readdirSync(SPELLS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)).sort();
   // 000163 (ребейз 000149): в каталог вошло 000017.json (resurrect) —
   // 16 → 17; иконка/prompt добавлены на стадии мержа (memory §14).
-  assert.equal(files.length, 17, 'каталог: 17 файлов');
+  // Ре-пин 000235.07: +25 заклинаний волны Огонь — 17 → 42.
+  assert.equal(files.length, 42, 'каталог: 42 файла');
   const schema = JSON.parse(
     fs.readFileSync(path.join(SPELLS_DIR, 'schema.json'), 'utf8'));
   assert.ok(schema.required.includes('icon'),
@@ -649,13 +650,14 @@ test('SB10: иконки — assets/spell-icons/<id>.svg, существуют; 
 // SB11: все новые SVG проходят checkSvg (000120) ДО каталога
 // ---------------------------------------------------------------------------
 
-test('SB11: 18 SVG (17 иконок + кнопка) существуют и проходят checkSvg (000149)', () => {
+test('SB11: 43 SVG (42 иконки + кнопка) существуют и проходят checkSvg (000149)', () => {
   const checkSvg = loadCheckSvg();
   const { SPELLS } = require('../src/spells-data.js');
   const rels = SPELLS.map((s) => 'assets/spell-icons/' + s.id + '.svg');
   rels.push('assets/ui/combat_spellbook.svg');
   // 000163 (ребейз 000149): +resurrect.svg — 17 → 18 (memory §14).
-  assert.equal(rels.length, 18, '17 иконок заклинаний + иконка кнопки');
+  // Ре-пин 000235.07: +25 иконок волны Огонь — 18 → 43.
+  assert.equal(rels.length, 43, '42 иконки заклинаний + иконка кнопки');
   for (const rel of rels) {
     const abs = path.join(ROOT, rel);
     assert.ok(fs.existsSync(abs),

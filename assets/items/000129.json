@@ -1,0 +1,13 @@
+{
+  "id": "phoenix_scroll",
+  "name": "Свиток: Феникс",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 240,
+  "tier": 4,
+  "desc": "Свиток: изучает «Феникс» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "phoenix"
+  }
+}

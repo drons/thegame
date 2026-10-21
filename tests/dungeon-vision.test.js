@@ -1351,3 +1351,75 @@ test('мобы MOBV-5: полная цепочка — за пределами �
     'финал: спрайтов юнитов мобов нет (исследованные группы вне зрения)');
   assert.equal(h.errors.length, 0, 'нет ошибок: ' + h.errors.join('; '));
 });
+
+// =====================================================================
+// W-11b (задача 000235.07): firelight — opts.visionRadiusFloor в
+// dungeon-ui.js: radius = max(radiusFor(mult), floor). Базовое
+// зрение с mock visionMult 0.5 → radiusFor = 3; floor 5 → radius 5:
+// (6,1) cheb 5 — видима, (7,1) cheb 6 — скрыта. safe-call:
+// не-функция/throw → 0 (тихо). Город — mask null (тумана нет).
+// Контракт: memory/000235.07-fire-wave-content.md §2.2/§7 (W-11).
+// =====================================================================
+
+const CITY_FLOOR_COLORS = ['#b3a284', '#a5947a', '#c0b090'];
+
+function cityFloorRectAt(calls, x, y, size, tol = 1e-9) {
+  return calls.some((c) => c[0] === 'fillRect'
+    && CITY_FLOOR_COLORS.includes(c[2])
+    && Math.abs(c[1][0] - x) <= tol
+    && Math.abs(c[1][1] - y) <= tol
+    && Math.abs(c[1][2] - size) <= tol
+    && Math.abs(c[1][3] - size) <= tol);
+}
+
+test('W-11b. 000235.07: firelight — visionRadiusFloor: radius = max(radiusFor(mult), floor) (mult 0.5 → 3, floor 5 → 5); safe-call → 0; город — mask null', () => {
+  const { body, errors, s, rafStubs, T, P } = loadFogDungeon({
+    startOpts: { visionMult: 0.5, visionRadiusFloor: () => 5 },
+  });
+  T.t += 16;
+  tick(rafStubs);
+  const calls = findCanvas(body).drawCalls;
+  assert.ok(floorRectAt(calls, P(6, 1).x, P(6, 1).y, 40),
+    '(6,1) cheb 5 — видима: floor 5 > radiusFor(0.5) = 3 (RED: '
+    + 'visionRadiusFloor не применяется — radius 3)');
+  assert.ok(!floorRectAt(calls, P(7, 1).x, P(7, 1).y, 40),
+    '(7,1) cheb 6 — скрыта (radius = 5, не «floor + что-то»)');
+  assert.equal(errors.length, 0,
+    'visionRadiusFloor — без console.error: ' + JSON.stringify(errors));
+
+  const h2 = loadFogDungeon({
+    startOpts: { visionMult: 0.5, visionRadiusFloor: 'мусор' },
+  });
+  h2.T.t += 16;
+  tick(h2.rafStubs);
+  const calls2 = findCanvas(h2.body).drawCalls;
+  assert.ok(!floorRectAt(calls2, h2.P(6, 1).x, h2.P(6, 1).y, 40),
+    'safe-call: не-функция → floor 0 → (6,1) cheb 5 НЕ видима (radius 3)');
+  assert.equal(h2.errors.length, 0,
+    'safe-call — тихо: ' + JSON.stringify(h2.errors));
+
+  const h3 = loadFogDungeon({
+    startOpts: { visionMult: 0.5,
+      visionRadiusFloor: () => { throw new Error('boom'); } },
+  });
+  h3.T.t += 16;
+  tick(h3.rafStubs);
+  const calls3 = findCanvas(h3.body).drawCalls;
+  assert.ok(!floorRectAt(calls3, h3.P(6, 1).x, h3.P(6, 1).y, 40),
+    'safe-call: throw → catch → floor 0 → (6,1) НЕ видима');
+  assert.equal(h3.errors.length, 0,
+    'safe-call: catch — без console.error: ' + JSON.stringify(h3.errors));
+
+  s.kind = 'city';
+  s.dg.seed = 1;
+  T.t += 16;
+  tick(rafStubs);
+  const callsC = findCanvas(body).drawCalls;
+  assert.ok(cityFloorRectAt(callsC, P(10, 5).x, P(10, 5).y, 40),
+    'город: (10,5) — видима (mask null — тумана нет, без изменений)');
+  assert.ok(!fillRectAt(callsC, FOG_DIM_FILL,
+    P(7, 1).x, P(7, 1).y, 40, 40),
+    'город: прохода затемнения FOG_DIM_FILL нет');
+  assert.equal(errors.length, 0,
+    'город — без console.error: ' + JSON.stringify(errors));
+});

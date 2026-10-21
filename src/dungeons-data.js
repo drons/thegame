@@ -49,7 +49,7 @@
       id: 2,
       название: "руины замка",
       мобы: ["orc_warrior", "orc_archer", "wolf", "troll", "skeleton"],
-      предметы: ["steel_sword", "knight_plate", "war_hammer", "iron_hide_tome", "fireball_scroll", "vine_scroll", "blueprint_forge", "blueprint_woodwork"],
+      предметы: ["steel_sword", "knight_plate", "war_hammer", "iron_hide_tome", "fireball_scroll", "vine_scroll", "blueprint_forge", "blueprint_woodwork", "ember_scroll", "ignite_scroll", "fire_nova_scroll", "lava_burst_scroll", "meteor_scroll", "flame_strike_scroll", "hellfire_scroll", "phlogiston_blast_scroll", "burning_ground_scroll", "wall_of_fire_scroll", "burning_haze_scroll", "blazing_speed_scroll", "fire_aura_scroll", "heat_shield_scroll", "sunfire_scroll", "scorch_scroll", "cinder_scroll", "ashen_debilitation_scroll", "lava_snare_scroll", "burning_cage_scroll", "flame_imp_scroll", "phoenix_scroll", "firelight_scroll", "hearthfire_scroll", "flame_step_scroll"],
       размер: 31,
       постройка: 33,
       объекты_стен: ["column"],

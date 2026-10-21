@@ -1,0 +1,13 @@
+{
+  "id": "burning_haze_scroll",
+  "name": "Свиток: Облако пламени",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Облако пламени» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "burning_haze"
+  }
+}

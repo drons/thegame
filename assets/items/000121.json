@@ -1,0 +1,13 @@
+{
+  "id": "heat_shield_scroll",
+  "name": "Свиток: Жаровой щит",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Жаровой щит» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "heat_shield"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "fire_aura_scroll",
+  "name": "Свиток: Аура пламени",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Аура пламени» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "fire_aura"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "sunfire_scroll",
+  "name": "Свиток: Солнечный огонь",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Солнечный огонь» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "sunfire"
+  }
+}

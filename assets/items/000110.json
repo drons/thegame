@@ -1,0 +1,13 @@
+{
+  "id": "fire_nova_scroll",
+  "name": "Свиток: Огненная нова",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Огненная нова» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "fire_nova"
+  }
+}

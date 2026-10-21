@@ -840,6 +840,27 @@
     }
     const days = outOfCombatDays(spell);
     if (typeof days === 'string') return { ok: false, reason: days };
+    if (spellId === 'flame_step') {
+      const free = isHeroFreeCast(p, spellId);
+      if (!free
+          && (typeof p.mp !== 'number' || p.mp < (spell['мани'] || 0))) {
+        return { ok: false, reason: 'не хватает маны' };
+      }
+      if (ctx !== undefined) {
+        const cb = ctx && typeof ctx.flameStep === 'function'
+          ? ctx.flameStep : null;
+        if (!cb) {
+          return { ok: false, reason: 'телепорт недоступен здесь' };
+        }
+        const r = cb();
+        if (r && r.ok === false) {
+          return { ok: false,
+            reason: r.reason || 'телепорт недоступен здесь' };
+        }
+      }
+      if (!free) p.mp -= spell['мани'] || 0;
+      return { ok: true, spell, expiresDay: null };
+    }
     const free = isHeroFreeCast(p, spellId);
     if (!free
         && (typeof p.mp !== 'number' || p.mp < (spell['мани'] || 0))) {
@@ -862,6 +883,8 @@
     }
     switch (spellId) {
       case 'invisibility':
+      case 'firelight':
+      case 'hearthfire':
       case 'gate':
       case 'stone_anchor':
       case 'recall':
@@ -1089,6 +1112,32 @@
     return false;
   }
 
+  function isHeroLit(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object' || e.spellId !== 'firelight') {
+        continue;
+      }
+      if (typeof e.expiresDay === 'number' && e.expiresDay > day) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function isHeroCamped(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object' || e.spellId !== 'hearthfire') {
+        continue;
+      }
+      if (typeof e.expiresDay === 'number' && e.expiresDay >= day) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // 000235.03: снятие невидимости (триггер — вступление в бой):
   // выносит ТОЛЬКО записи действия «невидимость»; переприсваивает
   // только если что-то снято (идентичность на чистых путях);
@@ -1115,6 +1164,7 @@
     castOutOfCombat, expireOutOfCombatEffects,
     sanitizeOutOfCombatEffects,
     isHeroInvisible, clearInvisibility,
+    isHeroLit, isHeroCamped,
     nearestBuiltCity, nearestPassableTile, wardRadius,
     sanitizePortalMarker, PORTAL_SEARCH_RADIUS,
   };

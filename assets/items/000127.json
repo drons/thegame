@@ -1,0 +1,13 @@
+{
+  "id": "burning_cage_scroll",
+  "name": "Свиток: Огненная клетка",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Огненная клетка» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "burning_cage"
+  }
+}

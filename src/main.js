@@ -1579,7 +1579,9 @@
   let onDayErrLogged = false;
   clock.onDay(({ day }) => {
     try {
-      G.restoreDay(hero); // часть HP/MP по формулам навыков
+      // часть HP/MP по формулам навыков
+      G.restoreDay(hero, (G.Spells && G.Spells.isHeroCamped
+        && G.Spells.isHeroCamped(hero, day)) ? 1.1 : 1);
       const due = G.dueForRespawn(defeatedAt, day);
       for (const k of due) defeatedAt.delete(k);
       // 000158.04: респаун природного лута — ТОТ ЖЕ параметр
@@ -1897,6 +1899,58 @@
     console.error('main.js: Game.hud отсутствует — src/hud.js ' +
       'обязан грузиться ДО src/main.js (000129)');
   }
+  function performFlameStep() {
+    if (dungeonState && dungeonState.kind === 'city') {
+      return { ok: false, reason: 'в городе телепорт недоступен' };
+    }
+    const inDungeon = !!(dungeonState
+      && dungeonState.kind === 'dungeon');
+    const sx = inDungeon ? dungeonState.x : player.x;
+    const sy = inDungeon ? dungeonState.y : player.y;
+    const sPrevX = inDungeon ? dungeonState.prevX : prevPos.x;
+    const sPrevY = inDungeon ? dungeonState.prevY : prevPos.y;
+    const dx = sx - sPrevX;
+    const dy = sy - sPrevY;
+    if (Math.abs(dx) + Math.abs(dy) !== 1) {
+      return { ok: false, reason: 'нет направления движения' };
+    }
+    const cellPassable = (cx, cy) => {
+      if (inDungeon) {
+        const d = dungeonState.dg;
+        if (!d || !d.cells) return false;
+        if (cx < 0 || cy < 0 || cx >= d.width || cy >= d.height) {
+          return false;
+        }
+        return d.cells[cy * d.width + cx] === G.CELL_FLOOR;
+      }
+      if (!map) return false;
+      const t = map.tileAt(cx, cy);
+      return !!(t && t.passable);
+    };
+    let landing = 0;
+    for (let k = 1; k <= 10; k++) {
+      if (!cellPassable(sx + dx * k, sy + dy * k)) break;
+      landing = k;
+    }
+    if (landing === 0) {
+      return { ok: false, reason: 'некуда шагнуть' };
+    }
+    const now = performance.now();
+    if (inDungeon) {
+      const ds = dungeonState;
+      ds.prevX = ds.x; ds.prevY = ds.y;
+      ds.x += dx * landing;
+      ds.y += dy * landing;
+      if (ds.mover) {
+        ds.mover.step({ x: ds.prevX, y: ds.prevY },
+          { x: ds.x, y: ds.y }, now);
+      }
+    } else {
+      moveHero(player.x + dx * landing, player.y + dy * landing);
+    }
+    return { ok: true };
+  }
+
   // 000235.02: книга заклинаний вне боя (src/spellbook-oc.js) —
   // ОБЯЗАН грузиться ДО main.js (UMD-ловушка 000038: снапшот const G
   // снят вверху) — иначе G.spellbookOC — undefined всегда и [B]/кнопка
@@ -1906,6 +1960,7 @@
   // открывается, пока показано стартовое окно).
   if (G.spellbookOC) {
     G.spellbookOC.init({ hero, clock, flash, startWindow,
+      flameStep: performFlameStep,
       // 000235.04: ctx портала — функция (вызов на КАСТ: map — let,
       // переприсваивается при загрузке мира; x/y — свежие).
       outOfCombatCtx: () => ({
@@ -2583,6 +2638,13 @@
         const m = dd ? dd.caveVisionMult : 1;
         return (typeof m === 'number' && Number.isFinite(m) && m > 0)
           ? m : 1;
+      },
+      visionRadiusFloor: () => {
+        if (!G.Spells || !G.Spells.isHeroLit
+            || !G.Spells.isHeroLit(hero, clock.day)) return 0;
+        const sp = G.Spells.getSpell('firelight');
+        const r = sp && sp.параметры ? sp.параметры.radius : null;
+        return (typeof r === 'number' && r >= 1) ? r : 0;
       },
     });
   }

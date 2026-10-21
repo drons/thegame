@@ -546,8 +546,18 @@
       } else if (typeof vmRaw === 'number') {
         mult = vmRaw;
       }
+      const vrRaw = ctx.visionRadiusFloor;
+      let floorR = 0;
+      if (typeof vrRaw === 'function') {
+        try { floorR = vrRaw(); } catch (err) { floorR = 0; }
+      }
+      if (typeof floorR !== 'number' || !Number.isFinite(floorR)
+          || floorR < 0) {
+        floorR = 0;
+      }
+      floorR = Math.floor(floorR);
       mask = maskFor(d.width, d.height, pos.x, pos.y,
-        radiusFor(mult), explored);
+        Math.max(radiusFor(mult), floorR), explored);
       for (let i = 0; i < mask.length; i++) {
         if (mask[i] === 2) {
           explored.add((i % d.width) + ',' + Math.floor(i / d.width));

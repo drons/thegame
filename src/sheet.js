@@ -547,12 +547,12 @@
     return sheet.hp;
   }
 
-  function restoreDay(sheet) {
+  function restoreDay(sheet, regenMult = 1) {
     // Восстановление за игровой день (spec/game-time.md: «При смене дня»).
     const d = derived(sheet);
     if (!d) return { hp: sheet.hp, mp: sheet.mp };
-    sheet.hp = Math.min(d.maxHP, sheet.hp + Math.round(d.maxHP * d.hpRegenMult));
-    sheet.mp = Math.min(d.maxMP, sheet.mp + Math.round(d.maxMP * d.mpRegenMult));
+    sheet.hp = Math.min(d.maxHP, sheet.hp + Math.round(d.maxHP * d.hpRegenMult * regenMult));
+    sheet.mp = Math.min(d.maxMP, sheet.mp + Math.round(d.maxMP * d.mpRegenMult * regenMult));
     return { hp: sheet.hp, mp: sheet.mp };
   }
 

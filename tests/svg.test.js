@@ -16,8 +16,8 @@
 //    mobs 192, phlogiston 8,
 //    efir 8 — 000034, visuals 13),
 //    ui 12 (задачи 000124 + 000123; 000178: +combat_cast/
-//    +combat_heal; 000227: +combat_lastspell), spell-icons 17
-//    (задача 000149), portraits 8
+//    +combat_heal; 000227: +combat_lastspell), spell-icons 42
+//    (задача 000149; 000235.07: +25 волны Огонь), portraits 8
 //    (задача 000142), logo.svg 1);
 //  * XML well-formedness — минимальный парсер ограниченного
 //    SVG-подмножества, реально встречающегося в ассетах: теги с
@@ -483,9 +483,9 @@ const EXPECTED_SVG_BY_DIR = {
                                       // (кнопки «Каст»/«Лечение»)
                                       // 000227: +combat_lastspell
                                       // (кнопка «Последнее заклинание»)
-  'spell-icons': 17,                  // иконки заклинаний (задача 000149,
+  'spell-icons': 42,                  // иконки заклинаний (задача 000149,
                                       // по одной на JSON каталога; 000163:
-                                      // +resurrect)
+                                      // +resurrect; 000235.07: +25 волны Огонь)
   portraits: 8,                       // портреты партии (задача 000142)
   logo: 1,                            // assets/logo.svg
 };
@@ -648,6 +648,49 @@ test('самопроверка: дубликат атрибута и «&» в т
   assert.ok(checkTmpSvg('amp.svg',
     GOOD_SVG.replace('чистый SVG', 'a & b')).some(
     (e) => /&/.test(e.message)), 'неэкранированный «&» в тексте не пойман');
+});
+
+// --- Задача 000235.07: волна Огонь — иконки заклинаний (W-05) ---
+//
+// Формат существующих иконок (fireball.svg): <svg xmlns + 24×24 +
+// viewBox 0 0 24 24> + <path fill="#e8dcc0" d="…"/>. Уникальность —
+// sha256 ВСЕХ 42 файлов (существующие 17 парно-уникальны, проверено).
+const FIRE07_ICON_IDS = [
+  'ember', 'ignite', 'fire_nova', 'lava_burst', 'meteor',
+  'flame_strike', 'hellfire', 'phlogiston_blast', 'burning_ground',
+  'wall_of_fire', 'burning_haze', 'blazing_speed', 'fire_aura',
+  'heat_shield', 'sunfire', 'scorch', 'cinder',
+  'ashen_debilitation', 'lava_snare', 'burning_cage', 'flame_imp',
+  'phoenix', 'firelight', 'hearthfire', 'flame_step',
+];
+
+test('W-05. 000235.07: 25 иконок волны Огонь — 24×24/#e8dcc0/xmlns/viewBox; ВСЕ 42 spell-icons парно-уникальны (sha256)', () => {
+  const crypto = require('node:crypto');
+  const dir = path.join(ROOT, 'assets', 'spell-icons');
+  for (const id of FIRE07_ICON_IDS) {
+    const f = path.join(dir, id + '.svg');
+    assert.ok(fs.existsSync(f), id + '.svg: файл существует (RED: нет)');
+    const s = fs.readFileSync(f, 'utf8');
+    assert.ok(s.includes('xmlns="http://www.w3.org/2000/svg"'),
+      id + ': xmlns svg');
+    assert.ok(s.includes('width="24"') && s.includes('height="24"'),
+      id + ': width/height 24');
+    assert.ok(s.includes('viewBox="0 0 24 24"'),
+      id + ': viewBox 0 0 24 24');
+    assert.ok(s.includes('fill="#e8dcc0"'), id + ': fill #e8dcc0');
+  }
+  const all = fs.readdirSync(dir)
+    .filter((f) => f.endsWith('.svg')).sort();
+  assert.equal(all.length, 42,
+    'spell-icons — 42 файла (RED: ' + all.length + ')');
+  const byHash = new Map();
+  for (const f of all) {
+    const h = crypto.createHash('sha256')
+      .update(fs.readFileSync(path.join(dir, f))).digest('hex');
+    assert.ok(!byHash.has(h),
+      f + ' == ' + byHash.get(h) + ': дубль иконки (копия)');
+    byHash.set(h, f);
+  }
 });
 
 module.exports = { checkSvg, parseSvgXml, findSvgFiles };

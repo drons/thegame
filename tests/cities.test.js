@@ -1458,6 +1458,10 @@ const SHOP_GOLDEN = {
   // travel_cloth/silver_helm/gold_helm/mithril_helm/star_hoop/
   // crown_flame на этой клетке не выпали), остальные ключи стока
   // не сдвинулись (симуляция: seed/старые стоки byte-identical).
+  // Ре-пин 000235.07: свитки волны Огонь (000108-00132) — КОНЕЦ
+  // каталога, rng-хвост пула allItems → += 23 свитка (lava_burst/
+  // firelight на этой клетке не выпали), остальные ключи стока
+  // не сдвинулись (симуляция: seed/старые стоки byte-identical).
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
@@ -1482,7 +1486,14 @@ const SHOP_GOLDEN = {
     hood_common: 3, linen_cloth: 1, felt_hat: 2, silver_band: 2,
     copper_band: 1, obsidian_cloth: 1, amethyst_band: 3, quartz_cloth: 2,
     bone_band: 2, mystic_cloth: 4, sapphire_helm: 2, emerald_helm: 5,
-    rune_hoop: 4 } },
+    rune_hoop: 4, ember_scroll: 1, ignite_scroll: 2, fire_nova_scroll: 4,
+    meteor_scroll: 2, flame_strike_scroll: 5, hellfire_scroll: 2,
+    phlogiston_blast_scroll: 4, burning_ground_scroll: 3,
+    wall_of_fire_scroll: 2, burning_haze_scroll: 3, blazing_speed_scroll: 4,
+    fire_aura_scroll: 4, heat_shield_scroll: 5, sunfire_scroll: 4,
+    scorch_scroll: 5, cinder_scroll: 3, ashen_debilitation_scroll: 1,
+    lava_snare_scroll: 5, burning_cage_scroll: 1, flame_imp_scroll: 3,
+    phoenix_scroll: 1, hearthfire_scroll: 1, flame_step_scroll: 5 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1 } },
