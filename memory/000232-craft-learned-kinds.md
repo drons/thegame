@@ -365,11 +365,15 @@ vm CHAIN), остальные ~2720 — зелёные (репины — GREEN-�
 6. tests/craft-ui.test.js — ОЖИДАНИЕ: без правок (CU-4/5/6/E3 ставят
    c.craft-записи → изучены по D0b); проверить в GREEN, если
    неожиданно красное — только setup-изучение.
-7. НЕТ правок: craft.test.js (31 рецепт), save.test.js (v1),
-   svg.test.js, assets-refs (sweep авто), index-order order-пины
-   (новых модулей нет), craft-layout (ruleExact по другим
-   селекторам), building-effects (строки здания), combat.test.js
-   (лут-голдены — закреплены другие мобы).
+7. svg.test.js — ПРАВКА ЕСТЬ (e7de7cb): EXPECTED_SVG_BY_DIR +=
+   'sprites/items': 6 — иконки чертежей (tests/svg.test.js L465);
+   «НЕТ правок: … svg.test.js» в этом пункте — неверно (ретро-
+   20261021 finding 6; поправка — 000232.01). Остальные НЕТ
+   правок: craft.test.js (31 рецепт), save.test.js (v1),
+   assets-refs (sweep авто), index-order order-пины (новых
+   модулей нет), craft-layout (ruleExact по другим селекторам),
+   building-effects (строки здания), combat.test.js (лут-голдены
+   — закреплены другие мобы).
 
 ## 6. Важно будущим задачам (из ТЗ-ссылок и контрактов)
 

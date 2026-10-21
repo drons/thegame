@@ -139,6 +139,11 @@ test('SRC-2: сундуки — каждый из 6 чертежей ≥1 пул
     assert.ok(t.m.has(bp),
       bp + ': ≥1 пул сундуков (краснота: нет пула); '
       + 'факт: ' + JSON.stringify(t.m.get(bp)));
+    // 000232.01 (D6): presence-цикл — track() пушит на КАЖДОЕ
+    // вхождение → единственность: чертёж РОВНО в одном пуле.
+    assert.equal(t.m.get(bp).length, 1,
+      bp + ': РОВНО в одном пуле (D6, 000232.01); '
+      + 'факт: ' + JSON.stringify(t.m.get(bp)));
   }
   // FALLBACK (src/dungeon.js) — синхронно 1:1 с зеркалом:
   for (const d of DUNGEONS) {

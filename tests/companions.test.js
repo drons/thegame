@@ -1356,7 +1356,7 @@ const NPC_BALDOR = NPCS.find((n) => n.id === 'merc_baldor');
 assert.ok(NPC_BALDOR && NPC_BALDOR.найм, 'каталог: merc_baldor с найм-данными');
 
 test('000230.06 C1: наёмник с экипировкой — формула allyDataForEntry: damage = база + оружие, armor = h.armor + Σ слотов (пины §2.3); makeAlly', () => {
-  // Реальный каталог (E9: 76 предметов, 0 slot/affixes): оружие →
+  // Реальный каталог (E9: 82 предмета, 0 slot/affixes): оружие →
   // right_hand, броня → torso (fallback slotOf, 000230.02).
   // Вольк L5: база damage 7, найм.armor НЕТ.
   const e1 = entryWithSheet(NPC_VOLK, { level: 5 });
