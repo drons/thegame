@@ -340,6 +340,18 @@
       'assets/sprites/buildings/academy_3.svg',
       'assets/sprites/buildings/academy_4.svg',
     ],
+    [BUILDING_TYPES.WEAPONS_SHOP]: [
+      'assets/sprites/buildings/weapons_shop_1.svg',
+      'assets/sprites/buildings/weapons_shop_2.svg',
+      'assets/sprites/buildings/weapons_shop_3.svg',
+      'assets/sprites/buildings/weapons_shop_4.svg',
+    ],
+    [BUILDING_TYPES.TAVERN]: [
+      'assets/sprites/buildings/tavern_1.svg',
+      'assets/sprites/buildings/tavern_2.svg',
+      'assets/sprites/buildings/tavern_3.svg',
+      'assets/sprites/buildings/tavern_4.svg',
+    ],
   };
 
   const BUILDING_FRAME_MS = 800;
@@ -364,13 +376,31 @@
   // buildingId (зеркало CITY_SPRITES; BUILDING_FRAMES — только слоты).
   // ЛИТЕРАЛ (не каталог): мутация «спрайт» записей каталога НЕ меняет
   // кадры. Строгая готовность — как слоты 000224 (fallback на базу
-  // запрещён). 51/52/54 — волна 2 (000238.01).
+  // запрещён). Волна 2 (000238.01): строки 51/52/54.
   const CITY_FRAMES = {
+    51: [
+      'assets/sprites/cities/city_51_1.svg',
+      'assets/sprites/cities/city_51_2.svg',
+      'assets/sprites/cities/city_51_3.svg',
+      'assets/sprites/cities/city_51_4.svg',
+    ],
+    52: [
+      'assets/sprites/cities/city_52_1.svg',
+      'assets/sprites/cities/city_52_2.svg',
+      'assets/sprites/cities/city_52_3.svg',
+      'assets/sprites/cities/city_52_4.svg',
+    ],
     53: [
       'assets/sprites/cities/city_53_1.svg',
       'assets/sprites/cities/city_53_2.svg',
       'assets/sprites/cities/city_53_3.svg',
       'assets/sprites/cities/city_53_4.svg',
+    ],
+    54: [
+      'assets/sprites/cities/city_54_1.svg',
+      'assets/sprites/cities/city_54_2.svg',
+      'assets/sprites/cities/city_54_3.svg',
+      'assets/sprites/cities/city_54_4.svg',
     ],
   };
 

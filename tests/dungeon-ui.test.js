@@ -2438,9 +2438,11 @@ test('город UI 000105: структурный — dungeon-ui.js НЕ соз
 
 // 000148.02: каталожный id → путь спрайта СЛОТА (зеркало резолва из
 // ТЗ/контракта: map_index | размещение.слот → G.buildingSprite).
+// 000238.01: анимированные слоты — путь КАДРА (1:1 cityBuildingPath:
+// buildingFrames(slot) + buildingFrameIndex(now, x, y, n)).
 // Тестируем резолв ОТСУТСТВИЕМ/НАЛИЧИЕМ drawImage, а не этим хелпером —
 // хелпер — независимая реконструкция ожидаемого пути (как worldToScreen).
-function buildingSpritePath(G, id) {
+function buildingSpritePath(G, id, now, x, y) {
   const rec = typeof G.getBuilding === 'function' ? G.getBuilding(id) : null;
   if (!rec) return null;
   const op = rec.особые_параметры || {};
@@ -2448,7 +2450,14 @@ function buildingSpritePath(G, id) {
     ? op.map_index
     : (op.размещение && Number.isInteger(op.размещение.слот)
        ? op.размещение.слот : null);
-  return slot == null ? null : G.buildingSprite(slot);
+  if (slot == null) return null;
+  const frames = typeof G.buildingFrames === 'function'
+    ? G.buildingFrames(slot) : null;
+  if (frames && frames.length > 1
+      && typeof G.buildingFrameIndex === 'function') {
+    return frames[G.buildingFrameIndex(now, x, y, frames.length)];
+  }
+  return G.buildingSprite(slot);
 }
 
 // 000148.02: drawImage-вызовы СПРАЙТОВ ПОСТРОЕК (префикс
@@ -2464,15 +2473,16 @@ test('город UI 000148.02 (RED): базовая постройка (id 44, m
   const loaded = loadDungeonUi({ performance: { now: () => 1000 },
     withSprites: true, withBuildings: true });
   const G = loaded.G;
-  const path = buildingSpritePath(G, 44); // id 44 «Таверна» → слот 11 → tavern.svg
+  const path = buildingSpritePath(G, 44, 1000, 2, 2);
+  // id 44 «Таверна» → слот 11 → кадр таблицы (2,2) @ now=1000.
   assert.ok(path && path.indexOf('assets/sprites/buildings/') === 0,
     'предусловие: каталожный id 44 резолвится в путь спрайта СЛОТА: ' + path);
   // Ревью 000148.02: ЛИТЕРАЛЬНЫЙ якорь резолва (44 → map_index 11 →
-  // tavern.svg) — защита от общего дефекта зеркального резолва (тест
-  // и реализация считают путь одним выражением; префикс-пин этого
-  // не видит).
-  assert.equal(path, 'assets/sprites/buildings/tavern.svg',
-    'предусловие: id 44 — литеральный путь tavern.svg (якорь резолва)');
+  // кадр таблицы: (2,2) @ now=1000 → tavern_2.svg) — защита от общего
+  // дефекта зеркального резолва (тест и реализация считают путь одним
+  // выражением; префикс-пин этого не видит).
+  assert.equal(path, 'assets/sprites/buildings/tavern_2.svg',
+    'предусловие: id 44 — литеральный путь tavern_2.svg (якорь резолва)');
   const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
     cityContents: { buildings: [{ x: 2, y: 2, buildingId: 44 }], seed: 0 } });
   // 6x6 @ 48 → 288 ≤ 600 → cam центрирован (3,3). Позиция = угол клетки.
@@ -2506,8 +2516,8 @@ test('город UI 000148.02 (RED): субтип (размещение.слот
   // id 45 «Колодец» — СУБТИП без map_index (размещение.слот 11 → tavern.svg);
   // id 37 «Храм луны» — СУБТИП (размещение.слот 8 → temple.svg). ЕДИНСТВЕННЫЙ
   // тест ветки размещения.слот (без map_index).
-  const p45 = buildingSpritePath(G, 45);
-  const p37 = buildingSpritePath(G, 37);
+  const p45 = buildingSpritePath(G, 45, 1000, 2, 2);
+  const p37 = buildingSpritePath(G, 37, 1000, 4, 4);
   assert.ok(p45 && p45.indexOf('assets/sprites/buildings/') === 0,
     'предусловие: субтип id 45 резолвится через размещение.слот: ' + p45);
   assert.ok(p37 && p37.indexOf('assets/sprites/buildings/') === 0,
@@ -2528,7 +2538,7 @@ test('город UI 000148.02 (RED): субтип (размещение.слот
     'две постройки — ровно 2 building-спрайта (сейчас: ' + bdc.length + ')');
   const at = (id, x, y) => {
     const pp = G.worldToScreen(x, y, 3, 3, 48, VW, VH);
-    const exp = buildingSpritePath(G, id);
+    const exp = buildingSpritePath(G, id, 1000, x, y);
     return bdc.some((c) => Math.abs(c[1][1] - pp.x) <= 1e-9
       && Math.abs(c[1][2] - pp.y) <= 1e-9
       && c[1][3] === 48 && c[1][4] === 48
@@ -2628,12 +2638,12 @@ test('город UI 000148.02 (RED): базовые id (1/25/36/44) + неизв
   const cells = [
     [1, 1, 1], [25, 2, 1], [36, 3, 1], [44, 4, 1],
   ];
-  const paths = cells.map(([id]) => buildingSpritePath(G, id));
+  const paths = cells.map(([id, x, y]) => buildingSpritePath(G, id, 1000, x, y));
   cells.forEach(([id], i) => {
     assert.ok(paths[i] && paths[i].indexOf('assets/sprites/buildings/') === 0,
       'предусловие: id ' + id + ' резолвится в спрайт СЛОТА: ' + paths[i]);
   });
-  assert.equal(buildingSpritePath(G, 999), null,
+  assert.equal(buildingSpritePath(G, 999, 1000, 1, 2), null,
     'предусловие: id 999 — нет каталожной записи (null)');
   const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
     cityContents: { buildings: [
@@ -2652,7 +2662,7 @@ test('город UI 000148.02 (RED): базовые id (1/25/36/44) + неизв
     + '(сейчас: ' + bdc.length + ')');
   cells.forEach(([id, x, y]) => {
     const pp = G.worldToScreen(x, y, 3, 3, 48, VW, VH);
-    const exp = buildingSpritePath(G, id);
+    const exp = buildingSpritePath(G, id, 1000, x, y);
     assert.ok(bdc.some((c) => Math.abs(c[1][1] - pp.x) <= 1e-9
         && Math.abs(c[1][2] - pp.y) <= 1e-9
         && c[1][3] === 48 && c[1][4] === 48
@@ -2672,7 +2682,7 @@ test('город UI 000148.02 (RED): viewport-клип — 18×18 @ 40 (cam clam
   const loaded = loadDungeonUi({ performance: { now: () => 1000 },
     withSprites: true, withBuildings: true });
   const G = loaded.G;
-  const path = buildingSpritePath(G, 44);
+  const path = buildingSpritePath(G, 44, 1000, 9, 9);
   assert.ok(path && path.indexOf('assets/sprites/buildings/') === 0,
     'предусловие: id 44 резолвится в спрайт СЛОТА: ' + path);
   // 18x18 @ 40: по X 18*40=720 ≤ 800 → cam.x=9; по Y 720 > 600 →
@@ -2708,7 +2718,8 @@ test('город UI 000148.02: детерминизм (D10) — два ренд�
       { x: 2, y: 2, buildingId: 44 },
       { x: 4, y: 4, buildingId: 1 },
     ], seed: 0 } });
-  const paths = [44, 1].map((id) => buildingSpritePath(G, id));
+  const paths = [[44, 2, 2], [1, 4, 4]]
+    .map(([id, x, y]) => buildingSpritePath(G, id, 1000, x, y));
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
     spriteLoader: makeSpriteLoader(paths) });
   const canvas = findCanvas(loaded.body);
@@ -2738,7 +2749,7 @@ test('город UI 000191.5: каталожная запись есть, сло
   assert.ok(rec5, 'предусловие: каталожная запись id 5 есть');
   assert.equal(rec5.название, 'Лавка странника',
     'предусловие: id 5 — «Лавка странника»');
-  assert.equal(buildingSpritePath(G, 5), null,
+  assert.equal(buildingSpritePath(G, 5, 1000, 2, 2), null,
     'предусловие: у id 5 нет слота (cityBuildingPath → null)');
   const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
     cityContents: { buildings: [{ x: 2, y: 2, buildingId: 5 }], seed: 0 } });
@@ -2759,7 +2770,7 @@ test('город UI 000191.6a: z-порядок слоя — building-drawImage 
   const loaded = loadDungeonUi({ performance: { now: () => 1000 },
     withSprites: true, withBuildings: true });
   const G = loaded.G;
-  const path = buildingSpritePath(G, 44);
+  const path = buildingSpritePath(G, 44, 1000, 2, 2);
   assert.ok(path, 'предусловие: id 44 резолвится в спрайт слота');
   const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
     cityContents: { buildings: [{ x: 2, y: 2, buildingId: 44 }], seed: 0 } });
@@ -3854,4 +3865,161 @@ test('000238.02 R3 (ретро): город — Аптекарь (id 3, слот
   assert.notEqual(colors['4,3'], '#0a0d12',
     'пол (4,3) — не фон «за пределами»');
   assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
+});
+
+// --- Задача 000238.01 (СТАДИЯ КРАСНЫХ ТЕСТОВ): расширение анимации
+// на слот 0 «Оружейная» (каталожный id 1, map_index 0) и слот 11
+// «Таверна» (каталожный id 44, map_index 11). Городской канал —
+// cityBuildingPath УЖЕ generic по слоту (000224): новые строки
+// BUILDING_FRAMES[0]/[11] подхватываются БЕЗ правки dungeon-ui.js
+// (ТЗ: «НЕ трогаются: dungeon-ui.js»). Города 51/52/54 — в
+// tests/main-visuals.test.js (MV-C5..C8), слоты 0/11 на карте — в
+// tests/global-map-draw.test.js (RM-BA-5/6). Контракты:
+// memory/000238.01-building-anim-wave2.md (§4, §7).
+//
+// КРАСНЫЕ (падают на ТЕКУЩЕМ коде, осмысленно — строки
+// BUILDING_FRAMES[0]/[11] отсутствуют, buildingFrames(0/11) = null):
+//   CU-BA-5: на клетках id 1 / id 44 — СТАТИЧНЫЕ БАЗЫ
+//            weapons_shop.svg / tavern.svg, а не кадры (ассерт
+//            «кадр таблицы» падает);
+//   CU-BA-6: loader без кадров — рисуется база (fallback), а
+//            ожидаемый strict-skip (0 building-drawImage) не
+//            случается.
+
+const BA_FR_WEAP = [
+  'assets/sprites/buildings/weapons_shop_1.svg',
+  'assets/sprites/buildings/weapons_shop_2.svg',
+  'assets/sprites/buildings/weapons_shop_3.svg',
+  'assets/sprites/buildings/weapons_shop_4.svg',
+];
+const BA_FR_TAV = [
+  'assets/sprites/buildings/tavern_1.svg',
+  'assets/sprites/buildings/tavern_2.svg',
+  'assets/sprites/buildings/tavern_3.svg',
+  'assets/sprites/buildings/tavern_4.svg',
+];
+
+test('000238.01 CU-BA-5 (RED): город — Оружейная (id 1, слот 0) и Таверна (id 44, слот 11) — на клетках КАДР таблицы (не статичные базы), zoom×zoom на угле; +800 мс — кадры ДРУГИЕ (анимация видна); тот же now — идентично (D10); hex-пол сохранён; errors 0', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  // Предусловия: строки BUILDING_FRAMES[0]/[11] (Задача 000238.01) —
+  // 4 кадра каждая.
+  assert.ok(Array.isArray(G.buildingFrames(0))
+      && G.buildingFrames(0).length === 4,
+    'строка BUILDING_FRAMES[0] (Оружейная) — 4 кадра (Задача 000238.01)');
+  assert.ok(Array.isArray(G.buildingFrames(11))
+      && G.buildingFrames(11).length === 4,
+    'строка BUILDING_FRAMES[11] (Таверна) — 4 кадра (Задача 000238.01)');
+  assert.equal(typeof G.buildingFrameIndex, 'function',
+    'sprites.js: экспорт buildingFrameIndex(nowMs, tx, ty, n) (000224)');
+  assert.deepEqual(Array.from(G.buildingFrames(0)), BA_FR_WEAP,
+    'buildingFrames(0) — кадры оружейной');
+  assert.deepEqual(Array.from(G.buildingFrames(11)), BA_FR_TAV,
+    'buildingFrames(11) — кадры таверны');
+  const s = baCityState([
+    { x: 2, y: 2, buildingId: 1 }, // Оружейная → слот 0
+    { x: 4, y: 4, buildingId: 44 }, // Таверна → слот 11
+  ]);
+  // ВСЁ готово: кадры И статичные базы (строгая семантика: кадр
+  // готов — рисуется кадр; база ready — но НЕ фолбэк).
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader(
+      [...BA_FR_WEAP, ...BA_FR_TAV,
+       G.buildingSprite(0), G.buildingSprite(11)]) });
+  const canvas = findCanvas(loaded.body);
+  const n1 = canvas.drawCalls.length;
+  const d1w = baCellDraws(canvas.drawCalls.slice(0, n1), G, 2, 2, 48);
+  const d1t = baCellDraws(canvas.drawCalls.slice(0, n1), G, 4, 4, 48);
+  assert.equal(d1w.length, 1, 'id 1 — building-спрайт на клетке (2,2)');
+  assert.equal(d1t.length, 1, 'id 44 — building-спрайт на клетке (4,4)');
+  assert.ok(BA_FR_WEAP.includes(d1w[0][1][0].__img),
+    'id 1 — нарисован КАДР таблицы (не статичная база): '
+    + d1w[0][1][0].__img);
+  assert.notEqual(d1w[0][1][0].__img, G.buildingSprite(0),
+    'id 1 — кадр ≠ статичной базе (' + G.buildingSprite(0) + ')');
+  assert.ok(BA_FR_TAV.includes(d1t[0][1][0].__img),
+    'id 44 — нарисован КАДР таблицы (не статичная база): '
+    + d1t[0][1][0].__img);
+  assert.notEqual(d1t[0][1][0].__img, G.buildingSprite(11),
+    'id 44 — кадр ≠ статичной базе (' + G.buildingSprite(11) + ')');
+  // +800 мс (один BUILDING_FRAME_MS) — кадры сменились.
+  G.dungeonUI.render(1000 + 800);
+  const n2 = canvas.drawCalls.length;
+  const seg2 = canvas.drawCalls.slice(n1, n2);
+  const d2w = baCellDraws(seg2, G, 2, 2, 48);
+  const d2t = baCellDraws(seg2, G, 4, 4, 48);
+  assert.equal(d2w.length, 1, 'id 1 — через 800 мс спрайт на месте');
+  assert.equal(d2t.length, 1, 'id 44 — через 800 мс спрайт на месте');
+  assert.notEqual(d2w[0][1][0].__img, d1w[0][1][0].__img,
+    'id 1 — через 800 мс кадр ДРУГОЙ (анимация): ' + d1w[0][1][0].__img
+    + ' → ' + d2w[0][1][0].__img);
+  assert.notEqual(d2t[0][1][0].__img, d1t[0][1][0].__img,
+    'id 44 — через 800 мс кадр ДРУГОЙ (анимация): ' + d1t[0][1][0].__img
+    + ' → ' + d2t[0][1][0].__img);
+  // D10: повторный рендер на ТОМ ЖЕ now (1000) — идентичен.
+  G.dungeonUI.render(1000);
+  const seg3 = canvas.drawCalls.slice(n2);
+  const d3w = baCellDraws(seg3, G, 2, 2, 48);
+  const d3t = baCellDraws(seg3, G, 4, 4, 48);
+  assert.equal(d3w[0][1][0].__img, d1w[0][1][0].__img,
+    'D10: тот же now — тот же кадр (id 1)');
+  assert.equal(d3t[0][1][0].__img, d1t[0][1][0].__img,
+    'D10: тот же now — тот же кадр (id 44)');
+  // Индекс кадра — контрактная формула (зеркало селектора).
+  const i1w = G.buildingFrameIndex(1000, 2, 2, BA_FR_WEAP.length);
+  const i2w = G.buildingFrameIndex(1000 + 800, 2, 2, BA_FR_WEAP.length);
+  const i1t = G.buildingFrameIndex(1000, 4, 4, BA_FR_TAV.length);
+  const i2t = G.buildingFrameIndex(1000 + 800, 4, 4, BA_FR_TAV.length);
+  assert.equal(d1w[0][1][0].__img, BA_FR_WEAP[i1w],
+    'id 1 — кадр = buildingFrameIndex(now, клетка)');
+  assert.equal(d2w[0][1][0].__img, BA_FR_WEAP[i2w],
+    'id 1 — +800 мс — индекс шагнул на 1');
+  assert.equal(d1t[0][1][0].__img, BA_FR_TAV[i1t],
+    'id 44 — кадр = buildingFrameIndex(now, клетка)');
+  assert.equal(d2t[0][1][0].__img, BA_FR_TAV[i2t],
+    'id 44 — +800 мс — индекс шагнул на 1');
+  // hex-палитра сохранена (спрайт лежит НА поле, не заменяет его).
+  const colors = cityCellColors(canvas.drawCalls, G, s, 48, 3, 3);
+  assert.ok(colors['2,2'] && colors['4,4'],
+    'пол под постройками нарисован fillRect');
+  assert.notEqual(colors['2,2'], '#182029',
+    'пол (2,2) — не фолбэк-пол подземелья (hex сохранён)');
+  assert.notEqual(colors['4,4'], '#0a0d12',
+    'пол (4,4) — не фон «за пределами»');
+  assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
+});
+
+test('000238.01 CU-BA-6 (RED): строгая готовность в городе — Оружейная (id 1, слот 0) + Таверна (id 44, слот 11), loader БЕЗ кадров (ready только статичные базы) → building-спрайтов НЕТ (skip, клетки остаются полом — контракт 000148.02); fallback на базу ЗАПРЕЩЁН; без console.error', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  assert.ok(Array.isArray(G.buildingFrames(0))
+      && G.buildingFrames(0).length === 4,
+    'строка BUILDING_FRAMES[0] (Оружейная) — 4 кадра (Задача 000238.01)');
+  assert.ok(Array.isArray(G.buildingFrames(11))
+      && G.buildingFrames(11).length === 4,
+    'строка BUILDING_FRAMES[11] (Таверна) — 4 кадра (Задача 000238.01)');
+  const s = baCityState([
+    { x: 2, y: 2, buildingId: 1 }, // Оружейная → слот 0
+    { x: 4, y: 4, buildingId: 44 }, // Таверна → слот 11
+  ]);
+  // Только СТАТИЧНЫЕ БАЗЫ готовы — кадры в loader НЕТ.
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader(
+      [G.buildingSprite(0), G.buildingSprite(11)]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  assert.equal(buildingDrawCalls(calls).length, 0,
+    'кадры не готовы — building-спрайтов НЕТ (строгая семантика: '
+    + 'fallback на статичные базы запрещён); сейчас: '
+    + buildingDrawCalls(calls).length);
+  // Клетки остаются полом (hex-палитра, контракт 000148.02).
+  const colors = cityCellColors(calls, G, s, 48, 3, 3);
+  assert.ok(colors['2,2'] && colors['4,4'], 'клетки (2,2)/(4,4) — пол');
+  assert.notEqual(colors['2,2'], '#182029',
+    'пол (2,2) — не фолбэк-пол подземелья');
+  assert.notEqual(colors['2,2'], '#0a0d12', 'пол (2,2) — не фон');
+  assert.notEqual(colors['4,4'], '#0a0d12', 'пол (4,4) — не фон');
+  assert.equal(loaded.errors.length, 0,
+    'тихий skip — без console.error: ' + loaded.errors.join('; '));
 });

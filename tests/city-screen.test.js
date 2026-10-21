@@ -1042,17 +1042,25 @@ test('город 000148.02 G1 (e2e): постройки деревни РЕНД�
     'ровно 3 building-спрайта (2×tavern + 1×weapons_shop); сейчас: '
     + buildingCalls.length);
   // Множество путей = ТЕМ ЖЕ резолвом, что код (getBuilding →
-  // map_index/размещение.слот → G.buildingSprite), без хардкода имён.
-  const resolve = (id) => {
+  // map_index/размещение.слот → кадр таблицы (000238.01) /
+  // G.buildingSprite), без хардкода имён.
+  const resolve = (id, now, x, y) => {
     const rec = G.getBuilding(id);
     const op = (rec && rec.особые_параметры) || {};
     const slot = Number.isInteger(op.map_index) ? op.map_index
       : (op.размещение && Number.isInteger(op.размещение.слот)
          ? op.размещение.слот : null);
-    return slot == null ? null : G.buildingSprite(slot);
+    if (slot == null) return null;
+    const frames = typeof G.buildingFrames === 'function'
+      ? G.buildingFrames(slot) : null;
+    if (frames && frames.length > 1
+        && typeof G.buildingFrameIndex === 'function') {
+      return frames[G.buildingFrameIndex(now, x, y, frames.length)];
+    }
+    return G.buildingSprite(slot);
   };
   const expectedPaths = JSON.parse(JSON.stringify(
-    dg.buildings.map((b) => resolve(b.buildingId)))).sort();
+    dg.buildings.map((b) => resolve(b.buildingId, 1000, b.x, b.y)))).sort();
   const actualPaths = buildingCalls.map((c) => c[1][0].__src).sort();
   assert.deepEqual(actualPaths, expectedPaths,
     'множество путей спрайтов = резолв id→слот (2×tavern + 1×weapons_shop): '

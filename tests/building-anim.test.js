@@ -119,7 +119,8 @@ test('000224 BA-1: buildingFrames(slot) — магазин магии (слот 
   assert.equal(new Set(BLACK_FRAMES).size, 4, 'кадры кузницы — 4 РАЗНЫХ');
   // 000238: слоты 2 (Аптекарь) и 7 (академия) получают кадры —
   // из null-списка исключены (пони — BA-4).
-  for (const slot of [0, 1, 4, 6, 8, 9, 10, 11, 12]) {
+  // 000238.01: слоты 0 (оружейная) и 11 (таверна) — волна 2 (BA-7).
+  for (const slot of [1, 4, 6, 8, 9, 10, 12]) {
     assert.equal(S.buildingFrames(slot), null,
       'слот ' + slot + ' — анимации нет (null)');
   }
@@ -281,7 +282,7 @@ const BASE_CAMP = 'assets/sprites/buildings/camp.svg';
 // слотовые id НЕ города и НЕ лагерь → null.
 const SLOT_IDS = [1, 2, 3, 4, 7, 8, 10, 11, 36, 31, 40, 44, 25];
 
-test('000238 BA-4: BUILDING_FRAMES[2] (Аптекарь) и [7] (академия) — по 4 РАЗНЫХ кадра apothecary_1..4.svg / academy_1..4.svg; остальные слоты (0,1,4,6,8,9,10,11,12) — null; кадр 1 = байт-копия статичной базы; кадры — файлы, в allAssetPaths, без дублей', () => {
+test('000238 BA-4: BUILDING_FRAMES[2] (Аптекарь) и [7] (академия) — по 4 РАЗНЫХ кадра apothecary_1..4.svg / academy_1..4.svg; остальные слоты (1,4,6,8,9,10,12) — null; кадр 1 = байт-копия статичной базы; кадры — файлы, в allAssetPaths, без дублей', () => {
   assert.equal(typeof S.buildingFrames, 'function',
     'sprites.js: экспорт buildingFrames(slot) — отсутствует (Задача 000224)');
   assert.deepEqual(
@@ -292,7 +293,7 @@ test('000238 BA-4: BUILDING_FRAMES[2] (Аптекарь) и [7] (академи�
     'строка BUILDING_FRAMES[7] (академия) — 4 кадра academy_1..4.svg (Задача 000238)');
   assert.equal(new Set(APOT_FRAMES).size, 4, 'кадры аптекаря — 4 РАЗНЫХ');
   assert.equal(new Set(ACAD_FRAMES).size, 4, 'кадры академии — 4 РАЗНЫХ');
-  for (const slot of [0, 1, 4, 6, 8, 9, 10, 11, 12]) {
+  for (const slot of [1, 4, 6, 8, 9, 10, 12]) {
     assert.equal(S.buildingFrames(slot), null,
       'слот ' + slot + ' — анимации нет (null)');
   }
@@ -324,17 +325,17 @@ test('000238 BA-4: BUILDING_FRAMES[2] (Аптекарь) и [7] (академи�
   assert.equal(new Set(all).size, all.length, 'дублей в allAssetPaths нет');
 });
 
-test('000238 BA-5: CITY_FRAMES/cityFrames(53) — 4 РАЗНЫХ кадра city_53_1..4.svg (320×320); город НЕ слот — таблица по buildingId; cityFrames(51/52/54/47/слотовые id/999/−1/нецелое/строка/неопределённое) → null; кадр 1 = байт-копия city_53.svg; кадры — файлы, в allAssetPaths; таблица — ЛИТЕРАЛ; CITY_SPRITES/citySprite(53) — БАЗА (SP-C1/C2 интактны)', () => {
+test('000238 BA-5: CITY_FRAMES/cityFrames(53) — 4 РАЗНЫХ кадра city_53_1..4.svg (320×320); город НЕ слот — таблица по buildingId; cityFrames(47/слотовые id/999/−1/нецелое/строка/неопределённое) → null; кадр 1 = байт-копия city_53.svg; кадры — файлы, в allAssetPaths; таблица — ЛИТЕРАЛ; CITY_SPRITES/citySprite(53) — БАЗА (SP-C1/C2 интактны)', () => {
   assert.equal(typeof S.cityFrames, 'function',
     'sprites.js: экспорт cityFrames(buildingId) — отсутствует (Задача 000238)');
   assert.ok(S.CITY_FRAMES && typeof S.CITY_FRAMES === 'object',
     'sprites.js: экспорт CITY_FRAMES (таблица кадров городов) — отсутствует (Задача 000238)');
-  assert.deepEqual(Object.keys(S.CITY_FRAMES), ['53'],
-    'CITY_FRAMES — ровно одна строка: 53 (волна 1; 51/52/54 — волна 2)');
+  assert.deepEqual(Object.keys(S.CITY_FRAMES), ['51', '52', '53', '54'],
+    'CITY_FRAMES — строки 51/52/53/54 (волна 1: 53; волна 2: 51/52/54)');
   assert.deepEqual(S.cityFrames(53), CITY53_FRAMES,
     'cityFrames(53) — 4 кадра city_53_1..4.svg');
   assert.equal(new Set(CITY53_FRAMES).size, 4, 'кадры города 53 — 4 РАЗНЫХ');
-  for (const id of [51, 52, 54, 47, 999, -1,
+  for (const id of [47, 999, -1,
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, ...SLOT_IDS,
     '53', 53.5, undefined, null, NaN]) {
     assert.equal(S.cityFrames(id), null,
@@ -436,4 +437,183 @@ test('000238 BA-6: CAMP_FRAMES/campFrames(47) — 4 РАЗНЫХ кадра camp
     'CAMP_SPRITES — БАЗА, НЕ расширяется (SP-47); кадры — отдельная CAMP_FRAMES');
   assert.equal(S.campSprite(47), BASE_CAMP,
     'campSprite(47) — БАЗА camp.svg (селектор баз интактен)');
+});
+
+// --- Задача 000238.01 (СТАДИЯ КРАСНЫХ ТЕСТОВ): волна 2 — расширение
+// кадр-свитча (000224/000238) на слот 0 «Магазин оружия» (каталожный
+// id 1, map_index 0), слот 11 «Таверна» (id 44, map_index 11) и
+// города 51 (хутор 1×1 = 64×64), 52 (деревня 2×2 = 128×128),
+// 54 (столица 7×7 = 448×448).
+// Контракты: memory/000238.01-building-anim-wave2.md (§2, §7).
+// Имя кадра = <база без расширения>_<n>.svg (идиома 000224).
+//
+// КРАСНЫЕ (падают на ТЕКУЩЕМ коде, осмысленно — строки отсутствуют,
+// селекторы → null, файлов кадров нет):
+//   BA-7: строки BUILDING_FRAMES[0]/[11] отсутствуют (null) +
+//         8 файлов кадров нет;
+//   BA-8: строки CITY_FRAMES[51]/[52]/[54] отсутствуют
+//         (cityFrames → null) + 12 файлов кадров нет.
+
+const WEA_FRAMES = [
+  'assets/sprites/buildings/weapons_shop_1.svg',
+  'assets/sprites/buildings/weapons_shop_2.svg',
+  'assets/sprites/buildings/weapons_shop_3.svg',
+  'assets/sprites/buildings/weapons_shop_4.svg',
+];
+const TAV_FRAMES = [
+  'assets/sprites/buildings/tavern_1.svg',
+  'assets/sprites/buildings/tavern_2.svg',
+  'assets/sprites/buildings/tavern_3.svg',
+  'assets/sprites/buildings/tavern_4.svg',
+];
+const BASE_WEA = 'assets/sprites/buildings/weapons_shop.svg';
+const BASE_TAV = 'assets/sprites/buildings/tavern.svg';
+// Города 51/52/54 — кадры в СВОЕЙ таблице CITY_FRAMES (ключ —
+// buildingId), не в BUILDING_FRAMES (слоты) — как 53 (волна 1).
+const CITY51_FRAMES = [
+  'assets/sprites/cities/city_51_1.svg',
+  'assets/sprites/cities/city_51_2.svg',
+  'assets/sprites/cities/city_51_3.svg',
+  'assets/sprites/cities/city_51_4.svg',
+];
+const CITY52_FRAMES = [
+  'assets/sprites/cities/city_52_1.svg',
+  'assets/sprites/cities/city_52_2.svg',
+  'assets/sprites/cities/city_52_3.svg',
+  'assets/sprites/cities/city_52_4.svg',
+];
+const CITY54_FRAMES = [
+  'assets/sprites/cities/city_54_1.svg',
+  'assets/sprites/cities/city_54_2.svg',
+  'assets/sprites/cities/city_54_3.svg',
+  'assets/sprites/cities/city_54_4.svg',
+];
+const BASE_CITY51 = 'assets/sprites/cities/city_51.svg';
+const BASE_CITY52 = 'assets/sprites/cities/city_52.svg';
+const BASE_CITY54 = 'assets/sprites/cities/city_54.svg';
+
+test('000238.01 BA-7: BUILDING_FRAMES[0] (магазин оружия) и [11] (таверна) — по 4 РАЗНЫХ кадра weapons_shop_1..4.svg / tavern_1..4.svg; остальные слоты (1,4,6,8,9,10,12) — null; кадр 1 = байт-копия статичной базы; кадры — файлы, в allAssetPaths, без дублей', () => {
+  assert.deepEqual(
+    S.buildingFrames(BUILDING_TYPES.WEAPONS_SHOP), WEA_FRAMES,
+    'строка BUILDING_FRAMES[0] (магазин оружия) — 4 кадра weapons_shop_1..4.svg (Задача 000238.01)');
+  assert.deepEqual(
+    S.buildingFrames(BUILDING_TYPES.TAVERN), TAV_FRAMES,
+    'строка BUILDING_FRAMES[11] (таверна) — 4 кадра tavern_1..4.svg (Задача 000238.01)');
+  assert.equal(new Set(WEA_FRAMES).size, 4, 'кадры магазина оружия — 4 РАЗНЫХ');
+  assert.equal(new Set(TAV_FRAMES).size, 4, 'кадры таверны — 4 РАЗНЫХ');
+  for (const slot of [1, 4, 6, 8, 9, 10, 12]) {
+    assert.equal(S.buildingFrames(slot), null,
+      'слот ' + slot + ' — анимации нет (null)');
+  }
+  const all24 = [...MAGIC_FRAMES, ...BLACK_FRAMES, ...APOT_FRAMES,
+    ...ACAD_FRAMES, ...WEA_FRAMES, ...TAV_FRAMES];
+  assert.equal(new Set(all24).size, 24, '24 кадра — 24 РАЗНЫХ пути');
+  for (const p of all24) {
+    assert.ok(exists(p), 'нет файла кадра: ' + p);
+  }
+  // КАДР 1 = БАЙТ-КОПИЯ статичной базы (идеология 000224: кадры 2–4 —
+  // та же композиция, движется только анимированный элемент).
+  assert.equal(Buffer.compare(
+    fs.readFileSync(path.join(ROOT, WEA_FRAMES[0])),
+    fs.readFileSync(path.join(ROOT, BASE_WEA))), 0,
+    'weapons_shop_1.svg — байт-копия weapons_shop.svg');
+  assert.equal(Buffer.compare(
+    fs.readFileSync(path.join(ROOT, TAV_FRAMES[0])),
+    fs.readFileSync(path.join(ROOT, BASE_TAV))), 0,
+    'tavern_1.svg — байт-копия tavern.svg');
+  const all = S.allAssetPaths();
+  for (const p of all24) {
+    assert.ok(all.includes(p),
+      'кадр вне allAssetPaths (нет pre-лоада → вечный legacy-маркер): ' + p);
+  }
+  assert.equal(new Set(all).size, all.length, 'дублей в allAssetPaths нет');
+});
+
+test('000238.01 BA-8: CITY_FRAMES[51]/[52]/[54] — по 4 РАЗНЫХ кадра city_51_1..4.svg (64×64) / city_52_1..4.svg (128×128) / city_54_1..4.svg (448×448); город НЕ слот — таблица по buildingId; cityFrames(47/999/−1/0..12/слотовые id/нецелое/строка/неопределённое) → null; кадр 1 = байт-копия базы; кадры — файлы, в allAssetPaths; таблица — ЛИТЕРАЛ; CITY_SPRITES/citySprite(51/52/54) — БАЗЫ (SP-C1/C2 интактны)', () => {
+  assert.deepEqual(Object.keys(S.CITY_FRAMES), ['51', '52', '53', '54'],
+    'CITY_FRAMES — ровно 4 строки: 53 (волна 1) + 51/52/54 (волна 2, Задача 000238.01)');
+  assert.deepEqual(S.cityFrames(51), CITY51_FRAMES,
+    'cityFrames(51) — 4 кадра city_51_1..4.svg');
+  assert.deepEqual(S.cityFrames(52), CITY52_FRAMES,
+    'cityFrames(52) — 4 кадра city_52_1..4.svg');
+  assert.deepEqual(S.cityFrames(54), CITY54_FRAMES,
+    'cityFrames(54) — 4 кадра city_54_1..4.svg');
+  assert.equal(new Set(CITY51_FRAMES).size, 4, 'кадры города 51 — 4 РАЗНЫХ');
+  assert.equal(new Set(CITY52_FRAMES).size, 4, 'кадры города 52 — 4 РАЗНЫХ');
+  assert.equal(new Set(CITY54_FRAMES).size, 4, 'кадры города 54 — 4 РАЗНЫХ');
+  for (const id of [47, 999, -1,
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, ...SLOT_IDS,
+    '51', 51.5, undefined, null, NaN]) {
+    assert.equal(S.cityFrames(id), null,
+      'cityFrames(' + String(id) + ') — null (городов там нет)');
+  }
+  const all12 = [...CITY51_FRAMES, ...CITY52_FRAMES, ...CITY54_FRAMES];
+  for (const p of all12) {
+    assert.ok(exists(p), 'нет файла кадра: ' + p);
+  }
+  // 51 = 1×1 → 64×64; 52 = 2×2 → 128×128; 54 = 7×7 → 448×448
+  // (каталог 000053) — viewBox кадров = базе.
+  for (const p of CITY51_FRAMES) {
+    assert.ok(
+      fs.readFileSync(path.join(ROOT, p), 'utf8').includes('viewBox="0 0 64 64"'),
+      'viewBox 64×64 у кадра: ' + p);
+  }
+  for (const p of CITY52_FRAMES) {
+    assert.ok(
+      fs.readFileSync(path.join(ROOT, p), 'utf8').includes('viewBox="0 0 128 128"'),
+      'viewBox 128×128 у кадра: ' + p);
+  }
+  for (const p of CITY54_FRAMES) {
+    assert.ok(
+      fs.readFileSync(path.join(ROOT, p), 'utf8').includes('viewBox="0 0 448 448"'),
+      'viewBox 448×448 у кадра: ' + p);
+  }
+  assert.equal(Buffer.compare(
+    fs.readFileSync(path.join(ROOT, CITY51_FRAMES[0])),
+    fs.readFileSync(path.join(ROOT, BASE_CITY51))), 0,
+    'city_51_1.svg — байт-копия city_51.svg');
+  assert.equal(Buffer.compare(
+    fs.readFileSync(path.join(ROOT, CITY52_FRAMES[0])),
+    fs.readFileSync(path.join(ROOT, BASE_CITY52))), 0,
+    'city_52_1.svg — байт-копия city_52.svg');
+  assert.equal(Buffer.compare(
+    fs.readFileSync(path.join(ROOT, CITY54_FRAMES[0])),
+    fs.readFileSync(path.join(ROOT, BASE_CITY54))), 0,
+    'city_54_1.svg — байт-копия city_54.svg');
+  const all = S.allAssetPaths();
+  for (const p of all12) {
+    assert.ok(all.includes(p),
+      'кадр вне allAssetPaths (нет pre-лоада → вечный skip города): ' + p);
+  }
+  assert.equal(new Set(all).size, all.length, 'дублей в allAssetPaths нет');
+  // ЛИТЕРАЛ: мутация «спрайт» каталога 51/52/54 — citySprite меняется
+  // (ленивое чтение, R5), cityFrames — НЕТ.
+  for (const id of [51, 52, 54]) {
+    const rec = B.BUILDINGS.find((b) => b.id === id);
+    assert.ok(rec, 'каталог: запись ' + id);
+    const expected = S.cityFrames(id);
+    const orig = rec.спрайт;
+    try {
+      rec.спрайт = 'assets/sprites/cities/divergent_000238.01.svg';
+      assert.equal(S.citySprite(id),
+        'assets/sprites/cities/divergent_000238.01.svg',
+        'citySprite(' + id + ') — ленивое чтение каталога (мутация отражена, R5)');
+      assert.deepEqual(S.cityFrames(id), expected,
+        'cityFrames(' + id + ') — ЛИТЕРАЛ: мутация каталога НЕ меняет кадры');
+    } finally {
+      rec.спрайт = orig;
+    }
+  }
+  assert.deepEqual(S.CITY_SPRITES, {
+    51: 'assets/sprites/cities/city_51.svg',
+    52: 'assets/sprites/cities/city_52.svg',
+    53: 'assets/sprites/cities/city_53.svg',
+    54: 'assets/sprites/cities/city_54.svg',
+  }, 'CITY_SPRITES — БАЗЫ, НЕ расширяется (SP-C2); кадры — отдельная CITY_FRAMES');
+  assert.equal(S.citySprite(51), BASE_CITY51,
+    'citySprite(51) — БАЗА city_51.svg (селектор баз интактен)');
+  assert.equal(S.citySprite(52), BASE_CITY52,
+    'citySprite(52) — БАЗА city_52.svg (селектор баз интактен)');
+  assert.equal(S.citySprite(54), BASE_CITY54,
+    'citySprite(54) — БАЗА city_54.svg (селектор баз интактен)');
 });

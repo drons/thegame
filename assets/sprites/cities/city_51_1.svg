@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="c51w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a8494"/>
+      <stop offset="1" stop-color="#5f5a68"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="32" cy="59" rx="24" ry="3.5" fill="rgba(0,0,0,0.28)"/>
+  <!-- корпус башни-воротца -->
+  <rect x="14" y="20" width="36" height="38" fill="url(#c51w)" stroke="#4f4a58" stroke-width="1.2"/>
+  <!-- зубцы -->
+  <g fill="#7a7484" stroke="#4f4a58" stroke-width="1">
+    <rect x="14" y="14" width="8" height="6"/>
+    <rect x="28" y="14" width="8" height="6"/>
+    <rect x="42" y="14" width="8" height="6"/>
+  </g>
+  <!-- швы камня -->
+  <path d="M14 32 H50 M14 44 H50" stroke="#6a6472" stroke-width="0.8" fill="none" opacity="0.6"/>
+  <!-- ворота (вход, центр плитки) -->
+  <path d="M25 58 V42 Q25 34 32 34 Q39 34 39 42 V58 Z" fill="#3a3542"/>
+  <path d="M25 58 V42 Q25 34 32 34 Q39 34 39 42" stroke="#9a94a4" stroke-width="1.2" fill="none" opacity="0.5"/>
+  <!-- перемычка над воротами -->
+  <rect x="22" y="30" width="20" height="4.5" fill="#7a7484" stroke="#4f4a58" stroke-width="0.8"/>
+  <!-- знамя -->
+  <path d="M32 14 V5" stroke="#5c4a26" stroke-width="1.4"/>
+  <polygon points="32,5 41,8 32,11" fill="#96793f"/>
+  <!-- мох -->
+  <path d="M14 58 C15 55 18 54.5 19 56.5 C17 57 15.5 57.5 14.5 58 Z" fill="#4f7a3a"/>
+  <path d="M48 58 C48.5 55.5 50.5 55 51.5 56.5 C50 57 49 57.5 48.5 58 Z" fill="#4f7a3a"/>
+</svg>

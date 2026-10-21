@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="24" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- табличка: скрещённые мечи -->
+  <line x1="8" y1="52" x2="8" y2="30" stroke="#6f4a2a" stroke-width="2"/>
+  <rect x="1" y="24" width="15" height="13" rx="1.5" fill="#6f4a2a" stroke="#54381f" stroke-width="1"/>
+  <g stroke="#cfd4da" stroke-width="1.8" stroke-linecap="round">
+    <line x1="4.5" y1="27.5" x2="13" y2="33.5"/>
+    <line x1="13" y1="27.5" x2="4.5" y2="33.5"/>
+  </g>
+  <circle cx="4.5" cy="27.5" r="1.1" fill="#c9a24a"/>
+  <circle cx="13" cy="27.5" r="1.1" fill="#c9a24a"/>
+  <!-- дом -->
+  <rect x="16" y="30" width="32" height="24" fill="#cbb894" stroke="#8a6f4d" stroke-width="1"/>
+  <polygon points="12,32 32,13 52,32" fill="#a34a3a" stroke="#7c362b" stroke-width="1"/>
+  <polygon points="12,32 32,13 32,32" fill="#b4574a"/>
+  <!-- дверь и окно -->
+  <rect x="27" y="40" width="9" height="14" rx="4" fill="#6f4a2a" stroke="#54381f" stroke-width="1"/>
+  <circle cx="34" cy="47" r="1" fill="#e8c25a"/>
+  <rect x="19.5" y="35" width="6" height="6" fill="#ffe9a3" stroke="#8a6f4d" stroke-width="0.9"/>
+  <line x1="22.5" y1="35" x2="22.5" y2="41" stroke="#8a6f4d" stroke-width="0.7"/>
+  <rect x="39" y="35" width="6" height="6" fill="#ffe9a3" stroke="#8a6f4d" stroke-width="0.9"/>
+  <line x1="42" y1="35" x2="42" y2="41" stroke="#8a6f4d" stroke-width="0.7"/>
+</svg>

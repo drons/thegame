@@ -61,7 +61,13 @@ const EPS = 1e-6;
 
 // --- WebGL-стаб (main.js: compile/link/буферы) ---
 
-function makeGl() {
+// 000238.01 (MV-C7/C8): gl-стаб ЗАПИСЫВАЕТ bufferData
+// (Float32Array [x,y,r,g,b,a]*6) и drawArrays (count) в glCalls —
+// анализ вершин по цветам fallback-палитры (src/main.js L46-52),
+// паттерн 000176 tests/global-map-draw.test.js. До 000238.01 стаб
+// был no-op — существующие тесты glCalls не читают (изменение
+// аддитивное, на них не влияет).
+function makeGl(glCalls) {
   const noop = () => {};
   const gl = {
     VERTEX_SHADER: 35633, FRAGMENT_SHADER: 35632,
@@ -86,13 +92,17 @@ function makeGl() {
   gl.enableVertexAttribArray = noop;
   gl.createBuffer = () => ({});
   gl.bindBuffer = noop;
-  gl.bufferData = noop;
+  gl.bufferData = (target, data, usage) => {
+    glCalls.push({ fn: 'bufferData', data });
+  };
   gl.vertexAttribPointer = noop;
   gl.viewport = noop;
   gl.clearColor = noop;
   gl.clear = noop;
   gl.uniformMatrix4fv = noop;
-  gl.drawArrays = noop;
+  gl.drawArrays = (mode, first, count) => {
+    glCalls.push({ fn: 'drawArrays', count });
+  };
   return gl;
 }
 
@@ -165,8 +175,10 @@ function bootSandbox(rejectSet) {
   const hud = makeEl('div');
   // #game — WebGL (без него main.js уходит в фолбэк-ветку «WebGL не
   // поддерживается» и игра не стартует); #sprites — 2d со спаем.
+  // glCalls — запись усиленного gl-стаба (000238.01, MV-C7/C8).
+  const glCalls = [];
   gameCanvas.getContext = (kind) => (kind === 'webgl'
-    ? makeGl() : makeContext2d(gameCanvas));
+    ? makeGl(glCalls) : makeContext2d(gameCanvas));
   spriteCanvas.getContext = (kind) => (kind === '2d'
     ? makeContext2d(spriteCanvas) : null);
   const document = {
@@ -240,7 +252,7 @@ function bootSandbox(rejectSet) {
       { filename: f });
   }
   return {
-    sandbox, winListeners, raf, warns, errors,
+    sandbox, winListeners, raf, warns, errors, glCalls,
     gameCanvas, spriteCanvas, hud,
   };
 }
@@ -1390,8 +1402,14 @@ test('000110 MV-C1: столица 7×7 — footprint отрисован: все
     + expected.length + ')');
   assertBuildingsEqual(cityDraws(calls), expected, 'footprint столицы');
   // (d) Ровно ОДИН draw city_54 в worldToScreen(−84,−48) размером
-  // 7z×7z.
-  const asset = G.citySprite(54);
+  // 7z×7z. 000238.01: кадр таблицы (mirror cityBuildingPath:
+  // cityFrames(54) + buildingFrameIndex(now, якорь, n)).
+  const f54 = (typeof G.cityFrames === 'function'
+    ? G.cityFrames(54) : null);
+  const asset = (f54 && f54.length > 1
+      && typeof G.buildingFrameIndex === 'function')
+    ? f54[G.buildingFrameIndex(now, rec.x, rec.y, f54.length)]
+    : G.citySprite(54);
   const p = G.worldToScreen(rec.x, rec.y, st.cam.x, st.cam.y,
     st.zoom, VIEW_W, VIEW_H);
   const atAnchor = cityDraws(calls).filter(([, a]) =>
@@ -1712,6 +1730,558 @@ test('000238 MV-C4 (RED): строгая готовность города 53 �
     'остальные городские draw интактны (' + (N_city - K) + ' из '
     + N_city + ')');
   assert.equal(tileDraws(f).length, N_tile, 'тайлы: интактны');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
+
+// --- Задача 000238.01 (СТАДИЯ КРАСНЫХ ТЕСТОВ): волна 2 — анимация
+// городов 51 (хутор 1×1 = 64×64), 52 (деревня 2×2 = 128×128),
+// 54 (столица 7×7 = 448×448). (Слоты 0/11 на карте — RM-BA-5/6 в
+// tests/global-map-draw.test.js, в городском экране — CU-BA-5/6 в
+// tests/dungeon-ui.test.js.)
+// Контракты: memory/000238.01-building-anim-wave2.md (§7):
+//   * города — строки CITY_FRAMES[51]/[52]/[54] (ключ — buildingId,
+//     не слот: 000103): на якоря drawImage ТЕКУЩЕГО КАДРА
+//     city_5N_N.svg (не база city_5N.svg), w·z×h·z;
+//   * кадр = f(now, якорь) (D10), BUILDING_FRAME_MS = 800;
+//   * строгая готовность: кадр не загрузился → skip, fallback на
+//     БАЗУ ЗАПРЕЩЁН (прецедент воды 000025); legacy-маркер — квад
+//     из 6 вершин на ВХОДНОМ тайле города (map.js: hasBuilding =
+//     cover && isEntrance — только вход, не каждый тайл footprint'а).
+//
+// КРАСНЫЕ (падают на ТЕКУЩЕМ коде, осмысленно): строки
+// CITY_FRAMES[51]/[52]/[54] отсутствуют (cityFrames → null).
+//
+// Сценарные якоря (дет. мир, пробы memory/000238.01 §5):
+//   * окно A: цель (21,−14) — 35 шагов; кадр (1280×720, zoom 80)
+//     12..29 × −19..−9: деревня 52 (якорь (20,−16), 2×2, вход
+//     (21,−15)) + хутор 51 (якорь (19,−12), 1×1, вход = якорь),
+//     других NONE-якорей в кадре нет;
+//   * окно B: цель (−86,−47) — 133 шага; кадр −95..−78 ×
+//     −52..−42: ЕДИНСТВЕННЫЙ город — столица 54 (якорь (−84,−48),
+//     7×7, вход (−81,−42)).
+//
+// WebGL (MV-C7/C8): gl-стаб записывает bufferData/drawArrays в
+// h.glCalls (000176-паттерн); frameAt сюда glCalls НЕ сбрасывает —
+// тест сбрасывает .length = 0 ПЕРЕД pumped-кадром (ассерты —
+// «вершины кадра»).
+
+// Палитра fallback-слоя (src/main.js L46-52; контракт 000176).
+const PLAYER_COLOR = [0.55, 0.95, 1.0]; // светящийся ромб Флогистона
+const BUILDING_COLOR = [0.98, 0.83, 0.30]; // золотой маркер постройки
+const MOB_COLOR = [0.85, 0.30, 0.25]; // красный маркер группы мобов
+const EPS_F32 = 1e-4; // Float32Array: цвет 0..1 точится с ошибкой ~1e-8
+
+function bufferDataOf(glCalls) {
+  const out = [];
+  for (const c of glCalls) if (c.fn === 'bufferData') out.push(c.data);
+  return out;
+}
+
+// Вершин с заданным цветом (fallback-палитра main.js L46-52).
+function countColor(glCalls, rgb) {
+  let n = 0;
+  for (const d of bufferDataOf(glCalls)) {
+    for (let i = 0; i + 5 < d.length; i += 6) {
+      if (Math.abs(d[i + 2] - rgb[0]) < EPS_F32
+          && Math.abs(d[i + 3] - rgb[1]) < EPS_F32
+          && Math.abs(d[i + 4] - rgb[2]) < EPS_F32) n += 1;
+    }
+  }
+  return n;
+}
+
+// Вершины маркера на тайле (tx, ty): маркерный квад
+// [tx+0.30, tx+0.70]² (buildFrame main.js), окно ±0.05.
+function markerVerts(glCalls, rgb, tx, ty) {
+  let n = 0;
+  for (const d of bufferDataOf(glCalls)) {
+    for (let i = 0; i + 5 < d.length; i += 6) {
+      if (d[i] >= tx + 0.25 && d[i] <= tx + 0.75
+          && d[i + 1] >= ty + 0.25 && d[i + 1] <= ty + 0.75
+          && Math.abs(d[i + 2] - rgb[0]) < EPS_F32
+          && Math.abs(d[i + 3] - rgb[1]) < EPS_F32
+          && Math.abs(d[i + 4] - rgb[2]) < EPS_F32) n += 1;
+    }
+  }
+  return n;
+}
+
+// Тайл-квады: вершины с цветом ВНЕ маркерной палитры (ни один
+// террейн не совпадает с маркером в EPS_F32; в reject-кадре MV-C7/C8
+// тайлы ready → тайл-квадов нет вовсе).
+function tileVerts(glCalls) {
+  let n = 0;
+  for (const d of bufferDataOf(glCalls)) {
+    for (let i = 0; i + 5 < d.length; i += 6) {
+      const r = d[i + 2], g = d[i + 3], b = d[i + 4];
+      const marker = [PLAYER_COLOR, BUILDING_COLOR, MOB_COLOR].some(
+        ([pr, pg, pb]) =>
+          Math.abs(r - pr) < EPS_F32 && Math.abs(g - pg) < EPS_F32
+          && Math.abs(b - pb) < EPS_F32);
+      if (!marker) n += 1;
+    }
+  }
+  return n;
+}
+
+// Спрайты Флогистона (assets/sprites/phlogiston/*.svg).
+function heroDraws(calls) {
+  return calls.filter((c) => c[0] === 'drawImage'
+    && c[1][0]
+    && typeof c[1][0].__asset === 'string'
+    && c[1][0].__asset.startsWith('assets/sprites/phlogiston/'));
+}
+
+test('000238.01 MV-C5 (RED): хутор 51 (1×1) + деревня 52 (2×2) в одном кадре — на якоря drawImage КАДРА city_51_N / city_52_N (не базы), 1z×1z / 2z×2z; через 800 мс кадры ОБОИХ другие; тот же now — идентично (D10); errors 0', async () => {
+  const h = await boot(new Set());
+  const G = h.sandbox.Game;
+  assert.ok(Array.isArray(G.cityFrames(51))
+      && G.cityFrames(51).length === 4,
+    'строка CITY_FRAMES[51] (хутор) — 4 кадра (Задача 000238.01)');
+  assert.ok(Array.isArray(G.cityFrames(52))
+      && G.cityFrames(52).length === 4,
+    'строка CITY_FRAMES[52] (деревня) — 4 кадра (Задача 000238.01)');
+  // ОДИН walk до (21,−14) (35 шагов): в кадре одновременно деревня
+  // и хутор.
+  const goal = { x: 21, y: -14 };
+  const { calls, steps, now } = walkToCity(h, goal);
+  const g = h.sandbox.__game;
+  const st = g.state;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.deepEqual({ x: st.player.x, y: st.player.y }, goal,
+    'игрок дошёл до цели (21,−14) (walk-протокол работает)');
+  assert.equal(steps.length, 35,
+    'сценарий: путь = 35 шагов (если мир сместился — тест обязан '
+    + 'упасть: факт ' + steps.length + ')');
+  const v = myMap.buildingAt(20, -16);
+  const f = myMap.buildingAt(19, -12);
+  assert.ok(v && v.buildingId === 52
+      && v.type === G.BUILDING_TYPES.NONE
+      && v.x === 20 && v.y === -16 && v.w === 2 && v.h === 2
+      && v.entrance[0] === 21 && v.entrance[1] === -15,
+    'сценарий: деревня 52 — якорь (20,−16), 2×2, вход (21,−15)');
+  assert.ok(f && f.buildingId === 51
+      && f.type === G.BUILDING_TYPES.NONE
+      && f.x === 19 && f.y === -12 && f.w === 1 && f.h === 1
+      && f.entrance[0] === 19 && f.entrance[1] === -12,
+    'сценарий: хутор 51 — якорь (19,−12), 1×1, вход = якорь');
+  const range = G.visibleTileRange(st.cam.x, st.cam.y, VIEW_W,
+    VIEW_H, st.zoom);
+  assert.ok(range.x0 <= 19 && range.x1 >= 21 && range.y0 <= -16
+      && range.y1 >= -12,
+    'сценарий: деревня и хутор в кадре ' + JSON.stringify(range)
+    + ' (cam ' + st.cam.x + ',' + st.cam.y + ')');
+  assert.ok(tileDraws(calls).length > 0, 'текстуры тайлов на месте');
+  // (b) Мультимножественное равенство (зеркало expectedCities —
+  // автоматически подхватывает строки 51/52).
+  const expected = expectedCities(G, myMap, st.cam, st.zoom, now);
+  assertBuildingsEqual(cityDraws(calls), expected, 'деревня + хутор');
+  // (c) Хутор: ровно ОДИН draw 1z×1z ОТ ЯКОРЯ (19,−12) — КАДР
+  // таблицы, не база city_51.svg.
+  const f51 = Array.from(G.cityFrames(51));
+  assert.equal(f51.length, 4, 'CITY_FRAMES[51] — 4 кадра');
+  const pf = G.worldToScreen(f.x, f.y, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const atF = cityDraws(calls).filter(([, a]) =>
+    Math.abs(a[1] - pf.x) < EPS && Math.abs(a[2] - pf.y) < EPS
+    && Math.abs(a[3] - st.zoom) < EPS
+    && Math.abs(a[4] - st.zoom) < EPS);
+  assert.equal(atF.length, 1,
+    'хутор — ровно ОДИН раз на якоре (19,−12) 1z×1z');
+  assert.ok(f51.includes(atF[0][1][0].__asset),
+    'нарисован КАДР city_51_N.svg: ' + atF[0][1][0].__asset);
+  assert.notEqual(atF[0][1][0].__asset, G.citySprite(51),
+    'кадр ≠ статичной базе (' + G.citySprite(51) + ')');
+  // (d) Деревня: ровно ОДИН draw 2z×2z ОТ ЯКОРЯ (20,−16) — КАДР
+  // таблицы, не база city_52.svg.
+  const f52 = Array.from(G.cityFrames(52));
+  assert.equal(f52.length, 4, 'CITY_FRAMES[52] — 4 кадра');
+  const pv = G.worldToScreen(v.x, v.y, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const atV = cityDraws(calls).filter(([, a]) =>
+    Math.abs(a[1] - pv.x) < EPS && Math.abs(a[2] - pv.y) < EPS
+    && Math.abs(a[3] - 2 * st.zoom) < EPS
+    && Math.abs(a[4] - 2 * st.zoom) < EPS);
+  assert.equal(atV.length, 1,
+    'деревня — ровно ОДИН раз на якоре (20,−16) 2z×2z');
+  assert.ok(f52.includes(atV[0][1][0].__asset),
+    'нарисован КАДР city_52_N.svg: ' + atV[0][1][0].__asset);
+  assert.notEqual(atV[0][1][0].__asset, G.citySprite(52),
+    'кадр ≠ статичной базе (' + G.citySprite(52) + ')');
+  // (e) Индекс кадра — контрактная формула (зеркало селектора).
+  assert.equal(atF[0][1][0].__asset,
+    f51[G.buildingFrameIndex(now, 19, -12, 4)],
+    'хутор: кадр = cityFrames(51)[buildingFrameIndex(now, якорь, 4)]');
+  assert.equal(atV[0][1][0].__asset,
+    f52[G.buildingFrameIndex(now, 20, -16, 4)],
+    'деревня: кадр = cityFrames(52)[buildingFrameIndex(now, якорь, 4)]');
+  // D10: повторный рендер на ТОМ ЖЕ now — идентичен (оба кадра).
+  const f1 = frameAt(h, now + 200);
+  const st1 = g.state;
+  const pf1 = G.worldToScreen(f.x, f.y, st1.cam.x, st1.cam.y,
+    st1.zoom, VIEW_W, VIEW_H);
+  const pv1 = G.worldToScreen(v.x, v.y, st1.cam.x, st1.cam.y,
+    st1.zoom, VIEW_W, VIEW_H);
+  const atF1 = cityDraws(f1).filter(([, a]) =>
+    Math.abs(a[1] - pf1.x) < EPS && Math.abs(a[2] - pf1.y) < EPS
+    && Math.abs(a[3] - st1.zoom) < EPS
+    && Math.abs(a[4] - st1.zoom) < EPS);
+  const atV1 = cityDraws(f1).filter(([, a]) =>
+    Math.abs(a[1] - pv1.x) < EPS && Math.abs(a[2] - pv1.y) < EPS
+    && Math.abs(a[3] - 2 * st1.zoom) < EPS
+    && Math.abs(a[4] - 2 * st1.zoom) < EPS);
+  assert.equal(atF1.length, 1, 'через 200 мс — хутор на якоря');
+  assert.equal(atV1.length, 1, 'через 200 мс — деревня на якоря');
+  const f1b = frameAt(h, now + 200);
+  const atF1b = cityDraws(f1b).filter(([, a]) =>
+    Math.abs(a[1] - pf1.x) < EPS && Math.abs(a[2] - pf1.y) < EPS
+    && Math.abs(a[3] - st1.zoom) < EPS
+    && Math.abs(a[4] - st1.zoom) < EPS);
+  const atV1b = cityDraws(f1b).filter(([, a]) =>
+    Math.abs(a[1] - pv1.x) < EPS && Math.abs(a[2] - pv1.y) < EPS
+    && Math.abs(a[3] - 2 * st1.zoom) < EPS
+    && Math.abs(a[4] - 2 * st1.zoom) < EPS);
+  assert.equal(atF1b[0][1][0].__asset, atF1[0][1][0].__asset,
+    'D10: тот же now — тот же кадр хутора');
+  assert.equal(atV1b[0][1][0].__asset, atV1[0][1][0].__asset,
+    'D10: тот же now — тот же кадр деревни');
+  // +800 мс (один BUILDING_FRAME_MS) — кадры ОБОИХ сменились.
+  const f2 = frameAt(h, now + 1000);
+  const st2 = g.state;
+  const pf2 = G.worldToScreen(f.x, f.y, st2.cam.x, st2.cam.y,
+    st2.zoom, VIEW_W, VIEW_H);
+  const pv2 = G.worldToScreen(v.x, v.y, st2.cam.x, st2.cam.y,
+    st2.zoom, VIEW_W, VIEW_H);
+  const atF2 = cityDraws(f2).filter(([, a]) =>
+    Math.abs(a[1] - pf2.x) < EPS && Math.abs(a[2] - pf2.y) < EPS
+    && Math.abs(a[3] - st2.zoom) < EPS
+    && Math.abs(a[4] - st2.zoom) < EPS);
+  const atV2 = cityDraws(f2).filter(([, a]) =>
+    Math.abs(a[1] - pv2.x) < EPS && Math.abs(a[2] - pv2.y) < EPS
+    && Math.abs(a[3] - 2 * st2.zoom) < EPS
+    && Math.abs(a[4] - 2 * st2.zoom) < EPS);
+  assert.equal(atF2.length, 1, 'через 800 мс — хутор на якоря');
+  assert.equal(atV2.length, 1, 'через 800 мс — деревня на якоря');
+  assert.ok(f51.includes(atF2[0][1][0].__asset),
+    'через 800 мс — хутор тоже кадр таблицы (' + atF2[0][1][0].__asset + ')');
+  assert.ok(f52.includes(atV2[0][1][0].__asset),
+    'через 800 мс — деревня тоже кадр таблицы (' + atV2[0][1][0].__asset + ')');
+  assert.notEqual(atF2[0][1][0].__asset, atF1[0][1][0].__asset,
+    'через 800 мс кадр хутора ДРУГОЙ (анимация видна): '
+    + atF1[0][1][0].__asset + ' → ' + atF2[0][1][0].__asset);
+  assert.notEqual(atV2[0][1][0].__asset, atV1[0][1][0].__asset,
+    'через 800 мс кадр деревни ДРУГОЙ (анимация видна): '
+    + atV1[0][1][0].__asset + ' → ' + atV2[0][1][0].__asset);
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
+
+test('000238.01 MV-C6 (RED): столица 54 (7×7) — на якоря drawImage КАДРА city_54_N.svg (не база city_54.svg), 7z×7z; bbox 49 тайлов покрыт, не выходит; через 800 мс кадр ДРУГОЙ; тот же now — идентично (D10); errors 0', async () => {
+  const h = await boot(new Set());
+  const G = h.sandbox.Game;
+  assert.ok(Array.isArray(G.cityFrames(54))
+      && G.cityFrames(54).length === 4,
+    'строка CITY_FRAMES[54] (столица) — 4 кадра (Задача 000238.01)');
+  const goal = { x: -86, y: -47 };
+  const { calls, steps, now } = walkToCity(h, goal);
+  const g = h.sandbox.__game;
+  const st = g.state;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.deepEqual({ x: st.player.x, y: st.player.y }, goal,
+    'игрок дошёл до цели (−86,−47) (walk-протокол работает)');
+  assert.equal(steps.length, 133,
+    'сценарий: путь до столицы = 133 шага (если мир сместился — '
+    + 'тест обязан упасть: факт ' + steps.length + ')');
+  const rec = myMap.buildingAt(-84, -48);
+  assert.ok(rec && rec.buildingId === 54
+      && rec.type === G.BUILDING_TYPES.NONE
+      && rec.x === -84 && rec.y === -48 && rec.w === 7 && rec.h === 7
+      && rec.entrance[0] === -81 && rec.entrance[1] === -42,
+    'сценарий: столица 54 — якорь (−84,−48), 7×7, вход (−81,−42)');
+  const range = G.visibleTileRange(st.cam.x, st.cam.y, VIEW_W,
+    VIEW_H, st.zoom);
+  assert.ok(range.x0 <= rec.x && range.x1 >= rec.x + rec.w - 1
+      && range.y0 <= rec.y && range.y1 >= rec.y + rec.h - 1,
+    'сценарий: bbox столицы (' + rec.x + '..' + (rec.x + rec.w - 1)
+    + ' × ' + rec.y + '..' + (rec.y + rec.h - 1) + ') в кадре '
+    + JSON.stringify(range) + ' (cam ' + st.cam.x + ',' + st.cam.y
+    + ', zoom ' + st.zoom + ')');
+  assert.ok(tileDraws(calls).length > 0, 'текстуры тайлов на месте');
+  // (b) Мультимножественное равенство (столица — единственный город
+  // в кадре).
+  const expected = expectedCities(G, myMap, st.cam, st.zoom, now);
+  assert.ok(expected.some((e) => e.w === 7 * st.zoom
+      && e.h === 7 * st.zoom),
+    'сценарий: столица (7×7) в кадре');
+  assertBuildingsEqual(cityDraws(calls), expected, 'footprint столицы');
+  // (c) Ровно ОДИН draw на якоря (−84,−48) 7z×7z — КАДР таблицы,
+  // не база city_54.svg.
+  const frames = Array.from(G.cityFrames(54));
+  assert.equal(frames.length, 4, 'CITY_FRAMES[54] — 4 кадра');
+  const p = G.worldToScreen(rec.x, rec.y, st.cam.x, st.cam.y,
+    st.zoom, VIEW_W, VIEW_H);
+  const atAnchor = cityDraws(calls).filter(([, a]) =>
+    Math.abs(a[1] - p.x) < EPS && Math.abs(a[2] - p.y) < EPS
+    && Math.abs(a[3] - 7 * st.zoom) < EPS
+    && Math.abs(a[4] - 7 * st.zoom) < EPS);
+  assert.equal(atAnchor.length, 1,
+    'спрайт столицы — ровно ОДИН раз на якоре (−84,−48) 7z×7z');
+  assert.ok(frames.includes(atAnchor[0][1][0].__asset),
+    'нарисован КАДР city_54_N.svg: ' + atAnchor[0][1][0].__asset);
+  assert.notEqual(atAnchor[0][1][0].__asset, G.citySprite(54),
+    'кадр ≠ статичной базе (' + G.citySprite(54) + ')');
+  // (d) bbox: объединение прямоугольника cityDraws покрывает ВСЕ 49
+  // тайлов и НЕ выходит за него (ОДИН draw — прямоугольник по
+  // сетке от якоря).
+  const covered = new Set();
+  let stray = 0;
+  for (const [, a] of cityDraws(calls)) {
+    const wx0 = st.cam.x + (a[1] - VIEW_W / 2) / st.zoom;
+    const wy0 = st.cam.y + (a[2] - VIEW_H / 2) / st.zoom;
+    const wx1 = wx0 + a[3] / st.zoom;
+    const wy1 = wy0 + a[4] / st.zoom;
+    const gx0 = Math.round(wx0), gy0 = Math.round(wy0);
+    const gx1 = Math.round(wx1), gy1 = Math.round(wy1);
+    assert.ok(Math.abs(wx0 - gx0) < 0.01 && Math.abs(wy0 - gy0) < 0.01
+        && Math.abs(wx1 - gx1) < 0.01 && Math.abs(wy1 - gy1) < 0.01,
+      'городский draw по сетке тайлов (угол в угловом тайле): '
+      + wx0.toFixed(4) + ',' + wy0.toFixed(4) + ' '
+      + a[3].toFixed(2) + '×' + a[4].toFixed(2));
+    for (let tx = gx0; tx < gx1; tx++) {
+      for (let ty = gy0; ty < gy1; ty++) {
+        if (tx < rec.x || tx >= rec.x + rec.w
+            || ty < rec.y || ty >= rec.y + rec.h) stray++;
+        covered.add(tx + ',' + ty);
+      }
+    }
+  }
+  assert.equal(stray, 0,
+    'городские draw НЕ выходят за bbox столицы (' + stray
+    + ' тайла(ов) за границей)');
+  let missing = 0;
+  for (let tx = rec.x; tx < rec.x + rec.w; tx++) {
+    for (let ty = rec.y; ty < rec.y + rec.h; ty++) {
+      if (!covered.has(tx + ',' + ty)) missing++;
+    }
+  }
+  assert.equal(missing, 0,
+    'footprint столицы покрыт: все 49 тайлов bbox нарисованы '
+    + '(не покрыто ' + missing + ')');
+  // (e) Индекс кадра — контрактная формула (зеркало селектора).
+  assert.equal(atAnchor[0][1][0].__asset,
+    frames[G.buildingFrameIndex(now, -84, -48, 4)],
+    'кадр = cityFrames(54)[buildingFrameIndex(now, якорь, 4)]');
+  // D10: повторный рендер на ТОМ ЖЕ now — идентичен (тот же кадр).
+  const f1 = frameAt(h, now + 200);
+  const st1 = g.state;
+  const p1 = G.worldToScreen(rec.x, rec.y, st1.cam.x, st1.cam.y,
+    st1.zoom, VIEW_W, VIEW_H);
+  const at1 = cityDraws(f1).filter(([, a]) =>
+    Math.abs(a[1] - p1.x) < EPS && Math.abs(a[2] - p1.y) < EPS
+    && Math.abs(a[3] - 7 * st1.zoom) < EPS
+    && Math.abs(a[4] - 7 * st1.zoom) < EPS);
+  assert.equal(at1.length, 1, 'через 200 мс — город на якоря');
+  const f1b = frameAt(h, now + 200);
+  const at1b = cityDraws(f1b).filter(([, a]) =>
+    Math.abs(a[1] - p1.x) < EPS && Math.abs(a[2] - p1.y) < EPS
+    && Math.abs(a[3] - 7 * st1.zoom) < EPS
+    && Math.abs(a[4] - 7 * st1.zoom) < EPS);
+  assert.equal(at1b[0][1][0].__asset, at1[0][1][0].__asset,
+    'D10: тот же now — тот же кадр');
+  // +800 мс (один BUILDING_FRAME_MS) — кадр сменился (анимация).
+  const f2 = frameAt(h, now + 1000);
+  const st2 = g.state;
+  const p2 = G.worldToScreen(rec.x, rec.y, st2.cam.x, st2.cam.y,
+    st2.zoom, VIEW_W, VIEW_H);
+  const at2 = cityDraws(f2).filter(([, a]) =>
+    Math.abs(a[1] - p2.x) < EPS && Math.abs(a[2] - p2.y) < EPS
+    && Math.abs(a[3] - 7 * st2.zoom) < EPS
+    && Math.abs(a[4] - 7 * st2.zoom) < EPS);
+  assert.equal(at2.length, 1, 'через 800 мс — город на якоря');
+  assert.ok(frames.includes(at2[0][1][0].__asset),
+    'через 800 мс — тоже кадр таблицы (' + at2[0][1][0].__asset + ')');
+  assert.notEqual(at2[0][1][0].__asset, at1[0][1][0].__asset,
+    'через 800 мс кадр ДРУГОЙ (анимация видна): '
+    + at1[0][1][0].__asset + ' → ' + at2[0][1][0].__asset);
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
+
+test('000238.01 MV-C7 (RED): строгая готовность — отклонены ТЕКУЩИЕ кадры хутора 51 И деревни 52 → городского спрайта на ОБОИХ якорях НЕТ (skip; fallback на БАЗЫ запрещён — базы загрузились); legacy-маркер (6 вершин) на ВХОДНОМ тайле каждого города — (19,−12) / (21,−15); остальной кадр интактен (XOR)', async () => {
+  // (0) Эталонный boot: ходьба к (21,−14), baseline-кадр.
+  const hb = await boot(new Set());
+  const G = hb.sandbox.Game;
+  assert.ok(Array.isArray(G.cityFrames(51))
+      && G.cityFrames(51).length === 4,
+    'строка CITY_FRAMES[51] (хутор) — 4 кадра (Задача 000238.01)');
+  assert.ok(Array.isArray(G.cityFrames(52))
+      && G.cityFrames(52).length === 4,
+    'строка CITY_FRAMES[52] (деревня) — 4 кадра (Задача 000238.01)');
+  const goal = { x: 21, y: -14 };
+  const { steps, now: now0 } = walkToCity(hb, goal);
+  assert.deepEqual({ x: hb.sandbox.__game.state.player.x,
+      y: hb.sandbox.__game.state.player.y },
+    { x: goal.x, y: goal.y },
+    'игрок дошёл до цели (21,−14)');
+  assert.equal(steps.length, 35,
+    'сценарий: путь = 35 шагов (дрейф мира — тест обязан упасть)');
+  const myMap = G.createMap(G.generateSeedPixels());
+  const rec51 = myMap.buildingAt(19, -12);
+  const rec52 = myMap.buildingAt(20, -16);
+  assert.ok(rec51 && rec51.buildingId === 51 && rec51.x === 19
+      && rec51.y === -12 && rec51.w === 1 && rec51.h === 1
+      && rec51.entrance[0] === 19 && rec51.entrance[1] === -12,
+    'сценарий: хутор 51 — якорь (19,−12), 1×1, вход = якорь');
+  assert.ok(rec52 && rec52.buildingId === 52 && rec52.x === 20
+      && rec52.y === -16 && rec52.w === 2 && rec52.h === 2
+      && rec52.entrance[0] === 21 && rec52.entrance[1] === -15,
+    'сценарий: деревня 52 — якорь (20,−16), 2×2, вход (21,−15)');
+  const now1 = now0 + 200;
+  hb.glCalls.length = 0;
+  const fb = frameAt(hb, now1);
+  const f51 = Array.from(G.cityFrames(51));
+  const f52 = Array.from(G.cityFrames(52));
+  const active51 = f51[G.buildingFrameIndex(now1, 19, -12, f51.length)];
+  const active52 = f52[G.buildingFrameIndex(now1, 20, -16, f52.length)];
+  assert.ok(f51.includes(active51) && f52.includes(active52),
+    'текущие кадры — из таблиц');
+  const N_city = cityDraws(fb).length;
+  const K = cityDraws(fb).filter((c) =>
+    c[1][0].__asset === active51 || c[1][0].__asset === active52).length;
+  assert.equal(K, 2,
+    'baseline: оба города нарисованы ТЕКУЩИМИ кадрами (51: 1×, 52: 1×)');
+  const N_tile = tileDraws(fb).length;
+  const N_mob = mobDraws(fb).length;
+  assert.ok(N_tile > 0, 'сценарий: кадр с тайлами');
+  assert.equal(heroDraws(fb).length, 1, 'герой: 1×');
+  assert.equal(countColor(hb.glCalls, BUILDING_COLOR), 0,
+    'baseline: постройки ready → маркеров нет (XOR)');
+  // (1) Reject ТЕКУЩИХ кадров ОБОИХ городов (базы city_51/52.svg
+  // загрузились — fallback запрещён: строгая семантика, прецедент
+  // воды).
+  const h = await boot(new Set([active51, active52]));
+  const { now: now1b } = walkToCity(h, goal);
+  assert.equal(now1b, now0,
+    'детерминизм: ходьба (тот же мир) завершается в тот же now');
+  h.glCalls.length = 0;
+  const f = frameAt(h, now1);
+  const st = h.sandbox.__game.state;
+  const p51 = G.worldToScreen(19, -12, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const p52 = G.worldToScreen(20, -16, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const at51 = cityDraws(f).filter(([, a]) =>
+    Math.abs(a[1] - p51.x) < EPS && Math.abs(a[2] - p51.y) < EPS
+    && Math.abs(a[3] - st.zoom) < EPS
+    && Math.abs(a[4] - st.zoom) < EPS);
+  const at52 = cityDraws(f).filter(([, a]) =>
+    Math.abs(a[1] - p52.x) < EPS && Math.abs(a[2] - p52.y) < EPS
+    && Math.abs(a[3] - 2 * st.zoom) < EPS
+    && Math.abs(a[4] - 2 * st.zoom) < EPS);
+  assert.equal(at51.length, 0,
+    'отклонённый кадр — на якоря (19,−12) городского спрайта НЕТ '
+    + '(skip; fallback на базу city_51.svg запрещён: строгая '
+    + 'готовность)');
+  assert.equal(at52.length, 0,
+    'отклонённый кадр — на якоря (20,−16) городского спрайта НЕТ '
+    + '(skip; fallback на базу city_52.svg запрещён: строгая '
+    + 'готовность)');
+  assert.equal(cityDraws(f).length, N_city - K,
+    'остальные городские draw интактны (' + (N_city - K) + ' из '
+    + N_city + ')');
+  // Legacy-маркеры: по кваду из 6 вершин на ВХОДНОМ тайле города
+  // (map.js: hasBuilding — только вход, не каждый тайл footprint'а):
+  // хутор вход = якорь (19,−12), деревня вход (21,−15).
+  assert.equal(countColor(h.glCalls, BUILDING_COLOR), 12,
+    'два города → два legacy-маркера (6 вершин × 2)');
+  assert.equal(markerVerts(h.glCalls, BUILDING_COLOR, 19, -12), 6,
+    'маркер — на входе хутора (19,−12)');
+  assert.equal(markerVerts(h.glCalls, BUILDING_COLOR, 21, -15), 6,
+    'маркер — на входе деревни (21,−15)');
+  assert.equal(tileVerts(h.glCalls), 0, 'тайлы: все ready → 0 тайл-квадов');
+  assert.equal(countColor(h.glCalls, MOB_COLOR), 0,
+    'мобы: ready → маркеров нет (XOR)');
+  assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
+    'герой: ready → legacy-ромба нет (XOR)');
+  assert.equal(tileDraws(f).length, N_tile, 'тайлы: интактны');
+  assert.equal(mobDraws(f).length, N_mob, 'мобы: интактны');
+  assert.equal(heroDraws(f).length, 1, 'герой: 1×');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
+
+test('000238.01 MV-C8 (RED): строгая готовность — отклонён ТЕКУЩИЙ кадр столицы 54 → городского спрайта на якоря (−84,−48) НЕТ (skip; fallback на БАЗУ city_54.svg ЗАПРЕЩЁН — база загрузилась); legacy-маркер (6 вершин) на ВХОДНОМ тайле (−81,−42); остальной кадр интактен (XOR)', async () => {
+  // (0) Эталонный boot: ходьба к (−86,−47), baseline-кадр.
+  const hb = await boot(new Set());
+  const G = hb.sandbox.Game;
+  assert.ok(Array.isArray(G.cityFrames(54))
+      && G.cityFrames(54).length === 4,
+    'строка CITY_FRAMES[54] (столица) — 4 кадра (Задача 000238.01)');
+  const goal = { x: -86, y: -47 };
+  const { steps, now: now0 } = walkToCity(hb, goal);
+  assert.deepEqual({ x: hb.sandbox.__game.state.player.x,
+      y: hb.sandbox.__game.state.player.y },
+    { x: goal.x, y: goal.y },
+    'игрок дошёл до цели (−86,−47)');
+  assert.equal(steps.length, 133,
+    'сценарий: путь = 133 шагов (дрейф мира — тест обязан упасть)');
+  const myMap = G.createMap(G.generateSeedPixels());
+  const rec = myMap.buildingAt(-84, -48);
+  assert.ok(rec && rec.buildingId === 54 && rec.x === -84
+      && rec.y === -48 && rec.w === 7 && rec.h === 7
+      && rec.entrance[0] === -81 && rec.entrance[1] === -42,
+    'сценарий: столица 54 — якорь (−84,−48), 7×7, вход (−81,−42)');
+  const now1 = now0 + 200;
+  hb.glCalls.length = 0;
+  const fb = frameAt(hb, now1);
+  const f54 = Array.from(G.cityFrames(54));
+  const active54 = f54[G.buildingFrameIndex(now1, -84, -48, f54.length)];
+  assert.ok(f54.includes(active54), 'текущий кадр — из таблицы');
+  const N_city = cityDraws(fb).length;
+  const K = cityDraws(fb).filter(
+    (c) => c[1][0].__asset === active54).length;
+  assert.equal(K, 1,
+    'baseline: столица нарисована ТЕКУЩИМ кадром (1×)');
+  const N_tile = tileDraws(fb).length;
+  const N_mob = mobDraws(fb).length;
+  assert.ok(N_tile > 0, 'сценарий: кадр с тайлами');
+  assert.equal(heroDraws(fb).length, 1, 'герой: 1×');
+  assert.equal(countColor(hb.glCalls, BUILDING_COLOR), 0,
+    'baseline: постройки ready → маркеров нет (XOR)');
+  // (1) Reject ТЕКУЩЕГО кадра столицы 54 (база city_54.svg
+  // загрузилась — fallback запрещён: строгая семантика, прецедент
+  // воды).
+  const h = await boot(new Set([active54]));
+  const { now: now1b } = walkToCity(h, goal);
+  assert.equal(now1b, now0,
+    'детерминизм: ходьба (тот же мир) завершается в тот же now');
+  h.glCalls.length = 0;
+  const f = frameAt(h, now1);
+  const st = h.sandbox.__game.state;
+  const p = G.worldToScreen(-84, -48, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const atAnchor = cityDraws(f).filter(([, a]) =>
+    Math.abs(a[1] - p.x) < EPS && Math.abs(a[2] - p.y) < EPS
+    && Math.abs(a[3] - 7 * st.zoom) < EPS
+    && Math.abs(a[4] - 7 * st.zoom) < EPS);
+  assert.equal(atAnchor.length, 0,
+    'отклонённый кадр — на якоря (−84,−48) городского спрайта НЕТ '
+    + '(skip; fallback на базу city_54.svg запрещён: строгая '
+    + 'готовность)');
+  assert.equal(cityDraws(f).length, N_city - K,
+    'остальные городские draw интактны (' + (N_city - K) + ' из '
+    + N_city + ')');
+  // Legacy-маркер: квад из 6 вершин на входном тайле (−81,−42)
+  // (map.js: hasBuilding — только вход, не каждый тайл 7×7).
+  assert.equal(countColor(h.glCalls, BUILDING_COLOR), 6,
+    'столица → один legacy-маркер (6 вершин)');
+  assert.equal(markerVerts(h.glCalls, BUILDING_COLOR, -81, -42), 6,
+    'маркер — на входе столицы (−81,−42)');
+  assert.equal(tileVerts(h.glCalls), 0, 'тайлы: все ready → 0 тайл-квадов');
+  assert.equal(countColor(h.glCalls, MOB_COLOR), 0,
+    'мобы: ready → маркеров нет (XOR)');
+  assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
+    'герой: ready → legacy-ромба нет (XOR)');
+  assert.equal(tileDraws(f).length, N_tile, 'тайлы: интактны');
+  assert.equal(mobDraws(f).length, N_mob, 'мобы: интактны');
+  assert.equal(heroDraws(f).length, 1, 'герой: 1×');
   assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
 });
 

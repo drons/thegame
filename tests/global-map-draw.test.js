@@ -1640,3 +1640,243 @@ test('RM-CAMP-2 (Задача 000238, RED): строгая готовность 
     'герой: ready → legacy-ромба нет (XOR)');
   assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
 });
+
+// --- RM-BA-5/6 (Задача 000238.01, СТАДИЯ КРАСНЫХ ТЕСТОВ): волна 2 —
+// расширение кадр-свитча (000224/000238) на слот 0 «Магазин оружия»
+// (id 1) и слот 11 «Таверна» (id 44); на карте ходится магазин
+// оружия (ближайший из слотов 0/11; таверна (41,2) — 43 шага, в
+// тесте не ходится). Контракты:
+// memory/000238.01-building-anim-wave2.md (§3–§7):
+//   * buildingAsset(rec, now) — строки BUILDING_FRAMES[0]/[11] →
+//     ТЕКУЩИЙ КАДР buildingFrameIndex(now, rec.x, rec.y, 4);
+//   * строгая готовность: кадр не загрузился → legacy-маркер (6
+//     вершин) + skip; FALLBACK НА СТАТИЧНУЮ БАЗУ ЗАПРЕЩЁН (прецедент
+//     воды 000025);
+//   * кадр = f(now, x, y) (D10), ОДИН now на кадр.
+//
+// КРАСНЫЕ (падают на ТЕКУЩЕМ коде, осмысленно): строки
+// BUILDING_FRAMES[0]/[11] отсутствуют (buildingFrames → null).
+//
+// Сценарный якорь (дет. мир, пробы memory/000238.01 §5): магазин
+// оружия (−6,−14) 1×1 — 20 шагов от спавна (ближайший из 0/11).
+
+// BFS: вход ближайшей постройки слота 0/11 (магазин оружия/таверна)
+// от (sx, sy). Правила блокировки — 1:1 findNearestAnimated238
+// (группы мобов, входы пещер, входы городов).
+function findNearestAnimated23801(G, myMap, sx, sy, cap) {
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const visited = new Set([sx + ',' + sy]);
+  const prev = new Map();
+  let frontier = [{ x: sx, y: sy }];
+  let depth = 0;
+  let found = null;
+  while (frontier.length && depth < cap && !found) {
+    const next = [];
+    for (const t of frontier) {
+      for (const [dx, dy] of DIRS) {
+        const x = t.x + dx, y = t.y + dy;
+        const k = x + ',' + y;
+        if (visited.has(k)) continue;
+        const tile = myMap.tileAt(x, y);
+        const cityEntrance = tile.isEntrance
+          && tile.building === G.BUILDING_TYPES.NONE
+          && tile.buildingId != null;
+        const caveEntrance = tile.hasBuilding
+          && tile.building === G.BUILDING_TYPES.CAVE_ENTRANCE;
+        const isGoal = tile.isEntrance
+          && (tile.building === G.BUILDING_TYPES.WEAPONS_SHOP
+              || tile.building === G.BUILDING_TYPES.TAVERN)
+          && !tile.hasMobGroup;
+        if (isGoal) {
+          visited.add(k);
+          prev.set(k, t);
+          found = { x, y, tile };
+          break;
+        }
+        if (!tile.passable || tile.hasMobGroup || caveEntrance
+            || cityEntrance) continue;
+        visited.add(k);
+        prev.set(k, t);
+        next.push({ x, y });
+      }
+      if (found) break;
+    }
+    frontier = next;
+    depth++;
+  }
+  if (!found) return null;
+  const steps = [];
+  let cur = { x: found.x, y: found.y };
+  while (!(cur.x === sx && cur.y === sy)) {
+    steps.unshift(cur);
+    cur = prev.get(cur.x + ',' + cur.y);
+  }
+  return { target: found, steps, slot: found.tile.building };
+}
+
+test('RM-BA-5 (Задача 000238.01, RED): магазин оружия/таверна (слот 0/11) — на якоря drawImage КАДРА (не статичная база), rec.w×rec.h × zoom; через 800 мс кадр ДРУГОЙ; тот же now — идентично (D10); тайлы/мобы/герой интактны; errors 0', async () => {
+  const h = await boot();
+  assertReady(h);
+  const G = h.sandbox.Game;
+  assert.ok(Array.isArray(G.buildingFrames(G.BUILDING_TYPES.WEAPONS_SHOP))
+      && G.buildingFrames(G.BUILDING_TYPES.WEAPONS_SHOP).length === 4,
+    'строка BUILDING_FRAMES[0] (магазин оружия) — 4 кадра (Задача 000238.01)');
+  assert.ok(Array.isArray(G.buildingFrames(G.BUILDING_TYPES.TAVERN))
+      && G.buildingFrames(G.BUILDING_TYPES.TAVERN).length === 4,
+    'строка BUILDING_FRAMES[11] (таверна) — 4 кадра (Задача 000238.01)');
+  const myMap = G.createMap(G.generateSeedPixels());
+  const sc = findNearestAnimated23801(G, myMap, 0, 0, 400);
+  assert.ok(sc, 'сценарий: магазин оружия/таверна пешком достижима от спавна');
+  assert.deepEqual({ x: sc.target.x, y: sc.target.y }, { x: -6, y: -14 },
+    'сценарий: nearest — магазин оружия (−6,−14) (если мир сместился — '
+    + 'тест обязан упасть)');
+  assert.equal(sc.steps.length, 20,
+    'сценарий: 20 шагов от спавна (факт ' + sc.steps.length + ')');
+  const rec = myMap.buildingAt(sc.target.x, sc.target.y);
+  assert.equal(rec.type, sc.slot,
+    'сценарий: buildingAt(якорь) — та же постройка (слот ' + sc.slot + ')');
+  assert.equal(rec.w * rec.h, 1, 'сценарий: постройка 1×1 (один маркерный квад)');
+  let now = NOW;
+  const walker = makeRouteWalker(h);
+  for (const st of sc.steps) now = walker(st.x, st.y);
+  const f1 = frameAt(h, now + 200);
+  const st1 = h.sandbox.__game.state;
+  const p = G.worldToScreen(rec.x, rec.y, st1.cam.x, st1.cam.y,
+    st1.zoom, VIEW_W, VIEW_H);
+  const bds = drawImages(f1.draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const hit = bds.find((c) =>
+    Math.abs(c[1][1] - p.x) <= 1e-6 && Math.abs(c[1][2] - p.y) <= 1e-6
+    && Math.abs(c[1][3] - rec.w * st1.zoom) <= 1e-6
+    && Math.abs(c[1][4] - rec.h * st1.zoom) <= 1e-6);
+  assert.ok(hit,
+    'постройка слота 0/11 — спрайт на якоря (' + rec.x + ',' + rec.y + '); '
+    + 'building-drawImage в кадре: '
+    + bds.map((c) => assetOf(c)).join(', '));
+  const frames = G.buildingFrames(rec.type);
+  assert.ok(Array.from(frames).includes(assetOf(hit)),
+    'нарисованный спрайт — КАДР таблицы (' + assetOf(hit)
+    + '), а не статичная база');
+  assert.notEqual(assetOf(hit), G.buildingSprite(rec.type),
+    'нарисованный спрайт ≠ статичной базе (' + G.buildingSprite(rec.type) + ')');
+  assert.equal(tileVerts(h.glCalls), 0, 'тайлы: все ready → 0 тайл-квадов');
+  assert.equal(countColor(h.glCalls, BUILDING_COLOR), 0,
+    'постройки ready → маркеров BUILDING_COLOR нет (XOR)');
+  assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
+    'герой ready → legacy-ромба нет (XOR)');
+  assert.equal(heroDraws(f1.draw).length, 1, 'герой: 1× (спрайт-слой)');
+  const N_mob1 = mobDraws(f1.draw).length;
+  // D10: повторный рендер на ТОМ ЖЕ now — идентичен (тот же кадр).
+  const f1b = frameAt(h, now + 200);
+  const st1b = h.sandbox.__game.state;
+  const pb = G.worldToScreen(rec.x, rec.y, st1b.cam.x, st1b.cam.y,
+    st1b.zoom, VIEW_W, VIEW_H);
+  const bdsb = drawImages(f1b.draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const hitb = bdsb.find((c) =>
+    Math.abs(c[1][1] - pb.x) <= 1e-6 && Math.abs(c[1][2] - pb.y) <= 1e-6
+    && Math.abs(c[1][3] - rec.w * st1b.zoom) <= 1e-6
+    && Math.abs(c[1][4] - rec.h * st1b.zoom) <= 1e-6);
+  assert.ok(hitb, 'D10: повторный рендер — постройка на месте');
+  assert.equal(assetOf(hitb), assetOf(hit), 'D10: тот же now — тот же кадр');
+  assert.equal(bdsb.length, bds.length,
+    'D10: число building-draw не изменилось');
+  // +800 мс (один BUILDING_FRAME_MS) — кадр сменился (анимация видна).
+  const f2 = frameAt(h, now + 1000);
+  const st2 = h.sandbox.__game.state;
+  const p2 = G.worldToScreen(rec.x, rec.y, st2.cam.x, st2.cam.y,
+    st2.zoom, VIEW_W, VIEW_H);
+  const bds2 = drawImages(f2.draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const hit2 = bds2.find((c) =>
+    Math.abs(c[1][1] - p2.x) <= 1e-6 && Math.abs(c[1][2] - p2.y) <= 1e-6
+    && Math.abs(c[1][3] - rec.w * st2.zoom) <= 1e-6
+    && Math.abs(c[1][4] - rec.h * st2.zoom) <= 1e-6);
+  assert.ok(hit2, 'постройка по-прежнему нарисована через 800 мс');
+  assert.ok(Array.from(frames).includes(assetOf(hit2)),
+    'через 800 мс — тоже кадр таблицы (' + assetOf(hit2) + ')');
+  assert.notEqual(assetOf(hit2), assetOf(hit),
+    'через 800 мс кадр ДРУГОЙ (анимация видна): ' + assetOf(hit)
+    + ' → ' + assetOf(hit2));
+  assert.equal(mobDraws(f2.draw).length, N_mob1, 'мобы: интактны');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
+
+test('RM-BA-6 (Задача 000238.01, RED): строгая готовность — отклонён ТЕКУЩИЙ кадр магазина оружия (слот 0) → legacy-маркер (6 вершин) на якоря (−6,−14), СПРАЙТА нет (fallback на статичную базу ЗАПРЕЩЁН — база загрузилась); остальной кадр интактен (XOR)', async () => {
+  // (0) Эталонный boot: ходьба к магазину оружия, baseline-кадр.
+  const hb = await boot();
+  assertReady(hb);
+  const G = hb.sandbox.Game;
+  assert.ok(Array.isArray(G.buildingFrames(G.BUILDING_TYPES.WEAPONS_SHOP))
+      && G.buildingFrames(G.BUILDING_TYPES.WEAPONS_SHOP).length === 4,
+    'строка BUILDING_FRAMES[0] (магазин оружия) — 4 кадра (Задача 000238.01)');
+  assert.ok(Array.isArray(G.buildingFrames(G.BUILDING_TYPES.TAVERN))
+      && G.buildingFrames(G.BUILDING_TYPES.TAVERN).length === 4,
+    'строка BUILDING_FRAMES[11] (таверна) — 4 кадра (Задача 000238.01)');
+  const myMap = G.createMap(G.generateSeedPixels());
+  const sc = findNearestAnimated23801(G, myMap, 0, 0, 400);
+  assert.ok(sc, 'сценарий: магазин оружия/таверна пешком достижима');
+  assert.deepEqual({ x: sc.target.x, y: sc.target.y }, { x: -6, y: -14 },
+    'сценарий: nearest — магазин оружия (−6,−14) (дрейф мира — тест обязан упасть)');
+  const rec = myMap.buildingAt(sc.target.x, sc.target.y);
+  const ax = rec.x, ay = rec.y;
+  let now0 = NOW;
+  {
+    const walker = makeRouteWalker(hb);
+    for (const st of sc.steps) now0 = walker(st.x, st.y);
+  }
+  const now1 = now0 + 200;
+  const fb = frameAt(hb, now1);
+  const buildingDraws = (draw) => drawImages(draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const frames = G.buildingFrames(rec.type);
+  assert.ok(Array.isArray(frames) && frames.length === 4,
+    'строка кадров слота 0/11 — 4 кадра');
+  const active = frames[G.buildingFrameIndex(now1, ax, ay, frames.length)];
+  assert.ok(Array.from(frames).includes(active), 'текущий кадр — из таблицы');
+  const N_bld = buildingDraws(fb.draw).length;
+  const K = buildingDraws(fb.draw).filter(
+    (c) => assetOf(c) === active).length;
+  assert.ok(K >= 1,
+    'baseline-кадр: постройка с текущим кадром нарисована (K=' + K + ')');
+  const N_tile = tileDraws(fb.draw).length;
+  const N_mob = mobDraws(fb.draw).length;
+  assert.ok(N_tile > 0, 'сценарий: кадр с тайлами');
+  assert.equal(heroDraws(fb.draw).length, 1, 'герой: 1×');
+  assert.equal(countColor(hb.glCalls, BUILDING_COLOR), 0,
+    'baseline: постройки ready → маркеров нет (XOR)');
+  // (1) Reject ТОЛЬКО текущего кадра (база загрузилась — fallback
+  // искушает, но запрещён: строгая семантика, прецедент воды).
+  const h = await boot((v) => v === active);
+  let now1b = NOW;
+  {
+    const walker = makeRouteWalker(h);
+    for (const st of sc.steps) now1b = walker(st.x, st.y);
+  }
+  assert.equal(now1b, now0,
+    'детерминизм: ходьба (тот же мир/входы) завершается в тот же now');
+  const f = frameAt(h, now1);
+  const st = h.sandbox.__game.state;
+  const p = G.worldToScreen(ax, ay, st.cam.x, st.cam.y, st.zoom,
+    VIEW_W, VIEW_H);
+  const atAnchor = buildingDraws(f.draw).filter((c) =>
+    Math.abs(c[1][1] - p.x) <= 1e-6 && Math.abs(c[1][2] - p.y) <= 1e-6);
+  assert.equal(atAnchor.length, 0,
+    'отклонённый кадр — на якоря (' + ax + ',' + ay + ') building-спрайта НЕТ '
+    + '(fallback на статичную базу запрещён: строгая готовность)');
+  assert.equal(countColor(h.glCalls, BUILDING_COLOR), 6 * K,
+    'постройки, рисовавшие отклонённый кадр — legacy-маркеры (6 вершин × K=' + K + ')');
+  assert.equal(markerVerts(h.glCalls, BUILDING_COLOR, ax, ay), 6,
+    'маркер — на якоря целевой постройки (' + ax + ',' + ay + ')');
+  assert.equal(buildingDraws(f.draw).length, N_bld - K,
+    'остальные постройки интактны (' + (N_bld - K) + ' из ' + N_bld + ')');
+  assert.equal(tileDraws(f.draw).length, N_tile, 'тайлы: интактны');
+  assert.equal(mobDraws(f.draw).length, N_mob, 'мобы: интактны');
+  assert.equal(heroDraws(f.draw).length, 1, 'герой: 1×');
+  assert.equal(tileVerts(h.glCalls), 0, 'тайлы: все ready → 0 тайл-квадов');
+  assert.equal(countColor(h.glCalls, MOB_COLOR), 0,
+    'мобы: ready → маркеров нет (XOR)');
+  assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
+    'герой: ready → legacy-ромба нет (XOR)');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
