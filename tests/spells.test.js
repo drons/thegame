@@ -2858,6 +2858,39 @@ test('000235.04 G2: gate — городов с постройками НЕТ →
   }
 });
 
+// 000235.04.01: регрессионный пин (ТЗ п.3) — degenerate-отказ gate:
+// built-город ЕСТЬ, но проходимого тайла в ≤ 25 НЕТ (passable:
+// () => false) — спираль nearestPassableTile гоняет все 2601 тайл
+// (до 2601 вызова tileAt в игре — известная разовая цена каста,
+// memory/000235.04.01) и даёт null → отказ, а НЕ крах (прецедент
+// 000075). Симметрия RC2 (recall-дегенерат). Зелёный с рождения
+// (поведение 5a21d89).
+test('000235.04.01 G3: gate — built-город ЕСТЬ, проходимого тайла в ≤ 25 НЕТ (passable: () => false) → отказ «нет проходимого тайла рядом с городом»; mp ОТКАТНУТ; телепорт НЕ вызван; записей нет; метки нет', () => {
+  const dataMod = loadSpellsData();
+  const gate = portalGuest0235('gate');
+  try {
+    pushOcGuests(dataMod, [gate]);
+    const { castOutOfCombat } = loadSpells();
+    const b = { x: 11, y: 10, buildingId: 4 };
+    const cities = new Map([['10,10', { built: [b] }]]);
+    const p = spellHero({ spells: [gate.id], mp: 30 });
+    const m = makeCtx({
+      x: 0, y: 0, cities,
+      passable: () => false,
+    });
+    const r = castOutOfCombat(p, gate.id, 10, m.ctx);
+    assert.equal(r.ok, false, 'degenerate: проходимого в ≤25 нет');
+    assert.equal(r.reason, 'нет проходимого тайла рядом с городом',
+      'reason-строка ДЕСЛОВНО (src/spells.js, контракт P-k)');
+    assert.equal(p.mp, 30, 'mp ОТКАТНУТ (castFail — откат маны)');
+    assert.equal(m.calls.length, 0, 'телепорт НЕ вызван');
+    assert.deepEqual(p.outOfCombatEffects, [], 'записей нет (отказ)');
+    assert.equal(p.portal_marker, undefined, 'метки нет (gate)');
+  } finally {
+    popOcGuests(dataMod, [gate]);
+  }
+});
+
 test('000235.04 SA1: stone_anchor — метка {x, y, day} на тайле каста (day = день каста); герой НЕ сдвинулся; записей НЕТ; повторный каст = ПЕРЕЗАПИСЬ (один объект, день обновлён); без ctx → ok, метка не создана (skeleton)', () => {
   const dataMod = loadSpellsData();
   const anchor = portalGuest0235('stone_anchor',

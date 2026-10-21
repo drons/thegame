@@ -16,7 +16,7 @@
 //   * warding_circle  — внебой days 1 + радиус (каталог) — зональная
 //     СУПРЕССИЯ: зона-бой НЕ стартует, пока Чебышёв(зона, герой) ≤
 //     wardRadius (единая точка main.js zoneSuppressedReason);
-//     тайл-бой — НЕ подавляется (D6 .03 — не трогаем здесь).
+//     тайл-бой — НЕ подавляется (запинено E6, 000235.04.01).
 // Каст — ЧЕРЕЗ КНИГУ (KeyB → clickRow, helpers tests/spellbook-oc-
 // e2e.test.js): ok → книга закрыта; отказ → книга открыта +
 // flash(reason) в #hud + mp-откат. mp — только через сейв saveHero.
@@ -63,6 +63,10 @@
 //     master зона-бой (супрессии нет) → «боя нет» падает;
 //     ноги (b)/(c) — зелёные с момента добавления (гарды
 //     существующего поведения и от over-супрессии).
+//   * E6 (000235.04.01) — D6-гард: тайл-бой НЕ подавляется кругом
+//     защиты (шаг на тайл g2 под активным кругом) — зелёный с
+//     момента добавления (пин существующего поведения 5a21d89; RED
+//     фазы — только P-пины spec-000235.04.01-wording).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -882,4 +886,54 @@ test('000235.04 E5. e2e: warding_circle r=1 (радиус ИЗ КАТАЛОГА)
   assert.equal(c3.groupType, 4, '(c): паучье гнездо');
   assert.equal(cap3.calls, 1, '(c): бой начался РОВНО 1× за шаг');
   resolveCombatVictory(G3, c3, 'за радиусом');
+});
+
+// --- E6 (000235.04.01): D6-гард — тайл-бой НЕ подавляется кругом
+// защиты (ТЗ п.4; паттерн гарда невидимости из 000235.03, IV-E3).
+// Структурное обоснование: тайл-ветка maybeStartCombat (main.js:
+// pt.hasMobGroup && !defeatedAt → pt) НЕ проходит через
+// zoneCombatInfo/zoneSuppressedReason (супрессия .04 живёт только в
+// зональной ветке) → бой гарантированно стартует. Зелёный с момента
+// добавления (пин существующего поведения 5a21d89). НЕ входит:
+// зона-нога (супрессия — E4/E5), подземельная нога (контракт D-03).
+
+test('000235.04.01 E6. e2e: D6-гард — тайл-бой НЕ подавляется кругом защиты: warding_circle r=5 активен → шаг (0,0)→(1,0) (тайл neutral g2) → ТАЙЛ-БОЙ стартует (isActive true, groupType 2, cap.calls 1); запись warding ЖИВА после старта (P-d: вступление в бой круг НЕ снимает — контраст с невидимостью IV-E3)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assertFallbackWorld(G);
+  assertSpawn(g);
+  assert.equal(g.state.day, 1, 'фикстура: день 1');
+  dismissStartWindow(h);
+  injectGuests(h, [portalGuest({
+    id: 'warding_circle',
+    действие: 'внебой',
+    параметры: { days: 1, radius: 5 },
+  })]);
+  learn(h, ['warding_circle']);
+  const mp0 = saveHero(h).mp;
+  assert.equal(mp0, 16, 'фикстура: новый герой mp = maxMP 16');
+  assert.ok(castViaBook(h, 'warding_circle'),
+    'каст круга → книга ЗАКРЫТА (ok)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects),
+    [{ spellId: 'warding_circle', expiresDay: 2 }],
+    'круг r=5 активен (запись generic-ядром .02)');
+  assert.equal(saveHero(h).mp, mp0 - 5, 'mp ровно «мани» (16 − 5)');
+  const cap = spyStartCombat(G);
+  assert.equal(G.combatUI.isActive(), false, 'фикстура: спавн без боя');
+  const walk = makeWalker(h);
+  walk(1, 0); // тайл g2 «логово скелетов» (neutral, без триггера)
+  assert.equal(G.combatUI.isActive(), true,
+    'D6-гард: тайл-бой СТАРТУЕТ под активным кругом защиты (тайл-'
+    + 'ветка НЕ проходит через zoneSuppressedReason — супрессия .04 '
+    + 'живёт только в зональной ветке)');
+  const c = G.combatUI.current();
+  assert.equal(c.groupType, 2,
+    'тайл-бой — логово скелетов (IV-E3-гоlden: g2)');
+  assert.equal(cap.calls, 1, 'бой начался РОВНО 1× за шаг');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects),
+    [{ spellId: 'warding_circle', expiresDay: 2 }],
+    'P-d: запись warding ЖИВА после старта (вступление в бой круг '
+    + 'НЕ снимает — контраст с невидимостью, IV-E3)');
+  resolveCombatVictory(G, c, 'тайл-бой под кругом');
 });
