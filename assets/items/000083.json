@@ -1,0 +1,27 @@
+{
+  "id": "straw_hat",
+  "name": "Соломенная шляпа",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 10,
+  "desc": "Соломенная шляпа: тень от солнца и лёгкость на бегу.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/straw_hat.svg",
+  "slot": "head",
+  "rarity": "common",
+  "set": "traveller",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.03
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

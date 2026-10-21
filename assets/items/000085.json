@@ -1,0 +1,21 @@
+{
+  "id": "leather_cap",
+  "name": "Кожаная кепка",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 15,
+  "desc": "Кожаная кепка: лёгкая, с цепким взглядом.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/leather_cap.svg",
+  "slot": "head",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.05
+    }
+  ]
+}

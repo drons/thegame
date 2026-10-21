@@ -1,0 +1,31 @@
+{
+  "id": "gold_helm",
+  "name": "Золотой шлем",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 200,
+  "desc": "Золотой шлем: тяжесть власти и чутьё на опасность.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/gold_helm.svg",
+  "slot": "head",
+  "rarity": "epic",
+  "set": "mystic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.18
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.05
+      }
+    ]
+  }
+}

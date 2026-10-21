@@ -29,11 +29,19 @@
 
   // Пулы экипировки — ДАННЫЕ МОДУЛЯ (паттерн 000132: фиксированные
   // списки, каталог в рантайме НЕ читается): значения = id-строки
-  // предметов, редкость предмета = КЛЮЧ массива. На 000230.05 все
-  // 5 тиров ПУСТЫ — канал dormant (0 вызовов rng); наполняют
-  // контентные волны 000230.08–.15 (id в каталожном порядке).
+  // предметов, редкость предмета = КЛЮЧ массива. Заполнено 000230.08
+  // (head 25, id в каталожном порядке внутри тира); волны
+  // 000230.09–.15 добавляют свои id КОНЦОМ тиров.
   const EQUIP_POOLS = {
-    common: [], rare: [], epic: [], legendary: [], impossible: [],
+    common: ['straw_hat', 'wool_cap', 'leather_cap', 'fur_hat',
+             'cloth_band', 'wanderer_cap', 'hood_common',
+             'linen_cloth', 'felt_hat', 'travel_cloth'],
+    rare: ['silver_band', 'copper_band', 'obsidian_cloth',
+           'amethyst_band', 'quartz_cloth', 'bone_band', 'mystic_cloth'],
+    epic: ['silver_helm', 'gold_helm', 'sapphire_helm', 'mithril_helm',
+           'emerald_helm'],
+    legendary: ['rune_hoop', 'star_hoop'],
+    impossible: ['crown_flame'],
   };
 
   // Чистая функция: 1 вызов rngFn(); acc-накопление по RARITY,

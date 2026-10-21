@@ -1,0 +1,21 @@
+{
+  "id": "wool_cap",
+  "name": "Вязаная шапка",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 12,
+  "desc": "Вязаная шапка: тепло и чуть бдительнее.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wool_cap.svg",
+  "slot": "head",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.04
+    }
+  ]
+}

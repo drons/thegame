@@ -1,0 +1,21 @@
+{
+  "id": "linen_cloth",
+  "name": "Льняной платок",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 12,
+  "desc": "Льняной платок: дышит и помогает видеть.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/linen_cloth.svg",
+  "slot": "head",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.04
+    }
+  ]
+}

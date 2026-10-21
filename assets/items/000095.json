@@ -1,0 +1,21 @@
+{
+  "id": "obsidian_cloth",
+  "name": "Обсидиановый платок-амулет",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 70,
+  "desc": "Обсидиановый платок-амулет: слово стариков становится весомее.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/obsidian_cloth.svg",
+  "slot": "head",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "elder",
+      "amount": 0.08
+    }
+  ]
+}

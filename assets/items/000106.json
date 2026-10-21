@@ -1,0 +1,21 @@
+{
+  "id": "star_hoop",
+  "name": "Звёздный обруч",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 700,
+  "desc": "Звёздный обруч: предвидение, выкованное из ночи.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/star_hoop.svg",
+  "slot": "head",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.25
+    }
+  ]
+}

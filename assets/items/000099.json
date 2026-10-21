@@ -1,0 +1,21 @@
+{
+  "id": "mystic_cloth",
+  "name": "Мистический платок",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 100,
+  "desc": "Мистический платок: знания ложатся легче.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/mystic_cloth.svg",
+  "slot": "head",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.1
+    }
+  ]
+}

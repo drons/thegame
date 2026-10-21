@@ -1,0 +1,21 @@
+{
+  "id": "rune_hoop",
+  "name": "Рунический обруч",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 400,
+  "desc": "Рунический обруч: руны читают мир вместо тебя.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/rune_hoop.svg",
+  "slot": "head",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.3
+    }
+  ]
+}

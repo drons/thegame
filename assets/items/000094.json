@@ -1,0 +1,21 @@
+{
+  "id": "copper_band",
+  "name": "Медный обод",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 45,
+  "desc": "Медный обод: старый металл помнит будущее.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/copper_band.svg",
+  "slot": "head",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.06
+    }
+  ]
+}

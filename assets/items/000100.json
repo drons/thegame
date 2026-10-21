@@ -1,0 +1,31 @@
+{
+  "id": "silver_helm",
+  "name": "Серебряный шлем",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 150,
+  "desc": "Серебряный шлем: защита и ясный взгляд на магию.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/silver_helm.svg",
+  "slot": "head",
+  "rarity": "epic",
+  "set": "mystic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.15
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.05
+      }
+    ]
+  }
+}

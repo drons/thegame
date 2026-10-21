@@ -1,0 +1,21 @@
+{
+  "id": "silver_band",
+  "name": "Серебряный обруч",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 60,
+  "desc": "Серебряный обруч: холодный блеск, острый взгляд.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/silver_band.svg",
+  "slot": "head",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.07
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "quartz_cloth",
+  "name": "Кварцевый платок-амулет",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 55,
+  "desc": "Кварцевый платок-амулет: резонирует с предвидением.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/quartz_cloth.svg",
+  "slot": "head",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.07
+    }
+  ]
+}

@@ -1453,6 +1453,11 @@ const SHOP_GOLDEN = {
   // rng-хвост пула allItems → += 4 чертежа (enchant/runecraft на
   // этой клетке не выпали), остальные ключи стока не сдвинулись
   // (симуляция: seed/старые стоки byte-identical).
+  // Ре-пин 000230.08: head-предметы (000083-000107) — КОНЕЦ
+  // каталога, rng-хвост пула allItems → += 18 head (cloth_band/
+  // travel_cloth/silver_helm/gold_helm/mithril_helm/star_hoop/
+  // crown_flame на этой клетке не выпали), остальные ключи стока
+  // не сдвинулись (симуляция: seed/старые стоки byte-identical).
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
@@ -1472,7 +1477,12 @@ const SHOP_GOLDEN = {
     herb_wind: 1, root_moon: 1, root_ember: 2, root_rock: 2,
     fruit_plum: 3, fruit_quince: 2, mushroom_grey: 3, mushroom_glow: 4,
     mushroom_ink: 2, blueprint_forge: 5, blueprint_alchemy: 1,
-    blueprint_carving: 1, blueprint_woodwork: 4 } },
+    blueprint_carving: 1, blueprint_woodwork: 4, straw_hat: 3,
+    wool_cap: 3, leather_cap: 3, fur_hat: 5, wanderer_cap: 5,
+    hood_common: 3, linen_cloth: 1, felt_hat: 2, silver_band: 2,
+    copper_band: 1, obsidian_cloth: 1, amethyst_band: 3, quartz_cloth: 2,
+    bone_band: 2, mystic_cloth: 4, sapphire_helm: 2, emerald_helm: 5,
+    rune_hoop: 4 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1 } },

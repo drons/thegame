@@ -1,0 +1,27 @@
+{
+  "id": "fur_hat",
+  "name": "Меховая шапка",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 18,
+  "desc": "Меховая шапка: ветер её не берёт.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/fur_hat.svg",
+  "slot": "head",
+  "rarity": "common",
+  "set": "traveller",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.03
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

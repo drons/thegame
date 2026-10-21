@@ -1,0 +1,21 @@
+{
+  "id": "mithril_helm",
+  "name": "Мифриловый шлем",
+  "kind": "armor",
+  "weight": 0.7,
+  "value": 350,
+  "desc": "Мифриловый шлем: лёгкий, как мысль, и старый, как слово.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/mithril_helm.svg",
+  "slot": "head",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "elder",
+      "amount": 0.2
+    }
+  ]
+}

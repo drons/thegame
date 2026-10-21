@@ -3666,12 +3666,20 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
   assert.deepEqual(s1.stock, s2.stock, 'детерминированность');
   assert.equal(s1.seed, seedD1,
     'seed = (hash2(x,y,CAMP_STOCK_SEED) ^ ((day+1)·0x9E3779B9)) >>> 0');
-  // Golden-сток (10,20,день 1,wealth 2) — пул 18 предметов
-  // (3 food + 5 potion + 7 weapon + 3 armor — виды каталога).
+  // Golden-сток (10,20,день 1,wealth 2) — пул 43 предмета
+  // (3 food + 5 potion + 7 weapon + 28 armor — виды каталога).
+  // Ре-пин 000230.08: +25 head-предметов концом пула — существующие
+  // ключи не сдвигаются (append-only), += новые rng-хвостом
+  // (пересимулировано node; зеркало GOLDEN_CAMP в items.test.js).
   assert.deepEqual(s1.stock, {
     iron_sword: 3, battle_axe: 3, war_hammer: 2, leather_armor: 4,
     chainmail: 2, knight_plate: 3, minor_healing: 4, healing_potion: 4,
-    mana_potion: 1, bread: 3, meat: 4,
+    mana_potion: 1, bread: 3, meat: 4, straw_hat: 2, wool_cap: 4,
+    leather_cap: 3, fur_hat: 4, cloth_band: 3, wanderer_cap: 1,
+    hood_common: 2, linen_cloth: 3, travel_cloth: 4, silver_band: 1,
+    copper_band: 2, amethyst_band: 4, quartz_cloth: 2, bone_band: 2,
+    mystic_cloth: 1, silver_helm: 2, gold_helm: 4, mithril_helm: 2,
+    emerald_helm: 2, rune_hoop: 4, crown_flame: 4,
   }, 'golden-сток (10,20,день 1,w2)');
   // Форма обёртки: buildingType — id КАТАЛОГА (47, не слот).
   assert.deepEqual(
@@ -7668,10 +7676,15 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
   // JSON-roundtrip — нормализация vm-реалма (assert/strict:
   // прототипы песочницы ≠ прототипы хоста; паттерн файла —
   // L3661/L4069): сравниваются ЗНАЧЕНИЯ стока.
+  // Ре-пин 000230.08: +25 head концом пула — ключи не сдвигаются
+  // (append-only), += новые rng-хвостом (пересимулировано node).
   assert.deepEqual(JSON.parse(JSON.stringify(entry0.stock)), {
     wood_sword: 1, steel_sword: 1, short_bow: 2, hunting_bow: 1,
     battle_axe: 1, war_hammer: 2, minor_healing: 2, healing_potion: 2,
     greater_healing: 2, mana_elixir: 2, bread: 2, honey_cake: 1,
+    wool_cap: 1, fur_hat: 2, cloth_band: 1, linen_cloth: 1,
+    travel_cloth: 2, obsidian_cloth: 1, quartz_cloth: 1,
+    mystic_cloth: 2, silver_helm: 2, gold_helm: 2, mithril_helm: 2,
   }, 'golden-сток стойки (40,40, день 1, w0)');
   for (const id of Object.keys(entry0.stock)) {
     assert.ok(['food', 'potion', 'weapon', 'armor']
@@ -7744,9 +7757,14 @@ test('B27. детерминизм барахолки: два мира, один 
   assert.notDeepEqual(s1d2.stock, s1.stock,
     'день 2 — новый сток (respawn_days 1)');
   assert.equal(s1d2.seed, 2922215359, 'seed дня 2 — golden');
+  // Ре-пин 000230.08: +25 head концом пула (см. B26).
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)), {
     iron_sword: 2, hunting_bow: 1, battle_axe: 1, chainmail: 2,
     healing_potion: 2, mana_potion: 2, mana_elixir: 2, honey_cake: 1,
+    straw_hat: 2, wool_cap: 2, leather_cap: 2, cloth_band: 1,
+    hood_common: 2, travel_cloth: 2, obsidian_cloth: 1,
+    quartz_cloth: 2, mystic_cloth: 1, silver_helm: 2, gold_helm: 1,
+    sapphire_helm: 1, mithril_helm: 2, star_hoop: 1,
   }, 'golden-сток дня 2 (40,40, w0) — кросс-реалем-пин формулы');
   assert.equal(s1d2.seed, s2d2.seed, 'seed дня 2 — одинаков');
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)),

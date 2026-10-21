@@ -1,0 +1,25 @@
+{
+  "id": "emerald_helm",
+  "name": "Изумрудный шлем",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 220,
+  "desc": "Изумрудный шлем: мудрость и мягкое сияние исцеления.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/emerald_helm.svg",
+  "slot": "head",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.14
+    },
+    {
+      "type": "free_cast",
+      "spell": "light_heal"
+    }
+  ]
+}

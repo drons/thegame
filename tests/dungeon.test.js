@@ -2781,16 +2781,22 @@ function chSetup(L, poolIds) {
   // Ре-пин 000232+000235.05: индекс 0 (c1 роуллит фильтр-индекс 0 —
   // см. фикстура-комментарий).
   const abyss0 = abyss[0];
-  const poolLen = L.EQUIP_POOLS.common.length;
+  // Ре-пин 000230.08: common-пул НЕ пуст (25 head) — индексы
+  // фикстур в golden-ах позиционные (pool[1]) → пул очищаем,
+  // фикстуры КОНЦОМ; restore = полная копия (Д7: объект не
+  // заменяется — in-place).
+  const poolCopy = L.EQUIP_POOLS.common.slice();
   ITEMS.push(chFixItem());
   abyss[0] = CH_FIX_ID;
+  L.EQUIP_POOLS.common.splice(0);
   L.EQUIP_POOLS.common.push(...poolIds);
-  return { itemsLen, abyss0, poolLen };
+  return { itemsLen, abyss0, poolCopy };
 }
 
 function chTeardown(L, sav) {
   if (!L || !sav) return;
-  L.EQUIP_POOLS.common.splice(sav.poolLen);
+  L.EQUIP_POOLS.common.splice(0);
+  L.EQUIP_POOLS.common.push(...sav.poolCopy);
   D.DUNGEON_ITEMS[D.DUNGEON_TYPES.ABYSS][0] = sav.abyss0;
   ITEMS.splice(sav.itemsLen);
 }
@@ -2890,7 +2896,7 @@ test('000230.05-CH3: детерминизм СВОЕГО потока: фикс�
   }
 });
 
-test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/30/15/4.9/0.1 (сумма === 1, ids === ITEM_RARITIES), на .05 все 5 тиров ПУСТЫ, pickRarityTier — функция; целостность-хук (RED)', () => {
+test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/30/15/4.9/0.1 (сумма === 1, ids === ITEM_RARITIES), пулы = live-каталог по редкости (ре-пин 000230.08: 25 head), pickRarityTier — функция; целостность-хук', () => {
   const L = require('../src/loot-equip-data.js');
   const I = require('../src/items.js');
   assert.ok(Array.isArray(L.RARITY), 'RARITY — массив');
@@ -2907,9 +2913,12 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
   assert.deepEqual(L.RARITY.map((t) => t.id),
     Object.values(I.ITEM_RARITIES),
     'ids === ITEM_RARITIES (items.js, 000230.01 — единый источник)');
-  assert.deepEqual(L.EQUIP_POOLS,
-    { common: [], rare: [], epic: [], legendary: [], impossible: [] },
-    '.05: все 5 тиров ПУСТЫ (контент — волны 000230.08–.15)');
+  for (const t of L.RARITY) {
+    assert.deepEqual(L.EQUIP_POOLS[t.id],
+      I.allItems().filter((it) => it.rarity === t.id).map((it) => it.id),
+      'пул «' + t.id + '» — все предметы каталога с rarity = «'
+      + t.id + '» (каталожный порядок; ре-пин 000230.08: 25 head)');
+  }
   assert.equal(typeof L.pickRarityTier, 'function',
     'pickRarityTier(rngFn) — чистая функция (1 вызов rngFn)');
   // Целостность-хук (волны): каждый id — в каталоге, явный slot +

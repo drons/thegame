@@ -1,0 +1,21 @@
+{
+  "id": "bone_band",
+  "name": "Костяной обод",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 40,
+  "desc": "Костяной обод: тихое дыхание предков.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/bone_band.svg",
+  "slot": "head",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.05
+    }
+  ]
+}

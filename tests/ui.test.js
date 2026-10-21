@@ -736,7 +736,7 @@ test('230.07-TIP-3: тултип предмета С rarity — «Редкост
 
 // --- ЗЕЛЁНЫЕ с начала (гарды/регрессия; в red-счёт не входят) ---
 
-test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 82 шт. — ноль полей rarity (контентные волны .08–.15)', () => {
+test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 107 шт. — rarity только у 25 head-предметов (ре-пин 000230.08: +25 head с rarity), прочие 82 — без поля rarity', () => {
   const env = loadEnv();
   const c = env.G.createCharacter();
   env.G.playerUI.setCharacter(c);
@@ -752,11 +752,17 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       + String(row.className));
   }
   const data = require(path.join(ROOT, 'src', 'items-data.js'));
-  assert.equal(data.ITEMS.length, 82, 'каталог — 82 предмета');
+  assert.equal(data.ITEMS.length, 107,
+    'каталог — 107 предметов (ре-пин 000230.08: 82 + 25 head)');
+  let others = 0;
   for (const it of data.ITEMS) {
+    if (it.kind === 'armor' && it.slot === 'head') continue;
     assert.equal(it.rarity, undefined,
       'каталожный предмет ' + it.id + ' — без rarity');
+    others++;
   }
+  assert.equal(others, 82,
+    'прочих предметов — ровно 82 (ре-пин 000230.08: 107 − 25 head)');
 });
 
 test('230.07-ICON-1 (регрессия 000237): itemRow с icon — img.cp-itemicon ПЕРВЫМ ребёнком, src = icon: loot/ (iron_ore) + items/ (blueprint_forge) — конвенция пути ТЗ п.1 работает через общий механизм', () => {

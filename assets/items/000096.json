@@ -1,0 +1,21 @@
+{
+  "id": "amethyst_band",
+  "name": "Аметистовый обруч",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 80,
+  "desc": "Аметистовый обруч: камень видит дальше глаз.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/amethyst_band.svg",
+  "slot": "head",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.09
+    }
+  ]
+}

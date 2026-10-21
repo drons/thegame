@@ -1,0 +1,26 @@
+{
+  "id": "crown_flame",
+  "name": "Корона Пламени",
+  "kind": "armor",
+  "weight": 1.5,
+  "value": 1200,
+  "desc": "Корона Пламени: видит всё и дышит в такт с силой.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/crown_flame.svg",
+  "slot": "head",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.4
+    },
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.35
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "sapphire_helm",
+  "name": "Сапфировый шлем",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 180,
+  "desc": "Сапфировый шлем: камень шепчет — и раны затягиваются.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/sapphire_helm.svg",
+  "slot": "head",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.12
+    },
+    {
+      "type": "free_cast",
+      "spell": "mend"
+    }
+  ]
+}

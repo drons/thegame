@@ -1,0 +1,21 @@
+{
+  "id": "hood_common",
+  "name": "Простой капюшон",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 16,
+  "desc": "Простой капюшон: под ним мысли тише, познание чище.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hood_common.svg",
+  "slot": "head",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.04
+    }
+  ]
+}

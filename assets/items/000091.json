@@ -1,0 +1,21 @@
+{
+  "id": "felt_hat",
+  "name": "Фетровая шляпа",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 20,
+  "desc": "Фетровая шляпа: стиль и чутьё.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/felt_hat.svg",
+  "slot": "head",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.05
+    }
+  ]
+}

@@ -699,8 +699,18 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
   const GOLDEN = [
     { x: 10, y: 20, type: B.WEAPONS_SHOP, w: 1, seed: 3248047077,
       stock: { wood_sword: 1, iron_sword: 2, steel_sword: 2, short_bow: 1, hunting_bow: 2, battle_axe: 2, war_hammer: 3 } },
+    // Ре-пин 000230.08: head-предметы (000083-000107, kind armor) —
+    // КОНЕЦ каталога, rng-хвост пула [armor] → += 16 новых head
+    // (straw_hat/wanderer_cap/travel_cloth/copper_band/amethyst_band/
+    // mystic_cloth/sapphire_helm/star_hoop/crown_flame в этом (x,y) не
+    // выпали), остальные ключи стока не сдвинулись (симуляция:
+    // seed/старые стоки byte-identical).
     { x: 10, y: 20, type: B.ARMOR_SHOP, w: 2, seed: 3248047078,
-      stock: { chainmail: 4, knight_plate: 3 } },
+      stock: { chainmail: 4, knight_plate: 3, wool_cap: 3,
+        leather_cap: 3, fur_hat: 4, cloth_band: 1, hood_common: 2,
+        linen_cloth: 4, felt_hat: 3, silver_band: 3, obsidian_cloth: 3,
+        quartz_cloth: 3, bone_band: 4, silver_helm: 2, gold_helm: 2,
+        mithril_helm: 2, emerald_helm: 4, rune_hoop: 4 } },
     { x: 10, y: 20, type: B.APOTHECARY, w: 2, seed: 3248047079,
       stock: { minor_healing: 3, greater_healing: 4, mana_potion: 3, mana_elixir: 3, bread: 1, meat: 2 } },
     // Ре-пин 000157.01: руды/минералы/самоцветы (000052-000062) — КОНЕЦ
@@ -736,8 +746,13 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // rng-хвост пула allItems → += 5 новых чертежей (blueprint_forge
     // в этом (x,y) не выпал), остальные ключи стока не сдвинулись
     // (симуляция: seed/старые стоки byte-identical).
+    // Ре-пин 000230.08: head-предметы (000083-000107) — КОНЕЦ
+    // каталога, rng-хвост пула allItems → += 18 новых head (cloth_band/
+    // copper_band/sapphire_helm/mithril_helm/emerald_helm в этом (x,y)
+    // не выпали), остальные ключи стока не сдвинулись (симуляция:
+    // seed/старые стоки byte-identical).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
-      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5, gold_ore: 4, mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3, ruby: 3, sapphire: 5, emerald: 3, amethyst: 5, berry_red: 3, berry_blue: 5, berry_wild: 3, herb_sun: 3, herb_wind: 4, root_moon: 1, root_ember: 3, root_rock: 3, fruit_apple: 1, fruit_quince: 1, mushroom_grey: 4, mushroom_glow: 3, blueprint_alchemy: 3, blueprint_carving: 3, blueprint_woodwork: 2, blueprint_enchant: 4, blueprint_runecraft: 4 } },
+      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5, gold_ore: 4, mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3, ruby: 3, sapphire: 5, emerald: 3, amethyst: 5, berry_red: 3, berry_blue: 5, berry_wild: 3, herb_sun: 3, herb_wind: 4, root_moon: 1, root_ember: 3, root_rock: 3, fruit_apple: 1, fruit_quince: 1, mushroom_grey: 4, mushroom_glow: 3, blueprint_alchemy: 3, blueprint_carving: 3, blueprint_woodwork: 2, blueprint_enchant: 4, blueprint_runecraft: 4, straw_hat: 2, wool_cap: 4, leather_cap: 3, wanderer_cap: 2, hood_common: 4, linen_cloth: 2, felt_hat: 2, travel_cloth: 3, silver_band: 2, obsidian_cloth: 5, amethyst_band: 5, quartz_cloth: 4, bone_band: 2, mystic_cloth: 4, gold_helm: 4, rune_hoop: 4, star_hoop: 1, crown_flame: 3 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -772,24 +787,45 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
   const PL = require('../src/perlin.js');
   const seedOf = (x, y, day) =>
     (PL.hash2(x, y, I.CAMP_STOCK_SEED) ^ ((day + 1) * 0x9E3779B9)) >>> 0;
+  // Ре-пин 000230.08: head-предметы (000083-000107, kind armor) —
+  // КОНЕЦ каталога, rng-хвост пула allItems → += новые head в каждом
+  // (x,y,day,wealth); остальные ключи стоков не сдвинулись (симуляция:
+  // seed/старые стоки byte-identical).
   const GOLDEN_CAMP = [
     { x: 10, y: 20, day: 1, w: 2,
       stock: { iron_sword: 3, battle_axe: 3, war_hammer: 2,
         leather_armor: 4, chainmail: 2, knight_plate: 3,
         minor_healing: 4, healing_potion: 4, mana_potion: 1,
-        bread: 3, meat: 4 } },
+        bread: 3, meat: 4, straw_hat: 2, wool_cap: 4, leather_cap: 3,
+        fur_hat: 4, cloth_band: 3, wanderer_cap: 1, hood_common: 2,
+        linen_cloth: 3, travel_cloth: 4, silver_band: 1, copper_band: 2,
+        amethyst_band: 4, quartz_cloth: 2, bone_band: 2, mystic_cloth: 1,
+        silver_helm: 2, gold_helm: 4, mithril_helm: 2, emerald_helm: 2,
+        rune_hoop: 4, crown_flame: 4 } },
     { x: 10, y: 20, day: 2, w: 2,
       stock: { wood_sword: 1, steel_sword: 1, short_bow: 2,
         battle_axe: 1, war_hammer: 3, leather_armor: 1, chainmail: 1,
         minor_healing: 3, healing_potion: 4, greater_healing: 2,
-        mana_potion: 1, mana_elixir: 3, bread: 3 } },
+        mana_potion: 1, mana_elixir: 3, bread: 3, leather_cap: 4,
+        cloth_band: 3, hood_common: 4, linen_cloth: 4, felt_hat: 3,
+        travel_cloth: 2, silver_band: 3, obsidian_cloth: 2,
+        amethyst_band: 3, quartz_cloth: 4, gold_helm: 2, mithril_helm: 1,
+        emerald_helm: 4, star_hoop: 3 } },
     { x: 10, y: 20, day: 1, w: 0,
       stock: { war_hammer: 2, leather_armor: 1, chainmail: 2,
-        minor_healing: 1, greater_healing: 2, mana_potion: 2, meat: 2 } },
+        minor_healing: 1, greater_healing: 2, mana_potion: 2, meat: 2,
+        straw_hat: 1, fur_hat: 1, silver_band: 2, copper_band: 1,
+        obsidian_cloth: 1, mystic_cloth: 2, silver_helm: 1, gold_helm: 1,
+        rune_hoop: 1, star_hoop: 1, crown_flame: 1 } },
     { x: 10, y: 20, day: 1, w: 3,
       stock: { iron_sword: 4, hunting_bow: 2, battle_axe: 2,
         war_hammer: 2, leather_armor: 4, chainmail: 2, knight_plate: 2,
-        minor_healing: 3, mana_potion: 1, bread: 3, meat: 5 } },
+        minor_healing: 3, mana_potion: 1, bread: 3, meat: 5, straw_hat: 3,
+        wool_cap: 5, leather_cap: 3, fur_hat: 5, cloth_band: 4,
+        wanderer_cap: 1, hood_common: 3, linen_cloth: 4, travel_cloth: 4,
+        silver_band: 1, copper_band: 2, obsidian_cloth: 4, quartz_cloth: 2,
+        bone_band: 3, mystic_cloth: 2, silver_helm: 2, gold_helm: 5,
+        mithril_helm: 2, emerald_helm: 2, rune_hoop: 4, crown_flame: 5 } },
   ];
   for (const g of GOLDEN_CAMP) {
     const s = I.makeCampShop(g.x, g.y, g.day, g.w, campRec);
@@ -1257,9 +1293,11 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // 000063-000076 — природные ингредиенты); слоты не сдвигаются.
   // Ре-пин 000232: каталог растёт 76 → 82 (добавляются
   // 000077-000082 — чертежи изучения видов крафта); слоты не сдвигаются.
-  assert.equal(files.length, 82,
-    'каталог — 82 файла (краснота: ' + files.length
-    + ' — каталог ещё не расширен, 000232)');
+  // Ре-пин 000230.08: каталог растёт 82 → 107 (добавляются
+  // 000083-000107 — head-предметы); слоты не сдвигаются.
+  assert.equal(files.length, 107,
+    'каталог — 107 файла (краснота: ' + files.length
+    + ' — каталог ещё не расширен, 000230.08)');
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
@@ -1292,13 +1330,14 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   //     Ре-пин 000157.01 (Р0): 51 → 62 (конец каталога).
   //     Ре-пин 000158.02: 62 → 76 (конец каталога).
   //     Ре-пин 000232: 76 → 82 (конец каталога).
+  //     Ре-пин 000230.08: 82 → 107 (конец каталога).
   const it = I.getItem('resurrect_scroll');
   assert.ok(it, 'зеркало items-data.js: resurrect_scroll '
     + '(краснота: записи нет)');
   assert.deepEqual(it, j, 'зеркало ≡ JSON');
-  assert.equal(I.allItems().length, 82,
-    'allItems — 82 предмета (краснота: ' + I.allItems().length
-    + ' — зеркало не регенерировано, 000232)');
+  assert.equal(I.allItems().length, 107,
+    'allItems — 107 предметов (краснота: ' + I.allItems().length
+    + ' — зеркало не регенерировано, 000230.08)');
   // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
   //     addItem ×2 → 2 слота qty 1 (не стопка).
   const c = createCharacter();
@@ -1400,12 +1439,14 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
   // 62-м файлом (append-only, слоты не сдвигаются).
   // Ре-пин 000232: каталог растёт 76 → 82 (000077-000082 —
   // чертежи изучения видов крафта); слоты не сдвигаются.
-  assert.equal(files.length, 82,
-    'каталог — 82 файла (краснота: ' + files.length + ')');
+  // Ре-пин 000230.08: каталог растёт 82 → 107 (000083-000107 —
+  // head-предметы); слоты не сдвигаются.
+  assert.equal(files.length, 107,
+    'каталог — 107 файла (краснота: ' + files.length + ')');
   assert.equal(files[61], '000062.json',
     '000062.json — 62-й файл (краснота: файла нет)');
-  assert.equal(I.allItems().length, 82,
-    'allItems — 82 предмета (краснота: ' + I.allItems().length + ')');
+  assert.equal(I.allItems().length, 107,
+    'allItems — 107 предметов (краснота: ' + I.allItems().length + ')');
 });
 
 // R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
@@ -1613,7 +1654,7 @@ test('000158.02 L2: loot-инварианты новых 14 — terrains неп�
   }
 });
 
-test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 49 предметов — loot undefined (ре-пин 000232: +6 чертежей; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
+test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 74 предметов — loot undefined (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
   const byId = new Map(I.allItems().map((it) => [it.id, it]));
   const newIds = new Set(LOOT_00015802.map((e) => e.id));
   const nuggetIdSet = new Set(NUGGETS_00015802.map(([id]) => id));
@@ -1625,8 +1666,9 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЩИХ id не
       id + ': loot самородка (краснота: поля нет; tier ' + tier
       + ' → frequency ' + NUGGET_FREQ[tier] + ')');
   }
-  // ВСЕ ПРОЧИЕ предметы (49 = каталог − 14 самородков − 14 новых
-  // − 5 reagent'ов 000220; ре-пин 000232: +6 чертежей без loot):
+  // ВСЕ ПРОЧИЕ предметы (74 = каталог 107 − 14 самородков − 14 новых
+  // − 5 reagent'ов 000220; ре-пин 000230.08: +25 head без loot;
+  // ре-пин 000232: +6 чертежей без loot):
   // loot ОТСУТСТВУЕТ — пин «остальные файлы не тронуты».
   const REAGENTS_000220 = new Set(['wood_log', 'hide', 'herb_healing',
     'herb_mana', 'herb_bitter']);
@@ -1638,7 +1680,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЩИХ id не
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 49, 'прочих предметов — ровно 49 (ре-пин 000232: +6)');
+  assert.equal(others, 74, 'прочих предметов — ровно 74 (ре-пин 000230.08: +25 head; 000232: +6)');
 });
 
 test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
@@ -1902,7 +1944,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 43 — icon undefined (ре-пин 000232: +6 чертежей с icon в items/ — в исключении; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
+test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 43 — icon undefined (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f))
     .sort();
@@ -1935,18 +1977,29 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
   const BLUEPRINTS_000232 = new Set(['blueprint_forge', 'blueprint_alchemy',
     'blueprint_carving', 'blueprint_woodwork', 'blueprint_enchant',
     'blueprint_runecraft']);
+  // Ре-пин 000230.08: 25 head-предметов (000083-000107) — icon в
+  // assets/sprites/items/ (свойство icon легитимно, 000230.01) —
+  // исключение из пина «icon НЕ задан» (паттерн BLUEPRINTS_000232).
+  const HEAD_00023008 = new Set(['straw_hat', 'wool_cap', 'leather_cap',
+    'fur_hat', 'cloth_band', 'wanderer_cap', 'hood_common', 'linen_cloth',
+    'felt_hat', 'travel_cloth', 'silver_band', 'copper_band',
+    'obsidian_cloth', 'amethyst_band', 'quartz_cloth', 'bone_band',
+    'mystic_cloth', 'silver_helm', 'gold_helm', 'sapphire_helm',
+    'mithril_helm', 'emerald_helm', 'rune_hoop', 'star_hoop',
+    'crown_flame']);
   let others = 0;
   for (const it of byId.values()) {
-    if (lootIds.includes(it.id) || BLUEPRINTS_000232.has(it.id)) continue;
+    if (lootIds.includes(it.id) || BLUEPRINTS_000232.has(it.id)
+        || HEAD_00023008.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
   }
   assert.equal(others, 43, 'прочих предметов — ровно 43');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 39,
-    'icon — ровно у 39 предметов (ре-пин 000232: 33 лут + 6 чертежей; '
-    + 'пин: ни больше, ни меньше)');
+    [...byId.values()].filter((it) => 'icon' in it).length, 64,
+    'icon — ровно у 64 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
+    + '+ 25 head; пин: ни больше, ни меньше)');
 });
 
 test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойство {type: string, pattern: ^assets/sprites/(loot|items)/[\\w_]+\\.svg$} (дословно ТЗ), «icon» НЕ в required, additionalProperties верхнего уровня false', () => {
@@ -1992,7 +2045,15 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
 // броска, без console.error, поля сохранены), E22 (D4-каталожность —
 // в .01 вакуумно: предметов с affixes нет).
 
-const EQUIP_FIELDS_00023001 = new Set();
+// 000230.08: head-волна (000083-000107) — 25 id с slot/rarity/set/
+// affixes (исключение из гарда E9 «предметы не тронуты»).
+const EQUIP_FIELDS_00023001 = new Set(['straw_hat', 'wool_cap',
+  'leather_cap', 'fur_hat', 'cloth_band', 'wanderer_cap', 'hood_common',
+  'linen_cloth', 'felt_hat', 'travel_cloth', 'silver_band', 'copper_band',
+  'obsidian_cloth', 'amethyst_band', 'quartz_cloth', 'bone_band',
+  'mystic_cloth', 'silver_helm', 'gold_helm', 'sapphire_helm',
+  'mithril_helm', 'emerald_helm', 'rune_hoop', 'star_hoop',
+  'crown_flame']);
 // .10/.12 заполнят (remap существующих 000001-000010 += slot; паттерн
 // исключения REAGENTS_000220).
 
@@ -2150,9 +2211,9 @@ test('000230.01 E8: src/items.js — ITEM_KINDS += SHIELD/ARTIFACT/TOOL/RING, WE
     'EQUIP_KINDS — ровно 6 экипируемых kind (краснота: константы нет)');
 });
 
-test('000230.01 E9 (ГАРД): каталог — ровно 82 предмета (ре-пин 000232: +6 чертежей), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
+test('000230.01 E9 (ГАРД): каталог — ровно 107 предметов (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
   const items = I.allItems();
-  assert.equal(items.length, 82, 'каталог — ровно 82 предмета');
+  assert.equal(items.length, 107, 'каталог — ровно 107 предметов');
   let others = 0;
   for (const it of items) {
     if (EQUIP_FIELDS_00023001.has(it.id)) continue;
@@ -2166,8 +2227,8 @@ test('000230.01 E9 (ГАРД): каталог — ровно 82 предмета
       it.id + ': affixes отсутствует (предмет не тронут, 000230.01)');
     others++;
   }
-  assert.equal(others, 82, 'прочих предметов — ровно 82 (ре-пин 000232: '
-    + 'в .01 исключений нет, +6 чертежей без equip-полей)');
+  assert.equal(others, 82, 'прочих предметов — ровно 82 (ре-пин 000230.08: '
+    + '107 − 25 head-исключений = 82; 000232: +6 чертежей без equip-полей)');
 });
 
 test('000230.01 E10 (vm): НОВЫЕ kind shield/artifact/tool/ring — валидные фикстуры (id/name/kind/slot/weight/value/desc) грузятся БЕЗ броска, без console.error, поля сохранены', () => {
@@ -3591,7 +3652,7 @@ test('000230.04-SB12 (node, sync, E20-паттерн tmp-репо): ring с set 
   }
 });
 
-test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): предметы с ОДНИМ set → set_bonus deepEqual внутри набора (в .04 вакуумно: 0 предметов с set); предметов с set_bonus — РОВНО 0 (пин «контента нет»; .08 — ре-пин числа + реальный кросс-пин; зелёный с начала)', () => {
+test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): предметы с ОДНИМ set → set_bonus deepEqual внутри набора (ре-пин 000230.08: 25 head — 4 предмета с set: straw_hat/fur_hat [traveller], silver_helm/gold_helm [mystic]); предметов с set_bonus — РОВНО 4 (ре-пин 000230.08: реальный кросс-пин)', () => {
   const bySet = new Map();
   let withSetBonus = 0;
   for (const it of I.allItems()) {
@@ -3606,8 +3667,9 @@ test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): пре�
     }
     if (it.set_bonus !== undefined) withSetBonus++;
   }
-  assert.equal(withSetBonus, 0,
-    'предметов с set_bonus — 0 (контента нет; .08 — ре-пин)');
+  assert.equal(withSetBonus, 4,
+    'предметов с set_bonus — 4 (ре-пин 000230.08: straw_hat/fur_hat '
+    + '[traveller] + silver_helm/gold_helm [mystic])');
 });
 
 test('000230.04-SB14 (vm, throw, E18-паттерн): reagent с set_bonus → Error /только у экипируемых/ при загрузке (equipment-only-гард покрывает set_bonus; краснота: гард без set_bonus — Missing expected exception)', () => {
@@ -3939,4 +4001,435 @@ test('000230.04.01-NS (vm): предмет с set БЕЗ set_bonus (схема-�
   assert.equal(es.armor, 6,
     'единый пайплайн: 1 + 1 + 1 (статы) + 3 (set-armor) = 6');
   assert.equal(es.damage, 0, 'оружия нет — damage 0 (D-02 гейт)');
+});
+
+// =====================================================================
+// Задача 000230.08 — предметы «Голова»: 25 (10/7/5/2/1) + иконки +
+// рецепты (контентная волна 1 серии 000230; P2).
+// Контракт — memory/000230.08-head-items-wave.md §2/§3 (ростер §2.1,
+// матрица affixes §2.2, наборы §2.3, рецепты §2.4, иконки §2.6).
+// RED (TDD): в каталоге 0 предметов slot 'head' (grep — 0), svg волны
+// в assets/sprites/items/ нет, зеркало items-data.js не регенерировано
+// — тесты ниже падают по ОСМЫСЛЕННОЙ причине «данные волны не
+// добавлены» (нет id/файлов), а не по синтаксису. Тесты читают
+// РЕАЛЬНЫЙ каталог (JSON + зеркало), а не фикстуры (отличие от
+// M/A/SB-пинов). Технические репины существующих тестов (счётчики
+// 82→107, 39→64 и т.д.) — стадия ЗЕЛЁНАЯ: в красной фазе каталог не
+// меняется и фон остаётся зелёным.
+// =====================================================================
+
+// Ростер §2.1 (id фиксирован; «файл — до ребейза»: 000083–000107).
+// [id, name, rarity, stats.armor, weight, value, affixes, set (null — поле нет)]
+const HEAD_ROSTER_00023008 = [
+  ['straw_hat', 'Соломенная шляпа', 'common', 0, 0.2, 10,
+   [{ type: 'skill', skill: 'perception', amount: 0.03 }], 'traveller'],
+  ['wool_cap', 'Вязаная шапка', 'common', 1, 0.3, 12,
+   [{ type: 'skill', skill: 'precog', amount: 0.04 }], null],
+  ['leather_cap', 'Кожаная кепка', 'common', 1, 0.3, 15,
+   [{ type: 'skill', skill: 'perception', amount: 0.05 }], null],
+  ['fur_hat', 'Меховая шапка', 'common', 1, 0.4, 18,
+   [{ type: 'skill', skill: 'precog', amount: 0.03 }], 'traveller'],
+  ['cloth_band', 'Тканый обод', 'common', 0, 0.2, 10,
+   [{ type: 'skill', skill: 'meditation', amount: 0.05 }], null],
+  ['wanderer_cap', 'Капюшон странника', 'common', 0, 0.3, 14,
+   [{ type: 'skill', skill: 'elder', amount: 0.05 }], null],
+  ['hood_common', 'Простой капюшон', 'common', 1, 0.3, 16,
+   [{ type: 'skill', skill: 'scholar', amount: 0.04 }], null],
+  ['linen_cloth', 'Льняной платок', 'common', 0, 0.2, 12,
+   [{ type: 'skill', skill: 'perception', amount: 0.04 }], null],
+  ['felt_hat', 'Фетровая шляпа', 'common', 1, 0.4, 20,
+   [{ type: 'skill', skill: 'precog', amount: 0.05 }], null],
+  ['travel_cloth', 'Путевой платок', 'common', 0, 0.2, 25,
+   [{ type: 'skill', skill: 'meditation', amount: 0.03 }], null],
+  ['silver_band', 'Серебряный обруч', 'rare', 1, 0.3, 60,
+   [{ type: 'skill', skill: 'perception', amount: 0.07 }], null],
+  ['copper_band', 'Медный обод', 'rare', 1, 0.4, 45,
+   [{ type: 'skill', skill: 'precog', amount: 0.06 }], null],
+  ['obsidian_cloth', 'Обсидиановый платок-амулет', 'rare', 2, 0.4, 70,
+   [{ type: 'skill', skill: 'elder', amount: 0.08 }], null],
+  ['amethyst_band', 'Аметистовый обруч', 'rare', 2, 0.4, 80,
+   [{ type: 'skill', skill: 'perception', amount: 0.09 }], null],
+  ['quartz_cloth', 'Кварцевый платок-амулет', 'rare', 1, 0.3, 55,
+   [{ type: 'skill', skill: 'precog', amount: 0.07 }], null],
+  ['bone_band', 'Костяной обод', 'rare', 1, 0.5, 40,
+   [{ type: 'skill', skill: 'meditation', amount: 0.05 }], null],
+  ['mystic_cloth', 'Мистический платок', 'rare', 2, 0.4, 100,
+   [{ type: 'skill', skill: 'scholar', amount: 0.10 }], null],
+  ['silver_helm', 'Серебряный шлем', 'epic', 2, 0.5, 150,
+   [{ type: 'skill', skill: 'perception', amount: 0.15 }], 'mystic'],
+  ['gold_helm', 'Золотой шлем', 'epic', 3, 0.6, 200,
+   [{ type: 'skill', skill: 'precog', amount: 0.18 }], 'mystic'],
+  ['sapphire_helm', 'Сапфировый шлем', 'epic', 3, 0.6, 180,
+   [{ type: 'skill', skill: 'meditation', amount: 0.12 },
+    { type: 'free_cast', spell: 'mend' }], null],
+  ['mithril_helm', 'Мифриловый шлем', 'epic', 3, 0.7, 350,
+   [{ type: 'skill', skill: 'elder', amount: 0.20 }], null],
+  ['emerald_helm', 'Изумрудный шлем', 'epic', 2, 0.5, 220,
+   [{ type: 'skill', skill: 'scholar', amount: 0.14 },
+    { type: 'free_cast', spell: 'light_heal' }], null],
+  ['rune_hoop', 'Рунический обруч', 'legendary', 3, 0.6, 400,
+   [{ type: 'skill', skill: 'perception', amount: 0.30 }], null],
+  ['star_hoop', 'Звёздный обруч', 'legendary', 3, 0.8, 700,
+   [{ type: 'skill', skill: 'precog', amount: 0.25 }], null],
+  ['crown_flame', 'Корона Пламени', 'impossible', 3, 1.5, 1200,
+   [{ type: 'skill', skill: 'perception', amount: 0.40 },
+    { type: 'skill', skill: 'meditation', amount: 0.35 }], null],
+];
+const HEAD_IDS_00023008 = HEAD_ROSTER_00023008.map((r) => r[0]);
+
+// Live-скан JSON-каталога (паттерн 000211.06 I1): файлы/по id/по
+// файлу/файл-по-id — без чтения зеркала (зеркало проверяет H7).
+function catalogScan00023008() {
+  const files = fs.readdirSync(ITEMS_DIR)
+    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  const byId = new Map();
+  const byFile = new Map();
+  const fileById = new Map();
+  for (const f of files) {
+    const j = JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    byId.set(j.id, j);
+    byFile.set(f, j);
+    fileById.set(j.id, f);
+  }
+  return { files, byId, byFile, fileById };
+}
+
+// Id заклинаний каталога assets/spells (локальный хелпер — как
+// loadSpellIds в tests/craft.test.js; src-модуля заклинаний нет).
+function spellIds00023008() {
+  const dir = path.join(__dirname, '..', 'assets', 'spells');
+  const ids = new Set();
+  for (const f of fs.readdirSync(dir)) {
+    if (!/^\d{6}\.json$/.test(f)) continue;
+    ids.add(JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')).id);
+  }
+  return ids;
+}
+
+test('000230.08 H1: 25 head-предметов — append-блок: последние 25 файлов каталога подряд (base = files[len−25], rebase-робастно БЕЗ хардкода номера), редкости последних 25 РОВНО 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible в каталожном порядке, все kind armor + slot head (краснота: slot head — 0 предметов)', () => {
+  const { files, byFile } = catalogScan00023008();
+  const headCount = [...byFile.values()].filter((it) => it.slot === 'head').length;
+  assert.equal(headCount, 25,
+    'slot head — ровно 25 предмета (краснота: волна не добавлена; '
+    + 'факт: ' + headCount + ')');
+  const base = parseInt(files[files.length - 25], 10);
+  const tierByPos = (i) => i < 10 ? 'common' : i < 17 ? 'rare'
+    : i < 22 ? 'epic' : i < 24 ? 'legendary' : 'impossible';
+  for (let i = 0; i < 25; i++) {
+    const f = files[files.length - 25 + i];
+    assert.equal(f, String(base + i).padStart(6, '0') + '.json',
+      'блок волны — 25 последовательных файлов (base ' + base
+      + '); позиция ' + i + ': ' + f);
+    const it = byFile.get(f);
+    assert.equal(it.kind, 'armor', f + ': kind armor');
+    assert.equal(it.slot, 'head',
+      f + ': slot head (краснота: волна не добавлена; факт: '
+      + it.slot + ')');
+    assert.equal(it.rarity, tierByPos(i),
+      f + ': rarity ' + tierByPos(i) + ' (каталожный порядок = порядок '
+      + 'тиров 10/7/5/2/1); факт: ' + it.rarity);
+  }
+});
+
+test('000230.08 H2: roster — все 25 построчно (id/name/kind/slot/rarity/stats.armor/weight/value/affixes/set, §2.1); desc — непустая строка; subtype/tier/effect/loot отсутствуют (паттерн 000008; rarity вместо tier — D3)', () => {
+  const { byId } = catalogScan00023008();
+  for (const [id, name, rarity, armor, weight, value, affixes, set]
+      of HEAD_ROSTER_00023008) {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+      + 'не добавлена)');
+    assert.equal(it.name, name, id + ': name');
+    assert.equal(it.kind, 'armor', id + ': kind armor');
+    assert.equal(it.slot, 'head', id + ': slot head');
+    assert.equal(it.rarity, rarity, id + ': rarity ' + rarity);
+    assert.deepEqual(it.stats, { armor },
+      id + ': stats — ровно { armor: ' + armor + ' }');
+    assert.equal(it.weight, weight, id + ': weight');
+    assert.equal(it.value, value, id + ': value');
+    assert.deepEqual(it.affixes, affixes, id + ': affixes (§2.1)');
+    assert.equal(it.set, set === null ? undefined : set,
+      id + ': set ' + (set === null ? 'отсутствует' : '«' + set + '»'));
+    assert.equal(typeof it.desc, 'string', id + ': desc — строка');
+    assert.ok(it.desc.length > 0, id + ': desc — непустая строка');
+    assert.equal(it.subtype, undefined,
+      id + ': subtype отсутствует (у armor не бывает)');
+    assert.equal(it.tier, undefined,
+      id + ': tier отсутствует (редкость — отдельное поле rarity, D3)');
+    assert.equal(it.effect, undefined, id + ': effect отсутствует');
+    assert.equal(it.loot, undefined,
+      id + ': loot отсутствует (loot — только у reagent)');
+  }
+});
+
+// Матрица §2.2: Σ skill-записей 26 = 8/7/5/3/3; free_cast — ровно 2.
+const SKILL_MATRIX_00023008 = {
+  perception: 8, precog: 7, meditation: 5, elder: 3, scholar: 3,
+};
+// Шкала силы affix по редкости (memory/000230-equipment-research.md §6).
+const RARITY_AFFIX_SCALE_00023008 = {
+  common: [0.02, 0.05], rare: [0.05, 0.10], epic: [0.10, 0.20],
+  legendary: [0.20, 0.35], impossible: [0.35, Infinity],
+};
+
+test('000230.08 H3: матрица affixes — покрытие skills РОВНО 8/7/5/3/3 (perception/precog/meditation/elder/scholar), Σ 26 skill-записей + 2 free_cast = 28; amounts в шкале редкости (§2.2); free_cast — ровно 2 (mend + light_heal), у epic; skill/spell id в live-каталогах', () => {
+  const { byId } = catalogScan00023008();
+  const wave = HEAD_IDS_00023008.map((id) => {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+      + 'не добавлена)');
+    return it;
+  });
+  const coverage = {};
+  let skillRecords = 0;
+  const freeCast = [];
+  const spells = spellIds00023008();
+  for (const it of wave) {
+    assert.ok(Array.isArray(it.affixes) && it.affixes.length >= 1,
+      it.id + ': affixes — непустой массив (у каждого предмета ≥1)');
+    for (const a of it.affixes) {
+      if (a.type === 'skill') {
+        skillRecords += 1;
+        assert.ok(SECONDARY_SKILLS[a.skill] !== undefined,
+          it.id + ': skill «' + a.skill + '» — в live skill-каталоге');
+        coverage[a.skill] = (coverage[a.skill] || 0) + 1;
+        const [lo, hi] = RARITY_AFFIX_SCALE_00023008[it.rarity];
+        assert.ok(a.amount >= lo && a.amount <= hi,
+          it.id + ': amount ' + a.amount + ' в шкале редкости '
+          + it.rarity + ' [' + lo + ', ' + hi + ']');
+      } else if (a.type === 'free_cast') {
+        freeCast.push({ id: it.id, rarity: it.rarity, spell: a.spell });
+        assert.ok(spells.has(a.spell),
+          it.id + ': spell «' + a.spell + '» — в assets/spells');
+      } else {
+        assert.fail(it.id + ': неизвестный type affix: ' + a.type);
+      }
+    }
+  }
+  assert.equal(skillRecords, 26,
+    'Σ skill-записей — ровно 26 (матрица §2.2); факт: ' + skillRecords);
+  assert.deepEqual(
+    { perception: coverage.perception || 0, precog: coverage.precog || 0,
+      meditation: coverage.meditation || 0, elder: coverage.elder || 0,
+      scholar: coverage.scholar || 0 },
+    SKILL_MATRIX_00023008,
+    'покрытие навыков — ровно 8/7/5/3/3 (матрица §2.2); факт: '
+    + JSON.stringify(coverage));
+  assert.equal(freeCast.length, 2,
+    'free_cast — ровно 2 (ТЗ: 1–2 шт. на волну, у epic+); факт: '
+    + freeCast.length);
+  assert.deepEqual(freeCast.map((f) => f.spell).sort(),
+    ['light_heal', 'mend'],
+    'free_cast — существующие заклинания mend + light_heal');
+  for (const f of freeCast) {
+    assert.equal(f.rarity, 'epic',
+      f.id + ': free_cast — у epic (контракт ТЗ); факт: ' + f.rarity);
+  }
+});
+
+// Наборы §2.3: 2 наборы × 2 предмета, оба DORMANT (1 слот head < порога 2).
+const HEAD_SETS_00023008 = [
+  { set: 'traveller', members: ['straw_hat', 'fur_hat'],
+    bonus: { 2: { armor: 1 } } },
+  { set: 'mystic', members: ['silver_helm', 'gold_helm'],
+    bonus: { 2: [{ type: 'skill', skill: 'meditation', amount: 0.05 }] } },
+];
+
+test('000230.08 H4: наборы — РОВНО 2: traveller {straw_hat, fur_hat} / set_bonus {2: {armor: 1}} (stat-объект, D-02) и mystic {silver_helm, gold_helm} / {2: [{skill meditation 0.05}]} (affix-массив; НЕ damage); set_bonus ОДИНАКОВ в паре (D-03); пороги ⊆ {2,3,4}; другие 21 предмет — без set/set_bonus', () => {
+  const { byId } = catalogScan00023008();
+  for (const s of HEAD_SETS_00023008) {
+    for (const id of s.members) {
+      const it = byId.get(id);
+      assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+        + 'не добавлена)');
+      assert.equal(it.set, s.set, id + ': set «' + s.set + '»');
+      assert.deepEqual(it.set_bonus, s.bonus,
+        id + ': set_bonus (контракт §2.3; OДИНАКОВОЕ значение для '
+        + 'всех участников — D-03)');
+    }
+    for (const k of Object.keys(s.bonus)) {
+      assert.ok(['2', '3', '4'].includes(k),
+        s.set + ': порог «' + k + '» ⊆ {2,3,4}');
+    }
+  }
+  const members = new Set(
+    HEAD_SETS_00023008.flatMap((s) => s.members));
+  for (const id of HEAD_IDS_00023008) {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге');
+    if (!members.has(id)) {
+      assert.equal(it.set, undefined,
+        id + ': set отсутствует (в волне только 2 набора)');
+      assert.equal(it.set_bonus, undefined, id + ': set_bonus отсутствует');
+    }
+  }
+});
+
+test('000230.08 H5: иконки — у всех 25 icon = assets/sprites/items/<id>.svg, svg-файл существует; 25 svg уникальны по содержимому (НЕ копии, §2.6); 25 id различны (анти-коллизия)', () => {
+  const { byId } = catalogScan00023008();
+  const ROOT = path.join(__dirname, '..');
+  const seen = new Map();
+  for (const id of HEAD_IDS_00023008) {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+      + 'не добавлена)');
+    assert.equal(it.icon, 'assets/sprites/items/' + id + '.svg',
+      id + ': icon = assets/sprites/items/<id>.svg');
+    const p = path.join(ROOT, it.icon);
+    assert.ok(fs.existsSync(p),
+      id + ': svg-файл существует (краснота: иконка не создана)');
+    const raw = fs.readFileSync(p, 'utf8');
+    for (const [other, otherRaw] of seen) {
+      assert.notEqual(raw, otherRaw,
+        id + ' и ' + other + ': иконки уникальны (НЕ копии)');
+    }
+    seen.set(id, raw);
+  }
+  assert.equal(new Set(HEAD_IDS_00023008).size, 25,
+    '25 id различны (анти-коллизия в волне)');
+});
+
+// 17 канонических KEYS sync-items-data.js (связка E1b/E20 —
+// порядок properties schema.json; канон-порядок, append-only).
+const KEYS_SYNC_00023008 = ['id', 'name', 'kind', 'subtype', 'weight',
+  'value', 'tier', 'desc', 'stats', 'effect', 'loot', 'icon', 'slot',
+  'rarity', 'set', 'affixes', 'set_bonus'];
+
+test('000230.08 H6: порядок ключей JSON — подмножество 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн: нарушение = неидемпотентная sync-дифф, ловят пины E1b/E20)', () => {
+  const { byId, fileById } = catalogScan00023008();
+  for (const id of HEAD_IDS_00023008) {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+      + 'не добавлена)');
+    const f = fileById.get(id);
+    const keys = Object.keys(JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+    assert.ok(keys.length > 0, f + ': файл не пуст');
+    let prev = -1;
+    for (const k of keys) {
+      const i = KEYS_SYNC_00023008.indexOf(k);
+      assert.ok(i !== -1,
+        f + ': ключ «' + k + '» — в канонических KEYS (краснота: '
+        + 'ключа нет в схеме sync)');
+      assert.ok(i > prev,
+        f + ': ключ «' + k + '» — канон-порядок (E1b-паттерн; '
+        + 'нарушение ломает идемпотентность sync)');
+      prev = i;
+    }
+  }
+});
+
+test('000230.08 H7: все 25 — валидны по schema.json (минивалидатор 000015) И зеркало items-data.js ≡ JSON (getItem deepEqual) — регенерация sync сработала', () => {
+  const { fileById } = catalogScan00023008();
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  for (const id of HEAD_IDS_00023008) {
+    const f = fileById.get(id);
+    assert.ok(f, 'файл предмета "' + id + '" (краснота: волна не '
+      + 'добавлена)');
+    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    const errors = validateData(schema, j, f);
+    assert.deepEqual(errors, [],
+      f + ': валиден по schema.json; факт: ' + errors.join('; '));
+    const it = I.getItem(id);
+    assert.ok(it, 'зеркало items-data.js: ' + id + ' (краснота: '
+      + 'записи нет — зеркало не регенерировано)');
+    assert.deepEqual(it, j, f + ': зеркало ≡ JSON');
+  }
+});
+
+test('000230.08 H8 (vm, e2e): РЕАЛЬНЫЕ head-предметы из live-каталога (не фикстуры) — equip в слот head (M2-паттерн); affixes доходят до derived при S=10 по всем 5 навыкам: magicResistMult 1.50→1.515 (straw_hat, perception 0.03), dodgeBonus 0.50→0.52 (wool_cap, precog 0.04), mpRegenMult 0.30→0.306 (travel_cloth, meditation 0.03), dialogueBonus 10→11 (wanderer_cap, elder 0.05, round(10.5)), xpMult 1.20→1.208 (hood_common, scholar 0.04); sapphire_helm — free_cast mend в equipmentAffixes; crown_flame — 2 affixes суммируются (magicResistMult 1.70, mpRegenMult 0.37); set-дормант: 1 член traveller (порог 2) — бонуса НЕТ', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const near = (a, b, msg) => assert.ok(
+    Math.abs(a - b) < 1e-9, msg + ' (факт: ' + a + ')');
+  const makeHero = () => {
+    const c = G.createCharacter();
+    c.secondary.perception = 10;
+    c.secondary.precog = 10;
+    c.secondary.meditation = 10;
+    c.secondary.elder = 10;
+    c.secondary.scholar = 10;
+    return c;
+  };
+  const equipHead = (c, id) => {
+    const ra = G.addItem(c, id);
+    assert.equal(ra.ok, true, id + ': выдача (' + (ra.reason || '')
+      + ') — предмет есть в live-каталоге (краснота: неизвестный '
+      + 'предмет — волна не добавлена)');
+    const r = G.equip(c, id);
+    assert.equal(r.ok, true, id + ': equip (' + (r.reason || '') + ')');
+    assert.equal(c.equipment.head, id, id + ': предмет в слоте head');
+  };
+  {
+    const c = makeHero();
+    const d = G.derived(c);
+    near(d.magicResistMult, 1.5, 'база magicResistMult (1 + 0.05·10)');
+    near(d.dodgeBonus, 0.5, 'база dodgeBonus (0.05·10)');
+    near(d.mpRegenMult, 0.3, 'база mpRegenMult (0.10 + 0.02·10)');
+    assert.equal(d.dialogueBonus, 10, 'база dialogueBonus (round(1·10))');
+    near(d.xpMult, 1.2, 'база xpMult (1 + 0.02·10)');
+  }
+  {
+    const c = makeHero();
+    equipHead(c, 'straw_hat');
+    near(G.derived(c).magicResistMult, 1.515,
+      'straw_hat: magicResistMult = 1 + 0.05·10·1.03');
+    assert.equal(G.equipmentStats(c).armor, 0,
+      'straw_hat: stats.armor 0 — equipmentStats.armor += 0');
+  }
+  {
+    const c = makeHero();
+    equipHead(c, 'wool_cap');
+    near(G.derived(c).dodgeBonus, 0.52,
+      'wool_cap: dodgeBonus = 0.05·10·1.04');
+  }
+  {
+    const c = makeHero();
+    equipHead(c, 'travel_cloth');
+    near(G.derived(c).mpRegenMult, 0.306,
+      'travel_cloth: mpRegenMult = 0.10 + 0.02·10·1.03');
+  }
+  {
+    const c = makeHero();
+    equipHead(c, 'wanderer_cap');
+    assert.equal(G.derived(c).dialogueBonus, 11,
+      'wanderer_cap: dialogueBonus = round(10·1.05) = 11');
+  }
+  {
+    const c = makeHero();
+    equipHead(c, 'hood_common');
+    near(G.derived(c).xpMult, 1.208,
+      'hood_common: xpMult = 1 + 0.02·10·1.04');
+  }
+  {
+    const c = makeHero();
+    equipHead(c, 'sapphire_helm');
+    const a = G.equipmentAffixes(c);
+    assert.ok(a.freeCast.has('mend'),
+      'sapphire_helm: free_cast mend в equipmentAffixes.freeCast');
+  }
+  {
+    const c = makeHero();
+    equipHead(c, 'crown_flame');
+    const d = G.derived(c);
+    near(d.magicResistMult, 1.7,
+      'crown_flame: magicResistMult = 1 + 0.05·10·1.40 (perception 0.40)');
+    near(d.mpRegenMult, 0.37,
+      'crown_flame: mpRegenMult = 0.10 + 0.02·10·1.35 (meditation 0.35)');
+  }
+  {
+    const c = makeHero();
+    equipHead(c, 'straw_hat');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm(st.counts), { traveller: 1 },
+      'traveller — 1 надетый предмет');
+    assert.equal(st.armor, 0, 'set-бонус НЕ активен (порог 2 > 1)');
+    assert.deepEqual(fromVm(st.skills), {}, 'set-skill-бонусов нет');
+    assert.equal(st.freeCast.size, 0, 'set-free_cast-бонусов нет');
+    assert.equal(G.equipmentStats(c).armor, 0,
+      'equipmentStats.armor — без set-бонуса (дормантность)');
+  }
 });
