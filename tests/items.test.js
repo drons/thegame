@@ -3851,3 +3851,92 @@ test('000230.03.01-GU (vm): guards equipmentAffixes на невалидные д
   assert.equal(a3.freeCast.size, 0, 'freeCast — пустой Set');
   assert.deepEqual(errors, [], 'мутации каталога — без console.error');
 });
+
+// --- Задача 000230.04.01: ретро-правка 000230.04 — защитные пины
+// (src 0-diff — зелёные с начала; findings 4/5 ретро-20261021) ---
+// Контракт: memory/000230.04.01-retro-spec-set-pins.md §2
+// (ФИНАЛЬНОЕ слово). RE — representative per-порог: данные у ПЕРВОГО
+// надетого с set_bonus[t] по порядку EQUIP_PHYS_SLOTS (its.find) —
+// РАСХОДЯЩИЕСЯ таблицы в пределах одного набора (все существующие
+// фикстуры setFixtures00023004 — одна таблица на набор, регрессия
+// find→findLast/сумма была незаметна). NS — предмет с set БЕЗ
+// set_bonus (схема-валидно: set_bonus не в required): подсчёт ДО
+// проверки set_bonus, skip в representative-поиске, runtime-без-throw.
+
+test('000230.04.01-RE (vm): representative per-порог — данные у ПЕРВОГО надетого с set_bonus[t] по порядку EQUIP_PHYS_SLOTS: РАСХОДЯЩИЕСЯ таблицы одного набора (head {2:{armor:2}}, ears {2:{armor:99}}) → counts {xrep:2}, st.armor = 2 ТОЧНО (не 99 — find ≠ findLast; не 101 — не сумма), es.armor = 4', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [
+    { id: 'xrep_head', name: 'Тестовый шлем (xrep)', kind: 'armor',
+      stats: { armor: 1 }, slot: 'head', set: 'xrep',
+      set_bonus: { 2: { armor: 2 } }, weight: 1, value: 20, desc: 'т' },
+    { id: 'xrep_ears', name: 'Тестовые серьги (xrep)', kind: 'armor',
+      stats: { armor: 1 }, slot: 'ears', set: 'xrep',
+      set_bonus: { 2: { armor: 99 } }, weight: 1, value: 20, desc: 'т' },
+  ];
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  for (const id of ['xrep_head', 'xrep_ears']) {
+    G.addItem(c, id);
+    assert.equal(G.equip(c, id).ok, true, id + ': экипирование');
+  }
+  const st = G.activeSets(c);
+  assert.deepEqual(fromVm(st.counts), { xrep: 2 },
+    'counts — 2 предмета набора (счёт по слотам: head + ears)');
+  assert.equal(st.armor, 2,
+    'representative per-порог — данные у ПЕРВОГО надетого с ' +
+      'set_bonus[2] по порядку EQUIP_PHYS_SLOTS (head; its.find, ' +
+      'items.js): 2 ТОЧНО — findLast → 99, сумма → 101, обе ' +
+      'регрессии ловятся (2 ≠ 99 ≠ 101)');
+  assert.equal(st.damage, 0, 'урона в наборе нет — 0');
+  assert.deepEqual(fromVm(st.skills), {}, 'skills пуст');
+  assert.equal(st.freeCast.size, 0, 'freeCast — пустой Set');
+  const es = G.equipmentStats(c);
+  assert.equal(es.armor, 4,
+    'единый пайплайн equipmentStats → activeSets: 1 + 1 (статы) ' +
+      '+ 2 (set-armor) = 4');
+  assert.equal(es.damage, 0, 'оружия нет — damage 0 (D-02 гейт)');
+});
+
+test('000230.04.01-NS (vm): предмет с set БЕЗ set_bonus (схема-валидно: set_bonus НЕ в required) — подсчитан в counts (до проверки set_bonus), пропущен в representative-поиске, runtime-без-throw: набор 3 предметов, БЕЗ set_bonus — ПЕРВЫЙ по порядку слотов (head), set_bonus только у 2 (ears {3:{armor:3}}, neck {3:{armor:99}}) → counts {xnset:3}, порог 3 активен, st.armor = 3 ТОЧНО (representative — ears; findLast → 99), es.armor = 6', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [
+    { id: 'xnset_head', name: 'Тестовый шлем (xnset)', kind: 'armor',
+      stats: { armor: 1 }, slot: 'head', set: 'xnset',
+      weight: 1, value: 20, desc: 'т' },
+    { id: 'xnset_ears', name: 'Тестовые серьги (xnset)', kind: 'armor',
+      stats: { armor: 1 }, slot: 'ears', set: 'xnset',
+      set_bonus: { 3: { armor: 3 } }, weight: 1, value: 20, desc: 'т' },
+    { id: 'xnset_neck', name: 'Тестовый амулет (xnset)', kind: 'armor',
+      stats: { armor: 1 }, slot: 'neck', set: 'xnset',
+      set_bonus: { 3: { armor: 99 } }, weight: 1, value: 30, desc: 'т' },
+  ];
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  for (const id of ['xnset_head', 'xnset_ears', 'xnset_neck']) {
+    G.addItem(c, id);
+    assert.equal(G.equip(c, id).ok, true, id + ': экипирование');
+  }
+  let st;
+  assert.doesNotThrow(() => { st = G.activeSets(c); },
+    'runtime-без-throw: предмет без set_bonus — defensive skip ' +
+      '(наивный its[0] упёрся бы в undefined.set_bonus)');
+  assert.deepEqual(fromVm(st.counts), { xnset: 3 },
+    'подсчёт ДО проверки set_bonus (counts[it.set]++ по слотам): ' +
+      'предмет без таблицы СЧИТАЕТСЯ (иначе n=2 — порог 3 не ' +
+      'активен)');
+  assert.equal(st.armor, 3,
+    'порог 3 активен (n=3): representative — ПЕРВЫЙ с ключом «3» ' +
+      'по порядку слотов = ears (head пропущен предикатом find; ' +
+      'findLast → 99); порог 2 ничего не даёт (ключа «2» нет)');
+  assert.equal(st.damage, 0, 'урона в наборе нет — 0');
+  assert.deepEqual(fromVm(st.skills), {}, 'skills пуст');
+  assert.equal(st.freeCast.size, 0, 'freeCast — пустой Set');
+  const es = G.equipmentStats(c);
+  assert.equal(es.armor, 6,
+    'единый пайплайн: 1 + 1 + 1 (статы) + 3 (set-armor) = 6');
+  assert.equal(es.damage, 0, 'оружия нет — damage 0 (D-02 гейт)');
+});
