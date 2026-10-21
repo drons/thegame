@@ -41,18 +41,20 @@
       require('./spells-data.js'),
       combat.combatInternals,
       require('./player.js'),
-      combat.PRACTICE_XP);
+      combat.PRACTICE_XP,
+      () => require('./items.js'),
+      null);
   } else {
     // В браузере — пространство Game.Spells (не смешивать с Game).
     // Guard сбойного порядка (factory → undefined + console.error)
     // Game.Spells НЕ создаёт — «мёртвая магия» должна быть заметна.
     const Game = (typeof root.Game === 'object' && root.Game) || {};
     const api = factory(Game.SpellsData, Game.combatInternals, Game,
-      Game.PRACTICE_XP);
+      Game.PRACTICE_XP, null, root);
     if (api) root.Game = Object.assign({}, root.Game, { Spells: api });
   }
 })(typeof globalThis !== 'undefined' ? globalThis : self,
-  function (SpellsData, internals, P, PRACTICE_XP) {
+  function (SpellsData, internals, P, PRACTICE_XP, itemsThunk, rootRef) {
 
   // Guards с console.error (паттерн 000038): битый порядок загрузки не
   // должен оставлять «мёртвую магию» молча — tests/index-order.test.js.
@@ -349,6 +351,29 @@
 
   function isFreeCast(c, spellId) {
     return Array.isArray(c.freeCast) && c.freeCast.includes(spellId);
+  }
+
+  let heroItemsApi = null;
+  function isHeroFreeCast(p, spellId) {
+    if (!p || typeof p !== 'object' || typeof p.equipment !== 'object'
+        || Array.isArray(p.equipment)) return false;
+    let api;
+    if (itemsThunk) {
+      if (!heroItemsApi) {
+        try { heroItemsApi = itemsThunk(); } catch (e) { heroItemsApi = {}; }
+      }
+      api = heroItemsApi;
+    } else {
+      api = (rootRef && rootRef.Game) ? rootRef.Game : null;
+    }
+    if (!api || typeof api.equipmentAffixes !== 'function') return false;
+    let res;
+    try { res = api.equipmentAffixes(p); } catch (e) { res = null; }
+    const fc = (res && typeof res === 'object' && !Array.isArray(res))
+      ? res.freeCast : null;
+    if (fc && typeof fc.has === 'function') return !!fc.has(spellId);
+    if (Array.isArray(fc)) return fc.includes(spellId);
+    return false;
   }
 
   // Общие проверки каста (зеркало 000037: castSpell и canCastSpell
@@ -815,7 +840,9 @@
     }
     const days = outOfCombatDays(spell);
     if (typeof days === 'string') return { ok: false, reason: days };
-    if (typeof p.mp !== 'number' || p.mp < (spell['мани'] || 0)) {
+    const free = isHeroFreeCast(p, spellId);
+    if (!free
+        && (typeof p.mp !== 'number' || p.mp < (spell['мани'] || 0))) {
       return { ok: false, reason: 'не хватает маны' };
     }
     // Мутации — ПОСЛЕ всех проверок.
@@ -825,7 +852,7 @@
     const priorExpiresDay = prior >= 0
       ? p.outOfCombatEffects[prior].expiresDay : null;
     const priorLen = p.outOfCombatEffects.length;
-    p.mp -= spell['мани'] || 0;
+    if (!free) p.mp -= spell['мани'] || 0;
     let expiresDay = null;
     if (days !== null) {
       expiresDay = day + days;
@@ -845,14 +872,14 @@
     }
     const rejected = teleportOutOfCombat(
       p, spell, day, ctx, { prior, priorExpiresDay, priorLen,
-        expiresDay });
+        expiresDay, free });
     if (rejected) return rejected;
     return { ok: true, spell, expiresDay };
   }
 
   // 000235.04: self-rollback отказа (D3).
   function castFail(p, spell, info) {
-    p.mp += spell['мани'] || 0;
+    if (!info.free) p.mp += spell['мани'] || 0;
     const eff = p.outOfCombatEffects;
     if (info.expiresDay !== null) {
       if (info.prior >= 0) {
