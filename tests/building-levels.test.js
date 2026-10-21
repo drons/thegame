@@ -1993,3 +1993,91 @@ test('000222-R16. vm e2e ментор 38: build-38 (80 з., −Горечавк�
   assert.ok(hudText(h).includes('Наставник передал: «Магический щит»'),
     'RED: flash обучения: ' + hudText(h).slice(0, 300));
 });
+
+// ============================================================
+// 000222.01 (ретро-правки 000222): тестовые пины — findings 12/13/14.
+// Зелёные с рождения (кода не добавляют — фиксируют СУЩЕСТВУЮЩЕЕ
+// поведение; существующие R1–R18 — без единой правки, добавление
+// только в конец файла). Контракты:
+// memory/000222.01-retro-spec-pins.md §3 (RA/RB/RC).
+// ============================================================
+
+test('000222.01-R1. isLevelableBuilding: прогон по ВСЕМ записям каталога (B.BUILDINGS) — отсортированное множество id deepEqual [1, 2, 3, 4, 38, 44, 55] (дрейф-гард: лавки 1/2/3/4/44 — kinds≠null; наставник 38 — .стройка; хранилище 55)', () => {
+  const ids = B.BUILDINGS
+    .filter((b) => C.isLevelableBuilding(b))
+    .map((b) => b.id)
+    .sort((a, b) => a - b);
+  assert.deepEqual(ids, [1, 2, 3, 4, 38, 44, 55],
+    'дрейф levelable-множества каталога (новая лавка/стройка с .стройка ' +
+      '+ level-эффектом) — пин ломается ОСОЗНАННО, репин по новому ' +
+      'факту (memory 000222.01 §5)');
+});
+
+test("000222.01-R2. R13 + гарды upgrade: (a) record level:7 → flash ТОЛЬКО ['Эту постройку нельзя улучшить'], gold 1000/record level:7 НЕ изменены, saveNow=0; (b) t.cityAnchor=null → flash ['Город не найден (якорь не решён) — улучшение невозможно'], saveNow=0", () => {
+  // (a) level 7 (MAX) — upgradeBuildingAt → null (re-check, :1573-1576).
+  const t = initBLFixture({
+    x: 1, y: 1,
+    cityContents: [{ x: 1, y: 1, buildingId: 55, player: true }],
+  });
+  wireCityAnchor(t, 100, -40);
+  t.deps.cityStates = new Map([['100,-40',
+    { lastVisitDay: 5, stock: {}, built: [
+      { x: 1, y: 1, buildingId: 55, player: true, level: 7 },
+    ] }]]);
+  t.hero.gold = 1000;
+  t.BA.onBuildingAction({ id: 'upgrade' },
+    { x: 1, y: 1, cityAnchor: '100,-40' }, B.getBuilding(55), null);
+  assert.deepEqual(t.counters.flash, ['Эту постройку нельзя улучшить'],
+    'flash-отказ: level ≥ MAX_BUILDING_LEVEL=7 → upgradeBuildingAt null');
+  assert.equal(t.hero.gold, 1000, 'золото НЕ тронуто (отказ)');
+  assert.deepEqual(t.deps.cityStates.get('100,-40').built[0],
+    { x: 1, y: 1, buildingId: 55, player: true, level: 7 },
+    'record НЕ изменён (level:7 — как был)');
+  assert.equal(t.counters.saveNow, 0, 'отказ — без saveNow');
+  // (b) cityAnchor null — ПЕРВЫЙ гард спец-хендлера (:1541-1547).
+  const t2 = initBLFixture({
+    x: 1, y: 1,
+  });
+  t2.BA.onBuildingAction({ id: 'upgrade' },
+    { x: 1, y: 1, cityAnchor: null }, B.getBuilding(55), null);
+  assert.deepEqual(t2.counters.flash,
+    ['Город не найден (якорь не решён) — улучшение невозможно'],
+    'flash-отказ: первый гард (t.cityAnchor null)');
+  assert.equal(t2.counters.saveNow, 0, 'отказ — без saveNow');
+});
+
+test('000222.01-R3. R8 + граничное РАВЕНСТВО гейта ментора: level 5 + фейк L5 → успех (cap max(4,5)=5, 5<=5 — «<=» ≠ «<»); level 5 + фейк L6 → отказ «Наставник: новых заклинаний нет (ранг школы/базовое)» (cap 5 < 6)', () => {
+  const mkCatalog = (spellId) => ({
+    id: 38, название: 'Храм горы',
+    особые_параметры: { наставник: { заклинания: [spellId],
+      цена: 50 } },
+  });
+  const hero = PLR.createCharacter(); // gold 100 ≥ 50
+  const G5 = {
+    Spells: {
+      canLearn: () => ({ ok: true }),
+      getSpell: (id) => (id === 'fake_l5'
+        ? { название: 'Фейк L5', уровень: 5 } : null),
+    },
+  };
+  const r1 = withGame(G5, () => BE.applyMentorSpell(
+    { catalog: mkCatalog('fake_l5'), hero, level: 5 }));
+  assert.deepEqual(r1, {
+    ok: true, success: true, spellId: 'fake_l5', price: 50,
+    message: 'Наставник передал: «Фейк L5»',
+  }, 'level 5 + L5 — РАВЕНСТВО: cap max(4,5)=5, 5<=5 → успех ' +
+    '(регрессия «<=» → «<» проходит R8, но ломает RC)');
+  const G6 = {
+    Spells: {
+      canLearn: () => ({ ok: true }),
+      getSpell: (id) => (id === 'fake_l6'
+        ? { название: 'Фейк L6', уровень: 6 } : null),
+    },
+  };
+  const r2 = withGame(G6, () => BE.applyMentorSpell(
+    { catalog: mkCatalog('fake_l6'), hero, level: 5 }));
+  assert.deepEqual(r2, {
+    ok: false,
+    message: 'Наставник: новых заклинаний нет (ранг школы/базовое)',
+  }, 'level 5 + L6 — cap max(4,5)=5 < 6 → отказ');
+});
