@@ -200,8 +200,10 @@ function (G0, rootRef) {
         + "(000235.02)");
       return;
     }
+    const ctx = (typeof opts.outOfCombatCtx === "function")
+      ? opts.outOfCombatCtx() : {};
     const r = g.Spells.castOutOfCombat(opts.hero, spellId, opts.clock.day,
-      {});
+      ctx);
     if (r && r.ok) { close(); return; }
     const reason = (r && r.reason) ? r.reason : "неизвестное заклинание";
     if (opts.flash) opts.flash(reason);
@@ -233,7 +235,11 @@ function (G0, rootRef) {
     }
     opts = { hero, clock,
       flash: (o && typeof o.flash === "function") ? o.flash : null,
-      startWindow: (o && o.startWindow) ? o.startWindow : null };
+      startWindow: (o && o.startWindow) ? o.startWindow : null,
+      // 000235.04: ctx портала — ФУНКЦИЯ (вызов на каст); null —
+      // skeleton-деградация (до-.04 поведение).
+      outOfCombatCtx: (o && typeof o.outOfCombatCtx === "function")
+        ? o.outOfCombatCtx : null };
     ready = true;
   }
 

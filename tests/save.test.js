@@ -2453,3 +2453,101 @@ test('000230.06 S4: мусор не-объектом в sheet.equipment/equipmen
       'equipmentBonus — как absent');
   }
 });
+
+// --- Задача 000235.04: порталы — hero.portal_marker в сейве ---
+// (контракт memory/000235.04-portals-mechanic.md §6: restore —
+// sanitizePortalMarker (load-clean 000038: молча null, без warn),
+// collectSaveData — hero живым (поле в сейве АВТОМАТИЧЕСКИ при
+// установке), state-зеркало для vm-e2e). RED: строки в main.js нет
+// (source-пин) + roundtrip теряет метку (sanitizeSavedHero —
+// whitelist: поле из сейва не доживает до runtime-героя).
+
+test('000235.04 PM1: restoreFromSave восстанавливает hero.portal_marker через G.Spells.sanitizePortalMarker + state-зеркало (source-пин)', () => {
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const restore = src.slice(src.indexOf('function restoreFromSave'));
+  assert.ok(restore.length > 0, 'restoreFromSave найден в main.js');
+  assert.ok(restore.includes('hero.portal_marker')
+    && restore.includes('G.Spells.sanitizePortalMarker'),
+    'RED: restoreFromSave: hero.portal_marker ← '
+    + 'G.Spells.sanitizePortalMarker (именованное пространство '
+    + 'Game.Spells — регрессия 000045: G.sanitizePortalMarker без '
+    + '.Spells — undefined)');
+  assert.ok(src.includes('portal_marker: hero.portal_marker'),
+    'RED: state-зеркало: portal_marker: hero.portal_marker '
+    + '(после outOfCombatEffects — без этого vm-e2e не читает метку)');
+  const { sanitizePortalMarker } = require('../src/spells.js');
+  assert.equal(typeof sanitizePortalMarker, 'function',
+    'RED: export Spells.sanitizePortalMarker (src/spells.js)');
+  // Поведенческий спот-чек (форма 000038: валидный → каноническая
+  // копия; мусор → null, молча).
+  assert.deepEqual(host(sanitizePortalMarker(
+    { x: 4, y: -2, day: 3, extra: 'x' })), { x: 4, y: -2, day: 3 },
+    'RED: sanitizePortalMarker — валидный → {x, y, day} (копия)');
+  assert.equal(sanitizePortalMarker({ x: 4, y: -2 }), null,
+    'RED: без day → null (молча, без warn)');
+  assert.equal(sanitizePortalMarker('мусор'), null,
+    'RED: мусор → null (без краха)');
+});
+
+test('000235.04 PM2: hero.portal_marker — roundtrip / подделанный сейв / старый сейв → null', async () => {
+  // (a) Roundtrip: метка в сейве → restore → state-зеркало →
+  //     beforeunload → сейв (hero живым) → второй boot → метка цела.
+  const st = makeStorage();
+  const h = bootWithSave(st, { portal_marker: { x: 4, y: -2, day: 3 } });
+  for (let i = 0; i < 5; i++) await h.drain();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const pm = h.sandbox.__game.state.hero.portal_marker;
+  assert.notEqual(pm, undefined,
+    'RED: state-зеркало hero.portal_marker (master: undefined — '
+    + 'whitelist sanitizeSavedHero не даёт полю дожить до runtime)');
+  assert.deepEqual(host(pm), { x: 4, y: -2, day: 3 },
+    'state-зеркало hero.portal_marker — канонический {x, y, day}');
+  h.winListeners['beforeunload'][0]();
+  const parsed = JSON.parse(st.getItem(S.SAVE_KEY));
+  assert.deepEqual(parsed.data.hero.portal_marker,
+    { x: 4, y: -2, day: 3 },
+    'RED: сейв: hero.portal_marker — сериализуется (hero живым)');
+  const h2 = bootWithSave(makeStorage(), null, parsed.data);
+  for (let i = 0; i < 5; i++) await h2.drain();
+  assert.equal(h2.errors.length, 0,
+    'второй boot: ошибок нет: ' + h2.errors.join('; '));
+  const pm2 = h2.sandbox.__game.state.hero.portal_marker;
+  assert.notEqual(pm2, undefined,
+    'второй boot: state-зеркало метки (master: undefined)');
+  assert.deepEqual(host(pm2), { x: 4, y: -2, day: 3 },
+    'второй boot: метка восстановлена из сейва');
+
+  // (b) Подделанный сейв: любые неканонические формы → null, игра
+  //     жива (load-clean: без warn/краха, битый сейв не роняет).
+  for (const v of [
+    'мусор',
+    [4, -2, 3],
+    { x: 4, y: -2 },           // нет day
+    { x: 4, y: -2, day: 0 },   // day < 1
+    { x: 1.5, y: -2, day: 3 }, // дробный x
+  ]) {
+    const stF = makeStorage();
+    const hF = bootWithSave(stF, { portal_marker: v });
+    for (let i = 0; i < 5; i++) await hF.drain();
+    assert.equal(hF.errors.length, 0,
+      'подделка ' + JSON.stringify(v) + ': ошибок загрузки нет: '
+      + hF.errors.join('; '));
+    // null — примитив: прямое сравнение (host() на undefined —
+    // SyntaxError; strictEqual(undefined, null) — осмысленный RED).
+    assert.equal(hF.sandbox.__game.state.hero.portal_marker, null,
+      'RED: подделка ' + JSON.stringify(v) + ' → null (master: '
+      + 'undefined — поля нет)');
+  }
+
+  // (c) Старый сейв (поля нет — JSON выбрасывает undefined) → null.
+  const st3 = makeStorage();
+  const h3 = bootWithSave(st3, { portal_marker: undefined });
+  for (let i = 0; i < 5; i++) await h3.drain();
+  assert.equal(h3.errors.length, 0,
+    'старый сейв: ошибок загрузки нет: ' + h3.errors.join('; '));
+  assert.equal(h3.sandbox.__game.state.hero.portal_marker, null,
+    'RED: старый сейв: portal_marker → null (master: undefined — '
+    + 'поля нет; примитив — прямое сравнение, см. (b))');
+});

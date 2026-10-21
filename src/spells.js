@@ -794,13 +794,14 @@
   // castOutOfCombat(p, spellId, day, ctx) → {ok, spell, expiresDay}
   // или {ok:false, reason}. Проверки ПО ПОРЯДКУ: каталог → книга →
   // флаг вне_боя → days (1..3) → мана. day — день каста (clock.day).
-  // ctx — зарезервирован (каркас switch .04: обработка по spellId),
-  // .02 его игнорирует. Перезаклинание того же spellId — ОБНОВЛЕНИЕ
+  // ctx — форма 000235.04 (x/y, cities, passable, teleport):
+  // телепорт-режимы исполняются через него (диспетч — по действию
+  // 'телепорт' + параметры.mode; неполный ctx — skeleton без эффекта).
+  // Перезаклинание того же spellId — ОБНОВЛЕНИЕ
   // записи in place (expiresDay = day + days), дублей нет; кулдаунов
   // нет — повторный каст в тот же день разрешён. Мгновенные (телепорт)
   // записей не создают (expiresDay = null).
   function castOutOfCombat(p, spellId, day, ctx) {
-    void ctx;
     if (!p || typeof p !== 'object') {
       return { ok: false, reason: 'неизвестное заклинание' };
     }
@@ -818,27 +819,198 @@
       return { ok: false, reason: 'не хватает маны' };
     }
     // Мутации — ПОСЛЕ всех проверок.
-    p.mp -= spell['мани'] || 0;
     if (!Array.isArray(p.outOfCombatEffects)) p.outOfCombatEffects = [];
+    const prior = p.outOfCombatEffects.findIndex(
+      (e) => e && e.spellId === spellId);
+    const priorExpiresDay = prior >= 0
+      ? p.outOfCombatEffects[prior].expiresDay : null;
+    const priorLen = p.outOfCombatEffects.length;
+    p.mp -= spell['мани'] || 0;
     let expiresDay = null;
     if (days !== null) {
       expiresDay = day + days;
-      const i = p.outOfCombatEffects.findIndex(
-        (e) => e && e.spellId === spellId);
-      if (i >= 0) p.outOfCombatEffects[i].expiresDay = expiresDay;
+      if (prior >= 0) p.outOfCombatEffects[prior].expiresDay = expiresDay;
       else p.outOfCombatEffects.push(
         { spellId, expiresDay: expiresDay });
     }
-    // Каркас .04: обработка конкретного заклинания по spellId
-    // (возврат {ok:false, reason} обязан откатить ману и запись
-    // сам — .02 только break).
     switch (spellId) {
       case 'invisibility':
+      case 'gate':
+      case 'stone_anchor':
+      case 'recall':
+      case 'warding_circle':
         break;
       default:
         break;
     }
+    const rejected = teleportOutOfCombat(
+      p, spell, day, ctx, { prior, priorExpiresDay, priorLen,
+        expiresDay });
+    if (rejected) return rejected;
     return { ok: true, spell, expiresDay };
+  }
+
+  // 000235.04: self-rollback отказа (D3).
+  function castFail(p, spell, info) {
+    p.mp += spell['мани'] || 0;
+    const eff = p.outOfCombatEffects;
+    if (info.expiresDay !== null) {
+      if (info.prior >= 0) {
+        eff[info.prior].expiresDay = info.priorExpiresDay;
+      } else if (eff.length > info.priorLen) {
+        eff.splice(info.priorLen);
+      }
+    }
+  }
+
+  // 000235.04: телепорт-режимы (D1/D2).
+  function teleportOutOfCombat(p, spell, day, ctx, info) {
+    if (spell.действие !== 'телепорт') return null;
+    const mode = spell.параметры && spell.параметры.mode;
+    if (mode === 'город') {
+      if (!(ctx && Number.isInteger(ctx.x) && Number.isInteger(ctx.y)
+          && ctx.cities
+          && typeof ctx.passable === 'function'
+          && typeof ctx.teleport === 'function')) {
+        return null;
+      }
+      const c = nearestBuiltCity(ctx.cities, ctx.x, ctx.y);
+      if (!c) {
+        castFail(p, spell, info);
+        return { ok: false, reason: 'нет города с постройками' };
+      }
+      const dest = nearestPassableTile(
+        c.x, c.y, ctx.passable, PORTAL_SEARCH_RADIUS);
+      if (!dest) {
+        castFail(p, spell, info);
+        return { ok: false, reason: 'нет проходимого тайла рядом с городом' };
+      }
+      ctx.teleport(dest.x, dest.y);
+      return null;
+    }
+    if (mode === 'метка_установить') {
+      if (!(ctx && Number.isInteger(ctx.x) && Number.isInteger(ctx.y))) {
+        return null;
+      }
+      p.portal_marker = { x: ctx.x, y: ctx.y, day };
+      return null;
+    }
+    if (mode === 'метка_вернуться') {
+      const m = p.portal_marker;
+      if (!isPlainObject(m) || !Number.isInteger(m.x)
+          || !Number.isInteger(m.y)) {
+        castFail(p, spell, info);
+        return { ok: false, reason: 'метка не установлена' };
+      }
+      if (!(ctx && typeof ctx.passable === 'function'
+          && typeof ctx.teleport === 'function')) {
+        return null;
+      }
+      const dest = nearestPassableTile(
+        m.x, m.y, ctx.passable, PORTAL_SEARCH_RADIUS);
+      if (!dest) {
+        castFail(p, spell, info);
+        return { ok: false, reason: 'нет проходимого тайла рядом с меткой' };
+      }
+      ctx.teleport(dest.x, dest.y);
+      return null;
+    }
+    return null;
+  }
+
+  // --- 000235.04: чистые хелперы порталов (без Game/map/rng) ---
+
+  const PORTAL_SEARCH_RADIUS = 25;
+  const WARDING_SPELL_IDS = new Set(['warding_circle']);
+
+  function isPlainObject(v) {
+    return !!v && typeof v === 'object' && !Array.isArray(v);
+  }
+
+  // 000235.04: ближайший к (x, y) город с built.length > 0
+  // (Чебышёв до ЯКОРЯ; tie → лексико (x, y); НОЛЬ RNG). Map/object
+  // по ключу 'cx,cy'; мусорные ключи/записи — skip.
+  function nearestBuiltCity(cities, x, y) {
+    if (!isPlainObject(cities) || !Number.isInteger(x)
+        || !Number.isInteger(y)) return null;
+    let best = null;
+    const consider = (key, rec) => {
+      if (typeof key !== 'string') return;
+      const m = /^(-?\d+),(-?\d+)$/.exec(key);
+      if (!m) return;
+      if (!isPlainObject(rec) || !Array.isArray(rec.built)
+          || rec.built.length === 0) return;
+      const cx = parseInt(m[1], 10);
+      const cy = parseInt(m[2], 10);
+      const d = Math.max(Math.abs(cx - x), Math.abs(cy - y));
+      if (best === null || d < best.d
+          || (d === best.d && (cx < best.x
+              || (cx === best.x && cy < best.y)))) {
+        best = { x: cx, y: cy, d };
+      }
+    };
+    if (cities instanceof Map) {
+      for (const [k, v] of cities) consider(k, v);
+    } else {
+      for (const [k, v] of Object.entries(cities)) consider(k, v);
+    }
+    return best;
+  }
+
+  // 000235.04: ближайший проходимый тайл от (ax, ay) — спираль
+  // Чебышёва в ПОРЯДКЕ findSpawn (кольцо r; dx внешний, dy
+  // внутренний; первый passable). maxR включительно; нет → null.
+  function nearestPassableTile(ax, ay, passable, maxR) {
+    if (!Number.isInteger(ax) || !Number.isInteger(ay)
+        || !Number.isInteger(maxR) || maxR < 0
+        || typeof passable !== 'function') return null;
+    for (let r = 0; r <= maxR; r++) {
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dy = -r; dy <= r; dy++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const tx = ax + dx;
+          const ty = ay + dy;
+          if (passable(tx, ty)) return { x: tx, y: ty };
+        }
+      }
+    }
+    return null;
+  }
+
+  // 000235.04: радиус активной зоны защиты героя в день day
+  // (max параметров.radius по АКТИВНЫМ записям с spellId из
+  // WARDING_SPELL_IDS; expiresDay > day; radius невалидный/
+  // отсутствует → дефолт 5; нет активных → 0). Каталог — ленивым
+  // lookup (live-референс SPELLS_BY_ID).
+  function wardRadius(p, day) {
+    if (!isPlainObject(p) || !Array.isArray(p.outOfCombatEffects)) {
+      return 0;
+    }
+    let best = 0;
+    for (const e of p.outOfCombatEffects) {
+      if (!isPlainObject(e)) continue;
+      if (!WARDING_SPELL_IDS.has(e.spellId)) continue;
+      if (typeof e.expiresDay !== 'number' || e.expiresDay <= day) {
+        continue;
+      }
+      const spell = SPELLS_BY_ID[e.spellId];
+      const radius = (spell && isPlainObject(spell.параметры))
+        ? spell.параметры.radius : undefined;
+      const r = (typeof radius === 'number' && Number.isInteger(radius)
+        && radius >= 1 && radius <= 5) ? radius : 5;
+      if (r > best) best = r;
+    }
+    return best;
+  }
+
+  // 000235.04: hero.portal_marker из (подделанного) сейва:
+  // валидный {x, y, day} → каноническая КОПИЯ; иначе null (молча,
+  // load-clean 000038).
+  function sanitizePortalMarker(v) {
+    if (!isPlainObject(v)) return null;
+    if (!Number.isInteger(v.x) || !Number.isInteger(v.y)
+        || !Number.isInteger(v.day) || v.day < 1) return null;
+    return { x: v.x, y: v.y, day: v.day };
   }
 
   // expireOutOfCombatEffects(effects, day) → НОВЫЙ массив без
@@ -916,5 +1088,7 @@
     castOutOfCombat, expireOutOfCombatEffects,
     sanitizeOutOfCombatEffects,
     isHeroInvisible, clearInvisibility,
+    nearestBuiltCity, nearestPassableTile, wardRadius,
+    sanitizePortalMarker, PORTAL_SEARCH_RADIUS,
   };
 });

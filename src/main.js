@@ -253,6 +253,9 @@
   // 000235.02: активные эффекты каста вне боя [{spellId, expiresDay}]
   // (опциональное поле v1; restore — санитайзером из Game.Spells).
   hero.outOfCombatEffects = [];
+  // 000235.04: портальная метка {x, y, day} (одна, перезаписываемая;
+  // restore — sanitizePortalMarker; null — метки нет).
+  hero.portal_marker = null;
   G.playerUI && G.playerUI.setCharacter(hero);
   // 000194: карта быстрых предметов союзников { memberId
   // ('efir'|npcId) → [itemId|null]×3 } — ЛАЙВ-объект: [I]-панель
@@ -964,6 +967,11 @@
               && G.Spells.sanitizeOutOfCombatEffects)
             ? G.Spells.sanitizeOutOfCombatEffects(
                 d.hero.outOfCombatEffects) : [];
+          // 000235.04: портальная метка — опциональное поле сейва v1
+          // (старый сейв → undefined → null; подделка → null, молча).
+          hero.portal_marker = (G.Spells
+              && typeof G.Spells.sanitizePortalMarker === 'function')
+            ? G.Spells.sanitizePortalMarker(d.hero.portal_marker) : null;
           // Крафт (задача 000046): новые ОПЦИОНАЛЬНЫЕ поля сейва
           // (без повышения версии, 000031) — старым сейвам полей нет →
           // дефолты; подделанные значения чистятся санитизерами
@@ -1897,7 +1905,21 @@
   // (hoisting); startWindow (000138) — в блок-списке модуля (книга не
   // открывается, пока показано стартовое окно).
   if (G.spellbookOC) {
-    G.spellbookOC.init({ hero, clock, flash, startWindow });
+    G.spellbookOC.init({ hero, clock, flash, startWindow,
+      // 000235.04: ctx портала — функция (вызов на КАСТ: map — let,
+      // переприсваивается при загрузке мира; x/y — свежие).
+      outOfCombatCtx: () => ({
+        x: player.x, y: player.y,
+        cities: cityStates,
+        passable: (tx, ty) => {
+          const t = map && map.tileAt(tx, ty);
+          return !!(t && t.passable && !t.inBuilding
+            && !(t.hasMobGroup
+              && !defeatedAt.has(tx + ',' + ty)));
+        },
+        teleport: (tx, ty) => { moveHero(tx, ty); saveNow(); },
+      }),
+    });
   } else {
     console.error('main.js: книга вне боя (000235.02) — Game.spellbookOC '
       + 'отсутствует — src/spellbook-oc.js обязан грузиться ДО '
@@ -2149,10 +2171,19 @@
   // героя: причина» (ТЗ п.5; .04 — зональная ветка warding_circle
   // по аргументу zone, Чебышёв ≤ 5).
   function zoneSuppressedReason(zone) {
-    void zone;
     if (G.Spells && typeof G.Spells.isHeroInvisible === 'function'
         && G.Spells.isHeroInvisible(hero, clock.day)) {
       return 'невидимость';
+    }
+    // 000235.04: круг защиты — зональная ветка (zone = тайл группы,
+    // Чебышёв(зона, герой) ≤ wardRadius(hero, day)).
+    if (zone && G.Spells && typeof G.Spells.wardRadius === 'function') {
+      const r = G.Spells.wardRadius(hero, clock.day);
+      if (r > 0) {
+        const d = Math.max(Math.abs(player.x - zone.x),
+                           Math.abs(player.y - zone.y));
+        if (d <= r) return 'круг защиты';
+      }
     }
     return null;
   }
@@ -2161,11 +2192,15 @@
   // общий скан (бой + HUD). Тихий гард — ошибка уже видна при
   // загрузке. 000235.03: невидимый герой — findZoneCombat НЕ
   // вызывается (zone-бой и HUD «— зона» гаснут одной точкой).
+  // 000235.04: зона под кругом защиты — та же точка (после скана,
+  // по найденной зоне).
   function zoneCombatInfo() {
     if (typeof G.findZoneCombat !== 'function') return null;
     if (zoneSuppressedReason()) return null;
-    return G.findZoneCombat(player.x, player.y,
+    const z = G.findZoneCombat(player.x, player.y,
       nearbyGroupTiles(), defeatedAt);
+    if (z && zoneSuppressedReason(z)) return null;
+    return z;
   }
 
   // 000135: тайл zone-боя (тайл ГРУППЫ) или null.
@@ -3611,6 +3646,9 @@
           // задаёт массив → здесь просто значение героя (паттерн
           // spells/craft, 000046).
           outOfCombatEffects: hero.outOfCombatEffects,
+          // 000235.04: портальная метка — restore всегда задаёт
+          // {x, y, day} | null (паттерн spells/craft, 000046).
+          portal_marker: hero.portal_marker,
           // Крафт (задача 000046): опциональные поля — restoreFromSave
           // всегда задаёт дефолты ({} / {} / {weapon:null,armor:null}),
           // поэтому здесь просто значения героя.

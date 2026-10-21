@@ -2664,3 +2664,496 @@ test('000235.03 IV4: снятие-примитив (триггеры «атак�
     popOcGuests(dataMod, [inv, out]);
   }
 });
+
+// --- Задача 000235.04: порталы — механика 4 заклинаний (TDD: красные) ---
+//
+// 5 НОВЫХ экспортов src/spells.js + 4 маркер-кейса в switch
+// castOutOfCombat + внутренний диспетчер teleportOutOfCombat (контракт:
+// memory/000235.04-portals-mechanic.md §3-§5, D1-D14):
+//   * nearestBuiltCity(cities, x, y) → {x, y, d} | null — Чебышёв до
+//     ЯКОРЯ, built.length > 0, tie → лексико (x, y), НОЛЬ RNG (D7);
+//   * nearestPassableTile(ax, ay, passable, maxR) → {x, y} | null —
+//     спираль findSpawn-порядком (кольцо r, dx внешний, dy внутренний);
+//   * PORTAL_SEARCH_RADIUS = 25 (D5);
+//   * wardRadius(p, day) → 0..5 — max параметров.radius по АКТИВНЫМ
+//     записям с spellId ∈ {'warding_circle'} (матчинг по spellId — D8;
+//     невалидный/отсутствующий radius → дефолт 5);
+//   * sanitizePortalMarker(v) → {x, y, day} | null — каноническая
+//     КОПИЯ, молча (load-clean 000038).
+// Диспетч — по ДЕЙСТВИЮ 'телепорт' + параметры.mode (D1); switch-кейсы
+// gate/stone_anchor/recall/warding_circle — маркеры реальных future-ids
+// (контент — волна .11). Skeleton-деградация (D2): ctx неполон для
+// режима → ok:true, мана ПОТРАЧЕНА, без эффекта, без отказа (P-a:
+// OC1 остаётся зелёным). Отказ — ПОСЛЕ мутаций, точный self-rollback
+// (D3). Гости — РЕАЛЬНЫЕ future-ids; инъекция в try/finally (пины
+// «ровно 17» не трогаются); синтетический ctx формы контракта §2.1.
+// RED осмысленная: экспорты отсутствуют (assert typeof — не
+// синтаксис); switch-кейсы отсутствуют (ok без эффекта/без reason).
+
+function portalGuest0235(id, over = {}) {
+  return Object.assign({
+    id,
+    название: 'Тестовое заклинание (000235.04)',
+    школа: 'тень',
+    база: null,
+    степень: 1,
+    атрибут: 'intelligence',
+    уровень: 2,
+    мани: 5,
+    действие: 'телепорт',
+    вне_боя: true,
+    параметры: { mode: 'город' },
+    здания: ['assets/buildings/000001.json'],
+    описание: 'Тестовое заклинание (000235.04)',
+    icon: 'assets/spell-icons/ghost.svg',
+    icon_prompt: 'Тестовая иконка (000235.04)',
+  }, over);
+}
+
+// Синтетический ctx формы контракта §2.1 (main.js → книга → spells.js):
+// x/y — позиция каста, cities — Map/object по 'cx,cy', passable-оракул
+// (000075 + defeatedAt), teleport — исполнитель (moveHero + saveNow).
+function makeCtx(over = {}) {
+  const calls = [];
+  return {
+    calls,
+    ctx: Object.assign({
+      x: 0, y: 0,
+      cities: new Map(),
+      passable: () => true,
+      teleport: (tx, ty) => { calls.push([tx, ty]); },
+    }, over),
+  };
+}
+
+test('000235.04 H1: nearestBuiltCity — ближайший по Чебышёву до якоря; несколько городов → ближайший; tie → лексико (x, затем y); built пустой/отсутствует/не массив/запись не объект → не кандидат; мусорный ключ/запись → skip; нет кандидатов → null; Map + plain object; детерминизм (повтор — то же, НОЛЬ RNG)', () => {
+  const { nearestBuiltCity } = loadSpells();
+  assert.equal(typeof nearestBuiltCity, 'function',
+    '000235.04: export Spells.nearestBuiltCity (src/spells.js)');
+  const b = { x: 1, y: 2, buildingId: 4 };
+  const m = new Map([
+    ['20,-16', { name: 'А', built: [b] }],
+    ['5,10', { name: 'Б', built: [b] }],
+  ]);
+  assert.deepEqual(nearestBuiltCity(m, 0, 0), { x: 5, y: 10, d: 10 },
+    'несколько городов — ближайший по Чебышёву до ЯКОРЯ '
+    + '(5,10: d=10 < 20,-16: d=20)');
+  assert.deepEqual(nearestBuiltCity(m, 20, -16), { x: 20, y: -16, d: 0 },
+    'герой у якоря города → d=0, тот город');
+  const tie = new Map([
+    ['7,5', { built: [b] }],
+    ['5,7', { built: [b] }],
+  ]);
+  assert.deepEqual(nearestBuiltCity(tie, 0, 0), { x: 5, y: 7, d: 7 },
+    'tie (оба d=7) → лексикографически (x, затем y): (5,7) < (7,5)');
+  const noCand = new Map([
+    ['1,1', { built: [] }],        // built пустой
+    ['2,2', {}],                    // built отсутствует
+    ['3,3', { built: 'нет_массива' }], // built не массив
+    ['4,4', 'мусорная_запись'],     // запись не plain object
+    ['5,5', null],                  // запись null
+    ['мусорный-ключ', { built: [b] }], // ключ не 'cx,cy'
+  ]);
+  assert.equal(nearestBuiltCity(noCand, 0, 0), null,
+    'нет кандидатов → null (все формы мусора — skip, без краха)');
+  const plain = { '5,10': { built: [b] }, 'мусор': { built: 'нет' } };
+  assert.deepEqual(nearestBuiltCity(plain, 0, 0), { x: 5, y: 10, d: 10 },
+    'plain object принимается (не только Map)');
+  for (let i = 0; i < 5; i++) {
+    assert.deepEqual(nearestBuiltCity(m, 0, 0), { x: 5, y: 10, d: 10 },
+      'повторный вызов i=' + i + ' — тот же результат (НОЛЬ RNG)');
+  }
+});
+
+test('000235.04 H2: nearestPassableTile — anchor сам (если passable); blocked → первое в findSpawn-порядке (кольцо r, dx внешний, dy внутренний); все blocked ≤ maxR → null; за maxR не ходит', () => {
+  const { nearestPassableTile } = loadSpells();
+  assert.equal(typeof nearestPassableTile, 'function',
+    '000235.04: export Spells.nearestPassableTile (src/spells.js)');
+  const open = () => true;
+  assert.deepEqual(nearestPassableTile(5, 5, open, 25), { x: 5, y: 5 },
+    'anchor проходима → сам anchor (r=0)');
+  const onlyAt = (tx, ty) => (x, y) => x === tx && y === ty;
+  assert.deepEqual(nearestPassableTile(5, 5, onlyAt(6, 5), 25),
+    { x: 6, y: 5 }, 'anchor blocked → первый passable (6,5)');
+  // Кольцо r=1 findSpawn-порядком: (-1,-1),(-1,0),(-1,1),(0,-1),(0,1),
+  // (1,-1),(1,0),(1,1)
+  assert.deepEqual(nearestPassableTile(5, 5, onlyAt(4, 4), 25),
+    { x: 4, y: 4 }, 'первая клетка кольца r=1 — (-1,-1)');
+  assert.deepEqual(nearestPassableTile(5, 5, onlyAt(5, 6), 25),
+    { x: 5, y: 6 }, 'порядок кольца: (0,+1) — своя очередь (не r>1)');
+  const two = (x, y) => (x === 6 && y === 4) || (x === 4 && y === 4);
+  assert.deepEqual(nearestPassableTile(5, 5, two, 25), { x: 4, y: 4 },
+    'два кандидата в одном кольце → первый в порядке (dx, dy)');
+  assert.deepEqual(nearestPassableTile(5, 5, onlyAt(7, 5), 2),
+    { x: 7, y: 5 }, 'passable ровно на maxR=2 → найдена');
+  assert.equal(nearestPassableTile(5, 5, onlyAt(8, 5), 2), null,
+    'passable только за maxR (r=3 > 2) → null (не ходит дальше)');
+  assert.equal(nearestPassableTile(5, 5, () => false, 25), null,
+    'все blocked ≤ maxR → null');
+});
+
+test('000235.04 G1: gate — выбран ближайший built-город по Чебышёву, телепорт на тайл кольца вокруг якоря (anchor проходима → якорь; blocked → первая клетка кольца); детерминизм (повтор — тот же)', () => {
+  const dataMod = loadSpellsData();
+  const gate = portalGuest0235('gate'); // телепорт, mode «город»
+  try {
+    pushOcGuests(dataMod, [gate]);
+    const { castOutOfCombat } = loadSpells();
+    const b = { x: 1, y: 2, buildingId: 4 };
+    const cities = new Map([
+      ['20,-16', { built: [b] }],
+      ['5,10', { built: [b] }],
+    ]);
+    const p = spellHero({ spells: [gate.id], mp: 30 });
+    const m1 = makeCtx({ x: 0, y: 0, cities });
+    const r1 = castOutOfCombat(p, gate.id, 10, m1.ctx);
+    assert.equal(r1.ok, true, 'gate с built-городами — ok');
+    assert.equal(r1.expiresDay, null, 'телепорт — записей нет (days null)');
+    assert.equal(p.mp, 25, 'мана ровно «мани» (5)');
+    assert.deepEqual(p.outOfCombatEffects, [], 'телепорт — записей НЕТ');
+    assert.deepEqual(m1.calls, [[5, 10]],
+      'RED: телепорт в ближайший built-якорь (5,10: d=10 < 20); '
+      + 'passable открыт → сам якорь (master: кейса нет — телепорта нет)');
+    const p2 = spellHero({ spells: [gate.id], mp: 30 });
+    const m2 = makeCtx({
+      x: 0, y: 0, cities,
+      passable: (x, y) => !(x === 5 && y === 10),
+    });
+    const r2 = castOutOfCombat(p2, gate.id, 10, m2.ctx);
+    assert.equal(r2.ok, true, 'якорь blocked — всё равно ок');
+    assert.deepEqual(m2.calls, [[4, 9]],
+      'RED: якорь blocked → первая клетка кольца r=1 (findSpawn-порядок: '
+      + '(-1,-1)) — (4,9)');
+    const p3 = spellHero({ spells: [gate.id], mp: 30 });
+    const m3 = makeCtx({ x: 0, y: 0, cities });
+    assert.equal(castOutOfCombat(p3, gate.id, 10, m3.ctx).ok, true);
+    assert.deepEqual(m3.calls, [[5, 10]],
+      'повторный каст — та же цель (детерминизм, НОЛЬ RNG)');
+  } finally {
+    popOcGuests(dataMod, [gate]);
+  }
+});
+
+test('000235.04 G2: gate — городов с постройками НЕТ → отказ «нет города с постройками»; mp ОТКАТНУТ; телепорт НЕ вызван; записей нет', () => {
+  const dataMod = loadSpellsData();
+  const gate = portalGuest0235('gate');
+  try {
+    pushOcGuests(dataMod, [gate]);
+    const { castOutOfCombat } = loadSpells();
+    const cities = new Map([
+      ['1,1', { built: [] }],            // built пустой — не кандидат
+      ['2,2', { name: 'Без построек' }], // built отсутствует — не кандидат
+    ]);
+    const p = spellHero({ spells: [gate.id], mp: 30 });
+    const m = makeCtx({ x: 0, y: 0, cities });
+    const r = castOutOfCombat(p, gate.id, 10, m.ctx);
+    assert.equal(r.ok, false,
+      'RED: отказ (master: кейса нет — ок без эффекта, мана сжата)');
+    assert.equal(r.reason, 'нет города с постройками',
+      'причина ДЕСЛОВНО по ТЗ');
+    assert.equal(p.mp, 30, 'mp ОТКАТНУТ (castFail: мана до switch)');
+    assert.equal(m.calls.length, 0, 'телепорт НЕ вызван');
+    assert.deepEqual(p.outOfCombatEffects, [], 'записей нет (отказ)');
+  } finally {
+    popOcGuests(dataMod, [gate]);
+  }
+});
+
+test('000235.04 SA1: stone_anchor — метка {x, y, day} на тайле каста (day = день каста); герой НЕ сдвинулся; записей НЕТ; повторный каст = ПЕРЕЗАПИСЬ (один объект, день обновлён); без ctx → ok, метка не создана (skeleton)', () => {
+  const dataMod = loadSpellsData();
+  const anchor = portalGuest0235('stone_anchor',
+    { параметры: { mode: 'метка_установить' } });
+  try {
+    pushOcGuests(dataMod, [anchor]);
+    const { castOutOfCombat } = loadSpells();
+    const p = spellHero({ spells: [anchor.id], mp: 30 });
+    const m = makeCtx({ x: 7, y: -3 });
+    const r = castOutOfCombat(p, anchor.id, 5, m.ctx);
+    assert.equal(r.ok, true, 'метка установлена — ok');
+    assert.deepEqual(p.portal_marker, { x: 7, y: -3, day: 5 },
+      'RED: p.portal_marker = {x, y, day} тайла каста (day = день каста; '
+      + 'master: поля нет)');
+    assert.equal(m.calls.length, 0, 'герой НЕ сдвинулся (телепорта нет)');
+    assert.deepEqual(p.outOfCombatEffects, [], 'записей НЕТ (телепорт)');
+    assert.equal(p.mp, 25, 'мана ровно «мани» (5)');
+    const m2 = makeCtx({ x: 9, y: 1 });
+    assert.equal(castOutOfCombat(p, anchor.id, 6, m2.ctx).ok, true);
+    assert.deepEqual(p.portal_marker, { x: 9, y: 1, day: 6 },
+      'повторный каст — ПЕРЕЗАПИСЬ (один объект, день обновлён)');
+    assert.equal(m2.calls.length, 0, 'повтор — герой не сдвинут');
+    const p2 = spellHero({ spells: [anchor.id], mp: 30 });
+    const r2 = castOutOfCombat(p2, anchor.id, 5); // без ctx
+    assert.equal(r2.ok, true, 'без ctx — skeleton ok (D2: поведение .02)');
+    assert.equal(p2.mp, 25, 'skeleton: мана ПОТРАЧЕНА');
+    assert.equal(p2.portal_marker, undefined, 'skeleton: метка НЕ создана');
+  } finally {
+    popOcGuests(dataMod, [anchor]);
+  }
+});
+
+test('000235.04 RC1: recall — с меткой: телепорт к ближайшему проходимому тайлу (метка проходима → сама метка; blocked → первая в спирали); записей НЕТ', () => {
+  const dataMod = loadSpellsData();
+  const recall = portalGuest0235('recall',
+    { параметры: { mode: 'метка_вернуться' } });
+  try {
+    pushOcGuests(dataMod, [recall]);
+    const { castOutOfCombat } = loadSpells();
+    const p = spellHero({ spells: [recall.id], mp: 30 });
+    p.portal_marker = { x: 12, y: 8, day: 1 };
+    const m = makeCtx();
+    const r = castOutOfCombat(p, recall.id, 10, m.ctx);
+    assert.equal(r.ok, true, 'recall с меткой — ok');
+    assert.deepEqual(m.calls, [[12, 8]],
+      'RED: телепорт к метке (метка проходима → сама метка; master: '
+      + 'кейса нет — телепорта нет)');
+    assert.deepEqual(p.outOfCombatEffects, [], 'записей НЕТ (телепорт)');
+    assert.equal(p.mp, 25, 'мана ровно «мани» (5)');
+    const p2 = spellHero({ spells: [recall.id], mp: 30 });
+    p2.portal_marker = { x: 12, y: 8, day: 1 };
+    const m2 = makeCtx({ passable: (x, y) => !(x === 12 && y === 8) });
+    const r2 = castOutOfCombat(p2, recall.id, 10, m2.ctx);
+    assert.equal(r2.ok, true, 'метка на blocked-тайле — всё равно ок');
+    assert.deepEqual(m2.calls, [[11, 7]],
+      'RED: метка blocked → первая клетка кольца r=1 вокруг метки '
+      + '(findSpawn-порядок: (-1,-1)) — (11,7)');
+  } finally {
+    popOcGuests(dataMod, [recall]);
+  }
+});
+
+test('000235.04 RC2: recall — без метки → отказ «метка не установлена» + mp-откат + герой не сдвинулся; битая метка — тот же отказ (проверка ИДЁТ ПЕРВОЙ); метка + без ctx → skeleton ok (без эффекта); проходимого ≤25 нет → «нет проходимого тайла рядом с меткой» + откат', () => {
+  const dataMod = loadSpellsData();
+  const recall = portalGuest0235('recall',
+    { параметры: { mode: 'метка_вернуться' } });
+  try {
+    pushOcGuests(dataMod, [recall]);
+    const { castOutOfCombat } = loadSpells();
+    const p = spellHero({ spells: [recall.id], mp: 30 });
+    const m = makeCtx();
+    const r = castOutOfCombat(p, recall.id, 10, m.ctx);
+    assert.equal(r.ok, false,
+      'RED: отказ (master: кейса нет — ок без эффекта)');
+    assert.equal(r.reason, 'метка не установлена', 'причина ДЕСЛОВНО по ТЗ');
+    assert.equal(p.mp, 30, 'mp ОТКАТНУТ');
+    assert.equal(m.calls.length, 0, 'герой не сдвинулся');
+    assert.deepEqual(p.outOfCombatEffects, [], 'записей нет');
+    const pJ = spellHero({ spells: [recall.id], mp: 30 });
+    pJ.portal_marker = 'мусор';
+    const mJ = makeCtx();
+    const rJ = castOutOfCombat(pJ, recall.id, 10, mJ.ctx);
+    assert.equal(rJ.ok, false, 'битая метка — валидная НЕТ');
+    assert.equal(rJ.reason, 'метка не установлена',
+      'проверка метки ИДЁТ ПЕРВОЙ (игровая причина)');
+    assert.equal(mJ.calls.length, 0, 'битая метка — телепорта нет');
+    const p2 = spellHero({ spells: [recall.id], mp: 30 });
+    p2.portal_marker = { x: 1, y: 1, day: 1 };
+    const r2 = castOutOfCombat(p2, recall.id, 10); // метка есть, ctx нет
+    assert.equal(r2.ok, true, 'метка есть + без ctx — skeleton ok (D2)');
+    assert.equal(p2.mp, 25, 'skeleton: мана ПОТРАЧЕНА');
+    const p3 = spellHero({ spells: [recall.id], mp: 30 });
+    p3.portal_marker = { x: 12, y: 8, day: 1 };
+    const m3 = makeCtx({ passable: () => false });
+    const r3 = castOutOfCombat(p3, recall.id, 10, m3.ctx);
+    assert.equal(r3.ok, false, 'degenerate: проходимого в ≤25 нет');
+    assert.equal(r3.reason, 'нет проходимого тайла рядом с меткой');
+    assert.equal(p3.mp, 30, 'mp ОТКАТНУТ (degenerate-отказ)');
+    assert.equal(m3.calls.length, 0, 'телепорт НЕ вызван');
+  } finally {
+    popOcGuests(dataMod, [recall]);
+  }
+});
+
+test('000235.04 WD1: warding_circle — каст → запись {spellId, expiresDay: day+1} (generic-ядро .02); wardRadius: активный r=5 → 5 (зона d≤5 — супрессия: d ≤ r); ЧУЖОЙ id (даже «внебой» c radius) → 0 (матчинг по spellId — D8)', () => {
+  const dataMod = loadSpellsData();
+  const ward = portalGuest0235('warding_circle', {
+    действие: 'внебой', параметры: { days: 1, radius: 5 },
+  });
+  const other = portalGuest0235('wd1_other', {
+    действие: 'внебой', параметры: { days: 1, radius: 5 },
+  });
+  try {
+    pushOcGuests(dataMod, [ward, other]);
+    const { castOutOfCombat, wardRadius } = loadSpells();
+    assert.equal(typeof wardRadius, 'function',
+      '000235.04: export Spells.wardRadius (src/spells.js)');
+    const day = 10;
+    const p = spellHero({ spells: [ward.id, other.id], mp: 60 });
+    const r = castOutOfCombat(p, ward.id, day);
+    assert.equal(r.ok, true, 'warding_circle — каст ok');
+    assert.equal(r.expiresDay, day + 1, 'days 1 → expiresDay = day+1');
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: ward.id, expiresDay: day + 1 }],
+      'запись generic-ядром .02');
+    assert.equal(p.mp, 55, 'мана ровно «мани» (5)');
+    assert.equal(wardRadius(p, day), 5,
+      'RED: активный warding r=5 → 5 (зона d≤5 — супрессия: d ≤ r; '
+      + 'master: экспорта нет)');
+    assert.equal(castOutOfCombat(p, other.id, day).ok, true,
+      'чужой «внебой» тоже кастуется (ядро .02)');
+    assert.equal(wardRadius(p, day), 5,
+      'свой warding при активном чужом — всё ещё 5 (иды различаются)');
+    const p2 = spellHero({ spells: [other.id], mp: 30 });
+    assert.equal(castOutOfCombat(p2, other.id, day).ok, true);
+    assert.equal(wardRadius(p2, day), 0,
+      'RED: чужой id («внебой» c radius 5) → 0 — матчинг по spellId, '
+      + 'НЕ по действию (D8: «внебой» у 14+ спеллов)');
+    assert.equal(wardRadius({ outOfCombatEffects:
+      [{ spellId: other.id, expiresDay: day + 2 }] }, day), 0,
+      'прямая запись чужого id — тоже 0 (без каста)');
+  } finally {
+    popOcGuests(dataMod, [ward, other]);
+  }
+});
+
+test('000235.04 WD2: wardRadius — граница expiresDay = day → 0; < day → 0; две активные → max; «невидимость» c radius → 0; radius — из каталога ленивым lookup (1..5 — значение, невалидный/отсутствует → дефолт 5); [] / нет поля / мусор → 0; детерминизм', () => {
+  const dataMod = loadSpellsData();
+  const day = 10;
+  const rec = (expiresDay) => ({ spellId: 'warding_circle', expiresDay });
+  const mkWard = (over) => portalGuest0235('warding_circle',
+    Object.assign(
+      { действие: 'внебой', параметры: { days: 1, radius: 5 } }, over));
+  const ward5 = mkWard({});
+  const inv = portalGuest0235('wd2_inv', {
+    действие: 'невидимость', параметры: { days: 1, radius: 5 },
+  });
+  try {
+    pushOcGuests(dataMod, [ward5, inv]);
+    const { wardRadius } = loadSpells();
+    assert.equal(typeof wardRadius, 'function',
+      '000235.04: export Spells.wardRadius (src/spells.js)');
+    assert.equal(wardRadius({ outOfCombatEffects: [rec(day)] }, day), 0,
+      'RED: ГРАНИЦА expiresDay = day → 0 (зеркало истечения .02)');
+    assert.equal(wardRadius({ outOfCombatEffects: [rec(day - 1)] }, day), 0,
+      'expiresDay < day → 0');
+    assert.equal(wardRadius({ outOfCombatEffects: [rec(day + 1)] }, day), 5,
+      'expiresDay = day+1 → 5 (активный)');
+    assert.equal(wardRadius({ outOfCombatEffects:
+      [rec(day + 1), rec(day + 2)] }, day), 5,
+      'две активные записи → max (обе 5)');
+    assert.equal(wardRadius({ outOfCombatEffects:
+      [rec(day), rec(day + 1)] }, day), 5,
+      'истёкшая + активная → радиус АКТИВНОЙ');
+    assert.equal(wardRadius({ outOfCombatEffects:
+      [{ spellId: inv.id, expiresDay: day + 1 }] }, day), 0,
+      '«невидимость» (даже c radius 5) → 0 (ид не в наборе, D8)');
+    assert.equal(wardRadius({ outOfCombatEffects: [] }, day), 0,
+      '[] → 0');
+    assert.equal(wardRadius({}, day), 0, 'нет поля → 0');
+    assert.equal(wardRadius(null, day), 0, 'hero = null → 0');
+    assert.equal(wardRadius({ outOfCombatEffects: 'бито' }, day), 0,
+      'effects не массив → 0');
+    assert.equal(wardRadius({ outOfCombatEffects:
+      [null, 'мусор', 42,
+       { spellId: 'нет_такого_заклинания', expiresDay: day + 1 },
+       { expiresDay: day + 1 }] }, day), 0,
+      'мусор-записи → 0 без краха');
+    const p = { outOfCombatEffects: [rec(day + 1)] };
+    for (let i = 0; i < 5; i++) {
+      assert.equal(wardRadius(p, day), 5, 'повторный вызов i=' + i
+        + ' — стабильно (без RNG)');
+    }
+  } finally {
+    popOcGuests(dataMod, [ward5, inv]);
+  }
+  for (const [radius, expected] of [[1, 1], [3, 3], [5, 5]]) {
+    const wr = mkWard({ параметры: { days: 1, radius } });
+    try {
+      pushOcGuests(dataMod, [wr]);
+      const { wardRadius, castOutOfCombat } = loadSpells();
+      const p = spellHero({ spells: [wr.id], mp: 30 });
+      assert.equal(castOutOfCombat(p, wr.id, day).ok, true);
+      assert.equal(wardRadius(p, day), expected,
+        'RED: radius — ЛЕНИВЫМ lookup из каталога (гость r=' + radius
+        + ') → ' + expected + ' (не хардкод 5)');
+    } finally {
+      popOcGuests(dataMod, [wr]);
+    }
+  }
+  for (const radius of ['нет', 9, 0, 1.5, null]) {
+    const wb = mkWard({ параметры: { days: 1, radius } });
+    try {
+      pushOcGuests(dataMod, [wb]);
+      const { wardRadius, castOutOfCombat } = loadSpells();
+      const p = spellHero({ spells: [wb.id], mp: 30 });
+      assert.equal(castOutOfCombat(p, wb.id, day).ok, true,
+        'days валиден — каст ok при мусорном radius: '
+        + JSON.stringify(radius));
+      assert.equal(wardRadius(p, day), 5,
+        'невалидный radius (' + JSON.stringify(radius) + ') → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [wb]);
+    }
+  }
+  const wn = portalGuest0235('warding_circle', {
+    действие: 'внебой', параметры: { days: 1 },
+  });
+  try {
+    pushOcGuests(dataMod, [wn]);
+    const { wardRadius, castOutOfCombat } = loadSpells();
+    const p = spellHero({ spells: [wn.id], mp: 30 });
+    assert.equal(castOutOfCombat(p, wn.id, day).ok, true);
+    assert.equal(wardRadius(p, day), 5, 'radius отсутствует → ДЕФОЛТ 5');
+  } finally {
+    popOcGuests(dataMod, [wn]);
+  }
+});
+
+test('000235.04 H3: sanitizePortalMarker — валидный {x, y, day} → каноническая КОПИЯ (не ссылка, чужие поля отброшены); мусор (строка/массив/null/нет day/day=0/дробный x/строковый y/boolean y/дробный day) → null, без краха', () => {
+  const { sanitizePortalMarker } = loadSpells();
+  assert.equal(typeof sanitizePortalMarker, 'function',
+    '000235.04: export Spells.sanitizePortalMarker (src/spells.js)');
+  const src = { x: 3, y: -2, day: 7, extra: 'отброс', deep: [1] };
+  const r = sanitizePortalMarker(src);
+  assert.deepEqual(r, { x: 3, y: -2, day: 7 },
+    'RED: валидный → канонический {x, y, day} (мастер: экспорта нет)');
+  assert.notEqual(r, src, 'КОПИЯ (не ссылка)');
+  assert.equal(src.extra, 'отброс', 'вход не мутирован');
+  assert.equal(r.extra, undefined, 'чужие поля отброшены из результата');
+  for (const v of [
+    'мусор',
+    [3, -2, 7],
+    null,
+    undefined,
+    42,
+    {},
+    { x: 3, y: -2 },                  // нет day
+    { x: 3, y: -2, day: 0 },          // day < 1
+    { x: 3, y: -2, day: -1 },
+    { x: 1.5, y: -2, day: 7 },        // дробный x
+    { x: 3, y: '-2', day: 7 },        // строковый y
+    { x: 3, y: true, day: 7 },        // boolean y
+    { x: 3, y: -2, day: 7.5 },        // дробный day
+  ]) {
+    assert.equal(sanitizePortalMarker(v), null,
+      'мусор → null: ' + JSON.stringify(v));
+  }
+});
+
+test('000235.04 H4: dispatch-пины — «телепорт» БЕЗ mode → skeleton (ok, без эффекта, мана потрачена — P-a); «внебой»-гость (НЕ warding_circle) → запись generic-ядром, БЕЗ телепорта (кейс-маркер — только запись)', () => {
+  const dataMod = loadSpellsData();
+  const noMode = portalGuest0235('h4_nomode', { параметры: {} });
+  const out = portalGuest0235('h4_out', { параметры: { days: 2 } });
+  try {
+    pushOcGuests(dataMod, [noMode, out]);
+    const { castOutOfCombat } = loadSpells();
+    const p = spellHero({ spells: [noMode.id, out.id], mp: 60 });
+    const m = makeCtx();
+    const r1 = castOutOfCombat(p, noMode.id, 10, m.ctx);
+    assert.equal(r1.ok, true,
+      '«телепорт» без mode — skeleton ok (D2/P-a: неполный ctx → '
+      + 'поведение до .04, а не отказ/крах)');
+    assert.equal(r1.expiresDay, null, 'без days → записей нет');
+    assert.equal(p.mp, 55, 'skeleton: мана ПОТРАЧЕНА');
+    assert.equal(m.calls.length, 0, 'телепорта нет');
+    assert.equal(p.portal_marker, undefined, 'метки нет');
+    assert.deepEqual(p.outOfCombatEffects, [], 'записей нет');
+    const r2 = castOutOfCombat(p, out.id, 10, m.ctx);
+    assert.equal(r2.ok, true, '«внебой»-гость — каст ok');
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: out.id, expiresDay: 12 }],
+      '«внебой» — запись generic-ядром .02 (expiresDay = day+2)');
+    assert.equal(m.calls.length, 0,
+      '«внебой» — БЕЗ телепорта (кейс-маркер — только запись)');
+  } finally {
+    popOcGuests(dataMod, [noMode, out]);
+  }
+});
