@@ -1581,3 +1581,174 @@ test('000230.06 E1: allyEquip/allyUnequip — общий инвентарь (000
       { ok: false, reason: 'не лист наёмника' });
   }
 });
+
+// =====================================================================
+// Задача 000230.06.01 — ретро-правки 000230.06: dismissal с экипировкой
+// (авто-возврат предметов в hero.inventory) + пин 5-го guard.
+// Контракты: memory/000230.06.01-dismiss-equipment-return.md (§2.1,
+// §2.4); ТЗ: tasks/pending/000230.06.01.md (п.1, п.5).
+//
+// КРАСНЫЕ (TDD; падают на неизменённом коде — текущий dismiss игнорирует
+// hero и выбрасывает лист с экипировкой; проверка redverify):
+//   * D1 — ТЗ-пин дословно: dismiss экипированного наёмника — предметы
+//     вернулись в hero.inventory (totalQty 0 → 1).
+//   * D2 — переполнение инвентаря: {ok:false, reason+note} дословно;
+//     НАЁМНИК ОСТАЛСЯ (без splice); предмет не потерян (failsafe, как
+//     allyUnequip).
+//   * D3 — 2-арг. dismiss БЕЗ hero на ЭКИПИРОВАННОЙ записи — «нет
+//     персонажа» (guard 4, единый словарь allyReject), без splice;
+//     hero = {} — та же строка.
+//   * G5d (vm) — dismiss ЭКИПИРОВАННОЙ записи без items.js (guard 5) —
+//     та же guard-строка, без splice, предмет в слоте (без потери).
+// Зелёные пины (с первого запуска — текущее поведение уже корректно):
+//   * D4 — плоская запись (без sheet) + hero — {ok:true}, splice (путь
+//     U7/P5 на уровне API: hero на плоские записи не влияет).
+//   * G5 (vm) — 5-й guard allyEquip/allyUnequip: точная строка без
+//     items.js (captured-Game UMD-ловушка 000038: delete — на Game
+//     ДО загрузки companions.js, не на финальном).
+// =====================================================================
+
+test('000230.06.01 D1 (RED): dismiss экипированного наёмника — экипировка вернулась в hero.inventory (ТЗ-пин); roster пуст (та же ссылка), без note', () => {
+  const hero = createCharacter();
+  I.addItem(hero, 'iron_sword');
+  I.addItem(hero, 'chainmail');
+  const e = entryWithSheet(NPC_VOLK, { level: 5 });
+  assert.deepEqual(C.allyEquip(hero, e.sheet, 'iron_sword'),
+    { ok: true, slot: 'right_hand', item: 'iron_sword' });
+  assert.deepEqual(C.allyEquip(hero, e.sheet, 'chainmail'),
+    { ok: true, slot: 'torso', item: 'chainmail' });
+  const roster = [e];
+  const r = C.dismiss(roster, 'merc_volk', hero);
+  assert.equal(r.ok, true, 'успех — {ok:true}');
+  assert.equal('note' in r, false, 'успех — без note');
+  assert.equal(roster.length, 0, 'splice — запись убрана (та же ссылка)');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 1,
+    'RED: текущий dismiss игнорирует hero — лист с оружием выброшен '
+    + '(totalQty 0, предмет потерян)');
+  assert.equal(I.totalQty(hero, 'chainmail'), 1,
+    'RED: броня так же вернулась в общий инвентарь героя');
+});
+
+test('000230.06.01 D2 (RED): dismiss при переполнении инвентаря (ровно 30 кг) — {ok:false, reason, note} дословно; НАЁМНИК ОСТАЛСЯ (без splice); надетый предмет не потерян', () => {
+  const hero = createCharacter();
+  I.addItem(hero, 'iron_sword');
+  const e = entryWithSheet(NPC_VOLK, { level: 1 });
+  assert.equal(C.allyEquip(hero, e.sheet, 'iron_sword').ok, true,
+    'оружие на наёмнике (инвентарь героя свободен)');
+  for (const id of ['knight_plate', 'knight_plate', 'knight_plate',
+    'war_hammer', 'battle_axe', 'short_bow',
+    'resurrect_scroll', 'resurrect_scroll']) {
+    assert.equal(I.addItem(hero, id).ok, true, 'addItem ' + id);
+  }
+  assert.equal(I.inventoryWeight(hero), 30,
+    'инвентарь ровно на лимите (30 кг, 8 слотов)');
+  const roster = [e];
+  const r = C.dismiss(roster, 'merc_volk', hero);
+  assert.deepEqual(r, {
+    ok: false,
+    reason: 'слишком тяжело (лимит веса)',
+    note: 'увольнение не выполнено: предметы остались экипированными',
+  }, 'RED: текущий dismiss ВСЕГДА splices ({ok:true}) — предмет потерян');
+  assert.equal(roster.length, 1, 'НАЁМНИК ОСТАЛСЯ в отряде (без splice)');
+  assert.equal(roster[0].sheet.equipment.right_hand, 'iron_sword',
+    'оружие осталось надетым (некуда положить — не потеряно)');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 0,
+    'в инвентарь не влезло — предмет в слоте наёмника');
+});
+
+test('000230.06.01 D3 (RED): 2-арг. dismiss БЕЗ hero на ЭКИПИРОВАННОЙ записи — «нет персонажа» (guard 4, единый словарь allyReject), БЕЗ splice, предмет надет; hero = {} (без primary) — та же строка', () => {
+  const e1 = entryWithSheet(NPC_VOLK, { level: 1 });
+  e1.sheet.equipment = { right_hand: 'iron_sword' };
+  const roster1 = [e1];
+  const r1 = C.dismiss(roster1, 'merc_volk');
+  assert.deepEqual(r1, { ok: false, reason: 'нет персонажа' },
+    'RED: текущий dismiss splices, не глядя на hero');
+  assert.equal(roster1.length, 1, 'запись не убрана');
+  assert.equal(roster1[0].sheet.equipment.right_hand, 'iron_sword',
+    'предмет остался экипированным (не потерян)');
+  const e2 = entryWithSheet(NPC_VOLK, { level: 1 });
+  e2.sheet.equipment = { right_hand: 'iron_sword' };
+  const roster2 = [e2];
+  const r2 = C.dismiss(roster2, 'merc_volk', {});
+  assert.deepEqual(r2, { ok: false, reason: 'нет персонажа' },
+    'hero = {} (primary не plain-объект) — та же строка');
+  assert.equal(roster2.length, 1, 'запись не убрана');
+});
+
+test('000230.06.01 D4 (зелёный): плоская запись (без sheet) + hero — {ok:true}, splice; hero на плоские записи не влияет (путь U7/P5 на уровне API)', () => {
+  const hero = createCharacter();
+  const roster = [{ npcId: 'merc_volk', level: 1, xp: 0, loyalty: 50,
+    hiredDay: 1 }];
+  const r = C.dismiss(roster, 'merc_volk', hero);
+  assert.deepEqual(r, { ok: true }, 'плоская запись — старый путь');
+  assert.equal(roster.length, 0, 'splice — побайтово как 2-арг. вызов');
+});
+
+test('000230.06.01 G5 (зелёный, vm): 5-й guard — точная строка «экипировка недоступна (items.js не загружен)» для allyEquip/allyUnequip без items.js (captured-Game UMD-ловушка 000038: delete — на Game ДО загрузки companions.js; на финальном Game — НЕ работает)', () => {
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of BROWSER_CHAIN.slice(0, -1)) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'),
+      sandbox, { filename: f });
+  }
+  const capturedG = sandbox.Game;
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..',
+    'src/companions.js'), 'utf8'), sandbox, { filename: 'src/companions.js' });
+  const G = sandbox.Game;
+  const Co = G.companions;
+  assert.notEqual(capturedG, G,
+    'UMD 000038: companions.js ЗАМЕНЯЕТ root.Game; замыкание держит '
+    + 'ПРЕДЫДУЩИЙ объект — delete на финальном G не работает');
+  assert.equal(typeof G.equip, 'function',
+    'финальный Game — equip есть (ловушка зафиксирована)');
+  const hero = G.createCharacter();
+  G.addItem(hero, 'iron_sword');
+  const merc = G.Sheet.createSheet('merc', { npcId: 'merc_volk' });
+  delete capturedG.equip;
+  delete capturedG.unequip;
+  const r1 = Co.allyEquip(hero, merc, 'iron_sword');
+  assert.equal(r1.ok, false);
+  assert.equal(r1.reason, 'экипировка недоступна (items.js не загружен)',
+    'guard 5 — точная строка (до проверки предмета)');
+  assert.deepEqual(Object.keys(r1).sort(), ['ok', 'reason'],
+    'точная форма {ok, reason}');
+  const r2 = Co.allyUnequip(hero, merc, 'right_hand');
+  assert.equal(r2.ok, false);
+  assert.equal(r2.reason, 'экипировка недоступна (items.js не загружен)',
+    'guard 5 — та же строка для unequip');
+  assert.deepEqual(Object.keys(r2).sort(), ['ok', 'reason'],
+    'точная форма {ok, reason}');
+});
+
+test('000230.06.01 G5d (RED, vm): dismiss ЭКИПИРОВАННОЙ записи без items.js (guard 5) — та же guard-строка, БЕЗ splice, предмет в слоте (деградация — без потери)', () => {
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of BROWSER_CHAIN.slice(0, -1)) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'),
+      sandbox, { filename: f });
+  }
+  const capturedG = sandbox.Game;
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..',
+    'src/companions.js'), 'utf8'), sandbox, { filename: 'src/companions.js' });
+  const G = sandbox.Game;
+  const Co = G.companions;
+  const hero = G.createCharacter();
+  G.addItem(hero, 'iron_sword');
+  const merc = G.Sheet.createSheet('merc', { npcId: 'merc_volk' });
+  merc.equipment = { right_hand: 'x' };
+  const roster = [{ npcId: 'merc_volk', sheet: merc, level: 1, xp: 0,
+    loyalty: 50, hiredDay: 1 }];
+  delete capturedG.equip;
+  delete capturedG.unequip;
+  const r = Co.dismiss(roster, 'merc_volk', hero);
+  assert.equal(r.ok, false,
+    'RED: текущий dismiss splices без проверки API ({ok:true}) — '
+    + 'guard 5 для dismiss отсутствует');
+  assert.equal(r.reason, 'экипировка недоступна (items.js не загружен)',
+    'единый словарь строк allyReject (guard 5)');
+  assert.equal(roster.length, 1, 'запись не убрана (БЕЗ splice)');
+  assert.equal(merc.equipment.right_hand, 'x',
+    'предмет в слоте — не потерян');
+});

@@ -1195,7 +1195,7 @@
             !Array.isArray(roster)) return;
         const id = btn.dataset.npcid;
         const n = npcs().find((x) => x && x.id === id) || null;
-        const r = C.dismiss(roster, id);
+        const r = C.dismiss(roster, id, c);
         if (r.ok) {
           // «Призрак» (npcId нет в каталоге) — голый id (тихий,
           // паттерн 000029/000085). playerUI.render сознательно нет
@@ -1503,7 +1503,7 @@
           const C = G.companions;
           if (!C || typeof C.dismiss !== 'function' ||
               !Array.isArray(roster)) return;
-          const r = C.dismiss(roster, btn.dataset.npcid);
+          const r = C.dismiss(roster, btn.dataset.npcid, character);
           if (r.ok) {
             if (onChange) onChange(); // хук на изменение состояния (сейв в main.js)
           }

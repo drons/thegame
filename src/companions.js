@@ -267,12 +267,56 @@ function (settings, G) {
   /**
    * Увольнение: возврат денег НЕТ; повторный найм после увольнения
    * возможен (даже в тот же день — тот же (день, npcId)-сид отказа).
-   * @returns {{ok:true}|{ok:false, reason}}
+   * Запись с экипировкой (000230.06.01): авто-возврат экипировки
+   * наёмника в ОБЩИЙ инвентарь героя (решение ТЗ «возврат при
+   * снятии» — увольнение с надетым НЕ запрещается) тем же failsafe,
+   * что allyUnequip: ВСЕ физ. слоты сняты → splice, {ok:true};
+   * ПЕРВЫЙ отказ → STOP (остальные слоты не трогаем), БЕЗ splice,
+   * {ok:false, reason, note} — предметы не теряются НИКОГДА (случай
+   * переполнения инвентаря героя). Запись без экипировки (плоская
+   * или sheet без занятых слотов) — побайтово старый путь: splice,
+   * {ok:true}, hero не нужен.
+   * @param {object|null} hero персонаж героя (primary/secondary/
+   *   inventory — plain-объекты, как в allyEquip/allyUnequip) —
+   *   ОПЦИОНАЛЬНО: требуется только для записи с экипировкой
+   *   (отказ «нет персонажа» — единый словарь allyReject, БЕЗ
+   *   splice).
+   * @returns {{ok:true}|{ok:false, reason}|{ok:false, reason:string,
+   *   note:string}} — при отказе возврата reason дословно из
+   *   generic unequip ('слишком тяжело (лимит веса)' | 'нет
+   *   свободных слотов инвентаря'), note — фиксация, что предметы
+   *   остались экипированными.
    */
-  function dismiss(roster, npcId) {
+  function dismiss(roster, npcId, hero) {
     const check = canDismiss(roster, npcId);
     if (!check.ok) return { ok: false, reason: check.reason };
     const i = roster.findIndex((e) => e.npcId === npcId);
+    const entry = roster[i];
+    const eq = entry && entry.sheet && typeof entry.sheet ===
+      'object' && !Array.isArray(entry.sheet) ? entry.sheet.equipment
+      : null;
+    const hasEq = !!eq && typeof eq === 'object' && !Array.isArray(eq) &&
+      Object.keys(eq).some((k) => typeof eq[k] === 'string' &&
+        eq[k] !== '');
+    if (!hasEq) {
+      roster.splice(i, 1);
+      return { ok: true };
+    }
+    const bad = allyReject(hero, entry.sheet, 'unequip');
+    if (bad) return bad;
+    const slots = Array.isArray(G.EQUIP_PHYS_SLOTS)
+      ? G.EQUIP_PHYS_SLOTS
+      : Object.keys(eq).filter((k) =>
+        k !== 'weapon' && k !== 'armor');
+    for (const slot of slots) {
+      if (typeof eq[slot] !== 'string' || eq[slot] === '') continue;
+      const r = allyUnequip(hero, entry.sheet, slot);
+      if (!r.ok) {
+        return { ok: false, reason: r.reason,
+          note: 'увольнение не выполнено: предметы остались ' +
+            'экипированными' };
+      }
+    }
     roster.splice(i, 1);
     return { ok: true };
   }

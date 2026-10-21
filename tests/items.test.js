@@ -4433,3 +4433,113 @@ test('000230.08 H8 (vm, e2e): РЕАЛЬНЫЕ head-предметы из live-�
       'equipmentStats.armor — без set-бонуса (дормантность)');
   }
 });
+
+// =====================================================================
+// Задача 000230.06.01 — ретро-правки 000230.06: пины allyDataForEntry
+// с экипировкой (ТЗ п.2) и known-issue swap с неудачным возвратом
+// (ТЗ п.3 → баг-задача 000230.20). Контракты:
+// memory/000230.06.01-dismiss-equipment-return.md (§2.5, §2.6);
+// ТЗ: tasks/pending/000230.06.01.md.
+// Зелёные с первого запуска (код 000230.06 уже смержен): A1, I2.
+// Фикстуры A1 — только в vm-подстановке Game.ITEMS (E9-пин реального
+// каталога цел). I2 — БЕЗ подстановки: реальный каталог из цепочки.
+// =====================================================================
+
+test('000230.06.01 A1 (зелёный, vm, ТЗ п.2): allyDataForEntry С экипировкой — freeCast с кольца «mend», armor 1, maxHP не изменился, skill-affix heavy — через pipeline (строго >), set-damage в es.damage (8 = 5 оружия + 3 set)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  sandbox.Game = {};
+  for (const f of VM_ALLY_WEIGHT_CHAIN) loadInSandbox(f, sandbox);
+  sandbox.Game.ITEMS = [
+    { id: 'x_t_blade', name: 'Тестовый меч (xt)', kind: 'weapon',
+      subtype: 'sword', stats: { damage: 5 }, set: 'xt',
+      set_bonus: { 2: { damage: 3 } },
+      affixes: [{ type: 'skill', skill: 'heavy', amount: 0.2 }],
+      weight: 2, value: 80, desc: 'т' },
+    { id: 'x_t_head', name: 'Тестовый шлем (xt)', kind: 'armor',
+      slot: 'head', stats: { armor: 1 }, set: 'xt',
+      set_bonus: { 2: { damage: 3 } }, weight: 1, value: 20, desc: 'т' },
+    { id: 'x_t_ring_fc', name: 'Тестовое кольцо (fc)', kind: 'ring',
+      slot: 'ring', weight: 0.1, value: 30, desc: 'т',
+      affixes: [{ type: 'free_cast', spell: 'mend' }] },
+  ];
+  for (const f of ['items.js', 'buildings.js', 'npc.js', 'companions.js']) {
+    loadInSandbox(f, sandbox);
+  }
+  const G = sandbox.Game;
+  const Co = G.companions;
+  const hero = G.createCharacter();
+  const merc = G.Sheet.createSheet('merc', { npcId: 'merc_volk' });
+  merc.secondary.heavy = 2;
+  merc.level = 3;
+  const npc = G.NpcData.NPCS.find((n) => n.id === 'merc_volk');
+  const entry = { npcId: 'merc_volk', sheet: merc, level: 3, xp: 0,
+    loyalty: 51, hiredDay: 1 };
+  const mercDamage = (b) => Math.max(1, Math.round(
+    (2 + 0.7 * merc.level) * (npc.найм.dmg || 1) *
+    (1 + b.fistDamageBonus + b.heavyDamageBonus + b.rangedDamageBonus)));
+  const b0 = G.Sheet.derived(merc);
+  const d0 = Co.allyDataForEntry(entry, npc);
+  assert.deepEqual(fromVm(d0.freeCast), [],
+    'контроль: без экипировки freeCast пуст');
+  assert.equal(d0.armor, undefined,
+    'контроль: Вольк без найм.armor и без экипировки — undefined');
+  assert.equal(d0.damage, mercDamage(b0),
+    'контроль: damage = формула mercModifier (без экипировки)');
+  for (const id of ['x_t_blade', 'x_t_head', 'x_t_ring_fc']) {
+    assert.equal(G.addItem(hero, id).ok, true, 'addItem ' + id);
+  }
+  for (const id of ['x_t_blade', 'x_t_head', 'x_t_ring_fc']) {
+    assert.equal(Co.allyEquip(hero, merc, id).ok, true, 'allyEquip ' + id);
+  }
+  const b1 = G.Sheet.derived(merc);
+  assert.ok(b1.heavyDamageBonus > b0.heavyDamageBonus,
+    'skill-affix heavy 0.2 действует через pipeline: 0.05·2 = 0.1 → '
+    + '0.1·1.2 = 0.12 (строго >; без affix — равенство)');
+  const d1 = Co.allyDataForEntry(entry, npc);
+  assert.deepEqual(fromVm(d1.freeCast), ['mend'],
+    'freeCast — из free_cast-аффикса кольца (≠ [] без экипировки)');
+  assert.equal(d1.armor, 1, 'armor = (h.armor||0) + es.armor (1)');
+  assert.equal(d1.maxHP, d0.maxHP,
+    'maxHP не изменился (endurance/golem-affix в фикстурах нет)');
+  const es = G.equipmentStats(merc);
+  assert.equal(es.damage, 8,
+    'es.damage = 5 (оружие) + 3 (set-бонус 2 предмета; гейт 000230.04 '
+    + 'D-02 — set-damage только в оружейной ветке)');
+  assert.equal(es.armor, 1, 'es.armor — сумма по слотам');
+  assert.equal(d1.damage, mercDamage(b1) + es.damage,
+    'damage = база (с усиленным affix) + экипировка (формула §2.3)');
+  assert.ok(d1.damage > d0.damage, 'экипировка повышает damage');
+});
+
+test('000230.06.01 I2 (зелёный, vm, ТЗ п.3): known-issue пин — swap с неудачным возвратом: ТОЧНАЯ note-форма + ПРЕЖНИЙ ПРЕДМЕТ ПОТЕРЯН (totalQty 0, ни в одном слоте листа) → баг подтверждён (отдельная баг-задача 000230.20; пин ТЕКУЩЕГО поведения — при фиксе падёт: принудительный пере-пин)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  sandbox.Game = {};
+  for (const f of VM_ALLY_WEIGHT_CHAIN) loadInSandbox(f, sandbox);
+  for (const f of ['items.js', 'buildings.js', 'npc.js', 'companions.js']) {
+    loadInSandbox(f, sandbox);
+  }
+  const G = sandbox.Game;
+  const Co = G.companions;
+  const hero = G.createCharacter();
+  for (const id of ['knight_plate', 'knight_plate', 'knight_plate',
+    'war_hammer', 'short_bow', 'short_bow',
+    'resurrect_scroll', 'resurrect_scroll', 'resurrect_scroll',
+    'iron_sword']) {
+    assert.equal(G.addItem(hero, id).ok, true, 'addItem ' + id);
+  }
+  assert.equal(G.inventoryWeight(hero), 30,
+    'ровно 30 кг (10 слотов: 3×7 + 4 + 2×1 + 3×0.5 + 1.5)');
+  const merc = G.Sheet.createSheet('merc', { npcId: 'merc_volk' });
+  merc.equipment = { right_hand: 'battle_axe' };
+  const r = Co.allyEquip(hero, merc, 'iron_sword');
+  assert.deepEqual(fromVm(r),
+    { ok: true, note: 'вернуть battle_axe не удалось: слишком тяжело (лимит веса)' },
+    'точная форма ТЕКУЩЕЙ note-ветки equip (без slot/item)');
+  assert.equal(merc.equipment.right_hand, 'iron_sword',
+    'новый предмет на месте (prev перезаписан в eq[slot])');
+  assert.equal(G.totalQty(hero, 'battle_axe'), 0,
+    'prev НЕ возвращён в инвентарь (28.5 + 3 = 31.5 > 30) — ПОТЕРЯН');
+  assert.ok(!Object.values(merc.equipment).includes('battle_axe'),
+    'battle_axe ни в одном слоте листа — потеря ПОДТВЕРЖДЕНА '
+    + '→ tasks/pending/000230.20.md (зелёная стадия)');
+});
