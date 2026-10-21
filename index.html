@@ -104,6 +104,12 @@
     transition: opacity 0.4s; opacity: 0;
   }
   .cp-itemrow .cp-btn { width: auto; min-width: 24px; padding: 0 5px; }
+  /* 000230.07: рамки редкости (ТЗ п.8): 5 цветов на строке предмета. */
+  .cp-itemrow.cp-rarity-common { border: 1px solid #a39b8b; }
+  .cp-itemrow.cp-rarity-rare { border: 1px solid #58a858; }
+  .cp-itemrow.cp-rarity-epic { border: 1px solid #5b8fd4; }
+  .cp-itemrow.cp-rarity-legendary { border: 1px solid #9b6bd4; }
+  .cp-itemrow.cp-rarity-impossible { border: 1px solid #e0952f; }
   /* 000202: меню «Строительство» — причина красным, ширина, скролл, перенос. */
   .cp-itemreason { color: #e65f52; font-weight: 700; }
   .combat-overlay--build .combat-side { width: min(520px, 94vw); }

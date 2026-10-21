@@ -86,10 +86,13 @@ function (G0, rootRef) {
       for (const [id, qty] of Object.entries(shop.stock)) {
         const it = G.getItem(id);
         if (!it || qty < 1) continue;
+        // 000230.07: рамка редкости (общий механизм, ТЗ п.2);
+        // tip/иконки остаются null (магазин — зона 000101/000097).
         panel._shopBody.appendChild(ctx.itemRow(
           it.name + ' ×' + qty,
           'покупка ' + G.buyPrice(shop, id, c) + ' з',
-          [['купить', 'buy', { item: id }]]));
+          [['купить', 'buy', { item: id }]],
+          null, null, it.rarity));
       }
       const inv = c.inventory || { slots: [], quick: [] };
       const kinds = G.shopKindsFor(shop.buildingType) || [];
@@ -103,7 +106,8 @@ function (G0, rootRef) {
         panel._shopBody.appendChild(ctx.itemRow(
           it.name + ' ×' + qty,
           'продажа ' + G.sellPrice(shop, id, c) + ' з',
-          [['продать', 'sell', { item: id }]]));
+          [['продать', 'sell', { item: id }]],
+          null, null, it.rarity));
       }
     },
   };

@@ -136,6 +136,11 @@
       // состояний 000130 §4.3) — вкладка «Персонаж» разрешает
       // member в момент render/вызова (Party.active).
       get activeCharId() { return activeCharId; },
+      // 000230.07: live-getter АКТИВНОГО member (разрешение в момент
+      // вызова — Party.active; контракт memory 000230.07 §5):
+      // вкладки с персонаж-зависимыми действиями читают ctx.
+      // activeMember, НЕ дублируют partySource (одна точка).
+      get activeMember() { return activeMember(); },
       // 000194: live-ссылка на ОБЩУЮ map быстрых предметов союзников
       // (null — не раздано) — вкладка «Снаряжение» рисует запись
       // активного персонажа.
@@ -248,6 +253,40 @@
     flashNotice._t = setTimeout(() => { notice.style.opacity = '0'; }, 2500);
   }
 
+  // 000230.07: маршрутизация equip/unequip по АКТИВНОМУ member
+  // (контракт memory 000230.07 §5): hero — прежний путь бит-в-бит;
+  // merc — G.companions.allyEquip/allyUnequip (000230.06: hero =
+  // ctx.character, sheet = member.sheet — live-лист; инвентарь —
+  // ОБЩИЙ героя, 000194); efir — ТОЧНАЯ строка отказа .06 (пин
+  // companions C3). G.companions отсутствует — console.error ОДИН
+  // раз + {ok:false} (хвост покажет «не удалось»; hero-путь НЕ
+  // выбираем — предмет ушёл бы не на того персонажа).
+  let allyCoreErrorShown = false;
+  function routeEquipAction(c, act, id, slot) {
+    const m = activeMember();
+    if (m && m.kind === 'merc') {
+      const C = G.companions;
+      if (!C || typeof C !== 'object' ||
+          typeof (act === 'equip' ? C.allyEquip : C.allyUnequip)
+          !== 'function') {
+        if (!allyCoreErrorShown) {
+          allyCoreErrorShown = true;
+          console.error('ui.js: Game.companions отсутствует — ' +
+            'src/companions.js обязан грузиться ДО src/ui.js ' +
+            '(задача 000079); equip/unequip наёмника — «не удалось»');
+        }
+        return { ok: false };
+      }
+      return (act === 'equip')
+        ? C.allyEquip(c, m.sheet, id)
+        : C.allyUnequip(c, m.sheet, slot);
+    }
+    if (m && m.kind === 'efir') {
+      return { ok: false, reason: 'Эфир — дух, не экипируется' };
+    }
+    return (act === 'equip') ? G.equip(c, id) : G.unequip(c, slot);
+  }
+
   // 000147: «изучение — на активного» — лист для 4-го аргумента
   // useItem: LearnTarget.activeSheet(c) (единая точка; тег
   // learn-target.js РАНЬШЕ ui.js — в снапшоте G). Без LearnTarget
@@ -262,6 +301,50 @@
     return c;
   }
 
+  // 000230.07: АКТИВНЫЙ member партии (ОДИН источник разрешения для
+  // вкладки «Снаряжение» + doItemAction — контракт memory
+  // 000230.07 §5/§11). LIVE, в момент вызова: __game.state (main.js —
+  // ПОСЛЕ ui.js, снапшот G не несёт) с фолбэком squadUI.liveState()
+  // (vm-песочница без main.js — паттерн partySource ui-tab-skills.js).
+  // G.Party отсутствует (регрессия порядка тегов) — console.error
+  // ОДИН раз + null (деградация — поведение ДО .07: активный = герой,
+  // doItemAction идёт прежним hero-путём). stale/неизвестный id —
+  // Party.active тихо отразит на первого (контракт 000145).
+  let partyCoreErrorShown = false;
+  function activeMember() {
+    const P = G.Party;
+    if (!P || typeof P.list !== 'function' ||
+        typeof P.active !== 'function') {
+      if (!partyCoreErrorShown) {
+        partyCoreErrorShown = true;
+        console.error('ui.js: Game.Party не найден — src/party.js ' +
+          'обязан грузиться ДО src/ui.js (задача 000145); активный ' +
+          'персонаж = герой');
+      }
+      return null;
+    }
+    const gs = (globalThis.__game && globalThis.__game.state &&
+        typeof globalThis.__game.state === 'object'
+        && !Array.isArray(globalThis.__game.state))
+      ? globalThis.__game.state : null;
+    const sq = (G.squadUI && typeof G.squadUI.liveState === 'function')
+      ? G.squadUI.liveState() : null;
+    const roster = (gs && Array.isArray(gs.roster)) ? gs.roster
+      : (sq && Array.isArray(sq.roster) ? sq.roster : null);
+    const efir = (gs && gs.efir && typeof gs.efir === 'object'
+        && !Array.isArray(gs.efir)) ? gs.efir
+      : (sq && sq.efir && typeof sq.efir === 'object'
+        && !Array.isArray(sq.efir) ? sq.efir : null);
+    const members = P.list({
+      hero: character,
+      efir: efir,
+      efirMet: !!(gs && gs.efirMet === true),
+      roster: roster,
+      npcs: (G.NpcData && G.NpcData.NPCS) || null,
+    });
+    return P.active(members, activeCharId);
+  }
+
   // Действия с предметами (кнопки dataset.act в секциях панели).
   function doItemAction(btn) {
     const c = character;
@@ -271,8 +354,13 @@
       // 000147: свиток — изучение на АКТИВНОГО персонажа
       // (000145); предмет — с инвентаря героя (c).
       case 'use': r = G.useItem(c, id, 1, activeSheetFor(c)); break;
-      case 'equip': r = G.equip(c, id); break;
-      case 'unequip': r = G.unequip(c, btn.dataset.equipslot); break;
+      // 000230.07: маршрутизация по активному member (hero — бит-в-
+      // бит; merc — allyEquip/allyUnequip; efir — отказ).
+      case 'equip':
+        r = routeEquipAction(c, 'equip', id, null); break;
+      case 'unequip':
+        r = routeEquipAction(c, 'unequip', null,
+          btn.dataset.equipslot); break;
       case 'remove': r = G.removeItem(c, id, 1); break;
       case 'quick': {
         // 000194: раздача — АКТИВНОМУ персонажу (000145):
@@ -358,10 +446,15 @@
   // Строка предмета в секциях панели. tip (000097) — АДДИТИВНЫЙ
   // 4-й аргумент: текст тултипа заполненной строки (снаряжение/
   // быстрые/инвентарь); пустые строки и строки магазина (зона
-  // 000101) его не получают. 000130: ОСТАЁТСЯ в ядре и идёт
-  // вкладкам через ctx (общий механизм строк — ЛЮБОЙ вкладке, как el).
-  function itemRow(name, meta, buttons, tip, icon) {
-    const div = el('div', 'cp-itemrow');
+  // 000101) его не получают. icon (000237) — 5-й: строка —
+  // img.cp-itemicon первым ребёнком. rarity (000230.07) — АДДИТИВНЫЙ
+  // 6-й аргумент: каталожное имя редкости — класс cp-rarity-<r> на
+  // строке (рамка, ТЗ п.8); без rarity (расходники) — 'cp-itemrow'
+  // побайтово (0 diff). 000130: ОСТАЁТСЯ в ядре и идёт вкладкам
+  // через ctx (общий механизм строк — ЛЮБОЙ вкладке, как el).
+  function itemRow(name, meta, buttons, tip, icon, rarity) {
+    const div = el('div', (typeof rarity === 'string' && rarity !== '')
+      ? 'cp-itemrow cp-rarity-' + rarity : 'cp-itemrow');
     if (typeof icon === 'string' && icon !== '') {
       const img = el('img', 'cp-itemicon');
       img.src = icon;
@@ -380,11 +473,102 @@
     return div;
   }
 
+  // Имя редкости (000230.07): 5 каталожных значений ITEM_RARITIES
+  // (items.js) — единый источник имён; неизвестное — строки нет.
+  const RARITY_NAMES = {
+    common: 'обычный', rare: 'редкий', epic: 'эпический',
+    legendary: 'легендарный', impossible: 'невозможный',
+  };
+
+  // Резолверы имён (000230.07): typeof-guard + id-fallback —
+  // умер каталог (регрессия порядка тегов) — голый id, деградация
+  // тихая (паттерны :398 skill-ветки и :403-412 spell-ветки).
+  function skillNameOf(id) {
+    const s = (G.SECONDARY_SKILLS && G.SECONDARY_SKILLS[id])
+      ? G.SECONDARY_SKILLS[id] : null;
+    return (s && typeof s.name === 'string' && s.name)
+      ? s.name : String(id);
+  }
+
+  function spellNameOf(id) {
+    const S = G.Spells;
+    const sp = (S && typeof S.getSpell === 'function')
+      ? S.getSpell(id) : null;
+    return (sp && typeof sp.название === 'string' && sp.название)
+      ? sp.название : String(id);
+  }
+
+  function affixAmountText(amount) {
+    return (amount >= 0 ? '+' : '-') + Math.abs(amount);
+  }
+
+  // Строка аффикса предмета (000230.07, ТЗ п.4): «Аффикс: <навык>
+  // <знак><N>» / «Заклинание без маны: <имя>»; битый элемент — null
+  // (строка пропускается, деградация тихая).
+  function affixLine(a) {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return null;
+    if (a.type === 'skill' || (a.type != null && a.skill)) {
+      if (typeof a.skill === 'string' && typeof a.amount === 'number'
+          && Number.isFinite(a.amount)) {
+        return 'Аффикс: ' + skillNameOf(a.skill)
+          + ' ' + affixAmountText(a.amount);
+      }
+      return null;
+    }
+    if (a.type === 'free_cast' || (a.type != null && a.spell)) {
+      if (typeof a.spell === 'string') {
+        return 'Заклинание без маны: ' + spellNameOf(a.spell);
+      }
+      return null;
+    }
+    return null;
+  }
+
+  // Элемент описания set-бонуса (000230.07): «<навык> <знак><N>» /
+  // «заклинание без маны: <имя>» — те же резолверы, что и аффиксы.
+  function affixShort(a) {
+    if (!a || typeof a !== 'object' || Array.isArray(a)) return null;
+    if (typeof a.skill === 'string' && typeof a.amount === 'number'
+        && Number.isFinite(a.amount)) {
+      return skillNameOf(a.skill) + ' ' + affixAmountText(a.amount);
+    }
+    if (typeof a.spell === 'string') {
+      return 'заклинание без маны: ' + spellNameOf(a.spell);
+    }
+    return null;
+  }
+
+  // Описание set_bonus (000230.07): массив аффиксов — элементы
+  // affixShort, '; '; объект — «броня +N»/«урон +N» (finite-guard),
+  // '; '; пусто — '' (строка пропускается; контент гарантирует
+  // непустое — контракт 000230.04 §2.3).
+  function describeSetBonus(v) {
+    if (Array.isArray(v)) {
+      const parts = [];
+      for (const a of v) {
+        const p = affixShort(a);
+        if (p) parts.push(p);
+      }
+      return parts.join('; ');
+    }
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      const parts = [];
+      if (Number.isFinite(v.armor)) parts.push('броня +' + v.armor);
+      if (Number.isFinite(v.damage)) parts.push('урон +' + v.damage);
+      return parts.join('; ');
+    }
+    return '';
+  }
+
   // Строка предмета: desc + строка kind (статы оружия/брони или эффект
   // расходника; у реагента эффекта в каталоге нет — строки нет) +
-  // вес + цена. (000097; 000130: остаётся в ядре, вкладки — через
-  // ctx.itemTipText.)
-  function itemTipText(it) {
+  // 000230.07: аффиксы → активные наборы → редкость (ПОСЛЕ kind-
+  // строк, ДО «Вес»/«Цена») + вес + цена. c (АДДИТИВНЫЙ 2-й
+  // аргумент) — лист персонажа (hero/merc): БЕЗ c set-ветки нет
+  // (тихий skip — легальный 1-арг. вызов). Существующие строки —
+  // бит-в-бит (пины 000097). (000097; 000130: остаётся в ядре,
+  // вкладки — через ctx.itemTipText.)
+  function itemTipText(it, c) {
     const lines = [it.desc];
     if (it.kind === 'weapon') {
       lines.push('Урон: ' + it.stats.damage);
@@ -419,6 +603,42 @@
         lines.push('Эффект: изучает вид крафта «' +
           (r ? r.тип : it.effect.recipe) + '»');
       }
+    }
+    // Аффиксы (000230.07): ПО ПОРЯДКУ массива.
+    if (Array.isArray(it.affixes)) {
+      for (const a of it.affixes) {
+        const line = affixLine(a);
+        if (line) lines.push(line);
+      }
+    }
+    // Наборы (000230.07/000230.04): прогресс + активные пороги;
+    // данные порога — с КАРТОЧКИ ПРЕДМЕТА (it.set_bonus, контент-
+    // контракт: одинаковый set_bonus у всех предметов набора).
+    // БЕЗ c или без ядра activeSets — тихий skip (1-арг. вызов).
+    if (typeof it.set === 'string' && it.set && c != null &&
+        typeof G.activeSets === 'function') {
+      const counts = G.activeSets(c).counts;
+      const n = (counts && typeof counts === 'object'
+        && typeof counts[it.set] === 'number') ? counts[it.set] : 0;
+      const thresholds = (Array.isArray(G.SET_BONUS_THRESHOLDS)
+        && G.SET_BONUS_THRESHOLDS.length)
+        ? G.SET_BONUS_THRESHOLDS : [2, 3, 4];
+      const maxT = Math.max.apply(null, thresholds);
+      lines.push('Набор ' + it.set + ': ' + n + '/' + maxT);
+      if (it.set_bonus && typeof it.set_bonus === 'object'
+          && !Array.isArray(it.set_bonus)) {
+        for (const t of thresholds) {
+          if (t > n) continue;
+          const v = it.set_bonus[String(t)];
+          if (v === undefined) continue;
+          const desc = describeSetBonus(v);
+          if (desc) lines.push('Бонус набора ' + t + ': ' + desc);
+        }
+      }
+    }
+    // Редкость (000230.07): только 5 каталожных имён.
+    if (typeof it.rarity === 'string' && RARITY_NAMES[it.rarity]) {
+      lines.push('Редкость: ' + RARITY_NAMES[it.rarity]);
     }
     lines.push('Вес: ' + it.weight + ' кг');
     lines.push('Цена: ' + it.value + ' з');

@@ -903,16 +903,24 @@ test('панель: у КАЖДОЙ заполненной строки пред
     'у реагента строки «Эффект» нет');
 });
 
-test('панель: пустые строки («— без оружия —», «— без брони —», «— пусто —») БЕЗ .cp-tip', () => {
+test('панель: пустые строки «…: — пусто —» («Снаряжение», 19 строк 000230.07) и «— пусто —» (быстрые слоты) БЕЗ .cp-tip', () => {
   const env = loadPanelUi();
   const c = env.G.createCharacter(); // снаряжение и слоты пусты
   const panel = openPanel(env, c);
-  for (const namePart of ['— без оружия —', '— без брони —']) {
-    const row = itemRowByName(panel._equipBody, namePart);
-    assert.ok(row, 'строка «' + namePart + '» найдена');
-    assert.equal(row.querySelector('.cp-tip'), null,
-      'у пустой строки «' + namePart + '» НЕТ .cp-tip');
+  const equipRows = findAll(panel._equipBody, '.cp-itemrow');
+  assert.equal(equipRows.length, 19,
+    '19 строк «Снаряжение» (контракт 000230.07)');
+  let emptyCount = 0;
+  for (const r of equipRows) {
+    const name = r.querySelector('.cp-itemname').textContent;
+    if (!name.includes('— пусто —')) continue;
+    emptyCount++;
+    assert.equal(r.querySelector('.cp-tip'), null,
+      'у пустой строки «' + name + '» НЕТ .cp-tip');
   }
+  assert.equal(emptyCount, 18,
+    '18 строк «— пусто —» (10 частей + 8 колец); сводная ' +
+    '«Кольца: N/8» — не «— пусто —»');
   const quickRows = findAll(panel._quickBody, '.cp-itemrow');
   assert.equal(quickRows.length, env.G.QUICK_SLOTS,
     'строк быстрых слотов = QUICK_SLOTS');
@@ -3137,13 +3145,13 @@ test('000237: itemRow с 4 аргументами (существующие вы
     assert.ok(!row.children.some((ch) => ch.tagName === 'img'),
       '4-арг. itemRow: img среди детей нет (icon не передан)');
   }
-  for (const namePart of ['— без оружия —', '— без брони —']) {
-    const row = itemRowByName(panel._equipBody, namePart);
-    assert.ok(row, 'строка «' + namePart + '» найдена');
-    assert.equal(row.children[0].className, 'cp-itemname',
-      'пустая строка — первым имя (0 diff); факт: '
-      + row.children[0].className);
-    assert.ok(!row.children.some((ch) => ch.tagName === 'img'),
-      'пустая строка — img нет');
+  for (const r of findAll(panel._equipBody, '.cp-itemrow')) {
+    const name = r.querySelector('.cp-itemname').textContent;
+    if (!name.includes('— пусто —')) continue;
+    assert.equal(r.children[0].className, 'cp-itemname',
+      'пустая строка «' + name + '» — первым имя (0 diff); факт: '
+      + r.children[0].className);
+    assert.ok(!r.children.some((ch) => ch.tagName === 'img'),
+      'пустая строка «' + name + '» — img нет');
   }
 });
