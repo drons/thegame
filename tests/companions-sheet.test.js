@@ -295,6 +295,14 @@ test('000143 CS-4: makeAlly из sheet — volk L1: maxHP 33 / damage 3; baldor 
     'мораль × ЯВНЫЙ урон: round(11·1.05) = 12 — инвариант «урон ВСЕХ союзников» (000080/000112 D6, пин CB-4)');
 });
 
+test('000230.03.01-PA: allyDataForEntry — freeCast: [] (шов 000230.06; у наёмников экипировки пока нет)', () => {
+  const e = entryWithSheet(NPC_VOLK, { level: 1, xp: 0 });
+  const d = C.allyDataForEntry(e, NPC_VOLK);
+  assert.ok(d, 'данные есть');
+  assert.deepEqual(d.freeCast, [],
+    'freeCast — [] (шов 000230.06: у наёмников экипировки нет, 000230.03 D-12)');
+});
+
 // =====================================================================
 // CS-5: сейв round-trip — serializeRoster: ровно 4 поля
 //       {npcId, sheet, loyalty, hiredDay}; deserialize(serialize) ===

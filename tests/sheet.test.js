@@ -607,3 +607,55 @@ test('000230.03-D4 (vm): деградация без items-API (D-11): цепь 
   assert.equal(errors.length, 0,
     'D-11: молчаливая деградация — 0 console.error');
 });
+
+test('000230.03.01-DN (vm): pct-ветка с отрицательным perLevel (hide −0.05): affix +0.10 → damageTakenMult = max(0.1, 1 − 0.05·10·1.1) ≈ 0.45 (FP-допуск 1e-12); контроль без экипировки — 0.5 точно; affix −2 → clamp вклада к нулю: damageTakenMult = 1 точно (знак НЕ инвертируется — аффикс масштабирует величину, D-10)', () => {
+  const G = loadSheetAffixVm00023003([
+    { id: 'x_ring_hide', name: 'Тестовое кольцо', kind: 'ring', slot: 'ring',
+      weight: 0.1, value: 30, desc: 'т',
+      affixes: [{ type: 'skill', skill: 'hide', amount: 0.10 }] },
+    { id: 'x_ring_hide_cl', name: 'Тестовое кольцо (отрицательный)',
+      kind: 'ring', slot: 'ring', weight: 0.1, value: 30, desc: 'т',
+      affixes: [{ type: 'skill', skill: 'hide', amount: -2 }] },
+  ]);
+  const c = G.createCharacter();
+  c.secondary.hide = 10;
+  G.addItem(c, 'x_ring_hide');
+  assert.equal(G.equip(c, 'x_ring_hide').ok, true, 'кольцо экипируется');
+  assert.equal(c.equipment.ring_left_1, 'x_ring_hide');
+  const d = G.Sheet.derived(c);
+  assert.ok(
+    Math.abs(d.damageTakenMult - 0.45) < 1e-12,
+    'base −0.5 (−0.05·10) × (1 + 0.10) = −0.55 → 1 + (−0.55) = '
+    + d.damageTakenMult + ' (double ≠ литералу 0.45 — допуск 1e-12)');
+  const c0 = G.createCharacter();
+  c0.secondary.hide = 10;
+  assert.equal(G.Sheet.derived(c0).damageTakenMult, 0.5,
+    'контроль: без экипировки — 1 − 0.5 = 0.5 точно');
+  const c2 = G.createCharacter();
+  c2.secondary.hide = 10;
+  G.addItem(c2, 'x_ring_hide_cl');
+  assert.equal(G.equip(c2, 'x_ring_hide_cl').ok, true, 'кольцо экипируется');
+  const d2 = G.Sheet.derived(c2);
+  assert.equal(d2.damageTakenMult, 1,
+    'clamp: Math.max(0, 1 + (−2)) = 0 → вклад −0.5·0 = −0 → 1 + (−0) = 1 '
+    + 'точно; НЕ 1.5 — знак не инвертируется (perLevel отрицательный)');
+});
+
+test('000230.03.01-DD (vm): dialogueBonus affix-aware (D-10 — единственная переписанная формула): affix elder +0.5 при elder 10 → dialogueBonus = round(10·1.5) = 15; контроль без экипировки — 10', () => {
+  const G = loadSheetAffixVm00023003([
+    { id: 'x_ring_elder', name: 'Тестовое кольцо', kind: 'ring', slot: 'ring',
+      weight: 0.1, value: 30, desc: 'т',
+      affixes: [{ type: 'skill', skill: 'elder', amount: 0.5 }] },
+  ]);
+  const c = G.createCharacter();
+  c.secondary.elder = 10;
+  G.addItem(c, 'x_ring_elder');
+  assert.equal(G.equip(c, 'x_ring_elder').ok, true, 'кольцо экипируется');
+  assert.equal(c.equipment.ring_left_1, 'x_ring_elder');
+  assert.equal(G.Sheet.derived(c).dialogueBonus, 15,
+    'perLevel(elder) = 1: 10·1.5 = 15 точно (orator 0)');
+  const c0 = G.createCharacter();
+  c0.secondary.elder = 10;
+  assert.equal(G.Sheet.derived(c0).dialogueBonus, 10,
+    'контроль: без экипировки — 10');
+});

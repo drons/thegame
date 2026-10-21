@@ -9155,6 +9155,10 @@ test('000230.03-F1 (vm): free_cast (урон) — заклинание из free
   const c = G.createCombat({ player: p, mobs: ['wolf'], mobLevel: 2, seed: 5 });
   const w = c.units[0];
   w.x = c.px; w.y = c.py - 1; // в дальности 4
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(G.Spells.canCastSpell(c, 'spark', { targetId: w.id }))),
+    { ok: true },
+    'зеркало 000037: canCastSpell — free-ветка {ok:true} при mp 1 (до каста — пул ещё полон; JSON-нормализация — cross-realm-прототипы, паттерн fromVm)');
   const poolBefore = c.ps.spellInt;
   const r = G.Spells.castSpell(c, 'spark', w.id);
   assert.equal(r.ok, true,

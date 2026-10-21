@@ -3791,3 +3791,63 @@ test('000230.18 (known-issue пин): вес-гейт allyUnequip — от deriv
   assert.equal(merc.equipment.right_hand, 'x_sword',
     'предмет ОСТАЁТСЯ надетым (failsafe) — застрял; до 000230.18');
 });
+
+test('000230.03.01-EM (vm): зеркальные ключи weapon/armor в equipmentAffixes (питфол двойного подсчёта): оружие со skill-affix в right_hand → точная сумма = вклад ОДНОГО слота (зеркальный ключ weapon НЕ итерируется — 0.2, не 0.4)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  sandbox.Game.ITEMS = [
+    { id: 'x_sword_fc', name: 'Тестовый меч', kind: 'weapon',
+      subtype: 'sword', slot: 'right_hand', stats: { damage: 4 },
+      weight: 2, value: 50, desc: 'т',
+      affixes: [{ type: 'skill', skill: 'swordsman', amount: 0.2 }] },
+  ];
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  G.addItem(c, 'x_sword_fc');
+  assert.equal(G.equip(c, 'x_sword_fc').ok, true, 'меч экипируется');
+  assert.equal(c.equipment.right_hand, 'x_sword_fc', 'физ. слот — right_hand');
+  assert.equal(c.equipment.weapon, 'x_sword_fc',
+    'зеркало — синхронно (syncEquipmentMirrors, precondition зеркала)');
+  const a = G.equipmentAffixes(c);
+  assert.equal(a.skills.swordsman, 0.2,
+    'один физ. слот: (0||0)+0.2 = 0.2 точно (equipmentAffixes итерирует '
+    + 'ТОЛЬКО EQUIP_PHYS_SLOTS — зеркальный ключ weapon не итерируется; '
+    + 'ловушка — 0.4, двойной подсчёт)');
+  assert.equal(a.freeCast.size, 0, 'free_cast у меча нет');
+});
+
+test('000230.03.01-GU (vm): guards equipmentAffixes на невалидные данные: slot с ghost-id → пустой результат без throw; предмет с affixes: \'x\' и affix {skill, amount: \'y\'} → пропускаются (тихий skip, без console.error)', () => {
+  const { sandbox, errors } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  const ring = { id: 'x_ring_g', name: 'Тестовое кольцо', kind: 'ring',
+    slot: 'ring', weight: 0.1, value: 30, desc: 'т',
+    affixes: [{ type: 'skill', skill: 'swordsman', amount: 0.1 }] };
+  sandbox.Game.ITEMS = [ring];
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const c = G.createCharacter();
+  c.equipment = { ring_left_1: 'ghost_item' }; // свежий персонаж без
+  // поля equipment — ручное присваивание (прецедент D4); прототип —
+  // vm-песочница, node-каталог не трогается.
+  let a;
+  assert.doesNotThrow(() => { a = G.equipmentAffixes(c); });
+  assert.deepEqual(fromVm(a.skills), {}, 'ghost-id — skip: skills пуст');
+  assert.equal(a.freeCast.size, 0, 'freeCast — пустой Set');
+  assert.deepEqual(errors, [], 'guards — тихий skip, без console.error');
+  // Мутация каталога ПОСЛЕ загрузки (catalog Map держит те же ссылки
+  // фикстур; validateAffixes сработала при загрузке и не вызывается
+  // повторно):
+  c.equipment = { ring_left_1: 'x_ring_g' };
+  ring.affixes = 'x';
+  const a2 = G.equipmentAffixes(c);
+  assert.deepEqual(fromVm(a2.skills), {},
+    'affixes: \'x\' (не массив) — skip');
+  assert.equal(a2.freeCast.size, 0, 'freeCast — пустой Set');
+  ring.affixes = [{ type: 'skill', skill: 'swordsman', amount: 'y' }];
+  const a3 = G.equipmentAffixes(c);
+  assert.deepEqual(fromVm(a3.skills), {},
+    'amount: \'y\' (не finite-число) — skip');
+  assert.equal(a3.freeCast.size, 0, 'freeCast — пустой Set');
+  assert.deepEqual(errors, [], 'мутации каталога — без console.error');
+});
