@@ -2513,7 +2513,8 @@ test('город UI 000148.02 (RED): субтип (размещение.слот
   const loaded = loadDungeonUi({ performance: { now: () => 1000 },
     withSprites: true, withBuildings: true });
   const G = loaded.G;
-  // id 45 «Колодец» — СУБТИП без map_index (размещение.слот 11 → tavern.svg);
+  // id 45 «Колодец» — СУБТИП без map_index (размещение.слот 11 →
+  // кадр tavern_N по now, клетке; tavern_2.svg при now=1000, клетка (2,2));
   // id 37 «Храм луны» — СУБТИП (размещение.слот 8 → temple.svg). ЕДИНСТВЕННЫЙ
   // тест ветки размещения.слот (без map_index).
   const p45 = buildingSpritePath(G, 45, 1000, 2, 2);

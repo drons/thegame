@@ -511,6 +511,11 @@ test('000238.01 BA-7: BUILDING_FRAMES[0] (магазин оружия) и [11] (
   for (const p of all24) {
     assert.ok(exists(p), 'нет файла кадра: ' + p);
   }
+  for (const p of [...WEA_FRAMES, ...TAV_FRAMES]) {
+    assert.ok(
+      fs.readFileSync(path.join(ROOT, p), 'utf8').includes('viewBox="0 0 64 64"'),
+      'viewBox 64×64 у кадра: ' + p);
+  }
   // КАДР 1 = БАЙТ-КОПИЯ статичной базы (идеология 000224: кадры 2–4 —
   // та же композиция, движется только анимированный элемент).
   assert.equal(Buffer.compare(
