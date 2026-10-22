@@ -1,0 +1,21 @@
+{
+  "id": "leather_loop",
+  "name": "Кожаный лантух",
+  "kind": "armor",
+  "weight": 0.05,
+  "value": 12,
+  "desc": "Кожаный лантух: тихий, как молитва.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/leather_loop.svg",
+  "slot": "ears",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.03
+    }
+  ]
+}

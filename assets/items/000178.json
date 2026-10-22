@@ -1,0 +1,31 @@
+{
+  "id": "gold_dangle",
+  "name": "Золотой подвес",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 220,
+  "desc": "Золотой подвес: ловит взоры.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/gold_dangle.svg",
+  "slot": "ears",
+  "rarity": "epic",
+  "set": "stage",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "artist",
+      "amount": 0.18
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "artist",
+        "amount": 0.05
+      }
+    ]
+  }
+}

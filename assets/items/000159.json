@@ -1,0 +1,21 @@
+{
+  "id": "bone_stud",
+  "name": "Костяной гвоздик",
+  "kind": "armor",
+  "weight": 0.05,
+  "value": 10,
+  "desc": "Костяной гвоздик: мелочь, а держится.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/bone_stud.svg",
+  "slot": "ears",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.04
+    }
+  ]
+}

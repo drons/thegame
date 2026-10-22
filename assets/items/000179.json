@@ -1,0 +1,21 @@
+{
+  "id": "mithril_hoop",
+  "name": "Мифриловая петля",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 320,
+  "desc": "Мифриловая петля: легче мысли.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/mithril_hoop.svg",
+  "slot": "ears",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.16
+    }
+  ]
+}

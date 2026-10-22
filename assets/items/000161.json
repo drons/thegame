@@ -1,0 +1,21 @@
+{
+  "id": "clay_dangle",
+  "name": "Глиняный бубенчик",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 14,
+  "desc": "Глиняный бубенчик: звенит мягко.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/clay_dangle.svg",
+  "slot": "ears",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "orator",
+      "amount": 0.05
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "faith_stud",
+  "name": "Гвоздик веры",
+  "kind": "armor",
+  "weight": 0.05,
+  "value": 22,
+  "desc": "Гвоздик веры: помнит молитву.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/faith_stud.svg",
+  "slot": "ears",
+  "rarity": "common",
+  "set": "faith",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.05
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

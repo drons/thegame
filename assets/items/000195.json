@@ -1,0 +1,21 @@
+{
+  "id": "quartz_amulet",
+  "name": "Кварцевый амулет",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 60,
+  "desc": "Кварцевый амулет: дыхание глубже.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/quartz_amulet.svg",
+  "slot": "neck",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.08
+    }
+  ]
+}

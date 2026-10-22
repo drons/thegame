@@ -1,0 +1,21 @@
+{
+  "id": "obsidian_pendant",
+  "name": "Обсидиановый амулет",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 80,
+  "desc": "Обсидиановый амулет: видит тьму.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/obsidian_pendant.svg",
+  "slot": "neck",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.1
+    }
+  ]
+}

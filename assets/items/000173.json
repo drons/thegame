@@ -1,0 +1,21 @@
+{
+  "id": "obsidian_stud",
+  "name": "Обсидиановый гвоздик",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 75,
+  "desc": "Обсидиановый гвоздик: видит то, что за спиной.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/obsidian_stud.svg",
+  "slot": "ears",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.09
+    }
+  ]
+}

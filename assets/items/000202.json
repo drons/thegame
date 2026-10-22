@@ -1,0 +1,21 @@
+{
+  "id": "ruby_pendant",
+  "name": "Рубиный подвес",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 210,
+  "desc": "Рубиновый подвес: видит сквозь жар.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/ruby_pendant.svg",
+  "slot": "neck",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.18
+    }
+  ]
+}

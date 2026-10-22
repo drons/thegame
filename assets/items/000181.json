@@ -1,0 +1,21 @@
+{
+  "id": "whisper_hoop",
+  "name": "Шепчущая петля",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 500,
+  "desc": "Шепчущая петля: старые слова в тени.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/whisper_hoop.svg",
+  "slot": "ears",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "elder",
+      "amount": 0.3
+    }
+  ]
+}

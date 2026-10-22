@@ -1,0 +1,21 @@
+{
+  "id": "ruby_bell",
+  "name": "Рубиновый бубенчик",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 200,
+  "desc": "Рубиновый бубенчик: звенит живым голосом.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/ruby_bell.svg",
+  "slot": "ears",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "orator",
+      "amount": 0.2
+    }
+  ]
+}

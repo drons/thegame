@@ -1,0 +1,21 @@
+{
+  "id": "rune_necklace",
+  "name": "Руническое ожерелье",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 480,
+  "desc": "Руническое ожерелье: взгляд, как камень.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/rune_necklace.svg",
+  "slot": "neck",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.28
+    }
+  ]
+}

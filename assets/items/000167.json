@@ -1,0 +1,21 @@
+{
+  "id": "antler_hook",
+  "name": "Рогатый крючок",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 28,
+  "desc": "Рогатый крючок: лёгкий, держит слово.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/antler_hook.svg",
+  "slot": "ears",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "orator",
+      "amount": 0.03
+    }
+  ]
+}

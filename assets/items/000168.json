@@ -1,0 +1,21 @@
+{
+  "id": "stone_bead",
+  "name": "Каменная бусина",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 45,
+  "desc": "Каменная бусина: взгляд сквозь камень.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/stone_bead.svg",
+  "slot": "ears",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.06
+    }
+  ]
+}

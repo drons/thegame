@@ -1,0 +1,21 @@
+{
+  "id": "amethyst_choker",
+  "name": "Аметистовый чокер",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 85,
+  "desc": "Аметистовый чокер: видит грядущее.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/amethyst_choker.svg",
+  "slot": "neck",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.09
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "star_pendant",
+  "name": "Звёздный амулет",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 520,
+  "desc": "Звёздный амулет: видит ночь.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/star_pendant.svg",
+  "slot": "neck",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.3
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "silver_chain",
+  "name": "Серебряная цепочка",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 55,
+  "desc": "Серебряная цепочка: звенья ловят свет.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/silver_chain.svg",
+  "slot": "neck",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.07
+    }
+  ]
+}

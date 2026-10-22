@@ -1,0 +1,21 @@
+{
+  "id": "bone_beads",
+  "name": "Костяное ожерелье",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 11,
+  "desc": "Костяное ожерелье: помнит тепло.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/bone_beads.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.03
+    }
+  ]
+}

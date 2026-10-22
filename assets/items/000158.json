@@ -1,0 +1,21 @@
+{
+  "id": "copper_hoop",
+  "name": "Медная петля",
+  "kind": "armor",
+  "weight": 0.05,
+  "value": 8,
+  "desc": "Медная петля: лёгкая, звенит на бегу.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/copper_hoop.svg",
+  "slot": "ears",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.03
+    }
+  ]
+}

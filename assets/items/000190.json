@@ -1,0 +1,27 @@
+{
+  "id": "faith_necklace",
+  "name": "Ожерелье веры",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 23,
+  "desc": "Ожерелье веры: хранит молитву.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/faith_necklace.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "set": "faith",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.05
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

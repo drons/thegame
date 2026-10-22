@@ -1,0 +1,21 @@
+{
+  "id": "silver_stud",
+  "name": "Серебряный гвоздик",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 70,
+  "desc": "Серебряный гвоздик: старые слова звучат яснее.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/silver_stud.svg",
+  "slot": "ears",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "elder",
+      "amount": 0.08
+    }
+  ]
+}

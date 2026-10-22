@@ -1,0 +1,21 @@
+{
+  "id": "copper_chain",
+  "name": "Медная цепочка",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 9,
+  "desc": "Медная цепочка: звенья грубые, но держат.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/copper_chain.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.04
+    }
+  ]
+}

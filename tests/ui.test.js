@@ -46,7 +46,7 @@
 //                 «Редкость: <обычный|редкий|эпический|легендарный|
 //                 невозможный>».
 // ЗЕЛЁНЫЕ с начала (гарды/регрессия, в red-счёт НЕ входят):
-//   230.07-RAR-G  расходники + каталог 107 шт. БЕЗ rarity — БЕЗ рамки
+//   230.07-RAR-G  расходники + каталог 182 шт. БЕЗ rarity — БЕЗ рамки
 //                 (className побайтово «cp-itemrow»);
 //   230.07-ICON-1 img.cp-itemicon ПЕРВЫМ ребёнком, src = icon: loot/
 //                 (iron_ore) + items/ (blueprint_forge) — механизм
@@ -736,7 +736,7 @@ test('230.07-TIP-3: тултип предмета С rarity — «Редкост
 
 // --- ЗЕЛЁНЫЕ с начала (гарды/регрессия; в red-счёт не входят) ---
 
-test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 132 шт. — rarity только у 25 head-предметов (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет), прочие 107 — без поля rarity', () => {
+test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 182 шт. — rarity только у 75 экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity), прочие 107 — без поля rarity', () => {
   const env = loadEnv();
   const c = env.G.createCharacter();
   env.G.playerUI.setCharacter(c);
@@ -752,19 +752,22 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       + String(row.className));
   }
   const data = require(path.join(ROOT, 'src', 'items-data.js'));
-  assert.equal(data.ITEMS.length, 132,
-    'каталог — 132 предмета (ре-пин 000230.08: 82 + 25 head; ' +
-    'ре-пин 000235.07: +25 свитков)');
+  assert.equal(data.ITEMS.length, 182,
+    'каталог — 182 предмета (ре-пин 000230.08: 82 + 25 head; ' +
+    'ре-пин 000235.07: +25 свитков; ре-пин 000230.09: +50 уши/шея)');
   let others = 0;
   for (const it of data.ITEMS) {
-    if (it.kind === 'armor' && it.slot === 'head') continue;
+    // Ре-пин 000230.09: guard обобщён (любой экипировочный slot —
+    // волны .10–.15 добавят torso/forearms и т.д. без правки пина).
+    if (it.kind === 'armor' && it.slot !== undefined) continue;
     assert.equal(it.rarity, undefined,
       'каталожный предмет ' + it.id + ' — без rarity');
     others++;
   }
   assert.equal(others, 107,
-    'прочих предметов — ровно 107 (ре-пин 000230.08: 82 + 25 head → ' +
-    '107 − 25 head; ре-пин 000235.07: 132 − 25 head)');
+    'прочих предметов — ровно 107 (ре-пин 000230.09: 182 − 75 ' +
+    'экипировочных (25 head + 50 уши/шея); 000232: +6 чертежей без ' +
+    'rarity; 000235.07: +25 свитков без rarity)');
 });
 
 test('230.07-ICON-1 (регрессия 000237): itemRow с icon — img.cp-itemicon ПЕРВЫМ ребёнком, src = icon: loot/ (iron_ore) + items/ (blueprint_forge) — конвенция пути ТЗ п.1 работает через общий механизм', () => {

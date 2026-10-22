@@ -1,0 +1,21 @@
+{
+  "id": "copper_dangle",
+  "name": "Медный подвес",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 18,
+  "desc": "Медный подвес: играет на свету.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/copper_dangle.svg",
+  "slot": "ears",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.05
+    }
+  ]
+}

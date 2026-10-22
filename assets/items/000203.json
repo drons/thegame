@@ -1,0 +1,31 @@
+{
+  "id": "gold_chain",
+  "name": "Золотая цепочка",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 240,
+  "desc": "Золотая цепочка: говорит чистым голосом.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/gold_chain.svg",
+  "slot": "neck",
+  "rarity": "epic",
+  "set": "stage",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "orator",
+      "amount": 0.2
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "artist",
+        "amount": 0.05
+      }
+    ]
+  }
+}

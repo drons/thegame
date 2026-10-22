@@ -1,0 +1,26 @@
+{
+  "id": "dawn_pendant",
+  "name": "Рассветный амулет",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 1100,
+  "desc": "Рассветный амулет: хранит рассвет.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/dawn_pendant.svg",
+  "slot": "neck",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "elder",
+      "amount": 0.4
+    },
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.35
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "emerald_amulet",
+  "name": "Изумрудный амулет",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 200,
+  "desc": "Изумрудный амулет: тихое дыхание на груди.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/emerald_amulet.svg",
+  "slot": "neck",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.14
+    },
+    {
+      "type": "free_cast",
+      "spell": "greater_heal"
+    }
+  ]
+}

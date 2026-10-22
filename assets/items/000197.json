@@ -1,0 +1,27 @@
+{
+  "id": "faith_amulet",
+  "name": "Амулет веры",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 75,
+  "desc": "Амулет веры: держит старый свет.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/faith_amulet.svg",
+  "slot": "neck",
+  "rarity": "rare",
+  "set": "faith",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "elder",
+      "amount": 0.08
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

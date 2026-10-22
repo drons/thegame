@@ -1,0 +1,21 @@
+{
+  "id": "silver_hoop",
+  "name": "Серебряная петля",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 50,
+  "desc": "Серебряная петля: холодный свет, ясный взгляд.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/silver_hoop.svg",
+  "slot": "ears",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.07
+    }
+  ]
+}

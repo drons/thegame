@@ -1,0 +1,21 @@
+{
+  "id": "stone_beads",
+  "name": "Каменный бисер",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 27,
+  "desc": "Каменный бисер: взгляд спокойный.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/stone_beads.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.04
+    }
+  ]
+}

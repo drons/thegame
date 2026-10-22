@@ -1,0 +1,26 @@
+{
+  "id": "soul_bell",
+  "name": "Колокол души",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 1000,
+  "desc": "Колокол души: хранит голос и песню.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/soul_bell.svg",
+  "slot": "ears",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "orator",
+      "amount": 0.4
+    },
+    {
+      "type": "skill",
+      "skill": "artist",
+      "amount": 0.35
+    }
+  ]
+}

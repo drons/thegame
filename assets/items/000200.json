@@ -1,0 +1,21 @@
+{
+  "id": "sapphire_pendant",
+  "name": "Сапфировый амулет",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 170,
+  "desc": "Сапфировый амулет: взгляд сквозь камень.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/sapphire_pendant.svg",
+  "slot": "neck",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.15
+    }
+  ]
+}

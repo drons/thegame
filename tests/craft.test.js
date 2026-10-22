@@ -470,18 +470,19 @@ const ORES_015701 = ['silver_ore', 'gold_ore', 'mithril_ore', 'quartz',
   'obsidian', 'phosphorite', 'ruby', 'sapphire', 'emerald', 'amethyst',
   'diamond'];
 
-test('000157.04 R1: каталог — ровно 59 файл 000001..000059 подряд (ре-пин 000230.08: +28 000032–000059)', () => {
+test('000157.04 R1: каталог — ровно 115 файл 000001..000115 подряд (ре-пин 000230.08: +28 000032–000059; ре-пин 000230.09: +56 000060–000115)', () => {
   const files = listCraftFiles();
-  assert.equal(files.length, 59,
-    'ровно 59 рецепт (31 до 000230.08 + 28 head 000032–000059), '
+  assert.equal(files.length, 115,
+    'ровно 115 рецепт (31 до 000230.08 + 28 head 000032–000059 '
+    + '+ 56 уши/шея 000060–000115), '
     + 'а есть: ' + files.length);
   files.forEach((f, i) => {
     assert.equal(f, String(i + 1).padStart(6, '0') + '.json',
       `пробел в нумерации на позиции ${i + 1}: ${f}`);
   });
-  for (let n = 20; n <= 59; n++) {
+  for (let n = 20; n <= 115; n++) {
     assert.ok(fs.existsSync(path.join(DIR, String(n).padStart(6, '0') + '.json')),
-      `файл 0000${n}.json существует (краснота: ENOENT — новые рецепты не созданы)`);
+      `файл ${String(n).padStart(6, '0')}.json существует (краснота: ENOENT — новые рецепты не созданы)`);
   }
 });
 
@@ -532,7 +533,7 @@ test('000157.04 R4: каждый из 11 предметов 000157.01 — ≥1 �
   }
 });
 
-test('000157.04 R5: 11 цепочек «база» (тот же тип/результат, уровень ≥, исходники ⊇, ациклично; ре-пин 000230.08: +3 head-улучшенных)', () => {
+test('000157.04 R5: 17 цепочек «база» (тот же тип/результат, уровень ≥, исходники ⊇, ациклично; ре-пин 000230.08: +3 head-улучшенных; ре-пин 000230.09: +6 уши/шея-улучшенных)', () => {
   const { byId } = loadCatalog();
   const CHAINS = [
     ['steel_sword_ore', 'iron_sword_ore'],
@@ -546,6 +547,12 @@ test('000157.04 R5: 11 цепочек «база» (тот же тип/резу�
     ['rune_hoop_mithril', 'rune_hoop'],
     ['star_hoop_mithril', 'star_hoop'],
     ['crown_flame_diamond', 'crown_flame'],
+    ['star_earring_mithril', 'star_earring'],
+    ['whisper_hoop_diamond', 'whisper_hoop'],
+    ['soul_bell_mithril', 'soul_bell'],
+    ['star_pendant_mithril', 'star_pendant'],
+    ['rune_necklace_diamond', 'rune_necklace'],
+    ['dawn_pendant_diamond', 'dawn_pendant'],
   ];
   for (const [childId, baseId] of CHAINS) {
     const child = byId.get(childId);
@@ -610,13 +617,22 @@ test('000191.14: КАЖДЫЙ рецепт типа «зачарование» �
     .filter((x) => x.data['тип'] === 'зачарование');
   assert.deepEqual(
     enchants.map((x) => x.data.id).sort(),
-    ['hunting_bow', 'hunting_bow_sapphire', 'knight_plate',
-     'knight_plate_ruby', 'mystic_cloth', 'obsidian_cloth',
-     'quartz_cloth', 'rune_hoop', 'rune_hoop_mithril', 'star_hoop',
-     'star_hoop_mithril'],
-    'анти-вакуумность: ровно 11 зачарований с этим составом id '
-    + '(ре-пин 000230.08: +7 head-зачарований; каталог не растёт '
-    + 'и не теряет рецептов)');
+    ['amethyst_choker', 'amethyst_dangle', 'dawn_pendant',
+     'dawn_pendant_diamond', 'emerald_amulet', 'emerald_stud',
+     'faith_amulet', 'faith_necklace', 'faith_stud', 'gold_chain',
+     'gold_dangle', 'hunting_bow', 'hunting_bow_sapphire',
+     'knight_plate', 'knight_plate_ruby', 'moonstone_chain',
+     'moonstone_dangle', 'mystic_cloth', 'obsidian_cloth',
+     'quartz_cloth', 'ruby_bell', 'ruby_pendant', 'rune_hoop',
+     'rune_hoop_mithril', 'rune_necklace', 'rune_necklace_diamond',
+     'soul_bell', 'soul_bell_mithril', 'star_earring',
+     'star_earring_mithril', 'star_hoop', 'star_hoop_mithril',
+     'star_pendant', 'star_pendant_mithril', 'whisper_hoop',
+     'whisper_hoop_diamond'],
+    'анти-вакуумность: ровно 36 зачарований с этим составом id '
+    + '(ре-пин 000230.08: +7 head-зачарований; ре-пин 000230.09: '
+    + '+19 базовых + 6 улучшенных зачарований уши/шея; каталог не '
+    + 'растёт и не теряет рецептов)');
   for (const e of enchants) {
     assert.ok(Array.isArray(e.data['заклинания'])
         && e.data['заклинания'].length >= 1,
@@ -719,7 +735,7 @@ test('000208 R1: schema.json — поля-ссылки зафиксирован�
     'здания[] — ссылка на файл assets/buildings (integer → string)');
 });
 
-test('000208 R2: все 59 рецепт — результат/исходники/навыки/здания — ссылки на файлы каталогов, резолв в id каталога (ре-пин 000230.08: +28 head-рецептов)', () => {
+test('000208 R2: все 115 рецепт — результат/исходники/навыки/здания — ссылки на файлы каталогов, резолв в id каталога (ре-пин 000230.08: +28 head-рецептов; ре-пин 000230.09: +56 уши/шея-рецептов)', () => {
   const { byId } = loadCatalog();
   const knownSkill = (id) =>
     SECONDARY_SKILLS[id] !== undefined ||
@@ -749,9 +765,9 @@ test('000208 R2: все 59 рецепт — результат/исходник�
     }
   }
   // Анти-вакуум: точные счётчики ссылок (контракт 000208 §1).
-  assert.equal(itemRefs, 213, 'анти-вакуум: 213 item-ссылок (ре-пин 000230.08: 114+99)');
-  assert.equal(skillRefs, 79, 'анти-вакуум: 79 skill-ссылок (ре-пин 000230.08: 44+35)');
-  assert.equal(buildingRefs, 93, 'анти-вакуум: 93 building-ссылки (ре-пин 000230.08: 54+39)');
+  assert.equal(itemRefs, 421, 'анти-вакуум: 421 item-ссылок (ре-пин 000230.08: 114+99; ре-пин 000230.09: +208)');
+  assert.equal(skillRefs, 160, 'анти-вакуум: 160 skill-ссылок (ре-пин 000230.08: 44+35; ре-пин 000230.09: +81)');
+  assert.equal(buildingRefs, 180, 'анти-вакуум: 180 building-ссылок (ре-пин 000230.08: 54+39; ре-пин 000230.09: +87)');
 });
 
 test('000208 R3: sync-craft-data.js запекает ссылки в id-форму (tmp-репозиторий)', () => {
@@ -852,7 +868,7 @@ test('000211.09 R1: schema.json — «база» закреплена per-catalo
     + '(type string без смены типа, null-ветки нет — ключ опционален)');
 });
 
-test('000211.09 R2: все 13 «база» — self-ссылки: per-catalog паттерн, резолв, цель — рецепт того же каталога, id цели = значению зеркала (анти-вакуум 13/13, ре-пин 000230.08: +3 head-улучшенных)', () => {
+test('000211.09 R2: все 19 «база» — self-ссылки: per-catalog паттерн, резолв, цель — рецепт того же каталога, id цели = значению зеркала (анти-вакуум 19/19, ре-пин 000230.08: +3 head-улучшенных; ре-пин 000230.09: +6 уши/шея-улучшенных)', () => {
   const { byId } = loadCatalog();
   const { CRAFT_BY_ID } = loadCraftData();
   let baseRefs = 0;
@@ -870,10 +886,10 @@ test('000211.09 R2: все 13 «база» — self-ссылки: per-catalog п
     baseTargets.add(id);
   }
   // Анти-вакуум: точные счётчики (контракт memory/000211.09 §2).
-  assert.equal(baseRefs, 13,
-    'анти-вакуум: ровно 13 self-ссылок «база» (ре-пин 000230.08: +3)');
-  assert.equal(baseTargets.size, 13,
-    'анти-вакуум: ровно 13 уникальных целей «база» (ре-пин 000230.08: +3)');
+  assert.equal(baseRefs, 19,
+    'анти-вакуум: ровно 19 self-ссылок «база» (ре-пин 000230.08: +3; ре-пин 000230.09: +6)');
+  assert.equal(baseTargets.size, 19,
+    'анти-вакуум: ровно 19 уникальных целей «база» (ре-пин 000230.08: +3; ре-пин 000230.09: +6)');
 });
 
 test('000211.09 R3: sync-craft-data.js запекает «база» в id-форму (tmp-репозиторий)', () => {
@@ -1109,6 +1125,286 @@ const HEAD_IMPROVED_00023008 = [
 test('000230.08 C2: 3 улучшенных (000057–000059) — «база» = rune_hoop/star_hoop/crown_flame (000054/000055/000056), тот же тип/результат, уровень ≥ базы (80/88/100), исходники ⊇ базы (по qty), цепочка «база» ациклична, +t4-руда/камень (tier 4) в исходниках (000157.04)', () => {
   const { byId } = loadCatalog();
   for (const [id, file, baseId, level, t4] of HEAD_IMPROVED_00023008) {
+    const r = byId.get(id);
+    assert.ok(r, 'рецепт «' + id + '» (' + file + ') в каталоге '
+      + '(краснота: улучшенный рецепт не создан)');
+    assert.equal(r.file, file, id + ': файл ' + file);
+    assert.equal(refId(r.data['база'], REF_CRAFT, r.file), baseId,
+      id + ': «база» — «' + baseId + '» (self-ссылка)');
+    const base = byId.get(baseId);
+    assert.ok(base, id + ': базовый рецепт «' + baseId + '» в каталоге');
+    const c = r.data;
+    const b = base.data;
+    assert.equal(c['тип'], b['тип'], id + ': тот же тип, что у базы');
+    assert.equal(
+      refId(c['результат']['предмет'], REF_ITEMS, r.file),
+      refId(b['результат']['предмет'], REF_ITEMS, base.file),
+      id + ': тот же предмет-результат, что у базы');
+    assert.equal(c['уровень'], level, id + ': уровень ' + level);
+    assert.ok(c['уровень'] >= b['уровень'],
+      id + ': уровень не ниже базового (' + b['уровень'] + ')');
+    const qtyOf = (data, fileRef) => {
+      const m = new Map();
+      for (const i of data['исходники']) {
+        const iid = refId(i['предмет'], REF_ITEMS, fileRef);
+        m.set(iid, (m.get(iid) || 0) + i['количество']);
+      }
+      return m;
+    };
+    const baseQty = qtyOf(b, base.file);
+    const qty = qtyOf(c, r.file);
+    for (const [item, n] of baseQty) {
+      assert.ok((qty.get(item) || 0) >= n,
+        id + ': исходник «' + item + '» ⊇ базового (' + n + ')');
+    }
+    assert.ok(qty.has(t4),
+      id + ': t4-материал «' + t4 + '» в исходниках (000157.04)');
+    assert.equal(getItem(t4).tier, 4,
+      t4 + ': tier 4 в каталоге (редкая руда/самоцвет)');
+    // Обход цепочки «база» завершается (циклов нет, self-ссылка нет).
+    const seen = new Set();
+    let cur = r;
+    let curFile = r.file;
+    let guard = 0;
+    while (cur && cur.data['база'] !== undefined) {
+      assert.ok(++guard <= byId.size, id + ': цикл в цепочке «база»');
+      assert.ok(!seen.has(cur.data.id), id + ': цикл на «' + cur.data.id + '»');
+      seen.add(cur.data.id);
+      cur = byId.get(refId(cur.data['база'], REF_CRAFT, curFile));
+      curFile = cur.file;
+    }
+  }
+});
+
+// =====================================================================
+// Задача 000230.09 — рецепты на предметы «Уши» + «Шея»: 50 базовых
+// (31 резьба_по_камню + 19 зачарование) + 6 улучшенных (контентная
+// волна 2 серии 000230, серийно после .08; P2).
+// Контракт — memory/000230.09-ears-neck-items-wave.md §2.4 (id/файлы
+// фиксированы: 000060–000115, рецепт NNNNNN → предмет
+// 000108+(NNNNN−60)).
+// RED (TDD): в assets/craft 59 файлов (000001–000059), рецептов с
+// ears/neck-результатами нет — тесты падают по ОСМЫСЛЕННОЙ причине
+// «рецепты волны не созданы» (нет id/файлов), а не по синтаксису.
+// Ссылки проверяются в РЕЗОЛВЕННОЙ id-форме (refId — хелпер 000208).
+// =====================================================================
+
+// [id, файл, тип, уровень, здания (resolved id), навыки (resolved id),
+//  результат (id), исходники [[id, qty]], заклинания (null — поле нет)]
+// ювелирная группа (ТЗ): без магии — резьба_по_камню (навыки [runes],
+// здания [40, 48] — литерал всех 9 существующих резьб-рецептов),
+// самоцветы/магия/«вера» — зачарование (навыки [runes, тематический],
+// здания [18], ≥1 заклинание в ID-форме, maxItems 4).
+const EARSNECK_RECIPES_00023009 = [
+  ['copper_hoop', '000060.json', 'резьба_по_камню', 2, [40, 48],
+   ['runes'], 'copper_hoop', [['copper_ore', 2], ['stone_chunk', 1]], null],
+  ['bone_stud', '000061.json', 'резьба_по_камню', 3, [40, 48],
+   ['runes'], 'bone_stud', [['stone_chunk', 2], ['hide', 1]], null],
+  ['leather_loop', '000062.json', 'резьба_по_камню', 3, [40, 48],
+   ['runes'], 'leather_loop', [['hide', 2], ['coal', 1]], null],
+  ['clay_dangle', '000063.json', 'резьба_по_камню', 4, [40, 48],
+   ['runes'], 'clay_dangle', [['stone_chunk', 2], ['coal', 1]], null],
+  ['wood_bead', '000064.json', 'резьба_по_камню', 4, [40, 48],
+   ['runes'], 'wood_bead', [['wood_log', 2], ['stone_chunk', 1]], null],
+  ['copper_dangle', '000065.json', 'резьба_по_камню', 5, [40, 48],
+   ['runes'], 'copper_dangle', [['copper_ore', 2], ['coal', 1]], null],
+  ['shell_hoop', '000066.json', 'резьба_по_камню', 5, [40, 48],
+   ['runes'], 'shell_hoop', [['stone_chunk', 2], ['hide', 1]], null],
+  ['faith_stud', '000067.json', 'зачарование', 7, [18],
+   ['runes', 'meditation'], 'faith_stud',
+   [['copper_ore', 1], ['herb_healing', 1]], ['mend']],
+  ['twine_hoop', '000068.json', 'резьба_по_камню', 8, [40, 48],
+   ['runes'], 'twine_hoop', [['wood_log', 2], ['hide', 1]], null],
+  ['antler_hook', '000069.json', 'резьба_по_камню', 9, [40, 48],
+   ['runes'], 'antler_hook', [['hide', 2], ['stone_chunk', 1]], null],
+  ['stone_bead', '000070.json', 'резьба_по_камню', 12, [40, 48],
+   ['runes'], 'stone_bead', [['stone_chunk', 3], ['coal', 1]], null],
+  ['silver_hoop', '000071.json', 'резьба_по_камню', 12, [40, 48],
+   ['runes'], 'silver_hoop', [['silver_ore', 2], ['coal', 1]], null],
+  ['moonstone_dangle', '000072.json', 'зачарование', 16, [18],
+   ['runes', 'artist'], 'moonstone_dangle',
+   [['moonstone', 1], ['silver_ore', 1], ['coal', 1]], ['nature_blessing']],
+  ['quartz_bead', '000073.json', 'резьба_по_камню', 14, [40, 48],
+   ['runes'], 'quartz_bead',
+   [['quartz', 1], ['silver_ore', 1], ['coal', 1]], null],
+  ['silver_stud', '000074.json', 'резьба_по_камню', 16, [40, 48],
+   ['runes'], 'silver_stud', [['silver_ore', 2], ['stone_chunk', 1]], null],
+  ['obsidian_stud', '000075.json', 'резьба_по_камню', 18, [40, 48],
+   ['runes'], 'obsidian_stud',
+   [['obsidian', 1], ['silver_ore', 1], ['coal', 1]], null],
+  ['amethyst_dangle', '000076.json', 'зачарование', 20, [18],
+   ['runes', 'orator'], 'amethyst_dangle',
+   [['amethyst', 1], ['silver_ore', 1], ['coal', 1]], ['frost_bolt']],
+  ['sapphire_hoop', '000077.json', 'резьба_по_камню', 35, [40, 48],
+   ['runes'], 'sapphire_hoop',
+   [['sapphire', 1], ['silver_ore', 2], ['coal', 2]], null],
+  ['emerald_stud', '000078.json', 'зачарование', 38, [18],
+   ['runes', 'meditation'], 'emerald_stud',
+   [['emerald', 1], ['gold_ore', 1], ['coal', 2]], ['ward']],
+  ['ruby_bell', '000079.json', 'зачарование', 42, [18],
+   ['runes', 'orator'], 'ruby_bell',
+   [['ruby', 1], ['gold_ore', 1], ['coal', 2]], ['flame_burst']],
+  ['gold_dangle', '000080.json', 'зачарование', 45, [18],
+   ['runes', 'artist'], 'gold_dangle',
+   [['gold_ore', 2], ['ruby', 1], ['coal', 1]], ['spark']],
+  ['mithril_hoop', '000081.json', 'резьба_по_камню', 55, [40, 48],
+   ['runes'], 'mithril_hoop', [['mithril_ore', 2], ['coal', 2]], null],
+  ['star_earring', '000082.json', 'зачарование', 65, [18],
+   ['runes', 'perception'], 'star_earring',
+   [['sapphire', 2], ['gold_ore', 2], ['coal', 2]], ['magic_shield']],
+  ['whisper_hoop', '000083.json', 'зачарование', 70, [18],
+   ['runes', 'elder'], 'whisper_hoop',
+   [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['shadow_bolt']],
+  ['soul_bell', '000084.json', 'зачарование', 95, [18],
+   ['runes', 'orator'], 'soul_bell',
+   [['gold_ore', 4], ['phoenix_feather', 2], ['ruby', 2],
+    ['coal', 3]], ['inferno']],
+  ['copper_chain', '000085.json', 'резьба_по_камню', 2, [40, 48],
+   ['runes'], 'copper_chain', [['copper_ore', 2], ['coal', 1]], null],
+  ['bone_beads', '000086.json', 'резьба_по_камню', 3, [40, 48],
+   ['runes'], 'bone_beads', [['stone_chunk', 2], ['hide', 1]], null],
+  ['twine_amulet', '000087.json', 'резьба_по_камню', 4, [40, 48],
+   ['runes'], 'twine_amulet', [['wood_log', 2], ['hide', 1]], null],
+  ['clay_pendant', '000088.json', 'резьба_по_камню', 4, [40, 48],
+   ['runes'], 'clay_pendant', [['stone_chunk', 2], ['coal', 1]], null],
+  ['wood_pendant', '000089.json', 'резьба_по_камню', 5, [40, 48],
+   ['runes'], 'wood_pendant', [['wood_log', 2], ['stone_chunk', 1]], null],
+  ['copper_pendant', '000090.json', 'резьба_по_камню', 5, [40, 48],
+   ['runes'], 'copper_pendant', [['copper_ore', 2], ['hide', 1]], null],
+  ['shell_beads', '000091.json', 'резьба_по_камню', 6, [40, 48],
+   ['runes'], 'shell_beads', [['stone_chunk', 2], ['coal', 1]], null],
+  ['faith_necklace', '000092.json', 'зачарование', 8, [18],
+   ['runes', 'meditation'], 'faith_necklace',
+   [['copper_ore', 1], ['herb_healing', 1], ['coal', 1]], ['mend']],
+  ['leather_choker', '000093.json', 'резьба_по_камню', 8, [40, 48],
+   ['runes'], 'leather_choker', [['hide', 2], ['coal', 1]], null],
+  ['stone_beads', '000094.json', 'резьба_по_камню', 9, [40, 48],
+   ['runes'], 'stone_beads', [['stone_chunk', 3], ['hide', 1]], null],
+  ['bone_pendant', '000095.json', 'резьба_по_камню', 12, [40, 48],
+   ['runes'], 'bone_pendant', [['stone_chunk', 2], ['coal', 1]], null],
+  ['silver_chain', '000096.json', 'резьба_по_камню', 13, [40, 48],
+   ['runes'], 'silver_chain', [['silver_ore', 2], ['coal', 1]], null],
+  ['quartz_amulet', '000097.json', 'резьба_по_камню', 14, [40, 48],
+   ['runes'], 'quartz_amulet',
+   [['quartz', 1], ['silver_ore', 1], ['coal', 1]], null],
+  ['moonstone_chain', '000098.json', 'зачарование', 16, [18],
+   ['runes', 'artist'], 'moonstone_chain',
+   [['moonstone', 1], ['silver_ore', 1], ['coal', 1]], ['nature_blessing']],
+  ['faith_amulet', '000099.json', 'зачарование', 18, [18],
+   ['runes', 'elder'], 'faith_amulet',
+   [['amethyst', 1], ['herb_mana', 1], ['coal', 1]], ['light_heal']],
+  ['obsidian_pendant', '000100.json', 'резьба_по_камню', 18, [40, 48],
+   ['runes'], 'obsidian_pendant',
+   [['obsidian', 1], ['silver_ore', 1], ['coal', 1]], null],
+  ['amethyst_choker', '000101.json', 'зачарование', 20, [18],
+   ['runes', 'precog'], 'amethyst_choker',
+   [['amethyst', 1], ['silver_ore', 1], ['coal', 1]], ['chill']],
+  ['sapphire_pendant', '000102.json', 'резьба_по_камню', 35, [40, 48],
+   ['runes'], 'sapphire_pendant',
+   [['sapphire', 1], ['silver_ore', 2], ['coal', 2]], null],
+  ['emerald_amulet', '000103.json', 'зачарование', 40, [18],
+   ['runes', 'meditation'], 'emerald_amulet',
+   [['emerald', 1], ['gold_ore', 2], ['coal', 2]], ['greater_heal']],
+  ['ruby_pendant', '000104.json', 'зачарование', 42, [18],
+   ['runes', 'precog'], 'ruby_pendant',
+   [['ruby', 1], ['gold_ore', 2], ['coal', 2]], ['fireball']],
+  ['gold_chain', '000105.json', 'зачарование', 48, [18],
+   ['runes', 'orator'], 'gold_chain',
+   [['gold_ore', 3], ['ruby', 1], ['coal', 2]], ['flame_burst']],
+  ['mithril_choker', '000106.json', 'резьба_по_камню', 55, [40, 48],
+   ['runes'], 'mithril_choker',
+   [['mithril_ore', 2], ['silver_ore', 1], ['coal', 2]], null],
+  ['rune_necklace', '000107.json', 'зачарование', 68, [18],
+   ['runes', 'perception'], 'rune_necklace',
+   [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['stone_skin']],
+  ['star_pendant', '000108.json', 'зачарование', 72, [18],
+   ['runes', 'precog'], 'star_pendant',
+   [['sapphire', 2], ['gold_ore', 2], ['coal', 2]], ['blizzard']],
+  ['dawn_pendant', '000109.json', 'зачарование', 97, [18],
+   ['runes', 'meditation'], 'dawn_pendant',
+   [['gold_ore', 4], ['diamond', 2], ['phoenix_feather', 1],
+    ['coal', 4]], ['light_heal']],
+];
+
+test('000230.09 C1: 50 базовых рецептов (ростер §2.4: id/файл/тип/уровень/здания/навыки/результат/исходники/заклинания; 31 резьба_по_камню + 19 зачарование); «уровень» в диапазоне редкости РЕЗУЛЬТАТА (пин); зачарование — ≥1 заклинание (ID-форма); каждый из 50 ears/neck-предметов — ровно 1 базовый рецепт-результат (краснота: рецептов на ears/neck нет)', () => {
+  const { byId } = loadCatalog();
+  for (const [id, file, type, level, buildings, skills, resultId,
+      inputs, spells] of EARSNECK_RECIPES_00023009) {
+    const r = byId.get(id);
+    assert.ok(r, 'рецепт «' + id + '» (' + file + ') в каталоге '
+      + '(краснота: рецепт волны не создан)');
+    assert.equal(r.file, file, id + ': файл ' + file
+      + ' (контракт §2.4, переименований нет)');
+    assert.equal(r.data['тип'], type, id + ': тип «' + type + '»');
+    assert.equal(r.data['уровень'], level, id + ': уровень ' + level);
+    assert.deepEqual(
+      r.data['здания'].map((b) => refId(b, REF_BUILDINGS, r.file)),
+      buildings, id + ': здания (resolved id)');
+    assert.deepEqual(
+      r.data['навыки'].map((s) => refId(s, REF_SKILLS, r.file)),
+      skills, id + ': навыки (resolved id)');
+    const resId = refId(r.data['результат']['предмет'], REF_ITEMS, r.file);
+    assert.equal(resId, resultId,
+      id + ': результат — ears/neck-предмет «' + resultId + '»');
+    assert.equal(r.data['результат']['количество'], 1,
+      id + ': результат ×1');
+    assert.deepEqual(
+      r.data['исходники'].map((i) =>
+        [refId(i['предмет'], REF_ITEMS, r.file), i['количество']]),
+      inputs, id + ': исходники (resolved id, порядок контракта)');
+    if (spells === null) {
+      assert.equal(r.data['заклинания'], undefined,
+        id + ': «заклинания» отсутствуют');
+    } else {
+      assert.deepEqual(r.data['заклинания'], spells,
+        id + ': «заклинания» (ID-форма, не пути)');
+    }
+    const it = getItem(resId);
+    assert.ok(it, id + ': результат «' + resultId + '» — в assets/items');
+    const [lo, hi] = RARITY_LEVEL_RANGE_00023008[it.rarity];
+    assert.ok(r.data['уровень'] >= lo && r.data['уровень'] <= hi,
+      id + ': уровень ' + r.data['уровень'] + ' в диапазоне редкости '
+      + it.rarity + ' [' + lo + '–' + hi + '] (пин ТЗ)');
+    if (type === 'зачарование') {
+      assert.ok(Array.isArray(r.data['заклинания'])
+          && r.data['заклинания'].length >= 1,
+        id + ': «зачарование» — ≥1 заклинание (инвариант 000191.14)');
+      assert.ok(r.data['заклинания'].length <= 4,
+        id + ': «зачарование» — заклинания ≤ 4 (maxItems schema)');
+    }
+  }
+  // Каждый ears/neck-предмет — ровно 1 базовый (БЕЗ «база»)
+  // рецепт-результат: улучшенные (C2) дают тот же предмет, их сюда
+  // не считаем.
+  const basicResults = [];
+  for (const { file, data } of byId.values()) {
+    if (data['база'] !== undefined) continue;
+    basicResults.push(
+      refId(data['результат']['предмет'], REF_ITEMS, file));
+  }
+  for (const row of EARSNECK_RECIPES_00023009) {
+    const n = basicResults.filter((x) => x === row[6]).length;
+    assert.equal(n, 1,
+      'ears/neck-предмет «' + row[6] + '» — ровно 1 базовый '
+      + 'рецепт-результат (факт: ' + n + ')');
+  }
+});
+
+// [id, файл, «база» (id), уровень, t4-материал (tier 4, 000157.04)]
+// 6 улучшенных — 2 legendary + 1 impossible на часть (паттерн .08);
+// все — на зачарованиях.
+const EARSNECK_IMPROVED_00023009 = [
+  ['star_earring_mithril', '000110.json', 'star_earring', 80, 'mithril_ore'],
+  ['whisper_hoop_diamond', '000111.json', 'whisper_hoop', 85, 'diamond'],
+  ['soul_bell_mithril', '000112.json', 'soul_bell', 100, 'mithril_ore'],
+  ['star_pendant_mithril', '000113.json', 'star_pendant', 85, 'mithril_ore'],
+  ['rune_necklace_diamond', '000114.json', 'rune_necklace', 82, 'diamond'],
+  ['dawn_pendant_diamond', '000115.json', 'dawn_pendant', 100, 'diamond'],
+];
+
+test('000230.09 C2: 6 улучшенных (000110–000115) — «база» = star_earring/whisper_hoop/soul_bell/star_pendant/rune_necklace/dawn_pendant (000082/000083/000084/000108/000107/000109), тот же тип/результат, уровень ≥ базы, исходники ⊇ базы (по qty), цепочка «база» ациклична, +t4-руда/камень (tier 4) в исходниках (000157.04)', () => {
+  const { byId } = loadCatalog();
+  for (const [id, file, baseId, level, t4] of EARSNECK_IMPROVED_00023009) {
     const r = byId.get(id);
     assert.ok(r, 'рецепт «' + id + '» (' + file + ') в каталоге '
       + '(краснота: улучшенный рецепт не создан)');

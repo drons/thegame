@@ -1,0 +1,21 @@
+{
+  "id": "twine_amulet",
+  "name": "Плетёный амулет",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 13,
+  "desc": "Плетёный амулет: три узла, тихая сила.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/twine_amulet.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.04
+    }
+  ]
+}

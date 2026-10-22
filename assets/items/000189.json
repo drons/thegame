@@ -1,0 +1,21 @@
+{
+  "id": "shell_beads",
+  "name": "Раковинный чокер",
+  "kind": "armor",
+  "weight": 0.15,
+  "value": 21,
+  "desc": "Раковинный чокер: поёт голосом.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/shell_beads.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "orator",
+      "amount": 0.04
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "clay_pendant",
+  "name": "Глиняный подвес",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 15,
+  "desc": "Глиняный подвес: лёгкий, как кисть художника.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/clay_pendant.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "artist",
+      "amount": 0.05
+    }
+  ]
+}

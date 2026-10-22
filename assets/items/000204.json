@@ -1,0 +1,21 @@
+{
+  "id": "mithril_choker",
+  "name": "Мифриловый чокер",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 330,
+  "desc": "Мифриловый чокер: лёгкий, держит старые слова.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/mithril_choker.svg",
+  "slot": "neck",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "elder",
+      "amount": 0.16
+    }
+  ]
+}

@@ -3343,11 +3343,12 @@ test('000235.07 W-04: кастабельность вне боя — firelight/h
   }
 });
 
-test('000235.07 W-08: зеркала в синке — spells-data 42 / items-data 132; sync:check exit 0', () => {
+test('000235.07 W-08: зеркала в синке — spells-data 42 / items-data 182 (ре-пин 000230.09: +50 уши/шея); sync:check exit 0', () => {
   const { SPELLS } = loadSpellsData();
   assert.equal(SPELLS.length, 42, 'spells-data: 42 записи (RED: 17)');
   const itemsData = require('../src/items-data.js');
-  assert.equal(itemsData.ITEMS.length, 132, 'items-data: 132 (RED: 82)');
+  assert.equal(itemsData.ITEMS.length, 182,
+    'items-data: 182 (RED: 82; ре-пин 000230.09: 132+50)');
   const { spawnSync } = require('node:child_process');
   const r = spawnSync(process.execPath,
     [path.join(__dirname, '..', 'scripts', 'sync-all.js'), '--check'],

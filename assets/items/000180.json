@@ -1,0 +1,21 @@
+{
+  "id": "star_earring",
+  "name": "Звёздная серьга",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 450,
+  "desc": "Звёздная серьга: ночь вплетена в металл.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/star_earring.svg",
+  "slot": "ears",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.3
+    }
+  ]
+}

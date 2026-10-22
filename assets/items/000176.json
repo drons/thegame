@@ -1,0 +1,25 @@
+{
+  "id": "emerald_stud",
+  "name": "Изумрудный гвоздик",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 180,
+  "desc": "Изумрудный гвоздик: зачарованный покой.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/emerald_stud.svg",
+  "slot": "ears",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.12
+    },
+    {
+      "type": "free_cast",
+      "spell": "ward"
+    }
+  ]
+}

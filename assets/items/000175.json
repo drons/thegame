@@ -1,0 +1,21 @@
+{
+  "id": "sapphire_hoop",
+  "name": "Сапфировая петля",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 160,
+  "desc": "Сапфировая петля: взгляд сквозь камень.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/sapphire_hoop.svg",
+  "slot": "ears",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.15
+    }
+  ]
+}

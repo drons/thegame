@@ -1,0 +1,21 @@
+{
+  "id": "wood_pendant",
+  "name": "Деревянный амулет",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 17,
+  "desc": "Деревянный амулет: вырезаны старые слова.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/wood_pendant.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "elder",
+      "amount": 0.05
+    }
+  ]
+}

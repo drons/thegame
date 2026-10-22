@@ -1,0 +1,21 @@
+{
+  "id": "leather_choker",
+  "name": "Кожаный чокер",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 25,
+  "desc": "Кожаный чокер: тугой — видно лучше.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/leather_choker.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "moonstone_dangle",
+  "name": "Лунный подвес",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 65,
+  "desc": "Лунный подвес: светится, как лунная вода.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/moonstone_dangle.svg",
+  "slot": "ears",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "artist",
+      "amount": 0.08
+    }
+  ]
+}
