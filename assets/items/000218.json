@@ -1,0 +1,27 @@
+{
+  "id": "wool_sutan",
+  "name": "Шерстяная сутана",
+  "kind": "armor",
+  "weight": 1,
+  "value": 60,
+  "desc": "Шерстяная сутана: тихое одеяние покаяния.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wool_sutan.svg",
+  "slot": "torso",
+  "rarity": "rare",
+  "set": "penitent",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.06
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

@@ -736,7 +736,7 @@ test('230.07-TIP-3: тултип предмета С rarity — «Редкост
 
 // --- ЗЕЛЁНЫЕ с начала (гарды/регрессия; в red-счёт не входят) ---
 
-test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 182 шт. — rarity только у 75 экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity), прочие 107 — без поля rarity', () => {
+test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 207 шт. — rarity только у экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity; ре-пин 000230.10: +25 torso 000208–000232 с rarity — в skip-ветку), прочие 104 — без поля rarity', () => {
   const env = loadEnv();
   const c = env.G.createCharacter();
   env.G.playerUI.setCharacter(c);
@@ -752,10 +752,11 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       + String(row.className));
   }
   const data = require(path.join(ROOT, 'src', 'items-data.js'));
-  assert.equal(data.ITEMS.length, 207,
-    'каталог — 207 предметов (ре-пин 000230.08: 82 + 25 head; ' +
+  assert.equal(data.ITEMS.length, 232,
+    'каталог — 232 предмета (ре-пин 000230.08: 82 + 25 head; ' +
     'ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 свитков ' +
-    'волны Лёд; ре-пин 000230.09: +50 уши/шея)');
+    'волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: ' +
+    '+25 torso)');
   let others = 0;
   for (const it of data.ITEMS) {
     // Ре-пин 000230.09: guard обобщён (любой экипировочный slot —
@@ -765,9 +766,9 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       'каталожный предмет ' + it.id + ' — без rarity');
     others++;
   }
-  assert.equal(others, 132,
-    'прочих предметов — ровно 132 (ре-пин 000230.09: 207 − 75 ' +
-    'экипировочных (25 head + 50 уши/шея); 000232: +6 чертежей без ' +
+  assert.equal(others, 129,
+    'прочих предметов — ровно 129 (232 − 103 экипировочных ' +
+    '(75 + 25 torso + 3 legacy remap); 000232: +6 чертежей без ' +
     'rarity; 000235.07: +25 свитков без rarity; 000235.08: +25 ' +
     'свитков волны Лёд без rarity)');
 });
@@ -812,5 +813,152 @@ test('230.07-ICON-G (гард 000237): без icon (bread/sulfur) — без img
     assert.equal(row.children[0].className, 'cp-itemname');
     assert.ok(!row.children.some((ch) => ch.tagName === 'img'),
       'img среди детей нет (icon не задан)');
+  }
+});
+
+// =====================================================================
+// Задача 000230.10 — T9 (e2e, H8/EN8-паттерн: vm-песочница, цепочка
+// ITEMS_CHAIN минус items.js, затем items.js — live-каталог; НЕ
+// фикстуры). Контракт — memory/000230.10-torso-items-wave.md §2/§3.1:
+// 5 телесных навыков S=10; база maxHPMult 1.5 / damageTakenMult 0.5 /
+// hpRegenMult 0.8 / mpRegenMult 0.3 / equipmentStats.armor 0; affixes
+// доходят до derived; free_cast в equipmentAffixes; set-дормантность
+// (порог 2 > 1 надетого). RED (TDD): torso-предметов в live-каталоге
+// нет — equip падает по ОСМЫСЛЕННОЙ причине «неизвестный предмет:
+// волна не добавлена» (не синтаксис/окружение).
+// =====================================================================
+const VM_TORSO_CHAIN_00023010 = ['global-settings.js', 'perlin.js',
+  'map.js', 'skills-data.js', 'items-data.js', 'sheet.js', 'player.js'];
+function makeVmSandboxWithConsole00023010() {
+  const errors = [];
+  const sandbox = {
+    console: { log() {}, warn() {}, error: (m) => errors.push(String(m)) },
+  };
+  return { sandbox, errors };
+}
+function loadTorsosVmChain00023010(sandbox) {
+  for (const f of VM_TORSO_CHAIN_00023010) {
+    vm.runInNewContext(src(f), sandbox, { filename: f });
+  }
+}
+// Меж-реальм: значения из vm-песочницы — чужие прототипы;
+// deepStrictEqual их отвергает — нормализуем через JSON.
+const fromVm00023010 = (v) => JSON.parse(JSON.stringify(v));
+
+test('000230.10 T9 (vm, e2e): РЕАЛЬНЫЕ torso-предметы из live-каталога (не фикстуры) — equip в слот torso (M2-паттерн); при S=10 по ВСЕМ 5 телесным навыкам (constitution 8 — разрешение maxHP): база maxHP 90 (mult 1.5 = round(60·1.5)) / damageTakenMult 0.5 / hpRegenMult 0.8 / mpRegenMult 0.3 / equipmentStats.armor 0; linen_shirt → maxHP 91 (endurance 0.03: round(60·1.509)); cloth_sutan → damageTakenMult 0.475 (hide 0.05: 1 − 0.525); linen_tunic → hpRegenMult 0.825 (breath 0.05: 0.10 + 0.525 + 0.20); rough_kaftan → mpRegenMult 0.31 (meditation 0.05: 0.10 + 0.21); aegis_mantle → equipmentStats.armor 4 + damageTakenMult 0.30 (hide 0.40: 1 − 0.70) + hpRegenMult 0.975 (breath 0.35: 0.10 + 0.675 + 0.20); freeCast(ember_robe) содержит heat_shield; freeCast(shadow_robe) содержит stone_skin; DORMANT: cloth_sutan одна → counts {penitent:1}, бонуса НЕТ; ember_robe одна → {hearth:1}, meditation +0.05 НЕ применён (краснота: неизвестный предмет — волна не добавлена)', () => {
+  const { sandbox } = makeVmSandboxWithConsole00023010();
+  loadTorsosVmChain00023010(sandbox);
+  vm.runInNewContext(src('items.js'), sandbox, { filename: 'items.js' });
+  const G = sandbox.Game;
+  const near = (a, b, msg) => assert.ok(
+    Math.abs(a - b) < 1e-9, msg + ' (факт: ' + a + ')');
+  const makeHero = () => {
+    const c = G.createCharacter();
+    c.primary.constitution = 8;
+    c.secondary.endurance = 10;
+    c.secondary.golem = 10;
+    c.secondary.hide = 10;
+    c.secondary.breath = 10;
+    c.secondary.meditation = 10;
+    return c;
+  };
+  const equipTorso = (c, id) => {
+    const ra = G.addItem(c, id);
+    assert.equal(ra.ok, true, id + ': выдача (' + (ra.reason || '')
+      + ') — предмет есть в live-каталоге (краснота: неизвестный '
+      + 'предмет — волна не добавлена)');
+    const r = G.equip(c, id);
+    assert.equal(r.ok, true, id + ': equip (' + (r.reason || '') + ')');
+    assert.equal(c.equipment.torso, id, id + ': предмет в слоте torso');
+  };
+  {
+    const c = makeHero();
+    const d = G.derived(c);
+    assert.equal(d.maxHP, 90,
+      'база maxHP = round((20 + 8·5)·1.5) = 90 '
+      + '(mult 1.5 = 1 + 0.03·10 + 0.02·10)');
+    near(d.damageTakenMult, 0.5, 'база damageTakenMult (1 − 0.05·10)');
+    near(d.hpRegenMult, 0.8, 'база hpRegenMult (0.10 + 0.05·10 + 0.02·10)');
+    near(d.mpRegenMult, 0.3, 'база mpRegenMult (0.10 + 0.02·10)');
+    assert.equal(G.equipmentStats(c).armor, 0,
+      'база equipmentStats.armor (снаряжения нет)');
+  }
+  {
+    const c = makeHero();
+    equipTorso(c, 'linen_shirt');
+    assert.equal(G.derived(c).maxHP, 91,
+      'linen_shirt: maxHP = round((20 + 8·5)·1.509) = 91 '
+      + '(endurance 0.03: mult 1 + 0.03·10·1.03 + 0.02·10)');
+    assert.equal(G.equipmentStats(c).armor, 0,
+      'linen_shirt: stats.armor 0 — equipmentStats.armor += 0');
+  }
+  {
+    const c = makeHero();
+    equipTorso(c, 'cloth_sutan');
+    near(G.derived(c).damageTakenMult, 0.475,
+      'cloth_sutan: damageTakenMult = max(0.1, 1 − 0.05·10·1.05)');
+  }
+  {
+    const c = makeHero();
+    equipTorso(c, 'linen_tunic');
+    near(G.derived(c).hpRegenMult, 0.825,
+      'linen_tunic: hpRegenMult = 0.10 + 0.05·10·1.05 + 0.02·10');
+  }
+  {
+    const c = makeHero();
+    equipTorso(c, 'rough_kaftan');
+    near(G.derived(c).mpRegenMult, 0.31,
+      'rough_kaftan: mpRegenMult = 0.10 + 0.02·10·1.05');
+  }
+  {
+    const c = makeHero();
+    equipTorso(c, 'aegis_mantle');
+    assert.equal(G.equipmentStats(c).armor, 4,
+      'aegis_mantle: stats.armor 4');
+    const d = G.derived(c);
+    near(d.damageTakenMult, 0.3,
+      'aegis_mantle: damageTakenMult = 1 − 0.05·10·1.40 (hide 0.40)');
+    near(d.hpRegenMult, 0.975,
+      'aegis_mantle: hpRegenMult = 0.10 + 0.05·10·1.35 + 0.02·10 '
+      + '(breath 0.35)');
+  }
+  {
+    const c = makeHero();
+    equipTorso(c, 'ember_robe');
+    const a = G.equipmentAffixes(c);
+    assert.ok(a.freeCast.has('heat_shield'),
+      'ember_robe: free_cast heat_shield в equipmentAffixes.freeCast');
+  }
+  {
+    const c = makeHero();
+    equipTorso(c, 'shadow_robe');
+    const a = G.equipmentAffixes(c);
+    assert.ok(a.freeCast.has('stone_skin'),
+      'shadow_robe: free_cast stone_skin в equipmentAffixes.freeCast');
+  }
+  {
+    const c = makeHero();
+    equipTorso(c, 'cloth_sutan');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023010(st.counts), { penitent: 1 },
+      'penitent — 1 надетый предмет');
+    assert.equal(st.armor, 0, 'set-бонус НЕ активен (порог 2 > 1)');
+    assert.deepEqual(fromVm00023010(st.skills), {},
+      'set-skill-бонусов нет');
+    assert.equal(st.freeCast.size, 0, 'set-free_cast-бонусов нет');
+    assert.equal(G.equipmentStats(c).armor, 1,
+      'equipmentStats.armor = 1 — только собственный armor cloth_sutan ' +
+      '(1, ростер §2.1); set-бонус penitent (+1) НЕ применён (дормантность)');
+  }
+  {
+    const c = makeHero();
+    equipTorso(c, 'ember_robe');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023010(st.counts), { hearth: 1 },
+      'hearth — 1 надетый предмет');
+    assert.equal(st.armor, 0, 'set-бонус НЕ активен (порог 2 > 1)');
+    near(G.derived(c).mpRegenMult, 0.3,
+      'ember_robe одна: mpRegenMult = 0.3 — set-bonus meditation '
+      + '+0.05 НЕ применён (дормантность)');
   }
 });

@@ -1,0 +1,21 @@
+{
+  "id": "monk_sutan",
+  "name": "Монашеская сутана",
+  "kind": "armor",
+  "weight": 1.1,
+  "value": 90,
+  "desc": "Монашеская сутана: ткань, видевшая долгие молитвы.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/monk_sutan.svg",
+  "slot": "torso",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.09
+    }
+  ]
+}

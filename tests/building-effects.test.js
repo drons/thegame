@@ -3666,34 +3666,52 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
   assert.deepEqual(s1.stock, s2.stock, 'детерминированность');
   assert.equal(s1.seed, seedD1,
     'seed = (hash2(x,y,CAMP_STOCK_SEED) ^ ((day+1)·0x9E3779B9)) >>> 0');
-  // Golden-сток (10,20,день 1,wealth 2) — пул 43 предмета
-  // (3 food + 5 potion + 7 weapon + 28 armor — виды каталога).
+  // Golden-сток (10,20,день 1,wealth 2) — пул 118 предметов
+  // (3 food + 5 potion + 7 weapon + 103 armor — виды каталога;
+  // ре-пин 000230.09: 43 → 93; ре-пин 000230.10: 93 → 118).
   // Ре-пин 000230.08: +25 head-предметов концом пула — существующие
   // ключи не сдвигаются (append-only), += новые rng-хвостом
   // (пересимулировано node; зеркало GOLDEN_CAMP в items.test.js).
   // Ре-пин 000230.09: +50 уши/шея концом пула (10/7/5/2/1) — += 38
   // rng-хвостом (12 не выпали), существующие ключи не сдвигаются
   // (пересимулировано node; зеркало GOLDEN_CAMP в items.test.js).
+  // Ре-пин 000230.10: +25 torso (000208-000232, 10/7/5/2/1) концом пула
+  // — += 19 rng-хвостом (не выпали: cloth_tunic/linen_gown/cloth_sutan/wool_kaftan/embroidered_kaftan/ember_robe),
+  // существующие ключи не сдвигаются (пересимулировано node;
+  // зеркало GOLDEN_CAMP в items.test.js).
+
   assert.deepEqual(s1.stock, {
-    iron_sword: 3, battle_axe: 3, war_hammer: 2, leather_armor: 4,
-    chainmail: 2, knight_plate: 3, minor_healing: 4, healing_potion: 4,
-    mana_potion: 1, bread: 3, meat: 4, straw_hat: 2, wool_cap: 4,
-    leather_cap: 3, fur_hat: 4, cloth_band: 3, wanderer_cap: 1,
-    hood_common: 2, linen_cloth: 3, travel_cloth: 4, silver_band: 1,
-    copper_band: 2, amethyst_band: 4, quartz_cloth: 2, bone_band: 2,
-    mystic_cloth: 1, silver_helm: 2, gold_helm: 4, mithril_helm: 2,
-    emerald_helm: 2, rune_hoop: 4, crown_flame: 4, copper_hoop: 4,
-    bone_stud: 2, leather_loop: 2, clay_dangle: 3, wood_bead: 2,
-    copper_dangle: 1, shell_hoop: 4, twine_hoop: 2, antler_hook: 2,
-    silver_hoop: 1, moonstone_dangle: 3, quartz_bead: 4, silver_stud: 3,
-    obsidian_stud: 4, sapphire_hoop: 3, emerald_stud: 1, ruby_bell: 2,
-    gold_dangle: 3, mithril_hoop: 4, star_earring: 4, soul_bell: 1,
-    twine_amulet: 1, clay_pendant: 4, wood_pendant: 2,
-    faith_necklace: 1, leather_choker: 3, stone_beads: 4,
-    bone_pendant: 3, quartz_amulet: 3, moonstone_chain: 1,
-    obsidian_pendant: 1, amethyst_choker: 1, sapphire_pendant: 3,
-    emerald_amulet: 2, ruby_pendant: 2, mithril_choker: 3,
-    rune_necklace: 4, star_pendant: 1,
+    iron_sword: 3, battle_axe: 3, war_hammer: 2,
+    leather_armor: 4, chainmail: 2, knight_plate: 3,
+    minor_healing: 4, healing_potion: 4, mana_potion: 1,
+    bread: 3, meat: 4, straw_hat: 2, wool_cap: 4,
+    leather_cap: 3, fur_hat: 4, cloth_band: 3,
+    wanderer_cap: 1, hood_common: 2, linen_cloth: 3,
+    travel_cloth: 4, silver_band: 1, copper_band: 2,
+    amethyst_band: 4, quartz_cloth: 2, bone_band: 2,
+    mystic_cloth: 1, silver_helm: 2, gold_helm: 4,
+    mithril_helm: 2, emerald_helm: 2, rune_hoop: 4,
+    crown_flame: 4, copper_hoop: 4, bone_stud: 2,
+    leather_loop: 2, clay_dangle: 3, wood_bead: 2,
+    copper_dangle: 1, shell_hoop: 4, twine_hoop: 2,
+    antler_hook: 2, silver_hoop: 1, moonstone_dangle: 3,
+    quartz_bead: 4, silver_stud: 3, obsidian_stud: 4,
+    sapphire_hoop: 3, emerald_stud: 1, ruby_bell: 2,
+    gold_dangle: 3, mithril_hoop: 4, star_earring: 4,
+    soul_bell: 1, twine_amulet: 1, clay_pendant: 4,
+    wood_pendant: 2, faith_necklace: 1,
+    leather_choker: 3, stone_beads: 4, bone_pendant: 3,
+    quartz_amulet: 3, moonstone_chain: 1,
+    obsidian_pendant: 1, amethyst_choker: 1,
+    sapphire_pendant: 3, emerald_amulet: 2,
+    ruby_pendant: 2, mithril_choker: 3, rune_necklace: 4,
+    star_pendant: 1, linen_shirt: 4, wool_shirt: 1,
+    hemp_robe: 1, rough_kaftan: 1, wool_gown: 1,
+    linen_tunic: 1, wool_sutan: 3, leather_kaftan: 1,
+    cloth_robe: 2, leather_gown: 1, monk_sutan: 3,
+    fine_kaftan: 1, stone_robe: 4, shadow_robe: 1,
+    deep_breath_robe: 2, meditating_robe: 1,
+    pilgrim_sutan: 4, void_robe: 4, aegis_mantle: 3,
   }, 'golden-сток (10,20,день 1,w2)');
   // Форма обёртки: buildingType — id КАТАЛОГА (47, не слот).
   assert.deepEqual(
@@ -7694,20 +7712,33 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
   // (append-only), += новые rng-хвостом (пересимулировано node).
   // Ре-пин 000230.09: +50 уши/шея концом пула — += 24 rng-хвостом
   // (26 не выпали), ключи не сдвигаются (пересимулировано node).
+  // Ре-пин 000230.10: +25 torso концом пула — += 13 rng-хвостом
+  // (не выпали: linen_shirt/wool_shirt/cloth_tunic/linen_gown/hemp_robe/rough_kaftan/wool_sutan/leather_kaftan/cloth_robe/monk_sutan/stone_robe/deep_breath_robe), ключи не сдвигаются
+  // (пересимулировано node).
+
   assert.deepEqual(JSON.parse(JSON.stringify(entry0.stock)), {
-    wood_sword: 1, steel_sword: 1, short_bow: 2, hunting_bow: 1,
-    battle_axe: 1, war_hammer: 2, minor_healing: 2, healing_potion: 2,
-    greater_healing: 2, mana_elixir: 2, bread: 2, honey_cake: 1,
-    wool_cap: 1, fur_hat: 2, cloth_band: 1, linen_cloth: 1,
-    travel_cloth: 2, obsidian_cloth: 1, quartz_cloth: 1,
-    mystic_cloth: 2, silver_helm: 2, gold_helm: 2, mithril_helm: 2,
-    bone_stud: 2, leather_loop: 1, shell_hoop: 1, faith_stud: 1,
-    antler_hook: 2, stone_bead: 1, obsidian_stud: 1, gold_dangle: 2,
-    star_earring: 2, soul_bell: 1, copper_chain: 2, bone_beads: 1,
-    twine_amulet: 2, clay_pendant: 1, wood_pendant: 1, stone_beads: 2,
-    silver_chain: 2, quartz_amulet: 2, amethyst_choker: 2,
-    sapphire_pendant: 1, emerald_amulet: 1, ruby_pendant: 1,
-    gold_chain: 1, mithril_choker: 2,
+    wood_sword: 1, steel_sword: 1, short_bow: 2,
+    hunting_bow: 1, battle_axe: 1, war_hammer: 2,
+    minor_healing: 2, healing_potion: 2,
+    greater_healing: 2, mana_elixir: 2, bread: 2,
+    honey_cake: 1, wool_cap: 1, fur_hat: 2,
+    cloth_band: 1, linen_cloth: 1, travel_cloth: 2,
+    obsidian_cloth: 1, quartz_cloth: 1, mystic_cloth: 2,
+    silver_helm: 2, gold_helm: 2, mithril_helm: 2,
+    bone_stud: 2, leather_loop: 1, shell_hoop: 1,
+    faith_stud: 1, antler_hook: 2, stone_bead: 1,
+    obsidian_stud: 1, gold_dangle: 2, star_earring: 2,
+    soul_bell: 1, copper_chain: 2, bone_beads: 1,
+    twine_amulet: 2, clay_pendant: 1, wood_pendant: 1,
+    stone_beads: 2, silver_chain: 2, quartz_amulet: 2,
+    amethyst_choker: 2, sapphire_pendant: 1,
+    emerald_amulet: 1, ruby_pendant: 1, gold_chain: 1,
+    mithril_choker: 2, wool_gown: 1, cloth_sutan: 1,
+    linen_tunic: 1, wool_kaftan: 1,
+    embroidered_kaftan: 2, leather_gown: 1,
+    fine_kaftan: 1, ember_robe: 2, shadow_robe: 1,
+    meditating_robe: 2, pilgrim_sutan: 2, void_robe: 2,
+    aegis_mantle: 1,
   }, 'golden-сток стойки (40,40, день 1, w0)');
   for (const id of Object.keys(entry0.stock)) {
     assert.ok(['food', 'potion', 'weapon', 'armor']
@@ -7784,21 +7815,33 @@ test('B27. детерминизм барахолки: два мира, один 
   // Ре-пин 000230.09: +50 уши/шея концом пула (см. B26) — += 27
   // rng-хвостом (23 не выпали), ключи не сдвигаются (пересимулировано
   // node).
+  // Ре-пин 000230.10: +25 torso концом пула — += 11 rng-хвостом
+  // (не выпали: cloth_tunic/hemp_robe/rough_kaftan/wool_gown/linen_tunic/wool_kaftan/wool_sutan/cloth_robe/monk_sutan/ember_robe/stone_robe/shadow_robe/pilgrim_sutan/void_robe), ключи не сдвигаются
+  // (пересимулировано node).
+
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)), {
-    iron_sword: 2, hunting_bow: 1, battle_axe: 1, chainmail: 2,
-    healing_potion: 2, mana_potion: 2, mana_elixir: 2, honey_cake: 1,
-    straw_hat: 2, wool_cap: 2, leather_cap: 2, cloth_band: 1,
-    hood_common: 2, travel_cloth: 2, obsidian_cloth: 1, quartz_cloth: 2,
-    mystic_cloth: 1, silver_helm: 2, gold_helm: 1, sapphire_helm: 1,
-    mithril_helm: 2, star_hoop: 1, copper_hoop: 1, bone_stud: 2,
-    leather_loop: 2, wood_bead: 2, shell_hoop: 1, faith_stud: 1,
-    twine_hoop: 1, antler_hook: 1, silver_hoop: 1, moonstone_dangle: 2,
-    quartz_bead: 2, silver_stud: 2, obsidian_stud: 2,
-    amethyst_dangle: 2, emerald_stud: 1, gold_dangle: 2,
-    mithril_hoop: 2, bone_beads: 2, twine_amulet: 2, wood_pendant: 1,
-    copper_pendant: 2, faith_necklace: 1, leather_choker: 1,
-    faith_amulet: 1, amethyst_choker: 2, mithril_choker: 1,
-    dawn_pendant: 2,
+    iron_sword: 2, hunting_bow: 1, battle_axe: 1,
+    chainmail: 2, healing_potion: 2, mana_potion: 2,
+    mana_elixir: 2, honey_cake: 1, straw_hat: 2,
+    wool_cap: 2, leather_cap: 2, cloth_band: 1,
+    hood_common: 2, travel_cloth: 2, obsidian_cloth: 1,
+    quartz_cloth: 2, mystic_cloth: 1, silver_helm: 2,
+    gold_helm: 1, sapphire_helm: 1, mithril_helm: 2,
+    star_hoop: 1, copper_hoop: 1, bone_stud: 2,
+    leather_loop: 2, wood_bead: 2, shell_hoop: 1,
+    faith_stud: 1, twine_hoop: 1, antler_hook: 1,
+    silver_hoop: 1, moonstone_dangle: 2, quartz_bead: 2,
+    silver_stud: 2, obsidian_stud: 2, amethyst_dangle: 2,
+    emerald_stud: 1, gold_dangle: 2, mithril_hoop: 2,
+    bone_beads: 2, twine_amulet: 2, wood_pendant: 1,
+    copper_pendant: 2, faith_necklace: 1,
+    leather_choker: 1, faith_amulet: 1,
+    amethyst_choker: 2, mithril_choker: 1,
+    dawn_pendant: 2, linen_shirt: 1, wool_shirt: 1,
+    linen_gown: 1, cloth_sutan: 1, leather_kaftan: 1,
+    embroidered_kaftan: 1, leather_gown: 1,
+    fine_kaftan: 1, deep_breath_robe: 1,
+    meditating_robe: 1, aegis_mantle: 1,
   }, 'golden-сток дня 2 (40,40, w0) — кросс-реалем-пин формулы');
   assert.equal(s1d2.seed, s2d2.seed, 'seed дня 2 — одинаков');
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)),

@@ -1,0 +1,21 @@
+{
+  "id": "cloth_robe",
+  "name": "Тканая роба",
+  "kind": "armor",
+  "weight": 1,
+  "value": 80,
+  "desc": "Тканая роба: одежда вдумчивого человека.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/cloth_robe.svg",
+  "slot": "torso",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.08
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "shadow_robe",
+  "name": "Теневая роба",
+  "kind": "armor",
+  "weight": 1.5,
+  "value": 220,
+  "desc": "Теневая роба: тень садится на плечи, как одежда.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/shadow_robe.svg",
+  "slot": "torso",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.18
+    },
+    {
+      "type": "free_cast",
+      "spell": "stone_skin"
+    }
+  ]
+}

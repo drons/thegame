@@ -3010,6 +3010,117 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
   }
 });
 
+// --- 000230.10: remap 3 legacy-броней — chest-replace ripple (D-12) ---
+// После remap у chainmail/knight_plate ЯВНОЕ slot "torso" — блок
+// chest-replace 000230.05 (dungeon.js: if it.slot !== undefined)
+// теперь срабатывает на них: CRYPT (dungeons/000002 «предметы») —
+// chainmail, RUINS (000003) — knight_plate (ЕДИНСТВЕННЫЕ предметы
+// этих пулов с явным slot — остальные без slot). Смещение баланса
+// (гарантированная броня сундука → предмет роулнутой редкости из
+// EQUIP_POOLS) — принятое следствие remap (memory/000230.10-torso-
+// items-wave.md D-12) — фиксация CH5: два запуска одного (w,h,xp):
+// (а) со slot — сундук с бронёй заменён (golden + поток rng_eq),
+// (б) БЕЗ slot (in-place delete в ITEMS-синглтоне, restore finally)
+// — броня в сундуке остаётся (до-волновое поведение); ВСЁ остальное
+// (seed/mobs/deposits/позиции/gold) — бит-в-бит. Голдены rebase-
+// устойчивы к master с 000235.08: лёд тронут только CAVE-пул
+// (000001.json), свитки без rarity → EQUIP_POOLS/CRYPT/RUINS-пулы
+// неизменны.
+const CH5_PX = M.syntheticPixels(8, 8, 128, 128, 128, 128);
+const CH5_CRYPT_CHESTS = [
+  { id: 'c0', x: 13, y: 11, opened: false, gold: 20, item: null },
+  { id: 'c1', x: 11, y: 11, opened: false, gold: 24, item: null },
+  { id: 'c2', x: 22, y: 12, opened: false, gold: 20, item: null },
+  { id: 'c3', x: 20, y: 9, opened: false, gold: 11, item: 'shell_beads' },
+  { id: 'c4', x: 15, y: 17, opened: false, gold: 22, item: 'blueprint_alchemy' },
+];
+const CH5_RUINS_CHESTS = [
+  { id: 'c0', x: 16, y: 15, opened: false, gold: 18, item: 'firelight_scroll' },
+  { id: 'c1', x: 24, y: 16, opened: false, gold: 25, item: 'blueprint_forge' },
+  { id: 'c2', x: 14, y: 13, opened: false, gold: 16, item: null },
+  { id: 'c3', x: 18, y: 15, opened: false, gold: 10, item: 'stone_bead' },
+  { id: 'c4', x: 22, y: 19, opened: false, gold: 10, item: 'blueprint_woodwork' },
+];
+
+test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace активен для CRYPT (chainmail) и RUINS (knight_plate): сундук с бронёй → предмет роулнутой редкости из EQUIP_POOLS; БЕЗ slot броня остаётся; main-rng/mobs/deposits/позиции/gold — бит-в-бит', () => {
+  const L = require('../src/loot-equip-data.js');
+  const poolAll = new Set();
+  for (const t of L.RARITY)
+    for (const id of L.EQUIP_POOLS[t.id]) poolAll.add(id);
+  const cases = [
+    { name: 'CRYPT', type: 1, terrain: M.TERRAIN.FOREST,
+      w: 9, h: 9, xp: 1, armor: 'chainmail', seed: 278104214,
+      hash: 0x3fe0e9e5, r1: 0.1427152818068862,
+      r2: 0.6514383796602488, tier: 'common',
+      replaced: 'shell_beads', chests: CH5_CRYPT_CHESTS },
+    { name: 'RUINS', type: 2, terrain: M.TERRAIN.MOUNTAIN,
+      w: 9, h: 9, xp: 3, armor: 'knight_plate', seed: 801567646,
+      hash: 0x2fb95446, r1: 0.6180662265978754,
+      r2: 0.2789345800410956, tier: 'rare',
+      replaced: 'stone_bead', chests: CH5_RUINS_CHESTS },
+  ];
+  for (const cs of cases) {
+    const dA = D.createDungeon(cs.w, cs.h, CH5_PX, cs.terrain);
+    assert.equal(dA.type, cs.type,
+      cs.name + ': тип подземелья (сценарий)');
+    const A = D.generateDungeonContents(dA, heroAt(cs.xp));
+    assert.equal(A.seed, cs.seed,
+      cs.name + ': сид контента — закреплён');
+    assert.deepEqual(A.chests, cs.chests,
+      cs.name + ': golden — сундук с «' + cs.armor + '» (c3) '
+      + 'ЗАМЕНЁН на «' + cs.replaced + '» (' + cs.tier + '-пул)');
+    assert.equal(hash2(cs.seed, 1, D.CHEST_EQ_SALT) >>> 0, cs.hash,
+      cs.name + ': hash2(seed, 1, CHEST_EQ_SALT) — закреплён');
+    const rng_eq = mulberry32(cs.hash);
+    assert.equal(rng_eq(), cs.r1,
+      cs.name + ': r1 (tier, c3 — ЕДИНСТВЕННЫЙ триггернутый сундук)');
+    assert.equal(rng_eq(), cs.r2, cs.name + ': r2 (select, c3)');
+    assert.equal(
+      L.pickRarityTier(function () { return cs.r1; }), cs.tier,
+      cs.name + ': r1 → тир «' + cs.tier + '»');
+    assert.ok(poolAll.has(cs.replaced),
+      cs.name + ': «' + cs.replaced + '» — в EQUIP_POOLS (любой тир)');
+    assert.ok(L.EQUIP_POOLS[cs.tier].includes(cs.replaced),
+      cs.name + ': «' + cs.replaced + '» — в ' + cs.tier + '-пуле');
+    const it = ITEMS.find((x) => x.id === cs.armor);
+    assert.equal(it.slot, 'torso',
+      cs.name + ': precondition — ЯВНОЕ slot (remap 000230.10)');
+    delete it.slot;
+    try {
+      const B = D.generateDungeonContents(
+        D.createDungeon(cs.w, cs.h, CH5_PX, cs.terrain), heroAt(cs.xp));
+      assert.equal(B.seed, A.seed,
+        cs.name + ': без slot — сид контента неизменен (main-rng)');
+      assert.deepEqual(B.mobs, A.mobs,
+        cs.name + ': mobs — бит-в-бит (потоки изолированы)');
+      assert.deepEqual(B.deposits, A.deposits,
+        cs.name + ': deposits — бит-в-бит');
+      const armorChest = B.chests.find((ch) => ch.item === cs.armor);
+      assert.ok(armorChest,
+        cs.name + ': без slot броня «' + cs.armor + '» ОСТАЛАСЬ '
+        + 'в сундуке (до-волновое поведение)');
+      for (const ch of B.chests) {
+        const a = A.chests.find((x) => x.id === ch.id);
+        assert.deepEqual(
+          { x: ch.x, y: ch.y, gold: ch.gold, opened: ch.opened },
+          { x: a.x, y: a.y, gold: a.gold, opened: a.opened },
+          cs.name + ': ' + ch.id + ' — позиция/gold без изменений');
+        if (ch.id === armorChest.id) {
+          assert.equal(a.item, cs.replaced,
+            cs.name + ': ' + ch.id + ' — со slot: «' + cs.replaced
+            + '» (броня заменена)');
+        } else {
+          assert.equal(ch.item, a.item,
+            cs.name + ': ' + ch.id + ' — предмет без изменений '
+            + '(в пуле нет других предметов со slot)');
+        }
+      }
+    } finally {
+      it.slot = 'torso';
+    }
+  }
+});
+
 // 000235.05. Сундуки — tier-чувствительный выбор по глубине (контракт
 // memory/000235.05-scroll-tier-loot.md §7; ТЗ — tasks/pending/000235.05.md
 // п.3).

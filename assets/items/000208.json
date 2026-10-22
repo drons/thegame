@@ -1,0 +1,21 @@
+{
+  "id": "linen_shirt",
+  "name": "Льняная рубашка",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 15,
+  "desc": "Льняная рубашка: лёгкая одежда на каждый день.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/linen_shirt.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.03
+    }
+  ]
+}

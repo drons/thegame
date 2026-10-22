@@ -1,0 +1,21 @@
+{
+  "id": "meditating_robe",
+  "name": "Роба медитации",
+  "kind": "armor",
+  "weight": 1.8,
+  "value": 320,
+  "desc": "Роба медитации: покой сидит в каждом стежке.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/meditating_robe.svg",
+  "slot": "torso",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.2
+    }
+  ]
+}

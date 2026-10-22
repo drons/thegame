@@ -1,0 +1,21 @@
+{
+  "id": "embroidered_kaftan",
+  "name": "Вышитый кафтан",
+  "kind": "armor",
+  "weight": 1.2,
+  "value": 75,
+  "desc": "Вышитый кафтан: узоры шепчут о покое.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/embroidered_kaftan.svg",
+  "slot": "torso",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.08
+    }
+  ]
+}

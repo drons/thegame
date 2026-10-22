@@ -1,0 +1,26 @@
+{
+  "id": "aegis_mantle",
+  "name": "Мантия Аргуса",
+  "kind": "armor",
+  "weight": 3.5,
+  "value": 1200,
+  "desc": "Мантия Аргуса: три нити — шкура, дыхание и взгляд, который не спит.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/aegis_mantle.svg",
+  "slot": "torso",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.4
+    },
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.35
+    }
+  ]
+}

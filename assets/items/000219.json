@@ -1,0 +1,21 @@
+{
+  "id": "leather_kaftan",
+  "name": "Кожаный кафтан",
+  "kind": "armor",
+  "weight": 1.5,
+  "value": 70,
+  "desc": "Кожаный кафтан: защита для идущего дорогою.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/leather_kaftan.svg",
+  "slot": "torso",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.07
+    }
+  ]
+}

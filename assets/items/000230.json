@@ -1,0 +1,27 @@
+{
+  "id": "pilgrim_sutan",
+  "name": "Сутана паломника",
+  "kind": "armor",
+  "weight": 2.5,
+  "value": 500,
+  "desc": "Сутана паломника: дорожная ткань хранит силу долгих шагов.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/pilgrim_sutan.svg",
+  "slot": "torso",
+  "rarity": "legendary",
+  "set": "penitent",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.3
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

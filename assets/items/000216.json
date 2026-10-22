@@ -1,0 +1,21 @@
+{
+  "id": "linen_tunic",
+  "name": "Льняная туника",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 35,
+  "desc": "Льняная туника: лёгкая и дышащая.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/linen_tunic.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.05
+    }
+  ]
+}

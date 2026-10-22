@@ -1,0 +1,21 @@
+{
+  "id": "cloth_tunic",
+  "name": "Тканая туника",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 20,
+  "desc": "Тканая туника: плотная ткань скрывает движения.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/cloth_tunic.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "wool_kaftan",
+  "name": "Шерстяной кафтан",
+  "kind": "armor",
+  "weight": 0.9,
+  "value": 40,
+  "desc": "Шерстяной кафтан: тепло и достоинство.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wool_kaftan.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.04
+    }
+  ]
+}

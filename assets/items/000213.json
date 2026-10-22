@@ -1,0 +1,21 @@
+{
+  "id": "rough_kaftan",
+  "name": "Грубый кафтан",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 28,
+  "desc": "Грубый кафтан: широкий крой для долгих дней.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/rough_kaftan.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.05
+    }
+  ]
+}

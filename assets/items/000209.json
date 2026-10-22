@@ -1,0 +1,21 @@
+{
+  "id": "wool_shirt",
+  "name": "Шерстяная рубашка",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 18,
+  "desc": "Шерстяная рубашка: тепло без тяжести.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/wool_shirt.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.03
+    }
+  ]
+}

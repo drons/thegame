@@ -1,0 +1,35 @@
+{
+  "id": "ember_robe",
+  "name": "Тлеющая роба",
+  "kind": "armor",
+  "weight": 1.5,
+  "value": 180,
+  "desc": "Тлеющая роба: нити хранят жар, который не гаснет.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/ember_robe.svg",
+  "slot": "torso",
+  "rarity": "epic",
+  "set": "hearth",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.15
+    },
+    {
+      "type": "free_cast",
+      "spell": "heat_shield"
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.05
+      }
+    ]
+  }
+}

@@ -5120,7 +5120,7 @@ test('000132-N1: детерминизм — сиды 5..10, два прогон�
   }
 });
 
-test('000132-N2: точные составы — rng→0 (таблица+база+редкий+экипировка), rng→0.99 (мимо лута + экипировка), 100%-таблица, слияние qty, порядок таблицы (ре-пин 000230.08: пулы экипировки не пусты — +1 экипировочный ПОСЛЕДНИМ: (а) r=0 → common pool[0] = straw_hat; (б–д) r=0.99 → legendary (0.99 < 0.999…) pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: legendary-пул 2 → 6, конец пула)', () => {
+test('000132-N2: точные составы — rng→0 (таблица+база+редкий+экипировка), rng→0.99 (мимо лута + экипировка), 100%-таблица, слияние qty, порядок таблицы (ре-пин 000230.08: пулы экипировки не пусты — +1 экипировочный ПОСЛЕДНИМ: (а) r=0 → common pool[0] = straw_hat; (б–д) r=0.99 → legendary (0.99 < 0.999…) pool[floor(0.99·8)] = void_robe; ре-пин 000230.09: legendary-пул 2 → 6, конец пула; ре-пин 000230.10: legendary-пул 6 → 8, конец = torso)', () => {
   // (а) rng→0, 2×волк L2: ВСЕ роллы попадают. Таблица волка
   // leather_armor (каждый) → qty 2; база — BASE_POOL[0] = minor_healing
   // (каждый) → qty 2; редкий — RARE_POOL[0] = iron_sword (ОДИН на бой).
@@ -5143,14 +5143,15 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
   }
   // (б) rng→0.99, 2×волк L2: ВСЕ лут-роллы мимо (0.99 > 0.1 / 0.25 /
   // 0.05+0.01·2); экипировка: tier legendary (0.99 < 0.999…), select
-  // pool[floor(0.99·6)] = pool[5] = star_pendant (ре-пин 000230.09:
-  // legendary-пул растёт 2 → 6 в каталожном порядке, конец = шея).
+  // pool[floor(0.99·8)] = pool[7] = void_robe (ре-пин 000230.09:
+  // legendary-пул растёт 2 → 6 в каталожном порядке, конец = шея;
+  // ре-пин 000230.10: 6 → 8, конец = torso).
   // (Убийство — dealDamage: при константе 0.99 удары игрока
   // гарантированно промах, hitChance ≤ 0.95.)
   {
     const { c } = winLoot({ mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 5,
       rng: () => 0.99, killBy: 'dealDamage' });
-    assert.deepEqual(c.result.items, [{ id: 'star_pendant', qty: 1 }],
+    assert.deepEqual(c.result.items, [{ id: 'void_robe', qty: 1 }],
       'rng→0.99 — лут-роллы мимо, экипировочный (legendary) ЕСТЬ');
   }
   // (в) 100%-таблица — гарантированный дроп даже при промахах пулов
@@ -5162,7 +5163,7 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
       mutateUnit: (u) => { u.loot = [{ item: 'meat', chance: 1 }]; },
     });
     assert.deepEqual(c.result.items, [
-      { id: 'meat', qty: 1 }, { id: 'star_pendant', qty: 1 },
+      { id: 'meat', qty: 1 }, { id: 'void_robe', qty: 1 },
     ], '100%-шанс в таблице — гарантированный дроп + экипировочный');
   }
   // (г) слияние qty: 2 волка × 100% meat — ОДНА запись qty 2
@@ -5173,7 +5174,7 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
       mutateUnit: (u) => { u.loot = [{ item: 'meat', chance: 1 }]; },
     });
     assert.deepEqual(c.result.items, [
-      { id: 'meat', qty: 2 }, { id: 'star_pendant', qty: 1 },
+      { id: 'meat', qty: 2 }, { id: 'void_robe', qty: 1 },
     ], 'повторяющиеся id слиты в одну запись (qty)');
   }
   // (д) таблица из 2 записей — порядок дропа = порядок таблицы
@@ -5186,7 +5187,7 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
     });
     assert.deepEqual(c.result.items, [
       { id: 'sulfur', qty: 1 }, { id: 'meat', qty: 1 },
-      { id: 'star_pendant', qty: 1 },
+      { id: 'void_robe', qty: 1 },
     ], 'порядок = порядок записей таблицы + экипировочный');
   }
 });
@@ -9084,7 +9085,7 @@ test('000235.05 S2: солёный поток — детерминизм по (s
   }
 });
 
-test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll)', () => {
+test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll)', () => {
   // (a) Золотой бой (seed 6, wolf L4, герой L1): значения доизменения
   //     (пробный прогон на текущем коде) — новый код обязан их
   //     сохранить: новый ролл — СТРОГО ПОСЛЕ существующих (пин N2),
@@ -9095,6 +9096,9 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   //     Ре-пин 000230.09: common-пул растёт 10 → 30 (концы тиров,
   //     каталожный порядок) → тот же поток rng даёт leather_choker
   //     (node-перепрогон, ORE-7).
+  //     Ре-пин 000230.10: common-пул растёт 30 → 40 (torso-конец,
+  //     каталожный порядок) → тот же поток rng даёт cloth_sutan
+  //     (node-перепрогон, ORE-7).
   //     Ре-пин 000235.08: +25 свитков волны Лёд — солёный поток
   //     (каталог 67) даёт frost_wisp_scroll (node-перепрогон).
   const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
@@ -9103,7 +9107,7 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   assert.equal(c.result.gold, 13, 'gold = 13 (бит-в-бит)');
   assert.deepEqual(c.result.items, [
     { id: 'honey_cake', qty: 1 },
-    { id: 'leather_choker', qty: 1 },
+    { id: 'cloth_sutan', qty: 1 },
     { id: 'frost_wisp_scroll', qty: 1 },
   ], 'items: существующий состав бит-в-бит + экипировочный + свиток '
     + '(ре-пин 000235.08: золотой frost_wisp_scroll; '
@@ -9111,9 +9115,10 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
     + JSON.stringify(c.result.items) + ')');
   // (b) c._rng → 0.99: все СТАРЫЕ роллы промазывают (таблица wolf 0.1,
   //     базовый 0.25, редкий 0.05+0.01·4 = 0.09); экипировка: tier
-  //     legendary (0.99 < 0.999…), select pool[floor(0.99·6)] =
-  //     pool[5] = star_pendant (ре-пин 000230.09: legendary-пул 2 → 6,
-  //     конец = шея); в луте экипировка + свиток (солёный поток
+  //     legendary (0.99 < 0.999…), select pool[floor(0.99·8)] =
+  //     pool[7] = void_robe (ре-пин 000230.09: legendary-пул 2 → 6,
+  //     конец = шея; ре-пин 000230.10: 6 → 8, конец = torso); в луте
+  //     экипировка + свиток (солёный поток
   //     не зависит от c._rng — «старые потоки не сдвигаются», тип пина
   //     N2). Ре-пин 000235.08: каталог 67 — золотой свиток
   //     frost_wisp_scroll (node-перепрогон).
@@ -9122,7 +9127,7 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   assert.equal(b.result.xp, 24, 'xp = 24 (бит-в-бит)');
   assert.equal(b.result.gold, 15, 'gold = round(3+2·4+0.99·4) = 15 (бит-в-бит)');
   assert.deepEqual(b.result.items, [
-    { id: 'star_pendant', qty: 1 },
+    { id: 'void_robe', qty: 1 },
     { id: 'frost_wisp_scroll', qty: 1 },
   ], 'rng→0.99: старые роллы промахнулись, экипировка (legendary) + '
     + 'солёный поток дал свиток всё равно (ре-пин 000235.08: '
@@ -9283,4 +9288,22 @@ test('000230.03-F3 (node-пин): заклинание НЕ из freeCast — м
   assert.equal(r.ok, true, r.reason);
   assert.equal(p.mp, 27, 'мана −3 (Искра) — пин текущего поведения');
   assert.equal(c.ps.spellInt, poolBefore - 1, 'пул Интеллекта −1');
+});
+
+test('000230.10 T10 (гард, зелёный с начала): remap не меняет бой — 3 legacy-брони экипируются как раньше: leather_armor → equipmentStats.armor 2, chainmail → 4, knight_plate → 6; предмет в слоте torso; бит-в-бит (стат/вес/цена не трогает — только явное поле slot)', () => {
+  for (const [id, armor] of [
+    ['leather_armor', 2],
+    ['chainmail', 4],
+    ['knight_plate', 6],
+  ]) {
+    const p = createCharacter();
+    assert.equal(I.addItem(p, id).ok, true, id + ': выдача');
+    assert.equal(I.equip(p, id).ok, true, id + ': equip');
+    assert.equal(p.equipment.torso, id,
+      id + ': предмет в слоте torso');
+    assert.equal(
+      I.equipmentStats(p).armor, armor,
+      id + ': equipmentStats.armor = ' + armor
+      + ' (бит-в-бит; remap не меняет бой)');
+  }
 });

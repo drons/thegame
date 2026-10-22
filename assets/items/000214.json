@@ -1,0 +1,21 @@
+{
+  "id": "wool_gown",
+  "name": "Шерстяной халат",
+  "kind": "armor",
+  "weight": 0.9,
+  "value": 30,
+  "desc": "Шерстяной халат: тёплый и надёжный.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wool_gown.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.05
+    }
+  ]
+}

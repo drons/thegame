@@ -1,0 +1,21 @@
+{
+  "id": "deep_breath_robe",
+  "name": "Роба Глубокого Дыхания",
+  "kind": "armor",
+  "weight": 1.5,
+  "value": 250,
+  "desc": "Роба Глубокого Дыхания: вдох длиною в час.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/deep_breath_robe.svg",
+  "slot": "torso",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.17
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "hemp_robe",
+  "name": "Пеньмовая роба",
+  "kind": "armor",
+  "weight": 0.7,
+  "value": 25,
+  "desc": "Пеньмовая роба: грубый лён сплетён накрепко.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/hemp_robe.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.04
+    }
+  ]
+}

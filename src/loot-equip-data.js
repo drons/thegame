@@ -30,9 +30,9 @@
   // Пулы экипировки — ДАННЫЕ МОДУЛЯ (паттерн 000132: фиксированные
   // списки, каталог в рантайме НЕ читается): значения = id-строки
   // предметов, редкость предмета = КЛЮЧ массива. Заполнено 000230.08
-  // (head 25) + 000230.09 (ears 25 + neck 25); id в каталожном
-  // порядке внутри тира (сначала ears, потом neck); волны
-  // 000230.10–.15 добавляют свои id КОНЦОМ тиров.
+  // (head 25) + 000230.09 (ears 25 + neck 25) + 000230.10 (torso 25);
+  // id в каталожном порядке внутри тира (сначала ears, потом neck,
+  // потом torso); волны 000230.11–.15 добавляют свои id КОНЦОМ тиров.
   const EQUIP_POOLS = {
     common: ['straw_hat', 'wool_cap', 'leather_cap', 'fur_hat',
              'cloth_band', 'wanderer_cap', 'hood_common',
@@ -42,22 +42,31 @@
              'twine_hoop', 'antler_hook', 'copper_chain', 'bone_beads',
              'twine_amulet', 'clay_pendant', 'wood_pendant',
              'copper_pendant', 'shell_beads', 'faith_necklace',
-             'leather_choker', 'stone_beads'],
+             'leather_choker', 'stone_beads',
+             'linen_shirt', 'wool_shirt', 'cloth_tunic', 'linen_gown',
+             'hemp_robe', 'rough_kaftan', 'wool_gown', 'cloth_sutan',
+             'linen_tunic', 'wool_kaftan'],
     rare: ['silver_band', 'copper_band', 'obsidian_cloth',
            'amethyst_band', 'quartz_cloth', 'bone_band', 'mystic_cloth',
            'stone_bead', 'silver_hoop', 'moonstone_dangle',
            'quartz_bead', 'silver_stud', 'obsidian_stud',
            'amethyst_dangle', 'bone_pendant', 'silver_chain',
            'quartz_amulet', 'moonstone_chain', 'faith_amulet',
-           'obsidian_pendant', 'amethyst_choker'],
+           'obsidian_pendant', 'amethyst_choker',
+           'wool_sutan', 'leather_kaftan', 'embroidered_kaftan',
+           'cloth_robe', 'leather_gown', 'monk_sutan', 'fine_kaftan'],
     epic: ['silver_helm', 'gold_helm', 'sapphire_helm', 'mithril_helm',
            'emerald_helm', 'sapphire_hoop', 'emerald_stud', 'ruby_bell',
            'gold_dangle', 'mithril_hoop', 'sapphire_pendant',
            'emerald_amulet', 'ruby_pendant', 'gold_chain',
-           'mithril_choker'],
+           'mithril_choker',
+           'ember_robe', 'stone_robe', 'shadow_robe',
+           'deep_breath_robe', 'meditating_robe'],
     legendary: ['rune_hoop', 'star_hoop', 'star_earring', 'whisper_hoop',
-                'rune_necklace', 'star_pendant'],
-    impossible: ['crown_flame', 'soul_bell', 'dawn_pendant'],
+                'rune_necklace', 'star_pendant',
+                'pilgrim_sutan', 'void_robe'],
+    impossible: ['crown_flame', 'soul_bell', 'dawn_pendant',
+                 'aegis_mantle'],
   };
 
   // Чистая функция: 1 вызов rngFn(); acc-накопление по RARITY,

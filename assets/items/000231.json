@@ -1,0 +1,21 @@
+{
+  "id": "void_robe",
+  "name": "Роба Пустоты",
+  "kind": "armor",
+  "weight": 3,
+  "value": 650,
+  "desc": "Роба Пустоты: плетётся из ткани между мирами.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/void_robe.svg",
+  "slot": "torso",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.32
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "linen_gown",
+  "name": "Льняной халат",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 22,
+  "desc": "Льняной халат: просторная одежда для отдыха.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/linen_gown.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.03
+    }
+  ]
+}

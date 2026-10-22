@@ -1,0 +1,27 @@
+{
+  "id": "cloth_sutan",
+  "name": "Тканая сутана",
+  "kind": "armor",
+  "weight": 0.7,
+  "value": 32,
+  "desc": "Тканая сутана: одеяние простого покаяния.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/cloth_sutan.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "set": "penitent",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.05
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

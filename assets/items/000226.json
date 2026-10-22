@@ -1,0 +1,31 @@
+{
+  "id": "stone_robe",
+  "name": "Каменная роба",
+  "kind": "armor",
+  "weight": 2,
+  "value": 200,
+  "desc": "Каменная роба: ткань тяжелеет, как камень.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/stone_robe.svg",
+  "slot": "torso",
+  "rarity": "epic",
+  "set": "hearth",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.16
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.05
+      }
+    ]
+  }
+}

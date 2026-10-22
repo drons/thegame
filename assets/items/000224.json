@@ -1,0 +1,21 @@
+{
+  "id": "fine_kaftan",
+  "name": "Тонкий кафтан",
+  "kind": "armor",
+  "weight": 1.3,
+  "value": 100,
+  "desc": "Тонкий кафтан: мастерская работа портного.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/fine_kaftan.svg",
+  "slot": "torso",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.1
+    }
+  ]
+}
