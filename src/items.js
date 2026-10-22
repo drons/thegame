@@ -1218,8 +1218,10 @@
 
   /**
    * Экипирует предмет в слот его части тела (задача 000230.02;
-   * текущий предмет слота возвращается обратно). Кольца — первый
-   * пустой из 8 (порядок RING_SLOTS); все 8 заняты — отказ.
+   * swap — «все или ничего», 000230.20: неудачный возврат текущего
+   * предмета слота откатывает swap — prev остаётся в слоте, new —
+   * в инвентаре в прежней позиции, {ok:false, reason}). Кольца —
+   * первый пустой из 8 (порядок RING_SLOTS); все 8 заняты — отказ.
    * Копия, которая надевается, — ПЕРВЫЙ слот инвентаря с этим id по
    * порядку слотов (задача 000046, НЕ bonusFirst): бонус качества
    * ЭТОЙ копии следует предмету в c.equipmentBonus. addItem дописывает
@@ -1228,6 +1230,8 @@
    * тогда надевается только после траты обычной; намеренный выбор,
    * см. memory/000046-craft-core.md). После unequip копия возвращается
    * КОНЦОМ списка.
+   * @returns {{ok:true, slot:string, item:string}|{ok:false, reason:string}}
+   *   — reason из словаря checkAdd (как unequip, 000230.20).
    */
   function equip(c, itemId) {
     const it = getItem(itemId);
@@ -1258,8 +1262,11 @@
     if (prev) {
       const back = addItem(c, prev, 1, prevBonus || undefined);
       if (!back.ok) {
+        eq[slot] = prev;
+        eb[slot] = prevBonus;
+        if (pos >= 0) inv.slots.splice(pos, 0, taken);
         syncEquipmentMirrors(eq);
-        return { ok: true, note: 'вернуть ' + prev + ' не удалось: ' + back.reason };
+        return { ok: false, reason: back.reason };
       }
     }
     syncEquipmentMirrors(eq);

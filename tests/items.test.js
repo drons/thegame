@@ -3310,7 +3310,7 @@ test('000230.02 M10 (node): канон-форма — sanitizeEquipment: ров�
     'порядок ключей — EQUIP_PHYS_SLOTS');
 });
 
-test('000230.02 M11 (vm): equip с заменой тяжёлого на лёгкое при инвентаре у лимита веса — note-ветка (вернуть старое не удалось) синхронизирует зеркала: weapon ≡ right_hand (D-01 — ВСЕГДА синхронны); потеря старого предмета — пин ПРЕСУЩЕСТВУЮЩЕГО поведения', () => {
+test('000230.02 M11 (vm, ре-пин 000230.20): equip с заменой тяжёлого на лёгкое при инвентаре у лимита веса — неудачный возврат prev: swap ОТКАТАН (все или ничего): {ok:false, reason} — словарь checkAdd (как unequip); prev НА МЕСТЕ в слоте, new в инвентаре; зеркала синхронны (D-01)', () => {
   const fixtures = [
     { id: 'x_ballast', name: 'Тестовый балласт', kind: 'food', weight: 4,
       value: 5, desc: 'т', effect: { kind: 'eat', amount: 1 } },
@@ -3329,15 +3329,17 @@ test('000230.02 M11 (vm): equip с заменой тяжёлого на лёгк
   G.addItem(c, 'wood_sword');
   assert.equal(G.inventoryWeight(c), 29, 'установка: 29/30 кг (war_hammer w4 надет)');
   const r = G.equip(c, 'wood_sword');
-  assert.equal(r.ok, true, 'новая копия легче — экипирование проходит');
-  assert.match(r.note, /war_hammer/);
-  assert.match(r.note, /тяжело/);
+  assert.equal(r.ok, false,
+    'все или ничего: возврат prev не прошёл — swap не совершён');
+  assert.equal(r.reason, 'слишком тяжело (лимит веса)',
+    'единый словарь checkAdd с unequip (28 + 4 = 32 > 30)');
+  assert.equal(c.equipment.right_hand, 'war_hammer',
+    'prev НА МЕСТЕ (краснота: prev перезаписан/потерян)');
+  assert.equal(c.equipment.weapon, 'war_hammer',
+    'зеркало D-01 синхронно на откате (syncEquipmentMirrors)');
+  assert.equal(G.totalQty(c, 'wood_sword'), 1, 'new в инвентаре как был');
   assert.equal(G.totalQty(c, 'war_hammer'), 0,
-    'старый предмет потерян — пресуществующее поведение, НЕ регрессия');
-  assert.equal(c.equipment.right_hand, 'wood_sword');
-  assert.equal(c.equipment.weapon, 'wood_sword',
-    'краснота: note-ветка уходила без syncEquipmentMirrors — '
-    + 'зеркало weapon застревало на старом предмете (D-01)');
+    'prev не продублирован — единственный экземпляр в слоте');
 });
 
 // =====================================================================
@@ -4864,7 +4866,7 @@ test('000230.06.01 A1 (зелёный, vm, ТЗ п.2): allyDataForEntry С эк�
   assert.ok(d1.damage > d0.damage, 'экипировка повышает damage');
 });
 
-test('000230.06.01 I2 (зелёный, vm, ТЗ п.3): known-issue пин — swap с неудачным возвратом: ТОЧНАЯ note-форма + ПРЕЖНИЙ ПРЕДМЕТ ПОТЕРЯН (totalQty 0, ни в одном слоте листа) → баг подтверждён (отдельная баг-задача 000230.20; пин ТЕКУЩЕГО поведения — при фиксе падёт: принудительный пере-пин)', () => {
+test('000230.06.01 I2 (vm, ре-пин 000230.20): swap с неудачным возвратом (ally-путь через allyEquip) — swap ОТКАТАН (все или ничего): ТОЧНАЯ форма {ok:false, reason} — словарь checkAdd; prev НА МЕСТЕ в слоте, new в инвентаре бит-в-бит; зеркала синхронны (D-01)', () => {
   const { sandbox } = makeVmSandboxWithConsole();
   sandbox.Game = {};
   for (const f of VM_ALLY_WEIGHT_CHAIN) loadInSandbox(f, sandbox);
@@ -4886,15 +4888,40 @@ test('000230.06.01 I2 (зелёный, vm, ТЗ п.3): known-issue пин — sw
   merc.equipment = { right_hand: 'battle_axe' };
   const r = Co.allyEquip(hero, merc, 'iron_sword');
   assert.deepEqual(fromVm(r),
-    { ok: true, note: 'вернуть battle_axe не удалось: слишком тяжело (лимит веса)' },
-    'точная форма ТЕКУЩЕЙ note-ветки equip (без slot/item)');
-  assert.equal(merc.equipment.right_hand, 'iron_sword',
-    'новый предмет на месте (prev перезаписан в eq[slot])');
+    { ok: false, reason: 'слишком тяжело (лимит веса)' },
+    'точная форма отказа: все или ничего (note-ветка убрана)');
+  assert.equal(merc.equipment.right_hand, 'battle_axe',
+    'prev НА МЕСТЕ (swap не совершён; краснота: перезаписан/потерян)');
+  assert.equal(merc.equipment.weapon, 'battle_axe',
+    'зеркало D-01 синхронно на откате (syncEquipmentMirrors)');
+  assert.equal(G.totalQty(hero, 'iron_sword'), 1,
+    'new в инвентаре как был');
   assert.equal(G.totalQty(hero, 'battle_axe'), 0,
-    'prev НЕ возвращён в инвентарь (28.5 + 3 = 31.5 > 30) — ПОТЕРЯН');
-  assert.ok(!Object.values(merc.equipment).includes('battle_axe'),
-    'battle_axe ни в одном слоте листа — потеря ПОДТВЕРЖДЕНА '
-    + '→ tasks/pending/000230.20.md (зелёная стадия)');
+    'prev не потерян и не продублирован');
+  assert.equal(G.inventoryWeight(hero), 30,
+    'инвентарь бит-в-бит: 30 кг');
+  assert.equal(G.slotCount(hero), 10,
+    'инвентарь бит-в-бит: 10 слотов (позиция new восстановлена)');
+});
+
+// --- 000230.20: swap-fail generic equip — откат swap (все или ничего).
+// Позитивный пин success-ветки (контракт —
+// memory/000230.20-equip-swap-rollback.md §3).
+
+test('000230.20 S1 (node): успешный swap при свободном инвентаре — {ok:true, slot, item}: prev в инвентаре, new в слоте; зеркала weapon ≡ right_hand (D-01)', () => {
+  const c = createCharacter();
+  assert.equal(I.addItem(c, 'iron_sword').ok, true, 'addItem iron_sword');
+  assert.deepEqual(I.equip(c, 'iron_sword'),
+    { ok: true, slot: 'right_hand', item: 'iron_sword' },
+    'форма успеха: пустой слот');
+  assert.equal(I.addItem(c, 'battle_axe').ok, true, 'addItem battle_axe');
+  assert.deepEqual(I.equip(c, 'battle_axe'),
+    { ok: true, slot: 'right_hand', item: 'battle_axe' },
+    'форма успеха: swap');
+  assert.equal(c.equipment.right_hand, 'battle_axe', 'new в слоте');
+  assert.equal(c.equipment.weapon, 'battle_axe', 'зеркало D-01');
+  assert.equal(I.totalQty(c, 'iron_sword'), 1, 'prev в инвентаре');
+  assert.equal(I.totalQty(c, 'battle_axe'), 0, 'new не продублирован');
 });
 
 // --- Задача 000235.07: 25 свитков волны Огонь (items 000083–00107;

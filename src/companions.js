@@ -1088,10 +1088,10 @@ function (settings, G) {
    * Экипировать предмет из ОБЩЕГО инвентаря героя на наёмника
    * (задача 000230.06, паттерн 000194): предмет уходит из
    * hero.inventory на live-лист наёмника; слот занят — swap
-   * (прежний предмет возвращается в инвентарь героя, note при
-   * неудаче возврата). Эфиру — ОТКАЗ (он дух).
-   * @returns {{ok:true, slot, item}|{ok:true, slot, item, note:string}
-   *   |{ok:false, reason}} — generic equip (000230.02) как есть.
+   * (прежний предмет возвращается в инвентарь героя; некуда
+   * положить — откат swap, 000230.20). Эфиру — ОТКАЗ (он дух).
+   * @returns {{ok:true, slot, item}|{ok:false, reason}} — generic
+   *   equip (000230.02) как есть.
    */
   function allyEquip(hero, sheet, itemId) {
     const bad = allyReject(hero, sheet, 'equip');
