@@ -797,14 +797,24 @@ test('000070 golden: CAVE (37, −12) — закреплённые wallObjs', ()
 // «предметы» (золотые значения DUNGEON_ITEMS ре-пинятся на стадии
 // ЗЕЛЁНОЙ — §5, здесь фиксируется целевой состав).
 
-test('S3. 000133: пулы подземелий — 33 свитка, каждый ровно в одном', () => {
+test('S3. 000133: пулы подземелий — 58 свитков, каждый ровно в одном', () => {
   // Целевые пулы (текущий состав + приложенные свитки).
   // Ре-пин 000232: приложенные чертежи (каждый РОВНО в одном пуле;
   // простая пещера 000001.json — БЕЗ ИЗМЕНЕНИЙ). Ре-пин 000235.07:
-  // +25 свитков волны Огонь КОНЦОМ пула 000003 (RUINS).
+  // +25 свитков волны Огонь КОНЦОМ пула 000003 (RUINS). Ре-пин
+  // 000235.08: +25 свитков волны Лёд КОНЦОМ пула 000001 (CAVE).
   const EXPECTED = {
     '000001.json': ['iron_sword', 'healing_potion', 'sulfur',
-      'stone_fist_grimoire', 'frost_bolt_scroll'],
+      'stone_fist_grimoire', 'frost_bolt_scroll',
+      'ice_lance_scroll', 'rime_bolt_scroll', 'hail_scroll',
+      'shatter_scroll', 'glacial_spike_scroll', 'permafrost_scroll',
+      'absolute_zero_scroll', 'ice_field_scroll', 'wall_of_ice_scroll',
+      'blizzard_field_scroll', 'frost_aura_scroll', 'ice_armor_scroll',
+      'winter_haste_scroll', 'frostbite_blessing_scroll', 'slow_scroll',
+      'frostbite_scroll', 'arctic_touch_scroll', 'deep_freeze_scroll',
+      'freeze_scroll', 'glacier_grasp_scroll', 'frost_wisp_scroll',
+      'winter_elemental_scroll', 'frost_walk_scroll',
+      'cold_breath_scroll', 'frozen_stillness_scroll'],
     '000002.json': ['alchemy_manual', 'chainmail', 'mana_potion',
       'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
       'blueprint_alchemy', 'blueprint_carving'],
@@ -839,6 +849,15 @@ test('S3. 000133: пулы подземелий — 33 свитка, кажды�
     'cinder_scroll', 'ashen_debilitation_scroll', 'lava_snare_scroll',
     'burning_cage_scroll', 'flame_imp_scroll', 'phoenix_scroll',
     'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll',
+    'ice_lance_scroll', 'rime_bolt_scroll', 'hail_scroll',
+    'shatter_scroll', 'glacial_spike_scroll', 'permafrost_scroll',
+    'absolute_zero_scroll', 'ice_field_scroll', 'wall_of_ice_scroll',
+    'blizzard_field_scroll', 'frost_aura_scroll', 'ice_armor_scroll',
+    'winter_haste_scroll', 'frostbite_blessing_scroll', 'slow_scroll',
+    'frostbite_scroll', 'arctic_touch_scroll', 'deep_freeze_scroll',
+    'freeze_scroll', 'glacier_grasp_scroll', 'frost_wisp_scroll',
+    'winter_elemental_scroll', 'frost_walk_scroll',
+    'cold_breath_scroll', 'frozen_stillness_scroll',
   ]);
   const cat = loadDungeonCatalog();
   assert.equal(cat.length, 5, '5 подземелий (регрессия)');
@@ -1055,11 +1074,16 @@ test('D-BOSS-3: НЕ-ABYSS — полный deepEqual-пин содержимо�
       { id: 'g4', mobIds: ['crawling_bones', 'giant_larva', 'crawling_bones'], x: 6, y: 12, level: 1, defeated: false },
       { id: 'g5', mobIds: ['giant_larva', 'crawling_bones', 'giant_larva'], x: 8, y: 11, level: 1, defeated: false },
     ],
+    // Ре-пин 000235.08: пул 000001 (CAVE T1) 5 → 30 (свитки волны
+    // Лёд КОНЦОМ каталога) → сдвинулись ТОЛЬКО item c2/c3
+    // (симуляция: seed/mobs/gold/позиции bit-in-bit):
+    // c2 healing_potion → sulfur; c3 stone_fist_grimoire →
+    // frostbite_blessing_scroll.
     chests: [
       { id: 'c0', x: 18, y: 18, opened: false, gold: 31, item: null },
       { id: 'c1', x: 6, y: 13, opened: false, gold: 24, item: null },
-      { id: 'c2', x: 13, y: 10, opened: false, gold: 31, item: 'healing_potion' },
-      { id: 'c3', x: 18, y: 5, opened: false, gold: 27, item: 'stone_fist_grimoire' },
+      { id: 'c2', x: 13, y: 10, opened: false, gold: 31, item: 'sulfur' },
+      { id: 'c3', x: 18, y: 5, opened: false, gold: 27, item: 'frostbite_blessing_scroll' },
       { id: 'c4', x: 15, y: 18, opened: false, gold: 26, item: null },
     ],
     // 000157.02 (ре-пин): свои залежи — СВОЙ rng-поток (соль 0x0DE5)
@@ -1644,10 +1668,14 @@ test('G2-1: golden: CAVE (37,−12) depth=2 — полный детермини�
     { id: 'g2', mobIds: ['ant', 'ant', 'skeleton'], x: 10, y: 17, level: 10, defeated: false },
     { id: 'g3', mobIds: ['crawling_bones'], x: 19, y: 12, level: 13, defeated: false },
   ], 'depth2 mobs (по-полевой пин)');
+  // Ре-пин 000235.08: пул 000001 (CAVE) 5 → 30 (свитки волны Лёд
+  // КОНЦОМ каталога) → сдвинулся ТОЛЬКО item c2 (симуляция:
+  // seed/mobs/gold/позиции bit-in-bit): stone_fist_grimoire →
+  // slow_scroll; c3 iron_sword — без изменений.
   assert.deepEqual(c.chests, [
     { id: 'c0', x: 17, y: 11, opened: false, gold: 51, item: null },
     { id: 'c1', x: 20, y: 13, opened: false, gold: 28, item: null },
-    { id: 'c2', x: 14, y: 13, opened: false, gold: 12, item: 'stone_fist_grimoire' },
+    { id: 'c2', x: 14, y: 13, opened: false, gold: 12, item: 'slow_scroll' },
     { id: 'c3', x: 16, y: 12, opened: false, gold: 63, item: 'iron_sword' },
   ], 'depth2 chests (по-полевой пин)');
 });
@@ -2417,8 +2445,18 @@ const DUN_REF_PREV = {
   '000001.json': {
     мобы: ['skeleton', 'ant', 'crawling_bones', 'giant_larva'],
     постройки_id: 31,
+    // Ре-пин 000235.08: +25 свитков волны Лёд КОНЦОМ пула (5 → 30).
     предметы: ['iron_sword', 'healing_potion', 'sulfur',
-      'stone_fist_grimoire', 'frost_bolt_scroll'],
+      'stone_fist_grimoire', 'frost_bolt_scroll',
+      'ice_lance_scroll', 'rime_bolt_scroll', 'hail_scroll',
+      'shatter_scroll', 'glacial_spike_scroll', 'permafrost_scroll',
+      'absolute_zero_scroll', 'ice_field_scroll', 'wall_of_ice_scroll',
+      'blizzard_field_scroll', 'frost_aura_scroll', 'ice_armor_scroll',
+      'winter_haste_scroll', 'frostbite_blessing_scroll', 'slow_scroll',
+      'frostbite_scroll', 'arctic_touch_scroll', 'deep_freeze_scroll',
+      'freeze_scroll', 'glacier_grasp_scroll', 'frost_wisp_scroll',
+      'winter_elemental_scroll', 'frost_walk_scroll',
+      'cold_breath_scroll', 'frozen_stillness_scroll'],
     руда: [
       ['iron_ore', 'руда'], ['copper_ore', 'руда'], ['coal', 'минерал'],
       ['stone_chunk', 'минерал'], ['silver_ore', 'руда'],
@@ -3105,4 +3143,76 @@ test('W-07. 000235.07: пул RUINS 000003 — 33 предмета (8 + 25 св�
   assert.equal(rec.предметы.length, 33, 'баланс: 33 предмета');
   assert.equal(nScrolls, 27,
     'баланс: 27 свитков из 33 (RED: ' + nScrolls + ')');
+});
+
+// --- Задача 000235.08: волна Лёд — пул CAVE 000001 (W-07) ---
+//
+// Контракт memory/000235.08-ice-wave-content.md §7: пул 000001
+// (CAVE) = 5 существующих + 25 свитков волны Лёд КОНЦОМ (порядок
+// таблицы ТЗ); каждый из 25 РОВНО в одном пуле (скан ВСЕХ
+// assets/dungeons); FALLBACK_DUNGEONS CAVE (file://-ветка
+// dungeon.js) — 1:1 с каталогом; баланс (T1-фильтр depth-1:
+// tier || 1 ≤ 1): 9 из 30 (5 legacy + ice_lance/frostbite_
+// blessing/slow/cold_breath).
+const ICE08_SCROLLS = [
+  'ice_lance_scroll', 'rime_bolt_scroll', 'hail_scroll',
+  'shatter_scroll', 'glacial_spike_scroll', 'permafrost_scroll',
+  'absolute_zero_scroll', 'ice_field_scroll', 'wall_of_ice_scroll',
+  'blizzard_field_scroll', 'frost_aura_scroll', 'ice_armor_scroll',
+  'winter_haste_scroll', 'frostbite_blessing_scroll', 'slow_scroll',
+  'frostbite_scroll', 'arctic_touch_scroll', 'deep_freeze_scroll',
+  'freeze_scroll', 'glacier_grasp_scroll', 'frost_wisp_scroll',
+  'winter_elemental_scroll', 'frost_walk_scroll',
+  'cold_breath_scroll', 'frozen_stillness_scroll',
+];
+
+test('W-07. 000235.08: пул CAVE 000001 — 30 предметов (5 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 9/30', () => {
+  const cat = loadDungeonCatalog();
+  const cave = cat.find(({ file }) => file === '000001.json');
+  assert.ok(cave, '000001.json (CAVE) в каталоге');
+  assert.equal(cave.data.id, 0, '000001.json — CAVE (id 0)');
+  const rec = resolvedDungeonRecord(cave.data, cave.file);
+  assert.deepEqual(rec.предметы,
+    ['iron_sword', 'healing_potion', 'sulfur',
+      'stone_fist_grimoire', 'frost_bolt_scroll',
+      ...ICE08_SCROLLS],
+    'CAVE: 30 предметов = 5 (000133) + 25 свитков волны Лёд КОНЦОМ '
+    + '(RED: ' + rec.предметы.length + ' — свитков волны нет)');
+  const poolCount = new Map();
+  for (const { file, data } of cat) {
+    const r2 = resolvedDungeonRecord(data, file);
+    for (const id of r2.предметы)
+      poolCount.set(id, (poolCount.get(id) || 0) + 1);
+  }
+  for (const id of ICE08_SCROLLS) {
+    assert.equal(poolCount.get(id) || 0, 1,
+      id + ': РОВНО в одном пуле (RED: '
+      + (poolCount.get(id) || 0) + ')');
+  }
+  const DUNGEON_CORE = ['src/global-settings.js', 'src/perlin.js',
+    'src/map.js'];
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of DUNGEON_CORE.concat('src/dungeon.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox,
+      { filename: f });
+  }
+  assert.deepEqual(
+    [...sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.CAVE]],
+    rec.предметы,
+    'FALLBACK_DUNGEONS CAVE — 1:1 с каталогом (GREEN-гарда: fallback '
+    + 'на ' + sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.CAVE].length
+    + ', каталог на ' + rec.предметы.length + ')');
+  const I = require(path.join(ROOT, 'src', 'items.js'));
+  const tierOf = (id) => {
+    const it = I.getItem(id);
+    return (it && it.tier) || 1;
+  };
+  assert.equal(rec.предметы.length, 30, 'баланс: 30 предметов');
+  assert.equal(
+    rec.предметы.filter((id) => tierOf(id) <= 1).length, 9,
+    'баланс: 9 предметов T1 из 30 (RED: '
+    + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
 });

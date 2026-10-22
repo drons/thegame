@@ -27,7 +27,7 @@
       id: 0,
       название: "простая пещера",
       мобы: ["skeleton", "ant", "crawling_bones", "giant_larva"],
-      предметы: ["iron_sword", "healing_potion", "sulfur", "stone_fist_grimoire", "frost_bolt_scroll"],
+      предметы: ["iron_sword", "healing_potion", "sulfur", "stone_fist_grimoire", "frost_bolt_scroll", "ice_lance_scroll", "rime_bolt_scroll", "hail_scroll", "shatter_scroll", "glacial_spike_scroll", "permafrost_scroll", "absolute_zero_scroll", "ice_field_scroll", "wall_of_ice_scroll", "blizzard_field_scroll", "frost_aura_scroll", "ice_armor_scroll", "winter_haste_scroll", "frostbite_blessing_scroll", "slow_scroll", "frostbite_scroll", "arctic_touch_scroll", "deep_freeze_scroll", "freeze_scroll", "glacier_grasp_scroll", "frost_wisp_scroll", "winter_elemental_scroll", "frost_walk_scroll", "cold_breath_scroll", "frozen_stillness_scroll"],
       размер: 25,
       постройка: 31,
       объекты_стен: ["rock", "stalactite"],

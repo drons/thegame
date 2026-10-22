@@ -8954,10 +8954,11 @@ test('000230.05-EQ5: детерминизм: фиксированный сид +
 //   * S4 — выбор свитка: школа+тир → fallback вниз, затем вверх
 //     (каталог из 8 свитков ТЗ, школы+тиры по таблицам ТЗ);
 //   * S5 — свиток без tier = tier 1 (правило dungeon.js:55-57).
-// Золотой бой (пробный прогон на каталоге 2/3/1/3/1/2/1/1):
+// Золотой бой (пробный прогон на текущем каталоге):
 // seed 6, day 0, wolf L4, герой L1 (D=3, P=0.11, T=2): солёный поток
 // (0x2eaef6ed) → r1=0.088617<0.11 (попадание) → школа лёд → T2 лёд
-// пуст → fallback вниз (T1) → frost_bolt_scroll. Доизменения тот же
+// 10 свитков (ре-пин 000235.08: +25 свитков волны Лёд) →
+// pool[floor(r3·10)] = frost_wisp_scroll. Доизменения тот же
 // бой: xp=24, gold=13, items=[honey_cake]. Legacy-фикстуры
 // (N1/N2 seed 5..10 day 0, C6 seed 5 day 0 — D=1, P=0.07): первый
 // заброс солёного потока (seed 5..10 × day 0..2) ≥ 0.07 → свитка нет,
@@ -8969,6 +8970,16 @@ const SCROLL_IDS_000235 = [
   'fireball_scroll', 'flame_burst_scroll', 'frost_bolt_scroll',
   'blizzard_scroll', 'chill_scroll', 'light_heal_scroll',
   'magic_shield_scroll', 'vine_scroll',
+  // ре-пин 000235.08: +25 свитков волны Лёд 000133–00157
+  'ice_lance_scroll', 'rime_bolt_scroll', 'hail_scroll',
+  'shatter_scroll', 'glacial_spike_scroll', 'permafrost_scroll',
+  'absolute_zero_scroll', 'ice_field_scroll', 'wall_of_ice_scroll',
+  'blizzard_field_scroll', 'frost_aura_scroll', 'ice_armor_scroll',
+  'winter_haste_scroll', 'frostbite_blessing_scroll', 'slow_scroll',
+  'frostbite_scroll', 'arctic_touch_scroll', 'deep_freeze_scroll',
+  'freeze_scroll', 'glacier_grasp_scroll', 'frost_wisp_scroll',
+  'winter_elemental_scroll', 'frost_walk_scroll', 'cold_breath_scroll',
+  'frozen_stillness_scroll',
 ];
 // Каталог ТЗ: id → {school, tier} (тиры = уровни заклинаний:
 // fireball L2, flame_burst L3, frost_bolt L1, blizzard L3, chill L1,
@@ -9029,15 +9040,18 @@ test('000235.05 S2: солёный поток — детерминизм по (s
     return JSON.stringify(c.result.items);
   };
   assert.equal(run(), run(), 'один бой → один лут (солёный поток детерминирован)');
-  // (b) Золотое наполнение (пробный прогон на каталоге 2/3/1/3/1/2/1/1):
+  // (b) Золотое наполнение (пробный прогон на текущем каталоге):
   //     seed 6, day 0, wolf L4, герой L1 (D=3, P=0.11, T=2) → r1 =
-  //     0.088617 < 0.11 (попадание) → школа лёд → T2 лёд пуст →
-  //     fallback вниз (T1) → frost_bolt_scroll.
+  //     0.088617 < 0.11 (попадание) → школа лёд → T2 лёд — 10 свитков
+  //     (ре-пин 000235.08: +25 свитков волны Лёд; до волны T2 лёд
+  //     был пуст → fallback вниз (T1) → frost_bolt_scroll) →
+  //     pool[floor(r3·10)] = frost_wisp_scroll.
   const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
     killBy: 'dealDamage' });
   const scrolls = c.result.items.filter((r) => SCROLL_IDS_000235.includes(r.id));
-  assert.deepEqual(scrolls, [{ id: 'frost_bolt_scroll', qty: 1 }],
-    'золотой: выпавший свиток — frost_bolt_scroll (факт: '
+  assert.deepEqual(scrolls, [{ id: 'frost_wisp_scroll', qty: 1 }],
+    'золотой: выпавший свиток — frost_wisp_scroll (ре-пин 000235.08: '
+    + '+25 свитков волны Лёд; факт: '
     + JSON.stringify(c.result.items) + ')');
   // (c) Пин SALT_SCROLL: значение + литерал в src/combat.js +
   //     самостоятельный расчёт FNV-1a32("SCRL") + уникальность среди
@@ -9070,7 +9084,7 @@ test('000235.05 S2: солёный поток — детерминизм по (s
   }
 });
 
-test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6)', () => {
+test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll)', () => {
   // (a) Золотой бой (seed 6, wolf L4, герой L1): значения доизменения
   //     (пробный прогон на текущем коде) — новый код обязан их
   //     сохранить: новый ролл — СТРОГО ПОСЛЕ существующих (пин N2),
@@ -9081,6 +9095,8 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   //     Ре-пин 000230.09: common-пул растёт 10 → 30 (концы тиров,
   //     каталожный порядок) → тот же поток rng даёт leather_choker
   //     (node-перепрогон, ORE-7).
+  //     Ре-пин 000235.08: +25 свитков волны Лёд — солёный поток
+  //     (каталог 67) даёт frost_wisp_scroll (node-перепрогон).
   const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
     killBy: 'dealDamage' });
   assert.equal(c.result.xp, 24, 'xp = 24 (бит-в-бит)');
@@ -9088,8 +9104,9 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   assert.deepEqual(c.result.items, [
     { id: 'honey_cake', qty: 1 },
     { id: 'leather_choker', qty: 1 },
-    { id: 'frost_bolt_scroll', qty: 1 },
+    { id: 'frost_wisp_scroll', qty: 1 },
   ], 'items: существующий состав бит-в-бит + экипировочный + свиток '
+    + '(ре-пин 000235.08: золотой frost_wisp_scroll; '
     + 'СТРОГО после (порядок первого появления; факт: '
     + JSON.stringify(c.result.items) + ')');
   // (b) c._rng → 0.99: все СТАРЫЕ роллы промазывают (таблица wolf 0.1,
@@ -9098,16 +9115,18 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   //     pool[5] = star_pendant (ре-пин 000230.09: legendary-пул 2 → 6,
   //     конец = шея); в луте экипировка + свиток (солёный поток
   //     не зависит от c._rng — «старые потоки не сдвигаются», тип пина
-  //     N2).
+  //     N2). Ре-пин 000235.08: каталог 67 — золотой свиток
+  //     frost_wisp_scroll (node-перепрогон).
   const { c: b } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
     rng: () => 0.99, killBy: 'dealDamage' });
   assert.equal(b.result.xp, 24, 'xp = 24 (бит-в-бит)');
   assert.equal(b.result.gold, 15, 'gold = round(3+2·4+0.99·4) = 15 (бит-в-бит)');
   assert.deepEqual(b.result.items, [
     { id: 'star_pendant', qty: 1 },
-    { id: 'frost_bolt_scroll', qty: 1 },
+    { id: 'frost_wisp_scroll', qty: 1 },
   ], 'rng→0.99: старые роллы промахнулись, экипировка (legendary) + '
-    + 'солёный поток дал свиток всё равно (факт: '
+    + 'солёный поток дал свиток всё равно (ре-пин 000235.08: '
+    + 'frost_wisp_scroll; факт: '
     + JSON.stringify(b.result.items) + ')');
 });
 

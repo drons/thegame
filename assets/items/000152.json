@@ -1,0 +1,13 @@
+{
+  "id": "glacier_grasp_scroll",
+  "name": "Свиток: Ледниковая хватка",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Ледниковая хватка» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "glacier_grasp"
+  }
+}

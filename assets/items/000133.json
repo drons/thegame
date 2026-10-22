@@ -1,0 +1,13 @@
+{
+  "id": "ice_lance_scroll",
+  "name": "Свиток: Ледяное копьё",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Ледяное копьё» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "ice_lance"
+  }
+}

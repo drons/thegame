@@ -254,12 +254,12 @@ function loadSpellsData() { return require('../src/spells-data.js'); }
 
 // --- Модуль-зеркало src/spells-data.js ---
 
-test('spells-data.js: точное зеркало каталога JSON (42 заклинания)', () => {
+test('spells-data.js: точное зеркало каталога JSON (ровно 67 заклинаний — ре-пин 000235.08: +25 волны Лёд)', () => {
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
   const files = listSpellFiles();
-  assert.equal(files.length, 42, 'каталог: 42 файла');
-  assert.equal(SPELLS.length, 42, 'SPELLS — 42 заклинания');
-  assert.equal(Object.keys(SPELLS_BY_ID).length, 42, 'SPELLS_BY_ID — 42 id');
+  assert.equal(files.length, 67, 'каталог: 67 файла (RED: 42)');
+  assert.equal(SPELLS.length, 67, 'SPELLS — 67 заклинаний (RED: 42)');
+  assert.equal(Object.keys(SPELLS_BY_ID).length, 67, 'SPELLS_BY_ID — 67 id (RED: 42)');
   // Порядок SPELLS = порядок файлов каталога; данные — дословно
   // (в id-форме: ссылки резолвятся в id целевого файла, 000211.04).
   files.forEach((f, i) => {
@@ -1353,7 +1353,7 @@ test('000163 R1: каталог 000017.json — 17-й файл, поля по Т
   }
   // (e) Зеркало src/spells-data.js (regen sync-spells-data.js).
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
-  assert.equal(SPELLS.length, 42, 'зеркало: 42 заклинания');
+  assert.equal(SPELLS.length, 67, 'зеркало: 67 заклинаний (RED: 42, ре-пин 000235.08)');
   assert.deepEqual(SPELLS[16], resolveSpell(data, '000017.json'),
     'SPELLS[16] — зеркало 000017.json');
   assert.deepEqual(SPELLS_BY_ID.resurrect, resolveSpell(data, '000017.json'),
@@ -1849,9 +1849,9 @@ test('000211.04 R1: schema.json — поля-ссылки закреплены p
     '«здания»[] — ссылка на файл assets/buildings (integer → string)');
 });
 
-test('000211.04 R2: 42 заклинания — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 11/39/51)', () => {
+test('000211.04 R2: 67 заклинаний — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 17/64/76 — ре-пин 000235.08: +25 волны Лёд)', () => {
   const files = listSpellFiles();
-  assert.equal(files.length, 42, 'каталог: 42 файла');
+  assert.equal(files.length, 67, 'каталог: 67 файла (RED: 42)');
   const { byId } = loadCatalog();
   const { SPELLS } = loadSpellsData();
   let baseRefs = 0;
@@ -1907,18 +1907,20 @@ test('000211.04 R2: 42 заклинания — база/предметы/зда
     assert.deepEqual(bIds, SPELLS[i].здания,
       `${f}: id целей «здания» = прежним значениям (зеркало)`);
   });
-  // Анти-вакуум: точные счётчики ссылок (контракт §1/§2).
-  assert.equal(baseRefs, 11, 'анти-вакуум: ровно 11 base-ссылок (31 null)');
-  assert.equal(itemRefs, 39, 'анти-вакуум: 39 item-ссылок');
-  assert.equal(buildingRefs, 51, 'анти-вакуум: 51 building-ссылок');
-  assert.equal(baseRefs + itemRefs + buildingRefs, 101,
-    'всего ссылок: 101 (11 + 39 + 51)');
-  assert.equal(filesWithItems, 36,
-    'анти-вакуум: 36 файлов с «предметы» (6 без ключа)');
-  assert.equal(baseTargets.size, 11,
-    'уникальные цели: 11 spells (5 старых + ember, ignite, blazing_speed, fire_aura, scorch, cinder)');
-  assert.equal(itemTargets.size, 28, 'уникальные цели: 28 items');
-  assert.equal(buildingTargets.size, 7, 'уникальные цели: 7 buildings');
+  // Анти-вакуум: точные счётчики ссылок (контракт §1/§2; ре-пин
+  // 000235.08: +25 волны Лёд — 6 новых base-ссылок/целей, 25 item-
+  // ссылок/целей, 25 building-ссылок без новых целей).
+  assert.equal(baseRefs, 17, 'анти-вакуум: ровно 17 base-ссылок (50 null) (RED: 11)');
+  assert.equal(itemRefs, 64, 'анти-вакуум: 64 item-ссылок (RED: 39)');
+  assert.equal(buildingRefs, 76, 'анти-вакуум: 76 building-ссылок (RED: 51)');
+  assert.equal(baseRefs + itemRefs + buildingRefs, 157,
+    'всего ссылок: 157 (17 + 64 + 76) (RED: 101)');
+  assert.equal(filesWithItems, 61,
+    'анти-вакуум: 61 файлов с «предметы» (6 без ключа) (RED: 36)');
+  assert.equal(baseTargets.size, 17,
+    'уникальные цели: 17 spells (5 старых + ember, ignite, blazing_speed, fire_aura, scorch, cinder + ice_lance, rime_bolt, frostbite_blessing, frost_aura, slow, frostbite) (RED: 11)');
+  assert.equal(itemTargets.size, 53, 'уникальные цели: 53 items (RED: 28)');
+  assert.equal(buildingTargets.size, 7, 'уникальные цели: 7 buildings (000018 уже цель)');
 });
 
 test('000211.04 R3: membership — здания: города 51–54 проходят, id вне каталога — нет; все building-ссылки — члены каталога', () => {
@@ -3343,12 +3345,13 @@ test('000235.07 W-04: кастабельность вне боя — firelight/h
   }
 });
 
-test('000235.07 W-08: зеркала в синке — spells-data 42 / items-data 182 (ре-пин 000230.09: +50 уши/шея); sync:check exit 0', () => {
+test('000235.07 W-08: зеркала в синке — spells-data 67 / items-data 207 (ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея); sync:check exit 0', () => {
   const { SPELLS } = loadSpellsData();
-  assert.equal(SPELLS.length, 42, 'spells-data: 42 записи (RED: 17)');
+  assert.equal(SPELLS.length, 67, 'spells-data: 67 записей (RED: 42)');
   const itemsData = require('../src/items-data.js');
-  assert.equal(itemsData.ITEMS.length, 182,
-    'items-data: 182 (RED: 82; ре-пин 000230.09: 132+50)');
+  assert.equal(itemsData.ITEMS.length, 207,
+    'items-data: 207 (RED: 82; ре-пин 000235.08: 132+25; '
+    + 'ре-пин 000230.09: +50 уши/шея)');
   const { spawnSync } = require('node:child_process');
   const r = spawnSync(process.execPath,
     [path.join(__dirname, '..', 'scripts', 'sync-all.js'), '--check'],
@@ -3514,6 +3517,490 @@ test('000235.07 W-13: призывы flame_imp/phoenix — makeAlly level=уро
   }
   // Fail-closed: гость-призыв с неизвестным mob → «неизвестный призыв: X».
   const bad = Object.assign(ocGuest0235('w13_badsummon', {
+    действие: 'призыв', параметры: { summon: 'nope', turns: 4 }, вне_боя: false,
+  }));
+  try {
+    pushOcGuests(dataMod, [bad]);
+    const p = spellHero({ spells: [bad.id], intelligence: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, bad.id);
+    assert.equal(r.ok, false, 'неизвестный призыв — отказ');
+    assert.equal(r.reason, 'неизвестный призыв: nope', 'fail-closed reason');
+    assert.equal(p.mp, 40, 'отказ — до расхода маны');
+  } finally {
+    popOcGuests(dataMod, [bad]);
+  }
+});
+
+// --- Задача 000235.08: волна Лёд — 25 заклинаний + 25 свитков (TDD) ---
+//
+// Контракт: memory/000235.08-ice-wave-content.md. RED: записи/свитки/
+// иконки/пул/зеркала/экспорты отсутствуют (ENOENT / undefined / count) —
+// осмысленно, не синтаксис. Таблица ТЗ дословно; нумерация append-only:
+// spells 000043–000067, свитки items 000133–000157 (тот же порядок).
+// W-01 = ре-пин «ровно 67» (зеркало выше), W-08 = ре-пин fire W-08 67/157.
+
+const ICE08 = [
+  // id, название, действие, уровень, степень, база(файл|null), мани, вне_боя
+  ['ice_lance', 'Ледяное копьё', 'урон', 1, 1, null, 4, false],
+  ['rime_bolt', 'Морозный снаряд', 'урон', 2, 2, 'assets/spells/000043.json', 6, false],
+  ['hail', 'Град', 'урон', 2, 1, null, 7, false],
+  ['shatter', 'Расколоть', 'урон', 3, 3, 'assets/spells/000044.json', 12, false],
+  ['glacial_spike', 'Ледяной пик', 'урон', 3, 1, null, 10, false],
+  ['permafrost', 'Вечная мерзлота', 'урон', 4, 1, null, 20, false],
+  ['absolute_zero', 'Абсолютный ноль', 'урон', 4, 1, null, 20, false],
+  ['ice_field', 'Ледяное поле', 'создание', 2, 1, null, 8, false],
+  ['wall_of_ice', 'Ледяная стена', 'создание', 3, 1, null, 12, false],
+  ['blizzard_field', 'Поле метели', 'создание', 4, 1, null, 20, false],
+  ['frost_aura', 'Морозная аура', 'баф', 2, 2, 'assets/spells/000056.json', 7, false],
+  ['ice_armor', 'Ледяные латы', 'баф', 2, 1, null, 8, false],
+  ['winter_haste', 'Зимняя спешка', 'баф', 3, 3, 'assets/spells/000053.json', 13, false],
+  ['frostbite_blessing', 'Благословение мороза', 'баф', 1, 1, null, 4, false],
+  ['slow', 'Морозное замедление', 'дебаф', 1, 1, null, 4, false],
+  ['frostbite', 'Обморожение', 'дебаф', 2, 2, 'assets/spells/000057.json', 7, false],
+  ['arctic_touch', 'Полярное прикосновение', 'дебаф', 2, 1, null, 7, false],
+  ['deep_freeze', 'Глубокое замерзание', 'дебаф', 3, 3, 'assets/spells/000058.json', 10, false],
+  ['freeze', 'Заморозить', 'контроль', 2, 1, null, 6, false],
+  ['glacier_grasp', 'Ледниковая хватка', 'контроль', 3, 1, null, 12, false],
+  ['frost_wisp', 'Морозный вестник', 'призыв', 2, 1, null, 8, false],
+  ['winter_elemental', 'Зимний элементаль', 'призыв', 3, 1, null, 13, false],
+  ['frost_walk', 'Ледяная походка', 'внебой', 2, 1, null, 7, true],
+  ['cold_breath', 'Дыхание мороза', 'внебой', 1, 1, null, 5, true],
+  ['frozen_stillness', 'Замершая неподвижность', 'внебой', 3, 1, null, 15, true],
+];
+const ICE08_IDS = ICE08.map((r) => r[0]);
+const ICE08_OC = ['frost_walk', 'cold_breath', 'frozen_stillness'];
+
+function iceSpellFile(i) {
+  return path.join(DIR, String(43 + i).padStart(6, '0') + '.json');
+}
+function iceScrollFile(i) {
+  return `assets/items/${String(133 + i).padStart(6, '0')}.json`;
+}
+
+test('000235.08 W-02: 25 записей spells — id/название/школа/атрибут/действие/уровень/степень/база/мани/icon/icon_prompt/здания/предметы/вне_боя по таблице ТЗ', () => {
+  let ocCount = 0;
+  ICE08.forEach((row, i) => {
+    const [id, name, action, level, degree, base, mana, oc] = row;
+    const f = iceSpellFile(i);
+    assert.ok(fs.existsSync(f),
+      `W-02: запись отсутствует — ${path.basename(f)} (${id}) (RED: файл нет)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    assert.equal(d.id, id, `${id}: id`);
+    assert.equal(d.название, name, `${id}: название`);
+    assert.equal(d.школа, 'лёд', `${id}: школа`);
+    assert.equal(d.атрибут, 'intelligence', `${id}: атрибут`);
+    assert.equal(d.действие, action, `${id}: действие`);
+    assert.equal(d.уровень, level, `${id}: уровень`);
+    assert.equal(d.степень, degree, `${id}: степень`);
+    assert.equal(d.база, base, `${id}: база`);
+    assert.equal(d.мани, mana, `${id}: мани`);
+    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.ok(typeof d.icon_prompt === 'string' && d.icon_prompt.trim().length > 0,
+      `${id}: icon_prompt непустое`);
+    assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
+      `${id}: описание непустое`);
+    assert.deepEqual(d.здания, ['assets/buildings/000018.json'],
+      `${id}: здания = [000018]`);
+    assert.deepEqual(d.предметы, [iceScrollFile(i)],
+      `${id}: предметы = [свой свиток ${iceScrollFile(i)}]`);
+    assert.equal(d.вне_боя === true, oc, `${id}: вне_боя`);
+    if (oc) ocCount += 1;
+  });
+  assert.equal(ocCount, 3,
+    'вне_боя — ровно 3 (frost_walk/cold_breath/frozen_stillness)');
+});
+
+test('000235.08 W-03: параметры по D1 — точный deepEqual на всех 25 (таблица §1.5); урон/контроль — без «параметры»; цепочки C1/C2/C3 — степень = база+1, база = файл предка; мани в полосах L1 3–5 / L2 6–8 / L3 10–15 / L4 20', () => {
+  const P = {
+    ice_field: { object: 'зона', stat: 'ход_вниз', value: 0.15, turns: 3, radius: 2 },
+    wall_of_ice: { object: 'стена', turns: 5 },
+    blizzard_field: { object: 'зона', stat: 'dot', value: 1, turns: 3, radius: 2 },
+    frost_aura: { stat: 'урон', value: 0.15, turns: 3 },
+    ice_armor: { stat: 'броня', value: 1, turns: 3 },
+    winter_haste: { stat: 'ход', value: 1, turns: 3 },
+    frostbite_blessing: { stat: 'попадание', value: 0.1, turns: 3 },
+    slow: { stat: 'ход_вниз', value: 0.15, turns: 3 },
+    frostbite: { stat: 'броня_вниз', value: 1, turns: 3 },
+    arctic_touch: { stat: 'урон_вниз', value: 0.15, turns: 3 },
+    deep_freeze: { stat: 'урон_вниз', value: 0.30, turns: 3 },
+    frost_wisp: { summon: 'wind_elemental', turns: 4 },
+    winter_elemental: { summon: 'water_elemental', turns: 4 },
+    frost_walk: { days: 1 },
+    cold_breath: { days: 1, radius: 5 },
+    frozen_stillness: { days: 1, radius: 5 },
+  };
+  const NO_PARAMS = new Set([
+    'ice_lance', 'rime_bolt', 'hail', 'shatter', 'glacial_spike',
+    'permafrost', 'absolute_zero', 'freeze', 'glacier_grasp',
+  ]);
+  ICE08.forEach((row, i) => {
+    const id = row[0];
+    const f = iceSpellFile(i);
+    assert.ok(fs.existsSync(f), `W-03: запись отсутствует — ${id} (RED)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const expected = P[id];
+    if (expected !== undefined) {
+      assert.deepEqual(d.параметры, expected, `${id}: параметры по D1`);
+    } else {
+      assert.equal(d.параметры, undefined,
+        `${id}: БЕЗ «параметры» (${NO_PARAMS.has(id) ? 'урон/контроль' : 'ошибка таблицы'})`);
+    }
+  });
+  // Цепочки (таблица §1.3): степень = степень предка + 1; база — файл предка.
+  const byId = new Map(ICE08.map((r) => [r[0], r]));
+  const CHAINS = [
+    ['rime_bolt', 'ice_lance'],
+    ['shatter', 'rime_bolt'],
+    ['frost_aura', 'frostbite_blessing'],
+    ['winter_haste', 'frost_aura'],
+    ['frostbite', 'slow'],
+    ['deep_freeze', 'frostbite'],
+  ];
+  for (const [child, parent] of CHAINS) {
+    const ci = ICE08_IDS.indexOf(child);
+    const pi = ICE08_IDS.indexOf(parent);
+    assert.ok(ci >= 0 && pi >= 0, `цепочка: ${child}/${parent} в таблице`);
+    const childDegree = byId.get(child)[4];
+    const parentDegree = byId.get(parent)[4];
+    assert.equal(childDegree, parentDegree + 1,
+      `цепочка ${parent} → ${child}: степень = ${parentDegree} + 1`);
+    assert.equal(byId.get(child)[5],
+      `assets/spells/${String(43 + pi).padStart(6, '0')}.json`,
+      `цепочка ${parent} → ${child}: база (таблица) = файл предка`);
+  }
+  for (const [child, parent] of CHAINS) {
+    const ci = ICE08_IDS.indexOf(child);
+    const f = iceSpellFile(ci);
+    if (!fs.existsSync(f)) continue; // RED: файл нет — выше упали
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const parentFile = String(43 + ICE08_IDS.indexOf(parent))
+      .padStart(6, '0') + '.json';
+    assert.equal(d.база, 'assets/spells/' + parentFile,
+      `цепочка ${parent} → ${child}: база = файл предка`);
+  }
+  // Мани — в полосах по уровню (баланс-пин, паттерн калибровки ТЗ).
+  const BANDS = { 1: [3, 5], 2: [6, 8], 3: [10, 15], 4: [20, 20] };
+  ICE08.forEach(([id, , , level, , , mana]) => {
+    const [lo, hi] = BANDS[level];
+    assert.ok(mana >= lo && mana <= hi,
+      `${id}: мани ${mana} в полосе L${level} [${lo}..${hi}]`);
+  });
+});
+
+test('000235.08 W-04: гейт каста вне боя — 22 боевых «боевое заклинание» до расхода/мутаций; 3 внебоевых → {ok:true} + запись {spellId, expiresDay: day+1}; мана < мани → отказ ДО мутаций; рекаст — in-place (один слот, expiresDay обновлён)', () => {
+  const dataMod = loadSpellsData();
+  const { castOutOfCombat } = loadSpells();
+  const day = 10;
+  const ocMana = { frost_walk: 7, cold_breath: 5, frozen_stillness: 15 };
+  for (const id of ICE08_OC) {
+    assert.ok(dataMod.SPELLS_BY_ID[id],
+      `W-04: ${id} — запись в каталоге (RED: нет)`);
+    const p = spellHero({ spells: [id], mp: 30 });
+    const r = castOutOfCombat(p, id, day);
+    assert.equal(r.ok, true, `${id}: каст вне боя ok (${r.reason})`);
+    assert.equal(r.expiresDay, day + 1, `${id}: days 1 → expiresDay = day+1`);
+    assert.equal(p.mp, 30 - ocMana[id], `${id}: мана ровно «мани» (${ocMana[id]})`);
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: id, expiresDay: day + 1 }],
+      `${id}: запись generic-ядром {spellId, expiresDay: day+days}`);
+  }
+  const combatIds = ICE08_IDS.filter((id) => !ICE08_OC.includes(id));
+  assert.equal(combatIds.length, 22, '25 − 3 внебоевых = 22 боевых');
+  for (const id of combatIds) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-04: ${id} — запись (RED: нет)`);
+    const p = spellHero({ spells: [id], mp: 30 });
+    const r = castOutOfCombat(p, id, day);
+    assert.equal(r.ok, false, `${id}: боевое вне боя — отказ`);
+    assert.equal(r.reason, 'боевое заклинание', `${id}: причина по флагу`);
+    assert.equal(p.mp, 30, `${id}: отказ — до расхода`);
+    assert.equal(p.outOfCombatEffects, undefined, `${id}: отказ — без мутаций`);
+  }
+  {
+    const p = spellHero({ spells: ['frozen_stillness'], mp: 14 });
+    const r = castOutOfCombat(p, 'frozen_stillness', day);
+    assert.equal(r.ok, false, 'мана 14 < 15 — отказ');
+    assert.equal(r.reason, 'не хватает маны', 'причина — мана');
+    assert.equal(p.mp, 14, 'отказ ДО мутаций: mp нетронут');
+    assert.equal(p.outOfCombatEffects, undefined,
+      'отказ ДО мутаций: записей нет');
+  }
+  {
+    const p = spellHero({ spells: ['frost_walk'], mp: 30 });
+    assert.equal(castOutOfCombat(p, 'frost_walk', day).ok, true, 'каст 1 (день 10)');
+    assert.equal(p.outOfCombatEffects.length, 1, 'одна запись');
+    const first = p.outOfCombatEffects[0];
+    assert.equal(castOutOfCombat(p, 'frost_walk', day + 1).ok, true,
+      'рекаст (день 11)');
+    assert.equal(p.outOfCombatEffects.length, 1,
+      'рекаст in-place: записей ровно одна (не дубль)');
+    assert.equal(p.outOfCombatEffects[0], first,
+      'рекаст in-place: тот же объект записи');
+    assert.equal(p.outOfCombatEffects[0].expiresDay, day + 2,
+      'рекаст: expiresDay обновлён (day+1 → day+2)');
+  }
+});
+
+test('000235.08 W-10a: frost_walk — каст → запись {frost_walk, expiresDay: day+1}, мана 7; isHeroFrostWalk: активная (expiresDay = day+1) → true; граница expiresDay = day → false; < day → false; чужой id / нет поля / null / мусор → false без краха', () => {
+  const dataMod = loadSpellsData();
+  assert.ok(dataMod.SPELLS_BY_ID['frost_walk'],
+    'W-10a: запись frost_walk в каталоге (RED: нет)');
+  const { castOutOfCombat } = loadSpells();
+  const day = 10;
+  const p = spellHero({ spells: ['frost_walk'], mp: 30 });
+  const r = castOutOfCombat(p, 'frost_walk', day);
+  assert.equal(r.ok, true, 'frost_walk: каст вне боя ok (' + r.reason + ')');
+  assert.equal(p.mp, 23, 'мана ровно 7');
+  assert.deepEqual(p.outOfCombatEffects,
+    [{ spellId: 'frost_walk', expiresDay: day + 1 }],
+    'запись {frost_walk, expiresDay: day+1}');
+  const { isHeroFrostWalk } = loadSpells();
+  assert.equal(typeof isHeroFrostWalk, 'function',
+    '000235.08: export Spells.isHeroFrostWalk (src/spells.js) (RED: нет)');
+  assert.equal(isHeroFrostWalk({ outOfCombatEffects:
+    [{ spellId: 'frost_walk', expiresDay: day + 1 }] }, day),
+    true, 'активная (expiresDay = day+1) — true');
+  assert.equal(isHeroFrostWalk({ outOfCombatEffects:
+    [{ spellId: 'frost_walk', expiresDay: day }] }, day),
+    false, 'граница: expiresDay === day — false (>, не >=)');
+  assert.equal(isHeroFrostWalk({ outOfCombatEffects:
+    [{ spellId: 'frost_walk', expiresDay: day - 1 }] }, day),
+    false, 'истёкшая (expiresDay < day) — false');
+  assert.equal(isHeroFrostWalk({}, day), false, 'нет поля — false');
+  assert.equal(isHeroFrostWalk(null, day), false, 'hero = null — false');
+  assert.equal(isHeroFrostWalk({ outOfCombatEffects:
+    [{ spellId: 'cold_breath', expiresDay: day + 2 }] }, day),
+    false, 'чужой id — false (матчинг по spellId)');
+  assert.equal(isHeroFrostWalk({ outOfCombatEffects:
+    [null, 'мусор', 42, { expiresDay: day + 1 },
+     { spellId: 'нет_такого', expiresDay: day + 1 }] }, day),
+    false, 'мусор-записи — false без краха');
+});
+
+test('000235.08 W-11a: findZoneCombat — без 5-го аргумента бит-в-бит (регрессия: триггер dist 2 → зона, dist 0 — приоритет, neutral не триггерит, tie-break лексико); c5=5: триггер dist 2 → НИ ЗОНЫ (2→1), dist 1 → зона, dist-0/neutral — нетронуты; c5=0 → идентично; coldBreathRadius: max по активным, битое/нет radius → 5, нет → 0, граница >', () => {
+  const { findZoneCombat, groupZoneInfo } = require('../src/combat.js');
+  assert.ok(groupZoneInfo(4).triggers,
+    'фикстура: группа 4 (паучье гнездо) — триггерящая (r2)');
+  assert.ok(!groupZoneInfo(2).triggers,
+    'фикстура: группа 2 (логово скелетов) — не триггерит');
+  const trigger = { x: 2, y: 3, hasMobGroup: true, mobGroup: 4 };
+  const neutral = { x: 0, y: 3, hasMobGroup: true, mobGroup: 2 };
+  const tiles = [trigger, neutral];
+  const d0 = null;
+  // (a) Регрессия: 5-й аргумент НЕ ПЕРЕДАН — бит-в-бит со старым.
+  assert.deepEqual(findZoneCombat(0, 1, tiles, d0),
+    { x: 2, y: 3, mobGroup: 4 }, 'dist 2 (Чебышёв) → зона r2');
+  assert.deepEqual(findZoneCombat(2, 3, tiles, d0),
+    { x: 2, y: 3, mobGroup: 4 }, 'dist 0 — приоритет (свой тайл)');
+  assert.deepEqual(findZoneCombat(0, 3, tiles, d0),
+    { x: 0, y: 3, mobGroup: 2 }, 'dist 0 — приоритет даже над зоной');
+  assert.equal(findZoneCombat(5, 5, tiles, d0), null, 'вне зон — null');
+  assert.equal(findZoneCombat(0, 1, tiles, new Set(['2,3'])), null,
+    'defeated — зона не триггерит');
+  const two = [
+    { x: 4, y: 1, hasMobGroup: true, mobGroup: 4 },
+    { x: 1, y: 5, hasMobGroup: true, mobGroup: 4 },
+  ];
+  assert.deepEqual(findZoneCombat(2, 3, two, d0),
+    { x: 1, y: 5, mobGroup: 4 }, 'равный dist — tie-break (x, y) лексико');
+  // (b) c5 = 0 — идентично вызову без аргумента.
+  assert.deepEqual(findZoneCombat(0, 1, tiles, d0, 0),
+    { x: 2, y: 3, mobGroup: 4 }, 'c5=0: dist 2 → зона (нет сужения)');
+  assert.deepEqual(findZoneCombat(0, 3, tiles, d0, 0),
+    { x: 0, y: 3, mobGroup: 2 }, 'c5=0: dist-0 нетронут');
+  // (c) c5 = 5: зона триггерящей группы сжимается 2→1 (Chebyshev ≤ 5).
+  assert.equal(findZoneCombat(0, 1, tiles, d0, 5), null,
+    'c5=5: dist 2 → НИ ЗОНЫ (eff r = max(1, 2−1) = 1; 2 > 1) (RED: нет 5-го аргумента)');
+  assert.deepEqual(findZoneCombat(1, 2, tiles, d0, 5),
+    { x: 2, y: 3, mobGroup: 4 },
+    'c5=5: dist 1 → зона (eff 1 ≥ 1 — зона НЕ гаснет полностью)');
+  assert.deepEqual(findZoneCombat(0, 3, tiles, d0, 5),
+    { x: 0, y: 3, mobGroup: 2 }, 'c5=5: dist-0 (neutral) нетронут');
+  assert.deepEqual(findZoneCombat(2, 3, tiles, d0, 5),
+    { x: 2, y: 3, mobGroup: 4 }, 'c5=5: dist-0 (trigger) нетронут');
+  // (d) coldBreathRadius — паттерн wardRadius.
+  const { coldBreathRadius } = loadSpells();
+  assert.equal(typeof coldBreathRadius, 'function',
+    '000235.08: export Spells.coldBreathRadius (src/spells.js) (RED: нет)');
+  const day10 = 10;
+  const rec = (expiresDay) => ({ spellId: 'cold_breath', expiresDay });
+  assert.equal(coldBreathRadius({ outOfCombatEffects: [rec(day10)] }, day10), 0,
+    'граница expiresDay = day → 0 (>, не >=)');
+  assert.equal(coldBreathRadius({ outOfCombatEffects: [rec(day10 - 1)] }, day10), 0,
+    'expiresDay < day → 0');
+  assert.equal(coldBreathRadius({ outOfCombatEffects: [rec(day10 + 1)] }, day10), 5,
+    'активная (day+1) → радиус каталога (5)');
+  assert.equal(coldBreathRadius({ outOfCombatEffects:
+    [rec(day10), rec(day10 + 1)] }, day10), 5,
+    'истёкшая + активная → радиус АКТИВНОЙ');
+  assert.equal(coldBreathRadius({ outOfCombatEffects:
+    [{ spellId: 'frozen_stillness', expiresDay: day10 + 1 }] }, day10), 0,
+    'чужой id → 0 (матчинг по spellId)');
+  assert.equal(coldBreathRadius({ outOfCombatEffects: [] }, day10), 0, '[] → 0');
+  assert.equal(coldBreathRadius({}, day10), 0, 'нет поля → 0');
+  assert.equal(coldBreathRadius(null, day10), 0, 'hero = null → 0');
+  assert.equal(coldBreathRadius({ outOfCombatEffects: 'бито' }, day10), 0,
+    'effects не массив → 0');
+  assert.equal(coldBreathRadius({ outOfCombatEffects:
+    [null, 'мусор', 42, { expiresDay: day10 + 1 },
+     { spellId: 'нет_такого_заклинания', expiresDay: day10 + 1 }] }, day10), 0,
+    'мусор-записи → 0 без краха');
+  const p = { outOfCombatEffects: [rec(day10 + 1)] };
+  for (let i = 0; i < 5; i++) {
+    assert.equal(coldBreathRadius(p, day10), 5, 'повторный вызов i=' + i
+      + ' — стабильно (без RNG)');
+  }
+  // (e) radius — ленивым lookup из каталога (гость 1/3/5 → значение,
+  //     невалидный/отсутствует → дефолт 5).
+  const dataMod = loadSpellsData();
+  const mkBreath = (over) => portalGuest0235('cold_breath', Object.assign(
+    { действие: 'внебой', параметры: { days: 1, radius: 5 } }, over));
+  for (const [radius, expected] of [[1, 1], [3, 3], [5, 5]]) {
+    const g = mkBreath({ параметры: { days: 1, radius } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = coldBreathRadius({ outOfCombatEffects:
+        [{ spellId: 'cold_breath', expiresDay: day10 + 1 }] }, day10);
+      assert.equal(r, expected, 'ленивый lookup: гость r=' + radius + ' → ' + expected);
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  for (const radius of ['нет', 9, 0, 1.5, null]) {
+    const g = mkBreath({ параметры: { days: 1, radius } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = coldBreathRadius({ outOfCombatEffects:
+        [{ spellId: 'cold_breath', expiresDay: day10 + 1 }] }, day10);
+      assert.equal(r, 5,
+        'невалидный radius (' + JSON.stringify(radius) + ') → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  {
+    const g = mkBreath({ параметры: { days: 1 } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = coldBreathRadius({ outOfCombatEffects:
+        [{ spellId: 'cold_breath', expiresDay: day10 + 1 }] }, day10);
+      assert.equal(r, 5, 'radius отсутствует → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+});
+
+test('000235.08 W-12a: frozenStillnessRadius — паттерн wardRadius: активная → радиус каталога (5); граница expiresDay = day → 0; чужой id (cold_breath) → 0; [] / нет поля / null / мусор → 0; max по двум активным; radius — ленивым lookup (гость 1/3/5, невалидный/отсутствует → дефолт 5)', () => {
+  const { frozenStillnessRadius } = loadSpells();
+  assert.equal(typeof frozenStillnessRadius, 'function',
+    '000235.08: export Spells.frozenStillnessRadius (src/spells.js) (RED: нет)');
+  const day = 10;
+  const rec = (expiresDay) => ({ spellId: 'frozen_stillness', expiresDay });
+  assert.equal(frozenStillnessRadius({ outOfCombatEffects: [rec(day)] }, day), 0,
+    'граница expiresDay = day → 0 (>, не >=)');
+  assert.equal(frozenStillnessRadius({ outOfCombatEffects: [rec(day - 1)] }, day), 0,
+    'expiresDay < day → 0');
+  assert.equal(frozenStillnessRadius({ outOfCombatEffects: [rec(day + 1)] }, day), 5,
+    'активная (day+1) → радиус каталога (5)');
+  assert.equal(frozenStillnessRadius({ outOfCombatEffects:
+    [rec(day), rec(day + 2)] }, day), 5,
+    'истёкшая + активная → радиус АКТИВНОЙ');
+  assert.equal(frozenStillnessRadius({ outOfCombatEffects:
+    [{ spellId: 'cold_breath', expiresDay: day + 1 }] }, day), 0,
+    'чужой id (cold_breath) → 0 (матчинг по spellId)');
+  assert.equal(frozenStillnessRadius({ outOfCombatEffects: [] }, day), 0, '[] → 0');
+  assert.equal(frozenStillnessRadius({}, day), 0, 'нет поля → 0');
+  assert.equal(frozenStillnessRadius(null, day), 0, 'hero = null → 0');
+  assert.equal(frozenStillnessRadius({ outOfCombatEffects: 'бито' }, day), 0,
+    'effects не массив → 0');
+  assert.equal(frozenStillnessRadius({ outOfCombatEffects:
+    [null, 'мусор', 42, { expiresDay: day + 1 },
+     { spellId: 'нет_такого_заклинания', expiresDay: day + 1 }] }, day), 0,
+    'мусор-записи → 0 без краха');
+  const p = { outOfCombatEffects: [rec(day + 1)] };
+  for (let i = 0; i < 5; i++) {
+    assert.equal(frozenStillnessRadius(p, day), 5, 'повторный вызов i=' + i
+      + ' — стабильно (без RNG)');
+  }
+  const dataMod = loadSpellsData();
+  const mkStill = (over) => portalGuest0235('frozen_stillness', Object.assign(
+    { действие: 'внебой', параметры: { days: 1, radius: 5 } }, over));
+  for (const [radius, expected] of [[1, 1], [3, 3], [5, 5]]) {
+    const g = mkStill({ параметры: { days: 1, radius } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = frozenStillnessRadius({ outOfCombatEffects:
+        [{ spellId: 'frozen_stillness', expiresDay: day + 1 }] }, day);
+      assert.equal(r, expected, 'ленивый lookup: гость r=' + radius + ' → ' + expected);
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  for (const radius of ['нет', 9, 0, 1.5, null]) {
+    const g = mkStill({ параметры: { days: 1, radius } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = frozenStillnessRadius({ outOfCombatEffects:
+        [{ spellId: 'frozen_stillness', expiresDay: day + 1 }] }, day);
+      assert.equal(r, 5,
+        'невалидный radius (' + JSON.stringify(radius) + ') → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  {
+    const g = mkStill({ параметры: { days: 1 } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = frozenStillnessRadius({ outOfCombatEffects:
+        [{ spellId: 'frozen_stillness', expiresDay: day + 1 }] }, day);
+      assert.equal(r, 5, 'radius отсутствует → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+});
+
+test('000235.08 W-13: призывы frost_wisp/winter_elemental — makeAlly level=уровень спелла, summonTurns=4, имя/роль из MOB_TYPES (wind_elemental — «Ветряной стихийник» ranged; water_elemental — «Водный стихийник» melee); детерминизм (seed); fail-closed «неизвестный призыв»', () => {
+  const dataMod = loadSpellsData();
+  assert.ok(dataMod.SPELLS_BY_ID['frost_wisp'],
+    'W-13: frost_wisp — запись в каталоге (RED: нет)');
+  assert.ok(dataMod.SPELLS_BY_ID['winter_elemental'],
+    'W-13: winter_elemental — запись в каталоге (RED: нет)');
+  const { castSpell } = loadSpells();
+  function summonCase(spellId, level, name, role) {
+    const p = spellHero({ spells: [spellId], intelligence: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, spellId);
+    assert.equal(r.ok, true, `${spellId}: каст призыва ok (${r.reason})`);
+    assert.ok(r.summoned, `${spellId}: r.summoned`);
+    const a = c.units.find((u) => u.id === r.summoned);
+    assert.ok(a, `${spellId}: призванный в c.units`);
+    assert.equal(a.kind, 'summon', `${spellId}: kind summon`);
+    assert.equal(a.summonTurns, 4, `${spellId}: summonTurns 4`);
+    assert.equal(a.level, level, `${spellId}: level = уровень спелла`);
+    assert.equal(a.name, name, `${spellId}: имя из MOB_TYPES`);
+    assert.equal(a.role, role, `${spellId}: роль из MOB_TYPES`);
+  }
+  summonCase('frost_wisp', 2, 'Ветряной стихийник', 'ranged');
+  summonCase('winter_elemental', 3, 'Водный стихийник', 'melee');
+  // Детерминизм: два одинаковых боя (seed) → одинаковые статистики.
+  {
+    const p1 = spellHero({ spells: ['frost_wisp'], intelligence: 11, mp: 40 });
+    const c1 = soloCombat(p1, 'wolf');
+    castSpell(c1, 'frost_wisp');
+    const a1 = c1.units.find((u) => u.kind === 'summon');
+    const p2 = spellHero({ spells: ['frost_wisp'], intelligence: 11, mp: 40 });
+    const c2 = soloCombat(p2, 'wolf');
+    castSpell(c2, 'frost_wisp');
+    const a2 = c2.units.find((u) => u.kind === 'summon');
+    assert.equal(a1.maxHP, a2.maxHP, 'детерминизм: maxHP');
+    assert.equal(a1.dmg, a2.dmg, 'детерминизм: dmg');
+    assert.equal(a1.armor, a2.armor, 'детерминизм: armor');
+  }
+  // Fail-closed: гость-призыв с неизвестным mob → «неизвестный призыв: X».
+  const bad = Object.assign(ocGuest0235('w13_ice_badsummon', {
     действие: 'призыв', параметры: { summon: 'nope', turns: 4 }, вне_боя: false,
   }));
   try {

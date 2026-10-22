@@ -1,0 +1,13 @@
+{
+  "id": "winter_elemental_scroll",
+  "name": "Свиток: Зимний элементаль",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Зимний элементаль» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "winter_elemental"
+  }
+}

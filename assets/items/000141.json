@@ -1,0 +1,13 @@
+{
+  "id": "wall_of_ice_scroll",
+  "name": "Свиток: Ледяная стена",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Ледяная стена» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "wall_of_ice"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "frozen_stillness_scroll",
+  "name": "Свиток: Замершая неподвижность",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Замершая неподвижность» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "frozen_stillness"
+  }
+}

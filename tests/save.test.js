@@ -1569,7 +1569,8 @@ test('000115 N1: deserializeEfir — id-валидация по каталога
   assert.equal(EFIR_SKILL_CATALOG.length, 37,
     'каталог skills: 6 primary + 31 secondary = 37 записей');
   // Ре-пин 000235.07: +25 заклинаний волны Огонь — 17 → 42.
-  assert.equal(EFIR_SPELL_CATALOG.length, 42, 'каталог spells: 42 записи');
+  // Ре-пин 000235.08: +25 заклинаний волны Лёд — 42 → 67.
+  assert.equal(EFIR_SPELL_CATALOG.length, 67, 'каталог spells: 67 записи');
 
   const base = { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] };
 

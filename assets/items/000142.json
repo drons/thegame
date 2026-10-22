@@ -1,0 +1,13 @@
+{
+  "id": "blizzard_field_scroll",
+  "name": "Свиток: Поле метели",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 240,
+  "tier": 4,
+  "desc": "Свиток: изучает «Поле метели» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "blizzard_field"
+  }
+}

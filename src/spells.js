@@ -889,6 +889,9 @@
       case 'stone_anchor':
       case 'recall':
       case 'warding_circle':
+      case 'frost_walk':
+      case 'cold_breath':
+      case 'frozen_stillness':
         break;
       default:
         break;
@@ -1053,6 +1056,71 @@
     return best;
   }
 
+  // 000235.08: frost_walk — герой на замёрзшем пути в день day ⇔
+  // активная запись spellId 'frost_walk' (expiresDay > day — паттерн
+  // isHeroLit; days 1 → эффект живёт ровно день каста).
+  function isHeroFrostWalk(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object' || e.spellId !== 'frost_walk') {
+        continue;
+      }
+      if (typeof e.expiresDay === 'number' && e.expiresDay > day) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // 000235.08: cold_breath — радиус активной записи (max
+  // параметров.radius по АКТИВНЫМ записям spellId 'cold_breath';
+  // expiresDay > day; radius невалидный/отсутствует → дефолт 5;
+  // нет активных → 0). Каталог — ленивым lookup (паттерн wardRadius;
+  // независимая копия — бит-идентичность .04-пинов без риска).
+  function coldBreathRadius(p, day) {
+    if (!isPlainObject(p) || !Array.isArray(p.outOfCombatEffects)) {
+      return 0;
+    }
+    let best = 0;
+    for (const e of p.outOfCombatEffects) {
+      if (!isPlainObject(e)) continue;
+      if (e.spellId !== 'cold_breath') continue;
+      if (typeof e.expiresDay !== 'number' || e.expiresDay <= day) {
+        continue;
+      }
+      const spell = SPELLS_BY_ID['cold_breath'];
+      const radius = (spell && isPlainObject(spell.параметры))
+        ? spell.параметры.radius : undefined;
+      const r = (typeof radius === 'number' && Number.isInteger(radius)
+        && radius >= 1 && radius <= 5) ? radius : 5;
+      if (r > best) best = r;
+    }
+    return best;
+  }
+
+  // 000235.08: frozen_stillness — радиус активной записи (паттерн
+  // coldBreathRadius; независимая копия, spellId 'frozen_stillness').
+  function frozenStillnessRadius(p, day) {
+    if (!isPlainObject(p) || !Array.isArray(p.outOfCombatEffects)) {
+      return 0;
+    }
+    let best = 0;
+    for (const e of p.outOfCombatEffects) {
+      if (!isPlainObject(e)) continue;
+      if (e.spellId !== 'frozen_stillness') continue;
+      if (typeof e.expiresDay !== 'number' || e.expiresDay <= day) {
+        continue;
+      }
+      const spell = SPELLS_BY_ID['frozen_stillness'];
+      const radius = (spell && isPlainObject(spell.параметры))
+        ? spell.параметры.radius : undefined;
+      const r = (typeof radius === 'number' && Number.isInteger(radius)
+        && radius >= 1 && radius <= 5) ? radius : 5;
+      if (r > best) best = r;
+    }
+    return best;
+  }
+
   // 000235.04: hero.portal_marker из (подделанного) сейва:
   // валидный {x, y, day} → каноническая КОПИЯ; иначе null (молча,
   // load-clean 000038).
@@ -1167,5 +1235,6 @@
     isHeroLit, isHeroCamped,
     nearestBuiltCity, nearestPassableTile, wardRadius,
     sanitizePortalMarker, PORTAL_SEARCH_RADIUS,
+    isHeroFrostWalk, coldBreathRadius, frozenStillnessRadius,
   };
 });

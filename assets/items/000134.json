@@ -1,0 +1,13 @@
+{
+  "id": "rime_bolt_scroll",
+  "name": "Свиток: Морозный снаряд",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Морозный снаряд» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "rime_bolt"
+  }
+}

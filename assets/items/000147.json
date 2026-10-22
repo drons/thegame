@@ -1,0 +1,13 @@
+{
+  "id": "slow_scroll",
+  "name": "Свиток: Морозное замедление",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Морозное замедление» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "slow"
+  }
+}

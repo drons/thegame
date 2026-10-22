@@ -1,0 +1,13 @@
+{
+  "id": "frost_wisp_scroll",
+  "name": "Свиток: Морозный вестник",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Морозный вестник» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "frost_wisp"
+  }
+}

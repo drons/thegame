@@ -1,0 +1,13 @@
+{
+  "id": "cold_breath_scroll",
+  "name": "Свиток: Дыхание мороза",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Дыхание мороза» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "cold_breath"
+  }
+}

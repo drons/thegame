@@ -1,0 +1,13 @@
+{
+  "id": "glacial_spike_scroll",
+  "name": "Свиток: Ледяной пик",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Ледяной пик» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "glacial_spike"
+  }
+}

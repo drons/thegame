@@ -989,3 +989,262 @@ test('000235.07 W-12b: e2e hearthfire (книга) — лагерь: ровно 
   assert.equal(saveHero(h).mp, 25,
     'день 3: mp 18 + 7 = 25 — базовый');
 });
+
+// =====================================================================
+// 000235.08 — Волна Лёд: W-10b — e2e frost_walk (книга, мир)
+//
+// Контракт memory/000235.08-ice-wave-content.md §7 W-10(b).
+// Фикстура (ФАКТ ПРОБА, детерминированный фолбэк-мир): спавн (0,0);
+// берег (0,4)–(0,6) SAND passable; вода (0,7)–(0,8) WATER
+// passable:false; (103,75) WATER / (104,75) DEEP_WATER — шаг
+// суша→DEEP в мире НЕ существует (все 812 DEEP окружены только
+// WATER) → DEEP-нога из позиции-сейва на воде. Сид-позиция (0,6)
+// (вне зоны (2,3), d=3) — шаг (0,1)–(0,5) входил бы в trigger-зону
+// g4 → зона-бой (фикстура E4/E5).
+//
+// Краснота: в каталоге spells записи frost_walk НЕТ — строки в книге
+// нет (render-фильтр вне_боя===true по SPELLS_BY_ID) — clickRow
+// падает на «строка frost_walk в книге». Дальние ассерты
+// (проходимость/позиция-сейв) — пины Зелёной стадии.
+// =====================================================================
+
+// Один монотонный now на сценарий: walk (шаг ОБЯЗАН состояться) и
+// tryStep (шаг МОЖЕТ заблокироваться — без ассерта перехода).
+// state.player — getter-СНИМОК (main.js:3665-3667) — телепортов
+// НЕТ; позиционные ноги — сид-позиция сейва (паттерн E5).
+function makeStepper(h) {
+  const g = h.sandbox.__game;
+  let now = NOW;
+  const tryStep = (tx, ty) => {
+    const px = g.state.player.x, py = g.state.player.y;
+    const dx = tx - px, dy = ty - py;
+    assert.ok(Math.abs(dx) + Math.abs(dy) === 1,
+      'шаг по соседнему тайлу (' + px + ',' + py + ')→(' + tx + ',' + ty + ')');
+    const code = keydownFor(dx, dy);
+    key(h, code);
+    let guard = 0;
+    do {
+      now += 200;
+      h.frameFn(now);
+    } while ((g.state.player.x !== tx || g.state.player.y !== ty)
+      && ++guard < 12);
+    keyup(h, code);
+    return { moved: g.state.player.x === tx && g.state.player.y === ty, now };
+  };
+  const walk = (tx, ty) => {
+    const r = tryStep(tx, ty);
+    assert.ok(r.moved,
+      'сценарий: игрок перешёл на (' + tx + ',' + ty + ')');
+    return r.now;
+  };
+  return { walk, tryStep };
+}
+
+test('000235.08 W-10b: e2e frost_walk (книга, мир) — (0,6)→(0,7) ЗАБЛОКИРОВАНО без эффекта; каст (mp −7, запись {frost_walk, expiresDay:2}) → (0,7)/(0,8) WATER пройдено; DEEP: позиция-сейв (103,75) + запись → шаг (104,75) DEEP_WATER пройден; сейв на воде → reload → позиция СОХРАНЕНА; setDay(2) — истёк → шаг на воду ЗАБЛОКИРОВАН', async () => {
+  const h = await boot(seedSave07({ day: 1, position: { x: 0, y: 6 } }));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.ok(myMap.tileAt(0, 6).passable
+    && myMap.tileAt(0, 7).terrain === G.TERRAIN.WATER
+    && !myMap.tileAt(0, 7).passable
+    && myMap.tileAt(0, 8).terrain === G.TERRAIN.WATER,
+    'фикстура: берег (0,6) SAND, вода (0,7)/(0,8) WATER');
+  assert.equal(g.state.player.x, 0, 'сид-позиция — x (0,6)');
+  assert.equal(g.state.player.y, 6, 'сид-позиция — y');
+  assert.equal(g.state.day, 1, 'фикстура: день 1');
+  dismissStartWindow(h);
+  learn(h, ['frost_walk']);
+  const mp0 = saveHero(h).mp;
+  assert.equal(mp0, 16, 'фикстура: новый герой mp = maxMP 16');
+  const step = makeStepper(h);
+  // Контроль (БЕЗ эффекта): шаг на воду ЗАБЛОКИРОВАН.
+  const ctrl = step.tryStep(0, 7);
+  assert.equal(ctrl.moved, false,
+    'контроль: (0,6)→(0,7) — вода непроходима без frost_walk');
+  assert.equal(g.state.player.x, 0, 'контроль: x без изменений');
+  assert.equal(g.state.player.y, 6, 'контроль: y без изменений');
+  assert.equal(G.combatUI.isActive(), false, 'контроль: без боя');
+  // Каст ЧЕРЕЗ КНИГУ: RED — строки frost_walk в книге НЕТ (каталог 42,
+  // волны нет).
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта (KeyB)');
+  clickRow(h, 'frost_walk');
+  assert.equal(G.spellbookOC.isOpen(), false,
+    'каст ok → книга ЗАКРЫТА (RED: строки нет — книга открыта)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects),
+    [{ spellId: 'frost_walk', expiresDay: 2 }],
+    'запись {frost_walk, expiresDay: day+1} (RED: [])');
+  assert.equal(saveHero(h).mp, mp0 - 7, 'mp ровно «мани» (16 − 7)');
+  // Вода пройдена: (0,7) → (0,8).
+  step.walk(0, 7);
+  assert.equal(g.state.player.y, 7,
+    'после каста: (0,7) WATER пройден (heroPassable)');
+  assert.equal(myMap.tileAt(0, 7).terrain, G.TERRAIN.WATER,
+    'под герой — WATER (не иллюзия проходимости)');
+  step.walk(0, 8);
+  assert.equal(g.state.player.y, 8, '(0,8) WATER пройден');
+  assert.equal(G.combatUI.isActive(), false, 'ход по воде — без боя');
+  // Сейв на воде (saveNow при beforeunload) → reload → позиция
+  // СОХРАНЕНА (Правка блока «--- Позиция ---»: heroPassable, а не
+  // t.passable — иначе герой на спавне: data-loss-like).
+  saveHero(h);
+  const savedRaw = h.storage.getItem(S.SAVE_KEY);
+  assert.ok(savedRaw, 'сейв на воде записан');
+  const hR = await boot(JSON.parse(savedRaw));
+  const gR = hR.sandbox.__game;
+  assert.equal(gR.state.player.x, 0,
+    'RED: reload — позиция на воде сохранена (x; master: спавн)');
+  assert.equal(gR.state.player.y, 8,
+    'RED: reload — позиция на воде сохранена (y; master: спавн)');
+  assert.deepEqual(host(gR.state.hero.outOfCombatEffects),
+    [{ spellId: 'frost_walk', expiresDay: 2 }],
+    'reload: запись восстановлена из сейва');
+  assert.equal(saveHero(hR).mp, 9, 'reload: mp 9');
+  // setDay(2) → эффект истёк → (0,8) непроходимо → герой
+  // ПЕРЕНЕСЁН на ближайший проходимый тайл без группы (правка
+  // ревью 000235.08: софтлок; (1,7) — кольцо 1, ФАКТ ПРОБА) →
+  // шаг на воду ЗАБЛОКИРОВАН.
+  gR.actions.setDay(2);
+  assert.equal(gR.state.day, 2, 'день прошёл (setDay)');
+  assert.deepEqual(host(gR.state.hero.outOfCombatEffects), [],
+    'истечение (expiresDay <= day): запись вылетела');
+  assert.equal(gR.state.player.x, 1,
+    'истечение: герой перенесён на ближайший проходимый тайл (x)');
+  assert.equal(gR.state.player.y, 7,
+    'истечение: герой перенесён (y; до правки: позиция без изменений)');
+  const stepR = makeStepper(hR);
+  const exp = stepR.tryStep(0, 7);
+  assert.equal(exp.moved, false,
+    'после истечения: (1,7)→(0,7) — вода снова непроходима');
+  // DEEP: позиция-сейв (103,75) WATER + запись frost_walk в сейве →
+  // позиция сохранена (heroPassable) → шаг (104,75) DEEP_WATER
+  // пройден (оба водных тайла в scope).
+  const hD = await boot(seedSave07({
+    day: 1,
+    position: { x: 103, y: 75 },
+    hero: Object.assign(P.createCharacter(), {
+      outOfCombatEffects: [{ spellId: 'frost_walk', expiresDay: 2 }],
+    }),
+  }));
+  const gD = hD.sandbox.__game;
+  assert.ok(myMap.tileAt(103, 75).terrain === G.TERRAIN.WATER
+    && myMap.tileAt(104, 75).terrain === G.TERRAIN.DEEP_WATER
+    && !myMap.tileAt(104, 75).passable,
+    'фикстура: (103,75) WATER, (104,75) DEEP_WATER (непроходимо)');
+  assert.equal(gD.state.player.x, 103,
+    'RED: DEEP-нога — позиция-сейв на воде сохранена (x; master: спавн)');
+  assert.equal(gD.state.player.y, 75,
+    'RED: DEEP-нога — позиция-сейв на воде сохранена (y)');
+  const stepD = makeStepper(hD);
+  stepD.walk(104, 75);
+  assert.equal(gD.state.player.x, 104,
+    'RED: (104,75) DEEP_WATER пройден под frost_walk (x)');
+  assert.equal(gD.state.player.y, 75, '(104,75) DEEP_WATER пройден (y)');
+  assert.equal(G.combatUI.isActive(), false, 'DEEP-нога — без боя');
+});
+
+// =====================================================================
+// 000235.08 — Волна Лёд: W-10c — e2e frost_walk, истечение на воде
+// (правка ревью: софтлок)
+//
+// Сценарий в штатной игре: герой кастует frost_walk, уходит в
+// внутренность акватории (все 8 соседей — вода) и там сменяется день
+// (addStep — только на успешном шаге): запись purged (expiresDay
+// <= day), ни один из 8 шагов не проходится, rest — только
+// постройка (лагерь/таверна, недостижима), MP восстанавливается
+// ТОЛЬКО в onDay → софтлок до полной перезагрузки; при перезагрузке
+// позиция — непроходима → герой на спавне (мир-позиция потеряна).
+// Правка: в onDay ПОСЛЕ expireOutOfCombatEffects — если heroPassable
+// под героем false, перенос на ближайший проходимый тайл БЕЗ группы
+// (спираль, паттерн findSpawn; moveHero — телепорт-снап) + flash-
+// строка (день — последняя строка), saveNow уже в конце onDay.
+//
+// Фикстура (ФАКТ ПРОБА): (104,75) DEEP_WATER, ВСЕ 8 соседей — вода
+// (812 DEEP-тайлов окружены WATER только — контракт §2.3); ближайший
+// проходимый тайл без группы — кольцо 3: кольца 1–2 — только вода.
+// Сид: позиция-сейв на воде + запись {frost_walk, expiresDay: 2}
+// (день 1 — запись активна, позиция валидна: паттерн DEEP-ноги W-10b).
+// =====================================================================
+
+test('000235.08 W-10c: e2e frost_walk — истечение на воде (суши в 8-соседстве нет): setDay — запись purged, герой ПЕРЕНЕСЁН на ближайший проходимый тайл (кольцо 3, без группы, без боя) — тайл проходим, флэш-строка, сейв с новой позицией, шаг снова доступен (master: герой остаётся на воде — софтлок)', async () => {
+  const h = await boot(seedSave07({
+    day: 1,
+    position: { x: 104, y: 75 },
+    hero: Object.assign(P.createCharacter(), {
+      outOfCombatEffects: [{ spellId: 'frost_walk', expiresDay: 2 }],
+    }),
+  }));
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const T = G.TERRAIN;
+  const isWater = (tt) => tt.terrain === T.WATER
+    || tt.terrain === T.DEEP_WATER;
+  assert.equal(myMap.tileAt(104, 75).terrain, T.DEEP_WATER,
+    'фикстура: (104,75) DEEP_WATER (непроходимо)');
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      if (!dx && !dy) continue;
+      assert.ok(isWater(myMap.tileAt(104 + dx, 75 + dy)),
+        'фикстура: 8-соседство (104,75) — вода (' + (104 + dx) + ','
+        + (75 + dy) + ')');
+    }
+  }
+  assert.equal(g.state.player.x, 104,
+    'сид: позиция-сейв на воде сохранена (активная запись) — x');
+  assert.equal(g.state.player.y, 75, 'сид: позиция-сейв на воде — y');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects),
+    [{ spellId: 'frost_walk', expiresDay: 2 }],
+    'сид: запись восстановлена из сейва');
+  assert.equal(G.combatUI.isActive(), false, 'сид: без боя');
+  // День сменяется (hero на воде, запись expiresDay=2).
+  g.actions.setDay(2);
+  assert.equal(g.state.day, 2, 'день прошёл (setDay)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'истечение (expiresDay <= day): запись purged');
+  const px = g.state.player.x, py = g.state.player.y;
+  assert.ok(px !== 104 || py !== 75,
+    'герой ПЕРЕНЕСЁН с (104,75) (master: остаётся на воде — софтлок)');
+  const land = myMap.tileAt(px, py);
+  assert.equal(land.passable, true,
+    'тайл героя проходим (перенос; master: DEEP_WATER — непроходимо)');
+  assert.equal(land.hasMobGroup, false,
+    'тайл переноса — без группы мобов (паттерн findSpawn)');
+  const d = Math.max(Math.abs(px - 104), Math.abs(py - 75));
+  assert.equal(d, 3, 'перенос — на ближайшее кольцо (3)');
+  for (let r = 1; r < d; r++) {
+    for (let dx = -r; dx <= r; dx++) {
+      for (let dy = -r; dy <= r; dy++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const t = myMap.tileAt(104 + dx, 75 + dy);
+        assert.ok(!t.passable || t.hasMobGroup,
+          'кольца 1..(d−1): проходимого тайла без группы нет ('
+          + (104 + dx) + ',' + (75 + dy) + ')');
+      }
+    }
+  }
+  h.frameFn(NOW + 40);
+  const hudText = String(h.hud.textContent);
+  assert.ok(hudText.includes(
+    'Позиция непроходима — перенос на ближайший проходимый тайл.'),
+    'флэш: строка переноса в #hud: ' + JSON.stringify(hudText));
+  assert.ok(hudText.includes('День 2.'),
+    'флэш: строка дня на месте: ' + JSON.stringify(hudText));
+  assert.equal(G.combatUI.isActive(), false, 'перенос — без боя');
+  // Сейв (beforeunload) — НОВАЯ позиция, день 2, запись пустая.
+  const savedRaw = h.storage.getItem(S.SAVE_KEY);
+  assert.ok(savedRaw, 'сейв записан');
+  const saved = JSON.parse(savedRaw);
+  assert.equal(saved.data.day, 2, 'сейв: день 2');
+  assert.deepEqual(saved.data.position, { x: px, y: py },
+    'сейв: позиция = тайл переноса (проходимый)');
+  assert.deepEqual(host(saved.data.hero.outOfCombatEffects), [],
+    'сейв: запись purged');
+  // Софтлок снят: шаг с тайла переноса снова доступен.
+  const step = makeStepper(h);
+  const r1 = step.tryStep(px - 1, py);
+  assert.equal(r1.moved, true,
+    'шаг после переноса доступен (master: все 8 шагов заблокированы)');
+  assert.equal(G.combatUI.isActive(), false, 'шаг после переноса — без боя');
+});

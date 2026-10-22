@@ -1,0 +1,13 @@
+{
+  "id": "ice_armor_scroll",
+  "name": "Свиток: Ледяные латы",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Ледяные латы» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "ice_armor"
+  }
+}

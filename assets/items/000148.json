@@ -1,0 +1,13 @@
+{
+  "id": "frostbite_scroll",
+  "name": "Свиток: Обморожение",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Обморожение» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "frostbite"
+  }
+}

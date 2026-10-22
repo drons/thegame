@@ -1,0 +1,13 @@
+{
+  "id": "deep_freeze_scroll",
+  "name": "Свиток: Глубокое замерзание",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Глубокое замерзание» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "deep_freeze"
+  }
+}

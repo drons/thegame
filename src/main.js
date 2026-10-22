@@ -1476,10 +1476,13 @@
     }
 
     // --- Позиция ---
+    // 000235.08: heroPassable, а не t.passable — позиция на воде под
+    // frost_walk (1 день) сохраняется; день/эффекты восстановлены
+    // выше (блок «День мира» + hero.outOfCombatEffects).
     try {
       const p = d.position;
       if (p && Number.isInteger(p.x) && Number.isInteger(p.y)) {
-        if (map.tileAt(p.x, p.y).passable) {
+        if (heroPassable(map.tileAt(p.x, p.y), clock.day)) {
           player.x = p.x; player.y = p.y;
         } else {
           console.warn('Сейв: позиция непроходима — остаюсь на спавне.');
@@ -1601,6 +1604,16 @@
         ? G.Spells.expireOutOfCombatEffects(
             hero.outOfCombatEffects, day)
         : hero.outOfCombatEffects;
+      // 000235.08 (ревью): истечение frost_walk на воде без суши в
+      // 8-соседстве — шаг невозможен (addStep — только на успешном
+      // шаге), день не тикает, rest — только в постройке — софтлок
+      // до полной перезагрузки. Инвариант: в конце onDay герой — на
+      // heroPassable-тайле (перенос — перенос, не телепорт-спавн).
+      let relocated = false;
+      if (!heroPassable(map.tileAt(player.x, player.y), day)) {
+        relocateToNearestPassable();
+        relocated = true;
+      }
       // Задача 000087: жалованье отряда (000079) — МЕЖДУ buff-cleanup
       // и render, ДО saveNow (D1/D8): payWages мутирует
       // hero.gold/roster in place — существующий saveNow в конце
@@ -1634,7 +1647,10 @@
       G.playerUI && G.playerUI.render();
       // Порядок строк (D1): «Мобилизуются…» → строки отряда
       // → «День N.» (день — ПОСЛЕДНЯЯ строка, как до 000087).
-      hudFlash = (due.length ? 'Мобилизуются новые группы мобов.\n' : '')
+      hudFlash = (relocated
+        ? 'Позиция непроходима — перенос на ближайший проходимый тайл.\n'
+        : '')
+        + (due.length ? 'Мобилизуются новые группы мобов.\n' : '')
         + (compLines.length ? compLines.join('\n') + '\n' : '')
         + 'День ' + day + '.';
       hudFlashUntil = performance.now() + 5000;
@@ -1666,6 +1682,30 @@
       }
     }
     throw new Error('не найден проходимый тайл для старта');
+  }
+
+  // 000235.08 (ревью): перенос героя с непроходимого тайла (истечение
+  // frost_walk на открытом водном пространстве): спираль от позиции
+  // героя (паттерн findSpawn — ближайший проходимый БЕЗ группы),
+  // moveHero (телепорт-снап 000033 — персонаж не «скользит»).
+  // Фолбэк — findSpawn (проходимый тайл на карте есть всегда; его
+  // throw — в onDay-вочдог, герой остаётся как был).
+  function relocateToNearestPassable() {
+    for (let r = 1; r <= 200; r++) {
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dy = -r; dy <= r; dy++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const t = map.tileAt(player.x + dx, player.y + dy);
+          if (t.passable && !t.hasMobGroup) {
+            moveHero(player.x + dx, player.y + dy);
+            return;
+          }
+        }
+      }
+    }
+    findSpawn();
+    prevPos.x = player.x; prevPos.y = player.y;
+    if (mover) mover.teleport(player.x, player.y);
   }
 
   // --- Постройки [E] (задача 000128): роутер и проводка действий —
@@ -2181,11 +2221,26 @@
     e.preventDefault();
   }, { passive: false });
 
+  // 000235.08: frost_walk — проходимость тайла для героя (мир):
+  // базовая проходимость + активная запись frost_walk (1 день)
+  // открывает ОБА водных тайла (WATER/DEEP_WATER). Деградация
+  // (экспорта нет) — passable-only.
+  function heroPassable(t, day0) {
+    if (t.passable) return true;
+    if (G.Spells && typeof G.Spells.isHeroFrostWalk === 'function'
+        && G.Spells.isHeroFrostWalk(hero, day0)) {
+      const T = G.TERRAIN;
+      return !!(T && (t.terrain === T.WATER
+                      || t.terrain === T.DEEP_WATER));
+    }
+    return false;
+  }
+
   function tryMove() {
     for (const k of keys) { // порядок в Set = порядок нажатий
       const [dx, dy] = G.deltaForMoveKey(k);
       const t = map.tileAt(player.x + dx, player.y + dy);
-      if (t.passable) {
+      if (heroPassable(t, clock.day)) {
         prevPos.x = player.x;
         prevPos.y = player.y;
         player.x += dx;
@@ -2240,6 +2295,18 @@
         if (d <= r) return 'круг защиты';
       }
     }
+    // 000235.08: frozen_stillness — зональная ветка (ПОЛНОЕ
+    // подавление зоны в радиусе; тайл-бой — ветка выше по коду,
+    // сохраняется).
+    if (zone && G.Spells
+        && typeof G.Spells.frozenStillnessRadius === 'function') {
+      const r = G.Spells.frozenStillnessRadius(hero, clock.day);
+      if (r > 0) {
+        const d = Math.max(Math.abs(player.x - zone.x),
+                           Math.abs(player.y - zone.y));
+        if (d <= r) return 'замерзание';
+      }
+    }
     return null;
   }
 
@@ -2252,8 +2319,13 @@
   function zoneCombatInfo() {
     if (typeof G.findZoneCombat !== 'function') return null;
     if (zoneSuppressedReason()) return null;
+    // 000235.08: cold_breath — сужение радиуса триггера (0 →
+    // вызов идентичен вызову без 5-го аргумента).
+    const cb = (G.Spells
+      && typeof G.Spells.coldBreathRadius === 'function')
+      ? G.Spells.coldBreathRadius(hero, clock.day) : 0;
     const z = G.findZoneCombat(player.x, player.y,
-      nearbyGroupTiles(), defeatedAt);
+      nearbyGroupTiles(), defeatedAt, cb);
     if (z && zoneSuppressedReason(z)) return null;
     return z;
   }
@@ -3419,18 +3491,29 @@
     // Тихий гард: экспорта нет (регрессия порядка загрузки) — прохода
     // нет (load-time console.error уже есть, L1790-1795 — не дублируем).
     if (typeof G.groupZoneInfo === 'function') {
+      // 000235.08: cold_breath — сужение радиуса триггера в отрисовке
+      // (UI не врёт про радиус; локальная переменная, info НЕ
+      // мутируется; 0 → без сужения, как до).
+      const cbR = (G.Spells
+        && typeof G.Spells.coldBreathRadius === 'function')
+        ? G.Spells.coldBreathRadius(hero, clock.day) : 0;
       for (const t of frameTiles) {
         if (!t.hasMobGroup) continue;
         if (G.groupVisible && !G.groupVisible(defeatedAt, t.x, t.y)) continue;
         const info = G.groupZoneInfo(t.mobGroup);
         if (!info || !info.triggers || !(info.radius > 0)) continue;
+        let r = info.radius;
+        if (cbR > 0 && Math.max(Math.abs(t.x - player.x),
+                                 Math.abs(t.y - player.y)) <= cbR) {
+          r = Math.max(1, r - 1);
+        }
         const c = toPt(t.x + 0.5, t.y + 0.5);
         s2.beginPath();
         s2.setLineDash(AGGRO_CIRCLE_DASH);
         s2.strokeStyle = AGGRO_CIRCLE_STYLE;
         s2.lineWidth = AGGRO_CIRCLE_WIDTH;
         s2.fillStyle = AGGRO_CIRCLE_FILL;
-        s2.arc(c.x, c.y, info.radius * zoom, 0, Math.PI * 2);
+        s2.arc(c.x, c.y, r * zoom, 0, Math.PI * 2);
         s2.fill();
         s2.stroke();
         s2.setLineDash([]); // гигиена: не оставлять dash-состояние в s2

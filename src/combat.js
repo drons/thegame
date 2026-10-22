@@ -534,7 +534,13 @@
   //    мульти-зоны);
   // 3) иначе null. Аргументы НЕ мутируются; не-group тайлы в списке
   // пропускаются; defeatedAt — null-safe.
-  function findZoneCombat(px, py, groupTiles, defeatedAt) {
+  // 000235.08: 5-й ОПЦИОНАЛЬНЫЙ аргумент aggroReduceRadius (число;
+  // undefined/0 → поведение бит-в-бит): триггерящая группа с
+  // Чебышёв(группа, герой) ≤ aggroReduceRadius — радиус зоны
+  // сжимается на 1 (max(1, radius−1)); non-trigger группы и dist-0
+  // — не трогает.
+  function findZoneCombat(px, py, groupTiles, defeatedAt,
+                          aggroReduceRadius) {
     if (!Array.isArray(groupTiles)) return null;
     const defeated = (k) => defeatedAt != null && defeatedAt.has(k);
     // 1) свой тайл — своя группа (текущее поведение; зона чужой
@@ -555,7 +561,10 @@
       const info = groupZoneInfo(t.mobGroup);
       if (!info.triggers) continue;
       const dist = Math.max(Math.abs(t.x - px), Math.abs(t.y - py));
-      if (dist > info.radius) continue;
+      const eff = (typeof aggroReduceRadius === 'number'
+        && aggroReduceRadius > 0 && dist <= aggroReduceRadius)
+        ? Math.max(1, info.radius - 1) : info.radius;
+      if (dist > eff) continue;
       if (best === null
           || dist < best.dist
           || (dist === best.dist

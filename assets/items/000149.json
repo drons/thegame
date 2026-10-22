@@ -1,0 +1,13 @@
+{
+  "id": "arctic_touch_scroll",
+  "name": "Свиток: Полярное прикосновение",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Полярное прикосновение» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "arctic_touch"
+  }
+}

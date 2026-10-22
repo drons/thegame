@@ -1,0 +1,13 @@
+{
+  "id": "winter_haste_scroll",
+  "name": "Свиток: Зимняя спешка",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Зимняя спешка» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "winter_haste"
+  }
+}

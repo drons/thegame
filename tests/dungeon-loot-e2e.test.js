@@ -871,3 +871,96 @@ test('000235.07 W-09: сундук RUINS → свиток огня → изуч�
     'сейв: hero.spells содержит ember (saveNow при смене дня); факт: '
     + JSON.stringify(parsed.data.hero.spells));
 });
+
+// --- Задача 000235.08: W-09 — полный путь «сундук CAVE → свиток волны
+// Лёд → изучение → сейв» (контракт memory/000235.08-ice-wave-content.md
+// §7 W-09; паттерн 000235.07 W-09).
+//
+// КРАСНОЕ (генерационный пин): пул CAVE (000001.json) = 5 предметов,
+// свитков волны Лёд НЕТ — c0 содержит предмет старого пула.
+// ЗЕЛЁНОЕ: +25 свитков в КОНЦЕ пула (T1-фильтр 5 → 9) →
+// c0 = cold_breath_scroll. Калибровка (пробный сим, детерминизм
+// перепроверен): dseed 820179115 (terrain-independent: GRASS/HILL —
+// один dungeonShapeSeed(0,0,px)), c0 (14,3) gold 29 item
+// cold_breath_scroll.
+test('000235.08 W-09: сундук CAVE → свиток льда → изучение → сейв (GRASS, dseed 820179115, c0 = cold_breath_scroll)', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({
+      totalXp: 1,
+      primary: {
+        strength: 2, dexterity: 1, constitution: 1,
+        intelligence: 11, wisdom: 1, charisma: 1,
+      },
+    }),
+  }));
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  // (a) Генерационный пин (красный драйвер): CAVE-пул (5 + 25 свитков
+  //     волны) на глубине 1 (T=1, T1-фильтр 9) — c0 =
+  //     cold_breath_scroll.
+  const ds = g.actions.enterDungeon(G.TERRAIN.GRASS);
+  assert.ok(ds, 'enterDungeon(GRASS) — состояние подземелья');
+  assert.equal(ds.dg.type, G.DUNGEON_TYPES.CAVE,
+    'GRASS → CAVE (синтетические пиксели, alpha 255)');
+  assert.equal(ds.dg.seed, 820179115,
+    'dseed (сценарий: GRASS, totalXp=1; terrain-independent)');
+  const c0 = ds.contents.chests[0];
+  assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
+  assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold,
+    item: c0.item },
+    { x: 14, y: 3, opened: false, gold: 29, item: 'cold_breath_scroll' },
+    'c0: CAVE-пул +25 свитков волны — cold_breath_scroll (краснота: '
+    + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold, item: c0.item })
+    + ')');
+  // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-
+  //     соседе входа (паттерн E1/000191.12 — без pathfinding).
+  const cell = asideDir(G, ds.dg);
+  assert.ok(cell, 'FLOOR-клетка-сосед входа найдена');
+  ds.contents = {
+    mobs: [],
+    chests: [{ id: 'c0', x: cell.x, y: cell.y, opened: false, gold: 29,
+      item: 'ice_lance_scroll' }],
+    seed: 1, step: 0,
+  };
+  stepTo(h, cell.x, cell.y); // шаг на сундук → openChest
+  const line = ds.log.find((l) => l.startsWith('Сундук: +'));
+  assert.ok(line, 'строка сундука в ds.log: ' + JSON.stringify(ds.log));
+  const it = G.getItem('ice_lance_scroll');
+  assert.ok(it, 'ice_lance_scroll в каталоге items (RED: нет)');
+  assert.equal(line, 'Сундук: +29 золота, ' + it.name,
+    'строка сундука побайтово: ' + line);
+  assert.deepEqual(host(g.state.hero.inventory),
+    [{ id: 'ice_lance_scroll', qty: 1 }],
+    'свиток в инвентаре (qty 1)');
+  // (c) Изучение: INT 11 → Знаток (tier 2) ≥ ice_lance (L1) → ok;
+  //     мост — живые spells/inventory + первичные атрибуты (паттерн E1).
+  const liveSlots = g.state.hero.inventory;
+  const bridge = {
+    level: g.state.hero.level,
+    hp: g.state.hero.hp,
+    primary: {
+      strength: 2, dexterity: 1, constitution: 1,
+      intelligence: 11, wisdom: 1, charisma: 1,
+    },
+    secondary: {},
+    spells: g.state.hero.spells,
+    inventory: { slots: liveSlots, quick: [] },
+  };
+  const res = G.useItem(bridge, 'ice_lance_scroll');
+  assert.equal(res.ok, true,
+    'useItem ice_lance_scroll ok (INT 11 ≥ L1): ' + JSON.stringify(res));
+  assert.ok(g.state.hero.spells.includes('ice_lance'),
+    'hero.spells += ice_lance (мост — живая ссылка)');
+  assert.equal(G.totalQty(bridge, 'ice_lance_scroll'), 0,
+    'свиток потрачен (живой инвентарь)');
+  // (d) Сейв: rest → onDay → saveNow — ice_lance в hero.spells сейва.
+  g.actions.setDay(3);
+  const parsed = JSON.parse(h.storage.getItem(SAVE_KEY));
+  assert.ok(Array.isArray(parsed.data.hero.spells)
+    && parsed.data.hero.spells.includes('ice_lance'),
+    'сейв: hero.spells содержит ice_lance (saveNow при смене дня); '
+    + 'факт: ' + JSON.stringify(parsed.data.hero.spells));
+});

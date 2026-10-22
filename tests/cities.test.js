@@ -1462,12 +1462,16 @@ const SHOP_GOLDEN = {
   // каталога, rng-хвост пула allItems → += 23 свитка (lava_burst/
   // firelight на этой клетке не выпали), остальные ключи стока
   // не сдвинулись (симуляция: seed/старые стоки byte-identical).
+  // Ре-пин 000235.08: свитки волны Лёд (000133-000157) — КОНЕЦ
+  // каталога, rng-хвост пула allItems → += 22 свитка (ice_lance/
+  // slow/frozen_stillness на этой клетке не выпали), остальные
+  // ключи стока не сдвинулись (симуляция: seed/старые стоки
+  // byte-identical).
   // Ре-пин 000230.09: уши/шея (000158-000207) — КОНЕЦ каталога
-  // (ПОСЛЕ свитков волны Огонь — 000235.07 смержен раньше), rng-хвост
-  // пула allItems → += 43 новых украшения (7 на этой клетке не
-  // выпали: copper_hoop/silver_stud/soul_bell/copper_chain/
-  // emerald_amulet/gold_chain/rune_necklace), остальные ключи стока
-  // не сдвинулись (node-симуляция: seed/старые стоки byte-identical).
+  // (ПОСЛЕ свитков волны Лёд), rng-хвост пула allItems → += 46 новых
+  // украшений (4 на этой клетке не выпали: copper_hoop/star_earring/
+  // gold_chain/rune_necklace); значения хвоста — по финальному
+  // каталогу 207 (node-симуляция: base+огонь+лёд byte-identical).
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
@@ -1500,18 +1504,26 @@ const SHOP_GOLDEN = {
     scorch_scroll: 5, cinder_scroll: 3, ashen_debilitation_scroll: 1,
     lava_snare_scroll: 5, burning_cage_scroll: 1, flame_imp_scroll: 3,
     phoenix_scroll: 1, hearthfire_scroll: 1, flame_step_scroll: 5,
-    bone_stud: 5, leather_loop: 4, clay_dangle: 2, wood_bead: 2,
-    copper_dangle: 5, shell_hoop: 5, faith_stud: 5, twine_hoop: 4,
-    antler_hook: 1, stone_bead: 2, silver_hoop: 3, moonstone_dangle: 5,
-    quartz_bead: 1, obsidian_stud: 3, amethyst_dangle: 2,
-    sapphire_hoop: 2, emerald_stud: 5, ruby_bell: 4, gold_dangle: 5,
-    mithril_hoop: 1, star_earring: 5, whisper_hoop: 3, bone_beads: 2,
-    twine_amulet: 2, clay_pendant: 5, wood_pendant: 2, copper_pendant: 1,
-    shell_beads: 4, faith_necklace: 1, leather_choker: 5, stone_beads: 5,
-    bone_pendant: 1, silver_chain: 2, quartz_amulet: 3, moonstone_chain: 4,
-    faith_amulet: 1, obsidian_pendant: 2, amethyst_choker: 1,
-    sapphire_pendant: 4, ruby_pendant: 1, mithril_choker: 4,
-    star_pendant: 2, dawn_pendant: 3 } },
+    rime_bolt_scroll: 5, hail_scroll: 4, shatter_scroll: 2,
+    glacial_spike_scroll: 2, permafrost_scroll: 5,
+    absolute_zero_scroll: 5, ice_field_scroll: 5, wall_of_ice_scroll: 4,
+    blizzard_field_scroll: 1, frost_aura_scroll: 2, ice_armor_scroll: 3,
+    winter_haste_scroll: 5, frostbite_blessing_scroll: 1,
+    frostbite_scroll: 3, arctic_touch_scroll: 2, deep_freeze_scroll: 2,
+    freeze_scroll: 5, glacier_grasp_scroll: 4, frost_wisp_scroll: 5,
+    winter_elemental_scroll: 1, frost_walk_scroll: 5,
+    cold_breath_scroll: 3, bone_stud: 2, leather_loop: 2, clay_dangle: 5,
+    wood_bead: 2, copper_dangle: 1, shell_hoop: 4, faith_stud: 1,
+    twine_hoop: 5, antler_hook: 5, stone_bead: 1, silver_hoop: 2,
+    moonstone_dangle: 3, quartz_bead: 4, silver_stud: 1, obsidian_stud: 2,
+    amethyst_dangle: 1, sapphire_hoop: 4, ruby_bell: 1, mithril_hoop: 4,
+    whisper_hoop: 2, soul_bell: 3, copper_chain: 2, bone_beads: 2,
+    twine_amulet: 1, clay_pendant: 1, wood_pendant: 5, copper_pendant: 2,
+    shell_beads: 4, faith_necklace: 2, leather_choker: 2, stone_beads: 2,
+    bone_pendant: 5, quartz_amulet: 4, moonstone_chain: 3,
+    obsidian_pendant: 4, amethyst_choker: 5, sapphire_pendant: 5,
+    emerald_amulet: 5, ruby_pendant: 5, mithril_choker: 5,
+    star_pendant: 1, dawn_pendant: 3 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1 } },

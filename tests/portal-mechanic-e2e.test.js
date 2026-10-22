@@ -937,3 +937,193 @@ test('000235.04.01 E6. e2e: D6-гард — тайл-бой НЕ подавля�
     + 'НЕ снимает — контраст с невидимостью, IV-E3)');
   resolveCombatVictory(G, c, 'тайл-бой под кругом');
 });
+
+// =====================================================================
+// 000235.08 — Волна Лёд: W-11b (cold_breath) + W-12b
+// (frozen_stillness) — e2e зональной механики (красные)
+//
+// Контракт memory/000235.08-ice-wave-content.md §7 W-11(b)/W-12(b).
+// Фикстура — та же, что E4/E5/E6 (мир-фолбэк): спавн (0,0); (2,3) —
+// g4 territorial 5×5, триггер (Чебышёв ≤ 2); (0,1) d=2 — зона, не
+// тайл; (1,1)/(2,1) d=2; (2,2) d=1; (2,3) d=0 — тайл группы
+// (тайл-бой). Свитки — РЕАЛЬНЫЕ future-ids каталога (без гостя:
+// строка в книге появляется только когда запись в каталоге —
+// краснота = «строка … в книге», паттерн 000235.07 W-10b).
+//
+// cold_breath: зона триггерящей группы д=2 → eff = max(1, 2−1) = 1,
+// если Чебышёв ≤ 5 (радиус каталога): (0,1)/(1,1)/(2,1) d=2 — НИ
+// ЗОНЫ; (2,2) d=1 — зона (сужение, а не подавление).
+// frozen_stillness: ПОЛНОЕ подавление зоны в радиусе 5 (включая
+// d=1 — контраст с cold_breath); тайл-бой на (2,3) СОХРАНЯЕТСЯ
+// (D6-паттерн E6).
+// =====================================================================
+
+test('000235.08 W-11b. e2e: cold_breath (radius 5, days 1) — (a) КОНТРОЛЬ: (0,0)→(0,1) d=2 — зона-бой (существующее 000135); (b) каст (mp −5, запись {cold_breath, expiresDay:2}) → (0,1) — боя НЕТ (сужение 2→1: d=2 > 1); setDay(2) — запись вылетела → (0,0)→(0,1) — зона-бой ВОЗВРАЩАЕТСЯ; (c) каст → (0,1)/(1,1)/(2,1) d=2 — боя НЕТ → (2,2) d=1 — зона-бой (сужение, а не подавление)', async () => {
+  // (a) КОНТРОЛЬ: без каста — зона-бой (существующее поведение).
+  const h1 = await boot();
+  const G1 = h1.sandbox.Game;
+  const g1 = h1.sandbox.__game;
+  assertFallbackWorld(G1);
+  assertSpawn(g1);
+  assert.equal(g1.state.day, 1, 'фикстура (a): день 1');
+  dismissStartWindow(h1);
+  const cap1 = spyStartCombat(G1);
+  const walk1 = makeWalker(h1);
+  walk1(0, 1); // d=2 от (2,3) — зона триггерится
+  assert.equal(G1.combatUI.isActive(), true,
+    '(a) КОНТРОЛЬ: (0,1) d=2 — зона-бой (существующее 000135)');
+  const c1 = G1.combatUI.current();
+  assert.equal(c1.groupType, 4, '(a): паучье гнездо');
+  assert.equal(cap1.opts.seed, G1.hash2(2, 3, SALT),
+    '(a): seed zone-боя — от тайла ГРУППЫ');
+  resolveCombatVictory(G1, c1, '(a) контроль');
+
+  // (b) Каст → зона гаснет; setDay(2) → зона возвращается.
+  const h2 = await boot();
+  const G2 = h2.sandbox.Game;
+  const g2 = h2.sandbox.__game;
+  assertSpawn(g2);
+  assert.equal(g2.state.day, 1, 'фикстура (b): день 1');
+  dismissStartWindow(h2);
+  learn(h2, ['cold_breath']);
+  const mp02 = saveHero(h2).mp;
+  assert.equal(mp02, 16, 'фикстура (b): новый герой mp = maxMP 16');
+  assert.ok(castViaBook(h2, 'cold_breath'),
+    '(b) каст → книга ЗАКРЫТА (RED: строки нет — каталога волны нет)');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects),
+    [{ spellId: 'cold_breath', expiresDay: 2 }],
+    '(b) запись {cold_breath, expiresDay: day+1} (RED: [])');
+  assert.equal(saveHero(h2).mp, mp02 - 5, '(b) mp ровно «мани» (16 − 5)');
+  const cap2 = spyStartCombat(G2);
+  assert.equal(G2.combatUI.isActive(), false, '(b): спавн без боя');
+  const walk2 = makeWalker(h2);
+  walk2(0, 1); // d=2 — под cold_breath (радиус 5): eff r = 1 → НИ ЗОНЫ
+  assert.equal(G2.combatUI.isActive(), false,
+    '(b) RED: (0,1) d=2 под cold_breath — боя НЕТ (сужение 2→1: '
+    + 'd=2 > 1; master: зона-бой 000135)');
+  assert.equal(cap2.calls, 0, '(b) RED: startCombat 0 вызовов');
+  g2.actions.setDay(2); // rest() → onDay → expireOutOfCombatEffects
+  assert.equal(g2.state.day, 2, '(b): день прошёл (setDay)');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects), [],
+    '(b) истечение: запись вылетела (день-хук)');
+  walk2(0, 0);
+  walk2(0, 1); // эффект истёк — зона триггерится
+  assert.equal(G2.combatUI.isActive(), true,
+    '(b): после истечения (0,1) d=2 — зона-бой ВОЗВРАЩАЕТСЯ');
+  const c2 = G2.combatUI.current();
+  assert.equal(c2.groupType, 4, '(b): паучье гнездо');
+  assert.equal(cap2.opts.seed, G2.hash2(2, 3, SALT),
+    '(b): seed zone-боя — от тайла ГРУППЫ');
+  assert.equal(cap2.calls, 1, '(b): боев за сценарий РОВНО 1');
+  resolveCombatVictory(G2, c2, '(b) возвращение зоны');
+
+  // (c) Каст → сужение, а не подавление: d=2 — нет, d=1 — зона.
+  const h3 = await boot();
+  const G3 = h3.sandbox.Game;
+  const g3 = h3.sandbox.__game;
+  assertSpawn(g3);
+  assert.equal(g3.state.day, 1, 'фикстура (c): день 1');
+  dismissStartWindow(h3);
+  learn(h3, ['cold_breath']);
+  assert.ok(castViaBook(h3, 'cold_breath'),
+    '(c) каст → книга ЗАКРЫТА');
+  assert.deepEqual(host(g3.state.hero.outOfCombatEffects),
+    [{ spellId: 'cold_breath', expiresDay: 2 }],
+    '(c) запись активна (день 1)');
+  const cap3 = spyStartCombat(G3);
+  const walk3 = makeWalker(h3);
+  walk3(0, 1); // d=2
+  walk3(1, 1); // d=2
+  walk3(2, 1); // d=2
+  assert.equal(G3.combatUI.isActive(), false,
+    '(c) RED: (0,1)/(1,1)/(2,1) d=2 под cold_breath — боя НЕТ '
+    + '(master: зона-бой на (0,1))');
+  assert.equal(cap3.calls, 0, '(c) RED: startCombat 0 вызовов');
+  walk3(2, 2); // d=1 ≤ eff r=1 — зона ТРИГГЕРИТСЯ (не подавлена)
+  assert.equal(G3.combatUI.isActive(), true,
+    '(c) RED: (2,2) d=1 под cold_breath — зона-бой (сужение, а не '
+    + 'подавление; master: бой и так — на (0,1))');
+  const c3 = G3.combatUI.current();
+  assert.equal(c3.groupType, 4, '(c): паучье гнездо');
+  assert.equal(cap3.calls, 1, '(c): боев за сценарий РОВНО 1');
+  resolveCombatVictory(G3, c3, '(c) d=1');
+});
+
+test('000235.08 W-12b. e2e: frozen_stillness (radius 5, days 1) — (a) каст (mp −15, запись {frozen_stillness, expiresDay:2}) → (0,1) d=2 — боя НЕТ; (1,1)/(2,1) d=2 — нет; (2,2) d=1 — НЕТ (ПОЛНОЕ подавление — контраст с cold_breath); шаг (2,3) ТАЙЛ группы — ТАЙЛ-БОЙ стартует (D6-контраст E6: «неподвижность» ≠ «нельзя вступить в бой стоя на месте»); (b) каст → (0,1) — нет; setDay(2) — вылетела → (0,0)→(0,1) — зона-бой', async () => {
+  // (a) Полное подавление зоны + тайл-бой на тайле группы.
+  const h1 = await boot();
+  const G1 = h1.sandbox.Game;
+  const g1 = h1.sandbox.__game;
+  assertFallbackWorld(G1);
+  assertSpawn(g1);
+  assert.equal(g1.state.day, 1, 'фикстура (a): день 1');
+  dismissStartWindow(h1);
+  learn(h1, ['frozen_stillness']);
+  const mp01 = saveHero(h1).mp;
+  assert.equal(mp01, 16, 'фикстура (a): новый герой mp = maxMP 16');
+  assert.ok(castViaBook(h1, 'frozen_stillness'),
+    '(a) каст → книга ЗАКРЫТА (RED: строки нет — каталога волны нет)');
+  assert.deepEqual(host(g1.state.hero.outOfCombatEffects),
+    [{ spellId: 'frozen_stillness', expiresDay: 2 }],
+    '(a) запись {frozen_stillness, expiresDay: day+1} (RED: [])');
+  assert.equal(saveHero(h1).mp, mp01 - 15,
+    '(a) mp ровно «мани» (16 − 15)');
+  const cap1 = spyStartCombat(G1);
+  assert.equal(G1.combatUI.isActive(), false, '(a): спавн без боя');
+  const walk1 = makeWalker(h1);
+  walk1(0, 1); // d=2 — в радиусе 5 — подавлено
+  walk1(1, 1); // d=2
+  walk1(2, 1); // d=2
+  walk1(2, 2); // d=1 — ПОДАВЛЕНО (контраст с cold_breath: там зона)
+  assert.equal(G1.combatUI.isActive(), false,
+    '(a) RED: (0,1)…(2,2) под frozen_stillness — зональных боёв НЕТ '
+    + '(даже d=1; master: зона-бой на (0,1))');
+  assert.equal(cap1.calls, 0, '(a) RED: startCombat 0 вызовов');
+  walk1(2, 3); // тайл g4 — тайл-бой (ветка до zone-скана)
+  assert.equal(G1.combatUI.isActive(), true,
+    '(a) RED: шаг НА тайл группы (2,3) — тайл-бой СТАРТУЕТ под '
+    + 'frozen_stillness (D6-контраст E6; master: бой и так на (0,1))');
+  const c1 = G1.combatUI.current();
+  assert.equal(c1.groupType, 4,
+    '(a) тайл-бой — паучье гнездо (тайл (2,3))');
+  assert.equal(cap1.calls, 1, '(a): боев за сценарий РОВНО 1');
+  assert.deepEqual(host(g1.state.hero.outOfCombatEffects),
+    [{ spellId: 'frozen_stillness', expiresDay: 2 }],
+    '(a): запись ЖИВА после тайл-боя (вступление не снимает)');
+  resolveCombatVictory(G1, c1, '(a) тайл-бой под неподвижностью');
+
+  // (b) Каст → подавление; setDay(2) → зона возвращается.
+  const h2 = await boot();
+  const G2 = h2.sandbox.Game;
+  const g2 = h2.sandbox.__game;
+  assertSpawn(g2);
+  assert.equal(g2.state.day, 1, 'фикстура (b): день 1');
+  dismissStartWindow(h2);
+  learn(h2, ['frozen_stillness']);
+  assert.ok(castViaBook(h2, 'frozen_stillness'),
+    '(b) каст → книга ЗАКРЫТА');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects),
+    [{ spellId: 'frozen_stillness', expiresDay: 2 }],
+    '(b) запись активна (день 1)');
+  const cap2 = spyStartCombat(G2);
+  const walk2 = makeWalker(h2);
+  walk2(0, 1); // d=2 — подавлено
+  assert.equal(G2.combatUI.isActive(), false,
+    '(b) RED: (0,1) d=2 под frozen_stillness — боя НЕТ (master: '
+    + 'зона-бой)');
+  assert.equal(cap2.calls, 0, '(b) RED: startCombat 0 вызовов');
+  g2.actions.setDay(2);
+  assert.equal(g2.state.day, 2, '(b): день прошёл (setDay)');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects), [],
+    '(b) истечение: запись вылетела (день-хук)');
+  walk2(0, 0);
+  walk2(0, 1); // эффект истёк — зона триггерится
+  assert.equal(G2.combatUI.isActive(), true,
+    '(b): после истечения (0,1) d=2 — зона-бой ВОЗВРАЩАЕТСЯ');
+  const c2 = G2.combatUI.current();
+  assert.equal(c2.groupType, 4, '(b): паучье гнездо');
+  assert.equal(cap2.opts.seed, G2.hash2(2, 3, SALT),
+    '(b): seed zone-боя — от тайла ГРУППЫ');
+  assert.equal(cap2.calls, 1, '(b): боев за сценарий РОВНО 1');
+  resolveCombatVictory(G2, c2, '(b) возвращение зоны');
+});

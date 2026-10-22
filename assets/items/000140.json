@@ -1,0 +1,13 @@
+{
+  "id": "ice_field_scroll",
+  "name": "Свиток: Ледяное поле",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Ледяное поле» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "ice_field"
+  }
+}

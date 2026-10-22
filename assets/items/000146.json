@@ -1,0 +1,13 @@
+{
+  "id": "frostbite_blessing_scroll",
+  "name": "Свиток: Благословение мороза",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Благословение мороза» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "frostbite_blessing"
+  }
+}

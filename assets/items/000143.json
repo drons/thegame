@@ -1,0 +1,13 @@
+{
+  "id": "frost_aura_scroll",
+  "name": "Свиток: Морозная аура",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Морозная аура» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "frost_aura"
+  }
+}
