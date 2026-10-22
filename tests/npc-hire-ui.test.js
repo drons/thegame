@@ -891,6 +891,72 @@ test('000083 U8: увольнение (после найма, base=0) — зап
   }
 });
 
+// --- U11 (000241): UI-проводка 3-го аргумента dismiss (src/ui.js:1198) —
+// таверна: «уволить» ЭКИПИРОВАННОЙ записи (character: c в open) —
+// авто-возврат экипировки в hero через РЕАЛЬНЫЙ UI (фикс-механика
+// 000230.06.01; контракт memory/000241-dismiss-ui-wiring-pins.md §2.1) ---
+
+test('000241 U11: таверна — «уволить» ЭКИПИРОВАННОЙ записи (character: c): лог «Уволен: Вольк», предмет в hero (totalQty 1), live-roster 0, onChange ×1, playerUI.render НЕ вызван, кандидат вернулся, ошибок нет (пин проводки 3-го аргумента, src/ui.js:1198)', () => {
+  const env = loadHireUi();
+  const spy = playerRenderSpy(env);
+  const G = env.G;
+  const c = G.createCharacter();
+  G.addItem(c, 'iron_sword');
+  const volk = npcById(env, 'merc_volk');
+  // Запись С листом (6 ключей, канон 000143) + реальная экипировка —
+  // roster предзаполнен (наймовый путь закреплён U5/U8; пин — про
+  // dismiss-ветку хирургически).
+  const sheet = G.Sheet.createSheet('merc', {
+    primary: volk.найм.базовые_характеристики,
+    spells: volk.найм.spells,
+    npcId: volk.id,
+  });
+  const entryEq = {
+    npcId: 'merc_volk', sheet, level: 1, xp: 0, loyalty: 51, hiredDay: 7,
+  };
+  // Ассерты — примитивы (cross-realm 000082: НЕ deepEqual на
+  // объекты песочницы).
+  const eqW = G.companions.allyEquip(c, sheet, 'iron_sword');
+  assert.equal(eqW.ok, true, 'iron_sword надет');
+  assert.equal(eqW.slot, 'right_hand', 'slot right_hand');
+  assert.equal(eqW.item, 'iron_sword', 'item iron_sword');
+  const roster = [entryEq];
+  let saves = 0;
+  const npc = firstPlainHireNpc(env);
+  const { overlay } = openDialog(env, npc, {
+    character: c, roster, deadMercs: [], day: 7,
+    onChange: () => { saves += 1; },
+  });
+  try {
+    clickHireTab(overlay);
+    assert.equal(env.errors.length, 0,
+      'рендер с экипированной записью: ошибок нет: '
+      + env.errors.join('; '));
+    const rows = squadRows(overlay);
+    assert.equal(rows.length, 1, 'в «Отряде» — одна строка');
+    const bd = rows[0].querySelector('button[data-npcact=dismiss]');
+    assert.ok(bd, 'строка «Отряда» — кнопка «уволить»');
+    overlayClick(overlay, bd);
+    assert.equal(roster.length, 0,
+      'запись вырезана из live-roster (splice в ядре)');
+    assert.ok(logText(overlay).includes('Уволен: ' + volk.имя),
+      'лог — «Уволен: ' + volk.имя + '» (успех, а не «нет персонажа»)');
+    assert.equal(saves, 1, 'onChange ×1 (точка saveNow)');
+    assert.equal(G.totalQty(c, 'iron_sword'), 1,
+      'предмет вернулся в hero (проводка 3-го аргумента)');
+    assert.equal(spy.count(), 0,
+      'playerUI.render НЕ вызван (возврата денег нет — прецедент U8)');
+    assert.ok(names(overlay).includes(volk.имя),
+      'кандидат ВЕРНУЛСЯ в список (фильтр по roster)');
+    assert.equal(squadRows(overlay).length, 0,
+      'после увольнения — строк в «Отряде» нет');
+    assert.equal(env.errors.length, 0,
+      'ошибок нет: ' + env.errors.join('; '));
+  } finally {
+    spy.restore();
+  }
+});
+
 // --- U9: open без roster/deadMercs — тихая деградация; с roster —
 // интерактив ---
 

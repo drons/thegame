@@ -435,6 +435,71 @@ test('000086 P5: панель — «уволить»: live-roster −1 (ТА Ж�
   assert.equal(saves, 1, 'onChange НЕ вызван (увольнение не состоялось)');
 });
 
+// --- P7 (000241): UI-проводка 3-го аргумента dismiss (src/ui.js:1506) —
+// «уволить» ЭКИПИРОВАННОЙ записи при setCharacter(hero): авто-возврат
+// экипировки в hero через РЕАЛЬНЫЙ UI (фикс-механика 000230.06.01;
+// контракт memory/000241-dismiss-ui-wiring-pins.md §2.1) ---
+
+test('000241 P7: панель — «уволить» ЭКИПИРОВАННОЙ записи при setCharacter(hero): предметы вернулись в hero (totalQty 1), live-roster −1 (ТА ЖА ссылка), onChange ×1, строка исчезла (пусто — точная строка, Эфир остался), ошибок нет (пин проводки 3-го аргумента, src/ui.js:1506)', () => {
+  const env = loadSquadUi();
+  const G = env.G;
+  const hero = G.createCharacter();
+  G.addItem(hero, 'iron_sword');
+  G.addItem(hero, 'chainmail');
+  const volk = (G.NpcData.NPCS || []).find((n) => n && n.id === 'merc_volk');
+  assert.ok(volk, 'каталог: NPC merc_volk');
+  // Запись С листом (6 ключей, канон 000143) + реальная экипировка.
+  const sheet = G.Sheet.createSheet('merc', {
+    primary: volk.найм.базовые_характеристики,
+    spells: volk.найм.spells,
+    npcId: volk.id,
+  });
+  const entryEq = {
+    npcId: 'merc_volk', sheet, level: 1, xp: 0, loyalty: 51, hiredDay: 1,
+  };
+  // Ассерты — примитивы (cross-realm 000082: НЕ deepEqual на
+  // объекты песочницы).
+  const eqW = G.companions.allyEquip(hero, sheet, 'iron_sword');
+  assert.equal(eqW.ok, true, 'iron_sword надет');
+  assert.equal(eqW.slot, 'right_hand', 'slot right_hand');
+  assert.equal(eqW.item, 'iron_sword', 'item iron_sword');
+  const eqA = G.companions.allyEquip(hero, sheet, 'chainmail');
+  assert.equal(eqA.ok, true, 'chainmail надета');
+  assert.equal(eqA.slot, 'torso', 'slot torso');
+  assert.equal(eqA.item, 'chainmail', 'item chainmail');
+  const roster = [entryEq];
+  const efir = G.efir.createEfir();
+  let saves = 0;
+  // setCharacter ДО init/toggle/клика: module-level closure-`character`
+  // (ui.js:21) читается dismiss-веткой В МОМЕНТ КЛИКА (ui.js:1506).
+  G.playerUI.setCharacter(hero);
+  squadOf(env).init({ roster, efir, onChange: () => { saves += 1; } });
+  squadOf(env).toggle();
+  const panel = panelOf(env);
+  assert.ok(panel, 'панель .squad-panel в body');
+  const row = rowByName(panel, 'Вольк');
+  assert.ok(row, 'строка «Вольк»');
+  const btn = row.querySelector('button[data-squadact=dismiss]');
+  assert.ok(btn, 'строка — кнопка «уволить»');
+  const clickers = panel.listeners.click || [];
+  assert.ok(clickers.length >= 1, 'делегированный click-обработчик на панели');
+  clickers[0]({ target: btn });
+  assert.equal(env.errors.length, 0,
+    'увольнение экипированной записи: ошибок нет: ' + env.errors.join('; '));
+  assert.equal(roster.length, 0,
+    'запись вырезана из live-roster (splice, ТА ЖА ссылка)');
+  assert.equal(saves, 1, 'onChange ровно ×1 (точка сейва в main.js)');
+  assert.equal(G.totalQty(hero, 'iron_sword'), 1,
+    'оружие вернулось в hero (проводка 3-го аргумента)');
+  assert.equal(G.totalQty(hero, 'chainmail'), 1,
+    'броня так же вернулась в общий инвентарь');
+  assert.equal(rowByName(panel, 'Вольк'), null,
+    'строка исчезла (перерисовка панели)');
+  assert.ok(textOf(panel).includes('Отряд пуст. Наймите спутников в таверне.'),
+    'отряд опустел — точная строка');
+  assert.ok(rowByName(panel, 'Эфир'), 'строка Эфира осталась');
+});
+
 // --- Полный бут (P6): вся цепочка index.html (паттерн bootSandbox
 // tests/building-actions.test.js: WebGL-стаб, «снисходительный»
 // Proxy-DOM, winListeners, drain setImmediate ×3) ---

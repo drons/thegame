@@ -1603,6 +1603,8 @@ test('000230.06 E1: allyEquip/allyUnequip — общий инвентарь (000
 // Зелёные пины (с первого запуска — текущее поведение уже корректно):
 //   * D4 — плоская запись (без sheet) + hero — {ok:true}, splice (путь
 //     U7/P5 на уровне API: hero на плоские записи не влияет).
+//   * D2b/D2s (000241, findings ретро 000230.06.01 #3/#4;
+//     memory/000241-dismiss-ui-wiring-pins.md) — частичный возврат + слотовая ветка.
 //   * G5 (vm) — 5-й guard allyEquip/allyUnequip: точная строка без
 //     items.js (captured-Game UMD-ловушка 000038: delete — на Game
 //     ДО загрузки companions.js, не на финальном).
@@ -1654,6 +1656,77 @@ test('000230.06.01 D2 (RED): dismiss при переполнении инвен�
     'оружие осталось надетым (некуда положить — не потеряно)');
   assert.equal(I.totalQty(hero, 'iron_sword'), 0,
     'в инвентарь не влезло — предмет в слоте наёмника');
+});
+
+test('000230.06.01 D2b (зелёный): dismiss — частичный возврат (2 предмета по 1.5 кг): первый unequip ok (A в hero — ровно 30.0 кг, 4 слота), второй — весовой отказ → ТОЧНАЯ {ok:false, reason, note}; B в слоте наёмника, БЕЗ splice (roster 1); освободить (removeItem A) → повторный dismiss — {ok:true}, roster 0, B totalQty 1 (000241, finding #3)', () => {
+  const hero = createCharacter();
+  // Балласт 28.5 кг / 3 слота: складываемые (стопка = 1 слот), вес
+  // двоично точный (1.5×8 + 2×8 + 0.5 = 12+16+0.5).
+  assert.deepEqual(I.addItem(hero, 'stone_chunk', 8), { ok: true });
+  assert.deepEqual(I.addItem(hero, 'wood_log', 8), { ok: true });
+  assert.deepEqual(I.addItem(hero, 'healing_potion'), { ok: true });
+  assert.equal(I.inventoryWeight(hero), 28.5,
+    'балласт ровно 28.5 кг (12 + 16 + 0.5)');
+  assert.equal(I.slotCount(hero), 3, 'балласт — 3 слота (складываемые)');
+  const e = entryWithSheet(NPC_VOLK, { level: 1 });
+  // Сырое equipment (D3-паттерн): ПОЛНАЯ замена объекта; отсутствующие
+  // слоты заполнятся null через ensureEquipment при первом unequip.
+  e.sheet.equipment = { torso: 'leather_kaftan', right_hand: 'iron_sword' };
+  const roster = [e];
+  // Канон-порядок EQUIP_PHYS_SLOTS: torso (A) ДО right_hand (B).
+  const r1 = C.dismiss(roster, 'merc_volk', hero);
+  assert.deepEqual(r1, {
+    ok: false,
+    reason: 'слишком тяжело (лимит веса)',
+    note: 'увольнение не выполнено: предметы остались экипированными',
+  }, 'частичный возврат: ТОЧНАЯ форма при отказе на 2-м предмете');
+  assert.equal(roster.length, 1, 'БЕЗ splice — наёмник остался');
+  assert.equal(e.sheet.equipment.torso, null, 'A снят со слота');
+  assert.equal(e.sheet.equipment.right_hand, 'iron_sword',
+    'B ещё надет (не потерян)');
+  assert.equal(I.totalQty(hero, 'leather_kaftan'), 1, 'A в hero.inventory');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 0,
+    'B не влез (31.5 > 30) — остался в слоте');
+  assert.equal(I.inventoryWeight(hero), 30,
+    'ровно 30.0 кг — граница (30.0 ≤ 30 + 1e-9)');
+  assert.equal(I.slotCount(hero), 4, 'A занял 4-й слот');
+  // Освобождение инвентаря → повторная попытка работает
+  // (memory/000230.06.01 §2.1).
+  assert.deepEqual(I.removeItem(hero, 'leather_kaftan'), { ok: true });
+  const r2 = C.dismiss(roster, 'merc_volk', hero);
+  assert.deepEqual(r2, { ok: true }, 'повторный dismiss — успех');
+  assert.equal(roster.length, 0, 'повторный dismiss: splice');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 1,
+    'B вернулся в hero.inventory');
+});
+
+test('000230.06.01 D2s (зелёный): dismiss при ПОЛНЫХ слотах инвентаря (20/20 лёгкими, вес 20 кг < лимита 30) — ТОЧНАЯ {ok:false, reason: «нет свободных слотов инвентаря», note}; БЕЗ splice, экипировка цела, слоты не тронуты (000241, finding #4)', () => {
+  const hero = createCharacter();
+  const e = entryWithSheet(NPC_VOLK, { level: 1 });
+  // Сырое equipment (D3-паттерн): один слот right_hand.
+  e.sheet.equipment = { right_hand: 'iron_sword' };
+  // Инвентарь — нескладываемые лёгкие (1 кг) до предела; вес 20 кг
+  // под лимитом — слотовая ветка checkAdd гарантированно раньше
+  // весовой (items.js: слотовый check первым).
+  while (I.slotCount(hero) < I.INVENTORY_SLOTS) {
+    assert.deepEqual(I.addItem(hero, 'wood_sword'), { ok: true });
+  }
+  assert.equal(I.slotCount(hero), I.INVENTORY_SLOTS,
+    'слоты полны (20/20)');
+  assert.equal(I.inventoryWeight(hero), 20, 'вес под лимитом (20 < 30)');
+  const roster = [e];
+  const r = C.dismiss(roster, 'merc_volk', hero);
+  assert.deepEqual(r, {
+    ok: false,
+    reason: 'нет свободных слотов инвентаря',
+    note: 'увольнение не выполнено: предметы остались экипированными',
+  }, 'слотовая ветка: ТОЧНАЯ форма');
+  assert.equal(roster.length, 1, 'БЕЗ splice — наёмник остался');
+  assert.equal(e.sheet.equipment.right_hand, 'iron_sword',
+    'предмет остался экипированным (не потерян)');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 0,
+    'в инвентарь не вернулось (слотов нет)');
+  assert.equal(I.slotCount(hero), I.INVENTORY_SLOTS, 'слоты не тронуты');
 });
 
 test('000230.06.01 D3 (RED): 2-арг. dismiss БЕЗ hero на ЭКИПИРОВАННОЙ записи — «нет персонажа» (guard 4, единый словарь allyReject), БЕЗ splice, предмет надет; hero = {} (без primary) — та же строка', () => {
