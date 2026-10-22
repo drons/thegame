@@ -752,11 +752,12 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       + String(row.className));
   }
   const data = require(path.join(ROOT, 'src', 'items-data.js'));
-  assert.equal(data.ITEMS.length, 232,
-    'каталог — 232 предмета (ре-пин 000230.08: 82 + 25 head; ' +
+  assert.equal(data.ITEMS.length, 257,
+    'каталог — 257 предмета (ре-пин 000230.08: 82 + 25 head; ' +
     'ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 свитков ' +
     'волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: ' +
-    '+25 torso)');
+    '+25 torso; ре-пин 000235.09: +25 свитков 000233–000257, ' +
+    'rarity нет)');
   let others = 0;
   for (const it of data.ITEMS) {
     // Ре-пин 000230.09: guard обобщён (любой экипировочный slot —
@@ -766,11 +767,12 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       'каталожный предмет ' + it.id + ' — без rarity');
     others++;
   }
-  assert.equal(others, 129,
-    'прочих предметов — ровно 129 (232 − 103 экипировочных ' +
+  assert.equal(others, 154,
+    'прочих предметов — ровно 154 (257 − 103 экипировочных ' +
     '(75 + 25 torso + 3 legacy remap); 000232: +6 чертежей без ' +
     'rarity; 000235.07: +25 свитков без rarity; 000235.08: +25 ' +
-    'свитков волны Лёд без rarity)');
+    'свитков волны Лёд без rarity; 000235.09: +25 свитков волны Тень ' +
+    'без rarity)');
 });
 
 test('230.07-ICON-1 (регрессия 000237): itemRow с icon — img.cp-itemicon ПЕРВЫМ ребёнком, src = icon: loot/ (iron_ore) + items/ (blueprint_forge) — конвенция пути ТЗ п.1 работает через общий механизм', () => {

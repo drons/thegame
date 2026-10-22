@@ -1248,3 +1248,127 @@ test('000235.08 W-10c: e2e frost_walk — истечение на воде (су
     'шаг после переноса доступен (master: все 8 шагов заблокированы)');
   assert.equal(G.combatUI.isActive(), false, 'шаг после переноса — без боя');
 });
+
+// =====================================================================
+// Задача 000235.09: W-10b — shadow_step (книга + подземелье).
+// shadow_step — переиспользование performFlameStep (10 тайлов, без
+// RNG) через НОВЫЙ ctx-ключ shadowStep (R9): позиция-пины — те же,
+// что flame_step; mp −5. RED: id «shadow_step» в каталоге нет
+// (render-фильтр вне_боя===true по SPELLS_BY_ID) — clickRow падает
+// на «строка … в книге». Дальние ассерты (телепорт/отказы) — пины
+// Зелёной стадии.
+// =====================================================================
+
+test('000235.09 W-10b: e2e shadow_step (книга + подземелье) — телепорт 10 тайлов по последнему движению (mp −5, записей НЕТ); стена → ближайший проходимый; отказы «нет направления движения»/«некуда шагнуть»/город — мана откатилась (ре-пин: позиция-пины = flame_step, performFlameStep)', async () => {
+  // Сид mp 24 (maxMP 70 по primary): кейс D идёт с mp ≥ 5 — пин
+  // «некуда шагнуть» остаётся e2e-покрытым (проверка маны ПЕРЕД cb).
+  const h = await boot(seedSave07({
+    day: 1,
+    hero: mkHero07({
+      mp: 24,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(saveHero(h).mp, 24, 'фикстура: сид героя mp 24 (maxMP 70)');
+  learn(h, ['shadow_step']);
+  const ds = g.actions.enterDungeon(G.TERRAIN.HILL);
+  assert.ok(ds && ds.kind === 'dungeon', 'подземелье открыто');
+  h.frameFn(NOW + 16);
+  const d = ds.dg;
+  const w = d.width;
+  const F = G.CELL_FLOOR, WL = G.CELL_WALL;
+  // Контролируемая комната: весь интерьер FLOOR, периметр WALL.
+  for (let y = 0; y < d.height; y++)
+    for (let x = 0; x < w; x++)
+      d.cells[y * w + x] = (x === 0 || y === 0 || x === w - 1
+        || y === d.height - 1) ? WL : F;
+  ds.contents = { seed: 1, mobs: [], chests: [], deposits: [],
+    createdAtXp: 0, step: 0 };
+  const ex = ds.x, ey = ds.y;
+  assert.ok(ex > 1 && ey > 1 && ex < w - 2 && ey < d.height - 2,
+    'фикстура: вход — интерьерная клетка: ' + ex + ',' + ey);
+  // A. Шаг вправо (направление (1,0)) → телепорт k=10 (максимум).
+  press(h, 'ArrowRight');
+  assert.equal(ds.x, ex + 1, 'шаг: (ex+1, ey)');
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'shadow_step');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.equal(ds.x, ex + 11, 'телепорт: приземление k=10 (макс. дистанция)');
+  assert.equal(ds.y, ey, 'телепорт: та же клетка ряда');
+  assert.equal(saveHero(h).mp, 19, 'mp ровно «мани» (24 − 5)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'телепорт — ЗАПИСЕЙ НЕ создаёт');
+  // B. Повторный каст без движения → «нет направления движения»,
+  //    мана откатилась, позиция/записи без изменений, книга открыта.
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга снова открыта');
+  clickRow(h, 'shadow_step');
+  assert.equal(ds.x, ex + 11, 'отказ: позиция без изменений');
+  assert.equal(saveHero(h).mp, 19, 'отказ: мана откатилась');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'отказ: записей нет');
+  h.frameFn(NOW + 32);
+  assert.ok(String(h.hud.textContent).includes('нет направления движения'),
+    'отказ: reason в #hud: ' + JSON.stringify(h.hud.textContent));
+  key(h, 'KeyB');
+  assert.ok(!h.body.querySelector('.spellbook-oc'), 'книга закрыта');
+  // C. Стена на k=3 от старта телепорта → приземление на k=2.
+  press(h, 'ArrowRight');
+  assert.equal(ds.x, ex + 12, 'шаг перед сценарием «стена»');
+  d.cells[ey * w + (ex + 15)] = WL;
+  key(h, 'KeyB');
+  clickRow(h, 'shadow_step');
+  assert.equal(ds.x, ex + 14,
+    'стена на k=3 → ближайший проходимый k=2 (ex+12+2)');
+  assert.equal(ds.y, ey, 'стена: та же клетка ряда');
+  assert.equal(saveHero(h).mp, 14, 'mp (19 − 5)');
+  // D. Стена на k=1 по направлению последнего движения → «некуда
+  //    шагнуть», позиция/mp без изменений.
+  press(h, 'ArrowLeft');
+  assert.equal(ds.x, ex + 13, 'шаг влево (направление (−1,0))');
+  d.cells[ey * w + (ex + 12)] = WL;
+  key(h, 'KeyB');
+  clickRow(h, 'shadow_step');
+  assert.equal(ds.x, ex + 13, '«некуда шагнуть»: позиция без изменений');
+  assert.equal(saveHero(h).mp, 14, '«некуда шагнуть»: мана не тронута (mp 14 ≥ 5)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    '«некуда шагнуть»: записей нет');
+  h.frameFn(NOW + 48);
+  assert.ok(String(h.hud.textContent).includes('некуда шагнуть'),
+    '«некуда шагнуть»: reason в #hud: '
+    + JSON.stringify(h.hud.textContent));
+  key(h, 'KeyB');
+  // E. Город (city-screen протокол) → «в городе телепорт недоступен».
+  const h2 = await boot();
+  dismissStartWindow(h2);
+  const g2 = h2.sandbox.__game;
+  const G2 = h2.sandbox.Game;
+  const myMap = G2.createMap(G2.generateSeedPixels());
+  learn(h2, ['shadow_step']);
+  const errBefore = h2.errors.length;
+  const mp0 = saveHero(h2).mp;
+  assert.equal(mp0, 16, 'город: фикстура mp 16');
+  await drain();
+  enterCity(h2, NOW + 64, myMap, (c) => c.fp >= 2);
+  h2.frameFn(NOW + 96);
+  key(h2, 'KeyB');
+  assert.ok(h2.body.querySelector('.spellbook-oc'), 'город: книга открыта');
+  clickRow(h2, 'shadow_step');
+  assert.equal(saveHero(h2).mp, mp0, 'город: мана откатилась');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects), [],
+    'город: записей нет');
+  h2.frameFn(NOW + 112);
+  assert.ok(
+    String(h2.hud.textContent).includes('в городе телепорт недоступен'),
+    'город: reason в #hud: ' + JSON.stringify(h2.hud.textContent));
+  assert.equal(h2.errors.length, errBefore,
+    'город: без новых console.error: '
+    + h2.errors.slice(errBefore).join('; '));
+});

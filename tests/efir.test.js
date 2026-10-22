@@ -831,7 +831,9 @@ test('000115: deserializeEfir — id-валидация по каталогам-
     'каталог skills: 37 записей (6 primary + 31 secondary)');
   // Ре-пин 000235.07: +25 заклинаний волны Огонь — 17 → 42.
   // Ре-пин 000235.08: +25 заклинаний волны Лёд — 42 → 67.
-  assert.equal(SPELL_CATALOG.length, 67, 'каталог spells: 67 записи');
+  // Ре-пин 000235.09: +25 заклинаний волны Тень — 67 → 92.
+  assert.equal(SPELL_CATALOG.length, 92,
+    'каталог spells: 92 записи (RED: 67 — файлов волны Тень нет)');
 
   // Чужой id (вне ЛЮБОГО каталога) → null — сброс ЗАПИСИ (000029).
   const base = { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] };

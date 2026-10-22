@@ -24,11 +24,13 @@
 //   * (0,1) — Чебышёв d=2 от (2,3) — В ЗОНЕ, не тайл группы;
 //   * (1,1) — d=2 от (2,3) — в зоне; (0,0)/(1,0) — d=3 — вне зоны.
 //
-// Гость (Д-9): id 'invisibility' (будущий реальный id из контракта §7.3
-// волны .09), школа 'тень', действие 'невидимость', вне_боя: true,
-// параметры {days: 1}, мани 5 — live-инъекция в ЖИВОЙ каталог
-// Game.SpellsData ПОСЛЕ boot (file-каталог и пин «ровно 17» не растут;
-// main.js — снапшот G — держит те же объект-ссылки).
+// Гость (Д-9): id 'invisibility' — live-инъекция в ЖИВОЙ каталог
+// Game.SpellsData ПОСЛЕ boot (main.js — снапшот G — держит те же
+// объект-ссылки). РЕ-ПИН 000235.09: IV-E1 — РЕАЛЬНЫЙ id каталога
+// (волна Тень: 000090.json, L2, мани 7, {days: 1}) — инъекция убрана
+// (краснота: id в каталоге нет → строки в книге нет); IV-E2..E7 —
+// гость (механика — по ДЕЙСТВИЮ 'невидимость', от каталога
+// независима).
 //
 // HARNESS: дубль tests/mob-zones-e2e.test.js (bootSandbox/key/
 // makeWalker/spyStartCombat/resolveCombatVictory — walker с
@@ -602,7 +604,7 @@ function assertSpawn(g) {
 
 // --- IV-E1: load-clean + каст ЧЕРЕЗ КНИГУ (ядро .02) ---
 
-test('000235.03 IV-E1. e2e: load-clean (0 console.error) + каст ЧЕРЕЗ КНИГУ (KeyB → clickRow «invisibility») — запись {spellId, expiresDay: day+1} в state-зеркале, mp −5 (saveHero), книга закрыта', async () => {
+test('000235.03 IV-E1. e2e: load-clean (0 console.error) + каст ЧЕРЕЗ КНИГУ (KeyB → clickRow «invisibility») — запись {spellId, expiresDay: day+1} в state-зеркале, mp −7 (saveHero), книга закрыта (ре-пин 000235.09: реальный id каталога 000090.json, мани 7)', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -612,7 +614,9 @@ test('000235.03 IV-E1. e2e: load-clean (0 console.error) + каст ЧЕРЕЗ �
   assertSpawn(g);
   assert.equal(g.state.day, 1, 'фикстура: день 1');
   dismissStartWindow(h);
-  injectGuests(h, [invGuest()]); // id «invisibility», days 1, мани 5
+  // РЕ-ПИН 000235.09: РЕАЛЬНЫЙ id каталога (волна Тень 000090.json) —
+  // инъекция гостя убрана; краснота: id в каталоге нет → строки в
+  // книге нет → clickRow падает.
   learn(h, ['invisibility']);
   const mp0 = saveHero(h).mp;
   assert.equal(mp0, 16, 'фикстура: новый герой mp = maxMP 16');
@@ -620,7 +624,7 @@ test('000235.03 IV-E1. e2e: load-clean (0 console.error) + каст ЧЕРЕЗ �
   assert.deepEqual(host(g.state.hero.outOfCombatEffects),
     [{ spellId: 'invisibility', expiresDay: 2 }],
     'запись {spellId, expiresDay: day+days} в state-зеркале (день 1 + days 1)');
-  assert.equal(saveHero(h).mp, mp0 - 5, 'mp ровно «мани» (16 − 5)');
+  assert.equal(saveHero(h).mp, mp0 - 7, 'mp ровно «мани» (16 − 7)');
   assert.equal(h.errors.length, 0,
     'чистый путь (каст через книгу) — без console.error: '
     + h.errors.join('; '));

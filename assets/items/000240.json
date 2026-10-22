@@ -1,0 +1,13 @@
+{
+  "id": "shroud_scroll",
+  "name": "Свиток: Теневая вуаль",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Теневая вуаль» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "shroud"
+  }
+}

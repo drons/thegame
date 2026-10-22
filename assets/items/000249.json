@@ -1,0 +1,13 @@
+{
+  "id": "dark_ensnare_scroll",
+  "name": "Свиток: Тёмные оковы",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 240,
+  "tier": 4,
+  "desc": "Свиток: изучает «Тёмные оковы» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "dark_ensnare"
+  }
+}

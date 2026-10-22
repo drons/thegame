@@ -1470,10 +1470,14 @@ const SHOP_GOLDEN = {
   // Ре-пин 000230.09: уши/шея (000158-000207) — КОНЕЦ каталога
   // (ПОСЛЕ свитков волны Лёд — порядок каталога: огонь 108-132, лёд
   // 133-157, уши/шея 158-207, torso 208-232), rng-хвост пула allItems.
-  // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
-  // каталога, rng-хвост пула allItems.
-  // Значения хвоста — по финальному каталогу 232 (node-симуляция:
-  // base + огонь + лёд + уши/шея + torso).
+  // Ре-пин 000230.10: torso (000208-000232, kind armor) — rng-хвост
+  // пула allItems.
+  // Ре-пин 000235.09: свитки волны Тень (000233-000257) — КОНЕЦ
+  // каталога, rng-хвост пула allItems → += 22 свитка (void_horror
+  // на этой клетке не выпал), остальные ключи стока не сдвинулись
+  // (node-симуляция: seed/старые стоки byte-identical). Значения
+  // хвоста — по финальному каталогу 257 (node-симуляция: base +
+  // огонь + лёд + уши/шея + torso + тень).
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5,
     short_bow: 2, hunting_bow: 1, battle_axe: 3,
@@ -1541,7 +1545,15 @@ const SHOP_GOLDEN = {
     embroidered_kaftan: 5, cloth_robe: 4, leather_gown: 1, monk_sutan: 2,
     fine_kaftan: 3, ember_robe: 1, stone_robe: 1, shadow_robe: 4,
     deep_breath_robe: 5, meditating_robe: 4, pilgrim_sutan: 1, void_robe: 4,
-    aegis_mantle: 1 } },
+    aegis_mantle: 1, umbra_bolt_scroll: 1, drain_life_scroll: 1,
+    void_arrow_scroll: 3, night_strike_scroll: 4, soul_drain_scroll: 4,
+    shadowflame_scroll: 5, dark_nova_scroll: 3, night_blade_scroll: 3,
+    vampire_touch_scroll: 3, fear_scroll: 4, doom_mark_scroll: 1,
+    shadow_curse_scroll: 4, shadow_bind_scroll: 4, nightmare_scroll: 1,
+    dark_ensnare_scroll: 4, shadow_pool_scroll: 5,
+    veil_of_night_scroll: 1, shadow_wraith_scroll: 4, shadow_step_scroll: 5,
+    invisibility_scroll: 2, shroud_of_night_scroll: 1,
+    dark_presence_scroll: 4 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1 } },

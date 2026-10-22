@@ -1,0 +1,13 @@
+{
+  "id": "night_blade_scroll",
+  "name": "Свиток: Ночное лезвие",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Ночное лезвие» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "night_blade"
+  }
+}

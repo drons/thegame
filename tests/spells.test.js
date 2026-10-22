@@ -254,12 +254,12 @@ function loadSpellsData() { return require('../src/spells-data.js'); }
 
 // --- Модуль-зеркало src/spells-data.js ---
 
-test('spells-data.js: точное зеркало каталога JSON (ровно 67 заклинаний — ре-пин 000235.08: +25 волны Лёд)', () => {
+test('spells-data.js: точное зеркало каталога JSON (ровно 92 заклинания — ре-пин 000235.09: +25 волны Тень)', () => {
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
   const files = listSpellFiles();
-  assert.equal(files.length, 67, 'каталог: 67 файла (RED: 42)');
-  assert.equal(SPELLS.length, 67, 'SPELLS — 67 заклинаний (RED: 42)');
-  assert.equal(Object.keys(SPELLS_BY_ID).length, 67, 'SPELLS_BY_ID — 67 id (RED: 42)');
+  assert.equal(files.length, 92, 'каталог: 92 файла (RED: 67)');
+  assert.equal(SPELLS.length, 92, 'SPELLS — 92 заклинания (RED: 67)');
+  assert.equal(Object.keys(SPELLS_BY_ID).length, 92, 'SPELLS_BY_ID — 92 id (RED: 67)');
   // Порядок SPELLS = порядок файлов каталога; данные — дословно
   // (в id-форме: ссылки резолвятся в id целевого файла, 000211.04).
   files.forEach((f, i) => {
@@ -1353,7 +1353,7 @@ test('000163 R1: каталог 000017.json — 17-й файл, поля по Т
   }
   // (e) Зеркало src/spells-data.js (regen sync-spells-data.js).
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
-  assert.equal(SPELLS.length, 67, 'зеркало: 67 заклинаний (RED: 42, ре-пин 000235.08)');
+  assert.equal(SPELLS.length, 92, 'зеркало: 92 заклинания (RED: 67, ре-пин 000235.09)');
   assert.deepEqual(SPELLS[16], resolveSpell(data, '000017.json'),
     'SPELLS[16] — зеркало 000017.json');
   assert.deepEqual(SPELLS_BY_ID.resurrect, resolveSpell(data, '000017.json'),
@@ -1849,9 +1849,9 @@ test('000211.04 R1: schema.json — поля-ссылки закреплены p
     '«здания»[] — ссылка на файл assets/buildings (integer → string)');
 });
 
-test('000211.04 R2: 67 заклинаний — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 17/64/76 — ре-пин 000235.08: +25 волны Лёд)', () => {
+test('000211.04 R2: 92 заклинания — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 23/89/101 — ре-пин 000235.09: +25 волны Тень)', () => {
   const files = listSpellFiles();
-  assert.equal(files.length, 67, 'каталог: 67 файла (RED: 42)');
+  assert.equal(files.length, 92, 'каталог: 92 файла (RED: 67)');
   const { byId } = loadCatalog();
   const { SPELLS } = loadSpellsData();
   let baseRefs = 0;
@@ -1908,18 +1908,18 @@ test('000211.04 R2: 67 заклинаний — база/предметы/зда
       `${f}: id целей «здания» = прежним значениям (зеркало)`);
   });
   // Анти-вакуум: точные счётчики ссылок (контракт §1/§2; ре-пин
-  // 000235.08: +25 волны Лёд — 6 новых base-ссылок/целей, 25 item-
+  // 000235.09: +25 волны Тень — 6 новых base-ссылок/целей, 25 item-
   // ссылок/целей, 25 building-ссылок без новых целей).
-  assert.equal(baseRefs, 17, 'анти-вакуум: ровно 17 base-ссылок (50 null) (RED: 11)');
-  assert.equal(itemRefs, 64, 'анти-вакуум: 64 item-ссылок (RED: 39)');
-  assert.equal(buildingRefs, 76, 'анти-вакуум: 76 building-ссылок (RED: 51)');
-  assert.equal(baseRefs + itemRefs + buildingRefs, 157,
-    'всего ссылок: 157 (17 + 64 + 76) (RED: 101)');
-  assert.equal(filesWithItems, 61,
-    'анти-вакуум: 61 файлов с «предметы» (6 без ключа) (RED: 36)');
-  assert.equal(baseTargets.size, 17,
-    'уникальные цели: 17 spells (5 старых + ember, ignite, blazing_speed, fire_aura, scorch, cinder + ice_lance, rime_bolt, frostbite_blessing, frost_aura, slow, frostbite) (RED: 11)');
-  assert.equal(itemTargets.size, 53, 'уникальные цели: 53 items (RED: 28)');
+  assert.equal(baseRefs, 23, 'анти-вакуум: ровно 23 base-ссылки (69 null) (RED: 17)');
+  assert.equal(itemRefs, 89, 'анти-вакуум: 89 item-ссылок (RED: 64)');
+  assert.equal(buildingRefs, 101, 'анти-вакуум: 101 building-ссылок (RED: 76)');
+  assert.equal(baseRefs + itemRefs + buildingRefs, 213,
+    'всего ссылок: 213 (23 + 89 + 101) (RED: 157)');
+  assert.equal(filesWithItems, 86,
+    'анти-вакуум: 86 файлов с «предметы» (6 без ключа) (RED: 61)');
+  assert.equal(baseTargets.size, 23,
+    'уникальные цели: 23 spells (5 старых + ember, ignite, blazing_speed, fire_aura, scorch, cinder + ice_lance, rime_bolt, frostbite_blessing, frost_aura, slow, frostbite + umbra_bolt, drain_life, shroud, night_blade, fear, doom_mark) (RED: 17)');
+  assert.equal(itemTargets.size, 78, 'уникальные цели: 78 items (RED: 53)');
   assert.equal(buildingTargets.size, 7, 'уникальные цели: 7 buildings (000018 уже цель)');
 });
 
@@ -3345,13 +3345,14 @@ test('000235.07 W-04: кастабельность вне боя — firelight/h
   }
 });
 
-test('000235.07 W-08: зеркала в синке — spells-data 67 / items-data 232 (ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso); sync:check exit 0', () => {
+test('000235.07 W-08: зеркала в синке — spells-data 92 / items-data 257 (ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso; ре-пин 000235.09: +25 волны Тень); sync:check exit 0', () => {
   const { SPELLS } = loadSpellsData();
-  assert.equal(SPELLS.length, 67, 'spells-data: 67 записей (RED: 42)');
+  assert.equal(SPELLS.length, 92, 'spells-data: 92 записи (RED: 67)');
   const itemsData = require('../src/items-data.js');
-  assert.equal(itemsData.ITEMS.length, 232,
-    'items-data: 232 (каталог после мержа: 182 на базе 000230.09 '
-    + '+ 25 свитков волны Лёд (000235.08) + 25 torso (000230.10))');
+  assert.equal(itemsData.ITEMS.length, 257,
+    'items-data: 257 (каталог после мержа: 182 на базе 000230.09 '
+    + '+ 25 свитков волны Лёд (000235.08) + 25 torso (000230.10) '
+    + '+ 25 свитков волны Тень (000235.09))');
   const { spawnSync } = require('node:child_process');
   const r = spawnSync(process.execPath,
     [path.join(__dirname, '..', 'scripts', 'sync-all.js'), '--check'],
@@ -4014,4 +4015,577 @@ test('000235.08 W-13: призывы frost_wisp/winter_elemental — makeAlly le
   } finally {
     popOcGuests(dataMod, [bad]);
   }
+});
+
+// --- Задача 000235.09: волна Тень — 25 заклинаний + 25 свитков (TDD) ---
+//
+// Контракт: memory/000235.09-shadow-wave-content.md. RED: записи/свитки/
+// иконки/пул/зеркала/экспорты отсутствуют (ENOENT / undefined / count) —
+// осмысленно, не синтаксис. Таблица ТЗ дословно; нумерация append-only:
+// spells 000068–000092, свитки items 000233–000257 (тот же порядок).
+// W-01 = ре-пин «ровно 92» (зеркало выше), W-08 = ре-пин fire W-08 92/257.
+
+const SHADOW09 = [
+  // id, название, действие, уровень, степень, база(файл|null), мани, вне_боя
+  ['umbra_bolt', 'Умбровый снаряд', 'урон', 1, 1, null, 4, false],
+  ['drain_life', 'Пожизненная сила', 'урон', 2, 2, 'assets/spells/000068.json', 6, false],
+  ['void_arrow', 'Стрела пустоты', 'урон', 3, 1, null, 11, false],
+  ['night_strike', 'Ночной удар', 'урон', 3, 1, null, 12, false],
+  ['soul_drain', 'Извлечение души', 'урон', 4, 3, 'assets/spells/000069.json', 20, false],
+  ['shadowflame', 'Теневое пламя', 'урон', 4, 1, null, 20, false],
+  ['dark_nova', 'Тёмная нова', 'урон', 4, 1, null, 20, false],
+  ['shroud', 'Теневая вуаль', 'баф', 1, 1, null, 3, false],
+  ['night_blade', 'Ночное лезвие', 'баф', 2, 2, 'assets/spells/000075.json', 6, false],
+  ['vampire_touch', 'Вампирское прикосновение', 'баф', 3, 3, 'assets/spells/000076.json', 12, false],
+  ['fear', 'Страх', 'дебаф', 2, 1, null, 6, false],
+  ['doom_mark', 'Печать дурного предзнаменования', 'дебаф', 3, 2, 'assets/spells/000078.json', 11, false],
+  ['despair', 'Отчаяние', 'дебаф', 3, 1, null, 12, false],
+  ['shadow_curse', 'Теневое проклятие', 'дебаф', 4, 3, 'assets/spells/000079.json', 20, false],
+  ['shadow_bind', 'Теневые узы', 'контроль', 2, 1, null, 6, false],
+  ['nightmare', 'Кошмар', 'контроль', 3, 1, null, 12, false],
+  ['dark_ensnare', 'Тёмные оковы', 'контроль', 4, 1, null, 20, false],
+  ['shadow_pool', 'Лужа тьмы', 'создание', 2, 1, null, 8, false],
+  ['veil_of_night', 'Покров ночи', 'создание', 3, 1, null, 13, false],
+  ['shadow_wraith', 'Теневой виверн', 'призыв', 3, 1, null, 14, false],
+  ['void_horror', 'Ужас пустоты', 'призыв', 4, 1, null, 20, false],
+  ['shadow_step', 'Теневой шаг', 'телепорт', 1, 1, null, 5, true],
+  ['invisibility', 'Невидимость', 'невидимость', 2, 1, null, 7, true],
+  ['shroud_of_night', 'Ночной покров', 'внебой', 3, 1, null, 15, true],
+  ['dark_presence', 'Мрачное присутствие', 'внебой', 1, 1, null, 5, true],
+];
+const SHADOW09_IDS = SHADOW09.map((r) => r[0]);
+const SHADOW09_OC = ['shadow_step', 'invisibility', 'shroud_of_night', 'dark_presence'];
+
+function shadowSpellFile(i) {
+  return path.join(DIR, String(68 + i).padStart(6, '0') + '.json');
+}
+function shadowScrollFile(i) {
+  return `assets/items/${String(233 + i).padStart(6, '0')}.json`;
+}
+
+test('000235.09 W-02: 25 записей spells — id/название/школа=тень/атрибут/действие/уровень/степень/база/мани/icon/icon_prompt/описание/здания [000018]/предметы = СВОЙ свиток/вне_боя по таблице ТЗ', () => {
+  let ocCount = 0;
+  SHADOW09.forEach((row, i) => {
+    const [id, name, action, level, degree, base, mana, oc] = row;
+    const f = shadowSpellFile(i);
+    assert.ok(fs.existsSync(f),
+      `W-02: запись отсутствует — ${path.basename(f)} (${id}) (RED: файл нет)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    assert.equal(d.id, id, `${id}: id`);
+    assert.equal(d.название, name, `${id}: название`);
+    assert.equal(d.школа, 'тень', `${id}: школа`);
+    assert.equal(d.атрибут, 'intelligence', `${id}: атрибут`);
+    assert.equal(d.действие, action, `${id}: действие`);
+    assert.equal(d.уровень, level, `${id}: уровень`);
+    assert.equal(d.степень, degree, `${id}: степень`);
+    assert.equal(d.база, base, `${id}: база`);
+    assert.equal(d.мани, mana, `${id}: мани`);
+    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.ok(typeof d.icon_prompt === 'string' && d.icon_prompt.trim().length > 0,
+      `${id}: icon_prompt непустое`);
+    assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
+      `${id}: описание непустое`);
+    assert.deepEqual(d.здания, ['assets/buildings/000018.json'],
+      `${id}: здания = [000018]`);
+    assert.deepEqual(d.предметы, [shadowScrollFile(i)],
+      `${id}: предметы = [свой свиток ${shadowScrollFile(i)}]`);
+    assert.equal(d.вне_боя === true, oc, `${id}: вне_боя`);
+    if (oc) ocCount += 1;
+  });
+  assert.equal(ocCount, 4,
+    'вне_боя — ровно 4 (shadow_step/invisibility/shroud_of_night/'
+    + 'dark_presence; 000089–000092)');
+});
+
+test('000235.09 W-03: параметры по D1 — точный deepEqual на всех 25 (таблица §1.5); урон/контроль/телепорт — без «параметры»; цепочки C1/C2/C3 — степень = база+1, база = файл предка; мани в полосах L1 3–5 / L2 6–8 / L3 10–15 / L4 20', () => {
+  const P = {
+    drain_life: { value: 0.5 },
+    soul_drain: { value: 0.5 },
+    shroud: { stat: 'попадание_вниз', value: 0.25, turns: 3 },
+    night_blade: { stat: 'урон', value: 0.15, turns: 3 },
+    vampire_touch: { stat: 'вампиризм', value: 0.5, turns: 3 },
+    fear: { stat: 'урон_вниз', value: 0.15, turns: 3 },
+    doom_mark: { stat: 'получаемый_урон_вверх', value: 0.25, turns: 3 },
+    despair: { stat: 'урон_вниз', value: 0.15, turns: 3 },
+    shadow_curse: { stat: 'урон_вниз', value: 0.25, turns: 3 },
+    shadow_pool: { object: 'зона', stat: 'попадание_вниз', value: 0.15, turns: 3, radius: 2 },
+    veil_of_night: { object: 'зона', stat: 'урон_вниз', value: 0.15, turns: 3, radius: 2 },
+    shadow_wraith: { summon: 'vampire', turns: 4 },
+    void_horror: { summon: 'bone_coloss', turns: 4 },
+    invisibility: { days: 1 },
+    shroud_of_night: { days: 3, radius: 5 },
+    dark_presence: { days: 1, radius: 5 },
+  };
+  const NO_PARAMS = new Set([
+    'umbra_bolt', 'void_arrow', 'night_strike', 'shadowflame',
+    'dark_nova', 'shadow_bind', 'nightmare', 'dark_ensnare',
+    'shadow_step',
+  ]);
+  SHADOW09.forEach((row, i) => {
+    const id = row[0];
+    const f = shadowSpellFile(i);
+    assert.ok(fs.existsSync(f), `W-03: запись отсутствует — ${id} (RED)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const expected = P[id];
+    if (expected !== undefined) {
+      assert.deepEqual(d.параметры, expected, `${id}: параметры по D1`);
+    } else {
+      assert.equal(d.параметры, undefined,
+        `${id}: БЕЗ «параметры» (${NO_PARAMS.has(id) ? 'урон/контроль/телепорт' : 'ошибка таблицы'})`);
+    }
+  });
+  // Цепочки (таблица §1.3): степень = степень предка + 1; база — файл
+  // предка.
+  const byId = new Map(SHADOW09.map((r) => [r[0], r]));
+  const CHAINS = [
+    ['drain_life', 'umbra_bolt'],
+    ['soul_drain', 'drain_life'],
+    ['night_blade', 'shroud'],
+    ['vampire_touch', 'night_blade'],
+    ['doom_mark', 'fear'],
+    ['shadow_curse', 'doom_mark'],
+  ];
+  for (const [child, parent] of CHAINS) {
+    const ci = SHADOW09_IDS.indexOf(child);
+    const pi = SHADOW09_IDS.indexOf(parent);
+    assert.ok(ci >= 0 && pi >= 0, `цепочка: ${child}/${parent} в таблице`);
+    const childDegree = byId.get(child)[4];
+    const parentDegree = byId.get(parent)[4];
+    assert.equal(childDegree, parentDegree + 1,
+      `цепочка ${parent} → ${child}: степень = ${parentDegree} + 1`);
+    assert.equal(byId.get(child)[5],
+      `assets/spells/${String(68 + pi).padStart(6, '0')}.json`,
+      `цепочка ${parent} → ${child}: база (таблица) = файл предка`);
+  }
+  for (const [child, parent] of CHAINS) {
+    const ci = SHADOW09_IDS.indexOf(child);
+    const f = shadowSpellFile(ci);
+    if (!fs.existsSync(f)) continue; // RED: файл нет — выше упали
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const parentFile = String(68 + SHADOW09_IDS.indexOf(parent))
+      .padStart(6, '0') + '.json';
+    assert.equal(d.база, 'assets/spells/' + parentFile,
+      `цепочка ${parent} → ${child}: база = файл предка`);
+  }
+  // Мани — в полосах по уровню (баланс-пин, паттерн калибровки ТЗ).
+  const BANDS = { 1: [3, 5], 2: [6, 8], 3: [10, 15], 4: [20, 20] };
+  SHADOW09.forEach(([id, , , level, , , mana]) => {
+    const [lo, hi] = BANDS[level];
+    assert.ok(mana >= lo && mana <= hi,
+      `${id}: мани ${mana} в полосе L${level} [${lo}..${hi}]`);
+  });
+});
+
+test('000235.09 W-04: гейт каста вне боя — 21 боевое «боевое заклинание» до расхода/мутаций; 4 внебоевых: shadow_step {ok, expiresDay null, ЗАПИСИ НЕТ, mp −5, ctx.shadowStep вызван}; invisibility {ok, запись day+1, mp −7}; shroud_of_night {ok, запись day+3, mp −15}; dark_presence {ok, запись day+1, mp −5}; мана < мани → отказ ДО мутаций; рекаст — in-place', () => {
+  const dataMod = loadSpellsData();
+  const { castOutOfCombat } = loadSpells();
+  const day = 10;
+  for (const [id, days, mana] of [
+    ['invisibility', 1, 7],
+    ['shroud_of_night', 3, 15],
+    ['dark_presence', 1, 5],
+  ]) {
+    assert.ok(dataMod.SPELLS_BY_ID[id],
+      `W-04: ${id} — запись в каталоге (RED: нет)`);
+    const p = spellHero({ spells: [id], mp: 30 });
+    const r = castOutOfCombat(p, id, day);
+    assert.equal(r.ok, true, `${id}: каст вне боя ok (${r.reason})`);
+    assert.equal(r.expiresDay, day + days,
+      `${id}: days ${days} → expiresDay = day+${days}`);
+    assert.equal(p.mp, 30 - mana, `${id}: мана ровно «мани» (${mana})`);
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: id, expiresDay: day + days }],
+      `${id}: запись generic-ядром {spellId, expiresDay: day+days}`);
+  }
+  {
+    assert.ok(dataMod.SPELLS_BY_ID['shadow_step'],
+      'W-04: shadow_step — запись в каталоге (RED: нет)');
+    let calls = 0;
+    const p = spellHero({ spells: ['shadow_step'], mp: 30 });
+    const r = castOutOfCombat(p, 'shadow_step', day, {
+      shadowStep: () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(r.ok, true, 'shadow_step: каст ok (' + r.reason + ')');
+    assert.equal(r.expiresDay, null, 'телепорт — expiresDay null');
+    assert.equal(calls, 1, 'ctx.shadowStep вызван');
+    assert.equal(p.mp, 25, 'shadow_step: мана 5 (30−5)');
+    assert.equal(p.outOfCombatEffects, undefined, 'телепорт — ЗАПИСИ НЕТ');
+  }
+  const combatIds = SHADOW09_IDS.filter((id) => !SHADOW09_OC.includes(id));
+  assert.equal(combatIds.length, 21, '25 − 4 внебоевых = 21 боевых');
+  for (const id of combatIds) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-04: ${id} — запись (RED: нет)`);
+    const p = spellHero({ spells: [id], mp: 30 });
+    const r = castOutOfCombat(p, id, day);
+    assert.equal(r.ok, false, `${id}: боевое вне боя — отказ`);
+    assert.equal(r.reason, 'боевое заклинание', `${id}: причина по флагу`);
+    assert.equal(p.mp, 30, `${id}: отказ — до расхода`);
+    assert.equal(p.outOfCombatEffects, undefined, `${id}: отказ — без мутаций`);
+  }
+  {
+    const p = spellHero({ spells: ['shroud_of_night'], mp: 14 });
+    const r = castOutOfCombat(p, 'shroud_of_night', day);
+    assert.equal(r.ok, false, 'мана 14 < 15 — отказ');
+    assert.equal(r.reason, 'не хватает маны', 'причина — мана');
+    assert.equal(p.mp, 14, 'отказ ДО мутаций: mp нетронут');
+    assert.equal(p.outOfCombatEffects, undefined,
+      'отказ ДО мутаций: записей нет');
+  }
+  {
+    const p = spellHero({ spells: ['shroud_of_night'], mp: 30 });
+    assert.equal(castOutOfCombat(p, 'shroud_of_night', day).ok, true,
+      'каст 1 (день 10)');
+    assert.equal(p.outOfCombatEffects.length, 1, 'одна запись');
+    const first = p.outOfCombatEffects[0];
+    assert.equal(castOutOfCombat(p, 'shroud_of_night', day + 1).ok, true,
+      'рекаст (день 11)');
+    assert.equal(p.outOfCombatEffects.length, 1,
+      'рекаст in-place: записей ровно одна (не дубль)');
+    assert.equal(p.outOfCombatEffects[0], first,
+      'рекаст in-place: тот же объект записи');
+    assert.equal(p.outOfCombatEffects[0].expiresDay, day + 4,
+      'рекаст: expiresDay обновлён (day+3 → day+4)');
+  }
+});
+
+test('000235.09 W-10a: shadow_step — ctx.shadowStep: отказ callback → reason + мана откатилась, ЗАПИСЕЙ НЕТ; успех → {ok:true, expiresDay:null}, записи нет, mp −5; ctx без shadowStep → «телепорт недоступен здесь»; нет маны → «не хватает маны» ДО cb (мутаций нет)', () => {
+  const dataMod = loadSpellsData();
+  assert.ok(dataMod.SPELLS_BY_ID['shadow_step'],
+    'W-10a: запись shadow_step в каталоге (RED: нет)');
+  const { castOutOfCombat } = loadSpells();
+  {
+    const p = spellHero({ spells: ['shadow_step'], mp: 30 });
+    const r = castOutOfCombat(p, 'shadow_step', 10, {
+      shadowStep: () => ({ ok: false, reason: 'нет направления движения' }),
+    });
+    assert.equal(r.ok, false, 'отказ callback → ok:false');
+    assert.equal(r.reason, 'нет направления движения', 'reason из callback');
+    assert.equal(p.mp, 30, 'отказ → мана откатилась (не 30−5)');
+    assert.equal(p.outOfCombatEffects, undefined, 'телепорт — ЗАПИСЕЙ НЕТ');
+  }
+  {
+    const p = spellHero({ spells: ['shadow_step'], mp: 30 });
+    const r = castOutOfCombat(p, 'shadow_step', 10, {
+      shadowStep: () => ({ ok: true }),
+    });
+    assert.equal(r.ok, true, 'успех callback → ok:true');
+    assert.equal(r.expiresDay, null, 'телепорт — expiresDay null');
+    assert.equal(p.mp, 25, 'успех → мана снята (5)');
+    assert.equal(p.outOfCombatEffects, undefined, 'телепорт — записи НЕ создаёт');
+  }
+  {
+    const p = spellHero({ spells: ['shadow_step'], mp: 30 });
+    const r = castOutOfCombat(p, 'shadow_step', 10, {});
+    assert.equal(r.ok, false, 'без callback → отказ');
+    assert.equal(r.reason, 'телепорт недоступен здесь');
+    assert.equal(p.mp, 30, 'отказ → мана откатилась');
+  }
+  {
+    let calls = 0;
+    const p = spellHero({ spells: ['shadow_step'], mp: 2 });
+    const r = castOutOfCombat(p, 'shadow_step', 10, {
+      shadowStep: () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(r.ok, false, 'нет маны + успешный cb → отказ');
+    assert.equal(r.reason, 'не хватает маны',
+      'проверка маны ДО cb (ревью: мутация — после всех проверок)');
+    assert.equal(calls, 0, 'cb НЕ вызван — телепорта нет при отказе');
+    assert.equal(p.mp, 2, 'mp без изменений');
+    assert.equal(p.outOfCombatEffects, undefined, 'записей нет');
+  }
+  {
+    let calls = 0;
+    const p = spellHero({ spells: ['shadow_step'], mp: 2 });
+    const r = castOutOfCombat(p, 'shadow_step', 10, {
+      shadowStep: () => { calls += 1;
+        return { ok: false, reason: 'некуда шагнуть' }; },
+    });
+    assert.equal(r.ok, false, 'нет маны + отказ cb → отказ');
+    assert.equal(r.reason, 'не хватает маны',
+      'одновременные «нет маны» и «телепорт невозможен» → мана');
+    assert.equal(calls, 0, 'cb НЕ вызван (проверка маны первая)');
+    assert.equal(p.mp, 2, 'mp без изменений');
+  }
+});
+
+test('000235.09 W-11a: shroudOfNightRadius — активная запись → 5 (радиус каталога); граница expiresDay = day → 0; чужой id (dark_presence) → 0; битый radius → 5; две активные → max; нет записи → 0; radius — ленивым lookup (гость 1/3/5, невалидный/отсутствует → дефолт 5); zoneSuppressedReason — ветка «покров ночи» ПОСЛЕ «замерзание», порядок: невидимость → круг защиты → замерзание → покров ночи (source-пин main.js)', () => {
+  const { shroudOfNightRadius } = loadSpells();
+  assert.equal(typeof shroudOfNightRadius, 'function',
+    '000235.09: export Spells.shroudOfNightRadius (src/spells.js) (RED: нет)');
+  const day = 10;
+  const rec = (expiresDay) => ({ spellId: 'shroud_of_night', expiresDay });
+  assert.equal(shroudOfNightRadius({ outOfCombatEffects: [rec(day)] }, day), 0,
+    'граница expiresDay = day → 0 (>, не >=)');
+  assert.equal(shroudOfNightRadius({ outOfCombatEffects: [rec(day - 1)] }, day), 0,
+    'expiresDay < day → 0');
+  assert.equal(shroudOfNightRadius({ outOfCombatEffects: [rec(day + 1)] }, day), 5,
+    'активная (day+1) → радиус каталога (5)');
+  assert.equal(shroudOfNightRadius({ outOfCombatEffects:
+    [rec(day), rec(day + 2)] }, day), 5,
+    'истёкшая + активная → радиус АКТИВНОЙ');
+  assert.equal(shroudOfNightRadius({ outOfCombatEffects:
+    [{ spellId: 'dark_presence', expiresDay: day + 1 }] }, day), 0,
+    'чужой id (dark_presence) → 0 (матчинг по spellId)');
+  assert.equal(shroudOfNightRadius({ outOfCombatEffects: [] }, day), 0, '[] → 0');
+  assert.equal(shroudOfNightRadius({}, day), 0, 'нет поля → 0');
+  assert.equal(shroudOfNightRadius(null, day), 0, 'hero = null → 0');
+  assert.equal(shroudOfNightRadius({ outOfCombatEffects: 'бито' }, day), 0,
+    'effects не массив → 0');
+  assert.equal(shroudOfNightRadius({ outOfCombatEffects:
+    [null, 'мусор', 42, { expiresDay: day + 1 },
+     { spellId: 'нет_такого_заклинания', expiresDay: day + 1 }] }, day), 0,
+    'мусор-записи → 0 без краха');
+  const p = { outOfCombatEffects: [rec(day + 1)] };
+  for (let i = 0; i < 5; i++) {
+    assert.equal(shroudOfNightRadius(p, day), 5, 'повторный вызов i=' + i
+      + ' — стабильно (без RNG)');
+  }
+  const dataMod = loadSpellsData();
+  const mk = (over) => portalGuest0235('shroud_of_night', Object.assign(
+    { действие: 'внебой', параметры: { days: 3, radius: 5 } }, over));
+  for (const [radius, expected] of [[1, 1], [3, 3], [5, 5]]) {
+    const g = mk({ параметры: { days: 3, radius } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = shroudOfNightRadius({ outOfCombatEffects:
+        [{ spellId: 'shroud_of_night', expiresDay: day + 1 }] }, day);
+      assert.equal(r, expected, 'ленивый lookup: гость r=' + radius + ' → ' + expected);
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  for (const radius of ['нет', 9, 0, 1.5, null]) {
+    const g = mk({ параметры: { days: 3, radius } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = shroudOfNightRadius({ outOfCombatEffects:
+        [{ spellId: 'shroud_of_night', expiresDay: day + 1 }] }, day);
+      assert.equal(r, 5,
+        'невалидный radius (' + JSON.stringify(radius) + ') → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  {
+    const g = mk({ параметры: { days: 3 } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = shroudOfNightRadius({ outOfCombatEffects:
+        [{ spellId: 'shroud_of_night', expiresDay: day + 1 }] }, day);
+      assert.equal(r, 5, 'radius отсутствует → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  // Порядок веток zoneSuppressedReason (source-пин src/main.js,
+  // паттерн aggro-visibility/building-actions): «покров ночи» — НОВАЯ
+  // ветка ПОСЛЕ «замерзание», перед `return null`; общий порядок
+  // причин: невидимость → круг защиты → замерзание → покров ночи.
+  const mainSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const iInvis = mainSrc.indexOf("return 'невидимость'");
+  const iWard = mainSrc.indexOf("return 'круг защиты'");
+  const iFrost = mainSrc.indexOf("return 'замерзание'");
+  const iNight = mainSrc.indexOf("return 'покров ночи'");
+  assert.ok(iInvis >= 0 && iWard >= 0 && iFrost >= 0,
+    'фикстура: ветки невидимость/круг защиты/замерзание в main.js');
+  assert.ok(iNight >= 0,
+    "zoneSuppressedReason: ветка «покров ночи» отсутствует (RED: не реализована)");
+  assert.ok(iInvis < iWard && iWard < iFrost && iFrost < iNight,
+    'порядок веток: невидимость → круг защиты → замерзание → покров ночи');
+});
+
+test('000235.09 W-12a: darkPresenceRadius — активная → 5 (радиус каталога); граница expiresDay = day → 0; чужой id (shroud_of_night) → 0; [] / нет поля / null / мусор → 0; max по двум активным; radius — ленивым lookup (гость 1/3/5, невалидный/отсутствует → дефолт 5); zoneCombatInfo — сужение = Math.max(coldBreath, darkPresence) (source-пин main.js; оба активных → всё равно −1, НЕ −2: eff = max(1, r−1))', () => {
+  const { darkPresenceRadius } = loadSpells();
+  assert.equal(typeof darkPresenceRadius, 'function',
+    '000235.09: export Spells.darkPresenceRadius (src/spells.js) (RED: нет)');
+  const day = 10;
+  const rec = (expiresDay) => ({ spellId: 'dark_presence', expiresDay });
+  assert.equal(darkPresenceRadius({ outOfCombatEffects: [rec(day)] }, day), 0,
+    'граница expiresDay = day → 0 (>, не >=)');
+  assert.equal(darkPresenceRadius({ outOfCombatEffects: [rec(day - 1)] }, day), 0,
+    'expiresDay < day → 0');
+  assert.equal(darkPresenceRadius({ outOfCombatEffects: [rec(day + 1)] }, day), 5,
+    'активная (day+1) → радиус каталога (5)');
+  assert.equal(darkPresenceRadius({ outOfCombatEffects:
+    [rec(day), rec(day + 2)] }, day), 5,
+    'истёкшая + активная → радиус АКТИВНОЙ');
+  assert.equal(darkPresenceRadius({ outOfCombatEffects:
+    [{ spellId: 'shroud_of_night', expiresDay: day + 1 }] }, day), 0,
+    'чужой id (shroud_of_night) → 0 (матчинг по spellId)');
+  assert.equal(darkPresenceRadius({ outOfCombatEffects: [] }, day), 0, '[] → 0');
+  assert.equal(darkPresenceRadius({}, day), 0, 'нет поля → 0');
+  assert.equal(darkPresenceRadius(null, day), 0, 'hero = null → 0');
+  assert.equal(darkPresenceRadius({ outOfCombatEffects: 'бито' }, day), 0,
+    'effects не массив → 0');
+  assert.equal(darkPresenceRadius({ outOfCombatEffects:
+    [null, 'мусор', 42, { expiresDay: day + 1 },
+     { spellId: 'нет_такого_заклинания', expiresDay: day + 1 }] }, day), 0,
+    'мусор-записи → 0 без краха');
+  const p = { outOfCombatEffects: [rec(day + 1)] };
+  for (let i = 0; i < 5; i++) {
+    assert.equal(darkPresenceRadius(p, day), 5, 'повторный вызов i=' + i
+      + ' — стабильно (без RNG)');
+  }
+  const dataMod = loadSpellsData();
+  const mk = (over) => portalGuest0235('dark_presence', Object.assign(
+    { действие: 'внебой', параметры: { days: 1, radius: 5 } }, over));
+  for (const [radius, expected] of [[1, 1], [3, 3], [5, 5]]) {
+    const g = mk({ параметры: { days: 1, radius } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = darkPresenceRadius({ outOfCombatEffects:
+        [{ spellId: 'dark_presence', expiresDay: day + 1 }] }, day);
+      assert.equal(r, expected, 'ленивый lookup: гость r=' + radius + ' → ' + expected);
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  for (const radius of ['нет', 9, 0, 1.5, null]) {
+    const g = mk({ параметры: { days: 1, radius } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = darkPresenceRadius({ outOfCombatEffects:
+        [{ spellId: 'dark_presence', expiresDay: day + 1 }] }, day);
+      assert.equal(r, 5,
+        'невалидный radius (' + JSON.stringify(radius) + ') → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  {
+    const g = mk({ параметры: { days: 1 } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = darkPresenceRadius({ outOfCombatEffects:
+        [{ spellId: 'dark_presence', expiresDay: day + 1 }] }, day);
+      assert.equal(r, 5, 'radius отсутствует → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  // sужение findZoneCombat — ОБА источника (cold_breath + dark_presence)
+  // через Math.max (source-пин src/main.js: функция zoneCombatInfo).
+  const mainSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const zciStart = mainSrc.indexOf('function zoneCombatInfo');
+  assert.ok(zciStart >= 0, 'фикстура: function zoneCombatInfo в main.js');
+  const zciEnd = mainSrc.indexOf('function ', zciStart + 1);
+  const zci = mainSrc.slice(zciStart, zciEnd > zciStart ? zciEnd : undefined);
+  assert.ok(zci.includes('coldBreathRadius'),
+    'zoneCombatInfo: источник cold_breath (регрессия)');
+  assert.ok(zci.includes('darkPresenceRadius'),
+    'zoneCombatInfo: источник dark_presence (RED: не добавлен)');
+  assert.ok(zci.includes('Math.max'),
+    'zoneCombatInfo: сужение = Math.max из двух источников (оба активных → −1, НЕ −2) (RED: max нет)');
+});
+
+test('000235.09 W-13: призывы shadow_wraith/void_horror — makeAlly level=уровень спелла, summonTurns=4, имя/роль из MOB_TYPES (vampire — «Вампир» melee; bone_coloss — «Костяной колосс» shield); детерминизм (seed); fail-closed «неизвестный призыв»; баф-NO-OP-пины: shroud/vampire_touch — buff записывается, краха нет', () => {
+  const dataMod = loadSpellsData();
+  assert.ok(dataMod.SPELLS_BY_ID['shadow_wraith'],
+    'W-13: shadow_wraith — запись в каталоге (RED: нет)');
+  assert.ok(dataMod.SPELLS_BY_ID['void_horror'],
+    'W-13: void_horror — запись в каталоге (RED: нет)');
+  const { castSpell } = loadSpells();
+  function summonCase(spellId, level, name, role) {
+    const p = spellHero({ spells: [spellId], intelligence: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, spellId);
+    assert.equal(r.ok, true, `${spellId}: каст призыва ok (${r.reason})`);
+    assert.ok(r.summoned, `${spellId}: r.summoned`);
+    const a = c.units.find((u) => u.id === r.summoned);
+    assert.ok(a, `${spellId}: призванный в c.units`);
+    assert.equal(a.kind, 'summon', `${spellId}: kind summon`);
+    assert.equal(a.summonTurns, 4, `${spellId}: summonTurns 4`);
+    assert.equal(a.level, level, `${spellId}: level = уровень спелла`);
+    assert.equal(a.name, name, `${spellId}: имя из MOB_TYPES`);
+    assert.equal(a.role, role, `${spellId}: роль из MOB_TYPES`);
+  }
+  summonCase('shadow_wraith', 3, 'Вампир', 'melee');
+  summonCase('void_horror', 4, 'Костяной колосс', 'shield');
+  // Детерминизм: два одинаковых боя (seed) → одинаковые статистики.
+  {
+    const p1 = spellHero({ spells: ['shadow_wraith'], intelligence: 11, mp: 40 });
+    const c1 = soloCombat(p1, 'wolf');
+    castSpell(c1, 'shadow_wraith');
+    const a1 = c1.units.find((u) => u.kind === 'summon');
+    const p2 = spellHero({ spells: ['shadow_wraith'], intelligence: 11, mp: 40 });
+    const c2 = soloCombat(p2, 'wolf');
+    castSpell(c2, 'shadow_wraith');
+    const a2 = c2.units.find((u) => u.kind === 'summon');
+    assert.equal(a1.maxHP, a2.maxHP, 'детерминизм: maxHP');
+    assert.equal(a1.dmg, a2.dmg, 'детерминизм: dmg');
+    assert.equal(a1.armor, a2.armor, 'детерминизм: armor');
+  }
+  // Fail-closed: гость-призыв с неизвестным mob → «неизвестный призыв: X».
+  const bad = Object.assign(ocGuest0235('w13_shadow_badsummon', {
+    действие: 'призыв', параметры: { summon: 'nope', turns: 4 }, вне_боя: false,
+  }));
+  try {
+    pushOcGuests(dataMod, [bad]);
+    const p = spellHero({ spells: [bad.id], intelligence: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, bad.id);
+    assert.equal(r.ok, false, 'неизвестный призыв — отказ');
+    assert.equal(r.reason, 'неизвестный призыв: nope', 'fail-closed reason');
+    assert.equal(p.mp, 40, 'отказ — до расхода маны');
+  } finally {
+    popOcGuests(dataMod, [bad]);
+  }
+  // Баф-NO-OP-пины: статы без потребителя — запись buff (гейт бафа
+  // проходим), каст ок, краха НЕТ.
+  for (const [id, stat] of [
+    ['shroud', 'попадание_вниз'],
+    ['vampire_touch', 'вампиризм'],
+  ]) {
+    assert.ok(dataMod.SPELLS_BY_ID[id],
+      `W-13: ${id} — запись в каталоге (RED: нет)`);
+    const p = spellHero({ spells: [id], intelligence: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст бафа ok (${r.reason})`);
+    assert.equal(r.buffed, 'player', `${id}: buff на игрока`);
+    assert.deepEqual(c.ps.buff,
+      { stat, value: id === 'shroud' ? 0.25 : 0.5, turns: 3 },
+      `${id}: buff записан (NO-OP: потребителя нет, краха нет)`);
+  }
+});
+
+test('000235.09 W-15: drain NO-OP — drain_life/soul_drain {value:0.5} в каталоге (пин W-03) + бой: каст → урон = формула урона БИТ-В-БИТ (лечения НЕТ: out.healed undefined); регрессия: все урон-заклинания каталога — формула инвариантна', () => {
+  const dataMod = loadSpellsData();
+  const { castSpell } = loadSpells();
+  for (const id of ['drain_life', 'soul_drain']) {
+    const s = dataMod.SPELLS_BY_ID[id];
+    assert.ok(s, `W-15: ${id} — запись в каталоге (RED: нет)`);
+    assert.deepEqual(s.параметры, { value: 0.5 },
+      `${id}: параметры {value:0.5} (NO-OP: движок не потребляет)`);
+    const p = spellHero({ spells: [id], intelligence: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, id, c.units[0].id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    const expected = Math.round(
+      (4 + 0.5 * p.primary.intelligence) *
+      (1 + 0.15 * (s.степень - 1)));
+    assert.equal(r.dmg, expected,
+      `${id}: урон БИТ-В-БИТ по формуле урона (тень — без школьного бонуса)`);
+    assert.equal(r.healed, undefined,
+      `${id}: лечения НЕТ (NO-OP: value:0.5 без потребителя)`);
+  }
+  // Регрессия: ВСЕ урон-заклинания каталога — формула инвариантна
+  // (свежий герой: без бафов, вторички 0 → школьный бонус 0).
+  let n = 0;
+  for (const s of dataMod.SPELLS) {
+    if (s.действие !== 'урон') continue;
+    const p = spellHero({ spells: [s.id], intelligence: 1, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, s.id, c.units[0].id);
+    assert.equal(r.ok, true, `${s.id}: каст (${r.reason})`);
+    const expected = Math.round(
+      (4 + 0.5 * p.primary[s.атрибут]) *
+      (1 + 0.15 * (s.степень - 1)));
+    assert.equal(r.dmg, expected, `${s.id}: формула урона инвариантна`);
+    n += 1;
+  }
+  assert.equal(n, 29,
+    'урон-заклинаний в каталоге: 29 из 92 (RED: 22 из 67; +7 урона волны Тень)');
 });

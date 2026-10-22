@@ -798,9 +798,14 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // Ре-пин 000230.09: ears+neck (000158-000207) — КОНЕЦ каталога
     // (ПОСЛЕ свитков волны Лёд — порядок каталога: огонь 108-132, лёд
     // 133-157, уши/шея 158-207, torso 208-232), rng-хвост пула allItems.
-    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
-    // каталога, rng-хвост пула allItems. Значения хвоста — по финальному
-    // каталогу 232 (node-симуляция: base + огонь + лёд + уши/шея + torso).
+    // Ре-пин 000230.10: torso (000208-000232, kind armor) — rng-хвост
+    // пула allItems.
+    // Ре-пин 000235.09: свитки волны Тень (000233-000257) — КОНЕЦ
+    // каталога, rng-хвост пула allItems → += 22 свитка (shadow_bind/
+    // shroud_of_night/dark_presence на этой клетке не выпали), остальные
+    // ключи стока не сдвинулись (node-симуляция: seed/старые стоки
+    // byte-identical). Значения хвоста — по финальному каталогу 257
+    // (node-симуляция: base + огонь + лёд + уши/шея + torso + тень).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
       stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3,
         war_hammer: 3, leather_armor: 3, knight_plate: 2,
@@ -859,7 +864,16 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
         leather_kaftan: 4, embroidered_kaftan: 4, cloth_robe: 4,
         leather_gown: 3, monk_sutan: 1, fine_kaftan: 4, stone_robe: 2,
         shadow_robe: 1, deep_breath_robe: 5, pilgrim_sutan: 3,
-        void_robe: 3, aegis_mantle: 2 } },
+        void_robe: 3, aegis_mantle: 2, umbra_bolt_scroll: 5,
+        drain_life_scroll: 1, void_arrow_scroll: 3,
+        night_strike_scroll: 4, soul_drain_scroll: 2,
+        shadowflame_scroll: 2, dark_nova_scroll: 4, shroud_scroll: 5,
+        night_blade_scroll: 5, vampire_touch_scroll: 1, fear_scroll: 4,
+        doom_mark_scroll: 2, despair_scroll: 5, shadow_curse_scroll: 3,
+        nightmare_scroll: 5, dark_ensnare_scroll: 2,
+        shadow_pool_scroll: 2, veil_of_night_scroll: 3,
+        shadow_wraith_scroll: 5, void_horror_scroll: 5,
+        shadow_step_scroll: 1, invisibility_scroll: 2 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1346,7 +1360,7 @@ const SCROLLS_000133 = [
   { file: '000050.json', id: 'vine_scroll', spell: 'vine' },
 ];
 
-test('S1. 000133: каталог — 58 свитков (8 фиксированных 000133 + 25 волны Огонь + 25 волны Лёд — ре-пин 000235.08), фиксированный состав (id/kind/effect/spell), все 6 школ', () => {
+test('S1. 000133: каталог — 83 свитка (8 фиксированных 000133 + 25 волны Огонь + 25 волны Лёд + 25 волны Тень — ре-пин 000235.09), фиксированный состав (id/kind/effect/spell), все 6 школ', () => {
   const byFile = new Map();
   for (const f of fs.readdirSync(ITEMS_DIR)
       .filter((x) => /^\d{6}\.json$/.test(x))) {
@@ -1376,8 +1390,8 @@ test('S1. 000133: каталог — 58 свитков (8 фиксированн
   // Состав ПОЛНЫЙ: ровно 8 предметов kind spell_scroll (ни больше,
   // ни меньше — решение ТЗ).
   const scrolls = I.allItems().filter((it) => it.kind === 'spell_scroll');
-  assert.equal(scrolls.length, 58,
-    'ровно 58 spell_scroll (8 фиксированных + 25 волны Огонь + 25 волны Лёд); факт: '
+  assert.equal(scrolls.length, 83,
+    'ровно 83 spell_scroll (8 фиксированных + 25 волны Огонь + 25 волны Лёд + 25 волны Тень); факт: '
     + scrolls.length);
   // Свитки на школу: все 6 школ; per-school пин — наличие (n >= 1):
   // волна Огонь добавляет 25 свитков школы «огонь» (27 всего), фикс
@@ -1537,10 +1551,12 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // 000158-000207 — уши 25 + шея 25); слоты не сдвигаются.
   // Ре-пин 000230.10: каталог растёт 207 → 232 (добавляются
   // 000208-000232 — torso 25); слоты не сдвигаются.
-  assert.equal(files.length, 232,
-    'каталог — 232 файла (краснота: ' + files.length
+  // Ре-пин 000235.09: каталог растёт 232 → 257 (добавляются
+  // 000233-000257 — свитки волны Тень); слоты не сдвигаются.
+  assert.equal(files.length, 257,
+    'каталог — 257 файлов (краснота: ' + files.length
     + ' — каталог ещё не расширен, 000230.08/000235.07/000235.08/'
-    + '000230.09/000230.10)');
+    + '000230.09/000230.10/000235.09)');
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
@@ -1569,7 +1585,7 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   validateSchema165(schema, j, '000051.json', errors);
   assert.deepEqual(errors, [], 'схема: ' + errors.join('; '));
   // (d) Зеркало src/items-data.js (реген npm run sync:items):
-  //     getItem ≡ JSON, каталог — 232 предмета (краснота: записи нет).
+  //     getItem ≡ JSON, каталог — 257 предмета (краснота: записи нет).
   //     Ре-пин 000157.01 (Р0): 51 → 62 (конец каталога).
   //     Ре-пин 000158.02: 62 → 76 (конец каталога).
   //     Ре-пин 000232: 76 → 82 (конец каталога).
@@ -1578,6 +1594,7 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   //     Ре-пин 000235.08: 132 → 157 (конец каталога).
   //     Ре-пин 000230.09: 157 → 207 (конец каталога).
   //     Ре-пин 000230.10: 207 → 232 (конец каталога).
+  //     Ре-пин 000235.09: 232 → 257 (конец каталога).
   const it = I.getItem('resurrect_scroll');
   assert.ok(it, 'зеркало items-data.js: resurrect_scroll '
     + '(краснота: записи нет)');
@@ -1587,10 +1604,11 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // Ре-пин 000235.08: 132 → 157 (000133-000157 — свитки волны Лёд).
   // Ре-пин 000230.09: 157 → 207 (000158-000207 — уши 25 + шея 25).
   // Ре-пин 000230.10: 207 → 232 (000208-000232 — torso 25).
-  assert.equal(I.allItems().length, 232,
-    'allItems — 232 предмета (краснота: ' + I.allItems().length
+  // Ре-пин 000235.09: 232 → 257 (000233-000257 — свитки волны Тень).
+  assert.equal(I.allItems().length, 257,
+    'allItems — 257 предмета (краснота: ' + I.allItems().length
     + ' — зеркало не регенерировано, 000230.08/000235.07/000235.08/'
-    + '000230.09/000230.10)');
+    + '000230.09/000230.10/000235.09)');
   // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
   //     addItem ×2 → 2 слота qty 1 (не стопка).
   const c = createCharacter();
@@ -1702,12 +1720,14 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
   // уши 25 + шея 25); слоты не сдвигаются.
   // Ре-пин 000230.10: каталог растёт 207 → 232 (000208-000232 —
   // torso 25); слоты не сдвигаются.
-  assert.equal(files.length, 232,
-    'каталог — 232 файла (краснота: ' + files.length + ')');
+  // Ре-пин 000235.09: каталог растёт 232 → 257 (000233-000257 —
+  // свитки волны Тень); слоты не сдвигаются.
+  assert.equal(files.length, 257,
+    'каталог — 257 файла (краснота: ' + files.length + ')');
   assert.equal(files[61], '000062.json',
     '000062.json — 62-й файл (краснота: файла нет)');
-  assert.equal(I.allItems().length, 232,
-    'allItems — 232 предмета (краснота: ' + I.allItems().length + ')');
+  assert.equal(I.allItems().length, 257,
+    'allItems — 257 предмета (краснота: ' + I.allItems().length + ')');
 });
 
 // R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
@@ -1915,7 +1935,7 @@ test('000158.02 L2: loot-инварианты новых 14 — terrains неп�
   }
 });
 
-test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 199 предметов — loot undefined (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин 000230.10: +25 torso без loot; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
+test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 224 предмета — loot undefined (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин 000230.10: +25 torso без loot; ре-пин 000235.09: +25 свитков волны Тень без loot; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
   const byId = new Map(I.allItems().map((it) => [it.id, it]));
   const newIds = new Set(LOOT_00015802.map((e) => e.id));
   const nuggetIdSet = new Set(NUGGETS_00015802.map(([id]) => id));
@@ -1927,13 +1947,14 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       id + ': loot самородка (краснота: поля нет; tier ' + tier
       + ' → frequency ' + NUGGET_FREQ[tier] + ')');
   }
-  // ВСЕ ПРОЧИЕ предметы (199 = каталог 232 − 14 самородков − 14 новых
+  // ВСЕ ПРОЧИЕ предметы (224 = каталог 257 − 14 самородков − 14 новых
   // − 5 reagent'ов 000220; ре-пин 000230.08: +25 head без loot;
   // ре-пин 000232: +6 чертежей без loot; ре-пин 000235.07: +25 свитков
   // волны Огонь без loot; ре-пин 000235.08: +25 свитков волны Лёд
   // без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин
-  // 000230.10: +25 torso без loot): loot ОТСУТСТВУЕТ — пин «остальные
-  // файлы не тронуты».
+  // 000230.10: +25 torso без loot; ре-пин 000235.09: +25 свитков
+  // волны Тень без loot): loot ОТСУТСТВУЕТ — пин «остальные файлы
+  // не тронуты».
   const REAGENTS_000220 = new Set(['wood_log', 'hide', 'herb_healing',
     'herb_mana', 'herb_bitter']);
   let others = 0;
@@ -1944,7 +1965,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 199, 'прочих предметов — ровно 199 (каталог 232 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso — все без loot)');
+  assert.equal(others, 224, 'прочих предметов — ровно 224 (каталог 257 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень — все без loot)');
 });
 
 test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
@@ -2288,10 +2309,11 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
   }
-  assert.equal(others, 93, 'прочих предметов — ровно 93 (ре-пин 000230.09: '
+  assert.equal(others, 118, 'прочих предметов — ровно 118 (ре-пин 000230.09: '
     + '50 уши/шея — в исключении; ре-пин 000230.10: 25 torso — в '
     + 'исключении (icon); ре-пин 000235.08: +25 свитков волны Лёд '
-    + 'без icon — входят в счёт)');
+    + 'без icon — входят в счёт; ре-пин 000235.09: +25 свитков '
+    + 'волны Тень без icon)');
   assert.equal(
     [...byId.values()].filter((it) => 'icon' in it).length, 139,
     'icon — ровно у 139 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
@@ -2530,9 +2552,9 @@ test('000230.01 E8: src/items.js — ITEM_KINDS += SHIELD/ARTIFACT/TOOL/RING, WE
     'EQUIP_KINDS — ровно 6 экипируемых kind (краснота: константы нет)');
 });
 
-test('000230.01 E9 (ГАРД): каталог — ровно 232 предмета (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
+test('000230.01 E9 (ГАРД): каталог — ровно 257 предметов (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
   const items = I.allItems();
-  assert.equal(items.length, 232, 'каталог — ровно 232 предмета');
+  assert.equal(items.length, 257, 'каталог — ровно 257 предмета');
   let others = 0;
   for (const it of items) {
     if (EQUIP_FIELDS_00023001.has(it.id)) continue;
@@ -2546,12 +2568,13 @@ test('000230.01 E9 (ГАРД): каталог — ровно 232 предмет�
       it.id + ': affixes отсутствует (предмет не тронут, 000230.01)');
     others++;
   }
-  assert.equal(others, 129, 'прочих предметов — ровно 129 (ре-пин 000230.09: '
+  assert.equal(others, 154, 'прочих предметов — ровно 154 (ре-пин 000230.09: '
     + '182 − 75 equip-исключений = 107 (25 head + 50 уши/шея); '
-    + 'ре-пин 000230.10: +25 torso + 3 legacy remap → 232 − 103 '
-    + 'equip-исключений = 129; '
+    + 'ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: '
+    + '+25 свитков волны Тень → 257 − 103 equip-исключений = 154; '
     + '000232: +6 чертежей без equip-полей; 000235.07: +25 свитков '
     + 'без equip-полей; 000235.08: +25 свитков волны Лёд без '
+    + 'equip-полей; 000235.09: +25 свитков волны Тень без '
     + 'equip-полей)');
 });
 
@@ -5087,9 +5110,15 @@ test('000230.09 EN1: 50 предметов — append-блок: ПЕРВЫЕ 50 
   assert.equal(neckCount, 25,
     'slot neck — ровно 25 предмета (краснота: волна не добавлена; '
     + 'факт: ' + neckCount + ')');
-  // Ре-пин 000230.10: после .09-блока (ears+neck 50) приписан torso-блок
-  // 25 (000208-000232), .09-блок = первые 50 из последних 75.
-  const base = parseInt(files[files.length - 75], 10);
+  // Ре-пин 000235.09: блок НЕ конец каталога (после него — torso
+  // 000208-000232 и свитки 000233-000257 волны Тень) — позиция
+  // определяется по slot (паттерн H1, ре-пин 000235.07).
+  const blockFiles = files.filter((f) =>
+    byFile.get(f).slot === 'ears' || byFile.get(f).slot === 'neck');
+  assert.equal(blockFiles.length, 50,
+    'слот ears+neck — ровно 50 файлов (краснота: волна не добавлена; '
+    + 'факт: ' + blockFiles.length + ')');
+  const base = parseInt(blockFiles[0], 10);
   const slotByPos = (i) => (i < 25 ? 'ears' : 'neck');
   const tierByPos = (i) => {
     const j = i % 25;
@@ -5097,7 +5126,7 @@ test('000230.09 EN1: 50 предметов — append-блок: ПЕРВЫЕ 50 
       : j < 22 ? 'epic' : j < 24 ? 'legendary' : 'impossible';
   };
   for (let i = 0; i < 50; i++) {
-    const f = files[files.length - 75 + i];
+    const f = blockFiles[i];
     assert.equal(f, String(base + i).padStart(6, '0') + '.json',
       'блок волны — 50 последовательных файлов (base ' + base
       + '); позиция ' + i + ': ' + f);
@@ -5272,10 +5301,13 @@ test('000230.09 EN5: иконки — у всех 50 icon = assets/sprites/items
   }
   assert.equal(new Set(EARSNECK_IDS_00023009).size, 50,
     '50 id различны (анти-коллизия в волне)');
-  // Ре-пин 000230.10: после .09-блока приписан torso-блок 25,
-  // «остаток каталога» = всё, кроме последних 75 (окно 50 → 75).
-  for (const f of files.slice(0, files.length - 75)) {
+  // Ре-пин 000235.09: «остальной каталог» = всё, кроме блока волны
+  // (определяется по slot — блок НЕ конец каталога: после него
+  // torso 000208-000232 и свитки 000233-000257; паттерн H1, ре-пин
+  // 000235.07).
+  for (const f of files) {
     const j = byFile.get(f);
+    if (j.slot === 'ears' || j.slot === 'neck') continue;
     assert.ok(!EARSNECK_ID_SET_00023009.has(j.id),
       'id «' + j.id + '» (' + f + ') — НЕ пересекается с ростером '
       + 'волны (id уникальны в каталоге)');
@@ -5675,33 +5707,39 @@ test('000230.10 T1: remap — 3 legacy-брони получают ЯВНОЕ "s
   }
 });
 
-test('000230.10 T2: append-блок — 25 новых torso: ПОСЛЕДНИЕ 25 файлов каталога подряд, якорь files[len−25] = 000208.json, 000232.json — последний (D-04); все kind armor + slot torso; редкости РОВНО 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible в каталожном порядке (D-05); id волны не пересекаются с остальным каталогом (краснота: slot torso — 0 предметов, блок 000208–000232 не существует)', () => {
+test('000230.10 T2: append-блок — 25 новых torso: блок 000208–000232 — 25 последовательных файлов каталога с фиксированной нумерацией (D-04); все kind armor + slot torso; редкости РОВНО 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible в каталожном порядке (D-05); id волны не пересекаются с остальным каталогом (краснота: slot torso — 0 предметов, блок 000208–000232 не существует)', () => {
   const { files, byFile } = catalogScan00023008();
-  assert.equal(files[files.length - 25], '000208.json',
-    'якорь append-блока files[len−25] = 000208.json (краснота: '
-    + 'волна не добавлена; факт: ' + files[files.length - 25]);
-  assert.equal(files[files.length - 1], '000232.json',
-    'конец каталога = 000232.json (краснота: волна не добавлена; '
-    + 'факт: ' + files[files.length - 1]);
-  const base = parseInt(files[files.length - 25], 10);
+  // Ре-пин 000235.09: блок НЕ конец каталога (после него — свитки
+  // Тени 000233-000257) — позиция по фиксированной нумерации (D-04),
+  // а не files[len−25] (паттерн H1, ре-пины 000235.07/.09).
+  const blockFiles = [];
+  for (let i = 0; i < 25; i++)
+    blockFiles.push(String(208 + i).padStart(6, '0') + '.json');
+  const pos = new Map(files.map((f, i) => [f, i]));
+  for (const f of blockFiles)
+    assert.ok(pos.has(f),
+      f + ' — в каталоге (краснота: волна не добавлена)');
+  const p0 = pos.get(blockFiles[0]);
+  for (let i = 0; i < 25; i++)
+    assert.equal(pos.get(blockFiles[i]), p0 + i,
+      'блок волны — 25 последовательных файлов каталога; позиция '
+      + i + ': ' + blockFiles[i]);
   const tierByPos = (i) => i < 10 ? 'common' : i < 17 ? 'rare'
     : i < 22 ? 'epic' : i < 24 ? 'legendary' : 'impossible';
   for (let i = 0; i < 25; i++) {
-    const f = files[files.length - 25 + i];
-    assert.equal(f, String(base + i).padStart(6, '0') + '.json',
-      'блок волны — 25 последовательных файлов (base ' + base
-      + '); позиция ' + i + ': ' + f);
+    const f = blockFiles[i];
     const it = byFile.get(f);
     assert.equal(it.kind, 'armor', f + ': kind armor');
     assert.equal(it.slot, 'torso',
-      f + ': slot torso (краснота: в хвосте каталога — волна .09; '
-      + 'факт: ' + it.slot);
+      f + ': slot torso; факт: ' + it.slot);
     assert.equal(it.rarity, tierByPos(i),
       f + ': rarity ' + tierByPos(i) + ' (каталожный порядок = '
       + 'порядок тиров 10/7/5/2/1); факт: ' + it.rarity);
   }
   // Анти-коллизия: id волны — только в блок-файлах.
-  for (const f of files.slice(0, files.length - 25)) {
+  const blockSet = new Set(blockFiles);
+  for (const f of files) {
+    if (blockSet.has(f)) continue;
     assert.ok(!TORSO_ID_SET_00023010.has(byFile.get(f).id),
       'id волны «' + byFile.get(f).id + '» (' + f
       + ') — вне append-блока (id уникальны в каталоге)');
@@ -5928,7 +5966,14 @@ test('000230.10 T6: иконки — 25 SVG assets/sprites/items/<id>.svg сущ
   }
   assert.equal(new Set(TORSO_IDS_00023010).size, 25,
     '25 id различны (анти-коллизия в волне)');
-  for (const f of files.slice(0, files.length - 25)) {
+  // Ре-пин 000235.09: «остальной каталог» — не files.slice(0, len−25)
+  // (после блока 000208-000232 — свитки Тени 000233-000257), а всё
+  // вне фиксированной нумерации D-04.
+  const blockSet = new Set();
+  for (let i = 0; i < 25; i++)
+    blockSet.add(String(208 + i).padStart(6, '0') + '.json');
+  for (const f of files) {
+    if (blockSet.has(f)) continue;
     assert.ok(!TORSO_ID_SET_00023010.has(byFile.get(f).id),
       'id «' + byFile.get(f).id + '» (' + f
       + ') — НЕ пересекается с ростером волны');
@@ -5999,4 +6044,82 @@ test('000230.10 T8: все 25 новых — валидны по schema.json (м
     assert.deepEqual(it, j, file + ': зеркало ≡ JSON (remap '
       + 'бит-в-бит, включая "slot":"torso")');
   }
+});
+
+// --- Задача 000235.09: волна Тень — 25 свитков 000233–000257 (TDD) ---
+//
+// Контракт: memory/000235.09-shadow-wave-content.md §1.7. RED: файлы/
+// каталожные записи/зеркало отсутствуют (ENOENT / undefined) —
+// осмысленно, не синтаксис. Шаблон свитка — дословно 000133+ (kind
+// spell_scroll, weight 0.2, value по тьеру, rarity/icon/loot НЕТ).
+
+const SHADOW09_SCROLLS = [
+  // [spellId, название, уровень(=тир)]
+  ['umbra_bolt', 'Умбровый снаряд', 1],
+  ['drain_life', 'Пожизненная сила', 2],
+  ['void_arrow', 'Стрела пустоты', 3],
+  ['night_strike', 'Ночной удар', 3],
+  ['soul_drain', 'Извлечение души', 4],
+  ['shadowflame', 'Теневое пламя', 4],
+  ['dark_nova', 'Тёмная нова', 4],
+  ['shroud', 'Теневая вуаль', 1],
+  ['night_blade', 'Ночное лезвие', 2],
+  ['vampire_touch', 'Вампирское прикосновение', 3],
+  ['fear', 'Страх', 2],
+  ['doom_mark', 'Печать дурного предзнаменования', 3],
+  ['despair', 'Отчаяние', 3],
+  ['shadow_curse', 'Теневое проклятие', 4],
+  ['shadow_bind', 'Теневые узы', 2],
+  ['nightmare', 'Кошмар', 3],
+  ['dark_ensnare', 'Тёмные оковы', 4],
+  ['shadow_pool', 'Лужа тьмы', 2],
+  ['veil_of_night', 'Покров ночи', 3],
+  ['shadow_wraith', 'Теневой виверн', 3],
+  ['void_horror', 'Ужас пустоты', 4],
+  ['shadow_step', 'Теневой шаг', 1],
+  ['invisibility', 'Невидимость', 2],
+  ['shroud_of_night', 'Ночной покров', 3],
+  ['dark_presence', 'Мрачное присутствие', 1],
+];
+const SCROLL_VALUE_09 = { 1: 45, 2: 60, 3: 115, 4: 240 };
+
+test('000235.09 W-06: 25 свитков 000233–000257 — id <spell>_scroll, kind spell_scroll, effect {kind:spell, spell:<id>} ∈ каталогу, tier = уровень спелла (ПИН), weight 0.2, name/desc по конвенции, value 45/60/115/240, rarity/icon/loot НЕТ, зеркало ≡ JSON', () => {
+  const byFile = new Map();
+  for (const f of fs.readdirSync(ITEMS_DIR)
+      .filter((x) => /^\d{6}\.json$/.test(x))) {
+    byFile.set(f, JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  }
+  const jsById = new Map(I.allItems().map((it) => [it.id, it]));
+  const tierCount = {};
+  SHADOW09_SCROLLS.forEach(([spellId, name, level], i) => {
+    const file = String(233 + i).padStart(6, '0') + '.json';
+    const j = byFile.get(file);
+    assert.ok(j, 'W-06: ' + file + ' в assets/items (RED: файла нет)');
+    assert.equal(j.id, spellId + '_scroll', file + ': id <spell>_scroll');
+    assert.equal(j.name, 'Свиток: ' + name,
+      spellId + ': name «Свиток: <название>»');
+    assert.equal(j.kind, 'spell_scroll', spellId + ': kind spell_scroll');
+    assert.equal(j.weight, 0.2, spellId + ': weight 0.2');
+    assert.equal(j.desc,
+      'Свиток: изучает «' + name + '» (нужен ранг школы.)',
+      spellId + ': desc-конвенция');
+    assert.deepEqual(j.effect, { kind: 'spell', spell: spellId },
+      spellId + ': effect {kind:spell, spell:<id>}');
+    assert.ok(SPELLS.SPELLS_BY_ID[spellId],
+      spellId + ': effect.spell ∈ каталогу заклинаний (RED: нет)');
+    assert.equal(j.tier, level,
+      spellId + ': tier = уровень спелла (' + level + ')');
+    assert.equal(j.value, SCROLL_VALUE_09[level],
+      spellId + ': value по тьеру (' + SCROLL_VALUE_09[level] + ')');
+    assert.equal(j.rarity, undefined, spellId + ': rarity НЕТ (пин RAR-G)');
+    assert.equal(j.icon, undefined, spellId + ': icon НЕТ (пин I1)');
+    assert.equal(j.loot, undefined, spellId + ': loot НЕТ (пин L3)');
+    const it = jsById.get(spellId + '_scroll');
+    assert.ok(it, 'W-06: зеркало items-data: ' + spellId + '_scroll (RED: нет)');
+    assert.deepEqual(it, j, spellId + '_scroll: зеркало ≡ JSON');
+    tierCount[level] = (tierCount[level] || 0) + 1;
+  });
+  assert.deepEqual(tierCount, { 1: 4, 2: 6, 3: 9, 4: 6 },
+    'распределение по тирам: T1×4 / T2×6 / T3×9 / T4×6');
 });

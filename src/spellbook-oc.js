@@ -204,7 +204,9 @@ function (G0, rootRef) {
       ? opts.outOfCombatCtx() : {};
     const ctx = Object.assign(
       { flameStep: (typeof opts.flameStep === "function")
-          ? opts.flameStep : null },
+          ? opts.flameStep : null,
+        shadowStep: (typeof opts.shadowStep === "function")
+          ? opts.shadowStep : null },
       ctxBase);
     const r = g.Spells.castOutOfCombat(opts.hero, spellId, opts.clock.day,
       ctx);
@@ -245,7 +247,9 @@ function (G0, rootRef) {
       outOfCombatCtx: (o && typeof o.outOfCombatCtx === "function")
         ? o.outOfCombatCtx : null,
       flameStep: (o && typeof o.flameStep === "function")
-        ? o.flameStep : null };
+        ? o.flameStep : null,
+      shadowStep: (o && typeof o.shadowStep === "function")
+        ? o.shadowStep : null };
     ready = true;
   }
 

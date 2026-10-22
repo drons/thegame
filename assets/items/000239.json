@@ -1,0 +1,13 @@
+{
+  "id": "dark_nova_scroll",
+  "name": "Свиток: Тёмная нова",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 240,
+  "tier": 4,
+  "desc": "Свиток: изучает «Тёмная нова» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "dark_nova"
+  }
+}

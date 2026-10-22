@@ -1127,3 +1127,201 @@ test('000235.08 W-12b. e2e: frozen_stillness (radius 5, days 1) — (a) каст
   assert.equal(cap2.calls, 1, '(b): боев за сценарий РОВНО 1');
   resolveCombatVictory(G2, c2, '(b) возвращение зоны');
 });
+
+// =====================================================================
+// 000235.09 — Волна Тень: W-11b (shroud_of_night) + W-12b
+// (dark_presence) — e2e зональной механики (красные)
+//
+// Контракт memory/000235.09-shadow-wave-content.md §7 W-11(b)/
+// W-12(b). Фикстура — та же, что E4/E5/E6 и 000235.08 W-11b/W-12b
+// (мир-фолбэк): спавн (0,0); (2,3) — g4 territorial 5×5, триггер
+// (Чебышёв ≤ 2); (0,1)/(1,1)/(2,1) d=2 — зона, не тайл; (2,2) d=1;
+// (2,3) d=0 — тайл группы (тайл-бой). Свитки — РЕАЛЬНЫЕ ids каталога
+// (без гостя: строка в книге появляется только когда запись в
+// каталоге — краснота = «строка … в книге»).
+//
+// shroud_of_night: ПОЛНОЕ подавление зоны в радиусе 5 на 3 дня
+// (включая d=1 — контраст с сужением cold_breath/dark_presence);
+// зонаSuppressedReason-ветка ПОСЛЕ 'замерзание', причина 'покров
+// ночи' (R10); тайл-бой на (2,3) СОХРАНЯЕТСЯ (D6-паттерн E6);
+// HUD «— зона» гаснет (zoneCombatInfo → null — единая точка).
+// dark_presence: сужение радиуса триггера eff = max(1, 2−1) = 1
+// (R11: Math.max с coldBreathRadius в 5-м аргументе findZoneCombat)
+// — d=2 — нет, d=1 — зона (сужение, а не подавление), 1 день.
+// =====================================================================
+
+test('000235.09 W-11b. e2e: shroud_of_night (radius 5, days 3, mp 15) — (a) КОНТРОЛЬ: (0,0)→(0,1) d=2 — зона-бой (существующее 000135); (b) каст (mp −15, запись {shroud_of_night, expiresDay:4}) → (0,1)/(1,1)/(2,1) d=2 — боя НЕТ, (2,2) d=1 — НЕТ (ПОЛНОЕ подавление — контраст с сужением), HUD «— зона» гаснет; шаг (2,3) ТАЙЛ группы — ТАЙЛ-БОЙ стартует (D6-контраст E6), запись жива; (c) каст → (0,1) — нет; setDay(4) — вылетела → (0,0)→(0,1) — зона-бой', async () => {
+  // (a) КОНТРОЛЬ: без каста — зона-бой (существующее поведение).
+  const h1 = await boot();
+  const G1 = h1.sandbox.Game;
+  const g1 = h1.sandbox.__game;
+  assertFallbackWorld(G1);
+  assertSpawn(g1);
+  assert.equal(g1.state.day, 1, 'фикстура (a): день 1');
+  dismissStartWindow(h1);
+  const cap1 = spyStartCombat(G1);
+  const walk1 = makeWalker(h1);
+  walk1(0, 1); // d=2 от (2,3) — зона триггерится
+  assert.equal(G1.combatUI.isActive(), true,
+    '(a) КОНТРОЛЬ: (0,1) d=2 — зона-бой (существующее 000135)');
+  const c1 = G1.combatUI.current();
+  assert.equal(c1.groupType, 4, '(a): паучье гнездо');
+  assert.equal(cap1.opts.seed, G1.hash2(2, 3, SALT),
+    '(a): seed zone-боя — от тайла ГРУППЫ');
+  resolveCombatVictory(G1, c1, '(a) контроль');
+
+  // (b) Каст → ПОЛНОЕ подавление (d=2 и d=1) + тайл-бой сохранён.
+  const h2 = await boot();
+  const G2 = h2.sandbox.Game;
+  const g2 = h2.sandbox.__game;
+  assertSpawn(g2);
+  assert.equal(g2.state.day, 1, 'фикстура (b): день 1');
+  dismissStartWindow(h2);
+  learn(h2, ['shroud_of_night']);
+  const mp02 = saveHero(h2).mp;
+  assert.equal(mp02, 16, 'фикстура (b): новый герой mp = maxMP 16');
+  assert.ok(castViaBook(h2, 'shroud_of_night'),
+    '(b) каст → книга ЗАКРЫТА (RED: строки нет — каталога волны нет)');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects),
+    [{ spellId: 'shroud_of_night', expiresDay: 4 }],
+    '(b) запись {shroud_of_night, expiresDay: day+3} (RED: [])');
+  assert.equal(saveHero(h2).mp, mp02 - 15,
+    '(b) mp ровно «мани» (16 − 15)');
+  const cap2 = spyStartCombat(G2);
+  assert.equal(G2.combatUI.isActive(), false, '(b): спавн без боя');
+  const walk2 = makeWalker(h2);
+  walk2(0, 1); // d=2 — в радиусе 5 — подавлено
+  walk2(1, 1); // d=2
+  walk2(2, 1); // d=2
+  walk2(2, 2); // d=1 — ПОДАВЛЕНО (контраст с сужением: там зона)
+  assert.equal(G2.combatUI.isActive(), false,
+    '(b) RED: (0,1)…(2,2) под shroud_of_night — зональных боёв НЕТ '
+    + '(даже d=1; master: зона-бой на (0,1))');
+  assert.equal(cap2.calls, 0, '(b) RED: startCombat 0 вызовов');
+  h2.frameFn(NOW + 16);
+  assert.ok(!String(h2.hud.textContent).includes('— зона'),
+    '(b) HUD: «— зона» гаснет под покровом (zoneCombatInfo → null): '
+    + JSON.stringify(h2.hud.textContent));
+  walk2(2, 3); // тайл g4 — тайл-бой (ветка до zone-скана)
+  assert.equal(G2.combatUI.isActive(), true,
+    '(b) RED: шаг НА тайл группы (2,3) — тайл-бой СТАРТУЕТ под '
+    + 'shroud_of_night (D6-контраст E6; master: бой и так на (0,1))');
+  const c2 = G2.combatUI.current();
+  assert.equal(c2.groupType, 4,
+    '(b) тайл-бой — паучье гнездо (тайл (2,3))');
+  assert.equal(cap2.calls, 1, '(b): боев за сценарий РОВНО 1');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects),
+    [{ spellId: 'shroud_of_night', expiresDay: 4 }],
+    '(b): запись ЖИВА после тайл-боя (вступление не снимает)');
+  resolveCombatVictory(G2, c2, '(b) тайл-бой под покровом');
+
+  // (c) Каст → подавление; setDay(4) → зона возвращается.
+  const h3 = await boot();
+  const G3 = h3.sandbox.Game;
+  const g3 = h3.sandbox.__game;
+  assertSpawn(g3);
+  assert.equal(g3.state.day, 1, 'фикстура (c): день 1');
+  dismissStartWindow(h3);
+  learn(h3, ['shroud_of_night']);
+  assert.ok(castViaBook(h3, 'shroud_of_night'),
+    '(c) каст → книга ЗАКРЫТА');
+  assert.deepEqual(host(g3.state.hero.outOfCombatEffects),
+    [{ spellId: 'shroud_of_night', expiresDay: 4 }],
+    '(c) запись активна (день 1)');
+  const cap3 = spyStartCombat(G3);
+  const walk3 = makeWalker(h3);
+  walk3(0, 1); // d=2 — подавлено
+  assert.equal(G3.combatUI.isActive(), false,
+    '(c) RED: (0,1) d=2 под shroud_of_night — боя НЕТ (master: '
+    + 'зона-бой)');
+  assert.equal(cap3.calls, 0, '(c) RED: startCombat 0 вызовов');
+  g3.actions.setDay(4); // days 3 → истечение на день 4
+  assert.equal(g3.state.day, 4, '(c): дни прошли (setDay)');
+  assert.deepEqual(host(g3.state.hero.outOfCombatEffects), [],
+    '(c) истечение: запись вылетела (день-хук)');
+  walk3(0, 0);
+  walk3(0, 1); // эффект истёк — зона триггерится
+  assert.equal(G3.combatUI.isActive(), true,
+    '(c): после истечения (0,1) d=2 — зона-бой ВОЗВРАЩАЕТСЯ');
+  const c3 = G3.combatUI.current();
+  assert.equal(c3.groupType, 4, '(c): паучье гнездо');
+  assert.equal(cap3.opts.seed, G3.hash2(2, 3, SALT),
+    '(c): seed zone-боя — от тайла ГРУППЫ');
+  assert.equal(cap3.calls, 1, '(c): боев за сценарий РОВНО 1');
+  resolveCombatVictory(G3, c3, '(c) возвращение зоны');
+});
+
+test('000235.09 W-12b. e2e: dark_presence (radius 5, days 1, mp 5) — (a) каст (mp −5, запись {dark_presence, expiresDay:2}) → (0,1)/(1,1)/(2,1) d=2 — боя НЕТ (сужение 2→1: eff = max(1, 2−1) = 1, Math.max с cold_breath), (2,2) d=1 — зона-бой (сужение, а не подавление — контраст с shroud_of_night); (b) каст → (0,1) — нет; setDay(2) — вылетела → (0,0)→(0,1) — зона-бой', async () => {
+  // (a) Сужение, а не подавление: d=2 — нет, d=1 — зона.
+  const h1 = await boot();
+  const G1 = h1.sandbox.Game;
+  const g1 = h1.sandbox.__game;
+  assertFallbackWorld(G1);
+  assertSpawn(g1);
+  assert.equal(g1.state.day, 1, 'фикстура (a): день 1');
+  dismissStartWindow(h1);
+  learn(h1, ['dark_presence']);
+  const mp01 = saveHero(h1).mp;
+  assert.equal(mp01, 16, 'фикстура (a): новый герой mp = maxMP 16');
+  assert.ok(castViaBook(h1, 'dark_presence'),
+    '(a) каст → книга ЗАКРЫТА (RED: строки нет — каталога волны нет)');
+  assert.deepEqual(host(g1.state.hero.outOfCombatEffects),
+    [{ spellId: 'dark_presence', expiresDay: 2 }],
+    '(a) запись {dark_presence, expiresDay: day+1} (RED: [])');
+  assert.equal(saveHero(h1).mp, mp01 - 5,
+    '(a) mp ровно «мани» (16 − 5)');
+  const cap1 = spyStartCombat(G1);
+  assert.equal(G1.combatUI.isActive(), false, '(a): спавн без боя');
+  const walk1 = makeWalker(h1);
+  walk1(0, 1); // d=2 — под dark_presence (радиус 5): eff r = 1 → НИ
+  // ЗОНЫ
+  walk1(1, 1); // d=2
+  walk1(2, 1); // d=2
+  assert.equal(G1.combatUI.isActive(), false,
+    '(a) RED: (0,1)/(1,1)/(2,1) d=2 под dark_presence — боя НЕТ '
+    + '(master: зона-бой на (0,1))');
+  assert.equal(cap1.calls, 0, '(a) RED: startCombat 0 вызовов');
+  walk1(2, 2); // d=1 ≤ eff r=1 — зона ТРИГГЕРИТСЯ (не подавлена)
+  assert.equal(G1.combatUI.isActive(), true,
+    '(a) RED: (2,2) d=1 под dark_presence — зона-бой (сужение, а не '
+    + 'подавление — контраст с shroud_of_night)');
+  const c1 = G1.combatUI.current();
+  assert.equal(c1.groupType, 4, '(a): паучье гнездо');
+  assert.equal(cap1.calls, 1, '(a): боев за сценарий РОВНО 1');
+  resolveCombatVictory(G1, c1, '(a) d=1');
+
+  // (b) Каст → сужение; setDay(2) → зона возвращается.
+  const h2 = await boot();
+  const G2 = h2.sandbox.Game;
+  const g2 = h2.sandbox.__game;
+  assertSpawn(g2);
+  assert.equal(g2.state.day, 1, 'фикстура (b): день 1');
+  dismissStartWindow(h2);
+  learn(h2, ['dark_presence']);
+  assert.ok(castViaBook(h2, 'dark_presence'),
+    '(b) каст → книга ЗАКРЫТА');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects),
+    [{ spellId: 'dark_presence', expiresDay: 2 }],
+    '(b) запись активна (день 1)');
+  const cap2 = spyStartCombat(G2);
+  const walk2 = makeWalker(h2);
+  walk2(0, 1); // d=2 — под dark_presence: eff r = 1 → НИ ЗОНЫ
+  assert.equal(G2.combatUI.isActive(), false,
+    '(b) RED: (0,1) d=2 под dark_presence — боя НЕТ (master: '
+    + 'зона-бой)');
+  assert.equal(cap2.calls, 0, '(b) RED: startCombat 0 вызовов');
+  g2.actions.setDay(2); // rest() → onDay → expireOutOfCombatEffects
+  assert.equal(g2.state.day, 2, '(b): день прошёл (setDay)');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects), [],
+    '(b) истечение: запись вылетела (день-хук)');
+  walk2(0, 0);
+  walk2(0, 1); // эффект истёк — зона триггерится
+  assert.equal(G2.combatUI.isActive(), true,
+    '(b): после истечения (0,1) d=2 — зона-бой ВОЗВРАЩАЕТСЯ');
+  const c2 = G2.combatUI.current();
+  assert.equal(c2.groupType, 4, '(b): паучье гнездо');
+  assert.equal(cap2.opts.seed, G2.hash2(2, 3, SALT),
+    '(b): seed zone-боя — от тайла ГРУППЫ');
+  assert.equal(cap2.calls, 1, '(b): боев за сценарий РОВНО 1');
+  resolveCombatVictory(G2, c2, '(b) возвращение зоны');
+});

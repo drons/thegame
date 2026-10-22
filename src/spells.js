@@ -840,15 +840,17 @@
     }
     const days = outOfCombatDays(spell);
     if (typeof days === 'string') return { ok: false, reason: days };
-    if (spellId === 'flame_step') {
+    if (spellId === 'flame_step' || spellId === 'shadow_step') {
       const free = isHeroFreeCast(p, spellId);
       if (!free
           && (typeof p.mp !== 'number' || p.mp < (spell['мани'] || 0))) {
         return { ok: false, reason: 'не хватает маны' };
       }
       if (ctx !== undefined) {
-        const cb = ctx && typeof ctx.flameStep === 'function'
-          ? ctx.flameStep : null;
+        const cbKey = spellId === 'shadow_step'
+          ? 'shadowStep' : 'flameStep';
+        const cb = ctx && typeof ctx[cbKey] === 'function'
+          ? ctx[cbKey] : null;
         if (!cb) {
           return { ok: false, reason: 'телепорт недоступен здесь' };
         }
@@ -892,6 +894,8 @@
       case 'frost_walk':
       case 'cold_breath':
       case 'frozen_stillness':
+      case 'shroud_of_night':
+      case 'dark_presence':
         break;
       default:
         break;
@@ -1121,6 +1125,52 @@
     return best;
   }
 
+  // 000235.09: shroud_of_night — радиус активной записи (паттерн
+  // frozenStillnessRadius; независимая копия, spellId 'shroud_of_night').
+  function shroudOfNightRadius(p, day) {
+    if (!isPlainObject(p) || !Array.isArray(p.outOfCombatEffects)) {
+      return 0;
+    }
+    let best = 0;
+    for (const e of p.outOfCombatEffects) {
+      if (!isPlainObject(e)) continue;
+      if (e.spellId !== 'shroud_of_night') continue;
+      if (typeof e.expiresDay !== 'number' || e.expiresDay <= day) {
+        continue;
+      }
+      const spell = SPELLS_BY_ID['shroud_of_night'];
+      const radius = (spell && isPlainObject(spell.параметры))
+        ? spell.параметры.radius : undefined;
+      const r = (typeof radius === 'number' && Number.isInteger(radius)
+        && radius >= 1 && radius <= 5) ? radius : 5;
+      if (r > best) best = r;
+    }
+    return best;
+  }
+
+  // 000235.09: dark_presence — радиус активной записи (паттерн
+  // frozenStillnessRadius; независимая копия, spellId 'dark_presence').
+  function darkPresenceRadius(p, day) {
+    if (!isPlainObject(p) || !Array.isArray(p.outOfCombatEffects)) {
+      return 0;
+    }
+    let best = 0;
+    for (const e of p.outOfCombatEffects) {
+      if (!isPlainObject(e)) continue;
+      if (e.spellId !== 'dark_presence') continue;
+      if (typeof e.expiresDay !== 'number' || e.expiresDay <= day) {
+        continue;
+      }
+      const spell = SPELLS_BY_ID['dark_presence'];
+      const radius = (spell && isPlainObject(spell.параметры))
+        ? spell.параметры.radius : undefined;
+      const r = (typeof radius === 'number' && Number.isInteger(radius)
+        && radius >= 1 && radius <= 5) ? radius : 5;
+      if (r > best) best = r;
+    }
+    return best;
+  }
+
   // 000235.04: hero.portal_marker из (подделанного) сейва:
   // валидный {x, y, day} → каноническая КОПИЯ; иначе null (молча,
   // load-clean 000038).
@@ -1236,5 +1286,6 @@
     nearestBuiltCity, nearestPassableTile, wardRadius,
     sanitizePortalMarker, PORTAL_SEARCH_RADIUS,
     isHeroFrostWalk, coldBreathRadius, frozenStillnessRadius,
+    shroudOfNightRadius, darkPresenceRadius,
   };
 });

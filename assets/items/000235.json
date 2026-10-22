@@ -1,0 +1,13 @@
+{
+  "id": "void_arrow_scroll",
+  "name": "Свиток: Стрела пустоты",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Стрела пустоты» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "void_arrow"
+  }
+}

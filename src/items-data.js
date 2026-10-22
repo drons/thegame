@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000232.json);
+  // Предметы (assets/items/000001.json … 000257.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -2882,6 +2882,281 @@
       slot: "torso",
       rarity: "impossible",
       affixes: [{ type: "skill", skill: "hide", amount: 0.4 }, { type: "skill", skill: "breath", amount: 0.35 }],
+    },
+    // 000233.json
+    {
+      id: "umbra_bolt_scroll",
+      name: "Свиток: Умбровый снаряд",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Умбровый снаряд» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "umbra_bolt" },
+    },
+    // 000234.json
+    {
+      id: "drain_life_scroll",
+      name: "Свиток: Пожизненная сила",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Пожизненная сила» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "drain_life" },
+    },
+    // 000235.json
+    {
+      id: "void_arrow_scroll",
+      name: "Свиток: Стрела пустоты",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Стрела пустоты» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "void_arrow" },
+    },
+    // 000236.json
+    {
+      id: "night_strike_scroll",
+      name: "Свиток: Ночной удар",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Ночной удар» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "night_strike" },
+    },
+    // 000237.json
+    {
+      id: "soul_drain_scroll",
+      name: "Свиток: Извлечение души",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Извлечение души» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "soul_drain" },
+    },
+    // 000238.json
+    {
+      id: "shadowflame_scroll",
+      name: "Свиток: Теневое пламя",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Теневое пламя» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "shadowflame" },
+    },
+    // 000239.json
+    {
+      id: "dark_nova_scroll",
+      name: "Свиток: Тёмная нова",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Тёмная нова» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "dark_nova" },
+    },
+    // 000240.json
+    {
+      id: "shroud_scroll",
+      name: "Свиток: Теневая вуаль",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Теневая вуаль» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "shroud" },
+    },
+    // 000241.json
+    {
+      id: "night_blade_scroll",
+      name: "Свиток: Ночное лезвие",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Ночное лезвие» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "night_blade" },
+    },
+    // 000242.json
+    {
+      id: "vampire_touch_scroll",
+      name: "Свиток: Вампирское прикосновение",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Вампирское прикосновение» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "vampire_touch" },
+    },
+    // 000243.json
+    {
+      id: "fear_scroll",
+      name: "Свиток: Страх",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Страх» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "fear" },
+    },
+    // 000244.json
+    {
+      id: "doom_mark_scroll",
+      name: "Свиток: Печать дурного предзнаменования",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Печать дурного предзнаменования» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "doom_mark" },
+    },
+    // 000245.json
+    {
+      id: "despair_scroll",
+      name: "Свиток: Отчаяние",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Отчаяние» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "despair" },
+    },
+    // 000246.json
+    {
+      id: "shadow_curse_scroll",
+      name: "Свиток: Теневое проклятие",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Теневое проклятие» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "shadow_curse" },
+    },
+    // 000247.json
+    {
+      id: "shadow_bind_scroll",
+      name: "Свиток: Теневые узы",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Теневые узы» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "shadow_bind" },
+    },
+    // 000248.json
+    {
+      id: "nightmare_scroll",
+      name: "Свиток: Кошмар",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Кошмар» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "nightmare" },
+    },
+    // 000249.json
+    {
+      id: "dark_ensnare_scroll",
+      name: "Свиток: Тёмные оковы",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Тёмные оковы» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "dark_ensnare" },
+    },
+    // 000250.json
+    {
+      id: "shadow_pool_scroll",
+      name: "Свиток: Лужа тьмы",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Лужа тьмы» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "shadow_pool" },
+    },
+    // 000251.json
+    {
+      id: "veil_of_night_scroll",
+      name: "Свиток: Покров ночи",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Покров ночи» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "veil_of_night" },
+    },
+    // 000252.json
+    {
+      id: "shadow_wraith_scroll",
+      name: "Свиток: Теневой виверн",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Теневой виверн» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "shadow_wraith" },
+    },
+    // 000253.json
+    {
+      id: "void_horror_scroll",
+      name: "Свиток: Ужас пустоты",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Ужас пустоты» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "void_horror" },
+    },
+    // 000254.json
+    {
+      id: "shadow_step_scroll",
+      name: "Свиток: Теневой шаг",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Теневой шаг» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "shadow_step" },
+    },
+    // 000255.json
+    {
+      id: "invisibility_scroll",
+      name: "Свиток: Невидимость",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Невидимость» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "invisibility" },
+    },
+    // 000256.json
+    {
+      id: "shroud_of_night_scroll",
+      name: "Свиток: Ночной покров",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Ночной покров» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "shroud_of_night" },
+    },
+    // 000257.json
+    {
+      id: "dark_presence_scroll",
+      name: "Свиток: Мрачное присутствие",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Мрачное присутствие» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "dark_presence" },
     },
   ];
 

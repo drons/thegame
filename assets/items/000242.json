@@ -1,0 +1,13 @@
+{
+  "id": "vampire_touch_scroll",
+  "name": "Свиток: Вампирское прикосновение",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Вампирское прикосновение» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "vampire_touch"
+  }
+}

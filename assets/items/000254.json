@@ -1,0 +1,13 @@
+{
+  "id": "shadow_step_scroll",
+  "name": "Свиток: Теневой шаг",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Теневой шаг» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "shadow_step"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "shroud_of_night_scroll",
+  "name": "Свиток: Ночной покров",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Ночной покров» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "shroud_of_night"
+  }
+}

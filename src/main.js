@@ -2001,6 +2001,7 @@
   if (G.spellbookOC) {
     G.spellbookOC.init({ hero, clock, flash, startWindow,
       flameStep: performFlameStep,
+      shadowStep: performFlameStep,
       // 000235.04: ctx портала — функция (вызов на КАСТ: map — let,
       // переприсваивается при загрузке мира; x/y — свежие).
       outOfCombatCtx: () => ({
@@ -2307,6 +2308,18 @@
         if (d <= r) return 'замерзание';
       }
     }
+    // 000235.09: shroud_of_night — зональная ветка (паттерн
+    // frozen_stillness; полный порядок причин: невидимость → круг
+    // защиты → замерзание → покров ночи).
+    if (zone && G.Spells
+        && typeof G.Spells.shroudOfNightRadius === 'function') {
+      const r = G.Spells.shroudOfNightRadius(hero, clock.day);
+      if (r > 0) {
+        const d = Math.max(Math.abs(player.x - zone.x),
+                           Math.abs(player.y - zone.y));
+        if (d <= r) return 'покров ночи';
+      }
+    }
     return null;
   }
 
@@ -2320,10 +2333,16 @@
     if (typeof G.findZoneCombat !== 'function') return null;
     if (zoneSuppressedReason()) return null;
     // 000235.08: cold_breath — сужение радиуса триггера (0 →
-    // вызов идентичен вызову без 5-го аргумента).
-    const cb = (G.Spells
+    // вызов идентичен вызову без 5-го аргумента). 000235.09:
+    // dark_presence — тот же 5-й аргумент, сужение = max из двух
+    // источников (оба активных → −1, не −2).
+    const cb0 = (G.Spells
       && typeof G.Spells.coldBreathRadius === 'function')
       ? G.Spells.coldBreathRadius(hero, clock.day) : 0;
+    const dp = (G.Spells
+      && typeof G.Spells.darkPresenceRadius === 'function')
+      ? G.Spells.darkPresenceRadius(hero, clock.day) : 0;
+    const cb = Math.max(cb0, dp);
     const z = G.findZoneCombat(player.x, player.y,
       nearbyGroupTiles(), defeatedAt, cb);
     if (z && zoneSuppressedReason(z)) return null;
@@ -3493,10 +3512,16 @@
     if (typeof G.groupZoneInfo === 'function') {
       // 000235.08: cold_breath — сужение радиуса триггера в отрисовке
       // (UI не врёт про радиус; локальная переменная, info НЕ
-      // мутируется; 0 → без сужения, как до).
-      const cbR = (G.Spells
+      // мутируется; 0 → без сужения, как до). 000235.09:
+      // dark_presence — max из двух источников (одна переменная до
+      // цикла).
+      const cbR0 = (G.Spells
         && typeof G.Spells.coldBreathRadius === 'function')
         ? G.Spells.coldBreathRadius(hero, clock.day) : 0;
+      const dpR = (G.Spells
+        && typeof G.Spells.darkPresenceRadius === 'function')
+        ? G.Spells.darkPresenceRadius(hero, clock.day) : 0;
+      const cbR = Math.max(cbR0, dpR);
       for (const t of frameTiles) {
         if (!t.hasMobGroup) continue;
         if (G.groupVisible && !G.groupVisible(defeatedAt, t.x, t.y)) continue;

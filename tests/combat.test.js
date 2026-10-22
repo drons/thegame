@@ -8981,6 +8981,16 @@ const SCROLL_IDS_000235 = [
   'freeze_scroll', 'glacier_grasp_scroll', 'frost_wisp_scroll',
   'winter_elemental_scroll', 'frost_walk_scroll', 'cold_breath_scroll',
   'frozen_stillness_scroll',
+  // ре-пин 000235.09: +25 свитков волны Тень 000233–000257
+  'umbra_bolt_scroll', 'drain_life_scroll', 'void_arrow_scroll',
+  'night_strike_scroll', 'soul_drain_scroll', 'shadowflame_scroll',
+  'dark_nova_scroll', 'shroud_scroll', 'night_blade_scroll',
+  'vampire_touch_scroll', 'fear_scroll', 'doom_mark_scroll',
+  'despair_scroll', 'shadow_curse_scroll', 'shadow_bind_scroll',
+  'nightmare_scroll', 'dark_ensnare_scroll', 'shadow_pool_scroll',
+  'veil_of_night_scroll', 'shadow_wraith_scroll', 'void_horror_scroll',
+  'shadow_step_scroll', 'invisibility_scroll', 'shroud_of_night_scroll',
+  'dark_presence_scroll',
 ];
 // Каталог ТЗ: id → {school, tier} (тиры = уровни заклинаний:
 // fireball L2, flame_burst L3, frost_bolt L1, blizzard L3, chill L1,

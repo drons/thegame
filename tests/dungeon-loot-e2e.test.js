@@ -679,10 +679,14 @@ test('000191.12: успешная ветка сундука (add.ok → «, <nam
 // item light_heal_scroll (старый выбор) → chill_scroll (tier-выбор).
 // РЕ-ПИН 000232+000235.05 (пост-мерж): пул CRYPT += 2 чертежа (T1) →
 // c0 = blueprint_carving (dseed/позиции/gold — бит-в-бит).
+// РЕ-ПИН 000235.09 (пробный сим на прототипе пула): CRYPT-пул += 25
+// свитков волны Тень (T1-фильтр 7 → 11: +umbra_bolt/shroud/
+// shadow_step/dark_presence) → c0 = dark_presence_scroll
+// (dseed/позиции/gold — бит-в-бит).
 // Мобы (16,3)/(21,10)/(11,9) — не у входа (соседи (8,19) свободны).
 // ----------------------------------------------------------------------
 
-test('000235.05 E1: сундук → свиток → изучение → сейв (FOREST, dseed 820179115, c0 = blueprint_carving)', async () => {
+test('000235.05 E1: сундук → свиток → изучение → сейв (FOREST, dseed 820179115, c0 = dark_presence_scroll)', async () => {
   const h = await boot(seedSave({
     day: 2,
     hero: mkHero({
@@ -697,14 +701,16 @@ test('000235.05 E1: сундук → свиток → изучение → се�
     'ошибок загрузки нет: ' + h.errors.join('; '));
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
-  // (a) Генерационный пин (красный драйвер): CRYPT-пул [alchemy_manual,
-  //     chainmail, mana_potion, meditation_scroll, chill_scroll (T1),
-  //     light_heal_scroll (T2)] на глубине 1 (T=1) — tier-выбор даёт
-  //     chill_scroll; старый равномерный выбор — light_heal_scroll.
+  // (a) Генерационный пин (красный драйвер): CRYPT-пул на глубине 1
+  //     (T=1) — tier-фильтр T1-предметов.
   // РЕ-ПИН 000232+000235.05 (пост-мерж): CRYPT-пул += blueprint_alchemy/
   //     blueprint_carving (000232, концом; оба T1) → пул 8, tier-фильтр
-  //     T=1 → 7 → c0 = blueprint_carving (фильтр-индекс 6, по факту
-  //     генерации; dseed/позиции/gold — бит-в-бит).
+  //     T=1 → 7 → c0 = blueprint_carving (dseed/позиции/gold —
+  //     бит-в-бит).
+  // РЕ-ПИН 000235.09: CRYPT-пул += 25 свитков волны Тень КОНЦОМ
+  //     (T1-фильтр 7 → 11) → c0 = dark_presence_scroll
+  //     (dseed/позиции/gold — бит-в-бит; сим — memory/
+  //     000235.09-shadow-wave-content.md §10).
   const ds = g.actions.enterDungeon(G.TERRAIN.FOREST);
   assert.ok(ds, 'enterDungeon(FOREST) — состояние подземелья');
   assert.equal(ds.dg.seed, 820179115, 'dseed (сценарий: FOREST, totalXp=1)');
@@ -712,9 +718,9 @@ test('000235.05 E1: сундук → свиток → изучение → се�
   assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
   assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold,
     item: c0.item },
-    { x: 12, y: 4, opened: false, gold: 29, item: 'blueprint_carving' },
-    'c0: tier-выбор — blueprint_carving (ре-пин 000232+000235.05; '
-    + 'краснота: равномерный выбор — '
+    { x: 12, y: 4, opened: false, gold: 29, item: 'dark_presence_scroll' },
+    'c0: CRYPT-пул +25 свитков волны Тень — dark_presence_scroll '
+    + '(ре-пин 000235.09; краснота: '
     + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold, item: c0.item }) + ')');
   // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-
   //     соседе входа (паттерн 000191.12 — без pathfinding-зависимости).
@@ -962,5 +968,99 @@ test('000235.08 W-09: сундук CAVE → свиток льда → изуче
   assert.ok(Array.isArray(parsed.data.hero.spells)
     && parsed.data.hero.spells.includes('ice_lance'),
     'сейв: hero.spells содержит ice_lance (saveNow при смене дня); '
+    + 'факт: ' + JSON.stringify(parsed.data.hero.spells));
+});
+
+// --- Задача 000235.09: W-09 — полный путь «сундук CRYPT → свиток волны
+// Тень → изучение → сейв» (контракт memory/000235.09-shadow-wave-
+// content.md §7 W-09; паттерн 000235.08 W-09).
+//
+// КРАСНОЕ (генерационный пин): пул CRYPT (000002.json) = 8 предметов,
+// свитков волны Тень НЕТ — c0 содержит предмет старого пула.
+// ЗЕЛЁНОЕ: +25 свитков в КОНЦЕ пула (T1-фильтр 7 → 11) →
+// c0 = dark_presence_scroll. Калибровка (пробный сим на прототипе
+// пула, детерминизм перепроверен): dseed 820179115, c0 (12,4) gold 29
+// item dark_presence_scroll (dseed/позиции/gold — бит-в-бит с
+// генерацией; сим — контракт §10).
+test('000235.09 W-09: сундук CRYPT → свиток тени → изучение → сейв (FOREST, dseed 820179115, c0 = dark_presence_scroll)', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({
+      totalXp: 1,
+      primary: {
+        strength: 2, dexterity: 1, constitution: 1,
+        intelligence: 11, wisdom: 1, charisma: 1,
+      },
+    }),
+  }));
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  // (a) Генерационный пин (красный драйвер): CRYPT-пул (8 + 25 свитков
+  //     волны) на глубине 1 (T=1, T1-фильтр 11) — c0 =
+  //     dark_presence_scroll.
+  const ds = g.actions.enterDungeon(G.TERRAIN.FOREST);
+  assert.ok(ds, 'enterDungeon(FOREST) — состояние подземелья');
+  assert.equal(ds.dg.type, G.DUNGEON_TYPES.CRYPT,
+    'FOREST → CRYPT (синтетические пиксели, alpha 255)');
+  assert.equal(ds.dg.seed, 820179115,
+    'dseed (сценарий: FOREST, totalXp=1)');
+  const c0 = ds.contents.chests[0];
+  assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
+  assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold,
+    item: c0.item },
+    { x: 12, y: 4, opened: false, gold: 29, item: 'dark_presence_scroll' },
+    'c0: CRYPT-пул +25 свитков волны Тень — dark_presence_scroll '
+    + '(краснота: '
+    + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold, item: c0.item })
+    + ')');
+  // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-
+  //     соседе входа (паттерн E1/000191.12 — без pathfinding).
+  const cell = asideDir(G, ds.dg);
+  assert.ok(cell, 'FLOOR-клетка-сосед входа найдена');
+  ds.contents = {
+    mobs: [],
+    chests: [{ id: 'c0', x: cell.x, y: cell.y, opened: false, gold: 29,
+      item: 'invisibility_scroll' }],
+    seed: 1, step: 0,
+  };
+  stepTo(h, cell.x, cell.y); // шаг на сундук → openChest
+  const line = ds.log.find((l) => l.startsWith('Сундук: +'));
+  assert.ok(line, 'строка сундука в ds.log: ' + JSON.stringify(ds.log));
+  const it = G.getItem('invisibility_scroll');
+  assert.ok(it, 'invisibility_scroll в каталоге items (RED: нет)');
+  assert.equal(line, 'Сундук: +29 золота, ' + it.name,
+    'строка сундука побайтово: ' + line);
+  assert.deepEqual(host(g.state.hero.inventory),
+    [{ id: 'invisibility_scroll', qty: 1 }],
+    'свиток в инвентаре (qty 1)');
+  // (c) Изучение: INT 11 → Знаток (tier 2) ≥ invisibility (L2) → ok;
+  //     мост — живые spells/inventory + первичные атрибуты (паттерн E1).
+  const liveSlots = g.state.hero.inventory;
+  const bridge = {
+    level: g.state.hero.level,
+    hp: g.state.hero.hp,
+    primary: {
+      strength: 2, dexterity: 1, constitution: 1,
+      intelligence: 11, wisdom: 1, charisma: 1,
+    },
+    secondary: {},
+    spells: g.state.hero.spells,
+    inventory: { slots: liveSlots, quick: [] },
+  };
+  const res = G.useItem(bridge, 'invisibility_scroll');
+  assert.equal(res.ok, true,
+    'useItem invisibility_scroll ok (INT 11 ≥ L2): ' + JSON.stringify(res));
+  assert.ok(g.state.hero.spells.includes('invisibility'),
+    'hero.spells += invisibility (мост — живая ссылка)');
+  assert.equal(G.totalQty(bridge, 'invisibility_scroll'), 0,
+    'свиток потрачен (живой инвентарь)');
+  // (d) Сейв: rest → onDay → saveNow — invisibility в hero.spells сейва.
+  g.actions.setDay(3);
+  const parsed = JSON.parse(h.storage.getItem(SAVE_KEY));
+  assert.ok(Array.isArray(parsed.data.hero.spells)
+    && parsed.data.hero.spells.includes('invisibility'),
+    'сейв: hero.spells содержит invisibility (saveNow при смене дня); '
     + 'факт: ' + JSON.stringify(parsed.data.hero.spells));
 });

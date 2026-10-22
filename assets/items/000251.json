@@ -1,0 +1,13 @@
+{
+  "id": "veil_of_night_scroll",
+  "name": "Свиток: Покров ночи",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Покров ночи» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "veil_of_night"
+  }
+}

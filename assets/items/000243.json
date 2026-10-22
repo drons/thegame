@@ -1,0 +1,13 @@
+{
+  "id": "fear_scroll",
+  "name": "Свиток: Страх",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Страх» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "fear"
+  }
+}

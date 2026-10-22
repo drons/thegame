@@ -797,12 +797,14 @@ test('000070 golden: CAVE (37, −12) — закреплённые wallObjs', ()
 // «предметы» (золотые значения DUNGEON_ITEMS ре-пинятся на стадии
 // ЗЕЛЁНОЙ — §5, здесь фиксируется целевой состав).
 
-test('S3. 000133: пулы подземелий — 58 свитков, каждый ровно в одном', () => {
+test('S3. 000133: пулы подземелий — 83 свитка, каждый ровно в одном', () => {
   // Целевые пулы (текущий состав + приложенные свитки).
   // Ре-пин 000232: приложенные чертежи (каждый РОВНО в одном пуле;
   // простая пещера 000001.json — БЕЗ ИЗМЕНЕНИЙ). Ре-пин 000235.07:
   // +25 свитков волны Огонь КОНЦОМ пула 000003 (RUINS). Ре-пин
   // 000235.08: +25 свитков волны Лёд КОНЦОМ пула 000001 (CAVE).
+  // Ре-пин 000235.09: +25 свитков волны Тень КОНЦОМ пула 000002
+  // (CRYPT).
   const EXPECTED = {
     '000001.json': ['iron_sword', 'healing_potion', 'sulfur',
       'stone_fist_grimoire', 'frost_bolt_scroll',
@@ -817,7 +819,17 @@ test('S3. 000133: пулы подземелий — 58 свитков, кажд�
       'cold_breath_scroll', 'frozen_stillness_scroll'],
     '000002.json': ['alchemy_manual', 'chainmail', 'mana_potion',
       'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
-      'blueprint_alchemy', 'blueprint_carving'],
+      'blueprint_alchemy', 'blueprint_carving',
+      'umbra_bolt_scroll', 'drain_life_scroll', 'void_arrow_scroll',
+      'night_strike_scroll', 'soul_drain_scroll', 'shadowflame_scroll',
+      'dark_nova_scroll', 'shroud_scroll', 'night_blade_scroll',
+      'vampire_touch_scroll', 'fear_scroll', 'doom_mark_scroll',
+      'despair_scroll', 'shadow_curse_scroll', 'shadow_bind_scroll',
+      'nightmare_scroll', 'dark_ensnare_scroll', 'shadow_pool_scroll',
+      'veil_of_night_scroll', 'shadow_wraith_scroll',
+      'void_horror_scroll', 'shadow_step_scroll',
+      'invisibility_scroll', 'shroud_of_night_scroll',
+      'dark_presence_scroll'],
     '000003.json': ['steel_sword', 'knight_plate', 'war_hammer',
       'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
       'blueprint_forge', 'blueprint_woodwork',
@@ -858,6 +870,16 @@ test('S3. 000133: пулы подземелий — 58 свитков, кажд�
     'freeze_scroll', 'glacier_grasp_scroll', 'frost_wisp_scroll',
     'winter_elemental_scroll', 'frost_walk_scroll',
     'cold_breath_scroll', 'frozen_stillness_scroll',
+    'umbra_bolt_scroll', 'drain_life_scroll', 'void_arrow_scroll',
+    'night_strike_scroll', 'soul_drain_scroll', 'shadowflame_scroll',
+    'dark_nova_scroll', 'shroud_scroll', 'night_blade_scroll',
+    'vampire_touch_scroll', 'fear_scroll', 'doom_mark_scroll',
+    'despair_scroll', 'shadow_curse_scroll', 'shadow_bind_scroll',
+    'nightmare_scroll', 'dark_ensnare_scroll', 'shadow_pool_scroll',
+    'veil_of_night_scroll', 'shadow_wraith_scroll',
+    'void_horror_scroll', 'shadow_step_scroll',
+    'invisibility_scroll', 'shroud_of_night_scroll',
+    'dark_presence_scroll',
   ]);
   const cat = loadDungeonCatalog();
   assert.equal(cat.length, 5, '5 подземелий (регрессия)');
@@ -2467,10 +2489,21 @@ const DUN_REF_PREV = {
   '000002.json': {
     мобы: ['skeleton', 'skeleton_archer', 'rot', 'vampire', 'bone_coloss'],
     постройки_id: 32,
-    // Ре-пин 000232: приложенные чертежи (концом массива).
+    // Ре-пин 000232: приложенные чертежи (концом массива). Ре-пин
+    // 000235.09: +25 свитков волны Тень КОНЦОМ пула (8 → 33).
     предметы: ['alchemy_manual', 'chainmail', 'mana_potion',
       'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
-      'blueprint_alchemy', 'blueprint_carving'],
+      'blueprint_alchemy', 'blueprint_carving',
+      'umbra_bolt_scroll', 'drain_life_scroll', 'void_arrow_scroll',
+      'night_strike_scroll', 'soul_drain_scroll', 'shadowflame_scroll',
+      'dark_nova_scroll', 'shroud_scroll', 'night_blade_scroll',
+      'vampire_touch_scroll', 'fear_scroll', 'doom_mark_scroll',
+      'despair_scroll', 'shadow_curse_scroll', 'shadow_bind_scroll',
+      'nightmare_scroll', 'dark_ensnare_scroll', 'shadow_pool_scroll',
+      'veil_of_night_scroll', 'shadow_wraith_scroll',
+      'void_horror_scroll', 'shadow_step_scroll',
+      'invisibility_scroll', 'shroud_of_night_scroll',
+      'dark_presence_scroll'],
     руда: [
       ['stone_chunk', 'минерал'], ['quartz', 'минерал'],
       ['obsidian', 'минерал'], ['amethyst', 'самоцвет'],
@@ -3025,14 +3058,16 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
 // (seed/mobs/deposits/позиции/gold) — бит-в-бит. Голдены rebase-
 // устойчивы к master с 000235.08: лёд тронут только CAVE-пул
 // (000001.json), свитки без rarity → EQUIP_POOLS/CRYPT/RUINS-пулы
-// неизменны.
+// неизменны. Ре-пин 000235.09: тень добавила 25 свитков в CRYPT-пул
+// (8→33) — старый сценарий (alpha 128) больше не ролил chainmail,
+// CRYPT-голён перебран на (9,9) alpha 255: c2 chainmail→
+// obsidian_pendant (rare); RUINS-пул не тронут — голдены без изменений.
 const CH5_PX = M.syntheticPixels(8, 8, 128, 128, 128, 128);
+const CH5_CRYPT_PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
 const CH5_CRYPT_CHESTS = [
-  { id: 'c0', x: 13, y: 11, opened: false, gold: 20, item: null },
-  { id: 'c1', x: 11, y: 11, opened: false, gold: 24, item: null },
-  { id: 'c2', x: 22, y: 12, opened: false, gold: 20, item: null },
-  { id: 'c3', x: 20, y: 9, opened: false, gold: 11, item: 'shell_beads' },
-  { id: 'c4', x: 15, y: 17, opened: false, gold: 22, item: 'blueprint_alchemy' },
+  { id: 'c0', x: 15, y: 13, opened: false, gold: 24, item: 'alchemy_manual' },
+  { id: 'c1', x: 22, y: 5, opened: false, gold: 18, item: 'dark_presence_scroll' },
+  { id: 'c2', x: 11, y: 4, opened: false, gold: 16, item: 'obsidian_pendant' },
 ];
 const CH5_RUINS_CHESTS = [
   { id: 'c0', x: 16, y: 15, opened: false, gold: 18, item: 'firelight_scroll' },
@@ -3049,31 +3084,34 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace акти
     for (const id of L.EQUIP_POOLS[t.id]) poolAll.add(id);
   const cases = [
     { name: 'CRYPT', type: 1, terrain: M.TERRAIN.FOREST,
-      w: 9, h: 9, xp: 1, armor: 'chainmail', seed: 278104214,
-      hash: 0x3fe0e9e5, r1: 0.1427152818068862,
-      r2: 0.6514383796602488, tier: 'common',
-      replaced: 'shell_beads', chests: CH5_CRYPT_CHESTS },
+      px: CH5_CRYPT_PX, trig: 'c2',
+      w: 9, h: 9, xp: 1, armor: 'chainmail', seed: 2268874394,
+      hash: 0xca045828, r1: 0.5693109286949039,
+      r2: 0.7047256221994758, tier: 'rare',
+      replaced: 'obsidian_pendant', chests: CH5_CRYPT_CHESTS },
     { name: 'RUINS', type: 2, terrain: M.TERRAIN.MOUNTAIN,
+      px: CH5_PX, trig: 'c3',
       w: 9, h: 9, xp: 3, armor: 'knight_plate', seed: 801567646,
       hash: 0x2fb95446, r1: 0.6180662265978754,
       r2: 0.2789345800410956, tier: 'rare',
       replaced: 'stone_bead', chests: CH5_RUINS_CHESTS },
   ];
   for (const cs of cases) {
-    const dA = D.createDungeon(cs.w, cs.h, CH5_PX, cs.terrain);
+    const dA = D.createDungeon(cs.w, cs.h, cs.px, cs.terrain);
     assert.equal(dA.type, cs.type,
       cs.name + ': тип подземелья (сценарий)');
     const A = D.generateDungeonContents(dA, heroAt(cs.xp));
     assert.equal(A.seed, cs.seed,
       cs.name + ': сид контента — закреплён');
     assert.deepEqual(A.chests, cs.chests,
-      cs.name + ': golden — сундук с «' + cs.armor + '» (c3) '
-      + 'ЗАМЕНЁН на «' + cs.replaced + '» (' + cs.tier + '-пул)');
+      cs.name + ': golden — сундук с «' + cs.armor + '» (' + cs.trig
+      + ') ЗАМЕНЁН на «' + cs.replaced + '» (' + cs.tier + '-пул)');
     assert.equal(hash2(cs.seed, 1, D.CHEST_EQ_SALT) >>> 0, cs.hash,
       cs.name + ': hash2(seed, 1, CHEST_EQ_SALT) — закреплён');
     const rng_eq = mulberry32(cs.hash);
     assert.equal(rng_eq(), cs.r1,
-      cs.name + ': r1 (tier, c3 — ЕДИНСТВЕННЫЙ триггернутый сундук)');
+      cs.name + ': r1 (tier, ' + cs.trig + ' — ЕДИНСТВЕННЫЙ '
+      + 'триггернутый сундук)');
     assert.equal(rng_eq(), cs.r2, cs.name + ': r2 (select, c3)');
     assert.equal(
       L.pickRarityTier(function () { return cs.r1; }), cs.tier,
@@ -3088,7 +3126,7 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace акти
     delete it.slot;
     try {
       const B = D.generateDungeonContents(
-        D.createDungeon(cs.w, cs.h, CH5_PX, cs.terrain), heroAt(cs.xp));
+        D.createDungeon(cs.w, cs.h, cs.px, cs.terrain), heroAt(cs.xp));
       assert.equal(B.seed, A.seed,
         cs.name + ': без slot — сид контента неизменен (main-rng)');
       assert.deepEqual(B.mobs, A.mobs,
@@ -3325,5 +3363,80 @@ test('W-07. 000235.08: пул CAVE 000001 — 30 предметов (5 + 25 св
   assert.equal(
     rec.предметы.filter((id) => tierOf(id) <= 1).length, 9,
     'баланс: 9 предметов T1 из 30 (RED: '
+    + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
+});
+
+// --- Задача 000235.09: волна Тень — пул CRYPT 000002 (W-07) ---
+//
+// Контракт memory/000235.09-shadow-wave-content.md §7: пул 000002
+// (CRYPT) = 8 существующих + 25 свитков волны Тень КОНЦОМ
+// (порядок таблицы ТЗ); каждый из 25 РОВНО в одном пуле (скан
+// ВСЕХ assets/dungeons); FALLBACK_DUNGEONS CRYPT (file://-ветка
+// dungeon.js) — 1:1 с каталогом; баланс (T1-фильтр depth-1:
+// tier || 1 ≤ 1): 11 из 33 (7 legacy — все кроме
+// light_heal_scroll T2 — + umbra_bolt/shroud/shadow_step/
+// dark_presence).
+const SHADOW09_SCROLLS = [
+  'umbra_bolt_scroll', 'drain_life_scroll', 'void_arrow_scroll',
+  'night_strike_scroll', 'soul_drain_scroll', 'shadowflame_scroll',
+  'dark_nova_scroll', 'shroud_scroll', 'night_blade_scroll',
+  'vampire_touch_scroll', 'fear_scroll', 'doom_mark_scroll',
+  'despair_scroll', 'shadow_curse_scroll', 'shadow_bind_scroll',
+  'nightmare_scroll', 'dark_ensnare_scroll', 'shadow_pool_scroll',
+  'veil_of_night_scroll', 'shadow_wraith_scroll', 'void_horror_scroll',
+  'shadow_step_scroll', 'invisibility_scroll', 'shroud_of_night_scroll',
+  'dark_presence_scroll',
+];
+
+test('W-07. 000235.09: пул CRYPT 000002 — 33 предмета (8 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 11/33', () => {
+  const cat = loadDungeonCatalog();
+  const crypt = cat.find(({ file }) => file === '000002.json');
+  assert.ok(crypt, '000002.json (CRYPT) в каталоге');
+  assert.equal(crypt.data.id, 1, '000002.json — CRYPT (id 1)');
+  const rec = resolvedDungeonRecord(crypt.data, crypt.file);
+  assert.deepEqual(rec.предметы,
+    ['alchemy_manual', 'chainmail', 'mana_potion',
+      'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
+      'blueprint_alchemy', 'blueprint_carving',
+      ...SHADOW09_SCROLLS],
+    'CRYPT: 33 предмета = 8 (legacy) + 25 свитков волны Тень КОНЦОМ '
+    + '(RED: ' + rec.предметы.length + ' — свитков волны нет)');
+  const poolCount = new Map();
+  for (const { file, data } of cat) {
+    const r2 = resolvedDungeonRecord(data, file);
+    for (const id of r2.предметы)
+      poolCount.set(id, (poolCount.get(id) || 0) + 1);
+  }
+  for (const id of SHADOW09_SCROLLS) {
+    assert.equal(poolCount.get(id) || 0, 1,
+      id + ': РОВНО в одном пуле (RED: '
+      + (poolCount.get(id) || 0) + ')');
+  }
+  const DUNGEON_CORE = ['src/global-settings.js', 'src/perlin.js',
+    'src/map.js'];
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of DUNGEON_CORE.concat('src/dungeon.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox,
+      { filename: f });
+  }
+  assert.deepEqual(
+    [...sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.CRYPT]],
+    rec.предметы,
+    'FALLBACK_DUNGEONS CRYPT — 1:1 с каталогом (RED: fallback на '
+    + sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.CRYPT].length
+    + ', каталог на ' + rec.предметы.length + ')');
+  const I = require(path.join(ROOT, 'src', 'items.js'));
+  const tierOf = (id) => {
+    const it = I.getItem(id);
+    return (it && it.tier) || 1;
+  };
+  assert.equal(rec.предметы.length, 33, 'баланс: 33 предмета (RED: '
+    + rec.предметы.length + ')');
+  assert.equal(
+    rec.предметы.filter((id) => tierOf(id) <= 1).length, 11,
+    'баланс: 11 предметов T1 из 33 (RED: '
     + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
 });

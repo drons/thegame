@@ -38,7 +38,7 @@
       id: 1,
       название: "склеп",
       мобы: ["skeleton", "skeleton_archer", "rot", "vampire", "bone_coloss"],
-      предметы: ["alchemy_manual", "chainmail", "mana_potion", "meditation_scroll", "chill_scroll", "light_heal_scroll", "blueprint_alchemy", "blueprint_carving"],
+      предметы: ["alchemy_manual", "chainmail", "mana_potion", "meditation_scroll", "chill_scroll", "light_heal_scroll", "blueprint_alchemy", "blueprint_carving", "umbra_bolt_scroll", "drain_life_scroll", "void_arrow_scroll", "night_strike_scroll", "soul_drain_scroll", "shadowflame_scroll", "dark_nova_scroll", "shroud_scroll", "night_blade_scroll", "vampire_touch_scroll", "fear_scroll", "doom_mark_scroll", "despair_scroll", "shadow_curse_scroll", "shadow_bind_scroll", "nightmare_scroll", "dark_ensnare_scroll", "shadow_pool_scroll", "veil_of_night_scroll", "shadow_wraith_scroll", "void_horror_scroll", "shadow_step_scroll", "invisibility_scroll", "shroud_of_night_scroll", "dark_presence_scroll"],
       размер: 27,
       постройка: 32,
       объекты_стен: ["column", "rock"],

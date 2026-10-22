@@ -1,0 +1,13 @@
+{
+  "id": "dark_presence_scroll",
+  "name": "Свиток: Мрачное присутствие",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Мрачное присутствие» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "dark_presence"
+  }
+}
