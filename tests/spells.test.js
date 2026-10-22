@@ -4589,3 +4589,112 @@ test('000235.09 W-15: drain NO-OP — drain_life/soul_drain {value:0.5} в ка�
   assert.equal(n, 29,
     'урон-заклинаний в каталоге: 29 из 92 (RED: 22 из 67; +7 урона волны Тень)');
 });
+
+// Задача 000240: flame_step × free_cast (000230.17) — пин (tests-only,
+// src бит-в-бит). Ретро 000235.07 finding #3: собственная дублирующая
+// free-проверка ветки flame_step (src/spells.js :844/:863) вручную
+// резолвлена в конфликте ребейза 000235.07 без пина. Реальный каталог
+// не содержит free_cast-предмета с flame_step (6 free_cast-предметов —
+// все боевые) → фикстура-кольцо через Game.ITEMS в vm ДО load items.js
+// (паттерн FC1–FC8, tests/spellbook-oc-freecast.test.js). flame_step —
+// КАТАЛОЖНЫЙ спелл (реальный spells-data.js в цепи), гость-инъекция
+// не нужна. Контракт: memory/000240-flame-step-freecast-pin.md.
+// Аппенд в EOF — EOF-паттерн файла (.07/.08/.09 дописаны по порядку
+// мержей); vm-хелперы не входят в чужой plain-node-блок W-10a.
+function loadVm240(fixtures) {
+  const chain = ['global-settings.js', 'perlin.js', 'map.js',
+    'skills-data.js', 'sheet.js', 'player.js', 'items.js', 'combat.js',
+    'spells-data.js', 'spells.js'];
+  const errors = [];
+  const sandbox = { console: { log() {}, warn() {},
+    error: (m) => errors.push(String(m)) } };
+  vm.createContext(sandbox);
+  for (const f of chain) {
+    if (f === 'items.js' && Array.isArray(fixtures)) sandbox.Game.ITEMS = fixtures;
+    vm.runInContext(
+      fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8'),
+      sandbox, { filename: f });
+  }
+  return { Game: sandbox.Game, errors };
+}
+
+// Фикстура-предмет: форма ПОБайТОВО как fcRing (FC1–FC8) — проходит
+// validateItem (items.js) при load в vm.
+function fcRing240(id, spell) {
+  return { id, name: 'Тестовое кольцо', kind: 'ring', slot: 'ring',
+    weight: 0.1, value: 30, desc: 'т',
+    affixes: [{ type: 'free_cast', spell }] };
+}
+
+function hero240(G, { mp, equipment }) {
+  const p = G.createCharacter();
+  p.spells = ['flame_step'];
+  p.mp = mp;
+  if (equipment) p.equipment = equipment;
+  return p;
+}
+
+test('000240 W-10a (vm): flame_step × free_cast — hero с кольцом free_cast «flame_step», mp 2 < 7: каст УДАЁТСЯ (ok:true, expiresDay null), mp НЕ изменилась (2), cb ровно 1 раз, записей нет — пин :844/:863 ветки flame_step (ретро 000235.07 finding #3)', () => {
+  const { Game: G, errors } = loadVm240([fcRing240('x240_fs', 'flame_step')]);
+  assert.deepEqual(errors, [], 'load-clean: 0 console.error');
+  let calls = 0;
+  const p = hero240(G, { mp: 2, equipment: { ring_left_1: 'x240_fs' } });
+  const r = G.Spells.castOutOfCombat(p, 'flame_step', 10, {
+    flameStep: () => { calls += 1; return { ok: true }; },
+  });
+  assert.equal(r.ok, true,
+    'free_cast — каст удаётся при mp 2 < 7: ' + JSON.stringify(r));
+  assert.equal(r.expiresDay, null, 'телепорт — expiresDay null');
+  assert.equal(p.mp, 2, 'ПИН: mp НЕ изменилась (free) — не 2−7=−5');
+  assert.equal(calls, 1, 'телепорт (cb) выполнен ровно 1 раз');
+  assert.equal(p.outOfCombatEffects, undefined, 'записей нет (телепорт)');
+});
+
+test('000240 W-10a (vm): flame_step × free_cast — контроль: free-проверка не «всегда true» и не «любые affixes»: кольцо free_cast «mend», mp 2 → «не хватает маны» ДО cb (calls 0, mp 2, записей нет); mp 30 → mp 23 (paid); без экипировки, mp 2 → отказ; кольцо «flame_step», mp 30 → mp 30 (НЕ 23) — якорь :863 в высоком mp-регионе', () => {
+  const { Game: G, errors } = loadVm240(
+    [fcRing240('x240_mend', 'mend'), fcRing240('x240_fs', 'flame_step')]);
+  assert.deepEqual(errors, [], 'load-clean: 0 console.error');
+  {
+    let calls = 0;
+    const p = hero240(G, { mp: 2, equipment: { ring_left_1: 'x240_mend' } });
+    const r = G.Spells.castOutOfCombat(p, 'flame_step', 10, {
+      flameStep: () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(r.ok, false,
+      'аффикс не на flame_step → платный путь → отказ (не «всегда true»)');
+    assert.equal(r.reason, 'не хватает маны', 'reason побайто');
+    assert.equal(calls, 0, 'cb НЕ вызван (проверка маны первая)');
+    assert.equal(p.mp, 2, 'mp без изменений');
+    assert.equal(p.outOfCombatEffects, undefined, 'записей нет');
+  }
+  {
+    let calls = 0;
+    const p = hero240(G, { mp: 30, equipment: { ring_left_1: 'x240_mend' } });
+    const r = G.Spells.castOutOfCombat(p, 'flame_step', 10, {
+      flameStep: () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(r.ok, true, 'paid — каст удаётся');
+    assert.equal(p.mp, 23, 'мана списана (30 − 7) — экипировка ≠ «free всё»');
+    assert.equal(calls, 1, 'cb вызван');
+  }
+  {
+    let calls = 0;
+    const p = hero240(G, { mp: 2 });
+    const r = G.Spells.castOutOfCombat(p, 'flame_step', 10, {
+      flameStep: () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(r.ok, false, 'без экипировки, mp 2 < 7 — отказ');
+    assert.equal(r.reason, 'не хватает маны', 'reason побайто');
+    assert.equal(calls, 0, 'cb НЕ вызван');
+    assert.equal(p.mp, 2, 'mp без изменений');
+  }
+  {
+    let calls = 0;
+    const p = hero240(G, { mp: 30, equipment: { ring_left_1: 'x240_fs' } });
+    const r = G.Spells.castOutOfCombat(p, 'flame_step', 10, {
+      flameStep: () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(r.ok, true, 'free + высокое mp — каст удаётся');
+    assert.equal(p.mp, 30, 'ПИН: mp 30 (НЕ 23) — якорь :863 (high mp)');
+  }
+});
