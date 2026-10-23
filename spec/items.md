@@ -43,6 +43,47 @@
  | diamond | Алмаз | 4 | 0.05 | 100 |
  * Рецепты крафта потребляют редкие тиры (000157.04).
 
+## Редкость и дроп экипировки
+* `rarity` — ОПЦИОНАЛЬНОЕ поле схемы assets/items (enum
+  common/rare/epic/legendary/impossible): есть ТОЛЬКО у
+  экипировочных (kind armor + явный `slot`); расходники — БЕЗ
+  rarity (БЕЗ рамки, 230.07-RAR-G). НЕ путать с `tier` руды
+  (целое 1..4 — раздел «Руды, минералы и самоцветы»).
+* Данные — src/loot-equip-data.js (UMD: браузер Game.LootEquipData,
+  node require; потребители combat.js/dungeon.js — на load):
+  * RARITY — 5 тиров, канонический порядок common, rare, epic,
+    legendary, impossible ОБЯЗАТЕЛЕН (acc-накопление): шанс
+    0.5/0.3/0.15/0.049/0.001 (сумма = 1 в FP).
+  * EQUIP_POOLS — ДАННЫЕ МОДУЛЯ (каталог в рантайме НЕ читается —
+    паттерн 000132): редкость = КЛЮЧ (id тира), id в каталожном
+    порядке, 60/42/30/12/6 = 150 (на момент 000230.11; волны
+    000230.12–.15 добавляют id КОНЦОМ тиров); legacy-брони
+    (leather_armor/chainmail/knight_plate — slot БЕЗ rarity)
+    НИКОГДА не в пулах.
+  * pickRarityTier(rngFn) — чистая: 1 вызов rngFn, строгое
+    r < acc, fallback = impossible (никогда не undefined);
+    FP-границы 0.9500000000000001/0.9990000000000001 — часть
+    контракта (пины EQ1/EQ3/CH4).
+* Дроп с сундуков (000230.05) — dungeon.js generateDungeonContents,
+  блок ПОСЛЕ залежей: триггер — сундук с непустым item, у предмета
+  ЯВНЫЙ slot (it.slot !== undefined; расходники/legacy — без
+  изменений); СВОЙ rng-поток rng_eq = mulberry32(hash2(seed,
+  depth, CHEST_EQ_SALT = 0x0E5C) >>> 0) (паттерн 000157.02);
+  вызовы строго по сундукам, только триггернутые (1 tier + 1
+  select при непустом тире); guard eqTotal > 0 ДО rng (пустые
+  пулы — 0 вызовов); замена ch.item IN-PLACE (новых ключей
+  объекта сундука нет — сериализатор save.js {id,x,y,opened,gold,
+  item} держится); главный rng/gold/mobs/позиции — бит-в-бит
+  (CH1 golden ABYSS).
+* Дроп с мобов (000230.05) — combat.js rollVictoryLoot: ОДИН ролл
+  на ПОБЕДУ (killed.length > 0), СТРОГО ПОСЛЕ редкого ролла
+  (порядок c._rng — пин EQ4); дроп-шанса НЕТ; пустой тир-пул —
+  предмета НЕТ (select не вызывается, деградации в нижний тир нет);
+  drop() merge (qty += 1).
+* Редкость НЕ хранится (сейв/лут) — определяется каталогом
+  (000230.01/.02); UI: рамка cp-rarity-<rarity> — 5 редкостей =
+  5 классов (000230.07).
+
 ## Свиток заклинания (spell_scroll)
 * Свиток-носитель изучения (000133; расширение 000235.05):
   `kind` = `spell_scroll`, `effect` = {kind: 'spell', spell: <id>}
