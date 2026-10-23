@@ -1,0 +1,21 @@
+{
+  "id": "bone_sandals",
+  "name": "Костяные сандалии",
+  "kind": "armor",
+  "weight": 1.2,
+  "value": 60,
+  "desc": "Костяные сандалии: кость звенит тихо, как колокольчик.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/bone_sandals.svg",
+  "slot": "feet",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.06
+    }
+  ]
+}

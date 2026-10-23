@@ -1,0 +1,21 @@
+{
+  "id": "gold_leggings",
+  "name": "Золотые поножи",
+  "kind": "armor",
+  "weight": 2.2,
+  "value": 280,
+  "desc": "Золотые поножи: золото тяжелее, чем кажется.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/gold_leggings.svg",
+  "slot": "legs",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.18
+    }
+  ]
+}

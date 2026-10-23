@@ -1,0 +1,27 @@
+{
+  "id": "leather_boots",
+  "name": "Кожаные ботинки",
+  "kind": "armor",
+  "weight": 0.9,
+  "value": 30,
+  "desc": "Кожаные ботинки: шнурок завязан на три узла.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/leather_boots.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "set": "trail",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.05
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

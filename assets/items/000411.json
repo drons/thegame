@@ -1,0 +1,21 @@
+{
+  "id": "felt_trousers",
+  "name": "Фетровые штаны",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 24,
+  "desc": "Фетровые штаны: фетр глушит стук шагов.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/felt_trousers.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.04
+    }
+  ]
+}

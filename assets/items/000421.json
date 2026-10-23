@@ -1,0 +1,21 @@
+{
+  "id": "stone_greaves",
+  "name": "Каменные поножи",
+  "kind": "armor",
+  "weight": 1.8,
+  "value": 90,
+  "desc": "Каменные поножи: камень не знает усталости.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/stone_greaves.svg",
+  "slot": "legs",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.1
+    }
+  ]
+}

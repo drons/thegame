@@ -1,0 +1,21 @@
+{
+  "id": "storm_sandals",
+  "name": "Сандалии шторма",
+  "kind": "armor",
+  "weight": 2.6,
+  "value": 480,
+  "desc": "Сандалии шторма: молния под подошвой ждёт.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/storm_sandals.svg",
+  "slot": "feet",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.26
+    }
+  ]
+}

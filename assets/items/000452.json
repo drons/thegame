@@ -1,0 +1,21 @@
+{
+  "id": "emerald_boots",
+  "name": "Изумрудные ботинки",
+  "kind": "armor",
+  "weight": 1.9,
+  "value": 240,
+  "desc": "Изумрудные ботинки: изумруд хранит сок леса.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/emerald_boots.svg",
+  "slot": "feet",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.16
+    }
+  ]
+}

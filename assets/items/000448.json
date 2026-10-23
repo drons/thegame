@@ -1,0 +1,21 @@
+{
+  "id": "amethyst_boots",
+  "name": "Аметистовые ботинки",
+  "kind": "armor",
+  "weight": 1.3,
+  "value": 105,
+  "desc": "Аметистовые ботинки: аметист усыпляет усталость.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/amethyst_boots.svg",
+  "slot": "feet",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.09
+    }
+  ]
+}

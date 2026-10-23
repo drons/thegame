@@ -1,0 +1,27 @@
+{
+  "id": "copper_greaves",
+  "name": "Медные поножи",
+  "kind": "armor",
+  "weight": 1.5,
+  "value": 70,
+  "desc": "Медные поножи: медь звенит, как монета в кармане.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/copper_greaves.svg",
+  "slot": "legs",
+  "rarity": "rare",
+  "set": "trail",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.07
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

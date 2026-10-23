@@ -1,0 +1,21 @@
+{
+  "id": "twine_wraps",
+  "name": "Бечёные обмотки",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 36,
+  "desc": "Бечёные обмотки: бечёвка не боится дождя.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/twine_wraps.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "bone_greaves",
+  "name": "Костяные поножи",
+  "kind": "armor",
+  "weight": 1.3,
+  "value": 60,
+  "desc": "Костяные поножи: кость легче стали, твёрже камня.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/bone_greaves.svg",
+  "slot": "legs",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.05
+    }
+  ]
+}

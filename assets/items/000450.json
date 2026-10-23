@@ -1,0 +1,21 @@
+{
+  "id": "sapphire_boots",
+  "name": "Сапфировые ботинки",
+  "kind": "armor",
+  "weight": 1.7,
+  "value": 160,
+  "desc": "Сапфировые ботинки: сапфир холоден, как глубина.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/sapphire_boots.svg",
+  "slot": "feet",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.12
+    }
+  ]
+}

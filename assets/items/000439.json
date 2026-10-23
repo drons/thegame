@@ -1,0 +1,21 @@
+{
+  "id": "travel_boots",
+  "name": "Путевые ботинки",
+  "kind": "armor",
+  "weight": 1,
+  "value": 33,
+  "desc": "Путевые ботинки: путь измеряется подошвой.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/travel_boots.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.04
+    }
+  ]
+}

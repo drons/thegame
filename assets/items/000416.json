@@ -1,0 +1,21 @@
+{
+  "id": "rough_chaps",
+  "name": "Грубые чапаи",
+  "kind": "armor",
+  "weight": 1.2,
+  "value": 38,
+  "desc": "Грубые чапаи: грубость — тоже защита.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/rough_chaps.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.05
+    }
+  ]
+}

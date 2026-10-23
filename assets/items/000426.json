@@ -1,0 +1,35 @@
+{
+  "id": "ember_pants",
+  "name": "Пепельные штаны",
+  "kind": "armor",
+  "weight": 1.6,
+  "value": 200,
+  "desc": "Пепельные штаны: пепел ещё помнит пламя.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/ember_pants.svg",
+  "slot": "legs",
+  "rarity": "epic",
+  "set": "rooted",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.18
+    },
+    {
+      "type": "free_cast",
+      "spell": "blazing_speed"
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "step",
+        "amount": 0.05
+      }
+    ]
+  }
+}

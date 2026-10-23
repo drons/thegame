@@ -998,7 +998,10 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
       // 0.10336582502350211 → common, r2 0.8092278488911688 →
       // floor(r2·90) = 72 → c1 = cloth_shield (было war_hammer;
       // common-пул 70 → 90: +10 .13 + 10 .14 — post-merge
-      // ре-симуляция). Позиции/gold/mobs/seed — бит-в-бит.
+      // ре-симуляция). РЕ-ПИН 000230.15: common-пул 90 → 110
+      // (+20 ног/ступней концом) → floor(r2·110) = 89 → c1 =
+      // silver_signet (post-merge ре-симуляция).
+      // Позиции/gold/mobs/seed — бит-в-бит.
       name: '(11,3) xp=18', args: [11, 3], xp: 18,
       dseed: 2941640529, cseed: 4033219701,
       mobs: [
@@ -1010,7 +1013,7 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
       ],
       chests: [
         { id: 'c0', x: 17, y: 23, opened: false, gold: 20, item: null },
-        { id: 'c1', x: 13, y: 11, opened: false, gold: 12, item: 'cloth_shield' },
+        { id: 'c1', x: 13, y: 11, opened: false, gold: 12, item: 'silver_signet' },
         { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'blueprint_enchant' },
         { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'blueprint_enchant' },
       ],
@@ -1726,12 +1729,14 @@ test('G2-1: golden: CAVE (37,−12) depth=2 — полный детермини�
   // 0.014351648511365056 → common, r2 0.4499427538830787 →
   // floor(r2·90) = 40 → c3 = cloth_cuff (было iron_sword;
   // common-пул 70 → 90: +10 .13 + 10 .14 — post-merge
-  // ре-симуляция). seed/mobs/gold/позиции — bit-in-bit.
+  // ре-симуляция). Ре-пин 000230.15: common-пул 90 → 110
+  // (+20 ног/ступней концом) → floor(r2·110) = 49 → c3 = hide_cuff
+  // (post-merge ре-симуляция). seed/mobs/gold/позиции — bit-in-bit.
   assert.deepEqual(c.chests, [
     { id: 'c0', x: 17, y: 11, opened: false, gold: 51, item: null },
     { id: 'c1', x: 20, y: 13, opened: false, gold: 28, item: null },
     { id: 'c2', x: 14, y: 13, opened: false, gold: 12, item: 'slow_scroll' },
-    { id: 'c3', x: 16, y: 12, opened: false, gold: 63, item: 'cloth_cuff' },
+    { id: 'c3', x: 16, y: 12, opened: false, gold: 63, item: 'hide_cuff' },
   ], 'depth2 chests (по-полевой пин)');
 });
 
@@ -3129,18 +3134,22 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
 // (floor(0.6040003078524023·90)=54); seed/позиции/gold/
 // dark_presence_scroll c1 — бит-в-бит (CRYPT-пул 58 = pool
 // ветки); RUINS-голён master-версии в силе (moonstone_chain,
-// rare-пул 63).
+// rare-пул 63). Ре-пин 000230.15: common-пул 90 → 110, rare
+// 63 → 77 (+20/+14 ног/ступней концом; ре-симуляция на мерж-
+// пуле) — CRYPT c0 → iron_tongs (floor(0.6040003078524023·110)=66),
+// RUINS c3 → wool_sutan (floor(0.2789345800410956·77)=21);
+// seed/позиции/gold/c1 — бит-в-бит.
 const CH5_PX = M.syntheticPixels(8, 8, 128, 128, 128, 128);
 const CH5_CRYPT_PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
 const CH5_CRYPT_CHESTS = [
-  { id: 'c0', x: 8, y: 22, opened: false, gold: 30, item: 'archer_gloves' },
+  { id: 'c0', x: 8, y: 22, opened: false, gold: 30, item: 'iron_tongs' },
   { id: 'c1', x: 13, y: 19, opened: false, gold: 14, item: 'dark_presence_scroll' },
 ];
 const CH5_RUINS_CHESTS = [
   { id: 'c0', x: 16, y: 15, opened: false, gold: 18, item: 'firelight_scroll' },
   { id: 'c1', x: 24, y: 16, opened: false, gold: 25, item: 'blueprint_forge' },
   { id: 'c2', x: 14, y: 13, opened: false, gold: 16, item: null },
-  { id: 'c3', x: 18, y: 15, opened: false, gold: 10, item: 'moonstone_chain' },
+  { id: 'c3', x: 18, y: 15, opened: false, gold: 10, item: 'wool_sutan' },
   { id: 'c4', x: 22, y: 19, opened: false, gold: 10, item: 'blueprint_woodwork' },
 ];
 
@@ -3155,13 +3164,13 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace акти
       w: 9, h: 11, xp: 1, armor: 'chainmail', seed: 2983680956,
       hash: 0x47b239cb, r1: 0.022784294560551643,
       r2: 0.6040003078524023, tier: 'common',
-      replaced: 'archer_gloves', chests: CH5_CRYPT_CHESTS },
+      replaced: 'iron_tongs', chests: CH5_CRYPT_CHESTS },
     { name: 'RUINS', type: 2, terrain: M.TERRAIN.MOUNTAIN,
       px: CH5_PX, trig: 'c3',
       w: 9, h: 9, xp: 3, armor: 'knight_plate', seed: 801567646,
       hash: 0x2fb95446, r1: 0.6180662265978754,
       r2: 0.2789345800410956, tier: 'rare',
-      replaced: 'moonstone_chain', chests: CH5_RUINS_CHESTS },
+      replaced: 'wool_sutan', chests: CH5_RUINS_CHESTS },
   ];
   for (const cs of cases) {
     const dA = D.createDungeon(cs.w, cs.h, cs.px, cs.terrain);
@@ -3236,7 +3245,9 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace акти
 // (c0/c1 пустые, c2 slow_scroll без slot) → заменён на предмет
 // common-пула через rng_eq = mulberry32(hash2(seed, 1,
 // CHEST_EQ_SALT)): r1 0.014351648511365056 → common, r2
-// 0.4499427538830787 → floor(r2·90) = 40 → cloth_cuff. БЕЗ slot
+// 0.4499427538830787 → floor(r2·90) = 40 → cloth_cuff. РЕ-ПИН
+// 000230.15: common-пул 90 → 110 (+20 ног/ступней концом) →
+// floor(r2·110) = 49 → hide_cuff (post-merge ре-симуляция). БЕЗ slot
 // (in-place delete в ITEMS-синглтоне, restore finally) — iron_sword
 // остаётся в сундуке (до-волновое поведение). ВСЁ остальное
 // (seed/mobs/deposits/позиции/gold) — бит-в-бит.
@@ -3250,8 +3261,8 @@ test('000230.12-CH: remap оружий (slot: right_hand) — chest-replace ак
     { id: 'c0', x: 17, y: 11, opened: false, gold: 51, item: null },
     { id: 'c1', x: 20, y: 13, opened: false, gold: 28, item: null },
     { id: 'c2', x: 14, y: 13, opened: false, gold: 12, item: 'slow_scroll' },
-    { id: 'c3', x: 16, y: 12, opened: false, gold: 63, item: 'cloth_cuff' },
-  ], 'golden — c3 «iron_sword» ЗАМЕНЁН на «cloth_cuff» (common-пул)');
+    { id: 'c3', x: 16, y: 12, opened: false, gold: 63, item: 'hide_cuff' },
+  ], 'golden — c3 «iron_sword» ЗАМЕНЁН на «hide_cuff» (common-пул)');
   assert.equal(hash2(A.seed, 1, D.CHEST_EQ_SALT) >>> 0, 0x9cefd4f1,
     'hash2(seed, 1, CHEST_EQ_SALT) — закреплён');
   const rng_eq = mulberry32(0x9cefd4f1);
@@ -3261,10 +3272,10 @@ test('000230.12-CH: remap оружий (slot: right_hand) — chest-replace ак
   assert.equal(L.pickRarityTier(function () { return 0.014351648511365056; }), 'common',
     'r1 → тир «common»');
   assert.equal(
-    Math.floor(0.4499427538830787 * L.EQUIP_POOLS.common.length), 40,
-    'floor(r2·90) = 40 (common-пул 90 post-merge)');
-  assert.equal(L.EQUIP_POOLS.common[40], 'cloth_cuff',
-    'common[40] = cloth_cuff');
+    Math.floor(0.4499427538830787 * L.EQUIP_POOLS.common.length), 49,
+    'floor(r2·110) = 49 (common-пул 110 post-merge 000230.15)');
+  assert.equal(L.EQUIP_POOLS.common[49], 'hide_cuff',
+    'common[49] = hide_cuff');
   const it = ITEMS.find((x) => x.id === 'iron_sword');
   assert.equal(it.slot, 'right_hand',
     'precondition — ЯВНОЕ slot (remap 000230.12)');
@@ -3287,8 +3298,8 @@ test('000230.12-CH: remap оружий (slot: right_hand) — chest-replace ак
         { x: a.x, y: a.y, gold: a.gold, opened: a.opened },
         ch.id + ' — позиция/gold без изменений');
       if (ch.id === swordChest.id) {
-        assert.equal(a.item, 'cloth_cuff',
-          'c3 — со slot: «cloth_cuff» (оружие заменено)');
+        assert.equal(a.item, 'hide_cuff',
+          'c3 — со slot: «hide_cuff» (оружие заменено)');
       } else {
         assert.equal(ch.item, a.item,
           ch.id + ' — предмет без изменений (в пуле нет других предметов со slot)');

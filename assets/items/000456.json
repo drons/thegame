@@ -1,0 +1,21 @@
+{
+  "id": "rune_boots",
+  "name": "Рунические ботинки",
+  "kind": "armor",
+  "weight": 3,
+  "value": 700,
+  "desc": "Рунические ботинки: руны скрепляют шаг и слово.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/rune_boots.svg",
+  "slot": "feet",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.28
+    }
+  ]
+}

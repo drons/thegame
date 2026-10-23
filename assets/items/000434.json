@@ -1,0 +1,21 @@
+{
+  "id": "cloth_sandals",
+  "name": "Тканевые сандалии",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 18,
+  "desc": "Тканевые сандалии: ткань мягче утренней росы.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/cloth_sandals.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.03
+    }
+  ]
+}

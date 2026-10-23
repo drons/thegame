@@ -1,0 +1,26 @@
+{
+  "id": "titan_greaves",
+  "name": "Поножи Титана",
+  "kind": "armor",
+  "weight": 4.5,
+  "value": 1200,
+  "desc": "Поножи Титана: титан шагает, и земля отвечает.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/titan_greaves.svg",
+  "slot": "legs",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.4
+    },
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.35
+    }
+  ]
+}

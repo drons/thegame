@@ -1,0 +1,21 @@
+{
+  "id": "obsidian_greaves",
+  "name": "Обсидиановые поножи",
+  "kind": "armor",
+  "weight": 1.6,
+  "value": 100,
+  "desc": "Обсидиановые поножи: обсидиан блестит, как старая злоба.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/obsidian_greaves.svg",
+  "slot": "legs",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.08
+    }
+  ]
+}

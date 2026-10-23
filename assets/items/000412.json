@@ -1,0 +1,21 @@
+{
+  "id": "leather_pants",
+  "name": "Кожаные штаны",
+  "kind": "armor",
+  "weight": 1,
+  "value": 27,
+  "desc": "Кожаные штаны: кожа помнит каждый шаг.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/leather_pants.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.05
+    }
+  ]
+}

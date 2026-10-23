@@ -1,0 +1,26 @@
+{
+  "id": "swift_boots",
+  "name": "Ботинки стремительности",
+  "kind": "armor",
+  "weight": 4,
+  "value": 1200,
+  "desc": "Ботинки стремительности: ветер завидует тем, кто в них.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/swift_boots.svg",
+  "slot": "feet",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.4
+    },
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.35
+    }
+  ]
+}

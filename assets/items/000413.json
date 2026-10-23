@@ -1,0 +1,27 @@
+{
+  "id": "traveler_breeches",
+  "name": "Бриджи странника",
+  "kind": "armor",
+  "weight": 0.9,
+  "value": 30,
+  "desc": "Бриджи странника: шов сшит на четырёх дорогах.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/traveler_breeches.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "set": "trail",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.03
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

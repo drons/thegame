@@ -1,0 +1,21 @@
+{
+  "id": "amethyst_pants",
+  "name": "Аметистовые штаны",
+  "kind": "armor",
+  "weight": 1.3,
+  "value": 105,
+  "desc": "Аметистовые штаны: аметист хранит тишину сна.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/amethyst_pants.svg",
+  "slot": "legs",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.09
+    }
+  ]
+}

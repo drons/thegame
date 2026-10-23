@@ -458,15 +458,16 @@ test('CU-4. состав экрана: виды с уровнем, рецепт�
     'ошибок загрузки цепочки нет: ' + h.errors.join('; '));
   const G = h.sandbox.Game;
   const b8 = G.getBuilding(8);
-  // Кузница: ровно 57 рецепта, все — кузнечное_дело (6 старых + 3
+  // Кузница: ровно 75 рецепта, все — кузнечное_дело (6 старых + 3
   // 000157.04 + 11 head 000230.08 + 22 руки 000230.11 + 2 left_hand
-  // 000230.13 + 13 правая рука 000230.12 — ре-пин).
+  // 000230.13 + 13 правая рука 000230.12 + 18 legs/feet 000230.15 — ре-пин).
   const here = G.Craft.CRAFT
     .filter((r) => Array.isArray(r.здания) && r.здания.includes(8));
-  assert.equal(here.length, 57,
-    'у здания 8 — 57 рецепта (каталог, ре-пин 000230.08: +11 head; '
+  assert.equal(here.length, 75,
+    'у здания 8 — 75 рецепта (каталог, ре-пин 000230.08: +11 head; '
     + 'ре-пин 000230.11: +22 руки; ре-пин 000230.13: +2 left_hand; '
-    + 'ре-пин 000230.12: +13 правая рука)');
+    + 'ре-пин 000230.12: +13 правая рука; '
+    + 'ре-пин 000230.15: +18 legs/feet)');
   const c = G.createCharacter();
   c.craft = { кузнечное_дело: 3 };
   assert.ok(G.craftUI && typeof G.craftUI.open === 'function',
@@ -482,7 +483,7 @@ test('CU-4. состав экрана: виды с уровнем, рецепт�
   assert.ok(/уровень\s*3/.test(all),
     'уровень виду L = craftLevel(hero, вид) = 3; факт: '
     + (all.match(/[^\n]*уровень[^\n]*/g) || []).join(' | '));
-  // Все 57 рецепта здания — на экране (чужие — нет).
+  // Все 75 рецепта здания — на экране (чужие — нет).
   for (const r of here) {
     assert.ok(all.includes(r.название),
       'рецепт на экране: ' + r.название);
@@ -495,10 +496,11 @@ test('CU-4. состав экрана: виды с уровнем, рецепт�
   }
   // Кнопки «изготовить»: data-craftact='craft' data-recipe=<id>.
   const btns = findAll(ov, 'button[data-craftact="craft"]');
-  assert.equal(btns.length, 57,
+  assert.equal(btns.length, 75,
     'кнопка на каждый рецепт здания (ре-пин 000230.08: +11 head; '
     + 'ре-пин 000230.11: +22 руки; ре-пин 000230.13: +2 left_hand; '
-    + 'ре-пин 000230.12: +13 правая рука)');
+    + 'ре-пин 000230.12: +13 правая рука; '
+    + 'ре-пин 000230.15: +18 legs/feet)');
   const ids = Array.from(btns.map((b) => b.dataset.recipe).sort());
   assert.deepEqual(ids, Array.from(here.map((r) => r.id).sort()),
     'data-recipe — id рецепта');

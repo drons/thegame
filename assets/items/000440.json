@@ -1,0 +1,21 @@
+{
+  "id": "hide_boots",
+  "name": "Шкурные ботинки",
+  "kind": "armor",
+  "weight": 1.2,
+  "value": 36,
+  "desc": "Шкурные ботинки: шкура греет, как чужое плечо.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hide_boots.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.05
+    }
+  ]
+}

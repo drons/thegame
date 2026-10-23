@@ -1,0 +1,21 @@
+{
+  "id": "linen_trousers",
+  "name": "Льняные штаны",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 15,
+  "desc": "Льняные штаны: лён дышит вместе с дорогой.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/linen_trousers.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.02
+    }
+  ]
+}

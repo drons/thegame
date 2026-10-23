@@ -1,0 +1,35 @@
+{
+  "id": "frost_sandals",
+  "name": "Морозные сандалии",
+  "kind": "armor",
+  "weight": 1.5,
+  "value": 200,
+  "desc": "Морозные сандалии: мороз идёт следом, как песец.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/frost_sandals.svg",
+  "slot": "feet",
+  "rarity": "epic",
+  "set": "rooted",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.19
+    },
+    {
+      "type": "free_cast",
+      "spell": "winter_haste"
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "step",
+        "amount": 0.05
+      }
+    ]
+  }
+}

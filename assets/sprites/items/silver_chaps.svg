@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="16" ry="3.4" fill="rgba(0,0,0,0.22)"/>
+  <polygon points="17 13 47 13 46 18 18 18" fill="#6e5a3c"/>
+  <polygon points="18 18 30 18 29 51 19 51" fill="#9c8666"/>
+  <polygon points="34 18 46 18 45 51 35 51" fill="#9c8666"/>
+  <polygon points="30 18 34 18 33 24 31 24" fill="#84704f"/>
+  <rect x="19" y="51" width="10" height="3" fill="#84704f"/>
+  <rect x="35" y="51" width="10" height="3" fill="#84704f"/>
+  <line x1="24" y1="21" x2="24" y2="48" stroke="#84704f" stroke-width="1.4"/>
+  <line x1="40" y1="21" x2="40" y2="48" stroke="#84704f" stroke-width="1.4"/>
+  <polygon points="18 18 24 18 23 51 16 49" fill="#84704f"/>
+  <polygon points="40 18 46 18 48 49 41 51" fill="#84704f"/>
+  <polygon points="21 28 27 28 26.5 36 20.5 36" fill="#84704f"/>
+  <polygon points="37 28 43 28 43.5 36 37.5 36" fill="#84704f"/>
+  <polygon points="19.5 29 28 29 27.5 49 20 49" fill="#cfd2d6"/>
+  <polygon points="36 29 44.5 29 44 49 36.5 49" fill="#cfd2d6"/>
+  <polygon points="21.5 30.5 23.5 30.5 23 47 21 47" fill="#eef0f3" opacity="0.6"/>
+  <polygon points="38 30.5 40 30.5 39.5 47 37.5 47" fill="#eef0f3" opacity="0.6"/>
+</svg>

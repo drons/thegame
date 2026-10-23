@@ -1,0 +1,21 @@
+{
+  "id": "silver_chaps",
+  "name": "Серебряные чапаи",
+  "kind": "armor",
+  "weight": 1.4,
+  "value": 80,
+  "desc": "Серебряные чапаи: серебро не ржавеет, как память.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/silver_chaps.svg",
+  "slot": "legs",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.07
+    }
+  ]
+}

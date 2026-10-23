@@ -1,0 +1,21 @@
+{
+  "id": "obsidian_sandals",
+  "name": "Обсидиановые сандалии",
+  "kind": "armor",
+  "weight": 1.5,
+  "value": 100,
+  "desc": "Обсидиановые сандалии: обсидиан отражает только тьму.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/obsidian_sandals.svg",
+  "slot": "feet",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.08
+    }
+  ]
+}

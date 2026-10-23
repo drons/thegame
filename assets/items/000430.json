@@ -1,0 +1,21 @@
+{
+  "id": "rune_greaves",
+  "name": "Рунические поножи",
+  "kind": "armor",
+  "weight": 2.8,
+  "value": 480,
+  "desc": "Рунические поножи: руны читают дорогу вместо ног.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/rune_greaves.svg",
+  "slot": "legs",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.22
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "copper_boots",
+  "name": "Медные ботинки",
+  "kind": "armor",
+  "weight": 1.4,
+  "value": 70,
+  "desc": "Медные ботинки: медь гремит, как праздник.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/copper_boots.svg",
+  "slot": "feet",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.08
+    }
+  ]
+}

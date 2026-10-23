@@ -1,0 +1,21 @@
+{
+  "id": "wooden_sandals",
+  "name": "Деревянные сандалии",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 38,
+  "desc": "Деревянные сандалии: дерево стучит, как в дверях дома.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wooden_sandals.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.03
+    }
+  ]
+}

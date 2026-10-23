@@ -1,0 +1,21 @@
+{
+  "id": "stone_sandals",
+  "name": "Каменные сандалии",
+  "kind": "armor",
+  "weight": 1.6,
+  "value": 90,
+  "desc": "Каменные сандалии: камень стелется под ногами.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/stone_sandals.svg",
+  "slot": "feet",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.09
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "hemp_breeches",
+  "name": "Пеньковые бриджи",
+  "kind": "armor",
+  "weight": 0.7,
+  "value": 21,
+  "desc": "Пеньковые бриджи: пенька не замечает камней.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hemp_breeches.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.03
+    }
+  ]
+}

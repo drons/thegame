@@ -142,11 +142,11 @@ function loadSchema() {
 
 // --- Нумерация ---
 
-test('каталог: нумерация файлов — сегменты подряд: 000001..000199 + 000210..000237 + 000260..000287 + 000310..000337 (ре-пин 000230.11: 000144–000199 руки; ре-пин 000230.12: 000210–000237 «правая рука»; ре-пин 000230.13: 000260–000287 left_hand; ре-пин 000230.14: 000310–000337 кольца — четырёхсегментный каталог)', () => {
+test('каталог: нумерация файлов — сегменты подряд: 000001..000199 + 000210..000237 + 000260..000287 + 000310..000337 + 000360..000415 (ре-пин 000230.11: 000144–000199 руки; ре-пин 000230.12: 000210–000237 «правая рука»; ре-пин 000230.13: 000260–000287 left_hand; ре-пин 000230.14: 000310–000337 кольца; ре-пин 000230.15: 000360–000415 ноги/ступни — пятихсегментный каталог)', () => {
   const files = listCraftFiles();
   assert.ok(files.length >= 8, 'каталог подозрительно маленький');
   let i = 0;
-  for (const [from, to] of [[1, 199], [210, 237], [260, 287], [310, 337]]) {
+  for (const [from, to] of [[1, 199], [210, 237], [260, 287], [310, 337], [360, 415]]) {
     for (let n = from; n <= to; n++, i++) {
       assert.equal(files[i], String(n).padStart(6, '0') + '.json',
         `пробел в нумерации на позиции ${i + 1}: ${files[i]}`);
@@ -156,7 +156,8 @@ test('каталог: нумерация файлов — сегменты по�
     'число файлов = сумма сегментов (ре-пин 000230.11: 199; '
     + 'ре-пин 000230.13: +28 = 227; '
     + 'ре-пин 000230.14: +28 = 255; '
-    + 'ре-пин 000230.12: +28 = 283)');
+    + 'ре-пин 000230.12: +28 = 283; '
+    + 'ре-пин 000230.15: +56 = 339)');
 });
 
 test('каталог: чужих файлов нет (только NNNNNN.json и schema.json)', () => {
@@ -482,13 +483,14 @@ const ORES_015701 = ['silver_ore', 'gold_ore', 'mithril_ore', 'quartz',
   'obsidian', 'phosphorite', 'ruby', 'sapphire', 'emerald', 'amethyst',
   'diamond'];
 
-test('000157.04 R1: каталог — ровно 283 файла: 000001..000199 подряд + 000210..000237 подряд + 000260..000287 подряд + 000310..000337 подряд (ре-пин 000230.08: +28 000032–000059; ре-пин 000230.09: +56 000060–000115; ре-пин 000230.10: +28 torso 000116–000143; ре-пин 000230.11: +56 рук 000144–000199; ре-пин 000230.12: +28 right-hand 000210–000237; ре-пин 000230.13: +28 left_hand 000260–000287; ре-пин 000230.14: +28 колец 000310–000337; дыры 000200–000209, 000238–000259, 000288–000309, 000338–000359 — четырёхсегментный каталог)', () => {
+test('000157.04 R1: каталог — ровно 339 файлов: 000001..000199 подряд + 000210..000237 подряд + 000260..000287 подряд + 000310..000337 подряд + 000360..000415 подряд (ре-пин 000230.08: +28 000032–000059; ре-пин 000230.09: +56 000060–000115; ре-пин 000230.10: +28 torso 000116–000143; ре-пин 000230.11: +56 рук 000144–000199; ре-пин 000230.12: +28 right-hand 000210–000237; ре-пин 000230.13: +28 left_hand 000260–000287; ре-пин 000230.14: +28 колец 000310–000337; ре-пин 000230.15: +56 ног/ступней 000360–000415; дыры 000200–000209, 000238–000259, 000288–000309, 000338–000359 — пятихсегментный каталог)', () => {
   const files = listCraftFiles();
-  assert.equal(files.length, 283,
-    'ровно 283 рецепт (31 до 000230.08 + 28 head 000032–000059 '
+  assert.equal(files.length, 339,
+    'ровно 339 рецепт (31 до 000230.08 + 28 head 000032–000059 '
     + '+ 56 уши/шея 000060–000115 + 28 torso 000116–000143 '
     + '+ 56 рук 000144–000199 + 28 right-hand 000210–000237 '
-    + '+ 28 left_hand 000260–000287 + 28 колец 000310–000337), '
+    + '+ 28 left_hand 000260–000287 + 28 колец 000310–000337 '
+    + '+ 56 ног/ступней 000360–000415), '
     + 'а есть: ' + files.length);
   files.forEach((f, i) => {
     const expected = i < 199
@@ -497,7 +499,9 @@ test('000157.04 R1: каталог — ровно 283 файла: 000001..000199
         ? String(210 + i - 199).padStart(6, '0') + '.json'
         : i < 255
           ? String(260 + i - 227).padStart(6, '0') + '.json'
-          : String(310 + i - 255).padStart(6, '0') + '.json';
+          : i < 283
+            ? String(310 + i - 255).padStart(6, '0') + '.json'
+            : String(360 + i - 283).padStart(6, '0') + '.json';
     assert.equal(f, expected,
       `пробел в нумерации на позиции ${i + 1}: ${f} (ожидается ${expected})`);
   });
@@ -516,6 +520,10 @@ test('000157.04 R1: каталог — ровно 283 файла: 000001..000199
   for (let n = 310; n <= 337; n++) {
     assert.ok(fs.existsSync(path.join(DIR, String(n).padStart(6, '0') + '.json')),
       `файл ${String(n).padStart(6, '0')}.json существует (краснота: ENOENT — ring-рецепты не созданы)`);
+  }
+  for (let n = 360; n <= 415; n++) {
+    assert.ok(fs.existsSync(path.join(DIR, String(n).padStart(6, '0') + '.json')),
+      `файл ${String(n).padStart(6, '0')}.json существует (краснота: ENOENT — legs/feet-рецепты не созданы)`);
   }
 });
 
@@ -672,20 +680,34 @@ test('000191.14: КАЖДЫЙ рецепт типа «зачарование» �
     .filter((x) => x.data['тип'] === 'зачарование');
   assert.deepEqual(
     enchants.map((x) => x.data.id).sort(),
-    ['aegis_mantle', 'aegis_mantle_mithril', 'amethyst_choker',
-     'amethyst_dangle', 'amethyst_ring', 'arcane_eye', 'arcane_eye_diamond', 'bone_graver', 'cinder_eye', 'dawn_pendant', 'dawn_pendant_diamond', 'deep_breath_robe', 'ember_focus',
-     'ember_robe', 'ember_staff', 'emerald_amulet', 'emerald_signet', 'emerald_stud', 'faith_amulet', 'faith_necklace', 'faith_stud', 'flame_staff', 'frost_charm',
-     'frost_orb', 'frost_ring', 'ghost_cuff', 'gold_chain', 'gold_dangle', 'guard_amulet', 'haste_wraps', 'heart_of_elements', 'heart_of_elements_mithril', 'hunting_bow',
-     'hunting_bow_sapphire', 'ice_staff', 'knight_plate', 'knight_plate_ruby', 'meditating_robe', 'mind_pendant', 'moonstone_chain', 'moonstone_dangle', 'mystic_cloth', 'night_gloves',
-     'obsidian_cloth', 'phantom_gloves', 'philosopher_staff', 'philosopher_staff_mithril', 'phoenix_ring', 'phoenix_ring_mithril', 'pilgrim_sutan', 'pilgrim_sutan_mithril', 'quartz_cloth', 'rime_staff',
-     'ruby_bell', 'ruby_pendant', 'ruby_ring', 'rune_bracers', 'rune_bracers_mithril', 'rune_charm', 'rune_chisel', 'rune_gauntlets', 'rune_gauntlets_mithril', 'rune_hoop',
-     'rune_hoop_mithril', 'rune_necklace', 'rune_necklace_diamond', 'rune_ring', 'rune_sphere', 'rune_staff', 'rune_stylus', 'runic_cuff', 'sage_staff', 'sage_staff_mithril',
-     'scholar_pendant', 'scholar_ring', 'shadow_robe', 'shadow_wrap', 'silver_signet', 'snow_focus', 'snow_focus_mithril', 'soul_bell', 'soul_bell_mithril', 'star_armguard',
-     'star_armguard_diamond', 'star_earring', 'star_earring_mithril', 'star_gloves', 'star_gloves_diamond', 'star_hoop', 'star_hoop_mithril', 'star_pendant', 'star_pendant_mithril', 'star_signet',
-     'star_signet_mithril', 'stone_robe', 'swift_brace', 'void_gauntlet', 'void_gauntlet_mithril', 'void_ring', 'void_ring_diamond', 'void_robe', 'void_robe_diamond', 'ward_crystal',
-     'whisper_hoop', 'whisper_hoop_diamond', 'wind_gloves',
+    [
+      'aegis_mantle', 'aegis_mantle_mithril', 'amethyst_boots', 'amethyst_choker', 'amethyst_dangle',
+      'amethyst_pants', 'amethyst_ring', 'arcane_eye', 'arcane_eye_diamond', 'bone_graver',
+      'cinder_eye', 'dawn_pendant', 'dawn_pendant_diamond', 'deep_breath_robe', 'ember_focus',
+      'ember_pants', 'ember_robe', 'ember_staff', 'emerald_amulet', 'emerald_signet',
+      'emerald_stud', 'faith_amulet', 'faith_necklace', 'faith_stud', 'flame_staff',
+      'frost_charm', 'frost_orb', 'frost_ring', 'frost_sandals', 'ghost_cuff',
+      'gold_chain', 'gold_dangle', 'guard_amulet', 'haste_wraps', 'heart_of_elements',
+      'heart_of_elements_mithril', 'hunting_bow', 'hunting_bow_sapphire', 'ice_staff', 'knight_plate',
+      'knight_plate_ruby', 'meditating_robe', 'mind_pendant', 'moonstone_chain', 'moonstone_dangle',
+      'mystic_breeches', 'mystic_cloth', 'mystic_sandals', 'night_gloves', 'obsidian_cloth',
+      'obsidian_greaves', 'obsidian_sandals', 'phantom_gloves', 'philosopher_staff', 'philosopher_staff_mithril',
+      'phoenix_ring', 'phoenix_ring_mithril', 'pilgrim_sutan', 'pilgrim_sutan_mithril', 'quartz_cloth',
+      'rime_staff', 'ruby_bell', 'ruby_pendant', 'ruby_ring', 'rune_boots',
+      'rune_boots_mithril', 'rune_bracers', 'rune_bracers_mithril', 'rune_charm', 'rune_chisel',
+      'rune_gauntlets', 'rune_gauntlets_mithril', 'rune_greaves', 'rune_greaves_mithril', 'rune_hoop',
+      'rune_hoop_mithril', 'rune_necklace', 'rune_necklace_diamond', 'rune_ring', 'rune_sphere',
+      'rune_staff', 'rune_stylus', 'runic_cuff', 'sage_staff', 'sage_staff_mithril',
+      'scholar_pendant', 'scholar_ring', 'shadow_robe', 'shadow_wrap', 'silver_signet',
+      'snow_focus', 'snow_focus_mithril', 'soul_bell', 'soul_bell_mithril', 'star_armguard',
+      'star_armguard_diamond', 'star_earring', 'star_earring_mithril', 'star_gloves', 'star_gloves_diamond',
+      'star_hoop', 'star_hoop_mithril', 'star_pendant', 'star_pendant_mithril', 'star_signet',
+      'star_signet_mithril', 'stone_robe', 'storm_leggings', 'storm_leggings_diamond', 'storm_sandals',
+      'storm_sandals_diamond', 'swift_boots', 'swift_boots_diamond', 'swift_brace', 'void_gauntlet',
+      'void_gauntlet_mithril', 'void_ring', 'void_ring_diamond', 'void_robe', 'void_robe_diamond',
+      'ward_crystal', 'whisper_hoop', 'whisper_hoop_diamond', 'wind_gloves'
     ],
-    'анти-вакуумность: ровно 106 зачарований с этим составом id '
+    'анти-вакуумность: ровно 124 зачарований с этим составом id '
     + '(ре-пин 000230.08: +7 head-зачарований; ре-пин 000230.09: '
     + '+19 базовых + 6 улучшенных зачарований уши/шея; '
     + 'ре-пин 000230.10: +8 базовых + 3 улучшенных зачарований torso; '
@@ -695,7 +717,10 @@ test('000191.14: КАЖДЫЙ рецепт типа «зачарование» �
     + '(mithril_hammer_diamond — кузница); ре-пин 000230.13: '
     + '+13 базовых + 3 улучшенных зачарования left_hand; '
     + 'ре-пин 000230.14: +10 базовых + 3 улучшенных зачарования '
-    + 'колец; каталог не растёт и не теряет рецептов)');  for (const e of enchants) {
+    + 'колец; ре-пин 000230.15: +13 базовых + 5 улучшенных '
+    + 'зачарований ног/ступней; каталог не растёт и не теряет '
+    + 'рецептов)');
+  for (const e of enchants) {
     assert.ok(Array.isArray(e.data['заклинания'])
         && e.data['заклинания'].length >= 1,
       e.data.id + ': «зачарование» — непустой «заклинания» '
@@ -797,7 +822,7 @@ test('000208 R1: schema.json — поля-ссылки зафиксирован�
     'здания[] — ссылка на файл assets/buildings (integer → string)');
 });
 
-test('000208 R2: все 283 рецепт — результат/исходники/навыки/здания — ссылки на файлы каталогов, резолв в id каталога (ре-пин 000230.08: +28 head-рецептов; ре-пин 000230.09: +56 уши/шея-рецептов; ре-пин 000230.10: +28 torso-рецептов; ре-пин 000230.11: +56 рук-рецептов; ре-пин 000230.12: +28 right-hand-рецептов; ре-пин 000230.13: +28 left_hand-рецептов; ре-пин 000230.14: +28 ring-рецептов)', () => {
+test('000208 R2: все 339 рецепт — результат/исходники/навыки/здания — ссылки на файлы каталогов, резолв в id каталога (ре-пин 000230.08: +28 head-рецептов; ре-пин 000230.09: +56 уши/шея-рецептов; ре-пин 000230.10: +28 torso-рецептов; ре-пин 000230.11: +56 рук-рецептов; ре-пин 000230.12: +28 right-hand-рецептов; ре-пин 000230.13: +28 left_hand-рецептов; ре-пин 000230.14: +28 ring-рецептов; ре-пин 000230.15: +56 legs/feet-рецептов)', () => {
   const { byId } = loadCatalog();
   const knownSkill = (id) =>
     SECONDARY_SKILLS[id] !== undefined ||
@@ -827,9 +852,9 @@ test('000208 R2: все 283 рецепт — результат/исходник
     }
   }
   // Анти-вакуум: точные счётчики ссылок (контракт 000208 §1).
-  assert.equal(itemRefs, 1046, 'анти-вакуум: 1046 item-ссылок (ре-пин 000230.08: 114+99; ре-пин 000230.09: +208; ре-пин 000230.10: +106; ре-пин 000230.11: +203; ре-пин 000230.12: +108; ре-пин 000230.13: +102; ре-пин 000230.14: +106)');
-  assert.equal(skillRefs, 397, 'анти-вакуум: 397 skill-ссылок (ре-пин 000230.08: 44+35; ре-пин 000230.09: +81; ре-пин 000230.10: +39; ре-пин 000230.11: +74; ре-пин 000230.12: +39; ре-пин 000230.13: +44; ре-пин 000230.14: +41)');
-  assert.equal(buildingRefs, 393, 'анти-вакуум: 393 building-ссылок (ре-пин 000230.08: 54+39; ре-пин 000230.09: +87; ре-пин 000230.10: +28; ре-пин 000230.11: +78; ре-пин 000230.12: +34; ре-пин 000230.13: +30; ре-пин 000230.14: +43)');
+  assert.equal(itemRefs, 1245, 'анти-вакуум: 1245 item-ссылок (ре-пин 000230.08: 114+99; ре-пин 000230.09: +208; ре-пин 000230.10: +106; ре-пин 000230.11: +203; ре-пин 000230.12: +108; ре-пин 000230.13: +102; ре-пин 000230.14: +106; ре-пин 000230.15: +199)');
+  assert.equal(skillRefs, 471, 'анти-вакуум: 471 skill-ссылок (ре-пин 000230.08: 44+35; ре-пин 000230.09: +81; ре-пин 000230.10: +39; ре-пин 000230.11: +74; ре-пин 000230.12: +39; ре-пин 000230.13: +44; ре-пин 000230.14: +41; ре-пин 000230.15: +74)');
+  assert.equal(buildingRefs, 467, 'анти-вакуум: 467 building-ссылок (ре-пин 000230.08: 54+39; ре-пин 000230.09: +87; ре-пин 000230.10: +28; ре-пин 000230.11: +78; ре-пин 000230.12: +34; ре-пин 000230.13: +30; ре-пин 000230.14: +43; ре-пин 000230.15: +74)');
 });
 
 test('000208 R3: sync-craft-data.js запекает ссылки в id-форму (tmp-репозиторий)', () => {
@@ -930,7 +955,7 @@ test('000211.09 R1: schema.json — «база» закреплена per-catalo
     + '(type string без смены типа, null-ветки нет — ключ опционален)');
 });
 
-test('000211.09 R2: все 37 «база» — self-ссылки: per-catalog паттерн, резолв, цель — рецепт того же каталога, id цели = значению зеркала (анти-вакуум 37/37, ре-пин 000230.08: +3 head-улучшенных; ре-пин 000230.09: +6 уши/шея-улучшенных; ре-пин 000230.10: +3 torso-улучшенных; ре-пин 000230.11: +6 рук-улучшенных; ре-пин 000230.12: +3 right-hand-улучшенных; ре-пин 000230.13: +3 left_hand-улучшенных; ре-пин 000230.14: +3 ring-улучшенных)', () => {
+test('000211.09 R2: все 43 «база» — self-ссылки: per-catalog паттерн, резолв, цель — рецепт того же каталога, id цели = значению зеркала (анти-вакуум 43/43, ре-пин 000230.08: +3 head-улучшенных; ре-пин 000230.09: +6 уши/шея-улучшенных; ре-пин 000230.10: +3 torso-улучшенных; ре-пин 000230.11: +6 рук-улучшенных; ре-пин 000230.12: +3 right-hand-улучшенных; ре-пин 000230.13: +3 left_hand-улучшенных; ре-пин 000230.14: +3 ring-улучшенных; ре-пин 000230.15: +6 legs/feet-улучшенных)', () => {
   const { byId } = loadCatalog();
   const { CRAFT_BY_ID } = loadCraftData();
   let baseRefs = 0;
@@ -948,17 +973,18 @@ test('000211.09 R2: все 37 «база» — self-ссылки: per-catalog п
     baseTargets.add(id);
   }
   // Анти-вакуум: точные счётчики (контракт memory/000211.09 §2).
-  assert.equal(baseRefs, 37,
-    'анти-вакуум: ровно 37 self-ссылки «база» (ре-пин 000230.08: +3; '
+  assert.equal(baseRefs, 43,
+    'анти-вакуум: ровно 43 self-ссылки «база» (ре-пин 000230.08: +3; '
     + 'ре-пин 000230.09: +6; ре-пин 000230.10: +3; '
     + 'ре-пин 000230.11: +6 рук-улучшенных; ре-пин 000230.12: +3; '
-    + 'ре-пин 000230.13: +3; ре-пин 000230.14: +3)');
-  assert.equal(baseTargets.size, 37,
-    'анти-вакуум: ровно 37 уникальные цели «база» '
+    + 'ре-пин 000230.13: +3; ре-пин 000230.14: +3; '
+    + 'ре-пин 000230.15: +6)');
+  assert.equal(baseTargets.size, 43,
+    'анти-вакуум: ровно 43 уникальные цели «база» '
     + '(ре-пин 000230.08: +3; ре-пин 000230.09: +6; '
     + 'ре-пин 000230.10: +3; ре-пин 000230.11: +6 рук-улучшенных; '
     + 'ре-пин 000230.12: +3; ре-пин 000230.13: +3; '
-    + 'ре-пин 000230.14: +3)');
+    + 'ре-пин 000230.14: +3; ре-пин 000230.15: +6)');
 });
 
 test('000211.09 R3: sync-craft-data.js запекает «база» в id-форму (tmp-репозиторий)', () => {
@@ -2746,13 +2772,13 @@ test('000230.12 R12: 28 рецептов (199 → 227): 25 базовых (ро�
   }
 });
 
-test('000230.12 R13: ре-пин 000208-R2 — каталог 283 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14)), ВСЕ ссылки резолвятся; анти-вакуум счётчики: item-ссылки 730 → 838 (+108 = 28 результат + 80 исходников) → 940 (+102, 000230.13) → 1046 (+106, 000230.14), skill-ссылки 273 → 312 (+39) → 356 (+44, 000230.13) → 397 (+41, 000230.14), building-ссылки 286 → 320 (+34) → 350 (+30, 000230.13) → 393 (+43, 000230.14) — точные дельты зафиксированы ростером R12 (у improved здания/навыки = базовые) (краснота: рецептов волны нет — счётчики до-волновые)', () => {
+test('000230.12 R13: ре-пин 000208-R2 — каталог 339 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14) + 56 legs/feet (000230.15)), ВСЕ ссылки резолвятся; анти-вакуум счётчики: item-ссылки 730 → 838 (+108 = 28 результат + 80 исходников) → 940 (+102, 000230.13) → 1046 (+106, 000230.14) → 1245 (+199, 000230.15), skill-ссылки 273 → 312 (+39) → 356 (+44, 000230.13) → 397 (+41, 000230.14) → 471 (+74, 000230.15), building-ссылки 286 → 320 (+34) → 350 (+30, 000230.13) → 393 (+43, 000230.14) → 467 (+74, 000230.15) — точные дельты зафиксированы ростером R12 (у improved здания/навыки = базовые) (краснота: рецептов волны нет — счётчики до-волновые)', () => {
   const { byId } = loadCatalog();
   const knownSkill = (id) =>
     SECONDARY_SKILLS[id] !== undefined ||
     PRIMARY_SKILLS.some((p) => p.id === id);
-  assert.equal(byId.size, 283,
-    'каталог — 283 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14)); факт: ' + byId.size);
+  assert.equal(byId.size, 339,
+    'каталог — 339 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14) + 56 legs/feet (000230.15)); факт: ' + byId.size);
   let itemRefs = 0;
   let skillRefs = 0;
   let buildingRefs = 0;
@@ -2777,15 +2803,311 @@ test('000230.12 R13: ре-пин 000208-R2 — каталог 283 рецепт (
         `${file}: цель ссылки ${ref} (id ${id}) нет в assets/buildings`);
     }
   }
-  assert.equal(itemRefs, 1046,
-    'анти-вакуум: 1046 item-ссылки (730 + 28 результатов + 80 '
+  assert.equal(itemRefs, 1245,
+    'анти-вакуум: 1245 item-ссылки (730 + 28 результатов + 80 '
     + 'исходников; ре-пин 000230.12: +108; ре-пин 000230.13: +102; '
-    + 'ре-пин 000230.14: +106); факт: ' + itemRefs);
-  assert.equal(skillRefs, 397,
-    'анти-вакуум: 397 skill-ссылки (273 + 39; ре-пин 000230.12: +39; '
-    + 'ре-пин 000230.13: +44; ре-пин 000230.14: +41); факт: ' + skillRefs);
-  assert.equal(buildingRefs, 393,
-    'анти-вакуум: 393 building-ссылки (286 + 34; ре-пин 000230.12: '
-    + '+34; ре-пин 000230.13: +30; ре-пин 000230.14: +43); '
-    + 'факт: ' + buildingRefs);
+    + 'ре-пин 000230.14: +106; ре-пин 000230.15: +199); факт: ' + itemRefs);
+  assert.equal(skillRefs, 471,
+    'анти-вакуум: 471 skill-ссылки (273 + 39; ре-пин 000230.12: +39; '
+    + 'ре-пин 000230.13: +44; ре-пин 000230.14: +41; '
+    + 'ре-пин 000230.15: +74); факт: ' + skillRefs);
+  assert.equal(buildingRefs, 467,
+    'анти-вакуум: 467 building-ссылки (286 + 34; ре-пин 000230.12: '
+    + '+34; ре-пин 000230.13: +30; ре-пин 000230.14: +43; '
+    + 'ре-пин 000230.15: +74); факт: ' + buildingRefs);
+});
+
+// =====================================================================
+// Задача 000230.15 — рецепты на предметы «Ноги» + «Ступни»: 50
+// базовых + 6 улучшенных (контентная волна серии 000230; P2;
+// follow-up 000230). Контракт —
+// memory/000230.15-legs-feet-items-wave.md §2.4 (id/файлы 000360–
+// 000415; 20 × столярное_дело [5] skills [dexterity] ВСЕ common;
+// 17 × кузнечное_дело [8, 25] skills [forge]; 13 × зачарование [18]
+// skills [runes + skill ПЕРВОГО affix] + ≥1 заклинание ID-формы;
+// 6 × improved (5 зачарование + 1 кузнечное) +t4, «база» = self-ref,
+// материалы ⊇ базовых). RED (TDD): в assets/craft 143 файла
+// (000001–000143), рецептов с legs/feet-результатами нет — тесты
+// падают по ОСМЫСЛЕННОЙ причине «рецепты волны не созданы» (нет
+// id/файлов), а не по синтаксису.
+// =====================================================================
+
+// [id, файл, тип, уровень, здания (resolved id), навыки (resolved id),
+//  результат (id), исходники [[id, qty]], заклинания (null — поле нет)]
+const LEGSFEET_RECIPES_00023015 = [
+  ['linen_trousers', '000360.json', 'столярное_дело', 2, [5],
+   ['dexterity'], 'linen_trousers', [['wood_log', 2], ['herb_bitter', 1]],
+   null],
+  ['wool_trousers', '000361.json', 'столярное_дело', 3, [5],
+   ['dexterity'], 'wool_trousers', [['hide', 1], ['wood_log', 2]], null],
+  ['hemp_breeches', '000362.json', 'столярное_дело', 4, [5],
+   ['dexterity'], 'hemp_breeches', [['wood_log', 2], ['stone_chunk', 1]],
+   null],
+  ['felt_trousers', '000363.json', 'столярное_дело', 5, [5],
+   ['dexterity'], 'felt_trousers', [['hide', 2], ['coal', 1]], null],
+  ['leather_pants', '000364.json', 'столярное_дело', 6, [5],
+   ['dexterity'], 'leather_pants', [['hide', 2], ['coal', 1]], null],
+  ['traveler_breeches', '000365.json', 'столярное_дело', 7, [5],
+   ['dexterity'], 'traveler_breeches', [['wood_log', 2], ['hide', 1]],
+   null],
+  ['hide_wrap', '000366.json', 'столярное_дело', 4, [5],
+   ['dexterity'], 'hide_wrap', [['hide', 2], ['coal', 1]], null],
+  ['twine_wraps', '000367.json', 'столярное_дело', 5, [5],
+   ['dexterity'], 'twine_wraps', [['wood_log', 2], ['hide', 1]], null],
+  ['rough_chaps', '000368.json', 'столярное_дело', 8, [5],
+   ['dexterity'], 'rough_chaps', [['hide', 2], ['stone_chunk', 1]],
+   null],
+  ['cloth_loincloth', '000369.json', 'столярное_дело', 3, [5],
+   ['dexterity'], 'cloth_loincloth', [['wood_log', 2], ['herb_bitter', 1]],
+   null],
+  ['bone_greaves', '000370.json', 'кузнечное_дело', 12, [8, 25],
+   ['forge'], 'bone_greaves', [['stone_chunk', 2], ['coal', 1]], null],
+  ['copper_greaves', '000371.json', 'кузнечное_дело', 14, [8, 25],
+   ['forge'], 'copper_greaves', [['copper_ore', 2], ['coal', 1]], null],
+  ['silver_chaps', '000372.json', 'кузнечное_дело', 16, [8, 25],
+   ['forge'], 'silver_chaps', [['silver_ore', 2], ['coal', 1]], null],
+  ['stone_greaves', '000373.json', 'кузнечное_дело', 13, [8, 25],
+   ['forge'], 'stone_greaves', [['stone_chunk', 3], ['coal', 1]], null],
+  ['obsidian_greaves', '000374.json', 'зачарование', 20, [18],
+   ['runes', 'hide'], 'obsidian_greaves',
+   [['obsidian', 1], ['wood_log', 1], ['coal', 1]], ['shadow_bolt']],
+  ['amethyst_pants', '000375.json', 'зачарование', 22, [18],
+   ['runes', 'breath'], 'amethyst_pants',
+   [['amethyst', 1], ['wood_log', 1], ['coal', 1]], ['frost_bolt']],
+  ['mystic_breeches', '000376.json', 'зачарование', 24, [18],
+   ['runes', 'step'], 'mystic_breeches',
+   [['amethyst', 1], ['herb_mana', 1], ['wood_log', 1]],
+   ['nature_blessing']],
+  ['sapphire_leggings', '000377.json', 'кузнечное_дело', 35, [8, 25],
+   ['forge'], 'sapphire_leggings',
+   [['sapphire', 1], ['silver_ore', 2], ['coal', 2]], null],
+  ['ember_pants', '000378.json', 'зачарование', 38, [18],
+   ['runes', 'step'], 'ember_pants',
+   [['root_ember', 2], ['wood_log', 2], ['coal', 2]], ['blazing_speed']],
+  ['emerald_greaves', '000379.json', 'кузнечное_дело', 40, [8, 25],
+   ['forge'], 'emerald_greaves',
+   [['emerald', 1], ['silver_ore', 1], ['coal', 2]], null],
+  ['gold_leggings', '000380.json', 'кузнечное_дело', 45, [8, 25],
+   ['forge'], 'gold_leggings', [['gold_ore', 2], ['coal', 2]], null],
+  ['mithril_greaves', '000381.json', 'кузнечное_дело', 50, [8, 25],
+   ['forge'], 'mithril_greaves', [['mithril_ore', 2], ['coal', 2]], null],
+  ['rune_greaves', '000382.json', 'зачарование', 65, [18],
+   ['runes', 'hide'], 'rune_greaves',
+   [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['stone_skin']],
+  ['storm_leggings', '000383.json', 'зачарование', 70, [18],
+   ['runes', 'step'], 'storm_leggings',
+   [['sapphire', 2], ['gold_ore', 2], ['coal', 2]], ['blizzard']],
+  ['titan_greaves', '000384.json', 'кузнечное_дело', 95, [8, 25],
+   ['forge'], 'titan_greaves',
+   [['gold_ore', 3], ['mithril_ore', 2], ['diamond', 2], ['coal', 3]],
+   null],
+  ['straw_sandals', '000385.json', 'столярное_дело', 2, [5],
+   ['dexterity'], 'straw_sandals', [['wood_log', 2], ['herb_bitter', 1]],
+   null],
+  ['cloth_sandals', '000386.json', 'столярное_дело', 3, [5],
+   ['dexterity'], 'cloth_sandals', [['wood_log', 2], ['stone_chunk', 1]],
+   null],
+  ['leather_sandals', '000387.json', 'столярное_дело', 4, [5],
+   ['dexterity'], 'leather_sandals', [['hide', 2], ['coal', 1]], null],
+  ['wool_boots', '000388.json', 'столярное_дело', 5, [5],
+   ['dexterity'], 'wool_boots', [['hide', 1], ['wood_log', 2]], null],
+  ['felt_boots', '000389.json', 'столярное_дело', 6, [5],
+   ['dexterity'], 'felt_boots', [['hide', 2], ['coal', 1]], null],
+  ['leather_boots', '000390.json', 'столярное_дело', 7, [5],
+   ['dexterity'], 'leather_boots', [['hide', 2], ['stone_chunk', 1]],
+   null],
+  ['travel_boots', '000391.json', 'столярное_дело', 8, [5],
+   ['dexterity'], 'travel_boots', [['wood_log', 2], ['hide', 1]], null],
+  ['hide_boots', '000392.json', 'столярное_дело', 5, [5],
+   ['dexterity'], 'hide_boots', [['hide', 2], ['coal', 1]], null],
+  ['wooden_sandals', '000393.json', 'столярное_дело', 3, [5],
+   ['dexterity'], 'wooden_sandals', [['wood_log', 3]], null],
+  ['hemp_sandals', '000394.json', 'столярное_дело', 4, [5],
+   ['dexterity'], 'hemp_sandals', [['wood_log', 2], ['herb_bitter', 1]],
+   null],
+  ['bone_sandals', '000395.json', 'кузнечное_дело', 12, [8, 25],
+   ['forge'], 'bone_sandals', [['stone_chunk', 2], ['coal', 1]], null],
+  ['copper_boots', '000396.json', 'кузнечное_дело', 14, [8, 25],
+   ['forge'], 'copper_boots', [['copper_ore', 2], ['coal', 1]], null],
+  ['silver_boots', '000397.json', 'кузнечное_дело', 16, [8, 25],
+   ['forge'], 'silver_boots', [['silver_ore', 2], ['coal', 1]], null],
+  ['stone_sandals', '000398.json', 'кузнечное_дело', 13, [8, 25],
+   ['forge'], 'stone_sandals', [['stone_chunk', 3], ['coal', 1]], null],
+  ['obsidian_sandals', '000399.json', 'зачарование', 20, [18],
+   ['runes', 'breath'], 'obsidian_sandals',
+   [['obsidian', 1], ['hide', 1], ['coal', 1]], ['chill']],
+  ['amethyst_boots', '000400.json', 'зачарование', 22, [18],
+   ['runes', 'endurance'], 'amethyst_boots',
+   [['amethyst', 1], ['hide', 1], ['coal', 1]], ['frost_bolt']],
+  ['mystic_sandals', '000401.json', 'зачарование', 24, [18],
+   ['runes', 'step'], 'mystic_sandals',
+   [['amethyst', 1], ['herb_mana', 1], ['hide', 1]], ['spark']],
+  ['sapphire_boots', '000402.json', 'кузнечное_дело', 35, [8, 25],
+   ['forge'], 'sapphire_boots',
+   [['sapphire', 1], ['silver_ore', 2], ['coal', 2]], null],
+  ['frost_sandals', '000403.json', 'зачарование', 42, [18],
+   ['runes', 'step'], 'frost_sandals',
+   [['root_moon', 2], ['hide', 2], ['coal', 2]], ['winter_haste']],
+  ['emerald_boots', '000404.json', 'кузнечное_дело', 40, [8, 25],
+   ['forge'], 'emerald_boots',
+   [['emerald', 1], ['silver_ore', 1], ['coal', 2]], null],
+  ['gold_sandals', '000405.json', 'кузнечное_дело', 45, [8, 25],
+   ['forge'], 'gold_sandals', [['gold_ore', 2], ['coal', 2]], null],
+  ['mithril_boots', '000406.json', 'кузнечное_дело', 50, [8, 25],
+   ['forge'], 'mithril_boots', [['mithril_ore', 2], ['coal', 2]], null],
+  ['storm_sandals', '000407.json', 'зачарование', 70, [18],
+   ['runes', 'step'], 'storm_sandals',
+   [['sapphire', 2], ['gold_ore', 2], ['coal', 2]], ['blizzard']],
+  ['rune_boots', '000408.json', 'зачарование', 65, [18],
+   ['runes', 'hide'], 'rune_boots',
+   [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['magic_shield']],
+  ['swift_boots', '000409.json', 'зачарование', 97, [18],
+   ['runes', 'step'], 'swift_boots',
+   [['phoenix_feather', 2], ['gold_ore', 3], ['diamond', 1], ['coal', 3]],
+   ['blazing_speed']],
+];
+
+test('000230.15 LF9: 50 базовых рецептов (ростер §2.4: id/файл/тип/уровень/здания/навыки/результат/исходники/заклинания; 20 столярное_дело [5] ВСЕ common-результаты + 17 кузнечное_дело [8,25] + 13 зачарование [18]); «уровень» в диапазоне редкости РЕЗУЛЬТАТА (пин); зачарование — ≥1 заклинание ID-формы (≤4); каждый из 50 legs/feet-предметов — ровно 1 базовый рецепт-результат (краснота: рецептов на legs/feet нет)', () => {
+  const { byId } = loadCatalog();
+  const typeCount = {};
+  for (const [id, file, type, level, buildings, skills, resultId,
+      inputs, spells] of LEGSFEET_RECIPES_00023015) {
+    const r = byId.get(id);
+    assert.ok(r, 'рецепт «' + id + '» (' + file + ') в каталоге '
+      + '(краснота: рецепт волны не создан)');
+    assert.equal(r.file, file, id + ': файл ' + file
+      + ' (контракт §2.4, переименований нет)');
+    assert.equal(r.data['тип'], type, id + ': тип «' + type + '»');
+    typeCount[type] = (typeCount[type] || 0) + 1;
+    assert.equal(r.data['уровень'], level, id + ': уровень ' + level);
+    assert.deepEqual(
+      r.data['здания'].map((b) => refId(b, REF_BUILDINGS, r.file)),
+      buildings, id + ': здания (resolved id)');
+    assert.deepEqual(
+      r.data['навыки'].map((s) => refId(s, REF_SKILLS, r.file)),
+      skills, id + ': навыки (resolved id)');
+    const resId = refId(r.data['результат']['предмет'], REF_ITEMS, r.file);
+    assert.equal(resId, resultId,
+      id + ': результат — legs/feet-предмет «' + resultId + '»');
+    assert.equal(r.data['результат']['количество'], 1,
+      id + ': результат ×1');
+    assert.deepEqual(
+      r.data['исходники'].map((i) =>
+        [refId(i['предмет'], REF_ITEMS, r.file), i['количество']]),
+      inputs, id + ': исходники (resolved id, порядок контракта)');
+    if (spells === null) {
+      assert.equal(r.data['заклинания'], undefined,
+        id + ': «заклинания» отсутствуют');
+    } else {
+      assert.deepEqual(r.data['заклинания'], spells,
+        id + ': «заклинания» (ID-форма, не пути)');
+    }
+    const it = getItem(resId);
+    assert.ok(it, id + ': результат «' + resultId + '» — в assets/items');
+    if (type === 'столярное_дело') {
+      assert.equal(it.rarity, 'common',
+        id + ': столярное — ТОЛЬКО common-результаты (§2.4, D-05)');
+    }
+    const [lo, hi] = RARITY_LEVEL_RANGE_00023008[it.rarity];
+    assert.ok(r.data['уровень'] >= lo && r.data['уровень'] <= hi,
+      id + ': уровень ' + r.data['уровень'] + ' в диапазоне редкости '
+      + it.rarity + ' [' + lo + '–' + hi + '] (пин ТЗ)');
+    if (type === 'зачарование') {
+      assert.ok(Array.isArray(r.data['заклинания'])
+          && r.data['заклинания'].length >= 1,
+        id + ': «зачарование» — ≥1 заклинание (инвариант 000191.14)');
+      assert.ok(r.data['заклинания'].length <= 4,
+        id + ': «зачарование» — заклинания ≤ 4 (maxItems schema)');
+    }
+  }
+  assert.deepEqual(
+    { 'столярное_дело': typeCount['столярное_дело'] || 0,
+      'кузнечное_дело': typeCount['кузнечное_дело'] || 0,
+      'зачарование': typeCount['зачарование'] || 0 },
+    { 'столярное_дело': 20, 'кузнечное_дело': 17, 'зачарование': 13 },
+    'сплит типов 20/17/13 (§2.4, D-05); факт: '
+    + JSON.stringify(typeCount));
+  const basicResults = [];
+  for (const { file, data } of byId.values()) {
+    if (data['база'] !== undefined) continue;
+    basicResults.push(
+      refId(data['результат']['предмет'], REF_ITEMS, file));
+  }
+  for (const row of LEGSFEET_RECIPES_00023015) {
+    const n = basicResults.filter((x) => x === row[6]).length;
+    assert.equal(n, 1,
+      'legs/feet-предмет «' + row[6] + '» — ровно 1 базовый '
+      + 'рецепт-результат (факт: ' + n + ')');
+  }
+});
+
+// [id, файл, «база» (id), уровень, t4-материал (tier 4, 000157.04)]
+// 6 улучшенных — 5 зачарование + 1 кузнечное (titan_greaves_diamond).
+const LEGSFEET_IMPROVED_00023015 = [
+  ['rune_greaves_mithril', '000410.json', 'rune_greaves', 80,
+   'mithril_ore'],
+  ['storm_leggings_diamond', '000411.json', 'storm_leggings', 85,
+   'diamond'],
+  ['titan_greaves_diamond', '000412.json', 'titan_greaves', 100,
+   'diamond'],
+  ['rune_boots_mithril', '000413.json', 'rune_boots', 80,
+   'mithril_ore'],
+  ['storm_sandals_diamond', '000414.json', 'storm_sandals', 85,
+   'diamond'],
+  ['swift_boots_diamond', '000415.json', 'swift_boots', 100,
+   'diamond'],
+];
+
+test('000230.15 LF10: 6 улучшенных (000410–000415) — «база» = rune_greaves/storm_leggings/titan_greaves/rune_boots/storm_sandals/swift_boots (000382/000383/000384/000408/000407/000409), тот же тип/результат, уровень ровно 80/85/100/80/85/100 (не ниже базового), исходники ⊇ базовых (по qty), цепочка «база» ациклична, +t4-руда/камень (tier 4) в исходниках (краснота: улучшенные рецепты не созданы)', () => {
+  const { byId } = loadCatalog();
+  for (const [id, file, baseId, level, t4] of LEGSFEET_IMPROVED_00023015) {
+    const r = byId.get(id);
+    assert.ok(r, 'рецепт «' + id + '» (' + file + ') в каталоге '
+      + '(краснота: улучшенный рецепт не создан)');
+    assert.equal(r.file, file, id + ': файл ' + file);
+    assert.equal(refId(r.data['база'], REF_CRAFT, r.file), baseId,
+      id + ': «база» — «' + baseId + '» (self-ссылка)');
+    const base = byId.get(baseId);
+    assert.ok(base, id + ': базовый рецепт «' + baseId + '» в каталоге');
+    const c = r.data;
+    const b = base.data;
+    assert.equal(c['тип'], b['тип'], id + ': тот же тип, что у базы');
+    assert.equal(
+      refId(c['результат']['предмет'], REF_ITEMS, r.file),
+      refId(b['результат']['предмет'], REF_ITEMS, base.file),
+      id + ': тот же предмет-результат, что у базы');
+    assert.equal(c['уровень'], level, id + ': уровень ' + level);
+    assert.ok(c['уровень'] >= b['уровень'],
+      id + ': уровень не ниже базового (' + b['уровень'] + ')');
+    const qtyOf = (data, fileRef) => {
+      const m = new Map();
+      for (const i of data['исходники']) {
+        const iid = refId(i['предмет'], REF_ITEMS, fileRef);
+        m.set(iid, (m.get(iid) || 0) + i['количество']);
+      }
+      return m;
+    };
+    const baseQty = qtyOf(b, base.file);
+    const qty = qtyOf(c, r.file);
+    for (const [item, n] of baseQty) {
+      assert.ok((qty.get(item) || 0) >= n,
+        id + ': исходник «' + item + '» ⊇ базового (' + n + ')');
+    }
+    assert.ok(qty.has(t4),
+      id + ': t4-материал «' + t4 + '» в исходниках (000157.04)');
+    assert.equal(getItem(t4).tier, 4,
+      t4 + ': tier 4 в каталоге (редкая руда/самоцвет)');
+    // Обход цепочки «база» завершается (циклов нет, self-ссылка нет).
+    const seen = new Set();
+    let cur = r;
+    let curFile = r.file;
+    let guard = 0;
+    while (cur && cur.data['база'] !== undefined) {
+      assert.ok(++guard <= byId.size, id + ': цикл в цепочке «база»');
+      assert.ok(!seen.has(cur.data.id), id + ': цикл на «' + cur.data.id + '»');
+      seen.add(cur.data.id);
+      cur = byId.get(refId(cur.data['база'], REF_CRAFT, curFile));
+      curFile = cur.file;
+    }
+  }
 });

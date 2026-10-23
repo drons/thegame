@@ -1,0 +1,21 @@
+{
+  "id": "straw_sandals",
+  "name": "Соломенные сандалии",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 15,
+  "desc": "Соломенные сандалии: солома шуршит, как лето.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/straw_sandals.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.02
+    }
+  ]
+}

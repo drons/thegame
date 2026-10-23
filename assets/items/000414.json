@@ -1,0 +1,21 @@
+{
+  "id": "hide_wrap",
+  "name": "Шкурный обмоток",
+  "kind": "armor",
+  "weight": 1.2,
+  "value": 33,
+  "desc": "Шкурный обмоток: шкура держит, когда ветер холодеет.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hide_wrap.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.03
+    }
+  ]
+}

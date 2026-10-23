@@ -1,0 +1,21 @@
+{
+  "id": "felt_boots",
+  "name": "Фетровые ботинки",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 27,
+  "desc": "Фетровые ботинки: фетр не слышно даже на снегу.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/felt_boots.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.04
+    }
+  ]
+}

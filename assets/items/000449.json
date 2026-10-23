@@ -1,0 +1,21 @@
+{
+  "id": "mystic_sandals",
+  "name": "Мистические сандалии",
+  "kind": "armor",
+  "weight": 1.4,
+  "value": 110,
+  "desc": "Мистические сандалии: шаг исчезает, остаётся эхо.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/mystic_sandals.svg",
+  "slot": "feet",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.1
+    }
+  ]
+}

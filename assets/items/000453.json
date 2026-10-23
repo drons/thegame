@@ -1,0 +1,21 @@
+{
+  "id": "gold_sandals",
+  "name": "Золотые сандалии",
+  "kind": "armor",
+  "weight": 2,
+  "value": 280,
+  "desc": "Золотые сандалии: золото блестит даже в тени.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/gold_sandals.svg",
+  "slot": "feet",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.19
+    }
+  ]
+}

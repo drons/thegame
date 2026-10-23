@@ -727,6 +727,13 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // КОНЕЦ пула [armor], rng-хвост → += 14 torso (не выпали:
     // wool_shirt/rough_kaftan/cloth_sutan/linen_tunic/wool_sutan/leather_kaftan/cloth_robe/leather_gown/stone_robe/deep_breath_robe/void_robe), остальные ключи стока не
     // сдвинулись (node-симуляция: seed/старые стоки byte-identical).
+    // Ре-пин 000230.15: ноги/ступни (000408-000457, kind armor) —
+    // КОНЕЦ пула [armor], rng-хвост → += 37 ног/ступней (в этом
+    // (x,y) не выпали: leather_pants/silver_chaps/amethyst_pants/
+    // sapphire_leggings/ember_pants/mithril_greaves/rune_greaves/
+    // cloth_sandals/hide_boots/hemp_sandals/copper_boots/
+    // obsidian_sandals/amethyst_boots), остальные ключи стока не
+    // сдвинулись (node-симуляция: seed/старые стоки byte-identical).
 
     // Ре-пин 000230.11: руки (000283-000332, kind armor) — КОНЕЦ
     // пула [armor], rng-хвост → += 37 рук (не выпали: leather_garter/archer_brace/iron_elbow/steel_bracers/gold_brace/swift_brace/rune_bracers/leather_gloves/bone_grips/fine_gloves/copper_gauntlets/night_gloves/iron_wraps);
@@ -734,69 +741,43 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // стоки byte-identical).
     { x: 10, y: 20, type: B.ARMOR_SHOP, w: 2, seed: 3248047078,
       stock: { chainmail: 4, knight_plate: 3, wool_cap: 3,
-        leather_cap: 3, fur_hat: 4, cloth_band: 1,
-        hood_common: 2, linen_cloth: 4, felt_hat: 3,
-        silver_band: 3, obsidian_cloth: 3,
-        quartz_cloth: 3, bone_band: 4, silver_helm: 2,
-        gold_helm: 2, mithril_helm: 2, emerald_helm: 4,
-        rune_hoop: 4, copper_hoop: 3, bone_stud: 1,
-        copper_dangle: 3, shell_hoop: 1, faith_stud: 2,
-        twine_hoop: 1, antler_hook: 4, stone_bead: 4,
-        silver_hoop: 1, moonstone_dangle: 4,
-        quartz_bead: 1, silver_stud: 3, obsidian_stud: 1,
-        emerald_stud: 3, ruby_bell: 3, mithril_hoop: 1,
-        star_earring: 4, whisper_hoop: 1, soul_bell: 1,
-        copper_chain: 4, bone_beads: 2, twine_amulet: 3,
+        leather_cap: 3, fur_hat: 4, cloth_band: 1, hood_common: 2,
+        linen_cloth: 4, felt_hat: 3, silver_band: 3,
+        obsidian_cloth: 3, quartz_cloth: 3, bone_band: 4,
+        silver_helm: 2, gold_helm: 2, mithril_helm: 2,
+        emerald_helm: 4, rune_hoop: 4, copper_hoop: 3, bone_stud: 1,
+        copper_dangle: 3, shell_hoop: 1, faith_stud: 2, twine_hoop: 1,
+        antler_hook: 4, stone_bead: 4, silver_hoop: 1,
+        moonstone_dangle: 4, quartz_bead: 1, silver_stud: 3,
+        obsidian_stud: 1, emerald_stud: 3, ruby_bell: 3,
+        mithril_hoop: 1, star_earring: 4, whisper_hoop: 1,
+        soul_bell: 1, copper_chain: 4, bone_beads: 2, twine_amulet: 3,
         clay_pendant: 4, wood_pendant: 4, shell_beads: 2,
-        faith_necklace: 1, bone_pendant: 1,
-        faith_amulet: 4, obsidian_pendant: 1,
-        ruby_pendant: 4, gold_chain: 1,
-        mithril_choker: 2, dawn_pendant: 3,
-        linen_shirt: 1, cloth_tunic: 1, linen_gown: 1,
-        hemp_robe: 2, wool_gown: 2, wool_kaftan: 2,
-        embroidered_kaftan: 1, monk_sutan: 1,
+        faith_necklace: 1, bone_pendant: 1, faith_amulet: 4,
+        obsidian_pendant: 1, ruby_pendant: 4, gold_chain: 1,
+        mithril_choker: 2, dawn_pendant: 3, linen_shirt: 1,
+        cloth_tunic: 1, linen_gown: 1, hemp_robe: 2, wool_gown: 2,
+        wool_kaftan: 2, embroidered_kaftan: 1, monk_sutan: 1,
         fine_kaftan: 3, ember_robe: 1, shadow_robe: 4,
-        meditating_robe: 4, pilgrim_sutan: 4,
-        aegis_mantle: 2,
-        cloth_cuff: 2,
-        leather_cuff: 4,
-        hemp_bracer: 2,
-        rough_bracer: 2,
-        cloth_wrap: 4,
-        iron_cuff: 4,
-        bone_bracer: 1,
-        wood_brace: 4,
-        hide_cuff: 4,
-        studded_bracer: 1,
-        copper_brace: 4,
-        silver_cuff: 3,
-        shadow_wrap: 4,
-        runic_cuff: 2,
-        sapphire_bracer: 2,
-        ghost_cuff: 3,
-        star_armguard: 2,
-        titan_brace: 1,
-        cloth_gloves: 4,
-        hide_gloves: 1,
-        rough_gauntlets: 1,
-        archer_gloves: 4,
-        linen_wraps: 1,
-        iron_gauntlets: 3,
-        wood_guards: 3,
-        studded_gloves: 1,
-        quiver_gloves: 3,
-        silver_gauntlets: 3,
-        wind_gloves: 1,
-        steel_gauntlets: 3,
-        gold_gloves: 2,
-        emerald_gauntlets: 2,
-        phantom_gloves: 1,
-        haste_wraps: 2,
-        rune_gauntlets: 2,
-        star_gloves: 3,
-        void_gauntlet: 3} },
-    { x: 10, y: 20, type: B.APOTHECARY, w: 2, seed: 3248047079,
-      stock: { minor_healing: 3, greater_healing: 4, mana_potion: 3, mana_elixir: 3, bread: 1, meat: 2 } },
+        meditating_robe: 4, pilgrim_sutan: 4, aegis_mantle: 2, cloth_cuff: 2, leather_cuff: 4,
+        hemp_bracer: 2, rough_bracer: 2, cloth_wrap: 4, iron_cuff: 4, bone_bracer: 1,
+        wood_brace: 4, hide_cuff: 4, studded_bracer: 1, copper_brace: 4, silver_cuff: 3,
+        shadow_wrap: 4, runic_cuff: 2, sapphire_bracer: 2, ghost_cuff: 3, star_armguard: 2,
+        titan_brace: 1, cloth_gloves: 4, hide_gloves: 1, rough_gauntlets: 1, archer_gloves: 4,
+        linen_wraps: 1, iron_gauntlets: 3, wood_guards: 3, studded_gloves: 1, quiver_gloves: 3,
+        silver_gauntlets: 3, wind_gloves: 1, steel_gauntlets: 3, gold_gloves: 2, emerald_gauntlets: 2,
+        phantom_gloves: 1, haste_wraps: 2, rune_gauntlets: 2, star_gloves: 3, void_gauntlet: 3,
+        linen_trousers: 2, wool_trousers: 2, hemp_breeches: 1, felt_trousers: 1, traveler_breeches: 2,
+        hide_wrap: 1, twine_wraps: 3, rough_chaps: 1, cloth_loincloth: 3, bone_greaves: 3,
+        stone_greaves: 4, obsidian_greaves: 3, amethyst_pants: 3, mystic_breeches: 1, ember_pants: 1,
+        emerald_greaves: 4, gold_leggings: 3, mithril_greaves: 1, rune_greaves: 1, storm_leggings: 1,
+        titan_greaves: 1, straw_sandals: 1, cloth_sandals: 1, leather_boots: 3, travel_boots: 1,
+        hide_boots: 3, wooden_sandals: 1, hemp_sandals: 2, bone_sandals: 3, copper_boots: 2,
+        silver_boots: 2, stone_sandals: 3, obsidian_sandals: 2, amethyst_boots: 4, mystic_sandals: 3,
+        frost_sandals: 2, emerald_boots: 2, gold_sandals: 2, storm_sandals: 3, rune_boots: 2,
+        swift_boots: 4} },    { x: 10, y: 20, type: B.APOTHECARY, w: 2, seed: 3248047079,
+      stock: { minor_healing: 3, greater_healing: 4, mana_potion: 3,
+        mana_elixir: 3, bread: 1, meat: 2 } },
     // Ре-пин 000157.01: руды/минералы/самоцветы (000052-000062) — КОНЕЦ
     // каталога, rng-хвост пула [reagent, skill_book] → += 6 новых
     // reagent, остальные ключи стока не сдвинулись (симуляция:
@@ -807,9 +788,16 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // mushroom_glow в этом (x,y) не выпали), остальные ключи стока не
     // сдвинулись (симуляция: seed/старые стоки byte-identical).
     { x: 30, y: 40, type: B.MAGIC_SHOP, w: 0, seed: 3346526316,
-      stock: { sulfur: 2, moonstone: 2, phoenix_feather: 1, stone_fist_grimoire: 2, iron_hide_tome: 1, archer_scroll: 2, hide: 1, coal: 1, herb_healing: 2, stone_chisel: 2, silver_ore: 2, gold_ore: 1, mithril_ore: 1, quartz: 1, ruby: 1, amethyst: 1, berry_blue: 2, berry_wild: 2, herb_sun: 1, herb_wind: 2, root_ember: 2, root_rock: 1, mushroom_grey: 1, mushroom_ink: 1 } },
+      stock: { sulfur: 2, moonstone: 2, phoenix_feather: 1,
+        stone_fist_grimoire: 2, iron_hide_tome: 1, archer_scroll: 2,
+        hide: 1, coal: 1, herb_healing: 2, stone_chisel: 2,
+        silver_ore: 2, gold_ore: 1, mithril_ore: 1, quartz: 1,
+        ruby: 1, amethyst: 1, berry_blue: 2, berry_wild: 2,
+        herb_sun: 1, herb_wind: 2, root_ember: 2, root_rock: 1,
+        mushroom_grey: 1, mushroom_ink: 1 } },
     { x: 5, y: 7, type: B.TAVERN, w: 0, seed: 766909004,
-      stock: { healing_potion: 2, greater_healing: 2, mana_potion: 2, mana_elixir: 1, bread: 1, meat: 2 } },
+      stock: { healing_potion: 2, greater_healing: 2, mana_potion: 2,
+        mana_elixir: 1, bread: 1, meat: 2 } },
     // Ре-пин 000133: универсам (wealth 3, пул allItems) — свитки
     // заклинаний (000043-000050) добавлены КОНЦОМ каталога →
     // существующие стоки не сдвинулись, += свитки, вытянутые rng-хвостом
@@ -873,100 +861,99 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // хвосты ре-симулированы — значения по финальному каталогу 407
     // (node-симуляция: base + огонь + лёд + уши/шея + torso + тень +
     // исцеление + руки + «правая рука» + left_hand + кольца).
+    // Ре-пин 000230.15: ноги/ступни (000408-000457) — КОНЕЦ
+    // каталога, rng-хвост пула allItems → += 45 ног/ступней
+    // (не выпали: sapphire_leggings/leather_boots/wooden_sandals/
+    // sapphire_boots/gold_sandals); ключи 000001–000407 —
+    // byte-identical (node-симуляция на мерж-каталоге 457: base
+    // + огонь + лёд + уши/шея + torso + тень + исцеление + руки
+    // + «правая рука» + left_hand + кольца + ноги/ступни).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
-      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3,
-        war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5,
-        greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3,
-        honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1,
-        moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1,
-        iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4,
-        archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5,
-        herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5,
-        flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5,
-        light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5,
-        gold_ore: 4, mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3,
-        ruby: 3, sapphire: 5, emerald: 3, amethyst: 5, berry_red: 3,
-        berry_blue: 5, berry_wild: 3, herb_sun: 3, herb_wind: 4, root_moon: 1,
-        root_ember: 3, root_rock: 3, fruit_apple: 1, fruit_quince: 1,
-        mushroom_grey: 4, mushroom_glow: 3, blueprint_alchemy: 3,
-        blueprint_carving: 3, blueprint_woodwork: 2, blueprint_enchant: 4,
-        blueprint_runecraft: 4, straw_hat: 2, wool_cap: 4, leather_cap: 3,
-        wanderer_cap: 2, hood_common: 4, linen_cloth: 2, felt_hat: 2,
-        travel_cloth: 3, silver_band: 2, obsidian_cloth: 5, amethyst_band: 5,
-        quartz_cloth: 4, bone_band: 2, mystic_cloth: 4, gold_helm: 4,
-        rune_hoop: 4, star_hoop: 1, crown_flame: 3, ignite_scroll: 1,
-        fire_nova_scroll: 2, meteor_scroll: 1, flame_strike_scroll: 4,
-        hellfire_scroll: 5, phlogiston_blast_scroll: 2, wall_of_fire_scroll: 4,
-        burning_haze_scroll: 3, blazing_speed_scroll: 4, fire_aura_scroll: 3,
-        heat_shield_scroll: 3, sunfire_scroll: 5, scorch_scroll: 5,
+      stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3,
+        leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1,
+        mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4,
+        sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2,
+        fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1,
+        wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5,
+        fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5,
+        light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5, gold_ore: 4,
+        mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3, ruby: 3, sapphire: 5, emerald: 3,
+        amethyst: 5, berry_red: 3, berry_blue: 5, berry_wild: 3, herb_sun: 3, herb_wind: 4,
+        root_moon: 1, root_ember: 3, root_rock: 3, fruit_apple: 1, fruit_quince: 1,
+        mushroom_grey: 4, mushroom_glow: 3, blueprint_alchemy: 3, blueprint_carving: 3,
+        blueprint_woodwork: 2, blueprint_enchant: 4, blueprint_runecraft: 4, straw_hat: 2,
+        wool_cap: 4, leather_cap: 3, wanderer_cap: 2, hood_common: 4, linen_cloth: 2,
+        felt_hat: 2, travel_cloth: 3, silver_band: 2, obsidian_cloth: 5, amethyst_band: 5,
+        quartz_cloth: 4, bone_band: 2, mystic_cloth: 4, gold_helm: 4, rune_hoop: 4, star_hoop: 1,
+        crown_flame: 3, ignite_scroll: 1, fire_nova_scroll: 2, meteor_scroll: 1,
+        flame_strike_scroll: 4, hellfire_scroll: 5, phlogiston_blast_scroll: 2,
+        wall_of_fire_scroll: 4, burning_haze_scroll: 3, blazing_speed_scroll: 4,
+        fire_aura_scroll: 3, heat_shield_scroll: 3, sunfire_scroll: 5, scorch_scroll: 5,
         cinder_scroll: 2, ashen_debilitation_scroll: 1, lava_snare_scroll: 1,
-        flame_imp_scroll: 1, phoenix_scroll: 2, firelight_scroll: 4,
-        hearthfire_scroll: 1, rime_bolt_scroll: 2, shatter_scroll: 5,
-        glacial_spike_scroll: 3, permafrost_scroll: 1, absolute_zero_scroll: 3,
-        ice_field_scroll: 1, wall_of_ice_scroll: 1, blizzard_field_scroll: 5,
-        frost_aura_scroll: 4, ice_armor_scroll: 5, winter_haste_scroll: 4,
-        frostbite_blessing_scroll: 5, slow_scroll: 2, frostbite_scroll: 2,
-        deep_freeze_scroll: 1, freeze_scroll: 5, glacier_grasp_scroll: 2,
+        flame_imp_scroll: 1, phoenix_scroll: 2, firelight_scroll: 4, hearthfire_scroll: 1,
+        rime_bolt_scroll: 2, shatter_scroll: 5, glacial_spike_scroll: 3, permafrost_scroll: 1,
+        absolute_zero_scroll: 3, ice_field_scroll: 1, wall_of_ice_scroll: 1,
+        blizzard_field_scroll: 5, frost_aura_scroll: 4, ice_armor_scroll: 5,
+        winter_haste_scroll: 4, frostbite_blessing_scroll: 5, slow_scroll: 2,
+        frostbite_scroll: 2, deep_freeze_scroll: 1, freeze_scroll: 5, glacier_grasp_scroll: 2,
         winter_elemental_scroll: 3, frost_walk_scroll: 4, cold_breath_scroll: 1,
-        frozen_stillness_scroll: 4, copper_hoop: 1, bone_stud: 2,
-        leather_loop: 5, clay_dangle: 5, shell_hoop: 4, faith_stud: 5,
-        twine_hoop: 4, antler_hook: 1, stone_bead: 4, silver_hoop: 1,
-        moonstone_dangle: 2, quartz_bead: 3, silver_stud: 3, obsidian_stud: 3,
-        amethyst_dangle: 2, sapphire_hoop: 2, emerald_stud: 2, gold_dangle: 1,
-        mithril_hoop: 5, star_earring: 3, whisper_hoop: 2, copper_chain: 4,
-        bone_beads: 3, twine_amulet: 3, clay_pendant: 5, wood_pendant: 5,
-        copper_pendant: 5, shell_beads: 5, faith_necklace: 3, stone_beads: 4,
-        bone_pendant: 1, silver_chain: 2, quartz_amulet: 2, moonstone_chain: 3,
-        faith_amulet: 4, obsidian_pendant: 3, amethyst_choker: 5,
+        frozen_stillness_scroll: 4, copper_hoop: 1, bone_stud: 2, leather_loop: 5,
+        clay_dangle: 5, shell_hoop: 4, faith_stud: 5, twine_hoop: 4, antler_hook: 1,
+        stone_bead: 4, silver_hoop: 1, moonstone_dangle: 2, quartz_bead: 3, silver_stud: 3,
+        obsidian_stud: 3, amethyst_dangle: 2, sapphire_hoop: 2, emerald_stud: 2, gold_dangle: 1,
+        mithril_hoop: 5, star_earring: 3, whisper_hoop: 2, copper_chain: 4, bone_beads: 3,
+        twine_amulet: 3, clay_pendant: 5, wood_pendant: 5, copper_pendant: 5, shell_beads: 5,
+        faith_necklace: 3, stone_beads: 4, bone_pendant: 1, silver_chain: 2, quartz_amulet: 2,
+        moonstone_chain: 3, faith_amulet: 4, obsidian_pendant: 3, amethyst_choker: 5,
         sapphire_pendant: 4, emerald_amulet: 3, gold_chain: 2, mithril_choker: 1,
-        rune_necklace: 4, star_pendant: 5, dawn_pendant: 3, wool_shirt: 1,
-        cloth_tunic: 3, linen_gown: 5, hemp_robe: 3, rough_kaftan: 1,
-        wool_gown: 2, cloth_sutan: 3, linen_tunic: 4, wool_kaftan: 4,
-        wool_sutan: 3, leather_kaftan: 4, embroidered_kaftan: 4, cloth_robe: 4,
-        leather_gown: 3, monk_sutan: 1, fine_kaftan: 4, stone_robe: 2,
-        shadow_robe: 1, deep_breath_robe: 5, pilgrim_sutan: 3, void_robe: 3,
-        aegis_mantle: 2, umbra_bolt_scroll: 5, drain_life_scroll: 1,
-        void_arrow_scroll: 3, night_strike_scroll: 4, soul_drain_scroll: 2,
-        shadowflame_scroll: 2, dark_nova_scroll: 4, shroud_scroll: 5,
-        night_blade_scroll: 5, vampire_touch_scroll: 1, fear_scroll: 4,
-        doom_mark_scroll: 2, despair_scroll: 5, shadow_curse_scroll: 3,
-        nightmare_scroll: 5, dark_ensnare_scroll: 2, shadow_pool_scroll: 2,
-        veil_of_night_scroll: 3, shadow_wraith_scroll: 5, void_horror_scroll: 5,
-        shadow_step_scroll: 1, invisibility_scroll: 2, radiant_heal_scroll: 4,
-        life_bloom_scroll: 5, purify_scroll: 4, mass_heal_scroll: 3,
+        rune_necklace: 4, star_pendant: 5, dawn_pendant: 3, wool_shirt: 1, cloth_tunic: 3,
+        linen_gown: 5, hemp_robe: 3, rough_kaftan: 1, wool_gown: 2, cloth_sutan: 3,
+        linen_tunic: 4, wool_kaftan: 4, wool_sutan: 3, leather_kaftan: 4, embroidered_kaftan: 4,
+        cloth_robe: 4, leather_gown: 3, monk_sutan: 1, fine_kaftan: 4, stone_robe: 2,
+        shadow_robe: 1, deep_breath_robe: 5, pilgrim_sutan: 3, void_robe: 3, aegis_mantle: 2,
+        umbra_bolt_scroll: 5, drain_life_scroll: 1, void_arrow_scroll: 3, night_strike_scroll: 4,
+        soul_drain_scroll: 2, shadowflame_scroll: 2, dark_nova_scroll: 4, shroud_scroll: 5,
+        night_blade_scroll: 5, vampire_touch_scroll: 1, fear_scroll: 4, doom_mark_scroll: 2,
+        despair_scroll: 5, shadow_curse_scroll: 3, nightmare_scroll: 5, dark_ensnare_scroll: 2,
+        shadow_pool_scroll: 2, veil_of_night_scroll: 3, shadow_wraith_scroll: 5,
+        void_horror_scroll: 5, shadow_step_scroll: 1, invisibility_scroll: 2,
+        radiant_heal_scroll: 4, life_bloom_scroll: 5, purify_scroll: 4, mass_heal_scroll: 3,
         mass_holy_light_scroll: 4, regeneration_scroll: 3, blessing_scroll: 5,
-        divine_favor_scroll: 4, guardian_blessing_scroll: 2,
-        swift_prayer_scroll: 4, faith_shield_scroll: 3, smite_scroll: 1,
-        unholy_wrath_scroll: 4, stun_of_light_scroll: 2, holy_bind_scroll: 5,
-        light_sprite_scroll: 4, spirit_healer_scroll: 5, holy_guardian_scroll: 1,
-        circle_of_light_scroll: 5, holy_ground_scroll: 2, prayer_scroll: 4,
-        divine_protection_scroll: 2, holy_light_scroll: 4, miracle_scroll: 4,
-        leather_cuff: 2, hemp_bracer: 4, cloth_wrap: 5, iron_cuff: 4,
-        bone_bracer: 5, wood_brace: 2, hide_cuff: 1, studded_bracer: 4,
-        copper_brace: 4, archer_brace: 1, silver_cuff: 1, shadow_wrap: 5,
-        iron_elbow: 1, runic_cuff: 4, steel_bracers: 5, gold_brace: 4,
-        sapphire_bracer: 2, ghost_cuff: 3, swift_brace: 4, rune_bracers: 5,
-        star_armguard: 3, titan_brace: 4, cloth_gloves: 5, leather_gloves: 3,
-        hide_gloves: 4, linen_wraps: 4, iron_gauntlets: 2, wood_guards: 4,
-        fine_gloves: 1, studded_gloves: 5, copper_gauntlets: 3, quiver_gloves: 1,
-        silver_gauntlets: 4, night_gloves: 1, iron_wraps: 5, wind_gloves: 4,
-        gold_gloves: 3, emerald_gauntlets: 1, phantom_gloves: 5, haste_wraps: 1,
-        rune_gauntlets: 4, star_gloves: 4, wood_scyte: 3, wood_pitchfork: 2,
-        iron_pitchfork: 4, copper_scyte: 5, iron_hammer: 3, iron_tongs: 2,
-        clay_crucible: 4, stone_mortar: 1, bone_graver: 3, ember_staff: 5,
-        rime_staff: 5, rune_staff: 3, steel_hammer: 5, rune_stylus: 3,
-        harvest_scyte: 4, flame_staff: 2, silver_crucible: 5, rune_chisel: 3,
-        sage_staff: 5, mithril_hammer: 2, wooden_buckler: 3, leather_shield: 3,
-        cloth_shield: 2, wicker_buckler: 2, oiled_shield: 1, horn_shield: 2,
-        palm_shield: 1, ash_shield: 2, clay_buckler: 1, iron_round: 1,
-        steel_buckler: 5, guard_amulet: 4, frost_charm: 4, cinder_eye: 4,
-        frost_orb: 1, mind_pendant: 5, arcane_eye: 4, heart_of_elements: 4,
-        copper_ring: 2, bone_ring: 3, iron_ring: 5, thread_ring: 4,
-        stone_ring: 4, clay_ring: 1, leather_ring: 4, silver_ring: 1,
-        silver_signet: 1, gold_ring: 5, glacier_ring: 2, quartz_ring: 3,
-        obsidian_ring: 3, amethyst_ring: 4, sapphire_ring: 4, ruby_ring: 4,
-        frost_ring: 4, rune_ring: 4, star_signet: 4, void_ring: 1,
-        phoenix_ring: 3 } },
+        divine_favor_scroll: 4, guardian_blessing_scroll: 2, swift_prayer_scroll: 4,
+        faith_shield_scroll: 3, smite_scroll: 1, unholy_wrath_scroll: 4, stun_of_light_scroll: 2,
+        holy_bind_scroll: 5, light_sprite_scroll: 4, spirit_healer_scroll: 5,
+        holy_guardian_scroll: 1, circle_of_light_scroll: 5, holy_ground_scroll: 2,
+        prayer_scroll: 4, divine_protection_scroll: 2, holy_light_scroll: 4, miracle_scroll: 4,
+        leather_cuff: 2, hemp_bracer: 4, cloth_wrap: 5, iron_cuff: 4, bone_bracer: 5,
+        wood_brace: 2, hide_cuff: 1, studded_bracer: 4, copper_brace: 4, archer_brace: 1,
+        silver_cuff: 1, shadow_wrap: 5, iron_elbow: 1, runic_cuff: 4, steel_bracers: 5,
+        gold_brace: 4, sapphire_bracer: 2, ghost_cuff: 3, swift_brace: 4, rune_bracers: 5,
+        star_armguard: 3, titan_brace: 4, cloth_gloves: 5, leather_gloves: 3, hide_gloves: 4,
+        linen_wraps: 4, iron_gauntlets: 2, wood_guards: 4, fine_gloves: 1, studded_gloves: 5,
+        copper_gauntlets: 3, quiver_gloves: 1, silver_gauntlets: 4, night_gloves: 1,
+        iron_wraps: 5, wind_gloves: 4, gold_gloves: 3, emerald_gauntlets: 1, phantom_gloves: 5,
+        haste_wraps: 1, rune_gauntlets: 4, star_gloves: 4, wood_scyte: 3, wood_pitchfork: 2,
+        iron_pitchfork: 4, copper_scyte: 5, iron_hammer: 3, iron_tongs: 2, clay_crucible: 4,
+        stone_mortar: 1, bone_graver: 3, ember_staff: 5, rime_staff: 5, rune_staff: 3,
+        steel_hammer: 5, rune_stylus: 3, harvest_scyte: 4, flame_staff: 2, silver_crucible: 5,
+        rune_chisel: 3, sage_staff: 5, mithril_hammer: 2, wooden_buckler: 3, leather_shield: 3,
+        cloth_shield: 2, wicker_buckler: 2, oiled_shield: 1, horn_shield: 2, palm_shield: 1,
+        ash_shield: 2, clay_buckler: 1, iron_round: 1, steel_buckler: 5, guard_amulet: 4,
+        frost_charm: 4, cinder_eye: 4, frost_orb: 1, mind_pendant: 5, arcane_eye: 4,
+        heart_of_elements: 4, copper_ring: 2, bone_ring: 3, iron_ring: 5, thread_ring: 4,
+        stone_ring: 4, clay_ring: 1, leather_ring: 4, silver_ring: 1, silver_signet: 1,
+        gold_ring: 5, glacier_ring: 2, quartz_ring: 3, obsidian_ring: 3, amethyst_ring: 4,
+        sapphire_ring: 4, ruby_ring: 4, frost_ring: 4, rune_ring: 4, star_signet: 4,
+        void_ring: 1, phoenix_ring: 3, linen_trousers: 3, wool_trousers: 3, hemp_breeches: 3,
+        felt_trousers: 1, leather_pants: 4, traveler_breeches: 2, hide_wrap: 2, twine_wraps: 4,
+        rough_chaps: 4, cloth_loincloth: 5, bone_greaves: 4, copper_greaves: 2, silver_chaps: 2,
+        stone_greaves: 5, obsidian_greaves: 3, amethyst_pants: 4, mystic_breeches: 2,
+        ember_pants: 4, emerald_greaves: 2, gold_leggings: 2, mithril_greaves: 1,
+        rune_greaves: 5, storm_leggings: 4, titan_greaves: 3, straw_sandals: 4, cloth_sandals: 3,
+        leather_sandals: 2, wool_boots: 1, felt_boots: 2, travel_boots: 5, hide_boots: 5,
+        hemp_sandals: 5, bone_sandals: 4, copper_boots: 5, silver_boots: 1, stone_sandals: 5,
+        obsidian_sandals: 1, amethyst_boots: 4, mystic_sandals: 5, frost_sandals: 2,
+        emerald_boots: 3, mithril_boots: 2, storm_sandals: 2, rune_boots: 2, swift_boots: 1 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1015,6 +1002,11 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // пула барахолки, rng-хвост → += 19 torso (не выпали: cloth_tunic/linen_gown/cloth_sutan/wool_kaftan/embroidered_kaftan/ember_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
+    // Ре-пин 000230.15: ноги/ступни (000408-000457, kind armor) —
+    // КОНЕЦ пула барахолки, rng-хвост → += 36 (не выпали:
+    // wool_trousers/twine_wraps/copper_greaves/stone_greaves/obsidian_greaves/sapphire_leggings/leather_sandals/felt_boots/leather_boots/wooden_sandals/bone_sandals/copper_boots/gold_sandals/mithril_boots), остальные ключи стока не сдвигаются
+    // (node-симуляция на мерж-каталоге 432: seed/старые стоки
+    // byte-identical).
 
     // Ре-пин 000230.11: руки (000283-000332, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 41 рук (не выпали: studded_bracer/copper_brace/iron_elbow/steel_bracers/titan_brace/cloth_gloves/wind_gloves/steel_gauntlets/star_gloves);
@@ -1023,87 +1015,53 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     { x: 10, y: 20, day: 1, w: 2,
       stock: { iron_sword: 3, battle_axe: 3, war_hammer: 2,
         leather_armor: 4, chainmail: 2, knight_plate: 3,
-        minor_healing: 4, healing_potion: 4,
-        mana_potion: 1, bread: 3, meat: 4, straw_hat: 2,
-        wool_cap: 4, leather_cap: 3, fur_hat: 4,
-        cloth_band: 3, wanderer_cap: 1, hood_common: 2,
+        minor_healing: 4, healing_potion: 4, mana_potion: 1, bread: 3,
+        meat: 4, straw_hat: 2, wool_cap: 4, leather_cap: 3,
+        fur_hat: 4, cloth_band: 3, wanderer_cap: 1, hood_common: 2,
         linen_cloth: 3, travel_cloth: 4, silver_band: 1,
-        copper_band: 2, amethyst_band: 4,
-        quartz_cloth: 2, bone_band: 2, mystic_cloth: 1,
-        silver_helm: 2, gold_helm: 4, mithril_helm: 2,
-        emerald_helm: 2, rune_hoop: 4, crown_flame: 4,
-        copper_hoop: 4, bone_stud: 2, leather_loop: 2,
-        clay_dangle: 3, wood_bead: 2, copper_dangle: 1,
-        shell_hoop: 4, twine_hoop: 2, antler_hook: 2,
-        silver_hoop: 1, moonstone_dangle: 3,
-        quartz_bead: 4, silver_stud: 3, obsidian_stud: 4,
-        sapphire_hoop: 3, emerald_stud: 1, ruby_bell: 2,
-        gold_dangle: 3, mithril_hoop: 4, star_earring: 4,
-        soul_bell: 1, twine_amulet: 1, clay_pendant: 4,
-        wood_pendant: 2, faith_necklace: 1,
-        leather_choker: 3, stone_beads: 4,
-        bone_pendant: 3, quartz_amulet: 3,
-        moonstone_chain: 1, obsidian_pendant: 1,
-        amethyst_choker: 1, sapphire_pendant: 3,
-        emerald_amulet: 2, ruby_pendant: 2,
-        mithril_choker: 3, rune_necklace: 4,
-        star_pendant: 1, linen_shirt: 4, wool_shirt: 1,
-        hemp_robe: 1, rough_kaftan: 1, wool_gown: 1,
-        linen_tunic: 1, wool_sutan: 3, leather_kaftan: 1,
-        cloth_robe: 2, leather_gown: 1, monk_sutan: 3,
-        fine_kaftan: 1, stone_robe: 4, shadow_robe: 1,
-        deep_breath_robe: 2, meditating_robe: 1,
-        pilgrim_sutan: 4, void_robe: 4, aegis_mantle: 3,
-        cloth_cuff: 1,
-        leather_cuff: 2,
-        hemp_bracer: 4,
-        rough_bracer: 4,
-        leather_garter: 2,
-        cloth_wrap: 2,
-        iron_cuff: 2,
-        bone_bracer: 3,
-        wood_brace: 3,
-        hide_cuff: 3,
-        archer_brace: 3,
-        silver_cuff: 3,
-        shadow_wrap: 1,
-        runic_cuff: 4,
-        gold_brace: 1,
-        sapphire_bracer: 1,
-        ghost_cuff: 3,
-        swift_brace: 4,
-        rune_bracers: 4,
-        star_armguard: 1,
-        leather_gloves: 2,
-        hide_gloves: 4,
-        rough_gauntlets: 4,
-        archer_gloves: 3,
-        linen_wraps: 2,
-        iron_gauntlets: 1,
-        bone_grips: 3,
-        wood_guards: 1,
-        fine_gloves: 4,
-        studded_gloves: 2,
-        copper_gauntlets: 1,
-        quiver_gloves: 2,
-        silver_gauntlets: 1,
-        night_gloves: 3,
-        iron_wraps: 3,
-        gold_gloves: 2,
-        emerald_gauntlets: 2,
-        phantom_gloves: 3,
-        haste_wraps: 3,
-        rune_gauntlets: 4,
-        void_gauntlet: 1,
-        wood_scyte: 2, iron_scyte: 4, wood_pitchfork: 4, iron_pitchfork: 3,
-        copper_scyte: 4, steel_scyte: 1, steel_pitchfork: 4, ember_staff: 3,
-        rime_staff: 3, rune_staff: 1, flame_staff: 2, ice_staff: 4,
-        sage_staff: 4, philosopher_staff: 3
-    // Ре-пин 000230.12: rng-хвост пула барахолки → += 14 новых (не выпали: iron_hammer/iron_tongs/clay_crucible/stone_mortar/bone_graver; tools не в пуле).
-    } },
-    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+        copper_band: 2, amethyst_band: 4, quartz_cloth: 2, bone_band: 2, mystic_cloth: 1,
+        silver_helm: 2, gold_helm: 4, mithril_helm: 2, emerald_helm: 2, rune_hoop: 4,
+        crown_flame: 4, copper_hoop: 4, bone_stud: 2, leather_loop: 2, clay_dangle: 3,
+        wood_bead: 2, copper_dangle: 1, shell_hoop: 4, twine_hoop: 2, antler_hook: 2,
+        silver_hoop: 1, moonstone_dangle: 3, quartz_bead: 4, silver_stud: 3, obsidian_stud: 4,
+        sapphire_hoop: 3, emerald_stud: 1, ruby_bell: 2, gold_dangle: 3, mithril_hoop: 4,
+        star_earring: 4, soul_bell: 1, twine_amulet: 1, clay_pendant: 4, wood_pendant: 2,
+        faith_necklace: 1, leather_choker: 3, stone_beads: 4, bone_pendant: 3, quartz_amulet: 3,
+        moonstone_chain: 1, obsidian_pendant: 1, amethyst_choker: 1, sapphire_pendant: 3, emerald_amulet: 2,
+        ruby_pendant: 2, mithril_choker: 3, rune_necklace: 4, star_pendant: 1, linen_shirt: 4,
+        wool_shirt: 1, hemp_robe: 1, rough_kaftan: 1, wool_gown: 1, linen_tunic: 1,
+        wool_sutan: 3, leather_kaftan: 1, cloth_robe: 2, leather_gown: 1, monk_sutan: 3,
+        fine_kaftan: 1, stone_robe: 4, shadow_robe: 1, deep_breath_robe: 2, meditating_robe: 1,
+        pilgrim_sutan: 4, void_robe: 4, aegis_mantle: 3, cloth_cuff: 1, leather_cuff: 2,
+        hemp_bracer: 4, rough_bracer: 4, leather_garter: 2, cloth_wrap: 2, iron_cuff: 2,
+        bone_bracer: 3, wood_brace: 3, hide_cuff: 3, archer_brace: 3, silver_cuff: 3,
+        shadow_wrap: 1, runic_cuff: 4, gold_brace: 1, sapphire_bracer: 1, ghost_cuff: 3,
+        swift_brace: 4, rune_bracers: 4, star_armguard: 1, leather_gloves: 2, hide_gloves: 4,
+        rough_gauntlets: 4, archer_gloves: 3, linen_wraps: 2, iron_gauntlets: 1, bone_grips: 3,
+        wood_guards: 1, fine_gloves: 4, studded_gloves: 2, copper_gauntlets: 1, quiver_gloves: 2,
+        silver_gauntlets: 1, night_gloves: 3, iron_wraps: 3, gold_gloves: 2, emerald_gauntlets: 2,
+        phantom_gloves: 3, haste_wraps: 3, rune_gauntlets: 4, void_gauntlet: 1, wood_scyte: 2,
+        iron_scyte: 4, wood_pitchfork: 4, iron_pitchfork: 3, copper_scyte: 4, steel_scyte: 1,
+        steel_pitchfork: 4, ember_staff: 3, rime_staff: 3, rune_staff: 1, flame_staff: 2,
+        ice_staff: 4, sage_staff: 4, philosopher_staff: 3, linen_trousers: 2, hemp_breeches: 3,
+        felt_trousers: 2, leather_pants: 2, traveler_breeches: 2, hide_wrap: 2, rough_chaps: 1,
+        cloth_loincloth: 4, bone_greaves: 4, silver_chaps: 4, amethyst_pants: 4, mystic_breeches: 3,
+        ember_pants: 1, emerald_greaves: 3, gold_leggings: 1, mithril_greaves: 2, rune_greaves: 2,
+        storm_leggings: 3, titan_greaves: 3, straw_sandals: 1, cloth_sandals: 1, wool_boots: 3,
+        travel_boots: 1, hide_boots: 4, hemp_sandals: 1, silver_boots: 3, stone_sandals: 1,
+        obsidian_sandals: 4, amethyst_boots: 2, mystic_sandals: 2, sapphire_boots: 3, frost_sandals: 1,
+        emerald_boots: 3, storm_sandals: 2, rune_boots: 4, swift_boots: 3} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 17 torso (не выпали: wool_shirt/cloth_tunic/hemp_robe/embroidered_kaftan/cloth_robe/fine_kaftan/ember_robe/void_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
+    // byte-identical).
+    // Ре-пин 000230.15: ноги/ступни (000408-000457, kind armor) —
+    // КОНЕЦ пула барахолки, rng-хвост → += 31 (не выпали:
+    // wool_trousers/hemp_breeches/felt_trousers/hide_wrap/
+    // obsidian_greaves/mystic_breeches/emerald_greaves/gold_leggings/
+    // titan_greaves/straw_sandals/hide_boots/wooden_sandals/
+    // hemp_sandals/stone_sandals/amethyst_boots/mystic_sandals/
+    // mithril_boots/storm_sandals/rune_boots), остальные ключи стока
+    // не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
 
     // Ре-пин 000230.11: руки (000283-000332, kind armor) — КОНЕЦ
@@ -1112,78 +1070,54 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // стоки byte-identical).
     { x: 10, y: 20, day: 2, w: 2,
       stock: { wood_sword: 1, steel_sword: 1, short_bow: 2,
-        battle_axe: 1, war_hammer: 3, leather_armor: 1,
-        chainmail: 1, minor_healing: 3,
-        healing_potion: 4, greater_healing: 2,
-        mana_potion: 1, mana_elixir: 3, bread: 3,
-        leather_cap: 4, cloth_band: 3, hood_common: 4,
-        linen_cloth: 4, felt_hat: 3, travel_cloth: 2,
-        silver_band: 3, obsidian_cloth: 2,
+        battle_axe: 1, war_hammer: 3, leather_armor: 1, chainmail: 1,
+        minor_healing: 3, healing_potion: 4, greater_healing: 2,
+        mana_potion: 1, mana_elixir: 3, bread: 3, leather_cap: 4,
+        cloth_band: 3, hood_common: 4, linen_cloth: 4, felt_hat: 3,
+        travel_cloth: 2, silver_band: 3, obsidian_cloth: 2,
         amethyst_band: 3, quartz_cloth: 4, gold_helm: 2,
         mithril_helm: 1, emerald_helm: 4, star_hoop: 3,
-        copper_hoop: 3, bone_stud: 2, leather_loop: 3,
-        clay_dangle: 1, copper_dangle: 3, shell_hoop: 1,
-        faith_stud: 4, antler_hook: 2, stone_bead: 2,
-        moonstone_dangle: 1, obsidian_stud: 3,
-        amethyst_dangle: 3, sapphire_hoop: 2,
+        copper_hoop: 3, bone_stud: 2, leather_loop: 3, clay_dangle: 1,
+        copper_dangle: 3, shell_hoop: 1, faith_stud: 4,
+        antler_hook: 2, stone_bead: 2, moonstone_dangle: 1,
+        obsidian_stud: 3, amethyst_dangle: 3, sapphire_hoop: 2,
         emerald_stud: 4, gold_dangle: 2, star_earring: 3,
         whisper_hoop: 4, copper_chain: 2, bone_beads: 3,
         twine_amulet: 1, wood_pendant: 4, shell_beads: 3,
-        leather_choker: 3, bone_pendant: 2,
-        silver_chain: 1, quartz_amulet: 1,
-        moonstone_chain: 1, faith_amulet: 3,
-        obsidian_pendant: 3, amethyst_choker: 4,
-        sapphire_pendant: 1, emerald_amulet: 1,
-        ruby_pendant: 3, mithril_choker: 1,
-        rune_necklace: 1, star_pendant: 3,
-        dawn_pendant: 2, linen_shirt: 2, linen_gown: 2,
-        rough_kaftan: 2, wool_gown: 4, cloth_sutan: 3,
-        linen_tunic: 1, wool_kaftan: 2, wool_sutan: 4,
-        leather_kaftan: 4, leather_gown: 2,
-        monk_sutan: 2, stone_robe: 4, shadow_robe: 4,
-        deep_breath_robe: 3, meditating_robe: 1,
-        pilgrim_sutan: 3, aegis_mantle: 4,
-        cloth_cuff: 4,
-        leather_garter: 2,
-        cloth_wrap: 4,
-        bone_bracer: 2,
-        wood_brace: 1,
-        hide_cuff: 4,
-        studded_bracer: 1,
-        copper_brace: 3,
-        archer_brace: 1,
-        silver_cuff: 4,
-        iron_elbow: 4,
-        steel_bracers: 4,
-        gold_brace: 2,
-        swift_brace: 3,
-        rune_bracers: 4,
-        star_armguard: 3,
-        leather_gloves: 2,
-        hide_gloves: 2,
-        rough_gauntlets: 4,
-        archer_gloves: 2,
-        linen_wraps: 3,
-        iron_gauntlets: 4,
-        studded_gloves: 3,
-        copper_gauntlets: 2,
-        quiver_gloves: 4,
-        night_gloves: 3,
-        steel_gauntlets: 3,
-        gold_gloves: 2,
-        emerald_gauntlets: 1,
-        phantom_gloves: 1,
-        void_gauntlet: 2,
-        wood_scyte: 3, iron_scyte: 2, wood_pitchfork: 1, iron_pitchfork: 3,
-        copper_scyte: 1, steel_scyte: 1, steel_pitchfork: 3, rime_staff: 2,
-        rune_staff: 3, harvest_scyte: 3, flame_staff: 2, sage_staff: 2,
-        philosopher_staff: 4
-    // Ре-пин 000230.12: rng-хвост пула барахолки → += 13 новых (не выпали: iron_hammer/iron_tongs/clay_crucible/stone_mortar/bone_graver/ember_staff; tools не в пуле).
-    } },
-    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+        leather_choker: 3, bone_pendant: 2, silver_chain: 1, quartz_amulet: 1, moonstone_chain: 1,
+        faith_amulet: 3, obsidian_pendant: 3, amethyst_choker: 4, sapphire_pendant: 1, emerald_amulet: 1,
+        ruby_pendant: 3, mithril_choker: 1, rune_necklace: 1, star_pendant: 3, dawn_pendant: 2,
+        linen_shirt: 2, linen_gown: 2, rough_kaftan: 2, wool_gown: 4, cloth_sutan: 3,
+        linen_tunic: 1, wool_kaftan: 2, wool_sutan: 4, leather_kaftan: 4, leather_gown: 2,
+        monk_sutan: 2, stone_robe: 4, shadow_robe: 4, deep_breath_robe: 3, meditating_robe: 1,
+        pilgrim_sutan: 3, aegis_mantle: 4, cloth_cuff: 4, leather_garter: 2, cloth_wrap: 4,
+        bone_bracer: 2, wood_brace: 1, hide_cuff: 4, studded_bracer: 1, copper_brace: 3,
+        archer_brace: 1, silver_cuff: 4, iron_elbow: 4, steel_bracers: 4, gold_brace: 2,
+        swift_brace: 3, rune_bracers: 4, star_armguard: 3, leather_gloves: 2, hide_gloves: 2,
+        rough_gauntlets: 4, archer_gloves: 2, linen_wraps: 3, iron_gauntlets: 4, studded_gloves: 3,
+        copper_gauntlets: 2, quiver_gloves: 4, night_gloves: 3, steel_gauntlets: 3, gold_gloves: 2,
+        emerald_gauntlets: 1, phantom_gloves: 1, void_gauntlet: 2, wood_scyte: 3, iron_scyte: 2,
+        wood_pitchfork: 1, iron_pitchfork: 3, copper_scyte: 1, steel_scyte: 1, steel_pitchfork: 3,
+        rime_staff: 2, rune_staff: 3, harvest_scyte: 3, flame_staff: 2, sage_staff: 2,
+        philosopher_staff: 4, linen_trousers: 2, wool_trousers: 1, hemp_breeches: 1, traveler_breeches: 1,
+        hide_wrap: 1, rough_chaps: 2, cloth_loincloth: 3, bone_greaves: 3, copper_greaves: 2,
+        stone_greaves: 2, obsidian_greaves: 4, amethyst_pants: 1, mystic_breeches: 2, ember_pants: 1,
+        emerald_greaves: 2, mithril_greaves: 2, straw_sandals: 3, leather_sandals: 1, felt_boots: 1,
+        travel_boots: 4, hide_boots: 4, wooden_sandals: 3, hemp_sandals: 1, silver_boots: 4,
+        stone_sandals: 3, amethyst_boots: 3, sapphire_boots: 3, frost_sandals: 1, emerald_boots: 2,
+        gold_sandals: 3, mithril_boots: 2, storm_sandals: 4, rune_boots: 1, swift_boots: 3} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 15 torso (не выпали: wool_shirt/cloth_tunic/rough_kaftan/linen_tunic/leather_kaftan/monk_sutan/fine_kaftan/ember_robe/pilgrim_sutan/void_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
+    // Ре-пин 000230.15: ноги/ступни (000408-000457, kind armor) —
+    // КОНЕЦ пула барахолки, rng-хвост → += 29 (не выпали:
+    // wool_trousers/rough_chaps/copper_greaves/silver_chaps/
+    // stone_greaves/ember_pants/emerald_greaves/mithril_greaves/
+    // titan_greaves/leather_sandals/wool_boots/hide_boots/
+    // hemp_sandals/obsidian_sandals/amethyst_boots/sapphire_boots/
+    // frost_sandals/emerald_boots/mithril_boots/rune_boots/
+    // swift_boots), остальные ключи стока не сдвигаются
+    // (node-симуляция: seed/старые стоки byte-identical).
 
     // Ре-пин 000230.11: руки (000283-000332, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 29 рук (не выпали: leather_cuff/wood_brace/copper_brace/archer_brace/silver_cuff/gold_brace/sapphire_bracer/swift_brace/titan_brace/hide_gloves/rough_gauntlets/bone_grips/fine_gloves/night_gloves/iron_wraps/steel_gauntlets/gold_gloves/emerald_gauntlets/haste_wraps/star_gloves/void_gauntlet);
@@ -1191,67 +1125,38 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // стоки byte-identical).
     { x: 10, y: 20, day: 1, w: 0,
       stock: { war_hammer: 2, leather_armor: 1, chainmail: 2,
-        minor_healing: 1, greater_healing: 2,
-        mana_potion: 2, meat: 2, straw_hat: 1,
-        fur_hat: 1, silver_band: 2, copper_band: 1,
-        obsidian_cloth: 1, mystic_cloth: 2,
-        silver_helm: 1, gold_helm: 1, rune_hoop: 1,
-        star_hoop: 1, crown_flame: 1, copper_hoop: 1,
-        bone_stud: 2, wood_bead: 1, copper_dangle: 1,
-        twine_hoop: 2, antler_hook: 2, stone_bead: 1,
-        silver_hoop: 1, silver_stud: 1, obsidian_stud: 1,
-        amethyst_dangle: 2, ruby_bell: 1, gold_dangle: 2,
-        mithril_hoop: 1, star_earring: 2,
-        whisper_hoop: 2, soul_bell: 2, copper_chain: 2,
-        twine_amulet: 2, clay_pendant: 1,
-        wood_pendant: 1, copper_pendant: 2,
-        shell_beads: 2, faith_necklace: 2,
-        stone_beads: 1, quartz_amulet: 1,
-        amethyst_choker: 2, emerald_amulet: 1,
-        mithril_choker: 2, rune_necklace: 2,
-        dawn_pendant: 2, linen_shirt: 1, linen_gown: 1,
-        hemp_robe: 2, wool_gown: 1, cloth_sutan: 1,
-        wool_kaftan: 2, wool_sutan: 2,
-        embroidered_kaftan: 2, cloth_robe: 2,
-        leather_gown: 1, stone_robe: 1, shadow_robe: 1,
-        deep_breath_robe: 2, meditating_robe: 1,
-        aegis_mantle: 1,
-        cloth_cuff: 2,
-        hemp_bracer: 1,
-        rough_bracer: 2,
-        leather_garter: 1,
-        cloth_wrap: 2,
-        iron_cuff: 2,
-        bone_bracer: 1,
-        hide_cuff: 2,
-        studded_bracer: 1,
-        shadow_wrap: 2,
-        iron_elbow: 1,
-        runic_cuff: 1,
-        steel_bracers: 2,
-        ghost_cuff: 1,
-        rune_bracers: 1,
-        star_armguard: 2,
-        cloth_gloves: 2,
-        leather_gloves: 2,
-        archer_gloves: 2,
-        linen_wraps: 2,
-        iron_gauntlets: 1,
-        wood_guards: 2,
-        studded_gloves: 1,
-        copper_gauntlets: 1,
-        quiver_gloves: 2,
-        silver_gauntlets: 2,
-        wind_gloves: 1,
-        phantom_gloves: 1,
-        rune_gauntlets: 2,
-        wood_scyte: 1, iron_scyte: 1, copper_scyte: 1, rime_staff: 2,
-        rune_staff: 2, harvest_scyte: 1, flame_staff: 1, ice_staff: 1
-    // Ре-пин 000230.12: rng-хвост пула барахолки → += 8 новых (не выпали: wood_pitchfork/iron_pitchfork/iron_hammer/iron_tongs/clay_crucible/stone_mortar/bone_graver/steel_scyte/steel_pitchfork/ember_staff; tools не в пуле).
-    } },
-    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+        minor_healing: 1, greater_healing: 2, mana_potion: 2, meat: 2, straw_hat: 1,
+        fur_hat: 1, silver_band: 2, copper_band: 1, obsidian_cloth: 1, mystic_cloth: 2,
+        silver_helm: 1, gold_helm: 1, rune_hoop: 1, star_hoop: 1, crown_flame: 1,
+        copper_hoop: 1, bone_stud: 2, wood_bead: 1, copper_dangle: 1, twine_hoop: 2,
+        antler_hook: 2, stone_bead: 1, silver_hoop: 1, silver_stud: 1, obsidian_stud: 1,
+        amethyst_dangle: 2, ruby_bell: 1, gold_dangle: 2, mithril_hoop: 1, star_earring: 2,
+        whisper_hoop: 2, soul_bell: 2, copper_chain: 2, twine_amulet: 2, clay_pendant: 1,
+        wood_pendant: 1, copper_pendant: 2, shell_beads: 2, faith_necklace: 2, stone_beads: 1,
+        quartz_amulet: 1, amethyst_choker: 2, emerald_amulet: 1, mithril_choker: 2, rune_necklace: 2,
+        dawn_pendant: 2, linen_shirt: 1, linen_gown: 1, hemp_robe: 2, wool_gown: 1,
+        cloth_sutan: 1, wool_kaftan: 2, wool_sutan: 2, embroidered_kaftan: 2, cloth_robe: 2,
+        leather_gown: 1, stone_robe: 1, shadow_robe: 1, deep_breath_robe: 2, meditating_robe: 1,
+        aegis_mantle: 1, cloth_cuff: 2, hemp_bracer: 1, rough_bracer: 2, leather_garter: 1,
+        cloth_wrap: 2, iron_cuff: 2, bone_bracer: 1, hide_cuff: 2, studded_bracer: 1,
+        shadow_wrap: 2, iron_elbow: 1, runic_cuff: 1, steel_bracers: 2, ghost_cuff: 1,
+        rune_bracers: 1, star_armguard: 2, cloth_gloves: 2, leather_gloves: 2, archer_gloves: 2,
+        linen_wraps: 2, iron_gauntlets: 1, wood_guards: 2, studded_gloves: 1, copper_gauntlets: 1,
+        quiver_gloves: 2, silver_gauntlets: 2, wind_gloves: 1, phantom_gloves: 1, rune_gauntlets: 2,
+        wood_scyte: 1, iron_scyte: 1, copper_scyte: 1, rime_staff: 2, rune_staff: 2,
+        harvest_scyte: 1, flame_staff: 1, ice_staff: 1, wool_trousers: 1, hemp_breeches: 1,
+        felt_trousers: 2, bone_greaves: 2, copper_greaves: 1, mystic_breeches: 2, ember_pants: 1,
+        emerald_greaves: 2, gold_leggings: 2, storm_leggings: 1, straw_sandals: 1, wool_boots: 2,
+        felt_boots: 2, leather_boots: 1, hide_boots: 2, wooden_sandals: 1, hemp_sandals: 1,
+        bone_sandals: 1, copper_boots: 1, obsidian_sandals: 2, emerald_boots: 2, swift_boots: 2} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 21 torso (не выпали: cloth_tunic/hemp_robe/cloth_sutan/embroidered_kaftan), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
+    // byte-identical).
+    // Ре-пин 000230.15: ноги/ступни (000408-000457, kind armor) —
+    // КОНЕЦ пула барахолки, rng-хвост → += 43 (не выпали:
+    // cloth_loincloth/copper_greaves/ember_pants/mithril_greaves/
+    // bone_sandals/mystic_sandals/gold_sandals), остальные ключи
+    // стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
 
     // Ре-пин 000230.11: руки (000283-000332, kind armor) — КОНЕЦ
@@ -1261,90 +1166,52 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     { x: 10, y: 20, day: 1, w: 3,
       stock: { iron_sword: 4, hunting_bow: 2, battle_axe: 2,
         war_hammer: 2, leather_armor: 4, chainmail: 2,
-        knight_plate: 2, minor_healing: 3,
-        mana_potion: 1, bread: 3, meat: 5, straw_hat: 3,
-        wool_cap: 5, leather_cap: 3, fur_hat: 5,
-        cloth_band: 4, wanderer_cap: 1, hood_common: 3,
+        knight_plate: 2, minor_healing: 3, mana_potion: 1, bread: 3,
+        meat: 5, straw_hat: 3, wool_cap: 5, leather_cap: 3,
+        fur_hat: 5, cloth_band: 4, wanderer_cap: 1, hood_common: 3,
         linen_cloth: 4, travel_cloth: 4, silver_band: 1,
-        copper_band: 2, obsidian_cloth: 4,
-        quartz_cloth: 2, bone_band: 3, mystic_cloth: 2,
-        silver_helm: 2, gold_helm: 5, mithril_helm: 2,
-        emerald_helm: 2, rune_hoop: 4, crown_flame: 5,
-        copper_hoop: 5, bone_stud: 2, leather_loop: 2,
-        clay_dangle: 4, wood_bead: 3, copper_dangle: 1,
-        shell_hoop: 5, faith_stud: 4, twine_hoop: 1,
-        antler_hook: 5, stone_bead: 2, silver_hoop: 3,
-        moonstone_dangle: 4, quartz_bead: 4,
-        silver_stud: 5, obsidian_stud: 3,
-        amethyst_dangle: 3, sapphire_hoop: 2,
-        emerald_stud: 3, ruby_bell: 2, gold_dangle: 2,
-        star_earring: 2, whisper_hoop: 5, soul_bell: 2,
-        copper_chain: 3, bone_beads: 4, twine_amulet: 4,
-        wood_pendant: 1, copper_pendant: 3,
-        shell_beads: 5, faith_necklace: 3,
-        leather_choker: 1, stone_beads: 2,
-        bone_pendant: 4, silver_chain: 1,
-        quartz_amulet: 1, moonstone_chain: 3,
-        faith_amulet: 2, obsidian_pendant: 3,
-        sapphire_pendant: 4, emerald_amulet: 5,
-        ruby_pendant: 1, gold_chain: 1, rune_necklace: 2,
-        star_pendant: 4, dawn_pendant: 1, linen_shirt: 1,
-        wool_shirt: 1, linen_gown: 1, rough_kaftan: 3,
-        wool_gown: 1, linen_tunic: 2, wool_kaftan: 2,
+        copper_band: 2, obsidian_cloth: 4, quartz_cloth: 2,
+        bone_band: 3, mystic_cloth: 2, silver_helm: 2, gold_helm: 5,
+        mithril_helm: 2, emerald_helm: 2, rune_hoop: 4,
+        crown_flame: 5, copper_hoop: 5, bone_stud: 2, leather_loop: 2,
+        clay_dangle: 4, wood_bead: 3, copper_dangle: 1, shell_hoop: 5,
+        faith_stud: 4, twine_hoop: 1, antler_hook: 5, stone_bead: 2,
+        silver_hoop: 3, moonstone_dangle: 4, quartz_bead: 4,
+        silver_stud: 5, obsidian_stud: 3, amethyst_dangle: 3,
+        sapphire_hoop: 2, emerald_stud: 3, ruby_bell: 2,
+        gold_dangle: 2, star_earring: 2, whisper_hoop: 5,
+        soul_bell: 2, copper_chain: 3, bone_beads: 4, twine_amulet: 4,
+        wood_pendant: 1, copper_pendant: 3, shell_beads: 5,
+        faith_necklace: 3, leather_choker: 1, stone_beads: 2,
+        bone_pendant: 4, silver_chain: 1, quartz_amulet: 1,
+        moonstone_chain: 3, faith_amulet: 2, obsidian_pendant: 3,
+        sapphire_pendant: 4, emerald_amulet: 5, ruby_pendant: 1,
+        gold_chain: 1, rune_necklace: 2, star_pendant: 4,
+        dawn_pendant: 1, linen_shirt: 1, wool_shirt: 1, linen_gown: 1,
+        rough_kaftan: 3, wool_gown: 1, linen_tunic: 2, wool_kaftan: 2,
         wool_sutan: 3, leather_kaftan: 1, cloth_robe: 4,
-        leather_gown: 2, monk_sutan: 2, fine_kaftan: 2,
-        ember_robe: 4, stone_robe: 5, shadow_robe: 3,
-        deep_breath_robe: 2, meditating_robe: 2,
-        pilgrim_sutan: 5, void_robe: 5, aegis_mantle: 2,
-        cloth_cuff: 3,
-        leather_cuff: 3,
-        hemp_bracer: 3,
-        rough_bracer: 4,
-        leather_garter: 4,
-        cloth_wrap: 5,
-        iron_cuff: 3,
-        bone_bracer: 3,
-        wood_brace: 1,
-        studded_bracer: 4,
-        archer_brace: 1,
-        silver_cuff: 2,
-        shadow_wrap: 4,
-        iron_elbow: 5,
-        runic_cuff: 5,
-        steel_bracers: 1,
-        sapphire_bracer: 4,
-        ghost_cuff: 1,
-        rune_bracers: 5,
-        star_armguard: 4,
-        titan_brace: 2,
-        cloth_gloves: 1,
-        leather_gloves: 4,
-        hide_gloves: 1,
-        rough_gauntlets: 4,
-        archer_gloves: 3,
-        linen_wraps: 1,
-        iron_gauntlets: 2,
-        bone_grips: 1,
-        wood_guards: 3,
-        fine_gloves: 3,
-        copper_gauntlets: 1,
-        quiver_gloves: 3,
-        silver_gauntlets: 2,
-        night_gloves: 3,
-        iron_wraps: 4,
-        steel_gauntlets: 4,
-        gold_gloves: 4,
-        emerald_gauntlets: 1,
-        haste_wraps: 5,
-        rune_gauntlets: 3,
-        star_gloves: 5,
-        void_gauntlet: 1,
-        wood_scyte: 4, iron_scyte: 4, wood_pitchfork: 3, iron_pitchfork: 2,
-        steel_scyte: 2, steel_pitchfork: 5, ember_staff: 5, rime_staff: 4,
-        rune_staff: 3, flame_staff: 4, ice_staff: 2, sage_staff: 3,
-        philosopher_staff: 2
-    // Ре-пин 000230.12: rng-хвост пула барахолки → += 13 новых (не выпали: copper_scyte/iron_hammer/iron_tongs/clay_crucible/stone_mortar/bone_graver; tools не в пуле).
-    }
+        leather_gown: 2, monk_sutan: 2, fine_kaftan: 2, ember_robe: 4, stone_robe: 5,
+        shadow_robe: 3, deep_breath_robe: 2, meditating_robe: 2, pilgrim_sutan: 5, void_robe: 5,
+        aegis_mantle: 2, cloth_cuff: 3, leather_cuff: 3, hemp_bracer: 3, rough_bracer: 4,
+        leather_garter: 4, cloth_wrap: 5, iron_cuff: 3, bone_bracer: 3, wood_brace: 1,
+        studded_bracer: 4, archer_brace: 1, silver_cuff: 2, shadow_wrap: 4, iron_elbow: 5,
+        runic_cuff: 5, steel_bracers: 1, sapphire_bracer: 4, ghost_cuff: 1, rune_bracers: 5,
+        star_armguard: 4, titan_brace: 2, cloth_gloves: 1, leather_gloves: 4, hide_gloves: 1,
+        rough_gauntlets: 4, archer_gloves: 3, linen_wraps: 1, iron_gauntlets: 2, bone_grips: 1,
+        wood_guards: 3, fine_gloves: 3, copper_gauntlets: 1, quiver_gloves: 3, silver_gauntlets: 2,
+        night_gloves: 3, iron_wraps: 4, steel_gauntlets: 4, gold_gloves: 4, emerald_gauntlets: 1,
+        haste_wraps: 5, rune_gauntlets: 3, star_gloves: 5, void_gauntlet: 1, wood_scyte: 4,
+        iron_scyte: 4, wood_pitchfork: 3, iron_pitchfork: 2, steel_scyte: 2, steel_pitchfork: 5,
+        ember_staff: 5, rime_staff: 4, rune_staff: 3, flame_staff: 4, ice_staff: 2,
+        sage_staff: 3, philosopher_staff: 2, linen_trousers: 2, wool_trousers: 4, hemp_breeches: 4,
+        felt_trousers: 4, traveler_breeches: 3, hide_wrap: 5, rough_chaps: 5, cloth_loincloth: 4,
+        copper_greaves: 1, silver_chaps: 4, stone_greaves: 2, obsidian_greaves: 2, amethyst_pants: 2,
+        mystic_breeches: 3, sapphire_leggings: 3, ember_pants: 1, emerald_greaves: 2, gold_leggings: 2,
+        mithril_greaves: 4, storm_leggings: 1, titan_greaves: 5, cloth_sandals: 1, felt_boots: 3,
+        leather_boots: 2, travel_boots: 4, hide_boots: 2, wooden_sandals: 2, hemp_sandals: 3,
+        bone_sandals: 1, copper_boots: 3, silver_boots: 5, stone_sandals: 3, obsidian_sandals: 5,
+        amethyst_boots: 3, mystic_sandals: 5, sapphire_boots: 3, frost_sandals: 1, emerald_boots: 2,
+        mithril_boots: 1, storm_sandals: 5, rune_boots: 2, swift_boots: 5}
       },
   ];
   for (const g of GOLDEN_CAMP) {
@@ -1843,11 +1710,14 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // 000258-000282 — свитки волны Исцеление, закрывают зарезервированную
   // дыру); слоты не сдвигаются.
   // Ре-пин post-merge: каталог 382 + 25 свитков = 407 (дыры нет).
-  assert.equal(files.length, 407,
-    'каталог — 407 файла (краснота: ' + files.length
+  // Ре-пин 000230.15: каталог растёт 407 → 457 (добавляются
+  // 000408-000457 — ноги 25 + ступни 25); слоты не сдвигаются
+  // (append-блок, конец каталога).
+  assert.equal(files.length, 457,
+    'каталог — 457 файла (краснота: ' + files.length
     + ' — каталог ещё не расширен, 000230.08/000235.07/000235.08/'
     + '000230.09/000230.10/000235.09/000235.10/000230.11/000230.12/'
-    + '000230.13/000230.14)');
+    + '000230.13/000230.14/000230.15)');
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
@@ -1907,11 +1777,12 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // Ре-пин 000230.12: 332 → 357 (000333-000357 — «правая рука» 25).
   // Ре-пин 000230.13: 357 → 382 (000358-000382 — left_hand 25).
   // Ре-пин 000230.14: 382 → 407 (000383-000407 — кольца 25).
-  assert.equal(I.allItems().length, 407,
-    'allItems — 407 предметов (краснота: ' + I.allItems().length
+  // Ре-пин 000230.15: 407 → 457 (000408-000457 — ноги 25 + ступни 25).
+  assert.equal(I.allItems().length, 457,
+    'allItems — 457 предметов (краснота: ' + I.allItems().length
     + ' — зеркало не регенерировано, 000230.08/000235.07/000235.08/'
     + '000230.09/000230.10/000235.09/000235.10/000230.11/000230.12/'
-    + '000230.13/000230.14)');
+    + '000230.13/000230.14/000230.15)');
   // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
   //     addItem ×2 → 2 слота qty 1 (не стопка).
   const c = createCharacter();
@@ -2036,12 +1907,14 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
   // left_hand 25); слоты не сдвигаются.
   // Ре-пин 000230.14: каталог растёт 382 → 407 (000383-000407 —
   // кольца 25); слоты не сдвигаются.
-  assert.equal(files.length, 407,
-    'каталог — 407 файла (краснота: ' + files.length + ')');
+  // Ре-пин 000230.15: каталог растёт 407 → 457 (000408-000457 —
+  // ноги 25 + ступни 25); слоты не сдвигаются.
+  assert.equal(files.length, 457,
+    'каталог — 457 файла (краснота: ' + files.length + ')');
   assert.equal(files[61], '000062.json',
     '000062.json — 62-й файл (краснота: файла нет)');
-  assert.equal(I.allItems().length, 407,
-    'allItems — 407 предмета (краснота: ' + I.allItems().length + ')');
+  assert.equal(I.allItems().length, 457,
+    'allItems — 457 предмета (краснота: ' + I.allItems().length + ')');
 });
 
 // R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
@@ -2249,7 +2122,7 @@ test('000158.02 L2: loot-инварианты новых 14 — terrains неп�
   }
 });
 
-test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 374 предмета — loot undefined (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин 000230.10: +25 torso без loot; ре-пин 000235.09: +25 свитков волны Тень без loot; ре-пин 000235.10: +25 свитков волны Исцеление без loot; ре-пин 000230.11: +50 руки без loot; ре-пин 000230.12: +25 «правая рука» без loot; ре-пин 000230.13: +25 left_hand без loot; ре-пин 000230.14: +25 колец без loot; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
+test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 424 предмета — loot undefined (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин 000230.10: +25 torso без loot; ре-пин 000235.09: +25 свитков волны Тень без loot; ре-пин 000235.10: +25 свитков волны Исцеление без loot; ре-пин 000230.11: +50 руки без loot; ре-пин 000230.12: +25 «правая рука» без loot; ре-пин 000230.13: +25 left_hand без loot; ре-пин 000230.14: +25 колец без loot; ре-пин 000230.15: +50 ноги/ступни без loot; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
   const byId = new Map(I.allItems().map((it) => [it.id, it]));
   const newIds = new Set(LOOT_00015802.map((e) => e.id));
   const nuggetIdSet = new Set(NUGGETS_00015802.map(([id]) => id));
@@ -2261,7 +2134,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       id + ': loot самородка (краснота: поля нет; tier ' + tier
       + ' → frequency ' + NUGGET_FREQ[tier] + ')');
   }
-  // ВСЕ ПРОЧИЕ предметы (374 = каталог 407 − 14 самородков − 14 новых
+  // ВСЕ ПРОЧИЕ предметы (424 = каталог 457 − 14 самородков − 14 новых
   // − 5 reagent'ов 000220; ре-пин 000230.08: +25 head без loot;
   // ре-пин 000232: +6 чертежей без loot; ре-пин 000235.07: +25 свитков
   // волны Огонь без loot; ре-пин 000235.08: +25 свитков волны Лёд
@@ -2271,7 +2144,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
   // Исцеление без loot; ре-пин 000230.11: +50 руки без loot;
   // ре-пин 000230.12: +25 «правая рука» без loot; ре-пин
   // 000230.13: +25 left_hand без loot; ре-пин 000230.14: +25 колец
-  // без loot):
+  // без loot; ре-пин 000230.15: +50 ноги/ступни без loot):
   // loot ОТСУТСТВУЕТ — пин «остальные файлы не тронуты».
   const REAGENTS_000220 = new Set(['wood_log', 'hide', 'herb_healing',
     'herb_mana', 'herb_bitter']);
@@ -2283,7 +2156,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 374, 'прочих предметов — ровно 374 (каталог 407 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец — все без loot)');
+  assert.equal(others, 424, 'прочих предметов — ровно 424 (каталог 457 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец; 000230.15: +50 ноги/ступни — все без loot)');
 });
 
 test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
@@ -2547,7 +2420,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 118 — icon undefined (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
+test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 118 — icon undefined (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f))
     .sort();
@@ -2664,6 +2537,26 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     'sapphire_ring', 'gold_signet', 'emerald_signet', 'ruby_ring',
     'frost_ring', 'rune_ring', 'scholar_ring', 'star_signet',
     'void_ring', 'phoenix_ring']);
+
+  // Ре-пин 000230.15: 50 предметов ноги/ступни (000408-000457) —
+  // icon в assets/sprites/items/ (паттерн TORSO_00023010) —
+  // исключение из пина «icon НЕ задан».
+  const LEGSFEET_00023015 = new Set(['linen_trousers', 'wool_trousers',
+    'hemp_breeches', 'felt_trousers', 'leather_pants',
+    'traveler_breeches', 'hide_wrap', 'twine_wraps', 'rough_chaps',
+    'cloth_loincloth', 'bone_greaves', 'copper_greaves',
+    'silver_chaps', 'stone_greaves', 'obsidian_greaves',
+    'amethyst_pants', 'mystic_breeches', 'sapphire_leggings',
+    'ember_pants', 'emerald_greaves', 'gold_leggings',
+    'mithril_greaves', 'rune_greaves', 'storm_leggings',
+    'titan_greaves', 'straw_sandals', 'cloth_sandals',
+    'leather_sandals', 'wool_boots', 'felt_boots', 'leather_boots',
+    'travel_boots', 'hide_boots', 'wooden_sandals', 'hemp_sandals',
+    'bone_sandals', 'copper_boots', 'silver_boots', 'stone_sandals',
+    'obsidian_sandals', 'amethyst_boots', 'mystic_sandals',
+    'sapphire_boots', 'frost_sandals', 'emerald_boots',
+    'gold_sandals', 'mithril_boots', 'storm_sandals', 'rune_boots',
+    'swift_boots']);
   let others = 0;
   for (const it of byId.values()) {
     if (lootIds.includes(it.id) || BLUEPRINTS_000232.has(it.id)
@@ -2673,7 +2566,8 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
         || HANDS_00023011.has(it.id)
         || RIGHT_HAND_00023012.has(it.id)
         || LEFT_HAND_00023013.has(it.id)
-        || RING_00023014.has(it.id)) continue;
+        || RING_00023014.has(it.id)
+        || LEGSFEET_00023015.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
@@ -2688,16 +2582,17 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + 'без icon — входят в счёт; ре-пин 000235.09: +25 свитков '
     + 'волны Тень без icon; ре-пин 000235.10: +25 свитков '
     + 'волны Исцеление без icon — входят в счёт; '
-    + 'ре-пин post-merge: 407 − 264 исключений = 143 '
+    + 'ре-пин 000230.15: +50 ноги/ступни — в исключении '
+    + '(icon); ре-пин post-merge: 457 − 314 исключений = 143 '
     + '(счёт не изменился))');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 264,
-    'icon — ровно у 264 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
+    [...byId.values()].filter((it) => 'icon' in it).length, 314,
+    'icon — ровно у 314 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
     + '+ 25 head; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: '
     + '+25 torso; ре-пин 000230.11: +50 рук; ре-пин 000230.12: '
     + '+25 «правая рука»; ре-пин 000230.13: +25 left_hand; '
-    + 'ре-пин 000230.14: +25 колец; '
-    + 'пин: ни больше, ни меньше)');
+    + 'ре-пин 000230.14: +25 колец; ре-пин 000230.15: '
+    + '+50 ноги/ступни; пин: ни больше, ни меньше)');
 });
 
 test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойство {type: string, pattern: ^assets/sprites/(loot|items)/[\\w_]+\\.svg$} (дословно ТЗ), «icon» НЕ в required, additionalProperties верхнего уровня false', () => {
@@ -2757,6 +2652,8 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
 // 000230.14: ring-волна (000383-000407) — +25 id (каталожный
 // порядок по редкости: 10 common + 7 rare + 5 epic + 2 legendary
 // + 1 impossible).
+// 000230.15: ноги/ступни-волна (000408-000457) — +50 id (каталожный
+// порядок: ноги 25, потом ступни 25).
 const EQUIP_FIELDS_00023001 = new Set(['straw_hat', 'wool_cap',
   'leather_cap', 'fur_hat', 'cloth_band', 'wanderer_cap', 'hood_common',
   'linen_cloth', 'felt_hat', 'travel_cloth', 'silver_band', 'copper_band',
@@ -2819,7 +2716,22 @@ const EQUIP_FIELDS_00023001 = new Set(['straw_hat', 'wool_cap',
   'quartz_ring', 'obsidian_ring', 'amethyst_ring', 'sapphire_ring',
   'gold_signet', 'emerald_signet', 'ruby_ring', 'frost_ring',
   'rune_ring', 'scholar_ring', 'star_signet', 'void_ring',
-  'phoenix_ring']);
+  'phoenix_ring',
+  'linen_trousers',
+  'wool_trousers', 'hemp_breeches', 'felt_trousers', 'leather_pants',
+  'traveler_breeches', 'hide_wrap', 'twine_wraps', 'rough_chaps',
+  'cloth_loincloth', 'bone_greaves', 'copper_greaves',
+  'silver_chaps', 'stone_greaves', 'obsidian_greaves',
+  'amethyst_pants', 'mystic_breeches', 'sapphire_leggings',
+  'ember_pants', 'emerald_greaves', 'gold_leggings',
+  'mithril_greaves', 'rune_greaves', 'storm_leggings',
+  'titan_greaves', 'straw_sandals', 'cloth_sandals',
+  'leather_sandals', 'wool_boots', 'felt_boots', 'leather_boots',
+  'travel_boots', 'hide_boots', 'wooden_sandals', 'hemp_sandals',
+  'bone_sandals', 'copper_boots', 'silver_boots', 'stone_sandals',
+  'obsidian_sandals', 'amethyst_boots', 'mystic_sandals',
+  'sapphire_boots', 'frost_sandals', 'emerald_boots', 'gold_sandals',
+  'mithril_boots', 'storm_sandals', 'rune_boots', 'swift_boots']);
 
 test('000230.01 E1: schema.json — slot ОПЦИОНАЛЬНО {type: string, enum: 11 значений в порядке ТЗ}, «slot» НЕ в required, верхний additionalProperties false', () => {
   const s = JSON.parse(
@@ -2975,7 +2887,7 @@ test('000230.01 E8: src/items.js — ITEM_KINDS += SHIELD/ARTIFACT/TOOL/RING, WE
     'EQUIP_KINDS — ровно 6 экипируемых kind (краснота: константы нет)');
 });
 
-test('000230.01 E9 (ГАРД): каталог — ровно 407 предметов (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны Исцеление; ре-пин 000230.11: +50 рук; ре-пин 000230.12: +25 «правая рука» + 7 legacy-оружий remap; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
+test('000230.01 E9 (ГАРД): каталог — ровно 457 предметов (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны Исцеление; ре-пин 000230.11: +50 рук; ре-пин 000230.12: +25 «правая рука» + 7 legacy-оружий remap; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
   const items = I.allItems();
   // Ре-пин 000235.10: каталог 257 → 282 (+25 свитков волны Исцеление).
   // Ре-пин 000230.11: каталог 282 → 332 (+50 рук).
@@ -2983,7 +2895,8 @@ test('000230.01 E9 (ГАРД): каталог — ровно 407 предмет�
   // remap slot).
   // Ре-пин 000230.13: каталог 357 → 382 (+25 left_hand).
   // Ре-пин 000230.14: каталог 382 → 407 (+25 колец).
-  assert.equal(items.length, 407, 'каталог — ровно 407 предмета');
+  // Ре-пин 000230.15: каталог 407 → 457 (+50 ноги/ступни).
+  assert.equal(items.length, 457, 'каталог — ровно 457 предмета');
   let others = 0;
   for (const it of items) {
     if (EQUIP_FIELDS_00023001.has(it.id)) continue;
@@ -3008,11 +2921,14 @@ test('000230.01 E9 (ГАРД): каталог — ровно 407 предмет�
     + 'ре-пин 000230.13: +25 left_hand → 382 − 210 equip-исключений '
     + '= 172 (все 25 left_hand в исключениях); '
     + 'ре-пин 000230.14: +25 колец → 407 − 235 equip-исключений '
-    + '= 172 (все 25 колец в исключениях); 000232: +6 чертежей '
-    + 'без equip-полей; 000235.07: +25 свитков без equip-полей; '
-    + '000235.08: +25 свитков волны Лёд без equip-полей; 000235.09: '
-    + '+25 свитков волны Тень без equip-полей; 000235.10: +25 '
-    + 'свитков волны Исцеление без equip-полей)');
+    + '= 172 (все 25 колец в исключениях); '
+    + 'ре-пин 000230.15: +50 ног/ступней с equip-полями → 457 − 285 '
+    + 'equip-исключений = 172 (все 50 ног/ступней в исключениях); '
+    + '000232: +6 чертежей без equip-полей; 000235.07: +25 свитков '
+    + 'без equip-полей; 000235.08: +25 свитков волны Лёд без '
+    + 'equip-полей; 000235.09: +25 свитков волны Тень без '
+    + 'equip-полей; 000235.10: +25 свитков волны Исцеление без '
+    + 'equip-полей)');
 });
 
 test('000230.01 E10 (vm): НОВЫЕ kind shield/artifact/tool/ring — валидные фикстуры (id/name/kind/slot/weight/value/desc) грузятся БЕЗ броска, без console.error, поля сохранены', () => {
@@ -4442,7 +4358,7 @@ test('000230.04-SB12 (node, sync, E20-паттерн tmp-репо): ring с set 
   }
 });
 
-test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): предметы с ОДНИМ set → set_bonus deepEqual внутри набора (ре-пин 000230.08: 25 head — 4 предмета с set: straw_hat/fur_hat [traveller], silver_helm/gold_helm [mystic]; ре-пин 000230.09: +5 — faith ×3 + stage ×2; ре-пин 000230.10: +5 — penitent ×3 + hearth ×2; ре-пин 000230.11: +4 — nimble ×2 + blade_guard ×2; ре-пин 000230.12: +5 — harvester ×3 + forger ×2; ре-пин 000230.13: +5 — bulwark ×3 + arcane_focus ×2; ре-пин 000230.14: +8 — fate ×4 + ember ×2 + rime ×2); предметов с set_bonus — РОВНО 36 (ре-пин 000230.08: реальный кросс-пин; ре-пин 000230.09: 4 + 5; ре-пин 000230.10: +5; ре-пин 000230.11: +4; ре-пин 000230.12: +5; ре-пин 000230.13: +5; ре-пин 000230.14: +8)', () => {
+test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): предметы с ОДНИМ set → set_bonus deepEqual внутри набора (ре-пин 000230.08: 25 head — 4 предмета с set: straw_hat/fur_hat [traveller], silver_helm/gold_helm [mystic]; ре-пин 000230.09: +5 — faith ×3 + stage ×2; ре-пин 000230.10: +5 — penitent ×3 + hearth ×2; ре-пин 000230.11: +4 — nimble ×2 + blade_guard ×2; ре-пин 000230.12: +5 — harvester ×3 + forger ×2; ре-пин 000230.13: +5 — bulwark ×3 + arcane_focus ×2; ре-пин 000230.14: +8 — fate ×4 + ember ×2 + rime ×2; ре-пин 000230.15: +5 — trail ×3 + rooted ×2); предметов с set_bonus — РОВНО 41 (ре-пин 000230.08: реальный кросс-пин; ре-пин 000230.09: 4 + 5; ре-пин 000230.10: +5; ре-пин 000230.11: +4; ре-пин 000230.12: +5; ре-пин 000230.13: +5; ре-пин 000230.14: +8; ре-пин 000230.15: +5)', () => {
   const bySet = new Map();
   let withSetBonus = 0;
   for (const it of I.allItems()) {
@@ -4457,14 +4373,15 @@ test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): пре�
     }
     if (it.set_bonus !== undefined) withSetBonus++;
   }
-  assert.equal(withSetBonus, 36,
-    'предметов с set_bonus — 36 (ре-пин 000230.08: straw_hat/fur_hat '
+  assert.equal(withSetBonus, 41,
+    'предметов с set_bonus — 41 (ре-пин 000230.08: straw_hat/fur_hat '
     + '[traveller] + silver_helm/gold_helm [mystic]; ре-пин 000230.09: '
     + '+faith ×3 +stage ×2; ре-пин 000230.10: +penitent ×3 +hearth ×2; '
     + 'ре-пин 000230.11: +nimble ×2 +blade_guard ×2; ре-пин '
     + '000230.12: +harvester ×3 +forger ×2; '
     + 'ре-пин 000230.13: +bulwark ×3 +arcane_focus ×2; '
-    + 'ре-пин 000230.14: +fate ×4 +ember ×2 +rime ×2)');
+    + 'ре-пин 000230.14: +fate ×4 +ember ×2 +rime ×2; '
+    + 'ре-пин 000230.15: +trail ×3 +rooted ×2)');
 });
 
 test('000230.04-SB14 (vm, throw, E18-паттерн): reagent с set_bonus → Error /только у экипируемых/ при загрузке (equipment-only-гард покрывает set_bonus; краснота: гард без set_bonus — Missing expected exception)', () => {
@@ -7213,11 +7130,11 @@ const RIGHT_HAND_ROSTER_00023012 = [
 const RIGHT_HAND_IDS_00023012 = RIGHT_HAND_ROSTER_00023012.map((r) => r[0]);
 const RIGHT_HAND_ID_SET_00023012 = new Set(RIGHT_HAND_IDS_00023012);
 
-test('000230.12 R1: каталог 307 → 332; ре-пин post-merge (.13/.14): каталог 382; ре-пин 000235.10 post-merge: каталог 407 (000258–000282 — свитки волны Исцеление, блок 000333–000357 не сдвинулся); блок 000333–000357 — СРЕДИ каталога (после него 000358–000382 left_hand, затем 000383–000407 кольца); каталожный порядок: блок = 25 файлов ПОСЛЕ ВСЕХ файлов с номером < 333 (rebase-робастный якорь, паттерн .11 T1) = 000333–000357 подряд, все slot "right_hand", редкости по позициям ровно 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible; id волны не пересекаются с остальным каталогом (краснота: волна не добавлена)', () => {
+test('000230.12 R1: каталог 307 → 332; ре-пин post-merge (.13/.14): каталог 382; ре-пин 000235.10 post-merge: каталог 407 (000258–000282 — свитки волны Исцеление, блок 000333–000357 не сдвинулся); ре-пин 000230.15: каталог 457; блок 000333–000357 — СРЕДИ каталога (после него 000358–000382 left_hand, затем 000383–000407 кольца, затем 000408–000457 ноги/ступни); каталожный порядок: блок = 25 файлов ПОСЛЕ ВСЕХ файлов с номером < 333 (rebase-робастный якорь, паттерн .11 T1) = 000333–000357 подряд, все slot "right_hand", редкости по позициям ровно 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible; id волны не пересекаются с остальным каталогом (краснота: волна не добавлена)', () => {
   const { files, byFile } = catalogScan00023008();
-  assert.equal(files.length, 407,
-    'каталог — 407 файла (332 + 25 .13 + 25 .14 + 25 свитков '
-    + '000235.10); факт: ' + files.length);
+  assert.equal(files.length, 457,
+    'каталог — 457 файла (332 + 25 .13 + 25 .14 + 25 свитков '
+    + '000235.10 + 50 .15); факт: ' + files.length);
   const p0 = files.filter((f) =>
     Number(f.slice(0, 6)) < 333).length;
   for (let i = 0; i < 25; i++) {
@@ -7449,7 +7366,7 @@ const RIGHT_HAND_SETS_00023012 = [
     bonus: { 2: [{ type: 'skill', skill: 'forge', amount: 0.05 }] } },
 ];
 
-test('000230.12 R8: наборы — РОВНО 2: harvester {wood_scyte, steel_scyte, harvest_scyte} / set_bonus {2: {damage: 2}} (stat-объект) и forger {silver_crucible, mithril_hammer} / {2: [{skill forge 0.05}]} (affix-массив); set_bonus ОДИНАКОВОЕ у ВСЕХ участников (D-03); прочие 21 предмет волны — без set/set_bonus; счётчики каталога: предметы с set_bonus 18 → 36, наборов 8 → 15 (ре-пин post-merge: +5 .13, +8 .14; по node-факту; краснота: предметов нет)', () => {
+test('000230.12 R8: наборы — РОВНО 2: harvester {wood_scyte, steel_scyte, harvest_scyte} / set_bonus {2: {damage: 2}} (stat-объект) и forger {silver_crucible, mithril_hammer} / {2: [{skill forge 0.05}]} (affix-массив); set_bonus ОДИНАКОВОЕ у ВСЕХ участников (D-03); прочие 21 предмет волны — без set/set_bonus; счётчики каталога: предметы с set_bonus 18 → 41, наборов 8 → 17 (ре-пин post-merge: +5 .13, +8 .14, +5 .15; по node-факту; краснота: предметов нет)', () => {
   const { byId, byFile } = catalogScan00023008();
   for (const s of RIGHT_HAND_SETS_00023012) {
     for (const id of s.members) {
@@ -7479,11 +7396,11 @@ test('000230.12 R8: наборы — РОВНО 2: harvester {wood_scyte, steel_
     if (it.set_bonus !== undefined) withBonus += 1;
     if (typeof it.set === 'string') sets.add(it.set);
   }
-  assert.equal(withBonus, 36,
-    'предметов с set_bonus — 36 (18 + 5 волны + 5 .13 + 8 .14); '
+  assert.equal(withBonus, 41,
+    'предметов с set_bonus — 41 (18 + 5 волны + 5 .13 + 8 .14 + 5 .15); '
     + 'факт: ' + withBonus);
-  assert.equal(sets.size, 15,
-    'наборов в каталоге — 15 (8 + 2 волны + 2 .13 + 3 .14); '
+  assert.equal(sets.size, 17,
+    'наборов в каталоге — 17 (8 + 2 волны + 2 .13 + 3 .14 + 2 .15); '
     + 'факт: ' + sets.size);
 });
 // =====================================================================
@@ -8601,4 +8518,607 @@ test('000235.10 W-06: 25 свитков 000258–000282 — id <spell>_scroll, k
   });
   assert.deepEqual(tierCount, { 1: 4, 2: 10, 3: 7, 4: 4 },
     'распределение по тирам: T1×4 / T2×10 / T3×7 / T4×4');
+});
+// =====================================================================
+// Задача 000230.15 — предметы «Ноги» + «Ступни»: 50 (2×10/7/5/2/1)
+// + иконки + рецепты (контентная волна серии 000230; P2; follow-up
+// 000230). Контракт — memory/000230.15-legs-feet-items-wave.md §2
+// (ростер §2.1, affix-матрица §2.2, наборы §2.3, рецепты §2.4,
+// пулы §2.5; решения D-01–D-14 §0). RED (TDD): slot legs/feet — 0
+// предметов, зеркало items-data 257, craft 143, пулы 40/28/20/8/4 —
+// тесты падают по ОСМЫСЛЕННОЙ причине («волна не добавлена» /
+// «пулы не перегенерированы» / «зеркало не регенерировано»), а не
+// по синтаксису. Нумерация D-01: items 000408–000457 — ВЕРХНИЙ блок
+// (разрыв 000258–000407: 000258–000282 — свитки 000235.10,
+// 000283–000407 — волны .11–.14) — пины по
+// id/slot (EN1-паттерн), НЕ по номерам файлов: rebase-робастно.
+// =====================================================================
+
+// ROSTER §2.1 (порядок = каталог = тировый: 25 legs → 25 feet).
+// [id, name, slot, rarity, stats.armor, weight, value, affixes,
+//  set (null — поля нет)]
+const LEGSFEET_ROSTER_00023015 = [
+  ['linen_trousers', 'Льняные штаны', 'legs', 'common', 1, 0.5, 15,
+   [{ type: 'skill', skill: 'step', amount: 0.02 }], null],
+  ['wool_trousers', 'Шерстяные штаны', 'legs', 'common', 1, 0.6, 18,
+   [{ type: 'skill', skill: 'step', amount: 0.04 }], null],
+  ['hemp_breeches', 'Пеньковые бриджи', 'legs', 'common', 1, 0.7, 21,
+   [{ type: 'skill', skill: 'hide', amount: 0.03 }], null],
+  ['felt_trousers', 'Фетровые штаны', 'legs', 'common', 1, 0.8, 24,
+   [{ type: 'skill', skill: 'breath', amount: 0.04 }], null],
+  ['leather_pants', 'Кожаные штаны', 'legs', 'common', 1, 1.0, 27,
+   [{ type: 'skill', skill: 'golem', amount: 0.05 }], null],
+  ['traveler_breeches', 'Бриджи странника', 'legs', 'common', 1, 0.9, 30,
+   [{ type: 'skill', skill: 'step', amount: 0.03 }], 'trail'],
+  ['hide_wrap', 'Шкурный обмоток', 'legs', 'common', 1, 1.2, 33,
+   [{ type: 'skill', skill: 'endurance', amount: 0.03 }], null],
+  ['twine_wraps', 'Бечёные обмотки', 'legs', 'common', 1, 0.5, 36,
+   [{ type: 'skill', skill: 'breath', amount: 0.03 }], null],
+  ['rough_chaps', 'Грубые чапаи', 'legs', 'common', 1, 1.2, 38,
+   [{ type: 'skill', skill: 'endurance', amount: 0.05 }], null],
+  ['cloth_loincloth', 'Тканевый набедренник', 'legs', 'common', 1, 0.6, 40,
+   [{ type: 'skill', skill: 'step', amount: 0.05 }], null],
+  ['bone_greaves', 'Костяные поножи', 'legs', 'rare', 2, 1.3, 60,
+   [{ type: 'skill', skill: 'hide', amount: 0.05 }], null],
+  ['copper_greaves', 'Медные поножи', 'legs', 'rare', 3, 1.5, 70,
+   [{ type: 'skill', skill: 'golem', amount: 0.07 }], 'trail'],
+  ['silver_chaps', 'Серебряные чапаи', 'legs', 'rare', 2, 1.4, 80,
+   [{ type: 'skill', skill: 'endurance', amount: 0.07 }], null],
+  ['stone_greaves', 'Каменные поножи', 'legs', 'rare', 3, 1.8, 90,
+   [{ type: 'skill', skill: 'golem', amount: 0.10 }], null],
+  ['obsidian_greaves', 'Обсидиановые поножи', 'legs', 'rare', 3, 1.6, 100,
+   [{ type: 'skill', skill: 'hide', amount: 0.08 }], null],
+  ['amethyst_pants', 'Аметистовые штаны', 'legs', 'rare', 2, 1.3, 105,
+   [{ type: 'skill', skill: 'breath', amount: 0.09 }], null],
+  ['mystic_breeches', 'Мистические бриджи', 'legs', 'rare', 3, 1.4, 110,
+   [{ type: 'skill', skill: 'step', amount: 0.10 }], null],
+  ['sapphire_leggings', 'Сапфировые поножи', 'legs', 'epic', 3, 1.8, 160,
+   [{ type: 'skill', skill: 'step', amount: 0.12 }], null],
+  ['ember_pants', 'Пепельные штаны', 'legs', 'epic', 3, 1.6, 200,
+   [{ type: 'skill', skill: 'step', amount: 0.18 },
+    { type: 'free_cast', spell: 'blazing_speed' }], 'rooted'],
+  ['emerald_greaves', 'Изумрудные поножи', 'legs', 'epic', 3, 2.0, 240,
+   [{ type: 'skill', skill: 'endurance', amount: 0.15 }], null],
+  ['gold_leggings', 'Золотые поножи', 'legs', 'epic', 3, 2.2, 280,
+   [{ type: 'skill', skill: 'golem', amount: 0.18 }], null],
+  ['mithril_greaves', 'Мифриловые поножи', 'legs', 'epic', 3, 1.8, 330,
+   [{ type: 'skill', skill: 'step', amount: 0.15 }], null],
+  ['rune_greaves', 'Рунические поножи', 'legs', 'legendary', 4, 2.8, 480,
+   [{ type: 'skill', skill: 'hide', amount: 0.22 }], null],
+  ['storm_leggings', 'Штаны шторма', 'legs', 'legendary', 4, 3.2, 700,
+   [{ type: 'skill', skill: 'step', amount: 0.25 }], null],
+  ['titan_greaves', 'Поножи Титана', 'legs', 'impossible', 4, 4.5, 1200,
+   [{ type: 'skill', skill: 'hide', amount: 0.40 },
+    { type: 'skill', skill: 'step', amount: 0.35 }], null],
+  ['straw_sandals', 'Соломенные сандалии', 'feet', 'common', 1, 0.5, 15,
+   [{ type: 'skill', skill: 'step', amount: 0.02 }], null],
+  ['cloth_sandals', 'Тканевые сандалии', 'feet', 'common', 1, 0.5, 18,
+   [{ type: 'skill', skill: 'step', amount: 0.03 }], null],
+  ['leather_sandals', 'Кожаные сандалии', 'feet', 'common', 1, 0.6, 21,
+   [{ type: 'skill', skill: 'hide', amount: 0.03 }], null],
+  ['wool_boots', 'Шерстяные ботинки', 'feet', 'common', 1, 0.7, 24,
+   [{ type: 'skill', skill: 'endurance', amount: 0.04 }], null],
+  ['felt_boots', 'Фетровые ботинки', 'feet', 'common', 1, 0.8, 27,
+   [{ type: 'skill', skill: 'breath', amount: 0.04 }], null],
+  ['leather_boots', 'Кожаные ботинки', 'feet', 'common', 1, 0.9, 30,
+   [{ type: 'skill', skill: 'step', amount: 0.05 }], 'trail'],
+  ['travel_boots', 'Путевые ботинки', 'feet', 'common', 1, 1.0, 33,
+   [{ type: 'skill', skill: 'step', amount: 0.04 }], null],
+  ['hide_boots', 'Шкурные ботинки', 'feet', 'common', 1, 1.2, 36,
+   [{ type: 'skill', skill: 'endurance', amount: 0.05 }], null],
+  ['wooden_sandals', 'Деревянные сандалии', 'feet', 'common', 1, 0.8, 38,
+   [{ type: 'skill', skill: 'golem', amount: 0.03 }], null],
+  ['hemp_sandals', 'Пеньковые сандалии', 'feet', 'common', 1, 0.6, 40,
+   [{ type: 'skill', skill: 'breath', amount: 0.05 }], null],
+  ['bone_sandals', 'Костяные сандалии', 'feet', 'rare', 2, 1.2, 60,
+   [{ type: 'skill', skill: 'hide', amount: 0.06 }], null],
+  ['copper_boots', 'Медные ботинки', 'feet', 'rare', 3, 1.4, 70,
+   [{ type: 'skill', skill: 'golem', amount: 0.08 }], null],
+  ['silver_boots', 'Серебряные ботинки', 'feet', 'rare', 2, 1.3, 80,
+   [{ type: 'skill', skill: 'endurance', amount: 0.08 }], null],
+  ['stone_sandals', 'Каменные сандалии', 'feet', 'rare', 2, 1.6, 90,
+   [{ type: 'skill', skill: 'golem', amount: 0.09 }], null],
+  ['obsidian_sandals', 'Обсидиановые сандалии', 'feet', 'rare', 3, 1.5, 100,
+   [{ type: 'skill', skill: 'breath', amount: 0.08 }], null],
+  ['amethyst_boots', 'Аметистовые ботинки', 'feet', 'rare', 2, 1.3, 105,
+   [{ type: 'skill', skill: 'endurance', amount: 0.09 }], null],
+  ['mystic_sandals', 'Мистические сандалии', 'feet', 'rare', 3, 1.4, 110,
+   [{ type: 'skill', skill: 'step', amount: 0.10 }], null],
+  ['sapphire_boots', 'Сапфировые ботинки', 'feet', 'epic', 3, 1.7, 160,
+   [{ type: 'skill', skill: 'step', amount: 0.12 }], null],
+  ['frost_sandals', 'Морозные сандалии', 'feet', 'epic', 3, 1.5, 200,
+   [{ type: 'skill', skill: 'step', amount: 0.19 },
+    { type: 'free_cast', spell: 'winter_haste' }], 'rooted'],
+  ['emerald_boots', 'Изумрудные ботинки', 'feet', 'epic', 3, 1.9, 240,
+   [{ type: 'skill', skill: 'endurance', amount: 0.16 }], null],
+  ['gold_sandals', 'Золотые сандалии', 'feet', 'epic', 3, 2.0, 280,
+   [{ type: 'skill', skill: 'golem', amount: 0.19 }], null],
+  ['mithril_boots', 'Мифриловые ботинки', 'feet', 'epic', 3, 1.7, 330,
+   [{ type: 'skill', skill: 'step', amount: 0.16 }], null],
+  ['storm_sandals', 'Сандалии шторма', 'feet', 'legendary', 4, 2.6, 480,
+   [{ type: 'skill', skill: 'step', amount: 0.26 }], null],
+  ['rune_boots', 'Рунические ботинки', 'feet', 'legendary', 4, 3.0, 700,
+   [{ type: 'skill', skill: 'hide', amount: 0.28 }], null],
+  ['swift_boots', 'Ботинки стремительности', 'feet', 'impossible', 4, 4.0,
+   1200,
+   [{ type: 'skill', skill: 'step', amount: 0.40 },
+    { type: 'skill', skill: 'endurance', amount: 0.35 }], null],
+];
+const LEGSFEET_IDS_00023015 = LEGSFEET_ROSTER_00023015.map((r) => r[0]);
+const LEGSFEET_ID_SET_00023015 = new Set(LEGSFEET_IDS_00023015);
+const LEGS_IDS_00023015 = LEGSFEET_ROSTER_00023015
+  .filter((r) => r[2] === 'legs').map((r) => r[0]);
+const FEET_IDS_00023015 = LEGSFEET_ROSTER_00023015
+  .filter((r) => r[2] === 'feet').map((r) => r[0]);
+
+test('000230.15 LF1: +50 — set(ids slot legs) = 25 id §2.1 И set(ids slot feet) = 25 id §2.1; allItems() = 457 (407+50, 50 id в items-data.js; ре-пин merge .10–.14); каталожный порядок: весь legs-блок 25 ЦЕЛИКОМ до feet-блока 25; 50 последовательных файлов (base = первый slot-legs, rebase-робастно, EN1-паттерн); редкости КАЖДОГО блока РОВНО 10/7/5/2/1; все kind armor (краснота: slot legs/feet — 0 предметов, зеркало 257)', () => {
+  const { files, byFile } = catalogScan00023008();
+  const legsItems = [...byFile.values()].filter((it) => it.slot === 'legs');
+  const feetItems = [...byFile.values()].filter((it) => it.slot === 'feet');
+  assert.equal(legsItems.length, 25,
+    'slot legs — ровно 25 предмета (краснота: волна не добавлена; '
+    + 'факт: ' + legsItems.length + ')');
+  assert.equal(feetItems.length, 25,
+    'slot feet — ровно 25 предметов (краснота: волна не добавлена; '
+    + 'факт: ' + feetItems.length + ')');
+  assert.deepEqual(
+    legsItems.map((it) => it.id).sort(), [...LEGS_IDS_00023015].sort(),
+    'set(ids slot legs) = ровно 25 id §2.1');
+  assert.deepEqual(
+    feetItems.map((it) => it.id).sort(), [...FEET_IDS_00023015].sort(),
+    'set(ids slot feet) = ровно 25 id §2.1');
+  assert.equal(I.allItems().length, 457,
+    'allItems() = 407 + 50 = 457 (краснота: зеркало не '
+    + 'регенерировано; факт: ' + I.allItems().length + ')');
+  for (const id of LEGSFEET_IDS_00023015) {
+    assert.ok(I.getItem(id) !== null,
+      'items-data.js: «' + id + '» в зеркале (краснота: записи нет)');
+  }
+  const blockFiles = files.filter((f) =>
+    ['legs', 'feet'].includes(byFile.get(f).slot));
+  assert.equal(blockFiles.length, 50,
+    'слот legs+feet — ровно 50 файлов (краснота: волна не добавлена; '
+    + 'факт: ' + blockFiles.length + ')');
+  const base = parseInt(blockFiles[0], 10);
+  const slotByPos = (i) => (i < 25 ? 'legs' : 'feet');
+  const tierByPos = (i) => {
+    const j = i % 25;
+    return j < 10 ? 'common' : j < 17 ? 'rare'
+      : j < 22 ? 'epic' : j < 24 ? 'legendary' : 'impossible';
+  };
+  for (let i = 0; i < 50; i++) {
+    const f = blockFiles[i];
+    assert.equal(f, String(base + i).padStart(6, '0') + '.json',
+      'блок волны — 50 последовательных файлов (base ' + base
+      + '); позиция ' + i + ': ' + f);
+    const it = byFile.get(f);
+    assert.equal(it.kind, 'armor', f + ': kind armor');
+    assert.equal(it.slot, slotByPos(i),
+      f + ': slot ' + slotByPos(i) + ' (каталожный порядок: весь '
+      + 'legs-блок 25 ЦЕЛИКОМ, затем feet-блок 25); факт: ' + it.slot);
+    assert.equal(it.rarity, tierByPos(i),
+      f + ': rarity ' + tierByPos(i) + ' (каталожный порядок = '
+      + 'тировый 10/7/5/2/1 в каждом блоке); факт: ' + it.rarity);
+  }
+});
+
+// Полосы weight/value по тирам (D-02; ТЗ: weight 0.5–5, value по
+// монотонным тирам 15–40/60–110/160–330/480–700/1000–1200).
+const LEGSFEET_WEIGHT_RANGE_00023015 = {
+  common: [0.5, 1.2], rare: [1.2, 1.8], epic: [1.5, 2.2],
+  legendary: [2.6, 3.2], impossible: [4.0, 5.0],
+};
+const LEGSFEET_VALUE_RANGE_00023015 = {
+  common: [15, 40], rare: [60, 110], epic: [160, 330],
+  legendary: [480, 700], impossible: [1000, 1200],
+};
+
+test('000230.15 LF2: ростер 50 построчно (§2.1: id/name/kind/slot/rarity/stats.armor (1–4)/weight/value/affixes/set) + редкость 10/7/5/2/1 НА КАЖДУЮ часть (пин ×2 по slot-фильтру) + weight/value в полосах тиров + desc непустая RU-строка + icon = assets/sprites/items/<id>.svg существует + 50 SVG byte-уникальны; subtype/tier/effect/loot отсутствуют (краснота: предметов нет)', () => {
+  const { byId } = catalogScan00023008();
+  const ROOT = path.join(__dirname, '..');
+  const seenSvg = new Map();
+  const rarBySlot = { legs: {}, feet: {} };
+  for (const [id, name, slot, rarity, armor, weight, value, affixes,
+      set] of LEGSFEET_ROSTER_00023015) {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+      + 'не добавлена)');
+    assert.equal(it.name, name, id + ': name');
+    assert.equal(it.kind, 'armor', id + ': kind armor');
+    assert.equal(it.slot, slot, id + ': slot ' + slot);
+    assert.equal(it.rarity, rarity, id + ': rarity ' + rarity);
+    rarBySlot[slot][rarity] = (rarBySlot[slot][rarity] || 0) + 1;
+    assert.deepEqual(it.stats, { armor },
+      id + ': stats — ровно { armor: ' + armor + ' } (группа ног: 1–4)');
+    assert.ok(armor >= 1 && armor <= 4,
+      id + ': armor ' + armor + ' в 1–4 (ТЗ)');
+    assert.equal(it.weight, weight, id + ': weight');
+    const [wlo, whi] = LEGSFEET_WEIGHT_RANGE_00023015[rarity];
+    assert.ok(it.weight >= wlo && it.weight <= whi,
+      id + ': weight ' + it.weight + ' в полосе ' + rarity + ' '
+      + wlo + '–' + whi + ' (D-02)');
+    assert.equal(it.value, value, id + ': value');
+    const [vlo, vhi] = LEGSFEET_VALUE_RANGE_00023015[rarity];
+    assert.ok(it.value >= vlo && it.value <= vhi,
+      id + ': value ' + it.value + ' в полосе ' + rarity + ' '
+      + vlo + '–' + vhi + ' (D-02)');
+    assert.deepEqual(it.affixes, affixes, id + ': affixes (§2.1)');
+    assert.equal(it.set, set === null ? undefined : set,
+      id + ': set ' + (set === null ? 'отсутствует' : '«' + set + '»'));
+    assert.equal(typeof it.desc, 'string', id + ': desc — строка');
+    assert.ok(it.desc.length > 0, id + ': desc — непустая строка');
+    assert.equal(it.subtype, undefined,
+      id + ': subtype отсутствует (у armor не бывает)');
+    assert.equal(it.tier, undefined,
+      id + ': tier отсутствует (редкость — отдельное поле rarity)');
+    assert.equal(it.effect, undefined, id + ': effect отсутствует');
+    assert.equal(it.loot, undefined,
+      id + ': loot отсутствует (loot — только у reagent)');
+    assert.equal(it.icon, 'assets/sprites/items/' + id + '.svg',
+      id + ': icon = assets/sprites/items/<id>.svg');
+    const p = path.join(ROOT, it.icon);
+    assert.ok(fs.existsSync(p),
+      id + ': svg-файл существует (краснота: иконка не создана)');
+    const raw = fs.readFileSync(p, 'utf8');
+    for (const [other, otherRaw] of seenSvg) {
+      assert.notEqual(raw, otherRaw,
+        id + ' и ' + other + ': иконки уникальны (НЕ копии, §2.6)');
+    }
+    seenSvg.set(id, raw);
+  }
+  assert.deepEqual(rarBySlot.legs,
+    { common: 10, rare: 7, epic: 5, legendary: 2, impossible: 1 },
+    'редкость legs-блока РОВНО 10/7/5/2/1 (пин, ТЗ); факт: '
+    + JSON.stringify(rarBySlot.legs));
+  assert.deepEqual(rarBySlot.feet,
+    { common: 10, rare: 7, epic: 5, legendary: 2, impossible: 1 },
+    'редкость feet-блока РОВНО 10/7/5/2/1 (пин, ТЗ); факт: '
+    + JSON.stringify(rarBySlot.feet));
+});
+
+// Матрица §2.2 (группа ног, research §6): step 20 / endurance 10 /
+// hide 8 / breath 6 / golem 8 = 52 skill-записи + 2 free_cast = 54.
+const SKILL_MATRIX_00023015 = {
+  step: 20, endurance: 10, hide: 8, breath: 6, golem: 8,
+};
+const LEGSFEET_AFFIX_SCALE_00023015 = {
+  common: [0.02, 0.05], rare: [0.05, 0.10], epic: [0.10, 0.20],
+  legendary: [0.20, 0.35], impossible: [0.35, Infinity],
+};
+const LEGSFEET_SKILL_GROUP_00023015 = new Set(
+  ['step', 'endurance', 'hide', 'breath', 'golem']);
+
+test('000230.15 LF3: affix-матрица — skill ∈ РОВНО {step,endurance,hide,breath,golem} (группа ног §2.2), coverage РОВНО 20/10/8/6/8, Σ 52 skill-записи + 2 free_cast = 54; amounts в шкале редкости §2.2 (точные amounts 50/50 — ростер-пин LF2); ≥1 affix у каждого; skill в live skill-каталоге, spell в assets/spells (краснота: предметов нет)', () => {
+  const { byId } = catalogScan00023008();
+  const wave = LEGSFEET_IDS_00023015.map((id) => {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+      + 'не добавлена)');
+    return it;
+  });
+  const coverage = {};
+  let skillRecords = 0;
+  const freeCast = [];
+  const spells = spellIds00023008();
+  for (const it of wave) {
+    assert.ok(Array.isArray(it.affixes) && it.affixes.length >= 1,
+      it.id + ': affixes — непустой массив (у каждого предмета ≥1)');
+    for (const a of it.affixes) {
+      if (a.type === 'skill') {
+        skillRecords += 1;
+        assert.ok(LEGSFEET_SKILL_GROUP_00023015.has(a.skill),
+          it.id + ': skill «' + a.skill + '» — в группе ног §2.2 '
+          + '(step/endurance/hide/breath/golem)');
+        assert.ok(SECONDARY_SKILLS[a.skill] !== undefined,
+          it.id + ': skill «' + a.skill + '» — в live skill-каталоге');
+        coverage[a.skill] = (coverage[a.skill] || 0) + 1;
+        const [lo, hi] = LEGSFEET_AFFIX_SCALE_00023015[it.rarity];
+        assert.ok(a.amount >= lo && a.amount <= hi,
+          it.id + ': amount ' + a.amount + ' в шкале редкости '
+          + it.rarity + ' [' + lo + ', ' + hi + '] (§2.2)');
+      } else if (a.type === 'free_cast') {
+        freeCast.push({ id: it.id, spell: a.spell });
+        assert.ok(spells.has(a.spell),
+          it.id + ': spell «' + a.spell + '» — в assets/spells');
+      } else {
+        assert.fail(it.id + ': неизвестный type affix: ' + a.type);
+      }
+    }
+  }
+  assert.equal(skillRecords, 52,
+    'Σ skill-записей — ровно 52 (матрица §2.2: 50 предметов + 2 '
+    + 'двойных affix — titan_greaves/swift_boots); факт: '
+    + skillRecords);
+  assert.deepEqual(
+    { step: coverage.step || 0, endurance: coverage.endurance || 0,
+      hide: coverage.hide || 0, breath: coverage.breath || 0,
+      golem: coverage.golem || 0 },
+    SKILL_MATRIX_00023015,
+    'покрытие навыков — ровно 20/10/8/6/8 (матрица §2.2); факт: '
+    + JSON.stringify(coverage));
+  assert.equal(freeCast.length, 2,
+    'free_cast — ровно 2 (D-03); факт: ' + freeCast.length);
+  assert.equal(skillRecords + freeCast.length, 54,
+    'Σ 52 skill-записи + 2 free_cast = 54 (§2.2)');
+});
+
+// free_cast D-03: РОВНО 2, ТОЛЬКО у epic; спеллы — БОЕВЫЕ бафы
+// (действие «баф», без вне_боя — OUT_OF_COMBAT-гард spells.js:331:
+// flame_step/frost_walk ОТВЕРГНУТЫ: телепорт/внебой в бою не
+// кастуются даже с free_cast).
+const LEGSFEET_FREE_CAST_00023015 = [
+  ['ember_pants', 'blazing_speed'],
+  ['frost_sandals', 'winter_haste'],
+];
+
+test('000230.15 LF4: free_cast РОВНО 2 (ember_pants→blazing_speed, frost_sandals→winter_haste), ТОЛЬКО у epic; оба спелла существуют в assets/spells и БОЕВЫЕ: действие «баф» (не вне_боя/телепорт/внебой — free_cast работает только в бою, combat.js:3460/spells.js:331) (краснота: предметов нет)', () => {
+  const { byId } = catalogScan00023008();
+  const wave = LEGSFEET_IDS_00023015.map((id) => {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+      + 'не добавлена)');
+    return it;
+  });
+  const freeCast = [];
+  for (const it of wave) {
+    for (const a of it.affixes) {
+      if (a.type === 'free_cast') {
+        freeCast.push({ id: it.id, rarity: it.rarity, spell: a.spell });
+      }
+    }
+  }
+  assert.equal(freeCast.length, 2,
+    'free_cast — ровно 2 (D-03); факт: ' + freeCast.length);
+  assert.deepEqual(
+    freeCast.map((f) => f.id + ':' + f.spell).sort(),
+    LEGSFEET_FREE_CAST_00023015
+      .map((p) => p[0] + ':' + p[1]).sort(),
+    'free_cast — ровно ember_pants→blazing_speed + '
+    + 'frost_sandals→winter_haste (§2.1, D-03)');
+  const spellsDir = path.join(__dirname, '..', 'assets', 'spells');
+  for (const f of freeCast) {
+    assert.equal(f.rarity, 'epic',
+      f.id + ': free_cast — ТОЛЬКО у epic (D-03); факт: '
+      + f.rarity);
+    let spell = null;
+    for (const sf of fs.readdirSync(spellsDir)) {
+      if (!/^\d{6}\.json$/.test(sf)) continue;
+      const d = JSON.parse(
+        fs.readFileSync(path.join(spellsDir, sf), 'utf8'));
+      if (d.id === f.spell) { spell = d; break; }
+    }
+    assert.ok(spell, f.spell + ': существует в assets/spells '
+      + '(краснота: спелла нет)');
+    assert.equal(spell['действие'], 'баф',
+      f.spell + ': действие «баф» — боевой спелл (free_cast работает '
+      + 'ТОЛЬКО в бою; факт: «' + spell['действие'] + '»); '
+      + 'краснота: внебоевой/телепорт/внебой не кастуются в бою');
+    assert.notEqual(spell['вне_боя'], true,
+      f.spell + ': поле «вне_боя» не true (OUT_OF_COMBAT-гард)');
+  }
+});
+
+// Наборы §2.3: РОВНО 2 (D-04), 5 файлов; ОБА активируемы
+// кросс-слотом (порог 2: legs+feet — разные слоты).
+const LEGSFEET_SETS_00023015 = [
+  { set: 'trail',
+    members: ['traveler_breeches', 'copper_greaves', 'leather_boots'],
+    bonus: { 2: { armor: 1 } } },
+  { set: 'rooted', members: ['ember_pants', 'frost_sandals'],
+    bonus: { 2: [{ type: 'skill', skill: 'step', amount: 0.05 }] } },
+];
+
+test('000230.15 LF5: наборы — РОВНО 5 файлов с set: trail {traveler_breeches, copper_greaves, leather_boots} / set_bonus {2: {armor: 1}} (stat-объект) и rooted {ember_pants, frost_sandals} / {2: [{skill step 0.05}]} (affix-массив; НЕ damage); set_bonus deepEqual у ВСЕХ участников (E22/SB13-инвариант); пороги ⊆ {2,3,4}; прочие 45 предметов волны — без set/set_bonus; других set в волне нет (краснота: предметов нет)', () => {
+  const { byId } = catalogScan00023008();
+  for (const s of LEGSFEET_SETS_00023015) {
+    for (const id of s.members) {
+      const it = byId.get(id);
+      assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+        + 'не добавлена)');
+      assert.equal(it.set, s.set, id + ': set «' + s.set + '»');
+      assert.deepEqual(it.set_bonus, s.bonus,
+        id + ': set_bonus (контракт §2.3; ОДИНАКОВОЕ deepEqual-значение '
+        + 'для всех участников — E22)');
+    }
+    for (const [k, v] of Object.entries(s.bonus)) {
+      assert.ok(['2', '3', '4'].includes(k),
+        s.set + ': порог «' + k + '» ⊆ {2,3,4}');
+      if (Array.isArray(v)) {
+        for (const a of v) {
+          assert.equal(a.type, 'skill',
+            s.set + ': affix-форма set_bonus — type «skill»');
+          assert.ok(typeof a.amount === 'number'
+              && Number.isFinite(a.amount),
+            s.set + ': affix-форма set_bonus — amount число');
+        }
+      } else if (v && typeof v === 'object') {
+        assert.ok(!('damage' in v),
+          s.set + ': set_bonus — БЕЗ damage (D-04)');
+        if ('armor' in v) {
+          assert.ok(Number.isFinite(v.armor),
+            s.set + ': set_bonus.armor — число');
+        }
+      } else {
+        assert.fail(s.set + ': неизвестная форма set_bonus[' + k + ']');
+      }
+    }
+  }
+  const members = new Set(
+    LEGSFEET_SETS_00023015.flatMap((s) => s.members));
+  assert.equal(members.size, 5,
+    'наборы волны — ровно 5 файлов (3 trail + 2 rooted); факт: '
+    + members.size);
+  const setNames = new Set();
+  for (const id of LEGSFEET_IDS_00023015) {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге');
+    if (!members.has(id)) {
+      assert.equal(it.set, undefined,
+        id + ': set отсутствует (в волне только 2 набора, D-04)');
+      assert.equal(it.set_bonus, undefined, id + ': set_bonus отсутствует');
+    } else {
+      setNames.add(it.set);
+    }
+  }
+  assert.deepEqual([...setNames].sort(), ['rooted', 'trail'],
+    'названия set волны — ровно {rooted, trail} (других set в '
+    + 'волне нет); факт: ' + JSON.stringify([...setNames].sort()));
+});
+
+// Пулы §2.5 (D-06): append-конец каждого тира в каталожном порядке
+// (legs-блок → feet-блок): common 40→60, rare 28→42, epic 20→30,
+// legendary 8→12 (pool[11] = 000456 rune_boots), impossible 4→6.
+// Старые префиксы (первые 40/28/20/8/4) — бит-в-бит с пулом до
+// волны (CH4 live-эквивалентность — red-driver непрогенерированных
+// пулов).
+const LEGSFEET_POOL_TAILS_00023015 = {
+  common: ['linen_trousers', 'wool_trousers', 'hemp_breeches',
+    'felt_trousers', 'leather_pants', 'traveler_breeches', 'hide_wrap',
+    'twine_wraps', 'rough_chaps', 'cloth_loincloth',
+    'straw_sandals', 'cloth_sandals', 'leather_sandals', 'wool_boots',
+    'felt_boots', 'leather_boots', 'travel_boots', 'hide_boots',
+    'wooden_sandals', 'hemp_sandals'],
+  rare: ['bone_greaves', 'copper_greaves', 'silver_chaps',
+    'stone_greaves', 'obsidian_greaves', 'amethyst_pants',
+    'mystic_breeches', 'bone_sandals', 'copper_boots', 'silver_boots',
+    'stone_sandals', 'obsidian_sandals', 'amethyst_boots',
+    'mystic_sandals'],
+  epic: ['sapphire_leggings', 'ember_pants', 'emerald_greaves',
+    'gold_leggings', 'mithril_greaves', 'sapphire_boots',
+    'frost_sandals', 'emerald_boots', 'gold_sandals', 'mithril_boots'],
+  legendary: ['rune_greaves', 'storm_leggings', 'storm_sandals',
+    'rune_boots'],
+  impossible: ['titan_greaves', 'swift_boots'],
+};
+const LEGSFEET_OLD_POOLS_00023015 = {
+  common: ['straw_hat', 'wool_cap', 'leather_cap', 'fur_hat',
+    'cloth_band', 'wanderer_cap', 'hood_common', 'linen_cloth',
+    'felt_hat', 'travel_cloth', 'copper_hoop', 'bone_stud',
+    'leather_loop', 'clay_dangle', 'wood_bead', 'copper_dangle',
+    'shell_hoop', 'faith_stud', 'twine_hoop', 'antler_hook',
+    'copper_chain', 'bone_beads', 'twine_amulet', 'clay_pendant',
+    'wood_pendant', 'copper_pendant', 'shell_beads', 'faith_necklace',
+    'leather_choker', 'stone_beads', 'linen_shirt', 'wool_shirt',
+    'cloth_tunic', 'linen_gown', 'hemp_robe', 'rough_kaftan',
+    'wool_gown', 'cloth_sutan', 'linen_tunic', 'wool_kaftan'],
+  rare: ['silver_band', 'copper_band', 'obsidian_cloth',
+    'amethyst_band', 'quartz_cloth', 'bone_band', 'mystic_cloth',
+    'stone_bead', 'silver_hoop', 'moonstone_dangle', 'quartz_bead',
+    'silver_stud', 'obsidian_stud', 'amethyst_dangle', 'bone_pendant',
+    'silver_chain', 'quartz_amulet', 'moonstone_chain', 'faith_amulet',
+    'obsidian_pendant', 'amethyst_choker', 'wool_sutan',
+    'leather_kaftan', 'embroidered_kaftan', 'cloth_robe',
+    'leather_gown', 'monk_sutan', 'fine_kaftan'],
+  epic: ['silver_helm', 'gold_helm', 'sapphire_helm', 'mithril_helm',
+    'emerald_helm', 'sapphire_hoop', 'emerald_stud', 'ruby_bell',
+    'gold_dangle', 'mithril_hoop', 'sapphire_pendant',
+    'emerald_amulet', 'ruby_pendant', 'gold_chain', 'mithril_choker',
+    'ember_robe', 'stone_robe', 'shadow_robe', 'deep_breath_robe',
+    'meditating_robe'],
+  legendary: ['rune_hoop', 'star_hoop', 'star_earring', 'whisper_hoop',
+    'rune_necklace', 'star_pendant', 'pilgrim_sutan', 'void_robe'],
+  impossible: ['crown_flame', 'soul_bell', 'dawn_pendant',
+    'aegis_mantle'],
+};
+
+test('000230.15 LF6: EQUIP_POOLS — lengths 110/77/55/22/11 (ре-пин merge .11–.14: старый 40/28/20/8/4 + волны + 50 концом тиров); каждый пул ≡ live-каталог по редкости (каталожный порядок); хвосты §2.5 (legs-блок → feet-блок, legendary pool[21] = rune_boots 000456); старые префиксы 40/28/20/8/4 — deepEqual с пулом ДО волны (append-only, бит-в-бит) (краснота: пулы 40/28/20/8/4 — волна не перегенерирована)', () => {
+  const L = require('../src/loot-equip-data.js');
+  const expected = { common: 110, rare: 77, epic: 55, legendary: 22,
+    impossible: 11 };
+  for (const [t, len] of Object.entries(expected)) {
+    assert.equal(L.EQUIP_POOLS[t].length, len,
+      'пул «' + t + '» — ' + len + ' (старый 40/28/20/8/4 + волны .11–.15 + хвост §2.5; '
+      + 'краснота: пулы не перегенерированы; факт: '
+      + L.EQUIP_POOLS[t].length + ')');
+  }
+  for (const t of L.RARITY) {
+    assert.deepEqual(L.EQUIP_POOLS[t.id],
+      I.allItems().filter((it) => it.rarity === t.id).map((it) => it.id),
+      'пул «' + t.id + '» ≡ live-каталог по редкости (каталожный '
+      + 'порядок; CH4-эквивалентность)');
+  }
+  assert.deepEqual(L.EQUIP_POOLS.common.slice(90),
+    LEGSFEET_POOL_TAILS_00023015.common,
+    'common-хвост 20 = §2.5 (legs-common 10 → feet-common 10)');
+  assert.deepEqual(L.EQUIP_POOLS.rare.slice(63),
+    LEGSFEET_POOL_TAILS_00023015.rare,
+    'rare-хвост 14 = §2.5 (legs-rare 7 → feet-rare 7)');
+  assert.deepEqual(L.EQUIP_POOLS.epic.slice(45),
+    LEGSFEET_POOL_TAILS_00023015.epic,
+    'epic-хвост 10 = §2.5 (legs-epic 5 → feet-epic 5)');
+  assert.deepEqual(L.EQUIP_POOLS.legendary.slice(18),
+    LEGSFEET_POOL_TAILS_00023015.legendary,
+    'legendary-хвост 4 = §2.5');
+  assert.equal(L.EQUIP_POOLS.legendary[21], 'rune_boots',
+    'legendary pool[21] = 000456 rune_boots (конец каталога; '
+    + 'ре-пин merge .11–.14; D-12: N2/S3 голдены)');
+  assert.deepEqual(L.EQUIP_POOLS.impossible.slice(9),
+    LEGSFEET_POOL_TAILS_00023015.impossible,
+    'impossible-хвост 2 = §2.5');
+  assert.deepEqual(L.EQUIP_POOLS.common.slice(0, 40),
+    LEGSFEET_OLD_POOLS_00023015.common,
+    'старый common-префикс 40 — бит-в-бит (append-only)');
+  assert.deepEqual(L.EQUIP_POOLS.rare.slice(0, 28),
+    LEGSFEET_OLD_POOLS_00023015.rare,
+    'старый rare-префикс 28 — бит-в-бит (append-only)');
+  assert.deepEqual(L.EQUIP_POOLS.epic.slice(0, 20),
+    LEGSFEET_OLD_POOLS_00023015.epic,
+    'старый epic-префикс 20 — бит-в-бит (append-only)');
+  assert.deepEqual(L.EQUIP_POOLS.legendary.slice(0, 8),
+    LEGSFEET_OLD_POOLS_00023015.legendary,
+    'старый legendary-префикс 8 — бит-в-бит (append-only)');
+  assert.deepEqual(L.EQUIP_POOLS.impossible.slice(0, 4),
+    LEGSFEET_OLD_POOLS_00023015.impossible,
+    'старый impossible-префикс 4 — бит-в-бит (append-only)');
+});
+
+test('000230.15 LF7: зеркала — items-data 457 (50 id: getItem ≡ JSON + валидны по schema.json; ре-пин merge .10–.14) и craft-data 339 (283+56); sync:all повторный запуск byte-identical (весь src/) (краснота: items-data 257 / craft-data 143 — зеркала не регенерированы)', () => {
+  const ROOT = path.join(__dirname, '..');
+  assert.equal(I.allItems().length, 457,
+    'items-data = 407 + 50 = 457 (краснота: зеркало не '
+    + 'регенерировано; факт: ' + I.allItems().length + ')');
+  const CD = require('../src/craft-data.js');
+  assert.equal(CD.CRAFT.length, 339,
+    'craft-data = 283 + 56 = 339 (краснота: зеркало не '
+    + 'регенерировано; факт: ' + CD.CRAFT.length + ')');
+  const { fileById } = catalogScan00023008();
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  for (const id of LEGSFEET_IDS_00023015) {
+    const f = fileById.get(id);
+    assert.ok(f, 'файл предмета "' + id + '" (краснота: волна не '
+      + 'добавлена)');
+    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    const errors = validateData(schema, j, f);
+    assert.deepEqual(errors, [],
+      f + ': валиден по schema.json; факт: ' + errors.join('; '));
+    const it = I.getItem(id);
+    assert.ok(it, 'зеркало items-data.js: «' + id + '» (краснота: '
+      + 'записи нет — зеркало не регенерировано)');
+    assert.deepEqual(it, j, f + ': зеркало ≡ JSON');
+  }
+  const srcDir = path.join(ROOT, 'src');
+  const snapshot = () => {
+    const m = new Map();
+    for (const f of fs.readdirSync(srcDir).sort()) {
+      const p = path.join(srcDir, f);
+      if (fs.statSync(p).isFile()) m.set(f, fs.readFileSync(p));
+    }
+    return m;
+  };
+  const before = snapshot();
+  const res = spawnSync(process.execPath, [path.join(
+    ROOT, 'scripts', 'sync-all.js')], { cwd: ROOT, encoding: 'utf8' });
+  assert.equal(res.status, 0,
+    'sync:all (npm run sync:all) — exit 0: '
+    + (res.stderr || res.stdout));
+  const after = snapshot();
+  assert.equal(after.size, before.size,
+    'src/ — число файлов не изменилось после sync:all');
+  for (const [f, b] of before) {
+    assert.ok(after.has(f), 'src/' + f + ' — пропал после sync:all');
+    assert.deepEqual(after.get(f), b,
+      'src/' + f + ': sync:all повторный запуск byte-identical '
+      + '(идемпотентность, E1b/E20)');
+  }
 });

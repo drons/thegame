@@ -736,7 +736,7 @@ test('230.07-TIP-3: тултип предмета С rarity — «Редкост
 
 // --- ЗЕЛЁНЫЕ с начала (гарды/регрессия; в red-счёт не входят) ---
 
-test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 382 шт. — rarity только у экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity; ре-пин 000230.10: +25 torso 000208–000232 с rarity; ре-пин 000230.11: +50 рук 000283–000332 с rarity — в skip-ветку; ре-пин 000230.12: +25 «правая рука» 000333–000357 с rarity, гард обобщён — slot, не kind armor; ре-пин 000230.13: +25 left_hand 000358–000382 с rarity — в skip-ветку; ре-пин 000230.14: +25 колец 000383–000407 с rarity — в skip-ветку) — в skip-ветку, прочие 147 — без поля rarity', () => {
+test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 457 шт. — rarity только у экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity; ре-пин 000230.10: +25 torso 000208–000232 с rarity; ре-пин 000235.10: +25 свитков 000258–000282, rarity нет; ре-пин 000230.11: +50 рук 000283–000332 с rarity — в skip-ветку; ре-пин 000230.12: +25 «правая рука» 000333–000357 с rarity, гард обобщён — slot, не kind armor; ре-пин 000230.13: +25 left_hand 000358–000382 с rarity — в skip-ветку; ре-пин 000230.14: +25 колец 000383–000407 с rarity — в skip-ветку; ре-пин 000230.15: +50 ноги/ступни 000408–000457 с rarity — в skip-ветку) — в skip-ветку, прочие 172 — без поля rarity', () => {
   const env = loadEnv();
   const c = env.G.createCharacter();
   env.G.playerUI.setCharacter(c);
@@ -752,8 +752,8 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       + String(row.className));
   }
   const data = require(path.join(ROOT, 'src', 'items-data.js'));
-  assert.equal(data.ITEMS.length, 407,
-    'каталог — 407 предметов (ре-пин 000230.08: 82 + 25 head; ' +
+  assert.equal(data.ITEMS.length, 457,
+    'каталог — 457 предметов (ре-пин 000230.08: 82 + 25 head; ' +
     'ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 свитков ' +
     'волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: ' +
     '+25 torso; ре-пин 000235.09: +25 свитков 000233–000257, ' +
@@ -762,6 +762,7 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
     'есть; ре-пин 000230.12: +25 «правая рука» 000333–000357 ' +
     'с rarity; ре-пин 000230.13: +25 left_hand 000358–000382, rarity ' +
     'есть; ре-пин 000230.14: +25 колец 000383–000407, rarity ' +
+    'есть; ре-пин 000230.15: +50 ноги/ступни 000408–000457, rarity ' +
     'есть)');
   let others = 0;
   for (const it of data.ITEMS) {
@@ -778,10 +779,11 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
     others++;
   }
   assert.equal(others, 172,
-    'прочих предметов — ровно 172 (407 − 235 с slot: 178 ' +
+    'прочих предметов — ровно 172 (457 − 285 с slot: 178 ' +
     '(103 armor (75 + 25 torso + 3 legacy remap) + 50 рук (000230.11) ' +
     '+ 25 left_hand (000230.13)) + 7 remap-оружий 000001–000007 ' +
-    '+ 25 «правая рука» 000333–000357 + 25 колец (000230.14); ' +
+    '+ 25 «правая рука» 000333–000357 + 25 колец (000230.14) ' +
+    '+ 50 ног/ступней (000230.15); ' +
     '000232: +6 чертежей без ' +
     'rarity; 000235.07: +25 свитков без rarity; ' +
     '000235.08: +25 свитков волны Лёд без rarity; ' +
@@ -792,7 +794,8 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
     'ре-пин 000230.12: +25 «правая рука» + 7 remap-оружий — ' +
     'others 154 → 147; ре-пин 000230.13: ' +
     '+25 left_hand — в skip-ветку, others не сдвинулся; ' +
-    'ре-пин 000230.14: +25 колец — в skip-ветку, others не сдвинулся)');
+    'ре-пин 000230.14: +25 колец — в skip-ветку, others не сдвинулся; ' +
+    'ре-пин 000230.15: +50 ноги/ступни — в skip-ветку, others не сдвинулся)');
 });
 
 test('230.07-ICON-1 (регрессия 000237): itemRow с icon — img.cp-itemicon ПЕРВЫМ ребёнком, src = icon: loot/ (iron_ore) + items/ (blueprint_forge) — конвенция пути ТЗ п.1 работает через общий механизм', () => {
@@ -2409,5 +2412,194 @@ test('000230.12 R14: e2e right_hand — инструмент: derived-множи
     assert.ok(rowClasses(row2).includes('cp-rarity-legendary'),
       'у строки «Посох мудреца» класс cp-rarity-legendary; факт: '
       + String(row2.className));
+  }
+});
+// =====================================================================
+// Задача 000230.15 — LF8 (e2e, T9-паттерн: vm-песочница, цепочка
+// VM_CHAIN + items.js — live-каталог; НЕ фикстуры). Контракт —
+// memory/000230.15-legs-feet-items-wave.md §0 D-11: S=10 по ВСЕМ 5
+// навыкам группы ног (step/endurance/golem/hide/breath), constitution
+// 8, meditation 0 (default). RED (TDD): legs/feet-предметов в
+// live-каталоге нет — equip падает по ОСМЫСЛЕННОЙ причине «неизвестный
+// предмет: волна не добавлена» (не синтаксис/окружение).
+// =====================================================================
+const VM_LEGSFEET_CHAIN_00023015 = ['global-settings.js', 'perlin.js',
+  'map.js', 'skills-data.js', 'items-data.js', 'sheet.js', 'player.js'];
+function makeVmSandboxWithConsole00023015() {
+  const errors = [];
+  const sandbox = {
+    console: { log() {}, warn() {}, error: (m) => errors.push(String(m)) },
+  };
+  return { sandbox, errors };
+}
+function loadLegsFeetVmChain00023015(sandbox) {
+  for (const f of VM_LEGSFEET_CHAIN_00023015) {
+    vm.runInNewContext(src(f), sandbox, { filename: f });
+  }
+}
+// Меж-реальм: значения из vm-песочницы — чужие прототипы;
+// deepStrictEqual их отвергает — нормализуем через JSON.
+const fromVm00023015 = (v) => JSON.parse(JSON.stringify(v));
+
+test('000230.15 LF8 (vm, e2e): РЕАЛЬНЫЕ legs/feet-предметы из live-каталога (не фикстуры) — equip в слоты legs/feet (M2-паттерн); при S=10 по ВСЕМ 5 навыкам группы ног (constitution 8, meditation 0): база maxHP 90 (round(60·1.5)) / damageTakenMult 0.5 / hpRegenMult 0.60 / moveSpeedMult 1.5 / derived armor 10 / equipmentStats.armor 0; cloth_sandals → moveSpeedMult 1.515 (step 0.03); hide_wrap → maxHP 91 (endurance 0.03: round(60·1.509)); copper_greaves → maxHP 91 (golem 0.07: round(60·1.514)); bone_greaves → damageTakenMult 0.475 (hide 0.05: 1 − 0.05·10·1.05); hemp_sandals → hpRegenMult 0.625 (breath 0.05: 0.10 + 0.05·10·1.05); titan_greaves → damageTakenMult 0.30 (hide 0.40) + moveSpeedMult 1.675 (step 0.35) + equipmentStats.armor 4; swift_boots → moveSpeedMult 1.70 (step 0.40) + maxHP 96 (endurance 0.35: round(60·1.605)) + equipmentStats.armor 4; ПАРА impossible → equipmentStats.armor 8 (4+4); freeCast(ember_pants) ⊇ blazing_speed; freeCast(frost_sandals) ⊇ winter_haste; trail АКТИВЕН (traveler_breeches+leather_boots) → counts {trail:2}, set-armor +1 → equipmentStats.armor 3 (1+1+1); rooted АКТИВЕН (ember_pants+frost_sandals) → counts {rooted:2}, skills.step +0.05 → moveSpeedMult 1.71 (1 + 0.05·10·(1 + 0.18 + 0.19 + 0.05)), freeCast ⊇ blazing_speed + winter_haste, equipmentStats.armor 6 (3+3); DORMANT: traveler_breeches одна → counts {trail:1}, бонуса НЕТ, equipmentStats.armor 1 (краснота: неизвестный предмет — волна не добавлена)', () => {
+  const { sandbox } = makeVmSandboxWithConsole00023015();
+  loadLegsFeetVmChain00023015(sandbox);
+  vm.runInNewContext(src('items.js'), sandbox, { filename: 'items.js' });
+  const G = sandbox.Game;
+  const near = (a, b, msg) => assert.ok(
+    Math.abs(a - b) < 1e-9, msg + ' (факт: ' + a + ')');
+  const makeHero = () => {
+    const c = G.createCharacter();
+    c.primary.constitution = 8;
+    c.secondary.step = 10;
+    c.secondary.endurance = 10;
+    c.secondary.golem = 10;
+    c.secondary.hide = 10;
+    c.secondary.breath = 10;
+    return c;
+  };
+  const equipIn = (c, id, slot) => {
+    const ra = G.addItem(c, id);
+    assert.equal(ra.ok, true, id + ': выдача (' + (ra.reason || '')
+      + ') — предмет есть в live-каталоге (краснота: неизвестный '
+      + 'предмет — волна не добавлена)');
+    const r = G.equip(c, id);
+    assert.equal(r.ok, true, id + ': equip (' + (r.reason || '') + ')');
+    assert.equal(c.equipment[slot], id, id + ': предмет в слоте ' + slot);
+  };
+  {
+    const c = makeHero();
+    const d = G.derived(c);
+    assert.equal(d.maxHP, 90,
+      'база maxHP = round((20 + 8·5)·1.5) = 90 '
+      + '(mult 1.5 = 1 + 0.03·10 + 0.02·10)');
+    near(d.damageTakenMult, 0.5, 'база damageTakenMult (1 − 0.05·10)');
+    near(d.hpRegenMult, 0.6, 'база hpRegenMult (0.10 + 0.05·10 + 0)');
+    near(d.moveSpeedMult, 1.5, 'база moveSpeedMult (1 + 0.05·10)');
+    assert.equal(d.armor, 10,
+      'база derived armor = S(golem) = 10 (группа ног)');
+    assert.equal(G.equipmentStats(c).armor, 0,
+      'база equipmentStats.armor (снаряжения нет)');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'cloth_sandals', 'feet');
+    near(G.derived(c).moveSpeedMult, 1.515,
+      'cloth_sandals: moveSpeedMult = 1 + 0.05·10·1.03 (step 0.03)');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'hide_wrap', 'legs');
+    assert.equal(G.derived(c).maxHP, 91,
+      'hide_wrap: maxHP = round((20 + 8·5)·1.509) = 91 (endurance 0.03)');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'copper_greaves', 'legs');
+    assert.equal(G.derived(c).maxHP, 91,
+      'copper_greaves: maxHP = round((20 + 8·5)·1.514) = 91 (golem 0.07)');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'bone_greaves', 'legs');
+    near(G.derived(c).damageTakenMult, 0.475,
+      'bone_greaves: damageTakenMult = 1 − 0.05·10·1.05 (hide 0.05)');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'hemp_sandals', 'feet');
+    near(G.derived(c).hpRegenMult, 0.625,
+      'hemp_sandals: hpRegenMult = 0.10 + 0.05·10·1.05 (breath 0.05)');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'titan_greaves', 'legs');
+    const d = G.derived(c);
+    near(d.damageTakenMult, 0.3,
+      'titan_greaves: damageTakenMult = 1 − 0.05·10·1.40 (hide 0.40)');
+    near(d.moveSpeedMult, 1.675,
+      'titan_greaves: moveSpeedMult = 1 + 0.05·10·1.35 (step 0.35)');
+    assert.equal(G.equipmentStats(c).armor, 4,
+      'titan_greaves: equipmentStats.armor = stats.armor 4');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'swift_boots', 'feet');
+    const d = G.derived(c);
+    near(d.moveSpeedMult, 1.7,
+      'swift_boots: moveSpeedMult = 1 + 0.05·10·1.40 (step 0.40)');
+    assert.equal(d.maxHP, 96,
+      'swift_boots: maxHP = round((20 + 8·5)·1.605) = 96 (endurance 0.35)');
+    assert.equal(G.equipmentStats(c).armor, 4,
+      'swift_boots: equipmentStats.armor = stats.armor 4');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'titan_greaves', 'legs');
+    equipIn(c, 'swift_boots', 'feet');
+    assert.equal(G.equipmentStats(c).armor, 8,
+      'ПАРА impossible: equipmentStats.armor = 4 + 4 = 8 '
+      + '(derived armor НЕ включается)');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'ember_pants', 'legs');
+    const a = G.equipmentAffixes(c);
+    assert.ok(a.freeCast.has('blazing_speed'),
+      'ember_pants: free_cast blazing_speed в equipmentAffixes.freeCast');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'frost_sandals', 'feet');
+    const a = G.equipmentAffixes(c);
+    assert.ok(a.freeCast.has('winter_haste'),
+      'frost_sandals: free_cast winter_haste в equipmentAffixes.freeCast');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'traveler_breeches', 'legs');
+    equipIn(c, 'leather_boots', 'feet');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023015(st.counts), { trail: 2 },
+      'trail — 2 надетых предмета (legs+feet — разные слоты, кросс-слот)');
+    assert.equal(st.armor, 1, 'set-бонус trail АКТИВЕН (порог 2 ≤ 2)');
+    assert.equal(G.equipmentStats(c).armor, 3,
+      'equipmentStats.armor = 1 (traveler_breeches) + 1 (leather_boots) '
+      + '+ set-бонус 1 = 3');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'ember_pants', 'legs');
+    equipIn(c, 'frost_sandals', 'feet');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023015(st.counts), { rooted: 2 },
+      'rooted — 2 надетых предмета (legs+feet — разные слоты)');
+    assert.deepEqual(fromVm00023015(st.skills), { step: 0.05 },
+      'set-бонус rooted: skill step +0.05 (affix-массив, §2.3)');
+    const a = G.equipmentAffixes(c);
+    assert.ok(a.freeCast.has('blazing_speed'),
+      'rooted: freeCast ⊇ blazing_speed (ember_pants)');
+    assert.ok(a.freeCast.has('winter_haste'),
+      'rooted: freeCast ⊇ winter_haste (frost_sandals)');
+    near(G.derived(c).moveSpeedMult, 1.71,
+      'rooted: moveSpeedMult = 1 + 0.05·10·(1 + 0.18 + 0.19 + 0.05) '
+      + '= 1.71 (affixes + set-bonus суммируются в equipmentAffixes)');
+    assert.equal(G.equipmentStats(c).armor, 6,
+      'rooted: equipmentStats.armor = 3 + 3 = 6');
+  }
+  {
+    const c = makeHero();
+    equipIn(c, 'traveler_breeches', 'legs');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023015(st.counts), { trail: 1 },
+      'trail — 1 надетый предмет');
+    assert.equal(st.armor, 0, 'set-бонус НЕ активен (порог 2 > 1)');
+    assert.deepEqual(fromVm00023015(st.skills), {},
+      'set-skill-бонусов нет (дормантность)');
+    assert.equal(st.freeCast.size, 0, 'set-free_cast-бонусов нет');
+    assert.equal(G.equipmentStats(c).armor, 1,
+      'equipmentStats.armor = 1 — только собственный armor '
+      + 'traveler_breeches; set-бонус trail (+1) НЕ применён '
+      + '(дормантность)');
   }
 });

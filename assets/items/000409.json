@@ -1,0 +1,21 @@
+{
+  "id": "wool_trousers",
+  "name": "Шерстяные штаны",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 18,
+  "desc": "Шерстяные штаны: тепло, которое не просит огня.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wool_trousers.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.04
+    }
+  ]
+}

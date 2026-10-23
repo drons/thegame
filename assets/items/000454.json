@@ -1,0 +1,21 @@
+{
+  "id": "mithril_boots",
+  "name": "Мифриловые ботинки",
+  "kind": "armor",
+  "weight": 1.7,
+  "value": 330,
+  "desc": "Мифриловые ботинки: мифрил легче, чем обещание.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/mithril_boots.svg",
+  "slot": "feet",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.16
+    }
+  ]
+}

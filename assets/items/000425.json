@@ -1,0 +1,21 @@
+{
+  "id": "sapphire_leggings",
+  "name": "Сапфировые поножи",
+  "kind": "armor",
+  "weight": 1.8,
+  "value": 160,
+  "desc": "Сапфировые поножи: сапфир — небо, зажатое в металле.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/sapphire_leggings.svg",
+  "slot": "legs",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.12
+    }
+  ]
+}

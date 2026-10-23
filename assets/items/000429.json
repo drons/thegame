@@ -1,0 +1,21 @@
+{
+  "id": "mithril_greaves",
+  "name": "Мифриловые поножи",
+  "kind": "armor",
+  "weight": 1.8,
+  "value": 330,
+  "desc": "Мифриловые поножи: мифрил звенит, как звёздный лёд.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/mithril_greaves.svg",
+  "slot": "legs",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.15
+    }
+  ]
+}

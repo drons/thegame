@@ -1,0 +1,21 @@
+{
+  "id": "storm_leggings",
+  "name": "Штаны шторма",
+  "kind": "armor",
+  "weight": 3.2,
+  "value": 700,
+  "desc": "Штаны шторма: шторм в швах бежит быстрее ветра.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/storm_leggings.svg",
+  "slot": "legs",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.25
+    }
+  ]
+}

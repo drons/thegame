@@ -33,10 +33,11 @@
   // (head 25) + 000230.09 (ears 25 + neck 25) + 000230.10 (torso 25)
   // + 000230.11 (forearms 25 + palms 25) + 000230.12 (right_hand 25:
   // 15 weapon + 10 tool) + 000230.13 (left_hand 25: 12 shield + 13
-  // artifact) + 000230.14 (rings 25); id в каталожном порядке внутри
-  // тира (сначала ears, потом neck, потом torso, потом forearms,
-  // потом palms, потом right_hand, потом left_hand, потом rings);
-  // волна 000230.15 добавляет свои id КОНЦОМ тиров.
+  // artifact) + 000230.14 (rings 25) + 000230.15 (legs 25 + feet 25);
+  // id в каталожном порядке внутри тира (сначала head, потом ears,
+  // потом neck, потом torso, потом forearms, потом palms, потом
+  // right_hand, потом left_hand, потом rings, потом legs, потом feet);
+  // волны 000230.11–.15 добавляют свои id КОНЦОМ тиров.
   const EQUIP_POOLS = {
     common: ['straw_hat', 'wool_cap', 'leather_cap', 'fur_hat',
              'cloth_band', 'wanderer_cap', 'hood_common',
@@ -67,7 +68,14 @@
              'clay_buckler',
              'copper_ring', 'bone_ring', 'iron_ring', 'thread_ring',
              'stone_ring', 'clay_ring', 'wood_ring', 'leather_ring',
-             'silver_ring', 'silver_signet'],
+             'silver_ring', 'silver_signet',
+             'linen_trousers', 'wool_trousers', 'hemp_breeches',
+             'felt_trousers', 'leather_pants', 'traveler_breeches',
+             'hide_wrap', 'twine_wraps', 'rough_chaps',
+             'cloth_loincloth', 'straw_sandals', 'cloth_sandals',
+             'leather_sandals', 'wool_boots', 'felt_boots',
+             'leather_boots', 'travel_boots', 'hide_boots',
+             'wooden_sandals', 'hemp_sandals'],
     rare: ['silver_band', 'copper_band', 'obsidian_cloth',
            'amethyst_band', 'quartz_cloth', 'bone_band', 'mystic_cloth',
            'stone_bead', 'silver_hoop', 'moonstone_dangle',
@@ -89,7 +97,12 @@
            'guard_amulet', 'ember_focus', 'frost_charm',
            'scholar_pendant',
            'gold_ring', 'glacier_ring', 'quartz_ring', 'obsidian_ring',
-           'amethyst_ring', 'sapphire_ring', 'gold_signet'],
+           'amethyst_ring', 'sapphire_ring', 'gold_signet',
+           'bone_greaves', 'copper_greaves', 'silver_chaps',
+           'stone_greaves', 'obsidian_greaves', 'amethyst_pants',
+           'mystic_breeches', 'bone_sandals', 'copper_boots',
+           'silver_boots', 'stone_sandals', 'obsidian_sandals',
+           'amethyst_boots', 'mystic_sandals'],
     epic: ['silver_helm', 'gold_helm', 'sapphire_helm', 'mithril_helm',
            'emerald_helm', 'sapphire_hoop', 'emerald_stud', 'ruby_bell',
            'gold_dangle', 'mithril_hoop', 'sapphire_pendant',
@@ -106,7 +119,11 @@
            'ward_crystal', 'cinder_eye', 'frost_orb', 'rune_sphere',
            'mind_pendant',
            'emerald_signet', 'ruby_ring', 'frost_ring', 'rune_ring',
-           'scholar_ring'],
+           'scholar_ring',
+           'sapphire_leggings', 'ember_pants', 'emerald_greaves',
+           'gold_leggings', 'mithril_greaves', 'sapphire_boots',
+           'frost_sandals', 'emerald_boots', 'gold_sandals',
+           'mithril_boots'],
     legendary: ['rune_hoop', 'star_hoop', 'star_earring', 'whisper_hoop',
                 'rune_necklace', 'star_pendant',
                 'pilgrim_sutan', 'void_robe',
@@ -114,12 +131,15 @@
                 'star_gloves',
                 'sage_staff', 'mithril_hammer',
                 'arcane_eye', 'snow_focus',
-                'star_signet', 'void_ring'],
+                'star_signet', 'void_ring',
+                'rune_greaves', 'storm_leggings', 'storm_sandals',
+                'rune_boots'],
     impossible: ['crown_flame', 'soul_bell', 'dawn_pendant',
                  'aegis_mantle', 'titan_brace', 'void_gauntlet',
                  'philosopher_staff',
                  'heart_of_elements',
-                 'phoenix_ring'],
+                 'phoenix_ring',
+                 'titan_greaves', 'swift_boots'],
   };
 
   // Чистая функция: 1 вызов rngFn(); acc-накопление по RARITY,

@@ -1,0 +1,21 @@
+{
+  "id": "wool_boots",
+  "name": "Шерстяные ботинки",
+  "kind": "armor",
+  "weight": 0.7,
+  "value": 24,
+  "desc": "Шерстяные ботинки: шерсть держит тепло до утра.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wool_boots.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.04
+    }
+  ]
+}

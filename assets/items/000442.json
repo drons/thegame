@@ -1,0 +1,21 @@
+{
+  "id": "hemp_sandals",
+  "name": "Пеньковые сандалии",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 40,
+  "desc": "Пеньковые сандалии: пенька выдерживает и море, и пыль.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hemp_sandals.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.05
+    }
+  ]
+}

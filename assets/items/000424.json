@@ -1,0 +1,21 @@
+{
+  "id": "mystic_breeches",
+  "name": "Мистические бриджи",
+  "kind": "armor",
+  "weight": 1.4,
+  "value": 110,
+  "desc": "Мистические бриджи: нити шьются сами по ночам.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/mystic_breeches.svg",
+  "slot": "legs",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.1
+    }
+  ]
+}
