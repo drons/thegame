@@ -105,27 +105,32 @@ test('SPEC 000218; 000223: «Спутники → Бой» — блок/побе
       'и союзники/Эфир; блок/побег — player-only)');
 });
 
-test('SPEC 000218; 000234: dungeons-storage «Залежи» (Рендер) — счётчик «Залежи: N» в инфо-окне НЕ выводится (000212); строка hint «Залежь — [E]» — в подземелье/пещерах убрана с панелью (000229; hint — только город; onDeposit = !isCity — строка недостижима)', () => {
+test('SPEC 000218; 000234; 000266: dungeons-storage «Залежи» (Рендер) — счётчик «Залежи: N» в инфо-окне НЕ выводится (000212); hint нет ни в городе, ни в подземелье — строка «Залежь — [E]» отсутствует нигде (000229/000247: механизм удалён СОВСЕМ); единственный потребитель floorStatusLine — locationLine hud.js', () => {
   const z = W2();
   assert.ok(
-    z.includes('HUD — счётчик «Залежи: N» в инфо-окне НЕ выводится (000212); строка hint «Залежь — [E]» — в подземелье/пещерах убрана вместе с панелью `.combat-side` (000229; hint — только город); механизм render() сохранён — `hintBase + onDeposit = !isCity` (`src/dungeon-ui.js`), строка недостижима (город — false, подземелье — hintEl = null).'),
-    '«## Залежи» (буллет «Рендер»): хвост обязан гласить «HUD — счётчик ' +
-      '„Залежи: N“ в инфо-окне НЕ выводится (000212); строка hint ' +
-      '„Залежь — [E]“ — в подземелье/пещерах убрана вместе с панелью ' +
-      '`.combat-side` (000229; hint — только город); механизм render() ' +
-      'сохранён — `hintBase + onDeposit = !isCity` ' +
-      '(`src/dungeon-ui.js`), строка недостижима (город — false, ' +
-      'подземелье — hintEl = null).» (код: dungeon-ui.js — build() ' +
-      'L414 панель `.combat-side` (stateEl/logEl/hint) создаётся ТОЛЬКО ' +
-      'в городе (`s0 && s0.kind === \'city\'`, 000229 D2), городской ' +
-      'hint-литерал L430, hintEl/hintBase L434-435; render() L932 — ' +
-      '`onDeposit = !isCity && …`, L934-935 — гард `if (hintEl)`; ' +
-      'строка недостижима ВЕЗДЕ — город: !isCity = false, подземелье: ' +
-      'hintEl = null (memory/000229-dungeon-side-panel-removed.md ' +
-      '§10); мёртвая ветка — осознанно (000229 D4/D11); фиксаторы: ' +
-      'dungeon-side-panel.test.js RW-1..4/RW-G1, ' +
-      'dungeon-info-window.test.js DH-4, deposit-e2e.test.js DE-1, ' +
-      'city-interact.test.js CI-V3; re-pin-прецедент — W1 000223)');
+    z.includes('HUD — счётчик «Залежи: N» в инфо-окне НЕ выводится (000212); строка hint «Залежь — [E]» — в подземелье/пещерах убрана вместе с панелью `.combat-side` (000229), в городе — панель убрана СОВСЕМ (000247): hint нет ни в городе, ни в подземелье — строка «Залежь — [E]» отсутствует нигде; механизм (hintEl/hintBase/onDeposit) удалён СОВСЕМ (`src/dungeon-ui.js`: 0 ссылок на `.combat-state`/`.combat-log`); единственный потребитель floorStatusLine (locations.js) — locationLine hud.js.'),
+    '«## Залежи» (буллет «Рендер»): хвост обязан гласить «HUD — счётчик' +
+      '«Залежи: N» в инфо-окне НЕ выводится (000212); строка hint «Залежь' +
+      '— [E]» — в подземелье/пещерах убрана вместе с панелью' +
+      '`.combat-side` (000229), в городе — панель убрана СОВСЕМ (000247):' +
+      'hint нет ни в городе, ни в подземелье — строка «Залежь — [E]»' +
+      'отсутствует нигде; механизм (hintEl/hintBase/onDeposit) удалён' +
+      'СОВСЕМ (`src/dungeon-ui.js`: 0 ссылок на' +
+      '`.combat-state`/`.combat-log`); единственный потребитель' +
+      'floorStatusLine (locations.js) — locationLine hud.js.» (000247:' +
+      'панель .combat-side (stateEl/logEl/hint) не создаётся в обоих' +
+      'kind\'ах — запись об удалении dungeon-ui.js L42-44; механизм' +
+      'hintEl/hintBase + onDeposit удалён из render() — 0 ссылок на' +
+      '.combat-state/.combat-log; floorStatusLine (locations.js L768,' +
+      'экспорт L836) — ЕДИНЫЙ источник, ЕДИНСТВЕННЫЙ потребитель —' +
+      'locationLine hud.js (L152; call L163-164); структурный пин' +
+      'dungeon-ui.test.js (floorStatusLine в hud.js, НЕ в dungeon-ui.js);' +
+      'фиксаторы: RW-1..4/RW-G1 (dungeon-side-panel), UI-GRD-1' +
+      '(dungeon-ui), DH-4 (dungeon-info-window), DE-1 (deposit-e2e),' +
+      'CI-V3 (city-interact); re-pin-прецеденты: W1 000223, W2 000234' +
+      '(позитив заменён, негатив сохранён, шапка не трогается); старый' +
+      'текст — НЕ ассертится здесь (свой тест W-000266,' +
+      'tests/spec-000266-wording.test.js))');
   assert.ok(
     !z.includes('HUD — строка состояния `… | Залежи: N` (N — нерасчищенные) + строка hint.'),
     '«## Залежи» (буллет «Рендер»): старая формула «HUD — строка ' +

@@ -151,10 +151,10 @@
   // «групп(ы)» НЕТ (ТЗ: подземелье/этажи/клетки до выхода).
   function locationLine(g, ds) {
     // 000153.03 (D5, finding G): строка состояния — ЕДИНЫЙ helper
-    // g.locations.floorStatusLine (locations.js, тот же потребитель-
-    // формат, что stateEl dungeon-ui.js): «Глубина: N» — ТОЛЬКО
-    // depth>1 + «До выхода: ~N клеток». legacy-fallback (helper нет —
-    // node-фикстуры без .locations) = СТАРЫЕ байты. dist — ДО ветки
+    // g.locations.floorStatusLine (locations.js): «Глубина: N» —
+    // ТОЛЬКО depth>1 + «До выхода: ~N клеток». legacy-fallback
+    // (helper нет — node-фикстуры без .locations) = СТАРЫЕ байты.
+    // dist — ДО ветки
     // по kind: ds.dg.exit есть у ОБОИХ kind'ов (город — C5
     // city-screen).
     const dist = Math.abs(ds.x - ds.dg.exit.x)
