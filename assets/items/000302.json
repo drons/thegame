@@ -1,0 +1,21 @@
+{
+  "id": "sapphire_bracer",
+  "name": "Сапфировый браслет",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 220,
+  "desc": "Сапфировый браслет: камень зрится в прицел, как ясный глаз.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/sapphire_bracer.svg",
+  "slot": "forearms",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.18
+    }
+  ]
+}

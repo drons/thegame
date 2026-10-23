@@ -1,0 +1,21 @@
+{
+  "id": "runic_cuff",
+  "name": "Рунная манжета",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 100,
+  "desc": "Рунная манжета: выгравированная рунка разгоняет шаг.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/runic_cuff.svg",
+  "slot": "forearms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.1
+    }
+  ]
+}

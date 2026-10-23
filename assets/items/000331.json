@@ -1,0 +1,21 @@
+{
+  "id": "star_gloves",
+  "name": "Звёздные перчатки",
+  "kind": "armor",
+  "weight": 1.2,
+  "value": 650,
+  "desc": "Звёздные перчатки: стрела из них уносит осколок падения.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/star_gloves.svg",
+  "slot": "palms",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.32
+    }
+  ]
+}

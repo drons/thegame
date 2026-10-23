@@ -1,0 +1,21 @@
+{
+  "id": "archer_gloves",
+  "name": "Перчатки лучника",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 20,
+  "desc": "Перчатки лучника: открытые пальцы, закрытая ладонь.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/archer_gloves.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.05
+    }
+  ]
+}

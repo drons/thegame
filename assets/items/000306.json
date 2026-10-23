@@ -1,0 +1,21 @@
+{
+  "id": "star_armguard",
+  "name": "Звёздный наруч",
+  "kind": "armor",
+  "weight": 1.5,
+  "value": 650,
+  "desc": "Звёздный наруч: в нём — осколок падения, и кулак паляет.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/star_armguard.svg",
+  "slot": "forearms",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.32
+    }
+  ]
+}

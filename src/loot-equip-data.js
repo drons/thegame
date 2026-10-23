@@ -30,9 +30,11 @@
   // Пулы экипировки — ДАННЫЕ МОДУЛЯ (паттерн 000132: фиксированные
   // списки, каталог в рантайме НЕ читается): значения = id-строки
   // предметов, редкость предмета = КЛЮЧ массива. Заполнено 000230.08
-  // (head 25) + 000230.09 (ears 25 + neck 25) + 000230.10 (torso 25);
-  // id в каталожном порядке внутри тира (сначала ears, потом neck,
-  // потом torso); волны 000230.11–.15 добавляют свои id КОНЦОМ тиров.
+  // (head 25) + 000230.09 (ears 25 + neck 25) + 000230.10 (torso 25)
+  // + 000230.11 (forearms 25 + palms 25); id в каталожном порядке
+  // внутри тира (сначала ears, потом neck, потом torso, потом
+  // forearms, потом palms); волны 000230.12–.15 добавляют свои id
+  // КОНЦОМ тиров.
   const EQUIP_POOLS = {
     common: ['straw_hat', 'wool_cap', 'leather_cap', 'fur_hat',
              'cloth_band', 'wanderer_cap', 'hood_common',
@@ -45,7 +47,14 @@
              'leather_choker', 'stone_beads',
              'linen_shirt', 'wool_shirt', 'cloth_tunic', 'linen_gown',
              'hemp_robe', 'rough_kaftan', 'wool_gown', 'cloth_sutan',
-             'linen_tunic', 'wool_kaftan'],
+             'linen_tunic', 'wool_kaftan',
+             'cloth_cuff', 'leather_cuff', 'hemp_bracer', 'rough_bracer',
+             'leather_garter', 'cloth_wrap', 'iron_cuff', 'bone_bracer',
+             'wood_brace', 'hide_cuff',
+             'cloth_gloves', 'leather_gloves', 'hide_gloves',
+             'rough_gauntlets', 'archer_gloves', 'linen_wraps',
+             'iron_gauntlets', 'bone_grips', 'wood_guards',
+             'fine_gloves'],
     rare: ['silver_band', 'copper_band', 'obsidian_cloth',
            'amethyst_band', 'quartz_cloth', 'bone_band', 'mystic_cloth',
            'stone_bead', 'silver_hoop', 'moonstone_dangle',
@@ -54,19 +63,30 @@
            'quartz_amulet', 'moonstone_chain', 'faith_amulet',
            'obsidian_pendant', 'amethyst_choker',
            'wool_sutan', 'leather_kaftan', 'embroidered_kaftan',
-           'cloth_robe', 'leather_gown', 'monk_sutan', 'fine_kaftan'],
+           'cloth_robe', 'leather_gown', 'monk_sutan', 'fine_kaftan',
+           'studded_bracer', 'copper_brace', 'archer_brace',
+           'silver_cuff', 'shadow_wrap', 'iron_elbow', 'runic_cuff',
+           'studded_gloves', 'copper_gauntlets', 'quiver_gloves',
+           'silver_gauntlets', 'night_gloves', 'iron_wraps',
+           'wind_gloves'],
     epic: ['silver_helm', 'gold_helm', 'sapphire_helm', 'mithril_helm',
            'emerald_helm', 'sapphire_hoop', 'emerald_stud', 'ruby_bell',
            'gold_dangle', 'mithril_hoop', 'sapphire_pendant',
            'emerald_amulet', 'ruby_pendant', 'gold_chain',
            'mithril_choker',
            'ember_robe', 'stone_robe', 'shadow_robe',
-           'deep_breath_robe', 'meditating_robe'],
+           'deep_breath_robe', 'meditating_robe',
+           'steel_bracers', 'gold_brace', 'sapphire_bracer',
+           'ghost_cuff', 'swift_brace',
+           'steel_gauntlets', 'gold_gloves', 'emerald_gauntlets',
+           'phantom_gloves', 'haste_wraps'],
     legendary: ['rune_hoop', 'star_hoop', 'star_earring', 'whisper_hoop',
                 'rune_necklace', 'star_pendant',
-                'pilgrim_sutan', 'void_robe'],
+                'pilgrim_sutan', 'void_robe',
+                'rune_bracers', 'star_armguard', 'rune_gauntlets',
+                'star_gloves'],
     impossible: ['crown_flame', 'soul_bell', 'dawn_pendant',
-                 'aegis_mantle'],
+                 'aegis_mantle', 'titan_brace', 'void_gauntlet'],
   };
 
   // Чистая функция: 1 вызов rngFn(); acc-накопление по RARITY,

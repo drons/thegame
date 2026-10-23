@@ -1,0 +1,21 @@
+{
+  "id": "archer_brace",
+  "name": "Браслет лучника",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 70,
+  "desc": "Браслет лучника: обмотка под тетиву, точность выстрела выше.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/archer_brace.svg",
+  "slot": "forearms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.08
+    }
+  ]
+}

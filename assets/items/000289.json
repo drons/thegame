@@ -1,0 +1,21 @@
+{
+  "id": "iron_cuff",
+  "name": "Железная манжета",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 25,
+  "desc": "Железная манжета: первая сталь вместо кожи.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/iron_cuff.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.05
+    }
+  ]
+}

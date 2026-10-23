@@ -1,0 +1,21 @@
+{
+  "id": "cloth_cuff",
+  "name": "Льняная манжета",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 10,
+  "desc": "Льняная манжета: твёрдая нить держит шаг ровным.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/cloth_cuff.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.03
+    }
+  ]
+}

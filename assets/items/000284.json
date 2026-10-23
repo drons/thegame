@@ -1,0 +1,27 @@
+{
+  "id": "leather_cuff",
+  "name": "Кожаная манжета",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 12,
+  "desc": "Кожаная манжета: шов под сечением клинка не рвётся.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/leather_cuff.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "set": "nimble",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.04
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

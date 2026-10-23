@@ -1,0 +1,26 @@
+{
+  "id": "titan_brace",
+  "name": "Шина Титана",
+  "kind": "armor",
+  "weight": 2,
+  "value": 1200,
+  "desc": "Шина Титана: отлита там, где шаг переступает горы.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/titan_brace.svg",
+  "slot": "forearms",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.4
+    },
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.35
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="56" rx="14" ry="3" fill="rgba(0,0,0,0.22)"/>
+<polygon points="15,18 49,18 47,46 17,46" fill="#8a6a45"/>
+<polygon points="15,18 49,18 49,23 15,23" fill="#6a4a2b"/>
+<rect x="38" y="26" width="9" height="7" fill="#5a3a1b"/>
+<rect x="40" y="28" width="5" height="3" fill="#c9a878"/>
+<circle cx="22" cy="30" r="1.6" fill="#5a3a1b"/>
+<circle cx="28" cy="30" r="1.6" fill="#5a3a1b"/>
+<circle cx="22" cy="38" r="1.6" fill="#5a3a1b"/>
+<circle cx="28" cy="38" r="1.6" fill="#5a3a1b"/>
+</svg>

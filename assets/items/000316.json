@@ -1,0 +1,21 @@
+{
+  "id": "wood_guards",
+  "name": "Деревянные накладки",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 30,
+  "desc": "Деревянные накладки: локтевая дуга, вырезанная под кулак.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wood_guards.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.03
+    }
+  ]
+}

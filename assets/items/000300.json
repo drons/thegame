@@ -1,0 +1,35 @@
+{
+  "id": "steel_bracers",
+  "name": "Стальные брандыбурги",
+  "kind": "armor",
+  "weight": 1,
+  "value": 180,
+  "desc": "Стальные брандыбурги: в стали заперта вспышка скорости.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/steel_bracers.svg",
+  "slot": "forearms",
+  "rarity": "epic",
+  "set": "blade_guard",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.15
+    },
+    {
+      "type": "free_cast",
+      "spell": "blazing_speed"
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "swordsman",
+        "amount": 0.05
+      }
+    ]
+  }
+}

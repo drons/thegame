@@ -3061,19 +3061,24 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
 // неизменны. Ре-пин 000235.09: тень добавила 25 свитков в CRYPT-пул
 // (8→33) — старый сценарий (alpha 128) больше не ролил chainmail,
 // CRYPT-голён перебран на (9,9) alpha 255: c2 chainmail→
-// obsidian_pendant (rare); RUINS-пул не тронут — голдены без изменений.
+// obsidian_pendant (rare); RUINS-пул не тронут — голдены без
+// изменений. Ре-пин 000230.11: rare-пул EQUIP_POOLS 28 → 42
+// (forearms+palms конец) смещает floor(r2·len): CRYPT c2
+// obsidian_pendant→copper_brace (idx 29), RUINS c3 stone_bead→
+// silver_stud (idx 11); r1/seed/mobs/deposits/gold — бит-в-бит
+// (node-симуляция).
 const CH5_PX = M.syntheticPixels(8, 8, 128, 128, 128, 128);
 const CH5_CRYPT_PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
 const CH5_CRYPT_CHESTS = [
   { id: 'c0', x: 15, y: 13, opened: false, gold: 24, item: 'alchemy_manual' },
   { id: 'c1', x: 22, y: 5, opened: false, gold: 18, item: 'dark_presence_scroll' },
-  { id: 'c2', x: 11, y: 4, opened: false, gold: 16, item: 'obsidian_pendant' },
+  { id: 'c2', x: 11, y: 4, opened: false, gold: 16, item: 'copper_brace' },
 ];
 const CH5_RUINS_CHESTS = [
   { id: 'c0', x: 16, y: 15, opened: false, gold: 18, item: 'firelight_scroll' },
   { id: 'c1', x: 24, y: 16, opened: false, gold: 25, item: 'blueprint_forge' },
   { id: 'c2', x: 14, y: 13, opened: false, gold: 16, item: null },
-  { id: 'c3', x: 18, y: 15, opened: false, gold: 10, item: 'stone_bead' },
+  { id: 'c3', x: 18, y: 15, opened: false, gold: 10, item: 'silver_stud' },
   { id: 'c4', x: 22, y: 19, opened: false, gold: 10, item: 'blueprint_woodwork' },
 ];
 
@@ -3088,13 +3093,13 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace акти
       w: 9, h: 9, xp: 1, armor: 'chainmail', seed: 2268874394,
       hash: 0xca045828, r1: 0.5693109286949039,
       r2: 0.7047256221994758, tier: 'rare',
-      replaced: 'obsidian_pendant', chests: CH5_CRYPT_CHESTS },
+      replaced: 'copper_brace', chests: CH5_CRYPT_CHESTS },
     { name: 'RUINS', type: 2, terrain: M.TERRAIN.MOUNTAIN,
       px: CH5_PX, trig: 'c3',
       w: 9, h: 9, xp: 3, armor: 'knight_plate', seed: 801567646,
       hash: 0x2fb95446, r1: 0.6180662265978754,
       r2: 0.2789345800410956, tier: 'rare',
-      replaced: 'stone_bead', chests: CH5_RUINS_CHESTS },
+      replaced: 'silver_stud', chests: CH5_RUINS_CHESTS },
   ];
   for (const cs of cases) {
     const dA = D.createDungeon(cs.w, cs.h, cs.px, cs.terrain);

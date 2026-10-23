@@ -736,7 +736,7 @@ test('230.07-TIP-3: тултип предмета С rarity — «Редкост
 
 // --- ЗЕЛЁНЫЕ с начала (гарды/регрессия; в red-счёт не входят) ---
 
-test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 207 шт. — rarity только у экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity; ре-пин 000230.10: +25 torso 000208–000232 с rarity — в skip-ветку), прочие 104 — без поля rarity', () => {
+test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 207 шт. — rarity только у экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity; ре-пин 000230.10: +25 torso 000208–000232 с rarity; ре-пин 000230.11: +50 рук 000283–000332 с rarity — в skip-ветку), прочие 104 — без поля rarity', () => {
   const env = loadEnv();
   const c = env.G.createCharacter();
   env.G.playerUI.setCharacter(c);
@@ -752,12 +752,13 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       + String(row.className));
   }
   const data = require(path.join(ROOT, 'src', 'items-data.js'));
-  assert.equal(data.ITEMS.length, 257,
-    'каталог — 257 предмета (ре-пин 000230.08: 82 + 25 head; ' +
+  assert.equal(data.ITEMS.length, 307,
+    'каталог — 307 предмета (ре-пин 000230.08: 82 + 25 head; ' +
     'ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 свитков ' +
     'волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: ' +
     '+25 torso; ре-пин 000235.09: +25 свитков 000233–000257, ' +
-    'rarity нет)');
+    'rarity нет; ре-пин 000230.11: +50 рук 000283–000332, rarity ' +
+    'есть)');
   let others = 0;
   for (const it of data.ITEMS) {
     // Ре-пин 000230.09: guard обобщён (любой экипировочный slot —
@@ -768,11 +769,12 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
     others++;
   }
   assert.equal(others, 154,
-    'прочих предметов — ровно 154 (257 − 103 экипировочных ' +
-    '(75 + 25 torso + 3 legacy remap); 000232: +6 чертежей без ' +
-    'rarity; 000235.07: +25 свитков без rarity; 000235.08: +25 ' +
-    'свитков волны Лёд без rarity; 000235.09: +25 свитков волны Тень ' +
-    'без rarity)');
+    'прочих предметов — ровно 154 (307 − 153 экипировочных ' +
+    '(75 + 25 torso + 3 legacy remap + 50 рук); 000232: +6 ' +
+    'чертежей без rarity; 000235.07: +25 свитков без rarity; ' +
+    '000235.08: +25 свитков волны Лёд без rarity; 000235.09: +25 ' +
+    'свитков волны Тень без rarity; ре-пин 000230.11: +50 рук — в ' +
+    'skip-ветку, others не сдвинулся)');
 });
 
 test('230.07-ICON-1 (регрессия 000237): itemRow с icon — img.cp-itemicon ПЕРВЫМ ребёнком, src = icon: loot/ (iron_ore) + items/ (blueprint_forge) — конвенция пути ТЗ п.1 работает через общий механизм', () => {
@@ -1334,4 +1336,208 @@ test('000246-TOP-4 (гард): первые 4 элемента .combat-side — 
     'первые 4 элемента .combat-side (верхняя зона — инвариант; '
     + 'краснота была бы только при смене порядка в build()); факт: '
     + JSON.stringify(side.children.map((ch) => ch.className)));
+});
+
+// Задача 000230.11 — T8 (e2e, H8/EN8-паттерн: vm-песочница, цепочка
+// как у T9-000230.10 — ITEMS_CHAIN минус items.js, затем items.js —
+// live-каталог; НЕ фикстуры). Контракт — memory/000230.11-forearms-
+// palms-items-wave.md §2/§3: 6 skills группы рук/точности S=10;
+// база swordHitBonus/archerHitBonus/heavyDamageBonus/fistDamageBonus/
+// thiefBonus 0.5 (= 0.05·10·1.0), moveSpeedMult 1.5, armor 0;
+// affix-проверки по слотам forearms/palms; KROSS-SLOT sum armor;
+// free_cast (2 epic); 2 АКТИВНЫХ кросс-слотовых набора (порог 2
+// достижим: forearms+palms надеваются одновременно) + дормантность.
+// RED (TDD): forearms/palms-предметов в live-каталоге нет — addItem
+// падает по ОСМЫСЛЕННОЙ причине «неизвестный предмет: волна не
+// добавлена» (не синтаксис/окружение).
+// =====================================================================
+const VM_HANDS_CHAIN_00023011 = ['global-settings.js', 'perlin.js',
+  'map.js', 'skills-data.js', 'items-data.js', 'sheet.js', 'player.js'];
+function makeVmSandboxWithConsole00023011() {
+  const errors = [];
+  const sandbox = {
+    console: { log() {}, warn() {}, error: (m) => errors.push(String(m)) },
+  };
+  return { sandbox, errors };
+}
+function loadHandsVmChain00023011(sandbox) {
+  for (const f of VM_HANDS_CHAIN_00023011) {
+    vm.runInNewContext(src(f), sandbox, { filename: f });
+  }
+}
+// Меж-реальм: значения из vm-песочницы — чужие прототипы;
+// deepStrictEqual их отвергает — нормализуем через JSON.
+const fromVm00023011 = (v) => JSON.parse(JSON.stringify(v));
+
+test('000230.11 T8 (vm, e2e): РЕАЛЬНЫЕ forearms/palms-предметы из live-каталога (не фикстуры) — equip в слоты forearms/palms (M2-паттерн); при S=10 по ВСЕМ 6 skills группы рук (swordsman/archer/heavy/fists/step/thief): база swordHitBonus/archerHitBonus/heavyDamageBonus/fistDamageBonus/thiefBonus 0.5 (= 0.05·10) / moveSpeedMult 1.5 / equipmentStats.armor 0; leather_cuff → swordHitBonus 0.52 (0.04) + armor 1; archer_gloves → archerHitBonus 0.525 (0.05) + armor 1; iron_gauntlets → heavyDamageBonus 0.525 + armor 2; rough_gauntlets → fistDamageBonus 0.52; linen_wraps → moveSpeedMult 1.52; cloth_wrap → thiefBonus 0.525; KROSS-SLOT: copper_brace (armor 2) + quiver_gloves (armor 1) → armor 3 (M6); titan_brace → armor 4 + heavyDamageBonus 0.70 (0.40) + moveSpeedMult 1.675 (0.35); freeCast(steel_bracers) ⊇ blazing_speed; freeCast(steel_gauntlets) ⊇ invisibility; nimble АКТИВЕН (leather_cuff+leather_gloves): counts {nimble:2}, set-armor 1, equipmentStats.armor 3; blade_guard АКТИВЕН (steel_bracers+steel_gauntlets): counts {blade_guard:2}, swordHitBonus 0.675 (Σ 0.35), armor 6; DORMANT: leather_cuff одна → {nimble:1}, armor 1; steel_bracers один → {blade_guard:1}, swordHitBonus 0.575, armor 3 (краснота: неизвестный предмет — волна не добавлена)', () => {
+  const { sandbox } = makeVmSandboxWithConsole00023011();
+  loadHandsVmChain00023011(sandbox);
+  vm.runInNewContext(src('items.js'), sandbox, { filename: 'items.js' });
+  const G = sandbox.Game;
+  const near = (a, b, msg) => assert.ok(
+    Math.abs(a - b) < 1e-9, msg + ' (факт: ' + a + ')');
+  const makeHero = () => {
+    const c = G.createCharacter();
+    c.secondary.swordsman = 10;
+    c.secondary.archer = 10;
+    c.secondary.heavy = 10;
+    c.secondary.fists = 10;
+    c.secondary.step = 10;
+    c.secondary.thief = 10;
+    return c;
+  };
+  const equipItem = (c, id, slot) => {
+    const ra = G.addItem(c, id);
+    assert.equal(ra.ok, true, id + ': выдача (' + (ra.reason || '')
+      + ') — предмет есть в live-каталоге (краснота: неизвестный '
+      + 'предмет — волна не добавлена)');
+    const r = G.equip(c, id);
+    assert.equal(r.ok, true, id + ': equip (' + (r.reason || '') + ')');
+    assert.equal(r.slot, slot, id + ': equip-слот ' + slot);
+    assert.equal(c.equipment[slot], id,
+      id + ': предмет в слоте ' + slot);
+  };
+  {
+    const c = makeHero();
+    const d = G.derived(c);
+    near(d.swordHitBonus, 0.5,
+      'база swordHitBonus = 0.05·10·1.0 (swordsman S=10)');
+    near(d.archerHitBonus, 0.5, 'база archerHitBonus');
+    near(d.heavyDamageBonus, 0.5, 'база heavyDamageBonus');
+    near(d.fistDamageBonus, 0.5, 'база fistDamageBonus');
+    near(d.moveSpeedMult, 1.5, 'база moveSpeedMult = 1 + 0.05·10');
+    near(d.thiefBonus, 0.5, 'база thiefBonus');
+    assert.equal(G.equipmentStats(c).armor, 0,
+      'база equipmentStats.armor (снаряжения нет)');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'leather_cuff', 'forearms');
+    near(G.derived(c).swordHitBonus, 0.52,
+      'leather_cuff: swordHitBonus = 0.05·10·1.04 (swordsman 0.04)');
+    assert.equal(G.equipmentStats(c).armor, 1,
+      'leather_cuff: equipmentStats.armor 1 (stats.armor 1)');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'archer_gloves', 'palms');
+    near(G.derived(c).archerHitBonus, 0.525,
+      'archer_gloves: archerHitBonus = 0.05·10·1.05 (archer 0.05)');
+    assert.equal(G.equipmentStats(c).armor, 1,
+      'archer_gloves: equipmentStats.armor 1');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'iron_gauntlets', 'palms');
+    near(G.derived(c).heavyDamageBonus, 0.525,
+      'iron_gauntlets: heavyDamageBonus = 0.05·10·1.05 (heavy 0.05)');
+    assert.equal(G.equipmentStats(c).armor, 2,
+      'iron_gauntlets: equipmentStats.armor 2 (stats.armor 2 — '
+      + 'единственный common с armor 2 в palms-блоке)');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'rough_gauntlets', 'palms');
+    near(G.derived(c).fistDamageBonus, 0.52,
+      'rough_gauntlets: fistDamageBonus = 0.05·10·1.04 (fists 0.04)');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'linen_wraps', 'palms');
+    near(G.derived(c).moveSpeedMult, 1.52,
+      'linen_wraps: moveSpeedMult = 1 + 0.05·10·1.04 (step 0.04)');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'cloth_wrap', 'forearms');
+    near(G.derived(c).thiefBonus, 0.525,
+      'cloth_wrap: thiefBonus = 0.05·10·1.05 (thief 0.05)');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'copper_brace', 'forearms');
+    equipItem(c, 'quiver_gloves', 'palms');
+    assert.equal(G.equipmentStats(c).armor, 3,
+      'KROSS-SLOT (M6): armor = copper_brace 2 + quiver_gloves 1 '
+      + '= 3 (forearms + palms суммируются)');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'titan_brace', 'forearms');
+    assert.equal(G.equipmentStats(c).armor, 4,
+      'titan_brace: equipmentStats.armor 4 (impossible, максимум)');
+    near(G.derived(c).heavyDamageBonus, 0.7,
+      'titan_brace: heavyDamageBonus = 0.05·10·1.40 (heavy 0.40)');
+    near(G.derived(c).moveSpeedMult, 1.675,
+      'titan_brace: moveSpeedMult = 1 + 0.05·10·1.35 (step 0.35, '
+      + 'двойной affix)');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'steel_bracers', 'forearms');
+    const a = G.equipmentAffixes(c);
+    assert.ok(a.freeCast.has('blazing_speed'),
+      'steel_bracers: free_cast blazing_speed в '
+      + 'equipmentAffixes.freeCast');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'steel_gauntlets', 'palms');
+    const a = G.equipmentAffixes(c);
+    assert.ok(a.freeCast.has('invisibility'),
+      'steel_gauntlets: free_cast invisibility в '
+      + 'equipmentAffixes.freeCast');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'leather_cuff', 'forearms');
+    equipItem(c, 'leather_gloves', 'palms');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023011(st.counts), { nimble: 2 },
+      'nimble — 2 надетых предмета (forearms + palms)');
+    assert.equal(st.armor, 1,
+      'nimble: set-бонус {2: {armor: 1}} АКТИВЕН (порог 2)');
+    assert.equal(G.equipmentStats(c).armor, 3,
+      'nimble: equipmentStats.armor = 1 + 1 + 1 (set) = 3');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'steel_bracers', 'forearms');
+    equipItem(c, 'steel_gauntlets', 'palms');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023011(st.counts), { blade_guard: 2 },
+      'blade_guard — 2 надетых предмета (forearms + palms)');
+    assert.equal(st.armor, 0,
+      'blade_guard: set-бонус — только skill, без armor');
+    near(G.derived(c).swordHitBonus, 0.675,
+      'blade_guard: swordHitBonus = 0.05·10·1.35 (0.15 + 0.15 + '
+      + '0.05 set-skill swordsman)');
+    assert.equal(G.equipmentStats(c).armor, 6,
+      'blade_guard: equipmentStats.armor = 3 + 3 = 6');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'leather_cuff', 'forearms');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023011(st.counts), { nimble: 1 },
+      'nimble — 1 надетый предмет');
+    assert.equal(st.armor, 0, 'set-бонус НЕ активен (порог 2 > 1)');
+    assert.equal(G.equipmentStats(c).armor, 1,
+      'leather_cuff одна: equipmentStats.armor = 1 — только '
+      + 'собственный armor; set-бонус nimble (+1) НЕ применён '
+      + '(дормантность)');
+  }
+  {
+    const c = makeHero();
+    equipItem(c, 'steel_bracers', 'forearms');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023011(st.counts), { blade_guard: 1 },
+      'blade_guard — 1 надетый предмет');
+    near(G.derived(c).swordHitBonus, 0.575,
+      'steel_bracers один: swordHitBonus = 0.05·10·1.15 (swordsman '
+      + '0.15); set-skill +0.05 НЕ применён (дормантность)');
+    assert.equal(G.equipmentStats(c).armor, 3,
+      'steel_bracers один: equipmentStats.armor = 3 — только '
+      + 'собственный armor');
+  }
 });

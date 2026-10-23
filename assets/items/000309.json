@@ -1,0 +1,27 @@
+{
+  "id": "leather_gloves",
+  "name": "Кожаные перчатки",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 12,
+  "desc": "Кожаные перчатки: хват не проскальзывает на рукояти.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/leather_gloves.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "set": "nimble",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.03
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

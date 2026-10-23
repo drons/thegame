@@ -1,0 +1,21 @@
+{
+  "id": "hide_cuff",
+  "name": "Шкурная манжета",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 35,
+  "desc": "Шкурная манжета: волосом наружу — тетива не режет.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hide_cuff.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.05
+    }
+  ]
+}

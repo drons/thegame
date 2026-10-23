@@ -1,0 +1,21 @@
+{
+  "id": "silver_gauntlets",
+  "name": "Серебряные наручники",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 80,
+  "desc": "Серебряные наручники: блеск отвлекает, вес убеждает.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/silver_gauntlets.svg",
+  "slot": "palms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.08
+    }
+  ]
+}

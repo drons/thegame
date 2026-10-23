@@ -3666,9 +3666,10 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
   assert.deepEqual(s1.stock, s2.stock, 'детерминированность');
   assert.equal(s1.seed, seedD1,
     'seed = (hash2(x,y,CAMP_STOCK_SEED) ^ ((day+1)·0x9E3779B9)) >>> 0');
-  // Golden-сток (10,20,день 1,wealth 2) — пул 118 предметов
-  // (3 food + 5 potion + 7 weapon + 103 armor — виды каталога;
-  // ре-пин 000230.09: 43 → 93; ре-пин 000230.10: 93 → 118).
+  // Golden-сток (10,20,день 1,wealth 2) — пул 168 предметов
+  // (3 food + 5 potion + 7 weapon + 153 armor — виды каталога;
+  // ре-пин 000230.09: 43 → 93; ре-пин 000230.10: 93 → 118;
+  // ре-пин 000230.11: 118 → 168).
   // Ре-пин 000230.08: +25 head-предметов концом пула — существующие
   // ключи не сдвигаются (append-only), += новые rng-хвостом
   // (пересимулировано node; зеркало GOLDEN_CAMP в items.test.js).
@@ -3677,6 +3678,12 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
   // (пересимулировано node; зеркало GOLDEN_CAMP в items.test.js).
   // Ре-пин 000230.10: +25 torso (000208-000232, 10/7/5/2/1) концом пула
   // — += 19 rng-хвостом (не выпали: cloth_tunic/linen_gown/cloth_sutan/wool_kaftan/embroidered_kaftan/ember_robe),
+  // существующие ключи не сдвигаются (пересимулировано node;
+  // зеркало GOLDEN_CAMP в items.test.js).
+  // Ре-пин 000230.11: +50 руки (forearms 25 + palms 25, 10/7/5/2/1)
+  // концом пула — += 41 rng-хвостом (не выпали: cloth_gloves/
+  // copper_brace/iron_elbow/star_gloves/steel_bracers/
+  // steel_gauntlets/studded_bracer/titan_brace/wind_gloves),
   // существующие ключи не сдвигаются (пересимулировано node;
   // зеркало GOLDEN_CAMP в items.test.js).
 
@@ -3712,6 +3719,47 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
     fine_kaftan: 1, stone_robe: 4, shadow_robe: 1,
     deep_breath_robe: 2, meditating_robe: 1,
     pilgrim_sutan: 4, void_robe: 4, aegis_mantle: 3,
+    cloth_cuff: 1,
+    leather_cuff: 2,
+    hemp_bracer: 4,
+    rough_bracer: 4,
+    leather_garter: 2,
+    cloth_wrap: 2,
+    iron_cuff: 2,
+    bone_bracer: 3,
+    wood_brace: 3,
+    hide_cuff: 3,
+    archer_brace: 3,
+    silver_cuff: 3,
+    shadow_wrap: 1,
+    runic_cuff: 4,
+    gold_brace: 1,
+    sapphire_bracer: 1,
+    ghost_cuff: 3,
+    swift_brace: 4,
+    rune_bracers: 4,
+    star_armguard: 1,
+    leather_gloves: 2,
+    hide_gloves: 4,
+    rough_gauntlets: 4,
+    archer_gloves: 3,
+    linen_wraps: 2,
+    iron_gauntlets: 1,
+    bone_grips: 3,
+    wood_guards: 1,
+    fine_gloves: 4,
+    studded_gloves: 2,
+    copper_gauntlets: 1,
+    quiver_gloves: 2,
+    silver_gauntlets: 1,
+    night_gloves: 3,
+    iron_wraps: 3,
+    gold_gloves: 2,
+    emerald_gauntlets: 2,
+    phantom_gloves: 3,
+    haste_wraps: 3,
+    rune_gauntlets: 4,
+    void_gauntlet: 1,
   }, 'golden-сток (10,20,день 1,w2)');
   // Форма обёртки: buildingType — id КАТАЛОГА (47, не слот).
   assert.deepEqual(
@@ -7715,6 +7763,15 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
   // Ре-пин 000230.10: +25 torso концом пула — += 13 rng-хвостом
   // (не выпали: linen_shirt/wool_shirt/cloth_tunic/linen_gown/hemp_robe/rough_kaftan/wool_sutan/leather_kaftan/cloth_robe/monk_sutan/stone_robe/deep_breath_robe), ключи не сдвигаются
   // (пересимулировано node).
+  // Ре-пин 000230.11: +50 руки (forearms 25 + palms 25) концом
+  // пула — += 23 rng-хвостом (не выпали: bone_bracer/bone_grips/
+  // cloth_wrap/copper_brace/ghost_cuff/gold_brace/haste_wraps/
+  // iron_elbow/iron_gauntlets/leather_cuff/night_gloves/
+  // phantom_gloves/rough_bracer/rune_gauntlets/runic_cuff/
+  // shadow_wrap/silver_gauntlets/star_armguard/star_gloves/
+  // steel_bracers/steel_gauntlets/studded_gloves/swift_brace/
+  // titan_brace/void_gauntlet/wind_gloves/wood_guards), ключи не
+  // сдвигаются (пересимулировано node).
 
   assert.deepEqual(JSON.parse(JSON.stringify(entry0.stock)), {
     wood_sword: 1, steel_sword: 1, short_bow: 2,
@@ -7739,6 +7796,29 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
     fine_kaftan: 1, ember_robe: 2, shadow_robe: 1,
     meditating_robe: 2, pilgrim_sutan: 2, void_robe: 2,
     aegis_mantle: 1,
+    cloth_cuff: 1,
+    hemp_bracer: 2,
+    leather_garter: 2,
+    iron_cuff: 2,
+    wood_brace: 1,
+    hide_cuff: 2,
+    studded_bracer: 2,
+    archer_brace: 1,
+    silver_cuff: 1,
+    sapphire_bracer: 1,
+    rune_bracers: 2,
+    cloth_gloves: 1,
+    leather_gloves: 2,
+    hide_gloves: 2,
+    rough_gauntlets: 2,
+    archer_gloves: 1,
+    linen_wraps: 2,
+    fine_gloves: 1,
+    copper_gauntlets: 1,
+    quiver_gloves: 2,
+    iron_wraps: 1,
+    gold_gloves: 2,
+    emerald_gauntlets: 2,
   }, 'golden-сток стойки (40,40, день 1, w0)');
   for (const id of Object.keys(entry0.stock)) {
     assert.ok(['food', 'potion', 'weapon', 'armor']
@@ -7818,6 +7898,14 @@ test('B27. детерминизм барахолки: два мира, один 
   // Ре-пин 000230.10: +25 torso концом пула — += 11 rng-хвостом
   // (не выпали: cloth_tunic/hemp_robe/rough_kaftan/wool_gown/linen_tunic/wool_kaftan/wool_sutan/cloth_robe/monk_sutan/ember_robe/stone_robe/shadow_robe/pilgrim_sutan/void_robe), ключи не сдвигаются
   // (пересимулировано node).
+  // Ре-пин 000230.11: +50 руки (forearms 25 + palms 25) концом
+  // пула — += 27 rng-хвостом (не выпали: cloth_cuff/cloth_gloves/
+  // cloth_wrap/fine_gloves/ghost_cuff/gold_gloves/hide_cuff/
+  // hide_gloves/iron_wraps/linen_wraps/quiver_gloves/
+  // rough_gauntlets/rune_gauntlets/runic_cuff/silver_cuff/
+  // star_armguard/star_gloves/studded_bracer/studded_gloves/
+  // swift_brace/titan_brace/void_gauntlet/wind_gloves), ключи не
+  // сдвигаются (пересимулировано node).
 
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)), {
     iron_sword: 2, hunting_bow: 1, battle_axe: 1,
@@ -7842,6 +7930,33 @@ test('B27. детерминизм барахолки: два мира, один 
     embroidered_kaftan: 1, leather_gown: 1,
     fine_kaftan: 1, deep_breath_robe: 1,
     meditating_robe: 1, aegis_mantle: 1,
+    leather_cuff: 1,
+    hemp_bracer: 2,
+    rough_bracer: 2,
+    leather_garter: 1,
+    iron_cuff: 1,
+    bone_bracer: 1,
+    wood_brace: 1,
+    copper_brace: 1,
+    archer_brace: 2,
+    shadow_wrap: 2,
+    iron_elbow: 2,
+    steel_bracers: 1,
+    gold_brace: 2,
+    sapphire_bracer: 2,
+    rune_bracers: 1,
+    leather_gloves: 2,
+    archer_gloves: 1,
+    iron_gauntlets: 2,
+    bone_grips: 1,
+    wood_guards: 2,
+    copper_gauntlets: 1,
+    silver_gauntlets: 2,
+    night_gloves: 2,
+    steel_gauntlets: 2,
+    emerald_gauntlets: 2,
+    phantom_gloves: 1,
+    haste_wraps: 1,
   }, 'golden-сток дня 2 (40,40, w0) — кросс-реалем-пин формулы');
   assert.equal(s1d2.seed, s2d2.seed, 'seed дня 2 — одинаков');
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)),

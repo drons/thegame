@@ -1,0 +1,21 @@
+{
+  "id": "gold_brace",
+  "name": "Золотая шина",
+  "kind": "armor",
+  "weight": 1,
+  "value": 200,
+  "desc": "Золотая шина: тяжела, как приговор, но прощает любой размах.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/gold_brace.svg",
+  "slot": "forearms",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.16
+    }
+  ]
+}

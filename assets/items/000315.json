@@ -1,0 +1,21 @@
+{
+  "id": "bone_grips",
+  "name": "Костяные хваты",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 28,
+  "desc": "Костяные хваты: рукоять становится продолжением кости.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/bone_grips.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.05
+    }
+  ]
+}

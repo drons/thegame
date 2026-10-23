@@ -1,0 +1,21 @@
+{
+  "id": "shadow_wrap",
+  "name": "Теневой бинт",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 85,
+  "desc": "Теневой бинт: обмотка, сквозь которую видно больше, чем говорят.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/shadow_wrap.svg",
+  "slot": "forearms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "thief",
+      "amount": 0.09
+    }
+  ]
+}

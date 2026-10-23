@@ -1,0 +1,21 @@
+{
+  "id": "hide_gloves",
+  "name": "Шкурные перчатки",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 15,
+  "desc": "Шкурные перчатки: тихие на замках и шнуровке.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hide_gloves.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "thief",
+      "amount": 0.04
+    }
+  ]
+}

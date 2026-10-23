@@ -1,0 +1,21 @@
+{
+  "id": "quiver_gloves",
+  "name": "Перчатки колчана",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 70,
+  "desc": "Перчатки колчана: мини-колчан на тыльной стороне руки.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/quiver_gloves.svg",
+  "slot": "palms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.09
+    }
+  ]
+}

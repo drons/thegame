@@ -1,0 +1,21 @@
+{
+  "id": "cloth_wrap",
+  "name": "Тканый бинт",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 22,
+  "desc": "Тканый бинт: лёгкая обмотка — рука скользит бесшумно.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/cloth_wrap.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "thief",
+      "amount": 0.05
+    }
+  ]
+}

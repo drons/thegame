@@ -1,0 +1,21 @@
+{
+  "id": "studded_bracer",
+  "name": "Шипованный браслет",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 55,
+  "desc": "Шипованный браслет: держишь за запястье — и не удержишься.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/studded_bracer.svg",
+  "slot": "forearms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.06
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "silver_cuff",
+  "name": "Серебряная манжета",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 80,
+  "desc": "Серебряная манжета: проба клинка по блеску не врёт.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/silver_cuff.svg",
+  "slot": "forearms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.07
+    }
+  ]
+}

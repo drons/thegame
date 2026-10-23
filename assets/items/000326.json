@@ -1,0 +1,21 @@
+{
+  "id": "gold_gloves",
+  "name": "Золотые перчатки",
+  "kind": "armor",
+  "weight": 0.9,
+  "value": 200,
+  "desc": "Золотые перчатки: рукоять в них кажется легче, удар — тяжелее.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/gold_gloves.svg",
+  "slot": "palms",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.17
+    }
+  ]
+}

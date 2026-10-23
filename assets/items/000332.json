@@ -1,0 +1,26 @@
+{
+  "id": "void_gauntlet",
+  "name": "Наручник Пустоты",
+  "kind": "armor",
+  "weight": 2,
+  "value": 1200,
+  "desc": "Наручник Пустоты: захватывает то, чего на вид не было.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/void_gauntlet.svg",
+  "slot": "palms",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "thief",
+      "amount": 0.4
+    },
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.35
+    }
+  ]
+}

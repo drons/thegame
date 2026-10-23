@@ -1,0 +1,21 @@
+{
+  "id": "cloth_gloves",
+  "name": "Тканые перчатки",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 10,
+  "desc": "Тканые перчатки: пальцы не скользят на тетиве.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/cloth_gloves.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.03
+    }
+  ]
+}

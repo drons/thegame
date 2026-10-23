@@ -1,0 +1,21 @@
+{
+  "id": "night_gloves",
+  "name": "Перчатки ночи",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 85,
+  "desc": "Перчатки ночи: в темноте они видят больше, чем рука.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/night_gloves.svg",
+  "slot": "palms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "thief",
+      "amount": 0.1
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "bone_bracer",
+  "name": "Костяной браслет",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 28,
+  "desc": "Костяной браслет: тёплый, лёгкий, не стучит в темноте.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/bone_bracer.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "thief",
+      "amount": 0.04
+    }
+  ]
+}

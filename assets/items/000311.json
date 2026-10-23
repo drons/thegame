@@ -1,0 +1,21 @@
+{
+  "id": "rough_gauntlets",
+  "name": "Грубые наручники",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 18,
+  "desc": "Грубые наручники: набитые ладони бьют вдвое.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/rough_gauntlets.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.04
+    }
+  ]
+}

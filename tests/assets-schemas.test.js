@@ -217,8 +217,17 @@ for (const name of CATALOGS) {
     assert.ok(files.length >= 1, 'каталог пустой');
     // Ре-пин 000235.08: разрыв 000133–000157 заполнен волной Лёд —
     // RESERVED убран (memory/000230.09-ears-neck-items-wave.md §6).
+    // Ре-пин 000230.11: в items зарезервирован разрыв 000258–000282
+    // (25) — волна 000235.10 «Исцеление: свитки» (живая ветка); после
+    // её мержа — убрать RESERVED (memory/000230.11-forearms-palms-
+    // items-wave.md §2.8).
+    const RESERVED = new Set(name === 'items'
+      ? Array.from({ length: 25 },
+          (_, i) => String(258 + i).padStart(6, '0') + '.json')
+      : []);
     let n = 1;
     for (let i = 0; i < files.length; i++) {
+      while (RESERVED.has(String(n).padStart(6, '0') + '.json')) n += 1;
       assert.equal(files[i], String(n).padStart(6, '0') + '.json',
         `пробел в нумерации на позиции ${i + 1}: ${files[i]}`);
       n += 1;

@@ -1,0 +1,21 @@
+{
+  "id": "phantom_gloves",
+  "name": "Фантомные перчатки",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 250,
+  "desc": "Фантомные перчатки: на ощупь — дым, на деле — хват.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/phantom_gloves.svg",
+  "slot": "palms",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "thief",
+      "amount": 0.18
+    }
+  ]
+}

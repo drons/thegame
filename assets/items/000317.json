@@ -1,0 +1,21 @@
+{
+  "id": "fine_gloves",
+  "name": "Тонкие перчатки",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 35,
+  "desc": "Тонкие перчатки: почти невесомые, шаг от того легче.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/fine_gloves.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.05
+    }
+  ]
+}

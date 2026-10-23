@@ -1,0 +1,21 @@
+{
+  "id": "ghost_cuff",
+  "name": "Призрачная манжета",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 250,
+  "desc": "Призрачная манжета: рука в ней на ощупь — почти не рука.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/ghost_cuff.svg",
+  "slot": "forearms",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "thief",
+      "amount": 0.17
+    }
+  ]
+}

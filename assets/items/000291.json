@@ -1,0 +1,21 @@
+{
+  "id": "wood_brace",
+  "name": "Деревянная шина",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 30,
+  "desc": "Деревянная шина: ровная дуга держит кисть при шаге.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wood_brace.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.04
+    }
+  ]
+}

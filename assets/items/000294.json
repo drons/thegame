@@ -1,0 +1,21 @@
+{
+  "id": "copper_brace",
+  "name": "Медная шина",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 60,
+  "desc": "Медная шина: тёплый металл гасит рикошет тяжёлого удара.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/copper_brace.svg",
+  "slot": "forearms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.06
+    }
+  ]
+}

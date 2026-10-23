@@ -1,0 +1,21 @@
+{
+  "id": "copper_gauntlets",
+  "name": "Медные наручники",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 60,
+  "desc": "Медные наручники: тёплая тяжесть, удар становится длиннее.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/copper_gauntlets.svg",
+  "slot": "palms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.07
+    }
+  ]
+}

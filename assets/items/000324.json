@@ -1,0 +1,21 @@
+{
+  "id": "wind_gloves",
+  "name": "Перчатки ветра",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 100,
+  "desc": "Перчатки ветра: ладони ловят порыв, шаг — за ним.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wind_gloves.svg",
+  "slot": "palms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.09
+    }
+  ]
+}

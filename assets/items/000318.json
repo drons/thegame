@@ -1,0 +1,21 @@
+{
+  "id": "studded_gloves",
+  "name": "Шипованные перчатки",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 55,
+  "desc": "Шипованные перчатки: вырваться из такого хвата — редкость.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/studded_gloves.svg",
+  "slot": "palms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.07
+    }
+  ]
+}

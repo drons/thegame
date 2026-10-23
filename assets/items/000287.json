@@ -1,0 +1,21 @@
+{
+  "id": "leather_garter",
+  "name": "Кожаный гетра",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 20,
+  "desc": "Кожаный гетра: обёртка для руки, натягивающей лук.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/leather_garter.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.04
+    }
+  ]
+}

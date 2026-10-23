@@ -1,0 +1,21 @@
+{
+  "id": "hemp_bracer",
+  "name": "Пеньмовый браслет",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 15,
+  "desc": "Пеньмовый браслет: жёсткое волокно гасит удар кулака.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hemp_bracer.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.03
+    }
+  ]
+}

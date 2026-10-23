@@ -1,0 +1,21 @@
+{
+  "id": "rough_bracer",
+  "name": "Грубый браслет",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 18,
+  "desc": "Грубый браслет: вырезан из цельного бруска под тяжёлый бой.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/rough_bracer.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.04
+    }
+  ]
+}

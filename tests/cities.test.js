@@ -1478,6 +1478,11 @@ const SHOP_GOLDEN = {
   // (node-симуляция: seed/старые стоки byte-identical). Значения
   // хвоста — по финальному каталогу 257 (node-симуляция: base +
   // огонь + лёд + уши/шея + torso + тень).
+  // Ре-пин 000230.11: руки (000283-000332, kind armor) — КОНЕЦ
+  // каталога, rng-хвост пула allItems (универсам w3) → += 40 рук (не выпали: leather_garter/hide_cuff/runic_cuff/steel_bracers/hide_gloves/studded_gloves/copper_gauntlets/silver_gauntlets/steel_gauntlets/gold_gloves);
+  // остальные ключи стока не сдвинулись (node-симуляция: seed/старые
+  // стоки byte-identical); прочие 2 голдены (weapon / potion+food
+  // пулы) — без изменений.
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5,
     short_bow: 2, hunting_bow: 1, battle_axe: 3,
@@ -1553,7 +1558,47 @@ const SHOP_GOLDEN = {
     dark_ensnare_scroll: 4, shadow_pool_scroll: 5,
     veil_of_night_scroll: 1, shadow_wraith_scroll: 4, shadow_step_scroll: 5,
     invisibility_scroll: 2, shroud_of_night_scroll: 1,
-    dark_presence_scroll: 4 } },
+    dark_presence_scroll: 4,
+    cloth_cuff: 3,
+    leather_cuff: 1,
+    hemp_bracer: 1,
+    rough_bracer: 2,
+    cloth_wrap: 1,
+    iron_cuff: 2,
+    bone_bracer: 1,
+    wood_brace: 5,
+    studded_bracer: 1,
+    copper_brace: 1,
+    archer_brace: 3,
+    silver_cuff: 4,
+    shadow_wrap: 1,
+    iron_elbow: 3,
+    gold_brace: 2,
+    sapphire_bracer: 2,
+    ghost_cuff: 1,
+    swift_brace: 2,
+    rune_bracers: 5,
+    star_armguard: 2,
+    titan_brace: 2,
+    cloth_gloves: 5,
+    leather_gloves: 4,
+    rough_gauntlets: 1,
+    archer_gloves: 1,
+    linen_wraps: 5,
+    iron_gauntlets: 1,
+    bone_grips: 2,
+    wood_guards: 5,
+    fine_gloves: 3,
+    quiver_gloves: 2,
+    night_gloves: 1,
+    iron_wraps: 2,
+    wind_gloves: 3,
+    emerald_gauntlets: 2,
+    phantom_gloves: 4,
+    haste_wraps: 1,
+    rune_gauntlets: 4,
+    star_gloves: 2,
+    void_gauntlet: 3} },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1 } },

@@ -1,0 +1,21 @@
+{
+  "id": "iron_elbow",
+  "name": "Железный налокотник",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 90,
+  "desc": "Железный налокотник: локоть становится пятым пальцем кулака.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/iron_elbow.svg",
+  "slot": "forearms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.08
+    }
+  ]
+}

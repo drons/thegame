@@ -3345,14 +3345,15 @@ test('000235.07 W-04: кастабельность вне боя — firelight/h
   }
 });
 
-test('000235.07 W-08: зеркала в синке — spells-data 92 / items-data 257 (ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso; ре-пин 000235.09: +25 волны Тень); sync:check exit 0', () => {
+test('000235.07 W-08: зеркала в синке — spells-data 92 / items-data 307 (ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso; ре-пин 000235.09: +25 волны Тень; ре-пин 000230.11: +50 руки); sync:check exit 0', () => {
   const { SPELLS } = loadSpellsData();
   assert.equal(SPELLS.length, 92, 'spells-data: 92 записи (RED: 67)');
   const itemsData = require('../src/items-data.js');
-  assert.equal(itemsData.ITEMS.length, 257,
-    'items-data: 257 (каталог после мержа: 182 на базе 000230.09 '
+  assert.equal(itemsData.ITEMS.length, 307,
+    'items-data: 307 (каталог после мержа: 182 на базе 000230.09 '
     + '+ 25 свитков волны Лёд (000235.08) + 25 torso (000230.10) '
-    + '+ 25 свитков волны Тень (000235.09))');
+    + '+ 25 свитков волны Тень (000235.09) '
+    + '+ 50 рук (000230.11))');
   const { spawnSync } = require('node:child_process');
   const r = spawnSync(process.execPath,
     [path.join(__dirname, '..', 'scripts', 'sync-all.js'), '--check'],

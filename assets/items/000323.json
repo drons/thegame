@@ -1,0 +1,21 @@
+{
+  "id": "iron_wraps",
+  "name": "Железные обмотки",
+  "kind": "armor",
+  "weight": 0.7,
+  "value": 90,
+  "desc": "Железные обмотки: витка к витке рука тяжелеет и твердеет.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/iron_wraps.svg",
+  "slot": "palms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.08
+    }
+  ]
+}

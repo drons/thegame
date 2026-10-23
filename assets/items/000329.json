@@ -1,0 +1,21 @@
+{
+  "id": "haste_wraps",
+  "name": "Обмотки поспешности",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 320,
+  "desc": "Обмотки поспешности: руки успевают раньше, чем думает голова.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/haste_wraps.svg",
+  "slot": "palms",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.2
+    }
+  ]
+}

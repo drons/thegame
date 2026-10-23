@@ -1,0 +1,21 @@
+{
+  "id": "emerald_gauntlets",
+  "name": "Изумрудные наручники",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 220,
+  "desc": "Изумрудные наручники: камень зрится в цель, как зелёный глаз.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/emerald_gauntlets.svg",
+  "slot": "palms",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.19
+    }
+  ]
+}

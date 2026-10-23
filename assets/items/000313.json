@@ -1,0 +1,21 @@
+{
+  "id": "linen_wraps",
+  "name": "Льняные бинты",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 22,
+  "desc": "Льняные бинты: лёгкая перевязь кисти под бег.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/linen_wraps.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.04
+    }
+  ]
+}
