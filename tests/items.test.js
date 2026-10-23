@@ -856,6 +856,11 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // предметы; значения хвоста — по финальному каталогу 332
     // (node-симуляция: base + огонь + лёд + уши/шея + torso + тень +
     // руки + left_hand).
+    // Ре-пин 000230.14: кольца (000383-000407, kind ring — НЕ в пуле
+    // [armor], попадают ТОЛЬКО в allItems) — КОНЕЦ каталога, rng-хвост
+    // пула allItems → += 20 колец (не выпали: bone_ring/gold_ring/
+    // glacier_ring/frost_ring/phoenix_ring), остальные ключи стока
+    // не сдвинулись (node-симуляция: seed/старые стоки byte-identical).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
       stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3,
         war_hammer: 3, leather_armor: 3, knight_plate: 2,
@@ -976,7 +981,27 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
         rune_charm: 1, guard_amulet: 4, ember_focus: 1,
         frost_charm: 5, scholar_pendant: 4, cinder_eye: 3,
         frost_orb: 1, rune_sphere: 5, mind_pendant: 1,
-        arcane_eye: 4, snow_focus: 4 } },
+        arcane_eye: 4, snow_focus: 4,
+        copper_ring: 3,
+        iron_ring: 2,
+        thread_ring: 4,
+        stone_ring: 5,
+        clay_ring: 3,
+        wood_ring: 2,
+        leather_ring: 4,
+        silver_ring: 1,
+        silver_signet: 3,
+        quartz_ring: 5,
+        obsidian_ring: 5,
+        amethyst_ring: 3,
+        sapphire_ring: 5,
+        gold_signet: 3,
+        emerald_signet: 4,
+        ruby_ring: 2,
+        rune_ring: 5,
+        scholar_ring: 3,
+        star_signet: 5,
+        void_ring: 2 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1821,10 +1846,13 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // Ре-пин 000230.13: каталог растёт 307 → 332 (добавляются
   // 000358-000382 — left_hand 25: щиты + артефакты); слоты не
   // сдвигаются (append-блоки).
-  assert.equal(files.length, 332,
-    'каталог — 332 файла (краснота: ' + files.length
+  // Ре-пин 000230.14: каталог растёт 332 → 357 (добавляются
+  // 000383-000407 — кольца 25; 000258-000357 — зарезервированы);
+  // слоты не сдвигаются (append-блок).
+  assert.equal(files.length, 357,
+    'каталог — 357 файла (краснота: ' + files.length
     + ' — каталог ещё не расширен, 000230.08/000235.07/000235.08/'
-    + '000230.09/000230.10/000235.09/000230.11/000230.13)');
+    + '000230.09/000230.10/000235.09/000230.11/000230.13/000230.14)');
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
@@ -1853,7 +1881,7 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   validateSchema165(schema, j, '000051.json', errors);
   assert.deepEqual(errors, [], 'схема: ' + errors.join('; '));
   // (d) Зеркало src/items-data.js (реген npm run sync:items):
-  //     getItem ≡ JSON, каталог — 332 предмета (краснота: записи нет).
+  //     getItem ≡ JSON, каталог — 357 предмета (краснота: записи нет).
   //     Ре-пин 000157.01 (Р0): 51 → 62 (конец каталога).
   //     Ре-пин 000158.02: 62 → 76 (конец каталога).
   //     Ре-пин 000232: 76 → 82 (конец каталога).
@@ -1865,6 +1893,7 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   //     Ре-пин 000235.09: 232 → 257 (конец каталога).
   //     Ре-пин 000230.11: 257 → 307 (000283-000332 — руки 50).
   //     Ре-пин 000230.13: 307 → 332 (000358-000382 — left_hand 25).
+  //     Ре-пин 000230.14: 332 → 357 (000383-000407 — кольца 25).
   const it = I.getItem('resurrect_scroll');
   assert.ok(it, 'зеркало items-data.js: resurrect_scroll '
     + '(краснота: записи нет)');
@@ -1877,10 +1906,11 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // Ре-пин 000235.09: 232 → 257 (000233-000257 — свитки волны Тень).
   // Ре-пин 000230.11: 257 → 307 (000283-000332 — руки 50).
   // Ре-пин 000230.13: 307 → 332 (000358-000382 — left_hand 25).
-  assert.equal(I.allItems().length, 332,
-    'allItems — 332 предмета (краснота: ' + I.allItems().length
+  // Ре-пин 000230.14: 332 → 357 (000383-000407 — кольца 25).
+  assert.equal(I.allItems().length, 357,
+    'allItems — 357 предмета (краснота: ' + I.allItems().length
     + ' — зеркало не регенерировано, 000230.08/000235.07/000235.08/'
-    + '000230.09/000230.10/000235.09/000230.11/000230.13)');
+    + '000230.09/000230.10/000235.09/000230.11/000230.13/000230.14)');
   // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
   //     addItem ×2 → 2 слота qty 1 (не стопка).
   const c = createCharacter();
@@ -1998,12 +2028,14 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
   // forearms 25 + palms 25); слоты не сдвигаются.
   // Ре-пин 000230.13: каталог растёт 307 → 332 (000358-000382 —
   // left_hand 25); слоты не сдвигаются.
-  assert.equal(files.length, 332,
-    'каталог — 332 файла (краснота: ' + files.length + ')');
+  // Ре-пин 000230.14: каталог растёт 332 → 357 (000383-000407 —
+  // кольца 25); слоты не сдвигаются.
+  assert.equal(files.length, 357,
+    'каталог — 357 файла (краснота: ' + files.length + ')');
   assert.equal(files[61], '000062.json',
     '000062.json — 62-й файл (краснота: файла нет)');
-  assert.equal(I.allItems().length, 332,
-    'allItems — 332 предмета (краснота: ' + I.allItems().length + ')');
+  assert.equal(I.allItems().length, 357,
+    'allItems — 357 предмета (краснота: ' + I.allItems().length + ')');
 });
 
 // R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
@@ -2211,7 +2243,7 @@ test('000158.02 L2: loot-инварианты новых 14 — terrains неп�
   }
 });
 
-test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 299 предметов — loot undefined (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин 000230.10: +25 torso без loot; ре-пин 000235.09: +25 свитков волны Тень без loot; ре-пин 000230.11: +50 руки без loot; ре-пин 000230.13: +25 left_hand без loot; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
+test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 324 предмета — loot undefined (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин 000230.10: +25 torso без loot; ре-пин 000235.09: +25 свитков волны Тень без loot; ре-пин 000230.11: +50 руки без loot; ре-пин 000230.13: +25 left_hand без loot; ре-пин 000230.14: +25 колец без loot; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
   const byId = new Map(I.allItems().map((it) => [it.id, it]));
   const newIds = new Set(LOOT_00015802.map((e) => e.id));
   const nuggetIdSet = new Set(NUGGETS_00015802.map(([id]) => id));
@@ -2223,14 +2255,14 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       id + ': loot самородка (краснота: поля нет; tier ' + tier
       + ' → frequency ' + NUGGET_FREQ[tier] + ')');
   }
-  // ВСЕ ПРОЧИЕ предметы (299 = каталог 332 − 14 самородков − 14 новых
+  // ВСЕ ПРОЧИЕ предметы (324 = каталог 357 − 14 самородков − 14 новых
   // − 5 reagent'ов 000220; ре-пин 000230.08: +25 head без loot;
   // ре-пин 000232: +6 чертежей без loot; ре-пин 000235.07: +25 свитков
   // волны Огонь без loot; ре-пин 000235.08: +25 свитков волны Лёд
   // без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин
   // 000230.10: +25 torso без loot; ре-пин 000235.09: +25 свитков
   // волны Тень без loot; ре-пин 000230.11: +50 руки без loot;
-  // ре-пин 000230.13: +25 left_hand без loot):
+  // ре-пин 000230.13: +25 left_hand без loot; ре-пин 000230.14: +25 колец без loot):
   // loot ОТСУТСТВУЕТ — пин «остальные файлы не тронуты».
   const REAGENTS_000220 = new Set(['wood_log', 'hide', 'herb_healing',
     'herb_mana', 'herb_bitter']);
@@ -2242,7 +2274,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 299, 'прочих предметов — ровно 299 (каталог 332 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000230.11: +50 руки; 000230.13: +25 left_hand — все без loot)');
+  assert.equal(others, 324, 'прочих предметов — ровно 324 (каталог 357 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000230.11: +50 руки; 000230.13: +25 left_hand; 000230.14: +25 колец — все без loot)');
 });
 
 test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
@@ -2506,7 +2538,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 118 — icon undefined (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
+test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 118 — icon undefined (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f))
     .sort();
@@ -2603,6 +2635,16 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     'ember_focus', 'frost_charm', 'scholar_pendant', 'ward_crystal',
     'cinder_eye', 'frost_orb', 'rune_sphere', 'mind_pendant',
     'arcane_eye', 'snow_focus', 'heart_of_elements']);
+  // Ре-пин 000230.14: 25 ring-предметов (000383-000407) — icon в
+  // assets/sprites/items/ (паттерн TORSO_00023010) — исключение из
+  // пина «icon НЕ задан».
+  const RING_00023014 = new Set(['copper_ring', 'bone_ring',
+    'iron_ring', 'thread_ring', 'stone_ring', 'clay_ring', 'wood_ring',
+    'leather_ring', 'silver_ring', 'silver_signet', 'gold_ring',
+    'glacier_ring', 'quartz_ring', 'obsidian_ring', 'amethyst_ring',
+    'sapphire_ring', 'gold_signet', 'emerald_signet', 'ruby_ring',
+    'frost_ring', 'rune_ring', 'scholar_ring', 'star_signet',
+    'void_ring', 'phoenix_ring']);
   let others = 0;
   for (const it of byId.values()) {
     if (lootIds.includes(it.id) || BLUEPRINTS_000232.has(it.id)
@@ -2610,7 +2652,8 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
         || EARSNECK_00023009.has(it.id)
         || TORSO_00023010.has(it.id)
         || HANDS_00023011.has(it.id)
-        || LEFT_HAND_00023013.has(it.id)) continue;
+        || LEFT_HAND_00023013.has(it.id)
+        || RING_00023014.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
@@ -2619,15 +2662,17 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + '50 уши/шея — в исключении; ре-пин 000230.10: 25 torso — в '
     + 'исключении (icon); ре-пин 000230.11: 50 рук — в исключении '
     + '(icon); ре-пин 000230.13: 25 left_hand — в исключении '
+    + '(icon); ре-пин 000230.14: +25 колец — в исключении '
     + '(icon); ре-пин 000235.08: +25 свитков волны Лёд '
     + 'без icon — входят в счёт; ре-пин 000235.09: +25 свитков '
     + 'волны Тень без icon)');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 214,
-    'icon — ровно у 214 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
+    [...byId.values()].filter((it) => 'icon' in it).length, 239,
+    'icon — ровно у 239 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
     + '+ 25 head; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: '
     + '+25 torso; ре-пин 000230.11: +50 рук; ре-пин 000230.13: '
-    + '+25 left_hand; пин: ни больше, ни меньше)');
+    + '+25 left_hand; ре-пин 000230.14: +25 колец; '
+    + 'пин: ни больше, ни меньше)');
 });
 
 test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойство {type: string, pattern: ^assets/sprites/(loot|items)/[\\w_]+\\.svg$} (дословно ТЗ), «icon» НЕ в required, additionalProperties верхнего уровня false', () => {
@@ -2684,6 +2729,9 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
 // порядок: forearms 25, потом palms 25).
 // 000230.13: left_hand-волна (000358-000382) — +25 id (каталожный
 // порядок: тир 10/7/5/2/1, щиты + артефакты).
+// 000230.14: ring-волна (000383-000407) — +25 id (каталожный
+// порядок по редкости: 10 common + 7 rare + 5 epic + 2 legendary
+// + 1 impossible).
 const EQUIP_FIELDS_00023001 = new Set(['straw_hat', 'wool_cap',
   'leather_cap', 'fur_hat', 'cloth_band', 'wanderer_cap', 'hood_common',
   'linen_cloth', 'felt_hat', 'travel_cloth', 'silver_band', 'copper_band',
@@ -2729,7 +2777,14 @@ const EQUIP_FIELDS_00023001 = new Set(['straw_hat', 'wool_cap',
   'steel_buckler', 'rune_charm', 'guard_amulet', 'ember_focus',
   'frost_charm', 'scholar_pendant', 'ward_crystal', 'cinder_eye',
   'frost_orb', 'rune_sphere', 'mind_pendant', 'arcane_eye',
-  'snow_focus', 'heart_of_elements']);
+  'snow_focus', 'heart_of_elements',
+  'copper_ring', 'bone_ring', 'iron_ring', 'thread_ring',
+  'stone_ring', 'clay_ring', 'wood_ring', 'leather_ring',
+  'silver_ring', 'silver_signet', 'gold_ring', 'glacier_ring',
+  'quartz_ring', 'obsidian_ring', 'amethyst_ring', 'sapphire_ring',
+  'gold_signet', 'emerald_signet', 'ruby_ring', 'frost_ring',
+  'rune_ring', 'scholar_ring', 'star_signet', 'void_ring',
+  'phoenix_ring']);
 
 test('000230.01 E1: schema.json — slot ОПЦИОНАЛЬНО {type: string, enum: 11 значений в порядке ТЗ}, «slot» НЕ в required, верхний additionalProperties false', () => {
   const s = JSON.parse(
@@ -2885,11 +2940,12 @@ test('000230.01 E8: src/items.js — ITEM_KINDS += SHIELD/ARTIFACT/TOOL/RING, WE
     'EQUIP_KINDS — ровно 6 экипируемых kind (краснота: константы нет)');
 });
 
-test('000230.01 E9 (ГАРД): каталог — ровно 307 предметов (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000230.11: +50 рук; ре-пин 000230.13: +25 left_hand), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
+test('000230.01 E9 (ГАРД): каталог — ровно 307 предметов (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000230.11: +50 рук; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
   const items = I.allItems();
   // Ре-пин 000230.11: каталог 257 → 307 (+50 рук).
   // Ре-пин 000230.13: каталог 307 → 332 (+25 left_hand).
-  assert.equal(items.length, 332, 'каталог — ровно 332 предмета');
+  // Ре-пин 000230.14: каталог 332 → 357 (+25 колец).
+  assert.equal(items.length, 357, 'каталог — ровно 357 предмета');
   let others = 0;
   for (const it of items) {
     if (EQUIP_FIELDS_00023001.has(it.id)) continue;
@@ -2909,7 +2965,9 @@ test('000230.01 E9 (ГАРД): каталог — ровно 307 предмет�
     + '+25 свитков волны Тень → 257 − 103 equip-исключений = 154; '
     + 'ре-пин 000230.11: +50 рук → 307 − 153 equip-исключений = 154; '
     + 'ре-пин 000230.13: +25 left_hand → 332 − 178 equip-исключений '
-    + '= 154 (все 25 left_hand в исключениях); 000232: +6 чертежей '
+    + '= 154 (все 25 left_hand в исключениях); '
+    + 'ре-пин 000230.14: +25 колец → 357 − 203 equip-исключений '
+    + '= 154 (все 25 колец в исключениях); 000232: +6 чертежей '
     + 'без equip-полей; 000235.07: +25 свитков без equip-полей; '
     + '000235.08: +25 свитков волны Лёд без equip-полей; 000235.09: '
     + '+25 свитков волны Тень без equip-полей)');
@@ -4342,7 +4400,7 @@ test('000230.04-SB12 (node, sync, E20-паттерн tmp-репо): ring с set 
   }
 });
 
-test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): предметы с ОДНИМ set → set_bonus deepEqual внутри набора (ре-пин 000230.08: 25 head — 4 предмета с set: straw_hat/fur_hat [traveller], silver_helm/gold_helm [mystic]; ре-пин 000230.09: +5 — faith ×3 + stage ×2; ре-пин 000230.10: +5 — penitent ×3 + hearth ×2; ре-пин 000230.11: +4 — nimble ×2 + blade_guard ×2; ре-пин 000230.13: +5 — bulwark ×3 + arcane_focus ×2); предметов с set_bonus — РОВНО 23 (ре-пин 000230.08: реальный кросс-пин; ре-пин 000230.09: 4 + 5; ре-пин 000230.10: +5; ре-пин 000230.11: +4; ре-пин 000230.13: +5)', () => {
+test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): предметы с ОДНИМ set → set_bonus deepEqual внутри набора (ре-пин 000230.08: 25 head — 4 предмета с set: straw_hat/fur_hat [traveller], silver_helm/gold_helm [mystic]; ре-пин 000230.09: +5 — faith ×3 + stage ×2; ре-пин 000230.10: +5 — penitent ×3 + hearth ×2; ре-пин 000230.11: +4 — nimble ×2 + blade_guard ×2; ре-пин 000230.13: +5 — bulwark ×3 + arcane_focus ×2; ре-пин 000230.14: +8 — fate ×4 + ember ×2 + rime ×2); предметов с set_bonus — РОВНО 31 (ре-пин 000230.08: реальный кросс-пин; ре-пин 000230.09: 4 + 5; ре-пин 000230.10: +5; ре-пин 000230.11: +4; ре-пин 000230.13: +5; ре-пин 000230.14: +8)', () => {
   const bySet = new Map();
   let withSetBonus = 0;
   for (const it of I.allItems()) {
@@ -4357,12 +4415,13 @@ test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): пре�
     }
     if (it.set_bonus !== undefined) withSetBonus++;
   }
-  assert.equal(withSetBonus, 23,
-    'предметов с set_bonus — 23 (ре-пин 000230.08: straw_hat/fur_hat '
+  assert.equal(withSetBonus, 31,
+    'предметов с set_bonus — 31 (ре-пин 000230.08: straw_hat/fur_hat '
     + '[traveller] + silver_helm/gold_helm [mystic]; ре-пин 000230.09: '
     + '+faith ×3 +stage ×2; ре-пин 000230.10: +penitent ×3 +hearth ×2; '
     + 'ре-пин 000230.11: +nimble ×2 +blade_guard ×2; '
-    + 'ре-пин 000230.13: +bulwark ×3 +arcane_focus ×2)');
+    + 'ре-пин 000230.13: +bulwark ×3 +arcane_focus ×2; '
+    + 'ре-пин 000230.14: +fate ×4 +ember ×2 +rime ×2)');
 });
 
 test('000230.04-SB14 (vm, throw, E18-паттерн): reagent с set_bonus → Error /только у экипируемых/ при загрузке (equipment-only-гард покрывает set_bonus; краснота: гард без set_bonus — Missing expected exception)', () => {
@@ -6620,7 +6679,7 @@ const HANDS_ID_SET_00023011 = new Set(HANDS_IDS_00023011);
 const HANDS_BLOCK_BASE_00023011 = 283;
 const HANDS_PREFIX_LEN_00023011 = 257;
 
-test('000230.11 T1: 50 предметов — append-блок 000283–000332 (ре-пин 000230.13: блок НЕ конец каталога — после него 000358–000382 left_hand; якорь — блок начинается ПОСЛЕ ВСЕХ файлов с номером < 283, rebase-робастно: 000235.10 вставит 000258–000282 СРЕДИ, наша 50 остаётся 50 последовательных, D-03); 50 последовательных; позиции 0–24 slot forearms, 25–49 slot palms (каталожный порядок); редкости forearms-блока РОВНО 10/7/5/2/1 И palms-блока РОВНО 10/7/5/2/1 (пин ×2 — ТЗ); все kind armor; существующие 257 бит-в-бит (append-only: префикс 000001–000257 не сдвинут); id волны не пересекаются с остальным каталогом (краснота: slot forearms/palms — 0 предметов, блока нет)', () => {
+test('000230.11 T1: 50 предметов — append-блок 000283–000332 (ре-пин 000230.13: блок НЕ конец каталога — после него 000358–000382 left_hand; ре-пин 000230.14: после left_hand 000383–000407 кольца — конец каталога; якорь — блок начинается ПОСЛЕ ВСЕХ файлов с номером < 283, rebase-робастно: 000235.10 вставит 000258–000282 СРЕДИ, наша 50 остаётся 50 последовательных, D-03); 50 последовательных; позиции 0–24 slot forearms, 25–49 slot palms (каталожный порядок); редкости forearms-блока РОВНО 10/7/5/2/1 И palms-блока РОВНО 10/7/5/2/1 (пин ×2 — ТЗ); все kind armor; существующие 257 бит-в-бит (append-only: префикс 000001–000257 не сдвинут); id волны не пересекаются с остальным каталогом (краснота: slot forearms/palms — 0 предметов, блока нет)', () => {
   const { files, byFile } = catalogScan00023008();
   // Append-only: существующие 257 файла — префикс каталога, не сдвинуты.
   assert.ok(files.length >= HANDS_PREFIX_LEN_00023011,
@@ -6639,7 +6698,8 @@ test('000230.11 T1: 50 предметов — append-блок 000283–000332 (�
     assert.ok(pos.has(f),
       f + ' — в каталоге (краснота: волна не добавлена)');
   // Ре-пин 000230.13: блок НЕ конец каталога (после него —
-  // 000358-000382 left_hand); якорь — позиция ПОСЛЕ всех файлов с
+  // 000358-000382 left_hand; ре-пин 000230.14: потом 000383-000407
+  // кольца — конец каталога); якорь — позиция ПОСЛЕ всех файлов с
   // номером < 283 (rebase-робастно к вставке 000258-000282).
   const smallerCount = files.filter((f) =>
     Number(f.slice(0, 6)) < 283).length;
@@ -7588,5 +7648,416 @@ test('000230.13 T7 (vm, e2e): РЕАЛЬНЫЕ left_hand-предметы из l
     near(G.derived(c).runePowerMult, 1.5,
       'ward_crystal один: runePowerMult = 1.5 — set-bonus runes +0.05 '
       + 'НЕ применён (дормантность)');
+  }
+});
+
+// =====================================================================
+// Задача 000230.14 — предметы «Пальцы»: 25 колец (10/7/5/2/1) +
+// 25 иконок + 28 рецептов (контентная волна серии 000230; kind
+// 'ring' — НОВЫЙ, 000230.01; 8 физслотов ring_left/right_1..4 —
+// 000230.02; наборы — 000230.04).
+// Контракт — memory/000230.14-ring-items-wave.md §2 (ростер §2.1,
+// affix-матрица §2.2, наборы §2.3, рецепты §2.4, пулы §2.5, иконки
+// §2.6). Нумерация ФИКСИРОВАНА (D-01, анти-коллизия): предметы
+// 000383–000407, рецепты 000310–000337; в worktree — дыры каталога
+// (000258–000382 / 000338–000359 — живые волны .11–.15) → RESERVED
+// в continuity — merge station (D-13).
+// RED (TDD): колец НЕТ — slot 'ring' = 0 предметов (фикс ТЗ), файлов
+// 000383–000407, иконок и зеркал нет — тесты падают по ОСМЫСЛЕННОЙ
+// причине «волна не добавлена» (не синтаксис/окружение).
+// =====================================================================
+
+const RING_FILES_00023014 = [];
+for (let i = 0; i < 25; i++)
+  RING_FILES_00023014.push(String(383 + i).padStart(6, '0') + '.json');
+const RING_IDS_00023014 = [
+  'copper_ring', 'bone_ring', 'iron_ring', 'thread_ring', 'stone_ring',
+  'clay_ring', 'wood_ring', 'leather_ring', 'silver_ring',
+  'silver_signet', 'gold_ring', 'glacier_ring', 'quartz_ring',
+  'obsidian_ring', 'amethyst_ring', 'sapphire_ring', 'gold_signet',
+  'emerald_signet', 'ruby_ring', 'frost_ring', 'rune_ring',
+  'scholar_ring', 'star_signet', 'void_ring', 'phoenix_ring',
+];
+const RING_ID_SET_00023014 = new Set(RING_IDS_00023014);
+
+test('000230.14 T1: append-блок 25 колец — ровно 25 предметов с slot "ring" (якорь H1-паттерна .08: блок = предметы с slot, rebase-робастно), все kind "ring" + slot "ring" (явное, D1 .01); нумерация ФИКС 000383–000407 (D-01) — 25 последовательных файлов каталога, позиция по фикс-нумерации (rebase-робастно: НЕ конец каталога после мержа .15 000408–000457); редкость РОВНО 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible в каталожном порядке; id волны не пересекаются с каталогом (краснота: slot ring — 0 предметов, блок 000383–000407 не существует)', () => {
+  const { files, byFile } = catalogScan00023008();
+  const ringFiles = files.filter(
+    (f) => byFile.get(f).slot === 'ring');
+  assert.equal(ringFiles.length, 25,
+    'slot "ring" — ровно 25 предмета (краснота: волна не добавлена; '
+    + 'факт: ' + ringFiles.length + ')');
+  const pos = new Map(files.map((f, i) => [f, i]));
+  for (const f of RING_FILES_00023014)
+    assert.ok(pos.has(f),
+      f + ' — в каталоге (краснота: волна не добавлена)');
+  const p0 = pos.get(RING_FILES_00023014[0]);
+  for (let i = 0; i < 25; i++)
+    assert.equal(pos.get(RING_FILES_00023014[i]), p0 + i,
+      'блок волны — 25 последовательных файлов каталога '
+      + '(позиция по фикс-нумерации D-01, а не files[len−25]); '
+      + 'позиция ' + i + ': ' + RING_FILES_00023014[i]);
+  for (let i = 0; i < 25; i++) {
+    const f = ringFiles[i];
+    assert.equal(f, RING_FILES_00023014[i],
+      'фикс-нумерация D-01: позиция ' + i + ' = '
+      + RING_FILES_00023014[i] + '; факт: ' + f);
+    const it = byFile.get(f);
+    assert.equal(it.kind, 'ring', f + ': kind ring');
+    assert.equal(it.slot, 'ring',
+      f + ': slot ring (явное — валидатор БРОСАЕТ ring без slot, '
+      + 'D1 .01); факт: ' + it.slot);
+    const tier = i < 10 ? 'common' : i < 17 ? 'rare' : i < 22 ? 'epic'
+      : i < 24 ? 'legendary' : 'impossible';
+    assert.equal(it.rarity, tier,
+      f + ': rarity ' + tier + ' (каталожный порядок = порядок тиров '
+      + '10/7/5/2/1); факт: ' + it.rarity);
+  }
+  const blockSet = new Set(ringFiles);
+  for (const f of files) {
+    if (blockSet.has(f)) continue;
+    assert.ok(!RING_ID_SET_00023014.has(byFile.get(f).id),
+      'id волны «' + byFile.get(f).id + '» (' + f
+      + ') — вне append-блока (id уникальны в каталоге)');
+  }
+});
+
+// Ростер §2.1 (memory): [id, name, rarity, affix [[skill, amount]…],
+// free_cast, set, weight, value]. free_cast — ЭЛЕМЕНТ affixes
+// ({type:'free_cast', spell}), не топ-ключ (валидатор items.js).
+const RING_ROSTER_00023014 = [
+  ['copper_ring', 'Медное кольцо', 'common', [['step', 0.03]],
+   null, null, 0.05, 10],
+  ['bone_ring', 'Костяное кольцо', 'common', [['back', 0.03]],
+   null, null, 0.05, 12],
+  ['iron_ring', 'Железное кольцо', 'common', [['endurance', 0.03]],
+   null, null, 0.06, 14],
+  ['thread_ring', 'Нитяное кольцо', 'common', [['merchant', 0.03]],
+   null, null, 0.05, 15],
+  ['stone_ring', 'Каменное кольцо', 'common', [['catseye', 0.04]],
+   null, null, 0.07, 18],
+  ['clay_ring', 'Глиняное кольцо', 'common', [['acro', 0.04]],
+   null, null, 0.06, 20],
+  ['wood_ring', 'Дубовое кольцо', 'common', [['thief', 0.04]],
+   null, null, 0.06, 22],
+  ['leather_ring', 'Кожаное кольцо', 'common', [['hide', 0.04]],
+   null, null, 0.05, 24],
+  ['silver_ring', 'Серебряное кольцо', 'common',
+   [['perception', 0.05]], null, null, 0.07, 26],
+  ['silver_signet', 'Серебряная печатка', 'common', [['orator', 0.05]],
+   null, 'fate', 0.07, 30],
+  ['gold_ring', 'Золотое кольцо', 'rare', [['leader', 0.06]],
+   null, null, 0.08, 55],
+  ['glacier_ring', 'Ледниковое кольцо', 'rare', [['breath', 0.07]],
+   null, 'rime', 0.08, 60],
+  ['quartz_ring', 'Кварцевое кольцо', 'rare', [['alchemy', 0.07]],
+   null, null, 0.08, 65],
+  ['obsidian_ring', 'Обсидиановое кольцо', 'rare', [['golem', 0.08]],
+   null, null, 0.09, 72],
+  ['amethyst_ring', 'Аметистовое кольцо', 'rare', [['meditation', 0.08]],
+   null, null, 0.09, 78],
+  ['sapphire_ring', 'Сапфировое кольцо', 'rare', [['swordsman', 0.09]],
+   null, null, 0.09, 85],
+  ['gold_signet', 'Золотая печатка', 'rare', [['accuracy', 0.10]],
+   null, 'fate', 0.10, 95],
+  ['emerald_signet', 'Изумрудная печатка', 'epic', [['nature', 0.12]],
+   null, 'fate', 0.12, 180],
+  ['ruby_ring', 'Рубиновое кольцо', 'epic', [['firelord', 0.15]],
+   null, 'ember', 0.12, 210],
+  ['frost_ring', 'Морозное кольцо', 'epic', [['icelord', 0.15]],
+   'ice_armor', 'rime', 0.12, 240],
+  ['rune_ring', 'Руническое кольцо', 'epic', [['runes', 0.18]],
+   'magic_shield', null, 0.13, 290],
+  ['scholar_ring', 'Кольцо учёного', 'epic', [['scholar', 0.20]],
+   null, null, 0.13, 340],
+  ['star_signet', 'Звёздная печатка', 'legendary', [['precog', 0.28]],
+   null, 'fate', 0.15, 480],
+  ['void_ring', 'Кольцо Пустоты', 'legendary', [['unkill', 0.32]],
+   null, null, 0.16, 560],
+  ['phoenix_ring', 'Фениксовое кольцо', 'impossible',
+   [['firelord', 0.40], ['fright', 0.35]], null, 'ember', 0.2, 1150],
+];
+
+test('000230.14 T2: ростер 25 построчно (§2.1: id/name/kind ring/slot ring/rarity/stats {armor: 0} (ювелирная группа, D-02)/weight 0.05–0.2/value 10–1150/affixes (skill + free_cast)/set); desc — непустая RU-строка «<Имя>: …»; subtype/tier/effect/loot отсутствуют (D-02); icon = assets/sprites/items/<id>.svg (краснота: предметов нет)', () => {
+  const { byId } = catalogScan00023008();
+  for (const [id, name, rarity, aff, freeCast, set, weight, value]
+      of RING_ROSTER_00023014) {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+      + 'не добавлена)');
+    assert.equal(it.name, name, id + ': name');
+    assert.equal(it.kind, 'ring', id + ': kind ring');
+    assert.equal(it.slot, 'ring', id + ': slot ring');
+    assert.equal(it.rarity, rarity, id + ': rarity ' + rarity);
+    assert.deepEqual(it.stats, { armor: 0 },
+      id + ': stats — ровно { armor: 0 } (ювелирная группа, D-02)');
+    assert.equal(it.weight, weight, id + ': weight');
+    assert.ok(it.weight >= 0.05 && it.weight <= 0.2,
+      id + ': weight ' + it.weight + ' в диапазоне 0.05–0.2 (ТЗ)');
+    assert.equal(it.value, value, id + ': value');
+    assert.ok(it.value >= 10 && it.value <= 1150,
+      id + ': value ' + it.value + ' в диапазоне 10–1150 (ТЗ)');
+    const expectedAffixes = aff.map(([skill, amount]) =>
+      ({ type: 'skill', skill, amount }));
+    if (freeCast) expectedAffixes.push(
+      { type: 'free_cast', spell: freeCast });
+    assert.deepEqual(it.affixes, expectedAffixes,
+      id + ': affixes (§2.1: skill-аффикс + free_cast-элемент)');
+    assert.equal(it.set, set === null ? undefined : set,
+      id + ': set ' + (set === null ? 'отсутствует' : '«' + set + '»'));
+    assert.ok(typeof it.desc === 'string' && it.desc.length > 0,
+      id + ': desc — непустая RU-строка');
+    assert.ok(it.desc.startsWith(name + ':'),
+      id + ': desc — конвенция «<Имя>: <фраза>.»; факт: ' + it.desc);
+    assert.equal(it.subtype, undefined, id + ': subtype отсутствует');
+    assert.equal(it.tier, undefined, id + ': tier отсутствует');
+    assert.equal(it.effect, undefined, id + ': effect отсутствует');
+    assert.equal(it.loot, undefined,
+      id + ': loot отсутствует (loot — только у reagent)');
+    assert.equal(it.icon, 'assets/sprites/items/' + id + '.svg',
+      id + ': icon = assets/sprites/items/<id>.svg');
+  }
+});
+
+// Affix-матрица §2.2: 26 записей = 25 РАЗНЫХ secondary + 1 дубль
+// (firelord: ruby 0.15 + phoenix 0.40). ТОЛЬКО secondary —
+// аффикс-первичник = TypeError в sheet.js derived() (D-04; E22 этого
+// не ловит — пин T3).
+const RING_SKILL_GROUP_00023014 = new Set([
+  'step', 'back', 'endurance', 'merchant', 'catseye', 'acro', 'thief',
+  'hide', 'perception', 'orator', 'leader', 'breath', 'alchemy',
+  'golem', 'meditation', 'swordsman', 'accuracy', 'nature', 'firelord',
+  'icelord', 'runes', 'scholar', 'precog', 'unkill', 'fright',
+]);
+// Шкала amounts по редкости (D-04): ювелирная группа — широкие
+// навыки, приоритет редкие/магические.
+const RING_AFFIX_SCALE_00023014 = {
+  common: [0.03, 0.05], rare: [0.06, 0.10], epic: [0.12, 0.20],
+  legendary: [0.28, 0.32], impossible: [0.35, 0.40],
+};
+
+test('000230.14 T3: affix-матрица (§2.2) — Σ 26 skill-записей = 25 РАЗНЫХ secondary (список §2.2) + 1 дубль firelord (×2); skill ⊆ secondary-группы И live skill-каталога (первичник = TypeError derived() — D-04); amounts в шкале редкости; free_cast — РОВНО 2, ТОЛЬКО у epic: 000402 frost_ring → ice_armor, 000403 rune_ring → magic_shield; spell ⊆ assets/spells (D-05); все 6 приоритетных (firelord/icelord/runes/scholar/precog/unkill) — есть (краснота: колец нет)', () => {
+  const { byId } = catalogScan00023008();
+  const wave = RING_IDS_00023014.map((id) => {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: волна '
+      + 'не добавлена)');
+    return it;
+  });
+  const coverage = {};
+  let skillRecords = 0;
+  const freeCast = [];
+  const spells = spellIds00023008();
+  for (const it of wave) {
+    assert.ok(Array.isArray(it.affixes) && it.affixes.length >= 1,
+      it.id + ': affixes — непустой массив (у каждого кольца ≥1)');
+    for (const a of it.affixes) {
+      if (a.type === 'skill') {
+        skillRecords += 1;
+        assert.ok(RING_SKILL_GROUP_00023014.has(a.skill),
+          it.id + ': skill «' + a.skill + '» — в матрице §2.2');
+        assert.ok(SECONDARY_SKILLS[a.skill] !== undefined,
+          it.id + ': skill «' + a.skill + '» — в live skill-каталоге '
+          + '(secondary — первичник = TypeError derived(), D-04)');
+        coverage[a.skill] = (coverage[a.skill] || 0) + 1;
+        const [lo, hi] = RING_AFFIX_SCALE_00023014[it.rarity];
+        assert.ok(a.amount >= lo && a.amount <= hi,
+          it.id + ': amount ' + a.amount + ' в шкале редкости '
+          + it.rarity + ' [' + lo + ', ' + hi + '] (§2.2/D-04)');
+      } else if (a.type === 'free_cast') {
+        freeCast.push({ id: it.id, rarity: it.rarity, spell: a.spell });
+        assert.ok(spells.has(a.spell),
+          it.id + ': spell «' + a.spell + '» — в assets/spells (D-05)');
+      } else {
+        assert.fail(it.id + ': неизвестный type affix: ' + a.type);
+      }
+    }
+  }
+  assert.equal(skillRecords, 26,
+    'Σ skill-записей — ровно 26 (25 разных + дубль firelord, §2.2); '
+    + 'факт: ' + skillRecords);
+  const distinct = Object.keys(coverage).sort();
+  assert.deepEqual(distinct, [...RING_SKILL_GROUP_00023014].sort(),
+    '25 РАЗНЫХ secondary-навыков (список §2.2); факт: '
+    + distinct.join(','));
+  assert.equal(coverage.firelord, 2,
+    'дубль — РОВНО firelord ×2 (ruby 0.15 + phoenix 0.40, §2.2); '
+    + 'факт: ' + coverage.firelord);
+  for (const s of ['firelord', 'icelord', 'runes', 'scholar',
+      'precog', 'unkill'])
+    assert.ok(coverage[s],
+      'приоритетный (редкий/магический) навык «' + s
+      + '» — в матрице (ТЗ)');
+  assert.equal(freeCast.length, 2,
+    'free_cast — ровно 2 (D-05: epic+ 1–2); факт: ' + freeCast.length);
+  assert.deepEqual(freeCast.map((f) => f.spell).sort(),
+    ['ice_armor', 'magic_shield'],
+    'free_cast — ровно ice_armor + magic_shield (§2.2/D-05)');
+  for (const f of freeCast) {
+    assert.equal(f.rarity, 'epic',
+      f.id + ': free_cast — ТОЛЬКО у epic (D-05); факт: ' + f.rarity);
+  }
+  assert.ok(freeCast.some((f) => f.id === 'frost_ring'
+      && f.spell === 'ice_armor'),
+    'frost_ring (000402) — free_cast ice_armor (§2.1)');
+  assert.ok(freeCast.some((f) => f.id === 'rune_ring'
+      && f.spell === 'magic_shield'),
+    'rune_ring (000403) — free_cast magic_shield (§2.1)');
+});
+
+// Наборы §2.3 (D-06): РОВНО 3, ВСЕ АКТИВНЫ (8 ring-слотов делают
+// пороги достижимыми — отличие от .10 DORMANT). fate — ПЕРВЫЙ в
+// серии {2,4}-двойной порог (ТЗ п.10 «полный бонус за 4»).
+const RING_SETS_00023014 = [
+  { set: 'fate',
+    members: ['silver_signet', 'gold_signet', 'emerald_signet',
+              'star_signet'],
+    bonus: { 2: { armor: 1 },
+             4: [{ type: 'skill', skill: 'precog', amount: 0.08 }] } },
+  { set: 'ember', members: ['ruby_ring', 'phoenix_ring'],
+    bonus: { 2: [{ type: 'skill', skill: 'firelord', amount: 0.05 }] } },
+  { set: 'rime', members: ['glacier_ring', 'frost_ring'],
+    bonus: { 2: [{ type: 'skill', skill: 'icelord', amount: 0.05 }] } },
+];
+
+test('000230.14 T4: наборы — РОВНО 3 (D-06): fate {4 кольца} / set_bonus {2: {armor: 1}, 4: [{skill precog 0.08}]} — ПЕРВЫЙ в серии {2,4}-двойной порог, ОБЕ формы значений (объект→armor, массив→skill); ember {2: [{skill firelord 0.05}]}; rime {2: [{skill icelord 0.05}]}; set_bonus ОДИНАКОВОЕ у ВСЕХ участников (SB13/D-03); пороги ⊆ {2,3,4}; 8 колец — члены наборов (каждое ≤1 набора), прочие 17 — БЕЗ set/set_bonus (краснота: колец нет)', () => {
+  const { byId } = catalogScan00023008();
+  for (const s of RING_SETS_00023014) {
+    for (const id of s.members) {
+      const it = byId.get(id);
+      assert.ok(it, 'предмет "' + id + '" в каталоге (краснота: '
+        + 'волна не добавлена)');
+      assert.equal(it.set, s.set, id + ': set «' + s.set + '»');
+      assert.deepEqual(it.set_bonus, s.bonus,
+        id + ': set_bonus (контракт §2.3; ОДИНАКОВОЕ значение для '
+        + 'всех участников — D-03/SB13)');
+    }
+    const keys = Object.keys(s.bonus);
+    for (const k of keys)
+      assert.ok(['2', '3', '4'].includes(k),
+        s.set + ': порог «' + k + '» ⊆ {2,3,4}');
+    for (const [k, v] of Object.entries(s.bonus)) {
+      if (Array.isArray(v)) {
+        for (const a of v) {
+          assert.equal(a.type, 'skill',
+            s.set + '[' + k + ']: affix-форма set_bonus — type «skill»');
+          assert.ok(typeof a.amount === 'number'
+              && Number.isFinite(a.amount),
+            s.set + '[' + k + ']: affix-форма — amount число');
+        }
+      } else if (v && typeof v === 'object') {
+        assert.ok(!('damage' in v),
+          s.set + '[' + k + ']: stat-форма — БЕЗ damage');
+        if ('armor' in v)
+          assert.ok(Number.isFinite(v.armor),
+            s.set + '[' + k + ']: set_bonus.armor — число');
+      } else {
+        assert.fail(s.set + ': неизвестная форма set_bonus[' + k + ']');
+      }
+    }
+  }
+  assert.deepEqual(Object.keys(RING_SETS_00023014[0].bonus),
+    ['2', '4'],
+    'fate — ОБА порога {2,4} (ТЗ п.10: полный бонус за 4); '
+    + 'формы: 2 → объект {armor}, 4 → массив [skill] (пин)');
+  const members = new Set(RING_SETS_00023014.flatMap((s) => s.members));
+  assert.equal(members.size, 8,
+    'членов наборов — ровно 8 (4 fate + 2 ember + 2 rime, §2.3); '
+    + 'факт: ' + members.size);
+  let withSet = 0;
+  for (const id of RING_IDS_00023014) {
+    const it = byId.get(id);
+    assert.ok(it, 'предмет "' + id + '" в каталоге');
+    if (members.has(id)) {
+      withSet += 1;
+      const inHowMany = RING_SETS_00023014
+        .filter((s) => s.members.includes(id)).length;
+      assert.equal(inHowMany, 1,
+        id + ': член РОВНО ОДНОГО набора (8 членов, подмножество '
+        + '— ТЗ «2–3 набора»); факт: ' + inHowMany);
+    } else {
+      assert.equal(it.set, undefined,
+        id + ': set отсутствует (17 колец без set, §2.3/D-06)');
+      assert.equal(it.set_bonus, undefined, id + ': set_bonus отсутствует');
+    }
+  }
+  assert.equal(withSet, 8,
+    'колец с set — ровно 8 (SB13: 14 + 8 = 22 файла с set_bonus '
+    + 'после волны); факт: ' + withSet);
+});
+
+function assertSvgRingOk(raw, where) {
+  const t = raw.trim();
+  assert.ok(t.startsWith('<svg'), where + ': корневой элемент <svg>');
+  assert.ok(t.includes('xmlns="http://www.w3.org/2000/svg"'),
+    where + ': xmlns="http://www.w3.org/2000/svg"');
+  const m = /viewBox="([^"]*)"/.exec(t);
+  assert.ok(m, where + ': атрибут viewBox');
+  const nums = (m[1] || '').split(/[\s,]+/).filter(Boolean);
+  assert.equal(nums.length, 4,
+    where + ': viewBox — ровно 4 числа; факт: «' + m[1] + '»');
+  for (const x of nums)
+    assert.ok(!Number.isNaN(Number(x)),
+      where + ': в viewBox нет NaN/Infinity: «' + x + '»');
+  assert.ok(t.endsWith('</svg>'), where + ': корневой элемент закрыт');
+}
+
+test('000230.14 T5: иконки — 25 SVG assets/sprites/items/<id>.svg существуют, byte-УНИКАЛЬНЫ среди ВСЕХ sprites/items (106 → 131; НЕ копии, §2.6/D-10) и парсятся (корень svg + xmlns + viewBox ровно 4 числа + без NaN — паттерн 000120; гейт sweep tests/svg.test.js авто-покрывает) (краснота: иконок нет)', () => {
+  const SPRITES_ITEMS = path.join(__dirname, '..', 'assets',
+    'sprites', 'items');
+  const others = new Map();
+  for (const f of fs.readdirSync(SPRITES_ITEMS)) {
+    if (!f.endsWith('.svg')) continue;
+    const id = f.slice(0, -4);
+    if (RING_ID_SET_00023014.has(id)) continue;
+    others.set(f, fs.readFileSync(path.join(SPRITES_ITEMS, f), 'utf8'));
+  }
+  const seen = new Map();
+  for (const id of RING_IDS_00023014) {
+    const p = path.join(SPRITES_ITEMS, id + '.svg');
+    assert.ok(fs.existsSync(p),
+      id + ': assets/sprites/items/' + id + '.svg существует '
+      + '(краснота: иконка не создана)');
+    const raw = fs.readFileSync(p, 'utf8');
+    assertSvgRingOk(raw, id + '.svg');
+    for (const [other, otherRaw] of others)
+      assert.notEqual(raw, otherRaw,
+        id + ' и ' + other + ': иконки byte-уникальны среди ВСЕХ '
+        + 'sprites/items (§2.6/D-10)');
+    for (const [other, otherRaw] of seen)
+      assert.notEqual(raw, otherRaw,
+        id + ' и ' + other + ': иконки byte-уникальны в волне');
+    seen.set(id, raw);
+  }
+});
+
+test('000230.14 T6: порядок ключей JSON — 25 колец: подмножество 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн: set ПЕРЕД affixes, set_bonus ПОСЛЕДНИЙ — нарушение = неидемпотентная sync-дифф, ловят пины E1b/E20); валидны по schema.json (минивалидатор 000015); зеркало items-data.js ≡ JSON (deepEqual) — регенерация sync сработала (краснота: файлов/записей волны нет)', () => {
+  const { byId, fileById } = catalogScan00023008();
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  for (const id of RING_IDS_00023014) {
+    const f = fileById.get(id);
+    assert.ok(f, 'файл предмета "' + id + '" (краснота: волна не '
+      + 'добавлена)');
+    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    const keys = Object.keys(j);
+    assert.ok(keys.length > 0, f + ': файл не пуст');
+    let prev = -1;
+    for (const k of keys) {
+      const i = KEYS_SYNC_00023008.indexOf(k);
+      assert.ok(i !== -1,
+        f + ': ключ «' + k + '» — в канонических KEYS (краснота: '
+        + 'ключа нет в схеме sync)');
+      assert.ok(i > prev,
+        f + ': ключ «' + k + '» — канон-порядок (E1b-паттерн)');
+      prev = i;
+    }
+    const errors = validateData(schema, j, f);
+    assert.deepEqual(errors, [],
+      f + ': валиден по schema.json; факт: ' + errors.join('; '));
+    const it = I.getItem(id);
+    assert.ok(it, 'зеркало items-data.js: ' + id + ' (краснота: '
+      + 'записи нет — зеркало не регенерировано)');
+    assert.deepEqual(it, j, f + ': зеркало ≡ JSON');
   }
 });

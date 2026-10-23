@@ -32,10 +32,10 @@
   // предметов, редкость предмета = КЛЮЧ массива. Заполнено 000230.08
   // (head 25) + 000230.09 (ears 25 + neck 25) + 000230.10 (torso 25)
   // + 000230.11 (forearms 25 + palms 25) + 000230.13 (left_hand 25:
-  // 12 shield + 13 artifact); id в каталожном порядке внутри тира
-  // (сначала ears, потом neck, потом torso, потом forearms, потом
-  // palms, потом left_hand); волны 000230.12, .14–.15 добавляют
-  // свои id КОНЦОМ тиров.
+  // 12 shield + 13 artifact) + 000230.14 (rings 25); id в
+  // каталожном порядке внутри тира (сначала ears, потом neck, потом
+  // torso, потом forearms, потом palms, потом left_hand, потом
+  // rings); волны 000230.12, .15 добавляют свои id КОНЦОМ тиров.
   const EQUIP_POOLS = {
     common: ['straw_hat', 'wool_cap', 'leather_cap', 'fur_hat',
              'cloth_band', 'wanderer_cap', 'hood_common',
@@ -59,7 +59,10 @@
              'wooden_buckler', 'leather_shield', 'cloth_shield',
              'wicker_buckler', 'oiled_shield', 'bone_shield',
              'horn_shield', 'palm_shield', 'ash_shield',
-             'clay_buckler'],
+             'clay_buckler',
+             'copper_ring', 'bone_ring', 'iron_ring', 'thread_ring',
+             'stone_ring', 'clay_ring', 'wood_ring', 'leather_ring',
+             'silver_ring', 'silver_signet'],
     rare: ['silver_band', 'copper_band', 'obsidian_cloth',
            'amethyst_band', 'quartz_cloth', 'bone_band', 'mystic_cloth',
            'stone_bead', 'silver_hoop', 'moonstone_dangle',
@@ -76,7 +79,9 @@
            'wind_gloves',
            'iron_round', 'steel_buckler', 'rune_charm',
            'guard_amulet', 'ember_focus', 'frost_charm',
-           'scholar_pendant'],
+           'scholar_pendant',
+           'gold_ring', 'glacier_ring', 'quartz_ring', 'obsidian_ring',
+           'amethyst_ring', 'sapphire_ring', 'gold_signet'],
     epic: ['silver_helm', 'gold_helm', 'sapphire_helm', 'mithril_helm',
            'emerald_helm', 'sapphire_hoop', 'emerald_stud', 'ruby_bell',
            'gold_dangle', 'mithril_hoop', 'sapphire_pendant',
@@ -89,16 +94,20 @@
            'steel_gauntlets', 'gold_gloves', 'emerald_gauntlets',
            'phantom_gloves', 'haste_wraps',
            'ward_crystal', 'cinder_eye', 'frost_orb', 'rune_sphere',
-           'mind_pendant'],
+           'mind_pendant',
+           'emerald_signet', 'ruby_ring', 'frost_ring', 'rune_ring',
+           'scholar_ring'],
     legendary: ['rune_hoop', 'star_hoop', 'star_earring', 'whisper_hoop',
                 'rune_necklace', 'star_pendant',
                 'pilgrim_sutan', 'void_robe',
                 'rune_bracers', 'star_armguard', 'rune_gauntlets',
                 'star_gloves',
-                'arcane_eye', 'snow_focus'],
+                'arcane_eye', 'snow_focus',
+                'star_signet', 'void_ring'],
     impossible: ['crown_flame', 'soul_bell', 'dawn_pendant',
                  'aegis_mantle', 'titan_brace', 'void_gauntlet',
-                 'heart_of_elements'],
+                 'heart_of_elements',
+                 'phoenix_ring'],
   };
 
   // Чистая функция: 1 вызов rngFn(); acc-накопление по RARITY,

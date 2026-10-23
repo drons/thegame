@@ -1,0 +1,21 @@
+{
+  "id": "bone_ring",
+  "name": "Костяное кольцо",
+  "kind": "ring",
+  "weight": 0.05,
+  "value": 12,
+  "desc": "Костяное кольцо: несёт больше, чем кажется.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/bone_ring.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "back",
+      "amount": 0.03
+    }
+  ]
+}

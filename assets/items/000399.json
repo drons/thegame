@@ -1,0 +1,34 @@
+{
+  "id": "gold_signet",
+  "name": "Золотая печатка",
+  "kind": "ring",
+  "weight": 0.1,
+  "value": 95,
+  "desc": "Золотая печатка: выстрелы ложатся в цель.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/gold_signet.svg",
+  "slot": "ring",
+  "rarity": "rare",
+  "set": "fate",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "accuracy",
+      "amount": 0.1
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    },
+    "4": [
+      {
+        "type": "skill",
+        "skill": "precog",
+        "amount": 0.08
+      }
+    ]
+  }
+}

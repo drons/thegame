@@ -1,0 +1,25 @@
+{
+  "id": "rune_ring",
+  "name": "Руническое кольцо",
+  "kind": "ring",
+  "weight": 0.13,
+  "value": 290,
+  "desc": "Руническое кольцо: руны звенят сами.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/rune_ring.svg",
+  "slot": "ring",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.18
+    },
+    {
+      "type": "free_cast",
+      "spell": "magic_shield"
+    }
+  ]
+}

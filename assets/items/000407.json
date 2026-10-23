@@ -1,0 +1,36 @@
+{
+  "id": "phoenix_ring",
+  "name": "Фениксовое кольцо",
+  "kind": "ring",
+  "weight": 0.2,
+  "value": 1150,
+  "desc": "Фениксовое кольцо: пламя возвращается.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/phoenix_ring.svg",
+  "slot": "ring",
+  "rarity": "impossible",
+  "set": "ember",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.4
+    },
+    {
+      "type": "skill",
+      "skill": "fright",
+      "amount": 0.35
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "firelord",
+        "amount": 0.05
+      }
+    ]
+  }
+}

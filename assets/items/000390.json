@@ -1,0 +1,21 @@
+{
+  "id": "leather_ring",
+  "name": "Кожаное кольцо",
+  "kind": "ring",
+  "weight": 0.05,
+  "value": 24,
+  "desc": "Кожаное кольцо: удары проходят сквозь.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/leather_ring.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.04
+    }
+  ]
+}

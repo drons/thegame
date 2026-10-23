@@ -1,0 +1,31 @@
+{
+  "id": "ruby_ring",
+  "name": "Рубиновое кольцо",
+  "kind": "ring",
+  "weight": 0.12,
+  "value": 210,
+  "desc": "Рубиновое кольцо: жар — в малом камне.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/ruby_ring.svg",
+  "slot": "ring",
+  "rarity": "epic",
+  "set": "ember",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.15
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "firelord",
+        "amount": 0.05
+      }
+    ]
+  }
+}

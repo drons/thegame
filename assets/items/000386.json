@@ -1,0 +1,21 @@
+{
+  "id": "thread_ring",
+  "name": "Нитяное кольцо",
+  "kind": "ring",
+  "weight": 0.05,
+  "value": 15,
+  "desc": "Нитяное кольцо: барыш на каждом шагу.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/thread_ring.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "merchant",
+      "amount": 0.03
+    }
+  ]
+}

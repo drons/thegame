@@ -1,0 +1,21 @@
+{
+  "id": "void_ring",
+  "name": "Кольцо Пустоты",
+  "kind": "ring",
+  "weight": 0.16,
+  "value": 560,
+  "desc": "Кольцо Пустоты: смерть проходит мимо.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/void_ring.svg",
+  "slot": "ring",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "unkill",
+      "amount": 0.32
+    }
+  ]
+}

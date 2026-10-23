@@ -1,0 +1,21 @@
+{
+  "id": "silver_ring",
+  "name": "Серебряное кольцо",
+  "kind": "ring",
+  "weight": 0.07,
+  "value": 26,
+  "desc": "Серебряное кольцо: мир стал отчётливее.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/silver_ring.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.05
+    }
+  ]
+}

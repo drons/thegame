@@ -1483,6 +1483,11 @@ const SHOP_GOLDEN = {
   // остальные ключи стока не сдвинулись (node-симуляция: seed/старые
   // стоки byte-identical); прочие 2 голдены (weapon / potion+food
   // пулы) — без изменений.
+  // Ре-пин 000230.14: кольца (000383-000407, КОНЕЦ каталога ПОСЛЕ
+  // рук) — rng-хвост пула allItems → += 20 колец (quartz_ring/
+  // silver_signet/glacier_ring/star_signet/gold_signet на этой
+  // клетке не выпали); значения — по финальному каталогу 332
+  // (node-симуляция: seed/старые стоки byte-identical).
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5,
     short_bow: 2, hunting_bow: 1, battle_axe: 3,
@@ -1604,7 +1609,9 @@ const SHOP_GOLDEN = {
     // allItems → += 20 (steel_buckler/rune_charm/scholar_pendant/
     // arcane_eye на этой клетке не выпали); остальные ключи стока
     // не сдвинулись (node-симуляция: seed/старые стоки
-    // byte-identical).
+    // byte-identical). Ре-пин 000230.14: кольца (000383-000407)
+    // — КОНЕЦ каталога (ПОСЛЕ left_hand) → += 20 колец
+    // (node-симуляция: seed/остальные стоки не сдвинулись).
     wooden_buckler: 2,
     leather_shield: 4,
     cloth_shield: 1,
@@ -1624,7 +1631,13 @@ const SHOP_GOLDEN = {
     rune_sphere: 1,
     mind_pendant: 5,
     snow_focus: 5,
-    heart_of_elements: 4 } },
+    heart_of_elements: 4,
+    copper_ring: 1, iron_ring: 4, thread_ring: 3, stone_ring: 4,
+    clay_ring: 3, wood_ring: 2, leather_ring: 4, silver_ring: 3,
+    silver_signet: 5, gold_ring: 3, glacier_ring: 3, quartz_ring: 3,
+    obsidian_ring: 3, sapphire_ring: 1, gold_signet: 2, ruby_ring: 2,
+    frost_ring: 1, rune_ring: 1, scholar_ring: 2, void_ring: 2,
+    phoenix_ring: 5 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1 } },

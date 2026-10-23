@@ -736,7 +736,7 @@ test('230.07-TIP-3: тултип предмета С rarity — «Редкост
 
 // --- ЗЕЛЁНЫЕ с начала (гарды/регрессия; в red-счёт не входят) ---
 
-test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 207 шт. — rarity только у экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity; ре-пин 000230.10: +25 torso 000208–000232 с rarity; ре-пин 000230.11: +50 рук 000283–000332 с rarity — в skip-ветку), прочие 104 — без поля rarity', () => {
+test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 207 шт. — rarity только у экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity; ре-пин 000230.10: +25 torso 000208–000232 с rarity; ре-пин 000230.11: +50 рук 000283–000332 с rarity — в skip-ветку; ре-пин 000230.14: +25 колец 000383–000407 с rarity — в skip-ветку), прочие 104 — без поля rarity', () => {
   const env = loadEnv();
   const c = env.G.createCharacter();
   env.G.playerUI.setCharacter(c);
@@ -752,13 +752,14 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       + String(row.className));
   }
   const data = require(path.join(ROOT, 'src', 'items-data.js'));
-  assert.equal(data.ITEMS.length, 332,
-    'каталог — 332 предмета (ре-пин 000230.08: 82 + 25 head; ' +
+  assert.equal(data.ITEMS.length, 357,
+    'каталог — 357 предметов (ре-пин 000230.08: 82 + 25 head; ' +
     'ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 свитков ' +
     'волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: ' +
     '+25 torso; ре-пин 000235.09: +25 свитков 000233–000257, ' +
     'rarity нет; ре-пин 000230.11: +50 рук 000283–000332, rarity ' +
     'есть; ре-пин 000230.13: +25 left_hand 000358–000382, rarity ' +
+    'есть; ре-пин 000230.14: +25 колец 000383–000407, rarity ' +
     'есть)');
   let others = 0;
   for (const it of data.ITEMS) {
@@ -766,19 +767,21 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
     // волны .10–.15 добавят torso/forearms и т.д. без правки пина).
     // Ре-пин 000230.13: guard по slot без привязки к kind
     // (left_hand — kind shield/artifact, не armor).
+    // Ре-пин 000230.14: кольца slot 'ring' — в skip-ветку (D-11).
     if (it.slot !== undefined) continue;
     assert.equal(it.rarity, undefined,
       'каталожный предмет ' + it.id + ' — без rarity');
     others++;
   }
   assert.equal(others, 154,
-    'прочих предметов — ровно 154 (332 − 178 экипировочных ' +
-    '(153 + 25 left_hand 000230.13); 000232: +6 чертежей без ' +
+    'прочих предметов — ровно 154 (357 − 203 экипировочных ' +
+    '(178 + 25 колец 000230.14); 000232: +6 чертежей без ' +
     'rarity; 000235.07: +25 свитков без rarity; ' +
     '000235.08: +25 свитков волны Лёд без rarity; ' +
     '000235.09: +25 свитков волны Тень без rarity; ре-пин 000230.11: ' +
     '+50 рук — в skip-ветку, others не сдвинулся; ре-пин 000230.13: ' +
-    '+25 left_hand — в skip-ветку, others не сдвинулся)');
+    '+25 left_hand — в skip-ветку, others не сдвинулся; ' +
+    'ре-пин 000230.14: +25 колец — в skip-ветку, others не сдвинулся)');
 });
 
 test('230.07-ICON-1 (регрессия 000237): itemRow с icon — img.cp-itemicon ПЕРВЫМ ребёнком, src = icon: loot/ (iron_ore) + items/ (blueprint_forge) — конвенция пути ТЗ п.1 работает через общий механизм', () => {
@@ -2115,4 +2118,132 @@ test('000248-DET (гард): детерминизм — один сценари�
   assert.deepEqual(runDet000248(), runDet000248(),
     'два прогона сценария (seed 42) — идентичные результаты: лог, HP '
     + 'и исход боя не зависят от UI-анимации');
+});
+
+// =====================================================================
+// Задача 000230.14 — T8 (e2e, .10 T9-паттерн: vm-песочница, цепочка
+// до items.js, затем items.js — live-каталог; НЕ фикстуры).
+// Контракт — memory/000230.14-ring-items-wave.md §3.1 T8: 8 РЕАЛЬНЫХ
+// колец → ring_left_1..4 + ring_right_1..4 (до 4 на руку — пин
+// 000230.02 M5 на реальных предметах); 9-е → «нет свободных слотов
+// колец»; fate n=4 → ОБА порога {2}+{4} кумулятивно (пин 000230.04
+// SB2); set-skill/free_cast в equipmentAffixes; derived при S=10.
+// RED (TDD): колец в live-каталоге нет — addItem падает по
+// ОСМЫСЛЕННОЙ причине «неизвестный предмет: волна не добавлена»
+// (не синтаксис/окружение).
+// =====================================================================
+
+const VM_RING_CHAIN_00023014 = ['global-settings.js', 'perlin.js',
+  'map.js', 'skills-data.js', 'items-data.js', 'sheet.js', 'player.js'];
+const RING_SLOTS_00023014 = [
+  'ring_left_1', 'ring_left_2', 'ring_left_3', 'ring_left_4',
+  'ring_right_1', 'ring_right_2', 'ring_right_3', 'ring_right_4',
+];
+const fromVm00023014 = (v) => JSON.parse(JSON.stringify(v));
+
+test('000230.14 T8 (vm, e2e): РЕАЛЬНЫЕ кольца из live-каталога (не фикстуры) — 8 колец экипируются ДО 4 на руку: ring_left_1..4 + ring_right_1..4 все заняты (пин 000230.02 на реальных предметах); 9-е (copper_ring) → «нет свободных слотов колец»; экип-набор 4×fate + ruby + phoenix + glacier + frost → fate n=4: ОБА порога {2}+{4} активны кумулятивно (пин 000230.04 SB2): equipmentStats.armor = 1 (fate {2}; armor 0 у всех колец); equipmentAffixes: precog 0.36 (0.28 + 0.08 fate {4}), firelord 0.60 (0.15 + 0.40 + 0.05 ember {2}), icelord 0.20 (0.15 + 0.05 rime {2}), fright 0.35; freeCast {ice_armor, magic_shield}; derived (S(precog)=S(firelord)=S(icelord)=S(fright)=10): dodgeBonus 0.68 / fireDamageBonus 0.80 / iceDamageBonus 0.60 / fearChance 0.675 (краснота: неизвестный предмет — волна не добавлена)', () => {
+  const sandbox = {
+    console: { log() {}, warn() {}, error() {} },
+  };
+  for (const f of VM_RING_CHAIN_00023014)
+    vm.runInNewContext(src(f), sandbox, { filename: f });
+  vm.runInNewContext(src('items.js'), sandbox, { filename: 'items.js' });
+  const G = sandbox.Game;
+  const near = (a, b, msg) => assert.ok(
+    Math.abs(a - b) < 1e-9, msg + ' (факт: ' + a + ')');
+  const makeHero = () => {
+    const c = G.createCharacter();
+    c.secondary.precog = 10;
+    c.secondary.firelord = 10;
+    c.secondary.icelord = 10;
+    c.secondary.fright = 10;
+    return c;
+  };
+  const equipRing = (c, id) => {
+    const ra = G.addItem(c, id);
+    assert.equal(ra.ok, true, id + ': выдача (' + (ra.reason || '')
+      + ') — предмет есть в live-каталоге (краснота: неизвестный '
+      + 'предмет — волна не добавлена)');
+    const r = G.equip(c, id);
+    assert.equal(r.ok, true, id + ': equip (' + (r.reason || '') + ')');
+    assert.ok(RING_SLOTS_00023014.includes(r.slot),
+      id + ': слот — один из 8 физ. слотов колец; факт: ' + r.slot);
+  };
+  {
+    const c = makeHero();
+    const d = G.derived(c);
+    near(d.dodgeBonus, 0.5, 'база dodgeBonus (0.05·10)');
+    near(d.fireDamageBonus, 0.5, 'база fireDamageBonus (0.05·10)');
+    near(d.iceDamageBonus, 0.5, 'база iceDamageBonus (0.05·10)');
+    near(d.fearChance, 0.5, 'база fearChance (min(0.75, 0.05·10))');
+    assert.equal(G.equipmentStats(c).armor, 0,
+      'база equipmentStats.armor (снаряжения нет)');
+    assert.equal(G.equipmentAffixes(c).freeCast.size, 0,
+      'база freeCast — пусто');
+  }
+  {
+    const c = makeHero();
+    for (const id of ['silver_signet', 'gold_signet', 'emerald_signet',
+        'star_signet', 'ruby_ring', 'phoenix_ring', 'glacier_ring',
+        'frost_ring'])
+      equipRing(c, id);
+    const occupied = Object.keys(c.equipment)
+      .filter((k) => k.startsWith('ring_') && c.equipment[k])
+      .sort();
+    assert.deepEqual(occupied, RING_SLOTS_00023014.slice().sort(),
+      '8 колец — ВСЕ 8 физ. слотов заняты (ring_left_1..4 + '
+      + 'ring_right_1..4, до 4 на руку — пин 000230.02); факт: '
+      + occupied.join(','));
+    const ra9 = G.addItem(c, 'copper_ring');
+    assert.equal(ra9.ok, true, '9-е кольцо: выдача в инвентарь');
+    const r9 = G.equip(c, 'copper_ring');
+    assert.equal(r9.ok, false,
+      '9-е кольцо: equip — ОТКАЗ (8 слотов заняты)');
+    assert.equal(r9.reason, 'нет свободных слотов колец',
+      '9-е кольцо: ТОЧНАЯ причина «нет свободных слотов колец» '
+      + '(пин M5 на реальных предметах); факт: ' + (r9.reason || ''));
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023014(st.counts),
+      { fate: 4, ember: 2, rime: 2 },
+      'counts: fate 4 + ember 2 + rime 2 (экип-набор §3.1)');
+    assert.equal(st.armor, 1,
+      'fate {2}: armor +1 — АКТИВЕН при n=4 (кумулятивно, SB2)');
+    assert.deepEqual(fromVm00023014(st.skills),
+      { precog: 0.08, firelord: 0.05, icelord: 0.05 },
+      'fate {4}: skill precog 0.08 + ember {2} firelord 0.05 + '
+      + 'rime {2} icelord 0.05 — ОБА порога fate активны');
+    assert.equal(st.freeCast.size, 0, 'set-free_cast в наборе нет');
+    assert.equal(G.equipmentStats(c).armor, 1,
+      'equipmentStats.armor = 1 — ТОЛЬКО fate {2} (armor 0 у всех '
+      + '8 колец, D-02)');
+    const a = G.equipmentAffixes(c);
+    near(a.skills.precog, 0.36,
+      'precog 0.36 = 0.28 (star_signet) + 0.08 (fate {4})');
+    near(a.skills.firelord, 0.60,
+      'firelord 0.60 = 0.15 (ruby) + 0.40 (phoenix) + 0.05 (ember {2})');
+    near(a.skills.icelord, 0.20,
+      'icelord 0.20 = 0.15 (frost) + 0.05 (rime {2})');
+    near(a.skills.fright, 0.35, 'fright 0.35 (phoenix, без сетов)');
+    assert.ok(a.freeCast.has('ice_armor'),
+      'free_cast ice_armor (frost_ring) — в equipmentAffixes');
+    const d = G.derived(c);
+    near(d.dodgeBonus, 0.68,
+      'dodgeBonus 0.68 = 0.05·10·(1 + 0.36)');
+    near(d.fireDamageBonus, 0.80,
+      'fireDamageBonus 0.80 = 0.05·10·(1 + 0.60)');
+    near(d.iceDamageBonus, 0.60,
+      'iceDamageBonus 0.60 = 0.05·10·(1 + 0.20)');
+    near(d.fearChance, 0.675,
+      'fearChance 0.675 = min(0.75, 0.05·10·(1 + 0.35))');
+  }
+  {
+    const c = makeHero();
+    equipRing(c, 'frost_ring');
+    equipRing(c, 'rune_ring');
+    const a = G.equipmentAffixes(c);
+    assert.deepEqual([...a.freeCast].sort(),
+      ['ice_armor', 'magic_shield'],
+      'freeCast — РОВНО {ice_armor, magic_shield} (D-05: два '
+      + 'free_cast кольца — оба epic)');
+  }
 });

@@ -1,0 +1,21 @@
+{
+  "id": "amethyst_ring",
+  "name": "Аметистовое кольцо",
+  "kind": "ring",
+  "weight": 0.09,
+  "value": 78,
+  "desc": "Аметистовое кольцо: тишина наполняет ману.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/amethyst_ring.svg",
+  "slot": "ring",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.08
+    }
+  ]
+}

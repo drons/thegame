@@ -1,0 +1,21 @@
+{
+  "id": "sapphire_ring",
+  "name": "Сапфировое кольцо",
+  "kind": "ring",
+  "weight": 0.09,
+  "value": 85,
+  "desc": "Сапфировое кольцо: клинок бьёт точнее.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/sapphire_ring.svg",
+  "slot": "ring",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.09
+    }
+  ]
+}

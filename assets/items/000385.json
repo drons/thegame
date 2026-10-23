@@ -1,0 +1,21 @@
+{
+  "id": "iron_ring",
+  "name": "Железное кольцо",
+  "kind": "ring",
+  "weight": 0.06,
+  "value": 14,
+  "desc": "Железное кольцо: сердце бьётся ровнее.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/iron_ring.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.03
+    }
+  ]
+}

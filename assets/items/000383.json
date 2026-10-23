@@ -1,0 +1,21 @@
+{
+  "id": "copper_ring",
+  "name": "Медное кольцо",
+  "kind": "ring",
+  "weight": 0.05,
+  "value": 10,
+  "desc": "Медное кольцо: первое кольцо кузнеца — шаг вперёд.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/copper_ring.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.03
+    }
+  ]
+}

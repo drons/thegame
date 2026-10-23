@@ -1,0 +1,35 @@
+{
+  "id": "frost_ring",
+  "name": "Морозное кольцо",
+  "kind": "ring",
+  "weight": 0.12,
+  "value": 240,
+  "desc": "Морозное кольцо: холод не ранит.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/frost_ring.svg",
+  "slot": "ring",
+  "rarity": "epic",
+  "set": "rime",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.15
+    },
+    {
+      "type": "free_cast",
+      "spell": "ice_armor"
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "icelord",
+        "amount": 0.05
+      }
+    ]
+  }
+}
