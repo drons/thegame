@@ -1545,3 +1545,574 @@ test('000230.11 T8 (vm, e2e): РЕАЛЬНЫЕ forearms/palms-предметы �
       + 'собственный armor');
   }
 });
+// =====================================================================
+// Задача 000248 — КРАСНЫЕ ТЕСТЫ (TDD): Бой — анимация СТРЕЛЬБЫ ИЗ
+// ЛУКА (стрела стрелок→цель) и УДАРА ОРУЖИЕМ БЛИЖНЕГО БОЯ
+// (выпадение к цели) для героев/союзников и мобов.
+//
+// ТЗ — tasks/pending/000248.md; контракт —
+// memory/000248-combat-attack-fx.md (D1–D12): транзиентный DOM-слой
+// .combat-atk-layer (ленивый, ребёнок .combat-box, геометрия 1:1 с
+// баннером), маркеры .combat-atk-lunge (melee) / .combat-atk-draw +
+// .combat-atk-arrow (ranged) / .combat-atk-hit (цель); геометрия —
+// проценты (D3); kind — bow по снаряжению героя / role у союзников и
+// мобов (D4); цель — victim||intended (D6); источники — runAction
+// (герой + новая ветка союзника) + read-only c._unitFx мобов (D7);
+// ATTACK_FX_MS = 600 (D8); снятие — по render-tick, без setTimeout
+// (D9); кастом-свойства --fx-* — bracket-присвоение (D11);
+// @keyframes — ПЕРВЫЕ в проекте (D12).
+//
+// Механика: ДУБЛЬ песочницы 000246 (CHAIN_000246/makeEl000246/
+// makeStorage000246/findAll000246/findByClass000246/cssDecl000246 —
+// переиспользуются БЕЗ ПРАВОК) + МУТАБЕЛЬНОЕ ВРЕМЯ:
+// performance.now = () => T (T0 = 1000, setT) — песочница 000246
+// performance не имеет (nowMs упал бы в реальный Date.now — пин
+// истечения FX был бы невоспроизводим). Действия — публичный
+// G.combatUI.handleCode (keydown в песочнице не перехватывается —
+// window.addEventListener no-op); ре-рендер — consumed-действие
+// (движение в стену: «стена» — reason, consumed → render()).
+//
+// КРАСНЫЕ (8 — падают на master осмысленно: нет элемента/класса/
+// keyframe/поля c._attackFx; цепочка грузится чисто, ошибки = 0,
+// фикстуры зелёные):
+//   000248-LNG  melee-удар героя: слой + .combat-atk-lunge на клетке
+//               героя (% клетки), стрелы НЕТ, c._attackFx.kind =
+//               'melee', from = 'player';
+//   000248-HIT  .combat-atk-hit на клетке цели;
+//   000248-ARW  лук: .combat-atk-draw + .combat-atk-arrow,
+//               .combat-atk-lunge НЕТ (отличие от melee),
+//               .combat-atk-hit на цели; --fx-x0/y0 = центр стрелка,
+//               --fx-x1/y1 = центр цели (%); промах (rng 0.99) —
+//               стрела ЕСТЬ, hit НЕТ (D6);
+//   000248-END  маркеры есть при T0, после setT(T0+601) + ре-рендер —
+//               НЕТ (слой удалён — добор по until, D9/D10);
+//               steady-state (бой без атаки) — слоя нет;
+//   000248-MOB  Space (фаза мобов синхронна): .combat-atk-lunge на
+//               тайле волка + .combat-atk-hit на тайле игрока
+//               (общий силуэт — у мобов нет оружия; триггер —
+//               эвристика 000062 hurt && inStance, read-only);
+//   000248-MOBR (фикс ревью 2026-10-23): ranged-моб (имп, d 2..4) —
+//               стрела + hit в 300-мс окне моба: --fx-arrow-dur
+//               300ms, hit 100+200 (геройский 400/380+220 обрезался);
+//   000248-ALLY  Касание духа Эфира (KeyJ на ходу Эфира): lunge на
+//               тайле союзника + hit на тайле волка, kind 'melee'
+//               (role 'support', D4), c._fx НЕ 'attack' (P11/R15);
+//   000248-CSS  index.html: правило .combat-atk-layer (position
+//               absolute, pointer-events none, width/height = формулы
+//               .combat-banner), 4 @keyframes combat-atk-*, 4 правила
+//               маркеров с animation; NEW-only — базовые правила
+//               intact;
+//   000248-SC   %-пины геометрии: style.left/top/width/height маркеров
+//               — строки с %; lunge --fx-lx/--fx-ly = 0.5 клетки в
+//               направлении цели (% собственного размера); стрела
+//               --fx-* = центры в % слоя; тождество формул слоя и
+//               баннера ВКЛЮЧАЯ portrait-override (контракт
+//               масштабирования с полем — ТЗ п.3).
+//
+// ГАРД (зелёный с master; в red-счёт НЕ входит):
+//   000248-DET  детерминизм: один сценарий (KeyJ + Space, сид 42) в
+//               ДВУХ песочницах → deepEqual [c.log, c.player.hp,
+//               HP юнитов, c.result] — анимация не влияет на
+//               ход/урон, НОЛЬ новых бросков c._rng (ТЗ «Детерминизм»).
+// =====================================================================
+
+// --- Песочница: дубль bootCombat000246 + мутабельное время T ---
+
+function bootCombat000248() {
+  const errors = [];
+  let T = 1000;
+  const document = {
+    createElement: (tag) => makeEl000246(tag),
+    body: makeEl000246('body'),
+    getElementById: () => null,
+    querySelector: () => null,
+    hidden: false,
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const window = {
+    addEventListener() {},
+    removeEventListener() {},
+    localStorage: makeStorage000246(),
+  };
+  const sandbox = {
+    console: {
+      log: () => {}, info: () => {}, warn: () => {}, debug: () => {},
+      trace: () => {},
+      error: (m) => errors.push(String(m)),
+    },
+    document, window, setTimeout, clearTimeout,
+    performance: { now: () => T },
+  };
+  vm.createContext(sandbox);
+  for (const f of CHAIN_000246) {
+    vm.runInContext(src(f), sandbox, { filename: f });
+  }
+  return {
+    G: sandbox.Game, body: document.body, errors, sandbox,
+    T0: 1000, setT: (v) => { T = v; }, getT: () => T,
+  };
+}
+
+function overlayOf000248(env) {
+  const overlay = findByClass000246(env.body, 'combat-overlay--combat');
+  assert.ok(overlay, 'боевой оверлей подвешен к body песочницы');
+  return overlay;
+}
+
+function atkEls000248(env, cls) {
+  return findAll000246(overlayOf000248(env), '.' + cls);
+}
+
+function atkLayer000248(env) {
+  return findByClass000246(overlayOf000248(env), 'combat-atk-layer');
+}
+
+// Геометрия-пин: style[prop] — строка, значение ≈ expected (±0.01);
+// %-суффикс обязателен, кроме нуля (формат нуля реализации не пинует).
+function pinPct000248(el, prop, expected, label) {
+  const raw = el.style[prop];
+  assert.equal(typeof raw, 'string',
+    label + ' style[' + prop + '] — строка; факт: ' + String(raw));
+  if (expected !== 0) {
+    assert.ok(/%$/.test(raw),
+      label + ' style[' + prop + '] — %-строка (масштабно-инвариантно, '
+      + 'D3); факт: ' + raw);
+  }
+  assert.ok(Math.abs(Number.parseFloat(raw) - expected) < 0.01,
+    label + ' style[' + prop + '] ≈ ' + expected + '%; факт: ' + raw);
+}
+
+// Сцена: дефолтный герой + волк (seed 42). melee — волк в упор
+// (d=1), bow — на d=3 (даль лука 4); bow — G.addItem + G.equip ДО
+// startCombat (паттерн combat.test.js «лук: атака в даль»);
+// c._rng = 0.0 — все попадания; цель выбрана. ally — Эфир
+// (G.efir.createEfir(), opts.efir): активен с начала боя (инициатива
+// Эфира 4 > волка 3 > героя 2), волк d≤1 от Эфира, НЕ d≤1 от игрока.
+function sceneAttack000248(opts) {
+  const env = bootCombat000248();
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  const hero = env.G.createCharacter();
+  if (opts.bow) {
+    env.G.addItem(hero, 'hunting_bow');
+    env.G.equip(hero, 'hunting_bow');
+    assert.equal(hero.equipment.weapon, 'hunting_bow',
+      'фикстура: лук экипирован до боя');
+  }
+  const c = env.G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+    efir: opts.ally ? env.G.efir.createEfir() : undefined,
+  });
+  assert.ok(c, 'бой начался (build()/render() без исключений)');
+  assert.equal(env.errors.length, 0,
+    'ошибок после startCombat нет: ' + env.errors.join('; '));
+  const m0 = c.units.find((u) => u.side === 'mob');
+  assert.ok(m0 && m0.alive && !m0.fled, 'фикстура: живой волк');
+  m0.x = c.px;
+  m0.y = c.py - (opts.bow ? 3 : 1);
+  if (opts.ally) {
+    assert.equal(env.G.activeUnitId(c), 'efir',
+      'фикстура: активен Эфир с начала боя (инициатива Эфира 4 > '
+      + 'волка 3 > героя 2, seed 42); факт: '
+      + String(env.G.activeUnitId(c)));
+    const efir = c.units.find((u) => u.side === 'ally');
+    assert.ok(efir, 'фикстура: Эфир в c.units');
+    m0.x = efir.x - 1;
+    m0.y = efir.y;
+    const dEfir = Math.abs(m0.x - efir.x) + Math.abs(m0.y - efir.y);
+    const dPlayer = Math.abs(m0.x - c.px) + Math.abs(m0.y - c.py);
+    assert.ok(dEfir <= 1 && dPlayer > 1,
+      'фикстура: волк d≤1 от Эфира и НЕ d≤1 от игрока; факт: dEfir='
+      + dEfir + ', dPlayer=' + dPlayer);
+  }
+  c._rng = () => 0.0;
+  c.selectTarget(m0.id);
+  assert.equal(c.targetId, m0.id, 'фикстура: волк выбран целью');
+  return { env, c, hero, m0 };
+}
+
+// --- 000248-LNG (КРАСНЫЙ) ---
+
+test('000248-LNG: melee-удар героя — анимация атакующего: слой .combat-atk-layer + .combat-atk-lunge на клетке героя (% клетки), .combat-atk-arrow НЕТ (отличие от ranged), c._attackFx {kind: melee, from: player}', () => {
+  const { env, c } = sceneAttack000248({});
+  assert.equal(env.G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  assert.equal(env.G.combatUI.handleCode('KeyJ'), true,
+    'фикстура: «Удар» consumed (r.ok → render)');
+  assert.ok(c._attackFx,
+    'c._attackFx — запись UI-FX атаки (отдельное поле; c._fx не '
+    + 'расширяется — контракт D-раздел); краснота: на master поля нет');
+  assert.equal(c._attackFx.kind, 'melee',
+    'без оружия (кулаки) — melee-силуэт (D4/D5); факт: '
+    + String(c._attackFx.kind));
+  assert.equal(c._attackFx.from, 'player',
+    'источник — герой; факт: ' + String(c._attackFx.from));
+  assert.ok(atkLayer000248(env),
+    'слой .combat-atk-layer в оверлее (ребёнок .combat-box, D10); '
+    + 'краснота: на master слой не создаётся');
+  const lungs = atkEls000248(env, 'combat-atk-lunge');
+  assert.equal(lungs.length, 1,
+    'ровно ОДИН .combat-atk-lunge на атакующем; краснота: на master '
+    + 'маркеров нет; факт: ' + lungs.length);
+  pinPct000248(lungs[0], 'left', c.px / c.width * 100, 'lunge.left');
+  pinPct000248(lungs[0], 'top', c.py / c.height * 100, 'lunge.top');
+  pinPct000248(lungs[0], 'width', 1 / c.width * 100, 'lunge.width');
+  pinPct000248(lungs[0], 'height', 1 / c.height * 100, 'lunge.height');
+  assert.equal(atkEls000248(env, 'combat-atk-arrow').length, 0,
+    'melee — снаряда НЕТ (различение атак, ТЗ п.1)');
+});
+
+// --- 000248-HIT (КРАСНЫЙ) ---
+
+test('000248-HIT: цель удара — .combat-atk-hit на клетке цели (% клетки)', () => {
+  const { env, c, m0 } = sceneAttack000248({});
+  assert.equal(env.G.combatUI.handleCode('KeyJ'), true,
+    'фикстура: «Удар» consumed (render)');
+  const hits = atkEls000248(env, 'combat-atk-hit');
+  assert.equal(hits.length, 1,
+    'ровно ОДИН .combat-atk-hit на цели; краснота: на master маркера '
+    + 'нет; факт: ' + hits.length);
+  pinPct000248(hits[0], 'left', m0.x / c.width * 100, 'hit.left');
+  pinPct000248(hits[0], 'top', m0.y / c.height * 100, 'hit.top');
+  pinPct000248(hits[0], 'width', 1 / c.width * 100, 'hit.width');
+  pinPct000248(hits[0], 'height', 1 / c.height * 100, 'hit.height');
+});
+
+// --- 000248-ARW (КРАСНЫЙ) ---
+
+test('000248-ARW: стрелок (bow) — .combat-atk-draw + .combat-atk-arrow, .combat-atk-lunge НЕТ (отличие от melee), .combat-atk-hit на цели; стрела: --fx-x0/y0 = центр стрелка, --fx-x1/y1 = центр цели (%); промах (rng 0.99) — стрела ЕСТЬ, hit НЕТ', () => {
+  const { env, c, m0 } = sceneAttack000248({ bow: true });
+  assert.equal(env.G.combatUI.handleCode('KeyJ'), true,
+    'фикстура: выстрел consumed (r.ok → render)');
+  assert.equal(atkEls000248(env, 'combat-atk-draw').length, 1,
+    'ровно ОДИН .combat-atk-draw у стрелка; краснота: на master '
+    + 'ranged-маркеров нет; факт: '
+    + atkEls000248(env, 'combat-atk-draw').length);
+  const arrows = atkEls000248(env, 'combat-atk-arrow');
+  assert.equal(arrows.length, 1,
+    'ровно ОДНА .combat-atk-arrow (снаряд стрелок→цель); краснота: '
+    + 'на master снаряда нет; факт: ' + arrows.length);
+  assert.equal(atkEls000248(env, 'combat-atk-lunge').length, 0,
+    'лук — выпадения НЕТ (отличие от melee, ТЗ п.1)');
+  assert.equal(atkEls000248(env, 'combat-atk-hit').length, 1,
+    '.combat-atk-hit на цели (попадание, rng 0.0)');
+  pinPct000248(arrows[0], '--fx-x0', (c.px + 0.5) / c.width * 100,
+    'arrow --fx-x0 (центр стрелка)');
+  pinPct000248(arrows[0], '--fx-y0', (c.py + 0.5) / c.height * 100,
+    'arrow --fx-y0 (центр стрелка)');
+  pinPct000248(arrows[0], '--fx-x1', (m0.x + 0.5) / c.width * 100,
+    'arrow --fx-x1 (центр цели)');
+  pinPct000248(arrows[0], '--fx-y1', (m0.y + 0.5) / c.height * 100,
+    'arrow --fx-y1 (центр цели)');
+  const s2 = sceneAttack000248({ bow: true });
+  s2.c._rng = () => 0.99;
+  assert.equal(s2.env.G.combatUI.handleCode('KeyJ'), true,
+    'фикстура: промах consumed (ok, hit:false → render)');
+  assert.equal(atkEls000248(s2.env, 'combat-atk-arrow').length, 1,
+    'промах — стрела ЕСТЬ (действие потрачено, удар есть, D6)');
+  assert.equal(atkEls000248(s2.env, 'combat-atk-hit').length, 0,
+    'промах — .combat-atk-hit на цели НЕТ (цель не задета, D6)');
+});
+
+// --- 000248-END (КРАСНЫЙ) ---
+
+test('000248-END: анимация завершается — маркеры сняты, слой удалён: есть при T0, НЕТ после setT(T0+601) + ре-рендер; steady-state (бой без атаки) — слоя нет', () => {
+  const { env } = sceneAttack000248({});
+  assert.equal(env.G.combatUI.handleCode('KeyJ'), true,
+    'фикстура: «Удар» consumed (render)');
+  assert.equal(atkEls000248(env, 'combat-atk-lunge').length, 1,
+    'фикстура: маркер есть при T0 (краснота: на master анимации нет)');
+  env.setT(env.T0 + 601);
+  assert.equal(env.G.combatUI.handleCode('KeyS'), true,
+    'ре-рендер: шаг в стену consumed («стена» → render на tick)');
+  assert.equal(atkEls000248(env, 'combat-atk-lunge').length, 0,
+    'после T0+601 (> ATTACK_FX_MS = 600) lunge снят');
+  assert.equal(atkEls000248(env, 'combat-atk-hit').length, 0,
+    'после T0+601 hit снят (не остаётся на следующий кадр, ТЗ «Тесты»)');
+  assert.equal(atkLayer000248(env), null,
+    'слой удалён, когда все источники истекли (ленивый, D10)');
+  const s2 = sceneAttack000248({});
+  assert.equal(atkLayer000248(s2.env), null,
+    'steady-state (бой без атаки) — слоя нет (ноль операций, D1)');
+});
+
+// --- 000248-MOB (КРАСНЫЙ) ---
+
+test('000248-MOB: атака МОБА — тот же общий силуэт: .combat-atk-lunge на тайле волка + .combat-atk-hit на тайле игрока (триггер — эвристика 000062 hurt && inStance, read-only c._unitFx)', () => {
+  const { env, c, m0 } = sceneAttack000248({});
+  assert.equal(env.G.combatUI.handleCode('Space'), true,
+    'фикстура: «Конец хода» consumed (фаза мобов синхронна → render)');
+  assert.ok(m0.alive, 'фикстура: волк жив после фазы мобов');
+  assert.ok(c.player.hp < env.G.derived(c.player).maxHP,
+    'фикстура: игрок получил урон (hurt — условие эвристики 000062)');
+  const lungs = atkEls000248(env, 'combat-atk-lunge');
+  assert.equal(lungs.length, 1,
+    'ровно ОДИН .combat-atk-lunge на тайле моба (общий силуэт — у '
+    + 'мобов нет оружия, ТЗ п.1); краснота: на master mob-маркеров '
+    + 'нет; факт: ' + lungs.length);
+  pinPct000248(lungs[0], 'left', m0.x / c.width * 100, 'mob-lunge.left');
+  pinPct000248(lungs[0], 'top', m0.y / c.height * 100, 'mob-lunge.top');
+  const hits = atkEls000248(env, 'combat-atk-hit');
+  assert.equal(hits.length, 1,
+    'ровно ОДИН .combat-atk-hit на тайле игрока (моб уронил игрока); '
+    + 'краснота: на master маркера нет; факт: ' + hits.length);
+  pinPct000248(hits[0], 'left', c.px / c.width * 100, 'mob-hit.left');
+  pinPct000248(hits[0], 'top', c.py / c.height * 100, 'mob-hit.top');
+});
+
+// --- 000248-MOBR (фикс ревью 2026-10-23) ---
+
+test('000248-MOBR: ranged-моб (имп, d=3) — стрела и вспышка удара влезает в 300-мс окно моба: .combat-atk-draw + .combat-atk-arrow на тайле импа (--fx-arrow-dur 300ms, не 400 — полёт не обрезается на 75%), .combat-atk-hit на тайле игрока (--fx-hit-delay 100ms / --fx-hit-dur 200ms — конец ровно 300, не 380+220=600)', () => {
+  const env = bootCombat000248();
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  const hero = env.G.createCharacter();
+  const c = env.G.combatUI.startCombat({
+    hero, mobs: ['imp'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c, 'бой начался (build()/render() без исключений)');
+  assert.equal(env.errors.length, 0,
+    'ошибок после startCombat нет: ' + env.errors.join('; '));
+  const imp = c.units.find((u) => u.side === 'mob');
+  assert.ok(imp && imp.alive && !imp.fled, 'фикстура: имп жив');
+  assert.equal(env.G.activeUnitId(c), 'player',
+    'фикстура: ход игрока (pre-roll импа синхронен, 000167); '
+    + 'факт: ' + String(env.G.activeUnitId(c)));
+  imp.x = c.px;
+  imp.y = c.py - 3;
+  const d = Math.abs(imp.x - c.px) + Math.abs(imp.y - c.py);
+  assert.ok(d >= 2 && d <= 4,
+    'фикстура: имп в дальней полосе 2..4 (ударная позиция, '
+    + 'эвристика 000062); факт: ' + d);
+  c._rng = () => 0.0;
+  assert.equal(env.G.combatUI.handleCode('Space'), true,
+    'фикстура: «Конец хода» consumed (фаза мобов синхронна → render)');
+  assert.ok(imp.alive && !imp.fled, 'фикстура: имп жив после фазы');
+  assert.equal(imp.x, c.px, 'фикстура: имп не отступил (inStance)');
+  assert.equal(imp.y, c.py - 3, 'фикстура: имп не отступил (inStance)');
+  assert.ok(c.player.hp < env.G.derived(c.player).maxHP,
+    'фикстура: игрок получил урон (hurt — условие эвристики 000062)');
+  const draws = atkEls000248(env, 'combat-atk-draw');
+  assert.equal(draws.length, 1,
+    'ровно ОДИН .combat-atk-draw на тайле моба (ranged — не выпадение); '
+    + 'факт: ' + draws.length);
+  pinPct000248(draws[0], 'left', imp.x / c.width * 100,
+    'mob-draw.left');
+  pinPct000248(draws[0], 'top', imp.y / c.height * 100,
+    'mob-draw.top');
+  assert.equal(atkEls000248(env, 'combat-atk-lunge').length, 0,
+    'ranged-моб — .combat-atk-lunge НЕТ (kind по role, D4)');
+  const arrows = atkEls000248(env, 'combat-atk-arrow');
+  assert.equal(arrows.length, 1,
+    'ровно ОДНА .combat-atk-arrow (моб → игрок); факт: '
+    + arrows.length);
+  assert.equal(arrows[0].style['--fx-arrow-dur'], '300ms',
+    'полёт стрелы влезает в 300-мс окно моба (ревью: 400ms '
+    + 'героя обрезалось маркером на 75% полёта); факт: '
+    + String(arrows[0].style['--fx-arrow-dur']));
+  const hits = atkEls000248(env, 'combat-atk-hit');
+  assert.equal(hits.length, 1,
+    'ровно ОДИН .combat-atk-hit на тайле игрока (вспышка удара '
+    + 'показывается; ревью: с задержкой 380ms она не успевала '
+    + 'стартовать в 300-мс окне); факт: ' + hits.length);
+  pinPct000248(hits[0], 'left', c.px / c.width * 100, 'mob-hit.left');
+  pinPct000248(hits[0], 'top', c.py / c.height * 100, 'mob-hit.top');
+  assert.equal(hits[0].style['--fx-hit-delay'], '100ms',
+    'старт hit — melee-вариант (380ms героя не стартует в '
+    + '300-мс окне); факт: ' + String(hits[0].style['--fx-hit-delay']));
+  assert.equal(hits[0].style['--fx-hit-dur'], '200ms',
+    'hit заканчивается ровно на 300ms (100+200, не 380+220=600); '
+    + 'факт: ' + String(hits[0].style['--fx-hit-dur']));
+});
+
+// --- 000248-ALLY (КРАСНЫЙ) ---
+
+test('000248-ALLY: атака СОЮЗНИКА (Касание духа Эфира, KeyJ на ходу Эфира) — lunge на тайле союзника + hit на тайле волка, kind «melee» (role support, D4), c._fx НЕ «attack» (P11/R15: герой не анимируется на ударе союзника)', () => {
+  const { env, c, m0 } = sceneAttack000248({ ally: true });
+  const efir = c.units.find((u) => u.side === 'ally');
+  assert.equal(env.G.combatUI.handleCode('KeyJ'), true,
+    'фикстура: «Удар» consumed (Касание → render)');
+  assert.match(c.log.join('\n'), /Касание духа/,
+    'фикстура: Касание духа применено (всегда попадает)');
+  const lungs = atkEls000248(env, 'combat-atk-lunge');
+  assert.equal(lungs.length, 1,
+    'ровно ОДИН .combat-atk-lunge на тайле СОЮЗНИКА (новая ветка '
+    + 'runAction для союзника, D7b); краснота: на master ally-маркеров '
+    + 'нет; факт: ' + lungs.length);
+  pinPct000248(lungs[0], 'left', efir.x / c.width * 100,
+    'ally-lunge.left');
+  pinPct000248(lungs[0], 'top', efir.y / c.height * 100,
+    'ally-lunge.top');
+  const hits = atkEls000248(env, 'combat-atk-hit');
+  assert.equal(hits.length, 1,
+    'ровно ОДИН .combat-atk-hit на тайле волка; краснота: на master '
+    + 'маркера нет; факт: ' + hits.length);
+  pinPct000248(hits[0], 'left', m0.x / c.width * 100, 'ally-hit.left');
+  pinPct000248(hits[0], 'top', m0.y / c.height * 100, 'ally-hit.top');
+  assert.ok(c._attackFx,
+    'c._attackFx записана союзной веткой; краснота: на master поля нет');
+  assert.equal(c._attackFx.kind, 'melee',
+    'role «support» → melee-силуэт (D4: зеркало maxDist allyStrike); '
+    + 'факт: ' + String(c._attackFx.kind));
+  assert.equal(c._attackFx.from, 'efir',
+    'источник — союзник (u.id); факт: ' + String(c._attackFx.from));
+  assert.ok(!c._fx || c._fx.action !== 'attack',
+    'c._fx НЕ «attack» — герой не анимируется на ударе союзника '
+    + '(P11/R15); факт: ' + JSON.stringify(c._fx));
+});
+
+// --- 000248-CSS (КРАСНЫЙ) ---
+
+test('000248-CSS: index.html — .combat-atk-layer (position absolute, pointer-events none, width/height = формулы .combat-banner), 4 @keyframes combat-atk-*, 4 правила маркеров с animation; NEW-only-стража: базовые правила intact', () => {
+  const html = page();
+  const layer = cssDecl000246(
+    html, '.combat-overlay--combat .combat-atk-layer');
+  assert.equal(layer.position, 'absolute',
+    'слой: position absolute (геометрия 1:1 с баннером, D2); факт: '
+    + String(layer.position));
+  assert.equal(layer['pointer-events'], 'none',
+    'слой: pointer-events none (клики проходят, D1); факт: '
+    + String(layer['pointer-events']));
+  const banner = cssDecl000246(
+    html, '.combat-overlay--combat .combat-banner');
+  assert.ok(banner.width && banner.height,
+    'фикстура: формулы .combat-banner на месте');
+  assert.equal(layer.width, banner.width,
+    'ширина слоя = формула ширины баннера (D2: бокс слоя ≡ бокс '
+    + 'canvas); факт: ' + String(layer.width) + ' vs '
+    + String(banner.width));
+  assert.equal(layer.height, banner.height,
+    'высота слоя = формула высоты баннера (D2); факт: '
+    + String(layer.height) + ' vs ' + String(banner.height));
+  assert.equal(layer.top, banner.top,
+    'центрирование слоя: top = top баннера (D2: бокс слоя ≡ бокс '
+    + 'canvas — от этого выравнивание маркеров с клетками); факт: '
+    + String(layer.top) + ' vs ' + String(banner.top));
+  assert.equal(layer.left, banner.left,
+    'центрирование слоя: left = left баннера (D2); факт: '
+    + String(layer.left) + ' vs ' + String(banner.left));
+  assert.equal(layer.transform, banner.transform,
+    'центрирование слоя: transform = transform баннера (D2); '
+    + 'факт: ' + String(layer.transform) + ' vs '
+    + String(banner.transform));
+  const names = ['lunge', 'draw', 'arrow', 'hit'];
+  for (const n of names) {
+    assert.ok(
+      new RegExp('@keyframes\\s+combat-atk-' + n + '\\s*{').test(html),
+      '@keyframes combat-atk-' + n + ' в index.html (ПЕРВЫЕ keyframes '
+      + 'проекта, D12); краснота: на master в index.html 0 keyframes');
+  }
+  for (const n of names) {
+    const d = cssDecl000246(
+      html, '.combat-overlay--combat .combat-atk-' + n);
+    assert.ok(d.animation,
+      'правило .combat-atk-' + n + ' декларирует animation; факт: '
+      + JSON.stringify(d));
+  }
+  const baseActions = cssDecl000246(html, '.combat-actions');
+  assert.equal(baseActions['margin-bottom'], '10px',
+    'NEW-only: базовое .combat-actions (000124) intact; факт: '
+    + String(baseActions['margin-bottom']));
+  const scopedActions = cssDecl000246(
+    html, '.combat-overlay--combat .combat-actions');
+  assert.equal(scopedActions['margin-bottom'], '0',
+    'NEW-only: правило 000246 (конец скоупа — точка вставки) intact; '
+    + 'факт: ' + String(scopedActions['margin-bottom']));
+});
+
+// --- 000248-SC (КРАСНЫЙ) ---
+
+test('000248-SC: адаптация под масштаб — %-пины геометрии: style.left/top/width/height маркеров — строки с %; lunge --fx-lx/--fx-ly = 0.5 клетки к цели (% собственного размера); стрела --fx-* = центры (% слоя); тождество формул слоя и баннера ВКЛЮЧАЯ portrait-override (ТЗ п.3)', () => {
+  const { env, c } = sceneAttack000248({});
+  assert.equal(env.G.combatUI.handleCode('KeyJ'), true,
+    'фикстура: «Удар» consumed (render)');
+  const lungs = atkEls000248(env, 'combat-atk-lunge');
+  assert.equal(lungs.length, 1,
+    'фикстура: lunge есть (краснота: на master маркеров нет)');
+  for (const prop of ['left', 'top', 'width', 'height']) {
+    assert.equal(typeof lungs[0].style[prop], 'string',
+      'lunge.' + prop + ' — строка; факт: '
+      + String(lungs[0].style[prop]));
+    assert.ok(/%$/.test(String(lungs[0].style[prop])),
+      'lunge.' + prop + ' — %-строка (масштабно-инвариантно, D3); '
+      + 'факт: ' + lungs[0].style[prop]);
+  }
+  // Цель — волк над героем: направление (0, −1); own% = 0.5/1·100 = 50.
+  pinPct000248(lungs[0], '--fx-lx', 0, 'lunge --fx-lx (нет x-смещения)');
+  pinPct000248(lungs[0], '--fx-ly', -50, 'lunge --fx-ly (0.5 клетки ↑)');
+  const b = sceneAttack000248({ bow: true });
+  assert.equal(b.env.G.combatUI.handleCode('KeyJ'), true,
+    'фикстура: выстрел consumed (render)');
+  const arrows = atkEls000248(b.env, 'combat-atk-arrow');
+  assert.equal(arrows.length, 1,
+    'фикстура: стрела есть (краснота: на master снаряда нет)');
+  const W = b.c.width, H = b.c.height, m0 = b.m0;
+  const arrowPts = [
+    ['--fx-x0', (b.c.px + 0.5) / W * 100],
+    ['--fx-y0', (b.c.py + 0.5) / H * 100],
+    ['--fx-x1', (m0.x + 0.5) / W * 100],
+    ['--fx-y1', (m0.y + 0.5) / H * 100],
+  ];
+  for (const [prop, v] of arrowPts) {
+    assert.equal(typeof arrows[0].style[prop], 'string',
+      'arrow ' + prop + ' — строка; факт: ' + String(arrows[0].style[prop]));
+    assert.ok(/%$/.test(String(arrows[0].style[prop])),
+      'arrow ' + prop + ' — %-строка (% слоя, D3); факт: '
+      + arrows[0].style[prop]);
+    assert.ok(Math.abs(Number.parseFloat(arrows[0].style[prop]) - v) < 0.01,
+      'arrow ' + prop + ' ≈ ' + v + '%; факт: ' + arrows[0].style[prop]);
+  }
+  const html = page();
+  const layer = cssDecl000246(
+    html, '.combat-overlay--combat .combat-atk-layer');
+  const banner = cssDecl000246(
+    html, '.combat-overlay--combat .combat-banner');
+  assert.equal(layer.width, banner.width,
+    'базовый скоуп: формула ширины слоя = формула баннера; факт: '
+    + String(layer.width) + ' vs ' + String(banner.width));
+  assert.equal(layer.height, banner.height,
+    'базовый скоуп: формула высоты слоя = формула баннера; факт: '
+    + String(layer.height) + ' vs ' + String(banner.height));
+  const mediaStart = html.indexOf(
+    '@media (max-width: 640px) and (orientation: portrait)');
+  assert.ok(mediaStart >= 0,
+    'фикстура: portrait-медиа (000124) на месте');
+  const rest = html.slice(mediaStart);
+  const layerMed = cssDecl000246(
+    rest, '.combat-overlay--combat .combat-atk-layer');
+  const bannerMed = cssDecl000246(
+    rest, '.combat-overlay--combat .combat-banner');
+  assert.equal(layerMed.width, bannerMed.width,
+    'portrait: формула ширины слоя = формула баннера (контракт '
+    + 'масштабирования); факт: ' + String(layerMed.width) + ' vs '
+    + String(bannerMed.width));
+  assert.equal(layerMed.height, bannerMed.height,
+    'portrait: формула высоты слоя = формула баннера; факт: '
+    + String(layerMed.height) + ' vs ' + String(bannerMed.height));
+});
+
+// --- 000248-DET (гард, зелёный с master; в red-счёт НЕ входит) ---
+
+test('000248-DET (гард): детерминизм — один сценарий (KeyJ + Space, сид 42) в ДВУХ песочницах → ТО ЖЕ [c.log, c.player.hp, HP юнитов, c.result] (анимация не влияет на ход/урон, НОЛЬ новых бросков c._rng — ТЗ «Детерминизм»)', () => {
+  // Снимок — JSON-рандтрип: объекты боя — из vm-контекста песочницы,
+  // а deepStrictEqual сверяет прототипы (Array.prototype каждого
+  // контекста свой) — прямое сравнение между двумя песочницами
+  // ложно-красное.
+  const snap000248 = (c) => JSON.parse(JSON.stringify([
+    c.log,
+    c.player.hp,
+    c.units.map((u) => u.hp),
+    c.result,
+  ]));
+  const runDet000248 = () => {
+    const { env, c } = sceneAttack000248({});
+    assert.equal(env.G.combatUI.handleCode('KeyJ'), true,
+      'сценарий: «Удар» consumed');
+    assert.equal(env.G.combatUI.handleCode('Space'), true,
+      'сценарий: «Конец хода» consumed');
+    return snap000248(c);
+  };
+  assert.deepEqual(runDet000248(), runDet000248(),
+    'два прогона сценария (seed 42) — идентичные результаты: лог, HP '
+    + 'и исход боя не зависят от UI-анимации');
+});

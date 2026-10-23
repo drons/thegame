@@ -168,6 +168,8 @@
   // (1 тайл), мс (порядок FX_MS 000062): волна fast-моба (2 тайла) —
   // 600 мс. Поотрезочный smoothstep — «шаг по клеткам» (000033).
   const MOB_MOVE_MS = 300;
+  const ATTACK_FX_MS = 600;
+  const LUNGE_CELLS = 0.5;
 
   let ctx = null; // { combat, hero, onEnd, open, bgPath, spriteLoader }
   let overlay = null, canvas = null, g2 = null;
@@ -205,6 +207,8 @@
   let quickSig = null;
   let boxEl = null;
   let lootEl = null;
+  let atkLayer = null;
+  let atkKids = {};
   // 000227: выбор «последнего заклинания из книги» — UI-состояние
   // пер БОЯ: ключ 'player' (игрок) / u.id (союзник) → spellId.
   // Запись — castRow (после гейта, ДО каста: любой тап по строке,
@@ -902,6 +906,8 @@
       },
     }[action];
     const healToId = action === 'heal' ? healFxTargetId(c) : null;
+    const hpBefore = action === 'attack'
+      ? new Map(c.units.map((u) => [u.id, u.hp])) : null;
     const r = run ? run() : undefined;
     logRejection(c, r);
     // Анимация героя (задача 000047): UI-состояние ТОЛЬКО в UI-слое —
@@ -918,6 +924,14 @@
       // (активен союзник — activeUnit ≠ null).
       if (action === 'attack' && !activeUnit(c)) {
         c._fx = { action: 'attack', until: nowMs() + FX_MS };
+        c._attackFx = attackFxOf(c, 'player', nowMs(),
+          heroBowKind(c), r, hpBefore);
+      } else if (action === 'attack') {
+        const au = activeUnit(c);
+        if (au) {
+          c._attackFx = attackFxOf(c, au, nowMs(),
+            au.role === 'ranged' ? 'ranged' : 'melee', r, hpBefore);
+        }
       } else if (action === 'cast' || action === 'heal') {
         const u = activeUnit(c);
         if (u) {
@@ -1585,6 +1599,64 @@
     ];
   }
 
+  function heroBowKind(c) {
+    const p = c.player;
+    const eq = p && p.equipment;
+    const w = (eq && eq.weapon && typeof G.getItem === 'function')
+      ? G.getItem(eq.weapon) : null;
+    return !!(w && w.subtype === 'bow') ? 'ranged' : 'melee';
+  }
+
+  function attackVictimId(c, hpBefore) {
+    if (!hpBefore) return null;
+    for (const u of c.units) {
+      if (u.side !== 'mob') continue;
+      const before = hpBefore.get(u.id);
+      if (before > 0 && (!u.alive || u.hp < before)) return u.id;
+    }
+    return null;
+  }
+
+  function attackIntendedId(c) {
+    if (!c.targetId) return null;
+    const t = c.units.find((u) => u.id === c.targetId);
+    if (!t || t.side !== 'mob' || !t.alive || t.fled) return null;
+    return t.id;
+  }
+
+  function attackFxOf(c, from, at, kind, r, hpBefore) {
+    return {
+      at: at,
+      until: at + ATTACK_FX_MS,
+      kind: kind,
+      from: from === 'player' ? 'player' : (from ? from.id : null),
+      toId: attackVictimId(c, hpBefore) || attackIntendedId(c),
+      hit: r.hit !== false,
+    };
+  }
+
+  function atkCell(c, who) {
+    if (who === 'player') return { x: c.px, y: c.py, w: 1, h: 1 };
+    const u = c.units.find((x) => x.id === who);
+    if (!u) return null;
+    return { x: u.x, y: u.y,
+             w: (u.size && u.size.w) || 1, h: (u.size && u.size.h) || 1 };
+  }
+
+  function atkDir(fromCell, toCell) {
+    const dx = toCell.x + toCell.w / 2 - (fromCell.x + fromCell.w / 2);
+    const dy = toCell.y + toCell.h / 2 - (fromCell.y + fromCell.h / 2);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    return dist > 0 ? { ux: dx / dist, uy: dy / dist } : null;
+  }
+
+  function atkRect(el, cell, c) {
+    el.style.left = (cell.x / c.width * 100) + '%';
+    el.style.top = (cell.y / c.height * 100) + '%';
+    el.style.width = (cell.w / c.width * 100) + '%';
+    el.style.height = (cell.h / c.height * 100) + '%';
+  }
+
   function drawCastFx(c, now) {
     const fx = c._fx && c._fx.castFx;
     if (!fx || now >= fx.until) return;
@@ -1659,6 +1731,105 @@
       g2.beginPath();
       g2.arc(tc[0], tc[1], r, 0, Math.PI * 2);
       g2.stroke();
+    }
+  }
+
+  function syncAttackFx(c, now) {
+    if (!boxEl) return;
+    const sources = [];
+    const afx = c._attackFx;
+    if (afx && now < afx.until) {
+      sources.push({ t: afx.at, from: afx.from, kind: afx.kind,
+        toId: afx.toId, hit: afx.hit });
+    }
+    const ufx = c._unitFx;
+    if (ufx) {
+      for (const u of c.units) {
+        if (u.side !== 'mob' || !u.alive || u.fled) continue;
+        const f = ufx[u.id];
+        if (!f || f.action !== 'attack' || now >= f.until) continue;
+        sources.push({ t: f.until, from: u.id,
+          kind: u.role === 'ranged' ? 'ranged' : 'melee',
+          toId: 'player', hit: true, mob: true });
+      }
+    }
+    if (!sources.length) {
+      if (atkLayer) {
+        atkLayer.remove();
+        atkLayer = null;
+      }
+      atkKids = {};
+      return;
+    }
+    if (!atkLayer) {
+      atkLayer = document.createElement('div');
+      atkLayer.className = 'combat-atk-layer';
+      boxEl.appendChild(atkLayer);
+    }
+    const keep = {};
+    for (const s of sources) {
+      const fc = atkCell(c, s.from);
+      if (!fc) continue;
+      const tc = s.toId ? atkCell(c, s.toId) : null;
+      const dir = tc ? atkDir(fc, tc) : null;
+      const dkey = 'src-' + s.from + '-' + s.t;
+      keep[dkey] = 1;
+      if (!atkKids[dkey]) {
+        const el = document.createElement('div');
+        el.className = s.kind === 'melee'
+          ? 'combat-atk combat-atk-lunge'
+          : 'combat-atk combat-atk-draw';
+        atkRect(el, fc, c);
+        el.style['--fx-lx'] =
+          ((dir ? dir.ux * LUNGE_CELLS : 0) / fc.w * 100) + '%';
+        el.style['--fx-ly'] =
+          ((dir ? dir.uy * LUNGE_CELLS : 0) / fc.h * 100) + '%';
+        atkLayer.appendChild(el);
+        atkKids[dkey] = el;
+      }
+      if (tc && s.kind === 'ranged') {
+        const akey = 'arrow-' + s.from + '-' + s.toId + '-' + s.t;
+        keep[akey] = 1;
+        if (!atkKids[akey]) {
+          const el = document.createElement('div');
+          el.className = 'combat-atk combat-atk-arrow';
+          const fx = (fc.x + fc.w / 2) / c.width * 100;
+          const fy = (fc.y + fc.h / 2) / c.height * 100;
+          const tx = (tc.x + tc.w / 2) / c.width * 100;
+          const ty = (tc.y + tc.h / 2) / c.height * 100;
+          el.style.left = fx + '%';
+          el.style.top = fy + '%';
+          el.style['--fx-x0'] = fx + '%';
+          el.style['--fx-y0'] = fy + '%';
+          el.style['--fx-x1'] = tx + '%';
+          el.style['--fx-y1'] = ty + '%';
+          el.style['--fx-angle'] =
+            (Math.atan2(ty - fy, tx - fx) * 180 / Math.PI) + 'deg';
+          if (s.mob) el.style['--fx-arrow-dur'] = '300ms';
+          atkLayer.appendChild(el);
+          atkKids[akey] = el;
+        }
+      }
+      if (tc && s.hit) {
+        const hkey = 'hit-' + s.toId + '-' + s.t;
+        keep[hkey] = 1;
+        if (!atkKids[hkey]) {
+          const el = document.createElement('div');
+          el.className = 'combat-atk combat-atk-hit';
+          atkRect(el, tc, c);
+          const tightHit = s.kind === 'melee' || s.mob;
+          el.style['--fx-hit-delay'] = (tightHit ? 100 : 380) + 'ms';
+          el.style['--fx-hit-dur'] = (tightHit ? 200 : 220) + 'ms';
+          atkLayer.appendChild(el);
+          atkKids[hkey] = el;
+        }
+      }
+    }
+    for (const key of Object.keys(atkKids)) {
+      if (!keep[key]) {
+        atkKids[key].remove();
+        delete atkKids[key];
+      }
     }
   }
 
@@ -1845,6 +2016,7 @@
     // Без c._fx.breath / после until — ранний возврат (ничего).
     drawBreathFx(c, now);
     drawCastFx(c, now);
+    syncAttackFx(c, now);
 
     // Панель состояния.
     const t = c.units.find((u) => u.id === c.targetId && u.alive && !u.fled);
@@ -2892,6 +3064,8 @@
     fleeBox = null;
     fleeOpen = false;
     moveAnims = null;
+    atkLayer = null;
+    atkKids = {};
     ctx = null;
     ended = false;
     // 000170 (D5b): исключение в onEnd (side effects — награды/
@@ -2952,6 +3126,8 @@
       if (isActive()) return null;
       ended = false;
       moveAnims = null;
+      atkLayer = null;
+      atkKids = {};
       // Эфир (задача 000081): постоянный союзник — opts.efir
       // (состояние {level, xp, skills} из main.js); данные makeAlly —
       // G.efir.efirAllyData. Эфир ПЕРВЫМ в allies — первый якорь
@@ -3105,6 +3281,8 @@
         fleeBox = null;
         fleeOpen = false;
         moveAnims = null;
+        atkLayer = null;
+        atkKids = {};
         ctx = null;
         ended = false;
         if (!startCombatErrLogged) {

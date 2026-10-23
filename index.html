@@ -595,6 +595,104 @@
     .combat-overlay--combat .combat-actions {
       margin-bottom: 0;
     }
+    .combat-overlay--combat .combat-atk-layer {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      right: auto;
+      bottom: auto;
+      transform: translate(-50%, -50%);
+      width: min(100vh - 32px, 100vw - 304px);
+      height: min(100vh - 32px, 100vw - 304px);
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .combat-overlay--combat .combat-atk {
+      position: absolute;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+    .combat-overlay--combat .combat-atk-lunge {
+      border: 2px solid #d9483b;
+      border-radius: 6px;
+      background: rgba(217, 72, 59, 0.25);
+      animation: combat-atk-lunge 300ms ease-out both;
+    }
+    .combat-overlay--combat .combat-atk-draw {
+      border: 2px solid #e08a3c;
+      border-radius: 6px;
+      background: rgba(224, 138, 60, 0.25);
+      animation: combat-atk-draw 300ms ease-out both;
+    }
+    .combat-overlay--combat .combat-atk-arrow {
+      left: var(--fx-x0);
+      top: var(--fx-y0);
+      width: 3%;
+      height: 0.6%;
+      background: #e08a3c;
+      border-radius: 1px;
+      transform: rotate(var(--fx-angle));
+      animation: combat-atk-arrow var(--fx-arrow-dur, 400ms) linear both;
+    }
+    .combat-overlay--combat .combat-atk-hit {
+      border-radius: 6px;
+      animation: combat-atk-hit var(--fx-hit-dur) ease-out
+        var(--fx-hit-delay) both;
+    }
+    @keyframes combat-atk-lunge {
+      0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 0;
+      }
+      35% {
+        opacity: 0.9;
+      }
+      100% {
+        transform: translate(var(--fx-lx), var(--fx-ly)) scale(0.85);
+        opacity: 0;
+      }
+    }
+    @keyframes combat-atk-draw {
+      0% {
+        transform: scale(1);
+        opacity: 0;
+      }
+      40% {
+        opacity: 0.9;
+      }
+      100% {
+        transform: scale(1.35);
+        opacity: 0;
+      }
+    }
+    @keyframes combat-atk-arrow {
+      0% {
+        left: var(--fx-x0);
+        top: var(--fx-y0);
+        opacity: 1;
+      }
+      100% {
+        left: var(--fx-x1);
+        top: var(--fx-y1);
+        opacity: 0.9;
+      }
+    }
+    @keyframes combat-atk-hit {
+      0% {
+        transform: scale(0.4);
+        opacity: 0;
+        background: rgba(255, 226, 122, 0);
+      }
+      40% {
+        opacity: 0.9;
+        background: rgba(255, 226, 122, 0.55);
+      }
+      100% {
+        transform: scale(1.15);
+        opacity: 0;
+        background: rgba(255, 226, 122, 0);
+      }
+    }
     /* Портретный мобильный (задача 000124): КОЛОНКА — поле по
        ШИРИНЕ (приоритет ТЗ: вписалось > полная высота), панель под
        ним во всю ширину, кнопки остаются в 4 колонки (крупнее —
@@ -648,6 +746,10 @@
       }
       .combat-overlay--combat .combat-victory-loot {
         width: min(100vw - 16px, 100vh - 16px - 520px);
+      }
+      .combat-overlay--combat .combat-atk-layer {
+        width: min(100vw - 16px, 100vh - 16px - 520px);
+        height: min(100vw - 16px, 100vh - 16px - 520px);
       }
     }
     /* Подземелье (задача 000066): вьюпорт на весь экран — тот же
