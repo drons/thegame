@@ -423,9 +423,16 @@
     if (ds.mover) {
       ds.mover.step({ x: ds.prevX, y: ds.prevY }, { x: nx, y: ny }, now);
     }
+    return dungeonPostMove(ds);
+  }
+
+  function dungeonPostMove(ds) {
+    const G = lazyGame();
+    const d = ds.dg, c = ds.contents;
     // Блуждающая группа на клетке → бой (startDungeonCombat —
     // проводка).
-    const g = c.mobs.find((m) => !m.defeated && m.x === nx && m.y === ny);
+    const g = c.mobs.find((m) => !m.defeated && m.x === ds.x
+      && m.y === ds.y);
     if (g) {
       return { type: 'combat', group: g }; // wanderStep НЕ вызывается
     }
@@ -433,7 +440,8 @@
     // проводка; решение D9: применяется ПОСЛЕ этого шага, состояние
     // дизджойнтно, порядок вызовов RNG не меняется).
     let chest = null;
-    const ch = c.chests.find((x) => !x.opened && x.x === nx && x.y === ny);
+    const ch = c.chests.find((x) => !x.opened && x.x === ds.x
+      && x.y === ds.y);
     if (ch) {
       if (typeof G.openChest === 'function') {
         const r = G.openChest(c, ch.id);
@@ -820,7 +828,7 @@
     makeDungeonState, makeCityState,
     maybeEnterDungeon, maybeEnterCity,
     exitDungeon, exitCity,
-    dungeonMove, cityMove,
+    dungeonMove, cityMove, dungeonPostMove,
     interactExit,
     // 000153.03: переходы этажей (только подземелье) + единая
     // строка состояния (finding G).

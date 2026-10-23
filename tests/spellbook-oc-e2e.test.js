@@ -1372,3 +1372,550 @@ test('000235.09 W-10b: e2e shadow_step (книга + подземелье) — �
     'город: без новых console.error: '
     + h2.errors.slice(errBefore).join('; '));
 });
+
+// =====================================================================
+// Задача 000239 — flame_step: лендинг = полная после-шажная
+// последовательность (расширение W-10b).
+// Контракт: memory/000239-flame-step-landing.md (§1, §7); ТЗ:
+// tasks/pending/000239.md.
+//
+// RED (7 — падают на master осмысленно: в performFlameStep
+// (main.js:1979-1991) НЕТ пост-лендинговых вызовов —
+// dungeonPostMove-пров (бой/сундук/wanderStep), clock.addStep,
+// зона-скан, enterLocation, saveNow; не синтаксис/фикстуры):
+//   * FS-D1 — ДЗ: моб-группа НА ТАЙЛЕ ЛАНДИНГА → каст → бой;
+//   * FS-D2 — ДЗ: сундук НА ТАЙЛЕ ЛАНДИНГА → каст → chest-поток;
+//   * FS-W1 — МИР: лендинг ВНУТРИ триггерящей зоны → зона-бой;
+//   * FS-W2 — МИР: лендинг на ТАЙЛ ВХОДА города → город сразу;
+//   * FS-W3 — МИР: сейв сразу после каста (RAW) — тайл ландинга;
+//   * FS-T1 — ДЗ: часы +1 И wanderStep ровно 1 (non-combat);
+//   * FS-T3 — МИР: часы +1 после ландинга.
+// ЗЕЛЁНЫЕ (2 — coverage-пины, на master уже зелёные):
+//   * FS-W4 — МИР: тупик → «некуда шагнуть» (surface-ветка,
+//     ретро #5: ноль тестов);
+//   * FS-P1 — МИР: луч блокируется footprint постройки.
+//
+// Фикстуры — assert-внутри-теста (краснота не от фикстур); все
+// сценарии: суммарные шаги << 40 (steps_per_day) → день не сдвигается
+// (явно ассертится «день не сдвинулся»).
+// =====================================================================
+
+// SEED-ПИН (паттерн tests/mob-zones-e2e.test.js): spy-обёртка
+// G.combatUI.startCombat — ЕДИНСТВЕННЫЙ путь пиннить opts (seed/tile)
+// зона-боя; main.js читает G.combatUI динамически.
+function spyStartCombat(G) {
+  const cap = { opts: null, calls: 0 };
+  const orig = G.combatUI.startCombat;
+  G.combatUI = Object.assign({}, G.combatUI, {
+    startCombat: (opts) => {
+      cap.opts = opts;
+      cap.calls += 1;
+      return orig(opts);
+    },
+  });
+  return cap;
+}
+
+test('000239 FS-D1: e2e dungeon — моб-группа НА ТАЙЛЕ ЛАНДИНГА: каст → бой начинается (а не «герой прошёл сквозь»): combatUI активен, герой на тайле группы, mp −7, книга закрыта, часы +1 (T-6-зеркало: лендинг, запускающий бой, считается), contents.step НЕ тронут (wanderStep при бое не вызывается — LOC-8-зеркало); победа (9999) → group.defeated + log «Группа повержена…» (задача 000239)', async () => {
+  const h = await boot(seedSave07({
+    day: 1,
+    hero: mkHero07({
+      mp: 24,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(saveHero(h).mp, 24, 'фикстура: сид героя mp 24 (maxMP 70)');
+  learn(h, ['flame_step']);
+  const ds = g.actions.enterDungeon(G.TERRAIN.HILL);
+  assert.ok(ds && ds.kind === 'dungeon', 'подземелье открыто');
+  h.frameFn(NOW + 16);
+  const d = ds.dg;
+  const w = d.width;
+  const F = G.CELL_FLOOR, WL = G.CELL_WALL;
+  // Контролируемая комната: весь интерьер FLOOR, периметр WALL.
+  for (let y = 0; y < d.height; y++)
+    for (let x = 0; x < w; x++)
+      d.cells[y * w + x] = (x === 0 || y === 0 || x === w - 1
+        || y === d.height - 1) ? WL : F;
+  ds.contents = { seed: 1, mobs: [], chests: [], deposits: [],
+    createdAtXp: 0, step: 0 };
+  const ex = ds.x, ey = ds.y;
+  assert.ok(ex > 1 && ey > 1 && ex < w - 2 && ey < d.height - 2,
+    'фикстура: вход — интерьерная клетка: ' + ex + ',' + ey);
+  const table = G.DUNGEON_MOBS[d.type];
+  assert.ok(Array.isArray(table) && table.length >= 2,
+    'фикстура: таблица мобов типа ' + d.type);
+  press(h, 'ArrowRight');
+  assert.equal(ds.x, ex + 1, 'шаг: (ex+1, ey)');
+  const mob = { id: 'g0', mobIds: [table[0], table[1]], x: ex + 11,
+    y: ey, level: 1, defeated: false };
+  ds.contents.mobs = [mob];
+  assert.equal(ds.contents.step, 1,
+    'фикстура: step 1 после реального шага (wanderStep)');
+  assert.equal(G.combatUI.isActive(), false, 'до каста: боя нет');
+  const st0 = g.state.stepsToday;
+  const cap = spyStartCombat(G);
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'flame_step');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.equal(ds.x, ex + 11, 'телепорт: ландинг k=10 (ex+11) — x');
+  assert.equal(ds.y, ey, 'телепорт: та же клетка ряда — y');
+  assert.equal(saveHero(h).mp, 17, 'mp ровно «мани» (24 − 7)');
+  assert.equal(G.combatUI.isActive(), true,
+    'RED: бой на ландинге (master: ландинг-проверки мобов отсутствуют)');
+  assert.equal(cap.calls, 1, 'startCombat РОВНО 1× (лендинг)');
+  assert.equal(ds.x, mob.x, 'герой на тайле группы (x)');
+  assert.equal(ds.y, mob.y, 'герой на тайле группы (y)');
+  assert.equal(g.state.stepsToday, st0 + 1,
+    'RED: лендинг тикает часы (T-6-зеркало: шаг, запускающий бой, '
+    + 'считается)');
+  assert.equal(ds.contents.step, 1,
+    'contents.step не тронут: при бое wanderStep НЕ вызывается '
+    + '(LOC-8-зеркало)');
+  const c = G.combatUI.current();
+  assert.equal(c.groupName, 'блуждающая группа', 'бой — группа ДЗ');
+  resolveCombat(G);
+  assert.equal(mob.defeated, true, 'победа: group.defeated');
+  assert.ok(ds.log.some((l) => l.startsWith('Группа повержена')),
+    'победа: log «Группа повержена…»: ' + JSON.stringify(ds.log));
+  assert.equal(ds.x, ex + 11, 'после победы: герой на тайле ландинга (x)');
+  assert.equal(ds.y, ey, 'после победы: герой на тайле ландинга (y)');
+  assert.equal(g.state.day, 1, 'день не сдвинулся (шаги << 40)');
+});
+
+test('000239 FS-D2: e2e dungeon — сундук НА ТАЙЛЕ ЛАНДИНГА: каст → chest-поток: opened=true, hero.gold +gold, предмет в инвентарь, ds.log «Сундук: +37 золота», флэш в #hud БЕЗ строки смены дня (день не сдвинулся), contents.step +1 (wanderStep ровно раз), mp −7, боя нет (задача 000239)', async () => {
+  const h = await boot(seedSave07({
+    day: 1,
+    hero: mkHero07({
+      mp: 24,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(saveHero(h).mp, 24, 'фикстура: сид героя mp 24 (maxMP 70)');
+  learn(h, ['flame_step']);
+  const ds = g.actions.enterDungeon(G.TERRAIN.HILL);
+  assert.ok(ds && ds.kind === 'dungeon', 'подземелье открыто');
+  h.frameFn(NOW + 16);
+  const d = ds.dg;
+  const w = d.width;
+  const F = G.CELL_FLOOR, WL = G.CELL_WALL;
+  for (let y = 0; y < d.height; y++)
+    for (let x = 0; x < w; x++)
+      d.cells[y * w + x] = (x === 0 || y === 0 || x === w - 1
+        || y === d.height - 1) ? WL : F;
+  ds.contents = { seed: 1, mobs: [], chests: [], deposits: [],
+    createdAtXp: 0, step: 0 };
+  const ex = ds.x, ey = ds.y;
+  assert.ok(ex > 1 && ey > 1 && ex < w - 2 && ey < d.height - 2,
+    'фикстура: вход — интерьерная клетка: ' + ex + ',' + ey);
+  press(h, 'ArrowRight');
+  assert.equal(ds.x, ex + 1, 'шаг: (ex+1, ey)');
+  const item = G.DUNGEON_ITEMS[d.type][0];
+  assert.ok(item, 'фикстура: предмет пула типа ' + d.type);
+  const chest = { id: 'c0', x: ex + 11, y: ey, opened: false,
+    gold: 37, item };
+  ds.contents.chests = [chest];
+  const gold0 = g.state.hero.gold;
+  const st0 = g.state.stepsToday;
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'flame_step');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.equal(ds.x, ex + 11, 'телепорт: ландинг k=10 (ex+11) — x');
+  assert.equal(saveHero(h).mp, 17, 'mp ровно «мани» (24 − 7)');
+  assert.equal(chest.opened, true,
+    'RED: сундук открыт (master: chest-поток на ландинге отсутствует)');
+  assert.equal(g.state.hero.gold, gold0 + 37,
+    'RED: hero.gold +37 (chest-награда с ландинга)');
+  assert.ok(ds.log.some((l) => l.startsWith('Сундук: +37 золота')),
+    'RED: ds.log «Сундук: +37 золота…»: ' + JSON.stringify(ds.log));
+  assert.equal(ds.contents.step, 2,
+    'RED: wanderStep ровно 1× (step 1 → 2)');
+  assert.equal(g.state.stepsToday, st0 + 1,
+    'RED: лендинг тикает часы');
+  const inv = host(g.state.hero.inventory);
+  assert.ok(inv.some((s) => s && s.id === item),
+    'RED: предмет сундука в инвентаре: ' + JSON.stringify(inv));
+  assert.equal(G.combatUI.isActive(), false, 'боя нет');
+  h.frameFn(NOW + 32);
+  const text = String(h.hud.textContent);
+  assert.ok(text.includes('Сундук: +37 золота'),
+    'RED: флэш «Сундук: +37 золота» в #hud: ' + JSON.stringify(text));
+  assert.ok(!text.includes('День 2.'),
+    'флэш БЕЗ строки смены дня (день не сдвинулся): '
+    + JSON.stringify(text));
+  assert.equal(g.state.day, 1, 'день не сдвинулся (шаги << 40)');
+});
+
+test('000239 FS-T1: e2e dungeon — УСПЕШНЫЙ (non-combat) лендинг: часы +1 (день не сдвинулся) И G.wanderStep ровно 1×: contents.step +1, досеянная группа (НЕ на тайле ландинга) сдвинулась по своим правилам (новая позиция = G.wanderStep по клону: mulberry32(hash2(step+1, seed, 0x7777))) (задача 000239)', async () => {
+  const h = await boot(seedSave07({
+    day: 1,
+    hero: mkHero07({
+      mp: 24,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(saveHero(h).mp, 24, 'фикстура: сид героя mp 24 (maxMP 70)');
+  learn(h, ['flame_step']);
+  const ds = g.actions.enterDungeon(G.TERRAIN.HILL);
+  assert.ok(ds && ds.kind === 'dungeon', 'подземелье открыто');
+  h.frameFn(NOW + 16);
+  const d = ds.dg;
+  const w = d.width;
+  const F = G.CELL_FLOOR, WL = G.CELL_WALL;
+  for (let y = 0; y < d.height; y++)
+    for (let x = 0; x < w; x++)
+      d.cells[y * w + x] = (x === 0 || y === 0 || x === w - 1
+        || y === d.height - 1) ? WL : F;
+  ds.contents = { seed: 1, mobs: [], chests: [], deposits: [],
+    createdAtXp: 0, step: 0 };
+  const ex = ds.x, ey = ds.y;
+  assert.ok(ex > 1 && ey > 1 && ex < w - 2 && ey < d.height - 2,
+    'фикстура: вход — интерьерная клетка: ' + ex + ',' + ey);
+  press(h, 'ArrowRight');
+  assert.equal(ds.x, ex + 1, 'шаг: (ex+1, ey)');
+  const table = G.DUNGEON_MOBS[d.type];
+  const mob = { id: 'g0', mobIds: [table[0]], x: ex + 3, y: ey,
+    level: 1, defeated: false };
+  ds.contents.mobs = [mob];
+  assert.ok(!ds.contents.mobs.some((m) => m.x === ex + 11 && m.y === ey),
+    'фикстура: группы на тайле ландинга (ex+11, ey) НЕТ');
+  assert.equal(ds.contents.step, 1,
+    'фикстура: step 1 после реального шага');
+  const st0 = g.state.stepsToday;
+  const step0 = ds.contents.step;
+  const clone = JSON.parse(JSON.stringify(ds.contents));
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'flame_step');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.equal(ds.x, ex + 11, 'телепорт: ландинг k=10 (ex+11) — x');
+  assert.equal(saveHero(h).mp, 17, 'mp ровно «мани» (24 − 7)');
+  assert.equal(G.combatUI.isActive(), false,
+    'non-combat-лендинг: боя нет');
+  assert.equal(g.state.stepsToday, st0 + 1,
+    'RED: лендинг тикает часы (master: clock.addStep отсутствует)');
+  assert.equal(ds.contents.step, step0 + 1,
+    'RED: wanderStep ровно 1× (contents.step +1; master: нет)');
+  G.wanderStep(clone, d);
+  assert.equal(mob.x, clone.mobs[0].x,
+    'RED: группа сдвинулась по правилам — x (mulberry32(hash2('
+    + '(step+1), seed, 0x7777)))');
+  assert.equal(mob.y, clone.mobs[0].y,
+    'RED: группа сдвинулась по правилам — y');
+  assert.equal(mob.defeated, false, 'группа жива (боя не было)');
+  assert.equal(g.state.day, 1, 'день не сдвинулся (шаги << 40)');
+});
+
+test('000239 FS-W1: e2e world — боевая зона пересекается лендингом: старт ВНЕ зоны (Чебышёв 3 от тайла группы), каст → луч останавливается ПЕРЕД тайлом ЖИВОЙ группы (новый world-предикат) → ландинг ВНУТРИ зоны (Чебышёв 1) → after-cast-скан: зона-бой (spy: opts.seed = hash2(тайла группы, 0x5eedc0de), opts.tile — тайл ГРУППЫ); герой на ландинге ПЕРЕД тайлом группы; mp −7 (задача 000239)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const den = myMap.tileAt(2, 3);
+  assert.equal(den.mobGroup, 4, 'фикстура: паучье гнездо (2,3)');
+  assert.ok(G.groupZoneInfo(4).triggers,
+    'фикстура: триггерящий класс (радиус зоны 2)');
+  assert.ok(myMap.tileAt(-2, 3).passable
+    && !myMap.tileAt(-2, 3).hasMobGroup, 'фикстура: (−2,3)');
+  assert.ok(myMap.tileAt(-1, 3).passable
+    && !myMap.tileAt(-1, 3).hasMobGroup, 'фикстура: (−1,3) — старт');
+  assert.ok(myMap.tileAt(0, 3).passable
+    && !myMap.tileAt(0, 3).hasMobGroup, 'фикстура: (0,3)');
+  assert.ok(myMap.tileAt(1, 3).passable
+    && !myMap.tileAt(1, 3).hasMobGroup, 'фикстура: (1,3) — ландинг');
+  assert.equal(Math.max(Math.abs(-1 - 2), Math.abs(3 - 3)), 3,
+    'фикстура: старт (−1,3) ВНЕ зоны (Чебышёв 3 > 2)');
+  dismissStartWindow(h);
+  learn(h, ['flame_step']);
+  const mp0 = saveHero(h).mp;
+  assert.equal(mp0, 16, 'фикстура: новый герой mp 16');
+  let now = NOW;
+  now = walkTiles(h, now, [[-1, 0], [-2, 0], [-2, 1], [-2, 2], [-2, 3],
+    [-1, 3]]);
+  assert.equal(g.state.player.x, -1, 'старт (−1,3) — x');
+  assert.equal(g.state.player.y, 3, 'старт (−1,3) — y');
+  assert.equal(G.combatUI.isActive(), false,
+    'ход: боя нет (маршрут вне зон)');
+  const st0 = g.state.stepsToday;
+  const cap = spyStartCombat(G);
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'flame_step');
+  assert.equal(saveHero(h).mp, mp0 - 7, 'mp ровно «мани» (16 − 7)');
+  assert.equal(G.combatUI.isActive(), true,
+    'RED: зона-бой с ландинга (master: maybeStartCombat после '
+    + 'moveHero отсутствует)');
+  assert.ok(cap.opts, 'opts захвачены (spy startCombat)');
+  assert.equal(cap.calls, 1, 'бой начат РОВНО 1× (лендинг)');
+  assert.equal(cap.opts.seed, G.hash2(2, 3, 0x5eedc0de),
+    'seed зона-боя — от тайла ГРУППЫ: hash2(2,3,0x5eedc0de)');
+  assert.equal(cap.opts.tile.x, 2, 'opts.tile — тайл группы (x)');
+  assert.equal(cap.opts.tile.y, 3, 'opts.tile — тайл группы (y)');
+  assert.equal(g.state.player.x, 1,
+    'RED: герой на ландинге ПЕРЕД тайлом группы (x; master: луч '
+    + 'проходит ЧЕРЕЗ группу)');
+  assert.equal(g.state.player.y, 3, 'герой на ландинге (y)');
+  assert.equal(g.state.stepsToday, st0 + 1,
+    'RED: лендинг тикает часы');
+  assert.equal(g.state.day, 1, 'день не сдвинулся (шаги << 40)');
+  assert.equal(G.spellbookOC.isOpen(), false, 'книга закрыта');
+});
+
+test('000239 FS-W2: e2e world — лендинг РОВНО на тайл ВХОДА города: луч k=1 = вход (isEntrance-исключение), k=2 = footprint (непроходим) → г.dungeon.kind === «city» СРАЗУ после каста + оверлей в body (НЕ «на следующем шаге»); mp −7 (задача 000239)', async () => {
+  const h = await boot(seedSave07({ day: 1, position: { x: -23, y: -13 } }));
+  dismissStartWindow(h);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const E = myMap.tileAt(-26, -13);
+  assert.ok(E.passable && E.isEntrance && E.hasBuilding && E.inBuilding,
+    'фикстура: E (−26,−13) — входной тайл (passable, inBuilding)');
+  assert.equal(E.building, G.BUILDING_TYPES.NONE,
+    'фикстура: E — город (building NONE)');
+  const rec = G.getBuilding(E.buildingId);
+  assert.equal(rec.категория, 'город', 'фикстура: каталожная запись');
+  const tIn = myMap.tileAt(-27, -13);
+  assert.ok(tIn.inBuilding && !tIn.isEntrance && !tIn.passable,
+    'фикстура: E+D (−27,−13) — footprint non-entrance (непроходим — '
+    + 'луч остановится на k=2)');
+  const T = myMap.tileAt(-25, -13);
+  const T2 = myMap.tileAt(-24, -13);
+  assert.ok(T.passable && !T.hasMobGroup && !T.inBuilding,
+    'фикстура: T (−25,−13) проходим, без группы');
+  assert.ok(T2.passable && !T2.hasMobGroup && !T2.inBuilding,
+    'фикстура: T2 (−24,−13) проходим, без группы');
+  for (let x = -28; x <= -23; x++) {
+    for (let y = -15; y <= -11; y++) {
+      const t = myMap.tileAt(x, y);
+      if (t.hasMobGroup) {
+        assert.equal(G.groupZoneInfo(t.mobGroup).triggers, false,
+          'фикстура: ЖИВОЙ триггерящей группы в Чебышёве ≤ 2 от '
+          + 'E/T нет (' + x + ',' + y + ') — «бой > вход»');
+      }
+    }
+  }
+  assert.equal(g.state.player.x, -23, 'сид-позиция — x');
+  assert.equal(g.state.player.y, -13, 'сид-позиция — y');
+  learn(h, ['flame_step']);
+  const mp0 = saveHero(h).mp;
+  assert.equal(mp0, 16, 'фикстура: новый герой mp 16');
+  let now = NOW;
+  now = walkTiles(h, now, [[-24, -13], [-25, -13]]);
+  assert.equal(G.combatUI.isActive(), false, 'ход: боя нет');
+  assert.equal(g.dungeon, null, 'до каста: города нет');
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'flame_step');
+  assert.equal(g.state.player.x, -26, 'ландинг: тайл входа (x)');
+  assert.equal(g.state.player.y, -13, 'ландинг: тайл входа (y)');
+  assert.equal(saveHero(h).mp, mp0 - 7, 'mp ровно «мани» (16 − 7)');
+  assert.ok(g.dungeon,
+    'RED: город зашёл СРАЗУ (master: enterLocation после moveHero '
+    + 'отсутствует)');
+  assert.equal(g.dungeon.kind, 'city', 'экран города (kind city)');
+  h.frameFn(NOW + 32);
+  assert.ok(dungeonOverlayOf(h), '.dungeon-overlay в body');
+  assert.equal(G.spellbookOC.isOpen(), false, 'книга закрыта');
+  assert.equal(g.state.day, 1, 'день не сдвинулся (шаги << 40)');
+});
+
+test('000239 FS-W3: e2e world — сейв СРАЗУ после каста (RAW-чтение localStorage БЕЗ beforeunload) содержит новую позицию: data.position === тайл ландинга (1,3) (saveNow ИЗ хэндлера; на master — позиция ДО каста, последний saveNow = обычный шаг) (задача 000239)', async () => {
+  const h = await boot(seedSave07({ day: 1, position: { x: -2, y: 3 } }));
+  dismissStartWindow(h);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(myMap.tileAt(2, 3).mobGroup, 4,
+    'фикстура: паучье гнездо (2,3)');
+  assert.ok(G.groupZoneInfo(4).triggers,
+    'фикстура: триггерящий класс (луч остановится ПЕРЕД группой)');
+  assert.ok(myMap.tileAt(0, 3).passable
+    && !myMap.tileAt(0, 3).hasMobGroup, 'фикстура: (0,3)');
+  assert.ok(myMap.tileAt(1, 3).passable
+    && !myMap.tileAt(1, 3).hasMobGroup, 'фикстура: (1,3) — ландинг');
+  assert.equal(g.state.player.x, -2, 'сид-позиция — x');
+  assert.equal(g.state.player.y, 3, 'сид-позиция — y');
+  learn(h, ['flame_step']);
+  let now = NOW;
+  now = walkTiles(h, now, [[-1, 3]]);
+  const raw0 = JSON.parse(h.storage.getItem(S.SAVE_KEY));
+  assert.deepEqual(raw0.data.position, { x: -1, y: 3 },
+    'фикстура: последний сейв до каста — реальный шаг (saveNow в '
+    + 'frame): ' + JSON.stringify(raw0.data.position));
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'flame_step');
+  const raw = h.storage.getItem(S.SAVE_KEY);
+  assert.ok(raw, 'сейв присутствует (RAW-чтение, без beforeunload)');
+  const saved = JSON.parse(raw);
+  assert.deepEqual(saved.data.position, { x: 1, y: 3 },
+    'RED: сейв после каста — тайл ландинга (1,3) (master: saveNow '
+    + 'с ландинга отсутствует — позиция до каста)');
+  assert.equal(g.state.player.x, 1,
+    'RED: герой на ландинге ПЕРЕД тайлом группы (x)');
+  assert.equal(g.state.player.y, 3, 'герой на ландинге (y)');
+});
+
+test('000239 FS-T3: e2e world — часы: после УСПЕШНОГО ландинга stepsToday +1 (день не сдвинулся) (задача 000239)', async () => {
+  const h = await boot(seedSave07({ day: 1, position: { x: -2, y: 3 } }));
+  dismissStartWindow(h);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.equal(myMap.tileAt(2, 3).mobGroup, 4,
+    'фикстура: паучье гнездо (2,3)');
+  assert.ok(myMap.tileAt(0, 3).passable && myMap.tileAt(1, 3).passable,
+    'фикстура: луч проходим');
+  assert.equal(g.state.player.x, -2, 'сид-позиция — x');
+  assert.equal(g.state.player.y, 3, 'сид-позиция — y');
+  learn(h, ['flame_step']);
+  let now = NOW;
+  now = walkTiles(h, now, [[-1, 3]]);
+  const st0 = g.state.stepsToday;
+  assert.equal(st0, 1, 'фикстура: stepsToday = 1 (один реальный шаг)');
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'flame_step');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.equal(g.state.stepsToday, st0 + 1,
+    'RED: лендинг тикает часы (master: clock.addStep в world-ветке '
+    + 'отсутствует)');
+  assert.equal(g.state.day, 1, 'день не сдвинулся (шаги << 40)');
+});
+
+test('000239 FS-W4: e2e world — окружение тупиком (T проходим, T+d непроходим, T−d проходим; герой на T, направление d): «некуда шагнуть», позиция/записи/mp/stepsToday без изменений (coverage surface-ветки — ретро #5: до этой задачи ноль тестов) (задача 000239)', async () => {
+  const h = await boot(seedSave07({ day: 1, position: { x: 0, y: 5 } }));
+  dismissStartWindow(h);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.ok(myMap.tileAt(0, 5).passable
+    && !myMap.tileAt(0, 5).hasMobGroup, 'фикстура: (0,5) проходим');
+  assert.ok(myMap.tileAt(0, 6).passable
+    && !myMap.tileAt(0, 6).hasMobGroup, 'фикстура: (0,6) — T');
+  assert.equal(myMap.tileAt(0, 7).passable, false,
+    'фикстура: (0,7) — T+d вода (непроходима)');
+  assert.equal(g.state.player.x, 0, 'сид-позиция — x');
+  assert.equal(g.state.player.y, 5, 'сид-позиция — y');
+  learn(h, ['flame_step']);
+  const mp0 = saveHero(h).mp;
+  assert.equal(mp0, 16, 'фикстура: новый герой mp 16');
+  let now = NOW;
+  now = walkTiles(h, now, [[0, 6]]);
+  assert.equal(g.state.player.x, 0, 'шаг: (0,6) — x');
+  assert.equal(g.state.player.y, 6, 'шаг: (0,6) — y (направление (0,1))');
+  const st1 = g.state.stepsToday;
+  const mp1 = saveHero(h).mp;
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'до каста: записей нет');
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'flame_step');
+  assert.equal(g.state.player.x, 0, '«некуда шагнуть»: x без изменений');
+  assert.equal(g.state.player.y, 6, '«некуда шагнуть»: y без изменений');
+  assert.equal(saveHero(h).mp, mp1, '«некуда шагнуть»: мана откатилась');
+  assert.equal(g.state.stepsToday, st1,
+    '«некуда шагнуть»: часы не тикают (ландинга не было)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    '«некуда шагнуть»: записей нет');
+  h.frameFn(now + 16);
+  assert.ok(String(h.hud.textContent).includes('некуда шагнуть'),
+    '«некуда шагнуть»: reason в #hud: ' + h.hud.textContent);
+  assert.equal(G.combatUI.isActive(), false, 'боя нет');
+});
+
+test('000239 FS-P1: e2e world — луч блокируется ПОСТРОЙКОЙ (footprint non-entrance passable=false): (a) ландинг ПЕРЕД footprint-тайлом (hero НЕ на inBuilding-тайле); (b) footprint на k=1 → «некуда шагнуть» (пин вынесенного world-предиката; входной тайл — FS-W2) (задача 000239)', async () => {
+  // (a) ландинг перед footprint: сид (−60,−41) → (−59,−41)
+  // (направление (1,0)) → луч: k=1 (−58,−41) проходим, k=2 =
+  // footprint (−57,−41) непроходим → ландинг (−58,−41).
+  const h = await boot(seedSave07({ day: 1, position: { x: -60, y: -41 } }));
+  dismissStartWindow(h);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const fp = myMap.tileAt(-57, -41);
+  assert.ok(fp.inBuilding && !fp.isEntrance && !fp.passable,
+    'фикстура: (−57,−41) — footprint non-entrance (непроходим)');
+  const T = myMap.tileAt(-58, -41);
+  const T2 = myMap.tileAt(-59, -41);
+  assert.ok(T.passable && !T.hasMobGroup && !T.inBuilding,
+    'фикстура: (−58,−41) проходим, без группы');
+  assert.ok(T2.passable && !T2.hasMobGroup && !T2.inBuilding,
+    'фикстура: (−59,−41) проходим, без группы');
+  for (let x = -60; x <= -56; x++) {
+    for (let y = -43; y <= -39; y++) {
+      const t = myMap.tileAt(x, y);
+      if (t.hasMobGroup) {
+        assert.equal(G.groupZoneInfo(t.mobGroup).triggers, false,
+          'фикстура: ЖИВОЙ триггерящей группы рядом с коридором '
+          + 'нет (' + x + ',' + y + ')');
+      }
+    }
+  }
+  assert.equal(g.state.player.x, -60, 'сид-позиция — x');
+  assert.equal(g.state.player.y, -41, 'сид-позиция — y');
+  learn(h, ['flame_step']);
+  const mp0 = saveHero(h).mp;
+  assert.equal(mp0, 16, 'фикстура: новый герой mp 16');
+  let now = NOW;
+  now = walkTiles(h, now, [[-59, -41]]);
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта (a)');
+  clickRow(h, 'flame_step');
+  assert.equal(g.state.player.x, -58,
+    '(a): ландинг ПЕРЕД footprint-тайлом (x)');
+  assert.equal(g.state.player.y, -41, '(a): ландинг (y)');
+  const land = myMap.tileAt(-58, -41);
+  assert.equal(land.inBuilding, false,
+    '(a): герой НЕ на inBuilding-тайле');
+  assert.equal(saveHero(h).mp, mp0 - 7, '(a): mp (16 − 7)');
+  assert.equal(G.spellbookOC.isOpen(), false, '(a): книга закрыта');
+  assert.equal(G.combatUI.isActive(), false, '(a): боя нет');
+  // (b) footprint на k=1 → «некуда шагнуть»: отдельный boot (сид
+  // (−60,−41) → (−59,−41) → (−58,−41), направление (1,0), k=1 =
+  // footprint (−57,−41)).
+  const h2 = await boot(seedSave07({ day: 1, position: { x: -60, y: -41 } }));
+  dismissStartWindow(h2);
+  const g2 = h2.sandbox.__game;
+  learn(h2, ['flame_step']);
+  let now2 = NOW;
+  now2 = walkTiles(h2, now2, [[-59, -41], [-58, -41]]);
+  assert.equal(g2.state.player.x, -58, 'ход (b): (−58,−41) — x');
+  assert.equal(g2.state.player.y, -41, 'ход (b): (−58,−41) — y');
+  const st1 = g2.state.stepsToday;
+  const mp1 = saveHero(h2).mp;
+  key(h2, 'KeyB');
+  assert.ok(h2.body.querySelector('.spellbook-oc'), 'книга открыта (b)');
+  clickRow(h2, 'flame_step');
+  assert.equal(g2.state.player.x, -58,
+    '(b) «некуда шагнуть»: x без изменений');
+  assert.equal(g2.state.player.y, -41,
+    '(b) «некуда шагнуть»: y без изменений');
+  assert.equal(saveHero(h2).mp, mp1,
+    '(b) «некуда шагнуть»: мана откатилась');
+  assert.equal(g2.state.stepsToday, st1,
+    '(b) «некуда шагнуть»: часы не тикают');
+  h2.frameFn(now2 + 16);
+  assert.ok(String(h2.hud.textContent).includes('некуда шагнуть'),
+    '(b) «некуда шагнуть»: reason в #hud: ' + h2.hud.textContent);
+});

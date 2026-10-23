@@ -1939,7 +1939,37 @@
     console.error('main.js: Game.hud отсутствует — src/hud.js ' +
       'обязан грузиться ДО src/main.js (000129)');
   }
-  function performFlameStep() {
+  let flamePostMoveWarned = false;
+  function dungeonCellPassableAt(cx, cy) {
+    const d = dungeonState && dungeonState.dg;
+    if (!d || !d.cells) return false;
+    if (cx < 0 || cy < 0 || cx >= d.width || cy >= d.height) {
+      return false;
+    }
+    return d.cells[cy * d.width + cx] === G.CELL_FLOOR;
+  }
+  function tileLandingPassable(tx, ty, allowEntrance) {
+    const t = map && map.tileAt(tx, ty);
+    return !!(t && t.passable
+      && (!t.inBuilding || (allowEntrance && t.isEntrance))
+      && !(t.hasMobGroup
+        && !defeatedAt.has(tx + ',' + ty)));
+  }
+  function shadowStepPassable(inDungeon) {
+    return (cx, cy) => {
+      if (inDungeon) return dungeonCellPassableAt(cx, cy);
+      if (!map) return false;
+      const t = map.tileAt(cx, cy);
+      return !!(t && t.passable);
+    };
+  }
+  function flameStepPassable(inDungeon) {
+    return (cx, cy) => {
+      if (inDungeon) return dungeonCellPassableAt(cx, cy);
+      return tileLandingPassable(cx, cy, true);
+    };
+  }
+  function resolveTeleportStep(passableFactory) {
     if (dungeonState && dungeonState.kind === 'city') {
       return { ok: false, reason: 'в городе телепорт недоступен' };
     }
@@ -1954,39 +1984,64 @@
     if (Math.abs(dx) + Math.abs(dy) !== 1) {
       return { ok: false, reason: 'нет направления движения' };
     }
-    const cellPassable = (cx, cy) => {
-      if (inDungeon) {
-        const d = dungeonState.dg;
-        if (!d || !d.cells) return false;
-        if (cx < 0 || cy < 0 || cx >= d.width || cy >= d.height) {
-          return false;
-        }
-        return d.cells[cy * d.width + cx] === G.CELL_FLOOR;
-      }
-      if (!map) return false;
-      const t = map.tileAt(cx, cy);
-      return !!(t && t.passable);
-    };
+    const passable = passableFactory(inDungeon);
     let landing = 0;
     for (let k = 1; k <= 10; k++) {
-      if (!cellPassable(sx + dx * k, sy + dy * k)) break;
+      if (!passable(sx + dx * k, sy + dy * k)) break;
       landing = k;
     }
     if (landing === 0) {
       return { ok: false, reason: 'некуда шагнуть' };
     }
+    return { ok: true, inDungeon, sx, sy, dx, dy, landing };
+  }
+  function applyTeleportPlacement(r) {
     const now = performance.now();
-    if (inDungeon) {
+    if (r.inDungeon) {
       const ds = dungeonState;
       ds.prevX = ds.x; ds.prevY = ds.y;
-      ds.x += dx * landing;
-      ds.y += dy * landing;
+      ds.x += r.dx * r.landing;
+      ds.y += r.dy * r.landing;
       if (ds.mover) {
         ds.mover.step({ x: ds.prevX, y: ds.prevY },
           { x: ds.x, y: ds.y }, now);
       }
     } else {
-      moveHero(player.x + dx * landing, player.y + dy * landing);
+      moveHero(r.sx + r.dx * r.landing, r.sy + r.dy * r.landing);
+    }
+  }
+  function performShadowStep() {
+    const r = resolveTeleportStep(shadowStepPassable);
+    if (!r.ok) return { ok: false, reason: r.reason };
+    applyTeleportPlacement(r);
+    return { ok: true };
+  }
+  function performFlameStep() {
+    const r = resolveTeleportStep(flameStepPassable);
+    if (!r.ok) return { ok: false, reason: r.reason };
+    applyTeleportPlacement(r);
+    if (r.inDungeon) {
+      const ds = dungeonState;
+      let ev = null;
+      if (G.locations
+          && typeof G.locations.dungeonPostMove === 'function') {
+        ev = G.locations.dungeonPostMove(ds);
+      } else if (!flamePostMoveWarned) {
+        flamePostMoveWarned = true;
+        console.error('main.js: Game.locations.dungeonPostMove '
+          + 'отсутствует (src/locations.js обязан грузиться ДО '
+          + 'src/main.js, 000239) — после-шажной проверки на '
+          + 'лендинге flame_step нет (бой/сундук не проверяются)');
+      }
+      const dayBefore = clock.day;
+      clock.addStep(1);
+      if (ev && ev.type === 'combat') startDungeonCombat(ev.group);
+      if (ev && ev.chest) applyDungeonChest(ds, ev.chest, dayBefore);
+      saveNow();
+    } else {
+      clock.addStep(1);
+      if (!maybeStartCombat(true, performance.now())) enterLocation();
+      saveNow();
     }
     return { ok: true };
   }
@@ -2001,18 +2056,13 @@
   if (G.spellbookOC) {
     G.spellbookOC.init({ hero, clock, flash, startWindow,
       flameStep: performFlameStep,
-      shadowStep: performFlameStep,
+      shadowStep: performShadowStep,
       // 000235.04: ctx портала — функция (вызов на КАСТ: map — let,
       // переприсваивается при загрузке мира; x/y — свежие).
       outOfCombatCtx: () => ({
         x: player.x, y: player.y,
         cities: cityStates,
-        passable: (tx, ty) => {
-          const t = map && map.tileAt(tx, ty);
-          return !!(t && t.passable && !t.inBuilding
-            && !(t.hasMobGroup
-              && !defeatedAt.has(tx + ',' + ty)));
-        },
+        passable: (tx, ty) => tileLandingPassable(tx, ty, false),
         teleport: (tx, ty) => { moveHero(tx, ty); saveNow(); },
       }),
     });
@@ -2838,41 +2888,42 @@
     // locationOnInteract); шаг на совмещённый тайл = обычный moved.
     if (ev.type === 'combat') { startDungeonCombat(ev.group); return; }
     const chest = ev.chest;
-    if (chest) {
-      hero.gold += chest.gold;
-      // Предмет в сундуке — id из каталога (assets/items) → в инвентарь.
-      let itemMsg = '';
-      if (chest.item) {
-        const it = G.getItem(chest.item);
-        // Ревью 000153.01: призрак-предмет (id удалён из каталога
-        // МЕЖДУ сборками — содержимое сундуков теперь персистируется
-        // в сейве) — G.getItem → null: предмет не начисляется,
-        // сообщения нет, падения НЕТ (паттерн buyItem, items.js:
-        // !it → ok:false без обращения к it.name).
-        if (it) {
-          const add = G.addItem(hero, chest.item);
-          if (add.ok) {
-            itemMsg = ', ' + it.name;
-          } else {
-            // 000186: overflow → авто-золото по каталожному value
-            // (семантика 000132, combatEndLoot) — предмет НЕ теряется
-            // (один предмет, qty = 1).
-            const overflow = typeof it.value === 'number' ? it.value : 0;
-            hero.gold += overflow;
-            itemMsg = ' (не влезло: +' + overflow + ' золота)';
-          }
+    if (chest) { applyDungeonChest(ds, chest, dayBefore); }
+  }
+  function applyDungeonChest(ds, chest, dayBefore) {
+    hero.gold += chest.gold;
+    // Предмет в сундуке — id из каталога (assets/items) → в инвентарь.
+    let itemMsg = '';
+    if (chest.item) {
+      const it = G.getItem(chest.item);
+      // Ревью 000153.01: призрак-предмет (id удалён из каталога
+      // МЕЖДУ сборками — содержимое сундуков теперь персистируется
+      // в сейве) — G.getItem → null: предмет не начисляется,
+      // сообщения нет, падения НЕТ (паттерн buyItem, items.js:
+      // !it → ok:false без обращения к it.name).
+      if (it) {
+        const add = G.addItem(hero, chest.item);
+        if (add.ok) {
+          itemMsg = ', ' + it.name;
+        } else {
+          // 000186: overflow → авто-золото по каталожному value
+          // (семантика 000132, combatEndLoot) — предмет НЕ теряется
+          // (один предмет, qty = 1).
+          const overflow = typeof it.value === 'number' ? it.value : 0;
+          hero.gold += overflow;
+          itemMsg = ' (не влезло: +' + overflow + ' золота)';
         }
       }
-      const msg = 'Сундук: +' + chest.gold + ' золота' + itemMsg;
-      ds.log.push(msg);
-      // 000214 (ревью): шаг, закрывающий день, на клетке с сундуком —
-      // onDay-флеш «…День N.» уже выставлен ДО этой ветки; перекрыв
-      // его, сделаем смену дня невидимой (в мире конкурента флешу нет
-      // — паритет): строка сундука ПРИБИРАЕТСЯ к полному флешу дня.
-      hudFlash = (clock.day !== dayBefore ? hudFlash + '\n' : '') + msg;
-      hudFlashUntil = performance.now() + 5000;
-      G.playerUI && G.playerUI.render();
     }
+    const msg = 'Сундук: +' + chest.gold + ' золота' + itemMsg;
+    ds.log.push(msg);
+    // 000214 (ревью): шаг, закрывающий день, на клетке с сундуком —
+    // onDay-флеш «…День N.» уже выставлен ДО этой ветки; перекрыв
+    // его, сделаем смену дня невидимой (в мире конкурента флешу нет
+    // — паритет): строка сундука ПРИБИРАЕТСЯ к полному флешу дня.
+    hudFlash = (clock.day !== dayBefore ? hudFlash + '\n' : '') + msg;
+    hudFlashUntil = performance.now() + 5000;
+    G.playerUI && G.playerUI.render();
   }
   function cityOnMove(dx, dy) {
     const ds = dungeonState;
