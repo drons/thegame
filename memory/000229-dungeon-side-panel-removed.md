@@ -163,6 +163,9 @@ build() — весь блок L408-452 уходит в `if (s0 && s0.kind === 'c
     log), hint (.combat-state, текст БИТ-В-БАЙТ: «Стрелки/WASD — шаг.
     \nДверь — вход и выход: встаньте на неё и нажмите [E].\n[E] —
     постройки.»)] — байт-в-байт до 000229.
+    → УСТАРЕЛО с 000247: город — canvas ТОЛЬКО (правая панель
+    убрана совсем, включая лог/хинт); см.
+    memory/000247-city-dungeon-panels.md.
   * боевой оверлей (.combat-overlay--combat, combat-ui.js) — свои
     .combat-side/.combat-actions/.combat-log — не тронуты.
 * **Условие build()** — ИМЕННО `s0 && s0.kind === 'city'` (D2).
@@ -170,6 +173,8 @@ build() — весь блок L408-452 уходит в `if (s0 && s0.kind === 'c
   отсутствует и после перехода этажей (RW-3) — удаление структурное
   в build() по kind, а не точечное.
 * **Граница города**: байт-в-байт (DH-7(b), city-screen C1-C5, RW-G1).
+  → УСТАРЕЛО с 000247: оверлей города = canvas ТОЛЬКО (панель
+  убрана совсем; новые тесты — tests/city-side-panel.test.js).
 * **Граница боя**: боевой .combat-side не тронут (RW-4, все combat-*).
 * **Граница данных**: ds.log пишется, не персистится; сейвы/RNG/
   детерминизм боя — интактны.
@@ -257,6 +262,9 @@ memory/000234-dungeon-deposit-hint-city-only.md.
    забыть `if (logEl)` → TypeError при ЛЮБОМ входе в подземелье.
 3. **CSS `.dungeon-overlay .combat-side` ОБЩЕЕ с городом** — из
    index.html НЕ удалять (город + 4 CSS-стража).
+   → УСТАРЕЛО с 000247: правило УДАЛЕНО (мёртвый CSS — панель
+   исчезла в обоих kind'ах); CSS-стражи (combat-layout/
+   craft-layout/npc-layout) ре-пиннуты.
 4. **z-lift '25' (main.js L3386-3396, слот 000206) — не трогать**:
    DH-1/2/6/8, PE-10/11, HU* — зелёные без правок.
 5. **Строка 'floorStatusLine' ОБЯЗАТЕЛЬНО остаётся в dungeon-ui.js**
@@ -290,6 +298,8 @@ memory/000234-dungeon-deposit-hint-city-only.md.
   УБРАНА с панелью; механизм (hintBase + onDeposit в render()) жив для
   ГОРОДА (hintEl-гард); действие [E] — locationOnInteract (main.js) —
   интактно; пины DE-1 (deposit-e2e) фиксируют сбор.
+  → УСТАРЕЛО с 000247: механизм (hintBase/onDeposit/hintEl) УДАЛЁН
+  целиком — панель города тоже убрана; действие [E] интактно.
 * 000153.03 (floorStatusLine/D8 depth-aware hint): helper-контракт
   интактен; depth-aware тексты hint'а — теперь только город (в
   подземелье hint не создаётся).

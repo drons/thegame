@@ -72,9 +72,9 @@
 //     вкладка «торговля» — строки «имя (ост. N)» со стоком
 //     makeCityShop(якорь, клетка, wealth); у Берты (44) — «Этот NPC не
 //     торгует.»; вкладка «найм» (000083) не падает.
-//   * CI-V3 — hint города содержит «[E] — постройки.» (3 строки;
-//     строка 2 — единый тайл-дверь, 000177); hint подземелья —
-//     «Вход в пещеру — вход и выход…» + «Сундук и мобы…».
+//   * CI-V3 — re-pin 000247: город — панели НЕТ СОВСЕМ (0 .combat-
+//     side/.combat-state/.combat-log; #hud поднят — zIndex '25');
+//     подземелье — панели НЕТ (000229).
 //   * CI-V4 — [ПИН] 000177: спавн — на двери ([E] там = выход); [E] на
 //     ДРУГОЙ клетке без постройки → меню «Строительство» (22 строка,
 //     000148.03), повторный [E] — закрыть оверлей; без ошибок.
@@ -1683,18 +1683,6 @@ function clickTab(h, overlay, tab) {
   clickers[0]({ target: btn });
 }
 
-// Hint dungeon-ui: ПОСЛЕДНИЙ .combat-state внутри .dungeon-overlay
-// (город: [stateEl, hint]; 000229: подземелье — панели НЕТ, helper
-// вызывается ТОЛЬКО для города; паттерн dungeon-ui.test.js).
-function hintOf(h) {
-  const ov = findAll(h.body, '.dungeon-overlay')[0];
-  assert.ok(ov, 'dungeon-ui оверлей активен');
-  const states = findAll(ov, '.combat-state');
-  assert.ok(states.length >= 1,
-    'оверлей города: .combat-state (hint) присутствует');
-  return textOf(states[states.length - 1]);
-}
-
 // ============================================================
 // vm-тесты CI-V1..V8
 // ============================================================
@@ -1804,7 +1792,7 @@ test('CI-V2. «Диалог» из buildingUI → npcUI: Бренн — сток
     'кандидаты найма: ' + textOf(ovT).slice(0, 240));
 });
 
-test('CI-V3. HUD: hint города — строка «[E] — постройки.»; подземелье — панели НЕТ (000229)', async () => {
+test('CI-V3. HUD: город — панели НЕТ СОВСЕМ (000247: 0 .combat-side/.combat-state/.combat-log; #hud поднят); подземелье — панели НЕТ (000229)', async () => {
   // Город.
   const h = await bootChain();
   const G = h.sandbox.Game;
@@ -1814,15 +1802,20 @@ test('CI-V3. HUD: hint города — строка «[E] — постройк�
   assert.ok(found, 'сценарий: город (fp>=2)');
   walkTiles(h, NOW, found.steps);
   assert.ok(g.dungeon && g.dungeon.kind === 'city', 'в городе');
-  const hint = hintOf(h);
-  assert.ok(hint.includes('[E] — постройки.'),
-    'RED: hint города: «[E] — постройки.»: ' + JSON.stringify(hint));
-  assert.ok(hint.includes('Стрелки/WASD — шаг.'), 'строка 1 без изменений');
-  // 000177: строка 2 — единый тайл-дверь (вход и выход).
-  assert.ok(hint.includes('Дверь — вход и выход: встаньте на неё и нажмите [E].'),
-    'строка 2: единый тайл-дверь (000177): ' + JSON.stringify(hint));
-  assert.ok(!hint.includes('Сундук и мобы'),
-    'в городе — без подземной строки (000105)');
+  // 000247: панель города УБРАНА СОВСЕМ — hint («[E] — постройки»,
+  // 000107) негде рендериться (действие [E] — locationOnInteract —
+  // интактен); левое инфо-окно #hud ВИДИМО (zIndex '25').
+  const ov = findAll(h.body, '.dungeon-overlay')[0];
+  assert.ok(ov, 'dungeon-ui оверлей активен');
+  assert.equal(findAll(ov, '.combat-side').length, 0,
+    'город: .combat-side НЕТ (000247: панель убрана совсем)');
+  assert.equal(findAll(ov, '.combat-state').length, 0,
+    'город: .combat-state (stateEl/hint) НЕТ (000247: панель убрана '
+    + 'совсем)');
+  assert.equal(findAll(ov, '.combat-log').length, 0,
+    'город: .combat-log (журнал) НЕТ (000247: панель убрана совсем)');
+  assert.equal(h.sandbox.document.getElementById('hud').style.zIndex,
+    '25', 'город: #hud поднят над оверлеем (000247: лифт — ОБА kind\'а)');
 
   // Подземелье (отдельный boot: без выхода из города — не тапать
   // входной тайл повторно, авто-вход сломал бы протокол). 000229:

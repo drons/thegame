@@ -38,18 +38,20 @@
 //     ребёнок) (000229: панель в подземелье убрана совсем; до
 //     000229: ровно 1 .combat-state + 1 .combat-log).
 //   * DH-5 (структурный) — в src/dungeon-ui.js строки 'Группы: ' НЕТ
-//     (потребитель инфо удалён); floorStatusLine — в src/hud.js И
-//     src/dungeon-ui.js (city-ветка stateEl) (master: «Группы: » есть).
+//     (потребитель инфо удалён); floorStatusLine — в src/hud.js,
+//     dungeon-ui.js НЕ содержит (000247: consumer удалён вместе с
+//     панелью; единый потребитель — hud.js) (master: «Группы: » есть).
 //   * DH-6 — конъюнкция боя: dungeon → '25' → бой → НЕ '25' → резолв →
 //     '25' снова; локация цела (master: подъёма нет вовсе).
 //
-// ГАРД (DH-7, ЗЕЛЁНЫЙ сейчас — фиксирует ГРАНИЦЫ ТЗ: только
-// подземелья/пещеры):
+// ГАРД (DH-7, ЗЕЛЁНЫЙ; re-pin 000247 — фиксирует НОВЫЕ границы:
+// подъём — ОБА kind'а; город — панели нет):
 //   * (а) выход из подземелья ([E] на едином тайле, 000177) — подъём
 //     снят + world-HUD восстановлен (1-я строка — мир-координаты,
 //     «Местность: »);
-//   * (б) город — подъёма нет + 2 .combat-state (stateEl + hint) +
-//     city-HUD «--- <имя> (x, y) ---» + «До выхода: ~N» байт-в-байт.
+//   * (б) город — подъём ЕСТЬ (zIndex '25', 000247) + 0 .combat-state/
+//     .combat-side (000247: панель убрана) + city-HUD «--- <имя>
+//     (x, y) ---» + «До выхода: ~N» байт-в-байт.
 //
 // Харнес: самодостаточная full-chain vm-песочница (прецедент 000206 —
 // tests/city-inventory-e2e.test.js): CHAIN-скрипты из index.html,
@@ -738,16 +740,16 @@ test('000212 DH-4 (fullchain, re-pin 000229): панель подземелья 
     'единственный ребёнок оверлея — canvas');
 });
 
-test('000212 DH-5 (RED, структурный): потребитель инфо в dungeon-ui.js удалён — строки «\'Группы: \'» нет; единый источник floorStatusLine — в src/hud.js И src/dungeon-ui.js (city-ветка stateEl)', () => {
+test('000212 DH-5 (RED, структурный; re-pin 000247): потребитель инфо в dungeon-ui.js удалён — строки «\'Группы: \'» нет; единый источник floorStatusLine — в src/hud.js, dungeon-ui.js НЕ содержит (000247)', () => {
   assert.ok(!srcOf('dungeon-ui.js').includes("'Группы: '"),
     'RED: src/dungeon-ui.js — строки «\'Группы: \'» НЕТ (info-stateEl '
     + 'убран, инфо — в #hud; master: render() строит «Группы: N  |  '
     + 'Сундуки: N  |  Залежи: N» в stateEl)');
   assert.ok(srcOf('hud.js').includes('floorStatusLine'),
     'src/hud.js — читает единый helper floorStatusLine (g.locations)');
-  assert.ok(srcOf('dungeon-ui.js').includes('floorStatusLine'),
-    'src/dungeon-ui.js — читает единый helper floorStatusLine '
-    + '(live.locations, city-ветка stateEl)');
+  assert.ok(!srcOf('dungeon-ui.js').includes('floorStatusLine'),
+    'src/dungeon-ui.js — НЕ содержит floorStatusLine (000247: хвост '
+    + 'render() с consumer\'ом удалён; единый потребитель — hud.js)');
 });
 
 test('000212 DH-6 (RED, fullchain): конъюнкция боя — dungeon «25» → бой: НЕ «25» (HUD под боевым оверлеем, регрессия 000197/000203 исключена) → резолв: «25» снова; локация цела', async () => {
@@ -779,7 +781,7 @@ test('000212 DH-6 (RED, fullchain): конъюнкция боя — dungeon «25
   assert.equal(G.dungeonUI.isActive(), true, 'локация цела: dungeonUI активен');
 });
 
-test('000212 DH-7 (гард, ГРАНИЦЫ ТЗ): (а) выход из подземелья — подъём снят + world-HUD восстановлен; (б) город — подъёма нет, 2 .combat-state, city-HUD байт-в-байт', async () => {
+test('000212 DH-7 (гард, ГРАНИЦЫ ТЗ; re-pin 000247): (а) выход из подземелья — подъём снят + world-HUD восстановлен; (б) город — подъём «25» (000247), 0 .combat-state, city-HUD байт-в-байт', async () => {
   const h = await boot();
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
@@ -805,18 +807,22 @@ test('000212 DH-7 (гард, ГРАНИЦЫ ТЗ): (а) выход из подз
     + JSON.stringify(worldText));
   assert.ok(worldText.includes('Местность: '),
     'world-HUD восстановлен: «Местность: » на месте');
-  // (б) город — ПОЛНОСТЬЮ вне скоупа (ТЗ: «В подземельях и пещерах»).
+  // (б) город — подъём ЕСТЬ (000247: лифт — ОБА kind'а) + панели НЕТ
+  // СОВСЕМ (000247: .combat-side убрана из оверлея локации; инфо
+  // города — в #hud).
   await drain();
   enterCity(h, NOW + 64, myMap, (c) => c.fp >= 2);
   const dg = g.dungeon;
   assert.equal(dg.kind, 'city', 'город (kind city)');
   h.frameFn(NOW + 96);
-  assert.ok(!h.hud.style.zIndex,
-    'город: подъёма НЕТ (zIndex falsy — город не жалобуется)');
+  assert.equal(h.hud.style.zIndex, '25',
+    'город: подъём ЕСТЬ (zIndex 25 — 000247: лифт — ОБА kind\'а)');
   const overlay = dungeonOverlayOf(h);
   assert.ok(overlay, 'экран города — .dungeon-overlay в body');
-  assert.equal(findAll(overlay, '.combat-state').length, 2,
-    'город: 2 .combat-state (stateEl + hint) — панель как раньше');
+  assert.equal(findAll(overlay, '.combat-state').length, 0,
+    'город: 0 .combat-state (stateEl/hint — 000247: панель убрана)');
+  assert.equal(findAll(overlay, '.combat-side').length, 0,
+    'город: 0 .combat-side (000247: панель убрана)');
   const cityText = String(h.hud.textContent);
   assert.ok(
     cityText.includes('--- ' + dg.name + ' (' + dg.x + ', ' + dg.y

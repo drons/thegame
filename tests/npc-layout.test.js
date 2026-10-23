@@ -197,14 +197,14 @@ test('000125 RED: src/ui.js — npcBuild: el(«div», «npc-panel»); el(«div»
 
 // --- ЗЕЛЁНЫЕ с первого запуска: стражи чужих оверлеев и общих .cp-* ---
 
-test('000125: стража — остальные оверлеи не тронуты (подземелье 270px, бой 256px, база 320px, .cp-*)', () => {
-  const d = ruleExact('.dungeon-overlay .combat-side');
-  assert.equal(d['width'], '270px',
-    'мини-панель подземелья — 270px (000066, вне скоупа)');
-  assert.equal(d['position'], 'absolute',
-    'мини-панель подземелья — плавающая (вне скоупа)');
+test('000125: стража — остальные оверлеи не тронуты (.dungeon-overlay .combat-side УБРАНО 000247, бой 256px, база 320px, .cp-*)', () => {
+  // 000247: правило .dungeon-overlay .combat-side УДАЛЕНО (мёртвое:
+  // панель убрана из оверлея локации СОВСЕМ в обоих kind'ах).
+  assert.ok(!RULES.some((r) => r.selector === '.dungeon-overlay .combat-side'),
+    'правило .dungeon-overlay .combat-side УБРАНО (000247: панели в '
+    + 'оверлее локации нет — вне скоупа)');
   assert.equal(ruleExact('.combat-side')['width'], '320px',
-    'база .combat-side — 320px (бой/подземелье/постройка — не NPC)');
+    'база .combat-side — 320px (бой/постройка — не NPC)');
   assert.equal(ruleExact('.combat-overlay--combat .combat-side')['width'],
     '256px', 'панель боя (скоуп 000124) — 256px');
   assert.equal(ruleExact('.cp-items')['margin-top'], '4px',

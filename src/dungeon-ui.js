@@ -38,12 +38,11 @@
 // 'city' — тот же движок вьюпорта/камеры/зума и ОДИН маркер
 // совмещённого тайла входа-выхода (вид по kind: дверь/вход в
 // пещеру); СВОИ тайлы (палитра + чистая функция выбора варианта по
-// (x, y, seed), стены периметра рисуются); stateEl — имя города, без
-// строк групп/сундуков (contents у города null — 000106);
-// 000229: панель .combat-side (stateEl/logEl/hint) — ГОРОД ТОЛЬКО:
-// в подземелье панель не создаётся вовсе (000212: единое инфо-окно —
-// #hud, рисует main.js renderHud → hud.js buildLine); hint — без
-// строк про сундуки/мобы (000105) и с «[E] — постройки» (000107).
+// (x, y, seed), стены периметра рисуются); имя города — в едином
+// инфо-окне #hud (000106); 000247: панель .combat-side
+// (stateEl/logEl/hint) в оверлее локации удалена СОВСЕМ в обоих
+// kind'ах (000212: инфо — единое окно #hud, main.js renderHud →
+// hud.js buildLine); оверлей = canvas.
 // [E] → ctx.onInteract → locationOnInteract main.js (000177: выход
 // на совмещённом тайле для обоих kind; вне тайла — город: постройки,
 // подземелье: no-op 000121). Оверлей НЕ создаёт layout города —
@@ -227,13 +226,7 @@
     ? cancelAnimationFrame : null;
 
   let ctx = null; // { get state, onMove, open, onZoom, spriteLoader }
-  let overlay = null, canvas = null, g2 = null, stateEl = null, logEl = null;
-  // 000157.03: контекстная строка «Залежь — [E]» — hint-элемент
-  // (статичен в build()) + его базисный текст (вне залежи hint =
-  // hintBase byte-в-бит; пересчёт — на кадр в render()). 000229:
-  // панель (и hint) — город ТОЛЬКО: в подземелье stateEl/logEl/hintEl
-  // = null, hintBase = '' (close()).
-  let hintEl = null, hintBase = '';
+  let overlay = null, canvas = null, g2 = null;
   let zoom = G.ZOOM_START; // общий с миром: px/клетку = px/тайл
   let cam = { x: 0.5, y: 0.5 }; // клетки (дробные) — центр камеры
   let lastT = null; // время предыдущего кадра (dt первого кадра = 0)
@@ -406,36 +399,6 @@
     overlay.appendChild(canvas);
     g2 = canvas.getContext('2d');
 
-    const s0 = state();
-    // 000229: панель .combat-side (stateEl/logEl/hint) — ТОЛЬКО город:
-    // в подземелье панель НЕ создаётся вообще (цель 000212 достигнута
-    // полностью: единое инфо-окно — #hud, один блок renderHud →
-    // buildLine, main.js).
-    if (s0 && s0.kind === 'city') {
-      const side = document.createElement('div');
-      side.className = 'combat-side';
-      stateEl = document.createElement('div');
-      stateEl.className = 'combat-state';
-      side.appendChild(stateEl);
-      logEl = document.createElement('div');
-      logEl.className = 'combat-log';
-      side.appendChild(logEl);
-      const hint = document.createElement('div');
-      hint.className = 'combat-state';
-      // Город (000105/000107) — без строк про сундуки/мобы (000105) и
-      // С «[E] — постройки» (взаимодействие [E] — 000107, buildingUI).
-      // Город — БИТ-В-БИТ (CI-V3, RW-G1). 000229: dungeon-текст
-      // (depth-aware 000153.03/000157.02) — убран вместе с панелью
-      // (в подземелье панели нет вовсе).
-      hint.textContent = 'Стрелки/WASD — шаг.\nДверь — вход и выход: встаньте на неё и нажмите [E].\n[E] — постройки.';
-      side.appendChild(hint);
-      // 000157.03: базис контекстной строки «Залежь — [E]» — render()
-      // дописывает строку на кадр (вне залежи — hintBase byte-в-бит).
-      hintEl = hint;
-      hintBase = hint.textContent;
-
-      overlay.appendChild(side);
-    }
     document.body.appendChild(overlay);
     // { passive: false } — иначе preventDefault не гасит скролл страницы.
     overlay.addEventListener('wheel', onWheel, { passive: false });
@@ -916,45 +879,6 @@
       g2.closePath();
       g2.fill();
     }
-
-    const dist = Math.abs(s.x - d.exit.x) + Math.abs(s.y - d.exit.y);
-    // 000153.03 (D5, finding G): строка состояния — ЕДИНЫЙ helper
-    // live.locations.floorStatusLine (locations.js; live-чтение —
-    // locations.js ДО dungeon-ui.js в index.html, но по паттерну
-    // 000038 читаем в момент вызова): «Глубина: N» — ТОЛЬКО depth>1 +
-    // «До выхода: ~N клеток» (формат УНИФИЦИРОВАН на hud.js: «(на
-    // глаз)» — 1 технический репин dungeon-ui.test.js). Fallback
-    // (helper отсутствует — цепочки без locations.js) — legacy-
-    // строка. ТИХОЕ (рендер-пути — без console.error, FOG-B1/B6).
-    const fsLive = live.locations &&
-      typeof live.locations.floorStatusLine === 'function'
-      ? live.locations.floorStatusLine(d, s.x, s.y) : null;
-    const status = fsLive != null
-      ? fsLive : 'До выхода: ' + dist + ' клеток (на глаз)';
-    // 000212: stateEl — ТОЛЬКО город (build(): в подземелье элемент
-    // не создаётся — инфо-окно унифицировано в #hud, единый блок
-    // renderHud → buildLine). dungeon-ветка (счётчики
-    // «Группы: /Сундуки: /Залежи: ») УДАЛЕНА. 000229: панель в
-    // подземелье не создаётся вовсе — в подземелье stateEl/logEl/
-    // hintEl = null (все записи — под гардами if(stateEl)/if(hintEl)/
-    // if(logEl)).
-    if (stateEl) {
-      // Город (000105): заголовок — имя города (название_карты
-      // каталога); БЕЗ строк групп/сундуков (contents у города null —
-      // содержимое — 000106) и БЕЗ DUNGEON_NAMES[d.type] (у layout
-      // города type нет).
-      stateEl.textContent =
-        s.name + '  (' + s.x + ', ' + s.y + ')\n' + status;
-    }
-    // 000157.03: контекстная строка «Залежь — [E]» — стоя на
-    // не-собранной залежи (hint статичен в build() — пересчёт
-    // на кадр; вне залежи — hintBase byte-в-бит). 000229: строка —
-    // ТОЛЬКО город (в подземелье панели нет).
-    const onDeposit = !isCity && (c.deposits || []).some(
-      (x) => x && !x.gathered && x.x === s.x && x.y === s.y);
-    if (hintEl) hintEl.textContent = hintBase
-      + (onDeposit ? '\nЗалежь — [E]' : '');
-    if (logEl) logEl.textContent = (s.log || []).slice(-8).join('\n');
   }
 
   // Кадр rAF-цикла: ресайз вьюпорта (паттерн main.js), сглаживание
@@ -1041,9 +965,7 @@
       // Остановить rAF-цикл ДО снятия оверлея (паттерн combat-ui.js).
       if (rafId != null && caf) { caf(rafId); rafId = null; }
       if (overlay) overlay.remove();
-      overlay = canvas = g2 = stateEl = logEl = null;
-      hintEl = null;
-      hintBase = '';
+      overlay = canvas = g2 = null;
       ctx = null;
       lastT = null;
       // Тач-состояние (000121): сброс при выходе — повтор не переживёт

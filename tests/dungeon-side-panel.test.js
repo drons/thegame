@@ -13,10 +13,11 @@
 // НЕ переносятся в #hud — «не больше и не меньше»). #hud (000212) —
 // ЕДИНСТВЕННОЕ инфо-окно подземелья — остаётся (z-lift '25', имя,
 // «Глубина: N» при depth>1, «До выхода: ~N»). Город (kind 'city') —
-// байт-в-байт (вне скоупа ТЗ). Боевой .combat-side (combat-ui.js,
-// оверлей .combat-overlay--combat) — ДРУГОЙ оверлей — не тронут.
-// index.html / main.js / hud.js / locations.js — 0 diff (CSS-правило
-// .dungeon-overlay .combat-side — общее с городом — остаётся).
+// панель убрана (000247: оверлей = canvas, левое окно — #hud).
+// Боевой .combat-side (combat-ui.js, оверлей .combat-overlay--combat)
+// — ДРУГОЙ оверлей — не тронут. index.html / main.js / hud.js /
+// locations.js — 0 diff (CSS-правило .dungeon-overlay .combat-side —
+// мёртвое после 000247 — УДАЛЕНО).
 //
 // КРАСНЫЕ (RW-1..RW-4, expectedRedCount = 4 — падают на master
 // ОСМЫСЛЕННО: build() создаёт панель для обоих kind'ов (side/logEl/
@@ -38,14 +39,13 @@
 //     dungeon-оверлей снова 0 .combat-side + zIndex '25'; локация
 //     цела.
 //
-// ГАРД (RW-G1, ЗЕЛЁНЫЙ — фиксирует ГРАНИЦУ ТЗ: город вне скоупа,
-// байт-в-байт; дополняет DH-7(b) — тот не считает .combat-side/
-// .combat-log и не пинит stateEl-байты):
-//   * город: 1 .combat-side + 2 .combat-state (stateEl + hint) +
-//     1 .combat-log; stateEl-байты «<имя>  (x, y)\nДо выхода: ~N
-//     клеток»; hint-байты «Стрелки/WASD — шаг.\nДверь — вход и
-//     выход: встаньте на неё и нажмите [E].\n[E] — постройки.»
-//     (без «Сундук и мобы»/«Залежи»).
+// ГАРД (RW-G1, ЗЕЛЁНЫЙ; re-pin 000247 — фиксирует НОВУЮ границу:
+// город — панель убрана СОВСЕМ (как подземелье с 000229): оверлей
+// = canvas; инфо города — в #hud, 000106; дополняет DH-7(b) и
+// CR-1/CL-1 задачи 000247):
+//   * город: 0 .combat-side + 0 .combat-state (stateEl/hint — вместе
+//     с панелью) + 0 .combat-log; оверлей = canvas (1 прямой
+//     ребёнок); рендер жив (drawCalls > 0); errors 0.
 //
 // Харнес: самодостаточный (дубль конвенций): (а) full-chain
 // vm-песочница по tests/dungeon-info-window.test.js (CHAIN из
@@ -832,40 +832,28 @@ test('000229 RW-4 (RED, fullchain): no over-fix — боевой .combat-side ц
     'без новых console.error: ' + h.errors.slice(errBefore).join('; '));
 });
 
-test('000229 RW-G1 (гард, node): город — панель БАЙТ-В-БАЙТ (город вне скоупа ТЗ, граница 000212): 1 .combat-side + 2 .combat-state + 1 .combat-log; stateEl/hint — побайтово', () => {
+test('000229 RW-G1 (гард, node; re-pin 000247): город — панель УБРАНА СОВСЕМ (000247: как подземелье): 0 .combat-side/.combat-state/.combat-log; оверлей = canvas (1 ребёнок); рендер жив; errors 0', () => {
   const loaded = loadDungeonUi();
   const G = loaded.G;
   const s = makeCityState();
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
   const body = loaded.body;
-  const sides = allByClass(body, 'combat-side');
-  assert.equal(sides.length, 1, 'город: ровно 1 .combat-side (панель цела)');
-  const states = allByClass(body, 'combat-state');
-  assert.equal(states.length, 2,
-    'город: 2 .combat-state (stateEl + hint — одноимённый класс)');
-  const logs = allByClass(body, 'combat-log');
-  assert.equal(logs.length, 1, 'город: 1 .combat-log (журнал цела)');
-  assert.ok(sides[0].children.includes(states[0]),
-    'stateEl — ребёнок .combat-side');
-  assert.ok(sides[0].children.includes(logs[0]),
-    'logEl — ребёнок .combat-side');
-  assert.ok(sides[0].children.includes(states[1]),
-    'hint — ребёнок .combat-side');
-  // stateEl (000105 + 000153.03 D5: floorStatusLine — единый
-  // источник): имя города + текущая клетка (layout.entrance) +
-  // «До выхода: ~0 клеток» (000177: exit = entrance).
-  assert.equal(String(states[0].textContent),
-    'Хутор  (0, 1)\nДо выхода: ~0 клеток',
-    'город: stateEl байт-в-байт: ' + JSON.stringify(states[0].textContent));
-  // hint (000177 + 000107): строки управления + дверь + постройки;
-  // без «Сундук и мобы» (город пуст) и строк про залежи.
-  assert.equal(String(states[1].textContent),
-    'Стрелки/WASD — шаг.\nДверь — вход и выход: встаньте на неё и нажмите [E].\n[E] — постройки.',
-    'город: hint байт-в-байт: ' + JSON.stringify(states[1].textContent));
-  assert.ok(!String(states[1].textContent).includes('Сундук и мобы'),
-    'город: hint без «Сундук и мобы»');
-  assert.ok(!String(states[1].textContent).includes('Залежи'),
-    'город: hint без строк про залежи');
+  assert.equal(allByClass(body, 'combat-side').length, 0,
+    'город: 0 .combat-side (000247: панель убрана совсем)');
+  assert.equal(allByClass(body, 'combat-state').length, 0,
+    'город: 0 .combat-state (stateEl/hint — вместе с панелью, '
+    + '000247)');
+  assert.equal(allByClass(body, 'combat-log').length, 0,
+    'город: 0 .combat-log (журнал — вместе с панелью, 000247)');
+  const overlay = findByClass(body, 'dungeon-overlay');
+  assert.ok(overlay, 'оверлей .dungeon-overlay на месте (экран цел)');
+  assert.equal(overlay.children.length, 1,
+    'город: оверлей = canvas (один прямой ребёнок, 000247): '
+    + overlay.children.map((c) => c.tagName + '.' + c.className).join(' | '));
+  assert.equal(overlay.children[0].tagName, 'canvas',
+    'единственный ребёнок оверлея — canvas');
+  assert.ok(findCanvas(overlay).drawCalls.length > 0,
+    'рендер жив: drawCalls > 0 (start() — событийный рендер)');
   assert.equal(loaded.errors.length, 0,
     'чистый рендер города — без console.error: '
     + loaded.errors.join('; '));

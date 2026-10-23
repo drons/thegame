@@ -5,10 +5,11 @@
 // CSS-текст — источник правды, браузер/vm не нужны.
 //
 // Контракт — memory/000124-combat-layout.md:
-//  * БАЗА .combat-side (320px), .combat-log (170px) и правило
-//    .dungeon-overlay .combat-side НЕ ТРОГАЮТСЯ (стражи ниже,
-//    зелёные): эти классы переиспользуют чужие оверлеи —
-//    подземелье (000066), постройка; вся геометрия боя 000124
+//  * БАЗА .combat-side (320px), .combat-log (170px) НЕ ТРОГАЮТСЯ
+//    (стражи ниже, зелёные): эти классы переиспользуют чужие
+//    оверлеи — постройка, NPC; правило .dungeon-overlay .combat-side
+//    (панель оверлея локации, 000066) УДАЛЕНО в 000247 — панели в
+//    оверлее локации нет в обоих kind'ах. Вся геометрия боя 000124
 //    живёт ТОЛЬКО в скоупе .combat-overlay--combat. Диалог NPC
 //    декэплен от .combat-side в 000125 (свой класс .npc-panel,
 //    правило .npc-overlay .combat-side удалено) — его layout не
@@ -55,18 +56,20 @@ test('index.html: стража — база .combat-side = 320px (000124 не п
     + '.combat-overlay--combat)');
 });
 
-test('index.html: стража — база .combat-log = 170px (подземелье, 000066)', () => {
+test('index.html: стража — база .combat-log = 170px (бой)', () => {
   assert.equal(cssRule('.combat-log')['height'], '170px',
-    'база .combat-log — 170px (плавающая панель подземелья её использует)');
+    'база .combat-log — 170px (журнал боя; боевой скоуп переопределяет '
+    + 'flex: 1)');
 });
 
 // Правило диалога NPC (.npc-overlay .combat-side) — УДАЛЕНО в 000125:
 // диалог декэплен от .combat-side, панель — свой класс .npc-panel
 // (стража — tests/npc-layout.test.js, секция 000125).
-test('index.html: стража — .dungeon-overlay .combat-side на месте', () => {
-  const d = cssRule('.dungeon-overlay .combat-side');
-  assert.equal(d['width'], '270px', 'панель подземелья — 270px (000066)');
-  assert.equal(d['position'], 'absolute', 'панель подземелья — плавающая');
+test('index.html: стража — .dungeon-overlay .combat-side УБРАНО (000247: панели в оверлее локации нет в обоих kind\'ах)', () => {
+  assert.ok(!html.includes('.dungeon-overlay .combat-side'),
+    'правило .dungeon-overlay .combat-side УБРАНО (000247: панель '
+    + 'убрана из оверлея локации СОВСЕМ — оверлей = canvas); '
+    + 'база .combat-side/.combat-log — живые (бой/постройка)');
 });
 
 // --- Красные: layout боя по ТЗ 000124 ---

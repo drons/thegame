@@ -1988,9 +1988,10 @@ function makeCityState(opts = {}) {
 }
 
 // Все элементы в дереве с className, содержащим cls (в порядке
-// обхода): у оверлея dungeon-ui «combat-state» — город: ДВА
-// (stateEl и hint — одноимённый класс по паттерну combat-ui),
-// подземелье: НОЛЬ (000229: панель .combat-side — только город).
+// обхода): у оверлея dungeon-ui «combat-state» — НОЛЬ в обоих
+// kind'ах (000247: панель .combat-side (stateEl/logEl/hint) убрана
+// из оверлея локации СОВСЕМ — оверлей = canvas; 000229: подземелье
+// — ноль).
 function allByClass(el, cls) {
   const out = [];
   (function walk(n) {
@@ -2024,31 +2025,27 @@ function cityCellColors(calls, G, s, zoom, camX, camY) {
   return out;
 }
 
-test('город UI 000105: stateEl — имя города, текущая клетка, «До выхода»; без «undefined»/«Группы»/«Сундуки»', () => {
+test('город UI 000105 (re-pin 000247): панель убрана СОВСЕМ — 0 .combat-side/.combat-state/.combat-log; оверлей = canvas (1 ребёнок); рендер жив; инфо города — в #hud', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
   const s = makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' });
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
-  const states = allByClass(loaded.body, 'combat-state');
-  assert.ok(states.length >= 2, 'оверлей: stateEl + hint (combat-state)');
-  const text = states[0].textContent;
-  assert.ok(text.includes('Хутор'),
-    'stateEl: имя города (название_карты): ' + JSON.stringify(text));
-  assert.ok(text.includes('(0, 1)'),
-    'stateEl: текущая клетка героя (0,1) — layout.entrance: '
-    + JSON.stringify(text));
-  // 000153.03 (D5): ЕДИНЫЙ формат строки (helper floorStatusLine —
-  // locations.js в цепочке loadDungeonUi) — «~N клеток» (унификация
-  // на hud.js; «(на глаз)» — технический репин, ЕДИНСТВЕННЫЙ).
-  assert.ok(/До выхода: ~\d+ клеток/.test(text),
-    'stateEl: «До выхода: ~N клеток»: ' + JSON.stringify(text));
-  assert.ok(!text.includes('undefined'),
-    'stateEl: без «undefined» (у layout города нет DUNGEON_NAMES[type]): '
-    + JSON.stringify(text));
-  assert.ok(!text.includes('Группы'),
-    'stateEl: без «Группы» (у города contents нет): ' + JSON.stringify(text));
-  assert.ok(!text.includes('Сундуки'),
-    'stateEl: без «Сундуки» (у города contents нет): ' + JSON.stringify(text));
+  assert.equal(allByClass(loaded.body, 'combat-side').length, 0,
+    'город: .combat-side НЕТ (000247: панель убрана совсем)');
+  assert.equal(allByClass(loaded.body, 'combat-state').length, 0,
+    'город: .combat-state (stateEl/hint) НЕТ (000247: панель убрана '
+    + 'совсем: имя города/клетка/«До выхода» — в #hud, 000106)');
+  assert.equal(allByClass(loaded.body, 'combat-log').length, 0,
+    'город: .combat-log (журнал) НЕТ (000247: панель убрана совсем)');
+  const overlay = findByClass(loaded.body, 'dungeon-overlay');
+  assert.ok(overlay, 'оверлей .dungeon-overlay на месте (экран цел)');
+  assert.equal(overlay.children.length, 1,
+    'город: оверлей = canvas — ОДИН прямой ребёнок (000247): '
+    + overlay.children.map((c) => c.tagName + '.' + c.className).join(' | '));
+  assert.equal(overlay.children[0].tagName, 'canvas',
+    'единственный ребёнок оверлея — canvas');
+  assert.ok(findCanvas(loaded.body).drawCalls.length > 0,
+    'рендер жив: drawCalls > 0');
 });
 
 test('город UI 000105: СВОИ тайлы — 2x2 хутор: пол/стены рисуются, не фолбэк-подземные; палитра пол ≤3, стена ≤2', () => {
@@ -2257,7 +2254,7 @@ test('город UI 000105 (регрессия маркеров): единый �
     'старый вход-квадрат #3f9d55 — нет (000177: единый тайл)');
 });
 
-test('город UI 000105/000107: contents: null — без сундуков/мобов, рендер не падает; hint — без «Сундук и мобы» и С «[E] — постройки»', () => {
+test('город UI 000105/000107: contents: null — без сундуков/мобов, рендер не падает; панель — 0 (000247: hint убран вместе с ней); подземелье — панели НЕТ (000229)', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
   const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня' });
@@ -2270,22 +2267,20 @@ test('город UI 000105/000107: contents: null — без сундуков/м
     'город: фолбэк-моба #d9483b нет (мобов нет)');
   assert.ok(!calls.some((c) => c[0] === 'fillRect' && c[2] === '#b06ad4'),
     'город: boss-подсветка #b06ad4 нет');
-  const states = allByClass(loaded.body, 'combat-state');
-  const hint = states[1].textContent;
-  assert.ok(hint.includes('Дверь — вход и выход: встаньте на неё и нажмите [E].'),
-    'hint: единый тайл-дверь (000177): ' + JSON.stringify(hint));
-  assert.ok(!hint.includes('Сундук'),
-    'hint: без «Сундук и мобы» (город пуст; содержимое — 000106): '
-    + JSON.stringify(hint));
-  assert.ok(hint.includes('[E] — постройки.'),
-    'hint: «[E] — постройки.» (взаимодействие — 000107): '
-    + JSON.stringify(hint));
+  // 000247: панель .combat-side (stateEl/logEl/hint) убрана СОВСЕМ —
+  // hint («[E] — постройки», 000107) — вместе с ней (подсказка
+  // управления — в мире; [E] — locationOnInteract — интактен).
+  assert.equal(allByClass(loaded.body, 'combat-side').length, 0,
+    'город: .combat-side НЕТ (000247: панель убрана совсем)');
+  assert.equal(allByClass(loaded.body, 'combat-state').length, 0,
+    'город: .combat-state (stateEl/hint) НЕТ (000247: панель убрана '
+    + 'совсем)');
   // Регрессия 000229: у ПОДЗЕМЕЛЬЯ панели НЕТ (.combat-side/
   // .combat-state — 0; инфо-окно — #hud, 000212).
   const D = loadDungeonUi({ performance: { now: () => 1000 } });
   D.G.dungeonUI.start({ state: makeState(), onMove() {}, zoom: 48 });
   assert.equal(allByClass(D.body, 'combat-side').length, 0,
-    'подземелье: .combat-side НЕТ (000229: панель — только город)');
+    'подземелье: .combat-side НЕТ (000229: панель убрана)');
   assert.equal(allByClass(D.body, 'combat-state').length, 0,
     'подземелье: .combat-state (hint) НЕТ (000229: панель убрана)');
 });
@@ -3174,7 +3169,7 @@ test('подземелье UI 000212/000229: панель УБРАНА СОВС�
     'оверлей: .combat-log (журнал) НЕТ (000229: окно убрано совсем)');
 });
 
-test('подземелье UI 000157.02: панель подземелья УБРАНА — hint (строка про залежи) в подземелье НЕТ (000229); город — без «Залежи» (UI-DEP-3 re-pin 000229)', () => {
+test('подземелье UI 000157.02: панель подземелья УБРАНА — hint (строка про залежи) в подземелье НЕТ (000229); город — панели НЕТ СОВСЕМ (000247: UI-DEP-3 re-pin)', () => {
   const D = loadDungeonUi({ performance: { now: () => 1000 } });
   D.G.dungeonUI.start({ state: makeState(), onMove() {}, zoom: 48 });
   // 000229: в подземелье панели нет — .combat-state (hint) НЕТ
@@ -3186,17 +3181,19 @@ test('подземелье UI 000157.02: панель подземелья УБ�
     state: makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня' }),
     onMove() {}, zoom: 48,
   });
-  const cHint = allByClass(C.body, 'combat-state')[1].textContent;
-  assert.ok(!cHint.includes('Залежи'),
-    'город: hint — без «Залежи» (залежи — только подземелье): '
-    + JSON.stringify(cHint));
+  // 000247: в городе панели тоже нет (убрана совсем) — строки
+  // «Залежи» нет: hint отсутствует целиком (залежей в городе нет —
+  // 000157.02).
+  assert.equal(allByClass(C.body, 'combat-state').length, 0,
+    'город: .combat-state (stateEl/hint) НЕТ (000247: панель убрана '
+    + 'совсем — «Залежи» негде рендериться)');
 });
 
 // =====================================================================
 // 000157.03: UI-GRD-1 — контекстная строка «Залежь — [E]». Re-pin
-// 000229: панель (hint — .combat-state) в подземелье УБРАНА — строки
-// НЕТ во всех фазах; механизм (hintEl/hintBase + onDeposit в render())
-// — только город (залежей в городе нет — 000157.02, пин UI-DEP-3).
+// 000229/000247: панель (hint — .combat-state) УБРАНА в обоих
+// kind'ах (000247: механизм hintEl/hintBase + onDeposit в render()
+// удалён СОВСЕМ) — строки НЕТ во всех фазах.
 // =====================================================================
 
 test('000157.03: строка «Залежь — [E]» в подземелье НЕТ — панель убрана (000229): во всех фазах 0 .combat-state (UI-GRD-1 re-pin 000229)', () => {
@@ -3256,7 +3253,7 @@ function makeStairsState(opts = {}) {
   }, opts));
 }
 
-test('000153.03: «Глубина: N» ТОЛЬКО depth>1 + «До выхода: ~N клеток» (D5) — в подземелье инфо — #hud (000212), панель УБРАНА (000229); город — без «Глубина» (re-pin 000229)', () => {
+test('000153.03: «Глубина: N» ТОЛЬКО depth>1 + «До выхода: ~N клеток» (D5) — в подземелье инфо — #hud (000212), панель УБРАНА (000229); город — панели НЕТ СОВСЕМ (000247: re-pin)', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
   // 000229: подземелье — панель УБРАНА СОВСЕМ (000212: stateEl;
@@ -3265,30 +3262,32 @@ test('000153.03: «Глубина: N» ТОЛЬКО depth>1 + «До выход�
   const s = makeState({ depth: 2, px: 3, py: 3 });
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
   assert.equal(allByClass(loaded.body, 'combat-side').length, 0,
-    'оверлей: .combat-side НЕТ (000229: панель — только город)');
+    'оверлей: .combat-side НЕТ (000229: панель убрана)');
   assert.equal(allByClass(loaded.body, 'combat-state').length, 0,
     'оверлей: .combat-state НЕТ (000229: hint — вместе с панелью)');
   G.dungeonUI.close();
-  // City — БЕЗ «Глубина» (у layout города depth нет; бит-в-бит).
-  // Своя песочница на фазу (паттерн файла: DOM-стаб remove() — no-op,
-  // старый оверлей остался бы в body → allByClass[0] — чужой).
+  // City — панели НЕТ СОВСЕМ (000247) — строки «Глубина» негде
+  // рендериться (у layout города depth нет). Своя песочница на фазу
+  // (паттерн файла: DOM-стаб remove() — no-op, старый оверлей
+  // остался бы в body → allByClass[0] — чужой).
   const loadedC = loadDungeonUi({ performance: { now: () => 1000 } });
   const sC = makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' });
   loadedC.G.dungeonUI.start({ state: sC, onMove() {}, zoom: 40 });
-  const textC = allByClass(loadedC.body, 'combat-state')[0].textContent;
-  assert.ok(!textC.includes('Глубина'),
-    'city: строки «Глубина» НЕТ (D5: только depth>1): '
-    + JSON.stringify(textC));
+  assert.equal(allByClass(loadedC.body, 'combat-state').length, 0,
+    'city: .combat-state (stateEl) НЕТ (000247: панель убрана — '
+    + 'строки «Глубина» негде рендериться): «Глубина» только depth>1');
 });
 
-test('000153.03 (RED): hud.js locationLine — ОДИН helper (finding G): dungeon depth=2 — «Глубина: 2» + «~N клеток»; city — побайтово; структурный пин: символ floorStatusLine в src/hud.js И src/dungeon-ui.js', () => {
+test('000153.03 (RED): hud.js locationLine — ОДИН helper (finding G): dungeon depth=2 — «Глубина: 2» + «~N клеток»; city — побайтово; структурный пин: floorStatusLine в src/hud.js, dungeon-ui.js НЕ содержит (000247)', () => {
   // Структурный пин finding G: ОДИН источник строки — helper из
-  // locations.js; оба потребителя читают ЕГО (не свой формат).
+  // locations.js. 000247: ЕДИНСТВЕННЫЙ потребитель — hud.js
+  // (хвост render() dungeon-ui.js с consumer'ом удалён — панель
+  // убрана).
   assert.ok(src('hud.js').includes('floorStatusLine'),
     'src/hud.js — читает единый helper floorStatusLine (g.locations)');
-  assert.ok(src('dungeon-ui.js').includes('floorStatusLine'),
-    'src/dungeon-ui.js — читает единый helper floorStatusLine '
-    + '(live.locations)');
+  assert.ok(!src('dungeon-ui.js').includes('floorStatusLine'),
+    'src/dungeon-ui.js — НЕ содержит floorStatusLine (000247: '
+    + 'механизм панели удалён; единый потребитель — hud.js)');
   const hud = require('../src/hud.js');
   const D = require('../src/dungeon.js');
   const L = require('../src/locations.js');
@@ -3329,7 +3328,7 @@ test('000153.03 (RED): hud.js locationLine — ОДИН helper (finding G): dung
     + JSON.stringify(hud.locationLine(g, ds1)));
 });
 
-test('000153.03: hint depth-aware (D8) — в подземелье УБРАН (000229: панель целиком; строки «Лестница»/«Вход в пещеру» вместе с ней); city — без «Лестница» (re-pin 000229)', () => {
+test('000153.03: hint depth-aware (D8) — в подземелье УБРАН (000229: панель целиком; строки «Лестница»/«Вход в пещеру» вместе с ней); city — панели НЕТ СОВСЕМ (000247: re-pin)', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
   // Подземелье depth ≤ 1 (depth отсутствует — makeState-фикстура):
@@ -3347,19 +3346,16 @@ test('000153.03: hint depth-aware (D8) — в подземелье УБРАН (0
   assert.equal(allByClass(loaded2.body, 'combat-state').length, 0,
     'hint depth=2: .combat-state (hint) НЕТ (000229: панель убрана)');
   loaded2.G.dungeonUI.close();
-  // Город — БИТ-В-БИТ (CI-V3): без «Лестница».
+  // Город — панели НЕТ СОВСЕМ (000247): hint отсутствует целиком —
+  // строки «Лестница»/«Дверь» негде рендериться.
   const C = loadDungeonUi({ performance: { now: () => 1000 } });
   C.G.dungeonUI.start({
     state: makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня' }),
     onMove() {}, zoom: 48,
   });
-  const hint = allByClass(C.body, 'combat-state')[1].textContent;
-  assert.ok(hint.includes('Дверь — вход и выход'),
-    'city hint: выживающая «Дверь — вход и выход»: '
-    + JSON.stringify(hint));
-  assert.ok(!hint.includes('Лестница'),
-    'city hint: без «Лестница» (город — бит-в-бит, D8): '
-    + JSON.stringify(hint));
+  assert.equal(allByClass(C.body, 'combat-state').length, 0,
+    'city: .combat-state (hint) НЕТ (000247: панель убрана — '
+    + 'без «Лестница»/«Дверь»: hint отсутствует целиком)');
 });
 
 test('000153.03 (RED): маркер stairs-down — drawImage stairs.svg на proj(stairsDown) (D11): depth=1 — cave_mouth на exit + stairs на stairsDown (2 маркера, разные клетки); depth=2 — stairs на exit И stairs на stairsDown', () => {

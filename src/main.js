@@ -3736,11 +3736,12 @@
             && typeof G.buildingActions.renameInputActive === 'function'
             && G.buildingActions.renameInputActive()));
       }
-      // 000212: #hud — единое инфо-окно — в подземельях/пещерах
-      // ПОВЕРХ оверлея (frame-driven, идемпотентно; '25' — общий
-      // динамический слот 000206; в бою подъём снят — боевой оверлей
-      // над HUD, как раньше). Город — вне скоупа.
-      const hudOver = inDungeon && dungeonState.kind === 'dungeon'
+      // 000212: #hud — единое инфо-окно — в локации (город/
+      // подземелье) ПОВЕРХ оверлея (frame-driven, идемпотентно;
+      // '25' — общий динамический слот 000206; в бою подъём снят —
+      // боевой оверлей над HUD, как раньше). 000247: город — в
+      // скоупе (подъём в обоих kind'ах).
+      const hudOver = inDungeon
         && !inCombat && !inNpc && !inBuilding && !inCraft
         && !inResurrect;
       if (hud && hud.style) {

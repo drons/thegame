@@ -179,13 +179,14 @@ test('G2. стража: общие .cp-*/.combat-* и чужие оверлеи 
     }
   }
   // Чужие оверлеи — на месте.
-  const d = ruleExact('.dungeon-overlay .combat-side');
-  assert.equal(d['width'], '270px',
-    'мини-панель подземелья — 270px (000066, вне скоупа)');
-  assert.equal(d['position'], 'absolute',
-    'мини-панель подземелья — плавающая (вне скоупа)');
+  // 000247: правило .dungeon-overlay .combat-side УДАЛЕНО (мёртвое:
+  // панель убрана из оверлея локации СОВСЕМ в обоих kind'ах).
+  assert.equal(RULES.filter(
+      (r) => r.selector === '.dungeon-overlay .combat-side').length, 0,
+    'правило .dungeon-overlay .combat-side УБРАНО (000247: панели в '
+    + 'оверлее локации нет)');
   assert.equal(ruleExact('.combat-side')['width'], '320px',
-    'база .combat-side — 320px (бой/подземелье/постройка)');
+    'база .combat-side — 320px (бой/постройка)');
   assert.equal(ruleExact('.combat-overlay--combat .combat-side')['width'],
     '256px', 'панель боя (скоуп 000124) — 256px');
   assert.ok(ruleExact('.npc-panel'), 'панель диалога NPC на месте');
