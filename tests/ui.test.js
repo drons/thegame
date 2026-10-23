@@ -964,3 +964,374 @@ test('000230.10 T9 (vm, e2e): РЕАЛЬНЫЕ torso-предметы из live-
       + '+0.05 НЕ применён (дормантность)');
   }
 });
+
+// =====================================================================
+// Задача 000246 — КРАСНЫЕ ТЕСТЫ (TDD): Экран боя — кнопки управления
+// (.combat-actions) — в САМЫЙ НИЗ правой панели (.combat-side);
+// информация о выделенном существе + лог боя (.combat-log) — ВСЁ
+// оставшееся пространство между линейкой маны и кнопками (flex-grow).
+//
+// ТЗ — tasks/pending/000246.md; контракт —
+// memory/000246-combat-side-actions-bottom.md (порядок 7 детей
+// [turnorder, hpbar, mpbar, state, log, quicklist, actions], решение
+// по .combat-quicklist, 4 ре-пина на зелёной стадии).
+//
+// Механика: самодостаточная боевая vm-песочница (НОВЫЙ лоадер —
+// существующий CHAIN/loadEnv файла 000230.07 НЕ трогается):
+// ДИНАМИЧЕСКИЙ CHAIN = ВСЕ <script src> index.html ДО combat-ui.js
+// включительно (порядок = index.html; прецедент — dungeon-info-window.
+// test.js, полный префикс грузится чисто) + СНИСХОДИТЕЛЬНЫЙ DOM-стаб
+// (Proxy, неизвестный метод — no-op; дубль конвенции
+// dungeon-info-window/city-interact) + canvas с getContext('2d') →
+// 2d no-op-прокси + lenient getBoundingClientRect {left:0, top:0}
+// (→ 1:1-фолбэк measureBacking/computeBacking, 000151) +
+// window.addEventListener no-op (keydown не нужен) + storage-стаб.
+// Сцена (паттерн scene84 combat-ui.test.js): G.createCharacter() +
+// G.combatUI.startCombat({hero, mobs:['wolf'], mobLevel:1, seed:42});
+// оверлей — под document.body песочницы (findByClass).
+//
+// КРАСНЫЕ (2 — падают на master: порядок детей .combat-side в
+// существующем build() — actions 5-й из 7, log ПОСЛЕ кнопок; осмысленно,
+// не синтаксис/окружение):
+//   000246-ACT-LAST  .combat-actions — ПОСЛЕНЕДНИЙ ребёнок .combat-side
+//                    (кнопки — в самый низ правой панели);
+//                    сейчас lastChild = .combat-log (build() L521/L542).
+//   000246-LOG-FLEX  DOM: idx(.combat-log) < idx(.combat-actions)
+//                    (лог НАД кнопками — между маной и кнопками;
+//                    сейчас ложь: log 6-й, actions 4-й) + CSS-гард:
+//                    правило .combat-overlay--combat .combat-log
+//                    декларирует рост (flex-шорткат начинается с 1
+//                    ИЛИ явный flex-grow ≥ 1 — зелёный с master,
+//                    страхует рост при будущих правках; пин
+//                    combat-layout.test.js L81–85 читает decls['flex']
+//                    — шорткат ОБЯЗАТЕЛЕН).
+// ЗЕЛЁНЫЕ с начала (гарды; в red-счёт НЕ входят):
+//   000246-TOP-4     первые 4 элемента .combat-side =
+//                    [turnorder, hpbar, mpbar, state] (мана — 3-я —
+//                    инвариант ТЗ п.2: позиция линейки маны не
+//                    меняется).
+// Полный порядок всех 7 детей пинят ре-пинами deepEqual (зелёная
+// стадия: CU199-MPBAR-1/CU196-POS + 194-QUI-BUILD/FINISH) — здесь не
+// дублируется (один факт — один пин).
+// =====================================================================
+
+// --- ДИНАМИЧЕСКИЙ CHAIN: ВСЕ <script src> index.html ДО combat-ui.js
+// включительно (паттерн dungeon-info-window.test.js: полный префикс) ---
+
+const CHAIN_000246 = (() => {
+  const all = Array.from(
+    page().matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1])
+    .map((p) => p.replace(/^src\//, ''));
+  const i = all.indexOf('combat-ui.js');
+  assert.ok(i >= 0, 'combat-ui.js подключён в index.html');
+  return all.slice(0, i + 1);
+})();
+
+// --- Снисходительный DOM-стаб (дубль конвенции
+// tests/dungeon-info-window.test.js / tests/city-interact.test.js:
+// дерево + dataset + querySelector(All) + closest; неизвестный метод —
+// no-op-функция через Proxy) ---
+
+function matchesSimple000246(el, sel) {
+  const m = /^([a-zA-Z][\w-]*)\[([\w-]+)(?:=([^\]]+))?\]$/.exec(sel);
+  if (m) {
+    if (String(el.tagName || '').toLowerCase() !== m[1].toLowerCase()) {
+      return false;
+    }
+    const keys = [m[2]];
+    if (m[2].startsWith('data-')) keys.push(m[2].slice(5));
+    const key = keys.find((k) => k in el.dataset);
+    if (key === undefined) return false;
+    if (m[3] !== undefined) {
+      const val = m[3].replace(/^['"]|['"]$/g, '');
+      return String(el.dataset[key]) === val;
+    }
+    return true;
+  }
+  if (sel.startsWith('.')) {
+    return String(el.className || '').split(/\s+/).includes(sel.slice(1));
+  }
+  return String(el.tagName || '').toLowerCase() === sel.toLowerCase();
+}
+
+// Составной селектор ('.combat-actions button' — render() combat-ui.js
+// L1985): последний фрагмент — элемент, остальные — по предкам.
+function matchesSel000246(el, sel) {
+  const parts = String(sel).trim().split(/\s+/);
+  if (parts.length === 1) return matchesSimple000246(el, parts[0]);
+  if (!matchesSimple000246(el, parts[parts.length - 1])) return false;
+  let n = el.parent;
+  for (let i = parts.length - 2; i >= 0; i--) {
+    if (!n || !matchesSimple000246(n, parts[i])) return false;
+    n = n.parent;
+  }
+  return true;
+}
+
+function findAll000246(root, sel) {
+  const out = [];
+  const walk = (n) => {
+    for (const ch of n.children || []) {
+      if (matchesSel000246(ch, sel)) out.push(ch);
+      walk(ch);
+    }
+  };
+  walk(root);
+  return out;
+}
+
+function makeContext2d000246(el) {
+  const calls = el.drawCalls = [];
+  return new Proxy({}, {
+    get: (t, k) => (k in t ? t[k] : (...args) => { calls.push([k, args]); }),
+    set: (t, k, v) => { t[k] = v; return true; },
+  });
+}
+
+function makeEl000246(tag) {
+  const target = {
+    tagName: tag,
+    className: '',
+    _text: '',
+    title: '',
+    disabled: false,
+    style: {},
+    dataset: {},
+    children: [],
+    parent: null,
+    listeners: {},
+    // children хранят СУРЫЕ target (а не прокси): remove() ищет по
+    // identity (дубль tests/city-interact.test.js).
+    appendChild(ch) {
+      const raw = ch && ch.__raw ? ch.__raw : ch;
+      if (raw.parent) {
+        raw.parent.children.splice(raw.parent.children.indexOf(raw), 1);
+      }
+      raw.parent = target;
+      target.children.push(raw);
+      return ch;
+    },
+    remove() {
+      if (!target.parent) return;
+      const i = target.parent.children.indexOf(target);
+      if (i >= 0) target.parent.children.splice(i, 1);
+      target.parent = null;
+    },
+    addEventListener(type, fn) {
+      (target.listeners[type] || (target.listeners[type] = [])).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const a = target.listeners[type];
+      if (!a) return;
+      const i = a.indexOf(fn);
+      if (i >= 0) a.splice(i, 1);
+    },
+    setAttribute(name, value) {
+      if (name.startsWith('data-')) target.dataset[name.slice(5)] = value;
+    },
+    getContext(kind) {
+      if (tag !== 'canvas') return null;
+      return kind === '2d' ? makeContext2d000246(target) : null;
+    },
+    // lenient rect (без width/height): 1:1-фолбэк measureBacking/
+    // computeBacking (000151) — «кнопки внизу на всех размерах» даёт
+    // CSS-колонка, не стаб.
+    getBoundingClientRect() { return { left: 0, top: 0 }; },
+    get lastChild() {
+      return target.children[target.children.length - 1] || null;
+    },
+    closest(sel) {
+      let n = target;
+      while (n) {
+        if (matchesSel000246(n, sel)) return n;
+        n = n.parent;
+      }
+      return null;
+    },
+    querySelector(sel) { return findAll000246(target, sel)[0] || null; },
+    querySelectorAll(sel) { return findAll000246(target, sel); },
+  };
+  if (tag === 'canvas') {
+    target.width = 0;
+    target.height = 0;
+  }
+  Object.defineProperty(target, 'textContent', {
+    get() { return this._text; },
+    set(v) {
+      this._text = String(v);
+      for (const ch of target.children) ch.parent = null;
+      target.children.length = 0;
+    },
+  });
+  target.__raw = target;
+  return new Proxy(target, {
+    get(t, k) {
+      if (k in t) return t[k];
+      return () => undefined; // неизвестный метод DOM — no-op
+    },
+    set(t, k, v) { t[k] = v; return true; },
+  });
+}
+
+function makeStorage000246() {
+  const m = new Map();
+  return {
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => { m.set(k, String(v)); },
+    removeItem: (k) => { m.delete(k); },
+  };
+}
+
+// --- Песочница: ДИНАМИЧЕСКИЙ CHAIN до combat-ui.js включительно ---
+
+function bootCombat000246() {
+  const errors = [];
+  const document = {
+    createElement: (tag) => makeEl000246(tag),
+    body: makeEl000246('body'),
+    getElementById: () => null,
+    querySelector: () => null,
+    hidden: false,
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  const window = {
+    // keydown/resize не нужны пирам: no-op (typeof-гарды combat-ui.js
+    // L154–159/L263–265 закрывают performance/rAF/devicePixelRatio).
+    addEventListener() {},
+    removeEventListener() {},
+    localStorage: makeStorage000246(),
+  };
+  const sandbox = {
+    console: {
+      log: () => {}, info: () => {}, warn: () => {}, debug: () => {},
+      trace: () => {},
+      error: (m) => errors.push(String(m)),
+    },
+    document, window, setTimeout, clearTimeout,
+  };
+  vm.createContext(sandbox);
+  for (const f of CHAIN_000246) {
+    vm.runInContext(src(f), sandbox, { filename: f });
+  }
+  return { G: sandbox.Game, body: document.body, errors, sandbox };
+}
+
+// Элемент оверлея по className (multi-class — дубль
+// combat-inventory-panel.test.js; оверлей подвешен к body песочницы).
+function findByClass000246(el, cls) {
+  if (String(el.className).split(/\s+/).includes(cls)) return el;
+  for (const ch of el.children || []) {
+    const found = findByClass000246(ch, cls);
+    if (found) return found;
+  }
+  return null;
+}
+
+// ПРАВАЯ панель боя (.combat-side) собранного оверлея.
+function sideOf000246(env) {
+  const overlay = findByClass000246(env.body, 'combat-overlay--combat');
+  assert.ok(overlay, 'боевой оверлей подвешен к body песочницы');
+  const side = findByClass000246(overlay, 'combat-side');
+  assert.ok(side, '.combat-side есть в боевом оверлее');
+  return side;
+}
+
+// Сцена: дефолтный герой + волк (паттерн scene84, combat-ui.test.js
+// L333) — панель: 7 табличных кнопок + lastSpell (000227) = 8.
+function sceneCombat000246() {
+  const env = bootCombat000246();
+  assert.equal(env.errors.length, 0,
+    'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
+  assert.ok(env.G.combatUI,
+    'Game.combatUI создан (combat-ui.js в CHAIN)');
+  const hero = env.G.createCharacter();
+  const c = env.G.combatUI.startCombat({
+    hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c,
+    'бой начался (build()/render() без исключений)');
+  assert.equal(env.errors.length, 0,
+    'ошибок после startCombat нет: ' + env.errors.join('; '));
+  return env;
+}
+
+// CSS index.html: декларация скоуп-правила «.a .b { … }» (дубль
+// cssRule combat-layout.test.js: точки экранируются, части — через
+// \s+; имена селекторов скоупа уникальны — ложных срабатываний нет).
+function cssDecl000246(html, sel) {
+  const selRe = sel.split(/\s+/)
+    .map((p) => p.replace(/\./g, '\\.')).join('\\s+');
+  const m = html.match(new RegExp(selRe + '\\s*{([^}]*)}'));
+  assert.ok(m, 'CSS-правило ' + sel + ' найдено в index.html');
+  const decls = {};
+  for (const part of m[1].split(';')) {
+    const i = part.indexOf(':');
+    if (i < 0) continue;
+    const prop = part.slice(0, i).trim().toLowerCase();
+    if (prop) decls[prop] = part.slice(i + 1).trim();
+  }
+  return decls;
+}
+
+// --- 000246-ACT-LAST (КРАСНЫЙ) ---
+
+test('000246-ACT-LAST: .combat-actions — ПОСЛЕНЕДНИЙ дочерний элемент .combat-side (кнопки — в самый низ правой панели); фикстура: панель цела (7 детей, 8 кнопок)', () => {
+  const env = sceneCombat000246();
+  const side = sideOf000246(env);
+  assert.equal(side.children.length, 7,
+    'фикстура: .combat-side цела — 7 детей; факт: '
+    + side.children.map((ch) => ch.className).join(','));
+  const actions = side.children.find(
+    (ch) => String(ch.className).split(/\s+/).includes('combat-actions'));
+  assert.ok(actions, 'фикстура: .combat-actions есть в панели');
+  const btns = findAll000246(actions, 'button');
+  assert.equal(btns.length, 8,
+    'фикстура: 8 кнопок в .combat-actions (7 табличных + lastSpell, '
+    + '000227); факт: ' + btns.length);
+  assert.equal(side.lastChild, actions,
+    'последний ребёнок .combat-side — .combat-actions (краснота: '
+    + 'build() appendChild-ит actions ПЯТЫМ из 7, до quicklist и log — '
+    + 'lastChild сейчас .combat-log); факт: '
+    + String(side.lastChild && side.lastChild.className));
+});
+
+// --- 000246-LOG-FLEX (КРАСНЫЙ по DOM-части + CSS-гард) ---
+
+test('000246-LOG-FLEX: .combat-log ВЫШЕ .combat-actions (всё оставшееся пространство — между линейкой маны и кнопками; при скоуп-колонке flex-лог растягивается на остаток) + CSS: скоуп-правило .combat-overlay--combat .combat-log декларирует рост (flex-шорткат начинается с 1 ИЛИ явный flex-grow ≥ 1)', () => {
+  const env = sceneCombat000246();
+  const side = sideOf000246(env);
+  const idx = (cls) => side.children.findIndex(
+    (ch) => String(ch.className).split(/\s+/).includes(cls));
+  const iLog = idx('combat-log');
+  const iAct = idx('combat-actions');
+  assert.ok(iLog >= 0 && iAct >= 0,
+    'фикстура: лог и кнопки в панели; факт: '
+    + side.children.map((ch) => ch.className).join(','));
+  assert.ok(iLog < iAct,
+    '.combat-log ВЫШЕ .combat-actions (краснота: на master log 6-й, '
+    + 'actions 4-й — лог ПОД кнопками); факт: idx(log)=' + iLog
+    + ', idx(actions)=' + iAct);
+  const d = cssDecl000246(page(), '.combat-overlay--combat .combat-log');
+  const byShortcut = /^1/.test(String(d['flex'] || ''));
+  const fg = d['flex-grow'];
+  const byLonghand = fg !== undefined && Number.parseFloat(fg) >= 1;
+  assert.ok(byShortcut || byLonghand,
+    'CSS-правило .combat-overlay--combat .combat-log декларирует рост '
+    + '(гард: рост не потеряется при будущих правках; пин '
+    + 'combat-layout.test.js читает decls[flex] — шорткат «1…» '
+    + 'обязателен); факт: ' + JSON.stringify(d));
+});
+
+// --- 000246-TOP-4 (гард, зелёный с master) ---
+
+test('000246-TOP-4 (гард): первые 4 элемента .combat-side — [combat-turnorder, combat-hpbar, combat-mpbar, combat-state] (мана — 3-я — инвариант ТЗ п.2: позиция линейки маны не меняется)', () => {
+  const env = sceneCombat000246();
+  const side = sideOf000246(env);
+  assert.deepEqual(
+    side.children.slice(0, 4).map((ch) => String(ch.className).trim()),
+    ['combat-turnorder', 'combat-hpbar', 'combat-mpbar', 'combat-state'],
+    'первые 4 элемента .combat-side (верхняя зона — инвариант; '
+    + 'краснота была бы только при смене порядка в build()); факт: '
+    + JSON.stringify(side.children.map((ch) => ch.className)));
+});

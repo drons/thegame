@@ -57,8 +57,11 @@ tests/combat-layout.test.js: база `.combat-side` = 320px, база
 
 Состав боевого оверлея (build()): `.combat-box` (canvas 336×336 +
 `.combat-banner` absolute) и `.combat-side` (flex-колонка:
-`.combat-turnorder` → `.combat-hpbar` → `.combat-state` →
-`.combat-actions` → `.combat-log`).
+`.combat-turnorder` → `.combat-hpbar` → `.combat-mpbar` (000199) →
+`.combat-state` → `.combat-log` → `.combat-quicklist` (000194) →
+`.combat-actions` — с 000246: кнопки — в самый низ, лог — всё
+оставшееся пространство (flex: 1 1 auto, скоуп; до 000246 хвост был
+`actions` → `quicklist` → `log`).
 
 ### Десктоп / альбомный (flex row, по умолчанию)
 ```css

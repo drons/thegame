@@ -183,8 +183,9 @@ test('194-QUI-BUILD: .combat-quicklist — МЕЖДУ .combat-actions и .combat
   const iL = idx('combat-log');
   assert.ok(iA >= 0 && iL >= 0,
     'соседи на месте: ' + side.children.map((ch) => ch.className).join(','));
-  assert.ok(iA < iQ && iQ < iL,
-    'порядок: actions < quicklist < log (краснота: iQ=' + iQ + ')');
+  assert.ok(iL < iQ && iQ < iA,
+    'порядок: log < quicklist < actions (000246: кнопки — в самый '
+    + 'низ); (краснота: iQ=' + iQ + ')');
   assert.equal(ql.style.display, 'none',
     'скрыт до открытия (краснота: ' + ql.style.display + ')');
 });
@@ -405,15 +406,15 @@ test('194-QUI-ALLY-STALE: 000223: слот — своя единица: реаг
 
 // --- 194-QUI-FINISH (якорь) ---
 
-test('194-QUI-FINISH (якорь): finish() — isActive false, KeyE не потребляется; порядок .combat-side (actions < quicklist < log)', () => {
+test('194-QUI-FINISH (якорь): finish() — isActive false, KeyE не потребляется; порядок .combat-side (log < quicklist < actions — 000246)', () => {
   const S = scene();
   const side = findByClass(S.body, 'combat-side');
   const idx = (cls) => side.children.findIndex(
     (ch) => ch.className === cls);
-  assert.ok(idx('combat-actions') < idx('combat-quicklist'),
-    '000194: actions < quicklist');
-  assert.ok(idx('combat-quicklist') < idx('combat-log'),
-    '000194: quicklist < log');
+  assert.ok(idx('combat-log') < idx('combat-quicklist'),
+    '000246: log < quicklist');
+  assert.ok(idx('combat-quicklist') < idx('combat-actions'),
+    '000246: quicklist < actions');
   S.c.result = { outcome: 'victory', xp: 0, gold: 0, defeated: 1 };
   press(S.keydown, 'Space');
   assert.equal(S.G.combatUI.isActive(), false, 'после finish — не активен');

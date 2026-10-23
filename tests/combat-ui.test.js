@@ -6751,10 +6751,11 @@ test('боевой UI: 000199 — полоска MP (.combat-mpbar) ПОД по�
   const side = findByClass(S.body, 'combat-side');
   assert.deepEqual(side.children.map((ch) => ch.className),
     ['combat-turnorder', 'combat-hpbar', 'combat-mpbar', 'combat-state',
-      'combat-actions', 'combat-quicklist', 'combat-log'],
-    '000199: порядок .combat-side — mpbar третьим; 000194: '
-    + 'quicklist между actions и log; 000196: книга — в .combat-box '
-    + '(краснота: ' + JSON.stringify(side.children.length)
+      'combat-log', 'combat-quicklist', 'combat-actions'],
+    '000199: порядок .combat-side — mpbar третьим; 000246: '
+    + '[turnorder, hpbar, mpbar, state, log, quicklist, actions]; '
+    + '000194: quicklist между actions и log; 000196: книга — в '
+    + '.combat-box (краснота: ' + JSON.stringify(side.children.length)
     + ' элементов): '
     + JSON.stringify(side.children.map((ch) => ch.className)));
   // Дефолт: игрок MP 16/16.
@@ -8213,7 +8214,7 @@ test('боевой UI: 000196 — книга (.combat-spellbook) — в .combat-
   assert.ok(box && side, 'фикстура: .combat-box и .combat-side есть');
   assert.deepEqual(side.children.map((ch) => ch.className),
     ['combat-turnorder', 'combat-hpbar', 'combat-mpbar', 'combat-state',
-      'combat-actions', 'combat-quicklist', 'combat-log'],
+      'combat-log', 'combat-quicklist', 'combat-actions'],
     '000196: .combat-side — 7 элементов, книги НЕТ (краснота: 8 элементов — '
     + 'книга между .combat-actions и .combat-log): '
     + JSON.stringify(side.children.map((ch) => ch.className)));

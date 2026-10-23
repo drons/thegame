@@ -451,3 +451,28 @@ test('index.html: 000237 — .combat-victory-loot — absolute под центр
     '000237: portrait — зеркало формулы canvas (portrait); факт: '
     + p['width']);
 });
+
+// --- 000246: кнопки — в самый низ панели (ревью 2026-10-23) ---
+//
+// .combat-actions — последний ребёнок .combat-side (пин
+// 000246-ACT-LAST, tests/ui.test.js): базовый margin-bottom 10px
+// (общее правило .combat-actions, 000124) остался бы ПОД кнопками:
+// 10px + padding панели 12px = 22px пустоты до низа при 12px
+// прочих краях. ТЗ — «кнопки в САМЫЙ НИЗ»: скоуп-правило обнуляет
+// margin-bottom ТОЛЬКО в .combat-overlay--combat (база — контракт
+// 000124, не трогаем — стража на месте).
+
+test('index.html: .combat-overlay--combat .combat-actions — margin-bottom: 0 (кнопки впритык к низу панели, 12px = padding панели); стража: база .combat-actions не переписана (000246)', () => {
+  const decls = cssRule('.combat-overlay--combat .combat-actions');
+  assert.equal(decls['margin-bottom'], '0',
+    '000246: .combat-actions — последний ребёнок .combat-side: '
+    + 'базовый margin-bottom 10px (000124) дал бы 22px пустоты до '
+    + 'низа панели (10 + padding 12) при 12px прочих краях — ТЗ '
+    + '«кнопки в САМЫЙ НИЗ»; обнуление — только в боевом скоупе; '
+    + 'факт: ' + decls['margin-bottom']);
+  const base = cssRule('.combat-actions');
+  assert.equal(base['margin-bottom'], '10px',
+    'стража: база .combat-actions — margin-bottom 10px (общее '
+    + 'правило, контракт 000124 — НЕ переписано); факт: '
+    + base['margin-bottom']);
+});

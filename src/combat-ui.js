@@ -518,7 +518,6 @@
       rb.addEventListener('click', () => resurrectCast(c));
       actions.appendChild(rb);
     }
-    side.appendChild(actions);
 
     // «Быстрый предмет» — список (задача 000194): контейнер строк —
     // МЕЖДУ .combat-actions и .combat-log. Строки (div, не
@@ -529,7 +528,6 @@
     quickBox.style.display = 'none';
     quickOpen = false;
     quickSig = null;
-    side.appendChild(quickBox);
 
     bookBox = document.createElement('div');
     bookBox.className = 'combat-spellbook';
@@ -540,6 +538,8 @@
     logEl = document.createElement('div');
     logEl.className = 'combat-log';
     side.appendChild(logEl);
+    side.appendChild(quickBox);
+    side.appendChild(actions);
 
     box.appendChild(bookBox);
 
