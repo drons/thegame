@@ -151,6 +151,8 @@
     }
     .char-panel .cp-tipcell .cp-tip { right: 0; }
     .char-panel .cp-itemrow > .cp-tip { left: 0; }
+    /* 000262: flip у верхнего края — memory/000262-tip-flip-clamp.md */
+    .char-panel .cp-tip.cp-tip--down { bottom: auto; top: calc(100% + 4px); }
     .char-panel .cp-itemrow:hover > .cp-tip,
     .char-panel .cp-itemrow:focus-within > .cp-tip,
     .char-panel tr:hover .cp-tip,

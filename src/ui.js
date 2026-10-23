@@ -87,6 +87,8 @@
       tabsRow.appendChild(btn);
       const pane = el('div', 'cp-tabpane');
       rec.panes[t.id] = pane;
+      // 000262: скролл пани — пере-расчёт тултипа (memory/000262).
+      pane.addEventListener('scroll', refreshHoveredTip);
       t.build(pane, panelCtx);
       col.appendChild(pane);
     }
@@ -241,6 +243,16 @@
       }
     });
 
+    // 000262: flip/clamp тултипа у краёв (memory/000262-tip-flip-
+    // clamp.md): делегированные mouseover/focusin (паттерн click-
+    // ветки) + resize окна. buildPanel — один раз за сессию.
+    panel.addEventListener('mouseover', onTipPointer);
+    panel.addEventListener('focusin', onTipPointer);
+    if (typeof window !== 'undefined' &&
+        typeof window.addEventListener === 'function') {
+      window.addEventListener('resize', refreshHoveredTip);
+    }
+
     document.body.appendChild(panel);
   }
 
@@ -251,6 +263,113 @@
     notice.style.opacity = '1';
     clearTimeout(flashNotice._t);
     flashNotice._t = setTimeout(() => { notice.style.opacity = '0'; }, 2500);
+  }
+
+  // --- 000262: flip/clamp тултипа у верхнего края (memory/000262-
+  // tip-flip-clamp.md) ---
+  // Показ/скрытие — чистый CSS (:hover/:focus-within, правила не
+  // трогаются); JS только решает, есть ли класс cp-tip--down на
+  // узле .cp-tip (тултип под строкой, не над) и — в дегенеративе
+  // «ни «над», ни «под» не влезают» — clamp-марджин (inline только
+  // marginTop; очистка no-op, если уже пусто → строка в середине
+  // после hover имеет ПОЛНОСТЬЮ ПУСТОЙ style, бит-в-бит «над»).
+  // Граница видимости = .cp-tabpane ∩ вьюпорт (пани — реальный
+  // клиппер, overflow-y:auto). Замер rect — ТОЛЬКО в обработчиках
+  // (buildPanel/render не считают). Класс — строкой (classList в
+  // DOM-стабе нет); на СТРОКЕ flip-класса нет (RAR-G).
+  const TIP_DOWN = 'cp-tip--down';
+  const TIP_GAP = 4;
+  let hoveredTipOwner = null;
+
+  function tipHasDown(tip) {
+    return String(tip.className || '').split(/\s+/).indexOf(TIP_DOWN)
+      >= 0;
+  }
+
+  function tipSetDown(tip, on) {
+    const parts = String(tip.className || '').split(/\s+/)
+      .filter(Boolean);
+    const i = parts.indexOf(TIP_DOWN);
+    if (on && i < 0) parts.push(TIP_DOWN);
+    if (!on && i >= 0) parts.splice(i, 1);
+    tip.className = parts.join(' ');
+  }
+
+  function tipStillIn(o) {
+    let n = o;
+    while (n) {
+      if (n === panel) return true;
+      n = n.parent || n.parentNode;
+    }
+    return false;
+  }
+
+  function placeTip(tip, owner) {
+    if (!tip || !owner) return;
+    if (typeof tip.getBoundingClientRect !== 'function' ||
+        typeof owner.getBoundingClientRect !== 'function') return;
+    const or = owner.getBoundingClientRect();
+    const tr = tip.getBoundingClientRect();
+    if (typeof or.top !== 'number' || typeof or.bottom !== 'number') {
+      return;
+    }
+    if (typeof tr.top !== 'number' || typeof tr.bottom !== 'number' ||
+        typeof tr.height !== 'number' || tr.height <= 0) return;
+    let vh = Infinity;
+    if (typeof window !== 'undefined' &&
+        typeof window.innerHeight === 'number') {
+      vh = window.innerHeight;
+    }
+    const pane = (typeof owner.closest === 'function')
+      ? owner.closest('.cp-tabpane') : null;
+    let pr = null;
+    if (pane && typeof pane.getBoundingClientRect === 'function') {
+      pr = pane.getBoundingClientRect();
+    }
+    const prTop = (pr && typeof pr.top === 'number') ? pr.top : 0;
+    const prBottom = (pr && typeof pr.bottom === 'number') ? pr.bottom : vh;
+    const vTop = Math.max(0, prTop);
+    const vBottom = Math.min(vh, prBottom);
+    const H = tr.height;
+    const aboveFits = or.top - H - TIP_GAP >= vTop;
+    const belowTop = or.bottom + TIP_GAP;
+    const belowFits = belowTop + H <= vBottom;
+    if (aboveFits) {
+      // «над» — базовая позиция (бит-в-бит): класс/марджин не
+      // ставятся, old-state не переписывается.
+      if (tipHasDown(tip)) tipSetDown(tip, false);
+      if (tip.style && tip.style.marginTop) tip.style.marginTop = '';
+    } else if (belowFits) {
+      // «над» не влезает, «под» влезает — flip.
+      if (!tipHasDown(tip)) tipSetDown(tip, true);
+      if (tip.style && tip.style.marginTop) tip.style.marginTop = '';
+    } else {
+      // Обе нет (низкий вьюпорт/пани) — flip + clamp: нижний край
+      // прижат к границе (marginTop ≤ 0).
+      if (!tipHasDown(tip)) tipSetDown(tip, true);
+      if (tip.style) {
+        tip.style.marginTop = String(vBottom - belowTop - H) + 'px';
+      }
+    }
+  }
+
+  function refreshHoveredTip() {
+    const owner = hoveredTipOwner;
+    if (!owner || !tipStillIn(owner)) return;
+    const tip = (typeof owner.querySelector === 'function')
+      ? owner.querySelector('.cp-tip') : null;
+    if (tip) placeTip(tip, owner);
+  }
+
+  function onTipPointer(e) {
+    const o = e && e.target;
+    if (!o || typeof o.closest !== 'function') return;
+    const owner = o.closest('.cp-itemrow') || o.closest('tr');
+    if (!owner) return;
+    hoveredTipOwner = owner;
+    const tip = (typeof owner.querySelector === 'function')
+      ? owner.querySelector('.cp-tip') : null;
+    if (tip) placeTip(tip, owner);
   }
 
   // 000230.07: маршрутизация equip/unequip по АКТИВНОМУ member
