@@ -1040,3 +1040,148 @@ test('000205-E2E2: e2e — погибший мерс: deadMercs[0].sheet.totalXp
     'RED: цена воскрешения от ВЫРОСШЕГО totalXp (факт: ' + price
     + ', ожидание: ' + Math.round(20 + 0.05 * d) + ')');
 });
+
+// =====================================================================
+// Задача 000242: payWages — уход с экипировкой (e2e, ПОЛНАЯ цепочка
+// index.html): возврат в hero.inventory + зеркало сейва; переполнение
+// — left_blocked + новая строка дня. Контракты:
+// memory/000242-paywages-left-equipment-return.md (§2.3–§2.5).
+//
+// Seed — НОВЫЙ формат записи {npcId, sheet, loyalty, hiredDay} С
+// equipment (backfill-запись СТАРОГО формата equipment НЕ несёт —
+// S2 absent→absent): sheet — канон 10 ключей (рецепт backfilledEntry)
+// + equipment через I000242.sanitizeEquipment (host-side require).
+//
+// КРАСНЫЕ (TDD; текущий payWages ВСЕГДА splices при уходе — предмет
+// в sheet.equipment уничтожаемой записи ПОТЕРЯН; проверка redverify):
+//   * V6 — equipped-наёмник (лояльность 30) уходит на дне 3:
+//     iron_sword в data.hero.inventory (qty 1), companions [], v1;
+//     зеркало: свежий boot(ТОТ ЖЕ сейв) — предмет на месте.
+//   * V7 — переполнение (hero 30 кг / 1 слот): уход ОТЛАГИВАЕТСЯ —
+//     ТОЧНАЯ строка дня, Вольк остался (loyalty 10, equipment цела),
+//     меча в hero НЕТ.
+// =====================================================================
+
+const I000242 = require('../src/items.js');
+
+// Запись Волька НОВОГО формата: backfilledEntry (канон 10 ключей) +
+// equipment {right_hand: 'iron_sword'} (канон-санитизация, 20 ключей).
+function volkWithSword(loyalty) {
+  const e = backfilledEntry({ npcId: 'merc_volk', level: 1, xp: 0,
+    loyalty, hiredDay: 2 });
+  e.sheet.equipment = I000242.sanitizeEquipment({
+    right_hand: 'iron_sword' });
+  return e;
+}
+
+test('000242 V6 (RED): e2e — equipped-наёмник (сейв НОВОГО формата С equipment, лояльность 30) уходит на дне 3 (30 − 20 = 10 ≤ 20, seed-независимо): hud «Вольк покинул отряд.» (рендер не сломан) БЕЗ left_blocked-строки; сейв: iron_sword в data.hero.inventory (qty 1 — пережил serialize/JSON), data.companions [], оболочка v1 (version 1 — без новых обязательных полей/миграций); ЗЕРКАЛО: свежий boot(ТОТ ЖЕ сейв) — меч в hero.inventory, companions []; 0 console.error', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({ gold: 0 }),
+    companions: [volkWithSword(30)],
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  assertRestored(h, 2);
+  const g = h.sandbox.__game;
+  assert.ok(Array.isArray(g.state.roster), 'roster — live-массив');
+  assert.equal(host(g.state.roster).length, 1, 'Вольк восстановлен');
+  assert.equal(host(g.state.roster[0].sheet.equipment.right_hand),
+    'iron_sword', 'restore: equipment из сейва НОВОГО формата');
+  assert.equal(host(g.state.roster[0].loyalty), 30);
+  // День 3: 30 − 20 = 10 ≤ quit_low 20 — уход ВЕРНО (ролла НЕТ).
+  g.actions.setDay(3);
+  assert.equal(g.state.day, 3);
+  assert.ok(Array.isArray(g.state.roster));
+  assert.equal(host(g.state.roster).length, 0,
+    'уход: запись удалена (splice)');
+  mainFrameAt(h);
+  const hud = String(h.hud.textContent);
+  assert.ok(hud.includes('Вольк покинул отряд.'),
+    'hud: строка «left» рендерится на реальной цепочке: ' + hud);
+  assert.ok(hud.includes('Не хватает денег на жалованье — лояльность падает.'),
+    'hud: «Не хватает денег…»');
+  assert.ok(!hud.includes('хотел уйти'),
+    'hud: left_blocked-строки НЕТ (полный возврат): ' + hud);
+  assert.ok(hud.endsWith('День 3.'), 'hud: «День 3.» — последняя: ' + hud);
+  // Сейв (onDay → существующий saveNow): v1, новых полей НЕТ;
+  // предмет В МЕСТЕ.
+  const saved = readSave(h);
+  assert.equal(saved.version, 1,
+    'оболочка v1 (без новых обязательных полей/миграций)');
+  assert.deepEqual(saved.data.companions, [], 'сейв: companions []');
+  assert.ok(host(saved.data.hero.inventory.slots)
+      .some((s) => s.id === 'iron_sword' && s.qty === 1),
+    'RED: сейв: iron_sword в data.hero.inventory (qty 1) — предмет '
+    + 'пережил serialize/JSON (сейчас: в инвентаре НЕТ — потерян)');
+  assert.equal(h.errors.length, 0,
+    'onDay/рендер без console.error: ' + h.errors.join('; '));
+  // ЗЕРКАЛО: свежий boot(ТОТ ЖЕ сейв) — предмет на месте после
+  // restore, отряд пуст, 0 ошибок.
+  const h2 = await boot(saved);
+  assert.equal(h2.errors.length, 0,
+    'зеркало: ошибок загрузки нет: ' + h2.errors.join('; '));
+  assertRestored(h2, 3);
+  const g2 = h2.sandbox.__game;
+  assert.ok(Array.isArray(g2.state.roster));
+  assert.equal(host(g2.state.roster).length, 0,
+    'зеркало: companions [] после restore');
+  assert.ok(host(g2.state.hero.inventory)
+      .some((s) => s.id === 'iron_sword' && s.qty === 1),
+    'RED: зеркало: меч в hero.inventory после restore (сейчас: нет)');
+});
+
+test('000242 V7 (RED): e2e — переполнение (hero: stone_chunk×20 = ровно 30 кг / 1 слот): уход ОТЛАГИВАЕТСЯ — hud ТОЧНАЯ строка «Вольк хотел уйти, но не смог вернуть экипировку: слишком тяжело (лимит веса).», «покинул отряд» НЕТ; Вольк ОСТАЛСЯ (loyalty 10, equipment цела), hero — stone_chunk×20, меча в инвентаре НЕТ; сейв v1; 0 console.error', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({ gold: 0,
+      inventory: { slots: [{ id: 'stone_chunk', qty: 20 }],
+        quick: [null, null, null] } }),
+    companions: [volkWithSword(30)],
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  assertRestored(h, 2);
+  const g = h.sandbox.__game;
+  assert.ok(Array.isArray(g.state.roster));
+  assert.equal(host(g.state.roster).length, 1, 'Вольк восстановлен');
+  assert.equal(host(g.state.roster[0].sheet.equipment.right_hand),
+    'iron_sword', 'restore: equipment из сейва НОВОГО формата');
+  assert.deepEqual(host(g.state.hero.inventory),
+    [{ id: 'stone_chunk', qty: 20 }],
+    'hero: ровно 30 кг / 1 слот (20×1.5) — весовой лимит');
+  // День 3: 30 − 20 = 10 ≤ 20 — уйти, НО инвентарь полон по весу
+  // (30 + 1.5 > 30) — уход ОТЛАГИВАЕТСЯ.
+  g.actions.setDay(3);
+  assert.ok(Array.isArray(g.state.roster));
+  assert.equal(host(g.state.roster).length, 1,
+    'RED: Вольк ОСТАЛСЯ (без splice) — сейчас: текущий код ВСЕГДА '
+    + 'splices (roster 0) — предмет потерян');
+  assert.equal(host(g.state.roster[0].loyalty), 10, '30 − 20 = 10');
+  assert.equal(host(g.state.roster[0].sheet.equipment.right_hand),
+    'iron_sword', 'equipment цела (failsafe — не потеряна)');
+  mainFrameAt(h);
+  const hud = String(h.hud.textContent);
+  assert.ok(hud.includes('Вольк хотел уйти, но не смог вернуть '
+      + 'экипировку: слишком тяжело (лимит веса).'),
+    'RED: hud: ТОЧНАЯ left_blocked-строка (ветка в main.js ещё нет): '
+    + hud);
+  assert.ok(!hud.includes('покинул отряд'),
+    'hud: «покинул отряд» НЕТ (ухода не было): ' + hud);
+  assert.ok(hud.includes('Не хватает денег на жалованье — лояльность падает.'),
+    'hud: «Не хватает денег…»');
+  assert.ok(hud.endsWith('День 3.'), 'hud: «День 3.» — последняя: ' + hud);
+  // Сейв: v1; Вольк в companions (loyalty 10, equipment цела); hero —
+  // балласт без меча.
+  const saved = readSave(h);
+  assert.equal(saved.version, 1, 'оболочка v1');
+  assert.equal(saved.data.companions.length, 1,
+    'RED: сейв: Вольк остался (сейчас: [])');
+  assert.equal(saved.data.companions[0].npcId, 'merc_volk');
+  assert.equal(saved.data.companions[0].loyalty, 10, 'loyalty 10');
+  assert.equal(saved.data.companions[0].sheet.equipment.right_hand,
+    'iron_sword', 'equipment в сейве цела');
+  assert.deepEqual(host(saved.data.hero.inventory.slots),
+    [{ id: 'stone_chunk', qty: 20 }],
+    'hero: балласт не тронут, меча в инвентаре НЕТ');
+  assert.equal(h.errors.length, 0,
+    'onDay/рендер без console.error: ' + h.errors.join('; '));
+});

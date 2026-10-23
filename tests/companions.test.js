@@ -1825,3 +1825,352 @@ test('000230.06.01 G5d (RED, vm): dismiss ЭКИПИРОВАННОЙ запис�
   assert.equal(merc.equipment.right_hand, 'x',
     'предмет в слоте — не потерян');
 });
+
+// =====================================================================
+// Задача 000242: payWages — уход наёмника при низкой лояльности —
+// экипировка возвращается герою (инвариант «предметы не теряются
+// НИКОГДА», тот же, что 000230.06.01 закрепила для dismiss).
+// Решение (a)+(iii): единый helper returnEquipmentToHero (канон-
+// порядок EQUIP_PHYS_SLOTS + тот же allyUnequip-failsafe); инвентарь
+// без места (вес/слоты) — уход ОТЛАГИВАЕТСЯ: БЕЗ splice, событие
+// {type:'left_blocked', npcId, reason} (reason — дословно из словаря
+// allyReject/unequip), повтор — на следующем НЕОПЛАЧЕННОМ дне.
+// Контракты: memory/000242-paywages-left-equipment-return.md
+// (§2.1–§2.4). ТЗ: tasks/pending/000242.md.
+//
+// КРАСНЫЕ (TDD; падают на неизменённом коде — payWages splices запись
+// с sheet.equipment БЕЗ unequip: предметы существуют только в
+// экипировке уничтожаемой записи — ПОТЕРЯНЫ; проверка redverify):
+//   * W1 — ТЗ-пин дословно: уход экипированного — предметы в
+//     hero.inventory (totalQty 1), ТОЧНАЯ старая форма 'left',
+//     слоты листа пусты.
+//   * W2 — переполнение ВЕСА (рецепт D2: ровно 30 кг / 8 слотов):
+//     left_blocked с точным reason, БЕЗ splice, failsafe;
+//     освобождение → след. unpaid-день: уход + возврат.
+//   * W3 — переполнение СЛОТОВ (рецепт D2s: 20/20, вес 20 < 30):
+//     left_blocked «нет свободных слотов инвентаря», БЕЗ splice.
+//   * W6 — зеркало сейва: serializeRoster — РОВНО 4 поля (v1, новых
+//     полей НЕТ), equipment round-trip через deserializeRoster.
+//   * W7 (vm) — деградация БЕЗ items.js (guard 5, UMD-ловушка
+//     000038): без crash, БЕЗ splice (нуль потери), left_blocked.
+//   * W8 — частичность МЕЖДУ записями (рецепт D2b: 28.5 кг / 3
+//     слота): первый ушёл (ровно 30.0 кг — граница), второй —
+//     left_blocked; порядок событий = порядок roster.
+//   * W9 — частичность ВНУТРИ записи (пин stopOnFail=false, канон-
+//     порядок): тяжёлый torso отклонён, лёгкий right_hand вернул.
+// Зелёные с первого (текущее поведение уже корректно):
+//   * W4 — уход БЕЗ экипировки (плоская запись): ТОЧНАЯ старая форма
+//     события (пин формы; G1-ограждение: новых полей НЕТ).
+//   * W5 — путь БЕЗ ухода бит-в-бит (loyalty 70 → 50 > 40):
+//     экипировка НЕ тронута (возврат не вызывается).
+// =====================================================================
+
+// Второй наёмник (локально в блоке): жалованье 1 (реальный каталог).
+const NPC_ASHKA = NPCS.find((n) => n.id === 'merc_ashka');
+assert.ok(NPC_ASHKA && NPC_ASHKA.найм, 'каталог: merc_ashka с найм-данными');
+
+test('000242 W1 (RED): payWages — уход экипированного наёмника (лояльность 30 → 10 ≤ quit_low 20, seed-независимо): запись удалена, ТОЧНАЯ форма {type: \'left\', npcId} (новых полей НЕТ), экипировка (2 предмета, реальный каталог) вернулась в hero.inventory (totalQty 1), слоты листа пусты', () => {
+  const hero = createCharacter();
+  I.addItem(hero, 'iron_sword');
+  I.addItem(hero, 'chainmail');
+  hero.gold = 0;
+  const e = entryWithSheet(NPC_VOLK, { loyalty: 30 });
+  assert.deepEqual(C.allyEquip(hero, e.sheet, 'iron_sword'),
+    { ok: true, slot: 'right_hand', item: 'iron_sword' });
+  assert.deepEqual(C.allyEquip(hero, e.sheet, 'chainmail'),
+    { ok: true, slot: 'torso', item: 'chainmail' });
+  assert.equal(I.totalQty(hero, 'iron_sword'), 0,
+    'до payWages: предмет ТОЛЬКО в слотах наёмника');
+  assert.equal(I.totalQty(hero, 'chainmail'), 0);
+  const roster = [e];
+  const res = C.payWages(roster, [NPC_VOLK], hero, 7);
+  assert.equal(res.paid, false, 'неоплата (gold 0 < жалованье 1)');
+  assert.equal(res.total, 1);
+  assert.equal(e.loyalty, 10,
+    '30 − 20 = 10 ≤ quit_low 20 — уйдёт ВЕРНО (ролла НЕТ)');
+  assert.deepEqual(res.events,
+    [{ type: 'wages_unpaid', total: 1 },
+     { type: 'left', npcId: 'merc_volk' }],
+    'ТОЧНАЯ старая форма события: полный возврат — новых полей НЕТ');
+  assert.equal(roster.length, 0, 'splice — запись убрана (та же ссылка)');
+  assert.equal(e.sheet.equipment.torso, null,
+    'RED: броня снята со слота (сейчас — потеряна в выброшенной записи)');
+  assert.equal(e.sheet.equipment.right_hand, null,
+    'RED: оружие снято со слота');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 1,
+    'RED: меч вернулся в hero.inventory (сейчас 0 — ПОТЕРЯ)');
+  assert.equal(I.totalQty(hero, 'chainmail'), 1,
+    'RED: броня так же вернулась в hero.inventory');
+});
+
+test('000242 W2 (RED): payWages — переполнение ВЕСА (рецепт D2: ровно 30 кг / 8 слотов + iron_sword на наёмнике): left_blocked с ТОЧНЫМ reason, БЕЗ splice (уход отложен), failsafe — предмет в слоте; освобождение (−battle_axe 3 кг → 27) → след. unpaid-день: уход + возврат (28.5 ≤ 30)', () => {
+  const hero = createCharacter();
+  hero.gold = 0;
+  I.addItem(hero, 'iron_sword');
+  const e = entryWithSheet(NPC_VOLK, { loyalty: 30 });
+  assert.equal(C.allyEquip(hero, e.sheet, 'iron_sword').ok, true,
+    'оружие на наёмнике (инвентарь героя свободен)');
+  for (const id of ['knight_plate', 'knight_plate', 'knight_plate',
+    'war_hammer', 'battle_axe', 'short_bow',
+    'resurrect_scroll', 'resurrect_scroll']) {
+    assert.equal(I.addItem(hero, id).ok, true, 'addItem ' + id);
+  }
+  assert.equal(I.inventoryWeight(hero), 30,
+    'инвентарь ровно на лимите (30 кг, 8 слотов)');
+  const roster = [e];
+  // Фаза 1: возврат невозможен (30 + 1.5 > 30) — уход ОТЛАГИВАЕТСЯ.
+  const r1 = C.payWages(roster, [NPC_VOLK], hero, 7);
+  assert.deepEqual(r1.events,
+    [{ type: 'wages_unpaid', total: 1 },
+     { type: 'left_blocked', npcId: 'merc_volk',
+       reason: 'слишком тяжело (лимит веса)' }],
+    'RED: текущий payWages ВСЕГДА splices (event {type: \'left\'}) — '
+    + 'предмет потерян');
+  assert.equal(roster.length, 1, 'БЕЗ splice — наёмник остался');
+  assert.equal(e.loyalty, 10, '30 − 20 = 10 (накапливается дальше)');
+  assert.equal(e.sheet.equipment.right_hand, 'iron_sword',
+    'failsafe: оружие осталось надетым (не потеряно)');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 0,
+    'в инвентарь не влезло — предмет в слоте наёмника');
+  // Фаза 2: освобождение (−3 кг → 27) → повторная попытка на
+  // следующем НЕОПЛАЧЕННОМ дне (10 − 20 → 0 ≤ quit_low — верно).
+  assert.deepEqual(I.removeItem(hero, 'battle_axe'), { ok: true });
+  assert.equal(I.inventoryWeight(hero), 27, '27 кг после освобождения');
+  const r2 = C.payWages(roster, [NPC_VOLK], hero, 8);
+  assert.deepEqual(r2.events,
+    [{ type: 'wages_unpaid', total: 1 },
+     { type: 'left', npcId: 'merc_volk' }],
+    'повторная попытка: уход + ТОЧНАЯ форма \'left\'');
+  assert.equal(roster.length, 0, 'повтор: splice');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 1,
+    'RED: меч вернулся (27 + 1.5 = 28.5 ≤ 30)');
+});
+
+test('000242 W3 (RED): payWages — переполнение СЛОТОВ (рецепт D2s: 20/20 wood_sword, вес 20 < 30): left_blocked «нет свободных слотов инвентаря», БЕЗ splice, failsafe; освобождение (−1 wood_sword) → след. unpaid-день: уход + возврат', () => {
+  const hero = createCharacter();
+  hero.gold = 0;
+  const e = entryWithSheet(NPC_VOLK, { loyalty: 30 });
+  e.sheet.equipment = { right_hand: 'iron_sword' };
+  while (I.slotCount(hero) < I.INVENTORY_SLOTS) {
+    assert.deepEqual(I.addItem(hero, 'wood_sword'), { ok: true });
+  }
+  assert.equal(I.slotCount(hero), I.INVENTORY_SLOTS, 'слоты полны (20/20)');
+  assert.equal(I.inventoryWeight(hero), 20, 'вес под лимитом (20 < 30)');
+  const roster = [e];
+  const r1 = C.payWages(roster, [NPC_VOLK], hero, 7);
+  assert.deepEqual(r1.events,
+    [{ type: 'wages_unpaid', total: 1 },
+     { type: 'left_blocked', npcId: 'merc_volk',
+       reason: 'нет свободных слотов инвентаря' }],
+    'RED: текущий payWages ВСЕГДА splices — предмет потерян');
+  assert.equal(roster.length, 1, 'БЕЗ splice — наёмник остался');
+  assert.equal(e.sheet.equipment.right_hand, 'iron_sword',
+    'предмет остался экипированным (не потерян)');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 0,
+    'в инвентарь не вернулось (слотов нет)');
+  assert.deepEqual(I.removeItem(hero, 'wood_sword'), { ok: true });
+  const r2 = C.payWages(roster, [NPC_VOLK], hero, 8);
+  assert.deepEqual(r2.events,
+    [{ type: 'wages_unpaid', total: 1 },
+     { type: 'left', npcId: 'merc_volk' }]);
+  assert.equal(roster.length, 0, 'повтор: splice');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 1,
+    'RED: возврат после освобождения слота (19 + 1.5 ≤ 30)');
+});
+
+test('000242 W4 (зелёный): payWages — уход БЕЗ экипировки (плоская запись): ТОЧНАЯ старая форма {type: \'left\', npcId} (пин формы G1: новых полей НЕТ; hero на плоские записи не влияет)', () => {
+  const hero = createCharacter();
+  hero.gold = 0;
+  const roster = [{ npcId: 'merc_volk', level: 1, xp: 0, loyalty: 30,
+    hiredDay: 1 }];
+  const res = C.payWages(roster, [NPC_VOLK], hero, 7);
+  assert.equal(res.paid, false);
+  assert.equal(res.total, 1);
+  assert.deepEqual(res.events,
+    [{ type: 'wages_unpaid', total: 1 },
+     { type: 'left', npcId: 'merc_volk' }],
+    'уход без экипировки — побайтово как до 000242');
+  assert.equal(roster.length, 0, 'splice');
+});
+
+test('000242 W5 (зелёный): payWages — путь БЕЗ ухода бит-в-бит: экипированный наёмник с лояльностью 70 (→50 > quit_high 40) остаётся; экипировка НЕ тронута (возврат не вызывается, totalQty 0)', () => {
+  const hero = createCharacter();
+  I.addItem(hero, 'iron_sword');
+  hero.gold = 0;
+  const e = entryWithSheet(NPC_VOLK, { loyalty: 70 });
+  assert.equal(C.allyEquip(hero, e.sheet, 'iron_sword').ok, true);
+  const roster = [e];
+  const res = C.payWages(roster, [NPC_VOLK], hero, 7);
+  assert.equal(res.paid, false);
+  assert.equal(res.total, 1);
+  assert.deepEqual(res.events, [{ type: 'wages_unpaid', total: 1 }],
+    'событий ухода НЕТ (50 > 40, ролла НЕТ)');
+  assert.equal(roster.length, 1, 'остаётся');
+  assert.equal(e.loyalty, 50, '70 − 20 = 50');
+  assert.equal(e.sheet.equipment.right_hand, 'iron_sword',
+    'экипировка не тронута');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 0,
+    'в инвентарь не вернулось (ухода нет)');
+});
+
+test('000242 W6 (RED): payWages — два наёмника: Вольк (iron_sword, лояльность 30) ушёл — предмет в hero.inventory; Ашка (chainmail, 70 → 50) осталась; зеркало сейва: serializeRoster — РОВНО 4 поля (v1, новых полей НЕТ), equipment round-trip через deserializeRoster', () => {
+  const hero = createCharacter();
+  I.addItem(hero, 'iron_sword');
+  I.addItem(hero, 'chainmail');
+  hero.gold = 0;
+  const v = entryWithSheet(NPC_VOLK, { loyalty: 30 });
+  const a = entryWithSheet(NPC_ASHKA, { loyalty: 70 });
+  assert.equal(C.allyEquip(hero, v.sheet, 'iron_sword').ok, true);
+  assert.equal(C.allyEquip(hero, a.sheet, 'chainmail').ok, true);
+  const roster = [v, a];
+  const res = C.payWages(roster, [NPC_VOLK, NPC_ASHKA], hero, 7);
+  assert.equal(res.paid, false);
+  assert.equal(res.total, 2);
+  assert.deepEqual(res.events,
+    [{ type: 'wages_unpaid', total: 2 },
+     { type: 'left', npcId: 'merc_volk' }],
+    'ушёл только Вольк (10 ≤ 20); Ашка 50 > 40 — осталась');
+  assert.equal(roster.length, 1, 'Ашка в отряде');
+  assert.equal(roster[0].npcId, 'merc_ashka');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 1,
+    'RED: меч Волька вернулся в hero.inventory (сейчас потерян)');
+  assert.equal(v.sheet.equipment.right_hand, null, 'слот Волька пуст');
+  assert.equal(a.sheet.equipment.torso, 'chainmail', 'броня Ашки на месте');
+  // Зеркало сейва v1: форма записи — ровно 4 поля, equipment цела.
+  const snap = C.serializeRoster(roster);
+  assert.equal(snap.length, 1, 'в сейв — только оставшаяся запись');
+  assert.deepEqual(Object.keys(snap[0]).sort(),
+    ['hiredDay', 'loyalty', 'npcId', 'sheet'],
+    'v1: ровно 4 поля (новых полей НЕТ)');
+  assert.equal(snap[0].sheet.equipment.torso, 'chainmail',
+    'equipment в записи сейва цела');
+  const back = C.deserializeRoster(NPCS, snap);
+  assert.deepEqual(back.dropped, []);
+  assert.equal(back.roster.length, 1, 'round-trip: запись восстановлена');
+  assert.equal(back.roster[0].sheet.equipment.torso, 'chainmail',
+    'round-trip: equipment после deserializeRoster');
+});
+
+test('000242 W7 (RED, vm): payWages — уход БЕЗ items.js (guard 5, UMD-ловушка 000038: delete — на Game ДО загрузки companions.js): без crash, БЕЗ splice (нуль потери: не могу вернуть — не ухожу), left_blocked с ТОЧНЫМ guard-reason, предмет в слоте', () => {
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of BROWSER_CHAIN.slice(0, -1)) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'),
+      sandbox, { filename: f });
+  }
+  const capturedG = sandbox.Game;
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..',
+    'src/companions.js'), 'utf8'), sandbox, { filename: 'src/companions.js' });
+  const G = sandbox.Game;
+  const Co = G.companions;
+  assert.notEqual(capturedG, G,
+    'UMD 000038: замыкание companions.js держит ПРЕДЫДУЩИЙ Game');
+  const hero = G.createCharacter();
+  G.addItem(hero, 'iron_sword');
+  hero.gold = 0;
+  const merc = G.Sheet.createSheet('merc', { npcId: 'merc_volk' });
+  merc.equipment = { right_hand: 'x' };
+  const roster = [{ npcId: 'merc_volk', sheet: merc, level: 1, xp: 0,
+    loyalty: 30, hiredDay: 1 }];
+  delete capturedG.equip;
+  delete capturedG.unequip;
+  const res = Co.payWages(roster, G.NpcData.NPCS, hero, 7);
+  assert.equal(res.paid, false, 'без crash — деградация, не падение');
+  // Кросс-реалм (vm): deepStrictEqual — чужие прототипы, JSON-
+  // нормализация (паттерн выше: «JSON — разные realm»).
+  assert.deepEqual(JSON.parse(JSON.stringify(res.events)),
+    [{ type: 'wages_unpaid', total: 1 },
+     { type: 'left_blocked', npcId: 'merc_volk',
+       reason: 'экипировка недоступна (items.js не загружен)' }],
+    'RED: текущий payWages splices без проверки API '
+    + '(event {type: \'left\'}) — предмет потерян');
+  assert.equal(roster.length, 1, 'БЕЗ splice — наёмник остался (нуль потери)');
+  assert.equal(merc.equipment.right_hand, 'x',
+    'предмет в слоте — не потерян');
+});
+
+test('000242 W8 (RED): payWages — частичность МЕЖДУ записями (рецепт D2b: герой 28.5 кг / 3 слота): Вольк (iron_sword) ушёл — ровно 30.0 кг (граница 30.0 ≤ 30 + 1e-9); Ашка (leather_kaftan, 31.5 > 30) — left_blocked; порядок событий = порядок roster', () => {
+  const hero = createCharacter();
+  hero.gold = 0;
+  // Балласт 28.5 кг / 3 слота (рецепт D2b: складываемые, вес двоично
+  // точный: 1.5×8 + 2×8 + 0.5).
+  assert.deepEqual(I.addItem(hero, 'stone_chunk', 8), { ok: true });
+  assert.deepEqual(I.addItem(hero, 'wood_log', 8), { ok: true });
+  assert.deepEqual(I.addItem(hero, 'healing_potion'), { ok: true });
+  assert.equal(I.inventoryWeight(hero), 28.5, 'балласт ровно 28.5 кг');
+  assert.equal(I.slotCount(hero), 3, 'балласт — 3 слота (складываемые)');
+  const v = entryWithSheet(NPC_VOLK, { loyalty: 30 });
+  v.sheet.equipment = { right_hand: 'iron_sword' };
+  const a = entryWithSheet(NPC_ASHKA, { loyalty: 30 });
+  a.sheet.equipment = { torso: 'leather_kaftan' };
+  const roster = [v, a];
+  const r1 = C.payWages(roster, [NPC_VOLK, NPC_ASHKA], hero, 7);
+  assert.deepEqual(r1.events,
+    [{ type: 'wages_unpaid', total: 2 },
+     { type: 'left', npcId: 'merc_volk' },
+     { type: 'left_blocked', npcId: 'merc_ashka',
+       reason: 'слишком тяжело (лимит веса)' }],
+    'RED: порядок = порядок roster; текущий payWages — оба {type: \'left\'}'
+  );
+  assert.equal(roster.length, 1, 'Ашка осталась (уход отложен)');
+  assert.equal(roster[0].npcId, 'merc_ashka');
+  assert.equal(I.totalQty(hero, 'iron_sword'), 1,
+    'RED: меч Волька в hero.inventory (28.5 + 1.5 = 30.0 — граница)');
+  assert.equal(I.inventoryWeight(hero), 30, 'ровно 30.0 кг после возврата');
+  assert.equal(I.slotCount(hero), 4, 'меч занял 4-й слот');
+  assert.equal(v.sheet.equipment.right_hand, null, 'слот Волька пуст');
+  assert.equal(a.sheet.equipment.torso, 'leather_kaftan',
+    'кафтан Ашки на месте (30 + 1.5 = 31.5 > 30)');
+  assert.equal(I.totalQty(hero, 'leather_kaftan'), 0,
+    'кафтан не влез — в слоте наёмника (не потерян)');
+});
+
+test('000242 W9 (RED): payWages — частичность ВНУТРИ записи (пин stopOnFail=false, канон-порядок): герой 29.0 кг / 4 слота; torso knight_plate (7 кг, 36 > 30) отклонён — остался в слоте, right_hand short_bow (1 кг, 30.0 ≤ 30) ВЕРНУЛСЯ; left_blocked (первый отказ в канон-порядке); освобождение (7× stone_chunk → 19.5: 30.0 − 10.5) → след. unpaid-день: уход + оба предмета в hero', () => {
+  const hero = createCharacter();
+  hero.gold = 0;
+  assert.deepEqual(I.addItem(hero, 'stone_chunk', 13), { ok: true });
+  assert.deepEqual(I.addItem(hero, 'wood_log', 4), { ok: true });
+  assert.deepEqual(I.addItem(hero, 'wood_sword'), { ok: true });
+  assert.deepEqual(I.addItem(hero, 'healing_potion'), { ok: true });
+  assert.equal(I.inventoryWeight(hero), 29,
+    'балласт ровно 29.0 кг (19.5 + 8 + 1 + 0.5)');
+  assert.equal(I.slotCount(hero), 4, 'балласт — 4 слота');
+  const e = entryWithSheet(NPC_VOLK, { loyalty: 30 });
+  // Сырое equipment: torso (idx3) ДО right_hand (idx5) в канон-порядке.
+  e.sheet.equipment = { torso: 'knight_plate', right_hand: 'short_bow' };
+  const roster = [e];
+  // Фаза 1: stopOnFail=false — отказы НЕ останавливают цикл.
+  const r1 = C.payWages(roster, [NPC_VOLK], hero, 7);
+  assert.deepEqual(r1.events,
+    [{ type: 'wages_unpaid', total: 1 },
+     { type: 'left_blocked', npcId: 'merc_volk',
+       reason: 'слишком тяжело (лимит веса)' }],
+    'RED: текущий payWages splices без возврата — ОБА предмета потеряны');
+  assert.equal(roster.length, 1, 'БЕЗ splice — уход отложен');
+  assert.equal(e.sheet.equipment.torso, 'knight_plate',
+    'плита НЕ ВЛЕЗЛА (29 + 7 = 36 > 30) — осталась в слоте (failsafe)');
+  assert.equal(e.sheet.equipment.right_hand, null,
+    'лук ВЕРНУЛСЯ (29 + 1 = 30.0 ≤ 30 + 1e-9): stopOnFail=false — '
+    + 'остальные слоты пробуются (при STOP — не тронут)');
+  assert.equal(I.totalQty(hero, 'short_bow'), 1,
+    'RED: лук в hero.inventory (частичный возврат)');
+  assert.equal(I.totalQty(hero, 'knight_plate'), 0,
+    'плита не влезла — в слоте наёмника (не потеряна)');
+  assert.equal(I.inventoryWeight(hero), 30, 'ровно 30.0 кг после возврата');
+  // Фаза 2: освобождение ≥7 кг (7× stone_chunk → 18.5 кг).
+  for (let i = 0; i < 7; i++) {
+    assert.deepEqual(I.removeItem(hero, 'stone_chunk'), { ok: true });
+  }
+  assert.equal(I.inventoryWeight(hero), 19.5,
+    '19.5 кг после освобождения (30.0 − 10.5: лук уже в инвентаре)');
+  const r2 = C.payWages(roster, [NPC_VOLK], hero, 8);
+  assert.deepEqual(r2.events,
+    [{ type: 'wages_unpaid', total: 1 },
+     { type: 'left', npcId: 'merc_volk' }],
+    'повторная попытка: уход + ТОЧНАЯ форма \'left\'');
+  assert.equal(roster.length, 0, 'повтор: splice');
+  assert.equal(I.totalQty(hero, 'knight_plate'), 1,
+    'RED: плита вернулась (19.5 + 7 = 26.5 ≤ 30)');
+  assert.equal(I.totalQty(hero, 'short_bow'), 1, 'лук на месте');
+});

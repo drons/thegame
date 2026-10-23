@@ -1635,6 +1635,9 @@
               compLines.push('Не хватает денег на жалованье — лояльность падает.');
             } else if (ev.type === 'left') {
               compLines.push(npcName(ev.npcId) + ' покинул отряд.');
+            } else if (ev.type === 'left_blocked') {
+              compLines.push(npcName(ev.npcId) + ' хотел уйти, но не смог '
+                + 'вернуть экипировку: ' + ev.reason + '.');
             }
           }
         }

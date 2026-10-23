@@ -275,7 +275,9 @@ function (settings, G) {
    * {ok:false, reason, note} — предметы не теряются НИКОГДА (случай
    * переполнения инвентаря героя). Запись без экипировки (плоская
    * или sheet без занятых слотов) — побайтово старый путь: splice,
-   * {ok:true}, hero не нужен.
+   * {ok:true}, hero не нужен. Цикл возврата — общий хелпер
+   * returnEquipmentToHero (000242: dismiss — STOP; payWages —
+   * «всё, что влезло»).
    * @param {object|null} hero персонаж героя (primary/secondary/
    *   inventory — plain-объекты, как в allyEquip/allyUnequip) —
    *   ОПЦИОНАЛЬНО: требуется только для записи с экипировкой
@@ -304,18 +306,11 @@ function (settings, G) {
     }
     const bad = allyReject(hero, entry.sheet, 'unequip');
     if (bad) return bad;
-    const slots = Array.isArray(G.EQUIP_PHYS_SLOTS)
-      ? G.EQUIP_PHYS_SLOTS
-      : Object.keys(eq).filter((k) =>
-        k !== 'weapon' && k !== 'armor');
-    for (const slot of slots) {
-      if (typeof eq[slot] !== 'string' || eq[slot] === '') continue;
-      const r = allyUnequip(hero, entry.sheet, slot);
-      if (!r.ok) {
-        return { ok: false, reason: r.reason,
-          note: 'увольнение не выполнено: предметы остались ' +
-            'экипированными' };
-      }
+    const r = returnEquipmentToHero(hero, entry.sheet, true);
+    if (!r.ok) {
+      return { ok: false, reason: r.reason,
+        note: 'увольнение не выполнено: предметы остались ' +
+          'экипированными' };
     }
     roster.splice(i, 1);
     return { ok: true };
@@ -412,9 +407,14 @@ function (settings, G) {
    *     quit_chance_mid по сиду (день, npcId), > quit_high — остаётся.
    * «Призраки» (npcId нет в каталоге) — тихий skip, запись не
    * отбрасывается (валидация — 000085).
+   * Уход с экипировкой (000242) — авто-возврат в hero.inventory
+   * (тот же failsafe, что dismiss); без места (вес/слоты) — уход
+   * отложен (left_blocked), повтор — следующий unpaid-день.
    * @returns {{paid:boolean, total:number, events:object[]}}
    *   events: [{type:'wages_paid'|'wages_unpaid', total}] +
-   *   [{type:'left', npcId}] ушедших (в порядке отряда).
+   *   [{type:'left', npcId}] ушедших (в порядке отряда) +
+   *   [{type:'left_blocked', npcId, reason}] (000242: уход с
+   *   экипировкой невозможен — инвентарь героя без места).
    */
   function payWages(roster, npcs, character, day) {
     const s = settings.SETTINGS.companion_loyalty;
@@ -450,8 +450,14 @@ function (settings, G) {
         leaves = roll(eventSeed(day, e.npcId, 'quit')) < s.quit_chance_mid;
       }
       if (leaves) {
-        roster.splice(roster.indexOf(e), 1);
-        events.push({ type: 'left', npcId: e.npcId });
+        const ret = returnEquipmentToHero(character, e.sheet, false);
+        if (ret.ok) {
+          roster.splice(roster.indexOf(e), 1);
+          events.push({ type: 'left', npcId: e.npcId });
+        } else {
+          events.push({ type: 'left_blocked', npcId: e.npcId,
+            reason: ret.reason });
+        }
       }
     }
     return { paid: false, total, events };
@@ -1113,6 +1119,48 @@ function (settings, G) {
     if (bad) return bad;
     allyPreInit(sheet);
     return G.unequip(allyView(hero, sheet), slot);
+  }
+
+  /**
+   * Общий возврат экипировки наёмника в общий инвентарь героя
+   * (000242; канон 000230.06.01): канон-порядок EQUIP_PHYS_SLOTS
+   * (зеркала 'weapon'/'armor' не итерируются; недостижимый fallback
+   * — как в dismiss), тот же allyUnequip failsafe (отказ — предмет
+   * остаётся надетым). LOOP-ONLY: pre-loop-отказ allyReject — в
+   * вызывающем (dismiss — точные guard-строки БЕЗ note, бит-в-бит;
+   * payWages — left_blocked). Запись без занятых слотов (sheet
+   * не-объект / без equipment / equipment без занятых слотов) —
+   * NO-OP {ok:true}, hero не нужен (плоские записи — старый путь
+   * побайтово).
+   * @param {boolean} stopOnFirstFail true (dismiss) — ПЕРВЫЙ отказ
+   *   → STOP (остальные слоты не трогаются — семантика .06); false
+   *   (payWages) — ВСЕ занятые слоты пробуются независимо (что
+   *   влезло — в hero.inventory; reason — ПЕРВЫЙ отказ в канон-
+   *   порядке, детерминированно).
+   * @returns {{ok:true}|{ok:false, reason:string}} — reason дословно
+   *   из generic unequip / allyReject.
+   */
+  function returnEquipmentToHero(hero, sheet, stopOnFirstFail) {
+    const eq = sheet && typeof sheet === 'object' && !Array.isArray(sheet)
+      ? sheet.equipment : null;
+    const hasEq = !!eq && typeof eq === 'object' && !Array.isArray(eq) &&
+      Object.keys(eq).some((k) => typeof eq[k] === 'string' &&
+        eq[k] !== '');
+    if (!hasEq) return { ok: true };
+    const slots = Array.isArray(G.EQUIP_PHYS_SLOTS)
+      ? G.EQUIP_PHYS_SLOTS
+      : Object.keys(eq).filter((k) =>
+        k !== 'weapon' && k !== 'armor');
+    let firstFail = null;
+    for (const slot of slots) {
+      if (typeof eq[slot] !== 'string' || eq[slot] === '') continue;
+      const r = allyUnequip(hero, sheet, slot);
+      if (!r.ok) {
+        if (stopOnFirstFail) return { ok: false, reason: r.reason };
+        if (!firstFail) firstFail = r.reason;
+      }
+    }
+    return firstFail ? { ok: false, reason: firstFail } : { ok: true };
   }
 
   return {
