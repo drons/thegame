@@ -1,0 +1,21 @@
+{
+  "id": "clay_buckler",
+  "name": "Глиняный буклер",
+  "kind": "shield",
+  "weight": 1.6,
+  "value": 40,
+  "desc": "Глиняный буклер: обожжённый круг, который держит удар.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/clay_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.05
+    }
+  ]
+}

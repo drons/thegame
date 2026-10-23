@@ -1,0 +1,18 @@
+{
+  "id": "ember_focus",
+  "name": "Тлеющий фокус",
+  "kind": "artifact",
+  "weight": 0.6,
+  "value": 80,
+  "desc": "Тлеющий фокус: внутри — уголёк, который не гаснет.",
+  "icon": "assets/sprites/items/ember_focus.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.06
+    }
+  ]
+}

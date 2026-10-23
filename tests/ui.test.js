@@ -752,29 +752,33 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       + String(row.className));
   }
   const data = require(path.join(ROOT, 'src', 'items-data.js'));
-  assert.equal(data.ITEMS.length, 307,
-    'каталог — 307 предмета (ре-пин 000230.08: 82 + 25 head; ' +
+  assert.equal(data.ITEMS.length, 332,
+    'каталог — 332 предмета (ре-пин 000230.08: 82 + 25 head; ' +
     'ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 свитков ' +
     'волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: ' +
     '+25 torso; ре-пин 000235.09: +25 свитков 000233–000257, ' +
     'rarity нет; ре-пин 000230.11: +50 рук 000283–000332, rarity ' +
+    'есть; ре-пин 000230.13: +25 left_hand 000358–000382, rarity ' +
     'есть)');
   let others = 0;
   for (const it of data.ITEMS) {
     // Ре-пин 000230.09: guard обобщён (любой экипировочный slot —
     // волны .10–.15 добавят torso/forearms и т.д. без правки пина).
-    if (it.kind === 'armor' && it.slot !== undefined) continue;
+    // Ре-пин 000230.13: guard по slot без привязки к kind
+    // (left_hand — kind shield/artifact, не armor).
+    if (it.slot !== undefined) continue;
     assert.equal(it.rarity, undefined,
       'каталожный предмет ' + it.id + ' — без rarity');
     others++;
   }
   assert.equal(others, 154,
-    'прочих предметов — ровно 154 (307 − 153 экипировочных ' +
-    '(75 + 25 torso + 3 legacy remap + 50 рук); 000232: +6 ' +
-    'чертежей без rarity; 000235.07: +25 свитков без rarity; ' +
-    '000235.08: +25 свитков волны Лёд без rarity; 000235.09: +25 ' +
-    'свитков волны Тень без rarity; ре-пин 000230.11: +50 рук — в ' +
-    'skip-ветку, others не сдвинулся)');
+    'прочих предметов — ровно 154 (332 − 178 экипировочных ' +
+    '(153 + 25 left_hand 000230.13); 000232: +6 чертежей без ' +
+    'rarity; 000235.07: +25 свитков без rarity; ' +
+    '000235.08: +25 свитков волны Лёд без rarity; ' +
+    '000235.09: +25 свитков волны Тень без rarity; ре-пин 000230.11: ' +
+    '+50 рук — в skip-ветку, others не сдвинулся; ре-пин 000230.13: ' +
+    '+25 left_hand — в skip-ветку, others не сдвинулся)');
 });
 
 test('230.07-ICON-1 (регрессия 000237): itemRow с icon — img.cp-itemicon ПЕРВЫМ ребёнком, src = icon: loot/ (iron_ore) + items/ (blueprint_forge) — конвенция пути ТЗ п.1 работает через общий механизм', () => {

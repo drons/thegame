@@ -1,0 +1,18 @@
+{
+  "id": "mind_pendant",
+  "name": "Подвес разума",
+  "kind": "artifact",
+  "weight": 0.8,
+  "value": 300,
+  "desc": "Подвес разума: будущее шепчет, если слушать.",
+  "icon": "assets/sprites/items/mind_pendant.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.18
+    }
+  ]
+}

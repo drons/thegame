@@ -1,0 +1,18 @@
+{
+  "id": "frost_charm",
+  "name": "Морозный талисман",
+  "kind": "artifact",
+  "weight": 0.6,
+  "value": 90,
+  "desc": "Морозный талисман: дыхание зимы на ладони.",
+  "icon": "assets/sprites/items/frost_charm.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.07
+    }
+  ]
+}

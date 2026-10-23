@@ -1,0 +1,21 @@
+{
+  "id": "arcane_eye",
+  "name": "Магическое око",
+  "kind": "artifact",
+  "weight": 1.2,
+  "value": 500,
+  "desc": "Магическое око: видит насквозь — и помнит всё.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/arcane_eye.svg",
+  "slot": "left_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.24
+    }
+  ]
+}

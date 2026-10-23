@@ -1,0 +1,18 @@
+{
+  "id": "rune_charm",
+  "name": "Рунический талисман",
+  "kind": "artifact",
+  "weight": 0.6,
+  "value": 70,
+  "desc": "Рунический талисман: знак, который помнит своё значение.",
+  "icon": "assets/sprites/items/rune_charm.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.05
+    }
+  ]
+}

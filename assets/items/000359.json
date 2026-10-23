@@ -1,0 +1,21 @@
+{
+  "id": "leather_shield",
+  "name": "Кожаный щит",
+  "kind": "shield",
+  "weight": 1.2,
+  "value": 18,
+  "desc": "Кожаный щит: мягкая плеть не пройдёт.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/leather_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.03
+    }
+  ]
+}

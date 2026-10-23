@@ -1,0 +1,27 @@
+{
+  "id": "iron_round",
+  "name": "Железный круг",
+  "kind": "shield",
+  "weight": 2.5,
+  "value": 60,
+  "desc": "Железный круг: кованая сталь не просит прощения.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/iron_round.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "set": "bulwark",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.06
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

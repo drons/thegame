@@ -1598,7 +1598,33 @@ const SHOP_GOLDEN = {
     haste_wraps: 1,
     rune_gauntlets: 4,
     star_gloves: 2,
-    void_gauntlet: 3} },
+    void_gauntlet: 3,
+    // Ре-пин 000230.13: left_hand (000358-000382, kind shield/
+    // artifact) — КОНЕЦ каталога (ПОСЛЕ рук), rng-хвост пула
+    // allItems → += 20 (steel_buckler/rune_charm/scholar_pendant/
+    // arcane_eye на этой клетке не выпали); остальные ключи стока
+    // не сдвинулись (node-симуляция: seed/старые стоки
+    // byte-identical).
+    wooden_buckler: 2,
+    leather_shield: 4,
+    cloth_shield: 1,
+    wicker_buckler: 4,
+    oiled_shield: 4,
+    bone_shield: 5,
+    horn_shield: 5,
+    palm_shield: 1,
+    ash_shield: 2,
+    iron_round: 2,
+    guard_amulet: 4,
+    ember_focus: 2,
+    frost_charm: 1,
+    ward_crystal: 2,
+    cinder_eye: 3,
+    frost_orb: 2,
+    rune_sphere: 1,
+    mind_pendant: 5,
+    snow_focus: 5,
+    heart_of_elements: 4 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1 } },

@@ -5120,7 +5120,7 @@ test('000132-N1: детерминизм — сиды 5..10, два прогон�
   }
 });
 
-test('000132-N2: точные составы — rng→0 (таблица+база+редкий+экипировка), rng→0.99 (мимо лута + экипировка), 100%-таблица, слияние qty, порядок таблицы (ре-пин 000230.08: пулы экипировки не пусты — +1 экипировочный ПОСЛЕДНИМ: (а) r=0 → common pool[0] = straw_hat; (б–д) r=0.99 → legendary (0.99 < 0.999…) pool[floor(0.99·12)] = star_gloves; ре-пин 000230.09: legendary-пул 2 → 6, конец пула; ре-пин 000230.10: legendary-пул 6 → 8, конец = torso; ре-пин 000230.11: legendary-пул 8 → 12, floor(0.99·12) = 11 = star_gloves)', () => {
+test('000132-N2: точные составы — rng→0 (таблица+база+редкий+экипировка), rng→0.99 (мимо лута + экипировка), 100%-таблица, слияние qty, порядок таблицы (ре-пин 000230.08: пулы экипировки не пусты — +1 экипировочный ПОСЛЕДНИМ: (а) r=0 → common pool[0] = straw_hat; (б–д) r=0.99 → legendary (0.99 < 0.999…) pool[floor(0.99·14)] = snow_focus; ре-пин 000230.09: legendary-пул 2 → 6, конец пула; ре-пин 000230.10: legendary-пул 6 → 8, конец = torso; ре-пин 000230.11: legendary-пул 8 → 12, конец = palms; ре-пин 000230.13: legendary-пул 12 → 14, конец = left_hand, floor(0.99·14) = 13 = snow_focus)', () => {
   // (а) rng→0, 2×волк L2: ВСЕ роллы попадают. Таблица волка
   // leather_armor (каждый) → qty 2; база — BASE_POOL[0] = minor_healing
   // (каждый) → qty 2; редкий — RARE_POOL[0] = iron_sword (ОДИН на бой).
@@ -5143,16 +5143,17 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
   }
   // (б) rng→0.99, 2×волк L2: ВСЕ лут-роллы мимо (0.99 > 0.1 / 0.25 /
   // 0.05+0.01·2); экипировка: tier legendary (0.99 < 0.999…), select
-  // pool[floor(0.99·12)] = pool[11] = star_gloves (ре-пин 000230.09:
+  // pool[floor(0.99·14)] = pool[13] = snow_focus (ре-пин 000230.09:
   // legendary-пул растёт 2 → 6 в каталожном порядке, конец = шея;
   // ре-пин 000230.10: 6 → 8, конец = torso; ре-пин 000230.11:
-  // 8 → 12, конец = palms).
+  // 8 → 12, конец = palms; ре-пин 000230.13: 12 → 14, конец =
+  // left_hand).
   // (Убийство — dealDamage: при константе 0.99 удары игрока
   // гарантированно промах, hitChance ≤ 0.95.)
   {
     const { c } = winLoot({ mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 5,
       rng: () => 0.99, killBy: 'dealDamage' });
-    assert.deepEqual(c.result.items, [{ id: 'star_gloves', qty: 1 }],
+    assert.deepEqual(c.result.items, [{ id: 'snow_focus', qty: 1 }],
       'rng→0.99 — лут-роллы мимо, экипировочный (legendary) ЕСТЬ');
   }
   // (в) 100%-таблица — гарантированный дроп даже при промахах пулов
@@ -5164,7 +5165,7 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
       mutateUnit: (u) => { u.loot = [{ item: 'meat', chance: 1 }]; },
     });
     assert.deepEqual(c.result.items, [
-      { id: 'meat', qty: 1 }, { id: 'star_gloves', qty: 1 },
+      { id: 'meat', qty: 1 }, { id: 'snow_focus', qty: 1 },
     ], '100%-шанс в таблице — гарантированный дроп + экипировочный');
   }
   // (г) слияние qty: 2 волка × 100% meat — ОДНА запись qty 2
@@ -5175,7 +5176,7 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
       mutateUnit: (u) => { u.loot = [{ item: 'meat', chance: 1 }]; },
     });
     assert.deepEqual(c.result.items, [
-      { id: 'meat', qty: 2 }, { id: 'star_gloves', qty: 1 },
+      { id: 'meat', qty: 2 }, { id: 'snow_focus', qty: 1 },
     ], 'повторяющиеся id слиты в одну запись (qty)');
   }
   // (д) таблица из 2 записей — порядок дропа = порядок таблицы
@@ -5188,7 +5189,7 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
     });
     assert.deepEqual(c.result.items, [
       { id: 'sulfur', qty: 1 }, { id: 'meat', qty: 1 },
-      { id: 'star_gloves', qty: 1 },
+      { id: 'snow_focus', qty: 1 },
     ], 'порядок = порядок записей таблицы + экипировочный');
   }
 });
@@ -9096,7 +9097,7 @@ test('000235.05 S2: солёный поток — детерминизм по (s
   }
 });
 
-test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000230.11: common-пул 40 → 60, legendary-пул 8 → 12 (a → iron_gauntlets; b → star_gloves); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll)', () => {
+test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll; ре-пин 000230.11: common-пул 40 → 60, legendary-пул 8 → 12 (a → iron_gauntlets; b → star_gloves); ре-пин 000230.13: common-пул 60 → 70, legendary-пул 12 → 14 (a → horn_shield; b → snow_focus))', () => {
   // (a) Золотой бой (seed 6, wolf L4, герой L1): значения доизменения
   //     (пробный прогон на текущем коде) — новый код обязан их
   //     сохранить: новый ролл — СТРОГО ПОСЛЕ существующих (пин N2),
@@ -9115,24 +9116,29 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   //     iron_gauntlets (node-перепрогон, ORE-7).
   //     Ре-пин 000235.08: +25 свитков волны Лёд — солёный поток
   //     (каталог 67) даёт frost_wisp_scroll (node-перепрогон).
+  //     Ре-пин 000230.13: common-пул растёт 60 → 70 (left_hand-конец,
+  //     каталожный порядок) → тот же поток rng даёт horn_shield
+  //     (node-перепрогон, ORE-7).
   const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
     killBy: 'dealDamage' });
   assert.equal(c.result.xp, 24, 'xp = 24 (бит-в-бит)');
   assert.equal(c.result.gold, 13, 'gold = 13 (бит-в-бит)');
   assert.deepEqual(c.result.items, [
     { id: 'honey_cake', qty: 1 },
-    { id: 'iron_gauntlets', qty: 1 },
+    { id: 'horn_shield', qty: 1 },
     { id: 'frost_wisp_scroll', qty: 1 },
   ], 'items: существующий состав бит-в-бит + экипировочный + свиток '
-    + '(ре-пин 000235.08: золотой frost_wisp_scroll; '
+    + '(ре-пин 000235.08: золотой frost_wisp_scroll; ре-пин '
+    + '000230.13: common pool[66] = horn_shield; '
     + 'СТРОГО после (порядок первого появления; факт: '
     + JSON.stringify(c.result.items) + ')');
   // (b) c._rng → 0.99: все СТАРЫЕ роллы промазывают (таблица wolf 0.1,
   //     базовый 0.25, редкий 0.05+0.01·4 = 0.09); экипировка: tier
-  //     legendary (0.99 < 0.999…), select pool[floor(0.99·12)] =
-  //     pool[11] = star_gloves (ре-пин 000230.09: legendary-пул 2 → 6,
+  //     legendary (0.99 < 0.999…), select pool[floor(0.99·14)] =
+  //     pool[13] = snow_focus (ре-пин 000230.09: legendary-пул 2 → 6,
   //     конец = шея; ре-пин 000230.10: 6 → 8, конец = torso;
-  //     ре-пин 000230.11: 8 → 12, конец = palms); в луте
+  //     ре-пин 000230.11: 8 → 12, конец = palms; ре-пин 000230.13:
+  //     12 → 14, конец = left_hand); в луте
   //     экипировка + свиток (солёный поток
   //     не зависит от c._rng — «старые потоки не сдвигаются», тип пина
   //     N2). Ре-пин 000235.08: каталог 67 — золотой свиток
@@ -9142,11 +9148,12 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   assert.equal(b.result.xp, 24, 'xp = 24 (бит-в-бит)');
   assert.equal(b.result.gold, 15, 'gold = round(3+2·4+0.99·4) = 15 (бит-в-бит)');
   assert.deepEqual(b.result.items, [
-    { id: 'star_gloves', qty: 1 },
+    { id: 'snow_focus', qty: 1 },
     { id: 'frost_wisp_scroll', qty: 1 },
   ], 'rng→0.99: старые роллы промахнулись, экипировка (legendary) + '
     + 'солёный поток дал свиток всё равно (ре-пин 000235.08: '
-    + 'frost_wisp_scroll; факт: '
+    + 'frost_wisp_scroll; ре-пин 000230.13: legendary pool[13] = '
+    + 'snow_focus; факт: '
     + JSON.stringify(b.result.items) + ')');
 });
 
@@ -9321,4 +9328,180 @@ test('000230.10 T10 (гард, зелёный с начала): remap не ме�
       id + ': equipmentStats.armor = ' + armor
       + ' (бит-в-бит; remap не меняет бой)');
   }
+});
+
+// =====================================================================
+// Задача 000230.13 — предметы «Левая рука»: 25 (10/7/5/2/1) + иконки +
+// рецепты (контентная волна 4 серии 000230; P2). Щиты (kind shield)
+// и магические артефакты (kind artifact).
+// Контракт — memory/000230.13-left-hand-items-wave.md §2 (ростер §2.1,
+// affix-матрица §2.2, наборы §2.3, рецепты §2.4; решения D-01–D-17
+// §0). RED (TDD): в каталоге/зеркале 0 предметов slot 'left_hand' —
+// тесты ниже падают по ОСМЫСЛЕННОЙ причине («неизвестный предмет —
+// волна не добавлена»), а не по синтаксису. Тесты читают РЕАЛЬНЫЙ
+// каталог, не фикстуры (паттерн .10 T10). Технические репины
+// существующих тестов (N2/S3 и др.) — стадия ЗЕЛЁНАЯ.
+// =====================================================================
+
+// Ростер §2.1: id фиксирован 000358–000382 (D-01); каталожный порядок
+// = порядок тиров 10/7/5/2/1; щиты 12 / артефакты 13 (D-04).
+const LEFT_HAND_IDS_00023013 = [
+  'wooden_buckler', 'leather_shield', 'cloth_shield', 'wicker_buckler',
+  'oiled_shield', 'bone_shield', 'horn_shield', 'palm_shield',
+  'ash_shield', 'clay_buckler', 'iron_round', 'steel_buckler',
+  'rune_charm', 'guard_amulet', 'ember_focus', 'frost_charm',
+  'scholar_pendant', 'ward_crystal', 'cinder_eye', 'frost_orb',
+  'rune_sphere', 'mind_pendant', 'arcane_eye', 'snow_focus',
+  'heart_of_elements',
+];
+// [id, stats.armor] — щиты: common 10 × armor 1, rare 2 × armor 2.
+const SHIELD_ARMOR_00023013 = [
+  ['wooden_buckler', 1], ['leather_shield', 1], ['cloth_shield', 1],
+  ['wicker_buckler', 1], ['oiled_shield', 1], ['bone_shield', 1],
+  ['horn_shield', 1], ['palm_shield', 1], ['ash_shield', 1],
+  ['clay_buckler', 1], ['iron_round', 2], ['steel_buckler', 2],
+];
+// [id, stats.armor] — артефакты: armor 1 только у guard_amulet /
+// ward_crystal / arcane_eye (D-10), остальные — без stats.
+const ARTIFACT_ARMOR_00023013 = [
+  ['rune_charm', 0], ['guard_amulet', 1], ['ember_focus', 0],
+  ['frost_charm', 0], ['scholar_pendant', 0], ['ward_crystal', 1],
+  ['cinder_eye', 0], ['frost_orb', 0], ['rune_sphere', 0],
+  ['mind_pendant', 0], ['arcane_eye', 1], ['snow_focus', 0],
+  ['heart_of_elements', 0],
+];
+
+test('000230.13 T8 (node, e2e): щит в left_hand — armor СЧИТАЕТСЯ (пин 000230.02: left_hand в EQUIP_PHYS_SLOTS, zero code): ВСЕ 12 щитов из live-каталога → equipmentStats.armor = armor щита (10 × 1, 2 × 2); + torso (leather_armor, 2) — сумма бит-в-бит 3; weapon iron_sword в right_hand — damage 5 / subtype sword ИНТАКТ (пин ТЗ: щит НЕ вытесняет оружие) (краснота: реальных щитов left_hand в каталоге нет)', () => {
+  for (const [id, armor] of SHIELD_ARMOR_00023013) {
+    const p = createCharacter();
+    assert.equal(I.addItem(p, id).ok, true,
+      id + ': выдача (краснота: неизвестный предмет — волна '
+      + 'не добавлена)');
+    assert.equal(I.equip(p, id).ok, true, id + ': equip');
+    assert.equal(p.equipment.left_hand, id,
+      id + ': предмет в слоте left_hand');
+    assert.equal(I.equipmentStats(p).armor, armor,
+      id + ': equipmentStats.armor = ' + armor
+      + ' (пин 000230.02: left_hand входит в сумму armor)');
+  }
+  {
+    const p = createCharacter();
+    assert.equal(I.addItem(p, 'wooden_buckler').ok, true,
+      'wooden_buckler: выдача (краснота: неизвестный предмет)');
+    assert.equal(I.equip(p, 'wooden_buckler').ok, true, 'equip');
+    assert.equal(I.addItem(p, 'leather_armor').ok, true,
+      'leather_armor: выдача');
+    assert.equal(I.equip(p, 'leather_armor').ok, true, 'equip');
+    assert.equal(p.equipment.torso, 'leather_armor');
+    assert.equal(I.equipmentStats(p).armor, 3,
+      'wooden_buckler (1) + leather_armor (2) = 3 — бит-в-бит сумма');
+  }
+  {
+    const p = createCharacter();
+    assert.equal(I.addItem(p, 'wooden_buckler').ok, true,
+      'wooden_buckler: выдача (краснота: неизвестный предмет)');
+    assert.equal(I.equip(p, 'wooden_buckler').ok, true, 'equip');
+    assert.equal(I.addItem(p, 'iron_sword').ok, true,
+      'iron_sword: выдача');
+    assert.equal(I.equip(p, 'iron_sword').ok, true, 'equip');
+    assert.equal(p.equipment.right_hand, 'iron_sword',
+      'оружие в right_hand — щит НЕ вытесняет (пин ТЗ)');
+    const st = I.equipmentStats(p);
+    assert.equal(st.damage, 5, 'damage 5 — только из iron_sword');
+    assert.equal(st.subtype, 'sword', 'subtype sword — интакт');
+    assert.equal(st.armor, 1, 'armor 1 — со щита');
+  }
+});
+
+test('000230.13 T9 (node, e2e): артефакт в left_hand — БЕЗ damage/subtype (stats.damage ОТСУТСТВУЕТ — не оружие, пин ТЗ): ВСЕ 13 артефактов из live-каталога → equipmentStats: damage 0 / subtype null; armor — только у guard_amulet/ward_crystal/arcane_eye (1), остальные 10 — 0; weapon iron_sword — damage 5 / subtype sword ИНТАКТ рядом с артефактом (краснота: реальных артефактов left_hand в каталоге нет)', () => {
+  for (const [id, armor] of ARTIFACT_ARMOR_00023013) {
+    const p = createCharacter();
+    assert.equal(I.addItem(p, id).ok, true,
+      id + ': выдача (краснота: неизвестный предмет — волна '
+      + 'не добавлена)');
+    assert.equal(I.equip(p, id).ok, true, id + ': equip');
+    assert.equal(p.equipment.left_hand, id,
+      id + ': предмет в слоте left_hand');
+    const st = I.equipmentStats(p);
+    assert.equal(st.damage, 0,
+      id + ': damage 0 (артефакт — не оружие, пин ТЗ)');
+    assert.equal(st.subtype, null,
+      id + ': subtype null (нет subtype на stats — не оружие)');
+    assert.equal(st.armor, armor,
+      id + ': equipmentStats.armor = ' + armor + ' (§2.1)');
+  }
+  {
+    const p = createCharacter();
+    assert.equal(I.addItem(p, 'rune_charm').ok, true,
+      'rune_charm: выдача (краснота: неизвестный предмет)');
+    assert.equal(I.equip(p, 'rune_charm').ok, true, 'equip');
+    assert.equal(I.addItem(p, 'iron_sword').ok, true,
+      'iron_sword: выдача');
+    assert.equal(I.equip(p, 'iron_sword').ok, true, 'equip');
+    const st = I.equipmentStats(p);
+    assert.equal(st.damage, 5,
+      'damage 5 — только из iron_sword (артефакт не вытесняет оружие)');
+    assert.equal(st.subtype, 'sword',
+      'subtype sword — НЕ из артефакта (пин ТЗ)');
+    assert.equal(st.armor, 0, 'rune_charm: armor-вклад 0');
+  }
+});
+
+test('000230.13 T10 (node, e2e): free_cast — реальный предмет волны: ward_crystal (000375, epic) → заклинание magic_shield (м. 5) с 1 м. кастуется: mp НЕ тратится (остаётся 1), пул spellWis −1, c.ps.shield = {armor: 2 (степень 1), turns: 3}; snow_focus (000381, legendary) → ice_armor (интеллект, м. 8) с 1 м. на себя: spellInt −1, c.ps.buff = {stat: «броня», value: 1, turns: 3}; mp=1 < маны доказывает free-ветку (без free-аффикса каст упал бы по mp); без предмета freeCast пуст; c.freeCast — снапшот из equipmentAffixes (краснота: неизвестный предмет — волна не добавлена)', () => {
+  const { castSpell } = spells();
+  const p = createCharacter();
+  assert.equal(I.addItem(p, 'ward_crystal').ok, true,
+    'ward_crystal: выдача (краснота: неизвестный предмет — волна '
+    + 'не добавлена)');
+  assert.equal(I.equip(p, 'ward_crystal').ok, true, 'equip');
+  assert.equal(p.equipment.left_hand, 'ward_crystal');
+  p.spells = ['magic_shield'];
+  p.mp = 1;
+  p.primary.wisdom = 10; // пул заклинаний Мудрости = 2
+  const c = createCombat(
+    { player: p, mobs: ['wolf'], mobLevel: 2, seed: 5 });
+  assert.ok(c.freeCast.includes('magic_shield'),
+    'c.freeCast — снапшот из equipmentAffixes(p).freeCast '
+    + '(createCombat, 000139)');
+  const cast = castSpell(c, 'magic_shield');
+  assert.equal(cast.ok, true,
+    'каст magic_shield свободный (free_cast): «'
+    + (cast.reason || '') + '»');
+  assert.equal(p.mp, 1,
+    'mp НЕ потрачена (1 < маны 5 — free-ветка; без аффикса каст '
+    + 'упал бы по «недостаточно маны» — 000139)');
+  assert.equal(c.ps.spellWis, 1,
+    'пул spellWis: 2 (1 + floor(10/10)) − 1 каст = 1');
+  assert.deepEqual(c.ps.shield, { armor: 2, turns: 3 },
+    'защита: c.ps.shield = { armor: 1 + степень 1, turns: 3 }');
+  const p2 = createCharacter();
+  assert.equal(I.addItem(p2, 'snow_focus').ok, true,
+    'snow_focus: выдача (краснота: неизвестный предмет — волна '
+    + 'не добавлена)');
+  assert.equal(I.equip(p2, 'snow_focus').ok, true, 'equip');
+  assert.equal(p2.equipment.left_hand, 'snow_focus');
+  p2.spells = ['ice_armor'];
+  p2.mp = 1;
+  p2.primary.intelligence = 10; // пул заклинаний Интеллекта = 2
+  const c2 = createCombat(
+    { player: p2, mobs: ['wolf'], mobLevel: 2, seed: 7 });
+  assert.ok(c2.freeCast.includes('ice_armor'),
+    'c2.freeCast — содержит ice_armor (снапшот)');
+  const cast2 = castSpell(c2, 'ice_armor');
+  assert.equal(cast2.ok, true,
+    'каст ice_armor свободный (free_cast): «' + (cast2.reason || '')
+    + '»');
+  assert.equal(p2.mp, 1,
+    'mp НЕ потрачена (1 < маны 8 — free-ветка; баф на себя — цель 0)');
+  assert.equal(c2.ps.spellInt, 1,
+    'пул spellInt: 2 (1 + floor(10/10)) − 1 каст = 1');
+  assert.deepEqual(c2.ps.buff, { stat: 'броня', value: 1, turns: 3 },
+    'баф: c.ps.buff = параметры заклинания {stat «броня», value 1, '
+    + 'turns 3}');
+  const p3 = createCharacter();
+  p3.spells = ['magic_shield'];
+  const c3 = createCombat(
+    { player: p3, mobs: ['wolf'], mobLevel: 2, seed: 9 });
+  assert.equal(c3.freeCast.length, 0,
+    'без предмета волны freeCast пуст (аффикс — из снаряжения)');
 });

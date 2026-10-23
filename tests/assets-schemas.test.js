@@ -212,26 +212,36 @@ for (const name of CATALOGS) {
     }
   });
 
-  test(`${name}: файлы 000001.json … N.json подряд, каталог не пуст`, () => {
+  test(`${name}: файлы 000001.json … N.json подряд${name === 'items'
+      ? ' (ре-пин 000230.11: +50 рук 000283–000332; '
+      + 'ре-пин 000230.13: 3 сегмента — дыры 000258–000282 = резерв '
+      + 'волны 000235.10, 000333–000357 = резерв волн 000230.12/'
+      + '.14–.15)'
+      : ''}, каталог не пуст`, () => {
     const files = listDataFiles(name);
     assert.ok(files.length >= 1, 'каталог пустой');
     // Ре-пин 000235.08: разрыв 000133–000157 заполнен волной Лёд —
     // RESERVED убран (memory/000230.09-ears-neck-items-wave.md §6).
     // Ре-пин 000230.11: в items зарезервирован разрыв 000258–000282
     // (25) — волна 000235.10 «Исцеление: свитки» (живая ветка); после
-    // её мержа — убрать RESERVED (memory/000230.11-forearms-palms-
-    // items-wave.md §2.8).
-    const RESERVED = new Set(name === 'items'
-      ? Array.from({ length: 25 },
-          (_, i) => String(258 + i).padStart(6, '0') + '.json')
-      : []);
-    let n = 1;
-    for (let i = 0; i < files.length; i++) {
-      while (RESERVED.has(String(n).padStart(6, '0') + '.json')) n += 1;
-      assert.equal(files[i], String(n).padStart(6, '0') + '.json',
-        `пробел в нумерации на позиции ${i + 1}: ${files[i]}`);
-      n += 1;
+    // её мержа — убрать сегмент (memory/000230.11-forearms-palms-
+    // items-wave.md §2.8). Ре-пин 000230.13: items — трёхсегментный
+    // каталог 000001..000257 + 000283..000332 + 000358..000382: дыра
+    // 000333–000357 зарезервирована волнам 000230.12/.14–.15
+    // (memory/000230.13-left-hand-items-wave.md §5); остальные
+    // каталоги — сплошная нумерация.
+    const segments = name === 'items'
+      ? [[1, 257], [283, 332], [358, 382]]
+      : [[1, files.length]];
+    let i = 0;
+    for (const [from, to] of segments) {
+      for (let n = from; n <= to; n++, i++) {
+        assert.equal(files[i], String(n).padStart(6, '0') + '.json',
+          `пробел в нумерации на позиции ${i + 1}: ${files[i]}`);
+      }
     }
+    assert.equal(i, files.length,
+      `${name}: число файлов = сумма сегментов`);
     // Чужих файлов нет (только NNNNNN.json и schema.json).
     for (const f of fs.readdirSync(catalogDir(name))) {
       assert.ok(/^\d{6}\.json$/.test(f) || f === 'schema.json',

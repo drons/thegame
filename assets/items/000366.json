@@ -1,0 +1,21 @@
+{
+  "id": "ash_shield",
+  "name": "Ясеневый щит",
+  "kind": "shield",
+  "weight": 1.2,
+  "value": 35,
+  "desc": "Ясеневый щит: дерево, закаленное дымом.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/ash_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.05
+    }
+  ]
+}

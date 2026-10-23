@@ -1,0 +1,28 @@
+{
+  "id": "cinder_eye",
+  "name": "Пепельное око",
+  "kind": "artifact",
+  "weight": 0.8,
+  "value": 200,
+  "desc": "Пепельное око: смотрит сквозь дым.",
+  "icon": "assets/sprites/items/cinder_eye.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "set": "arcane_focus",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.14
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "runes",
+        "amount": 0.05
+      }
+    ]
+  }
+}

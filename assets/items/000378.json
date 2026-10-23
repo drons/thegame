@@ -1,0 +1,18 @@
+{
+  "id": "rune_sphere",
+  "name": "Руновая сфера",
+  "kind": "artifact",
+  "weight": 1,
+  "value": 250,
+  "desc": "Руновая сфера: руну можно прочитать — если выживешь.",
+  "icon": "assets/sprites/items/rune_sphere.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.16
+    }
+  ]
+}

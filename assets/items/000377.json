@@ -1,0 +1,18 @@
+{
+  "id": "frost_orb",
+  "name": "Морозная сфера",
+  "kind": "artifact",
+  "weight": 1,
+  "value": 220,
+  "desc": "Морозная сфера: зима, застывшая в стекле.",
+  "icon": "assets/sprites/items/frost_orb.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.15
+    }
+  ]
+}

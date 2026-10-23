@@ -1,0 +1,21 @@
+{
+  "id": "steel_buckler",
+  "name": "Стальной буклер",
+  "kind": "shield",
+  "weight": 3,
+  "value": 65,
+  "desc": "Стальной буклер: отточенная кромка и ни слова.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/steel_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.08
+    }
+  ]
+}

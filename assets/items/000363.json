@@ -1,0 +1,21 @@
+{
+  "id": "bone_shield",
+  "name": "Костяной щит",
+  "kind": "shield",
+  "weight": 1.4,
+  "value": 28,
+  "desc": "Костяной щит: чей-то долгий век теперь твоё.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/bone_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.04
+    }
+  ]
+}

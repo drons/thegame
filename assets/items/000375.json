@@ -1,0 +1,35 @@
+{
+  "id": "ward_crystal",
+  "name": "Хранящий кристалл",
+  "kind": "artifact",
+  "weight": 0.8,
+  "value": 180,
+  "desc": "Хранящий кристалл: стена света по зову руки.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/ward_crystal.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "set": "arcane_focus",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.12
+    },
+    {
+      "type": "free_cast",
+      "spell": "magic_shield"
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "runes",
+        "amount": 0.05
+      }
+    ]
+  }
+}

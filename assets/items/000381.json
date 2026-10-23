@@ -1,0 +1,22 @@
+{
+  "id": "snow_focus",
+  "name": "Снежный фокус",
+  "kind": "artifact",
+  "weight": 1.2,
+  "value": 650,
+  "desc": "Снежный фокус: в нём хранится целая метель.",
+  "icon": "assets/sprites/items/snow_focus.svg",
+  "slot": "left_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.28
+    },
+    {
+      "type": "free_cast",
+      "spell": "ice_armor"
+    }
+  ]
+}

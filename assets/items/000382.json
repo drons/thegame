@@ -1,0 +1,23 @@
+{
+  "id": "heart_of_elements",
+  "name": "Сердце Стихий",
+  "kind": "artifact",
+  "weight": 1.5,
+  "value": 1200,
+  "desc": "Сердце Стихий: огонь и лёд бьются в одном ударе.",
+  "icon": "assets/sprites/items/heart_of_elements.svg",
+  "slot": "left_hand",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.4
+    },
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.35
+    }
+  ]
+}

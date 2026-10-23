@@ -1,0 +1,18 @@
+{
+  "id": "scholar_pendant",
+  "name": "Подвес учёного",
+  "kind": "artifact",
+  "weight": 0.7,
+  "value": 100,
+  "desc": "Подвес учёного: каждый год жизни — новая грань.",
+  "icon": "assets/sprites/items/scholar_pendant.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.08
+    }
+  ]
+}

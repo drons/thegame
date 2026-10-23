@@ -1,0 +1,21 @@
+{
+  "id": "wicker_buckler",
+  "name": "Плетёный буклер",
+  "kind": "shield",
+  "weight": 0.9,
+  "value": 22,
+  "desc": "Плетёный буклер: ива и терпение.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wicker_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "horn_shield",
+  "name": "Рогатый щит",
+  "kind": "shield",
+  "weight": 1.5,
+  "value": 30,
+  "desc": "Рогатый щит: бьёт не только кожаной стороной.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/horn_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "set": "bulwark",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.04
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

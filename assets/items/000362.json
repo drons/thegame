@@ -1,0 +1,21 @@
+{
+  "id": "oiled_shield",
+  "name": "Промасленный щит",
+  "kind": "shield",
+  "weight": 1.3,
+  "value": 25,
+  "desc": "Промасленный щит: дождь и ржавчина — мимо.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/oiled_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.04
+    }
+  ]
+}

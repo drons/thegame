@@ -1,0 +1,21 @@
+{
+  "id": "cloth_shield",
+  "name": "Тканый щит",
+  "kind": "shield",
+  "weight": 0.8,
+  "value": 20,
+  "desc": "Тканый щит: плотное полотно глушит слабый удар.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/cloth_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.03
+    }
+  ]
+}

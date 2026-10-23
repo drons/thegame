@@ -1,0 +1,27 @@
+{
+  "id": "wooden_buckler",
+  "name": "Деревянный буклер",
+  "kind": "shield",
+  "weight": 1,
+  "value": 15,
+  "desc": "Деревянный буклер: первое, что встаёт между тобой и чужим клинком.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wooden_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "set": "bulwark",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.03
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

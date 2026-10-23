@@ -1,0 +1,21 @@
+{
+  "id": "guard_amulet",
+  "name": "Амулет стража",
+  "kind": "artifact",
+  "weight": 0.7,
+  "value": 75,
+  "desc": "Амулет стража: видит то, что скрыто за твоей спиной.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/guard_amulet.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.06
+    }
+  ]
+}

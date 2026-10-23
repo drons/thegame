@@ -1,0 +1,21 @@
+{
+  "id": "palm_shield",
+  "name": "Пальмовый щит",
+  "kind": "shield",
+  "weight": 1,
+  "value": 32,
+  "desc": "Пальмовый щит: лёгкий, как ладонь, твёрдый, как решимость.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/palm_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.04
+    }
+  ]
+}
