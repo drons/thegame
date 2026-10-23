@@ -28,10 +28,11 @@
   // Кнопка полноэкранного режима (задача 000017): ядро — src/fullscreen.js
   // (тестируется в node), здесь только DOM-привязка. API недоступен —
   // кнопки нет, игра продолжает работать.
+  let fsBtn = null;
   if (G.createFullscreenController) {
     const fullscreen = G.createFullscreenController(document);
     if (fullscreen.supported) {
-      const fsBtn = document.createElement('button');
+      fsBtn = document.createElement('button');
       fsBtn.className = 'fs-btn';
       const fsLabel = () => {
         fsBtn.textContent = fullscreen.isFullscreen
@@ -3747,6 +3748,13 @@
       if (hud && hud.style) {
         const z = hudOver ? '25' : '';
         if (hud.style.zIndex !== z) hud.style.zIndex = z;
+      }
+      const fsOver = inDungeon
+        && !inCombat && !inNpc && !inBuilding && !inCraft
+        && !inResurrect;
+      if (fsBtn && fsBtn.style) {
+        const z = fsOver ? '25' : '';
+        if (fsBtn.style.zIndex !== z) fsBtn.style.zIndex = z;
       }
       // 000235.02: книга вне боя — frame-driven мягкое скрытие при
       // активных оверлеях + ре-рендер при смене дня (дешёвый no-op,
