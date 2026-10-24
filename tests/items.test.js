@@ -4604,21 +4604,24 @@ test('000230.06 (зелёный пин): общий equip/unequip работае
 });
 
 // =====================================================================
-// known-issue 000230.06 → 000230.18 (ревью 2026-10-20, F1/major):
-// вес-гейт возврата предмета в ОБЩИЙ инвентарь героя (checkAdd →
-// maxCarryWeight) считается от derived КОМПОЗИТА (primary/secondary
-// героя + equipment НАЁМНИКА — affixSkillsFor читает c.equipment),
-// а не от фактического maxCarryWeight ГЕРОЯ (hero.equipment в гейт
-// не участвует). СЕГОДНЯ влияние НОЛЬ (каталог: 0 affix-предметов,
-// E9) — гейт идентичен геройскому; достижимо с волн .08–.15.
-// ПИН ЗАКРЕПЛЯЕТ ТЕКУЩЕЕ (гибридное) поведение: когда 000230.18
-// починит гейт (лимит = maxCarryWeight самого героя), тест падёт —
-// принудительный осознанный пере-пин (схема ре-пинов репо).
+// known-issue 000230.06 → 000230.18 (ревью 2026-10-20, F1/major) —
+// РЕШЁН (000230.18): вес-гейт возврата предмета в ОБЩИЙ инвентарь
+// героя (unequip/swap — items.js addItem → checkAdd →
+// maxCarryWeight) = maxCarryWeight САМОГО ГЕРОЯ (полный derived:
+// primary + secondary + hero.equipment), а не derived КОМПОЗИТА
+// (primary/secondary героя + equipment НАЁМНИКА). Механизм —
+// конвенция c.carryOwner: композит объявляет владельца инвентаря;
+// геройский путь бит-в-бит (герой carryOwner не носит).
 // Воспроизведение: vm-фикстуры, 'back'-affix кольцо +50%,
-// герой secondary.back = 2 (база 30 кг, +10%/уровень): фактический
-// лимит героя = 30·(1+0.2·1.5) = 39, гейт композита (у наёмника
-// affix'ов нет) = 30·(1+0.2) = 36.
-// Контракты: memory/000230.06-ally-equipment.md §7/§10,
+// герой secondary.back = 2 (база 30 кг, +10%/уровень):
+//  E2a (сценарий a): 'back' на СВОЕЙ экипировке ГЕРОЯ (лимит 39),
+//  у наёмника нет — allyUnequip ПРОХОДИТ (38 ≤ 39), «застрявший»
+//  предмет чинится; граница «владелец не объявлен» (композит БЕЗ
+//  carryOwner) = 36 (гибрид, легальный режим);
+//  E2b (сценарий b): 'back' на экипировке НАЁМНИКА (старый гейт
+//  39), у героя нет (36) — failsafe, тихий overweight НЕ возникает.
+// Контракты: memory/000230.18-weight-gate-carry-owner.md,
+// memory/000230.06-ally-equipment.md §7/§10,
 // tasks/pending/000230.18.md.
 // =====================================================================
 
@@ -4626,7 +4629,7 @@ const VM_ALLY_WEIGHT_CHAIN = ['global-settings.js', 'perlin.js',
   'mapseed.js', 'skills-data.js', 'items-data.js', 'npc-data.js',
   'map.js', 'sheet.js', 'player.js', 'day.js'];
 
-test('000230.18 (known-issue пин): вес-гейт allyUnequip — от derived композита (экипировка НАЁМНИКА), не от фактического лимита героя (до 000230.18)', () => {
+test('000230.18 E2 (пере-пин, сценарий a): вес-гейт allyUnequip = maxCarryWeight ГЕРОЯ: «back»-affix на СВОЕЙ экипировке героя (лимит 39), у наёмника нет — allyUnequip → {ok:true, item}, totalQty(hero, «x_sword») = 1, слот на наёмнике пуст (38 ≤ 39)', () => {
   const { sandbox } = makeVmSandboxWithConsole();
   sandbox.Game = {};
   for (const f of VM_ALLY_WEIGHT_CHAIN) loadInSandbox(f, sandbox);
@@ -4662,24 +4665,84 @@ test('000230.18 (known-issue пин): вес-гейт allyUnequip — от deriv
     equipmentBonus: merc.equipmentBonus,
   };
   assert.equal(G.maxCarryWeight(view), 36,
-    'ГЕЙТ (known-issue): от экипировки НАЁМНИКА (affix'
-    + 'ов нет) — 36, а не фактические 39 героя; до 000230.18');
-  // e2e: предмет влезает по фактическому лимиту героя, но
-  // НЕ возвращается с наёмника:
+    'граница «владелец не объявлен»: композит БЕЗ carryOwner — '
+    + 'derived самого композита (экипировка наёмника без affix'
+    + 'ов) = 36 (гибрид, легальный режим)');
+  assert.equal(G.maxCarryWeight({ ...view, carryOwner: hero }), 39,
+    '000230.18: carryOwner — владелец инвентаря = САМ герой: '
+    + 'гейт = maxCarryWeight героя (39), а не композита (36)');
+  // e2e: предмет влезает по фактическому лимиту героя и
+  // ВОЗВРАЩАЕТСЯ с наёмника («застрявший» предмет чинится):
   G.addItem(hero, 'x_big');   // 37 ≤ 39
   G.addItem(hero, 'x_sword'); // 38 ≤ 39
   assert.equal(G.inventoryWeight(hero), 38, 'инвентарь легален (≤ 39)');
   assert.equal(Co.allyEquip(hero, merc, 'x_sword').ok, true);
   assert.equal(G.inventoryWeight(hero), 37);
   const r = Co.allyUnequip(hero, merc, 'right_hand');
+  assert.deepEqual(fromVm(r), { ok: true, item: 'x_sword' },
+    '000230.18: 38 ≤ 39 (факт. лимит героя) — возврат ПРОХОДИТ '
+    + '(гейт = лимит героя, а не композита = 36)');
+  assert.equal(G.totalQty(hero, 'x_sword'), 1,
+    'предмет вернулся в ОБЩИЙ инвентарь героя (000194)');
+  assert.equal(G.inventoryWeight(hero), 38, '38 ≤ 39 — overweight нет');
+  assert.equal(merc.equipment.right_hand, null,
+    'слот на наёмнике пуст — «застрявший» предмет чинится');
+  assert.equal(G.canAddItem(hero, 'x_sword').ok, true,
+    'собственная проверка героя — предмет влезает (39 ≤ 39)');
+});
+
+test('000230.18 E2b (сценарий b): «back»-affix у НАЁМНИКА (надет на момент чека), у героя нет — инвентарь > (лимит героя − вес меча): allyUnequip → failsafe {ok:false, reason}, overweight НЕ возникает (инвентарь ≤ maxCarryWeight героя = 36)', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  sandbox.Game = {};
+  for (const f of VM_ALLY_WEIGHT_CHAIN) loadInSandbox(f, sandbox);
+  sandbox.Game.ITEMS = [
+    { id: 'x_ring_back', name: 'Кольцо спины', kind: 'ring',
+      slot: 'ring', weight: 0.1, value: 30, desc: 'т',
+      affixes: [{ type: 'skill', skill: 'back', amount: 0.5 }] },
+    { id: 'x_sword', name: 'Меч', kind: 'weapon', subtype: 'sword',
+      stats: { damage: 5 }, weight: 1, value: 50, desc: 'т' },
+    { id: 'x_mid', name: 'Средний реагент', kind: 'reagent',
+      weight: 35.2, value: 1, desc: 'т' },
+  ];
+  for (const f of ['items.js', 'buildings.js', 'npc.js',
+    'companions.js']) {
+    loadInSandbox(f, sandbox);
+  }
+  const G = sandbox.Game;
+  const Co = G.companions;
+  const hero = G.createCharacter();
+  hero.secondary.back = 2;
+  assert.equal(G.maxCarryWeight(hero), 36,
+    'у героя БЕЗ «back»-affix — фактический лимит 30·(1+0.2) = 36');
+  const merc = G.Sheet.createSheet('merc', { npcId: 'merc_volk' });
+  // Кольцо остаётся надетым на НАЁМНИКЕ в момент вес-чека
+  // (generic unequip не трогает прочие слоты):
+  G.addItem(hero, 'x_ring_back');
+  G.addItem(hero, 'x_sword');
+  assert.equal(Co.allyEquip(hero, merc, 'x_ring_back').ok, true);
+  assert.equal(merc.equipment.ring_left_1, 'x_ring_back',
+    'кольцо — первый свободный слот (RING_SLOTS[0])');
+  assert.equal(Co.allyEquip(hero, merc, 'x_sword').ok, true);
+  assert.equal(G.inventoryWeight(hero), 0);
+  // x_mid добавляется ПОСЛЕ переноса предметов на наёмника
+  // (35.2+0.1+1 = 36.3 > 36 — герой не проглотил бы всё сразу):
+  G.addItem(hero, 'x_mid');
+  assert.equal(G.inventoryWeight(hero), 35.2, '35.2 ≤ 36 — легален');
+  const r = Co.allyUnequip(hero, merc, 'right_hand');
   assert.deepEqual(fromVm(r),
     { ok: false, reason: 'слишком тяжело (лимит веса)' },
-    'known-issue: 38 ≤ 39 (факт. лимит героя), но гейт = 36 — '
-    + 'ложный отказ; до 000230.18');
-  assert.equal(G.canAddItem(hero, 'x_sword').ok, true,
-    'собственная проверка героя — предмет влезает (38 ≤ 39)');
+    '000230.18: 35.2+1 = 36.2 > 36 (лимит героя) — failsafe; '
+    + 'старый гейт (композит с кольцом наёмника) = 39 пропускал — '
+    + 'тихий overweight');
+  assert.equal(G.inventoryWeight(hero), 35.2,
+    'инвентарь НЕ ушёл в overweight');
+  assert.ok(G.inventoryWeight(hero) <= G.maxCarryWeight(hero),
+    '35.2 ≤ 36 (лимит ГЕРОЯ)');
   assert.equal(merc.equipment.right_hand, 'x_sword',
-    'предмет ОСТАЁТСЯ надетым (failsafe) — застрял; до 000230.18');
+    'failsafe: предмет остался надетым (не потерян)');
+  assert.equal(merc.equipment.ring_left_1, 'x_ring_back',
+    'прочие affix-слоты наёмника видимы в момент чека — почему '
+    + 'старый гейт был 39');
 });
 
 test('000230.03.01-EM (vm): зеркальные ключи weapon/armor в equipmentAffixes (питфол двойного подсчёта): оружие со skill-affix в right_hand → точная сумма = вклад ОДНОГО слота (зеркальный ключ weapon НЕ итерируется — 0.2, не 0.4)', () => {

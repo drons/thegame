@@ -614,8 +614,13 @@
   }
 
   // Максимальный вес: база × «Крепкая спина» (+10% за уровень, player.js).
+  // Задача 000230.18: лимит — владельца инвентаря (c.carryOwner, plain-объект;
+  // герой carryOwner не носит — owner = c, путь бит-в-бит).
   function maxCarryWeight(c) {
-    return BASE_CARRY_WEIGHT * P.derived(c).carryWeightMult;
+    const owner = (c && c.carryOwner &&
+        typeof c.carryOwner === 'object' &&
+        !Array.isArray(c.carryOwner)) ? c.carryOwner : c;
+    return BASE_CARRY_WEIGHT * P.derived(owner).carryWeightMult;
   }
 
   function slotCount(c) { return ensureInventory(c).slots.length; }

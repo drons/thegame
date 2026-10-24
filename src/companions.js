@@ -1052,6 +1052,7 @@ function (settings, G) {
       secondary: hero.secondary,
       equipment: sheet.equipment,
       equipmentBonus: sheet.equipmentBonus,
+      carryOwner: hero,
     };
   }
 
