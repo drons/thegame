@@ -474,8 +474,8 @@
       maxHP,
       maxMP,
       armor,
-      // Ход в бою: X клеток (Ловкость), Y действий (основной навык действия).
-      moveCells: 3 + Math.floor(P.dexterity / 5),
+      // Ход в бою: 1 + Ловкость/10 (целая часть) клеток, Y действий (основной навык действия).
+      moveCells: 1 + Math.floor(P.dexterity / 10),
       attackActions: 1 + Math.floor(P.strength / 10),
       spellActionsInt: 1 + Math.floor(P.intelligence / 10),
       spellActionsWis: 1 + Math.floor(P.wisdom / 10),

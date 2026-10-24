@@ -4942,6 +4942,7 @@ function battle119({ type, seed, difficulty, passive }) {
 // Пересчёт 2026-10-07 (ревью 000168 — ИИ Эфира заменён вводом, см.
 // баннер 000119): avg rounds = 9.686 (min 4), avg hpFrac = 0.9138,
 // min hpFrac = 0.5968 — интервалы ниже удерживаются с запасом.
+// Пересчёт 2026-10-24 (000257 — ход героя 1 + floor(ловкость/10)): avg rounds = 11.257, avg hpFrac = 0.9161, min hpFrac = 0.5968 — интервалы удерживаются (запас avgRoundsMax 0.74).
 const EFIR_BAL119 = {
   // per-combat (a): rounds ≥ 2 — бой не «мгновенный» (зафиксирован min 3;
   // пересчёт 2026-10-07 после 000168: min 4).
@@ -5730,6 +5731,20 @@ test('000167-ROUND-1: round-rollover: очередь исчерпана → roun
   assert.equal(c.efs.move, 3, 'efs.move — рефилл');
   // Тик щита Эфира — ровно 1 за раунд (2 → 1):
   assert.equal(c.efirShield.turns, 1, 'щит Эфира: тик ровно 1 раз за раунд');
+});
+
+// 000257: пул шагов героя (c.ps.moveLeft ← refillPools ← derived.moveCells)
+// — формула 1 + floor(dex/10) (запрос пользователя 2026-10-23). Вне формулы
+// (бит-в-бит, пины не меняются): союзники 1, Эфир 3, мобы fast ? 2 : 1.
+test('000257-COMBAT-1: c.ps.moveLeft после createCombat = 1 + floor(dex/10) (пул шагов героя)', () => {
+  const p1 = createCharacter();
+  assert.equal(p1.primary.dexterity, 1, 'createCharacter: dex 1');
+  const c1 = createCombat({ player: p1, allies: [], mobs: [], seed: 17 });
+  assert.equal(c1.ps.moveLeft, 1, 'dex 1 → 1 + floor(1/10) = 1 (000257)');
+  const p2 = createCharacter();
+  p2.primary.dexterity = 10;
+  const c2 = createCombat({ player: p2, allies: [], mobs: [], seed: 17 });
+  assert.equal(c2.ps.moveLeft, 2, 'dex 10 → 1 + floor(10/10) = 2 (000257)');
 });
 
 test('000167-ROUND-2: тики на старте раунда: яд убил на старте раунда → outcome "dead", phase "over", свежая отсортированная очередь', () => {

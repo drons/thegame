@@ -6546,7 +6546,7 @@ test('боевой UI: 000198-UI-3 — e2e Эфир: клик по пауку (d
 //
 // Фикстуры (проверено прогоном на master 7875568, 2026-10-12):
 //   * дефолт scene84(): герой 25/25, MP 16/16 (G.derived); волк (m0)
-//     4/4 ур. 1, c.targetId='m0' (автоцель); c.ps {moveLeft:3,
+//     4/4 ур. 1, c.targetId='m0' (автоцель); c.ps {moveLeft:1,
 //     attack:1, spellInt:1, spellWis:1, …}; activeUnitId='player';
 //     stateEl — 5 строк (Ход: Вы / группа, раунд 1 / HP|MP /
 //     Шаги…|Удар…|Огонь…|Леч… / Цель: Волк (ур. 1, HP 4/4)).
@@ -7084,16 +7084,16 @@ test('боевой UI: 000199.01 — кнопка «Конец хода»: бе�
     '000199.01: бейдж .combat-actcount есть на кнопке «Конец хода» '
     + '(краснота: build создаёт бейджи только на attack/spellbook)');
   assert.equal(badge.textContent, String(S.c.ps.moveLeft),
-    'бейдж = c.ps.moveLeft («3»): факт '
+    'бейдж = c.ps.moveLeft («1»): факт '
     + JSON.stringify(badge.textContent));
   // (b) Реальный шаг: ArrowUp → (3,6)→(3,5) (обstacle-клетка снята,
-  //     паттерн CU199-000121/L1836) — moveLeft 3→2, бейдж «2».
+  //     паттерн CU199-000121/L1836) — moveLeft 1→0, бейдж «0».
   S.c.obstacles.clear();
   press(S.keydown, 'ArrowUp');
   tickSlice(S.canvas, S.rafStubs);
-  assert.equal(S.c.ps.moveLeft, 2, 'шаг сожжён: 3→2');
-  assert.equal(badge.textContent, '2',
-    'бейдж уменьшился после шага: «2»');
+  assert.equal(S.c.ps.moveLeft, 0, 'шаг сожжён: 1→0');
+  assert.equal(badge.textContent, '0',
+    'бейдж уменьшился после шага: «0»');
   // (c) White-box: пул исчерпан → «0» ВИДИМО (D-4, паритет attack).
   S.c.ps.moveLeft = 0;
   tickSlice(S.canvas, S.rafStubs);
@@ -7117,8 +7117,10 @@ test('боевой UI: 000199.01 — бейдж шагов несёт АКТИВ
     assert.ok(badge,
       '000199.01: бейдж есть на ходу наёмника (краснота: на endTurn '
       + 'бейджа нет вовсе)');
+    S.c.ps.moveLeft = 5;
+    tickSlice(S.canvas, S.rafStubs);
     assert.equal(badge.textContent, String(merc.moveLeft),
-      'бейдж = u.moveLeft («1» — НЕ «3» игрока): факт '
+      'бейдж = u.moveLeft («1» — НЕ «5» игрока): факт '
       + JSON.stringify(badge.textContent));
     // Реальный шаг: (3,5)→(3,4) (волк (1,1) — путь свободен;
     // obstacle-клетка снята) — moveLeft 1→0, бейдж «0».
@@ -7183,8 +7185,10 @@ test('боевой UI: 000199.01 — бейдж у НЕАКТИВНЫХ: чис�
   assert.ok(badge,
     '000199.01: бейдж есть на ходу активного игрока (краснота: на '
     + 'endTurn бейджа нет вовсе)');
+  S.c.ps.moveLeft = 5;
+  tickSlice(S.canvas, S.rafStubs);
   assert.equal(badge.textContent, String(S.c.ps.moveLeft),
-    'бейдж = активного (игрока) — «3»: факт '
+    'бейдж = активного (игрока) — «5»: факт '
     + JSON.stringify(badge.textContent));
   assert.notEqual(badge.textContent, String(merc.moveLeft),
     'число НЕАКТИВНОГО союзника на бейдж НЕ подставляется');

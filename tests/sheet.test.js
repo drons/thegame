@@ -393,7 +393,7 @@ test('SH-5: derived — hero-формулы дословно + ctx.modifier (kin
   assert.equal(d0.maxHP, 25); // (20 + 1·5)
   assert.equal(d0.maxMP, 16); // 10 + (1+1)·3
   assert.equal(d0.armor, 0);
-  assert.equal(d0.moveCells, 3); // 3 + floor(1/5)
+  assert.equal(d0.moveCells, 1); // 1 + floor(1/10) (000257)
   assert.equal(d0.attackActions, 1); // 1 + floor(1/10)
   assert.equal(d0.spellActionsInt, 1);
   assert.equal(d0.spellActionsWis, 1);
@@ -418,7 +418,7 @@ test('SH-5: derived — hero-формулы дословно + ctx.modifier (kin
   // Основные: ход/действия в бою.
   h.primary.dexterity = 15;
   h.primary.strength = 21;
-  assert.equal(Sheet.derived(h).moveCells, 6);
+  assert.equal(Sheet.derived(h).moveCells, 2); // 1 + floor(15/10) (000257)
   assert.equal(Sheet.derived(h).attackActions, 3);
   // Формулы kind-агностичны: различия kinds — только ctx.modifier.
   const m = Sheet.createSheet('merc', { npcId: 'm' });

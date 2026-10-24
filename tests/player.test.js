@@ -158,13 +158,18 @@ test('derived: формулы эффектов', () => {
 test('derived: ход и действия в бою от основных навыков', () => {
   const c = createCharacter();
   const d0 = derived(c);
-  assert.equal(d0.moveCells, 3); // 3 + floor(1/5)
+  assert.equal(d0.moveCells, 1); // 1 + floor(1/10) (000257)
   assert.equal(d0.attackActions, 1); // 1 + floor(1/10)
   c.primary.dexterity = 15;
   c.primary.strength = 21;
   const d1 = derived(c);
-  assert.equal(d1.moveCells, 6); // 3 + floor(15/5)
+  assert.equal(d1.moveCells, 2); // 1 + floor(15/10) (000257)
   assert.equal(d1.attackActions, 3); // 1 + floor(21/10)
+  // 000257-SHEET-1: границы целочисленного деления новой формулы.
+  for (const [dex, cells] of [[0, 1], [9, 1], [10, 2], [99, 10]]) {
+    c.primary.dexterity = dex;
+    assert.equal(derived(c).moveCells, cells, `dex ${dex} → ${cells}`);
+  }
 });
 
 test('damage: урон учитывает «Железную кожу», смерть при hp<=0', () => {
