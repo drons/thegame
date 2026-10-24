@@ -424,7 +424,7 @@ test('index.html: 000210 — portrait: .combat-flee-confirm — зеркало �
 // Краснота — осмысленная: правил в index.html нет (cssRule/
 // portraitRule — assert «правило не найдено»).
 
-test('index.html: 000237 — .combat-victory-loot — absolute под центрированным баннером (+28px), flex/wrap-лента = формуле canvas, pointer-events: none; portrait — зеркало формулы canvas (237-CSS)', () => {
+test('index.html: 000237 — .combat-victory-loot — absolute под центрированным баннером (+28px), flex-лента = формуле canvas, pointer-events: none; portrait — зеркало формулы canvas; 000261: столбик, влево, 22px, цвет текста по редкости (237-CSS)', () => {
   const d = cssRule('.combat-overlay--combat .combat-victory-loot');
   assert.equal(d['position'], 'absolute',
     '000237: лента лута — absolute (in-flow сдвинул бы центр '
@@ -518,4 +518,63 @@ test('index.html: .combat-overlay--combat .combat-log — min-height: 0 (000254-
     + 'остатка (текст пина 000246-LOG-FLEX и portrait-пина '
     + 'ссылаются на декларацию — до 000254 без ассерта); факт: '
     + d['min-height']);
+});
+
+// --- 000261: лут на экране победы — столбик, влево, 22px, цвет ---
+//
+// Контракт — memory/000261-victory-loot-style.md: D2 (три декларации
+// в базовом правиле: column / flex-start / 22px), D7 (6 color-правил
+// в скоупе узла лута — 5 hex рамок :108-112 + фолбэк #e8dcc0), D6
+// (border: 0 — рамка на строках лута отключена, глобальные правила
+// рамок 000230.07 НЕ трогаются). Краснота — осмысленная: декларации
+// отсутствуют (undefined) / правил нет (cssRule — assert «правило не
+// найдено»).
+
+test('index.html: 000261 — .combat-victory-loot — font-size 22px (линия .combat-banner), align-items: flex-start (выравнивание влево) (261-CSS)', () => {
+  const d = cssRule('.combat-overlay--combat .combat-victory-loot');
+  assert.equal(d['font-size'], '22px',
+    '000261: шрифт лута — 22px, «как у золота/опыта»; факт: '
+    + d['font-size']);
+  assert.equal(d['font-size'], cssRule('.combat-banner')['font-size'],
+    '000261: font-size = линии .combat-banner (кросс-пин); факт: '
+    + d['font-size']);
+  assert.equal(d['align-items'], 'flex-start',
+    '000261: выравнивание строк — ВЛЕВО (столбик от левого края); '
+    + 'факт: ' + d['align-items']);
+});
+
+test('index.html: 000261 — .combat-victory-loot — flex-direction: column (одна строка предмета на строку — структурный пин «в столбик») (261-CSS-COL)', () => {
+  const d = cssRule('.combat-overlay--combat .combat-victory-loot');
+  assert.equal(d['flex-direction'], 'column',
+    '000261: лут — в столбик (column); факт: ' + d['flex-direction']);
+});
+
+test('index.html: 000261 — .combat-victory-loot .cp-rarity-… — цвет ТЕКСТА = 5 hex рамок + фолбэк #e8dcc0; border: 0 на строках лута (261-CSS-RAR)', () => {
+  const rarities = {
+    common: '#a39b8b',
+    rare: '#58a858',
+    epic: '#5b8fd4',
+    legendary: '#9b6bd4',
+    impossible: '#e0952f',
+    none: '#e8dcc0',
+  };
+  for (const [r, hex] of Object.entries(rarities)) {
+    const rule = cssRule('.combat-victory-loot .cp-rarity-' + r);
+    assert.equal(rule['color'], hex,
+      '000261: цвет текста редкости «' + r + '» = hex рамки 000230.07; '
+      + 'факт: ' + rule['color']);
+  }
+  const row = cssRule('.combat-victory-loot .cp-itemrow');
+  assert.equal(row['border'], '0',
+    '000261: рамка на строках лута ОТКЛЮЧЕНА (ТЗ — только цвет текста; '
+    + 'глобальные cp-rarity-рамки :108-112 не трогаются); факт: '
+    + row['border']);
+  const borderZeroAt = html.indexOf('.combat-victory-loot .cp-itemrow {');
+  const globalBorderAt = html.indexOf('.cp-itemrow.cp-rarity-common {');
+  assert.ok(borderZeroAt > globalBorderAt,
+    '000261: порядок — border: 0 ПОЗЖЕ глобальных рамок cp-rarity-* '
+    + ':108-112 (специфичности равны (0,2,0) — выигрывает позднее; '
+    + 'перенос блока выше = тихий возврат рамок при зелёном пине); '
+    + 'факт: border-0 @' + borderZeroAt + ', глобальная рамка @'
+    + globalBorderAt);
 });

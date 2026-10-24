@@ -2286,7 +2286,9 @@
     for (const e of items) {
       const it = (e && G.getItem) ? G.getItem(e.id) : null;
       const row = document.createElement('div');
-      row.className = 'cp-itemrow';
+      row.className = 'cp-itemrow'
+        + (it && typeof it.rarity === 'string' && it.rarity !== ''
+          ? ' cp-rarity-' + it.rarity : ' cp-rarity-none');
       if (it && typeof it.icon === 'string' && it.icon !== '') {
         const img = document.createElement('img');
         img.className = 'cp-itemicon';

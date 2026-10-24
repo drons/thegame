@@ -457,9 +457,10 @@
     /* Лента лута победы (задача 000237): absolute-сИБЛИНГ ПОСЛЕ
        баннера (не в-flow — центр 000124 не сдвигается); верх ленты
        на 28px ниже центра (victory-баннер — 2 строки 22px ≈ 53px —
-       лента под текстом); wrap-граница = формула canvas; без
-       фона/цветов (фон баннера за узлом, текст наследует базу);
-       pointer-events: none — клик проходит в баннер (finish). */
+       лента под текстом); wrap-граница = формула canvas;
+       000261: столбик, влево, 22px, цвет текста по редкости —
+       правила ниже; pointer-events: none — клик проходит в баннер
+       (finish). */
     .combat-overlay--combat .combat-victory-loot {
       position: absolute;
       top: 50%;
@@ -468,12 +469,25 @@
       box-sizing: border-box;
       width: min(100vh - 32px, 100vw - 304px);
       display: flex;
+      flex-direction: column;
+      align-items: flex-start;
       flex-wrap: wrap;
       justify-content: center;
       gap: 2px 8px;
       padding: 0 12px;
+      font-size: 22px;
       pointer-events: none;
     }
+    /* 000261: цвет текста по редкости — скоуп узла лута (глобальные
+       cp-rarity-* = рамки строк инвентаря/магазина — не трогаются);
+       фолбэк cp-rarity-none — базовый цвет; border: 0 — рамка выкл. */
+    .combat-victory-loot .cp-itemrow { border: 0; }
+    .combat-victory-loot .cp-rarity-common { color: #a39b8b; }
+    .combat-victory-loot .cp-rarity-rare { color: #58a858; }
+    .combat-victory-loot .cp-rarity-epic { color: #5b8fd4; }
+    .combat-victory-loot .cp-rarity-legendary { color: #9b6bd4; }
+    .combat-victory-loot .cp-rarity-impossible { color: #e0952f; }
+    .combat-victory-loot .cp-rarity-none { color: #e8dcc0; }
     .combat-overlay--combat .combat-spellbook {
       position: absolute;
       top: 50%;
