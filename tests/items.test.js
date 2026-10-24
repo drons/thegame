@@ -865,157 +865,108 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // выпали: iron_pitchfork/copper_scyte/clay_crucible/
     // harvest_scyte/philosopher_staff), остальные ключи стока не
     // сдвинулись (node-симуляция).
-    // Ре-пин post-merge (.12 + .13 + .14, каталог 382): хвост .13/.14
-    // ре-симулирован — значения по финальному каталогу 382
+    // Ре-пин 000235.10: свитки волны Исцеление (000258-000282) —
+    // дыра каталога между torso и руками заполнена, rng-хвост пула
+    // allItems → += 24 свитка (holy_mending на этой клетке не выпал).
+    // Ре-пин post-merge (каталог 407: 000258–000282 — свитки
+    // Исцеление + 000283–000407 — руки/«правая рука»/left_hand/кольца):
+    // хвосты ре-симулированы — значения по финальному каталогу 407
     // (node-симуляция: base + огонь + лёд + уши/шея + torso + тень +
-    // руки + «правая рука» + left_hand + кольца): left_hand += 20
-    // (не выпали: leather_shield/iron_round/steel_buckler/frost_orb/
-    // heart_of_elements); кольца += 18 (не выпали: clay_ring/
-    // quartz_ring/amethyst_ring/gold_signet/emerald_signet/
-    // rune_ring/void_ring); base-ключи byte-identical.
+    // исцеление + руки + «правая рука» + left_hand + кольца).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
       stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3,
-        war_hammer: 3, leather_armor: 3, knight_plate: 2,
-        healing_potion: 5, greater_healing: 4, mana_potion: 1,
-        mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1,
-        alchemy_manual: 5, sword_treatise: 4, sulfur: 1, moonstone: 1,
-        phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2,
-        fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4,
-        archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1,
-        coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5,
-        fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2,
-        blizzard_scroll: 5, light_heal_scroll: 4, vine_scroll: 3,
-        resurrect_scroll: 5, silver_ore: 5, gold_ore: 4, mithril_ore: 5,
-        quartz: 3, obsidian: 4, phosphorite: 3, ruby: 3, sapphire: 5,
-        emerald: 3, amethyst: 5, berry_red: 3, berry_blue: 5,
-        berry_wild: 3, herb_sun: 3, herb_wind: 4, root_moon: 1,
+        war_hammer: 3, leather_armor: 3, knight_plate: 2, healing_potion: 5,
+        greater_healing: 4, mana_potion: 1, mana_elixir: 1, bread: 3, meat: 3,
+        honey_cake: 1, alchemy_manual: 5, sword_treatise: 4, sulfur: 1,
+        moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1,
+        iron_hide_tome: 2, fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4,
+        archer_scroll: 3, copper_ore: 1, wood_log: 4, stone_chunk: 1, coal: 5,
+        herb_healing: 5, herb_mana: 3, herb_bitter: 5, fireball_scroll: 5,
+        flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5,
+        light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5,
+        gold_ore: 4, mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3,
+        ruby: 3, sapphire: 5, emerald: 3, amethyst: 5, berry_red: 3,
+        berry_blue: 5, berry_wild: 3, herb_sun: 3, herb_wind: 4, root_moon: 1,
         root_ember: 3, root_rock: 3, fruit_apple: 1, fruit_quince: 1,
         mushroom_grey: 4, mushroom_glow: 3, blueprint_alchemy: 3,
         blueprint_carving: 3, blueprint_woodwork: 2, blueprint_enchant: 4,
         blueprint_runecraft: 4, straw_hat: 2, wool_cap: 4, leather_cap: 3,
         wanderer_cap: 2, hood_common: 4, linen_cloth: 2, felt_hat: 2,
-        travel_cloth: 3, silver_band: 2, obsidian_cloth: 5,
-        amethyst_band: 5, quartz_cloth: 4, bone_band: 2, mystic_cloth: 4,
-        gold_helm: 4, rune_hoop: 4, star_hoop: 1, crown_flame: 3,
-        ignite_scroll: 1, fire_nova_scroll: 2, meteor_scroll: 1,
-        flame_strike_scroll: 4, hellfire_scroll: 5,
-        phlogiston_blast_scroll: 2, wall_of_fire_scroll: 4,
-        burning_haze_scroll: 3, blazing_speed_scroll: 4,
-        fire_aura_scroll: 3, heat_shield_scroll: 3, sunfire_scroll: 5,
-        scorch_scroll: 5, cinder_scroll: 2, ashen_debilitation_scroll: 1,
-        lava_snare_scroll: 1, flame_imp_scroll: 1, phoenix_scroll: 2,
-        firelight_scroll: 4, hearthfire_scroll: 1, rime_bolt_scroll: 2,
-        shatter_scroll: 5, glacial_spike_scroll: 3, permafrost_scroll: 1,
-        absolute_zero_scroll: 3, ice_field_scroll: 1,
-        wall_of_ice_scroll: 1, blizzard_field_scroll: 5,
+        travel_cloth: 3, silver_band: 2, obsidian_cloth: 5, amethyst_band: 5,
+        quartz_cloth: 4, bone_band: 2, mystic_cloth: 4, gold_helm: 4,
+        rune_hoop: 4, star_hoop: 1, crown_flame: 3, ignite_scroll: 1,
+        fire_nova_scroll: 2, meteor_scroll: 1, flame_strike_scroll: 4,
+        hellfire_scroll: 5, phlogiston_blast_scroll: 2, wall_of_fire_scroll: 4,
+        burning_haze_scroll: 3, blazing_speed_scroll: 4, fire_aura_scroll: 3,
+        heat_shield_scroll: 3, sunfire_scroll: 5, scorch_scroll: 5,
+        cinder_scroll: 2, ashen_debilitation_scroll: 1, lava_snare_scroll: 1,
+        flame_imp_scroll: 1, phoenix_scroll: 2, firelight_scroll: 4,
+        hearthfire_scroll: 1, rime_bolt_scroll: 2, shatter_scroll: 5,
+        glacial_spike_scroll: 3, permafrost_scroll: 1, absolute_zero_scroll: 3,
+        ice_field_scroll: 1, wall_of_ice_scroll: 1, blizzard_field_scroll: 5,
         frost_aura_scroll: 4, ice_armor_scroll: 5, winter_haste_scroll: 4,
         frostbite_blessing_scroll: 5, slow_scroll: 2, frostbite_scroll: 2,
         deep_freeze_scroll: 1, freeze_scroll: 5, glacier_grasp_scroll: 2,
-        winter_elemental_scroll: 3, frost_walk_scroll: 4,
-        cold_breath_scroll: 1, frozen_stillness_scroll: 4, copper_hoop: 1,
-        bone_stud: 2, leather_loop: 5, clay_dangle: 5, shell_hoop: 4,
-        faith_stud: 5, twine_hoop: 4, antler_hook: 1, stone_bead: 4,
-        silver_hoop: 1, moonstone_dangle: 2, quartz_bead: 3,
-        silver_stud: 3, obsidian_stud: 3, amethyst_dangle: 2,
-        sapphire_hoop: 2, emerald_stud: 2, gold_dangle: 1, mithril_hoop: 5,
-        star_earring: 3, whisper_hoop: 2, copper_chain: 4, bone_beads: 3,
-        twine_amulet: 3, clay_pendant: 5, wood_pendant: 5,
-        copper_pendant: 5, shell_beads: 5, faith_necklace: 3,
-        stone_beads: 4, bone_pendant: 1, silver_chain: 2, quartz_amulet: 2,
-        moonstone_chain: 3, faith_amulet: 4, obsidian_pendant: 3,
-        amethyst_choker: 5, sapphire_pendant: 4, emerald_amulet: 3,
-        gold_chain: 2, mithril_choker: 1, rune_necklace: 4,
-        star_pendant: 5, dawn_pendant: 3, wool_shirt: 1, cloth_tunic: 3,
-        linen_gown: 5, hemp_robe: 3, rough_kaftan: 1, wool_gown: 2,
-        cloth_sutan: 3, linen_tunic: 4, wool_kaftan: 4, wool_sutan: 3,
-        leather_kaftan: 4, embroidered_kaftan: 4, cloth_robe: 4,
+        winter_elemental_scroll: 3, frost_walk_scroll: 4, cold_breath_scroll: 1,
+        frozen_stillness_scroll: 4, copper_hoop: 1, bone_stud: 2,
+        leather_loop: 5, clay_dangle: 5, shell_hoop: 4, faith_stud: 5,
+        twine_hoop: 4, antler_hook: 1, stone_bead: 4, silver_hoop: 1,
+        moonstone_dangle: 2, quartz_bead: 3, silver_stud: 3, obsidian_stud: 3,
+        amethyst_dangle: 2, sapphire_hoop: 2, emerald_stud: 2, gold_dangle: 1,
+        mithril_hoop: 5, star_earring: 3, whisper_hoop: 2, copper_chain: 4,
+        bone_beads: 3, twine_amulet: 3, clay_pendant: 5, wood_pendant: 5,
+        copper_pendant: 5, shell_beads: 5, faith_necklace: 3, stone_beads: 4,
+        bone_pendant: 1, silver_chain: 2, quartz_amulet: 2, moonstone_chain: 3,
+        faith_amulet: 4, obsidian_pendant: 3, amethyst_choker: 5,
+        sapphire_pendant: 4, emerald_amulet: 3, gold_chain: 2, mithril_choker: 1,
+        rune_necklace: 4, star_pendant: 5, dawn_pendant: 3, wool_shirt: 1,
+        cloth_tunic: 3, linen_gown: 5, hemp_robe: 3, rough_kaftan: 1,
+        wool_gown: 2, cloth_sutan: 3, linen_tunic: 4, wool_kaftan: 4,
+        wool_sutan: 3, leather_kaftan: 4, embroidered_kaftan: 4, cloth_robe: 4,
         leather_gown: 3, monk_sutan: 1, fine_kaftan: 4, stone_robe: 2,
-        shadow_robe: 1, deep_breath_robe: 5, pilgrim_sutan: 3,
-        void_robe: 3, aegis_mantle: 2, umbra_bolt_scroll: 5,
-        drain_life_scroll: 1, void_arrow_scroll: 3,
-        night_strike_scroll: 4, soul_drain_scroll: 2,
+        shadow_robe: 1, deep_breath_robe: 5, pilgrim_sutan: 3, void_robe: 3,
+        aegis_mantle: 2, umbra_bolt_scroll: 5, drain_life_scroll: 1,
+        void_arrow_scroll: 3, night_strike_scroll: 4, soul_drain_scroll: 2,
         shadowflame_scroll: 2, dark_nova_scroll: 4, shroud_scroll: 5,
         night_blade_scroll: 5, vampire_touch_scroll: 1, fear_scroll: 4,
         doom_mark_scroll: 2, despair_scroll: 5, shadow_curse_scroll: 3,
-        nightmare_scroll: 5, dark_ensnare_scroll: 2,
-        shadow_pool_scroll: 2, veil_of_night_scroll: 3,
-        shadow_wraith_scroll: 5, void_horror_scroll: 5,
-        shadow_step_scroll: 1, invisibility_scroll: 2,
-        cloth_cuff: 4,
-        leather_cuff: 5,
-        hemp_bracer: 4,
-        rough_bracer: 3,
-        cloth_wrap: 4,
-        iron_cuff: 3,
-        bone_bracer: 5,
-        wood_brace: 4,
-        hide_cuff: 2,
-        studded_bracer: 4,
-        copper_brace: 3,
-        archer_brace: 1,
-        silver_cuff: 4,
-        shadow_wrap: 2,
-        iron_elbow: 5,
-        runic_cuff: 4,
-        steel_bracers: 5,
-        gold_brace: 1,
-        sapphire_bracer: 5,
-        ghost_cuff: 2,
-        swift_brace: 4,
-        rune_bracers: 2,
-        star_armguard: 4,
-        titan_brace: 4,
-        leather_gloves: 2,
-        hide_gloves: 4,
-        linen_wraps: 5,
-        iron_gauntlets: 4,
-        bone_grips: 5,
-        wood_guards: 2,
-        fine_gloves: 1,
-        studded_gloves: 4,
-        copper_gauntlets: 4,
-        quiver_gloves: 1,
-        silver_gauntlets: 1,
-        night_gloves: 5,
-        iron_wraps: 1,
-        wind_gloves: 4,
-        steel_gauntlets: 5,
-        gold_gloves: 4,
-        emerald_gauntlets: 2,
-        phantom_gloves: 3,
-        haste_wraps: 4,
-        rune_gauntlets: 5,
-        star_gloves: 3,
-        void_gauntlet: 4,
-        wood_scyte: 5, iron_scyte: 3, wood_pitchfork: 4, iron_hammer: 4,
-        iron_tongs: 2, stone_mortar: 4, bone_graver: 1, steel_scyte: 5,
-        steel_pitchfork: 3, ember_staff: 1, rime_staff: 4, rune_staff: 1,
-        steel_hammer: 5, rune_stylus: 4, flame_staff: 3, ice_staff: 1,
-        silver_crucible: 5, rune_chisel: 1, sage_staff: 4, mithril_hammer: 4,
-        wooden_buckler: 3, cloth_shield: 2, wicker_buckler: 4,
-        oiled_shield: 5, bone_shield: 3, horn_shield: 2, palm_shield: 4,
-        ash_shield: 1, clay_buckler: 3, rune_charm: 5, guard_amulet: 5,
-        ember_focus: 3, frost_charm: 5, scholar_pendant: 3,
-        ward_crystal: 4, cinder_eye: 2, rune_sphere: 5, mind_pendant: 3,
-        arcane_eye: 5, snow_focus: 2,
-        copper_ring: 3,
-        bone_ring: 3,
-        iron_ring: 2,
-        thread_ring: 2,
-        stone_ring: 1,
-        wood_ring: 2,
-        leather_ring: 1,
-        silver_ring: 2,
-        silver_signet: 1,
-        gold_ring: 1,
-        glacier_ring: 5,
-        obsidian_ring: 4,
-        sapphire_ring: 4,
-        ruby_ring: 4,
-        frost_ring: 1,
-        scholar_ring: 5,
-        star_signet: 4,
-        phoenix_ring: 4 } },
+        nightmare_scroll: 5, dark_ensnare_scroll: 2, shadow_pool_scroll: 2,
+        veil_of_night_scroll: 3, shadow_wraith_scroll: 5, void_horror_scroll: 5,
+        shadow_step_scroll: 1, invisibility_scroll: 2, radiant_heal_scroll: 4,
+        life_bloom_scroll: 5, purify_scroll: 4, mass_heal_scroll: 3,
+        mass_holy_light_scroll: 4, regeneration_scroll: 3, blessing_scroll: 5,
+        divine_favor_scroll: 4, guardian_blessing_scroll: 2,
+        swift_prayer_scroll: 4, faith_shield_scroll: 3, smite_scroll: 1,
+        unholy_wrath_scroll: 4, stun_of_light_scroll: 2, holy_bind_scroll: 5,
+        light_sprite_scroll: 4, spirit_healer_scroll: 5, holy_guardian_scroll: 1,
+        circle_of_light_scroll: 5, holy_ground_scroll: 2, prayer_scroll: 4,
+        divine_protection_scroll: 2, holy_light_scroll: 4, miracle_scroll: 4,
+        leather_cuff: 2, hemp_bracer: 4, cloth_wrap: 5, iron_cuff: 4,
+        bone_bracer: 5, wood_brace: 2, hide_cuff: 1, studded_bracer: 4,
+        copper_brace: 4, archer_brace: 1, silver_cuff: 1, shadow_wrap: 5,
+        iron_elbow: 1, runic_cuff: 4, steel_bracers: 5, gold_brace: 4,
+        sapphire_bracer: 2, ghost_cuff: 3, swift_brace: 4, rune_bracers: 5,
+        star_armguard: 3, titan_brace: 4, cloth_gloves: 5, leather_gloves: 3,
+        hide_gloves: 4, linen_wraps: 4, iron_gauntlets: 2, wood_guards: 4,
+        fine_gloves: 1, studded_gloves: 5, copper_gauntlets: 3, quiver_gloves: 1,
+        silver_gauntlets: 4, night_gloves: 1, iron_wraps: 5, wind_gloves: 4,
+        gold_gloves: 3, emerald_gauntlets: 1, phantom_gloves: 5, haste_wraps: 1,
+        rune_gauntlets: 4, star_gloves: 4, wood_scyte: 3, wood_pitchfork: 2,
+        iron_pitchfork: 4, copper_scyte: 5, iron_hammer: 3, iron_tongs: 2,
+        clay_crucible: 4, stone_mortar: 1, bone_graver: 3, ember_staff: 5,
+        rime_staff: 5, rune_staff: 3, steel_hammer: 5, rune_stylus: 3,
+        harvest_scyte: 4, flame_staff: 2, silver_crucible: 5, rune_chisel: 3,
+        sage_staff: 5, mithril_hammer: 2, wooden_buckler: 3, leather_shield: 3,
+        cloth_shield: 2, wicker_buckler: 2, oiled_shield: 1, horn_shield: 2,
+        palm_shield: 1, ash_shield: 2, clay_buckler: 1, iron_round: 1,
+        steel_buckler: 5, guard_amulet: 4, frost_charm: 4, cinder_eye: 4,
+        frost_orb: 1, mind_pendant: 5, arcane_eye: 4, heart_of_elements: 4,
+        copper_ring: 2, bone_ring: 3, iron_ring: 5, thread_ring: 4,
+        stone_ring: 4, clay_ring: 1, leather_ring: 4, silver_ring: 1,
+        silver_signet: 1, gold_ring: 5, glacier_ring: 2, quartz_ring: 3,
+        obsidian_ring: 3, amethyst_ring: 4, sapphire_ring: 4, ruby_ring: 4,
+        frost_ring: 4, rune_ring: 4, star_signet: 4, void_ring: 1,
+        phoenix_ring: 3 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1684,7 +1635,7 @@ const SCROLLS_000133 = [
   { file: '000050.json', id: 'vine_scroll', spell: 'vine' },
 ];
 
-test('S1. 000133: каталог — 83 свитка (8 фиксированных 000133 + 25 волны Огонь + 25 волны Лёд + 25 волны Тень — ре-пин 000235.09), фиксированный состав (id/kind/effect/spell), все 6 школ', () => {
+test('S1. 000133: каталог — 108 свитков (8 фиксированных 000133 + 25 волны Огонь + 25 волны Лёд + 25 волны Тень + 25 волны Исцеление — ре-пин 000235.10), фиксированный состав (id/kind/effect/spell), все 6 школ', () => {
   const byFile = new Map();
   for (const f of fs.readdirSync(ITEMS_DIR)
       .filter((x) => /^\d{6}\.json$/.test(x))) {
@@ -1714,8 +1665,8 @@ test('S1. 000133: каталог — 83 свитка (8 фиксированны
   // Состав ПОЛНЫЙ: ровно 8 предметов kind spell_scroll (ни больше,
   // ни меньше — решение ТЗ).
   const scrolls = I.allItems().filter((it) => it.kind === 'spell_scroll');
-  assert.equal(scrolls.length, 83,
-    'ровно 83 spell_scroll (8 фиксированных + 25 волны Огонь + 25 волны Лёд + 25 волны Тень); факт: '
+  assert.equal(scrolls.length, 108,
+    'ровно 108 spell_scroll (8 фиксированных + 25 волны Огонь + 25 волны Лёд + 25 волны Тень + 25 волны Исцеление; ре-пин 000235.10: RED 83); факт: '
     + scrolls.length);
   // Свитки на школу: все 6 школ; per-school пин — наличие (n >= 1):
   // волна Огонь добавляет 25 свитков школы «огонь» (27 всего), фикс
@@ -1888,11 +1839,15 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // Ре-пин 000230.14: каталог растёт 357 → 382 (добавляются
   // 000383-000407 — кольца 25; 000258-000282 зарезервированы);
   // слоты не сдвигаются (append-блок).
-  assert.equal(files.length, 382,
-    'каталог — 382 файла (краснота: ' + files.length
+  // Ре-пин 000235.10: каталог растёт 257 → 282 (добавляются
+  // 000258-000282 — свитки волны Исцеление, закрывают зарезервированную
+  // дыру); слоты не сдвигаются.
+  // Ре-пин post-merge: каталог 382 + 25 свитков = 407 (дыры нет).
+  assert.equal(files.length, 407,
+    'каталог — 407 файла (краснота: ' + files.length
     + ' — каталог ещё не расширен, 000230.08/000235.07/000235.08/'
-    + '000230.09/000230.10/000235.09/000230.11/000230.12/000230.13/'
-    + '000230.14)');
+    + '000230.09/000230.10/000235.09/000235.10/000230.11/000230.12/'
+    + '000230.13/000230.14)');
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
@@ -1921,7 +1876,7 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   validateSchema165(schema, j, '000051.json', errors);
   assert.deepEqual(errors, [], 'схема: ' + errors.join('; '));
   // (d) Зеркало src/items-data.js (реген npm run sync:items):
-  //     getItem ≡ JSON, каталог — 382 предмета (краснота: записи нет).
+  //     getItem ≡ JSON, каталог — 407 предметов (краснота: записи нет).
   //     Ре-пин 000157.01 (Р0): 51 → 62 (конец каталога).
   //     Ре-пин 000158.02: 62 → 76 (конец каталога).
   //     Ре-пин 000232: 76 → 82 (конец каталога).
@@ -1931,10 +1886,12 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   //     Ре-пин 000230.09: 157 → 207 (конец каталога).
   //     Ре-пин 000230.10: 207 → 232 (конец каталога).
   //     Ре-пин 000235.09: 232 → 257 (конец каталога).
-  //     Ре-пин 000230.11: 257 → 307 (000283-000332 — руки 50).
-  //     Ре-пин 000230.12: 307 → 332 (000333-000357 — «правая рука» 25).
-  //     Ре-пин 000230.13: 332 → 357 (000358-000382 — left_hand 25).
-  //     Ре-пин 000230.14: 357 → 382 (000383-000407 — кольца 25).
+  //     Ре-пин 000235.10: 257 → 282 (000258-000282 — свитки волны
+  //     Исцеление, закрывают зарезервированную дыру).
+  //     Ре-пин 000230.11: 282 → 332 (000283-000332 — руки 50).
+  //     Ре-пин 000230.12: 332 → 357 (000333-000357 — «правая рука» 25).
+  //     Ре-пин 000230.13: 357 → 382 (000358-000382 — left_hand 25).
+  //     Ре-пин 000230.14: 382 → 407 (000383-000407 — кольца 25).
   const it = I.getItem('resurrect_scroll');
   assert.ok(it, 'зеркало items-data.js: resurrect_scroll '
     + '(краснота: записи нет)');
@@ -1945,15 +1902,16 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // Ре-пин 000230.09: 157 → 207 (000158-000207 — уши 25 + шея 25).
   // Ре-пин 000230.10: 207 → 232 (000208-000232 — torso 25).
   // Ре-пин 000235.09: 232 → 257 (000233-000257 — свитки волны Тень).
-  // Ре-пин 000230.11: 257 → 307 (000283-000332 — руки 50).
-  // Ре-пин 000230.12: 307 → 332 (000333-000357 — «правая рука» 25).
-  // Ре-пин 000230.13: 332 → 357 (000358-000382 — left_hand 25).
-  // Ре-пин 000230.14: 357 → 382 (000383-000407 — кольца 25).
-  assert.equal(I.allItems().length, 382,
-    'allItems — 382 предмета (краснота: ' + I.allItems().length
+  // Ре-пин 000235.10: 257 → 282 (000258-000282 — свитки волны Исцеление).
+  // Ре-пин 000230.11: 282 → 332 (000283-000332 — руки 50).
+  // Ре-пин 000230.12: 332 → 357 (000333-000357 — «правая рука» 25).
+  // Ре-пин 000230.13: 357 → 382 (000358-000382 — left_hand 25).
+  // Ре-пин 000230.14: 382 → 407 (000383-000407 — кольца 25).
+  assert.equal(I.allItems().length, 407,
+    'allItems — 407 предметов (краснота: ' + I.allItems().length
     + ' — зеркало не регенерировано, 000230.08/000235.07/000235.08/'
-    + '000230.09/000230.10/000235.09/000230.11/000230.12/000230.13/'
-    + '000230.14)');
+    + '000230.09/000230.10/000235.09/000235.10/000230.11/000230.12/'
+    + '000230.13/000230.14)');
   // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
   //     addItem ×2 → 2 слота qty 1 (не стопка).
   const c = createCharacter();
@@ -2067,20 +2025,23 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
   // torso 25); слоты не сдвигаются.
   // Ре-пин 000235.09: каталог растёт 232 → 257 (000233-000257 —
   // свитки волны Тень); слоты не сдвигаются.
-  // Ре-пин 000230.11: каталог растёт 257 → 307 (000283-000332 —
+  // Ре-пин 000235.10: каталог растёт 257 → 282 (000258-000282 —
+  // свитки волны Исцеление, закрывают зарезервированную дыру);
+  // слоты не сдвигаются.
+  // Ре-пин 000230.11: каталог растёт 282 → 332 (000283-000332 —
   // forearms 25 + palms 25); слоты не сдвигаются.
-  // Ре-пин 000230.12: каталог растёт 307 → 332 (000333-000357 —
+  // Ре-пин 000230.12: каталог растёт 332 → 357 (000333-000357 —
   // «правая рука» 25); слоты не сдвигаются.
-  // Ре-пин 000230.13: каталог растёт 332 → 357 (000358-000382 —
+  // Ре-пин 000230.13: каталог растёт 357 → 382 (000358-000382 —
   // left_hand 25); слоты не сдвигаются.
-  // Ре-пин 000230.14: каталог растёт 357 → 382 (000383-000407 —
+  // Ре-пин 000230.14: каталог растёт 382 → 407 (000383-000407 —
   // кольца 25); слоты не сдвигаются.
-  assert.equal(files.length, 382,
-    'каталог — 382 файла (краснота: ' + files.length + ')');
+  assert.equal(files.length, 407,
+    'каталог — 407 файла (краснота: ' + files.length + ')');
   assert.equal(files[61], '000062.json',
     '000062.json — 62-й файл (краснота: файла нет)');
-  assert.equal(I.allItems().length, 382,
-    'allItems — 382 предмета (краснота: ' + I.allItems().length + ')');
+  assert.equal(I.allItems().length, 407,
+    'allItems — 407 предмета (краснота: ' + I.allItems().length + ')');
 });
 
 // R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
@@ -2288,7 +2249,7 @@ test('000158.02 L2: loot-инварианты новых 14 — terrains неп�
   }
 });
 
-test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 349 предмета — loot undefined (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин 000230.10: +25 torso без loot; ре-пин 000235.09: +25 свитков волны Тень без loot; ре-пин 000230.11: +50 руки без loot; ре-пин 000230.12: +25 «правая рука» без loot; ре-пин 000230.13: +25 left_hand без loot; ре-пин 000230.14: +25 колец без loot; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
+test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id несут loot { terrains: [песок], near_mountains: true, frequency по тиру }; ВСЕ ПРОЧИЕ 374 предмета — loot undefined (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин 000230.10: +25 torso без loot; ре-пин 000235.09: +25 свитков волны Тень без loot; ре-пин 000235.10: +25 свитков волны Исцеление без loot; ре-пин 000230.11: +50 руки без loot; ре-пин 000230.12: +25 «правая рука» без loot; ре-пин 000230.13: +25 left_hand без loot; ре-пин 000230.14: +25 колец без loot; пин «не тронуто»; 5 reagent'ов 000220 — в исключении)", () => {
   const byId = new Map(I.allItems().map((it) => [it.id, it]));
   const newIds = new Set(LOOT_00015802.map((e) => e.id));
   const nuggetIdSet = new Set(NUGGETS_00015802.map(([id]) => id));
@@ -2300,13 +2261,14 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       id + ': loot самородка (краснота: поля нет; tier ' + tier
       + ' → frequency ' + NUGGET_FREQ[tier] + ')');
   }
-  // ВСЕ ПРОЧИЕ предметы (349 = каталог 382 − 14 самородков − 14 новых
+  // ВСЕ ПРОЧИЕ предметы (374 = каталог 407 − 14 самородков − 14 новых
   // − 5 reagent'ов 000220; ре-пин 000230.08: +25 head без loot;
   // ре-пин 000232: +6 чертежей без loot; ре-пин 000235.07: +25 свитков
   // волны Огонь без loot; ре-пин 000235.08: +25 свитков волны Лёд
   // без loot; ре-пин 000230.09: +50 уши/шея без loot; ре-пин
   // 000230.10: +25 torso без loot; ре-пин 000235.09: +25 свитков
-  // волны Тень без loot; ре-пин 000230.11: +50 руки без loot;
+  // волны Тень без loot; ре-пин 000235.10: +25 свитков волны
+  // Исцеление без loot; ре-пин 000230.11: +50 руки без loot;
   // ре-пин 000230.12: +25 «правая рука» без loot; ре-пин
   // 000230.13: +25 left_hand без loot; ре-пин 000230.14: +25 колец
   // без loot):
@@ -2321,7 +2283,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 349, 'прочих предметов — ровно 349 (каталог 382 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец — все без loot)');
+  assert.equal(others, 374, 'прочих предметов — ровно 374 (каталог 407 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец — все без loot)');
 });
 
 test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
@@ -2716,7 +2678,7 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
   }
-  assert.equal(others, 118, 'прочих предметов — ровно 118 (ре-пин 000230.09: '
+  assert.equal(others, 143, 'прочих предметов — ровно 143 (ре-пин 000230.09: '
     + '50 уши/шея — в исключении; ре-пин 000230.10: 25 torso — в '
     + 'исключении (icon); ре-пин 000230.11: 50 рук — в исключении '
     + '(icon); ре-пин 000230.12: 25 «правая рука» — в исключении '
@@ -2724,8 +2686,10 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + '(icon); ре-пин 000230.14: +25 колец — в исключении '
     + '(icon); ре-пин 000235.08: +25 свитков волны Лёд '
     + 'без icon — входят в счёт; ре-пин 000235.09: +25 свитков '
-    + 'волны Тень без icon; ре-пин post-merge: 382 − 264 '
-    + 'исключений = 118 (счёт не изменился))');
+    + 'волны Тень без icon; ре-пин 000235.10: +25 свитков '
+    + 'волны Исцеление без icon — входят в счёт; '
+    + 'ре-пин post-merge: 407 − 264 исключений = 143 '
+    + '(счёт не изменился))');
   assert.equal(
     [...byId.values()].filter((it) => 'icon' in it).length, 264,
     'icon — ровно у 264 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
@@ -3011,14 +2975,15 @@ test('000230.01 E8: src/items.js — ITEM_KINDS += SHIELD/ARTIFACT/TOOL/RING, WE
     'EQUIP_KINDS — ровно 6 экипируемых kind (краснота: константы нет)');
 });
 
-test('000230.01 E9 (ГАРД): каталог — ровно 382 предмета (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000230.11: +50 рук; ре-пин 000230.12: +25 «правая рука» + 7 legacy-оружий remap; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
+test('000230.01 E9 (ГАРД): каталог — ровно 407 предметов (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны Исцеление; ре-пин 000230.11: +50 рук; ре-пин 000230.12: +25 «правая рука» + 7 legacy-оружий remap; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
   const items = I.allItems();
-  // Ре-пин 000230.11: каталог 257 → 307 (+50 рук).
-  // Ре-пин 000230.12: каталог 307 → 332 (+25 «правая рука» + 7
+  // Ре-пин 000235.10: каталог 257 → 282 (+25 свитков волны Исцеление).
+  // Ре-пин 000230.11: каталог 282 → 332 (+50 рук).
+  // Ре-пин 000230.12: каталог 332 → 357 (+25 «правая рука» + 7
   // remap slot).
-  // Ре-пин 000230.13: каталог 332 → 357 (+25 left_hand).
-  // Ре-пин 000230.14: каталог 357 → 382 (+25 колец).
-  assert.equal(items.length, 382, 'каталог — ровно 382 предмета');
+  // Ре-пин 000230.13: каталог 357 → 382 (+25 left_hand).
+  // Ре-пин 000230.14: каталог 382 → 407 (+25 колец).
+  assert.equal(items.length, 407, 'каталог — ровно 407 предмета');
   let others = 0;
   for (const it of items) {
     if (EQUIP_FIELDS_00023001.has(it.id)) continue;
@@ -3032,20 +2997,22 @@ test('000230.01 E9 (ГАРД): каталог — ровно 382 предмет�
       it.id + ': affixes отсутствует (предмет не тронут, 000230.01)');
     others++;
   }
-  assert.equal(others, 147, 'прочих предметов — ровно 147 (ре-пин 000230.09: '
+  assert.equal(others, 172, 'прочих предметов — ровно 172 (ре-пин 000230.09: '
     + '182 − 75 equip-исключений = 107 (25 head + 50 уши/шея); '
     + 'ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: '
-    + '+25 свитков волны Тень → 257 − 103 equip-исключений = 154; '
-    + 'ре-пин 000230.11: +50 рук → 307 − 153 equip-исключений = 154; '
-    + 'ре-пин 000230.12: +25 «правая рука» + 7 remap slot → 332 − 185 '
-    + 'equip-исключений = 147 (все 32 equip-предмета в исключениях); '
-    + 'ре-пин 000230.13: +25 left_hand → 357 − 210 equip-исключений '
-    + '= 147 (все 25 left_hand в исключениях); '
-    + 'ре-пин 000230.14: +25 колец → 382 − 235 equip-исключений '
-    + '= 147 (все 25 колец в исключениях); 000232: +6 чертежей '
+    + '+25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны '
+    + 'Исцеление → 282 − 103 equip-исключений = 179; '
+    + 'ре-пин 000230.11: +50 рук → 332 − 153 equip-исключений = 179; '
+    + 'ре-пин 000230.12: +25 «правая рука» + 7 remap slot → 357 − 185 '
+    + 'equip-исключений = 172 (все 32 equip-предмета в исключениях); '
+    + 'ре-пин 000230.13: +25 left_hand → 382 − 210 equip-исключений '
+    + '= 172 (все 25 left_hand в исключениях); '
+    + 'ре-пин 000230.14: +25 колец → 407 − 235 equip-исключений '
+    + '= 172 (все 25 колец в исключениях); 000232: +6 чертежей '
     + 'без equip-полей; 000235.07: +25 свитков без equip-полей; '
     + '000235.08: +25 свитков волны Лёд без equip-полей; 000235.09: '
-    + '+25 свитков волны Тень без equip-полей)');
+    + '+25 свитков волны Тень без equip-полей; 000235.10: +25 '
+    + 'свитков волны Исцеление без equip-полей)');
 });
 
 test('000230.01 E10 (vm): НОВЫЕ kind shield/artifact/tool/ring — валидные фикстуры (id/name/kind/slot/weight/value/desc) грузятся БЕЗ броска, без console.error, поля сохранены', () => {
@@ -7246,11 +7213,11 @@ const RIGHT_HAND_ROSTER_00023012 = [
 const RIGHT_HAND_IDS_00023012 = RIGHT_HAND_ROSTER_00023012.map((r) => r[0]);
 const RIGHT_HAND_ID_SET_00023012 = new Set(RIGHT_HAND_IDS_00023012);
 
-test('000230.12 R1: каталог 307 → 332; ре-пин post-merge (.13/.14): каталог 382, блок 000333–000357 — СРЕДИ каталога (после него 000358–000382 left_hand, затем 000383–000407 кольца); каталожный порядок: блок = 25 файлов ПОСЛЕ ВСЕХ файлов с номером < 333 (rebase-робастный якорь, паттерн .11 T1) = 000333–000357 подряд, все slot "right_hand", редкости по позициям ровно 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible; id волны не пересекаются с остальным каталогом (краснота: волна не добавлена)', () => {
+test('000230.12 R1: каталог 307 → 332; ре-пин post-merge (.13/.14): каталог 382; ре-пин 000235.10 post-merge: каталог 407 (000258–000282 — свитки волны Исцеление, блок 000333–000357 не сдвинулся); блок 000333–000357 — СРЕДИ каталога (после него 000358–000382 left_hand, затем 000383–000407 кольца); каталожный порядок: блок = 25 файлов ПОСЛЕ ВСЕХ файлов с номером < 333 (rebase-робастный якорь, паттерн .11 T1) = 000333–000357 подряд, все slot "right_hand", редкости по позициям ровно 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible; id волны не пересекаются с остальным каталогом (краснота: волна не добавлена)', () => {
   const { files, byFile } = catalogScan00023008();
-  assert.equal(files.length, 382,
-    'каталог — 382 файла (307 + 25 волны + 25 .13 + 25 .14); факт: '
-    + files.length);
+  assert.equal(files.length, 407,
+    'каталог — 407 файла (332 + 25 .13 + 25 .14 + 25 свитков '
+    + '000235.10); факт: ' + files.length);
   const p0 = files.filter((f) =>
     Number(f.slice(0, 6)) < 333).length;
   for (let i = 0; i < 25; i++) {
@@ -8556,4 +8523,82 @@ test('000230.14 T6: порядок ключей JSON — 25 колец: подм
       + 'записи нет — зеркало не регенерировано)');
     assert.deepEqual(it, j, f + ': зеркало ≡ JSON');
   }
+});
+
+// --- Задача 000235.10: волна Исцеление — 25 свитков 000258–000282 ---
+//
+// Контракт: memory/000235.10-healing-wave-content.md §1.7. RED:
+// файлы/каталожные записи/зеркало отсутствуют (ENOENT / undefined) —
+// осмысленно, не синтаксис. Шаблон свитка — дословно 000133+ (kind
+// spell_scroll, weight 0.2, value по тьеру, rarity/icon/loot НЕТ).
+
+const HEAL10_SCROLLS = [
+  // [spellId, название, уровень(=тир)] — порядок таблицы контракта
+  ['radiant_heal', 'Лучистое исцеление', 1],
+  ['life_bloom', 'Расцвет жизни', 2],
+  ['purify', 'Очищение', 2],
+  ['mass_heal', 'Массовое исцеление', 3],
+  ['holy_mending', 'Святое исцеление', 3],
+  ['mass_holy_light', 'Массовый святой свет', 4],
+  ['regeneration', 'Регенерация', 4],
+  ['blessing', 'Благословение', 1],
+  ['divine_favor', 'Божественное благоволение', 2],
+  ['guardian_blessing', 'Хранительное благословение', 2],
+  ['swift_prayer', 'Молитва о проворстве', 3],
+  ['faith_shield', 'Щит веры', 1],
+  ['smite', 'Святое поразить', 2],
+  ['unholy_wrath', 'Божественный гнев', 3],
+  ['stun_of_light', 'Сияние света', 2],
+  ['holy_bind', 'Священные узы', 3],
+  ['light_sprite', 'Световой sprite', 2],
+  ['spirit_healer', 'Дух-целитель', 3],
+  ['holy_guardian', 'Святой страж', 4],
+  ['circle_of_light', 'Круг света', 2],
+  ['holy_ground', 'Священная земля', 3],
+  ['prayer', 'Молитва', 1],
+  ['divine_protection', 'Божественная защита', 2],
+  ['holy_light', 'Свет обители', 2],
+  ['miracle', 'Чудо', 4],
+];
+const SCROLL_VALUE_10 = { 1: 45, 2: 60, 3: 115, 4: 240 };
+
+test('000235.10 W-06: 25 свитков 000258–000282 — id <spell>_scroll, kind spell_scroll, effect {kind:spell, spell:<id>} ∈ каталогу, tier = уровень спелла (ПИН), weight 0.2, name/desc по конвенции, value 45/60/115/240, rarity/icon/loot НЕТ, зеркало ≡ JSON', () => {
+  const byFile = new Map();
+  for (const f of fs.readdirSync(ITEMS_DIR)
+      .filter((x) => /^\d{6}\.json$/.test(x))) {
+    byFile.set(f, JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  }
+  const jsById = new Map(I.allItems().map((it) => [it.id, it]));
+  const tierCount = {};
+  HEAL10_SCROLLS.forEach(([spellId, name, level], i) => {
+    const file = String(258 + i).padStart(6, '0') + '.json';
+    const j = byFile.get(file);
+    assert.ok(j, 'W-06: ' + file + ' в assets/items (RED: файла нет)');
+    assert.equal(j.id, spellId + '_scroll', file + ': id <spell>_scroll');
+    assert.equal(j.name, 'Свиток: ' + name,
+      spellId + ': name «Свиток: <название>»');
+    assert.equal(j.kind, 'spell_scroll', spellId + ': kind spell_scroll');
+    assert.equal(j.weight, 0.2, spellId + ': weight 0.2');
+    assert.equal(j.desc,
+      'Свиток: изучает «' + name + '» (нужен ранг школы.)',
+      spellId + ': desc-конвенция');
+    assert.deepEqual(j.effect, { kind: 'spell', spell: spellId },
+      spellId + ': effect {kind:spell, spell:<id>}');
+    assert.ok(SPELLS.SPELLS_BY_ID[spellId],
+      spellId + ': effect.spell ∈ каталогу заклинаний (RED: нет)');
+    assert.equal(j.tier, level,
+      spellId + ': tier = уровень спелла (' + level + ')');
+    assert.equal(j.value, SCROLL_VALUE_10[level],
+      spellId + ': value по тьеру (' + SCROLL_VALUE_10[level] + ')');
+    assert.equal(j.rarity, undefined, spellId + ': rarity НЕТ (пин RAR-G)');
+    assert.equal(j.icon, undefined, spellId + ': icon НЕТ (пин I1)');
+    assert.equal(j.loot, undefined, spellId + ': loot НЕТ (пин L3)');
+    const it = jsById.get(spellId + '_scroll');
+    assert.ok(it, 'W-06: зеркало items-data: ' + spellId + '_scroll (RED: нет)');
+    assert.deepEqual(it, j, spellId + '_scroll: зеркало ≡ JSON');
+    tierCount[level] = (tierCount[level] || 0) + 1;
+  });
+  assert.deepEqual(tierCount, { 1: 4, 2: 10, 3: 7, 4: 4 },
+    'распределение по тирам: T1×4 / T2×10 / T3×7 / T4×4');
 });

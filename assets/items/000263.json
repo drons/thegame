@@ -1,0 +1,13 @@
+{
+  "id": "mass_holy_light_scroll",
+  "name": "Свиток: Массовый святой свет",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 240,
+  "tier": 4,
+  "desc": "Свиток: изучает «Массовый святой свет» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "mass_holy_light"
+  }
+}

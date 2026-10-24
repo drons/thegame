@@ -704,7 +704,12 @@
   // отладочный). day.js отсутствует — undefined (ядро боя —
   // нейтральный дефолт, fail-open).
   function currentBuffMods() {
-    return G.buffMods ? G.buffMods(buffs, clock.day) : undefined;
+    const m = G.buffMods ? G.buffMods(buffs, clock.day) : undefined;
+    if (G.Spells && typeof G.Spells.isHeroDivineProtected === 'function'
+        && G.Spells.isHeroDivineProtected(hero, clock.day)) {
+      return Object.assign({}, m, { incomingMult: 0.85 });
+    }
+    return m;
   }
 
   // --- Сохранение (задача 000031; механизм — src/save.js) ---
@@ -1641,8 +1646,10 @@
   clock.onDay(({ day }) => {
     try {
       // часть HP/MP по формулам навыков
-      G.restoreDay(hero, (G.Spells && G.Spells.isHeroCamped
-        && G.Spells.isHeroCamped(hero, day)) ? 1.1 : 1);
+      G.restoreDay(hero, ((G.Spells && G.Spells.isHeroCamped
+        && G.Spells.isHeroCamped(hero, day)) || (G.Spells
+        && G.Spells.isHeroPrayer
+        && G.Spells.isHeroPrayer(hero, day))) ? 1.1 : 1);
       const due = G.dueForRespawn(defeatedAt, day);
       for (const k of due) defeatedAt.delete(k);
       // 000158.04: респаун природного лута — ТОТ ЖЕ параметр
@@ -2033,6 +2040,35 @@
       return tileLandingPassable(cx, cy, true);
     };
   }
+  function performMiracle() {
+    const dead = deadMercs;
+    if (!dead.length) {
+      return { ok: false, reason: 'нет погибших' };
+    }
+    const gs = G.GlobalSettings && G.GlobalSettings.SETTINGS;
+    const maxC = (gs && typeof gs.max_companions === 'number')
+      ? gs.max_companions : 3;
+    if (roster.length + dead.length > maxC) {
+      return { ok: false, reason: 'отряд полон' };
+    }
+    if (!G.companions
+        || typeof G.companions.reviveEntryFromRecord !== 'function') {
+      return { ok: false, reason: 'недоступно' };
+    }
+    const entries = dead.map((r) =>
+      G.companions.reviveEntryFromRecord(NPCS, r));
+    if (entries.some((e) => !e)) {
+      return { ok: false, reason: 'недоступно' };
+    }
+    for (let i = dead.length - 1; i >= 0; i--) {
+      dead.splice(i, 1);
+      roster.push(entries[i]);
+    }
+    saveNow();
+    flash('Чудо: партия вернулась.');
+    playerRender();
+    return { ok: true };
+  }
   function resolveTeleportStep(passableFactory) {
     if (dungeonState && dungeonState.kind === 'city') {
       return { ok: false, reason: 'в городе телепорт недоступен' };
@@ -2121,6 +2157,7 @@
     G.spellbookOC.init({ hero, clock, flash, startWindow,
       flameStep: performFlameStep,
       shadowStep: performShadowStep,
+      miracle: performMiracle,
       // 000235.04: ctx портала — функция (вызов на КАСТ: map — let,
       // переприсваивается при загрузке мира; x/y — свежие).
       outOfCombatCtx: () => ({
@@ -2432,6 +2469,15 @@
         const d = Math.max(Math.abs(player.x - zone.x),
                            Math.abs(player.y - zone.y));
         if (d <= r) return 'покров ночи';
+      }
+    }
+    if (zone && G.Spells
+        && typeof G.Spells.holyLightRadius === 'function') {
+      const r = G.Spells.holyLightRadius(hero, clock.day);
+      if (r > 0) {
+        const d = Math.max(Math.abs(player.x - zone.x),
+                           Math.abs(player.y - zone.y));
+        if (d <= r) return 'свет обители';
       }
     }
     return null;
@@ -2848,11 +2894,19 @@
           ? m : 1;
       },
       visionRadiusFloor: () => {
-        if (!G.Spells || !G.Spells.isHeroLit
-            || !G.Spells.isHeroLit(hero, clock.day)) return 0;
-        const sp = G.Spells.getSpell('firelight');
-        const r = sp && sp.параметры ? sp.параметры.radius : null;
-        return (typeof r === 'number' && r >= 1) ? r : 0;
+        let floorR = 0;
+        if (G.Spells && G.Spells.isHeroLit
+            && G.Spells.isHeroLit(hero, clock.day)) {
+          const sp = G.Spells.getSpell('firelight');
+          const r = sp && sp.параметры ? sp.параметры.radius : null;
+          if (typeof r === 'number' && r >= 1) floorR = r;
+        }
+        if (G.Spells
+            && typeof G.Spells.holyLightRadius === 'function') {
+          const r = G.Spells.holyLightRadius(hero, clock.day);
+          if (r > floorR) floorR = r;
+        }
+        return floorR;
       },
     });
   }

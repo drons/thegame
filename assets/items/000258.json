@@ -1,0 +1,13 @@
+{
+  "id": "radiant_heal_scroll",
+  "name": "Свиток: Лучистое исцеление",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Лучистое исцеление» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "radiant_heal"
+  }
+}

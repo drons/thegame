@@ -101,6 +101,7 @@
     resurrectAlly,
     // 000235.01: «баф/дебаф/призыв/создание» (combat.js).
     makeAlly, placeAllies, allyRoom, MOB_TYPES,
+    healAlly, livingAllies,
   } = internals;
 
   // --- Каталог (зеркало assets/spells, src/spells-data.js) ---
@@ -469,7 +470,8 @@
           && !x.fled) || null;
         if (!t) return { fail: { ok: false, reason: 'нет цели' } };
       }
-    } else if (spell.действие === 'баф') {
+    } else if (spell.действие === 'баф'
+      || (spell.действие === 'лечение' && ALLY_HEAL_IDS.has(spellId))) {
       // 000235.01: цель — живой СОЮЗНИК (явный targetId; моб/чужой id/
       // мёртвый — «нет цели», как у урона). Без targetId — каст по
       // себе (t = null: castSpell пишет c.ps.buff). Дальность НЕ
@@ -604,6 +606,56 @@
         const amount = Math.round(
           (4 + 0.5 * p.primary[spell.атрибут] + p.level) *
           (1 + 0.15 * (spell.степень - 1)));
+        if (spellId === 'purify') {
+          if (t) {
+            t.debuff = null;
+            out.purified = t.id;
+            log(c, `${spell.название}: дебаф с ${t.name} снят.`);
+          } else {
+            out.purified = null;
+            log(c, `${spell.название}: очищено.`);
+          }
+          break;
+        }
+        if (spellId === 'regeneration') {
+          const pa = spell.параметры;
+          const eff = { stat: pa.stat, value: pa.value, turns: pa.turns };
+          if (t) t.buff = eff; else c.ps.buff = eff;
+          log(c, t
+            ? `${t.name}: «${pa.stat}» на ${pa.turns} ходов.`
+            : `${spell.название}: «${pa.stat}» на ${pa.turns} ходов.`);
+          break;
+        }
+        if (spellId === 'life_bloom') {
+          const pa = spell.параметры;
+          const before = t ? t.hp : p.hp;
+          const healed = t
+            ? healAlly(c, t, amount)
+            : P.heal(p, amount) - before;
+          const eff = { stat: pa.stat, value: pa.value, turns: pa.turns };
+          if (t) t.buff = eff; else c.ps.buff = eff;
+          log(c, t
+            ? `${spell.название}: ${t.name} +${healed}, «${pa.stat}» `
+              + `на ${pa.turns} ходов.`
+            : `${spell.название}: +${healed}, «${pa.stat}» `
+              + `на ${pa.turns} ходов.`);
+          out.healed = healed;
+          break;
+        }
+        if (PARTY_HEAL_IDS.has(spellId)) {
+          const hpBefore = p.hp;
+          let total = P.heal(p, amount) - hpBefore;
+          for (const a of livingAllies(c)) {
+            total += healAlly(c, a, amount);
+          }
+          if (spellId === 'mass_holy_light') {
+            for (const a of livingAllies(c)) a.debuff = null;
+          }
+          log(c, `${spell.название}: +${total}.`);
+          out.hp = p.hp;
+          out.healed = total;
+          break;
+        }
         const hpBefore = p.hp;
         const hp = P.heal(p, amount);
         // Задача 000037: логим фактически восстановленную величину.
@@ -647,6 +699,16 @@
         // раундов, включая каст» — startRound (combat.js); рекаст —
         // overwrite (паттерн c.ps.shield).
         const pa = spell.параметры;
+        if (PARTY_BUFF_IDS.has(spellId)) {
+          c.ps.buff = { stat: pa.stat, value: pa.value, turns: pa.turns };
+          for (const a of livingAllies(c)) {
+            a.buff = { stat: pa.stat, value: pa.value, turns: pa.turns };
+          }
+          log(c, `${spell.название}: эффект «${pa.stat}» на `
+            + `${pa.turns} ходов (партия).`);
+          out.buffed = 'party';
+          break;
+        }
         const eff = { stat: pa.stat, value: pa.value, turns: pa.turns };
         if (t) t.buff = eff; else c.ps.buff = eff;
         log(c, t
@@ -690,6 +752,7 @@
         u.summonTurns = pa.turns;
         placeAllies(c, [u]);
         c.units.push(u);
+        if (HEAL_SUMMON_IDS.has(spellId)) u.spells = ['light_heal'];
         log(c, `${spell.название}: ${u.name} (${pa.turns} ходов).`);
         out.summoned = u.id;
         break;
@@ -742,6 +805,17 @@
               }
             } else if (un.side === 'ally') {
               un.buff = { stat: pa.stat, value: pa.value, turns: pa.turns };
+            }
+          }
+          if (spellId === 'holy_ground') {
+            for (const un of c.units) {
+              if (!un.alive || un.fled || un.side !== 'ally') continue;
+              if (Math.max(Math.abs(un.x - c.px),
+                  Math.abs(un.y - c.py)) > pa.radius) continue;
+              un.buff = {
+                stat: 'получаемый_урон',
+                value: pa.value, turns: pa.turns,
+              };
             }
           }
           log(c, `${spell.название}: зона (радиус ${pa.radius}, `
@@ -818,7 +892,7 @@
 
   // castOutOfCombat(p, spellId, day, ctx) → {ok, spell, expiresDay}
   // или {ok:false, reason}. Проверки ПО ПОРЯДКУ: каталог → книга →
-  // флаг вне_боя → days (1..3) → мана. day — день каста (clock.day).
+  // мана → флаг вне_боя → days (1..3). day — день каста (clock.day).
   // ctx — форма 000235.04 (x/y, cities, passable, teleport):
   // телепорт-режимы исполняются через него (диспетч — по действию
   // 'телепорт' + параметры.mode; неполный ctx — skeleton без эффекта).
@@ -835,17 +909,17 @@
     if (!knows(p, spellId)) {
       return { ok: false, reason: 'заклинание не изучено' };
     }
+    const free = isHeroFreeCast(p, spellId);
+    if (!free
+        && (typeof p.mp !== 'number' || p.mp < (spell['мани'] || 0))) {
+      return { ok: false, reason: 'не хватает маны' };
+    }
     if (spell['вне_боя'] !== true) {
       return { ok: false, reason: 'боевое заклинание' };
     }
     const days = outOfCombatDays(spell);
     if (typeof days === 'string') return { ok: false, reason: days };
     if (spellId === 'flame_step' || spellId === 'shadow_step') {
-      const free = isHeroFreeCast(p, spellId);
-      if (!free
-          && (typeof p.mp !== 'number' || p.mp < (spell['мани'] || 0))) {
-        return { ok: false, reason: 'не хватает маны' };
-      }
       if (ctx !== undefined) {
         const cbKey = spellId === 'shadow_step'
           ? 'shadowStep' : 'flameStep';
@@ -863,12 +937,23 @@
       if (!free) p.mp -= spell['мани'] || 0;
       return { ok: true, spell, expiresDay: null };
     }
-    const free = isHeroFreeCast(p, spellId);
-    if (!free
-        && (typeof p.mp !== 'number' || p.mp < (spell['мани'] || 0))) {
-      return { ok: false, reason: 'не хватает маны' };
+    if (spellId === 'miracle') {
+      if (ctx !== undefined) {
+        const cb = ctx && typeof ctx.miracle === 'function'
+          ? ctx.miracle : null;
+        if (!cb) {
+          return { ok: false, reason: 'воскрешение недоступно здесь' };
+        }
+        const r = cb();
+        if (r && r.ok === false) {
+          return { ok: false,
+            reason: r.reason || 'воскрешение недоступно здесь' };
+        }
+      }
+      if (!free) p.mp -= spell['мани'] || 0;
+      return { ok: true, spell, expiresDay: null };
     }
-    // Мутации — ПОСЛЕ всех проверок.
+    // Мутации — ПОСЛЕ всех проверок (мана проверена вверху).
     if (!Array.isArray(p.outOfCombatEffects)) p.outOfCombatEffects = [];
     const prior = p.outOfCombatEffects.findIndex(
       (e) => e && e.spellId === spellId);
@@ -896,6 +981,9 @@
       case 'frozen_stillness':
       case 'shroud_of_night':
       case 'dark_presence':
+      case 'prayer':
+      case 'divine_protection':
+      case 'holy_light':
         break;
       default:
         break;
@@ -979,6 +1067,13 @@
 
   const PORTAL_SEARCH_RADIUS = 25;
   const WARDING_SPELL_IDS = new Set(['warding_circle']);
+  const PARTY_HEAL_IDS = new Set(['mass_heal', 'mass_holy_light']);
+  const PARTY_BUFF_IDS = new Set([
+    'blessing', 'divine_favor', 'guardian_blessing', 'swift_prayer',
+    'faith_shield',
+  ]);
+  const ALLY_HEAL_IDS = new Set(['life_bloom', 'purify', 'regeneration']);
+  const HEAL_SUMMON_IDS = new Set(['light_sprite', 'spirit_healer']);
 
   function isPlainObject(v) {
     return !!v && typeof v === 'object' && !Array.isArray(v);
@@ -1256,6 +1351,55 @@
     return false;
   }
 
+  function isHeroPrayer(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object' || e.spellId !== 'prayer') {
+        continue;
+      }
+      if (typeof e.expiresDay === 'number' && e.expiresDay >= day) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function isHeroDivineProtected(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object'
+          || e.spellId !== 'divine_protection') {
+        continue;
+      }
+      if (typeof e.expiresDay === 'number' && e.expiresDay > day) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function holyLightRadius(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) {
+      return 0;
+    }
+    let best = 0;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object' || e.spellId !== 'holy_light') {
+        continue;
+      }
+      if (typeof e.expiresDay !== 'number' || e.expiresDay <= day) {
+        continue;
+      }
+      const spell = SPELLS_BY_ID['holy_light'];
+      const radius = (spell && isPlainObject(spell.параметры))
+        ? spell.параметры.radius : undefined;
+      const r = (typeof radius === 'number' && Number.isInteger(radius)
+        && radius >= 1 && radius <= 5) ? radius : 5;
+      if (r > best) best = r;
+    }
+    return best;
+  }
+
   // 000235.03: снятие невидимости (триггер — вступление в бой):
   // выносит ТОЛЬКО записи действия «невидимость»; переприсваивает
   // только если что-то снято (идентичность на чистых путях);
@@ -1282,7 +1426,8 @@
     castOutOfCombat, expireOutOfCombatEffects,
     sanitizeOutOfCombatEffects,
     isHeroInvisible, clearInvisibility,
-    isHeroLit, isHeroCamped,
+    isHeroLit, isHeroCamped, isHeroPrayer, isHeroDivineProtected,
+    holyLightRadius,
     nearestBuiltCity, nearestPassableTile, wardRadius,
     sanitizePortalMarker, PORTAL_SEARCH_RADIUS,
     isHeroFrostWalk, coldBreathRadius, frozenStillnessRadius,

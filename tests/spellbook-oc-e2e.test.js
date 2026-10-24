@@ -1919,3 +1919,137 @@ test('000239 FS-P1: e2e world — луч блокируется ПОСТРОЙК
   assert.ok(String(h2.hud.textContent).includes('некуда шагнуть'),
     '(b) «некуда шагнуть»: reason в #hud: ' + h2.hud.textContent);
 });
+
+test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legacy + record) → каст: mp −20, ЗАПИСЕЙ НЕТ, ОБА в партии (record — level/xp/loyalty/hiredDay, string — backfill), deadMercs []; повторный каст (пусто) → «нет погибших», мана не списана; гейты «боевое заклинание»/«воскрешение недоступно здесь»', async () => {
+  // mira-record: ядро intact (L3/xp100, ВСЕ 6 primary ≥ 1) — проходит
+  // sanitizeMercSheet; string «merc_volk» — legacy (данные утрачены:
+  // backfill из каталога, loyalty 50, hiredDay 0 — 000029).
+  const miraSheet = {
+    kind: 'merc', npcId: 'merc_mira', level: 3, xp: 100, totalXp: 100,
+    points: 0,
+    primary: { strength: 1, dexterity: 1, constitution: 1,
+      intelligence: 3, wisdom: 2, charisma: 1 },
+    secondary: { meditation: 2 }, skillXp: {},
+    spells: ['mend', 'light_heal'],
+  };
+  const h = await boot(seedSave07({
+    day: 1,
+    companions: [],
+    dead_mercs: ['merc_volk',
+      { npcId: 'merc_mira', sheet: miraSheet, loyalty: 70, hiredDay: 5 }],
+    hero: mkHero07({
+      mp: 44,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  assert.equal(h.errors.length, 0,
+    'фикстура: load-clean (revive-конвейер 000161): '
+    + h.errors.join('; '));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  // mp 44: первый каст −20 → 24; повторный проходит проверку маны
+  // (24 ≥ 20) и падает на «нет погибших» — до списания.
+  assert.equal(saveHero(h).mp, 44, 'фикстура: герой mp 44 (maxMP 70)');
+  // deadMercs после загрузки (порядок сид-массива): string → backfill
+  // (каталог volk: str 3/con 2, swordsman 2, spells []), record →
+  // sanitize (10 ключей, свежая копия).
+  assert.deepEqual(host(g.state.deadMercs), [
+    {
+      npcId: 'merc_volk',
+      sheet: {
+        kind: 'merc', npcId: 'merc_volk', level: 1, xp: 0, totalXp: 0,
+        points: 0,
+        primary: { strength: 3, dexterity: 1, constitution: 2,
+          intelligence: 1, wisdom: 1, charisma: 1 },
+        secondary: { swordsman: 2 }, skillXp: {}, spells: [],
+      },
+      loyalty: 50, hiredDay: 0,
+    },
+    {
+      npcId: 'merc_mira',
+      sheet: {
+        kind: 'merc', npcId: 'merc_mira', level: 3, xp: 100, totalXp: 100,
+        points: 0,
+        primary: { strength: 1, dexterity: 1, constitution: 1,
+          intelligence: 3, wisdom: 2, charisma: 1 },
+        secondary: { meditation: 2 }, skillXp: {},
+        spells: ['mend', 'light_heal'],
+      },
+      loyalty: 70, hiredDay: 5,
+    },
+  ], 'фикстура: deadMercs 2 записи (legacy-backfill + record-sanitize)');
+  learn(h, ['miracle']);
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  // RED: 000117 (miracle) нет в каталоге → строки в книге нет.
+  clickRow(h, 'miracle');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.equal(saveHero(h).mp, 24, 'mp ровно «мани» (44 − 20)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'miracle — ЗАПИСЕЙ НЕ создаёт');
+  // Оба в партии: обратный splice (конец → начало) → [mira, volk].
+  const savedRaw = h.storage.getItem(S.SAVE_KEY);
+  assert.ok(savedRaw, 'сейв после воскрешения (performMiracle → saveNow)');
+  const saved = JSON.parse(savedRaw);
+  assert.deepEqual(saved.data.dead_mercs, [],
+    'сейв: dead_mercs [] (все воскрешены)');
+  assert.deepEqual(saved.data.companions, [
+    {
+      npcId: 'merc_mira',
+      sheet: {
+        kind: 'merc', npcId: 'merc_mira', level: 3, xp: 100, totalXp: 100,
+        points: 0,
+        primary: { strength: 1, dexterity: 1, constitution: 1,
+          intelligence: 3, wisdom: 2, charisma: 1 },
+        secondary: { meditation: 2 }, skillXp: {},
+        spells: ['mend', 'light_heal'],
+      },
+      loyalty: 70, hiredDay: 5,
+    },
+    {
+      npcId: 'merc_volk',
+      sheet: {
+        kind: 'merc', npcId: 'merc_volk', level: 1, xp: 0, totalXp: 0,
+        points: 0,
+        primary: { strength: 3, dexterity: 1, constitution: 2,
+          intelligence: 1, wisdom: 1, charisma: 1 },
+        secondary: { swordsman: 2 }, skillXp: {}, spells: [],
+      },
+      loyalty: 50, hiredDay: 0,
+    },
+  ], 'сейв: companions — ОБА (record-данные сохранены, string — '
+    + 'backfill; порядок [mira, volk] — обратный splice)');
+  // Повторный каст (пусто) → «нет погибших»: мана НЕ списана
+  // (отказ ДО мутаций), партия/записи не тронуты, книга открыта.
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга снова открыта');
+  clickRow(h, 'miracle');
+  assert.equal(saveHero(h).mp, 24, 'отказ: мана не списана (24 ≥ 20)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'отказ: записей нет');
+  assert.deepEqual(host(g.state.deadMercs), [], 'отказ: deadMercs []');
+  const savedRaw2 = h.storage.getItem(S.SAVE_KEY);
+  assert.deepEqual(JSON.parse(savedRaw2).data.companions,
+    saved.data.companions, 'отказ: партия без изменений');
+  h.frameFn(NOW + 16);
+  assert.ok(String(h.hud.textContent).includes('нет погибших'),
+    'отказ: reason в #hud: ' + JSON.stringify(h.hud.textContent));
+  key(h, 'KeyB');
+  assert.ok(!h.body.querySelector('.spellbook-oc'), 'книга закрыта');
+  // Гейты (прямой вызов, зеркало 000037): боевое заклинание.
+  assert.deepEqual(host(G.Spells.castOutOfCombat(
+    { spells: ['radiant_heal'], mp: 30, outOfCombatEffects: [] },
+    'radiant_heal', 1)),
+    { ok: false, reason: 'боевое заклинание' },
+    'гейт: боевое заклинание — не вне_боя');
+  // Деградация: ctx БЕЗ miracle-cb → «воскрешение недоступно здесь».
+  assert.deepEqual(host(G.Spells.castOutOfCombat(
+    { spells: ['miracle'], mp: 30, outOfCombatEffects: [] },
+    'miracle', 1, {})),
+    { ok: false, reason: 'воскрешение недоступно здесь' },
+    'гейт: opts без miracle — деградация (mana не списана: 30 ≥ 20)');
+});

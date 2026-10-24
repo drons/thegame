@@ -797,14 +797,15 @@ test('000258 golden: CAVE (37, −12) — закреплённые стены {x
 // «предметы» (золотые значения DUNGEON_ITEMS ре-пинятся на стадии
 // ЗЕЛЁНОЙ — §5, здесь фиксируется целевой состав).
 
-test('S3. 000133: пулы подземелий — 83 свитка, каждый ровно в одном', () => {
+test('S3. 000133: пулы подземелий — 108 свитков, каждый ровно в одном', () => {
   // Целевые пулы (текущий состав + приложенные свитки).
   // Ре-пин 000232: приложенные чертежи (каждый РОВНО в одном пуле;
   // простая пещера 000001.json — БЕЗ ИЗМЕНЕНИЙ). Ре-пин 000235.07:
   // +25 свитков волны Огонь КОНЦОМ пула 000003 (RUINS). Ре-пин
   // 000235.08: +25 свитков волны Лёд КОНЦОМ пула 000001 (CAVE).
   // Ре-пин 000235.09: +25 свитков волны Тень КОНЦОМ пула 000002
-  // (CRYPT).
+  // (CRYPT). Ре-пин 000235.10: +25 свитков волны Исцеление КОНЦОМ
+  // пула 000002 (CRYPT).
   const EXPECTED = {
     '000001.json': ['iron_sword', 'healing_potion', 'sulfur',
       'stone_fist_grimoire', 'frost_bolt_scroll',
@@ -829,7 +830,19 @@ test('S3. 000133: пулы подземелий — 83 свитка, кажды�
       'veil_of_night_scroll', 'shadow_wraith_scroll',
       'void_horror_scroll', 'shadow_step_scroll',
       'invisibility_scroll', 'shroud_of_night_scroll',
-      'dark_presence_scroll'],
+      'dark_presence_scroll',
+      'radiant_heal_scroll', 'life_bloom_scroll', 'purify_scroll',
+      'mass_heal_scroll', 'holy_mending_scroll',
+      'mass_holy_light_scroll', 'regeneration_scroll',
+      'blessing_scroll', 'divine_favor_scroll',
+      'guardian_blessing_scroll', 'swift_prayer_scroll',
+      'faith_shield_scroll', 'smite_scroll', 'unholy_wrath_scroll',
+      'stun_of_light_scroll', 'holy_bind_scroll',
+      'light_sprite_scroll', 'spirit_healer_scroll',
+      'holy_guardian_scroll', 'circle_of_light_scroll',
+      'holy_ground_scroll', 'prayer_scroll',
+      'divine_protection_scroll', 'holy_light_scroll',
+      'miracle_scroll'],
     '000003.json': ['steel_sword', 'knight_plate', 'war_hammer',
       'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
       'blueprint_forge', 'blueprint_woodwork',
@@ -880,6 +893,18 @@ test('S3. 000133: пулы подземелий — 83 свитка, кажды�
     'void_horror_scroll', 'shadow_step_scroll',
     'invisibility_scroll', 'shroud_of_night_scroll',
     'dark_presence_scroll',
+    'radiant_heal_scroll', 'life_bloom_scroll', 'purify_scroll',
+    'mass_heal_scroll', 'holy_mending_scroll',
+    'mass_holy_light_scroll', 'regeneration_scroll',
+    'blessing_scroll', 'divine_favor_scroll',
+    'guardian_blessing_scroll', 'swift_prayer_scroll',
+    'faith_shield_scroll', 'smite_scroll', 'unholy_wrath_scroll',
+    'stun_of_light_scroll', 'holy_bind_scroll',
+    'light_sprite_scroll', 'spirit_healer_scroll',
+    'holy_guardian_scroll', 'circle_of_light_scroll',
+    'holy_ground_scroll', 'prayer_scroll',
+    'divine_protection_scroll', 'holy_light_scroll',
+    'miracle_scroll',
   ]);
   const cat = loadDungeonCatalog();
   assert.equal(cat.length, 5, '5 подземелий (регрессия)');
@@ -2492,7 +2517,8 @@ const DUN_REF_PREV = {
     мобы: ['skeleton', 'skeleton_archer', 'rot', 'vampire', 'bone_coloss'],
     постройки_id: 32,
     // Ре-пин 000232: приложенные чертежи (концом массива). Ре-пин
-    // 000235.09: +25 свитков волны Тень КОНЦОМ пула (8 → 33).
+    // 000235.09: +25 свитков волны Тень КОНЦОМ пула (8 → 33). Ре-пин
+    // 000235.10: +25 свитков волны Исцеление КОНЦОМ пула (33 → 58).
     предметы: ['alchemy_manual', 'chainmail', 'mana_potion',
       'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
       'blueprint_alchemy', 'blueprint_carving',
@@ -2505,7 +2531,19 @@ const DUN_REF_PREV = {
       'veil_of_night_scroll', 'shadow_wraith_scroll',
       'void_horror_scroll', 'shadow_step_scroll',
       'invisibility_scroll', 'shroud_of_night_scroll',
-      'dark_presence_scroll'],
+      'dark_presence_scroll',
+      'radiant_heal_scroll', 'life_bloom_scroll', 'purify_scroll',
+      'mass_heal_scroll', 'holy_mending_scroll',
+      'mass_holy_light_scroll', 'regeneration_scroll',
+      'blessing_scroll', 'divine_favor_scroll',
+      'guardian_blessing_scroll', 'swift_prayer_scroll',
+      'faith_shield_scroll', 'smite_scroll', 'unholy_wrath_scroll',
+      'stun_of_light_scroll', 'holy_bind_scroll',
+      'light_sprite_scroll', 'spirit_healer_scroll',
+      'holy_guardian_scroll', 'circle_of_light_scroll',
+      'holy_ground_scroll', 'prayer_scroll',
+      'divine_protection_scroll', 'holy_light_scroll',
+      'miracle_scroll'],
     руда: [
       ['stone_chunk', 'минерал'], ['quartz', 'минерал'],
       ['obsidian', 'минерал'], ['amethyst', 'самоцвет'],
@@ -3081,13 +3119,22 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
 // night_gloves→ember_staff (floor(0.7047256221994758·63)=44),
 // RUINS c3 silver_chain→moonstone_chain
 // (floor(0.2789345800410956·63)=17); main-rng/seed/mobs/
-// deposits/позиции/gold — бит-в-бит.
+// deposits/позиции/gold — бит-в-бит. Ре-пин
+// 000235.10: исцеление добавила 25 свитков в CRYPT-пул (33→58) —
+// сценарий перебран на (9,11) alpha 255 (seed 2983680956):
+// c0 chainmail→wood_pendant (common, common-пул 40 того
+// момента); RUINS-пул не тронут — голдены без изменений.
+// Ре-пин post-merge: common-пул 40 → 90 (+20 .11 + 10 .12 + 10
+// .13 + 10 .14) — CRYPT c0 chainmail→archer_gloves
+// (floor(0.6040003078524023·90)=54); seed/позиции/gold/
+// dark_presence_scroll c1 — бит-в-бит (CRYPT-пул 58 = pool
+// ветки); RUINS-голён master-версии в силе (moonstone_chain,
+// rare-пул 63).
 const CH5_PX = M.syntheticPixels(8, 8, 128, 128, 128, 128);
 const CH5_CRYPT_PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
 const CH5_CRYPT_CHESTS = [
-  { id: 'c0', x: 15, y: 13, opened: false, gold: 24, item: 'alchemy_manual' },
-  { id: 'c1', x: 22, y: 5, opened: false, gold: 18, item: 'dark_presence_scroll' },
-  { id: 'c2', x: 11, y: 4, opened: false, gold: 16, item: 'ember_staff' },
+  { id: 'c0', x: 8, y: 22, opened: false, gold: 30, item: 'archer_gloves' },
+  { id: 'c1', x: 13, y: 19, opened: false, gold: 14, item: 'dark_presence_scroll' },
 ];
 const CH5_RUINS_CHESTS = [
   { id: 'c0', x: 16, y: 15, opened: false, gold: 18, item: 'firelight_scroll' },
@@ -3104,11 +3151,11 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace акти
     for (const id of L.EQUIP_POOLS[t.id]) poolAll.add(id);
   const cases = [
     { name: 'CRYPT', type: 1, terrain: M.TERRAIN.FOREST,
-      px: CH5_CRYPT_PX, trig: 'c2',
-      w: 9, h: 9, xp: 1, armor: 'chainmail', seed: 2268874394,
-      hash: 0xca045828, r1: 0.5693109286949039,
-      r2: 0.7047256221994758, tier: 'rare',
-      replaced: 'ember_staff', chests: CH5_CRYPT_CHESTS },
+      px: CH5_CRYPT_PX, trig: 'c0',
+      w: 9, h: 11, xp: 1, armor: 'chainmail', seed: 2983680956,
+      hash: 0x47b239cb, r1: 0.022784294560551643,
+      r2: 0.6040003078524023, tier: 'common',
+      replaced: 'archer_gloves', chests: CH5_CRYPT_CHESTS },
     { name: 'RUINS', type: 2, terrain: M.TERRAIN.MOUNTAIN,
       px: CH5_PX, trig: 'c3',
       w: 9, h: 9, xp: 3, armor: 'knight_plate', seed: 801567646,
@@ -3468,6 +3515,9 @@ test('W-07. 000235.08: пул CAVE 000001 — 30 предметов (5 + 25 св
 // tier || 1 ≤ 1): 11 из 33 (7 legacy — все кроме
 // light_heal_scroll T2 — + umbra_bolt/shroud/shadow_step/
 // dark_presence).
+// Ре-пин 000235.10: +25 свитков волны Исцеление КОНЦОМ (порядок
+// таблицы) — 33 → 58; T1: +4 (radiant_heal/blessing/faith_shield/
+// prayer) — 11 → 15 из 58.
 const SHADOW09_SCROLLS = [
   'umbra_bolt_scroll', 'drain_life_scroll', 'void_arrow_scroll',
   'night_strike_scroll', 'soul_drain_scroll', 'shadowflame_scroll',
@@ -3479,8 +3529,22 @@ const SHADOW09_SCROLLS = [
   'shadow_step_scroll', 'invisibility_scroll', 'shroud_of_night_scroll',
   'dark_presence_scroll',
 ];
+const HEAL10_SCROLLS = [
+  'radiant_heal_scroll', 'life_bloom_scroll', 'purify_scroll',
+  'mass_heal_scroll', 'holy_mending_scroll',
+  'mass_holy_light_scroll', 'regeneration_scroll',
+  'blessing_scroll', 'divine_favor_scroll',
+  'guardian_blessing_scroll', 'swift_prayer_scroll',
+  'faith_shield_scroll', 'smite_scroll', 'unholy_wrath_scroll',
+  'stun_of_light_scroll', 'holy_bind_scroll',
+  'light_sprite_scroll', 'spirit_healer_scroll',
+  'holy_guardian_scroll', 'circle_of_light_scroll',
+  'holy_ground_scroll', 'prayer_scroll',
+  'divine_protection_scroll', 'holy_light_scroll',
+  'miracle_scroll',
+];
 
-test('W-07. 000235.09: пул CRYPT 000002 — 33 предмета (8 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 11/33', () => {
+test('W-07. 000235.09: пул CRYPT 000002 — 58 предметов (8 + 25 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 15/58 (ре-пин 000235.10: +25 волны Исцеление)', () => {
   const cat = loadDungeonCatalog();
   const crypt = cat.find(({ file }) => file === '000002.json');
   assert.ok(crypt, '000002.json (CRYPT) в каталоге');
@@ -3490,8 +3554,10 @@ test('W-07. 000235.09: пул CRYPT 000002 — 33 предмета (8 + 25 св�
     ['alchemy_manual', 'chainmail', 'mana_potion',
       'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
       'blueprint_alchemy', 'blueprint_carving',
-      ...SHADOW09_SCROLLS],
-    'CRYPT: 33 предмета = 8 (legacy) + 25 свитков волны Тень КОНЦОМ '
+      ...SHADOW09_SCROLLS,
+      ...HEAL10_SCROLLS],
+    'CRYPT: 58 предметов = 8 (legacy) + 25 свитков волны Тень + '
+    + '25 свитков волны Исцеление КОНЦОМ (ре-пин 000235.10) '
     + '(RED: ' + rec.предметы.length + ' — свитков волны нет)');
   const poolCount = new Map();
   for (const { file, data } of cat) {
@@ -3499,7 +3565,7 @@ test('W-07. 000235.09: пул CRYPT 000002 — 33 предмета (8 + 25 св�
     for (const id of r2.предметы)
       poolCount.set(id, (poolCount.get(id) || 0) + 1);
   }
-  for (const id of SHADOW09_SCROLLS) {
+  for (const id of SHADOW09_SCROLLS.concat(HEAL10_SCROLLS)) {
     assert.equal(poolCount.get(id) || 0, 1,
       id + ': РОВНО в одном пуле (RED: '
       + (poolCount.get(id) || 0) + ')');
@@ -3525,10 +3591,82 @@ test('W-07. 000235.09: пул CRYPT 000002 — 33 предмета (8 + 25 св�
     const it = I.getItem(id);
     return (it && it.tier) || 1;
   };
-  assert.equal(rec.предметы.length, 33, 'баланс: 33 предмета (RED: '
+  assert.equal(rec.предметы.length, 58,
+    'баланс: 58 предметов (ре-пин 000235.10; RED: '
     + rec.предметы.length + ')');
   assert.equal(
-    rec.предметы.filter((id) => tierOf(id) <= 1).length, 11,
-    'баланс: 11 предметов T1 из 33 (RED: '
+    rec.предметы.filter((id) => tierOf(id) <= 1).length, 15,
+    'баланс: 15 предметов T1 из 58 (ре-пин 000235.10: +4 волны '
+    + 'Исцеление; RED: '
+    + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
+});
+
+// --- Задача 000235.10: волна Исцеление — пул CRYPT 000002 (W-07) ---
+//
+// Контракт memory/000235.10-healing-wave-content.md §7: пул 000002
+// (CRYPT) = 8 legacy + 25 свитков волны Тень + 25 свитков волны
+// Исцеление КОНЦОМ (порядок таблицы ТЗ); каждый из 25 новых РОВНО
+// в одном пуле (скан ВСЕХ assets/dungeons); ПИН ОБЩЕГО пула: 50
+// свитков волн (Тень+Исцеление) в 000002; FALLBACK_DUNGEONS CRYPT
+// (file://-ветка dungeon.js) — 1:1 с каталогом; T1-баланс: 15 из 58
+// (11 прежних + 4 волны Исцеление: radiant_heal/blessing/
+// faith_shield/prayer).
+test('W-07. 000235.10: пул CRYPT 000002 — 58 предметов (8 + 25 + 25 свитков КОНЦОМ), ПИН 50 свитков волн, каждый новый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 15/58', () => {
+  const cat = loadDungeonCatalog();
+  const crypt = cat.find(({ file }) => file === '000002.json');
+  assert.ok(crypt, '000002.json (CRYPT) в каталоге');
+  assert.equal(crypt.data.id, 1, '000002.json — CRYPT (id 1)');
+  const rec = resolvedDungeonRecord(crypt.data, crypt.file);
+  assert.deepEqual(rec.предметы,
+    ['alchemy_manual', 'chainmail', 'mana_potion',
+      'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
+      'blueprint_alchemy', 'blueprint_carving',
+      ...SHADOW09_SCROLLS,
+      ...HEAL10_SCROLLS],
+    'CRYPT: 58 предметов = 8 (legacy) + 25 (Тень) + 25 (Исцеление) '
+    + 'КОНЦОМ (RED: ' + rec.предметы.length
+    + ' — свитков волны Исцеление нет)');
+  const waveSet = new Set(SHADOW09_SCROLLS.concat(HEAL10_SCROLLS));
+  assert.equal(rec.предметы.filter((id) => waveSet.has(id)).length,
+    50, 'ПИН ОБЩЕГО пула: 50 свитков волн (Тень+Исцеление) в 000002 '
+    + '(RED: '
+    + rec.предметы.filter((id) => waveSet.has(id)).length + ')');
+  const poolCount = new Map();
+  for (const { file, data } of cat) {
+    const r2 = resolvedDungeonRecord(data, file);
+    for (const id of r2.предметы)
+      poolCount.set(id, (poolCount.get(id) || 0) + 1);
+  }
+  for (const id of HEAL10_SCROLLS) {
+    assert.equal(poolCount.get(id) || 0, 1,
+      id + ': РОВНО в одном пуле (RED: '
+      + (poolCount.get(id) || 0) + ')');
+  }
+  const DUNGEON_CORE = ['src/global-settings.js', 'src/perlin.js',
+    'src/map.js'];
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of DUNGEON_CORE.concat('src/dungeon.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox,
+      { filename: f });
+  }
+  assert.deepEqual(
+    [...sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.CRYPT]],
+    rec.предметы,
+    'FALLBACK_DUNGEONS CRYPT — 1:1 с каталогом (RED: fallback на '
+    + sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.CRYPT].length
+    + ', каталог на ' + rec.предметы.length + ')');
+  const I = require(path.join(ROOT, 'src', 'items.js'));
+  const tierOf = (id) => {
+    const it = I.getItem(id);
+    return (it && it.tier) || 1;
+  };
+  assert.equal(rec.предметы.length, 58, 'баланс: 58 предметов (RED: '
+    + rec.предметы.length + ')');
+  assert.equal(
+    rec.предметы.filter((id) => tierOf(id) <= 1).length, 15,
+    'баланс: 15 предметов T1 из 58 (RED: '
     + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
 });

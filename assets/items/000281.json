@@ -1,0 +1,13 @@
+{
+  "id": "holy_light_scroll",
+  "name": "Свиток: Свет обители",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Свет обители» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "holy_light"
+  }
+}

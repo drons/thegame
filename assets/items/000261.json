@@ -1,0 +1,13 @@
+{
+  "id": "mass_heal_scroll",
+  "name": "Свиток: Массовое исцеление",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Массовое исцеление» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "mass_heal"
+  }
+}

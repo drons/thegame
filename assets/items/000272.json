@@ -1,0 +1,13 @@
+{
+  "id": "stun_of_light_scroll",
+  "name": "Свиток: Сияние света",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Сияние света» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "stun_of_light"
+  }
+}

@@ -1000,7 +1000,8 @@
     const p = c.player;
     const d = P.derived(p);
     // 000235.01: баф игрока «получаемый_урон» — ×(1−v) (c.ps.buff).
-    let dmg = raw * (1 - unitBuffValue(c, p, 'получаемый_урон'));
+    let dmg = raw * (c.buffMods.incomingMult || 1)
+      * (1 - unitBuffValue(c, p, 'получаемый_урон'));
     // Магический щит (задача 000045): пока turns > 0, гасит shield.armor
     // (поставляется/тикается src/spells.js и startRound, 000167).
     const shield = c.ps.shield;
@@ -1123,7 +1124,8 @@
     // 000235.01: баф «получаемый_урон» ×(1−v) до раунда, баф «броня»
     // — к бронё (t.buff; нет эффекта — ×1/+0, бит-в-бит).
     let dmg = Math.max(1, Math.round(
-      raw * (1 - unitBuffValue(c, t, 'получаемый_урон')))
+      raw * (c.buffMods.incomingMult || 1)
+      * (1 - unitBuffValue(c, t, 'получаемый_урон')))
       - ((t.armor || 0) + unitBuffValue(c, t, 'броня')));
     // 000193: щит союзника (щитовое заклинание из книги): плоское
     // поглощение ДО 0 ПОСЛЕ магореза и брони (эффекты c.ps — только
@@ -2349,7 +2351,7 @@
   function allyHealAction(c, u) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
-    if (u.role !== MOB_ROLES.SUPPORT || u.kind !== 'merc') {
+    if (u.role !== MOB_ROLES.SUPPORT || (u.kind !== 'merc' && u.kind !== 'summon')) {
       return { ok: false, reason: 'недоступно активному персонажу' };
     }
     const target = mostWounded(c, 1);
@@ -2504,7 +2506,7 @@
       // раненые (mostWounded) → каталог/спелл (strongestKnown) → пул
       // (efirPool) → мана. Чтение каталога — чистое; слот действия
       // НЕ проверяется (лечение не занимает его).
-      if (u.role === MOB_ROLES.SUPPORT && u.kind === 'merc') {
+      if (u.role === MOB_ROLES.SUPPORT && (u.kind === 'merc' || u.kind === 'summon')) {
         if (!mostWounded(c, 1)) return { ok: false, reason: 'нет раненых' };
         const s = strongestKnown(u, 'лечение');
         if (!s) return { ok: false, reason: 'нет лечения' };
@@ -3325,6 +3327,11 @@
     if (typeof ar === 'number' && Number.isFinite(ar) && ar >= 0) {
       out.armor = ar;
     }
+    if (Object.prototype.hasOwnProperty.call(m, 'incomingMult')) {
+      const im = m.incomingMult;
+      out.incomingMult = (typeof im === 'number' && Number.isFinite(im)
+        && im > 0 && im <= 1) ? im : 1;
+    }
     return out;
   }
 
@@ -3619,7 +3626,7 @@
       }
       const u = activeAlly();
       if (!u) return null;
-      if (u.role !== MOB_ROLES.SUPPORT || u.kind !== 'merc') {
+      if (u.role !== MOB_ROLES.SUPPORT || (u.kind !== 'merc' && u.kind !== 'summon')) {
         return { ok: false, reason: 'недоступно активному персонажу' };
       }
       return allyHealAction(c, u);
@@ -3659,6 +3666,7 @@
     // расстановка (якоря вокруг игрока) + чистая проверка места +
     // данные мобов (статы призывного).
     makeAlly, placeAllies, allyRoom, MOB_TYPES,
+    livingAllies,
   };
 
   return {

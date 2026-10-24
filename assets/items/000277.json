@@ -1,0 +1,13 @@
+{
+  "id": "circle_of_light_scroll",
+  "name": "Свиток: Круг света",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Круг света» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "circle_of_light"
+  }
+}

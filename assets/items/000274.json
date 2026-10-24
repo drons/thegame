@@ -1,0 +1,13 @@
+{
+  "id": "light_sprite_scroll",
+  "name": "Свиток: Световой sprite",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Световой sprite» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "light_sprite"
+  }
+}

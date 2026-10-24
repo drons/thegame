@@ -206,7 +206,9 @@ function (G0, rootRef) {
       { flameStep: (typeof opts.flameStep === "function")
           ? opts.flameStep : null,
         shadowStep: (typeof opts.shadowStep === "function")
-          ? opts.shadowStep : null },
+          ? opts.shadowStep : null,
+        miracle: (typeof opts.miracle === "function")
+          ? opts.miracle : null },
       ctxBase);
     const r = g.Spells.castOutOfCombat(opts.hero, spellId, opts.clock.day,
       ctx);
@@ -249,7 +251,9 @@ function (G0, rootRef) {
       flameStep: (o && typeof o.flameStep === "function")
         ? o.flameStep : null,
       shadowStep: (o && typeof o.shadowStep === "function")
-        ? o.shadowStep : null };
+        ? o.shadowStep : null,
+      miracle: (o && typeof o.miracle === "function")
+        ? o.miracle : null };
     ready = true;
   }
 

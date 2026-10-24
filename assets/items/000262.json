@@ -1,0 +1,13 @@
+{
+  "id": "holy_mending_scroll",
+  "name": "Свиток: Святое исцеление",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Святое исцеление» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "holy_mending"
+  }
+}

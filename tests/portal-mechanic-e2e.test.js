@@ -1325,3 +1325,357 @@ test('000235.09 W-12b. e2e: dark_presence (radius 5, days 1, mp 5) — (a) ка�
   assert.equal(cap2.calls, 1, '(b): боев за сценарий РОВНО 1');
   resolveCombatVictory(G2, c2, '(b) возвращение зоны');
 });
+
+// =====================================================================
+// 000235.10 — Волна Исцеление: W-11b (holy_light) + W-12b
+// (holy_ground) — e2e зональных механик (красные)
+//
+// Контракт memory/000235.10-healing-wave-content.md §7 W-11(b)/
+// W-12(b). Фикстура — та же, что E4/E5/E6 и 000235.08/000235.09
+// W-11b/W-12b (мир-фолбэк): спавн (0,0); (2,3) — g4 territorial
+// 5×5, триггер (Чебышёв ≤ 2); (0,1)/(1,1)/(2,1) d=2 — зона, не тайл;
+// (2,2) d=1; (2,3) d=0 — тайл группы (тайл-бой).
+//
+// holy_light: ПОЛНОЕ подавление зоны в радиусе 5 на 1 день
+// (d=6 → зона работает и туман mask-раскрытие — пины W-11a node:
+// в 5×5-зоне фолбэк-мира d>2 недостижим, мира без тумана нет);
+// тайл-бой на (2,3) СОХРАНЯЕТСЯ (D6-контраст E6); HUD «— зона»
+// гаснет (zoneCombatInfo → null — единая точка).
+// holy_ground: ДВОЙНАЯ зона в бою (слот c.zone): мобы в радиусе
+// u.debuff {урон_вниз,0.15,3} (урон −15% — ассерт по формуле
+// 100 → 85, урон-моб = многоножка: трейт poison у пауков тикал бы
+// плоско и засорил бы дельту), союзники в радиусе u.buff
+// {получаемый_урон,0.15,3} (наёмник + Эфир), игрок не затронут
+// (c.ps.buff null); рекаст — overwrite (turns 3, не 6); 3 тика
+// startRound → turns 0 (объект жив — паттерн щита); РЕГРЕССИЯ:
+// veil_of_night (000086, одно-статная зона) — u.buff у союзников
+// НЕТ, слот/дебаф/лог бит-в-бит.
+//
+// RED (краснота — по прогону): (W-11b) строки holy_light в книге
+// вне боя НЕТ (фильтр SPELLS_BY_ID[id] && вне_боя — каталога волны
+// нет) → clickRow падает на assert.ok(row); (W-12b) строка
+// holy_ground в боевой книге — деградация entriesFor (id как имя,
+// mana 0) С КЛАССОМ -off «неизвестное заклинание» (evalSpell
+// getSpell) → assert на отсутствие -off падает; каст-отказ,
+// книга открыта, mps/zone/дебаф/баф не меняются.
+// =====================================================================
+
+test('000235.10 W-11b. e2e: holy_light (radius 5, days 1, mp 7) — (a) КОНТРОЛЬ: (0,0)→(0,1) d=2 — зона-бой (существующее 000135); (b) каст (mp −7, запись {holy_light, expiresDay:2}) → (0,1)/(1,1)/(2,1) d=2 — боя НЕТ, (2,2) d=1 — НЕТ (ПОЛНОЕ подавление), HUD «— зона» гаснет; шаг (2,3) ТАЙЛ группы — ТАЙЛ-БОЙ стартует (D6-контраст E6), запись жива; (c) каст → (0,1) — нет; setDay(2) — вылетела → (0,0)→(0,1) — зона-бой', async () => {
+  // (a) КОНТРОЛЬ: без каста — зона-бой (существующее поведение).
+  const h1 = await boot();
+  const G1 = h1.sandbox.Game;
+  const g1 = h1.sandbox.__game;
+  assertFallbackWorld(G1);
+  assertSpawn(g1);
+  assert.equal(g1.state.day, 1, 'фикстура (a): день 1');
+  dismissStartWindow(h1);
+  const cap1 = spyStartCombat(G1);
+  const walk1 = makeWalker(h1);
+  walk1(0, 1); // d=2 от (2,3) — зона триггерится
+  assert.equal(G1.combatUI.isActive(), true,
+    '(a) КОНТРОЛЬ: (0,1) d=2 — зона-бой (существующее 000135)');
+  const c1 = G1.combatUI.current();
+  assert.equal(c1.groupType, 4, '(a): паучье гнездо');
+  assert.equal(cap1.opts.seed, G1.hash2(2, 3, SALT),
+    '(a): seed zone-боя — от тайла ГРУППЫ');
+  resolveCombatVictory(G1, c1, '(a) контроль');
+
+  // (b) Каст → ПОЛНОЕ подавление (d=2 и d=1) + тайл-бой сохранён.
+  const h2 = await boot();
+  const G2 = h2.sandbox.Game;
+  const g2 = h2.sandbox.__game;
+  assertSpawn(g2);
+  assert.equal(g2.state.day, 1, 'фикстура (b): день 1');
+  dismissStartWindow(h2);
+  learn(h2, ['holy_light']);
+  const mp02 = saveHero(h2).mp;
+  assert.equal(mp02, 16, 'фикстура (b): новый герой mp = maxMP 16');
+  assert.ok(castViaBook(h2, 'holy_light'),
+    '(b) каст → книга ЗАКРЫТА (RED: строки нет — каталога волны нет)');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects),
+    [{ spellId: 'holy_light', expiresDay: 2 }],
+    '(b) запись {holy_light, expiresDay: day+1} (RED: [])');
+  assert.equal(saveHero(h2).mp, mp02 - 7,
+    '(b) mp ровно «мани» (16 − 7)');
+  const cap2 = spyStartCombat(G2);
+  assert.equal(G2.combatUI.isActive(), false, '(b): спавн без боя');
+  const walk2 = makeWalker(h2);
+  walk2(0, 1); // d=2 — в радиусе 5 — подавлено
+  walk2(1, 1); // d=2
+  walk2(2, 1); // d=2
+  walk2(2, 2); // d=1 — ПОДАВЛЕНО
+  assert.equal(G2.combatUI.isActive(), false,
+    '(b) RED: (0,1)…(2,2) под holy_light — зональных боёв НЕТ '
+    + '(даже d=1; master: зона-бой на (0,1))');
+  assert.equal(cap2.calls, 0, '(b) RED: startCombat 0 вызовов');
+  h2.frameFn(NOW + 16);
+  assert.ok(!String(h2.hud.textContent).includes('— зона'),
+    '(b) HUD: «— зона» гаснет под светом (zoneCombatInfo → null): '
+    + JSON.stringify(h2.hud.textContent));
+  walk2(2, 3); // тайл g4 — тайл-бой (ветка до zone-скана)
+  assert.equal(G2.combatUI.isActive(), true,
+    '(b) RED: шаг НА тайл группы (2,3) — тайл-бой СТАРТУЕТ под '
+    + 'holy_light (D6-контраст E6; master: бой и так на (0,1))');
+  const c2 = G2.combatUI.current();
+  assert.equal(c2.groupType, 4,
+    '(b) тайл-бой — паучье гнездо (тайл (2,3))');
+  assert.equal(cap2.opts.seed, G2.hash2(2, 3, SALT),
+    '(b): seed тайл-боя — от тайла ГРУППЫ');
+  assert.equal(cap2.calls, 1, '(b): боев за сценарий РОВНО 1');
+  assert.deepEqual(host(g2.state.hero.outOfCombatEffects),
+    [{ spellId: 'holy_light', expiresDay: 2 }],
+    '(b): запись ЖИВА после тайл-боя (вступление не снимает)');
+  resolveCombatVictory(G2, c2, '(b) тайл-бой под светом');
+
+  // (c) Каст → подавление; setDay(2) → зона возвращается.
+  const h3 = await boot();
+  const G3 = h3.sandbox.Game;
+  const g3 = h3.sandbox.__game;
+  assertSpawn(g3);
+  assert.equal(g3.state.day, 1, 'фикстура (c): день 1');
+  dismissStartWindow(h3);
+  learn(h3, ['holy_light']);
+  assert.ok(castViaBook(h3, 'holy_light'),
+    '(c) каст → книга ЗАКРЫТА');
+  assert.deepEqual(host(g3.state.hero.outOfCombatEffects),
+    [{ spellId: 'holy_light', expiresDay: 2 }],
+    '(c) запись активна (день 1)');
+  const cap3 = spyStartCombat(G3);
+  const walk3 = makeWalker(h3);
+  walk3(0, 1); // d=2 — подавлено
+  assert.equal(G3.combatUI.isActive(), false,
+    '(c) RED: (0,1) d=2 под holy_light — боя НЕТ (master: '
+    + 'зона-бой)');
+  assert.equal(cap3.calls, 0, '(c) RED: startCombat 0 вызовов');
+  g3.actions.setDay(2); // days 1 → истечение на день 2
+  assert.equal(g3.state.day, 2, '(c): день прошёл (setDay)');
+  assert.deepEqual(host(g3.state.hero.outOfCombatEffects), [],
+    '(c) истечение: запись вылетела (день-хук)');
+  walk3(0, 0);
+  walk3(0, 1); // эффект истёк — зона триггерится
+  assert.equal(G3.combatUI.isActive(), true,
+    '(c): после истечения (0,1) d=2 — зона-бой ВОЗВРАЩАЕТСЯ');
+  const c3 = G3.combatUI.current();
+  assert.equal(c3.groupType, 4, '(c): паучье гнездо');
+  assert.equal(cap3.opts.seed, G3.hash2(2, 3, SALT),
+    '(c): seed zone-боя — от тайла ГРУППЫ');
+  assert.equal(cap3.calls, 1, '(c): боев за сценарий РОВНО 1');
+  resolveCombatVictory(G3, c3, '(c) возвращение зоны');
+});
+
+test('000235.10 W-12b. e2e: holy_ground — ДВОЙНАЯ зона в бою (white-box): мобы в радиусе u.debuff {урон_вниз,0.15,3} (урон −15%: 100 → 85 — ассерт по формуле), союзники в радиусе u.buff {получаемый_урон,0.15,3} (наёмник + Эфир), игрок НЕ затронут (c.ps.buff null); c.zone слот {тайл игрока, radius 2, 3 хода}, рекаст — overwrite (mp −13); 3 тика startRound → turns 0 (объект жив — паттерн щита); РЕГРЕССИЯ: veil_of_night (000086, одно-статная зона) — u.buff у союзников НЕТ, слот/дебаф/лог бит-в-бит', async () => {
+  // (a) holy_ground: двойная зона. Фикстура: кон 20 (maxHP 120 = hp),
+  // int+wis 10 (maxMP 40 = mp), init dex+int 6 — выше мобов (4) и в
+  // тай с многоножкой (6) → pre-roll no-op, стоп на игроке.
+  const heroSeed = {
+    level: 1, xp: 0, gold: 100, hp: 120, mp: 40,
+    primary: {
+      strength: 1, dexterity: 1, constitution: 20,
+      intelligence: 5, wisdom: 5, charisma: 1,
+    },
+  };
+  const seed = () => seedSave({
+    day: 1,
+    companions: [{ npcId: 'merc_volk', level: 1, xp: 0,
+      loyalty: 65, hiredDay: 2 }],
+    hero: Object.assign({}, heroSeed),
+  });
+  const h = await boot(seed());
+  assert.equal(h.errors.length, 0,
+    'фикстура: load-clean (revive-конвейер 000161): '
+    + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assertFallbackWorld(G);
+  assertSpawn(g);
+  const p = g.state.hero;
+  assert.equal(p.hp, 120, 'фикстура: hp 120 (= maxHP: кон 20)');
+  assert.equal(saveHero(h).mp, 40, 'фикстура: mp 40 (= maxMP)');
+  dismissStartWindow(h);
+  learn(h, ['holy_ground']);
+  const cap = spyStartCombat(G);
+  const walk = makeWalker(h);
+  const wNow = walk(0, 1); // d=2 от (2,3) — зона-бой g4
+  assert.equal(G.combatUI.isActive(), true, 'зона-бой (0,1) d=2');
+  const c = G.combatUI.current();
+  assert.equal(c.groupType, 4, 'паучье гнездо');
+  assert.equal(cap.opts.seed, G.hash2(2, 3, SALT),
+    'seed — от тайла ГРУППЫ');
+  // __game.state.hero — СНАПШОТ-геттер (копия по значению на каждый
+  // доступ, без primary/mp) — живой герой = c.player (main.js передаёт
+  // свой const hero в startCombat). Все чтения/записи hp — через
+  // c.player; иначе дельта урона незаметна (снимок устаревает).
+  assert.equal(c.player.hp, 120,
+    'фикстура: pre-roll без урона (init 6 — тай с многоножкой, '
+    + 'игрок раньше)');
+  assert.equal(c.phase, 'player', 'фикстура: стоп на игроке');
+  // Заряд спрайта группы (000173): lungeGate глушит ВСЕ боевые
+  // клавиши (handleCode → false), пока кадр now ≥ lungeEndMs
+  // (chNow + 1500; performance.now заморожен на NOW → 2500). Прокачка
+  // кадров монотонно с тайма последнего кадра walk'ера.
+  for (let i = 0; i < 20 && g.state.lungeGate; i++) {
+    frameAt(h, wNow + 200 * (i + 1));
+  }
+  assert.equal(g.state.lungeGate, false,
+    'фикстура: заряд завершён (lungeGate off — KeyQ дойдёт)');
+  // White-box: многоножка (БЕЗ трейта poison — у пауков яд тикал бы
+  // плоско в startRound и засорил бы дельту урона) вплотную к игроку,
+  // урон 100, попадания детерминированы (c._rng → 0.01 — удар).
+  const m0 = c.units.find((x) => x.mobId === 'centipede');
+  assert.ok(m0, 'многоножка в бою (g4: 3 паука + многоножка)');
+  m0.x = c.px; m0.y = c.py - 1; // (3,5) — вплотную к игроку (3,6)
+  m0.damage = 100;
+  c._rng = () => 0.01;
+  const ally = c.units.find((x) => x.id === 'merc_volk');
+  assert.ok(ally, 'наёмник volk в бою (seed companions, якорь (4,5))');
+  const efir = c.units.find((x) => x.kind === 'efir');
+  assert.ok(efir, 'Эфир в бою (якорь (2,5))');
+  // Контрольный цикл (до каста): урон 100 (броня 0 — фикстура:
+  // armor = S('golem') = 0, damageTakenMult = 1, уклонение 0).
+  // c.player.hp — ЖИВОЙ герой (snapshot g.state.hero не видит урон).
+  c.player.hp = 120;
+  c.turnOrder = ['player', m0.id];
+  c.turnIndex = 0;
+  c.phase = 'player';
+  c.endTurn(); // m0 бьёт → startRound (тики) → стоп на игроке
+  const dmgBase = 120 - c.player.hp;
+  assert.equal(dmgBase, 100,
+    'контроль: удар m0 = 100 (урон_вниз нет, броня 0)');
+  assert.equal(c.phase, 'player', 'цикл: стоп на игроке (new round)');
+  // Каст ЧЕРЕЗ КНИГУ БОЯ (KeyQ → строка → клик).
+  const bookBox = h.body.querySelector('.combat-spellbook');
+  assert.ok(bookBox, 'книга боя (.combat-spellbook) есть');
+  const m1 = bookBox.children.length;
+  key(h, 'KeyQ');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  const rows = bookBox.children.slice(m1);
+  const row = rows.find((x) => x.dataset && x.dataset.spell === 'holy_ground');
+  assert.ok(row, 'строка holy_ground в книге (деградация: id как имя)');
+  assert.ok(!String(row.className).includes('combat-spellrow-off'),
+    'holy_ground БЕЗ -off (mp 40 ≥ 13, spellWis 1; RED: -off '
+    + '«неизвестное заклинание» — файлов волны Исцеление нет): '
+    + String(row.title));
+  row.listeners.click[row.listeners.click.length - 1]();
+  assert.equal(bookBox.style.display, 'none',
+    'книга закрыта (каст совершён; RED: отказ — книга открыта)');
+  assert.deepEqual(host(c.zone), {
+    x: c.px, y: c.py, radius: 2,
+    stat: 'урон_вниз', value: 0.15, turns: 3,
+  }, 'c.zone слот: (x,y) = тайл игрока, radius 2, 3 хода');
+  assert.deepEqual(host(m0.debuff),
+    { stat: 'урон_вниз', value: 0.15, turns: 3 },
+    'моб в радиусе — u.debuff (Чебышёв 1 ≤ 2)');
+  assert.deepEqual(host(ally.buff),
+    { stat: 'получаемый_урон', value: 0.15, turns: 3 },
+    'союзник в радиусе — u.buff (volk (4,5))');
+  assert.deepEqual(host(efir.buff),
+    { stat: 'получаемый_урон', value: 0.15, turns: 3 },
+    'Эфир в радиусе — u.buff ((2,5))');
+  assert.equal(c.ps.buff, null, 'игрок НЕ затронут (c.ps.buff null)');
+  assert.equal(c.ps.spellWis, 0, 'пул мудрости 1→0');
+  assert.equal(saveHero(h).mp, 27,
+    'мана 40 − 13 (c.player — ЖИВОЙ герой → сейв)');
+  assert.equal(c.log[c.log.length - 1],
+    'Священная земля: зона (радиус 2, 3 ходов).',
+    'бой-лог — строка зоны (HUD-инфо-пин)');
+  // Дебафнутый цикл: урон 100 × (1 − 0.15) = 85 (сброс hp — дельта).
+  c.player.hp = 120;
+  c.turnOrder = ['player', m0.id];
+  c.turnIndex = 0;
+  c.phase = 'player';
+  c.endTurn();
+  const dmg2 = 120 - c.player.hp;
+  assert.equal(dmg2, 85, 'дебафнутый удар: 100 × (1 − 0.15) = 85');
+  assert.equal(dmgBase - dmg2, 15, 'урон моба −15% (ассерт по формуле)');
+  // Рекаст — overwrite: turns 3 (не 6), дебаф/баф сброшены, mp −13.
+  // renderBook steady-state (sig не изменился: пул рефиллом 1, mp ≥ 13)
+  // — строки не пересобраны; клик по строке первого рендера (замыкание
+  // castRow на ЖИВОМ c) — тот же каст.
+  assert.ok(!String(row.className).includes('combat-spellrow-off'),
+    'рекаст: строка без -off (пул рефиллом, mp 27 ≥ 13)');
+  row.listeners.click[row.listeners.click.length - 1]();
+  assert.equal(bookBox.style.display, 'none', 'книга закрыта (рекаст)');
+  assert.deepEqual(host(c.zone), {
+    x: c.px, y: c.py, radius: 2,
+    stat: 'урон_вниз', value: 0.15, turns: 3,
+  }, 'рекаст — overwrite: turns 3 (не 6)');
+  assert.deepEqual(host(m0.debuff),
+    { stat: 'урон_вниз', value: 0.15, turns: 3 },
+    'рекаст — дебаф сброшен (turns 3)');
+  assert.deepEqual(host(ally.buff),
+    { stat: 'получаемый_урон', value: 0.15, turns: 3 },
+    'рекаст — баф союзника сброшен (turns 3)');
+  assert.equal(saveHero(h).mp, 14, 'мана 27 − 13 (рекаст)');
+  // 3 тика startRound → turns 0 (объект жив — паттерн щита: читатели
+  // unitBuffValue/unitDebuffValue по turns). turnOrder пере-пинуется
+  // ПЕРЕД каждым endTurn: startRound пересобирает очередь (полная), и
+  // стоп
+  // на слоте 0 (игрок) гарантирует, что мобы не действуют.
+  for (let i = 0; i < 3; i++) {
+    c.turnOrder = ['player'];
+    c.turnIndex = 0;
+    c.phase = 'player';
+    c.endTurn();
+  }
+  assert.ok(c.zone, 'зона: объект ЖИВ после 0 turns (не null)');
+  assert.equal(c.zone.turns, 0, 'зона: 3 тика → 0 (включая раунд каста)');
+  assert.equal(m0.debuff.turns, 0, 'дебаф: 3 тика → 0');
+  assert.equal(ally.buff.turns, 0, 'баф volk: 3 тика → 0');
+  assert.equal(efir.buff.turns, 0, 'баф Эфира: 3 тика → 0');
+
+  // (b) РЕГРЕССИЯ: veil_of_night (000086) — одно-статная зона
+  // бит-в-бит: дебаф мобам, u.buff у союзников НЕТ.
+  const h2 = await boot(seed());
+  assert.equal(h2.errors.length, 0,
+    'фикстура (b): load-clean: ' + h2.errors.join('; '));
+  const G2 = h2.sandbox.Game;
+  const g2 = h2.sandbox.__game;
+  dismissStartWindow(h2);
+  learn(h2, ['veil_of_night']);
+  const cap2 = spyStartCombat(G2);
+  const walk2 = makeWalker(h2);
+  const w2Now = walk2(0, 1);
+  assert.equal(G2.combatUI.isActive(), true, '(b) зона-бой (0,1) d=2');
+  const c2 = G2.combatUI.current();
+  assert.equal(c2.groupType, 4, '(b) паучье гнездо');
+  for (let i = 0; i < 20 && g2.state.lungeGate; i++) {
+    frameAt(h2, w2Now + 200 * (i + 1));
+  }
+  assert.equal(g2.state.lungeGate, false,
+    '(b) заряд завершён (lungeGate off — KeyQ дойдёт)');
+  const m0b = c2.units.find((x) => x.mobId === 'centipede');
+  m0b.x = c2.px; m0b.y = c2.py - 1;
+  m0b.damage = 100;
+  c2._rng = () => 0.01;
+  const ally2 = c2.units.find((x) => x.id === 'merc_volk');
+  const efir2 = c2.units.find((x) => x.kind === 'efir');
+  const bookBox2 = h2.body.querySelector('.combat-spellbook');
+  const m2 = bookBox2.children.length;
+  key(h2, 'KeyQ');
+  const rows2 = bookBox2.children.slice(m2);
+  const rowB = rows2.find((x) => x.dataset
+    && x.dataset.spell === 'veil_of_night');
+  assert.ok(rowB, '(b) строка veil_of_night в книге');
+  assert.ok(!String(rowB.className).includes('combat-spellrow-off'),
+    '(b) veil_of_night без -off (mp 40 ≥ 13, spellInt 1): '
+    + String(rowB.title));
+  rowB.listeners.click[rowB.listeners.click.length - 1]();
+  assert.equal(bookBox2.style.display, 'none',
+    '(b) книга закрыта (каст совершён)');
+  assert.deepEqual(host(c2.zone), {
+    x: c2.px, y: c2.py, radius: 2,
+    stat: 'урон_вниз', value: 0.15, turns: 3,
+  }, '(b) c.zone — покров (радиус 2, 3 хода)');
+  assert.deepEqual(host(m0b.debuff),
+    { stat: 'урон_вниз', value: 0.15, turns: 3 },
+    '(b) моб в радиусе — u.debuff (существующее поведение)');
+  assert.equal(ally2.buff, undefined,
+    '(b) РЕГРЕССИЯ: одно-статная зона — u.buff у наёмника НЕТ');
+  assert.equal(efir2.buff, undefined,
+    '(b) РЕГРЕССИЯ: u.buff у Эфира НЕТ');
+  assert.equal(c2.ps.buff, null, '(b) игрок НЕ затронут');
+  assert.equal(saveHero(h2).mp, 27, '(b) мана 40 − 13 (покров)');
+  assert.equal(c2.log[c2.log.length - 1],
+    'Покров ночи: зона (радиус 2, 3 ходов).',
+    '(b) лог — строка покрова (существующее wording)');
+});

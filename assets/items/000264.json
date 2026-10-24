@@ -1,0 +1,13 @@
+{
+  "id": "regeneration_scroll",
+  "name": "Свиток: Регенерация",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 240,
+  "tier": 4,
+  "desc": "Свиток: изучает «Регенерация» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "regeneration"
+  }
+}

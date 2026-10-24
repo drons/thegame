@@ -1,0 +1,13 @@
+{
+  "id": "swift_prayer_scroll",
+  "name": "Свиток: Молитва о проворстве",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Молитва о проворстве» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "swift_prayer"
+  }
+}

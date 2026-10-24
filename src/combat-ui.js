@@ -467,7 +467,8 @@
     // кнопка без книги бессмысленна — гейт ложится). КРИТИЧНО
     // kind==='merc' — у Эфира role 'support' ТОЖЕ. Остальное — как
     // у «Каста» выше.
-    if (c.units.some((u) => u.side === 'ally' && u.kind === 'merc'
+    if (c.units.some((u) => u.side === 'ally'
+        && (u.kind === 'merc' || u.kind === 'summon')
         && Array.isArray(u.spells) && u.spells.length > 0)) {
       const hb = document.createElement('button');
       const icon = document.createElement('img');
@@ -2777,8 +2778,8 @@
   // «недоступно активному персонажу», пока выбора нет.
   function activeIsMercWithBook(c) {
     const u = activeUnit(c);
-    return !!(u && u.kind === 'merc' && Array.isArray(u.spells)
-      && u.spells.length > 0);
+    return !!(u && (u.kind === 'merc' || u.kind === 'summon')
+      && Array.isArray(u.spells) && u.spells.length > 0);
   }
   // Видимость «Каст»/«Лечение» — по активному СОЮЗНИКУ: «Каст» —
   // только на ходу Эфира; «Лечение» — только на ходу наёмника с

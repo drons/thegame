@@ -1,0 +1,13 @@
+{
+  "id": "faith_shield_scroll",
+  "name": "Свиток: Щит веры",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Щит веры» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "faith_shield"
+  }
+}

@@ -254,12 +254,12 @@ function loadSpellsData() { return require('../src/spells-data.js'); }
 
 // --- Модуль-зеркало src/spells-data.js ---
 
-test('spells-data.js: точное зеркало каталога JSON (ровно 92 заклинания — ре-пин 000235.09: +25 волны Тень)', () => {
+test('spells-data.js: точное зеркало каталога JSON (ровно 117 заклинаний — ре-пин 000235.10: +25 волны Исцеление)', () => {
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
   const files = listSpellFiles();
-  assert.equal(files.length, 92, 'каталог: 92 файла (RED: 67)');
-  assert.equal(SPELLS.length, 92, 'SPELLS — 92 заклинания (RED: 67)');
-  assert.equal(Object.keys(SPELLS_BY_ID).length, 92, 'SPELLS_BY_ID — 92 id (RED: 67)');
+  assert.equal(files.length, 117, 'каталог: 117 файлов (RED: 92)');
+  assert.equal(SPELLS.length, 117, 'SPELLS — 117 заклинаний (RED: 92)');
+  assert.equal(Object.keys(SPELLS_BY_ID).length, 117, 'SPELLS_BY_ID — 117 id (RED: 92)');
   // Порядок SPELLS = порядок файлов каталога; данные — дословно
   // (в id-форме: ссылки резолвятся в id целевого файла, 000211.04).
   files.forEach((f, i) => {
@@ -1353,7 +1353,7 @@ test('000163 R1: каталог 000017.json — 17-й файл, поля по Т
   }
   // (e) Зеркало src/spells-data.js (regen sync-spells-data.js).
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
-  assert.equal(SPELLS.length, 92, 'зеркало: 92 заклинания (RED: 67, ре-пин 000235.09)');
+  assert.equal(SPELLS.length, 117, 'зеркало: 117 заклинаний (ре-пин 000235.10: +25 волны Исцеление; RED: 92)');
   assert.deepEqual(SPELLS[16], resolveSpell(data, '000017.json'),
     'SPELLS[16] — зеркало 000017.json');
   assert.deepEqual(SPELLS_BY_ID.resurrect, resolveSpell(data, '000017.json'),
@@ -1849,9 +1849,9 @@ test('000211.04 R1: schema.json — поля-ссылки закреплены p
     '«здания»[] — ссылка на файл assets/buildings (integer → string)');
 });
 
-test('000211.04 R2: 92 заклинания — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 23/89/101 — ре-пин 000235.09: +25 волны Тень)', () => {
+test('000211.04 R2: 117 заклинаний — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 26/114/151 — ре-пин 000235.10: +25 волны Исцеление)', () => {
   const files = listSpellFiles();
-  assert.equal(files.length, 92, 'каталог: 92 файла (RED: 67)');
+  assert.equal(files.length, 117, 'каталог: 117 файлов (ре-пин 000235.10: +25 волны Исцеление; RED: 92)');
   const { byId } = loadCatalog();
   const { SPELLS } = loadSpellsData();
   let baseRefs = 0;
@@ -1908,19 +1908,22 @@ test('000211.04 R2: 92 заклинания — база/предметы/зда
       `${f}: id целей «здания» = прежним значениям (зеркало)`);
   });
   // Анти-вакуум: точные счётчики ссылок (контракт §1/§2; ре-пин
-  // 000235.09: +25 волны Тень — 6 новых base-ссылок/целей, 25 item-
-  // ссылок/целей, 25 building-ссылок без новых целей).
-  assert.equal(baseRefs, 23, 'анти-вакуум: ровно 23 base-ссылки (69 null) (RED: 17)');
-  assert.equal(itemRefs, 89, 'анти-вакуум: 89 item-ссылок (RED: 64)');
-  assert.equal(buildingRefs, 101, 'анти-вакуум: 101 building-ссылок (RED: 76)');
-  assert.equal(baseRefs + itemRefs + buildingRefs, 213,
-    'всего ссылок: 213 (23 + 89 + 101) (RED: 157)');
-  assert.equal(filesWithItems, 86,
-    'анти-вакуум: 86 файлов с «предметы» (6 без ключа) (RED: 61)');
-  assert.equal(baseTargets.size, 23,
-    'уникальные цели: 23 spells (5 старых + ember, ignite, blazing_speed, fire_aura, scorch, cinder + ice_lance, rime_bolt, frostbite_blessing, frost_aura, slow, frostbite + umbra_bolt, drain_life, shroud, night_blade, fear, doom_mark) (RED: 17)');
-  assert.equal(itemTargets.size, 78, 'уникальные цели: 78 items (RED: 53)');
-  assert.equal(buildingTargets.size, 7, 'уникальные цели: 7 buildings (000018 уже цель)');
+  // 000235.10: +25 волны Исцеление — 3 новых base-ссылки/цели
+  // (holy_mending→greater_heal, divine_favor→blessing,
+  // swift_prayer→divine_favor), 25 item-ссылок/целей (свои свитки),
+  // 50 building-ссылок без новых целей (000019/000021 — уже цели);
+  // 000235.09: +25 волны Тень — 6 base, 25 item, 25 building).
+  assert.equal(baseRefs, 26, 'анти-вакуум: ровно 26 base-ссылок (91 null) (ре-пин 000235.10: RED 23)');
+  assert.equal(itemRefs, 114, 'анти-вакуум: 114 item-ссылок (ре-пин 000235.10: RED 89)');
+  assert.equal(buildingRefs, 151, 'анти-вакуум: 151 building-ссылок (ре-пин 000235.10: RED 101)');
+  assert.equal(baseRefs + itemRefs + buildingRefs, 291,
+    'всего ссылок: 291 (26 + 114 + 151) (ре-пин 000235.10: RED 213)');
+  assert.equal(filesWithItems, 111,
+    'анти-вакуум: 111 файлов с «предметы» (6 без ключа) (ре-пин 000235.10: RED 86)');
+  assert.equal(baseTargets.size, 26,
+    'уникальные цели: 26 spells (23 прежних + greater_heal, blessing, divine_favor) (ре-пин 000235.10: RED 23)');
+  assert.equal(itemTargets.size, 103, 'уникальные цели: 103 items (ре-пин 000235.10: RED 78)');
+  assert.equal(buildingTargets.size, 7, 'уникальные цели: 7 buildings (000019/000021 уже цели)');
 });
 
 test('000211.04 R3: membership — здания: города 51–54 проходят, id вне каталога — нет; все building-ссылки — члены каталога', () => {
@@ -3345,15 +3348,17 @@ test('000235.07 W-04: кастабельность вне боя — firelight/h
   }
 });
 
-test('000235.07 W-08: зеркала в синке — spells-data 92 / items-data 382 (ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso; ре-пин 000235.09: +25 волны Тень; ре-пин 000230.11: +50 руки; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.12: +25 «правая рука»); sync:check exit 0', () => {
+test('000235.07 W-08: зеркала в синке — spells-data 117 / items-data 407 (ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso; ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление (+25 заклинаний); ре-пин 000230.11: +50 руки; ре-пин 000230.12: +25 «правая рука»; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец); sync:check exit 0', () => {
   const { SPELLS } = loadSpellsData();
-  assert.equal(SPELLS.length, 92, 'spells-data: 92 записи (RED: 67)');
+  assert.equal(SPELLS.length, 117, 'spells-data: 117 записей (RED: 92)');
   const itemsData = require('../src/items-data.js');
-  assert.equal(itemsData.ITEMS.length, 382,
-    'items-data: 382 (каталог после мержа: 182 на базе 000230.09 '
+  assert.equal(itemsData.ITEMS.length, 407,
+    'items-data: 407 (каталог после мержа: 182 на базе 000230.09 '
     + '+ 25 свитков волны Лёд (000235.08) + 25 torso (000230.10) '
     + '+ 25 свитков волны Тень (000235.09) '
-    + '+ 50 рук (000230.11) + 25 left_hand (000230.13) + 25 колец (000230.14) + 25 «правая рука» (000230.12))');
+    + '+ 25 свитков волны Исцеление (000235.10) '
+    + '+ 50 рук (000230.11) + 25 «правая рука» (000230.12) '
+    + '+ 25 left_hand (000230.13) + 25 колец (000230.14))');
   const { spawnSync } = require('node:child_process');
   const r = spawnSync(process.execPath,
     [path.join(__dirname, '..', 'scripts', 'sync-all.js'), '--check'],
@@ -4588,7 +4593,1348 @@ test('000235.09 W-15: drain NO-OP — drain_life/soul_drain {value:0.5} в ка�
     n += 1;
   }
   assert.equal(n, 29,
-    'урон-заклинаний в каталоге: 29 из 92 (RED: 22 из 67; +7 урона волны Тень)');
+    'урон-заклинаний в каталоге: 29 из 117 (ре-пин 000235.10: +25 волны Исцеление; урона НЕТ — smite/unholy_wrath = «дебаф»; RED: 29 из 92)');
+});
+
+// --- Задача 000235.10: волна Исцеление — 25 заклинаний + 25 свитков (TDD) ---
+//
+// Контракт: memory/000235.10-healing-wave-content.md. RED: записи/
+// зеркала/экспорты/id-наборы отсутствуют (ENOENT / undefined / count) —
+// осмысленно, не синтаксис. Таблица ТЗ дословно; нумерация append-only:
+// spells 000093–000117, свитки items 000258–000282 (тот же порядок).
+// W-01 = ре-пин «ровно 117» (зеркало выше), W-08 = ре-пин fire W-08
+// 117/282. Базы цепочки C2 по децимальным именам файлов: blessing =
+// 000100, divine_favor = 000101 (таблица §1.2 контракта — hex-сокращение
+// 00009A/00009B).
+
+const HEAL10 = [
+  // id, название, действие, уровень, степень, база(файл|null), мани, вне_боя
+  ['radiant_heal', 'Лучистое исцеление', 'лечение', 1, 1, null, 4, false],
+  ['life_bloom', 'Расцвет жизни', 'лечение', 2, 1, null, 7, false],
+  ['purify', 'Очищение', 'лечение', 2, 1, null, 6, false],
+  ['mass_heal', 'Массовое исцеление', 'лечение', 3, 1, null, 13, false],
+  ['holy_mending', 'Святое исцеление', 'лечение', 3, 3,
+    'assets/spells/000011.json', 13, false],
+  ['mass_holy_light', 'Массовый святой свет', 'лечение', 4, 1, null, 20, false],
+  ['regeneration', 'Регенерация', 'лечение', 4, 1, null, 20, false],
+  ['blessing', 'Благословение', 'баф', 1, 1, null, 3, false],
+  ['divine_favor', 'Божественное благоволение', 'баф', 2, 2,
+    'assets/spells/000100.json', 7, false],
+  ['guardian_blessing', 'Хранительное благословение', 'баф', 2, 1, null, 6, false],
+  ['swift_prayer', 'Молитва о проворстве', 'баф', 3, 3,
+    'assets/spells/000101.json', 12, false],
+  ['faith_shield', 'Щит веры', 'баф', 1, 1, null, 4, false],
+  ['smite', 'Святое поразить', 'дебаф', 2, 1, null, 6, false],
+  ['unholy_wrath', 'Божественный гнев', 'дебаф', 3, 1, null, 12, false],
+  ['stun_of_light', 'Сияние света', 'контроль', 2, 1, null, 6, false],
+  ['holy_bind', 'Священные узы', 'контроль', 3, 1, null, 12, false],
+  ['light_sprite', 'Световой sprite', 'призыв', 2, 1, null, 8, false],
+  ['spirit_healer', 'Дух-целитель', 'призыв', 3, 1, null, 14, false],
+  ['holy_guardian', 'Святой страж', 'призыв', 4, 1, null, 20, false],
+  ['circle_of_light', 'Круг света', 'создание', 2, 1, null, 8, false],
+  ['holy_ground', 'Священная земля', 'создание', 3, 1, null, 13, false],
+  ['prayer', 'Молитва', 'внебой', 1, 1, null, 4, true],
+  ['divine_protection', 'Божественная защита', 'внебой', 2, 1, null, 7, true],
+  ['holy_light', 'Свет обители', 'внебой', 2, 1, null, 7, true],
+  ['miracle', 'Чудо', 'воскрешение', 4, 1, null, 20, true],
+];
+const HEAL10_IDS = HEAL10.map((r) => r[0]);
+const HEAL10_OC = ['prayer', 'divine_protection', 'holy_light', 'miracle'];
+
+function healSpellFile(i) {
+  return path.join(DIR, String(93 + i).padStart(6, '0') + '.json');
+}
+function healScrollFile(i) {
+  return `assets/items/${String(258 + i).padStart(6, '0')}.json`;
+}
+
+test('000235.10 W-02: 25 записей spells — id/название/школа=исцеление/атрибут=wisdom/действие/уровень/степень/база/мани/icon/icon_prompt/описание/здания [000019,000021]/предметы = СВОЙ свиток (000258–000282, тот же порядок)/вне_боя РОВНО у 4; miracle — единственное «воскрешение»+вне_боя', () => {
+  let ocCount = 0;
+  let resCount = 0;
+  HEAL10.forEach((row, i) => {
+    const [id, name, action, level, degree, base, mana, oc] = row;
+    const f = healSpellFile(i);
+    assert.ok(fs.existsSync(f),
+      `W-02: запись отсутствует — ${path.basename(f)} (${id}) (RED: файл нет)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    assert.equal(d.id, id, `${id}: id`);
+    assert.equal(d.название, name, `${id}: название`);
+    assert.equal(d.школа, 'исцеление', `${id}: школа`);
+    assert.equal(d.атрибут, 'wisdom', `${id}: атрибут`);
+    assert.equal(d.действие, action, `${id}: действие`);
+    assert.equal(d.уровень, level, `${id}: уровень`);
+    assert.equal(d.степень, degree, `${id}: степень`);
+    assert.equal(d.база, base, `${id}: база`);
+    assert.equal(d.мани, mana, `${id}: мани`);
+    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.ok(typeof d.icon_prompt === 'string' && d.icon_prompt.trim().length > 0,
+      `${id}: icon_prompt непустое`);
+    assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
+      `${id}: описание непустое`);
+    assert.deepEqual(d.здания,
+      ['assets/buildings/000019.json', 'assets/buildings/000021.json'],
+      `${id}: здания = [Монастырь 19, Храм исцеления 21] (D12)`);
+    assert.deepEqual(d.предметы, [healScrollFile(i)],
+      `${id}: предметы = [свой свиток ${healScrollFile(i)}]`);
+    assert.equal(d.вне_боя === true, oc, `${id}: вне_боя`);
+    if (oc) ocCount += 1;
+    if (action === 'воскрешение') resCount += 1;
+  });
+  assert.equal(ocCount, 4,
+    'вне_боя — ровно 4 (prayer, divine_protection, holy_light, miracle)');
+  assert.equal(resCount, 1,
+    '«воскрешение» — только miracle (и оно вне_боя)');
+});
+
+test('000235.10 W-03: параметры по D1 — точный deepEqual на 17 (таблица §1.5); БЕЗ «параметры» — ровно 8: radiant_heal/purify/mass_heal/holy_mending/mass_holy_light/stun_of_light/holy_bind/miracle; цепочки C1 (holy_mending ст3 = 000011 greater_heal ст2+1, 6≤11≤13) / C2 (divine_favor ст2 на 000100, swift_prayer ст3 на 000101); мани — точные значения §1.4 + полосы 000119 (L1 3–5 / L2 6–8 / L3 10–15 / L4 20)', () => {
+  const P = {
+    life_bloom: { stat: 'реген', value: 1, turns: 2 },
+    regeneration: { stat: 'реген', value: 1, turns: 3 },
+    blessing: { stat: 'урон', value: 0.10, turns: 3 },
+    divine_favor: { stat: 'урон', value: 0.15, turns: 3 },
+    guardian_blessing: { stat: 'броня', value: 1, turns: 3 },
+    swift_prayer: { stat: 'ход', value: 1, turns: 3 },
+    faith_shield: { stat: 'получаемый_урон', value: 0.10, turns: 3 },
+    smite: { stat: 'урон_вниз', value: 0.15, turns: 3 },
+    unholy_wrath: { stat: 'dot', value: 1, turns: 3 },
+    light_sprite: { summon: 'fairy', turns: 4 },
+    spirit_healer: { summon: 'orc_shaman', turns: 4 },
+    holy_guardian: { summon: 'earth_elemental', turns: 4 },
+    circle_of_light: { object: 'зона', stat: 'реген', value: 1, turns: 3, radius: 2 },
+    holy_ground: { object: 'зона', stat: 'урон_вниз', value: 0.15, turns: 3, radius: 2 },
+    prayer: { days: 1 },
+    divine_protection: { days: 1 },
+    holy_light: { days: 1, radius: 5 },
+  };
+  const NO_PARAMS = new Set([
+    'radiant_heal', 'purify', 'mass_heal', 'holy_mending',
+    'mass_holy_light', 'stun_of_light', 'holy_bind', 'miracle',
+  ]);
+  assert.equal(NO_PARAMS.size, 8, 'фикстура: 8 без параметров');
+  HEAL10.forEach((row, i) => {
+    const id = row[0];
+    const f = healSpellFile(i);
+    assert.ok(fs.existsSync(f), `W-03: запись отсутствует — ${id} (RED)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const expected = P[id];
+    if (expected !== undefined) {
+      assert.deepEqual(d.параметры, expected, `${id}: параметры по D1`);
+    } else {
+      assert.equal(d.параметры, undefined,
+        `${id}: БЕЗ «параметры» (${NO_PARAMS.has(id)
+          ? 'таблица §1.5' : 'ошибка таблицы'})`);
+    }
+  });
+  // C1 — расширение СУЩЕСТВУЮЩЕЙ цепочки light_heal→greater_heal:
+  // holy_mending ст3 = greater_heal (000011) ст2 + 1.
+  {
+    const row = HEAL10.find((r) => r[0] === 'holy_mending');
+    const parent = JSON.parse(
+      fs.readFileSync(path.join(DIR, '000011.json'), 'utf8'));
+    assert.equal(parent.id, 'greater_heal', 'фикстура: 000011 = greater_heal');
+    assert.equal(parent.степень, 2, 'фикстура: greater_heal ст2');
+    assert.equal(parent.уровень, 3, 'фикстура: greater_heal ур3');
+    assert.equal(parent.школа, 'исцеление', 'фикстура: одна школа');
+    assert.equal(row[4], parent.степень + 1,
+      'C1: holy_mending ст3 = greater_heal ст2 + 1');
+    assert.ok(row[3] >= parent.уровень, 'C1: уровень не ниже предка');
+    assert.ok(row[6] >= parent.мани, 'C1: мани не ниже предка (13 ≥ 11)');
+    assert.equal(row[5], 'assets/spells/000011.json',
+      'C1: база = файл предка (таблица)');
+    const f = healSpellFile(HEAL10_IDS.indexOf('holy_mending'));
+    if (fs.existsSync(f)) {
+      const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+      assert.equal(d.база, 'assets/spells/000011.json',
+        'C1: база = файл предка (файл)');
+    }
+  }
+  // C2 — новая цепочка blessing → divine_favor → swift_prayer.
+  const byId = new Map(HEAL10.map((r) => [r[0], r]));
+  const CHAINS = [
+    ['divine_favor', 'blessing'],
+    ['swift_prayer', 'divine_favor'],
+  ];
+  for (const [child, parent] of CHAINS) {
+    const ci = HEAL10_IDS.indexOf(child);
+    const pi = HEAL10_IDS.indexOf(parent);
+    assert.ok(ci >= 0 && pi >= 0, `цепочка: ${child}/${parent} в таблице`);
+    const childDegree = byId.get(child)[4];
+    const parentDegree = byId.get(parent)[4];
+    assert.equal(childDegree, parentDegree + 1,
+      `цепочка ${parent} → ${child}: степень = ${parentDegree} + 1`);
+    assert.equal(byId.get(child)[5],
+      `assets/spells/${String(93 + pi).padStart(6, '0')}.json`,
+      `цепочка ${parent} → ${child}: база (таблица) = файл предка`);
+  }
+  for (const [child, parent] of CHAINS) {
+    const ci = HEAL10_IDS.indexOf(child);
+    const f = healSpellFile(ci);
+    if (!fs.existsSync(f)) continue; // RED: файл нет — выше упали
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const parentFile = String(93 + HEAL10_IDS.indexOf(parent))
+      .padStart(6, '0') + '.json';
+    assert.equal(d.база, 'assets/spells/' + parentFile,
+      `цепочка ${parent} → ${child}: база = файл предка`);
+  }
+  // Мани — в полосах по уровню + точные значения §1.4 (таблица HEAL10).
+  const BANDS = { 1: [3, 5], 2: [6, 8], 3: [10, 15], 4: [20, 20] };
+  HEAL10.forEach(([id, , , level, , , mana]) => {
+    const [lo, hi] = BANDS[level];
+    assert.ok(mana >= lo && mana <= hi,
+      `${id}: мани ${mana} в полосе L${level} [${lo}..${hi}]`);
+  });
+});
+
+test('000235.10 W-04: гейт каста вне боя — 21 боевое «боевое заклинание» до расхода/мутаций; prayer/divine_protection/holy_light {ok, запись day+1, mp −4/−7/−7}; miracle {ok, expiresDay null, ЗАПИСИ НЕТ, mp −20, ctx.miracle вызван}; ctx без miracle — «воскрешение недоступно здесь» до списания; мана < мани → отказ ДО мутаций; рекаст — in-place (3 duration-спелла)', () => {
+  const dataMod = loadSpellsData();
+  const { castOutOfCombat } = loadSpells();
+  const day = 10;
+  for (const [id, days, mana] of [
+    ['prayer', 1, 4],
+    ['divine_protection', 1, 7],
+    ['holy_light', 1, 7],
+  ]) {
+    assert.ok(dataMod.SPELLS_BY_ID[id],
+      `W-04: ${id} — запись в каталоге (RED: нет)`);
+    const p = spellHero({ spells: [id], mp: 30 });
+    const r = castOutOfCombat(p, id, day);
+    assert.equal(r.ok, true, `${id}: каст вне боя ok (${r.reason})`);
+    assert.equal(r.expiresDay, day + days,
+      `${id}: days ${days} → expiresDay = day+${days}`);
+    assert.equal(p.mp, 30 - mana, `${id}: мана ровно «мани» (${mana})`);
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: id, expiresDay: day + days }],
+      `${id}: запись generic-ядром {spellId, expiresDay: day+days}`);
+  }
+  {
+    assert.ok(dataMod.SPELLS_BY_ID['miracle'],
+      'W-04: miracle — запись в каталоге (RED: нет)');
+    let calls = 0;
+    const p = spellHero({ spells: ['miracle'], mp: 30 });
+    const r = castOutOfCombat(p, 'miracle', day, {
+      miracle: () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(r.ok, true, 'miracle: каст ok (' + r.reason + ')');
+    assert.equal(r.expiresDay, null, 'miracle — expiresDay null');
+    assert.equal(calls, 1, 'ctx.miracle вызван');
+    assert.equal(p.mp, 10, 'miracle: мана 20 (30−20)');
+    assert.equal(p.outOfCombatEffects, undefined, 'miracle — ЗАПИСИ НЕТ');
+  }
+  {
+    assert.ok(dataMod.SPELLS_BY_ID['miracle'],
+      'W-04: miracle — запись в каталоге (RED: нет)');
+    const p = spellHero({ spells: ['miracle'], mp: 30 });
+    const r = castOutOfCombat(p, 'miracle', day, {});
+    assert.equal(r.ok, false, 'ctx без miracle → отказ');
+    assert.equal(r.reason, 'воскрешение недоступно здесь');
+    assert.equal(p.mp, 30, 'отказ → мана не списана');
+    assert.equal(p.outOfCombatEffects, undefined, 'отказ → записей нет');
+  }
+  const combatIds = HEAL10_IDS.filter((id) => !HEAL10_OC.includes(id));
+  assert.equal(combatIds.length, 21, '25 − 4 внебоевых = 21 боевых');
+  for (const id of combatIds) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-04: ${id} — запись (RED: нет)`);
+    const p = spellHero({ spells: [id], mp: 30 });
+    const r = castOutOfCombat(p, id, day);
+    assert.equal(r.ok, false, `${id}: боевое вне боя — отказ`);
+    assert.equal(r.reason, 'боевое заклинание', `${id}: причина по флагу`);
+    assert.equal(p.mp, 30, `${id}: отказ — до расхода`);
+    assert.equal(p.outOfCombatEffects, undefined, `${id}: отказ — без мутаций`);
+  }
+  {
+    const p = spellHero({ spells: ['mass_holy_light'], mp: 19 });
+    const r = castOutOfCombat(p, 'mass_holy_light', day);
+    assert.equal(r.ok, false, 'мана 19 < 20 — отказ');
+    assert.equal(r.reason, 'не хватает маны', 'причина — мана');
+    assert.equal(p.mp, 19, 'отказ ДО мутаций: mp нетронут');
+    assert.equal(p.outOfCombatEffects, undefined,
+      'отказ ДО мутаций: записей нет');
+  }
+  for (const id of ['prayer', 'divine_protection', 'holy_light']) {
+    const p = spellHero({ spells: [id], mp: 30 });
+    assert.equal(castOutOfCombat(p, id, day).ok, true,
+      `${id}: каст 1 (день ${day})`);
+    assert.equal(p.outOfCombatEffects.length, 1, 'одна запись');
+    const first = p.outOfCombatEffects[0];
+    assert.equal(castOutOfCombat(p, id, day + 1).ok, true,
+      `${id}: рекаст (день ${day + 1})`);
+    assert.equal(p.outOfCombatEffects.length, 1,
+      `${id}: рекаст in-place — записей ровно одна (не дубль)`);
+    assert.equal(p.outOfCombatEffects[0], first,
+      `${id}: рекаст in-place — тот же объект записи`);
+    assert.equal(p.outOfCombatEffects[0].expiresDay, day + 2,
+      `${id}: рекаст — expiresDay обновлён (day+1 → day+2)`);
+  }
+});
+
+test('000235.10 W-10a: miracle — ctx.miracle: отказ callback → reason + мана откатилась, ЗАПИСЕЙ НЕТ; успех → {ok:true, expiresDay:null}, записи нет, mp −20, cb 1 раз; ctx без miracle → «воскрешение недоступно здесь»; нет маны → «не хватает маны» ДО cb (мутаций нет); БИТ-В-БАЙТ: боевое resurrect (resurrectAlly) — формула hp=round(maxHP/2)/пул/мана/лог без изменений', () => {
+  const dataMod = loadSpellsData();
+  assert.ok(dataMod.SPELLS_BY_ID['miracle'],
+    'W-10a: запись miracle в каталоге (RED: нет)');
+  const { castOutOfCombat } = loadSpells();
+  {
+    let calls = 0;
+    const p = spellHero({ spells: ['miracle'], mp: 30 });
+    const r = castOutOfCombat(p, 'miracle', 10, {
+      miracle: () => { calls += 1;
+        return { ok: false, reason: 'нет погибших' }; },
+    });
+    assert.equal(r.ok, false, 'отказ callback → ok:false');
+    assert.equal(r.reason, 'нет погибших', 'reason из callback');
+    assert.equal(p.mp, 30, 'отказ → мана откатилась (не 30−20)');
+    assert.equal(p.outOfCombatEffects, undefined, 'miracle — ЗАПИСЕЙ НЕТ');
+  }
+  {
+    let calls = 0;
+    const p = spellHero({ spells: ['miracle'], mp: 30 });
+    const r = castOutOfCombat(p, 'miracle', 10, {
+      miracle: () => { calls += 1; return { ok: false }; },
+    });
+    assert.equal(r.ok, false, 'отказ callback без reason → ok:false');
+    assert.equal(r.reason, 'воскрешение недоступно здесь',
+      'reason по умолчанию (fail-closed)');
+    assert.equal(p.mp, 30, 'отказ → мана откатилась');
+  }
+  {
+    let calls = 0;
+    const p = spellHero({ spells: ['miracle'], mp: 30 });
+    const r = castOutOfCombat(p, 'miracle', 10, {
+      miracle: () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(r.ok, true, 'успех callback → ok:true');
+    assert.equal(r.expiresDay, null, 'miracle — expiresDay null');
+    assert.equal(calls, 1, 'ctx.miracle вызван 1 раз');
+    assert.equal(p.mp, 10, 'успех → мана снята (20)');
+    assert.equal(p.outOfCombatEffects, undefined,
+      'miracle — записи НЕ создаёт');
+  }
+  {
+    const p = spellHero({ spells: ['miracle'], mp: 30 });
+    const r = castOutOfCombat(p, 'miracle', 10, {});
+    assert.equal(r.ok, false, 'без callback → отказ');
+    assert.equal(r.reason, 'воскрешение недоступно здесь');
+    assert.equal(p.mp, 30, 'отказ → мана не списана');
+  }
+  {
+    let calls = 0;
+    const p = spellHero({ spells: ['miracle'], mp: 10 });
+    const r = castOutOfCombat(p, 'miracle', 10, {
+      miracle: () => { calls += 1; return { ok: true }; },
+    });
+    assert.equal(r.ok, false, 'нет маны + успешный cb → отказ');
+    assert.equal(r.reason, 'не хватает маны',
+      'проверка маны ДО cb (ревью: мутация — после всех проверок)');
+    assert.equal(calls, 0, 'cb НЕ вызван — воскрешения нет при отказе');
+    assert.equal(p.mp, 10, 'mp без изменений');
+    assert.equal(p.outOfCombatEffects, undefined, 'записей нет');
+  }
+  // Поток performMiracle (main.js — vm W-10b): в node — чистая часть
+  // через ctx.miracle: ВСЕ-ИЛИ-НИЧЕГО (roster + dead > max_companions),
+  // запись → roster-запись ЕДИНОЙ точкой companions.reviveEntryFromRecord
+  // (000161), reverse-splice; отказ ДО мутаций/маны. Эфир — структурно
+  // вне (000087: никогда не в roster/deadMercs).
+  {
+    const { NPCS } = require('../src/npc-data.js');
+    const GS = require('../src/global-settings.js');
+    const C = require('../src/companions.js');
+    assert.equal(typeof C.reviveEntryFromRecord, 'function',
+      'фикстура: companions.reviveEntryFromRecord (000161)');
+    assert.equal(GS.SETTINGS.max_companions, 3,
+      'фикстура: max_companions = 3 (live)');
+    const h = NPCS.find((n) => n.id === 'merc_mira').найм;
+    const secondary = {};
+    for (const [id, lv] of Object.entries(h.начальные_навыки || {})) {
+      if (Number.isInteger(lv) && lv >= 1) secondary[id] = lv;
+    }
+    const miraSheet = {
+      kind: 'merc',
+      level: 3, xp: 100, totalXp: 100, points: 0,
+      primary: Object.assign({}, h.базовые_характеристики),
+      secondary,
+      skillXp: {},
+      spells: (h.spells || []).slice(),
+      npcId: 'merc_mira',
+    };
+    const makeMiracle = (deadList, rosterList) => () => {
+      if (!deadList.length) return { ok: false, reason: 'нет погибших' };
+      if (rosterList.length + deadList.length >
+          GS.SETTINGS.max_companions)
+        return { ok: false, reason: 'отряд полон' };
+      const entries = deadList.map(
+        (r) => C.reviveEntryFromRecord(NPCS, r));
+      if (entries.some((e) => !e))
+        return { ok: false, reason: 'недоступно' };
+      for (let i = deadList.length - 1; i >= 0; i--) {
+        deadList.splice(i, 1);
+        rosterList.push(entries[i]);
+      }
+      return { ok: true };
+    };
+    {
+      const dead = ['merc_volk', { npcId: 'merc_mira', sheet: miraSheet,
+        loyalty: 70, hiredDay: 5 }];
+      const roster = [];
+      const p = spellHero({ spells: ['miracle'], mp: 30 });
+      const r = castOutOfCombat(p, 'miracle', 10,
+        { miracle: makeMiracle(dead, roster) });
+      assert.equal(r.ok, true,
+        'deadMercs [string-legacy + record] → каст ok (' + r.reason + ')');
+      assert.equal(r.expiresDay, null, 'miracle — expiresDay null');
+      assert.equal(p.mp, 10, 'mp −20 (30−20)');
+      assert.equal(p.outOfCombatEffects, undefined, 'ЗАПИСЕЙ НЕТ');
+      assert.equal(dead.length, 0, 'deadMercs пусто после каста');
+      assert.deepEqual(roster.map((e) => e.npcId),
+        ['merc_mira', 'merc_volk'],
+        'оба в roster; порядок = обратный (reverse-splice — '
+        + 'зеркало main.js performMiracle; пин W-10b [mira, volk])');
+      const volk = roster[1];
+      assert.equal(volk.level, 1, 'string-legacy: level 1 (backfill)');
+      assert.equal(volk.xp, 0, 'string-legacy: xp 0');
+      assert.equal(volk.loyalty, 50, 'string-legacy: loyalty 50');
+      assert.equal(volk.hiredDay, 0, 'string-legacy: hiredDay 0');
+      assert.equal(volk.sheet.npcId, 'merc_volk',
+        'string-legacy: sheet создан (000161)');
+      const mira = roster[0];
+      assert.equal(mira.level, 3, 'record: level из записи (3)');
+      assert.equal(mira.xp, 100, 'record: xp из записи (100)');
+      assert.equal(mira.loyalty, 70, 'record: loyalty из записи (70)');
+      assert.equal(mira.hiredDay, 5, 'record: hiredDay из записи (5)');
+      assert.ok(!roster.some((e) => e.npcId === 'efir'),
+        'эфир — не в roster (000087: структурно вне deadMercs)');
+      assert.ok(!dead.some((r) => r === 'efir' ||
+        (r && r.npcId === 'efir')),
+        'эфир — не в deadMercs (000087)');
+    }
+    {
+      const p = spellHero({ spells: ['miracle'], mp: 30 });
+      const r = castOutOfCombat(p, 'miracle', 10,
+        { miracle: makeMiracle([], []) });
+      assert.equal(r.ok, false, '«нет погибших» → отказ');
+      assert.equal(r.reason, 'нет погибших');
+      assert.equal(p.mp, 30, 'отказ ДО мутаций: мана не списана');
+      assert.equal(p.outOfCombatEffects, undefined,
+        'отказ ДО мутаций: записей нет');
+    }
+    {
+      const full = [{ npcId: 'merc_volk' }, { npcId: 'merc_ashka' },
+        { npcId: 'merc_baldor' }];
+      const deadOne = ['merc_mira'];
+      const p = spellHero({ spells: ['miracle'], mp: 30 });
+      const r = castOutOfCombat(p, 'miracle', 10,
+        { miracle: makeMiracle(deadOne, full) });
+      assert.equal(r.ok, false, 'roster 3/3 + 1 dead > 3 → отказ');
+      assert.equal(r.reason, 'отряд полон');
+      assert.equal(full.length, 3, 'отказ ДО мутаций: roster не тронут');
+      assert.equal(deadOne.length, 1, 'отказ ДО мутаций: dead не тронут');
+      assert.equal(p.mp, 30, 'отказ ДО мутаций: мана не списана');
+    }
+  }
+  // БИТ-В-БАЙТ: боевое воскрешение (resurrect/resurrectAlly, 000163)
+  // — БЕЗ ИЗМЕНЕНИЙ (ядро/формулы/gold).
+  {
+    const { castSpell } = loadSpells();
+    const p = spellHero({ spells: ['resurrect'], wisdom: 10, mp: 30 });
+    const c = allyCombat163(p);
+    const a = deadAlly163(c);
+    const maxHP = a.maxHP;
+    const poolBefore = c.ps.spellWis;
+    const r = castSpell(c, 'resurrect', a.id);
+    assert.equal(r.ok, true, 'resurrect: каст ok (' + r.reason + ')');
+    assert.equal(a.alive, true, 'resurrect: союзник возвращён');
+    assert.equal(a.hp, Math.round(maxHP / 2),
+      'resurrect: hp = round(maxHP/2) (50% — БИТ-В-БАЙТ)');
+    assert.equal(c.ps.spellWis, poolBefore - 1,
+      'resurrect: пул spellWis −1 (БЕЗ ИЗМЕНЕНИЙ)');
+    assert.equal(p.mp, 30 - 15, 'resurrect: мана −15 (БЕЗ ИЗМЕНЕНИЙ)');
+    assert.ok(c.log.includes('Возвращён в бой.'),
+      'resurrect: лог «Возвращён в бой.» (БЕЗ ИЗМЕНЕНИЙ)');
+  }
+});
+
+test('000235.10 W-11a: holyLightRadius — активная запись → 5 (радиус каталога); граница expiresDay = day → 0 (>, не >=); чужой id (dark_presence) → 0; битый radius → 5; две активные → max; нет записи → 0; radius — ленивым lookup (гость 1/3/5, невалидный/отсутствует → дефолт 5); zoneSuppressedReason — ветка «свет обители» ПОСЛЕ «покров ночи» (порядок 5 причин, source-пин main.js); visionRadiusFloor — floor из holyLightRadius (source-пин); туман: floor R 3→5 (чистое ядро dungeon-ui.vision)', () => {
+  const { holyLightRadius } = loadSpells();
+  assert.equal(typeof holyLightRadius, 'function',
+    '000235.10: export Spells.holyLightRadius (src/spells.js) (RED: нет)');
+  const day = 10;
+  const rec = (expiresDay) => ({ spellId: 'holy_light', expiresDay });
+  assert.equal(holyLightRadius({ outOfCombatEffects: [rec(day)] }, day), 0,
+    'граница expiresDay = day → 0 (>, не >=)');
+  assert.equal(holyLightRadius({ outOfCombatEffects: [rec(day - 1)] }, day), 0,
+    'expiresDay < day → 0');
+  assert.equal(holyLightRadius({ outOfCombatEffects: [rec(day + 1)] }, day), 5,
+    'активная (day+1) → радиус каталога (5)');
+  assert.equal(holyLightRadius({ outOfCombatEffects:
+    [rec(day), rec(day + 2)] }, day), 5,
+    'истёкшая + активная → радиус АКТИВНОЙ');
+  assert.equal(holyLightRadius({ outOfCombatEffects:
+    [rec(day + 1), rec(day + 3)] }, day), 5,
+    'две активные → max');
+  assert.equal(holyLightRadius({ outOfCombatEffects:
+    [{ spellId: 'dark_presence', expiresDay: day + 1 }] }, day), 0,
+    'чужой id (dark_presence) → 0 (матчинг по spellId)');
+  assert.equal(holyLightRadius({ outOfCombatEffects: [] }, day), 0, '[] → 0');
+  assert.equal(holyLightRadius({}, day), 0, 'нет поля → 0');
+  assert.equal(holyLightRadius(null, day), 0, 'hero = null → 0');
+  assert.equal(holyLightRadius({ outOfCombatEffects: 'бито' }, day), 0,
+    'effects не массив → 0');
+  assert.equal(holyLightRadius({ outOfCombatEffects:
+    [null, 'мусор', 42, { expiresDay: day + 1 },
+     { spellId: 'нет_такого_заклинания', expiresDay: day + 1 }] }, day), 0,
+    'мусор-записи → 0 без краха');
+  const p = { outOfCombatEffects: [rec(day + 1)] };
+  for (let i = 0; i < 5; i++) {
+    assert.equal(holyLightRadius(p, day), 5, 'повторный вызов i=' + i
+      + ' — стабильно (без RNG)');
+  }
+  const dataMod = loadSpellsData();
+  const mk = (over) => portalGuest0235('holy_light', Object.assign(
+    { действие: 'внебой', параметры: { days: 1, radius: 5 } }, over));
+  for (const [radius, expected] of [[1, 1], [3, 3], [5, 5]]) {
+    const g = mk({ параметры: { days: 1, radius } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = holyLightRadius({ outOfCombatEffects:
+        [{ spellId: 'holy_light', expiresDay: day + 1 }] }, day);
+      assert.equal(r, expected, 'ленивый lookup: гость r=' + radius + ' → ' + expected);
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  for (const radius of ['нет', 9, 0, 1.5, null]) {
+    const g = mk({ параметры: { days: 1, radius } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = holyLightRadius({ outOfCombatEffects:
+        [{ spellId: 'holy_light', expiresDay: day + 1 }] }, day);
+      assert.equal(r, 5,
+        'невалидный radius (' + JSON.stringify(radius) + ') → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  {
+    const g = mk({ параметры: { days: 1 } });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const r = holyLightRadius({ outOfCombatEffects:
+        [{ spellId: 'holy_light', expiresDay: day + 1 }] }, day);
+      assert.equal(r, 5, 'radius отсутствует → ДЕФОЛТ 5');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  // Порядок веток zoneSuppressedReason (source-пин src/main.js):
+  // «свет обители» — НОВАЯ ветка ПОСЛЕ «покров ночи», перед
+  // `return null`; общий порядок причин: невидимость → круг защиты
+  // → замерзание → покров ночи → свет обители.
+  const mainSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const iInvis = mainSrc.indexOf("return 'невидимость'");
+  const iWard = mainSrc.indexOf("return 'круг защиты'");
+  const iFrost = mainSrc.indexOf("return 'замерзание'");
+  const iNight = mainSrc.indexOf("return 'покров ночи'");
+  const iLight = mainSrc.indexOf("return 'свет обители'");
+  assert.ok(iInvis >= 0 && iWard >= 0 && iFrost >= 0 && iNight >= 0,
+    'фикстура: ветки невидимость/круг защиты/замерзание/покров ночи');
+  assert.ok(iLight >= 0,
+    'zoneSuppressedReason: ветка «свет обители» отсутствует (RED: не реализована)');
+  assert.ok(iInvis < iWard && iWard < iFrost && iFrost < iNight
+    && iNight < iLight,
+    'порядок веток: невидимость → круг защиты → замерзание → покров ночи → свет обители');
+  const seg = mainSrc.slice(iNight, iLight);
+  assert.ok(seg.includes('holyLightRadius'),
+    'ветка «свет обители»: источник holyLightRadius (RED)');
+  assert.ok(seg.includes('Math.max(Math.abs'),
+    'ветка «свет обители»: дистанция Чебышёва d (d ≤ r → причина; d = 6 → null)');
+  assert.ok(seg.includes('<='),
+    'ветка «свет обители»: подавление при d ≤ radius');
+  // visionRadiusFloor: floor = max(firelight, holyLightRadius)
+  // (source-пин main.js; typeof-гарды — деградация, не крах).
+  const iVrf = mainSrc.indexOf('visionRadiusFloor');
+  assert.ok(iVrf >= 0,
+    'фикстура: visionRadiusFloor в main.js (000225/000136)');
+  assert.ok(mainSrc.slice(iVrf, iVrf + 900).includes('holyLightRadius'),
+    'visionRadiusFloor: floor из holyLightRadius (RED: не добавлен)');
+  // Туман (000225/000136): чистое ядро dungeon-ui.vision — активная
+  // запись поднимает floor: R = max(radiusFor(0.5)=3, 5) = 5; клетка
+  // d=4 открывается, d=6 скрыта; без эффекта — инвариантен.
+  // dungeon-ui — IIFE на globalThis.Game (UMD-ловушка 000038):
+  // порядок загрузки — dungeon.js/controls.js ДО, window-стаб
+  // (top-level addEventListener keydown).
+  const G0 = globalThis.Game || (globalThis.Game = {});
+  if (!G0.createDungeon) {
+    G0.createDungeon = require('../src/dungeon.js').createDungeon;
+  }
+  if (!G0.deltaForEvent) {
+    G0.deltaForEvent = require('../src/controls.js').deltaForEvent;
+  }
+  globalThis.window = globalThis.window || { addEventListener() {} };
+  require('../src/dungeon-ui.js');
+  const vis = G0.dungeonUI.vision;
+  assert.ok(vis, 'dungeon-ui.vision экспортирован (000136)');
+  assert.equal(vis.baseRadius, 5, 'фикстура: VISION_BASE_RADIUS (000136)');
+  assert.equal(vis.radiusFor(0.5), 3, 'фикстура: radiusFor(0.5) = 3');
+  const R_off = Math.max(vis.radiusFor(0.5),
+    holyLightRadius({ outOfCombatEffects: [] }, day));
+  const R_on = Math.max(vis.radiusFor(0.5),
+    holyLightRadius({ outOfCombatEffects: [rec(day + 1)] }, day));
+  assert.equal(R_off, 3, 'без эффекта: R = 3 (floor 0)');
+  assert.equal(R_on, 5, 'активный: floor поднимает R до 5');
+  const mOff = vis.maskFor(12, 12, 5, 5, R_off, null);
+  const mOn = vis.maskFor(12, 12, 5, 5, R_on, null);
+  assert.equal(mOff[5 * 12 + 8], 2, 'без эффекта: d=3 видно (регрессия)');
+  assert.equal(mOff[5 * 12 + 9], 0, 'без эффекта: d=4 скрыто (R = 3)');
+  assert.equal(mOn[5 * 12 + 9], 2, 'активный: d=4 раскрывается (R = 5)');
+  assert.equal(mOn[11 * 12 + 5], 0, 'активный: d=6 скрыто (R = 5)');
+});
+
+test('000235.10 W-12a: партия-механики — (a) mass_heal/mass_holy_light: игрок + ВСЕ живые союзники, out.healed = сумма, seed-детерминизм (0 c._rng); mass_holy_light — u.debuff = null у всех; (b) 5 party-бафов: c.ps.buff + u.buff у ВСЕХ живых союзников (turns 3), targetId (живой союзник) игнорируется, mob-цель — «нет цели», рекаст — overwrite; (c) purify: u.debuff → null (out.purified = id, лечения НЕТ), игрок-цель — без side-effects, weaken/bind НЕ сняты', () => {
+  const dataMod = loadSpellsData();
+  assert.ok(dataMod.SPELLS_BY_ID['mass_heal'],
+    'W-12a: mass_heal (RED: нет)');
+  assert.ok(dataMod.SPELLS_BY_ID['mass_holy_light'],
+    'W-12a: mass_holy_light (RED: нет)');
+  const { derived: pDer } = require('../src/player.js');
+  const { castSpell } = loadSpells();
+  function partyCombat(p) {
+    const allies = [];
+    for (let i = 0; i < 3; i++) {
+      allies.push({ name: 'Союзник' + i, role: 'melee', level: 1,
+        dmg: 1, hp: 1, skills: [], spells: [] });
+    }
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 7, allies });
+    const pMax = pDer(p).maxHP;
+    p.hp = Math.max(1, pMax - 30);
+    for (const a of c.units.filter((u) => u.side === 'ally')) {
+      a.hp = Math.max(1, a.maxHP - 10);
+    }
+    return c;
+  }
+  function massCase(id) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const c = partyCombat(p);
+    const allies = c.units.filter((u) => u.side === 'ally');
+    const s = dataMod.SPELLS_BY_ID[id];
+    const amount = Math.round((4 + 0.5 * p.primary[s.атрибут]
+      + p.level) * (1 + 0.15 * (s.степень - 1)));
+    const beforeP = p.hp;
+    const beforeA = allies.map((a) => a.hp);
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    const expP = Math.min(amount, pDer(p).maxHP - beforeP);
+    assert.equal(p.hp - beforeP, expP, `${id}: игрок (с капом)`);
+    let total = expP;
+    allies.forEach((a, i) => {
+      const expA = Math.min(amount, a.maxHP - beforeA[i]);
+      assert.equal(a.hp - beforeA[i], expA, `${id}: союзник ${a.name}`);
+      total += expA;
+    });
+    assert.equal(r.healed, total,
+      `${id}: out.healed = сумма (игрок + ВСЕ живые союзники)`);
+  }
+  massCase('mass_heal');
+  // Seed-детерминизм: два одинаковых боя (0 c._rng) → одинаковый
+  // out.healed.
+  {
+    const run = () => {
+      const p = spellHero({ spells: ['mass_heal'], wisdom: 10, mp: 40 });
+      return castSpell(partyCombat(p), 'mass_heal');
+    };
+    assert.equal(run().healed, run().healed,
+      'детерминизм: out.healed (порядок c.units, 0 c._rng)');
+  }
+  // mass_holy_light — + очистка u.debuff у ВСЕХ живых союзников.
+  {
+    const p = spellHero({ spells: ['mass_holy_light'], wisdom: 10, mp: 40 });
+    const c = partyCombat(p);
+    for (const a of c.units.filter((u) => u.side === 'ally')) {
+      a.debuff = { stat: 'dot', value: 1, turns: 3 };
+    }
+    const r = castSpell(c, 'mass_holy_light');
+    assert.equal(r.ok, true, 'mass_holy_light: каст ok (' + r.reason + ')');
+    for (const a of c.units.filter((u) => u.side === 'ally')) {
+      assert.equal(a.debuff, null,
+        `mass_holy_light: ${a.name} — u.debuff = null`);
+    }
+    assert.ok(r.healed > 0,
+      'mass_holy_light: out.healed > 0 (лечение тоже есть)');
+  }
+  // (b) 5 party-бафов: targetId (живой союзник) игнорируется —
+  // эффект на ВСЕХ живых союзниках + игроке.
+  const PARTY_BUFF10 = [
+    ['blessing', 'урон', 0.10],
+    ['divine_favor', 'урон', 0.15],
+    ['guardian_blessing', 'броня', 1],
+    ['swift_prayer', 'ход', 1],
+    ['faith_shield', 'получаемый_урон', 0.10],
+  ];
+  for (const [id, stat, value] of PARTY_BUFF10) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-12a: ${id} (RED: нет)`);
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const c = partyCombat(p);
+    const ally0 = c.units.find((u) => u.side === 'ally');
+    const r = castSpell(c, id, ally0.id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.equal(r.buffed, 'party', `${id}: out.buffed = 'party'`);
+    const eff = { stat, value, turns: 3 };
+    assert.deepEqual(c.ps.buff, eff, `${id}: c.ps.buff (игрок)`);
+    for (const a of c.units.filter((u) => u.side === 'ally')) {
+      assert.deepEqual(a.buff, eff, `${id}: союзник ${a.name} — u.buff`);
+    }
+  }
+  {
+    const p = spellHero({ spells: ['blessing'], wisdom: 10, mp: 40 });
+    const c = partyCombat(p);
+    const mob = c.units.find((u) => u.side === 'mob');
+    const r = castSpell(c, 'blessing', mob.id);
+    assert.equal(r.ok, false, 'blessing: mob-цель — «нет цели» (evalSpell)');
+    assert.equal(r.reason, 'нет цели');
+  }
+  // Рекаст — overwrite (не стак: c.ps.buff/u.buff — объект).
+  {
+    const p = spellHero({ spells: ['divine_favor', 'guardian_blessing'],
+      wisdom: 10, mp: 40 });
+    const c = partyCombat(p);
+    castSpell(c, 'divine_favor');
+    castSpell(c, 'guardian_blessing');
+    assert.deepEqual(c.ps.buff, { stat: 'броня', value: 1, turns: 3 },
+      'рекаст: c.ps.buff — overwrite (guardian_blessing)');
+    for (const a of c.units.filter((u) => u.side === 'ally')) {
+      assert.deepEqual(a.buff, { stat: 'броня', value: 1, turns: 3 },
+        'рекаст: u.buff — overwrite');
+    }
+  }
+  // (c) purify: союзник — u.debuff → null, лечения нет; weaken/bind
+  // НЕ снимаются (отдельные механики); игрок-цель — без side-effects.
+  assert.ok(dataMod.SPELLS_BY_ID['purify'], 'W-12a: purify (RED: нет)');
+  {
+    const p = spellHero({ spells: ['purify'], wisdom: 10, mp: 40 });
+    const c = partyCombat(p);
+    const a = c.units.find((u) => u.side === 'ally');
+    const hpBefore = a.hp;
+    a.debuff = { stat: 'урон_вниз', value: 0.15, turns: 3 };
+    a.bind = { turns: 1 };
+    a.weakened = { turns: 2 };
+    const r = castSpell(c, 'purify', a.id);
+    assert.equal(r.ok, true, 'purify: каст ok (' + r.reason + ')');
+    assert.equal(r.purified, a.id, 'purify: out.purified = id союзника');
+    assert.equal(r.healed, undefined, 'purify: лечения НЕТ (out.healed undefined)');
+    assert.equal(a.debuff, null, 'purify: u.debuff → null');
+    assert.equal(a.hp, hpBefore, 'purify: hp союзника не тронут');
+    assert.deepEqual(a.bind, { turns: 1 },
+      'purify: bind НЕ снят (отдельная механика)');
+    assert.deepEqual(a.weakened, { turns: 2 },
+      'purify: weaken НЕ снят (отдельная механика)');
+  }
+  {
+    const p = spellHero({ spells: ['purify'], wisdom: 10, mp: 40 });
+    const c = partyCombat(p);
+    const hpBefore = p.hp;
+    const r = castSpell(c, 'purify');
+    assert.equal(r.ok, true, 'purify: игрок-цель ok (' + r.reason + ')');
+    assert.equal(r.purified, null, 'purify: игрок-цель — out.purified null');
+    assert.equal(r.healed, undefined, 'purify: лечения нет');
+    assert.equal(p.hp, hpBefore, 'purify: игрок — без side-effects');
+  }
+  {
+    const p = spellHero({ spells: ['purify'], wisdom: 10, mp: 40 });
+    const c = partyCombat(p);
+    const mob = c.units.find((u) => u.side === 'mob');
+    const r = castSpell(c, 'purify', mob.id);
+    assert.equal(r.ok, false, 'purify: mob-цель — «нет цели»');
+    assert.equal(r.reason, 'нет цели');
+  }
+});
+
+test('000235.10 W-12a.1: party-баф — тик «ровно N раундов, включая каст» для КАЖДОГО носителя: игрок + каждый союзник — СВОИ объекты бафа (общей ссылки НЕТ); startRound тикает каждого носителя по разу за раунд (общий объект сгорал бы 1+N быстрее — регрессия: 1 союзник — 2 раунда, 2+ союзника — 1 раунд); 5 party-бафов: turns 3→2→1→0 у всех носителей → ровно 3 активных раунда', () => {
+  const { castSpell } = loadSpells();
+  const PARTY_BUFF10_TICK = [
+    ['blessing', 'урон', 0.10],
+    ['divine_favor', 'урон', 0.15],
+    ['guardian_blessing', 'броня', 1],
+    ['swift_prayer', 'ход', 1],
+    ['faith_shield', 'получаемый_урон', 0.10],
+  ];
+  for (const [id, stat, value] of PARTY_BUFF10_TICK) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const allies = [];
+    for (let i = 0; i < 3; i++) {
+      allies.push({ name: 'Союзник' + i, role: 'melee', level: 1,
+        dmg: 1, hp: 1, skills: [], spells: [] });
+    }
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 7, allies });
+    const w = c.units.find((u) => u.side === 'mob');
+    w.x = 0; w.y = 0; // далеко — без вмешательства
+    c._rng = () => 0.99; // удар волка всегда мимо (hitChance ≤ 0.95)
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    const a = c.units.filter((u) => u.side === 'ally');
+    assert.equal(a.length, 3, `${id}: партия — 3 живых союзника`);
+    assert.notStrictEqual(c.ps.buff, a[0].buff,
+      `${id}: игрок/союзник0 — РАЗНЫЕ объекты бафа`);
+    assert.notStrictEqual(a[0].buff, a[1].buff,
+      `${id}: союзник0/союзник1 — разные объекты`);
+    assert.notStrictEqual(a[1].buff, a[2].buff,
+      `${id}: союзник1/союзник2 — разные объекты`);
+    const seq = [c.ps.buff, a[0].buff, a[1].buff, a[2].buff];
+    for (const e of seq) {
+      assert.deepEqual(e, { stat, value, turns: 3 },
+        `${id}: носитель — {${stat}, ${value}, 3}`);
+    }
+    // Очередь: игрок → 3 союзника → волк: раунд = 4 endTurn
+    // (startRound — по исчерпании последнего слота).
+    const round = () => {
+      c.endTurn(); c.endTurn(); c.endTurn(); c.endTurn();
+    };
+    round(); // тик 1: 3 → 2 — активен во 2-м раунде
+    for (const e of seq) {
+      assert.equal(e.turns, 2,
+        `${id}: тик 1 — 3 → 2 (активен во 2-м раунде)`);
+    }
+    round(); // тик 2: 2 → 1 — активен в 3-м раунде
+    for (const e of seq) {
+      assert.equal(e.turns, 1,
+        `${id}: тик 2 — 2 → 1 (активен в 3-м раунде)`);
+    }
+    round(); // тик 3: 1 → 0 — с 4-го раунда истёк
+    for (const e of seq) {
+      assert.equal(e.turns, 0,
+        `${id}: тик 3 — 1 → 0 (ровно 3 активных раунда, включая каст)`);
+    }
+  }
+});
+
+test('000235.10 W-13: призывы — light_sprite → fairy / spirit_healer → orc_shaman / holy_guardian → earth_elemental: level = уровень спелла (2/3/4), summonTurns 4, имя/роль/статы из MOB_TYPES (deepEqual); healer-призывы — u.spells [light_heal] + c.heal (mostWounded [игрок, союзники], spellWis −1, mp −6, формула 6/7 hp, лог); holy_guardian — u.spells [] + c.heal «недоступно»; контраст kind «efir» — «недоступно»; source-пин гейтов kind «summon» (combat.js/combat-ui.js); рассеивание startRound (4 раунда включая каст); fail-closed ДО расхода («неизвестный призыв»)', () => {
+  const dataMod = loadSpellsData();
+  for (const id of ['light_sprite', 'spirit_healer', 'holy_guardian']) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-13: ${id} (RED: нет)`);
+  }
+  const { castSpell } = loadSpells();
+  function summonCase(spellId, level, name, role, stats) {
+    const p = spellHero({ spells: [spellId], wisdom: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, spellId);
+    assert.equal(r.ok, true, `${spellId}: каст призыва ok (${r.reason})`);
+    assert.ok(r.summoned, `${spellId}: r.summoned`);
+    const a = c.units.find((u) => u.id === r.summoned);
+    assert.ok(a, `${spellId}: призванный в c.units`);
+    assert.equal(a.kind, 'summon', `${spellId}: kind summon`);
+    assert.equal(a.summonTurns, 4, `${spellId}: summonTurns 4`);
+    assert.equal(a.level, level, `${spellId}: level = уровень спелла`);
+    assert.deepEqual(
+      { name: a.name, role: a.role, maxHP: a.maxHP, damage: a.damage,
+        armor: a.armor, mp: a.mp },
+      { name, role, ...stats },
+      `${spellId}: имя/роль/статы из MOB_TYPES (makeAlly level ${level})`);
+  }
+  summonCase('light_sprite', 2, 'Фея', 'support',
+    { maxHP: 7, damage: 1, armor: 0, mp: 9 });
+  summonCase('spirit_healer', 3, 'Орк-шаман', 'support',
+    { maxHP: 10, damage: 2, armor: 0, mp: 9 });
+  summonCase('holy_guardian', 4, 'Земляной стихийник', 'shield',
+    { maxHP: 130, damage: 5, armor: 2, mp: 6 });
+  // Healer-призывы — u.spells ['light_heal']; танк — [] (чистый
+  // «урон+щит»).
+  for (const [id, expected] of [
+    ['light_sprite', ['light_heal']],
+    ['spirit_healer', ['light_heal']],
+    ['holy_guardian', []],
+  ]) {
+    const p = spellHero({ spells: [id], wisdom: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст (${r.reason})`);
+    const a = c.units.find((u) => u.id === r.summoned);
+    assert.deepEqual(a.spells, expected,
+      `${id}: u.spells ${JSON.stringify(expected)}`);
+  }
+  // c.heal (H-кнопка): healer-призывный лечит САМОГО раненого пула
+  // [игрок, живые союзники]; расход — spellWis −1 + mp −6 (мана
+  // light_heal; рефилла mp нет — 000193); формула 1:1 с книгой.
+  function healCase(spellId, amount, logLine) {
+    const p = spellHero({ spells: [spellId], wisdom: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    c.obstacles.clear();
+    w.x = c.px; w.y = c.py - 1; w.maxHP = 2000; w.hp = 2000;
+    c._rng = () => 0.01;
+    const r = castSpell(c, spellId);
+    assert.equal(r.ok, true, `${spellId}: каст (${r.reason})`);
+    const u = c.units.find((x) => x.kind === 'summon');
+    p.hp = 1; // игрок — самый раненый (призывный полон)
+    c.turnOrder = [u.id];
+    c.turnIndex = 0;
+    c.phase = 'player';
+    const h = c.heal();
+    assert.equal(h.ok, true, `${spellId}: c.heal ok (${h.reason})`);
+    assert.equal(p.hp, 1 + amount,
+      `${spellId}: игрок +${amount} (mostWounded, P.heal)`);
+    assert.ok(c.log.includes(logLine),
+      `${spellId}: лог «${logLine}» (вычисленное значение)`);
+    assert.equal(u.mp, 9 - 6, `${spellId}: mp 9−6 (рефилла нет)`);
+    assert.equal(u.spellWis, 0, `${spellId}: spellWis 1→0`);
+  }
+  healCase('light_sprite', 6, 'Фея лечит Флогистон (+6).');
+  healCase('spirit_healer', 7, 'Орк-шаман лечит Флогистон (+7).');
+  // Танк: role shield — c.heal «недоступно».
+  {
+    const p = spellHero({ spells: ['holy_guardian'], wisdom: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, 'holy_guardian');
+    assert.equal(r.ok, true, 'holy_guardian: каст (' + r.reason + ')');
+    const u = c.units.find((x) => x.kind === 'summon');
+    c.turnOrder = [u.id];
+    c.turnIndex = 0;
+    c.phase = 'player';
+    const h = c.heal();
+    assert.equal(h.ok, false, 'holy_guardian: c.heal — отказ (role shield)');
+    assert.equal(h.reason, 'недоступно активному персонажу');
+  }
+  // Контраст kind 'efir': support + spells, НО kind 'efir' — гейты
+  // «merc' || 'summon'» его НЕ пускают (а2 R14).
+  {
+    const p = spellHero({ spells: ['light_sprite'], wisdom: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const e = { id: 'efir_x', side: 'ally', name: 'Эфир (синтетика)',
+      role: 'support', kind: 'efir', spells: ['light_heal'],
+      spellWis: 1, mp: 9, level: 1, attrs: {}, alive: true, fled: false,
+      x: 0, y: 0, maxHP: 10, hp: 10 };
+    c.units.push(e);
+    c.turnOrder = [e.id];
+    c.turnIndex = 0;
+    c.phase = 'player';
+    const h = c.heal();
+    assert.equal(h.ok, false, 'kind efir: c.heal — отказ');
+    assert.equal(h.reason, 'недоступно активному персонажу',
+      'kind «efir» не в гейте (контраст)');
+  }
+  // Source-пин гейтов (контракт §2.8, 5 точек): kind 'merc' →
+  // 'merc' || 'summon' (ядро + canDo-зеркало + UI).
+  const combatSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'combat.js'), 'utf8');
+  assert.ok(combatSrc.includes(
+    "u.kind !== 'merc' && u.kind !== 'summon'"),
+    'гейты allyHealAction/c.heal: kind merc|summon (RED: только merc)');
+  assert.ok(combatSrc.includes(
+    "u.kind === 'merc' || u.kind === 'summon'"),
+    'гейт allyCanDo heal: kind merc|summon (зеркало 1:1) (RED)');
+  const uiSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'combat-ui.js'), 'utf8');
+  assert.ok(uiSrc.includes("(u.kind === 'merc' || u.kind === 'summon')"),
+    'гейты combat-ui (build-gate/activeIsMercWithBook): kind merc|summon (RED)');
+  // Рассеивание — startRound: ровно 4 раунда жизни, включая каст
+  // (паттерн C4 000235.01).
+  {
+    const p = spellHero({ spells: ['light_sprite'], wisdom: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    c.obstacles.clear();
+    w.x = 3; w.y = 1; w.maxHP = 2000; w.hp = 2000;
+    w.damage = 0;
+    c._rng = () => 0.01;
+    const r = castSpell(c, 'light_sprite');
+    assert.equal(r.ok, true, 'light_sprite: каст (' + r.reason + ')');
+    const s = c.units.find((u) => u.kind === 'summon');
+    assert.equal(s.summonTurns, 4, 'раунд каста: summonTurns 4');
+    c.endTurn(); // раунд 2: тик 4 → 3
+    assert.equal(c.round, 2);
+    assert.equal(s.summonTurns, 3, 'тик startRound: 4 → 3');
+    c.endTurn(); // слот призывного (раунд 2) — пропуск хода
+    c.endTurn();
+    assert.equal(s.summonTurns, 2, 'раунд 3: 3 → 2');
+    c.endTurn();
+    c.endTurn();
+    assert.equal(s.summonTurns, 1, 'раунд 4: 2 → 1');
+    c.endTurn();
+    c.endTurn(); // начало раунда 5: 1 → 0 — рассеивание
+    assert.equal(c.round, 5, 'рассеивается в начале раунда R+4');
+    assert.equal(s.summonTurns, 0, 'ровно 4 раунда жизни');
+    assert.equal(s.fled, true, 'рассеивание — fled (не смерть)');
+    assert.ok(c.log.some((l) => l.includes('рассеивается')),
+      'лог «…рассеивается.»');
+  }
+  // Fail-closed: неизвестный призыв — ДО расхода пула/маны.
+  const bad = Object.assign(ocGuest0235('w13_10_badsummon', {
+    действие: 'призыв', параметры: { summon: 'nope', turns: 4 },
+    вне_боя: false,
+  }));
+  try {
+    pushOcGuests(dataMod, [bad]);
+    const p = spellHero({ spells: [bad.id], wisdom: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, bad.id);
+    assert.equal(r.ok, false, 'неизвестный призыв — отказ');
+    assert.equal(r.reason, 'неизвестный призыв: nope', 'fail-closed reason');
+    assert.equal(p.mp, 40, 'отказ — до расхода маны');
+  } finally {
+    popOcGuests(dataMod, [bad]);
+  }
+});
+
+test('000235.10 W-14: внебойные границы — isHeroPrayer `>=` (каст D days1 → expiresDay D+1: onDay(D+1) — restoreDay ×1.1 РАБОТАЕТ (запись ещё в массиве), onDay(D+2) — запись вылетела, ×1; hp И mp +10% — sheet.js restoreDay); camp+prayer → 1.1 (OR, НЕ 1.21) — source-пин main.js; holyLightRadius `>`; isHeroDivineProtected `>` (каст D → активен D, неактивен D+1)', () => {
+  const { isHeroPrayer, isHeroDivineProtected, holyLightRadius } =
+    loadSpells();
+  assert.equal(typeof isHeroPrayer, 'function',
+    '000235.10: export Spells.isHeroPrayer (RED: нет)');
+  assert.equal(typeof isHeroDivineProtected, 'function',
+    '000235.10: export Spells.isHeroDivineProtected (RED: нет)');
+  assert.equal(typeof holyLightRadius, 'function',
+    '000235.10: export Spells.holyLightRadius (RED: нет)');
+  const day = 10;
+  const recP = (e) => ({ spellId: 'prayer', expiresDay: e });
+  const recD = (e) => ({ spellId: 'divine_protection', expiresDay: e });
+  const recH = (e) => ({ spellId: 'holy_light', expiresDay: e });
+  // isHeroPrayer — ГРАНИЦА `>=` (consumer restoreDay идёт ДО
+  // expireOutOfCombatEffects — с `>` реген был бы dead-on-arrival;
+  // прецедент .07 isHeroCamped).
+  assert.equal(isHeroPrayer({ outOfCombatEffects: [recP(day)] }, day), true,
+    'граница: expiresDay === day — TRUE (>=, не >)');
+  assert.equal(isHeroPrayer({ outOfCombatEffects: [recP(day + 1)] }, day), true,
+    'expiresDay = day+1 — true');
+  assert.equal(isHeroPrayer({ outOfCombatEffects: [recP(day - 1)] }, day), false,
+    'expiresDay < day — false');
+  assert.equal(isHeroPrayer({ outOfCombatEffects: [recD(day)] }, day), false,
+    'чужой id (divine_protection) — false');
+  assert.equal(isHeroPrayer({}, day), false, 'нет поля — false');
+  assert.equal(isHeroPrayer(null, day), false, 'null — false');
+  assert.equal(isHeroPrayer({ outOfCombatEffects:
+    [null, 'мусор', 42, { expiresDay: day + 1 },
+     { spellId: 'нет_такого', expiresDay: day + 1 }] }, day), false,
+    'мусор-записи — false без краха');
+  // isHeroDivineProtected — ГРАНИЦА `>` (боевой старт — live-день).
+  assert.equal(isHeroDivineProtected({ outOfCombatEffects: [recD(day)] }, day), false,
+    'граница: expiresDay === day — false (> , не >=)');
+  assert.equal(isHeroDivineProtected({ outOfCombatEffects: [recD(day + 1)] }, day), true,
+    'expiresDay = day+1 — true');
+  assert.equal(isHeroDivineProtected({ outOfCombatEffects: [recD(day - 1)] }, day), false,
+    'expiresDay < day — false');
+  assert.equal(isHeroDivineProtected({ outOfCombatEffects: [recP(day + 1)] }, day), false,
+    'чужой id (prayer) — false');
+  assert.equal(isHeroDivineProtected(null, day), false, 'null — false');
+  // holyLightRadius — `>` (полное покрытие — W-11a).
+  assert.equal(holyLightRadius({ outOfCombatEffects: [recH(day)] }, day), 0,
+    'граница: expiresDay === day → 0 (>)');
+  assert.equal(holyLightRadius({ outOfCombatEffects: [recH(day + 1)] }, day), 5,
+    'expiresDay = day+1 → 5');
+  // Каст D (days 1) → expiresDay D+1: onDay(D+1) — restoreDay ×1.1
+  // (запись ещё в массиве — граница >=), ПОТОМ
+  // expireOutOfCombatEffects (keep expiresDay > day) — запись
+  // вылетела; onDay(D+2) — ×1.
+  {
+    const h = { outOfCombatEffects: [recP(day + 1)] };
+    const multOn = isHeroPrayer(h, day + 1) ? 1.1 : 1;
+    assert.equal(multOn, 1.1,
+      'onDay(D+1): restoreDay ×1.1 (граница >= — запись ещё в массиве)');
+    const kept = h.outOfCombatEffects.filter((r) => r.expiresDay > day + 1);
+    assert.equal(kept.length, 0,
+      'onDay(D+1): после restoreDay — запись вылетела (expiresDay > day)');
+    const multOff = isHeroPrayer({ outOfCombatEffects: kept }, day + 2)
+      ? 1.1 : 1;
+    assert.equal(multOff, 1, 'onDay(D+2): записи нет → ×1');
+    // ×1.1 — HP И MP (+10%, sheet.js restoreDay).
+    const player = require('../src/player.js');
+    const Sheet = require('../src/sheet.js');
+    function regenHero() {
+      const hh = player.createCharacter();
+      hh.primary.constitution = 10;
+      hh.primary.intelligence = 10;
+      hh.primary.wisdom = 10;
+      hh.level = 1;
+      hh.hp = 0;
+      hh.mp = 0;
+      return hh;
+    }
+    const base = Sheet.restoreDay(regenHero());
+    const boost = Sheet.restoreDay(regenHero(), 1.1);
+    assert.ok(base.hp > 0 && base.mp > 0, 'фикстура: базовый реген > 0');
+    assert.ok(boost.hp > base.hp, '×1.1 — HP реген больше');
+    assert.ok(boost.mp > base.mp, '×1.1 — MP реген больше');
+  }
+  // camp + prayer — OR (1.1, НЕ 1.21): source-пин main.js
+  // (onDay restoreDay: isHeroCamped || isHeroPrayer → ? 1.1 : 1).
+  const mainSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  const iCamped = mainSrc.indexOf('isHeroCamped');
+  assert.ok(iCamped >= 0, 'фикстура: isHeroCamped в main.js (.07)');
+  const seg = mainSrc.slice(iCamped, iCamped + 400);
+  assert.ok(seg.includes('isHeroPrayer'),
+    'main.js onDay: isHeroPrayer в restoreDay (RED: не добавлен)');
+  assert.ok(seg.includes('||'),
+    'main.js onDay: OR (camp + prayer → 1.1, НЕ 1.21) (RED)');
+  assert.ok(seg.includes('1.1'), 'main.js onDay: константа 1.1 (+10%)');
+  assert.ok(seg.includes(': 1'), 'main.js onDay: иначе ×1');
+});
+
+test('000235.10 W-15: NO-OP data-pins + регрессия — {реген} (regeneration/life_bloom/circle_of_light) в каталоге + бой: hp инвариантен («потребителя нет»); swift_prayer {ход,1} — moveCells не меняется; divine_favor — c.ps.buff ровно {урон,0.15,3} (второго стата НЕТ); smite — t.debuff ровно {урон_вниз,0.15,3}, урона НЕТ (бит-в-бит); holy_bind — t.bind {turns:1} (получаемый_урон_вверх НЕТ); РЕГРЕССИЯ: mend/light_heal/greater_heal — лечение бит-в-байт; ВСЕ урон-касты каталога — формула инвариантна', () => {
+  const dataMod = loadSpellsData();
+  for (const id of ['regeneration', 'life_bloom', 'circle_of_light',
+    'swift_prayer', 'divine_favor', 'smite', 'holy_bind']) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-15: ${id} (RED: нет)`);
+  }
+  const { castSpell } = loadSpells();
+  const { derived: pDer } = require('../src/player.js');
+  // (a) {реген} — потребителя нет: hp инвариантен (каст + тик).
+  {
+    const p = spellHero({ spells: ['regeneration'], wisdom: 10, mp: 40 });
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 13 });
+    const w = c.units[0];
+    w.x = 0; w.y = 0; // далеко — без вмешательства
+    const hp0 = p.hp;
+    const r = castSpell(c, 'regeneration');
+    assert.equal(r.ok, true, 'regeneration: каст ok (' + r.reason + ')');
+    assert.equal(r.healed, undefined,
+      'regeneration: лечения НЕТ (W-11: только баф)');
+    assert.deepEqual(c.ps.buff, { stat: 'реген', value: 1, turns: 3 },
+      'regeneration: c.ps.buff {реген,1,3} (записан)');
+    c._rng = () => 0.99;
+    c.endTurn(); // раунд 2: тик startRound (turns 3→2)
+    assert.equal(c.ps.buff.turns, 2, 'тик startRound: 3 → 2');
+    assert.equal(p.hp, hp0,
+      'regeneration: hp инвариантен («реген» — потребителя нет)');
+  }
+  // (b) life_bloom: хил формулой + баф {реген,1,2} той же цели.
+  {
+    const p = spellHero({ spells: ['life_bloom'], wisdom: 10, mp: 40 });
+    const pMax = pDer(p).maxHP;
+    p.hp = Math.max(1, pMax - 30);
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 13 });
+    const w = c.units[0];
+    w.x = 0; w.y = 0;
+    const r = castSpell(c, 'life_bloom');
+    assert.equal(r.ok, true, 'life_bloom: каст ok (' + r.reason + ')');
+    assert.equal(r.healed, 10,
+      'life_bloom: хил формулой (round((4+5+1)·1) = 10)');
+    assert.deepEqual(c.ps.buff, { stat: 'реген', value: 1, turns: 2 },
+      'life_bloom: c.ps.buff {реген,1,2}');
+  }
+  // (c) circle_of_light — штатная зона {реген}: союзники в радиусе
+  // u.buff, hp инвариантен; игрок не затрагивается.
+  {
+    const p = spellHero({ spells: ['circle_of_light'], wisdom: 10, mp: 40 });
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 13,
+      allies: [{ name: 'Вольк', role: 'melee', level: 1, dmg: 1.2,
+        hp: 1.1, skills: [], spells: [] }] });
+    const w = c.units.find((u) => u.side === 'mob');
+    w.x = 0; w.y = 0;
+    const a = c.units.find((u) => u.side === 'ally');
+    const aHp = a.hp;
+    const personal = { stat: 'реген', value: 1, turns: 2 };
+    c.ps.buff = personal;
+    const r = castSpell(c, 'circle_of_light');
+    assert.equal(r.ok, true, 'circle_of_light: каст ok (' + r.reason + ')');
+    assert.deepEqual(c.zone,
+      { x: c.px, y: c.py, radius: 2, stat: 'реген', value: 1, turns: 3 },
+      'circle_of_light: c.zone — штатная зона');
+    assert.equal(r.zone, 2, 'circle_of_light: out.zone = radius');
+    assert.deepEqual(a.buff, { stat: 'реген', value: 1, turns: 3 },
+      'circle_of_light: союзник в радиусе — u.buff {реген,1,3}');
+    assert.equal(c.ps.buff, personal,
+      'circle_of_light: личный баф игрока НЕ ИЗМЕНЁН (та же ссылка — слот зоны не стирает)');
+    assert.deepEqual(c.ps.buff,
+      { stat: 'реген', value: 1, turns: 2 },
+      'circle_of_light: те же stat/value/turns (игрок не затрагивается)');
+    c._rng = () => 0.99;
+    c.endTurn();
+    c.endTurn();
+    assert.equal(a.hp, aHp,
+      'circle_of_light: hp союзника инвариантен (NO-OP реген)');
+    assert.equal(c.zone.turns, 2, 'тик зоны: 3 → 2');
+  }
+  // (d) swift_prayer — баф «ход»: потребителя нет — moveCells
+  // не меняется.
+  {
+    const p = spellHero({ spells: ['swift_prayer'], wisdom: 10, mp: 40 });
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 13 });
+    const move0 = pDer(p).moveCells;
+    const r = castSpell(c, 'swift_prayer');
+    assert.equal(r.ok, true, 'swift_prayer: каст ok (' + r.reason + ')');
+    assert.deepEqual(c.ps.buff, { stat: 'ход', value: 1, turns: 3 },
+      'swift_prayer: c.ps.buff {ход,1,3}');
+    assert.equal(pDer(p).moveCells, move0,
+      'swift_prayer: moveCells не меняется («ход» — потребителя нет)');
+  }
+  // (e) divine_favor — c.ps.buff ровно {урон,0.15,3} (второго стата
+  // НЕТ).
+  {
+    const p = spellHero({ spells: ['divine_favor'], wisdom: 10, mp: 40 });
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 13 });
+    const r = castSpell(c, 'divine_favor');
+    assert.equal(r.ok, true, 'divine_favor: каст ok (' + r.reason + ')');
+    assert.deepEqual(c.ps.buff, { stat: 'урон', value: 0.15, turns: 3 },
+      'divine_favor: c.ps.buff ровно {урон,0.15,3}');
+    assert.equal(Object.keys(c.ps.buff).length, 3,
+      'divine_favor: лишних ключей НЕТ');
+  }
+  // (f) smite — t.debuff ровно {урон_вниз,0.15,3}, урона НЕТ.
+  {
+    const p = spellHero({ spells: ['smite'], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const hp0 = w.hp;
+    const r = castSpell(c, 'smite', w.id);
+    assert.equal(r.ok, true, 'smite: каст ok (' + r.reason + ')');
+    assert.deepEqual(w.debuff,
+      { stat: 'урон_вниз', value: 0.15, turns: 3 },
+      'smite: t.debuff ровно {урон_вниз,0.15,3}');
+    assert.equal(r.debuffed, w.id, 'smite: out.debuffed');
+    assert.equal(w.hp, hp0, 'smite: урона НЕТ (бит-в-бит)');
+    assert.equal(r.dmg, undefined, 'smite: out.dmg НЕТ');
+  }
+  // (g) holy_bind — t.bind {turns:1}; дебафа/урона НЕТ.
+  {
+    const p = spellHero({ spells: ['holy_bind'], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const hp0 = w.hp;
+    const r = castSpell(c, 'holy_bind', w.id);
+    assert.equal(r.ok, true, 'holy_bind: каст ok (' + r.reason + ')');
+    assert.deepEqual(w.bind, { turns: 1 }, 'holy_bind: t.bind {turns:1}');
+    assert.equal(r.bound, w.id, 'holy_bind: out.bound');
+    assert.equal(w.debuff, undefined,
+      'holy_bind: дебафа НЕТ (получаемый_урон_вверх — не ставится)');
+    assert.equal(w.hp, hp0, 'holy_bind: урона НЕТ');
+  }
+  // РЕГРЕССИЯ (главная): mend/light_heal/greater_heal — одиночный
+  // путь лечения бит-в-байт (расширение case 'лечение' НЕ МЕНЯЕТ
+  // его).
+  for (const [id, st] of [['mend', 1], ['light_heal', 1],
+    ['greater_heal', 2]]) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const pMax = pDer(p).maxHP;
+    p.hp = Math.max(1, pMax - 30);
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 13 });
+    const w = c.units[0];
+    w.x = 0; w.y = 0;
+    const r = castSpell(c, id);
+    const expected = Math.round((4 + 0.5 * 10 + 1)
+      * (1 + 0.15 * (st - 1)));
+    assert.equal(r.ok, true, `${id}: каст (${r.reason})`);
+    assert.equal(r.healed, expected,
+      `${id}: лечение бит-в-байт (${expected})`);
+  }
+  // ВСЕ урон-заклинания каталога — формула инвариантна (волна
+  // Исцеление урона не добавляет).
+  let n = 0;
+  for (const s of dataMod.SPELLS) {
+    if (s.действие !== 'урон') continue;
+    const p = spellHero({ spells: [s.id], intelligence: 1, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, s.id, c.units[0].id);
+    assert.equal(r.ok, true, `${s.id}: каст (${r.reason})`);
+    const expected = Math.round(
+      (4 + 0.5 * p.primary[s.атрибут]) *
+      (1 + 0.15 * (s.степень - 1)));
+    assert.equal(r.dmg, expected, `${s.id}: формула урона инвариантна`);
+    n += 1;
+  }
+  assert.equal(n, 29,
+    'урон-заклинаний: 29 — волна Исцеление урона НЕ добавляет (инвариант)');
+});
+
+test('000235.10 W-16: divine_protection — castOutOfCombat {ok, запись day+1, mp −7}; бой в день эффекта: buffMods {incomingMult:0.85} (форма main.js currentBuffMods) — урон по герою 100→85 и по союзнику 20→17 (РЕАЛЬНЫЙ); день+1 — запись истекла (isHeroDivineProtected false); неактивен — ×1 бит-в-бит; normalizeBuffMods: мусор incomingMult → 1; prayer+divine_protection — одна запись на id; source-пин main.js (isHeroDivineProtected/incomingMult/0.85)', () => {
+  const dataMod = loadSpellsData();
+  assert.ok(dataMod.SPELLS_BY_ID['divine_protection'],
+    'W-16: divine_protection (RED: нет)');
+  const { castOutOfCombat, isHeroDivineProtected } = loadSpells();
+  assert.equal(typeof isHeroDivineProtected, 'function',
+    '000235.10: export Spells.isHeroDivineProtected (RED: нет)');
+  const day = 10;
+  {
+    const p = spellHero({ spells: ['divine_protection'], mp: 30 });
+    const r = castOutOfCombat(p, 'divine_protection', day);
+    assert.equal(r.ok, true, 'каст вне боя ok (' + r.reason + ')');
+    assert.equal(r.expiresDay, day + 1, 'запись day+1');
+    assert.equal(p.mp, 23, 'mp −7 (30−7)');
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: 'divine_protection', expiresDay: day + 1 }]);
+    assert.equal(isHeroDivineProtected(p, day), true,
+      'каст D → активен в D (expiresDay D+1 > D)');
+    assert.equal(isHeroDivineProtected(p, day + 1), false,
+      'день+1 — запись истекла (>, не >=)');
+  }
+  // Бой в день эффекта: buffMods { incomingMult: 0.85 } — форма,
+  // которую main.js currentBuffMods отдаёт createCombat (§3.5).
+  const { derived: pDer } = require('../src/player.js');
+  function hitCase(buffMods) {
+    const p = spellHero({ spells: ['divine_protection'], mp: 40 });
+    p.primary.constitution = 20;
+    p.primary.intelligence = 2;
+    const pMax = pDer(p).maxHP;
+    p.hp = pMax;
+    const opts = { player: p, mobs: ['wolf'], mobLevel: 2, seed: 11,
+      allies: [{ name: 'Вольк', role: 'melee', level: 1, dmg: 1.2,
+        hp: 1.1, skills: [], spells: [] }] };
+    if (buffMods) opts.buffMods = buffMods;
+    const c = createCombat(opts);
+    const w = c.units.find((u) => u.side === 'mob');
+    w.x = c.px; w.y = c.py - 1;
+    w.damage = 100;
+    c._rng = () => 0.01;
+    const hpBefore = p.hp;
+    c.turnOrder = ['player', w.id];
+    c.turnIndex = 0;
+    c.phase = 'player';
+    c.endTurn();
+    const playerDmg = hpBefore - p.hp;
+    const a = c.units.find((u) => u.side === 'ally');
+    const allyDmg = combatInternals.dealDamageToAlly(c, a, 20);
+    return { playerDmg, allyDmg };
+  }
+  {
+    const { playerDmg, allyDmg } = hitCase({ incomingMult: 0.85 });
+    assert.equal(playerDmg, 85,
+      'волк 100 → 85 по герою (×0.85; броня 0) (RED: 100)');
+    assert.equal(allyDmg, 17,
+      'dealDamageToAlly 20 → 17 (×0.85) (RED: 20)');
+  }
+  {
+    const { playerDmg, allyDmg } = hitCase(undefined);
+    assert.equal(playerDmg, 100, 'неактивен — ×1 бит-в-бит (100)');
+    assert.equal(allyDmg, 20, 'неактивен — 20 бит-в-бит');
+  }
+  // normalizeBuffMods: мусор incomingMult → 1 (fail-open, паттерн
+  // damageMult/armor).
+  for (const [v, expected] of [[-1, 1], [2, 1], ['a', 1], [0, 1],
+    [null, 1], [0.5, 0.5], [undefined, 1]]) {
+    const c = createCombat({
+      player: spellHero({ spells: [] }),
+      mobs: ['wolf'], mobLevel: 2, seed: 11,
+      buffMods: { incomingMult: v } });
+    assert.equal(c.buffMods.incomingMult, expected,
+      'normalizeBuffMods: incomingMult ' + JSON.stringify(v) + ' → '
+        + expected);
+  }
+  // prayer + divine_protection — не конфликтуют (одна запись на id).
+  {
+    const p = spellHero({ spells: ['prayer', 'divine_protection'], mp: 30 });
+    assert.ok(dataMod.SPELLS_BY_ID['prayer'],
+      'W-16: prayer (RED: нет)');
+    assert.equal(castOutOfCombat(p, 'prayer', day).ok, true,
+      'prayer: каст');
+    assert.equal(castOutOfCombat(p, 'divine_protection', day).ok, true,
+      'divine_protection: каст');
+    assert.equal(p.outOfCombatEffects.length, 2, 'одна запись на id');
+    assert.deepEqual(p.outOfCombatEffects.map((r) => r.spellId).sort(),
+      ['divine_protection', 'prayer']);
+  }
+  // Source-пин main.js: currentBuffMods — divine_protection →
+  // incomingMult 0.85 (неактивен — return m, бит-в-бит).
+  const mainSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  assert.ok(mainSrc.includes('isHeroDivineProtected'),
+    'main.js: потребитель isHeroDivineProtected (RED: нет)');
+  assert.ok(mainSrc.includes('incomingMult'),
+    'main.js: buffMods.incomingMult (RED: нет)');
+  assert.ok(mainSrc.includes('0.85'),
+    'main.js: калибровка 0.85 (−15%) (RED: нет)');
 });
 
 // Задача 000240: flame_step × free_cast (000230.17) — пин (tests-only,

@@ -9024,6 +9024,19 @@ const SCROLL_IDS_000235 = [
   'veil_of_night_scroll', 'shadow_wraith_scroll', 'void_horror_scroll',
   'shadow_step_scroll', 'invisibility_scroll', 'shroud_of_night_scroll',
   'dark_presence_scroll',
+  // ре-пин 000235.10: +25 свитков волны Исцеление 000258–000282
+  'radiant_heal_scroll', 'life_bloom_scroll', 'purify_scroll',
+  'mass_heal_scroll', 'holy_mending_scroll',
+  'mass_holy_light_scroll', 'regeneration_scroll',
+  'blessing_scroll', 'divine_favor_scroll',
+  'guardian_blessing_scroll', 'swift_prayer_scroll',
+  'faith_shield_scroll', 'smite_scroll', 'unholy_wrath_scroll',
+  'stun_of_light_scroll', 'holy_bind_scroll',
+  'light_sprite_scroll', 'spirit_healer_scroll',
+  'holy_guardian_scroll', 'circle_of_light_scroll',
+  'holy_ground_scroll', 'prayer_scroll',
+  'divine_protection_scroll', 'holy_light_scroll',
+  'miracle_scroll',
 ];
 // Каталог ТЗ: id → {school, tier} (тиры = уровни заклинаний:
 // fireball L2, flame_burst L3, frost_bolt L1, blizzard L3, chill L1,

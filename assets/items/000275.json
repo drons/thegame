@@ -1,0 +1,13 @@
+{
+  "id": "spirit_healer_scroll",
+  "name": "Свиток: Дух-целитель",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Дух-целитель» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "spirit_healer"
+  }
+}
