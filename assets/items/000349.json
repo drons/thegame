@@ -1,0 +1,18 @@
+{
+  "id": "rune_stylus",
+  "name": "Резец руниста",
+  "kind": "tool",
+  "weight": 1,
+  "value": 65,
+  "desc": "Резец руниста: камень отвечает на острое.",
+  "icon": "assets/sprites/items/rune_stylus.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.07
+    }
+  ]
+}

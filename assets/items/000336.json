@@ -1,0 +1,22 @@
+{
+  "id": "iron_pitchfork",
+  "name": "Железные вилы",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 3,
+  "value": 28,
+  "desc": "Железные вилы: сено теперь слушается.",
+  "stats": {
+    "damage": 5
+  },
+  "icon": "assets/sprites/items/iron_pitchfork.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.04
+    }
+  ]
+}

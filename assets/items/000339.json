@@ -1,0 +1,18 @@
+{
+  "id": "iron_tongs",
+  "name": "Кузнечные клещи",
+  "kind": "tool",
+  "weight": 1.5,
+  "value": 20,
+  "desc": "Кузнечные клещи: огонь отпустит, когда захочешь.",
+  "icon": "assets/sprites/items/iron_tongs.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.03
+    }
+  ]
+}

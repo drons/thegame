@@ -1604,43 +1604,40 @@ const SHOP_GOLDEN = {
     rune_gauntlets: 4,
     star_gloves: 2,
     void_gauntlet: 3,
-    // Ре-пин 000230.13: left_hand (000358-000382, kind shield/
-    // artifact) — КОНЕЦ каталога (ПОСЛЕ рук), rng-хвост пула
-    // allItems → += 20 (steel_buckler/rune_charm/scholar_pendant/
-    // arcane_eye на этой клетке не выпали); остальные ключи стока
-    // не сдвинулись (node-симуляция: seed/старые стоки
-    // byte-identical). Ре-пин 000230.14: кольца (000383-000407)
-    // — КОНЕЦ каталога (ПОСЛЕ left_hand) → += 20 колец
-    // (node-симуляция: seed/остальные стоки не сдвинулись).
-    wooden_buckler: 2,
-    leather_shield: 4,
-    cloth_shield: 1,
-    wicker_buckler: 4,
-    oiled_shield: 4,
-    bone_shield: 5,
-    horn_shield: 5,
-    palm_shield: 1,
-    ash_shield: 2,
-    iron_round: 2,
-    guard_amulet: 4,
-    ember_focus: 2,
-    frost_charm: 1,
-    ward_crystal: 2,
-    cinder_eye: 3,
-    frost_orb: 2,
-    rune_sphere: 1,
-    mind_pendant: 5,
-    snow_focus: 5,
-    heart_of_elements: 4,
-    copper_ring: 1, iron_ring: 4, thread_ring: 3, stone_ring: 4,
-    clay_ring: 3, wood_ring: 2, leather_ring: 4, silver_ring: 3,
-    silver_signet: 5, gold_ring: 3, glacier_ring: 3, quartz_ring: 3,
-    obsidian_ring: 3, sapphire_ring: 1, gold_signet: 2, ruby_ring: 2,
-    frost_ring: 1, rune_ring: 1, scholar_ring: 2, void_ring: 2,
-    phoenix_ring: 5 } },
+    // Ре-пин 000230.13: left_hand (000358-000382) — rng-хвост
+    // пула allItems; ре-пин 000230.14: кольца (000383-000407) —
+    // rng-хвост; ре-пин 000230.12 (решение мержа): каталог =
+    // база + .12 (000333-000357) + .13 + .14 — хвосты .13/.14
+    // сдвинулись (значения пересимулированы по финальному
+    // каталогу 382); += 20 right-hand (не выпали: bone_graver/
+    // steel_pitchfork/ember_staff/rune_stylus/sage_staff);
+    // остальные ключи стока byte-identical (node-симуляция).
+    wood_scyte: 2, iron_scyte: 4, wood_pitchfork: 1, iron_pitchfork: 4,
+    copper_scyte: 4, iron_hammer: 5, iron_tongs: 5, clay_crucible: 1,
+    stone_mortar: 2, steel_scyte: 2, rime_staff: 4, rune_staff: 2,
+    steel_hammer: 1, harvest_scyte: 2, flame_staff: 3, ice_staff: 2,
+    silver_crucible: 1, rune_chisel: 5, mithril_hammer: 5, philosopher_staff: 4,
+    wooden_buckler: 1, cloth_shield: 4, wicker_buckler: 3, oiled_shield: 4,
+    bone_shield: 3, horn_shield: 2, palm_shield: 4, ash_shield: 3,
+    clay_buckler: 5, iron_round: 3, steel_buckler: 3, rune_charm: 3,
+    guard_amulet: 3, frost_charm: 1, scholar_pendant: 2, cinder_eye: 2,
+    frost_orb: 1, rune_sphere: 1, mind_pendant: 2, snow_focus: 2,
+    heart_of_elements: 5, copper_ring: 1, bone_ring: 4, iron_ring: 5,
+    thread_ring: 3, stone_ring: 2, clay_ring: 5, wood_ring: 5,
+    leather_ring: 5, silver_ring: 4, silver_signet: 3, gold_ring: 3,
+    glacier_ring: 2, amethyst_ring: 1, sapphire_ring: 4, gold_signet: 1,
+    emerald_signet: 3, rune_ring: 4, void_ring: 3, phoenix_ring: 3 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
-    war_hammer: 1 } },
+    war_hammer: 1,
+    // Ре-пин 000230.12: пул лавки оружия (kind weapon) 7 → 22
+    // (15 новых right-hand weapon; tool вне пула) — rng-хвост →
+    // += 13 новых (не выпали: iron_pitchfork/ice_staff).
+    wood_scyte: 2, iron_scyte: 1, wood_pitchfork: 3,
+    copper_scyte: 1, steel_scyte: 2, steel_pitchfork: 3,
+    ember_staff: 1, rime_staff: 3, rune_staff: 3,
+    harvest_scyte: 2, flame_staff: 3, sage_staff: 2,
+    philosopher_staff: 3 } },
   '-37,21,1,7,44,1': { seed: 1556417893, stock: {
     minor_healing: 3, greater_healing: 3, mana_potion: 2,
     mana_elixir: 3, bread: 3, meat: 1, honey_cake: 1 } },

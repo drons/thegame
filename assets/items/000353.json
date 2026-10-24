@@ -1,0 +1,28 @@
+{
+  "id": "silver_crucible",
+  "name": "Серебряный тигель",
+  "kind": "tool",
+  "weight": 1.5,
+  "value": 200,
+  "desc": "Серебряный тигель: в нём варится то, что не стыдно пить.",
+  "icon": "assets/sprites/items/silver_crucible.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "set": "forger",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.15
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "forge",
+        "amount": 0.05
+      }
+    ]
+  }
+}

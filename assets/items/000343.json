@@ -1,0 +1,28 @@
+{
+  "id": "steel_scyte",
+  "name": "Стальная коса",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 3.5,
+  "value": 80,
+  "desc": "Стальная коса: поле уступает без торга.",
+  "stats": {
+    "damage": 7
+  },
+  "icon": "assets/sprites/items/steel_scyte.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "set": "harvester",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.06
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "damage": 2
+    }
+  }
+}

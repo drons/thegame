@@ -1,0 +1,26 @@
+{
+  "id": "ice_staff",
+  "name": "Посох льда",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2.5,
+  "value": 260,
+  "desc": "Посох льда: ледяной болт сам ищет цель.",
+  "stats": {
+    "damage": 8
+  },
+  "icon": "assets/sprites/items/ice_staff.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.17
+    },
+    {
+      "type": "free_cast",
+      "spell": "frost_bolt"
+    }
+  ]
+}

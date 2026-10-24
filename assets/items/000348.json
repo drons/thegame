@@ -1,0 +1,18 @@
+{
+  "id": "steel_hammer",
+  "name": "Стальной молот",
+  "kind": "tool",
+  "weight": 2,
+  "value": 60,
+  "desc": "Стальной молот: каждый удар — по метке.",
+  "icon": "assets/sprites/items/steel_hammer.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.08
+    }
+  ]
+}

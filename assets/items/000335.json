@@ -1,0 +1,22 @@
+{
+  "id": "wood_pitchfork",
+  "name": "Деревянные вилы",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 2.5,
+  "value": 22,
+  "desc": "Деревянные вилы: три зубца — три аргумента.",
+  "stats": {
+    "damage": 4
+  },
+  "icon": "assets/sprites/items/wood_pitchfork.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.03
+    }
+  ]
+}

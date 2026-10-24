@@ -1,0 +1,28 @@
+{
+  "id": "mithril_hammer",
+  "name": "Мифриловый молот",
+  "kind": "tool",
+  "weight": 2,
+  "value": 650,
+  "desc": "Мифриловый молот: металл поёт, а кузнец слушает.",
+  "icon": "assets/sprites/items/mithril_hammer.svg",
+  "slot": "right_hand",
+  "rarity": "legendary",
+  "set": "forger",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.32
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "forge",
+        "amount": 0.05
+      }
+    ]
+  }
+}

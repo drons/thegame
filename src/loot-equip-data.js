@@ -31,11 +31,12 @@
   // списки, каталог в рантайме НЕ читается): значения = id-строки
   // предметов, редкость предмета = КЛЮЧ массива. Заполнено 000230.08
   // (head 25) + 000230.09 (ears 25 + neck 25) + 000230.10 (torso 25)
-  // + 000230.11 (forearms 25 + palms 25) + 000230.13 (left_hand 25:
-  // 12 shield + 13 artifact) + 000230.14 (rings 25); id в
-  // каталожном порядке внутри тира (сначала ears, потом neck, потом
-  // torso, потом forearms, потом palms, потом left_hand, потом
-  // rings); волны 000230.12, .15 добавляют свои id КОНЦОМ тиров.
+  // + 000230.11 (forearms 25 + palms 25) + 000230.12 (right_hand 25:
+  // 15 weapon + 10 tool) + 000230.13 (left_hand 25: 12 shield + 13
+  // artifact) + 000230.14 (rings 25); id в каталожном порядке внутри
+  // тира (сначала ears, потом neck, потом torso, потом forearms,
+  // потом palms, потом right_hand, потом left_hand, потом rings);
+  // волна 000230.15 добавляет свои id КОНЦОМ тиров.
   const EQUIP_POOLS = {
     common: ['straw_hat', 'wool_cap', 'leather_cap', 'fur_hat',
              'cloth_band', 'wanderer_cap', 'hood_common',
@@ -56,6 +57,10 @@
              'rough_gauntlets', 'archer_gloves', 'linen_wraps',
              'iron_gauntlets', 'bone_grips', 'wood_guards',
              'fine_gloves',
+             'wood_scyte', 'iron_scyte', 'wood_pitchfork',
+             'iron_pitchfork', 'copper_scyte', 'iron_hammer',
+             'iron_tongs', 'clay_crucible', 'stone_mortar',
+             'bone_graver',
              'wooden_buckler', 'leather_shield', 'cloth_shield',
              'wicker_buckler', 'oiled_shield', 'bone_shield',
              'horn_shield', 'palm_shield', 'ash_shield',
@@ -77,6 +82,9 @@
            'studded_gloves', 'copper_gauntlets', 'quiver_gloves',
            'silver_gauntlets', 'night_gloves', 'iron_wraps',
            'wind_gloves',
+           'steel_scyte', 'steel_pitchfork', 'ember_staff',
+           'rime_staff', 'rune_staff', 'steel_hammer',
+           'rune_stylus',
            'iron_round', 'steel_buckler', 'rune_charm',
            'guard_amulet', 'ember_focus', 'frost_charm',
            'scholar_pendant',
@@ -93,6 +101,8 @@
            'ghost_cuff', 'swift_brace',
            'steel_gauntlets', 'gold_gloves', 'emerald_gauntlets',
            'phantom_gloves', 'haste_wraps',
+           'harvest_scyte', 'flame_staff', 'ice_staff',
+           'silver_crucible', 'rune_chisel',
            'ward_crystal', 'cinder_eye', 'frost_orb', 'rune_sphere',
            'mind_pendant',
            'emerald_signet', 'ruby_ring', 'frost_ring', 'rune_ring',
@@ -102,10 +112,12 @@
                 'pilgrim_sutan', 'void_robe',
                 'rune_bracers', 'star_armguard', 'rune_gauntlets',
                 'star_gloves',
+                'sage_staff', 'mithril_hammer',
                 'arcane_eye', 'snow_focus',
                 'star_signet', 'void_ring'],
     impossible: ['crown_flame', 'soul_bell', 'dawn_pendant',
                  'aegis_mantle', 'titan_brace', 'void_gauntlet',
+                 'philosopher_staff',
                  'heart_of_elements',
                  'phoenix_ring'],
   };

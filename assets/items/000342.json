@@ -1,0 +1,18 @@
+{
+  "id": "bone_graver",
+  "name": "Костяной резец",
+  "kind": "tool",
+  "weight": 1,
+  "value": 22,
+  "desc": "Костяной резец: чертит то, что не сотрётся.",
+  "icon": "assets/sprites/items/bone_graver.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.04
+    }
+  ]
+}

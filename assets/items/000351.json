@@ -1,0 +1,26 @@
+{
+  "id": "flame_staff",
+  "name": "Посох пламени",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2.5,
+  "value": 240,
+  "desc": "Посох пламени: огненный залп — без маны и слов.",
+  "stats": {
+    "damage": 7
+  },
+  "icon": "assets/sprites/items/flame_staff.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.15
+    },
+    {
+      "type": "free_cast",
+      "spell": "fireball"
+    }
+  ]
+}

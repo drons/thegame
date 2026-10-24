@@ -5120,7 +5120,7 @@ test('000132-N1: детерминизм — сиды 5..10, два прогон�
   }
 });
 
-test('000132-N2: точные составы — rng→0 (таблица+база+редкий+экипировка), rng→0.99 (мимо лута + экипировка), 100%-таблица, слияние qty, порядок таблицы (ре-пин 000230.08: пулы экипировки не пусты — +1 экипировочный ПОСЛЕДНИМ: (а) r=0 → common pool[0] = straw_hat; (б–д) r=0.99 → legendary (0.99 < 0.999…) pool[floor(0.99·16)] = void_ring; ре-пин 000230.09: legendary-пул 2 → 6, конец пула; ре-пин 000230.10: legendary-пул 6 → 8, конец = torso; ре-пин 000230.11: legendary-пул 8 → 12, конец = palms; ре-пин 000230.13: legendary-пул 12 → 14, конец = left_hand; ре-пин 000230.14: legendary-пул 14 → 16, конец = кольца, floor(0.99·16) = 15 = void_ring)', () => {
+test('000132-N2: точные составы — rng→0 (таблица+база+редкий+экипировка), rng→0.99 (мимо лута + экипировка), 100%-таблица, слияние qty, порядок таблицы (ре-пин 000230.08: пулы экипировки не пусты — +1 экипировочный ПОСЛЕДНИМ: (а) r=0 → common pool[0] = straw_hat; (б–д) r=0.99 → legendary (0.99 < 0.999…) pool[floor(0.99·18)] = void_ring; ре-пин 000230.09: legendary-пул 2 → 6, конец пула; ре-пин 000230.10: legendary-пул 6 → 8, конец = torso; ре-пин 000230.11: legendary-пул 8 → 12, конец = palms; ре-пин 000230.12: legendary-пул 12 → 14 («правая рука»: sage_staff + mithril_hammer); ре-пин 000230.13: legendary-пул 14 → 16, конец = left_hand; ре-пин 000230.14: legendary-пул 16 → 18, конец = кольца, floor(0.99·18) = 17 = void_ring)', () => {
   // (а) rng→0, 2×волк L2: ВСЕ роллы попадают. Таблица волка
   // leather_armor (каждый) → qty 2; база — BASE_POOL[0] = minor_healing
   // (каждый) → qty 2; редкий — RARE_POOL[0] = iron_sword (ОДИН на бой).
@@ -5143,11 +5143,12 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
   }
   // (б) rng→0.99, 2×волк L2: ВСЕ лут-роллы мимо (0.99 > 0.1 / 0.25 /
   // 0.05+0.01·2); экипировка: tier legendary (0.99 < 0.999…), select
-  // pool[floor(0.99·16)] = pool[15] = void_ring (ре-пин 000230.09:
+  // pool[floor(0.99·18)] = pool[17] = void_ring (ре-пин 000230.09:
   // legendary-пул растёт 2 → 6 в каталожном порядке, конец = шея;
   // ре-пин 000230.10: 6 → 8, конец = torso; ре-пин 000230.11:
-  // 8 → 12, конец = palms; ре-пин 000230.13: 12 → 14, конец =
-  // left_hand; ре-пин 000230.14: 14 → 16, конец = кольца).
+  // 8 → 12, конец = palms; ре-пин 000230.12: 12 → 14,
+  // «правая рука»; ре-пин 000230.13: 14 → 16, конец = left_hand;
+  // ре-пин 000230.14: 16 → 18, конец = кольца).
   // (Убийство — dealDamage: при константе 0.99 удары игрока
   // гарантированно промах, hitChance ≤ 0.95.)
   {
@@ -9097,7 +9098,7 @@ test('000235.05 S2: солёный поток — детерминизм по (s
   }
 });
 
-test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll; ре-пин 000230.11: common-пул 40 → 60, legendary-пул 8 → 12 (a → iron_gauntlets; b → star_gloves); ре-пин 000230.13: common-пул 60 → 70, legendary-пул 12 → 14 (a → horn_shield; b → snow_focus); ре-пин 000230.14: common-пул 70 → 80, legendary-пул 14 → 16 (a → clay_ring; b → void_ring))', () => {
+test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll; ре-пин 000230.11: common-пул 40 → 60, legendary-пул 8 → 12 (a → iron_gauntlets; b → star_gloves); ре-пин 000230.12: common-пул 60 → 70, legendary-пул 12 → 14 («правая рука»: a → iron_tongs; b → mithril_hammer); ре-пин 000230.13: common-пул 70 → 80, legendary-пул 14 → 16 (a → bone_shield; b → snow_focus); ре-пин 000230.14: common-пул 80 → 90, legendary-пул 16 → 18 (a → clay_ring; b → void_ring))', () => {
   // (a) Золотой бой (seed 6, wolf L4, герой L1): значения доизменения
   //     (пробный прогон на текущем коде) — новый код обязан их
   //     сохранить: новый ролл — СТРОГО ПОСЛЕ существующих (пин N2),
@@ -9114,16 +9115,16 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   //     Ре-пин 000230.11: common-пул растёт 40 → 60 (forearms+palms
   //     конец, каталожный порядок) → тот же поток rng даёт
   //     iron_gauntlets (node-перепрогон, ORE-7).
-  //     Ре-пин 000230.14: common-пул растёт 60 → 70 (кольца-конец,
-  //     каталожный порядок; select idx 66) → тот же поток rng даёт
-  //     wood_ring (node-перепрогон, ORE-7).
+  //     Ре-пин 000230.12: common-пул растёт 60 → 70 (конец =
+  //     «правая рука», каталожный порядок; select idx 66) → тот же
+  //     поток rng даёт iron_tongs (node-перепрогон, ORE-7).
   //     Ре-пин 000235.08: +25 свитков волны Лёд — солёный поток
   //     (каталог 67) даёт frost_wisp_scroll (node-перепрогон).
-  //     Ре-пин 000230.13: common-пул растёт 60 → 70 (left_hand-конец,
-  //     каталожный порядок) → тот же поток rng даёт horn_shield
-  //     (node-перепрогон, ORE-7).
-  //     Ре-пин 000230.14: common-пул растёт 70 → 80 (кольца-конец,
+  //     Ре-пин 000230.13: common-пул растёт 70 → 80 (left_hand-конец,
   //     каталожный порядок; select idx 75) → тот же поток rng даёт
+  //     bone_shield (node-перепрогон, ORE-7).
+  //     Ре-пин 000230.14: common-пул растёт 80 → 90 (кольца-конец,
+  //     каталожный порядок; select idx 85) → тот же поток rng даёт
   //     clay_ring (node-перепрогон, ORE-7).
   const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
     killBy: 'dealDamage' });
@@ -9135,17 +9136,17 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
     { id: 'frost_wisp_scroll', qty: 1 },
   ], 'items: существующий состав бит-в-бит + экипировочный + свиток '
     + '(ре-пин 000235.08: золотой frost_wisp_scroll; ре-пин '
-    + '000230.14: common pool[75] = clay_ring; '
+    + '000230.12: common pool[85] = clay_ring; '
     + 'СТРОГО после (порядок первого появления; факт: '
     + JSON.stringify(c.result.items) + ')');
   // (b) c._rng → 0.99: все СТАРЫЕ роллы промазывают (таблица wolf 0.1,
   //     базовый 0.25, редкий 0.05+0.01·4 = 0.09); экипировка: tier
-  //     legendary (0.99 < 0.999…), select pool[floor(0.99·16)] =
-  //     pool[15] = void_ring (ре-пин 000230.09: legendary-пул 2 → 6,
+  //     legendary (0.99 < 0.999…), select pool[floor(0.99·18)] =
+  //     pool[17] = void_ring (ре-пин 000230.09: legendary-пул 2 → 6,
   //     конец = шея; ре-пин 000230.10: 6 → 8, конец = torso;
-  //     ре-пин 000230.11: 8 → 12, конец = palms; ре-пин 000230.13:
-  //     12 → 14, конец = left_hand; ре-пин 000230.14: 14 → 16,
-  //     конец = кольца); в луте
+  //     ре-пин 000230.11: 8 → 12, конец = palms; ре-пин 000230.12:
+  //     12 → 14, «правая рука»; ре-пин 000230.13: 14 → 16, конец =
+  //     left_hand; ре-пин 000230.14: 16 → 18, конец = кольца); в луте
   //     экипировка + свиток (солёный поток
   //     не зависит от c._rng — «старые потоки не сдвигаются», тип пина
   //     N2). Ре-пин 000235.08: каталог 67 — золотой свиток
@@ -9537,13 +9538,14 @@ const RING_POOL_TAILS_00023014 = {
   impossible: ['phoenix_ring'],
 };
 // Ре-пины мержа (master после 000230.13): базовые тиры 40/28/20/8/4
-// + 50 рук (000230.11: 20/14/10/4/2) + 25 left_hand (000230.13:
-// 10/7/5/2/1) + 25 колец (000230.14: 10/7/5/2/1) = 80/56/40/16/8.
+// + 50 рук (000230.11: 20/14/10/4/2) + 25 «правая рука» (000230.12:
+// 10/7/5/2/1) + 25 left_hand (000230.13: 10/7/5/2/1) + 25 колец
+// (000230.14: 10/7/5/2/1) = 90/63/45/18/9.
 const RING_POOL_SIZES_00023014 = {
-  common: 80, rare: 56, epic: 40, legendary: 16, impossible: 8,
+  common: 90, rare: 63, epic: 45, legendary: 18, impossible: 9,
 };
 
-test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиров (append; §2.5): размеры 40/28/20/8/4 → 60/42/30/12/6 (ре-пин 000230.11: +50 рук) → 70/49/35/14/7 (ре-пин 000230.13: +25 left_hand) → РОВНО 80/56/40/16/8 (Σ 200, ре-пин 000230.14: +25 колец); хвосты = 25 id колец в каталожном порядке (10/7/5/2/1, compatible с динамическими EQ2/CH4 «пул ≡ каталог по редкости, каталожный порядок»); RARITY — 0 diff (EQ1: 50/30/15/4.9/0.1, Σ 1) (краснота: колец в EQUIP_POOLS нет — тиры 40/28/20/8/4)', () => {
+test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиров (append; §2.5): размеры 40/28/20/8/4 → 60/42/30/12/6 (ре-пин 000230.11: +50 рук) → 70/49/35/14/7 (ре-пин 000230.12: +25 «правая рука») → 80/56/40/16/8 (ре-пин 000230.14: +25 колец) → РОВНО 90/63/45/18/9 (Σ 225, ре-пин 000230.13: +25 left_hand, 000230.12: +25 «правая рука»); хвосты = 25 id колец в каталожном порядке (10/7/5/2/1, compatible с динамическими EQ2/CH4 «пул ≡ каталог по редкости, каталожный порядок»); RARITY — 0 diff (EQ1: 50/30/15/4.9/0.1, Σ 1) (краснота: колец в EQUIP_POOLS нет — тиры 40/28/20/8/4)', () => {
   const L = require('../src/loot-equip-data.js');
   for (const t of EQ_TIERS) {
     const pool = L.EQUIP_POOLS[t];
@@ -9572,4 +9574,163 @@ test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиро�
     { id: 'legendary', chance: 0.049 },
     { id: 'impossible', chance: 0.001 },
   ], 'RARITY — БЕЗ ПРАВОК (EQ1; баланс-инвариант D-08)');
+});
+
+// Задача 000230.12 — предметы «Правая рука»: бой (красные тесты).
+// Контракт — memory/000230.12-right-hand-items-wave.md §3.1 R9–R11.
+// RED (TDD): у 7 legacy-оружий поля slot НЕТ (R9 — краснота именно
+// «нет поля slot», бой бит-в-бит), в каталоге 0 предметов
+// subtype 'staff' / kind 'tool' (R10/R11 — «волна не добавлена»).
+// Д-02: staff → attackSkillId 'staff' (subtype-маркер, навыка в
+// каталоге НЕТ — practice applied 0, НИМУТАЦИИ); tool → damage 0 →
+// формула кулаков + skillId 'fists'.
+// =====================================================================
+
+test('000230.12 R9: remap бит-в-бит — 7 legacy-оружий: JSON-поле "slot" === "right_hand" (краснота: у 7 оружия поля slot нет — фолбэк slotOf) + бой НЕ изменился: урон = stats.damage (strongHero), даль (ближний 1 / лук 3), practice-скилл swordsman/swordsman/swordsman/archer/archer/heavy/heavy, опыт в копилку; slot-поле не изменило equipmentStats (hitBonus/dmgBonus/armor)', () => {
+  // [id, файл, stats.damage, practice-скилл, лук]
+  const cases = [
+    ['wood_sword', '000001.json', 3, 'swordsman', false],
+    ['iron_sword', '000002.json', 5, 'swordsman', false],
+    ['steel_sword', '000003.json', 7, 'swordsman', false],
+    ['short_bow', '000004.json', 4, 'archer', true],
+    ['hunting_bow', '000005.json', 6, 'archer', true],
+    ['battle_axe', '000006.json', 8, 'heavy', false],
+    ['war_hammer', '000007.json', 10, 'heavy', false],
+  ];
+  for (const [id, file, dmg, skill, isBow] of cases) {
+    const j = JSON.parse(
+      fs.readFileSync(path.join(ROOT, 'assets', 'items', file), 'utf8'));
+    assert.equal(j.slot, 'right_hand',
+      file + ': ЯВНОЕ "slot":"right_hand" в JSON (краснота: у '
+      + 'legacy-оружия поля slot нет — фолбэк slotOf); факт: '
+      + j.slot);
+    const p = strongHero(); // сила 1, уровень 1
+    assert.equal(I.addItem(p, id).ok, true, id + ': выдача');
+    assert.equal(I.equip(p, id).ok, true, id + ': equip');
+    assert.equal(p.equipment.right_hand, id,
+      id + ': предмет в слоте right_hand');
+    // slot-поле не изменило боевой интерфейс (бит-в-бит).
+    const es = I.equipmentStats(p);
+    assert.equal(es.damage, dmg,
+      id + ': equipmentStats.damage = stats.damage (бит-в-бит)');
+    assert.equal(es.armor, 0, id + ': equipmentStats.armor 0');
+    const c = createCombat({
+      player: p, groupType: 3, seed: 5, width: 7, height: 4,
+    });
+    c._rng = () => 0.01; // все атаки попадают
+    const far = c.units.find(
+      (u) => Math.abs(u.x - c.px) + Math.abs(u.y - c.py) === 3);
+    assert.ok(far, id + ': на карте есть моб на дистанции 3');
+    let res;
+    if (isBow) {
+      // Лук бьёт в даль (дистанция 3).
+      res = c.attack(far.id);
+      assert.equal(res.ok, true, id + ': лук бьёт в даль');
+      assert.equal(res.hit, true, id + ': попадание');
+      assert.equal(res.dmg, dmg, id + ': урон = stats.damage');
+    } else {
+      // Ближний бой: вплотную — урон; дистанция 3 — недосягаема.
+      standNextTo(c, c.units[0]);
+      res = c.attack(c.units[0].id);
+      assert.equal(res.ok, true, id + ': атака');
+      assert.equal(res.hit, true, id + ': попадание');
+      assert.equal(res.dmg, dmg,
+        id + ': урон = stats.damage (бит-в-бит)');
+      c.ps.attack = 1;
+      const rf = c.attack(far.id);
+      assert.equal(rf.ok, false,
+        id + ': ближний бой — дистанция 3 недосягаема');
+      assert.match(rf.reason, /далеко/);
+    }
+    assert.equal(res.practice.skill, skill,
+      id + ': practice-скилл «' + skill + '» (бит-в-бит)');
+    assert.equal(res.practice.xp, PRACTICE_XP.hit, id + ': xp = hit');
+    assert.equal(p.skillXp[skill], PRACTICE_XP.hit,
+      id + ': опыт записан в копилку «' + skill + '»');
+  }
+});
+
+test('000230.12 R10: staff — 7 посохов: дальность МЕЛ 1 (maxDist = isBow?4:1, combat.js:1409 — посох не лук), урон = stats.damage (eq.dmgBonus = 0: staff не в sword/bow/heavy-ветках equipmentStats), skillId "staff" (D-02): practice("staff") → {applied: 0} — НИМУТАЦИИ (skillXp.staff отсутствует — навыка нет в каталоге); equipmentStats {damage: stats.damage, subtype: "staff", hitBonus 0, dmgBonus 0, armor 0} (краснота: предметов subtype staff нет в каталоге)', () => {
+  // [id, stats.damage] — ростер §2.1 (7 staff).
+  const staffs = [
+    ['ember_staff', 5], ['rime_staff', 5], ['rune_staff', 6],
+    ['flame_staff', 7], ['ice_staff', 8], ['sage_staff', 11],
+    ['philosopher_staff', 13],
+  ];
+  for (const [id, dmg] of staffs) {
+    const p = strongHero();
+    const ra = I.addItem(p, id);
+    assert.equal(ra.ok, true,
+      id + ': выдача (краснота: предмета нет — волна не добавлена)');
+    assert.equal(I.equip(p, id).ok, true, id + ': equip');
+    assert.equal(p.equipment.right_hand, id,
+      id + ': предмет в слоте right_hand');
+    assert.deepEqual(I.equipmentStats(p),
+      { damage: dmg, subtype: 'staff', hitBonus: 0, dmgBonus: 0,
+        armor: 0 },
+      id + ': equipmentStats — staff проходит ВСЕ ветки: '
+      + 'hitBonus/dmgBonus 0, damage = stats.damage');
+    const c = createCombat({
+      player: p, groupType: 3, seed: 5, width: 7, height: 4,
+    });
+    c._rng = () => 0.01; // попадание гарантировано
+    // Дистанция 3 — недосягаема (посох — мел, maxDist 1).
+    const far = c.units.find(
+      (u) => Math.abs(u.x - c.px) + Math.abs(u.y - c.py) === 3);
+    assert.ok(far, id + ': на карте есть моб на дистанции 3');
+    const rf = c.attack(far.id);
+    assert.equal(rf.ok, false,
+      id + ': дальность посоха 1 — дистанция 3 недосягаема');
+    assert.match(rf.reason, /далеко/);
+    // Вплотную — урон = stats.damage.
+    standNextTo(c, c.units[0]);
+    const r = c.attack(c.units[0].id);
+    assert.equal(r.ok, true, id + ': атака');
+    assert.equal(r.hit, true, id + ': попадание');
+    assert.equal(r.dmg, dmg,
+      id + ': урон = stats.damage (1 + dmgBonus 0)');
+    assert.equal(r.practice.skill, 'staff',
+      id + ': skillId "staff" (D-02: subtype-маркер, каталожного '
+      + 'навыка нет)');
+    assert.equal(r.practice.xp, PRACTICE_XP.hit, id + ': xp = hit');
+    assert.equal(r.practice.applied, 0,
+      id + ': practice("staff") → applied 0 (навык неизвестен)');
+    assert.equal(r.practice.level, 0, id + ': practice level 0');
+    assert.equal(p.skillXp.staff, undefined,
+      id + ': НИМУТАЦИИ — skillXp.staff отсутствует');
+  }
+});
+
+test('000230.12 R11: tool — 10 инструментов: equip в right_hand (явное slot-поле), stats НЕТ → equipmentStats {damage 0, subtype null, hitBonus 0, dmgBonus 0, armor 0} → формула КУЛАКОВ (3+floor(str·0.8)+floor(level·0.5))·(1+fistDamageBonus+heavyDamageBonus): strongHero (сила 1, уровень 1) — 3; skillId "fists" (attackSkillId: damage 0 → fists), опыт «Каменным кулакам» (краснота: предметов kind tool нет в каталоге)', () => {
+  const tools = [
+    'iron_hammer', 'iron_tongs', 'clay_crucible', 'stone_mortar',
+    'bone_graver', 'steel_hammer', 'rune_stylus', 'silver_crucible',
+    'rune_chisel', 'mithril_hammer',
+  ];
+  for (const id of tools) {
+    const p = strongHero(); // сила 1, уровень 1 → кулаки: 3
+    const ra = I.addItem(p, id);
+    assert.equal(ra.ok, true,
+      id + ': выдача (краснота: предмета нет — волна не добавлена)');
+    assert.equal(I.equip(p, id).ok, true, id + ': equip');
+    assert.equal(p.equipment.right_hand, id,
+      id + ': предмет в слоте right_hand');
+    assert.deepEqual(I.equipmentStats(p),
+      { damage: 0, subtype: null, hitBonus: 0, dmgBonus: 0, armor: 0 },
+      id + ': equipmentStats — tool без stats → нули '
+      + '(ветка кулаков)');
+    const c = createCombat({ player: p, groupType: 3, seed: 5 });
+    c._rng = () => 0.01; // попадание гарантировано
+    standNextTo(c, c.units[0]);
+    const r = c.attack(c.units[0].id);
+    assert.equal(r.ok, true, id + ': атака');
+    assert.equal(r.hit, true, id + ': попадание');
+    assert.equal(r.dmg, 3,
+      id + ': урон = формула кулаков 3 (сила 1, уровень 1) — tool '
+      + 'урона не даёт');
+    assert.equal(r.practice.skill, 'fists',
+      id + ': practice «fists» (damage 0 → безоружная ветка)');
+    assert.equal(p.skillXp.fists, PRACTICE_XP.hit,
+      id + ': опыт «Каменным кулакам» записан');
+  }
 });

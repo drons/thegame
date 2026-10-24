@@ -1,0 +1,18 @@
+{
+  "id": "rune_chisel",
+  "name": "Резец начертанья",
+  "kind": "tool",
+  "weight": 1,
+  "value": 210,
+  "desc": "Резец начертанья: начертано — значит есть.",
+  "icon": "assets/sprites/items/rune_chisel.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.18
+    }
+  ]
+}

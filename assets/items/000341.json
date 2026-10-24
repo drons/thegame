@@ -1,0 +1,18 @@
+{
+  "id": "stone_mortar",
+  "name": "Каменная ступка",
+  "kind": "tool",
+  "weight": 1.5,
+  "value": 18,
+  "desc": "Каменная ступка: истирает до истины.",
+  "icon": "assets/sprites/items/stone_mortar.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.04
+    }
+  ]
+}

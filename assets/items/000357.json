@@ -1,0 +1,22 @@
+{
+  "id": "philosopher_staff",
+  "name": "Посох философа",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 3,
+  "value": 1400,
+  "desc": "Посох философа: спрашивает дважды, отвечает один раз.",
+  "stats": {
+    "damage": 13
+  },
+  "icon": "assets/sprites/items/philosopher_staff.svg",
+  "slot": "right_hand",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.4
+    }
+  ]
+}

@@ -259,6 +259,7 @@
     if (eq.damage > 0) {
       if (eq.subtype === 'bow') return 'archer';
       if (eq.subtype === 'heavy') return 'heavy';
+      if (eq.subtype === 'staff') return 'staff';
       return 'swordsman';
     }
     return 'fists';

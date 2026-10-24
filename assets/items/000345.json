@@ -1,0 +1,22 @@
+{
+  "id": "ember_staff",
+  "name": "Посох тлеющих углей",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2,
+  "value": 70,
+  "desc": "Посох тлеющих углей: в навершии ещё теплится искра.",
+  "stats": {
+    "damage": 5
+  },
+  "icon": "assets/sprites/items/ember_staff.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.06
+    }
+  ]
+}

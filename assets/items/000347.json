@@ -1,0 +1,22 @@
+{
+  "id": "rune_staff",
+  "name": "Посох рун",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2,
+  "value": 90,
+  "desc": "Посох рун: знаки на древке читаются поперёк.",
+  "stats": {
+    "damage": 6
+  },
+  "icon": "assets/sprites/items/rune_staff.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.08
+    }
+  ]
+}

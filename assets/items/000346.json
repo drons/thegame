@@ -1,0 +1,22 @@
+{
+  "id": "rime_staff",
+  "name": "Посох инея",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2,
+  "value": 75,
+  "desc": "Посох инея: мороз стелется по рукам, не обжигая.",
+  "stats": {
+    "damage": 5
+  },
+  "icon": "assets/sprites/items/rime_staff.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.07
+    }
+  ]
+}

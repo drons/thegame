@@ -1,0 +1,22 @@
+{
+  "id": "copper_scyte",
+  "name": "Медная коса",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 3,
+  "value": 35,
+  "desc": "Медная коса: лезвие тёплое, как осень.",
+  "stats": {
+    "damage": 6
+  },
+  "icon": "assets/sprites/items/copper_scyte.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.04
+    }
+  ]
+}

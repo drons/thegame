@@ -1,0 +1,22 @@
+{
+  "id": "steel_pitchfork",
+  "name": "Стальные вилы",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 3.5,
+  "value": 85,
+  "desc": "Стальные вилы: три гребня — три голоса.",
+  "stats": {
+    "damage": 7
+  },
+  "icon": "assets/sprites/items/steel_pitchfork.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.07
+    }
+  ]
+}

@@ -736,7 +736,7 @@ test('230.07-TIP-3: тултип предмета С rarity — «Редкост
 
 // --- ЗЕЛЁНЫЕ с начала (гарды/регрессия; в red-счёт не входят) ---
 
-test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 207 шт. — rarity только у экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity; ре-пин 000230.10: +25 torso 000208–000232 с rarity; ре-пин 000230.11: +50 рук 000283–000332 с rarity — в skip-ветку; ре-пин 000230.14: +25 колец 000383–000407 с rarity — в skip-ветку), прочие 104 — без поля rarity', () => {
+test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ rarity — БЕЗ рамки (className побайтово «cp-itemrow»); каталог 382 шт. — rarity только у экипировочных (ре-пин 000230.08: +25 head с rarity; ре-пин 000235.07: +25 свитков 000108–00132, rarity нет; ре-пин 000230.09: +50 уши/шея 000158–000207 с rarity; ре-пин 000230.10: +25 torso 000208–000232 с rarity; ре-пин 000230.11: +50 рук 000283–000332 с rarity — в skip-ветку; ре-пин 000230.12: +25 «правая рука» 000333–000357 с rarity, гард обобщён — slot, не kind armor; ре-пин 000230.13: +25 left_hand 000358–000382 с rarity — в skip-ветку; ре-пин 000230.14: +25 колец 000383–000407 с rarity — в skip-ветку) — в skip-ветку, прочие 147 — без поля rarity', () => {
   const env = loadEnv();
   const c = env.G.createCharacter();
   env.G.playerUI.setCharacter(c);
@@ -752,19 +752,22 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       + String(row.className));
   }
   const data = require(path.join(ROOT, 'src', 'items-data.js'));
-  assert.equal(data.ITEMS.length, 357,
-    'каталог — 357 предметов (ре-пин 000230.08: 82 + 25 head; ' +
+  assert.equal(data.ITEMS.length, 382,
+    'каталог — 382 предмета (ре-пин 000230.08: 82 + 25 head; ' +
     'ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 свитков ' +
     'волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: ' +
     '+25 torso; ре-пин 000235.09: +25 свитков 000233–000257, ' +
     'rarity нет; ре-пин 000230.11: +50 рук 000283–000332, rarity ' +
-    'есть; ре-пин 000230.13: +25 left_hand 000358–000382, rarity ' +
+    'есть; ре-пин 000230.12: +25 «правая рука» 000333–000357 ' +
+    'с rarity; ре-пин 000230.13: +25 left_hand 000358–000382, rarity ' +
     'есть; ре-пин 000230.14: +25 колец 000383–000407, rarity ' +
     'есть)');
   let others = 0;
   for (const it of data.ITEMS) {
     // Ре-пин 000230.09: guard обобщён (любой экипировочный slot —
     // волны .10–.15 добавят torso/forearms и т.д. без правки пина).
+    // Ре-пин 000230.12 (D-14): гард по slot — «правая рука»
+    // (weapon/tool/staff) тоже с rarity и slot: right_hand.
     // Ре-пин 000230.13: guard по slot без привязки к kind
     // (left_hand — kind shield/artifact, не armor).
     // Ре-пин 000230.14: кольца slot 'ring' — в skip-ветку (D-11).
@@ -773,13 +776,18 @@ test('230.07-RAR-G (гард): расходники (potion/food/reagent) БЕЗ
       'каталожный предмет ' + it.id + ' — без rarity');
     others++;
   }
-  assert.equal(others, 154,
-    'прочих предметов — ровно 154 (357 − 203 экипировочных ' +
-    '(178 + 25 колец 000230.14); 000232: +6 чертежей без ' +
+  assert.equal(others, 147,
+    'прочих предметов — ровно 147 (382 − 235 с slot: 178 ' +
+    '(103 armor (75 + 25 torso + 3 legacy remap) + 50 рук (000230.11) ' +
+    '+ 25 left_hand (000230.13)) + 7 remap-оружий 000001–000007 ' +
+    '+ 25 «правая рука» 000333–000357 + 25 колец (000230.14); ' +
+    '000232: +6 чертежей без ' +
     'rarity; 000235.07: +25 свитков без rarity; ' +
     '000235.08: +25 свитков волны Лёд без rarity; ' +
     '000235.09: +25 свитков волны Тень без rarity; ре-пин 000230.11: ' +
-    '+50 рук — в skip-ветку, others не сдвинулся; ре-пин 000230.13: ' +
+    '+50 рук — в skip-ветку, others не сдвинулся; ' +
+    'ре-пин 000230.12: +25 «правая рука» + 7 remap-оружий — ' +
+    'others 154 → 147; ре-пин 000230.13: ' +
     '+25 left_hand — в skip-ветку, others не сдвинулся; ' +
     'ре-пин 000230.14: +25 колец — в skip-ветку, others не сдвинулся)');
 });
@@ -2245,5 +2253,158 @@ test('000230.14 T8 (vm, e2e): РЕАЛЬНЫЕ кольца из live-катал
       ['ice_armor', 'magic_shield'],
       'freeCast — РОВНО {ice_armor, magic_shield} (D-05: два '
       + 'free_cast кольца — оба epic)');
+  }
+});
+
+// =====================================================================
+// Задача 000230.12 — e2e предметов «Правая рука»: множители
+// derived() (D8 механика инструмента, нулевой код: right_hand →
+// equipmentAffixes → sheet.derived() pct(id) =
+// perLevel·S(id)·(1+a)), free_cast посохов, DORMANT-состояние
+// наборов harvester/forger и UI: классы редкости cp-rarity-<r>
+// на строках «Инвентаря».
+// Контракт — memory/000230.12-right-hand-items-wave.md
+// §2.5/§2.7/§3.1 (R14).
+// RED (TDD): предметов волны нет в каталоге (257, max 000257) —
+// addItem → {ok:false, reason:'неизвестный предмет: …'} —
+// осмысленное падение «предметы волны не добавлены», не
+// SyntaxError.
+// Герой: 8 навыками-носителями S=10 (firelord/icelord/forge/
+// alchemy/runes/scholar/heavy/fists) — база закреплена:
+// fireDamageBonus 0.5 / equipmentDurabilityMult 1.5 /
+// potionPowerMult 1.5 / runePowerMult 1.5 / xpMult 1.2.
+// =====================================================================
+
+test('000230.12 R14: e2e right_hand — инструмент: derived-множители (ember_staff: fireDamageBonus 0.53; iron_hammer: equipmentDurabilityMult 1.515; clay_crucible: potionPowerMult 1.52; bone_graver: runePowerMult 1.52; sage_staff: xpMult 1.26), посох: free_cast (flame_staff→fireball, ice_staff→frost_bolt), набор DORMANT (wood_scyte одна: counts {harvester:1}, damage 0; silver_crucible одна: counts {forger:1}, skills {}, equipmentDurabilityMult остаётся 1.5) + UI: строка «Деревянная коса» → cp-rarity-common, строка «Посох мудреца» → cp-rarity-legendary (краснота: предметы волны не в каталоге — addItem «неизвестный предмет»)', () => {
+  const { sandbox } = makeVmSandboxWithConsole00023010();
+  loadTorsosVmChain00023010(sandbox);
+  vm.runInNewContext(src('items.js'), sandbox, { filename: 'items.js' });
+  const G = sandbox.Game;
+  const near = (a, b, msg) => assert.ok(
+    Math.abs(a - b) < 1e-9, msg + ' (факт: ' + a + ')');
+  const makeHero = () => {
+    const c = G.createCharacter();
+    c.secondary.firelord = 10;
+    c.secondary.icelord = 10;
+    c.secondary.forge = 10;
+    c.secondary.alchemy = 10;
+    c.secondary.runes = 10;
+    c.secondary.scholar = 10;
+    c.secondary.heavy = 10;
+    c.secondary.fists = 10;
+    return c;
+  };
+  const give = (c, id) => {
+    const ra = G.addItem(c, id);
+    assert.equal(ra.ok, true, id + ': выдача (' + (ra.reason || '')
+      + ') — предмет в live-каталоге (краснота: неизвестный '
+      + 'предмет — волна не добавлена)');
+    const r = G.equip(c, id);
+    assert.equal(r.ok, true, id + ': equip (' + (r.reason || '') + ')');
+    assert.equal(c.equipment.right_hand, id,
+      id + ': предмет в слоте right_hand');
+  };
+  {
+    const c = makeHero();
+    const d = G.derived(c);
+    near(d.fireDamageBonus, 0.5,
+      'база fireDamageBonus = 0.05·10 (S firelord 10)');
+    near(d.equipmentDurabilityMult, 1.5,
+      'база equipmentDurabilityMult = 1 + 0.05·10');
+    near(d.potionPowerMult, 1.5, 'база potionPowerMult = 1 + 0.05·10');
+    near(d.runePowerMult, 1.5, 'база runePowerMult = 1 + 0.05·10');
+    near(d.xpMult, 1.2, 'база xpMult = 1 + 0.02·10 (scholar)');
+  }
+  {
+    const c = makeHero();
+    give(c, 'ember_staff');
+    near(G.derived(c).fireDamageBonus, 0.53,
+      'ember_staff: fireDamageBonus = 0.05·10·(1+0.06) '
+      + '(firelord 0.06, D8: right_hand в equipmentAffixes)');
+  }
+  {
+    const c = makeHero();
+    give(c, 'iron_hammer');
+    near(G.derived(c).equipmentDurabilityMult, 1.515,
+      'iron_hammer: equipmentDurabilityMult = 1 + 0.05·10·1.03 '
+      + '(forge 0.03)');
+  }
+  {
+    const c = makeHero();
+    give(c, 'clay_crucible');
+    near(G.derived(c).potionPowerMult, 1.52,
+      'clay_crucible: potionPowerMult = 1 + 0.05·10·1.04 '
+      + '(alchemy 0.04)');
+  }
+  {
+    const c = makeHero();
+    give(c, 'bone_graver');
+    near(G.derived(c).runePowerMult, 1.52,
+      'bone_graver: runePowerMult = 1 + 0.05·10·1.04 (runes 0.04)');
+  }
+  {
+    const c = makeHero();
+    give(c, 'sage_staff');
+    near(G.derived(c).xpMult, 1.26,
+      'sage_staff: xpMult = 1 + 0.02·10·1.30 (scholar 0.30)');
+  }
+  {
+    const c = makeHero();
+    give(c, 'flame_staff');
+    assert.ok(G.equipmentAffixes(c).freeCast.has('fireball'),
+      'flame_staff: free_cast fireball в equipmentAffixes.freeCast');
+  }
+  {
+    const c = makeHero();
+    give(c, 'ice_staff');
+    assert.ok(G.equipmentAffixes(c).freeCast.has('frost_bolt'),
+      'ice_staff: free_cast frost_bolt в equipmentAffixes.freeCast');
+  }
+  {
+    const c = makeHero();
+    give(c, 'wood_scyte');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023010(st.counts), { harvester: 1 },
+      'harvester — 1 надетый предмет');
+    assert.equal(st.damage, 0,
+      'set-бонус damage НЕ активен (порог 2 > 1, дормантность)');
+    assert.equal(st.armor, 0, 'set-бонуса armor нет');
+    near(G.derived(c).fireDamageBonus, 0.5,
+      'wood_scyte одна: fireDamageBonus = база — free_cast нет');
+  }
+  {
+    const c = makeHero();
+    give(c, 'silver_crucible');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm00023010(st.counts), { forger: 1 },
+      'forger — 1 надетый предмет');
+    assert.deepEqual(fromVm00023010(st.skills), {},
+      'set-skill-бонусов нет (порог 2 > 1)');
+    assert.equal(st.freeCast.size, 0, 'set-free_cast-бонусов нет');
+    near(G.derived(c).equipmentDurabilityMult, 1.5,
+      'silver_crucible одна: equipmentDurabilityMult = 1.5 — '
+      + 'set-bonus forge +0.05 НЕ применён (дормантность)');
+  }
+  {
+    const env = loadEnv();
+    const c = env.G.createCharacter();
+    env.G.playerUI.setCharacter(c);
+    const ra1 = env.G.addItem(c, 'wood_scyte');
+    assert.equal(ra1.ok, true, 'wood_scyte: выдача (' + (ra1.reason || '')
+      + ') — в live-каталоге (краснота: неизвестный предмет)');
+    const ra2 = env.G.addItem(c, 'sage_staff');
+    assert.equal(ra2.ok, true, 'sage_staff: выдача ('
+      + (ra2.reason || '') + ') — в live-каталоге');
+    const panel = openPanel(env);
+    const row1 = itemRowByName(panel._invBody, 'Деревянная коса');
+    assert.ok(row1, 'строка «Деревянная коса» в «Инвентарь»');
+    assert.ok(rowClasses(row1).includes('cp-rarity-common'),
+      'у строки «Деревянная коса» класс cp-rarity-common; факт: '
+      + String(row1.className));
+    const row2 = itemRowByName(panel._invBody, 'Посох мудреца');
+    assert.ok(row2, 'строка «Посох мудреца» в «Инвентарь»');
+    assert.ok(rowClasses(row2).includes('cp-rarity-legendary'),
+      'у строки «Посох мудреца» класс cp-rarity-legendary; факт: '
+      + String(row2.className));
   }
 });

@@ -1,0 +1,28 @@
+{
+  "id": "harvest_scyte",
+  "name": "Коса Жатвы",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 4,
+  "value": 220,
+  "desc": "Коса Жатвы: поля кланяются, не спросив разрешения.",
+  "stats": {
+    "damage": 9
+  },
+  "icon": "assets/sprites/items/harvest_scyte.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "set": "harvester",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.16
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "damage": 2
+    }
+  }
+}

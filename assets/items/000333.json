@@ -1,0 +1,28 @@
+{
+  "id": "wood_scyte",
+  "name": "Деревянная коса",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 2.5,
+  "value": 25,
+  "desc": "Деревянная коса: жало из крепкого дуба, рукоять — по плечо.",
+  "stats": {
+    "damage": 4
+  },
+  "icon": "assets/sprites/items/wood_scyte.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "set": "harvester",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.03
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "damage": 2
+    }
+  }
+}

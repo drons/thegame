@@ -1,0 +1,18 @@
+{
+  "id": "clay_crucible",
+  "name": "Глиняный тигель",
+  "kind": "tool",
+  "weight": 1,
+  "value": 18,
+  "desc": "Глиняный тигель: выдержит, пока не выдержит.",
+  "icon": "assets/sprites/items/clay_crucible.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.04
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "sage_staff",
+  "name": "Посох мудреца",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 3,
+  "value": 600,
+  "desc": "Посох мудреца: каждый удар учит того, кто смотрит.",
+  "stats": {
+    "damage": 11
+  },
+  "icon": "assets/sprites/items/sage_staff.svg",
+  "slot": "right_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.3
+    }
+  ]
+}
