@@ -7226,9 +7226,10 @@ test('боевой UI: 000199.01 — бейдж у НЕАКТИВНЫХ: чис�
 // через G.AllySpells, паттерн CU179) + override heroSpells;
 // scene227yield — копия scene166 с hero.spells ['resurrect','spark']
 // (yield D8: lastSpell уступает видимую 8-ю клетку resurrect).
-// Выбор БЕЗ каста — цикл отказа (D3): whitebox mp < мана строки →
-// книга (KeyQ) → клик строки → ровно одна строка причины, трат НЕТ,
-// книга открыта → выбор записан (после реализации H10).
+// Выбор — запись ТОЛЬКО на успешном касте (000249, инверсия D3
+// 000227): отказ (whitebox mp < мана строки → книга → клик строки)
+// — ровно одна строка причины, трат НЕТ, книга открыта, выбор НЕ
+// записан и не сброшен; выбор записывается успешным кастом строки.
 // Зелёные guard внутри красных тестов (падают ни до, ни после):
 // CU227-EFIR(a)/CU227-MERC(a) — legacy-фолбэк бит-в-байт (без выбора
 // → strongestKnown/mostWounded, сцены CU178-CAST/CU178-HEAL);
@@ -7255,12 +7256,13 @@ function scene227(opts = {}) {
     mobs: opts.mobs || ['wolf'], mobLevel: 1, seed: 42,
     ...(opts.efir ? { efir: G.efir.createEfir() } : {}),
     ...(opts.roster ? { rosterData: opts.roster } : {}),
+    ...(opts.lastSpells ? { lastSpells: opts.lastSpells } : {}),
   });
   return { G, c, canvas: findCanvas(body), body, keydown, rafStubs,
     buttons, hero };
 }
 
-function scene227yield() {
+function scene227yield(opts = {}) {
   const rafStubs = makeRafStubs();
   const { G, keydown, body, buttons } = loadCombatUi(true, {
     withSpells: true,
@@ -7275,6 +7277,7 @@ function scene227yield() {
     hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
     rosterData: [{ name: 'Вольк', role: 'melee', level: 1,
       dmg: 1.2, hp: 1.1, skills: [], spells: [] }],
+    ...(opts.lastSpells ? { lastSpells: opts.lastSpells } : {}),
   });
   const ally = c.units.find((u) => u.side === 'ally'
     && u.kind === 'merc');
@@ -7369,7 +7372,8 @@ test('боевой UI: 000227 — lastSpell: без выбора — display non
   tickSlice(S.canvas, S.rafStubs);
   const b0 = Array.from(c.log).slice(n1);
   assert.match(b0[b0.length - 1], /^Искра по Волк: \d+\.$/,
-    'клик строки — каст + выбор записан (D3): ' + JSON.stringify(b0));
+    'клик строки — каст + выбор записан на успехе (000249): '
+    + JSON.stringify(b0));
   assert.equal(c.ps.spellInt, 1, 'пул 2→1 (каст строкой)');
   assert.equal(c.player.mp, 13, 'мана 16→13 (Искра: 3)');
   assert.equal(bookBox.style.display, 'none',
@@ -7437,18 +7441,16 @@ test('боевой UI: 000227 — «Каст»: без выбора — legacy �
     wolf.maxHP = 100; wolf.hp = 100;
     u.spells = ['spark', 'frost_bolt'];
     assert.equal(u.mp, 11, 'фикстура: мана 11');
-    assert.equal(c.efs.spellInt, 1, 'фикстура: пул Интеллект 1');
+    c.efs.spellInt = 2; // пул на два каста (строка + кнопка)
     tickSlice(S.canvas, S.rafStubs);
     const byAct = byActOf178(S);
     assert.ok(byAct.cast, 'кнопка «Каст» построена');
     const cnt = badgeOf199(byAct.cast);
     assert.ok(cnt,
       'бейдж .combat-actcount на «Каст» (ТЗ: число, как на остальных)');
-    assert.equal(cnt.textContent, '1',
+    assert.equal(cnt.textContent, '2',
       'бейдж без выбора = legacy-пул (autoSpellFor → frost_bolt → '
       + 'spellInt): ' + JSON.stringify(cnt.textContent));
-    u.mp = 2;
-    tickSlice(S.canvas, S.rafStubs);
     press(S.keydown, 'KeyQ');
     const bookBox = findByClass(S.body, 'combat-spellbook');
     assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
@@ -7458,14 +7460,14 @@ test('боевой UI: 000227 — «Каст»: без выбора — legacy �
     const n1 = c.log.length;
     sparkRow.listeners.click[0]();
     tickSlice(S.canvas, S.rafStubs);
-    const r0 = Array.from(c.log).slice(n1);
-    assert.deepEqual(r0, ['не хватает маны (3)'],
-      'клик строки без маны — отказ, выбор записан (D3): '
-      + JSON.stringify(r0));
-    assert.equal(c.efs.spellInt, 1, 'пул не потрачен (отказ)');
-    assert.equal(u.mp, 2, 'мана не потрачена (отказ)');
-    u.mp = 11;
-    tickSlice(S.canvas, S.rafStubs);
+    const s0 = Array.from(c.log).slice(n1);
+    assert.match(s0[s0.length - 1], /^Эфир: «Искра» — Волк: \d+\.$/,
+      'bootstrap: успешный «Искра» (000249: выбор — на успехе): '
+      + JSON.stringify(s0));
+    assert.equal(c.efs.spellInt, 1, 'пул 2→1 (каст строкой)');
+    assert.equal(u.mp, 8, 'мана 11→8 (Искра: 3)');
+    assert.equal(bookBox.style.display, 'none',
+      'книга закрыта (действие совершено)');
     assert.equal(cnt.textContent, '1',
       'бейдж с выбором = пул выбранного (spark → spellInt): '
       + JSON.stringify(cnt.textContent));
@@ -7473,11 +7475,12 @@ test('боевой UI: 000227 — «Каст»: без выбора — legacy �
     byAct.cast.listeners.click[0]();
     tickSlice(S.canvas, S.rafStubs);
     const added = Array.from(c.log).slice(n2);
-    assert.deepEqual(added, ['Эфир: «Искра» — Волк: 6.'],
+    assert.match(added[added.length - 1],
+      /^Эфир: «Искра» — Волк: \d+\.$/,
       'тап «Каст» — выбранный «Искра» (НЕ strongestKnown «Морозная '
       + 'стрела»): ' + JSON.stringify(added));
     assert.equal(c.efs.spellInt, 0, 'пул 1→0');
-    assert.equal(u.mp, 8, 'мана 11→8');
+    assert.equal(u.mp, 5, 'мана 8→5');
     assert.equal(cnt.textContent, '0', 'бейдж «0» после каста');
     assert.equal(cnt.style.display, '', '«0» — виден');
   }
@@ -7537,19 +7540,17 @@ test('боевой UI: 000227 — «Лечение»: без выбора — le
     medic.spells = ['mend', 'light_heal'];
     c.player.hp = c.player.maxHP;
     medic.hp = medic.maxHP;
-    assert.equal(medic.mp, 5, 'фикстура: мана 5');
-    assert.equal(medic.spellWis, 1, 'фикстура: пул Мудрость 1');
+    medic.mp = 8;
+    medic.spellWis = 2; // пул на два каста (строка + кнопка)
     tickSlice(S.canvas, S.rafStubs);
     const byAct = byActOf178(S);
     assert.ok(byAct.heal, 'кнопка «Лечение» построена');
     const cnt = badgeOf199(byAct.heal);
     assert.ok(cnt,
       'бейдж .combat-actcount на «Лечение» (ТЗ: число, как на остальных)');
-    assert.equal(cnt.textContent, '1',
+    assert.equal(cnt.textContent, '2',
       'бейдж без выбора = legacy-пул (strongestKnown → light_heal → '
       + 'spellWis): ' + JSON.stringify(cnt.textContent));
-    medic.mp = 2;
-    tickSlice(S.canvas, S.rafStubs);
     press(S.keydown, 'KeyQ');
     const bookBox = findByClass(S.body, 'combat-spellbook');
     assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
@@ -7559,13 +7560,14 @@ test('боевой UI: 000227 — «Лечение»: без выбора — le
     const n1 = c.log.length;
     mendRow.listeners.click[0]();
     tickSlice(S.canvas, S.rafStubs);
-    const r0 = Array.from(c.log).slice(n1);
-    assert.deepEqual(r0, ['не хватает маны (3)'],
-      'клик строки без маны — отказ, выбор записан (D3): '
-      + JSON.stringify(r0));
-    assert.equal(medic.mp, 2, 'мана не потрачена (отказ)');
-    medic.mp = 5;
-    tickSlice(S.canvas, S.rafStubs);
+    const s0 = Array.from(c.log).slice(n1);
+    assert.deepEqual(s0, ['Медик лечит себя (+6).'],
+      'bootstrap: успешный mend (000249: выбор — на успехе): '
+      + JSON.stringify(s0));
+    assert.equal(medic.mp, 5, 'мана 8→5 (mend: 3)');
+    assert.equal(medic.spellWis, 1, 'пул 2→1 (каст строкой)');
+    assert.equal(bookBox.style.display, 'none',
+      'книга закрыта (действие совершено)');
     assert.equal(cnt.textContent, '1',
       'бейдж с выбором = пул выбранного (mend → spellWis): '
       + JSON.stringify(cnt.textContent));
@@ -7591,25 +7593,30 @@ test('боевой UI: 000227 — бейджи: value = остаток пула 
     m0.x = c.px; m0.y = c.py - 1;
     m0.maxHP = 100; m0.hp = 100;
     c.selectTarget(m0.id);
-    c.ps.spellInt = 3;
-    c.ps.spellWis = 2;
+    c.ps.spellInt = 4;
+    c.ps.spellWis = 3;
     tickSlice(S.canvas, S.rafStubs);
     const byAct = byActOf178(S);
     assert.ok(byAct.lastSpell, 'кнопка lastSpell построена');
     const cnt = badgeOf199(byAct.lastSpell);
     assert.ok(cnt, 'бейдж на кнопке lastSpell');
-    c.player.mp = 2;
     press(S.keydown, 'KeyQ');
     const bookBox = findByClass(S.body, 'combat-spellbook');
     assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
-    let sparkRow = bookBox.children.slice(-2)
+    const sparkRow = bookBox.children.slice(-2)
       .find((rw) => rw.dataset.spell === 'spark');
     assert.ok(sparkRow, 'строка «Искра» в книге');
+    const n0 = c.log.length;
     sparkRow.listeners.click[0]();
     tickSlice(S.canvas, S.rafStubs);
-    assert.equal(c.player.mp, 2, 'отказ — мана не потрачена');
-    c.player.mp = 16;
-    tickSlice(S.canvas, S.rafStubs);
+    const a0 = Array.from(c.log).slice(n0);
+    assert.match(a0[a0.length - 1], /^Искра по Волк: \d+\.$/,
+      'bootstrap: успешный «Искра» (000249: выбор — на успехе): '
+      + JSON.stringify(a0));
+    assert.equal(c.ps.spellInt, 3, 'пул 4→3 (каст строкой)');
+    assert.equal(c.player.mp, 13, 'мана 16→13 (Искра: 3)');
+    assert.equal(bookBox.style.display, 'none',
+      'книга закрыта (действие совершено)');
     assert.equal(cnt.textContent, '3',
       'бейдж = остаток пула выбранного (spellInt «3»): '
       + JSON.stringify(cnt.textContent));
@@ -7618,15 +7625,20 @@ test('боевой UI: 000227 — бейджи: value = остаток пула 
     tickSlice(S.canvas, S.rafStubs);
     assert.equal(cnt.textContent, '0', 'пул 0 — «0»');
     assert.equal(cnt.style.display, '', '«0» — виден (display "")');
-    c.player.mp = 2;
-    tickSlice(S.canvas, S.rafStubs);
+    press(S.keydown, 'KeyQ'); // книга закрылась после успеха — открыть
+    assert.notEqual(bookBox.style.display, 'none',
+      'книга переоткрыта (KeyQ)');
     const mendRow = bookBox.children.slice(-2)
       .find((rw) => rw.dataset.spell === 'mend');
-    assert.ok(mendRow, 'строка «Заговора» в книге (книга всё ещё открыта)');
+    assert.ok(mendRow, 'строка «Заговора» в книге');
+    const n1 = c.log.length;
     mendRow.listeners.click[0]();
     tickSlice(S.canvas, S.rafStubs);
-    c.player.mp = 16;
-    tickSlice(S.canvas, S.rafStubs);
+    const b0 = Array.from(c.log).slice(n1);
+    assert.match(b0[b0.length - 1], /^Заговора: \d+\.$/,
+      'успешный «Заговора» (выбор записан на успехе, 000249): '
+      + JSON.stringify(b0));
+    assert.equal(c.ps.spellWis, 2, 'пул 3→2 (каст строкой)');
     assert.equal(cnt.textContent, '2',
       'бейдж — атрибут НОВОГО выбора (mend → spellWis «2»): '
       + JSON.stringify(cnt.textContent));
@@ -7773,7 +7785,8 @@ test('боевой UI: 000227 — выбор НЕ переносится меж�
 });
 
 test('боевой UI: 000227 — yield: мёртвый союзник (resurrect enabled) + выбранный spark — lastSpell СКРЫТА (display none, 8-я видимая клетка занята resurrect), resurrect видима + enabled; без выбора lastSpell тоже скрыта (CU227-YIELD)', () => {
-  const S = scene227yield();
+  const live = {};
+  const S = scene227yield({ lastSpells: live });
   const { G, c } = S;
   assert.ok(!S.ally.alive, 'фикстура: союзник мёртв');
   assert.equal(c.phase, 'player', 'фикстура: ход игрока');
@@ -7790,24 +7803,259 @@ test('боевой UI: 000227 — yield: мёртвый союзник (resurrec
     'resurrect — enabled (мёртвый союзник, пул/мана 50)');
   assert.equal(byAct.lastSpell.style.display, 'none',
     'выбора нет — display none');
-  c.player.mp = 2;
-  tickSlice(S.canvas, S.rafStubs);
+  const m0 = c.units.find((x) => x.id === 'm0');
+  m0.x = c.px; m0.y = c.py - 1;
+  m0.maxHP = 100; m0.hp = 100;
+  c.selectTarget(m0.id);
   press(S.keydown, 'KeyQ');
   const bookBox = findByClass(S.body, 'combat-spellbook');
   assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
   const sparkRow = bookBox.children.slice(-2)
     .find((rw) => rw.dataset.spell === 'spark');
   assert.ok(sparkRow, 'строка «Искра» в книге героя');
+  const n0 = c.log.length;
   sparkRow.listeners.click[0]();
   tickSlice(S.canvas, S.rafStubs);
-  c.player.mp = 50;
-  tickSlice(S.canvas, S.rafStubs);
+  const a0 = Array.from(c.log).slice(n0);
+  assert.match(a0[a0.length - 1], /^Искра по Волк: \d+\.$/,
+    'успешный каст (выбор записан на успехе, 000249): '
+    + JSON.stringify(a0));
+  assert.equal(c.player.mp, 47, 'мана 50→47 (Искра: 3)');
+  assert.equal(live.flogiston, 'spark',
+    'выбор записан в live-карту (кнопка скрыта yield-ом, не '
+    + 'по выбору): ' + JSON.stringify(live));
   assert.equal(byAct.lastSpell.style.display, 'none',
     'yield D8: resurrect enabled — lastSpell скрыта (8-я клетка free)');
   assert.notEqual(byAct.resurrect.style.display, 'none',
     'resurrect — видима (не скрыта yield-ом; display-тогла нет, 000171)');
   assert.equal(byAct.resurrect.disabled, false,
     'resurrect — enabled (выбор spark его не гасит)');
+});
+
+// =====================================================================
+// Задача 000249: кнопка «Последнее заклинание» — запись только на
+// УСПЕШНОМ касте (S1, инверсия D3 000227), id персистит между боями
+// (S2, top-level сейв last_spells: 'flogiston'/'efir'/npcId), герой
+// НЕ сидируется (S3 — гейт: первый успешный каст в этом бою),
+// союзники сидируются при старте боя (S4). Кнопки/клавиши/DOM 000227
+// без изменений (D10). Контракт —
+// memory/000249-combat-last-spell-persist.md.
+// opts.lastSpells (test-owned live-объект main.js-формы: 'flogiston'
+// — герой, 'efir', id боевого союзника — в scene227 без npcId 'a0')
+// — live-ссылка, как main.js: сидинг build() читает, запись успеха
+// пишет. Краснота на текущем коде: opts.lastSpells ИГНОРИРУЕТСЯ
+// (нет сидинга, нет записи) + запись 000227 — на ТАПЕ, не на успехе.
+// =====================================================================
+
+test('боевой UI: 000249 — герой: live {flogiston} НЕ сидируется на старте боя (display none, title «нет выбранного заклинания»); успешный каст из книги — видима/enabled, бейдж — пул, тап — ТОГО ЖЕ; live-карта обновлена записью (flogiston — id успешного каста) (CU249-HERO-GATE)', () => {
+  const live = { flogiston: 'mend' };
+  const S = scene227({ spells: true, lastSpells: live });
+  const { G, c } = S;
+  const m0 = c.units.find((x) => x.id === 'm0');
+  m0.x = c.px; m0.y = c.py - 1;
+  m0.maxHP = 100; m0.hp = 100;
+  c.selectTarget(m0.id);
+  c.ps.spellInt = 2; // пул на два каста (строка книги + кнопка)
+  assert.equal(G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  assert.equal(c.player.mp, 16, 'фикстура: мана 16');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.equal(byAct.lastSpell.style.display, 'none',
+    'live {flogiston} героя НЕ сидирует (S3: гейт — в бою): '
+    + JSON.stringify(byAct.lastSpell.style.display));
+  assert.equal(byAct.lastSpell.disabled, true,
+    'disabled (выбора нет)');
+  assert.equal(byAct.lastSpell.title, 'нет выбранного заклинания',
+    'title дословно (S3): ' + JSON.stringify(byAct.lastSpell.title));
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  const sparkRow = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(sparkRow, 'строка «Искра» в книге героя');
+  const n0 = c.log.length;
+  sparkRow.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const a0 = Array.from(c.log).slice(n0);
+  assert.match(a0[a0.length - 1], /^Искра по Волк: \d+\.$/,
+    'успешный каст строкой: ' + JSON.stringify(a0));
+  assert.equal(c.ps.spellInt, 1, 'пул 2→1');
+  assert.equal(c.player.mp, 13, 'мана 16→13 (Искра: 3)');
+  assert.equal(byAct.lastSpell.style.display, '',
+    'успешный каст В ЭТОМ бою — display "" (S3): '
+    + JSON.stringify(byAct.lastSpell.style.display));
+  assert.equal(byAct.lastSpell.disabled, false,
+    'enabled (canCastSpell: пул 1, мана 13)');
+  const cnt = badgeOf199(byAct.lastSpell);
+  assert.equal(cnt.textContent, '1',
+    'бейдж = c.ps.spellInt (выбор spark → spellInt): '
+    + JSON.stringify(cnt.textContent));
+  assert.equal(live.flogiston, 'spark',
+    'запись — на УСПЕШНОМ касте: live-карта обновлена (flogiston — '
+    + 'id успеха, НЕ сидовый «mend»); краснота: '
+    + JSON.stringify(live));
+  const n1 = c.log.length;
+  byAct.lastSpell.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const b0 = Array.from(c.log).slice(n1);
+  assert.match(b0[b0.length - 1], /^Искра по Волк: \d+\.$/,
+    'тап кнопки — каст ТОГО ЖЕ («Искра»): ' + JSON.stringify(b0));
+  assert.equal(c.ps.spellInt, 0, 'пул 1→0');
+  assert.equal(c.player.mp, 10, 'мана 13→10');
+});
+
+test('боевой UI: 000249 — герой: неудачный каст (не хватает маны) НЕ сбрасывает и НЕ подменяет выбор — кнопка держит предыдущее заклинание (title/тап — его причины, live — его id) (CU249-HERO-FAIL-NORESET)', () => {
+  const live = { flogiston: 'mend' };
+  const S = scene227({ spells: true,
+    heroSpells: ['spark', 'frost_bolt'], lastSpells: live });
+  const { G, c } = S;
+  const m0 = c.units.find((x) => x.id === 'm0');
+  m0.x = c.px; m0.y = c.py - 1;
+  m0.maxHP = 100; m0.hp = 100;
+  c.selectTarget(m0.id);
+  c.ps.spellInt = 2;
+  assert.equal(G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  const sparkRow = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(sparkRow, 'строка «Искра» в книге героя');
+  const n0 = c.log.length;
+  sparkRow.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const a0 = Array.from(c.log).slice(n0);
+  assert.match(a0[a0.length - 1], /^Искра по Волк: \d+\.$/,
+    'bootstrap: успешный «Искра»: ' + JSON.stringify(a0));
+  assert.equal(c.ps.spellInt, 1, 'пул 2→1');
+  c.player.mp = 2; // меньше и «Искры» (3), и «Морозной стрелы» (4)
+  tickSlice(S.canvas, S.rafStubs);
+  press(S.keydown, 'KeyQ'); // книга закрылась после успеха — открыть
+  const book2 = findByClass(S.body, 'combat-spellbook');
+  assert.notEqual(book2.style.display, 'none', 'книга переоткрыта');
+  const frostRow = book2.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'frost_bolt');
+  assert.ok(frostRow, 'строка «Морозная стрела» в книге героя');
+  const n1 = c.log.length;
+  frostRow.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const r0 = Array.from(c.log).slice(n1);
+  assert.deepEqual(r0, ['не хватает маны (4)'],
+    'неудачный «Морозная стрела» — отказ, трат НЕТ: '
+    + JSON.stringify(r0));
+  assert.equal(c.player.mp, 2, 'мана не потрачена (отказ)');
+  assert.equal(c.ps.spellInt, 1, 'пул не потрачен (отказ)');
+  assert.equal(byAct.lastSpell.style.display, '',
+    'выбор не сброшен отказом (S1)');
+  assert.equal(byAct.lastSpell.title, 'не хватает маны (3)',
+    'title — причина предыдущей «Искры», НЕ «Морозной стрелы» '
+    + '(S1: отказ не записывает); краснота: '
+    + JSON.stringify(byAct.lastSpell.title));
+  const n2 = c.log.length;
+  byAct.lastSpell.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const b0 = Array.from(c.log).slice(n2);
+  assert.deepEqual(b0, ['не хватает маны (3)'],
+    'тап кнопки — предыдущий «Искра» (отказ «(3)», не «(4)»); '
+    + 'краснота: ' + JSON.stringify(b0));
+  assert.equal(c.player.mp, 2, 'мана не потрачена (отказ)');
+  assert.equal(live.flogiston, 'spark',
+    'live — id предыдущего УСПЕШНОГО каста, отказ не подменил; '
+    + 'краснота: ' + JSON.stringify(live));
+});
+
+test('боевой UI: 000249 — Эфир: live {efir} сидируется при старте боя — на ходу Эфира «Каст» сразу кастует выбранный «Искра» (legacy strongestKnown дал бы «Морозную стрелу») (CU249-EFIR-IMMEDIATE)', () => {
+  const S = scene227({ efir: true, spells: true, allySpells: true,
+    lastSpells: { efir: 'spark' } });
+  const { G, c } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  u.x = 3; u.y = 5;
+  wolf.x = 3; wolf.y = 4;
+  wolf.maxHP = 100; wolf.hp = 100;
+  u.spells = ['spark', 'frost_bolt'];
+  assert.equal(G.activeUnitId(c), 'efir', 'фикстура: ход Эфира');
+  assert.equal(u.mp, 11, 'фикстура: мана 11');
+  assert.equal(c.efs.spellInt, 1, 'фикстура: пул Интеллект 1');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.equal(byAct.cast.style.display, '', 'видна на ходу Эфира');
+  const cnt = badgeOf199(byAct.cast);
+  assert.equal(cnt.textContent, '1',
+    'бейдж = пул выбранного «Искра» (spark → spellInt): '
+    + JSON.stringify(cnt.textContent));
+  const n0 = c.log.length;
+  byAct.cast.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const added = Array.from(c.log).slice(n0);
+  assert.deepEqual(added, ['Эфир: «Искра» — Волк: 6.'],
+    'тап «Каст» — СЕДОВЫЙ «Искра» из live, legacy strongestKnown '
+    + 'дал бы «Морозную стрелу»; краснота: ' + JSON.stringify(added));
+  assert.equal(c.efs.spellInt, 0, 'пул 1→0');
+  assert.equal(u.mp, 8, 'мана 11→8 (Искра: 3, не 4 у Морозной)');
+});
+
+test('боевой UI: 000249 — наёмник: live {a0} сидируется при старте боя — на ходу Медика «Лечение» сразу лечит себя (legacy без раненых дал бы «нет раненых») (CU249-MERC-IMMEDIATE)', () => {
+  const S = scene227({ spells: true, allySpells: true,
+    roster: ROSTER_MEDIC, lastSpells: { a0: 'mend' } });
+  const { G, c } = S;
+  const medic = c.units.find((x) => x.side === 'ally'
+    && x.role === 'support' && x.kind === 'merc');
+  assert.ok(medic, 'фикстура: support-наёмник в партии');
+  assert.equal(medic.id, 'a0', 'фикстура: id «a0» (без Эфира)');
+  press(S.keydown, 'Space');
+  tickSlice(S.canvas, S.rafStubs);
+  assert.equal(G.activeUnitId(c), 'a0', 'фикстура: ход support-наёмника');
+  c.player.hp = c.player.maxHP;
+  medic.hp = medic.maxHP;
+  assert.equal(medic.mp, 5, 'фикстура: мана 5');
+  assert.equal(medic.spellWis, 1, 'фикстура: пул Мудрость 1');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.equal(byAct.heal.style.display, '',
+    'видна на ходу наёмника с книгой');
+  const cnt = badgeOf199(byAct.heal);
+  assert.equal(cnt.textContent, '1',
+    'бейдж = пул выбранного «Заговора» (mend → spellWis): '
+    + JSON.stringify(cnt.textContent));
+  const n0 = c.log.length;
+  byAct.heal.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const added = Array.from(c.log).slice(n0);
+  assert.deepEqual(added, ['Медик лечит себя (+6).'],
+    'тап «Лечение» — СЕДОВЫЙ mend на себя (000193 Д-F), legacy без '
+    + 'раненых дал бы «нет раненых»; краснота: '
+    + JSON.stringify(added));
+  assert.equal(medic.mp, 2, 'мана 5→2 (mend: 3)');
+  assert.equal(medic.spellWis, 0, 'пул Мудрость 1→0');
+  assert.equal(cnt.textContent, '0', 'бейдж «0» после каста');
+});
+
+test('боевой UI: 000249 — legacy: каст кнопкой БЕЗ выбора НЕ трогает live-карту ({} → {}) — D5 (зелёный guard: падает ни до, ни после) (CU249-LEGACY-NORECORD)', () => {
+  const live = {};
+  const S = scene227({ efir: true, spells: true, allySpells: true,
+    lastSpells: live });
+  const { G, c } = S;
+  const u = c.units.find((x) => x.kind === 'efir');
+  const wolf = c.units.find((x) => x.id === 'm0');
+  u.x = 3; u.y = 5;
+  wolf.x = 3; wolf.y = 4;
+  wolf.maxHP = 100; wolf.hp = 100;
+  assert.equal(G.activeUnitId(c), 'efir', 'фикстура: ход Эфира');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  const n0 = c.log.length;
+  byAct.cast.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const added = Array.from(c.log).slice(n0);
+  assert.deepEqual(added, ['Эфир: «Искра» — Волк: 6.'],
+    'без выбора — legacy strongestKnown (дефолтная книга): '
+    + JSON.stringify(added));
+  assert.deepEqual(live, {},
+    'legacy-каст НЕ записывается в live-карту (D5): '
+    + JSON.stringify(live));
 });
 
 // ===== 000193.01: MP-полоса наёмника — мана (u.mp/u.maxMP) =====
@@ -10117,7 +10365,8 @@ test('боевой UI: 000236 — гейт «Лечение» у НЕsupport-н�
     assert.equal(c.player.hp, c.player.maxHP, 'игрок не тронут');
     assert.equal(G.activeUnitId(c), 'a0', 'ход не сгорел');
     assert.equal(rngCalls, 0, '0 c._rng');
-    // D3-цикл: отказ (2 < 3 маны) записывает выбор, книга открыта.
+    // 000249 (S1): отказ (2 < 3 маны) — выбор НЕ записан: hb
+    // остаётся disabled, книга открыта, трат НЕТ.
     volk.mp = 2;
     tickSlice(S.canvas, S.rafStubs);
     press(S.keydown, 'KeyQ');
@@ -10131,18 +10380,37 @@ test('боевой UI: 000236 — гейт «Лечение» у НЕsupport-н�
     tickSlice(S.canvas, S.rafStubs);
     assert.deepEqual(Array.from(c.log).slice(n1),
       ['не хватает маны (3)'],
-      'D3: отказ — одна строка, выбор записан: '
+      'S1: отказ — одна строка, выбор НЕ записан: '
       + JSON.stringify(Array.from(c.log).slice(n1)));
     assert.equal(volk.mp, 2, 'отказ — трат НЕТ');
     assert.equal(volk.spellWis, 1, 'отказ — пул на месте');
     assert.notEqual(bookBox.style.display, 'none',
       'отказ — книга остаётся открытой');
-    volk.mp = 5;
+    assert.equal(hb.disabled, true,
+      'выбор не записан — hb по-прежнему disabled (000249 S1)');
+    assert.equal(hb.title, 'недоступно активному персонажу',
+      'причина прежняя (выбора нет): '
+      + JSON.stringify(hb.title));
+    // bootstrap: успешный каст строкой (книга открыта) — выбор
+    // записан, кнопка получает ВЫБРАННОЕ.
+    volk.mp = 10;
+    volk.spellWis = 2;
     tickSlice(S.canvas, S.rafStubs);
+    const n1b = c.log.length;
+    mendRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n1b),
+      ['Вольк лечит себя (+5).'],
+      'S1: выбор — УСПЕШНЫМ кастом (книга открыта): '
+      + JSON.stringify(Array.from(c.log).slice(n1b)));
+    assert.equal(volk.mp, 7, 'мана 10→7 (mend: 3)');
+    assert.equal(volk.spellWis, 1, 'пул 2→1 (успех)');
+    assert.equal(bookBox.style.display, 'none',
+      'книга закрыта (r.ok)');
     const cnt = badgeOf199(hb);
     assert.ok(cnt, 'бейдж .combat-actcount на «Лечение»');
     assert.equal(hb.disabled, false,
-      'с выбором — enabled (rowChk: пул 1, мана 5 ≥ 3)');
+      'с выбором — enabled (rowChk: пул 1, мана 7 ≥ 3)');
     assert.equal(hb.title, '', 'без причины — title пусто');
     assert.equal(cnt.textContent, '1',
       'бейдж = пул выбранного (mend → spellWis): '
@@ -10154,7 +10422,7 @@ test('боевой UI: 000236 — гейт «Лечение» у НЕsupport-н�
       ['Вольк лечит себя (+5).'],
       'тап — каст ВЫБРАННОГО mend на себя (legacy дал бы «недоступно»): '
       + JSON.stringify(Array.from(c.log).slice(n2)));
-    assert.equal(volk.mp, 2, 'мана 5→2 (mend: 3)');
+    assert.equal(volk.mp, 4, 'мана 7→4 (mend: 3)');
     assert.equal(volk.spellWis, 0, 'пул Мудрость 1→0');
     assert.equal(cnt.textContent, '0', 'бейдж «0» после каста');
     assert.equal(cnt.style.display, '', '«0» — виден');
@@ -10165,7 +10433,7 @@ test('боевой UI: 000236 — гейт «Лечение» у НЕsupport-н�
     assert.equal(c.player.mp, pmp0, 'мана игрока не тронута');
   }
   {
-    // (b) КЛАВИША H: новая сцена, тот же D3-цикл → KeyH.
+    // (b) КЛАВИША H: новая сцена, тот же цикл (отказ → bootstrap) → KeyH.
     const S = scene227({ spells: true, allySpells: true,
       roster: ROSTER_WOLK_BOOK });
     const { G, c } = S;
@@ -10192,10 +10460,20 @@ test('боевой UI: 000236 — гейт «Лечение» у НЕsupport-н�
     tickSlice(S.canvas, S.rafStubs);
     assert.deepEqual(Array.from(c.log).slice(n1),
       ['не хватает маны (3)'],
-      'D3: отказ, выбор записан: '
+      'S1: отказ — выбор НЕ записан (000249): '
       + JSON.stringify(Array.from(c.log).slice(n1)));
-    volk.mp = 5;
+    volk.mp = 10;
+    volk.spellWis = 2;
     tickSlice(S.canvas, S.rafStubs);
+    const n1b = c.log.length;
+    mendRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    assert.deepEqual(Array.from(c.log).slice(n1b),
+      ['Вольк лечит себя (+5).'],
+      'S1: выбор — УСПЕШНЫМ кастом: '
+      + JSON.stringify(Array.from(c.log).slice(n1b)));
+    assert.equal(volk.mp, 7, 'мана 10→7 (mend: 3)');
+    assert.equal(volk.spellWis, 1, 'пул 2→1');
     const n2 = c.log.length;
     press(S.keydown, 'KeyH');
     tickSlice(S.canvas, S.rafStubs);
@@ -10203,7 +10481,7 @@ test('боевой UI: 000236 — гейт «Лечение» у НЕsupport-н�
       ['Вольк лечит себя (+5).'],
       'KeyH — каст ВЫБРАННОГО (контракт D5 «кнопка = клавиша 1:1»): '
       + JSON.stringify(Array.from(c.log).slice(n2)));
-    assert.equal(volk.mp, 2, 'мана 5→2');
+    assert.equal(volk.mp, 4, 'мана 7→4');
     assert.equal(volk.spellWis, 0, 'пул 1→0');
     assert.equal(G.activeUnitId(c), 'a0', 'ход не сгорел');
     assert.equal(c.player.hp, c.player.maxHP, 'игрок не тронут');
@@ -10230,7 +10508,7 @@ test('боевой UI: 000236 — K/H 1:1 С выбором из книги: Э�
     const realRng = c._rng;
     c._rng = () => (rngCalls++, realRng());
     tickSlice(S.canvas, S.rafStubs);
-    u.mp = 2;
+    c.efs.spellInt = 2;
     tickSlice(S.canvas, S.rafStubs);
     press(S.keydown, 'KeyQ');
     const bookBox = findByClass(S.body, 'combat-spellbook');
@@ -10242,13 +10520,12 @@ test('боевой UI: 000236 — K/H 1:1 С выбором из книги: Э�
     sparkRow.listeners.click[0]();
     tickSlice(S.canvas, S.rafStubs);
     assert.deepEqual(Array.from(c.log).slice(n1),
-      ['не хватает маны (3)'],
-      'D3: отказ — одна строка, выбор записан: '
+      ['Эфир: «Искра» — Волк: 6.'],
+      'S1: выбор — УСПЕШНЫМ кастом строки (000249): '
       + JSON.stringify(Array.from(c.log).slice(n1)));
-    assert.equal(c.efs.spellInt, 1, 'пул не потрачен (отказ)');
-    assert.equal(u.mp, 2, 'мана не потрачена (отказ)');
-    u.mp = 11;
-    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(c.efs.spellInt, 1, 'пул 2→1 (успех)');
+    assert.equal(u.mp, 8, 'мана 11→8 (spark: 3)');
+    assert.equal(wolf.hp, 94, 'волк 100→94');
     const n2 = c.log.length;
     press(S.keydown, 'KeyK');
     tickSlice(S.canvas, S.rafStubs);
@@ -10257,8 +10534,8 @@ test('боевой UI: 000236 — K/H 1:1 С выбором из книги: Э�
       'KeyK — ВЫБРАННЫЙ spark (legacy strongestKnown дал бы «Морозная '
       + 'стрела», −4 маны): ' + JSON.stringify(Array.from(c.log).slice(n2)));
     assert.equal(c.efs.spellInt, 0, 'пул 1→0');
-    assert.equal(u.mp, 8, 'мана 11→8 (spark: 3, не 4)');
-    assert.equal(wolf.hp, 94, 'волк 100→94');
+    assert.equal(u.mp, 5, 'мана 8→5 (spark: 3, не 4)');
+    assert.equal(wolf.hp, 88, 'волк 94→88');
     assert.equal(G.activeUnitId(c), 'efir', 'ход не сгорел');
     assert.equal(rngCalls, 0, '0 c._rng');
   }
@@ -10283,7 +10560,8 @@ test('боевой UI: 000236 — K/H 1:1 С выбором из книги: Э�
     const realRng = c._rng;
     c._rng = () => (rngCalls++, realRng());
     tickSlice(S.canvas, S.rafStubs);
-    medic.mp = 2;
+    medic.mp = 8;
+    medic.spellWis = 2;
     tickSlice(S.canvas, S.rafStubs);
     press(S.keydown, 'KeyQ');
     const bookBox = findByClass(S.body, 'combat-spellbook');
@@ -10294,11 +10572,11 @@ test('боевой UI: 000236 — K/H 1:1 С выбором из книги: Э�
     mendRow.listeners.click[0]();
     tickSlice(S.canvas, S.rafStubs);
     assert.deepEqual(Array.from(c.log).slice(n1),
-      ['не хватает маны (3)'],
-      'D3: отказ — одна строка, выбор записан: '
+      ['Медик лечит себя (+6).'],
+      'S1: выбор — УСПЕШНЫМ кастом строки (000249): '
       + JSON.stringify(Array.from(c.log).slice(n1)));
-    medic.mp = 5;
-    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(medic.mp, 5, 'мана 8→5 (mend: 3)');
+    assert.equal(medic.spellWis, 1, 'пул 2→1 (успех)');
     const n2 = c.log.length;
     press(S.keydown, 'KeyH');
     tickSlice(S.canvas, S.rafStubs);

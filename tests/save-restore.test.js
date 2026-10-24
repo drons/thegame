@@ -1120,3 +1120,422 @@ test('194-SAVE-SANITIZE: битый ally_quick — игра не роняетс�
       + JSON.stringify(saved.data.ally_quick) + ')');
   }
 });
+// =====================================================================
+// Задача 000249: «Последнее заклинание» — top-level раздел сейва
+// last_spells ('flogiston'/'efir'/npcId → id заклинания). Красные
+// (4): раздела нет в collectSaveData/restoreFromSave/__game.state
+// (main.js). Контракт —
+// memory/000249-combat-last-spell-persist.md (D1–D3: ключи, «пишется
+// всегда», санитайзер; v1 без миграций).
+// =====================================================================
+
+test('249-SAVE-ROUNDTRIP: last_spells (flogiston/efir/npcId → id) — round-trip; __game.state.lastSpells — зеркало live-карты', async () => {
+  const h = await boot(seedSave({
+    day: 7,
+    companions: [{
+      npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2,
+    }],
+    last_spells: {
+      flogiston: 'spark', efir: 'spark', merc_volk: 'mend',
+    },
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  assert.ok(!h.warns.some((m) => m.includes('last_spells')),
+    'валидный раздел — без предупреждений: ' + h.warns.join(' | '));
+  assertRestored(h, 7);
+  const g = h.sandbox.__game;
+  assert.deepEqual(JSON.parse(JSON.stringify(g.state.lastSpells)), {
+    flogiston: 'spark', efir: 'spark', merc_volk: 'mend',
+  }, 'state.lastSpells — зеркало live-карты (краснота: '
+    + JSON.stringify(g.state.lastSpells) + ')');
+
+  fireBeforeUnload(h);
+  const saved = readSave(h);
+  assert.equal(saved.version, 1, 'версия НЕ повышена');
+  assert.deepEqual(saved.data.last_spells, {
+    flogiston: 'spark', efir: 'spark', merc_volk: 'mend',
+  }, 'раздел переживает перезагрузку (краснота: '
+    + JSON.stringify(saved.data.last_spells) + ')');
+});
+
+test('249-SAVE-OLD: старый сейв БЕЗ last_spells — восстановление чисто (без warn), state.lastSpells = {}, новый сейв — last_spells = {} (пишется всегда)', async () => {
+  const h = await boot(seedSave({ day: 7 }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  assert.ok(!h.warns.some((m) => m.includes('last_spells')),
+    'старому сейву — БЕЗ предупреждения об отсутствии раздела: '
+    + h.warns.join(' | '));
+  assertRestored(h, 7);
+  const g = h.sandbox.__game;
+  assert.deepEqual(JSON.parse(JSON.stringify(g.state.lastSpells)), {},
+    'состояние «до фичи» — пустой объект (краснота: '
+    + JSON.stringify(g.state.lastSpells) + ')');
+
+  fireBeforeUnload(h);
+  const saved = readSave(h);
+  assert.equal(saved.version, 1, 'версия НЕ повышена');
+  assert.deepEqual(saved.data.last_spells, {},
+    'новый сейв — раздел пишется ВСЕГДА (даже {}); краснота: '
+    + JSON.stringify(saved.data.last_spells));
+});
+
+test('249-SAVE-SANITIZE: битый last_spells — игра не роняется (0 errors); призрак/42/вне-каталога → {}; merc_volk в отряде — переживает перезагрузку; не-объект → warn + {}', async () => {
+  // (a) Призрак (нет в отряде) — обрезан; 42 — не строка;
+  //     nope_spell — нет в каталоге → {}.
+  {
+    const h = await boot(seedSave({
+      day: 7,
+      last_spells: {
+        ghost_npc: 'mend', flogiston: 42, efir: 'nope_spell',
+      },
+    }));
+    assert.equal(h.errors.length, 0,
+      'битый раздел — игра не роняется: ' + h.errors.join('; '));
+    assertRestored(h, 7);
+    const g = h.sandbox.__game;
+    assert.deepEqual(JSON.parse(JSON.stringify(g.state.lastSpells)), {},
+      'санизация: призрак обрезан, не-строка отброшена, вне '
+      + 'каталога отброшено (краснота: '
+      + JSON.stringify(g.state.lastSpells) + ')');
+  }
+  // (b) npcId в отряде — переживает перезагрузку.
+  {
+    const h = await boot(seedSave({
+      day: 7,
+      companions: [{
+        npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2,
+      }],
+      last_spells: { merc_volk: 'mend' },
+    }));
+    assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+      + h.errors.join('; '));
+    assertRestored(h, 7);
+    const g = h.sandbox.__game;
+    assert.deepEqual(JSON.parse(JSON.stringify(g.state.lastSpells)),
+      { merc_volk: 'mend' },
+      'наёмник в отряде — сохранён (краснота: '
+      + JSON.stringify(g.state.lastSpells) + ')');
+    fireBeforeUnload(h);
+    assert.deepEqual(readSave(h).data.last_spells,
+      { merc_volk: 'mend' },
+      'раздел переживает перезагрузку (краснота: '
+      + JSON.stringify(readSave(h).data.last_spells) + ')');
+  }
+  // (c) Не-объект — warn (строка как у ally_quick), раздел {}, игра
+  //     не роняется.
+  {
+    const h = await boot(seedSave({ day: 7, last_spells: 'junk' }));
+    assert.equal(h.errors.length, 0,
+      'не-объект — игра не роняется: ' + h.errors.join('; '));
+    assert.ok(h.warns.some((m) => m.includes('last_spells')),
+      'warn о некорректном разделе (как у ally_quick): '
+      + JSON.stringify(h.warns));
+    assertRestored(h, 7);
+    fireBeforeUnload(h);
+    const saved = readSave(h);
+    assert.deepEqual(saved.data.last_spells, {},
+      'раздел сброшен в {} и пишется всегда (краснота: '
+      + JSON.stringify(saved.data.last_spells) + ')');
+  }
+});
+
+test('249-E2E-2FIGHTS: реальный main.js — last_spells персистит между боями: Эфир с ПЕРВОГО хода кастует персистный «Искра» (legacy дал бы «Морозную стрелу»); герой на старте НЕ сидируется («нет выбранного заклинания») и получает выбор после успешного каста в бою; победа → saveNow → раздел в сейве; второй бой — Эфир снова с персистным (паттерн loot-e2e)', async () => {
+  const h = await boot(seedSave({
+    day: 7,
+    last_spells: { flogiston: 'spark', efir: 'spark' },
+    companions: [{
+      npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2,
+    }],
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  assert.ok(!h.warns.some((m) => m.includes('last_spells')),
+    'валидный раздел — без предупреждений: ' + h.warns.join(' | '));
+  assertRestored(h, 7);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const walk = (el, out = []) => {
+    if (el.children) {
+      for (const ch of el.children) {
+        out.push(ch);
+        walk(ch, out);
+      }
+    }
+    return out;
+  };
+  const lastOverlay = () => h.sandbox.document.body.children
+    .filter((ch) => String(ch.className).includes('combat-overlay'))
+    .pop();
+  const tick = () => h.raf[h.raf.length - 1]();
+
+  // --- Бой 1 ---
+  const c = g.actions.startCombat(0);
+  assert.ok(c, 'бой создан (startCombat(0))');
+  assert.equal(G.activeUnitId(c), 'efir', 'фикстура: первым ходит Эфир');
+  const efir = c.units.find((u) => u.kind === 'efir');
+  const m2 = c.units.find((u) => u.id === 'm2');
+  assert.ok(efir && m2, 'фикстура: Эфир и Орк-лучник в бою');
+  assert.equal(efir.mp, 11, 'фикстура: мана Эфира 11');
+  assert.equal(c.efs.spellInt, 1, 'фикстура: пул Интеллект 1');
+  // Whitebox: Эфир у цели, книга с «Морозной стрелой» (legacy
+  // strongestKnown — для дискриминации персистного «Искра»),
+  // цель 100/100.
+  m2.x = efir.x; m2.y = efir.y + 1;
+  efir.spells = ['spark', 'frost_bolt', 'mend'];
+  m2.maxHP = 100; m2.hp = 100;
+  c.selectTarget(m2.id);
+  const n0 = c.log.length;
+  G.combatUI.handleCode('KeyK');
+  tick();
+  const a0 = Array.from(c.log).slice(n0);
+  assert.match(a0[a0.length - 1], /^Эфир: «Искра» — Орк-лучник: \d+\.$/,
+    'Эфир — персистный «Искра» СРАЗУ (сидинг из сейва), legacy '
+    + 'strongestKnown дал бы «Морозную стрелу»; краснота: '
+    + JSON.stringify(a0));
+  assert.equal(efir.mp, 8, 'мана 11→8 (Искра: 3, не 4)');
+  // Герой: гейт на старте боя — на ходу игрока выбора НЕТ (S3:
+  // герой не сидируется из сейва).
+  G.combatUI.handleCode('Space');
+  tick();
+  assert.equal(G.activeUnitId(c), 'player', 'ход игрока (мобы — авто)');
+  const last1 = walk(lastOverlay()).find((el) => el.tagName === 'button'
+    && el.dataset && el.dataset.act === 'lastSpell');
+  assert.ok(last1, 'кнопка «Последнее заклинание» в DOM (000227)');
+  const n1 = c.log.length;
+  last1.listeners.click[0]();
+  tick();
+  const b1 = Array.from(c.log).slice(n1);
+  assert.deepEqual(b1, ['нет выбранного заклинания'],
+    'герой на старте боя — выбора нет (S3: сидинга героя нет; '
+    + 'guard — строка идентична до/после): ' + JSON.stringify(b1));
+  // Герой: успешный каст из книги (m1 — Орк-воин, цел, у игрока).
+  const player = c.player;
+  player.hp = player.maxHP;
+  const m1 = c.units.find((u) => u.id === 'm1');
+  assert.ok(m1, 'фикстура: Орк-воин m1 в бою');
+  m1.x = c.px; m1.y = c.py - 1;
+  c.selectTarget(m1.id);
+  G.combatUI.handleCode('KeyQ');
+  tick();
+  const bookBox = walk(lastOverlay()).find((el) =>
+    String(el.className).includes('combat-spellbook'));
+  assert.ok(bookBox && bookBox.style.display !== 'none',
+    'книга героя открыта (KeyQ)');
+  const sparkRow = bookBox.children
+    .find((rw) => rw.dataset && rw.dataset.spell === 'spark');
+  assert.ok(sparkRow, 'строка «Искра» в книге героя');
+  const n2 = c.log.length;
+  sparkRow.listeners.click[0]();
+  tick();
+  const c3 = Array.from(c.log).slice(n2);
+  assert.match(c3[c3.length - 1], /^Искра по Орк-воин: \d+\.$/,
+    'успешный каст героя из книги: ' + JSON.stringify(c3));
+  assert.equal(c.ps.spellInt, 0, 'пул 1→0');
+  assert.equal(player.mp, 13, 'мана 16→13 (Искра: 3)');
+  // Выбор ПОЯВИЛСЯ после успеха — тап идёт тем же заклинанием
+  // (отказ — по пулу, НЕ «нет выбранного заклинания»).
+  const n3 = c.log.length;
+  last1.listeners.click[0]();
+  tick();
+  const d4 = Array.from(c.log).slice(n3);
+  assert.deepEqual(d4,
+    ['действий «Заклинание» (Интеллект) больше нет'],
+    'после успеха выбор «Искра» есть (S3 — в бою); отказ по пулу, '
+    + 'не «нет выбранного заклинания»: ' + JSON.stringify(d4));
+  // Победа → finish → onEnd → saveNow.
+  c.phase = 'over';
+  c.result = {
+    outcome: 'victory', xp: 50, gold: 1, defeated: 4,
+    allyXp: [], efirXp: 50,
+  };
+  G.combatUI.handleCode('Escape');
+  tick();
+  const saved1 = readSave(h);
+  assert.deepEqual(saved1.data.last_spells, {
+    flogiston: 'spark', efir: 'spark',
+  }, 'раздел записан после боя (успешные касты: Эфир + герой); '
+    + 'краснота: ' + JSON.stringify(saved1.data.last_spells));
+
+  // --- Бой 2 ---
+  const c2 = g.actions.startCombat(0);
+  assert.ok(c2, 'второй бой создан');
+  assert.equal(G.activeUnitId(c2), 'efir',
+    'фикстура: первым ходит Эфир');
+  const efir2 = c2.units.find((u) => u.kind === 'efir');
+  const m2b = c2.units.find((u) => u.id === 'm2');
+  m2b.x = efir2.x; m2b.y = efir2.y + 1;
+  efir2.spells = ['spark', 'frost_bolt', 'mend'];
+  m2b.maxHP = 100; m2b.hp = 100;
+  c2.selectTarget(m2b.id);
+  const n4 = c2.log.length;
+  G.combatUI.handleCode('KeyK');
+  tick();
+  const e5 = Array.from(c2.log).slice(n4);
+  assert.match(e5[e5.length - 1], /^Эфир: «Искра» — Орк-лучник: \d+\.$/,
+    'второй бой: Эфир — персистный «Искра» снова (раздел, '
+    + 'записанный после боя 1); краснота: ' + JSON.stringify(e5));
+  // Герой на старте боя 2 — выбора нет (S3 per-combat, даже при
+  // существующем разделе сейва).
+  G.combatUI.handleCode('Space');
+  tick();
+  assert.equal(G.activeUnitId(c2), 'player', 'ход игрока');
+  const last2 = walk(lastOverlay()).find((el) => el.tagName === 'button'
+    && el.dataset && el.dataset.act === 'lastSpell');
+  assert.ok(last2, 'кнопка в бою 2 (overlay нового боя)');
+  const n5 = c2.log.length;
+  last2.listeners.click[0]();
+  tick();
+  const f6 = Array.from(c2.log).slice(n5);
+  assert.deepEqual(f6, ['нет выбранного заклинания'],
+    'герой на старте боя 2 — выбора нет (S3: сидинга героя нет, '
+    + 'guard): ' + JSON.stringify(f6));
+});
+
+// 000249 (правка по ревью): 249-E2E-2FIGHTS сидирует last_spells
+// только для flogiston/efir — путь НАЁМНИКА в реальном main.js
+// (npcId-ключ → id боевого юнита из allyDataForEntry) был покрыт
+// опосредованно (CU249-MERC-IMMEDIATE — индексный id 'a0';
+// 249-SAVE-SANITIZE(b) — только уровень сейва). Здесь — конец пути
+// в production-ID-пространстве: сейв → live-карта → build() →
+// кнопка, + запись npcId-ключом (каст строкой книги) и старт
+// второго боя с обновлённым значением (ТЗ «Тесты» (а): «Эфир/
+// наёмник: бой 1 — каст X → бой 2 — кнопка доступна СРАЗУ с тем
+// же X»).
+test('249-E2E-MERC: реальный main.js — last_spells { merc_mira: "mend" } (npcId → id юнита): бой 1 — целительница с ПЕРВОГО хода кастует сидовый «Заговора» кнопкой «Лечение» (legacy = «нет раненых»); каст строкой книги ОБНОВЛЯЕТ live-карту (npcId) и сейв; бой 2 стартует с обновлённым (production-ID-шов)', async () => {
+  const h = await boot(seedSave({
+    day: 7,
+    last_spells: { merc_mira: 'mend' },
+    companions: [{
+      npcId: 'merc_mira', level: 1, xp: 0, loyalty: 65, hiredDay: 2,
+    }],
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  assert.ok(!h.warns.some((m) => m.includes('last_spells')),
+    'валидный раздел — без предупреждений: ' + h.warns.join(' | '));
+  assertRestored(h, 7);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.deepEqual(JSON.parse(JSON.stringify(g.state.lastSpells)),
+    { merc_mira: 'mend' },
+    'live-карта восстановлена из сейва (npcId-ключ; краснота: '
+      + JSON.stringify(g.state.lastSpells));
+  const walk = (el, out = []) => {
+    if (el.children) {
+      for (const ch of el.children) {
+        out.push(ch);
+        walk(ch, out);
+      }
+    }
+    return out;
+  };
+  const lastOverlay = () => h.sandbox.document.body.children
+    .filter((ch) => String(ch.className).includes('combat-overlay'))
+    .pop();
+  const tick = () => h.raf[h.raf.length - 1]();
+  const byAct = (act) => walk(lastOverlay()).find((el) =>
+    el.tagName === 'button' && el.dataset && el.dataset.act === act);
+
+  // --- Бой 1: сидовый «Заговора» по npcId-ключу ---
+  const c = g.actions.startCombat(0);
+  assert.ok(c, 'бой создан (startCombat(0))');
+  assert.equal(G.activeUnitId(c), 'efir', 'фикстура: первым ходит Эфир');
+  const mira = c.units.find((u) => u.kind === 'merc');
+  assert.ok(mira, 'фикстура: наёмная целительница в бою');
+  assert.equal(mira.id, 'merc_mira',
+    'production-ID-пространство: id юнита = npcId '
+    + '(allyDataForEntry); краснота: ' + JSON.stringify(mira.id));
+  assert.deepEqual(JSON.parse(JSON.stringify(mira.spells)).sort(),
+    ['light_heal', 'mend'],
+    'книга целительницы (найм-каталог); краснота: '
+      + JSON.stringify(mira.spells));
+  assert.equal(mira.mp, 10, 'фикстура: мана 10 (5+Int3+Wis2)');
+  assert.equal(mira.spellWis, 1, 'фикстура: пул Мудрость 1');
+  G.combatUI.handleCode('Space');
+  tick();
+  assert.equal(G.activeUnitId(c), 'merc_mira',
+    'ход целительницы (инициатива 4 > 2 у игрока)');
+  c.player.hp = c.player.maxHP;
+  mira.hp = mira.maxHP;
+  const heal1 = byAct('heal');
+  assert.ok(heal1, 'кнопка «Лечение» в DOM (гейт: наёмник с книгой)');
+  const n0 = c.log.length;
+  heal1.listeners.click[0]();
+  tick();
+  const a0 = Array.from(c.log).slice(n0);
+  assert.deepEqual(a0, ['Мира лечит себя (+6).'],
+    'сидовый «Заговора» СРАЗУ (сейв → live → build, реальный '
+    + 'main.js); без сидинга lastSpellPress ушёл бы в legacy '
+    + 'mostWounded — без раненых «нет раненых»; краснота: '
+    + JSON.stringify(a0));
+  assert.equal(mira.mp, 7, 'мана 10→7 (mend: 3)');
+  assert.equal(mira.spellWis, 0, 'пул 1→0');
+  // Раунд 2: каст строкой книги обновляет live-карту (npcId).
+  let guard = 0;
+  while (!(c.round === 2 && G.activeUnitId(c) === 'merc_mira')) {
+    assert.ok(!c.result,
+      'бой не закончен до раунда 2: ' + JSON.stringify(c.result));
+    assert.ok(++guard < 20, 'раунд 2 не достигнут (guard)');
+    G.combatUI.handleCode('Space');
+    tick();
+  }
+  G.combatUI.handleCode('KeyQ');
+  tick();
+  const bookBox = walk(lastOverlay()).find((el) =>
+    String(el.className).includes('combat-spellbook'));
+  assert.ok(bookBox && bookBox.style.display !== 'none',
+    'книга целительницы открыта (KeyQ)');
+  const lhRow = bookBox.children.find((rw) => rw.dataset
+    && rw.dataset.spell === 'light_heal');
+  assert.ok(lhRow, 'строка «Свет исцеления» в книге');
+  const n1 = c.log.length;
+  lhRow.listeners.click[0]();
+  tick();
+  const b1 = Array.from(c.log).slice(n1);
+  assert.deepEqual(b1, ['Мира лечит себя (+6).'],
+    'каст строкой книги (light_heal); краснота: ' + JSON.stringify(b1));
+  assert.equal(mira.mp, 1, 'мана 7→1 (light_heal: 6)');
+  assert.deepEqual(JSON.parse(JSON.stringify(g.state.lastSpells)),
+    { merc_mira: 'light_heal' },
+    'live-карта обновлена кастом (npcId-ключ, реальный main.js); '
+    + 'краснота: ' + JSON.stringify(g.state.lastSpells));
+  // Победа → finish → saveNow.
+  c.phase = 'over';
+  c.result = {
+    outcome: 'victory', xp: 50, gold: 1, defeated: 4,
+    allyXp: [], efirXp: 50,
+  };
+  G.combatUI.handleCode('Escape');
+  tick();
+  const saved1 = readSave(h);
+  assert.deepEqual(saved1.data.last_spells, { merc_mira: 'light_heal' },
+    'раздел = ОБНОВЛЁННОЕ значение (не сидовое "mend"); '
+    + 'краснота: ' + JSON.stringify(saved1.data.last_spells));
+
+  // --- Бой 2: старт с обновлённым значением ---
+  const c2 = g.actions.startCombat(0);
+  assert.ok(c2, 'второй бой создан');
+  assert.equal(G.activeUnitId(c2), 'efir',
+    'фикстура: первым ходит Эфир');
+  G.combatUI.handleCode('Space');
+  tick();
+  assert.equal(G.activeUnitId(c2), 'merc_mira', 'ход целительницы');
+  const mira2 = c2.units.find((u) => u.kind === 'merc');
+  assert.equal(mira2.id, 'merc_mira',
+    'второй бой: id юнита = npcId снова');
+  c2.player.hp = c2.player.maxHP;
+  mira2.hp = mira2.maxHP;
+  const heal2 = byAct('heal');
+  assert.ok(heal2, 'кнопка «Лечение» в бою 2 (overlay нового боя)');
+  const n2 = c2.log.length;
+  heal2.listeners.click[0]();
+  tick();
+  const d2 = Array.from(c2.log).slice(n2);
+  assert.deepEqual(d2, ['Мира лечит себя (+6).'],
+    'бой 2 — обновлённый выбор (каст строкой в бою 1); '
+    + 'краснота: ' + JSON.stringify(d2));
+  assert.equal(mira2.mp, 4,
+    'мана 10→4 (light_heal: 6 — не 3 у сидового "mend": '
+    + 'обновлённое, не сидовое)');
+});

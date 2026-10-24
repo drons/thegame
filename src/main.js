@@ -267,6 +267,12 @@
   if (G.playerUI && typeof G.playerUI.setAllyQuick === 'function') {
     G.playerUI.setAllyQuick(allyQuick);
   }
+  // 000249: карта «последнего заклинания» { 'flogiston' (герой) |
+  // 'efir' | npcId → id заклинания } — ЛАЙВ-объект: combat-ui
+  // (opts.lastSpells) сидирует из него союзников на старте боя и
+  // пишет на успешном касте; раздел сейва last_spells
+  // восстанавливается in place (live-ссылка не меняется).
+  const lastSpells = {};
   // Эфир (задача 000081): постоянный союзник — состояние
   // {level, xp, skillXp, skills, spells} — 5 полей (000111), форма
   // ЗАФИКСИРОВАНА под сейв (000085; до него — только память сессии).
@@ -498,6 +504,28 @@
       out[k] = [0, 1, 2].map((i) =>
         (typeof arr[i] === 'string' && G.getItem(arr[i]))
           ? arr[i] : null);
+    }
+    return out;
+  }
+  // 000249: снимок/санизация карты «последнего заклинания»
+  // (collectSaveData/restoreFromSave). Ключи: 'flogiston'/'efir' —
+  // всегда, остальные — только если в отряде (roster, npcId) —
+  // «призрак» тихо обрезается (паттерн sanitizeAllyQuick). Значение
+  // — только строка из каталога заклинаний (G.SpellsData
+  // .SPELLS_BY_ID), иначе отбрасывается (подделка); каталога нет —
+  // fail-closed {} (деградация, не крах). Не-объект → {} (warn
+  // печатает restore). Возврат — НОВЫЙ объект (live-карта не
+  // мутирует при снимке).
+  function sanitizeLastSpells(map) {
+    const out = {};
+    const cat = G.SpellsData && G.SpellsData.SPELLS_BY_ID;
+    if (!map || typeof map !== 'object' || Array.isArray(map)
+        || !cat) return out;
+    for (const k of Object.keys(map)) {
+      if (k !== 'flogiston' && k !== 'efir' &&
+          !roster.some((e) => e && e.npcId === k)) continue;
+      const v = map[k];
+      if (typeof v === 'string' && cat[v]) out[k] = v;
     }
     return out;
   }
@@ -789,6 +817,12 @@
       // поднимаем; старому сейву раздела нет — restore чисто (без
       // warn, паттерн 000109 R5).
       ally_quick: sanitizeAllyQuick(allyQuick),
+      // 000249: «последнее заклинание» { 'flogiston' | 'efir' |
+      // npcId → id заклинания } — снимок sanitizeLastSpells.
+      // Пишется ВСЕГДА (даже {}): неломкое расширение v1 (000031),
+      // версию НЕ поднимаем, миграций нет; старому сейву раздела нет
+      // — restore чисто (без warn, паттерн 000109 R5).
+      last_spells: sanitizeLastSpells(lastSpells),
       // Задача 000109: состояние городов (сток лавок, день последнего
       // визита). Пишется ВСЕГДА (пусто — {}); неломкое расширение v1
       // (000031): версию НЕ поднимаем, миграций нет. ОБРЕЗКА истёкших
@@ -1144,6 +1178,29 @@
       }
     } catch (err) {
       console.warn('Сейв: не удалось восстановить ally_quick:', err);
+    }
+
+    // --- «Последнее заклинание» (last_spells) (задача 000249) ---
+    // { 'flogiston' | 'efir' | npcId → id заклинания }:
+    // sanitizeLastSpells (ключи — герой/Эфир/в-отряде, значение — id
+    // каталога SPELLS_BY_ID). Старому сейву раздела нет (raw ==
+    // null) — map остаётся ПУСТОЙ, без warn (паттерн 000109 R5;
+    // состояние «до фичи»). Восстановление — IN PLACE в live-объект
+    // (combat-ui держит ссылку как opts.lastSpells; замена объектом
+    // сломала бы ссылку).
+    try {
+      const rawLS = d.last_spells;
+      if (rawLS != null) {
+        const cleanLS = (typeof rawLS !== 'object'
+            || Array.isArray(rawLS))
+          ? (console.warn(
+              'Сейв: раздел last_spells некорректен — сбрасываю.'), {})
+          : sanitizeLastSpells(rawLS);
+        for (const k of Object.keys(lastSpells)) delete lastSpells[k];
+        for (const k of Object.keys(cleanLS)) lastSpells[k] = cleanLS[k];
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить last_spells:', err);
     }
 
     // --- Побеждённые группы (defeatedAt) ---
@@ -1801,6 +1858,9 @@
       allyQuick: sanitizeAllyQuick(allyQuick),
       // 000195: та же live-карта — re-sync u.quick в бою (syncAllyQuickLive).
       allyQuickLive: allyQuick,
+      // 000249: та же live-карта — «последнее заклинание» (сидинг
+      // союзников на старте + запись на успешном касте, combat-ui).
+      lastSpells: lastSpells,
       tile: { mobGroup: groupType },
       // Бой «на текущем тайле»: передаём terrain реального тайла
       // (задача 000049) — согласованно с боем мира; без карты
@@ -2500,6 +2560,9 @@
       allyQuick: sanitizeAllyQuick(allyQuick),
       // 000195: та же live-карта — re-sync u.quick в бою (syncAllyQuickLive).
       allyQuickLive: allyQuick,
+      // 000249: та же live-карта — «последнее заклинание» (сидинг
+      // союзников на старте + запись на успешном касте, combat-ui).
+      lastSpells: lastSpells,
       tile: t,
       lungeGate: mobCharge != null,
       // Фон поля боя по типу местности (задача 000049): terrain тайла,
@@ -3092,6 +3155,9 @@
       allyQuick: sanitizeAllyQuick(allyQuick),
       // 000195: та же live-карта — re-sync u.quick в бою (syncAllyQuickLive).
       allyQuickLive: allyQuick,
+      // 000249: та же live-карта — «последнее заклинание» (сидинг
+      // союзников на старте + запись на успешном касте, combat-ui).
+      lastSpells: lastSpells,
       // Фон поля боя по типу подземелья (задача 000049): тайла мира в
       // подземелье нет, тип — DUNGEON_TYPES (ds.dg.type).
       dungeonType: ds.dg.type,
@@ -3906,6 +3972,10 @@
         // level/xp внутри sheet) — точка smoke-теста для
         // 000086/000087 (читать, не менять — 000079).
         roster,
+        // 000249: «последнее заклинание» { 'flogiston' | 'efir' |
+        // npcId → id заклинания } — зеркало live-карты (копия на
+        // каждый доступ, read-only — combat-ui пишет в оригинал).
+        lastSpells: Object.assign({}, lastSpells),
         // Погибшие наёмники (000085; 000161): live-массив записей
         // {npcId, sheet, loyalty, hiredDay} — точка smoke-теста для
         // 000086/000087.

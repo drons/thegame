@@ -209,12 +209,17 @@
   let lootEl = null;
   let atkLayer = null;
   let atkKids = {};
-  // 000227: выбор «последнего заклинания из книги» — UI-состояние
-  // пер БОЯ: ключ 'player' (игрок) / u.id (союзник) → spellId.
-  // Запись — castRow (после гейта, ДО каста: любой тап по строке,
-  // прошедшей гейт, независимо от исхода, D3). Сброс — build()/
-  // finish()/catch startCombat (как countEls: выбор не живёт между
-  // боями; сейвов боя нет — save.js полей combat не имеет).
+  // 000227/000249: выбор «последнего заклинания из книги» —
+  // UI-состояние пер БОЯ: ключ 'player' (игрок) / u.id (союзник)
+  // → spellId. Запись — castRow, ТОЛЬКО ветка успешного каста
+  // (r.ok, ПОСЛЕ блока FX 000248 — 000249 S1: неудачный каст/
+  // отказ/гейт — не записывает и не сбрасывает). build() сидирует
+  // ТОЛЬКО союзников из live-карты ctx.lastSpells (000249 S2/S4 —
+  // id живёт между боями, раздел сейва last_spells main.js); герой
+  // НЕ сидируется (S3: гейт — первый успешный каст в этом бою).
+  // Сброс — build()/finish()/catch startCombat (как countEls:
+  // МОДУЛЬНЫЙ выбор не живёт между боями; персист между боями —
+  // live-карта main.js, не модульная карта).
   let lastSpells = {};
   let ended = false;
   let rafId = null; // id rAF-цикла анимации (задача 000047); null — нет rAF
@@ -303,6 +308,21 @@
   function build() {
     countEls = {}; // 000199: пересборка — карта бейджей свежая
     lastSpells = {}; // 000227: пересборка — выбор не живёт между боями
+    // 000249 (S2/S4): союзников (Эфир/наёмники) сидируем из
+    // live-карты main.js (ctx.lastSpells: 'efir'/npcId → id
+    // заклинания; у боевого юнита тот же ключ — 'efir' у Эфира
+    // (efirAllyData), npcId у наёмника (allyDataForEntry)). Герой —
+    // НЕ сидируется (S3: выбор героя — в этом бою). Забытое/
+    // подделанное id (нет в u.spells) — без сидинга (legacy-путь,
+    // без ошибок).
+    if (ctx.lastSpells) {
+      for (const u of ctx.combat.units) {
+        if (u === ctx.combat.player) continue;
+        const v = ctx.lastSpells[u.id];
+        if (typeof v === 'string' && Array.isArray(u.spells)
+            && u.spells.indexOf(v) >= 0) lastSpells[u.id] = v;
+      }
+    }
     overlay = document.createElement('div');
     // Скоуп-класс (задача 000124): вся геометрия боевого layout живёт
     // в CSS .combat-overlay--combat; базовые .combat-overlay,
@@ -2543,10 +2563,6 @@
       return;
     }
     const u = unitOf(c);
-    // 000227 (D3): выбор «последнего заклинания» — на ЛЮБОМ тапе по
-    // строке, прошедшей гейт, независимо от исхода каста (отказ
-    // «нет маны» — выбор остаётся: кнопка — повторный путь).
-    lastSpells[u === c.player ? 'player' : u.id] = spellId;
     let r;
     if (u !== c.player) {
       if (G.AllySpells && typeof G.AllySpells.castAllySpell === 'function') {
@@ -2572,10 +2588,28 @@
         castFx: castFxOf(c, u, r.spell, toIdOf(c, r.spell, c.targetId), n),
       };
       bookOpen = false;
+      recordLastSpell(c, u, spellId);
     } else {
       logRejection(c, r);
     }
     render();
+  }
+
+  // 000249 (S1): запись «последнего заклинания» — ТОЛЬКО на
+  // успешном касте (ветка r.ok castRow, ПОСЛЕ блока FX 000248 —
+  // строки FX бит-в-байт): неудачный каст/отказ/гейт — не
+  // записывает и не сбрасывает (кнопка держит предыдущий выбор).
+  // Герой — 'player' в модульной карте + 'flogiston' в live-карте
+  // main.js; союзник — u.id в обеих (Эфир 'efir', наёмник — npcId).
+  // ctx.lastSpells — live-объект main.js (единый объект: mid-combat
+  // синк не нужен); null (vm-песочница без opts.lastSpells) — только
+  // модульная карта (выбор пер-бой). UI-bookkeeping: combat.js не
+  // читает (детерминизм, D9).
+  function recordLastSpell(c, u, spellId) {
+    lastSpells[u === c.player ? 'player' : u.id] = spellId;
+    if (ctx && ctx.lastSpells) {
+      ctx.lastSpells[u === c.player ? 'flogiston' : u.id] = spellId;
+    }
   }
 
   // --- «Воскрешение» — кнопка панели (задача 000171) ---
@@ -3121,6 +3155,13 @@
      *   u.quick из неё в бою (syncAllyQuickLive): раздача на [I]-панели
      *   действует В ТЕКУЩЕМ бою. UI-only: ядро combat.js не читает;
      *   не передан / не-объект → null (снапшот createCombat, бит-в-бит).
+     * @param {Object<string, string>} [opts.lastSpells]
+     *   000249: live-карта «последнего заклинания» (тот же объект,
+     *   что lastSpells main.js): ключ 'flogiston' (герой) / 'efir' /
+     *   npcId → id заклинания. build() сидирует из неё союзников
+     *   (герой — нет, S3); recordLastSpell пишет в неё на успешном
+     *   касте. UI-only: ядро combat.js не читает; не передан /
+     *   не-объект → null (модульная карта, выбор пер-бой).
      */
     startCombat(opts) {
       if (isActive()) return null;
@@ -3237,6 +3278,13 @@
         // ctx → false; one-shot ядра — один раз за бой).
         breathedPrev: false,
         lungeGate: !!opts.lungeGate,
+        // 000249 (S2): live-карта «последнего заклинания» (тот же
+        // объект, что lastSpells main.js) — build() сидирует из неё
+        // союзников, recordLastSpell пишет на успешном касте.
+        // Не передан / не-объект → null (модульная карта).
+        lastSpells: (opts.lastSpells
+          && typeof opts.lastSpells === 'object'
+          && !Array.isArray(opts.lastSpells)) ? opts.lastSpells : null,
       };
       try {
         build();
