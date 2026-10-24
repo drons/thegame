@@ -30,10 +30,11 @@
 //       = 0.4; T = min(4, 1 + floor((depth−1)/2)); книга-предмет НЕ
 //       вводится.
 //   S5. spec/dungeons-storage.md НОВЫЙ H2 «Лут» — победа (per-mob,
-//       базовый 0.25, редкий 0.05 + 0.01·maxLvl), свитки (SALT_SCROLL,
-//       отдельный солёный поток, бит-в-бит), сундуки (CHEST_ITEM_CHANCE
-//       = 0.4, T по глубине, сдвиг goldens — 5 репинов
-//       tests/dungeon.test.js).
+//       P(D) = clamp(0.25 + 0.04·D, 0.05, 0.25) — ре-пин 000245:
+//       базовый 0.25 / редкий 0.05 + 0.01·maxLvl → тот же P(D)),
+//       свитки (SALT_SCROLL, отдельный солёный поток, бит-в-бит),
+//       сундуки (CHEST_ITEM_CHANCE = 0.4, T по глубине, сдвиг goldens
+//       — 5 репинов tests/dungeon.test.js).
 //   S6. spec/dungeons-storage.md «Залежи» (буллет «Рендер», 000234) —
 //       НЕ изменён: хвост буллета дословно. GUARD — в expectedRedCount
 //       не входит (паттерн 000153.05/DS-5; защищает: вставка «## Лут»
@@ -273,17 +274,23 @@ test('SPEC 000235: spells «Свитки: тир и лут» — tier (1..4) = �
       'отсутствует (assets/items)');
 });
 
-test('SPEC 000235: dungeons-storage «Лут» — победа (per-mob, 0.25, редкий 0.05 + 0.01·maxLvl), свитки (SALT_SCROLL, отдельный поток, бит-в-бит), сундуки (CHEST_ITEM_CHANCE = 0.4, T по глубине, сдвиг goldens — 5 репинов tests/dungeon.test.js)', () => {
+test('SPEC 000235: dungeons-storage «Лут» — победа (per-mob, P(D) по разности уровней, редкий — тот же P(D)), свитки (SALT_SCROLL, отдельный поток, бит-в-бит), сундуки (CHEST_ITEM_CHANCE = 0.4, T по глубине, сдвиг goldens — 5 репинов tests/dungeon.test.js)', () => {
   const lut = norm(h2(DUNGEONS_STORAGE, 'Лут'));
   assert.ok(
-    lut.includes('0.25'),
-    '«## Лут»: базовый ролл «0.25 на моба» (rollVictoryLoot, ' +
-      'src/combat.js) не зафиксирован');
+    lut.includes('базовый ролл P(D) на моба'),
+    '«## Лут»: базовый ролл «P(D) на моба» (rollVictoryLoot, ' +
+      'src/combat.js) не зафиксирован (ре-пин 000245: needle «0.25» ' +
+      'пережил бы переписывание мимоходом — в формуле P(D) и у ' +
+      'свитков)');
   assert.ok(
-    lut.includes('0.05 + 0.01·maxLvl'),
-    '«## Лут»: редкий пул «1 общий ролл: 0.05 + 0.01·maxLvl» (maxLvl — ' +
-      'уровень старшего поверженного; уровень игрока НЕ участвует) не ' +
-      'зафиксирован');
+    lut.includes('P(D) = clamp(0.25 + 0.04·D, 0.05, 0.25)'),
+    '«## Лут»: формула «P(D) = clamp(0.25 + 0.04·D, 0.05, 0.25)» ' +
+      '(000245; редкий пул — тот же P(D)) не зафиксирована');
+  assert.ok(
+    lut.includes('D = playerLevel − maxLvl'),
+    '«## Лут»: «D = playerLevel − maxLvl» (уровень старшего ' +
+      'поверженного; знак D пулов противоположен знаку D свитков) ' +
+      'не зафиксирован');
   assert.ok(
     lut.includes('P_scroll = min(0.25, 0.05 + 0.02·max(0, D))'),
     '«## Лут»: канон формулы свитков «P_scroll = min(0.25, 0.05 + ' +

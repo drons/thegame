@@ -39,6 +39,11 @@ const {
   SALT_SCROLL, LOOT_SCROLL_CHANCE_BASE, LOOT_SCROLL_CHANCE_PER_DIFF,
   LOOT_SCROLL_CHANCE_CAP, LOOT_SCROLL_MAX_TIER, SCROLL_SCHOOLS,
   scrollChance, scrollTier, pickScroll, rollScrollDrop, scrollCatalog,
+  // 000245: базовая вероятность лута по разности уровней (красные
+  // тесты: экспорт отсутствует — undefined → осмысленный TypeError
+  // при вызове, не load-ошибка; прецедент 000132/000230.05/000235.05).
+  lootChance, LOOT_CHANCE_BASE, LOOT_CHANCE_PER_LV,
+  LOOT_CHANCE_FLOOR, LOOT_CHANCE_CAP,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
@@ -5058,8 +5063,10 @@ test('000119 BAL-3: бой с Эфиром не тривиален — зафи�
 //     (c._rng() < chance), порядок = порядок таблицы; поле читается
 //     ЖИВЬЁМ (мутация до ролла действует); пустая таблица (orc_mad,
 //     centipede) — без краша, базовый/редкий роллятся;
-//   * базовый пул — 1 ролл (шанс 0.25) на каждого поверженного моба;
-//     редкий — 1 ОБЩИЙ ролл на бой (0.05 + 0.01 × maxLevel);
+//   * базовый пул — 1 ролл на каждого поверженного моба, редкий —
+//     1 ОБЩИЙ ролл на бой (вероятность — P(D) по разности уровней,
+//     000245; ре-пин формулы 000132: шанс 0.25 / 0.05 + 0.01 ×
+//     maxLevel → P(D) = clamp(0.25 + 0.04·D, 0.05, 0.25));
 //     выбор — pool[floor(c._rng() * len)];
 //   * пулы — ДАННЫЕ МОДУЛЯ: LOOT_BASE_POOL (8: ВСЕ food/potion) и
 //     LOOT_RARE_POOL (18: ВСЕ skill_book + weapon/armor value > 35),
@@ -5075,8 +5082,14 @@ test('000119 BAL-3: бой с Эфиром не тривиален — зафи�
 // =====================================================================
 
 function winLoot({ mobs = ['wolf'], mobLevel = 2, seed = 5,
-                  rng = null, killBy = 'attack', mutateUnit } = {}) {
+                  rng = null, killBy = 'attack', mutateUnit,
+                  heroLevel = 1 } = {}) {
   const p = strongHero();
+  // 000245: уровень героя — ДО createCombat (default 1 — текущее
+  // поведение; c._rng-поток НЕ сдвигается: array-путь createCombat и
+  // generateObstacles player.level не используют — пробный прогон:
+  // уровни 1 и 10, волк L15, seed 5 → идентичные gold 36 / xp 68).
+  p.level = heroLevel;
   const c = createCombat({ player: p, mobs, mobLevel, seed });
   c.obstacles.clear();
   const mobsU = c.units.filter((u) => u.side === 'mob');
@@ -5141,8 +5154,9 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
     ], 'rng→0: таблица (per-mob) + базовый + редкий (одна на бой) '
       + '+ экипировочный (common) ПОСЛЕДНИМ');
   }
-  // (б) rng→0.99, 2×волк L2: ВСЕ лут-роллы мимо (0.99 > 0.1 / 0.25 /
-  // 0.05+0.01·2); экипировка: tier legendary (0.99 < 0.999…), select
+  // (б) rng→0.99, 2×волк L2: ВСЕ лут-роллы мимо (0.99 > 0.1 /
+  // P(−1) = 0.21 — ре-пин 000245: было 0.25 / 0.05+0.01·2);
+  // экипировка: tier legendary (0.99 < 0.999…), select
   // pool[floor(0.99·18)] = pool[17] = void_ring (ре-пин 000230.09:
   // legendary-пул растёт 2 → 6 в каталожном порядке, конец = шея;
   // ре-пин 000230.10: 6 → 8, конец = torso; ре-пин 000230.11:
@@ -6016,7 +6030,8 @@ test('000165 C6: доступность (ТЗ п.4) — лут Уродства 
   assert.deepEqual(MOB_TYPES.abomination.loot, LOOT_ABO_165,
     'MOB_TYPES.abomination.loot (краснота: зеркала без свитка)');
   // (b) Детерминированный дроп (паттерн N2): rng→0.01 — ВСЕ пороги
-  //     выше 0.01 (0.2 / 0.15 / 0.05 / 0.25 / 0.05+0.01·2=0.07):
+  //     выше 0.01 (0.2 / 0.15 / 0.05 / P(−1) = 0.21 — ре-пин 000245:
+  //     было 0.25 / 0.05+0.01·2=0.07):
   //     таблица (3) + базовый BASE_POOL[0] + редкий RARE_POOL[0] +
   //     экипировка (ре-пин 000230.08: tier common (r=0.01), select
   //     pool[0] = straw_hat — ПОСЛЕДНИМ).
@@ -8809,10 +8824,10 @@ test('000230.05-EQ3: выпадает предмет СКАЗАНОЙ редко
     // (рантайм каталог не читает, D1; целостность — EQ2/CH4).
     for (const t of EQ_TIERS) EQUIP_POOLS[t].push('eq3_fixture_' + t);
     // killBy 'dealDamage' — НОЛЬ c._rng на убийство: поток = gold-ролл
-    // (checkVictory, 1) + лут-роллы (per-mob 0.1 / база 0.25 / редкий
-    // 0.05+0.01·2 = 0.07) + экипировка. Константы ниже ВСЕ мимо
-    // лут-роллов (gold-ролл предметов не даёт) → items = ТОЛЬКО
-    // экипировочный дроп.
+    // (checkVictory, 1) + лут-роллы (per-mob 0.1 / база = редкий =
+    // P(−1) = 0.21 — ре-пин 000245: было база 0.25 / редкий 0.07)
+    // + экипировка. Константы ниже ВСЕ мимо лут-роллов (gold-ролл
+    // предметов не даёт) → items = ТОЛЬКО экипировочный дроп.
     const kill = (r) =>
       winLoot({ rng: () => r, killBy: 'dealDamage' }).c.result.items;
     const expect = (r, tier) => {
@@ -9098,7 +9113,7 @@ test('000235.05 S2: солёный поток — детерминизм по (s
   }
 });
 
-test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll; ре-пин 000230.11: common-пул 40 → 60, legendary-пул 8 → 12 (a → iron_gauntlets; b → star_gloves); ре-пин 000230.12: common-пул 60 → 70, legendary-пул 12 → 14 («правая рука»: a → iron_tongs; b → mithril_hammer); ре-пин 000230.13: common-пул 70 → 80, legendary-пул 14 → 16 (a → bone_shield; b → snow_focus); ре-пин 000230.14: common-пул 80 → 90, legendary-пул 16 → 18 (a → clay_ring; b → void_ring))', () => {
+test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll; ре-пин 000230.11: common-пул 40 → 60, legendary-пул 8 → 12 (a → iron_gauntlets; b → star_gloves); ре-пин 000230.12: common-пул 60 → 70, legendary-пул 12 → 14 («правая рука»: a → iron_tongs; b → mithril_hammer); ре-пин 000230.13: common-пул 70 → 80, legendary-пул 14 → 16 (a → bone_shield; b → snow_focus); ре-пин 000230.14: common-пул 80 → 90, legendary-пул 16 → 18 (a → clay_ring; b → void_ring); ре-пин 000245: P(D) — базовый 0.1992 ≥ P(−3) = 0.13 → мимо (сдвиг: редкий 0.9879 мимо, tier 0.9451 → epic (пул 45), select 0.2691 → epic[floor(0.2691·45)] = epic[12]) (a → ruby_pendant; b — без изменений (void_ring))', () => {
   // (a) Золотой бой (seed 6, wolf L4, герой L1): значения доизменения
   //     (пробный прогон на текущем коде) — новый код обязан их
   //     сохранить: новый ролл — СТРОГО ПОСЛЕ существующих (пин N2),
@@ -9126,21 +9141,28 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   //     Ре-пин 000230.14: common-пул растёт 80 → 90 (кольца-конец,
   //     каталожный порядок; select idx 85) → тот же поток rng даёт
   //     clay_ring (node-перепрогон, ORE-7).
+  //     Ре-пин 000245: P(D) — базовый ролл 0.1992 ≥ P(−3) = 0.13
+  //     → МИМО (до: 0.1992 < 0.25 → honey_cake); ПОТОК СДВИГАЕТСЯ
+  //     (pick-вызов не потреблён): редкий 0.9879 → мимо, tier
+  //     0.9451 → epic (epic-пул 45 — финальный: 40 после
+  //     000230.14 + 5 «правая рука» 000230.12), select 0.2691 →
+  //     epic[floor(0.2691·45)] = epic[12] = ruby_pendant
+  //     (node-перепрогон, ORE-7, post-merge 000230.12).
   const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
     killBy: 'dealDamage' });
   assert.equal(c.result.xp, 24, 'xp = 24 (бит-в-бит)');
   assert.equal(c.result.gold, 13, 'gold = 13 (бит-в-бит)');
   assert.deepEqual(c.result.items, [
-    { id: 'honey_cake', qty: 1 },
-    { id: 'clay_ring', qty: 1 },
+    { id: 'ruby_pendant', qty: 1 },
     { id: 'frost_wisp_scroll', qty: 1 },
-  ], 'items: существующий состав бит-в-бит + экипировочный + свиток '
-    + '(ре-пин 000235.08: золотой frost_wisp_scroll; ре-пин '
-    + '000230.12: common pool[85] = clay_ring; '
-    + 'СТРОГО после (порядок первого появления; факт: '
-    + JSON.stringify(c.result.items) + ')');
-  // (b) c._rng → 0.99: все СТАРЫЕ роллы промазывают (таблица wolf 0.1,
-  //     базовый 0.25, редкий 0.05+0.01·4 = 0.09); экипировка: tier
+  ], 'items: (ре-пин 000245: базовый 0.1992 ≥ P(−3) = 0.13 — мимо; '
+    + 'сдвиг: tier 0.9451 → epic (пул 45), select 0.2691 → '
+    + 'epic[12] = ruby_pendant; ре-пин 000235.08: золотой '
+    + 'frost_wisp_scroll — солёный поток, порядок первого '
+    + 'появления; факт: ' + JSON.stringify(c.result.items) + ')');
+  // (b) c._rng → 0.99: все СТАРЫЕ роллы промахиваются (таблица wolf 0.1,
+  //     базовый = редкий = P(−3) = 0.13 — ре-пин 000245: было 0.25 /
+  //     0.05+0.01·4 = 0.09); экипировка: tier
   //     legendary (0.99 < 0.999…), select pool[floor(0.99·18)] =
   //     pool[17] = void_ring (ре-пин 000230.09: legendary-пул 2 → 6,
   //     конец = шея; ре-пин 000230.10: 6 → 8, конец = torso;
@@ -9732,5 +9754,196 @@ test('000230.12 R11: tool — 10 инструментов: equip в right_hand (
       id + ': practice «fists» (damage 0 → безоружная ветка)');
     assert.equal(p.skillXp.fists, PRACTICE_XP.hit,
       id + ': опыт «Каменным кулакам» записан');
+  }
+});
+
+// =====================================================================
+// --- Задача 000245: лут — базовая вероятность по разности уровней ---
+// --- Флогистона и побеждённого моба (красные тесты TDD) -----------
+//
+// Контракт — memory/000245-loot-chance-by-diff.md:
+//   * P(D) = clamp(0.25 + 0.04·D, 0.05, 0.25), D = heroLevel −
+//     mobLevel (моб старше → вероятность ниже; пример пользователя
+//     Флогистон 10 / моб 15 → 0.05); ОДИН P(D) для базового (per-mob)
+//     и редкого (общий ролл) пулов;
+//   * семантика «один предмет из пула» и ЧИСЛО/порядок вызовов
+//     c._rng НЕ МЕНЯЮТСЯ (гард L6).
+// RED: экспорт lootChance + константы LOOT_CHANCE_* отсутствуют в
+// src/combat.js (undefined → осмысленный TypeError при ПЕРВОМ ВЫЗОВЕ,
+// не load-ошибка: require combat.js грузится, UMD цел, прочие
+// экспорты на месте — прецедент 000132/000230.05/000235.05):
+//   * L1 — пример пользователя: Флогистон 10 / моб 15 → P(−5) = 0.05
+//     (точное) + константы 0.25/0.04/0.05/0.25;
+//   * L2 — формула на граничных D: floor (D ≤ −5) = 0.05 (точное —
+//     константа капа/пола), линейные 0.09/0.13/0.17/0.21 (толеранс
+//     1e-9 — паттерн near S1: FP 0.25 + 0.04·(−2) =
+//     0.16999999999999998, не 0.17), P(0) = 0.25, кап (D ≥ 0) = 0.25
+//     (точные), монотонность (неубывание при росте D);
+//   * L3 — пример пользователя в бою: герой 10 / волк 15, rng→0.15 →
+//     базовый и редкий МИМО (P(−5) = 0.05) → items = [] (краснота —
+//     AssertionError deepEqual: старый код оба попадёт — 0.15 < 0.25
+//     и 0.15 < 0.05 + 0.01·15 = 0.2 → healing_potion + hunting_bow);
+//   * L4 — D = 0 (герой 10 / волк 10) и D > 0 (герой 15 / волк 10),
+//     rng→0.16 → редкий ПОПАДАЕТ (новый P(0) = P(+5) = 0.25) →
+//     hunting_bow ЕСТЬ; старый код: редкий базис 0.05 + 0.01·10 =
+//     0.15000000000000002 (FP!) → 0.16 мимо → hunting_bow НЕТ (краснота
+//     — AssertionError). Монета 0.16: строго ВВЕРХ старый редкий
+//     порог, строго НИЖЕ новый P — дискриминация через РЕДКИЙ базис
+//     (монета 0.15 не дискриминирует: 0.15 < 0.15000000000000002 —
+//     и старый код попадёт);
+//   * L5 — детерминизм нового сценария (гард, зелёный с red-фазы):
+//     герой 10 / волк 15, реальный rng, seed 5, 2 прогона → идентичный
+//     items (паттерн N1);
+//   * L6 — число вызовов c._rng на победу НЕ ИЗМЕНЕНО (гард, зелёный
+//     с red-фазы): 1×волк hero 10 / mob 15, rng→0.99, пустой
+//     экип-пул → ровно 4 вызова (gold 1 + таблица 1 + база 1 + редкий
+//     1); монета 0.99 — ВСЕ лут-роллы мимо и в старой (0.99 > 0.25 /
+//     0.05 + 0.01·15 = 0.2), и в новой формуле (0.99 ≥ 0.05) → 4 = 4
+//     в обеих фазах; ловит «формулу с доп-роллом». (items не
+//     ассертится — свиток по солённому потоку независим.)
+// Детали сценариев (пробные прогоны на текущем коде/каталоге):
+//   * winLoot: heroLevel — p.level ДО createCombat (default 1 —
+//     текущее поведение; поток не сдвигается: уровни 1 и 10, волк
+//     L15, seed 5 → идентичные gold 36 / xp 68);
+//   * killBy 'dealDamage' — ноль c._rng на убийство;
+//   * level-up в сценариях НЕ ПРОИСХОДИТ (xpForNext(10) = 1581 > 68
+//     xp волка L15; xpForNext(15) = 2905 > 48 xp волка L10) → на
+//     момент лут-ролла c.player.level = заданный уровень;
+//   * свиток (солёный поток по (seed, day 0)) — null во ВСЕХ новых
+//     сценариях (пробный прогон на текущем каталоге, 83 свитка;
+//     методика верифицирована S3(a)-золотым: seed 6 →
+//     frost_wisp_scroll);
+//   * пулы экипировки в node НЕ ПУСТЫ (loot-equip-data.js грузится
+//     UMD-require'ом combat.js) → L3/L4/L6 ИЗОЛИРОВАНЫ фикстурами
+//     (eqPoolsSave/Restore, паттерн D7 EQ3) — иначе экипировочный
+//     предмет лёг бы в items ПОСЛЕДНИМ.
+// =====================================================================
+
+test('000245-L1: пример пользователя — формула: Флогистон 10 / моб 15 → P(D = −5) = 0.05 (RED)', () => {
+  // RED: экспорт lootChance отсутствует (undefined) → TypeError
+  // «lootChance is not a function» на первом вызове (require combat.js
+  // грузится, UMD цел — не load-ошибка; прецедент 000132/000230.05).
+  assert.equal(lootChance(10, 15), 0.05,
+    'пример пользователя: Флогистон 10 / моб 15 (D = −5) → P = 0.05 '
+    + '(точное; пол формулы)');
+  assert.equal(typeof lootChance, 'function',
+    'combat.js: экспорт lootChance(heroLevel, mobLevel) — 2 аргумента '
+    + '(без голого D: знак D свитков противоположен)');
+  assert.equal(LOOT_CHANCE_BASE, 0.25, 'LOOT_CHANCE_BASE = 0.25');
+  assert.equal(LOOT_CHANCE_PER_LV, 0.04, 'LOOT_CHANCE_PER_LV = 0.04');
+  assert.equal(LOOT_CHANCE_FLOOR, 0.05, 'LOOT_CHANCE_FLOOR = 0.05');
+  assert.equal(LOOT_CHANCE_CAP, 0.25,
+    'LOOT_CHANCE_CAP = 0.25 (== BASE — НАМЕРЕННО: лут не инфлируется '
+    + 'за слабых мобов)');
+});
+
+test('000245-L2: формула P(D) — граничные D: floor (моб старше), линейные, P(0), кап (моб младше) + монотонность (RED)', () => {
+  // RED: экспорт отсутствует → TypeError на первом вызове (как L1).
+  const near = (got, want, msg) => assert.ok(
+    Math.abs(got - want) < 1e-9, msg + ' (факт: ' + got + ')');
+  assert.equal(lootChance(10, 20), 0.05,
+    'D = −10 → floor 0.05 (точно: clamp-константа)');
+  assert.equal(lootChance(10, 15), 0.05,
+    'D = −5 → floor 0.05 (точно: clamp-константа; граница пола — '
+    + 'пример пользователя)');
+  near(lootChance(10, 14), 0.09, 'D = −4 → 0.09');
+  near(lootChance(10, 13), 0.13, 'D = −3 → 0.13');
+  // FP: 0.25 + 0.04·(−2) = 0.16999999999999998 (≠ декадному 0.17) —
+  // пин с толерансом (паттерн near S1), не строгим литералом.
+  near(lootChance(10, 12), 0.17, 'D = −2 → 0.17');
+  near(lootChance(10, 11), 0.21, 'D = −1 → 0.21');
+  assert.equal(lootChance(10, 10), 0.25,
+    'D = 0 → 0.25 (паритет: текущая плоская вероятность НЕ МЕНЯЕТСЯ)');
+  assert.equal(lootChance(15, 10), 0.25, 'D = +5 → кап 0.25');
+  for (let d = -10; d < 10; d++) {
+    assert.ok(lootChance(10, 10 - d) <= lootChance(10, 10 - d - 1),
+      'монотонность: P(' + d + ') ≤ P(' + (d + 1) + ')');
+  }
+});
+
+test('000245-L3: пример пользователя в бою: герой 10 / волк 15 (D = −5), rng→0.15 → базовый и редкий пулы МИМО — items = [] (RED)', () => {
+  // RED (AssertionError deepEqual): старый код — 0.15 < 0.25 (базовый)
+  // И 0.15 < 0.05 + 0.01·15 = 0.2 (редкий) → оба ПОПАДАЮТ → items =
+  // [healing_potion (floor(0.15·8) = 1), hunting_bow (floor(0.15·18) = 2)].
+  // Новая формула: P(10 − 15) = P(−5) = 0.05 → 0.15 ≥ 0.05 → оба МИМО.
+  // Таблица волка: 0.15 < 0.1 → false (мимо в обоих кодах). Свиток:
+  // (seed 5, day 0, maxLvl 15, player 10) → null (пробный прогон).
+  const sav = eqPoolsSave();
+  try {
+    for (const t of EQ_TIERS) EQUIP_POOLS[t].splice(0);
+    const { c } = winLoot({ mobs: ['wolf'], mobLevel: 15, seed: 5,
+      heroLevel: 10, rng: () => 0.15, killBy: 'dealDamage' });
+    assert.ok(Array.isArray(c.result.items),
+      'victory: c.result.items обязан быть массивом');
+    assert.deepEqual(c.result.items, [],
+      'герой 10 / волк 15 (D = −5, P = 0.05): таблица (0.1), базовый '
+      + 'и редкий — МИМО, свитка нет — items = [] (факт: '
+      + JSON.stringify(c.result.items) + ')');
+  } finally {
+    eqPoolsRestore(sav);
+  }
+});
+
+test('000245-L4: границы D в бою: D = 0 (герой 10 / волк 10) и D > 0 (герой 15 / волк 10) — редкий пул под новым базисом → hunting_bow ЕСТЬ (RED)', () => {
+  // RED (AssertionError deepEqual): старый код — редкий базис
+  // 0.05 + 0.01·10 = 0.15000000000000002 (FP!) → 0.16 ≥ порог → редкий
+  // МИМО → items = [healing_potion] только. Новая формула: P(0) = 0.25
+  // (D = 0) / P(+5) = 0.25 (кап, D > 0) → 0.16 < 0.25 → редкий
+  // ПОПАДАЕТ → + hunting_bow (floor(0.16·18) = 2). Базовый: 0.16 < 0.25
+  // — попадание в обоих (healing_potion, floor(0.16·8) = 1). Таблица:
+  // 0.16 < 0.1 → false (мимо). Свиток: (seed 5, day 0) → null в обоих
+  // под-сценариях (пробный прогон).
+  const sav = eqPoolsSave();
+  try {
+    for (const t of EQ_TIERS) EQUIP_POOLS[t].splice(0);
+    const want = [
+      { id: 'healing_potion', qty: 1 },
+      { id: 'hunting_bow', qty: 1 },
+    ];
+    const cases = [
+      [10, 10, 'D = 0 (P = 0.25)'],
+      [15, 10, 'D = +5 (кап 0.25)'],
+    ];
+    for (const [hero, mob, what] of cases) {
+      const { c } = winLoot({ mobs: ['wolf'], mobLevel: mob, seed: 5,
+        heroLevel: hero, rng: () => 0.16, killBy: 'dealDamage' });
+      assert.deepEqual(c.result.items, want,
+        'герой ' + hero + ' / волк ' + mob + ' (' + what + '): '
+        + 'базовый + редкий попадены (факт: '
+        + JSON.stringify(c.result.items) + ')');
+    }
+  } finally {
+    eqPoolsRestore(sav);
+  }
+});
+
+test('000245-L5: детерминизм нового сценария (гард, зелёный с red-фазы): герой 10 / волк 15, реальный rng, seed 5, 2 прогона → идентичный items', () => {
+  const run = () => {
+    const { c } = winLoot({ mobs: ['wolf'], mobLevel: 15, seed: 5,
+      heroLevel: 10, killBy: 'dealDamage' });
+    assert.ok(Array.isArray(c.result.items),
+      'victory: c.result.items обязан быть массивом (факт: '
+      + typeof c.result.items + ')');
+    return JSON.stringify(c.result.items);
+  };
+  assert.equal(run(), run(), 'тот же сид → тот же состав лута');
+});
+
+test('000245-L6: число вызовов c._rng на победу НЕ ИЗМЕНЕНО (гард, зелёный с red-фазы): 1×волк hero 10 / mob 15, rng→0.99, пустой экип-пул → ровно 4 вызова (gold 1 + таблица 1 + база 1 + редкий 1)', () => {
+  // Монета 0.99: ВСЕ лут-роллы мимо и в старой (0.99 > 0.25 / 0.2), и в
+  // новой (0.99 ≥ 0.05) формуле → число вызовов 4 = 4 в обеих фазах.
+  // Ловит реализацию, добавившую ДОП-ролл c._rng в формулу (5 ≠ 4).
+  const sav = eqPoolsSave();
+  try {
+    for (const t of EQ_TIERS) EQUIP_POOLS[t].splice(0);
+    let calls = 0;
+    const counting = () => { calls += 1; return 0.99; };
+    winLoot({ mobs: ['wolf'], mobLevel: 15, seed: 5, heroLevel: 10,
+      rng: counting, killBy: 'dealDamage' });
+    assert.equal(calls, 4,
+      'вызовы c._rng: gold 1 (checkVictory) + таблица волка 1 + база 1 '
+      + '+ редкий 1 (pick-вызовов нет — все роллы мимо)');
+  } finally {
+    eqPoolsRestore(sav);
   }
 });

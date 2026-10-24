@@ -1200,7 +1200,15 @@
   const EQUIP_POOLS = (lootEquipData && lootEquipData.EQUIP_POOLS)
     ? lootEquipData.EQUIP_POOLS : {};
 
-  const LOOT_BASE_CHANCE = 0.25;
+  const LOOT_CHANCE_BASE = 0.25;
+  const LOOT_CHANCE_PER_LV = 0.04;
+  const LOOT_CHANCE_FLOOR = 0.05;
+  const LOOT_CHANCE_CAP = 0.25;
+  function lootChance(heroLevel, mobLevel) {
+    const D = heroLevel - mobLevel;
+    return Math.min(LOOT_CHANCE_CAP,
+      Math.max(LOOT_CHANCE_FLOOR, LOOT_CHANCE_BASE + LOOT_CHANCE_PER_LV * D));
+  }
   // Базовый пул — ВСЕ предметы каталога kind food/potion (8),
   // порядок файлов каталога (000011..000018).
   const LOOT_BASE_POOL = [
@@ -1209,12 +1217,10 @@
   ];
   // Редкий пул — ВСЕ skill_book (11) + weapon/armor верхней половины
   // каталога по value (value > 35 СТРОГО — медиана каталога 35; 7)
-  // = 18, порядок файлов каталога. Шанс = 0.05 + 0.01 × уровень
-  // старшего поверженного моба — реализация SPEC «уровень лута =
-  // моб+дельта»: каталог БЕЗ уровней — дельта влияет на ШАНС пула,
+  // = 18, порядок файлов каталога. Шанс — тот же P(D) (000245), что
+  // и у базового, D = уровень героя − уровень старшего поверженного
+  // моба (maxLvl): каталог БЕЗ уровней — дельта влияет на ШАНС пула,
   // не на предмет.
-  const LOOT_RARE_CHANCE_BASE = 0.05;
-  const LOOT_RARE_CHANCE_PER_LV = 0.01;
   const LOOT_RARE_POOL = [
     'iron_sword', 'steel_sword', 'hunting_bow', 'battle_axe', 'war_hammer',
     'chainmail', 'knight_plate',
@@ -1306,13 +1312,12 @@
       for (const e of (u.loot || [])) {
         if (c._rng() < e.chance) drop(e.item);
       }
-      if (c._rng() < LOOT_BASE_CHANCE)
+      if (c._rng() < lootChance(c.player.level, u.level || 0))
         drop(LOOT_BASE_POOL[Math.floor(c._rng() * LOOT_BASE_POOL.length)]);
     }
     const maxLvl = killed.reduce((m, u) => Math.max(m, u.level || 0), 0);
     if (killed.length) {
-      if (c._rng() < LOOT_RARE_CHANCE_BASE
-          + LOOT_RARE_CHANCE_PER_LV * maxLvl)
+      if (c._rng() < lootChance(c.player.level, maxLvl))
         drop(LOOT_RARE_POOL[Math.floor(c._rng() * LOOT_RARE_POOL.length)]);
       // Редкость экипировочного лута (задача 000230.05, контракт
       // memory/000230.05-loot-rarity.md §3.2): 1 ролл на ПОБЕДУ,
@@ -3662,6 +3667,10 @@
     PRACTICE_XP,
     // Лут с мобов (задача 000132): пулы — данные модуля (пины N6).
     LOOT_BASE_POOL, LOOT_RARE_POOL,
+    // Вероятность лута по разности уровней (задача 000245):
+    // P(D) = clamp(0.25 + 0.04·D, 0.05, 0.25), D = heroLevel − mobLevel.
+    LOOT_CHANCE_BASE, LOOT_CHANCE_PER_LV, LOOT_CHANCE_FLOOR,
+    LOOT_CHANCE_CAP, lootChance,
     // Редкость экипировочного лута (задача 000230.05): live-ссылки
     // на данные модуля (деградация — []/{}).
     RARITY_TABLE, EQUIP_POOLS,
