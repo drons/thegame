@@ -1008,14 +1008,14 @@ test('000230.10 T9 (vm, e2e): РЕАЛЬНЫЕ torso-предметы из live-
 // оверлей — под document.body песочницы (findByClass).
 //
 // КРАСНЫЕ (2 — падают на master: порядок детей .combat-side в
-// существующем build() — actions 5-й из 7, log ПОСЛЕ кнопок; осмысленно,
+// существующем build() — actions 5-й из 7 (idx 4), log ПОСЛЕ кнопок; осмысленно,
 // не синтаксис/окружение):
 //   000246-ACT-LAST  .combat-actions — ПОСЛЕНЕДНИЙ ребёнок .combat-side
 //                    (кнопки — в самый низ правой панели);
 //                    сейчас lastChild = .combat-log (build() L521/L542).
 //   000246-LOG-FLEX  DOM: idx(.combat-log) < idx(.combat-actions)
 //                    (лог НАД кнопками — между маной и кнопками;
-//                    сейчас ложь: log 6-й, actions 4-й) + CSS-гард:
+//                    сейчас ложь: log 7-й (idx 6), actions 5-й (idx 4)) + CSS-гард:
 //                    правило .combat-overlay--combat .combat-log
 //                    декларирует рост (flex-шорткат начинается с 1
 //                    ИЛИ явный flex-grow ≥ 1 — зелёный с master,
@@ -1326,8 +1326,8 @@ test('000246-LOG-FLEX: .combat-log ВЫШЕ .combat-actions (всё оставш
     'фикстура: лог и кнопки в панели; факт: '
     + side.children.map((ch) => ch.className).join(','));
   assert.ok(iLog < iAct,
-    '.combat-log ВЫШЕ .combat-actions (краснота: на master log 6-й, '
-    + 'actions 4-й — лог ПОД кнопками); факт: idx(log)=' + iLog
+    '.combat-log ВЫШЕ .combat-actions (краснота: на master log 7-й '
+    + '(idx 6), actions 5-й (idx 4) — лог ПОД кнопками); факт: idx(log)=' + iLog
     + ', idx(actions)=' + iAct);
   const d = cssDecl000246(page(), '.combat-overlay--combat .combat-log');
   const byShortcut = /^1/.test(String(d['flex'] || ''));

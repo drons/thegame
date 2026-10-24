@@ -17,7 +17,7 @@
 //  * .combat-actions — класс только боевой (grep по src/), его базовое
 //    правило правится: 4 колонки (8 кнопок = 2 ряда, ТЗ п. 2).
 //  * .combat-overlay--combat .combat-log — flex: 1 без фиксированной
-//    высоты (журнал занимает оставшееся место под кнопками, ТЗ п. 3).
+//    высоты (журнал — между state и кнопками, ТЗ п. 3).
 //  * Правки ревью 2026-10-01: portrait-кап панели 512px и формула
 //    canvas без циркулярного 100%; баннер результата = размер canvas.
 
@@ -84,7 +84,7 @@ test('index.html: .combat-actions — ЧЕТЫРЕ колонки (repeat(4, …
 test('index.html: .combat-overlay--combat .combat-log — flex: 1, без фиксированной высоты (000124)', () => {
   const decls = cssRule('.combat-overlay--combat .combat-log');
   assert.ok(decls['flex'] && /^\s*1(\s|$)/.test(decls['flex']),
-    'журнал боя — flex: 1 (оставшееся место под кнопками), '
+    'журнал боя — flex: 1 (между state и кнопками), '
     + 'факт: ' + decls['flex']);
   assert.ok(!decls['height'] || !/^\s*\d/.test(decls['height']),
     'фиксированной высоты нет (height: 170px — только база), '
@@ -478,4 +478,44 @@ test('index.html: .combat-overlay--combat .combat-actions — margin-bottom: 0 (
     'стража: база .combat-actions — margin-bottom 10px (общее '
     + 'правило, контракт 000124 — НЕ переписано); факт: '
     + base['margin-bottom']);
+});
+
+// Заделка хвостов ретро 2026-10-23 (000246, findings б/в/г):
+// декларации ТЗ 000246 п.1, которые до 000254 не читал ни один
+// тест. НОЛЬ CSS-диффа: все четыре декларации уже соответствуют
+// контракту (сверка — memory/000254-combat-layout-pins.md), поэтому
+// пины зелёные с первого запуска; краснота процессная — future-правка
+// CSS без ре-пина пройдёт зелёной, эти пины её ловят.
+
+test('index.html: .combat-log — «внутренний скролл» overflow-y: auto (000254-LOG-SCROLL)', () => {
+  const d = cssRule('.combat-log');
+  assert.equal(d['overflow-y'], 'auto',
+    '000246 п.1: лог — «внутренний скролл» (overflow-y: auto); по '
+    + 'flexbox-специации overflow ≠ visible → автоматический '
+    + 'min-size 0 — без него скоуп-лог не сжался бы до остатка, а '
+    + 'вытолкнул бы панель с кнопками вниз; факт: '
+    + d['overflow-y']);
+});
+
+test('index.html: .combat-actions (база) и боевой скоуп — фиксированный блок: нет flex-grow и нет flex (000254-ACTIONS-FIXED)', () => {
+  const base = cssRule('.combat-actions');
+  assert.ok(!('flex-grow' in base) && !('flex' in base),
+    '000246 п.1: .combat-actions — фиксированный блок, не '
+    + 'растягивается: запинается ОТСУТСТВИЕ (и шорткат flex — '
+    + 'future-правка flex: 1 1 auto обошла бы пин только на '
+    + 'лонгхэнде); факт: ' + JSON.stringify(base));
+  const scoped = cssRule('.combat-overlay--combat .combat-actions');
+  assert.ok(!('flex-grow' in scoped) && !('flex' in scoped),
+    '000246 п.1: боевой скоуп — тоже без растяжения (правило '
+    + 'обнуляет только margin-bottom); факт: '
+    + JSON.stringify(scoped));
+});
+
+test('index.html: .combat-overlay--combat .combat-log — min-height: 0 (000254-LOG-MINHEIGHT)', () => {
+  const d = cssRule('.combat-overlay--combat .combat-log');
+  assert.equal(d['min-height'], '0',
+    '000246 п.1: min-height: 0 в скоупе — лог сжимается до '
+    + 'остатка (текст пина 000246-LOG-FLEX и portrait-пина '
+    + 'ссылаются на декларацию — до 000254 без ассерта); факт: '
+    + d['min-height']);
 });
