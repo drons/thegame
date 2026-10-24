@@ -2060,15 +2060,15 @@ test('город UI 000105 (re-pin 000247): панель убрана СОВСЕ
     'рендер жив: drawCalls > 0');
 });
 
-test('город UI 000105: СВОИ тайлы — 2x2 хутор: пол/стены рисуются, не фолбэк-подземные; палитра пол ≤3, стена ≤2', () => {
+test('город UI 000105: СВОИ тайлы — 5×5 хутор (ре-пин 000259): пол/стены рисуются, не фолбэк-подземные; палитра пол ≤3, стена ≤2', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 } });
   const G = loaded.G;
   const s = makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' });
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
-  assert.ok(2 * 40 <= VW && 2 * 40 <= VH,
-    '2x2 @ 40 — вьюпорт больше layout → cam центрирован (1,1)');
+  assert.ok(5 * 40 <= VW && 5 * 40 <= VH,
+    '5x5 @ 40 — вьюпорт больше layout → cam центрирован (2.5,2.5)');
   const colors = cityCellColors(findCanvas(loaded.body).drawCalls,
-    G, s, 40, 1, 1);
+    G, s, 40, 2.5, 2.5);
   const d = s.dg;
   const floorKeys = [];
   const wallKeys = [];
@@ -2078,10 +2078,14 @@ test('город UI 000105: СВОИ тайлы — 2x2 хутор: пол/ст�
         ? floorKeys : wallKeys).push(x + ',' + y);
     }
   }
-  assert.deepEqual(floorKeys.sort(), ['0,1'],
-    '2x2: пол — единый тайл-дверь (0,1) (000177)');
-  assert.deepEqual(wallKeys.sort(), ['0,0', '1,0', '1,1'],
-    '2x2: стены — остальные три клетки');
+  assert.deepEqual(floorKeys.sort(),
+    ['1,1', '1,2', '1,3', '2,1', '2,2', '2,3', '3,1', '3,2', '3,3',
+     '3,4'],
+    '5×5: пол — интерьер 9 (1..3)×(1..3) + дверь (3,4) (000177)');
+  assert.deepEqual(wallKeys.sort(),
+    ['0,0', '0,1', '0,2', '0,3', '0,4', '1,0', '1,4', '2,0', '2,4',
+     '3,0', '4,0', '4,1', '4,2', '4,3', '4,4'],
+    '5×5: стены — остальные 15 периметр-клеток');
   for (const k of floorKeys) {
     assert.ok(colors[k], 'город: пол (' + k + ') нарисован');
     assert.notEqual(colors[k], '#182029',
@@ -2254,8 +2258,10 @@ test('город UI 000105 (регрессия маркеров): единый �
   const s = makeCityState({ fp: 1, cx: -119, cy: -104, name: 'Хутор' });
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 40 });
   const calls = findCanvas(loaded.body).drawCalls;
-  // 2x2 @ 40, cam (1,1): единый тайл (0,1) — layout 000177.
-  const en = G.worldToScreen(0, 1, 1, 1, 40, VW, VH);
+  // 5×5 @ 40, cam (2.5,2.5): единый тайл-дверь (3,4) — layout 000177
+  // (ре-пин 000259: дверь на южном периметре, колонна seed-зависима;
+  // здесь — (3,4)).
+  const en = G.worldToScreen(3, 4, 2.5, 2.5, 40, VW, VH);
   assert.ok(fillRectAt(calls, '#d4b45a', en.x + 2, en.y + 2, 36, 36),
     'единый тайл: жёлтый квадрат (zoom−4)');
   assert.ok(fillTextNear(calls, 'E', '#101418', en.x + 20, en.y + 35, 2),
@@ -2344,7 +2350,7 @@ test('город UI 000105 (регрессия глейда): общий дви�
     'во время глейда — кадр «walk» (посредник — общий движок)');
 });
 
-test('город UI 000105 (регрессия rAF): rAF-цикл в режиме города; вырожденный 2x2 — камера центрирована (нет NaN)', () => {
+test('город UI 000105 (регрессия rAF): rAF-цикл в режиме города; компактный 5×5 (ре-пин 000259) — камера центрирована (нет NaN)', () => {
   const rafStubs = makeRafStubs();
   const T = { t: 1000 };
   const loaded = loadDungeonUi({
@@ -2362,10 +2368,10 @@ test('город UI 000105 (регрессия rAF): rAF-цикл в режим�
   tick(rafStubs);
   T.t += 16;
   tick(rafStubs);
-  // 2x2 @ 40 → 80 ≤ 800/600 → жёсткое центрирование cam (1,1)
-  // (degenerate: диапазон клампа пуст — без центрирования cam ушёл
-  // бы в NaN, паттерн 000066).
-  const p00 = G.worldToScreen(0, 0, 1, 1, 40, VW, VH);
+  // 5×5 @ 40 → 200 ≤ 800/600 → жёсткое центрирование cam (2.5,2.5)
+  // (layout меньше вьюпорта — без центрирования cam ушёл бы в NaN,
+  // паттерн 000066).
+  const p00 = G.worldToScreen(0, 0, 2.5, 2.5, 40, VW, VH);
   assert.ok(Number.isFinite(p00.x) && Number.isFinite(p00.y),
     'проекция клетки — конечные числа');
   const cellRect = (seg) => seg.some((c) => c[0] === 'fillRect'
@@ -2373,14 +2379,15 @@ test('город UI 000105 (регрессия rAF): rAF-цикл в режим�
     && Math.abs(c[1][1] - p00.y) <= 1e-9
     && c[1][2] === 40 && c[1][3] === 40);
   assert.ok(cellRect(canvas.drawCalls),
-    '2x2: cam центрирован (1,1) — клетка (0,0) в проекции');
-  // Герой на выходной клетке (0,0) — камера остаётся центрированной.
-  s.x = 0;
-  s.y = 0;
+    '5×5: cam центрирован (2.5,2.5) — клетка (0,0) в проекции');
+  // Герой на двери (3,4) (000259: дверь — периметр, не (0,0)) —
+  // камера остаётся центрированной.
+  s.x = 3;
+  s.y = 4;
   T.t += 16;
   tick(rafStubs);
   assert.ok(cellRect(canvas.drawCalls),
-    'камера — по-прежнему центрирована (2*40 ≤ 800/600)');
+    'камера — по-прежнему центрирована (5*40 ≤ 800/600)');
 });
 
 test('город UI 000105 (регрессия): состояние без kind (подземелье) — пол #182029 как раньше (городские тайлы не «переливаются»)', () => {
@@ -3480,7 +3487,8 @@ test('000153.03 (guard): город — drawImage stairs.svg — 0 (D11: !isCity
     onMove() {}, zoom: 40, spriteLoader: loader,
   });
   const calls = findCanvas(body).drawCalls;
-  const pDoor = G.worldToScreen(0, 1, 1, 1, 40, VW, VH);
+  // Ре-пин 000259: хутор 5×5, cam (2.5,2.5), дверь (3,4).
+  const pDoor = G.worldToScreen(3, 4, 2.5, 2.5, 40, VW, VH);
   const doorAt = calls.filter((c) => c[0] === 'drawImage'
     && c[1][0] && c[1][0].__img === door
     && Math.abs(c[1][1] - pDoor.x) <= 1e-9

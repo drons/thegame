@@ -59,9 +59,9 @@
 //   TS-10: подземелье (loadDungeonUi 5×5, zoom 57.6): клетки пола
 //         (фолбэк #182029) рисуются в сырых float-координатах
 //         (313.6) → не целые;
-//   TS-11: город (makeCityState fp:1 → 2×2, zoom 57.6): клетки
+//   TS-11: город (makeCityState fp:1 → 5×5, zoom 57.6): клетки
 //         пола/стен (CITY_FLOOR/WALL_VARIANTS) рисуются в сырых
-//         float-координатах (342.4) → не целые.
+//         float-координатах (313.6, 213.6) → не целые.
 //
 // ГАУАРД (зелёный с RED и после фикса — инвариант «целые проекции
 // не меняются побайтово», все 2454 существующих теста опираются на
@@ -71,9 +71,9 @@
 //         worldToScreen, размер zoom — identity.
 //
 // Анти-вакуумность ОБЯЗАТЕЛЬНА: сценарии дробные (raw-проекция
-// нецелая: 115.19999999999999 на карте, 313.6 в подземелье, 342.4
-// в городе, дробная mid-glide камера) — иначе тест мог бы пройти
-// «вхолостую» на целом зуме.
+// нецелая: 115.19999999999999 на карте, 313.6 в подземелье,
+// 313.6/213.6 в городе, дробная mid-glide камера) — иначе тест
+// мог бы пройти «вхолостую» на целом зуме.
 //
 // Харнес: vm-песочница НЕ растеризирует пиксели — «линия»
 // проверяется СТРУКТУРНО (целые углы + shared-edge + формула), а не
@@ -939,8 +939,9 @@ function dMakeState(opts = {}) {
   };
 }
 
-// Город 2×2 «Хутор» (fp:1): пол — единый тайл-дверь (0,1), стены —
-// остальные три клетки (layout createCityLayout, 000105/000177).
+// Город 5×5 «Хутор» (fp:1, 000259): пол — интерьер 9 + дверь (3,4)
+// (южный периметр), стены — остальные 15 клеток (layout
+// createCityLayout, 000105/000177).
 function dMakeCityState() {
   const d = CITIES.createCityLayout(-119, -104, 1);
   const s = {
@@ -1060,7 +1061,7 @@ test('TS-10: подземелье: дробный зум (57.6) — клетки
   assertCellGrid(grid, camX, camY, zoom);
 });
 
-test('TS-11: город: дробный зум (57.6) — клетки пола/стен (CITY_FLOOR/WALL_VARIANTS) на целых пикселях, общие края без швов; анти-вакуум 342.4 (000215)', () => {
+test('TS-11: город: дробный зум (57.6) — клетки пола/стен (CITY_FLOOR/WALL_VARIANTS) на целых пикселях, общие края без швов; анти-вакуум 313.6, 213.6 (000215)', () => {
   const rafStubs = dMakeRafStubs();
   const T = { t: 1000 };
   const { G, body } = dLoadDungeonUi({
@@ -1068,31 +1069,35 @@ test('TS-11: город: дробный зум (57.6) — клетки пола/
     requestAnimationFrame: rafStubs.requestAnimationFrame,
     cancelAnimationFrame: rafStubs.cancelAnimationFrame,
   });
-  const s = dMakeCityState(); // 2×2 «Хутор» (fp:1)
-  assert.equal(s.dg.width, 2, 'сценарий: 2×2 хутор');
-  assert.equal(s.dg.height, 2, 'сценарий: 2×2 хутор');
+  const s = dMakeCityState(); // 5×5 «Хутор» (fp:1, 000259)
+  assert.equal(s.dg.width, 5, 'сценарий: 5×5 хутор');
+  assert.equal(s.dg.height, 5, 'сценарий: 5×5 хутор');
   G.dungeonUI.start({ state: s, onMove() {}, zoom: 57.6 });
-  // 2×2 @ 57.6 = 115.2 px < вьюпорта → центрирование cam (1, 1).
-  const camX = 1, camY = 1, zoom = 57.6;
+  // 5×5 @ 57.6 = 288 px < вьюпорта → центрирование cam (2.5, 2.5).
+  const camX = 2.5, camY = 2.5, zoom = 57.6;
   T.t += 16;
   dTick(rafStubs);
   const canvas = dFindCanvas(body);
   const cells = canvas.drawCalls.filter(
     (c) => c[0] === 'fillRect' && CITY_PALETTE.has(c[2]));
-  assert.ok(cells.length >= 4,
-    'сценарий: 4 клетки 2×2 нарисованы (пол + стены), '
+  assert.ok(cells.length >= 25,
+    'сценарий: 25 клеток 5×5 нарисованы (пол + стены), '
     + 'получено ' + cells.length);
-  // Анти-вакуум: сырая проекция клетки (0,0) = 342.4 — НЕ целая.
-  const raw = G.worldToScreen(0, 0, camX, camY, zoom, VW, VH);
-  assert.ok(Math.abs(raw.x - 342.4) < 1e-9,
-    'анти-вакуум: сырая проекция (0,0) = 342.4: ' + raw.x);
+  // Анти-вакуум: сырая проекция клетки (1,1) = 313.6, 213.6 —
+  // НЕ целые (при cam (2.5,2.5) клетка (0,0) проецируется в ЦЕЛОЕ
+  // 256.0/156.0 — якорь анти-вакуума смещён, ре-пин 000259).
+  const raw = G.worldToScreen(1, 1, camX, camY, zoom, VW, VH);
+  assert.ok(Math.abs(raw.x - 313.6) < 1e-9 &&
+    Math.abs(raw.y - 213.6) < 1e-9,
+    'анти-вакуум: сырая проекция (1,1) = 313.6, 213.6: '
+    + raw.x + ',' + raw.y);
   assert.ok(!Number.isInteger(raw.x) && !Number.isInteger(raw.y),
     'анти-вакуум: сырая проекция дробная: ' + raw.x + ',' + raw.y);
   assertIntegerCorners(cells, 'городская клетка');
   const { grid } = cellGrid(canvas.drawCalls, { x: camX, y: camY },
     zoom, (c) => CITY_PALETTE.has(c[2]));
-  assert.ok(grid.size >= 4,
-    'сценарий: 2×2 сетка клеток (получено ' + grid.size + ')');
+  assert.ok(grid.size >= 25,
+    'сценарий: 5×5 сетка клеток (получено ' + grid.size + ')');
   assertCellGrid(grid, camX, camY, zoom);
 });
 

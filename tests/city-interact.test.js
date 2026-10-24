@@ -281,8 +281,8 @@ function initCity(over) {
 // canBuildAt), teleportCharge — зеркало building-effects.js:2486-2491
 // (чистый: {ok, gold, message}; отказ — «недостаточно золота» — НЕ
 // используется buildCityAt, отказ строит «мало золота (нужно N)»).
-// over.fp: 1 — хутор (−119,−104, 2×2), 2 — деревня (−114,−119, 6×6),
-// 5 — город (100,−40, 18×18); default — 5.
+// over.fp: 1 — хутор (−119,−104, 5×5, 000259), 2 — деревня
+// (−114,−119, 6×6), 5 — город (100,−40, 18×18); default — 5.
 function initCityBuild(over) {
   const env = makeDeps(Object.assign({}, over, {
     cityContents: over.cityContents === undefined ? [] : over.cityContents,
@@ -720,7 +720,7 @@ test('CI-U14. 000148.03: build из меню — списание 100 → 70 (id
     + JSON.stringify(flashes2));
 });
 
-test('CI-U15. 000148.03: pre-disabled строки с reason: деревня при cap (8/8) — 1×1 «лимит 50%», 3×3 «нет места» (space ПЕРВЫЙ); хутор (интерьер 0) — все «нет места»', () => {
+test('CI-U15. 000148.03: pre-disabled строки с reason: деревня при cap (8/8) — 1×1 «лимит 50%», 3×3 «нет места» (space ПЕРВЫЙ); хутор (ре-пин 000259: интерьер 9) — 1×1 «Не хватает …» (геометрия ОК), 3×3 «Лимит 50%»', () => {
   // (a) Деревня (6×6, интерьер 16, потолок 8): 8 занятых клеток
   // (per-cell player-записи) = cap достигнут. Герой на СВОБОДНОЙ
   // (1,1). 1×1 на (1,1): space ОК → cap 8+1 > 8 → «cap». 3×3 на
@@ -750,15 +750,36 @@ test('CI-U15. 000148.03: pre-disabled строки с reason: деревня п�
         'RED: 1×1: cap 8+1 > 8 → «cap» → «Лимит 50%» (000202: caps)');
     }
   }
-  // (b) Хутор (2×2, интерьер 0): ЛЮБОЕ размещение — «space».
-  const t2 = initCityBuild({ x: 0, y: 1, fp: 1, cityContents: [] });
+  // (b) Хутор (5×5, интерьер 9, ре-пин 000259): герой на (1,1)
+  // (интерьер). Геометрия для 1×1 ПРОХОДИТ (space: (1,1) — свободная
+  // FLOOR; cap: 0+1 ≤ floor(9/2) = 4; reach: дверь (3,4) не блокирует)
+  // → pre-check доходит до ресурсного (buildShortageReason): герой
+  // createCharacter (gold 100, items ПУСТО), все 22 buildable-типа
+  // требуют исходники → reason «Не хватает …» (НЕ «Нет места» —
+  // геометрия ОК, 000259). 3×3 (id 7, 36): space проходит (9 ⊆
+  // интерьеру), cap: 0+9 > 4 → «Лимит 50%».
+  const t2 = initCityBuild({ x: 1, y: 1, fp: 1, cityContents: [] });
   t2.BA.interactCity();
   assert.equal(t2.o.calls.buildingOpen.length, 1, 'меню открывается');
-  for (const a of t2.o.calls.buildingOpen[0].actions) {
-    if (a.id === 'rename-city') continue; // строка переименования — всегда доступна (000148.05)
-    assert.equal(a.доступен, false, 'хутор — строка ' + a.id + ' pre-disabled');
-    assert.equal(a.reason, 'Нет места',
-      'RED: хутор: интерьер 0 → «space» → «Нет места» (000202: caps)');
+  const p2 = t2.o.calls.buildingOpen[0];
+  assert.equal(p2.actions.length, 23,
+    'хутор: все 23 строки (22 D3 + rename-city, 000148.05)');
+  for (const a of p2.actions) {
+    if (a.id === 'rename-city') {
+      assert.equal(a.доступен, true,
+        'хутор: rename-city — всегда доступна (000148.05)');
+      continue;
+    }
+    assert.equal(a.доступен, false,
+      'хутор: строка ' + a.id + ' pre-disabled (нет исходников)');
+    if ([7, 36].includes(Number(String(a.id).slice(6)))) {
+      assert.equal(a.reason, 'Лимит 50%',
+        'хутор: 3×3 — cap 0+9 > 4 → «Лимит 50%» (000259: интерьер 9)');
+    } else {
+      assert.ok(String(a.reason).startsWith('Не хватает'),
+        'хутор: 1×1 — геометрия ОК, ресурсный pre-check → «Не хватает …» '
+        + '(000259: НЕ «Нет места»): ' + a.reason);
+    }
   }
 });
 

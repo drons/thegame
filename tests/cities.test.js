@@ -8,18 +8,18 @@
 //
 // Зафиксированные решения (memory/000104-cities-layout.md; золотые
 // пины — литералы GOLDEN_ ниже):
-//  * внутренний размер = 4×footprint − 2 (000148.01): 1→2x2, 2→6x6,
-//    5→18x18, 7→26x26 (интерьер ровно ×4 при f≥2: 16/256/576).
-//    Хутор (footprint 1) — вырожденный 2x2: всего
-//    4 клетки периметра, внутренности НЕТ (000102: хутор «без
-//    внутренностей», мин_постройки=0);
+//  * внутренний размер = max(4×footprint − 2, 5) (000148.01,
+//    000259): 1→5x5, 2→6x6, 5→18x18, 7→26x26 (интерьер ровно
+//    ×4 при f≥2: 16/256/576). Хутор (footprint 1) — 5x5: интерьер
+//    3×3 = 9 (000259: минимум 3×3; монотонность интерьеров
+//    9 < 16 < 256 < 576); мин_постройки=0, постройки — от wealth;
 //  * периметр = CELL_WALL (0), внутренность — сплошное открытое
 //    пространство CELL_FLOOR (1): город НЕ лабиринт («улицы/
 //    кварталы» по умолчанию не делаются; постройки 000106 кладёт
 //    на FLOOR);
 //  * entrance = exit — ЕДИНЫЙ тайл-дверь (000177) на ЮЖНОМ
 //    периметре (y = height−1); x — колонны 1..width−2 через
-//    rng(mulberry32(seed)) (при width=2 x=0). «Сторона захода
+//    rng(mulberry32(seed)) (с 000259 width ≥ 5 всегда). «Сторона
 //    героя» НЕ передаётся: layout статичен (один якорь → один
 //    layout навсегда); направление захода — проблема экрана 000105;
 //  * seed = hash2(cityX, cityY, CITY_LAYOUT_CONST) >>> 0,
@@ -72,30 +72,39 @@ const ANCHORS = [
 
 // --- GOLDEN-пины: литералы зафиксированной формулы ---
 // (hash2 + mulberry32, CITY_LAYOUT_CONST = 0x4c41594f, размер
-// 4×footprint−2 (ре-пин 000148.01; сиды БИТ-В-БИТ — от позиции),
+// max(4×footprint−2, 5) (ре-пин 000148.01; ре-пин 000259 — хутор
+// 2×2 → 5×5; сиды БИТ-В-БИТ — от позиции, не от размера),
 // 000177: единый тайл входа-выхода — ДВЕРЬ на южном
 // периметре (y = height−1), entrance = exit, x из ОДНОГО вызова rng
-// по колоннам 1..W−2, W=2 → x=0; северная периметр-клетка — WALL).
+// по колоннам 1..W−2 (с 000259 W ≥ 5 всегда); северная
+// периметр-клетка — WALL).
 // Любое отклонение формулы (соль, порядок вызовов rng, стороны)
 // ломает пины. Строки — по строкам layout.
 const GOLDEN = {
   '1,-119,-104': {
-    width: 2, height: 2,
-    // 2x2: все клетки — периметр; FLOOR = только единый тайл (дверь).
+    // 000259 (ре-пин): 5x5, дверь (3,4) (seed без изменений).
+    width: 5, height: 5,
     cells: [
-      0, 0,
-      1, 0,
+      0, 0, 0, 0, 0,
+      0, 1, 1, 1, 0,
+      0, 1, 1, 1, 0,
+      0, 1, 1, 1, 0,
+      0, 0, 0, 1, 0,
     ],
-    entrance: { x: 0, y: 1 }, exit: { x: 0, y: 1 },
+    entrance: { x: 3, y: 4 }, exit: { x: 3, y: 4 },
     seed: 2891528378, kind: 'city',
   },
   '1,-118,33': {
-    width: 2, height: 2,
+    // 000259 (ре-пин): 5x5, дверь (2,4) (seed без изменений).
+    width: 5, height: 5,
     cells: [
-      0, 0,
-      1, 0,
+      0, 0, 0, 0, 0,
+      0, 1, 1, 1, 0,
+      0, 1, 1, 1, 0,
+      0, 1, 1, 1, 0,
+      0, 0, 1, 0, 0,
     ],
-    entrance: { x: 0, y: 1 }, exit: { x: 0, y: 1 },
+    entrance: { x: 2, y: 4 }, exit: { x: 2, y: 4 },
     seed: 2117505400, kind: 'city',
   },
   '2,-114,-119': {
@@ -288,23 +297,26 @@ test('форма layout: ровно поля из задачи (БЕЗ type/room
 
 // --- Размер и каталог (000102) ---
 
-test('размер из footprint: 4×footprint−2 (таблица каталога 1→2, 2→6, 5→18, 7→26)', () => {
-  // ре-пин 000148.01 (layout 4f−2): сторона = 4*footprint − 2;
-  // хутор (fp1) — без изменений (вырожденный 2x2).
+test('размер из footprint: max(4×footprint−2, 5) (таблица каталога 1→5, 2→6, 5→18, 7→26)', () => {
+  // ре-пин 000148.01 (layout 4f−2); ре-пин 000259 (max(4f−2, 5)):
+  // хутор (fp1) 2→5 (интерьер 3×3 = 9 — минимум 3×3); f≥2 — без
+  // изменений.
   const C = loadCities();
   for (const a of ANCHORS) {
     const L = C.createCityLayout(a.x, a.y, a.fp);
-    assert.equal(L.width, 4 * a.fp - 2, `fp${a.fp} (${a.x},${a.y}): width`);
-    assert.equal(L.height, 4 * a.fp - 2, `fp${a.fp} (${a.x},${a.y}): height`);
+    assert.equal(L.width, Math.max(4 * a.fp - 2, 5),
+      `fp${a.fp} (${a.x},${a.y}): width`);
+    assert.equal(L.height, Math.max(4 * a.fp - 2, 5),
+      `fp${a.fp} (${a.x},${a.y}): height`);
   }
-  assert.equal(C.cityLayoutSize(1), 2); // хутор — без изменений (guard)
+  assert.equal(C.cityLayoutSize(1), 5); // хутор 5×5 (guard, 000259)
   assert.equal(C.cityLayoutSize(2), 6);
   assert.equal(C.cityLayoutSize(5), 18);
   assert.equal(C.cityLayoutSize(7), 26);
 });
 
-test('ссылочная целостность: 4 типа «город» каталога 000102 → размеры 4×footprint−2', () => {
-  // ре-пин 000148.01 (layout 4f−2).
+test('ссылочная целостность: 4 типа «город» каталога 000102 → размеры max(4×footprint−2, 5)', () => {
+  // ре-пин 000148.01 (layout 4f−2); ре-пин 000259 (max(4f−2, 5)).
   // Footprint берётся из РЕАЛЬНЫХ JSON каталога (размер.ширина —
   // сторона квадрата); 4 значения НЕ хардкодим — каталог может
   // добавлять новые размеры.
@@ -323,8 +335,10 @@ test('ссылочная целостность: 4 типа «город» ка�
       `город ${b.id}: footprint квадратный`);
     const [ax, ay] = anchors[b.id] || [0, 0];
     const L = C.createCityLayout(ax, ay, b.размер.ширина);
-    assert.equal(L.width, 4 * b.размер.ширина - 2, `город ${b.id}`);
-    assert.equal(L.height, 4 * b.размер.ширина - 2, `город ${b.id}`);
+    assert.equal(L.width, Math.max(4 * b.размер.ширина - 2, 5),
+      `город ${b.id}`);
+    assert.equal(L.height, Math.max(4 * b.размер.ширина - 2, 5),
+      `город ${b.id}`);
     assert.equal(L.kind, 'city', `город ${b.id}`);
   }
 });
@@ -442,21 +456,48 @@ test('разные якоря → разные layout (fp5, закреплённ
   assert.notDeepEqual(a, b, 'полные layout различны');
 });
 
-test('хутор (fp1) — вырожденный 2x2: разные якоря → ОДИНАКОВЫЕ cells/entrance/exit, но РАЗНЫЕ seed', () => {
-  // При width=2 колонн 1..W−2 нет: x=0 — позиция меняет только
-  // seed. Внутренности нет (000102: хутор «без внутренностей»,
-  // мин_постройки=0); 000177: FLOOR — ОДИН тайл (дверь).
+test('хутор (fp1) — 5x5 (ре-пин 000259): разные якоря → РАЗНЫЕ двери (seed-зависимая колонна 1..3) и seed, ОДИНАКОВЫЙ каркас (периметр + интерьер за минусом двери), ровно 10 FLOOR', () => {
+  // 000259: layout хутора 5×5 — интерьер 3×3 = 9 (минимум 3×3),
+  // постройки — от wealth (мин_постройки = 0). Дверь (000177):
+  // единый тайл на южном периметре (y = 4), колонна 1..W−2 = 1..3 —
+  // ОДИН вызов rng(seed); якоря разные → seed разные → колонны
+  // различаются (старая премисса «ОДИНАКОВЫЕ cells/entrance» при
+  // W=2, где x всегда 0, отпала).
   const C = loadCities();
   const a = C.createCityLayout(-119, -104, 1);
   const b = C.createCityLayout(-118, 33, 1);
-  assert.equal(a.width, 2);
-  assert.equal(a.height, 2);
-  assert.deepEqual(a.cells, b.cells, 'cells');
-  assert.deepEqual(a.entrance, b.entrance, 'entrance');
-  assert.deepEqual(a.exit, b.exit, 'exit');
+  for (const L of [a, b]) {
+    assert.equal(L.width, 5, 'хутор 5×5');
+    assert.equal(L.height, 5, 'хутор 5×5');
+    assert.deepEqual(L.exit, L.entrance, 'exit = entrance (000177)');
+    assert.equal(L.entrance.y, 4, 'дверь — южный периметр (y = H−1)');
+    assert.ok(L.entrance.x >= 1 && L.entrance.x <= 3,
+      'колонна двери 1..W−2 (W=5)');
+    assert.equal(L.cells.filter((v) => v === C.CELL_FLOOR).length, 10,
+      'ровно 10 FLOOR (интерьер 9 + дверь 1 на периметре)');
+  }
   assert.notEqual(a.seed, b.seed, 'seed различен');
-  assert.equal(a.cells.filter((v) => v === C.CELL_FLOOR).length, 1,
-    'у хутора ровно 1 FLOOR-клетка (единый тайл входа-выхода)');
+  assert.notDeepEqual(a.entrance, b.entrance,
+    'двери различны (seed-зависимая колонна)');
+  // Каркас ОДИНАКОВ для обоих якорей: периметр — WALL, КРОМЕ ровно
+  // одной двери (FLOOR, южный периметр); интерьер (1..3)×(1..3) —
+  // сплошной FLOOR (9 клеток). Отличаются ТОЛЬКО позиция двери,
+  // seed и entrance/exit.
+  for (const L of [a, b]) {
+    for (let y = 0; y < L.height; y++)
+      for (let x = 0; x < L.width; x++) {
+        const perim = x === 0 || y === 0 ||
+          x === L.width - 1 || y === L.height - 1;
+        const isDoor = x === L.entrance.x && y === L.entrance.y;
+        const expect = perim
+          ? (isDoor ? C.CELL_FLOOR : C.CELL_WALL)
+          : C.CELL_FLOOR;
+        assert.equal(L.cells[y * L.width + x], expect,
+          `(${x},${y}): каркас (периметр WALL + дверь FLOOR +` +
+          ' интерьер 9 FLOOR)');
+      }
+  }
+  assert.notDeepEqual(a, b, 'полные layout различны');
 });
 
 // --- UMD: браузерная ветка ---
@@ -560,9 +601,9 @@ test('vm: cities.js БЕЗ perlin.js — throw с явным сообщение�
 //    при сохранной достижимости = 16 (все внутренние клетки,
 //    000177: единый тайл) ≥ мин 2 — минимум ВСЕГДА выполним;
 //    graceful-стоп — только для синтетического min > мест;
-//  * хутор (fp1): FLOOR только единый тайл (000177) → spots пуст →
-//    buildings: [] при ЛЮБОМ wealth (мин_постройки = 0, 000102 —
-//    задокументированное исключение «таверна в каждом городе»);
+//  * хутор (fp1): 000259 — 5×5, интерьер 9 (spots = 9; дверь на
+//    периметре — в spots не входит) → постройки от wealth: w0 → []
+//    (мин_постройки = 0), w≥1 → таверна первой (доли {44:1});
 //  * pool/квоты — только из особых_параметры cityRecord
 //    (source of truth 000053): ключи доли_типов нормализуются
 //    Number(); города новых типов НЕ вводит (категория ≠ «город»).
@@ -732,8 +773,35 @@ const GOLDEN_CONTENT = {
   // РЕ-ПИН 000177: таверна (2,1) (ранее (1,2) — северная клетка
   // выхода была «запретной зоной» для reachOK); ре-пин 000148.01:
   // таверна (2,2).
+  // Хутор (−119,−104) и (−118,33): 000259 — 5×5, интерьер 9 (ре-пин:
+  // w0 → [] — БИТ-В-БИТ (мин_постройки = 0); w≥1 — таверны (доли
+  // {44:1}); литералы — первый зелёный прогон, паттерн 000104).
   '51,-119,-104,0': { seed: 1811910784, buildings: [] },
-  '51,-119,-104,3': { seed: 1811910784, buildings: [] },
+  '51,-119,-104,1': { seed: 1811910784, buildings: [
+    { x: 1, y: 1, buildingId: 44 },
+  ] },
+  '51,-119,-104,2': { seed: 1811910784, buildings: [
+    { x: 1, y: 1, buildingId: 44 },
+    { x: 2, y: 2, buildingId: 44 },
+  ] },
+  '51,-119,-104,3': { seed: 1811910784, buildings: [
+    { x: 1, y: 1, buildingId: 44 },
+    { x: 2, y: 2, buildingId: 44 },
+    { x: 2, y: 1, buildingId: 44 },
+  ] },
+  '51,-118,33,0': { seed: 2492498253, buildings: [] },
+  '51,-118,33,1': { seed: 2492498253, buildings: [
+    { x: 3, y: 1, buildingId: 44 },
+  ] },
+  '51,-118,33,2': { seed: 2492498253, buildings: [
+    { x: 3, y: 1, buildingId: 44 },
+    { x: 3, y: 3, buildingId: 44 },
+  ] },
+  '51,-118,33,3': { seed: 2492498253, buildings: [
+    { x: 3, y: 1, buildingId: 44 },
+    { x: 3, y: 3, buildingId: 44 },
+    { x: 3, y: 2, buildingId: 44 },
+  ] },
   '52,-114,-119,0': { seed: 4224836588, buildings: [
     { x: 2, y: 2, buildingId: 44 },
     { x: 3, y: 3, buildingId: 1 },
@@ -825,7 +893,7 @@ test('типы — только из доли_типов cityRecord (source of t
 
 // --- Таверна и минимум ---
 
-test('таверна (44) — минимум 1: деревня/город/столица (все wealth + sweep); хутор — buildings: [] (дегенерат 000102)', () => {
+test('таверна (44) — минимум 1: деревня/город/столица (все wealth + sweep); хутор (ре-пин 000259) — w0 → [], w≥1 — таверна (доли {44:1})', () => {
   const C = loadCities();
   for (const [id, anchors] of Object.entries({
     52: V_ANCHORS, 53: [C_ANCHORS[53], ...T_SWEEP],
@@ -839,11 +907,21 @@ test('таверна (44) — минимум 1: деревня/город/сто
       }
     }
   }
+  // 000259: хутор — 5×5, интерьер 9: w0 → [] (мин_постройки = 0 —
+  // БИТ-В-БИТ как раньше); w≥1 → таверна (первая постройка, доли
+  // {44:1} — ВСЕ таверны).
   for (const [x, y] of [C_ANCHORS[51], [-118, 33]])
     for (const w of WEALTHS) {
       const { res } = genFor(C, 51, x, y, w);
-      assert.deepEqual(res.buildings, [],
-        `хутор (${x},${y}) w${w}: FLOOR только единый тайл → пусто`);
+      if (w === 0) {
+        assert.deepEqual(res.buildings, [],
+          `хутор (${x},${y}) w0: мин_постройки = 0 → пусто`);
+      } else {
+        assert.ok(res.buildings.length >= 1,
+          `хутор (${x},${y}) w${w}: таверна обязательна (000259)`);
+        assert.ok(res.buildings.every((b) => b.buildingId === TAV_ID),
+          `хутор (${x},${y}) w${w}: доли {44:1} — ВСЕ таверны`);
+      }
     }
 });
 
@@ -1012,8 +1090,8 @@ test('wealth: город (100,−40) — (w0) ≠ (w3); count = мин_пост�
 // не имеет map_index — её товары продаются через NPC-торговлю»:
 // у Лавки НЕТ стока постройки (makeCityShop → null — пин ниже),
 // ассортимент — доли_типов деревни/города/столицы. Хутор (51,
-// fp1) — задокументированное исключение 000102/000104 (FLOOR
-// только entrance/exit, buildings: []) — доли НЕ меняются.
+// fp1) — 000259: 5×5, интерьер 9, постройки — от wealth (w0 → [],
+// w≥1 → таверна) — доли НЕ меняются.
 // Новый map_index ЗАПРЕЩЁН (spec/buildings.md «Расширение карты», 000064 R1).
 //
 // СТАНЦИЯ КРАСНЫХ ТЕСТОВ: падают на отсутствие ключа «5» в
@@ -1055,11 +1133,11 @@ test('000134 R1: Лавка (id 5) — в долях_типов деревни/�
   assert.ok(d52['5'] < d52['1'], 'деревня: доля 5 (0.2) < топ-1 1 (0.4)');
   assert.ok(d53['5'] < d53['25'], 'город: доля 5 (0.2) < топ-1 25 (0.3)');
   assert.ok(d54['5'] < d54['25'], 'столица: доля 5 (0.18) < топ-1 25 (0.3)');
-  // Хутор (51): fp1 — квоты некуда применить (000102/000104) —
-  // доли БЕЗ ИЗМЕНЕНИЙ, ключа «5» НЕТ.
+  // Хутор (51): fp1 — 5×5, интерьер 9 (000259) — доли БЕЗ
+  // ИЗМЕНЕНИЙ (данные за скоупом), ключа «5» НЕТ.
   const d51 = CITY_RECORDS.get(51).особые_параметры.доли_типов;
   assert.deepEqual(d51, { '44': 1 },
-    'хутор: доли {44: 1} (без изменений — исключение 000102/000104)');
+    'хутор: доли {44: 1} (без изменений — 000259: таверны от wealth)');
   assert.ok(!Object.prototype.hasOwnProperty.call(d51, '5'),
     'хутор: ключа «5» нет');
   // Зелёные пины (контракт spec/buildings.md «Магазины», зафиксированы заранее):
@@ -1075,7 +1153,7 @@ test('000134 R1: Лавка (id 5) — в долях_типов деревни/�
   }
 });
 
-test('000134 R2: Лавка (id 5) генерируется в деревне/городе/столице с ненулевой вероятностью (детерминированные якоря — присутствие зафиксировано); хутор — buildings: []', () => {
+test('000134 R2: Лавка (id 5) генерируется в деревне/городе/столице с ненулевой вероятностью (детерминированные якоря — присутствие зафиксировано); хутор (ре-пин 000259) — w0 → [], w≥1 → таверна', () => {
   const C = loadCities();
   // GOLDEN-пины (сознательный ре-пин ассортимента — прецеденты
   // 000073/000103/000131; РЕ-ПИН 000177: единый тайл входа-выхода
@@ -1133,13 +1211,21 @@ test('000134 R2: Лавка (id 5) генерируется в деревне/г
     'RED: столица: ≥1 Лавки при w2 (196 якорей)');
   assert.ok(any5(54, S_SWEEP, 3),
     'RED: столица: ≥1 Лавки при w3 (196 якорей)');
-  // Хутор (fp1): buildings: [] при ЛЮБОМ wealth (без изменений —
-  // доли 51 не трогаются).
+  // Хутор (fp1): 000259 — интерьер 9: w0 → [] (мин_постройки = 0,
+  // без изменений); w≥1 — таверны (доли 51 {44:1} не трогаются —
+  // Лавки в хуторе НЕТ).
   for (const [x, y] of [C_ANCHORS[51], [-118, 33]])
     for (const w of WEALTHS) {
       const { res } = genFor(C, 51, x, y, w);
-      assert.deepEqual(res.buildings, [],
-        `хутор (${x},${y}) w${w}: buildings: [] (без изменений)`);
+      if (w === 0) {
+        assert.deepEqual(res.buildings, [],
+          `хутор (${x},${y}) w0: мин_постройки = 0 → пусто`);
+      } else {
+        assert.ok(res.buildings.length >= 1,
+          `хутор (${x},${y}) w${w}: таверна есть (000259)`);
+        assert.ok(res.buildings.every((b) => b.buildingId === 44),
+          `хутор (${x},${y}) w${w}: доли {44:1} — ВСЕ таверны`);
+      }
     }
 });
 
@@ -2058,17 +2144,28 @@ test('000148.03 R3: canBuildAt — cap D4 (деревня 6×6, интерьер
     'RED: reason — «cap» (лимит 50% интерьера, D4)');
 });
 
-test('000148.03 R4: canBuildAt — хутор (интерьер 0) — отказ; деревня 3×3 (9 клеток > потолка 8) — «cap» даже при ПУСТОМ occupied', () => {
+test('000148.03 R4: canBuildAt — хутор (ре-пин 000259: интерьер 9, потолок 4): (1,1) 1×1 ∅ → ok; периметр/дверь (3,4) → «space»; 4 заняты + 1×1 → «cap»; деревня 3×3 (9 клеток > потолка 8) — «cap» даже при ПУСТОМ occupied', () => {
   const C = loadCities();
-  // Хутор 2×2: ВСЕ 4 клетки — периметр (единственная FLOOR — дверь
-  // (0,1)); интерьер 0 → любое размещение «space» (interior пуст).
+  // Хутор 5×5 (000259): интерьер (1..3)×(1..3) = 9, дверь (3,4)
+  // — периметр (seed-зависимая колонна; здесь — (3,4)); потолок
+  // floor(9/2) = 4 (граница включая).
   const hamlet = C.createCityLayout(-119, -104, 1);
   const rH1 = C.canBuildAt(hamlet, { x: 0, y: 0 }, 48, new Set());
   assert.equal(rH1.ok, false, 'хутор: клетка периметра — отказ');
-  assert.equal(rH1.reason, 'space', 'хутор: нет интерьерных FLOOR');
+  assert.equal(rH1.reason, 'space', 'хутор: (0,0) — периметр, не интерьер');
   const rH2 = C.canBuildAt(hamlet, { x: 0, y: 1 }, 48, new Set());
-  assert.equal(rH2.ok, false, 'хутор: ДВЕРЬ (периметр) — тоже «space»');
-  assert.equal(rH2.reason, 'space', 'дверь не является интерьером (floor(0/2) = 0)');
+  assert.equal(rH2.ok, false, 'хутор: (0,1) — периметр — тоже «space»');
+  assert.equal(rH2.reason, 'space', '(0,1) больше не дверь (дверь (3,4) — 000259)');
+  const rH3 = C.canBuildAt(hamlet, { x: 3, y: 4 }, 48, new Set());
+  assert.equal(rH3.ok, false, 'хутор: ДВЕРЬ (3,4) (периметр) — тоже «space»');
+  assert.equal(rH3.reason, 'space', 'дверь не является интерьером (floor(9/2) = 4)');
+  const rH4 = C.canBuildAt(hamlet, { x: 1, y: 1 }, 48, new Set());
+  assert.equal(rH4.ok, true,
+    'хутор: (1,1) 1×1 на пустом интерьере — допустимо (000259)');
+  const rH5 = C.canBuildAt(hamlet, { x: 2, y: 2 }, 48,
+    new Set(['1,1', '2,1', '3,1', '1,2']));
+  assert.equal(rH5.ok, false, 'хутор: 5-я интерьерная клетка — отказ');
+  assert.equal(rH5.reason, 'cap', 'cap: 4 + 1 > floor(9/2) = 4');
   // Деревня: 3×3 (Арена 7, 9 клеток) — space проходит (9 клеток
   // ⊆ интерьеру), но cap: 0 + 9 > 8 → «cap». Зафиксировано ТЗ:
   // «деревня 3×3 — не влезает под лимит».
@@ -2559,8 +2656,8 @@ test('000148.05 R26: generateCityContents(…, occupied) — 6-й optional-па�
       'RED: постройка НЕ на built-клетке (occupied — фильтр spots): '
       + JSON.stringify(b));
   }
-  // (c) ВСЕ 16 spots occupied → buildings: [] (graceful-стоп — как
-  // хутор fp1; без throw и зацикливания).
+  // (c) ВСЕ 16 spots occupied → buildings: [] (graceful-стоп —
+  // общий путь «валидных мест нет»; без throw и зацикливания).
   const rAll = C.generateCityContents(
     L, -114, -119, rec, 3,
     interior.map(([x, y]) => x + ',' + y));
@@ -2657,4 +2754,139 @@ test('000191.2: canBuildAt — occupied в форме Array === форме Set (
     C.canBuildAt(layout, { x: 4, y: 2 }, 48, new Set(arr7)),
     'Array/Set — БИТ-В-БИТ (допустимость)');
   assert.equal(rArr7.ok, true, '7 занятых — 8-я ДОПУСТИМА (≤ включая)');
+});
+
+// ============================================================
+// 000259 — Хутор 5×5 (интерьер ≥ 3×3) и монотонность размеров
+// ============================================================
+// ТЗ: tasks/pending/000259.md. Контракт: memory/000259-hamlet-5x5-
+// monotone.md (§3 — новые золотые значения хутора, §2 — решение по
+// застройке «разрешить», НОЛЬ новых строк логики). RED (TDD): формулы
+// max(4f−2, 5) в src/cities.js ещё нет (cityLayoutSize — 4f−2:
+// f=1 → 2×2, интерьер 0) — падения ОСМЫСЛЕННЫЕ ERR_ASSERTION по
+// значениям (не синтаксис; API существует). Зелёная стадия: формула
+// — ОДНА строка + ре-пины с маркером «ре-пин 000259» (контракт §5);
+// мир (footprint/якоря), двери 000177 (форма), RNG-соли — НЕ
+// ТРОГАЮТСЯ (seed хутора — от позиции, не от размера — без изм.).
+
+test('000259-L1: cityLayoutSize — f=1 → 5 (max(4f−2, 5)); f=2/5/7 — бит-в-бит (6/18/26); fp13 → 50', () => {
+  const C = loadCities();
+  assert.equal(C.cityLayoutSize(1), 5,
+    'RED: хутор f=1 → 5 (layout 5×5, интерьер 3×3 = 9); сейчас 4·1−2 = 2');
+  assert.equal(C.cityLayoutSize(2), 6, 'f=2 — бит-в-бит (6×6, интерьер 16)');
+  assert.equal(C.cityLayoutSize(5), 18, 'f=5 — бит-в-бит (18×18, интерьер 256)');
+  assert.equal(C.cityLayoutSize(7), 26, 'f=7 — бит-в-бит (26×26, интерьер 576)');
+  assert.equal(C.cityLayoutSize(13), 50, 'fp13 → 50 (max(4·13−2, 5) = 50)');
+});
+
+test('000259-L2: layout-golden хутора 5×5: (−119,−104) seed 2891528378, door (3,4); (−118,33) seed 2117505400, door (2,4); cells дословно', () => {
+  const C = loadCities();
+  const a = C.createCityLayout(-119, -104, 1);
+  assert.equal(a.width, 5, 'RED: хутор 5×5 (сейчас 2×2)');
+  assert.equal(a.height, 5, 'RED: хутор 5×5');
+  assert.equal(a.seed, 2891528378, 'seed БЕЗ ИЗМЕНЕНИЙ (от позиции, не от размера)');
+  assert.deepEqual(a.entrance, { x: 3, y: 4 },
+    'RED: дверь (3,4) — южный периметр, колонна 1..3 (ОДИН вызов rng, 000177)');
+  assert.deepEqual(a.exit, a.entrance, 'entrance = exit (000177, единый тайл)');
+  assert.deepEqual(a.cells, [
+    0, 0, 0, 0, 0,
+    0, 1, 1, 1, 0,
+    0, 1, 1, 1, 0,
+    0, 1, 1, 1, 0,
+    0, 0, 0, 1, 0,
+  ], 'RED: cells дословно (16 WALL периметр + 9 FLOOR интерьер + FLOOR дверь)');
+  const b = C.createCityLayout(-118, 33, 1);
+  assert.equal(b.width, 5, 'RED: хутор 5×5');
+  assert.equal(b.height, 5, 'RED: хутор 5×5');
+  assert.equal(b.seed, 2117505400, 'seed БЕЗ ИЗМЕНЕНИЙ');
+  assert.deepEqual(b.entrance, { x: 2, y: 4 }, 'RED: дверь (2,4)');
+  assert.deepEqual(b.exit, b.entrance, 'entrance = exit (000177, единый тайл)');
+  assert.deepEqual(b.cells, [
+    0, 0, 0, 0, 0,
+    0, 1, 1, 1, 0,
+    0, 1, 1, 1, 0,
+    0, 1, 1, 1, 0,
+    0, 0, 1, 0, 0,
+  ], 'RED: cells дословно (второй якорь)');
+});
+
+test('000259-L3: интерьер хутора = 3×3 = 9 FLOOR (x 1..3, y 1..3); всего FLOOR = 10 (9 + дверь на периметре)', () => {
+  const C = loadCities();
+  const L = C.createCityLayout(-119, -104, 1);
+  const W = L.width, H = L.height;
+  let interior = 0, total = 0;
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      if (L.cells[y * W + x] !== C.CELL_FLOOR) continue;
+      total++;
+      if (x >= 1 && x <= W - 2 && y >= 1 && y <= H - 2) interior++;
+    }
+  assert.equal(interior, 9,
+    'RED: интерьер хутора ≥ 3×3 = 9 (сейчас 0 — все 4 клетки 2×2 — периметр)');
+  assert.equal(total, 10,
+    'RED: всего FLOOR = 10 (интерьер 9 + дверь 1 на периметре)');
+});
+
+test('000259-M1: монотонность интерьеров: хутор ≥ 9 и 9 < 16 < 256 < 576 (f=1/2/5/7)', () => {
+  const C = loadCities();
+  const interior = (fp) => {
+    const L = C.createCityLayout(0, 0, fp);
+    const W = L.width, H = L.height;
+    let n = 0;
+    for (let y = 1; y < H - 1; y++)
+      for (let x = 1; x < W - 1; x++)
+        if (L.cells[y * W + x] === C.CELL_FLOOR) n++;
+    return n;
+  };
+  const iv = [interior(1), interior(2), interior(5), interior(7)];
+  assert.ok(iv[0] >= 9,
+    'RED: интерьер хутора ≥ 3×3 = 9 (сейчас ' + iv[0] + ')');
+  assert.ok(iv[0] < iv[1],
+    'RED: хутор < деревня (' + iv[0] + ' < ' + iv[1] + ')');
+  assert.ok(iv[1] < iv[2], 'деревня < город (' + iv[1] + ' < ' + iv[2] + ')');
+  assert.ok(iv[2] < iv[3], 'город < столица (' + iv[2] + ' < ' + iv[3] + ')');
+  assert.deepEqual(iv, [9, 16, 256, 576],
+    'RED: интерьеры дословно 9 < 16 < 256 < 576 (сейчас '
+    + JSON.stringify(iv) + ')');
+});
+
+test('000259-B1: хутор застраивается (решение «разрешить»): canBuildAt (1,1) 1×1 ∅ → ok; 4 заняты + 1×1 → «cap» (потолок floor(9/2) = 4); (0,0)/дверь (3,4) → «space»; 3×3 (1,1) ∅ → «cap»; contents w3 → таверны (44) ×3, w0 → []', () => {
+  const C = loadCities();
+  const hamlet = C.createCityLayout(-119, -104, 1); // цель 5×5, дверь (3,4)
+  // (1) (1,1) 1×1 (id 48 Развалины) на пустом — допустимо: интерьер 9.
+  const r1 = C.canBuildAt(hamlet, { x: 1, y: 1 }, 48, new Set());
+  assert.equal(r1.ok, true,
+    'RED: интерьер 9 — (1,1) допустим (сейчас «space»: интерьер 0)');
+  // (2) Стена (0,0) и ДВЕРЬ (3,4) — периметр → «space» (дверь
+  // «заблокировать» постройкой невозможно).
+  const r2 = C.canBuildAt(hamlet, { x: 0, y: 0 }, 48, new Set());
+  assert.equal(r2.ok, false, 'стена (0,0) — периметр — отказ');
+  assert.equal(r2.reason, 'space', 'периметр — не интерьер');
+  const r3 = C.canBuildAt(hamlet, { x: 3, y: 4 }, 48, new Set());
+  assert.equal(r3.ok, false, 'RED: дверь (3,4) — периметр — отказ');
+  assert.equal(r3.reason, 'space', 'дверь — не интерьер (000177)');
+  // (3) cap: 4 занятых интерьерных + 1×1 → 4+1 > floor(9/2) = 4.
+  const occ4 = new Set(['1,1', '2,1', '3,1', '1,2']);
+  const r4 = C.canBuildAt(hamlet, { x: 2, y: 2 }, 48, occ4);
+  assert.equal(r4.ok, false, 'RED: 5-я интерьерная клетка — отказ (4+1 > 4)');
+  assert.equal(r4.reason, 'cap', 'RED: потолок floor(9/2) = 4 (граница включая)');
+  // (4) 3×3 (id 7 Арена) на (1,1) ∅: space проходит (9 ⊆ интерьеру),
+  // cap: 0+9 > 4 → «cap» (зафикс. следствие 000264: 3×3 не влезает
+  // в хутор НИКОГДА).
+  const r5 = C.canBuildAt(hamlet, { x: 1, y: 1 }, 7, new Set());
+  assert.equal(r5.ok, false, 'RED: 3×3 (Арена) не влезает под потолок 4');
+  assert.equal(r5.reason, 'cap', 'space ОК (9 ⊆ интерьеру), cap: 0+9 > 4');
+  // (5) содержимое (решение: таверна первой — доли {44:1},
+  // мин_постройки = 0 — ДАННЫЕ НЕ ТРОГАЕМ): w3 → 3 таверны (все id 44),
+  // w0 → buildings: [] (БИТ-В-БИТ как раньше). Позиции-литералы
+  // пинятся на зелёной стадии (GOLDEN_CONTENT, паттерн 000104).
+  const rec = CITY_RECORDS.get(51);
+  const w3 = C.generateCityContents(hamlet, -119, -104, rec, 3);
+  assert.equal(w3.buildings.length, 3,
+    'RED: w3 → 3 постройки (count = 0 + 3; сейчас: buildings: [])');
+  assert.ok(w3.buildings.every((b) => b.buildingId === 44),
+    'RED: доли {44:1} — ВСЕ таверны (id 44)');
+  const w0 = C.generateCityContents(hamlet, -119, -104, rec, 0);
+  assert.deepEqual(w0.buildings, [],
+    'w0 (мин_постройки = 0) → buildings: [] (бит-в-бит, без изменений)');
 });

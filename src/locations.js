@@ -351,8 +351,8 @@
     // makeCityShop = порядок buildings из generateCityContents
     // (детерминирован; RNG — только в ядрах, в ТЕХ ЖЕ вызовах:
     // createCityLayout → generateCityContents → makeCityShop×N).
-    // Хутор (fp1): buildings: [] → cityShops = {} (ПУСТОЙ объект,
-    // не null — содержимое сгенерировано, построек нет).
+    // Хутор (fp1): buildings — от wealth (000259: w0 → [] →
+    // cityShops = {} — ПУСТОЙ объект, не null; w≥1 — таверны).
     const wealth = t.buildingWealth;
     let cityContents = null, cityShops = null, cityWealth = null;
     if (Number.isInteger(wealth) && wealth >= 0 && wealth <= 3 &&

@@ -1453,8 +1453,9 @@ const BL = require('../src/buildings.js');
 
 // env для пайплайна build/demolish (000148.04): рецепт = initCityBuild
 // city-interact.test.js. over: { fp, x, y, record, cityContents }.
-// fp: 1 — хутор (−119,−104, 2×2), 2 — деревня (−114,−119, 6×6),
-// 5 — город (100,−40, 18×18; default — 5). cityStates-ключ — якорь.
+// fp: 1 — хутор (−119,−104, 5×5, 000259), 2 — деревня
+// (−114,−119, 6×6), 5 — город (100,−40, 18×18; default — 5).
+// cityStates-ключ — якорь.
 function initBuild04(over = {}) {
   const hero = PLR.createCharacter();
   const fp = over.fp === undefined ? 5 : over.fp;

@@ -358,9 +358,12 @@ test('000258 AT-4: WALL_AUTOTILE_NAMES/WALL_AUTOTILES — 4 стиля × 20, п
 // --- AT-5..AT-7: рендер (vm, withSprites + loader-стаб) ---
 
 test('000258 AT-5: город — стена рисуется спрайтом маски (НЕ fillRect из CITY_WALL_VARIANTS); угловая клетка — угловой спрайт; пол остаётся плоским', () => {
-  // 2×2 хутор (layout 000148.01): W W / F W — двери (0,1); стены:
-  // (0,0) mask 4 → m04, (1,0) mask 0 + диагональ SW → cSW (17),
-  // (1,1) mask 8 → m08.
+  // 5×5 хутор (ре-пин 000259, layout 000148.01/000259): дверь (3,4)
+  // на южном периметре (FLOOR — в масках соседей). Стены: углы
+  // (0,0) cSE (16), (4,0) cSW (17), (0,4) cNE (18); (1,0)/(2,0)/
+  // (3,0) m04; (0,1)/(0,2)/(0,3) m02; (4,1)..(4,4) m08 ((4,4) —
+  // дверь западнее: маска 8, НЕ cNW); (1,4) m01; (2,4) m03 — левее
+  // двери (дверь FLOOR — в маске).
   let loaded = loadUi({ performance: { now: () => 1000 },
     withSprites: true });
   let G = loaded.G;
@@ -371,21 +374,39 @@ test('000258 AT-5: город — стена рисуется спрайтом �
     onMove() {}, zoom: 40, spriteLoader: makeLoader(),
   });
   let calls = findCanvas(loaded.body).drawCalls;
-  assertWallAt(calls, G, 0, 0, 40, 1, 1,
-    'assets/city/walls/city_m04.svg', 'хутор: стена (0,0) mask 4');
-  assertWallAt(calls, G, 1, 0, 40, 1, 1,
-    'assets/city/walls/city_cSW.svg', 'хутор: угол (1,0) cSW (17)');
-  assertWallAt(calls, G, 1, 1, 40, 1, 1,
-    'assets/city/walls/city_m08.svg', 'хутор: стена (1,1) mask 8');
+  assertWallAt(calls, G, 0, 0, 40, 2.5, 2.5,
+    'assets/city/walls/city_cSE.svg', 'хутор: угол (0,0) cSE (16)');
+  assertWallAt(calls, G, 4, 0, 40, 2.5, 2.5,
+    'assets/city/walls/city_cSW.svg', 'хутор: угол (4,0) cSW (17)');
+  assertWallAt(calls, G, 0, 4, 40, 2.5, 2.5,
+    'assets/city/walls/city_cNE.svg', 'хутор: угол (0,4) cNE (18)');
+  for (const [x, y] of [[1, 0], [2, 0], [3, 0]])
+    assertWallAt(calls, G, x, y, 40, 2.5, 2.5,
+      'assets/city/walls/city_m04.svg',
+      'хутор: стена (' + x + ',' + y + ') mask 4');
+  for (const [x, y] of [[0, 1], [0, 2], [0, 3]])
+    assertWallAt(calls, G, x, y, 40, 2.5, 2.5,
+      'assets/city/walls/city_m02.svg',
+      'хутор: стена (' + x + ',' + y + ') mask 2');
+  for (const [x, y] of [[4, 1], [4, 2], [4, 3], [4, 4]])
+    assertWallAt(calls, G, x, y, 40, 2.5, 2.5,
+      'assets/city/walls/city_m08.svg',
+      'хутор: стена (' + x + ',' + y + ') mask 8');
+  assertWallAt(calls, G, 1, 4, 40, 2.5, 2.5,
+    'assets/city/walls/city_m01.svg', 'хутор: стена (1,4) mask 1');
+  assertWallAt(calls, G, 2, 4, 40, 2.5, 2.5,
+    'assets/city/walls/city_m03.svg',
+    'хутор: левее двери (2,4) mask 3');
   assert.ok(!calls.some((c) => c[0] === 'fillRect'
       && (c[2] === '#77685a' || c[2] === '#66594c')),
     'город: fillRect-стен из CITY_WALL_VARIANTS НЕТ (спрайт маски)');
-  // Пол — НЕ меняется: плоский fillRect из CITY_FLOOR_VARIANTS.
-  const p01 = G.worldToScreen(0, 1, 1, 1, 40, 800, 600);
+  // Пол — НЕ меняется: плоский fillRect из CITY_FLOOR_VARIANTS
+  // (дверь (3,4) — периметр-FLOOR, ре-пин 000259).
+  const pDoor = G.worldToScreen(3, 4, 2.5, 2.5, 40, 800, 600);
   const floorCall = calls.find((c) => c[0] === 'fillRect'
-    && Math.abs(c[1][0] - p01.x) <= 1e-9
-    && Math.abs(c[1][1] - p01.y) <= 1e-9);
-  assert.ok(floorCall, 'хутор: пол (0,1) — fillRect (не спрайт)');
+    && Math.abs(c[1][0] - pDoor.x) <= 1e-9
+    && Math.abs(c[1][1] - pDoor.y) <= 1e-9);
+  assert.ok(floorCall, 'хутор: пол (3,4) дверь — fillRect (не спрайт)');
   assert.ok(['#b3a284', '#a5947a', '#c0b090'].includes(floorCall[2]),
     'городский пол — CITY_FLOOR_VARIANTS (инвариант: пол плоский)');
 
