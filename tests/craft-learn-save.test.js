@@ -392,7 +392,7 @@ test('SV-1: сейв — hero.craftTypes: версия 1 (миграций НЕ�
     'старый сейв без craftTypes → {} (дефолт, D8)');
 });
 
-test('SV-2: e2e (vm, полная цепочка + main.js): чертёж blueprint_forge в сейве → restore (переживает sanitizeInventory) → UI «исп.» → flash «Изучено: «Ковка железного меча»», предмет −1 → beforeunload → новая загрузка: state.hero.craftTypes = {кузнечное_дело: true}; диалог крафта (Дом кузнеца) — РОВНО кузнечное (4 id data-driven), зачарование не видно; RED: чертёж выпал из инвентаря (нет каталожной записи)', async () => {
+test('SV-2: e2e (vm, полная цепочка + main.js): чертёж blueprint_forge в сейве → restore (переживает sanitizeInventory) → UI «исп.» → flash «Изучено: «Ковка железного меча»», предмет −1 → beforeunload → новая загрузка: state.hero.craftTypes = {кузнечное_дело: true}; диалог крафта (Дом кузнеца) — РОВНО кузнечное (65 id data-driven; ре-пин 000250), зачарование не видно; RED: чертёж выпал из инвентаря (нет каталожной записи)', async () => {
   // --- БООТ A: чертёж в инвентаре героя сейва ---
   const st = makeStorage();
   const h = bootWithSave232(st, {
@@ -476,8 +476,8 @@ test('SV-2: e2e (vm, полная цепочка + main.js): чертёж bluepr
     .filter((r) => r.здания.includes(25) && r.тип === 'кузнечное_дело')
     .map((r) => r.id).sort();
   assert.deepEqual(host(shown), [...expect],
-    'BOOT B: диалог — РОВНО изученный вид здания 25 (4); '
-    + 'RED: + 2 зачарования (фильтра нет)');
+    'BOOT B: диалог — РОВНО изученный вид здания 25 (65, '
+    + 'ре-пин 000250: +2 кожаные брони); RED: + 2 зачарования (фильтра нет)');
   assert.ok(!textOf(ov).includes('зачарование'),
     'BOOT B: неизученное «зачарование» — не видно');
   assert.equal(hB.errors.length, 0,

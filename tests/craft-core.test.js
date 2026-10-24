@@ -1357,3 +1357,37 @@ test('000157.04 R7: diamond_cut — огранка «с нуля» в поле: 
     'у реагента нет бонуса качества (resultStatKey null)');
   assert.equal(I.totalQty(p2, 'stone_chisel'), 0, 'исходники сняты');
 });
+
+test('000250 T1: leather_kaftan/leather_gown — крафтятся в Кузнице (8)/Доме кузнеца (25), НЕ в Лавке странника (5) (000016 leather_armor — прецедент; SPEC spec/craft.md: броня — кузнечное дело)', () => {
+  const C = loadCraft();
+  const p = createCharacter();
+  p.craft = { 'кузнечное_дело': 20 };
+  p.secondary.forge = 20;
+  give(p, 'hide', 3);
+  give(p, 'coal', 2);
+  give(p, 'wood_log', 1);
+  for (const [id, b] of [['leather_kaftan', 8], ['leather_kaftan', 25],
+      ['leather_gown', 8], ['leather_gown', 25]]) {
+    const cc = C.canCraft(p, id, { building: b });
+    assert.equal(cc.ok, true, id + ' building ' + b + ': '
+      + (cc.reason || ''));
+  }
+  for (const id of ['leather_kaftan', 'leather_gown']) {
+    const cc = C.canCraft(p, id, { building: 5 });
+    assert.equal(cc.ok, false, id + ' building 5: крафт невозможен');
+    assert.equal(cc.reason,
+      'в этом здании такой способ не изготавливается');
+  }
+  const r = C.craft(p, 'leather_kaftan', { building: 8, rng: NO_ROLLS });
+  assert.equal(r.ok, true, r.reason);
+  assert.equal(I.totalQty(p, 'hide'), 0, 'hide 3→0');
+  assert.equal(I.totalQty(p, 'coal'), 0, 'coal 2→0');
+  assert.equal(I.totalQty(p, 'wood_log'), 1, 'wood_log не исходник кафтана');
+  assert.equal(I.totalQty(p, 'leather_kaftan'), 1, '+1 результат');
+  assert.equal(r.quality, false, 'NO_ROLLS — без качества');
+  assert.equal(r.extra, false, 'NO_ROLLS — без выхода');
+  assert.equal(p.craftXp['кузнечное_дело'], 24,
+    'XP виду рецепта 10 + 14 = 24 (порог 315 не достигнут)');
+  assert.equal(p.craftXp['столярное_дело'], undefined,
+    'XP не в столярное (перенос вида опыта)');
+});
