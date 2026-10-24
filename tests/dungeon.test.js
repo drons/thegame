@@ -426,26 +426,27 @@ test('ссылки: ВСЕ предметы подземелий существ�
   }
 });
 
-// --- Задача 000070: «непроходимые» предметы стен (подзадача 000032, н.3) ---
+// --- Задача 000258: автотайлинг кромки стены (вариант A) ---
 //
-// Зафиксированные решения (стадия красных тестов — всё ниже падает до кода):
+// Зафиксированные решения (ре-пин фасада 000070; красные тесты —
+// tests/wall-autotile.test.js AT-1..AT-7):
 // * набор видов стен каждого типа — поле `объекты_стен` в каталоге
 //   assets/dungeons (source of truth — JSON, 000058; зеркало —
-//   src/dungeons-data.js, перегенерация через sync:dungeons). Литерал
-//   «рядом с DUNGEON_MOBS» отклонён: 000058 уже смержена, каталог —
-//   source of truth, дублировать типовые данные в коде — против
-//   прецедента 000053/000058.
-// * Матрица типа → виды (фиксирована в задаче; «один набор для всех
-//   пяти типов» — типичный косяк, запрещён точным тестом 1:1).
-// * wallObjFor(x, y, d) → 'rock_1'|…|'stalactite_2'|null — ЧИСТАЯ
-//   функция ТОЛЬКО от (x, y, d.seed, d.type) через hash2: без RNG,
-//   без обращения к cells/содержимому/player. «Один вход — один вид»:
+//   src/dungeons-data.js, перегенерация через sync:dungeons) — БЕЗ
+//   ИЗМЕНЕНИЙ (матрица 1:1 ниже).
+// * Фасад 000070 (d.wallObjs + wallObjFor + варианты _1/_2 +
+//   WALL_VARIANT_SALT, 8-соседство) УБРАН. Стена рисуется, когда
+//   wallTileIndex ≠ 0: маска 4 соседей (N=1/E=2/S=4/W=8; бит=1, если
+//   сосед в пределах И === CELL_FLOOR; за пределами карты — стена)
+//   НЕНОЛЬ, либо маска 0 + ровно ОДНА диагональ пола — угол 16+k
+//   (SE=0, SW=1, NE=2, NW=3). 2+ диагонали — «вырез» (idx 0).
+// * wallTileIndex(cells, W, H, x, y) → 0..19 — ЧИСТАЯ функция ТОЛЬКО
+//   от сетки: без RNG, без обращения к d (seed/type/содержимое).
+// * wallKindFor(x, y, d) → kind из DUNGEON_WALL_KINDS[d.type] через
+//   hash2(x, y, WALL_KIND_SALT ^ d.seed) — ЧИСТАЯ от (x, y, seed,
+//   type); null для неизвестного типа. «Один вход — один вид»:
 //   возврат в подземелье с новым опытом не меняет облик стен.
-// * d.wallObjs — массив {x, y, obj} ТОЛЬКО wall-клеток edge-маски:
-//   стена с хотя бы одним floor-соседом по 8-соседству Чебышёва 1
-//   («фасад» стен, не все стены); floor/entrance/exit — без объектов.
-//   Маска считается по ФИНАЛЬНОЙ сетке (после комнат и коридоров).
-// * Отрисовка — в 000066; тут — данные, таблицы и чистое ядро.
+// * Отрисовка — 000258 (dungeon-ui.js, floor-pass); тут — чистое ядро.
 
 const WALL_KINDS_ALLOWED = new Set(['rock', 'column', 'stalactite']);
 const WALL_MATRIX = {
@@ -467,28 +468,41 @@ const WALL_ENTRIES = [
   { name: 'ABYSS', args: [11, 3, PX_ABYSS_000070, M.TERRAIN.MOUNTAIN] },
 ];
 
-/** Edge-маска: wall-клетка с floor-соседом по 8-соседству Чебышёва 1. */
-function edgeWallSet(d) {
-  const s = new Set();
+// Независимая от src/ проверка маски (контракт 000258): маска 4
+// соседей + счётчик диагональных полов (порядок SE/SW/NE/NW = 0..3).
+function maskInfo(d, x, y) {
+  const c = (xx, yy) =>
+    (xx >= 0 && yy >= 0 && xx < d.width && yy < d.height)
+      ? d.cells[yy * d.width + xx] : D.CELL_WALL;
+  let m = 0;
+  if (c(x, y - 1) === D.CELL_FLOOR) m |= 1; // N
+  if (c(x + 1, y) === D.CELL_FLOOR) m |= 2; // E
+  if (c(x, y + 1) === D.CELL_FLOOR) m |= 4; // S
+  if (c(x - 1, y) === D.CELL_FLOOR) m |= 8; // W
+  let diagN = 0, firstK = -1;
+  const diag = (dx, dy, k) => {
+    if (c(x + dx, y + dy) === D.CELL_FLOOR) {
+      diagN++;
+      if (diagN === 1) firstK = k;
+    }
+  };
+  diag(1, 1, 0); diag(-1, 1, 1); diag(1, -1, 2); diag(-1, -1, 3);
+  return { m, diagN, firstK };
+}
+
+// Список рисуемых стен подземелья (контракт 000258): wall-клетки с
+// wallTileIndex ≠ 0 → {x, y, kind, idx}, обход (y, x).
+function wallList000258(d) {
+  const out = [];
   for (let y = 0; y < d.height; y++) {
     for (let x = 0; x < d.width; x++) {
       if (d.cells[y * d.width + x] !== D.CELL_WALL) continue;
-      let hasFloor = false;
-      for (let dy = -1; dy <= 1 && !hasFloor; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          if (dx === 0 && dy === 0) continue;
-          const nx = x + dx, ny = y + dy;
-          if (nx < 0 || ny < 0 || nx >= d.width || ny >= d.height) continue;
-          if (d.cells[ny * d.width + nx] === D.CELL_FLOOR) {
-            hasFloor = true;
-            break;
-          }
-        }
-      }
-      if (hasFloor) s.add(x + ',' + y);
+      const idx = D.wallTileIndex(d.cells, d.width, d.height, x, y);
+      if (idx === 0) continue;
+      out.push({ x, y, kind: D.wallKindFor(x, y, d), idx });
     }
   }
-  return s;
+  return out;
 }
 
 test('000070 каталог: объекты_стен — у каждого типа, из допустимого множества, точная матрица 1:1', () => {
@@ -521,271 +535,257 @@ test('000070 DUNGEON_WALL_KINDS ≡ каталог (1:1, порядок — ка
 for (const t of WALL_ENTRIES) {
   const mkD = () => D.createDungeon(t.args[0], t.args[1], t.args[2], t.args[3]);
 
-  test(`000070 ${t.name}: wallObjs — биекция с edge-маской, ровно один объект на клетку`, () => {
+  test(`000258 ${t.name}: wallTileIndex — матрица 4-маски на каждой клетке`, () => {
     const d = mkD();
-    assert.ok(Array.isArray(d.wallObjs), `${t.name}: нет d.wallObjs`);
-    const mask = edgeWallSet(d);
-    const seen = new Set();
-    for (const o of d.wallObjs) {
-      const k = o.x + ',' + o.y;
-      assert.ok(!seen.has(k), `${t.name}: дубль объекта на клетке ${k}`);
-      seen.add(k);
-      assert.ok(mask.has(k), `${t.name}: объект вне edge-маски: ${k}`);
-      assert.equal(d.cells[o.y * d.width + o.x], D.CELL_WALL,
-        `${t.name}: клетка ${k} не стена`);
-      assert.ok(typeof o.obj === 'string' && o.obj.length > 0,
-        `${t.name}: пустой obj на ${k}`);
+    let expectedDrawable = 0;
+    for (let y = 0; y < d.height; y++) {
+      for (let x = 0; x < d.width; x++) {
+        if (d.cells[y * d.width + x] !== D.CELL_WALL) continue;
+        const { m, diagN, firstK } = maskInfo(d, x, y);
+        const expected = m !== 0 ? m : (diagN === 1 ? 16 + firstK : 0);
+        assert.equal(D.wallTileIndex(d.cells, d.width, d.height, x, y), expected,
+          `${t.name}: (${x}, ${y}) idx ≠ ${expected} (m=${m}, diag=${diagN})`);
+        if (expected !== 0) expectedDrawable++;
+      }
     }
-    for (const k of mask) {
-      assert.ok(seen.has(k), `${t.name}: edge-стена ${k} без объекта`);
-    }
-    assert.equal(d.wallObjs.length, mask.size,
-      `${t.name}: число объектов ≠ числу edge-клеток`);
+    assert.ok(expectedDrawable > 0, `${t.name}: нет ни одной рисуемой стены`);
+    assert.equal(wallList000258(d).length, expectedDrawable,
+      `${t.name}: список рисуемых стен ≠ числу клеток с idx ≠ 0`);
   });
 
-  test(`000070 ${t.name}: wallObjs — вид из набора типа, вариант 1..2`, () => {
+  test(`000258 ${t.name}: wallKindFor — вид из набора типа на каждой рисуемой стене`, () => {
     const d = mkD();
-    const allowed = new Set();
-    for (const k of D.DUNGEON_WALL_KINDS[d.type]) {
-      allowed.add(k + '_1');
-      allowed.add(k + '_2');
-    }
-    assert.ok(allowed.size > 0, `${t.name}: пустой набор видов`);
-    for (const o of d.wallObjs) {
-      assert.ok(allowed.has(o.obj),
-        `${t.name}: obj «${o.obj}» не из набора типа (${[...allowed].sort().join(', ')})`);
+    const list = wallList000258(d);
+    assert.ok(list.length > 0, `${t.name}: нет рисуемых стен`);
+    for (const c of list) {
+      assert.ok(WALL_KINDS_ALLOWED.has(c.kind),
+        `${t.name}: (${c.x}, ${c.y}) вид «${c.kind}» вне {rock, column, stalactite}`);
+      assert.ok(D.DUNGEON_WALL_KINDS[d.type].includes(c.kind),
+        `${t.name}: (${c.x}, ${c.y}) вид «${c.kind}» не из набора типа`);
     }
   });
 
-  test(`000070 ${t.name}: без объектов — floor, entrance, exit, стены вне edge-маски (внешнее кольцо)`, () => {
+  test(`000258 ${t.name}: не рисуется — floor, entrance, exit, внешнее кольцо`, () => {
     const d = mkD();
-    assert.ok(Array.isArray(d.wallObjs), `${t.name}: нет d.wallObjs`);
-    const inObjs = new Set(d.wallObjs.map((o) => o.x + ',' + o.y));
+    const drawable = new Set(wallList000258(d).map((c) => c.x + ',' + c.y));
     for (let y = 0; y < d.height; y++) {
       for (let x = 0; x < d.width; x++) {
         const k = x + ',' + y;
         if (d.cells[y * d.width + x] === D.CELL_FLOOR) {
-          assert.ok(!inObjs.has(k), `${t.name}: объект на полу ${k}`);
+          assert.ok(!drawable.has(k), `${t.name}: стена на полу ${k}`);
         }
         // Внешнее кольцо решётки: комнаты не ближе 2 клеток к границе —
-        // у периметра нет floor-соседей (стена без «фасада») → объектов нет.
+        // у периметра нет ни floor-соседей, ни диагональных полов →
+        // рисуемых стен нет.
         const border = x === 0 || y === 0 || x === d.width - 1 || y === d.height - 1;
         if (border) {
-          assert.ok(!inObjs.has(k), `${t.name}: объект на внешнем кольце ${k}`);
+          assert.ok(!drawable.has(k), `${t.name}: рисуемая стена на внешнем кольце ${k}`);
         }
       }
     }
-    assert.ok(!inObjs.has(d.entrance.x + ',' + d.entrance.y),
-      `${t.name}: объект на входе`);
-    assert.ok(!inObjs.has(d.exit.x + ',' + d.exit.y),
-      `${t.name}: объект на выходе`);
+    assert.ok(!drawable.has(d.entrance.x + ',' + d.entrance.y),
+      `${t.name}: стена на входе`);
+    assert.ok(!drawable.has(d.exit.x + ',' + d.exit.y),
+      `${t.name}: стена на выходе`);
   });
 
-  test(`000070 ${t.name}: стена с floor-соседом только по диагонали — объект (8-соседство, не 4)`, () => {
+  test(`000258 ${t.name}: ровно одна диагональ пола — угол 16+k; 2+ диагонали — вырез (0)`, () => {
     const d = mkD();
-    assert.ok(Array.isArray(d.wallObjs), `${t.name}: нет d.wallObjs`);
-    const inObjs = new Set(d.wallObjs.map((o) => o.x + ',' + o.y));
-    const diagOnly = [];
+    const idxAt = (x, y) => D.wallTileIndex(d.cells, d.width, d.height, x, y);
+    const corners = [];
+    const cutouts = [];
     for (let y = 0; y < d.height; y++) {
       for (let x = 0; x < d.width; x++) {
         if (d.cells[y * d.width + x] !== D.CELL_WALL) continue;
-        let card = false, diag = false;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue;
-            const nx = x + dx, ny = y + dy;
-            if (nx < 0 || ny < 0 || nx >= d.width || ny >= d.height) continue;
-            if (d.cells[ny * d.width + nx] !== D.CELL_FLOOR) continue;
-            if (Math.abs(dx) + Math.abs(dy) === 1) card = true; else diag = true;
-          }
-        }
-        if (diag && !card) diagOnly.push(x + ',' + y);
+        const { m, diagN, firstK } = maskInfo(d, x, y);
+        if (m !== 0) continue;
+        if (diagN === 1) corners.push([x, y, firstK]);
+        else if (diagN >= 2) cutouts.push([x, y]);
       }
     }
-    assert.ok(diagOnly.length > 0,
-      `${t.name}: прединд не выполнен — нет wall-клеток с диагонально-единственным floor-соседом`);
-    for (const k of diagOnly) {
-      assert.ok(inObjs.has(k),
-        `${t.name}: диагональная edge-стена ${k} без объекта (маска по 4-соседству?)`);
+    assert.ok(corners.length > 0,
+      `${t.name}: прединд не выполнен — нет угловых wall-клеток (маска 0 + 1 диагональ)`);
+    for (const [x, y, k] of corners) {
+      assert.equal(idxAt(x, y), 16 + k,
+        `${t.name}: угол (${x}, ${y}) idx ≠ 16+${k} (c${['SE', 'SW', 'NE', 'NW'][k]})`);
+    }
+    for (const [x, y] of cutouts) {
+      assert.equal(idxAt(x, y), 0,
+        `${t.name}: 2+ диагонали (${x}, ${y}) обязаны дать «вырез» (idx 0)`);
     }
   });
 
-  test(`000070 ${t.name}: детерминизм — один вход → идентичные wallObjs (включая _1/_2)`, () => {
+  test(`000258 ${t.name}: детерминизм — один вход → идентичные (kind, idx) на стенах`, () => {
     const a = mkD();
     const b = mkD();
-    assert.ok(Array.isArray(a.wallObjs) && a.wallObjs.length > 0,
-      `${t.name}: нет d.wallObjs`);
-    assert.deepEqual(a.wallObjs, b.wallObjs,
-      `${t.name}: повторный createDungeon дал другие wallObjs`);
+    assert.ok(wallList000258(a).length > 0, `${t.name}: нет рисуемых стен`);
+    assert.deepEqual(wallList000258(a), wallList000258(b),
+      `${t.name}: повторный createDungeon дал другие стены`);
   });
 
-  test(`000070 ${t.name}: «один вход — один вид» — totalXp/содержимое не меняют wallObjs`, () => {
+  test(`000258 ${t.name}: «один вход — один вид» — totalXp/содержимое не меняют облик стен`, () => {
     const d = mkD();
-    assert.ok(Array.isArray(d.wallObjs) && d.wallObjs.length > 0,
-      `${t.name}: нет d.wallObjs`);
-    const snap = JSON.stringify(d.wallObjs);
+    assert.ok(wallList000258(d).length > 0, `${t.name}: нет рисуемых стен`);
+    const snap = JSON.stringify(wallList000258(d));
     D.generateDungeonContents(d, heroAt(1000));
     D.generateDungeonContents(d, heroAt(999999));
-    assert.equal(JSON.stringify(d.wallObjs), snap,
-      `${t.name}: wallObjs изменились после generateDungeonContents`);
+    assert.equal(JSON.stringify(wallList000258(d)), snap,
+      `${t.name}: стены изменились после generateDungeonContents`);
     // «Возврат» с новым опытом: та же форма входа — тот же вид стен.
     const again = mkD();
-    assert.deepEqual(again.wallObjs, d.wallObjs,
+    assert.deepEqual(wallList000258(again), wallList000258(d),
       `${t.name}: повторный вход дал другой вид стен`);
   });
 
-  test(`000070 ${t.name}: оба варианта _1/_2 каждого вида типа встречаются на решётке`, () => {
+  test(`000258 ${t.name}: каждый вид типа встречается на решётке`, () => {
     const d = mkD();
-    assert.ok(Array.isArray(d.wallObjs), `${t.name}: нет d.wallObjs`);
-    const seen = new Set(d.wallObjs.map((o) => o.obj));
+    const seen = new Set(wallList000258(d).map((c) => c.kind));
     for (const k of D.DUNGEON_WALL_KINDS[d.type]) {
-      assert.ok(seen.has(k + '_1'), `${t.name}: нет ни одного ${k}_1`);
-      assert.ok(seen.has(k + '_2'), `${t.name}: нет ни одного ${k}_2`);
+      assert.ok(seen.has(k), `${t.name}: нет ни одной стены вида ${k}`);
     }
   });
 }
 
-test('000070 wallObjFor: чистая функция от (x, y, d.seed, d.type) — player/содержимое не видит', () => {
+test('000258 wallKindFor: чистая функция от (x, y, d.seed, d.type) — player/содержимое не видит', () => {
   const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
   // МИНИМАЛЬНЫЙ объект — без cells/rooms/entrance/exit: функция не
   // должна обращаться к ним (иначе вид зависел бы от решётки/содержимого).
   const min = { type: d.type, seed: d.seed };
-  const v1 = D.wallObjFor(3, 7, min);
-  assert.equal(v1, D.wallObjFor(3, 7, min), 'повторный вызов — другой результат');
-  const check = (v, where) => {
-    const m = /^([a-z][a-z0-9]*)_(1|2)$/.exec(String(v));
-    assert.ok(m, `wallObjFor ${where}: непредвиденный формат «${v}»`);
-    assert.ok(D.DUNGEON_WALL_KINDS[d.type].includes(m[1]),
-      `wallObjFor ${where}: вид «${m[1]}» не из набора типа`);
-  };
-  check(v1, '(3, 7)');
+  const v1 = D.wallKindFor(3, 7, min);
+  assert.equal(v1, D.wallKindFor(3, 7, min), 'повторный вызов — другой результат');
   for (const [x, y] of [[0, 0], [12, 12], [24, 3]]) {
-    check(D.wallObjFor(x, y, min), `(${x}, ${y})`);
+    const v = D.wallKindFor(x, y, min);
+    assert.ok(typeof v === 'string' && v.length > 0,
+      `wallKindFor (${x}, ${y}): непредвиденный формат «${v}»`);
+    assert.ok(D.DUNGEON_WALL_KINDS[d.type].includes(v),
+      `wallKindFor (${x}, ${y}): вид «${v}» не из набора типа`);
+  }
+  assert.equal(D.wallKindFor(3, 7, { type: 99, seed: 1 }), null,
+    'неизвестный тип → null (тихий фолбэк рендера)');
+  assert.equal(D.wallKindFor(3, 7, { type: 99, seed: undefined }), null,
+    'seed отсутствует (ToInt32 hash2) → null, не NaN');
+});
+
+test('000258 wallTileIndex: чистая функция ТОЛЬКО от сетки — d (seed/type/содержимое) не видит', () => {
+  const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
+  for (const [x, y] of [[0, 0], [1, 1], [12, 12], [24, 3]]) {
+    const a = D.wallTileIndex(d.cells, d.width, d.height, x, y);
+    const b = D.wallTileIndex(d.cells, d.width, d.height, x, y);
+    assert.equal(a, b, `(${x}, ${y}): повторный вызов — другой результат`);
+    assert.ok(Number.isInteger(a) && a >= 0 && a <= 19,
+      `(${x}, ${y}): idx вне 0..19: ${a}`);
   }
 });
 
-test('000070 wallObjFor ≡ d.wallObjs: каждый объект решётки воспроизводится функцией', () => {
-  for (const t of WALL_ENTRIES) {
-    const d = D.createDungeon(t.args[0], t.args[1], t.args[2], t.args[3]);
-    assert.ok(Array.isArray(d.wallObjs), `${t.name}: нет d.wallObjs`);
-    for (const o of d.wallObjs) {
-      assert.equal(D.wallObjFor(o.x, o.y, d), o.obj,
-        `${t.name}: wallObjFor(${o.x}, ${o.y}) ≠ obj в d.wallObjs`);
-    }
-  }
-});
-
-test('000070 golden: CAVE (37, −12) — закреплённые wallObjs', () => {
+test('000258 golden: CAVE (37, −12) — закреплённые стены {x, y, kind, idx}', () => {
   // Практика 000058: закреплённые значения снимаются с рабочего кода
-  // на СТАДИИ РЕАЛИЗАЦИИ — пін фиксирует соли hash2 wallObjFor.
-  // В красной стадии тест падает: d.wallObjs отсутствует.
+  // на СТАДИИ РЕАЛИЗАЦИИ (ре-пин 000258: фасад 000070 заменён маской).
   const d = D.createDungeon(37, -12, PX, M.TERRAIN.GRASS);
   assert.equal(d.type, D.DUNGEON_TYPES.CAVE, 'CAVE');
   assert.equal(d.seed, 2658571374, 'сид CAVE (37, −12) уже закреплён');
-  assert.ok(Array.isArray(d.wallObjs) && d.wallObjs.length > 0,
-    'нет d.wallObjs');
-  // Снапшот снят с рабочего кода на стадии реализации (задача 000070):
-  // пин фиксирует соли hash2 wallObjFor (WALL_KIND_SALT /
-  // WALL_VARIANT_SALT) и обход edge-маски (y, затем x).
-  assert.deepEqual(d.wallObjs, [
-    { x: 14, y: 1, obj: 'stalactite_1' },
-    { x: 15, y: 1, obj: 'stalactite_1' },
-    { x: 16, y: 1, obj: 'stalactite_1' },
-    { x: 17, y: 1, obj: 'rock_1' },
-    { x: 18, y: 1, obj: 'stalactite_2' },
-    { x: 19, y: 1, obj: 'stalactite_2' },
-    { x: 20, y: 1, obj: 'stalactite_2' },
-    { x: 21, y: 1, obj: 'stalactite_2' },
-    { x: 14, y: 2, obj: 'rock_1' },
-    { x: 21, y: 2, obj: 'stalactite_2' },
-    { x: 14, y: 3, obj: 'stalactite_1' },
-    { x: 21, y: 3, obj: 'rock_1' },
-    { x: 10, y: 4, obj: 'rock_1' },
-    { x: 11, y: 4, obj: 'stalactite_2' },
-    { x: 12, y: 4, obj: 'stalactite_2' },
-    { x: 13, y: 4, obj: 'stalactite_1' },
-    { x: 14, y: 4, obj: 'stalactite_2' },
-    { x: 21, y: 4, obj: 'stalactite_2' },
-    { x: 5, y: 5, obj: 'rock_2' },
-    { x: 6, y: 5, obj: 'stalactite_2' },
-    { x: 7, y: 5, obj: 'rock_1' },
-    { x: 8, y: 5, obj: 'rock_2' },
-    { x: 9, y: 5, obj: 'stalactite_2' },
-    { x: 10, y: 5, obj: 'rock_2' },
-    { x: 21, y: 5, obj: 'rock_2' },
-    { x: 5, y: 6, obj: 'stalactite_1' },
-    { x: 13, y: 6, obj: 'rock_1' },
-    { x: 14, y: 6, obj: 'stalactite_1' },
-    { x: 21, y: 6, obj: 'stalactite_2' },
-    { x: 5, y: 7, obj: 'rock_2' },
-    { x: 13, y: 7, obj: 'stalactite_1' },
-    { x: 14, y: 7, obj: 'rock_2' },
-    { x: 21, y: 7, obj: 'stalactite_1' },
-    { x: 5, y: 8, obj: 'stalactite_1' },
-    { x: 13, y: 8, obj: 'rock_2' },
-    { x: 14, y: 8, obj: 'stalactite_2' },
-    { x: 21, y: 8, obj: 'rock_2' },
-    { x: 1, y: 9, obj: 'rock_1' },
-    { x: 2, y: 9, obj: 'rock_1' },
-    { x: 3, y: 9, obj: 'rock_1' },
-    { x: 4, y: 9, obj: 'stalactite_2' },
-    { x: 5, y: 9, obj: 'stalactite_1' },
-    { x: 13, y: 9, obj: 'stalactite_2' },
-    { x: 14, y: 9, obj: 'rock_1' },
-    { x: 15, y: 9, obj: 'rock_1' },
-    { x: 16, y: 9, obj: 'rock_1' },
-    { x: 17, y: 9, obj: 'stalactite_2' },
-    { x: 18, y: 9, obj: 'rock_2' },
-    { x: 19, y: 9, obj: 'rock_1' },
-    { x: 20, y: 9, obj: 'stalactite_2' },
-    { x: 21, y: 9, obj: 'stalactite_2' },
-    { x: 22, y: 9, obj: 'rock_1' },
-    { x: 1, y: 10, obj: 'stalactite_1' },
-    { x: 22, y: 10, obj: 'stalactite_1' },
-    { x: 1, y: 11, obj: 'rock_2' },
-    { x: 22, y: 11, obj: 'rock_1' },
-    { x: 1, y: 12, obj: 'rock_1' },
-    { x: 22, y: 12, obj: 'rock_2' },
-    { x: 1, y: 13, obj: 'stalactite_1' },
-    { x: 22, y: 13, obj: 'rock_1' },
-    { x: 1, y: 14, obj: 'rock_1' },
-    { x: 22, y: 14, obj: 'stalactite_2' },
-    { x: 1, y: 15, obj: 'rock_1' },
-    { x: 7, y: 15, obj: 'rock_2' },
-    { x: 8, y: 15, obj: 'rock_1' },
-    { x: 9, y: 15, obj: 'rock_2' },
-    { x: 10, y: 15, obj: 'rock_2' },
-    { x: 11, y: 15, obj: 'stalactite_2' },
-    { x: 12, y: 15, obj: 'stalactite_1' },
-    { x: 13, y: 15, obj: 'rock_1' },
-    { x: 14, y: 15, obj: 'rock_2' },
-    { x: 22, y: 15, obj: 'stalactite_2' },
-    { x: 1, y: 16, obj: 'stalactite_1' },
-    { x: 7, y: 16, obj: 'rock_2' },
-    { x: 14, y: 16, obj: 'stalactite_2' },
-    { x: 22, y: 16, obj: 'stalactite_2' },
-    { x: 1, y: 17, obj: 'stalactite_2' },
-    { x: 7, y: 17, obj: 'stalactite_1' },
-    { x: 14, y: 17, obj: 'rock_2' },
-    { x: 22, y: 17, obj: 'rock_1' },
-    { x: 1, y: 18, obj: 'stalactite_1' },
-    { x: 2, y: 18, obj: 'stalactite_1' },
-    { x: 3, y: 18, obj: 'rock_2' },
-    { x: 4, y: 18, obj: 'rock_1' },
-    { x: 5, y: 18, obj: 'stalactite_1' },
-    { x: 6, y: 18, obj: 'stalactite_2' },
-    { x: 7, y: 18, obj: 'rock_1' },
-    { x: 14, y: 18, obj: 'stalactite_2' },
-    { x: 22, y: 18, obj: 'rock_1' },
-    { x: 14, y: 19, obj: 'stalactite_2' },
-    { x: 15, y: 19, obj: 'stalactite_1' },
-    { x: 16, y: 19, obj: 'stalactite_2' },
-    { x: 17, y: 19, obj: 'rock_1' },
-    { x: 18, y: 19, obj: 'stalactite_2' },
-    { x: 19, y: 19, obj: 'rock_2' },
-    { x: 20, y: 19, obj: 'rock_1' },
-    { x: 21, y: 19, obj: 'stalactite_1' },
-    { x: 22, y: 19, obj: 'stalactite_1' }
+  assert.equal(d.wallObjs, undefined, 'фасад d.wallObjs 000070 удалён');
+  // Снапшот снят с рабочего кода на стадии реализации (задача 000258):
+  // пин фиксирует соль hash2 wallKindFor (WALL_KIND_SALT),
+  // правило wallTileIndex (4-маска + угол 16+k) и обход (y, x).
+  assert.deepEqual(wallList000258(d), [
+    {"x":14,"y":1,"kind":"stalactite","idx":16},
+    {"x":15,"y":1,"kind":"stalactite","idx":4},
+    {"x":16,"y":1,"kind":"stalactite","idx":4},
+    {"x":17,"y":1,"kind":"rock","idx":4},
+    {"x":18,"y":1,"kind":"stalactite","idx":4},
+    {"x":19,"y":1,"kind":"stalactite","idx":4},
+    {"x":20,"y":1,"kind":"stalactite","idx":4},
+    {"x":21,"y":1,"kind":"stalactite","idx":17},
+    {"x":14,"y":2,"kind":"rock","idx":2},
+    {"x":21,"y":2,"kind":"stalactite","idx":8},
+    {"x":14,"y":3,"kind":"stalactite","idx":2},
+    {"x":21,"y":3,"kind":"rock","idx":8},
+    {"x":10,"y":4,"kind":"rock","idx":16},
+    {"x":11,"y":4,"kind":"stalactite","idx":4},
+    {"x":12,"y":4,"kind":"stalactite","idx":4},
+    {"x":13,"y":4,"kind":"stalactite","idx":4},
+    {"x":14,"y":4,"kind":"stalactite","idx":6},
+    {"x":21,"y":4,"kind":"stalactite","idx":8},
+    {"x":5,"y":5,"kind":"rock","idx":16},
+    {"x":6,"y":5,"kind":"stalactite","idx":4},
+    {"x":7,"y":5,"kind":"rock","idx":4},
+    {"x":8,"y":5,"kind":"rock","idx":4},
+    {"x":9,"y":5,"kind":"stalactite","idx":4},
+    {"x":10,"y":5,"kind":"rock","idx":6},
+    {"x":21,"y":5,"kind":"rock","idx":8},
+    {"x":5,"y":6,"kind":"stalactite","idx":2},
+    {"x":13,"y":6,"kind":"rock","idx":9},
+    {"x":14,"y":6,"kind":"stalactite","idx":3},
+    {"x":21,"y":6,"kind":"stalactite","idx":8},
+    {"x":5,"y":7,"kind":"rock","idx":2},
+    {"x":13,"y":7,"kind":"stalactite","idx":8},
+    {"x":14,"y":7,"kind":"rock","idx":2},
+    {"x":21,"y":7,"kind":"stalactite","idx":8},
+    {"x":5,"y":8,"kind":"stalactite","idx":2},
+    {"x":13,"y":8,"kind":"rock","idx":8},
+    {"x":14,"y":8,"kind":"stalactite","idx":2},
+    {"x":21,"y":8,"kind":"rock","idx":8},
+    {"x":1,"y":9,"kind":"rock","idx":16},
+    {"x":2,"y":9,"kind":"rock","idx":4},
+    {"x":3,"y":9,"kind":"rock","idx":4},
+    {"x":4,"y":9,"kind":"stalactite","idx":4},
+    {"x":5,"y":9,"kind":"stalactite","idx":6},
+    {"x":13,"y":9,"kind":"stalactite","idx":12},
+    {"x":14,"y":9,"kind":"rock","idx":4},
+    {"x":15,"y":9,"kind":"rock","idx":5},
+    {"x":16,"y":9,"kind":"rock","idx":5},
+    {"x":17,"y":9,"kind":"stalactite","idx":5},
+    {"x":18,"y":9,"kind":"rock","idx":5},
+    {"x":19,"y":9,"kind":"rock","idx":5},
+    {"x":20,"y":9,"kind":"stalactite","idx":5},
+    {"x":21,"y":9,"kind":"stalactite","idx":4},
+    {"x":22,"y":9,"kind":"rock","idx":17},
+    {"x":1,"y":10,"kind":"stalactite","idx":2},
+    {"x":22,"y":10,"kind":"stalactite","idx":8},
+    {"x":1,"y":11,"kind":"rock","idx":2},
+    {"x":22,"y":11,"kind":"rock","idx":8},
+    {"x":1,"y":12,"kind":"rock","idx":2},
+    {"x":22,"y":12,"kind":"rock","idx":8},
+    {"x":1,"y":13,"kind":"stalactite","idx":2},
+    {"x":22,"y":13,"kind":"rock","idx":8},
+    {"x":1,"y":14,"kind":"rock","idx":2},
+    {"x":22,"y":14,"kind":"stalactite","idx":8},
+    {"x":1,"y":15,"kind":"rock","idx":2},
+    {"x":7,"y":15,"kind":"rock","idx":9},
+    {"x":8,"y":15,"kind":"rock","idx":1},
+    {"x":9,"y":15,"kind":"rock","idx":1},
+    {"x":10,"y":15,"kind":"rock","idx":1},
+    {"x":11,"y":15,"kind":"stalactite","idx":1},
+    {"x":12,"y":15,"kind":"stalactite","idx":1},
+    {"x":13,"y":15,"kind":"rock","idx":1},
+    {"x":14,"y":15,"kind":"rock","idx":3},
+    {"x":22,"y":15,"kind":"stalactite","idx":8},
+    {"x":1,"y":16,"kind":"stalactite","idx":2},
+    {"x":7,"y":16,"kind":"rock","idx":8},
+    {"x":14,"y":16,"kind":"stalactite","idx":2},
+    {"x":22,"y":16,"kind":"stalactite","idx":8},
+    {"x":1,"y":17,"kind":"stalactite","idx":2},
+    {"x":7,"y":17,"kind":"stalactite","idx":8},
+    {"x":14,"y":17,"kind":"rock","idx":2},
+    {"x":22,"y":17,"kind":"rock","idx":8},
+    {"x":1,"y":18,"kind":"stalactite","idx":18},
+    {"x":2,"y":18,"kind":"stalactite","idx":1},
+    {"x":3,"y":18,"kind":"rock","idx":1},
+    {"x":4,"y":18,"kind":"rock","idx":1},
+    {"x":5,"y":18,"kind":"stalactite","idx":1},
+    {"x":6,"y":18,"kind":"stalactite","idx":1},
+    {"x":7,"y":18,"kind":"rock","idx":19},
+    {"x":14,"y":18,"kind":"stalactite","idx":2},
+    {"x":22,"y":18,"kind":"rock","idx":8},
+    {"x":14,"y":19,"kind":"stalactite","idx":18},
+    {"x":15,"y":19,"kind":"stalactite","idx":1},
+    {"x":16,"y":19,"kind":"stalactite","idx":1},
+    {"x":17,"y":19,"kind":"rock","idx":1},
+    {"x":18,"y":19,"kind":"stalactite","idx":1},
+    {"x":19,"y":19,"kind":"rock","idx":1},
+    {"x":20,"y":19,"kind":"rock","idx":1},
+    {"x":21,"y":19,"kind":"stalactite","idx":1},
+    {"x":22,"y":19,"kind":"stalactite","idx":19},
   ]);
 });
 
@@ -1194,15 +1194,17 @@ test('DEP-2: depth=2 — d.depth = 2, сид/форма детерминиров
   assert.deepEqual(a.rooms, b.rooms, 'детерминизм: rooms');
   assert.deepEqual(a.entrance, b.entrance, 'детерминизм: entrance');
   assert.deepEqual(a.exit, b.exit, 'детерминизм: exit');
-  assert.deepEqual(a.wallObjs, b.wallObjs, 'детерминизм: wallObjs');
+  assert.deepEqual(wallList000258(a), wallList000258(b),
+    'детерминизм: стены (000258)');
   // Фиксированная форма depth=2 (РЕ-ПИН 000153.02: W(depth) — сторона
   // ×1.1/этаж, CAVE depth=2: 25→28; seed/число комнат — те же, т.к.
-  // сид и nRooms — до W): 28×28, entrance (13,17), 7 комнат, 75 wallObjs.
+  // сид и nRooms — до W): 28×28, entrance (13,17), 7 комнат,
+  // 75 рисуемых стен (000258).
   assert.equal(a.width, 28, 'depth2 W');
   assert.equal(a.height, 28, 'depth2 H');
   assert.deepEqual(a.entrance, { x: 13, y: 17 }, 'depth2 entrance');
   assert.equal(a.rooms.length, 7, 'depth2 rooms');
-  assert.equal(a.wallObjs.length, 75, 'depth2 wallObjs');
+  assert.equal(wallList000258(a).length, 75, 'depth2 рисуемые стены (000258)');
   assert.equal(a.cells.join(''), D2_CELLS, 'depth2 cells-стринг (пinned)');
 });
 
@@ -1669,7 +1671,7 @@ test('G2-1: golden: CAVE (37,−12) depth=2 — полный детермини�
   assert.deepEqual(a.exit, a.entrance, 'exit = entrance (000177)');
   assert.equal(a.cells.join(''), G2_CELLS,
     'depth2 cells-стринг (784 симв., pinned)');
-  assert.equal(a.wallObjs.length, 75, 'depth2 wallObjs');
+  assert.equal(wallList000258(a).length, 75, 'depth2 рисуемые стены (000258)');
   assert.deepEqual(
     D.reachableFrom(a, a.entrance.x, a.entrance.y), floorSet(a),
     'все напольные клетки достижимы от входа');
@@ -1729,7 +1731,7 @@ test('G2-2: golden: ABYSS (11,3) depth=2 — полный детерминиро
   assert.deepEqual(a.entrance, { x: 17, y: 26 }, 'depth2 entrance');
   assert.equal(a.cells.join(''), G22_CELLS,
     'depth2 cells-стринг (1521 симв., pinned)');
-  assert.equal(a.wallObjs.length, 156, 'depth2 wallObjs');
+  assert.equal(wallList000258(a).length, 156, 'depth2 рисуемые стены (000258)');
   assert.deepEqual(
     D.reachableFrom(a, a.entrance.x, a.entrance.y), floorSet(a),
     'все напольные клетки достижимы от входа');

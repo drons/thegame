@@ -31,8 +31,9 @@
 //     когда вьюпорт больше подземелья;
 //   * пол: фолбэк #182029 (функции/пути/изображения нет), спрайт —
 //     drawImage zoom×zoom по пути G.dungeonFloorFrame;
-//   * стены: d.wallObjs + G.DUNGEON_WALL_FRAMES → drawImage, слой ПОД
-//     мобами/игроком; без wallObjs — drawImage нет;
+//   * стены (000258): wallTileIndex ≠ 0 → G.WALL_AUTOTILES
+//     [wallKindFor][idx] → drawImage, слой ПОД мобами/игроком;
+//     без таблицы/маски — drawImage нет (гард);
 //   * close() — cancelAnimationFrame, поздний tick не рендерит;
 //   * хук state.pos(now) (задел 000068): ромб игрока И цель камеры.
 //
@@ -359,7 +360,8 @@ function lastFloorRectNear(drawCalls, x, y, size, tol) {
 //   width/height — размер сетки (стены по периметру, пол внутри);
 //   px/py — стартовая клетка игрока (floor);
 //   type — DUNGEON_TYPES (по умолчанию 0, CAVE);
-//   wallObjs — d.wallObjs (задача 000070): [{x, y, obj}];
+//   seed — d.seed (000258: wallKindFor; по умолчанию отсутствует —
+//          hash2-ToInt32 даёт 0, детерминировано);
 //   mobs/chests — содержимое;
 //   pos — функция pos(now) (хук 000068): позиция игрока в момент кадра.
 function makeState(opts = {}) {
@@ -380,7 +382,8 @@ function makeState(opts = {}) {
     entrance: { x: 1, y: 1 },
     exit: { x: 1, y: 1 },
   };
-  if (opts.wallObjs) dg.wallObjs = opts.wallObjs;
+  // 000258: d.seed — wallKindFor (hash2 ^ seed); по умолчанию нет.
+  if (opts.seed != null) dg.seed = opts.seed;
   // 000153.03: аддитивные opts (фабрика; существующие вызовы без
   // правок — без opts глубина/лестница отсутствуют, рендер тот же).
   if (opts.depth != null) dg.depth = opts.depth;
@@ -1057,10 +1060,11 @@ test('подземелье UI: пол-спрайт — drawImage по G.dungeonF
   assert.ok(fr.length >= 9, 'фолбэк #182029 вместо несуществующего спрайта');
 });
 
-test('подземелье UI: стены — без d.wallObjs drawImage нет; с wallObjs — drawImage по obj, слой ПОД мобами/игроком', () => {
+test('подземелье UI: стены — маска (000258): без G.WALL_AUTOTILES drawImage нет; с таблицей — corner (0,0) idx 16, слой ПОД мобами/игроком', () => {
   const fakeWall = { __fake: 'wall' };
   const loader = { image: () => fakeWall, isReady: () => true };
-  // (а) wallObjs нет (старый формат/гард) — обхода нет, drawImage нет.
+  // (а) G.WALL_AUTOTILES нет (sprites.js вне цепочки) — drawImage нет
+  //     (гард; floor — фолбэк #182029).
   let rafStubs = makeRafStubs();
   let T = { t: 1000 };
   let loaded = loadDungeonUi({
@@ -1075,9 +1079,10 @@ test('подземелье UI: стены — без d.wallObjs drawImage нет
   tick(rafStubs);
   assert.ok(!findCanvas(loaded.body).drawCalls
     .some((c) => c[0] === 'drawImage'),
-    'без d.wallObjs — drawImage на стены нет (гард на массив)');
-  // (б) wallObjs + G.DUNGEON_WALL_FRAMES + loader: слой стен — ПОД
-  //     мобами/игроком (порядок зафиксирован в memory 000070).
+    'без G.WALL_AUTOTILES — drawImage на стены нет (гард на таблицу)');
+  // (б) G.WALL_AUTOTILES + wallTileIndex/wallKindFor (dungeon.js в
+  //     цепочке) + loader: слой стен — ПОД мобами/игроком
+  //     (z-порядок 000066, стены — в floor-pass 000258).
   rafStubs = makeRafStubs();
   T = { t: 1000 };
   loaded = loadDungeonUi({
@@ -1085,9 +1090,12 @@ test('подземелье UI: стены — без d.wallObjs drawImage нет
     requestAnimationFrame: rafStubs.requestAnimationFrame,
     cancelAnimationFrame: rafStubs.cancelAnimationFrame,
   });
-  loaded.G.DUNGEON_WALL_FRAMES = { rock_1: 'test/wall.svg' };
+  loaded.G.WALL_AUTOTILES = {
+    rock: Array.from({ length: 20 }, (_, i) => 'test/rock_w' + i + '.svg'),
+    stalactite: Array.from({ length: 20 }, (_, i) =>
+      'test/stalactite_w' + i + '.svg'),
+  };
   const s = makeState({
-    wallObjs: [{ x: 0, y: 0, obj: 'rock_1' }],
     mobs: [{ x: 2, y: 2, level: 5, defeated: false }],
   });
   loaded.G.dungeonUI.start({
@@ -1096,14 +1104,18 @@ test('подземелье UI: стены — без d.wallObjs drawImage нет
   T.t += 16;
   tick(rafStubs);
   const calls = findCanvas(loaded.body).drawCalls;
-  // 5×5 @ 48 → центрирование (2.5, 2.5); стена (0,0) — угол клетки.
+  // 5×5 @ 48 → центрирование (2.5, 2.5); стена (0,0) — угол: маска 0
+  // + ровно одна диагональ пола (SE) → idx 16 (cSE).
+  const kind = loaded.G.wallKindFor(0, 0, s.dg);
+  assert.ok(['rock', 'stalactite'].includes(kind),
+    'wallKindFor — вид из набора CAVE');
   const p = loaded.G.worldToScreen(0, 0, 2.5, 2.5, 48, VW, VH);
   const wallIdx = calls.findIndex((c) => c[0] === 'drawImage'
     && c[1][0] === fakeWall
     && Math.abs(c[1][1] - p.x) <= 1e-9 && Math.abs(c[1][2] - p.y) <= 1e-9
     && c[1][3] === 48 && c[1][4] === 48);
   assert.ok(wallIdx >= 0,
-    'стена (0,0) — drawImage по obj из G.DUNGEON_WALL_FRAMES, 48×48');
+    'стена (0,0) — drawImage из G.WALL_AUTOTILES[kind][16], 48×48');
   const mobIdx = calls.findIndex((c) => c[0] === 'fillRect'
     && c[2] === '#d9483b'); // цвет моба (не босс)
   assert.ok(mobIdx >= 0, 'моб нарисован (fillRect #d9483b)');

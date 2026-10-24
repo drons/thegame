@@ -1883,39 +1883,50 @@ function baseGradientPair(svg, label) {
   return colors.join('|');
 }
 
-// --- Задача 000070: «непроходимые» предметы стен (подзадача 000032, н.3) ---
+// --- Задача 000258: автотайлинг кромки стены (вариант A) ---
 //
-// 6 SVG: assets/dungeon/walls/{rock_1,rock_2,column_1,column_2,
-// stalactite_1,stalactite_2}.svg; детерминированный генератор
-// scripts/gen-dungeon-walls.js (byte-identical, образец gen-combat-bg.js —
-// чистый вид SVG тестом НЕ проверяется, прецедент 000049/000058).
-// DUNGEON_WALL_FRAMES — ЛИТЕРАЛ в sprites.js (без require dungeon.js
-// и data-модулей — vm-песочница, паттерн COMBAT_BG_DUNGEON); связь
-// «матрица каталога × варианты 1..2 = эти 6 ключей = ровно 6 файлов»
-// закрывается здесь и в tests/dungeon.test.js (DUNGEON_WALL_KINDS ≡
-// каталог, точная матрица по типам).
-// Контракт с рендером 000066: d.wallObjs — массив {x, y, obj},
-// DUNGEON_WALL_FRAMES[obj] → путь SVG; опечатка в obj ловится тестом
-// «каждый obj — ключ DUNGEON_WALL_FRAMES, файл существует».
+// 80 SVG: assets/city/walls/city_<имя>.svg (20) +
+// assets/dungeon/walls/<kind>_<имя>.svg (rock/column/stalactite × 20);
+// детерминированный генератор scripts/gen-wall-autotiles.js
+// (byte-identical; чистый вид SVG тестом НЕ проверяется, прецедент
+// 000049/000058). WALL_AUTOTILES — ЛИТЕРАЛ в sprites.js (без require
+// dungeon.js и data-модулей — vm-песочница, паттерн
+// COMBAT_BG_DUNGEON/DUNGEON_FLOOR_FRAMES); связь «каталог
+// объектов_стен ⊂ стили таблицы × 20 имён = 80 файлов» закрывается
+// здесь и в tests/dungeon.test.js (wallKindFor ⊆ каталог, матрица
+// wallTileIndex). Контракт с рендером: (idx, kind) →
+// WALL_AUTOTILES[kind][idx] → путь SVG; idx — wallTileIndex, kind —
+// wallKindFor (src/dungeon.js); д.фасад d.wallObjs 000070 УБРАН.
 
-const WALL_KEYS_000070 = ['column_1', 'column_2', 'rock_1', 'rock_2',
-  'stalactite_1', 'stalactite_2'];
-const WALLS_DIR_000070 = 'assets/dungeon/walls/';
+const WALL_TILE_NAMES_000258 = [
+  'm00', 'm01', 'm02', 'm03', 'm04', 'm05', 'm06', 'm07',
+  'm08', 'm09', 'm10', 'm11', 'm12', 'm13', 'm14', 'm15',
+  'cSE', 'cSW', 'cNE', 'cNW',
+];
+const WALL_STYLES_000258 = ['city', 'rock', 'column', 'stalactite'];
+const WALLS_DIR_000258 = 'assets/dungeon/walls/';
 
-test('000070 DUNGEON_WALL_FRAMES: 6 объектов, имена/пути, файлы существуют', () => {
-  assert.ok(S.DUNGEON_WALL_FRAMES && typeof S.DUNGEON_WALL_FRAMES === 'object',
-    'sprites.js: нет экспорта DUNGEON_WALL_FRAMES');
-  assert.deepEqual(Object.keys(S.DUNGEON_WALL_FRAMES).sort(), WALL_KEYS_000070,
-    'ключи ≠ 6 предметов стен');
-  for (const k of WALL_KEYS_000070) {
-    assert.equal(S.DUNGEON_WALL_FRAMES[k], WALLS_DIR_000070 + k + '.svg',
-      `путь «${k}» ≠ ${WALLS_DIR_000070}${k}.svg`);
-    assert.ok(exists(WALLS_DIR_000070 + k + '.svg'),
-      `нет файла: ${WALLS_DIR_000070}${k}.svg`);
+test('000258 WALL_AUTOTILES: 4 стиля × 20 плиток, имена/пути, файлы существуют', () => {
+  assert.ok(S.WALL_AUTOTILES && typeof S.WALL_AUTOTILES === 'object',
+    'sprites.js: нет экспорта WALL_AUTOTILES');
+  assert.deepEqual(Object.keys(S.WALL_AUTOTILES).sort(),
+    WALL_STYLES_000258.slice().sort(), 'стили ≠ city/rock/column/stalactite');
+  assert.deepEqual(S.WALL_AUTOTILE_NAMES, WALL_TILE_NAMES_000258,
+    'WALL_AUTOTILE_NAMES ≠ 20 имён (m00..m15, cSE/cSW/cNE/cNW)');
+  for (const st of WALL_STYLES_000258) {
+    assert.equal(S.WALL_AUTOTILES[st].length, 20, `${st}: 20 плиток`);
+    WALL_TILE_NAMES_000258.forEach((n, i) => {
+      const prefix = st === 'city' ? 'city_' : st + '_';
+      const dir = st === 'city' ? 'assets/city/walls/' : WALLS_DIR_000258;
+      assert.equal(S.WALL_AUTOTILES[st][i], dir + prefix + n + '.svg',
+        `${st}[${i}] ≠ ${dir}${prefix}${n}.svg`);
+      assert.ok(exists(dir + prefix + n + '.svg'),
+        `нет файла: ${dir}${prefix}${n}.svg`);
+    });
   }
 });
 
-test('000070 DUNGEON_WALL_FRAMES ≡ каталог: объединение объектов_стен × варианты 1..2, ровно 6 файлов', () => {
+test('000258 WALL_AUTOTILES ≡ каталог: все виды объектов_стен ⊂ стили, ровно 80 файлов, фасад 000070 удалён', () => {
   const ddir = path.join(ROOT, 'assets', 'dungeons');
   const kinds = new Set();
   for (const f of fs.readdirSync(ddir).filter((f) => /^\d{6}\.json$/.test(f)).sort()) {
@@ -1924,40 +1935,65 @@ test('000070 DUNGEON_WALL_FRAMES ≡ каталог: объединение об
       `${f}: нет «объекты_стен» (связь с каталогом не проверима)`);
     for (const k of data.объекты_стен) kinds.add(k);
   }
-  const expected = [];
-  for (const k of [...kinds].sort()) expected.push(k + '_1', k + '_2');
-  assert.ok(S.DUNGEON_WALL_FRAMES && typeof S.DUNGEON_WALL_FRAMES === 'object',
-    'sprites.js: нет экспорта DUNGEON_WALL_FRAMES');
-  assert.deepEqual(Object.keys(S.DUNGEON_WALL_FRAMES).sort(), expected.sort(),
-    'ключи DUNGEON_WALL_FRAMES ≠ объединение(объекты_стен) × {1, 2}');
-  // На диске — ровно 6 файлов, сиротских/отсутствующих нет.
-  const onDisk = fs.readdirSync(path.join(ROOT, WALLS_DIR_000070)).sort();
-  assert.deepEqual(onDisk, WALL_KEYS_000070.map((k) => k + '.svg').sort(),
-    'файлы assets/dungeon/walls ≠ ровно 6 предметов стен');
+  for (const k of kinds) {
+    assert.ok(S.WALL_AUTOTILES[k], `вид «${k}» каталога — нет в WALL_AUTOTILES`);
+  }
+  // На диске — ровно 80 файлов (4 стиля × 20), сиротских/отсутствующих
+  // нет; 6 фасадных SVG 000070 удалены.
+  for (const st of WALL_STYLES_000258) {
+    const dir = st === 'city' ? 'assets/city/walls' : WALLS_DIR_000258;
+    const prefix = st === 'city' ? 'city_' : st + '_';
+    const onDisk = fs.readdirSync(path.join(ROOT, dir))
+      .filter((f) => f.startsWith(prefix)).sort();
+    assert.deepEqual(onDisk,
+      WALL_TILE_NAMES_000258.map((n) => prefix + n + '.svg').sort(),
+      `файлы ${dir}/ ≠ ровно 20 плиток стиля ${st}`);
+  }
+  for (const k of ['rock_1', 'rock_2', 'column_1', 'column_2',
+    'stalactite_1', 'stalactite_2']) {
+    assert.ok(!exists(WALLS_DIR_000258 + k + '.svg'),
+      `фасад 000070 не удалён: ${WALLS_DIR_000258}${k}.svg`);
+  }
 });
 
-test('000070 allAssetPaths: 6 wall-путей, файлы существуют', () => {
+test('000258 allAssetPaths: 80 wall-путей, файлы существуют', () => {
   const paths = S.allAssetPaths();
-  for (const k of WALL_KEYS_000070) {
-    const p = WALLS_DIR_000070 + k + '.svg';
-    assert.ok(paths.includes(p), `нет пути в allAssetPaths: ${p}`);
-    assert.ok(exists(p), `нет файла: ${p}`);
+  for (const st of WALL_STYLES_000258) {
+    for (const p of S.WALL_AUTOTILES[st]) {
+      assert.ok(paths.includes(p), `нет пути в allAssetPaths: ${p}`);
+      assert.ok(exists(p), `нет файла: ${p}`);
+    }
   }
 });
 
-test('000070 gen-dungeon-walls: детерминирован, состав = 6 ключей, viewBox 64×64', () => {
-  const { WALLS, buildWall } = require('../scripts/gen-dungeon-walls.js');
-  assert.deepEqual(WALLS.map((w) => w.key).sort(), WALL_KEYS_000070,
-    'состав генератора ≠ 6 предметов стен');
-  for (const w of WALLS) {
+test('000258 gen-wall-autotiles: детерминирован, 80 тайлов, viewBox 64×64, база идентична в 20 плитках стиля', () => {
+  const { TILES, buildTile } = require('../scripts/gen-wall-autotiles.js');
+  assert.equal(TILES.length, 80, 'в генераторе 80 тайлов (4 стиля × 20)');
+  const byStyle = new Map(); // стиль → Set пар базовых тонов
+  for (const t of TILES) {
     // Повторный build — byte-identical (сид фиксирован, порядок стабилен).
-    assert.equal(buildWall(w), buildWall(w), `генерация ${w.key} недетерминирована`);
-    assert.ok(buildWall(w).includes('viewBox="0 0 64 64"'),
-      `${w.key}: viewBox 64×64`);
+    assert.equal(buildTile(t), buildTile(t),
+      `генерация ${t.style}_${t.name} недетерминирована`);
+    const svg = buildTile(t);
+    assert.ok(svg.includes('viewBox="0 0 64 64"'),
+      `${t.style}_${t.name}: viewBox 64×64`);
+    if (!byStyle.has(t.style)) byStyle.set(t.style, new Set());
+    byStyle.get(t.style).add(baseGradientPair(svg, t.style + '_' + t.name));
+  }
+  for (const st of WALL_STYLES_000258) {
+    assert.ok(byStyle.has(st), `нет тайлов стиля ${st}`);
+    assert.equal(byStyle.get(st).size, 1,
+      `${st}: базовый градиент различается между 20 плитками (бесшовность)`);
   }
 });
 
-test('000070 d.wallObjs: каждый obj — ключ DUNGEON_WALL_FRAMES, файл существует (контракт с 000066)', () => {
+test('000258 package.json: npm-скрипт gen:wallautotiles запускает генератор', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.ok(pkg.scripts['gen:wallautotiles'], 'нет npm-скрипта gen:wallautotiles');
+  assert.match(pkg.scripts['gen:wallautotiles'], /gen-wall-autotiles\.js/);
+});
+
+test('000258 д-контракт: рисуемая стена (idx≠0) → kind в WALL_AUTOTILES, файл существует; d.wallObjs отсутствует', () => {
   const D = require('../src/dungeon.js');
   const pxAbyss = syntheticPixels(8, 8, 40, 40, 40, 10);
   const px = syntheticPixels(8, 8, 128, 128, 128, 255);
@@ -1971,14 +2007,22 @@ test('000070 d.wallObjs: каждый obj — ключ DUNGEON_WALL_FRAMES, фа
   for (const [type, x, y, p, terrain] of entries) {
     const d = D.createDungeon(x, y, p, terrain);
     assert.equal(d.type, type, `вход (${x}, ${y}) даёт тип ${type}`);
-    assert.ok(Array.isArray(d.wallObjs) && d.wallObjs.length > 0,
-      `тип ${type}: нет d.wallObjs (контракт с 000066) `);
-    for (const o of d.wallObjs) {
-      assert.ok(S.DUNGEON_WALL_FRAMES && S.DUNGEON_WALL_FRAMES[o.obj],
-        `тип ${type}: obj «${o.obj}» не ключ DUNGEON_WALL_FRAMES`);
-      assert.ok(exists(S.DUNGEON_WALL_FRAMES[o.obj]),
-        `тип ${type}: нет файла для «${o.obj}»`);
+    assert.equal(d.wallObjs, undefined,
+      `тип ${type}: фасад d.wallObjs 000070 обязан быть удалён`);
+    let drawable = 0;
+    for (let yy = 0; yy < d.height; yy++) {
+      for (let xx = 0; xx < d.width; xx++) {
+        const idx = D.wallTileIndex(d.cells, d.width, d.height, xx, yy);
+        if (idx === 0) continue;
+        drawable++;
+        const kind = D.wallKindFor(xx, yy, d);
+        assert.ok(kind && S.WALL_AUTOTILES[kind],
+          `(${xx}, ${yy}): kind «${kind}» не в WALL_AUTOTILES`);
+        assert.ok(exists(S.WALL_AUTOTILES[kind][idx]),
+          `(${xx}, ${yy}): нет файла ${S.WALL_AUTOTILES[kind][idx]}`);
+      }
     }
+    assert.ok(drawable > 0, `тип ${type}: нет ни одной рисуемой стены`);
   }
 });
 

@@ -234,7 +234,6 @@ function makeState(opts = {}) {
     // 000177: единый тайл — exit = entrance.
     exit: { x: 1, y: 1 },
   };
-  if (opts.wallObjs) dg.wallObjs = opts.wallObjs;
   const s = {
     dg,
     contents: { chests: opts.chests || [], mobs: opts.mobs || [] },
@@ -872,8 +871,8 @@ test('туман FOG-E1: полная цепочка — enterDungeon + «Кош
 // все assets кроме map.png) либо фолбэк fillRect '#182029' (FOG-B)
 // в тех же координатах/размерах. Точные (p.x, p.y, zoom, zoom) —
 // ТОЛЬКО слой пола: сундуки/мобы/игрок — центрированные (другие
-// смещения/размеры: cs = zoom·0.8, ms, ps = zoom·1.15), wallObjs —
-// только на wall-клетках (на floor-клетках отсутствуют).
+// смещения/размеры: cs = zoom·0.8, ms, ps = zoom·1.15), стены (000258)
+// — только на wall-клетках с wallTileIndex ≠ 0 (на floor — отсутствуют).
 function floorCellDrawn(drawCalls, p, zoom) {
   return drawCalls.some((c) => (
     (c[0] === 'drawImage'

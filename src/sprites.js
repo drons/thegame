@@ -573,26 +573,41 @@
   // вариант. Отдельный от VISUALS_SEED.
   const DUNGEON_FLOOR_SEED = 0x669f0101;
 
-  // --- Предметы стен подземелья (задача 000070) ---
+  // --- Автотайлинг кромки стены (задачи 000070/000258) ---
   //
-  // 6 SVG «непроходимых» предметов (assets/dungeon/walls/, генератор
-  // scripts/gen-dungeon-walls.js): камни, колонны, сталактиты по 2
-  // варианта. Стены на «фасаде» (wall-клетка с floor-соседом)
-  // рисуются d.wallObjs: {x, y, obj}, obj — ключ этой таблицы
-  // (контракт с рендером 000066; назначение на клетки — wallObjFor,
-  // src/dungeon.js). ЛИТЕРАЛ без require dungeon.js и data-модулей —
-  // паттерн COMBAT_BG_DUNGEON (vm-песочница, задача 000049); связь
-  // «объединение предметов_стен каталога × варианты 1..2 = эти 6
-  // ключей = ровно 6 файлов» закрывают тесты (tests/sprites.test.js,
-  // tests/dungeon.test.js).
-  const DUNGEON_WALL_FRAMES = {
-    rock_1: 'assets/dungeon/walls/rock_1.svg',
-    rock_2: 'assets/dungeon/walls/rock_2.svg',
-    column_1: 'assets/dungeon/walls/column_1.svg',
-    column_2: 'assets/dungeon/walls/column_2.svg',
-    stalactite_1: 'assets/dungeon/walls/stalactite_1.svg',
-    stalactite_2: 'assets/dungeon/walls/stalactite_2.svg',
-  };
+  // 20 краевых плиток на стиль: idx 0..15 = маска 4 соседей
+  // (N=1/E=2/S=4/W=8, бит = «сосед — пол»; за границей карты = стена),
+  // idx 16..19 = углы (клетка с ровно ОДНИМ диагональным полом:
+  // cSE, cSW, cNE, cNW). 4 стиля: city (стены городов) + 3 вида
+  // объектов_стен каталога (rock/column/stalactite — подземелья):
+  //   assets/city/walls/city_<имя>.svg (20, НОВЫЙ каталог),
+  //   assets/dungeon/walls/<kind>_<имя>.svg (3 × 20 = 60),
+  // генератор scripts/gen-wall-autotiles.js (80 SVG, byte-identical).
+  // Индекс плитки на клетке — wallTileIndex, вид — wallKindFor
+  // (src/dungeon.js). ЛИТЕРАЛ без require dungeon.js и data-модулей —
+  // паттерн COMBAT_BG_DUNGEON/DUNGEON_FLOOR_FRAMES (vm-песочница);
+  // связь «имя = путь = файл = 4 стиля × 20 = 80 файлов» закрывают
+  // тесты (tests/wall-autotile.test.js AT-4, tests/sprites.test.js).
+  // Фолбэк города (без таблицы/лоадера) — fillRect CITY_WALL_
+  // VARIANTS (dungeon-ui.js, палитра/соль не меняются, 000105).
+  const WALL_AUTOTILE_NAMES = [
+    'm00', 'm01', 'm02', 'm03', 'm04', 'm05', 'm06', 'm07',
+    'm08', 'm09', 'm10', 'm11', 'm12', 'm13', 'm14', 'm15',
+    'cSE', 'cSW', 'cNE', 'cNW',
+  ];
+  const WALL_AUTOTILES = (() => {
+    const styles = {
+      city: 'assets/city/walls/city_',
+      rock: 'assets/dungeon/walls/rock_',
+      column: 'assets/dungeon/walls/column_',
+      stalactite: 'assets/dungeon/walls/stalactite_',
+    };
+    const out = {};
+    for (const st of Object.keys(styles)) {
+      out[st] = WALL_AUTOTILE_NAMES.map((n) => styles[st] + n + '.svg');
+    }
+    return out;
+  })();
 
   // --- Спрайт сундука подземелья (задача 000067) ---
   //
@@ -1145,9 +1160,10 @@
     for (const frames of Object.values(DUNGEON_FLOOR_FRAMES)) {
       paths.push(...frames);
     }
-    // Предметы стен подземелья (задача 000070): 6 SVG.
-    for (const p of Object.values(DUNGEON_WALL_FRAMES)) {
-      paths.push(p);
+    // Автотайлинг кромки стены (задачи 000070/000258): 80 SVG
+    // (4 стиля × 20: city + rock/column/stalactite; −6 фасадных 000070).
+    for (const frames of Object.values(WALL_AUTOTILES)) {
+      paths.push(...frames);
     }
     // Сундук подземелья (задача 000067): 1 SVG.
     paths.push(DUNGEON_CHEST);
@@ -1281,7 +1297,7 @@
     OBSTACLE_DIR, OBSTACLE_SPRITES, obstacleSprite,
     DUNGEON_FLOOR_DIR, DUNGEON_FLOOR_FRAMES, DUNGEON_FLOOR_SEED,
     dungeonFloorFrame,
-    DUNGEON_WALL_FRAMES,
+    WALL_AUTOTILE_NAMES, WALL_AUTOTILES,
     DUNGEON_CHEST,
     DUNGEON_PORTAL,
     DUNGEON_DEPOSIT,

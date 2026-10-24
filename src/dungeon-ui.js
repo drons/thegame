@@ -23,7 +23,7 @@
 // UMD-ловушка (000038): в index.html src/motion.js грузится ПОСЛЕ
 // dungeon-ui.js — cameraStep/CAM_TAU_MS появляются на объекте Game
 // только после; экспорты sprites.js (dungeonFloorFrame,
-// DUNGEON_WALL_FRAMES) — тоже. ВСЕ функции движка читаются из живого
+// WALL_AUTOTILES) — тоже. ВСЕ функции движка читаются из живого
 // globalThis.Game в момент вызова (liveGame), не из снапшота при
 // загрузке — load-time-guard на них сломал бы и браузер, и тесты.
 //
@@ -98,7 +98,7 @@
 
   // Живой Game в момент вызова (UMD-ловушка выше): motion.js
   // (cameraStep/CAM_TAU_MS) и sprites.js (dungeonFloorFrame,
-  // DUNGEON_WALL_FRAMES) доигрываются ПОСЛЕ нашей загрузки; в vm-песочнице
+  // WALL_AUTOTILES) доигрываются ПОСЛЕ нашей загрузки; в vm-песочнице
   // тесты подставляют их на финальный объект.
   function liveGame() {
     return (typeof globalThis !== 'undefined' && globalThis.Game) || G;
@@ -124,9 +124,12 @@
   // варианта — чистая функция от (x, y, seed) по паттерну
   // 000069/000070. Табличная структура, чтобы 000110 мог подменить
   // цвета на SVG-пути (визуальное доведение). Стены города (периметр
-  // layout) РИСУЮТСЯ (в подземелье стена-клетки не рисуются).
-  // layout (и seed) создаёт main.js — оверлей только РИСУЕТ
-  // (UMD-ловушка, см. 000068: мувер — тоже только в main.js).
+  // layout) РИСУЮТСЯ спрайтами WALL_AUTOTILES.city (000258);
+  // CITY_WALL_VARIANTS/CITY_FLOOR_VARIANTS — ФОЛБЭК (без table/
+  // лоадера/изображения) + плоский пол города (палитра/соль
+  // 000258 НЕ МЕНЯЕТ). layout (и seed) создаёт main.js — оверлей
+  // только РИСУЕТ (UMD-ловушка, см. 000068: мувер — тоже только
+  // в main.js).
   const CITY_FLOOR_VARIANTS = ['#b3a284', '#a5947a', '#c0b090'];
   const CITY_WALL_VARIANTS = ['#77685a', '#66594c'];
   // Соль выбора городского тайла: НОВАЯ константа (не GLOBAL_SEED,
@@ -482,11 +485,29 @@
       return r;
     };
 
-    // Пол. Город (000105, s.kind === 'city') — СВОИ тайлы: вариант
-    // — чистая функция (x, y, layout.seed); стена-клетки (периметр)
-    // РИСУЮТСЯ (в подземелье не рисуются). Подземелье (без kind) —
-    // без изменений: спрайт dungeonFloorFrame, фолбэк #182029.
+    // Пол + стены (000258: автотайл кромки — стена в ЭТОМ проходе,
+    // ПОД всеми остальными слоями; клеток не пересекается 1×1 —
+    // оверлеи только на FLOOR). Город (000105, s.kind === 'city') —
+    // СВОИ тайлы: пол — плоский fillRect CITY_FLOOR_VARIANTS (вариант
+    // — чистая функция (x, y, layout.seed), НЕ МЕНЯЕТСЯ); стена —
+    // ВСЕГДА краевой спрайт WALL_AUTOTILES.city[wallTileIndex]
+    // (фолбэк без table/лоадера/изображения — СТАРЫЙ fillRect
+    // CITY_WALL_VARIANTS, побайтово). Подземелье (без kind): стена —
+    // wallTileIndex ≠ 0 → спрайт WALL_AUTOTILES[wallKindFor][idx],
+    // idx 0 (без floor-соседа) — ничего (фон); пол — без изменений:
+    // спрайт dungeonFloorFrame, фолбэк #182029.
     const isCity = s.kind === 'city';
+    // 000258: live-ссылки в момент вызова (UMD-ловушка 000038 —
+    // таблица/функции появляются после нашей загрузки); тихая
+    // деградация (город → fillRect-фолбэк, подземелье → стена не
+    // рисуется), без console.error (паттерн live-гардов render).
+    const wallTable = (live.WALL_AUTOTILES
+        && typeof live.WALL_AUTOTILES === 'object')
+      ? live.WALL_AUTOTILES : null;
+    const wallTileIndexFn = (typeof live.wallTileIndex === 'function')
+      ? live.wallTileIndex : null;
+    const wallKindForFn = (typeof live.wallKindFor === 'function')
+      ? live.wallKindFor : null;
 
     // Туман войны (000136): маска видимости ПОВЕРХ viewport-обрезки
     // (ТЗ; порядок слоёв не меняется — D7). Центр — playerPos: ТА ЖЕ
@@ -530,18 +551,58 @@
 
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
+        // 000136: гейт ПЕРВЫМ (000258: и к полу, и к стенам
+        // подземелья; город — без тумана, mask === null).
+        if (!isCity && mask[y * d.width + x] === 0) continue;
         const isFloor = d.cells[y * d.width + x] === G.CELL_FLOOR;
-        if (!isCity && !isFloor) continue; // подземелье: стена-клетки нет
-        if (!isCity && mask[y * d.width + x] === 0) continue; // 000136: скрыто
         const p = proj(x, y);
         const cr = cellRect(x, y, p);
         if (isCity) {
-          g2.fillStyle = isFloor
-            ? CITY_FLOOR_VARIANTS[cityTileVariant(
-                CITY_FLOOR_VARIANTS.length, x, y, d.seed)]
-            : CITY_WALL_VARIANTS[cityTileVariant(
-                CITY_WALL_VARIANTS.length, x, y, d.seed)];
-          g2.fillRect(cr.x, cr.y, cr.w, cr.h);
+          if (isFloor) {
+            // Пол города — НЕ МЕНЯЕТСЯ (000258): плоский fillRect.
+            g2.fillStyle = CITY_FLOOR_VARIANTS[cityTileVariant(
+              CITY_FLOOR_VARIANTS.length, x, y, d.seed)];
+            g2.fillRect(cr.x, cr.y, cr.w, cr.h);
+            continue;
+          }
+          // Стена города (000258): ВСЕГДА краевой спрайт по маске;
+          // фолбэк — СТАРЫЙ fillRect (палитра/вариант/соль побайтово).
+          const cidx = wallTileIndexFn
+            ? wallTileIndexFn(d.cells, d.width, d.height, x, y) : 0;
+          const cpath = (wallTable && Array.isArray(wallTable.city)
+              && cidx >= 0 && cidx < wallTable.city.length)
+            ? wallTable.city[cidx] : null;
+          const cimg = (cpath && loader && typeof loader.image === 'function')
+            ? ((typeof loader.isReady === 'function'
+                ? loader.isReady(cpath) : true) && loader.image(cpath))
+            : null;
+          if (cimg) {
+            g2.drawImage(cimg, cr.x, cr.y, cr.w, cr.h);
+          } else {
+            g2.fillStyle = CITY_WALL_VARIANTS[cityTileVariant(
+              CITY_WALL_VARIANTS.length, x, y, d.seed)];
+            g2.fillRect(cr.x, cr.y, cr.w, cr.h);
+          }
+          continue;
+        }
+        if (!isFloor) {
+          // Стена подземелья (000258): idx ≠ 0 — спрайт вида;
+          // idx 0 (без floor-соседа, «вырез» ≥2 диагоналей) — ничего
+          // (фон #0a0d12 — как было для внутренних стен).
+          const widx = wallTileIndexFn
+            ? wallTileIndexFn(d.cells, d.width, d.height, x, y) : 0;
+          const wkind = (widx !== 0 && wallKindForFn)
+            ? wallKindForFn(x, y, d) : null;
+          const wpath = (wkind && wallTable && Array.isArray(wallTable[wkind])
+              && widx >= 0 && widx < wallTable[wkind].length)
+            ? wallTable[wkind][widx] : null;
+          const wimg = (wpath && loader && typeof loader.image === 'function')
+            ? ((typeof loader.isReady === 'function'
+                ? loader.isReady(wpath) : true) && loader.image(wpath))
+            : null;
+          if (wimg) {
+            g2.drawImage(wimg, cr.x, cr.y, cr.w, cr.h);
+          }
           continue;
         }
         const path = live.dungeonFloorFrame
@@ -560,7 +621,8 @@
     }
 
     // 000148.02 (G1): постройки внутри города — слой СПРАЙТОВ поверх
-    // пола (z-порядок: пол → ПОСТРОЙКИ → стена-слой → дверь → игрок).
+    // пола (z-порядок: пол → ПОСТРОЙКИ → дверь → игрок; стена города
+    // — в floor-pass, 000258, клетки постройки/стены не пересекаются).
     // Hex-палитра НЕ меняется (000110/R10): ТОЛЬКО drawImage, никаких
     // fillRect/fillText. Спрайты — ОБЩИЙ набор с картой мира
     // (G.buildingSprite, assets/sprites/buildings/). buildingSprite
@@ -590,26 +652,6 @@
           const cr = cellRect(b.x, b.y, p);
           g2.drawImage(img, cr.x, cr.y, cr.w, cr.h);
         }
-      }
-    }
-
-    // Стены (000070): слой ПОД мобами/игроком/сундуками (порядок
-    // зафиксирован в memory 000070). Гарды: wallObjs не массив / obj не
-    // в таблице DUNGEON_WALL_FRAMES / изображение не готово — тёмный
-    // фон, drawImage не вызывается.
-    const wallFrames = live.DUNGEON_WALL_FRAMES;
-    if (loader && wallFrames && Array.isArray(d.wallObjs)) {
-      for (const wo of d.wallObjs) {
-        if (!wo || wo.x < x0 || wo.x > x1 || wo.y < y0 || wo.y > y1) continue;
-        if (!isCity && mask[wo.y * d.width + wo.x] === 0) continue; // 000136
-        const path = wallFrames[wo.obj];
-        if (!path) continue;
-        const img = (typeof loader.isReady === 'function'
-          ? loader.isReady(path) : true) && loader.image(path);
-        if (!img) continue;
-        const p = proj(wo.x, wo.y);
-        const cr = cellRect(wo.x, wo.y, p);
-        g2.drawImage(img, cr.x, cr.y, cr.w, cr.h);
       }
     }
 
@@ -657,9 +699,10 @@
     // (#101418, bold zoom−8, низ клетки) — «Л»естница. Туман-gate —
     // ТОТ ЖЕ, что exit (000136/000177 §2.4: mask ≠ 0 — исследована
     // ИЛИ видима); город — никогда. Порядок отрисовки (фиксировать):
-    // floor → wallObjs → exit-маркер → stairs-down-маркер → сундуки
-    // → мобы/босс → игрок (оба маркера — floor-level, ПОД
-    // контентом).
+    // floor (стены — в floor-pass, 000258: ПОД постройками/дверью/
+    // маркерами/сундуками/залежами/мобами/игроком) → exit-маркер →
+    // stairs-down-маркер → сундуки → мобы/босс → игрок (оба маркера
+    // — floor-level, ПОД контентом).
     if (!isCity && d.stairsDown &&
         mask[d.stairsDown.y * d.width + d.stairsDown.x] !== 0) {
       const sp = proj(d.stairsDown.x, d.stairsDown.y);

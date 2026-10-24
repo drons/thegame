@@ -260,9 +260,10 @@
   const DUNGEON_MOBS = {};
   const DUNGEON_ITEMS = {};
   const DUNGEON_SIZE = {};
-  // DUNGEON_WALL_KINDS — набор видов «непроходимых» предметов стен
-  // типа (задача 000070): rock/column/stalactite, назначение на
-  // клетки — wallObjFor (сид ФОРМЫ, не содержимое).
+  // DUNGEON_WALL_KINDS — набор видов «непроходимых» стен типа
+  // (задача 000070; 000258: автотайл кромки): rock/column/
+  // stalactite, назначение на клетки — wallKindFor (сид ФОРМЫ, не
+  // содержимое).
   const DUNGEON_WALL_KINDS = {};
   // DUNGEON_ORES — пул залежей типа (000157.02): записи {предмет,
   // вид} из поля «руда» каталога (порядок = JSON). Поверхностный
@@ -367,12 +368,12 @@
 
   // 000153.01: сид формы depth > 1 — детерминированная функция от
   // (сид формы depth=1, depth, соль), БЕЗ rng (hash2 — чистый
-  // finalizer; паттерн wallObjFor — hash2 с солью). depth=1 формула
+  // finalizer; паттерн wallKindFor — hash2 с солью). depth=1 формула
   // НЕ ТРОНУТА (бит-в-бит; формула ниже существует только в ветке
   // depth>1 createDungeon). Соль 0xd337b153 — без коллизий с
-  // существующими (0xd0d6b5e5, 0x5e11, 0x7777, 0x5e11c3a7,
-  // 0x0c9f4b2d); 0x9e3779b9 — штатная константа кодовой базы
-  // (mapseed.js, perlin.js).
+  // существующими (0xd0d6b5e5, 0x5e11, 0x7777, 0x5e11c3a7);
+  // 0x9e3779b9 — штатная константа кодовой базы (mapseed.js,
+  // perlin.js).
   const DEPTH_SALT = 0xd337b153;
 
   function dungeonDepthSeed(baseSeed, depth) {
@@ -396,43 +397,103 @@
   const idx = (d, x, y) => y * d.width + x;
   const inGrid = (d, x, y) => x >= 0 && y >= 0 && x < d.width && y < d.height;
 
-  // --- Предметы стен (задача 000070) ---
+  // --- Автотайлинг кромки стены (задачи 000070/000258) ---
   //
-  // «Непроходимые» предметы стен (камни/колонны/сталактиты) рисуются
-  // только на «фасаде» стен — wall-клетках с floor-соседом. Вид и
-  // вариант (_1/_2) — детерминированная функция ТОЛЬКО (x, y, d.seed,
-  // d.type) через hash2: без RNG-состояния, без обращения к
-  // cells/содержимому/player. Сид — ФОРМЫ подземелья (точка входа),
-  // НЕ содержимого (totalXp): «один вход — один вид», возврат с новым
-  // опытом не меняет облик стен. Соли зафиксированы golden-тестом
+  // Вид стены на wall-клетке (rock/column/stalactite) —
+  // детерминированная функция ТОЛЬКО (x, y, d.seed, d.type) через
+  // hash2: без RNG-состояния, без обращения к cells/содержимому/
+  // player. Сид — ФОРМЫ подземелья (точка входа), НЕ содержимого
+  // (totalXp): «один вход — один вид», возврат с новым опытом не
+  // меняет облик стен. Соль зафиксирована golden-тестом
   // (tests/dungeon.test.js, «000070 golden: CAVE (37, −12)»).
+  // 000258: вариант _1/_2 УБРАН (WALL_VARIANT_SALT мёртв) — облик
+  // кромки задаёт маска 4 соседей + 4 диагональных угла
+  // (wallTileIndex); фасад 8-соседства (d.wallObjs) заменён
+  // масочным множеством рисуемых клеток.
   const WALL_KIND_SALT = 0x5e11c3a7;
-  const WALL_VARIANT_SALT = 0x0c9f4b2d;
 
   /**
-   * Предмет стены в клетке (x, y) — чистая функция от (x, y, d.seed,
-   * d.type). d — объект с полями seed и type (достаточно
-   * `{type, seed}`; cells/содержимое не читаются).
+   * Маска 4 соседей wall-клетки (x, y) — чистая функция только
+   * от (cells, W, H, x, y): 4 чтения + bounds, без RNG.
+   * Биты: N=1 (y−1), E=2 (x+1), S=4 (y+1), W=8 (x−1);
+   * бит = 1 ТОЛЬКО если сосед в границах И
+   * cells[ny*W+nx] === CELL_FLOOR (ИНВЕРСИЯ кода: CELL_WALL = 0,
+   * CELL_FLOOR = 1 — равенство с cities.js зафиксировано тестом).
+   * За границей карты = стена (бит не ставится). Сама клетка НЕ
+   * проверяется — вызователь гарантирует cells[y*W+x] === CELL_WALL.
+   * @param {number[]} cells сетка (flat, индекс y*W+x)
+   * @param {number} W ширина сетки
+   * @param {number} H высота сетки
+   * @param {number} x клетка X
+   * @param {number} y клетка Y
+   * @returns {number} 0..15
+   */
+  function wallMask(cells, W, H, x, y) {
+    let m = 0;
+    if (y > 0 && cells[(y - 1) * W + x] === CELL_FLOOR) m |= 1; // N
+    if (x < W - 1 && cells[y * W + x + 1] === CELL_FLOOR) m |= 2; // E
+    if (y < H - 1 && cells[(y + 1) * W + x] === CELL_FLOOR) m |= 4; // S
+    if (x > 0 && cells[y * W + x - 1] === CELL_FLOOR) m |= 8; // W
+    return m;
+  }
+
+  /**
+   * Индекс краевой плитки wall-клетки (x, y) — 0..19 (контракт
+   * WALL_AUTOTILE_NAMES, sprites.js): 0..15 = маска 4 соседей,
+   * 16..19 = углы (SE=0, SW=1, NE=2, NW=3 — по клетке (x+1,y+1),
+   * (x−1,y+1), (x+1,y−1), (x−1,y−1)).
+   * m ≠ 0 → m (диагонали игнорируются); m = 0 и ровно ОДИН
+   * диагональный FLOOR-сосед → 16+k; иначе (0 или ≥2 диагонали —
+   * внутренний угол L-коридора) → 0 (кромки нет: город — m00-
+   * плитка сплошной стены, подземелье — фон).
+   * @param {number[]} cells сетка (flat, индекс y*W+x)
+   * @param {number} W ширина сетки
+   * @param {number} H высота сетки
+   * @param {number} x клетка X
+   * @param {number} y клетка Y
+   * @returns {number} 0..19
+   */
+  function wallTileIndex(cells, W, H, x, y) {
+    const m = wallMask(cells, W, H, x, y);
+    if (m !== 0) return m;
+    let k = -1, n = 0;
+    const diag = (dx, dy, kk) => {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) return;
+      if (cells[ny * W + nx] === CELL_FLOOR) { n++; if (n === 1) k = kk; }
+    };
+    diag(1, 1, 0);  // SE
+    diag(-1, 1, 1); // SW
+    diag(1, -1, 2); // NE
+    diag(-1, -1, 3); // NW
+    if (n === 1) return 16 + k;
+    return 0;
+  }
+
+  /**
+   * Вид стены в клетке (x, y) — ЧИСТАЯ функция от (x, y, d.seed,
+   * d.type) (kind-часть бывшего wallObjFor 000070, дословно:
+   * hash2 + WALL_KIND_SALT + каталог DUNGEON_WALL_KINDS). d —
+   * объект с полями seed и type (достаточно `{type, seed}`;
+   * cells/содержимое не читаются).
    * @param {number} x клетка X
    * @param {number} y клетка Y
    * @param {{seed:number, type:number}} d подземелье
-   * @returns {string|null} 'rock_1'|'rock_2'|'column_1'|'column_2'|
-   *   'stalactite_1'|'stalactite_2' (null, если у типа нет набора)
+   * @returns {string|null} 'rock'|'column'|'stalactite'
+   *   (null, если у типа нет набора объектов_стен)
    */
-  function wallObjFor(x, y, d) {
+  function wallKindFor(x, y, d) {
     const kinds = DUNGEON_WALL_KINDS[d.type];
     if (!kinds || kinds.length === 0) return null;
-    const kind = kinds[hash2(x, y, WALL_KIND_SALT ^ d.seed) % kinds.length];
-    const variant = (hash2(x, y, WALL_VARIANT_SALT ^ d.seed) & 1) + 1;
-    return kind + '_' + variant;
+    return kinds[hash2(x, y, WALL_KIND_SALT ^ d.seed) % kinds.length];
   }
 
   // 000153.02: stairs-down — детерминированное размещение клетки спуска
-  // БЕЗ rng (паттерн wallObjFor: hash2 + соль; «один вход — один вид»).
+  // БЕЗ rng (паттерн wallKindFor: hash2 + соль; «один вход — один вид»).
   // Соль 0x53d10d53 — без коллизий с существующими (0xd0d6b5e5 форма,
-  // 0xd337b153 глубина, 0x5e11 контент, 0x7777 wander, 0x5e11c3a7 /
-  // 0x0c9f4b2d стены) и с in-flight 0x0DE5 (депозиты 000157.02) —
-  // закреплено tests/dungeon.test.js ST-1.
+  // 0xd337b153 глубина, 0x5e11 контент, 0x7777 wander, 0x5e11c3a7
+  // стены) и с in-flight 0x0DE5 (депозиты 000157.02) — закреплено
+  // tests/dungeon.test.js ST-1.
   const STAIRS_SALT = 0x53d10d53;
 
   // 000230.05: редкость лута экипировки из сундуков — СВОЙ rng-поток
@@ -479,7 +540,7 @@
    * все достижимые FLOOR; всё равно нет → null. В реальных формах
    * (5–8 комнат 4×4 + коридоры ≫ 25 safe-клеток + 1 босс-клетка)
    * null недостижим; ПОТРЕБИТЕЛИ (000153.03) всё равно гвардят null.
-   * @param {object} d результат createDungeon (до wallObjs достаточно)
+   * @param {object} d результат createDungeon (до cells достаточно)
    * @returns {{x:number, y:number}|null}
    */
   function stairsDownFor(d) {
@@ -535,13 +596,11 @@
    *   type:number, width:number, height:number, depth:number,
    *   cells:number[], rooms:{x,y,w,h,cx,cy}[],
    *   entrance:{x,y}, exit:{x,y}, seed:number,
-   *   wallObjs:{x:number, y:number, obj:string}[],
    *   stairsDown:{x:number, y:number}|null,
    * }}
-   * `wallObjs` (задача 000070) — предметы стен ТОЛЬКО на wall-клетках
-   * «фасада» (у стены есть floor-сосед по 8-соседству Чебышёва 1):
-   * ровно один {x, y, obj} на клетку, obj — 'rock_1'|…|'stalactite_2'
-   * из набора типа (wallObjFor); floor/entrance/exit — без объектов.
+   * Стены НЕ предвычисляются (000258: фасад 8-соседства d.wallObjs
+   * 000070 УБРАН — рисуемое множество = wall-клетки с wallTileIndex
+   * ≠ 0, чистая функция от cells на кадр; вид — wallKindFor).
    * `stairsDown` (000153.02) — клетка спуска на нижний этаж, ПОЛЕ
    * ФОРМЫ (stairsDownFor: детерминировано, 0 rng): на FLOOR,
    * достижима от entrance, вне 5×5 safe-зон entrance/exit; ABYSS —
@@ -616,29 +675,6 @@
       depth,
     };
 
-    // Предметы стен (задача 000070): ТОЛЬКО wall-клетки «фасада» —
-    // у стены есть хотя бы один floor-сосед по 8-соседству
-    // Чебышёва 1 (не на всех стенах: сплошная стена не превращается
-    // в густую стену камней). Стабильный обход: y, затем x.
-    const wallObjs = [];
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        if (cells[y * W + x] !== CELL_WALL) continue;
-        let hasFloor = false;
-        for (let dy = -1; dy <= 1 && !hasFloor; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (dx === 0 && dy === 0) continue;
-            const nx = x + dx, ny = y + dy;
-            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-            if (cells[ny * W + nx] === CELL_FLOOR) { hasFloor = true; break; }
-          }
-        }
-        if (!hasFloor) continue;
-        const obj = wallObjFor(x, y, d);
-        if (obj) wallObjs.push({ x, y, obj });
-      }
-    }
-    d.wallObjs = wallObjs;
     // 000153.02: stairs-down — поле ФОРМЫ (детерминировано, 0 rng —
     // rng-потоки createDungeon/generateDungeonContents не сдвинуты).
     // Контент depth=1 от поля не зависит (additive).
@@ -1176,7 +1212,10 @@
     DUNGEON_WALL_KINDS, DUNGEON_ORES,
     DUNGEON_MEMORY_DAYS, LEVEL_DELTA_MAX,
     CELL_WALL, CELL_FLOOR,
-    dungeonTypeFor, createDungeon, generateDungeonContents, wallObjFor,
+    dungeonTypeFor, createDungeon, generateDungeonContents,
+    // 000258: автотайлинг кромки стены (−wallObjFor 000070:
+    // фасад 8-соседства заменён маской 4 соседей + 4 угла).
+    wallMask, wallTileIndex, wallKindFor,
     contentValid, openChest,
     // 000157.03: [E]-сбор залежи (атомарно, БЕЗ RNG) — рядом с openChest.
     gatherDeposit,
