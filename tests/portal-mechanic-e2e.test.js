@@ -1679,3 +1679,50 @@ test('000235.10 W-12b. e2e: holy_ground — ДВОЙНАЯ зона в бою (w
     'Покров ночи: зона (радиус 2, 3 ходов).',
     '(b) лог — строка покрова (существующее wording)');
 });
+
+// =====================================================================
+// 000253 — Зональные спеллы Волны Тень: e2e-пин ВЗАИМОДЕЙСТВИЯ
+// cold_breath + dark_presence (ретро finding #3/#6, линза «Тесты»):
+// сужение радиуса триггера — ОДИН раз (cb = max(5,5) = 5 →
+// eff = max(1, 2−1) = 1, не 0). Source-пин W-12a (Math.max в тексте
+// main.js) остаётся — комбинация закатана поведением. Контракт:
+// memory/000253-zone-spell-behavior-pins.md §3 (000253-E2E-1).
+// =====================================================================
+
+test('000253-E2E-1. e2e: cold_breath + dark_presence одновременно — обе записи outOfCombatEffects (порядок = каст), mp 16−5−5 = 6; (0,1)/(1,1)/(2,1) d=2 — боя НЕТ (сужение 2→1); (2,2) d=1 — зона-бой (eff = 1, не 0)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assertFallbackWorld(G);
+  assertSpawn(g);
+  assert.equal(g.state.day, 1, 'фикстура: день 1');
+  dismissStartWindow(h);
+  learn(h, ['cold_breath', 'dark_presence']);
+  assert.ok(castViaBook(h, 'cold_breath'),
+    'каст 1 → книга ЗАКРЫТА (ok)');
+  assert.ok(castViaBook(h, 'dark_presence'),
+    'каст 2 → книга ЗАКРЫТА (ok)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects),
+    [{ spellId: 'cold_breath', expiresDay: 2 },
+     { spellId: 'dark_presence', expiresDay: 2 }],
+    'обе записи — ко-экзистенция (порядок = порядок каста)');
+  assert.equal(saveHero(h).mp, 6, 'мана 16 − 5 − 5');
+  const cap = spyStartCombat(G);
+  assert.equal(G.combatUI.isActive(), false, 'спавн без боя');
+  const walk = makeWalker(h);
+  walk(0, 1); // d=2 от (2,3)
+  walk(1, 1); // d=2
+  walk(2, 1); // d=2
+  assert.equal(G.combatUI.isActive(), false,
+    '(0,1)/(1,1)/(2,1) d=2 — боя НЕТ (сужение 2→1: d=2 > 1)');
+  assert.equal(cap.calls, 0, 'startCombat — 0 вызовов');
+  walk(2, 2); // d=1 ≤ eff 1 — зона триггерится (не 0)
+  assert.equal(G.combatUI.isActive(), true,
+    '(2,2) d=1 — зона-бой (сужение, а не подавление)');
+  const c = G.combatUI.current();
+  assert.equal(c.groupType, 4, 'паучье гнездо');
+  assert.equal(cap.opts.seed, G.hash2(2, 3, SALT),
+    'seed zone-боя — от тайла ГРУППЫ');
+  assert.equal(cap.calls, 1, 'боев за сценарий РОВНО 1');
+  resolveCombatVictory(G, c, '000253-E2E-1 d=1');
+});

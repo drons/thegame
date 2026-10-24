@@ -8722,6 +8722,150 @@ test('000235.01 C5: создание — стена (ряд y=py−2, ровно
   });
 });
 
+// --- Задача 000253: поведенческие пины зональных спеллов Волны Тень ---
+// (000235.09, ретро finding #5): каст КАТАЛОЖНЫХ shadow_pool /
+// veil_of_night — НЕ NO-OP: c.zone-слот, дебафф моба в радиусе (вне —
+// нет), тики промахов (полоса hitChance + контроль) / урона.
+// Контракт: memory/000253-zone-spell-behavior-pins.md §3.
+//
+// Фикстура (общая): strongHero + int 10 (после createCharacter: mp 16,
+// пул int 2), mobs ['orc_warrior','wolf'] L2 seed 5: орк (1,0) +
+// standNextTo → игрок (1,1) (центр зоны); волк (3,0) → (6,6) ДО каста
+// (Чебышёв 5 — вне радиуса 2; применение зоны однократное).
+
+test('000253-COMBAT-1: shadow_pool (каталог) — c.zone {radius:2, stat:«попадание_вниз», turns:3}, дебафф моба в радиусе (вне — нет), тик промахов (полоса hitChance + контроль)', () => {
+  const { castSpell } = spells();
+  // (a) Каст: слот/дебафф/вне/игрок/мана/пул/лог.
+  {
+    const p = strongHero();
+    p.primary.intelligence = 10;
+    p.spells = ['shadow_pool'];
+    const c = createCombat({
+      player: p, mobs: ['orc_warrior', 'wolf'], mobLevel: 2, seed: 5 });
+    const w1 = c.units[0];
+    const w2 = c.units[1];
+    assert.equal(w1.mobId, 'orc_warrior', 'фикстура: орк (1,0)');
+    assert.equal(w2.mobId, 'wolf', 'фикстура: волк (3,0)');
+    w2.x = 6; w2.y = 6; // ДО каста: вне радиуса (Чебышёв 5)
+    standNextTo(c, w1);
+    assert.deepEqual([c.px, c.py], [1, 1],
+      'фикстура: игрок (1,1) — центр зоны');
+    c._rng = () => 0.01;
+    const r = castSpell(c, 'shadow_pool');
+    assert.equal(r.ok, true, r.reason);
+    assert.equal(r.zone, 2, 'out.zone — радиус');
+    assert.deepEqual(c.zone,
+      { x: c.px, y: c.py, radius: 2, stat: 'попадание_вниз',
+        value: 0.15, turns: 3 },
+      'c.zone — слот (параметры каталога, центр — клетка игрока)');
+    assert.deepEqual(w1.debuff,
+      { stat: 'попадание_вниз', value: 0.15, turns: 3 },
+      'моб в радиусе — дебафф (применение однократное)');
+    assert.strictEqual(w2.debuff, undefined,
+      'моб вне радиуса (Чебышёв 5 > 2) — без дебаффа');
+    assert.equal(c.ps.buff, null, 'игрок не затрагивается собственной зоной');
+    assert.equal(p.mp, 8, 'мана 16 − 8');
+    assert.equal(c.ps.spellInt, 1, 'пул int 2 − 1');
+    assert.ok(
+      c.log.some((l) => l === 'Лужа тьмы: зона (радиус 2, 3 ходов).'),
+      'лог — строка зоны');
+  }
+  // (b) Тик промахов: X — середина полосы, вычислена ЭКСПОРТНЫМ
+  // hitChance (не хардкод): контроль (без каста) — X < hi → попадания;
+  // зона — X ≥ lo → ровно 3 промаха, 4-й удар полный (дебаф истёк).
+  {
+    const X = (hitChance(2, 0, 1, 0) + hitChance(2, -0.15, 1, 0)) / 2;
+    assert.ok(hitChance(2, -0.15, 1, 0) <= X
+      && X < hitChance(2, 0, 1, 0),
+      'guard: окно полосы (hitChance(2,−0.15,1,0) ≤ X < hitChance(2,0,1,0))');
+    const fight = (withCast) => {
+      const p = strongHero();
+      p.primary.intelligence = 10;
+      p.spells = ['shadow_pool'];
+      const c = createCombat({
+        player: p, mobs: ['orc_warrior', 'wolf'], mobLevel: 2, seed: 5 });
+      const w1 = c.units[0];
+      const w2 = c.units[1];
+      w2.x = 6; w2.y = 6;
+      standNextTo(c, w1);
+      w1.damage = 10; w1.maxHP = 200; w1.hp = 200;
+      c._rng = () => X;
+      if (withCast) assert.equal(castSpell(c, 'shadow_pool').ok, true);
+      const hits = [];
+      for (let i = 0; i < 4; i++) {
+        const hp = p.hp;
+        c.endTurn();
+        hits.push(hp - p.hp);
+      }
+      return { c, w1, hits };
+    };
+    const ctrl = fight(false);
+    assert.deepEqual(ctrl.hits, [10, 10, 10, 10],
+      'контроль (без каста): X < hitChance(2,0,1,0) — 4 попадания');
+    const z = fight(true);
+    assert.deepEqual(z.hits, [0, 0, 0, 10],
+      'зона: X ≥ hitChance(2,−0.15,1,0) — ровно 3 промаха, 4-й полный');
+    assert.equal(
+      z.c.log.filter((l) => l === 'Орк-воин промахивается.').length, 3,
+      'лог — ровно 3 строки промаха');
+    assert.ok(z.c.zone, 'зона: объект жив после 0 turns (паттерн щита)');
+    assert.deepEqual(z.c.zone,
+      { x: z.c.px, y: z.c.py, radius: 2, stat: 'попадание_вниз',
+        value: 0.15, turns: 0 },
+      'зона: 3 тика → 0');
+    assert.deepEqual(z.w1.debuff,
+      { stat: 'попадание_вниз', value: 0.15, turns: 0 },
+      'дебафф: 3 тика → 0');
+  }
+});
+
+test('000253-COMBAT-2: veil_of_night (каталог) — тик урона зоны (паттерн gZoneDmg каталожным спеллом)', () => {
+  const { castSpell } = spells();
+  const p = strongHero();
+  p.primary.intelligence = 10;
+  p.spells = ['veil_of_night'];
+  const c = createCombat({
+    player: p, mobs: ['orc_warrior', 'wolf'], mobLevel: 2, seed: 5 });
+  const w1 = c.units[0];
+  const w2 = c.units[1];
+  w2.x = 6; w2.y = 6; // ДО каста: вне радиуса (Чебышёв 5)
+  standNextTo(c, w1);
+  assert.deepEqual([c.px, c.py], [1, 1], 'фикстура: игрок (1,1)');
+  w1.damage = 10; w1.maxHP = 200; w1.hp = 200;
+  c._rng = () => 0.01;
+  const r = castSpell(c, 'veil_of_night');
+  assert.equal(r.ok, true, r.reason);
+  assert.equal(r.zone, 2, 'out.zone — радиус');
+  assert.deepEqual(c.zone,
+    { x: c.px, y: c.py, radius: 2, stat: 'урон_вниз',
+      value: 0.15, turns: 3 },
+    'c.zone — слот (параметры каталога)');
+  assert.deepEqual(w1.debuff,
+    { stat: 'урон_вниз', value: 0.15, turns: 3 },
+    'моб в радиусе — дебафф (применение однократное)');
+  assert.strictEqual(w2.debuff, undefined,
+    'моб вне радиуса (Чебышёв 5 > 2) — без дебаффа');
+  assert.equal(c.ps.buff, null, 'игрок не затрагивается');
+  assert.equal(p.mp, 3, 'мана 16 − 13');
+  assert.ok(
+    c.log.some((l) => l === 'Покров ночи: зона (радиус 2, 3 ходов).'),
+    'лог — строка зоны');
+  const hits = [];
+  for (let i = 0; i < 4; i++) {
+    const hp = p.hp;
+    c.endTurn();
+    hits.push(hp - p.hp);
+  }
+  assert.deepEqual(hits, [9, 9, 9, 10],
+    '10 × (1 − 0.15) = 8.5 → Math.round = 9 — ровно 3 ослабленных раунда, 4-й полный');
+  assert.equal(
+    c.log.filter((l) => l === 'Орк-воин промахивается.').length, 0,
+    'роутинг стата — урон, не попадание (промахов 0)');
+  assert.equal(w1.debuff.turns, 0, 'дебафф: 3 тика → 0');
+  assert.equal(c.zone.turns, 0, 'зона: 3 тика → 0');
+  assert.ok(c.zone, 'зона: объект жив');
+});
+
 // =====================================================================
 // --- Задача 000230.05 ---
 // 000230.05: редкость экипировочного лута мобов 50/30/15/4.9/0.1.
