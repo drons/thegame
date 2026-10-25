@@ -3039,6 +3039,9 @@
       if (a.buff && a.buff.stat === 'реген' && a.buff.turns > 0)
         healAlly(c, a, a.buff.value);
       if (a.buff && a.buff.turns > 0) a.buff.turns -= 1;
+      // 000272: traits.regen союзника — тот же моб-паттерн, что mobAct (+10% maxHP), молча; рассеивающийся выше continue.
+      if (a.traits.regen)
+        a.hp = Math.min(a.maxHP, a.hp + Math.max(1, Math.round(a.maxHP * 0.1)));
     }
     // 000235.01: стена заклинания (c.walls, каст src/spells.js) — тик
     // по раундам; на 0 — из c.obstacles удаляются ТОЛЬКО её клетки
