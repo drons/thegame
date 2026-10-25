@@ -420,7 +420,10 @@
       y: 0,
       alive: true,
       fled: false,
-      traits: {},
+      // 000267: трейты призывного (lifesteal, 000087) — ДЕФЕНСИВНАЯ
+      // КОПИЯ mt.traits (каталог общий; шарить/мутировать нельзя).
+      // createCombat (opts.allies) трейты не передаёт → {} (бит-в-бит).
+      traits: (data.traits ? Object.assign({}, data.traits) : {}),
       skills: (data.skills || []).slice(),
       spells: (data.spells || []).slice(),
       attrs: data.attrs || {},
@@ -1480,6 +1483,14 @@
     }
     const r = dealDamageToMob(c, t, dmg);
     log(c, `Вы бьёте ${t.name}: ${r.dmg}.`);
+    // 000267: «вампиризм» (vampire_touch, 000077) — удар ИГРОКА лечит
+    // кастера на round(v × факт) (только c.ps.buff; без бафа — ×0,
+    // бит-в-бит; промах выше early-return — хила нет).
+    const vamp = unitBuffValue(c, p, 'вампиризм');
+    if (vamp > 0) {
+      const healed = healAlly(c, p, Math.round(vamp * r.dmg));
+      if (healed > 0) log(c, `Вампиризм: +${healed}.`);
+    }
     // Практика: попадание даёт опыт навыка оружия (задача 000013).
     const skillId = attackSkillId(eq);
     const pr = P.skillPractice(p, skillId, PRACTICE_XP.hit);
@@ -1966,9 +1977,14 @@
     const p = c.player;
     const d = P.derived(p);
     // 000235.01: дебаф моба «попадание_вниз» — atkBonus −v
-    // (нет эффекта — −0, бит-в-бит).
+    // (нет эффекта — −0, бит-в-бит). 000267: САМО-БАФ кастера shroud
+    // (c.ps.buff, 000075) — тот же слот atkBonus −v: врагу труднее
+    // попасть по ИГРОКУ; ТОЛЬКО mobAttack (по игроку), союзников вуаль
+    // не защищает (контракт §2.4).
     if (c._rng() >= hitChance(
-        u.level, -unitDebuffValue(c, u, 'попадание_вниз'),
+        u.level,
+        -unitDebuffValue(c, u, 'попадание_вниз')
+        - unitBuffValue(c, p, 'попадание_вниз'),
         p.level, d.dodgeBonus)) {
       log(c, `${u.name} промахивается.`);
       return;
@@ -2186,6 +2202,13 @@
     const r = dealDamageToMob(
       c, t, u.damage * (1 + unitBuffValue(c, u, 'урон')));
     log(c, `${u.name} бьёт ${t.name}: ${r.dmg}.`);
+    // 000267: lifesteal призывного (shadow_wraith, 000087) — хил на
+    // ПОЛНЫЙ нанесённый урон (паттерн удара МОБА); трейт — из
+    // mt.traits (case «призыв», копия); без трейта — бит-в-бит.
+    if (u.traits && u.traits.lifesteal) {
+      const healed = healAlly(c, u, r.dmg);
+      if (healed > 0) log(c, `${u.name} высасывает здоровье.`);
+    }
   }
 
   // Лечение support (задача 000080): каталог заклинаний читается ЛЕНИВО
@@ -2931,6 +2954,10 @@
     if (c.ps.shield && c.ps.shield.turns > 0) c.ps.shield.turns -= 1;
     // 000235.01: баф игрока (c.ps.buff, каст src/spells.js) — тот же
     // ритм, что c.ps.shield: ровно turns раундов, включая раунд каста.
+    // 000267: «реген» — тик перед декрементом (ровно turns тиков,
+    // включая каст), молча (контракт §2.1 Z3/Z4).
+    if (c.ps.buff && c.ps.buff.stat === 'реген' && c.ps.buff.turns > 0)
+      healAlly(c, c.player, c.ps.buff.value);
     if (c.ps.buff && c.ps.buff.turns > 0) c.ps.buff.turns -= 1;
     // Щит Эфира (задача 000112): тик — тот же ритм; идёт и ПОСЛЕ
     // ГИБЕЛИ Эфира (тик в efirTurn дал бы вечный щит у мёртвого духа
@@ -2997,7 +3024,10 @@
       a.invItem = 1;
       if (a.shield && a.shield.turns > 0) a.shield.turns -= 1;
       // 000235.01: баф союзника (u.buff, каст src/spells.js) — тот же
-      // ритм, что щит союзника.
+      // ритм, что щит союзника. 000267: «реген» — тик перед декрементом
+      // (рассеивающийся призывной выше continue — тика не получает).
+      if (a.buff && a.buff.stat === 'реген' && a.buff.turns > 0)
+        healAlly(c, a, a.buff.value);
       if (a.buff && a.buff.turns > 0) a.buff.turns -= 1;
     }
     // 000235.01: стена заклинания (c.walls, каст src/spells.js) — тик
@@ -3013,6 +3043,20 @@
     }
     // 000235.01: зона (c.zone) — тик по раундам; объект НЕ нулится
     // (паттерн щита: читатели — unitBuffValue/unitDebuffValue по turns).
+    // 000267: зона {реген} (circle_of_light, 000112) — ЕДИНСТВЕННАЯ
+    // зона-стат, тикающая каждый раунд: радиус Чебышёва от клетки
+    // каста (c.zone.x/y), игрок + живые союзники в радиусе (контракт
+    // §2.1 Z1); прочие зона-статы — однократные, тика НЕ получают.
+    if (c.zone && c.zone.stat === 'реген' && c.zone.turns > 0) {
+      const zoneHeal = (u) => {
+        const ux = (u === c.player) ? c.px : u.x;
+        const uy = (u === c.player) ? c.py : u.y;
+        if (Math.max(Math.abs(ux - c.zone.x), Math.abs(uy - c.zone.y))
+            <= c.zone.radius) healAlly(c, u, c.zone.value);
+      };
+      zoneHeal(c.player);
+      for (const a of livingAllies(c)) zoneHeal(a);
+    }
     if (c.zone && c.zone.turns > 0) c.zone.turns -= 1;
     // Новый раунд — новая очередь (задачи 000036/000167): из очереди
     // вышли мёртвые и сбежавшие, очередь отсортирована по инициативе,

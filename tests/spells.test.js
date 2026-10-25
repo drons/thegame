@@ -4559,16 +4559,20 @@ test('000235.09 W-13: призывы shadow_wraith/void_horror — makeAlly leve
   }
 });
 
-test('000235.09 W-15: drain NO-OP — drain_life/soul_drain {value:0.5} в каталоге (пин W-03) + бой: каст → урон = формула урона БИТ-В-БИТ (лечения НЕТ: out.healed undefined); регрессия: все урон-заклинания каталога — формула инвариантна', () => {
+test('000235.09 W-15: drain_life/soul_drain {value:0.5} в каталоге (пин W-03) + бой: каст → урон = формула урона БИТ-В-БИТ + drain-самохил (потребитель — 000267: r.healed = round(0.5 × факт), герой предповреждён); регрессия: все урон-заклинания каталога — формула инвариантна', () => {
   const dataMod = loadSpellsData();
   const { castSpell } = loadSpells();
   for (const id of ['drain_life', 'soul_drain']) {
     const s = dataMod.SPELLS_BY_ID[id];
     assert.ok(s, `W-15: ${id} — запись в каталоге (RED: нет)`);
     assert.deepEqual(s.параметры, { value: 0.5 },
-      `${id}: параметры {value:0.5} (NO-OP: движок не потребляет)`);
+      `${id}: параметры {value:0.5}`);
     const p = spellHero({ spells: [id], intelligence: 11, mp: 40 });
+    // Герой предповреждён (hp = maxHP − 20 = 5; maxHP 25 — Тело 1):
+    // хил не упирается в кап → r.healed = факт = round(0.5 × dmg).
+    p.hp = 5;
     const c = soloCombat(p, 'wolf');
+    const hp0 = p.hp;
     const r = castSpell(c, id, c.units[0].id);
     assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
     const expected = Math.round(
@@ -4576,8 +4580,10 @@ test('000235.09 W-15: drain NO-OP — drain_life/soul_drain {value:0.5} в ка�
       (1 + 0.15 * (s.степень - 1)));
     assert.equal(r.dmg, expected,
       `${id}: урон БИТ-В-БИТ по формуле урона (тень — без школьного бонуса)`);
-    assert.equal(r.healed, undefined,
-      `${id}: лечения НЕТ (NO-OP: value:0.5 без потребителя)`);
+    assert.equal(r.healed, Math.round(0.5 * r.dmg),
+      `${id}: drain-самохил — кастер +round(0.5 × факт) (потребитель — 000267)`);
+    assert.equal(p.hp - hp0, r.healed,
+      `${id}: hp-дельта = r.healed (ножницы)`);
   }
   // Регрессия: ВСЕ урон-заклинания каталога — формула инвариантна
   // (свежий герой: без бафов, вторички 0 → школьный бонус 0).
@@ -6046,4 +6052,65 @@ test('000240 W-10a (vm): flame_step × free_cast — контроль: free-пр
     assert.equal(r.ok, true, 'free + высокое mp — каст удаётся');
     assert.equal(p.mp, 30, 'ПИН: mp 30 (НЕ 23) — якорь :863 (high mp)');
   }
+});
+
+// =====================================================================
+// Задача 000267: потребители NO-OP-статов — КРАСНЫЕ тесты (TDD)
+// (находка C1 ретро-анализа RETRO-20261024; ТЗ tasks/pending/000267.md;
+// контракт memory/000267-noop-stat-consumers.md).
+//
+// Файл: drain-самохил. Case «урон» (src/spells.js) НЕ читает
+// параметры.value и НЕ лечит кастера: обещание drain_life (000069) /
+// soul_drain (000072) — «половина нанесённого урона — кастеру» —
+// без потребителя. Краснота осмысленная: урон наносится бит-в-бит
+// (формула каталога), мана списывается, но hp кастера не меняется —
+// лечение проверяется НОЖНИЦАМИ (hp-дельта), а не out.healed
+// (out.healed у drain появляется только на GREEN — контракт §2 S6).
+// Контроль (umbra_bolt, параметров.value НЕТ) — гварда: урон тот же,
+// лечения нет, out.healed отсутствует (обе стадии).
+//
+// Закреплённый контракт (RED):
+//   * 000267-DRN-1 — «урон» + параметры.value: кастер лечится на
+//     round(value × факт) (0.5 × dmg); dmg бит-в-бит по формуле
+//     (9.5 × 1.15 = 11; 9.5 × 1.3 = 12; umbra_bolt 9.5 = 10).
+//
+// expectedRedCount (файл) = 1.
+// =====================================================================
+
+test('000267-DRN-1: drain-самохил — case «урон» + параметры.value (красный, 000267)', () => {
+  const { castSpell } = loadSpells();
+  for (const [id, expDmg, mana] of [
+    ['drain_life', 11, 6],
+    ['soul_drain', 12, 20],
+  ]) {
+    const p = spellHero({ spells: [id], intelligence: 11, mp: 40 });
+    // maxHP 70 (тело 10) — запас, чтобы хил не упёрся в кап.
+    p.primary.constitution = 10;
+    p.hp = 40;
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const hp0 = p.hp;
+    const mp0 = p.mp;
+    const r = castSpell(c, id, w.id);
+    assert.equal(r.ok, true, id + ': каст — ok');
+    assert.equal(r.dmg, expDmg,
+      id + ': dmg бит-в-бит (round(9.5 × '
+      + (expDmg === 11 ? '1.15' : '1.3') + ') = ' + expDmg + ')');
+    assert.equal(p.mp, mp0 - mana, id + ': мана списана');
+    assert.equal(p.hp - hp0, Math.round(0.5 * r.dmg),
+      id + ': RED — кастер лечится на round(0.5 × ' + r.dmg
+      + ') = ' + Math.round(0.5 * r.dmg));
+  }
+  const p = spellHero({ spells: ['umbra_bolt'], intelligence: 11, mp: 40 });
+  p.primary.constitution = 10;
+  p.hp = 40;
+  const c = soloCombat(p, 'wolf');
+  const hp0 = p.hp;
+  const r = castSpell(c, 'umbra_bolt', c.units[0].id);
+  assert.equal(r.ok, true, 'umbra_bolt: каст — ok');
+  assert.equal(r.dmg, 10, 'umbra_bolt: dmg 10 (бит-в-бит)');
+  assert.equal(p.hp, hp0,
+    'контроль: параметров.value НЕТ — лечения нет (обе стадии)');
+  assert.equal(r.healed, undefined,
+    'контроль: out.healed отсутствует (обе стадии)');
 });

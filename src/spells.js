@@ -598,6 +598,15 @@
         log(c, `${spell.название} по ${t.name}: ${r.dmg}.`);
         out.dmg = r.dmg;
         out.killed = r.killed;
+        // 000267: drain-самохил (drain_life 000069 / soul_drain 000072) —
+        // «урон» + параметры.value: кастер лечится на round(value × факт)
+        // (гейт по НАЛИЧИЮ value — не по id; без value — бит-в-бит;
+        // out.healed = факт, 0 при полном HP).
+        const pa = spell.параметры;
+        if (pa && typeof pa.value === 'number' && pa.value > 0) {
+          out.healed = healAlly(c, p, Math.round(pa.value * r.dmg));
+          if (out.healed > 0) log(c, `${spell.название}: +${out.healed}.`);
+        }
         break;
       }
       case 'лечение': {
@@ -747,6 +756,9 @@
             dexterity: mt.dexterity || 0,
             intelligence: mt.intelligence || 0,
           },
+          // 000267: трейты каталога (lifesteal — 000087 shadow_wraith);
+          // makeAlly копирует (константа каталога не шарится).
+          traits: mt.traits,
           kind: 'summon',
         }, c.units.length);
         u.summonTurns = pa.turns;

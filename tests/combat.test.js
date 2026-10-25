@@ -10448,3 +10448,456 @@ test('000260-C4: targetId и pre-roll — по НОВЫМ позициям; бо
     'бой с расстановкой детерминирован (сид → результат)');
   assert.equal(snap(pa2), snap(pa), 'якорный бой детерминирован');
 });
+
+// =====================================================================
+// Задача 000267: потребители NO-OP-статов — КРАСНЫЕ тесты (TDD)
+// (находка C1 ретро-анализа RETRO-20261024; ТЗ tasks/pending/000267.md;
+// контракт memory/000267-noop-stat-consumers.md; карта тестов a3).
+//
+// Функциональности в src/combat.js / src/spells.js ещё НЕТ: отсутствуют
+// 5 точек потребления — тик «реген» в startRound (игрок c.ps.buff /
+// союзник u.buff / зона c.zone {реген}), «вампиризм» на ударе игрока,
+// drain-самохил в case «урон» (параметры.value), само-баф shroud
+// «попадание_вниз» против ИГРОКА (mobAttack читает c.ps.buff),
+// lifesteal призывного (mt.traits → makeAlly + allyAttack).
+//
+// Краснота осмысленная (отсутствием поведения, не синтаксис): каталог
+// заклинаний кастуется штатно, состояния ПЕРЕГРУЖЕНЫ (c.ps.buff /
+// u.buff / u.debuff / c.zone пишутся существующим кодом), но обещанное
+// НЕ происходит: hp-дельта 0, р.онtra не лечит, хиты = контроль,
+// traits.lifesteal undefined. Новых модулей/экспортов НЕ требуется —
+// все require-путь уже есть в шапке (спеллы — через spells()).
+//
+// Закреплённые контракты (RED):
+//   * 000267-REG-1 — тик «реген» у игрока: regeneration {реген,1,3}
+//     на раненом герое — +1 HP/раунд, ровно 3 тика (turns 3→2→1→0,
+//     «ровно N раундов, включая каст»), с 0-го — нет; детерминизм по
+//     сид (2 прогона → тождественная траектория HP); RNG-гварда:
+//     бой с баффом = бой без (0 новых вызовов c._rng);
+//   * 000267-REG-2 — тик «реген» у СОЮЗНИКА (u.buff): раненый союзник
+//     +1/тик ровно N раундов; союзник без баффа — инвариантен;
+//   * 000267-REG-3 — зона circle_of_light {реген,1,3,r2}: игрок +
+//     союзник в радиусе Чебышёва от клетки каста лечатся каждый раунд
+//     (союзник, получивший one-shot u.buff в момент каста, получает
+//     ДВА тика: бафф + зону — факт Z2 контракта); вне радиуса — нет;
+//     zone.turns 0 — тиков нет;
+//   * 000267-VAM-1 — «вампиризм»: удар игрока при активном баффе
+//     лечит кастера на round(0.5 × факт) (фикстура с ЧЁТНЫМ dmg);
+//     без баффа — без лечения (бит-в-бит); после исчерпания — нет;
+//   * 000267-SHR-1 — shroud-само-баф {попадание_вниз,0.25,3}: враг
+//     промахивается чаще (X = середина полосы (hi, hi−0.25) из
+//     ЭКСПОРТНОГО hitChance; контроль — 4 попадания, shroud — ровно
+//     3 промаха + попадание после исчерпания); раздельные пути:
+//     само-баф СОЮЗНИКА (u.buff) не потребляется против игрока;
+//     дебаф МОБА (u.debuff, shadow_pool) — регрессия −0.15;
+//   * 000267-SUM-1 — lifesteal призывного: shadow_wraith →
+//     traits.lifesteal === true (mt.traits передан КОПИЕЙ — каталог
+//     MOB_TYPES цел), удар призывного лечит его на ПОЛНЫЙ r.dmg;
+//     light_sprite (fairy, трейтов в каталоге нет) — lifesteal
+//     falsy, удар без лечения (контроль).
+//
+// expectedRedCount (файл) = 6.
+// =====================================================================
+
+// До раунда N (порядкоустойчиво: тик-окна статов — по раундам).
+function toRound(c, n) {
+  let guard = 0;
+  while (c.round < n) {
+    assert.ok(++guard < 64,
+      'раунд не идёт (c.result: ' + JSON.stringify(c.result) + ')');
+    c.endTurn();
+  }
+}
+
+// u — вплотную к v (скан соседей; детерминированно, без c._rng).
+function putAdjacent(c, u, v) {
+  const taken = (x, y) => (c.obstacles && c.obstacles.has(x + ',' + y))
+    || c.units.some((o) => o !== u && o !== v && o.alive && !o.fled
+      && x >= o.x && x < o.x + ((o.size && o.size.w) || 1)
+      && y >= o.y && y < o.y + ((o.size && o.size.h) || 1));
+  const cand = [[v.x + 1, v.y], [v.x - 1, v.y],
+    [v.x, v.y + 1], [v.x, v.y - 1]];
+  const spot = cand.find(([x, y]) => x >= 0 && y >= 0
+    && x < c.width && y < c.height && !taken(x, y));
+  assert.ok(spot, 'нет свободной клетки вплотную к ' + v.id);
+  u.x = spot[0];
+  u.y = spot[1];
+}
+
+test('000267-REG-1: потребление «реген» — тик игрока в startRound (красный, 000267)', () => {
+  const { castSpell } = spells();
+  const mk = (cast) => {
+    const p = strongHero();
+    p.primary.wisdom = 10;
+    p.spells = ['regeneration'];
+    p.mp = 40;
+    const maxhp = derived(p).maxHP;
+    p.hp = maxhp - 30;
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+    });
+    const w = c.units[0];
+    standNextTo(c, w);
+    assert.deepEqual(c.turnOrder, ['m0', 'player'],
+      'фикстура: инициатива волка (2+1) > игрока (1+1)');
+    const r = cast ? castSpell(c, 'regeneration') : null;
+    // Снимок баффа СРАЗУ ПОСЛЕ КАСТА (после endTurns turns уже 0).
+    const buffAfter = c.ps.buff
+      ? { stat: c.ps.buff.stat, value: c.ps.buff.value,
+        turns: c.ps.buff.turns }
+      : null;
+    const hp0 = p.hp;
+    let calls = 0;
+    c._rng = () => { calls += 1; return 0.99; };
+    const traj = [];
+    for (let i = 0; i < 4; i++) {
+      c.endTurn();
+      traj.push(p.hp);
+    }
+    return { c, p, hp0, traj, calls, r, buffAfter };
+  };
+  const a1 = mk(true);
+  assert.equal(a1.r.ok, true, 'каст regeneration — ok');
+  assert.deepEqual(a1.buffAfter, { stat: 'реген', value: 1, turns: 3 },
+    'каст: c.ps.buff {реген, 1, 3} (запись ЕСТЬ и до GREEN)');
+  const a2 = mk(true);
+  assert.deepEqual(a2.traj, a1.traj,
+    'детерминизм: сид → тождественная траектория HP');
+  const b = mk(false);
+  assert.equal(a1.calls, b.calls,
+    'RNG-гварда: бой с баффом = контроль (0 новых c._rng)');
+  assert.ok(a1.calls > 0, 'фикстура: волк реально бил (промахи в логе)');
+  assert.deepEqual(a1.traj,
+    [a1.hp0 + 1, a1.hp0 + 2, a1.hp0 + 3, a1.hp0 + 3],
+    'RED: +1 HP/раунд, ровно 3 тика, включая каст; 4-й раунд — нет');
+  assert.equal(a1.c.ps.buff.turns, 0,
+    'бафф исчерпан (тик вместе с декрементом)');
+});
+
+test('000267-REG-2: потребление «реген» — тик союзника (u.buff) (красный, 000267)', () => {
+  const { castSpell } = spells();
+  const p = strongHero();
+  p.primary.intelligence = 11;
+  p.spells = ['regeneration'];
+  p.mp = 40;
+  const c = createCombat({
+    player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+    allies: [
+      { name: 'Вольк', role: 'melee', level: 1, dmg: 1.2, hp: 1.1,
+        skills: [], spells: [] },
+      { name: 'Гром', role: 'melee', level: 1, dmg: 1.2, hp: 1.1,
+        skills: [], spells: [] },
+    ],
+  });
+  const a0 = c.units.find((u) => u.side === 'ally' && u.name === 'Вольк');
+  const a1 = c.units.find((u) => u.side === 'ally' && u.name === 'Гром');
+  a0.hp = a0.maxHP - 10;
+  a1.hp = a1.maxHP - 10;
+  const r = castSpell(c, 'regeneration', a0.id);
+  assert.equal(r.ok, true, 'каст по союзнику — ok');
+  assert.deepEqual(a0.buff, { stat: 'реген', value: 1, turns: 3 },
+    'u.buff {реген, 1, 3} (запись ЕСТЬ и до GREEN)');
+  assert.equal(c.ps.buff, null,
+    'у игрока баффа нет (цель — союзник)');
+  const a0hp = a0.hp;
+  const a1hp = a1.hp;
+  c._rng = () => 0.99;
+  toRound(c, 4);
+  assert.equal(a0.hp - a0hp, 3,
+    'RED: +1 HP/раунд, ровно 3 тика, включая каст');
+  assert.equal(a1.hp, a1hp,
+    'контроль: союзник без баффа не лечится');
+  assert.equal(a0.buff.turns, 0, 'бафф исчерпан');
+  toRound(c, 5);
+  assert.equal(a0.hp - a0hp, 3, '4-й раунд: тиков нет — дельта та же');
+});
+
+test('000267-REG-3: потребление «реген» — зона circle_of_light (красный, 000267)', () => {
+  const { castSpell } = spells();
+  const p = strongHero();
+  p.primary.intelligence = 11;
+  p.spells = ['circle_of_light'];
+  p.mp = 40;
+  const maxhp = derived(p).maxHP;
+  p.hp = maxhp - 30;
+  const c = createCombat({
+    player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+    allies: [
+      { name: 'Вольк', role: 'melee', level: 1, dmg: 1.2, hp: 1.1,
+        skills: [], spells: [] },
+      { name: 'Гром', role: 'melee', level: 1, dmg: 1.2, hp: 1.1,
+        skills: [], spells: [] },
+    ],
+  });
+  const w = c.units.find((u) => u.side === 'mob');
+  const a0 = c.units.find((u) => u.side === 'ally' && u.name === 'Вольк');
+  const a1 = c.units.find((u) => u.side === 'ally' && u.name === 'Гром');
+  // a0 — явно В РАДИУСЕ (r2) от клетки игрока, a1 — явно ВНЕ.
+  a0.x = c.px + 1; a0.y = c.py;
+  a1.x = 0; a1.y = 3;
+  a0.hp = a0.maxHP - 10;
+  a1.hp = a1.maxHP - 10;
+  assert.ok(
+    Math.max(Math.abs(a0.x - c.px), Math.abs(a0.y - c.py)) <= 2,
+    'фикстура: a0 в радиусе зоны (Чебышёв ≤ 2)');
+  assert.ok(
+    Math.max(Math.abs(a1.x - c.px), Math.abs(a1.y - c.py)) > 2,
+    'фикстура: a1 вне радиуса зоны');
+  const r = castSpell(c, 'circle_of_light');
+  assert.equal(r.ok, true, 'каст circle_of_light — ok');
+  assert.deepEqual(c.zone,
+    { x: c.px, y: c.py, radius: 2, stat: 'реген', value: 1, turns: 3 },
+    'c.zone {реген, 1, 3, r2} (запись ЕСТЬ и до GREEN)');
+  assert.deepEqual(a0.buff, { stat: 'реген', value: 1, turns: 3 },
+    'one-shot каста: союзник в радиусе получает u.buff (есть и до GREEN)');
+  assert.equal(a1.buff, undefined,
+    'one-shot каста: союзник вне радиуса — без u.buff');
+  const p0 = p.hp;
+  const a0hp = a0.hp;
+  const a1hp = a1.hp;
+  c._rng = () => 0.99;
+  toRound(c, 4);
+  assert.equal(p.hp - p0, 3,
+    'RED: игрок в зоне +1 HP/раунд, ровно 3 тика, включая каст');
+  assert.equal(a0.hp - a0hp, 6,
+    'RED: союзник в зоне 2 тика/раунд (one-shot u.buff + зона, факт Z2)');
+  assert.equal(a1.hp, a1hp,
+    'контроль: союзник вне радиуса — не лечится');
+  assert.equal(c.zone.turns, 0, 'зона исчерпана');
+  assert.equal(a0.buff.turns, 0, 'one-shot бафф исчерпан');
+  toRound(c, 5);
+  assert.equal(p.hp - p0, 3, 'после исчерпания зоны — тиков нет');
+  assert.equal(a0.hp - a0hp, 6, 'после исчерпания — дельта та же');
+});
+
+test('000267-VAM-1: потребление «вампиризм» — удар игрока (красный, 000267)', () => {
+  const { castSpell } = spells();
+  const mk = (cast) => {
+    const p = strongHero();
+    p.primary.intelligence = 11;
+    p.spells = ['vampire_touch'];
+    p.mp = 40;
+    const maxhp = derived(p).maxHP;
+    p.hp = maxhp - 30;
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+    });
+    const w = c.units[0];
+    standNextTo(c, w);
+    // ЧЁТНЫЙ dmg (3 − броня 1 = 2) — round(0.5 × факт) без дробности.
+    w.armor = 1;
+    w.maxHP = 200;
+    w.hp = 200;
+    if (cast) {
+      const r = castSpell(c, 'vampire_touch');
+      assert.equal(r.ok, true, 'каст vampire_touch — ok');
+      assert.deepEqual(c.ps.buff,
+        { stat: 'вампиризм', value: 0.5, turns: 3 },
+        'бафф {вампиризм, 0.5, 3} (запись ЕСТЬ и до GREEN)');
+    }
+    const hp0 = p.hp;
+    c._rng = () => 0.01;
+    const atk = c.attack(w.id);
+    return { c, p, w, hp0, atk };
+  };
+  const a = mk(true);
+  assert.equal(a.atk.ok, true, 'удар — ok');
+  assert.equal(a.atk.hit, true, 'попадание (0.01 < 0.52)');
+  assert.equal(a.atk.dmg, 2, 'dmg 3 − броня 1 = 2 (бит-в-бит)');
+  assert.equal(a.p.hp - a.hp0, 1,
+    'RED: кастер лечится на round(0.5 × 2) = 1');
+  const b = mk(false);
+  assert.equal(b.atk.dmg, 2, 'контроль: тот же удар (dmg бит-в-бит)');
+  assert.equal(b.p.hp, b.hp0,
+    'контроль: без баффа — лечение отсутствует (бит-в-бит)');
+  toRound(a.c, 4);
+  assert.equal(a.c.ps.buff.turns, 0,
+    'бафф исчерпан (ровно 3 раунда, включая каст)');
+  const hpBefore2 = a.p.hp;
+  const atk2 = a.c.attack(a.w.id);
+  assert.equal(atk2.ok, true, 'удар после истечения — ok');
+  assert.equal(atk2.hit, true, 'попадание');
+  assert.equal(atk2.dmg, 2, 'dmg после истечения — 2');
+  assert.equal(a.p.hp, hpBefore2,
+    'после истечения — лечения больше нет (бит-в-бит)');
+});
+
+test('000267-SHR-1: потребление shroud-само-бафа — mobAttack по игроку (красный, 000267)', () => {
+  const { castSpell } = spells();
+  // X — середина полосы (без баффа, с баффом −0.25): контроль попадает
+  // ВСЕГДА, shroud промахивается ВСЕГДА (hitChance — экспортирован).
+  const hi = hitChance(2, 0, 1, 0);
+  const lo = hitChance(2, -0.25, 1, 0);
+  const X = (hi + lo) / 2;
+  assert.ok(lo < X && X < hi, 'фикстура: середина полосы внутри полосы');
+  const mk = (castShroud) => {
+    const p = strongHero();
+    p.primary.intelligence = 11;
+    p.spells = castShroud ? ['shroud'] : [];
+    p.mp = 40;
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+    });
+    const w = c.units[0];
+    standNextTo(c, w);
+    w.damage = 10;
+    w.maxHP = 200;
+    w.hp = 200;
+    if (castShroud) {
+      const r = castSpell(c, 'shroud');
+      assert.equal(r.ok, true, 'каст shroud — ok');
+      assert.deepEqual(c.ps.buff,
+        { stat: 'попадание_вниз', value: 0.25, turns: 3 },
+        'само-баф {попадание_вниз, 0.25, 3} (запись ЕСТЬ и до GREEN)');
+    }
+    assert.deepEqual(c.turnOrder, ['player', 'm0'],
+      'фикстура: игрок (11+1) раньше волка (2+1)');
+    assert.equal(p.level, 1, 'фикстура: уровень игрока 1');
+    assert.equal(derived(p).dodgeBonus, 0, 'фикстура: уклонения нет');
+    c._rng = () => X;
+    const hits = [];
+    for (let i = 0; i < 4; i++) {
+      const hp = p.hp;
+      c.endTurn();
+      hits.push(hp - p.hp);
+    }
+    return { c, p, hits };
+  };
+  const ctrl = mk(false);
+  assert.deepEqual(ctrl.hits, [10, 10, 10, 10],
+    'контроль: без баффа — 4 попадания (X < 0.58)');
+  const sh = mk(true);
+  assert.deepEqual(sh.hits, [0, 0, 0, 10],
+    'RED: shroud — ровно 3 промаха (turns 3/2/1) + попадание '
+    + 'после исчерпания (4-й раунд)');
+  assert.deepEqual(sh.c.ps.buff,
+    { stat: 'попадание_вниз', value: 0.25, turns: 0 },
+    'бафф исчерпан (тик вместе с декрементом)');
+  // (i) Само-баф СОЮЗНИКА (u.buff) НЕ потребляется в mobAttack
+  // против игрока — пути раздельны (гварда обеих стадий).
+  {
+    const p = strongHero();
+    p.primary.intelligence = 11;
+    p.mp = 40;
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+      allies: [{ name: 'Вольк', role: 'melee', level: 1, dmg: 1.2,
+        hp: 1.1, skills: [], spells: [] }],
+    });
+    const w = c.units.find((u) => u.side === 'mob');
+    const a = c.units.find((u) => u.side === 'ally');
+    a.buff = { stat: 'попадание_вниз', value: 0.25, turns: 3 };
+    standNextTo(c, w);
+    w.damage = 10;
+    w.maxHP = 200;
+    w.hp = 200;
+    c._rng = () => X;
+    const hp0 = p.hp;
+    toRound(c, 5);
+    assert.equal(hp0 - p.hp, 40,
+      'гварда: 4 раунда → 4 попадания × 10 (само-баф союзника '
+      + 'НЕ применяется к игроку)');
+  }
+  // (ii) Дебаф МОБА (u.debuff, shadow_pool) — регрессия −0.15
+  // (гварда: существующий путь цела).
+  {
+    const hi2 = hitChance(2, 0, 1, 0);
+    const lo2 = hitChance(2, -0.15, 1, 0);
+    const X2 = (hi2 + lo2) / 2;
+    const p = strongHero();
+    p.primary.intelligence = 11;
+    p.spells = ['shadow_pool'];
+    p.mp = 40;
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+    });
+    const w = c.units[0];
+    standNextTo(c, w);
+    w.damage = 10;
+    w.maxHP = 200;
+    w.hp = 200;
+    const r = castSpell(c, 'shadow_pool');
+    assert.equal(r.ok, true, 'каст shadow_pool — ok');
+    assert.deepEqual(w.debuff,
+      { stat: 'попадание_вниз', value: 0.15, turns: 3 },
+      'one-shot зоны: волк (в радиусе) получает u.debuff — уже ЕСТЬ');
+    c._rng = () => X2;
+    const hits = [];
+    for (let i = 0; i < 4; i++) {
+      const hp = p.hp;
+      c.endTurn();
+      hits.push(hp - p.hp);
+    }
+    assert.deepEqual(hits, [0, 0, 0, 10],
+      'дебаф-путь моба цела (регрессия −0.15)');
+  }
+});
+
+test('000267-SUM-1: lifesteal призывного (traits из каталога + удар) (красный, 000267)', () => {
+  const { castSpell } = spells();
+  const mt = MOB_TYPES['vampire'];
+  // (a) traits передаются из каталога (КОПИЯ, не ссылка).
+  const p1 = strongHero();
+  p1.primary.intelligence = 11;
+  p1.spells = ['shadow_wraith'];
+  p1.mp = 40;
+  const c1 = createCombat({
+    player: p1, mobs: ['wolf'], mobLevel: 2, seed: 13,
+  });
+  const r1 = castSpell(c1, 'shadow_wraith');
+  assert.equal(r1.ok, true, 'каст shadow_wraith — ok');
+  const a = c1.units.find((u) => u.id === r1.summoned);
+  assert.ok(a, 'призывной в c.units');
+  assert.equal(a.traits.lifesteal, true,
+    'RED: traits.lifesteal передан из каталога (mt.traits)');
+  assert.deepEqual(a.traits, { lifesteal: true }, 'traits = {lifesteal}');
+  assert.notStrictEqual(a.traits, mt.traits,
+    'копия, не ссылка (каталог MOB_TYPES не мутируется)');
+  // (b) Удар призывного лечит его на ПОЛНЫЙ нанесённый урон.
+  const w = c1.units.find((u) => u.side === 'mob');
+  w.maxHP = 200;
+  w.hp = 200;
+  a.hp = Math.max(1, a.hp - 10);
+  const ah0 = a.hp;
+  c1._rng = () => 0.01;
+  let n = 0;
+  while (!c1.result && n++ < 16 && activeUnitId(c1) !== a.id) c1.endTurn();
+  assert.equal(activeUnitId(c1), a.id,
+    'слот призывного (очередь пересчитывается в startRound)');
+  putAdjacent(c1, a, w);
+  const atk = c1.attack(w.id);
+  assert.equal(atk.ok, true, 'удар призывного — ok');
+  assert.equal(atk.hit, true, 'попадание (0.01 < 0.58)');
+  assert.equal(atk.dmg, 5, 'vampire L3: dmg 5 (бит-в-бит)');
+  assert.equal(a.hp - ah0, 5,
+    'RED: призывной лечится на ПОЛНЫЙ r.dmg (5)');
+  // (c) Контроль: light_sprite (fairy — трейтов в каталоге НЕТ).
+  const p2 = strongHero();
+  p2.primary.intelligence = 11;
+  p2.spells = ['light_sprite'];
+  p2.mp = 40;
+  const c2 = createCombat({
+    player: p2, mobs: ['wolf'], mobLevel: 2, seed: 13,
+  });
+  const r2 = castSpell(c2, 'light_sprite');
+  assert.equal(r2.ok, true, 'каст light_sprite — ok');
+  const f = c2.units.find((u) => u.id === r2.summoned);
+  assert.ok(!f.traits || !f.traits.lifesteal,
+    'fairy — lifesteal в каталоге нет (гварда обеих стадий)');
+  const w2 = c2.units.find((u) => u.side === 'mob');
+  w2.maxHP = 200;
+  w2.hp = 200;
+  f.hp = Math.max(1, f.hp - 2);
+  const fh0 = f.hp;
+  c2._rng = () => 0.01;
+  let n2 = 0;
+  while (!c2.result && n2++ < 16 && activeUnitId(c2) !== f.id) c2.endTurn();
+  assert.equal(activeUnitId(c2), f.id, 'слот феи');
+  putAdjacent(c2, f, w2);
+  const atk2 = c2.attack(w2.id);
+  assert.equal(atk2.ok, true, 'удар феи — ok');
+  assert.equal(atk2.hit, true, 'попадание');
+  assert.equal(atk2.dmg, 1, 'fairy L2: dmg 1 (бит-в-бит)');
+  assert.equal(f.hp, fh0,
+    'lifesteal нет — лечения нет (контроль)');
+});
