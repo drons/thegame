@@ -687,10 +687,13 @@ test('000191.12: успешная ветка сундука (add.ok → «, <nam
 // свитков волны Исцеление (T1-фильтр 11 → 15: +radiant_heal/
 // blessing/faith_shield/prayer) → c0 = faith_shield_scroll
 // (dseed/позиции/gold — бит-в-бит).
+// РЕ-ПИН 000251: из CRYPT-пула убран chainmail (фантом, явный
+// slot; T1-фильтр 15 → 14) → c0 = prayer_scroll
+// (dseed/позиции/gold — бит-в-бит).
 // Мобы (16,3)/(21,10)/(11,9) — не у входа (соседи (8,19) свободны).
 // ----------------------------------------------------------------------
 
-test('000235.05 E1: сундук → свиток → изучение → сейв (FOREST, dseed 820179115, c0 = faith_shield_scroll)', async () => {
+test('000235.05 E1: сундук → свиток → изучение → сейв (FOREST, dseed 820179115, c0 = prayer_scroll)', async () => {
   const h = await boot(seedSave({
     day: 2,
     hero: mkHero({
@@ -719,6 +722,9 @@ test('000235.05 E1: сундук → свиток → изучение → се�
   //     КОНЦОМ (T1-фильтр 11 → 15) → c0 = faith_shield_scroll
   //     (dseed/позиции/gold — бит-в-бит; сим — memory/
   //     000235.10-healing-wave-content.md §11).
+  // РЕ-ПИН 000251: CRYPT-пул −chainmail (фантом, явный slot;
+  //     T1-фильтр 15 → 14) → c0 = prayer_scroll
+  //     (dseed/позиции/gold — бит-в-бит).
   const ds = g.actions.enterDungeon(G.TERRAIN.FOREST);
   assert.ok(ds, 'enterDungeon(FOREST) — состояние подземелья');
   assert.equal(ds.dg.seed, 820179115, 'dseed (сценарий: FOREST, totalXp=1)');
@@ -726,9 +732,9 @@ test('000235.05 E1: сундук → свиток → изучение → се�
   assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
   assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold,
     item: c0.item },
-    { x: 12, y: 4, opened: false, gold: 29, item: 'faith_shield_scroll' },
-    'c0: CRYPT-пул +25 свитков волны Исцеление — faith_shield_scroll '
-    + '(ре-пин 000235.10; краснота: '
+    { x: 12, y: 4, opened: false, gold: 29, item: 'prayer_scroll' },
+    'c0: CRYPT-пул −chainmail (000251) — prayer_scroll (ре-пин '
+    + '000251; краснота: '
     + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold, item: c0.item }) + ')');
   // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-
   //     соседе входа (паттерн 000191.12 — без pathfinding-зависимости).
@@ -994,7 +1000,10 @@ test('000235.08 W-09: сундук CAVE → свиток льда → изуче
 // волны Исцеление КОНЦОМ (T1-фильтр 11 → 15) → c0 =
 // faith_shield_scroll (dseed/позиции/gold — бит-в-бит; сим —
 // memory/000235.10-healing-wave-content.md §11).
-test('000235.09 W-09: сундук CRYPT → свиток тени → изучение → сейв (FOREST, dseed 820179115, c0 = faith_shield_scroll)', async () => {
+// РЕ-ПИН 000251: CRYPT-пул −chainmail (фантом, явный slot;
+// T1-фильтр 15 → 14) → c0 = prayer_scroll
+// (dseed/позиции/gold — бит-в-бит).
+test('000235.09 W-09: сундук CRYPT → свиток тени → изучение → сейв (FOREST, dseed 820179115, c0 = prayer_scroll)', async () => {
   const h = await boot(seedSave({
     day: 2,
     hero: mkHero({
@@ -1009,9 +1018,9 @@ test('000235.09 W-09: сундук CRYPT → свиток тени → изуч�
     'ошибок загрузки нет: ' + h.errors.join('; '));
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
-  // (a) Генерационный пин (красный драйвер): CRYPT-пул (8 + 25 + 25
-  //     свитков волн) на глубине 1 (T=1, T1-фильтр 15) — c0 =
-  //     faith_shield_scroll (ре-пин 000235.10).
+  // (a) Генерационный пин (красный драйвер): CRYPT-пул (7 + 25 + 25
+  //     свитков волн; ре-пин 000251: −chainmail) на глубине 1
+  //     (T=1, T1-фильтр 14) — c0 = prayer_scroll (ре-пин 000251).
   const ds = g.actions.enterDungeon(G.TERRAIN.FOREST);
   assert.ok(ds, 'enterDungeon(FOREST) — состояние подземелья');
   assert.equal(ds.dg.type, G.DUNGEON_TYPES.CRYPT,
@@ -1022,9 +1031,9 @@ test('000235.09 W-09: сундук CRYPT → свиток тени → изуч�
   assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
   assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold,
     item: c0.item },
-    { x: 12, y: 4, opened: false, gold: 29, item: 'faith_shield_scroll' },
-    'c0: CRYPT-пул +25 свитков волны Исцеление — faith_shield_scroll '
-    + '(ре-пин 000235.10; краснота: '
+    { x: 12, y: 4, opened: false, gold: 29, item: 'prayer_scroll' },
+    'c0: CRYPT-пул −chainmail (000251) — prayer_scroll (ре-пин '
+    + '000251; краснота: '
     + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold, item: c0.item })
     + ')');
   // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-
@@ -1088,7 +1097,10 @@ test('000235.09 W-09: сундук CRYPT → свиток тени → изуч�
 // (пробный сим на прототипе пула 58): dseed 820179115, c0 (12,4)
 // gold 29 (dseed/позиции/gold — бит-в-бит с генерацией; сим —
 // контракт §11).
-test('000235.10 W-09: сундук CRYPT → свиток исцеления → изучение → сейв (FOREST, dseed 820179115, c0 = faith_shield_scroll)', async () => {
+// РЕ-ПИН 000251: CRYPT-пул −chainmail (фантом, явный slot;
+// T1-фильтр 15 → 14) → c0 = prayer_scroll
+// (dseed/позиции/gold — бит-в-бит).
+test('000235.10 W-09: сундук CRYPT → свиток исцеления → изучение → сейв (FOREST, dseed 820179115, c0 = prayer_scroll)', async () => {
   const h = await boot(seedSave({
     day: 2,
     hero: mkHero({
@@ -1103,9 +1115,9 @@ test('000235.10 W-09: сундук CRYPT → свиток исцеления →
     'ошибок загрузки нет: ' + h.errors.join('; '));
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
-  // (a) Генерационный пин (красный драйвер): CRYPT-пул (8 + 25 + 25)
-  //     на глубине 1 (T=1, T1-фильтр 15) — c0 =
-  //     faith_shield_scroll.
+  // (a) Генерационный пин (красный драйвер): CRYPT-пул (7 + 25 + 25;
+  //     ре-пин 000251: −chainmail) на глубине 1 (T=1, T1-фильтр
+  //     14) — c0 = prayer_scroll (ре-пин 000251).
   const ds = g.actions.enterDungeon(G.TERRAIN.FOREST);
   assert.ok(ds, 'enterDungeon(FOREST) — состояние подземелья');
   assert.equal(ds.dg.type, G.DUNGEON_TYPES.CRYPT,
@@ -1116,9 +1128,9 @@ test('000235.10 W-09: сундук CRYPT → свиток исцеления →
   assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
   assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold,
     item: c0.item },
-    { x: 12, y: 4, opened: false, gold: 29, item: 'faith_shield_scroll' },
-    'c0: CRYPT-пул +25 свитков волны Исцеление — faith_shield_scroll '
-    + '(краснота: '
+    { x: 12, y: 4, opened: false, gold: 29, item: 'prayer_scroll' },
+    'c0: CRYPT-пул −chainmail (000251) — prayer_scroll (ре-пин '
+    + '000251; краснота: '
     + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold, item: c0.item })
     + ')');
   // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-

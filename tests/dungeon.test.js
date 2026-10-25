@@ -805,7 +805,9 @@ test('S3. 000133: пулы подземелий — 108 свитков, кажд
   // 000235.08: +25 свитков волны Лёд КОНЦОМ пула 000001 (CAVE).
   // Ре-пин 000235.09: +25 свитков волны Тень КОНЦОМ пула 000002
   // (CRYPT). Ре-пин 000235.10: +25 свитков волны Исцеление КОНЦОМ
-  // пула 000002 (CRYPT).
+  // пула 000002 (CRYPT). Ре-пин 000251: −chainmail (000002, CRYPT),
+  // −knight_plate (000003, RUINS) — фантомные legacy-брони (явный
+  // slot → chest-equip всегда заменяет) убраны из пулов.
   const EXPECTED = {
     '000001.json': ['iron_sword', 'healing_potion', 'sulfur',
       'stone_fist_grimoire', 'frost_bolt_scroll',
@@ -818,7 +820,7 @@ test('S3. 000133: пулы подземелий — 108 свитков, кажд
       'freeze_scroll', 'glacier_grasp_scroll', 'frost_wisp_scroll',
       'winter_elemental_scroll', 'frost_walk_scroll',
       'cold_breath_scroll', 'frozen_stillness_scroll'],
-    '000002.json': ['alchemy_manual', 'chainmail', 'mana_potion',
+    '000002.json': ['alchemy_manual', 'mana_potion',
       'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
       'blueprint_alchemy', 'blueprint_carving',
       'umbra_bolt_scroll', 'drain_life_scroll', 'void_arrow_scroll',
@@ -843,7 +845,7 @@ test('S3. 000133: пулы подземелий — 108 свитков, кажд
       'holy_ground_scroll', 'prayer_scroll',
       'divine_protection_scroll', 'holy_light_scroll',
       'miracle_scroll'],
-    '000003.json': ['steel_sword', 'knight_plate', 'war_hammer',
+    '000003.json': ['steel_sword', 'war_hammer',
       'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
       'blueprint_forge', 'blueprint_woodwork',
       'ember_scroll', 'ignite_scroll', 'fire_nova_scroll',
@@ -922,6 +924,45 @@ test('S3. 000133: пулы подземелий — 108 свитков, кажд
     assert.equal(seen.get(id) || 0, 1,
       id + ': свиток РОВНО в одном пуле (red: свитка нет ни в одном)');
   }
+});
+
+// 000251: фантомные legacy-брони — chainmail (CRYPT, 000002.json) и
+// knight_plate (RUINS, 000003.json): remap 000230.10 (D-12) дал им
+// явный slot, а chest-equip-блок 000230.05 (src/dungeon.js) ВСЕГДА
+// заменяет предмет с явным slot предметом EQUIP_POOLS — выпасть из
+// сундуков они не могут. Пины данных (красные до фикса). Контракт:
+// memory/000251-chest-phantoms.md §5 (C-1..C-3), §6.1.
+test('000251-P1: CRYPT (assets/dungeons/000002.json) пул «предметы» — БЕЗ chainmail (assets/items/000009.json): фантом удалён (явный slot torso → chest-equip-блок 000230.05 ВСЕГДА заменяет его предметом EQUIP_POOLS; выпадать из сундуков не может)', () => {
+  const cat = loadDungeonCatalog();
+  const crypt = cat.find(({ file }) => file === '000002.json');
+  const rec = resolvedDungeonRecord(crypt.data, '000002.json');
+  assert.ok(
+    !rec.предметы.includes('chainmail'),
+    'CRYPT «предметы»: «chainmail» (assets/items/000009.json, явный ' +
+    'slot torso) присутствует в пуле — фантом: chest-equip-блок ' +
+    '000230.05 всегда заменяет его предметом EQUIP_POOLS, выпасть из ' +
+    'сундуков он не может (000251: убрать из пула)');
+  for (const id of rec.предметы) {
+    const it = ITEMS.find((x) => x.id === id);
+    assert.ok(it, 'CRYPT «предметы»: id «' + id + '» не найден в ITEMS');
+    assert.equal(
+      it.slot, undefined,
+      'CRYPT «предметы»: «' + id + '» — явный slot «' + it.slot + '» ' +
+      '(chest-equip-триггер 000230.05): пул CRYPT — БЕЗ предметов с ' +
+      'явным slot (dormant; C-2)');
+  }
+});
+
+test('000251-P2: RUINS (assets/dungeons/000003.json) пул «предметы» — БЕЗ knight_plate (assets/items/000010.json): фантом удалён (то же основание)', () => {
+  const cat = loadDungeonCatalog();
+  const ruins = cat.find(({ file }) => file === '000003.json');
+  const rec = resolvedDungeonRecord(ruins.data, '000003.json');
+  assert.ok(
+    !rec.предметы.includes('knight_plate'),
+    'RUINS «предметы»: «knight_plate» (assets/items/000010.json, ' +
+    'явный slot torso) присутствует в пуле — фантом: chest-equip-блок ' +
+    '000230.05 всегда заменяет его предметом EQUIP_POOLS, выпасть из ' +
+    'сундуков он не может (000251: убрать из пула)');
 });
 
 // =============================================================// 000183: KРАСНЫЙ тест (D-BOSS-1) — инвариант босс-клетки ABYSS:
@@ -2524,7 +2565,8 @@ const DUN_REF_PREV = {
     // Ре-пин 000232: приложенные чертежи (концом массива). Ре-пин
     // 000235.09: +25 свитков волны Тень КОНЦОМ пула (8 → 33). Ре-пин
     // 000235.10: +25 свитков волны Исцеление КОНЦОМ пула (33 → 58).
-    предметы: ['alchemy_manual', 'chainmail', 'mana_potion',
+    // Ре-пин 000251: −chainmail (фантом, явный slot) — 58 → 57.
+    предметы: ['alchemy_manual', 'mana_potion',
       'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
       'blueprint_alchemy', 'blueprint_carving',
       'umbra_bolt_scroll', 'drain_life_scroll', 'void_arrow_scroll',
@@ -2561,7 +2603,8 @@ const DUN_REF_PREV = {
     постройки_id: 33,
     // Ре-пин 000232: приложенные чертежи (концом массива). Ре-пин
     // 000235.07: +25 свитков волны Огонь КОНЦОМ пула (8 → 33).
-    предметы: ['steel_sword', 'knight_plate', 'war_hammer',
+    // Ре-пин 000251: −knight_plate (фантом, явный slot) — 33 → 32.
+    предметы: ['steel_sword', 'war_hammer',
       'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
       'blueprint_forge', 'blueprint_woodwork',
       'ember_scroll', 'ignite_scroll', 'fire_nova_scroll',
@@ -3090,8 +3133,8 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
 // После remap у chainmail/knight_plate ЯВНОЕ slot "torso" — блок
 // chest-replace 000230.05 (dungeon.js: if it.slot !== undefined)
 // теперь срабатывает на них: CRYPT (dungeons/000002 «предметы») —
-// chainmail, RUINS (000003) — knight_plate (ЕДИНСТВЕННЫЕ предметы
-// этих пулов с явным slot — остальные без slot). Смещение баланса
+// chainmail, RUINS (000003) — knight_plate (с 000230.12 в пулах
+// есть и оружие с явным slot — 000230.12-CH). Смещение баланса
 // (гарантированная броня сундука → предмет роулнутой редкости из
 // EQUIP_POOLS) — принятое следствие remap (memory/000230.10-torso-
 // items-wave.md D-12) — фиксация CH5: два запуска одного (w,h,xp):
@@ -3138,7 +3181,15 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
 // 63 → 77 (+20/+14 ног/ступней концом; ре-симуляция на мерж-
 // пуле) — CRYPT c0 → iron_tongs (floor(0.6040003078524023·110)=66),
 // RUINS c3 → wool_sutan (floor(0.2789345800410956·77)=21);
-// seed/позиции/gold/c1 — бит-в-бит.
+// seed/позиции/gold/c1 — бит-в-бит. Ре-пин 000251: фантомы удалены
+// из реального пула (000251) — сценарий фикстурный (in-place,
+// паттерн D7/CH1: CRYPT pool[0] = chainmail (позиция
+// alchemy_manual), RUINS pool[1] = knight_plate (позиция
+// war_hammer), restore finally); реальный триггер RUINS —
+// war_hammer/steel_sword (000230.12), CRYPT — dormant (000251-P1);
+// CRYPT-голён восстановлен бит-в-бит (c0 = iron_tongs), RUINS:
+// c1 blueprint_forge → blueprint_woodwork (c0/c2/c3/c4 бит-в-бит);
+// seed/позиции/gold — бит-в-бит.
 const CH5_PX = M.syntheticPixels(8, 8, 128, 128, 128, 128);
 const CH5_CRYPT_PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
 const CH5_CRYPT_CHESTS = [
@@ -3147,13 +3198,15 @@ const CH5_CRYPT_CHESTS = [
 ];
 const CH5_RUINS_CHESTS = [
   { id: 'c0', x: 16, y: 15, opened: false, gold: 18, item: 'firelight_scroll' },
-  { id: 'c1', x: 24, y: 16, opened: false, gold: 25, item: 'blueprint_forge' },
+  // Ре-пин 000251 (фикстурный сценарий): c1 blueprint_forge →
+  // blueprint_woodwork.
+  { id: 'c1', x: 24, y: 16, opened: false, gold: 25, item: 'blueprint_woodwork' },
   { id: 'c2', x: 14, y: 13, opened: false, gold: 16, item: null },
   { id: 'c3', x: 18, y: 15, opened: false, gold: 10, item: 'wool_sutan' },
   { id: 'c4', x: 22, y: 19, opened: false, gold: 10, item: 'blueprint_woodwork' },
 ];
 
-test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace активен для CRYPT (chainmail) и RUINS (knight_plate): сундук с бронёй → предмет роулнутой редкости из EQUIP_POOLS; БЕЗ slot броня остаётся; main-rng/mobs/deposits/позиции/gold — бит-в-бит', () => {
+test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace: сундук с бронёй (in-pool-фикстура: CRYPT chainmail / RUINS knight_plate) → предмет роулнутой редкости из EQUIP_POOLS; БЕЗ slot броня остаётся; main-rng/mobs/deposits/позиции/gold — бит-в-бит (сценарий фикстурный: фантомы удалены из реального пула в 000251; реальный триггер RUINS — war_hammer/steel_sword (000230.12), CRYPT — dormant (000251-P1))', () => {
   const L = require('../src/loot-equip-data.js');
   const poolAll = new Set();
   for (const t of L.RARITY)
@@ -3161,76 +3214,86 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace акти
   const cases = [
     { name: 'CRYPT', type: 1, terrain: M.TERRAIN.FOREST,
       px: CH5_CRYPT_PX, trig: 'c0',
-      w: 9, h: 11, xp: 1, armor: 'chainmail', seed: 2983680956,
+      w: 9, h: 11, xp: 1, trigger: 'chainmail', seed: 2983680956,
       hash: 0x47b239cb, r1: 0.022784294560551643,
       r2: 0.6040003078524023, tier: 'common',
       replaced: 'iron_tongs', chests: CH5_CRYPT_CHESTS },
     { name: 'RUINS', type: 2, terrain: M.TERRAIN.MOUNTAIN,
       px: CH5_PX, trig: 'c3',
-      w: 9, h: 9, xp: 3, armor: 'knight_plate', seed: 801567646,
+      w: 9, h: 9, xp: 3, trigger: 'knight_plate', seed: 801567646,
       hash: 0x2fb95446, r1: 0.6180662265978754,
       r2: 0.2789345800410956, tier: 'rare',
       replaced: 'wool_sutan', chests: CH5_RUINS_CHESTS },
   ];
   for (const cs of cases) {
-    const dA = D.createDungeon(cs.w, cs.h, cs.px, cs.terrain);
-    assert.equal(dA.type, cs.type,
-      cs.name + ': тип подземелья (сценарий)');
-    const A = D.generateDungeonContents(dA, heroAt(cs.xp));
-    assert.equal(A.seed, cs.seed,
-      cs.name + ': сид контента — закреплён');
-    assert.deepEqual(A.chests, cs.chests,
-      cs.name + ': golden — сундук с «' + cs.armor + '» (' + cs.trig
-      + ') ЗАМЕНЁН на «' + cs.replaced + '» (' + cs.tier + '-пул)');
-    assert.equal(hash2(cs.seed, 1, D.CHEST_EQ_SALT) >>> 0, cs.hash,
-      cs.name + ': hash2(seed, 1, CHEST_EQ_SALT) — закреплён');
-    const rng_eq = mulberry32(cs.hash);
-    assert.equal(rng_eq(), cs.r1,
-      cs.name + ': r1 (tier, ' + cs.trig + ' — ЕДИНСТВЕННЫЙ '
-      + 'триггернутый сундук)');
-    assert.equal(rng_eq(), cs.r2, cs.name + ': r2 (select, c3)');
-    assert.equal(
-      L.pickRarityTier(function () { return cs.r1; }), cs.tier,
-      cs.name + ': r1 → тир «' + cs.tier + '»');
-    assert.ok(poolAll.has(cs.replaced),
-      cs.name + ': «' + cs.replaced + '» — в EQUIP_POOLS (любой тир)');
-    assert.ok(L.EQUIP_POOLS[cs.tier].includes(cs.replaced),
-      cs.name + ': «' + cs.replaced + '» — в ' + cs.tier + '-пуле');
-    const it = ITEMS.find((x) => x.id === cs.armor);
+    const pool = D.DUNGEON_ITEMS[cs.type];
+    const idx = cs.type === 1 ? 0 : 1;
+    const saved = pool[idx];
+    pool[idx] = cs.trigger;
+    const it = ITEMS.find((x) => x.id === cs.trigger);
     assert.equal(it.slot, 'torso',
       cs.name + ': precondition — ЯВНОЕ slot (remap 000230.10)');
-    delete it.slot;
     try {
-      const B = D.generateDungeonContents(
-        D.createDungeon(cs.w, cs.h, cs.px, cs.terrain), heroAt(cs.xp));
-      assert.equal(B.seed, A.seed,
-        cs.name + ': без slot — сид контента неизменен (main-rng)');
-      assert.deepEqual(B.mobs, A.mobs,
-        cs.name + ': mobs — бит-в-бит (потоки изолированы)');
-      assert.deepEqual(B.deposits, A.deposits,
-        cs.name + ': deposits — бит-в-бит');
-      const armorChest = B.chests.find((ch) => ch.item === cs.armor);
-      assert.ok(armorChest,
-        cs.name + ': без slot броня «' + cs.armor + '» ОСТАЛАСЬ '
-        + 'в сундуке (до-волновое поведение)');
-      for (const ch of B.chests) {
-        const a = A.chests.find((x) => x.id === ch.id);
-        assert.deepEqual(
-          { x: ch.x, y: ch.y, gold: ch.gold, opened: ch.opened },
-          { x: a.x, y: a.y, gold: a.gold, opened: a.opened },
-          cs.name + ': ' + ch.id + ' — позиция/gold без изменений');
-        if (ch.id === armorChest.id) {
-          assert.equal(a.item, cs.replaced,
-            cs.name + ': ' + ch.id + ' — со slot: «' + cs.replaced
-            + '» (броня заменена)');
-        } else {
-          assert.equal(ch.item, a.item,
-            cs.name + ': ' + ch.id + ' — предмет без изменений '
-            + '(в пуле нет других предметов со slot)');
+      const dA = D.createDungeon(cs.w, cs.h, cs.px, cs.terrain);
+      assert.equal(dA.type, cs.type,
+        cs.name + ': тип подземелья (сценарий)');
+      const A = D.generateDungeonContents(dA, heroAt(cs.xp));
+      assert.equal(A.seed, cs.seed,
+        cs.name + ': сид контента — закреплён');
+      assert.deepEqual(A.chests, cs.chests,
+        cs.name + ': golden — сундук с «' + cs.trigger + '» ('
+        + cs.trig + ') ЗАМЕНЁН на «' + cs.replaced + '» (' + cs.tier
+        + '-пул)');
+      assert.equal(hash2(cs.seed, 1, D.CHEST_EQ_SALT) >>> 0, cs.hash,
+        cs.name + ': hash2(seed, 1, CHEST_EQ_SALT) — закреплён');
+      const rng_eq = mulberry32(cs.hash);
+      assert.equal(rng_eq(), cs.r1,
+        cs.name + ': r1 (tier, ' + cs.trig + ' — ЕДИНСТВЕННЫЙ '
+        + 'триггернутый сундук)');
+      assert.equal(rng_eq(), cs.r2,
+        cs.name + ': r2 (select, ' + cs.trig + ')');
+      assert.equal(
+        L.pickRarityTier(function () { return cs.r1; }), cs.tier,
+        cs.name + ': r1 → тир «' + cs.tier + '»');
+      assert.ok(poolAll.has(cs.replaced),
+        cs.name + ': «' + cs.replaced + '» — в EQUIP_POOLS (любой тир)');
+      assert.ok(L.EQUIP_POOLS[cs.tier].includes(cs.replaced),
+        cs.name + ': «' + cs.replaced + '» — в ' + cs.tier + '-пуле');
+      delete it.slot;
+      try {
+        const B = D.generateDungeonContents(
+          D.createDungeon(cs.w, cs.h, cs.px, cs.terrain), heroAt(cs.xp));
+        assert.equal(B.seed, A.seed,
+          cs.name + ': без slot — сид контента неизменен (main-rng)');
+        assert.deepEqual(B.mobs, A.mobs,
+          cs.name + ': mobs — бит-в-бит (потоки изолированы)');
+        assert.deepEqual(B.deposits, A.deposits,
+          cs.name + ': deposits — бит-в-бит');
+        const armorChest = B.chests.find((ch) => ch.item === cs.trigger);
+        assert.ok(armorChest,
+          cs.name + ': без slot броня «' + cs.trigger + '» ОСТАЛАСЬ '
+          + 'в сундуке (до-волновое поведение)');
+        for (const ch of B.chests) {
+          const a = A.chests.find((x) => x.id === ch.id);
+          assert.deepEqual(
+            { x: ch.x, y: ch.y, gold: ch.gold, opened: ch.opened },
+            { x: a.x, y: a.y, gold: a.gold, opened: a.opened },
+            cs.name + ': ' + ch.id + ' — позиция/gold без изменений');
+          if (ch.id === armorChest.id) {
+            assert.equal(a.item, cs.replaced,
+              cs.name + ': ' + ch.id + ' — со slot: «' + cs.replaced
+              + '» (броня заменена)');
+          } else {
+            assert.equal(ch.item, a.item,
+              cs.name + ': ' + ch.id + ' — предмет без изменений '
+              + '(в пуле нет других предметов со slot)');
+          }
         }
+      } finally {
+        it.slot = 'torso';
       }
     } finally {
-      it.slot = 'torso';
+      pool[idx] = saved;
     }
   }
 });
@@ -3383,8 +3446,10 @@ test('000235.05 X1: сундуки — tier-выбор: предмет ∈ пу�
 // (RUINS) = 8 существующих (6 000133 + 2 чертежа 000232) + 25
 // свитков волны Огонь КОНЦОМ (порядок ТЗ); каждый из 25 РОВНО в
 // одном пуле (скан ВСЕХ assets/dungeons); FALLBACK_DUNGEONS
-// (file://-ветка dungeon.js) — 1:1 с каталогом; баланс: 33
-// предмета, 27 свитков (27/33 — зафиксировано).
+// (file://-ветка dungeon.js) — 1:1 с каталогом; баланс: 32
+// предмета, 27 свитков (27/32 — зафиксировано). Ре-пин 000251:
+// −knight_plate (фантом, явный slot → chest-equip всегда
+// заменяет) убран из пула — 33 → 32.
 const FIRE07_SCROLLS = [
   'ember_scroll', 'ignite_scroll', 'fire_nova_scroll',
   'lava_burst_scroll', 'meteor_scroll', 'flame_strike_scroll',
@@ -3397,19 +3462,19 @@ const FIRE07_SCROLLS = [
   'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll',
 ];
 
-test('W-07. 000235.07: пул RUINS 000003 — 33 предмета (8 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, баланс 27/33', () => {
+test('W-07. 000235.07: пул RUINS 000003 — 32 предмета (7 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, баланс 27/32 (ре-пин 000251: −knight_plate)', () => {
   const cat = loadDungeonCatalog();
   const ruins = cat.find(({ file }) => file === '000003.json');
   assert.ok(ruins, '000003.json (RUINS) в каталоге');
   assert.equal(ruins.data.id, 2, '000003.json — RUINS (id 2)');
   const rec = resolvedDungeonRecord(ruins.data, ruins.file);
   assert.deepEqual(rec.предметы,
-    ['steel_sword', 'knight_plate', 'war_hammer',
+    ['steel_sword', 'war_hammer',
       'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
       'blueprint_forge', 'blueprint_woodwork',
       ...FIRE07_SCROLLS],
-    'RUINS: 33 предмета = 8 (000133/000232) + 25 свитков волны '
-    + 'Огонь КОНЦОМ (RED: '
+    'RUINS: 32 предмета = 7 (000133/000232; ре-пин 000251: '
+    + '−knight_plate) + 25 свитков волны Огонь КОНЦОМ (RED: '
     + rec.предметы.length + ' — свитков волны нет)');
   const poolCount = new Map();
   for (const { file, data } of cat) {
@@ -3439,9 +3504,11 @@ test('W-07. 000235.07: пул RUINS 000003 — 33 предмета (8 + 25 св�
     + 'каталог на ' + rec.предметы.length + ')');
   const nScrolls = rec.предметы.filter(
     (id) => id.endsWith('_scroll')).length;
-  assert.equal(rec.предметы.length, 33, 'баланс: 33 предмета');
+  assert.equal(rec.предметы.length, 32,
+    'баланс: 32 предмета (ре-пин 000251: −knight_plate; RED: '
+    + rec.предметы.length + ')');
   assert.equal(nScrolls, 27,
-    'баланс: 27 свитков из 33 (RED: ' + nScrolls + ')');
+    'баланс: 27 свитков из 32 (ре-пин 000251; RED: ' + nScrolls + ')');
 });
 
 // --- Задача 000235.08: волна Лёд — пул CAVE 000001 (W-07) ---
@@ -3528,7 +3595,8 @@ test('W-07. 000235.08: пул CAVE 000001 — 30 предметов (5 + 25 св
 // dark_presence).
 // Ре-пин 000235.10: +25 свитков волны Исцеление КОНЦОМ (порядок
 // таблицы) — 33 → 58; T1: +4 (radiant_heal/blessing/faith_shield/
-// prayer) — 11 → 15 из 58.
+// prayer) — 11 → 15 из 58. Ре-пин 000251: −chainmail (фантом,
+// явный slot) — 58 → 57; T1: −1 (chainmail — T1) — 15 → 14 из 57.
 const SHADOW09_SCROLLS = [
   'umbra_bolt_scroll', 'drain_life_scroll', 'void_arrow_scroll',
   'night_strike_scroll', 'soul_drain_scroll', 'shadowflame_scroll',
@@ -3555,20 +3623,21 @@ const HEAL10_SCROLLS = [
   'miracle_scroll',
 ];
 
-test('W-07. 000235.09: пул CRYPT 000002 — 58 предметов (8 + 25 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 15/58 (ре-пин 000235.10: +25 волны Исцеление)', () => {
+test('W-07. 000235.09: пул CRYPT 000002 — 57 предметов (7 + 25 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 14/57 (ре-пин 000251: −chainmail; ре-пин 000235.10: +25 волны Исцеление)', () => {
   const cat = loadDungeonCatalog();
   const crypt = cat.find(({ file }) => file === '000002.json');
   assert.ok(crypt, '000002.json (CRYPT) в каталоге');
   assert.equal(crypt.data.id, 1, '000002.json — CRYPT (id 1)');
   const rec = resolvedDungeonRecord(crypt.data, crypt.file);
   assert.deepEqual(rec.предметы,
-    ['alchemy_manual', 'chainmail', 'mana_potion',
+    ['alchemy_manual', 'mana_potion',
       'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
       'blueprint_alchemy', 'blueprint_carving',
       ...SHADOW09_SCROLLS,
       ...HEAL10_SCROLLS],
-    'CRYPT: 58 предметов = 8 (legacy) + 25 свитков волны Тень + '
-    + '25 свитков волны Исцеление КОНЦОМ (ре-пин 000235.10) '
+    'CRYPT: 57 предметов = 7 (legacy; ре-пин 000251: −chainmail) '
+    + '+ 25 свитков волны Тень + 25 свитков волны Исцеление '
+    + 'КОНЦОМ (ре-пин 000235.10) '
     + '(RED: ' + rec.предметы.length + ' — свитков волны нет)');
   const poolCount = new Map();
   for (const { file, data } of cat) {
@@ -3602,13 +3671,13 @@ test('W-07. 000235.09: пул CRYPT 000002 — 58 предметов (8 + 25 + 2
     const it = I.getItem(id);
     return (it && it.tier) || 1;
   };
-  assert.equal(rec.предметы.length, 58,
-    'баланс: 58 предметов (ре-пин 000235.10; RED: '
-    + rec.предметы.length + ')');
+  assert.equal(rec.предметы.length, 57,
+    'баланс: 57 предметов (ре-пин 000251: −chainmail; ре-пин '
+    + '000235.10; RED: ' + rec.предметы.length + ')');
   assert.equal(
-    rec.предметы.filter((id) => tierOf(id) <= 1).length, 15,
-    'баланс: 15 предметов T1 из 58 (ре-пин 000235.10: +4 волны '
-    + 'Исцеление; RED: '
+    rec.предметы.filter((id) => tierOf(id) <= 1).length, 14,
+    'баланс: 14 предметов T1 из 57 (ре-пин 000251: −chainmail, '
+    + 'T1; ре-пин 000235.10: +4 волны Исцеление; RED: '
     + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
 });
 
@@ -3619,22 +3688,24 @@ test('W-07. 000235.09: пул CRYPT 000002 — 58 предметов (8 + 25 + 2
 // Исцеление КОНЦОМ (порядок таблицы ТЗ); каждый из 25 новых РОВНО
 // в одном пуле (скан ВСЕХ assets/dungeons); ПИН ОБЩЕГО пула: 50
 // свитков волн (Тень+Исцеление) в 000002; FALLBACK_DUNGEONS CRYPT
-// (file://-ветка dungeon.js) — 1:1 с каталогом; T1-баланс: 15 из 58
-// (11 прежних + 4 волны Исцеление: radiant_heal/blessing/
-// faith_shield/prayer).
-test('W-07. 000235.10: пул CRYPT 000002 — 58 предметов (8 + 25 + 25 свитков КОНЦОМ), ПИН 50 свитков волн, каждый новый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 15/58', () => {
+// (file://-ветка dungeon.js) — 1:1 с каталогом; T1-баланс: 14 из 57
+// (10 прежних + 4 волны Исцеление: radiant_heal/blessing/
+// faith_shield/prayer). Ре-пин 000251: −chainmail (фантом, явный
+// slot; T1) — 58 → 57, T1 15 → 14.
+test('W-07. 000235.10: пул CRYPT 000002 — 57 предметов (7 + 25 + 25 свитков КОНЦОМ), ПИН 50 свитков волн, каждый новый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 14/57 (ре-пин 000251: −chainmail)', () => {
   const cat = loadDungeonCatalog();
   const crypt = cat.find(({ file }) => file === '000002.json');
   assert.ok(crypt, '000002.json (CRYPT) в каталоге');
   assert.equal(crypt.data.id, 1, '000002.json — CRYPT (id 1)');
   const rec = resolvedDungeonRecord(crypt.data, crypt.file);
   assert.deepEqual(rec.предметы,
-    ['alchemy_manual', 'chainmail', 'mana_potion',
+    ['alchemy_manual', 'mana_potion',
       'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
       'blueprint_alchemy', 'blueprint_carving',
       ...SHADOW09_SCROLLS,
       ...HEAL10_SCROLLS],
-    'CRYPT: 58 предметов = 8 (legacy) + 25 (Тень) + 25 (Исцеление) '
+    'CRYPT: 57 предметов = 7 (legacy; ре-пин 000251: −chainmail) '
+    + '+ 25 (Тень) + 25 (Исцеление) '
     + 'КОНЦОМ (RED: ' + rec.предметы.length
     + ' — свитков волны Исцеление нет)');
   const waveSet = new Set(SHADOW09_SCROLLS.concat(HEAL10_SCROLLS));
@@ -3674,10 +3745,12 @@ test('W-07. 000235.10: пул CRYPT 000002 — 58 предметов (8 + 25 + 2
     const it = I.getItem(id);
     return (it && it.tier) || 1;
   };
-  assert.equal(rec.предметы.length, 58, 'баланс: 58 предметов (RED: '
+  assert.equal(rec.предметы.length, 57,
+    'баланс: 57 предметов (ре-пин 000251: −chainmail; RED: '
     + rec.предметы.length + ')');
   assert.equal(
-    rec.предметы.filter((id) => tierOf(id) <= 1).length, 15,
-    'баланс: 15 предметов T1 из 58 (RED: '
+    rec.предметы.filter((id) => tierOf(id) <= 1).length, 14,
+    'баланс: 14 предметов T1 из 57 (ре-пин 000251: −chainmail, '
+    + 'T1; RED: '
     + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
 });
