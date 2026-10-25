@@ -108,6 +108,9 @@
   затем 1 общий ролл редкого пула: тот же P(D), где
   P(D) = clamp(0.25 + 0.04·D, 0.05, 0.25), D = playerLevel −
   maxLvl (уровень старшего поверженного моба, 000245).
+  Именованные дельты (000269, src/combat.js): heroLevelDelta
+  (лут: D = playerLevel − maxLvl) и mobLevelDelta (свитки: D =
+  maxLvl − playerLevel) — spec/spells.md «Свитки: тир и лут».
 * Свитки (000235.05) — НОВЫЙ ролл СТРОГО ПОСЛЕ существующих,
   отдельный солёный rng-поток mulberry32(hash2(seed, day,
   SALT_SCROLL)) — ноль вызовов c._rng (per-mob/базовый/редкий/

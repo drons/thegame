@@ -1201,13 +1201,34 @@
     ? lootEquipData.RARITY : [];
   const EQUIP_POOLS = (lootEquipData && lootEquipData.EQUIP_POOLS)
     ? lootEquipData.EQUIP_POOLS : {};
+  // Контракт конвенции разности уровней в victory-флоу (000269):
+  // ДВЕ противоположные sign-конвенции и ДВЕ намеренно РАЗНЫЕ
+  // формулы (объединение сдвинет голдены; знаки НЕ сближать —
+  // ловушка sign-багов, 000245 §7). Хелперы — ОДИН D-вычислитель
+  // на каждый путь (H3-пин: inline-вычитания только в хелперах):
+  // * Лут (000245): D = heroLevel − mobLevel, P(D) = clamp(0.25 +
+  //   0.04·D, 0.05, 0.25) — награда за уровень героя (D > 0 — герой
+  //   старше); D — heroLevelDelta, формула — в lootChance (оба
+  //   call-sites rollVictoryLoot: базовый u.level / редкий maxLvl).
+  // * Свитки (000235.05): D = maxLvl − playerLevel, P_scroll =
+  //   min(0.25, 0.05 + 0.02·max(0, D)) — глубина контента данжея
+  //   (D > 0 — группа старше); D — mobLevelDelta (rollScrollDrop),
+  //   формула — scrollChance (D — аргумент в своём знаке).
+  // Кросс-ссылки — spec/dungeons-storage.md «Лут» и spec/spells.md
+  // «Свитки: тир и лут»; порядок вызовов c._rng — пин N2 (без изм.).
+  function heroLevelDelta(heroLevel, mobLevel) {
+    return heroLevel - mobLevel;
+  }
+  function mobLevelDelta(maxLvl, playerLevel) {
+    return maxLvl - playerLevel;
+  }
 
   const LOOT_CHANCE_BASE = 0.25;
   const LOOT_CHANCE_PER_LV = 0.04;
   const LOOT_CHANCE_FLOOR = 0.05;
   const LOOT_CHANCE_CAP = 0.25;
   function lootChance(heroLevel, mobLevel) {
-    const D = heroLevel - mobLevel;
+    const D = heroLevelDelta(heroLevel, mobLevel);
     return Math.min(LOOT_CHANCE_CAP,
       Math.max(LOOT_CHANCE_FLOOR, LOOT_CHANCE_BASE + LOOT_CHANCE_PER_LV * D));
   }
@@ -1281,7 +1302,7 @@
   }
 
   function rollScrollDrop(catalog, seed, day, maxLvl, playerLevel) {
-    const D = maxLvl - playerLevel;
+    const D = mobLevelDelta(maxLvl, playerLevel);
     const rng = mulberry32(hash2(seed, day, SALT_SCROLL) >>> 0);
     if (rng() >= scrollChance(D)) return null;
     const T = D > 0 ? scrollTier(D, 0) : scrollTier(D, rng());
@@ -3778,6 +3799,9 @@
     // P(D) = clamp(0.25 + 0.04·D, 0.05, 0.25), D = heroLevel − mobLevel.
     LOOT_CHANCE_BASE, LOOT_CHANCE_PER_LV, LOOT_CHANCE_FLOOR,
     LOOT_CHANCE_CAP, lootChance,
+    // 000269: именованные дельты уровней victory-флоу — ОДИН
+    // D-вычислитель на путь (коммент-контракт конвенций выше).
+    heroLevelDelta, mobLevelDelta,
     // Редкость экипировочного лута (задача 000230.05): live-ссылки
     // на данные модуля (деградация — []/{}).
     RARITY_TABLE, EQUIP_POOLS,
