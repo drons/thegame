@@ -632,17 +632,122 @@
     // errors.length === 0): нет loader/getBuilding/buildingSprite/
     // cityContents/слота/изображения — клетка остаётся полом.
     // НОВЫХ RNG НЕТ (D10): слой — чистая функция (layout, cityContents,
-    // каталог, loader, cam/zoom, now). ds.contents у города null —
-    // НЕ читать (000109). 1×1-клетка (000106): каталожный размер НЕ
-    // уважается (built w×h — контракт 000148.03, тот же слой).
+    // каталог, loader, cam/zoom, now); Map/Set — на кадр (создаются
+    // здесь, в state не хранятся). ds.contents у города null —
+    // НЕ читать (000109). 000264: каталожный w×h>1 (Арена 7,
+    // Храм солнца 36) — ОДИН w×h-спрайт от якоря: footprint-
+    // снап-прямоугольник (тот же снап, что пол — 000215, без шва),
+    // фаза кадра — от якоря (зеркало мирового прохода 2); ДАННЫЕ —
+    // per-cell записи w·h (record.built ANCHOR + view — не меняются).
+    // 1×1-записи и ОРФАНЫ (неполный footprint — недостижимо в
+    // production, view производный) — легасий 1×1 БИТ-В-БИТ.
     if (isCity && loader) {
       const bld = (s.cityContents &&
         Array.isArray(s.cityContents.buildings))
         ? s.cityContents.buildings : null;
       if (bld && bld.length) {
+        // 000264: каталожный размер записи — live-ссылки в момент
+        // вызова (UMD-ловушка 000038: buildings.js может быть НЕ в
+        // цепочке). null — ветка 1×1 (тихая деградация бит-в-бит).
+        const sizeOf = (id) => {
+          if (typeof live.getBuilding !== 'function'
+              || typeof live.buildingSize !== 'function') return null;
+          const rec = live.getBuilding(id);
+          if (!rec) return null;
+          const sz = live.buildingSize(rec);
+          if (!sz || !Number.isInteger(sz.width) || !Number.isInteger(sz.height)
+              || sz.width < 1 || sz.height < 1) return null;
+          return { width: sz.width, height: sz.height };
+        };
+        // Группировка per-cell записей ПО buildingId (порядок вставки
+        // = первое появление id в массиве — детерминированно). В
+        // группировке — ТОЛЬКО записи игрока (player === true):
+        // базовые (generateCityContents — без флага) всегда идут
+        // легаси-путём 1×1 (SPEC «базовые — 1×1») — иначе базовая
+        // multi-cell id (7/18/19/24/36 в каталоге) могла бы слиться с
+        // player-footprint'ом того же id в ложный полный блок с
+        // ложным якорем (ревью 000264: U3). Player-footprint'ы
+        // попарно не пересекаются (canBuildAt — space-check против
+        // cityOccupied, включающего ВСЕ записи) → row-major minimum
+        // полного footprint'а всегда истинный якорь. Якорь footprint'а
+        // в данных НЕТ — выводится рендером: запись r — якорь, если
+        // ВСЕ w·h клеток от (r.x, r.y) присутствуют среди
+        // непотреблённых записей того же id; жадное row-major
+        // потребление (два соседних здания одного типа — легально:
+        // canBuildAt — только space/cap/reach, уникальности типа нет).
+        // Потребление — viewport-НЕЗАВИСИМО (по данным: сосед того же
+        // типа за краём не даёт видимой записи ложного полного
+        // footprint'а).
+        const byId = new Map();
         for (let i = 0; i < bld.length; i++) {
           const b = bld[i];
-          if (!b || b.x < x0 || b.x > x1 || b.y < y0 || b.y > y1) continue;
+          if (!b || b.player !== true ||
+              !Number.isInteger(b.x) || !Number.isInteger(b.y)) {
+            continue;
+          }
+          let arr = byId.get(b.buildingId);
+          if (!arr) { arr = []; byId.set(b.buildingId, arr); }
+          arr.push(b);
+        }
+        const consumed = new Set();
+        const anchorAt = new Map();
+        for (const ent of byId) {
+          const sz = sizeOf(ent[0]);
+          if (!sz || (sz.width === 1 && sz.height === 1)) continue;
+          const keys = ent[1].slice()
+            .sort((a, b) => (a.y - b.y) || (a.x - b.x));
+          const present = new Set();
+          for (const b of keys) present.add(b.x + ',' + b.y);
+          for (let i = 0; i < keys.length; i++) {
+            const r = keys[i];
+            const rk = r.x + ',' + r.y;
+            if (consumed.has(rk)) continue;
+            let full = true;
+            const members = [rk];
+            for (let dy = 0; dy < sz.height && full; dy++) {
+              for (let dx = 0; dx < sz.width; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                const k = (r.x + dx) + ',' + (r.y + dy);
+                if (present.has(k) && !consumed.has(k)) members.push(k);
+                else { full = false; break; }
+              }
+            }
+            if (!full) continue;
+            for (const k of members) consumed.add(k);
+            anchorAt.set(rk, { x: r.x, y: r.y,
+              width: sz.width, height: sz.height, id: ent[0] });
+          }
+        }
+        for (let i = 0; i < bld.length; i++) {
+          const b = bld[i];
+          if (!b) continue;
+          const a = (Number.isInteger(b.x) && Number.isInteger(b.y))
+            ? anchorAt.get(b.x + ',' + b.y) : null;
+          if (a) {
+            // Якорь: ОДИН w×h-спрайт — снап-прямоугольник footprint'а
+            // (tl — якорь, far — дальний угол; при целом зуме/камере =
+            // worldToScreen + w·zoom×h·zoom). Видимость — пересечение
+            // footprint'а с видимым диапазоном (якорь может быть за
+            // краем, видим — его член).
+            anchorAt.delete(b.x + ',' + b.y);
+            const vis = a.x <= x1 && a.x + a.width - 1 >= x0
+              && a.y <= y1 && a.y + a.height - 1 >= y0;
+            if (!vis) continue;
+            const path = cityBuildingPath(live, a.id, nowT, a.x, a.y);
+            if (!path) continue;
+            const img = (typeof loader.isReady === 'function'
+              ? loader.isReady(path) : true) && loader.image(path);
+            if (!img) continue;
+            const rtl = cellRect(a.x, a.y, proj(a.x, a.y));
+            const fx = a.x + a.width - 1, fy = a.y + a.height - 1;
+            const rfar = cellRect(fx, fy, proj(fx, fy));
+            g2.drawImage(img, rtl.x, rtl.y,
+              rfar.x + rfar.w - rtl.x, rfar.y + rfar.h - rtl.y);
+            continue;
+          }
+          if (Number.isInteger(b.x) && Number.isInteger(b.y)
+              && consumed.has(b.x + ',' + b.y)) continue;
+          if (b.x < x0 || b.x > x1 || b.y < y0 || b.y > y1) continue;
           const path = cityBuildingPath(live, b.buildingId, nowT, b.x, b.y);
           if (!path) continue;
           const img = (typeof loader.isReady === 'function'

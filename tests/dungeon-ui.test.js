@@ -4040,3 +4040,314 @@ test('000238.01 CU-BA-6 (RED): строгая готовность в город
   assert.equal(loaded.errors.length, 0,
     'тихий skip — без console.error: ' + loaded.errors.join('; '));
 });
+
+// =====================================================================
+// Задача 000264: здание w×h в городе — ОДИН w×h-спрайт от якоря.
+// =====================================================================
+//
+// Контракт: memory/000264-city-3x3-sprite.md. Слой построек города
+// (dungeon-ui.js, блок `if (isCity && loader)`) на текущем коде
+// рисует КАЖДУЮ per-cell запись одним 1×1-спрайтом — 3×3 Арена
+// (9 записей) рисуется ДЕВЯТЬЮ одноклеточными спрайтами. 000264:
+// per-cell записи с каталожным w>1||h>1 группируются в footprint'ы
+// ПО buildingId (Map, порядок вставки = порядок первого появления
+// id); якорь ВЫВОДИТСЯ рендером — запись r, от которой ВСЕ w·h
+// клеток footprint'а присутствуют среди непотреблённых записей того
+// же id; жадное row-major потребление, viewport-НЕЗАВИСИМО; якорь →
+// ОДИН w×h-спрайт из снап-прямоугольника footprint'а (tl =
+// cellRect(ax,ay), far = cellRect(ax+w−1, ay+h−1) — при целом зуме/
+// камере = worldToScreen(ax,ay) + w·zoom×h·zoom, идентичность
+// 000215); 1×1-записи — легась-путь БИТ-В-БИТ; орфаны (неполный
+// footprint) — 1×1 fail-open (пин — 000148.02 «базовые id»,
+// одиночная запись id 36).
+//
+// КРАСНЫЕ (падают на ТЕКУЩЕМ коде осмысленно — группировки/
+// крупного спрайта нет; модули существуют, падения — ERR_ASSERTION
+// по геометрии drawCalls):
+//   U1: 3×3 Арена id 7 (9 per-cell записей, player:true) — ровно
+//       ОДИН drawImage 3·zoom×3·zoom от якоря (worldToScreen(ax,ay));
+//       member-клетки — без своих 1×1-спрайтов; 1×1 таверна id 44 —
+//       как раньше (один zoom×zoom на клетке); errors 0. ВТОРОЙ
+//       сценарий (в том же тесте): ДВЕ СОСЕДНИЕ Арены (18 записей) —
+//       ровно 2 крупных спрайта по своим якорям (пин жадного
+//       row-major; ложного 3×3 на стыке нет).
+//   U2: id 36 Храм солнца (слот 8, статичный temple.svg) — то же:
+//       один 3·zoom×3·zoom от якоря + 1×1 сосуществование.
+//
+// БИТ-В-БИТ (остаются зелёными БЕЗ правок): все 000148.02-юниты
+// (1×1/субтип/999-skip/viewport-клип/детерминизм/орфан id 36 → 1×1),
+// 000224/000238.01 (анимированные 1×1, кадры 800 мс).
+
+// 000264: per-cell записи w·h footprint'а от якоря (ax, ay) —
+// production-порядок (row-major-чанк на якорь: buildCityAt /
+// prepareCityState push'ат footprint записью за записью).
+function footprintRecords(buildingId, ax, ay, w, h) {
+  const out = [];
+  for (let dy = 0; dy < h; dy++)
+    for (let dx = 0; dx < w; dx++)
+      out.push({ x: ax + dx, y: ay + dy, buildingId, player: true });
+  return out;
+}
+
+// drawImage-вызовы СПРАЙТОВ ПОСТРОЕК на ТОЧНОМ угле (x, y) с
+// ТОЧНЫМ размером w×h (поз/размер — worldToScreen, та же формула,
+// что рендер; снап-identity при целом зуме/центрированной камере).
+function buildingDrawsAt(calls, G, x, y, camX, camY, zoom, w, h) {
+  const p = G.worldToScreen(x, y, camX, camY, zoom, VW, VH);
+  return calls.filter((c) => c[0] === 'drawImage'
+    && Math.abs(c[1][1] - p.x) <= 1e-9
+    && Math.abs(c[1][2] - p.y) <= 1e-9
+    && c[1][3] === w && c[1][4] === h);
+}
+
+test('000264 U1 (RED): 3×3 Арена (id 7) — 9 per-cell записей → ровно ОДИН 3·zoom×3·zoom-спрайт от якоря; member-клетки — без 1×1-спрайтов; 1×1 таверна — как раньше; errors 0. ДВЕ СОСЕДНИЕ Арены (18 записей) — ровно 2 спрайта по своим якорям (жадный row-major; ложного 3×3 на стыке нет)', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  const sz7 = G.buildingSize(G.getBuilding(7));
+  assert.equal(sz7.width, 3,
+    'предусловие: каталог id 7 (Арена) — 3×3 (x): '
+    + JSON.stringify(sz7));
+  assert.equal(sz7.height, 3,
+    'предусловие: каталог id 7 (Арена) — 3×3 (y): '
+    + JSON.stringify(sz7));
+  const arenaPath = buildingSpritePath(G, 7, 1000, 1, 1);
+  assert.equal(arenaPath, 'assets/sprites/buildings/arena.svg',
+    'предусловие: id 7 → слот 4 (ARENA) — статичный arena.svg '
+    + '(кадров нет): ' + arenaPath);
+  const tPath = buildingSpritePath(G, 44, 1000, 4, 4);
+  assert.ok(tPath && tPath.indexOf('assets/sprites/buildings/') === 0,
+    'предусловие: id 44 (таверна) резолвится в кадр таблицы: ' + tPath);
+  // Деревня 6×6 @ 48 → 288 ≤ 600 → cam центрирован (3,3) (паттерн
+  // 000148.02). Арена — якорь (1,1), таверна — (4,4).
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: {
+      buildings: footprintRecords(7, 1, 1, 3, 3)
+        .concat([{ x: 4, y: 4, buildingId: 44 }]),
+      seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([arenaPath, tPath]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  const CAM = 3, ZOOM = 48;
+  // RED: ровно ОДИН крупный спрайт 3·ZOOM×3·ZOOM от якоря (1,1) —
+  // позиция = worldToScreen(1,1,3,3,48) (снап-rect footprint'а;
+  // identity при целом зуме/центрированной камере).
+  const big = buildingDrawsAt(calls, G, 1, 1, CAM, CAM, ZOOM,
+    3 * ZOOM, 3 * ZOOM)
+    .filter((c) => c[1][0] && c[1][0].__img === arenaPath);
+  assert.equal(big.length, 1,
+    'RED: 3×3 Арена — ровно ОДИН 3·zoom×3·zoom-спрайт (arena.svg) от '
+    + 'якоря worldToScreen(1,1,3,3,48); сейчас: ' + big.length
+    + ' (per-cell записи рисуются по 1×1 — спрайтов '
+    + buildingDrawCalls(calls).length);
+  // Все 9 клеток footprint'а (включая якорную) — БЕЗ своих
+  // zoom×zoom-спрайтов.
+  for (let dy = 0; dy < 3; dy++)
+    for (let dx = 0; dx < 3; dx++) {
+      const small = buildingDrawsAt(calls, G, 1 + dx, 1 + dy, CAM, CAM,
+        ZOOM, ZOOM, ZOOM);
+      assert.equal(small.length, 0,
+        'RED: клетка Арены (' + (1 + dx) + ',' + (1 + dy) + ') — без '
+        + 'собственного 1×1-спрайта; сейчас: ' + small.length);
+    }
+  // 1×1 таверна (4,4) — как раньше: один zoom×zoom на клетке
+  // (легась-путь бит-в-бит).
+  const t = buildingDrawsAt(calls, G, 4, 4, CAM, CAM, ZOOM,
+    ZOOM, ZOOM).filter((c) => c[1][0] && c[1][0].__img === tPath);
+  assert.equal(t.length, 1,
+    '1×1 таверна (4,4) — один zoom×zoom-спрайт (бит-в-бит); сейчас: '
+    + t.length);
+  // Слой в целом: ровно ДВА building-спрайта (Арена 3×3 + таверна
+  // 1×1).
+  assert.equal(buildingDrawCalls(calls).length, 2,
+    'ровно 2 building-спрайта (Арена + таверна); сейчас: '
+    + buildingDrawCalls(calls).length);
+  assert.equal(loaded.errors.length, 0,
+    'ошибок нет: ' + loaded.errors.join('; '));
+
+  // Сценарий 2 (тот же тест): ДВЕ СОСЕДНИЕ Арены в городе 18×18 @ 30
+  // (18·30 = 540 ≤ 600 → cam центрирован (9,9)): A — якорь (2,2),
+  // B — якорь (5,2) (соприкасаются: правая колонна A x=4, левая B
+  // x=5; footprint'ы НЕ пересекаются — space canBuildAt). 18
+  // записей. RED-пин жадного row-major: (2,2) съеден первым →
+  // (5,2) — якорь B; ложного 3×3 на стыке (от записи (4,2)
+  // x∈{4..6} «тоже полный») нет.
+  const loaded2 = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G2 = loaded2.G;
+  const s2 = makeCityState({ fp: 5, cx: -114, cy: -119, name: 'Город',
+    cityContents: {
+      buildings: footprintRecords(7, 2, 2, 3, 3)
+        .concat(footprintRecords(7, 5, 2, 3, 3)),
+      seed: 0 } });
+  G2.dungeonUI.start({ state: s2, onMove() {}, zoom: 30,
+    spriteLoader: makeSpriteLoader([arenaPath]) });
+  const calls2 = findCanvas(loaded2.body).drawCalls;
+  const CAM2 = 9, ZOOM2 = 30;
+  const bigA = buildingDrawsAt(calls2, G2, 2, 2, CAM2, CAM2, ZOOM2,
+    3 * ZOOM2, 3 * ZOOM2)
+    .filter((c) => c[1][0] && c[1][0].__img === arenaPath);
+  const bigB = buildingDrawsAt(calls2, G2, 5, 2, CAM2, CAM2, ZOOM2,
+    3 * ZOOM2, 3 * ZOOM2)
+    .filter((c) => c[1][0] && c[1][0].__img === arenaPath);
+  assert.equal(bigA.length, 1,
+    'RED: Арена A — ровно один 3·zoom×3·zoom-спрайт от якоря (2,2); '
+    + 'сейчас: ' + bigA.length);
+  assert.equal(bigB.length, 1,
+    'RED: Арена B — ровно один 3·zoom×3·zoom-спрайт от якоря (5,2) '
+    + '(жадный row-major: A съедена первой); сейчас: ' + bigB.length);
+  // Ни одной клетки footprint'ов A/B — без своего zoom×zoom-спрайта.
+  for (const a of [[2, 2], [5, 2]])
+    for (let dy = 0; dy < 3; dy++)
+      for (let dx = 0; dx < 3; dx++) {
+        const small = buildingDrawsAt(calls2, G2, a[0] + dx, a[1] + dy,
+          CAM2, CAM2, ZOOM2, ZOOM2, ZOOM2);
+        assert.equal(small.length, 0,
+          'RED: клетка (' + (a[0] + dx) + ',' + (a[1] + dy) + ') — без '
+          + '1×1-спрайта; сейчас: ' + small.length);
+      }
+  // ЛОЖНОГО 3×3 на стыке нет: крупных спрайтов ровно 2, на своих
+  // якорях.
+  const allBig = buildingDrawCalls(calls2).filter((c) =>
+    c[1][3] === 3 * ZOOM2 && c[1][4] === 3 * ZOOM2);
+  assert.equal(allBig.length, 2,
+    'крупных (3·zoom) building-спрайтов ровно 2 — по якорям A/B; '
+    + 'ложного 3×3 на стыке нет; сейчас: ' + allBig.length);
+  assert.equal(buildingDrawCalls(calls2).length, 2,
+    'ВСЕГО building-спрайтов 2 (18 per-cell записей → 2 здания); '
+    + 'сейчас: ' + buildingDrawCalls(calls2).length);
+  assert.equal(loaded2.errors.length, 0,
+    'ошибок нет: ' + loaded2.errors.join('; '));
+});
+
+test('000264 U2 (RED): id 36 Храм солнца (слот 8, статичный temple.svg) — 9 per-cell записей → один 3·zoom×3·zoom-спрайт от якоря + 1×1 сосуществование (таверна); errors 0', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  const sz36 = G.buildingSize(G.getBuilding(36));
+  assert.equal(sz36.width, 3,
+    'предусловие: каталог id 36 (Храм солнца) — 3×3 (x): '
+    + JSON.stringify(sz36));
+  assert.equal(sz36.height, 3,
+    'предусловие: каталог id 36 (Храм солнца) — 3×3 (y): '
+    + JSON.stringify(sz36));
+  const templePath = buildingSpritePath(G, 36, 1000, 1, 1);
+  assert.equal(templePath, 'assets/sprites/buildings/temple.svg',
+    'предусловие: id 36 → слот 8 (TEMPLE) — статичный temple.svg '
+    + '(кадров нет): ' + templePath);
+  const tPath = buildingSpritePath(G, 44, 1000, 4, 4);
+  assert.ok(tPath && tPath.indexOf('assets/sprites/buildings/') === 0,
+    'предусловие: id 44 (таверна) резолвится в кадр таблицы: ' + tPath);
+  // Деревня 6×6 @ 48 → cam центрирован (3,3). Храм — якорь (1,1),
+  // таверна — (4,4).
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: {
+      buildings: footprintRecords(36, 1, 1, 3, 3)
+        .concat([{ x: 4, y: 4, buildingId: 44 }]),
+      seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([templePath, tPath]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  const CAM = 3, ZOOM = 48;
+  const big = buildingDrawsAt(calls, G, 1, 1, CAM, CAM, ZOOM,
+    3 * ZOOM, 3 * ZOOM)
+    .filter((c) => c[1][0] && c[1][0].__img === templePath);
+  assert.equal(big.length, 1,
+    'RED: Храм солнца — ровно ОДИН 3·zoom×3·zoom-спрайт (temple.svg) '
+    + 'от якоря worldToScreen(1,1,3,3,48); сейчас: ' + big.length
+    + ' (per-cell записи рисуются по 1×1 — спрайтов '
+    + buildingDrawCalls(calls).length);
+  for (let dy = 0; dy < 3; dy++)
+    for (let dx = 0; dx < 3; dx++) {
+      const small = buildingDrawsAt(calls, G, 1 + dx, 1 + dy, CAM, CAM,
+        ZOOM, ZOOM, ZOOM);
+      assert.equal(small.length, 0,
+        'RED: клетка Храма (' + (1 + dx) + ',' + (1 + dy) + ') — без '
+        + 'собственного 1×1-спрайта; сейчас: ' + small.length);
+    }
+  const t = buildingDrawsAt(calls, G, 4, 4, CAM, CAM, ZOOM,
+    ZOOM, ZOOM).filter((c) => c[1][0] && c[1][0].__img === tPath);
+  assert.equal(t.length, 1,
+    '1×1 таверна (4,4) — сосуществование (один zoom×zoom); сейчас: '
+    + t.length);
+  assert.equal(buildingDrawCalls(calls).length, 2,
+    'ровно 2 building-спрайта (Храм + таверна); сейчас: '
+    + buildingDrawCalls(calls).length);
+  assert.equal(loaded.errors.length, 0,
+    'ошибок нет: ' + loaded.errors.join('; '));
+});
+
+test('000264 U3 (review): базовая запись multi-cell id (БЕЗ player) + player-footprint того же id — ложного якоря нет: базовые — по 1×1 (SPEC «базовые — 1×1»), якорь — у игрока; errors 0', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  const arenaPath = buildingSpritePath(G, 7, 1000, 1, 1);
+  assert.equal(arenaPath, 'assets/sprites/buildings/arena.svg',
+    'предусловие: id 7 → слот 4 — статичный arena.svg: ' + arenaPath);
+  // Деревня 6×6 @ 48 → 288 ≤ 600 → cam центрирован (3,3), весь layout
+  // виден. Базовые (generateCityContents — БЕЗ player) id 7: (1,2),
+  // (1,3), (1,4) — по одной клетке на запись (000106: takeSpot — одна
+  // клетка). Player-Арена — якорь (2,2): footprint (2..4, 2..4).
+  // ЛОЖНЫЙ БЛОК: базовые (1,2)-(1,4) + player-клетки (2..4, 2..4)
+  // складываются в полный 3×3 от (1,2) — якорь row-major РАНЬШЕ
+  // истинного; на до-ревью коде (группировка БЕЗ фильтра player)
+  // жадное потребление брало ложный якорь (1,2): здание игрока —
+  // смещённое, клетки (4,2)-(4,4) — 1×1-орфаны, базовые — без
+  // спрайтов (потреблены). SPEC: «построенные игроком — один w×h-
+  // спрайт от якоря; базовые — 1×1» → в группировке ТОЛЬКО
+  // player === true.
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: {
+      buildings: [
+        { x: 1, y: 2, buildingId: 7 },
+        { x: 1, y: 3, buildingId: 7 },
+        { x: 1, y: 4, buildingId: 7 },
+      ].concat(footprintRecords(7, 2, 2, 3, 3)),
+      seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([arenaPath]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  const CAM = 3, ZOOM = 48;
+  // Якорь — у ИГРОКА: ровно ОДИН крупный спрайт 3·zoom×3·zoom от
+  // worldToScreen(2,2).
+  const big = buildingDrawsAt(calls, G, 2, 2, CAM, CAM, ZOOM,
+    3 * ZOOM, 3 * ZOOM)
+    .filter((c) => c[1][0] && c[1][0].__img === arenaPath);
+  assert.equal(big.length, 1,
+    'player-Арена — ровно ОДИН 3·zoom×3·zoom-спрайт от ИСТИННОГО '
+    + 'якоря (2,2); сейчас: ' + big.length
+    + ' (крупных от (1,2): '
+    + buildingDrawsAt(calls, G, 1, 2, CAM, CAM, ZOOM, 3 * ZOOM,
+        3 * ZOOM).length + ')');
+  // ЛОЖНОГО якоря (1,2) НЕТ.
+  assert.equal(buildingDrawsAt(calls, G, 1, 2, CAM, CAM, ZOOM,
+    3 * ZOOM, 3 * ZOOM).length, 0,
+    'ложного 3×3-спрайта от базовой записи (1,2) нет (базовые — '
+    + '1×1); сейчас: '
+    + buildingDrawsAt(calls, G, 1, 2, CAM, CAM, ZOOM, 3 * ZOOM,
+        3 * ZOOM).length);
+  // Клетки player-footprint'а (2..4, 2..4) — без своих 1×1-спрайтов.
+  for (let dy = 0; dy < 3; dy++)
+    for (let dx = 0; dx < 3; dx++) {
+      const small = buildingDrawsAt(calls, G, 2 + dx, 2 + dy, CAM, CAM,
+        ZOOM, ZOOM, ZOOM);
+      assert.equal(small.length, 0,
+        'клетка Арены (' + (2 + dx) + ',' + (2 + dy) + ') — без '
+        + '1×1-спрайта; сейчас: ' + small.length);
+    }
+  // Базовые (1,2), (1,3), (1,4) — по ОДНОМУ 1×1-спрайту (легаси-путь,
+  // бит-в-бит; тот же путь слота — arena.svg, id совпадает).
+  for (const by of [2, 3, 4]) {
+    const base = buildingDrawsAt(calls, G, 1, by, CAM, CAM, ZOOM,
+      ZOOM, ZOOM).filter((c) => c[1][0] && c[1][0].__img === arenaPath);
+    assert.equal(base.length, 1,
+      'базовая (' + (1) + ',' + by + ') id 7 (без player) — один '
+      + '1×1-спрайт; сейчас: ' + base.length);
+  }
+  // Слой в целом: ровно 4 спрайта (один крупный + три базовых 1×1).
+  assert.equal(buildingDrawCalls(calls).length, 4,
+    'ровно 4 building-спрайта (1 крупный + 3 базовых 1×1); сейчас: '
+    + buildingDrawCalls(calls).length);
+  assert.equal(loaded.errors.length, 0,
+    'ошибок нет: ' + loaded.errors.join('; '));
+});

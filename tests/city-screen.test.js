@@ -1274,3 +1274,491 @@ test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕ
   assert.equal(G.buildingUI.isActive(), false,
     'второй [E] — оверлей закрыт');
 });
+
+// --- 000264 (e2e): здание w×h в городе — ОДИН w×h-спрайт от якоря ---
+//
+// Контракт: memory/000264-city-3x3-sprite.md. ТЗ: tasks/pending/
+// 000264.md. Фикстура — ДЕТЕРМИНИРОВАННЫЙ мир: ближайший город
+// fp≥3 — id 53 «Город» (якорь (93,18), вход (95,22), layout 18×18,
+// дверь (1,17)); BFS ≈ 119 шагов от спавна (0,0). Якорь built —
+// ПЕРВЫЙ row-major canBuildAt-OK для id 7 в видимых строках
+// (y ∈ 9..13 — строки первого кадра при cam.y = 13.5) против
+// base-содержимого (generateCityContents occ=null — то, что
+// РЕАЛЬНЫЙ buildCityAt видит до постройки): (1,9).
+//
+// Камера (start): снап к игроку (дверь) + clampCam — 18×80 = 1440 >
+// 1280/720 → cam = (clamp(1.5, 8, 10), clamp(17.5, 4.5, 13.5)) =
+// (8, 13.5). Целый zoom 80 + целая/полунцелая камера + чётный
+// вьюпорт → снап-rect = worldToScreen (identity 000215).
+//
+// КРАСНЫЕ (падают на ТЕКУЩЕМ коде осмысленно — слоя группировки в
+// dungeon-ui.js нет; мир/вход/данные — существующее поведение):
+//   E1: seeded-сейв cities['93,18'].built = [ANCHOR-запись id 7]
+//       → вход → prepareCityState: per-cell view (ровно 9 записей
+//       id 7, player:true) + built сохранён → ОДИН building-спрайт
+//       3Z×3Z от якоря (arena.svg); базовые 1×1 — один на видимую
+//       запись (viewport-клип бит-в-бит); errors 0.
+//   E2: тот же сценарий + demolish: walkCity на клетку Арены (1,9)
+//       → [E] → строка «Разобрать (возврат 120 з., Кожа ×2)» → клик
+//       (делегированный onOverlayClick) → per-cell ДАННЫЕ: 9
+//       записей удалены, built чист (дубль CI-U19 в e2e: золото
+//       +120, Кожа +2) → ЯВНЫЙ G.dungeonUI.render (rAF в песочнице
+//       нет) → срез последнего рендера (от последнего full-viewport
+//       fillRect #0a0d12, dungeon-ui.js:462–463): крупный спрайт
+//       ИСЧЕЗ; базовые 1×1 на месте; errors 0.
+//
+// Бит-в-бит (не трогаются): G1 «ровно 3 спрайта», z-порядок
+// 000191.6b, 000202 (меню), все data-пины (CI-U19 и др.).
+
+const V264 = {
+  buildingId: 53,
+  anchor: [93, 18],
+  entrance: [95, 22],
+  layoutW: 18,
+  door: [1, 17],
+  cam: [8, 13.5],
+  buildAnchor: { x: 1, y: 9 },
+  refund: 120,
+};
+
+// Город fp≥3 (каталожные footprint 5/7 — id 53/54).
+function isCity264(G, t) {
+  return isCity(G, t) && G.getBuilding(t.buildingId).размер.ширина >= 3;
+}
+
+// ПЕРВЫЙ row-major canBuildAt-OK якорь id 7 в строках y ∈ 9..13
+// (видимые в первом кадре, см. заголовок) против base-занятости.
+function findBuildAnchor264(G, L, t) {
+  const [wax, way] = t.buildingAnchor;
+  const base = G.Cities.generateCityContents(L, wax, way,
+    G.getBuilding(t.buildingId), t.buildingWealth, null).buildings;
+  const occ = G.Cities.cityOccupied(base);
+  for (let y = 9; y <= 13; y++)
+    for (let x = 1; x <= 13; x++) {
+      if (G.Cities.canBuildAt(L, { x, y }, 7, occ).ok)
+        return { x, y };
+    }
+  return null;
+}
+
+// L-маршрут в городе (сначала строка, потом колонна): все клетки —
+// интерьерный FLOOR (layout открыт; по постройкам герой ходит —
+// cityMove). from — дверь, to — клетка Арены.
+function cityWalkL(from, to) {
+  const steps = [];
+  let x = from.x;
+  let y = from.y;
+  while (y !== to.y) { y += (to.y > y ? 1 : -1); steps.push([x, y]); }
+  while (x !== to.x) { x += (to.x > x ? 1 : -1); steps.push([x, y]); }
+  return steps;
+}
+
+// Оверлей buildingUI (последний .combat-overlay, НЕ dungeon-overlay
+// и НЕ npc-overlay) в дереве body.
+function findBuildingOverlay(root) {
+  let out = null;
+  (function walk(n) {
+    for (const ch of n.children || []) {
+      const cls = String(ch.className || '');
+      if (cls.includes('combat-overlay')
+          && !cls.includes('dungeon-overlay')
+          && !cls.includes('npc-overlay')) out = ch;
+      walk(ch);
+    }
+  })(root);
+  return out;
+}
+
+// Строка .cp-itemrow, у которой .cp-itemname содержит text.
+function findRowByText(root, text) {
+  let found = null;
+  (function walk(n) {
+    if (found) return;
+    for (const ch of n.children || []) {
+      const cls = String(ch.className || '');
+      if (cls.includes('cp-itemrow')) {
+        for (const c of ch.children || [])
+          if (String(c.className || '').includes('cp-itemname')
+              && String(c.textContent || '').includes(text)) {
+            found = ch;
+            return;
+          }
+      }
+      walk(ch);
+    }
+  })(root);
+  return found;
+}
+
+// Рендер-ассерты города с Ареной (общие E1/E2, пре-demolish):
+// ОДИН крупный 3Z×3Z-спрайт от якоря; клеток footprint'а — без
+// 1×1; базовые 1×1 — один на видимую resolvable запись (клип
+// бит-в-бит 000148.02). RED — на первом же assert (крупного
+// спрайта нет — per-cell рисуются по 1×1).
+function assertArenaRender(calls, G, dg, CAMX, CAMY, Z, arenaPath,
+    resolve) {
+  const buildingCalls = calls.filter((c) =>
+    c[0] === 'drawImage' && c[1][0]
+    && typeof c[1][0].__src === 'string'
+    && c[1][0].__src.indexOf('assets/sprites/buildings/') === 0);
+  const pa = G.worldToScreen(V264.buildAnchor.x, V264.buildAnchor.y,
+    CAMX, CAMY, Z, VIEW_W, VIEW_H);
+  const big = buildingCalls.filter((c) =>
+    Math.abs(c[1][1] - pa.x) <= 1e-9
+    && Math.abs(c[1][2] - pa.y) <= 1e-9
+    && c[1][3] === 3 * Z && c[1][4] === 3 * Z
+    && c[1][0].__src === arenaPath);
+  assert.equal(big.length, 1,
+    'RED: Арена — ровно ОДИН 3Z×3Z-спрайт (arena.svg) от якоря '
+    + 'worldToScreen(' + V264.buildAnchor.x + ',' + V264.buildAnchor.y
+    + ', ' + CAMX + ',' + CAMY + ', ' + Z + ') (снап-rect footprint'
+    + 'а; identity при целом зуме/камере); сейчас: ' + big.length
+    + ' (per-cell записи рисуются по 1×1 — спрайтов '
+    + buildingCalls.length + ')');
+  for (let dy = 0; dy < 3; dy++)
+    for (let dx = 0; dx < 3; dx++) {
+      const cp = G.worldToScreen(V264.buildAnchor.x + dx,
+        V264.buildAnchor.y + dy, CAMX, CAMY, Z, VIEW_W, VIEW_H);
+      const small = buildingCalls.filter((c) =>
+        Math.abs(c[1][1] - cp.x) <= 1e-9
+        && Math.abs(c[1][2] - cp.y) <= 1e-9
+        && c[1][3] === Z && c[1][4] === Z);
+      assert.equal(small.length, 0,
+        'RED: клетка Арены (' + (V264.buildAnchor.x + dx) + ','
+        + (V264.buildAnchor.y + dy) + ') — без 1×1-спрайта; сейчас: '
+        + small.length);
+    }
+  const range = G.visibleTileRange(CAMX, CAMY, VIEW_W, VIEW_H, Z);
+  const x0 = Math.max(0, range.x0);
+  const x1 = Math.min(dg.width - 1, range.x1);
+  const y0 = Math.max(0, range.y0);
+  const y1 = Math.min(dg.height - 1, range.y1);
+  const baseRecs = dg.buildings.filter((b) => b.buildingId !== 7);
+  let expectedVisible = 0;
+  for (const b of baseRecs) {
+    const bPath = resolve(b.buildingId, NOW, b.x, b.y);
+    const inView = b.x >= x0 && b.x <= x1 && b.y >= y0 && b.y <= y1;
+    const bp = G.worldToScreen(b.x, b.y, CAMX, CAMY, Z, VIEW_W, VIEW_H);
+    const at = buildingCalls.filter((c) =>
+      Math.abs(c[1][1] - bp.x) <= 1e-9
+      && Math.abs(c[1][2] - bp.y) <= 1e-9
+      && c[1][3] === Z && c[1][4] === Z);
+    if (inView && bPath) {
+      expectedVisible += 1;
+      assert.equal(at.length, 1,
+        'базовая (' + b.x + ',' + b.y + ') id ' + b.buildingId
+        + ' — один 1×1-спрайт (бит-в-бит); сейчас: ' + at.length);
+      assert.equal(at[0][1][0].__src, bPath,
+        'базовая (' + b.x + ',' + b.y + ') — путь слот-спрайта');
+    } else {
+      assert.equal(at.length, 0,
+        'базовая (' + b.x + ',' + b.y + ') id ' + b.buildingId
+        + ' — без спрайта (viewport-клип / skip без слота); сейчас: '
+        + at.length);
+    }
+  }
+  const smalls = buildingCalls.filter((c) =>
+    c[1][3] === Z && c[1][4] === Z);
+  assert.equal(smalls.length, expectedVisible,
+    '1×1-спрайтов — ровно по видимым базовым записям; сейчас: '
+    + smalls.length);
+}
+
+test('000264 E1 (RED): e2e — seeded built (Арена id 7, canBuildAt-OK якорь (1,9)) → вход → per-cell view (ровно 9 записей) → ОДИН building-спрайт 3Z×3Z от якоря; базовые 1×1 — один на видимую запись; errors 0', async () => {
+  // Якорь built — чистая функция детерминированного мира: считаем
+  // в чистом боте (до засева), сейвим в ANCHOR-записи.
+  const h0 = await boot();
+  const G0 = h0.sandbox.Game;
+  const g0 = h0.sandbox.__game;
+  const map0 = G0.createMap(G0.generateSeedPixels());
+  const found0 = findNearest(G0, map0, g0.state.player,
+    (t) => isCity264(G0, t), 700);
+  assert.ok(found0, 'сценарий: город fp≥3 достижим пешком (BFS ≤ 700)');
+  assert.equal(found0.t.buildingId, V264.buildingId,
+    'фикстура: id 53 «Город»');
+  assert.deepEqual(
+    [found0.t.buildingAnchor[0], found0.t.buildingAnchor[1]],
+    V264.anchor, 'фикстура: мировой якорь (93,18)');
+  assert.deepEqual(found0.target,
+    { x: V264.entrance[0], y: V264.entrance[1] },
+    'фикстура: вход (95,22)');
+  const fp0 = G0.getBuilding(found0.t.buildingId).размер.ширина;
+  const L0 = G0.Cities.createCityLayout(
+    found0.t.buildingAnchor[0], found0.t.buildingAnchor[1], fp0);
+  assert.equal(L0.width, V264.layoutW, 'фикстура: layout 18×18');
+  assert.deepEqual([L0.entrance.x, L0.entrance.y], V264.door,
+    'фикстура: дверь (1,17)');
+  const buildAnchor = findBuildAnchor264(G0, L0, found0.t);
+  assert.ok(buildAnchor,
+    'сценарий: canBuildAt-OK якорь id 7 существует (y ∈ 9..13)');
+  assert.deepEqual(buildAnchor, V264.buildAnchor,
+    'фикстура: якорь built (1,9)');
+  const [wax, way] = found0.t.buildingAnchor;
+  const h = await bootSeeded({
+    day: 1, steps: 0, hero: HERO109,
+    cities: { [wax + ',' + way]: { built: [{
+      x: buildAnchor.x, y: buildAnchor.y, buildingId: 7, player: true,
+    }] } },
+  });
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findNearest(G, myMap, g.state.player,
+    (t) => isCity264(G, t), 700);
+  assert.ok(found, 'сценарий: город fp≥3 достижим (BFS ≤ 700)');
+  walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg, 'в городе (dungeonState установлена)');
+  assert.equal(dg.kind, 'city', 'экран города');
+  assert.deepEqual([dg.entrance.x, dg.entrance.y], V264.door,
+    'спавн на двери (1,17)');
+  // ДАННЫЕ (000264 не меняет): live-вид — ровно 9 per-cell записей
+  // id 7 (player:true) + built — ОДНА ANCHOR-запись.
+  const arenaRecs = dg.buildings.filter((b) => b.buildingId === 7);
+  assert.equal(arenaRecs.length, 9,
+    'per-cell view: ровно 9 записей id 7 (3×3)');
+  for (const b of arenaRecs)
+    assert.equal(b.player, true, 'per-cell запись — player:true');
+  const cs = g.cities[V264.anchor[0] + ',' + V264.anchor[1]];
+  assert.ok(cs, 'сценарий: запись города в cityStates (ключ — якорь)');
+  assert.deepEqual(JSON.parse(JSON.stringify(cs.built)), [
+    { x: V264.buildAnchor.x, y: V264.buildAnchor.y, buildingId: 7,
+      player: true },
+  ], 'built — ANCHOR-запись (1,9)');
+  // Камера start (снап к двери + clamp; 18×80 = 1440 > 1280/720).
+  const clampCam = (v, extent, viewPx, z) => {
+    if (extent * z <= viewPx) return extent / 2;
+    const lo = viewPx / 2 / z;
+    const hi = extent - viewPx / 2 / z;
+    return Math.min(hi, Math.max(lo, v));
+  };
+  const Z = 80;
+  const CAMX = clampCam(dg.entrance.x + 0.5, dg.width, VIEW_W, Z);
+  const CAMY = clampCam(dg.entrance.y + 0.5, dg.height, VIEW_H, Z);
+  assert.equal(CAMX, V264.cam[0],
+    'фикстура: cam.x = 8 (дверь (1,17) → clamp [8, 10])');
+  assert.equal(CAMY, V264.cam[1],
+    'фикстура: cam.y = 13.5 (clamp [4.5, 13.5])');
+  const canvas = findLastCanvas(h.body);
+  assert.ok(canvas && Array.isArray(canvas.drawCalls),
+    'оверлей dungeon-ui: canvas в дереве body (drawCalls)');
+  // Резолв id → путь слот-спрайта (тот же, что код и тест G1).
+  const resolve = (id, now, x, y) => {
+    const rec = G.getBuilding(id);
+    const op = (rec && rec.особые_параметры) || {};
+    const slot = Number.isInteger(op.map_index) ? op.map_index
+      : (op.размещение && Number.isInteger(op.размещение.слот)
+         ? op.размещение.слот : null);
+    if (slot == null) return null;
+    const frames = typeof G.buildingFrames === 'function'
+      ? G.buildingFrames(slot) : null;
+    if (frames && frames.length > 1
+        && typeof G.buildingFrameIndex === 'function')
+      return frames[G.buildingFrameIndex(now, x, y, frames.length)];
+    return G.buildingSprite(slot);
+  };
+  const arenaPath = resolve(7, NOW, V264.buildAnchor.x,
+    V264.buildAnchor.y);
+  assert.equal(arenaPath, 'assets/sprites/buildings/arena.svg',
+    'фикстура: id 7 → слот 4 — статичный arena.svg');
+  assertArenaRender(canvas.drawCalls, G, dg, CAMX, CAMY, Z, arenaPath,
+    resolve);
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
+
+test('000264 E2 (RED): e2e — тот же сценарий + demolish: walkCity на клетку Арены (1,9) → [E] → «Разобрать (возврат 120 з., Кожа ×2)» → клик → 9 per-cell записей удалены, built чист (дубль CI-U19); ЯВНЫЙ render → крупный спрайт ИСЧЕЗ; базовые 1×1 на месте; errors 0', async () => {
+  // Тот же сетап, что E1 (детерминированно: тот же якорь/вход).
+  const h0 = await boot();
+  const G0 = h0.sandbox.Game;
+  const g0 = h0.sandbox.__game;
+  const map0 = G0.createMap(G0.generateSeedPixels());
+  const found0 = findNearest(G0, map0, g0.state.player,
+    (t) => isCity264(G0, t), 700);
+  assert.ok(found0, 'сценарий: город fp≥3 достижим (BFS ≤ 700)');
+  const fp0 = G0.getBuilding(found0.t.buildingId).размер.ширина;
+  const L0 = G0.Cities.createCityLayout(
+    found0.t.buildingAnchor[0], found0.t.buildingAnchor[1], fp0);
+  const buildAnchor = findBuildAnchor264(G0, L0, found0.t);
+  assert.ok(buildAnchor, 'сценарий: canBuildAt-OK якорь id 7');
+  assert.deepEqual(buildAnchor, V264.buildAnchor,
+    'фикстура: якорь built (1,9)');
+  const [wax, way] = found0.t.buildingAnchor;
+  const h = await bootSeeded({
+    day: 1, steps: 0, hero: HERO109,
+    cities: { [wax + ',' + way]: { built: [{
+      x: buildAnchor.x, y: buildAnchor.y, buildingId: 7, player: true,
+    }] } },
+  });
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const found = findNearest(G, myMap, g.state.player,
+    (t) => isCity264(G, t), 700);
+  assert.ok(found, 'сценарий: город fp≥3 достижим (BFS ≤ 700)');
+  walkTiles(h, NOW, found.steps);
+  const dg = g.dungeon;
+  assert.ok(dg && dg.kind === 'city', 'в городе');
+  assert.deepEqual([dg.entrance.x, dg.entrance.y], V264.door,
+    'спавн на двери (1,17)');
+  const Z = 80;
+  const clampCam = (v, extent, viewPx, z) => {
+    if (extent * z <= viewPx) return extent / 2;
+    const lo = viewPx / 2 / z;
+    const hi = extent - viewPx / 2 / z;
+    return Math.min(hi, Math.max(lo, v));
+  };
+  const CAMX = clampCam(dg.entrance.x + 0.5, dg.width, VIEW_W, Z);
+  const CAMY = clampCam(dg.entrance.y + 0.5, dg.height, VIEW_H, Z);
+  const canvas = findLastCanvas(h.body);
+  assert.ok(canvas && Array.isArray(canvas.drawCalls),
+    'оверлей dungeon-ui: canvas в дереве body (drawCalls)');
+  const resolve = (id, now, x, y) => {
+    const rec = G.getBuilding(id);
+    const op = (rec && rec.особые_параметры) || {};
+    const slot = Number.isInteger(op.map_index) ? op.map_index
+      : (op.размещение && Number.isInteger(op.размещение.слот)
+         ? op.размещение.слот : null);
+    if (slot == null) return null;
+    const frames = typeof G.buildingFrames === 'function'
+      ? G.buildingFrames(slot) : null;
+    if (frames && frames.length > 1
+        && typeof G.buildingFrameIndex === 'function')
+      return frames[G.buildingFrameIndex(now, x, y, frames.length)];
+    return G.buildingSprite(slot);
+  };
+  const arenaPath = resolve(7, NOW, V264.buildAnchor.x,
+    V264.buildAnchor.y);
+  // RED (как E1): первый кадр — ОДИН крупный спрайт от якоря.
+  assertArenaRender(canvas.drawCalls, G, dg, CAMX, CAMY, Z, arenaPath,
+    resolve);
+  // Ходьба в городе на клетку Арены (1,9) — синхронный L-путь
+  // (каждый шаг keydown → onMove + render; кадры мира не нужны).
+  walkCity202(h, cityWalkL({ x: dg.entrance.x, y: dg.entrance.y },
+    V264.buildAnchor));
+  assert.equal(g.dungeon.x, V264.buildAnchor.x,
+    'герой на клетке Арены: x');
+  assert.equal(g.dungeon.y, V264.buildAnchor.y,
+    'герой на клетке Арены: y');
+  // До-статистика (бой по маршруту может дать лут/золото —
+  // ассерты по ДИФФЕРЕНЦИАЛУ).
+  const gold0 = g.state.hero.gold;
+  const qtyOf = (id) => (g.state.hero.inventory || [])
+    .filter((e) => e && e.id === id)
+    .reduce((s, e) => s + (e.qty || 0), 0);
+  const hide0 = qtyOf('hide');
+  // [E] на постройке игрока — buildingUI-меню со строкой «Разобрать».
+  press(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true,
+    '[E] на постройке игрока — buildingUI (000071)');
+  const ov = findBuildingOverlay(h.body);
+  assert.ok(ov, 'оверлей buildingUI прикреплён к body');
+  const demRow = findRowByText(ov,
+    'Разобрать (возврат ' + V264.refund + ' з., Кожа ×2)');
+  assert.ok(demRow,
+    'RED: строка «Разобрать (возврат 120 з., Кожа ×2)» в меню '
+    + '(дубль CI-U19 в e2e)');
+  // Клик — делегированный onOverlayClick строки. Песочница
+  // city-screen без closest()/data-* в стабе — target-заглушка с
+  // контрактом строки (closest('[data-buid]') → строка,
+  // dataset.buid = 'demolish'); РЕАЛЬНЫЙ обработчик выполняет
+  // РЕАЛЬНЫЙ demolish (building-actions.js).
+  const fakeRow = {
+    dataset: { buid: 'demolish' },
+    disabled: false,
+    closest: (sel) => (sel === '[data-buid]' ? fakeRow : null),
+  };
+  ov.listeners.click[0]({ target: fakeRow });
+  assert.equal(G.buildingUI.isActive(), false,
+    'оверлей закрыт действием (executeAction)');
+  // ДАННЫЕ (дубль CI-U19 в e2e): 9 per-cell записей удалены
+  // in-place из live-вида, built чист, возврат 120 з. + Кожа ×2.
+  assert.equal(dg.buildings.filter((b) => b.buildingId === 7).length,
+    0, 'per-cell записи id 7 удалены из live-вида (9 → 0)');
+  const cs2 = g.cities[V264.anchor[0] + ',' + V264.anchor[1]];
+  assert.deepEqual(JSON.parse(JSON.stringify(cs2.built)), [],
+    'built чист (ANCHOR-запись удалена)');
+  assert.equal(g.state.hero.gold, gold0 + V264.refund,
+    'золото +' + V264.refund + ' (возврат floor(400·30/100))');
+  assert.equal(qtyOf('hide'), hide0 + 2,
+    'Кожа +2 (возврат floor 30% от ×8)');
+  // ЯВНЫЙ повторный рендер (rAF в песочнице нет; demolish сам
+  // рендер НЕ вызывает).
+  const nBefore = canvas.drawCalls.length;
+  G.dungeonUI.render(NOW);
+  const callsAll = canvas.drawCalls;
+  assert.ok(callsAll.length > nBefore, 'render добавил кадр');
+  // Срез ПОСЛЕДНЕГО рендера: от последнего full-viewport fillRect
+  // #0a0d12 (каждый render начинается с него, dungeon-ui.js:
+  // 462–463).
+  let lastBg = -1;
+  for (let i = callsAll.length - 1; i >= 0; i--) {
+    const c = callsAll[i];
+    if (c[0] === 'fillRect' && c[1][0] === 0 && c[1][1] === 0
+        && c[1][2] === VIEW_W && c[1][3] === VIEW_H
+        && c[2] === '#0a0d12') {
+      lastBg = i;
+      break;
+    }
+  }
+  assert.ok(lastBg >= 0, 'последний full-viewport фон #0a0d12');
+  const seg = callsAll.slice(lastBg + 1);
+  // Крупный спрайт ИСЧЕЗ; клеток Арены — без 1×1-спрайтов.
+  const segBuilding = seg.filter((c) =>
+    c[0] === 'drawImage' && c[1][0]
+    && typeof c[1][0].__src === 'string'
+    && c[1][0].__src.indexOf('assets/sprites/buildings/') === 0);
+  const pa = G.worldToScreen(V264.buildAnchor.x, V264.buildAnchor.y,
+    CAMX, CAMY, Z, VIEW_W, VIEW_H);
+  const bigSeg = segBuilding.filter((c) =>
+    Math.abs(c[1][1] - pa.x) <= 1e-9
+    && Math.abs(c[1][2] - pa.y) <= 1e-9
+    && c[1][3] === 3 * Z && c[1][4] === 3 * Z);
+  assert.equal(bigSeg.length, 0,
+    'крупный спрайт Арены после demolish — ИСЧЕЗ');
+  for (let dy = 0; dy < 3; dy++)
+    for (let dx = 0; dx < 3; dx++) {
+      const cp = G.worldToScreen(V264.buildAnchor.x + dx,
+        V264.buildAnchor.y + dy, CAMX, CAMY, Z, VIEW_W, VIEW_H);
+      const small = segBuilding.filter((c) =>
+        Math.abs(c[1][1] - cp.x) <= 1e-9
+        && Math.abs(c[1][2] - cp.y) <= 1e-9
+        && c[1][3] === Z && c[1][4] === Z);
+      assert.equal(small.length, 0,
+        'клетка бывшей Арены (' + (V264.buildAnchor.x + dx) + ','
+        + (V264.buildAnchor.y + dy) + ') — без 1×1-спрайта');
+    }
+  // Базовые 1×1 — на месте (один на видимую запись).
+  const range = G.visibleTileRange(CAMX, CAMY, VIEW_W, VIEW_H, Z);
+  const x0 = Math.max(0, range.x0);
+  const x1 = Math.min(dg.width - 1, range.x1);
+  const y0 = Math.max(0, range.y0);
+  const y1 = Math.min(dg.height - 1, range.y1);
+  const baseRecs = dg.buildings.filter((b) => b.buildingId !== 7);
+  let expectedVisible = 0;
+  for (const b of baseRecs) {
+    const bPath = resolve(b.buildingId, NOW, b.x, b.y);
+    const inView = b.x >= x0 && b.x <= x1 && b.y >= y0 && b.y <= y1;
+    const bp = G.worldToScreen(b.x, b.y, CAMX, CAMY, Z, VIEW_W, VIEW_H);
+    const at = segBuilding.filter((c) =>
+      Math.abs(c[1][1] - bp.x) <= 1e-9
+      && Math.abs(c[1][2] - bp.y) <= 1e-9
+      && c[1][3] === Z && c[1][4] === Z);
+    if (inView && bPath) {
+      expectedVisible += 1;
+      assert.equal(at.length, 1,
+        'базовая (' + b.x + ',' + b.y + ') id ' + b.buildingId
+        + ' — 1×1-спрайт НА МЕСТЕ после demolish');
+    } else {
+      assert.equal(at.length, 0,
+        'базовая (' + b.x + ',' + b.y + ') id ' + b.buildingId
+        + ' — без спрайта (клип/skip)');
+    }
+  }
+  const smallsSeg = segBuilding.filter((c) =>
+    c[1][3] === Z && c[1][4] === Z);
+  assert.equal(smallsSeg.length, expectedVisible,
+    '1×1-спрайтов после demolish — ровно по видимым базовым '
+    + 'записям; сейчас: ' + smallsSeg.length);
+  assert.equal(h.errors.length, 0,
+    'ошибок нет: ' + h.errors.join('; '));
+});
