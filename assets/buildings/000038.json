@@ -46,5 +46,6 @@
         }
       ]
     }
-  }
+  },
+  "спрайт": "assets/sprites/buildings/mountain_temple.svg"
 }

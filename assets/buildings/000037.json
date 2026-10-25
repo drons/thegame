@@ -35,5 +35,6 @@
         }
       ]
     }
-  }
+  },
+  "спрайт": "assets/sprites/buildings/moon_temple.svg"
 }

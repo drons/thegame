@@ -1052,12 +1052,12 @@ test('город 000148.02 G1 (e2e): постройки деревни РЕНД�
          ? op.размещение.слот : null);
     if (slot == null) return null;
     const frames = typeof G.buildingFrames === 'function'
-      ? G.buildingFrames(slot) : null;
+      ? G.buildingFrames(slot, id) : null;
     if (frames && frames.length > 1
         && typeof G.buildingFrameIndex === 'function') {
       return frames[G.buildingFrameIndex(now, x, y, frames.length)];
     }
-    return G.buildingSprite(slot);
+    return G.buildingSprite(slot, id);
   };
   const expectedPaths = JSON.parse(JSON.stringify(
     dg.buildings.map((b) => resolve(b.buildingId, 1000, b.x, b.y)))).sort();
@@ -1551,11 +1551,11 @@ test('000264 E1 (RED): e2e — seeded built (Арена id 7, canBuildAt-OK як
          ? op.размещение.слот : null);
     if (slot == null) return null;
     const frames = typeof G.buildingFrames === 'function'
-      ? G.buildingFrames(slot) : null;
+      ? G.buildingFrames(slot, id) : null;
     if (frames && frames.length > 1
         && typeof G.buildingFrameIndex === 'function')
       return frames[G.buildingFrameIndex(now, x, y, frames.length)];
-    return G.buildingSprite(slot);
+    return G.buildingSprite(slot, id);
   };
   const arenaPath = resolve(7, NOW, V264.buildAnchor.x,
     V264.buildAnchor.y);
@@ -1620,11 +1620,11 @@ test('000264 E2 (RED): e2e — тот же сценарий + demolish: walkCity
          ? op.размещение.слот : null);
     if (slot == null) return null;
     const frames = typeof G.buildingFrames === 'function'
-      ? G.buildingFrames(slot) : null;
+      ? G.buildingFrames(slot, id) : null;
     if (frames && frames.length > 1
         && typeof G.buildingFrameIndex === 'function')
       return frames[G.buildingFrameIndex(now, x, y, frames.length)];
-    return G.buildingSprite(slot);
+    return G.buildingSprite(slot, id);
   };
   const arenaPath = resolve(7, NOW, V264.buildAnchor.x,
     V264.buildAnchor.y);

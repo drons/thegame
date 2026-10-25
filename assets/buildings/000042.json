@@ -63,5 +63,6 @@
         }
       ]
     }
-  }
+  },
+  "спрайт": "assets/sprites/buildings/obelisk.svg"
 }

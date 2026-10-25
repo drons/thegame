@@ -20,5 +20,6 @@
       "слот": 10,
       "доля": 15
     }
-  }
+  },
+  "спрайт": "assets/sprites/buildings/teleport_circle.svg"
 }

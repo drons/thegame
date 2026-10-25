@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="58" rx="25" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- ступени -->
+  <rect x="12" y="52" width="40" height="4.5" rx="1" fill="#a89880" stroke="#877962" stroke-width="0.8"/>
+  <rect x="16" y="48" width="32" height="4.5" rx="1" fill="#c2b298" stroke="#877962" stroke-width="0.8"/>
+  <!-- колонны -->
+  <g fill="#dccfb6" stroke="#9c8e72" stroke-width="1">
+    <rect x="19" y="28" width="5.5" height="20" rx="1.5"/>
+    <rect x="29.25" y="28" width="5.5" height="20" rx="1.5"/>
+    <rect x="39.5" y="28" width="5.5" height="20" rx="1.5"/>
+  </g>
+  <g fill="#c4b498" stroke="#9c8e72" stroke-width="0.8">
+    <rect x="17.8" y="25.5" width="8" height="3" rx="1"/>
+    <rect x="28.05" y="25.5" width="8" height="3" rx="1"/>
+    <rect x="38.3" y="25.5" width="8" height="3" rx="1"/>
+  </g>
+  <!-- архитрав -->
+  <rect x="15" y="21" width="34" height="4.5" fill="#cbbda2" stroke="#9c8e72" stroke-width="0.8"/>
+  <!-- фронтон -->
+  <polygon points="13,21 32,8.5 51,21" fill="#c4b498" stroke="#9c8e72" stroke-width="1"/>
+  <polygon points="19.5,19.5 32,11 44.5,19.5" fill="#dccfb6"/>
+  <!-- гора -->
+  <polygon points="24.5,19.5 32,11.8 39.5,19.5" fill="#8a8274" stroke="#6a6254" stroke-width="0.8"/>
+  <polygon points="29.8,15.4 32,11.8 34.2,15.4 32,14.6" fill="#efe9da"/>
+</svg>

@@ -234,7 +234,7 @@ function lastOverlay(t) {
 // R1. Каталог: 000055.json «Хранилище» + зеркало buildings.js
 // ============================================================
 
-test('000221-R1. каталог: 000055.json «Хранилище» + зеркало getBuilding(55): прочее, npc null, слот 12/доля 0, БЕЗ map_index/«спрайт»/«размер», эффекты ["storage"], слоты 40, стройка 100 з. + Бревно×2 + Каменный обломок×2', () => {
+test('000221-R1. каталог: 000055.json «Хранилище» + зеркало getBuilding(55): прочее, npc null, слот 12/доля 0, БЕЗ map_index/«размер», «спрайт» — свой (ре-пин 000265), эффекты ["storage"], слоты 40, стройка 100 з. + Бревно×2 + Каменный обломок×2', () => {
   const p = path.join(ROOT, 'assets/buildings/000055.json');
   assert.ok(fs.existsSync(p),
     'RED: файл assets/buildings/000055.json отсутствует');
@@ -246,9 +246,8 @@ test('000221-R1. каталог: 000055.json «Хранилище» + зерка
   assert.deepEqual(j.допустимые_тайлы,
     ['песок', 'трава', 'лес', 'холмы'], 'RED: допустимые_тайлы');
   assert.ok(!('размер' in j), '1×1 — поле «размер» не требуется');
-  assert.ok(!('спрайт' in j),
-    'RED: Д3 — НЕТ поля «спрайт» (слот 12 = npc_house.svg, '
-    + 'НОВЫХ SVG НЕТ)');
+  assert.equal(j.спрайт, 'assets/sprites/buildings/storage.svg',
+    '000265 — поле «спрайт» свой (склад — 11-й подтип со спрайтом)');
   const pp = j.особые_параметры;
   assert.ok(pp && typeof pp === 'object', 'особые_параметры');
   assert.ok(pp.map_index == null,
@@ -278,7 +277,8 @@ test('000221-R1. каталог: 000055.json «Хранилище» + зерка
   assert.equal(b55.категория, 'прочее');
   assert.equal(b55.типичный_npc, null);
   assert.ok(!('размер' in b55), '1×1 (buildingSize — дефолт)');
-  assert.ok(!('спрайт' in b55), 'Д3 — без «спрайт»');
+  assert.equal(b55.спрайт, 'assets/sprites/buildings/storage.svg',
+    '000265 — зеркало: «спрайт» свой');
   const mpp = b55.особые_параметры;
   assert.ok(mpp.map_index == null, 'Д2 — зеркало без map_index');
   assert.deepEqual(mpp.эффекты, ['storage']);

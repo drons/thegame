@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="25" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- чаша -->
+  <path d="M12 40 h40 l-3.5 10 c-1 2.6 -5 4 -14.5 4 s-13.5 -1.4 -14.5 -4 Z" fill="#8a8274" stroke="#5d564a" stroke-width="1.2"/>
+  <rect x="10.5" y="36.5" width="43" height="4.5" rx="2" fill="#9a9284" stroke="#5d564a" stroke-width="1"/>
+  <!-- вода в чаше -->
+  <ellipse cx="32" cy="38.6" rx="19" ry="3.2" fill="#3f7f95"/>
+  <ellipse cx="32" cy="38.6" rx="15.5" ry="2.3" fill="#6fb3c9" opacity="0.8"/>
+  <!-- колонна -->
+  <rect x="29" y="22" width="6" height="15" fill="#7a7264" stroke="#5d564a" stroke-width="0.9"/>
+  <rect x="27" y="20" width="10" height="3" rx="1" fill="#8a8274" stroke="#5d564a" stroke-width="0.8"/>
+  <!-- верхняя чаша -->
+  <path d="M22 14 h20 l-3 6.5 c-0.8 1.8 -3.6 2.7 -7 2.7 s-6.2 -0.9 -7 -2.7 Z" fill="#9a9284" stroke="#5d564a" stroke-width="1"/>
+  <ellipse cx="32" cy="14" rx="10" ry="2.2" fill="#6fb3c9" opacity="0.9"/>
+  <!-- струя -->
+  <path d="M32 11.5 C31 8 31 5.5 32 4 C33 5.5 33 8 32 11.5 Z" fill="#9fd8e8" opacity="0.95"/>
+  <path d="M28.5 13 C27.5 10.5 27 9 27.5 7.5" fill="none" stroke="#9fd8e8" stroke-width="1.2" opacity="0.8" stroke-linecap="round"/>
+  <path d="M35.5 13 C36.5 10.5 37 9 36.5 7.5" fill="none" stroke="#9fd8e8" stroke-width="1.2" opacity="0.8" stroke-linecap="round"/>
+  <circle cx="32" cy="3.6" r="1.1" fill="#cdeef8"/>
+  <!-- брызги -->
+  <circle cx="25.5" cy="36.5" r="1" fill="#cdeef8" opacity="0.9"/>
+  <circle cx="38.5" cy="36.8" r="0.9" fill="#cdeef8" opacity="0.9"/>
+  <!-- камни-декор на бортике -->
+  <circle cx="15" cy="45" r="1.4" fill="#7a7264"/>
+  <circle cx="49" cy="45" r="1.4" fill="#7a7264"/>
+</svg>

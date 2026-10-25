@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="obeliskG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a8274"/>
+      <stop offset="1" stop-color="#5f584c"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="32" cy="58" rx="16" ry="3.5" fill="rgba(0,0,0,0.28)"/>
+  <!-- постамент -->
+  <rect x="20" y="52" width="24" height="6" rx="1" fill="#6a6254" stroke="#4f483d" stroke-width="1"/>
+  <rect x="22.5" y="48" width="19" height="4" rx="1" fill="#7a7264" stroke="#4f483d" stroke-width="0.8"/>
+  <!-- шип -->
+  <path d="M27 48 C25.5 32 27 14 31 6 L33 6 C37 14 38.5 32 37 48 Z" fill="url(#obeliskG)" stroke="#4f483d" stroke-width="1.2"/>
+  <!-- пирамидальный навершитель -->
+  <polygon points="31,6 33,6 32,2.5" fill="#e8c25a" stroke="#b08c2e" stroke-width="0.8"/>
+  <!-- блик -->
+  <path d="M29.5 46 C28.5 32 29.5 18 31.2 9" stroke="#b4ab9a" stroke-width="1" fill="none" opacity="0.6"/>
+  <!-- золотое свечение рун -->
+  <circle cx="32" cy="28" r="9" fill="#e8c25a" opacity="0.12"/>
+  <!-- золотые руны -->
+  <g stroke="#e8c25a" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.95">
+    <path d="M32 12 V26"/>
+    <path d="M32 14 L36 19"/>
+    <path d="M32 21 L28.5 25"/>
+    <path d="M29.5 32 L33.5 36 L29.5 40"/>
+    <path d="M34.5 32 L30.5 36 L34.5 40"/>
+    <path d="M32 42 V45"/>
+  </g>
+  <!-- камни у подножия -->
+  <ellipse cx="18" cy="56" rx="4" ry="2.4" fill="#6a6254"/>
+  <ellipse cx="46" cy="56.5" rx="4.5" ry="2.7" fill="#7a7264"/>
+  <!-- мох -->
+  <path d="M24 52 C25 49.5 27.5 49 28.5 50.5 C27 51.3 25.2 51.8 24 52 Z" fill="#4f7a3a"/>
+</svg>

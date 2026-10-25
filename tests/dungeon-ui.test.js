@@ -2453,7 +2453,10 @@ test('город UI 000105: структурный — dungeon-ui.js НЕ соз
 // 000148.02: каталожный id → путь спрайта СЛОТА (зеркало резолва из
 // ТЗ/контракта: map_index | размещение.слот → G.buildingSprite).
 // 000238.01: анимированные слоты — путь КАДРА (1:1 cityBuildingPath:
-// buildingFrames(slot) + buildingFrameIndex(now, x, y, n)).
+// buildingFrames(slot, id) + buildingFrameIndex(now, x, y, n)).
+// 000265: id-приоритет — зеркало 2-аргументных вызовов
+// buildingFrames(slot, id)/buildingSprite(slot, id) (подтип со своим
+// «спрайт» — свой статичный путь; база — слотовый канал/кадры).
 // Тестируем резолв ОТСУТСТВИЕМ/НАЛИЧИЕМ drawImage, а не этим хелпером —
 // хелпер — независимая реконструкция ожидаемого пути (как worldToScreen).
 function buildingSpritePath(G, id, now, x, y) {
@@ -2466,12 +2469,12 @@ function buildingSpritePath(G, id, now, x, y) {
        ? op.размещение.слот : null);
   if (slot == null) return null;
   const frames = typeof G.buildingFrames === 'function'
-    ? G.buildingFrames(slot) : null;
+    ? G.buildingFrames(slot, id) : null;
   if (frames && frames.length > 1
       && typeof G.buildingFrameIndex === 'function') {
     return frames[G.buildingFrameIndex(now, x, y, frames.length)];
   }
-  return G.buildingSprite(slot);
+  return G.buildingSprite(slot, id);
 }
 
 // 000148.02: drawImage-вызовы СПРАЙТОВ ПОСТРОЕК (префикс
@@ -2523,20 +2526,24 @@ test('город UI 000148.02 (RED): базовая постройка (id 44, m
   assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
 });
 
-test('город UI 000148.02 (RED): субтип (размещение.слот, без map_index) + несколько построек', () => {
+test('город UI 000148.02 (RED): субтип (размещение.слот, без map_index) + несколько построек (000265: свои статичные спрайты, НЕ спрайт слота)', () => {
   const loaded = loadDungeonUi({ performance: { now: () => 1000 },
     withSprites: true, withBuildings: true });
   const G = loaded.G;
-  // id 45 «Колодец» — СУБТИП без map_index (размещение.слот 11 →
-  // кадр tavern_N по now, клетке; tavern_2.svg при now=1000, клетка (2,2));
-  // id 37 «Храм луны» — СУБТИП (размещение.слот 8 → temple.svg). ЕДИНСТВЕННЫЙ
-  // тест ветки размещения.слот (без map_index).
-  const p45 = buildingSpritePath(G, 45, 1000, 2, 2);
-  const p37 = buildingSpritePath(G, 37, 1000, 4, 4);
-  assert.ok(p45 && p45.indexOf('assets/sprites/buildings/') === 0,
-    'предусловие: субтип id 45 резолвится через размещение.слот: ' + p45);
-  assert.ok(p37 && p37.indexOf('assets/sprites/buildings/') === 0,
-    'предусловие: субтип id 37 резолвится через размещение.слот: ' + p37);
+  // id 45 «Колодец» — СУБТИП без map_index (размещение.слот 11):
+  // 000265 — СВОЙ статичный well.svg (id-приоритет каталога), кадры
+  // tavern_N НЕ наследуются; id 37 «Храм луны» — СУБТИП
+  // (размещение.слот 8) — СВОЙ статичный moon_temple.svg (НЕ
+  // temple.svg слота). ЕДИНСТВЕННЫЙ тест ветки размещения.слот
+  // (без map_index).
+  const p45 = 'assets/sprites/buildings/well.svg';
+  const p37 = 'assets/sprites/buildings/moon_temple.svg';
+  assert.equal(buildingSpritePath(G, 45, 1000, 2, 2), p45,
+    'предусловие: субтип id 45 — литерал well.svg (id-приоритет '
+    + '000265, НЕ кадр tavern_N)');
+  assert.equal(buildingSpritePath(G, 37, 1000, 4, 4), p37,
+    'предусловие: субтип id 37 — литерал moon_temple.svg '
+    + '(id-приоритет 000265, НЕ temple.svg слота)');
   const rec45 = G.getBuilding(45);
   assert.ok(!Number.isInteger((rec45.особые_параметры || {}).map_index),
     'предусловие: у id 45 НЕТ map_index (ветка размещения.слот)');
@@ -2563,6 +2570,12 @@ test('город UI 000148.02 (RED): субтип (размещение.слот
     'субтип id 45 — спрайт ' + p45 + ' на клетке (2,2) (размещение.слот)');
   assert.ok(at(37, 4, 4),
     'субтип id 37 — спрайт ' + p37 + ' на клетке (4,4) (размещение.слот)');
+  assert.equal(bdc.filter((c) =>
+    c[1][0].__img === 'assets/sprites/buildings/temple.svg').length, 0,
+    'temple.svg — ни разу: 37 рисует СВОЙ спрайт (000265)');
+  assert.equal(bdc.filter((c) => c[1][0].__img
+    && c[1][0].__img.indexOf('tavern_') !== -1).length, 0,
+    'кадров tavern_N нет: 45 статичен (000265)');
   assert.equal(loaded.errors.length, 0, 'ошибок нет: ' + loaded.errors.join('; '));
 });
 
@@ -4348,6 +4361,99 @@ test('000264 U3 (review): базовая запись multi-cell id (БЕЗ play
   assert.equal(buildingDrawCalls(calls).length, 4,
     'ровно 4 building-спрайта (1 крупный + 3 базовых 1×1); сейчас: '
     + buildingDrawCalls(calls).length);
+  assert.equal(loaded.errors.length, 0,
+    'ошибок нет: ' + loaded.errors.join('; '));
+});
+
+// ============ Задача 000265: собственные спрайты подтипов (красные) ============
+// Контракт: memory/000265-subtype-building-sprites.md. Город —
+// cityBuildingPath (dungeon-ui.js) — тот же id-приоритет: подтип →
+// свой статичный спрайт (кадры таверны НЕ наследуются); базовые —
+// без изменений. Записи без player/«размер» — 1×1 (группировка
+// 000264 — только полные футпринты игрока).
+
+test('000265 C1 (RED): город — подтип 45 → well.svg, 37 → moon_temple.svg (свой статичный, НЕ спрайт слота); база 44 — кадр таблицы tavern_N без изменений; errors 0', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  const p45 = 'assets/sprites/buildings/well.svg';
+  const p37 = 'assets/sprites/buildings/moon_temple.svg';
+  const frames11 = G.buildingFrames(11);
+  assert.ok(Array.isArray(frames11) && frames11.length === 4,
+    'предусловие: buildingFrames(11) — 4 кадра tavern');
+  const p44 = frames11[G.buildingFrameIndex(1000, 4, 4, frames11.length)];
+  assert.equal(p44, 'assets/sprites/buildings/tavern_2.svg',
+    'предусловие: кадр базы 44 на (4,4) @ now=1000 — tavern_2.svg '
+    + '(якорь резолва, 1-аргументная форма)');
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: { buildings: [
+      { x: 2, y: 2, buildingId: 45 },
+      { x: 4, y: 4, buildingId: 44 },
+      { x: 1, y: 4, buildingId: 37 },
+    ], seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([p45, p37, p44,
+      'assets/sprites/buildings/temple.svg',
+      'assets/sprites/buildings/tavern_1.svg',
+      'assets/sprites/buildings/tavern_3.svg',
+      'assets/sprites/buildings/tavern_4.svg']) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  const bdc = buildingDrawCalls(calls);
+  assert.equal(bdc.length, 3,
+    'три постройки — ровно 3 building-спрайта (сейчас: '
+    + bdc.length + ')');
+  const at = (x, y) => buildingDrawsAt(calls, G, x, y, 3, 3, 48, 48, 48);
+  const at45 = at(2, 2).filter((c) => c[1][0].__img === p45);
+  assert.equal(at45.length, 1,
+    '45 «Колодец» (2,2) — drawImage СВОЕГО спрайта well.svg (RED: '
+    + 'id игнорируется — нарисован кадр/спрайт слота: '
+    + at(2, 2).map((c) => c[1][0].__img).join(', ') + ')');
+  const at37 = at(1, 4).filter((c) => c[1][0].__img === p37);
+  assert.equal(at37.length, 1,
+    '37 «Храм луны» (1,4) — drawImage СВОЕГО спрайта moon_temple.svg '
+    + '(RED: id игнорируется — нарисован temple.svg слота)');
+  const at44 = at(4, 4).filter((c) => c[1][0].__img === p44);
+  assert.equal(at44.length, 1,
+    '44 «Таверна» (4,4) — кадр таблицы tavern_2.svg (без изменений)');
+  assert.equal(bdc.filter((c) => c[1][0].__img === 'assets/sprites/buildings/temple.svg').length, 0,
+    'temple.svg — ни разу: 37 рисует СВОЙ спрайт (RED: 37 → temple.svg)');
+  assert.equal(at(2, 2).filter((c) => c[1][0].__img && c[1][0].__img.includes('tavern_')).length, 0,
+    '(2,2) — без кадров таверны: 45 статичный, кадры слота не '
+    + 'наследуются (RED: 45 → кадр tavern)');
+  assert.equal(loaded.errors.length, 0,
+    'ошибок нет: ' + loaded.errors.join('; '));
+});
+
+test('000265 C2 (RED): город — 55 «Хранилище» (город-уникальный, доля 0) → storage.svg, НЕ npc_house.svg; база 25 → npc_house.svg без изменений; errors 0', () => {
+  const loaded = loadDungeonUi({ performance: { now: () => 1000 },
+    withSprites: true, withBuildings: true });
+  const G = loaded.G;
+  const p55 = 'assets/sprites/buildings/storage.svg';
+  const p25 = 'assets/sprites/buildings/npc_house.svg';
+  const s = makeCityState({ fp: 2, cx: -114, cy: -119, name: 'Деревня',
+    cityContents: { buildings: [
+      { x: 2, y: 2, buildingId: 55 },
+      { x: 4, y: 4, buildingId: 25 },
+    ], seed: 0 } });
+  G.dungeonUI.start({ state: s, onMove() {}, zoom: 48,
+    spriteLoader: makeSpriteLoader([p55, p25]) });
+  const calls = findCanvas(loaded.body).drawCalls;
+  const bdc = buildingDrawCalls(calls);
+  assert.equal(bdc.length, 2,
+    'две постройки — ровно 2 building-спрайта (сейчас: '
+    + bdc.length + ')');
+  const at = (x, y) => buildingDrawsAt(calls, G, x, y, 3, 3, 48, 48, 48);
+  const at55 = at(2, 2).filter((c) => c[1][0].__img === p55);
+  assert.equal(at55.length, 1,
+    '55 «Хранилище» (2,2) — drawImage СВОЕГО спрайта storage.svg '
+    + '(RED: id игнорируется — нарисован npc_house.svg слота: '
+    + at(2, 2).map((c) => c[1][0].__img).join(', ') + ')');
+  const at25 = at(4, 4).filter((c) => c[1][0].__img === p25);
+  assert.equal(at25.length, 1,
+    '25 «Дом кузнеца» (4,4) — npc_house.svg (без изменений)');
+  assert.equal(bdc.filter((c) => c[1][0].__img === p25).length, 1,
+    'npc_house.svg — ровно 1 раз (база 25); 55 — НЕ npc_house '
+    + '(RED: 55 тоже рисует npc_house.svg)');
   assert.equal(loaded.errors.length, 0,
     'ошибок нет: ' + loaded.errors.join('; '));
 });

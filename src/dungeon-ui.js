@@ -433,12 +433,12 @@
          ? op.размещение.слот : null);
     if (slot == null) return null;
     const frames = typeof live.buildingFrames === 'function'
-      ? live.buildingFrames(slot) : null;
+      ? live.buildingFrames(slot, buildingId) : null;
     if (frames && frames.length > 1
         && typeof live.buildingFrameIndex === 'function') {
       return frames[live.buildingFrameIndex(now, x, y, frames.length)];
     }
-    return live.buildingSprite(slot);
+    return live.buildingSprite(slot, buildingId);
   }
 
   // now — время кадра (rAF-цикл); из событий (keydown) — текущее.

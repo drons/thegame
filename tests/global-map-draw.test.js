@@ -1880,3 +1880,180 @@ test('RM-BA-6 (Задача 000238.01, RED): строгая готовность
     'герой: ready → legacy-ромба нет (XOR)');
   assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
 });
+
+// ============ Задача 000265: собственные спрайты подтипов (красные) ============
+// Контракт: memory/000265-subtype-building-sprites.md. Мир — детерминизм
+// (generateSeedPixels): ближайший подтип слотов 8..12 — развалины 48
+// @(2,-4) (6 шагов BFS), ближайший колодец 45 — @(-75,15) (90 шагов).
+// BFS — 1:1 findNearestAnimated: ЦЕЛЬ проверяется ДО исключений
+// (вход развалин — тайл CAVE_ENTRANCE, исключения бы его спрятали);
+// развалины (48) — НЕ вход в подземелье (гард 000073, locations.js),
+// шаг по тайлу безопасен.
+
+const SUBTYPE_BASE_IDS_000265 = new Set([25, 31, 36, 40, 44]);
+
+function findNearestSubtype265(G, myMap, sx, sy, cap, onlyId) {
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const visited = new Set([sx + ',' + sy]);
+  const prev = new Map();
+  let frontier = [{ x: sx, y: sy }];
+  let depth = 0;
+  let found = null;
+  while (frontier.length && depth < cap && !found) {
+    const next = [];
+    for (const t of frontier) {
+      for (const [dx, dy] of DIRS) {
+        const x = t.x + dx, y = t.y + dy;
+        const k = x + ',' + y;
+        if (visited.has(k)) continue;
+        const tile = myMap.tileAt(x, y);
+        const cityEntrance = tile.isEntrance
+          && tile.building === G.BUILDING_TYPES.NONE
+          && tile.buildingId != null;
+        const caveEntrance = tile.hasBuilding
+          && tile.building === G.BUILDING_TYPES.CAVE_ENTRANCE;
+        const isGoal = tile.isEntrance
+          && tile.buildingId != null
+          && tile.building >= 8 && tile.building <= 12
+          && !SUBTYPE_BASE_IDS_000265.has(tile.buildingId)
+          && (onlyId == null || tile.buildingId === onlyId)
+          && !tile.hasMobGroup;
+        if (isGoal) {
+          visited.add(k);
+          prev.set(k, t);
+          found = { x, y, tile };
+          break;
+        }
+        if (!tile.passable || tile.hasMobGroup || caveEntrance
+            || cityEntrance) continue;
+        visited.add(k);
+        prev.set(k, t);
+        next.push({ x, y });
+      }
+      if (found) break;
+    }
+    frontier = next;
+    depth++;
+  }
+  if (!found) return null;
+  const steps = [];
+  let cur = { x: found.x, y: found.y };
+  while (!(cur.x === sx && cur.y === sy)) {
+    steps.unshift(cur);
+    cur = prev.get(cur.x + ',' + cur.y);
+  }
+  return { target: found, steps, slot: found.tile.building };
+}
+
+test('000265 W1 (RED): мир — ближайший подтип (развалины 48, слот 9, @(2,-4), 6 шагов) — на якоря drawImage СВОЕГО спрайта ruins.svg, 1×1×zoom; НЕ cave_entrance.svg (спрайт слота); герой 1×; тайлы/маркеры XOR; errors 0', async () => {
+  const h = await boot();
+  assertReady(h);
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const sc = findNearestSubtype265(G, myMap, 0, 0, 400);
+  assert.ok(sc, 'сценарий: подтип слотов 8..12 пешком достижим от спавна');
+  assert.deepEqual({ x: sc.target.x, y: sc.target.y }, { x: 2, y: -4 },
+    'сценарий: ближайший подтип — (2,-4) (детерминизм; получено '
+    + '(' + sc.target.x + ',' + sc.target.y + ') id='
+    + sc.target.tile.buildingId + ')');
+  assert.equal(sc.target.tile.buildingId, 48,
+    'сценарий: подтип (2,-4) — id 48 «Развалины»');
+  assert.equal(sc.steps.length, 6,
+    'сценарий: 6 шагов BFS (получено ' + sc.steps.length + ')');
+  const rec = myMap.buildingAt(2, -4);
+  assert.equal(rec.type, 9, 'сценарий: rec.type = 9 (CAVE_ENTRANCE-слот)');
+  assert.equal(rec.buildingId, 48, 'сценарий: rec.buildingId = 48');
+  assert.equal(rec.w * rec.h, 1, 'сценарий: 1×1 (один квад)');
+  let now = NOW;
+  const walker = makeRouteWalker(h);
+  for (const st of sc.steps) now = walker(st.x, st.y);
+  const f1 = frameAt(h, now + 200);
+  const st1 = h.sandbox.__game.state;
+  const p = G.worldToScreen(rec.x, rec.y, st1.cam.x, st1.cam.y,
+    st1.zoom, VIEW_W, VIEW_H);
+  const bds = drawImages(f1.draw).filter(
+    (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+  const hit = bds.find((c) =>
+    Math.abs(c[1][1] - p.x) <= 1e-6 && Math.abs(c[1][2] - p.y) <= 1e-6
+    && Math.abs(c[1][3] - rec.w * st1.zoom) <= 1e-6
+    && Math.abs(c[1][4] - rec.h * st1.zoom) <= 1e-6);
+  assert.ok(hit,
+    'развалины — спрайт на якоря (2,-4) размером 1×1×zoom; '
+    + 'building-drawImage в кадре: '
+    + (bds.map((c) => assetOf(c)).join(', ') || '0'));
+  assert.equal(assetOf(hit), 'assets/sprites/buildings/ruins.svg',
+    'нарисован СВОЙ спрайт ruins.svg (RED: 2-й аргумент id '
+    + 'игнорируется — нарисован спрайт слота cave_entrance.svg: '
+    + assetOf(hit) + ')');
+  assert.notEqual(assetOf(hit),
+    'assets/sprites/buildings/cave_entrance.svg',
+    'НЕ спрайт слота (cave_entrance.svg) — приоритет id');
+  assert.equal(tileVerts(h.glCalls), 0,
+    'тайлы: все ready → 0 тайл-квадов');
+  assert.equal(countColor(h.glCalls, BUILDING_COLOR), 0,
+    'постройки ready → маркеров BUILDING_COLOR нет (XOR)');
+  assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
+    'герой ready → legacy-ромба нет (XOR)');
+  assert.equal(heroDraws(f1.draw).length, 1, 'герой: 1×');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});
+
+test('000265 W2 (RED): мир — колодец 45 (слот 11, @(-75,15), 90 шагов) — id-приоритет БЬЁТ кадровую анимацию: drawImage well.svg в ДВУХ кадрах (now и now+800 мс), НИКОГДА tavern_N.svg; герой 1×; errors 0', async () => {
+  const h = await boot();
+  assertReady(h);
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const sc = findNearestSubtype265(G, myMap, 0, 0, 400, 45);
+  assert.ok(sc, 'сценарий: колодец 45 пешком достижим от спавна');
+  assert.deepEqual({ x: sc.target.x, y: sc.target.y }, { x: -75, y: 15 },
+    'сценарий: ближайший колодец — (-75,15) (получено ('
+    + sc.target.x + ',' + sc.target.y + '))');
+  assert.equal(sc.steps.length, 90,
+    'сценарий: 90 шагов BFS (получено ' + sc.steps.length + ')');
+  const rec = myMap.buildingAt(-75, 15);
+  assert.equal(rec.type, 11, 'сценарий: rec.type = 11 (TAVERN-слот)');
+  assert.equal(rec.buildingId, 45, 'сценарий: rec.buildingId = 45');
+  assert.equal(rec.w * rec.h, 1, 'сценарий: 1×1');
+  let now = NOW;
+  const walker = makeRouteWalker(h);
+  for (const st of sc.steps) now = walker(st.x, st.y);
+  const hitAt = (draw, state, label) => {
+    const p = G.worldToScreen(rec.x, rec.y, state.cam.x, state.cam.y,
+      state.zoom, VIEW_W, VIEW_H);
+    const bds = drawImages(draw).filter(
+      (c) => assetOf(c).startsWith('assets/sprites/buildings/'));
+    const hit = bds.find((c) =>
+      Math.abs(c[1][1] - p.x) <= 1e-6 && Math.abs(c[1][2] - p.y) <= 1e-6
+      && Math.abs(c[1][3] - rec.w * state.zoom) <= 1e-6
+      && Math.abs(c[1][4] - rec.h * state.zoom) <= 1e-6);
+    assert.ok(hit,
+      label + ': колодец нарисован на якоря (-75,15) 1×1×zoom; '
+      + 'building-drawImage: '
+      + (bds.map((c) => assetOf(c)).join(', ') || '0'));
+    return hit;
+  };
+  const f1 = frameAt(h, now + 200);
+  const st1 = h.sandbox.__game.state;
+  const hit1 = hitAt(f1.draw, st1, 'кадр 1');
+  assert.equal(assetOf(hit1), 'assets/sprites/buildings/well.svg',
+    'кадр 1: СВОЙ статичный спрайт well.svg (RED: id игнорируется — '
+    + 'кадр таверны tavern_N.svg: ' + assetOf(hit1) + ')');
+  assert.ok(!assetOf(hit1).includes('tavern_'),
+    'кадр 1: НЕ кадр таверны (tavern_*.svg) — кадры слота НЕ '
+    + 'наследуются');
+  const f2 = frameAt(h, now + 1000);
+  const st2 = h.sandbox.__game.state;
+  const hit2 = hitAt(f2.draw, st2, 'кадр 2 (+800 мс)');
+  assert.equal(assetOf(hit2), 'assets/sprites/buildings/well.svg',
+    'кадр 2 (+800 мс): тот же статичный well.svg (анимации нет)');
+  assert.ok(!assetOf(hit2).includes('tavern_'),
+    'кадр 2: НЕ кадр таверны');
+  assert.equal(assetOf(hit2), assetOf(hit1),
+    'статичность: кадр 2 = кадру 1 (well.svg)');
+  assert.equal(tileVerts(h.glCalls), 0,
+    'тайлы: все ready → 0 тайл-квадов');
+  assert.equal(countColor(h.glCalls, PLAYER_COLOR), 0,
+    'герой ready → legacy-ромба нет (XOR)');
+  assert.equal(heroDraws(f2.draw).length, 1, 'герой: 1×');
+  assert.equal(h.errors.length, 0, 'ошибок нет: ' + h.errors.join('; '));
+});

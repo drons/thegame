@@ -783,10 +783,23 @@
     return MOB_SPRITE_KINDS[mobId] || null;
   }
 
-  /** Иконка постройки (путь) или null для NONE. */
-  function buildingSprite(buildingType) {
+  /**
+   * Спрайт постройки (путь) или null для NONE. 1 аргумент — иконка
+   * СЛОТА (бит-в-бит: таблица слота → база); опциональный 2-й
+   * аргумент buildingId (id каталожной записи якоря, 000265) —
+   * id-приоритет: запись со СВОИМ «спрайт» в каталоге (spriteForId)
+   * побеждает спрайту слота; нецелое/неизвестное id — слотовый канал.
+   * @param {number} buildingType слот BUILDING_TYPES
+   * @param {number} [buildingId] id каталожной записи (необязательно)
+   * @returns {string|null} путь SVG или null
+   */
+  function buildingSprite(buildingType, buildingId) {
     const base = BUILDING_SPRITES[buildingType];
     if (!base) return null;
+    if (Number.isInteger(buildingId)) {
+      const own = spriteForId(buildingId);
+      if (own) return own;
+    }
     const t = slotSpriteTable();
     return (t && t[buildingType]) || base;
   }
@@ -799,11 +812,25 @@
    * мутация «спрайт» записей каталога на кадры не влияет);
    * остальные слоты (1, 4, 6, 8, 9, 10, 12 — без анимации),
    * NONE(−1), 999, нечисла — null (конвенция null — как
-   * buildingSprite).
+   * buildingSprite). Опциональный 2-й аргумент buildingId
+   * (000265): подтип со СВОИМ «спрайт» каталога, отличным от
+   * спрайта БАЗЫ слота, — СТАТИЧЕН: null (кадры слота не
+   * наследуются — колодец/фонтан не рисуются кадрами таверны);
+   * база (own === спрайт слота) и нецелое/неизвестное id —
+   * кадры слота, как 1-аргументная форма.
    * @param {number} buildingType слот BUILDING_TYPES
+   * @param {number} [buildingId] id каталожной записи (необязательно)
    * @returns {string[]|null} кадры или null
    */
-  function buildingFrames(buildingType) {
+  function buildingFrames(buildingType, buildingId) {
+    if (Number.isInteger(buildingId)) {
+      const own = spriteForId(buildingId);
+      if (own) {
+        const t = slotSpriteTable();
+        const slotBase = t && t[buildingType];
+        if (slotBase && own !== slotBase) return null;
+      }
+    }
     return BUILDING_FRAMES[buildingType] || null;
   }
 

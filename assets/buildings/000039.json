@@ -43,5 +43,6 @@
         }
       ]
     }
-  }
+  },
+  "спрайт": "assets/sprites/buildings/abandoned_temple.svg"
 }

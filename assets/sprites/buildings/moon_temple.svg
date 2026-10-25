@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="58" rx="25" ry="4" fill="rgba(0,0,0,0.28)"/>
+  <!-- ступени -->
+  <rect x="12" y="52" width="40" height="4.5" rx="1" fill="#a8b2c4" stroke="#8794ab" stroke-width="0.8"/>
+  <rect x="16" y="48" width="32" height="4.5" rx="1" fill="#bcc5d6" stroke="#8794ab" stroke-width="0.8"/>
+  <!-- колонны -->
+  <g fill="#d4dcec" stroke="#93a0b6" stroke-width="1">
+    <rect x="19" y="28" width="5.5" height="20" rx="1.5"/>
+    <rect x="29.25" y="28" width="5.5" height="20" rx="1.5"/>
+    <rect x="39.5" y="28" width="5.5" height="20" rx="1.5"/>
+  </g>
+  <g fill="#b6c1d4" stroke="#93a0b6" stroke-width="0.8">
+    <rect x="17.8" y="25.5" width="8" height="3" rx="1"/>
+    <rect x="28.05" y="25.5" width="8" height="3" rx="1"/>
+    <rect x="38.3" y="25.5" width="8" height="3" rx="1"/>
+  </g>
+  <!-- архитрав -->
+  <rect x="15" y="21" width="34" height="4.5" fill="#c3ccde" stroke="#93a0b6" stroke-width="0.8"/>
+  <!-- фронтон -->
+  <polygon points="13,21 32,8.5 51,21" fill="#b6c1d4" stroke="#93a0b6" stroke-width="1"/>
+  <polygon points="19.5,19.5 32,11 44.5,19.5" fill="#d4dcec"/>
+  <!-- луна -->
+  <circle cx="32" cy="16" r="5.4" fill="#7de8ff" opacity="0.14"/>
+  <circle cx="32" cy="16" r="3.4" fill="#e6f2ff" stroke="#93a0b6" stroke-width="0.8"/>
+  <circle cx="31" cy="15.2" r="0.7" fill="#b6c1d4"/>
+  <circle cx="33.2" cy="17" r="0.5" fill="#b6c1d4"/>
+</svg>

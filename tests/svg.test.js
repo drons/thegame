@@ -449,13 +449,18 @@ const EXPECTED_SVG_BY_DIR = {
                                       // (задача 000177) + залежи
                                       // deposit_ore/deposit_mineral/
                                       // deposit_gem (задача 000157.02)
-  'sprites/buildings': 42,            // + лагерь (задача 000131: camp.svg)
+  'sprites/buildings': 53,            // + лагерь (задача 000131: camp.svg)
                                       // + кадры 000224: blacksmith_1..4,
                                       // magic_shop_1..4 (8 анимированных)
                                       // + кадры 000238: apothecary_1..4,
                                       // academy_1..4, camp_1..4 (12)
                                       // + кадры 000238.01: weapons_shop_1..4,
                                       // tavern_1..4 (8)
+                                      // + 11 спрайтов подтипов, 000265
+                                      // (moon_temple, mountain_temple,
+                                      // abandoned_temple, teleport_circle,
+                                      // obelisk, magic_circle, well,
+                                      // watchtower, ruins, fountain, storage)
   'sprites/cities': 20,               // спрайты городов (задача 000110: 4 типа)
                                       // + кадры 000238: city_53_1..4 (4)
                                       // + кадры 000238.01: city_51_1..4,
@@ -837,3 +842,36 @@ test('W-05. 000235.10: 25 иконок волны Исцеление — 24×24/
 });
 
 module.exports = { checkSvg, parseSvgXml, findSvgFiles };
+
+// ============ Задача 000265: собственные спрайты подтипов (красные) ============
+// Контракт: memory/000265-subtype-building-sprites.md. 11 статичных
+// 64×64 SVG подтипов слотов 8..12 (без кадров _1.._4 — решение D3).
+
+const SUBTYPE_SVGS_000265 = [
+  'assets/sprites/buildings/moon_temple.svg',
+  'assets/sprites/buildings/mountain_temple.svg',
+  'assets/sprites/buildings/abandoned_temple.svg',
+  'assets/sprites/buildings/teleport_circle.svg',
+  'assets/sprites/buildings/obelisk.svg',
+  'assets/sprites/buildings/magic_circle.svg',
+  'assets/sprites/buildings/well.svg',
+  'assets/sprites/buildings/watchtower.svg',
+  'assets/sprites/buildings/ruins.svg',
+  'assets/sprites/buildings/fountain.svg',
+  'assets/sprites/buildings/storage.svg',
+];
+
+test('000265 R4 (RED): 11 SVG подтипов существуют, well-formed (checkSvg — 0 ошибок), viewBox = «0 0 64 64»', () => {
+  assert.equal(SUBTYPE_SVGS_000265.length, 11, 'пин: ровно 11 файлов');
+  for (const rel of SUBTYPE_SVGS_000265) {
+    const f = path.join(ROOT, rel);
+    assert.ok(fs.existsSync(f),
+      'файл существует: ' + rel + ' (RED: ассеты ещё не созданы)');
+    const text = fs.readFileSync(f, 'utf8');
+    assert.deepEqual(checkSvg(text), [],
+      rel + ': XML-схема (корень <svg>, xmlns, viewBox, без '
+      + 'NaN/пустых атрибутов)');
+    assert.ok(text.includes('viewBox="0 0 64 64"'),
+      rel + ': viewBox = «0 0 64 64» (формат построек)');
+  }
+});

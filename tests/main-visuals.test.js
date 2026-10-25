@@ -610,8 +610,9 @@ function recOf(myMap, ax, ay) {
 //     зажат в 3x3, тогда как города до 7x7 — геометрия теста
 //     уедет. Сам тайл входа проходим — путь может через него идти.
 //     Задача 000073: слотовые multi-входы (Арена/Храм) ОСТАЮТСЯ
-//     валидными целями — у подтипа ЕСТЬ спрайт (спрайт своего
-//     слота: buildingSprite(rec.type)).
+//     валидными целями — у подтипа ЕСТЬ спрайт (000265: свой по id
+//     каталога, иначе слотовый:
+//     buildingSprite(rec.type, rec.buildingId)).
 // Целевой вход multi-постройки безопасен: в footprint'е мобы не
 // рождаются, а в мире как multi (не города) рождается только
 // Арена/Храм.
@@ -772,7 +773,7 @@ function expectedBuildings(G, myMap, cam, zoom, now) {
     // ветка no-op (защита: зеркало остаётся точной копией
     // селектора, если окно сместится).
     const frames = typeof G.buildingFrames === 'function'
-      ? G.buildingFrames(rec.type) : null;
+      ? G.buildingFrames(rec.type, rec.buildingId) : null;
     const cityOrCamp = (typeof G.cityFrames === 'function'
       ? G.cityFrames(rec.buildingId) : null)
       || (typeof G.campFrames === 'function'
@@ -782,7 +783,7 @@ function expectedBuildings(G, myMap, cam, zoom, now) {
       : (rec.buildingId != null && cityOrCamp && cityOrCamp.length > 1)
         ? cityOrCamp[G.buildingFrameIndex(now, rec.ax, rec.ay,
              cityOrCamp.length)]
-        : G.buildingSprite(rec.type)
+        : G.buildingSprite(rec.type, rec.buildingId)
           || (rec.buildingId != null && typeof G.citySprite === 'function'
                ? G.citySprite(rec.buildingId) : null)
           || (rec.buildingId != null && typeof G.campSprite === 'function'
@@ -839,7 +840,7 @@ test('постройка: footprint рисуется ОДИН раз w×h с я�
   // якоря размером w×h — и НОЛЬ вызовов по старой формуле 1x1 на
   // входе (sx + 0.04·zoom, sy + 0.04·zoom, 0.92·zoom).
   const rec = found.rec;
-  const asset = G.buildingSprite(rec.type);
+  const asset = G.buildingSprite(rec.type, rec.buildingId);
   const p = G.worldToScreen(rec.ax, rec.ay, st.cam.x, st.cam.y,
     st.zoom, VIEW_W, VIEW_H);
   const atAnchor = buildingDraws(calls).filter(([, a]) =>
@@ -926,7 +927,7 @@ test('порядок слоёв: текстура < декорации < пос�
   assert.ok(iTile >= 0, 'текстура якорного тайла нарисована');
   // Постройка: ОДИН прямоугольник w×h от якоря (задача 000042).
   const iBuilding = calls.findIndex((c) => c[0] === 'drawImage'
-    && c[1][0] && c[1][0].__asset === G.buildingSprite(rec.type)
+    && c[1][0] && c[1][0].__asset === G.buildingSprite(rec.type, rec.buildingId)
     && Math.abs(c[1][1] - p.x) < EPS && Math.abs(c[1][2] - p.y) < EPS
     && Math.abs(c[1][3] - rec.w * zoom) < EPS
     && Math.abs(c[1][4] - rec.h * zoom) < EPS);

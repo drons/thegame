@@ -3360,7 +3360,7 @@
   function buildingAsset(rec, now) {
     if (!spriteLoader) return null;
     const frames = typeof G.buildingFrames === 'function'
-      ? G.buildingFrames(rec.type) : null;
+      ? G.buildingFrames(rec.type, rec.buildingId) : null;
     if (frames && frames.length > 1) {
       return frames[G.buildingFrameIndex(now, rec.x, rec.y, frames.length)];
     }
@@ -3380,7 +3380,7 @@
         return nf[G.buildingFrameIndex(now, rec.x, rec.y, nf.length)];
       }
     }
-    return G.buildingSprite(rec.type) ||
+    return G.buildingSprite(rec.type, rec.buildingId) ||
       (rec.buildingId != null && typeof G.citySprite === 'function'
        ? G.citySprite(rec.buildingId) : null) ||
       (rec.buildingId != null && typeof G.campSprite === 'function'

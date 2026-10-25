@@ -1449,8 +1449,11 @@ test('000207 R5: schema.json закрепляет ссылочный конту�
 
 const SKILL_REF_RE_000211_07 = /^assets\/skills\/\d{6}\.json$/;
 
-// Пин «спрайт» (18): id каталожной записи → СТАРОМУ литералу
-// (memory §2.1.1 — ЗАКРЫТАЯ таблица в тесте, не из src/sprites.js).
+// Пин «спрайт» (29 = 18 + 11 подтипов 000265): id каталожной
+// записи → ЗАКРЫТОМУ пину (memory §2.1.1 — ЗАКРЫТАЯ таблица в
+// тесте, не из src/sprites.js); ре-пин 000265 — задача меняет
+// контур «кто имеет спрайт» (подтипы получают свой статичный
+// SVG), механизм 000211.07-контракта, не ослабление.
 const SPRITE_PIN_000211_07 = {
   1: 'assets/sprites/buildings/weapons_shop.svg',
   2: 'assets/sprites/buildings/armor_shop.svg',
@@ -1463,18 +1466,32 @@ const SPRITE_PIN_000211_07 = {
   25: 'assets/sprites/buildings/npc_house.svg',
   31: 'assets/sprites/buildings/cave_entrance.svg',
   36: 'assets/sprites/buildings/temple.svg',
+  37: 'assets/sprites/buildings/moon_temple.svg',
+  38: 'assets/sprites/buildings/mountain_temple.svg',
+  39: 'assets/sprites/buildings/abandoned_temple.svg',
   40: 'assets/sprites/buildings/rune_stone.svg',
+  41: 'assets/sprites/buildings/teleport_circle.svg',
+  42: 'assets/sprites/buildings/obelisk.svg',
+  43: 'assets/sprites/buildings/magic_circle.svg',
   44: 'assets/sprites/buildings/tavern.svg',
+  45: 'assets/sprites/buildings/well.svg',
+  46: 'assets/sprites/buildings/watchtower.svg',
   47: 'assets/sprites/buildings/camp.svg',
+  48: 'assets/sprites/buildings/ruins.svg',
+  49: 'assets/sprites/buildings/fountain.svg',
   51: 'assets/sprites/cities/city_51.svg',
   52: 'assets/sprites/cities/city_52.svg',
   53: 'assets/sprites/cities/city_53.svg',
   54: 'assets/sprites/cities/city_54.svg',
+  55: 'assets/sprites/buildings/storage.svg',
 };
 const SLOT_REP_IDS_000211_07 =
   [1, 2, 3, 4, 7, 8, 10, 11, 25, 31, 36, 40, 44];
+const SUBTYPE_SPRITE_IDS_000211_07_000265 =
+  [37, 38, 39, 41, 42, 43, 45, 46, 48, 49, 55];
 const SPRITE_RECORD_IDS_000211_07 =
-  [...SLOT_REP_IDS_000211_07, 47, 51, 52, 53, 54];
+  [...SLOT_REP_IDS_000211_07, 47, 51, 52, 53, 54,
+   ...SUBTYPE_SPRITE_IDS_000211_07_000265];
 
 // Пин «тренирует» (18 школ, 34 позиции): школа →
 // [имя ДО, id цели, файл-цель в assets/skills]. Позиционный пин:
@@ -1543,7 +1560,7 @@ function convertTrainsRefs_000211_07(record) {
   }
 }
 
-test('000211.07 R1: "спрайт" — ровно 18 из 55 записей (13 slot-представителей — id из данных (map_index) + лагерь 47 + города 51-54); значение = ЗАКРЫТОМУ старому литералу (byte-идентично); файл svg существует; у остальных 37 — нет (строгий контур)', () => {
+test('000211.07 R1 (ре-пин 000265): "спрайт" — ровно 29 из 55 записей (13 slot-представителей — id из данных (map_index) + лагерь 47 + города 51-54 + 11 подтипов слотов 8..12 (000265)); значение = ЗАКРЫТОМУ пину (byte-идентично); файл svg существует; у остальных 26 — нет (строгий контур)', () => {
   const raw = {};
   for (const f of fs.readdirSync(DIR)
     .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
@@ -1564,7 +1581,7 @@ test('000211.07 R1: "спрайт" — ровно 18 из 55 записей (13 
     .filter((n) => raw[n].спрайт !== undefined)
     .sort((a, b) => a - b);
   assert.deepEqual(withSprite, expected,
-    '«спрайт» ровно у 18 записей (получено: '
+    '«спрайт» ровно у 29 записей (получено: '
     + (withSprite.join(', ') || 'НЕТ') + ')');
   for (const n of expected) {
     assert.equal(raw[n].спрайт, SPRITE_PIN_000211_07[n],
@@ -1576,7 +1593,7 @@ test('000211.07 R1: "спрайт" — ровно 18 из 55 записей (13 
   for (const n of Object.keys(raw).map(Number).sort((a, b) => a - b)) {
     if (expected.includes(n)) continue;
     assert.equal(raw[n].спрайт, undefined,
-      `${n} ${raw[n].название}: «спрайт» — строгий контур 18 `
+      `${n} ${raw[n].название}: «спрайт» — строгий контур 29 `
       + `(получено ${JSON.stringify(raw[n].спрайт)})`);
   }
 });
@@ -1788,5 +1805,102 @@ test('000211.07 R4: sync-buildings-data.js — "тренирует"-ссылки
       + 'запекнулось бы как данные');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// ============ Задача 000265: собственные спрайты подтипов (красные) ============
+// Контракт: memory/000265-subtype-building-sprites.md.
+// 11 подтипов слотов 8..12 получают свой статичный «спрайт» (каталог +
+// зеркало), 64×64, без кадров. Базовые 13 + 47 + 51..54 — бит-в-бит
+// старым пину (SPRITE_PIN_000211_07), id/название/доля/слот/map_index —
+// без изменений (Ограничения ТЗ).
+
+const SUBTYPE_SPRITE_PIN_000265 = {
+  37: 'assets/sprites/buildings/moon_temple.svg',
+  38: 'assets/sprites/buildings/mountain_temple.svg',
+  39: 'assets/sprites/buildings/abandoned_temple.svg',
+  41: 'assets/sprites/buildings/teleport_circle.svg',
+  42: 'assets/sprites/buildings/obelisk.svg',
+  43: 'assets/sprites/buildings/magic_circle.svg',
+  45: 'assets/sprites/buildings/well.svg',
+  46: 'assets/sprites/buildings/watchtower.svg',
+  48: 'assets/sprites/buildings/ruins.svg',
+  49: 'assets/sprites/buildings/fountain.svg',
+  55: 'assets/sprites/buildings/storage.svg',
+};
+const SUBTYPE_CATALOG_PIN_000265 = {
+  37: { name: 'Храм луны', slot: 8, share: 10 },
+  38: { name: 'Храм горы', slot: 8, share: 10 },
+  39: { name: 'Заброшенный храм', slot: 8, share: 10 },
+  41: { name: 'Телепорт-круг', slot: 10, share: 15 },
+  42: { name: 'Обелиск', slot: 10, share: 15 },
+  43: { name: 'Магический круг', slot: 10, share: 15 },
+  45: { name: 'Колодец', slot: 11, share: 15 },
+  46: { name: 'Смотровая башня', slot: 12, share: 30 },
+  48: { name: 'Развалины', slot: 9, share: 20 },
+  49: { name: 'Фонтан', slot: 11, share: 25 },
+  55: { name: 'Хранилище', slot: 12, share: 0 },
+};
+const SUBTYPE_IDS_000265 = Object.keys(SUBTYPE_SPRITE_PIN_000265)
+  .map(Number).sort((a, b) => a - b);
+const SPRITE_PATTERN_000265 = /^assets\/sprites\/(buildings|cities)\/[\w]+\.svg$/;
+
+test('000265 R1 (RED): 11 записей-подтипов (37/38/39/41/42/43/45/46/48/49/55) — «спрайт» в assets/buildings/*.json И в зеркале src/buildings.js = ЗАКРЫТОМУ пину id→файл; значение проходит паттерн schema.json; файл svg существует; каталог остальных полей (id/название/слот/доля/map_index/размер) — без изменений; базовые 18 «спрайт» — бит-в-бит SPRITE_PIN_000211_07', () => {
+  assert.equal(SUBTYPE_IDS_000265.length, 11,
+    'пин: ровно 11 подтипов');
+  const raw = {};
+  for (const f of fs.readdirSync(DIR)
+    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    raw[parseInt(f, 10)] = JSON.parse(
+      fs.readFileSync(path.join(DIR, f), 'utf8'));
+  }
+  assert.equal(Object.keys(raw).length, 55, 'каталог: 55 файлов');
+  for (const n of SUBTYPE_IDS_000265) {
+    const pin = SUBTYPE_SPRITE_PIN_000265[n];
+    const cat = SUBTYPE_CATALOG_PIN_000265[n];
+    assert.ok(raw[n], 'каталог: файл id ' + n + ' существует');
+    assert.equal(raw[n].спрайт, pin,
+      n + ' ' + cat.name + ': «спрайт» «' + raw[n].спрайт + '» ≠ «'
+      + pin + '» (RED: поле отсутствует — sprites.js/id-резолв '
+      + 'не существует)');
+    assert.ok(SPRITE_PATTERN_000265.test(raw[n].спрайт),
+      n + ': «спрайт» «' + raw[n].спрайт + '» — паттерн schema.json '
+      + '(^assets/sprites/(buildings|cities)/[\\w]+\\.svg$)');
+    assert.ok(fs.existsSync(path.join(__dirname, '..', raw[n].спрайт)),
+      n + ' ' + cat.name + ': файл svg «' + raw[n].спрайт + '» '
+      + 'существует');
+    const op = raw[n].особые_параметры;
+    assert.equal(raw[n].название, cat.name,
+      n + ': «название» — без изменений: «' + raw[n].название + '»');
+    assert.equal(op.размещение.слот, cat.slot,
+      n + ' ' + cat.name + ': «размещение.слот» — без изменений ('
+      + cat.slot + ')');
+    assert.equal(op.размещение.доля, cat.share,
+      n + ' ' + cat.name + ': «размещение.доля» — без изменений ('
+      + cat.share + ')');
+    assert.equal(op.map_index, undefined,
+      n + ' ' + cat.name + ': подтип — «map_index» отсутствует '
+      + '(получено ' + op.map_index + ')');
+    assert.equal(op.размер, undefined,
+      n + ' ' + cat.name + ': 1×1 — «размер» отсутствует (получено '
+      + JSON.stringify(op.размер) + ')');
+    const mirror = getBuilding(n);
+    assert.ok(mirror, 'зеркало src/buildings.js: запись id ' + n);
+    assert.equal(mirror.спрайт, pin,
+      n + ' ' + cat.name + ': зеркало «спрайт» «' + mirror.спрайт
+      + '» ≠ «' + pin + '» (sync:buildings после правки JSON)');
+  }
+  for (const n of Object.keys(raw).map(Number).sort((a, b) => a - b)) {
+    if (SUBTYPE_IDS_000265.includes(n)) continue;
+    if (SPRITE_RECORD_IDS_000211_07.includes(n)) {
+      assert.equal(raw[n].спрайт, SPRITE_PIN_000211_07[n],
+        n + ' ' + raw[n].название + ': базовый «спрайт» — бит-в-бит '
+        + 'старому пину «' + SPRITE_PIN_000211_07[n] + '» (получено '
+        + raw[n].спрайт + ')');
+      continue;
+    }
+    assert.equal(raw[n].спрайт, undefined,
+      n + ' ' + raw[n].название + ': «спрайт» — НЕТ (строгий контур '
+      + '18 + 11; получено ' + JSON.stringify(raw[n].спрайт) + ')');
   }
 });

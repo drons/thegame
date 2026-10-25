@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="18" ry="3.6" fill="rgba(0,0,0,0.28)"/>
+  <!-- основание -->
+  <rect x="18" y="53" width="28" height="4" rx="1" fill="#6a6254" stroke="#4f483d" stroke-width="0.9"/>
+  <!-- столбы (задние темнее, передние — светлее) -->
+  <g fill="#7a5a34" stroke="#54381f" stroke-width="0.9">
+    <path d="M22 53 L25.5 24 h2.6 L26 53 Z"/>
+    <path d="M39.4 53 L42.9 24 h2.6 L48 53 Z"/>
+  </g>
+  <g fill="#8a6f4d" stroke="#54381f" stroke-width="0.9">
+    <path d="M26 53 L28.5 24 h2.4 L30 53 Z"/>
+    <path d="M36 53 L33.1 24 h2.4 L38 53 Z"/>
+  </g>
+  <!-- раскосы -->
+  <g stroke="#7a5a34" stroke-width="1.4" opacity="0.9">
+    <path d="M24.5 50 L37.5 30"/>
+    <path d="M39.5 50 L26.5 30"/>
+    <path d="M25.5 40 L38.5 40"/>
+  </g>
+  <!-- платформа с перилами -->
+  <rect x="19" y="22" width="26" height="3.4" rx="1" fill="#96793f" stroke="#6a542a" stroke-width="1"/>
+  <g stroke="#8a6f4d" stroke-width="1.4">
+    <line x1="21" y1="22" x2="21" y2="15.5"/>
+    <line x1="32" y1="22" x2="32" y2="15.5"/>
+    <line x1="43" y1="22" x2="43" y2="15.5"/>
+  </g>
+  <rect x="19" y="15.5" width="26" height="2" rx="1" fill="#8a6f4d" stroke="#6a542a" stroke-width="0.8"/>
+  <!-- крыша -->
+  <path d="M16 15.5 L32 5 L48 15.5 L44.5 17 L32 9.5 L19.5 17 Z" fill="#7a5a34" stroke="#54381f" stroke-width="1"/>
+  <!-- факел на крыше -->
+  <line x1="32" y1="5" x2="32" y2="2.8" stroke="#54381f" stroke-width="1.2"/>
+  <circle cx="32" cy="2.2" r="1.1" fill="#e8c25a"/>
+</svg>

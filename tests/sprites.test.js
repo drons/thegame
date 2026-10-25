@@ -3024,3 +3024,93 @@ test('000211.07 SP-B3: 18 путей «спрайт» — все в allAssetPath
     assert.ok(exists(p), 'существует: ' + p);
   }
 });
+
+// ============ Задача 000265: собственные спрайты подтипов (красные) ============
+// Контракт: memory/000265-subtype-building-sprites.md.
+// buildingSprite(buildingType, buildingId) / buildingFrames(buildingType,
+// buildingId) — 2-й аргумент (id записи) необязательный: свой «спрайт»
+// из каталога (spriteForId) побеждает слотовому; кадры таблицы НЕ
+// наследуются подтипами (own ≠ slotBase → null), базовые — как раньше
+// (own === slotBase → кадры таблицы).
+
+const SUBTYPE_000265 = {
+  37: { slot: 8, sprite: 'assets/sprites/buildings/moon_temple.svg' },
+  38: { slot: 8, sprite: 'assets/sprites/buildings/mountain_temple.svg' },
+  39: { slot: 8, sprite: 'assets/sprites/buildings/abandoned_temple.svg' },
+  41: { slot: 10, sprite: 'assets/sprites/buildings/teleport_circle.svg' },
+  42: { slot: 10, sprite: 'assets/sprites/buildings/obelisk.svg' },
+  43: { slot: 10, sprite: 'assets/sprites/buildings/magic_circle.svg' },
+  45: { slot: 11, sprite: 'assets/sprites/buildings/well.svg' },
+  46: { slot: 12, sprite: 'assets/sprites/buildings/watchtower.svg' },
+  48: { slot: 9, sprite: 'assets/sprites/buildings/ruins.svg' },
+  49: { slot: 11, sprite: 'assets/sprites/buildings/fountain.svg' },
+  55: { slot: 12, sprite: 'assets/sprites/buildings/storage.svg' },
+};
+
+test('000265 R2 (RED): buildingSprite(slot, id) / buildingFrames(slot, id) — приоритет id: 11 подтипов → СВОЙ спрайт (закрытый пин), НЕ спрайт слота; базовые (36/31/40/44/25) → старый слотовый путь; 1-аргументная форма — без изменений; не-целочисленный id (999/null/«41») → слотовый канал; buildingFrames: подтип — null (кадры таверны НЕ наследуются), база 44 и слот 11 — 4 кадра tavern', () => {
+  for (const [id, p] of Object.entries(SUBTYPE_000265)) {
+    const n = Number(id);
+    assert.equal(S.buildingSprite(p.slot, n), p.sprite,
+      'buildingSprite(' + p.slot + ', ' + n + ') = «' + p.sprite
+      + '» (RED: 2-й аргумент игнорируется — слотовый спрайт)');
+    assert.equal(S.buildingFrames(p.slot, n), null,
+      'buildingFrames(' + p.slot + ', ' + n + ') = null (подтип — '
+      + 'статичный, кадры слота не наследуются; RED: таблица слота)');
+  }
+  const base = {
+    36: [8, 'assets/sprites/buildings/temple.svg'],
+    31: [9, 'assets/sprites/buildings/cave_entrance.svg'],
+    40: [10, 'assets/sprites/buildings/rune_stone.svg'],
+    44: [11, 'assets/sprites/buildings/tavern.svg'],
+    25: [12, 'assets/sprites/buildings/npc_house.svg'],
+  };
+  for (const [id, [slot, p]] of Object.entries(base)) {
+    const n = Number(id);
+    assert.equal(S.buildingSprite(slot, n), p,
+      'buildingSprite(' + slot + ', ' + n + ') = «' + p + '» '
+      + '(база — слотовый канал; own === slotBase)');
+  }
+  assert.equal(S.buildingSprite(8), 'assets/sprites/buildings/temple.svg',
+    '1-аргументная buildingSprite(8) — без изменений (temple.svg)');
+  assert.equal(S.buildingSprite(0),
+    'assets/sprites/buildings/weapons_shop.svg',
+    '1-аргументная buildingSprite(0) — без изменений (weapons_shop.svg)');
+  assert.equal(S.buildingSprite(11, 999),
+    'assets/sprites/buildings/tavern.svg',
+    'buildingSprite(11, 999) — не-каталожный id → слотовый канал');
+  assert.equal(S.buildingSprite(11, null),
+    'assets/sprites/buildings/tavern.svg',
+    'buildingSprite(11, null) — не-целочисленный id → слотовый канал');
+  assert.equal(S.buildingSprite(10, '41'),
+    'assets/sprites/buildings/rune_stone.svg',
+    'buildingSprite(10, «41») — строка ≠ целое → слотовый канал');
+  const tavernFrames = S.buildingFrames(11);
+  assert.ok(Array.isArray(tavernFrames) && tavernFrames.length === 4,
+    'предусловие: buildingFrames(11) — 4 кадра tavern');
+  assert.deepEqual(S.buildingFrames(11, 44), tavernFrames,
+    'buildingFrames(11, 44) = кадры таблицы (база: own === slotBase)');
+  assert.deepEqual(S.buildingFrames(11, 999), tavernFrames,
+    'buildingFrames(11, 999) = кадры таблицы (не-каталожный id)');
+  assert.deepEqual(S.buildingFrames(11, null), tavernFrames,
+    'buildingFrames(11, null) = кадры таблицы (не-целочисленный id)');
+  assert.deepEqual(S.buildingFrames(11), tavernFrames,
+    '1-аргументная buildingFrames(11) — без изменений');
+});
+
+test('000265 R3 (RED): allAssetPaths() — 11 новых путей подтипов присутствуют (уникально, файлы существуют); 18 прежних путей (000211.07) — интактны', () => {
+  const newPaths = Object.values(SUBTYPE_000265).map((p) => p.sprite);
+  assert.equal(new Set(newPaths).size, 11,
+    'пин: 11 уникальных новых путей');
+  const paths = S.allAssetPaths();
+  for (const p of newPaths) {
+    assert.ok(paths.includes(p),
+      'в allAssetPaths(): «' + p + '» (RED: 11 файлов/полей нет — '
+      + 'авторегистрация из «спрайт» каталога не имеет входа)');
+    assert.ok(exists(p), 'существует: ' + p);
+  }
+  for (const p of ALL_18_SPRITE_PIN_000211_07) {
+    assert.ok(paths.includes(p), 'интактен: «' + p + '»');
+  }
+  assert.equal(paths.filter((p) => newPaths.includes(p)).length, 11,
+    'ровно 11 новых путей (без дублей)');
+});
