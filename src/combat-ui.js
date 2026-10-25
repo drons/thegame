@@ -187,6 +187,21 @@
   let bookOpen = false;
   let fleeBox = null;
   let fleeOpen = false;
+  // 000260: расстановка перед боем (контракт memory/000260-combat-
+  // placement.md): латентное окно в боевом оверлее — открыто с
+  // момента startCombat, закрывается ПО ПЕРВОМУ действию (или явным
+  // подтверждением Enter/«В бой»), однократное на бой. placebarEl —
+  // div-бар (ПОСЛЕДНИЙ child .combat-actions, строит build); placeSel
+  // — выбранный юнит ('player' или id союзника), null — idle;
+  // placeAnchors — снапшот позиций в момент ПЕРВОГО выбора (player →
+  // [x, y], id союзника → [x, y]) — база diff «moved» при закрытии;
+  // переносы мутируют живой ctx.combat (c.px/c.py, u.x/u.y).
+  let placebarEl = null;
+  let placeOpen = false;
+  let placeSel = null;
+  let placeAnchors = null;
+  let placeTargetPick = null;
+  let placeErrLogged = false;
   let spellBookWarned = false; // деградация без G.SpellBook — 1 console.error
   // 000193: деградация без G.AllySpells (битый порядок загрузки) —
   // 1 console.error на сессию (паттерн spellBookWarned, 000149).
@@ -406,7 +421,10 @@
         if (fleeOpen) return;
         // Как по клавише: зеркало ok, но ядро отклонило (сейчас 'invItem'
         // без itemId) — причину в журнал, а не тишина (задача 000037).
-        runAction(c, item.action);
+        // 000260: любое действие закрывает окно расстановки; боевой
+        // объект — свежий (свап c0→c1 возможен).
+        closePlacementWindow();
+        runAction(ctx.combat, item.action);
         render();
       });
       // Счётчик действий (задача 000199, 000199.01): персистентный
@@ -447,7 +465,10 @@
       cb.appendChild(icon);
       cb.ariaLabel = 'Каст';
       cb.dataset.act = 'cast';
-      cb.addEventListener('click', () => lastSpellPress(c, 'cast'));
+      cb.addEventListener('click', () => {
+        closePlacementWindow(); // 000260
+        lastSpellPress(ctx.combat, 'cast');
+      });
       // 000227: бейдж остатка пула (конвенция 000199): персистентный
       // span, ОДИН раз в build; render — только textContent/display.
       const cbCnt = document.createElement('span');
@@ -477,7 +498,10 @@
       hb.appendChild(icon);
       hb.ariaLabel = 'Лечение';
       hb.dataset.act = 'heal';
-      hb.addEventListener('click', () => lastSpellPress(c, 'heal'));
+      hb.addEventListener('click', () => {
+        closePlacementWindow(); // 000260
+        lastSpellPress(ctx.combat, 'heal');
+      });
       const hbCnt = document.createElement('span');
       hbCnt.className = 'combat-actcount';
       hbCnt.textContent = '';
@@ -506,7 +530,10 @@
       lb.appendChild(icon);
       lb.ariaLabel = 'Последнее заклинание';
       lb.dataset.act = 'lastSpell';
-      lb.addEventListener('click', () => lastSpellPress(c, 'lastSpell'));
+      lb.addEventListener('click', () => {
+        closePlacementWindow(); // 000260
+        lastSpellPress(ctx.combat, 'lastSpell');
+      });
       const lbCnt = document.createElement('span');
       lbCnt.className = 'combat-actcount';
       lbCnt.textContent = '';
@@ -540,9 +567,45 @@
       rb.appendChild(icon);
       rb.ariaLabel = 'Воскрешение';
       rb.dataset.act = 'resurrect';
-      rb.addEventListener('click', () => resurrectCast(c));
+      rb.addEventListener('click', () => {
+        closePlacementWindow(); // 000260
+        resurrectCast(ctx.combat);
+      });
       actions.appendChild(rb);
     }
+
+    // Расстановка перед боем (задача 000260): ОДИН div-бар — ПОСЛЕДНИЙ
+    // child .combat-actions (div, не <button> — пины buttons.length;
+    // нативный click, pointerdown НЕТ — паттерн 000171). Окно открыто
+    // с момента боя (placeOpen=true); видимость — гейт в render().
+    placebarEl = document.createElement('div');
+    placebarEl.className = 'combat-placebar';
+    placebarEl.style.display = 'none';
+    const placeHint = document.createElement('span');
+    placeHint.className = 'combat-placebar-hint';
+    placeHint.textContent = 'Расстановка: клик по юниту, затем по ' +
+      'клетке (строки ' + Math.max(0, c.height - 2) + '–' +
+      (c.height - 1) + ')';
+    const placeReset = document.createElement('div');
+    placeReset.className = 'combat-placebar-btn combat-placebar-btn--reset';
+    placeReset.textContent = 'По умолчанию';
+    placeReset.addEventListener('click', () => {
+      resetToAnchors();
+      placeSel = null;
+      render();
+    });
+    const placeGo = document.createElement('div');
+    placeGo.className = 'combat-placebar-btn combat-placebar-btn--go';
+    placeGo.textContent = 'В бой [Enter]';
+    placeGo.addEventListener('click', () => {
+      closePlacementWindow();
+      render();
+    });
+    placebarEl.appendChild(placeHint);
+    placebarEl.appendChild(placeReset);
+    placebarEl.appendChild(placeGo);
+    actions.appendChild(placebarEl);
+    placeOpen = true;
 
     // «Быстрый предмет» — список (задача 000194): контейнер строк —
     // МЕЖДУ .combat-actions и .combat-log. Строки (div, не
@@ -580,7 +643,10 @@
     const fleeYes = document.createElement('div');
     fleeYes.className = 'combat-flee-btn combat-flee-btn--yes';
     fleeYes.textContent = 'да';
-    fleeYes.addEventListener('click', () => confirmFlee(c));
+    fleeYes.addEventListener('click', () => {
+      closePlacementWindow(); // 000260: «Побег» — боевое действие
+      confirmFlee(ctx.combat);
+    });
     const fleeNo = document.createElement('div');
     fleeNo.className = 'combat-flee-btn combat-flee-btn--no';
     fleeNo.textContent = 'нет';
@@ -622,6 +688,9 @@
 
     canvas.addEventListener('click', (e) => {
       if (fleeOpen) return;
+      // 000260: свежее чтение — closePlacementWindow может пересоздать
+      // бой (c0→c1); внешний c build-области — только для build-решений.
+      const c = ctx.combat;
       const r = canvas.getBoundingClientRect();
       // Нормализация по ЛОГИЧЕСКОМУ (базовому) размеру поля
       // (задача 000151, D5; 000124 — по фактическому): canvas
@@ -642,12 +711,69 @@
       const rh = r.height || baseH;
       const cx = Math.floor((e.clientX - r.left) * (baseW / rw) / CELL);
       const cy = Math.floor((e.clientY - r.top) * (baseH / rh) / CELL);
+      // Расстановка (задача 000260): ВЕТКА ПЕРЕД mob-веткой; выбор
+      // цели (моб/мёртвый) — fall-through в логику ниже, окно НЕ
+      // закрывается.
+      if (placeGate()) {
+        const inField = cx >= 0 && cy >= 0
+          && cx < c.width && cy < c.height;
+        const inHero = inField && !!c.player && c.player.alive
+          && cx === c.px && cy === c.py;
+        const allyHit = inHero || !inField ? null
+          : c.units.find((x) => x.side === 'ally' && x.alive && !x.fled
+            && cx >= x.x && cx < x.x + (x.size.w || 1)
+            && cy >= x.y && cy < x.y + (x.size.h || 1));
+        if (inHero || allyHit) {
+          if (!placeAnchors) placeAnchors = snapshotPlaceAnchors(c);
+          const id = inHero ? 'player' : allyHit.id;
+          placeSel = (placeSel === id) ? null : id;
+          render();
+          return;
+        }
+        if (placeSel) {
+          // Клетка живого моба — тихий fall-through в selectTarget.
+          const mobHit = c.units.some((x) => x.alive && !x.fled
+            && cx >= x.x && cx < x.x + (x.size.w || 1)
+            && cy >= x.y && cy < x.y + (x.size.h || 1));
+          if (!mobHit) {
+            const minY = Math.max(0, c.height - 2);
+            if (!inField || cy < minY) {
+              c.log.push('Расстановка: вне первых двух линий.');
+              render();
+              return;
+            }
+            if (c.obstacles && c.obstacles.has(cx + ',' + cy)) {
+              c.log.push('Расстановка: клетка занята препятствием.');
+              render();
+              return;
+            }
+            if ((cx === c.px && cy === c.py) || c.units.some(
+              (x) => cx >= x.x && cx < x.x + (x.size.w || 1)
+                && cy >= x.y && cy < x.y + (x.size.h || 1))) {
+              c.log.push('Расстановка: клетка занята.');
+              render();
+              return;
+            }
+            if (placeSel === 'player') {
+              c.px = cx;
+              c.py = cy;
+            } else {
+              const su = c.units.find(
+                (x) => x.side === 'ally' && x.id === placeSel);
+              if (su) { su.x = cx; su.y = cy; }
+            }
+            render();
+            return;
+          }
+        }
+      }
       // Клик в любую клетку прямоугольника моба (задача 000040).
       const u = c.units.find((x) => x.alive && !x.fled
         && cx >= x.x && cx < x.x + (x.size.w || 1)
         && cy >= x.y && cy < x.y + (x.size.h || 1));
       if (u) {
         c.selectTarget(u.id);
+        if (placeGate()) placeTargetPick = u.id;
         render();
       } else if (canResurrectPick(c)) {
         // «Воскрешение» (задача 000166; 000193.02: гейт canResurrectPick
@@ -981,7 +1107,8 @@
   // (в бою каждое действие тратит ход; удержание повторять нельзя).
   function handleCode(code) {
     if (!isActive()) return false;
-    const c = ctx.combat;
+    // 000260: `let` — closePlacementWindow может пересоздать ctx.combat.
+    let c = ctx.combat;
     // 000195: sync ДО снимка st.canDo — иначе гейты (quickItem и пр.)
     // после «быстр.» панели видели бы устаревший u.quick (снапшот).
     syncAllyQuickLive(c);
@@ -990,7 +1117,13 @@
     let consumed = true;
     if (code === 'Escape') {
       // Закрыть оверлей можно только когда бой закончен.
-      if (c.result) finish();
+      if (c.result) {
+        finish();
+      } else if (placeGate() && placeSel) {
+        // 000260: в selected — откат к снапшоту, снять выбор, окно открыто.
+        resetToAnchors();
+        placeSel = null;
+      }
     } else if (c.result) {
       // Закрытие — Space/Enter (ветка ДО таблицы: Space=«конец хода»
       // конфликтовать с Space=«закрыть» не может). Прочие клавиши после
@@ -998,6 +1131,11 @@
       // main.js всё равно ранним return'ит, пока оверлей открыт.
       if (code === 'Space' || code === 'Enter') finish();
       else consumed = false;
+    } else if (code === 'Enter' && placeGate()) {
+      // 000260: подтверждение расстановки (Enter вне COMBAT_KEYS).
+      closePlacementWindow();
+      render();
+      return true;
     } else if (code === 'KeyH' && c.phase === 'player' && !c.result
         && activeUnit(c)) {
       // 000168 (D9/P4): лечение АКТИВНОГО support-наёмника — отдельная
@@ -1007,6 +1145,8 @@
       // castRow; без выбора — legacy c.heal() бит-в-бит. На ходу
       // ИГРОКА ветка не срабатывает — фоллбук в таблицу, где KeyH
       // отсутствует (бит-в-бит).
+      closePlacementWindow();
+      c = ctx.combat;
       lastSpellPress(c, 'heal');
     } else if (code === 'KeyK' && activeIsEfir(c)) {
       // 000168 (D9/P3): на ходу Эфира KeyK — КАСТ; 000227: единый
@@ -1014,6 +1154,8 @@
       // KeyK→'cast' УДАЛЁН): выбор из книги → выбранный; без выбора —
       // legacy strongestKnown бит-в-бит. На ходу не-Эфира — фоллбук
       // в таблицу (KeyK → 'attack', бит-в-бит).
+      closePlacementWindow();
+      c = ctx.combat;
       lastSpellPress(c, 'cast');
     } else {
       // Единая таблица (src/combat-keys.js, задача 000048): движение и
@@ -1039,11 +1181,24 @@
         // playerMove/allyMove само проверяет ход/шаги/стену/моба и
         // возвращает reason — в журнал, а не тишина (задача 000048;
         // 000168: c.move стал контекстным — диспатч по активному).
-        logRejection(c, c.move(r.dx, r.dy));
+        // 000260: окно закрывает только ПРИНЯТОЕ действие;
+        // отклонённый шаг — в журнал, окно остаётся (ревью).
+        const mv = c.move(r.dx, r.dy);
+        if (mv && mv.ok) {
+          if (closePlacementWindow()) {
+            c = ctx.combat;
+            logRejection(c, c.move(r.dx, r.dy));
+          }
+        } else {
+          logRejection(c, mv);
+        }
       } else if (r.kind === 'action') {
         if (r.reason) {
+          // 000260 (ревью): отклонённое действие НЕ закрывает окно.
           c.log.push(r.reason); // действие невозможно — причина в журнал
         } else {
+          closePlacementWindow();
+          c = ctx.combat;
           runAction(c, action);
         }
       } else {
@@ -1052,6 +1207,157 @@
     }
     if (consumed) render();
     return consumed;
+  }
+
+  // --- Расстановка перед боем (задача 000260) ---
+  // Контракт — memory/000260-combat-placement.md.
+
+  function placeGate() {
+    return placeOpen && !!ctx && !ctx.combat.result;
+  }
+
+  function snapshotPlaceAnchors(c) {
+    const snap = { player: [c.px, c.py] };
+    for (const u of c.units) {
+      if (u.side === 'ally') snap[u.id] = [u.x, u.y];
+    }
+    return snap;
+  }
+
+  function resetToAnchors() {
+    if (!placeAnchors || !ctx) return;
+    const c = ctx.combat;
+    const p = placeAnchors.player;
+    if (Array.isArray(p)) { c.px = p[0]; c.py = p[1]; }
+    for (const u of c.units) {
+      if (u.side !== 'ally') continue;
+      const a = placeAnchors[u.id];
+      if (Array.isArray(a)) { u.x = a[0]; u.y = a[1]; }
+    }
+  }
+
+  function rescueEfirLine(c0, c1) {
+    // Одна встреча Эфира (000113/000118): строка первой встречи —
+    // one-shot сессионного флага efir.js, c0 потребляет её, c1 (свежий
+    // createCombat) строки не получит — сплайсим на тот же индекс
+    // (строки ДО i идентичны по сиду: «Бой: …» — тот же groupName/
+    // level/mobs.length из тех же opts/rng-префикса). Без G.efir /
+    // без строки — тихо (деградация, не крах).
+    const info = G.efir && G.efir.breathInfo;
+    const line = info && info.firstEncounter;
+    if (!line || !c0.log || !c1.log) return;
+    const i = c0.log.indexOf(line);
+    if (i >= 0 && c1.log.indexOf(line) < 0) c1.log.splice(i, 0, line);
+  }
+
+  function closePlacementWindow() {
+    if (!placeOpen || !ctx) return false;
+    const c0 = ctx.combat;
+    if (c0.result) {
+      placeOpen = false;
+      placeSel = null;
+      placeAnchors = null;
+      placeTargetPick = null;
+      return false;
+    }
+    let moved = null;
+    if (placeAnchors) {
+      moved = {};
+      const p = placeAnchors.player;
+      if (Array.isArray(p)
+          && (p[0] !== c0.px || p[1] !== c0.py)) {
+        moved.player = [c0.px, c0.py];
+      }
+      for (const u of c0.units) {
+        if (u.side !== 'ally') continue;
+        const a = placeAnchors[u.id];
+        if (Array.isArray(a) && (a[0] !== u.x || a[1] !== u.y)) {
+          moved[u.id] = [u.x, u.y];
+        }
+      }
+      if (!Object.keys(moved).length) moved = null;
+    }
+    if (moved) {
+      // Герой ОБЩИЙ между c0 и c1 (opts.player — тот же объект):
+      // pre-roll c0 мог его увечь (takeDamage/«Несокрушимость») —
+      // восстанавливаем снапшот ДО пересоздания (контракт «Подводные
+      // камни», п. 1).
+      const h = c0.player;
+      const pre = { hp: h.hp, mp: h.mp, _lastUnkillDay: h._lastUnkillDay };
+      const snap = ctx.heroSnap;
+      if (snap) {
+        h.hp = snap.hp;
+        h.mp = snap.mp;
+        h._lastUnkillDay = snap._lastUnkillDay;
+      }
+      // 000260 (ревью): pre-roll c0 мутирует ОБЩИЙ сейв Эфира
+      // (practiceEfir — skillXp/secondary/skills) — buildEfirUnit c1
+      // прочитал бы накрученные уровни. Снапшот ДО makeCore(moved);
+      // при исключении — обратно (симметрично heroSnap).
+      const es = ctx.efirSnap;
+      let esPre = null;
+      if (es && c0.efirState) {
+        esPre = {
+          skillXp: c0.efirState.skillXp,
+          secondary: c0.efirState.secondary,
+          skills: c0.efirState.skills,
+        };
+        c0.efirState.skillXp = es.skillXp;
+        c0.efirState.secondary = es.secondary;
+        c0.efirState.skills = es.skills;
+      }
+      try {
+        const c1 = ctx.makeCore(moved);
+        rescueEfirLine(c0, c1);
+        ctx.combat = c1;
+        ctx.baseCombat = c0;
+        if (placeTargetPick) c1.selectTarget(placeTargetPick);
+      } catch (err) {
+        h.hp = pre.hp;
+        h.mp = pre.mp;
+        h._lastUnkillDay = pre._lastUnkillDay;
+        if (esPre && c0.efirState) {
+          c0.efirState.skillXp = esPre.skillXp;
+          c0.efirState.secondary = esPre.secondary;
+          c0.efirState.skills = esPre.skills;
+        }
+        if (!placeErrLogged) {
+          placeErrLogged = true;
+          console.error('combat-ui.js: исключение пересоздания боя ' +
+            '(расстановка, 000260) — продолжаем текущий бой ' +
+            '(повторные предупреждения подавлены).', err);
+        }
+      }
+    }
+    placeOpen = false;
+    placeSel = null;
+    placeAnchors = null;
+    placeTargetPick = null;
+    return ctx.combat !== c0;
+  }
+
+  // Допустимые клетки переноса: строки max(0, h−2)..h−1 ∩ поле ∩
+  // !обstacles ∩ вне игрока и всех rect'ов юнитов (UI-строгость;
+  // ядро obstacles НЕ проверяет — клетка юнита в c1 reserved).
+  function placeFreeCells(c) {
+    const cells = [];
+    const minY = Math.max(0, c.height - 2);
+    for (let y = minY; y < c.height; y++) {
+      for (let x = 0; x < c.width; x++) {
+        if (c.obstacles && c.obstacles.has(x + ',' + y)) continue;
+        if (x === c.px && y === c.py) continue;
+        let busy = false;
+        for (const u of c.units) {
+          if (x >= u.x && x < u.x + (u.size.w || 1)
+              && y >= u.y && y < u.y + (u.size.h || 1)) {
+            busy = true;
+            break;
+          }
+        }
+        if (!busy) cells.push([x, y]);
+      }
+    }
+    return cells;
   }
 
   window.addEventListener('keydown', (e) => {
@@ -2039,6 +2345,25 @@
     drawCastFx(c, now);
     syncAttackFx(c, now);
 
+    // Расстановка (задача 000260): СТРОГО условно (idle — 0 вызовов;
+    // goldens 000084/000151-A1). Подсветка свободных клеток строк
+    // h−2..h−1 + кольцо выбора (геометрия target-кольца).
+    if (placeGate() && placeSel) {
+      for (const pc of placeFreeCells(c)) {
+        g2.fillStyle = ALLY_MARKER_UNDERLAY;
+        g2.fillRect(pc[0] * CELL, pc[1] * CELL, CELL, CELL);
+      }
+      const selU = placeSel === 'player' ? null
+        : c.units.find((u) => u.side === 'ally' && u.id === placeSel);
+      const sX = placeSel === 'player' ? c.px : (selU ? selU.x : null);
+      const sY = placeSel === 'player' ? c.py : (selU ? selU.y : null);
+      if (sX !== null) {
+        g2.strokeStyle = '#ffe27a';
+        g2.lineWidth = 2;
+        g2.strokeRect(sX * CELL + 4.5, sY * CELL + 4.5, CELL - 9, CELL - 9);
+      }
+    }
+
     // Панель состояния.
     const t = c.units.find((u) => u.id === c.targetId && u.alive && !u.fled);
     // «Воскрешение» (задача 000166): выбранная МЁРТВАЯ цель — строка
@@ -2193,7 +2518,9 @@
         const ok = act === 'quickItem'
           ? (r.ok || quickOpenable(c))
           : r.ok;
-        b.disabled = c.phase !== 'player' || !!c.result || !ok;
+        // 000260: в selected action-кнопки гашены (idle — как сейчас).
+        b.disabled = c.phase !== 'player' || !!c.result || !ok
+          || (placeGate() && placeSel !== null);
         b.title = ok ? '' : r.reason;
         if (act === 'cast' || act === 'heal') {
           b.style.display = castHealVis(c, act) ? '' : 'none';
@@ -2248,6 +2575,7 @@
     // изменении сигнатуры, renderBook — единый путь обновления).
     renderBook(c);
     if (fleeBox) fleeBox.style.display = (fleeOpen && !c.result) ? '' : 'none';
+    if (placebarEl) placebarEl.style.display = placeGate() ? '' : 'none';
 
     // «Быстрый предмет» — список (задача 000194): display из
     // quickOpen; строки — слоты активного персонажа (перестроение —
@@ -3084,6 +3412,21 @@
         }
       }
     }
+    // 000260 (ревью): при свапе c0→c1 main.js (onEnd →
+    // combatEndCompanions) держит c0 (return startCombat) и читает
+    // c0.units: гибель/бегство союзника в ЖИВОМ бою c1 было бы
+    // невидимо. Зеркалим союзников live→base ПО ID (уникален).
+    // ДО onEnd; без свапа baseCombat=null — ноль эффектов.
+    if (ctx.baseCombat) {
+      for (const u0 of ctx.baseCombat.units) {
+        if (u0.side !== 'ally') continue;
+        const u1 = ctx.combat.units.find((x) => x.id === u0.id);
+        if (!u1) continue;
+        u0.alive = u1.alive;
+        u0.fled = u1.fled;
+        u0.hp = u1.hp;
+      }
+    }
     if (overlay) overlay.remove();
     overlay = canvas = g2 = stateEl = logEl = bannerEl = turnorderEl =
       boxEl = null;
@@ -3100,6 +3443,12 @@
     quickSig = null;
     fleeBox = null;
     fleeOpen = false;
+    // 000260: расстановка — обе точки (finish/catch, правило 000170).
+    placebarEl = null;
+    placeOpen = false;
+    placeSel = null;
+    placeAnchors = null;
+    placeTargetPick = null;
     moveAnims = null;
     atkLayer = null;
     atkKids = {};
@@ -3210,50 +3559,61 @@
           }
         }
       }
-      const combat = G.createCombat({
-        player: opts.hero,
-        // opts.mobs — произвольный состав (подземелья); иначе группа тайла.
-        groupType: opts.mobs ? -1 : (opts.tile ? opts.tile.mobGroup : 0),
-        mobs: opts.mobs,
-        mobLevel: opts.mobLevel,
-        groupName: opts.groupName || (opts.tile && G.mobGroupName
-          ? G.mobGroupName(opts.tile.mobGroup) : undefined),
-        seed: opts.seed,
-        day: opts.day,
-        // Задача 000076: благословения (000072) — до ядра боя.
-        buffMods: opts.buffMods,
-        // Эфир (задача 000081): постоянный союзник (см. выше).
-        // Задача 000087: отряд — opts.rosterData (данные makeAlly,
-        // main.js companionAllies()) — ПОСЛЕ Эфира. Без rosterData —
-        // allies БАЙТ-В-БАЙТ как раньше (якорь placeAllies: Эфир
-        // ПЕРВЫМ, px−1, py−1).
-        // 000194: a.quick — из opts.allyQuick (запись выше).
-        allies: alliesArr,
-        // 000118 (вариант (a)): флаг «уже встречались» — из сейва
-        // main.js (top-level efir_met) → ядро (шов первой встречи).
-        // undefined → старое поведение (бит-в-бит; BR-8).
-        efirMet: !!opts.efirMet,
-      });
-      // Эфир в бою (задача 000112): боевой профиль на СУЩЕСТВУЮЩЕМ
-      // юните (buildEfirUnit — 12-й экспорт efir.js, D1/D2: ОДИН раз,
-      // сразу после createCombat — createCombat остаётся
-      // независимым от efir.js; апгрейд, не создание): явные
-      // maxHP/hp, своя мана u.mp, пулы c.efs, «Касание духа»,
-      // снапшот лордов. Без buildEfirUnit (деградация) — бой как до
-      // 000112 (ветка 000080; тихая деградация — G.efir уже проверен
-      // выше при efirAllyData, пин 000081 R11 без изменений).
-      if (efirData && G.efir && typeof G.efir.buildEfirUnit === 'function') {
-        G.efir.buildEfirUnit(opts.efir, combat);
-      }
-      // 000195: live-карта быстрых слотов союзников (тот же объект, что
-      // G.playerUI.setAllyQuick, main.js) — syncAllyQuickLive re-sync'ит
-      // u.quick из неё (handleCode/render): раздача на [I]-панели
-      // действует в текущем бою. Ядро не читает; 000223: ядро чистит
-      // live-слот при расходе (clearAllyQuickUnit). Не передан → null
-      // (снапшот, бит-в-бит).
-      combat._allyQuickLive = (opts.allyQuickLive
-        && typeof opts.allyQuickLive === 'object'
-        && !Array.isArray(opts.allyQuickLive)) ? opts.allyQuickLive : null;
+      // Расстановка (задача 000260): фабрика ядра. c0 = makeCore() —
+      // ТОТ ЖЕ вызов, что и раньше (бит-в-бит); c1 = makeCore(moved) —
+      // тот же seed, placement применяется в ядре ДО generateObstacles.
+      // heroSnap — общий герой ДО pre-roll c0 (подводный камень п. 1).
+      const makeCore = (placement) => {
+        const args = {
+          player: opts.hero,
+          // opts.mobs — произвольный состав (подземелья); иначе группа тайла.
+          groupType: opts.mobs ? -1 : (opts.tile ? opts.tile.mobGroup : 0),
+          mobs: opts.mobs,
+          mobLevel: opts.mobLevel,
+          groupName: opts.groupName || (opts.tile && G.mobGroupName
+            ? G.mobGroupName(opts.tile.mobGroup) : undefined),
+          seed: opts.seed,
+          day: opts.day,
+          // Задача 000076: благословения (000072) — до ядра боя.
+          buffMods: opts.buffMods,
+          // Эфир (задача 000081) / отряд (задача 000087): ПОСЛЕ Эфира;
+          // 000194: a.quick — из opts.allyQuick (запись выше).
+          allies: alliesArr,
+          // 000118 (вариант (a)): флаг «уже встречались» — из сейва
+          // main.js (top-level efir_met) → ядро (шов первой встречи).
+          efirMet: !!opts.efirMet,
+        };
+        if (placement) args.placement = placement;
+        const cb = G.createCombat(args);
+        // Эфир в бою (задача 000112): боевой профиль на СУЩЕСТВУЮЩЕМ
+        // юните (buildEfirUnit — 12-й экспорт efir.js: ОДИН раз, сразу
+        // после createCombat; апгрейд, не создание).
+        if (efirData && G.efir
+            && typeof G.efir.buildEfirUnit === 'function') {
+          G.efir.buildEfirUnit(opts.efir, cb);
+        }
+        // 000195: live-карта быстрых слотов союзников (тот же объект,
+        // что G.playerUI.setAllyQuick, main.js) — syncAllyQuickLive
+        // re-sync'ит u.quick из неё. Не передан → null (бит-в-бит).
+        cb._allyQuickLive = (opts.allyQuickLive
+          && typeof opts.allyQuickLive === 'object'
+          && !Array.isArray(opts.allyQuickLive)) ? opts.allyQuickLive : null;
+        return cb;
+      };
+      const heroSnap = {
+        hp: opts.hero.hp,
+        mp: opts.hero.mp,
+        _lastUnkillDay: opts.hero._lastUnkillDay,
+      };
+      // 000260 (ревью): снапшот сейва Эфира ДО pre-roll c0 (симметрия
+      // heroSnap) — pre-roll practiceEfir мутирует общий сейв, c1
+      // должен стартовать с ДО-боевыми навыками.
+      const efirSnap = efirData ? {
+        skillXp: Object.assign({}, opts.efir.skillXp || {}),
+        secondary: Object.assign({}, opts.efir.secondary || {}),
+        skills: Object.assign({}, opts.efir.skills || {}),
+      } : null;
+      const combat = makeCore();
       // Путь фона (задача 000049) — ОДИН раз при старте. Guard
       // G.combatBackground — УМД-ловушка «G снимается один раз»
       // (как hpBarColor, задача 000038): sprites.js отсутствует
@@ -3288,6 +3648,14 @@
         lastSpells: (opts.lastSpells
           && typeof opts.lastSpells === 'object'
           && !Array.isArray(opts.lastSpells)) ? opts.lastSpells : null,
+        // 000260: фабрика ядра + снапшоты (свап c0→c1).
+        makeCore,
+        heroSnap,
+        efirSnap,
+        // 000260 (ревью): c0 при свапе — main.js читает его .units в
+        // onEnd (combatEndCompanions); finish() зеркалирует союзников
+        // живого боя по id. null — свапа не было.
+        baseCombat: null,
       };
       try {
         build();
@@ -3331,6 +3699,12 @@
         quickSig = null;
         fleeBox = null;
         fleeOpen = false;
+        // 000260: расстановка — обе точки (finish/catch, правило 000170).
+        placebarEl = null;
+        placeOpen = false;
+        placeSel = null;
+        placeAnchors = null;
+        placeTargetPick = null;
         moveAnims = null;
         atkLayer = null;
         atkKids = {};

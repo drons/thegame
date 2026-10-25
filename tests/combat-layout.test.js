@@ -578,3 +578,39 @@ test('index.html: 000261 — .combat-victory-loot .cp-rarity-… — цвет Т
     + 'факт: border-0 @' + borderZeroAt + ', глобальная рамка @'
     + globalBorderAt);
 });
+
+// =====================================================================
+// 000260: расстановка перед боем — CSS бара (memory/000260-combat-
+// placement.md §CSS): новые классы ТОЛЬКО в скоупе
+// .combat-overlay--combat (базы .combat-overlay/.combat-side/
+// .combat-actions/.combat-log — без правок; стражи выше — зелёные).
+// Краснота: правила .combat-place* в index.html ещё нет (cssRule →
+// assert «правило не найдено», прецедент 000237-RED / 000124-RED).
+// =====================================================================
+
+test('index.html: .combat-overlay--combat .combat-placebar — бар расстановки 000260; ВСЕ правила .combat-place* — в скоупе .combat-overlay--combat (000260-L1)', () => {
+  const d = cssRule('.combat-overlay--combat .combat-placebar');
+  assert.equal(d['grid-column'], '1 / -1',
+    '000260: бар — на всю ширину .combat-actions (grid-column: 1 / -1); '
+    + 'факт: ' + (d['grid-column'] || 'нет'));
+  assert.equal(d['background'], '#2c3040',
+    '000260: фон бара #2c3040 (существующий в файле); факт: '
+    + (d['background'] || 'нет'));
+  const sels = [];
+  const re = /^[ \t]*([^{}]+)\{/gm;
+  let m;
+  while ((m = re.exec(html))) {
+    if (m[1].includes('combat-place')) sels.push(m[1].trim());
+  }
+  assert.ok(sels.length > 0,
+    '000260: правила классов .combat-place* существуют (краснота: ни '
+    + 'одного правила)');
+  for (const sel of sels) {
+    for (const part of sel.split(',')) {
+      assert.ok(part.trim().startsWith('.combat-overlay--combat'),
+        '000260: селектор ' + JSON.stringify(part.trim())
+        + ' — без префикса .combat-overlay--combat (классы расстановки '
+        + 'не должны выходить за боевой оверлей)');
+    }
+  }
+});

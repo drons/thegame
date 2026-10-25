@@ -552,6 +552,42 @@
     .combat-overlay--combat .combat-flee-btn--no:hover {
       background: #8bf58b;
     }
+    .combat-overlay--combat .combat-placebar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border: 1px solid #6b6248;
+      border-radius: 6px;
+      background: #2c3040;
+    }
+    .combat-overlay--combat .combat-placebar-hint {
+      flex: 1;
+      font: 11px ui-monospace, monospace;
+      color: #e8dcc0;
+    }
+    .combat-overlay--combat .combat-placebar-btn {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font: 700 12px ui-monospace, monospace;
+      cursor: pointer;
+      user-select: none;
+    }
+    .combat-overlay--combat .combat-placebar-btn--go {
+      background: #6fdc6f;
+      color: #101418;
+    }
+    .combat-overlay--combat .combat-placebar-btn--go:hover {
+      background: #8bf58b;
+    }
+    .combat-overlay--combat .combat-placebar-btn--reset {
+      background: #2c3040;
+      color: #e8dcc0;
+    }
+    .combat-overlay--combat .combat-placebar-btn--reset:hover {
+      background: #3a4150;
+    }
     /* Полоска MP (задача 000199): ТРЕТИЙ элемент .combat-side — под
        .combat-hpbar, над .combat-state. Геометрия 1-в-1 с
        .combat-hpbar (16px); цвета — СУЩЕСТВУЮЩАЯ пара класса

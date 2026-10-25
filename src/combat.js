@@ -3241,6 +3241,93 @@
     return false;
   }
 
+  // Расстановка перед боем (задача 000260): чистая валидация карты
+  // клеток {id: [x, y]} для игрока и союзников (0 мутаций, 0 c._rng).
+  // Зона — первые две линии со стороны игрока, формула от height:
+  // y ∈ [max(0, height−2), height−1] (7×7 → 5..6, 7×4 → 2..3, 7×2 →
+  // 0..1), x ∈ [0, width−1], координаты целые. Ключ — 'player' или
+  // id союзника из c.units (side 'ally'); мобы НЕ расставляются.
+  // Перекрытия — против ФИНАЛЬНОЙ конфигурации: игрок (новый или
+  // c.px/c.py) + все союзники (свои новые или текущие клетки) + все
+  // прямоугольники мобов (зафиксированы) — дубликат клетки → reason.
+  // Достигимость мобов из новых позиций НЕ дублируется: её покрывает
+  // существующий гард generateObstacles (mobReachable) — reserved
+  // строится из новых позиций. Частичная карта допустима:
+  // неперечисленные юниты остаются на своих клетках.
+  function validatePlacement(c, placement) {
+    const p = (placement && typeof placement === 'object')
+      ? placement : {};
+    const minY = Math.max(0, c.height - 2);
+    const mobCells = new Set();
+    for (const u of c.units) {
+      if (u.side !== 'mob') continue;
+      for (let yy = u.y; yy < u.y + (u.size.h || 1); yy++) {
+        for (let xx = u.x; xx < u.x + (u.size.w || 1); xx++) {
+          mobCells.add(xx + ',' + yy);
+        }
+      }
+    }
+    const ids = Object.keys(p);
+    for (const id of ids) {
+      const v = p[id];
+      if (!Array.isArray(v) || v.length !== 2
+          || !Number.isInteger(v[0]) || !Number.isInteger(v[1])) {
+        return { ok: false,
+          reason: 'расстановка: ' + id + ': некорректные координаты' };
+      }
+      if (id !== 'player' && !c.units.some((u) => u.id === id
+          && u.side === 'ally')) {
+        return { ok: false,
+          reason: 'расстановка: неизвестный юнит ' + id };
+      }
+      if (v[0] < 0 || v[1] < 0 || v[0] >= c.width || v[1] >= c.height) {
+        return { ok: false,
+          reason: 'расстановка: ' + id + ': клетка вне поля' };
+      }
+      if (v[1] < minY) {
+        return { ok: false,
+          reason: 'расстановка: ' + id + ': вне первых двух линий' };
+      }
+    }
+    const finalPos = new Map();
+    finalPos.set('player', (p.player
+      ? [p.player[0], p.player[1]] : [c.px, c.py]));
+    for (const u of c.units) {
+      if (u.side !== 'ally') continue;
+      finalPos.set(u.id, (p[u.id] ? [p[u.id][0], p[u.id][1]]
+        : [u.x, u.y]));
+    }
+    const seen = new Set();
+    for (const [id, pos] of finalPos) {
+      const k = pos[0] + ',' + pos[1];
+      if (mobCells.has(k) || seen.has(k)) {
+        return { ok: false,
+          reason: 'расстановка: ' + id + ': клетка занята' };
+      }
+      seen.add(k);
+    }
+    return { ok: true };
+  }
+
+  // 000260: применение пройшедшей валидацию карты клеток (модульно-
+  // локальная — вызывается createCombat ПОСЛЕ validatePlacement).
+  // Позиция игрока — поля боя c.px/c.py (объект героя по позиции НЕ
+  // мутируется — см. playerMove); союзник — u.x/u.y.
+  function applyPlacement(c, placement) {
+    const p = (placement && typeof placement === 'object')
+      ? placement : {};
+    for (const id of Object.keys(p)) {
+      const v = p[id];
+      if (!Array.isArray(v) || v.length !== 2) continue;
+      if (id === 'player') {
+        c.px = v[0]; c.py = v[1];
+      } else {
+        const u = c.units.find((t) => t.id === id && t.side === 'ally');
+        if (u) { u.x = v[0]; u.y = v[1]; }
+      }
+    }
+  }
+
   // Препятствия (задача 000050): случайные непроходимые клетки поля.
   // Вызывается в createCombat РОВНО между placeUnits (нужны стартовые
   // прямоугольники мобов) и refillPools — порядок потока c._rng:
@@ -3486,6 +3573,18 @@
       placeAllies(c, allies);
       c.units = c.units.concat(allies);
     }
+    // Расстановка перед боем (задача 000260): ЧИСТАЯ точка — ПОСЛЕ
+    // placeAllies/конкатенации, ДО generateObstacles (0 вызовов RNG —
+    // запиненный поток не меняется). reserved/BFS-достижимость мобов/
+    // targetId/pre-roll — всё читает c.px/c.py и c.units ПОЗЖЕ →
+    // автоматически по новым позициям. Без opts.placement — ветка не
+    // выполняется (дефолт = якоря бит-в-бит, все goldens не меняются).
+    if (opts.placement && typeof opts.placement === 'object'
+        && !Array.isArray(opts.placement)) {
+      const chk = validatePlacement(c, opts.placement);
+      if (!chk.ok) throw new Error(chk.reason);
+      applyPlacement(c, opts.placement);
+    }
     // Препятствия (задача 000050): ПОСЛЕ расстановки (стартовые
     // прямоугольники мобов + клетки союзников — reserved-клетки),
     // ДО любых в-бою RNG-бросков.
@@ -3698,6 +3797,10 @@
     // 000235.01: место для призывного (чистый мультискан placeAllies) —
     // fail-closed в evalSpell (src/spells.js) + тесты.
     allyRoom,
+    // 000260: расстановка перед боем — чистая валидация карты клеток
+    // {id: [x, y]} (игрок/союзники, первые две линии, без перекрытий)
+    // — единый источник правды createCombat + тесты.
+    validatePlacement,
     // Препятствия (задача 000050): достижимость клеток от игрока по
     // не-препятствиям — чистая функция для тестов.
     reachableCells,

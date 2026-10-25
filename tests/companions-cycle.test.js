@@ -1185,3 +1185,98 @@ test('000242 V7 (RED): e2e — переполнение (hero: stone_chunk×20 =
   assert.equal(h.errors.length, 0,
     'onDay/рендер без console.error: ' + h.errors.join('; '));
 });
+
+// =====================================================================
+// 000260 (правка по итогам ревью): свап c0→c1 (расстановка) —
+// main.js (onEnd → combatEndCompanions) держит c0 (return
+// startCombat) и читает c0.units: гибель наёмника в ЖИВОМ бою (c1)
+// должна быть видна — finish() зеркалирует союзников (alive/fled/hp)
+// из c1 в c0 ПО ID перед onEnd (ctx.baseCombat). Паттерн: V5
+// (мутация юнита) + расстановка (canvas-клики + Enter).
+// =====================================================================
+
+test('000260: гибель наёмника в ЖИВОМ бою после свапа расстановки — deadMercs + splice + «погиб в бою.» + сейв (зеркало c0)', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({ level: 8, hp: 200, gold: 200 }),
+    companions: [
+      { npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2 },
+    ],
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
+  assertRestored(h, 2);
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  const c0 = g.actions.startCombat(0);
+  assert.ok(c0, 'бой начался');
+  const merc0 = (c0.units || []).find(
+    (x) => x && x.side === 'ally' && x.kind === 'merc');
+  assert.ok(merc0 && merc0.id === 'merc_volk', 'merc в c0.units');
+  // Расстановка: canvas-клики — выбор героя, затем свободная клетка
+  // зоны (свободные — по тому же контракту: строки h−2..h−1, не
+  // obstacles, не rect юнитов).
+  const ov = h.body.children.find(
+    (el) => String(el.className).includes('combat-overlay--combat'));
+  assert.ok(ov, 'оверлей боя в body');
+  const cv = findAll(ov, 'canvas')[0];
+  assert.ok(cv, 'canvas боя');
+  const free = [];
+  for (let y = Math.max(0, c0.height - 2); y < c0.height; y++) {
+    for (let x = 0; x < c0.width; x++) {
+      if (c0.obstacles && c0.obstacles.has(x + ',' + y)) continue;
+      if (x === c0.px && y === c0.py) continue;
+      if (c0.units.some((u) => x >= u.x && x < u.x + (u.size.w || 1)
+          && y >= u.y && y < u.y + (u.size.h || 1))) continue;
+      free.push([x, y]);
+    }
+  }
+  const cell = free.find((p) => p[1] === c0.height - 1) || free[0];
+  assert.ok(cell, 'свободная клетка зоны: ' + JSON.stringify(free));
+  cv.listeners.click[0]({ clientX: (c0.px + 0.5) * 48,
+    clientY: (c0.py + 0.5) * 48 });
+  cv.listeners.click[0]({ clientX: (cell[0] + 0.5) * 48,
+    clientY: (cell[1] + 0.5) * 48 });
+  assert.equal(c0.px, cell[0]); assert.equal(c0.py, cell[1],
+    'фикстура: герой перенесён (live c0)');
+  // Подтверждение (Enter) — свап c0→c1.
+  G.combatUI.handleCode('Enter');
+  const c1 = G.combatUI.current();
+  assert.ok(c1 && c1 !== c0,
+    'свап: живой бой — НОВЫЙ объект (main.js по-прежнему держит c0)');
+  assert.equal(c1.px, cell[0]); assert.equal(c1.py, cell[1],
+    'c1 — подтверждённая позиция');
+  // Наёмник погибает в ЖИВОМ бою.
+  const merc1 = c1.units.find((x) => x && x.id === 'merc_volk');
+  assert.ok(merc1, 'merc в c1.units');
+  merc1.alive = false;
+  merc1.hp = 0;
+  c1.phase = 'over';
+  c1.result = { outcome: 'victory', xp: 50, gold: 1, defeated: 1,
+    allyXp: [] };
+  G.combatUI.handleCode('Escape');
+  assert.equal(G.combatUI.isActive(), false, 'бой закрыт (finish → onEnd)');
+  // Зеркало: в c0.units merc МЁРТВ (main.js читает c0).
+  assert.equal(merc0.alive, false,
+    '000260: c0 зеркалит live-состояние союзника (без правки — true)');
+  // Запись + splice (контракт 000161/D2) — как V5.
+  const volkRec = {
+    npcId: 'merc_volk',
+    sheet: backfilledEntry({ npcId: 'merc_volk', level: 1, xp: 0,
+      loyalty: 65, hiredDay: 2 }).sheet,
+    loyalty: 65, hiredDay: 2,
+  };
+  assert.ok(Array.isArray(g.state.deadMercs));
+  assert.deepEqual(host(g.state.deadMercs), [volkRec],
+    'deadMercs: запись (гибель в живом бою видна через зеркало c0)');
+  assert.ok(Array.isArray(g.state.roster));
+  assert.equal(host(g.state.roster).length, 0,
+    'roster: запись удалена (splice)');
+  mainFrameAt(h);
+  const hud = String(h.hud.textContent);
+  assert.ok(hud.includes('Вольк погиб в бою.'),
+    'hud: «<имя> погиб в бою.» (D9): ' + hud);
+  const saved = readSave(h);
+  assert.deepEqual(saved.data.dead_mercs, [volkRec],
+    'сейв: dead_mercs — запись');
+  assert.deepEqual(saved.data.companions, [], 'сейв: companions []');
+});

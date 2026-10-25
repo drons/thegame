@@ -44,6 +44,10 @@ const {
   // при вызове, не load-ошибка; прецедент 000132/000230.05/000235.05).
   lootChance, LOOT_CHANCE_BASE, LOOT_CHANCE_PER_LV,
   LOOT_CHANCE_FLOOR, LOOT_CHANCE_CAP,
+  // 000260: расстановка перед боем (красные тесты: экспорт отсутствует
+  // — undefined → осмысленный TypeError «not a function» при вызове, не
+  // load-ошибка; прецедент 000132/000155/000167/000175/000245).
+  validatePlacement,
 } = require('../src/combat.js');
 const { createCharacter, derived } = require('../src/player.js');
 const { SETTINGS } = require('../src/global-settings.js');
@@ -10148,4 +10152,283 @@ test('000245-L6: число вызовов c._rng на победу НЕ ИЗМ�
   } finally {
     eqPoolsRestore(sav);
   }
+});
+
+// =====================================================================
+// 000260: расстановка перед боем — Флогистон, Эфир и союзники
+// (tasks/pending/000260.md; контракт memory/000260-combat-placement.md)
+//
+// Краснота (red-фаза): параметра placement у createCombat и экспорта
+// validatePlacement в src/combat.js ещё нет:
+//   * C1/C3/C4 — placement молча игнорируется → юниты на якорях,
+//     старый набор препятствий / targetId / pre-roll → падают
+//     ассерты «юниты на переданных клетках / reserved из новых
+//     позиций / targetId и pre-roll по новым позициям» (отсутствие
+//     функциональности, не крах модуля);
+//   * C2 — validatePlacement undefined (require-шапка) → осмысленный
+//     TypeError «not a function» (прецедент 000132/000155/000167/
+//     000175/000245);
+//   * C0 — гард (зелёный с red-фазы): дефолт (без placement) —
+//     якоря + набор препятствий + очередь — инвариант бит-в-бит.
+//
+// Зона расстановки: строки max(0, height−2)..height−1 (при 7×7 —
+// y=5..6); без перекрытий (включая мобо-rect'ы); в пределах поля.
+// Мобы НЕ расставляются. Расстановка применяется ДО generateObstacles
+// (reserved из новых позиций) и ДО targetId/pre-roll.
+// =====================================================================
+
+function pos260(c, id) {
+  if (id === 'player') return [c.px, c.py];
+  const u = c.units.find((x) => x.id === id);
+  assert.ok(u, 'юнит ' + id + ' в бою (фикстура)');
+  return [u.x, u.y];
+}
+
+const mobs260 = (c) => c.units.filter((u) => u.side === 'mob')
+  .map((u) => [u.id, u.x, u.y]).sort();
+const obst260 = (c) => [...c.obstacles].sort();
+
+test('000260-C0: дефолт (без placement) — якоря бит-в-бит: игрок (3,6), Эфир (px−1,py−1), наёмники по очереди якорей, мобы xs=[1,3,5] y=0; препятствия/цель/очередь по сиду (гард)', () => {
+  const E = loadEfir000081();
+  const c = createCombat({
+    player: strongHero(),
+    allies: [E.efirAllyData(E.createEfir()), ALLY_VOLK, ALLY_ASHKA],
+    mobs: ['wolf', 'wolf', 'wolf'], mobLevel: 2, seed: 7,
+  });
+  assert.deepEqual(pos260(c, 'player'), [3, 6], 'игрок — (floor(w/2), h−1)');
+  assert.deepEqual(pos260(c, 'efir'), [2, 5], 'Эфир — первый якорь (px−1, py−1)');
+  assert.deepEqual(pos260(c, 'a1'), [4, 5], 'второй якорь (px+1, py−1)');
+  assert.deepEqual(pos260(c, 'a2'), [3, 5], 'третий якорь (px, py−1)');
+  assert.deepEqual(mobs260(c), [['m0', 1, 0], ['m1', 3, 0], ['m2', 5, 0]],
+    'мобы — якоря xs=[1,3,5,0,2,4], y=0..1 (1×1 → y=0)');
+  assert.deepEqual(obst260(c),
+    ['0,6', '1,3', '2,3', '4,3', '5,1'],
+    'препятствия по сиду 7 (reserved — стартовые позиции): '
+    + JSON.stringify(obst260(c)));
+  assert.equal(c.targetId, 'm1', 'targetId = ближайший моб от (3,6)');
+  assert.deepEqual(c.turnOrder,
+    ['efir', 'm0', 'm1', 'm2', 'player', 'a1', 'a2'],
+    'очередь по инициативе (Эфир 4 → мобы 3 → игрок/наёмники 2/0)');
+  assert.equal(c.turnIndex, 0,
+    'pre-roll остановился на первом союзном слоте (ввод игрока) — никто не действовал → позиции = якоря');
+  assert.equal(c.phase, 'player');
+  assert.ok(!c.result, 'бой не завершен');
+  assert.equal(c.log[0], 'Бой: блуждающая группа (уровень 2, мобы 3).');
+});
+
+test('000260-C1: createCombat({placement}) — юниты на переданных клетках (игрок/Эфир/наёмник), неперечисленные — на якорях; мобы бит-в-бит с боем без placement', () => {
+  const E = loadEfir000081();
+  const base = createCombat({
+    player: strongHero(),
+    allies: [E.efirAllyData(E.createEfir()), ALLY_VOLK, ALLY_ASHKA],
+    mobs: ['wolf', 'wolf', 'wolf'], mobLevel: 2, seed: 7,
+  });
+  // Фикстура: дефолт — якоря (гард C0, другой прогон).
+  assert.deepEqual(pos260(base, 'player'), [3, 6]);
+  assert.deepEqual(pos260(base, 'efir'), [2, 5]);
+  assert.deepEqual(pos260(base, 'a1'), [4, 5]);
+  assert.deepEqual(pos260(base, 'a2'), [3, 5]);
+  const hero = strongHero();
+  hero.primary.dexterity = 5; hero.primary.intelligence = 5;
+  // Быстрый герой (инициатива 10) — pre-roll no-op: позиции мобо-
+  // якорей детерминированы и сравнимы бит-в-бит.
+  const c = createCombat({
+    player: hero,
+    allies: [E.efirAllyData(E.createEfir()), ALLY_VOLK, ALLY_ASHKA],
+    mobs: ['wolf', 'wolf', 'wolf'], mobLevel: 2, seed: 7,
+    placement: { player: [1, 5], efir: [3, 5], a2: [2, 6] },
+  });
+  assert.deepEqual(pos260(c, 'player'), [1, 5],
+    'игрок — на переданной клетке (зона строк 5–6)');
+  assert.deepEqual(pos260(c, 'efir'), [3, 5], 'Эфир — на переданной клетке');
+  assert.deepEqual(pos260(c, 'a2'), [2, 6], 'наёмник — на переданной клетке');
+  assert.deepEqual(pos260(c, 'a1'), [4, 5],
+    'неперечисленный союзник — свой якорь (частичная расстановка)');
+  assert.deepEqual(mobs260(c), mobs260(base),
+    'мобы НЕ расставляются — бит-в-бит с боем без placement (тот же сид)');
+  assert.equal(c.targetId, 'm0',
+    'targetId — ближайший моб от НОВОЙ позиции игрока (1,5)');
+});
+
+test('000260-C2: validatePlacement — зона строк max(0,h−2)..h−1 (от height), пределы поля, нецелые координаты, неизвестный юнит, перекрытие (союзник↔игрок и союзник↔моб-rect); createCombat с невалидной расстановкой — throw', () => {
+  const E = loadEfir000081();
+  const base = createCombat({
+    player: strongHero(),
+    allies: [E.efirAllyData(E.createEfir()), ALLY_VOLK],
+    mobs: ['wolf'], mobLevel: 2, seed: 5,
+  });
+  // Фикстура: игрок (3,6), Эфир (2,5), а1 (4,5), волк (1,0) — pre-roll
+  // остановился на слоте Эфира (ввод), никто не сдвинулся.
+  assert.deepEqual(pos260(base, 'player'), [3, 6]);
+  assert.deepEqual(pos260(base, 'efir'), [2, 5]);
+  assert.deepEqual(pos260(base, 'a1'), [4, 5]);
+  assert.deepEqual(pos260(base, 'm0'), [1, 0]);
+  // Допустимо: клетка в зоне и свободна.
+  assert.deepEqual(validatePlacement(base, { player: [3, 5] }),
+    { ok: true }, 'зона 7×7 = строки 5–6, (3,5) свободно');
+  // Вне зоны (выше строк 5–6) — reason.
+  assert.deepEqual(validatePlacement(base, { player: [3, 4] }),
+    { ok: false, reason: 'расстановка: player: вне первых двух линий' },
+    'y=4 — выше первых двух линий (7×7)');
+  // Вне поля (y и x) — reason.
+  assert.deepEqual(validatePlacement(base, { player: [3, 7] }),
+    { ok: false, reason: 'расстановка: player: клетка вне поля' },
+    'y=7 — за границей 7×7');
+  assert.deepEqual(validatePlacement(base, { player: [7, 5] }),
+    { ok: false, reason: 'расстановка: player: клетка вне поля' },
+    'x=7 — за границей 7×7');
+  // Перекрытие: игрок и Эфир на одной клетке (финальная конфигурация).
+  const over = validatePlacement(base, { player: [2, 5], efir: [2, 5] });
+  assert.equal(over.ok, false, 'перекрытие игрок↔Эфир отклонено');
+  assert.ok(String(over.reason).includes('клетка занята'),
+    'reason — «клетка занята»: ' + over.reason);
+  // Нецелые координаты — reason.
+  assert.deepEqual(validatePlacement(base, { player: [1.5, 5] }),
+    { ok: false, reason: 'расстановка: player: некорректные координаты' });
+  // Неизвестный юнит — reason.
+  assert.deepEqual(validatePlacement(base, { b0: [1, 5] }),
+    { ok: false, reason: 'расстановка: неизвестный юнит b0' });
+  // Зона — ОТ HEIGHT: 7×2 → строки 0..1.
+  const c2 = createCombat({
+    player: strongHero(),
+    allies: [ALLY_VOLK],
+    mobs: ['wolf'], mobLevel: 2, width: 7, height: 2, seed: 5,
+  });
+  assert.deepEqual(pos260(c2, 'player'), [3, 1]);
+  assert.deepEqual(pos260(c2, 'a0'), [2, 0]);
+  assert.deepEqual(pos260(c2, 'm0'), [1, 0]);
+  const overMob = validatePlacement(c2, { a0: [1, 0] });
+  assert.equal(overMob.ok, false, 'союзник на мобо-клетке — перекрытие');
+  assert.ok(String(overMob.reason).includes('клетка занята'),
+    'reason — «клетка занята» (моб-rect): ' + overMob.reason);
+  const overAlly = validatePlacement(c2, { player: [2, 0] });
+  assert.equal(overAlly.ok, false, 'игрок на якорной клетке союзника');
+  assert.ok(String(overAlly.reason).includes('клетка занята'),
+    'reason — «клетка занята»: ' + overAlly.reason);
+  assert.deepEqual(validatePlacement(c2, { player: [3, 0] }), { ok: true },
+    '7×2: y=0 — В зоне (строки 0..1), свободно');
+  // 7×4 → строки 2..3.
+  const c4 = createCombat({
+    player: strongHero(),
+    mobs: ['wolf'], mobLevel: 2, width: 7, height: 4, seed: 5,
+  });
+  assert.deepEqual(pos260(c4, 'player'), [3, 3]);
+  assert.deepEqual(validatePlacement(c4, { player: [3, 1] }),
+    { ok: false, reason: 'расстановка: player: вне первых двух линий' },
+    '7×4: y=1 — выше строк 2–3');
+  assert.deepEqual(validatePlacement(c4, { player: [3, 2] }), { ok: true },
+    '7×4: y=2 — в зоне');
+  // createCombat с невалидной расстановкой — throw (reason).
+  assert.throws(() => createCombat({
+    player: strongHero(), mobs: ['wolf'], mobLevel: 2, seed: 5,
+    placement: { player: [3, 4] },
+  }), /расстановка: player: вне первых двух линий/,
+    'невалидная расстановка — бой не создаётся (throw с reason)');
+});
+
+test('000260-C3: препятствия — reserved из НОВЫХ позиций: расстановка {player:[1,5]} (seed 5) сдвигает камень (1,5)→(3,6); якорный бой инвариантен; детерминизм', () => {
+  const mk = (placement) => createCombat({
+    player: strongHero(), mobs: ['wolf'], mobLevel: 2, seed: 5,
+    ...(placement ? { placement } : {}),
+  });
+  const a = mk(null);
+  const b = mk({ player: [1, 5] });
+  // Фикстура: якорный бой — (3,6) reserved (игрок), камень на (1,5).
+  assert.deepEqual(obst260(a),
+    ['0,3', '0,5', '1,5', '2,5', '2,6', '4,0', '4,5', '5,1', '5,4'],
+    'якорный бой (seed 5) — набор препятствий: ' + JSON.stringify(obst260(a)));
+  assert.ok(a.obstacles.has('1,5'), 'фикстура: (1,5) — камень (свободна)');
+  assert.ok(!a.obstacles.has('3,6'),
+    'фикстура: (3,6) — reserved (якорь игрока), камня нет');
+  // Расстановка: игрок (1,5) → клетка reserved, камня нет; (3,6)
+  // высвобождена → в тот же rng-поток попадает камень.
+  assert.deepEqual(pos260(b, 'player'), [1, 5], 'расстановка применена');
+  assert.ok(!b.obstacles.has('1,5'),
+    'НОВАЯ позиция игрока — reserved: камня на (1,5) нет');
+  assert.ok(b.obstacles.has('3,6'),
+    'высвобожденная якорная клетка (3,6) — в reserved-свободные: '
+    + 'камень из того же rng-потока');
+  assert.deepEqual(obst260(b),
+    ['0,3', '0,5', '2,5', '2,6', '3,6', '4,0', '4,5', '5,1', '5,4'],
+    'набор differs ровно на (1,5)→(3,6): ' + JSON.stringify(obst260(b)));
+  // Детерминизм: повторный прогон с той же расстановкой — бит-в-бит.
+  assert.deepEqual(obst260(mk({ player: [1, 5] })), obst260(b),
+    'тот же сид + та же расстановка → тот же набор препятствий');
+  assert.deepEqual(obst260(mk(null)), obst260(a),
+    'якорный прогон повторяем (бит-в-бит)');
+});
+
+test('000260-C4: targetId и pre-roll — по НОВЫМ позициям; бой с расстановкой детерминирован (сид → результат)', () => {
+  // (a) targetId: быстрый герой (инициатива 10 — pre-roll no-op),
+  // 2 волка (1,0)/(3,0): от (3,6) ближе m1, от (1,5) ближе m0.
+  const mkHero = () => {
+    const h = strongHero();
+    h.primary.dexterity = 5; h.primary.intelligence = 5;
+    return h;
+  };
+  const a = createCombat({
+    player: mkHero(), mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 42,
+  });
+  const b = createCombat({
+    player: mkHero(), mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 42,
+    placement: { player: [1, 5] },
+  });
+  assert.equal(a.targetId, 'm1',
+    'фикстура: от якоря (3,6) ближе m1 (3,0)');
+  assert.deepEqual(mobs260(b), [['m0', 1, 0], ['m1', 3, 0]],
+    'мобы на якорях (pre-roll no-op — герой быстрее всех)');
+  assert.deepEqual(pos260(b, 'player'), [1, 5], 'расстановка применена');
+  assert.equal(b.targetId, 'm0',
+    'targetId — от НОВОЙ позиции игрока (1,5): ближе m0 (1,0)');
+  // (b) pre-roll: паук 4 > игрок 2 — pre-roll действует ДО входа
+  // игрока; шаг моба — к ТЕКУЩЕЙ позиции игрока (расстановка ДО
+  // pre-roll): от (3,6) и от (1,5) — разные шаги. rng-очередь —
+  // чистые препятствия справа (5 камней, ни одно не reserved в
+  // обоих боях → поток идентичен).
+  const queue = [0, 6/7, 6/7, 6/7, 5/7, 5/7, 6/7, 4/7, 4/7, 6/7, 4/7];
+  const q = () => {
+    const arr = queue.slice();
+    let i = 0;
+    return () => arr[i++];
+  };
+  const pa = createCombat({
+    player: strongHero(), mobs: ['spider', 'spider'], mobLevel: 2,
+    seed: 42, rng: q(),
+  });
+  const pb = createCombat({
+    player: strongHero(), mobs: ['spider', 'spider'], mobLevel: 2,
+    seed: 42, rng: q(), placement: { player: [1, 5] },
+  });
+  assert.deepEqual(obst260(pa), obst260(pb),
+    'фикстура: препятствия идентичны (reserved-пересечение пусто)');
+  assert.deepEqual(pos260(pa, 'm0'), [2, 0],
+    'фикстура: pre-roll от якоря (3,6) — m0 (1,0)→(2,0)');
+  assert.deepEqual(pos260(pa, 'm1'), [3, 1],
+    'фикстура: pre-roll от якоря — m1 (3,0)→(3,1)');
+  assert.deepEqual(pos260(pb, 'm0'), [1, 1],
+    'pre-roll по НОВОЙ позиции (1,5): m0 (1,0)→(1,1)');
+  assert.deepEqual(pos260(pb, 'm1'), [2, 0],
+    'pre-roll по НОВОЙ позиции: m1 (3,0)→(2,0)');
+  assert.equal(pa.targetId, 'm1', 'фикстура: цель от (3,6) — m1');
+  assert.equal(pb.targetId, 'm0', 'цель от (1,5) после pre-roll — m0');
+  // (c) Детерминизм: повторный прогон — снапшот бит-в-бит (лог,
+  // позиции, очередь, цель, позиции игрока, препятствия).
+  const snap = (c) => JSON.stringify({
+    log: c.log,
+    pos: c.units.map((u) => [u.id, u.x, u.y]).sort(),
+    turnOrder: c.turnOrder, turnIndex: c.turnIndex,
+    targetId: c.targetId, px: c.px, py: c.py,
+    obstacles: obst260(c), phase: c.phase,
+  });
+  const pa2 = createCombat({
+    player: strongHero(), mobs: ['spider', 'spider'], mobLevel: 2,
+    seed: 42, rng: q(),
+  });
+  const pb2 = createCombat({
+    player: strongHero(), mobs: ['spider', 'spider'], mobLevel: 2,
+    seed: 42, rng: q(), placement: { player: [1, 5] },
+  });
+  assert.equal(snap(pb2), snap(pb),
+    'бой с расстановкой детерминирован (сид → результат)');
+  assert.equal(snap(pa2), snap(pa), 'якорный бой детерминирован');
 });

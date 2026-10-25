@@ -90,7 +90,11 @@ function makeEl(tag, buttons, rect) {
     children: [],
     onclick: null,
     listeners: {},
-    appendChild(ch) { this.children.push(ch); return ch; },
+    appendChild(ch) {
+      this.children.push(ch);
+      ch.parentElement = this; // 000260-U1: как в реальном DOM
+      return ch;
+    },
     remove() {},
     addEventListener(type, fn) {
       (this.listeners[type] || (this.listeners[type] = [])).push(fn);
@@ -11048,4 +11052,491 @@ test('боевой UI: 000261 — victory (лут с неизвестным id):
   assert.equal(rows[0].children[0].textContent, 'no_such_item_261',
     '000261: имя = String(id) (qty 1 — без «×»): '
     + rows[0].children[0].textContent);
+});
+
+// 000260: расстановка перед боем — UI (tasks/pending/000260.md;
+// контракт memory/000260-combat-placement.md)
+//
+// Краснота (red-фаза): режима расстановки в src/combat-ui.js ещё нет:
+//   * U1 — бара .combat-placebar нет (findByClass → null);
+//   * U2/U3 — клики по клеткам в зоне — no-op (режима нет): нет
+//     подсветки free-клеток, нет переноса, нет строк отказов в log;
+//   * U4 — Space (первое действие) не пересоздаёт бой:
+//     current() === исходный c (closePlacementWindow отсутствует);
+//   * U5 — бар1 — null (первый ассерт; teardown-пинны недостижимы
+//     в red-фазе — после зелёной ловят утечку placeOpen/placeSel).
+// Подсветка free-клеток — fillRect 48×48 (вся клетка) цветом
+// ALLY_MARKER_UNDERLAY 'rgba(140, 242, 252, 0.25)' — геометрия 48×48
+// отличает от ally-подложек 44×44 (000166) в том же цвете. Кольцо
+// выбора — strokeRect 39×39 inset 4.5 '#ffe27a' (геометрия кольца
+// цели, 000166) — пин по ТОЧНОЙ клетке выбранного юнита (кольцо
+// цели моба может быть в кадре на другой клетке).
+// =====================================================================
+
+const PLACE_UNDERLAY260 = 'rgba(140, 242, 252, 0.25)'; // ALLY_MARKER_UNDERLAY
+const clickAt260 = (S, x, y) =>
+  S.canvas.listeners.click[0]({ clientX: (x + 0.5) * 48, clientY: (y + 0.5) * 48 });
+// Клетки (x, y) подсветки free-клеток в срезе: fillRect 48×48 подложкой.
+const placeHl260 = (sl) => styledCalls(sl.events).filter(
+  (cc) => cc.name === 'fillRect' && cc.fillStyle === PLACE_UNDERLAY260
+  && cc.args[2] === 48 && cc.args[3] === 48
+).map((cc) => [Math.round(cc.args[0] / 48), Math.round(cc.args[1] / 48)])
+  .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+// Кольцо выбора 39×39 '#ffe27a' на клетке (x, y).
+const placeRing260 = (sl, x, y) => styledCalls(sl.events).some((cc) =>
+  cc.name === 'strokeRect' && cc.args[0] === x * 48 + 4.5
+  && cc.args[1] === y * 48 + 4.5 && cc.args[2] === 39 && cc.args[3] === 39
+  && cc.strokeStyle === '#ffe27a');
+// placeFreeCells (контракт): строки max(0, h−2)..h−1 ∩ поле ∩ не
+// занято (игрок + ВСЕ rect'ы c.units, включая мобо-rect'ы) ∩ !obstacles.
+const freeCells260 = (c) => {
+  const out = [];
+  for (let y = Math.max(0, c.height - 2); y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      if (c.obstacles.has(x + ',' + y)) continue;
+      if (x === c.px && y === c.py) continue;
+      if (c.units.some((u) => x >= u.x && x < u.x + u.size.w
+        && y >= u.y && y < u.y + u.size.h)) continue;
+      out.push([x, y]);
+    }
+  }
+  return out.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+};
+const unit260 = (c, id) => {
+  const u = c.units.find((t) => t.id === id);
+  assert.ok(u, 'юнит ' + id + ' в бою (фикстура)');
+  return u;
+};
+
+test('боевой UI: 000260-U1 — бар .combat-placebar ПРЯМО ПОСЛЕ startCombat: последний child .combat-actions, hint «строки 5–6», кнопки «По умолчанию»/«В бой [Enter]» (нативный click, pointerdown НЕТ), видим после рендера (000260-U1)', () => {
+  const S = scene84();
+  const { body, canvas, rafStubs, buttons } = S;
+  // Фикстура: панель действий — 8 кнопок (бар — НЕ кнопка, div-бар
+  // ПОСЛЕДНИМ child .combat-actions; число кнопок панели — инвариант).
+  assert.equal(buttons.length, 8,
+    'фикстура: 8 кнопок .combat-actions (7 табличных + lastSpell)');
+  tickSlice(canvas, rafStubs);
+  const bar = findByClass(body, 'combat-placebar');
+  assert.ok(bar, '000260: бар .combat-placebar существует (краснота: '
+    + 'элемент не строится build())');
+  const actions = findByClass(body, 'combat-actions');
+  assert.equal(bar.parentElement, actions,
+    '000260: бар — внутри .combat-actions (панель расстановки)');
+  assert.equal(bar, actions.children[actions.children.length - 1],
+    '000260: бар — ПОСЛЕДНИЙ child .combat-actions');
+  assert.equal(actions.children.length, 9,
+    '000260: .combat-actions — 9 детей (8 кнопок + бар)');
+  assert.equal(bar.children.length, 3,
+    '000260: бар — 3 child (hint + 2 кнопки): ' + bar.children.length);
+  const hint = bar.children[0];
+  assert.equal(hint.className, 'combat-placebar-hint',
+    '000260: первый child — span hint');
+  assert.equal(hint.textContent,
+    'Расстановка: клик по юниту, затем по клетке (строки 5–6)',
+    '000260: текст hint ТОЧНО (7×7 → строки 5–6): '
+    + JSON.stringify(hint.textContent));
+  const reset = bar.children[1];
+  assert.equal(reset.className, 'combat-placebar-btn combat-placebar-btn--reset',
+    '000260: кнопка reset — класс combat-placebar-btn--reset: '
+    + JSON.stringify(reset.className));
+  assert.equal(reset.textContent, 'По умолчанию',
+    '000260: текст reset ТОЧНО: ' + JSON.stringify(reset.textContent));
+  const go = bar.children[2];
+  assert.equal(go.className, 'combat-placebar-btn combat-placebar-btn--go',
+    '000260: кнопка go — класс combat-placebar-btn--go: '
+    + JSON.stringify(go.className));
+  assert.equal(go.textContent, 'В бой [Enter]',
+    '000260: текст go ТОЧНО: ' + JSON.stringify(go.textContent));
+  for (const btn of [reset, go]) {
+    assert.ok(btn.listeners.click && btn.listeners.click.length >= 1,
+      '000260: кнопка ' + JSON.stringify(btn.textContent)
+      + ' — нативный click-слушатель (контракт 000171)');
+    assert.ok(!btn.listeners.pointerdown,
+      '000260: у кнопки ' + JSON.stringify(btn.textContent)
+      + ' НЕТ pointerdown (000171: только click)');
+  }
+  assert.equal(bar.style.display, '',
+    '000260: бар виден после первого рендера (placeGate: бой жив, '
+    + 'result нет): ' + JSON.stringify(bar.style.display));
+  const ov = body.children[0];
+  assert.ok(ov.className.includes('combat-overlay--combat'),
+    '000260: бар — в оверлее боя (скоуп CSS .combat-overlay--combat)');
+});
+
+test('боевой UI: 000260-U2 — выбор юнита: подсветка free-клеток строк 5–6 (set) + кольцо на юните; перенос игрока и Эфира; Enter → новый бой с новыми позициями (targetId/obstacles/reserved по новым), строка Эфира спасена, бар скрыт (000260-U2)', () => {
+  const S = scene84({ efir: true });
+  const { G, c, body, canvas, rafStubs, buttons } = S;
+  // Фикстура: игрок (3,6), Эфир (2,5), волк на якоря (1,0) — pre-roll
+  // остановился на слоте Эфира (ввод игрока); очередь [efir, m0, player].
+  assert.equal(c.px, 3); assert.equal(c.py, 6);
+  assert.deepEqual([unit260(c, 'efir').x, unit260(c, 'efir').y], [2, 5]);
+  assert.deepEqual([unit260(c, 'm0').x, unit260(c, 'm0').y], [1, 0]);
+  // Распред-копия: c.turnOrder — массив vm-песочницы (чужой Array —
+  // deepStrictEqual строго по прототипу; паттерн [...turnOrder],
+  // существующий в этом файле).
+  assert.deepEqual([...c.turnOrder], ['efir', 'm0', 'player']);
+  assert.equal(c.turnIndex, 0);
+  assert.equal(c.log[1], EFIR_LINE118,
+    'фикстура: строка первой встречи Эфира — log[1]');
+  assert.equal(buttons.length, 9,
+    'фикстура: 9 кнопок (сценарий с Эфиром: +каст)');
+  // До выбора — 0 подсветочных fillRect (режим idle — рендер бит-в-бит).
+  assert.deepEqual(placeHl260(tickSlice(canvas, rafStubs)), [],
+    'фикстура: до выбора — 0 подсветок free-клеток');
+  // Клик по клетке героя (3,6) — выбор 'player'.
+  clickAt260(S, 3, 6);
+  let t = tickSlice(canvas, rafStubs);
+  assert.deepEqual(placeHl260(t), freeCells260(c),
+    '000260: подсветка = МНОЖЕСТВО свободных клеток строк 5–6 (7×7: '
+    + 'строки h−2..h−1, без занятого/препятствий): '
+    + JSON.stringify(placeHl260(t)) + ' | ожидаемо '
+    + JSON.stringify(freeCells260(c)));
+  assert.ok(placeRing260(t, 3, 6),
+    '000260: кольцо выбора на клетке героя (3,6) (39×39 #ffe27a)');
+  assert.ok(buttons.every((b) => b.disabled),
+    '000260: в selected action-кнопки гашены (placeGate && placeSel)');
+  // Клик (1,5) — свободная клетка зоны → перенос игрока.
+  clickAt260(S, 1, 5);
+  assert.equal(c.px, 1, '000260: игрок перенесён на (1,5).x');
+  assert.equal(c.py, 5, '000260: игрок перенесён на (1,5).y');
+  // Клик по клетке Эфира (2,5) — выбор Эфира (смена выбора).
+  clickAt260(S, 2, 5);
+  t = tickSlice(canvas, rafStubs);
+  assert.ok(placeRing260(t, 2, 5),
+    '000260: кольцо выбора на клетке Эфира (2,5)');
+  assert.deepEqual(placeHl260(t), freeCells260(c),
+    '000260: подсветка пересчитана под НОВУЮ позицию игрока (1,5)');
+  // Клик (4,5) — перенос Эфира.
+  clickAt260(S, 4, 5);
+  assert.deepEqual([unit260(c, 'efir').x, unit260(c, 'efir').y], [4, 5],
+    '000260: Эфир перенесён на (4,5)');
+  // Enter — подтверждение: бой пересоздан с текущими позициями.
+  press(S.keydown, 'Enter');
+  const c1 = G.combatUI.current();
+  assert.ok(c1, '000260: current() — активный бой после Enter');
+  assert.notEqual(c1, c,
+    '000260: переносы есть → бой ПЕРЕСОЗДАН (closePlacementWindow: '
+    + 'makeCore(moved)), а не мутирован');
+  assert.equal(c1.px, 1, '000260: игрок закреплён на (1,5).x');
+  assert.equal(c1.py, 5, '000260: игрок закреплён на (1,5).y');
+  assert.deepEqual([unit260(c1, 'efir').x, unit260(c1, 'efir').y], [4, 5],
+    '000260: Эфир закреплён на (4,5)');
+  assert.deepEqual([unit260(c1, 'm0').x, unit260(c1, 'm0').y], [1, 0],
+    '000260: моб — на якоря (не расставляется; pre-roll остановился '
+    + 'на слоте Эфира)');
+  assert.equal(c1.targetId, 'm0',
+    '000260: targetId — от НОВОЙ позиции игрока (1,5)');
+  assert.ok(!c1.obstacles.has('1,5'),
+    '000260: новая позиция игрока — reserved: камня нет');
+  assert.ok(!c1.obstacles.has('4,5'),
+    '000260: новая позиция Эфира — reserved: камня нет');
+  assert.ok(c1.log.includes(EFIR_LINE118),
+    '000260: строка первой встречи Эфира СПАСЕНА в новый бой '
+    + '(rescueEfirLine — one-shot сессии): ' + JSON.stringify(c1.log));
+  assert.equal(c1.log[1], EFIR_LINE118,
+    '000260: строка Эфира — на том же индексе (1)');
+  // Режим закрыт: бар скрыт, 0 подсветок.
+  const bar = findByClass(body, 'combat-placebar');
+  assert.ok(bar, '000260: бар существует (после Enter)');
+  assert.equal(bar.style.display, 'none',
+    '000260: после подтверждения бар скрыт (display none): '
+    + JSON.stringify(bar.style.display));
+  assert.deepEqual(placeHl260(tickSlice(canvas, rafStubs)), [],
+    '000260: после подтверждения — 0 подсветок free-клеток');
+});
+
+test('боевой UI: 000260-U3 — отказы: клик вне зоны → «Расстановка: вне первых двух линий.» (no-op, выбор жив); клик по мобу → fall-through selectTarget (окно НЕ закрывается); клик по препятствию → «Расстановка: клетка занята препятствием.»; свободная клетка → перенос (000260-U3)', () => {
+  const S = scene84();
+  const { c, canvas, rafStubs, buttons } = S;
+  // Фикстура: игрок (3,6), волк (1,1) (pre-roll от якоря (1,0)),
+  // фаза 'player' (ввод), targetId m0.
+  assert.equal(c.px, 3); assert.equal(c.py, 6);
+  assert.deepEqual([unit260(c, 'm0').x, unit260(c, 'm0').y], [1, 1]);
+  assert.equal(c.phase, 'player');
+  assert.equal(c.targetId, 'm0');
+  // Выбор героя.
+  clickAt260(S, 3, 6);
+  // (a) Клик (0,4) — ВНЕ первых двух линий (7×7: строки 5–6), клетка
+  //     свободна → зона-отказ в log, позиция НЕ меняется, выбор жив.
+  clickAt260(S, 0, 4);
+  assert.ok(c.log.includes('Расстановка: вне первых двух линий.'),
+    '000260: отказ «вне зоны» — в журнал c.log (000037/000048): '
+    + JSON.stringify(c.log));
+  assert.equal(c.px, 3); assert.equal(c.py, 6,
+    '000260: зона-отказ — no-op (позиция не изменилась)');
+  let t = tickSlice(canvas, rafStubs);
+  assert.ok(placeRing260(t, 3, 6),
+    '000260: после отказа выбор СОХРАНЁН (кольцо на (3,6))');
+  assert.ok(buttons.every((b) => b.disabled),
+    '000260: selected — action-кнопки гашены и после отказа');
+  // (b) Клик по клетке МОБА (1,1) — fall-through в существующую
+  //     selectTarget: цель выбрана, позиция НЕ меняется, окно живёт.
+  clickAt260(S, 1, 1);
+  assert.equal(c.targetId, 'm0',
+    '000260: клик по мобу — selectTarget как прежде (окно НЕ '
+    + 'закрывается)');
+  assert.equal(c.px, 3); assert.equal(c.py, 6,
+    '000260: клик по мобу — переноса нет');
+  // (c) Клик по клетке с препятствием в зоне (5,5) → отказ «занята
+  //     препятствием», no-op.
+  c.obstacles.add('5,5');
+  clickAt260(S, 5, 5);
+  assert.ok(c.log.includes('Расстановка: клетка занята препятствием.'),
+    '000260: отказ «клетка занята препятствием» — в журнал: '
+    + JSON.stringify(c.log));
+  assert.equal(c.px, 3); assert.equal(c.py, 6,
+    '000260: препятствие — no-op (позиция не изменилась)');
+  // (d) Клик по СВОБОДНОЙ клетке зоны (1,5) → перенос.
+  clickAt260(S, 1, 5);
+  assert.equal(c.px, 1, '000260: свободная клетка — перенос .x');
+  assert.equal(c.py, 5, '000260: свободная клетка — перенос .y');
+  tickSlice(canvas, rafStubs);
+});
+
+test('боевое UI: 000260-U4 — первое действие (Space = endTurn) закрепляет позиции: бой пересоздан с новыми, режим закрыт (бар none, 0 подсветок), клики — обычный режим (переноса нет, клик по волку = selectTarget) (000260-U4)', () => {
+  const S = scene84();
+  const { G, c, body, canvas, rafStubs } = S;
+  assert.equal(c.px, 3); assert.equal(c.py, 6);
+  assert.equal(c.phase, 'player', 'фикстура: ввод игрока (pre-roll на '
+    + 'слоте игрока остановился)');
+  // Выбор + перенос.
+  clickAt260(S, 3, 6);
+  clickAt260(S, 1, 5);
+  assert.equal(c.px, 1); assert.equal(c.py, 5,
+    'фикстура: перенос применён к живому бою');
+  // Space — первое действие: closePlacementWindow ДО исполнения.
+  press(S.keydown, 'Space');
+  const c1 = G.combatUI.current();
+  assert.ok(c1, '000260: current() — активный бой после Space');
+  assert.notEqual(c1, c,
+    '000260: перенос есть → бой ПЕРЕСОЗДАН на первом действии '
+    + '(режим закрывается действием, а не только Enter)');
+  assert.equal(c1.px, 1, '000260: игрок закреплён на (1,5).x');
+  assert.equal(c1.py, 5, '000260: игрок закреплён на (1,5).y');
+  const bar = findByClass(body, 'combat-placebar');
+  assert.ok(bar, '000260: бар существует');
+  assert.equal(bar.style.display, 'none',
+    '000260: после первого действия бар скрыт: '
+    + JSON.stringify(bar.style.display));
+  assert.deepEqual(placeHl260(tickSlice(canvas, rafStubs)), [],
+    '000260: после закрытия режима — 0 подсветок');
+  // Клики — обычный режим: клетка героя — переноса нет.
+  clickAt260(S, 1, 5);
+  assert.equal(c1.px, 1); assert.equal(c1.py, 5,
+    '000260: режим закрыт — клик по клетке игрока НЕ двигает');
+  // Клик по волку (после endTurn волк действовал — позиция живая).
+  const w1 = c1.units.find((u) => u.side === 'mob');
+  assert.ok(w1, 'фикстура: волк жив в c1');
+  clickAt260(S, w1.x, w1.y);
+  assert.equal(c1.targetId, 'm0',
+    '000260: клик по волку — selectTarget как прежде');
+  tickSlice(canvas, rafStubs);
+});
+
+test('боевой UI: 000260-U5 — teardown ОБЕИХ точек (finish при победе + catch-ветка build): следующий startCombat стартует чисто (режим выключен — 0 подсветок в первом рендере, новый бар, якоря) (000260-U5)', () => {
+  const S = scene84();
+  const { G, c, body, canvas, rafStubs } = S;
+  // (1) Точка finish: бар → выбор → реальный бой → победа → Space
+  //     (finish) → новый бой — режим выключен.
+  const bar1 = findByClass(body, 'combat-placebar');
+  assert.ok(bar1, '000260: бар существует в бою 1 (краснота: нет)');
+  assert.equal(c.px, 3); assert.equal(c.py, 6,
+    'фикстура: якоря в бою 1');
+  assert.deepEqual([unit260(c, 'm0').x, unit260(c, 'm0').y], [1, 1],
+    'фикстура: волк после pre-roll (1,1)');
+  // Выбор + перенос (режим жив — после finish должен выключиться).
+  clickAt260(S, 3, 6);
+  clickAt260(S, 1, 5);
+  assert.equal(c.px, 1); assert.equal(c.py, 5,
+    'фикстура: перенос применён (placeSel активен до finish)');
+  // Реальная победа (паттерн 000237).
+  const wolf = c.units[0];
+  c._rng = () => 0.99;
+  G.combatInternals.dealDamageToMob(c, wolf, 9999);
+  assert.ok(c.result && c.result.outcome === 'victory',
+    'фикстура: victory: ' + JSON.stringify(c.result));
+  tickSlice(canvas, rafStubs);
+  press(S.keydown, 'Space');
+  assert.equal(G.combatUI.isActive(), false, 'фикстура: finish (Space)');
+  assert.equal(G.combatUI.current(), null,
+    'фикстура: current() — null после finish');
+  // Новый бой: чисто (якоря, режим выключен — 0 подсветок в первом
+  // рендере; НЕТРУБИВАЕМО: до finish placeOpen/placeSel были активны).
+  const c2 = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 99 });
+  assert.ok(c2, '000260: после finish новый бой стартует');
+  assert.equal(c2.px, 3); assert.equal(c2.py, 6,
+    '000260: бой 2 — якоря (перенос боя 1 не перетёк)');
+  const ov2 = body.children[body.children.length - 1];
+  assert.ok(ov2.className.includes('combat-overlay--combat'),
+    'фикстура: оверлей боя 2 — последний child body');
+  const bar2 = findByClass(ov2, 'combat-placebar');
+  assert.ok(bar2, '000260: у боя 2 СВОЙ бар');
+  assert.notEqual(bar2, bar1,
+    '000260: бар боя 2 — НОВЫЙ элемент (build заново)');
+  assert.equal(bar2.style.display, '',
+    '000260: бар боя 2 виден (режим открыт заново)');
+  assert.deepEqual(placeHl260(tickSlice(findCanvas(ov2), rafStubs)), [],
+    '000260: бой 2 — 0 подсветок в первом рендере (finish снял '
+    + 'placeSel/placeOpen — утечка дала бы free-подсветку)');
+  // Бой 2 завершить ДО catch-сценария: startCombat-гард
+  // isActive() (существующий; прецедент 000260 — фабрика makeCore,
+  // НЕ повторный startCombat) не допустит build() над активным
+  // боем — catch-ветка стала бы недостижимой (техническая правка
+  // RED-теста 000260, ассерты catch-точки не изменены).
+  c2._rng = () => 0.99;
+  G.combatInternals.dealDamageToMob(c2, c2.units[0], 9999);
+  assert.ok(c2.result && c2.result.outcome === 'victory',
+    'бой 2 — victory (фикстура для catch-сценария)');
+  tickSlice(canvas, rafStubs);
+  press(S.keydown, 'Space');
+  assert.equal(G.combatUI.isActive(), false, 'бой 2 завершён (finish)');
+  // (2) Точка catch: битый body.appendChild в build → startCombat
+  //     сам чистит (isActive false, current null), следующий бой — чисто.
+  const origAppend = body.appendChild;
+  const origErr = console.error;
+  body.appendChild = () => { throw new Error('битый DOM (тест 000260)'); };
+  console.error = () => {};
+  let r2 = 'unset';
+  try {
+    r2 = G.combatUI.startCombat({
+      hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 77 });
+  } finally {
+    body.appendChild = origAppend;
+    console.error = origErr;
+  }
+  assert.equal(r2, null,
+    '000260: исключение build НЕ улетело вызывателю (catch)');
+  assert.equal(G.combatUI.isActive(), false,
+    '000260: catch-точка — застрявшего ctx нет (isActive false)');
+  assert.equal(G.combatUI.current(), null,
+    '000260: catch-точка — current() null (ctx обнулён)');
+  const c3 = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 77 });
+  assert.ok(c3, '000260: после catch повторный бой стартует (self-heal)');
+  assert.equal(c3.px, 3); assert.equal(c3.py, 6,
+    '000260: бой 3 — якоря');
+  const ov3 = body.children[body.children.length - 1];
+  assert.ok(ov3.className.includes('combat-overlay--combat'),
+    'фикстура: оверлей боя 3 — последний child body');
+  const bar3 = findByClass(ov3, 'combat-placebar');
+  assert.ok(bar3, '000260: у боя 3 СВОЙ бар');
+  assert.notEqual(bar3, bar2, '000260: бар боя 3 — новый элемент');
+  assert.deepEqual(placeHl260(tickSlice(findCanvas(ov3), rafStubs)), [],
+    '000260: бой 3 — 0 подсветок (catch-точка сняла состояние)');
+});
+
+// --- Правки по итогам ревью 000260 (контракт:
+// memory/000260-combat-placement.md, раздел «Правки по итогам ревью») ---
+
+test('боевой UI: 000260-U6 — явная цель (клик по мобу в окне) переживает пересоздание c0→c1: c1.targetId = кликнутый моб, а не авто-цель от новых позиций (000260-U6, ревью)', () => {
+  const S = scene84({ mobs: ['wolf', 'wolf'] });
+  const { G, c, canvas, rafStubs } = S;
+  const m1 = unit260(c, 'm1');
+  // Выбор + перенос на (1,5) (перенос есть → свап при подтверждении).
+  clickAt260(S, 3, 6);
+  clickAt260(S, 1, 5);
+  assert.equal(c.px, 1); assert.equal(c.py, 5,
+    'фикстура: перенос применён к живому бою');
+  // Явная цель: клик по мобу (окно открыто — fall-through selectTarget).
+  clickAt260(S, m1.x, m1.y);
+  assert.equal(c.targetId, 'm1',
+    'фикстура: явный клик выбирает m1 в c0');
+  // Enter — подтверждение: пересоздание c0→c1.
+  press(S.keydown, 'Enter');
+  const c1 = G.combatUI.current();
+  assert.notEqual(c1, c, '000260: перенос есть → бой пересоздан');
+  assert.equal(c1.px, 1); assert.equal(c1.py, 5,
+    '000260: позиция закреплена в c1');
+  // Фикстура: от (1,5) авто-цель — m0 (Манхэттен ближе). Без
+  // сохранения явного выбора c1.targetId была бы m0.
+  const n0 = unit260(c1, 'm0');
+  const n1 = unit260(c1, 'm1');
+  const d0 = Math.abs(n0.x - 1) + Math.abs(n0.y - 5);
+  const d1 = Math.abs(n1.x - 1) + Math.abs(n1.y - 5);
+  assert.ok(d0 < d1,
+    'фикстура: от (1,5) m0 ближе (авто-цель = m0): d0=' + d0
+    + ', d1=' + d1);
+  assert.equal(c1.targetId, 'm1',
+    '000260: явная цель переживает свап (не авто-цель m0)');
+  tickSlice(canvas, rafStubs);
+});
+
+test('боевой UI: 000260-U7 — отклонённый ввод НЕ закрывает окно: шаг в стену + отклонённое действие (быстрые слоты пусты) — бой не пересоздан, позиция на месте, бар виден; принятое действие (Space) окно закрывает (000260-U7, ревью)', () => {
+  const S = scene84();
+  const { G, c, body, canvas, rafStubs } = S;
+  const bar = findByClass(body, 'combat-placebar');
+  assert.ok(bar, 'фикстура: бар существует');
+  // Перенос на свободную КРАЕВУЮ клетку зоны (стенной шаг дальше).
+  clickAt260(S, 3, 6);
+  const cell = freeCells260(c).find(
+    ([x, y]) => y === c.height - 1 || x === 0);
+  assert.ok(cell, 'фикстура: свободная краевая клетка зоны: '
+    + JSON.stringify(freeCells260(c)));
+  clickAt260(S, cell[0], cell[1]);
+  assert.equal(c.px, cell[0]); assert.equal(c.py, cell[1],
+    'фикстура: перенос применён');
+  // (a) Стенной шаг: направление — по краю занятой клетки.
+  const wallKey = (c.py === c.height - 1) ? 'KeyS' : 'KeyA';
+  press(S.keydown, wallKey);
+  assert.equal(c.px, cell[0]); assert.equal(c.py, cell[1],
+    '000260: стенной шаг — no-op (позиция не изменилась)');
+  assert.ok(c.log.includes('стена'),
+    '000260: причина отказа шага — в журнал: ' + JSON.stringify(c.log));
+  assert.equal(bar.style.display, '',
+    '000260: отклонённый шаг НЕ закрывает окно (бар виден)');
+  assert.equal(G.combatUI.current(), c,
+    '000260: без свапа (тот же объект боя)');
+  // (b) Отклонённое действие: quickItem — «быстрые слоты пусты».
+  press(S.keydown, 'KeyE');
+  assert.ok(c.log.includes('быстрые слоты пусты'),
+    '000260: отклонённое действие — в журнал: ' + JSON.stringify(c.log));
+  assert.equal(bar.style.display, '',
+    '000260: отклонённое действие НЕ закрывает окно (бар виден)');
+  assert.equal(G.combatUI.current(), c, '000260: свапа по-прежнему нет');
+  // (c) Принятое действие (Space = endTurn) — первое действие:
+  //     свап + закрытие окна.
+  press(S.keydown, 'Space');
+  const c1 = G.combatUI.current();
+  assert.notEqual(c1, c,
+    '000260: принятое действие закрывает окно (свап)');
+  assert.equal(c1.px, cell[0]); assert.equal(c1.py, cell[1],
+    '000260: позиция закреплена в c1');
+  assert.equal(bar.style.display, 'none',
+    '000260: бар скрыт после первого действия');
+  tickSlice(canvas, rafStubs);
+});
+
+test('боевой UI: 000260-U8 — утечка практики Эфира pre-roll c0 в c1 закрыта: снапшот skillXp/secondary/skills сейва восстанавливается ДО makeCore(moved); Эфир c1 — с ДО-боевыми навыками, общий сейв — восстановлен (000260-U8, ревью)', () => {
+  const S = scene84({ efir: true });
+  const { G, c, canvas, rafStubs } = S;
+  const es = c.efirState;
+  assert.ok(es && typeof es === 'object',
+    'фикстура: c.efirState — сейв Эфира (объект-разделялка)');
+  const e0 = unit260(c, 'efir');
+  assert.equal(e0.efirSkills.perception, 1,
+    'фикстура: perception 1 (начальный список) до боя');
+  // Белая коробка: практика из pre-roll c0 (000117) — мутация
+  // ОБЩЕГО сейва (имитация «Эфир мимо в pre-roll»).
+  const changed = G.efir.practiceEfir(es, 'perception', 100);
+  assert.ok(changed.includes('perception'),
+    'фикстура: практика повышает perception');
+  assert.equal(es.secondary.perception, 3,
+    'фикстура: сейв мутирован (предпосылка утечки): '
+    + es.secondary.perception);
+  // Расстановка: выбор + перенос → Enter (свап).
+  clickAt260(S, 3, 6);
+  clickAt260(S, 1, 5);
+  assert.equal(c.px, 1); assert.equal(c.py, 5, 'фикстура: перенос');
+  press(S.keydown, 'Enter');
+  const c1 = G.combatUI.current();
+  assert.notEqual(c1, c, '000260: свап произошёл (перенос был)');
+  const e1 = unit260(c1, 'efir');
+  assert.equal(e1.efirSkills.perception, 1,
+    '000260: Эфир c1 — с ДО-боевыми навыками (утечка отменена; '
+    + 'факт: ' + e1.efirSkills.perception + ')');
+  assert.equal(es.secondary.perception, 1,
+    '000260: ОБЩИЙ сейв Эфира восстановлен до ДО-боевого (факт: '
+    + es.secondary.perception + ')');
+  tickSlice(canvas, rafStubs);
 });
