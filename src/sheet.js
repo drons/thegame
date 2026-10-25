@@ -100,6 +100,20 @@
       ? a.skills : null;
   }
 
+  function baseInventorySlots() {
+    let api;
+    if (itemsThunk) {
+      if (!itemsApi) {
+        try { itemsApi = itemsThunk(); } catch (e) { itemsApi = {}; }
+      }
+      api = itemsApi;
+    } else {
+      api = (rootRef && rootRef.Game) ? rootRef.Game : null;
+    }
+    const n = api ? api.INVENTORY_SLOTS : null;
+    return (Number.isInteger(n) && n > 0) ? n : 20;
+  }
+
   /**
    * Создаёт лист (состояние прокачки персонажа).
    * @param {string} kind 'hero' | 'efir' | 'merc'; неизвестный — throw
@@ -494,6 +508,7 @@
       magicResistMult: 1 + pct('perception'),
       // Карта мира и приключения.
       carryWeightMult: 1 + pct('back'),
+      inventorySlots: baseInventorySlots() + 2 * S('back'),
       moveSpeedMult: 1 + pct('step'),
       caveVisionMult: 1 + pct('catseye'),
       acroBonus: pct('acro'),

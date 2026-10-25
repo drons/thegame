@@ -445,11 +445,10 @@ test('торговля: покупка, сток, мало золота, пол�
   // Полный инвентарь — причина addItem пробрасывается.
   const c3 = P.createCharacter();
   c3.secondary.back = 10; // 60 кг — лимит веса не мешает заполнить слоты
-  for (const it of I.allItems()) {
-    if (I.slotCount(c3) >= I.INVENTORY_SLOTS) break;
-    assert.equal(I.addItem(c3, it.id, 1).ok, true, it.id);
+  while (I.slotCount(c3) < I.inventoryCapacity(c3)) {
+    assert.equal(I.addItem(c3, 'wood_sword', 1).ok, true);
   }
-  assert.equal(I.slotCount(c3), I.INVENTORY_SLOTS);
+  assert.equal(I.slotCount(c3), I.inventoryCapacity(c3));
   const shop3 = N.createNpcShop(tradeNpc);
   assert.deepEqual(N.npcBuy(shop3, c3, 'moonstone'),
     { ok: false, reason: 'нет свободных слотов инвентаря' });

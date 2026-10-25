@@ -1745,16 +1745,16 @@ test('A51. квест постройки: source «building», лимит 5 NPC 
   // Атомарность предметов: инвентарь полон → НЕ выполняется,
   // квест остаётся active (повтор — следующее прикосновение;
   // паттерн turnInQuest, для обелиска — no-op).
-  // Технически: у персонажа с back-50 лимит веса позволяет
-  // заполнить все 20 слотов уникальными предметами (иначе весовая
-  // проверка checkAdd остановит заполнение раньше слотовой).
+  // Технически: у персонажа с back-50 ёмкость 120 слотов (20 + 2·50),
+  // а лимит веса позволяет заполнить все 120 слотов wood_sword
+  // (1 кг; 120 ≤ 180 = 30·(1+0.1·50)) — иначе весовая проверка
+  // checkAdd остановит заполнение раньше слотовой.
   const heroFull = mkHero({ secondary: { back: 50 } });
-  for (const it of I.allItems()) {
-    if (I.slotCount(heroFull) >= I.INVENTORY_SLOTS) break;
-    const rAdd = I.addItem(heroFull, it.id, 1);
-    assert.ok(rAdd.ok, 'заполнение инвентаря: ' + it.id);
+  while (I.slotCount(heroFull) < I.inventoryCapacity(heroFull)) {
+    const rAdd = I.addItem(heroFull, 'wood_sword', 1);
+    assert.ok(rAdd.ok, 'заполнение инвентаря: wood_sword');
   }
-  assert.equal(I.slotCount(heroFull), I.INVENTORY_SLOTS,
+  assert.equal(I.slotCount(heroFull), I.inventoryCapacity(heroFull),
     'инвентарь полон');
   const book4 = N.createQuestBook();
   const QID4 = 'obelisk_touch_9_9';

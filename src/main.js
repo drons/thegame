@@ -986,7 +986,10 @@
         if (clean) {
           Object.assign(hero, clean);
           hero.inventory = G.sanitizeInventory
-            ? G.sanitizeInventory(d.hero.inventory) : G.createInventory();
+            ? G.sanitizeInventory(d.hero.inventory,
+                G.inventoryCapacity ? G.inventoryCapacity(hero)
+                : undefined)
+            : G.createInventory();
           hero.equipment = G.sanitizeEquipment
             ? G.sanitizeEquipment(d.hero.equipment) : { weapon: null, armor: null };
           // Книга заклинаний (задача 000045): новое ОПЦИОНАЛЬНОЕ поле

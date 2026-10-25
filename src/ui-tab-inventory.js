@@ -115,7 +115,7 @@ function (G0, rootRef) {
       panel._invBody.textContent = '';
       if (!inv.slots.length) {
         panel._invBody.appendChild(ctx.el('div', 'cp-itemmeta',
-          'пусто (' + G.INVENTORY_SLOTS + ' слотов)'));
+          'пусто (' + G.inventoryCapacity(c) + ' слотов)'));
       }
       for (const e of inv.slots) {
         const it = G.getItem(e.id);

@@ -494,14 +494,19 @@
    *   * записи не того формата (null, не-объект, нецелое/отрицательное
    *     qty) отбрасываются; qty клэмпится в [1, MAX_STACK], дубликаты
    *     одного id сливаются (лишнее — не больше MAX_STACK);
-   *   * слотов не больше INVENTORY_SLOTS, quick — только id, которые
-   *     есть в каталоге (иначе — null).
+   *   * слотов не больше вместимости (по умолчанию INVENTORY_SLOTS;
+   *     caller — restoreFromSave — передаёт ёмкость героя), quick —
+   *     только id, которые есть в каталоге (иначе — null).
    * Возвращает НОВЫЙ инвентарь (вход не мутируется).
    * @param {object} inv инвентарь из сейва
+   * @param {number} [maxSlots] вместимость героя (задача 000255);
+   *   не целое/отрицательное — дефолт INVENTORY_SLOTS
    * @returns {{slots: {id: string, qty: number}[], quick: (string|null)[]}}
    */
-  function sanitizeInventory(inv) {
+  function sanitizeInventory(inv, maxSlots) {
     const out = createInventory();
+    const cap = (Number.isInteger(maxSlots) && maxSlots >= 0)
+      ? maxSlots : INVENTORY_SLOTS;
     if (!inv || typeof inv !== 'object' || Array.isArray(inv)) return out;
     if (Array.isArray(inv.slots)) {
       for (const e of inv.slots) {
@@ -520,7 +525,7 @@
           (x) => x.id === it.id && bonusState(x.bonus) === st);
         if (ex) {
           ex.qty = Math.min(MAX_STACK, ex.qty + qty);
-        } else if (out.slots.length < INVENTORY_SLOTS) {
+        } else if (out.slots.length < cap) {
           out.slots.push(bonus
             ? { id: it.id, qty: Math.min(qty, MAX_STACK), bonus }
             : { id: it.id, qty: Math.min(qty, MAX_STACK) });
@@ -623,6 +628,15 @@
     return BASE_CARRY_WEIGHT * P.derived(owner).carryWeightMult;
   }
 
+  function inventoryCapacity(c) {
+    const owner = (c && c.carryOwner &&
+        typeof c.carryOwner === 'object' &&
+        !Array.isArray(c.carryOwner)) ? c.carryOwner : c;
+    const d = (typeof P.derived === 'function') ? P.derived(owner) : null;
+    return (d && Number.isInteger(d.inventorySlots)
+        && d.inventorySlots >= 0) ? d.inventorySlots : INVENTORY_SLOTS;
+  }
+
   function slotCount(c) { return ensureInventory(c).slots.length; }
 
   // Читает слоты БЕЗ мутации: c.inventory — объект {slots, quick}
@@ -649,6 +663,7 @@
   // Чисто: инвентарь не мутирует.
   function checkAdd(c, it, qty, st) {
     const inv = ensureInventory(c);
+    const cap = inventoryCapacity(c);
     const stackable = STACKABLE.has(it.kind);
 
     // Сколько новых слотов понадобится (с учётом заполнения стопок).
@@ -658,10 +673,10 @@
         if (matchesSlot(e, it.id, st)) left = Math.max(0, left - (MAX_STACK - e.qty));
       }
       const newSlots = Math.ceil(left / MAX_STACK);
-      if (inv.slots.length + newSlots > INVENTORY_SLOTS) {
+      if (inv.slots.length + newSlots > cap) {
         return { ok: false, reason: 'нет свободных слотов инвентаря' };
       }
-    } else if (inv.slots.length + qty > INVENTORY_SLOTS) {
+    } else if (inv.slots.length + qty > cap) {
       return { ok: false, reason: 'нет свободных слотов инвентаря' };
     }
     if (inventoryWeight(c) + it.weight * qty > maxCarryWeight(c) + 1e-9) {
@@ -1744,7 +1759,8 @@
     createInventory, ensureInventory, ensureEquipment,
     ensureEquipmentBonus,
     sanitizeInventory, sanitizeEquipment, sanitizeEquipmentBonus,
-    inventoryWeight, maxCarryWeight, slotCount, totalQty, hasItem,
+    inventoryWeight, maxCarryWeight, inventoryCapacity,
+    slotCount, totalQty, hasItem,
     addItem, canAddItem, removeItem,
     setQuick, clearQuick, quickItem, firstQuickSlot, freeQuickSlot,
     addSkillXp, useItem, useQuickUnit, useQuickItem, takeQuickSlot,
