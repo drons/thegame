@@ -39,7 +39,11 @@ test('index.html: нужные модули подключены', () => {
     // между day.js и items.js (до потребителей: ui.js, specials).
     'src/learn-target.js',
     'src/items.js', 'src/controls.js', 'src/combat-keys.js',
-    'src/ui.js', 'src/sprites.js', 'src/combat-ui.js', 'src/save.js',
+    'src/ui.js', 'src/sprites.js', 'src/combat-ui.js',
+    // 000263: чанковый рендер (Game.ChunkCache) — между combat-ui.js
+    // и dungeon-ui.js (оба потребителя ДО main.js — пин порядка ниже).
+    'src/chunk-cache.js',
+    'src/save.js',
     'src/dungeon.js', 'src/cities.js', 'src/locations.js',
     'src/dungeon-ui.js',
     'src/dungeons-data.js',
@@ -198,6 +202,19 @@ test('index.html: controls.js ДО dungeon-ui.js (иначе Game.deltaForEvent 
   assert.ok(
     pos('src/controls.js') < pos('src/dungeon-ui.js'),
     'src/controls.js должен быть раньше src/dungeon-ui.js (задача 000043)');
+});
+
+test('index.html: chunk-cache.js ДО dungeon-ui.js и ДО main.js (UMD: снапшот Game; задача 000263)', () => {
+  // dungeon-ui.js и main.js снимают const G = globalThis.Game один раз
+  // при загрузке (UMD-ловушка 000038) и читают G.ChunkCache лениво —
+  // модуль обязан встать РАНЬШЕ обоих потребителей, иначе чанковый
+  // рендер (000263) молча деградирует к per-tile.
+  assert.notEqual(pos('src/chunk-cache.js'), -1,
+    'src/chunk-cache.js не подключён в index.html (задача 000263)');
+  assert.ok(pos('src/chunk-cache.js') < pos('src/dungeon-ui.js'),
+    'src/chunk-cache.js должен быть раньше src/dungeon-ui.js (задача 000263)');
+  assert.ok(pos('src/chunk-cache.js') < pos('src/main.js'),
+    'src/chunk-cache.js должен быть раньше src/main.js (задача 000263)');
 });
 
 test('index.html: controls.js ДО ui.js (иначе Game.touchControls не создаётся)', () => {

@@ -3292,6 +3292,54 @@
   // под элементами, которые спрайт-слой не рисует (поэлементный гейт).
   const frameTiles = [];
 
+  const WORLD_CHUNK_MIN_TILES = 8192;
+  let worldChunkCache = null;
+  let chunkErrLogged = false;
+
+  function chunkEdgesEqual(entry, local) {
+    const a = entry.ex, b = local.ex;
+    const c = entry.ey, d = local.ey;
+    for (let i = 0; i < b.length; i++) {
+      if (a[i] !== b[i] || c[i] !== d[i]) return false;
+    }
+    return true;
+  }
+
+  function bakeWorldChunk(cx, cy, zoom, now, local, readyNow) {
+    const size = G.ChunkCache.CHUNK_SIZE;
+    const cv = document.createElement('canvas');
+    cv.width = local.ex[size];
+    cv.height = local.ey[size];
+    const c2 = cv.getContext('2d');
+    let nullCount = 0;
+    const wx = size * cx, wy = size * cy;
+    for (let jy = 0; jy < size; jy++) {
+      for (let jx = 0; jx < size; jx++) {
+        const t = tileCache.tile(wx + jx, wy + jy);
+        const img = tileFrameImg(t, now);
+        if (!img) {
+          nullCount += 1;
+          continue;
+        }
+        if (t.terrain === G.TERRAIN.WATER
+            || t.terrain === G.TERRAIN.DEEP_WATER) continue;
+        c2.drawImage(img, local.ex[jx], local.ey[jy],
+          local.w[jx], local.h[jy]);
+      }
+    }
+    return {
+      canvas: cv,
+      w: local.ex[size],
+      h: local.ey[size],
+      pixels: local.ex[size] * local.ey[size],
+      zoom,
+      ex: local.ex.slice(),
+      ey: local.ey.slice(),
+      nullCount,
+      readyAtBake: readyNow,
+    };
+  }
+
   // --- 000176: селекторы готовности элементов — ОДИН источник для
   // ОБОИХ слоёв (WebGL-подложка/фолбэк и слой спрайтов) ---
   //
@@ -3594,6 +3642,60 @@
     // Запись постройки по якорю — buildingRec (IIFE-уровень, 000176):
     // source of truth и фолбэк-скан — см. там.
 
+    const nTiles = tileRange
+      ? (tileRange.x1 - tileRange.x0 + 1) * (tileRange.y1 - tileRange.y0 + 1)
+      : 0;
+    const hasChunkCache = typeof G.ChunkCache === 'object'
+      && G.ChunkCache !== null
+      && typeof G.ChunkCache.chunkRange === 'function'
+      && typeof G.ChunkCache.zoomBucket === 'function'
+      && typeof G.ChunkCache.worldChunkLocalEdges === 'function'
+      && typeof G.ChunkCache.worldChunkBlitRect === 'function'
+      && typeof G.ChunkCache.createChunkCache === 'function';
+    let useChunks = tileRange !== null && snapTile !== null
+      && typeof G.worldAnchoredTileEdges === 'function'
+      && hasChunkCache && nTiles > WORLD_CHUNK_MIN_TILES;
+    if (useChunks && !worldChunkCache) {
+      worldChunkCache = G.ChunkCache.createChunkCache();
+    }
+    if (!chunkErrLogged && !hasChunkCache
+        && nTiles > WORLD_CHUNK_MIN_TILES) {
+      chunkErrLogged = true;
+      console.error('main.js: Game.ChunkCache не загрузился — per-tile '
+        + 'рендер мировой карты (000263)');
+      useChunks = false;
+    }
+    if (useChunks && !worldChunkCache) {
+      useChunks = false;
+    }
+    if (useChunks) {
+      const CC = G.ChunkCache;
+      const cr = CC.chunkRange(tileRange.x0, tileRange.y0,
+        tileRange.x1, tileRange.y1);
+      const bucket = CC.zoomBucket(zoom);
+      const readyNow = spriteLoader.readyCount();
+      for (let cy = cr.cy0; cy <= cr.cy1; cy++) {
+        for (let cx = cr.cx0; cx <= cr.cx1; cx++) {
+          const local = CC.worldChunkLocalEdges(cx, cy, zoom);
+          if (Number.isNaN(local.ex[0])) continue;
+          const key = cx + ':' + cy + ':' + bucket;
+          let entry = worldChunkCache.get(key);
+          if (!entry || Math.abs(entry.zoom - zoom) > 1e-6
+              || !chunkEdgesEqual(entry, local)
+              || (entry.nullCount > 0
+                  && entry.readyAtBake !== readyNow)) {
+            entry = bakeWorldChunk(cx, cy, zoom, now, local, readyNow);
+            worldChunkCache.put(key, entry);
+          }
+          const br = CC.worldChunkBlitRect(cx, cy, zoom, cam.x, cam.y,
+            w, h);
+          if (Number.isNaN(br.x) || Number.isNaN(br.y)
+              || Number.isNaN(br.w) || Number.isNaN(br.h)) continue;
+          s2.drawImage(entry.canvas, br.x, br.y, br.w, br.h);
+        }
+      }
+    }
+
     // Проход 1: текстура тайла (вода/глубокая вода — кадр анимации по
     // чистому селектору frameIndex) + декорации (задача 000039).
     // Декорации — поверх текстуры тайла, ДО построек/мобов/Флогистона
@@ -3610,12 +3712,16 @@
       // рисуется фолбэком там.
       const img = tileFrameImg(t, now);
       if (img) {
-        // 000215: снап-прямоугольник (целые края, общий с соседом);
-        // fallback — старые аргументы (устаревший map.js / клетка вне
-        // edge-сетки — гипотетически: frameTiles из того же range).
-        const r = snapTile ? snapTile(t.x, t.y) : null;
-        s2.drawImage(img, r ? r.x : sx, r ? r.y : sy,
-          r ? r.w : zoom, r ? r.h : zoom);
+        const isWater = t.terrain === G.TERRAIN.WATER
+          || t.terrain === G.TERRAIN.DEEP_WATER;
+        if (!(useChunks && !isWater)) {
+          // 000215: снап-прямоугольник (целые края, общий с соседом);
+          // fallback — старые аргументы (устаревший map.js / клетка вне
+          // edge-сетки — гипотетически: frameTiles из того же range).
+          const r = snapTile ? snapTile(t.x, t.y) : null;
+          s2.drawImage(img, r ? r.x : sx, r ? r.y : sy,
+            r ? r.w : zoom, r ? r.h : zoom);
+        }
       }
       if (showVisuals && !(t.inBuilding && !t.isEntrance)) {
         for (const e of G.tileVisuals(t.x, t.y, t.terrain)) {
@@ -3979,6 +4085,7 @@
         lungeGate: lungeEndMs > 0 && mobCharge != null,
         cam: { x: cam.x, y: cam.y },
         zoom,
+        chunkCache: worldChunkCache ? worldChunkCache.stats() : null,
         day: clock.day,
         stepsToday: clock.steps,
         save: loadedSave

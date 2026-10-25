@@ -235,6 +235,131 @@
   let lastT = null; // время предыдущего кадра (dt первого кадра = 0)
   let rafId = null;
 
+  const DUNGEON_CHUNK_MIN_CELLS = 1024;
+  let chunkCache = null;
+  let chunkErrLogged = false;
+
+  function chunkRectsEqual(entry, rect) {
+    const a = entry.ex, b = rect.ex;
+    const c = entry.ey, d = rect.ey;
+    for (let i = 0; i < b.length; i++) {
+      if (a[i] !== b[i] || c[i] !== d[i]) return false;
+    }
+    return true;
+  }
+
+  function chunkFogOk(entry, mask, d, cx, cy) {
+    if (mask === null) return true;
+    const size = G.ChunkCache.CHUNK_SIZE;
+    const cb = entry.contentBaked;
+    const wx = size * cx, wy = size * cy;
+    for (let jy = 0; jy < size; jy++) {
+      const ty = wy + jy;
+      if (ty < 0 || ty >= d.height) continue;
+      for (let jx = 0; jx < size; jx++) {
+        const tx = wx + jx;
+        if (tx < 0 || tx >= d.width) continue;
+        const idx = ty * d.width + tx;
+        if (cb[idx] === 0 && mask[idx] !== 0) return false;
+      }
+    }
+    return true;
+  }
+
+  function chunkReadyOk(entry, loader) {
+    if (entry.nullCount === 0) return true;
+    const paths = entry.notReadyPaths;
+    for (let i = 0; i < paths.length; i++) {
+      if (!loader || typeof loader.isReady !== 'function') continue;
+      if (loader.isReady(paths[i])) return false;
+    }
+    return true;
+  }
+
+  function bakeDungeonChunk(cx, cy, d, mask, loader, rect, wallTable,
+      wallTileIndexFn, wallKindForFn, floorFrameFn, camX, camY,
+      viewW, viewH) {
+    const size = G.ChunkCache.CHUNK_SIZE;
+    const cv = document.createElement('canvas');
+    cv.width = rect.ex[size];
+    cv.height = rect.ey[size];
+    const c2 = cv.getContext('2d');
+    const contentBaked = new Uint8Array(d.width * d.height);
+    let nullCount = 0;
+    const notReadyPaths = [];
+    const wx = size * cx, wy = size * cy;
+    for (let jy = 0; jy < size; jy++) {
+      for (let jx = 0; jx < size; jx++) {
+        const tx = wx + jx, ty = wy + jy;
+        if (tx < 0 || ty < 0 || tx >= d.width || ty >= d.height) continue;
+        const idx = ty * d.width + tx;
+        if (mask[idx] === 0) continue;
+        contentBaked[idx] = 1;
+        const lx = rect.ex[jx], ly = rect.ey[jy];
+        const lw = rect.w[jx], lh = rect.h[jy];
+        const isFloor = d.cells[idx] === G.CELL_FLOOR;
+        if (!isFloor) {
+          const widx = wallTileIndexFn
+            ? wallTileIndexFn(d.cells, d.width, d.height, tx, ty) : 0;
+          const wkind = (widx !== 0 && wallKindForFn)
+            ? wallKindForFn(tx, ty, d) : null;
+          const wpath = (wkind && wallTable
+              && Array.isArray(wallTable[wkind])
+              && widx >= 0 && widx < wallTable[wkind].length)
+            ? wallTable[wkind][widx] : null;
+          const wimg = (wpath && loader
+              && typeof loader.image === 'function')
+            ? ((typeof loader.isReady === 'function'
+                ? loader.isReady(wpath) : true) && loader.image(wpath))
+            : null;
+          if (wimg) {
+            c2.drawImage(wimg, lx, ly, lw, lh);
+          } else if (wpath && (!loader
+              || typeof loader.isReady !== 'function'
+              || !loader.isReady(wpath))) {
+            nullCount += 1;
+            notReadyPaths.push(wpath);
+          }
+          continue;
+        }
+        const path = floorFrameFn ? floorFrameFn(d.type, tx, ty) : null;
+        const img = (path && loader
+            && typeof loader.image === 'function')
+          ? ((typeof loader.isReady === 'function'
+              ? loader.isReady(path) : true) && loader.image(path))
+          : null;
+        if (img) {
+          c2.drawImage(img, lx, ly, lw, lh);
+        } else {
+          c2.fillStyle = '#182029';
+          c2.fillRect(lx, ly, lw, lh);
+          if (path && (!loader
+              || typeof loader.isReady !== 'function'
+              || !loader.isReady(path))) {
+            nullCount += 1;
+            notReadyPaths.push(path);
+          }
+        }
+      }
+    }
+    return {
+      canvas: cv,
+      w: rect.ex[size],
+      h: rect.ey[size],
+      pixels: rect.ex[size] * rect.ey[size],
+      zoom,
+      camX,
+      camY,
+      viewW,
+      viewH,
+      ex: rect.ex.slice(),
+      ey: rect.ey.slice(),
+      contentBaked,
+      nullCount,
+      notReadyPaths,
+    };
+  }
+
   function isActive() {
     return !!ctx && ctx.open;
   }
@@ -549,6 +674,54 @@
       }
     }
 
+    const nCells = (x1 - x0 + 1) * (y1 - y0 + 1);
+    if (!chunkErrLogged && !isCity
+        && nCells > DUNGEON_CHUNK_MIN_CELLS
+        && !(typeof live.ChunkCache === 'object' && live.ChunkCache)) {
+      chunkErrLogged = true;
+      console.error('dungeon-ui.js: Game.ChunkCache не загрузился — '
+        + 'per-cell рендер (000263)');
+    }
+    const useChunks = !isCity
+      && typeof live.snappedTileRect === 'function'
+      && typeof live.ChunkCache === 'object' && live.ChunkCache !== null
+      && typeof live.ChunkCache.chunkRange === 'function'
+      && typeof live.ChunkCache.zoomBucket === 'function'
+      && typeof live.ChunkCache.camAnchoredChunkRect === 'function'
+      && chunkCache !== null
+      && nCells > DUNGEON_CHUNK_MIN_CELLS;
+    if (useChunks) {
+      const CC = live.ChunkCache;
+      const cr = CC.chunkRange(x0, y0, x1, y1);
+      const bucket = CC.zoomBucket(zoom);
+      const size = CC.CHUNK_SIZE;
+      for (let cy = cr.cy0; cy <= cr.cy1; cy++) {
+        for (let cx = cr.cx0; cx <= cr.cx1; cx++) {
+          const rect = CC.camAnchoredChunkRect(cx, cy, zoom,
+            cam.x, cam.y, w, h);
+          if (Number.isNaN(rect.origin.x)
+              || Number.isNaN(rect.origin.y)) continue;
+          const key = cx + ':' + cy + ':' + bucket;
+          let entry = chunkCache.get(key);
+          if (entry && (Math.abs(entry.zoom - zoom) > 1e-6
+              || entry.camX !== cam.x || entry.camY !== cam.y
+              || entry.viewW !== w || entry.viewH !== h
+              || !chunkRectsEqual(entry, rect)
+              || !chunkFogOk(entry, mask, d, cx, cy)
+              || !chunkReadyOk(entry, loader))) {
+            entry = null;
+          }
+          if (!entry) {
+            entry = bakeDungeonChunk(cx, cy, d, mask, loader, rect,
+              wallTable, wallTileIndexFn, wallKindForFn,
+              live.dungeonFloorFrame, cam.x, cam.y, w, h);
+            chunkCache.put(key, entry);
+          }
+          g2.drawImage(entry.canvas, rect.origin.x, rect.origin.y,
+            rect.ex[size], rect.ey[size]);
+        }
+      }
+    } else {
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         // 000136: гейт ПЕРВЫМ (000258: и к полу, и к стенам
@@ -618,6 +791,7 @@
           g2.fillRect(cr.x, cr.y, cr.w, cr.h);
         }
       }
+    }
     }
 
     // 000148.02 (G1): постройки внутри города — слой СПРАЙТОВ поверх
@@ -1103,6 +1277,13 @@
       // Туман войны (000136): вход = новый визит — explored сброшен
       // (визит-состояние, D4; повторный вход — с нуля).
       explored = new Set();
+      chunkErrLogged = false;
+      const liveC = liveGame();
+      chunkCache = (typeof liveC.ChunkCache === 'object'
+          && liveC.ChunkCache !== null
+          && typeof liveC.ChunkCache.createChunkCache === 'function')
+        ? liveC.ChunkCache.createChunkCache()
+        : null;
       render();
       // Цикл (паттерн combat-ui.js): без rAF (vm-песочница 000043) —
       // null, событийный синхронный рендер, как раньше.
@@ -1123,6 +1304,7 @@
       // Туман войны (000136): визит завершён — explored в null (D4:
       // утечек между подземельями нет).
       explored = null;
+      chunkCache = null;
     },
     // Туман войны (000136): чистое ядро видимости — контракты
     // memory/000136-dungeon-fog-vision.md (D5). Создаётся один раз
