@@ -1584,6 +1584,12 @@ const SHOP_GOLDEN = {
   // felt_trousers/leather_pants/hide_wrap/twine_wraps/
   // silver_chaps/obsidian_greaves/mithril_greaves/rune_greaves/
   // wooden_sandals/sapphire_boots/gold_sandals/mithril_boots).
+  // Ре-пин 000230.19: torso-наборы (000458-000459, kind armor) —
+  // КОНЕЦ каталога, rng-хвост пула allItems → += 2
+  // (traveler_cloak/mystic_sutan), 381 → 383 ключа; старые ключи
+  // не сдвинулись (node-симуляция: seed/старые стоки
+  // byte-identical). Прочие 2 голдены (weapon / potion+food пулы)
+  // — без изменений (новые предметы — kind armor).
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
@@ -1684,7 +1690,8 @@ const SHOP_GOLDEN = {
     travel_boots: 2, hide_boots: 2, hemp_sandals: 1, bone_sandals: 3,
     copper_boots: 1, silver_boots: 4, stone_sandals: 3, obsidian_sandals: 1,
     amethyst_boots: 4, mystic_sandals: 2, frost_sandals: 3, emerald_boots: 5,
-    storm_sandals: 5, rune_boots: 2, swift_boots: 4 } },
+    storm_sandals: 5, rune_boots: 2, swift_boots: 4, traveler_cloak: 3,
+    mystic_sutan: 1 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1,

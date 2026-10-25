@@ -1041,7 +1041,9 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
       // common-пул 70 → 90: +10 .13 + 10 .14 — post-merge
       // ре-симуляция). РЕ-ПИН 000230.15: common-пул 90 → 110
       // (+20 ног/ступней концом) → floor(r2·110) = 89 → c1 =
-      // silver_signet (post-merge ре-симуляция).
+      // silver_signet (post-merge ре-симуляция). РЕ-ПИН 000230.19:
+      // common-пул 110 → 111 (+traveler_cloak концом) →
+      // floor(r2·111) = 89 — silver_signet БЕЗ ИЗМЕНЕНИЙ.
       // Позиции/gold/mobs/seed — бит-в-бит.
       name: '(11,3) xp=18', args: [11, 3], xp: 18,
       dseed: 2941640529, cseed: 4033219701,
@@ -1772,7 +1774,10 @@ test('G2-1: golden: CAVE (37,−12) depth=2 — полный детермини�
   // common-пул 70 → 90: +10 .13 + 10 .14 — post-merge
   // ре-симуляция). Ре-пин 000230.15: common-пул 90 → 110
   // (+20 ног/ступней концом) → floor(r2·110) = 49 → c3 = hide_cuff
-  // (post-merge ре-симуляция). seed/mobs/gold/позиции — bit-in-bit.
+  // (post-merge ре-симуляция). Ре-пин 000230.19: common-пул
+  // 110 → 111 (+traveler_cloak концом) → floor(r2·111) = 49 —
+  // c3 = hide_cuff БЕЗ ИЗМЕНЕНИЙ (post-merge ре-симуляция).
+  // seed/mobs/gold/позиции — bit-in-bit.
   assert.deepEqual(c.chests, [
     { id: 'c0', x: 17, y: 11, opened: false, gold: 51, item: null },
     { id: 'c1', x: 20, y: 13, opened: false, gold: 28, item: null },
@@ -3181,19 +3186,26 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
 // 63 → 77 (+20/+14 ног/ступней концом; ре-симуляция на мерж-
 // пуле) — CRYPT c0 → iron_tongs (floor(0.6040003078524023·110)=66),
 // RUINS c3 → wool_sutan (floor(0.2789345800410956·77)=21);
-// seed/позиции/gold/c1 — бит-в-бит. Ре-пин 000251: фантомы удалены
+// seed/позиции/gold/c1 — бит-в-бит. Ре-пин 000230.19:
+// common-пул 110 → 111 (+traveler_cloak концом), rare — без
+// изменений — CRYPT c0 → clay_crucible
+// (floor(0.6040003078524023·111)=67), RUINS c3 — без изменений
+// (wool_sutan); seed/позиции/gold/c1 — бит-в-бит. Ре-пин 000251: фантомы удалены
 // из реального пула (000251) — сценарий фикстурный (in-place,
 // паттерн D7/CH1: CRYPT pool[0] = chainmail (позиция
 // alchemy_manual), RUINS pool[1] = knight_plate (позиция
 // war_hammer), restore finally); реальный триггер RUINS —
 // war_hammer/steel_sword (000230.12), CRYPT — dormant (000251-P1);
-// CRYPT-голён восстановлен бит-в-бит (c0 = iron_tongs), RUINS:
+// CRYPT-голён восстановлен бит-в-бит (c0 = clay_crucible,
+// ре-пин 000230.19), RUINS:
 // c1 blueprint_forge → blueprint_woodwork (c0/c2/c3/c4 бит-в-бит);
 // seed/позиции/gold — бит-в-бит.
 const CH5_PX = M.syntheticPixels(8, 8, 128, 128, 128, 128);
 const CH5_CRYPT_PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
 const CH5_CRYPT_CHESTS = [
-  { id: 'c0', x: 8, y: 22, opened: false, gold: 30, item: 'iron_tongs' },
+  // Ре-пин 000230.19: common-пул 110 → 111 → iron_tongs →
+  // clay_crucible (floor(0.6040003078524023·111)=67).
+  { id: 'c0', x: 8, y: 22, opened: false, gold: 30, item: 'clay_crucible' },
   { id: 'c1', x: 13, y: 19, opened: false, gold: 14, item: 'dark_presence_scroll' },
 ];
 const CH5_RUINS_CHESTS = [
@@ -3217,7 +3229,7 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace: сун�
       w: 9, h: 11, xp: 1, trigger: 'chainmail', seed: 2983680956,
       hash: 0x47b239cb, r1: 0.022784294560551643,
       r2: 0.6040003078524023, tier: 'common',
-      replaced: 'iron_tongs', chests: CH5_CRYPT_CHESTS },
+      replaced: 'clay_crucible', chests: CH5_CRYPT_CHESTS },
     { name: 'RUINS', type: 2, terrain: M.TERRAIN.MOUNTAIN,
       px: CH5_PX, trig: 'c3',
       w: 9, h: 9, xp: 3, trigger: 'knight_plate', seed: 801567646,
@@ -3310,7 +3322,10 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace: сун�
 // CHEST_EQ_SALT)): r1 0.014351648511365056 → common, r2
 // 0.4499427538830787 → floor(r2·90) = 40 → cloth_cuff. РЕ-ПИН
 // 000230.15: common-пул 90 → 110 (+20 ног/ступней концом) →
-// floor(r2·110) = 49 → hide_cuff (post-merge ре-симуляция). БЕЗ slot
+// floor(r2·110) = 49 → hide_cuff (post-merge ре-симуляция). РЕ-ПИН
+// 000230.19: common-пул 110 → 111 (+traveler_cloak концом) →
+// floor(r2·111) = 49 — hide_cuff БЕЗ ИЗМЕНЕНИЙ (post-merge
+// ре-симуляция). БЕЗ slot
 // (in-place delete в ITEMS-синглтоне, restore finally) — iron_sword
 // остаётся в сундуке (до-волновое поведение). ВСЁ остальное
 // (seed/mobs/deposits/позиции/gold) — бит-в-бит.
@@ -3336,7 +3351,8 @@ test('000230.12-CH: remap оружий (slot: right_hand) — chest-replace ак
     'r1 → тир «common»');
   assert.equal(
     Math.floor(0.4499427538830787 * L.EQUIP_POOLS.common.length), 49,
-    'floor(r2·110) = 49 (common-пул 110 post-merge 000230.15)');
+    'floor(r2·111) = 49 (common-пул 111: post-merge 000230.15 '
+    + '110, ре-пин 000230.19 +traveler_cloak — индекс без изменений)');
   assert.equal(L.EQUIP_POOLS.common[49], 'hide_cuff',
     'common[49] = hide_cuff');
   const it = ITEMS.find((x) => x.id === 'iron_sword');

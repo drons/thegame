@@ -37,7 +37,9 @@
   // id в каталожном порядке внутри тира (сначала head, потом ears,
   // потом neck, потом torso, потом forearms, потом palms, потом
   // right_hand, потом left_hand, потом rings, потом legs, потом feet);
-  // волны 000230.11–.15 добавляют свои id КОНЦОМ тиров.
+  // волны 000230.11–.15 добавляют свои id КОНЦОМ тиров;
+  // 000230.19 — 2 set-предмета (traveler_cloak концом common,
+  // mystic_sutan концом epic).
   const EQUIP_POOLS = {
     common: ['straw_hat', 'wool_cap', 'leather_cap', 'fur_hat',
              'cloth_band', 'wanderer_cap', 'hood_common',
@@ -75,7 +77,8 @@
              'cloth_loincloth', 'straw_sandals', 'cloth_sandals',
              'leather_sandals', 'wool_boots', 'felt_boots',
              'leather_boots', 'travel_boots', 'hide_boots',
-             'wooden_sandals', 'hemp_sandals'],
+             'wooden_sandals', 'hemp_sandals',
+             'traveler_cloak'],
     rare: ['silver_band', 'copper_band', 'obsidian_cloth',
            'amethyst_band', 'quartz_cloth', 'bone_band', 'mystic_cloth',
            'stone_bead', 'silver_hoop', 'moonstone_dangle',
@@ -123,7 +126,7 @@
            'sapphire_leggings', 'ember_pants', 'emerald_greaves',
            'gold_leggings', 'mithril_greaves', 'sapphire_boots',
            'frost_sandals', 'emerald_boots', 'gold_sandals',
-           'mithril_boots'],
+           'mithril_boots', 'mystic_sutan'],
     legendary: ['rune_hoop', 'star_hoop', 'star_earring', 'whisper_hoop',
                 'rune_necklace', 'star_pendant',
                 'pilgrim_sutan', 'void_robe',

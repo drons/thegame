@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000457.json);
+  // Предметы (assets/items/000001.json … 000459.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -5938,6 +5938,38 @@
       slot: "feet",
       rarity: "impossible",
       affixes: [{ type: "skill", skill: "step", amount: 0.4 }, { type: "skill", skill: "endurance", amount: 0.35 }],
+    },
+    // 000458.json
+    {
+      id: "traveler_cloak",
+      name: "Страннический плащ",
+      kind: "armor",
+      weight: 0.9,
+      value: 40,
+      desc: "Страннический плащ: дорога не замечает.",
+      stats: { armor: 1 },
+      icon: "assets/sprites/items/traveler_cloak.svg",
+      slot: "torso",
+      rarity: "common",
+      set: "traveller",
+      affixes: [{ type: "skill", skill: "step", amount: 0.05 }],
+      set_bonus: { 2: { armor: 1 } },
+    },
+    // 000459.json
+    {
+      id: "mystic_sutan",
+      name: "Мистическая сутана",
+      kind: "armor",
+      weight: 1.8,
+      value: 300,
+      desc: "Мистическая сутана: тишина шьётся из звёзд.",
+      stats: { armor: 3 },
+      icon: "assets/sprites/items/mystic_sutan.svg",
+      slot: "torso",
+      rarity: "epic",
+      set: "mystic",
+      affixes: [{ type: "skill", skill: "meditation", amount: 0.15 }],
+      set_bonus: { 2: [{ type: "skill", skill: "meditation", amount: 0.05 }] },
     },
   ];
 

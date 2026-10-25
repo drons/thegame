@@ -1,0 +1,27 @@
+{
+  "id": "traveler_cloak",
+  "name": "Страннический плащ",
+  "kind": "armor",
+  "weight": 0.9,
+  "value": 40,
+  "desc": "Страннический плащ: дорога не замечает.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/traveler_cloak.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "set": "traveller",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.05
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "mystic_sutan",
+  "name": "Мистическая сутана",
+  "kind": "armor",
+  "weight": 1.8,
+  "value": 300,
+  "desc": "Мистическая сутана: тишина шьётся из звёзд.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/mystic_sutan.svg",
+  "slot": "torso",
+  "rarity": "epic",
+  "set": "mystic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.15
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.05
+      }
+    ]
+  }
+}

@@ -3666,11 +3666,11 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
   assert.deepEqual(s1.stock, s2.stock, 'детерминированность');
   assert.equal(s1.seed, seedD1,
     'seed = (hash2(x,y,CAMP_STOCK_SEED) ^ ((day+1)·0x9E3779B9)) >>> 0');
-  // Golden-сток (10,20,день 1,wealth 2) — пул 233 предметов
-  // (3 food + 5 potion + 22 weapon + 203 armor — виды каталога;
+  // Golden-сток (10,20,день 1,wealth 2) — пул 235 предметов
+  // (3 food + 5 potion + 22 weapon + 205 armor — виды каталога;
   // ре-пин 000230.09: 43 → 93; ре-пин 000230.10: 93 → 118;
   // ре-пин 000230.11: 118 → 168; ре-пин 000230.12: 168 → 183;
-  // ре-пин 000230.15: 183 → 233).
+  // ре-пин 000230.15: 183 → 233; ре-пин 000230.19: 233 → 235).
   // Ре-пин 000230.08: +25 head-предметов концом пула — существующие
   // ключи не сдвигаются (append-only), += новые rng-хвостом
   // (пересимулировано node; зеркало GOLDEN_CAMP в items.test.js).
@@ -3701,6 +3701,10 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
   // bone_sandals/copper_boots/gold_sandals/mithril_boots),
   // существующие ключи не сдвигаются (пересимулировано node;
   // зеркало GOLDEN_CAMP в items.test.js).
+  // Ре-пин 000230.19: +2 torso-наборы (000458-000459, kind armor)
+  // концом пула (233 → 235) — += 2 rng-хвостом (traveler_cloak/
+  // mystic_sutan), существующие ключи не сдвигаются
+  // (пересимулировано node; зеркало GOLDEN_CAMP в items.test.js).
 
   assert.deepEqual(s1.stock, {
     iron_sword: 3, battle_axe: 3, war_hammer: 2,
@@ -3788,7 +3792,7 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
     hemp_sandals: 1, silver_boots: 3, stone_sandals: 1, obsidian_sandals: 4,
     amethyst_boots: 2, mystic_sandals: 2, sapphire_boots: 3,
     frost_sandals: 1, emerald_boots: 3, storm_sandals: 2, rune_boots: 4,
-    swift_boots: 3
+    swift_boots: 3, traveler_cloak: 4, mystic_sutan: 3
   }, 'golden-сток (10,20,день 1,w2)');
   // Форма обёртки: buildingType — id КАТАЛОГА (47, не слот).
   assert.deepEqual(
@@ -7814,6 +7818,9 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
   // titan_greaves/leather_sandals/leather_boots/travel_boots/
   // hide_boots/wooden_sandals/obsidian_sandals/amethyst_boots/
   // gold_sandals), ключи не сдвигаются (пересимулировано node).
+  // Ре-пин 000230.19: +2 torso-наборы (000458-000459) концом пула —
+  // += 1 (traveler_cloak; mystic_sutan в этом (tile,day) не выпал),
+  // ключи не сдвигаются (пересимулировано node).
 
   assert.deepEqual(JSON.parse(JSON.stringify(entry0.stock)), {
     wood_sword: 1, steel_sword: 1, short_bow: 2,
@@ -7872,7 +7879,7 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
     hemp_sandals: 1, bone_sandals: 1, copper_boots: 2, silver_boots: 2,
     stone_sandals: 2, mystic_sandals: 1, sapphire_boots: 1, frost_sandals: 2,
     emerald_boots: 1, mithril_boots: 1, storm_sandals: 1, rune_boots: 1,
-    swift_boots: 1
+    swift_boots: 1, traveler_cloak: 2
   }, 'golden-сток стойки (40,40, день 1, w0)');
   for (const id of Object.keys(entry0.stock)) {
     assert.ok(['food', 'potion', 'weapon', 'armor']
@@ -7975,6 +7982,9 @@ test('B27. детерминизм барахолки: два мира, один 
   // wooden_sandals/hemp_sandals/stone_sandals/amethyst_boots/
   // rune_boots/swift_boots), ключи не сдвигаются
   // (пересимулировано node).
+  // Ре-пин 000230.19: +2 torso-наборы (000458-000459) концом пула —
+  // += 1 (mystic_sutan; traveler_cloak в этом (tile,day) не выпал),
+  // ключи не сдвигаются (пересимулировано node).
 
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)), {
     iron_sword: 2, hunting_bow: 1, battle_axe: 1,
@@ -8035,7 +8045,7 @@ test('B27. детерминизм барахолки: два мира, один 
     travel_boots: 1, hide_boots: 1, bone_sandals: 1, copper_boots: 2,
     silver_boots: 1, obsidian_sandals: 2, mystic_sandals: 2,
     sapphire_boots: 2, frost_sandals: 1, emerald_boots: 1, gold_sandals: 2,
-    mithril_boots: 2, storm_sandals: 1
+    mithril_boots: 2, storm_sandals: 1, mystic_sutan: 1
   }, 'golden-сток дня 2 (40,40, w0) — кросс-реалем-пин формулы');
   assert.equal(s1d2.seed, s2d2.seed, 'seed дня 2 — одинаков');
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)),
