@@ -1491,6 +1491,7 @@
       const healed = healAlly(c, p, Math.round(vamp * r.dmg));
       if (healed > 0) log(c, `Вампиризм: +${healed}.`);
     }
+    let prFright = null;
     // 000271: «Застращивание» — fearChance (d.fearChance, sheet.js:519):
     // попадание на живого моба уровнем ниже героя — бросок страха
     // (гейт ДО броска — 0 c._rng без навыка/разницы, бит-в-бит); fled —
@@ -1500,6 +1501,8 @@
       t.fled = true;
       log(c, `${t.name} в панике убегает!`);
       checkVictory(c);
+      // 000279: практик-XP «Застращивание» за успешную панику (spec/skills.md:94).
+      prFright = P.skillPractice(p, 'fright', PRACTICE_XP.hit);
     }
     // Практика: попадание даёт опыт навыка оружия (задача 000013).
     const skillId = attackSkillId(eq);
@@ -1507,6 +1510,7 @@
     return {
       ok: true, hit: true, ...r,
       practice: { skill: skillId, xp: PRACTICE_XP.hit, applied: pr.applied, level: pr.level },
+      ...(prFright ? { frightPractice: { skill: 'fright', xp: PRACTICE_XP.hit, applied: prFright.applied, level: prFright.level } } : {}),
     };
   }
 
