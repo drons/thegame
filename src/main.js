@@ -3291,6 +3291,16 @@
   // и слой спрайтов). 000176: наполнение одно, legacy-вершины — только
   // под элементами, которые спрайт-слой не рисует (поэлементный гейт).
   const frameTiles = [];
+  let frameTilesKey = null;
+  let frameTilesRebuilds = 0;
+  let frameTilesHits = 0;
+  let worldVersion = 0;
+
+  function exploredSize() {
+    let n = 0;
+    for (const s of explored.values()) n += s.size;
+    return n;
+  }
 
   const WORLD_CHUNK_MIN_TILES = 8192;
   let worldChunkCache = null;
@@ -3463,12 +3473,56 @@
              entrance: [ax, ay], wealth: 0 };
   }
 
+  function legacyTileVerts(t, tx, ty, now, verts) {
+    if (!tileFrameImg(t, now)) {
+      const base = TILE_COLORS[t.terrain];
+      // Небольшое вариативное освещение, чтобы тайлы не были
+      // «кляксами» (шум — только для рисуемых legacy-тайлов).
+      const b = map.brightness(tx, ty);
+      const c = [base[0] + b * 0.05, base[1] + b * 0.05, base[2] + b * 0.05];
+      pushQuad(verts, tx, ty, tx + 1, ty + 1, c);
+    }
+
+    // Маркеры на тайле.
+    if (t.hasBuilding) {
+      // Якорь — из тайла (проход 2 собирает якоря так же:
+      // t.buildingAnchor): вход НЕ всегда якорь (3x3 школа/храм,
+      // 2x2/5x5/7x7 города — «вход» каталога смещён),
+      // buildingAt(вход) дало бы null — и маркер «пролил» бы
+      // под готовым спрайтом (000176).
+      const a = t.buildingAnchor;
+      const rec = a ? buildingRec(a[0], a[1]) : buildingRec(t.x, t.y);
+      const asset = rec ? buildingAsset(rec, now) : null;
+      const bimg = (spriteLoader && asset)
+        ? spriteLoader.image(asset) : null;
+      if (!bimg) {
+        pushQuad(verts, tx + 0.30, ty + 0.30, tx + 0.70, ty + 0.70, BUILDING_COLOR);
+      }
+    } else if (t.hasMobGroup) {
+      // Паритет groupVisible с проходом 3 (000122): поверженная
+      // группа скрыта В ОБОИХ слоях — после победы красного
+      // квадрата нет (фикс «прола», 000176).
+      const visible = !G.groupVisible
+        || G.groupVisible(defeatedAt, t.x, t.y);
+      if (visible && !mobFrameImg(t, now)) {
+        // 000173: заряжающаяся группа — ДРОБНАЯ точка глейда
+        // (принцип 000033: оба слоя — одна точка кадра, иначе при
+        // WebGL-фолбэке фича невидима); без заряда — целые тайловые
+        // координаты (бит-в-бит как до).
+        const mch = (mobCharge && mobCharge.key === t.x + ',' + t.y)
+          ? mobCharge.mover.position(now) : null;
+        const mx = mch ? mch.x : tx, my = mch ? mch.y : ty;
+        pushQuad(verts, mx + 0.30, my + 0.30, mx + 0.70, my + 0.70,
+          MOB_COLOR);
+      }
+    }
+  }
+
   // now — время кадра: заряд группы (000173) спрашивает у мувера
   // дробную точку от него (время — только аргумент кадра, D-RNG-1).
   function buildFrame(rp, now) {
     const verts = quadVerts;
     verts.length = 0;
-    frameTiles.length = 0;
 
     // Отрисовываем только видимую область + запас (000019); тайлы
     // берём из кэша — шум пересчитывается лишь для новых тайлов.
@@ -3482,53 +3536,33 @@
     // DYNAMIC_DRAW-семантика фолбэка), пересборка Float32Array с
     // данными и шум brightness() убраны (нагрузка из 000176).
     const range = G.visibleTileRange(cam.x, cam.y, canvas.width, canvas.height, zoom);
-    for (let ty = range.y0; ty <= range.y1; ty++) {
-      for (let tx = range.x0; tx <= range.x1; tx++) {
-        const t = tileCache.tile(tx, ty);
-        frameTiles.push(t); // {x, y, terrain, passable, hasBuilding, building, hasMobGroup, mobGroup}
-        if (!tileFrameImg(t, now)) {
-          const base = TILE_COLORS[t.terrain];
-          // Небольшое вариативное освещение, чтобы тайлы не были
-          // «кляксами» (шум — только для рисуемых legacy-тайлов).
-          const b = map.brightness(tx, ty);
-          const c = [base[0] + b * 0.05, base[1] + b * 0.05, base[2] + b * 0.05];
-          pushQuad(verts, tx, ty, tx + 1, ty + 1, c);
-        }
-
-        // Маркеры на тайле.
-        if (t.hasBuilding) {
-          // Якорь — из тайла (проход 2 собирает якоря так же:
-          // t.buildingAnchor): вход НЕ всегда якорь (3x3 школа/храм,
-          // 2x2/5x5/7x7 города — «вход» каталога смещён),
-          // buildingAt(вход) дало бы null — и маркер «пролил» бы
-          // под готовым спрайтом (000176).
-          const a = t.buildingAnchor;
-          const rec = a ? buildingRec(a[0], a[1]) : buildingRec(t.x, t.y);
-          const asset = rec ? buildingAsset(rec, now) : null;
-          const bimg = (spriteLoader && asset)
-            ? spriteLoader.image(asset) : null;
-          if (!bimg) {
-            pushQuad(verts, tx + 0.30, ty + 0.30, tx + 0.70, ty + 0.70, BUILDING_COLOR);
-          }
-        } else if (t.hasMobGroup) {
-          // Паритет groupVisible с проходом 3 (000122): поверженная
-          // группа скрыта В ОБОИХ слоях — после победы красного
-          // квадрата нет (фикс «прола», 000176).
-          const visible = !G.groupVisible
-            || G.groupVisible(defeatedAt, t.x, t.y);
-          if (visible && !mobFrameImg(t, now)) {
-            // 000173: заряжающаяся группа — ДРОБНАЯ точка глейда
-            // (принцип 000033: оба слоя — одна точка кадра, иначе при
-            // WebGL-фолбэке фича невидима); без заряда — целые тайловые
-            // координаты (бит-в-бит как до).
-            const mch = (mobCharge && mobCharge.key === t.x + ',' + t.y)
-              ? mobCharge.mover.position(now) : null;
-            const mx = mch ? mch.x : tx, my = mch ? mch.y : ty;
-            pushQuad(verts, mx + 0.30, my + 0.30, mx + 0.70, my + 0.70,
-              MOB_COLOR);
-          }
+    const exploredVersion = exploredSize();
+    const hit = frameTilesKey !== null
+      && frameTilesKey.x0 === range.x0
+      && frameTilesKey.y0 === range.y0
+      && frameTilesKey.x1 === range.x1
+      && frameTilesKey.y1 === range.y1
+      && frameTilesKey.worldVersion === worldVersion
+      && frameTilesKey.exploredVersion === exploredVersion;
+    if (hit) {
+      frameTilesHits += 1;
+      for (const t of frameTiles) {
+        legacyTileVerts(t, t.x, t.y, now, verts);
+      }
+    } else {
+      frameTiles.length = 0;
+      for (let ty = range.y0; ty <= range.y1; ty++) {
+        for (let tx = range.x0; tx <= range.x1; tx++) {
+          const t = tileCache.tile(tx, ty);
+          frameTiles.push(t); // {x, y, terrain, passable, hasBuilding, building, hasMobGroup, mobGroup}
+          legacyTileVerts(t, tx, ty, now, verts);
         }
       }
+      frameTilesKey = {
+        x0: range.x0, y0: range.y0, x1: range.x1, y1: range.y1,
+        worldVersion, exploredVersion,
+      };
+      frameTilesRebuilds += 1;
     }
 
     // Флогистон: светящийся ромб в ТЕКУЩЕЙ позиции (задача 000033) —
@@ -4086,6 +4120,13 @@
         cam: { x: cam.x, y: cam.y },
         zoom,
         chunkCache: worldChunkCache ? worldChunkCache.stats() : null,
+        frameTilesCache: {
+          size: frameTiles.length,
+          hits: frameTilesHits,
+          rebuilds: frameTilesRebuilds,
+          key: frameTilesKey,
+          tiles: frameTiles,
+        },
         day: clock.day,
         stepsToday: clock.steps,
         save: loadedSave
@@ -4310,6 +4351,25 @@
         const r = G.addItem(hero, id, qty || 1);
         G.playerUI && G.playerUI.render();
         return r;
+      },
+      bumpWorldVersion: () => {
+        worldVersion += 1;
+      },
+      spawnBuildingTile: (x, y) => {
+        const t = tileCache.tile(x, y);
+        t.hasBuilding = true;
+        t.buildingAnchor = [x, y];
+        t.inBuilding = true;
+        worldVersion += 1;
+      },
+      buildFrameOnce: (now = performance.now()) => {
+        const verts = buildFrame(renderPos(now), now);
+        return {
+          verts: verts.length,
+          size: frameTiles.length,
+          hits: frameTilesHits,
+          rebuilds: frameTilesRebuilds,
+        };
       },
     },
   };
