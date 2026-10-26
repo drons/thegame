@@ -208,3 +208,94 @@ test('000272-DET-1: детерминизм — одинаковый сид → �
   };
   assert.deepEqual(run(), run(), 'сид 13 → идентичный бой (2 прогона)');
 });
+
+// 000281 (микро-дрейф после ретро RETRO-20261026 — findings T1+D1/D2+T3;
+// ТЗ tasks/pending/000281.md; контракт memory/000281-000272-regen-pins.md)
+// — 2 пина покрытия 000272 (baf3116): поведение ЕСТЬ (смержено), пина НЕТ
+// (coverage-gap; прецедент 000240 a3 §3 — пиновые тесты зелёные с 1-го
+// запуска, «красный» = отсутствие пина, чувствительность — только под
+// временной мутацией src/, протокол контракта §6; src/ не меняется).
+// Именование: префикс = задача-добавитель (000281); существующие 5 тестов —
+// 000272-* (созданы 000272). Хелперы winterCombat/hpByRound — файл-локальные
+// (0 дублирования).
+
+test('000281-DEAD-1: мёртвый призывной (a.alive=false, white-box) — реген-тика НЕТ: livingAllies (src/combat.js:3012; фильтр :649-650 alive/fled) мёртвых не тикает, hp = 0 сохраняется; бой продолжается (пин покрытия 000272, 000281)', () => {
+  const { c, a } = winterCombat();
+  // WHITE-BOX гибель ДО первых endTurn — зеркало игрового death-пути
+  // (dealDamageToAlly, src/combat.js:1142-1144: t.hp = 0; t.alive = false);
+  // white-box-прецеденты: tests/combat-quick-ally.test.js:191,
+  // tests/ally-spells.test.js:433.
+  a.alive = false;
+  a.hp = 0;
+  const wolf = c.units.find((u) => u.side === 'mob');
+  const wolfHp0 = wolf.hp;
+  const per = hpByRound(c, a, 6);
+  assert.deepEqual(
+    [per[2], per[3], per[4], per[5], per[6]],
+    [0, 0, 0, 0, 0],
+    'мёртвый призывной — реген-тика НЕТ во всех раундах 2..6; факт: '
+    + JSON.stringify([per[2], per[3], per[4], per[5], per[6]]));
+  assert.equal(a.hp, 0, 'hp = 0 сохраняется (без тика)');
+  assert.equal(a.alive, false, 'alive — false (не воскрешён)');
+  assert.equal(a.fled, false, 'гибель ≠ рассеивание (000235.01 C4)');
+  assert.ok(c.units.includes(a),
+    'юнит НЕ удалён из c.units (исключение — alive-фильтром livingAllies, '
+    + 'а не выкидыванием)');
+  assert.equal(c.result, null,
+    'окно наблюдения валидно: бой не кончился (игрок 9999 hp, _rng 0.99)');
+  assert.equal(c.player.hp, 9999, 'контроль: игрок не пострадал');
+  assert.equal(wolf.hp, wolfHp0, 'контроль: hp волка неизменны');
+  // Резкость: тик по мёртвому дал бы hp = min(28, 0+3) = 3 — состояние
+  // «зомби» (alive=false, hp>0) непроизводимо НИОДНОЙ другой веткой
+  // (воскрешение 000163 — явный каст, ставит alive=true) → пин ловит
+  // регрессию фильтра livingAllies (:650 u.alive) / порядка однозначно.
+});
+
+test('000281-DBL-1: призывной с a.buff «реген» + traits.regen — ОБЕ формы лечения в ОДНОМ раунде (+value+d, rounds 2/3), round 4 — только трейт (независимые циклы); порядок тиков — как в коде (healAlly :3039-3040 ДО trait-тика :3043-3044), в hp ненаблюдаем (мин-кап коммутативен, 000272 §2) (пин покрытия 000272, 000281)', () => {
+  const { c, a } = winterCombat();
+  // WHITE-BOX баф (формат u.buff — 000235.01/000267; прецедент прямой
+  // записи tests/combat.test.js:10789) + h0 = 5: запас до потолка максимум
+  // 5+8+8+3 = 24 ≤ 28 — кап maxHP в траектории НЕ участвует, дельты
+  // читаются чистыми. V = 5 сознательно ≠ d = 3 — сумма V+d = 8 различима
+  // с каждой формой по отдельности. turns: 2 (а не 3) — round 4 остаётся
+  // ТОЛЬКО трейт-дельта (= d): пин дополнительно ассертит НЕЗАВИСИМЫЕ
+  // жизненные циклы двух форм (a.buff.turns vs постоянный трейт).
+  a.buff = { stat: 'реген', turns: 2, value: 5 };
+  a.hp = 5;
+  const h0 = a.hp;
+  const d = Math.max(1, Math.round(a.maxHP * 0.1));
+  const V = a.buff.value;
+  assert.equal(d, 3, 'd — max(1, round(28×0.1)) = 3 (моб-паттерн 000272)');
+  const per = hpByRound(c, a, 6);
+  assert.deepEqual(
+    [per[2], per[3], per[4], per[5], per[6]],
+    [h0 + V + d, h0 + 2 * (V + d), h0 + 2 * (V + d) + d,
+      h0 + 2 * (V + d) + d, h0 + 2 * (V + d) + d],
+    'rounds 2/3 — ОБА тика за раунд (+V+d), round 4 — только трейт (+d), '
+    + 'rounds 5/6 — рассеивание/вне livingAllies (флэт); факт: '
+    + JSON.stringify([per[2], per[3], per[4], per[5], per[6]]));
+  assert.equal(per[2] - h0, V + d,
+    'round 2: двойное лечение в ОДНОМ раунде (+value+d) — суть пина');
+  assert.equal(per[3] - per[2], V + d, 'round 3: баф ещё активен (turns 2→1)');
+  assert.equal(per[4] - per[3], d,
+    'round 4: баф истёк (turns 1→0) — ТОЛЬКО трейт');
+  assert.equal(per[5], per[4],
+    'round 5: summonTurns 1→0 → рассеивание, continue выше тиков '
+    + '(000272-DISP-1)');
+  assert.equal(per[6], per[4], 'round 6: вне livingAllies');
+  assert.equal(a.buff.turns, 0, 'баф истёк (turns — 0)');
+  assert.equal(a.summonTurns, 0, 'summonTurns — 0');
+  assert.equal(a.fled, true, 'рассеивание — не смерть');
+  assert.equal(a.alive, true, 'hp сохраняется (не труп)');
+  // ПОРЯДОК тиков — как в коде: a.buff-тик healAlly (src/combat.js:3039-3040)
+  // ДО trait-тика (:3043-3044, коммент :3042). Порядок НЕНАБЛЮДАЕМ в hp —
+  // оба хила независимо клампятся maxHP, min-клампы коммутативны
+  // (min(M, min(M,h+V)+d) = min(M, h+V+d) = обратный порядок), оба хила
+  // МОЛЧА (c.log не растёт от тиков) — контракт
+  // memory/000272-summon-regen.md §2 («двойной тик — штатная композиция
+  // (прецедент Z2, 000267 §7.5), не баг»). Пин ассертит СУММУ; порядок
+  // закреплён этим комментом, не ассертом.
+  // Различимость от одномеханических регрессий: только трейт →
+  // [8,11,14,14,14]; только баф → [10,15,15,15,15] — оба отличаются от
+  // [13,21,24,24,24] в каждом раунде.
+});
