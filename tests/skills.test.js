@@ -130,7 +130,7 @@ test('каждый файл: известные поля, без лишних', 
         `${file}: primary "${data.primary}" не основной навык`);
       assert.equal(typeof data.effect.stat, 'string', `${file}: effect.stat`);
       assert.equal(typeof data.effect.perLevel, 'number', `${file}: effect.perLevel`);
-      assert.ok(['Бой', 'Карта', 'Бой/Карта'].includes(data.effectType),
+      assert.ok(['Бой', 'Карта', 'Бой/Карта', 'ОТСРОЧЕНО'].includes(data.effectType),
         `${file}: effectType "${data.effectType}"`);
       assert.ok(Array.isArray(data.names) && data.names.length === 6,
         `${file}: names — 6 имён по рангам`);
@@ -295,7 +295,7 @@ test('schema.json: структура (oneOf: primary | secondary)', () => {
   assert.equal(sec.properties.names.minItems, 6, 'names: ровно 6 имён');
   assert.equal(sec.properties.names.maxItems, 6, 'names: ровно 6 имён');
   assert.deepEqual(sec.properties.effectType.enum,
-    ['Бой', 'Карта', 'Бой/Карта'], 'effectType: enum');
+    ['Бой', 'Карта', 'Бой/Карта', 'ОТСРОЧЕНО'], 'effectType: enum');
   assert.equal(sec.properties.requires.additionalProperties, false, 'requires');
   assert.ok(sec.required.includes('effect'), 'secondary: effect обязателен');
   assert.ok(!sec.required.includes('requires'),
@@ -310,4 +310,68 @@ test('ранги: 6 рангов покрывают уровни 1..100 без �
       `ранг ${i}: разрыв между рангами`);
   }
   assert.equal(RANKS[RANKS.length - 1].max, 100, 'последний ранг до 100');
+});
+
+test('000280 V1: forge (000010) — effectType «Карта» + desc «+5% к качеству собственного крафта за уровень»', () => {
+  const d = loadCatalog().byNumber.get(10).data;
+  assert.equal(d.effectType, 'Карта',
+    `forge: effectType ожидало «Карта», факт «${d.effectType}»`);
+  assert.equal(d.desc, '+5% к качеству собственного крафта за уровень',
+    `forge: desc ожидало «+5% к качеству собственного крафта за уровень», факт «${d.desc}»`);
+});
+
+test('000280 V2: acro (000016) — effectType «ОТСРОЧЕНО» + desc «ОТСРОЧЕНО: потребителей стата в коде нет»', () => {
+  const d = loadCatalog().byNumber.get(16).data;
+  assert.equal(d.effectType, 'ОТСРОЧЕНО',
+    `acro: effectType ожидало «ОТСРОЧЕНО», факт «${d.effectType}»`);
+  assert.equal(d.desc, 'ОТСРОЧЕНО: потребителей стата в коде нет',
+    `acro: desc ожидало «ОТСРОЧЕНО: потребителей стата в коде нет», факт «${d.desc}»`);
+});
+
+test('000280 V3: thief (000017) — effectType «Карта» + desc «Колодец: +5% шанс предмета на дне за уровень»', () => {
+  const d = loadCatalog().byNumber.get(17).data;
+  assert.equal(d.effectType, 'Карта',
+    `thief: effectType ожидало «Карта», факт «${d.effectType}»`);
+  assert.equal(d.desc, 'Колодец: +5% шанс предмета на дне за уровень',
+    `thief: desc ожидало «Колодец: +5% шанс предмета на дне за уровень», факт «${d.desc}»`);
+});
+
+test('000280 V4: endurance (000019) — effectType «Бой» + desc «+3% к максимальному здоровью за уровень»', () => {
+  const d = loadCatalog().byNumber.get(19).data;
+  assert.equal(d.effectType, 'Бой',
+    `endurance: effectType ожидало «Бой», факт «${d.effectType}»`);
+  assert.equal(d.desc, '+3% к максимальному здоровью за уровень',
+    `endurance: desc ожидало «+3% к максимальному здоровью за уровень», факт «${d.desc}»`);
+});
+
+test('000280 V5: golem (000020) — effectType «Бой» + desc «+2% макс. здоровье и +1 броня за уровень»', () => {
+  const d = loadCatalog().byNumber.get(20).data;
+  assert.equal(d.effectType, 'Бой',
+    `golem: effectType ожидало «Бой», факт «${d.effectType}»`);
+  assert.equal(d.desc, '+2% макс. здоровье и +1 броня за уровень',
+    `golem: desc ожидало «+2% макс. здоровье и +1 броня за уровень», факт «${d.desc}»`);
+});
+
+test('000280 V6: leader (000035) — effectType «Бой» + desc «+5% мораль спутников за уровень»', () => {
+  const d = loadCatalog().byNumber.get(35).data;
+  assert.equal(d.effectType, 'Бой',
+    `leader: effectType ожидало «Бой», факт «${d.effectType}»`);
+  assert.equal(d.desc, '+5% мораль спутников за уровень',
+    `leader: desc ожидало «+5% мораль спутников за уровень», факт «${d.desc}»`);
+});
+
+test('000280 V7: artist (000036) — effectType «Карта» + desc «+10% заработок на выступлениях за уровень»', () => {
+  const d = loadCatalog().byNumber.get(36).data;
+  assert.equal(d.effectType, 'Карта',
+    `artist: effectType ожидало «Карта», факт «${d.effectType}»`);
+  assert.equal(d.desc, '+10% заработок на выступлениях за уровень',
+    `artist: desc ожидало «+10% заработок на выступлениях за уровень», факт «${d.desc}»`);
+});
+
+test('000280 V8: fright (000037) — effectType «Бой» + desc «5% за уровень шанс напугать моба уровнем ниже»', () => {
+  const d = loadCatalog().byNumber.get(37).data;
+  assert.equal(d.effectType, 'Бой',
+    `fright: effectType ожидало «Бой», факт «${d.effectType}»`);
+  assert.equal(d.desc, '5% за уровень шанс напугать моба уровнем ниже',
+    `fright: desc ожидало «5% за уровень шанс напугать моба уровнем ниже», факт «${d.desc}»`);
 });

@@ -11,7 +11,7 @@
     "stat": "maxHPMult",
     "perLevel": 0.02
   },
-  "effectType": "Бой/Карта",
+  "effectType": "Бой",
   "desc": "+2% макс. здоровье и +1 броня за уровень",
   "names": [
     "Каменное сердце",

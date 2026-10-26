@@ -7,7 +7,7 @@
     "stat": "performanceIncomeMult",
     "perLevel": 0.1
   },
-  "effectType": "Бой/Карта",
+  "effectType": "Карта",
   "desc": "+10% заработок на выступлениях за уровень",
   "names": [
     "Сказитель",

@@ -11,7 +11,7 @@
     "stat": "fearChance",
     "perLevel": 0.05
   },
-  "effectType": "Бой/Карта",
+  "effectType": "Бой",
   "desc": "5% за уровень шанс напугать моба уровнем ниже",
   "names": [
     "Взгляд",

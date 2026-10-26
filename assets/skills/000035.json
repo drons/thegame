@@ -11,7 +11,7 @@
     "stat": "companionMoraleBonus",
     "perLevel": 0.05
   },
-  "effectType": "Бой/Карта",
+  "effectType": "Бой",
   "desc": "+5% мораль спутников за уровень",
   "names": [
     "Бунтарь",
